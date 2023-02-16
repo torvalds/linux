@@ -11,8 +11,7 @@
 
 / {
 	model = "OMAP3 GTA04";
-	compatible = "ti,omap3-gta04", "ti,omap3630", "ti,omap36xx", "ti,omap3";
-
+	compatible = "goldelico,gta04", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vcc>;
