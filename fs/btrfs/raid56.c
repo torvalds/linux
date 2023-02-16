@@ -1426,12 +1426,20 @@ static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bi
 	u32 bio_size = 0;
 	struct bio_vec *bvec;
 	struct bvec_iter_all iter_all;
+	int i;
 
 	bio_for_each_segment_all(bvec, bio, iter_all)
 		bio_size += bvec->bv_len;
 
-	bitmap_set(rbio->error_bitmap, total_sector_nr,
-		   bio_size >> rbio->bioc->fs_info->sectorsize_bits);
+	/*
+	 * Since we can have multiple bios touching the error_bitmap, we cannot
+	 * call bitmap_set() without protection.
+	 *
+	 * Instead use set_bit() for each bit, as set_bit() itself is atomic.
+	 */
+	for (i = total_sector_nr; i < total_sector_nr +
+	     (bio_size >> rbio->bioc->fs_info->sectorsize_bits); i++)
+		set_bit(i, rbio->error_bitmap);
 }
 
 /* Verify the data sectors at read time. */
@@ -1886,7 +1894,7 @@ pstripe:
 		sector->uptodate = 1;
 	}
 	if (failb >= 0) {
-		ret = verify_one_sector(rbio, faila, sector_nr);
+		ret = verify_one_sector(rbio, failb, sector_nr);
 		if (ret < 0)
 			goto cleanup;
 
@@ -2646,7 +2654,7 @@ static int recover_scrub_rbio(struct btrfs_raid_bio *rbio)
 	void **pointers = NULL;
 	void **unmap_array = NULL;
 	int sector_nr;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * @pointers array stores the pointer for each sector.

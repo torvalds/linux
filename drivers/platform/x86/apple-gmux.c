@@ -64,29 +64,6 @@ struct apple_gmux_data {
 
 static struct apple_gmux_data *apple_gmux_data;
 
-/*
- * gmux port offsets. Many of these are not yet used, but may be in the
- * future, and it's useful to have them documented here anyhow.
- */
-#define GMUX_PORT_VERSION_MAJOR		0x04
-#define GMUX_PORT_VERSION_MINOR		0x05
-#define GMUX_PORT_VERSION_RELEASE	0x06
-#define GMUX_PORT_SWITCH_DISPLAY	0x10
-#define GMUX_PORT_SWITCH_GET_DISPLAY	0x11
-#define GMUX_PORT_INTERRUPT_ENABLE	0x14
-#define GMUX_PORT_INTERRUPT_STATUS	0x16
-#define GMUX_PORT_SWITCH_DDC		0x28
-#define GMUX_PORT_SWITCH_EXTERNAL	0x40
-#define GMUX_PORT_SWITCH_GET_EXTERNAL	0x41
-#define GMUX_PORT_DISCRETE_POWER	0x50
-#define GMUX_PORT_MAX_BRIGHTNESS	0x70
-#define GMUX_PORT_BRIGHTNESS		0x74
-#define GMUX_PORT_VALUE			0xc2
-#define GMUX_PORT_READ			0xd0
-#define GMUX_PORT_WRITE			0xd4
-
-#define GMUX_MIN_IO_LEN			(GMUX_PORT_BRIGHTNESS + 4)
-
 #define GMUX_INTERRUPT_ENABLE		0xff
 #define GMUX_INTERRUPT_DISABLE		0x00
 
@@ -247,23 +224,6 @@ static void gmux_write32(struct apple_gmux_data *gmux_data, int port,
 		gmux_index_write32(gmux_data, port, val);
 	else
 		gmux_pio_write32(gmux_data, port, val);
-}
-
-static bool gmux_is_indexed(struct apple_gmux_data *gmux_data)
-{
-	u16 val;
-
-	outb(0xaa, gmux_data->iostart + 0xcc);
-	outb(0x55, gmux_data->iostart + 0xcd);
-	outb(0x00, gmux_data->iostart + 0xce);
-
-	val = inb(gmux_data->iostart + 0xcc) |
-		(inb(gmux_data->iostart + 0xcd) << 8);
-
-	if (val == 0x55aa)
-		return true;
-
-	return false;
 }
 
 /**
@@ -605,9 +565,16 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	int ret = -ENXIO;
 	acpi_status status;
 	unsigned long long gpe;
+	bool indexed = false;
+	u32 version;
 
 	if (apple_gmux_data)
 		return -EBUSY;
+
+	if (!apple_gmux_detect(pnp, &indexed)) {
+		pr_info("gmux device not present\n");
+		return -ENODEV;
+	}
 
 	gmux_data = kzalloc(sizeof(*gmux_data), GFP_KERNEL);
 	if (!gmux_data)
@@ -615,19 +582,8 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	pnp_set_drvdata(pnp, gmux_data);
 
 	res = pnp_get_resource(pnp, IORESOURCE_IO, 0);
-	if (!res) {
-		pr_err("Failed to find gmux I/O resource\n");
-		goto err_free;
-	}
-
 	gmux_data->iostart = res->start;
 	gmux_data->iolen = resource_size(res);
-
-	if (gmux_data->iolen < GMUX_MIN_IO_LEN) {
-		pr_err("gmux I/O region too small (%lu < %u)\n",
-		       gmux_data->iolen, GMUX_MIN_IO_LEN);
-		goto err_free;
-	}
 
 	if (!request_region(gmux_data->iostart, gmux_data->iolen,
 			    "Apple gmux")) {
@@ -635,30 +591,17 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		goto err_free;
 	}
 
-	/*
-	 * Invalid version information may indicate either that the gmux
-	 * device isn't present or that it's a new one that uses indexed
-	 * io
-	 */
-
-	ver_major = gmux_read8(gmux_data, GMUX_PORT_VERSION_MAJOR);
-	ver_minor = gmux_read8(gmux_data, GMUX_PORT_VERSION_MINOR);
-	ver_release = gmux_read8(gmux_data, GMUX_PORT_VERSION_RELEASE);
-	if (ver_major == 0xff && ver_minor == 0xff && ver_release == 0xff) {
-		if (gmux_is_indexed(gmux_data)) {
-			u32 version;
-			mutex_init(&gmux_data->index_lock);
-			gmux_data->indexed = true;
-			version = gmux_read32(gmux_data,
-				GMUX_PORT_VERSION_MAJOR);
-			ver_major = (version >> 24) & 0xff;
-			ver_minor = (version >> 16) & 0xff;
-			ver_release = (version >> 8) & 0xff;
-		} else {
-			pr_info("gmux device not present\n");
-			ret = -ENODEV;
-			goto err_release;
-		}
+	if (indexed) {
+		mutex_init(&gmux_data->index_lock);
+		gmux_data->indexed = true;
+		version = gmux_read32(gmux_data, GMUX_PORT_VERSION_MAJOR);
+		ver_major = (version >> 24) & 0xff;
+		ver_minor = (version >> 16) & 0xff;
+		ver_release = (version >> 8) & 0xff;
+	} else {
+		ver_major = gmux_read8(gmux_data, GMUX_PORT_VERSION_MAJOR);
+		ver_minor = gmux_read8(gmux_data, GMUX_PORT_VERSION_MINOR);
+		ver_release = gmux_read8(gmux_data, GMUX_PORT_VERSION_RELEASE);
 	}
 	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
 		ver_release, (gmux_data->indexed ? "indexed" : "classic"));

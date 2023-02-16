@@ -1570,8 +1570,8 @@ static struct page_pool *mtk_create_page_pool(struct mtk_eth *eth,
 	if (IS_ERR(pp))
 		return pp;
 
-	err = __xdp_rxq_info_reg(xdp_q, &eth->dummy_dev, eth->rx_napi.napi_id,
-				 id, PAGE_SIZE);
+	err = __xdp_rxq_info_reg(xdp_q, &eth->dummy_dev, id,
+				 eth->rx_napi.napi_id, PAGE_SIZE);
 	if (err < 0)
 		goto err_free_pp;
 
@@ -1870,7 +1870,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 
 	while (done < budget) {
 		unsigned int pktlen, *rxdcsum;
+		bool has_hwaccel_tag = false;
 		struct net_device *netdev;
+		u16 vlan_proto, vlan_tci;
 		dma_addr_t dma_addr;
 		u32 hash, reason;
 		int mac = 0;
@@ -2010,27 +2012,29 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 
 		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-				if (trxd.rxd3 & RX_DMA_VTAG_V2)
-					__vlan_hwaccel_put_tag(skb,
-						htons(RX_DMA_VPID(trxd.rxd4)),
-						RX_DMA_VID(trxd.rxd4));
+				if (trxd.rxd3 & RX_DMA_VTAG_V2) {
+					vlan_proto = RX_DMA_VPID(trxd.rxd4);
+					vlan_tci = RX_DMA_VID(trxd.rxd4);
+					has_hwaccel_tag = true;
+				}
 			} else if (trxd.rxd2 & RX_DMA_VTAG) {
-				__vlan_hwaccel_put_tag(skb, htons(RX_DMA_VPID(trxd.rxd3)),
-						       RX_DMA_VID(trxd.rxd3));
+				vlan_proto = RX_DMA_VPID(trxd.rxd3);
+				vlan_tci = RX_DMA_VID(trxd.rxd3);
+				has_hwaccel_tag = true;
 			}
 		}
 
 		/* When using VLAN untagging in combination with DSA, the
 		 * hardware treats the MTK special tag as a VLAN and untags it.
 		 */
-		if (skb_vlan_tag_present(skb) && netdev_uses_dsa(netdev)) {
-			unsigned int port = ntohs(skb->vlan_proto) & GENMASK(2, 0);
+		if (has_hwaccel_tag && netdev_uses_dsa(netdev)) {
+			unsigned int port = vlan_proto & GENMASK(2, 0);
 
 			if (port < ARRAY_SIZE(eth->dsa_meta) &&
 			    eth->dsa_meta[port])
 				skb_dst_set_noref(skb, &eth->dsa_meta[port]->dst);
-
-			__vlan_hwaccel_clear_tag(skb);
+		} else if (has_hwaccel_tag) {
+			__vlan_hwaccel_put_tag(skb, htons(vlan_proto), vlan_tci);
 		}
 
 		skb_record_rx_queue(skb, 0);
@@ -3111,7 +3115,7 @@ static void mtk_gdm_config(struct mtk_eth *eth, u32 config)
 
 		val |= config;
 
-		if (!i && eth->netdev[0] && netdev_uses_dsa(eth->netdev[0]))
+		if (eth->netdev[i] && netdev_uses_dsa(eth->netdev[i]))
 			val |= MTK_GDMA_SPECIAL_TAG;
 
 		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
