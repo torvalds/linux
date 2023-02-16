@@ -1175,9 +1175,6 @@ config SPI_SPIDEV
 	help
 	  This supports user mode SPI protocol drivers.
 
-	  Note that this application programming interface is EXPERIMENTAL
-	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
-
 config SPI_LOOPBACK_TEST
 	tristate "spi loopback test framework support"
 	depends on m
