@@ -175,8 +175,8 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 	return 0;
 }
 
-#ifdef CONFIG_NET
-static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int __maybe_unused crypto_aead_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_aead raead;
 	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
@@ -192,12 +192,6 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_AEAD, sizeof(raead), &raead);
 }
-#else
-static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
 
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 	__maybe_unused;
@@ -248,7 +242,9 @@ static const struct crypto_type crypto_aead_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_aead_show,
 #endif
+#ifdef CONFIG_CRYPTO_USER
 	.report = crypto_aead_report,
+#endif
 #ifdef CONFIG_CRYPTO_STATS
 	.report_stat = crypto_aead_report_stat,
 #endif

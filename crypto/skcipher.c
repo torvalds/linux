@@ -727,8 +727,8 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "walksize     : %u\n", skcipher->walksize);
 }
 
-#ifdef CONFIG_NET
-static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int __maybe_unused crypto_skcipher_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct skcipher_alg *skcipher = __crypto_skcipher_alg(alg);
 	struct crypto_report_blkcipher rblkcipher;
@@ -746,12 +746,6 @@ static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	return nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
 		       sizeof(rblkcipher), &rblkcipher);
 }
-#else
-static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
 
 static int __maybe_unused crypto_skcipher_report_stat(
 	struct sk_buff *skb, struct crypto_alg *alg)
@@ -782,7 +776,9 @@ static const struct crypto_type crypto_skcipher_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_skcipher_show,
 #endif
+#ifdef CONFIG_CRYPTO_USER
 	.report = crypto_skcipher_report,
+#endif
 #ifdef CONFIG_CRYPTO_STATS
 	.report_stat = crypto_skcipher_report_stat,
 #endif

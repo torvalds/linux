@@ -490,8 +490,8 @@ static void crypto_shash_free_instance(struct crypto_instance *inst)
 	shash->free(shash);
 }
 
-#ifdef CONFIG_NET
-static int crypto_shash_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int __maybe_unused crypto_shash_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_hash rhash;
 	struct shash_alg *salg = __crypto_shash_alg(alg);
@@ -505,12 +505,6 @@ static int crypto_shash_report(struct sk_buff *skb, struct crypto_alg *alg)
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_HASH, sizeof(rhash), &rhash);
 }
-#else
-static int crypto_shash_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
 
 static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
 	__maybe_unused;
@@ -536,7 +530,9 @@ static const struct crypto_type crypto_shash_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_shash_show,
 #endif
+#ifdef CONFIG_CRYPTO_USER
 	.report = crypto_shash_report,
+#endif
 #ifdef CONFIG_CRYPTO_STATS
 	.report_stat = crypto_shash_report_stat,
 #endif

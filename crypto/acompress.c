@@ -33,8 +33,8 @@ static inline struct acomp_alg *crypto_acomp_alg(struct crypto_acomp *tfm)
 	return __crypto_acomp_alg(crypto_acomp_tfm(tfm)->__crt_alg);
 }
 
-#ifdef CONFIG_NET
-static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int __maybe_unused crypto_acomp_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_acomp racomp;
 
@@ -44,12 +44,6 @@ static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_ACOMP, sizeof(racomp), &racomp);
 }
-#else
-static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
 
 static void crypto_acomp_show(struct seq_file *m, struct crypto_alg *alg)
 	__maybe_unused;
@@ -131,7 +125,9 @@ static const struct crypto_type crypto_acomp_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_acomp_show,
 #endif
+#ifdef CONFIG_CRYPTO_USER
 	.report = crypto_acomp_report,
+#endif
 #ifdef CONFIG_CRYPTO_STATS
 	.report_stat = crypto_acomp_report_stat,
 #endif

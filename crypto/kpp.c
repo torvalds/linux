@@ -17,8 +17,8 @@
 
 #include "internal.h"
 
-#ifdef CONFIG_NET
-static int crypto_kpp_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int __maybe_unused crypto_kpp_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_kpp rkpp;
 
@@ -28,12 +28,6 @@ static int crypto_kpp_report(struct sk_buff *skb, struct crypto_alg *alg)
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_KPP, sizeof(rkpp), &rkpp);
 }
-#else
-static int crypto_kpp_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
 
 static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
 	__maybe_unused;
@@ -102,7 +96,9 @@ static const struct crypto_type crypto_kpp_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_kpp_show,
 #endif
+#ifdef CONFIG_CRYPTO_USER
 	.report = crypto_kpp_report,
+#endif
 #ifdef CONFIG_CRYPTO_STATS
 	.report_stat = crypto_kpp_report_stat,
 #endif
