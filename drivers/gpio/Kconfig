@@ -619,6 +619,14 @@ config GPIO_SYSCON
 	help
 	  Say yes here to support GPIO functionality though SYSCON driver.
 
+config GPIO_TANGIER
+	tristate
+	select GPIOLIB_IRQCHIP
+	help
+	  GPIO support for Intel Tangier and compatible platforms.
+
+	  If built as a module its name will be gpio-tangier.
+
 config GPIO_TB10X
 	bool
 	select GPIO_GENERIC
