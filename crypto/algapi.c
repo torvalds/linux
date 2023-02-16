@@ -1051,30 +1051,6 @@ void crypto_stats_get(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_stats_get);
 
-void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.compress.err_cnt);
-	} else {
-		atomic64_inc(&alg->stats.compress.compress_cnt);
-		atomic64_add(slen, &alg->stats.compress.compress_tlen);
-	}
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_compress);
-
-void crypto_stats_decompress(unsigned int slen, int ret, struct crypto_alg *alg)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.compress.err_cnt);
-	} else {
-		atomic64_inc(&alg->stats.compress.decompress_cnt);
-		atomic64_add(slen, &alg->stats.compress.decompress_tlen);
-	}
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_decompress);
-
 void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret)
 {
 	if (ret)

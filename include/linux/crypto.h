@@ -293,22 +293,6 @@ struct crypto_istat_cipher {
 };
 
 /*
- * struct crypto_istat_compress - statistics for compress algorithm
- * @compress_cnt:	number of compress requests
- * @compress_tlen:	total data size handled by compress requests
- * @decompress_cnt:	number of decompress requests
- * @decompress_tlen:	total data size handled by decompress requests
- * @err_cnt:		number of error for compress requests
- */
-struct crypto_istat_compress {
-	atomic64_t compress_cnt;
-	atomic64_t compress_tlen;
-	atomic64_t decompress_cnt;
-	atomic64_t decompress_tlen;
-	atomic64_t err_cnt;
-};
-
-/*
  * struct crypto_istat_kpp - statistics for KPP algorithm
  * @setsecret_cnt:		number of setsecrey operation
  * @generate_public_key_cnt:	number of generate_public_key operation
@@ -416,7 +400,6 @@ struct crypto_istat_rng {
  *
  * @stats: union of all possible crypto_istat_xxx structures
  * @stats.cipher:	statistics for cipher algorithm
- * @stats.compress:	statistics for compress algorithm
  * @stats.rng:		statistics for rng algorithm
  * @stats.kpp:		statistics for KPP algorithm
  *
@@ -455,7 +438,6 @@ struct crypto_alg {
 #ifdef CONFIG_CRYPTO_STATS
 	union {
 		struct crypto_istat_cipher cipher;
-		struct crypto_istat_compress compress;
 		struct crypto_istat_rng rng;
 		struct crypto_istat_kpp kpp;
 	} stats;
@@ -466,8 +448,6 @@ struct crypto_alg {
 #ifdef CONFIG_CRYPTO_STATS
 void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
-void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg);
-void crypto_stats_decompress(unsigned int slen, int ret, struct crypto_alg *alg);
 void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret);
 void crypto_stats_kpp_generate_public_key(struct crypto_alg *alg, int ret);
 void crypto_stats_kpp_compute_shared_secret(struct crypto_alg *alg, int ret);
@@ -479,10 +459,6 @@ void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto
 static inline void crypto_stats_init(struct crypto_alg *alg)
 {}
 static inline void crypto_stats_get(struct crypto_alg *alg)
-{}
-static inline void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_decompress(unsigned int slen, int ret, struct crypto_alg *alg)
 {}
 static inline void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret)
 {}
