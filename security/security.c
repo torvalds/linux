@@ -4825,30 +4825,95 @@ int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule)
 #endif /* CONFIG_AUDIT */
 
 #ifdef CONFIG_BPF_SYSCALL
+/**
+ * security_bpf() - Check if the bpf syscall operation is allowed
+ * @cmd: command
+ * @attr: bpf attribute
+ * @size: size
+ *
+ * Do a initial check for all bpf syscalls after the attribute is copied into
+ * the kernel. The actual security module can implement their own rules to
+ * check the specific cmd they need.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_bpf(int cmd, union bpf_attr *attr, unsigned int size)
 {
 	return call_int_hook(bpf, 0, cmd, attr, size);
 }
+
+/**
+ * security_bpf_map() - Check if access to a bpf map is allowed
+ * @map: bpf map
+ * @fmode: mode
+ *
+ * Do a check when the kernel generates and returns a file descriptor for eBPF
+ * maps.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_bpf_map(struct bpf_map *map, fmode_t fmode)
 {
 	return call_int_hook(bpf_map, 0, map, fmode);
 }
+
+/**
+ * security_bpf_prog() - Check if access to a bpf program is allowed
+ * @prog: bpf program
+ *
+ * Do a check when the kernel generates and returns a file descriptor for eBPF
+ * programs.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_bpf_prog(struct bpf_prog *prog)
 {
 	return call_int_hook(bpf_prog, 0, prog);
 }
+
+/**
+ * security_bpf_map_alloc() - Allocate a bpf map LSM blob
+ * @map: bpf map
+ *
+ * Initialize the security field inside bpf map.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_bpf_map_alloc(struct bpf_map *map)
 {
 	return call_int_hook(bpf_map_alloc_security, 0, map);
 }
+
+/**
+ * security_bpf_prog_alloc() - Allocate a bpf program LSM blob
+ * @aux: bpf program aux info struct
+ *
+ * Initialize the security field inside bpf program.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_bpf_prog_alloc(struct bpf_prog_aux *aux)
 {
 	return call_int_hook(bpf_prog_alloc_security, 0, aux);
 }
+
+/**
+ * security_bpf_map_free() - Free a bpf map's LSM blob
+ * @map: bpf map
+ *
+ * Clean up the security information stored inside bpf map.
+ */
 void security_bpf_map_free(struct bpf_map *map)
 {
 	call_void_hook(bpf_map_free_security, map);
 }
+
+/**
+ * security_bpf_prog_free() - Free a bpf program's LSM blob
+ * @aux: bpf program aux info struct
+ *
+ * Clean up the security information stored inside bpf prog.
+ */
 void security_bpf_prog_free(struct bpf_prog_aux *aux)
 {
 	call_void_hook(bpf_prog_free_security, aux);
