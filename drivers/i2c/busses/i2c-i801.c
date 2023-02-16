@@ -434,7 +434,7 @@ static int i801_wait_intr(struct i801_priv *priv)
 		busy = status & SMBHSTSTS_HOST_BUSY;
 		status &= STATUS_ERROR_FLAGS | SMBHSTSTS_INTR;
 		if (!busy && status)
-			return status;
+			return status & STATUS_ERROR_FLAGS;
 	} while (time_is_after_eq_jiffies(timeout));
 
 	return -ETIMEDOUT;
@@ -458,7 +458,6 @@ static int i801_wait_byte_done(struct i801_priv *priv)
 
 static int i801_transaction(struct i801_priv *priv, int xact)
 {
-	int status;
 	unsigned long result;
 	const struct i2c_adapter *adap = &priv->adapter;
 
@@ -467,13 +466,12 @@ static int i801_transaction(struct i801_priv *priv, int xact)
 		outb_p(xact | SMBHSTCNT_INTREN | SMBHSTCNT_START,
 		       SMBHSTCNT(priv));
 		result = wait_for_completion_timeout(&priv->done, adap->timeout);
-		return i801_check_post(priv, result ? priv->status : -ETIMEDOUT);
+		return result ? priv->status : -ETIMEDOUT;
 	}
 
 	outb_p(xact | SMBHSTCNT_START, SMBHSTCNT(priv));
 
-	status = i801_wait_intr(priv);
-	return i801_check_post(priv, status);
+	return i801_wait_intr(priv);
 }
 
 static int i801_block_transaction_by_block(struct i801_priv *priv,
@@ -624,7 +622,7 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 
 	status &= STATUS_ERROR_FLAGS | SMBHSTSTS_INTR;
 	if (status) {
-		priv->status = status;
+		priv->status = status & STATUS_ERROR_FLAGS;
 		complete(&priv->done);
 	}
 
@@ -674,7 +672,7 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		reinit_completion(&priv->done);
 		outb_p(priv->cmd | SMBHSTCNT_START, SMBHSTCNT(priv));
 		result = wait_for_completion_timeout(&priv->done, adap->timeout);
-		return i801_check_post(priv, result ? priv->status : -ETIMEDOUT);
+		return result ? priv->status : -ETIMEDOUT;
 	}
 
 	for (i = 1; i <= len; i++) {
@@ -688,7 +686,7 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 
 		status = i801_wait_byte_done(priv);
 		if (status)
-			goto exit;
+			return status;
 
 		if (i == 1 && read_write == I2C_SMBUS_READ
 		 && command != I2C_SMBUS_I2C_BLOCK_DATA) {
@@ -718,9 +716,7 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		outb_p(SMBHSTSTS_BYTE_DONE, SMBHSTSTS(priv));
 	}
 
-	status = i801_wait_intr(priv);
-exit:
-	return i801_check_post(priv, status);
+	return i801_wait_intr(priv);
 }
 
 static void i801_set_hstadd(struct i801_priv *priv, u8 addr, char read_write)
@@ -903,6 +899,8 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		ret = i801_block_transaction(priv, data, addr, command, read_write, size);
 	else
 		ret = i801_simple_transaction(priv, data, addr, command, read_write, size);
+
+	ret = i801_check_post(priv, ret);
 
 	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
 	 * time, so we forcibly disable it after every transaction.
