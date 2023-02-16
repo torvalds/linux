@@ -91,6 +91,8 @@ const char * const amdgpu_pp_profile_name[] = {
 	"COMPUTE",
 	"CUSTOM",
 	"WINDOW_3D",
+	"CAPPED",
+	"UNCAPPED",
 };
 
 /**
