@@ -47,16 +47,20 @@
 )
 
 TRACE_EVENT(cxl_aer_uncorrectable_error,
-	TP_PROTO(const struct device *dev, u32 status, u32 fe, u32 *hl),
-	TP_ARGS(dev, status, fe, hl),
+	TP_PROTO(const struct cxl_memdev *cxlmd, u32 status, u32 fe, u32 *hl),
+	TP_ARGS(cxlmd, status, fe, hl),
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name(dev))
+		__string(memdev, dev_name(&cxlmd->dev))
+		__string(host, dev_name(cxlmd->dev.parent))
+		__field(u64, serial)
 		__field(u32, status)
 		__field(u32, first_error)
 		__array(u32, header_log, CXL_HEADERLOG_SIZE_U32)
 	),
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name(dev));
+		__assign_str(memdev, dev_name(&cxlmd->dev));
+		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__entry->serial = cxlmd->cxlds->serial;
 		__entry->status = status;
 		__entry->first_error = fe;
 		/*
@@ -65,8 +69,8 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 		 */
 		memcpy(__entry->header_log, hl, CXL_HEADERLOG_SIZE);
 	),
-	TP_printk("%s: status: '%s' first_error: '%s'",
-		  __get_str(dev_name),
+	TP_printk("memdev=%s host=%s serial=%lld: status: '%s' first_error: '%s'",
+		  __get_str(memdev), __get_str(host), __entry->serial,
 		  show_uc_errs(__entry->status),
 		  show_uc_errs(__entry->first_error)
 	)
@@ -91,18 +95,23 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 )
 
 TRACE_EVENT(cxl_aer_correctable_error,
-	TP_PROTO(const struct device *dev, u32 status),
-	TP_ARGS(dev, status),
+	TP_PROTO(const struct cxl_memdev *cxlmd, u32 status),
+	TP_ARGS(cxlmd, status),
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name(dev))
+		__string(memdev, dev_name(&cxlmd->dev))
+		__string(host, dev_name(cxlmd->dev.parent))
+		__field(u64, serial)
 		__field(u32, status)
 	),
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name(dev));
+		__assign_str(memdev, dev_name(&cxlmd->dev));
+		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__entry->serial = cxlmd->cxlds->serial;
 		__entry->status = status;
 	),
-	TP_printk("%s: status: '%s'",
-		  __get_str(dev_name), show_ce_errs(__entry->status)
+	TP_printk("memdev=%s host=%s serial=%lld: status: '%s'",
+		  __get_str(memdev), __get_str(host), __entry->serial,
+		  show_ce_errs(__entry->status)
 	)
 );
 
@@ -115,30 +124,35 @@ TRACE_EVENT(cxl_aer_correctable_error,
 
 TRACE_EVENT(cxl_overflow,
 
-	TP_PROTO(const struct device *dev, enum cxl_event_log_type log,
+	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
 		 struct cxl_get_event_payload *payload),
 
-	TP_ARGS(dev, log, payload),
+	TP_ARGS(cxlmd, log, payload),
 
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name(dev))
+		__string(memdev, dev_name(&cxlmd->dev))
+		__string(host, dev_name(cxlmd->dev.parent))
 		__field(int, log)
+		__field(u64, serial)
 		__field(u64, first_ts)
 		__field(u64, last_ts)
 		__field(u16, count)
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name(dev));
+		__assign_str(memdev, dev_name(&cxlmd->dev));
+		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__entry->serial = cxlmd->cxlds->serial;
 		__entry->log = log;
 		__entry->count = le16_to_cpu(payload->overflow_err_count);
 		__entry->first_ts = le64_to_cpu(payload->first_overflow_timestamp);
 		__entry->last_ts = le64_to_cpu(payload->last_overflow_timestamp);
 	),
 
-	TP_printk("%s: log=%s : %u records from %llu to %llu",
-		__get_str(dev_name), cxl_event_log_type_str(__entry->log),
-		__entry->count, __entry->first_ts, __entry->last_ts)
+	TP_printk("memdev=%s host=%s serial=%lld: log=%s : %u records from %llu to %llu",
+		__get_str(memdev), __get_str(host), __entry->serial,
+		cxl_event_log_type_str(__entry->log), __entry->count,
+		__entry->first_ts, __entry->last_ts)
 
 );
 
@@ -170,9 +184,11 @@ TRACE_EVENT(cxl_overflow,
  * See the generic_event tracepoint as an example.
  */
 #define CXL_EVT_TP_entry					\
-	__string(dev_name, dev_name(dev))			\
+	__string(memdev, dev_name(&cxlmd->dev))			\
+	__string(host, dev_name(cxlmd->dev.parent))		\
 	__field(int, log)					\
 	__field_struct(uuid_t, hdr_uuid)			\
+	__field(u64, serial)					\
 	__field(u32, hdr_flags)					\
 	__field(u16, hdr_handle)				\
 	__field(u16, hdr_related_handle)			\
@@ -180,9 +196,11 @@ TRACE_EVENT(cxl_overflow,
 	__field(u8, hdr_length)					\
 	__field(u8, hdr_maint_op_class)
 
-#define CXL_EVT_TP_fast_assign(dev, l, hdr)					\
-	__assign_str(dev_name, dev_name(dev));					\
+#define CXL_EVT_TP_fast_assign(cxlmd, l, hdr)					\
+	__assign_str(memdev, dev_name(&(cxlmd)->dev));				\
+	__assign_str(host, dev_name((cxlmd)->dev.parent));			\
 	__entry->log = (l);							\
+	__entry->serial = (cxlmd)->cxlds->serial;				\
 	memcpy(&__entry->hdr_uuid, &(hdr).id, sizeof(uuid_t));			\
 	__entry->hdr_length = (hdr).length;					\
 	__entry->hdr_flags = get_unaligned_le24((hdr).flags);			\
@@ -192,10 +210,11 @@ TRACE_EVENT(cxl_overflow,
 	__entry->hdr_maint_op_class = (hdr).maint_op_class
 
 #define CXL_EVT_TP_printk(fmt, ...) \
-	TP_printk("%s log=%s : time=%llu uuid=%pUb len=%d flags='%s' "		\
-		"handle=%x related_handle=%x maint_op_class=%u"			\
-		" : " fmt,							\
-		__get_str(dev_name), cxl_event_log_type_str(__entry->log),	\
+	TP_printk("memdev=%s host=%s serial=%lld log=%s : time=%llu uuid=%pUb "	\
+		"len=%d flags='%s' handle=%x related_handle=%x "		\
+		"maint_op_class=%u : " fmt,					\
+		__get_str(memdev), __get_str(host), __entry->serial,		\
+		cxl_event_log_type_str(__entry->log),				\
 		__entry->hdr_timestamp, &__entry->hdr_uuid, __entry->hdr_length,\
 		show_hdr_flags(__entry->hdr_flags), __entry->hdr_handle,	\
 		__entry->hdr_related_handle, __entry->hdr_maint_op_class,	\
@@ -203,10 +222,10 @@ TRACE_EVENT(cxl_overflow,
 
 TRACE_EVENT(cxl_generic_event,
 
-	TP_PROTO(const struct device *dev, enum cxl_event_log_type log,
+	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
 		 struct cxl_event_record_raw *rec),
 
-	TP_ARGS(dev, log, rec),
+	TP_ARGS(cxlmd, log, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -214,7 +233,7 @@ TRACE_EVENT(cxl_generic_event,
 	),
 
 	TP_fast_assign(
-		CXL_EVT_TP_fast_assign(dev, log, rec->hdr);
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
 		memcpy(__entry->data, &rec->data, CXL_EVENT_RECORD_DATA_LENGTH);
 	),
 
@@ -293,10 +312,10 @@ TRACE_EVENT(cxl_generic_event,
 
 TRACE_EVENT(cxl_general_media,
 
-	TP_PROTO(const struct device *dev, enum cxl_event_log_type log,
+	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
 		 struct cxl_event_gen_media *rec),
 
-	TP_ARGS(dev, log, rec),
+	TP_ARGS(cxlmd, log, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -315,7 +334,7 @@ TRACE_EVENT(cxl_general_media,
 	),
 
 	TP_fast_assign(
-		CXL_EVT_TP_fast_assign(dev, log, rec->hdr);
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
 
 		/* General Media */
 		__entry->dpa = le64_to_cpu(rec->phys_addr);
@@ -376,10 +395,10 @@ TRACE_EVENT(cxl_general_media,
 
 TRACE_EVENT(cxl_dram,
 
-	TP_PROTO(const struct device *dev, enum cxl_event_log_type log,
+	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
 		 struct cxl_event_dram *rec),
 
-	TP_ARGS(dev, log, rec),
+	TP_ARGS(cxlmd, log, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -401,7 +420,7 @@ TRACE_EVENT(cxl_dram,
 	),
 
 	TP_fast_assign(
-		CXL_EVT_TP_fast_assign(dev, log, rec->hdr);
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
 
 		/* DRAM */
 		__entry->dpa = le64_to_cpu(rec->phys_addr);
@@ -525,10 +544,10 @@ TRACE_EVENT(cxl_dram,
 
 TRACE_EVENT(cxl_memory_module,
 
-	TP_PROTO(const struct device *dev, enum cxl_event_log_type log,
+	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
 		 struct cxl_event_mem_module *rec),
 
-	TP_ARGS(dev, log, rec),
+	TP_ARGS(cxlmd, log, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -548,7 +567,7 @@ TRACE_EVENT(cxl_memory_module,
 	),
 
 	TP_fast_assign(
-		CXL_EVT_TP_fast_assign(dev, log, rec->hdr);
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
 
 		/* Memory Module Event */
 		__entry->event_type = rec->event_type;

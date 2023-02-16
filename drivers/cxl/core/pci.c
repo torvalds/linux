@@ -608,8 +608,6 @@ EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);
 void cxl_cor_error_detected(struct pci_dev *pdev)
 {
 	struct cxl_dev_state *cxlds = pci_get_drvdata(pdev);
-	struct cxl_memdev *cxlmd = cxlds->cxlmd;
-	struct device *dev = &cxlmd->dev;
 	void __iomem *addr;
 	u32 status;
 
@@ -620,7 +618,7 @@ void cxl_cor_error_detected(struct pci_dev *pdev)
 	status = readl(addr);
 	if (status & CXL_RAS_CORRECTABLE_STATUS_MASK) {
 		writel(status & CXL_RAS_CORRECTABLE_STATUS_MASK, addr);
-		trace_cxl_aer_correctable_error(dev, status);
+		trace_cxl_aer_correctable_error(cxlds->cxlmd, status);
 	}
 }
 EXPORT_SYMBOL_NS_GPL(cxl_cor_error_detected, CXL);
@@ -648,8 +646,6 @@ static void header_log_copy(struct cxl_dev_state *cxlds, u32 *log)
  */
 static bool cxl_report_and_clear(struct cxl_dev_state *cxlds)
 {
-	struct cxl_memdev *cxlmd = cxlds->cxlmd;
-	struct device *dev = &cxlmd->dev;
 	u32 hl[CXL_HEADERLOG_SIZE_U32];
 	void __iomem *addr;
 	u32 status;
@@ -675,7 +671,7 @@ static bool cxl_report_and_clear(struct cxl_dev_state *cxlds)
 	}
 
 	header_log_copy(cxlds, hl);
-	trace_cxl_aer_uncorrectable_error(dev, status, fe, hl);
+	trace_cxl_aer_uncorrectable_error(cxlds->cxlmd, status, fe, hl);
 	writel(status & CXL_RAS_UNCORRECTABLE_STATUS_MASK, addr);
 
 	return true;

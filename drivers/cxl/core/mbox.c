@@ -768,7 +768,7 @@ static const uuid_t mem_mod_event_uuid =
 	UUID_INIT(0xfe927475, 0xdd59, 0x4339,
 		  0xa5, 0x86, 0x79, 0xba, 0xb1, 0x13, 0xb7, 0x74);
 
-static void cxl_event_trace_record(const struct device *dev,
+static void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 				   enum cxl_event_log_type type,
 				   struct cxl_event_record_raw *record)
 {
@@ -778,19 +778,19 @@ static void cxl_event_trace_record(const struct device *dev,
 		struct cxl_event_gen_media *rec =
 				(struct cxl_event_gen_media *)record;
 
-		trace_cxl_general_media(dev, type, rec);
+		trace_cxl_general_media(cxlmd, type, rec);
 	} else if (uuid_equal(id, &dram_event_uuid)) {
 		struct cxl_event_dram *rec = (struct cxl_event_dram *)record;
 
-		trace_cxl_dram(dev, type, rec);
+		trace_cxl_dram(cxlmd, type, rec);
 	} else if (uuid_equal(id, &mem_mod_event_uuid)) {
 		struct cxl_event_mem_module *rec =
 				(struct cxl_event_mem_module *)record;
 
-		trace_cxl_memory_module(dev, type, rec);
+		trace_cxl_memory_module(cxlmd, type, rec);
 	} else {
 		/* For unknown record types print just the header */
-		trace_cxl_generic_event(dev, type, record);
+		trace_cxl_generic_event(cxlmd, type, record);
 	}
 }
 
@@ -897,11 +897,11 @@ static void cxl_mem_get_records_log(struct cxl_dev_state *cxlds,
 			break;
 
 		for (i = 0; i < nr_rec; i++)
-			cxl_event_trace_record(cxlds->dev, type,
+			cxl_event_trace_record(cxlds->cxlmd, type,
 					       &payload->records[i]);
 
 		if (payload->flags & CXL_GET_EVENT_FLAG_OVERFLOW)
-			trace_cxl_overflow(cxlds->dev, type, payload);
+			trace_cxl_overflow(cxlds->cxlmd, type, payload);
 
 		rc = cxl_clear_event_record(cxlds, type, payload);
 		if (rc) {
