@@ -3568,6 +3568,8 @@ void kvm_mmu_free_roots(struct kvm *kvm, struct kvm_mmu *mmu,
 	LIST_HEAD(invalid_list);
 	bool free_active_root;
 
+	WARN_ON_ONCE(roots_to_free & ~KVM_MMU_ROOTS_ALL);
+
 	BUILD_BUG_ON(KVM_MMU_NUM_PREV_ROOTS >= BITS_PER_LONG);
 
 	/* Before acquiring the MMU lock, see if we need to do any real work. */
