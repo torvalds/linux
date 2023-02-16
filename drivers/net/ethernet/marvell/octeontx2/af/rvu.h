@@ -137,6 +137,7 @@ struct rvu_pfvf {
 	u16		ssow;
 	u16		cptlfs;
 	u16		timlfs;
+	u16		cpt1_lfs;
 	u8		cgx_lmac;
 
 	/* Block LF's MSIX vector info */
@@ -182,6 +183,8 @@ struct rvu_pfvf {
 
 	bool	cgx_in_use; /* this PF/VF using CGX? */
 	int	cgx_users;  /* number of cgx users - used only by PFs */
+
+	u8	nix_blkaddr; /* BLKADDR_NIX0/1 assigned to this PF */
 };
 
 struct nix_txsch {
@@ -420,6 +423,7 @@ void rvu_free_rsrc(struct rsrc_bmap *rsrc, int id);
 int rvu_rsrc_free_count(struct rsrc_bmap *rsrc);
 int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc);
 bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc);
+u16 rvu_get_rsrc_mapcount(struct rvu_pfvf *pfvf, int blkaddr);
 int rvu_get_pf(u16 pcifunc);
 struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
 void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf);

@@ -423,6 +423,10 @@ void dp_aux_isr(struct drm_dp_aux *dp_aux)
 
 	aux->isr = dp_catalog_aux_get_irq(aux->catalog);
 
+	/* no interrupts pending, return immediately */
+	if (!aux->isr)
+		return;
+
 	if (!aux->cmd_busy)
 		return;
 

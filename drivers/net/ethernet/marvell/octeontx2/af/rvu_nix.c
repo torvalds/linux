@@ -187,8 +187,8 @@ static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
 static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	int pkind, pf, vf, lbkid;
 	u8 cgx_id, lmac_id;
-	int pkind, pf, vf;
 	int err;
 
 	pf = rvu_get_pf(pcifunc);
@@ -221,13 +221,24 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 	case NIX_INTF_TYPE_LBK:
 		vf = (pcifunc & RVU_PFVF_FUNC_MASK) - 1;
 
+		/* If NIX1 block is present on the silicon then NIXes are
+		 * assigned alternatively for lbk interfaces. NIX0 should
+		 * send packets on lbk link 1 channels and NIX1 should send
+		 * on lbk link 0 channels for the communication between
+		 * NIX0 and NIX1.
+		 */
+		lbkid = 0;
+		if (rvu->hw->lbk_links > 1)
+			lbkid = vf & 0x1 ? 0 : 1;
+
 		/* Note that AF's VFs work in pairs and talk over consecutive
 		 * loopback channels.Therefore if odd number of AF VFs are
 		 * enabled then the last VF remains with no pair.
 		 */
-		pfvf->rx_chan_base = NIX_CHAN_LBK_CHX(0, vf);
-		pfvf->tx_chan_base = vf & 0x1 ? NIX_CHAN_LBK_CHX(0, vf - 1) :
-						NIX_CHAN_LBK_CHX(0, vf + 1);
+		pfvf->rx_chan_base = NIX_CHAN_LBK_CHX(lbkid, vf);
+		pfvf->tx_chan_base = vf & 0x1 ?
+					NIX_CHAN_LBK_CHX(lbkid, vf - 1) :
+					NIX_CHAN_LBK_CHX(lbkid, vf + 1);
 		pfvf->rx_chan_cnt = 1;
 		pfvf->tx_chan_cnt = 1;
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
@@ -3157,7 +3168,7 @@ int rvu_nix_init(struct rvu *rvu)
 	hw->cgx = (cfg >> 12) & 0xF;
 	hw->lmac_per_cgx = (cfg >> 8) & 0xF;
 	hw->cgx_links = hw->cgx * hw->lmac_per_cgx;
-	hw->lbk_links = 1;
+	hw->lbk_links = (cfg >> 24) & 0xF;
 	hw->sdp_links = 1;
 
 	/* Initialize admin queue */
