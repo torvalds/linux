@@ -863,10 +863,8 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, u64 addr, hpa_t root_hpa)
 	 */
 	mmu_topup_memory_caches(vcpu, true);
 
-	if (!VALID_PAGE(root_hpa)) {
-		WARN_ON(1);
+	if (!VALID_PAGE(root_hpa))
 		return;
-	}
 
 	write_lock(&vcpu->kvm->mmu_lock);
 	for_each_shadow_entry_using_root(vcpu, root_hpa, addr, iterator) {

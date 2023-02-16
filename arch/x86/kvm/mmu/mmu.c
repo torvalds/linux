@@ -5787,8 +5787,7 @@ void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 		mmu->invlpg(vcpu, addr, mmu->root.hpa);
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
-		if ((roots & KVM_MMU_ROOT_PREVIOUS(i)) &&
-		    VALID_PAGE(mmu->prev_roots[i].hpa))
+		if (roots & KVM_MMU_ROOT_PREVIOUS(i))
 			mmu->invlpg(vcpu, addr, mmu->prev_roots[i].hpa);
 	}
 }
