@@ -277,26 +277,6 @@ struct compress_alg {
 
 #ifdef CONFIG_CRYPTO_STATS
 /*
- * struct crypto_istat_akcipher - statistics for akcipher algorithm
- * @encrypt_cnt:	number of encrypt requests
- * @encrypt_tlen:	total data size handled by encrypt requests
- * @decrypt_cnt:	number of decrypt requests
- * @decrypt_tlen:	total data size handled by decrypt requests
- * @verify_cnt:		number of verify operation
- * @sign_cnt:		number of sign requests
- * @err_cnt:		number of error for akcipher requests
- */
-struct crypto_istat_akcipher {
-	atomic64_t encrypt_cnt;
-	atomic64_t encrypt_tlen;
-	atomic64_t decrypt_cnt;
-	atomic64_t decrypt_tlen;
-	atomic64_t verify_cnt;
-	atomic64_t sign_cnt;
-	atomic64_t err_cnt;
-};
-
-/*
  * struct crypto_istat_cipher - statistics for cipher algorithm
  * @encrypt_cnt:	number of encrypt requests
  * @encrypt_tlen:	total data size handled by encrypt requests
@@ -447,7 +427,6 @@ struct crypto_istat_rng {
  * @cra_destroy: internally used
  *
  * @stats: union of all possible crypto_istat_xxx structures
- * @stats.akcipher:	statistics for akcipher algorithm
  * @stats.cipher:	statistics for cipher algorithm
  * @stats.compress:	statistics for compress algorithm
  * @stats.hash:		statistics for hash algorithm
@@ -488,7 +467,6 @@ struct crypto_alg {
 
 #ifdef CONFIG_CRYPTO_STATS
 	union {
-		struct crypto_istat_akcipher akcipher;
 		struct crypto_istat_cipher cipher;
 		struct crypto_istat_compress compress;
 		struct crypto_istat_hash hash;
@@ -504,10 +482,6 @@ void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
 void crypto_stats_ahash_update(unsigned int nbytes, int ret, struct crypto_alg *alg);
 void crypto_stats_ahash_final(unsigned int nbytes, int ret, struct crypto_alg *alg);
-void crypto_stats_akcipher_encrypt(unsigned int src_len, int ret, struct crypto_alg *alg);
-void crypto_stats_akcipher_decrypt(unsigned int src_len, int ret, struct crypto_alg *alg);
-void crypto_stats_akcipher_sign(int ret, struct crypto_alg *alg);
-void crypto_stats_akcipher_verify(int ret, struct crypto_alg *alg);
 void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg);
 void crypto_stats_decompress(unsigned int slen, int ret, struct crypto_alg *alg);
 void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret);
@@ -525,14 +499,6 @@ static inline void crypto_stats_get(struct crypto_alg *alg)
 static inline void crypto_stats_ahash_update(unsigned int nbytes, int ret, struct crypto_alg *alg)
 {}
 static inline void crypto_stats_ahash_final(unsigned int nbytes, int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_akcipher_encrypt(unsigned int src_len, int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_akcipher_decrypt(unsigned int src_len, int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_akcipher_sign(int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_akcipher_verify(int ret, struct crypto_alg *alg)
 {}
 static inline void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg)
 {}

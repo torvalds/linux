@@ -5,19 +5,16 @@
  * Copyright (c) 2015, Intel Corporation
  * Authors: Tadeusz Struk <tadeusz.struk@intel.com>
  */
+#include <crypto/internal/akcipher.h>
+#include <linux/cryptouser.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/crypto.h>
-#include <linux/compiler.h>
-#include <crypto/algapi.h>
-#include <linux/cryptouser.h>
 #include <net/netlink.h>
-#include <crypto/akcipher.h>
-#include <crypto/internal/akcipher.h>
+
 #include "internal.h"
 
 #ifdef CONFIG_NET
@@ -76,6 +73,30 @@ static void crypto_akcipher_free_instance(struct crypto_instance *inst)
 	akcipher->free(akcipher);
 }
 
+static int __maybe_unused crypto_akcipher_report_stat(
+	struct sk_buff *skb, struct crypto_alg *alg)
+{
+	struct akcipher_alg *akcipher = __crypto_akcipher_alg(alg);
+	struct crypto_istat_akcipher *istat;
+	struct crypto_stat_akcipher rakcipher;
+
+	istat = akcipher_get_stat(akcipher);
+
+	memset(&rakcipher, 0, sizeof(rakcipher));
+
+	strscpy(rakcipher.type, "akcipher", sizeof(rakcipher.type));
+	rakcipher.stat_encrypt_cnt = atomic64_read(&istat->encrypt_cnt);
+	rakcipher.stat_encrypt_tlen = atomic64_read(&istat->encrypt_tlen);
+	rakcipher.stat_decrypt_cnt = atomic64_read(&istat->decrypt_cnt);
+	rakcipher.stat_decrypt_tlen = atomic64_read(&istat->decrypt_tlen);
+	rakcipher.stat_sign_cnt = atomic64_read(&istat->sign_cnt);
+	rakcipher.stat_verify_cnt = atomic64_read(&istat->verify_cnt);
+	rakcipher.stat_err_cnt = atomic64_read(&istat->err_cnt);
+
+	return nla_put(skb, CRYPTOCFGA_STAT_AKCIPHER,
+		       sizeof(rakcipher), &rakcipher);
+}
+
 static const struct crypto_type crypto_akcipher_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_akcipher_init_tfm,
@@ -84,6 +105,9 @@ static const struct crypto_type crypto_akcipher_type = {
 	.show = crypto_akcipher_show,
 #endif
 	.report = crypto_akcipher_report,
+#ifdef CONFIG_CRYPTO_STATS
+	.report_stat = crypto_akcipher_report_stat,
+#endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_AKCIPHER,
@@ -108,11 +132,15 @@ EXPORT_SYMBOL_GPL(crypto_alloc_akcipher);
 
 static void akcipher_prepare_alg(struct akcipher_alg *alg)
 {
+	struct crypto_istat_akcipher *istat = akcipher_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
 	base->cra_type = &crypto_akcipher_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_AKCIPHER;
+
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
+		memset(istat, 0, sizeof(*istat));
 }
 
 static int akcipher_default_op(struct akcipher_request *req)
