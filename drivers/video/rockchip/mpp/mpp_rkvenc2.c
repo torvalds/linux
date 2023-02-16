@@ -228,7 +228,7 @@ struct rkvenc_task {
 	DECLARE_KFIFO(slice_info, union rkvenc2_slice_len_info, RKVENC_MAX_SLICE_FIFO_LEN);
 
 	/* jpege bitstream */
-	struct dma_buf *dmabuf_bs;
+	struct mpp_dma_buffer *bs_buf;
 	u32 offset_bs;
 };
 
@@ -915,6 +915,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 		u32 off;
 		const u16 *tbl;
 		struct rkvenc_hw_info *hw = task->hw_info;
+		int fd_bs = -1;
 
 		for (i = 0; i < hw->fd_class; i++) {
 			u32 class = hw->fd_reg[i].class;
@@ -925,22 +926,13 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 			if (!reg)
 				continue;
 
-			if (fmt == RKVENC_FMT_JPEGE && class == RKVENC_CLASS_PIC &&
-			    !task->dmabuf_bs) {
-				int bs_fd, bs_index;
-				struct dma_buf *dmabuf_bs;
+			if (fmt == RKVENC_FMT_JPEGE && class == RKVENC_CLASS_PIC && fd_bs == -1) {
+				int bs_index;
 
 				bs_index = mpp->var->trans_info[fmt].table[2];
-				bs_fd = reg[bs_index];
+				fd_bs = reg[bs_index];
 				task->offset_bs = mpp_query_reg_offset_info(&task->off_inf,
 									    bs_index + ss);
-				dmabuf_bs = dma_buf_get(bs_fd);
-				if (!IS_ERR(dmabuf_bs)) {
-					dma_buf_end_cpu_access_partial(dmabuf_bs,
-								       DMA_TO_DEVICE,
-								       0, task->offset_bs);
-					task->dmabuf_bs = dmabuf_bs;
-				}
 			}
 
 			ret = mpp_translate_reg_address(session, mpp_task, fmt, reg, NULL);
@@ -955,6 +947,17 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 				reg[tbl[j]] += off;
 			}
 		}
+
+		if (fd_bs >= 0) {
+			struct mpp_dma_buffer *bs_buf =
+					mpp_dma_find_buffer_fd(session->dma, fd_bs);
+
+			if (bs_buf && task->offset_bs > 0) {
+				mpp_dma_buf_sync(bs_buf, 0, task->offset_bs,
+						 DMA_TO_DEVICE, false);
+				task->bs_buf = bs_buf;
+			}
+		}
 	}
 	rkvenc2_setup_task_id(session->index, task);
 	task->clk_mode = CLK_MODE_NORMAL;
@@ -965,11 +968,6 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	return mpp_task;
 
 fail:
-	if (task->dmabuf_bs) {
-		dma_buf_put(task->dmabuf_bs);
-		task->dmabuf_bs = NULL;
-		task->offset_bs = 0;
-	}
 	mpp_task_dump_mem_region(mpp, mpp_task);
 	mpp_task_dump_reg(mpp, mpp_task);
 	mpp_task_finalize(session, mpp_task);
@@ -1408,11 +1406,11 @@ static int rkvenc_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 	}
 
-	if (task->dmabuf_bs) {
+	if (task->bs_buf) {
 		u32 bs_size = mpp_read(mpp, 0x4064);
 
-		dma_buf_begin_cpu_access_partial(task->dmabuf_bs, DMA_FROM_DEVICE, 0,
-						 bs_size / 8 + task->offset_bs);
+		mpp_dma_buf_sync(task->bs_buf, 0, bs_size / 8 + task->offset_bs,
+				 DMA_FROM_DEVICE, true);
 	}
 
 	/* revert hack for irq status */
@@ -1455,12 +1453,6 @@ static int rkvenc_free_task(struct mpp_session *session,
 			    struct mpp_task *mpp_task)
 {
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
-
-	if (task->dmabuf_bs) {
-		dma_buf_put(task->dmabuf_bs);
-		task->dmabuf_bs = NULL;
-		task->offset_bs = 0;
-	}
 
 	mpp_task_finalize(session, mpp_task);
 	rkvenc_free_class_msg(task);

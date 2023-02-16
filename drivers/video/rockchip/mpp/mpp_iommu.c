@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/dma-buf-cache.h>
 #include <linux/dma-iommu.h>
+#include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -27,7 +28,7 @@
 #include "mpp_iommu.h"
 #include "mpp_common.h"
 
-static struct mpp_dma_buffer *
+struct mpp_dma_buffer *
 mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 {
 	struct dma_buf *dmabuf;
@@ -372,6 +373,49 @@ mpp_dma_session_create(struct device *dev, u32 max_buffers)
 	dma->dev = dev;
 
 	return dma;
+}
+
+/*
+ * begin cpu access => for_cpu = true
+ * end cpu access => for_cpu = false
+ */
+void mpp_dma_buf_sync(struct mpp_dma_buffer *buffer, u32 offset, u32 length,
+		      enum dma_data_direction dir, bool for_cpu)
+{
+	struct scatterlist *sg;
+	unsigned int len = 0;
+	dma_addr_t sg_dma_addr;
+	int i;
+	struct sg_table *sgt = buffer->sgt;
+	struct device *dev = buffer->dma->dev;
+
+	for_each_sgtable_sg(sgt, sg, i) {
+		unsigned int sg_offset, sg_left, size = 0;
+
+		sg_dma_addr = sg_dma_address(sg);
+
+		len += sg->length;
+		if (len <= offset)
+			continue;
+
+		sg_left = len - offset;
+		sg_offset = sg->length - sg_left;
+
+		size = (length < sg_left) ? length : sg_left;
+
+		if (for_cpu)
+			dma_sync_single_range_for_cpu(dev, sg_dma_addr,
+						      sg_offset, size, dir);
+		else
+			dma_sync_single_range_for_device(dev, sg_dma_addr,
+							 sg_offset, size, dir);
+
+		offset += size;
+		length -= size;
+
+		if (length == 0)
+			break;
+	}
 }
 
 int mpp_iommu_detach(struct mpp_iommu_info *info)
