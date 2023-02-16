@@ -838,16 +838,54 @@ int security_binder_transfer_file(const struct cred *from,
 	return call_int_hook(binder_transfer_file, 0, from, to, file);
 }
 
+/**
+ * security_ptrace_access_check() - Check if tracing is allowed
+ * @child: target process
+ * @mode: PTRACE_MODE flags
+ *
+ * Check permission before allowing the current process to trace the @child
+ * process.  Security modules may also want to perform a process tracing check
+ * during an execve in the set_security or apply_creds hooks of tracing check
+ * during an execve in the bprm_set_creds hook of binprm_security_ops if the
+ * process is being traced and its security attributes would be changed by the
+ * execve.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
 	return call_int_hook(ptrace_access_check, 0, child, mode);
 }
 
+/**
+ * security_ptrace_traceme() - Check if tracing is allowed
+ * @parent: tracing process
+ *
+ * Check that the @parent process has sufficient permission to trace the
+ * current process before allowing the current process to present itself to the
+ * @parent process for tracing.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_ptrace_traceme(struct task_struct *parent)
 {
 	return call_int_hook(ptrace_traceme, 0, parent);
 }
 
+/**
+ * security_capget() - Get the capability sets for a process
+ * @target: target process
+ * @effective: effective capability set
+ * @inheritable: inheritable capability set
+ * @permitted: permitted capability set
+ *
+ * Get the @effective, @inheritable, and @permitted capability sets for the
+ * @target process.  The hook may also perform permission checking to determine
+ * if the current process is allowed to see the capability sets of the @target
+ * process.
+ *
+ * Return: Returns 0 if the capability sets were successfully obtained.
+ */
 int security_capget(struct task_struct *target,
 		     kernel_cap_t *effective,
 		     kernel_cap_t *inheritable,
@@ -857,6 +895,19 @@ int security_capget(struct task_struct *target,
 				effective, inheritable, permitted);
 }
 
+/**
+ * security_capset() - Set the capability sets for a process
+ * @new: new credentials for the target process
+ * @old: current credentials of the target process
+ * @effective: effective capability set
+ * @inheritable: inheritable capability set
+ * @permitted: permitted capability set
+ *
+ * Set the @effective, @inheritable, and @permitted capability sets for the
+ * current process.
+ *
+ * Return: Returns 0 and update @new if permission is granted.
+ */
 int security_capset(struct cred *new, const struct cred *old,
 		    const kernel_cap_t *effective,
 		    const kernel_cap_t *inheritable,
@@ -866,6 +917,19 @@ int security_capset(struct cred *new, const struct cred *old,
 				effective, inheritable, permitted);
 }
 
+/**
+ * security_capable() - Check if a process has the necessary capability
+ * @cred: credentials to examine
+ * @ns: user namespace
+ * @cap: capability requested
+ * @opts: capability check options
+ *
+ * Check whether the @tsk process has the @cap capability in the indicated
+ * credentials.  @cap contains the capability <include/linux/capability.h>.
+ * @opts contains options for the capable check <include/linux/security.h>.
+ *
+ * Return: Returns 0 if the capability is granted.
+ */
 int security_capable(const struct cred *cred,
 		     struct user_namespace *ns,
 		     int cap,
@@ -874,26 +938,78 @@ int security_capable(const struct cred *cred,
 	return call_int_hook(capable, 0, cred, ns, cap, opts);
 }
 
+/**
+ * security_quotactl() - Check if a quotactl() syscall is allowed for this fs
+ * @cmds: commands
+ * @type: type
+ * @id: id
+ * @sb: filesystem
+ *
+ * Check whether the quotactl syscall is allowed for this @sb.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_quotactl(int cmds, int type, int id, struct super_block *sb)
 {
 	return call_int_hook(quotactl, 0, cmds, type, id, sb);
 }
 
+/**
+ * security_quota_on() - Check if QUOTAON is allowed for a dentry
+ * @dentry: dentry
+ *
+ * Check whether QUOTAON is allowed for @dentry.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_quota_on(struct dentry *dentry)
 {
 	return call_int_hook(quota_on, 0, dentry);
 }
 
+/**
+ * security_syslog() - Check if accessing the kernel message ring is allowed
+ * @type: SYSLOG_ACTION_* type
+ *
+ * Check permission before accessing the kernel message ring or changing
+ * logging to the console.  See the syslog(2) manual page for an explanation of
+ * the @type values.
+ *
+ * Return: Return 0 if permission is granted.
+ */
 int security_syslog(int type)
 {
 	return call_int_hook(syslog, 0, type);
 }
 
+/**
+ * security_settime64() - Check if changing the system time is allowed
+ * @ts: new time
+ * @tz: timezone
+ *
+ * Check permission to change the system time, struct timespec64 is defined in
+ * <include/linux/time64.h> and timezone is defined in <include/linux/time.h>.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_settime64(const struct timespec64 *ts, const struct timezone *tz)
 {
 	return call_int_hook(settime, 0, ts, tz);
 }
 
+/**
+ * security_vm_enough_memory_mm() - Check if allocating a new mem map is allowed
+ * @mm: mm struct
+ * @pages: number of pages
+ *
+ * Check permissions for allocating a new virtual mapping.  If all LSMs return
+ * a positive value, __vm_enough_memory() will be called with cap_sys_admin
+ * set. If at least one LSM returns 0 or negative, __vm_enough_memory() will be
+ * called with cap_sys_admin cleared.
+ *
+ * Return: Returns 0 if permission is granted by the LSM infrastructure to the
+ *         caller.
+ */
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 {
 	struct security_hook_list *hp;
@@ -3703,12 +3819,33 @@ int security_netlink_send(struct sock *sk, struct sk_buff *skb)
 	return call_int_hook(netlink_send, 0, sk, skb);
 }
 
+/**
+ * security_ismaclabel() - Check is the named attribute is a MAC label
+ * @name: full extended attribute name
+ *
+ * Check if the extended attribute specified by @name represents a MAC label.
+ *
+ * Return: Returns 1 if name is a MAC attribute otherwise returns 0.
+ */
 int security_ismaclabel(const char *name)
 {
 	return call_int_hook(ismaclabel, 0, name);
 }
 EXPORT_SYMBOL(security_ismaclabel);
 
+/**
+ * security_secid_to_secctx() - Convert a secid to a secctx
+ * @secid: secid
+ * @secdata: secctx
+ * @seclen: secctx length
+ *
+ * Convert secid to security context.  If @secdata is NULL the length of the
+ * result will be returned in @seclen, but no @secdata will be returned.  This
+ * does mean that the length could change between calls to check the length and
+ * the next call which actually allocates and returns the @secdata.
+ *
+ * Return: Return 0 on success, error on failure.
+ */
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
 	struct security_hook_list *hp;
@@ -3728,6 +3865,16 @@ int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 }
 EXPORT_SYMBOL(security_secid_to_secctx);
 
+/**
+ * security_secctx_to_secid() - Convert a secctx to a secid
+ * @secdata: secctx
+ * @seclen: length of secctx
+ * @secid: secid
+ *
+ * Convert security context to secid.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
 	*secid = 0;
@@ -3735,30 +3882,86 @@ int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 }
 EXPORT_SYMBOL(security_secctx_to_secid);
 
+/**
+ * security_release_secctx() - Free a secctx buffer
+ * @secdata: secctx
+ * @seclen: length of secctx
+ *
+ * Release the security context.
+ */
 void security_release_secctx(char *secdata, u32 seclen)
 {
 	call_void_hook(release_secctx, secdata, seclen);
 }
 EXPORT_SYMBOL(security_release_secctx);
 
+/**
+ * security_inode_invalidate_secctx() - Invalidate an inode's security label
+ * @inode: inode
+ *
+ * Notify the security module that it must revalidate the security context of
+ * an inode.
+ */
 void security_inode_invalidate_secctx(struct inode *inode)
 {
 	call_void_hook(inode_invalidate_secctx, inode);
 }
 EXPORT_SYMBOL(security_inode_invalidate_secctx);
 
+/**
+ * security_inode_notifysecctx() - Nofify the LSM of an inode's security label
+ * @inode: inode
+ * @ctx: secctx
+ * @ctxlen: length of secctx
+ *
+ * Notify the security module of what the security context of an inode should
+ * be.  Initializes the incore security context managed by the security module
+ * for this inode.  Example usage: NFS client invokes this hook to initialize
+ * the security context in its incore inode to the value provided by the server
+ * for the file when the server returned the file's attributes to the client.
+ * Must be called with inode->i_mutex locked.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
 {
 	return call_int_hook(inode_notifysecctx, 0, inode, ctx, ctxlen);
 }
 EXPORT_SYMBOL(security_inode_notifysecctx);
 
+/**
+ * security_inode_setsecctx() - Change the security label of an inode
+ * @dentry: inode
+ * @ctx: secctx
+ * @ctxlen: length of secctx
+ *
+ * Change the security context of an inode.  Updates the incore security
+ * context managed by the security module and invokes the fs code as needed
+ * (via __vfs_setxattr_noperm) to update any backing xattrs that represent the
+ * context.  Example usage: NFS server invokes this hook to change the security
+ * context in its incore inode and on the backing filesystem to a value
+ * provided by the client on a SETATTR operation.  Must be called with
+ * inode->i_mutex locked.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
 	return call_int_hook(inode_setsecctx, 0, dentry, ctx, ctxlen);
 }
 EXPORT_SYMBOL(security_inode_setsecctx);
 
+/**
+ * security_inode_getsecctx() - Get the security label of an inode
+ * @inode: inode
+ * @ctx: secctx
+ * @ctxlen: length of secctx
+ *
+ * On success, returns 0 and fills out @ctx and @ctxlen with the security
+ * context for the given @inode.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 {
 	return call_int_hook(inode_getsecctx, -EOPNOTSUPP, inode, ctx, ctxlen);
@@ -3766,6 +3969,16 @@ int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 EXPORT_SYMBOL(security_inode_getsecctx);
 
 #ifdef CONFIG_WATCH_QUEUE
+/**
+ * security_post_notification() - Check if a watch notification can be posted
+ * @w_cred: credentials of the task that set the watch
+ * @cred: credentials of the task which triggered the watch
+ * @n: the notification
+ *
+ * Check to see if a watch notification can be posted to a particular queue.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_post_notification(const struct cred *w_cred,
 			       const struct cred *cred,
 			       struct watch_notification *n)
@@ -3775,6 +3988,15 @@ int security_post_notification(const struct cred *w_cred,
 #endif /* CONFIG_WATCH_QUEUE */
 
 #ifdef CONFIG_KEY_NOTIFICATIONS
+/**
+ * security_watch_key() - Check if a task is allowed to watch for key events
+ * @key: the key to watch
+ *
+ * Check to see if a process is allowed to watch for event notifications from
+ * a key or keyring.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_watch_key(struct key *key)
 {
 	return call_int_hook(watch_key, 0, key);
@@ -4920,6 +5142,15 @@ void security_bpf_prog_free(struct bpf_prog_aux *aux)
 }
 #endif /* CONFIG_BPF_SYSCALL */
 
+/**
+ * security_locked_down() - Check if a kernel feature is allowed
+ * @what: requested kernel feature
+ *
+ * Determine whether a kernel feature that potentially enables arbitrary code
+ * execution in kernel space should be permitted.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_locked_down(enum lockdown_reason what)
 {
 	return call_int_hook(locked_down, 0, what);
