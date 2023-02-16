@@ -5019,7 +5019,7 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 
 			WARN_ON(refcount_read(&skb->users));
 			if (likely(get_kfree_skb_cb(skb)->reason == SKB_REASON_CONSUMED))
-				trace_consume_skb(skb);
+				trace_consume_skb(skb, net_tx_action);
 			else
 				trace_kfree_skb(skb, net_tx_action,
 						SKB_DROP_REASON_NOT_SPECIFIED);
