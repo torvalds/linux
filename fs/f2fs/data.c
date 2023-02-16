@@ -95,17 +95,17 @@ static enum count_type __read_io_type(struct page *page)
 /* postprocessing steps for read bios */
 enum bio_post_read_step {
 #ifdef CONFIG_FS_ENCRYPTION
-	STEP_DECRYPT	= 1 << 0,
+	STEP_DECRYPT	= BIT(0),
 #else
 	STEP_DECRYPT	= 0,	/* compile out the decryption-related code */
 #endif
 #ifdef CONFIG_F2FS_FS_COMPRESSION
-	STEP_DECOMPRESS	= 1 << 1,
+	STEP_DECOMPRESS	= BIT(1),
 #else
 	STEP_DECOMPRESS	= 0,	/* compile out the decompression-related code */
 #endif
 #ifdef CONFIG_FS_VERITY
-	STEP_VERITY	= 1 << 2,
+	STEP_VERITY	= BIT(2),
 #else
 	STEP_VERITY	= 0,	/* compile out the verity-related code */
 #endif
@@ -409,7 +409,7 @@ int f2fs_target_device_index(struct f2fs_sb_info *sbi, block_t blkaddr)
 
 static blk_opf_t f2fs_io_flags(struct f2fs_io_info *fio)
 {
-	unsigned int temp_mask = (1 << NR_TEMP_TYPE) - 1;
+	unsigned int temp_mask = GENMASK(NR_TEMP_TYPE - 1, 0);
 	unsigned int fua_flag, meta_flag, io_flag;
 	blk_opf_t op_flags = 0;
 
@@ -431,9 +431,9 @@ static blk_opf_t f2fs_io_flags(struct f2fs_io_info *fio)
 	 *    5 |    4 |   3 |    2 |    1 |   0 |
 	 * Cold | Warm | Hot | Cold | Warm | Hot |
 	 */
-	if ((1 << fio->temp) & meta_flag)
+	if (BIT(fio->temp) & meta_flag)
 		op_flags |= REQ_META;
-	if ((1 << fio->temp) & fua_flag)
+	if (BIT(fio->temp) & fua_flag)
 		op_flags |= REQ_FUA;
 	return op_flags;
 }
