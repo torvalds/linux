@@ -4468,23 +4468,63 @@ EXPORT_SYMBOL(security_skb_classify_flow);
 
 #ifdef CONFIG_KEYS
 
+/**
+ * security_key_alloc() - Allocate and initialize a kernel key LSM blob
+ * @key: key
+ * @cred: credentials
+ * @flags: allocation flags
+ *
+ * Permit allocation of a key and assign security data. Note that key does not
+ * have a serial number assigned at this point.
+ *
+ * Return: Return 0 if permission is granted, -ve error otherwise.
+ */
 int security_key_alloc(struct key *key, const struct cred *cred,
 		       unsigned long flags)
 {
 	return call_int_hook(key_alloc, 0, key, cred, flags);
 }
 
+/**
+ * security_key_free() - Free a kernel key LSM blob
+ * @key: key
+ *
+ * Notification of destruction; free security data.
+ */
 void security_key_free(struct key *key)
 {
 	call_void_hook(key_free, key);
 }
 
+/**
+ * security_key_permission() - Check if a kernel key operation is allowed
+ * @key_ref: key reference
+ * @cred: credentials of actor requesting access
+ * @need_perm: requested permissions
+ *
+ * See whether a specific operational right is granted to a process on a key.
+ *
+ * Return: Return 0 if permission is granted, -ve error otherwise.
+ */
 int security_key_permission(key_ref_t key_ref, const struct cred *cred,
 			    enum key_need_perm need_perm)
 {
 	return call_int_hook(key_permission, 0, key_ref, cred, need_perm);
 }
 
+/**
+ * security_key_getsecurity() - Get the key's security label
+ * @key: key
+ * @buffer: security label buffer
+ *
+ * Get a textual representation of the security context attached to a key for
+ * the purposes of honouring KEYCTL_GETSECURITY.  This function allocates the
+ * storage for the NUL-terminated string and the caller should free it.
+ *
+ * Return: Returns the length of @buffer (including terminating NUL) or -ve if
+ *         an error occurs.  May also return 0 (and a NULL buffer pointer) if
+ *         there is no security label assigned to the key.
+ */
 int security_key_getsecurity(struct key *key, char **_buffer)
 {
 	*_buffer = NULL;

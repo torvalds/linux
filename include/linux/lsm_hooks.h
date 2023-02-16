@@ -32,38 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * Security hooks affecting all Key Management operations
- *
- * @key_alloc:
- *	Permit allocation of a key and assign security data. Note that key does
- *	not have a serial number assigned at this point.
- *	@key points to the key.
- *	@flags is the allocation flags.
- *	Return 0 if permission is granted, -ve error otherwise.
- * @key_free:
- *	Notification of destruction; free security data.
- *	@key points to the key.
- *	No return value.
- * @key_permission:
- *	See whether a specific operational right is granted to a process on a
- *	key.
- *	@key_ref refers to the key (key pointer + possession attribute bit).
- *	@cred points to the credentials to provide the context against which to
- *	evaluate the security data on the key.
- *	@perm describes the combination of permissions required of this key.
- *	Return 0 if permission is granted, -ve error otherwise.
- * @key_getsecurity:
- *	Get a textual representation of the security context attached to a key
- *	for the purposes of honouring KEYCTL_GETSECURITY.  This function
- *	allocates the storage for the NUL-terminated string and the caller
- *	should free it.
- *	@key points to the key to be queried.
- *	@_buffer points to a pointer that should be set to point to the
- *	resulting string (if no label or an error occurs).
- *	Return the length of the string (including terminating NUL) or -ve if
- *	an error.
- *	May also return 0 (and a NULL buffer pointer) if there is no label.
- *
  * Security hooks affecting all System V IPC operations.
  *
  * @ipc_permission:
