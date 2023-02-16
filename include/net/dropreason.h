@@ -77,6 +77,7 @@
 	FN(IPV6_NDISC_HOP_LIMIT)	\
 	FN(IPV6_NDISC_BAD_CODE)		\
 	FN(IPV6_NDISC_BAD_OPTIONS)	\
+	FN(IPV6_NDISC_NS_OTHERHOST)	\
 	FNe(MAX)
 
 /**
@@ -333,6 +334,10 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_IPV6_NDISC_BAD_CODE,
 	/** @SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS: invalid NDISC options. */
 	SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS,
+	/** @SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST: NEIGHBOUR SOLICITATION
+	 * for another host.
+	 */
+	SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
 	 * used as a real 'reason'

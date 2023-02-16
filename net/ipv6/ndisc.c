@@ -921,8 +921,10 @@ have_ifp:
 					pneigh_enqueue(&nd_tbl, idev->nd_parms, n);
 				goto out;
 			}
-		} else
+		} else {
+			SKB_DR_SET(reason, IPV6_NDISC_NS_OTHERHOST);
 			goto out;
+		}
 	}
 
 	if (is_router < 0)
