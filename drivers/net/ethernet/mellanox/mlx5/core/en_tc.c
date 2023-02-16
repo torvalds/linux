@@ -2152,9 +2152,6 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	free_branch_attr(flow, attr->branch_true);
 	free_branch_attr(flow, attr->branch_false);
 
-	if (flow->attr->lag.count)
-		mlx5_lag_del_mpesw_rule(esw->dev);
-
 	kvfree(attr->esw_attr->rx_tun_attr);
 	kvfree(attr->parse_attr);
 	kfree(flow->attr);
@@ -3681,7 +3678,6 @@ out_ok:
 
 static bool
 actions_match_supported_fdb(struct mlx5e_priv *priv,
-			    struct mlx5e_tc_flow_parse_attr *parse_attr,
 			    struct mlx5e_tc_flow *flow,
 			    struct netlink_ext_ack *extack)
 {
@@ -3730,7 +3726,7 @@ actions_match_supported(struct mlx5e_priv *priv,
 		return false;
 
 	if (mlx5e_is_eswitch_flow(flow) &&
-	    !actions_match_supported_fdb(priv, parse_attr, flow, extack))
+	    !actions_match_supported_fdb(priv, flow, extack))
 		return false;
 
 	return true;
@@ -4314,12 +4310,7 @@ static bool is_lag_dev(struct mlx5e_priv *priv,
 
 static bool is_multiport_eligible(struct mlx5e_priv *priv, struct net_device *out_dev)
 {
-	if (same_hw_reps(priv, out_dev) &&
-	    MLX5_CAP_PORT_SELECTION(priv->mdev, port_select_flow_table) &&
-	    MLX5_CAP_GEN(priv->mdev, create_lag_when_not_master_up))
-		return true;
-
-	return false;
+	return same_hw_reps(priv, out_dev) && mlx5_lag_is_mpesw(priv->mdev);
 }
 
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
@@ -4490,6 +4481,9 @@ static bool is_peer_flow_needed(struct mlx5e_tc_flow *flow)
 	    (is_rep_ingress || act_is_encap))
 		return true;
 
+	if (mlx5_lag_is_mpesw(esw_attr->in_mdev))
+		return true;
+
 	return false;
 }
 
@@ -4621,7 +4615,6 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		     struct mlx5_core_dev *in_mdev)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_tc_flow *flow;
@@ -4654,26 +4647,17 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
-	if (flow->attr->lag.count) {
-		err = mlx5_lag_add_mpesw_rule(esw->dev);
-		if (err)
-			goto err_free;
-	}
-
 	err = mlx5e_tc_add_fdb_flow(priv, flow, extack);
 	complete_all(&flow->init_done);
 	if (err) {
 		if (!(err == -ENETUNREACH && mlx5_lag_is_multipath(in_mdev)))
-			goto err_lag;
+			goto err_free;
 
 		add_unready_flow(flow);
 	}
 
 	return flow;
 
-err_lag:
-	if (flow->attr->lag.count)
-		mlx5_lag_del_mpesw_rule(esw->dev);
 err_free:
 	mlx5e_flow_put(priv, flow);
 out:
@@ -4705,8 +4689,10 @@ static int mlx5e_tc_add_fdb_peer_flow(struct flow_cls_offload *f,
 	 * So packets redirected to uplink use the same mdev of the
 	 * original flow and packets redirected from uplink use the
 	 * peer mdev.
+	 * In multiport eswitch it's a special case that we need to
+	 * keep the original mdev.
 	 */
-	if (attr->in_rep->vport == MLX5_VPORT_UPLINK)
+	if (attr->in_rep->vport == MLX5_VPORT_UPLINK && !mlx5_lag_is_mpesw(priv->mdev))
 		in_mdev = peer_priv->mdev;
 	else
 		in_mdev = priv->mdev;

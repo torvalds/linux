@@ -103,6 +103,8 @@ struct mlx5_rep_uplink_priv {
 
 	/* tc action stats */
 	struct mlx5e_tc_act_stats_handle *action_stats_handle;
+
+	struct work_struct mpesw_work;
 };
 
 struct mlx5e_rep_priv {

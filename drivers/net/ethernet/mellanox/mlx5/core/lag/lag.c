@@ -230,7 +230,6 @@ static void mlx5_ldev_free(struct kref *ref)
 	mlx5_lag_mp_cleanup(ldev);
 	cancel_delayed_work_sync(&ldev->bond_work);
 	destroy_workqueue(ldev->wq);
-	mlx5_lag_mpesw_cleanup(ldev);
 	mutex_destroy(&ldev->lock);
 	kfree(ldev);
 }
@@ -276,7 +275,6 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(struct mlx5_core_dev *dev)
 		mlx5_core_err(dev, "Failed to init multipath lag err=%d\n",
 			      err);
 
-	mlx5_lag_mpesw_init(ldev);
 	ldev->ports = MLX5_CAP_GEN(dev, num_lag_ports);
 	ldev->buckets = 1;
 
@@ -646,7 +644,7 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 	return 0;
 }
 
-static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
+int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
 	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
@@ -688,7 +686,7 @@ static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 }
 
 #define MLX5_LAG_OFFLOADS_SUPPORTED_PORTS 2
-static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
+bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
 {
 #ifdef CONFIG_MLX5_ESWITCH
 	struct mlx5_core_dev *dev;
@@ -723,7 +721,7 @@ static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
 	return true;
 }
 
-static void mlx5_lag_add_devices(struct mlx5_lag *ldev)
+void mlx5_lag_add_devices(struct mlx5_lag *ldev)
 {
 	int i;
 
@@ -740,7 +738,7 @@ static void mlx5_lag_add_devices(struct mlx5_lag *ldev)
 	}
 }
 
-static void mlx5_lag_remove_devices(struct mlx5_lag *ldev)
+void mlx5_lag_remove_devices(struct mlx5_lag *ldev)
 {
 	int i;
 

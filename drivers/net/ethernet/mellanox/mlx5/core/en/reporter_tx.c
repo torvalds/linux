@@ -594,10 +594,10 @@ static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {
 
 void mlx5e_reporter_tx_create(struct mlx5e_priv *priv)
 {
-	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);
 	struct devlink_health_reporter *reporter;
 
-	reporter = devlink_port_health_reporter_create(dl_port, &mlx5_tx_reporter_ops,
+	reporter = devlink_port_health_reporter_create(priv->netdev->devlink_port,
+						       &mlx5_tx_reporter_ops,
 						       MLX5_REPORTER_TX_GRACEFUL_PERIOD, priv);
 	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev,

@@ -1509,23 +1509,23 @@ out:
 	return err;
 }
 
-int mlx5_load_one(struct mlx5_core_dev *dev, bool recovery)
+int mlx5_load_one(struct mlx5_core_dev *dev)
 {
 	struct devlink *devlink = priv_to_devlink(dev);
 	int ret;
 
 	devl_lock(devlink);
-	ret = mlx5_load_one_devl_locked(dev, recovery);
+	ret = mlx5_load_one_devl_locked(dev, false);
 	devl_unlock(devlink);
 	return ret;
 }
 
-void mlx5_unload_one_devl_locked(struct mlx5_core_dev *dev)
+void mlx5_unload_one_devl_locked(struct mlx5_core_dev *dev, bool suspend)
 {
 	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&dev->intf_state_mutex);
 
-	mlx5_detach_device(dev);
+	mlx5_detach_device(dev, suspend);
 
 	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
 		mlx5_core_warn(dev, "%s: interface is down, NOP\n",
@@ -1540,12 +1540,12 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
-void mlx5_unload_one(struct mlx5_core_dev *dev)
+void mlx5_unload_one(struct mlx5_core_dev *dev, bool suspend)
 {
 	struct devlink *devlink = priv_to_devlink(dev);
 
 	devl_lock(devlink);
-	mlx5_unload_one_devl_locked(dev);
+	mlx5_unload_one_devl_locked(dev, suspend);
 	devl_unlock(devlink);
 }
 
@@ -1830,7 +1830,7 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 
 	mlx5_enter_error_state(dev, false);
 	mlx5_error_sw_reset(dev);
-	mlx5_unload_one(dev);
+	mlx5_unload_one(dev, true);
 	mlx5_drain_health_wq(dev);
 	mlx5_pci_disable_device(dev);
 
@@ -1912,8 +1912,7 @@ static void mlx5_pci_resume(struct pci_dev *pdev)
 
 	mlx5_pci_trace(dev, "Enter, loading driver..\n");
 
-	err = mlx5_load_one(dev, false);
-
+	err = mlx5_load_one(dev);
 	if (!err)
 		devlink_health_reporter_state_update(dev->priv.health.fw_fatal_reporter,
 						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
@@ -1987,7 +1986,7 @@ static void shutdown(struct pci_dev *pdev)
 	set_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state);
 	err = mlx5_try_fast_unload(dev);
 	if (err)
-		mlx5_unload_one(dev);
+		mlx5_unload_one(dev, false);
 	mlx5_pci_disable_device(dev);
 }
 
@@ -1995,7 +1994,7 @@ static int mlx5_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
 
-	mlx5_unload_one(dev);
+	mlx5_unload_one(dev, true);
 
 	return 0;
 }
@@ -2004,7 +2003,7 @@ static int mlx5_resume(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
 
-	return mlx5_load_one(dev, false);
+	return mlx5_load_one(dev);
 }
 
 static const struct pci_device_id mlx5_core_pci_table[] = {
@@ -2038,7 +2037,7 @@ MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
 void mlx5_disable_device(struct mlx5_core_dev *dev)
 {
 	mlx5_error_sw_reset(dev);
-	mlx5_unload_one_devl_locked(dev);
+	mlx5_unload_one_devl_locked(dev, false);
 }
 
 int mlx5_recover_device(struct mlx5_core_dev *dev)

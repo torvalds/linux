@@ -102,6 +102,7 @@ mlx5_lag_is_ready(struct mlx5_lag *ldev)
 	return test_bit(MLX5_LAG_FLAG_NDEVS_READY, &ldev->state_flags);
 }
 
+bool mlx5_lag_check_prereq(struct mlx5_lag *ldev);
 void mlx5_modify_lag(struct mlx5_lag *ldev,
 		     struct lag_tracker *tracker);
 int mlx5_activate_lag(struct mlx5_lag *ldev,
@@ -119,5 +120,8 @@ void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
 void mlx5_ldev_add_debugfs(struct mlx5_core_dev *dev);
 void mlx5_ldev_remove_debugfs(struct dentry *dbg);
 void mlx5_disable_lag(struct mlx5_lag *ldev);
+void mlx5_lag_remove_devices(struct mlx5_lag *ldev);
+int mlx5_deactivate_lag(struct mlx5_lag *ldev);
+void mlx5_lag_add_devices(struct mlx5_lag *ldev);
 
 #endif /* __MLX5_LAG_H__ */
