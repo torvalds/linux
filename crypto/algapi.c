@@ -1051,32 +1051,6 @@ void crypto_stats_get(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_stats_get);
 
-void crypto_stats_aead_encrypt(unsigned int cryptlen, struct crypto_alg *alg,
-			       int ret)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.aead.err_cnt);
-	} else {
-		atomic64_inc(&alg->stats.aead.encrypt_cnt);
-		atomic64_add(cryptlen, &alg->stats.aead.encrypt_tlen);
-	}
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_aead_encrypt);
-
-void crypto_stats_aead_decrypt(unsigned int cryptlen, struct crypto_alg *alg,
-			       int ret)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.aead.err_cnt);
-	} else {
-		atomic64_inc(&alg->stats.aead.decrypt_cnt);
-		atomic64_add(cryptlen, &alg->stats.aead.decrypt_tlen);
-	}
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_aead_decrypt);
-
 void crypto_stats_akcipher_encrypt(unsigned int src_len, int ret,
 				   struct crypto_alg *alg)
 {

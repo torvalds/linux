@@ -277,22 +277,6 @@ struct compress_alg {
 
 #ifdef CONFIG_CRYPTO_STATS
 /*
- * struct crypto_istat_aead - statistics for AEAD algorithm
- * @encrypt_cnt:	number of encrypt requests
- * @encrypt_tlen:	total data size handled by encrypt requests
- * @decrypt_cnt:	number of decrypt requests
- * @decrypt_tlen:	total data size handled by decrypt requests
- * @err_cnt:		number of error for AEAD requests
- */
-struct crypto_istat_aead {
-	atomic64_t encrypt_cnt;
-	atomic64_t encrypt_tlen;
-	atomic64_t decrypt_cnt;
-	atomic64_t decrypt_tlen;
-	atomic64_t err_cnt;
-};
-
-/*
  * struct crypto_istat_akcipher - statistics for akcipher algorithm
  * @encrypt_cnt:	number of encrypt requests
  * @encrypt_tlen:	total data size handled by encrypt requests
@@ -463,7 +447,6 @@ struct crypto_istat_rng {
  * @cra_destroy: internally used
  *
  * @stats: union of all possible crypto_istat_xxx structures
- * @stats.aead:		statistics for AEAD algorithm
  * @stats.akcipher:	statistics for akcipher algorithm
  * @stats.cipher:	statistics for cipher algorithm
  * @stats.compress:	statistics for compress algorithm
@@ -505,7 +488,6 @@ struct crypto_alg {
 
 #ifdef CONFIG_CRYPTO_STATS
 	union {
-		struct crypto_istat_aead aead;
 		struct crypto_istat_akcipher akcipher;
 		struct crypto_istat_cipher cipher;
 		struct crypto_istat_compress compress;
@@ -520,8 +502,6 @@ struct crypto_alg {
 #ifdef CONFIG_CRYPTO_STATS
 void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
-void crypto_stats_aead_encrypt(unsigned int cryptlen, struct crypto_alg *alg, int ret);
-void crypto_stats_aead_decrypt(unsigned int cryptlen, struct crypto_alg *alg, int ret);
 void crypto_stats_ahash_update(unsigned int nbytes, int ret, struct crypto_alg *alg);
 void crypto_stats_ahash_final(unsigned int nbytes, int ret, struct crypto_alg *alg);
 void crypto_stats_akcipher_encrypt(unsigned int src_len, int ret, struct crypto_alg *alg);
@@ -541,10 +521,6 @@ void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto
 static inline void crypto_stats_init(struct crypto_alg *alg)
 {}
 static inline void crypto_stats_get(struct crypto_alg *alg)
-{}
-static inline void crypto_stats_aead_encrypt(unsigned int cryptlen, struct crypto_alg *alg, int ret)
-{}
-static inline void crypto_stats_aead_decrypt(unsigned int cryptlen, struct crypto_alg *alg, int ret)
 {}
 static inline void crypto_stats_ahash_update(unsigned int nbytes, int ret, struct crypto_alg *alg)
 {}
