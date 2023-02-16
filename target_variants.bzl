@@ -1,9 +1,10 @@
 la_targets = [
     # keep sorted
-    "gen3auto",
     "autogvm",
-    "pineapple",
     "blair",
+    "gen3auto",
+    "pineapple",
+    "sdmsteppeauto",
 ]
 
 la_variants = [
