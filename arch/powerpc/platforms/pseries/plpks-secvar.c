@@ -135,7 +135,8 @@ static int plpks_set_variable(const char *key, u64 key_len, u8 *data,
 		goto err;
 	var.namelen = rc * 2;
 
-	memcpy(&flags, data, sizeof(flags));
+	// Flags are contained in the first 8 bytes of the buffer, and are always big-endian
+	flags = be64_to_cpup((__be64 *)data);
 
 	var.datalen = data_size - sizeof(flags);
 	var.data = data + sizeof(flags);
