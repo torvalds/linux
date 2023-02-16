@@ -1837,7 +1837,7 @@ static int dcmi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void dcmi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *sd,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asd)
 {
 	struct stm32_dcmi *dcmi = notifier_to_dcmi(notifier);
 
@@ -1849,7 +1849,7 @@ static void dcmi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int dcmi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asd)
 {
 	struct stm32_dcmi *dcmi = notifier_to_dcmi(notifier);
 	unsigned int ret;
@@ -1887,7 +1887,7 @@ static const struct v4l2_async_notifier_operations dcmi_graph_notify_ops = {
 
 static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct device_node *ep;
 	int ret;
 
@@ -1901,7 +1901,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	asd = v4l2_async_nf_add_fwnode_remote(&dcmi->notifier,
 					      of_fwnode_handle(ep),
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	of_node_put(ep);
 

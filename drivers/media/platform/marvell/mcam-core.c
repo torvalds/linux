@@ -1756,7 +1756,7 @@ EXPORT_SYMBOL_GPL(mccic_irq);
  */
 
 static int mccic_notify_bound(struct v4l2_async_notifier *notifier,
-	struct v4l2_subdev *subdev, struct v4l2_async_subdev *asd)
+	struct v4l2_subdev *subdev, struct v4l2_async_connection *asd)
 {
 	struct mcam_camera *cam = notifier_to_mcam(notifier);
 	int ret;
@@ -1801,7 +1801,7 @@ out:
 }
 
 static void mccic_notify_unbind(struct v4l2_async_notifier *notifier,
-	struct v4l2_subdev *subdev, struct v4l2_async_subdev *asd)
+	struct v4l2_subdev *subdev, struct v4l2_async_connection *asd)
 {
 	struct mcam_camera *cam = notifier_to_mcam(notifier);
 

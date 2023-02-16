@@ -988,12 +988,12 @@ static irqreturn_t rcsi2_irq_thread(int irq, void *data)
 
 static int rcsi2_notify_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asc)
 {
 	struct rcar_csi2 *priv = notifier_to_csi2(notifier);
 	int pad;
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+	pad = media_entity_get_fwnode_pad(&subdev->entity, asc->match.fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
@@ -1013,7 +1013,7 @@ static int rcsi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void rcsi2_notify_unbind(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				struct v4l2_async_connection *asc)
 {
 	struct rcar_csi2 *priv = notifier_to_csi2(notifier);
 
@@ -1090,7 +1090,7 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 
 static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asc;
 	struct fwnode_handle *fwnode;
 	struct fwnode_handle *ep;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
@@ -1125,11 +1125,11 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 	v4l2_async_nf_init(&priv->notifier);
 	priv->notifier.ops = &rcar_csi2_notify_ops;
 
-	asd = v4l2_async_nf_add_fwnode(&priv->notifier, fwnode,
-				       struct v4l2_async_subdev);
+	asc = v4l2_async_nf_add_fwnode(&priv->notifier, fwnode,
+				       struct v4l2_async_connection);
 	fwnode_handle_put(fwnode);
-	if (IS_ERR(asd))
-		return PTR_ERR(asd);
+	if (IS_ERR(asc))
+		return PTR_ERR(asc);
 
 	ret = v4l2_async_subdev_nf_register(&priv->subdev, &priv->notifier);
 	if (ret)

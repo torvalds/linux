@@ -106,7 +106,7 @@ struct rvin_video_format {
 
 /**
  * struct rvin_parallel_entity - Parallel video input endpoint descriptor
- * @asd:	sub-device descriptor for async framework
+ * @asc:	async connection descriptor for async framework
  * @subdev:	subdevice matched using async framework
  * @mbus_type:	media bus type
  * @bus:	media bus parallel configuration
@@ -115,7 +115,7 @@ struct rvin_video_format {
  *
  */
 struct rvin_parallel_entity {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asc;
 	struct v4l2_subdev *subdev;
 
 	enum v4l2_mbus_type mbus_type;
@@ -272,10 +272,10 @@ struct rvin_dev {
  *
  * @lock:		protects the count, notifier, vin and csi members
  * @count:		number of enabled VIN instances found in DT
- * @notifier:		group notifier for CSI-2 async subdevices
+ * @notifier:		group notifier for CSI-2 async connections
  * @vin:		VIN instances which are part of the group
  * @link_setup:		Callback to create all links for the media graph
- * @remotes:		array of pairs of fwnode and subdev pointers
+ * @remotes:		array of pairs of async connection and subdev pointers
  *			to all remote subdevices.
  */
 struct rvin_group {
@@ -291,7 +291,7 @@ struct rvin_group {
 	int (*link_setup)(struct rvin_dev *vin);
 
 	struct {
-		struct v4l2_async_subdev *asd;
+		struct v4l2_async_connection *asc;
 		struct v4l2_subdev *subdev;
 	} remotes[RVIN_REMOTES_MAX];
 };

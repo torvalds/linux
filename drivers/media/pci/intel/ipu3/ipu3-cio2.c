@@ -1372,7 +1372,7 @@ static const struct v4l2_subdev_ops cio2_subdev_ops = {
 /******* V4L2 sub-device asynchronous registration callbacks***********/
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct csi2_bus_info csi2;
 };
 
@@ -1382,7 +1382,7 @@ struct sensor_async_subdev {
 /* The .bound() notifier callback when a match is found */
 static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
 			       struct v4l2_subdev *sd,
-			       struct v4l2_async_subdev *asd)
+			       struct v4l2_async_connection *asd)
 {
 	struct cio2_device *cio2 = to_cio2_device(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
@@ -1403,7 +1403,7 @@ static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
 /* The .unbind callback */
 static void cio2_notifier_unbind(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct cio2_device *cio2 = to_cio2_device(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
@@ -1417,11 +1417,11 @@ static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 	struct cio2_device *cio2 = to_cio2_device(notifier);
 	struct device *dev = &cio2->pci_dev->dev;
 	struct sensor_async_subdev *s_asd;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct cio2_queue *q;
 	int ret;
 
-	list_for_each_entry(asd, &cio2->notifier.asd_list, asd_entry) {
+	list_for_each_entry(asd, &cio2->notifier.asc_list, asc_entry) {
 		s_asd = to_sensor_asd(asd);
 		q = &cio2->queue[s_asd->csi2.port];
 

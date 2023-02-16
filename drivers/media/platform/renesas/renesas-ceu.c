@@ -151,7 +151,7 @@ static inline struct ceu_buffer *vb2_to_ceu(struct vb2_v4l2_buffer *vbuf)
  * ceu_subdev - Wraps v4l2 sub-device and provides async subdevice.
  */
 struct ceu_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_subdev *v4l2_sd;
 
 	/* per-subdevice mbus configuration options */
@@ -159,7 +159,7 @@ struct ceu_subdev {
 	struct ceu_mbus_fmt mbus_fmt;
 };
 
-static struct ceu_subdev *to_ceu_subdev(struct v4l2_async_subdev *asd)
+static struct ceu_subdev *to_ceu_subdev(struct v4l2_async_connection *asd)
 {
 	return container_of(asd, struct ceu_subdev, asd);
 }
@@ -1374,7 +1374,7 @@ static void ceu_vdev_release(struct video_device *vdev)
 
 static int ceu_notify_bound(struct v4l2_async_notifier *notifier,
 			    struct v4l2_subdev *v4l2_sd,
-			    struct v4l2_async_subdev *asd)
+			    struct v4l2_async_connection *asd)
 {
 	struct v4l2_device *v4l2_dev = notifier->v4l2_dev;
 	struct ceu_device *ceudev = v4l2_to_ceu(v4l2_dev);

@@ -161,11 +161,12 @@ struct max9286_source {
 };
 
 struct max9286_asd {
-	struct v4l2_async_subdev base;
+	struct v4l2_async_connection base;
 	struct max9286_source *source;
 };
 
-static inline struct max9286_asd *to_max9286_asd(struct v4l2_async_subdev *asd)
+static inline struct max9286_asd *
+to_max9286_asd(struct v4l2_async_connection *asd)
 {
 	return container_of(asd, struct max9286_asd, base);
 }
@@ -659,7 +660,7 @@ static int max9286_set_pixelrate(struct max9286_priv *priv)
 
 static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				struct v4l2_async_connection *asd)
 {
 	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
 	struct max9286_source *source = to_max9286_asd(asd)->source;
@@ -721,7 +722,7 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void max9286_notify_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *subdev,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
 	struct max9286_source *source = to_max9286_asd(asd)->source;

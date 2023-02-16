@@ -72,7 +72,7 @@ struct vpif_capture_config {
 	int i2c_adapter_id;
 	const char *card_name;
 
-	struct v4l2_async_subdev *asd[VPIF_CAPTURE_MAX_CHANNELS];
+	struct v4l2_async_connection *asd[VPIF_CAPTURE_MAX_CHANNELS];
 	int asd_sizes[VPIF_CAPTURE_MAX_CHANNELS];
 };
 #endif /* _VPIF_TYPES_H */

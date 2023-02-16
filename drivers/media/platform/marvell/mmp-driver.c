@@ -180,7 +180,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct fwnode_handle *ep;
 	struct mmp_camera_platform_data *pdata;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	int ret;
 
 	cam = devm_kzalloc(&pdev->dev, sizeof(*cam), GFP_KERNEL);
@@ -241,7 +241,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	v4l2_async_nf_init(&mcam->notifier);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&mcam->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	fwnode_handle_put(ep);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);

@@ -2144,7 +2144,7 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 static int
 vpfe_async_bound(struct v4l2_async_notifier *notifier,
 		 struct v4l2_subdev *subdev,
-		 struct v4l2_async_subdev *asd)
+		 struct v4l2_async_connection *asd)
 {
 	struct vpfe_device *vpfe = container_of(notifier->v4l2_dev,
 					       struct vpfe_device, v4l2_dev);
@@ -2370,8 +2370,7 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 
 		pdata->asd[i] = v4l2_async_nf_add_fwnode(&vpfe->notifier,
 							 of_fwnode_handle(rem),
-							 struct
-							 v4l2_async_subdev);
+							 struct v4l2_async_connection);
 		of_node_put(rem);
 		if (IS_ERR(pdata->asd[i]))
 			goto cleanup;

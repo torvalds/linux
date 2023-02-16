@@ -220,7 +220,7 @@ struct isp_device {
 };
 
 struct isp_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct isp_bus_cfg bus;
 };
 

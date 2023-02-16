@@ -1229,7 +1229,7 @@ mipi_notifier_to_csis_state(struct v4l2_async_notifier *n)
 
 static int mipi_csis_notify_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct mipi_csis_device *csis = mipi_notifier_to_csis_state(notifier);
 	struct media_pad *sink = &csis->sd.entity.pads[CSIS_PAD_SINK];
@@ -1246,7 +1246,7 @@ static int mipi_csis_async_register(struct mipi_csis_device *csis)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep;
 	unsigned int i;
 	int ret;
@@ -1277,7 +1277,7 @@ static int mipi_csis_async_register(struct mipi_csis_device *csis)
 	dev_dbg(csis->dev, "flags: 0x%08x\n", csis->bus.flags);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csis->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto err_parse;

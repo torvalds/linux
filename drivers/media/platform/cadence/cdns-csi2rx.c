@@ -313,7 +313,7 @@ static const struct v4l2_subdev_ops csi2rx_subdev_ops = {
 
 static int csi2rx_async_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *s_subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asd)
 {
 	struct v4l2_subdev *subdev = notifier->sd;
 	struct csi2rx_priv *csi2rx = v4l2_subdev_to_csi2rx(subdev);
@@ -440,7 +440,7 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 {
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *fwh;
 	struct device_node *ep;
 	int ret;
@@ -477,7 +477,7 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 	v4l2_async_nf_init(&csi2rx->notifier);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi2rx->notifier, fwh,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	of_node_put(ep);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);

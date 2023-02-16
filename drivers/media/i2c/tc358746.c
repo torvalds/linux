@@ -1426,7 +1426,7 @@ static int tc358746_init_controls(struct tc358746 *tc358746)
 
 static int tc358746_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct tc358746 *tc358746 =
 		container_of(notifier, struct tc358746, notifier);
@@ -1445,7 +1445,7 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep;
 	int err;
 
@@ -1462,7 +1462,7 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 
 	v4l2_async_nf_init(&tc358746->notifier);
 	asd = v4l2_async_nf_add_fwnode_remote(&tc358746->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	fwnode_handle_put(ep);
 
 	if (IS_ERR(asd)) {

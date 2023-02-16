@@ -1363,12 +1363,12 @@ static inline void free_vpif_objs(void)
 
 static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 			    struct v4l2_subdev *subdev,
-			    struct v4l2_async_subdev *asd)
+			    struct v4l2_async_connection *asd)
 {
 	int i;
 
 	for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
-		struct v4l2_async_subdev *_asd = vpif_obj.config->asd[i];
+		struct v4l2_async_connection *_asd = vpif_obj.config->asd[i];
 		const struct fwnode_handle *fwnode = _asd->match.fwnode;
 
 		if (fwnode == subdev->fwnode) {
@@ -1570,8 +1570,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 
 		pdata->asd[i] = v4l2_async_nf_add_fwnode(&vpif_obj.notifier,
 							 of_fwnode_handle(rem),
-							 struct
-							 v4l2_async_subdev);
+							 struct v4l2_async_connection);
 		if (IS_ERR(pdata->asd[i]))
 			goto err_cleanup;
 

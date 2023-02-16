@@ -1383,7 +1383,7 @@ static void camss_unregister_entities(struct camss *camss)
 
 static int camss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 				       struct v4l2_subdev *subdev,
-				       struct v4l2_async_subdev *asd)
+				       struct v4l2_async_connection *asd)
 {
 	struct camss *camss = container_of(async, struct camss, notifier);
 	struct camss_async_subdev *csd =

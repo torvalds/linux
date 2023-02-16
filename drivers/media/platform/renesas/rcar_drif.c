@@ -1098,7 +1098,7 @@ static void rcar_drif_sdr_unregister(struct rcar_drif_sdr *sdr)
 /* Sub-device bound callback */
 static int rcar_drif_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asd)
 {
 	struct rcar_drif_sdr *sdr =
 		container_of(notifier, struct rcar_drif_sdr, notifier);
@@ -1113,7 +1113,7 @@ static int rcar_drif_notify_bound(struct v4l2_async_notifier *notifier,
 /* Sub-device unbind callback */
 static void rcar_drif_notify_unbind(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asd)
 {
 	struct rcar_drif_sdr *sdr =
 		container_of(notifier, struct rcar_drif_sdr, notifier);
@@ -1206,7 +1206,7 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 {
 	struct v4l2_async_notifier *notifier = &sdr->notifier;
 	struct fwnode_handle *fwnode, *ep;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 
 	v4l2_async_nf_init(notifier);
 
@@ -1226,7 +1226,7 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 	}
 
 	asd = v4l2_async_nf_add_fwnode(notifier, fwnode,
-				       struct v4l2_async_subdev);
+				       struct v4l2_async_connection);
 	fwnode_handle_put(fwnode);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);

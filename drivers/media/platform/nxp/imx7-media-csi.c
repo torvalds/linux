@@ -2032,7 +2032,7 @@ static const struct media_entity_operations imx7_csi_entity_ops = {
 
 static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
 	struct media_pad *sink = &csi->sd.entity.pads[IMX7_CSI_PAD_SINK];
@@ -2057,7 +2057,7 @@ static const struct v4l2_async_notifier_operations imx7_csi_notify_ops = {
 
 static int imx7_csi_async_register(struct imx7_csi *csi)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep;
 	int ret;
 
@@ -2072,7 +2072,7 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 	}
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	fwnode_handle_put(ep);
 

@@ -326,7 +326,7 @@ static const struct v4l2_subdev_ops rcar_isp_subdev_ops = {
 
 static int risp_notify_bound(struct v4l2_async_notifier *notifier,
 			     struct v4l2_subdev *subdev,
-			     struct v4l2_async_subdev *asd)
+			     struct v4l2_async_connection *asd)
 {
 	struct rcar_isp *isp = notifier_to_isp(notifier);
 	int pad;
@@ -350,7 +350,7 @@ static int risp_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void risp_notify_unbind(struct v4l2_async_notifier *notifier,
 			       struct v4l2_subdev *subdev,
-			       struct v4l2_async_subdev *asd)
+			       struct v4l2_async_connection *asd)
 {
 	struct rcar_isp *isp = notifier_to_isp(notifier);
 
@@ -366,7 +366,7 @@ static const struct v4l2_async_notifier_operations risp_notify_ops = {
 
 static int risp_parse_dt(struct rcar_isp *isp)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *fwnode;
 	struct fwnode_handle *ep;
 	unsigned int id;
@@ -396,7 +396,7 @@ static int risp_parse_dt(struct rcar_isp *isp)
 	isp->notifier.ops = &risp_notify_ops;
 
 	asd = v4l2_async_nf_add_fwnode(&isp->notifier, fwnode,
-				       struct v4l2_async_subdev);
+				       struct v4l2_async_connection);
 	fwnode_handle_put(fwnode);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);

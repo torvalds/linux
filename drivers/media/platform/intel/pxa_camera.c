@@ -2044,7 +2044,7 @@ static const struct video_device pxa_camera_videodev_template = {
 
 static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
 		     struct v4l2_subdev *subdev,
-		     struct v4l2_async_subdev *asd)
+		     struct v4l2_async_connection *asd)
 {
 	int err;
 	struct v4l2_device *v4l2_dev = notifier->v4l2_dev;
@@ -2123,7 +2123,7 @@ out:
 
 static void pxa_camera_sensor_unbind(struct v4l2_async_notifier *notifier,
 		     struct v4l2_subdev *subdev,
-		     struct v4l2_async_subdev *asd)
+		     struct v4l2_async_connection *asd)
 {
 	struct pxa_camera_dev *pcdev = v4l2_dev_to_pcdev(notifier->v4l2_dev);
 
@@ -2197,7 +2197,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 				    struct pxa_camera_dev *pcdev)
 {
 	u32 mclk_rate;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct device_node *np = dev->of_node;
 	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int err = of_property_read_u32(np, "clock-frequency",
@@ -2252,7 +2252,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 
 	asd = v4l2_async_nf_add_fwnode_remote(&pcdev->notifier,
 					      of_fwnode_handle(np),
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	if (IS_ERR(asd))
 		err = PTR_ERR(asd);
 out:
@@ -2299,14 +2299,14 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->res = res;
 	pcdev->pdata = pdev->dev.platform_data;
 	if (pcdev->pdata) {
-		struct v4l2_async_subdev *asd;
+		struct v4l2_async_connection *asd;
 
 		pcdev->platform_flags = pcdev->pdata->flags;
 		pcdev->mclk = pcdev->pdata->mclk_10khz * 10000;
 		asd = v4l2_async_nf_add_i2c(&pcdev->notifier,
 					    pcdev->pdata->sensor_i2c_adapter_id,
 					    pcdev->pdata->sensor_i2c_address,
-					    struct v4l2_async_subdev);
+					    struct v4l2_async_connection);
 		if (IS_ERR(asd))
 			err = PTR_ERR(asd);
 	} else if (pdev->dev.of_node) {

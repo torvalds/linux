@@ -2024,12 +2024,12 @@ enum isp_of_phy {
 
 static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
 				     struct v4l2_subdev *sd,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asc)
 {
 	struct isp_device *isp = container_of(async, struct isp_device,
 					      notifier);
 	struct isp_bus_cfg *bus_cfg =
-		&container_of(asd, struct isp_async_subdev, asd)->bus;
+		&container_of(asc, struct isp_async_subdev, asd)->bus;
 	int ret;
 
 	mutex_lock(&isp->media_dev.graph_mutex);

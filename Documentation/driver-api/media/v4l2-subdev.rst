@@ -206,60 +206,67 @@ of an unregister notifier, it must be cleaned up by calling
 
 Before registering the notifier, bridge drivers must do two things: first, the
 notifier must be initialized using the :c:func:`v4l2_async_nf_init`.  Second,
-bridge drivers can then begin to form a list of subdevice descriptors that the
-bridge device needs for its operation. :c:func:`v4l2_async_nf_add_fwnode`,
+bridge drivers can then begin to form a list of async connection descriptors
+that the bridge device needs for its
+operation. :c:func:`v4l2_async_nf_add_fwnode`,
 :c:func:`v4l2_async_nf_add_fwnode_remote` and :c:func:`v4l2_async_nf_add_i2c`
-are available for that purpose.
+
+Async connection descriptors describe connections to external sub-devices the
+drivers for which are not yet probed. Based on an async connection, a media data
+or ancillary link may be created when the related sub-device becomes
+available. There may be one or more async connections to a given sub-device but
+this is not known at the time of adding the connections to the notifier. Async
+connections are bound as matching async sub-devices are found, one by one.
 
 Asynchronous sub-device registration helper for camera sensor drivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :c:func:`v4l2_async_register_subdev_sensor` is a helper function for sensor
-drivers registering their own async sub-device, but it also registers a notifier
-and further registers async sub-devices for lens and flash devices found in
+drivers registering their own async connection, but it also registers a notifier
+and further registers async connections for lens and flash devices found in
 firmware. The notifier for the sub-device is unregistered and cleaned up with
 the async sub-device, using :c:func:`v4l2_async_unregister_subdev`.
 
 Asynchronous sub-device notifier example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These functions allocate an async sub-device descriptor which is of type struct
-:c:type:`v4l2_async_subdev` embedded in a driver-specific struct. The &struct
-:c:type:`v4l2_async_subdev` shall be the first member of this struct:
+These functions allocate an async connection descriptor which is of type struct
+:c:type:`v4l2_async_connection` embedded in a driver-specific struct. The &struct
+:c:type:`v4l2_async_connection` shall be the first member of this struct:
 
 .. code-block:: c
 
-	struct my_async_subdev {
-		struct v4l2_async_subdev asd;
+	struct my_async_connection {
+		struct v4l2_async_connection asc;
 		...
 	};
 
-	struct my_async_subdev *my_asd;
+	struct my_async_connection *my_asc;
 	struct fwnode_handle *ep;
 
 	...
 
-	my_asd = v4l2_async_nf_add_fwnode_remote(&notifier, ep,
-						 struct my_async_subdev);
+	my_asc = v4l2_async_nf_add_fwnode_remote(&notifier, ep,
+						 struct my_async_connection);
 	fwnode_handle_put(ep);
 
-	if (IS_ERR(my_asd))
-		return PTR_ERR(my_asd);
+	if (IS_ERR(my_asc))
+		return PTR_ERR(my_asc);
 
 Asynchronous sub-device notifier callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The V4L2 core will then use these descriptors to match asynchronously
-registered subdevices to them. If a match is detected the ``.bound()``
-notifier callback is called. After all subdevices have been located the
-.complete() callback is called. When a subdevice is removed from the
-system the .unbind() method is called. All three callbacks are optional.
+The V4L2 core will then use these connection descriptors to match asynchronously
+registered subdevices to them. If a match is detected the ``.bound()`` notifier
+callback is called. After all connections have been bound the .complete()
+callback is called. When a connection is removed from the system the
+``.unbind()`` method is called. All three callbacks are optional.
 
 Drivers can store any type of custom data in their driver-specific
-:c:type:`v4l2_async_subdev` wrapper. If any of that data requires special
+:c:type:`v4l2_async_connection` wrapper. If any of that data requires special
 handling when the structure is freed, drivers must implement the ``.destroy()``
 notifier callback. The framework will call it right before freeing the
-:c:type:`v4l2_async_subdev`.
+:c:type:`v4l2_async_connection`.
 
 Calling subdev operations
 ~~~~~~~~~~~~~~~~~~~~~~~~~

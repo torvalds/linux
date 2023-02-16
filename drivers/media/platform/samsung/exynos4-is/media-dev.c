@@ -400,7 +400,7 @@ static int fimc_md_parse_one_endpoint(struct fimc_md *fmd,
 	int index = fmd->num_sensors;
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *np;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	int ret;
 
@@ -465,7 +465,7 @@ static int fimc_md_parse_one_endpoint(struct fimc_md *fmd,
 
 	asd = v4l2_async_nf_add_fwnode_remote(&fmd->subdev_notifier,
 					      of_fwnode_handle(ep),
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	of_node_put(ep);
 
@@ -1371,7 +1371,7 @@ err:
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct fimc_md *fmd = notifier_to_fimc_md(notifier);
 	struct fimc_sensor_info *si = NULL;

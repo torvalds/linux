@@ -471,11 +471,11 @@ struct ub960_rxport {
 };
 
 struct ub960_asd {
-	struct v4l2_async_subdev base;
+	struct v4l2_async_connection base;
 	struct ub960_rxport *rxport;
 };
 
-static inline struct ub960_asd *to_ub960_asd(struct v4l2_async_subdev *asd)
+static inline struct ub960_asd *to_ub960_asd(struct v4l2_async_connection *asd)
 {
 	return container_of(asd, struct ub960_asd, base);
 }
@@ -3538,7 +3538,7 @@ err_free_rxports:
 
 static int ub960_notify_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asd)
 {
 	struct ub960_data *priv = sd_to_ub960(notifier->sd);
 	struct ub960_rxport *rxport = to_ub960_asd(asd)->rxport;
@@ -3581,7 +3581,7 @@ static int ub960_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void ub960_notify_unbind(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				struct v4l2_async_connection *asd)
 {
 	struct ub960_rxport *rxport = to_ub960_asd(asd)->rxport;
 

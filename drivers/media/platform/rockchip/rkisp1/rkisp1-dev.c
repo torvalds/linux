@@ -122,12 +122,12 @@ struct rkisp1_isr_data {
 
 static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 					struct v4l2_subdev *sd,
-					struct v4l2_async_subdev *asd)
+					struct v4l2_async_connection *asc)
 {
 	struct rkisp1_device *rkisp1 =
 		container_of(notifier, struct rkisp1_device, notifier);
 	struct rkisp1_sensor_async *s_asd =
-		container_of(asd, struct rkisp1_sensor_async, asd);
+		container_of(asc, struct rkisp1_sensor_async, asd);
 	int source_pad;
 	int ret;
 
@@ -165,10 +165,10 @@ static int rkisp1_subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	return v4l2_device_register_subdev_nodes(&rkisp1->v4l2_dev);
 }
 
-static void rkisp1_subdev_notifier_destroy(struct v4l2_async_subdev *asd)
+static void rkisp1_subdev_notifier_destroy(struct v4l2_async_connection *asc)
 {
 	struct rkisp1_sensor_async *rk_asd =
-		container_of(asd, struct rkisp1_sensor_async, asd);
+		container_of(asc, struct rkisp1_sensor_async, asd);
 
 	fwnode_handle_put(rk_asd->source_ep);
 }

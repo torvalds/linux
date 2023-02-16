@@ -831,10 +831,10 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
 	     !(ret = fwnode_property_get_reference_args(dev_fwnode(dev), prop,
 							NULL, 0, index, &args));
 	     index++) {
-		struct v4l2_async_subdev *asd;
+		struct v4l2_async_connection *asd;
 
 		asd = v4l2_async_nf_add_fwnode(notifier, args.fwnode,
-					       struct v4l2_async_subdev);
+					       struct v4l2_async_connection);
 		fwnode_handle_put(args.fwnode);
 		if (IS_ERR(asd)) {
 			/* not an error if asd already exists */
@@ -1136,10 +1136,10 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 								  props,
 								  nprops)));
 	     index++) {
-		struct v4l2_async_subdev *asd;
+		struct v4l2_async_connection *asd;
 
 		asd = v4l2_async_nf_add_fwnode(notifier, fwnode,
-					       struct v4l2_async_subdev);
+					       struct v4l2_async_connection);
 		fwnode_handle_put(fwnode);
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);

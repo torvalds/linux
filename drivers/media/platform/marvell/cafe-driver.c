@@ -478,7 +478,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	int ret;
 	struct cafe_camera *cam;
 	struct mcam_camera *mcam;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct i2c_client *i2c_dev;
 
 	/*
@@ -540,7 +540,8 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 
 	asd = v4l2_async_nf_add_i2c(&mcam->notifier,
 				    i2c_adapter_id(cam->i2c_adapter),
-				    ov7670_info.addr, struct v4l2_async_subdev);
+				    ov7670_info.addr,
+				    struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out_smbus_shutdown;

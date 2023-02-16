@@ -642,7 +642,7 @@ static int sun6i_csi_bridge_link(struct sun6i_csi_device *csi_dev,
 static int
 sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *remote_subdev,
-				struct v4l2_async_subdev *async_subdev)
+				struct v4l2_async_connection *async_subdev)
 {
 	struct sun6i_csi_device *csi_dev =
 		container_of(notifier, struct sun6i_csi_device,

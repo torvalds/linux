@@ -1120,7 +1120,7 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void isi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *sd,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asd)
 {
 	struct atmel_isi *isi = notifier_to_isi(notifier);
 
@@ -1132,7 +1132,7 @@ static void isi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int isi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asd)
 {
 	struct atmel_isi *isi = notifier_to_isi(notifier);
 
@@ -1151,7 +1151,7 @@ static const struct v4l2_async_notifier_operations isi_graph_notify_ops = {
 
 static int isi_graph_init(struct atmel_isi *isi)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct device_node *ep;
 	int ret;
 
@@ -1163,7 +1163,7 @@ static int isi_graph_init(struct atmel_isi *isi)
 
 	asd = v4l2_async_nf_add_fwnode_remote(&isi->notifier,
 					      of_fwnode_handle(ep),
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	of_node_put(ep);
 
 	if (IS_ERR(asd))

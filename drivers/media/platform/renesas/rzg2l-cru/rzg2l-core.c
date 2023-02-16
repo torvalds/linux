@@ -92,7 +92,7 @@ static int rzg2l_cru_group_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void rzg2l_cru_group_notify_unbind(struct v4l2_async_notifier *notifier,
 					  struct v4l2_subdev *subdev,
-					  struct v4l2_async_subdev *asd)
+					  struct v4l2_async_connection *asd)
 {
 	struct rzg2l_cru_dev *cru = notifier_to_cru(notifier);
 
@@ -110,7 +110,7 @@ static void rzg2l_cru_group_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int rzg2l_cru_group_notify_bound(struct v4l2_async_notifier *notifier,
 					struct v4l2_subdev *subdev,
-					struct v4l2_async_subdev *asd)
+					struct v4l2_async_connection *asd)
 {
 	struct rzg2l_cru_dev *cru = notifier_to_cru(notifier);
 
@@ -138,7 +138,7 @@ static int rzg2l_cru_mc_parse_of(struct rzg2l_cru_dev *cru)
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct fwnode_handle *ep, *fwnode;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(cru->dev), 1, 0, 0);
@@ -162,7 +162,7 @@ static int rzg2l_cru_mc_parse_of(struct rzg2l_cru_dev *cru)
 	}
 
 	asd = v4l2_async_nf_add_fwnode(&cru->notifier, fwnode,
-				       struct v4l2_async_subdev);
+				       struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out;
@@ -190,7 +190,7 @@ static int rzg2l_cru_mc_parse_of_graph(struct rzg2l_cru_dev *cru)
 
 	cru->notifier.ops = &rzg2l_cru_async_ops;
 
-	if (list_empty(&cru->notifier.asd_list))
+	if (list_empty(&cru->notifier.asc_list))
 		return 0;
 
 	ret = v4l2_async_nf_register(&cru->v4l2_dev, &cru->notifier);

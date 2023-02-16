@@ -767,7 +767,7 @@ err_free_bridge:
 /******* V4L2 sub-device asynchronous registration callbacks***********/
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	int port;
 };
 
@@ -777,7 +777,7 @@ struct sensor_async_subdev {
 /* .bound() notifier callback when a match is found */
 static int atomisp_notifier_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct atomisp_device *isp = notifier_to_atomisp(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
@@ -799,7 +799,7 @@ static int atomisp_notifier_bound(struct v4l2_async_notifier *notifier,
 /* The .unbind callback */
 static void atomisp_notifier_unbind(struct v4l2_async_notifier *notifier,
 				    struct v4l2_subdev *sd,
-				    struct v4l2_async_subdev *asd)
+				    struct v4l2_async_connection *asd)
 {
 	struct atomisp_device *isp = notifier_to_atomisp(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);

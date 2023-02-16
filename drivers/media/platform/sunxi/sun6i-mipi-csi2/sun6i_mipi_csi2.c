@@ -407,7 +407,7 @@ static const struct media_entity_operations sun6i_mipi_csi2_entity_ops = {
 static int
 sun6i_mipi_csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 			       struct v4l2_subdev *remote_subdev,
-			       struct v4l2_async_subdev *async_subdev)
+			       struct v4l2_async_connection *async_subdev)
 {
 	struct v4l2_subdev *subdev = notifier->sd;
 	struct sun6i_mipi_csi2_device *csi2_dev =
@@ -461,7 +461,7 @@ sun6i_mipi_csi2_bridge_source_setup(struct sun6i_mipi_csi2_device *csi2_dev)
 {
 	struct v4l2_async_notifier *notifier = &csi2_dev->bridge.notifier;
 	struct v4l2_fwnode_endpoint *endpoint = &csi2_dev->bridge.endpoint;
-	struct v4l2_async_subdev *subdev_async;
+	struct v4l2_async_connection *subdev_async;
 	struct fwnode_handle *handle;
 	struct device *dev = csi2_dev->dev;
 	int ret;
@@ -479,7 +479,7 @@ sun6i_mipi_csi2_bridge_source_setup(struct sun6i_mipi_csi2_device *csi2_dev)
 
 	subdev_async =
 		v4l2_async_nf_add_fwnode_remote(notifier, handle,
-						struct v4l2_async_subdev);
+						struct v4l2_async_connection);
 	if (IS_ERR(subdev_async))
 		ret = PTR_ERR(subdev_async);
 

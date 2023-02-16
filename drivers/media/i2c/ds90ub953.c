@@ -723,7 +723,7 @@ static const struct media_entity_operations ub953_entity_ops = {
 
 static int ub953_notify_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *source_subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asd)
 {
 	struct ub953_data *priv = sd_to_ub953(notifier->sd);
 	struct device *dev = &priv->client->dev;
@@ -762,7 +762,7 @@ static const struct v4l2_async_notifier_operations ub953_notify_ops = {
 static int ub953_v4l2_notifier_register(struct ub953_data *priv)
 {
 	struct device *dev = &priv->client->dev;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep_fwnode;
 	int ret;
 
@@ -776,7 +776,7 @@ static int ub953_v4l2_notifier_register(struct ub953_data *priv)
 	v4l2_async_nf_init(&priv->notifier);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&priv->notifier, ep_fwnode,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	fwnode_handle_put(ep_fwnode);
 

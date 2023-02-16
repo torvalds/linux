@@ -774,19 +774,19 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
  */
 
 struct cal_v4l2_async_subdev {
-	struct v4l2_async_subdev asd; /* Must be first */
+	struct v4l2_async_connection asd; /* Must be first */
 	struct cal_camerarx *phy;
 };
 
 static inline struct cal_v4l2_async_subdev *
-to_cal_asd(struct v4l2_async_subdev *asd)
+to_cal_asd(struct v4l2_async_connection *asd)
 {
 	return container_of(asd, struct cal_v4l2_async_subdev, asd);
 }
 
 static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 				    struct v4l2_subdev *subdev,
-				    struct v4l2_async_subdev *asd)
+				    struct v4l2_async_connection *asd)
 {
 	struct cal_camerarx *phy = to_cal_asd(asd)->phy;
 	int pad;
