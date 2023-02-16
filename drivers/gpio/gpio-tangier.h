@@ -20,6 +20,11 @@ struct device;
 
 struct tng_gpio_context;
 
+/* Elkhart Lake specific wake registers */
+#define GWMR_EHL	0x100	/* Wake mask */
+#define GWSR_EHL	0x118	/* Wake source */
+#define GSIR_EHL	0x130	/* Secure input */
+
 /* Merrifield specific wake registers */
 #define GWMR_MRFLD	0x400	/* Wake mask */
 #define GWSR_MRFLD	0x418	/* Wake source */

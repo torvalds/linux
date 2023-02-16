@@ -625,6 +625,7 @@ config GPIO_TANGIER
 	help
 	  GPIO support for Intel Tangier and compatible platforms.
 	  Currently supported:
+	   - Elkhart Lake
 	   - Merrifield
 
 	  If built as a module its name will be gpio-tangier.
@@ -1247,6 +1248,17 @@ config HTC_EGPIO
 	  This driver supports the CPLD egpio chip present on
 	  several HTC phones.  It provides basic support for input
 	  pins, output pins, and IRQs.
+
+config GPIO_ELKHARTLAKE
+	tristate "Intel Elkhart Lake PSE GPIO support"
+	depends on X86 || COMPILE_TEST
+	select GPIO_TANGIER
+	help
+	  Select this option to enable GPIO support for Intel Elkhart Lake
+	  PSE GPIO IP.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-elkhartlake.
 
 config GPIO_JANZ_TTL
 	tristate "Janz VMOD-TTL Digital IO Module"
