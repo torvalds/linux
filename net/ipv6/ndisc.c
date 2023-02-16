@@ -783,7 +783,7 @@ void ndisc_update(const struct net_device *dev, struct neighbour *neigh,
 	ndisc_ops_update(dev, neigh, flags, icmp6_type, ndopts);
 }
 
-static void ndisc_recv_ns(struct sk_buff *skb)
+static enum skb_drop_reason ndisc_recv_ns(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
 	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
@@ -797,18 +797,17 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	struct inet6_dev *idev = NULL;
 	struct neighbour *neigh;
 	int dad = ipv6_addr_any(saddr);
-	bool inc;
 	int is_router = -1;
+	SKB_DR(reason);
 	u64 nonce = 0;
+	bool inc;
 
-	if (skb->len < sizeof(struct nd_msg)) {
-		ND_PRINTK(2, warn, "NS: packet too short\n");
-		return;
-	}
+	if (skb->len < sizeof(struct nd_msg))
+		return SKB_DROP_REASON_PKT_TOO_SMALL;
 
 	if (ipv6_addr_is_multicast(&msg->target)) {
 		ND_PRINTK(2, warn, "NS: multicast target address\n");
-		return;
+		return reason;
 	}
 
 	/*
@@ -817,12 +816,12 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	 */
 	if (dad && !ipv6_addr_is_solict_mult(daddr)) {
 		ND_PRINTK(2, warn, "NS: bad DAD packet (wrong destination)\n");
-		return;
+		return reason;
 	}
 
 	if (!ndisc_parse_options(dev, msg->opt, ndoptlen, &ndopts)) {
 		ND_PRINTK(2, warn, "NS: invalid ND options\n");
-		return;
+		return reason;
 	}
 
 	if (ndopts.nd_opts_src_lladdr) {
@@ -830,7 +829,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		if (!lladdr) {
 			ND_PRINTK(2, warn,
 				  "NS: invalid link-layer address length\n");
-			return;
+			return reason;
 		}
 
 		/* RFC2461 7.1.1:
@@ -841,7 +840,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		if (dad) {
 			ND_PRINTK(2, warn,
 				  "NS: bad DAD packet (link-layer address option)\n");
-			return;
+			return reason;
 		}
 	}
 	if (ndopts.nd_opts_nonce && ndopts.nd_opts_nonce->nd_opt_len == 1)
@@ -869,7 +868,7 @@ have_ifp:
 				 * so fail our DAD process
 				 */
 				addrconf_dad_failure(skb, ifp);
-				return;
+				return reason;
 			} else {
 				/*
 				 * This is not a dad solicitation.
@@ -901,7 +900,7 @@ have_ifp:
 		idev = in6_dev_get(dev);
 		if (!idev) {
 			/* XXX: count this drop? */
-			return;
+			return reason;
 		}
 
 		if (ipv6_chk_acast_addr(net, dev, &msg->target) ||
@@ -958,6 +957,7 @@ have_ifp:
 			      true, (ifp != NULL && inc), inc);
 		if (neigh)
 			neigh_release(neigh);
+		reason = SKB_CONSUMED;
 	}
 
 out:
@@ -965,6 +965,7 @@ out:
 		in6_ifa_put(ifp);
 	else
 		in6_dev_put(idev);
+	return reason;
 }
 
 static int accept_untracked_na(struct net_device *dev, struct in6_addr *saddr)
@@ -1781,8 +1782,9 @@ release:
 
 static void pndisc_redo(struct sk_buff *skb)
 {
-	ndisc_recv_ns(skb);
-	kfree_skb(skb);
+	enum skb_drop_reason reason = ndisc_recv_ns(skb);
+
+	kfree_skb_reason(skb, reason);
 }
 
 static int ndisc_is_multicast(const void *pkey)
@@ -1834,7 +1836,7 @@ enum skb_drop_reason ndisc_rcv(struct sk_buff *skb)
 	switch (msg->icmph.icmp6_type) {
 	case NDISC_NEIGHBOUR_SOLICITATION:
 		memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
-		ndisc_recv_ns(skb);
+		reason = ndisc_recv_ns(skb);
 		break;
 
 	case NDISC_NEIGHBOUR_ADVERTISEMENT:
