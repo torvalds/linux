@@ -29,7 +29,6 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/utsname.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
