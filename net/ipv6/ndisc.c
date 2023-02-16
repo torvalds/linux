@@ -819,10 +819,8 @@ static enum skb_drop_reason ndisc_recv_ns(struct sk_buff *skb)
 		return reason;
 	}
 
-	if (!ndisc_parse_options(dev, msg->opt, ndoptlen, &ndopts)) {
-		ND_PRINTK(2, warn, "NS: invalid ND options\n");
-		return reason;
-	}
+	if (!ndisc_parse_options(dev, msg->opt, ndoptlen, &ndopts))
+		return SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS;
 
 	if (ndopts.nd_opts_src_lladdr) {
 		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_src_lladdr, dev);
@@ -1026,10 +1024,9 @@ static enum skb_drop_reason ndisc_recv_na(struct sk_buff *skb)
 	    idev->cnf.drop_unsolicited_na)
 		return reason;
 
-	if (!ndisc_parse_options(dev, msg->opt, ndoptlen, &ndopts)) {
-		ND_PRINTK(2, warn, "NS: invalid ND option\n");
-		return reason;
-	}
+	if (!ndisc_parse_options(dev, msg->opt, ndoptlen, &ndopts))
+		return SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS;
+
 	if (ndopts.nd_opts_tgt_lladdr) {
 		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_tgt_lladdr, dev);
 		if (!lladdr) {
@@ -1159,10 +1156,8 @@ static enum skb_drop_reason ndisc_recv_rs(struct sk_buff *skb)
 		goto out;
 
 	/* Parse ND options */
-	if (!ndisc_parse_options(skb->dev, rs_msg->opt, ndoptlen, &ndopts)) {
-		ND_PRINTK(2, notice, "NS: invalid ND option, ignored\n");
-		goto out;
-	}
+	if (!ndisc_parse_options(skb->dev, rs_msg->opt, ndoptlen, &ndopts))
+		return SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS;
 
 	if (ndopts.nd_opts_src_lladdr) {
 		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_src_lladdr,
@@ -1280,10 +1275,8 @@ static enum skb_drop_reason ndisc_router_discovery(struct sk_buff *skb)
 		return reason;
 	}
 
-	if (!ndisc_parse_options(skb->dev, opt, optlen, &ndopts)) {
-		ND_PRINTK(2, warn, "RA: invalid ND options\n");
-		return reason;
-	}
+	if (!ndisc_parse_options(skb->dev, opt, optlen, &ndopts))
+		return SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS;
 
 	if (!ipv6_accept_ra(in6_dev)) {
 		ND_PRINTK(2, info,
@@ -1627,7 +1620,7 @@ static enum skb_drop_reason ndisc_redirect_rcv(struct sk_buff *skb)
 	}
 
 	if (!ndisc_parse_options(skb->dev, msg->opt, ndoptlen, &ndopts))
-		return reason;
+		return SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS;
 
 	if (!ndopts.nd_opts_rh) {
 		ip6_redirect_no_header(skb, dev_net(skb->dev),
