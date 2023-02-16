@@ -3974,7 +3974,6 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	int rc, irq, i, j, user_irq_init_cnt;
-	irq_handler_t irq_handler;
 	struct hl_cq *cq;
 
 	if (gaudi2->hw_cap_initialized & HW_CAP_MSIX)
@@ -4024,10 +4023,9 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 			i++, j++, user_irq_init_cnt++) {
 
 		irq = pci_irq_vector(hdev->pdev, i);
-		irq_handler = hl_irq_handler_user_interrupt;
-
-		rc = request_threaded_irq(irq, irq_handler, hl_irq_user_interrupt_thread_handler,
-				IRQF_ONESHOT, gaudi2_irq_name(i), &hdev->user_interrupt[j]);
+		rc = request_threaded_irq(irq, hl_irq_handler_user_interrupt,
+						hl_irq_user_interrupt_thread_handler, IRQF_ONESHOT,
+						gaudi2_irq_name(i), &hdev->user_interrupt[j]);
 
 		if (rc) {
 			dev_err(hdev->dev, "Failed to request IRQ %d", irq);
