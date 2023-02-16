@@ -968,7 +968,7 @@
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&cru CLK_PMU1_SPI0>, <&cru PCLK_PMU1_SPI0>, <&cru PCLK_PMU1_SPI0>;
+		clocks = <&cru CLK_PMU1_SPI0>, <&cru PCLK_PMU1_SPI0>, <&cru SCLK_IN_PMU1_SPI0>;
 		clock-names = "spiclk", "apb_pclk", "sclk_in";
 		dmas = <&dmac 13>, <&dmac 12>;
 		dma-names = "tx", "rx";
