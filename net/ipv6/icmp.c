@@ -705,7 +705,7 @@ int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs, int type,
 }
 EXPORT_SYMBOL(ip6_err_gen_icmpv6_unreach);
 
-static void icmpv6_echo_reply(struct sk_buff *skb)
+static enum skb_drop_reason icmpv6_echo_reply(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
 	struct sock *sk;
@@ -719,18 +719,19 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct dst_entry *dst;
 	struct ipcm6_cookie ipc6;
 	u32 mark = IP6_REPLY_MARK(net, skb->mark);
+	SKB_DR(reason);
 	bool acast;
 	u8 type;
 
 	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) &&
 	    net->ipv6.sysctl.icmpv6_echo_ignore_multicast)
-		return;
+		return reason;
 
 	saddr = &ipv6_hdr(skb)->daddr;
 
 	acast = ipv6_anycast_destination(skb_dst(skb), saddr);
 	if (acast && net->ipv6.sysctl.icmpv6_echo_ignore_anycast)
-		return;
+		return reason;
 
 	if (!ipv6_unicast_destination(skb) &&
 	    !(net->ipv6.sysctl.anycast_src_echo_reply && acast))
@@ -804,6 +805,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	} else {
 		icmpv6_push_pending_frames(sk, &fl6, &tmp_hdr,
 					   skb->len + sizeof(struct icmp6hdr));
+		reason = SKB_CONSUMED;
 	}
 out_dst_release:
 	dst_release(dst);
@@ -811,6 +813,7 @@ out:
 	icmpv6_xmit_unlock(sk);
 out_bh_enable:
 	local_bh_enable();
+	return reason;
 }
 
 enum skb_drop_reason icmpv6_notify(struct sk_buff *skb, u8 type,
@@ -929,12 +932,12 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	switch (type) {
 	case ICMPV6_ECHO_REQUEST:
 		if (!net->ipv6.sysctl.icmpv6_echo_ignore_all)
-			icmpv6_echo_reply(skb);
+			reason = icmpv6_echo_reply(skb);
 		break;
 	case ICMPV6_EXT_ECHO_REQUEST:
 		if (!net->ipv6.sysctl.icmpv6_echo_ignore_all &&
 		    READ_ONCE(net->ipv4.sysctl_icmp_echo_enable_probe))
-			icmpv6_echo_reply(skb);
+			reason = icmpv6_echo_reply(skb);
 		break;
 
 	case ICMPV6_ECHO_REPLY:
