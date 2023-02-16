@@ -1934,7 +1934,7 @@ static bool kvm_sync_page_check(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	 * differs then the memslot lookup (SMM vs. non-SMM) will be bogus, the
 	 * reserved bits checks will be wrong, etc...
 	 */
-	if (WARN_ON_ONCE(sp->role.direct || !vcpu->arch.mmu->sync_page ||
+	if (WARN_ON_ONCE(sp->role.direct || !vcpu->arch.mmu->sync_spte ||
 			 (sp->role.word ^ root_role.word) & ~sync_role_ign.word))
 		return false;
 
@@ -1943,10 +1943,30 @@ static bool kvm_sync_page_check(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
+	int flush = 0;
+	int i;
+
 	if (!kvm_sync_page_check(vcpu, sp))
 		return -1;
 
-	return vcpu->arch.mmu->sync_page(vcpu, sp);
+	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
+		int ret = vcpu->arch.mmu->sync_spte(vcpu, sp, i);
+
+		if (ret < -1)
+			return -1;
+		flush |= ret;
+	}
+
+	/*
+	 * Note, any flush is purely for KVM's correctness, e.g. when dropping
+	 * an existing SPTE or clearing W/A/D bits to ensure an mmu_notifier
+	 * unmap or dirty logging event doesn't fail to flush.  The guest is
+	 * responsible for flushing the TLB to ensure any changes in protection
+	 * bits are recognized, i.e. until the guest flushes or page faults on
+	 * a relevant address, KVM is architecturally allowed to let vCPUs use
+	 * cached translations with the old protection bits.
+	 */
+	return flush;
 }
 
 static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
@@ -4504,7 +4524,7 @@ static void nonpaging_init_context(struct kvm_mmu *context)
 {
 	context->page_fault = nonpaging_page_fault;
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
-	context->sync_page = NULL;
+	context->sync_spte = NULL;
 	context->invlpg = NULL;
 }
 
@@ -5095,7 +5115,7 @@ static void paging64_init_context(struct kvm_mmu *context)
 {
 	context->page_fault = paging64_page_fault;
 	context->gva_to_gpa = paging64_gva_to_gpa;
-	context->sync_page = paging64_sync_page;
+	context->sync_spte = paging64_sync_spte;
 	context->invlpg = paging64_invlpg;
 }
 
@@ -5103,7 +5123,7 @@ static void paging32_init_context(struct kvm_mmu *context)
 {
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
-	context->sync_page = paging32_sync_page;
+	context->sync_spte = paging32_sync_spte;
 	context->invlpg = paging32_invlpg;
 }
 
@@ -5192,7 +5212,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 	context->cpu_role.as_u64 = cpu_role.as_u64;
 	context->root_role.word = root_role.word;
 	context->page_fault = kvm_tdp_page_fault;
-	context->sync_page = NULL;
+	context->sync_spte = NULL;
 	context->invlpg = NULL;
 	context->get_guest_pgd = get_cr3;
 	context->get_pdptr = kvm_pdptr_read;
@@ -5324,7 +5344,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 
 		context->page_fault = ept_page_fault;
 		context->gva_to_gpa = ept_gva_to_gpa;
-		context->sync_page = ept_sync_page;
+		context->sync_spte = ept_sync_spte;
 		context->invlpg = ept_invlpg;
 
 		update_permission_bitmask(context, true);

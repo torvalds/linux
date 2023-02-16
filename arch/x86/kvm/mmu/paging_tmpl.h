@@ -937,87 +937,67 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
  *   can't change unless all sptes pointing to it are nuked first.
  *
  * Returns
- * < 0: the sp should be zapped
- *   0: the sp is synced and no tlb flushing is required
- * > 0: the sp is synced and tlb flushing is required
+ * < 0: failed to sync spte
+ *   0: the spte is synced and no tlb flushing is required
+ * > 0: the spte is synced and tlb flushing is required
  */
-static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
+static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int i)
 {
-	int i;
 	bool host_writable;
 	gpa_t first_pte_gpa;
-	bool flush = false;
+	u64 *sptep, spte;
+	struct kvm_memory_slot *slot;
+	unsigned pte_access;
+	pt_element_t gpte;
+	gpa_t pte_gpa;
+	gfn_t gfn;
+
+	if (!sp->spt[i])
+		return 0;
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
+	pte_gpa = first_pte_gpa + i * sizeof(pt_element_t);
 
-	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
-		u64 *sptep, spte;
-		struct kvm_memory_slot *slot;
-		unsigned pte_access;
-		pt_element_t gpte;
-		gpa_t pte_gpa;
-		gfn_t gfn;
+	if (kvm_vcpu_read_guest_atomic(vcpu, pte_gpa, &gpte,
+				       sizeof(pt_element_t)))
+		return -1;
 
-		if (!sp->spt[i])
-			continue;
+	if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte))
+		return 1;
 
-		pte_gpa = first_pte_gpa + i * sizeof(pt_element_t);
+	gfn = gpte_to_gfn(gpte);
+	pte_access = sp->role.access;
+	pte_access &= FNAME(gpte_access)(gpte);
+	FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
 
-		if (kvm_vcpu_read_guest_atomic(vcpu, pte_gpa, &gpte,
-					       sizeof(pt_element_t)))
-			return -1;
-
-		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
-			flush = true;
-			continue;
-		}
-
-		gfn = gpte_to_gfn(gpte);
-		pte_access = sp->role.access;
-		pte_access &= FNAME(gpte_access)(gpte);
-		FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
-
-		if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access))
-			continue;
-
-		/*
-		 * Drop the SPTE if the new protections would result in a RWX=0
-		 * SPTE or if the gfn is changing.  The RWX=0 case only affects
-		 * EPT with execute-only support, i.e. EPT without an effective
-		 * "present" bit, as all other paging modes will create a
-		 * read-only SPTE if pte_access is zero.
-		 */
-		if ((!pte_access && !shadow_present_mask) ||
-		    gfn != kvm_mmu_page_get_gfn(sp, i)) {
-			drop_spte(vcpu->kvm, &sp->spt[i]);
-			flush = true;
-			continue;
-		}
-
-		/* Update the shadowed access bits in case they changed. */
-		kvm_mmu_page_set_access(sp, i, pte_access);
-
-		sptep = &sp->spt[i];
-		spte = *sptep;
-		host_writable = spte & shadow_host_writable_mask;
-		slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-		make_spte(vcpu, sp, slot, pte_access, gfn,
-			  spte_to_pfn(spte), spte, true, false,
-			  host_writable, &spte);
-
-		flush |= mmu_spte_update(sptep, spte);
-	}
+	if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access))
+		return 0;
 
 	/*
-	 * Note, any flush is purely for KVM's correctness, e.g. when dropping
-	 * an existing SPTE or clearing W/A/D bits to ensure an mmu_notifier
-	 * unmap or dirty logging event doesn't fail to flush.  The guest is
-	 * responsible for flushing the TLB to ensure any changes in protection
-	 * bits are recognized, i.e. until the guest flushes or page faults on
-	 * a relevant address, KVM is architecturally allowed to let vCPUs use
-	 * cached translations with the old protection bits.
+	 * Drop the SPTE if the new protections would result in a RWX=0
+	 * SPTE or if the gfn is changing.  The RWX=0 case only affects
+	 * EPT with execute-only support, i.e. EPT without an effective
+	 * "present" bit, as all other paging modes will create a
+	 * read-only SPTE if pte_access is zero.
 	 */
-	return flush;
+	if ((!pte_access && !shadow_present_mask) ||
+	    gfn != kvm_mmu_page_get_gfn(sp, i)) {
+		drop_spte(vcpu->kvm, &sp->spt[i]);
+		return 1;
+	}
+
+	/* Update the shadowed access bits in case they changed. */
+	kvm_mmu_page_set_access(sp, i, pte_access);
+
+	sptep = &sp->spt[i];
+	spte = *sptep;
+	host_writable = spte & shadow_host_writable_mask;
+	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
+	make_spte(vcpu, sp, slot, pte_access, gfn,
+		  spte_to_pfn(spte), spte, true, false,
+		  host_writable, &spte);
+
+	return mmu_spte_update(sptep, spte);
 }
 
 #undef pt_element_t

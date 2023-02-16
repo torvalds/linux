@@ -439,8 +439,8 @@ struct kvm_mmu {
 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 			    gpa_t gva_or_gpa, u64 access,
 			    struct x86_exception *exception);
-	int (*sync_page)(struct kvm_vcpu *vcpu,
-			 struct kvm_mmu_page *sp);
+	int (*sync_spte)(struct kvm_vcpu *vcpu,
+			 struct kvm_mmu_page *sp, int i);
 	void (*invlpg)(struct kvm_vcpu *vcpu, u64 addr, hpa_t root_hpa);
 	struct kvm_mmu_root_info root;
 	union kvm_cpu_role cpu_role;
