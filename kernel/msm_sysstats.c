@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -168,13 +168,14 @@ static int get_dma_info(const void *data, struct file *file, unsigned int n)
 	struct dma_buf *dmabuf;
 	unsigned long *size = (unsigned long *)data;
 
+#ifndef CONFIG_MSM_SYSSTATS_STUB_NONEXPORTED_SYMBOLS
 	if (!is_dma_buf_file(file))
+#endif
 		return 0;
 
 	dmabuf = (struct dma_buf *)file->private_data;
 	if (is_system_dmabufheap(dmabuf))
 		*size += dmabuf->size;
-
 	return 0;
 }
 
@@ -483,8 +484,7 @@ static int sysstats_task_foreach(struct sk_buff *skb, struct netlink_callback *c
 				K(get_mm_counter(p->mm, MM_SHMEMPAGES));
 			stats->swap_rss =
 				K(get_mm_counter(p->mm, MM_SWAPENTS));
-			stats->unreclaimable =
-				K(get_task_unreclaimable_info(p));
+			stats->unreclaimable = K(get_task_unreclaimable_info(p));
 			task_unlock(p);
 #undef K
 		}
@@ -572,16 +572,21 @@ static void sysstats_build(struct sysstats_mem *stats)
 	struct sysinfo i;
 
 	si_meminfo(&i);
+#ifndef CONFIG_MSM_SYSSTATS_STUB_NONEXPORTED_SYMBOLS
 	si_swapinfo(&i);
-
+	stats->swap_used = K(i.totalswap - i.freeswap);
+	stats->swap_total = K(i.totalswap);
+	stats->vmalloc_total = K(vmalloc_nr_pages());
+#else
+	stats->swap_used = 0;
+	stats->swap_total = 0;
+	stats->vmalloc_total = 0;
+#endif
 	stats->memtotal = K(i.totalram);
 	stats->misc_reclaimable =
 		K(global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE));
 	stats->unreclaimable = K(get_system_unreclaimble_info());
 	stats->buffer = K(i.bufferram);
-	stats->swap_used = K(i.totalswap - i.freeswap);
-	stats->swap_total = K(i.totalswap);
-	stats->vmalloc_total = K(vmalloc_nr_pages());
 	stats->swapcache = K(total_swapcache_pages());
 	stats->slab_reclaimable =
 		K(global_node_page_state_pages(NR_SLAB_RECLAIMABLE_B));
@@ -656,6 +661,7 @@ static struct genl_family family __ro_after_init = {
 	.ops		= sysstats_ops,
 	.n_ops		= ARRAY_SIZE(sysstats_ops),
 	.pre_doit	= sysstats_pre_doit,
+	.resv_start_op	= SYSSTATS_PIDS_CMD_GET + 1,
 };
 
 static int __init sysstats_init(void)

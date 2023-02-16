@@ -605,6 +605,16 @@ config MSM_SYSSTATS
 	  socket.
 	  If unsure, say N
 
+config MSM_SYSSTATS_STUB_NONEXPORTED_SYMBOLS
+	bool "Stub out non-exported core-kernel symbols"
+	depends on MSM_SYSSTATS
+	help
+	  Stub out is_system_dmabufheap(), vmalloc_nr_pages() and si_swapinfo().
+	  Enabling this option will make the swap_used, swap_total and
+	  vmalloc_total fields of struct sysstats_mem 0, and will make the
+	  unreclaimable field either 0, or make it only include the KGSL memory.
+	  If unsure, say N.
+
 config TASK_DELAY_ACCT
 	bool "Enable per-task delay accounting"
 	depends on TASKSTATS
