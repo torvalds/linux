@@ -624,6 +624,8 @@ config GPIO_TANGIER
 	select GPIOLIB_IRQCHIP
 	help
 	  GPIO support for Intel Tangier and compatible platforms.
+	  Currently supported:
+	   - Merrifield
 
 	  If built as a module its name will be gpio-tangier.
 
@@ -1516,7 +1518,7 @@ config GPIO_BT8XX
 config GPIO_MERRIFIELD
 	tristate "Intel Merrifield GPIO support"
 	depends on X86_INTEL_MID
-	select GPIOLIB_IRQCHIP
+	select GPIO_TANGIER
 	help
 	  Say Y here to support Intel Merrifield GPIO.
 

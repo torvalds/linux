@@ -20,6 +20,11 @@ struct device;
 
 struct tng_gpio_context;
 
+/* Merrifield specific wake registers */
+#define GWMR_MRFLD	0x400	/* Wake mask */
+#define GWSR_MRFLD	0x418	/* Wake source */
+#define GSIR_MRFLD	0xc00	/* Secure input */
+
 /**
  * struct tng_wake_regs - Platform specific wake registers
  * @gwmr: Wake mask
