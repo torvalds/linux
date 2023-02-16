@@ -803,7 +803,7 @@ static int i801_simple_transaction(struct i801_priv *priv, union i2c_smbus_data 
 
 /* Block transaction function */
 static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *data,
-				  char read_write, int command)
+				  u8 addr, u8 hstcmd, char read_write, int command)
 {
 	int result = 0;
 	unsigned char hostc;
@@ -813,7 +813,29 @@ static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *
 	else if (data->block[0] < 1 || data->block[0] > I2C_SMBUS_BLOCK_MAX)
 		return -EPROTO;
 
-	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
+	switch (command) {
+	case I2C_SMBUS_BLOCK_DATA:
+		i801_set_hstadd(priv, addr, read_write);
+		outb_p(hstcmd, SMBHSTCMD(priv));
+		break;
+	case I2C_SMBUS_I2C_BLOCK_DATA:
+		/*
+		 * NB: page 240 of ICH5 datasheet shows that the R/#W
+		 * bit should be cleared here, even when reading.
+		 * However if SPD Write Disable is set (Lynx Point and later),
+		 * the read will fail if we don't set the R/#W bit.
+		 */
+		i801_set_hstadd(priv, addr,
+				priv->original_hstcfg & SMBHSTCFG_SPD_WD ?
+				read_write : I2C_SMBUS_WRITE);
+		if (read_write == I2C_SMBUS_READ) {
+			/* NB: page 240 of ICH5 datasheet also shows
+			 * that DATA1 is the cmd field when reading
+			 */
+			outb_p(hstcmd, SMBHSTDAT1(priv));
+		} else
+			outb_p(hstcmd, SMBHSTCMD(priv));
+
 		if (read_write == I2C_SMBUS_WRITE) {
 			/* set I2C_EN bit in configuration register */
 			pci_read_config_byte(priv->pci_dev, SMBHSTCFG, &hostc);
@@ -824,6 +846,12 @@ static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *
 				"I2C block read is unsupported!\n");
 			return -EOPNOTSUPP;
 		}
+		break;
+	case I2C_SMBUS_BLOCK_PROC_CALL:
+		/* Needs to be flagged as write transaction */
+		i801_set_hstadd(priv, addr, I2C_SMBUS_WRITE);
+		outb_p(hstcmd, SMBHSTCMD(priv));
+		break;
 	}
 
 	/* Experience has shown that the block buffer can only be used for
@@ -852,7 +880,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		       unsigned short flags, char read_write, u8 command,
 		       int size, union i2c_smbus_data *data)
 {
-	int hwpec, ret, block = 0;
+	int hwpec, ret;
 	struct i801_priv *priv = i2c_get_adapdata(adap);
 
 	mutex_lock(&priv->acpi_lock);
@@ -867,57 +895,16 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		&& size != I2C_SMBUS_QUICK
 		&& size != I2C_SMBUS_I2C_BLOCK_DATA;
 
-	switch (size) {
-	case I2C_SMBUS_QUICK:
-	case I2C_SMBUS_BYTE:
-	case I2C_SMBUS_BYTE_DATA:
-	case I2C_SMBUS_WORD_DATA:
-	case I2C_SMBUS_PROC_CALL:
-		break;
-	case I2C_SMBUS_BLOCK_DATA:
-		i801_set_hstadd(priv, addr, read_write);
-		outb_p(command, SMBHSTCMD(priv));
-		block = 1;
-		break;
-	case I2C_SMBUS_I2C_BLOCK_DATA:
-		/*
-		 * NB: page 240 of ICH5 datasheet shows that the R/#W
-		 * bit should be cleared here, even when reading.
-		 * However if SPD Write Disable is set (Lynx Point and later),
-		 * the read will fail if we don't set the R/#W bit.
-		 */
-		i801_set_hstadd(priv, addr,
-				priv->original_hstcfg & SMBHSTCFG_SPD_WD ?
-				read_write : I2C_SMBUS_WRITE);
-		if (read_write == I2C_SMBUS_READ) {
-			/* NB: page 240 of ICH5 datasheet also shows
-			 * that DATA1 is the cmd field when reading */
-			outb_p(command, SMBHSTDAT1(priv));
-		} else
-			outb_p(command, SMBHSTCMD(priv));
-		block = 1;
-		break;
-	case I2C_SMBUS_BLOCK_PROC_CALL:
-		/* Needs to be flagged as write transaction */
-		i801_set_hstadd(priv, addr, I2C_SMBUS_WRITE);
-		outb_p(command, SMBHSTCMD(priv));
-		block = 1;
-		break;
-	default:
-		dev_err(&priv->pci_dev->dev, "Unsupported transaction %d\n",
-			size);
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
-
 	if (hwpec)	/* enable/disable hardware PEC */
 		outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_CRC, SMBAUXCTL(priv));
 	else
 		outb_p(inb_p(SMBAUXCTL(priv)) & (~SMBAUXCTL_CRC),
 		       SMBAUXCTL(priv));
 
-	if (block)
-		ret = i801_block_transaction(priv, data, read_write, size);
+	if (size == I2C_SMBUS_BLOCK_DATA ||
+	    size == I2C_SMBUS_I2C_BLOCK_DATA ||
+	    size == I2C_SMBUS_BLOCK_PROC_CALL)
+		ret = i801_block_transaction(priv, data, addr, command, read_write, size);
 	else
 		ret = i801_simple_transaction(priv, data, addr, command, read_write, size);
 
@@ -926,7 +913,6 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	 */
 	if (hwpec)
 		outb_p(inb_p(SMBAUXCTL(priv)) & ~SMBAUXCTL_CRC, SMBAUXCTL(priv));
-out:
 	/*
 	 * Unlock the SMBus device for use by BIOS/ACPI,
 	 * and clear status flags if not done already.
