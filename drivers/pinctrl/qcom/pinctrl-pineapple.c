@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -2534,6 +2534,7 @@ static struct platform_driver pineapple_pinctrl_driver = {
 	.driver = {
 		.name = "pineapple-pinctrl",
 		.of_match_table = pineapple_pinctrl_of_match,
+		.pm = &noirq_msm_pinctrl_dev_pm_ops,
 	},
 	.probe = pineapple_pinctrl_probe,
 	.remove = msm_pinctrl_remove,
