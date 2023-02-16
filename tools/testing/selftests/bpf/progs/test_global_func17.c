@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 __noinline int foo(int *p)
 {
@@ -10,7 +11,8 @@ __noinline int foo(int *p)
 const volatile int i;
 
 SEC("tc")
-int test_cls(struct __sk_buff *skb)
+__failure __msg("Caller passes invalid args into func#1")
+int global_func17(struct __sk_buff *skb)
 {
 	return foo((int *)&i);
 }
