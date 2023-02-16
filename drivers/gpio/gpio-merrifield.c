@@ -51,12 +51,13 @@ static const struct tng_gpio_pinrange mrfld_gpio_ranges[] = {
 
 static const char *mrfld_gpio_get_pinctrl_dev_name(struct tng_gpio *priv)
 {
+	struct device *dev = priv->dev;
 	struct acpi_device *adev;
 	const char *name;
 
 	adev = acpi_dev_get_first_match_dev("INTC1002", NULL, -1);
 	if (adev) {
-		name = devm_kstrdup(priv->dev, acpi_dev_name(adev), GFP_KERNEL);
+		name = devm_kstrdup(dev, acpi_dev_name(adev), GFP_KERNEL);
 		acpi_dev_put(adev);
 	} else {
 		name = "pinctrl-merrifield";
@@ -89,11 +90,11 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	/* Release the IO mapping, since we already get the info from BAR1 */
 	pcim_iounmap_regions(pdev, BIT(1));
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->dev = &pdev->dev;
+	priv->dev = dev;
 	priv->reg_base = pcim_iomap_table(pdev)[0];
 
 	priv->pin_info.pin_ranges = mrfld_gpio_ranges;
