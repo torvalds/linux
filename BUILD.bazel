@@ -12,41 +12,53 @@ package(
     ],
 )
 
+_aarch64_additional_kmi_symbol_lists = [
+    # keep sorted
+    "android/abi_gki_aarch64_qcom",
+    "android/abi_gki_aarch64_virtual_device",
+]
+
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        # TODO(b/269346251): re-enable strict mode
         "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "kmi_symbol_list": "android/abi_gki_aarch64",
+        "additional_kmi_symbol_lists": _aarch64_additional_kmi_symbol_lists,
+        # TODO(b/269587270): re-enable trimming
         "trim_nonlisted_kmi": False,
     },
     "kernel_aarch64_16k": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
         "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        # TODO(b/269587270): re-enable trimming
         "trim_nonlisted_kmi": False,
     },
     "kernel_aarch64_debug": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        # TODO(b/269346251): re-enable strict mode
         "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "kmi_symbol_list": "android/abi_gki_aarch64",
+        "additional_kmi_symbol_lists": _aarch64_additional_kmi_symbol_lists,
+        # TODO(b/269587270): re-enable trimming
         "trim_nonlisted_kmi": False,
     },
     "kernel_riscv64": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
         "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        # TODO(b/269587270): re-enable trimming
         "trim_nonlisted_kmi": False,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        # TODO(b/269587270): re-enable trimming
         "trim_nonlisted_kmi": False,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        # TODO(b/269587270): re-enable trimming
         "trim_nonlisted_kmi": False,
     },
 })
