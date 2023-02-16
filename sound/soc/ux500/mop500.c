@@ -109,11 +109,9 @@ static int mop500_probe(struct platform_device *pdev)
 
 	mop500_card.dev = &pdev->dev;
 
-	if (np) {
-		ret = mop500_of_probe(pdev, np);
-		if (ret)
-			return ret;
-	}
+	ret = mop500_of_probe(pdev, np);
+	if (ret)
+		return ret;
 
 	dev_dbg(&pdev->dev, "%s: Card %s: Set platform drvdata.\n",
 		__func__, mop500_card.name);

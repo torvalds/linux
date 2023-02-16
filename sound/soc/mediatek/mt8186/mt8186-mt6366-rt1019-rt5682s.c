@@ -140,7 +140,7 @@ static int primary_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	if (!priv->dmic_sel) {
 		dev_info(card->dev, "dmic_sel is null\n");
-		return ret;
+		return 0;
 	}
 
 	ret = snd_soc_dapm_new_controls(&card->dapm, dmic_widgets,

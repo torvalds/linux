@@ -208,6 +208,29 @@ config SND_SOC_MTK_BTCVSD
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT8188
+	tristate "ASoC support for MediaTek MT8188 chip"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on COMMON_CLK
+	select SND_SOC_MEDIATEK
+	select MFD_SYSCON if SND_SOC_MT6359
+	help
+	  This adds ASoC platform driver support for MediaTek MT8188 chip
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8188_MT6359
+	tristate "ASoC Audio driver for MT8188 with MT6359 and I2S codecs"
+	depends on SND_SOC_MT8188 && MTK_PMIC_WRAP
+	select SND_SOC_MT6359
+	select SND_SOC_HDMI_CODEC
+	help
+	  This adds support for ASoC machine driver for MediaTek MT8188
+	  boards with the MT6359 and other I2S audio codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
 config SND_SOC_MT8192
 	tristate "ASoC support for Mediatek MT8192 chip"
 	depends on ARCH_MEDIATEK

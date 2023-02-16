@@ -20,6 +20,8 @@
 #include <uapi/sound/sof/fw.h>
 #include <sound/sof/ext_manifest.h>
 
+struct snd_sof_pcm_stream;
+
 /* Flag definitions used in sof_core_debug (sof_debug module parameter) */
 #define SOF_DBG_ENABLE_TRACE	BIT(0)
 #define SOF_DBG_RETAIN_CTX	BIT(1)	/* prevent DSP D3 on FW exception */
@@ -113,6 +115,7 @@ struct sof_compr_stream {
 	u32 sampling_rate;
 	u16 channels;
 	u16 sample_container_bytes;
+	size_t posn_offset;
 };
 
 struct snd_sof_dev;
@@ -245,14 +248,23 @@ struct snd_sof_dsp_ops {
 	/* pcm ack */
 	int (*pcm_ack)(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream); /* optional */
 
+	/*
+	 * optional callback to retrieve the link DMA position for the substream
+	 * when the position is not reported in the shared SRAM windows but
+	 * instead from a host-accessible hardware counter.
+	 */
+	u64 (*get_stream_position)(struct snd_sof_dev *sdev,
+				   struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream); /* optional */
+
 	/* host read DSP stream data */
 	int (*ipc_msg_data)(struct snd_sof_dev *sdev,
-			    struct snd_pcm_substream *substream,
+			    struct snd_sof_pcm_stream *sps,
 			    void *p, size_t sz); /* mandatory */
 
 	/* host side configuration of the stream's data offset in stream mailbox area */
 	int (*set_stream_data_offset)(struct snd_sof_dev *sdev,
-				      struct snd_pcm_substream *substream,
+				      struct snd_sof_pcm_stream *sps,
 				      size_t posn_offset); /* optional */
 
 	/* pre/post firmware run */
@@ -413,11 +425,13 @@ struct sof_ipc_fw_tracing_ops {
  * @ctx_save:		Optional function pointer for context save
  * @ctx_restore:	Optional function pointer for context restore
  * @set_core_state:	Optional function pointer for turning on/off a DSP core
+ * @set_pm_gate:	Optional function pointer for pm gate settings
  */
 struct sof_ipc_pm_ops {
 	int (*ctx_save)(struct snd_sof_dev *sdev);
 	int (*ctx_restore)(struct snd_sof_dev *sdev);
 	int (*set_core_state)(struct snd_sof_dev *sdev, int core_idx, bool on);
+	int (*set_pm_gate)(struct snd_sof_dev *sdev, u32 flags);
 };
 
 /**
@@ -444,7 +458,7 @@ struct sof_ipc_pcm_ops;
  * @pm:		Pointer to PM ops
  * @pcm:	Pointer to PCM ops
  * @fw_loader:	Pointer to Firmware Loader ops
- * @fw_tracing:	Pointer to Firmware tracing ops
+ * @fw_tracing:	Optional pointer to Firmware tracing ops
  *
  * @init:	Optional pointer for IPC related initialization
  * @exit:	Optional pointer for IPC related cleanup
@@ -502,6 +516,10 @@ struct snd_sof_ipc {
 	const struct sof_ipc_ops *ops;
 };
 
+/* Helper to retrieve the IPC ops */
+#define sof_ipc_get_ops(sdev, ops_name)		\
+		(((sdev)->ipc && (sdev)->ipc->ops) ? (sdev)->ipc->ops->ops_name : NULL)
+
 /*
  * SOF Device Level.
  */
@@ -541,6 +559,7 @@ struct snd_sof_dev {
 
 	/* IPC */
 	struct snd_sof_ipc *ipc;
+	struct snd_sof_mailbox fw_info_box;	/* FW shared memory */
 	struct snd_sof_mailbox dsp_box;		/* DSP initiated IPC */
 	struct snd_sof_mailbox host_box;	/* Host initiated IPC */
 	struct snd_sof_mailbox stream_box;	/* Stream position update */
@@ -571,6 +590,7 @@ struct snd_sof_dev {
 	struct list_head pcm_list;
 	struct list_head kcontrol_list;
 	struct list_head widget_list;
+	struct list_head pipeline_list;
 	struct list_head dai_list;
 	struct list_head dai_link_list;
 	struct list_head route_list;
@@ -757,10 +777,10 @@ int sof_block_read(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
 		   u32 offset, void *dest, size_t size);
 
 int sof_ipc_msg_data(struct snd_sof_dev *sdev,
-		     struct snd_pcm_substream *substream,
+		     struct snd_sof_pcm_stream *sps,
 		     void *p, size_t sz);
 int sof_set_stream_data_offset(struct snd_sof_dev *sdev,
-			       struct snd_pcm_substream *substream,
+			       struct snd_sof_pcm_stream *sps,
 			       size_t posn_offset);
 
 int sof_stream_pcm_open(struct snd_sof_dev *sdev,
