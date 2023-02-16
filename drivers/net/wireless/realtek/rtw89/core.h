@@ -2452,6 +2452,7 @@ struct rtw89_vif {
 	bool last_a_ctrl;
 	bool dyn_tb_bedge_en;
 	u8 def_tri_idx;
+	u32 tdls_peer;
 	struct work_struct update_beacon_work;
 	struct rtw89_addr_cam_entry addr_cam;
 	struct rtw89_bssid_cam_entry bssid_cam;
@@ -2460,6 +2461,7 @@ struct rtw89_vif {
 	struct rtw89_phy_rate_pattern rate_pattern;
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_scan_ies *scan_ies;
+	struct list_head general_pkt_list;
 };
 
 enum rtw89_lv1_rcvy_step {
@@ -2846,6 +2848,7 @@ struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
 	const char *fw_name;
+	bool try_ce_fw;
 	u32 fifo_size;
 	u32 dle_scc_rsvd_size;
 	u16 max_amsdu_limit;
@@ -3012,6 +3015,7 @@ static inline void rtw89_init_wait(struct rtw89_wait_info *wait)
 enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,
+	RTW89_FW_NORMAL_CE = 5,
 };
 
 enum rtw89_fw_feature {
@@ -3021,6 +3025,7 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_CRASH_TRIGGER,
 	RTW89_FW_FEATURE_PACKET_DROP,
 	RTW89_FW_FEATURE_NO_DEEP_PS,
+	RTW89_FW_FEATURE_NO_LPS_PG,
 };
 
 struct rtw89_fw_suit {
@@ -3723,7 +3728,6 @@ struct rtw89_wow_param {
 	DECLARE_BITMAP(flags, RTW89_WOW_FLAG_NUM);
 	struct rtw89_wow_cam_info patterns[RTW89_MAX_PATTERN_NUM];
 	u8 pattern_cnt;
-	struct list_head pkt_list;
 };
 
 struct rtw89_mcc_info {

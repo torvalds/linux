@@ -4,6 +4,7 @@
  */
 #include <linux/sched.h>
 #include <linux/of.h>
+#include <net/page_pool.h>
 #include "mt76.h"
 
 #define CHAN2G(_idx, _freq) {			\
@@ -555,6 +556,47 @@ void mt76_unregister_phy(struct mt76_phy *phy)
 	dev->phys[phy->band_idx] = NULL;
 }
 EXPORT_SYMBOL_GPL(mt76_unregister_phy);
+
+int mt76_create_page_pool(struct mt76_dev *dev, struct mt76_queue *q)
+{
+	struct page_pool_params pp_params = {
+		.order = 0,
+		.flags = PP_FLAG_PAGE_FRAG,
+		.nid = NUMA_NO_NODE,
+		.dev = dev->dma_dev,
+	};
+	int idx = q - dev->q_rx;
+
+	switch (idx) {
+	case MT_RXQ_MAIN:
+	case MT_RXQ_BAND1:
+	case MT_RXQ_BAND2:
+		pp_params.pool_size = 256;
+		break;
+	default:
+		pp_params.pool_size = 16;
+		break;
+	}
+
+	if (mt76_is_mmio(dev)) {
+		/* rely on page_pool for DMA mapping */
+		pp_params.flags |= PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
+		pp_params.dma_dir = DMA_FROM_DEVICE;
+		pp_params.max_len = PAGE_SIZE;
+		pp_params.offset = 0;
+	}
+
+	q->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(q->page_pool)) {
+		int err = PTR_ERR(q->page_pool);
+
+		q->page_pool = NULL;
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_create_page_pool);
 
 struct mt76_dev *
 mt76_alloc_device(struct device *pdev, unsigned int size,
@@ -1658,7 +1700,7 @@ u16 mt76_calculate_default_rate(struct mt76_phy *phy, int rateidx)
 EXPORT_SYMBOL_GPL(mt76_calculate_default_rate);
 
 void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
-			 struct mt76_sta_stats *stats)
+			 struct mt76_sta_stats *stats, bool eht)
 {
 	int i, ei = wi->initial_stat_idx;
 	u64 *data = wi->data;
@@ -1674,16 +1716,36 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
 	data[ei++] += stats->tx_mode[MT_PHY_TYPE_HE_EXT_SU];
 	data[ei++] += stats->tx_mode[MT_PHY_TYPE_HE_TB];
 	data[ei++] += stats->tx_mode[MT_PHY_TYPE_HE_MU];
+	if (eht) {
+		data[ei++] += stats->tx_mode[MT_PHY_TYPE_EHT_SU];
+		data[ei++] += stats->tx_mode[MT_PHY_TYPE_EHT_TRIG];
+		data[ei++] += stats->tx_mode[MT_PHY_TYPE_EHT_MU];
+	}
 
-	for (i = 0; i < ARRAY_SIZE(stats->tx_bw); i++)
+	for (i = 0; i < (ARRAY_SIZE(stats->tx_bw) - !eht); i++)
 		data[ei++] += stats->tx_bw[i];
 
-	for (i = 0; i < 12; i++)
+	for (i = 0; i < (eht ? 14 : 12); i++)
 		data[ei++] += stats->tx_mcs[i];
 
 	wi->worker_stat_count = ei - wi->initial_stat_idx;
 }
 EXPORT_SYMBOL_GPL(mt76_ethtool_worker);
+
+void mt76_ethtool_page_pool_stats(struct mt76_dev *dev, u64 *data, int *index)
+{
+#ifdef CONFIG_PAGE_POOL_STATS
+	struct page_pool_stats stats = {};
+	int i;
+
+	mt76_for_each_q_rx(dev, i)
+		page_pool_get_stats(dev->q_rx[i].page_pool, &stats);
+
+	page_pool_ethtool_stats_get(data, &stats);
+	*index += page_pool_ethtool_stats_get_count();
+#endif
+}
+EXPORT_SYMBOL_GPL(mt76_ethtool_page_pool_stats);
 
 enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
 {

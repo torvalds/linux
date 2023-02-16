@@ -217,10 +217,10 @@ static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
 	cut_mask = cut_version_to_mask(cut);
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
-		intf_mask = BIT(2);
+		intf_mask = RTW_PWR_INTF_PCI_MSK;
 		break;
 	case RTW_HCI_TYPE_USB:
-		intf_mask = BIT(1);
+		intf_mask = RTW_PWR_INTF_USB_MSK;
 		break;
 	default:
 		return -EINVAL;

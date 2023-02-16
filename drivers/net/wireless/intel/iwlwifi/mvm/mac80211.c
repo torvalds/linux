@@ -5116,6 +5116,9 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 	case RATE_MCS_CHAN_WIDTH_160:
 		rinfo->bw = RATE_INFO_BW_160;
 		break;
+	case RATE_MCS_CHAN_WIDTH_320:
+		rinfo->bw = RATE_INFO_BW_320;
+		break;
 	}
 
 	if (format == RATE_MCS_CCK_MSK ||
@@ -5176,6 +5179,10 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 
 	switch (format) {
+	case RATE_MCS_EHT_MSK:
+		/* TODO: GI/LTF/RU. How does the firmware encode them? */
+		rinfo->flags |= RATE_INFO_FLAGS_EHT_MCS;
+		break;
 	case RATE_MCS_HE_MSK:
 		gi_ltf = u32_get_bits(rate_n_flags, RATE_MCS_HE_GI_LTF_MSK);
 

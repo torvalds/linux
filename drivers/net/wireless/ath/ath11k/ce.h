@@ -49,6 +49,11 @@ void ath11k_ce_byte_swap(void *mem, u32 len);
 #define CE_HOST_IE_2_ADDRESS	0x00A18040
 #define CE_HOST_IE_3_ADDRESS	CE_HOST_IE_ADDRESS
 
+/* CE IE registers are different for IPQ5018 */
+#define CE_HOST_IPQ5018_IE_ADDRESS		0x0841804C
+#define CE_HOST_IPQ5018_IE_2_ADDRESS		0x08418050
+#define CE_HOST_IPQ5018_IE_3_ADDRESS		CE_HOST_IPQ5018_IE_ADDRESS
+
 #define CE_HOST_IE_3_SHIFT	0xC
 
 #define CE_RING_IDX_INCR(nentries_mask, idx) (((idx) + 1) & (nentries_mask))
@@ -82,6 +87,17 @@ struct ce_pipe_config {
 	__le32 nbytes_max;
 	__le32 flags;
 	__le32 reserved;
+};
+
+struct ce_ie_addr {
+	u32 ie1_reg_addr;
+	u32 ie2_reg_addr;
+	u32 ie3_reg_addr;
+};
+
+struct ce_remap {
+	u32 base;
+	u32 size;
 };
 
 struct ce_attr {

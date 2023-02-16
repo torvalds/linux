@@ -131,6 +131,9 @@ rtw_tx_write_data_h2c_get(struct rtw_dev *rtwdev,
 			  struct rtw_tx_pkt_info *pkt_info,
 			  u8 *buf, u32 size);
 
+enum rtw_tx_queue_type rtw_tx_ac_to_hwq(enum ieee80211_ac_numbers ac);
+enum rtw_tx_queue_type rtw_tx_queue_mapping(struct sk_buff *skb);
+
 static inline
 void fill_txdesc_checksum_common(u8 *txdesc, size_t words)
 {

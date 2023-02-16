@@ -173,16 +173,16 @@ void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	/* connect bt_active to baseband */
-	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+	REG_CLR_BIT(ah, AR_GPIO_INPUT_EN_VAL(ah),
 		    (AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF |
 		     AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_DEF));
 
-	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL(ah),
 		    AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB);
 
 	/* Set input mux for bt_active to gpio pin */
 	if (!AR_SREV_SOC(ah))
-		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
+		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1(ah),
 			      AR_GPIO_INPUT_MUX1_BT_ACTIVE,
 			      btcoex_hw->btactive_gpio);
 
@@ -197,17 +197,17 @@ void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	/* btcoex 3-wire */
-	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL(ah),
 			(AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB |
 			 AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB));
 
 	/* Set input mux for bt_prority_async and
 	 *                  bt_active_async to GPIO pins */
 	if (!AR_SREV_SOC(ah)) {
-		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
+		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1(ah),
 			      AR_GPIO_INPUT_MUX1_BT_ACTIVE,
 			      btcoex_hw->btactive_gpio);
-		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
+		REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1(ah),
 			      AR_GPIO_INPUT_MUX1_BT_PRIORITY,
 			      btcoex_hw->btpriority_gpio);
 	}
@@ -404,7 +404,7 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 
 	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_MCI &&
 	    !AR_SREV_SOC(ah)) {
-		REG_RMW(ah, AR_GPIO_PDPU,
+		REG_RMW(ah, AR_GPIO_PDPU(ah),
 			(0x2 << (btcoex_hw->btactive_gpio * 2)),
 			(0x3 << (btcoex_hw->btactive_gpio * 2)));
 	}

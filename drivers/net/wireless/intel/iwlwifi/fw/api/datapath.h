@@ -83,7 +83,7 @@ enum iwl_data_path_subcmd_ids {
 	MONITOR_NOTIF = 0xF4,
 
 	/**
-	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data
+	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data or &struct iwl_rx_no_data_ver_3
 	 */
 	RX_NO_DATA_NOTIF = 0xF5,
 

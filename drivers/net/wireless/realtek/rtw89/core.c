@@ -1764,7 +1764,8 @@ static enum rtw89_ps_mode rtw89_update_ps_mode(struct rtw89_dev *rtwdev)
 	    RTW89_CHK_FW_FEATURE(NO_DEEP_PS, &rtwdev->fw))
 		return RTW89_PS_MODE_NONE;
 
-	if (chip->ps_mode_supported & BIT(RTW89_PS_MODE_PWR_GATED))
+	if ((chip->ps_mode_supported & BIT(RTW89_PS_MODE_PWR_GATED)) &&
+	    !RTW89_CHK_FW_FEATURE(NO_LPS_PG, &rtwdev->fw))
 		return RTW89_PS_MODE_PWR_GATED;
 
 	if (chip->ps_mode_supported & BIT(RTW89_PS_MODE_CLK_GATED))
@@ -2206,8 +2207,9 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 
 static void rtw89_vif_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION &&
-	    rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT)
+	if ((rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION &&
+	     rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT) ||
+	    rtwvif->tdls_peer)
 		return;
 
 	if (rtwvif->stats.tx_tfc_lv == RTW89_TFC_IDLE &&
@@ -2466,9 +2468,12 @@ int rtw89_core_sta_disassoc(struct rtw89_dev *rtwdev,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta)
 {
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 
 	rtwdev->total_sta_assoc--;
+	if (sta->tdls)
+		rtwvif->tdls_peer--;
 	rtwsta->disassoc = true;
 
 	return 0;
@@ -2491,8 +2496,10 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 	if (sta->tdls)
 		rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta->bssid_cam);
 
-	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
+	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		rtw89_vif_type_mapping(vif, false);
+		rtw89_fw_release_general_pkt_list_vif(rtwdev, rtwvif, true);
+	}
 
 	ret = rtw89_fw_h2c_assoc_cmac_tbl(rtwdev, vif, sta);
 	if (ret) {
@@ -2580,13 +2587,9 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	ret = rtw89_fw_h2c_general_pkt(rtwdev, rtwsta->mac_id);
-	if (ret) {
-		rtw89_warn(rtwdev, "failed to send h2c general packet\n");
-		return ret;
-	}
-
 	rtwdev->total_sta_assoc++;
+	if (sta->tdls)
+		rtwvif->tdls_peer++;
 	rtw89_phy_ra_assoc(rtwdev, sta);
 	rtw89_mac_bf_assoc(rtwdev, vif, sta);
 	rtw89_mac_bf_monitor_calc(rtwdev, sta, false);
@@ -2602,6 +2605,12 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 					 BTC_ROLE_MSTS_STA_CONN_END);
 		rtw89_core_get_no_ul_ofdma_htc(rtwdev, &rtwsta->htc_template);
 		rtw89_phy_ul_tb_assoc(rtwdev, rtwvif);
+
+		ret = rtw89_fw_h2c_general_pkt(rtwdev, rtwvif, rtwsta->mac_id);
+		if (ret) {
+			rtw89_warn(rtwdev, "failed to send h2c general packet\n");
+			return ret;
+		}
 	}
 
 	return ret;
@@ -3126,7 +3135,6 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 			continue;
 		INIT_LIST_HEAD(&rtwdev->scan_info.pkt_list[band]);
 	}
-	INIT_LIST_HEAD(&rtwdev->wow.pkt_list);
 	INIT_WORK(&rtwdev->ba_work, rtw89_core_ba_work);
 	INIT_WORK(&rtwdev->txq_work, rtw89_core_txq_work);
 	INIT_DELAYED_WORK(&rtwdev->txq_reinvoke_work, rtw89_core_txq_reinvoke_work);
@@ -3153,7 +3161,6 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	rtw89_core_ppdu_sts_init(rtwdev);
 	rtw89_traffic_stats_init(rtwdev, &rtwdev->stats);
 
-	rtwdev->ps_mode = rtw89_update_ps_mode(rtwdev);
 	rtwdev->hal.rx_fltr = DEFAULT_AX_RX_FLTR;
 
 	INIT_WORK(&btc->eapol_notify_work, rtw89_btc_ntfy_eapol_packet_work);
@@ -3308,6 +3315,8 @@ int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 	ret = rtw89_chip_board_info_setup(rtwdev);
 	if (ret)
 		return ret;
+
+	rtwdev->ps_mode = rtw89_update_ps_mode(rtwdev);
 
 	return 0;
 }

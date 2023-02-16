@@ -208,14 +208,6 @@ ath10k_ce_shadow_src_ring_write_index_set(struct ath10k *ar,
 	ath10k_ce_write32(ar, shadow_sr_wr_ind_addr(ar, ce_state), value);
 }
 
-static inline void
-ath10k_ce_shadow_dest_ring_write_index_set(struct ath10k *ar,
-					   struct ath10k_ce_pipe *ce_state,
-					   unsigned int value)
-{
-	ath10k_ce_write32(ar, shadow_dst_wr_ind_addr(ar, ce_state), value);
-}
-
 static inline void ath10k_ce_src_ring_base_addr_set(struct ath10k *ar,
 						    u32 ce_id,
 						    u64 addr)

@@ -33,11 +33,14 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u16 val = get_unaligned_le16(eeprom);
 
+#define CHECK_EEPROM_ERR(match)	(match ? 0 : -EINVAL)
 	switch (val) {
 	case 0x7915:
+		return CHECK_EEPROM_ERR(is_mt7915(&dev->mt76));
 	case 0x7916:
+		return CHECK_EEPROM_ERR(is_mt7916(&dev->mt76));
 	case 0x7986:
-		return 0;
+		return CHECK_EEPROM_ERR(is_mt7986(&dev->mt76));
 	default:
 		return -EINVAL;
 	}

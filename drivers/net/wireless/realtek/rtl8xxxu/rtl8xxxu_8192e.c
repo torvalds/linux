@@ -1764,6 +1764,29 @@ static s8 rtl8192e_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
 	return rx_pwr_all;
 }
 
+static int rtl8192eu_led_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness brightness)
+{
+	struct rtl8xxxu_priv *priv = container_of(led_cdev,
+						  struct rtl8xxxu_priv,
+						  led_cdev);
+	u8 ledcfg = rtl8xxxu_read8(priv, REG_LEDCFG1);
+
+	if (brightness == LED_OFF) {
+		ledcfg &= ~LEDCFG1_HW_LED_CONTROL;
+		ledcfg |= LEDCFG1_LED_DISABLE;
+	} else if (brightness == LED_ON) {
+		ledcfg &= ~(LEDCFG1_HW_LED_CONTROL | LEDCFG1_LED_DISABLE);
+	} else if (brightness == RTL8XXXU_HW_LED_CONTROL) {
+		ledcfg &= ~LEDCFG1_LED_DISABLE;
+		ledcfg |= LEDCFG1_HW_LED_CONTROL;
+	}
+
+	rtl8xxxu_write8(priv, REG_LEDCFG1, ledcfg);
+
+	return 0;
+}
+
 struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.identify_chip = rtl8192eu_identify_chip,
 	.parse_efuse = rtl8192eu_parse_efuse,
@@ -1788,6 +1811,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
 	.set_crystal_cap = rtl8723a_set_crystal_cap,
 	.cck_rssi = rtl8192e_cck_rssi,
+	.led_classdev_brightness_set = rtl8192eu_led_brightness_set,
 	.writeN_block_size = 128,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc40),
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),

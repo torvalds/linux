@@ -281,10 +281,10 @@ static void ar9002_olc_init(struct ath_hw *ah)
 {
 	u32 i;
 
-	if (!OLC_FOR_AR9280_20_LATER)
+	if (!OLC_FOR_AR9280_20_LATER(ah))
 		return;
 
-	if (OLC_FOR_AR9287_10_LATER) {
+	if (OLC_FOR_AR9287_10_LATER(ah)) {
 		REG_SET_BIT(ah, AR_PHY_TX_PWRCTRL9,
 				AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL);
 		ath9k_hw_analog_shift_rmw(ah, AR9287_AN_TXPC0,

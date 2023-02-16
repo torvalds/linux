@@ -53,6 +53,7 @@
 #define MT7916_EEPROM_SIZE		4096
 
 #define MT7915_EEPROM_BLOCK_SIZE	16
+#define MT7915_HW_TOKEN_SIZE		4096
 #define MT7915_TOKEN_SIZE		8192
 
 #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
@@ -69,6 +70,11 @@
 #define MT7915_MAX_QUEUE		(MT_RXQ_BAND2 + __MT_MCUQ_MAX + 2)
 
 #define MT7915_WED_RX_TOKEN_SIZE	12288
+
+#define MT7915_CRIT_TEMP_IDX		0
+#define MT7915_MAX_TEMP_IDX		1
+#define MT7915_CRIT_TEMP		110
+#define MT7915_MAX_TEMP			120
 
 struct mt7915_vif;
 struct mt7915_sta;
@@ -543,6 +549,7 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy);
 int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch);
 int mt7915_mcu_get_temperature(struct mt7915_phy *phy);
 int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
+int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy);
 int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
