@@ -3814,7 +3814,6 @@ static const struct vop2_data rk3588_vop = {
 	.nr_mixers = 7,
 	.nr_layers = 8,
 	.nr_gammas = 4,
-	.nr_pds = 7,
 	.max_input = { 4096, 4320 },
 	.max_output = { 4096, 4320 },
 	.ctrl = &rk3588_vop_ctrl,
