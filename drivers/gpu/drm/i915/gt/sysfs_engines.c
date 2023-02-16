@@ -419,7 +419,7 @@ static void kobj_engine_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
-static struct kobj_type kobj_engine_type = {
+static const struct kobj_type kobj_engine_type = {
 	.release = kobj_engine_release,
 	.sysfs_ops = &kobj_sysfs_ops
 };
