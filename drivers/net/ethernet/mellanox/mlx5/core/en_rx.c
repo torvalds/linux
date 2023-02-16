@@ -1718,7 +1718,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 
 	page_ref_inc(head_wi->au->page);
 
-	if (unlikely(xdp_buff_has_frags(&mxbuf.xdp))) {
+	if (xdp_buff_has_frags(&mxbuf.xdp)) {
 		int i;
 
 		/* sinfo->nr_frags is reset by build_skb, calculate again. */
