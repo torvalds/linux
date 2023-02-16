@@ -80,9 +80,19 @@ static int rockchip_mdais_trigger(struct snd_pcm_substream *substream,
 {
 	struct rk_mdais_dev *mdais = to_info(dai);
 	struct snd_soc_dai *child;
+	unsigned int *channel_maps;
 	int ret = 0, i = 0;
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		channel_maps = mdais->playback_channel_maps;
+	else
+		channel_maps = mdais->capture_channel_maps;
+
 	for (i = 0; i < mdais->num_dais; i++) {
+		/* skip DAIs which have no channel mapping */
+		if (!channel_maps[i])
+			continue;
+
 		child = mdais->dais[i].dai;
 		if (child->driver->ops && child->driver->ops->trigger) {
 			ret = child->driver->ops->trigger(substream,
