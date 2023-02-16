@@ -20,7 +20,8 @@ displayid_get_header(const u8 *displayid, int length, int index)
 	return base;
 }
 
-static int validate_displayid(const u8 *displayid, int length, int idx)
+static const struct displayid_header *
+validate_displayid(const u8 *displayid, int length, int idx)
 {
 	int i, dispid_length;
 	u8 csum = 0;
@@ -28,7 +29,7 @@ static int validate_displayid(const u8 *displayid, int length, int idx)
 
 	base = displayid_get_header(displayid, length, idx);
 	if (IS_ERR(base))
-		return PTR_ERR(base);
+		return base;
 
 	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
@@ -36,16 +37,16 @@ static int validate_displayid(const u8 *displayid, int length, int idx)
 	/* +1 for DispID checksum */
 	dispid_length = sizeof(*base) + base->bytes + 1;
 	if (dispid_length > length - idx)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < dispid_length; i++)
 		csum += displayid[idx + i];
 	if (csum) {
 		DRM_NOTE("DisplayID checksum invalid, remainder is %d\n", csum);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
-	return 0;
+	return base;
 }
 
 static const u8 *drm_find_displayid_extension(const struct drm_edid *drm_edid,
@@ -54,7 +55,6 @@ static const u8 *drm_find_displayid_extension(const struct drm_edid *drm_edid,
 {
 	const u8 *displayid = drm_find_edid_extension(drm_edid, DISPLAYID_EXT, ext_index);
 	const struct displayid_header *base;
-	int ret;
 
 	if (!displayid)
 		return NULL;
@@ -63,11 +63,10 @@ static const u8 *drm_find_displayid_extension(const struct drm_edid *drm_edid,
 	*length = EDID_LENGTH - 1;
 	*idx = 1;
 
-	ret = validate_displayid(displayid, *length, *idx);
-	if (ret)
+	base = validate_displayid(displayid, *length, *idx);
+	if (IS_ERR(base))
 		return NULL;
 
-	base = (const struct displayid_header *)&displayid[*idx];
 	*length = *idx + sizeof(*base) + base->bytes;
 
 	return displayid;
