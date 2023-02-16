@@ -2159,6 +2159,17 @@ struct mlx5_ifc_cong_control_r_roce_ecn_rp_bits {
 	u8         reserved_at_360[0x4a0];
 };
 
+struct mlx5_ifc_cong_control_r_roce_general_bits {
+	u8         reserved_at_0[0x80];
+
+	u8         reserved_at_80[0x10];
+	u8         rtt_resp_dscp_valid[0x1];
+	u8         reserved_at_91[0x9];
+	u8         rtt_resp_dscp[0x6];
+
+	u8         reserved_at_a0[0x760];
+};
+
 struct mlx5_ifc_cong_control_802_1qau_rp_bits {
 	u8         reserved_at_0[0x80];
 
@@ -4304,6 +4315,7 @@ union mlx5_ifc_cong_control_roce_ecn_auto_bits {
 	struct mlx5_ifc_cong_control_802_1qau_rp_bits cong_control_802_1qau_rp;
 	struct mlx5_ifc_cong_control_r_roce_ecn_rp_bits cong_control_r_roce_ecn_rp;
 	struct mlx5_ifc_cong_control_r_roce_ecn_np_bits cong_control_r_roce_ecn_np;
+	struct mlx5_ifc_cong_control_r_roce_general_bits cong_control_r_roce_general;
 	u8         reserved_at_0[0x800];
 };
 
