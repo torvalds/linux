@@ -943,37 +943,10 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
  */
 static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
-	union kvm_mmu_page_role root_role = vcpu->arch.mmu->root_role;
 	int i;
 	bool host_writable;
 	gpa_t first_pte_gpa;
 	bool flush = false;
-
-	/*
-	 * Ignore various flags when verifying that it's safe to sync a shadow
-	 * page using the current MMU context.
-	 *
-	 *  - level: not part of the overall MMU role and will never match as the MMU's
-	 *           level tracks the root level
-	 *  - access: updated based on the new guest PTE
-	 *  - quadrant: not part of the overall MMU role (similar to level)
-	 */
-	const union kvm_mmu_page_role sync_role_ign = {
-		.level = 0xf,
-		.access = 0x7,
-		.quadrant = 0x3,
-		.passthrough = 0x1,
-	};
-
-	/*
-	 * Direct pages can never be unsync, and KVM should never attempt to
-	 * sync a shadow page for a different MMU context, e.g. if the role
-	 * differs then the memslot lookup (SMM vs. non-SMM) will be bogus, the
-	 * reserved bits checks will be wrong, etc...
-	 */
-	if (WARN_ON_ONCE(sp->role.direct ||
-			 (sp->role.word ^ root_role.word) & ~sync_role_ign.word))
-		return -1;
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 
