@@ -591,8 +591,13 @@
 			};
 
 			pfr-stg@7a00000 {
-				reg = <0x7a00000 0x500000>; // 5120KB
+				reg = <0x7a00000 0x100000>; // 1024KB
 				label = "pfr-stg";
+			};
+
+			cpld-stg@7b00000 {
+				reg = <0x7b00000 0x400000>; // 4096KB
+				label = "cpld-stg";
 			};
 
 			afm-act@7f00000 {
