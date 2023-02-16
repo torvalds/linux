@@ -1071,6 +1071,11 @@ int sparx5_port_init(struct sparx5 *sparx5,
 	/* Discard pause frame 01-80-C2-00-00-01 */
 	spx5_wr(PAUSE_DISCARD, sparx5, ANA_CL_CAPTURE_BPDU_CFG(port->portno));
 
+	/* Discard SMAC multicast */
+	spx5_rmw(ANA_CL_FILTER_CTRL_FILTER_SMAC_MC_DIS_SET(0),
+		 ANA_CL_FILTER_CTRL_FILTER_SMAC_MC_DIS,
+		 sparx5, ANA_CL_FILTER_CTRL(port->portno));
+
 	if (conf->portmode == PHY_INTERFACE_MODE_QSGMII ||
 	    conf->portmode == PHY_INTERFACE_MODE_SGMII) {
 		err = sparx5_serdes_set(sparx5, port, conf);

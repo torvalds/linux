@@ -29,6 +29,31 @@ struct sparx5_multiple_rules {
 };
 
 static int
+sparx5_tc_flower_es0_tpid(struct vcap_tc_flower_parse_usage *st)
+{
+	int err = 0;
+
+	switch (st->tpid) {
+	case ETH_P_8021Q:
+		err = vcap_rule_add_key_u32(st->vrule,
+					    VCAP_KF_8021Q_TPID,
+					    SPX5_TPID_SEL_8100, ~0);
+		break;
+	case ETH_P_8021AD:
+		err = vcap_rule_add_key_u32(st->vrule,
+					    VCAP_KF_8021Q_TPID,
+					    SPX5_TPID_SEL_88A8, ~0);
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
+				   "Invalid vlan proto");
+		err = -EINVAL;
+		break;
+	}
+	return err;
+}
+
+static int
 sparx5_tc_flower_handler_basic_usage(struct vcap_tc_flower_parse_usage *st)
 {
 	struct flow_match_basic mt;
@@ -168,13 +193,21 @@ sparx5_tc_flower_handler_vlan_usage(struct vcap_tc_flower_parse_usage *st)
 {
 	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID_CLS;
 	enum vcap_key_field pcp_key = VCAP_KF_8021Q_PCP_CLS;
+	int err;
 
 	if (st->admin->vtype == VCAP_TYPE_IS0) {
 		vid_key = VCAP_KF_8021Q_VID0;
 		pcp_key = VCAP_KF_8021Q_PCP0;
 	}
 
-	return vcap_tc_flower_handler_vlan_usage(st, vid_key, pcp_key);
+	err = vcap_tc_flower_handler_vlan_usage(st, vid_key, pcp_key);
+	if (err)
+		return err;
+
+	if (st->admin->vtype == VCAP_TYPE_ES0 && st->tpid)
+		err = sparx5_tc_flower_es0_tpid(st);
+
+	return err;
 }
 
 static int (*sparx5_tc_flower_usage_handlers[])(struct vcap_tc_flower_parse_usage *st) = {
@@ -191,38 +224,28 @@ static int (*sparx5_tc_flower_usage_handlers[])(struct vcap_tc_flower_parse_usag
 	[FLOW_DISSECTOR_KEY_IP] = vcap_tc_flower_handler_ip_usage,
 };
 
-static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
+static int sparx5_tc_use_dissectors(struct vcap_tc_flower_parse_usage *st,
 				    struct vcap_admin *admin,
-				    struct vcap_rule *vrule,
-				    u16 *l3_proto)
+				    struct vcap_rule *vrule)
 {
-	struct vcap_tc_flower_parse_usage state = {
-		.fco = fco,
-		.vrule = vrule,
-		.l3_proto = ETH_P_ALL,
-		.admin = admin,
-	};
 	int idx, err = 0;
 
-	state.frule = flow_cls_offload_flow_rule(fco);
 	for (idx = 0; idx < ARRAY_SIZE(sparx5_tc_flower_usage_handlers); ++idx) {
-		if (!flow_rule_match_key(state.frule, idx))
+		if (!flow_rule_match_key(st->frule, idx))
 			continue;
 		if (!sparx5_tc_flower_usage_handlers[idx])
 			continue;
-		err = sparx5_tc_flower_usage_handlers[idx](&state);
+		err = sparx5_tc_flower_usage_handlers[idx](st);
 		if (err)
 			return err;
 	}
 
-	if (state.frule->match.dissector->used_keys ^ state.used_keys) {
-		NL_SET_ERR_MSG_MOD(fco->common.extack,
+	if (st->frule->match.dissector->used_keys ^ st->used_keys) {
+		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
 				   "Unsupported match item");
 		return -ENOENT;
 	}
 
-	if (l3_proto)
-		*l3_proto = state.l3_proto;
 	return err;
 }
 
@@ -281,6 +304,27 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 		return -EOPNOTSUPP;
 	}
 
+	if (action_mask & BIT(FLOW_ACTION_VLAN_PUSH) &&
+	    action_mask & BIT(FLOW_ACTION_VLAN_POP)) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Cannot combine vlan push and pop action");
+		return -EOPNOTSUPP;
+	}
+
+	if (action_mask & BIT(FLOW_ACTION_VLAN_PUSH) &&
+	    action_mask & BIT(FLOW_ACTION_VLAN_MANGLE)) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Cannot combine vlan push and modify action");
+		return -EOPNOTSUPP;
+	}
+
+	if (action_mask & BIT(FLOW_ACTION_VLAN_POP) &&
+	    action_mask & BIT(FLOW_ACTION_VLAN_MANGLE)) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Cannot combine vlan pop and modify action");
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -290,14 +334,29 @@ static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
 {
 	int err;
 
-	if (admin->vtype == VCAP_TYPE_IS2 || admin->vtype == VCAP_TYPE_ES2) {
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS0:
+		break;
+	case VCAP_TYPE_ES0:
+		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_ESDX,
+					       vrule->id);
+		if (err)
+			return err;
+		vcap_rule_set_counter_id(vrule, vrule->id);
+		break;
+	case VCAP_TYPE_IS2:
+	case VCAP_TYPE_ES2:
 		err = vcap_rule_mod_action_u32(vrule, VCAP_AF_CNT_ID,
 					       vrule->id);
 		if (err)
 			return err;
 		vcap_rule_set_counter_id(vrule, vrule->id);
+		break;
+	default:
+		pr_err("%s:%d: vcap type: %d not supported\n",
+		       __func__, __LINE__, admin->vtype);
+		break;
 	}
-
 	return 0;
 }
 
@@ -493,10 +552,14 @@ static int sparx5_tc_set_actionset(struct vcap_admin *admin,
 	case VCAP_TYPE_IS2:
 		aset = VCAP_AFS_BASE_TYPE;
 		break;
+	case VCAP_TYPE_ES0:
+		aset = VCAP_AFS_ES0;
+		break;
 	case VCAP_TYPE_ES2:
 		aset = VCAP_AFS_BASE_TYPE;
 		break;
 	default:
+		pr_err("%s:%d: %s\n", __func__, __LINE__, "Invalid VCAP type");
 		return -EINVAL;
 	}
 	/* Do not overwrite any current actionset */
@@ -532,6 +595,7 @@ static int sparx5_tc_add_rule_link_target(struct vcap_admin *admin,
 		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_PAG,
 					     link_val, /* target */
 					     ~0);
+	case VCAP_TYPE_ES0:
 	case VCAP_TYPE_ES2:
 		/* Add ISDX key for chaining rules from IS0 */
 		return vcap_rule_add_key_u32(vrule, VCAP_KF_ISDX_CLS, link_val,
@@ -551,12 +615,16 @@ static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
 	struct vcap_admin *to_admin = vcap_find_admin(vctrl, to_cid);
 	int diff, err = 0;
 
-	diff = vcap_chain_offset(vctrl, from_cid, to_cid);
-	if (!(to_admin && diff > 0)) {
+	if (!to_admin) {
 		pr_err("%s:%d: unsupported chain direction: %d\n",
 		       __func__, __LINE__, to_cid);
 		return -EINVAL;
 	}
+
+	diff = vcap_chain_offset(vctrl, from_cid, to_cid);
+	if (!diff)
+		return 0;
+
 	if (admin->vtype == VCAP_TYPE_IS0 &&
 	    to_admin->vtype == VCAP_TYPE_IS0) {
 		/* Between IS0 instances the G_IDX value is used */
@@ -579,8 +647,9 @@ static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
 		if (err)
 			goto out;
 	} else if (admin->vtype == VCAP_TYPE_IS0 &&
-		   to_admin->vtype == VCAP_TYPE_ES2) {
-		/* Between IS0 and ES2 the ISDX value is used */
+		   (to_admin->vtype == VCAP_TYPE_ES0 ||
+		    to_admin->vtype == VCAP_TYPE_ES2)) {
+		/* Between IS0 and ES0/ES2 the ISDX value is used */
 		err = vcap_rule_add_action_u32(vrule, VCAP_AF_ISDX_VAL,
 					       diff);
 		if (err)
@@ -731,6 +800,202 @@ static int sparx5_tc_flower_psfp_setup(struct sparx5 *sparx5,
 	return 0;
 }
 
+/* Handle the action trap for a VCAP rule */
+static int sparx5_tc_action_trap(struct vcap_admin *admin,
+				 struct vcap_rule *vrule,
+				 struct flow_cls_offload *fco)
+{
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS2:
+		err = vcap_rule_add_action_bit(vrule,
+					       VCAP_AF_CPU_COPY_ENA,
+					       VCAP_BIT_1);
+		if (err)
+			break;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_CPU_QUEUE_NUM, 0);
+		if (err)
+			break;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_MASK_MODE,
+					       SPX5_PMM_REPLACE_ALL);
+		break;
+	case VCAP_TYPE_ES0:
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_FWD_SEL,
+					       SPX5_FWSEL_REDIRECT_TO_LOOPBACK);
+		break;
+	case VCAP_TYPE_ES2:
+		err = vcap_rule_add_action_bit(vrule,
+					       VCAP_AF_CPU_COPY_ENA,
+					       VCAP_BIT_1);
+		if (err)
+			break;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_CPU_QUEUE_NUM, 0);
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Trap action not supported in this VCAP");
+		err = -EOPNOTSUPP;
+		break;
+	}
+	return err;
+}
+
+static int sparx5_tc_action_vlan_pop(struct vcap_admin *admin,
+				     struct vcap_rule *vrule,
+				     struct flow_cls_offload *fco,
+				     u16 tpid)
+{
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_ES0:
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "VLAN pop action not supported in this VCAP");
+		return -EOPNOTSUPP;
+	}
+
+	switch (tpid) {
+	case ETH_P_8021Q:
+	case ETH_P_8021AD:
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_PUSH_OUTER_TAG,
+					       SPX5_OTAG_UNTAG);
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Invalid vlan proto");
+		err = -EINVAL;
+	}
+	return err;
+}
+
+static int sparx5_tc_action_vlan_modify(struct vcap_admin *admin,
+					struct vcap_rule *vrule,
+					struct flow_cls_offload *fco,
+					struct flow_action_entry *act,
+					u16 tpid)
+{
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_ES0:
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_PUSH_OUTER_TAG,
+					       SPX5_OTAG_TAG_A);
+		if (err)
+			return err;
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "VLAN modify action not supported in this VCAP");
+		return -EOPNOTSUPP;
+	}
+
+	switch (tpid) {
+	case ETH_P_8021Q:
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_TAG_A_TPID_SEL,
+					       SPX5_TPID_A_8100);
+		break;
+	case ETH_P_8021AD:
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_TAG_A_TPID_SEL,
+					       SPX5_TPID_A_88A8);
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Invalid vlan proto");
+		err = -EINVAL;
+	}
+	if (err)
+		return err;
+
+	err = vcap_rule_add_action_u32(vrule,
+				       VCAP_AF_TAG_A_VID_SEL,
+				       SPX5_VID_A_VAL);
+	if (err)
+		return err;
+
+	err = vcap_rule_add_action_u32(vrule,
+				       VCAP_AF_VID_A_VAL,
+				       act->vlan.vid);
+	if (err)
+		return err;
+
+	err = vcap_rule_add_action_u32(vrule,
+				       VCAP_AF_TAG_A_PCP_SEL,
+				       SPX5_PCP_A_VAL);
+	if (err)
+		return err;
+
+	err = vcap_rule_add_action_u32(vrule,
+				       VCAP_AF_PCP_A_VAL,
+				       act->vlan.prio);
+	if (err)
+		return err;
+
+	return vcap_rule_add_action_u32(vrule,
+					VCAP_AF_TAG_A_DEI_SEL,
+					SPX5_DEI_A_CLASSIFIED);
+}
+
+static int sparx5_tc_action_vlan_push(struct vcap_admin *admin,
+				      struct vcap_rule *vrule,
+				      struct flow_cls_offload *fco,
+				      struct flow_action_entry *act,
+				      u16 tpid)
+{
+	u16 act_tpid = be16_to_cpu(act->vlan.proto);
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_ES0:
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "VLAN push action not supported in this VCAP");
+		return -EOPNOTSUPP;
+	}
+
+	if (tpid == ETH_P_8021AD) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Cannot push on double tagged frames");
+		return -EOPNOTSUPP;
+	}
+
+	err = sparx5_tc_action_vlan_modify(admin, vrule, fco, act, act_tpid);
+	if (err)
+		return err;
+
+	switch (act_tpid) {
+	case ETH_P_8021Q:
+		break;
+	case ETH_P_8021AD:
+		/* Push classified tag as inner tag */
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_PUSH_INNER_TAG,
+					       SPX5_ITAG_PUSH_B_TAG);
+		if (err)
+			break;
+		err = vcap_rule_add_action_u32(vrule,
+					       VCAP_AF_TAG_B_TPID_SEL,
+					       SPX5_TPID_B_CLASSIFIED);
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Invalid vlan proto");
+		err = -EINVAL;
+	}
+	return err;
+}
+
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
 				    struct vcap_admin *admin,
@@ -739,6 +1004,11 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	struct sparx5_psfp_sf sf = { .max_sdu = SPX5_PSFP_SF_MAX_SDU };
 	struct netlink_ext_ack *extack = fco->common.extack;
 	int err, idx, tc_sg_idx = -1, tc_pol_idx = -1;
+	struct vcap_tc_flower_parse_usage state = {
+		.fco = fco,
+		.l3_proto = ETH_P_ALL,
+		.admin = admin,
+	};
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5_multiple_rules multi = {};
 	struct sparx5 *sparx5 = port->sparx5;
@@ -748,7 +1018,6 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	struct vcap_control *vctrl;
 	struct flow_rule *frule;
 	struct vcap_rule *vrule;
-	u16 l3_proto;
 
 	vctrl = port->sparx5->vcap_ctrl;
 
@@ -763,8 +1032,9 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 
 	vrule->cookie = fco->cookie;
 
-	l3_proto = ETH_P_ALL;
-	err = sparx5_tc_use_dissectors(fco, admin, vrule, &l3_proto);
+	state.vrule = vrule;
+	state.frule = flow_cls_offload_flow_rule(fco);
+	err = sparx5_tc_use_dissectors(&state, admin, vrule);
 	if (err)
 		goto out;
 
@@ -801,27 +1071,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 			break;
 		}
 		case FLOW_ACTION_TRAP:
-			if (admin->vtype != VCAP_TYPE_IS2 &&
-			    admin->vtype != VCAP_TYPE_ES2) {
-				NL_SET_ERR_MSG_MOD(fco->common.extack,
-						   "Trap action not supported in this VCAP");
-				err = -EOPNOTSUPP;
-				goto out;
-			}
-			err = vcap_rule_add_action_bit(vrule,
-						       VCAP_AF_CPU_COPY_ENA,
-						       VCAP_BIT_1);
-			if (err)
-				goto out;
-			err = vcap_rule_add_action_u32(vrule,
-						       VCAP_AF_CPU_QUEUE_NUM, 0);
-			if (err)
-				goto out;
-			if (admin->vtype != VCAP_TYPE_IS2)
-				break;
-			err = vcap_rule_add_action_u32(vrule,
-						       VCAP_AF_MASK_MODE,
-				SPX5_PMM_REPLACE_ALL);
+			err = sparx5_tc_action_trap(admin, vrule, fco);
 			if (err)
 				goto out;
 			break;
@@ -837,6 +1087,24 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 			sparx5_tc_add_rule_link(vctrl, admin, vrule,
 						fco->common.chain_index,
 						act->chain_index);
+			break;
+		case FLOW_ACTION_VLAN_POP:
+			err = sparx5_tc_action_vlan_pop(admin, vrule, fco,
+							state.tpid);
+			if (err)
+				goto out;
+			break;
+		case FLOW_ACTION_VLAN_PUSH:
+			err = sparx5_tc_action_vlan_push(admin, vrule, fco,
+							 act, state.tpid);
+			if (err)
+				goto out;
+			break;
+		case FLOW_ACTION_VLAN_MANGLE:
+			err = sparx5_tc_action_vlan_modify(admin, vrule, fco,
+							   act, state.tpid);
+			if (err)
+				goto out;
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(fco->common.extack,
@@ -854,8 +1122,8 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 			goto out;
 	}
 
-	err = sparx5_tc_select_protocol_keyset(ndev, vrule, admin, l3_proto,
-					       &multi);
+	err = sparx5_tc_select_protocol_keyset(ndev, vrule, admin,
+					       state.l3_proto, &multi);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
 				   "No matching port keyset for filter protocol and keys");
@@ -863,7 +1131,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	}
 
 	/* provide the l3 protocol to guide the keyset selection */
-	err = vcap_val_rule(vrule, l3_proto);
+	err = vcap_val_rule(vrule, state.l3_proto);
 	if (err) {
 		vcap_set_tc_exterr(fco, vrule);
 		goto out;
@@ -873,7 +1141,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
 				   "Could not add the filter");
 
-	if (l3_proto == ETH_P_ALL)
+	if (state.l3_proto == ETH_P_ALL)
 		err = sparx5_tc_add_remaining_rules(vctrl, fco, vrule, admin,
 						    &multi);
 

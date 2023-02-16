@@ -1337,8 +1337,8 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 	u32 port_mask_rng_mask = 0x0f;
 	u32 igr_port_mask_value = 0xffabcd01;
 	u32 igr_port_mask_mask = ~0;
-	/* counter is written as the last operation */
-	u32 expwriteaddr[] = {792, 793, 794, 795, 796, 797, 792};
+	/* counter is written as the first operation */
+	u32 expwriteaddr[] = {792, 792, 793, 794, 795, 796, 797};
 	int idx;
 
 	vcap_test_api_init(&is2_admin);

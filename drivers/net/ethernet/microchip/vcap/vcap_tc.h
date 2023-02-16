@@ -13,6 +13,7 @@ struct vcap_tc_flower_parse_usage {
 	struct vcap_admin *admin;
 	u16 l3_proto;
 	u8 l4_proto;
+	u16 tpid;
 	unsigned int used_keys;
 };
 
