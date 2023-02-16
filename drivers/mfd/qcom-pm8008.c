@@ -44,28 +44,6 @@ enum {
 #define PM8008_GPIO1_ADDR	PM8008_PERIPH_2_BASE
 #define PM8008_GPIO2_ADDR	PM8008_PERIPH_3_BASE
 
-#define PM8008_STATUS_BASE	(PM8008_PERIPH_0_BASE | INT_LATCHED_STS_OFFSET)
-#define PM8008_MASK_BASE	(PM8008_PERIPH_0_BASE | INT_EN_CLR_OFFSET)
-#define PM8008_UNMASK_BASE	(PM8008_PERIPH_0_BASE | INT_EN_SET_OFFSET)
-#define PM8008_TYPE_BASE	(PM8008_PERIPH_0_BASE | INT_SET_TYPE_OFFSET)
-#define PM8008_ACK_BASE		(PM8008_PERIPH_0_BASE | INT_LATCHED_CLR_OFFSET)
-#define PM8008_POLARITY_HI_BASE	(PM8008_PERIPH_0_BASE | INT_POL_HIGH_OFFSET)
-#define PM8008_POLARITY_LO_BASE	(PM8008_PERIPH_0_BASE | INT_POL_LOW_OFFSET)
-
-#define PM8008_PERIPH_OFFSET(paddr)	(paddr - PM8008_PERIPH_0_BASE)
-
-static unsigned int p0_offs[] = {PM8008_PERIPH_OFFSET(PM8008_PERIPH_0_BASE)};
-static unsigned int p1_offs[] = {PM8008_PERIPH_OFFSET(PM8008_PERIPH_1_BASE)};
-static unsigned int p2_offs[] = {PM8008_PERIPH_OFFSET(PM8008_PERIPH_2_BASE)};
-static unsigned int p3_offs[] = {PM8008_PERIPH_OFFSET(PM8008_PERIPH_3_BASE)};
-
-static struct regmap_irq_sub_irq_map pm8008_sub_reg_offsets[] = {
-	REGMAP_IRQ_MAIN_REG_OFFSET(p0_offs),
-	REGMAP_IRQ_MAIN_REG_OFFSET(p1_offs),
-	REGMAP_IRQ_MAIN_REG_OFFSET(p2_offs),
-	REGMAP_IRQ_MAIN_REG_OFFSET(p3_offs),
-};
-
 enum {
 	SET_TYPE_INDEX,
 	POLARITY_HI_INDEX,
@@ -73,9 +51,9 @@ enum {
 };
 
 static unsigned int pm8008_config_regs[] = {
-	PM8008_TYPE_BASE,
-	PM8008_POLARITY_HI_BASE,
-	PM8008_POLARITY_LO_BASE,
+	INT_SET_TYPE_OFFSET,
+	INT_POL_HIGH_OFFSET,
+	INT_POL_LOW_OFFSET,
 };
 
 static struct regmap_irq pm8008_irqs[] = {
@@ -88,6 +66,23 @@ static struct regmap_irq pm8008_irqs[] = {
 	REGMAP_IRQ_REG(PM8008_IRQ_GPIO1,	PM8008_GPIO1,	BIT(0)),
 	REGMAP_IRQ_REG(PM8008_IRQ_GPIO2,	PM8008_GPIO2,	BIT(0)),
 };
+
+static const unsigned int pm8008_periph_base[] = {
+	PM8008_PERIPH_0_BASE,
+	PM8008_PERIPH_1_BASE,
+	PM8008_PERIPH_2_BASE,
+	PM8008_PERIPH_3_BASE,
+};
+
+static unsigned int pm8008_get_irq_reg(struct regmap_irq_chip_data *data,
+				       unsigned int base, int index)
+{
+	/* Simple linear addressing for the main status register */
+	if (base == I2C_INTR_STATUS_BASE)
+		return base + index;
+
+	return pm8008_periph_base[index] + base;
+}
 
 static int pm8008_set_type_config(unsigned int **buf, unsigned int type,
 				  const struct regmap_irq *irq_data, int idx,
@@ -130,17 +125,16 @@ static struct regmap_irq_chip pm8008_irq_chip = {
 	.irqs			= pm8008_irqs,
 	.num_irqs		= ARRAY_SIZE(pm8008_irqs),
 	.num_regs		= PM8008_NUM_PERIPHS,
-	.not_fixed_stride	= true,
-	.sub_reg_offsets	= pm8008_sub_reg_offsets,
-	.status_base		= PM8008_STATUS_BASE,
-	.mask_base		= PM8008_MASK_BASE,
-	.unmask_base		= PM8008_UNMASK_BASE,
+	.status_base		= INT_LATCHED_STS_OFFSET,
+	.mask_base		= INT_EN_CLR_OFFSET,
+	.unmask_base		= INT_EN_SET_OFFSET,
 	.mask_unmask_non_inverted = true,
-	.ack_base		= PM8008_ACK_BASE,
+	.ack_base		= INT_LATCHED_CLR_OFFSET,
 	.config_base		= pm8008_config_regs,
 	.num_config_bases	= ARRAY_SIZE(pm8008_config_regs),
 	.num_config_regs	= PM8008_NUM_PERIPHS,
 	.set_type_config	= pm8008_set_type_config,
+	.get_irq_reg		= pm8008_get_irq_reg,
 };
 
 static struct regmap_config qcom_mfd_regmap_cfg = {
