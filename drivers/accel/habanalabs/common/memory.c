@@ -1266,6 +1266,18 @@ init_page_pack_err:
 	return rc;
 }
 
+/* Should be called while the context's mem_hash_lock is taken */
+static struct hl_vm_hash_node *get_vm_hash_node_locked(struct hl_ctx *ctx, u64 vaddr)
+{
+	struct hl_vm_hash_node *hnode;
+
+	hash_for_each_possible(ctx->mem_hash, hnode, node, vaddr)
+		if (vaddr == hnode->vaddr)
+			return hnode;
+
+	return NULL;
+}
+
 /**
  * unmap_device_va() - unmap the given device virtual address.
  * @ctx: pointer to the context structure.
@@ -1281,10 +1293,10 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	u64 vaddr = args->unmap.device_virt_addr;
-	struct hl_vm_hash_node *hnode = NULL;
 	struct asic_fixed_properties *prop;
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_userptr *userptr = NULL;
+	struct hl_vm_hash_node *hnode;
 	struct hl_va_range *va_range;
 	enum vm_type *vm_type;
 	bool is_userptr;
@@ -1294,15 +1306,10 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	/* protect from double entrance */
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_for_each_possible(ctx->mem_hash, hnode, node, (unsigned long)vaddr)
-		if (vaddr == hnode->vaddr)
-			break;
-
+	hnode = get_vm_hash_node_locked(ctx, vaddr);
 	if (!hnode) {
 		mutex_unlock(&ctx->mem_hash_lock);
-		dev_err(hdev->dev,
-			"unmap failed, no mem hnode for vaddr 0x%llx\n",
-			vaddr);
+		dev_err(hdev->dev, "unmap failed, no mem hnode for vaddr 0x%llx\n", vaddr);
 		return -EINVAL;
 	}
 
@@ -1782,10 +1789,7 @@ static struct hl_vm_hash_node *memhash_node_export_get(struct hl_ctx *ctx, u64 a
 
 	/* get the memory handle */
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_for_each_possible(ctx->mem_hash, hnode, node, (unsigned long)addr)
-		if (addr == hnode->vaddr)
-			break;
-
+	hnode = get_vm_hash_node_locked(ctx, addr);
 	if (!hnode) {
 		mutex_unlock(&ctx->mem_hash_lock);
 		dev_dbg(hdev->dev, "map address %#llx not found\n", addr);
