@@ -4020,7 +4020,7 @@ il4965_hdl_alive(struct il_priv *il, struct il_rx_buf *rxb)
 
 	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
 		D_INFO("Initialization Alive received.\n");
-		memcpy(&il->card_alive_init, &pkt->u.alive_frame,
+		memcpy(&il->card_alive_init, &pkt->u.raw,
 		       sizeof(struct il_init_alive_resp));
 		pwork = &il->init_alive_start;
 	} else {
