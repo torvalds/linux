@@ -220,7 +220,7 @@ static ssize_t iio_buffer_write(struct file *filp, const char __user *buf,
 	} while (ret == 0);
 	remove_wait_queue(&rb->pollq, &wait);
 
-	return ret < 0 ? ret : n;
+	return ret < 0 ? ret : written;
 }
 
 /**
