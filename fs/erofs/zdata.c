@@ -258,8 +258,10 @@ int __init z_erofs_init_zip_subsystem(void)
 
 	z_erofs_workqueue = alloc_workqueue("erofs_worker",
 			WQ_UNBOUND | WQ_HIGHPRI, num_possible_cpus());
-	if (!z_erofs_workqueue)
+	if (!z_erofs_workqueue) {
+		err = -ENOMEM;
 		goto out_error_workqueue_init;
+	}
 
 	err = erofs_init_percpu_workers();
 	if (err)
