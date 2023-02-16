@@ -8,14 +8,11 @@
 		compatible = "rockchip,mcu-amp";
 		clocks = <&cru FCLK_BUS_CM0_CORE>, <&cru CLK_BUS_CM0_RTC>,
 			<&cru PCLK_MAILBOX>, <&cru PCLK_INTC>,
-			<&cru SCLK_UART5>, <&cru PCLK_UART5>,
-			<&cru PCLK_TIMER>, <&cru CLK_TIMER5>;
-		clock-names = "fclk_bus_cm0_core", "clk_bus_cm0_rtc",
-			      "pclk_maikbox", "pclk_intc",
-			      "baudclk", "apb_pclk", "pclk", "timer";
+			<&cru SCLK_UART7>, <&cru PCLK_UART7>,
+			<&cru PCLK_TIMER>, <&cru CLK_TIMER4>, <&cru CLK_TIMER5>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&uart5m0_xfer>;
+		pinctrl-0 = <&uart7m1_xfer>;
 
 		status = "okay";
 	};
