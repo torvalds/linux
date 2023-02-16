@@ -143,30 +143,6 @@ static struct regmap_config qcom_mfd_regmap_cfg = {
 	.max_register	= 0xFFFF,
 };
 
-static int pm8008_init(struct regmap *regmap)
-{
-	int rc;
-
-	/*
-	 * Set TEMP_ALARM peripheral's TYPE so that the regmap-irq framework
-	 * reads this as the default value instead of zero, the HW default.
-	 * This is required to enable the writing of TYPE registers in
-	 * regmap_irq_sync_unlock().
-	 */
-	rc = regmap_write(regmap, (PM8008_TEMP_ALARM_ADDR | INT_SET_TYPE_OFFSET), BIT(0));
-	if (rc)
-		return rc;
-
-	/* Do the same for GPIO1 and GPIO2 peripherals */
-	rc = regmap_write(regmap, (PM8008_GPIO1_ADDR | INT_SET_TYPE_OFFSET), BIT(0));
-	if (rc)
-		return rc;
-
-	rc = regmap_write(regmap, (PM8008_GPIO2_ADDR | INT_SET_TYPE_OFFSET), BIT(0));
-
-	return rc;
-}
-
 static int pm8008_probe_irq_peripherals(struct device *dev,
 					struct regmap *regmap,
 					int client_irq)
@@ -174,12 +150,6 @@ static int pm8008_probe_irq_peripherals(struct device *dev,
 	int rc, i;
 	struct regmap_irq_type *type;
 	struct regmap_irq_chip_data *irq_data;
-
-	rc = pm8008_init(regmap);
-	if (rc) {
-		dev_err(dev, "Init failed: %d\n", rc);
-		return rc;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(pm8008_irqs); i++) {
 		type = &pm8008_irqs[i].type;
