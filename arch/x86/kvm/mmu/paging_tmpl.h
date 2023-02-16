@@ -892,7 +892,7 @@ static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int 
 	gpa_t pte_gpa;
 	gfn_t gfn;
 
-	if (!sp->spt[i])
+	if (WARN_ON_ONCE(!sp->spt[i]))
 		return 0;
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);

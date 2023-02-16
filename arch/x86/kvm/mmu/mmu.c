@@ -1933,6 +1933,14 @@ static bool kvm_sync_page_check(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	return true;
 }
 
+static int kvm_sync_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int i)
+{
+	if (!sp->spt[i])
+		return 0;
+
+	return vcpu->arch.mmu->sync_spte(vcpu, sp, i);
+}
+
 static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
 	int flush = 0;
@@ -1942,7 +1950,7 @@ static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		return -1;
 
 	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
-		int ret = vcpu->arch.mmu->sync_spte(vcpu, sp, i);
+		int ret = kvm_sync_spte(vcpu, sp, i);
 
 		if (ret < -1)
 			return -1;
@@ -5766,7 +5774,7 @@ static void __kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu
 		struct kvm_mmu_page *sp = sptep_to_sp(iterator.sptep);
 
 		if (sp->unsync) {
-			int ret = mmu->sync_spte(vcpu, sp, iterator.index);
+			int ret = kvm_sync_spte(vcpu, sp, iterator.index);
 
 			if (ret < 0)
 				mmu_page_zap_pte(vcpu->kvm, sp, iterator.sptep, NULL);
