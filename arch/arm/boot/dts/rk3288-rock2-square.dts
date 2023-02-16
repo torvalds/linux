@@ -64,6 +64,7 @@
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "SPDIF";
+		simple-audio-card,mclk-fs = <128>;
 		simple-audio-card,dai-link@1 {  /* S/PDIF - S/PDIF */
 			cpu { sound-dai = <&spdif>; };
 			codec { sound-dai = <&spdif_out>; };
