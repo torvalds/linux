@@ -788,6 +788,7 @@ static void check_section(const char *modname, struct elf_info *elf,
 	const char *sec = sech_name(elf, sechdr);
 
 	if (sechdr->sh_type == SHT_PROGBITS &&
+	    sechdr->sh_size > 0 &&
 	    !(sechdr->sh_flags & SHF_ALLOC) &&
 	    !match(sec, section_white_list)) {
 		warn("%s (%s): unexpected non-allocatable section.\n"
