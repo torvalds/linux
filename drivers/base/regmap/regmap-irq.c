@@ -189,12 +189,8 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 			if (!d->type_buf_def[i])
 				continue;
 			reg = d->get_irq_reg(d, d->chip->type_base, i);
-			if (d->chip->type_invert)
-				ret = regmap_update_bits(d->map, reg,
-					d->type_buf_def[i], ~d->type_buf[i]);
-			else
-				ret = regmap_update_bits(d->map, reg,
-					d->type_buf_def[i], d->type_buf[i]);
+			ret = regmap_update_bits(d->map, reg,
+						 d->type_buf_def[i], d->type_buf[i]);
 			if (ret != 0)
 				dev_err(d->map->dev, "Failed to sync type in %x\n",
 					reg);
@@ -1027,9 +1023,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			reg = d->get_irq_reg(d, d->chip->type_base, i);
 
 			ret = regmap_read(map, reg, &d->type_buf_def[i]);
-
-			if (d->chip->type_invert)
-				d->type_buf_def[i] = ~d->type_buf_def[i];
 
 			if (ret) {
 				dev_err(map->dev, "Failed to get type defaults at 0x%x: %d\n",

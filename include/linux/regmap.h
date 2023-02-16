@@ -1555,8 +1555,6 @@ struct regmap_irq_chip_data;
  * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @clear_ack:  Use this to set 1 and 0 or vice-versa to clear interrupts.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
- * @type_invert: Invert the type flags. Deprecated, use config registers
- *		 instead.
  * @type_in_mask: Use the mask registers for controlling irq type. Use this if
  *		  the hardware provides separate bits for rising/falling edge
  *		  or low/high level interrupts and they should be combined into
@@ -1633,7 +1631,6 @@ struct regmap_irq_chip {
 	unsigned int clear_ack:1;
 	unsigned int wake_invert:1;
 	unsigned int runtime_pm:1;
-	unsigned int type_invert:1;
 	unsigned int type_in_mask:1;
 	unsigned int clear_on_unmask:1;
 	unsigned int not_fixed_stride:1;
