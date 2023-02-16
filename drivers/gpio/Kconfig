@@ -1531,6 +1531,7 @@ config GPIO_MLXBF2
 	tristate "Mellanox BlueField 2 SoC GPIO"
 	depends on (MELLANOX_PLATFORM && ARM64 && ACPI) || (64BIT && COMPILE_TEST)
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here if you want GPIO support on Mellanox BlueField 2 SoC.
 

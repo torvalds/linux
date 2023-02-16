@@ -14,7 +14,6 @@
 
 #include <linux/gpio/consumer.h>
 
-struct acpi_device;
 struct device;
 struct fwnode_handle;
 
