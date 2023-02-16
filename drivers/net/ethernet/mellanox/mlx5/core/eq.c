@@ -960,11 +960,11 @@ static int vector2eqnirqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 			  unsigned int *irqn)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	struct mlx5_eq_comp *eq, *n;
+	struct mlx5_eq_comp *eq;
 	int err = -ENOENT;
 	int i = 0;
 
-	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
+	list_for_each_entry(eq, &table->comp_eqs_list, list) {
 		if (i++ == vector) {
 			if (irqn)
 				*irqn = eq->core.irqn;
@@ -999,10 +999,10 @@ struct cpumask *
 mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	struct mlx5_eq_comp *eq, *n;
+	struct mlx5_eq_comp *eq;
 	int i = 0;
 
-	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
+	list_for_each_entry(eq, &table->comp_eqs_list, list) {
 		if (i++ == vector)
 			break;
 	}
