@@ -462,10 +462,6 @@ static int i801_transaction(struct i801_priv *priv, int xact)
 	unsigned long result;
 	const struct i2c_adapter *adap = &priv->adapter;
 
-	status = i801_check_pre(priv);
-	if (status < 0)
-		return status;
-
 	if (priv->features & FEATURE_IRQ) {
 		reinit_completion(&priv->done);
 		outb_p(xact | SMBHSTCNT_INTREN | SMBHSTCNT_START,
@@ -652,10 +648,6 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 
 	if (command == I2C_SMBUS_BLOCK_PROC_CALL)
 		return -EOPNOTSUPP;
-
-	status = i801_check_pre(priv);
-	if (status < 0)
-		return status;
 
 	len = data->block[0];
 
@@ -891,6 +883,10 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 
 	pm_runtime_get_sync(&priv->pci_dev->dev);
 
+	ret = i801_check_pre(priv);
+	if (ret)
+		goto out;
+
 	hwpec = (priv->features & FEATURE_SMBUS_PEC) && (flags & I2C_CLIENT_PEC)
 		&& size != I2C_SMBUS_QUICK
 		&& size != I2C_SMBUS_I2C_BLOCK_DATA;
@@ -913,6 +909,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	 */
 	if (hwpec)
 		outb_p(inb_p(SMBAUXCTL(priv)) & ~SMBAUXCTL_CRC, SMBAUXCTL(priv));
+out:
 	/*
 	 * Unlock the SMBus device for use by BIOS/ACPI,
 	 * and clear status flags if not done already.
