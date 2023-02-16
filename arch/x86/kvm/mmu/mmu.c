@@ -1073,14 +1073,6 @@ static struct kvm_rmap_head *gfn_to_rmap(gfn_t gfn, int level,
 	return &slot->arch.rmap[level - PG_LEVEL_4K][idx];
 }
 
-static bool rmap_can_add(struct kvm_vcpu *vcpu)
-{
-	struct kvm_mmu_memory_cache *mc;
-
-	mc = &vcpu->arch.mmu_pte_list_desc_cache;
-	return kvm_mmu_memory_cache_nr_free_objects(mc);
-}
-
 static void rmap_remove(struct kvm *kvm, u64 *spte)
 {
 	struct kvm_memslots *slots;
@@ -4527,7 +4519,6 @@ static void nonpaging_init_context(struct kvm_mmu *context)
 	context->page_fault = nonpaging_page_fault;
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
 	context->sync_spte = NULL;
-	context->invlpg = NULL;
 }
 
 static inline bool is_root_usable(struct kvm_mmu_root_info *root, gpa_t pgd,
@@ -5118,7 +5109,6 @@ static void paging64_init_context(struct kvm_mmu *context)
 	context->page_fault = paging64_page_fault;
 	context->gva_to_gpa = paging64_gva_to_gpa;
 	context->sync_spte = paging64_sync_spte;
-	context->invlpg = paging64_invlpg;
 }
 
 static void paging32_init_context(struct kvm_mmu *context)
@@ -5126,7 +5116,6 @@ static void paging32_init_context(struct kvm_mmu *context)
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
 	context->sync_spte = paging32_sync_spte;
-	context->invlpg = paging32_invlpg;
 }
 
 static union kvm_cpu_role
@@ -5215,7 +5204,6 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 	context->root_role.word = root_role.word;
 	context->page_fault = kvm_tdp_page_fault;
 	context->sync_spte = NULL;
-	context->invlpg = NULL;
 	context->get_guest_pgd = get_cr3;
 	context->get_pdptr = kvm_pdptr_read;
 	context->inject_page_fault = kvm_inject_page_fault;
@@ -5347,7 +5335,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 		context->page_fault = ept_page_fault;
 		context->gva_to_gpa = ept_gva_to_gpa;
 		context->sync_spte = ept_sync_spte;
-		context->invlpg = ept_invlpg;
 
 		update_permission_bitmask(context, true);
 		context->pkru_mask = 0;
@@ -5388,7 +5375,7 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu,
 	 * L2 page tables are never shadowed, so there is no need to sync
 	 * SPTEs.
 	 */
-	g_context->invlpg            = NULL;
+	g_context->sync_spte         = NULL;
 
 	/*
 	 * Note that arch.mmu->gva_to_gpa translates l2_gpa to l1_gpa using
@@ -5764,6 +5751,35 @@ emulate:
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
+static void __kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+				      u64 addr, hpa_t root_hpa)
+{
+	struct kvm_shadow_walk_iterator iterator;
+
+	vcpu_clear_mmio_info(vcpu, addr);
+
+	if (!VALID_PAGE(root_hpa))
+		return;
+
+	write_lock(&vcpu->kvm->mmu_lock);
+	for_each_shadow_entry_using_root(vcpu, root_hpa, addr, iterator) {
+		struct kvm_mmu_page *sp = sptep_to_sp(iterator.sptep);
+
+		if (sp->unsync) {
+			int ret = mmu->sync_spte(vcpu, sp, iterator.index);
+
+			if (ret < 0)
+				mmu_page_zap_pte(vcpu->kvm, sp, iterator.sptep, NULL);
+			if (ret)
+				kvm_flush_remote_tlbs_sptep(vcpu->kvm, iterator.sptep);
+		}
+
+		if (!sp->unsync_children)
+			break;
+	}
+	write_unlock(&vcpu->kvm->mmu_lock);
+}
+
 void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 			     u64 addr, unsigned long roots)
 {
@@ -5780,15 +5796,15 @@ void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 		static_call(kvm_x86_flush_tlb_gva)(vcpu, addr);
 	}
 
-	if (!mmu->invlpg)
+	if (!mmu->sync_spte)
 		return;
 
 	if (roots & KVM_MMU_ROOT_CURRENT)
-		mmu->invlpg(vcpu, addr, mmu->root.hpa);
+		__kvm_mmu_invalidate_addr(vcpu, mmu, addr, mmu->root.hpa);
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		if (roots & KVM_MMU_ROOT_PREVIOUS(i))
-			mmu->invlpg(vcpu, addr, mmu->prev_roots[i].hpa);
+			__kvm_mmu_invalidate_addr(vcpu, mmu, addr, mmu->prev_roots[i].hpa);
 	}
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invalidate_addr);
