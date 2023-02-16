@@ -91,7 +91,7 @@ static void try_skeleton_template()
 
 	skel.detach();
 
-	/* destructor will destory underlying skeleton */
+	/* destructor will destroy underlying skeleton */
 }
 
 int main(int argc, char *argv[])
