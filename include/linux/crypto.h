@@ -293,20 +293,6 @@ struct crypto_istat_cipher {
 };
 
 /*
- * struct crypto_istat_kpp - statistics for KPP algorithm
- * @setsecret_cnt:		number of setsecrey operation
- * @generate_public_key_cnt:	number of generate_public_key operation
- * @compute_shared_secret_cnt:	number of compute_shared_secret operation
- * @err_cnt:			number of error for KPP requests
- */
-struct crypto_istat_kpp {
-	atomic64_t setsecret_cnt;
-	atomic64_t generate_public_key_cnt;
-	atomic64_t compute_shared_secret_cnt;
-	atomic64_t err_cnt;
-};
-
-/*
  * struct crypto_istat_rng: statistics for RNG algorithm
  * @generate_cnt:	number of RNG generate requests
  * @generate_tlen:	total data size of generated data by the RNG
@@ -401,7 +387,6 @@ struct crypto_istat_rng {
  * @stats: union of all possible crypto_istat_xxx structures
  * @stats.cipher:	statistics for cipher algorithm
  * @stats.rng:		statistics for rng algorithm
- * @stats.kpp:		statistics for KPP algorithm
  *
  * The struct crypto_alg describes a generic Crypto API algorithm and is common
  * for all of the transformations. Any variable not documented here shall not
@@ -439,7 +424,6 @@ struct crypto_alg {
 	union {
 		struct crypto_istat_cipher cipher;
 		struct crypto_istat_rng rng;
-		struct crypto_istat_kpp kpp;
 	} stats;
 #endif /* CONFIG_CRYPTO_STATS */
 
@@ -448,9 +432,6 @@ struct crypto_alg {
 #ifdef CONFIG_CRYPTO_STATS
 void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
-void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret);
-void crypto_stats_kpp_generate_public_key(struct crypto_alg *alg, int ret);
-void crypto_stats_kpp_compute_shared_secret(struct crypto_alg *alg, int ret);
 void crypto_stats_rng_seed(struct crypto_alg *alg, int ret);
 void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen, int ret);
 void crypto_stats_skcipher_encrypt(unsigned int cryptlen, int ret, struct crypto_alg *alg);
@@ -459,12 +440,6 @@ void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto
 static inline void crypto_stats_init(struct crypto_alg *alg)
 {}
 static inline void crypto_stats_get(struct crypto_alg *alg)
-{}
-static inline void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret)
-{}
-static inline void crypto_stats_kpp_generate_public_key(struct crypto_alg *alg, int ret)
-{}
-static inline void crypto_stats_kpp_compute_shared_secret(struct crypto_alg *alg, int ret)
 {}
 static inline void crypto_stats_rng_seed(struct crypto_alg *alg, int ret)
 {}

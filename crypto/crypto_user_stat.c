@@ -13,7 +13,6 @@
 #include <net/sock.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/rng.h>
-#include <crypto/kpp.h>
 #include <crypto/internal/cryptouser.h>
 
 #include "internal.h"
@@ -53,22 +52,6 @@ static int crypto_report_comp(struct sk_buff *skb, struct crypto_alg *alg)
 	strscpy(rcomp.type, "compression", sizeof(rcomp.type));
 
 	return nla_put(skb, CRYPTOCFGA_STAT_COMPRESS, sizeof(rcomp), &rcomp);
-}
-
-static int crypto_report_kpp(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct crypto_stat_kpp rkpp;
-
-	memset(&rkpp, 0, sizeof(rkpp));
-
-	strscpy(rkpp.type, "kpp", sizeof(rkpp.type));
-
-	rkpp.stat_setsecret_cnt = atomic64_read(&alg->stats.kpp.setsecret_cnt);
-	rkpp.stat_generate_public_key_cnt = atomic64_read(&alg->stats.kpp.generate_public_key_cnt);
-	rkpp.stat_compute_shared_secret_cnt = atomic64_read(&alg->stats.kpp.compute_shared_secret_cnt);
-	rkpp.stat_err_cnt = atomic64_read(&alg->stats.kpp.err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_KPP, sizeof(rkpp), &rkpp);
 }
 
 static int crypto_report_rng(struct sk_buff *skb, struct crypto_alg *alg)
@@ -133,10 +116,6 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 		break;
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		if (crypto_report_comp(skb, alg))
-			goto nla_put_failure;
-		break;
-	case CRYPTO_ALG_TYPE_KPP:
-		if (crypto_report_kpp(skb, alg))
 			goto nla_put_failure;
 		break;
 	case CRYPTO_ALG_TYPE_RNG:

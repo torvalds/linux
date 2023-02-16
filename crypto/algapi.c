@@ -1051,36 +1051,6 @@ void crypto_stats_get(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_stats_get);
 
-void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret)
-{
-	if (ret)
-		atomic64_inc(&alg->stats.kpp.err_cnt);
-	else
-		atomic64_inc(&alg->stats.kpp.setsecret_cnt);
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_kpp_set_secret);
-
-void crypto_stats_kpp_generate_public_key(struct crypto_alg *alg, int ret)
-{
-	if (ret)
-		atomic64_inc(&alg->stats.kpp.err_cnt);
-	else
-		atomic64_inc(&alg->stats.kpp.generate_public_key_cnt);
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_kpp_generate_public_key);
-
-void crypto_stats_kpp_compute_shared_secret(struct crypto_alg *alg, int ret)
-{
-	if (ret)
-		atomic64_inc(&alg->stats.kpp.err_cnt);
-	else
-		atomic64_inc(&alg->stats.kpp.compute_shared_secret_cnt);
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_kpp_compute_shared_secret);
-
 void crypto_stats_rng_seed(struct crypto_alg *alg, int ret)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
