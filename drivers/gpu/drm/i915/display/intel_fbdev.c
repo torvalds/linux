@@ -340,6 +340,7 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 	if (ifbdev->fb)
 		drm_framebuffer_remove(&ifbdev->fb->base);
 
+	drm_fb_helper_unprepare(&ifbdev->helper);
 	kfree(ifbdev);
 }
 

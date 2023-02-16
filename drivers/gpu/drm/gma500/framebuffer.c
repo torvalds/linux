@@ -427,6 +427,7 @@ int psb_fbdev_init(struct drm_device *dev)
 fini:
 	drm_fb_helper_fini(fb_helper);
 free:
+	drm_fb_helper_unprepare(fb_helper);
 	kfree(fb_helper);
 	return ret;
 }
@@ -439,6 +440,7 @@ static void psb_fbdev_fini(struct drm_device *dev)
 		return;
 
 	psb_fbdev_destroy(dev, dev_priv->fb_helper);
+	drm_fb_helper_unprepare(dev_priv->fb_helper);
 	kfree(dev_priv->fb_helper);
 	dev_priv->fb_helper = NULL;
 }
