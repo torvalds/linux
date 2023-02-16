@@ -32,10 +32,11 @@
 
 #define ADDR_TO_L2_CACHE_CFG(addr) ((addr) >> 31)
 
-#define IVPU_FW_CHECK_API(vdev, fw_hdr, name) ivpu_fw_check_api(vdev, fw_hdr, #name, \
-								  VPU_##name##_API_VER_INDEX, \
-								  VPU_##name##_API_VER_MAJOR, \
-								  VPU_##name##_API_VER_MINOR)
+#define IVPU_FW_CHECK_API(vdev, fw_hdr, name, min_major) \
+	ivpu_fw_check_api(vdev, fw_hdr, #name, \
+			  VPU_##name##_API_VER_INDEX, \
+			  VPU_##name##_API_VER_MAJOR, \
+			  VPU_##name##_API_VER_MINOR, min_major)
 
 static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
@@ -63,19 +64,27 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 	return ret;
 }
 
-static void
+static int
 ivpu_fw_check_api(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr,
-		  const char *str, int index, u16 expected_major, u16 expected_minor)
+		  const char *str, int index, u16 expected_major, u16 expected_minor,
+		  u16 min_major)
 {
 	u16 major = (u16)(fw_hdr->api_version[index] >> 16);
 	u16 minor = (u16)(fw_hdr->api_version[index]);
 
+	if (major < min_major) {
+		ivpu_err(vdev, "Incompatible FW %s API version: %d.%d, required %d.0 or later\n",
+			 str, major, minor, min_major);
+		return -EINVAL;
+	}
 	if (major != expected_major) {
-		ivpu_warn(vdev, "Incompatible FW %s API version: %d.%d (expected %d.%d)\n",
+		ivpu_warn(vdev, "Major FW %s API version different: %d.%d (expected %d.%d)\n",
 			  str, major, minor, expected_major, expected_minor);
 	}
 	ivpu_dbg(vdev, FW_BOOT, "FW %s API version: %d.%d (expected %d.%d)\n",
 		 str, major, minor, expected_major, expected_minor);
+
+	return 0;
 }
 
 static int ivpu_fw_parse(struct ivpu_device *vdev)
@@ -131,6 +140,14 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 		ivpu_err(vdev, "Invalid entry point: 0x%llx\n", fw_hdr->entry_point);
 		return -EINVAL;
 	}
+	ivpu_dbg(vdev, FW_BOOT, "Header version: 0x%x, format 0x%x\n",
+		 fw_hdr->header_version, fw_hdr->image_format);
+	ivpu_dbg(vdev, FW_BOOT, "FW version: %s\n", (char *)fw_hdr + VPU_FW_HEADER_SIZE);
+
+	if (IVPU_FW_CHECK_API(vdev, fw_hdr, BOOT, 3))
+		return -EINVAL;
+	if (IVPU_FW_CHECK_API(vdev, fw_hdr, JSM, 3))
+		return -EINVAL;
 
 	fw->runtime_addr = runtime_addr;
 	fw->runtime_size = runtime_size;
@@ -141,16 +158,10 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	fw->cold_boot_entry_point = fw_hdr->entry_point;
 	fw->entry_point = fw->cold_boot_entry_point;
 
-	ivpu_dbg(vdev, FW_BOOT, "Header version: 0x%x, format 0x%x\n",
-		 fw_hdr->header_version, fw_hdr->image_format);
 	ivpu_dbg(vdev, FW_BOOT, "Size: file %lu image %u runtime %u shavenn %u\n",
 		 fw->file->size, fw->image_size, fw->runtime_size, fw->shave_nn_size);
 	ivpu_dbg(vdev, FW_BOOT, "Address: runtime 0x%llx, load 0x%llx, entry point 0x%llx\n",
 		 fw->runtime_addr, image_load_addr, fw->entry_point);
-	ivpu_dbg(vdev, FW_BOOT, "FW version: %s\n", (char *)fw_hdr + VPU_FW_HEADER_SIZE);
-
-	IVPU_FW_CHECK_API(vdev, fw_hdr, BOOT);
-	IVPU_FW_CHECK_API(vdev, fw_hdr, JSM);
 
 	return 0;
 }

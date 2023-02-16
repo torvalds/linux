@@ -42,9 +42,7 @@ static int prime_map_pages_locked(struct ivpu_bo *bo)
 	struct ivpu_device *vdev = ivpu_bo_to_vdev(bo);
 	struct sg_table *sgt;
 
-	WARN_ON(!bo->base.import_attach);
-
-	sgt = dma_buf_map_attachment(bo->base.import_attach, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment_unlocked(bo->base.import_attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		ivpu_err(vdev, "Failed to map attachment: %ld\n", PTR_ERR(sgt));
 		return PTR_ERR(sgt);
@@ -56,9 +54,7 @@ static int prime_map_pages_locked(struct ivpu_bo *bo)
 
 static void prime_unmap_pages_locked(struct ivpu_bo *bo)
 {
-	WARN_ON(!bo->base.import_attach);
-
-	dma_buf_unmap_attachment(bo->base.import_attach, bo->sgt, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment_unlocked(bo->base.import_attach, bo->sgt, DMA_BIDIRECTIONAL);
 	bo->sgt = NULL;
 }
 

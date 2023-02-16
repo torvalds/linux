@@ -17,12 +17,12 @@
 /*
  * Major version changes that break backward compatibility
  */
-#define VPU_JSM_API_VER_MAJOR 2
+#define VPU_JSM_API_VER_MAJOR 3
 
 /*
  * Minor version changes when API backward compatibility is preserved.
  */
-#define VPU_JSM_API_VER_MINOR 10
+#define VPU_JSM_API_VER_MINOR 0
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
@@ -103,10 +103,10 @@
 /*
  * Max length (including trailing NULL char) of a dyndbg command.
  *
- * NOTE: 112 is used so that the size of 'struct vpu_ipc_msg' in the JSM API is
+ * NOTE: 96 is used so that the size of 'struct vpu_ipc_msg' in the JSM API is
  * 128 bytes (multiple of 64 bytes, the cache line size).
  */
-#define VPU_DYNDBG_CMD_MAX_LEN 112
+#define VPU_DYNDBG_CMD_MAX_LEN 96
 
 /*
  * Job format.
@@ -119,7 +119,7 @@ struct vpu_job_queue_entry {
 	u64 root_page_table_update_counter; /**< Page tables update events counter */
 	u64 preemption_buffer_address; /**< Address of the preemption buffer to use for this job */
 	u64 preemption_buffer_size; /**< Size of the preemption buffer to use for this job */
-	u8 reserved[VPU_JOB_RESERVED_BYTES];
+	u8 reserved_0[VPU_JOB_RESERVED_BYTES];
 };
 
 /*
@@ -129,7 +129,7 @@ struct vpu_job_queue_header {
 	u32 engine_idx;
 	u32 head;
 	u32 tail;
-	u8 reserved[VPU_JOB_QUEUE_RESERVED_BYTES];
+	u8 reserved_0[VPU_JOB_QUEUE_RESERVED_BYTES];
 };
 
 /*
@@ -319,6 +319,8 @@ enum vpu_ipc_msg_status { VPU_JSM_MSG_FREE, VPU_JSM_MSG_ALLOCATED };
 struct vpu_ipc_msg_payload_engine_reset {
 	/* Engine to be reset. */
 	u32 engine_idx;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 struct vpu_ipc_msg_payload_engine_preempt {
@@ -336,6 +338,8 @@ struct vpu_ipc_msg_payload_engine_preempt {
 struct vpu_ipc_msg_payload_register_db {
 	/* Index of the doorbell to register. */
 	u32 db_idx;
+	/* Reserved */
+	u32 reserved_0;
 	/* Virtual address in Global GTT pointing to the start of job queue. */
 	u64 jobq_base;
 	/* Size of the job queue in bytes. */
@@ -352,11 +356,15 @@ struct vpu_ipc_msg_payload_register_db {
 struct vpu_ipc_msg_payload_unregister_db {
 	/* Index of the doorbell to unregister. */
 	u32 db_idx;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 struct vpu_ipc_msg_payload_query_engine_hb {
 	/* Engine to return heartbeat value. */
 	u32 engine_idx;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 struct vpu_ipc_msg_payload_power_level {
@@ -371,11 +379,15 @@ struct vpu_ipc_msg_payload_power_level {
 	 * considered to be valid.
 	 */
 	u32 power_level;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 struct vpu_ipc_msg_payload_ssid_release {
 	/* Host sub-stream ID for the context to be released. */
 	u32 host_ssid;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 /**
@@ -425,9 +437,6 @@ struct vpu_jsm_metric_streamer_start {
 	u64 next_buffer_size;
 };
 
-static_assert(sizeof(struct vpu_jsm_metric_streamer_start) % 8 == 0,
-	      "vpu_jsm_metric_streamer_start is misaligned");
-
 /**
  * @brief Metric streamer stop command structure.
  * @see VPU_JSM_MSG_METRIC_STREAMER_STOP
@@ -436,9 +445,6 @@ struct vpu_jsm_metric_streamer_stop {
 	/** Bitmask to select the desired metric groups. */
 	u64 metric_group_mask;
 };
-
-static_assert(sizeof(struct vpu_jsm_metric_streamer_stop) % 8 == 0,
-	      "vpu_jsm_metric_streamer_stop is misaligned");
 
 /**
  * Provide VPU FW with buffers to write metric data.
@@ -471,9 +477,6 @@ struct vpu_jsm_metric_streamer_update {
 	u64 next_buffer_size;
 };
 
-static_assert(sizeof(struct vpu_jsm_metric_streamer_update) % 8 == 0,
-	      "vpu_jsm_metric_streamer_update is misaligned");
-
 struct vpu_ipc_msg_payload_blob_deinit {
 	/* 64-bit unique ID for the blob to be de-initialized. */
 	u64 blob_id;
@@ -491,7 +494,7 @@ struct vpu_ipc_msg_payload_job_done {
 	/* Host SSID */
 	u32 host_ssid;
 	/* Zero Padding */
-	u32 reserved;
+	u32 reserved_0;
 	/* Command queue id */
 	u64 cmdq_id;
 };
@@ -500,7 +503,7 @@ struct vpu_jsm_engine_reset_context {
 	/* Host SSID */
 	u32 host_ssid;
 	/* Zero Padding */
-	u32 reserved;
+	u32 reserved_0;
 	/* Command queue id */
 	u64 cmdq_id;
 	/* Flags: 0: cause of hang; 1: collateral damage of reset */
@@ -533,6 +536,8 @@ struct vpu_ipc_msg_payload_engine_preempt_done {
 struct vpu_ipc_msg_payload_register_db_done {
 	/* Index of the registered doorbell. */
 	u32 db_idx;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 /**
@@ -543,11 +548,15 @@ struct vpu_ipc_msg_payload_register_db_done {
 struct vpu_ipc_msg_payload_unregister_db_done {
 	/* Index of the unregistered doorbell. */
 	u32 db_idx;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 struct vpu_ipc_msg_payload_query_engine_hb_done {
 	/* Engine returning heartbeat value. */
 	u32 engine_idx;
+	/* Reserved */
+	u32 reserved_0;
 	/* Heartbeat value. */
 	u64 heartbeat;
 };
@@ -559,6 +568,8 @@ struct vpu_ipc_msg_payload_get_power_level_count_done {
 	 * implementations.
 	 */
 	u32 power_level_count;
+	/* Reserved */
+	u32 reserved_0;
 	/**
 	 * Power consumption limit for each supported power level in
 	 * [0-100%] range relative to power level 0.
@@ -577,7 +588,7 @@ struct vpu_ipc_msg_payload_hws_priority_band_setup {
 	 * Grace period in 100ns units when preempting another priority band for
 	 * this priority band
 	 */
-	u64 grace_period[VPU_HWS_NUM_PRIORITY_BANDS];
+	u32 grace_period[VPU_HWS_NUM_PRIORITY_BANDS];
 	/*
 	 * Default quantum in 100ns units for scheduling across processes
 	 * within a priority band
@@ -593,6 +604,8 @@ struct vpu_ipc_msg_payload_hws_priority_band_setup {
 	 * in situations when it's starved by the focus band.
 	 */
 	u32 normal_band_percentage;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 /* HWS create command queue request */
@@ -609,6 +622,8 @@ struct vpu_ipc_msg_payload_hws_create_cmdq {
 	u64 cmdq_base;
 	/* Command queue size */
 	u32 cmdq_size;
+	/* Reserved */
+	u32 reserved_0;
 };
 
 /* HWS create command queue response */
@@ -806,9 +821,6 @@ struct vpu_jsm_metric_streamer_done {
 	u64 bytes_written;
 };
 
-static_assert(sizeof(struct vpu_jsm_metric_streamer_done) % 8 == 0,
-	      "vpu_jsm_metric_streamer_done is misaligned");
-
 /**
  * Metric group description placed in the metric buffer after successful completion
  * of the VPU_JSM_MSG_METRIC_STREAMER_INFO command. This is followed by one or more
@@ -848,15 +860,12 @@ struct vpu_jsm_metric_group_descriptor {
 	u32 name_string_size;
 	/** Counter description string size, @see name_string_size */
 	u32 description_string_size;
-	u32 reserved_0[2];
+	u64 reserved_0;
 	/**
 	 * Right after this structure, the VPU writes name and description of
 	 * the metric group.
 	 */
 };
-
-static_assert(sizeof(struct vpu_jsm_metric_group_descriptor) % 8 == 0,
-	      "vpu_jsm_metric_group_descriptor is misaligned");
 
 /**
  * Metric counter description, placed in the buffer after vpu_jsm_metric_group_descriptor.
@@ -894,15 +903,12 @@ struct vpu_jsm_metric_counter_descriptor {
 	u32 component_string_size;
 	/** Counter string size, @see name_string_size */
 	u32 units_string_size;
-	u32 reserved_0[2];
+	u64 reserved_0;
 	/**
 	 * Right after this structure, the VPU writes name, description
 	 * component and unit strings.
 	 */
 };
-
-static_assert(sizeof(struct vpu_jsm_metric_counter_descriptor) % 8 == 0,
-	      "vpu_jsm_metric_counter_descriptor is misaligned");
 
 /**
  * Payload for VPU_JSM_MSG_DYNDBG_CONTROL requests.
@@ -977,6 +983,8 @@ union vpu_ipc_msg_payload {
  * to allow proper handling of VPU cache operations.
  */
 struct vpu_jsm_msg {
+	/* Reserved */
+	u64 reserved_0;
 	/* Message type, see vpu_ipc_msg_type enum. */
 	u32 type;
 	/* Buffer status, see vpu_ipc_msg_status enum. */
@@ -988,6 +996,7 @@ struct vpu_jsm_msg {
 	u32 request_id;
 	/* Request return code set by the VPU, see VPU_JSM_STATUS_* defines. */
 	u32 result;
+	u64 reserved_1;
 	/* Message payload depending on message type, see vpu_ipc_msg_payload union. */
 	union vpu_ipc_msg_payload payload;
 };

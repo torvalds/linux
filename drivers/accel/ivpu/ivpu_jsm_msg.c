@@ -167,3 +167,14 @@ int ivpu_jsm_trace_set_config(struct ivpu_device *vdev, u32 trace_level, u32 tra
 
 	return ret;
 }
+
+int ivpu_jsm_context_release(struct ivpu_device *vdev, u32 host_ssid)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_SSID_RELEASE };
+	struct vpu_jsm_msg resp;
+
+	req.payload.ssid_release.host_ssid = host_ssid;
+
+	return ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_SSID_RELEASE_DONE, &resp,
+				     VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+}

@@ -90,6 +90,7 @@ static void file_priv_release(struct kref *ref)
 
 	ivpu_cmdq_release_all(file_priv);
 	ivpu_bo_remove_all_bos_from_context(&file_priv->ctx);
+	ivpu_jsm_context_release(vdev, file_priv->ctx.id);
 	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
 	drm_WARN_ON(&vdev->drm, xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
 	mutex_destroy(&file_priv->lock);
@@ -427,6 +428,7 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 		ivpu_err(vdev, "Failed to set DMA mask: %d\n", ret);
 		return ret;
 	}
+	dma_set_max_seg_size(vdev->drm.dev, UINT_MAX);
 
 	/* Clear any pending errors */
 	pcie_capability_clear_word(pdev, PCI_EXP_DEVSTA, 0x3f);
