@@ -1231,20 +1231,21 @@ errout:
 	rtnl_set_sk_err(net, RTNLGRP_ND_USEROPT, err);
 }
 
-static void ndisc_router_discovery(struct sk_buff *skb)
+static enum skb_drop_reason ndisc_router_discovery(struct sk_buff *skb)
 {
 	struct ra_msg *ra_msg = (struct ra_msg *)skb_transport_header(skb);
+	bool send_ifinfo_notify = false;
 	struct neighbour *neigh = NULL;
-	struct inet6_dev *in6_dev;
-	struct fib6_info *rt = NULL;
-	u32 defrtr_usr_metric;
-	struct net *net;
-	int lifetime;
 	struct ndisc_options ndopts;
-	int optlen;
+	struct fib6_info *rt = NULL;
+	struct inet6_dev *in6_dev;
+	u32 defrtr_usr_metric;
 	unsigned int pref = 0;
 	__u32 old_if_flags;
-	bool send_ifinfo_notify = false;
+	struct net *net;
+	SKB_DR(reason);
+	int lifetime;
+	int optlen;
 
 	__u8 *opt = (__u8 *)(ra_msg + 1);
 
@@ -1256,17 +1257,15 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		  __func__, skb->dev->name);
 	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
 		ND_PRINTK(2, warn, "RA: source address is not link-local\n");
-		return;
+		return reason;
 	}
-	if (optlen < 0) {
-		ND_PRINTK(2, warn, "RA: packet too short\n");
-		return;
-	}
+	if (optlen < 0)
+		return SKB_DROP_REASON_PKT_TOO_SMALL;
 
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	if (skb->ndisc_nodetype == NDISC_NODETYPE_HOST) {
 		ND_PRINTK(2, warn, "RA: from host or unauthorized router\n");
-		return;
+		return reason;
 	}
 #endif
 
@@ -1278,12 +1277,12 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	if (!in6_dev) {
 		ND_PRINTK(0, err, "RA: can't find inet6 device for %s\n",
 			  skb->dev->name);
-		return;
+		return reason;
 	}
 
 	if (!ndisc_parse_options(skb->dev, opt, optlen, &ndopts)) {
 		ND_PRINTK(2, warn, "RA: invalid ND options\n");
-		return;
+		return reason;
 	}
 
 	if (!ipv6_accept_ra(in6_dev)) {
@@ -1365,7 +1364,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 				  "RA: %s got default router without neighbour\n",
 				  __func__);
 			fib6_info_release(rt);
-			return;
+			return reason;
 		}
 	}
 	/* Set default route metric as specified by user */
@@ -1390,7 +1389,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			ND_PRINTK(0, err,
 				  "RA: %s failed to add default route\n",
 				  __func__);
-			return;
+			return reason;
 		}
 
 		neigh = ip6_neigh_lookup(&rt->fib6_nh->fib_nh_gw6,
@@ -1401,7 +1400,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 				  "RA: %s got default router without neighbour\n",
 				  __func__);
 			fib6_info_release(rt);
-			return;
+			return reason;
 		}
 		neigh->flags |= NTF_ROUTER;
 	} else if (rt && IPV6_EXTRACT_PREF(rt->fib6_flags) != pref) {
@@ -1488,6 +1487,7 @@ skip_linkparms:
 			     NEIGH_UPDATE_F_OVERRIDE_ISROUTER|
 			     NEIGH_UPDATE_F_ISROUTER,
 			     NDISC_ROUTER_ADVERTISEMENT, &ndopts);
+		reason = SKB_CONSUMED;
 	}
 
 	if (!ipv6_accept_ra(in6_dev)) {
@@ -1598,6 +1598,7 @@ out:
 	fib6_info_release(rt);
 	if (neigh)
 		neigh_release(neigh);
+	return reason;
 }
 
 static void ndisc_redirect_rcv(struct sk_buff *skb)
@@ -1850,7 +1851,7 @@ enum skb_drop_reason ndisc_rcv(struct sk_buff *skb)
 		break;
 
 	case NDISC_ROUTER_ADVERTISEMENT:
-		ndisc_router_discovery(skb);
+		reason = ndisc_router_discovery(skb);
 		break;
 
 	case NDISC_REDIRECT:
