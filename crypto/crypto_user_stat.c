@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <net/netlink.h>
 #include <net/sock.h>
-#include <crypto/internal/skcipher.h>
 #include <crypto/internal/rng.h>
 #include <crypto/internal/cryptouser.h>
 
@@ -33,12 +32,6 @@ static int crypto_report_cipher(struct sk_buff *skb, struct crypto_alg *alg)
 	memset(&rcipher, 0, sizeof(rcipher));
 
 	strscpy(rcipher.type, "cipher", sizeof(rcipher.type));
-
-	rcipher.stat_encrypt_cnt = atomic64_read(&alg->stats.cipher.encrypt_cnt);
-	rcipher.stat_encrypt_tlen = atomic64_read(&alg->stats.cipher.encrypt_tlen);
-	rcipher.stat_decrypt_cnt =  atomic64_read(&alg->stats.cipher.decrypt_cnt);
-	rcipher.stat_decrypt_tlen = atomic64_read(&alg->stats.cipher.decrypt_tlen);
-	rcipher.stat_err_cnt =  atomic64_read(&alg->stats.cipher.err_cnt);
 
 	return nla_put(skb, CRYPTOCFGA_STAT_CIPHER, sizeof(rcipher), &rcipher);
 }
@@ -106,10 +99,6 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 	}
 
 	switch (alg->cra_flags & (CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_LARVAL)) {
-	case CRYPTO_ALG_TYPE_SKCIPHER:
-		if (crypto_report_cipher(skb, alg))
-			goto nla_put_failure;
-		break;
 	case CRYPTO_ALG_TYPE_CIPHER:
 		if (crypto_report_cipher(skb, alg))
 			goto nla_put_failure;

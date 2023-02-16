@@ -277,22 +277,6 @@ struct compress_alg {
 
 #ifdef CONFIG_CRYPTO_STATS
 /*
- * struct crypto_istat_cipher - statistics for cipher algorithm
- * @encrypt_cnt:	number of encrypt requests
- * @encrypt_tlen:	total data size handled by encrypt requests
- * @decrypt_cnt:	number of decrypt requests
- * @decrypt_tlen:	total data size handled by decrypt requests
- * @err_cnt:		number of error for cipher requests
- */
-struct crypto_istat_cipher {
-	atomic64_t encrypt_cnt;
-	atomic64_t encrypt_tlen;
-	atomic64_t decrypt_cnt;
-	atomic64_t decrypt_tlen;
-	atomic64_t err_cnt;
-};
-
-/*
  * struct crypto_istat_rng: statistics for RNG algorithm
  * @generate_cnt:	number of RNG generate requests
  * @generate_tlen:	total data size of generated data by the RNG
@@ -385,7 +369,6 @@ struct crypto_istat_rng {
  * @cra_destroy: internally used
  *
  * @stats: union of all possible crypto_istat_xxx structures
- * @stats.cipher:	statistics for cipher algorithm
  * @stats.rng:		statistics for rng algorithm
  *
  * The struct crypto_alg describes a generic Crypto API algorithm and is common
@@ -422,7 +405,6 @@ struct crypto_alg {
 
 #ifdef CONFIG_CRYPTO_STATS
 	union {
-		struct crypto_istat_cipher cipher;
 		struct crypto_istat_rng rng;
 	} stats;
 #endif /* CONFIG_CRYPTO_STATS */
@@ -434,8 +416,6 @@ void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
 void crypto_stats_rng_seed(struct crypto_alg *alg, int ret);
 void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen, int ret);
-void crypto_stats_skcipher_encrypt(unsigned int cryptlen, int ret, struct crypto_alg *alg);
-void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto_alg *alg);
 #else
 static inline void crypto_stats_init(struct crypto_alg *alg)
 {}
@@ -444,10 +424,6 @@ static inline void crypto_stats_get(struct crypto_alg *alg)
 static inline void crypto_stats_rng_seed(struct crypto_alg *alg, int ret)
 {}
 static inline void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen, int ret)
-{}
-static inline void crypto_stats_skcipher_encrypt(unsigned int cryptlen, int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto_alg *alg)
 {}
 #endif
 /*
