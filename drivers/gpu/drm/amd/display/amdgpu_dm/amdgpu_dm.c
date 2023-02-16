@@ -351,6 +351,19 @@ static inline bool is_dc_timing_adjust_needed(struct dm_crtc_state *old_state,
 		return false;
 }
 
+static inline void reverse_planes_order(struct dc_surface_update *array_of_surface_update,
+					int planes_count)
+{
+	int i, j;
+	struct dc_surface_update surface_updates_temp;
+
+	for (i = 0, j = planes_count - 1; i < j; i++, j--) {
+		surface_updates_temp = array_of_surface_update[i];
+		array_of_surface_update[i] = array_of_surface_update[j];
+		array_of_surface_update[j] = surface_updates_temp;
+	}
+}
+
 /**
  * update_planes_and_stream_adapter() - Send planes to be updated in DC
  *
@@ -367,6 +380,8 @@ static inline bool update_planes_and_stream_adapter(struct dc *dc,
 						    struct dc_stream_update *stream_update,
 						    struct dc_surface_update *array_of_surface_update)
 {
+	reverse_planes_order(array_of_surface_update, planes_count);
+
 	/*
 	 * Previous frame finished and HW is ready for optimization.
 	 */
