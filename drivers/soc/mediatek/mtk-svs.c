@@ -1726,7 +1726,7 @@ static int svs_get_efuse_data(struct svs_platform *svsp,
 	struct nvmem_cell *cell;
 
 	cell = nvmem_cell_get(svsp->dev, nvmem_cell_name);
-	if (IS_ERR_OR_NULL(cell)) {
+	if (IS_ERR(cell)) {
 		dev_err(svsp->dev, "no \"%s\"? %ld\n",
 			nvmem_cell_name, PTR_ERR(cell));
 		return PTR_ERR(cell);
