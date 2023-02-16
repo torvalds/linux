@@ -1779,7 +1779,7 @@ static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 	else
 		max_tmds_clock = 165000;
 
-	vbt_max_tmds_clock = intel_bios_max_tmds_clock(encoder);
+	vbt_max_tmds_clock = intel_bios_hdmi_max_tmds_clock(encoder->devdata);
 	if (vbt_max_tmds_clock)
 		max_tmds_clock = min(max_tmds_clock, vbt_max_tmds_clock);
 
@@ -2855,7 +2855,7 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 	enum port port = encoder->port;
 	u8 ddc_pin;
 
-	ddc_pin = intel_bios_alternate_ddc_pin(encoder);
+	ddc_pin = intel_bios_hdmi_ddc_pin(encoder->devdata);
 	if (ddc_pin) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Using DDC pin 0x%x for port %c (VBT)\n",

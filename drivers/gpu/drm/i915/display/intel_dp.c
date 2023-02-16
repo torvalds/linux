@@ -288,7 +288,7 @@ static int intel_dp_max_common_rate(struct intel_dp *intel_dp)
 
 static int intel_dp_max_source_lane_count(struct intel_digital_port *dig_port)
 {
-	int vbt_max_lanes = intel_bios_dp_max_lane_count(&dig_port->base);
+	int vbt_max_lanes = intel_bios_dp_max_lane_count(dig_port->base.devdata);
 	int max_lanes = dig_port->max_lanes;
 
 	if (vbt_max_lanes)
@@ -425,7 +425,7 @@ static int vbt_max_link_rate(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	int max_rate;
 
-	max_rate = intel_bios_dp_max_link_rate(encoder);
+	max_rate = intel_bios_dp_max_link_rate(encoder->devdata);
 
 	if (intel_dp_is_edp(intel_dp)) {
 		struct intel_connector *connector = intel_dp->attached_connector;

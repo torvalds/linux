@@ -89,7 +89,7 @@ static int intel_ddi_hdmi_level(struct intel_encoder *encoder,
 {
 	int level;
 
-	level = intel_bios_hdmi_level_shift(encoder);
+	level = intel_bios_hdmi_level_shift(encoder->devdata);
 	if (level < 0)
 		level = trans->hdmi_default_entry;
 
@@ -126,7 +126,7 @@ void hsw_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 
 	/* If we're boosting the current, set bit 31 of trans1 */
 	if (has_iboost(dev_priv) &&
-	    intel_bios_encoder_dp_boost_level(encoder->devdata))
+	    intel_bios_dp_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 	for (i = 0; i < n_entries; i++) {
@@ -158,7 +158,7 @@ static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 
 	/* If we're boosting the current, set bit 31 of trans1 */
 	if (has_iboost(dev_priv) &&
-	    intel_bios_encoder_hdmi_boost_level(encoder->devdata))
+	    intel_bios_hdmi_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 	/* Entry 9 is for HDMI: */
@@ -1004,9 +1004,9 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 	u8 iboost;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		iboost = intel_bios_encoder_hdmi_boost_level(encoder->devdata);
+		iboost = intel_bios_hdmi_boost_level(encoder->devdata);
 	else
-		iboost = intel_bios_encoder_dp_boost_level(encoder->devdata);
+		iboost = intel_bios_dp_boost_level(encoder->devdata);
 
 	if (iboost == 0) {
 		const struct intel_ddi_buf_trans *trans;
