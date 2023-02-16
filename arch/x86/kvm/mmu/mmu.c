@@ -1940,7 +1940,7 @@ static bool kvm_sync_page_check(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	 * differs then the memslot lookup (SMM vs. non-SMM) will be bogus, the
 	 * reserved bits checks will be wrong, etc...
 	 */
-	if (WARN_ON_ONCE(sp->role.direct ||
+	if (WARN_ON_ONCE(sp->role.direct || !vcpu->arch.mmu->sync_page ||
 			 (sp->role.word ^ root_role.word) & ~sync_role_ign.word))
 		return false;
 
