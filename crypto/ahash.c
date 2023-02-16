@@ -8,19 +8,18 @@
  * Copyright (c) 2008 Loc Ho <lho@amcc.com>
  */
 
-#include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
+#include <linux/cryptouser.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
-#include <linux/cryptouser.h>
-#include <linux/compiler.h>
+#include <linux/string.h>
 #include <net/netlink.h>
 
-#include "internal.h"
+#include "hash.h"
 
 static const struct crypto_type crypto_ahash_type;
 
@@ -296,55 +295,60 @@ static int crypto_ahash_op(struct ahash_request *req,
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	unsigned long alignmask = crypto_ahash_alignmask(tfm);
+	int err;
 
 	if ((unsigned long)req->result & alignmask)
-		return ahash_op_unaligned(req, op, has_state);
+		err = ahash_op_unaligned(req, op, has_state);
+	else
+		err = op(req);
 
-	return op(req);
+	return crypto_hash_errstat(crypto_hash_alg_common(tfm), err);
 }
 
 int crypto_ahash_final(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int nbytes = req->nbytes;
-	int ret;
+	struct hash_alg_common *alg = crypto_hash_alg_common(tfm);
 
-	crypto_stats_get(alg);
-	ret = crypto_ahash_op(req, crypto_ahash_reqtfm(req)->final, true);
-	crypto_stats_ahash_final(nbytes, ret, alg);
-	return ret;
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
+		atomic64_inc(&hash_get_stat(alg)->hash_cnt);
+
+	return crypto_ahash_op(req, tfm->final, true);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_final);
 
 int crypto_ahash_finup(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int nbytes = req->nbytes;
-	int ret;
+	struct hash_alg_common *alg = crypto_hash_alg_common(tfm);
 
-	crypto_stats_get(alg);
-	ret = crypto_ahash_op(req, crypto_ahash_reqtfm(req)->finup, true);
-	crypto_stats_ahash_final(nbytes, ret, alg);
-	return ret;
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
+		struct crypto_istat_hash *istat = hash_get_stat(alg);
+
+		atomic64_inc(&istat->hash_cnt);
+		atomic64_add(req->nbytes, &istat->hash_tlen);
+	}
+
+	return crypto_ahash_op(req, tfm->finup, true);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_finup);
 
 int crypto_ahash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int nbytes = req->nbytes;
-	int ret;
+	struct hash_alg_common *alg = crypto_hash_alg_common(tfm);
 
-	crypto_stats_get(alg);
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
+		struct crypto_istat_hash *istat = hash_get_stat(alg);
+
+		atomic64_inc(&istat->hash_cnt);
+		atomic64_add(req->nbytes, &istat->hash_tlen);
+	}
+
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
-	else
-		ret = crypto_ahash_op(req, tfm->digest, false);
-	crypto_stats_ahash_final(nbytes, ret, alg);
-	return ret;
+		return crypto_hash_errstat(alg, -ENOKEY);
+
+	return crypto_ahash_op(req, tfm->digest, false);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_digest);
 
@@ -498,6 +502,12 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 		   __crypto_hash_alg_common(alg)->digestsize);
 }
 
+static int __maybe_unused crypto_ahash_report_stat(
+	struct sk_buff *skb, struct crypto_alg *alg)
+{
+	return crypto_hash_report_stat(skb, alg, "ahash");
+}
+
 static const struct crypto_type crypto_ahash_type = {
 	.extsize = crypto_ahash_extsize,
 	.init_tfm = crypto_ahash_init_tfm,
@@ -506,6 +516,9 @@ static const struct crypto_type crypto_ahash_type = {
 	.show = crypto_ahash_show,
 #endif
 	.report = crypto_ahash_report,
+#ifdef CONFIG_CRYPTO_STATS
+	.report_stat = crypto_ahash_report_stat,
+#endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_AHASH_MASK,
 	.type = CRYPTO_ALG_TYPE_AHASH,
@@ -537,14 +550,16 @@ EXPORT_SYMBOL_GPL(crypto_has_ahash);
 static int ahash_prepare_alg(struct ahash_alg *alg)
 {
 	struct crypto_alg *base = &alg->halg.base;
+	int err;
 
-	if (alg->halg.digestsize > HASH_MAX_DIGESTSIZE ||
-	    alg->halg.statesize > HASH_MAX_STATESIZE ||
-	    alg->halg.statesize == 0)
+	if (alg->halg.statesize == 0)
 		return -EINVAL;
 
+	err = hash_prepare_alg(&alg->halg);
+	if (err)
+		return err;
+
 	base->cra_type = &crypto_ahash_type;
-	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_AHASH;
 
 	return 0;

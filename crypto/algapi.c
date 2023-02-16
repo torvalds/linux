@@ -1075,30 +1075,6 @@ void crypto_stats_decompress(unsigned int slen, int ret, struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_stats_decompress);
 
-void crypto_stats_ahash_update(unsigned int nbytes, int ret,
-			       struct crypto_alg *alg)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic64_inc(&alg->stats.hash.err_cnt);
-	else
-		atomic64_add(nbytes, &alg->stats.hash.hash_tlen);
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_ahash_update);
-
-void crypto_stats_ahash_final(unsigned int nbytes, int ret,
-			      struct crypto_alg *alg)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.hash.err_cnt);
-	} else {
-		atomic64_inc(&alg->stats.hash.hash_cnt);
-		atomic64_add(nbytes, &alg->stats.hash.hash_tlen);
-	}
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_ahash_final);
-
 void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret)
 {
 	if (ret)

@@ -309,18 +309,6 @@ struct crypto_istat_compress {
 };
 
 /*
- * struct crypto_istat_hash - statistics for has algorithm
- * @hash_cnt:		number of hash requests
- * @hash_tlen:		total data size hashed
- * @err_cnt:		number of error for hash requests
- */
-struct crypto_istat_hash {
-	atomic64_t hash_cnt;
-	atomic64_t hash_tlen;
-	atomic64_t err_cnt;
-};
-
-/*
  * struct crypto_istat_kpp - statistics for KPP algorithm
  * @setsecret_cnt:		number of setsecrey operation
  * @generate_public_key_cnt:	number of generate_public_key operation
@@ -429,7 +417,6 @@ struct crypto_istat_rng {
  * @stats: union of all possible crypto_istat_xxx structures
  * @stats.cipher:	statistics for cipher algorithm
  * @stats.compress:	statistics for compress algorithm
- * @stats.hash:		statistics for hash algorithm
  * @stats.rng:		statistics for rng algorithm
  * @stats.kpp:		statistics for KPP algorithm
  *
@@ -469,7 +456,6 @@ struct crypto_alg {
 	union {
 		struct crypto_istat_cipher cipher;
 		struct crypto_istat_compress compress;
-		struct crypto_istat_hash hash;
 		struct crypto_istat_rng rng;
 		struct crypto_istat_kpp kpp;
 	} stats;
@@ -480,8 +466,6 @@ struct crypto_alg {
 #ifdef CONFIG_CRYPTO_STATS
 void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
-void crypto_stats_ahash_update(unsigned int nbytes, int ret, struct crypto_alg *alg);
-void crypto_stats_ahash_final(unsigned int nbytes, int ret, struct crypto_alg *alg);
 void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg);
 void crypto_stats_decompress(unsigned int slen, int ret, struct crypto_alg *alg);
 void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret);
@@ -495,10 +479,6 @@ void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto
 static inline void crypto_stats_init(struct crypto_alg *alg)
 {}
 static inline void crypto_stats_get(struct crypto_alg *alg)
-{}
-static inline void crypto_stats_ahash_update(unsigned int nbytes, int ret, struct crypto_alg *alg)
-{}
-static inline void crypto_stats_ahash_final(unsigned int nbytes, int ret, struct crypto_alg *alg)
 {}
 static inline void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg)
 {}

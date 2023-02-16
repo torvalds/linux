@@ -8,6 +8,7 @@
 #ifndef _CRYPTO_HASH_H
 #define _CRYPTO_HASH_H
 
+#include <linux/atomic.h>
 #include <linux/crypto.h>
 #include <linux/string.h>
 
@@ -22,8 +23,27 @@ struct crypto_ahash;
  * crypto_unregister_shash().
  */
 
+/*
+ * struct crypto_istat_hash - statistics for has algorithm
+ * @hash_cnt:		number of hash requests
+ * @hash_tlen:		total data size hashed
+ * @err_cnt:		number of error for hash requests
+ */
+struct crypto_istat_hash {
+	atomic64_t hash_cnt;
+	atomic64_t hash_tlen;
+	atomic64_t err_cnt;
+};
+
+#ifdef CONFIG_CRYPTO_STATS
+#define HASH_ALG_COMMON_STAT struct crypto_istat_hash stat;
+#else
+#define HASH_ALG_COMMON_STAT
+#endif
+
 /**
  * struct hash_alg_common - define properties of message digest
+ * @stat: Statistics for hash algorithm.
  * @digestsize: Size of the result of the transformation. A buffer of this size
  *	        must be available to the @final and @finup calls, so they can
  *	        store the resulting hash into it. For various predefined sizes,
@@ -39,12 +59,15 @@ struct crypto_ahash;
  *	  The hash_alg_common data structure now adds the hash-specific
  *	  information.
  */
-struct hash_alg_common {
-	unsigned int digestsize;
-	unsigned int statesize;
-
-	struct crypto_alg base;
-};
+#define HASH_ALG_COMMON {		\
+	HASH_ALG_COMMON_STAT		\
+					\
+	unsigned int digestsize;	\
+	unsigned int statesize;		\
+					\
+	struct crypto_alg base;		\
+}
+struct hash_alg_common HASH_ALG_COMMON;
 
 struct ahash_request {
 	struct crypto_async_request base;
@@ -193,7 +216,9 @@ struct shash_desc {
  * @descsize: Size of the operational state for the message digest. This state
  * 	      size is the memory size that needs to be allocated for
  *	      shash_desc.__ctx
+ * @stat: Statistics for hash algorithm.
  * @base: internally used
+ * @halg: see struct hash_alg_common
  */
 struct shash_alg {
 	int (*init)(struct shash_desc *desc);
@@ -213,13 +238,13 @@ struct shash_alg {
 
 	unsigned int descsize;
 
-	/* These fields must match hash_alg_common. */
-	unsigned int digestsize
-		__attribute__ ((aligned(__alignof__(struct hash_alg_common))));
-	unsigned int statesize;
-
-	struct crypto_alg base;
+	union {
+		struct HASH_ALG_COMMON;
+		struct hash_alg_common halg;
+	};
 };
+#undef HASH_ALG_COMMON
+#undef HASH_ALG_COMMON_STAT
 
 struct crypto_ahash {
 	int (*init)(struct ahash_request *req);
@@ -535,6 +560,27 @@ static inline int crypto_ahash_init(struct ahash_request *req)
 	return tfm->init(req);
 }
 
+static inline struct crypto_istat_hash *hash_get_stat(
+	struct hash_alg_common *alg)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	return &alg->stat;
+#else
+	return NULL;
+#endif
+}
+
+static inline int crypto_hash_errstat(struct hash_alg_common *alg, int err)
+{
+	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
+		return err;
+
+	if (err && err != -EINPROGRESS && err != -EBUSY)
+		atomic64_inc(&hash_get_stat(alg)->err_cnt);
+
+	return err;
+}
+
 /**
  * crypto_ahash_update() - add data to message digest for processing
  * @req: ahash_request handle that was previously initialized with the
@@ -549,14 +595,12 @@ static inline int crypto_ahash_init(struct ahash_request *req)
 static inline int crypto_ahash_update(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int nbytes = req->nbytes;
-	int ret;
+	struct hash_alg_common *alg = crypto_hash_alg_common(tfm);
 
-	crypto_stats_get(alg);
-	ret = crypto_ahash_reqtfm(req)->update(req);
-	crypto_stats_ahash_update(nbytes, ret, alg);
-	return ret;
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
+		atomic64_add(req->nbytes, &hash_get_stat(alg)->hash_tlen);
+
+	return crypto_hash_errstat(alg, tfm->update(req));
 }
 
 /**

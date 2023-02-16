@@ -92,36 +92,6 @@ static int crypto_report_kpp(struct sk_buff *skb, struct crypto_alg *alg)
 	return nla_put(skb, CRYPTOCFGA_STAT_KPP, sizeof(rkpp), &rkpp);
 }
 
-static int crypto_report_ahash(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct crypto_stat_hash rhash;
-
-	memset(&rhash, 0, sizeof(rhash));
-
-	strscpy(rhash.type, "ahash", sizeof(rhash.type));
-
-	rhash.stat_hash_cnt = atomic64_read(&alg->stats.hash.hash_cnt);
-	rhash.stat_hash_tlen = atomic64_read(&alg->stats.hash.hash_tlen);
-	rhash.stat_err_cnt = atomic64_read(&alg->stats.hash.err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_HASH, sizeof(rhash), &rhash);
-}
-
-static int crypto_report_shash(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct crypto_stat_hash rhash;
-
-	memset(&rhash, 0, sizeof(rhash));
-
-	strscpy(rhash.type, "shash", sizeof(rhash.type));
-
-	rhash.stat_hash_cnt =  atomic64_read(&alg->stats.hash.hash_cnt);
-	rhash.stat_hash_tlen = atomic64_read(&alg->stats.hash.hash_tlen);
-	rhash.stat_err_cnt = atomic64_read(&alg->stats.hash.err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_HASH, sizeof(rhash), &rhash);
-}
-
 static int crypto_report_rng(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_stat_rng rrng;
@@ -196,14 +166,6 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 		break;
 	case CRYPTO_ALG_TYPE_KPP:
 		if (crypto_report_kpp(skb, alg))
-			goto nla_put_failure;
-		break;
-	case CRYPTO_ALG_TYPE_AHASH:
-		if (crypto_report_ahash(skb, alg))
-			goto nla_put_failure;
-		break;
-	case CRYPTO_ALG_TYPE_HASH:
-		if (crypto_report_shash(skb, alg))
 			goto nla_put_failure;
 		break;
 	case CRYPTO_ALG_TYPE_RNG:
