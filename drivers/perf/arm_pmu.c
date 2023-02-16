@@ -550,13 +550,7 @@ static void armpmu_disable(struct pmu *pmu)
 static bool armpmu_filter(struct pmu *pmu, int cpu)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(pmu);
-	bool ret;
-
-	ret = cpumask_test_cpu(cpu, &armpmu->supported_cpus);
-	if (ret && armpmu->filter)
-		return armpmu->filter(pmu, cpu);
-
-	return ret;
+	return !cpumask_test_cpu(cpu, &armpmu->supported_cpus);
 }
 
 static ssize_t cpus_show(struct device *dev,
