@@ -5765,9 +5765,11 @@ emulate:
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
 void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-			     u64 addr, hpa_t root_hpa)
+			     u64 addr, unsigned long roots)
 {
 	int i;
+
+	WARN_ON_ONCE(roots & ~KVM_MMU_ROOTS_ALL);
 
 	/* It's actually a GPA for vcpu->arch.guest_mmu.  */
 	if (mmu != &vcpu->arch.guest_mmu) {
@@ -5781,31 +5783,29 @@ void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	if (!mmu->invlpg)
 		return;
 
-	if (root_hpa == INVALID_PAGE) {
+	if (roots & KVM_MMU_ROOT_CURRENT)
 		mmu->invlpg(vcpu, addr, mmu->root.hpa);
 
-		/*
-		 * INVLPG is required to invalidate any global mappings for the VA,
-		 * irrespective of PCID. Since it would take us roughly similar amount
-		 * of work to determine whether any of the prev_root mappings of the VA
-		 * is marked global, or to just sync it blindly, so we might as well
-		 * just always sync it.
-		 *
-		 * Mappings not reachable via the current cr3 or the prev_roots will be
-		 * synced when switching to that cr3, so nothing needs to be done here
-		 * for them.
-		 */
-		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
-			if (VALID_PAGE(mmu->prev_roots[i].hpa))
-				mmu->invlpg(vcpu, addr, mmu->prev_roots[i].hpa);
-	} else {
-		mmu->invlpg(vcpu, addr, root_hpa);
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
+		if ((roots & KVM_MMU_ROOT_PREVIOUS(i)) &&
+		    VALID_PAGE(mmu->prev_roots[i].hpa))
+			mmu->invlpg(vcpu, addr, mmu->prev_roots[i].hpa);
 	}
 }
 
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
-	kvm_mmu_invalidate_addr(vcpu, vcpu->arch.walk_mmu, gva, INVALID_PAGE);
+	/*
+	 * INVLPG is required to invalidate any global mappings for the VA,
+	 * irrespective of PCID.  Blindly sync all roots as it would take
+	 * roughly the same amount of work/time to determine whether any of the
+	 * previous roots have a global mapping.
+	 *
+	 * Mappings not reachable via the current or previous cached roots will
+	 * be synced when switching to that new cr3, so nothing needs to be
+	 * done here for them.
+	 */
+	kvm_mmu_invalidate_addr(vcpu, vcpu->arch.walk_mmu, gva, KVM_MMU_ROOTS_ALL);
 	++vcpu->stat.invlpg;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
