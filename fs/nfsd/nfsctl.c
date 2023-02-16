@@ -1417,6 +1417,8 @@ static void nfsd_umount(struct super_block *sb)
 {
 	struct net *net = sb->s_fs_info;
 
+	nfsd_shutdown_threads(net);
+
 	kill_litter_super(sb);
 	put_net(net);
 }
@@ -1428,18 +1430,6 @@ static struct file_system_type nfsd_fs_type = {
 	.kill_sb	= nfsd_umount,
 };
 MODULE_ALIAS_FS("nfsd");
-
-int get_nfsdfs(struct net *net)
-{
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	struct vfsmount *mnt;
-
-	mnt =  vfs_kern_mount(&nfsd_fs_type, SB_KERNMOUNT, "nfsd", NULL);
-	if (IS_ERR(mnt))
-		return PTR_ERR(mnt);
-	nn->nfsd_mnt = mnt;
-	return 0;
-}
 
 #ifdef CONFIG_PROC_FS
 static int create_proc_exports_entry(void)
