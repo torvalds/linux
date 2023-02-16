@@ -73,8 +73,8 @@ static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
-	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
+	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
+	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	u32 old_state = sdev->dsp_power_state.state;
 	int ret;
 
@@ -155,7 +155,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	}
 
 	/* restore pipelines */
-	if (tplg_ops->set_up_all_pipelines) {
+	if (tplg_ops && tplg_ops->set_up_all_pipelines) {
 		ret = tplg_ops->set_up_all_pipelines(sdev, false);
 		if (ret < 0) {
 			dev_err(sdev->dev, "Failed to restore pipeline after resume %d\n", ret);
@@ -179,8 +179,8 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 static int sof_suspend(struct device *dev, bool runtime_suspend)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
-	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
+	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
+	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	pm_message_t pm_state;
 	u32 target_state = snd_sof_dsp_power_target(sdev);
 	int ret;
@@ -276,7 +276,7 @@ suspend:
 
 int snd_sof_dsp_power_down_notify(struct snd_sof_dev *sdev)
 {
-	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
 
 	/* Notify DSP of upcoming power down */
 	if (sof_ops(sdev)->remove && pm_ops && pm_ops->ctx_save)

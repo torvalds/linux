@@ -473,9 +473,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	if (adev) {
 		snprintf(drv->codec_name, sizeof(drv->codec_name),
 			 "i2c-%s", acpi_dev_name(adev));
-		put_device(&adev->dev);
 		cht_dailink[dai_index].codecs->name = drv->codec_name;
 	}
+	acpi_dev_put(adev);
 
 	/* Use SSP0 on Bay Trail CR devices */
 	if (soc_intel_is_byt() && mach->mach_params.acpi_ipc_irq_index == 0) {

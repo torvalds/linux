@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/dbx500-prcmu.h>
-#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
@@ -671,34 +670,14 @@ static int ux500_msp_dai_of_probe(struct snd_soc_dai *dai)
 	if (!capture_dma_data)
 		return -ENOMEM;
 
-	playback_dma_data->addr = drvdata->msp->playback_dma_data.tx_rx_addr;
-	capture_dma_data->addr = drvdata->msp->capture_dma_data.tx_rx_addr;
+	playback_dma_data->addr = drvdata->msp->tx_rx_addr;
+	capture_dma_data->addr = drvdata->msp->tx_rx_addr;
 
 	playback_dma_data->maxburst = 4;
 	capture_dma_data->maxburst = 4;
 
 	snd_soc_dai_init_dma_data(dai, playback_dma_data, capture_dma_data);
 
-	return 0;
-}
-
-static int ux500_msp_dai_probe(struct snd_soc_dai *dai)
-{
-	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
-	struct msp_i2s_platform_data *pdata = dai->dev->platform_data;
-	int ret;
-
-	if (!pdata) {
-		ret = ux500_msp_dai_of_probe(dai);
-		return ret;
-	}
-
-	drvdata->msp->playback_dma_data.data_size = drvdata->slot_width;
-	drvdata->msp->capture_dma_data.data_size = drvdata->slot_width;
-
-	snd_soc_dai_init_dma_data(dai,
-				  &drvdata->msp->playback_dma_data,
-				  &drvdata->msp->capture_dma_data);
 	return 0;
 }
 
@@ -716,7 +695,7 @@ static const struct snd_soc_dai_ops ux500_msp_dai_ops[] = {
 };
 
 static struct snd_soc_dai_driver ux500_msp_dai_drv = {
-	.probe                 = ux500_msp_dai_probe,
+	.probe                 = ux500_msp_dai_of_probe,
 	.playback.channels_min = UX500_MSP_MIN_CHANNELS,
 	.playback.channels_max = UX500_MSP_MAX_CHANNELS,
 	.playback.rates        = UX500_I2S_RATES,
@@ -737,14 +716,7 @@ static const struct snd_soc_component_driver ux500_msp_component = {
 static int ux500_msp_drv_probe(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata;
-	struct msp_i2s_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
-
-	if (!pdata && !np) {
-		dev_err(&pdev->dev, "No platform data or Device Tree found\n");
-		return -ENODEV;
-	}
 
 	drvdata = devm_kzalloc(&pdev->dev,
 				sizeof(struct ux500_msp_i2s_drvdata),
@@ -787,8 +759,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = ux500_msp_i2s_init_msp(pdev, &drvdata->msp,
-				pdev->dev.platform_data);
+	ret = ux500_msp_i2s_init_msp(pdev, &drvdata->msp);
 	if (!drvdata->msp) {
 		dev_err(&pdev->dev,
 			"%s: ERROR: Failed to init MSP-struct (%d)!",

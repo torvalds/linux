@@ -15,7 +15,9 @@ description: |
 
 properties:
   compatible:
-    const: mediatek,mt8186-dsp
+    enum:
+      - mediatek,mt8186-dsp
+      - mediatek,mt8188-dsp
 
   reg:
     items:
