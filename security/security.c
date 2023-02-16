@@ -4993,15 +4993,41 @@ int security_perf_event_write(struct perf_event *event)
 #endif /* CONFIG_PERF_EVENTS */
 
 #ifdef CONFIG_IO_URING
+/**
+ * security_uring_override_creds() - Check if overriding creds is allowed
+ * @new: new credentials
+ *
+ * Check if the current task, executing an io_uring operation, is allowed to
+ * override it's credentials with @new.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_uring_override_creds(const struct cred *new)
 {
 	return call_int_hook(uring_override_creds, 0, new);
 }
 
+/**
+ * security_uring_sqpoll() - Check if IORING_SETUP_SQPOLL is allowed
+ *
+ * Check whether the current task is allowed to spawn a io_uring polling thread
+ * (IORING_SETUP_SQPOLL).
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_uring_sqpoll(void)
 {
 	return call_int_hook(uring_sqpoll, 0);
 }
+
+/**
+ * security_uring_cmd() - Check if a io_uring passthrough command is allowed
+ * @ioucmd: command
+ *
+ * Check whether the file_operations uring_cmd is allowed to run.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_uring_cmd(struct io_uring_cmd *ioucmd)
 {
 	return call_int_hook(uring_cmd, 0, ioucmd);

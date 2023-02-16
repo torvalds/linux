@@ -196,23 +196,6 @@
  *	@what: kernel feature being accessed.
  *	Return 0 if permission is granted.
  *
- * Security hooks for io_uring
- *
- * @uring_override_creds:
- *	Check if the current task, executing an io_uring operation, is allowed
- *	to override it's credentials with @new.
- *	@new: the new creds to use.
- *	Return 0 if permission is granted.
- *
- * @uring_sqpoll:
- *	Check whether the current task is allowed to spawn a io_uring polling
- *	thread (IORING_SETUP_SQPOLL).
- *	Return 0 if permission is granted.
- *
- * @uring_cmd:
- *	Check whether the file_operations uring_cmd is allowed to run.
- *	Return 0 if permission is granted.
- *
  */
 union security_list_options {
 	#define LSM_HOOK(RET, DEFAULT, NAME, ...) RET (*NAME)(__VA_ARGS__);
