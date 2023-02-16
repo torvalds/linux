@@ -383,7 +383,7 @@ static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 static void mcr_lock(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	int ret;
+	int ret = 0;
 
 	spin_lock(&gt->mcr_lock);
 
