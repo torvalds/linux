@@ -28,7 +28,10 @@ properties:
     maxItems: 1
 
   interrupts:
-    maxItems: 2
+    minItems: 1
+    items:
+      - description: mmc controller instance
+      - description: card detect
 
   clocks:
     maxItems: 3
