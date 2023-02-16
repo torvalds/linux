@@ -500,7 +500,7 @@ int gh_provide_mem(struct gh_vm *vm, phys_addr_t phys,
 					ARRAY_SIZE(destVM));
 	if (ret) {
 		pr_err("failed qcom_assign for %pa address of size %zx - subsys VMid %d rc:%d\n",
-			phys, size, vmid, ret);
+		       &phys, size, vmid, ret);
 		goto err_hyp_assign;
 	}
 
