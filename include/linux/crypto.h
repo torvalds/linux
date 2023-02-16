@@ -275,22 +275,6 @@ struct compress_alg {
 			      unsigned int slen, u8 *dst, unsigned int *dlen);
 };
 
-#ifdef CONFIG_CRYPTO_STATS
-/*
- * struct crypto_istat_rng: statistics for RNG algorithm
- * @generate_cnt:	number of RNG generate requests
- * @generate_tlen:	total data size of generated data by the RNG
- * @seed_cnt:		number of times the RNG was seeded
- * @err_cnt:		number of error for RNG requests
- */
-struct crypto_istat_rng {
-	atomic64_t generate_cnt;
-	atomic64_t generate_tlen;
-	atomic64_t seed_cnt;
-	atomic64_t err_cnt;
-};
-#endif /* CONFIG_CRYPTO_STATS */
-
 #define cra_cipher	cra_u.cipher
 #define cra_compress	cra_u.compress
 
@@ -368,9 +352,6 @@ struct crypto_istat_rng {
  * @cra_refcnt: internally used
  * @cra_destroy: internally used
  *
- * @stats: union of all possible crypto_istat_xxx structures
- * @stats.rng:		statistics for rng algorithm
- *
  * The struct crypto_alg describes a generic Crypto API algorithm and is common
  * for all of the transformations. Any variable not documented here shall not
  * be used by a cipher implementation as it is internal to the Crypto API.
@@ -402,30 +383,8 @@ struct crypto_alg {
 	void (*cra_destroy)(struct crypto_alg *alg);
 	
 	struct module *cra_module;
-
-#ifdef CONFIG_CRYPTO_STATS
-	union {
-		struct crypto_istat_rng rng;
-	} stats;
-#endif /* CONFIG_CRYPTO_STATS */
-
 } CRYPTO_MINALIGN_ATTR;
 
-#ifdef CONFIG_CRYPTO_STATS
-void crypto_stats_init(struct crypto_alg *alg);
-void crypto_stats_get(struct crypto_alg *alg);
-void crypto_stats_rng_seed(struct crypto_alg *alg, int ret);
-void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen, int ret);
-#else
-static inline void crypto_stats_init(struct crypto_alg *alg)
-{}
-static inline void crypto_stats_get(struct crypto_alg *alg)
-{}
-static inline void crypto_stats_rng_seed(struct crypto_alg *alg, int ret)
-{}
-static inline void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen, int ret)
-{}
-#endif
 /*
  * A helper struct for waiting for completion of async crypto ops
  */

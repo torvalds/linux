@@ -339,8 +339,6 @@ __crypto_register_alg(struct crypto_alg *alg, struct list_head *algs_to_put)
 
 	list_add(&alg->cra_list, &crypto_alg_list);
 
-	crypto_stats_init(alg);
-
 	if (larval) {
 		/* No cheating! */
 		alg->cra_flags &= ~CRYPTO_ALG_TESTED;
@@ -1037,43 +1035,6 @@ int crypto_type_has_alg(const char *name, const struct crypto_type *frontend,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_type_has_alg);
-
-#ifdef CONFIG_CRYPTO_STATS
-void crypto_stats_init(struct crypto_alg *alg)
-{
-	memset(&alg->stats, 0, sizeof(alg->stats));
-}
-EXPORT_SYMBOL_GPL(crypto_stats_init);
-
-void crypto_stats_get(struct crypto_alg *alg)
-{
-	crypto_alg_get(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_get);
-
-void crypto_stats_rng_seed(struct crypto_alg *alg, int ret)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic64_inc(&alg->stats.rng.err_cnt);
-	else
-		atomic64_inc(&alg->stats.rng.seed_cnt);
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_rng_seed);
-
-void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen,
-			       int ret)
-{
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.rng.err_cnt);
-	} else {
-		atomic64_inc(&alg->stats.rng.generate_cnt);
-		atomic64_add(dlen, &alg->stats.rng.generate_tlen);
-	}
-	crypto_alg_put(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_stats_rng_generate);
-#endif
 
 static void __init crypto_start_tests(void)
 {

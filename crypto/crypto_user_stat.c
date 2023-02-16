@@ -6,15 +6,14 @@
  *
  */
 
-#include <linux/crypto.h>
-#include <linux/cryptouser.h>
-#include <linux/sched.h>
+#include <crypto/algapi.h>
+#include <crypto/internal/cryptouser.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
 #include <net/netlink.h>
 #include <net/sock.h>
-#include <crypto/internal/rng.h>
-#include <crypto/internal/cryptouser.h>
-
-#include "internal.h"
 
 #define null_terminated(x)	(strnlen(x, sizeof(x)) < sizeof(x))
 
@@ -45,22 +44,6 @@ static int crypto_report_comp(struct sk_buff *skb, struct crypto_alg *alg)
 	strscpy(rcomp.type, "compression", sizeof(rcomp.type));
 
 	return nla_put(skb, CRYPTOCFGA_STAT_COMPRESS, sizeof(rcomp), &rcomp);
-}
-
-static int crypto_report_rng(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct crypto_stat_rng rrng;
-
-	memset(&rrng, 0, sizeof(rrng));
-
-	strscpy(rrng.type, "rng", sizeof(rrng.type));
-
-	rrng.stat_generate_cnt = atomic64_read(&alg->stats.rng.generate_cnt);
-	rrng.stat_generate_tlen = atomic64_read(&alg->stats.rng.generate_tlen);
-	rrng.stat_seed_cnt = atomic64_read(&alg->stats.rng.seed_cnt);
-	rrng.stat_err_cnt = atomic64_read(&alg->stats.rng.err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_RNG, sizeof(rrng), &rrng);
 }
 
 static int crypto_reportstat_one(struct crypto_alg *alg,
@@ -105,10 +88,6 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 		break;
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		if (crypto_report_comp(skb, alg))
-			goto nla_put_failure;
-		break;
-	case CRYPTO_ALG_TYPE_RNG:
-		if (crypto_report_rng(skb, alg))
 			goto nla_put_failure;
 		break;
 	default:
