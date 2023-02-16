@@ -204,6 +204,12 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 		goto out;
 	}
 
+	if (alg->cra_type && alg->cra_type->report_stat) {
+		if (alg->cra_type->report_stat(skb, alg))
+			goto nla_put_failure;
+		goto out;
+	}
+
 	switch (alg->cra_flags & (CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_LARVAL)) {
 	case CRYPTO_ALG_TYPE_AEAD:
 		if (crypto_report_aead(skb, alg))
