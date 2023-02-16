@@ -738,35 +738,47 @@ static void i801_set_hstadd(struct i801_priv *priv, u8 addr, char read_write)
 
 /* Single value transaction function */
 static int i801_simple_transaction(struct i801_priv *priv, union i2c_smbus_data *data,
-				   char read_write, int command)
+				   u8 addr, u8 hstcmd, char read_write, int command)
 {
 	int xact, ret;
 
 	switch (command) {
 	case I2C_SMBUS_QUICK:
+		i801_set_hstadd(priv, addr, read_write);
 		xact = I801_QUICK;
 		break;
 	case I2C_SMBUS_BYTE:
+		i801_set_hstadd(priv, addr, read_write);
+		if (read_write == I2C_SMBUS_WRITE)
+			outb_p(hstcmd, SMBHSTCMD(priv));
 		xact = I801_BYTE;
 		break;
 	case I2C_SMBUS_BYTE_DATA:
+		i801_set_hstadd(priv, addr, read_write);
 		if (read_write == I2C_SMBUS_WRITE)
 			outb_p(data->byte, SMBHSTDAT0(priv));
+		outb_p(hstcmd, SMBHSTCMD(priv));
 		xact = I801_BYTE_DATA;
 		break;
 	case I2C_SMBUS_WORD_DATA:
+		i801_set_hstadd(priv, addr, read_write);
 		if (read_write == I2C_SMBUS_WRITE) {
 			outb_p(data->word & 0xff, SMBHSTDAT0(priv));
 			outb_p((data->word & 0xff00) >> 8, SMBHSTDAT1(priv));
 		}
+		outb_p(hstcmd, SMBHSTCMD(priv));
 		xact = I801_WORD_DATA;
 		break;
 	case I2C_SMBUS_PROC_CALL:
+		i801_set_hstadd(priv, addr, I2C_SMBUS_WRITE);
 		outb_p(data->word & 0xff, SMBHSTDAT0(priv));
 		outb_p((data->word & 0xff00) >> 8, SMBHSTDAT1(priv));
+		outb_p(hstcmd, SMBHSTCMD(priv));
+		read_write = I2C_SMBUS_READ;
 		xact = I801_PROC_CALL;
 		break;
 	default:
+		pci_err(priv->pci_dev, "Unsupported transaction %d\n", command);
 		return -EOPNOTSUPP;
 	}
 
@@ -857,25 +869,10 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
-		i801_set_hstadd(priv, addr, read_write);
-		break;
 	case I2C_SMBUS_BYTE:
-		i801_set_hstadd(priv, addr, read_write);
-		if (read_write == I2C_SMBUS_WRITE)
-			outb_p(command, SMBHSTCMD(priv));
-		break;
 	case I2C_SMBUS_BYTE_DATA:
-		i801_set_hstadd(priv, addr, read_write);
-		outb_p(command, SMBHSTCMD(priv));
-		break;
 	case I2C_SMBUS_WORD_DATA:
-		i801_set_hstadd(priv, addr, read_write);
-		outb_p(command, SMBHSTCMD(priv));
-		break;
 	case I2C_SMBUS_PROC_CALL:
-		i801_set_hstadd(priv, addr, I2C_SMBUS_WRITE);
-		outb_p(command, SMBHSTCMD(priv));
-		read_write = I2C_SMBUS_READ;
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 		i801_set_hstadd(priv, addr, read_write);
@@ -922,7 +919,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	if (block)
 		ret = i801_block_transaction(priv, data, read_write, size);
 	else
-		ret = i801_simple_transaction(priv, data, read_write, size);
+		ret = i801_simple_transaction(priv, data, addr, command, read_write, size);
 
 	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
 	 * time, so we forcibly disable it after every transaction.
