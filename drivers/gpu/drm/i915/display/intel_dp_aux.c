@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_trace.h"
+#include "intel_bios.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp_aux.h"
@@ -736,4 +737,26 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
+}
+
+enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+	enum aux_ch aux_ch;
+
+	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
+	if (aux_ch != AUX_CH_NONE) {
+		drm_dbg_kms(&i915->drm, "using AUX %c for port %c (VBT)\n",
+			    aux_ch_name(aux_ch), port_name(port));
+		return aux_ch;
+	}
+
+	aux_ch = (enum aux_ch)port;
+
+	drm_dbg_kms(&i915->drm,
+		    "using AUX %c for port %c (platform default)\n",
+		    aux_ch_name(aux_ch), port_name(port));
+
+	return aux_ch;
 }

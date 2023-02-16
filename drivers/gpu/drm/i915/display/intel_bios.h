@@ -38,6 +38,7 @@ struct intel_bios_encoder_data;
 struct intel_crtc_state;
 struct intel_encoder;
 struct intel_panel;
+enum aux_ch;
 enum port;
 
 enum intel_backlight_type {
@@ -248,9 +249,6 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
-enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
-				   const struct intel_bios_encoder_data *devdata,
-				   enum port port);
 bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
 			       int dsc_max_bpc);
@@ -269,6 +267,7 @@ bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devda
 bool intel_bios_encoder_is_lspcon(const struct intel_bios_encoder_data *devdata);
 bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata);
 bool intel_bios_encoder_hpd_invert(const struct intel_bios_encoder_data *devdata);
+enum aux_ch intel_bios_dp_aux_ch(const struct intel_bios_encoder_data *devdata);
 int intel_bios_dp_boost_level(const struct intel_bios_encoder_data *devdata);
 int intel_bios_dp_max_lane_count(const struct intel_bios_encoder_data *devdata);
 int intel_bios_dp_max_link_rate(const struct intel_bios_encoder_data *devdata);

@@ -3572,20 +3572,9 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 	return false;
 }
 
-enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
-				   const struct intel_bios_encoder_data *devdata,
-				   enum port port)
+static enum aux_ch map_aux_ch(struct drm_i915_private *i915, u8 aux_channel)
 {
 	enum aux_ch aux_ch;
-
-	if (!devdata || !devdata->child.aux_channel) {
-		aux_ch = (enum aux_ch)port;
-
-		drm_dbg_kms(&i915->drm,
-			    "using AUX %c for port %c (platform default)\n",
-			    aux_ch_name(aux_ch), port_name(port));
-		return aux_ch;
-	}
 
 	/*
 	 * RKL/DG1 VBT uses PHY based mapping. Combo PHYs A,B,C,D
@@ -3594,7 +3583,7 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 	 * ADL-S VBT uses PHY based mapping. Combo PHYs A,B,C,D,E
 	 * map to DDI A,TC1,TC2,TC3,TC4 respectively.
 	 */
-	switch (devdata->child.aux_channel) {
+	switch (aux_channel) {
 	case DP_AUX_A:
 		aux_ch = AUX_CH_A;
 		break;
@@ -3655,17 +3644,21 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 			aux_ch = AUX_CH_I;
 		break;
 	default:
-		MISSING_CASE(devdata->child.aux_channel);
+		MISSING_CASE(aux_channel);
 		aux_ch = AUX_CH_A;
 		break;
 	}
 
-	drm_dbg_kms(&i915->drm, "using AUX %c for port %c (VBT)\n",
-		    aux_ch_name(aux_ch), port_name(port));
-
 	return aux_ch;
 }
 
+enum aux_ch intel_bios_dp_aux_ch(const struct intel_bios_encoder_data *devdata)
+{
+	if (!devdata || !devdata->child.aux_channel)
+		return AUX_CH_NONE;
+
+	return map_aux_ch(devdata->i915, devdata->child.aux_channel);
+}
 
 int intel_bios_dp_boost_level(const struct intel_bios_encoder_data *devdata)
 {

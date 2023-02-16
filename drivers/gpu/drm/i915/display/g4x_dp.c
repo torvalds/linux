@@ -17,6 +17,7 @@
 #include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dp_aux.h"
 #include "intel_dp_link_training.h"
 #include "intel_dpio_phy.h"
 #include "intel_fifo_underrun.h"
@@ -1397,7 +1398,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	if (port != PORT_A)
 		intel_infoframe_init(dig_port);
 
-	dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, devdata, port);
+	dig_port->aux_ch = intel_dp_aux_ch(intel_encoder);
 	if (!intel_dp_init_connector(dig_port, intel_connector))
 		goto err_init_connector;
 
