@@ -32,28 +32,6 @@
 /**
  * union security_list_options - Linux Security Module hook function list
  *
- * @binder_set_context_mgr:
- *	Check whether @mgr is allowed to be the binder context manager.
- *	@mgr contains the struct cred for the current binder process.
- *	Return 0 if permission is granted.
- * @binder_transaction:
- *	Check whether @from is allowed to invoke a binder transaction call
- *	to @to.
- *	@from contains the struct cred for the sending process.
- *	@to contains the struct cred for the receiving process.
- *	Return 0 if permission is granted.
- * @binder_transfer_binder:
- *	Check whether @from is allowed to transfer a binder reference to @to.
- *	@from contains the struct cred for the sending process.
- *	@to contains the struct cred for the receiving process.
- *	Return 0 if permission is granted.
- * @binder_transfer_file:
- *	Check whether @from is allowed to transfer @file to @to.
- *	@from contains the struct cred for the sending process.
- *	@file contains the struct file being transferred.
- *	@to contains the struct cred for the receiving process.
- *	Return 0 if permission is granted.
- *
  * @ptrace_access_check:
  *	Check permission before allowing the current process to trace the
  *	@child process.

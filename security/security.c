@@ -779,23 +779,59 @@ static int lsm_superblock_alloc(struct super_block *sb)
 
 /* Security operations */
 
+/**
+ * security_binder_set_context_mgr() - Check if becoming binder ctx mgr is ok
+ * @mgr: task credentials of current binder process
+ *
+ * Check whether @mgr is allowed to be the binder context manager.
+ *
+ * Return: Return 0 if permission is granted.
+ */
 int security_binder_set_context_mgr(const struct cred *mgr)
 {
 	return call_int_hook(binder_set_context_mgr, 0, mgr);
 }
 
+/**
+ * security_binder_transaction() - Check if a binder transaction is allowed
+ * @from: sending process
+ * @to: receiving process
+ *
+ * Check whether @from is allowed to invoke a binder transaction call to @to.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_binder_transaction(const struct cred *from,
 				const struct cred *to)
 {
 	return call_int_hook(binder_transaction, 0, from, to);
 }
 
+/**
+ * security_binder_transfer_binder() - Check if a binder transfer is allowed
+ * @from: sending process
+ * @to: receiving process
+ *
+ * Check whether @from is allowed to transfer a binder reference to @to.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_binder_transfer_binder(const struct cred *from,
 				    const struct cred *to)
 {
 	return call_int_hook(binder_transfer_binder, 0, from, to);
 }
 
+/**
+ * security_binder_transfer_file() - Check if a binder file xfer is allowed
+ * @from: sending process
+ * @to: receiving process
+ * @file: file being transferred
+ *
+ * Check whether @from is allowed to transfer @file to @to.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_binder_transfer_file(const struct cred *from,
 				  const struct cred *to, struct file *file)
 {
