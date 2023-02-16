@@ -20838,11 +20838,10 @@ F:	drivers/clk/ti/
 F:	include/linux/clk/ti.h
 
 TI DAVINCI MACHINE SUPPORT
-M:	Sekhar Nori <nsekhar@ti.com>
-R:	Bartosz Golaszewski <brgl@bgdev.pl>
+M:	Bartosz Golaszewski <brgl@bgdev.pl>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci.git
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux.git
 F:	Documentation/devicetree/bindings/i2c/i2c-davinci.txt
 F:	arch/arm/boot/dts/da850*
 F:	arch/arm/mach-davinci/
