@@ -123,6 +123,9 @@ __displayid_iter_next(struct displayid_iter *iter)
 	}
 
 	for (;;) {
+		/* The first section we encounter is the base section */
+		bool base_section = !iter->section;
+
 		iter->section = drm_find_displayid_extension(iter->drm_edid,
 							     &iter->length,
 							     &iter->idx,
@@ -130,6 +133,18 @@ __displayid_iter_next(struct displayid_iter *iter)
 		if (!iter->section) {
 			iter->drm_edid = NULL;
 			return NULL;
+		}
+
+		/* Save the structure version and primary use case. */
+		if (base_section) {
+			const struct displayid_header *base;
+
+			base = displayid_get_header(iter->section, iter->length,
+						    iter->idx);
+			if (!IS_ERR(base)) {
+				iter->version = base->rev;
+				iter->primary_use = base->prod_id;
+			}
 		}
 
 		iter->idx += sizeof(struct displayid_header);
@@ -143,4 +158,19 @@ __displayid_iter_next(struct displayid_iter *iter)
 void displayid_iter_end(struct displayid_iter *iter)
 {
 	memset(iter, 0, sizeof(*iter));
+}
+
+/* DisplayID Structure Version/Revision from the Base Section. */
+u8 displayid_version(const struct displayid_iter *iter)
+{
+	return iter->version;
+}
+
+/*
+ * DisplayID Primary Use Case (2.0+) or Product Type Identifier (1.0-1.3) from
+ * the Base Section.
+ */
+u8 displayid_primary_use(const struct displayid_iter *iter)
+{
+	return iter->primary_use;
 }
