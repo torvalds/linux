@@ -57,8 +57,9 @@ int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk)
 
 static inline bool
 mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
-		    struct page *page, struct xdp_buff *xdp)
+		    struct xdp_buff *xdp)
 {
+	struct page *page = virt_to_page(xdp->data);
 	struct skb_shared_info *sinfo = NULL;
 	struct mlx5e_xmit_data xdptxd;
 	struct mlx5e_xdp_info xdpi;
@@ -197,7 +198,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct page *page,
 	case XDP_PASS:
 		return false;
 	case XDP_TX:
-		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, page, xdp)))
+		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, xdp)))
 			goto xdp_abort;
 		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
 		return true;
