@@ -137,7 +137,7 @@ void link_blank_dp_stream(struct dc_link *link, bool hw_init)
 		}
 
 		if ((!link->wa_flags.dp_keep_receiver_powered) || hw_init)
-			dc_link_dp_receiver_power_ctrl(link, false);
+			dpcd_write_rx_power_ctrl(link, false);
 	}
 }
 

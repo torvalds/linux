@@ -998,7 +998,7 @@ enum link_training_result dpia_perform_link_training(
 
 	struct dc_link_settings link_settings = *link_setting; // non-const copy to pass in
 
-	lt_settings.lttpr_mode = dc_link_decide_lttpr_mode(link, &link_settings);
+	lt_settings.lttpr_mode = dp_decide_lttpr_mode(link, &link_settings);
 
 	/* Configure link as prescribed in link_setting and set LTTPR mode. */
 	result = dpia_configure_link(link, link_res, link_setting, &lt_settings);

@@ -29,6 +29,7 @@
  * provides helper functions exposing bandwidth formulas used in validation.
  */
 #include "link_validation.h"
+#include "protocols/link_dp_capability.h"
 #include "resource.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -233,7 +234,7 @@ uint32_t dp_link_bandwidth_kbps(
 		 */
 		link_rate_per_lane_kbps = link_settings->link_rate * LINK_RATE_REF_FREQ_IN_KHZ * BITS_PER_DP_BYTE;
 		total_data_bw_efficiency_x10000 = DATA_EFFICIENCY_8b_10b_x10000;
-		if (dc_link_should_enable_fec(link)) {
+		if (dp_should_enable_fec(link)) {
 			total_data_bw_efficiency_x10000 /= 100;
 			total_data_bw_efficiency_x10000 *= DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100;
 		}
@@ -329,7 +330,7 @@ static bool dp_validate_mode_timing(
 		timing->v_addressable == (uint32_t) 480)
 		return true;
 
-	link_setting = dc_link_get_link_cap(link);
+	link_setting = dp_get_verified_link_cap(link);
 
 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 	/*if (flags.DYNAMIC_VALIDATION == 1 &&

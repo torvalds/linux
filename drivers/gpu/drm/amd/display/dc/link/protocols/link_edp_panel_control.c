@@ -243,7 +243,7 @@ bool set_default_brightness_aux(struct dc_link *link)
 		if (default_backlight < 5000 || default_backlight > 5000000)
 			default_backlight = 150000; //
 
-		return dc_link_set_backlight_level_nits(link, true,
+		return edp_set_backlight_level_nits(link, true,
 				default_backlight, 0);
 	}
 	return false;
@@ -282,10 +282,10 @@ bool link_is_edp_ilr_optimization_required(struct dc_link *link,
 	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
 				&lane_count_set.raw, sizeof(lane_count_set));
 
-	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
+	req_bw = link_timing_bandwidth_kbps(crtc_timing);
 
 	if (!crtc_timing->flags.DSC)
-		dc_link_decide_edp_link_settings(link, &link_setting, req_bw);
+		edp_decide_link_settings(link, &link_setting, req_bw);
 	else
 		decide_edp_link_settings_with_dsc(link, &link_setting, req_bw, LINK_RATE_UNKNOWN);
 

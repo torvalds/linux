@@ -42,6 +42,8 @@
 #include "link_edp_panel_control.h"
 #include "link_dp_irq_handler.h"
 #include "link/accessories/link_dp_trace.h"
+#include "link/link_detection.h"
+#include "link/link_validation.h"
 #include "link_dp_training.h"
 #include "atomfirmware.h"
 #include "resource.h"
@@ -278,7 +280,7 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 
 	if (!link->dpcd_caps.dpcd_rev.raw) {
 		do {
-			dc_link_dp_receiver_power_ctrl(link, true);
+			dpcd_write_rx_power_ctrl(link, true);
 			core_link_read_dpcd(link, DP_DPCD_REV,
 							dpcd_data, length);
 			link->dpcd_caps.dpcd_rev.raw = dpcd_data[
@@ -342,7 +344,7 @@ bool dp_should_enable_fec(const struct dc_link *link)
 				|| !link->dc->caps.edp_dsc_support))
 		force_disable = true;
 
-	return !force_disable && dc_link_is_fec_supported(link);
+	return !force_disable && dp_is_fec_supported(link);
 }
 
 bool link_is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx)
@@ -645,7 +647,7 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 			initial_link_setting;
 	uint32_t link_bw;
 
-	if (req_bw > dc_link_bandwidth_kbps(link, &link->verified_link_cap))
+	if (req_bw > dp_link_bandwidth_kbps(link, &link->verified_link_cap))
 		return false;
 
 	/* search for the minimum link setting that:
@@ -765,7 +767,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 		initial_link_setting.use_link_rate_set = false;
 		initial_link_setting.link_rate_set = 0;
 		current_link_setting = initial_link_setting;
-		if (req_bw > dc_link_bandwidth_kbps(link, &link->verified_link_cap))
+		if (req_bw > dp_link_bandwidth_kbps(link, &link->verified_link_cap))
 			return false;
 
 		/* search for the minimum link setting that:
@@ -774,7 +776,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 		 */
 		while (current_link_setting.link_rate <=
 				max_link_rate) {
-			link_bw = dc_link_bandwidth_kbps(
+			link_bw = dp_link_bandwidth_kbps(
 					link,
 					&current_link_setting);
 			if (req_bw <= link_bw) {
@@ -831,7 +833,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 	 */
 	while (current_link_setting.link_rate <=
 			max_link_rate) {
-		link_bw = dc_link_bandwidth_kbps(
+		link_bw = dp_link_bandwidth_kbps(
 				link,
 				&current_link_setting);
 		if (req_bw <= link_bw) {
@@ -889,7 +891,7 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting)
 {
 	struct dc_link *link = stream->link;
-	uint32_t req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
+	uint32_t req_bw = link_timing_bandwidth_kbps(&stream->timing);
 
 	memset(link_setting, 0, sizeof(*link_setting));
 
@@ -922,13 +924,13 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 
 				tmp_link_setting.link_rate = LINK_RATE_UNKNOWN;
 				tmp_timing.flags.DSC = 0;
-				orig_req_bw = dc_bandwidth_in_kbps_from_timing(&tmp_timing);
-				dc_link_decide_edp_link_settings(link, &tmp_link_setting, orig_req_bw);
+				orig_req_bw = link_timing_bandwidth_kbps(&tmp_timing);
+				edp_decide_link_settings(link, &tmp_link_setting, orig_req_bw);
 				max_link_rate = tmp_link_setting.link_rate;
 			}
 			decide_edp_link_settings_with_dsc(link, link_setting, req_bw, max_link_rate);
 		} else {
-			dc_link_decide_edp_link_settings(link, link_setting, req_bw);
+			edp_decide_link_settings(link, link_setting, req_bw);
 		}
 	} else {
 		decide_dp_link_settings(link, link_setting, req_bw);
@@ -2117,8 +2119,8 @@ static bool dp_verify_link_cap(
 		if (status == LINK_TRAINING_SUCCESS) {
 			success = true;
 			fsleep(1000);
-			if (dc_link_dp_read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
-					dc_link_check_link_loss_status(
+			if (dp_read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
+					dp_parse_link_loss_status(
 							link,
 							&irq_data))
 				(*fail_count)++;
@@ -2158,7 +2160,7 @@ bool dp_verify_link_cap_with_retries(
 
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
-		if (!dc_link_detect_connection_type(link, &type) || type == dc_connection_none) {
+		if (!link_detect_connection_type(link, &type) || type == dc_connection_none) {
 			link->verified_link_cap = fail_safe_link_settings;
 			break;
 		} else if (dp_verify_link_cap(link, known_limit_link_setting,
