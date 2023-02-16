@@ -985,6 +985,14 @@ static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int 
 		drop_spte(vcpu->kvm, &sp->spt[i]);
 		return 1;
 	}
+	/*
+	 * Do nothing if the permissions are unchanged.  The existing SPTE is
+	 * still, and prefetch_invalid_gpte() has verified that the A/D bits
+	 * are set in the "new" gPTE, i.e. there is no danger of missing an A/D
+	 * update due to A/D bits being set in the SPTE but not the gPTE.
+	 */
+	if (kvm_mmu_page_get_access(sp, i) == pte_access)
+		return 0;
 
 	/* Update the shadowed access bits in case they changed. */
 	kvm_mmu_page_set_access(sp, i, pte_access);
