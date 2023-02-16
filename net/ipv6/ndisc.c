@@ -1601,13 +1601,14 @@ out:
 	return reason;
 }
 
-static void ndisc_redirect_rcv(struct sk_buff *skb)
+static enum skb_drop_reason ndisc_redirect_rcv(struct sk_buff *skb)
 {
-	u8 *hdr;
-	struct ndisc_options ndopts;
 	struct rd_msg *msg = (struct rd_msg *)skb_transport_header(skb);
 	u32 ndoptlen = skb_tail_pointer(skb) - (skb_transport_header(skb) +
 				    offsetof(struct rd_msg, opt));
+	struct ndisc_options ndopts;
+	SKB_DR(reason);
+	u8 *hdr;
 
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	switch (skb->ndisc_nodetype) {
@@ -1615,31 +1616,31 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	case NDISC_NODETYPE_NODEFAULT:
 		ND_PRINTK(2, warn,
 			  "Redirect: from host or unauthorized router\n");
-		return;
+		return reason;
 	}
 #endif
 
 	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
 		ND_PRINTK(2, warn,
 			  "Redirect: source address is not link-local\n");
-		return;
+		return reason;
 	}
 
 	if (!ndisc_parse_options(skb->dev, msg->opt, ndoptlen, &ndopts))
-		return;
+		return reason;
 
 	if (!ndopts.nd_opts_rh) {
 		ip6_redirect_no_header(skb, dev_net(skb->dev),
 					skb->dev->ifindex);
-		return;
+		return reason;
 	}
 
 	hdr = (u8 *)ndopts.nd_opts_rh;
 	hdr += 8;
 	if (!pskb_pull(skb, hdr - skb_transport_header(skb)))
-		return;
+		return SKB_DROP_REASON_PKT_TOO_SMALL;
 
-	icmpv6_notify(skb, NDISC_REDIRECT, 0, 0);
+	return icmpv6_notify(skb, NDISC_REDIRECT, 0, 0);
 }
 
 static void ndisc_fill_redirect_hdr_option(struct sk_buff *skb,
@@ -1855,7 +1856,7 @@ enum skb_drop_reason ndisc_rcv(struct sk_buff *skb)
 		break;
 
 	case NDISC_REDIRECT:
-		ndisc_redirect_rcv(skb);
+		reason = ndisc_redirect_rcv(skb);
 		break;
 	}
 
