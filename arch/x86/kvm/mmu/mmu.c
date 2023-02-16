@@ -5814,27 +5814,20 @@ EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
 void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
-	bool tlb_flush = false;
+	unsigned long roots = 0;
 	uint i;
 
-	if (pcid == kvm_get_active_pcid(vcpu)) {
-		if (mmu->invlpg)
-			mmu->invlpg(vcpu, gva, mmu->root.hpa);
-		tlb_flush = true;
-	}
+	if (pcid == kvm_get_active_pcid(vcpu))
+		roots |= KVM_MMU_ROOT_CURRENT;
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		if (VALID_PAGE(mmu->prev_roots[i].hpa) &&
-		    pcid == kvm_get_pcid(vcpu, mmu->prev_roots[i].pgd)) {
-			if (mmu->invlpg)
-				mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
-			tlb_flush = true;
-		}
+		    pcid == kvm_get_pcid(vcpu, mmu->prev_roots[i].pgd))
+			roots |= KVM_MMU_ROOT_PREVIOUS(i);
 	}
 
-	if (tlb_flush)
-		static_call(kvm_x86_flush_tlb_gva)(vcpu, gva);
-
+	if (roots)
+		kvm_mmu_invalidate_addr(vcpu, mmu, gva, roots);
 	++vcpu->stat.invlpg;
 
 	/*
