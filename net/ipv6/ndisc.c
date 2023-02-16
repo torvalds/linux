@@ -1127,7 +1127,7 @@ out:
 	return reason;
 }
 
-static void ndisc_recv_rs(struct sk_buff *skb)
+static enum skb_drop_reason ndisc_recv_rs(struct sk_buff *skb)
 {
 	struct rs_msg *rs_msg = (struct rs_msg *)skb_transport_header(skb);
 	unsigned long ndoptlen = skb->len - sizeof(*rs_msg);
@@ -1136,14 +1136,15 @@ static void ndisc_recv_rs(struct sk_buff *skb)
 	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
 	struct ndisc_options ndopts;
 	u8 *lladdr = NULL;
+	SKB_DR(reason);
 
 	if (skb->len < sizeof(*rs_msg))
-		return;
+		return SKB_DROP_REASON_PKT_TOO_SMALL;
 
 	idev = __in6_dev_get(skb->dev);
 	if (!idev) {
 		ND_PRINTK(1, err, "RS: can't find in6 device\n");
-		return;
+		return reason;
 	}
 
 	/* Don't accept RS if we're not in router mode */
@@ -1178,9 +1179,10 @@ static void ndisc_recv_rs(struct sk_buff *skb)
 			     NEIGH_UPDATE_F_OVERRIDE_ISROUTER,
 			     NDISC_ROUTER_SOLICITATION, &ndopts);
 		neigh_release(neigh);
+		reason = SKB_CONSUMED;
 	}
 out:
-	return;
+	return reason;
 }
 
 static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
@@ -1844,7 +1846,7 @@ enum skb_drop_reason ndisc_rcv(struct sk_buff *skb)
 		break;
 
 	case NDISC_ROUTER_SOLICITATION:
-		ndisc_recv_rs(skb);
+		reason = ndisc_recv_rs(skb);
 		break;
 
 	case NDISC_ROUTER_ADVERTISEMENT:
