@@ -3254,17 +3254,43 @@ int security_create_user_ns(const struct cred *cred)
 	return call_int_hook(userns_create, 0, cred);
 }
 
+/**
+ * security_ipc_permission() - Check if sysv ipc access is allowed
+ * @ipcp: ipc permission structure
+ * @flags: requested permissions
+ *
+ * Check permissions for access to IPC.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
 	return call_int_hook(ipc_permission, 0, ipcp, flag);
 }
 
+/**
+ * security_ipc_getsecid() - Get the sysv ipc object's secid
+ * @ipcp: ipc permission structure
+ * @secid: secid pointer
+ *
+ * Get the secid associated with the ipc object.  In case of failure, @secid
+ * will be set to zero.
+ */
 void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 {
 	*secid = 0;
 	call_void_hook(ipc_getsecid, ipcp, secid);
 }
 
+/**
+ * security_msg_msg_alloc() - Allocate a sysv ipc message LSM blob
+ * @msg: message structure
+ *
+ * Allocate and attach a security structure to the msg->security field.  The
+ * security field is initialized to NULL when the structure is first created.
+ *
+ * Return: Return 0 if operation was successful and permission is granted.
+ */
 int security_msg_msg_alloc(struct msg_msg *msg)
 {
 	int rc = lsm_msg_msg_alloc(msg);
@@ -3277,6 +3303,12 @@ int security_msg_msg_alloc(struct msg_msg *msg)
 	return rc;
 }
 
+/**
+ * security_msg_msg_free() - Free a sysv ipc message LSM blob
+ * @msg: message structure
+ *
+ * Deallocate the security structure for this message.
+ */
 void security_msg_msg_free(struct msg_msg *msg)
 {
 	call_void_hook(msg_msg_free_security, msg);
@@ -3284,6 +3316,15 @@ void security_msg_msg_free(struct msg_msg *msg)
 	msg->security = NULL;
 }
 
+/**
+ * security_msg_queue_alloc() - Allocate a sysv ipc msg queue LSM blob
+ * @msq: sysv ipc permission structure
+ *
+ * Allocate and attach a security structure to @msg. The security field is
+ * initialized to NULL when the structure is first created.
+ *
+ * Return: Returns 0 if operation was successful and permission is granted.
+ */
 int security_msg_queue_alloc(struct kern_ipc_perm *msq)
 {
 	int rc = lsm_ipc_alloc(msq);
@@ -3296,6 +3337,12 @@ int security_msg_queue_alloc(struct kern_ipc_perm *msq)
 	return rc;
 }
 
+/**
+ * security_msg_queue_free() - Free a sysv ipc msg queue LSM blob
+ * @msq: sysv ipc permission structure
+ *
+ * Deallocate security field @perm->security for the message queue.
+ */
 void security_msg_queue_free(struct kern_ipc_perm *msq)
 {
 	call_void_hook(msg_queue_free_security, msq);
@@ -3303,28 +3350,84 @@ void security_msg_queue_free(struct kern_ipc_perm *msq)
 	msq->security = NULL;
 }
 
+/**
+ * security_msg_queue_associate() - Check if a msg queue operation is allowed
+ * @msq: sysv ipc permission structure
+ * @msqflg: operation flags
+ *
+ * Check permission when a message queue is requested through the msgget system
+ * call. This hook is only called when returning the message queue identifier
+ * for an existing message queue, not when a new message queue is created.
+ *
+ * Return: Return 0 if permission is granted.
+ */
 int security_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg)
 {
 	return call_int_hook(msg_queue_associate, 0, msq, msqflg);
 }
 
+/**
+ * security_msg_queue_msgctl() - Check if a msg queue operation is allowed
+ * @msq: sysv ipc permission structure
+ * @cmd: operation
+ *
+ * Check permission when a message control operation specified by @cmd is to be
+ * performed on the message queue with permissions.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
 	return call_int_hook(msg_queue_msgctl, 0, msq, cmd);
 }
 
+/**
+ * security_msg_queue_msgsnd() - Check if sending a sysv ipc message is allowed
+ * @msq: sysv ipc permission structure
+ * @msg: message
+ * @msqflg: operation flags
+ *
+ * Check permission before a message, @msg, is enqueued on the message queue
+ * with permissions specified in @msq.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
 			       struct msg_msg *msg, int msqflg)
 {
 	return call_int_hook(msg_queue_msgsnd, 0, msq, msg, msqflg);
 }
 
+/**
+ * security_msg_queue_msgrcv() - Check if receiving a sysv ipc msg is allowed
+ * @msq: sysv ipc permission structure
+ * @msg: message
+ * @target: target task
+ * @type: type of message requested
+ * @mode: operation flags
+ *
+ * Check permission before a message, @msg, is removed from the message	queue.
+ * The @target task structure contains a pointer to the process that will be
+ * receiving the message (not equal to the current process when inline receives
+ * are being performed).
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 			       struct task_struct *target, long type, int mode)
 {
 	return call_int_hook(msg_queue_msgrcv, 0, msq, msg, target, type, mode);
 }
 
+/**
+ * security_shm_alloc() - Allocate a sysv shm LSM blob
+ * @shp: sysv ipc permission structure
+ *
+ * Allocate and attach a security structure to the @shp security field.  The
+ * security field is initialized to NULL when the structure is first created.
+ *
+ * Return: Returns 0 if operation was successful and permission is granted.
+ */
 int security_shm_alloc(struct kern_ipc_perm *shp)
 {
 	int rc = lsm_ipc_alloc(shp);
@@ -3337,6 +3440,12 @@ int security_shm_alloc(struct kern_ipc_perm *shp)
 	return rc;
 }
 
+/**
+ * security_shm_free() - Free a sysv shm LSM blob
+ * @shp: sysv ipc permission structure
+ *
+ * Deallocate the security structure @perm->security for the memory segment.
+ */
 void security_shm_free(struct kern_ipc_perm *shp)
 {
 	call_void_hook(shm_free_security, shp);
@@ -3344,21 +3453,64 @@ void security_shm_free(struct kern_ipc_perm *shp)
 	shp->security = NULL;
 }
 
+/**
+ * security_shm_associate() - Check if a sysv shm operation is allowed
+ * @shp: sysv ipc permission structure
+ * @shmflg: operation flags
+ *
+ * Check permission when a shared memory region is requested through the shmget
+ * system call. This hook is only called when returning the shared memory
+ * region identifier for an existing region, not when a new shared memory
+ * region is created.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_shm_associate(struct kern_ipc_perm *shp, int shmflg)
 {
 	return call_int_hook(shm_associate, 0, shp, shmflg);
 }
 
+/**
+ * security_shm_shmctl() - Check if a sysv shm operation is allowed
+ * @shp: sysv ipc permission structure
+ * @cmd: operation
+ *
+ * Check permission when a shared memory control operation specified by @cmd is
+ * to be performed on the shared memory region with permissions in @shp.
+ *
+ * Return: Return 0 if permission is granted.
+ */
 int security_shm_shmctl(struct kern_ipc_perm *shp, int cmd)
 {
 	return call_int_hook(shm_shmctl, 0, shp, cmd);
 }
 
+/**
+ * security_shm_shmat() - Check if a sysv shm attach operation is allowed
+ * @shp: sysv ipc permission structure
+ * @shmaddr: address of memory region to attach
+ * @shmflg: operation flags
+ *
+ * Check permissions prior to allowing the shmat system call to attach the
+ * shared memory segment with permissions @shp to the data segment of the
+ * calling process. The attaching address is specified by @shmaddr.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_shm_shmat(struct kern_ipc_perm *shp, char __user *shmaddr, int shmflg)
 {
 	return call_int_hook(shm_shmat, 0, shp, shmaddr, shmflg);
 }
 
+/**
+ * security_sem_alloc() - Allocate a sysv semaphore LSM blob
+ * @sma: sysv ipc permission structure
+ *
+ * Allocate and attach a security structure to the @sma security field. The
+ * security field is initialized to NULL when the structure is first created.
+ *
+ * Return: Returns 0 if operation was successful and permission is granted.
+ */
 int security_sem_alloc(struct kern_ipc_perm *sma)
 {
 	int rc = lsm_ipc_alloc(sma);
@@ -3371,6 +3523,12 @@ int security_sem_alloc(struct kern_ipc_perm *sma)
 	return rc;
 }
 
+/**
+ * security_sem_free() - Free a sysv semaphore LSM blob
+ * @sma: sysv ipc permission structure
+ *
+ * Deallocate security structure @sma->security for the semaphore.
+ */
 void security_sem_free(struct kern_ipc_perm *sma)
 {
 	call_void_hook(sem_free_security, sma);
@@ -3378,16 +3536,49 @@ void security_sem_free(struct kern_ipc_perm *sma)
 	sma->security = NULL;
 }
 
+/**
+ * security_sem_associate() - Check if a sysv semaphore operation is allowed
+ * @sma: sysv ipc permission structure
+ * @semflg: operation flags
+ *
+ * Check permission when a semaphore is requested through the semget system
+ * call. This hook is only called when returning the semaphore identifier for
+ * an existing semaphore, not when a new one must be created.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sem_associate(struct kern_ipc_perm *sma, int semflg)
 {
 	return call_int_hook(sem_associate, 0, sma, semflg);
 }
 
+/**
+ * security_sem_ctl() - Check if a sysv semaphore operation is allowed
+ * @sma: sysv ipc permission structure
+ * @cmd: operation
+ *
+ * Check permission when a semaphore operation specified by @cmd is to be
+ * performed on the semaphore.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sem_semctl(struct kern_ipc_perm *sma, int cmd)
 {
 	return call_int_hook(sem_semctl, 0, sma, cmd);
 }
 
+/**
+ * security_sem_semop() - Check if a sysv semaphore operation is allowed
+ * @sma: sysv ipc permission structure
+ * @sops: operations to perform
+ * @nsops: number of operations
+ * @alter: flag indicating changes will be made
+ *
+ * Check permissions before performing operations on members of the semaphore
+ * set. If the @alter flag is nonzero, the semaphore set may be modified.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			unsigned nsops, int alter)
 {
