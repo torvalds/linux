@@ -1540,9 +1540,6 @@ struct regmap_irq_chip_data;
  * @config_base: Base address for IRQ type config regs. If null unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
- * @mask_invert: Inverted mask register: cleared bits are masked out.
- *		 Deprecated; prefer describing an inverted mask register as
- *		 an unmask register.
  * @mask_unmask_non_inverted: Controls mask bit inversion for chips that set
  *	both @mask_base and @unmask_base. If false, mask and unmask bits are
  *	inverted (which is deprecated behavior); if true, bits will not be
@@ -1624,7 +1621,6 @@ struct regmap_irq_chip {
 	const unsigned int *config_base;
 	unsigned int irq_reg_stride;
 	unsigned int init_ack_masked:1;
-	unsigned int mask_invert:1;
 	unsigned int mask_unmask_non_inverted:1;
 	unsigned int use_ack:1;
 	unsigned int ack_invert:1;

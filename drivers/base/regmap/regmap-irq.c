@@ -878,20 +878,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		 */
 		dev_warn(map->dev, "mask_base and unmask_base are inverted, please fix it");
 
-		/* Might as well warn about mask_invert while we're at it... */
-		if (chip->mask_invert)
-			dev_warn(map->dev, "mask_invert=true ignored");
-
-		d->mask_base = chip->unmask_base;
-		d->unmask_base = chip->mask_base;
-	} else if (chip->mask_invert) {
-		/*
-		 * Swap the roles of mask_base and unmask_base if the bits are
-		 * inverted. This is deprecated, drivers should use unmask_base
-		 * directly.
-		 */
-		dev_warn(map->dev, "mask_invert=true is deprecated; please switch to unmask_base");
-
 		d->mask_base = chip->unmask_base;
 		d->unmask_base = chip->mask_base;
 	} else {
