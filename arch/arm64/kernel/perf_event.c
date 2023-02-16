@@ -1063,6 +1063,14 @@ static int __armv8_pmuv3_map_event(struct perf_event *event,
 				       &armv8_pmuv3_perf_cache_map,
 				       ARMV8_PMU_EVTYPE_EVENT);
 
+	/*
+	 * CHAIN events only work when paired with an adjacent counter, and it
+	 * never makes sense for a user to open one in isolation, as they'll be
+	 * rotated arbitrarily.
+	 */
+	if (hw_event_id == ARMV8_PMUV3_PERFCTR_CHAIN)
+		return -EINVAL;
+
 	if (armv8pmu_event_is_64bit(event))
 		event->hw.flags |= ARMPMU_EVT_64BIT;
 
