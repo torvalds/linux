@@ -801,7 +801,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 
 		p2plink->attr.name = "properties";
 		p2plink->attr.mode = KFD_SYSFS_FILE_MODE;
-		sysfs_attr_init(&iolink->attr);
+		sysfs_attr_init(&p2plink->attr);
 		ret = sysfs_create_file(p2plink->kobj, &p2plink->attr);
 		if (ret < 0)
 			return ret;

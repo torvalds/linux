@@ -1014,7 +1014,6 @@ static int fotg210_udc_start(struct usb_gadget *g,
 	int ret;
 
 	/* hook up the driver */
-	driver->driver.bus = NULL;
 	fotg210->driver = driver;
 
 	if (!IS_ERR_OR_NULL(fotg210->phy)) {
@@ -1200,6 +1199,8 @@ int fotg210_udc_probe(struct platform_device *pdev)
 			goto err_pclk;
 		dev_info(dev, "found and initialized PHY\n");
 	}
+
+	ret = -ENOMEM;
 
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++) {
 		fotg210->ep[i] = kzalloc(sizeof(struct fotg210_ep), GFP_KERNEL);

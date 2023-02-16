@@ -10,6 +10,7 @@
 #include <dt-bindings/interconnect/qcom,sc8280xp.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
+#include <dt-bindings/phy/phy-qcom-qmp.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -762,7 +763,7 @@
 				 <0>,
 				 <0>,
 				 <0>,
-				 <&usb_0_ssphy>,
+				 <&usb_0_qmpphy QMP_USB43DP_USB3_PIPE_CLK>,
 				 <0>,
 				 <0>,
 				 <0>,
@@ -770,7 +771,7 @@
 				 <0>,
 				 <0>,
 				 <0>,
-				 <&usb_1_ssphy>,
+				 <&usb_1_qmpphy QMP_USB43DP_USB3_PIPE_CLK>,
 				 <0>,
 				 <0>,
 				 <0>,
@@ -1673,42 +1674,26 @@
 			};
 		};
 
-		usb_0_qmpphy: phy-wrapper@88ec000 {
+		usb_0_qmpphy: phy@88eb000 {
 			compatible = "qcom,sc8280xp-qmp-usb43dp-phy";
-			reg = <0 0x088ec000 0 0x1e4>,
-			      <0 0x088eb000 0 0x40>,
-			      <0 0x088ed000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			reg = <0 0x088eb000 0 0x4000>;
 
 			clocks = <&gcc GCC_USB3_PRIM_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB4_EUD_CLKREF_CLK>,
-				 <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux";
-
-			resets = <&gcc GCC_USB3_PHY_PRIM_BCR>,
-				 <&gcc GCC_USB3_DP_PHY_PRIM_BCR>;
-			reset-names = "phy", "common";
+				 <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
+			clock-names = "aux", "ref", "com_aux", "usb3_pipe";
 
 			power-domains = <&gcc USB30_PRIM_GDSC>;
 
-			status = "disabled";
+			resets = <&gcc GCC_USB3_PHY_PRIM_BCR>,
+				 <&gcc GCC_USB4_DP_PHY_PRIM_BCR>;
+			reset-names = "phy", "common";
 
-			usb_0_ssphy: usb3-phy@88eb400 {
-				reg = <0 0x088eb400 0 0x100>,
-				      <0 0x088eb600 0 0x3ec>,
-				      <0 0x088ec400 0 0x364>,
-				      <0 0x088eba00 0 0x100>,
-				      <0 0x088ebc00 0 0x3ec>,
-				      <0 0x088ec200 0 0x18>;
-				#phy-cells = <0>;
-				#clock-cells = <0>;
-				clocks = <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
-				clock-names = "pipe0";
-				clock-output-names = "usb0_phy_pipe_clk_src";
-			};
+			#clock-cells = <1>;
+			#phy-cells = <1>;
+
+			status = "disabled";
 		};
 
 		usb_1_hsphy: phy@8902000 {
@@ -1725,42 +1710,26 @@
 			status = "disabled";
 		};
 
-		usb_1_qmpphy: phy-wrapper@8904000 {
+		usb_1_qmpphy: phy@8903000 {
 			compatible = "qcom,sc8280xp-qmp-usb43dp-phy";
-			reg = <0 0x08904000 0 0x1e4>,
-			      <0 0x08903000 0 0x40>,
-			      <0 0x08905000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			reg = <0 0x08903000 0 0x4000>;
 
 			clocks = <&gcc GCC_USB3_SEC_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB4_CLKREF_CLK>,
-				 <&gcc GCC_USB3_SEC_PHY_COM_AUX_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux";
+				 <&gcc GCC_USB3_SEC_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;
+			clock-names = "aux", "ref", "com_aux", "usb3_pipe";
+
+			power-domains = <&gcc USB30_SEC_GDSC>;
 
 			resets = <&gcc GCC_USB3_PHY_SEC_BCR>,
 				 <&gcc GCC_USB4_1_DP_PHY_PRIM_BCR>;
 			reset-names = "phy", "common";
 
-			power-domains = <&gcc USB30_SEC_GDSC>;
+			#clock-cells = <1>;
+			#phy-cells = <1>;
 
 			status = "disabled";
-
-			usb_1_ssphy: usb3-phy@8903400 {
-				reg = <0 0x08903400 0 0x100>,
-				      <0 0x08903600 0 0x3ec>,
-				      <0 0x08904400 0 0x364>,
-				      <0 0x08903a00 0 0x100>,
-				      <0 0x08903c00 0 0x3ec>,
-				      <0 0x08904200 0 0x18>;
-				#phy-cells = <0>;
-				#clock-cells = <0>;
-				clocks = <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;
-				clock-names = "pipe0";
-				clock-output-names = "usb1_phy_pipe_clk_src";
-			};
 		};
 
 		pmu@9091000 {
@@ -1910,7 +1879,7 @@
 				reg = <0 0x0a600000 0 0xcd00>;
 				interrupts = <GIC_SPI 803 IRQ_TYPE_LEVEL_HIGH>;
 				iommus = <&apps_smmu 0x820 0x0>;
-				phys = <&usb_0_hsphy>, <&usb_0_ssphy>;
+				phys = <&usb_0_hsphy>, <&usb_0_qmpphy QMP_USB43DP_USB3_PHY>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
 		};
@@ -1964,7 +1933,7 @@
 				reg = <0 0x0a800000 0 0xcd00>;
 				interrupts = <GIC_SPI 810 IRQ_TYPE_LEVEL_HIGH>;
 				iommus = <&apps_smmu 0x860 0x0>;
-				phys = <&usb_1_hsphy>, <&usb_1_ssphy>;
+				phys = <&usb_1_hsphy>, <&usb_1_qmpphy QMP_USB43DP_USB3_PHY>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
 		};

@@ -3905,8 +3905,8 @@ static struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 						const char *label,
 						bool platform_lookup_allowed)
 {
+	unsigned long lookupflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	struct gpio_desc *desc = ERR_PTR(-ENOENT);
-	unsigned long lookupflags;
 	int ret;
 
 	if (!IS_ERR_OR_NULL(fwnode))

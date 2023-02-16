@@ -1052,7 +1052,7 @@ static int vring_alloc_queue_split(struct vring_virtqueue_split *vring_split,
 	dma_addr_t dma_addr;
 
 	/* We assume num is a power of 2. */
-	if (num & (num - 1)) {
+	if (!is_power_of_2(num)) {
 		dev_warn(&vdev->dev, "Bad virtqueue length %u\n", num);
 		return -EINVAL;
 	}

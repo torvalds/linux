@@ -141,6 +141,7 @@ unsigned int nf_confirm(void *priv,
 	struct nf_conn *ct;
 	bool seqadj_needed;
 	__be16 frag_off;
+	int start;
 	u8 pnum;
 
 	ct = nf_ct_get(skb, &ctinfo);
@@ -163,9 +164,11 @@ unsigned int nf_confirm(void *priv,
 		break;
 	case NFPROTO_IPV6:
 		pnum = ipv6_hdr(skb)->nexthdr;
-		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum, &frag_off);
-		if (protoff < 0 || (frag_off & htons(~0x7)) != 0)
+		start = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum, &frag_off);
+		if (start < 0 || (frag_off & htons(~0x7)) != 0)
 			return nf_conntrack_confirm(skb);
+
+		protoff = start;
 		break;
 	default:
 		return nf_conntrack_confirm(skb);

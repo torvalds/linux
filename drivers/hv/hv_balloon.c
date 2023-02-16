@@ -1963,7 +1963,7 @@ static void  hv_balloon_debugfs_init(struct hv_dynmem_device *b)
 
 static void  hv_balloon_debugfs_exit(struct hv_dynmem_device *b)
 {
-	debugfs_remove(debugfs_lookup("hv-balloon", NULL));
+	debugfs_lookup_and_remove("hv-balloon", NULL);
 }
 
 #else

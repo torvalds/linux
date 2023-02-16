@@ -443,7 +443,7 @@ void mlx5e_enable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc)
 
 void mlx5e_disable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc)
 {
-	if (fs->vlan->cvlan_filter_disabled)
+	if (!fs->vlan || fs->vlan->cvlan_filter_disabled)
 		return;
 
 	fs->vlan->cvlan_filter_disabled = true;
