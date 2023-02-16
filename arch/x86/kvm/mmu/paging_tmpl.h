@@ -846,7 +846,8 @@ static gpa_t FNAME(get_level1_sp_gpa)(struct kvm_mmu_page *sp)
 	return gfn_to_gpa(sp->gfn) + offset * sizeof(pt_element_t);
 }
 
-static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
+/* Note, @addr is a GPA when invlpg() invalidates an L2 GPA translation in shadowed TDP */
+static void FNAME(invlpg)(struct kvm_vcpu *vcpu, u64 addr, hpa_t root_hpa)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
@@ -854,7 +855,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 	int level;
 	u64 *sptep;
 
-	vcpu_clear_mmio_info(vcpu, gva);
+	vcpu_clear_mmio_info(vcpu, addr);
 
 	/*
 	 * No need to check return value here, rmap_can_add() can
@@ -868,7 +869,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 	}
 
 	write_lock(&vcpu->kvm->mmu_lock);
-	for_each_shadow_entry_using_root(vcpu, root_hpa, gva, iterator) {
+	for_each_shadow_entry_using_root(vcpu, root_hpa, addr, iterator) {
 		level = iterator.level;
 		sptep = iterator.sptep;
 

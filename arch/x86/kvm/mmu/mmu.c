@@ -5707,25 +5707,25 @@ emulate:
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
-void kvm_mmu_invalidate_gva(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-			    gva_t gva, hpa_t root_hpa)
+void kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+			     u64 addr, hpa_t root_hpa)
 {
 	int i;
 
 	/* It's actually a GPA for vcpu->arch.guest_mmu.  */
 	if (mmu != &vcpu->arch.guest_mmu) {
 		/* INVLPG on a non-canonical address is a NOP according to the SDM.  */
-		if (is_noncanonical_address(gva, vcpu))
+		if (is_noncanonical_address(addr, vcpu))
 			return;
 
-		static_call(kvm_x86_flush_tlb_gva)(vcpu, gva);
+		static_call(kvm_x86_flush_tlb_gva)(vcpu, addr);
 	}
 
 	if (!mmu->invlpg)
 		return;
 
 	if (root_hpa == INVALID_PAGE) {
-		mmu->invlpg(vcpu, gva, mmu->root.hpa);
+		mmu->invlpg(vcpu, addr, mmu->root.hpa);
 
 		/*
 		 * INVLPG is required to invalidate any global mappings for the VA,
@@ -5740,15 +5740,15 @@ void kvm_mmu_invalidate_gva(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 		 */
 		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 			if (VALID_PAGE(mmu->prev_roots[i].hpa))
-				mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
+				mmu->invlpg(vcpu, addr, mmu->prev_roots[i].hpa);
 	} else {
-		mmu->invlpg(vcpu, gva, root_hpa);
+		mmu->invlpg(vcpu, addr, root_hpa);
 	}
 }
 
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
-	kvm_mmu_invalidate_gva(vcpu, vcpu->arch.walk_mmu, gva, INVALID_PAGE);
+	kvm_mmu_invalidate_addr(vcpu, vcpu->arch.walk_mmu, gva, INVALID_PAGE);
 	++vcpu->stat.invlpg;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
