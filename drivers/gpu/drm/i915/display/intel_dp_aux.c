@@ -747,16 +747,18 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 
 	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
 	if (aux_ch != AUX_CH_NONE) {
-		drm_dbg_kms(&i915->drm, "using AUX %c for port %c (VBT)\n",
-			    aux_ch_name(aux_ch), port_name(port));
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] using AUX %c (VBT)\n",
+			    encoder->base.base.id, encoder->base.name,
+			    aux_ch_name(aux_ch));
 		return aux_ch;
 	}
 
 	aux_ch = (enum aux_ch)port;
 
 	drm_dbg_kms(&i915->drm,
-		    "using AUX %c for port %c (platform default)\n",
-		    aux_ch_name(aux_ch), port_name(port));
+		    "[ENCODER:%d:%s] using AUX %c (platform default)\n",
+		    encoder->base.base.id, encoder->base.name,
+		    aux_ch_name(aux_ch));
 
 	return aux_ch;
 }

@@ -2858,8 +2858,9 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 	ddc_pin = intel_bios_hdmi_ddc_pin(encoder->devdata);
 	if (ddc_pin) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Using DDC pin 0x%x for port %c (VBT)\n",
-			    ddc_pin, port_name(port));
+			    "[ENCODER:%d:%s] Using DDC pin 0x%x (VBT)\n",
+			    encoder->base.base.id, encoder->base.name,
+			    ddc_pin);
 		return ddc_pin;
 	}
 
@@ -2885,8 +2886,9 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		ddc_pin = g4x_port_to_ddc_pin(dev_priv, port);
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "Using DDC pin 0x%x for port %c (platform default)\n",
-		    ddc_pin, port_name(port));
+		    "[ENCODER:%d:%s] Using DDC pin 0x%x (platform default)\n",
+		    encoder->base.base.id, encoder->base.name,
+		    ddc_pin);
 
 	return ddc_pin;
 }
