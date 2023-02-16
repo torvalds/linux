@@ -196,23 +196,6 @@
  *	@what: kernel feature being accessed.
  *	Return 0 if permission is granted.
  *
- * Security hooks for perf events
- *
- * @perf_event_open:
- *	Check whether the @type of perf_event_open syscall is allowed.
- *	Return 0 if permission is granted.
- * @perf_event_alloc:
- *	Allocate and save perf_event security info.
- *	Return 0 on success, error on failure.
- * @perf_event_free:
- *	Release (free) perf_event security info.
- * @perf_event_read:
- *	Read perf_event security info if allowed.
- *	Return 0 if permission is granted.
- * @perf_event_write:
- *	Write perf_event security info if allowed.
- *	Return 0 if permission is granted.
- *
  * Security hooks for io_uring
  *
  * @uring_override_creds:

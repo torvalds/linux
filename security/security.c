@@ -4927,26 +4927,65 @@ int security_locked_down(enum lockdown_reason what)
 EXPORT_SYMBOL(security_locked_down);
 
 #ifdef CONFIG_PERF_EVENTS
+/**
+ * security_perf_event_open() - Check if a perf event open is allowed
+ * @attr: perf event attribute
+ * @type: type of event
+ *
+ * Check whether the @type of perf_event_open syscall is allowed.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_perf_event_open(struct perf_event_attr *attr, int type)
 {
 	return call_int_hook(perf_event_open, 0, attr, type);
 }
 
+/**
+ * security_perf_event_alloc() - Allocate a perf event LSM blob
+ * @event: perf event
+ *
+ * Allocate and save perf_event security info.
+ *
+ * Return: Returns 0 on success, error on failure.
+ */
 int security_perf_event_alloc(struct perf_event *event)
 {
 	return call_int_hook(perf_event_alloc, 0, event);
 }
 
+/**
+ * security_perf_event_free() - Free a perf event LSM blob
+ * @event: perf event
+ *
+ * Release (free) perf_event security info.
+ */
 void security_perf_event_free(struct perf_event *event)
 {
 	call_void_hook(perf_event_free, event);
 }
 
+/**
+ * security_perf_event_read() - Check if reading a perf event label is allowed
+ * @event: perf event
+ *
+ * Read perf_event security info if allowed.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_perf_event_read(struct perf_event *event)
 {
 	return call_int_hook(perf_event_read, 0, event);
 }
 
+/**
+ * security_perf_event_write() - Check if writing a perf event label is allowed
+ * @event: perf event
+ *
+ * Write perf_event security info if allowed.
+ *
+ * Return: Returns 0 if permission is granted.
+ */
 int security_perf_event_write(struct perf_event *event)
 {
 	return call_int_hook(perf_event_write, 0, event);
