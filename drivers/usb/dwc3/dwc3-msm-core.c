@@ -92,6 +92,7 @@
 /* XHCI registers */
 #define USB3_HCSPARAMS1		(0x4)
 #define USB3_PORTSC		(0x420)
+#define USB3_PORTPMSC_20	(0x424)
 
 /**
  *  USB QSCRATCH Hardware registers
@@ -5145,11 +5146,42 @@ static ssize_t bus_vote_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(bus_vote);
 
+static ssize_t xhci_test_store(struct device *dev,
+		struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+	struct dwc3 *dwc;
+	enum usb_role cur_role;
+	u32 reg;
+
+	if (mdwc->dwc3 == NULL)
+		return count;
+
+	dwc = platform_get_drvdata(mdwc->dwc3);
+	cur_role = dwc3_msm_get_role(mdwc);
+	if (cur_role != USB_ROLE_HOST) {
+		dev_err(dev, "USB is not in host mode\n");
+		return count;
+	}
+
+	pm_runtime_resume(&dwc->xhci->dev);
+	pm_runtime_forbid(&dwc->xhci->dev);
+	reg = dwc3_msm_read_reg(mdwc->base, USB3_PORTPMSC_20);
+	dev_info(dev, "USB PORTPMSC val:%x\n", reg);
+	reg |= USB_TEST_PACKET << PORT_TEST_MODE_SHIFT;
+	dev_info(dev, "writing %x to USB PORTPMSC\n", reg);
+	dwc3_msm_write_reg(mdwc->base, USB3_PORTPMSC_20, reg);
+	return count;
+}
+static DEVICE_ATTR_WO(xhci_test);
+
 static struct attribute *dwc3_msm_attrs[] = {
 	&dev_attr_orientation.attr,
 	&dev_attr_mode.attr,
 	&dev_attr_speed.attr,
 	&dev_attr_bus_vote.attr,
+	&dev_attr_xhci_test.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(dwc3_msm);
