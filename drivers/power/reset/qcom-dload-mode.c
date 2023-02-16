@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2020, 2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -56,16 +57,26 @@ static int set_download_mode(enum qcom_download_mode mode)
 
 static int set_dump_mode(enum qcom_download_mode mode)
 {
-	int ret = 0;
+	int ret = 0, temp;
 
 	if (enable_dump) {
 		ret = set_download_mode(mode);
 		if (likely(!ret))
-			dump_mode = mode;
+			dump_mode = qcom_scm_get_download_mode(&temp, 0) ? dump_mode : temp;
 	} else
 		dump_mode = mode;
+
+	if (dump_mode != mode)
+		pr_err("Requested dload mode is not set\n");
+
 	return ret;
 }
+
+int get_dump_mode(void)
+{
+	return dump_mode;
+}
+EXPORT_SYMBOL(get_dump_mode);
 
 static void msm_enable_dump_mode(bool enable)
 {
@@ -294,7 +305,7 @@ static void __iomem *map_prop_mem(const char *propname)
 static int qcom_dload_probe(struct platform_device *pdev)
 {
 	struct qcom_dload *poweroff;
-	int ret;
+	int ret, temp;
 
 	poweroff = devm_kzalloc(&pdev->dev, sizeof(*poweroff), GFP_KERNEL);
 	if (!poweroff)
@@ -316,8 +327,10 @@ static int qcom_dload_probe(struct platform_device *pdev)
 	}
 
 	poweroff->dload_dest_addr = map_prop_mem("qcom,msm-imem-dload-type");
-
 	msm_enable_dump_mode(enable_dump);
+	dump_mode = qcom_scm_get_download_mode(&temp, 0) ? dump_mode : temp;
+	pr_info("%s: Current dump mode: 0x%x\n", __func__, dump_mode);
+
 	if (!enable_dump)
 		qcom_scm_disable_sdi();
 
