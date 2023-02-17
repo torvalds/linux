@@ -70,6 +70,8 @@ static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 	switch (block) {
 	case GC_HWIP:
 	case SDMA0_HWIP:
+	/* Both JPEG and VCN as JPEG is only alias of VCN */
+	case VCN_HWIP:
 		dev_inst = adev->ip_map.dev_inst[block][inst];
 		break;
 	default:
@@ -379,7 +381,7 @@ static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
 int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 {
 	u32 mask, inst_mask = adev->sdma.sdma_mask;
-	int ret, i, num_inst;
+	int ret, i;
 
 	/* generally 1 AID supports 4 instances */
 	adev->sdma.num_inst_per_aid = 4;
@@ -394,11 +396,15 @@ int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 			adev->aid_mask |= (1 << i);
 	}
 
-	num_inst = hweight32(adev->aid_mask);
+	/* Harvest config is not used for aqua vanjaram. VCN and JPEGs will be
+	 * addressed based on logical instance ids.
+	 */
+	adev->vcn.harvest_config = 0;
 	adev->vcn.num_inst_per_aid = 1;
-	adev->vcn.num_vcn_inst = adev->vcn.num_inst_per_aid * num_inst;
+	adev->vcn.num_vcn_inst = hweight32(adev->vcn.inst_mask);
+	adev->jpeg.harvest_config = 0;
 	adev->jpeg.num_inst_per_aid = 1;
-	adev->jpeg.num_jpeg_inst = adev->jpeg.num_inst_per_aid * num_inst;
+	adev->jpeg.num_jpeg_inst = hweight32(adev->jpeg.inst_mask);
 
 	ret = aqua_vanjaram_xcp_mgr_init(adev);
 	if (ret)
