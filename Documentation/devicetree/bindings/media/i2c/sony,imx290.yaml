@@ -29,6 +29,7 @@ properties:
       - enum:
           - sony,imx290lqr # Colour
           - sony,imx290llr # Monochrome
+          - sony,imx327lqr # Colour
       - const: sony,imx290
         deprecated: true
 
