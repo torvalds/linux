@@ -449,6 +449,7 @@ static int test__checkevent_pmu(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong config",    10 == evsel->core.attr.config);
 	TEST_ASSERT_VAL("wrong config1",    1 == evsel->core.attr.config1);
 	TEST_ASSERT_VAL("wrong config2",    3 == evsel->core.attr.config2);
+	TEST_ASSERT_VAL("wrong config3",    0 == evsel->core.attr.config3);
 	/*
 	 * The period value gets configured within evlist__config,
 	 * while this test executes only parse events method.
@@ -470,6 +471,7 @@ static int test__checkevent_list(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong config", 1 == evsel->core.attr.config);
 	TEST_ASSERT_VAL("wrong config1", 0 == evsel->core.attr.config1);
 	TEST_ASSERT_VAL("wrong config2", 0 == evsel->core.attr.config2);
+	TEST_ASSERT_VAL("wrong config3", 0 == evsel->core.attr.config3);
 	TEST_ASSERT_VAL("wrong exclude_user", !evsel->core.attr.exclude_user);
 	TEST_ASSERT_VAL("wrong exclude_kernel", !evsel->core.attr.exclude_kernel);
 	TEST_ASSERT_VAL("wrong exclude_hv", !evsel->core.attr.exclude_hv);
@@ -631,6 +633,15 @@ static int test__checkterms_simple(struct list_head *terms)
 			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
 	TEST_ASSERT_VAL("wrong val", term->val.num == 3);
 	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config2"));
+
+	/* config3=4 */
+	term = list_entry(term->list.next, struct parse_events_term, list);
+	TEST_ASSERT_VAL("wrong type term",
+			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG3);
+	TEST_ASSERT_VAL("wrong type val",
+			term->type_val == PARSE_EVENTS__TERM_TYPE_NUM);
+	TEST_ASSERT_VAL("wrong val", term->val.num == 4);
+	TEST_ASSERT_VAL("wrong config", !strcmp(term->config, "config3"));
 
 	/* umask=1*/
 	term = list_entry(term->list.next, struct parse_events_term, list);
@@ -2004,7 +2015,7 @@ struct terms_test {
 
 static const struct terms_test test__terms[] = {
 	[0] = {
-		.str   = "config=10,config1,config2=3,umask=1,read,r0xead",
+		.str   = "config=10,config1,config2=3,config3=4,umask=1,read,r0xead",
 		.check = test__checkterms_simple,
 	},
 };

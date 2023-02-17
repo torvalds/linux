@@ -949,6 +949,7 @@ static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
 	[PARSE_EVENTS__TERM_TYPE_CONFIG]		= "config",
 	[PARSE_EVENTS__TERM_TYPE_CONFIG1]		= "config1",
 	[PARSE_EVENTS__TERM_TYPE_CONFIG2]		= "config2",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG3]		= "config3",
 	[PARSE_EVENTS__TERM_TYPE_NAME]			= "name",
 	[PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD]		= "period",
 	[PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ]		= "freq",
@@ -988,6 +989,7 @@ config_term_avail(int term_type, struct parse_events_error *err)
 	case PARSE_EVENTS__TERM_TYPE_CONFIG:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG3:
 	case PARSE_EVENTS__TERM_TYPE_NAME:
 	case PARSE_EVENTS__TERM_TYPE_METRIC_ID:
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
@@ -1032,6 +1034,10 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
 		CHECK_TYPE_VAL(NUM);
 		attr->config2 = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_CONFIG3:
+		CHECK_TYPE_VAL(NUM);
+		attr->config3 = term->val.num;
 		break;
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 		CHECK_TYPE_VAL(NUM);

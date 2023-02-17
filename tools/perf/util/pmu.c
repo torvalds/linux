@@ -1209,6 +1209,9 @@ static int pmu_config_term(const char *pmu_name,
 	case PERF_PMU_FORMAT_VALUE_CONFIG2:
 		vp = &attr->config2;
 		break;
+	case PERF_PMU_FORMAT_VALUE_CONFIG3:
+		vp = &attr->config3;
+		break;
 	default:
 		return -EINVAL;
 	}
