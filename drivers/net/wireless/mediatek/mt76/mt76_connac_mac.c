@@ -582,6 +582,17 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			le32_get_bits(txs_data[6], MT_TXS6_MPDU_FAIL_CNT);
 		stats->tx_retries +=
 			le32_get_bits(txs_data[7], MT_TXS7_MPDU_RETRY_CNT);
+
+		if (wcid->sta) {
+			struct ieee80211_sta *sta;
+			u8 tid;
+
+			sta = container_of((void *)wcid, struct ieee80211_sta,
+					   drv_priv);
+			tid = FIELD_GET(MT_TXS0_TID, txs);
+
+			ieee80211_refresh_tx_agg_session_timer(sta, tid);
+		}
 	}
 
 	txrate = FIELD_GET(MT_TXS0_TX_RATE, txs);
