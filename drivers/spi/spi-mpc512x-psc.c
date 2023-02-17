@@ -14,11 +14,9 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/completion.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
@@ -458,9 +456,9 @@ static irqreturn_t mpc512x_psc_spi_isr(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
-					      u32 size, unsigned int irq)
+static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct mpc512x_psc_spi *mps;
 	struct spi_master *master;
 	int ret;
@@ -473,8 +471,7 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 
 	dev_set_drvdata(dev, master);
 	mps = spi_master_get_devdata(master);
-	mps->type = (int)of_device_get_match_data(dev);
-	mps->irq = irq;
+	mps->type = (int)device_get_match_data(dev);
 
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 	master->setup = mpc512x_psc_spi_setup;
@@ -485,12 +482,14 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->cleanup = mpc512x_psc_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
-	tempp = devm_ioremap(dev, regaddr, size);
+	tempp = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (!tempp)
 		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
 	mps->psc = tempp;
 	mps->fifo =
 		(struct mpc512x_psc_fifo *)(tempp + sizeof(struct mpc52xx_psc));
+
+	mps->irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(dev, mps->irq, mpc512x_psc_spi_isr, IRQF_SHARED,
 				"mpc512x-psc-spi", mps);
 	if (ret)
@@ -535,36 +534,15 @@ free_mclk_clock:
 	return ret;
 }
 
-static int mpc512x_psc_spi_do_remove(struct device *dev)
+static int mpc512x_psc_spi_of_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_master *master = dev_get_drvdata(&pdev->dev);
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(master);
 
 	clk_disable_unprepare(mps->clk_mclk);
 	clk_disable_unprepare(mps->clk_ipg);
 
 	return 0;
-}
-
-static int mpc512x_psc_spi_of_probe(struct platform_device *op)
-{
-	const u32 *regaddr_p;
-	u64 regaddr64, size64;
-
-	regaddr_p = of_get_address(op->dev.of_node, 0, &size64, NULL);
-	if (!regaddr_p) {
-		dev_err(&op->dev, "Invalid PSC address\n");
-		return -EINVAL;
-	}
-	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
-
-	return mpc512x_psc_spi_do_probe(&op->dev, (u32) regaddr64, (u32) size64,
-				irq_of_parse_and_map(op->dev.of_node, 0));
-}
-
-static int mpc512x_psc_spi_of_remove(struct platform_device *op)
-{
-	return mpc512x_psc_spi_do_remove(&op->dev);
 }
 
 static const struct of_device_id mpc512x_psc_spi_of_match[] = {

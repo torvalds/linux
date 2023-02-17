@@ -11,15 +11,14 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of_irq.h>
 
 #include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>
@@ -292,12 +291,12 @@ static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-/* bus_num is used only for the case dev->platform_data == NULL */
-static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
-				u32 size, unsigned int irq, s16 bus_num)
+static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct mpc52xx_psc_spi *mps;
 	struct spi_master *master;
+	u32 bus_num;
 	int ret;
 
 	master = devm_spi_alloc_master(dev, sizeof(*mps));
@@ -310,20 +309,24 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 
-	mps->irq = irq;
-	master->bus_num = bus_num;
+	ret = of_property_read_u32(dev->of_node, "cell-index", &bus_num);
+	if (ret || bus_num > 5)
+		return dev_err_probe(dev, ret ? : -EINVAL, "Invalid cell-index property\n");
+	master->bus_num = bus_num + 1;
+
 	master->num_chipselect = 255;
 	master->setup = mpc52xx_psc_spi_setup;
 	master->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
 	master->cleanup = mpc52xx_psc_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
-	mps->psc = devm_ioremap(dev, regaddr, size);
+	mps->psc = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (!mps->psc)
 		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
 	/* On the 5200, fifo regs are immediately ajacent to the psc regs */
 	mps->fifo = ((void __iomem *)mps->psc) + sizeof(struct mpc52xx_psc);
 
+	mps->irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(dev, mps->irq, mpc52xx_psc_spi_isr, 0,
 			       "mpc52xx-psc-spi", mps);
 	if (ret)
@@ -336,35 +339,6 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	init_completion(&mps->done);
 
 	return devm_spi_register_master(dev, master);
-}
-
-static int mpc52xx_psc_spi_of_probe(struct platform_device *op)
-{
-	const u32 *regaddr_p;
-	u64 regaddr64, size64;
-	s16 id = -1;
-
-	regaddr_p = of_get_address(op->dev.of_node, 0, &size64, NULL);
-	if (!regaddr_p) {
-		dev_err(&op->dev, "Invalid PSC address\n");
-		return -EINVAL;
-	}
-	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
-
-	/* get PSC id (1..6, used by port_config) */
-	if (op->dev.platform_data == NULL) {
-		const u32 *psc_nump;
-
-		psc_nump = of_get_property(op->dev.of_node, "cell-index", NULL);
-		if (!psc_nump || *psc_nump > 5) {
-			dev_err(&op->dev, "Invalid cell-index property\n");
-			return -EINVAL;
-		}
-		id = *psc_nump + 1;
-	}
-
-	return mpc52xx_psc_spi_do_probe(&op->dev, (u32)regaddr64, (u32)size64,
-				irq_of_parse_and_map(op->dev.of_node, 0), id);
 }
 
 static const struct of_device_id mpc52xx_psc_spi_of_match[] = {
