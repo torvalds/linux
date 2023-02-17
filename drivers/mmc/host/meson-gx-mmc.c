@@ -1203,8 +1203,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "device reset failed\n");
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->regs = devm_ioremap_resource(&pdev->dev, res);
+	host->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(host->regs))
 		return PTR_ERR(host->regs);
 
