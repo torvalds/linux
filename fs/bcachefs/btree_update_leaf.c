@@ -1307,6 +1307,39 @@ static noinline int extent_back_merge(struct btree_trans *trans,
 	return 0;
 }
 
+/*
+ * When deleting, check if we need to emit a whiteout (because we're overwriting
+ * something in an ancestor snapshot)
+ */
+static int need_whiteout_for_snapshot(struct btree_trans *trans,
+				      enum btree_id btree_id, struct bpos pos)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	u32 snapshot = pos.snapshot;
+	int ret;
+
+	if (!bch2_snapshot_parent(trans->c, pos.snapshot))
+		return 0;
+
+	pos.snapshot++;
+
+	for_each_btree_key_norestart(trans, iter, btree_id, pos,
+			   BTREE_ITER_ALL_SNAPSHOTS|
+			   BTREE_ITER_NOPRESERVE, k, ret) {
+		if (!bkey_eq(k.k->p, pos))
+			break;
+
+		if (bch2_snapshot_is_ancestor(trans->c, snapshot,
+					      k.k->p.snapshot)) {
+			ret = !bkey_whiteout(k.k);
+			break;
+		}
+	}
+	bch2_trans_iter_exit(trans, &iter);
+
+	return ret;
+}
 int bch2_trans_update_extent(struct btree_trans *trans,
 			     struct btree_iter *orig_iter,
 			     struct bkey_i *insert,
@@ -1388,12 +1421,12 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 
 			bkey_init(&update->k);
 			update->k.p = k.k->p;
+			update->k.p.snapshot = insert->k.p.snapshot;
 
-			if (insert->k.p.snapshot != k.k->p.snapshot) {
-				update->k.p.snapshot = insert->k.p.snapshot;
+			if (insert->k.p.snapshot != k.k->p.snapshot ||
+			    (btree_type_has_snapshots(btree_id) &&
+			     need_whiteout_for_snapshot(trans, btree_id, update->k.p)))
 				update->k.type = KEY_TYPE_whiteout;
-			}
-
 
 			ret = bch2_btree_insert_nonextent(trans, btree_id, update,
 						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
@@ -1443,40 +1476,6 @@ out:
 			bch2_trans_update(trans, &iter, insert, flags);
 	}
 err:
-	bch2_trans_iter_exit(trans, &iter);
-
-	return ret;
-}
-
-/*
- * When deleting, check if we need to emit a whiteout (because we're overwriting
- * something in an ancestor snapshot)
- */
-static int need_whiteout_for_snapshot(struct btree_trans *trans,
-				      enum btree_id btree_id, struct bpos pos)
-{
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	u32 snapshot = pos.snapshot;
-	int ret;
-
-	if (!bch2_snapshot_parent(trans->c, pos.snapshot))
-		return 0;
-
-	pos.snapshot++;
-
-	for_each_btree_key_norestart(trans, iter, btree_id, pos,
-			   BTREE_ITER_ALL_SNAPSHOTS|
-			   BTREE_ITER_NOPRESERVE, k, ret) {
-		if (!bkey_eq(k.k->p, pos))
-			break;
-
-		if (bch2_snapshot_is_ancestor(trans->c, snapshot,
-					      k.k->p.snapshot)) {
-			ret = !bkey_whiteout(k.k);
-			break;
-		}
-	}
 	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
