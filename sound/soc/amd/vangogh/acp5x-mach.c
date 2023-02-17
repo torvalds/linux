@@ -22,10 +22,14 @@
 
 #define DRV_NAME			"acp5x_mach"
 #define DUAL_CHANNEL			2
-#define ACP5X_NUVOTON_CODEC_DAI		"nau8821-hifi"
 #define VG_JUPITER			1
-#define ACP5X_NUVOTON_BCLK		3072000
+#define ACP5X_NAU8821_BCLK		3072000
 #define ACP5X_NAU8821_FREQ_OUT		12288000
+#define ACP5X_NAU8821_COMP_NAME 	"i2c-NVTN2020:00"
+#define ACP5X_NAU8821_DAI_NAME		"nau8821-hifi"
+#define ACP5X_CS35L41_COMP_LNAME	"spi-VLV1776:00"
+#define ACP5X_CS35L41_COMP_RNAME	"spi-VLV1776:01"
+#define ACP5X_CS35L41_DAI_NAME		"cs35l41-pcm"
 
 static unsigned long acp5x_machine_id;
 static struct snd_soc_jack vg_headset;
@@ -33,7 +37,8 @@ static struct snd_soc_jack vg_headset;
 SND_SOC_DAILINK_DEF(platform,  DAILINK_COMP_ARRAY(COMP_PLATFORM("acp5x_i2s_dma.0")));
 SND_SOC_DAILINK_DEF(acp5x_i2s, DAILINK_COMP_ARRAY(COMP_CPU("acp5x_i2s_playcap.0")));
 SND_SOC_DAILINK_DEF(acp5x_bt,  DAILINK_COMP_ARRAY(COMP_CPU("acp5x_i2s_playcap.1")));
-SND_SOC_DAILINK_DEF(nau8821,   DAILINK_COMP_ARRAY(COMP_CODEC("i2c-NVTN2020:00", "nau8821-hifi")));
+SND_SOC_DAILINK_DEF(nau8821,   DAILINK_COMP_ARRAY(COMP_CODEC(ACP5X_NAU8821_COMP_NAME,
+							     ACP5X_NAU8821_DAI_NAME)));
 
 static struct snd_soc_jack_pin acp5x_nau8821_jack_pins[] = {
 	{
@@ -60,7 +65,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dai *dai;
 	int ret = 0;
 
-	dai = snd_soc_card_get_codec_dai(card, ACP5X_NUVOTON_CODEC_DAI);
+	dai = snd_soc_card_get_codec_dai(card, ACP5X_NAU8821_DAI_NAME);
 	if (!dai) {
 		dev_err(card->dev, "Codec dai not found\n");
 		return -EIO;
@@ -76,7 +81,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		ret = snd_soc_dai_set_sysclk(dai, NAU8821_CLK_FLL_BLK, 0, SND_SOC_CLOCK_IN);
 		if (ret < 0)
 			dev_err(dai->dev, "can't set BLK clock %d\n", ret);
-		ret = snd_soc_dai_set_pll(dai, 0, 0, ACP5X_NUVOTON_BCLK, ACP5X_NAU8821_FREQ_OUT);
+		ret = snd_soc_dai_set_pll(dai, 0, 0, ACP5X_NAU8821_BCLK, ACP5X_NAU8821_FREQ_OUT);
 		if (ret < 0)
 			dev_err(dai->dev, "can't set FLL: %d\n", ret);
 	}
@@ -161,7 +166,7 @@ static int acp5x_nau8821_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_dai *dai = snd_soc_card_get_codec_dai(card, ACP5X_NUVOTON_CODEC_DAI);
+	struct snd_soc_dai *dai = snd_soc_card_get_codec_dai(card, ACP5X_NAU8821_DAI_NAME);
 	int ret, bclk;
 
 	ret = snd_soc_dai_set_sysclk(dai, NAU8821_CLK_FLL_BLK, 0, SND_SOC_CLOCK_IN);
@@ -221,8 +226,8 @@ static int acp5x_cs35l41_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	for_each_rtd_components(rtd, i, comp) {
-		if (!(strcmp(comp->name, "spi-VLV1776:00")) ||
-		    !(strcmp(comp->name, "spi-VLV1776:01"))) {
+		if (!(strcmp(comp->name, ACP5X_CS35L41_COMP_LNAME)) ||
+		    !(strcmp(comp->name, ACP5X_CS35L41_COMP_RNAME))) {
 			if (!bclk) {
 				dev_err(comp->dev, "Invalid sample rate: 0x%x\n", rate);
 				return -EINVAL;
@@ -247,17 +252,19 @@ static const struct snd_soc_ops acp5x_cs35l41_play_ops = {
 
 static struct snd_soc_codec_conf cs35l41_conf[] = {
 	{
-		.dlc = COMP_CODEC_CONF("spi-VLV1776:00"),
+		.dlc = COMP_CODEC_CONF(ACP5X_CS35L41_COMP_LNAME),
 		.name_prefix = "Left",
 	},
 	{
-		.dlc = COMP_CODEC_CONF("spi-VLV1776:01"),
+		.dlc = COMP_CODEC_CONF(ACP5X_CS35L41_COMP_RNAME),
 		.name_prefix = "Right",
 	},
 };
 
-SND_SOC_DAILINK_DEF(cs35l41, DAILINK_COMP_ARRAY(COMP_CODEC("spi-VLV1776:00", "cs35l41-pcm"),
-						COMP_CODEC("spi-VLV1776:01", "cs35l41-pcm")));
+SND_SOC_DAILINK_DEF(cs35l41, DAILINK_COMP_ARRAY(COMP_CODEC(ACP5X_CS35L41_COMP_LNAME,
+							   ACP5X_CS35L41_DAI_NAME),
+						COMP_CODEC(ACP5X_CS35L41_COMP_RNAME,
+							   ACP5X_CS35L41_DAI_NAME)));
 
 static struct snd_soc_dai_link acp5x_dai[] = {
 	{
