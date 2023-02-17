@@ -1189,7 +1189,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 }
 
 /**
- * dc_link_detect_connection_type() - Determine if there is a sink connected
+ * link_detect_connection_type() - Determine if there is a sink connected
  *
  * @type: Returned connection type
  * Does not detect downstream devices, such as MST sinks
