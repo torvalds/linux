@@ -627,6 +627,7 @@ ice_vsi_alloc_def(struct ice_vsi *vsi, struct ice_channel *ch)
 		vsi->next_base_q = ch->base_q;
 		break;
 	case ICE_VSI_VF:
+	case ICE_VSI_LB:
 		break;
 	default:
 		ice_vsi_free_arrays(vsi);
