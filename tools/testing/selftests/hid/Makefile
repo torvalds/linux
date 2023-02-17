@@ -8,6 +8,7 @@ include ../../../scripts/Makefile.include
 TEST_PROGS := hid-core.sh
 TEST_PROGS += hid-apple.sh
 TEST_PROGS += hid-gamepad.sh
+TEST_PROGS += hid-ite.sh
 TEST_PROGS += hid-keyboard.sh
 TEST_PROGS += hid-mouse.sh
 TEST_PROGS += hid-multitouch.sh
