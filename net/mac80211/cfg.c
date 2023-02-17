@@ -1252,7 +1252,15 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	prev_beacon_int = link_conf->beacon_int;
 	link_conf->beacon_int = params->beacon_interval;
 
+	if (params->ht_cap)
+		link_conf->ht_ldpc =
+			params->ht_cap->cap_info &
+				cpu_to_le16(IEEE80211_HT_CAP_LDPC_CODING);
+
 	if (params->vht_cap) {
+		link_conf->vht_ldpc =
+			params->vht_cap->vht_cap_info &
+				cpu_to_le32(IEEE80211_VHT_CAP_RXLDPC);
 		link_conf->vht_su_beamformer =
 			params->vht_cap->vht_cap_info &
 				cpu_to_le32(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
@@ -1282,6 +1290,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (params->he_cap) {
+		link_conf->he_ldpc =
+			params->he_cap->phy_cap_info[1] &
+				IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD;
 		link_conf->he_su_beamformer =
 			params->he_cap->phy_cap_info[3] &
 				IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER;

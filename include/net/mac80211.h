@@ -657,6 +657,9 @@ struct ieee80211_fils_discovery {
  *	write-protected by sdata_lock and local->mtx so holding either is fine
  *	for read access.
  * @color_change_color: the bss color that will be used after the change.
+ * @ht_ldpc: in AP mode, indicates interface has HT LDPC capability.
+ * @vht_ldpc: in AP mode, indicates interface has VHT LDPC capability.
+ * @he_ldpc: in AP mode, indicates interface has HE LDPC capability.
  * @vht_su_beamformer: in AP mode, does this BSS support operation as an VHT SU
  *	beamformer
  * @vht_su_beamformee: in AP mode, does this BSS support operation as an VHT SU
@@ -759,6 +762,9 @@ struct ieee80211_bss_conf {
 	bool color_change_active;
 	u8 color_change_color;
 
+	bool ht_ldpc;
+	bool vht_ldpc;
+	bool he_ldpc;
 	bool vht_su_beamformer;
 	bool vht_su_beamformee;
 	bool vht_mu_beamformer;
