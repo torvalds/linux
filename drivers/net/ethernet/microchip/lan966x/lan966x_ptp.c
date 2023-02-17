@@ -83,8 +83,7 @@ static int lan966x_ptp_add_trap(struct lan966x_port *port,
 	if (err)
 		goto free_rule;
 
-	err = vcap_set_rule_set_actionset(vrule, VCAP_AFS_BASE_TYPE);
-	err |= vcap_rule_add_action_bit(vrule, VCAP_AF_CPU_COPY_ENA, VCAP_BIT_1);
+	err = vcap_rule_add_action_bit(vrule, VCAP_AF_CPU_COPY_ENA, VCAP_BIT_1);
 	err |= vcap_rule_add_action_u32(vrule, VCAP_AF_MASK_MODE, LAN966X_PMM_REPLACE);
 	err |= vcap_val_rule(vrule, proto);
 	if (err)

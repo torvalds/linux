@@ -261,8 +261,6 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 							0);
 			err |= vcap_rule_add_action_u32(vrule, VCAP_AF_MASK_MODE,
 							LAN966X_PMM_REPLACE);
-			err |= vcap_set_rule_set_actionset(vrule,
-							   VCAP_AFS_BASE_TYPE);
 			if (err)
 				goto out;
 
