@@ -7,6 +7,7 @@ include ../../../scripts/Makefile.include
 
 TEST_PROGS := hid-core.sh
 TEST_PROGS += hid-gamepad.sh
+TEST_PROGS += hid-keyboard.sh
 
 CXX ?= $(CROSS_COMPILE)g++
 
