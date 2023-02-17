@@ -7,9 +7,13 @@
 /*
  * Skipped when running bindgen due to a libclang issue;
  * see https://github.com/rust-lang/rust-bindgen/issues/2244.
+ *
+ * Skipped when running genksyms due to breakage of CRC.
+ * Should be reverted on next KMI update.
  */
 #if defined(CONFIG_DEBUG_INFO_BTF) && defined(CONFIG_PAHOLE_HAS_BTF_TAG) && \
-	__has_attribute(btf_type_tag) && !defined(__BINDGEN__)
+	__has_attribute(btf_type_tag) && !defined(__BINDGEN__) &&           \
+	!defined(__GENKSYMS__)
 # define BTF_TYPE_TAG(value) __attribute__((btf_type_tag(#value)))
 #else
 # define BTF_TYPE_TAG(value) /* nothing */
