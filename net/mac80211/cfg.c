@@ -1299,6 +1299,22 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (params->eht_cap) {
 		link_conf->eht_puncturing = params->punct_bitmap;
 		changed |= BSS_CHANGED_EHT_PUNCTURING;
+
+		link_conf->eht_su_beamformer =
+			params->eht_cap->fixed.phy_cap_info[0] &
+				IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER;
+		link_conf->eht_su_beamformee =
+			params->eht_cap->fixed.phy_cap_info[0] &
+				IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE;
+		link_conf->eht_mu_beamformer =
+			params->eht_cap->fixed.phy_cap_info[7] &
+				(IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ |
+				 IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ |
+				 IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_320MHZ);
+	} else {
+		link_conf->eht_su_beamformer = false;
+		link_conf->eht_su_beamformee = false;
+		link_conf->eht_mu_beamformer = false;
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP &&
