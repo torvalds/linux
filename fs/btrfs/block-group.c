@@ -1977,12 +1977,12 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 
 	map = em->map_lookup;
 	data_stripe_length = em->orig_block_len;
-	io_stripe_size = map->stripe_len;
+	io_stripe_size = BTRFS_STRIPE_LEN;
 	chunk_start = em->start;
 
 	/* For RAID5/6 adjust to a full IO stripe length */
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
-		io_stripe_size = map->stripe_len * nr_data_stripes(map);
+		io_stripe_size = nr_data_stripes(map) << BTRFS_STRIPE_LEN_SHIFT;
 
 	buf = kcalloc(map->num_stripes, sizeof(u64), GFP_NOFS);
 	if (!buf) {
@@ -2000,8 +2000,10 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 			      data_stripe_length))
 			continue;
 
-		stripe_nr = physical - map->stripes[i].physical;
-		stripe_nr = div64_u64_rem(stripe_nr, map->stripe_len, &offset);
+		stripe_nr = (physical - map->stripes[i].physical) >>
+			    BTRFS_STRIPE_LEN_SHIFT;
+		offset = (physical - map->stripes[i].physical) &
+			 BTRFS_STRIPE_LEN_MASK;
 
 		if (map->type & (BTRFS_BLOCK_GROUP_RAID0 |
 				 BTRFS_BLOCK_GROUP_RAID10)) {

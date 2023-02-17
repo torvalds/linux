@@ -17,7 +17,11 @@
 
 extern struct mutex uuid_mutex;
 
-#define BTRFS_STRIPE_LEN	SZ_64K
+#define BTRFS_STRIPE_LEN		SZ_64K
+#define BTRFS_STRIPE_LEN_SHIFT		(16)
+#define BTRFS_STRIPE_LEN_MASK		(BTRFS_STRIPE_LEN - 1)
+
+static_assert(const_ilog2(BTRFS_STRIPE_LEN) == BTRFS_STRIPE_LEN_SHIFT);
 
 /* Used by sanity check for btrfs_raid_types. */
 #define const_ffs(n) (__builtin_ctzll(n) + 1)
@@ -446,7 +450,6 @@ struct map_lookup {
 	u64 type;
 	int io_align;
 	int io_width;
-	u32 stripe_len;
 	int num_stripes;
 	int sub_stripes;
 	int verified_stripes; /* For mount time dev extent verification */

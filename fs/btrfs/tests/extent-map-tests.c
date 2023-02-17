@@ -486,7 +486,6 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 	em->map_lookup = map;
 
 	map->num_stripes = test->num_stripes;
-	map->stripe_len = BTRFS_STRIPE_LEN;
 	map->type = test->raid_type;
 
 	for (i = 0; i < map->num_stripes; i++) {
