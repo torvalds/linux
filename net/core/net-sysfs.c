@@ -1060,6 +1060,18 @@ static const struct kobj_type rx_queue_ktype = {
 	.get_ownership = rx_queue_get_ownership,
 };
 
+static int rx_queue_default_mask(struct net_device *dev,
+				 struct netdev_rx_queue *queue)
+{
+#if IS_ENABLED(CONFIG_RPS) && IS_ENABLED(CONFIG_SYSCTL)
+	struct cpumask *rps_default_mask = READ_ONCE(dev_net(dev)->core.rps_default_mask);
+
+	if (rps_default_mask && !cpumask_empty(rps_default_mask))
+		return netdev_rx_queue_set_rps_mask(queue, rps_default_mask);
+#endif
+	return 0;
+}
+
 static int rx_queue_add_kobject(struct net_device *dev, int index)
 {
 	struct netdev_rx_queue *queue = dev->_rx + index;
@@ -1083,13 +1095,10 @@ static int rx_queue_add_kobject(struct net_device *dev, int index)
 			goto err;
 	}
 
-#if IS_ENABLED(CONFIG_RPS) && IS_ENABLED(CONFIG_SYSCTL)
-	if (!cpumask_empty(&rps_default_mask)) {
-		error = netdev_rx_queue_set_rps_mask(queue, &rps_default_mask);
-		if (error)
-			goto err;
-	}
-#endif
+	error = rx_queue_default_mask(dev, queue);
+	if (error)
+		goto err;
+
 	kobject_uevent(kobj, KOBJ_ADD);
 
 	return error;
