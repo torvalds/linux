@@ -428,8 +428,8 @@ static const struct time_unit {
 	{ "us",		NSEC_PER_USEC	 },
 	{ "ms",		NSEC_PER_MSEC	 },
 	{ "s",		NSEC_PER_SEC	 },
-	{ "m",          NSEC_PER_SEC * 60},
-	{ "h",          NSEC_PER_SEC * 3600},
+	{ "m",          (u64) NSEC_PER_SEC * 60},
+	{ "h",          (u64) NSEC_PER_SEC * 3600},
 	{ "eon",        U64_MAX          },
 };
 
