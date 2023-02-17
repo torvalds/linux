@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2010,2015,2019,2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt)     "qcom-scm: %s: " fmt, __func__
 
@@ -1028,11 +1028,9 @@ void qcom_scm_halt_spmi_pmic_arbiter(void)
 		.arginfo = QCOM_SCM_ARGS(1),
 	};
 
-	pr_crit("Calling SCM to disable SPMI PMIC arbiter\n");
-
 	ret = qcom_scm_call_atomic(__scm->dev, &desc, NULL);
 	if (ret)
-		pr_err("Failed to halt_spmi_pmic_arbiter=0x%x\n", ret);
+		pr_debug("Failed to halt_spmi_pmic_arbiter=0x%x\n", ret);
 }
 EXPORT_SYMBOL(qcom_scm_halt_spmi_pmic_arbiter);
 
