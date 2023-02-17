@@ -1876,53 +1876,51 @@ static void vcap_api_next_lookup_basic_test(struct kunit *test)
 
 static void vcap_api_next_lookup_advanced_test(struct kunit *test)
 {
-	struct vcap_admin admin1 = {
+	struct vcap_admin admin[] = {
+	{
 		.vtype = VCAP_TYPE_IS0,
 		.vinst = 0,
 		.first_cid = 1000000,
 		.last_cid =  1199999,
 		.lookups = 6,
 		.lookups_per_instance = 2,
-	};
-	struct vcap_admin admin2 = {
+	}, {
 		.vtype = VCAP_TYPE_IS0,
 		.vinst = 1,
 		.first_cid = 1200000,
 		.last_cid =  1399999,
 		.lookups = 6,
 		.lookups_per_instance = 2,
-	};
-	struct vcap_admin admin3 = {
+	}, {
 		.vtype = VCAP_TYPE_IS0,
 		.vinst = 2,
 		.first_cid = 1400000,
 		.last_cid =  1599999,
 		.lookups = 6,
 		.lookups_per_instance = 2,
-	};
-	struct vcap_admin admin4 = {
+	}, {
 		.vtype = VCAP_TYPE_IS2,
 		.vinst = 0,
 		.first_cid = 8000000,
 		.last_cid = 8199999,
 		.lookups = 4,
 		.lookups_per_instance = 2,
-	};
-	struct vcap_admin admin5 = {
+	}, {
 		.vtype = VCAP_TYPE_IS2,
 		.vinst = 1,
 		.first_cid = 8200000,
 		.last_cid = 8399999,
 		.lookups = 4,
 		.lookups_per_instance = 2,
+	}
 	};
 	bool ret;
 
-	vcap_test_api_init(&admin1);
-	list_add_tail(&admin2.list, &test_vctrl.list);
-	list_add_tail(&admin3.list, &test_vctrl.list);
-	list_add_tail(&admin4.list, &test_vctrl.list);
-	list_add_tail(&admin5.list, &test_vctrl.list);
+	vcap_test_api_init(&admin[0]);
+	list_add_tail(&admin[1].list, &test_vctrl.list);
+	list_add_tail(&admin[2].list, &test_vctrl.list);
+	list_add_tail(&admin[3].list, &test_vctrl.list);
+	list_add_tail(&admin[4].list, &test_vctrl.list);
 
 	ret = vcap_is_next_lookup(&test_vctrl, 1000000, 1001000);
 	KUNIT_EXPECT_EQ(test, false, ret);
