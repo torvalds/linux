@@ -59,25 +59,21 @@ uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	uint32_t cursor_size = hubp->curs_attr.pitch * hubp->curs_attr.height;
-	uint32_t cursor_bpp = 4;
 	uint32_t cursor_mall_size_bytes = 0;
 
 	switch (pipe_ctx->stream->cursor_attributes.color_format) {
 	case CURSOR_MODE_MONO:
 		cursor_size /= 2;
-		cursor_bpp = 4;
 		break;
 	case CURSOR_MODE_COLOR_1BIT_AND:
 	case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
 	case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
 		cursor_size *= 4;
-		cursor_bpp = 4;
 		break;
 
 	case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
 	case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
 		cursor_size *= 8;
-		cursor_bpp = 8;
 		break;
 	}
 
