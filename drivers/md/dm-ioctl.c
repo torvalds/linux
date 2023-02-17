@@ -310,6 +310,8 @@ static struct dm_table *__hash_remove(struct hash_cell *hc)
 	struct dm_table *table;
 	int srcu_idx;
 
+	lockdep_assert_held(&_hash_lock);
+
 	/* remove from the dev trees */
 	__unlink_name(hc);
 	__unlink_uuid(hc);
@@ -2263,7 +2265,9 @@ int __init dm_early_create(struct dm_ioctl *dmi,
 err_destroy_table:
 	dm_table_destroy(t);
 err_hash_remove:
+	down_write(&_hash_lock);
 	(void) __hash_remove(__get_name_cell(dmi->name));
+	up_write(&_hash_lock);
 	/* release reference from __get_name_cell */
 	dm_put(md);
 err_destroy_dm:
