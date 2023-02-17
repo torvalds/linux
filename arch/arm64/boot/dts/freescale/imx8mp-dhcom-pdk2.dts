@@ -104,18 +104,6 @@
 	};
 };
 
-/*
- * PDK2 carrier board uses SoM with KSZ9131 populated and connected to
- * SoM EQoS ethernet RGMII interface. Remove the other SoM PHY DT node.
- */
-/delete-node/ &ethphy0f;
-
-/*
- * PDK2 carrier board has KSZ9021 PHY populated and connected to SoM FEC
- * ethernet RGMII interface. The SoM is not populated with second FEC PHY.
- */
-/delete-node/ &ethphy1f;
-
 &fec {	/* Second ethernet */
 	phy-handle = <&ethphypdk>;
 
