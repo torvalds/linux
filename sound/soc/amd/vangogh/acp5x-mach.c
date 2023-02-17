@@ -153,35 +153,37 @@ static int acp5x_cs35l41_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	unsigned int num_codecs = rtd->dai_link->num_codecs;
-	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_dai *dai;
-	unsigned int bclk_val;
+	unsigned int bclk, rate = params_rate(params);
+	struct snd_soc_component *comp;
 	int ret, i;
 
-	ret = 0;
-	for (i = 0; i < num_codecs; i++) {
-		dai = asoc_rtd_to_codec(rtd, i);
-		if (strcmp(dai->name, "cs35l41-pcm") == 0) {
-			switch (params_rate(params)) {
-			case 48000:
-				bclk_val = 1536000;
-				break;
-			default:
-				dev_err(card->dev, "Invalid Samplerate:0x%x\n",
-					params_rate(params));
+	switch (rate) {
+	case 48000:
+		bclk = 1536000;
+		break;
+	default:
+		bclk = 0;
+		break;
+	}
+
+	for_each_rtd_components(rtd, i, comp) {
+		if (!(strcmp(comp->name, "spi-VLV1776:00")) ||
+		    !(strcmp(comp->name, "spi-VLV1776:01"))) {
+			if (!bclk) {
+				dev_err(comp->dev, "Invalid sample rate: 0x%x\n", rate);
 				return -EINVAL;
 			}
-			ret = snd_soc_component_set_sysclk(dai->component, 0, 0,
-							   bclk_val, SND_SOC_CLOCK_IN);
-			if (ret < 0) {
-				dev_err(card->dev, "failed to set sysclk for CS35l41 dai\n");
+
+			ret = snd_soc_component_set_sysclk(comp, 0, 0, bclk, SND_SOC_CLOCK_IN);
+			if (ret) {
+				dev_err(comp->dev, "failed to set SYSCLK: %d\n", ret);
 				return ret;
 			}
 		}
 	}
 
-	return ret;
+	return 0;
+
 }
 
 static const struct snd_soc_ops acp5x_8821_ops = {
