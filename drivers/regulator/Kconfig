@@ -1120,6 +1120,19 @@ config REGULATOR_RT5190A
 	  buck converters, 1 LDO, mute AC OFF depop function, with the general
 	  I2C control interface.
 
+config REGULATOR_RT5739
+	tristate "Rcihtek RT5739 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator in Richtek RT5739.
+	  It's a step-down switching voltage regulator. Using a proprietary
+	  architecture with synchronous rectification, it is capable of
+	  delivering 3.5A continuously at over 80% efficiency.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rt5739.
+
 config REGULATOR_RT5759
 	tristate "Richtek RT5759 Regulator"
 	depends on I2C
