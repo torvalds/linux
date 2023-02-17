@@ -27,7 +27,7 @@ EXIT_STATUS_FILE="${LOG_FILE_BASE}.exit_status"
 CONTAINER_IMAGE="registry.freedesktop.org/libevdev/hid-tools/fedora/37:2023-02-17.1"
 
 TARGETS="${TARGETS:=$(basename ${SCRIPT_DIR})}"
-DEFAULT_COMMAND="make -C tools/testing/selftests TARGETS=${TARGETS} run_tests"
+DEFAULT_COMMAND="pip3 install hid-tools; make -C tools/testing/selftests TARGETS=${TARGETS} run_tests"
 
 usage()
 {
