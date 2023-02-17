@@ -738,7 +738,7 @@ static size_t btree_nodes_fit_in_ram(struct bch_fs *c)
 
 	si_meminfo(&i);
 	mem_bytes = i.totalram * i.mem_unit;
-	return (mem_bytes >> 1) / btree_bytes(c);
+	return div_u64(mem_bytes >> 1, btree_bytes(c));
 }
 
 int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
