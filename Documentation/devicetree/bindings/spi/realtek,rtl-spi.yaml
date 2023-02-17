@@ -11,7 +11,7 @@ maintainers:
   - Birger Koblitz <mail@birger-koblitz.de>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:

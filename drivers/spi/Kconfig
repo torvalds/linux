@@ -199,6 +199,15 @@ config SPI_BCM_QSPI
 	  based platforms. This driver works for both SPI master for SPI NOR
 	  flash device as well as MSPI device.
 
+config SPI_BCMBCA_HSSPI
+	tristate "Broadcom BCMBCA HS SPI controller driver"
+	depends on ARCH_BCMBCA || COMPILE_TEST
+	help
+	  This enables support for the High Speed SPI controller present on
+	  newer Broadcom BCMBCA SoCs. These SoCs include an updated SPI controller
+	  that adds the capability to allow the driver to control chip select
+	  explicitly.
+
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
 	help
@@ -247,7 +256,7 @@ config SPI_CADENCE_XSPI
 	  Enable support for the Cadence XSPI Flash controller.
 
 	  Cadence XSPI is a specialized controller for connecting an SPI
-	  Flash over upto 8bit wide bus. Enable this option if you have a
+	  Flash over up to 8-bit wide bus. Enable this option if you have a
 	  device with a Cadence XSPI controller and want to access the
 	  Flash as an MTD device.
 
@@ -295,7 +304,6 @@ config SPI_DW_BT1
 	tristate "Baikal-T1 SPI driver for DW SPI core"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
 	select MULTIPLEXER
-	select MUX_MMIO
 	help
 	  Baikal-T1 SoC is equipped with three DW APB SSI-based MMIO SPI
 	  controllers. Two of them are pretty much normal: with IRQ, DMA,
@@ -448,19 +456,19 @@ config SPI_INTEL
 	tristate
 
 config SPI_INTEL_PCI
-	tristate "Intel PCH/PCU SPI flash PCI driver (DANGEROUS)"
+	tristate "Intel PCH/PCU SPI flash PCI driver"
 	depends on PCI
 	depends on X86 || COMPILE_TEST
 	depends on SPI_MEM
 	select SPI_INTEL
 	help
 	  This enables PCI support for the Intel PCH/PCU SPI controller in
-	  master mode. This controller is present in modern Intel hardware
-	  and is used to hold BIOS and other persistent settings. Using
-	  this driver it is possible to upgrade BIOS directly from Linux.
-
-	  Say N here unless you know what you are doing. Overwriting the
-	  SPI flash may render the system unbootable.
+	  master mode. This controller is used to hold BIOS and other
+	  persistent settings. Controllers present in modern Intel hardware
+	  only work in hardware sequencing mode, this means that the
+	  controller exposes a subset of operations that makes it safer to
+	  use. Using this driver it is possible to upgrade BIOS directly
+	  from Linux.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called spi-intel-pci.
@@ -472,10 +480,11 @@ config SPI_INTEL_PLATFORM
 	select SPI_INTEL
 	help
 	  This enables platform support for the Intel PCH/PCU SPI
-	  controller in master mode. This controller is present in modern
-	  Intel hardware and is used to hold BIOS and other persistent
-	  settings. Using this driver it is possible to upgrade BIOS
-	  directly from Linux.
+	  controller in master mode that is used to hold BIOS and other
+	  persistent settings. Most of these controllers work in
+	  software sequencing mode, which means that the controller
+	  exposes the low level SPI-NOR opcodes to the software. Using
+	  this driver it is possible to upgrade BIOS directly from Linux.
 
 	  Say N here unless you know what you are doing. Overwriting the
 	  SPI flash may render the system unbootable.
@@ -1165,9 +1174,6 @@ config SPI_SPIDEV
 	tristate "User mode SPI device driver support"
 	help
 	  This supports user mode SPI protocol drivers.
-
-	  Note that this application programming interface is EXPERIMENTAL
-	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
 
 config SPI_LOOPBACK_TEST
 	tristate "spi loopback test framework support"

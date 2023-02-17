@@ -11,7 +11,7 @@ maintainers:
   - Bert Vermeulen <bert@biot.com>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:

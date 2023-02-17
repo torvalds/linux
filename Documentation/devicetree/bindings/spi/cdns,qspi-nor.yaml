@@ -47,7 +47,7 @@ properties:
   cdns,fifo-depth:
     description:
       Size of the data FIFO in words.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 128, 256 ]
     default: 128
 
@@ -103,21 +103,21 @@ unevaluatedProperties: false
 examples:
   - |
     qspi: spi@ff705000 {
-      compatible = "cdns,qspi-nor";
-      #address-cells = <1>;
-      #size-cells = <0>;
-      reg = <0xff705000 0x1000>,
-            <0xffa00000 0x1000>;
-      interrupts = <0 151 4>;
-      clocks = <&qspi_clk>;
-      cdns,fifo-depth = <128>;
-      cdns,fifo-width = <4>;
-      cdns,trigger-address = <0x00000000>;
-      resets = <&rst 0x1>, <&rst 0x2>;
-      reset-names = "qspi", "qspi-ocp";
+        compatible = "cdns,qspi-nor";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0xff705000 0x1000>,
+              <0xffa00000 0x1000>;
+        interrupts = <0 151 4>;
+        clocks = <&qspi_clk>;
+        cdns,fifo-depth = <128>;
+        cdns,fifo-width = <4>;
+        cdns,trigger-address = <0x00000000>;
+        resets = <&rst 0x1>, <&rst 0x2>;
+        reset-names = "qspi", "qspi-ocp";
 
-      flash@0 {
-              compatible = "jedec,spi-nor";
-              reg = <0x0>;
-      };
+        flash@0 {
+            compatible = "jedec,spi-nor";
+            reg = <0x0>;
+        };
     };
