@@ -87,7 +87,7 @@
 	 * are left out of here since they are managed elsewhere.
 	 */
 
-	pm7325-regulators {
+	regulators-0 {
 		compatible = "qcom,pm7325-rpmh-regulators";
 		qcom,pmic-id = "b";
 
@@ -188,7 +188,7 @@
 		};
 	};
 
-	pm8350c-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8350c-rpmh-regulators";
 		qcom,pmic-id = "c";
 
