@@ -343,8 +343,6 @@ static void devlink_reload_netns_change(struct devlink *devlink,
 	 * reload process so the notifications are generated separatelly.
 	 */
 	devlink_notify_unregister(devlink);
-	move_netdevice_notifier_net(curr_net, dest_net,
-				    &devlink->netdevice_nb);
 	write_pnet(&devlink->_net, dest_net);
 	devlink_notify_register(devlink);
 }
