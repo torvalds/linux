@@ -176,10 +176,14 @@ enum imx290_colour_variant {
 enum imx290_model {
 	IMX290_MODEL_IMX290LQR,
 	IMX290_MODEL_IMX290LLR,
+	IMX290_MODEL_IMX327LQR,
 };
 
 struct imx290_model_info {
 	enum imx290_colour_variant colour_variant;
+	const struct imx290_regval *init_regs;
+	size_t init_regs_num;
+	const char *name;
 };
 
 enum imx290_clk_freq {
@@ -275,10 +279,14 @@ static const struct imx290_regval imx290_global_init_settings[] = {
 	{ IMX290_WINWV, 1097 },
 	{ IMX290_XSOUTSEL, IMX290_XSOUTSEL_XVSOUTSEL_VSYNC |
 			   IMX290_XSOUTSEL_XHSOUTSEL_HSYNC },
-	{ IMX290_REG_8BIT(0x300f), 0x00 },
-	{ IMX290_REG_8BIT(0x3010), 0x21 },
+	{ IMX290_REG_8BIT(0x3011), 0x02 },
 	{ IMX290_REG_8BIT(0x3012), 0x64 },
 	{ IMX290_REG_8BIT(0x3013), 0x00 },
+};
+
+static const struct imx290_regval imx290_global_init_settings_290[] = {
+	{ IMX290_REG_8BIT(0x300f), 0x00 },
+	{ IMX290_REG_8BIT(0x3010), 0x21 },
 	{ IMX290_REG_8BIT(0x3016), 0x09 },
 	{ IMX290_REG_8BIT(0x3070), 0x02 },
 	{ IMX290_REG_8BIT(0x3071), 0x11 },
@@ -329,6 +337,12 @@ static const struct imx290_regval xclk_regs[][IMX290_NUM_CLK_REGS] = {
 		{ IMX290_EXTCK_FREQ, (74250 * 256) / 1000 },
 		{ IMX290_INCKSEL7, 0x92 },
 	},
+};
+
+static const struct imx290_regval imx290_global_init_settings_327[] = {
+	{ IMX290_REG_8BIT(0x309e), 0x4A },
+	{ IMX290_REG_8BIT(0x309f), 0x4A },
+	{ IMX290_REG_8BIT(0x313b), 0x61 },
 };
 
 static const struct imx290_regval imx290_1080p_settings[] = {
@@ -1009,6 +1023,14 @@ static int imx290_start_streaming(struct imx290 *imx290,
 		return ret;
 	}
 
+	/* Set mdel specific init register settings */
+	ret = imx290_set_register_array(imx290, imx290->model->init_regs,
+					imx290->model->init_regs_num);
+	if (ret < 0) {
+		dev_err(imx290->dev, "Could not set model specific init registers\n");
+		return ret;
+	}
+
 	/* Set clock parameters based on mode and xclk */
 	ret = imx290_set_clock(imx290);
 	if (ret < 0) {
@@ -1477,9 +1499,21 @@ static s64 imx290_check_link_freqs(const struct imx290 *imx290,
 static const struct imx290_model_info imx290_models[] = {
 	[IMX290_MODEL_IMX290LQR] = {
 		.colour_variant = IMX290_VARIANT_COLOUR,
+		.init_regs = imx290_global_init_settings_290,
+		.init_regs_num = ARRAY_SIZE(imx290_global_init_settings_290),
+		.name = "imx290",
 	},
 	[IMX290_MODEL_IMX290LLR] = {
 		.colour_variant = IMX290_VARIANT_MONO,
+		.init_regs = imx290_global_init_settings_290,
+		.init_regs_num = ARRAY_SIZE(imx290_global_init_settings_290),
+		.name = "imx290",
+	},
+	[IMX290_MODEL_IMX327LQR] = {
+		.colour_variant = IMX290_VARIANT_COLOUR,
+		.init_regs = imx290_global_init_settings_327,
+		.init_regs_num = ARRAY_SIZE(imx290_global_init_settings_327),
+		.name = "imx327",
 	},
 };
 
@@ -1612,6 +1646,9 @@ static int imx290_probe(struct i2c_client *client)
 	if (ret)
 		goto err_pm;
 
+	v4l2_i2c_subdev_set_name(&imx290->sd, client,
+				 imx290->model->name, NULL);
+
 	/*
 	 * Finally, register the V4L2 subdev. This must be done after
 	 * initializing everything as the subdev can be used immediately after
@@ -1670,6 +1707,9 @@ static const struct of_device_id imx290_of_match[] = {
 	}, {
 		.compatible = "sony,imx290llr",
 		.data = &imx290_models[IMX290_MODEL_IMX290LLR],
+	}, {
+		.compatible = "sony,imx327lqr",
+		.data = &imx290_models[IMX290_MODEL_IMX327LQR],
 	},
 	{ /* sentinel */ },
 };
