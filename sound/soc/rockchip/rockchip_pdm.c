@@ -204,22 +204,35 @@ static inline struct rk_pdm_dev *to_info(struct snd_soc_dai *dai)
 	return snd_soc_dai_get_drvdata(dai);
 }
 
-static void rockchip_pdm_drop_fifo(struct rk_pdm_dev *pdm)
-{
-	int cnt, val, i;
-
-	/* drop the dirty data */
-	regmap_read(pdm->regmap, PDM_FIFO_CTRL, &cnt);
-	for (i = 0; i < PDM_FIFO_CNT(cnt); i++)
-		regmap_read(pdm->regmap, PDM_RXFIFO_DATA, &val);
-}
-
 static void rockchip_pdm_rxctrl(struct rk_pdm_dev *pdm, int on)
 {
+	unsigned long flags;
+
 	if (on) {
-		rockchip_pdm_drop_fifo(pdm);
+		/* The PDM device need to delete some unused data
+		 * since the pdm of various manufacturers can not
+		 * be stable quickly. This is done by commit "ASoC:
+		 * rockchip: pdm: Fix pop noise in the beginning".
+		 *
+		 * But we do not know how many data we delete, this
+		 * cause channel disorder. For example, we record
+		 * two channel 24-bit sound, then delete some starting
+		 * data. Because the deleted starting data is uncertain,
+		 * the next data may be left or right channel and cause
+		 * channel disorder.
+		 *
+		 * Luckily, we can use the PDM_RX_CLR to fix this.
+		 * Use the PDM_RX_CLR to clear fifo written data and
+		 * address, but can not clear the read data and address.
+		 * In initial state, the read data and address are zero.
+		 */
+		local_irq_save(flags);
+		regmap_update_bits(pdm->regmap, PDM_SYSCONFIG,
+				   PDM_RX_CLR_MASK,
+				   PDM_RX_CLR_WR);
 		regmap_update_bits(pdm->regmap, PDM_DMA_CTRL,
 				   PDM_DMA_RD_MSK, PDM_DMA_RD_EN);
+		local_irq_restore(flags);
 	} else {
 		regmap_update_bits(pdm->regmap, PDM_DMA_CTRL,
 				   PDM_DMA_RD_MSK, PDM_DMA_RD_DIS);
