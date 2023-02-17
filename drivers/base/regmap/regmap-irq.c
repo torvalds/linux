@@ -189,12 +189,8 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 			if (!d->type_buf_def[i])
 				continue;
 			reg = d->get_irq_reg(d, d->chip->type_base, i);
-			if (d->chip->type_invert)
-				ret = regmap_update_bits(d->map, reg,
-					d->type_buf_def[i], ~d->type_buf[i]);
-			else
-				ret = regmap_update_bits(d->map, reg,
-					d->type_buf_def[i], d->type_buf[i]);
+			ret = regmap_update_bits(d->map, reg,
+						 d->type_buf_def[i], d->type_buf[i]);
 			if (ret != 0)
 				dev_err(d->map->dev, "Failed to sync type in %x\n",
 					reg);
@@ -882,20 +878,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		 */
 		dev_warn(map->dev, "mask_base and unmask_base are inverted, please fix it");
 
-		/* Might as well warn about mask_invert while we're at it... */
-		if (chip->mask_invert)
-			dev_warn(map->dev, "mask_invert=true ignored");
-
-		d->mask_base = chip->unmask_base;
-		d->unmask_base = chip->mask_base;
-	} else if (chip->mask_invert) {
-		/*
-		 * Swap the roles of mask_base and unmask_base if the bits are
-		 * inverted. This is deprecated, drivers should use unmask_base
-		 * directly.
-		 */
-		dev_warn(map->dev, "mask_invert=true is deprecated; please switch to unmask_base");
-
 		d->mask_base = chip->unmask_base;
 		d->unmask_base = chip->mask_base;
 	} else {
@@ -1027,9 +1009,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			reg = d->get_irq_reg(d, d->chip->type_base, i);
 
 			ret = regmap_read(map, reg, &d->type_buf_def[i]);
-
-			if (d->chip->type_invert)
-				d->type_buf_def[i] = ~d->type_buf_def[i];
 
 			if (ret) {
 				dev_err(map->dev, "Failed to get type defaults at 0x%x: %d\n",
