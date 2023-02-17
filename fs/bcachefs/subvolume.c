@@ -512,8 +512,7 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 		n->v.pad	= 0;
 		SET_BCH_SNAPSHOT_SUBVOL(&n->v, true);
 
-		ret   = bch2_trans_update(trans, &iter, &n->k_i, 0) ?:
-			bch2_mark_snapshot(trans, bkey_s_c_null, bkey_i_to_s_c(&n->k_i), 0);
+		ret   = bch2_trans_update(trans, &iter, &n->k_i, 0);
 		if (ret)
 			goto err;
 
