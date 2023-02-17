@@ -8,20 +8,27 @@
 
 #include "clk-alpha-pll.h"
 
-static const u8 ipq_pll_offsets[] = {
-	[PLL_OFF_L_VAL] = 0x08,
-	[PLL_OFF_ALPHA_VAL] = 0x10,
-	[PLL_OFF_USER_CTL] = 0x18,
-	[PLL_OFF_CONFIG_CTL] = 0x20,
-	[PLL_OFF_CONFIG_CTL_U] = 0x24,
-	[PLL_OFF_STATUS] = 0x28,
-	[PLL_OFF_TEST_CTL] = 0x30,
-	[PLL_OFF_TEST_CTL_U] = 0x34,
+/*
+ * Even though APSS PLL type is of existing one (like Huayra), its offsets
+ * are different from the one mentioned in the clk-alpha-pll.c, since the
+ * PLL is specific to APSS, so lets the define the same.
+ */
+static const u8 ipq_pll_offsets[][PLL_OFF_MAX_REGS] = {
+	[CLK_ALPHA_PLL_TYPE_HUAYRA] =  {
+		[PLL_OFF_L_VAL] = 0x08,
+		[PLL_OFF_ALPHA_VAL] = 0x10,
+		[PLL_OFF_USER_CTL] = 0x18,
+		[PLL_OFF_CONFIG_CTL] = 0x20,
+		[PLL_OFF_CONFIG_CTL_U] = 0x24,
+		[PLL_OFF_STATUS] = 0x28,
+		[PLL_OFF_TEST_CTL] = 0x30,
+		[PLL_OFF_TEST_CTL_U] = 0x34,
+	},
 };
 
-static struct clk_alpha_pll ipq_pll = {
+static struct clk_alpha_pll ipq_pll_huayra = {
 	.offset = 0x0,
-	.regs = ipq_pll_offsets,
+	.regs = ipq_pll_offsets[CLK_ALPHA_PLL_TYPE_HUAYRA],
 	.flags = SUPPORTS_DYNAMIC_UPDATE,
 	.clkr = {
 		.enable_reg = 0x0,
@@ -61,6 +68,21 @@ static const struct alpha_pll_config ipq8074_pll_config = {
 	.test_ctl_hi_val = 0x4000,
 };
 
+struct apss_pll_data {
+	struct clk_alpha_pll *pll;
+	const struct alpha_pll_config *pll_config;
+};
+
+static struct apss_pll_data ipq8074_pll_data = {
+	.pll = &ipq_pll_huayra,
+	.pll_config = &ipq8074_pll_config,
+};
+
+static struct apss_pll_data ipq6018_pll_data = {
+	.pll = &ipq_pll_huayra,
+	.pll_config = &ipq6018_pll_config,
+};
+
 static const struct regmap_config ipq_pll_regmap_config = {
 	.reg_bits		= 32,
 	.reg_stride		= 4,
@@ -71,7 +93,7 @@ static const struct regmap_config ipq_pll_regmap_config = {
 
 static int apss_ipq_pll_probe(struct platform_device *pdev)
 {
-	const struct alpha_pll_config *ipq_pll_config;
+	const struct apss_pll_data *data;
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	void __iomem *base;
@@ -85,23 +107,23 @@ static int apss_ipq_pll_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ipq_pll_config = of_device_get_match_data(&pdev->dev);
-	if (!ipq_pll_config)
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data)
 		return -ENODEV;
 
-	clk_alpha_pll_configure(&ipq_pll, regmap, ipq_pll_config);
+	clk_alpha_pll_configure(data->pll, regmap, data->pll_config);
 
-	ret = devm_clk_register_regmap(dev, &ipq_pll.clkr);
+	ret = devm_clk_register_regmap(dev, &data->pll->clkr);
 	if (ret)
 		return ret;
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
-					   &ipq_pll.clkr.hw);
+					   &data->pll->clkr.hw);
 }
 
 static const struct of_device_id apss_ipq_pll_match_table[] = {
-	{ .compatible = "qcom,ipq6018-a53pll", .data = &ipq6018_pll_config },
-	{ .compatible = "qcom,ipq8074-a53pll", .data = &ipq8074_pll_config },
+	{ .compatible = "qcom,ipq6018-a53pll", .data = &ipq6018_pll_data },
+	{ .compatible = "qcom,ipq8074-a53pll", .data = &ipq8074_pll_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, apss_ipq_pll_match_table);
