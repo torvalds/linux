@@ -286,4 +286,3 @@ module_platform_driver_probe(rda_gpio_driver, rda_gpio_probe);
 
 MODULE_DESCRIPTION("RDA Micro GPIO driver");
 MODULE_AUTHOR("Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>");
-MODULE_LICENSE("GPL v2");
