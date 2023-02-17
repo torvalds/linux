@@ -2908,10 +2908,7 @@ static int get_raid56_logic_offset(u64 physical, int num,
 {
 	int i;
 	int j = 0;
-	u64 stripe_nr;
 	u64 last_offset;
-	u32 stripe_index;
-	u32 rot;
 	const int data_stripes = nr_data_stripes(map);
 
 	last_offset = (physical - map->stripes[num].physical) * data_stripes;
@@ -2920,13 +2917,17 @@ static int get_raid56_logic_offset(u64 physical, int num,
 
 	*offset = last_offset;
 	for (i = 0; i < data_stripes; i++) {
+		u32 stripe_nr;
+		u32 stripe_index;
+		u32 rot;
+
 		*offset = last_offset + (i << BTRFS_STRIPE_LEN_SHIFT);
 
-		stripe_nr = *offset >> BTRFS_STRIPE_LEN_SHIFT;
-		stripe_nr = div_u64(stripe_nr, data_stripes);
+		stripe_nr = (u32)(*offset >> BTRFS_STRIPE_LEN_SHIFT) / data_stripes;
 
 		/* Work out the disk rotation on this stripe-set */
-		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes, &rot);
+		rot = stripe_nr % map->num_stripes;
+		stripe_nr /= map->num_stripes;
 		/* calculate which stripe this data locates */
 		rot += i;
 		stripe_index = rot % map->num_stripes;

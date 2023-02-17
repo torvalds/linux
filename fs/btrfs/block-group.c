@@ -1992,8 +1992,8 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 
 	for (i = 0; i < map->num_stripes; i++) {
 		bool already_inserted = false;
-		u64 stripe_nr;
-		u64 offset;
+		u32 stripe_nr;
+		u32 offset;
 		int j;
 
 		if (!in_range(physical, map->stripes[i].physical,
@@ -2006,16 +2006,14 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 			 BTRFS_STRIPE_LEN_MASK;
 
 		if (map->type & (BTRFS_BLOCK_GROUP_RAID0 |
-				 BTRFS_BLOCK_GROUP_RAID10)) {
-			stripe_nr = stripe_nr * map->num_stripes + i;
-			stripe_nr = div_u64(stripe_nr, map->sub_stripes);
-		}
+				 BTRFS_BLOCK_GROUP_RAID10))
+			stripe_nr = div_u64(stripe_nr * map->num_stripes + i,
+					    map->sub_stripes);
 		/*
 		 * The remaining case would be for RAID56, multiply by
 		 * nr_data_stripes().  Alternatively, just use rmap_len below
 		 * instead of map->stripe_len
 		 */
-
 		bytenr = chunk_start + stripe_nr * io_stripe_size + offset;
 
 		/* Ensure we don't add duplicate addresses */

@@ -5970,15 +5970,15 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 	struct btrfs_discard_stripe *stripes;
 	u64 length = *length_ret;
 	u64 offset;
-	u64 stripe_nr;
-	u64 stripe_nr_end;
+	u32 stripe_nr;
+	u32 stripe_nr_end;
+	u32 stripe_cnt;
 	u64 stripe_end_offset;
-	u64 stripe_cnt;
 	u64 stripe_offset;
 	u32 stripe_index;
 	u32 factor = 0;
 	u32 sub_stripes = 0;
-	u64 stripes_per_dev = 0;
+	u32 stripes_per_dev = 0;
 	u32 remaining_stripes = 0;
 	u32 last_stripe = 0;
 	int ret;
@@ -6031,18 +6031,19 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 		factor = map->num_stripes / sub_stripes;
 		*num_stripes = min_t(u64, map->num_stripes,
 				    sub_stripes * stripe_cnt);
-		stripe_nr = div_u64_rem(stripe_nr, factor, &stripe_index);
+		stripe_index = stripe_nr % factor;
+		stripe_nr /= factor;
 		stripe_index *= sub_stripes;
-		stripes_per_dev = div_u64_rem(stripe_cnt, factor,
-					      &remaining_stripes);
-		div_u64_rem(stripe_nr_end - 1, factor, &last_stripe);
-		last_stripe *= sub_stripes;
+
+		remaining_stripes = stripe_cnt % factor;
+		stripes_per_dev = stripe_cnt / factor;
+		last_stripe = ((stripe_nr_end - 1) % factor) * sub_stripes;
 	} else if (map->type & (BTRFS_BLOCK_GROUP_RAID1_MASK |
 				BTRFS_BLOCK_GROUP_DUP)) {
 		*num_stripes = map->num_stripes;
 	} else {
-		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes,
-					&stripe_index);
+		stripe_index = stripe_nr % map->num_stripes;
+		stripe_nr /= map->num_stripes;
 	}
 
 	stripes = kcalloc(*num_stripes, sizeof(*stripes), GFP_NOFS);
@@ -6298,7 +6299,7 @@ static bool need_full_stripe(enum btrfs_map_op op)
 }
 
 static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
-			    u64 offset, u64 *stripe_nr, u64 *stripe_offset,
+			    u64 offset, u32 *stripe_nr, u64 *stripe_offset,
 			    u64 *full_stripe_start)
 {
 	ASSERT(op != BTRFS_MAP_DISCARD);
@@ -6346,7 +6347,7 @@ static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
 }
 
 static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *map,
-		          u32 stripe_index, u64 stripe_offset, u64 stripe_nr)
+			  u32 stripe_index, u64 stripe_offset, u32 stripe_nr)
 {
 	dst->dev = map->stripes[stripe_index].dev;
 	dst->physical = map->stripes[stripe_index].physical +
@@ -6363,7 +6364,7 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	struct map_lookup *map;
 	u64 map_offset;
 	u64 stripe_offset;
-	u64 stripe_nr;
+	u32 stripe_nr;
 	u32 stripe_index;
 	int data_stripes;
 	int i;
@@ -6422,8 +6423,8 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	num_stripes = 1;
 	stripe_index = 0;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
-		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes,
-				&stripe_index);
+		stripe_index = stripe_nr % map->num_stripes;
+		stripe_nr /= map->num_stripes;
 		if (!need_full_stripe(op))
 			mirror_num = 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1_MASK) {
@@ -6449,8 +6450,8 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 		u32 factor = map->num_stripes / map->sub_stripes;
 
-		stripe_nr = div_u64_rem(stripe_nr, factor, &stripe_index);
-		stripe_index *= map->sub_stripes;
+		stripe_index = (stripe_nr % factor) * map->sub_stripes;
+		stripe_nr /= factor;
 
 		if (need_full_stripe(op))
 			num_stripes = map->sub_stripes;
@@ -6466,9 +6467,16 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
 		if (need_raid_map && (need_full_stripe(op) || mirror_num > 1)) {
-			/* push stripe_nr back to the start of the full stripe */
-			stripe_nr = div64_u64(raid56_full_stripe_start,
-					      data_stripes << BTRFS_STRIPE_LEN_SHIFT);
+			/*
+			 * Push stripe_nr back to the start of the full stripe
+			 * For those cases needing a full stripe, @stripe_nr
+			 * is the full stripe number.
+			 *
+			 * Originally we go raid56_full_stripe_start / full_stripe_len,
+			 * but that can be expensive.  Here we just divide
+			 * @stripe_nr with @data_stripes.
+			 */
+			stripe_nr /= data_stripes;
 
 			/* RAID[56] write or recovery. Return all stripes */
 			num_stripes = map->num_stripes;
@@ -6486,25 +6494,24 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 			 * Mirror #2 is RAID5 parity block.
 			 * Mirror #3 is RAID6 Q block.
 			 */
-			stripe_nr = div_u64_rem(stripe_nr,
-					data_stripes, &stripe_index);
+			stripe_index = stripe_nr % data_stripes;
+			stripe_nr /= data_stripes;
 			if (mirror_num > 1)
 				stripe_index = data_stripes + mirror_num - 2;
 
 			/* We distribute the parity blocks across stripes */
-			div_u64_rem(stripe_nr + stripe_index, map->num_stripes,
-					&stripe_index);
+			stripe_index = (stripe_nr + stripe_index) % map->num_stripes;
 			if (!need_full_stripe(op) && mirror_num <= 1)
 				mirror_num = 1;
 		}
 	} else {
 		/*
-		 * after this, stripe_nr is the number of stripes on this
+		 * After this, stripe_nr is the number of stripes on this
 		 * device we have to walk to find the data, and stripe_index is
 		 * the number of our device in the stripe array
 		 */
-		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes,
-				&stripe_index);
+		stripe_index = stripe_nr % map->num_stripes;
+		stripe_nr /= map->num_stripes;
 		mirror_num = stripe_index + 1;
 	}
 	if (stripe_index >= map->num_stripes) {
@@ -6566,7 +6573,7 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		unsigned rot;
 
 		/* Work out the disk rotation on this stripe-set */
-		div_u64_rem(stripe_nr, num_stripes, &rot);
+		rot = stripe_nr % num_stripes;
 
 		/* Fill in the logical address of each stripe */
 		tmp = stripe_nr * data_stripes;
