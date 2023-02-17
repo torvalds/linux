@@ -82,6 +82,21 @@ static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 	return dev_inst;
 }
 
+static void aqua_vanjaram_populate_ip_map(struct amdgpu_device *adev,
+					  enum amd_hw_ip_block_type ip_block,
+					  uint32_t inst_mask)
+{
+	int l = 0, i;
+
+	while (inst_mask) {
+		i = ffs(inst_mask) - 1;
+		adev->ip_map.dev_inst[ip_block][l++] = i;
+		inst_mask &= ~(1 << i);
+	}
+	for (; l < HWIP_MAX_INSTANCE; l++)
+		adev->ip_map.dev_inst[ip_block][l] = -1;
+}
+
 void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
 {
 	int xcc_mask, sdma_mask;
@@ -107,6 +122,9 @@ void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
 	}
 	for (; l < HWIP_MAX_INSTANCE; l++)
 		adev->ip_map.dev_inst[SDMA0_HWIP][l] = -1;
+
+	/* This covers both VCN and JPEG, JPEG is only alias of VCN */
+	aqua_vanjaram_populate_ip_map(adev, VCN_HWIP, adev->vcn.inst_mask);
 
 	adev->ip_map.logical_to_dev_inst = aqua_vanjaram_logical_to_dev_inst;
 }
