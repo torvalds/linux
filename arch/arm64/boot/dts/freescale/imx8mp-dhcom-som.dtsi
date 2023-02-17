@@ -129,9 +129,9 @@
 
 &fec {	/* Second ethernet */
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_fec>;
+	pinctrl-0 = <&pinctrl_fec_rmii>;
 	phy-handle = <&ethphy1f>;
-	phy-mode = "rgmii";
+	phy-mode = "rmii";
 	fsl,magic-packet;
 	status = "okay";
 
@@ -732,7 +732,7 @@
 		>;
 	};
 
-	pinctrl_fec: dhcom-fec-grp {
+	pinctrl_fec_rgmii: dhcom-fec-rgmii-grp {	/* RGMII */
 		fsl,pins = <
 			MX8MP_IOMUXC_SAI1_MCLK__ENET1_TX_CLK		0x1f
 			MX8MP_IOMUXC_SAI1_RXD2__ENET1_MDC		0x3
@@ -750,6 +750,22 @@
 			MX8MP_IOMUXC_SAI1_TXD4__ENET1_RGMII_TX_CTL	0x1f
 			MX8MP_IOMUXC_SAI1_TXD5__ENET1_RGMII_TXC		0x1f
 			MX8MP_IOMUXC_SAI1_TXD6__ENET1_RX_ER		0x1f
+		>;
+	};
+
+	pinctrl_fec_rmii: dhcom-fec-rmii-grp {	/* RMII */
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI1_RXD2__ENET1_MDC		0x3
+			MX8MP_IOMUXC_SAI1_RXD3__ENET1_MDIO		0x3
+			MX8MP_IOMUXC_SAI1_RXD4__ENET1_RGMII_RD0		0x91
+			MX8MP_IOMUXC_SAI1_RXD5__ENET1_RGMII_RD1		0x91
+			MX8MP_IOMUXC_SAI1_TXFS__ENET1_RGMII_RX_CTL	0x91
+			MX8MP_IOMUXC_SAI1_TXD6__ENET1_RX_ER		0x91
+			MX8MP_IOMUXC_SAI1_TXD0__ENET1_RGMII_TD0		0x1f
+			MX8MP_IOMUXC_SAI1_TXD1__ENET1_RGMII_TD1		0x1f
+			MX8MP_IOMUXC_SAI1_TXD4__ENET1_RGMII_TX_CTL	0x1f
+			/* Clock */
+			MX8MP_IOMUXC_SAI1_MCLK__ENET1_TX_CLK		0x4000001f
 		>;
 	};
 
