@@ -8,8 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: SiFive Composable Cache Controller
 
 maintainers:
-  - Sagar Kadam <sagar.kadam@sifive.com>
-  - Paul Walmsley  <paul.walmsley@sifive.com>
+  - Paul Walmsley <paul.walmsley@sifive.com>
 
 description:
   The SiFive Composable Cache Controller is used to provide access to fast copies
