@@ -94,7 +94,7 @@ static int brd_insert_page(struct brd_device *brd, sector_t sector, gfp_t gfp)
 	if (!page)
 		return -ENOMEM;
 
-	if (gfpflags_allow_blocking(gfp) && radix_tree_preload(gfp)) {
+	if (radix_tree_maybe_preload(gfp)) {
 		__free_page(page);
 		return -ENOMEM;
 	}
