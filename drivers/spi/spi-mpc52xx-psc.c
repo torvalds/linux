@@ -18,7 +18,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/fsl_devices.h>
 #include <linux/slab.h>
 #include <linux/of_irq.h>
 
@@ -28,10 +27,6 @@
 #define MCLK 20000000 /* PSC port MClk in hz */
 
 struct mpc52xx_psc_spi {
-	/* fsl_spi_platform data */
-	void (*cs_control)(struct spi_device *spi, bool on);
-	u32 sysclk;
-
 	/* driver internal data */
 	struct mpc52xx_psc __iomem *psc;
 	struct mpc52xx_psc_fifo __iomem *fifo;
@@ -101,17 +96,6 @@ static void mpc52xx_psc_spi_activate_cs(struct spi_device *spi)
 		ccr |= (MCLK / 1000000 - 1) & 0xFF;
 	out_be16((u16 __iomem *)&psc->ccr, ccr);
 	mps->bits_per_word = cs->bits_per_word;
-
-	if (mps->cs_control)
-		mps->cs_control(spi, (spi->mode & SPI_CS_HIGH) ? 1 : 0);
-}
-
-static void mpc52xx_psc_spi_deactivate_cs(struct spi_device *spi)
-{
-	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(spi->master);
-
-	if (mps->cs_control)
-		mps->cs_control(spi, (spi->mode & SPI_CS_HIGH) ? 0 : 1);
 }
 
 #define MPC52xx_PSC_BUFSIZE (MPC52xx_PSC_RFNUM_MASK + 1)
@@ -220,14 +204,9 @@ int mpc52xx_psc_spi_transfer_one_message(struct spi_controller *ctlr,
 		m->actual_length += t->len;
 
 		spi_transfer_delay_exec(t);
-
-		if (cs_change)
-			mpc52xx_psc_spi_deactivate_cs(spi);
 	}
 
 	m->status = status;
-	if (status || !cs_change)
-		mpc52xx_psc_spi_deactivate_cs(spi);
 
 	mpc52xx_psc_spi_transfer_setup(spi, NULL);
 
@@ -269,7 +248,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	int ret;
 
 	/* default sysclk is 512MHz */
-	mclken_div = (mps->sysclk ? mps->sysclk : 512000000) / MCLK;
+	mclken_div = 512000000 / MCLK;
 	ret = mpc52xx_set_psc_clkdiv(psc_id, mclken_div);
 	if (ret)
 		return ret;
@@ -317,7 +296,6 @@ static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
 static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 				u32 size, unsigned int irq, s16 bus_num)
 {
-	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc52xx_psc_spi *mps;
 	struct spi_master *master;
 	int ret;
@@ -333,19 +311,8 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 
 	mps->irq = irq;
-	if (pdata == NULL) {
-		dev_warn(dev,
-			 "probe called without platform data, no cs_control function will be called\n");
-		mps->cs_control = NULL;
-		mps->sysclk = 0;
-		master->bus_num = bus_num;
-		master->num_chipselect = 255;
-	} else {
-		mps->cs_control = pdata->cs_control;
-		mps->sysclk = pdata->sysclk;
-		master->bus_num = pdata->bus_num;
-		master->num_chipselect = pdata->max_chipselect;
-	}
+	master->bus_num = bus_num;
+	master->num_chipselect = 255;
 	master->setup = mpc52xx_psc_spi_setup;
 	master->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
 	master->cleanup = mpc52xx_psc_spi_cleanup;

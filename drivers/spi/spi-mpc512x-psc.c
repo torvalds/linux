@@ -22,7 +22,6 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
-#include <linux/fsl_devices.h>
 #include <asm/mpc52xx_psc.h>
 
 enum {
@@ -51,8 +50,6 @@ enum {
 	__ret; })
 
 struct mpc512x_psc_spi {
-	void (*cs_control)(struct spi_device *spi, bool on);
-
 	/* driver internal data */
 	int type;
 	void __iomem *psc;
@@ -128,26 +125,16 @@ static void mpc512x_psc_spi_activate_cs(struct spi_device *spi)
 	mps->bits_per_word = cs->bits_per_word;
 
 	if (spi->cs_gpiod) {
-		if (mps->cs_control)
-			/* boardfile override */
-			mps->cs_control(spi, (spi->mode & SPI_CS_HIGH) ? 1 : 0);
-		else
-			/* gpiolib will deal with the inversion */
-			gpiod_set_value(spi->cs_gpiod, 1);
+		/* gpiolib will deal with the inversion */
+		gpiod_set_value(spi->cs_gpiod, 1);
 	}
 }
 
 static void mpc512x_psc_spi_deactivate_cs(struct spi_device *spi)
 {
-	struct mpc512x_psc_spi *mps = spi_master_get_devdata(spi->master);
-
 	if (spi->cs_gpiod) {
-		if (mps->cs_control)
-			/* boardfile override */
-			mps->cs_control(spi, (spi->mode & SPI_CS_HIGH) ? 0 : 1);
-		else
-			/* gpiolib will deal with the inversion */
-			gpiod_set_value(spi->cs_gpiod, 0);
+		/* gpiolib will deal with the inversion */
+		gpiod_set_value(spi->cs_gpiod, 0);
 	}
 }
 
@@ -474,7 +461,6 @@ static irqreturn_t mpc512x_psc_spi_isr(int irq, void *dev_id)
 static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 					      u32 size, unsigned int irq)
 {
-	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc512x_psc_spi *mps;
 	struct spi_master *master;
 	int ret;
@@ -489,12 +475,6 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	mps = spi_master_get_devdata(master);
 	mps->type = (int)of_device_get_match_data(dev);
 	mps->irq = irq;
-
-	if (pdata) {
-		mps->cs_control = pdata->cs_control;
-		master->bus_num = pdata->bus_num;
-		master->num_chipselect = pdata->max_chipselect;
-	}
 
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 	master->setup = mpc512x_psc_spi_setup;
