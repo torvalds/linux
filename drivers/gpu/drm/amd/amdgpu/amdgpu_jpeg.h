@@ -59,6 +59,8 @@ struct amdgpu_jpeg {
 	atomic_t total_submission_cnt;
 	struct ras_common_if	*ras_if;
 	struct amdgpu_jpeg_ras	*ras;
+
+	uint16_t inst_mask;
 	uint8_t num_inst_per_aid;
 };
 

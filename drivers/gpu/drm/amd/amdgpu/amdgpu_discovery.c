@@ -549,10 +549,19 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 				switch (le16_to_cpu(ip->hw_id)) {
 				case VCN_HWID:
 					(*vcn_harvest_count)++;
-					if (ip->instance_number == 0)
+					if (ip->instance_number == 0) {
 						adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN0;
-					else
+						adev->vcn.inst_mask &=
+							~AMDGPU_VCN_HARVEST_VCN0;
+						adev->jpeg.inst_mask &=
+							~AMDGPU_VCN_HARVEST_VCN0;
+					} else {
 						adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
+						adev->vcn.inst_mask &=
+							~AMDGPU_VCN_HARVEST_VCN1;
+						adev->jpeg.inst_mask &=
+							~AMDGPU_VCN_HARVEST_VCN1;
+					}
 					break;
 				case DMU_HWID:
 					adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
@@ -601,6 +610,11 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 				(1 << harvest_info->list[i].number_instance);
 			adev->jpeg.harvest_config |=
 				(1 << harvest_info->list[i].number_instance);
+
+			adev->vcn.inst_mask &=
+				~(1U << harvest_info->list[i].number_instance);
+			adev->jpeg.inst_mask &=
+				~(1U << harvest_info->list[i].number_instance);
 			break;
 		case DMU_HWID:
 			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
@@ -1188,6 +1202,8 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 	adev->gfx.xcc_mask = 0;
 	adev->sdma.sdma_mask = 0;
+	adev->vcn.inst_mask = 0;
+	adev->jpeg.inst_mask = 0;
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	ihdr = (struct ip_discovery_header *)(adev->mman.discovery_bin +
 			le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset));
@@ -1235,12 +1251,18 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				adev->vcn.vcn_config[adev->vcn.num_vcn_inst] =
 					ip->revision & 0xc0;
 				ip->revision &= ~0xc0;
-				if (adev->vcn.num_vcn_inst < AMDGPU_MAX_VCN_INSTANCES)
+				if (adev->vcn.num_vcn_inst <
+				    AMDGPU_MAX_VCN_INSTANCES) {
 					adev->vcn.num_vcn_inst++;
-				else
+					adev->vcn.inst_mask |=
+						(1U << ip->instance_number);
+					adev->jpeg.inst_mask |=
+						(1U << ip->instance_number);
+				} else {
 					dev_err(adev->dev, "Too many VCN instances: %d vs %d\n",
 						adev->vcn.num_vcn_inst + 1,
 						AMDGPU_MAX_VCN_INSTANCES);
+				}
 			}
 			if (le16_to_cpu(ip->hw_id) == SDMA0_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA1_HWID ||

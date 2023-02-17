@@ -273,6 +273,7 @@ struct amdgpu_vcn {
 	struct ras_common_if    *ras_if;
 	struct amdgpu_vcn_ras   *ras;
 
+	uint16_t inst_mask;
 	uint8_t	num_inst_per_aid;
 };
 
