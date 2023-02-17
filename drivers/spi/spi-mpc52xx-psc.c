@@ -300,7 +300,7 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	struct spi_master *master;
 	int ret;
 
-	master = spi_alloc_master(dev, sizeof(*mps));
+	master = devm_spi_alloc_master(dev, sizeof(*mps));
 	if (master == NULL)
 		return -ENOMEM;
 
@@ -318,42 +318,24 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->cleanup = mpc52xx_psc_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
-	mps->psc = ioremap(regaddr, size);
-	if (!mps->psc) {
-		dev_err(dev, "could not ioremap I/O port range\n");
-		ret = -EFAULT;
-		goto free_master;
-	}
+	mps->psc = devm_ioremap(dev, regaddr, size);
+	if (!mps->psc)
+		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
 	/* On the 5200, fifo regs are immediately ajacent to the psc regs */
 	mps->fifo = ((void __iomem *)mps->psc) + sizeof(struct mpc52xx_psc);
 
-	ret = request_irq(mps->irq, mpc52xx_psc_spi_isr, 0, "mpc52xx-psc-spi",
-				mps);
+	ret = devm_request_irq(dev, mps->irq, mpc52xx_psc_spi_isr, 0,
+			       "mpc52xx-psc-spi", mps);
 	if (ret)
-		goto free_master;
+		return ret;
 
 	ret = mpc52xx_psc_spi_port_config(master->bus_num, mps);
-	if (ret < 0) {
-		dev_err(dev, "can't configure PSC! Is it capable of SPI?\n");
-		goto free_irq;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "can't configure PSC! Is it capable of SPI?\n");
 
 	init_completion(&mps->done);
 
-	ret = spi_register_master(master);
-	if (ret < 0)
-		goto free_irq;
-
-	return ret;
-
-free_irq:
-	free_irq(mps->irq, mps);
-free_master:
-	if (mps->psc)
-		iounmap(mps->psc);
-	spi_master_put(master);
-
-	return ret;
+	return devm_spi_register_master(dev, master);
 }
 
 static int mpc52xx_psc_spi_of_probe(struct platform_device *op)
@@ -385,20 +367,6 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *op)
 				irq_of_parse_and_map(op->dev.of_node, 0), id);
 }
 
-static int mpc52xx_psc_spi_of_remove(struct platform_device *op)
-{
-	struct spi_master *master = spi_master_get(platform_get_drvdata(op));
-	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
-
-	spi_unregister_master(master);
-	free_irq(mps->irq, mps);
-	if (mps->psc)
-		iounmap(mps->psc);
-	spi_master_put(master);
-
-	return 0;
-}
-
 static const struct of_device_id mpc52xx_psc_spi_of_match[] = {
 	{ .compatible = "fsl,mpc5200-psc-spi", },
 	{ .compatible = "mpc5200-psc-spi", }, /* old */
@@ -409,7 +377,6 @@ MODULE_DEVICE_TABLE(of, mpc52xx_psc_spi_of_match);
 
 static struct platform_driver mpc52xx_psc_spi_of_driver = {
 	.probe = mpc52xx_psc_spi_of_probe,
-	.remove = mpc52xx_psc_spi_of_remove,
 	.driver = {
 		.name = "mpc52xx-psc-spi",
 		.of_match_table = mpc52xx_psc_spi_of_match,

@@ -467,7 +467,7 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	void *tempp;
 	struct clk *clk;
 
-	master = spi_alloc_master(dev, sizeof(*mps));
+	master = devm_spi_alloc_master(dev, sizeof(*mps));
 	if (master == NULL)
 		return -ENOMEM;
 
@@ -486,28 +486,24 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->dev.of_node = dev->of_node;
 
 	tempp = devm_ioremap(dev, regaddr, size);
-	if (!tempp) {
-		dev_err(dev, "could not ioremap I/O port range\n");
-		ret = -EFAULT;
-		goto free_master;
-	}
+	if (!tempp)
+		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
 	mps->psc = tempp;
 	mps->fifo =
 		(struct mpc512x_psc_fifo *)(tempp + sizeof(struct mpc52xx_psc));
 	ret = devm_request_irq(dev, mps->irq, mpc512x_psc_spi_isr, IRQF_SHARED,
 				"mpc512x-psc-spi", mps);
 	if (ret)
-		goto free_master;
+		return ret;
 	init_completion(&mps->txisrdone);
 
 	clk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto free_master;
-	}
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		goto free_master;
+		return ret;
 	mps->clk_mclk = clk;
 	mps->mclk_rate = clk_get_rate(clk);
 
@@ -535,8 +531,6 @@ free_ipg_clock:
 	clk_disable_unprepare(mps->clk_ipg);
 free_mclk_clock:
 	clk_disable_unprepare(mps->clk_mclk);
-free_master:
-	spi_master_put(master);
 
 	return ret;
 }
