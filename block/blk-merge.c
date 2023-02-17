@@ -757,7 +757,7 @@ void blk_rq_set_mixed_merge(struct request *rq)
 	rq->rq_flags |= RQF_MIXED_MERGE;
 }
 
-static inline unsigned int bio_failfast(const struct bio *bio)
+static inline blk_opf_t bio_failfast(const struct bio *bio)
 {
 	if (bio->bi_opf & REQ_RAHEAD)
 		return REQ_FAILFAST_MASK;
