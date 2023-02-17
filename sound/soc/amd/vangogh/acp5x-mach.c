@@ -342,7 +342,7 @@ static int acp5x_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	int ret;
 
-	machine = devm_kzalloc(dev, sizeof(struct acp5x_platform_info), GFP_KERNEL);
+	machine = devm_kzalloc(dev, sizeof(*machine), GFP_KERNEL);
 	if (!machine)
 		return -ENOMEM;
 
