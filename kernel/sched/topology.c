@@ -2079,14 +2079,19 @@ struct __cmp_key {
 
 static int hop_cmp(const void *a, const void *b)
 {
-	struct cpumask **prev_hop = *((struct cpumask ***)b - 1);
-	struct cpumask **cur_hop = *(struct cpumask ***)b;
+	struct cpumask **prev_hop, **cur_hop = *(struct cpumask ***)b;
 	struct __cmp_key *k = (struct __cmp_key *)a;
 
 	if (cpumask_weight_and(k->cpus, cur_hop[k->node]) <= k->cpu)
 		return 1;
 
-	k->w = (b == k->masks) ? 0 : cpumask_weight_and(k->cpus, prev_hop[k->node]);
+	if (b == k->masks) {
+		k->w = 0;
+		return 0;
+	}
+
+	prev_hop = *((struct cpumask ***)b - 1);
+	k->w = cpumask_weight_and(k->cpus, prev_hop[k->node]);
 	if (k->w <= k->cpu)
 		return 0;
 
