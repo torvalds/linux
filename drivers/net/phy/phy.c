@@ -1069,27 +1069,35 @@ EXPORT_SYMBOL(phy_ethtool_ksettings_set);
 int phy_speed_down(struct phy_device *phydev, bool sync)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_tmp);
-	int ret;
+	int ret = 0;
+
+	mutex_lock(&phydev->lock);
 
 	if (phydev->autoneg != AUTONEG_ENABLE)
-		return 0;
+		goto out;
 
 	linkmode_copy(adv_tmp, phydev->advertising);
 
 	ret = phy_speed_down_core(phydev);
 	if (ret)
-		return ret;
+		goto out;
 
 	linkmode_copy(phydev->adv_old, adv_tmp);
 
-	if (linkmode_equal(phydev->advertising, adv_tmp))
-		return 0;
+	if (linkmode_equal(phydev->advertising, adv_tmp)) {
+		ret = 0;
+		goto out;
+	}
 
 	ret = phy_config_aneg(phydev);
 	if (ret)
-		return ret;
+		goto out;
 
-	return sync ? phy_poll_aneg_done(phydev) : 0;
+	ret = sync ? phy_poll_aneg_done(phydev) : 0;
+out:
+	mutex_unlock(&phydev->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_speed_down);
 
@@ -1102,21 +1110,28 @@ EXPORT_SYMBOL_GPL(phy_speed_down);
 int phy_speed_up(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_tmp);
+	int ret = 0;
+
+	mutex_lock(&phydev->lock);
 
 	if (phydev->autoneg != AUTONEG_ENABLE)
-		return 0;
+		goto out;
 
 	if (linkmode_empty(phydev->adv_old))
-		return 0;
+		goto out;
 
 	linkmode_copy(adv_tmp, phydev->advertising);
 	linkmode_copy(phydev->advertising, phydev->adv_old);
 	linkmode_zero(phydev->adv_old);
 
 	if (linkmode_equal(phydev->advertising, adv_tmp))
-		return 0;
+		goto out;
 
-	return phy_config_aneg(phydev);
+	ret = phy_config_aneg(phydev);
+out:
+	mutex_unlock(&phydev->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_speed_up);
 
@@ -1500,10 +1515,16 @@ EXPORT_SYMBOL(phy_init_eee);
  */
 int phy_get_eee_err(struct phy_device *phydev)
 {
+	int ret;
+
 	if (!phydev->drv)
 		return -EIO;
 
-	return phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_WK_ERR);
+	mutex_lock(&phydev->lock);
+	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_WK_ERR);
+	mutex_unlock(&phydev->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(phy_get_eee_err);
 
@@ -1517,10 +1538,16 @@ EXPORT_SYMBOL(phy_get_eee_err);
  */
 int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
+	int ret;
+
 	if (!phydev->drv)
 		return -EIO;
 
-	return genphy_c45_ethtool_get_eee(phydev, data);
+	mutex_lock(&phydev->lock);
+	ret = genphy_c45_ethtool_get_eee(phydev, data);
+	mutex_unlock(&phydev->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(phy_ethtool_get_eee);
 
@@ -1533,10 +1560,16 @@ EXPORT_SYMBOL(phy_ethtool_get_eee);
  */
 int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
+	int ret;
+
 	if (!phydev->drv)
 		return -EIO;
 
-	return genphy_c45_ethtool_set_eee(phydev, data);
+	mutex_lock(&phydev->lock);
+	ret = genphy_c45_ethtool_set_eee(phydev, data);
+	mutex_unlock(&phydev->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(phy_ethtool_set_eee);
 
@@ -1548,8 +1581,15 @@ EXPORT_SYMBOL(phy_ethtool_set_eee);
  */
 int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 {
-	if (phydev->drv && phydev->drv->set_wol)
-		return phydev->drv->set_wol(phydev, wol);
+	int ret;
+
+	if (phydev->drv && phydev->drv->set_wol) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->set_wol(phydev, wol);
+		mutex_unlock(&phydev->lock);
+
+		return ret;
+	}
 
 	return -EOPNOTSUPP;
 }
@@ -1563,8 +1603,11 @@ EXPORT_SYMBOL(phy_ethtool_set_wol);
  */
 void phy_ethtool_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 {
-	if (phydev->drv && phydev->drv->get_wol)
+	if (phydev->drv && phydev->drv->get_wol) {
+		mutex_lock(&phydev->lock);
 		phydev->drv->get_wol(phydev, wol);
+		mutex_unlock(&phydev->lock);
+	}
 }
 EXPORT_SYMBOL(phy_ethtool_get_wol);
 
@@ -1601,6 +1644,7 @@ EXPORT_SYMBOL(phy_ethtool_set_link_ksettings);
 int phy_ethtool_nway_reset(struct net_device *ndev)
 {
 	struct phy_device *phydev = ndev->phydev;
+	int ret;
 
 	if (!phydev)
 		return -ENODEV;
@@ -1608,6 +1652,10 @@ int phy_ethtool_nway_reset(struct net_device *ndev)
 	if (!phydev->drv)
 		return -EIO;
 
-	return phy_restart_aneg(phydev);
+	mutex_lock(&phydev->lock);
+	ret = phy_restart_aneg(phydev);
+	mutex_unlock(&phydev->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(phy_ethtool_nway_reset);
