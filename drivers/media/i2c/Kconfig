@@ -511,6 +511,17 @@ config VIDEO_TC35874X
 	  To compile this driver as a module, choose M here: the
 	  module will be called tc35874x.
 
+config VIDEO_TECHPOINT
+	tristate "TechPoint decoder"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  Support for the TechPoint Multichannel digital decode to
+	  MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called TechPoint.
+
 config VIDEO_THCV244
 	tristate "Thine THCV244 decoder"
 	depends on VIDEO_V4L2 && I2C
