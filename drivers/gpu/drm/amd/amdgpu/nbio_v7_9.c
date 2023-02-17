@@ -408,11 +408,18 @@ static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
 	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS, tmp);
 }
 
-static enum amdgpu_memory_partition nbio_v7_9_get_memory_partition_mode(struct amdgpu_device *adev)
+static enum amdgpu_memory_partition
+nbio_v7_9_get_memory_partition_mode(struct amdgpu_device *adev, u32 *supp_modes)
 {
 	u32 tmp;
+
 	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_MEM_STATUS);
 	tmp = REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_MEM_STATUS, NPS_MODE);
+
+	if (supp_modes) {
+		*supp_modes =
+			RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_MEM_CAP);
+	}
 
 	return ffs(tmp);
 }

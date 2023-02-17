@@ -1331,14 +1331,21 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 }
 
 static enum amdgpu_memory_partition
-gmc_v9_0_query_memory_partition(struct amdgpu_device *adev)
+gmc_v9_0_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes)
 {
 	enum amdgpu_memory_partition mode = UNKNOWN_MEMORY_PARTITION_MODE;
 
 	if (adev->nbio.funcs->get_memory_partition_mode)
-		mode = adev->nbio.funcs->get_memory_partition_mode(adev);
+		mode = adev->nbio.funcs->get_memory_partition_mode(adev,
+								   supp_modes);
 
 	return mode;
+}
+
+static enum amdgpu_memory_partition
+gmc_v9_0_query_memory_partition(struct amdgpu_device *adev)
+{
+	return gmc_v9_0_get_memory_partition(adev, NULL);
 }
 
 static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
