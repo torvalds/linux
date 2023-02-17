@@ -149,7 +149,7 @@ static int nct6775_asuswmi_evaluate_method(u32 method_id, u8 bank, u8 reg, u8 va
 		return -EIO;
 
 	if (retval)
-		*retval = (u32)result & 0xFFFFFFFF;
+		*retval = result;
 
 	return 0;
 #else
