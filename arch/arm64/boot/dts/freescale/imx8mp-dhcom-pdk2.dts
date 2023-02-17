@@ -151,6 +151,20 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	clock-names = "ref";
+	clocks = <&clk IMX8MP_SYS_PLL2_100M>;
+	fsl,clkreq-unsupported;
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_UNUSED>;
+	status = "okay";
+};
+
+&pcie {
+	fsl,max-link-speed = <1>;
+	reset-gpio = <&gpio1 6 GPIO_ACTIVE_LOW>;	/* GPIO J */
+	status = "okay";
+};
+
 &usb3_1 {
 	fsl,over-current-active-low;
 };
