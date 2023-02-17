@@ -68,6 +68,13 @@ static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ances
 	return id == ancestor;
 }
 
+static inline bool bch2_snapshot_has_children(struct bch_fs *c, u32 id)
+{
+	struct snapshot_t *t = snapshot_t(c, id);
+
+	return (t->children[0]|t->children[1]) != 0;
+}
+
 static inline bool snapshot_list_has_id(snapshot_id_list *s, u32 id)
 {
 	u32 *i;
