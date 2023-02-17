@@ -65,6 +65,8 @@
 #define PLDA_FUNCTION_DIS		BIT(15)
 #define PLDA_FUNC_NUM			4
 #define PLDA_PHY_FUNC_SHIFT		9
+#define PHY_KVCO_FINE_TUNE_LEVEL	0x91
+#define PHY_KVCO_FINE_TUNE_SIGNALS	0xc
 
 #define XR3PCI_ATR_AXI4_SLV0		0x800
 #define XR3PCI_ATR_SRC_ADDR_LOW		0x0
@@ -146,10 +148,13 @@ struct plda_pcie {
 	void __iomem		*config_base;
 	struct resource *cfg_res;
 	struct regmap *reg_syscon;
+	struct regmap *reg_phyctrl;
 	u32 stg_arfun;
 	u32 stg_awfun;
 	u32 stg_rp_nep;
 	u32 stg_lnksta;
+	u32 phy_kvco_level;
+	u32 phy_kvco_tune_signals;
 	int			irq;
 	struct irq_domain	*legacy_irq_domain;
 	struct pci_host_bridge  *bridge;
@@ -571,7 +576,7 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 {
 	struct resource *reg_res;
 	struct platform_device *pdev = pcie->pdev;
-	struct of_phandle_args args;
+	struct of_phandle_args syscon_args, phyctrl_args;
 	int ret;
 
 	reg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
@@ -598,6 +603,23 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 		return PTR_ERR(pcie->config_base);
 	}
 
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+					       "starfive,phyctrl", 2, 0, &phyctrl_args);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to parse starfive,phyctrl\n");
+		return -EINVAL;
+	}
+
+	if (!of_device_is_compatible(phyctrl_args.np, "starfive,phyctrl"))
+		return -EINVAL;
+	pcie->reg_phyctrl =  device_node_to_regmap(phyctrl_args.np);
+	of_node_put(phyctrl_args.np);
+	if (IS_ERR(pcie->reg_phyctrl))
+		return PTR_ERR(pcie->reg_phyctrl);
+
+	pcie->phy_kvco_level = phyctrl_args.args[0];
+	pcie->phy_kvco_tune_signals = phyctrl_args.args[1];
+
 	pcie->irq = platform_get_irq(pdev, 0);
 	if (pcie->irq <= 0) {
 		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", pcie->irq);
@@ -605,21 +627,21 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 	}
 
 	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
-							"starfive,stg-syscon", 4, 0, &args);
+					       "starfive,stg-syscon", 4, 0, &syscon_args);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to parse starfive,stg-syscon\n");
 		return -EINVAL;
 	}
 
-	pcie->reg_syscon = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	pcie->reg_syscon = syscon_node_to_regmap(syscon_args.np);
+	of_node_put(syscon_args.np);
 	if (IS_ERR(pcie->reg_syscon))
 		return PTR_ERR(pcie->reg_syscon);
 
-	pcie->stg_arfun = args.args[0];
-	pcie->stg_awfun = args.args[1];
-	pcie->stg_rp_nep = args.args[2];
-	pcie->stg_lnksta = args.args[3];
+	pcie->stg_arfun = syscon_args.args[0];
+	pcie->stg_awfun = syscon_args.args[1];
+	pcie->stg_rp_nep = syscon_args.args[2];
+	pcie->stg_lnksta = syscon_args.args[3];
 
 	/* Clear all interrupts */
 	plda_writel(pcie, 0xffffffff, ISTATUS_LOCAL);
@@ -807,6 +829,12 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 				pcie->stg_awfun,
 				STG_SYSCON_AXI4_SLVL_AWFUNC_MASK,
 				0 << STG_SYSCON_AXI4_SLVL_AWFUNC_SHIFT);
+
+	/* PCIe Multi-PHY PLL KVCO Gain fine tune settings: */
+	regmap_write(pcie->reg_phyctrl, pcie->phy_kvco_level,
+		     PHY_KVCO_FINE_TUNE_LEVEL);
+	regmap_write(pcie->reg_phyctrl, pcie->phy_kvco_tune_signals,
+		     PHY_KVCO_FINE_TUNE_SIGNALS);
 
 	/* Enable root port*/
 	value = readl(pcie->reg_base + GEN_SETTINGS);
