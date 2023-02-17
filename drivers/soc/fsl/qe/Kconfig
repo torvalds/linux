@@ -44,6 +44,18 @@ config CPM_TSA
 	  This option enables support for this
 	  controller
 
+config CPM_QMC
+	tristate "CPM QMC support"
+	depends on OF && HAS_IOMEM
+	depends on CPM1 || (SOC_FSL && COMPILE_TEST)
+	depends on CPM_TSA
+	help
+	  Freescale CPM QUICC Multichannel Controller
+	  (QMC)
+
+	  This option enables support for this
+	  controller
+
 config QE_TDM
 	bool
 	default y if FSL_UCC_HDLC
