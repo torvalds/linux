@@ -21,7 +21,7 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 				     struct bpos new_pos)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter, update_iter;
+	struct btree_iter iter;
 	struct bkey_s_c k;
 	snapshot_id_list s;
 	int ret;
@@ -65,14 +65,8 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 			update->k.p = new_pos;
 			update->k.p.snapshot = k.k->p.snapshot;
 
-			bch2_trans_iter_init(trans, &update_iter, id, update->k.p,
-					     BTREE_ITER_NOT_EXTENTS|
-					     BTREE_ITER_ALL_SNAPSHOTS|
-					     BTREE_ITER_INTENT);
-			ret   = bch2_btree_iter_traverse(&update_iter) ?:
-				bch2_trans_update(trans, &update_iter, update,
+			ret  = bch2_btree_insert_nonextent(trans, id, update,
 					  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
-			bch2_trans_iter_exit(trans, &update_iter);
 			if (ret)
 				break;
 

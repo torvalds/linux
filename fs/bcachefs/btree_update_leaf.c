@@ -1312,7 +1312,7 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 			     struct bkey_i *insert,
 			     enum btree_update_flags flags)
 {
-	struct btree_iter iter, update_iter;
+	struct btree_iter iter;
 	struct bpos start = bkey_start_pos(&insert->k);
 	struct bkey_i *update;
 	struct bkey_s_c k;
@@ -1360,16 +1360,8 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 
 			bch2_cut_back(start, update);
 
-			bch2_trans_iter_init(trans, &update_iter, btree_id, update->k.p,
-					     BTREE_ITER_NOT_EXTENTS|
-					     BTREE_ITER_ALL_SNAPSHOTS|
-					     BTREE_ITER_INTENT);
-			ret   = bch2_btree_iter_traverse(&update_iter) ?:
-				bch2_trans_update(trans, &update_iter, update,
-						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
-						  flags);
-			bch2_trans_iter_exit(trans, &update_iter);
-
+			ret = bch2_btree_insert_nonextent(trans, btree_id, update,
+						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
 			if (ret)
 				goto err;
 		}
@@ -1383,15 +1375,8 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 			bch2_cut_front(start, update);
 			bch2_cut_back(insert->k.p, update);
 
-			bch2_trans_iter_init(trans, &update_iter, btree_id, update->k.p,
-					     BTREE_ITER_NOT_EXTENTS|
-					     BTREE_ITER_ALL_SNAPSHOTS|
-					     BTREE_ITER_INTENT);
-			ret   = bch2_btree_iter_traverse(&update_iter) ?:
-				bch2_trans_update(trans, &update_iter, update,
-						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
-						  flags);
-			bch2_trans_iter_exit(trans, &update_iter);
+			ret = bch2_btree_insert_nonextent(trans, btree_id, update,
+						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
 			if (ret)
 				goto err;
 		}
@@ -1409,15 +1394,9 @@ int bch2_trans_update_extent(struct btree_trans *trans,
 				update->k.type = KEY_TYPE_whiteout;
 			}
 
-			bch2_trans_iter_init(trans, &update_iter, btree_id, update->k.p,
-					     BTREE_ITER_NOT_EXTENTS|
-					     BTREE_ITER_INTENT);
-			ret   = bch2_btree_iter_traverse(&update_iter) ?:
-				bch2_trans_update(trans, &update_iter, update,
-						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
-						  flags);
-			bch2_trans_iter_exit(trans, &update_iter);
 
+			ret = bch2_btree_insert_nonextent(trans, btree_id, update,
+						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|flags);
 			if (ret)
 				goto err;
 		}
@@ -1748,8 +1727,23 @@ void bch2_trans_commit_hook(struct btree_trans *trans,
 	trans->hooks = h;
 }
 
-int __bch2_btree_insert(struct btree_trans *trans,
-			enum btree_id id,
+int bch2_btree_insert_nonextent(struct btree_trans *trans,
+				enum btree_id btree, struct bkey_i *k,
+				enum btree_update_flags flags)
+{
+	struct btree_iter iter;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, btree, k->k.p,
+			     BTREE_ITER_NOT_EXTENTS|
+			     BTREE_ITER_INTENT);
+	ret   = bch2_btree_iter_traverse(&iter) ?:
+		bch2_trans_update(trans, &iter, k, flags);
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int __bch2_btree_insert(struct btree_trans *trans, enum btree_id id,
 			struct bkey_i *k, enum btree_update_flags flags)
 {
 	struct btree_iter iter;
