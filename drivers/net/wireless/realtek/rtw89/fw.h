@@ -237,6 +237,7 @@ struct rtw89_mac_chinfo {
 	u16 tx_pwr_idx;
 	u8 rsvd1;
 	struct list_head list;
+	bool is_psc;
 };
 
 struct rtw89_scan_option {
@@ -247,6 +248,12 @@ struct rtw89_scan_option {
 struct rtw89_pktofld_info {
 	struct list_head list;
 	u8 id;
+
+	/* Below fields are for 6 GHz RNR use only */
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+	u8 bssid[ETH_ALEN];
+	u16 channel_6ghz;
 };
 
 static inline void RTW89_SET_FWCMD_RA_IS_DIS(void *cmd, u32 val)

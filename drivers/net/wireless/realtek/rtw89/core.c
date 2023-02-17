@@ -1400,6 +1400,34 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_core_cancel_6ghz_probe_tx(struct rtw89_dev *rtwdev,
+					    struct sk_buff *skb)
+{
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
+	struct list_head *pkt_list = rtwdev->scan_info.pkt_list;
+	struct rtw89_pktofld_info *info;
+	const u8 *ies = mgmt->u.beacon.variable, *ssid_ie;
+
+	if (rx_status->band != NL80211_BAND_6GHZ)
+		return;
+
+	ssid_ie = cfg80211_find_ie(WLAN_EID_SSID, ies, skb->len);
+
+	list_for_each_entry(info, &pkt_list[NL80211_BAND_6GHZ], list) {
+		if (ether_addr_equal(info->bssid, mgmt->bssid)) {
+			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
+			continue;
+		}
+
+		if (!ssid_ie || ssid_ie[1] != info->ssid_len || info->ssid_len == 0)
+			continue;
+
+		if (memcmp(&ssid_ie[2], info->ssid, info->ssid_len) == 0)
+			rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
+	}
+}
+
 static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 				    struct ieee80211_vif *vif)
 {
@@ -1411,6 +1439,11 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct sk_buff *skb = iter_data->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	const u8 *bssid = iter_data->bssid;
+
+	if (rtwdev->scanning &&
+	    (ieee80211_is_beacon(hdr->frame_control) ||
+	     ieee80211_is_probe_resp(hdr->frame_control)))
+		rtw89_core_cancel_6ghz_probe_tx(rtwdev, skb);
 
 	if (!vif->bss_conf.bssid)
 		return;
@@ -3372,7 +3405,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP |
-			    WIPHY_FLAG_AP_UAPSD;
+			    WIPHY_FLAG_AP_UAPSD | WIPHY_FLAG_SPLIT_SCAN_6GHZ;
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	hw->wiphy->max_scan_ssids = RTW89_SCANOFLD_MAX_SSID;
