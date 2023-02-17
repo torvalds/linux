@@ -399,14 +399,14 @@ static int ef100_filter_table_up(struct efx_nic *efx)
 	 * filter insertion will need to take the lock for read.
 	 */
 	up_write(&efx->filter_sem);
-#ifdef CONFIG_SFC_SRIOV
-	rc = efx_tc_insert_rep_filters(efx);
+	if (IS_ENABLED(CONFIG_SFC_SRIOV))
+		rc = efx_tc_insert_rep_filters(efx);
+
 	/* Rep filter failure is nonfatal */
 	if (rc)
 		netif_warn(efx, drv, efx->net_dev,
 			   "Failed to insert representor filters, rc %d\n",
 			   rc);
-#endif
 	return 0;
 
 fail_vlan0:
@@ -419,9 +419,8 @@ fail_unspec:
 
 static void ef100_filter_table_down(struct efx_nic *efx)
 {
-#ifdef CONFIG_SFC_SRIOV
-	efx_tc_remove_rep_filters(efx);
-#endif
+	if (IS_ENABLED(CONFIG_SFC_SRIOV))
+		efx_tc_remove_rep_filters(efx);
 	down_write(&efx->filter_sem);
 	efx_mcdi_filter_del_vlan(efx, 0);
 	efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
@@ -737,7 +736,6 @@ static unsigned int efx_ef100_recycle_ring_size(const struct efx_nic *efx)
 	return 10 * EFX_RECYCLE_RING_SIZE_10G;
 }
 
-#ifdef CONFIG_SFC_SRIOV
 static int efx_ef100_get_base_mport(struct efx_nic *efx)
 {
 	struct ef100_nic_data *nic_data = efx->nic_data;
@@ -773,7 +771,6 @@ static int efx_ef100_get_base_mport(struct efx_nic *efx)
 
 	return 0;
 }
-#endif
 
 static int compare_versions(const char *a, const char *b)
 {
@@ -1155,10 +1152,9 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 	struct net_device *net_dev = efx->net_dev;
 	int rc;
 
-	if (!nic_data->grp_mae)
+	if (!IS_ENABLED(CONFIG_SFC_SRIOV) || !nic_data->grp_mae)
 		return 0;
 
-#ifdef CONFIG_SFC_SRIOV
 	rc = efx_init_struct_tc(efx);
 	if (rc)
 		return rc;
@@ -1193,7 +1189,6 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 		net_dev->features |= NETIF_F_HW_TC;
 		efx->fixed_features |= NETIF_F_HW_TC;
 	}
-#endif
 	return rc;
 }
 
@@ -1206,12 +1201,11 @@ void ef100_remove(struct efx_nic *efx)
 {
 	struct ef100_nic_data *nic_data = efx->nic_data;
 
-#ifdef CONFIG_SFC_SRIOV
-	if (efx->mae) {
+	if (IS_ENABLED(CONFIG_SFC_SRIOV) && efx->mae) {
 		efx_ef100_fini_reps(efx);
 		efx_fini_mae(efx);
 	}
-#endif
+
 	efx_mcdi_detach(efx);
 	efx_mcdi_fini(efx);
 	if (nic_data)
@@ -1304,9 +1298,8 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.update_stats = ef100_update_stats,
 	.pull_stats = efx_mcdi_mac_pull_stats,
 	.stop_stats = efx_mcdi_mac_stop_stats,
-#ifdef CONFIG_SFC_SRIOV
-	.sriov_configure = efx_ef100_sriov_configure,
-#endif
+	.sriov_configure = IS_ENABLED(CONFIG_SFC_SRIOV) ?
+		efx_ef100_sriov_configure : NULL,
 
 	/* Per-type bar/size configuration not used on ef100. Location of
 	 * registers is defined by extended capabilities.
