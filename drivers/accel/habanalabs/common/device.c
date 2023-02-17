@@ -482,48 +482,32 @@ int hl_hpriv_put(struct hl_fpriv *hpriv)
 	return kref_put(&hpriv->refcount, hpriv_release);
 }
 
-static void compose_device_in_use_info(char **buf, size_t *buf_size, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-	int size;
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	size = snprintf(*buf, *buf_size, "%pV", &vaf);
-	if (size >= *buf_size)
-		size = *buf_size;
-
-	*buf += size;
-	*buf_size -= size;
-
-	va_end(args);
-}
-
 static void print_device_in_use_info(struct hl_device *hdev, const char *message)
 {
 	u32 active_cs_num, dmabuf_export_cnt;
-	char buf[64], *buf_ptr = buf;
-	size_t buf_size = sizeof(buf);
 	bool unknown_reason = true;
+	char buf[128];
+	size_t size;
+	int offset;
+
+	size = sizeof(buf);
+	offset = 0;
 
 	active_cs_num = hl_get_active_cs_num(hdev);
 	if (active_cs_num) {
 		unknown_reason = false;
-		compose_device_in_use_info(&buf_ptr, &buf_size, " [%u active CS]", active_cs_num);
+		offset += scnprintf(buf + offset, size - offset, " [%u active CS]", active_cs_num);
 	}
 
 	dmabuf_export_cnt = atomic_read(&hdev->dmabuf_export_cnt);
 	if (dmabuf_export_cnt) {
 		unknown_reason = false;
-		compose_device_in_use_info(&buf_ptr, &buf_size, " [%u exported dma-buf]",
-						dmabuf_export_cnt);
+		offset += scnprintf(buf + offset, size - offset, " [%u exported dma-buf]",
+					dmabuf_export_cnt);
 	}
 
 	if (unknown_reason)
-		compose_device_in_use_info(&buf_ptr, &buf_size, " [unknown reason]");
+		scnprintf(buf + offset, size - offset, " [unknown reason]");
 
 	dev_notice(hdev->dev, "%s%s\n", message, buf);
 }
