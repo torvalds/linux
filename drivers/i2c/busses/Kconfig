@@ -659,6 +659,13 @@ config I2C_GPIO_FAULT_INJECTOR
 	  faults to an I2C bus, so another bus master can be stress-tested.
 	  This is for debugging. If unsure, say 'no'.
 
+config I2C_GXP
+	tristate "GXP I2C Interface"
+	depends on ARCH_HPE_GXP || COMPILE_TEST
+	help
+	  This enables support for GXP I2C interface. The I2C engines can be
+	  either I2C master or I2C slaves.
+
 config I2C_HIGHLANDER
 	tristate "Highlander FPGA SMBus interface"
 	depends on SH_HIGHLANDER || COMPILE_TEST
