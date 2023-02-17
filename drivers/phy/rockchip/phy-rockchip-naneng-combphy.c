@@ -64,6 +64,7 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg pipe_xpcs_phy_ready;
 	struct combphy_reg u3otg0_port_en;
 	struct combphy_reg u3otg1_port_en;
+	struct combphy_reg pipe_phy_grf_reset;
 };
 
 struct rockchip_combphy_cfg {
@@ -252,6 +253,9 @@ static int rockchip_combphy_init(struct phy *phy)
 	if (ret)
 		goto err_clk;
 
+	if (cfg->pipe_phy_grf_reset.enable)
+		param_write(priv->phy_grf, &cfg->pipe_phy_grf_reset, false);
+
 	if (priv->mode == PHY_TYPE_USB3) {
 		ret = readx_poll_timeout_atomic(rockchip_combphy_is_ready,
 						priv, val,
@@ -272,6 +276,10 @@ err_clk:
 static int rockchip_combphy_exit(struct phy *phy)
 {
 	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
+	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
+
+	if (cfg->pipe_phy_grf_reset.enable)
+		param_write(priv->phy_grf, &cfg->pipe_phy_grf_reset, true);
 
 	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
 	reset_control_assert(priv->phy_rst);
@@ -728,6 +736,7 @@ static const struct rockchip_combphy_grfcfg rk3562_combphy_grfcfgs = {
 	.con1_for_pcie		= { 0x0004, 15, 0, 0x00, 0x0000 },
 	.con2_for_pcie		= { 0x0008, 15, 0, 0x00, 0x0101 },
 	.con3_for_pcie		= { 0x000c, 15, 0, 0x00, 0x0200 },
+	.pipe_phy_grf_reset	= { 0x0014, 1, 0, 0x3, 0x1 },
 	/* peri-grf */
 	.u3otg0_port_en		= { 0x0094, 15, 0, 0x0181, 0x1100 },
 };
