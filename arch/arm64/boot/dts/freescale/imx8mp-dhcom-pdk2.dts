@@ -173,7 +173,7 @@
 	/*
 	 * GPIO_A,B,C,D are connected to buttons.
 	 * GPIO_E,F,H,I are connected to LEDs.
-	 * GPIO_M is connected to CLKOUT2.
+	 * GPIO_M is connected to CLKOUT1.
 	 */
 	pinctrl-0 = <&pinctrl_hog_base
 		     &pinctrl_dhcom_g &pinctrl_dhcom_j

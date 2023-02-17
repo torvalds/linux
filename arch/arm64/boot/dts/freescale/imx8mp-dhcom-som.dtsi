@@ -547,7 +547,7 @@
 		     &pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
 		     &pinctrl_dhcom_g &pinctrl_dhcom_h &pinctrl_dhcom_i
 		     &pinctrl_dhcom_j &pinctrl_dhcom_k &pinctrl_dhcom_l
-		     /* GPIO_M is connected to CLKOUT2 */
+		     /* GPIO_M is connected to CLKOUT1 */
 		     &pinctrl_dhcom_int>;
 	pinctrl-names = "default";
 
