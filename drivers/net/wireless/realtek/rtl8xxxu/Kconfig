@@ -5,6 +5,7 @@
 config RTL8XXXU
 	tristate "Realtek 802.11n USB wireless chips support"
 	depends on MAC80211 && USB
+	depends on LEDS_CLASS
 	help
 	  This is an alternative driver for various Realtek RTL8XXX
 	  parts written to utilize the Linux mac80211 stack.
