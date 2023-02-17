@@ -655,7 +655,7 @@ static struct devlink_port *ef100_set_devlink_port(struct efx_nic *efx, u32 idx)
 				 "devlink port creation for PF failed.\n");
 		else
 			pci_warn(efx->pci_dev,
-				 "devlink_port creationg for VF %u failed.\n",
+				 "devlink_port creation for VF %u failed.\n",
 				 idx);
 		return NULL;
 	}
