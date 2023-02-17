@@ -52,6 +52,11 @@ properties:
       - const: qspi-config
       - const: qspi-memory
 
+  operating-points-v2: true
+
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg
