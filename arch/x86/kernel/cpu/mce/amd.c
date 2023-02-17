@@ -1029,7 +1029,7 @@ static const struct sysfs_ops threshold_ops = {
 
 static void threshold_block_release(struct kobject *kobj);
 
-static struct kobj_type threshold_ktype = {
+static const struct kobj_type threshold_ktype = {
 	.sysfs_ops		= &threshold_ops,
 	.default_groups		= default_groups,
 	.release		= threshold_block_release,
