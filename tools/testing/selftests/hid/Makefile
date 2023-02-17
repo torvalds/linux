@@ -9,6 +9,8 @@ TEST_PROGS := hid-core.sh
 TEST_PROGS += hid-gamepad.sh
 TEST_PROGS += hid-keyboard.sh
 TEST_PROGS += hid-mouse.sh
+TEST_PROGS += hid-multitouch.sh
+TEST_PROGS += hid-tablet.sh
 
 CXX ?= $(CROSS_COMPILE)g++
 
