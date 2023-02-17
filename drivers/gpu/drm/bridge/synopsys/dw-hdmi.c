@@ -2671,20 +2671,6 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 	/* HDMI Initialization Step B.1 */
 	hdmi_av_composer(hdmi, &connector->display_info, mode);
 
-	/* HDMI Initializateion Step B.2 */
-	if (!hdmi->phy.enabled ||
-	    hdmi->hdmi_data.video_mode.previous_pixelclock !=
-	    hdmi->hdmi_data.video_mode.mpixelclock ||
-	    hdmi->hdmi_data.video_mode.previous_tmdsclock !=
-	    hdmi->hdmi_data.video_mode.mtmdsclock) {
-		ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data,
-					  &connector->display_info,
-					  &hdmi->previous_mode);
-		if (ret)
-			return ret;
-		hdmi->phy.enabled = true;
-	}
-
 	/* HDMI Initialization Step B.3 */
 	dw_hdmi_enable_video_path(hdmi);
 
@@ -2712,6 +2698,20 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 	hdmi_video_csc(hdmi);
 	hdmi_video_sample(hdmi);
 	hdmi_tx_hdcp_config(hdmi, mode);
+
+	/* HDMI Enable phy output */
+	if (!hdmi->phy.enabled ||
+	    hdmi->hdmi_data.video_mode.previous_pixelclock !=
+	    hdmi->hdmi_data.video_mode.mpixelclock ||
+	    hdmi->hdmi_data.video_mode.previous_tmdsclock !=
+	    hdmi->hdmi_data.video_mode.mtmdsclock) {
+		ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data,
+					  &connector->display_info,
+					  &hdmi->previous_mode);
+		if (ret)
+			return ret;
+		hdmi->phy.enabled = true;
+	}
 
 	dw_hdmi_clear_overflow(hdmi);
 
