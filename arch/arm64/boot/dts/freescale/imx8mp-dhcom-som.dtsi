@@ -700,9 +700,9 @@
 
 	pinctrl_ethphy0: dhcom-ethphy0-grp {
 		fsl,pins = <
-			/* ENET1_#RST Reset */
+			/* ENET_QOS_#RST Reset */
 			MX8MP_IOMUXC_SAI5_RXC__GPIO3_IO20		0x22
-			/* ENET1_#INT Interrupt */
+			/* ENET_QOS_#INT Interrupt */
 			MX8MP_IOMUXC_SAI5_RXFS__GPIO3_IO19		0x22
 		>;
 	};
