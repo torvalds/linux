@@ -202,7 +202,7 @@ static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
  */
 static int rbio_bucket(struct btrfs_raid_bio *rbio)
 {
-	u64 num = rbio->bioc->raid_map[0];
+	u64 num = rbio->bioc->full_stripe_logical;
 
 	/*
 	 * we shift down quite a bit.  We're using byte
@@ -567,7 +567,7 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	    test_bit(RBIO_CACHE_BIT, &cur->flags))
 		return 0;
 
-	if (last->bioc->raid_map[0] != cur->bioc->raid_map[0])
+	if (last->bioc->full_stripe_logical != cur->bioc->full_stripe_logical)
 		return 0;
 
 	/* we can't merge with different operations */
@@ -661,7 +661,7 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 
 	spin_lock(&h->lock);
 	list_for_each_entry(cur, &h->hash_list, hash_list) {
-		if (cur->bioc->raid_map[0] != rbio->bioc->raid_map[0])
+		if (cur->bioc->full_stripe_logical != rbio->bioc->full_stripe_logical)
 			continue;
 
 		spin_lock(&cur->bio_list_lock);
@@ -1113,7 +1113,7 @@ static void index_one_bio(struct btrfs_raid_bio *rbio, struct bio *bio)
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	u32 offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
-		     rbio->bioc->raid_map[0];
+		     rbio->bioc->full_stripe_logical;
 
 	bio_for_each_segment(bvec, bio, iter) {
 		u32 bvec_offset;
@@ -1337,7 +1337,7 @@ static void set_rbio_range_error(struct btrfs_raid_bio *rbio, struct bio *bio)
 {
 	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
 	u32 offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
-		     rbio->bioc->raid_map[0];
+		     rbio->bioc->full_stripe_logical;
 	int total_nr_sector = offset >> fs_info->sectorsize_bits;
 
 	ASSERT(total_nr_sector < rbio->nr_data * rbio->stripe_nsectors);
@@ -1614,7 +1614,7 @@ static void rbio_add_bio(struct btrfs_raid_bio *rbio, struct bio *orig_bio)
 {
 	const struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
 	const u64 orig_logical = orig_bio->bi_iter.bi_sector << SECTOR_SHIFT;
-	const u64 full_stripe_start = rbio->bioc->raid_map[0];
+	const u64 full_stripe_start = rbio->bioc->full_stripe_logical;
 	const u32 orig_len = orig_bio->bi_iter.bi_size;
 	const u32 sectorsize = fs_info->sectorsize;
 	u64 cur_logical;
@@ -1801,9 +1801,8 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 		 * here due to a crc mismatch and we can't give them the
 		 * data they want.
 		 */
-		if (rbio->bioc->raid_map[failb] == RAID6_Q_STRIPE) {
-			if (rbio->bioc->raid_map[faila] ==
-			    RAID5_P_STRIPE)
+		if (failb == rbio->real_stripes - 1) {
+			if (faila == rbio->real_stripes - 2)
 				/*
 				 * Only P and Q are corrupted.
 				 * We only care about data stripes recovery,
@@ -1817,7 +1816,7 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 			goto pstripe;
 		}
 
-		if (rbio->bioc->raid_map[failb] == RAID5_P_STRIPE) {
+		if (failb == rbio->real_stripes - 2) {
 			raid6_datap_recov(rbio->real_stripes, sectorsize,
 					  faila, pointers);
 		} else {
@@ -2080,8 +2079,8 @@ static void fill_data_csums(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info,
-						       rbio->bioc->raid_map[0]);
-	const u64 start = rbio->bioc->raid_map[0];
+						       rbio->bioc->full_stripe_logical);
+	const u64 start = rbio->bioc->full_stripe_logical;
 	const u32 len = (rbio->nr_data * rbio->stripe_nsectors) <<
 			fs_info->sectorsize_bits;
 	int ret;
@@ -2129,7 +2128,7 @@ error:
 	 */
 	btrfs_warn_rl(fs_info,
 "sub-stripe write for full stripe %llu is not safe, failed to get csum: %d",
-			rbio->bioc->raid_map[0], ret);
+			rbio->bioc->full_stripe_logical, ret);
 no_csum:
 	kfree(rbio->csum_buf);
 	bitmap_free(rbio->csum_bitmap);
@@ -2385,10 +2384,10 @@ void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
 	int stripe_offset;
 	int index;
 
-	ASSERT(logical >= rbio->bioc->raid_map[0]);
-	ASSERT(logical + sectorsize <= rbio->bioc->raid_map[0] +
+	ASSERT(logical >= rbio->bioc->full_stripe_logical);
+	ASSERT(logical + sectorsize <= rbio->bioc->full_stripe_logical +
 				       BTRFS_STRIPE_LEN * rbio->nr_data);
-	stripe_offset = (int)(logical - rbio->bioc->raid_map[0]);
+	stripe_offset = (int)(logical - rbio->bioc->full_stripe_logical);
 	index = stripe_offset / sectorsize;
 	rbio->bio_sectors[index].page = page;
 	rbio->bio_sectors[index].pgoff = pgoff;

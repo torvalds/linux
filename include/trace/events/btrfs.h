@@ -2422,7 +2422,7 @@ DECLARE_EVENT_CLASS(btrfs_raid56_bio,
 	),
 
 	TP_fast_assign_btrfs(rbio->bioc->fs_info,
-		__entry->full_stripe	= rbio->bioc->raid_map[0];
+		__entry->full_stripe	= rbio->bioc->full_stripe_logical;
 		__entry->physical	= bio->bi_iter.bi_sector << SECTOR_SHIFT;
 		__entry->len		= bio->bi_iter.bi_size;
 		__entry->opf		= bio_op(bio);

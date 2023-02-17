@@ -5894,25 +5894,6 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 	return preferred_mirror;
 }
 
-/* Bubble-sort the stripe set to put the parity/syndrome stripes last */
-static void sort_parity_stripes(struct btrfs_io_context *bioc, int num_stripes)
-{
-	int i;
-	int again = 1;
-
-	while (again) {
-		again = 0;
-		for (i = 0; i < num_stripes - 1; i++) {
-			/* Swap if parity is on a smaller index */
-			if (bioc->raid_map[i] > bioc->raid_map[i + 1]) {
-				swap(bioc->stripes[i], bioc->stripes[i + 1]);
-				swap(bioc->raid_map[i], bioc->raid_map[i + 1]);
-				again = 1;
-			}
-		}
-	}
-}
-
 static struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_info,
 						       u16 total_stripes)
 {
@@ -5922,12 +5903,7 @@ static struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_
 		 /* The size of btrfs_io_context */
 		sizeof(struct btrfs_io_context) +
 		/* Plus the variable array for the stripes */
-		sizeof(struct btrfs_io_stripe) * (total_stripes) +
-		/*
-		 * Plus the raid_map, which includes both the tgt dev
-		 * and the stripes.
-		 */
-		sizeof(u64) * (total_stripes),
+		sizeof(struct btrfs_io_stripe) * (total_stripes),
 		GFP_NOFS);
 
 	if (!bioc)
@@ -5936,8 +5912,8 @@ static struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_
 	refcount_set(&bioc->refs, 1);
 
 	bioc->fs_info = fs_info;
-	bioc->raid_map = (u64 *)(bioc->stripes + total_stripes);
 	bioc->replace_stripe_src = -1;
+	bioc->full_stripe_logical = (u64)-1;
 
 	return bioc;
 }
@@ -6541,33 +6517,39 @@ int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	}
 	bioc->map_type = map->type;
 
-	for (i = 0; i < num_stripes; i++) {
-		set_io_stripe(&bioc->stripes[i], map, stripe_index, stripe_offset,
-			      stripe_nr);
-		stripe_index++;
-	}
-
-	/* Build raid_map */
+	/*
+	 * For RAID56 full map, we need to make sure the stripes[] follows the
+	 * rule that data stripes are all ordered, then followed with P and Q
+	 * (if we have).
+	 *
+	 * It's still mostly the same as other profiles, just with extra rotation.
+	 */
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK && need_raid_map &&
 	    (need_full_stripe(op) || mirror_num > 1)) {
-		u64 tmp;
-		unsigned rot;
-
-		/* Work out the disk rotation on this stripe-set */
-		rot = stripe_nr % num_stripes;
-
-		/* Fill in the logical address of each stripe */
-		tmp = stripe_nr * data_stripes;
-		for (i = 0; i < data_stripes; i++)
-			bioc->raid_map[(i + rot) % num_stripes] =
-				em->start + ((tmp + i) << BTRFS_STRIPE_LEN_SHIFT);
-
-		bioc->raid_map[(i + rot) % map->num_stripes] = RAID5_P_STRIPE;
-		if (map->type & BTRFS_BLOCK_GROUP_RAID6)
-			bioc->raid_map[(i + rot + 1) % num_stripes] =
-				RAID6_Q_STRIPE;
-
-		sort_parity_stripes(bioc, num_stripes);
+		/*
+		 * For RAID56 @stripe_nr is already the number of full stripes
+		 * before us, which is also the rotation value (needs to modulo
+		 * with num_stripes).
+		 *
+		 * In this case, we just add @stripe_nr with @i, then do the
+		 * modulo, to reduce one modulo call.
+		 */
+		bioc->full_stripe_logical = em->start +
+			((stripe_nr * data_stripes) << BTRFS_STRIPE_LEN_SHIFT);
+		for (i = 0; i < num_stripes; i++)
+			set_io_stripe(&bioc->stripes[i], map,
+				      (i + stripe_nr) % num_stripes,
+				      stripe_offset, stripe_nr);
+	} else {
+		/*
+		 * For all other non-RAID56 profiles, just copy the target
+		 * stripe into the bioc.
+		 */
+		for (i = 0; i < num_stripes; i++) {
+			set_io_stripe(&bioc->stripes[i], map, stripe_index,
+				      stripe_offset, stripe_nr);
+			stripe_index++;
+		}
 	}
 
 	if (need_full_stripe(op))
