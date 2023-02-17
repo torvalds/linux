@@ -3113,8 +3113,10 @@ static int phy_probe(struct device *dev)
 	 * a controller will attach, and may modify one
 	 * or both of these values
 	 */
-	if (phydrv->features)
+	if (phydrv->features) {
 		linkmode_copy(phydev->supported, phydrv->features);
+		genphy_c45_read_eee_abilities(phydev);
+	}
 	else if (phydrv->get_features)
 		err = phydrv->get_features(phydev);
 	else if (phydev->is_c45)
