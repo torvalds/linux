@@ -24,6 +24,11 @@ struct mlx5_devlink_trap {
 	struct list_head list;
 };
 
+struct mlx5_devlink_trap_event_ctx {
+	struct mlx5_trap_ctx *trap;
+	int err;
+};
+
 struct mlx5_core_dev;
 void mlx5_devlink_trap_report(struct mlx5_core_dev *dev, int trap_id, struct sk_buff *skb,
 			      struct devlink_port *dl_port);

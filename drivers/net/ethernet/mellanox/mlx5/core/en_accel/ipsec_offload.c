@@ -42,6 +42,11 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, decap))
 		caps |= MLX5_IPSEC_CAP_PACKET_OFFLOAD;
 
+	if (mlx5_get_roce_state(mdev) &&
+	    MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) & MLX5_FT_NIC_RX_2_NIC_RX_RDMA &&
+	    MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) & MLX5_FT_NIC_TX_RDMA_2_NIC_TX)
+		caps |= MLX5_IPSEC_CAP_ROCE;
+
 	if (!caps)
 		return 0;
 

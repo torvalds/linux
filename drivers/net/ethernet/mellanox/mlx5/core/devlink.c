@@ -263,9 +263,10 @@ static int mlx5_devlink_trap_action_set(struct devlink *devlink,
 					struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_devlink_trap_event_ctx trap_event_ctx;
 	enum devlink_trap_action action_orig;
 	struct mlx5_devlink_trap *dl_trap;
-	int err = 0;
+	int err;
 
 	if (is_mdev_switchdev_mode(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Devlink traps can't be set in switchdev mode");
@@ -275,26 +276,25 @@ static int mlx5_devlink_trap_action_set(struct devlink *devlink,
 	dl_trap = mlx5_find_trap_by_id(dev, trap->id);
 	if (!dl_trap) {
 		mlx5_core_err(dev, "Devlink trap: Set action on invalid trap id 0x%x", trap->id);
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	if (action != DEVLINK_TRAP_ACTION_DROP && action != DEVLINK_TRAP_ACTION_TRAP) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
+	if (action != DEVLINK_TRAP_ACTION_DROP && action != DEVLINK_TRAP_ACTION_TRAP)
+		return -EOPNOTSUPP;
 
 	if (action == dl_trap->trap.action)
-		goto out;
+		return 0;
 
 	action_orig = dl_trap->trap.action;
 	dl_trap->trap.action = action;
+	trap_event_ctx.trap = &dl_trap->trap;
+	trap_event_ctx.err = 0;
 	err = mlx5_blocking_notifier_call_chain(dev, MLX5_DRIVER_EVENT_TYPE_TRAP,
-						&dl_trap->trap);
-	if (err)
+						&trap_event_ctx);
+	if (err == NOTIFY_BAD)
 		dl_trap->trap.action = action_orig;
-out:
-	return err;
+
+	return trap_event_ctx.err;
 }
 
 static const struct devlink_ops mlx5_devlink_ops = {
