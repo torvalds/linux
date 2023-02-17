@@ -439,10 +439,10 @@ mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi, bool recycle
 	int i;
 
 	/* A common case for AF_XDP. */
-	if (bitmap_full(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe))
+	if (bitmap_full(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe))
 		return;
 
-	no_xdp_xmit = bitmap_empty(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe);
+	no_xdp_xmit = bitmap_empty(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe);
 
 	if (rq->xsk_pool) {
 		struct xdp_buff **xsk_buffs = wi->alloc_units.xsk_buffs;
@@ -452,11 +452,11 @@ mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi, bool recycle
 		 * the page to the userspace when the interface goes down.
 		 */
 		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++)
-			if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
+			if (no_xdp_xmit || !test_bit(i, wi->skip_release_bitmap))
 				xsk_buff_free(xsk_buffs[i]);
 	} else {
 		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++) {
-			if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap)) {
+			if (no_xdp_xmit || !test_bit(i, wi->skip_release_bitmap)) {
 				struct mlx5e_frag_page *frag_page;
 
 				frag_page = &wi->alloc_units.frag_pages[i];
@@ -687,7 +687,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 		       sizeof(*umr_wqe->inline_mtts) * pad);
 	}
 
-	bitmap_zero(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe);
+	bitmap_zero(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe);
 	wi->consumed_strides = 0;
 
 	umr_wqe->ctrl.opmod_idx_opcode =
@@ -1970,7 +1970,7 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 		mlx5e_fill_mxbuf(rq, cqe, va, rx_headroom, cqe_bcnt, &mxbuf);
 		if (mlx5e_xdp_handle(rq, prog, &mxbuf)) {
 			if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags))
-				__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
+				__set_bit(page_idx, wi->skip_release_bitmap); /* non-atomic */
 			return NULL; /* page/packet was consumed by XDP */
 		}
 
