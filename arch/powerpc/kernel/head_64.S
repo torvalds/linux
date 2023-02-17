@@ -472,7 +472,7 @@ SYM_FUNC_START_LOCAL(__mmu_off)
 	b	.	/* prevent speculative execution */
 SYM_FUNC_END(__mmu_off)
 
-start_initialization_book3s:
+SYM_FUNC_START_LOCAL(start_initialization_book3s)
 	mflr	r25
 
 	/* Setup some critical 970 SPRs before switching MMU off */
@@ -494,6 +494,7 @@ start_initialization_book3s:
 
 	mtlr	r25
 	blr
+SYM_FUNC_END(start_initialization_book3s)
 #endif
 
 /*
