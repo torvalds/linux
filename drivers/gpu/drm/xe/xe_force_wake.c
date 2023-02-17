@@ -100,21 +100,6 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 	}
 }
 
-void xe_force_wake_prune(struct xe_gt *gt, struct xe_force_wake *fw)
-{
-	int i, j;
-
-	/* Call after fuses have been read, prune domains that are fused off */
-
-	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j)
-		if (!(gt->info.engine_mask & BIT(i)))
-			fw->domains[XE_FW_DOMAIN_ID_MEDIA_VDBOX0 + j].reg_ctl = 0;
-
-	for (i = XE_HW_ENGINE_VECS0, j =0; i <= XE_HW_ENGINE_VECS3; ++i, ++j)
-		if (!(gt->info.engine_mask & BIT(i)))
-			fw->domains[XE_FW_DOMAIN_ID_MEDIA_VEBOX0 + j].reg_ctl = 0;
-}
-
 static void domain_wake(struct xe_gt *gt, struct xe_force_wake_domain *domain)
 {
 	xe_mmio_write32(gt, domain->reg_ctl, domain->mask | domain->val);
