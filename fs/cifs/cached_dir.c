@@ -14,6 +14,7 @@
 
 static struct cached_fid *init_cached_dir(const char *path);
 static void free_cached_dir(struct cached_fid *cfid);
+static void smb2_close_cached_fid(struct kref *ref);
 
 static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 						    const char *path,
@@ -221,6 +222,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		}
 		goto oshr_free;
 	}
+	cfid->tcon = tcon;
 	cfid->is_open = true;
 
 	o_rsp = (struct smb2_create_rsp *)rsp_iov[0].iov_base;
@@ -232,7 +234,6 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	if (o_rsp->OplockLevel != SMB2_OPLOCK_LEVEL_LEASE)
 		goto oshr_free;
-
 
 	smb2_parse_contexts(server, o_rsp,
 			    &oparms.fid->epoch,
@@ -260,7 +261,6 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		}
 	}
 	cfid->dentry = dentry;
-	cfid->tcon = tcon;
 	cfid->time = jiffies;
 	cfid->has_lease = true;
 
@@ -271,7 +271,7 @@ oshr_free:
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	spin_lock(&cfids->cfid_list_lock);
-	if (!cfid->has_lease) {
+	if (rc && !cfid->has_lease) {
 		if (cfid->on_list) {
 			list_del(&cfid->entry);
 			cfid->on_list = false;
@@ -280,6 +280,15 @@ oshr_free:
 		rc = -ENOENT;
 	}
 	spin_unlock(&cfids->cfid_list_lock);
+	if (!rc && !cfid->has_lease) {
+		/*
+		 * We are guaranteed to have two references at this point.
+		 * One for the caller and one for a potential lease.
+		 * Release the Lease-ref so that the directory will be closed
+		 * when the caller closes the cached handle.
+		 */
+		kref_put(&cfid->refcount, smb2_close_cached_fid);
+	}
 	if (rc) {
 		if (cfid->is_open)
 			SMB2_close(0, cfid->tcon, cfid->fid.persistent_fid,
@@ -340,6 +349,7 @@ smb2_close_cached_fid(struct kref *ref)
 	if (cfid->is_open) {
 		SMB2_close(0, cfid->tcon, cfid->fid.persistent_fid,
 			   cfid->fid.volatile_fid);
+		atomic_dec(&cfid->tcon->num_remote_opens);
 	}
 
 	free_cached_dir(cfid);
