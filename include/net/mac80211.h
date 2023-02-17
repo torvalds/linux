@@ -5974,6 +5974,20 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 				  unsigned long delay);
 
 /**
+ * ieee80211_refresh_tx_agg_session_timer - Refresh a tx agg session timer.
+ * @sta: the station for which to start a BA session
+ * @tid: the TID to BA on.
+ *
+ * This function allows low level driver to refresh tx agg session timer
+ * to maintain BA session, the session level will still be managed by the
+ * mac80211.
+ *
+ * Note: must be called in an RCU critical section.
+ */
+void ieee80211_refresh_tx_agg_session_timer(struct ieee80211_sta *sta,
+					    u16 tid);
+
+/**
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.
  * @sta: the station for which to start a BA session
  * @tid: the TID to BA on.
