@@ -11,6 +11,7 @@ TEST_PROGS += hid-keyboard.sh
 TEST_PROGS += hid-mouse.sh
 TEST_PROGS += hid-multitouch.sh
 TEST_PROGS += hid-tablet.sh
+TEST_PROGS += hid-wacom.sh
 
 CXX ?= $(CROSS_COMPILE)g++
 
