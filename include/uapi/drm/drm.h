@@ -1117,8 +1117,13 @@ extern "C" {
  * struct as the output.
  *
  * If the client is DRM master or has &CAP_SYS_ADMIN, &drm_mode_fb_cmd2.handles
- * will be filled with GEM buffer handles. Planes are valid until one has a
- * zero handle -- this can be used to compute the number of planes.
+ * will be filled with GEM buffer handles. Fresh new GEM handles are always
+ * returned, even if another GEM handle referring to the same memory object
+ * already exists on the DRM file description. The caller is responsible for
+ * removing the new handles, e.g. via the &DRM_IOCTL_GEM_CLOSE IOCTL. The same
+ * new handle will be returned for multiple planes in case they use the same
+ * memory object. Planes are valid until one has a zero handle -- this can be
+ * used to compute the number of planes.
  *
  * Otherwise, &drm_mode_fb_cmd2.handles will be zeroed and planes are valid
  * until one has a zero &drm_mode_fb_cmd2.pitches.
@@ -1126,6 +1131,11 @@ extern "C" {
  * If the framebuffer has a format modifier, &DRM_MODE_FB_MODIFIERS will be set
  * in &drm_mode_fb_cmd2.flags and &drm_mode_fb_cmd2.modifier will contain the
  * modifier. Otherwise, user-space must ignore &drm_mode_fb_cmd2.modifier.
+ *
+ * To obtain DMA-BUF FDs for each plane without leaking GEM handles, user-space
+ * can export each handle via &DRM_IOCTL_PRIME_HANDLE_TO_FD, then immediately
+ * close each unique handle via &DRM_IOCTL_GEM_CLOSE, making sure to not
+ * double-close handles which are specified multiple times in the array.
  */
 #define DRM_IOCTL_MODE_GETFB2		DRM_IOWR(0xCE, struct drm_mode_fb_cmd2)
 
