@@ -3837,19 +3837,6 @@ int devlink_resources_validate(struct devlink *devlink,
 	return err;
 }
 
-static void devlink_param_notify(struct devlink *devlink,
-				 unsigned int port_index,
-				 struct devlink_param_item *param_item,
-				 enum devlink_command cmd);
-
-struct devlink_info_req {
-	struct sk_buff *msg;
-	void (*version_cb)(const char *version_name,
-			   enum devlink_info_version_type version_type,
-			   void *version_cb_priv);
-	void *version_cb_priv;
-};
-
 static const struct devlink_param devlink_param_generic[] = {
 	{
 		.id = DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
