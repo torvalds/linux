@@ -103,7 +103,8 @@ struct fsck_err_state {
 	const char		*fmt;
 	u64			nr;
 	bool			ratelimited;
-	struct printbuf		buf;
+	int			ret;
+	char			*last_msg;
 };
 
 #define FSCK_CAN_FIX		(1 << 0)

@@ -98,7 +98,6 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 
 	INIT_LIST_HEAD(&s->list);
 	s->fmt = fmt;
-	s->buf = PRINTBUF;
 	list_add(&s->list, &c->fsck_errors);
 	return s;
 }
@@ -111,9 +110,23 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 
+	va_start(args, fmt);
+	prt_vprintf(out, fmt, args);
+	va_end(args);
+
 	mutex_lock(&c->fsck_error_lock);
 	s = fsck_err_get(c, fmt);
 	if (s) {
+		if (s->last_msg && !strcmp(buf.buf, s->last_msg)) {
+			ret = s->ret;
+			mutex_unlock(&c->fsck_error_lock);
+			printbuf_exit(&buf);
+			return ret;
+		}
+
+		kfree(s->last_msg);
+		s->last_msg = kstrdup(buf.buf, GFP_KERNEL);
+
 		if (c->opts.ratelimit_errors &&
 		    !(flags & FSCK_NO_RATELIMIT) &&
 		    s->nr >= FSCK_ERR_RATELIMIT_NR) {
@@ -123,8 +136,6 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 				print = false;
 		}
 
-		printbuf_reset(&s->buf);
-		out = &s->buf;
 		s->nr++;
 	}
 
@@ -132,10 +143,6 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	if (!strncmp(fmt, "bcachefs:", 9))
 		prt_printf(out, bch2_log_msg(c, ""));
 #endif
-
-	va_start(args, fmt);
-	prt_vprintf(out, fmt, args);
-	va_end(args);
 
 	if (test_bit(BCH_FS_FSCK_DONE, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
@@ -190,6 +197,9 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	else if (suppressing)
 		bch_err(c, "Ratelimiting new instances of previous error");
 
+	if (s)
+		s->ret = ret;
+
 	mutex_unlock(&c->fsck_error_lock);
 
 	printbuf_exit(&buf);
@@ -214,11 +224,11 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 	mutex_lock(&c->fsck_error_lock);
 
 	list_for_each_entry_safe(s, n, &c->fsck_errors, list) {
-		if (s->ratelimited)
-			bch_err(c, "Saw %llu errors like:\n    %s", s->nr, s->buf.buf);
+		if (s->ratelimited && s->last_msg)
+			bch_err(c, "Saw %llu errors like:\n    %s", s->nr, s->last_msg);
 
 		list_del(&s->list);
-		printbuf_exit(&s->buf);
+		kfree(s->last_msg);
 		kfree(s);
 	}
 
