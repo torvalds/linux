@@ -1729,7 +1729,8 @@ xfs_dialloc(
 	 * an AG has enough space for file creation.
 	 */
 	if (S_ISDIR(mode))
-		start_agno = atomic_inc_return(&mp->m_agirotor) % mp->m_maxagi;
+		start_agno = (atomic_inc_return(&mp->m_agirotor) - 1) %
+				mp->m_maxagi;
 	else {
 		start_agno = XFS_INO_TO_AGNO(mp, parent);
 		if (start_agno >= mp->m_maxagi)
