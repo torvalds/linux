@@ -107,14 +107,6 @@ static int __ocfs2_move_extent(handle_t *handle,
 	 */
 	replace_rec.e_flags = ext_flags & ~OCFS2_EXT_REFCOUNTED;
 
-	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode),
-				      context->et.et_root_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
-
 	ret = ocfs2_split_extent(handle, &context->et, path, index,
 				 &replace_rec, context->meta_ac,
 				 &context->dealloc);
@@ -122,8 +114,6 @@ static int __ocfs2_move_extent(handle_t *handle,
 		mlog_errno(ret);
 		goto out;
 	}
-
-	ocfs2_journal_dirty(handle, context->et.et_root_bh);
 
 	context->new_phys_cpos = new_p_cpos;
 
