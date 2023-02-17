@@ -2058,6 +2058,13 @@ static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 	int err, restore_tx_en = 0;
 	u64 cfg;
 
+	if (!is_rvu_otx2(rvu)) {
+		/* Skip SMQ flush if pkt count is zero */
+		cfg = rvu_read64(rvu, blkaddr, NIX_AF_MDQX_IN_MD_COUNT(smq));
+		if (!cfg)
+			return 0;
+	}
+
 	/* enable cgx tx if disabled */
 	if (is_pf_cgxmapped(rvu, pf)) {
 		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
@@ -4308,6 +4315,9 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 		cfg |= NIX_PTP_1STEP_EN;
 
 	rvu_write64(rvu, blkaddr, NIX_AF_SEB_CFG, cfg);
+
+	if (!is_rvu_otx2(rvu))
+		rvu_nix_block_cn10k_init(rvu, nix_hw);
 
 	if (is_block_implemented(hw, blkaddr)) {
 		err = nix_setup_txschq(rvu, nix_hw, blkaddr);
