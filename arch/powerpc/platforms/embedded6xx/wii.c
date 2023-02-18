@@ -161,13 +161,10 @@ static const struct of_device_id wii_of_bus[] = {
 
 static int __init wii_device_probe(void)
 {
-	if (!machine_is(wii))
-		return 0;
-
 	of_platform_populate(NULL, wii_of_bus, NULL, NULL);
 	return 0;
 }
-device_initcall(wii_device_probe);
+machine_device_initcall(wii, wii_device_probe);
 
 define_machine(wii) {
 	.name			= "wii",

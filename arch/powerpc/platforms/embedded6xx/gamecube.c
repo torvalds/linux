@@ -83,11 +83,8 @@ static const struct of_device_id gamecube_of_bus[] = {
 
 static int __init gamecube_device_probe(void)
 {
-	if (!machine_is(gamecube))
-		return 0;
-
 	of_platform_bus_probe(NULL, gamecube_of_bus, NULL);
 	return 0;
 }
-device_initcall(gamecube_device_probe);
+machine_device_initcall(gamecube, gamecube_device_probe);
 
