@@ -9556,6 +9556,72 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	spin_unlock(&vop2->reg_lock);
 }
 
+static void vop2_sleep_scan_line_time(struct vop2_video_port *vp, int scan_line)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *mode = &vp->rockchip_crtc.crtc.state->adjusted_mode;
+
+	if (scan_line <= 0)
+		return;
+
+	if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS) &&
+	    (!IS_ENABLED(CONFIG_NO_GKI) || (hrtimer_resolution != LOW_RES_NSEC))) {
+		u16 htotal = VOP_MODULE_GET(vop2, vp, htotal_pw) >> 16;
+		u32 linedur_ns = div_u64((u64) htotal * 1000000, mode->crtc_clock);
+		u64 sleep_time = linedur_ns * scan_line;
+
+		sleep_time = div_u64((sleep_time + 1000), 1000);
+		if (sleep_time > 200)
+			usleep_range(sleep_time, sleep_time);
+	}
+}
+
+/*
+ * return scan timing from FS to the assigned wait line
+ */
+static void vop2_wait_for_scan_timing_max_to_assigned_line(struct vop2_video_port *vp,
+							   u32 current_line,
+							   u32 wait_line)
+
+{
+	struct vop2 *vop2 = vp->vop2;
+	u32 vcnt;
+	int ret;
+	u16 vtotal = VOP_MODULE_GET(vop2, vp, dsp_vtotal);
+	int delta_line = vtotal - current_line;
+
+	vop2_sleep_scan_line_time(vp, delta_line);
+	if (vop2_read_vcnt(vp) < wait_line)
+		return;
+
+	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt, vcnt < wait_line, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait scan timing from FS to the assigned wait line: %d, vcnt:%d, ret:%d\n",
+			      wait_line, vcnt, ret);
+}
+
+/*
+ * return scan timing from the assigned wait line
+ */
+static void vop2_wait_for_scan_timing_from_the_assigned_line(struct vop2_video_port *vp,
+							     u32 current_line,
+							     u32 wait_line)
+{
+	struct vop2 *vop2 = vp->vop2;
+	u32 vcnt;
+	int ret;
+	int delta_line = wait_line - current_line;
+
+	vop2_sleep_scan_line_time(vp, delta_line);
+	if (vop2_read_vcnt(vp) > wait_line)
+		return;
+
+	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt, vcnt > wait_line, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait scan timing from the assigned wait line: %d, vcnt:%d, ret:%d\n",
+			      wait_line, vcnt, ret);
+}
+
 static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *old_cstate)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
@@ -9566,6 +9632,21 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 	struct drm_plane *plane;
 	unsigned long flags;
 	int i, ret;
+	struct vop2_wb *wb = &vop2->wb;
+	struct drm_writeback_connector *wb_conn = &wb->conn;
+	struct drm_connector_state *conn_state = wb_conn->base.state;
+
+	if (conn_state && conn_state->writeback_job && conn_state->writeback_job->fb) {
+		u16 vtotal = VOP_MODULE_GET(vop2, vp, dsp_vtotal);
+		u32 current_line = vop2_read_vcnt(vp);
+
+		if (current_line > vtotal * 7 >> 3)
+			vop2_wait_for_scan_timing_max_to_assigned_line(vp, current_line, vtotal * 7 >> 3);
+
+		current_line = vop2_read_vcnt(vp);
+		if (current_line < vtotal >> 3)
+			vop2_wait_for_scan_timing_from_the_assigned_line(vp, current_line, vtotal >> 3);
+	}
 
 	vop2_cfg_update(crtc, old_cstate);
 
