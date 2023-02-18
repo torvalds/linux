@@ -319,8 +319,8 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	else if (resource_contains(&cxlds->ram_res, res))
 		cxled->mode = CXL_DECODER_RAM;
 	else {
-		dev_dbg(dev, "decoder%d.%d: %pr mixed\n", port->id,
-			cxled->cxld.id, cxled->dpa_res);
+		dev_warn(dev, "decoder%d.%d: %pr mixed mode not supported\n",
+			 port->id, cxled->cxld.id, cxled->dpa_res);
 		cxled->mode = CXL_DECODER_MIXED;
 	}
 
