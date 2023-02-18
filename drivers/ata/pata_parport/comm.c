@@ -206,16 +206,5 @@ static struct pi_protocol comm = {
 	.log_adapter	= comm_log_adapter,
 };
 
-static int __init comm_init(void)
-{
-	return paride_register(&comm);
-}
-
-static void __exit comm_exit(void)
-{
-	paride_unregister(&comm);
-}
-
 MODULE_LICENSE("GPL");
-module_init(comm_init)
-module_exit(comm_exit)
+module_pata_parport_driver(comm);

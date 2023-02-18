@@ -304,16 +304,5 @@ static struct pi_protocol on26 = {
 	.log_adapter	= on26_log_adapter,
 };
 
-static int __init on26_init(void)
-{
-	return paride_register(&on26);
-}
-
-static void __exit on26_exit(void)
-{
-	paride_unregister(&on26);
-}
-
 MODULE_LICENSE("GPL");
-module_init(on26_init)
-module_exit(on26_exit)
+module_pata_parport_driver(on26);

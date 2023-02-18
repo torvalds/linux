@@ -288,19 +288,19 @@ static int __init kbic_init(void)
 {
 	int rv;
 
-	rv = paride_register(&k951);
+	rv = pata_parport_register_driver(&k951);
 	if (rv < 0)
 		return rv;
-	rv = paride_register(&k971);
+	rv = pata_parport_register_driver(&k971);
 	if (rv < 0)
-		paride_unregister(&k951);
+		pata_parport_unregister_driver(&k951);
 	return rv;
 }
 
 static void __exit kbic_exit(void)
 {
-	paride_unregister(&k951);
-	paride_unregister(&k971);
+	pata_parport_unregister_driver(&k951);
+	pata_parport_unregister_driver(&k971);
 }
 
 MODULE_LICENSE("GPL");

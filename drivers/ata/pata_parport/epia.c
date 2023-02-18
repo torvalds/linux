@@ -301,16 +301,5 @@ static struct pi_protocol epia = {
 	.log_adapter	= epia_log_adapter,
 };
 
-static int __init epia_init(void)
-{
-	return paride_register(&epia);
-}
-
-static void __exit epia_exit(void)
-{
-	paride_unregister(&epia);
-}
-
 MODULE_LICENSE("GPL");
-module_init(epia_init)
-module_exit(epia_exit)
+module_pata_parport_driver(epia);

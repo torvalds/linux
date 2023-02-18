@@ -218,16 +218,5 @@ static struct pi_protocol dstr = {
 	.log_adapter	= dstr_log_adapter,
 };
 
-static int __init dstr_init(void)
-{
-	return paride_register(&dstr);
-}
-
-static void __exit dstr_exit(void)
-{
-	paride_unregister(&dstr);
-}
-
 MODULE_LICENSE("GPL");
-module_init(dstr_init)
-module_exit(dstr_exit)
+module_pata_parport_driver(dstr);

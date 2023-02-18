@@ -298,16 +298,5 @@ static struct pi_protocol frpw = {
 	.log_adapter	= frpw_log_adapter,
 };
 
-static int __init frpw_init(void)
-{
-	return paride_register(&frpw);
-}
-
-static void __exit frpw_exit(void)
-{
-	paride_unregister(&frpw);
-}
-
 MODULE_LICENSE("GPL");
-module_init(frpw_init)
-module_exit(frpw_exit)
+module_pata_parport_driver(frpw);

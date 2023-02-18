@@ -261,16 +261,5 @@ static struct pi_protocol friq = {
 	.release_proto	= friq_release_proto,
 };
 
-static int __init friq_init(void)
-{
-	return paride_register(&friq);
-}
-
-static void __exit friq_exit(void)
-{
-	paride_unregister(&friq);
-}
-
 MODULE_LICENSE("GPL");
-module_init(friq_init)
-module_exit(friq_exit)
+module_pata_parport_driver(friq);

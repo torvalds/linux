@@ -87,8 +87,16 @@ struct pi_protocol {
 
 int pata_parport_register_driver(struct pi_protocol *pr);
 void pata_parport_unregister_driver(struct pi_protocol *pr);
-/* defines for old paride protocol modules */
-#define paride_register pata_parport_register_driver
-#define paride_unregister pata_parport_unregister_driver
+
+/**
+ * module_pata_parport_driver() - Helper macro for registering a pata_parport driver
+ * @__pi_protocol: pi_protocol struct
+ *
+ * Helper macro for pata_parport drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_pata_parport_driver(__pi_protocol) \
+	module_driver(__pi_protocol, pata_parport_register_driver, pata_parport_unregister_driver)
 
 #endif /* LINUX_PATA_PARPORT_H */

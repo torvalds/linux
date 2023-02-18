@@ -136,16 +136,5 @@ static struct pi_protocol fit2 = {
 	.log_adapter	= fit2_log_adapter,
 };
 
-static int __init fit2_init(void)
-{
-	return paride_register(&fit2);
-}
-
-static void __exit fit2_exit(void)
-{
-	paride_unregister(&fit2);
-}
-
 MODULE_LICENSE("GPL");
-module_init(fit2_init)
-module_exit(fit2_exit)
+module_pata_parport_driver(fit2);

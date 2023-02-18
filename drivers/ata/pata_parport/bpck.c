@@ -462,16 +462,5 @@ static struct pi_protocol bpck = {
 	.log_adapter	= bpck_log_adapter,
 };
 
-static int __init bpck_init(void)
-{
-	return paride_register(&bpck);
-}
-
-static void __exit bpck_exit(void)
-{
-	paride_unregister(&bpck);
-}
-
 MODULE_LICENSE("GPL");
-module_init(bpck_init)
-module_exit(bpck_exit)
+module_pata_parport_driver(bpck);

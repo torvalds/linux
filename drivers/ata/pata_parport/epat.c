@@ -327,12 +327,12 @@ static int __init epat_init(void)
 #ifdef CONFIG_PATA_PARPORT_EPATC8
 	epatc8 = 1;
 #endif
-	return paride_register(&epat);
+	return pata_parport_register_driver(&epat);
 }
 
 static void __exit epat_exit(void)
 {
-	paride_unregister(&epat);
+	pata_parport_unregister_driver(&epat);
 }
 
 MODULE_LICENSE("GPL");

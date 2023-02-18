@@ -245,19 +245,8 @@ static struct pi_protocol bpck6 = {
 	.release_proto	= bpck6_release_proto,
 };
 
-static int __init bpck6_init(void)
-{
-	return paride_register(&bpck6);
-}
-
-static void __exit bpck6_exit(void)
-{
-	paride_unregister(&bpck6);
-}
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Micro Solutions Inc.");
 MODULE_DESCRIPTION("BACKPACK Protocol module, compatible with PARIDE");
 module_param(verbose, bool, 0644);
-module_init(bpck6_init)
-module_exit(bpck6_exit)
+module_pata_parport_driver(bpck6);

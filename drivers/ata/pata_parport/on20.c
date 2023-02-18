@@ -138,16 +138,5 @@ static struct pi_protocol on20 = {
 	.log_adapter	= on20_log_adapter,
 };
 
-static int __init on20_init(void)
-{
-	return paride_register(&on20);
-}
-
-static void __exit on20_exit(void)
-{
-	paride_unregister(&on20);
-}
-
 MODULE_LICENSE("GPL");
-module_init(on20_init)
-module_exit(on20_exit)
+module_pata_parport_driver(on20);

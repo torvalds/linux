@@ -113,16 +113,5 @@ static struct pi_protocol ktti = {
 	.log_adapter	= ktti_log_adapter,
 };
 
-static int __init ktti_init(void)
-{
-	return paride_register(&ktti);
-}
-
-static void __exit ktti_exit(void)
-{
-	paride_unregister(&ktti);
-}
-
 MODULE_LICENSE("GPL");
-module_init(ktti_init)
-module_exit(ktti_exit)
+module_pata_parport_driver(ktti);

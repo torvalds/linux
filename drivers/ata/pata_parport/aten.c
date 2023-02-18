@@ -147,16 +147,5 @@ static struct pi_protocol aten = {
 	.log_adapter	= aten_log_adapter,
 };
 
-static int __init aten_init(void)
-{
-	return paride_register(&aten);
-}
-
-static void __exit aten_exit(void)
-{
-	paride_unregister( &aten );
-}
-
 MODULE_LICENSE("GPL");
-module_init(aten_init)
-module_exit(aten_exit)
+module_pata_parport_driver(aten);

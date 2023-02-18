@@ -196,16 +196,5 @@ static struct pi_protocol fit3 = {
 	.log_adapter	= fit3_log_adapter,
 };
 
-static int __init fit3_init(void)
-{
-	return paride_register(&fit3);
-}
-
-static void __exit fit3_exit(void)
-{
-	paride_unregister(&fit3);
-}
-
 MODULE_LICENSE("GPL");
-module_init(fit3_init)
-module_exit(fit3_exit)
+module_pata_parport_driver(fit3);
