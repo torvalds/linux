@@ -2955,6 +2955,15 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c, unsigned fn_
 
 		mutex_lock(&c->btree_trans_lock);
 		list_for_each_entry(pos, &c->btree_trans_list, list) {
+			/*
+			 * We'd much prefer to be stricter here and completely
+			 * disallow multiple btree_trans in the same thread -
+			 * but the data move path calls bch2_write when we
+			 * already have a btree_trans initialized.
+			 */
+			BUG_ON(trans->locking_wait.task->pid == pos->locking_wait.task->pid &&
+			       bch2_trans_locked(pos));
+
 			if (trans->locking_wait.task->pid < pos->locking_wait.task->pid) {
 				list_add_tail(&trans->list, &pos->list);
 				goto list_add_done;
