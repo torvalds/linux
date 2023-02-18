@@ -231,15 +231,13 @@ static int frpw_test_proto( PIA *pi, char * scratch, int verbose )
 
 	if (((pi->private%2) == 0) && (pi->mode > 2)) {
 	   if (verbose) 
-		printk("%s: frpw: Xilinx does not support mode %d\n",
-			pi->device, pi->mode);
+		printk("frpw: Xilinx does not support mode %d\n", pi->mode);
 	   return 1;
 	}
 
 	if (((pi->private%2) == 1) && (pi->mode == 2)) {
 	   if (verbose)
-		printk("%s: frpw: ASIC does not support mode 2\n",
-			pi->device);
+		printk("frpw: ASIC does not support mode 2\n");
 	   return 1;
 	}
 
@@ -261,8 +259,8 @@ static int frpw_test_proto( PIA *pi, char * scratch, int verbose )
 	frpw_disconnect(pi);
 
         if (verbose)  {
-            printk("%s: frpw: port 0x%x, chip %ld, mode %d, test=(%d,%d,%d)\n",
-                   pi->device,pi->port,(pi->private%2),pi->mode,e[0],e[1],r);
+		printk("frpw: port 0x%x, chip %ld, mode %d, test=(%d,%d,%d)\n",
+		       pi->port, (pi->private%2), pi->mode, e[0], e[1], r);
         }
 
         return (r || (e[0] && e[1]));
@@ -274,7 +272,7 @@ static void frpw_log_adapter( PIA *pi, char * scratch, int verbose )
 {       char    *mode_string[6] = {"4-bit","8-bit","EPP",
 				   "EPP-8","EPP-16","EPP-32"};
 
-        printk("%s: frpw %s, Freecom (%s) adapter at 0x%x, ", pi->device,
+	printk("frpw %s, Freecom (%s) adapter at 0x%x, ",
 		FRPW_VERSION,((pi->private%2) == 0)?"Xilinx":"ASIC",pi->port);
         printk("mode %d (%s), delay %d\n",pi->mode,
 		mode_string[pi->mode],pi->delay);

@@ -335,8 +335,8 @@ static int bpck_test_proto( PIA *pi, char * scratch, int verbose )
 	}
 
 	if (verbose) {
-	    printk("%s: bpck: 0x%x unit %d mode %d: ",
-		   pi->device,pi->port,pi->unit,pi->mode);
+		printk("bpck: 0x%x unit %d mode %d: ",
+		       pi->port, pi->unit, pi->mode);
 	    for (i=0;i<TEST_LEN;i++) printk("%3d",buf[i]);
 	    printk("\n");
 	}
@@ -432,13 +432,13 @@ static void bpck_log_adapter( PIA *pi, char * scratch, int verbose )
 	   for(i=0;i<128;i++)
 		if ((scratch[i] < ' ') || (scratch[i] > '~'))
 		    scratch[i] = '.';
-	   printk("%s: bpck EEPROM: %64.64s\n",pi->device,scratch);
-	   printk("%s:              %64.64s\n",pi->device,&scratch[64]);
+	   printk("bpck EEPROM: %64.64s\n", scratch);
+	   printk("             %64.64s\n", &scratch[64]);
 	}
 #endif
 
-	printk("%s: bpck %s, backpack %8.8s unit %d",
-		pi->device,BPCK_VERSION,&scratch[110],pi->unit);
+	printk("bpck %s, backpack %8.8s unit %d",
+		BPCK_VERSION, &scratch[110], pi->unit);
 	printk(" at 0x%x, mode %d (%s), delay %d\n",pi->port,
 		pi->mode,mode_string[pi->mode],pi->delay);
 }

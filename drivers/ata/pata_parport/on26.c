@@ -280,8 +280,7 @@ static void on26_log_adapter( PIA *pi, char * scratch, int verbose )
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8",
 				   "EPP-16","EPP-32"};
 
-        printk("%s: on26 %s, OnSpec 90c26 at 0x%x, ",
-                pi->device,ON26_VERSION,pi->port);
+	printk("on26 %s, OnSpec 90c26 at 0x%x, ", ON26_VERSION, pi->port);
         printk("mode %d (%s), delay %d\n",pi->mode,
 		mode_string[pi->mode],pi->delay);
 

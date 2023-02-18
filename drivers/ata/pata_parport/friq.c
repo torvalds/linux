@@ -208,8 +208,8 @@ static int friq_test_proto( PIA *pi, char * scratch, int verbose )
 	friq_disconnect(pi);
 
         if (verbose)  {
-            printk("%s: friq: port 0x%x, mode %d, test=(%d,%d,%d)\n",
-                   pi->device,pi->port,pi->mode,e[0],e[1],r);
+		printk("friq: port 0x%x, mode %d, test=(%d,%d,%d)\n",
+		       pi->port, pi->mode, e[0], e[1], r);
         }
 
         return (r || (e[0] && e[1]));
@@ -221,7 +221,7 @@ static void friq_log_adapter( PIA *pi, char * scratch, int verbose )
 {       char    *mode_string[6] = {"4-bit","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};
 
-        printk("%s: friq %s, Freecom IQ ASIC-2 adapter at 0x%x, ", pi->device,
+	printk("friq %s, Freecom IQ ASIC-2 adapter at 0x%x, ",
 		FRIQ_VERSION,pi->port);
         printk("mode %d (%s), delay %d\n",pi->mode,
 		mode_string[pi->mode],pi->delay);

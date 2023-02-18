@@ -115,8 +115,9 @@ static void fit2_disconnect ( PIA *pi )
 
 static void fit2_log_adapter( PIA *pi, char * scratch, int verbose )
 
-{       printk("%s: fit2 %s, FIT 2000 adapter at 0x%x, delay %d\n",
-                pi->device,FIT2_VERSION,pi->port,pi->delay);
+{
+	printk("fit2 %s, FIT 2000 adapter at 0x%x, delay %d\n",
+		FIT2_VERSION, pi->port, pi->delay);
 
 }
 

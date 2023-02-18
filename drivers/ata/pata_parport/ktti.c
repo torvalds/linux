@@ -92,8 +92,9 @@ static void ktti_disconnect ( PIA *pi )
 
 static void ktti_log_adapter( PIA *pi, char * scratch, int verbose )
 
-{       printk("%s: ktti %s, KT adapter at 0x%x, delay %d\n",
-                pi->device,KTTI_VERSION,pi->port,pi->delay);
+{
+	printk("ktti %s, KT adapter at 0x%x, delay %d\n",
+		KTTI_VERSION, pi->port, pi->delay);
 
 }
 

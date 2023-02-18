@@ -235,8 +235,7 @@ static void kbic_log_adapter( PIA *pi, char * scratch,
 {       char    *mode_string[6] = {"4-bit","5/3","8-bit",
 				   "EPP-8","EPP_16","EPP-32"};
 
-        printk("%s: kbic %s, KingByte %s at 0x%x, ",
-                pi->device,KBIC_VERSION,chip,pi->port);
+	printk("kbic %s, KingByte %s at 0x%x, ", KBIC_VERSION, chip, pi->port);
         printk("mode %d (%s), delay %d\n",pi->mode,
 		mode_string[pi->mode],pi->delay);
 

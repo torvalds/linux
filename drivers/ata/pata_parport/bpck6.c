@@ -200,11 +200,9 @@ static void bpck6_log_adapter( PIA *pi, char * scratch, int verbose )
 	char *mode_string[5]=
 		{"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
 
-	printk("%s: BACKPACK Protocol Driver V"BACKPACK_VERSION"\n",pi->device);
-	printk("%s: Copyright 2001 by Micro Solutions, Inc., DeKalb IL.\n",pi->device);
-	printk("%s: BACKPACK %s, Micro Solutions BACKPACK Drive at 0x%x\n",
-		pi->device,BACKPACK_VERSION,pi->port);
-	printk("%s: Unit: %d Mode:%d (%s) Delay %d\n",pi->device,
+	printk("BACKPACK %s, Micro Solutions BACKPACK Drive at 0x%x\n",
+		BACKPACK_VERSION, pi->port);
+	printk("Unit: %d Mode:%d (%s) Delay %d\n",
 		pi->unit,pi->mode,mode_string[pi->mode],pi->delay);
 }
 
@@ -217,7 +215,7 @@ static int bpck6_init_proto(PIA *pi)
 		return 0;
 	}
 
-	printk(KERN_ERR "%s: ERROR COULDN'T ALLOCATE MEMORY\n", pi->device); 
+	printk(KERN_ERR "ERROR COULDN'T ALLOCATE MEMORY\n");
 	return -1;
 }
 
