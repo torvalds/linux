@@ -219,10 +219,11 @@ static int frpw_test_pnp(struct pi_adapter *pi)
    a hack :-(
 */
 
-static int frpw_test_proto(struct pi_adapter *pi, char *scratch)
+static int frpw_test_proto(struct pi_adapter *pi)
 
 {       int     j, k, r;
 	int	e[2] = {0,0};
+	char scratch[512];
 
 	if ((pi->private>>1) != pi->port)
 	   pi->private = frpw_test_pnp(pi) + 2*pi->port;

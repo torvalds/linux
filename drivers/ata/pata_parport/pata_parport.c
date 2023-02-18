@@ -276,7 +276,7 @@ static void pi_release(struct pi_adapter *pi)
 	module_put(pi->proto->owner);
 }
 
-static int default_test_proto(struct pi_adapter *pi, char *scratch)
+static int default_test_proto(struct pi_adapter *pi)
 {
 	int j, k;
 	int e[2] = { 0, 0 };
@@ -300,21 +300,21 @@ static int default_test_proto(struct pi_adapter *pi, char *scratch)
 	return e[0] && e[1];	/* not here if both > 0 */
 }
 
-static int pi_test_proto(struct pi_adapter *pi, char *scratch)
+static int pi_test_proto(struct pi_adapter *pi)
 {
 	int res;
 
 	parport_claim_or_block(pi->pardev);
 	if (pi->proto->test_proto)
-		res = pi->proto->test_proto(pi, scratch);
+		res = pi->proto->test_proto(pi);
 	else
-		res = default_test_proto(pi, scratch);
+		res = default_test_proto(pi);
 	parport_release(pi->pardev);
 
 	return res;
 }
 
-static bool pi_probe_mode(struct pi_adapter *pi, int max, char *scratch)
+static bool pi_probe_mode(struct pi_adapter *pi, int max)
 {
 	int best, range;
 
@@ -326,7 +326,7 @@ static bool pi_probe_mode(struct pi_adapter *pi, int max, char *scratch)
 			range = 8;
 		if (range == 8 && pi->port % 8)
 			return false;
-		return !pi_test_proto(pi, scratch);
+		return !pi_test_proto(pi);
 	}
 	best = -1;
 	for (pi->mode = 0; pi->mode < max; pi->mode++) {
@@ -335,14 +335,14 @@ static bool pi_probe_mode(struct pi_adapter *pi, int max, char *scratch)
 			range = 8;
 		if (range == 8 && pi->port % 8)
 			break;
-		if (!pi_test_proto(pi, scratch))
+		if (!pi_test_proto(pi))
 			best = pi->mode;
 	}
 	pi->mode = best;
 	return best > -1;
 }
 
-static bool pi_probe_unit(struct pi_adapter *pi, int unit, char *scratch)
+static bool pi_probe_unit(struct pi_adapter *pi, int unit)
 {
 	int max, s, e;
 
@@ -367,14 +367,14 @@ static bool pi_probe_unit(struct pi_adapter *pi, int unit, char *scratch)
 		for (pi->unit = s; pi->unit < e; pi->unit++) {
 			if (pi->proto->probe_unit(pi)) {
 				parport_release(pi->pardev);
-				return pi_probe_mode(pi, max, scratch);
+				return pi_probe_mode(pi, max);
 			}
 		}
 		parport_release(pi->pardev);
 		return false;
 	}
 
-	return pi_probe_mode(pi, max, scratch);
+	return pi_probe_mode(pi, max);
 }
 
 static void pata_parport_dev_release(struct device *dev)
@@ -420,7 +420,6 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 			struct pi_protocol *pr, int mode, int unit, int delay)
 {
 	struct pardev_cb par_cb = { };
-	char scratch[512];
 	const struct ata_port_info *ppi[] = { &pata_parport_port_info };
 	struct ata_host *host;
 	struct pi_adapter *pi;
@@ -473,7 +472,7 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 	if (!pi->pardev)
 		goto out_module_put;
 
-	if (!pi_probe_unit(pi, unit, scratch)) {
+	if (!pi_probe_unit(pi, unit)) {
 		dev_info(&pi->dev, "Adapter not found\n");
 		goto out_unreg_parport;
 	}

@@ -246,10 +246,11 @@ static void epat_disconnect(struct pi_adapter *pi)
 	w2(pi->saved_r2);
 }
 
-static int epat_test_proto(struct pi_adapter *pi, char *scratch)
+static int epat_test_proto(struct pi_adapter *pi)
 
 {       int     k, j, f, cc;
 	int	e[2] = {0,0};
+	char scratch[512];
 
         epat_connect(pi);
 	cc = RR(0xd);

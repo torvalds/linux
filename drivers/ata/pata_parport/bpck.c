@@ -274,7 +274,7 @@ static void bpck_force_spp(struct pi_adapter *pi)
 
 #define TEST_LEN  16
 
-static int bpck_test_proto(struct pi_adapter *pi, char *scratch)
+static int bpck_test_proto(struct pi_adapter *pi)
 
 {	int i, e, l, h, om;
 	char buf[TEST_LEN];

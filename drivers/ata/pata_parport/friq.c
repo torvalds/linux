@@ -178,10 +178,11 @@ static void friq_disconnect(struct pi_adapter *pi)
         w2(pi->saved_r2);
 } 
 
-static int friq_test_proto(struct pi_adapter *pi, char *scratch)
+static int friq_test_proto(struct pi_adapter *pi)
 
 {       int     j, k, r;
 	int	e[2] = {0,0};
+	char scratch[512];
 
 	pi->saved_r0 = r0();	
 	w0(0xff); udelay(20); CMD(0x3d); /* turn the power on */
