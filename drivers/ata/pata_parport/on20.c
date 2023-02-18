@@ -13,8 +13,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define op(f)	w2(4);w0(f);w2(5);w2(0xd);w2(5);w2(0xd);w2(5);w2(4);
 #define vl(v)	w2(4);w0(v);w2(5);w2(7);w2(5);w2(4);

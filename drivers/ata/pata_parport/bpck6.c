@@ -18,9 +18,8 @@
 #include <linux/types.h>
 #include <asm/io.h>
 #include <linux/parport.h>
-
 #include "ppc6lnx.c"
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define PPCSTRUCT(pi) ((Interface *)(pi->private))
 

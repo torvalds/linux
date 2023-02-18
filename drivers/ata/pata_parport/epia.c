@@ -17,8 +17,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 /* mode codes:  0  nybble reads on port 1, 8-bit writes
                 1  5/3 reads on ports 1 & 2, 8-bit writes

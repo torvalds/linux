@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/parport.h>
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #define DRV_NAME "pata_parport"
 
