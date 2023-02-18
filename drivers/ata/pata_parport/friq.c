@@ -48,7 +48,7 @@
 
 static int  cont_map[2] = { 0x08, 0x10 };
 
-static int friq_read_regr( PIA *pi, int cont, int regr )
+static int friq_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int	h,l,r;
 
@@ -63,7 +63,7 @@ static int friq_read_regr( PIA *pi, int cont, int regr )
 
 }
 
-static void friq_write_regr( PIA *pi, int cont, int regr, int val)
+static void friq_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -74,7 +74,7 @@ static void friq_write_regr( PIA *pi, int cont, int regr, int val)
 	w2(5);w2(7);w2(5);w2(4);
 }
 
-static void friq_read_block_int( PIA *pi, char * buf, int count, int regr )
+static void friq_read_block_int(struct pi_adapter *pi, char *buf, int count, int regr)
 
 {       int     h, l, k, ph;
 
@@ -129,12 +129,12 @@ static void friq_read_block_int( PIA *pi, char * buf, int count, int regr )
         }
 }
 
-static void friq_read_block( PIA *pi, char * buf, int count)
+static void friq_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	friq_read_block_int(pi,buf,count,0x08);
 }
 
-static void friq_write_block( PIA *pi, char * buf, int count )
+static void friq_write_block(struct pi_adapter *pi, char *buf, int count)
  
 {	int	k;
 
@@ -166,21 +166,21 @@ static void friq_write_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void friq_connect ( PIA *pi  )
+static void friq_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 	w2(4);
 }
 
-static void friq_disconnect ( PIA *pi )
+static void friq_disconnect(struct pi_adapter *pi)
 
 {       CMD(0x20);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static int friq_test_proto( PIA *pi, char * scratch, int verbose )
+static int friq_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       int     j, k, r;
 	int	e[2] = {0,0};
@@ -216,7 +216,7 @@ static int friq_test_proto( PIA *pi, char * scratch, int verbose )
 }
 
 
-static void friq_log_adapter( PIA *pi, char * scratch, int verbose )
+static void friq_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       char    *mode_string[6] = {"4-bit","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};
@@ -233,7 +233,7 @@ static void friq_log_adapter( PIA *pi, char * scratch, int verbose )
 
 }
 
-static void friq_release_proto( PIA *pi)
+static void friq_release_proto(struct pi_adapter *pi)
 {
 	if (pi->private) {		/* turn off the power */
 		friq_connect(pi);

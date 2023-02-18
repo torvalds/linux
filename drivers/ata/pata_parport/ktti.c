@@ -29,7 +29,7 @@
 
 static int  cont_map[2] = { 0x10, 0x08 };
 
-static void  ktti_write_regr( PIA *pi, int cont, int regr, int val)
+static void ktti_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -39,7 +39,7 @@ static void  ktti_write_regr( PIA *pi, int cont, int regr, int val)
 	w0(val); w2(3); w0(0); w2(6); w2(0xb);
 }
 
-static int ktti_read_regr( PIA *pi, int cont, int regr )
+static int ktti_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int  a, b, r;
 
@@ -51,7 +51,7 @@ static int ktti_read_regr( PIA *pi, int cont, int regr )
 
 }
 
-static void ktti_read_block( PIA *pi, char * buf, int count )
+static void ktti_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int  k, a, b;
 
@@ -64,7 +64,7 @@ static void ktti_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void ktti_write_block( PIA *pi, char * buf, int count )
+static void ktti_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int k;
 
@@ -76,21 +76,21 @@ static void ktti_write_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void ktti_connect ( PIA *pi  )
+static void ktti_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 	w2(0xb); w2(0xa); w0(0); w2(3); w2(6);	
 }
 
-static void ktti_disconnect ( PIA *pi )
+static void ktti_disconnect(struct pi_adapter *pi)
 
 {       w2(0xb); w2(0xa); w0(0xa0); w2(3); w2(4);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void ktti_log_adapter( PIA *pi, char * scratch, int verbose )
+static void ktti_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {
 	printk("ktti %s, KT adapter at 0x%x, delay %d\n",

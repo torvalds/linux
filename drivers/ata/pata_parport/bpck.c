@@ -46,7 +46,7 @@
 
 static int  cont_map[3] = { 0x40, 0x48, 0 };
 
-static int bpck_read_regr( PIA *pi, int cont, int regr )
+static int bpck_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int r, l, h;
 
@@ -77,7 +77,7 @@ static int bpck_read_regr( PIA *pi, int cont, int regr )
 	return -1;
 }	
 
-static void bpck_write_regr( PIA *pi, int cont, int regr, int val )
+static void bpck_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int	r;
 
@@ -106,7 +106,7 @@ static void bpck_write_regr( PIA *pi, int cont, int regr, int val )
 #define WR(r,v)		bpck_write_regr(pi,2,r,v)
 #define RR(r)		(bpck_read_regr(pi,2,r))
 
-static void bpck_write_block( PIA *pi, char * buf, int count )
+static void bpck_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int i;
 
@@ -147,7 +147,7 @@ static void bpck_write_block( PIA *pi, char * buf, int count )
  	}
 }
 
-static void bpck_read_block( PIA *pi, char * buf, int count )
+static void bpck_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int i, l, h;
 
@@ -194,7 +194,7 @@ static void bpck_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static int bpck_probe_unit ( PIA *pi )
+static int bpck_probe_unit(struct pi_adapter *pi)
 
 {	int o1, o0, f7, id;
 	int t, s;
@@ -217,7 +217,7 @@ static int bpck_probe_unit ( PIA *pi )
 	return 1;
 }
 	
-static void bpck_connect ( PIA *pi  )
+static void bpck_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
 	w0(0xff-pi->unit); w2(4); w0(pi->unit);
@@ -251,14 +251,14 @@ static void bpck_connect ( PIA *pi  )
 /*	}*/
 }
 
-static void bpck_disconnect ( PIA *pi )
+static void bpck_disconnect(struct pi_adapter *pi)
 
 {	w0(0); 
 	if (pi->mode >= 2) { w2(9); w2(0); } else t2(2);
 	w2(0x4c); w0(pi->saved_r0);
 } 
 
-static void bpck_force_spp ( PIA *pi )
+static void bpck_force_spp(struct pi_adapter *pi)
 
 /* This fakes the EPP protocol to turn off EPP ... */
 
@@ -276,7 +276,7 @@ static void bpck_force_spp ( PIA *pi )
 
 #define TEST_LEN  16
 
-static int bpck_test_proto( PIA *pi, char * scratch, int verbose )
+static int bpck_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 
 {	int i, e, l, h, om;
 	char buf[TEST_LEN];
@@ -346,7 +346,7 @@ static int bpck_test_proto( PIA *pi, char * scratch, int verbose )
 	return e;
 }
 
-static void bpck_read_eeprom ( PIA *pi, char * buf )
+static void bpck_read_eeprom(struct pi_adapter *pi, char *buf)
 
 {       int i, j, k, p, v, f, om, od;
 
@@ -397,7 +397,7 @@ static void bpck_read_eeprom ( PIA *pi, char * buf )
 	pi->mode = om; pi->delay = od;
 }
 
-static int bpck_test_port ( PIA *pi ) 	/* check for 8-bit port */
+static int bpck_test_port(struct pi_adapter *pi)	/* check for 8-bit port */
 
 {	int	i, r, m;
 
@@ -416,7 +416,7 @@ static int bpck_test_port ( PIA *pi ) 	/* check for 8-bit port */
 	return 5;
 }
 
-static void bpck_log_adapter( PIA *pi, char * scratch, int verbose )
+static void bpck_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {	char	*mode_string[5] = { "4-bit","8-bit","EPP-8",
 				    "EPP-16","EPP-32" };

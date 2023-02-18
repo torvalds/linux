@@ -42,7 +42,7 @@
 
 static int  cont_map[2] = { 0x08, 0x10 };
 
-static int comm_read_regr( PIA *pi, int cont, int regr )
+static int comm_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int     l, h, r;
 
@@ -68,7 +68,7 @@ static int comm_read_regr( PIA *pi, int cont, int regr )
         return -1;
 }       
 
-static void comm_write_regr( PIA *pi, int cont, int regr, int val )
+static void comm_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {       int  r;
 
@@ -87,7 +87,7 @@ static void comm_write_regr( PIA *pi, int cont, int regr, int val )
         }
 }
 
-static void comm_connect ( PIA *pi  )
+static void comm_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -98,14 +98,14 @@ static void comm_connect ( PIA *pi  )
         w2(4); w0(0xe0); w2(0xc); w2(0xc); w2(4);
 }
 
-static void comm_disconnect ( PIA *pi )
+static void comm_disconnect(struct pi_adapter *pi)
 
 {       w2(0); w2(0); w2(0); w2(4); 
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void comm_read_block( PIA *pi, char * buf, int count )
+static void comm_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     i, l, h;
 
@@ -146,7 +146,7 @@ static void comm_read_block( PIA *pi, char * buf, int count )
 
 /* NB: Watch out for the byte swapped writes ! */
 
-static void comm_write_block( PIA *pi, char * buf, int count )
+static void comm_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int	k;
 
@@ -179,7 +179,7 @@ static void comm_write_block( PIA *pi, char * buf, int count )
         }
 }
 
-static void comm_log_adapter( PIA *pi, char * scratch, int verbose )
+static void comm_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
 

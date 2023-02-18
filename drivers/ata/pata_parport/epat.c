@@ -44,7 +44,7 @@ MODULE_PARM_DESC(epatc8, "support for the Shuttle EP1284 chip, "
 
 static int cont_map[3] = { 0x18, 0x10, 0 };
 
-static void epat_write_regr( PIA *pi, int cont, int regr, int val)
+static void epat_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -65,7 +65,7 @@ static void epat_write_regr( PIA *pi, int cont, int regr, int val)
 	}
 }
 
-static int epat_read_regr( PIA *pi, int cont, int regr )
+static int epat_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int  a, b, r;
 
@@ -94,7 +94,7 @@ static int epat_read_regr( PIA *pi, int cont, int regr )
 	return -1;	/* never gets here */
 }
 
-static void epat_read_block( PIA *pi, char * buf, int count )
+static void epat_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int  k, ph, a, b;
 
@@ -159,7 +159,7 @@ static void epat_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void epat_write_block( PIA *pi, char * buf, int count )   
+static void epat_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int ph, k;
 
@@ -210,7 +210,7 @@ static void epat_write_block( PIA *pi, char * buf, int count )
 #define CPP(x) 	w2(4);w0(0x22);w0(0xaa);w0(0x55);w0(0);w0(0xff);\
                 w0(0x87);w0(0x78);w0(x);w2(4);w2(5);w2(4);w0(0xff);
 
-static void epat_connect ( PIA *pi )
+static void epat_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -242,13 +242,13 @@ static void epat_connect ( PIA *pi )
 	}
 }
 
-static void epat_disconnect (PIA *pi)
+static void epat_disconnect(struct pi_adapter *pi)
 {	CPP(0x30);
 	w0(pi->saved_r0);
 	w2(pi->saved_r2);
 }
 
-static int epat_test_proto( PIA *pi, char * scratch, int verbose )
+static int epat_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       int     k, j, f, cc;
 	int	e[2] = {0,0};
@@ -287,7 +287,7 @@ static int epat_test_proto( PIA *pi, char * scratch, int verbose )
         return (e[0] && e[1]) || f;
 }
 
-static void epat_log_adapter( PIA *pi, char * scratch, int verbose )
+static void epat_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {	int	ver;
         char    *mode_string[6] = 

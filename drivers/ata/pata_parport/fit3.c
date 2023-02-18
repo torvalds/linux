@@ -39,7 +39,7 @@
 
 */
 
-static void  fit3_write_regr( PIA *pi, int cont, int regr, int val)
+static void fit3_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	if (cont == 1) return;
 
@@ -59,7 +59,7 @@ static void  fit3_write_regr( PIA *pi, int cont, int regr, int val)
 	}
 }
 
-static int fit3_read_regr( PIA *pi, int cont, int regr )
+static int fit3_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int  a, b;
 
@@ -92,7 +92,7 @@ static int fit3_read_regr( PIA *pi, int cont, int regr )
 
 }
 
-static void fit3_read_block( PIA *pi, char * buf, int count )
+static void fit3_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int  k, a, b, c, d;
 
@@ -131,7 +131,7 @@ static void fit3_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void fit3_write_block( PIA *pi, char * buf, int count )
+static void fit3_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int k;
 
@@ -152,7 +152,7 @@ static void fit3_write_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void fit3_connect ( PIA *pi  )
+static void fit3_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -162,14 +162,14 @@ static void fit3_connect ( PIA *pi  )
 		}
 }
 
-static void fit3_disconnect ( PIA *pi )
+static void fit3_disconnect(struct pi_adapter *pi)
 
 {       w2(0xc); w0(0xa); w2(0x8); w2(0xc);
 	w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void fit3_log_adapter( PIA *pi, char * scratch, int verbose )
+static void fit3_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       char    *mode_string[3] = {"4-bit","8-bit","EPP"};
 

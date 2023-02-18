@@ -56,7 +56,7 @@ static bool verbose; /* set this to 1 to see debugging messages and whatnot */
 #define ATAPI_DEVICE_CONTROL 0x0e /* device control (write)   */
 /****************************************************************/
 
-static int bpck6_read_regr(PIA *pi, int cont, int reg)
+static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
 	unsigned int out;
 
@@ -69,7 +69,7 @@ static int bpck6_read_regr(PIA *pi, int cont, int reg)
 	return(out);
 }
 
-static void bpck6_write_regr(PIA *pi, int cont, int reg, int val)
+static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 {
 	/* check for bad settings */
 	if (reg>=0 && reg<=7 && cont>=0 && cont<=1)
@@ -78,17 +78,17 @@ static void bpck6_write_regr(PIA *pi, int cont, int reg, int val)
 	}
 }
 
-static void bpck6_write_block( PIA *pi, char * buf, int len )
+static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 {
 	ppc6_wr_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1); 
 }
 
-static void bpck6_read_block( PIA *pi, char * buf, int len )
+static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 {
 	ppc6_rd_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1);
 }
 
-static void bpck6_connect ( PIA *pi  )
+static void bpck6_connect(struct pi_adapter *pi)
 {
 	if(verbose)
 	{
@@ -112,7 +112,7 @@ static void bpck6_connect ( PIA *pi  )
 	ppc6_wr_extout(PPCSTRUCT(pi),0x3);
 }
 
-static void bpck6_disconnect ( PIA *pi )
+static void bpck6_disconnect(struct pi_adapter *pi)
 {
 	if(verbose)
 	{
@@ -122,7 +122,7 @@ static void bpck6_disconnect ( PIA *pi )
 	ppc6_close(PPCSTRUCT(pi));
 }
 
-static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
+static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
 {
 	if(verbose)
 	{
@@ -154,7 +154,7 @@ static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
 	}
 }
 
-static int bpck6_probe_unit ( PIA *pi )
+static int bpck6_probe_unit(struct pi_adapter *pi)
 {
 	int out;
 
@@ -195,7 +195,7 @@ static int bpck6_probe_unit ( PIA *pi )
   	}
 }
 
-static void bpck6_log_adapter( PIA *pi, char * scratch, int verbose )
+static void bpck6_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 {
 	char *mode_string[5]=
 		{"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
@@ -206,7 +206,7 @@ static void bpck6_log_adapter( PIA *pi, char * scratch, int verbose )
 		pi->unit,pi->mode,mode_string[pi->mode],pi->delay);
 }
 
-static int bpck6_init_proto(PIA *pi)
+static int bpck6_init_proto(struct pi_adapter *pi)
 {
 	Interface *p = kzalloc(sizeof(Interface), GFP_KERNEL);
 
@@ -219,7 +219,7 @@ static int bpck6_init_proto(PIA *pi)
 	return -1;
 }
 
-static void bpck6_release_proto(PIA *pi)
+static void bpck6_release_proto(struct pi_adapter *pi)
 {
 	kfree((void *)(pi->private)); 
 }

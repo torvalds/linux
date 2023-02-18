@@ -37,13 +37,13 @@ devices.
 
 */
 
-static void  fit2_write_regr( PIA *pi, int cont, int regr, int val)
+static void fit2_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	if (cont == 1) return;
 	w2(0xc); w0(regr); w2(4); w0(val); w2(5); w0(0); w2(4);
 }
 
-static int fit2_read_regr( PIA *pi, int cont, int regr )
+static int fit2_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int  a, b, r;
 
@@ -61,7 +61,7 @@ static int fit2_read_regr( PIA *pi, int cont, int regr )
 
 }
 
-static void fit2_read_block( PIA *pi, char * buf, int count )
+static void fit2_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int  k, a, b, c, d;
 
@@ -87,7 +87,7 @@ static void fit2_read_block( PIA *pi, char * buf, int count )
 
 }
 
-static void fit2_write_block( PIA *pi, char * buf, int count )
+static void fit2_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int k;
 
@@ -100,20 +100,20 @@ static void fit2_write_block( PIA *pi, char * buf, int count )
 	w2(4);
 }
 
-static void fit2_connect ( PIA *pi  )
+static void fit2_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 	w2(0xcc); 
 }
 
-static void fit2_disconnect ( PIA *pi )
+static void fit2_disconnect(struct pi_adapter *pi)
 
 {       w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void fit2_log_adapter( PIA *pi, char * scratch, int verbose )
+static void fit2_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {
 	printk("fit2 %s, FIT 2000 adapter at 0x%x, delay %d\n",

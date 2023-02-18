@@ -46,7 +46,7 @@
 
 static int cont_map[2] = { 0, 0x80 };
 
-static int epia_read_regr( PIA *pi, int cont, int regr )
+static int epia_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int     a, b, r;
 
@@ -79,7 +79,7 @@ static int epia_read_regr( PIA *pi, int cont, int regr )
         return -1;
 }       
 
-static void epia_write_regr( PIA *pi, int cont, int regr, int val)
+static void epia_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {       int  r;
 
@@ -110,7 +110,7 @@ static void epia_write_regr( PIA *pi, int cont, int regr, int val)
    2048 byte reads (the last two being used in the CDrom drivers.
 */
 
-static void epia_connect ( PIA *pi  )
+static void epia_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -124,7 +124,7 @@ static void epia_connect ( PIA *pi  )
         WR(0x86,8);  
 }
 
-static void epia_disconnect ( PIA *pi )
+static void epia_disconnect(struct pi_adapter *pi)
 
 {       /* WR(0x84,0x10); */
         w0(pi->saved_r0);
@@ -133,7 +133,7 @@ static void epia_disconnect ( PIA *pi )
         w2(pi->saved_r2);
 } 
 
-static void epia_read_block( PIA *pi, char * buf, int count )
+static void epia_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     k, ph, a, b;
 
@@ -193,7 +193,7 @@ static void epia_read_block( PIA *pi, char * buf, int count )
         }
 }
 
-static void epia_write_block( PIA *pi, char * buf, int count )
+static void epia_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     ph, k, last, d;
 
@@ -234,7 +234,7 @@ static void epia_write_block( PIA *pi, char * buf, int count )
 
 }
 
-static int epia_test_proto( PIA *pi, char * scratch, int verbose )
+static int epia_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       int     j, k, f;
 	int	e[2] = {0,0};
@@ -272,7 +272,7 @@ static int epia_test_proto( PIA *pi, char * scratch, int verbose )
 }
 
 
-static void epia_log_adapter( PIA *pi, char * scratch, int verbose )
+static void epia_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       char    *mode_string[6] = {"4-bit","5/3","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};

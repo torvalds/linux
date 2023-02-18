@@ -44,7 +44,7 @@
    cont = 1 - access the IDE command set 
 */
 
-static int on26_read_regr( PIA *pi, int cont, int regr )
+static int on26_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int     a, b, r;
 
@@ -73,7 +73,7 @@ static int on26_read_regr( PIA *pi, int cont, int regr )
         return -1;
 }       
 
-static void on26_write_regr( PIA *pi, int cont, int regr, int val )
+static void on26_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {       int  r;
 
@@ -99,7 +99,7 @@ static void on26_write_regr( PIA *pi, int cont, int regr, int val )
 #define  CCP(x)  w0(0xfe);w0(0xaa);w0(0x55);w0(0);w0(0xff);\
 		 w0(0x87);w0(0x78);w0(x);w2(4);w2(5);w2(4);w0(0xff);
 
-static void on26_connect ( PIA *pi )
+static void on26_connect(struct pi_adapter *pi)
 
 {       int	x;
 
@@ -113,7 +113,7 @@ static void on26_connect ( PIA *pi )
 	w0(2); P1; w0(x); P2;
 }
 
-static void on26_disconnect ( PIA *pi )
+static void on26_disconnect(struct pi_adapter *pi)
 
 {       if (pi->mode >= 2) { w3(4); w3(4); w3(4); w3(4); }
 	              else { w0(4); P1; w0(4); P1; }
@@ -124,7 +124,7 @@ static void on26_disconnect ( PIA *pi )
 
 #define	RESET_WAIT  200
 
-static int on26_test_port( PIA *pi)  /* hard reset */
+static int on26_test_port(struct pi_adapter *pi)  /* hard reset */
 
 {       int     i, m, d, x=0, y=0;
 
@@ -183,7 +183,7 @@ static int on26_test_port( PIA *pi)  /* hard reset */
 }
 
 
-static void on26_read_block( PIA *pi, char * buf, int count )
+static void on26_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     k, a, b;
 
@@ -232,7 +232,7 @@ static void on26_read_block( PIA *pi, char * buf, int count )
         }
 }
 
-static void on26_write_block( PIA *pi, char * buf, int count )
+static void on26_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int	k;
 
@@ -275,7 +275,7 @@ static void on26_write_block( PIA *pi, char * buf, int count )
 
 }
 
-static void on26_log_adapter( PIA *pi, char * scratch, int verbose )
+static void on26_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8",
 				   "EPP-16","EPP-32"};

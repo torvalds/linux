@@ -24,8 +24,6 @@ struct pi_adapter {
 	struct pardevice *pardev;	/* pointer to pardevice */
 };
 
-typedef struct pi_adapter PIA;	/* for paride protocol modules */
-
 /* registers are addressed as (cont,regr)
  *	cont: 0 for command register file, 1 for control register(s)
  *	regr: 0-7 for register number.

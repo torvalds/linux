@@ -44,7 +44,7 @@
 
 static int  cont_map[2] = { 0x08, 0x10 };
 
-static int frpw_read_regr( PIA *pi, int cont, int regr )
+static int frpw_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int	h,l,r;
 
@@ -60,7 +60,7 @@ static int frpw_read_regr( PIA *pi, int cont, int regr )
 
 }
 
-static void frpw_write_regr( PIA *pi, int cont, int regr, int val)
+static void frpw_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -71,7 +71,7 @@ static void frpw_write_regr( PIA *pi, int cont, int regr, int val)
 	w2(5);w2(7);w2(5);w2(4);
 }
 
-static void frpw_read_block_int( PIA *pi, char * buf, int count, int regr )
+static void frpw_read_block_int(struct pi_adapter *pi, char *buf, int count, int regr)
 
 {       int     h, l, k, ph;
 
@@ -132,12 +132,12 @@ static void frpw_read_block_int( PIA *pi, char * buf, int count, int regr )
         }
 }
 
-static void frpw_read_block( PIA *pi, char * buf, int count)
+static void frpw_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	frpw_read_block_int(pi,buf,count,0x08);
 }
 
-static void frpw_write_block( PIA *pi, char * buf, int count )
+static void frpw_write_block(struct pi_adapter *pi, char *buf, int count)
  
 {	int	k;
 
@@ -170,14 +170,14 @@ static void frpw_write_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void frpw_connect ( PIA *pi  )
+static void frpw_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 	w2(4);
 }
 
-static void frpw_disconnect ( PIA *pi )
+static void frpw_disconnect(struct pi_adapter *pi)
 
 {       w2(4); w0(0x20); cec4;
 	w0(pi->saved_r0);
@@ -188,7 +188,7 @@ static void frpw_disconnect ( PIA *pi )
    between the Xilinx and ASIC implementations of the Freecom adapter.
 */
 
-static int frpw_test_pnp ( PIA *pi )
+static int frpw_test_pnp(struct pi_adapter *pi)
 
 /*  returns chip_type:   0 = Xilinx, 1 = ASIC   */
 
@@ -221,7 +221,7 @@ static int frpw_test_pnp ( PIA *pi )
    a hack :-(
 */
 
-static int frpw_test_proto( PIA *pi, char * scratch, int verbose )
+static int frpw_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       int     j, k, r;
 	int	e[2] = {0,0};
@@ -267,7 +267,7 @@ static int frpw_test_proto( PIA *pi, char * scratch, int verbose )
 }
 
 
-static void frpw_log_adapter( PIA *pi, char * scratch, int verbose )
+static void frpw_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       char    *mode_string[6] = {"4-bit","8-bit","EPP",
 				   "EPP-8","EPP-16","EPP-32"};

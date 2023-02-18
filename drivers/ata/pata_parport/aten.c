@@ -35,7 +35,7 @@
 
 static int  cont_map[2] = { 0x08, 0x20 };
 
-static void  aten_write_regr( PIA *pi, int cont, int regr, int val)
+static void aten_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int r;
 
@@ -44,7 +44,7 @@ static void  aten_write_regr( PIA *pi, int cont, int regr, int val)
 	w0(r); w2(0xe); w2(6); w0(val); w2(7); w2(6); w2(0xc);
 }
 
-static int aten_read_regr( PIA *pi, int cont, int regr )
+static int aten_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {	int  a, b, r;
 
@@ -67,7 +67,7 @@ static int aten_read_regr( PIA *pi, int cont, int regr )
 	return -1;
 }
 
-static void aten_read_block( PIA *pi, char * buf, int count )
+static void aten_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int  k, a, b, c, d;
 
@@ -95,7 +95,7 @@ static void aten_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static void aten_write_block( PIA *pi, char * buf, int count )
+static void aten_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int k;
 
@@ -107,20 +107,20 @@ static void aten_write_block( PIA *pi, char * buf, int count )
 	w2(0xc);
 }
 
-static void aten_connect ( PIA *pi  )
+static void aten_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
 	w2(0xc);	
 }
 
-static void aten_disconnect ( PIA *pi )
+static void aten_disconnect(struct pi_adapter *pi)
 
 {       w0(pi->saved_r0);
         w2(pi->saved_r2);
 } 
 
-static void aten_log_adapter( PIA *pi, char * scratch, int verbose )
+static void aten_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 
 {       char    *mode_string[2] = {"4-bit","8-bit"};
 
