@@ -416,7 +416,7 @@ static int bpck_test_port(struct pi_adapter *pi)	/* check for 8-bit port */
 	return 5;
 }
 
-static void bpck_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
+static void bpck_log_adapter(struct pi_adapter *pi, char *scratch)
 
 {	char	*mode_string[5] = { "4-bit","8-bit","EPP-8",
 				    "EPP-16","EPP-32" };
@@ -428,13 +428,11 @@ static void bpck_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
 	bpck_read_eeprom(pi,scratch);
 
 #ifdef DUMP_EEPROM
-	if (verbose) {
 	   for(i=0;i<128;i++)
 		if ((scratch[i] < ' ') || (scratch[i] > '~'))
 		    scratch[i] = '.';
 	   printk("bpck EEPROM: %64.64s\n", scratch);
 	   printk("             %64.64s\n", &scratch[64]);
-	}
 #endif
 
 	printk("bpck %s, backpack %8.8s unit %d",

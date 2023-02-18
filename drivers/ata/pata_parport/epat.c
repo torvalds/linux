@@ -287,7 +287,7 @@ static int epat_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
         return (e[0] && e[1]) || f;
 }
 
-static void epat_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
+static void epat_log_adapter(struct pi_adapter *pi, char *scratch)
 
 {	int	ver;
         char    *mode_string[6] = 

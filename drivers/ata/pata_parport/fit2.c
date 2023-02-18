@@ -113,7 +113,7 @@ static void fit2_disconnect(struct pi_adapter *pi)
         w2(pi->saved_r2);
 } 
 
-static void fit2_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
+static void fit2_log_adapter(struct pi_adapter *pi, char *scratch)
 
 {
 	printk("fit2 %s, FIT 2000 adapter at 0x%x, delay %d\n",

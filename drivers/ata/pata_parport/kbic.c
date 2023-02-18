@@ -229,8 +229,7 @@ static void kbic_write_block(struct pi_adapter *pi, char *buf, int count)
 
 }
 
-static void kbic_log_adapter(struct pi_adapter *pi, char *scratch,
-			      int verbose, char *chip)
+static void kbic_log_adapter(struct pi_adapter *pi, char *scratch, char *chip)
 
 {       char    *mode_string[6] = {"4-bit","5/3","8-bit",
 				   "EPP-8","EPP_16","EPP-32"};
@@ -241,14 +240,14 @@ static void kbic_log_adapter(struct pi_adapter *pi, char *scratch,
 
 }
 
-static void k951_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
-
-{	kbic_log_adapter(pi,scratch,verbose,"KBIC-951A");
+static void k951_log_adapter(struct pi_adapter *pi, char *scratch)
+{
+	kbic_log_adapter(pi, scratch, "KBIC-951A");
 }
 
-static void k971_log_adapter(struct pi_adapter *pi, char *scratch, int verbose)
-
-{       kbic_log_adapter(pi,scratch,verbose,"KBIC-971A");
+static void k971_log_adapter(struct pi_adapter *pi, char *scratch)
+{
+	kbic_log_adapter(pi, scratch, "KBIC-971A");
 }
 
 static struct pi_protocol k951 = {

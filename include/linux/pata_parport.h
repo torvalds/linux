@@ -68,7 +68,7 @@ struct pi_protocol {
 	int (*test_port)(struct pi_adapter *pi);
 	int (*probe_unit)(struct pi_adapter *pi);
 	int (*test_proto)(struct pi_adapter *pi, char *scratch, int verbose);
-	void (*log_adapter)(struct pi_adapter *pi, char *scratch, int verbose);
+	void (*log_adapter)(struct pi_adapter *pi, char *scratch);
 
 	int (*init_proto)(struct pi_adapter *pi);
 	void (*release_proto)(struct pi_adapter *pi);
