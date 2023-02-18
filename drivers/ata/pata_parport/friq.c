@@ -25,8 +25,6 @@
 	1.01	GRG 1998.12.20	 Added support for soft power switch
 */
 
-#define	FRIQ_VERSION	"1.01" 
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -219,10 +217,8 @@ static void friq_log_adapter(struct pi_adapter *pi)
 {       char    *mode_string[6] = {"4-bit","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};
 
-	dev_info(&pi->dev, "friq %s, Freecom IQ ASIC-2 adapter at 0x%x, ",
-		FRIQ_VERSION,pi->port);
-	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
-		mode_string[pi->mode],pi->delay);
+	dev_info(&pi->dev, "Freecom IQ ASIC-2 adapter at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 
 	pi->private = 1;
 	friq_connect(pi);

@@ -19,9 +19,6 @@
    Version 2.0.2 - fixed version string usage, and made ppc functions static 
 */
 
-
-#define BACKPACK_VERSION "2.0.2"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -179,10 +176,8 @@ static void bpck6_log_adapter(struct pi_adapter *pi)
 	char *mode_string[5]=
 		{"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
 
-	dev_info(&pi->dev, "BACKPACK %s, Micro Solutions BACKPACK Drive at 0x%x\n",
-		BACKPACK_VERSION, pi->port);
-	dev_info(&pi->dev, "Unit: %d Mode:%d (%s) Delay %d\n",
-		pi->unit,pi->mode,mode_string[pi->mode],pi->delay);
+	dev_info(&pi->dev, "Micro Solutions BACKPACK Drive unit %d at 0x%x, mode:%d (%s), delay %d\n",
+		pi->unit, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static int bpck6_init_proto(struct pi_adapter *pi)

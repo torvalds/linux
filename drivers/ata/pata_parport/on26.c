@@ -16,8 +16,6 @@
 
 */
 
-#define ON26_VERSION      "1.04"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -280,10 +278,8 @@ static void on26_log_adapter(struct pi_adapter *pi)
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8",
 				   "EPP-16","EPP-32"};
 
-	dev_info(&pi->dev, "on26 %s, OnSpec 90c26 at 0x%x, ", ON26_VERSION, pi->port);
-	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "OnSpec 90c26 at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol on26 = {

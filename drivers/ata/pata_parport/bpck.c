@@ -14,8 +14,6 @@
 
 */
 
-#define	BPCK_VERSION	"1.02" 
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -421,10 +419,9 @@ static void bpck_log_adapter(struct pi_adapter *pi)
 
 	bpck_read_eeprom(pi,scratch);
 	print_hex_dump_bytes("bpck EEPROM: ", DUMP_PREFIX_NONE, scratch, 128);
-	dev_info(&pi->dev, "bpck %s, backpack %8.8s unit %d",
-		BPCK_VERSION, &scratch[110], pi->unit);
-	dev_info(&pi->dev, " at 0x%x, mode %d (%s), delay %d\n", pi->port,
-		pi->mode,mode_string[pi->mode],pi->delay);
+	dev_info(&pi->dev, "backpack %8.8s unit %d at 0x%x, mode %d (%s), delay %d\n",
+		 &scratch[110], pi->unit, pi->port, pi->mode,
+		 mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol bpck = {

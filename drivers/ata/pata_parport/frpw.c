@@ -23,8 +23,6 @@
 
 */
 
-#define	FRPW_VERSION	"1.03" 
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -268,11 +266,9 @@ static void frpw_log_adapter(struct pi_adapter *pi)
 {       char    *mode_string[6] = {"4-bit","8-bit","EPP",
 				   "EPP-8","EPP-16","EPP-32"};
 
-	dev_info(&pi->dev, "frpw %s, Freecom (%s) adapter at 0x%x, ",
-		FRPW_VERSION,((pi->private%2) == 0)?"Xilinx":"ASIC",pi->port);
-	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "Freecom (%s) adapter at 0x%x, mode %d (%s), delay %d\n",
+		((pi->private % 2) == 0) ? "Xilinx" : "ASIC",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol frpw = {

@@ -9,8 +9,6 @@
 
 */
 
-#define KTTI_VERSION      "1.0"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -93,9 +91,8 @@ static void ktti_disconnect(struct pi_adapter *pi)
 static void ktti_log_adapter(struct pi_adapter *pi)
 
 {
-	dev_info(&pi->dev, "ktti %s, KT adapter at 0x%x, delay %d\n",
-		KTTI_VERSION, pi->port, pi->delay);
-
+	dev_info(&pi->dev, "KT adapter at 0x%x, delay %d\n",
+		pi->port, pi->delay);
 }
 
 static struct pi_protocol ktti = {

@@ -12,8 +12,6 @@
 
 */
 
-#define	ON20_VERSION	"1.01"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -115,10 +113,8 @@ static void on20_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[2] = {"4-bit","8-bit"};
 
-	dev_info(&pi->dev, "on20 %s, OnSpec 90c20 at 0x%x, ", ON20_VERSION, pi->port);
-	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "OnSpec 90c20 at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol on20 = {

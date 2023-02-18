@@ -16,8 +16,6 @@
 
 */
 
-#define EPAT_VERSION      "1.02"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -296,11 +294,8 @@ static void epat_log_adapter(struct pi_adapter *pi)
         ver = RR(0xb);
         epat_disconnect(pi);
 
-	dev_info(&pi->dev, "epat %s, Shuttle EPAT chip %x at 0x%x, ",
-		EPAT_VERSION, ver, pi->port);
-	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "Shuttle EPAT chip %x at 0x%x, mode %d (%s), delay %d\n",
+		 ver, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol epat = {

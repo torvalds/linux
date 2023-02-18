@@ -18,8 +18,6 @@
 
 */
 
-#define KBIC_VERSION      "1.01"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -234,10 +232,8 @@ static void kbic_log_adapter(struct pi_adapter *pi, char *chip)
 {       char    *mode_string[6] = {"4-bit","5/3","8-bit",
 				   "EPP-8","EPP_16","EPP-32"};
 
-	dev_info(&pi->dev, "kbic %s, KingByte %s at 0x%x, ", KBIC_VERSION, chip, pi->port);
-	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "KingByte %s at 0x%x, mode %d (%s), delay %d\n",
+		 chip, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static void k951_log_adapter(struct pi_adapter *pi)
