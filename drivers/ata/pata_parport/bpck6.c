@@ -90,10 +90,7 @@ static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 
 static void bpck6_connect(struct pi_adapter *pi)
 {
-	if(verbose)
-	{
-		printk(KERN_DEBUG "connect\n");
-	}
+	dev_dbg(&pi->dev, "connect\n");
 
 	if(pi->mode >=2)
   	{
@@ -114,22 +111,16 @@ static void bpck6_connect(struct pi_adapter *pi)
 
 static void bpck6_disconnect(struct pi_adapter *pi)
 {
-	if(verbose)
-	{
-		printk("disconnect\n");
-	}
+	dev_dbg(&pi->dev, "disconnect\n");
 	ppc6_wr_extout(PPCSTRUCT(pi),0x0);
 	ppc6_close(PPCSTRUCT(pi));
 }
 
 static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
 {
-	if(verbose)
-	{
-		printk(KERN_DEBUG "PARPORT indicates modes=%x for lp=0x%lx\n",
-               		((struct pardevice*)(pi->pardev))->port->modes,
-			((struct pardevice *)(pi->pardev))->port->base); 
-	}
+	dev_dbg(&pi->dev, "PARPORT indicates modes=%x for lp=0x%lx\n",
+		((struct pardevice *)(pi->pardev))->port->modes,
+		((struct pardevice *)(pi->pardev))->port->base);
 
 	/*copy over duplicate stuff.. initialize state info*/
 	PPCSTRUCT(pi)->ppc_id=pi->unit;
@@ -158,10 +149,7 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
 {
 	int out;
 
-	if(verbose)
-	{
-		printk(KERN_DEBUG "PROBE UNIT %x on port:%x\n",pi->unit,pi->port);
-	}
+	dev_dbg(&pi->dev, "PROBE UNIT %x on port:%x\n", pi->unit, pi->port);
 
 	/*SET PPC UNIT NUMBER*/
 	PPCSTRUCT(pi)->ppc_id=pi->unit;
@@ -171,26 +159,17 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
 
 	out=ppc6_open(PPCSTRUCT(pi));
 
-	if(verbose)
-	{
-		printk(KERN_DEBUG "ppc_open returned %2x\n",out);
-	}
+	dev_dbg(&pi->dev, "ppc_open returned %2x\n", out);
 
   	if(out)
  	{
 		ppc6_close(PPCSTRUCT(pi));
-		if(verbose)
-		{
-			printk(KERN_DEBUG "leaving probe\n");
-		}
+		dev_dbg(&pi->dev, "leaving probe\n");
                return(1);
 	}
   	else
   	{
-		if(verbose)
-		{
-			printk(KERN_DEBUG "Failed open\n");
-		}
+		dev_dbg(&pi->dev, "Failed open\n");
     		return(0);
   	}
 }
@@ -200,9 +179,9 @@ static void bpck6_log_adapter(struct pi_adapter *pi)
 	char *mode_string[5]=
 		{"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
 
-	printk("BACKPACK %s, Micro Solutions BACKPACK Drive at 0x%x\n",
+	dev_info(&pi->dev, "BACKPACK %s, Micro Solutions BACKPACK Drive at 0x%x\n",
 		BACKPACK_VERSION, pi->port);
-	printk("Unit: %d Mode:%d (%s) Delay %d\n",
+	dev_info(&pi->dev, "Unit: %d Mode:%d (%s) Delay %d\n",
 		pi->unit,pi->mode,mode_string[pi->mode],pi->delay);
 }
 
@@ -215,7 +194,7 @@ static int bpck6_init_proto(struct pi_adapter *pi)
 		return 0;
 	}
 
-	printk(KERN_ERR "ERROR COULDN'T ALLOCATE MEMORY\n");
+	dev_err(&pi->dev, "ERROR COULDN'T ALLOCATE MEMORY\n");
 	return -1;
 }
 

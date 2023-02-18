@@ -435,9 +435,9 @@ static void bpck_log_adapter(struct pi_adapter *pi)
 	   printk("             %64.64s\n", &scratch[64]);
 #endif
 
-	printk("bpck %s, backpack %8.8s unit %d",
+	dev_info(&pi->dev, "bpck %s, backpack %8.8s unit %d",
 		BPCK_VERSION, &scratch[110], pi->unit);
-	printk(" at 0x%x, mode %d (%s), delay %d\n",pi->port,
+	dev_info(&pi->dev, " at 0x%x, mode %d (%s), delay %d\n", pi->port,
 		pi->mode,mode_string[pi->mode],pi->delay);
 }
 

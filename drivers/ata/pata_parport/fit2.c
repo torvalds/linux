@@ -116,7 +116,7 @@ static void fit2_disconnect(struct pi_adapter *pi)
 static void fit2_log_adapter(struct pi_adapter *pi)
 
 {
-	printk("fit2 %s, FIT 2000 adapter at 0x%x, delay %d\n",
+	dev_info(&pi->dev, "fit2 %s, FIT 2000 adapter at 0x%x, delay %d\n",
 		FIT2_VERSION, pi->port, pi->delay);
 
 }

@@ -183,8 +183,8 @@ static void comm_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
 
-	printk("comm %s, DataStor Commuter at 0x%x, ", COMM_VERSION, pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
+	dev_info(&pi->dev, "comm %s, DataStor Commuter at 0x%x, ", COMM_VERSION, pi->port);
+	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
 		mode_string[pi->mode],pi->delay);
 
 }

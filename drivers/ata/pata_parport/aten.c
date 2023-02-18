@@ -124,8 +124,8 @@ static void aten_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[2] = {"4-bit","8-bit"};
 
-	printk("aten %s, ATEN EH-100 at 0x%x, ", ATEN_VERSION, pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
+	dev_info(&pi->dev, "aten %s, ATEN EH-100 at 0x%x, ", ATEN_VERSION, pi->port);
+	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
 		mode_string[pi->mode],pi->delay);
 
 }

@@ -93,7 +93,7 @@ static void ktti_disconnect(struct pi_adapter *pi)
 static void ktti_log_adapter(struct pi_adapter *pi)
 
 {
-	printk("ktti %s, KT adapter at 0x%x, delay %d\n",
+	dev_info(&pi->dev, "ktti %s, KT adapter at 0x%x, delay %d\n",
 		KTTI_VERSION, pi->port, pi->delay);
 
 }

@@ -167,7 +167,7 @@ static int on26_test_port(struct pi_adapter *pi)  /* hard reset */
             }
 
 	    if (i == RESET_WAIT) 
-		printk("on26: Device reset failed (%x,%x)\n",x,y);
+		dev_err(&pi->dev, "on26: Device reset failed (%x,%x)\n", x, y);
 
             w0(4); P1; w0(4); P1;
         }
@@ -280,8 +280,8 @@ static void on26_log_adapter(struct pi_adapter *pi)
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8",
 				   "EPP-16","EPP-32"};
 
-	printk("on26 %s, OnSpec 90c26 at 0x%x, ", ON26_VERSION, pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
+	dev_info(&pi->dev, "on26 %s, OnSpec 90c26 at 0x%x, ", ON26_VERSION, pi->port);
+	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
 		mode_string[pi->mode],pi->delay);
 
 }

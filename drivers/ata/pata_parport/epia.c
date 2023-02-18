@@ -262,10 +262,8 @@ static int epia_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
         WR(0x84,0);
         epia_disconnect(pi);
 
-        if (verbose)  {
-		printk("epia: port 0x%x, mode %d, test=(%d,%d,%d)\n",
-		       pi->port, pi->mode, e[0], e[1], f);
-        }
+	dev_dbg(&pi->dev, "epia: port 0x%x, mode %d, test=(%d,%d,%d)\n",
+	       pi->port, pi->mode, e[0], e[1], f);
         
         return (e[0] && e[1]) || f;
 
@@ -277,8 +275,8 @@ static void epia_log_adapter(struct pi_adapter *pi)
 {       char    *mode_string[6] = {"4-bit","5/3","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};
 
-	printk("epia %s, Shuttle EPIA at 0x%x, ", EPIA_VERSION, pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
+	dev_info(&pi->dev, "epia %s, Shuttle EPIA at 0x%x, ", EPIA_VERSION, pi->port);
+	dev_info(&pi->dev, "mode %d (%s), delay %d\n", pi->mode,
 		mode_string[pi->mode],pi->delay);
 
 }
