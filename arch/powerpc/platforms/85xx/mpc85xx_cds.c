@@ -383,6 +383,5 @@ define_machine(mpc85xx_cds) {
 	.pcibios_fixup_bus	= mpc85xx_cds_fixup_bus,
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
-	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
 };

@@ -308,7 +308,6 @@ define_machine(ep8248e)
 	.setup_arch = ep8248e_setup_arch,
 	.init_IRQ = ep8248e_pic_init,
 	.get_irq = cpm2_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.restart = pq2_restart,
 	.progress = udbg_progress,
 };

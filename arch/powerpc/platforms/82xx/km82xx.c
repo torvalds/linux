@@ -195,7 +195,6 @@ define_machine(km82xx)
 	.setup_arch = km82xx_setup_arch,
 	.init_IRQ = km82xx_pic_init,
 	.get_irq = cpm2_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.restart = pq2_restart,
 	.progress = udbg_progress,
 };

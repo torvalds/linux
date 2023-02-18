@@ -40,5 +40,4 @@ define_machine(microwatt) {
 	.init_IRQ		= microwatt_init_IRQ,
 	.setup_arch		= microwatt_setup_arch,
 	.progress		= udbg_progress,
-	.calibrate_decr		= generic_calibrate_decr,
 };

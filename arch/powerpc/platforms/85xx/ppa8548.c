@@ -79,6 +79,5 @@ define_machine(ppa8548) {
 	.init_IRQ	= ppa8548_pic_init,
 	.show_cpuinfo	= ppa8548_show_cpuinfo,
 	.get_irq	= mpic_get_irq,
-	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
 };

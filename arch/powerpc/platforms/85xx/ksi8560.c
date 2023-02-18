@@ -180,5 +180,4 @@ define_machine(ksi8560) {
 	.show_cpuinfo		= ksi8560_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.restart		= machine_restart,
-	.calibrate_decr		= generic_calibrate_decr,
 };

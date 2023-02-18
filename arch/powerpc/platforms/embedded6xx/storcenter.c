@@ -118,5 +118,4 @@ define_machine(storcenter){
 	.init_IRQ 		= storcenter_init_IRQ,
 	.get_irq 		= mpic_get_irq,
 	.restart 		= storcenter_restart,
-	.calibrate_decr 	= generic_calibrate_decr,
 };

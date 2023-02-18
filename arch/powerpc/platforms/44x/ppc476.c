@@ -277,7 +277,6 @@ define_machine(ppc47x_akebono) {
 	.init_IRQ		= ppc47x_init_irq,
 	.setup_arch		= ppc47x_setup_arch,
 	.restart		= ppc4xx_reset_system,
-	.calibrate_decr		= generic_calibrate_decr,
 };
 
 define_machine(ppc47x_currituck) {
@@ -288,5 +287,4 @@ define_machine(ppc47x_currituck) {
 	.pci_irq_fixup		= ppc47x_pci_irq_fixup,
 	.setup_arch		= ppc47x_setup_arch,
 	.restart		= ppc4xx_reset_system,
-	.calibrate_decr		= generic_calibrate_decr,
 };

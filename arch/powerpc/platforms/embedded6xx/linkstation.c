@@ -159,5 +159,4 @@ define_machine(linkstation){
 	.get_irq 		= mpic_get_irq,
 	.restart 		= linkstation_restart,
 	.halt	 		= linkstation_halt,
-	.calibrate_decr 	= generic_calibrate_decr,
 };

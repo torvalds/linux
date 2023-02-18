@@ -70,7 +70,6 @@ define_machine(gamecube) {
 	.halt			= gamecube_halt,
 	.init_IRQ		= flipper_pic_probe,
 	.get_irq		= flipper_pic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 	.machine_shutdown	= gamecube_shutdown,
 };

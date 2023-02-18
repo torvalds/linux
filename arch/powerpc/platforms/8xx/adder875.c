@@ -102,6 +102,5 @@ define_machine(adder875) {
 	.init_IRQ = mpc8xx_pic_init,
 	.get_irq = mpc8xx_get_irq,
 	.restart = mpc8xx_restart,
-	.calibrate_decr = generic_calibrate_decr,
 	.progress = udbg_progress,
 };

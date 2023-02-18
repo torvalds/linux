@@ -114,5 +114,4 @@ define_machine(canyonlands) {
 	.init_IRQ = uic_init_tree,
 	.get_irq = uic_get_irq,
 	.restart = ppc4xx_reset_system,
-	.calibrate_decr = generic_calibrate_decr,
 };

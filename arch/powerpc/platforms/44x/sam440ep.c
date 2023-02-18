@@ -54,7 +54,6 @@ define_machine(sam440ep) {
 	.init_IRQ 		= uic_init_tree,
 	.get_irq 		= uic_get_irq,
 	.restart		= ppc4xx_reset_system,
-	.calibrate_decr 	= generic_calibrate_decr,
 };
 
 static struct i2c_board_info sam440ep_rtc_info = {

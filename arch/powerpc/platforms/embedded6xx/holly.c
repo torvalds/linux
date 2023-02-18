@@ -264,7 +264,6 @@ define_machine(holly){
 	.show_cpuinfo           	= holly_show_cpuinfo,
 	.get_irq                	= mpic_get_irq,
 	.restart                	= holly_restart,
-	.calibrate_decr         	= generic_calibrate_decr,
 	.machine_check_exception	= ppc750_machine_check_exception,
 	.progress               	= udbg_progress,
 };
