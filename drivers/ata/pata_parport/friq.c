@@ -178,7 +178,7 @@ static void friq_disconnect(struct pi_adapter *pi)
         w2(pi->saved_r2);
 } 
 
-static int friq_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
+static int friq_test_proto(struct pi_adapter *pi, char *scratch)
 
 {       int     j, k, r;
 	int	e[2] = {0,0};

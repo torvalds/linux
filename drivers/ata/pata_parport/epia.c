@@ -232,7 +232,7 @@ static void epia_write_block(struct pi_adapter *pi, char *buf, int count)
 
 }
 
-static int epia_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
+static int epia_test_proto(struct pi_adapter *pi, char *scratch)
 
 {       int     j, k, f;
 	int	e[2] = {0,0};

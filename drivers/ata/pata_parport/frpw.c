@@ -219,7 +219,7 @@ static int frpw_test_pnp(struct pi_adapter *pi)
    a hack :-(
 */
 
-static int frpw_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
+static int frpw_test_proto(struct pi_adapter *pi, char *scratch)
 
 {       int     j, k, r;
 	int	e[2] = {0,0};

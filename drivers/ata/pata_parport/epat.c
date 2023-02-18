@@ -246,7 +246,7 @@ static void epat_disconnect(struct pi_adapter *pi)
 	w2(pi->saved_r2);
 }
 
-static int epat_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
+static int epat_test_proto(struct pi_adapter *pi, char *scratch)
 
 {       int     k, j, f, cc;
 	int	e[2] = {0,0};
