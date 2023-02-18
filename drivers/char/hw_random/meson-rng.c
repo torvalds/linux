@@ -53,8 +53,6 @@ static int meson_rng_probe(struct platform_device *pdev)
 	data->rng.name = pdev->name;
 	data->rng.read = meson_rng_read;
 
-	platform_set_drvdata(pdev, data);
-
 	return devm_hwrng_register(dev, &data->rng);
 }
 
