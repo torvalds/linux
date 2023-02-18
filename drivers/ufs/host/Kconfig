@@ -127,7 +127,7 @@ config SCSI_UFS_EXYNOS
 
 config SCSI_UFS_VARIABLE_SG_ENTRY_SIZE
 	bool
-	default y if SCSI_UFS_EXYNOS && SCSI_UFS_CRYPTO
+	default y if SCSI_UFS_CRYPTO
 
 config SCSI_UFS_SPRD
 	tristate "Unisoc specific hooks to UFS controller platform driver"
