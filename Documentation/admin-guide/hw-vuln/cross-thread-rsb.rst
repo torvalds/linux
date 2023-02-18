@@ -88,5 +88,4 @@ capability to override those interceptions, but since this is not common, the
 mitigation that covers this path is not enabled by default.
 
 The mitigation for the KVM_CAP_X86_DISABLE_EXITS capability can be turned on
-using the boolean module parameter mitigate_smt_rsb, e.g.:
-        kvm.mitigate_smt_rsb=1
+using the boolean module parameter mitigate_smt_rsb, e.g. ``kvm.mitigate_smt_rsb=1``.
