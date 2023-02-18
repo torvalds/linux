@@ -247,10 +247,6 @@ static struct pi_protocol bpck6 = {
 
 static int __init bpck6_init(void)
 {
-	printk(KERN_INFO "bpck6: BACKPACK Protocol Driver V"BACKPACK_VERSION"\n");
-	printk(KERN_INFO "bpck6: Copyright 2001 by Micro Solutions, Inc., DeKalb IL. USA\n");
-	if(verbose)
-		printk(KERN_DEBUG "bpck6: verbose debug enabled.\n");
 	return paride_register(&bpck6);
 }
 
