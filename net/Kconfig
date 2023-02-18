@@ -241,6 +241,7 @@ source "net/hsr/Kconfig"
 source "net/switchdev/Kconfig"
 source "net/l3mdev/Kconfig"
 source "net/qrtr/Kconfig"
+source "net/qmsgq/Kconfig"
 source "net/ncsi/Kconfig"
 
 config PCPU_DEV_REFCNT

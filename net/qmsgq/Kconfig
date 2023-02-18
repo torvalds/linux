@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# QTI Message Queue Socket configuration
+#
+
+config QMSGQ
+	tristate "QTI Message Queue Socket"
+	select VSOCKETS
+	help
+	  Say Y if you intend to use QTI Message Queue Socket protocol. The
+	  protocol is used to communicate with baremetal VM and platforms
+	  that use the Gunyah Hypervisor. This protocol will mimic the vsock
+	  address space with cid and port id but allow for guest to guest
+	  communication.
+
+if QMSGQ
+
+config QMSGQ_GUNYAH
+	tristate "QTI Message Queue Socket Gunyah Transport"
+	depends on GH_MSGQ
+	depends on QMSGQ
+	help
+	  Say Y here to support Gunyah Message Queue based transport for the
+	  QMSGQ Socket Transport. This transport is intended to facilitate
+	  Guest to Guest communication on the Gunyah Hypervisor. This transport
+	  supports Datagram and Seqpacket operations.
+
+endif # QMSGQ
