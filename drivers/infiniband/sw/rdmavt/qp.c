@@ -2040,7 +2040,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	wqe = rvt_get_swqe_ptr(qp, qp->s_head);
 
 	/* cplen has length from above */
-	memcpy(&wqe->wr, wr, cplen);
+	memcpy(&wqe->ud_wr, wr, cplen);
 
 	wqe->length = 0;
 	j = 0;
