@@ -1267,18 +1267,30 @@ void bch2_ec_stripe_head_put(struct bch_fs *c, struct ec_stripe_head *h)
 	mutex_unlock(&h->lock);
 }
 
-struct ec_stripe_head *__bch2_ec_stripe_head_get(struct bch_fs *c,
+struct ec_stripe_head *__bch2_ec_stripe_head_get(struct btree_trans *trans,
 						 unsigned target,
 						 unsigned algo,
 						 unsigned redundancy,
 						 bool copygc)
 {
+	struct bch_fs *c = trans->c;
 	struct ec_stripe_head *h;
+	int ret;
 
 	if (!redundancy)
 		return NULL;
 
-	mutex_lock(&c->ec_stripe_head_lock);
+	if (!mutex_trylock(&c->ec_stripe_head_lock)) {
+		bch2_trans_unlock(trans);
+		mutex_lock(&c->ec_stripe_head_lock);
+
+		ret = bch2_trans_relock(trans);
+		if (ret) {
+			mutex_unlock(&c->ec_stripe_head_lock);
+			return ERR_PTR(ret);
+		}
+	}
+
 	list_for_each_entry(h, &c->ec_stripe_head_list, list)
 		if (h->target		== target &&
 		    h->algo		== algo &&
@@ -1477,11 +1489,11 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 	int ret;
 	bool needs_stripe_new;
 
-	h = __bch2_ec_stripe_head_get(c, target, algo, redundancy, copygc);
-	if (!h) {
+	h = __bch2_ec_stripe_head_get(trans, target, algo, redundancy, copygc);
+	if (!h)
 		bch_err(c, "no stripe head");
-		return NULL;
-	}
+	if (IS_ERR_OR_NULL(h))
+		return h;
 
 	needs_stripe_new = !h->s;
 	if (needs_stripe_new) {
