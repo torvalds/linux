@@ -7,12 +7,6 @@
 
 */
 
-/* Changes:
-
-        1.01    GRG 1998.05.06 init_proto, release_proto
-
-*/
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>

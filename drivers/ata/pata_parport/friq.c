@@ -20,11 +20,6 @@
 
 */
 
-/* Changes:
-
-	1.01	GRG 1998.12.20	 Added support for soft power switch
-*/
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>

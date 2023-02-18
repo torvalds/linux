@@ -11,14 +11,6 @@
 
 */
 
-/*
-   This is Ken's linux wrapper for the PPC library
-   Version 1.0.0 is the backpack driver for which source is not available
-   Version 2.0.0 is the first to have source released 
-   Version 2.0.1 is the "Cox-ified" source code 
-   Version 2.0.2 - fixed version string usage, and made ppc functions static 
-*/
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

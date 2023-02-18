@@ -10,13 +10,6 @@
 
 */
 
-/* Changes:
-
-        1.01    GRG 1998.05.06 init_proto, release_proto
-	1.02    GRG 1998.06.17 support older versions of EPIA
-
-*/
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
