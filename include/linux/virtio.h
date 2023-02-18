@@ -34,8 +34,8 @@ struct virtqueue {
 	unsigned int index;
 	unsigned int num_free;
 	unsigned int num_max;
-	void *priv;
 	bool reset;
+	void *priv;
 };
 
 int virtqueue_add_outbuf(struct virtqueue *vq,
