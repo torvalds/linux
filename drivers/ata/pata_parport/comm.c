@@ -165,11 +165,14 @@ static void comm_write_block( PIA *pi, char * buf, int count )
                 break;
 
         case 3: w3(0x48); (void)r1();
-                for (k=0;k<count/2;k++) w4w(pi_swab16(buf,k));
+		for (k = 0; k < count / 2; k++)
+			w4w(swab16(((u16 *)buf)[k]));
                 break;
 
         case 4: w3(0x48); (void)r1();
-                for (k=0;k<count/4;k++) w4l(pi_swab32(buf,k));
+		for (k = 0; k < count / 4; k++)
+			w4l(swab16(((u16 *)buf)[2 * k]) |
+			    swab16(((u16 *)buf)[2 * k + 1]) << 16);
                 break;
 
 

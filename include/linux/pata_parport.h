@@ -54,23 +54,6 @@ typedef struct pi_adapter PIA;	/* for paride protocol modules */
 #define r4w()			(delay_p, inw(pi->port + 4))
 #define r4l()			(delay_p, inl(pi->port + 4))
 
-static inline u16 pi_swab16(char *b, int k)
-{
-	union { u16 u; char t[2]; } r;
-
-	r.t[0] = b[2 * k + 1]; r.t[1] = b[2 * k];
-	return r.u;
-}
-
-static inline u32 pi_swab32(char *b, int k)
-{
-	union { u32 u; char f[4]; } r;
-
-	r.f[0] = b[4 * k + 1]; r.f[1] = b[4 * k];
-	r.f[2] = b[4 * k + 3]; r.f[3] = b[4 * k + 2];
-	return r.u;
-}
-
 struct pi_protocol {
 	char name[8];
 
