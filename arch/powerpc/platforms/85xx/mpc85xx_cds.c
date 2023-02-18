@@ -370,20 +370,11 @@ static void mpc85xx_cds_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
-
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc85xx_cds_probe(void)
-{
-	return of_machine_is_compatible("MPC85xxCDS");
-}
-
 machine_arch_initcall(mpc85xx_cds, mpc85xx_common_publish_devices);
 
 define_machine(mpc85xx_cds) {
 	.name		= "MPC85xx CDS",
-	.probe		= mpc85xx_cds_probe,
+	.compatible	= "MPC85xxCDS",
 	.setup_arch	= mpc85xx_cds_setup_arch,
 	.init_IRQ	= mpc85xx_cds_pic_init,
 	.show_cpuinfo	= mpc85xx_cds_show_cpuinfo,

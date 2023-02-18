@@ -142,11 +142,6 @@ static void __init ep88xc_setup_arch(void)
 	                          BCSR8_PHY2_ENABLE | BCSR8_PHY2_POWER);
 }
 
-static int __init ep88xc_probe(void)
-{
-	return of_machine_is_compatible("fsl,ep88xc");
-}
-
 static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .name = "soc", },
 	{ .name = "cpm", },
@@ -165,7 +160,7 @@ machine_device_initcall(ep88xc, declare_of_platform_devices);
 
 define_machine(ep88xc) {
 	.name = "Embedded Planet EP88xC",
-	.probe = ep88xc_probe,
+	.compatible = "fsl,ep88xc",
 	.setup_arch = ep88xc_setup_arch,
 	.init_IRQ = mpc8xx_pic_init,
 	.get_irq	= mpc8xx_get_irq,

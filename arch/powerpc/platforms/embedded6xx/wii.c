@@ -141,9 +141,6 @@ static void __init wii_pic_probe(void)
 
 static int __init wii_probe(void)
 {
-	if (!of_machine_is_compatible("nintendo,wii"))
-		return 0;
-
 	pm_power_off = wii_power_off;
 
 	ug_udbg_init();
@@ -174,6 +171,7 @@ device_initcall(wii_device_probe);
 
 define_machine(wii) {
 	.name			= "wii",
+	.compatible		= "nintendo,wii",
 	.probe			= wii_probe,
 	.setup_arch		= wii_setup_arch,
 	.restart		= wii_restart,

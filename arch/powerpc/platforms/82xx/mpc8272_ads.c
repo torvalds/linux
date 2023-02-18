@@ -191,18 +191,10 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(mpc8272_ads, declare_of_platform_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc8272_ads_probe(void)
-{
-	return of_machine_is_compatible("fsl,mpc8272ads");
-}
-
 define_machine(mpc8272_ads)
 {
 	.name = "Freescale MPC8272 ADS",
-	.probe = mpc8272_ads_probe,
+	.compatible = "fsl,mpc8272ads",
 	.setup_arch = mpc8272_ads_setup_arch,
 	.discover_phbs = pq2_init_pci,
 	.init_IRQ = mpc8272_ads_pic_init,

@@ -339,14 +339,9 @@ static void __init mpc85xx_mds_pic_init(void)
 	mpic_init(mpic);
 }
 
-static int __init mpc85xx_mds_probe(void)
-{
-	return of_machine_is_compatible("MPC85xxMDS");
-}
-
 define_machine(mpc8568_mds) {
 	.name		= "MPC8568 MDS",
-	.probe		= mpc85xx_mds_probe,
+	.compatible	= "MPC85xxMDS",
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
@@ -357,15 +352,10 @@ define_machine(mpc8568_mds) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 };
-
-static int __init mpc8569_mds_probe(void)
-{
-	return of_machine_is_compatible("fsl,MPC8569EMDS");
-}
 
 define_machine(mpc8569_mds) {
 	.name		= "MPC8569 MDS",
-	.probe		= mpc8569_mds_probe,
+	.compatible	= "fsl,MPC8569EMDS",
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
@@ -377,15 +367,9 @@ define_machine(mpc8569_mds) {
 #endif
 };
 
-static int __init p1021_mds_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1021MDS");
-
-}
-
 define_machine(p1021_mds) {
 	.name		= "P1021 MDS",
-	.probe		= p1021_mds_probe,
+	.compatible	= "fsl,P1021MDS",
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,

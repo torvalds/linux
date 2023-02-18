@@ -307,20 +307,9 @@ static void __init mpc86xx_hpcd_setup_arch(void)
 	printk("MPC86xx HPCD board from Freescale Semiconductor\n");
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init mpc86xx_hpcd_probe(void)
-{
-	if (of_machine_is_compatible("fsl,MPC8610HPCD"))
-		return 1;	/* Looks good */
-
-	return 0;
-}
-
 define_machine(mpc86xx_hpcd) {
 	.name			= "MPC86xx HPCD",
-	.probe			= mpc86xx_hpcd_probe,
+	.compatible		= "fsl,MPC8610HPCD",
 	.setup_arch		= mpc86xx_hpcd_setup_arch,
 	.init_IRQ		= mpc86xx_init_irq,
 	.get_irq		= mpic_get_irq,

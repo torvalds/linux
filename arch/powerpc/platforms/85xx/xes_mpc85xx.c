@@ -136,27 +136,9 @@ machine_arch_initcall(xes_mpc8572, mpc85xx_common_publish_devices);
 machine_arch_initcall(xes_mpc8548, mpc85xx_common_publish_devices);
 machine_arch_initcall(xes_mpc8540, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init xes_mpc8572_probe(void)
-{
-	return of_machine_is_compatible("xes,MPC8572");
-}
-
-static int __init xes_mpc8548_probe(void)
-{
-	return of_machine_is_compatible("xes,MPC8548");
-}
-
-static int __init xes_mpc8540_probe(void)
-{
-	return of_machine_is_compatible("xes,MPC8540");
-}
-
 define_machine(xes_mpc8572) {
 	.name			= "X-ES MPC8572",
-	.probe			= xes_mpc8572_probe,
+	.compatible		= "xes,MPC8572",
 	.setup_arch		= xes_mpc85xx_setup_arch,
 	.init_IRQ		= xes_mpc85xx_pic_init,
 #ifdef CONFIG_PCI
@@ -170,7 +152,7 @@ define_machine(xes_mpc8572) {
 
 define_machine(xes_mpc8548) {
 	.name			= "X-ES MPC8548",
-	.probe			= xes_mpc8548_probe,
+	.compatible		= "xes,MPC8548",
 	.setup_arch		= xes_mpc85xx_setup_arch,
 	.init_IRQ		= xes_mpc85xx_pic_init,
 #ifdef CONFIG_PCI
@@ -184,7 +166,7 @@ define_machine(xes_mpc8548) {
 
 define_machine(xes_mpc8540) {
 	.name			= "X-ES MPC8540",
-	.probe			= xes_mpc8540_probe,
+	.compatible		= "xes,MPC8540",
 	.setup_arch		= xes_mpc85xx_setup_arch,
 	.init_IRQ		= xes_mpc85xx_pic_init,
 #ifdef CONFIG_PCI

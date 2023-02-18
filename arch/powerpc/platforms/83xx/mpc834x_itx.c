@@ -57,17 +57,9 @@ static void __init mpc834x_itx_setup_arch(void)
 	mpc834x_usb_cfg();
 }
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init mpc834x_itx_probe(void)
-{
-	return of_machine_is_compatible("MPC834xMITX");
-}
-
 define_machine(mpc834x_itx) {
 	.name			= "MPC834x ITX",
-	.probe			= mpc834x_itx_probe,
+	.compatible		= "MPC834xMITX",
 	.setup_arch		= mpc834x_itx_setup_arch,
 	.discover_phbs  	= mpc83xx_setup_pci,
 	.init_IRQ		= mpc83xx_ipic_init_IRQ,

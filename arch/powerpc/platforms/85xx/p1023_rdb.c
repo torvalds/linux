@@ -94,15 +94,9 @@ static void __init mpc85xx_rdb_pic_init(void)
 	mpic_init(mpic);
 }
 
-static int __init p1023_rdb_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1023RDB");
-
-}
-
 define_machine(p1023_rdb) {
 	.name			= "P1023 RDB",
-	.probe			= p1023_rdb_probe,
+	.compatible		= "fsl,P1023RDB",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 	.get_irq		= mpic_get_irq,

@@ -241,16 +241,6 @@ static void __noreturn holly_restart(char *cmd)
 	for (;;) ;
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init holly_probe(void)
-{
-	if (!of_machine_is_compatible("ibm,holly"))
-		return 0;
-	return 1;
-}
-
 static int ppc750_machine_check_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
@@ -267,7 +257,7 @@ static int ppc750_machine_check_exception(struct pt_regs *regs)
 
 define_machine(holly){
 	.name                   	= "PPC750 GX/CL TSI",
-	.probe                  	= holly_probe,
+	.compatible			= "ibm,holly",
 	.setup_arch             	= holly_setup_arch,
 	.discover_phbs			= holly_init_pci,
 	.init_IRQ               	= holly_init_IRQ,

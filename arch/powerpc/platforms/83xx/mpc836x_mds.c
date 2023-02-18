@@ -188,17 +188,9 @@ err:
 machine_arch_initcall(mpc836x_mds, mpc836x_usb_cfg);
 #endif /* CONFIG_QE_USB */
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init mpc836x_mds_probe(void)
-{
-	return of_machine_is_compatible("MPC836xMDS");
-}
-
 define_machine(mpc836x_mds) {
 	.name		= "MPC836x MDS",
-	.probe		= mpc836x_mds_probe,
+	.compatible	= "MPC836xMDS",
 	.setup_arch	= mpc836x_mds_setup_arch,
 	.discover_phbs  = mpc83xx_setup_pci,
 	.init_IRQ	= mpc83xx_ipic_init_IRQ,

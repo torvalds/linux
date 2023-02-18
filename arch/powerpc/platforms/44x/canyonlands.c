@@ -39,11 +39,9 @@ machine_device_initcall(canyonlands, ppc460ex_device_probe);
 
 static int __init ppc460ex_probe(void)
 {
-	if (of_machine_is_compatible("amcc,canyonlands")) {
-		pci_set_flags(PCI_REASSIGN_ALL_RSRC);
-		return 1;
-	}
-	return 0;
+	pci_set_flags(PCI_REASSIGN_ALL_RSRC);
+
+	return 1;
 }
 
 /* USB PHY fixup code on Canyonlands kit. */
@@ -110,6 +108,7 @@ err_bcsr:
 machine_device_initcall(canyonlands, ppc460ex_canyonlands_fixup);
 define_machine(canyonlands) {
 	.name = "Canyonlands",
+	.compatible = "amcc,canyonlands",
 	.probe = ppc460ex_probe,
 	.progress = udbg_progress,
 	.init_IRQ = uic_init_tree,

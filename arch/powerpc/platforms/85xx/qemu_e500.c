@@ -46,19 +46,11 @@ static void __init qemu_e500_setup_arch(void)
 	mpc85xx_smp_init();
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init qemu_e500_probe(void)
-{
-	return !!of_machine_is_compatible("fsl,qemu-e500");
-}
-
 machine_arch_initcall(qemu_e500, mpc85xx_common_publish_devices);
 
 define_machine(qemu_e500) {
 	.name			= "QEMU e500",
-	.probe			= qemu_e500_probe,
+	.compatible		= "fsl,qemu-e500",
 	.setup_arch		= qemu_e500_setup_arch,
 	.init_IRQ		= qemu_e500_pic_init,
 #ifdef CONFIG_PCI

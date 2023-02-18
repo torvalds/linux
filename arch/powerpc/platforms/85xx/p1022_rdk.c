@@ -129,17 +129,9 @@ static void __init p1022_rdk_setup_arch(void)
 
 machine_arch_initcall(p1022_rdk, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init p1022_rdk_probe(void)
-{
-	return of_machine_is_compatible("fsl,p1022rdk");
-}
-
 define_machine(p1022_rdk) {
 	.name			= "P1022 RDK",
-	.probe			= p1022_rdk_probe,
+	.compatible		= "fsl,p1022rdk",
 	.setup_arch		= p1022_rdk_setup_arch,
 	.init_IRQ		= p1022_rdk_pic_init,
 #ifdef CONFIG_PCI

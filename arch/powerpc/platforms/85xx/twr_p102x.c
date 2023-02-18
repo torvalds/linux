@@ -103,14 +103,9 @@ static void __init twr_p1025_setup_arch(void)
 
 machine_arch_initcall(twr_p1025, mpc85xx_common_publish_devices);
 
-static int __init twr_p1025_probe(void)
-{
-	return of_machine_is_compatible("fsl,TWR-P1025");
-}
-
 define_machine(twr_p1025) {
 	.name			= "TWR-P1025",
-	.probe			= twr_p1025_probe,
+	.compatible		= "fsl,TWR-P1025",
 	.setup_arch		= twr_p1025_setup_arch,
 	.init_IRQ		= twr_p1025_pic_init,
 #ifdef CONFIG_PCI

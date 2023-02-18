@@ -140,20 +140,9 @@ static void __init iss4xx_setup_arch(void)
 	iss4xx_smp_init();
 }
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init iss4xx_probe(void)
-{
-	if (!of_machine_is_compatible("ibm,iss-4xx"))
-		return 0;
-
-	return 1;
-}
-
 define_machine(iss4xx) {
 	.name			= "ISS-4xx",
-	.probe			= iss4xx_probe,
+	.compatible		= "ibm,iss-4xx",
 	.progress		= udbg_progress,
 	.init_IRQ		= iss4xx_init_irq,
 	.setup_arch		= iss4xx_setup_arch,

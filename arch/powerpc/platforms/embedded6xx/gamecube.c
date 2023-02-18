@@ -50,9 +50,6 @@ static void __noreturn gamecube_halt(void)
 
 static int __init gamecube_probe(void)
 {
-	if (!of_machine_is_compatible("nintendo,gamecube"))
-		return 0;
-
 	pm_power_off = gamecube_power_off;
 
 	ug_udbg_init();
@@ -67,6 +64,7 @@ static void gamecube_shutdown(void)
 
 define_machine(gamecube) {
 	.name			= "gamecube",
+	.compatible		= "nintendo,gamecube",
 	.probe			= gamecube_probe,
 	.restart		= gamecube_restart,
 	.halt			= gamecube_halt,

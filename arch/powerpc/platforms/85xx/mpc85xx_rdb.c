@@ -119,70 +119,9 @@ machine_arch_initcall(p1021_rdb_pc, mpc85xx_common_publish_devices);
 machine_arch_initcall(p1025_rdb, mpc85xx_common_publish_devices);
 machine_arch_initcall(p1024_rdb, mpc85xx_common_publish_devices);
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init p2020_rdb_probe(void)
-{
-	if (of_machine_is_compatible("fsl,P2020RDB"))
-		return 1;
-	return 0;
-}
-
-static int __init p1020_rdb_probe(void)
-{
-	if (of_machine_is_compatible("fsl,P1020RDB"))
-		return 1;
-	return 0;
-}
-
-static int __init p1020_rdb_pc_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1020RDB-PC");
-}
-
-static int __init p1020_rdb_pd_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1020RDB-PD");
-}
-
-static int __init p1021_rdb_pc_probe(void)
-{
-	if (of_machine_is_compatible("fsl,P1021RDB-PC"))
-		return 1;
-	return 0;
-}
-
-static int __init p2020_rdb_pc_probe(void)
-{
-	if (of_machine_is_compatible("fsl,P2020RDB-PC"))
-		return 1;
-	return 0;
-}
-
-static int __init p1025_rdb_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1025RDB");
-}
-
-static int __init p1020_mbg_pc_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1020MBG-PC");
-}
-
-static int __init p1020_utm_pc_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1020UTM-PC");
-}
-
-static int __init p1024_rdb_probe(void)
-{
-	return of_machine_is_compatible("fsl,P1024RDB");
-}
-
 define_machine(p2020_rdb) {
 	.name			= "P2020 RDB",
-	.probe			= p2020_rdb_probe,
+	.compatible		= "fsl,P2020RDB",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -196,7 +135,7 @@ define_machine(p2020_rdb) {
 
 define_machine(p1020_rdb) {
 	.name			= "P1020 RDB",
-	.probe			= p1020_rdb_probe,
+	.compatible		= "fsl,P1020RDB",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -210,7 +149,7 @@ define_machine(p1020_rdb) {
 
 define_machine(p1021_rdb_pc) {
 	.name			= "P1021 RDB-PC",
-	.probe			= p1021_rdb_pc_probe,
+	.compatible		= "fsl,P1021RDB-PC",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -224,7 +163,7 @@ define_machine(p1021_rdb_pc) {
 
 define_machine(p2020_rdb_pc) {
 	.name			= "P2020RDB-PC",
-	.probe			= p2020_rdb_pc_probe,
+	.compatible		= "fsl,P2020RDB-PC",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -238,7 +177,7 @@ define_machine(p2020_rdb_pc) {
 
 define_machine(p1025_rdb) {
 	.name			= "P1025 RDB",
-	.probe			= p1025_rdb_probe,
+	.compatible		= "fsl,P1025RDB",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -252,7 +191,7 @@ define_machine(p1025_rdb) {
 
 define_machine(p1020_mbg_pc) {
 	.name			= "P1020 MBG-PC",
-	.probe			= p1020_mbg_pc_probe,
+	.compatible		= "fsl,P1020MBG-PC",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -266,7 +205,7 @@ define_machine(p1020_mbg_pc) {
 
 define_machine(p1020_utm_pc) {
 	.name			= "P1020 UTM-PC",
-	.probe			= p1020_utm_pc_probe,
+	.compatible		= "fsl,P1020UTM-PC",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -280,7 +219,7 @@ define_machine(p1020_utm_pc) {
 
 define_machine(p1020_rdb_pc) {
 	.name			= "P1020RDB-PC",
-	.probe			= p1020_rdb_pc_probe,
+	.compatible		= "fsl,P1020RDB-PC",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -294,7 +233,7 @@ define_machine(p1020_rdb_pc) {
 
 define_machine(p1020_rdb_pd) {
 	.name			= "P1020RDB-PD",
-	.probe			= p1020_rdb_pd_probe,
+	.compatible		= "fsl,P1020RDB-PD",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
@@ -308,7 +247,7 @@ define_machine(p1020_rdb_pd) {
 
 define_machine(p1024_rdb) {
 	.name			= "P1024 RDB",
-	.probe			= p1024_rdb_probe,
+	.compatible		= "fsl,P1024RDB",
 	.setup_arch		= mpc85xx_rdb_setup_arch,
 	.init_IRQ		= mpc85xx_rdb_pic_init,
 #ifdef CONFIG_PCI
