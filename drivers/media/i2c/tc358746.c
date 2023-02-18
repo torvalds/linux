@@ -1476,9 +1476,6 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 	if (err)
 		goto err_cleanup;
 
-	tc358746->sd.fwnode = fwnode_graph_get_endpoint_by_id(
-		dev_fwnode(tc358746->sd.dev), TC358746_SOURCE, 0, 0);
-
 	err = v4l2_async_register_subdev(&tc358746->sd);
 	if (err)
 		goto err_unregister;
@@ -1486,7 +1483,6 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 	return 0;
 
 err_unregister:
-	fwnode_handle_put(tc358746->sd.fwnode);
 	v4l2_async_nf_unregister(&tc358746->notifier);
 err_cleanup:
 	v4l2_async_nf_cleanup(&tc358746->notifier);
@@ -1605,7 +1601,6 @@ static void tc358746_remove(struct i2c_client *client)
 	v4l2_fwnode_endpoint_free(&tc358746->csi_vep);
 	v4l2_async_nf_unregister(&tc358746->notifier);
 	v4l2_async_nf_cleanup(&tc358746->notifier);
-	fwnode_handle_put(sd->fwnode);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 

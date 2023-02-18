@@ -94,89 +94,36 @@ match_fwnode_one(struct v4l2_async_notifier *notifier,
 		 struct v4l2_subdev *sd, struct fwnode_handle *sd_fwnode,
 		 struct v4l2_async_match_desc *match)
 {
-	struct fwnode_handle *other_fwnode;
-	struct fwnode_handle *dev_fwnode;
-	bool asd_fwnode_is_ep;
-	bool sd_fwnode_is_ep;
-	struct device *dev;
+	struct fwnode_handle *asd_dev_fwnode;
+	bool ret;
 
 	dev_dbg(notifier_dev(notifier),
 		"v4l2-async: fwnode match: need %pfw, trying %pfw\n",
 		sd_fwnode, match->fwnode);
 
-	/*
-	 * Both the subdev and the async subdev can provide either an endpoint
-	 * fwnode or a device fwnode. Start with the simple case of direct
-	 * fwnode matching.
-	 */
 	if (sd_fwnode == match->fwnode) {
 		dev_dbg(notifier_dev(notifier),
 			"v4l2-async: direct match found\n");
 		return true;
 	}
 
-	/*
-	 * Otherwise, check if the sd fwnode and the asd fwnode refer to an
-	 * endpoint or a device. If they're of the same type, there's no match.
-	 * Technically speaking this checks if the nodes refer to a connected
-	 * endpoint, which is the simplest check that works for both OF and
-	 * ACPI. This won't make a difference, as drivers should not try to
-	 * match unconnected endpoints.
-	 */
-	sd_fwnode_is_ep = fwnode_graph_is_endpoint(sd_fwnode);
-	asd_fwnode_is_ep = fwnode_graph_is_endpoint(match->fwnode);
-
-	if (sd_fwnode_is_ep == asd_fwnode_is_ep) {
+	if (!fwnode_graph_is_endpoint(match->fwnode)) {
 		dev_dbg(notifier_dev(notifier),
 			"v4l2-async: direct match not found\n");
 		return false;
 	}
 
-	/*
-	 * The sd and asd fwnodes are of different types. Get the device fwnode
-	 * parent of the endpoint fwnode, and compare it with the other fwnode.
-	 */
-	if (sd_fwnode_is_ep) {
-		dev_fwnode = fwnode_graph_get_port_parent(sd_fwnode);
-		other_fwnode = match->fwnode;
-	} else {
-		dev_fwnode = fwnode_graph_get_port_parent(match->fwnode);
-		other_fwnode = sd_fwnode;
-	}
+	asd_dev_fwnode = fwnode_graph_get_port_parent(match->fwnode);
+
+	ret = sd_fwnode == asd_dev_fwnode;
+
+	fwnode_handle_put(asd_dev_fwnode);
 
 	dev_dbg(notifier_dev(notifier),
-		"v4l2-async: fwnode compat match: need %pfw, trying %pfw\n",
-		dev_fwnode, other_fwnode);
+		"v4l2-async: device--endpoint match %sfound\n",
+		ret ? "" : "not ");
 
-	fwnode_handle_put(dev_fwnode);
-
-	if (dev_fwnode != other_fwnode) {
-		dev_dbg(notifier_dev(notifier),
-			"v4l2-async: compat match not found\n");
-		return false;
-	}
-
-	/*
-	 * We have a heterogeneous match. Retrieve the struct device of the side
-	 * that matched on a device fwnode to print its driver name.
-	 */
-	if (sd_fwnode_is_ep)
-		dev = notifier->v4l2_dev ? notifier->v4l2_dev->dev
-		    : notifier->sd->dev;
-	else
-		dev = sd->dev;
-
-	if (dev && dev->driver) {
-		if (sd_fwnode_is_ep)
-			dev_warn(dev, "Driver %s uses device fwnode, incorrect match may occur\n",
-				 dev->driver->name);
-		dev_notice(dev, "Consider updating driver %s to match on endpoints\n",
-			   dev->driver->name);
-	}
-
-	dev_dbg(notifier_dev(notifier), "v4l2-async: compat match found\n");
-
-	return true;
+	return ret;
 }
 
 static bool match_fwnode(struct v4l2_async_notifier *notifier,
@@ -816,12 +763,19 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 	int ret;
 
 	/*
-	 * No reference taken. The reference is held by the device
-	 * (struct v4l2_subdev.dev), and async sub-device does not
-	 * exist independently of the device at any point of time.
+	 * No reference taken. The reference is held by the device (struct
+	 * v4l2_subdev.dev), and async sub-device does not exist independently
+	 * of the device at any point of time.
+	 *
+	 * The async sub-device shall always be registered for its device node,
+	 * not the endpoint node.
 	 */
-	if (!sd->fwnode && sd->dev)
+	if (!sd->fwnode && sd->dev) {
 		sd->fwnode = dev_fwnode(sd->dev);
+	} else if (fwnode_graph_is_endpoint(sd->fwnode)) {
+		dev_warn(sd->dev, "sub-device fwnode is an endpoint!\n");
+		return -EINVAL;
+	}
 
 	mutex_lock(&list_lock);
 

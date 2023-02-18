@@ -1364,13 +1364,6 @@ static int mipi_csis_subdev_init(struct mipi_csis_device *csis)
 
 	sd->dev = csis->dev;
 
-	sd->fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(csis->dev),
-						     1, 0, 0);
-	if (!sd->fwnode) {
-		dev_err(csis->dev, "Unable to retrieve endpoint for port@1\n");
-		return -ENOENT;
-	}
-
 	csis->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK
 					 | MEDIA_PAD_FL_MUST_CONNECT;
 	csis->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE
