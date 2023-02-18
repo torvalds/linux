@@ -1294,9 +1294,10 @@ found:
 	return h;
 }
 
-static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
+static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_head *h,
 				    struct closure *cl)
 {
+	struct bch_fs *c = trans->c;
 	struct bch_devs_mask devs = h->devs;
 	struct open_bucket *ob;
 	struct open_buckets buckets;
@@ -1319,7 +1320,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 
 	buckets.nr = 0;
 	if (nr_have_parity < h->s->nr_parity) {
-		ret = bch2_bucket_alloc_set(c, &buckets,
+		ret = bch2_bucket_alloc_set_trans(trans, &buckets,
 					    &h->parity_stripe,
 					    &devs,
 					    h->s->nr_parity,
@@ -1348,7 +1349,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 
 	buckets.nr = 0;
 	if (nr_have_data < h->s->nr_data) {
-		ret = bch2_bucket_alloc_set(c, &buckets,
+		ret = bch2_bucket_alloc_set_trans(trans, &buckets,
 					    &h->block_stripe,
 					    &devs,
 					    h->s->nr_data,
@@ -1464,13 +1465,14 @@ static int __bch2_ec_stripe_head_reserve(struct bch_fs *c,
 					 h->s->nr_parity, 0);
 }
 
-struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
+struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 					       unsigned target,
 					       unsigned algo,
 					       unsigned redundancy,
 					       bool copygc,
 					       struct closure *cl)
 {
+	struct bch_fs *c = trans->c;
 	struct ec_stripe_head *h;
 	int ret;
 	bool needs_stripe_new;
@@ -1509,7 +1511,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 	}
 
 	if (!h->s->allocated) {
-		ret = new_stripe_alloc_buckets(c, h, cl);
+		ret = new_stripe_alloc_buckets(trans, h, cl);
 		if (ret)
 			goto err;
 
@@ -1517,7 +1519,6 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 	}
 
 	return h;
-
 err:
 	bch2_ec_stripe_head_put(c, h);
 	return ERR_PTR(ret);

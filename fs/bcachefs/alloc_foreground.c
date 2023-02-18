@@ -713,7 +713,7 @@ static void add_new_bucket(struct bch_fs *c,
 	ob_push(c, ptrs, ob);
 }
 
-static int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
+int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 		      struct open_buckets *ptrs,
 		      struct dev_stripe_state *stripe,
 		      struct bch_devs_mask *devs_may_alloc,
@@ -779,24 +779,6 @@ static int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_bucket_alloc_set(struct bch_fs *c,
-		      struct open_buckets *ptrs,
-		      struct dev_stripe_state *stripe,
-		      struct bch_devs_mask *devs_may_alloc,
-		      unsigned nr_replicas,
-		      unsigned *nr_effective,
-		      bool *have_cache,
-		      enum alloc_reserve reserve,
-		      unsigned flags,
-		      struct closure *cl)
-{
-	return bch2_trans_do(c, NULL, NULL, 0,
-		      bch2_bucket_alloc_set_trans(&trans, ptrs, stripe,
-					      devs_may_alloc, nr_replicas,
-					      nr_effective, have_cache, reserve,
-					      flags, cl));
-}
-
 /* Allocate from stripes: */
 
 /*
@@ -805,7 +787,7 @@ int bch2_bucket_alloc_set(struct bch_fs *c,
  * it's to a device we don't want:
  */
 
-static int bucket_alloc_from_stripe(struct bch_fs *c,
+static int bucket_alloc_from_stripe(struct btree_trans *trans,
 			 struct open_buckets *ptrs,
 			 struct write_point *wp,
 			 struct bch_devs_mask *devs_may_alloc,
@@ -817,6 +799,7 @@ static int bucket_alloc_from_stripe(struct bch_fs *c,
 			 unsigned flags,
 			 struct closure *cl)
 {
+	struct bch_fs *c = trans->c;
 	struct dev_alloc_list devs_sorted;
 	struct ec_stripe_head *h;
 	struct open_bucket *ob;
@@ -832,11 +815,11 @@ static int bucket_alloc_from_stripe(struct bch_fs *c,
 	if (ec_open_bucket(c, ptrs))
 		return 0;
 
-	h = bch2_ec_stripe_head_get(c, target, 0, nr_replicas - 1,
+	h = bch2_ec_stripe_head_get(trans, target, 0, nr_replicas - 1,
 				    wp == &c->copygc_write_point,
 				    cl);
 	if (IS_ERR(h))
-		return -PTR_ERR(h);
+		return PTR_ERR(h);
 	if (!h)
 		return 0;
 
@@ -942,7 +925,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 		}
 
 		if (!ec_open_bucket(c, ptrs)) {
-			ret = bucket_alloc_from_stripe(c, ptrs, wp, &devs,
+			ret = bucket_alloc_from_stripe(trans, ptrs, wp, &devs,
 						 target, erasure_code,
 						 nr_replicas, nr_effective,
 						 have_cache, flags, _cl);
