@@ -241,14 +241,14 @@ static void bpck_connect ( PIA *pi  )
 
 	WR(5,8);
 
-	if (pi->devtype == PI_PCD) {
+/*	if (pi->devtype == PI_PCD) {	possibly wrong, purpose unknown */
 		WR(0x46,0x10);		/* fiddle with ESS logic ??? */
 		WR(0x4c,0x38);
 		WR(0x4d,0x88);
 		WR(0x46,0xa0);
 		WR(0x41,0);
 		WR(0x4e,8);
-		}
+/*	}*/
 }
 
 static void bpck_disconnect ( PIA *pi )
