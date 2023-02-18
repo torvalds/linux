@@ -169,7 +169,7 @@ static void fit3_disconnect(struct pi_adapter *pi)
         w2(pi->saved_r2);
 } 
 
-static void fit3_log_adapter(struct pi_adapter *pi, char *scratch)
+static void fit3_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[3] = {"4-bit","8-bit","EPP"};
 

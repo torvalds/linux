@@ -195,7 +195,7 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
   	}
 }
 
-static void bpck6_log_adapter(struct pi_adapter *pi, char *scratch)
+static void bpck6_log_adapter(struct pi_adapter *pi)
 {
 	char *mode_string[5]=
 		{"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};

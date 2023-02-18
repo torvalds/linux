@@ -120,7 +120,7 @@ static void aten_disconnect(struct pi_adapter *pi)
         w2(pi->saved_r2);
 } 
 
-static void aten_log_adapter(struct pi_adapter *pi, char *scratch)
+static void aten_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[2] = {"4-bit","8-bit"};
 

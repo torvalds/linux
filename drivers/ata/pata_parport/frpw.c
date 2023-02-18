@@ -267,7 +267,7 @@ static int frpw_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 }
 
 
-static void frpw_log_adapter(struct pi_adapter *pi, char *scratch)
+static void frpw_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[6] = {"4-bit","8-bit","EPP",
 				   "EPP-8","EPP-16","EPP-32"};

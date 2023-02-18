@@ -111,7 +111,7 @@ static void on20_write_block(struct pi_adapter *pi, char *buf, int count)
 	w2(4);
 }
 
-static void on20_log_adapter(struct pi_adapter *pi, char *scratch)
+static void on20_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[2] = {"4-bit","8-bit"};
 

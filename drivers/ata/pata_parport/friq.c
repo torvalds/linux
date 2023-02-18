@@ -216,7 +216,7 @@ static int friq_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 }
 
 
-static void friq_log_adapter(struct pi_adapter *pi, char *scratch)
+static void friq_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[6] = {"4-bit","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};

@@ -478,7 +478,7 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 		goto out_unreg_parport;
 	}
 
-	pi->proto->log_adapter(pi, scratch);
+	pi->proto->log_adapter(pi);
 
 	host = ata_host_alloc_pinfo(&pi->pardev->dev, ppi, 1);
 	if (!host)
