@@ -1799,6 +1799,7 @@
   irq_domain_update_bus_token
   irq_domain_xlate_onecell
   irq_domain_xlate_twocell
+  irq_do_set_affinity
   irq_find_matching_fwspec
   irq_get_irqchip_state
   irq_get_irq_data
@@ -3393,6 +3394,7 @@
   __traceiter_android_rvh_find_lowest_rq
   __traceiter_android_rvh_flush_task
   __traceiter_android_rvh_get_nohz_timer_target
+  __traceiter_android_rvh_gic_v3_set_affinity
   __traceiter_android_rvh_iommu_setup_dma_ops
   __traceiter_android_rvh_is_cpu_allowed
   __traceiter_android_rvh_migrate_queued_task
@@ -3480,6 +3482,7 @@
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_flush_task
   __tracepoint_android_rvh_get_nohz_timer_target
+  __tracepoint_android_rvh_gic_v3_set_affinity
   __tracepoint_android_rvh_iommu_setup_dma_ops
   __tracepoint_android_rvh_is_cpu_allowed
   __tracepoint_android_rvh_migrate_queued_task
