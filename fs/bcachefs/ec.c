@@ -1231,7 +1231,7 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 		return NULL;
 
 	mutex_init(&h->lock);
-	mutex_lock(&h->lock);
+	BUG_ON(!mutex_trylock(&h->lock));
 
 	h->target	= target;
 	h->algo		= algo;
@@ -1280,23 +1280,18 @@ struct ec_stripe_head *__bch2_ec_stripe_head_get(struct btree_trans *trans,
 	if (!redundancy)
 		return NULL;
 
-	if (!mutex_trylock(&c->ec_stripe_head_lock)) {
-		bch2_trans_unlock(trans);
-		mutex_lock(&c->ec_stripe_head_lock);
-
-		ret = bch2_trans_relock(trans);
-		if (ret) {
-			mutex_unlock(&c->ec_stripe_head_lock);
-			return ERR_PTR(ret);
-		}
-	}
+	ret = bch2_trans_mutex_lock(trans, &c->ec_stripe_head_lock);
+	if (ret)
+		return ERR_PTR(ret);
 
 	list_for_each_entry(h, &c->ec_stripe_head_list, list)
 		if (h->target		== target &&
 		    h->algo		== algo &&
 		    h->redundancy	== redundancy &&
 		    h->copygc		== copygc) {
-			mutex_lock(&h->lock);
+			ret = bch2_trans_mutex_lock(trans, &h->lock);
+			if (ret)
+				h = ERR_PTR(ret);
 			goto found;
 		}
 

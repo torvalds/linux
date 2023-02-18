@@ -1073,7 +1073,7 @@ static bool try_decrease_writepoints(struct bch_fs *c,
 	return true;
 }
 
-static void bch2_trans_mutex_lock(struct btree_trans *trans,
+static void bch2_trans_mutex_lock_norelock(struct btree_trans *trans,
 				  struct mutex *lock)
 {
 	if (!mutex_trylock(lock)) {
@@ -1091,7 +1091,7 @@ static struct write_point *writepoint_find(struct btree_trans *trans,
 
 	if (!(write_point & 1UL)) {
 		wp = (struct write_point *) write_point;
-		bch2_trans_mutex_lock(trans, &wp->lock);
+		bch2_trans_mutex_lock_norelock(trans, &wp->lock);
 		return wp;
 	}
 
@@ -1100,7 +1100,7 @@ restart_find:
 	wp = __writepoint_find(head, write_point);
 	if (wp) {
 lock_wp:
-		bch2_trans_mutex_lock(trans, &wp->lock);
+		bch2_trans_mutex_lock_norelock(trans, &wp->lock);
 		if (wp->write_point == write_point)
 			goto out;
 		mutex_unlock(&wp->lock);
@@ -1113,8 +1113,8 @@ restart_find_oldest:
 		if (!oldest || time_before64(wp->last_used, oldest->last_used))
 			oldest = wp;
 
-	bch2_trans_mutex_lock(trans, &oldest->lock);
-	bch2_trans_mutex_lock(trans, &c->write_points_hash_lock);
+	bch2_trans_mutex_lock_norelock(trans, &oldest->lock);
+	bch2_trans_mutex_lock_norelock(trans, &c->write_points_hash_lock);
 	if (oldest >= c->write_points + c->write_points_nr ||
 	    try_increase_writepoints(c)) {
 		mutex_unlock(&c->write_points_hash_lock);
