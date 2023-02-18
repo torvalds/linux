@@ -95,7 +95,7 @@ static int aspeed_pciecfg_probe(struct platform_device *pdev)
 	pciecfg->rc_low_rst = NULL;
 	if (of_device_is_available(of_parse_phandle(dev->of_node, "aspeed,pcie0", 0))) {
 		pciecfg->rc_low_rst_gpio = devm_gpiod_get_optional(
-			dev, "pcei0-perst",
+			dev, "pcie0-perst",
 			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 		if (!pciecfg->rc_low_rst_gpio) {
 			pciecfg->rc_low_rst = devm_reset_control_get_shared(
@@ -108,10 +108,10 @@ static int aspeed_pciecfg_probe(struct platform_device *pdev)
 	pciecfg->rc_high_rst = NULL;
 	if (of_device_is_available(of_parse_phandle(dev->of_node, "aspeed,pcie1", 0))) {
 		pciecfg->rc_high_rst_gpio = devm_gpiod_get_optional(
-			dev, "pcei1-perst",
+			dev, "pcie1-perst",
 			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 		if (!pciecfg->rc_high_rst_gpio) {
-			pciecfg->rc_low_rst = devm_reset_control_get_shared(
+			pciecfg->rc_high_rst = devm_reset_control_get_shared(
 				&pdev->dev, "rc_high");
 			if (IS_ERR(pciecfg->rc_high_rst))
 				dev_info(&pdev->dev, "No RC high reset\n");
