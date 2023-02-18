@@ -334,12 +334,9 @@ static int bpck_test_proto(struct pi_adapter *pi, char *scratch, int verbose)
 
 	}
 
-	if (verbose) {
-		printk("bpck: 0x%x unit %d mode %d: ",
-		       pi->port, pi->unit, pi->mode);
-	    for (i=0;i<TEST_LEN;i++) printk("%3d",buf[i]);
-	    printk("\n");
-	}
+	dev_dbg(&pi->dev, "bpck: 0x%x unit %d mode %d: ",
+		pi->port, pi->unit, pi->mode);
+	print_hex_dump_debug("bpck: ", DUMP_PREFIX_NONE, TEST_LEN, 1, buf, TEST_LEN, false);
 
 	e = 0;
 	for (i=0;i<TEST_LEN;i++) if (buf[i] != (i+1)) e++;
@@ -421,20 +418,9 @@ static void bpck_log_adapter(struct pi_adapter *pi)
 {	char	*mode_string[5] = { "4-bit","8-bit","EPP-8",
 				    "EPP-16","EPP-32" };
 	char scratch[128];
-#ifdef DUMP_EEPROM
-	int i;
-#endif
 
 	bpck_read_eeprom(pi,scratch);
-
-#ifdef DUMP_EEPROM
-	   for(i=0;i<128;i++)
-		if ((scratch[i] < ' ') || (scratch[i] > '~'))
-		    scratch[i] = '.';
-	   printk("bpck EEPROM: %64.64s\n", scratch);
-	   printk("             %64.64s\n", &scratch[64]);
-#endif
-
+	print_hex_dump_bytes("bpck EEPROM: ", DUMP_PREFIX_NONE, scratch, 128);
 	dev_info(&pi->dev, "bpck %s, backpack %8.8s unit %d",
 		BPCK_VERSION, &scratch[110], pi->unit);
 	dev_info(&pi->dev, " at 0x%x, mode %d (%s), delay %d\n", pi->port,
