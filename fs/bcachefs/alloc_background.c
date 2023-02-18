@@ -1785,6 +1785,9 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 		goto err;
 	}
 
+	if (bch2_bucket_is_open_safe(c, bucket.inode, bucket.offset))
+		return 0;
+
 	a = bch2_trans_start_alloc_update(trans, &alloc_iter, bucket);
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
