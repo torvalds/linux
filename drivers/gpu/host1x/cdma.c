@@ -105,7 +105,7 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 
 		pb->dma = iova_dma_addr(&host1x->iova, alloc);
 		err = iommu_map(host1x->domain, pb->dma, pb->phys, size,
-				IOMMU_READ);
+				IOMMU_READ, GFP_KERNEL);
 		if (err)
 			goto iommu_free_iova;
 	} else {
