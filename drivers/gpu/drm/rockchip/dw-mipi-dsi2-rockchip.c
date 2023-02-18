@@ -1000,7 +1000,9 @@ static enum drm_mode_status
 dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
+	struct dw_mipi_dsi2 *dsi2 = con_to_dsi2(connector);
 	struct videomode vm;
+	u8 min_pixels = dsi2->slave ? 8 : 4;
 
 	drm_display_mode_to_videomode(mode, &vm);
 
@@ -1008,21 +1010,21 @@ dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
 	 * the minimum region size (HSA,HBP,HACT,HFP) is 4 pixels
 	 * which is the ip known issues and limitations.
 	 */
-	if (!(vm.hsync_len < 4 || vm.hback_porch < 4 ||
-	    vm.hfront_porch < 4 || vm.hactive < 4))
+	if (!(vm.hsync_len < min_pixels || vm.hback_porch < min_pixels ||
+	    vm.hfront_porch < min_pixels || vm.hactive < min_pixels))
 		return MODE_OK;
 
-	if (vm.hsync_len < 4)
-		vm.hsync_len = 4;
+	if (vm.hsync_len < min_pixels)
+		vm.hsync_len = min_pixels;
 
-	if (vm.hback_porch < 4)
-		vm.hback_porch = 4;
+	if (vm.hback_porch < min_pixels)
+		vm.hback_porch = min_pixels;
 
-	if (vm.hfront_porch < 4)
-		vm.hfront_porch = 4;
+	if (vm.hfront_porch < min_pixels)
+		vm.hfront_porch = min_pixels;
 
-	if (vm.hactive < 4)
-		vm.hactive = 4;
+	if (vm.hactive < min_pixels)
+		vm.hactive = min_pixels;
 
 	drm_display_mode_from_videomode(&vm, mode);
 
