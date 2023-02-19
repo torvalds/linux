@@ -661,7 +661,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 					 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
 				do_update = true;
 
-			if (fsck_err_on(!bch2_ptr_matches_stripe_m(m, p), c,
+			if (fsck_err_on(m && m->alive && !bch2_ptr_matches_stripe_m(m, p), c,
 					"pointer does not match stripe %llu\n"
 					"while marking %s",
 					(u64) p.ec.idx,
