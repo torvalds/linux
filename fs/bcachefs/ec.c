@@ -982,9 +982,6 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	BUG_ON(!s->allocated);
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_stripe_create))
-		goto err;
-
 	ec_generate_ec(&s->new_stripe);
 
 	ec_generate_checksums(&s->new_stripe);
@@ -996,7 +993,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	if (ec_nr_failed(&s->new_stripe)) {
 		bch_err(c, "error creating stripe: error writing redundancy buckets");
-		goto err_put_writes;
+		goto err;
 	}
 
 	ret = bch2_trans_do(c, &s->res, NULL, BTREE_INSERT_NOFAIL,
@@ -1005,7 +1002,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 			    : ec_stripe_bkey_insert(&trans, &s->new_stripe.key, &s->res));
 	if (ret) {
 		bch_err(c, "error creating stripe: error creating stripe key");
-		goto err_put_writes;
+		goto err;
 	}
 
 	ret = ec_stripe_update_extents(c, &s->new_stripe);
@@ -1013,15 +1010,12 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 		bch_err(c, "error creating stripe: error updating pointers: %s",
 			bch2_err_str(ret));
 
-
 	mutex_lock(&c->ec_stripes_heap_lock);
 	m = genradix_ptr(&c->stripes, s->new_stripe.key.k.p.offset);
 
 	BUG_ON(m->on_heap);
 	bch2_stripes_heap_insert(c, m, s->new_stripe.key.k.p.offset);
 	mutex_unlock(&c->ec_stripes_heap_lock);
-err_put_writes:
-	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_create);
 err:
 	bch2_disk_reservation_put(c, &s->res);
 
@@ -1043,31 +1037,49 @@ err:
 	kfree(s);
 }
 
+static struct ec_stripe_new *get_pending_stripe(struct bch_fs *c)
+{
+	struct ec_stripe_new *s;
+
+	mutex_lock(&c->ec_stripe_new_lock);
+	list_for_each_entry(s, &c->ec_stripe_new_list, list)
+		if (!atomic_read(&s->pin)) {
+			list_del(&s->list);
+			goto out;
+		}
+	s = NULL;
+out:
+	mutex_unlock(&c->ec_stripe_new_lock);
+
+	return s;
+}
+
 static void ec_stripe_create_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work,
 		struct bch_fs, ec_stripe_create_work);
-	struct ec_stripe_new *s, *n;
-restart:
-	mutex_lock(&c->ec_stripe_new_lock);
-	list_for_each_entry_safe(s, n, &c->ec_stripe_new_list, list)
-		if (!atomic_read(&s->pin)) {
-			list_del(&s->list);
-			mutex_unlock(&c->ec_stripe_new_lock);
-			ec_stripe_create(s);
-			goto restart;
-		}
-	mutex_unlock(&c->ec_stripe_new_lock);
+	struct ec_stripe_new *s;
+
+	while ((s = get_pending_stripe(c)))
+		ec_stripe_create(s);
+
+	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_create);
+}
+
+void bch2_ec_do_stripe_creates(struct bch_fs *c)
+{
+	bch2_write_ref_get(c, BCH_WRITE_REF_stripe_create);
+
+	if (!queue_work(system_long_wq, &c->ec_stripe_create_work))
+		bch2_write_ref_put(c, BCH_WRITE_REF_stripe_create);
 }
 
 static void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s)
 {
 	BUG_ON(atomic_read(&s->pin) <= 0);
 
-	if (atomic_dec_and_test(&s->pin)) {
-		BUG_ON(!s->pending);
-		queue_work(system_long_wq, &c->ec_stripe_create_work);
-	}
+	if (atomic_dec_and_test(&s->pin))
+		bch2_ec_do_stripe_creates(c);
 }
 
 static void ec_stripe_set_pending(struct bch_fs *c, struct ec_stripe_head *h)
