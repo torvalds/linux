@@ -1084,7 +1084,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cachable and UC.",
+        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cacheable and UC.",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.E_STATE",
         "PerPkg": "1",
@@ -1843,7 +1843,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Counts cycles source throttling is adderted - horizontal",
+        "BriefDescription": "Counts cycles source throttling is asserted - horizontal",
         "EventCode": "0xA5",
         "EventName": "UNC_H_FAST_ASSERTED.HORZ",
         "PerPkg": "1",
@@ -1851,7 +1851,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Counts cycles source throttling is adderted - vertical",
+        "BriefDescription": "Counts cycles source throttling is asserted - vertical",
         "EventCode": "0xA5",
         "EventName": "UNC_H_FAST_ASSERTED.VERT",
         "PerPkg": "1",
@@ -2929,7 +2929,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cachable and UC.",
+        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cacheable and UC.",
         "EventCode": "0x34",
         "EventName": "UNC_H_SF_LOOKUP.WRITE",
         "PerPkg": "1",
