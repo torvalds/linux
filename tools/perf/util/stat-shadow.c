@@ -234,7 +234,6 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 				    int aggr_idx)
 {
 	u64 count_ns = count;
-	struct saved_value *v;
 	struct runtime_stat_data rsd = {
 		.ctx = evsel_context(counter),
 		.cgrp = counter->cgrp,
@@ -265,19 +264,6 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 		update_runtime_stat(STAT_DTLB_CACHE, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
 		update_runtime_stat(STAT_ITLB_CACHE, aggr_idx, count, &rsd);
-
-	if (counter->collect_stat) {
-		v = saved_value_lookup(counter, aggr_idx, true, STAT_NONE, 0,
-				       rsd.cgrp);
-		update_stats(&v->stats, count);
-		if (counter->metric_leader)
-			v->metric_total += count;
-	} else if (counter->metric_leader && !counter->merged_stat) {
-		v = saved_value_lookup(counter->metric_leader,
-				       aggr_idx, true, STAT_NONE, 0, rsd.cgrp);
-		v->metric_total += count;
-		v->metric_other++;
-	}
 }
 
 /* used for get_ratio_color() */
@@ -480,18 +466,17 @@ static int prepare_metric(struct evsel **metric_events,
 			  struct expr_parse_ctx *pctx,
 			  int aggr_idx)
 {
-	double scale;
-	char *n;
-	int i, j, ret;
+	int i;
 
 	for (i = 0; metric_events[i]; i++) {
-		struct saved_value *v;
-		struct stats *stats;
-		u64 metric_total = 0;
-		int source_count;
+		char *n;
+		double val;
+		int source_count = 0;
 
 		if (evsel__is_tool(metric_events[i])) {
-			source_count = 1;
+			struct stats *stats;
+			double scale;
+
 			switch (metric_events[i]->tool_event) {
 			case PERF_TOOL_DURATION_TIME:
 				stats = &walltime_nsecs_stats;
@@ -515,35 +500,32 @@ static int prepare_metric(struct evsel **metric_events,
 				pr_err("Unknown tool event '%s'", evsel__name(metric_events[i]));
 				abort();
 			}
+			val = avg_stats(stats) * scale;
+			source_count = 1;
 		} else {
-			v = saved_value_lookup(metric_events[i], aggr_idx, false,
-					       STAT_NONE, 0,
-					       metric_events[i]->cgrp);
-			if (!v)
+			struct perf_stat_evsel *ps = metric_events[i]->stats;
+			struct perf_stat_aggr *aggr = &ps->aggr[aggr_idx];
+
+			if (!aggr)
 				break;
-			stats = &v->stats;
+
 			/*
 			 * If an event was scaled during stat gathering, reverse
 			 * the scale before computing the metric.
 			 */
-			scale = 1.0 / metric_events[i]->scale;
-
+			val = aggr->counts.val * (1.0 / metric_events[i]->scale);
 			source_count = evsel__source_count(metric_events[i]);
-
-			if (v->metric_other)
-				metric_total = v->metric_total * scale;
 		}
 		n = strdup(evsel__metric_id(metric_events[i]));
 		if (!n)
 			return -ENOMEM;
 
-		expr__add_id_val_source_count(pctx, n,
-					metric_total ? : avg_stats(stats) * scale,
-					source_count);
+		expr__add_id_val_source_count(pctx, n, val, source_count);
 	}
 
-	for (j = 0; metric_refs && metric_refs[j].metric_name; j++) {
-		ret = expr__add_ref(pctx, &metric_refs[j]);
+	for (int j = 0; metric_refs && metric_refs[j].metric_name; j++) {
+		int ret = expr__add_ref(pctx, &metric_refs[j]);
+
 		if (ret)
 			return ret;
 	}
