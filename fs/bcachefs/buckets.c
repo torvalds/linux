@@ -907,10 +907,10 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 		return -ENOMEM;
 	}
 
-	spin_lock(&c->ec_stripes_heap_lock);
+	mutex_lock(&c->ec_stripes_heap_lock);
 
 	if (!m || !m->alive) {
-		spin_unlock(&c->ec_stripes_heap_lock);
+		mutex_unlock(&c->ec_stripes_heap_lock);
 		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
 				    (u64) p.idx);
 		bch2_inconsistent_error(c);
@@ -920,7 +920,7 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 	m->block_sectors[p.block] += sectors;
 
 	r = m->r;
-	spin_unlock(&c->ec_stripes_heap_lock);
+	mutex_unlock(&c->ec_stripes_heap_lock);
 
 	r.e.data_type = data_type;
 	update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, true);
@@ -1047,9 +1047,9 @@ int bch2_mark_stripe(struct btree_trans *trans,
 		}
 
 		if (!new_s) {
-			spin_lock(&c->ec_stripes_heap_lock);
+			mutex_lock(&c->ec_stripes_heap_lock);
 			bch2_stripes_heap_del(c, m, idx);
-			spin_unlock(&c->ec_stripes_heap_lock);
+			mutex_unlock(&c->ec_stripes_heap_lock);
 
 			memset(m, 0, sizeof(*m));
 		} else {
@@ -1063,9 +1063,9 @@ int bch2_mark_stripe(struct btree_trans *trans,
 			for (i = 0; i < new_s->nr_blocks; i++)
 				m->blocks_nonempty += !!stripe_blockcount_get(new_s, i);
 
-			spin_lock(&c->ec_stripes_heap_lock);
+			mutex_lock(&c->ec_stripes_heap_lock);
 			bch2_stripes_heap_update(c, m, idx);
-			spin_unlock(&c->ec_stripes_heap_lock);
+			mutex_unlock(&c->ec_stripes_heap_lock);
 		}
 	} else {
 		struct gc_stripe *m =

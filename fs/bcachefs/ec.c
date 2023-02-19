@@ -549,13 +549,13 @@ static int __ec_stripe_mem_alloc(struct bch_fs *c, size_t idx, gfp_t gfp)
 		if (!init_heap(&n, max(1024UL, roundup_pow_of_two(idx + 1)), gfp))
 			return -ENOMEM;
 
-		spin_lock(&c->ec_stripes_heap_lock);
+		mutex_lock(&c->ec_stripes_heap_lock);
 		if (n.size > h->size) {
 			memcpy(n.data, h->data, h->used * sizeof(h->data[0]));
 			n.used = h->used;
 			swap(*h, n);
 		}
-		spin_unlock(&c->ec_stripes_heap_lock);
+		mutex_unlock(&c->ec_stripes_heap_lock);
 
 		free_heap(&n);
 	}
@@ -695,15 +695,15 @@ static void ec_stripe_delete_work(struct work_struct *work)
 	ssize_t idx;
 
 	while (1) {
-		spin_lock(&c->ec_stripes_heap_lock);
+		mutex_lock(&c->ec_stripes_heap_lock);
 		idx = stripe_idx_to_delete(c);
 		if (idx < 0) {
-			spin_unlock(&c->ec_stripes_heap_lock);
+			mutex_unlock(&c->ec_stripes_heap_lock);
 			break;
 		}
 
 		bch2_stripes_heap_del(c, genradix_ptr(&c->stripes, idx), idx);
-		spin_unlock(&c->ec_stripes_heap_lock);
+		mutex_unlock(&c->ec_stripes_heap_lock);
 
 		if (ec_stripe_delete(c, idx))
 			break;
@@ -1013,12 +1013,13 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 		bch_err(c, "error creating stripe: error updating pointers: %s",
 			bch2_err_str(ret));
 
-	spin_lock(&c->ec_stripes_heap_lock);
+
+	mutex_lock(&c->ec_stripes_heap_lock);
 	m = genradix_ptr(&c->stripes, s->new_stripe.key.k.p.offset);
 
 	BUG_ON(m->on_heap);
 	bch2_stripes_heap_insert(c, m, s->new_stripe.key.k.p.offset);
-	spin_unlock(&c->ec_stripes_heap_lock);
+	mutex_unlock(&c->ec_stripes_heap_lock);
 err_put_writes:
 	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_create);
 err:
@@ -1398,7 +1399,7 @@ static s64 get_existing_stripe(struct bch_fs *c,
 	if (may_create_new_stripe(c))
 		return -1;
 
-	spin_lock(&c->ec_stripes_heap_lock);
+	mutex_lock(&c->ec_stripes_heap_lock);
 	for (heap_idx = 0; heap_idx < h->used; heap_idx++) {
 		/* No blocks worth reusing, stripe will just be deleted: */
 		if (!h->data[heap_idx].blocks_nonempty)
@@ -1416,12 +1417,11 @@ static s64 get_existing_stripe(struct bch_fs *c,
 			break;
 		}
 	}
-	spin_unlock(&c->ec_stripes_heap_lock);
+	mutex_unlock(&c->ec_stripes_heap_lock);
 	return ret;
 }
 
-static int __bch2_ec_stripe_head_reuse(struct bch_fs *c,
-						   struct ec_stripe_head *h)
+static int __bch2_ec_stripe_head_reuse(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	unsigned i;
 	s64 idx;
@@ -1464,8 +1464,7 @@ static int __bch2_ec_stripe_head_reuse(struct bch_fs *c,
 	return 0;
 }
 
-static int __bch2_ec_stripe_head_reserve(struct bch_fs *c,
-							struct ec_stripe_head *h)
+static int __bch2_ec_stripe_head_reserve(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	return bch2_disk_reservation_get(c, &h->s->res,
 					 h->blocksize,
@@ -1606,9 +1605,9 @@ int bch2_stripes_read(struct bch_fs *c)
 		for (i = 0; i < s->nr_blocks; i++)
 			m->blocks_nonempty += !!stripe_blockcount_get(s, i);
 
-		spin_lock(&c->ec_stripes_heap_lock);
+		mutex_lock(&c->ec_stripes_heap_lock);
 		bch2_stripes_heap_update(c, m, k.k->p.offset);
-		spin_unlock(&c->ec_stripes_heap_lock);
+		mutex_unlock(&c->ec_stripes_heap_lock);
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 
@@ -1626,7 +1625,7 @@ void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 	struct stripe *m;
 	size_t i;
 
-	spin_lock(&c->ec_stripes_heap_lock);
+	mutex_lock(&c->ec_stripes_heap_lock);
 	for (i = 0; i < min_t(size_t, h->used, 20); i++) {
 		m = genradix_ptr(&c->stripes, h->data[i].idx);
 
@@ -1635,7 +1634,7 @@ void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 		       m->nr_blocks - m->nr_redundant,
 		       m->nr_redundant);
 	}
-	spin_unlock(&c->ec_stripes_heap_lock);
+	mutex_unlock(&c->ec_stripes_heap_lock);
 }
 
 void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
