@@ -27,7 +27,6 @@ static char *ifname = "wlan%d";
 
 static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
-	.init_adapter_variable		= rtl92e_init_variables,
 	.initialize_adapter		= rtl92e_start_adapter,
 	.link_change			= rtl92e_link_change,
 	.tx_fill_descriptor		= rtl92e_fill_tx_desc,
@@ -974,7 +973,7 @@ static short _rtl92e_init(struct net_device *dev)
 	_rtl92e_init_priv_lock(priv);
 	_rtl92e_init_priv_task(dev);
 	rtl92e_get_eeprom_size(dev);
-	priv->ops->init_adapter_variable(dev);
+	rtl92e_init_variables(dev);
 	_rtl92e_get_channel_map(dev);
 
 	rtl92e_dm_init(dev);
