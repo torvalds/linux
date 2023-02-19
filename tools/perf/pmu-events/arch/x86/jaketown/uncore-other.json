@@ -284,7 +284,7 @@
         "EventCode": "0xD",
         "EventName": "UNC_I_TxR_REQUEST_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Accumultes the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjuection with the allocations event in order to calculate average latency of outbound requests.",
+        "PublicDescription": "Accumulates the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjunction with the allocations event in order to calculate average latency of outbound requests.",
         "Unit": "IRP"
     },
     {
@@ -630,7 +630,7 @@
         "EventCode": "0x20",
         "EventName": "UNC_R3_IIO_CREDITS_ACQUIRED.DRS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the NCS/NCB/DRS credit is acquried in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of times the NCS/NCB/DRS credit is acquired in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x8",
         "Unit": "R3QPI"
     },
@@ -639,7 +639,7 @@
         "EventCode": "0x20",
         "EventName": "UNC_R3_IIO_CREDITS_ACQUIRED.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the NCS/NCB/DRS credit is acquried in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of times the NCS/NCB/DRS credit is acquired in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x10",
         "Unit": "R3QPI"
     },
@@ -648,7 +648,7 @@
         "EventCode": "0x20",
         "EventName": "UNC_R3_IIO_CREDITS_ACQUIRED.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the NCS/NCB/DRS credit is acquried in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of times the NCS/NCB/DRS credit is acquired in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x20",
         "Unit": "R3QPI"
     },
@@ -657,7 +657,7 @@
         "EventCode": "0x21",
         "EventName": "UNC_R3_IIO_CREDITS_REJECT.DRS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that a request attempted to acquire an NCS/NCB/DRS credit in the QPI for sending messages on BL to the IIO but was rejected because no credit was available.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of times that a request attempted to acquire an NCS/NCB/DRS credit in the QPI for sending messages on BL to the IIO but was rejected because no credit was available.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x8",
         "Unit": "R3QPI"
     },
@@ -666,7 +666,7 @@
         "EventCode": "0x21",
         "EventName": "UNC_R3_IIO_CREDITS_REJECT.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that a request attempted to acquire an NCS/NCB/DRS credit in the QPI for sending messages on BL to the IIO but was rejected because no credit was available.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of times that a request attempted to acquire an NCS/NCB/DRS credit in the QPI for sending messages on BL to the IIO but was rejected because no credit was available.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x10",
         "Unit": "R3QPI"
     },
@@ -675,7 +675,7 @@
         "EventCode": "0x21",
         "EventName": "UNC_R3_IIO_CREDITS_REJECT.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that a request attempted to acquire an NCS/NCB/DRS credit in the QPI for sending messages on BL to the IIO but was rejected because no credit was available.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of times that a request attempted to acquire an NCS/NCB/DRS credit in the QPI for sending messages on BL to the IIO but was rejected because no credit was available.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x20",
         "Unit": "R3QPI"
     },
@@ -684,7 +684,7 @@
         "EventCode": "0x22",
         "EventName": "UNC_R3_IIO_CREDITS_USED.DRS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the NCS/NCB/DRS credit is in use in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of cycles when the NCS/NCB/DRS credit is in use in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x8",
         "Unit": "R3QPI"
     },
@@ -693,7 +693,7 @@
         "EventCode": "0x22",
         "EventName": "UNC_R3_IIO_CREDITS_USED.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the NCS/NCB/DRS credit is in use in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of cycles when the NCS/NCB/DRS credit is in use in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x10",
         "Unit": "R3QPI"
     },
@@ -702,7 +702,7 @@
         "EventCode": "0x22",
         "EventName": "UNC_R3_IIO_CREDITS_USED.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the NCS/NCB/DRS credit is in use in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transfering data without coherency, and DRS is used for transfering data with coherency (cachable PCI transactions).  This event can only track one message class at a time.",
+        "PublicDescription": "Counts the number of cycles when the NCS/NCB/DRS credit is in use in the QPI for sending messages on BL to the IIO.  There is one credit for each of these three message classes (three credits total).  NCS is used for reads to PCIe space, NCB is used for transferring data without coherency, and DRS is used for transferring data with coherency (cacheable PCI transactions).  This event can only track one message class at a time.",
         "UMask": "0x20",
         "Unit": "R3QPI"
     },
@@ -1107,7 +1107,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED",
         "PerPkg": "1",
-        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credts from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transfered).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transfered in a given message class using an qfclk event.",
+        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credits from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transferred).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transferred in a given message class using an qfclk event.",
         "Unit": "R3QPI"
     },
     {
