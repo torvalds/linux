@@ -322,7 +322,8 @@ static __init int x86_android_tablet_init(void)
 		}
 	}
 
-	pdevs = kcalloc(dev_info->pdev_count, sizeof(*pdevs), GFP_KERNEL);
+	/* + 1 to make space for (optional) gpio_keys_button pdev */
+	pdevs = kcalloc(dev_info->pdev_count + 1, sizeof(*pdevs), GFP_KERNEL);
 	if (!pdevs) {
 		x86_android_tablet_cleanup();
 		return -ENOMEM;
@@ -350,6 +351,33 @@ static __init int x86_android_tablet_init(void)
 			x86_android_tablet_cleanup();
 			return ret;
 		}
+	}
+
+	if (dev_info->gpio_button) {
+		struct gpio_keys_platform_data pdata = {
+			.buttons = &dev_info->gpio_button->button,
+			.nbuttons = 1,
+		};
+		struct gpio_desc *gpiod;
+
+		/* Get GPIO for the gpio-button */
+		ret = x86_android_tablet_get_gpiod(dev_info->gpio_button->chip,
+						   dev_info->gpio_button->pin, &gpiod);
+		if (ret < 0) {
+			x86_android_tablet_cleanup();
+			return ret;
+		}
+
+		dev_info->gpio_button->button.gpio = desc_to_gpio(gpiod);
+
+		pdevs[pdev_count] = platform_device_register_data(NULL, "gpio-keys",
+								  PLATFORM_DEVID_AUTO,
+								  &pdata, sizeof(pdata));
+		if (IS_ERR(pdevs[pdev_count])) {
+			x86_android_tablet_cleanup();
+			return PTR_ERR(pdevs[pdev_count]);
+		}
+		pdev_count++;
 	}
 
 	return 0;
