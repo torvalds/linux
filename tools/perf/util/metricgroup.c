@@ -13,6 +13,7 @@
 #include "pmu.h"
 #include "pmu-hybrid.h"
 #include "print-events.h"
+#include "smt.h"
 #include "expr.h"
 #include "rblist.h"
 #include <string.h>
@@ -168,16 +169,20 @@ static void metric__watchdog_constraint_hint(const char *name, bool foot)
 
 static bool metric__group_events(const struct pmu_metric *pm)
 {
-	if (!pm->metric_constraint)
-		return true;
-
-	if (!strcmp(pm->metric_constraint, "NO_NMI_WATCHDOG") &&
-	    sysctl__nmi_watchdog_enabled()) {
+	switch (pm->event_grouping) {
+	case MetricNoGroupEvents:
+		return false;
+	case MetricNoGroupEventsNmi:
+		if (!sysctl__nmi_watchdog_enabled())
+			return true;
 		metric__watchdog_constraint_hint(pm->metric_name, /*foot=*/false);
 		return false;
+	case MetricNoGroupEventsSmt:
+		return !smt_on();
+	case MetricGroupEvents:
+	default:
+		return true;
 	}
-
-	return true;
 }
 
 static void metric__free(struct metric *m)

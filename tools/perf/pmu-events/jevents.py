@@ -51,8 +51,8 @@ _json_event_attributes = [
 
 # Attributes that are in pmu_metric rather than pmu_event.
 _json_metric_attributes = [
-    'metric_name', 'metric_group', 'metric_constraint', 'metric_expr', 'desc',
-    'long_desc', 'unit', 'compat', 'aggr_mode'
+    'metric_name', 'metric_group', 'metric_expr', 'desc',
+    'long_desc', 'unit', 'compat', 'aggr_mode', 'event_grouping'
 ]
 
 def removesuffix(s: str, suffix: str) -> str:
@@ -204,6 +204,18 @@ class JsonEvent:
       }
       return aggr_mode_to_enum[aggr_mode]
 
+    def convert_metric_constraint(metric_constraint: str) -> Optional[str]:
+      """Returns the metric_event_groups enum value associated with the JSON string."""
+      if not metric_constraint:
+        return None
+      metric_constraint_to_enum = {
+          'NO_GROUP_EVENTS': '1',
+          'NO_GROUP_EVENTS_NMI': '2',
+          'NO_NMI_WATCHDOG': '2',
+          'NO_GROUP_EVENTS_SMT': '3',
+      }
+      return metric_constraint_to_enum[metric_constraint]
+
     def lookup_msr(num: str) -> Optional[str]:
       """Converts the msr number, or first in a list to the appropriate event field."""
       if not num:
@@ -288,7 +300,7 @@ class JsonEvent:
     self.deprecated = jd.get('Deprecated')
     self.metric_name = jd.get('MetricName')
     self.metric_group = jd.get('MetricGroup')
-    self.metric_constraint = jd.get('MetricConstraint')
+    self.event_grouping = convert_metric_constraint(jd.get('MetricConstraint'))
     self.metric_expr = None
     if 'MetricExpr' in jd:
       self.metric_expr = metric.ParsePerfJson(jd['MetricExpr']).Simplify()
@@ -678,7 +690,7 @@ static void decompress_event(int offset, struct pmu_event *pe)
 {
 \tconst char *p = &big_c_string[offset];
 """)
-  enum_attributes = ['aggr_mode', 'deprecated', 'perpkg']
+  enum_attributes = ['aggr_mode', 'deprecated', 'event_grouping', 'perpkg']
   for attr in _json_event_attributes:
     _args.output_file.write(f'\n\tpe->{attr} = ')
     if attr in enum_attributes:
