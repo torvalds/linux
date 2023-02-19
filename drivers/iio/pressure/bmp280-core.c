@@ -28,6 +28,7 @@
 #include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/nvmem-provider.h>
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
@@ -1284,6 +1285,80 @@ static int bmp580_soft_reset(struct bmp280_data *data)
 	return 0;
 }
 
+/**
+ * bmp580_nvm_operation() - Helper function to commit NVM memory operations
+ * @data: sensor data struct
+ * @is_write: flag to signal write operation
+ */
+static int bmp580_nvm_operation(struct bmp280_data *data, bool is_write)
+{
+	unsigned long timeout, poll;
+	unsigned int reg;
+	int ret;
+
+	/* Check NVM ready flag */
+	ret = regmap_read(data->regmap, BMP580_REG_STATUS, &reg);
+	if (ret) {
+		dev_err(data->dev, "failed to check nvm status\n");
+		return ret;
+	}
+	if (!(reg & BMP580_STATUS_NVM_RDY_MASK)) {
+		dev_err(data->dev, "sensor's nvm is not ready\n");
+		return -EIO;
+	}
+
+	/* Start NVM operation sequence */
+	ret = regmap_write(data->regmap, BMP580_REG_CMD, BMP580_CMD_NVM_OP_SEQ_0);
+	if (ret) {
+		dev_err(data->dev, "failed to send nvm operation's first sequence\n");
+		return ret;
+	}
+	if (is_write) {
+		/* Send NVM write sequence */
+		ret = regmap_write(data->regmap, BMP580_REG_CMD,
+				   BMP580_CMD_NVM_WRITE_SEQ_1);
+		if (ret) {
+			dev_err(data->dev, "failed to send nvm write sequence\n");
+			return ret;
+		}
+		/* Datasheet says on 4.8.1.2 it takes approximately 10ms */
+		poll = 2000;
+		timeout = 12000;
+	} else {
+		/* Send NVM read sequence */
+		ret = regmap_write(data->regmap, BMP580_REG_CMD,
+				   BMP580_CMD_NVM_READ_SEQ_1);
+		if (ret) {
+			dev_err(data->dev, "failed to send nvm read sequence\n");
+			return ret;
+		}
+		/* Datasheet says on 4.8.1.1 it takes approximately 200us */
+		poll = 50;
+		timeout = 400;
+	}
+	if (ret) {
+		dev_err(data->dev, "failed to write command sequence\n");
+		return -EIO;
+	}
+
+	/* Wait until NVM is ready again */
+	ret = regmap_read_poll_timeout(data->regmap, BMP580_REG_STATUS, reg,
+				       (reg & BMP580_STATUS_NVM_RDY_MASK),
+				       poll, timeout);
+	if (ret) {
+		dev_err(data->dev, "error checking nvm operation status\n");
+		return ret;
+	}
+
+	/* Check NVM error flags */
+	if ((reg & BMP580_STATUS_NVM_ERR_MASK) || (reg & BMP580_STATUS_NVM_CMD_ERR_MASK)) {
+		dev_err(data->dev, "error processing nvm operation\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  * Contrary to previous sensors families, compensation algorithm is builtin.
  * We are only required to read the register raw data and adapt the ranges
@@ -1379,8 +1454,140 @@ static const int bmp580_odr_table[][2] = {
 	[BMP580_ODR_0_125HZ] =	{0, 125000},
 };
 
+static const int bmp580_nvmem_addrs[] = { 0x20, 0x21, 0x22 };
+
+static int bmp580_nvmem_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	struct bmp280_data *data = priv;
+	u16 *dst = val;
+	int ret, addr;
+
+	pm_runtime_get_sync(data->dev);
+	mutex_lock(&data->lock);
+
+	/* Set sensor in standby mode */
+	ret = regmap_update_bits(data->regmap, BMP580_REG_ODR_CONFIG,
+				 BMP580_MODE_MASK | BMP580_ODR_DEEPSLEEP_DIS,
+				 BMP580_ODR_DEEPSLEEP_DIS |
+				 FIELD_PREP(BMP580_MODE_MASK, BMP580_MODE_SLEEP));
+	if (ret) {
+		dev_err(data->dev, "failed to change sensor to standby mode\n");
+		goto exit;
+	}
+	/* Wait standby transition time */
+	usleep_range(2500, 3000);
+
+	while (bytes >= sizeof(*dst)) {
+		addr = bmp580_nvmem_addrs[offset / sizeof(*dst)];
+
+		ret = regmap_write(data->regmap, BMP580_REG_NVM_ADDR,
+				   FIELD_PREP(BMP580_NVM_ROW_ADDR_MASK, addr));
+		if (ret) {
+			dev_err(data->dev, "error writing nvm address\n");
+			goto exit;
+		}
+
+		ret = bmp580_nvm_operation(data, false);
+		if (ret)
+			goto exit;
+
+		ret = regmap_bulk_read(data->regmap, BMP580_REG_NVM_DATA_LSB, &data->le16,
+				       sizeof(data->le16));
+		if (ret) {
+			dev_err(data->dev, "error reading nvm data regs\n");
+			goto exit;
+		}
+
+		*dst++ = le16_to_cpu(data->le16);
+		bytes -= sizeof(*dst);
+		offset += sizeof(*dst);
+	}
+exit:
+	/* Restore chip config */
+	data->chip_info->chip_config(data);
+	mutex_unlock(&data->lock);
+	pm_runtime_mark_last_busy(data->dev);
+	pm_runtime_put_autosuspend(data->dev);
+	return ret;
+}
+
+static int bmp580_nvmem_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	struct bmp280_data *data = priv;
+	u16 *buf = val;
+	int ret, addr;
+
+	pm_runtime_get_sync(data->dev);
+	mutex_lock(&data->lock);
+
+	/* Set sensor in standby mode */
+	ret = regmap_update_bits(data->regmap, BMP580_REG_ODR_CONFIG,
+				 BMP580_MODE_MASK | BMP580_ODR_DEEPSLEEP_DIS,
+				 BMP580_ODR_DEEPSLEEP_DIS |
+				 FIELD_PREP(BMP580_MODE_MASK, BMP580_MODE_SLEEP));
+	if (ret) {
+		dev_err(data->dev, "failed to change sensor to standby mode\n");
+		goto exit;
+	}
+	/* Wait standby transition time */
+	usleep_range(2500, 3000);
+
+	while (bytes >= sizeof(*buf)) {
+		addr = bmp580_nvmem_addrs[offset / sizeof(*buf)];
+
+		ret = regmap_write(data->regmap, BMP580_REG_NVM_ADDR, BMP580_NVM_PROG_EN |
+				   FIELD_PREP(BMP580_NVM_ROW_ADDR_MASK, addr));
+		if (ret) {
+			dev_err(data->dev, "error writing nvm address\n");
+			goto exit;
+		}
+		data->le16 = cpu_to_le16(*buf++);
+
+		ret = regmap_bulk_write(data->regmap, BMP580_REG_NVM_DATA_LSB, &data->le16,
+					sizeof(data->le16));
+		if (ret) {
+			dev_err(data->dev, "error writing LSB NVM data regs\n");
+			goto exit;
+		}
+
+		ret = bmp580_nvm_operation(data, true);
+		if (ret)
+			goto exit;
+
+		/* Disable programming mode bit */
+		ret = regmap_update_bits(data->regmap, BMP580_REG_NVM_ADDR,
+					 BMP580_NVM_PROG_EN, 0);
+		if (ret) {
+			dev_err(data->dev, "error resetting nvm write\n");
+			goto exit;
+		}
+
+		bytes -= sizeof(*buf);
+		offset += sizeof(*buf);
+	}
+exit:
+	/* Restore chip config */
+	data->chip_info->chip_config(data);
+	mutex_unlock(&data->lock);
+	pm_runtime_mark_last_busy(data->dev);
+	pm_runtime_put_autosuspend(data->dev);
+	return ret;
+}
+
 static int bmp580_preinit(struct bmp280_data *data)
 {
+	struct nvmem_config config = {
+		.dev = data->dev,
+		.priv = data,
+		.name = "bmp580_nvmem",
+		.word_size = sizeof(u16),
+		.stride = sizeof(u16),
+		.size = 3 * sizeof(u16),
+		.reg_read = bmp580_nvmem_read,
+		.reg_write = bmp580_nvmem_write,
+	};
 	unsigned int reg;
 	int ret;
 
@@ -1408,7 +1615,8 @@ static int bmp580_preinit(struct bmp280_data *data)
 		return -EIO;
 	}
 
-	return 0;
+	/* Register nvmem device */
+	return PTR_ERR_OR_ZERO(devm_nvmem_register(config.dev, &config));
 }
 
 static int bmp580_chip_config(struct bmp280_data *data)
