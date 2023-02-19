@@ -159,6 +159,7 @@ struct perf_stat_config {
 	bool			 no_csv_summary;
 	bool			 metric_no_group;
 	bool			 metric_no_merge;
+	bool			 metric_no_threshold;
 	bool			 stop_read_counter;
 	bool			 iostat_run;
 	char			 *user_requested_cpu_list;

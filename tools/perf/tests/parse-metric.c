@@ -98,7 +98,6 @@ static int __compute_metric(const char *name, struct value *vals,
 	/* Parse the metric into metric_events list. */
 	pme_test = find_core_metrics_table("testarch", "testcpu");
 	err = metricgroup__parse_groups_test(evlist, pme_test, name,
-					     false, false,
 					     &metric_events);
 	if (err)
 		goto out;

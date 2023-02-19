@@ -846,9 +846,7 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
 	runtime_stat__init(&st);
 
-	err = metricgroup__parse_groups_test(evlist, table, pm->metric_name,
-					     false, false,
-					     &metric_events);
+	err = metricgroup__parse_groups_test(evlist, table, pm->metric_name, &metric_events);
 	if (err) {
 		if (!strcmp(pm->metric_name, "M1") || !strcmp(pm->metric_name, "M2") ||
 		    !strcmp(pm->metric_name, "M3")) {

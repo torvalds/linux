@@ -187,8 +187,7 @@ static int expand_metric_events(void)
 
 	rblist__init(&metric_events);
 	pme_test = find_core_metrics_table("testarch", "testcpu");
-	ret = metricgroup__parse_groups_test(evlist, pme_test, metric_str,
-					     false, false, &metric_events);
+	ret = metricgroup__parse_groups_test(evlist, pme_test, metric_str, &metric_events);
 	if (ret < 0) {
 		pr_debug("failed to parse '%s' metric\n", metric_str);
 		goto out;

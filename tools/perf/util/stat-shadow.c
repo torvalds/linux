@@ -814,7 +814,8 @@ static void generic_metric(struct perf_stat_config *config,
 			char metric_bf[64];
 
 			if (metric_threshold &&
-			    expr__parse(&threshold, pctx, metric_threshold) == 0) {
+			    expr__parse(&threshold, pctx, metric_threshold) == 0 &&
+			    !isnan(threshold)) {
 				color = fpclassify(threshold) == FP_ZERO
 					? PERF_COLOR_GREEN : PERF_COLOR_RED;
 			}
