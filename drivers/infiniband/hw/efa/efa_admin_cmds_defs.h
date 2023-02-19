@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_CMDS_H_
@@ -618,7 +618,9 @@ struct efa_admin_feature_device_attr_desc {
 	 *    TX queues
 	 * 1 : rnr_retry - If set, RNR retry is supported on
 	 *    modify QP command
-	 * 31:2 : reserved - MBZ
+	 * 2 : data_polling_128 - If set, 128 bytes data
+	 *    polling is supported
+	 * 31:3 : reserved - MBZ
 	 */
 	u32 device_caps;
 
@@ -991,6 +993,7 @@ struct efa_admin_host_info {
 /* feature_device_attr_desc */
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RNR_RETRY_MASK   BIT(1)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_DATA_POLLING_128_MASK BIT(2)
 
 /* create_eq_cmd */
 #define EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS_MASK       GENMASK(4, 0)
