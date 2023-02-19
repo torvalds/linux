@@ -278,10 +278,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Demand Data Read requests who miss L3 cache",
+        "BriefDescription": "Counts demand data read requests that miss the L3 cache.",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD",
-        "PublicDescription": "Demand Data Read requests who miss L3 cache.",
         "SampleAfterValue": "100003",
         "UMask": "0x10",
         "Unit": "cpu_core"
