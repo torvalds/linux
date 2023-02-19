@@ -210,7 +210,6 @@ struct rtl819x_ops {
 	bool (*rx_command_packet_handler)(struct net_device *dev,
 					  struct sk_buff *skb,
 					  struct rx_desc *pdesc);
-	void (*irq_enable)(struct net_device *dev);
 	void (*irq_disable)(struct net_device *dev);
 	void (*irq_clear)(struct net_device *dev);
 	void (*rx_enable)(struct net_device *dev);

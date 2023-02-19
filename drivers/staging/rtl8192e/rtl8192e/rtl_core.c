@@ -29,7 +29,6 @@ static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.link_change			= rtl92e_link_change,
 	.rx_command_packet_handler = NULL,
-	.irq_enable			= rtl92e_enable_irq,
 	.irq_disable			= rtl92e_disable_irq,
 	.irq_clear			= rtl92e_clear_irq,
 	.rx_enable			= rtl92e_enable_rx,
@@ -247,7 +246,7 @@ void rtl92e_irq_enable(struct net_device *dev)
 
 	priv->irq_enabled = 1;
 
-	priv->ops->irq_enable(dev);
+	rtl92e_enable_irq(dev);
 }
 
 void rtl92e_irq_disable(struct net_device *dev)
