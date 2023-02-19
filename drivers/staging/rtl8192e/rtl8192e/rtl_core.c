@@ -29,7 +29,6 @@ static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.link_change			= rtl92e_link_change,
 	.rx_command_packet_handler = NULL,
-	.stop_adapter			= rtl92e_stop_adapter,
 	.update_ratr_table		= rtl92e_update_ratr_table,
 	.irq_enable			= rtl92e_enable_irq,
 	.irq_disable			= rtl92e_disable_irq,
@@ -756,7 +755,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	}
 	priv->rf_change_in_progress = true;
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
-	priv->ops->stop_adapter(dev, false);
+	rtl92e_stop_adapter(dev, false);
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	priv->rf_change_in_progress = false;
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -2055,7 +2054,7 @@ void rtl92e_commit(struct net_device *dev)
 		return;
 	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
 	rtl92e_irq_disable(dev);
-	priv->ops->stop_adapter(dev, true);
+	rtl92e_stop_adapter(dev, true);
 	_rtl92e_up(dev, false);
 }
 
@@ -2401,7 +2400,7 @@ bool rtl92e_disable_nic(struct net_device *dev)
 	_rtl92e_cancel_deferred_work(priv);
 	rtl92e_irq_disable(dev);
 
-	priv->ops->stop_adapter(dev, false);
+	rtl92e_stop_adapter(dev, false);
 	return true;
 }
 
