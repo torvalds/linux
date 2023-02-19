@@ -51,7 +51,7 @@ _json_event_attributes = [
 
 # Attributes that are in pmu_metric rather than pmu_event.
 _json_metric_attributes = [
-    'metric_name', 'metric_group', 'metric_expr', 'desc',
+    'metric_name', 'metric_group', 'metric_expr', 'metric_threshold', 'desc',
     'long_desc', 'unit', 'compat', 'aggr_mode', 'event_grouping'
 ]
 # Attributes that are bools or enum int values, encoded as '0', '1',...
@@ -306,6 +306,9 @@ class JsonEvent:
     self.metric_expr = None
     if 'MetricExpr' in jd:
       self.metric_expr = metric.ParsePerfJson(jd['MetricExpr']).Simplify()
+    # Note, the metric formula for the threshold isn't parsed as the &
+    # and > have incorrect precedence.
+    self.metric_threshold = jd.get('MetricThreshold')
 
     arch_std = jd.get('ArchStdEvent')
     if precise and self.desc and '(Precise Event)' not in self.desc:
@@ -362,6 +365,8 @@ class JsonEvent:
         # Convert parsed metric expressions into a string. Slashes
         # must be doubled in the file.
         x = x.ToPerfJson().replace('\\', '\\\\')
+      if metric and x and attr == 'metric_threshold':
+        x = x.replace('\\', '\\\\')
       if attr in _json_enum_attributes:
         s += x if x else '0'
       else:
