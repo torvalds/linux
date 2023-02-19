@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DMI based code to deal with broken DSDTs on X86 tablets which ship with
  * Android as (part of) the factory image. The factory kernels shipped on these
  * devices typically have a bunch of things hardcoded, rather than specified
  * in their DSDT.
  *
- * Copyright (C) 2021-2022 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2021-2023 Hans de Goede <hdegoede@redhat.com>
  */
 
 #include <linux/acpi.h>
