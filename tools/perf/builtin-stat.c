@@ -100,14 +100,6 @@
 
 static void print_counters(struct timespec *ts, int argc, const char **argv);
 
-static const char *smi_cost_attrs = {
-	"{"
-	"msr/aperf/,"
-	"msr/smi/,"
-	"cycles"
-	"}"
-};
-
 static struct evlist	*evsel_list;
 static bool all_counters_use_bpf = true;
 
@@ -1666,7 +1658,6 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
  */
 static int add_default_attributes(void)
 {
-	int err;
 	struct perf_event_attr default_attrs0[] = {
 
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
@@ -1806,11 +1797,10 @@ static int add_default_attributes(void)
 	}
 
 	if (smi_cost) {
-		struct parse_events_error errinfo;
 		int smi;
 
 		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
-			fprintf(stderr, "freeze_on_smi is not supported.\n");
+			pr_err("freeze_on_smi is not supported.");
 			return -1;
 		}
 
@@ -1822,23 +1812,21 @@ static int add_default_attributes(void)
 			smi_reset = true;
 		}
 
-		if (!pmu_have_event("msr", "aperf") ||
-		    !pmu_have_event("msr", "smi")) {
-			fprintf(stderr, "To measure SMI cost, it needs "
-				"msr/aperf/, msr/smi/ and cpu/cycles/ support\n");
+		if (!metricgroup__has_metric("smi")) {
+			pr_err("Missing smi metrics");
 			return -1;
 		}
+
 		if (!force_metric_only)
 			stat_config.metric_only = true;
 
-		parse_events_error__init(&errinfo);
-		err = parse_events(evsel_list, smi_cost_attrs, &errinfo);
-		if (err) {
-			parse_events_error__print(&errinfo, smi_cost_attrs);
-			fprintf(stderr, "Cannot set up SMI cost events\n");
-		}
-		parse_events_error__exit(&errinfo);
-		return err ? -1 : 0;
+		return metricgroup__parse_groups(evsel_list, "smi",
+						stat_config.metric_no_group,
+						stat_config.metric_no_merge,
+						stat_config.metric_no_threshold,
+						stat_config.user_requested_cpu_list,
+						stat_config.system_wide,
+						&stat_config.metric_events);
 	}
 
 	if (topdown_run) {

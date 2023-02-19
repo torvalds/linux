@@ -255,10 +255,6 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 		update_runtime_stat(st, STAT_DTLB_CACHE, map_idx, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
 		update_runtime_stat(st, STAT_ITLB_CACHE, map_idx, count, &rsd);
-	else if (perf_stat_evsel__is(counter, SMI_NUM))
-		update_runtime_stat(st, STAT_SMI_NUM, map_idx, count, &rsd);
-	else if (perf_stat_evsel__is(counter, APERF))
-		update_runtime_stat(st, STAT_APERF, map_idx, count, &rsd);
 
 	if (counter->collect_stat) {
 		v = saved_value_lookup(counter, map_idx, true, STAT_NONE, 0, st,
@@ -477,30 +473,6 @@ static void print_ll_cache_misses(struct perf_stat_config *config,
 
 	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
 	out->print_metric(config, out->ctx, color, "%7.2f%%", "of all LL-cache accesses", ratio);
-}
-
-static void print_smi_cost(struct perf_stat_config *config, int map_idx,
-			   struct perf_stat_output_ctx *out,
-			   struct runtime_stat *st,
-			   struct runtime_stat_data *rsd)
-{
-	double smi_num, aperf, cycles, cost = 0.0;
-	const char *color = NULL;
-
-	smi_num = runtime_stat_avg(st, STAT_SMI_NUM, map_idx, rsd);
-	aperf = runtime_stat_avg(st, STAT_APERF, map_idx, rsd);
-	cycles = runtime_stat_avg(st, STAT_CYCLES, map_idx, rsd);
-
-	if ((cycles == 0) || (aperf == 0))
-		return;
-
-	if (smi_num)
-		cost = (aperf - cycles) / aperf * 100.00;
-
-	if (cost > 10)
-		color = PERF_COLOR_RED;
-	out->print_metric(config, out->ctx, color, "%8.1f%%", "SMI cycles%", cost);
-	out->print_metric(config, out->ctx, NULL, "%4.0f", "SMI#", smi_num);
 }
 
 static int prepare_metric(struct evsel **metric_events,
@@ -819,8 +791,6 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		if (unit != ' ')
 			snprintf(unit_buf, sizeof(unit_buf), "%c/sec", unit);
 		print_metric(config, ctxp, NULL, "%8.3f", unit_buf, ratio);
-	} else if (perf_stat_evsel__is(evsel, SMI_NUM)) {
-		print_smi_cost(config, map_idx, out, st, &rsd);
 	} else {
 		num = 0;
 	}
