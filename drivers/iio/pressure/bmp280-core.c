@@ -1631,10 +1631,12 @@ int bmp280_common_probe(struct device *dev,
 	 * time once. They will not change.
 	 */
 
-	ret = data->chip_info->read_calib(data);
-	if (ret < 0)
-		return dev_err_probe(data->dev, ret,
-				     "failed to read calibration coefficients\n");
+	if (data->chip_info->read_calib) {
+		ret = data->chip_info->read_calib(data);
+		if (ret < 0)
+			return dev_err_probe(data->dev, ret,
+					     "failed to read calibration coefficients\n");
+	}
 
 	/*
 	 * Attempt to grab an optional EOC IRQ - only the BMP085 has this
