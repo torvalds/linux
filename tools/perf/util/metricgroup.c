@@ -136,10 +136,9 @@ struct metric {
 	/** Optional null terminated array of referenced metrics. */
 	struct metric_ref *metric_refs;
 	/**
-	 * Is there a constraint on the group of events? In which case the
-	 * events won't be grouped.
+	 * Should events of the metric be grouped?
 	 */
-	bool has_constraint;
+	bool group_events;
 	/**
 	 * Parsed events for the metric. Optional as events may be taken from a
 	 * different metric whose group contains all the IDs necessary for this
@@ -148,12 +147,12 @@ struct metric {
 	struct evlist *evlist;
 };
 
-static void metricgroup___watchdog_constraint_hint(const char *name, bool foot)
+static void metric__watchdog_constraint_hint(const char *name, bool foot)
 {
 	static bool violate_nmi_constraint;
 
 	if (!foot) {
-		pr_warning("Splitting metric group %s into standalone metrics.\n", name);
+		pr_warning("Not grouping metric %s's events.\n", name);
 		violate_nmi_constraint = true;
 		return;
 	}
@@ -167,18 +166,18 @@ static void metricgroup___watchdog_constraint_hint(const char *name, bool foot)
 		   "    echo 1 > /proc/sys/kernel/nmi_watchdog\n");
 }
 
-static bool metricgroup__has_constraint(const struct pmu_metric *pm)
+static bool metric__group_events(const struct pmu_metric *pm)
 {
 	if (!pm->metric_constraint)
-		return false;
+		return true;
 
 	if (!strcmp(pm->metric_constraint, "NO_NMI_WATCHDOG") &&
 	    sysctl__nmi_watchdog_enabled()) {
-		metricgroup___watchdog_constraint_hint(pm->metric_name, false);
-		return true;
+		metric__watchdog_constraint_hint(pm->metric_name, /*foot=*/false);
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
 static void metric__free(struct metric *m)
@@ -227,7 +226,7 @@ static struct metric *metric__new(const struct pmu_metric *pm,
 	}
 	m->pctx->sctx.runtime = runtime;
 	m->pctx->sctx.system_wide = system_wide;
-	m->has_constraint = metric_no_group || metricgroup__has_constraint(pm);
+	m->group_events = !metric_no_group && metric__group_events(pm);
 	m->metric_refs = NULL;
 	m->evlist = NULL;
 
@@ -637,7 +636,7 @@ static int decode_all_metric_ids(struct evlist *perf_evlist, const char *modifie
 static int metricgroup__build_event_string(struct strbuf *events,
 					   const struct expr_parse_ctx *ctx,
 					   const char *modifier,
-					   bool has_constraint)
+					   bool group_events)
 {
 	struct hashmap_entry *cur;
 	size_t bkt;
@@ -662,7 +661,7 @@ static int metricgroup__build_event_string(struct strbuf *events,
 		}
 		/* Separate events with commas and open the group if necessary. */
 		if (no_group) {
-			if (!has_constraint) {
+			if (group_events) {
 				ret = strbuf_addch(events, '{');
 				RETURN_IF_NON_ZERO(ret);
 			}
@@ -716,7 +715,7 @@ static int metricgroup__build_event_string(struct strbuf *events,
 			RETURN_IF_NON_ZERO(ret);
 		}
 	}
-	if (!no_group && !has_constraint) {
+	if (!no_group && group_events) {
 		ret = strbuf_addf(events, "}:W");
 		RETURN_IF_NON_ZERO(ret);
 	}
@@ -1252,7 +1251,7 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 		 * Warn about nmi_watchdog if any parsed metrics had the
 		 * NO_NMI_WATCHDOG constraint.
 		 */
-		metricgroup___watchdog_constraint_hint(NULL, true);
+		metric__watchdog_constraint_hint(NULL, /*foot=*/true);
 		/* No metrics. */
 		if (count == 0)
 			return -EINVAL;
@@ -1295,7 +1294,7 @@ static void find_tool_events(const struct list_head *metric_list,
 }
 
 /**
- * build_combined_expr_ctx - Make an expr_parse_ctx with all has_constraint
+ * build_combined_expr_ctx - Make an expr_parse_ctx with all !group_events
  *                           metric IDs, as the IDs are held in a set,
  *                           duplicates will be removed.
  * @metric_list: List to take metrics from.
@@ -1315,7 +1314,7 @@ static int build_combined_expr_ctx(const struct list_head *metric_list,
 		return -ENOMEM;
 
 	list_for_each_entry(m, metric_list, nd) {
-		if (m->has_constraint && !m->modifier) {
+		if (!m->group_events && !m->modifier) {
 			hashmap__for_each_entry(m->pctx->ids, cur, bkt) {
 				dup = strdup(cur->pkey);
 				if (!dup) {
@@ -1342,14 +1341,14 @@ err_out:
  * @fake_pmu: used when testing metrics not supported by the current CPU.
  * @ids: the event identifiers parsed from a metric.
  * @modifier: any modifiers added to the events.
- * @has_constraint: false if events should be placed in a weak group.
+ * @group_events: should events be placed in a weak group.
  * @tool_events: entries set true if the tool event of index could be present in
  *               the overall list of metrics.
  * @out_evlist: the created list of events.
  */
 static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
 		     struct expr_parse_ctx *ids, const char *modifier,
-		     bool has_constraint, const bool tool_events[PERF_TOOL_MAX],
+		     bool group_events, const bool tool_events[PERF_TOOL_MAX],
 		     struct evlist **out_evlist)
 {
 	struct parse_events_error parse_error;
@@ -1393,7 +1392,7 @@ static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
 		}
 	}
 	ret = metricgroup__build_event_string(&events, ids, modifier,
-					      has_constraint);
+					      group_events);
 	if (ret)
 		return ret;
 
@@ -1458,7 +1457,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		if (!ret && combined && hashmap__size(combined->ids)) {
 			ret = parse_ids(metric_no_merge, fake_pmu, combined,
 					/*modifier=*/NULL,
-					/*has_constraint=*/true,
+					/*group_events=*/false,
 					tool_events,
 					&combined_evlist);
 		}
@@ -1476,7 +1475,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		struct metric *n;
 		struct metric_expr *expr;
 
-		if (combined_evlist && m->has_constraint) {
+		if (combined_evlist && !m->group_events) {
 			metric_evlist = combined_evlist;
 		} else if (!metric_no_merge) {
 			/*
@@ -1507,7 +1506,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		}
 		if (!metric_evlist) {
 			ret = parse_ids(metric_no_merge, fake_pmu, m->pctx, m->modifier,
-					m->has_constraint, tool_events, &m->evlist);
+					m->group_events, tool_events, &m->evlist);
 			if (ret)
 				goto out;
 
