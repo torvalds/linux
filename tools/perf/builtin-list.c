@@ -168,6 +168,7 @@ static void default_print_metric(void *ps,
 				const char *desc,
 				const char *long_desc,
 				const char *expr,
+				const char *threshold,
 				const char *unit __maybe_unused)
 {
 	struct print_state *print_state = ps;
@@ -225,6 +226,11 @@ static void default_print_metric(void *ps,
 	if (expr && print_state->detailed) {
 		printf("%*s", 8, "[");
 		wordwrap(expr, 8, pager_get_columns(), 0);
+		printf("]\n");
+	}
+	if (threshold && print_state->detailed) {
+		printf("%*s", 8, "[");
+		wordwrap(threshold, 8, pager_get_columns(), 0);
 		printf("]\n");
 	}
 }
@@ -367,7 +373,7 @@ static void json_print_event(void *ps, const char *pmu_name, const char *topic,
 static void json_print_metric(void *ps __maybe_unused, const char *group,
 			      const char *name, const char *desc,
 			      const char *long_desc, const char *expr,
-			      const char *unit)
+			      const char *threshold, const char *unit)
 {
 	struct json_print_state *print_state = ps;
 	bool need_sep = false;
@@ -386,6 +392,11 @@ static void json_print_metric(void *ps __maybe_unused, const char *group,
 	}
 	if (expr) {
 		fix_escape_printf(&buf, "%s\t\"MetricExpr\": \"%S\"", need_sep ? ",\n" : "", expr);
+		need_sep = true;
+	}
+	if (threshold) {
+		fix_escape_printf(&buf, "%s\t\"MetricThreshold\": \"%S\"", need_sep ? ",\n" : "",
+				  threshold);
 		need_sep = true;
 	}
 	if (unit) {

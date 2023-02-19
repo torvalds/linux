@@ -368,6 +368,7 @@ struct mep {
 	const char *metric_desc;
 	const char *metric_long_desc;
 	const char *metric_expr;
+	const char *metric_threshold;
 	const char *metric_unit;
 };
 
@@ -447,6 +448,7 @@ static int metricgroup__add_to_mep_groups(const struct pmu_metric *pm,
 			me->metric_desc = pm->desc;
 			me->metric_long_desc = pm->long_desc;
 			me->metric_expr = pm->metric_expr;
+			me->metric_threshold = pm->metric_threshold;
 			me->metric_unit = pm->unit;
 		}
 	}
@@ -522,6 +524,7 @@ void metricgroup__print(const struct print_callbacks *print_cb, void *print_stat
 				me->metric_desc,
 				me->metric_long_desc,
 				me->metric_expr,
+				me->metric_threshold,
 				me->metric_unit);
 		next = rb_next(node);
 		rblist__remove_node(&groups, node);
