@@ -2,6 +2,8 @@
 #ifndef PMU_EVENTS_H
 #define PMU_EVENTS_H
 
+#include <stdbool.h>
+
 struct perf_pmu;
 
 enum aggr_mode_class {
@@ -22,7 +24,7 @@ struct pmu_event {
 	const char *pmu;
 	const char *unit;
 	const char *perpkg;
-	const char *deprecated;
+	bool deprecated;
 };
 
 struct pmu_metric {
