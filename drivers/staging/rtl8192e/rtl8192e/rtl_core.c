@@ -28,7 +28,6 @@ static char *ifname = "wlan%d";
 static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.link_change			= rtl92e_link_change,
-	.tx_fill_cmd_descriptor		= rtl92e_fill_tx_cmd_desc,
 	.rx_query_status_descriptor	= rtl92e_get_rx_stats,
 	.rx_command_packet_handler = NULL,
 	.stop_adapter			= rtl92e_stop_adapter,
@@ -1577,7 +1576,7 @@ static void _rtl92e_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 
 	tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 
-	priv->ops->tx_fill_cmd_descriptor(dev, entry, tcb_desc, skb);
+	rtl92e_fill_tx_cmd_desc(dev, entry, tcb_desc, skb);
 
 	__skb_queue_tail(&ring->queue, skb);
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
