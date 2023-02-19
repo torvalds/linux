@@ -205,7 +205,6 @@ struct rtl8192_tx_ring {
 
 struct rtl819x_ops {
 	enum nic_t nic_type;
-	void (*get_eeprom_size)(struct net_device *dev);
 	void (*init_adapter_variable)(struct net_device *dev);
 	void (*init_before_adapter_start)(struct net_device *dev);
 	bool (*initialize_adapter)(struct net_device *dev);
