@@ -34,8 +34,8 @@
 #include <linux/spi/spi.h>
 #include <linux/string.h>
 /* For gpio_get_desc() which is EXPORT_SYMBOL_GPL() */
-#include "../../gpio/gpiolib.h"
-#include "../../gpio/gpiolib-acpi.h"
+#include "../../../gpio/gpiolib.h"
+#include "../../../gpio/gpiolib-acpi.h"
 
 /*
  * Helper code to get Linux IRQ numbers given a description of the IRQ source
