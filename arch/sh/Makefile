@@ -126,9 +126,6 @@ machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
 machdir-$(CONFIG_SH_LANDISK)			+= mach-landisk
 machdir-y					+= mach-common
 
-# Companion chips
-core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
-
 #
 # CPU header paths
 #
