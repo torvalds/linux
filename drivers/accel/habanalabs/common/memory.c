@@ -1818,7 +1818,7 @@ static void hl_release_dmabuf(struct dma_buf *dmabuf)
 	hl_ctx_put(ctx);
 
 	/* Paired with get_file() in export_dmabuf() */
-	fput(ctx->hpriv->filp);
+	fput(ctx->hpriv->file_priv->filp);
 
 	kfree(hl_dmabuf);
 }
@@ -1864,7 +1864,7 @@ static int export_dmabuf(struct hl_ctx *ctx,
 	 * released first and only then the compute device.
 	 * Paired with fput() in hl_release_dmabuf().
 	 */
-	get_file(ctx->hpriv->filp);
+	get_file(ctx->hpriv->file_priv->filp);
 
 	*dmabuf_fd = fd;
 

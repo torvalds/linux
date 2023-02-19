@@ -1166,10 +1166,9 @@ static const struct hl_ioctl_desc hl_ioctls_control[] = {
 	HL_IOCTL_DEF(HL_IOCTL_INFO, hl_info_ioctl_control)
 };
 
-static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
-		const struct hl_ioctl_desc *ioctl, struct device *dev)
+static long _hl_ioctl(struct hl_fpriv *hpriv, unsigned int cmd, unsigned long arg,
+			const struct hl_ioctl_desc *ioctl, struct device *dev)
 {
-	struct hl_fpriv *hpriv = filep->private_data;
 	unsigned int nr = _IOC_NR(cmd);
 	char stack_kdata[128] = {0};
 	char *kdata = NULL;
@@ -1235,7 +1234,8 @@ out_err:
 
 long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
-	struct hl_fpriv *hpriv = filep->private_data;
+	struct drm_file *file_priv = filep->private_data;
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	struct hl_device *hdev = hpriv->hdev;
 	const struct hl_ioctl_desc *ioctl = NULL;
 	unsigned int nr = _IOC_NR(cmd);
@@ -1256,7 +1256,7 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		return -ENOTTY;
 	}
 
-	return _hl_ioctl(filep, cmd, arg, ioctl, hdev->dev);
+	return _hl_ioctl(hpriv, cmd, arg, ioctl, hdev->dev);
 }
 
 long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
@@ -1282,5 +1282,5 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 		return -ENOTTY;
 	}
 
-	return _hl_ioctl(filep, cmd, arg, ioctl, hdev->dev_ctrl);
+	return _hl_ioctl(hpriv, cmd, arg, ioctl, hdev->dev_ctrl);
 }

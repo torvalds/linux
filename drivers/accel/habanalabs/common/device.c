@@ -14,6 +14,9 @@
 #include <linux/hwmon.h>
 #include <linux/vmalloc.h>
 
+#include <drm/drm_accel.h>
+#include <drm/drm_drv.h>
+
 #include <trace/events/habanalabs.h>
 
 #define HL_RESET_DELAY_USEC			10000	/* 10ms */
@@ -520,24 +523,20 @@ static void print_device_in_use_info(struct hl_device *hdev, const char *message
 }
 
 /*
- * hl_device_release - release function for habanalabs device
- *
- * @inode: pointer to inode structure
- * @filp: pointer to file structure
+ * hl_device_release() - release function for habanalabs device.
+ * @ddev: pointer to DRM device structure.
+ * @file: pointer to DRM file private data structure.
  *
  * Called when process closes an habanalabs device
  */
-static int hl_device_release(struct inode *inode, struct file *filp)
+void hl_device_release(struct drm_device *ddev, struct drm_file *file_priv)
 {
-	struct hl_fpriv *hpriv = filp->private_data;
-	struct hl_device *hdev = hpriv->hdev;
-
-	filp->private_data = NULL;
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
+	struct hl_device *hdev = to_hl_device(ddev);
 
 	if (!hdev) {
 		pr_crit("Closing FD after device was removed. Memory leak will occur and it is advised to reboot.\n");
 		put_pid(hpriv->taskpid);
-		return 0;
 	}
 
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
@@ -555,8 +554,6 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	}
 
 	hdev->last_open_session_duration_jif = jiffies - hdev->last_successful_open_jif;
-
-	return 0;
 }
 
 static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
@@ -587,18 +584,8 @@ out:
 	return 0;
 }
 
-/*
- * hl_mmap - mmap function for habanalabs device
- *
- * @*filp: pointer to file structure
- * @*vma: pointer to vm_area_struct of the process
- *
- * Called when process does an mmap on habanalabs device. Call the relevant mmap
- * function at the end of the common code.
- */
-static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
+static int __hl_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 {
-	struct hl_fpriv *hpriv = filp->private_data;
 	struct hl_device *hdev = hpriv->hdev;
 	unsigned long vm_pgoff;
 
@@ -621,14 +608,22 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 	return -EINVAL;
 }
 
-static const struct file_operations hl_ops = {
-	.owner = THIS_MODULE,
-	.open = hl_device_open,
-	.release = hl_device_release,
-	.mmap = hl_mmap,
-	.unlocked_ioctl = hl_ioctl,
-	.compat_ioctl = hl_ioctl
-};
+/*
+ * hl_mmap - mmap function for habanalabs device
+ *
+ * @*filp: pointer to file structure
+ * @*vma: pointer to vm_area_struct of the process
+ *
+ * Called when process does an mmap on habanalabs device. Call the relevant mmap
+ * function at the end of the common code.
+ */
+int hl_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct drm_file *file_priv = filp->private_data;
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
+
+	return __hl_mmap(hpriv, vma);
+}
 
 static const struct file_operations hl_ctrl_ops = {
 	.owner = THIS_MODULE,
@@ -656,7 +651,7 @@ static void device_release_func(struct device *dev)
  *
  * Initialize a cdev and a Linux device for habanalabs's device.
  */
-static int device_init_cdev(struct hl_device *hdev, struct class *class,
+static int device_init_cdev(struct hl_device *hdev, const struct class *class,
 				int minor, const struct file_operations *fops,
 				char *name, struct cdev *cdev,
 				struct device **dev)
@@ -680,23 +675,26 @@ static int device_init_cdev(struct hl_device *hdev, struct class *class,
 
 static int cdev_sysfs_debugfs_add(struct hl_device *hdev)
 {
+	const struct class *accel_class = hdev->drm.accel->kdev->class;
+	char name[32];
 	int rc;
 
-	rc = cdev_device_add(&hdev->cdev, hdev->dev);
-	if (rc) {
-		dev_err(hdev->dev,
-			"failed to add a char device to the system\n");
+	hdev->cdev_idx = hdev->drm.accel->index;
+
+	/* Initialize cdev and device structures for the control device */
+	snprintf(name, sizeof(name), "accel_controlD%d", hdev->cdev_idx);
+	rc = device_init_cdev(hdev, accel_class, hdev->cdev_idx, &hl_ctrl_ops, name,
+				&hdev->cdev_ctrl, &hdev->dev_ctrl);
+	if (rc)
 		return rc;
-	}
 
 	rc = cdev_device_add(&hdev->cdev_ctrl, hdev->dev_ctrl);
 	if (rc) {
-		dev_err(hdev->dev,
-			"failed to add a control char device to the system\n");
-		goto delete_cdev_device;
+		dev_err(hdev->dev_ctrl,
+			"failed to add an accel control char device to the system\n");
+		goto free_ctrl_device;
 	}
 
-	/* hl_sysfs_init() must be done after adding the device to the system */
 	rc = hl_sysfs_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize sysfs\n");
@@ -711,23 +709,19 @@ static int cdev_sysfs_debugfs_add(struct hl_device *hdev)
 
 delete_ctrl_cdev_device:
 	cdev_device_del(&hdev->cdev_ctrl, hdev->dev_ctrl);
-delete_cdev_device:
-	cdev_device_del(&hdev->cdev, hdev->dev);
+free_ctrl_device:
+	put_device(hdev->dev_ctrl);
 	return rc;
 }
 
 static void cdev_sysfs_debugfs_remove(struct hl_device *hdev)
 {
 	if (!hdev->cdev_sysfs_debugfs_created)
-		goto put_devices;
+		return;
 
-	hl_debugfs_remove_device(hdev);
 	hl_sysfs_fini(hdev);
-	cdev_device_del(&hdev->cdev_ctrl, hdev->dev_ctrl);
-	cdev_device_del(&hdev->cdev, hdev->dev);
 
-put_devices:
-	put_device(hdev->dev);
+	cdev_device_del(&hdev->cdev_ctrl, hdev->dev_ctrl);
 	put_device(hdev->dev_ctrl);
 }
 
@@ -2011,51 +2005,6 @@ void hl_notifier_event_send_all(struct hl_device *hdev, u64 event_mask)
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
-static int create_cdev(struct hl_device *hdev)
-{
-	char *name;
-	int rc;
-
-	hdev->cdev_idx = hdev->id / 2;
-
-	name = kasprintf(GFP_KERNEL, "hl%d", hdev->cdev_idx);
-	if (!name) {
-		rc = -ENOMEM;
-		goto out_err;
-	}
-
-	/* Initialize cdev and device structures */
-	rc = device_init_cdev(hdev, hdev->hclass, hdev->id, &hl_ops, name,
-				&hdev->cdev, &hdev->dev);
-
-	kfree(name);
-
-	if (rc)
-		goto out_err;
-
-	name = kasprintf(GFP_KERNEL, "hl_controlD%d", hdev->cdev_idx);
-	if (!name) {
-		rc = -ENOMEM;
-		goto free_dev;
-	}
-
-	/* Initialize cdev and device structures for control device */
-	rc = device_init_cdev(hdev, hdev->hclass, hdev->id_control, &hl_ctrl_ops,
-				name, &hdev->cdev_ctrl, &hdev->dev_ctrl);
-
-	kfree(name);
-
-	if (rc)
-		goto free_dev;
-
-	return 0;
-
-free_dev:
-	put_device(hdev->dev);
-out_err:
-	return rc;
-}
-
 /*
  * hl_device_init - main initialization function for habanalabs device
  *
@@ -2070,14 +2019,10 @@ int hl_device_init(struct hl_device *hdev)
 	int i, rc, cq_cnt, user_interrupt_cnt, cq_ready_cnt;
 	bool expose_interfaces_on_err = false;
 
-	rc = create_cdev(hdev);
-	if (rc)
-		goto out_disabled;
-
 	/* Initialize ASIC function pointers and perform early init */
 	rc = device_early_init(hdev);
 	if (rc)
-		goto free_dev;
+		goto out_disabled;
 
 	user_interrupt_cnt = hdev->asic_prop.user_dec_intr_count +
 				hdev->asic_prop.user_interrupt_count;
@@ -2264,6 +2209,14 @@ int hl_device_init(struct hl_device *hdev)
 	 * From here there is no need to expose them in case of an error.
 	 */
 	expose_interfaces_on_err = false;
+
+	rc = drm_dev_register(&hdev->drm, 0);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to register DRM device, rc %d\n", rc);
+		rc = 0;
+		goto out_disabled;
+	}
+
 	rc = cdev_sysfs_debugfs_add(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to add char devices and sysfs/debugfs files\n");
@@ -2332,15 +2285,14 @@ free_usr_intr_mem:
 	kfree(hdev->user_interrupt);
 early_fini:
 	device_early_fini(hdev);
-free_dev:
-	put_device(hdev->dev_ctrl);
-	put_device(hdev->dev);
 out_disabled:
 	hdev->disabled = true;
-	if (expose_interfaces_on_err)
+	if (expose_interfaces_on_err) {
+		drm_dev_register(&hdev->drm, 0);
 		cdev_sysfs_debugfs_add(hdev);
-	dev_err(&hdev->pdev->dev,
-		"Failed to initialize hl%d. Device %s is NOT usable !\n",
+	}
+
+	pr_err("Failed to initialize accel%d. Device %s is NOT usable!\n",
 		hdev->cdev_idx, dev_name(&hdev->pdev->dev));
 
 	return rc;
@@ -2486,6 +2438,7 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Hide devices and sysfs/debugfs files from user */
 	cdev_sysfs_debugfs_remove(hdev);
+	drm_dev_unregister(&hdev->drm);
 
 	hl_debugfs_device_fini(hdev);
 
