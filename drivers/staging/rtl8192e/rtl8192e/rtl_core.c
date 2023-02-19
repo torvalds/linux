@@ -27,7 +27,6 @@ static char *ifname = "wlan%d";
 
 static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
-	.initialize_adapter		= rtl92e_start_adapter,
 	.link_change			= rtl92e_link_change,
 	.tx_fill_descriptor		= rtl92e_fill_tx_desc,
 	.tx_fill_cmd_descriptor		= rtl92e_fill_tx_cmd_desc,
@@ -690,7 +689,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 	priv->rtllib->ieee_up = 1;
 
 	priv->up_first_time = 0;
-	init_status = priv->ops->initialize_adapter(dev);
+	init_status = rtl92e_start_adapter(dev);
 	if (!init_status) {
 		netdev_err(dev, "%s(): Initialization failed!\n", __func__);
 		return -1;
@@ -2381,7 +2380,7 @@ bool rtl92e_enable_nic(struct net_device *dev)
 		return false;
 	}
 
-	init_status = priv->ops->initialize_adapter(dev);
+	init_status = rtl92e_start_adapter(dev);
 	if (!init_status) {
 		netdev_warn(dev, "%s(): Initialization failed!\n", __func__);
 		priv->bdisable_nic = false;

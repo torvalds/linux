@@ -206,7 +206,6 @@ struct rtl8192_tx_ring {
 struct rtl819x_ops {
 	enum nic_t nic_type;
 	void (*init_before_adapter_start)(struct net_device *dev);
-	bool (*initialize_adapter)(struct net_device *dev);
 	void (*link_change)(struct net_device *dev);
 	void (*tx_fill_descriptor)(struct net_device *dev,
 				   struct tx_desc *tx_desc,
