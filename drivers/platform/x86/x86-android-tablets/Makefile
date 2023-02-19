@@ -5,4 +5,4 @@
 
 obj-$(CONFIG_X86_ANDROID_TABLETS) += x86-android-tablets.o
 
-x86-android-tablets-y := x86-android-tablets-main.o
+x86-android-tablets-y := core.o x86-android-tablets-main.o
