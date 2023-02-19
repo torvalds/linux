@@ -124,39 +124,6 @@ static const char * transaction_limited_attrs = {
 	"}"
 };
 
-static const char * topdown_attrs[] = {
-	"topdown-total-slots",
-	"topdown-slots-retired",
-	"topdown-recovery-bubbles",
-	"topdown-fetch-bubbles",
-	"topdown-slots-issued",
-	NULL,
-};
-
-static const char *topdown_metric_attrs[] = {
-	"slots",
-	"topdown-retiring",
-	"topdown-bad-spec",
-	"topdown-fe-bound",
-	"topdown-be-bound",
-	NULL,
-};
-
-static const char *topdown_metric_L2_attrs[] = {
-	"slots",
-	"topdown-retiring",
-	"topdown-bad-spec",
-	"topdown-fe-bound",
-	"topdown-be-bound",
-	"topdown-heavy-ops",
-	"topdown-br-mispredict",
-	"topdown-fetch-lat",
-	"topdown-mem-bound",
-	NULL,
-};
-
-#define TOPDOWN_MAX_LEVEL			2
-
 static const char *smi_cost_attrs = {
 	"{"
 	"msr/aperf/,"
@@ -1914,86 +1881,41 @@ static int add_default_attributes(void)
 	}
 
 	if (topdown_run) {
-		const char **metric_attrs = topdown_metric_attrs;
-		unsigned int max_level = 1;
-		char *str = NULL;
-		bool warn = false;
-		const char *pmu_name = arch_get_topdown_pmu_name(evsel_list, true);
+		unsigned int max_level = metricgroups__topdown_max_level();
+		char str[] = "TopdownL1";
 
 		if (!force_metric_only)
 			stat_config.metric_only = true;
 
-		if (pmu_have_event(pmu_name, topdown_metric_L2_attrs[5])) {
-			metric_attrs = topdown_metric_L2_attrs;
-			max_level = 2;
+		if (!max_level) {
+			pr_err("Topdown requested but the topdown metric groups aren't present.\n"
+				"(See perf list the metric groups have names like TopdownL1)");
+			return -1;
 		}
-
 		if (stat_config.topdown_level > max_level) {
 			pr_err("Invalid top-down metrics level. The max level is %u.\n", max_level);
 			return -1;
 		} else if (!stat_config.topdown_level)
-			stat_config.topdown_level = max_level;
+			stat_config.topdown_level = 1;
 
-		if (topdown_filter_events(metric_attrs, &str, 1, pmu_name) < 0) {
-			pr_err("Out of memory\n");
+		if (!stat_config.interval && !stat_config.metric_only) {
+			fprintf(stat_config.output,
+				"Topdown accuracy may decrease when measuring long periods.\n"
+				"Please print the result regularly, e.g. -I1000\n");
+		}
+		str[8] = stat_config.topdown_level + '0';
+		if (metricgroup__parse_groups(evsel_list, str,
+						/*metric_no_group=*/false,
+						/*metric_no_merge=*/false,
+						/*metric_no_threshold=*/true,
+						stat_config.user_requested_cpu_list,
+						stat_config.system_wide,
+						&stat_config.metric_events) < 0)
 			return -1;
-		}
-
-		if (metric_attrs[0] && str) {
-			if (!stat_config.interval && !stat_config.metric_only) {
-				fprintf(stat_config.output,
-					"Topdown accuracy may decrease when measuring long periods.\n"
-					"Please print the result regularly, e.g. -I1000\n");
-			}
-			goto setup_metrics;
-		}
-
-		zfree(&str);
-
-		if (stat_config.aggr_mode != AGGR_GLOBAL &&
-		    stat_config.aggr_mode != AGGR_CORE) {
-			pr_err("top down event configuration requires --per-core mode\n");
-			return -1;
-		}
-		stat_config.aggr_mode = AGGR_CORE;
-		if (nr_cgroups || !target__has_cpu(&target)) {
-			pr_err("top down event configuration requires system-wide mode (-a)\n");
-			return -1;
-		}
-
-		if (topdown_filter_events(topdown_attrs, &str,
-				arch_topdown_check_group(&warn),
-				pmu_name) < 0) {
-			pr_err("Out of memory\n");
-			return -1;
-		}
-
-		if (topdown_attrs[0] && str) {
-			struct parse_events_error errinfo;
-			if (warn)
-				arch_topdown_group_warn();
-setup_metrics:
-			parse_events_error__init(&errinfo);
-			err = parse_events(evsel_list, str, &errinfo);
-			if (err) {
-				fprintf(stderr,
-					"Cannot set up top down events %s: %d\n",
-					str, err);
-				parse_events_error__print(&errinfo, str);
-				parse_events_error__exit(&errinfo);
-				free(str);
-				return -1;
-			}
-			parse_events_error__exit(&errinfo);
-		} else {
-			fprintf(stderr, "System does not support topdown\n");
-			return -1;
-		}
-		free(str);
 	}
 
 	if (!stat_config.topdown_level)
-		stat_config.topdown_level = TOPDOWN_MAX_LEVEL;
+		stat_config.topdown_level = 1;
 
 	if (!evsel_list->core.nr_entries) {
 		/* No events so add defaults. */
