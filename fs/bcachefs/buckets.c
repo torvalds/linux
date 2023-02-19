@@ -1031,7 +1031,7 @@ int bch2_mark_stripe(struct btree_trans *trans,
 	if (!gc) {
 		struct stripe *m = genradix_ptr(&c->stripes, idx);
 
-		if (!m || (old_s && !m->alive)) {
+		if (!m) {
 			struct printbuf buf1 = PRINTBUF;
 			struct printbuf buf2 = PRINTBUF;
 
@@ -1047,13 +1047,10 @@ int bch2_mark_stripe(struct btree_trans *trans,
 		}
 
 		if (!new_s) {
-			mutex_lock(&c->ec_stripes_heap_lock);
 			bch2_stripes_heap_del(c, m, idx);
-			mutex_unlock(&c->ec_stripes_heap_lock);
 
 			memset(m, 0, sizeof(*m));
 		} else {
-			m->alive	= true;
 			m->sectors	= le16_to_cpu(new_s->sectors);
 			m->algorithm	= new_s->algorithm;
 			m->nr_blocks	= new_s->nr_blocks;
@@ -1063,9 +1060,10 @@ int bch2_mark_stripe(struct btree_trans *trans,
 			for (i = 0; i < new_s->nr_blocks; i++)
 				m->blocks_nonempty += !!stripe_blockcount_get(new_s, i);
 
-			mutex_lock(&c->ec_stripes_heap_lock);
-			bch2_stripes_heap_update(c, m, idx);
-			mutex_unlock(&c->ec_stripes_heap_lock);
+			if (!old_s)
+				bch2_stripes_heap_insert(c, m, idx);
+			else
+				bch2_stripes_heap_update(c, m, idx);
 		}
 	} else {
 		struct gc_stripe *m =

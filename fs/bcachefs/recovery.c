@@ -1260,8 +1260,6 @@ use_clean:
 		goto err;
 	bch_verbose(c, "stripes_read done");
 
-	bch2_stripes_heap_start(c);
-
 	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
 		err = "error creating root snapshot node";
 		ret = bch2_fs_initialize_subvolumes(c);

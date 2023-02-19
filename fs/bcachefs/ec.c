@@ -680,7 +680,6 @@ static void heap_verify_backpointer(struct bch_fs *c, size_t idx)
 	ec_stripes_heap *h = &c->ec_stripes_heap;
 	struct stripe *m = genradix_ptr(&c->stripes, idx);
 
-	BUG_ON(!m->alive);
 	BUG_ON(m->heap_idx >= h->used);
 	BUG_ON(h->data[m->heap_idx].idx != idx);
 }
@@ -688,27 +687,20 @@ static void heap_verify_backpointer(struct bch_fs *c, size_t idx)
 void bch2_stripes_heap_del(struct bch_fs *c,
 			   struct stripe *m, size_t idx)
 {
-	if (!m->on_heap)
-		return;
-
-	m->on_heap = false;
-
+	mutex_lock(&c->ec_stripes_heap_lock);
 	heap_verify_backpointer(c, idx);
 
 	heap_del(&c->ec_stripes_heap, m->heap_idx,
 		 ec_stripes_heap_cmp,
 		 ec_stripes_heap_set_backpointer);
+	mutex_unlock(&c->ec_stripes_heap_lock);
 }
 
 void bch2_stripes_heap_insert(struct bch_fs *c,
 			      struct stripe *m, size_t idx)
 {
-	if (m->on_heap)
-		return;
-
+	mutex_lock(&c->ec_stripes_heap_lock);
 	BUG_ON(heap_full(&c->ec_stripes_heap));
-
-	m->on_heap = true;
 
 	heap_add(&c->ec_stripes_heap, ((struct ec_stripe_heap_entry) {
 			.idx = idx,
@@ -718,17 +710,17 @@ void bch2_stripes_heap_insert(struct bch_fs *c,
 		 ec_stripes_heap_set_backpointer);
 
 	heap_verify_backpointer(c, idx);
+	mutex_unlock(&c->ec_stripes_heap_lock);
 }
 
 void bch2_stripes_heap_update(struct bch_fs *c,
 			      struct stripe *m, size_t idx)
 {
 	ec_stripes_heap *h = &c->ec_stripes_heap;
+	bool do_deletes;
 	size_t i;
 
-	if (!m->on_heap)
-		return;
-
+	mutex_lock(&c->ec_stripes_heap_lock);
 	heap_verify_backpointer(c, idx);
 
 	h->data[m->heap_idx].blocks_nonempty = m->blocks_nonempty;
@@ -741,7 +733,10 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 
 	heap_verify_backpointer(c, idx);
 
-	if (stripe_idx_to_delete(c))
+	do_deletes = stripe_idx_to_delete(c) != 0;
+	mutex_unlock(&c->ec_stripes_heap_lock);
+
+	if (do_deletes)
 		bch2_do_stripe_deletes(c);
 }
 
@@ -799,8 +794,6 @@ static void ec_stripe_delete_work(struct work_struct *work)
 	while (1) {
 		mutex_lock(&c->ec_stripes_heap_lock);
 		idx = stripe_idx_to_delete(c);
-		if (idx)
-			bch2_stripes_heap_del(c, genradix_ptr(&c->stripes, idx), idx);
 		mutex_unlock(&c->ec_stripes_heap_lock);
 
 		if (!idx)
@@ -1013,7 +1006,6 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 {
 	struct bch_fs *c = s->c;
 	struct open_bucket *ob;
-	struct stripe *m;
 	struct bch_stripe *v = &s->new_stripe.key.v;
 	unsigned i, nr_data = v->nr_blocks - v->nr_redundant;
 	int ret;
@@ -1076,13 +1068,6 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	}
 
 	bch2_stripe_close(c, s);
-
-	mutex_lock(&c->ec_stripes_heap_lock);
-	m = genradix_ptr(&c->stripes, s->new_stripe.key.k.p.offset);
-
-	BUG_ON(m->on_heap);
-	bch2_stripes_heap_insert(c, m, s->new_stripe.key.k.p.offset);
-	mutex_unlock(&c->ec_stripes_heap_lock);
 err:
 	bch2_disk_reservation_put(c, &s->res);
 
@@ -1491,11 +1476,8 @@ static s64 get_existing_stripe(struct bch_fs *c,
 		if (m->algorithm	== head->algo &&
 		    m->nr_redundant	== head->redundancy &&
 		    m->sectors		== head->blocksize &&
-		    m->blocks_nonempty	< m->nr_blocks - m->nr_redundant) {
-			if (!bch2_try_open_stripe(c, head->s, stripe_idx))
-				continue;
-
-			bch2_stripes_heap_del(c, m, stripe_idx);
+		    m->blocks_nonempty	< m->nr_blocks - m->nr_redundant &&
+		    bch2_try_open_stripe(c, head->s, stripe_idx)) {
 			ret = stripe_idx;
 			break;
 		}
@@ -1696,16 +1678,6 @@ unlock:
 	mutex_unlock(&c->ec_stripe_head_lock);
 }
 
-void bch2_stripes_heap_start(struct bch_fs *c)
-{
-	struct genradix_iter iter;
-	struct stripe *m;
-
-	genradix_for_each(&c->stripes, iter, m)
-		if (m->alive)
-			bch2_stripes_heap_insert(c, m, iter.pos);
-}
-
 int bch2_stripes_read(struct bch_fs *c)
 {
 	struct btree_trans trans;
@@ -1730,7 +1702,6 @@ int bch2_stripes_read(struct bch_fs *c)
 		s = bkey_s_c_to_stripe(k).v;
 
 		m = genradix_ptr(&c->stripes, k.k->p.offset);
-		m->alive	= true;
 		m->sectors	= le16_to_cpu(s->sectors);
 		m->algorithm	= s->algorithm;
 		m->nr_blocks	= s->nr_blocks;
@@ -1740,9 +1711,7 @@ int bch2_stripes_read(struct bch_fs *c)
 		for (i = 0; i < s->nr_blocks; i++)
 			m->blocks_nonempty += !!stripe_blockcount_get(s, i);
 
-		mutex_lock(&c->ec_stripes_heap_lock);
-		bch2_stripes_heap_update(c, m, k.k->p.offset);
-		mutex_unlock(&c->ec_stripes_heap_lock);
+		bch2_stripes_heap_insert(c, m, k.k->p.offset);
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 
