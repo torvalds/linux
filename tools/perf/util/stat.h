@@ -19,11 +19,6 @@ struct stats {
 	u64 max, min;
 };
 
-enum perf_stat_evsel_id {
-	PERF_STAT_EVSEL_ID__NONE = 0,
-	PERF_STAT_EVSEL_ID__MAX,
-};
-
 /* hold aggregated event info */
 struct perf_stat_aggr {
 	/* aggregated values */
@@ -40,8 +35,6 @@ struct perf_stat_aggr {
 struct perf_stat_evsel {
 	/* used for repeated runs */
 	struct stats		 res_stats;
-	/* evsel id for quick check */
-	enum perf_stat_evsel_id	 id;
 	/* number of allocated 'aggr' */
 	int			 nr_aggr;
 	/* aggregated event values */
@@ -186,11 +179,6 @@ static inline void update_rusage_stats(struct rusage_stats *ru_stats, struct rus
 
 struct evsel;
 struct evlist;
-
-bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id);
-
-#define perf_stat_evsel__is(evsel, id) \
-	__perf_stat_evsel__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
 
 extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;

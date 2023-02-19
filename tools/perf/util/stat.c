@@ -77,36 +77,6 @@ double rel_stddev_stats(double stddev, double avg)
 	return pct;
 }
 
-bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id)
-{
-	struct perf_stat_evsel *ps = evsel->stats;
-
-	return ps->id == id;
-}
-
-#define ID(id, name) [PERF_STAT_EVSEL_ID__##id] = #name
-static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
-	ID(NONE,		x),
-};
-#undef ID
-
-static void perf_stat_evsel_id_init(struct evsel *evsel)
-{
-	struct perf_stat_evsel *ps = evsel->stats;
-	int i;
-
-	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
-
-	for (i = 0; i < PERF_STAT_EVSEL_ID__MAX; i++) {
-		if (!strcmp(evsel__name(evsel), id_str[i]) ||
-		    (strstr(evsel__name(evsel), id_str[i]) && evsel->pmu_name
-		     && strstr(evsel__name(evsel), evsel->pmu_name))) {
-			ps->id = i;
-			break;
-		}
-	}
-}
-
 static void evsel__reset_aggr_stats(struct evsel *evsel)
 {
 	struct perf_stat_evsel *ps = evsel->stats;
@@ -166,7 +136,6 @@ static int evsel__alloc_stat_priv(struct evsel *evsel, int nr_aggr)
 		return -ENOMEM;
 	}
 
-	perf_stat_evsel_id_init(evsel);
 	evsel__reset_stat_priv(evsel);
 	return 0;
 }
