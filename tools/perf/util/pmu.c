@@ -328,17 +328,15 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 	struct parse_events_term *term;
 	struct perf_pmu_alias *alias;
 	int ret;
-	int num;
 	char newval[256];
-	char *long_desc = NULL, *topic = NULL, *unit = NULL, *perpkg = NULL,
-	     *pmu_name = NULL;
-	bool deprecated = false;
+	char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
+	bool deprecated = false, perpkg = false;
 
 	if (pe) {
 		long_desc = (char *)pe->long_desc;
 		topic = (char *)pe->topic;
 		unit = (char *)pe->unit;
-		perpkg = (char *)pe->perpkg;
+		perpkg = pe->perpkg;
 		deprecated = pe->deprecated;
 		pmu_name = (char *)pe->pmu;
 	}
@@ -350,7 +348,7 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 	INIT_LIST_HEAD(&alias->terms);
 	alias->scale = 1.0;
 	alias->unit[0] = '\0';
-	alias->per_pkg = false;
+	alias->per_pkg = perpkg;
 	alias->snapshot = false;
 	alias->deprecated = deprecated;
 
@@ -402,7 +400,6 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 			return -1;
 		snprintf(alias->unit, sizeof(alias->unit), "%s", unit);
 	}
-	alias->per_pkg = perpkg && sscanf(perpkg, "%d", &num) == 1 && num == 1;
 	alias->str = strdup(newval);
 	alias->pmu_name = pmu_name ? strdup(pmu_name) : NULL;
 

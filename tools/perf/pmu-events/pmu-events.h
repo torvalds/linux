@@ -23,7 +23,7 @@ struct pmu_event {
 	const char *long_desc;
 	const char *pmu;
 	const char *unit;
-	const char *perpkg;
+	bool perpkg;
 	bool deprecated;
 };
 
