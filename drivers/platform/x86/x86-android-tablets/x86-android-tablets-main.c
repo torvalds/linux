@@ -11,12 +11,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
-#include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio/machine.h>
 #include <linux/input.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/lp855x.h>
@@ -183,7 +181,7 @@ static struct gpiod_lookup_table * const acer_b1_750_gpios[] = {
 	NULL
 };
 
-static const struct x86_dev_info acer_b1_750_info __initconst = {
+const struct x86_dev_info acer_b1_750_info __initconst = {
 	.i2c_client_info = acer_b1_750_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(acer_b1_750_i2c_clients),
 	.pdev_info = int3496_pdevs,
@@ -235,7 +233,7 @@ static int __init advantech_mica_071_init(void)
 	return 0;
 }
 
-static const struct x86_dev_info advantech_mica_071_info __initconst = {
+const struct x86_dev_info advantech_mica_071_info __initconst = {
 	.pdev_info = advantech_mica_071_pdevs,
 	.pdev_count = ARRAY_SIZE(advantech_mica_071_pdevs),
 	.init = advantech_mica_071_init,
@@ -416,7 +414,7 @@ static struct gpiod_lookup_table * const asus_me176c_gpios[] = {
 	NULL
 };
 
-static const struct x86_dev_info asus_me176c_info __initconst = {
+const struct x86_dev_info asus_me176c_info __initconst = {
 	.i2c_client_info = asus_me176c_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(asus_me176c_i2c_clients),
 	.pdev_info = asus_me176c_tf103c_pdevs,
@@ -561,7 +559,7 @@ static struct gpiod_lookup_table * const asus_tf103c_gpios[] = {
 	NULL
 };
 
-static const struct x86_dev_info asus_tf103c_info __initconst = {
+const struct x86_dev_info asus_tf103c_info __initconst = {
 	.i2c_client_info = asus_tf103c_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(asus_tf103c_i2c_clients),
 	.pdev_info = asus_me176c_tf103c_pdevs,
@@ -652,7 +650,7 @@ static int __init chuwi_hi8_init(void)
 	return 0;
 }
 
-static const struct x86_dev_info chuwi_hi8_info __initconst = {
+const struct x86_dev_info chuwi_hi8_info __initconst = {
 	.i2c_client_info = chuwi_hi8_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(chuwi_hi8_i2c_clients),
 	.init = chuwi_hi8_init,
@@ -687,7 +685,7 @@ static int __init czc_p10t_init(void)
 	return 0;
 }
 
-static const struct x86_dev_info czc_p10t __initconst = {
+const struct x86_dev_info czc_p10t __initconst = {
 	.init = czc_p10t_init,
 };
 
@@ -705,7 +703,7 @@ static const struct x86_i2c_client_info lenovo_yogabook_x9x_i2c_clients[] __init
 	},
 };
 
-static const struct x86_dev_info lenovo_yogabook_x9x_info __initconst = {
+const struct x86_dev_info lenovo_yogabook_x9x_info __initconst = {
 	.i2c_client_info = lenovo_yogabook_x9x_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yogabook_x9x_i2c_clients),
 };
@@ -816,7 +814,7 @@ static struct gpiod_lookup_table * const lenovo_yoga_tab2_830_1050_gpios[] = {
 static int __init lenovo_yoga_tab2_830_1050_init(void);
 static void lenovo_yoga_tab2_830_1050_exit(void);
 
-static struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initdata = {
+struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initdata = {
 	.i2c_client_info = lenovo_yoga_tab2_830_1050_i2c_clients,
 	/* i2c_client_count gets set by lenovo_yoga_tab2_830_1050_init() */
 	.pdev_info = int3496_pdevs,
@@ -1081,7 +1079,7 @@ static int __init lenovo_yt3_init(void)
 	return 0;
 }
 
-static const struct x86_dev_info lenovo_yt3_info __initconst = {
+const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_info = lenovo_yt3_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
 	.init = lenovo_yt3_init,
@@ -1163,7 +1161,7 @@ static struct gpiod_lookup_table * const medion_lifetab_s10346_gpios[] = {
 	NULL
 };
 
-static const struct x86_dev_info medion_lifetab_s10346_info __initconst = {
+const struct x86_dev_info medion_lifetab_s10346_info __initconst = {
 	.i2c_client_info = medion_lifetab_s10346_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(medion_lifetab_s10346_i2c_clients),
 	.gpiod_lookup_tables = medion_lifetab_s10346_gpios,
@@ -1229,7 +1227,7 @@ static struct gpiod_lookup_table * const nextbook_ares8_gpios[] = {
 	NULL
 };
 
-static const struct x86_dev_info nextbook_ares8_info __initconst = {
+const struct x86_dev_info nextbook_ares8_info __initconst = {
 	.i2c_client_info = nextbook_ares8_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(nextbook_ares8_i2c_clients),
 	.pdev_info = int3496_pdevs,
@@ -1312,7 +1310,7 @@ static struct gpiod_lookup_table * const whitelabel_tm800a550l_gpios[] = {
 	NULL
 };
 
-static const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
+const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
 	.i2c_client_info = whitelabel_tm800a550l_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(whitelabel_tm800a550l_i2c_clients),
 	.gpiod_lookup_tables = whitelabel_tm800a550l_gpios,
@@ -1346,139 +1344,7 @@ static const struct x86_i2c_client_info xiaomi_mipad2_i2c_clients[] __initconst 
 	},
 };
 
-static const struct x86_dev_info xiaomi_mipad2_info __initconst = {
+const struct x86_dev_info xiaomi_mipad2_info __initconst = {
 	.i2c_client_info = xiaomi_mipad2_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(xiaomi_mipad2_i2c_clients),
 };
-
-const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
-	{
-		/* Acer Iconia One 7 B1-750 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "VESPA2"),
-		},
-		.driver_data = (void *)&acer_b1_750_info,
-	},
-	{
-		/* Advantech MICA-071 */
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Advantech"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "MICA-071"),
-		},
-		.driver_data = (void *)&advantech_mica_071_info,
-	},
-	{
-		/* Asus MeMO Pad 7 ME176C */
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "ME176C"),
-		},
-		.driver_data = (void *)&asus_me176c_info,
-	},
-	{
-		/* Asus TF103C */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
-		},
-		.driver_data = (void *)&asus_tf103c_info,
-	},
-	{
-		/* Chuwi Hi8 (CWI509) */
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Hampoo"),
-			DMI_MATCH(DMI_BOARD_NAME, "BYT-PA03C"),
-			DMI_MATCH(DMI_SYS_VENDOR, "ilife"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "S806"),
-		},
-		.driver_data = (void *)&chuwi_hi8_info,
-	},
-	{
-		/* CZC P10T */
-		.ident = "CZC ODEON TPC-10 (\"P10T\")",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "CZC"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ODEON*TPC-10"),
-		},
-		.driver_data = (void *)&czc_p10t,
-	},
-	{
-		/* CZC P10T variant */
-		.ident = "ViewSonic ViewPad 10",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ViewSonic"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "VPAD10"),
-		},
-		.driver_data = (void *)&czc_p10t,
-	},
-	{
-		/* Lenovo Yoga Book X90F / X91F / X91L */
-		.matches = {
-			/* Non exact match to match all versions */
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9"),
-		},
-		.driver_data = (void *)&lenovo_yogabook_x9x_info,
-	},
-	{
-		/*
-		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
-		 * Lenovo Yoga Tablet 2 use the same mainboard)
-		 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
-			DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
-			/* Partial match on beginning of BIOS version */
-			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
-		},
-		.driver_data = (void *)&lenovo_yoga_tab2_830_1050_info,
-	},
-	{
-		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
-		},
-		.driver_data = (void *)&lenovo_yt3_info,
-	},
-	{
-		/* Medion Lifetab S10346 */
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
-			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
-			/* Above strings are much too generic, also match on BIOS date */
-			DMI_MATCH(DMI_BIOS_DATE, "10/22/2015"),
-		},
-		.driver_data = (void *)&medion_lifetab_s10346_info,
-	},
-	{
-		/* Nextbook Ares 8 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "M890BAP"),
-		},
-		.driver_data = (void *)&nextbook_ares8_info,
-	},
-	{
-		/* Whitelabel (sold as various brands) TM800A550L */
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
-			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
-			/* Above strings are too generic, also match on BIOS version */
-			DMI_MATCH(DMI_BIOS_VERSION, "ZY-8-BI-PX4S70VTR400-X423B-005-D"),
-		},
-		.driver_data = (void *)&whitelabel_tm800a550l_info,
-	},
-	{
-		/* Xiaomi Mi Pad 2 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
-		},
-		.driver_data = (void *)&xiaomi_mipad2_info,
-	},
-	{ }
-};
-MODULE_DEVICE_TABLE(dmi, x86_android_tablet_ids);

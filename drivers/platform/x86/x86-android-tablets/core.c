@@ -253,8 +253,6 @@ static void x86_android_tablet_cleanup(void)
 	software_node_unregister(bat_swnode);
 }
 
-extern const struct dmi_system_id x86_android_tablet_ids[];
-
 static __init int x86_android_tablet_init(void)
 {
 	const struct x86_dev_info *dev_info;
