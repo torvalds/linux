@@ -940,6 +940,9 @@ struct bch_fs {
 	GENRADIX(struct stripe) stripes;
 	GENRADIX(struct gc_stripe) gc_stripes;
 
+	struct hlist_head	ec_stripes_new[32];
+	spinlock_t		ec_stripes_new_lock;
+
 	ec_stripes_heap		ec_stripes_heap;
 	struct mutex		ec_stripes_heap_lock;
 

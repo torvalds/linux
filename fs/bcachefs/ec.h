@@ -148,6 +148,10 @@ struct ec_stripe_new {
 	struct ec_stripe_head	*h;
 	struct mutex		lock;
 	struct list_head	list;
+
+	struct hlist_node	hash;
+	u64			idx;
+
 	struct closure		iodone;
 
 	/* counts in flight writes, stripe is created when pin == 0 */
