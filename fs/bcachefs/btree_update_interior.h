@@ -314,7 +314,7 @@ void bch2_btree_updates_to_text(struct printbuf *, struct bch_fs *);
 
 bool bch2_btree_interior_updates_flush(struct bch_fs *);
 
-void bch2_journal_entries_to_btree_roots(struct bch_fs *, struct jset *);
+void bch2_journal_entry_to_btree_root(struct bch_fs *, struct jset_entry *);
 struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
 					struct jset_entry *, struct jset_entry *);
 

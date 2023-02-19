@@ -2402,20 +2402,15 @@ bool bch2_btree_interior_updates_flush(struct bch_fs *c)
 	return ret;
 }
 
-void bch2_journal_entries_to_btree_roots(struct bch_fs *c, struct jset *jset)
+void bch2_journal_entry_to_btree_root(struct bch_fs *c, struct jset_entry *entry)
 {
-	struct btree_root *r;
-	struct jset_entry *entry;
+	struct btree_root *r = &c->btree_roots[entry->btree_id];
 
 	mutex_lock(&c->btree_root_lock);
 
-	vstruct_for_each(jset, entry)
-		if (entry->type == BCH_JSET_ENTRY_btree_root) {
-			r = &c->btree_roots[entry->btree_id];
-			r->level = entry->level;
-			r->alive = true;
-			bkey_copy(&r->key, &entry->start[0]);
-		}
+	r->level = entry->level;
+	r->alive = true;
+	bkey_copy(&r->key, &entry->start[0]);
 
 	mutex_unlock(&c->btree_root_lock);
 }
