@@ -47,6 +47,7 @@ struct metric_expr {
 	const char *metric_expr;
 	/** The name of the meric such as "IPC". */
 	const char *metric_name;
+	const char *metric_threshold;
 	/**
 	 * The "ScaleUnit" that scales and adds a unit to the metric during
 	 * output. For example, "6.4e-05MiB" means to scale the resulting metric

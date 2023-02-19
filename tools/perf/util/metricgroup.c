@@ -129,6 +129,8 @@ struct metric {
 	const char *modifier;
 	/** The expression to parse, for example, "instructions/cycles". */
 	const char *metric_expr;
+	/** Optional threshold expression where zero value is green, otherwise red. */
+	const char *metric_threshold;
 	/**
 	 * The "ScaleUnit" that scales and adds a unit to the metric during
 	 * output.
@@ -222,6 +224,7 @@ static struct metric *metric__new(const struct pmu_metric *pm,
 			goto out_err;
 	}
 	m->metric_expr = pm->metric_expr;
+	m->metric_threshold = pm->metric_threshold;
 	m->metric_unit = pm->unit;
 	m->pctx->sctx.user_requested_cpu_list = NULL;
 	if (user_requested_cpu_list) {
@@ -901,6 +904,7 @@ static int __add_metric(struct list_head *metric_list,
 	const struct visited_metric *vm;
 	int ret;
 	bool is_root = !root_metric;
+	const char *expr;
 	struct visited_metric visited_node = {
 		.name = pm->metric_name,
 		.parent = visited,
@@ -963,16 +967,29 @@ static int __add_metric(struct list_head *metric_list,
 	 * For both the parent and referenced metrics, we parse
 	 * all the metric's IDs and add it to the root context.
 	 */
-	if (expr__find_ids(pm->metric_expr, NULL, root_metric->pctx) < 0) {
+	ret = 0;
+	expr = pm->metric_expr;
+	if (is_root && pm->metric_threshold) {
+		/*
+		 * Threshold expressions are built off the actual metric. Switch
+		 * to use that in case of additional necessary events. Change
+		 * the visited node name to avoid this being flagged as
+		 * recursion.
+		 */
+		assert(strstr(pm->metric_threshold, pm->metric_name));
+		expr = pm->metric_threshold;
+		visited_node.name = "__threshold__";
+	}
+	if (expr__find_ids(expr, NULL, root_metric->pctx) < 0) {
 		/* Broken metric. */
 		ret = -EINVAL;
-	} else {
+	}
+	if (!ret) {
 		/* Resolve referenced metrics. */
 		ret = resolve_metric(metric_list, modifier, metric_no_group,
 				     user_requested_cpu_list, system_wide,
 				     root_metric, &visited_node, table);
 	}
-
 	if (ret) {
 		if (is_root)
 			metric__free(root_metric);
@@ -1554,6 +1571,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 			free(metric_events);
 			goto out;
 		}
+		expr->metric_threshold = m->metric_threshold;
 		expr->metric_unit = m->metric_unit;
 		expr->metric_events = metric_events;
 		expr->runtime = m->pctx->sctx.runtime;

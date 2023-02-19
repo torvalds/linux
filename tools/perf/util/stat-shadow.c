@@ -777,6 +777,7 @@ static int prepare_metric(struct evsel **metric_events,
 
 static void generic_metric(struct perf_stat_config *config,
 			   const char *metric_expr,
+			   const char *metric_threshold,
 			   struct evsel **metric_events,
 			   struct metric_ref *metric_refs,
 			   char *name,
@@ -789,9 +790,10 @@ static void generic_metric(struct perf_stat_config *config,
 {
 	print_metric_t print_metric = out->print_metric;
 	struct expr_parse_ctx *pctx;
-	double ratio, scale;
+	double ratio, scale, threshold;
 	int i;
 	void *ctxp = out->ctx;
+	const char *color = NULL;
 
 	pctx = expr__ctx_new();
 	if (!pctx)
@@ -811,6 +813,12 @@ static void generic_metric(struct perf_stat_config *config,
 			char *unit;
 			char metric_bf[64];
 
+			if (metric_threshold &&
+			    expr__parse(&threshold, pctx, metric_threshold) == 0) {
+				color = fpclassify(threshold) == FP_ZERO
+					? PERF_COLOR_GREEN : PERF_COLOR_RED;
+			}
+
 			if (metric_unit && metric_name) {
 				if (perf_pmu__convert_scale(metric_unit,
 					&unit, &scale) >= 0) {
@@ -823,22 +831,22 @@ static void generic_metric(struct perf_stat_config *config,
 					scnprintf(metric_bf, sizeof(metric_bf),
 					  "%s  %s", unit, metric_name);
 
-				print_metric(config, ctxp, NULL, "%8.1f",
+				print_metric(config, ctxp, color, "%8.1f",
 					     metric_bf, ratio);
 			} else {
-				print_metric(config, ctxp, NULL, "%8.2f",
+				print_metric(config, ctxp, color, "%8.2f",
 					metric_name ?
 					metric_name :
 					out->force_header ?  name : "",
 					ratio);
 			}
 		} else {
-			print_metric(config, ctxp, NULL, NULL,
+			print_metric(config, ctxp, color, /*unit=*/NULL,
 				     out->force_header ?
 				     (metric_name ? metric_name : name) : "", 0);
 		}
 	} else {
-		print_metric(config, ctxp, NULL, NULL,
+		print_metric(config, ctxp, color, /*unit=*/NULL,
 			     out->force_header ?
 			     (metric_name ? metric_name : name) : "", 0);
 	}
@@ -1214,9 +1222,9 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		list_for_each_entry (mexp, &me->head, nd) {
 			if (num++ > 0)
 				out->new_line(config, ctxp);
-			generic_metric(config, mexp->metric_expr, mexp->metric_events,
-				       mexp->metric_refs, evsel->name, mexp->metric_name,
-				       mexp->metric_unit, mexp->runtime,
+			generic_metric(config, mexp->metric_expr, mexp->metric_threshold,
+				       mexp->metric_events, mexp->metric_refs, evsel->name,
+				       mexp->metric_name, mexp->metric_unit, mexp->runtime,
 				       map_idx, out, st);
 		}
 	}
