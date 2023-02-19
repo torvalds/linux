@@ -129,7 +129,7 @@ struct mlx5e_ipsec_work {
 };
 
 struct mlx5e_ipsec_aso {
-	u8 ctx[MLX5_ST_SZ_BYTES(ipsec_aso)];
+	u8 __aligned(64) ctx[MLX5_ST_SZ_BYTES(ipsec_aso)];
 	dma_addr_t dma_addr;
 	struct mlx5_aso *aso;
 	/* Protect ASO WQ access, as it is global to whole IPsec */
