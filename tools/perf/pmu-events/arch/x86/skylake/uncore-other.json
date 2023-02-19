@@ -33,6 +33,7 @@
         "Unit": "ARB"
     },
     {
+        "BriefDescription": "UNC_ARB_TRK_REQUESTS.ALL",
         "EventCode": "0x81",
         "EventName": "UNC_ARB_TRK_REQUESTS.ALL",
         "PerPkg": "1",
