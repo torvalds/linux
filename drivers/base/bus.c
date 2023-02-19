@@ -41,11 +41,9 @@ static int __must_check bus_rescan_devices_helper(struct device *dev,
 
 static struct bus_type *bus_get(struct bus_type *bus)
 {
-	if (bus) {
+	if (bus)
 		kset_get(&bus->p->subsys);
-		return bus;
-	}
-	return NULL;
+	return bus;
 }
 
 static void bus_put(struct bus_type *bus)
