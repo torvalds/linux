@@ -2125,11 +2125,16 @@ static void btrfs_init_balance(struct btrfs_fs_info *fs_info)
 	atomic_set(&fs_info->reloc_cancel_req, 0);
 }
 
-static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
+static int btrfs_init_btree_inode(struct super_block *sb)
 {
-	struct inode *inode = fs_info->btree_inode;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	unsigned long hash = btrfs_inode_hash(BTRFS_BTREE_INODE_OBJECTID,
 					      fs_info->tree_root);
+	struct inode *inode;
+
+	inode = new_inode(sb);
+	if (!inode)
+		return -ENOMEM;
 
 	inode->i_ino = BTRFS_BTREE_INODE_OBJECTID;
 	set_nlink(inode, 1);
@@ -2140,6 +2145,7 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 	 */
 	inode->i_size = OFFSET_MAX;
 	inode->i_mapping->a_ops = &btree_aops;
+	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 
 	RB_CLEAR_NODE(&BTRFS_I(inode)->rb_node);
 	extent_io_tree_init(fs_info, &BTRFS_I(inode)->io_tree,
@@ -2152,6 +2158,9 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 	BTRFS_I(inode)->location.offset = 0;
 	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);
 	__insert_inode_hash(inode, hash);
+	fs_info->btree_inode = inode;
+
+	return 0;
 }
 
 static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
@@ -3365,13 +3374,11 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		goto fail;
 	}
 
-	fs_info->btree_inode = new_inode(sb);
-	if (!fs_info->btree_inode) {
-		err = -ENOMEM;
+	ret = btrfs_init_btree_inode(sb);
+	if (ret) {
+		err = ret;
 		goto fail;
 	}
-	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
-	btrfs_init_btree_inode(fs_info);
 
 	invalidate_bdev(fs_devices->latest_dev->bdev);
 
