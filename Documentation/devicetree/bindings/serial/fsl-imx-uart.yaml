@@ -49,6 +49,16 @@ properties:
   reg:
     maxItems: 1
 
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
   interrupts:
     maxItems: 1
 
@@ -100,6 +110,8 @@ examples:
         compatible = "fsl,imx51-uart", "fsl,imx21-uart";
         reg = <0x73fbc000 0x4000>;
         interrupts = <31>;
+        dmas = <&sdma 18 4 1>, <&sdma 19 4 2>;
+        dma-names = "rx", "tx";
         uart-has-rtscts;
         fsl,dte-mode;
     };
