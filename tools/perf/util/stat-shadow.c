@@ -16,21 +16,8 @@
 #include "iostat.h"
 #include "util/hashmap.h"
 
-/*
- * AGGR_GLOBAL: Use CPU 0
- * AGGR_SOCKET: Use first CPU of socket
- * AGGR_DIE: Use first CPU of die
- * AGGR_CORE: Use first CPU of core
- * AGGR_NONE: Use matching CPU
- * AGGR_THREAD: Not supported?
- */
-
 struct stats walltime_nsecs_stats;
 struct rusage_stats ru_stats;
-
-static struct runtime_stat {
-	struct rblist value_list;
-} rt_stat;
 
 enum {
 	CTX_BIT_USER	= 1 << 0,
@@ -65,117 +52,6 @@ enum stat_type {
 	STAT_MAX
 };
 
-struct saved_value {
-	struct rb_node rb_node;
-	struct evsel *evsel;
-	enum stat_type type;
-	int ctx;
-	int map_idx;  /* cpu or thread map index */
-	struct cgroup *cgrp;
-	struct stats stats;
-	u64 metric_total;
-	int metric_other;
-};
-
-static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
-{
-	struct saved_value *a = container_of(rb_node,
-					     struct saved_value,
-					     rb_node);
-	const struct saved_value *b = entry;
-
-	if (a->map_idx != b->map_idx)
-		return a->map_idx - b->map_idx;
-
-	/*
-	 * Previously the rbtree was used to link generic metrics.
-	 * The keys were evsel/cpu. Now the rbtree is extended to support
-	 * per-thread shadow stats. For shadow stats case, the keys
-	 * are cpu/type/ctx/stat (evsel is NULL). For generic metrics
-	 * case, the keys are still evsel/cpu (type/ctx/stat are 0 or NULL).
-	 */
-	if (a->type != b->type)
-		return a->type - b->type;
-
-	if (a->ctx != b->ctx)
-		return a->ctx - b->ctx;
-
-	if (a->cgrp != b->cgrp)
-		return (char *)a->cgrp < (char *)b->cgrp ? -1 : +1;
-
-	if (a->evsel == b->evsel)
-		return 0;
-	if ((char *)a->evsel < (char *)b->evsel)
-		return -1;
-	return +1;
-}
-
-static struct rb_node *saved_value_new(struct rblist *rblist __maybe_unused,
-				     const void *entry)
-{
-	struct saved_value *nd = malloc(sizeof(struct saved_value));
-
-	if (!nd)
-		return NULL;
-	memcpy(nd, entry, sizeof(struct saved_value));
-	return &nd->rb_node;
-}
-
-static void saved_value_delete(struct rblist *rblist __maybe_unused,
-			       struct rb_node *rb_node)
-{
-	struct saved_value *v;
-
-	BUG_ON(!rb_node);
-	v = container_of(rb_node, struct saved_value, rb_node);
-	free(v);
-}
-
-static struct saved_value *saved_value_lookup(struct evsel *evsel,
-					      int map_idx,
-					      bool create,
-					      enum stat_type type,
-					      int ctx,
-					      struct cgroup *cgrp)
-{
-	struct rblist *rblist;
-	struct rb_node *nd;
-	struct saved_value dm = {
-		.map_idx = map_idx,
-		.evsel = evsel,
-		.type = type,
-		.ctx = ctx,
-		.cgrp = cgrp,
-	};
-
-	rblist = &rt_stat.value_list;
-
-	/* don't use context info for clock events */
-	if (type == STAT_NSECS)
-		dm.ctx = 0;
-
-	nd = rblist__find(rblist, &dm);
-	if (nd)
-		return container_of(nd, struct saved_value, rb_node);
-	if (create) {
-		rblist__add_node(rblist, &dm);
-		nd = rblist__find(rblist, &dm);
-		if (nd)
-			return container_of(nd, struct saved_value, rb_node);
-	}
-	return NULL;
-}
-
-void perf_stat__init_shadow_stats(void)
-{
-	struct rblist *rblist = &rt_stat.value_list;
-
-	rblist__init(rblist);
-	rblist->node_cmp = saved_value_cmp;
-	rblist->node_new = saved_value_new;
-	rblist->node_delete = saved_value_delete;
-}
-
 static int evsel_context(const struct evsel *evsel)
 {
 	int ctx = 0;
@@ -194,84 +70,10 @@ static int evsel_context(const struct evsel *evsel)
 	return ctx;
 }
 
-void perf_stat__reset_shadow_per_stat(void)
-{
-	struct rblist *rblist;
-	struct rb_node *pos, *next;
-
-	rblist = &rt_stat.value_list;
-	next = rb_first_cached(&rblist->entries);
-	while (next) {
-		pos = next;
-		next = rb_next(pos);
-		memset(&container_of(pos, struct saved_value, rb_node)->stats,
-		       0,
-		       sizeof(struct stats));
-	}
-}
-
 void perf_stat__reset_shadow_stats(void)
 {
-	perf_stat__reset_shadow_per_stat();
 	memset(&walltime_nsecs_stats, 0, sizeof(walltime_nsecs_stats));
 	memset(&ru_stats, 0, sizeof(ru_stats));
-}
-
-struct runtime_stat_data {
-	int ctx;
-	struct cgroup *cgrp;
-};
-
-static void update_runtime_stat(enum stat_type type,
-				int map_idx, u64 count,
-				struct runtime_stat_data *rsd)
-{
-	struct saved_value *v = saved_value_lookup(NULL, map_idx, true, type,
-						   rsd->ctx, rsd->cgrp);
-
-	if (v)
-		update_stats(&v->stats, count);
-}
-
-/*
- * Update various tracking values we maintain to print
- * more semantic information such as miss/hit ratios,
- * instruction rates, etc:
- */
-void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
-				    int aggr_idx)
-{
-	u64 count_ns = count;
-	struct runtime_stat_data rsd = {
-		.ctx = evsel_context(counter),
-		.cgrp = counter->cgrp,
-	};
-	count *= counter->scale;
-
-	if (evsel__is_clock(counter))
-		update_runtime_stat(STAT_NSECS, aggr_idx, count_ns, &rsd);
-	else if (evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_runtime_stat(STAT_CYCLES, aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
-		update_runtime_stat(STAT_STALLED_CYCLES_FRONT,
-				    aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
-		update_runtime_stat(STAT_STALLED_CYCLES_BACK,
-				    aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_runtime_stat(STAT_BRANCHES, aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
-		update_runtime_stat(STAT_CACHE_REFS, aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
-		update_runtime_stat(STAT_L1_DCACHE, aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
-		update_runtime_stat(STAT_L1_ICACHE, aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HW_CACHE, HW_CACHE_LL))
-		update_runtime_stat(STAT_LL_CACHE, aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
-		update_runtime_stat(STAT_DTLB_CACHE, aggr_idx, count, &rsd);
-	else if (evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
-		update_runtime_stat(STAT_ITLB_CACHE, aggr_idx, count, &rsd);
 }
 
 static enum stat_type evsel__stat_type(const struct evsel *evsel)

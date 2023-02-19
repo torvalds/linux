@@ -648,30 +648,6 @@ void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *e
 		evsel__process_percore(evsel);
 }
 
-static void evsel__update_shadow_stats(struct evsel *evsel)
-{
-	struct perf_stat_evsel *ps = evsel->stats;
-	int aggr_idx;
-
-	if (ps->aggr == NULL)
-		return;
-
-	for (aggr_idx = 0; aggr_idx < ps->nr_aggr; aggr_idx++) {
-		struct perf_counts_values *aggr_counts = &ps->aggr[aggr_idx].counts;
-
-		perf_stat__update_shadow_stats(evsel, aggr_counts->val, aggr_idx);
-	}
-}
-
-void perf_stat_process_shadow_stats(struct perf_stat_config *config __maybe_unused,
-				    struct evlist *evlist)
-{
-	struct evsel *evsel;
-
-	evlist__for_each_entry(evlist, evsel)
-		evsel__update_shadow_stats(evsel);
-}
-
 int perf_event__process_stat_event(struct perf_session *session,
 				   union perf_event *event)
 {

@@ -296,7 +296,6 @@ static int test_metric_group(void)
 
 static int test__parse_metric(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	perf_stat__init_shadow_stats();
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
 	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
 	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);

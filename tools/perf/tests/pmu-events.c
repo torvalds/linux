@@ -905,7 +905,6 @@ static int test__parsing(struct test_suite *test __maybe_unused,
 {
 	int failures = 0;
 
-	perf_stat__init_shadow_stats();
 	pmu_for_each_core_metric(test__parsing_callback, &failures);
 	pmu_for_each_sys_metric(test__parsing_callback, &failures);
 
