@@ -402,7 +402,7 @@ double arch_get_tsc_freq(void)
 
 double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx)
 {
-	static struct cpu_topology *topology;
+	const struct cpu_topology *topology;
 	double result = NAN;
 
 	if (!strcmp("#num_cpus", literal)) {
@@ -421,31 +421,27 @@ double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx
 	 * these strings gives an indication of the number of packages, dies,
 	 * etc.
 	 */
-	if (!topology) {
-		topology = cpu_topology__new();
-		if (!topology) {
-			pr_err("Error creating CPU topology");
-			goto out;
-		}
-	}
 	if (!strcasecmp("#smt_on", literal)) {
-		result = smt_on(topology) ? 1.0 : 0.0;
+		result = smt_on() ? 1.0 : 0.0;
 		goto out;
 	}
 	if (!strcmp("#core_wide", literal)) {
-		result = core_wide(ctx->system_wide, ctx->user_requested_cpu_list, topology)
+		result = core_wide(ctx->system_wide, ctx->user_requested_cpu_list)
 			? 1.0 : 0.0;
 		goto out;
 	}
 	if (!strcmp("#num_packages", literal)) {
+		topology = online_topology();
 		result = topology->package_cpus_lists;
 		goto out;
 	}
 	if (!strcmp("#num_dies", literal)) {
+		topology = online_topology();
 		result = topology->die_cpus_lists;
 		goto out;
 	}
 	if (!strcmp("#num_cores", literal)) {
+		topology = online_topology();
 		result = topology->core_cpus_lists;
 		goto out;
 	}
