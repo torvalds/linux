@@ -806,7 +806,7 @@ void rtl92e_link_change(struct net_device *dev)
 
 	if (ieee->state == RTLLIB_LINKED) {
 		_rtl92e_net_update(dev);
-		priv->ops->update_ratr_table(dev);
+		rtl92e_update_ratr_table(dev);
 		if ((ieee->pairwise_key_type == KEY_TYPE_WEP40) ||
 		    (ieee->pairwise_key_type == KEY_TYPE_WEP104))
 			rtl92e_enable_hw_security_config(dev);
