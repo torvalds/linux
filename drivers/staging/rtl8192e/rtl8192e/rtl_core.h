@@ -207,10 +207,6 @@ struct rtl819x_ops {
 	enum nic_t nic_type;
 	void (*init_before_adapter_start)(struct net_device *dev);
 	void (*link_change)(struct net_device *dev);
-	void (*tx_fill_descriptor)(struct net_device *dev,
-				   struct tx_desc *tx_desc,
-				   struct cb_desc *cb_desc,
-				   struct sk_buff *skb);
 	void (*tx_fill_cmd_descriptor)(struct net_device *dev,
 				       struct tx_desc_cmd *entry,
 				       struct cb_desc *cb_desc,
