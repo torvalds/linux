@@ -231,7 +231,7 @@ static void update_runtime_stat(enum stat_type type,
  * instruction rates, etc:
  */
 void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
-				    int map_idx)
+				    int aggr_idx)
 {
 	u64 count_ns = count;
 	struct saved_value *v;
@@ -242,39 +242,39 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 	count *= counter->scale;
 
 	if (evsel__is_clock(counter))
-		update_runtime_stat(STAT_NSECS, map_idx, count_ns, &rsd);
+		update_runtime_stat(STAT_NSECS, aggr_idx, count_ns, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_runtime_stat(STAT_CYCLES, map_idx, count, &rsd);
+		update_runtime_stat(STAT_CYCLES, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
 		update_runtime_stat(STAT_STALLED_CYCLES_FRONT,
-				    map_idx, count, &rsd);
+				    aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
 		update_runtime_stat(STAT_STALLED_CYCLES_BACK,
-				    map_idx, count, &rsd);
+				    aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_runtime_stat(STAT_BRANCHES, map_idx, count, &rsd);
+		update_runtime_stat(STAT_BRANCHES, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
-		update_runtime_stat(STAT_CACHEREFS, map_idx, count, &rsd);
+		update_runtime_stat(STAT_CACHEREFS, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
-		update_runtime_stat(STAT_L1_DCACHE, map_idx, count, &rsd);
+		update_runtime_stat(STAT_L1_DCACHE, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
-		update_runtime_stat(STAT_L1_ICACHE, map_idx, count, &rsd);
+		update_runtime_stat(STAT_L1_ICACHE, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_LL))
-		update_runtime_stat(STAT_LL_CACHE, map_idx, count, &rsd);
+		update_runtime_stat(STAT_LL_CACHE, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
-		update_runtime_stat(STAT_DTLB_CACHE, map_idx, count, &rsd);
+		update_runtime_stat(STAT_DTLB_CACHE, aggr_idx, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
-		update_runtime_stat(STAT_ITLB_CACHE, map_idx, count, &rsd);
+		update_runtime_stat(STAT_ITLB_CACHE, aggr_idx, count, &rsd);
 
 	if (counter->collect_stat) {
-		v = saved_value_lookup(counter, map_idx, true, STAT_NONE, 0,
+		v = saved_value_lookup(counter, aggr_idx, true, STAT_NONE, 0,
 				       rsd.cgrp);
 		update_stats(&v->stats, count);
 		if (counter->metric_leader)
 			v->metric_total += count;
 	} else if (counter->metric_leader && !counter->merged_stat) {
 		v = saved_value_lookup(counter->metric_leader,
-				       map_idx, true, STAT_NONE, 0, rsd.cgrp);
+				       aggr_idx, true, STAT_NONE, 0, rsd.cgrp);
 		v->metric_total += count;
 		v->metric_other++;
 	}
@@ -307,24 +307,24 @@ static const char *get_ratio_color(enum grc_type type, double ratio)
 	return color;
 }
 
-static double runtime_stat_avg(enum stat_type type, int map_idx,
+static double runtime_stat_avg(enum stat_type type, int aggr_idx,
 			       struct runtime_stat_data *rsd)
 {
 	struct saved_value *v;
 
-	v = saved_value_lookup(NULL, map_idx, false, type, rsd->ctx, rsd->cgrp);
+	v = saved_value_lookup(NULL, aggr_idx, false, type, rsd->ctx, rsd->cgrp);
 	if (!v)
 		return 0.0;
 
 	return avg_stats(&v->stats);
 }
 
-static double runtime_stat_n(enum stat_type type, int map_idx,
+static double runtime_stat_n(enum stat_type type, int aggr_idx,
 			     struct runtime_stat_data *rsd)
 {
 	struct saved_value *v;
 
-	v = saved_value_lookup(NULL, map_idx, false, type, rsd->ctx, rsd->cgrp);
+	v = saved_value_lookup(NULL, aggr_idx, false, type, rsd->ctx, rsd->cgrp);
 	if (!v)
 		return 0.0;
 
@@ -332,14 +332,14 @@ static double runtime_stat_n(enum stat_type type, int map_idx,
 }
 
 static void print_stalled_cycles_frontend(struct perf_stat_config *config,
-					  int map_idx, double avg,
+					  int aggr_idx, double avg,
 					  struct perf_stat_output_ctx *out,
 					  struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_CYCLES, map_idx, rsd);
+	total = runtime_stat_avg(STAT_CYCLES, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -354,14 +354,14 @@ static void print_stalled_cycles_frontend(struct perf_stat_config *config,
 }
 
 static void print_stalled_cycles_backend(struct perf_stat_config *config,
-					 int map_idx, double avg,
+					 int aggr_idx, double avg,
 					 struct perf_stat_output_ctx *out,
 					 struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_CYCLES, map_idx, rsd);
+	total = runtime_stat_avg(STAT_CYCLES, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -372,14 +372,14 @@ static void print_stalled_cycles_backend(struct perf_stat_config *config,
 }
 
 static void print_branch_misses(struct perf_stat_config *config,
-				int map_idx, double avg,
+				int aggr_idx, double avg,
 				struct perf_stat_output_ctx *out,
 				struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_BRANCHES, map_idx, rsd);
+	total = runtime_stat_avg(STAT_BRANCHES, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -390,14 +390,14 @@ static void print_branch_misses(struct perf_stat_config *config,
 }
 
 static void print_l1_dcache_misses(struct perf_stat_config *config,
-				   int map_idx, double avg,
+				   int aggr_idx, double avg,
 				   struct perf_stat_output_ctx *out,
 				   struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_L1_DCACHE, map_idx, rsd);
+	total = runtime_stat_avg(STAT_L1_DCACHE, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -408,14 +408,14 @@ static void print_l1_dcache_misses(struct perf_stat_config *config,
 }
 
 static void print_l1_icache_misses(struct perf_stat_config *config,
-				   int map_idx, double avg,
+				   int aggr_idx, double avg,
 				   struct perf_stat_output_ctx *out,
 				   struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_L1_ICACHE, map_idx, rsd);
+	total = runtime_stat_avg(STAT_L1_ICACHE, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -425,14 +425,14 @@ static void print_l1_icache_misses(struct perf_stat_config *config,
 }
 
 static void print_dtlb_cache_misses(struct perf_stat_config *config,
-				    int map_idx, double avg,
+				    int aggr_idx, double avg,
 				    struct perf_stat_output_ctx *out,
 				    struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_DTLB_CACHE, map_idx, rsd);
+	total = runtime_stat_avg(STAT_DTLB_CACHE, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -442,14 +442,14 @@ static void print_dtlb_cache_misses(struct perf_stat_config *config,
 }
 
 static void print_itlb_cache_misses(struct perf_stat_config *config,
-				    int map_idx, double avg,
+				    int aggr_idx, double avg,
 				    struct perf_stat_output_ctx *out,
 				    struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_ITLB_CACHE, map_idx, rsd);
+	total = runtime_stat_avg(STAT_ITLB_CACHE, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -459,14 +459,14 @@ static void print_itlb_cache_misses(struct perf_stat_config *config,
 }
 
 static void print_ll_cache_misses(struct perf_stat_config *config,
-				  int map_idx, double avg,
+				  int aggr_idx, double avg,
 				  struct perf_stat_output_ctx *out,
 				  struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
 
-	total = runtime_stat_avg(STAT_LL_CACHE, map_idx, rsd);
+	total = runtime_stat_avg(STAT_LL_CACHE, aggr_idx, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -478,7 +478,7 @@ static void print_ll_cache_misses(struct perf_stat_config *config,
 static int prepare_metric(struct evsel **metric_events,
 			  struct metric_ref *metric_refs,
 			  struct expr_parse_ctx *pctx,
-			  int map_idx)
+			  int aggr_idx)
 {
 	double scale;
 	char *n;
@@ -516,7 +516,7 @@ static int prepare_metric(struct evsel **metric_events,
 				abort();
 			}
 		} else {
-			v = saved_value_lookup(metric_events[i], map_idx, false,
+			v = saved_value_lookup(metric_events[i], aggr_idx, false,
 					       STAT_NONE, 0,
 					       metric_events[i]->cgrp);
 			if (!v)
@@ -560,7 +560,7 @@ static void generic_metric(struct perf_stat_config *config,
 			   const char *metric_name,
 			   const char *metric_unit,
 			   int runtime,
-			   int map_idx,
+			   int aggr_idx,
 			   struct perf_stat_output_ctx *out)
 {
 	print_metric_t print_metric = out->print_metric;
@@ -578,7 +578,7 @@ static void generic_metric(struct perf_stat_config *config,
 		pctx->sctx.user_requested_cpu_list = strdup(config->user_requested_cpu_list);
 	pctx->sctx.runtime = runtime;
 	pctx->sctx.system_wide = config->system_wide;
-	i = prepare_metric(metric_events, metric_refs, pctx, map_idx);
+	i = prepare_metric(metric_events, metric_refs, pctx, aggr_idx);
 	if (i < 0) {
 		expr__ctx_free(pctx);
 		return;
@@ -630,7 +630,7 @@ static void generic_metric(struct perf_stat_config *config,
 	expr__ctx_free(pctx);
 }
 
-double test_generic_metric(struct metric_expr *mexp, int map_idx)
+double test_generic_metric(struct metric_expr *mexp, int aggr_idx)
 {
 	struct expr_parse_ctx *pctx;
 	double ratio = 0.0;
@@ -639,7 +639,7 @@ double test_generic_metric(struct metric_expr *mexp, int map_idx)
 	if (!pctx)
 		return NAN;
 
-	if (prepare_metric(mexp->metric_events, mexp->metric_refs, pctx, map_idx) < 0)
+	if (prepare_metric(mexp->metric_events, mexp->metric_refs, pctx, aggr_idx) < 0)
 		goto out;
 
 	if (expr__parse(&ratio, pctx, mexp->metric_expr))
@@ -652,7 +652,7 @@ out:
 
 void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
-				   double avg, int map_idx,
+				   double avg, int aggr_idx,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events)
 {
@@ -669,7 +669,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 	if (config->iostat_run) {
 		iostat_print_metric(config, evsel, out);
 	} else if (evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
-		total = runtime_stat_avg(STAT_CYCLES, map_idx, &rsd);
+		total = runtime_stat_avg(STAT_CYCLES, aggr_idx, &rsd);
 
 		if (total) {
 			ratio = avg / total;
@@ -679,10 +679,10 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			print_metric(config, ctxp, NULL, NULL, "insn per cycle", 0);
 		}
 
-		total = runtime_stat_avg(STAT_STALLED_CYCLES_FRONT, map_idx, &rsd);
+		total = runtime_stat_avg(STAT_STALLED_CYCLES_FRONT, aggr_idx, &rsd);
 
 		total = max(total, runtime_stat_avg(STAT_STALLED_CYCLES_BACK,
-						    map_idx, &rsd));
+						    aggr_idx, &rsd));
 
 		if (total && avg) {
 			out->new_line(config, ctxp);
@@ -692,8 +692,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					ratio);
 		}
 	} else if (evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES)) {
-		if (runtime_stat_n(STAT_BRANCHES, map_idx, &rsd) != 0)
-			print_branch_misses(config, map_idx, avg, out, &rsd);
+		if (runtime_stat_n(STAT_BRANCHES, aggr_idx, &rsd) != 0)
+			print_branch_misses(config, aggr_idx, avg, out, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all branches", 0);
 	} else if (
@@ -702,8 +702,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(STAT_L1_DCACHE, map_idx, &rsd) != 0)
-			print_l1_dcache_misses(config, map_idx, avg, out, &rsd);
+		if (runtime_stat_n(STAT_L1_DCACHE, aggr_idx, &rsd) != 0)
+			print_l1_dcache_misses(config, aggr_idx, avg, out, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all L1-dcache accesses", 0);
 	} else if (
@@ -712,8 +712,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(STAT_L1_ICACHE, map_idx, &rsd) != 0)
-			print_l1_icache_misses(config, map_idx, avg, out, &rsd);
+		if (runtime_stat_n(STAT_L1_ICACHE, aggr_idx, &rsd) != 0)
+			print_l1_icache_misses(config, aggr_idx, avg, out, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all L1-icache accesses", 0);
 	} else if (
@@ -722,8 +722,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(STAT_DTLB_CACHE, map_idx, &rsd) != 0)
-			print_dtlb_cache_misses(config, map_idx, avg, out, &rsd);
+		if (runtime_stat_n(STAT_DTLB_CACHE, aggr_idx, &rsd) != 0)
+			print_dtlb_cache_misses(config, aggr_idx, avg, out, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all dTLB cache accesses", 0);
 	} else if (
@@ -732,8 +732,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(STAT_ITLB_CACHE, map_idx, &rsd) != 0)
-			print_itlb_cache_misses(config, map_idx, avg, out, &rsd);
+		if (runtime_stat_n(STAT_ITLB_CACHE, aggr_idx, &rsd) != 0)
+			print_itlb_cache_misses(config, aggr_idx, avg, out, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all iTLB cache accesses", 0);
 	} else if (
@@ -742,27 +742,27 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(STAT_LL_CACHE, map_idx, &rsd) != 0)
-			print_ll_cache_misses(config, map_idx, avg, out, &rsd);
+		if (runtime_stat_n(STAT_LL_CACHE, aggr_idx, &rsd) != 0)
+			print_ll_cache_misses(config, aggr_idx, avg, out, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all LL-cache accesses", 0);
 	} else if (evsel__match(evsel, HARDWARE, HW_CACHE_MISSES)) {
-		total = runtime_stat_avg(STAT_CACHEREFS, map_idx, &rsd);
+		total = runtime_stat_avg(STAT_CACHEREFS, aggr_idx, &rsd);
 
 		if (total)
 			ratio = avg * 100 / total;
 
-		if (runtime_stat_n(STAT_CACHEREFS, map_idx, &rsd) != 0)
+		if (runtime_stat_n(STAT_CACHEREFS, aggr_idx, &rsd) != 0)
 			print_metric(config, ctxp, NULL, "%8.3f %%",
 				     "of all cache refs", ratio);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all cache refs", 0);
 	} else if (evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_FRONTEND)) {
-		print_stalled_cycles_frontend(config, map_idx, avg, out, &rsd);
+		print_stalled_cycles_frontend(config, aggr_idx, avg, out, &rsd);
 	} else if (evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_BACKEND)) {
-		print_stalled_cycles_backend(config, map_idx, avg, out, &rsd);
+		print_stalled_cycles_backend(config, aggr_idx, avg, out, &rsd);
 	} else if (evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
-		total = runtime_stat_avg(STAT_NSECS, map_idx, &rsd);
+		total = runtime_stat_avg(STAT_NSECS, aggr_idx, &rsd);
 
 		if (total) {
 			ratio = avg / total;
@@ -776,11 +776,11 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				     avg / (ratio * evsel->scale));
 		else
 			print_metric(config, ctxp, NULL, NULL, "CPUs utilized", 0);
-	} else if (runtime_stat_n(STAT_NSECS, map_idx, &rsd) != 0) {
+	} else if (runtime_stat_n(STAT_NSECS, aggr_idx, &rsd) != 0) {
 		char unit = ' ';
 		char unit_buf[10] = "/sec";
 
-		total = runtime_stat_avg(STAT_NSECS, map_idx, &rsd);
+		total = runtime_stat_avg(STAT_NSECS, aggr_idx, &rsd);
 		if (total)
 			ratio = convert_unit_double(1000000000.0 * avg / total, &unit);
 
@@ -800,7 +800,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			generic_metric(config, mexp->metric_expr, mexp->metric_threshold,
 				       mexp->metric_events, mexp->metric_refs, evsel->name,
 				       mexp->metric_name, mexp->metric_unit, mexp->runtime,
-				       map_idx, out);
+				       aggr_idx, out);
 		}
 	}
 	if (num == 0)

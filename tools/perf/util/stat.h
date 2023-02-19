@@ -160,7 +160,7 @@ typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
 void perf_stat__reset_shadow_per_stat(void);
-void perf_stat__update_shadow_stats(struct evsel *counter, u64 count, int map_idx);
+void perf_stat__update_shadow_stats(struct evsel *counter, u64 count, int aggr_idx);
 struct perf_stat_output_ctx {
 	void *ctx;
 	print_metric_t print_metric;
@@ -170,7 +170,7 @@ struct perf_stat_output_ctx {
 
 void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
-				   double avg, int map_idx,
+				   double avg, int aggr_idx,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events);
 
@@ -211,5 +211,5 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			    struct target *_target, struct timespec *ts, int argc, const char **argv);
 
 struct metric_expr;
-double test_generic_metric(struct metric_expr *mexp, int map_idx);
+double test_generic_metric(struct metric_expr *mexp, int aggr_idx);
 #endif

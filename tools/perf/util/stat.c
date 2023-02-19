@@ -651,15 +651,15 @@ void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *e
 static void evsel__update_shadow_stats(struct evsel *evsel)
 {
 	struct perf_stat_evsel *ps = evsel->stats;
-	int i;
+	int aggr_idx;
 
 	if (ps->aggr == NULL)
 		return;
 
-	for (i = 0; i < ps->nr_aggr; i++) {
-		struct perf_counts_values *aggr_counts = &ps->aggr[i].counts;
+	for (aggr_idx = 0; aggr_idx < ps->nr_aggr; aggr_idx++) {
+		struct perf_counts_values *aggr_counts = &ps->aggr[aggr_idx].counts;
 
-		perf_stat__update_shadow_stats(evsel, aggr_counts->val, i);
+		perf_stat__update_shadow_stats(evsel, aggr_counts->val, aggr_idx);
 	}
 }
 
