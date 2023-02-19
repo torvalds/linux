@@ -19,100 +19,17 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/lp855x.h>
 #include <linux/platform_device.h>
-#include <linux/power/bq24190_charger.h>
 #include <linux/reboot.h>
 #include <linux/rmi.h>
 #include <linux/spi/spi.h>
 
+#include "shared-psy-info.h"
 #include "x86-android-tablets.h"
-
-/* Generic / shared charger / battery settings */
-static const char * const tusb1211_chg_det_psy[] = { "tusb1211-charger-detect" };
-static const char * const bq24190_psy[] = { "bq24190-charger" };
-static const char * const bq25890_psy[] = { "bq25890-charger-0" };
-
-static const struct property_entry fg_bq24190_supply_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_psy),
-	{ }
-};
-
-static const struct software_node fg_bq24190_supply_node = {
-	.properties = fg_bq24190_supply_props,
-};
-
-static const struct property_entry fg_bq25890_supply_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq25890_psy),
-	{ }
-};
-
-static const struct software_node fg_bq25890_supply_node = {
-	.properties = fg_bq25890_supply_props,
-};
-
-/* LiPo HighVoltage (max 4.35V) settings used by most devs with a HV bat. */
-static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
-	PROPERTY_ENTRY_STRING("compatible", "simple-battery"),
-	PROPERTY_ENTRY_STRING("device-chemistry", "lithium-ion"),
-	PROPERTY_ENTRY_U32("precharge-current-microamp", 256000),
-	PROPERTY_ENTRY_U32("charge-term-current-microamp", 128000),
-	PROPERTY_ENTRY_U32("constant-charge-current-max-microamp", 1856000),
-	PROPERTY_ENTRY_U32("constant-charge-voltage-max-microvolt", 4352000),
-	PROPERTY_ENTRY_U32("factory-internal-resistance-micro-ohms", 150000),
-	{ }
-};
-
-static const struct software_node generic_lipo_hv_4v35_battery_node = {
-	.properties = generic_lipo_hv_4v35_battery_props,
-};
-
-/* For enabling the bq24190 5V boost based on id-pin */
-static struct regulator_consumer_supply intel_int3496_consumer = {
-	.supply = "vbus",
-	.dev_name = "intel-int3496",
-};
-
-static const struct regulator_init_data bq24190_vbus_init_data = {
-	.constraints = {
-		.name = "bq24190_vbus",
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-	},
-	.consumer_supplies = &intel_int3496_consumer,
-	.num_consumer_supplies = 1,
-};
-
-static struct bq24190_platform_data bq24190_pdata = {
-	.regulator_init_data = &bq24190_vbus_init_data,
-};
-
-static const char * const bq24190_modules[] __initconst = {
-	"intel_crystal_cove_charger", /* For the bq24190 IRQ */
-	"bq24190_charger",            /* For the Vbus regulator for intel-int3496 */
-	NULL
-};
-
-/* Generic pdevs array and gpio-lookups for micro USB ID pin handling */
-static const struct platform_device_info int3496_pdevs[] __initconst = {
-	{
-		/* For micro USB ID pin handling */
-		.name = "intel-int3496",
-		.id = PLATFORM_DEVID_NONE,
-	},
-};
 
 static struct gpiod_lookup_table int3496_gpo2_pin22_gpios = {
 	.dev_id = "intel-int3496",
 	.table = {
 		GPIO_LOOKUP("INT33FC:02", 22, "id", GPIO_ACTIVE_HIGH),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table int3496_reference_gpios = {
-	.dev_id = "intel-int3496",
-	.table = {
-		GPIO_LOOKUP("INT33FC:01", 15, "vbus", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:02", 1, "mux", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:02", 18, "id", GPIO_ACTIVE_HIGH),
 		{ }
 	},
 };
@@ -185,7 +102,7 @@ const struct x86_dev_info acer_b1_750_info __initconst = {
 	.i2c_client_info = acer_b1_750_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(acer_b1_750_i2c_clients),
 	.pdev_info = int3496_pdevs,
-	.pdev_count = ARRAY_SIZE(int3496_pdevs),
+	.pdev_count = 1,
 	.gpiod_lookup_tables = acer_b1_750_gpios,
 };
 
@@ -301,7 +218,7 @@ static const struct software_node asus_me176c_accel_node = {
 };
 
 static const struct property_entry asus_me176c_bq24190_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", tusb1211_chg_det_psy),
+	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", tusb1211_chg_det_psy, 1),
 	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
 	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
@@ -314,7 +231,7 @@ static const struct software_node asus_me176c_bq24190_node = {
 };
 
 static const struct property_entry asus_me176c_ug3105_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_psy),
+	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", bq24190_psy, 1),
 	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
 	PROPERTY_ENTRY_U32("upisemi,rsns-microohm", 10000),
 	{ }
@@ -469,7 +386,7 @@ static const struct software_node asus_tf103c_battery_node = {
 };
 
 static const struct property_entry asus_tf103c_bq24190_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", tusb1211_chg_det_psy),
+	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", tusb1211_chg_det_psy, 1),
 	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
 	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
@@ -482,7 +399,7 @@ static const struct software_node asus_tf103c_bq24190_node = {
 };
 
 static const struct property_entry asus_tf103c_ug3105_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_psy),
+	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", bq24190_psy, 1),
 	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
 	PROPERTY_ENTRY_U32("upisemi,rsns-microohm", 5000),
 	{ }
@@ -710,7 +627,7 @@ const struct x86_dev_info lenovo_yogabook_x9x_info __initconst = {
 
 /* Lenovo Yoga Tablet 2 1050F/L's Android factory img has everything hardcoded */
 static const struct property_entry lenovo_yoga_tab2_830_1050_bq24190_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", tusb1211_chg_det_psy),
+	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", tusb1211_chg_det_psy, 1),
 	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
 	PROPERTY_ENTRY_BOOL("disable-reset"),
@@ -818,7 +735,7 @@ struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initdata = {
 	.i2c_client_info = lenovo_yoga_tab2_830_1050_i2c_clients,
 	/* i2c_client_count gets set by lenovo_yoga_tab2_830_1050_init() */
 	.pdev_info = int3496_pdevs,
-	.pdev_count = ARRAY_SIZE(int3496_pdevs),
+	.pdev_count = 1,
 	.gpiod_lookup_tables = lenovo_yoga_tab2_830_1050_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
@@ -1231,7 +1148,7 @@ const struct x86_dev_info nextbook_ares8_info __initconst = {
 	.i2c_client_info = nextbook_ares8_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(nextbook_ares8_i2c_clients),
 	.pdev_info = int3496_pdevs,
-	.pdev_count = ARRAY_SIZE(int3496_pdevs),
+	.pdev_count = 1,
 	.gpiod_lookup_tables = nextbook_ares8_gpios,
 	.invalid_aei_gpiochip = "INT33FC:02",
 };
