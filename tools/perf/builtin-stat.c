@@ -100,30 +100,6 @@
 
 static void print_counters(struct timespec *ts, int argc, const char **argv);
 
-/* Default events used for perf stat -T */
-static const char *transaction_attrs = {
-	"task-clock,"
-	"{"
-	"instructions,"
-	"cycles,"
-	"cpu/cycles-t/,"
-	"cpu/tx-start/,"
-	"cpu/el-start/,"
-	"cpu/cycles-ct/"
-	"}"
-};
-
-/* More limited version when the CPU does not have all events. */
-static const char * transaction_limited_attrs = {
-	"task-clock,"
-	"{"
-	"instructions,"
-	"cycles,"
-	"cpu/cycles-t/,"
-	"cpu/tx-start/"
-	"}"
-};
-
 static const char *smi_cost_attrs = {
 	"{"
 	"msr/aperf/,"
@@ -1811,37 +1787,22 @@ static int add_default_attributes(void)
 		return 0;
 
 	if (transaction_run) {
-		struct parse_events_error errinfo;
 		/* Handle -T as -M transaction. Once platform specific metrics
 		 * support has been added to the json files, all architectures
 		 * will use this approach. To determine transaction support
 		 * on an architecture test for such a metric name.
 		 */
-		if (metricgroup__has_metric("transaction")) {
-			return metricgroup__parse_groups(evsel_list, "transaction",
-							 stat_config.metric_no_group,
-							 stat_config.metric_no_merge,
-							 stat_config.metric_no_threshold,
-							 stat_config.user_requested_cpu_list,
-							 stat_config.system_wide,
-							 &stat_config.metric_events);
+		if (!metricgroup__has_metric("transaction")) {
+			pr_err("Missing transaction metrics");
+			return -1;
 		}
-
-		parse_events_error__init(&errinfo);
-		if (pmu_have_event("cpu", "cycles-ct") &&
-		    pmu_have_event("cpu", "el-start"))
-			err = parse_events(evsel_list, transaction_attrs,
-					   &errinfo);
-		else
-			err = parse_events(evsel_list,
-					   transaction_limited_attrs,
-					   &errinfo);
-		if (err) {
-			fprintf(stderr, "Cannot set up transaction events\n");
-			parse_events_error__print(&errinfo, transaction_attrs);
-		}
-		parse_events_error__exit(&errinfo);
-		return err ? -1 : 0;
+		return metricgroup__parse_groups(evsel_list, "transaction",
+						stat_config.metric_no_group,
+						stat_config.metric_no_merge,
+						stat_config.metric_no_threshold,
+						stat_config.user_requested_cpu_list,
+						stat_config.system_wide,
+						&stat_config.metric_events);
 	}
 
 	if (smi_cost) {

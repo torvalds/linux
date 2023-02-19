@@ -235,12 +235,6 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 		update_runtime_stat(st, STAT_NSECS, map_idx, count_ns, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 		update_runtime_stat(st, STAT_CYCLES, map_idx, count, &rsd);
-	else if (perf_stat_evsel__is(counter, CYCLES_IN_TX))
-		update_runtime_stat(st, STAT_CYCLES_IN_TX, map_idx, count, &rsd);
-	else if (perf_stat_evsel__is(counter, TRANSACTION_START))
-		update_runtime_stat(st, STAT_TRANSACTION, map_idx, count, &rsd);
-	else if (perf_stat_evsel__is(counter, ELISION_START))
-		update_runtime_stat(st, STAT_ELISION, map_idx, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
 		update_runtime_stat(st, STAT_STALLED_CYCLES_FRONT,
 				    map_idx, count, &rsd);
@@ -695,7 +689,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 {
 	void *ctxp = out->ctx;
 	print_metric_t print_metric = out->print_metric;
-	double total, ratio = 0.0, total2;
+	double total, ratio = 0.0;
 	struct runtime_stat_data rsd = {
 		.ctx = evsel_context(evsel),
 		.cgrp = evsel->cgrp,
@@ -808,46 +802,6 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		} else {
 			print_metric(config, ctxp, NULL, NULL, "Ghz", 0);
 		}
-	} else if (perf_stat_evsel__is(evsel, CYCLES_IN_TX)) {
-		total = runtime_stat_avg(st, STAT_CYCLES, map_idx, &rsd);
-
-		if (total)
-			print_metric(config, ctxp, NULL,
-					"%7.2f%%", "transactional cycles",
-					100.0 * (avg / total));
-		else
-			print_metric(config, ctxp, NULL, NULL, "transactional cycles",
-				     0);
-	} else if (perf_stat_evsel__is(evsel, CYCLES_IN_TX_CP)) {
-		total = runtime_stat_avg(st, STAT_CYCLES, map_idx, &rsd);
-		total2 = runtime_stat_avg(st, STAT_CYCLES_IN_TX, map_idx, &rsd);
-
-		if (total2 < avg)
-			total2 = avg;
-		if (total)
-			print_metric(config, ctxp, NULL, "%7.2f%%", "aborted cycles",
-				100.0 * ((total2-avg) / total));
-		else
-			print_metric(config, ctxp, NULL, NULL, "aborted cycles", 0);
-	} else if (perf_stat_evsel__is(evsel, TRANSACTION_START)) {
-		total = runtime_stat_avg(st, STAT_CYCLES_IN_TX, map_idx, &rsd);
-
-		if (avg)
-			ratio = total / avg;
-
-		if (runtime_stat_n(st, STAT_CYCLES_IN_TX, map_idx, &rsd) != 0)
-			print_metric(config, ctxp, NULL, "%8.0f",
-				     "cycles / transaction", ratio);
-		else
-			print_metric(config, ctxp, NULL, NULL, "cycles / transaction",
-				      0);
-	} else if (perf_stat_evsel__is(evsel, ELISION_START)) {
-		total = runtime_stat_avg(st, STAT_CYCLES_IN_TX, map_idx, &rsd);
-
-		if (avg)
-			ratio = total / avg;
-
-		print_metric(config, ctxp, NULL, "%8.0f", "cycles / elision", ratio);
 	} else if (evsel__is_clock(evsel)) {
 		if ((ratio = avg_stats(&walltime_nsecs_stats)) != 0)
 			print_metric(config, ctxp, NULL, "%8.3f", "CPUs utilized",
