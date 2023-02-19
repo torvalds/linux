@@ -31,10 +31,10 @@ struct pmu_metric {
 	const char *metric_expr;
 	const char *unit;
 	const char *compat;
-	const char *aggr_mode;
 	const char *metric_constraint;
 	const char *desc;
 	const char *long_desc;
+	enum aggr_mode_class aggr_mode;
 };
 
 struct pmu_events_table;
