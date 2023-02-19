@@ -297,6 +297,12 @@ def define_msm_vm(
 
     define_uapi_library(target)
 
-    define_make_vm_dtb_img(target, dtb_list, vm_image_opts.dummy_img_size)
+    # use only dtbs related to the variant for dtb image creation
+    if "tuivm" in msm_target:
+        seg_dtb_list = [ dtb for dtb in dtb_list if "-vm-" in dtb ]
+    elif "oemvm" in msm_target:
+        seg_dtb_list = [ dtb for dtb in dtb_list if "-oemvm-" in dtb ]
+
+    define_make_vm_dtb_img(target, seg_dtb_list, vm_image_opts.dummy_img_size)
 
     define_extras(target, flavor = "vm")
