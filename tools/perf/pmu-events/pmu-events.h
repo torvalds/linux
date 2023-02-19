@@ -22,7 +22,6 @@ struct pmu_event {
 	const char *pmu;
 	const char *unit;
 	const char *perpkg;
-	const char *aggr_mode;
 	const char *deprecated;
 };
 

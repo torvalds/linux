@@ -44,7 +44,7 @@ _json_event_attributes = [
     # Seems useful, put it early.
     'event',
     # Short things in alphabetical order.
-    'aggr_mode', 'compat', 'deprecated', 'perpkg', 'unit',
+    'compat', 'deprecated', 'perpkg', 'unit',
     # Longer things (the last won't be iterated over during decompress).
     'long_desc'
 ]
