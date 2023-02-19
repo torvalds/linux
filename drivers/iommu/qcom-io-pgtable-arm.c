@@ -735,7 +735,7 @@ static int arm_lpae_map_by_pgsize(struct io_pgtable_ops *ops,
 		return -ERANGE;
 
 	/* If no access, then nothing to do */
-	if (!(prot & (IOMMU_READ | IOMMU_WRITE))) {
+	if (!(iommu_prot & (IOMMU_READ | IOMMU_WRITE))) {
 		/* Increment 'mapped' so that the IOVA can be incremented accordingly. */
 		*mapped += size;
 		return 0;
