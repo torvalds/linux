@@ -2833,6 +2833,16 @@
         "Unit": "IIO"
     },
     {
+        "BriefDescription": "Read request for 4 bytes made by IIO Part0-7 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00ff",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
         "BriefDescription": "Read request for 4 bytes made by IIO Part0 to Memory",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
@@ -2918,6 +2928,16 @@
         "PortMask": "0x0080",
         "PublicDescription": "Data requested of the CPU : Card reading from DRAM : Number of DWs (4 bytes) the card requests of the main die.    Includes all requests initiated by the Card, including reads and writes. : x4 card is plugged in to slot 3",
         "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Write request of 4 bytes made by IIO Part0-7 to Memory",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.ALL_PARTS",
+        "FCMask": "0x07",
+        "PerPkg": "1",
+        "PortMask": "0x00ff",
+        "UMask": "0x1",
         "Unit": "IIO"
     },
     {
@@ -4037,6 +4057,46 @@
         "PerPkg": "1",
         "PublicDescription": "FlowQ Generated Prefetch : Count cases where FlowQ causes spawn of Prefetch to iMC/SMI3 target",
         "Unit": "M3UPI"
+    },
+    {
+        "BriefDescription": "All CAS commands issued",
+        "EventCode": "0x05",
+        "EventName": "UNC_MCHBM_CAS_COUNT.ALL",
+        "PerPkg": "1",
+        "UMask": "0xff",
+        "Unit": "MCHBM"
+    },
+    {
+        "BriefDescription": "Read CAS commands issued (regular and underfill)",
+        "EventCode": "0x05",
+        "EventName": "UNC_MCHBM_CAS_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0xcf",
+        "Unit": "MCHBM"
+    },
+    {
+        "BriefDescription": "Regular read CAS commands issued (does not include underfills)",
+        "EventCode": "0x05",
+        "EventName": "UNC_MCHBM_CAS_COUNT.RD_REG",
+        "PerPkg": "1",
+        "UMask": "0xc1",
+        "Unit": "MCHBM"
+    },
+    {
+        "BriefDescription": "Underfill read CAS commands issued",
+        "EventCode": "0x05",
+        "EventName": "UNC_MCHBM_CAS_COUNT.RD_UNDERFILL",
+        "PerPkg": "1",
+        "UMask": "0xc4",
+        "Unit": "MCHBM"
+    },
+    {
+        "BriefDescription": "Write CAS commands issued",
+        "EventCode": "0x05",
+        "EventName": "UNC_MCHBM_CAS_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0xf0",
+        "Unit": "MCHBM"
     },
     {
         "BriefDescription": "UPI Clockticks",
