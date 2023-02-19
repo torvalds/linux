@@ -1076,6 +1076,12 @@ static const int bmp380_odr_table[][2] = {
 	[BMP380_ODR_0_0015HZ]	= {0, 1526},
 };
 
+static int bmp380_preinit(struct bmp280_data *data)
+{
+	/* BMP3xx requires soft-reset as part of initialization */
+	return bmp380_cmd(data, BMP380_CMD_SOFT_RESET);
+}
+
 static int bmp380_chip_config(struct bmp280_data *data)
 {
 	bool change = false, aux;
@@ -1206,6 +1212,7 @@ const struct bmp280_chip_info bmp380_chip_info = {
 	.read_temp = bmp380_read_temp,
 	.read_press = bmp380_read_press,
 	.read_calib = bmp380_read_calib,
+	.preinit = bmp380_preinit,
 };
 EXPORT_SYMBOL_NS(bmp380_chip_info, IIO_BMP280);
 
@@ -1605,11 +1612,11 @@ int bmp280_common_probe(struct device *dev,
 		return -EINVAL;
 	}
 
-	/* BMP3xx requires soft-reset as part of initialization */
-	if (chip_id == BMP380_CHIP_ID) {
-		ret = bmp380_cmd(data, BMP380_CMD_SOFT_RESET);
-		if (ret < 0)
-			return ret;
+	if (data->chip_info->preinit) {
+		ret = data->chip_info->preinit(data);
+		if (ret)
+			return dev_err_probe(data->dev, ret,
+					     "error running preinit tasks\n");
 	}
 
 	ret = data->chip_info->chip_config(data);

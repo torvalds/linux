@@ -345,6 +345,7 @@ struct bmp280_chip_info {
 	int (*read_press)(struct bmp280_data *, int *, int *);
 	int (*read_humid)(struct bmp280_data *, int *, int *);
 	int (*read_calib)(struct bmp280_data *);
+	int (*preinit)(struct bmp280_data *);
 };
 
 /* Chip infos for each variant */
