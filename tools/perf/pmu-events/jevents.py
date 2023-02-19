@@ -54,6 +54,8 @@ _json_metric_attributes = [
     'metric_name', 'metric_group', 'metric_expr', 'desc',
     'long_desc', 'unit', 'compat', 'aggr_mode', 'event_grouping'
 ]
+# Attributes that are bools or enum int values, encoded as '0', '1',...
+_json_enum_attributes = ['aggr_mode', 'deprecated', 'event_grouping', 'perpkg']
 
 def removesuffix(s: str, suffix: str) -> str:
   """Remove the suffix from a string
@@ -360,7 +362,10 @@ class JsonEvent:
         # Convert parsed metric expressions into a string. Slashes
         # must be doubled in the file.
         x = x.ToPerfJson().replace('\\', '\\\\')
-      s += f'{x}\\000' if x else '\\000'
+      if attr in _json_enum_attributes:
+        s += x if x else '0'
+      else:
+        s += f'{x}\\000' if x else '\\000'
     return s
 
   def to_c_string(self, metric: bool) -> str:
@@ -690,16 +695,18 @@ static void decompress_event(int offset, struct pmu_event *pe)
 {
 \tconst char *p = &big_c_string[offset];
 """)
-  enum_attributes = ['aggr_mode', 'deprecated', 'event_grouping', 'perpkg']
   for attr in _json_event_attributes:
     _args.output_file.write(f'\n\tpe->{attr} = ')
-    if attr in enum_attributes:
-      _args.output_file.write("(*p == '\\0' ? 0 : *p - '0');\n")
+    if attr in _json_enum_attributes:
+      _args.output_file.write("*p - '0';\n")
     else:
       _args.output_file.write("(*p == '\\0' ? NULL : p);\n")
     if attr == _json_event_attributes[-1]:
       continue
-    _args.output_file.write('\twhile (*p++);')
+    if attr in _json_enum_attributes:
+      _args.output_file.write('\tp++;')
+    else:
+      _args.output_file.write('\twhile (*p++);')
   _args.output_file.write("""}
 
 static void decompress_metric(int offset, struct pmu_metric *pm)
@@ -708,13 +715,16 @@ static void decompress_metric(int offset, struct pmu_metric *pm)
 """)
   for attr in _json_metric_attributes:
     _args.output_file.write(f'\n\tpm->{attr} = ')
-    if attr in enum_attributes:
-      _args.output_file.write("(*p == '\\0' ? 0 : *p - '0');\n")
+    if attr in _json_enum_attributes:
+      _args.output_file.write("*p - '0';\n")
     else:
       _args.output_file.write("(*p == '\\0' ? NULL : p);\n")
     if attr == _json_metric_attributes[-1]:
       continue
-    _args.output_file.write('\twhile (*p++);')
+    if attr in _json_enum_attributes:
+      _args.output_file.write('\tp++;')
+    else:
+      _args.output_file.write('\twhile (*p++);')
   _args.output_file.write("""}
 
 int pmu_events_table_for_each_event(const struct pmu_events_table *table,
