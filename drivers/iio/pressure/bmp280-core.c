@@ -13,6 +13,7 @@
  * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
  * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
  * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
+ * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp581-ds004.pdf
  *
  * Notice:
  * The link to the bmp180 datasheet points to an outdated version missing these changes:
@@ -69,6 +70,41 @@ enum bmp380_odr {
 	BMP380_ODR_0_006HZ,
 	BMP380_ODR_0_003HZ,
 	BMP380_ODR_0_0015HZ,
+};
+
+enum bmp580_odr {
+	BMP580_ODR_240HZ,
+	BMP580_ODR_218HZ,
+	BMP580_ODR_199HZ,
+	BMP580_ODR_179HZ,
+	BMP580_ODR_160HZ,
+	BMP580_ODR_149HZ,
+	BMP580_ODR_140HZ,
+	BMP580_ODR_129HZ,
+	BMP580_ODR_120HZ,
+	BMP580_ODR_110HZ,
+	BMP580_ODR_100HZ,
+	BMP580_ODR_89HZ,
+	BMP580_ODR_80HZ,
+	BMP580_ODR_70HZ,
+	BMP580_ODR_60HZ,
+	BMP580_ODR_50HZ,
+	BMP580_ODR_45HZ,
+	BMP580_ODR_40HZ,
+	BMP580_ODR_35HZ,
+	BMP580_ODR_30HZ,
+	BMP580_ODR_25HZ,
+	BMP580_ODR_20HZ,
+	BMP580_ODR_15HZ,
+	BMP580_ODR_10HZ,
+	BMP580_ODR_5HZ,
+	BMP580_ODR_4HZ,
+	BMP580_ODR_3HZ,
+	BMP580_ODR_2HZ,
+	BMP580_ODR_1HZ,
+	BMP580_ODR_0_5HZ,
+	BMP580_ODR_0_25HZ,
+	BMP580_ODR_0_125HZ,
 };
 
 /*
@@ -326,7 +362,7 @@ static u32 bmp280_compensate_press(struct bmp280_data *data,
 }
 
 static int bmp280_read_temp(struct bmp280_data *data,
-			    int *val)
+			    int *val, int *val2)
 {
 	s32 adc_temp, comp_temp;
 	int ret;
@@ -366,7 +402,7 @@ static int bmp280_read_press(struct bmp280_data *data,
 	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
-	ret = bmp280_read_temp(data, NULL);
+	ret = bmp280_read_temp(data, NULL, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -398,7 +434,7 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
-	ret = bmp280_read_temp(data, NULL);
+	ret = bmp280_read_temp(data, NULL, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -442,7 +478,7 @@ static int bmp280_read_raw(struct iio_dev *indio_dev,
 			ret = data->chip_info->read_press(data, val, val2);
 			break;
 		case IIO_TEMP:
-			ret = data->chip_info->read_temp(data, val);
+			ret = data->chip_info->read_temp(data, val, val2);
 			break;
 		default:
 			ret = -EINVAL;
@@ -954,7 +990,7 @@ static u32 bmp380_compensate_press(struct bmp280_data *data, u32 adc_press)
 	return comp_press;
 }
 
-static int bmp380_read_temp(struct bmp280_data *data, int *val)
+static int bmp380_read_temp(struct bmp280_data *data, int *val, int *val2)
 {
 	s32 comp_temp;
 	u32 adc_temp;
@@ -994,7 +1030,7 @@ static int bmp380_read_press(struct bmp280_data *data, int *val, int *val2)
 	int ret;
 
 	/* Read and compensate for temperature so we get a reading of t_fine */
-	ret = bmp380_read_temp(data, NULL);
+	ret = bmp380_read_temp(data, NULL, NULL);
 	if (ret)
 		return ret;
 
@@ -1216,6 +1252,298 @@ const struct bmp280_chip_info bmp380_chip_info = {
 };
 EXPORT_SYMBOL_NS(bmp380_chip_info, IIO_BMP280);
 
+static int bmp580_soft_reset(struct bmp280_data *data)
+{
+	unsigned int reg;
+	int ret;
+
+	ret = regmap_write(data->regmap, BMP580_REG_CMD, BMP580_CMD_SOFT_RESET);
+	if (ret) {
+		dev_err(data->dev, "failed to send reset command to device\n");
+		return ret;
+	}
+	usleep_range(2000, 2500);
+
+	/* Dummy read of chip_id */
+	ret = regmap_read(data->regmap, BMP580_REG_CHIP_ID, &reg);
+	if (ret) {
+		dev_err(data->dev, "failed to reestablish comms after reset\n");
+		return ret;
+	}
+
+	ret = regmap_read(data->regmap, BMP580_REG_INT_STATUS, &reg);
+	if (ret) {
+		dev_err(data->dev, "error reading interrupt status register\n");
+		return ret;
+	}
+	if (!(reg & BMP580_INT_STATUS_POR_MASK)) {
+		dev_err(data->dev, "error resetting sensor\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * Contrary to previous sensors families, compensation algorithm is builtin.
+ * We are only required to read the register raw data and adapt the ranges
+ * for what is expected on IIO ABI.
+ */
+
+static int bmp580_read_temp(struct bmp280_data *data, int *val, int *val2)
+{
+	s32 raw_temp;
+	int ret;
+
+	ret = regmap_bulk_read(data->regmap, BMP580_REG_TEMP_XLSB, data->buf,
+			       sizeof(data->buf));
+	if (ret) {
+		dev_err(data->dev, "failed to read temperature\n");
+		return ret;
+	}
+
+	raw_temp = get_unaligned_le24(data->buf);
+	if (raw_temp == BMP580_TEMP_SKIPPED) {
+		dev_err(data->dev, "reading temperature skipped\n");
+		return -EIO;
+	}
+
+	/*
+	 * Temperature is returned in Celsius degrees in fractional
+	 * form down 2^16. We reescale by x1000 to return milli Celsius
+	 * to respect IIO ABI.
+	 */
+	*val = raw_temp * 1000;
+	*val2 = 16;
+	return IIO_VAL_FRACTIONAL_LOG2;
+}
+
+static int bmp580_read_press(struct bmp280_data *data, int *val, int *val2)
+{
+	u32 raw_press;
+	int ret;
+
+	ret = regmap_bulk_read(data->regmap, BMP580_REG_PRESS_XLSB, data->buf,
+			       sizeof(data->buf));
+	if (ret) {
+		dev_err(data->dev, "failed to read pressure\n");
+		return ret;
+	}
+
+	raw_press = get_unaligned_le24(data->buf);
+	if (raw_press == BMP580_PRESS_SKIPPED) {
+		dev_err(data->dev, "reading pressure skipped\n");
+		return -EIO;
+	}
+	/*
+	 * Pressure is returned in Pascals in fractional form down 2^16.
+	 * We reescale /1000 to convert to kilopascal to respect IIO ABI.
+	 */
+	*val = raw_press;
+	*val2 = 64000; /* 2^6 * 1000 */
+	return IIO_VAL_FRACTIONAL;
+}
+
+static const int bmp580_odr_table[][2] = {
+	[BMP580_ODR_240HZ] =	{240, 0},
+	[BMP580_ODR_218HZ] =	{218, 0},
+	[BMP580_ODR_199HZ] =	{199, 0},
+	[BMP580_ODR_179HZ] =	{179, 0},
+	[BMP580_ODR_160HZ] =	{160, 0},
+	[BMP580_ODR_149HZ] =	{149, 0},
+	[BMP580_ODR_140HZ] =	{140, 0},
+	[BMP580_ODR_129HZ] =	{129, 0},
+	[BMP580_ODR_120HZ] =	{120, 0},
+	[BMP580_ODR_110HZ] =	{110, 0},
+	[BMP580_ODR_100HZ] =	{100, 0},
+	[BMP580_ODR_89HZ] =	{89, 0},
+	[BMP580_ODR_80HZ] =	{80, 0},
+	[BMP580_ODR_70HZ] =	{70, 0},
+	[BMP580_ODR_60HZ] =	{60, 0},
+	[BMP580_ODR_50HZ] =	{50, 0},
+	[BMP580_ODR_45HZ] =	{45, 0},
+	[BMP580_ODR_40HZ] =	{40, 0},
+	[BMP580_ODR_35HZ] =	{35, 0},
+	[BMP580_ODR_30HZ] =	{30, 0},
+	[BMP580_ODR_25HZ] =	{25, 0},
+	[BMP580_ODR_20HZ] =	{20, 0},
+	[BMP580_ODR_15HZ] =	{15, 0},
+	[BMP580_ODR_10HZ] =	{10, 0},
+	[BMP580_ODR_5HZ] =	{5, 0},
+	[BMP580_ODR_4HZ] =	{4, 0},
+	[BMP580_ODR_3HZ] =	{3, 0},
+	[BMP580_ODR_2HZ] =	{2, 0},
+	[BMP580_ODR_1HZ] =	{1, 0},
+	[BMP580_ODR_0_5HZ] =	{0, 500000},
+	[BMP580_ODR_0_25HZ] =	{0, 250000},
+	[BMP580_ODR_0_125HZ] =	{0, 125000},
+};
+
+static int bmp580_preinit(struct bmp280_data *data)
+{
+	unsigned int reg;
+	int ret;
+
+	/* Issue soft-reset command */
+	ret = bmp580_soft_reset(data);
+	if (ret)
+		return ret;
+
+	/* Post powerup sequence */
+	ret = regmap_read(data->regmap, BMP580_REG_CHIP_ID, &reg);
+	if (ret)
+		return ret;
+
+	/* Print warn message if we don't know the chip id */
+	if (reg != BMP580_CHIP_ID && reg != BMP580_CHIP_ID_ALT)
+		dev_warn(data->dev, "preinit: unexpected chip_id\n");
+
+	ret = regmap_read(data->regmap, BMP580_REG_STATUS, &reg);
+	if (ret)
+		return ret;
+
+	/* Check nvm status */
+	if (!(reg & BMP580_STATUS_NVM_RDY_MASK) || (reg & BMP580_STATUS_NVM_ERR_MASK)) {
+		dev_err(data->dev, "preinit: nvm error on powerup sequence\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int bmp580_chip_config(struct bmp280_data *data)
+{
+	bool change = false, aux;
+	unsigned int tmp;
+	u8 reg_val;
+	int ret;
+
+	/* Sets sensor in standby mode */
+	ret = regmap_update_bits(data->regmap, BMP580_REG_ODR_CONFIG,
+				 BMP580_MODE_MASK | BMP580_ODR_DEEPSLEEP_DIS,
+				 BMP580_ODR_DEEPSLEEP_DIS |
+				 FIELD_PREP(BMP580_MODE_MASK, BMP580_MODE_SLEEP));
+	if (ret) {
+		dev_err(data->dev, "failed to change sensor to standby mode\n");
+		return ret;
+	}
+	/* From datasheet's table 4: electrical characteristics */
+	usleep_range(2500, 3000);
+
+	/* Set default DSP mode settings */
+	reg_val = FIELD_PREP(BMP580_DSP_COMP_MASK, BMP580_DSP_PRESS_TEMP_COMP_EN) |
+		  BMP580_DSP_SHDW_IIR_TEMP_EN | BMP580_DSP_SHDW_IIR_PRESS_EN;
+
+	ret = regmap_update_bits(data->regmap, BMP580_REG_DSP_CONFIG,
+				 BMP580_DSP_COMP_MASK |
+				 BMP580_DSP_SHDW_IIR_TEMP_EN |
+				 BMP580_DSP_SHDW_IIR_PRESS_EN, reg_val);
+
+	/* Configure oversampling */
+	reg_val = FIELD_PREP(BMP580_OSR_TEMP_MASK, data->oversampling_temp) |
+		  FIELD_PREP(BMP580_OSR_PRESS_MASK, data->oversampling_press) |
+		  BMP580_OSR_PRESS_EN;
+
+	ret = regmap_update_bits_check(data->regmap, BMP580_REG_OSR_CONFIG,
+				       BMP580_OSR_TEMP_MASK | BMP580_OSR_PRESS_MASK |
+				       BMP580_OSR_PRESS_EN,
+				       reg_val, &aux);
+	if (ret) {
+		dev_err(data->dev, "failed to write oversampling register\n");
+		return ret;
+	}
+	change = change || aux;
+
+	/* Configure output data rate */
+	ret = regmap_update_bits_check(data->regmap, BMP580_REG_ODR_CONFIG, BMP580_ODR_MASK,
+				       FIELD_PREP(BMP580_ODR_MASK, data->sampling_freq),
+				       &aux);
+	if (ret) {
+		dev_err(data->dev, "failed to write ODR configuration register\n");
+		return ret;
+	}
+	change = change || aux;
+
+	/* Set filter data */
+	reg_val = FIELD_PREP(BMP580_DSP_IIR_PRESS_MASK, data->iir_filter_coeff) |
+		  FIELD_PREP(BMP580_DSP_IIR_TEMP_MASK, data->iir_filter_coeff);
+
+	ret = regmap_update_bits_check(data->regmap, BMP580_REG_DSP_IIR,
+				       BMP580_DSP_IIR_PRESS_MASK |
+				       BMP580_DSP_IIR_TEMP_MASK,
+				       reg_val, &aux);
+	if (ret) {
+		dev_err(data->dev, "failed to write config register\n");
+		return ret;
+	}
+	change = change || aux;
+
+	/* Restore sensor to normal operation mode */
+	ret = regmap_write_bits(data->regmap, BMP580_REG_ODR_CONFIG,
+				BMP580_MODE_MASK,
+				FIELD_PREP(BMP580_MODE_MASK, BMP580_MODE_NORMAL));
+	if (ret) {
+		dev_err(data->dev, "failed to set normal mode\n");
+		return ret;
+	}
+	/* From datasheet's table 4: electrical characteristics */
+	usleep_range(3000, 3500);
+
+	if (change) {
+		/*
+		 * Check if ODR and OSR settings are valid or we are
+		 * operating in a degraded mode.
+		 */
+		ret = regmap_read(data->regmap, BMP580_REG_EFF_OSR, &tmp);
+		if (ret) {
+			dev_err(data->dev, "error reading effective OSR register\n");
+			return ret;
+		}
+		if (!(tmp & BMP580_EFF_OSR_VALID_ODR)) {
+			dev_warn(data->dev, "OSR and ODR incompatible settings detected\n");
+			/* Set current OSR settings from data on effective OSR */
+			data->oversampling_temp = FIELD_GET(BMP580_EFF_OSR_TEMP_MASK, tmp);
+			data->oversampling_press = FIELD_GET(BMP580_EFF_OSR_PRESS_MASK, tmp);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static const int bmp580_oversampling_avail[] = { 1, 2, 4, 8, 16, 32, 64, 128 };
+
+const struct bmp280_chip_info bmp580_chip_info = {
+	.id_reg = BMP580_REG_CHIP_ID,
+	.chip_id = BMP580_CHIP_ID,
+	.regmap_config = &bmp580_regmap_config,
+	.start_up_time = 2000,
+	.channels = bmp380_channels,
+	.num_channels = 2,
+
+	.oversampling_temp_avail = bmp580_oversampling_avail,
+	.num_oversampling_temp_avail = ARRAY_SIZE(bmp580_oversampling_avail),
+	.oversampling_temp_default = ilog2(1),
+
+	.oversampling_press_avail = bmp580_oversampling_avail,
+	.num_oversampling_press_avail = ARRAY_SIZE(bmp580_oversampling_avail),
+	.oversampling_press_default = ilog2(4),
+
+	.sampling_freq_avail = bmp580_odr_table,
+	.num_sampling_freq_avail = ARRAY_SIZE(bmp580_odr_table) * 2,
+	.sampling_freq_default = BMP580_ODR_50HZ,
+
+	.iir_filter_coeffs_avail = bmp380_iir_filter_coeffs_avail,
+	.num_iir_filter_coeffs_avail = ARRAY_SIZE(bmp380_iir_filter_coeffs_avail),
+	.iir_filter_coeff_default = 2,
+
+	.chip_config = bmp580_chip_config,
+	.read_temp = bmp580_read_temp,
+	.read_press = bmp580_read_press,
+	.preinit = bmp580_preinit,
+};
+EXPORT_SYMBOL_NS(bmp580_chip_info, IIO_BMP280);
+
 static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 {
 	const int conversion_time_max[] = { 4500, 7500, 13500, 25500 };
@@ -1336,7 +1664,7 @@ static s32 bmp180_compensate_temp(struct bmp280_data *data, s32 adc_temp)
 	return (data->t_fine + 8) >> 4;
 }
 
-static int bmp180_read_temp(struct bmp280_data *data, int *val)
+static int bmp180_read_temp(struct bmp280_data *data, int *val, int *val2)
 {
 	s32 adc_temp, comp_temp;
 	int ret;
@@ -1424,7 +1752,7 @@ static int bmp180_read_press(struct bmp280_data *data,
 	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
-	ret = bmp180_read_temp(data, NULL);
+	ret = bmp180_read_temp(data, NULL, NULL);
 	if (ret)
 		return ret;
 
