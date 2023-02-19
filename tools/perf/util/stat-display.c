@@ -729,7 +729,7 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 
 	if (ok) {
 		perf_stat__print_shadow_stats(config, counter, uval, map_idx,
-					      &out, &config->metric_events, &rt_stat);
+					      &out, &config->metric_events);
 	} else {
 		pm(config, os, /*color=*/NULL, /*format=*/NULL, /*unit=*/"", /*val=*/0);
 	}
@@ -1089,8 +1089,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 		perf_stat__print_shadow_stats(config, counter, 0,
 					      0,
 					      &out,
-					      &config->metric_events,
-					      &rt_stat);
+					      &config->metric_events);
 	}
 
 	if (!config->json_output)

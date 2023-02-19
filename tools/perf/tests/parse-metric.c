@@ -30,8 +30,7 @@ static u64 find_value(const char *name, struct value *values)
 	return 0;
 }
 
-static void load_runtime_stat(struct runtime_stat *st, struct evlist *evlist,
-			      struct value *vals)
+static void load_runtime_stat(struct evlist *evlist, struct value *vals)
 {
 	struct evsel *evsel;
 	u64 count;
@@ -39,14 +38,14 @@ static void load_runtime_stat(struct runtime_stat *st, struct evlist *evlist,
 	perf_stat__reset_shadow_stats();
 	evlist__for_each_entry(evlist, evsel) {
 		count = find_value(evsel->name, vals);
-		perf_stat__update_shadow_stats(evsel, count, 0, st);
+		perf_stat__update_shadow_stats(evsel, count, 0);
 		if (!strcmp(evsel->name, "duration_time"))
 			update_stats(&walltime_nsecs_stats, count);
 	}
 }
 
 static double compute_single(struct rblist *metric_events, struct evlist *evlist,
-			     struct runtime_stat *st, const char *name)
+			     const char *name)
 {
 	struct metric_expr *mexp;
 	struct metric_event *me;
@@ -58,7 +57,7 @@ static double compute_single(struct rblist *metric_events, struct evlist *evlist
 			list_for_each_entry (mexp, &me->head, nd) {
 				if (strcmp(mexp->metric_name, name))
 					continue;
-				return test_generic_metric(mexp, 0, st);
+				return test_generic_metric(mexp, 0);
 			}
 		}
 	}
@@ -74,7 +73,6 @@ static int __compute_metric(const char *name, struct value *vals,
 	};
 	const struct pmu_metrics_table *pme_test;
 	struct perf_cpu_map *cpus;
-	struct runtime_stat st;
 	struct evlist *evlist;
 	int err;
 
@@ -93,7 +91,6 @@ static int __compute_metric(const char *name, struct value *vals,
 	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
-	runtime_stat__init(&st);
 
 	/* Parse the metric into metric_events list. */
 	pme_test = find_core_metrics_table("testarch", "testcpu");
@@ -107,18 +104,17 @@ static int __compute_metric(const char *name, struct value *vals,
 		goto out;
 
 	/* Load the runtime stats with given numbers for events. */
-	load_runtime_stat(&st, evlist, vals);
+	load_runtime_stat(evlist, vals);
 
 	/* And execute the metric */
 	if (name1 && ratio1)
-		*ratio1 = compute_single(&metric_events, evlist, &st, name1);
+		*ratio1 = compute_single(&metric_events, evlist, name1);
 	if (name2 && ratio2)
-		*ratio2 = compute_single(&metric_events, evlist, &st, name2);
+		*ratio2 = compute_single(&metric_events, evlist, name2);
 
 out:
 	/* ... cleanup. */
 	metricgroup__rblist_exit(&metric_events);
-	runtime_stat__exit(&st);
 	evlist__free_stats(evlist);
 	perf_cpu_map__put(cpus);
 	evlist__delete(evlist);
@@ -300,6 +296,7 @@ static int test_metric_group(void)
 
 static int test__parse_metric(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
+	perf_stat__init_shadow_stats();
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
 	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
 	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);

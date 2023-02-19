@@ -2074,8 +2074,7 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 	val = sample->period * evsel->scale;
 	perf_stat__update_shadow_stats(evsel,
 				       val,
-				       sample->cpu,
-				       &rt_stat);
+				       sample->cpu);
 	evsel_script(evsel)->val = val;
 	if (evsel_script(leader)->gnum == leader->core.nr_members) {
 		for_each_group_member (ev2, leader) {
@@ -2083,8 +2082,7 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 						      evsel_script(ev2)->val,
 						      sample->cpu,
 						      &ctx,
-						      NULL,
-						      &rt_stat);
+						      NULL);
 		}
 		evsel_script(leader)->gnum = 0;
 	}

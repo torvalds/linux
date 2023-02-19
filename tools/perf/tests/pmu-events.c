@@ -816,7 +816,6 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 	int k;
 	struct evlist *evlist;
 	struct perf_cpu_map *cpus;
-	struct runtime_stat st;
 	struct evsel *evsel;
 	struct rblist metric_events = {
 		.nr_entries = 0,
@@ -844,7 +843,6 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
-	runtime_stat__init(&st);
 
 	err = metricgroup__parse_groups_test(evlist, table, pm->metric_name, &metric_events);
 	if (err) {
@@ -867,7 +865,7 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 	k = 1;
 	perf_stat__reset_shadow_stats();
 	evlist__for_each_entry(evlist, evsel) {
-		perf_stat__update_shadow_stats(evsel, k, 0, &st);
+		perf_stat__update_shadow_stats(evsel, k, 0);
 		if (!strcmp(evsel->name, "duration_time"))
 			update_stats(&walltime_nsecs_stats, k);
 		k++;
@@ -881,7 +879,7 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 			list_for_each_entry (mexp, &me->head, nd) {
 				if (strcmp(mexp->metric_name, pm->metric_name))
 					continue;
-				pr_debug("Result %f\n", test_generic_metric(mexp, 0, &st));
+				pr_debug("Result %f\n", test_generic_metric(mexp, 0));
 				err = 0;
 				(*failures)--;
 				goto out_err;
@@ -896,7 +894,6 @@ out_err:
 
 	/* ... cleanup. */
 	metricgroup__rblist_exit(&metric_events);
-	runtime_stat__exit(&st);
 	evlist__free_stats(evlist);
 	perf_cpu_map__put(cpus);
 	evlist__delete(evlist);
@@ -908,6 +905,7 @@ static int test__parsing(struct test_suite *test __maybe_unused,
 {
 	int failures = 0;
 
+	perf_stat__init_shadow_stats();
 	pmu_for_each_core_metric(test__parsing_callback, &failures);
 	pmu_for_each_sys_metric(test__parsing_callback, &failures);
 

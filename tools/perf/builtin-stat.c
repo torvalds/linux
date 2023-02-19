@@ -434,7 +434,7 @@ static void process_interval(void)
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
 
-	perf_stat__reset_shadow_per_stat(&rt_stat);
+	perf_stat__reset_shadow_per_stat();
 	evlist__reset_aggr_stats(evsel_list);
 
 	if (read_counters(&rs) == 0)
@@ -910,7 +910,7 @@ try_again_reset:
 		evlist__copy_prev_raw_counts(evsel_list);
 		evlist__reset_prev_raw_counts(evsel_list);
 		evlist__reset_aggr_stats(evsel_list);
-		perf_stat__reset_shadow_per_stat(&rt_stat);
+		perf_stat__reset_shadow_per_stat();
 	} else {
 		update_stats(&walltime_nsecs_stats, t1 - t0);
 		update_rusage_stats(&ru_stats, &stat_config.ru_data);

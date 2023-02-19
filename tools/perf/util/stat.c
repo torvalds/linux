@@ -659,7 +659,7 @@ static void evsel__update_shadow_stats(struct evsel *evsel)
 	for (i = 0; i < ps->nr_aggr; i++) {
 		struct perf_counts_values *aggr_counts = &ps->aggr[i].counts;
 
-		perf_stat__update_shadow_stats(evsel, aggr_counts->val, i, &rt_stat);
+		perf_stat__update_shadow_stats(evsel, aggr_counts->val, i);
 	}
 }
 

@@ -55,10 +55,6 @@ enum aggr_mode {
 	AGGR_MAX
 };
 
-struct runtime_stat {
-	struct rblist value_list;
-};
-
 struct rusage_stats {
 	struct stats ru_utime_usec_stat;
 	struct stats ru_stime_usec_stat;
@@ -153,7 +149,6 @@ static inline void update_rusage_stats(struct rusage_stats *ru_stats, struct rus
 struct evsel;
 struct evlist;
 
-extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
 extern struct rusage_stats ru_stats;
 
@@ -162,13 +157,10 @@ typedef void (*print_metric_t)(struct perf_stat_config *config,
 			       const char *fmt, double val);
 typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 
-void runtime_stat__init(struct runtime_stat *st);
-void runtime_stat__exit(struct runtime_stat *st);
 void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
-void perf_stat__reset_shadow_per_stat(struct runtime_stat *st);
-void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
-				    int map_idx, struct runtime_stat *st);
+void perf_stat__reset_shadow_per_stat(void);
+void perf_stat__update_shadow_stats(struct evsel *counter, u64 count, int map_idx);
 struct perf_stat_output_ctx {
 	void *ctx;
 	print_metric_t print_metric;
@@ -180,8 +172,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
 				   double avg, int map_idx,
 				   struct perf_stat_output_ctx *out,
-				   struct rblist *metric_events,
-				   struct runtime_stat *st);
+				   struct rblist *metric_events);
 
 int evlist__alloc_stats(struct perf_stat_config *config,
 			struct evlist *evlist, bool alloc_raw);
@@ -220,5 +211,5 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			    struct target *_target, struct timespec *ts, int argc, const char **argv);
 
 struct metric_expr;
-double test_generic_metric(struct metric_expr *mexp, int map_idx, struct runtime_stat *st);
+double test_generic_metric(struct metric_expr *mexp, int map_idx);
 #endif
