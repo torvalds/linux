@@ -44,7 +44,7 @@
         "MetricName": "LLC_MISSES.PCIE_WRITE",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every write request of 4 bytes of data made by IIO Part0 to a unit onthe main die (generally memory). In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made by IIO Part0 to a unit on the main die (generally memory). In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "ScaleUnit": "4Bytes",
         "UMask": "0x1",
         "Unit": "IIO"
@@ -856,7 +856,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Counts the number of Allocate/Update to HitMe Cache; Deallocate HtiME$ on Reads without RspFwdI*",
+        "BriefDescription": "Counts the number of Allocate/Update to HitMe Cache; Deallocate HitME$ on Reads without RspFwdI*",
         "EventCode": "0x61",
         "EventName": "UNC_CHA_HITME_UPDATE.DEALLOCATE",
         "PerPkg": "1",
@@ -1210,7 +1210,7 @@
         "EventCode": "0x34",
         "EventName": "UNC_CHA_LLC_LOOKUP.WRITE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CHAFilter0[24:21,17] bits correspond to [FMESI] state.; Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cachable and UC.",
+        "PublicDescription": "Counts the number of times the LLC was accessed - this includes code, data, prefetches and hints coming from L2.  This has numerous filters available.  Note the non-standard filtering equation.  This event will count requests that lookup the cache multiple times with multiple increments.  One must ALWAYS set umask bit 0 and select a state or states to match.  Otherwise, the event will count nothing.   CHAFilter0[24:21,17] bits correspond to [FMESI] state.; Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cacheable and UC.",
         "UMask": "0x5",
         "Unit": "CHA"
     },
@@ -3481,7 +3481,7 @@
         "EventCode": "0x5D",
         "EventName": "UNC_CHA_SNOOP_RESP_LOCAL.RSPSFWD",
         "PerPkg": "1",
-        "PublicDescription": "Number of snoop responses received for a Local  request; Filters for a snoop response of RspSFwd to local CA requests.  This is returned when a remote caching agent forwards data but holds on to its currentl copy.  This is common for data and code reads that hit in a remote socket in E or F state.",
+        "PublicDescription": "Number of snoop responses received for a Local  request; Filters for a snoop response of RspSFwd to local CA requests.  This is returned when a remote caching agent forwards data but holds on to its current copy.  This is common for data and code reads that hit in a remote socket in E or F state.",
         "UMask": "0x8",
         "Unit": "CHA"
     },
@@ -4082,10 +4082,11 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.ALL",
+        "BriefDescription": "TOR Occupancy : All",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.ALL",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : All : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0xff",
         "Unit": "CHA"
     },
@@ -4153,20 +4154,22 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CRD",
+        "BriefDescription": "TOR Occupancy : CRds issued by iA Cores that Hit the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CRD",
         "Filter": "config1=0x40233",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : CRds issued by iA Cores that Hit the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x11",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_DRD",
+        "BriefDescription": "TOR Occupancy : DRds issued by iA Cores that Hit the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_DRD",
         "Filter": "config1=0x40433",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : DRds issued by iA Cores that Hit the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x11",
         "Unit": "CHA"
     },
@@ -4189,20 +4192,22 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefRFO",
+        "BriefDescription": "TOR Occupancy : LLCPrefRFO issued by iA Cores that hit the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefRFO",
         "Filter": "config1=0x4b033",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : LLCPrefRFO issued by iA Cores that hit the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x11",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_RFO",
+        "BriefDescription": "TOR Occupancy : RFOs issued by iA Cores that Hit the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_RFO",
         "Filter": "config1=0x40033",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : RFOs issued by iA Cores that Hit the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x11",
         "Unit": "CHA"
     },
@@ -4216,11 +4221,12 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CRD",
+        "BriefDescription": "TOR Occupancy : CRds issued by iA Cores that Missed the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CRD",
         "Filter": "config1=0x40233",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : CRds issued by iA Cores that Missed the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x21",
         "Unit": "CHA"
     },
@@ -4253,20 +4259,22 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefRFO",
+        "BriefDescription": "TOR Occupancy : LLCPrefRFO issued by iA Cores that missed the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefRFO",
         "Filter": "config1=0x4b033",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : LLCPrefRFO issued by iA Cores that missed the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x21",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO",
+        "BriefDescription": "TOR Occupancy : RFOs issued by iA Cores that Missed the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO",
         "Filter": "config1=0x40033",
         "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : RFOs issued by iA Cores that Missed the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x21",
         "Unit": "CHA"
     },
@@ -4308,7 +4316,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "TOR Occupancy;  RDCUR isses from Local IO",
+        "BriefDescription": "TOR Occupancy;  RDCUR misses from Local IO",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IO_MISS_RDCUR",
         "Filter": "config1=0x43C33",
@@ -11637,7 +11645,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "PublicDescription": "Counts every write request of 4 bytes of data made by IIO Part0 to a unit onthe main die (generally memory). In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
+        "PublicDescription": "Counts every write request of 4 bytes of data made by IIO Part0 to a unit on the main die (generally memory). In the general case, Part0 refers to a standard PCIe card of any size (x16,x8,x4) that is plugged directly into one of the PCIe slots. Part0 could also refer to any device plugged into the first slot of a PCIe riser card or to a device attached to the IIO unit which starts its use of the bus using lane 0 of the 16 lanes supported by the bus.",
         "UMask": "0x1",
         "Unit": "IIO"
     },
@@ -12024,7 +12032,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "UNC_IIO_NOTHING",
+        "BriefDescription": "Counting disabled",
         "EventName": "UNC_IIO_NOTHING",
         "PerPkg": "1",
         "Unit": "IIO"
@@ -15622,7 +15630,7 @@
         "EventCode": "0xC",
         "EventName": "UNC_I_TxS_REQUEST_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Accumultes the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjuection with the allocations event in order to calculate average latency of outbound requests.",
+        "PublicDescription": "Accumulates the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjunction with the allocations event in order to calculate average latency of outbound requests.",
         "Unit": "IRP"
     },
     {
@@ -16128,35 +16136,35 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Number of reads in which direct to Intel UPI transactions were overridden",
+        "BriefDescription": "Number of reads in which direct to Intel(R) UPI transactions were overridden",
         "EventCode": "0x28",
         "EventName": "UNC_M2M_DIRECT2UPI_NOT_TAKEN_CREDITS",
         "PerPkg": "1",
-        "PublicDescription": "Counts reads in which direct to Intel Ultra Path Interconnect (UPI) transactions (which would have bypassed the CHA) were overridden",
+        "PublicDescription": "Counts reads in which direct to Intel(R) Ultra Path Interconnect (UPI) transactions (which would have bypassed the CHA) were overridden",
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Cycles when direct to Intel UPI was disabled",
+        "BriefDescription": "Cycles when direct to Intel(R) UPI was disabled",
         "EventCode": "0x27",
         "EventName": "UNC_M2M_DIRECT2UPI_NOT_TAKEN_DIRSTATE",
         "PerPkg": "1",
-        "PublicDescription": "Counts cycles when the ability to send messages direct to the Intel Ultra Path Interconnect (bypassing the CHA) was disabled",
+        "PublicDescription": "Counts cycles when the ability to send messages direct to the Intel(R) Ultra Path Interconnect (bypassing the CHA) was disabled",
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Messages sent direct to the Intel UPI",
+        "BriefDescription": "Messages sent direct to the Intel(R) UPI",
         "EventCode": "0x26",
         "EventName": "UNC_M2M_DIRECT2UPI_TAKEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts when messages were sent direct to the Intel Ultra Path Interconnect (bypassing the CHA)",
+        "PublicDescription": "Counts when messages were sent direct to the Intel(R) Ultra Path Interconnect (bypassing the CHA)",
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Number of reads that a message sent direct2 Intel UPI was overridden",
+        "BriefDescription": "Number of reads that a message sent direct2 Intel(R) UPI was overridden",
         "EventCode": "0x29",
         "EventName": "UNC_M2M_DIRECT2UPI_TXN_OVERRIDE",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a read message that was sent direct to the Intel Ultra Path Interconnect (bypassing the CHA) was overridden",
+        "PublicDescription": "Counts when a read message that was sent direct to the Intel(R) Ultra Path Interconnect (bypassing the CHA) was overridden",
         "Unit": "M2M"
     },
     {
@@ -16583,7 +16591,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Read requests to Intel Optane DC persistent memory issued to the iMC from M2M",
+        "BriefDescription": "Read requests to Intel(R) Optane(TM) DC persistent memory issued to the iMC from M2M",
         "EventCode": "0x37",
         "EventName": "UNC_M2M_IMC_READS.TO_PMM",
         "PerPkg": "1",
@@ -16650,7 +16658,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Write requests to Intel Optane DC persistent memory issued to the iMC from M2M",
+        "BriefDescription": "Write requests to Intel(R) Optane(TM) DC persistent memory issued to the iMC from M2M",
         "EventCode": "0x38",
         "EventName": "UNC_M2M_IMC_WRITES.TO_PMM",
         "PerPkg": "1",
@@ -16675,7 +16683,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC RPQ Cycles w/Credits - Regular; Channel 0",
+        "BriefDescription": "M2M->iMC RPQ Cycles w/Credits - Regular; Channel 0",
         "EventCode": "0x4F",
         "EventName": "UNC_M2M_PMM_RPQ_CYCLES_REG_CREDITS.CHN0",
         "PerPkg": "1",
@@ -16683,7 +16691,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC RPQ Cycles w/Credits - Regular; Channel 1",
+        "BriefDescription": "M2M->iMC RPQ Cycles w/Credits - Regular; Channel 1",
         "EventCode": "0x4F",
         "EventName": "UNC_M2M_PMM_RPQ_CYCLES_REG_CREDITS.CHN1",
         "PerPkg": "1",
@@ -16691,7 +16699,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC RPQ Cycles w/Credits - Regular; Channel 2",
+        "BriefDescription": "M2M->iMC RPQ Cycles w/Credits - Regular; Channel 2",
         "EventCode": "0x4F",
         "EventName": "UNC_M2M_PMM_RPQ_CYCLES_REG_CREDITS.CHN2",
         "PerPkg": "1",
@@ -16699,7 +16707,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Regular; Channel 0",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Regular; Channel 0",
         "EventCode": "0x51",
         "EventName": "UNC_M2M_PMM_WPQ_CYCLES_REG_CREDITS.CHN0",
         "PerPkg": "1",
@@ -16707,7 +16715,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Regular; Channel 1",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Regular; Channel 1",
         "EventCode": "0x51",
         "EventName": "UNC_M2M_PMM_WPQ_CYCLES_REG_CREDITS.CHN1",
         "PerPkg": "1",
@@ -16715,7 +16723,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Regular; Channel 2",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Regular; Channel 2",
         "EventCode": "0x51",
         "EventName": "UNC_M2M_PMM_WPQ_CYCLES_REG_CREDITS.CHN2",
         "PerPkg": "1",
@@ -16737,11 +16745,11 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Prefecth requests that got turn into a demand request",
+        "BriefDescription": "Prefetch requests that got turn into a demand request",
         "EventCode": "0x56",
         "EventName": "UNC_M2M_PREFCAM_DEMAND_PROMOTIONS",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) promotes a outstanding request in the prefetch queue due to a subsequent demand read request that entered the M2M with the same address.  Explanatory Side Note: The Prefecth queue is made of CAM (Content Addressable Memory)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) promotes a outstanding request in the prefetch queue due to a subsequent demand read request that entered the M2M with the same address.  Explanatory Side Note: The Prefetch queue is made of CAM (Content Addressable Memory)",
         "Unit": "M2M"
     },
     {
@@ -20804,7 +20812,7 @@
         "EventCode": "0x40",
         "EventName": "UNC_M3UPI_RxC_BYPASSED.AD_S0_BL_ARB",
         "PerPkg": "1",
-        "PublicDescription": "Number ot times message is bypassed around the Ingress Queue; AD is taking bypass to slot 0 of independent flit while bl message is in arbitration",
+        "PublicDescription": "Number of times message is bypassed around the Ingress Queue; AD is taking bypass to slot 0 of independent flit while bl message is in arbitration",
         "UMask": "0x2",
         "Unit": "M3UPI"
     },
@@ -20813,7 +20821,7 @@
         "EventCode": "0x40",
         "EventName": "UNC_M3UPI_RxC_BYPASSED.AD_S0_IDLE",
         "PerPkg": "1",
-        "PublicDescription": "Number ot times message is bypassed around the Ingress Queue; AD is taking bypass to slot 0 of independent flit while pipeline is idle",
+        "PublicDescription": "Number of times message is bypassed around the Ingress Queue; AD is taking bypass to slot 0 of independent flit while pipeline is idle",
         "UMask": "0x1",
         "Unit": "M3UPI"
     },
@@ -20822,7 +20830,7 @@
         "EventCode": "0x40",
         "EventName": "UNC_M3UPI_RxC_BYPASSED.AD_S1_BL_SLOT",
         "PerPkg": "1",
-        "PublicDescription": "Number ot times message is bypassed around the Ingress Queue; AD is taking bypass to flit slot 1 while merging with bl message in same flit",
+        "PublicDescription": "Number of times message is bypassed around the Ingress Queue; AD is taking bypass to flit slot 1 while merging with bl message in same flit",
         "UMask": "0x4",
         "Unit": "M3UPI"
     },
@@ -20831,7 +20839,7 @@
         "EventCode": "0x40",
         "EventName": "UNC_M3UPI_RxC_BYPASSED.AD_S2_BL_SLOT",
         "PerPkg": "1",
-        "PublicDescription": "Number ot times message is bypassed around the Ingress Queue; AD is taking bypass to flit slot 2 while merging with bl message in same flit",
+        "PublicDescription": "Number of times message is bypassed around the Ingress Queue; AD is taking bypass to flit slot 2 while merging with bl message in same flit",
         "UMask": "0x8",
         "Unit": "M3UPI"
     },
@@ -21397,7 +21405,7 @@
         "Unit": "M3UPI"
     },
     {
-        "BriefDescription": "Flit Gen - Header 1; Acumullate",
+        "BriefDescription": "Flit Gen - Header 1; Accumulate",
         "EventCode": "0x53",
         "EventName": "UNC_M3UPI_RxC_FLIT_GEN_HDR1.ACCUM",
         "PerPkg": "1",
@@ -24618,7 +24626,7 @@
         "EventCode": "0x29",
         "EventName": "UNC_M3UPI_UPI_PREFETCH_SPAWN",
         "PerPkg": "1",
-        "PublicDescription": "Count cases where flow control queue that sits between the Intel Ultra Path Interconnect (UPI) and the mesh spawns a prefetch to the iMC (Memory Controller)",
+        "PublicDescription": "Count cases where flow control queue that sits between the Intel(R) Ultra Path Interconnect (UPI) and the mesh spawns a prefetch to the iMC (Memory Controller)",
         "Unit": "M3UPI"
     },
     {
@@ -24973,11 +24981,11 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Clocks of the Intel Ultra Path Interconnect (UPI)",
+        "BriefDescription": "Clocks of the Intel(R) Ultra Path Interconnect (UPI)",
         "EventCode": "0x1",
         "EventName": "UNC_UPI_CLOCKTICKS",
         "PerPkg": "1",
-        "PublicDescription": "Counts clockticks of the fixed frequency clock controlling the Intel Ultra Path Interconnect (UPI).  This clock runs at1/8th the 'GT/s' speed of the UPI link.  For example, a  9.6GT/s  link will have a fixed Frequency of 1.2 Ghz.",
+        "PublicDescription": "Counts clockticks of the fixed frequency clock controlling the Intel(R) Ultra Path Interconnect (UPI).  This clock runs at1/8th the 'GT/s' speed of the UPI link.  For example, a  9.6GT/s  link will have a fixed Frequency of 1.2 Ghz.",
         "Unit": "UPI LL"
     },
     {
@@ -24999,11 +25007,11 @@
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "Data Response packets that go direct to Intel UPI",
+        "BriefDescription": "Data Response packets that go direct to Intel(R) UPI",
         "EventCode": "0x12",
         "EventName": "UNC_UPI_DIRECT_ATTEMPTS.D2U",
         "PerPkg": "1",
-        "PublicDescription": "Counts Data Response (DRS) packets that attempted to go direct to Intel Ultra Path Interconnect (UPI) bypassing the CHA .",
+        "PublicDescription": "Counts Data Response (DRS) packets that attempted to go direct to Intel(R) Ultra Path Interconnect (UPI) bypassing the CHA .",
         "UMask": "0x2",
         "Unit": "UPI LL"
     },
@@ -25072,11 +25080,11 @@
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "Cycles Intel UPI is in L1 power mode (shutdown)",
+        "BriefDescription": "Cycles Intel(R) UPI is in L1 power mode (shutdown)",
         "EventCode": "0x21",
         "EventName": "UNC_UPI_L1_POWER_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts cycles when the Intel Ultra Path Interconnect (UPI) is in L1 power mode.  L1 is a mode that totally shuts down the UPI link.  Link power states are per link and per direction, so for example the Tx direction could be in one state while Rx was in another, this event only coutns when both links are shutdown.",
+        "PublicDescription": "Counts cycles when the Intel(R) Ultra Path Interconnect (UPI) is in L1 power mode.  L1 is a mode that totally shuts down the UPI link.  Link power states are per link and per direction, so for example the Tx direction could be in one state while Rx was in another, this event only coutns when both links are shutdown.",
         "Unit": "UPI LL"
     },
     {
@@ -25238,11 +25246,11 @@
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "Cycles the Rx of the Intel UPI is in L0p power mode",
+        "BriefDescription": "Cycles the Rx of the Intel(R) UPI is in L0p power mode",
         "EventCode": "0x25",
         "EventName": "UNC_UPI_RxL0P_POWER_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts cycles when the receive side (Rx) of the Intel Ultra Path Interconnect(UPI) is in L0p power mode. L0p is a mode where we disable 60% of the UPI lanes, decreasing our bandwidth in order to save power.",
+        "PublicDescription": "Counts cycles when the receive side (Rx) of the Intel(R) Ultra Path Interconnect(UPI) is in L0p power mode. L0p is a mode where we disable 60% of the UPI lanes, decreasing our bandwidth in order to save power.",
         "Unit": "UPI LL"
     },
     {
@@ -25451,7 +25459,7 @@
         "EventCode": "0x3",
         "EventName": "UNC_UPI_RxL_FLITS.ALL_DATA",
         "PerPkg": "1",
-        "PublicDescription": "Counts valid data FLITs  (80 bit FLow control unITs: 64bits of data) received from any of the 3 Intel Ultra Path Interconnect (UPI) Receive Queue slots on this UPI unit.",
+        "PublicDescription": "Counts valid data FLITs  (80 bit FLow control unITs: 64bits of data) received from any of the 3 Intel(R) Ultra Path Interconnect (UPI) Receive Queue slots on this UPI unit.",
         "UMask": "0xf",
         "Unit": "UPI LL"
     },
@@ -25460,7 +25468,7 @@
         "EventCode": "0x3",
         "EventName": "UNC_UPI_RxL_FLITS.ALL_NULL",
         "PerPkg": "1",
-        "PublicDescription": "Counts null FLITs (80 bit FLow control unITs) received from any of the 3 Intel Ultra Path Interconnect (UPI) Receive Queue slots on this UPI unit.",
+        "PublicDescription": "Counts null FLITs (80 bit FLow control unITs) received from any of the 3 Intel(R) Ultra Path Interconnect (UPI) Receive Queue slots on this UPI unit.",
         "UMask": "0x27",
         "Unit": "UPI LL"
     },
@@ -25784,11 +25792,11 @@
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "Cycles in which the Tx of the Intel Ultra Path Interconnect (UPI) is in L0p power mode",
+        "BriefDescription": "Cycles in which the Tx of the Intel(R) Ultra Path Interconnect (UPI) is in L0p power mode",
         "EventCode": "0x27",
         "EventName": "UNC_UPI_TxL0P_POWER_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts cycles when the transmit side (Tx) of the Intel Ultra Path Interconnect(UPI) is in L0p power mode. L0p is a mode where we disable 60% of the UPI lanes, decreasing our bandwidth in order to save power.",
+        "PublicDescription": "Counts cycles when the transmit side (Tx) of the Intel(R) Ultra Path Interconnect(UPI) is in L0p power mode. L0p is a mode where we disable 60% of the UPI lanes, decreasing our bandwidth in order to save power.",
         "Unit": "UPI LL"
     },
     {
@@ -25960,7 +25968,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_UPI_TxL_BYPASSED",
         "PerPkg": "1",
-        "PublicDescription": "Counts incoming FLITs (FLow control unITs) which bypassed the TxL(transmit) FLIT buffer and pass directly out the UPI Link. Generally, when data is transmitted across the Intel Ultra Path Interconnect (UPI), it will bypass the TxQ and pass directly to the link.  However, the TxQ will be used in L0p (Low Power) mode and (Link Layer Retry) LLR  mode, increasing latency to transfer out to the link.",
+        "PublicDescription": "Counts incoming FLITs (FLow control unITs) which bypassed the TxL(transmit) FLIT buffer and pass directly out the UPI Link. Generally, when data is transmitted across the Intel(R) Ultra Path Interconnect (UPI), it will bypass the TxQ and pass directly to the link.  However, the TxQ will be used in L0p (Low Power) mode and (Link Layer Retry) LLR  mode, increasing latency to transfer out to the link.",
         "Unit": "UPI LL"
     },
     {
@@ -25968,7 +25976,7 @@
         "EventCode": "0x2",
         "EventName": "UNC_UPI_TxL_FLITS.ALL_DATA",
         "PerPkg": "1",
-        "PublicDescription": "Counts valid data FLITs (80 bit FLow control unITs: 64bits of data) transmitted (TxL) via any of the 3 Intel Ultra Path Interconnect (UPI) slots on this UPI unit.",
+        "PublicDescription": "Counts valid data FLITs (80 bit FLow control unITs: 64bits of data) transmitted (TxL) via any of the 3 Intel(R) Ultra Path Interconnect (UPI) slots on this UPI unit.",
         "UMask": "0xf",
         "Unit": "UPI LL"
     },
@@ -25977,7 +25985,7 @@
         "EventCode": "0x2",
         "EventName": "UNC_UPI_TxL_FLITS.ALL_NULL",
         "PerPkg": "1",
-        "PublicDescription": "Counts null FLITs (80 bit FLow control unITs) transmitted via any of the 3 Intel Ulra Path Interconnect (UPI) slots on this UPI unit.",
+        "PublicDescription": "Counts null FLITs (80 bit FLow control unITs) transmitted via any of the 3 Intel(R) Ulra Path Interconnect (UPI) slots on this UPI unit.",
         "UMask": "0x27",
         "Unit": "UPI LL"
     },
@@ -26328,7 +26336,7 @@
         "EventCode": "0x2",
         "EventName": "UPI_DATA_BANDWIDTH_TX",
         "PerPkg": "1",
-        "PublicDescription": "Counts valid data FLITs (80 bit FLow control unITs: 64bits of data) transmitted (TxL) via any of the 3 Intel Ultra Path Interconnect (UPI) slots on this UPI unit.",
+        "PublicDescription": "Counts valid data FLITs (80 bit FLow control unITs: 64bits of data) transmitted (TxL) via any of the 3 Intel(R) Ultra Path Interconnect (UPI) slots on this UPI unit.",
         "ScaleUnit": "7.11E-06Bytes",
         "UMask": "0xf",
         "Unit": "UPI LL"
