@@ -1296,7 +1296,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Counts the number of Allocate/Update to HitMe Cache : Deallocate HtiME$ on Reads without RspFwdI*",
+        "BriefDescription": "Counts the number of Allocate/Update to HitMe Cache : Deallocate HitME$ on Reads without RspFwdI*",
         "EventCode": "0x61",
         "EventName": "UNC_CHA_HITME_UPDATE.DEALLOCATE",
         "PerPkg": "1",
@@ -14927,7 +14927,7 @@
         "EventCode": "0x0C",
         "EventName": "UNC_I_TxS_REQUEST_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Outbound Request Queue Occupancy : Accumultes the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjuection with the allocations event in order to calculate average latency of outbound requests.",
+        "PublicDescription": "Outbound Request Queue Occupancy : Accumulates the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjunction with the allocations event in order to calculate average latency of outbound requests.",
         "Unit": "IRP"
     },
     {
