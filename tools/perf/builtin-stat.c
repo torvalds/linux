@@ -1996,6 +1996,7 @@ setup_metrics:
 		stat_config.topdown_level = TOPDOWN_MAX_LEVEL;
 
 	if (!evsel_list->core.nr_entries) {
+		/* No events so add defaults. */
 		if (target__has_cpu(&target))
 			default_attrs0[0].config = PERF_COUNT_SW_CPU_CLOCK;
 
@@ -2010,6 +2011,19 @@ setup_metrics:
 				return -1;
 		}
 		if (evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
+			return -1;
+		/*
+		 * Add TopdownL1 metrics if they exist. To minimize
+		 * multiplexing, don't request threshold computation.
+		 */
+		if (metricgroup__has_metric("TopdownL1") &&
+		    metricgroup__parse_groups(evsel_list, "TopdownL1",
+					    /*metric_no_group=*/false,
+					    /*metric_no_merge=*/false,
+					    /*metric_no_threshold=*/true,
+					    stat_config.user_requested_cpu_list,
+					    stat_config.system_wide,
+					    &stat_config.metric_events) < 0)
 			return -1;
 		/* Platform specific attrs */
 		if (evlist__add_default_attrs(evsel_list, default_null_attrs) < 0)

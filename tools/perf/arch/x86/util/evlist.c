@@ -59,10 +59,10 @@ int arch_evlist__add_default_attrs(struct evlist *evlist,
 				   struct perf_event_attr *attrs,
 				   size_t nr_attrs)
 {
-	if (nr_attrs)
-		return ___evlist__add_default_attrs(evlist, attrs, nr_attrs);
+	if (!nr_attrs)
+		return 0;
 
-	return topdown_parse_events(evlist);
+	return ___evlist__add_default_attrs(evlist, attrs, nr_attrs);
 }
 
 struct evsel *arch_evlist__leader(struct list_head *list)

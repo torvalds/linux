@@ -9,11 +9,6 @@
 #include "topdown.h"
 #include "evsel.h"
 
-#define TOPDOWN_L1_EVENTS       "{slots,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound}"
-#define TOPDOWN_L1_EVENTS_CORE  "{slots,cpu_core/topdown-retiring/,cpu_core/topdown-bad-spec/,cpu_core/topdown-fe-bound/,cpu_core/topdown-be-bound/}"
-#define TOPDOWN_L2_EVENTS       "{slots,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound,topdown-heavy-ops,topdown-br-mispredict,topdown-fetch-lat,topdown-mem-bound}"
-#define TOPDOWN_L2_EVENTS_CORE  "{slots,cpu_core/topdown-retiring/,cpu_core/topdown-bad-spec/,cpu_core/topdown-fe-bound/,cpu_core/topdown-be-bound/,cpu_core/topdown-heavy-ops/,cpu_core/topdown-br-mispredict/,cpu_core/topdown-fetch-lat/,cpu_core/topdown-mem-bound/}"
-
 /* Check whether there is a PMU which supports the perf metrics. */
 bool topdown_sys_has_perf_metrics(void)
 {
@@ -98,29 +93,4 @@ const char *arch_get_topdown_pmu_name(struct evlist *evlist, bool warn)
 	pmu_name = evlist->hybrid_pmu_name;
 
 	return pmu_name;
-}
-
-int topdown_parse_events(struct evlist *evlist)
-{
-	const char *topdown_events;
-	const char *pmu_name;
-
-	if (!topdown_sys_has_perf_metrics())
-		return 0;
-
-	pmu_name = arch_get_topdown_pmu_name(evlist, false);
-
-	if (pmu_have_event(pmu_name, "topdown-heavy-ops")) {
-		if (!strcmp(pmu_name, "cpu_core"))
-			topdown_events = TOPDOWN_L2_EVENTS_CORE;
-		else
-			topdown_events = TOPDOWN_L2_EVENTS;
-	} else {
-		if (!strcmp(pmu_name, "cpu_core"))
-			topdown_events = TOPDOWN_L1_EVENTS_CORE;
-		else
-			topdown_events = TOPDOWN_L1_EVENTS;
-	}
-
-	return parse_event(evlist, topdown_events);
 }

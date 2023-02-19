@@ -1647,10 +1647,8 @@ static int metricgroup__has_metric_callback(const struct pmu_metric *pm,
 {
 	const char *metric = vdata;
 
-	if (!pm->metric_expr)
-		return 0;
-
-	if (match_metric(pm->metric_name, metric))
+	if (match_metric(pm->metric_name, metric) ||
+	    match_metric(pm->metric_group, metric))
 		return 1;
 
 	return 0;
