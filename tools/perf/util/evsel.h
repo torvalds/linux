@@ -436,7 +436,7 @@ static inline bool evsel__is_bpf_output(struct evsel *evsel)
 	return evsel__match(evsel, SOFTWARE, SW_BPF_OUTPUT);
 }
 
-static inline bool evsel__is_clock(struct evsel *evsel)
+static inline bool evsel__is_clock(const struct evsel *evsel)
 {
 	return evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK) ||
 	       evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
