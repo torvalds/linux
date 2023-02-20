@@ -226,68 +226,7 @@ void omap3_ctrl_write_boot_mode(u8 bootmode)
 
 #endif
 
-/**
- * omap_ctrl_write_dsp_boot_addr - set boot address for a remote processor
- * @bootaddr: physical address of the boot loader
- *
- * Set boot address for the boot loader of a supported processor
- * when a power ON sequence occurs.
- */
-void omap_ctrl_write_dsp_boot_addr(u32 bootaddr)
-{
-	u32 offset = cpu_is_omap243x() ? OMAP243X_CONTROL_IVA2_BOOTADDR :
-		     cpu_is_omap34xx() ? OMAP343X_CONTROL_IVA2_BOOTADDR :
-		     cpu_is_omap44xx() ? OMAP4_CTRL_MODULE_CORE_DSP_BOOTADDR :
-		     soc_is_omap54xx() ? OMAP4_CTRL_MODULE_CORE_DSP_BOOTADDR :
-		     0;
-
-	if (!offset) {
-		pr_err("%s: unsupported omap type\n", __func__);
-		return;
-	}
-
-	omap_ctrl_writel(bootaddr, offset);
-}
-
-/**
- * omap_ctrl_write_dsp_boot_mode - set boot mode for a remote processor
- * @bootmode: 8-bit value to pass to some boot code
- *
- * Sets boot mode for the boot loader of a supported processor
- * when a power ON sequence occurs.
- */
-void omap_ctrl_write_dsp_boot_mode(u8 bootmode)
-{
-	u32 offset = cpu_is_omap243x() ? OMAP243X_CONTROL_IVA2_BOOTMOD :
-		     cpu_is_omap34xx() ? OMAP343X_CONTROL_IVA2_BOOTMOD :
-		     0;
-
-	if (!offset) {
-		pr_err("%s: unsupported omap type\n", __func__);
-		return;
-	}
-
-	omap_ctrl_writel(bootmode, offset);
-}
-
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
-/*
- * Clears the scratchpad contents in case of cold boot-
- * called during bootup
- */
-void omap3_clear_scratchpad_contents(void)
-{
-	u32 max_offset = OMAP343X_SCRATCHPAD_ROM_OFFSET;
-	void __iomem *v_addr;
-	u32 offset = 0;
-
-	v_addr = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD_ROM);
-	if (omap3xxx_prm_clear_global_cold_reset()) {
-		for ( ; offset <= max_offset; offset += 0x4)
-			writel_relaxed(0x0, (v_addr + offset));
-	}
-}
-
 /* Populate the scratchpad structure with restore structure */
 void omap3_save_scratchpad_contents(void)
 {
@@ -845,16 +784,4 @@ of_node_put:
 	of_node_put(np);
 	return ret;
 
-}
-
-/**
- * omap3_control_legacy_iomap_init - legacy iomap init for clock providers
- *
- * Legacy iomap init for clock provider. Needed only by legacy boot mode,
- * where the base addresses are not parsed from DT, but still required
- * by the clock driver to be setup properly.
- */
-void __init omap3_control_legacy_iomap_init(void)
-{
-	omap2_clk_legacy_provider_init(TI_CLKM_SCRM, omap2_ctrl_base);
 }
