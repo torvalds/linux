@@ -654,8 +654,8 @@ int efx_mae_enumerate_mports(struct efx_nic *efx)
 								     MAE_MPORT_DESC_VNIC_FUNCTION_INTERFACE);
 				d->pf_idx = MCDI_STRUCT_WORD(desc,
 							     MAE_MPORT_DESC_VNIC_FUNCTION_PF_IDX);
-			d->vf_idx = MCDI_STRUCT_WORD(desc,
-						     MAE_MPORT_DESC_VNIC_FUNCTION_VF_IDX);
+				d->vf_idx = MCDI_STRUCT_WORD(desc,
+							     MAE_MPORT_DESC_VNIC_FUNCTION_VF_IDX);
 				break;
 			default:
 				/* Unknown mport_type, just accept it */
