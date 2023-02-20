@@ -833,8 +833,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 void rkcif_irq_handle_scale(struct rkcif_device *cif_dev,
 				  unsigned int intstat_glb);
 void rkcif_buf_queue(struct vb2_buffer *vb);
-void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
-				  struct vb2_v4l2_buffer *vb_done);
+
+void rkcif_vb_done_tasklet(struct rkcif_stream *stream, struct rkcif_buffer *buf);
 
 int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev);
 

@@ -618,7 +618,7 @@ static void rkcif_tools_work(struct work_struct *work)
 		list_add_tail(&tools_buf->list, &tools_vdev->src_buf_head);
 	}
 	tools_buf->use_cnt = 2;
-	rkcif_vb_done_oneframe(stream, &tools_work->active_buf->vb);
+	rkcif_vb_done_tasklet(stream, tools_work->active_buf);
 
 	if (tools_vdev->stopping) {
 		rkcif_buf_queue(&tools_work->active_buf->vb.vb2_buf);

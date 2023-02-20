@@ -4220,11 +4220,11 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			dev->wait_line = 0;
 			stream->is_line_wake_up = false;
 		}
+		tasklet_disable(&stream->vb_done_tasklet);
 	}
 	if (can_reset && hw_dev->dummy_buf.vaddr)
 		rkcif_destroy_dummy_buf(stream);
 	stream->cur_stream_mode &= ~mode;
-	tasklet_disable(&stream->vb_done_tasklet);
 	INIT_LIST_HEAD(&stream->vb_done_list);
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished, dma_en 0x%x\n", stream->id, stream->dma_en);
 	mutex_unlock(&dev->stream_lock);
@@ -5213,6 +5213,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	mutex_unlock(&hw_dev->dev_lock);
 
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
+		tasklet_enable(&stream->vb_done_tasklet);
 		ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev, "open cif pipeline failed %d\n",
@@ -5286,7 +5287,6 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	dev->reset_work_cancel = false;
 	stream->cur_stream_mode |= mode;
 	rkcif_monitor_reset_event(dev);
-	tasklet_enable(&stream->vb_done_tasklet);
 	goto out;
 
 stop_stream:
@@ -6232,7 +6232,7 @@ static void rkcif_tasklet_handle(unsigned long data)
 	}
 }
 
-static void rkcif_vb_done_tasklet(struct rkcif_stream *stream, struct rkcif_buffer *buf)
+void rkcif_vb_done_tasklet(struct rkcif_stream *stream, struct rkcif_buffer *buf)
 {
 	unsigned long flags = 0;
 
