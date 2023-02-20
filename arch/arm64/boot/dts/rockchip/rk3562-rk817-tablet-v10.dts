@@ -799,9 +799,9 @@
 		rk817_codec: codec {
 			#sound-dai-cells = <0>;
 			compatible = "rockchip,rk817-codec";
-			clocks = <&cru MCLK_SAI0_OUT2IO>;
+			clocks = <&mclkout_sai0>;
 			clock-names = "mclk";
-			assigned-clocks = <&cru MCLK_SAI0_OUT2IO>;
+			assigned-clocks = <&mclkout_sai0>;
 			assigned-clock-rates = <12288000>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s0m0_mclk>;
