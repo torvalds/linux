@@ -51,7 +51,7 @@ int __init dlm_memory_init(void)
 	cb_cache = kmem_cache_create("dlm_cb", sizeof(struct dlm_callback),
 				     __alignof__(struct dlm_callback), 0,
 				     NULL);
-	if (!rsb_cache)
+	if (!cb_cache)
 		goto cb;
 
 	return 0;
