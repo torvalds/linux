@@ -101,32 +101,15 @@ static void aqua_vanjaram_populate_ip_map(struct amdgpu_device *adev,
 
 void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
 {
-	int xcc_mask, sdma_mask;
-	int l, i;
+	u32 ip_map[][2] = {
+		{ GC_HWIP, adev->gfx.xcc_mask },
+		{ SDMA0_HWIP, adev->sdma.sdma_mask },
+		{ VCN_HWIP, adev->vcn.inst_mask },
+	};
+	int i;
 
-	/* Map GC instances */
-	l = 0;
-	xcc_mask = adev->gfx.xcc_mask;
-	while (xcc_mask) {
-		i = ffs(xcc_mask) - 1;
-		adev->ip_map.dev_inst[GC_HWIP][l++] = i;
-		xcc_mask &= ~(1 << i);
-	}
-	for (; l < HWIP_MAX_INSTANCE; l++)
-		adev->ip_map.dev_inst[GC_HWIP][l] = -1;
-
-	l = 0;
-	sdma_mask = adev->sdma.sdma_mask;
-	while (sdma_mask) {
-		i = ffs(sdma_mask) - 1;
-		adev->ip_map.dev_inst[SDMA0_HWIP][l++] = i;
-		sdma_mask &= ~(1 << i);
-	}
-	for (; l < HWIP_MAX_INSTANCE; l++)
-		adev->ip_map.dev_inst[SDMA0_HWIP][l] = -1;
-
-	/* This covers both VCN and JPEG, JPEG is only alias of VCN */
-	aqua_vanjaram_populate_ip_map(adev, VCN_HWIP, adev->vcn.inst_mask);
+	for (i = 0; i < ARRAY_SIZE(ip_map); ++i)
+		aqua_vanjaram_populate_ip_map(adev, ip_map[i][0], ip_map[i][1]);
 
 	adev->ip_map.logical_to_dev_inst = aqua_vanjaram_logical_to_dev_inst;
 }
