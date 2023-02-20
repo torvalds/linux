@@ -247,5 +247,5 @@ bool __ethtool_dev_mm_supported(struct net_device *dev)
 	if (ops && ops->get_mm)
 		ret = ops->get_mm(dev, &state);
 
-	return !!ret;
+	return !ret;
 }
