@@ -350,7 +350,7 @@ void of_node_release(struct kobject *kobj)
 		if (!IS_ENABLED(CONFIG_OF_UNITTEST) ||
 		    strcmp(node->parent->full_name, "testcase-data")) {
 			dump_stack();
-			pr_err("ERROR: next of_node_put() on this node will result in a kboject warning 'refcount_t: underflow; use-after-free.'\n");
+			pr_err("ERROR: next of_node_put() on this node will result in a kobject warning 'refcount_t: underflow; use-after-free.'\n");
 		}
 
 		return;
