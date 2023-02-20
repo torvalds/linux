@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __GH_RM_DRV_PRIVATE_H
@@ -90,6 +90,7 @@ struct gh_vm_property {
 #define GH_RM_RPC_MSG_ID_CALL_VM_GET_HYP_RESOURCES	0x56000020
 #define GH_RM_RPC_MSG_ID_CALL_VM_LOOKUP_HYP_CAPIDS	0x56000021
 #define GH_RM_RPC_MSG_ID_CALL_VM_LOOKUP_HYP_IRQS	0X56000022
+#define GH_RM_RPC_MSG_ID_CALL_VM_GET_VMID		0x56000024
 
 /* Message IDs: vRTC Configuration */
 #define GH_RM_RPC_MSG_ID_CALL_VM_SET_TIME_BASE		0x56000030

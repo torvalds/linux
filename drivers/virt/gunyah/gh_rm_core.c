@@ -1345,10 +1345,12 @@ static void gh_vm_check_peer(struct device *dev, struct device_node *rm_root)
 	uuid_t vm_guid;
 
 	peers_cnt = of_property_count_strings(rm_root, "qcom,peers");
+	if (!peers_cnt)
+		return;
+
 	peers_array = kcalloc(peers_cnt, sizeof(char *), GFP_KERNEL);
 	if (!peers_array) {
 		dev_err(dev, "Failed to allocate memory\n");
-		ret = -ENOMEM;
 		return;
 	}
 
@@ -1356,7 +1358,6 @@ static void gh_vm_check_peer(struct device *dev, struct device_node *rm_root)
 					    peers_cnt);
 	if (ret < 0) {
 		dev_err(dev, "Failed to find qcom,peers\n");
-		ret = -ENODEV;
 		goto out;
 	}
 

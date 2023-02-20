@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -369,6 +369,7 @@ int gh_rm_get_vminfo(enum gh_vm_names vm_name, struct gh_vminfo *vminfo);
 int gh_rm_vm_start(int vmid);
 enum gh_vm_names gh_get_image_name(const char *str);
 enum gh_vm_names gh_get_vm_name(const char *str);
+int gh_rm_get_this_vmid(gh_vmid_t *vmid);
 int gh_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags);
 int gh_rm_vm_reset(gh_vmid_t vmid);
 
@@ -526,6 +527,11 @@ static inline int gh_rm_get_vmid(enum gh_vm_names vm_name, gh_vmid_t *vmid)
 }
 
 static inline int gh_rm_get_vm_name(gh_vmid_t vmid, enum gh_vm_names *vm_name)
+{
+	return -EINVAL;
+}
+
+static inline int gh_rm_get_this_vmid(gh_vmid_t *vmid)
 {
 	return -EINVAL;
 }
