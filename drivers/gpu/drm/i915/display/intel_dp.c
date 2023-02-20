@@ -2292,10 +2292,15 @@ intel_edp_init_source_oui(struct intel_dp *intel_dp, bool careful)
 
 void intel_dp_wait_source_oui(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
-	drm_dbg_kms(&i915->drm, "Performing OUI wait\n");
-	wait_remaining_ms_from_jiffies(intel_dp->last_oui_write, 30);
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] Performing OUI wait (%u ms)\n",
+		    connector->base.base.id, connector->base.name,
+		    connector->panel.vbt.backlight.hdr_dpcd_refresh_timeout);
+
+	wait_remaining_ms_from_jiffies(intel_dp->last_oui_write,
+				       connector->panel.vbt.backlight.hdr_dpcd_refresh_timeout);
 }
 
 /* If the device supports it, try to set the power state appropriately */

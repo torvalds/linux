@@ -1084,6 +1084,12 @@ parse_lfp_backlight(struct drm_i915_private *i915,
 		panel->vbt.backlight.min_brightness = entry->min_brightness;
 	}
 
+	if (i915->display.vbt.version >= 239)
+		panel->vbt.backlight.hdr_dpcd_refresh_timeout =
+			DIV_ROUND_UP(backlight_data->hdr_dpcd_refresh_timeout[panel_type], 100);
+	else
+		panel->vbt.backlight.hdr_dpcd_refresh_timeout = 30;
+
 	drm_dbg_kms(&i915->drm,
 		    "VBT backlight PWM modulation frequency %u Hz, "
 		    "active %s, min brightness %u, level %u, controller %u\n",

@@ -326,6 +326,7 @@ struct intel_vbt_panel_data {
 	struct {
 		u16 pwm_freq_hz;
 		u16 brightness_precision_bits;
+		u16 hdr_dpcd_refresh_timeout;
 		bool present;
 		bool active_low_pwm;
 		u8 min_brightness;	/* min_brightness/255 of max */
