@@ -480,7 +480,6 @@ out:
 		 * remove this channel
 		 */
 		cancel_delayed_work_sync(&chan->server->echo);
-		cancel_delayed_work_sync(&chan->server->resolve);
 		cancel_delayed_work_sync(&chan->server->reconnect);
 
 		spin_lock(&ses->chan_lock);
