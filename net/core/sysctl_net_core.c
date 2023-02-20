@@ -74,24 +74,47 @@ static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
 #endif
 
 #ifdef CONFIG_RPS
-struct cpumask rps_default_mask;
+
+static struct cpumask *rps_default_mask_cow_alloc(struct net *net)
+{
+	struct cpumask *rps_default_mask;
+
+	if (net->core.rps_default_mask)
+		return net->core.rps_default_mask;
+
+	rps_default_mask = kzalloc(cpumask_size(), GFP_KERNEL);
+	if (!rps_default_mask)
+		return NULL;
+
+	/* pairs with READ_ONCE in rx_queue_default_mask() */
+	WRITE_ONCE(net->core.rps_default_mask, rps_default_mask);
+	return rps_default_mask;
+}
 
 static int rps_default_mask_sysctl(struct ctl_table *table, int write,
 				   void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct net *net = (struct net *)table->data;
 	int err = 0;
 
 	rtnl_lock();
 	if (write) {
-		err = cpumask_parse(buffer, &rps_default_mask);
+		struct cpumask *rps_default_mask = rps_default_mask_cow_alloc(net);
+
+		err = -ENOMEM;
+		if (!rps_default_mask)
+			goto done;
+
+		err = cpumask_parse(buffer, rps_default_mask);
 		if (err)
 			goto done;
 
-		err = rps_cpumask_housekeeping(&rps_default_mask);
+		err = rps_cpumask_housekeeping(rps_default_mask);
 		if (err)
 			goto done;
 	} else {
-		dump_cpumask(buffer, lenp, ppos, &rps_default_mask);
+		dump_cpumask(buffer, lenp, ppos,
+			     net->core.rps_default_mask ? : cpu_none_mask);
 	}
 
 done:
@@ -508,11 +531,6 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= rps_sock_flow_sysctl
 	},
-	{
-		.procname	= "rps_default_mask",
-		.mode		= 0644,
-		.proc_handler	= rps_default_mask_sysctl
-	},
 #endif
 #ifdef CONFIG_NET_FLOW_LIMIT
 	{
@@ -639,6 +657,14 @@ static struct ctl_table net_core_table[] = {
 };
 
 static struct ctl_table netns_core_table[] = {
+#if IS_ENABLED(CONFIG_RPS)
+	{
+		.procname	= "rps_default_mask",
+		.data		= &init_net,
+		.mode		= 0644,
+		.proc_handler	= rps_default_mask_sysctl
+	},
+#endif
 	{
 		.procname	= "somaxconn",
 		.data		= &init_net.core.sysctl_somaxconn,
@@ -706,6 +732,9 @@ static __net_exit void sysctl_core_net_exit(struct net *net)
 	tbl = net->core.sysctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->core.sysctl_hdr);
 	BUG_ON(tbl == netns_core_table);
+#if IS_ENABLED(CONFIG_RPS)
+	kfree(net->core.rps_default_mask);
+#endif
 	kfree(tbl);
 }
 
@@ -716,10 +745,6 @@ static __net_initdata struct pernet_operations sysctl_core_ops = {
 
 static __init int sysctl_core_init(void)
 {
-#if IS_ENABLED(CONFIG_RPS)
-	cpumask_copy(&rps_default_mask, cpu_none_mask);
-#endif
-
 	register_net_sysctl(&init_net, "net/core", net_core_table);
 	return register_pernet_subsys(&sysctl_core_ops);
 }
