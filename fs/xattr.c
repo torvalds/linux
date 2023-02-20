@@ -9,6 +9,7 @@
   Copyright (c) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
  */
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/xattr.h>

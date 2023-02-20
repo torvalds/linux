@@ -451,7 +451,7 @@ static int afs_do_setlk_check(struct afs_vnode *vnode, struct key *key,
  */
 static int afs_do_setlk(struct file *file, struct file_lock *fl)
 {
-	struct inode *inode = locks_inode(file);
+	struct inode *inode = file_inode(file);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	enum afs_flock_mode mode = AFS_FS_S(inode->i_sb)->flock_mode;
 	afs_lock_type_t type;
@@ -701,7 +701,7 @@ error:
  */
 static int afs_do_unlk(struct file *file, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	int ret;
 
 	_enter("{%llx:%llu},%u", vnode->fid.vid, vnode->fid.vnode, fl->fl_type);
@@ -721,7 +721,7 @@ static int afs_do_unlk(struct file *file, struct file_lock *fl)
  */
 static int afs_do_getlk(struct file *file, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct key *key = afs_file_key(file);
 	int ret, lock_count;
 
@@ -763,7 +763,7 @@ error:
  */
 int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	enum afs_flock_operation op;
 	int ret;
 
@@ -798,7 +798,7 @@ int afs_lock(struct file *file, int cmd, struct file_lock *fl)
  */
 int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	enum afs_flock_operation op;
 	int ret;
 
@@ -843,7 +843,7 @@ int afs_flock(struct file *file, int cmd, struct file_lock *fl)
  */
 static void afs_fl_copy_lock(struct file_lock *new, struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(fl->fl_file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(fl->fl_file));
 
 	_enter("");
 
@@ -861,7 +861,7 @@ static void afs_fl_copy_lock(struct file_lock *new, struct file_lock *fl)
  */
 static void afs_fl_release_private(struct file_lock *fl)
 {
-	struct afs_vnode *vnode = AFS_FS_I(locks_inode(fl->fl_file));
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(fl->fl_file));
 
 	_enter("");
 

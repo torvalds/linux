@@ -28,6 +28,7 @@
 #include <linux/security.h>
 #include <linux/evm.h>
 #include <linux/fsnotify.h>
+#include <linux/filelock.h>
 
 #include "internal.h"
 

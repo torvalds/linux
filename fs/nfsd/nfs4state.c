@@ -5356,7 +5356,7 @@ static int nfsd4_check_conflicting_opens(struct nfs4_client *clp,
 {
 	struct nfs4_ol_stateid *st;
 	struct file *f = fp->fi_deleg_file->nf_file;
-	struct inode *ino = locks_inode(f);
+	struct inode *ino = file_inode(f);
 	int writes;
 
 	writes = atomic_read(&ino->i_writecount);
@@ -7809,7 +7809,7 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 		return status;
 	}
 
-	inode = locks_inode(nf->nf_file);
+	inode = file_inode(nf->nf_file);
 	flctx = locks_inode_context(inode);
 
 	if (flctx && !list_empty_careful(&flctx->flc_posix)) {

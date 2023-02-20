@@ -14,6 +14,7 @@
 #include <linux/capability.h>
 #include <linux/fsnotify.h>
 #include <linux/fcntl.h>
+#include <linux/filelock.h>
 #include <linux/security.h>
 #include <linux/evm.h>
 #include <linux/ima.h>

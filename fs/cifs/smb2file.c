@@ -7,6 +7,7 @@
  *
  */
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
