@@ -2435,6 +2435,7 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	int i;
+	int ret;
 
 	rtwsta->rtwdev = rtwdev;
 	rtwsta->rtwvif = rtwvif;
@@ -2459,6 +2460,21 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 							    RTW89_MAX_MAC_ID_NUM);
 		if (rtwsta->mac_id == RTW89_MAX_MAC_ID_NUM)
 			return -ENOSPC;
+
+		ret = rtw89_mac_set_macid_pause(rtwdev, rtwsta->mac_id, false);
+		if (ret) {
+			rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
+			rtw89_warn(rtwdev, "failed to send h2c macid pause\n");
+			return ret;
+		}
+
+		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, rtwsta,
+						 RTW89_ROLE_CREATE);
+		if (ret) {
+			rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
+			rtw89_warn(rtwdev, "failed to send h2c role info\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -2513,14 +2529,6 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
-		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, rtwsta, RTW89_ROLE_REMOVE);
-		if (ret) {
-			rtw89_warn(rtwdev, "failed to send h2c role info\n");
-			return ret;
-		}
-	}
-
 	/* update cam aid mac_id net_type */
 	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
 	if (ret) {
@@ -2541,18 +2549,6 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
-		ret = rtw89_mac_set_macid_pause(rtwdev, rtwsta->mac_id, false);
-		if (ret) {
-			rtw89_warn(rtwdev, "failed to send h2c macid pause\n");
-			return ret;
-		}
-
-		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, rtwsta, RTW89_ROLE_CREATE);
-		if (ret) {
-			rtw89_warn(rtwdev, "failed to send h2c role info\n");
-			return ret;
-		}
-
 		if (sta->tdls) {
 			ret = rtw89_cam_init_bssid_cam(rtwdev, rtwvif, bssid_cam, sta->addr);
 			if (ret) {
@@ -2622,12 +2618,21 @@ int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	int ret;
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_DIS_CONN);
-	else if (vif->type == NL80211_IFTYPE_AP || sta->tdls)
+	else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
+
+		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, rtwsta,
+						 RTW89_ROLE_REMOVE);
+		if (ret) {
+			rtw89_warn(rtwdev, "failed to send h2c role info\n");
+			return ret;
+		}
+	}
 
 	return 0;
 }
