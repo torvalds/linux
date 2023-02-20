@@ -1749,6 +1749,7 @@ int __bch2_btree_insert(struct btree_trans *trans, enum btree_id id,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, id, bkey_start_pos(&k->k),
+			     BTREE_ITER_CACHED|
 			     BTREE_ITER_INTENT);
 	ret   = bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(trans, &iter, k, flags);
