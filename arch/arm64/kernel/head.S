@@ -70,7 +70,7 @@
 
 	__EFI_PE_HEADER
 
-	.section ".idmap.text","awx"
+	.section ".idmap.text","a"
 
 	/*
 	 * The following callee saved general purpose registers are used on the
@@ -99,7 +99,8 @@ SYM_CODE_START(primary_entry)
 	cbz	x19, 0f
 	adrp	x0, __idmap_text_start
 	adr_l	x1, __idmap_text_end
-	bl	dcache_clean_poc
+	adr_l	x2, dcache_clean_poc
+	blr	x2
 0:	mov	x0, x19
 	bl	init_kernel_el			// w0=cpu_boot_mode
 	mov	x20, x0
@@ -527,7 +528,7 @@ SYM_FUNC_END(__primary_switched)
  * end early head section, begin head code that is also used for
  * hotplug and needs to have the same protections as the text region
  */
-	.section ".idmap.text","awx"
+	.section ".idmap.text","a"
 
 /*
  * Starting from EL2 or EL1, configure the CPU to execute at the highest
@@ -566,7 +567,8 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	cbz	x0, 0f
 	adrp	x0, __hyp_idmap_text_start
 	adr_l	x1, __hyp_text_end
-	bl	dcache_clean_poc
+	adr_l	x2, dcache_clean_poc
+	blr	x2
 0:
 	mov_q	x0, HCR_HOST_NVHE_FLAGS
 	msr	hcr_el2, x0
@@ -728,7 +730,7 @@ SYM_FUNC_END(set_cpu_boot_mode_flag)
  * Checks if the selected granule size is supported by the CPU.
  * If it isn't, park the CPU
  */
-	.section ".idmap.text","awx"
+	.section ".idmap.text","a"
 SYM_FUNC_START(__enable_mmu)
 	mrs	x3, ID_AA64MMFR0_EL1
 	ubfx	x3, x3, #ID_AA64MMFR0_EL1_TGRAN_SHIFT, 4
