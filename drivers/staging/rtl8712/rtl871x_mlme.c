@@ -773,8 +773,8 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 						adapter->securitypriv.busetkipkey = false;
 						adapter->securitypriv.bgrpkey_handshake = false;
 						ptarget_sta->ieee8021x_blocked = true;
-						ptarget_sta->XPrivacy = adapter->
-						securitypriv.PrivacyAlgrthm;
+						ptarget_sta->XPrivacy =
+							adapter->securitypriv.PrivacyAlgrthm;
 						memset((u8 *)&ptarget_sta->x_UncstKey,
 							0,
 							sizeof(union Keytype));
