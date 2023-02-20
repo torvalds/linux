@@ -57,6 +57,7 @@ struct rt_sigframe_user_layout {
 	unsigned long esr_offset;
 	unsigned long sve_offset;
 	unsigned long za_offset;
+	unsigned long zt_offset;
 	unsigned long extra_offset;
 	unsigned long end_offset;
 };
@@ -221,6 +222,7 @@ struct user_ctxs {
 	struct fpsimd_context __user *fpsimd;
 	struct sve_context __user *sve;
 	struct za_context __user *za;
+	struct zt_context __user *zt;
 };
 
 #ifdef CONFIG_ARM64_SVE
@@ -394,7 +396,7 @@ static int preserve_za_context(struct za_context __user *ctx)
 		 * fpsimd_signal_preserve_current_state().
 		 */
 		err |= __copy_to_user((char __user *)ctx + ZA_SIG_REGS_OFFSET,
-				      current->thread.za_state,
+				      current->thread.sme_state,
 				      ZA_SIG_REGS_SIZE(vq));
 	}
 
@@ -425,7 +427,7 @@ static int restore_za_context(struct user_ctxs *user)
 
 	/*
 	 * Careful: we are about __copy_from_user() directly into
-	 * thread.za_state with preemption enabled, so protection is
+	 * thread.sme_state with preemption enabled, so protection is
 	 * needed to prevent a racing context switch from writing stale
 	 * registers back over the new data.
 	 */
@@ -434,13 +436,13 @@ static int restore_za_context(struct user_ctxs *user)
 	/* From now, fpsimd_thread_switch() won't touch thread.sve_state */
 
 	sme_alloc(current);
-	if (!current->thread.za_state) {
+	if (!current->thread.sme_state) {
 		current->thread.svcr &= ~SVCR_ZA_MASK;
 		clear_thread_flag(TIF_SME);
 		return -ENOMEM;
 	}
 
-	err = __copy_from_user(current->thread.za_state,
+	err = __copy_from_user(current->thread.sme_state,
 			       (char __user const *)user->za +
 					ZA_SIG_REGS_OFFSET,
 			       ZA_SIG_REGS_SIZE(vq));
@@ -452,11 +454,81 @@ static int restore_za_context(struct user_ctxs *user)
 
 	return 0;
 }
+
+static int preserve_zt_context(struct zt_context __user *ctx)
+{
+	int err = 0;
+	u16 reserved[ARRAY_SIZE(ctx->__reserved)];
+
+	if (WARN_ON(!thread_za_enabled(&current->thread)))
+		return -EINVAL;
+
+	memset(reserved, 0, sizeof(reserved));
+
+	__put_user_error(ZT_MAGIC, &ctx->head.magic, err);
+	__put_user_error(round_up(ZT_SIG_CONTEXT_SIZE(1), 16),
+			 &ctx->head.size, err);
+	__put_user_error(1, &ctx->nregs, err);
+	BUILD_BUG_ON(sizeof(ctx->__reserved) != sizeof(reserved));
+	err |= __copy_to_user(&ctx->__reserved, reserved, sizeof(reserved));
+
+	/*
+	 * This assumes that the ZT state has already been saved to
+	 * the task struct by calling the function
+	 * fpsimd_signal_preserve_current_state().
+	 */
+	err |= __copy_to_user((char __user *)ctx + ZT_SIG_REGS_OFFSET,
+			      thread_zt_state(&current->thread),
+			      ZT_SIG_REGS_SIZE(1));
+
+	return err ? -EFAULT : 0;
+}
+
+static int restore_zt_context(struct user_ctxs *user)
+{
+	int err;
+	struct zt_context zt;
+
+	/* ZA must be restored first for this check to be valid */
+	if (!thread_za_enabled(&current->thread))
+		return -EINVAL;
+
+	if (__copy_from_user(&zt, user->zt, sizeof(zt)))
+		return -EFAULT;
+
+	if (zt.nregs != 1)
+		return -EINVAL;
+
+	if (zt.head.size != ZT_SIG_CONTEXT_SIZE(zt.nregs))
+		return -EINVAL;
+
+	/*
+	 * Careful: we are about __copy_from_user() directly into
+	 * thread.zt_state with preemption enabled, so protection is
+	 * needed to prevent a racing context switch from writing stale
+	 * registers back over the new data.
+	 */
+
+	fpsimd_flush_task_state(current);
+	/* From now, fpsimd_thread_switch() won't touch ZT in thread state */
+
+	err = __copy_from_user(thread_zt_state(&current->thread),
+			       (char __user const *)user->zt +
+					ZT_SIG_REGS_OFFSET,
+			       ZT_SIG_REGS_SIZE(1));
+	if (err)
+		return -EFAULT;
+
+	return 0;
+}
+
 #else /* ! CONFIG_ARM64_SME */
 
 /* Turn any non-optimised out attempts to use these into a link error: */
 extern int preserve_za_context(void __user *ctx);
 extern int restore_za_context(struct user_ctxs *user);
+extern int preserve_zt_context(void __user *ctx);
+extern int restore_zt_context(struct user_ctxs *user);
 
 #endif /* ! CONFIG_ARM64_SME */
 
@@ -474,6 +546,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 	user->fpsimd = NULL;
 	user->sve = NULL;
 	user->za = NULL;
+	user->zt = NULL;
 
 	if (!IS_ALIGNED((unsigned long)base, 16))
 		goto invalid;
@@ -550,6 +623,19 @@ static int parse_user_sigframe(struct user_ctxs *user,
 				goto invalid;
 
 			user->za = (struct za_context __user *)head;
+			break;
+
+		case ZT_MAGIC:
+			if (!system_supports_sme2())
+				goto invalid;
+
+			if (user->zt)
+				goto invalid;
+
+			if (size < sizeof(*user->zt))
+				goto invalid;
+
+			user->zt = (struct zt_context __user *)head;
 			break;
 
 		case EXTRA_MAGIC:
@@ -674,6 +760,9 @@ static int restore_sigframe(struct pt_regs *regs,
 	if (err == 0 && system_supports_sme() && user.za)
 		err = restore_za_context(&user);
 
+	if (err == 0 && system_supports_sme2() && user.zt)
+		err = restore_zt_context(&user);
+
 	return err;
 }
 
@@ -774,6 +863,15 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user,
 			return err;
 	}
 
+	if (system_supports_sme2()) {
+		if (add_all || thread_za_enabled(&current->thread)) {
+			err = sigframe_alloc(user, &user->zt_offset,
+					     ZT_SIG_CONTEXT_SIZE(1));
+			if (err)
+				return err;
+		}
+	}
+
 	return sigframe_alloc_end(user);
 }
 
@@ -827,6 +925,13 @@ static int setup_sigframe(struct rt_sigframe_user_layout *user,
 		struct za_context __user *za_ctx =
 			apply_user_offset(user, user->za_offset);
 		err |= preserve_za_context(za_ctx);
+	}
+
+	/* ZT state if present */
+	if (system_supports_sme2() && err == 0 && user->zt_offset) {
+		struct zt_context __user *zt_ctx =
+			apply_user_offset(user, user->zt_offset);
+		err |= preserve_zt_context(zt_ctx);
 	}
 
 	if (err == 0 && user->extra_offset) {

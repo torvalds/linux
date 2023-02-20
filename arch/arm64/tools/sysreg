@@ -15,6 +15,8 @@
 
 # Res1	<msb>[:<lsb>]
 
+# Unkn	<msb>[:<lsb>]
+
 # Field	<msb>[:<lsb>]	<name>
 
 # Enum	<msb>[:<lsb>]	<name>
@@ -894,6 +896,7 @@ EndEnum
 Enum	27:24	SME
 	0b0000	NI
 	0b0001	IMP
+	0b0010	SME2
 EndEnum
 Res0	23:20
 Enum	19:16	MPAM_frac
@@ -975,7 +978,9 @@ Enum	63	FA64
 EndEnum
 Res0	62:60
 Enum	59:56	SMEver
-	0b0000	IMP
+	0b0000	SME
+	0b0001	SME2
+	0b0010	SME2p1
 EndEnum
 Enum	55:52	I16I64
 	0b0000	NI
@@ -986,7 +991,19 @@ Enum	48	F64F64
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	47:40
+Enum	47:44	I16I32
+	0b0000	NI
+	0b0101	IMP
+EndEnum
+Enum	43	B16B16
+	0b0	NI
+	0b1	IMP
+EndEnum
+Enum	42	F16F16
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	41:40
 Enum	39:36	I8I32
 	0b0000	NI
 	0b1111	IMP
@@ -999,7 +1016,10 @@ Enum	34	B16F32
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	33
+Enum	33	BI32I32
+	0b0	NI
+	0b1	IMP
+EndEnum
 Enum	32	F32F32
 	0b0	NI
 	0b1	IMP
@@ -1599,7 +1619,8 @@ EndSysreg
 SysregFields	SMCR_ELx
 Res0	63:32
 Field	31	FA64
-Res0	30:9
+Field	30	EZT0
+Res0	29:9
 Raz	8:4
 Field	3:0	LEN
 EndSysregFields
@@ -1635,6 +1656,16 @@ Sysreg	SCXTNUM_EL1	3	0	13	0	7
 Field	63:0	SoftwareContextNumber
 EndSysreg
 
+# The bit layout for CCSIDR_EL1 depends on whether FEAT_CCIDX is implemented.
+# The following is for case when FEAT_CCIDX is not implemented.
+Sysreg	CCSIDR_EL1	3	1	0	0	0
+Res0	63:32
+Unkn	31:28
+Field	27:13	NumSets
+Field	12:3	Associativity
+Field	2:0	LineSize
+EndSysreg
+
 Sysreg	CLIDR_EL1	3	1	0	0	1
 Res0	63:47
 Field	46:33	Ttypen
@@ -1649,6 +1680,11 @@ Field	11:9	Ctype4
 Field	8:6	Ctype3
 Field	5:3	Ctype2
 Field	2:0	Ctype1
+EndSysreg
+
+Sysreg	CCSIDR2_EL1	3	1	0	0	2
+Res0	63:24
+Field	23:0	NumSets
 EndSysreg
 
 Sysreg	GMID_EL1	3	1	0	0	4
