@@ -4345,7 +4345,7 @@ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
 	char *new_name;
 
 	memset(&info, 0, len);
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_map_get_info_by_fd(fd, &info, &len);
 	if (err && errno == EINVAL)
 		err = bpf_get_map_info_from_fdinfo(fd, &info);
 	if (err)
@@ -4729,7 +4729,7 @@ static int probe_module_btf(void)
 	 * kernel's module BTF support coincides with support for
 	 * name/name_len fields in struct bpf_btf_info.
 	 */
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_btf_get_info_by_fd(fd, &info, &len);
 	close(fd);
 	return !err;
 }
@@ -4892,7 +4892,7 @@ static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
 	int err;
 
 	memset(&map_info, 0, map_info_len);
-	err = bpf_obj_get_info_by_fd(map_fd, &map_info, &map_info_len);
+	err = bpf_map_get_info_by_fd(map_fd, &map_info, &map_info_len);
 	if (err && errno == EINVAL)
 		err = bpf_get_map_info_from_fdinfo(map_fd, &map_info);
 	if (err) {
@@ -5437,7 +5437,7 @@ static int load_module_btfs(struct bpf_object *obj)
 		info.name = ptr_to_u64(name);
 		info.name_len = sizeof(name);
 
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		err = bpf_btf_get_info_by_fd(fd, &info, &len);
 		if (err) {
 			err = -errno;
 			pr_warn("failed to get BTF object #%d info: %d\n", id, err);
@@ -9030,9 +9030,9 @@ static int libbpf_find_prog_btf_id(const char *name, __u32 attach_prog_fd)
 	int err;
 
 	memset(&info, 0, info_len);
-	err = bpf_obj_get_info_by_fd(attach_prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(attach_prog_fd, &info, &info_len);
 	if (err) {
-		pr_warn("failed bpf_obj_get_info_by_fd for FD %d: %d\n",
+		pr_warn("failed bpf_prog_get_info_by_fd for FD %d: %d\n",
 			attach_prog_fd, err);
 		return err;
 	}
@@ -11741,7 +11741,7 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 	/* best-effort sanity checks */
 	memset(&map, 0, sizeof(map));
 	map_info_len = sizeof(map);
-	err = bpf_obj_get_info_by_fd(map_fd, &map, &map_info_len);
+	err = bpf_map_get_info_by_fd(map_fd, &map, &map_info_len);
 	if (err) {
 		err = -errno;
 		/* if BPF_OBJ_GET_INFO_BY_FD is supported, will return

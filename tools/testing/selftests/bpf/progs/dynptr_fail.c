@@ -630,7 +630,7 @@ static int release_twice_callback_fn(__u32 index, void *data)
 }
 
 /* Test that releasing a dynptr twice, where one of the releases happens
- * within a calback function, fails
+ * within a callback function, fails
  */
 SEC("?raw_tp")
 __failure __msg("arg 1 is an unacquired reference")

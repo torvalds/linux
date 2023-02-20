@@ -4023,6 +4023,13 @@ L:	bpf@vger.kernel.org
 S:	Maintained
 F:	tools/testing/selftests/bpf/
 
+BPF [DOCUMENTATION] (Related to Standardization)
+R:	David Vernet <void@manifault.com>
+L:	bpf@vger.kernel.org
+L:	bpf@ietf.org
+S:	Maintained
+F:	Documentation/bpf/instruction-set.rst
+
 BPF [MISC]
 L:	bpf@vger.kernel.org
 S:	Odd Fixes

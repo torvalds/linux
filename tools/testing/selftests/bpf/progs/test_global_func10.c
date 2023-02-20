@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 struct Small {
 	int x;
@@ -21,7 +22,8 @@ __noinline int foo(const struct Big *big)
 }
 
 SEC("cgroup_skb/ingress")
-int test_cls(struct __sk_buff *skb)
+__failure __msg("invalid indirect read from stack")
+int global_func10(struct __sk_buff *skb)
 {
 	const struct Small small = {.x = skb->len };
 

@@ -1772,6 +1772,46 @@ unlock:
 	}
 }
 
+/* Like rbtree_postorder_for_each_entry_safe, but 'pos' and 'n' are
+ * 'rb_node *', so field name of rb_node within containing struct is not
+ * needed.
+ *
+ * Since bpf_rb_tree's node type has a corresponding struct btf_field with
+ * graph_root.node_offset, it's not necessary to know field name
+ * or type of node struct
+ */
+#define bpf_rbtree_postorder_for_each_entry_safe(pos, n, root) \
+	for (pos = rb_first_postorder(root); \
+	    pos && ({ n = rb_next_postorder(pos); 1; }); \
+	    pos = n)
+
+void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
+		      struct bpf_spin_lock *spin_lock)
+{
+	struct rb_root_cached orig_root, *root = rb_root;
+	struct rb_node *pos, *n;
+	void *obj;
+
+	BUILD_BUG_ON(sizeof(struct rb_root_cached) > sizeof(struct bpf_rb_root));
+	BUILD_BUG_ON(__alignof__(struct rb_root_cached) > __alignof__(struct bpf_rb_root));
+
+	__bpf_spin_lock_irqsave(spin_lock);
+	orig_root = *root;
+	*root = RB_ROOT_CACHED;
+	__bpf_spin_unlock_irqrestore(spin_lock);
+
+	bpf_rbtree_postorder_for_each_entry_safe(pos, n, &orig_root.rb_root) {
+		obj = pos;
+		obj -= field->graph_root.node_offset;
+
+		bpf_obj_free_fields(field->graph_root.value_rec, obj);
+
+		migrate_disable();
+		bpf_mem_free(&bpf_global_ma, obj);
+		migrate_enable();
+	}
+}
+
 __diag_push();
 __diag_ignore_all("-Wmissing-prototypes",
 		  "Global functions as their definitions will be in vmlinux BTF");
@@ -1842,6 +1882,56 @@ __bpf_kfunc struct bpf_list_node *bpf_list_pop_front(struct bpf_list_head *head)
 __bpf_kfunc struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head)
 {
 	return __bpf_list_del(head, true);
+}
+
+__bpf_kfunc struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
+						  struct bpf_rb_node *node)
+{
+	struct rb_root_cached *r = (struct rb_root_cached *)root;
+	struct rb_node *n = (struct rb_node *)node;
+
+	rb_erase_cached(n, r);
+	RB_CLEAR_NODE(n);
+	return (struct bpf_rb_node *)n;
+}
+
+/* Need to copy rbtree_add_cached's logic here because our 'less' is a BPF
+ * program
+ */
+static void __bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
+			     void *less)
+{
+	struct rb_node **link = &((struct rb_root_cached *)root)->rb_root.rb_node;
+	bpf_callback_t cb = (bpf_callback_t)less;
+	struct rb_node *parent = NULL;
+	bool leftmost = true;
+
+	while (*link) {
+		parent = *link;
+		if (cb((uintptr_t)node, (uintptr_t)parent, 0, 0, 0)) {
+			link = &parent->rb_left;
+		} else {
+			link = &parent->rb_right;
+			leftmost = false;
+		}
+	}
+
+	rb_link_node((struct rb_node *)node, parent, link);
+	rb_insert_color_cached((struct rb_node *)node,
+			       (struct rb_root_cached *)root, leftmost);
+}
+
+__bpf_kfunc void bpf_rbtree_add(struct bpf_rb_root *root, struct bpf_rb_node *node,
+				bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b))
+{
+	__bpf_rbtree_add(root, node, (void *)less);
+}
+
+__bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
+{
+	struct rb_root_cached *r = (struct rb_root_cached *)root;
+
+	return (struct bpf_rb_node *)rb_first_cached(r);
 }
 
 /**
@@ -2068,6 +2158,10 @@ BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_task_acquire_not_zero, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE)
+BTF_ID_FLAGS(func, bpf_rbtree_add)
+BTF_ID_FLAGS(func, bpf_rbtree_first, KF_RET_NULL)
+
 #ifdef CONFIG_CGROUPS
 BTF_ID_FLAGS(func, bpf_cgroup_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_cgroup_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)

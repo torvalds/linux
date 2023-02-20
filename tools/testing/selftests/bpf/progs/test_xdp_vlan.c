@@ -98,7 +98,7 @@ bool parse_eth_frame(struct ethhdr *eth, void *data_end, struct parse_pkt *pkt)
 	return true;
 }
 
-/* Hint, VLANs are choosen to hit network-byte-order issues */
+/* Hint, VLANs are chosen to hit network-byte-order issues */
 #define TESTVLAN 4011 /* 0xFAB */
 // #define TO_VLAN  4000 /* 0xFA0 (hint 0xOA0 = 160) */
 

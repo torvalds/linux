@@ -43,6 +43,22 @@ enum bpf_reg_liveness {
 	REG_LIVE_DONE = 0x8, /* liveness won't be updating this register anymore */
 };
 
+/* For every reg representing a map value or allocated object pointer,
+ * we consider the tuple of (ptr, id) for them to be unique in verifier
+ * context and conside them to not alias each other for the purposes of
+ * tracking lock state.
+ */
+struct bpf_active_lock {
+	/* This can either be reg->map_ptr or reg->btf. If ptr is NULL,
+	 * there's no active lock held, and other fields have no
+	 * meaning. If non-NULL, it indicates that a lock is held and
+	 * id member has the reg->id of the register which can be >= 0.
+	 */
+	void *ptr;
+	/* This will be reg->id */
+	u32 id;
+};
+
 struct bpf_reg_state {
 	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
@@ -226,11 +242,6 @@ struct bpf_reference_state {
 	 * exiting a callback function.
 	 */
 	int callback_ref;
-	/* Mark the reference state to release the registers sharing the same id
-	 * on bpf_spin_unlock (for nodes that we will lose ownership to but are
-	 * safe to access inside the critical section).
-	 */
-	bool release_on_unlock;
 };
 
 /* state of the program:
@@ -331,21 +342,8 @@ struct bpf_verifier_state {
 	u32 branches;
 	u32 insn_idx;
 	u32 curframe;
-	/* For every reg representing a map value or allocated object pointer,
-	 * we consider the tuple of (ptr, id) for them to be unique in verifier
-	 * context and conside them to not alias each other for the purposes of
-	 * tracking lock state.
-	 */
-	struct {
-		/* This can either be reg->map_ptr or reg->btf. If ptr is NULL,
-		 * there's no active lock held, and other fields have no
-		 * meaning. If non-NULL, it indicates that a lock is held and
-		 * id member has the reg->id of the register which can be >= 0.
-		 */
-		void *ptr;
-		/* This will be reg->id */
-		u32 id;
-	} active_lock;
+
+	struct bpf_active_lock active_lock;
 	bool speculative;
 	bool active_rcu_lock;
 

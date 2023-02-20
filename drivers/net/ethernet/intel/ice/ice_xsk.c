@@ -598,21 +598,6 @@ ice_construct_skb_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
 }
 
 /**
- * ice_clean_xdp_tx_buf - Free and unmap XDP Tx buffer
- * @xdp_ring: XDP Tx ring
- * @tx_buf: Tx buffer to clean
- */
-static void
-ice_clean_xdp_tx_buf(struct ice_tx_ring *xdp_ring, struct ice_tx_buf *tx_buf)
-{
-	page_frag_free(tx_buf->raw_buf);
-	xdp_ring->xdp_tx_active--;
-	dma_unmap_single(xdp_ring->dev, dma_unmap_addr(tx_buf, dma),
-			 dma_unmap_len(tx_buf, len), DMA_TO_DEVICE);
-	dma_unmap_len_set(tx_buf, len, 0);
-}
-
-/**
  * ice_clean_xdp_irq_zc - produce AF_XDP descriptors to CQ
  * @xdp_ring: XDP Tx ring
  */
@@ -629,8 +614,8 @@ static void ice_clean_xdp_irq_zc(struct ice_tx_ring *xdp_ring)
 
 	last_rs = xdp_ring->next_to_use ? xdp_ring->next_to_use - 1 : cnt - 1;
 	tx_desc = ICE_TX_DESC(xdp_ring, last_rs);
-	if ((tx_desc->cmd_type_offset_bsz &
-	    cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE))) {
+	if (tx_desc->cmd_type_offset_bsz &
+	    cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)) {
 		if (last_rs >= ntc)
 			completed_frames = last_rs - ntc + 1;
 		else
@@ -649,9 +634,10 @@ static void ice_clean_xdp_irq_zc(struct ice_tx_ring *xdp_ring)
 	for (i = 0; i < completed_frames; i++) {
 		tx_buf = &xdp_ring->tx_buf[ntc];
 
-		if (tx_buf->raw_buf) {
-			ice_clean_xdp_tx_buf(xdp_ring, tx_buf);
-			tx_buf->raw_buf = NULL;
+		if (tx_buf->type == ICE_TX_BUF_XSK_TX) {
+			tx_buf->type = ICE_TX_BUF_EMPTY;
+			xsk_buff_free(tx_buf->xdp);
+			xdp_ring->xdp_tx_active--;
 		} else {
 			xsk_frames++;
 		}
@@ -703,6 +689,7 @@ static int ice_xmit_xdp_tx_zc(struct xdp_buff *xdp,
 
 	tx_buf = &xdp_ring->tx_buf[ntu];
 	tx_buf->xdp = xdp;
+	tx_buf->type = ICE_TX_BUF_XSK_TX;
 	tx_desc = ICE_TX_DESC(xdp_ring, ntu);
 	tx_desc->buf_addr = cpu_to_le64(dma);
 	tx_desc->cmd_type_offset_bsz = ice_build_ctob(ICE_TX_DESC_CMD_EOP,
@@ -1101,12 +1088,12 @@ void ice_xsk_clean_xdp_ring(struct ice_tx_ring *xdp_ring)
 	while (ntc != ntu) {
 		struct ice_tx_buf *tx_buf = &xdp_ring->tx_buf[ntc];
 
-		if (tx_buf->xdp)
+		if (tx_buf->type == ICE_TX_BUF_XSK_TX) {
+			tx_buf->type = ICE_TX_BUF_EMPTY;
 			xsk_buff_free(tx_buf->xdp);
-		else
+		} else {
 			xsk_frames++;
-
-		tx_buf->raw_buf = NULL;
+		}
 
 		ntc++;
 		if (ntc >= xdp_ring->count)

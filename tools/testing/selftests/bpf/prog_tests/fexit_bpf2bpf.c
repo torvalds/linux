@@ -79,7 +79,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 		return;
 
 	info_len = sizeof(prog_info);
-	err = bpf_obj_get_info_by_fd(tgt_fd, &prog_info, &info_len);
+	err = bpf_prog_get_info_by_fd(tgt_fd, &prog_info, &info_len);
 	if (!ASSERT_OK(err, "tgt_fd_get_info"))
 		goto close_prog;
 
@@ -136,8 +136,8 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 		info_len = sizeof(link_info);
 		memset(&link_info, 0, sizeof(link_info));
-		err = bpf_obj_get_info_by_fd(bpf_link__fd(link[i]),
-					     &link_info, &info_len);
+		err = bpf_link_get_info_by_fd(bpf_link__fd(link[i]),
+					      &link_info, &info_len);
 		ASSERT_OK(err, "link_fd_get_info");
 		ASSERT_EQ(link_info.tracing.attach_type,
 			  bpf_program__expected_attach_type(prog[i]),
@@ -417,7 +417,7 @@ static int find_prog_btf_id(const char *name, __u32 attach_prog_fd)
 	struct btf *btf;
 	int ret;
 
-	ret = bpf_obj_get_info_by_fd(attach_prog_fd, &info, &info_len);
+	ret = bpf_prog_get_info_by_fd(attach_prog_fd, &info, &info_len);
 	if (ret)
 		return ret;
 
@@ -483,12 +483,12 @@ static void test_fentry_to_cgroup_bpf(void)
 	if (!ASSERT_GE(fentry_fd, 0, "load_fentry"))
 		goto cleanup;
 
-	/* Make sure bpf_obj_get_info_by_fd works correctly when attaching
+	/* Make sure bpf_prog_get_info_by_fd works correctly when attaching
 	 * to another BPF program.
 	 */
 
-	ASSERT_OK(bpf_obj_get_info_by_fd(fentry_fd, &info, &info_len),
-		  "bpf_obj_get_info_by_fd");
+	ASSERT_OK(bpf_prog_get_info_by_fd(fentry_fd, &info, &info_len),
+		  "bpf_prog_get_info_by_fd");
 
 	ASSERT_EQ(info.btf_id, 0, "info.btf_id");
 	ASSERT_EQ(info.attach_btf_id, btf_id, "info.attach_btf_id");

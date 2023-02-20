@@ -84,7 +84,7 @@ typedef void (*printf_fn_t)(const char *, ...);
  *	typedef int (*fn_t)(int);
  *	typedef char * const * (*fn_ptr2_t)(s_t, fn_t);
  *
- * - `fn_complext_t`: pointer to a function returning struct and accepting
+ * - `fn_complex_t`: pointer to a function returning struct and accepting
  *   union and struct. All structs and enum are anonymous and defined inline.
  *
  * - `signal_t: pointer to a function accepting a pointer to a function as an

@@ -1754,6 +1754,12 @@ struct obj_cgroup *get_obj_cgroup_from_page(struct page *page);
 int obj_cgroup_charge(struct obj_cgroup *objcg, gfp_t gfp, size_t size);
 void obj_cgroup_uncharge(struct obj_cgroup *objcg, size_t size);
 
+extern struct static_key_false memcg_bpf_enabled_key;
+static inline bool memcg_bpf_enabled(void)
+{
+	return static_branch_likely(&memcg_bpf_enabled_key);
+}
+
 extern struct static_key_false memcg_kmem_enabled_key;
 
 static inline bool memcg_kmem_enabled(void)
@@ -1830,6 +1836,11 @@ static inline void __memcg_kmem_uncharge_page(struct page *page, int order)
 static inline struct obj_cgroup *get_obj_cgroup_from_page(struct page *page)
 {
 	return NULL;
+}
+
+static inline bool memcg_bpf_enabled(void)
+{
+	return false;
 }
 
 static inline bool memcg_kmem_enabled(void)

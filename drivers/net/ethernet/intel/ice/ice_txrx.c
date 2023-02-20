@@ -85,7 +85,7 @@ ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 	td_cmd = ICE_TXD_LAST_DESC_CMD | ICE_TX_DESC_CMD_DUMMY |
 		 ICE_TX_DESC_CMD_RE;
 
-	tx_buf->tx_flags = ICE_TX_FLAGS_DUMMY_PKT;
+	tx_buf->type = ICE_TX_BUF_DUMMY;
 	tx_buf->raw_buf = raw_packet;
 
 	tx_desc->cmd_type_offset_bsz =
@@ -112,31 +112,29 @@ ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 static void
 ice_unmap_and_free_tx_buf(struct ice_tx_ring *ring, struct ice_tx_buf *tx_buf)
 {
-	if (tx_buf->skb) {
-		if (tx_buf->tx_flags & ICE_TX_FLAGS_DUMMY_PKT) {
-			devm_kfree(ring->dev, tx_buf->raw_buf);
-		} else if (ice_ring_is_xdp(ring)) {
-			if (ring->xsk_pool)
-				xsk_buff_free(tx_buf->xdp);
-			else
-				page_frag_free(tx_buf->raw_buf);
-		} else {
-			dev_kfree_skb_any(tx_buf->skb);
-		}
-		if (dma_unmap_len(tx_buf, len))
-			dma_unmap_single(ring->dev,
-					 dma_unmap_addr(tx_buf, dma),
-					 dma_unmap_len(tx_buf, len),
-					 DMA_TO_DEVICE);
-	} else if (dma_unmap_len(tx_buf, len)) {
+	if (dma_unmap_len(tx_buf, len))
 		dma_unmap_page(ring->dev,
 			       dma_unmap_addr(tx_buf, dma),
 			       dma_unmap_len(tx_buf, len),
 			       DMA_TO_DEVICE);
+
+	switch (tx_buf->type) {
+	case ICE_TX_BUF_DUMMY:
+		devm_kfree(ring->dev, tx_buf->raw_buf);
+		break;
+	case ICE_TX_BUF_SKB:
+		dev_kfree_skb_any(tx_buf->skb);
+		break;
+	case ICE_TX_BUF_XDP_TX:
+		page_frag_free(tx_buf->raw_buf);
+		break;
+	case ICE_TX_BUF_XDP_XMIT:
+		xdp_return_frame(tx_buf->xdpf);
+		break;
 	}
 
 	tx_buf->next_to_watch = NULL;
-	tx_buf->skb = NULL;
+	tx_buf->type = ICE_TX_BUF_EMPTY;
 	dma_unmap_len_set(tx_buf, len, 0);
 	/* tx_buf must be completely set up in the transmit path */
 }
@@ -269,7 +267,7 @@ static bool ice_clean_tx_irq(struct ice_tx_ring *tx_ring, int napi_budget)
 				 DMA_TO_DEVICE);
 
 		/* clear tx_buf data */
-		tx_buf->skb = NULL;
+		tx_buf->type = ICE_TX_BUF_EMPTY;
 		dma_unmap_len_set(tx_buf, len, 0);
 
 		/* unmap remaining buffers */
@@ -580,7 +578,7 @@ ice_run_xdp(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 	case XDP_TX:
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_lock(&xdp_ring->tx_lock);
-		ret = __ice_xmit_xdp_ring(xdp, xdp_ring);
+		ret = __ice_xmit_xdp_ring(xdp, xdp_ring, false);
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_unlock(&xdp_ring->tx_lock);
 		if (ret == ICE_XDP_CONSUMED)
@@ -605,6 +603,25 @@ exit:
 	rx_buf->act = ret;
 	if (unlikely(xdp_buff_has_frags(xdp)))
 		ice_set_rx_bufs_act(xdp, rx_ring, ret);
+}
+
+/**
+ * ice_xmit_xdp_ring - submit frame to XDP ring for transmission
+ * @xdpf: XDP frame that will be converted to XDP buff
+ * @xdp_ring: XDP ring for transmission
+ */
+static int ice_xmit_xdp_ring(const struct xdp_frame *xdpf,
+			     struct ice_tx_ring *xdp_ring)
+{
+	struct xdp_buff xdp;
+
+	xdp.data_hard_start = (void *)xdpf;
+	xdp.data = xdpf->data;
+	xdp.data_end = xdp.data + xdpf->len;
+	xdp.frame_sz = xdpf->frame_sz;
+	xdp.flags = xdpf->flags;
+
+	return __ice_xmit_xdp_ring(&xdp, xdp_ring, true);
 }
 
 /**
@@ -652,7 +669,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 
 	tx_buf = &xdp_ring->tx_buf[xdp_ring->next_to_use];
 	for (i = 0; i < n; i++) {
-		struct xdp_frame *xdpf = frames[i];
+		const struct xdp_frame *xdpf = frames[i];
 		int err;
 
 		err = ice_xmit_xdp_ring(xdpf, xdp_ring);
@@ -1712,6 +1729,7 @@ ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 				       DMA_TO_DEVICE);
 
 		tx_buf = &tx_ring->tx_buf[i];
+		tx_buf->type = ICE_TX_BUF_FRAG;
 	}
 
 	/* record SW timestamp if HW timestamp is not available */
@@ -2358,6 +2376,7 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_tx_ring *tx_ring)
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_buf[tx_ring->next_to_use];
 	first->skb = skb;
+	first->type = ICE_TX_BUF_SKB;
 	first->bytecount = max_t(unsigned int, skb->len, ETH_ZLEN);
 	first->gso_segs = 1;
 	first->tx_flags = 0;
@@ -2530,11 +2549,11 @@ void ice_clean_ctrl_tx_irq(struct ice_tx_ring *tx_ring)
 					 dma_unmap_addr(tx_buf, dma),
 					 dma_unmap_len(tx_buf, len),
 					 DMA_TO_DEVICE);
-		if (tx_buf->tx_flags & ICE_TX_FLAGS_DUMMY_PKT)
+		if (tx_buf->type == ICE_TX_BUF_DUMMY)
 			devm_kfree(tx_ring->dev, tx_buf->raw_buf);
 
 		/* clear next_to_watch to prevent false hangs */
-		tx_buf->raw_buf = NULL;
+		tx_buf->type = ICE_TX_BUF_EMPTY;
 		tx_buf->tx_flags = 0;
 		tx_buf->next_to_watch = NULL;
 		dma_unmap_len_set(tx_buf, len, 0);

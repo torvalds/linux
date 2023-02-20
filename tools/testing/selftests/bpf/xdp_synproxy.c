@@ -217,9 +217,10 @@ static int syncookie_attach(const char *argv0, unsigned int ifindex, bool tc)
 
 	prog_fd = bpf_program__fd(prog);
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err < 0) {
-		fprintf(stderr, "Error: bpf_obj_get_info_by_fd: %s\n", strerror(-err));
+		fprintf(stderr, "Error: bpf_prog_get_info_by_fd: %s\n",
+			strerror(-err));
 		goto out;
 	}
 	attached_tc = tc;
@@ -292,9 +293,10 @@ static int syncookie_open_bpf_maps(__u32 prog_id, int *values_map_fd, int *ports
 	};
 	info_len = sizeof(prog_info);
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &info_len);
 	if (err != 0) {
-		fprintf(stderr, "Error: bpf_obj_get_info_by_fd: %s\n", strerror(-err));
+		fprintf(stderr, "Error: bpf_prog_get_info_by_fd: %s\n",
+			strerror(-err));
 		goto out;
 	}
 
@@ -317,9 +319,10 @@ static int syncookie_open_bpf_maps(__u32 prog_id, int *values_map_fd, int *ports
 		map_fd = err;
 
 		info_len = sizeof(map_info);
-		err = bpf_obj_get_info_by_fd(map_fd, &map_info, &info_len);
+		err = bpf_map_get_info_by_fd(map_fd, &map_info, &info_len);
 		if (err != 0) {
-			fprintf(stderr, "Error: bpf_obj_get_info_by_fd: %s\n", strerror(-err));
+			fprintf(stderr, "Error: bpf_map_get_info_by_fd: %s\n",
+				strerror(-err));
 			close(map_fd);
 			goto err_close_map_fds;
 		}

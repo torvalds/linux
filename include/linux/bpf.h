@@ -28,6 +28,7 @@
 #include <linux/btf.h>
 #include <linux/rcupdate_trace.h>
 #include <linux/static_call.h>
+#include <linux/memcontrol.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -180,6 +181,10 @@ enum btf_field_type {
 	BPF_KPTR       = BPF_KPTR_UNREF | BPF_KPTR_REF,
 	BPF_LIST_HEAD  = (1 << 4),
 	BPF_LIST_NODE  = (1 << 5),
+	BPF_RB_ROOT    = (1 << 6),
+	BPF_RB_NODE    = (1 << 7),
+	BPF_GRAPH_NODE_OR_ROOT = BPF_LIST_NODE | BPF_LIST_HEAD |
+				 BPF_RB_NODE | BPF_RB_ROOT,
 };
 
 struct btf_field_kptr {
@@ -283,6 +288,10 @@ static inline const char *btf_field_type_name(enum btf_field_type type)
 		return "bpf_list_head";
 	case BPF_LIST_NODE:
 		return "bpf_list_node";
+	case BPF_RB_ROOT:
+		return "bpf_rb_root";
+	case BPF_RB_NODE:
+		return "bpf_rb_node";
 	default:
 		WARN_ON_ONCE(1);
 		return "unknown";
@@ -303,6 +312,10 @@ static inline u32 btf_field_type_size(enum btf_field_type type)
 		return sizeof(struct bpf_list_head);
 	case BPF_LIST_NODE:
 		return sizeof(struct bpf_list_node);
+	case BPF_RB_ROOT:
+		return sizeof(struct bpf_rb_root);
+	case BPF_RB_NODE:
+		return sizeof(struct bpf_rb_node);
 	default:
 		WARN_ON_ONCE(1);
 		return 0;
@@ -323,6 +336,10 @@ static inline u32 btf_field_type_align(enum btf_field_type type)
 		return __alignof__(struct bpf_list_head);
 	case BPF_LIST_NODE:
 		return __alignof__(struct bpf_list_node);
+	case BPF_RB_ROOT:
+		return __alignof__(struct bpf_rb_root);
+	case BPF_RB_NODE:
+		return __alignof__(struct bpf_rb_node);
 	default:
 		WARN_ON_ONCE(1);
 		return 0;
@@ -346,6 +363,13 @@ static inline void bpf_obj_init(const struct btf_field_offs *foffs, void *obj)
 		memset(obj + foffs->field_off[i], 0, foffs->field_sz[i]);
 }
 
+/* 'dst' must be a temporary buffer and should not point to memory that is being
+ * used in parallel by a bpf program or bpf syscall, otherwise the access from
+ * the bpf program or bpf syscall may be corrupted by the reinitialization,
+ * leading to weird problems. Even 'dst' is newly-allocated from bpf memory
+ * allocator, it is still possible for 'dst' to be used in parallel by a bpf
+ * program or bpf syscall.
+ */
 static inline void check_and_init_map_value(struct bpf_map *map, void *dst)
 {
 	bpf_obj_init(map->field_offs, dst);
@@ -433,6 +457,9 @@ void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
 void bpf_timer_cancel_and_free(void *timer);
 void bpf_list_head_free(const struct btf_field *field, void *list_head,
 			struct bpf_spin_lock *spin_lock);
+void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
+		      struct bpf_spin_lock *spin_lock);
+
 
 int bpf_obj_name_cpy(char *dst, const char *src, unsigned int size);
 
@@ -574,6 +601,11 @@ enum bpf_type_flag {
 
 	/* MEM is tagged with rcu and memory access needs rcu_read_lock protection. */
 	MEM_RCU			= BIT(13 + BPF_BASE_TYPE_BITS),
+
+	/* Used to tag PTR_TO_BTF_ID | MEM_ALLOC references which are non-owning.
+	 * Currently only valid for linked-list and rbtree nodes.
+	 */
+	NON_OWN_REF		= BIT(14 + BPF_BASE_TYPE_BITS),
 
 	__BPF_TYPE_FLAG_MAX,
 	__BPF_TYPE_LAST_FLAG	= __BPF_TYPE_FLAG_MAX - 1,
@@ -1886,6 +1918,8 @@ struct bpf_prog *bpf_prog_get_curr_or_next(u32 *id);
 void *bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
 			   int node);
 void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags);
+void *bpf_map_kvcalloc(struct bpf_map *map, size_t n, size_t size,
+		       gfp_t flags);
 void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
 				    size_t align, gfp_t flags);
 #else
@@ -1900,6 +1934,12 @@ static inline void *
 bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
 {
 	return kzalloc(size, flags);
+}
+
+static inline void *
+bpf_map_kvcalloc(struct bpf_map *map, size_t n, size_t size, gfp_t flags)
+{
+	return kvcalloc(n, size, flags);
 }
 
 static inline void __percpu *
@@ -2923,6 +2963,13 @@ struct bpf_key {
 static inline bool type_is_alloc(u32 type)
 {
 	return type & MEM_ALLOC;
+}
+
+static inline gfp_t bpf_memcg_flags(gfp_t flags)
+{
+	if (memcg_bpf_enabled())
+		return flags | __GFP_ACCOUNT;
+	return flags;
 }
 
 #endif /* _LINUX_BPF_H */

@@ -1239,8 +1239,8 @@ static int get_xlated_program(int fd_prog, struct bpf_insn **buf, int *cnt)
 	__u32 xlated_prog_len;
 	__u32 buf_element_size = sizeof(struct bpf_insn);
 
-	if (bpf_obj_get_info_by_fd(fd_prog, &info, &info_len)) {
-		perror("bpf_obj_get_info_by_fd failed");
+	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
+		perror("bpf_prog_get_info_by_fd failed");
 		return -1;
 	}
 
@@ -1261,8 +1261,8 @@ static int get_xlated_program(int fd_prog, struct bpf_insn **buf, int *cnt)
 	bzero(&info, sizeof(info));
 	info.xlated_prog_len = xlated_prog_len;
 	info.xlated_prog_insns = (__u64)(unsigned long)*buf;
-	if (bpf_obj_get_info_by_fd(fd_prog, &info, &info_len)) {
-		perror("second bpf_obj_get_info_by_fd failed");
+	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
+		perror("second bpf_prog_get_info_by_fd failed");
 		goto out_free_buf;
 	}
 
