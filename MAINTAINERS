@@ -17163,6 +17163,12 @@ F:	fs/qnx4/
 F:	include/uapi/linux/qnx4_fs.h
 F:	include/uapi/linux/qnxtypes.h
 
+QNX6 FILESYSTEM
+S:	Orphan
+F:	Documentation/filesystems/qnx6.rst
+F:	fs/qnx6/
+F:	include/linux/qnx6_fs.h
+
 QORIQ DPAA2 FSL-MC BUS DRIVER
 M:	Stuart Yoder <stuyoder@gmail.com>
 M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
