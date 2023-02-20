@@ -8,15 +8,11 @@
 #include "../reg.h"
 #include "../gsi_reg.h"
 
-/* The inter-EE IRQ registers are relative to gsi->virt_raw (IPA v3.5+) */
-
 REG(INTER_EE_SRC_CH_IRQ_MSK, inter_ee_src_ch_irq_msk,
     0x0000c020 + 0x1000 * GSI_EE_AP);
 
 REG(INTER_EE_SRC_EV_CH_IRQ_MSK, inter_ee_src_ev_ch_irq_msk,
     0x0000c024 + 0x1000 * GSI_EE_AP);
-
-/* All other register offsets are relative to gsi->virt */
 
 static const u32 reg_ch_c_cntxt_0_fmask[] = {
 	[CHTYPE_PROTOCOL]				= GENMASK(2, 0),
@@ -31,7 +27,7 @@ static const u32 reg_ch_c_cntxt_0_fmask[] = {
 };
 
 REG_STRIDE_FIELDS(CH_C_CNTXT_0, ch_c_cntxt_0,
-		  0x0001c000 + 0x4000 * GSI_EE_AP, 0x80);
+		  0x0000f000 + 0x4000 * GSI_EE_AP, 0x80);
 
 static const u32 reg_ch_c_cntxt_1_fmask[] = {
 	[CH_R_LENGTH]					= GENMASK(15, 0),
@@ -39,11 +35,11 @@ static const u32 reg_ch_c_cntxt_1_fmask[] = {
 };
 
 REG_STRIDE_FIELDS(CH_C_CNTXT_1, ch_c_cntxt_1,
-		  0x0001c004 + 0x4000 * GSI_EE_AP, 0x80);
+		  0x0000f004 + 0x4000 * GSI_EE_AP, 0x80);
 
-REG_STRIDE(CH_C_CNTXT_2, ch_c_cntxt_2, 0x0001c008 + 0x4000 * GSI_EE_AP, 0x80);
+REG_STRIDE(CH_C_CNTXT_2, ch_c_cntxt_2, 0x0000f008 + 0x4000 * GSI_EE_AP, 0x80);
 
-REG_STRIDE(CH_C_CNTXT_3, ch_c_cntxt_3, 0x0001c00c + 0x4000 * GSI_EE_AP, 0x80);
+REG_STRIDE(CH_C_CNTXT_3, ch_c_cntxt_3, 0x0000f00c + 0x4000 * GSI_EE_AP, 0x80);
 
 static const u32 reg_ch_c_qos_fmask[] = {
 	[WRR_WEIGHT]					= GENMASK(3, 0),
@@ -56,7 +52,7 @@ static const u32 reg_ch_c_qos_fmask[] = {
 						/* Bits 24-31 reserved */
 };
 
-REG_STRIDE_FIELDS(CH_C_QOS, ch_c_qos, 0x0001c05c + 0x4000 * GSI_EE_AP, 0x80);
+REG_STRIDE_FIELDS(CH_C_QOS, ch_c_qos, 0x0000f05c + 0x4000 * GSI_EE_AP, 0x80);
 
 static const u32 reg_error_log_fmask[] = {
 	[ERR_ARG3]					= GENMASK(3, 0),
@@ -69,21 +65,17 @@ static const u32 reg_error_log_fmask[] = {
 	[ERR_EE]					= GENMASK(31, 28),
 };
 
-REG_FIELDS(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
-
-REG(ERROR_LOG_CLR, error_log_clr, 0x0001f210 + 0x4000 * GSI_EE_AP);
-
 REG_STRIDE(CH_C_SCRATCH_0, ch_c_scratch_0,
-	   0x0001c060 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x0000f060 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(CH_C_SCRATCH_1, ch_c_scratch_1,
-	   0x0001c064 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x0000f064 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(CH_C_SCRATCH_2, ch_c_scratch_2,
-	   0x0001c068 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x0000f068 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(CH_C_SCRATCH_3, ch_c_scratch_3,
-	   0x0001c06c + 0x4000 * GSI_EE_AP, 0x80);
+	   0x0000f06c + 0x4000 * GSI_EE_AP, 0x80);
 
 static const u32 reg_ev_ch_e_cntxt_0_fmask[] = {
 	[EV_CHTYPE]					= GENMASK(3, 0),
@@ -96,19 +88,23 @@ static const u32 reg_ev_ch_e_cntxt_0_fmask[] = {
 };
 
 REG_STRIDE_FIELDS(EV_CH_E_CNTXT_0, ev_ch_e_cntxt_0,
-		  0x0001d000 + 0x4000 * GSI_EE_AP, 0x80);
+		  0x00010000 + 0x4000 * GSI_EE_AP, 0x80);
 
-REG_STRIDE(EV_CH_E_CNTXT_1, ev_ch_e_cntxt_1,
-	   0x0001d004 + 0x4000 * GSI_EE_AP, 0x80);
+static const u32 reg_ev_ch_e_cntxt_1_fmask[] = {
+	[R_LENGTH]					= GENMASK(15, 0),
+};
+
+REG_STRIDE_FIELDS(EV_CH_E_CNTXT_1, ev_ch_e_cntxt_1,
+		  0x00010004 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_2, ev_ch_e_cntxt_2,
-	   0x0001d008 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x00010008 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_3, ev_ch_e_cntxt_3,
-	   0x0001d00c + 0x4000 * GSI_EE_AP, 0x80);
+	   0x0001000c + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_4, ev_ch_e_cntxt_4,
-	   0x0001d010 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x00010010 + 0x4000 * GSI_EE_AP, 0x80);
 
 static const u32 reg_ev_ch_e_cntxt_8_fmask[] = {
 	[EV_MODT]					= GENMASK(15, 0),
@@ -117,28 +113,28 @@ static const u32 reg_ev_ch_e_cntxt_8_fmask[] = {
 };
 
 REG_STRIDE_FIELDS(EV_CH_E_CNTXT_8, ev_ch_e_cntxt_8,
-		  0x0001d020 + 0x4000 * GSI_EE_AP, 0x80);
+		  0x00010020 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_9, ev_ch_e_cntxt_9,
-	   0x0001d024 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x00010024 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_10, ev_ch_e_cntxt_10,
-	   0x0001d028 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x00010028 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_11, ev_ch_e_cntxt_11,
-	   0x0001d02c + 0x4000 * GSI_EE_AP, 0x80);
+	   0x0001002c + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_12, ev_ch_e_cntxt_12,
-	   0x0001d030 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x00010030 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_13, ev_ch_e_cntxt_13,
-	   0x0001d034 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x00010034 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_SCRATCH_0, ev_ch_e_scratch_0,
-	   0x0001d048 + 0x4000 * GSI_EE_AP, 0x80);
+	   0x00010048 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_SCRATCH_1, ev_ch_e_scratch_1,
-	   0x0001d04c + 0x4000 * GSI_EE_AP, 0x80);
+	   0x0001004c + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(CH_C_DOORBELL_0, ch_c_doorbell_0,
 	   0x0001e000 + 0x4000 * GSI_EE_AP, 0x08);
@@ -155,6 +151,7 @@ REG_FIELDS(GSI_STATUS, gsi_status, 0x0001f000 + 0x4000 * GSI_EE_AP);
 
 static const u32 reg_ch_cmd_fmask[] = {
 	[CH_CHID]					= GENMASK(7, 0),
+						/* Bits 8-23 reserved */
 	[CH_OPCODE]					= GENMASK(31, 24),
 };
 
@@ -162,6 +159,7 @@ REG_FIELDS(CH_CMD, ch_cmd, 0x0001f008 + 0x4000 * GSI_EE_AP);
 
 static const u32 reg_ev_ch_cmd_fmask[] = {
 	[EV_CHID]					= GENMASK(7, 0),
+						/* Bits 8-23 reserved */
 	[EV_OPCODE]					= GENMASK(31, 24),
 };
 
@@ -238,6 +236,10 @@ static const u32 reg_cntxt_intset_fmask[] = {
 };
 
 REG_FIELDS(CNTXT_INTSET, cntxt_intset, 0x0001f180 + 0x4000 * GSI_EE_AP);
+
+REG_FIELDS(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
+
+REG(ERROR_LOG_CLR, error_log_clr, 0x0001f210 + 0x4000 * GSI_EE_AP);
 
 static const u32 reg_cntxt_scratch_0_fmask[] = {
 	[INTER_EE_RESULT]				= GENMASK(2, 0),

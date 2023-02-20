@@ -185,23 +185,12 @@ static u32 ch_c_cntxt_0_type_encode(enum ipa_version version,
 	u32 val;
 
 	val = reg_encode(reg, CHTYPE_PROTOCOL, type);
-	if (version < IPA_VERSION_4_5)
+	if (version < IPA_VERSION_4_5 || version >= IPA_VERSION_5_0)
 		return val;
 
 	type >>= hweight32(reg_fmask(reg, CHTYPE_PROTOCOL));
 
 	return val | reg_encode(reg, CHTYPE_PROTOCOL_MSB, type);
-}
-
-/* Encode the length of the event channel ring buffer for the
- * EV_CH_E_CNTXT_1 register.
- */
-static u32 ev_ch_e_cntxt_1_length_encode(enum ipa_version version, u32 length)
-{
-	if (version < IPA_VERSION_4_9)
-		return u32_encode_bits(length, GENMASK(15, 0));
-
-	return u32_encode_bits(length, GENMASK(19, 0));
 }
 
 /* Update the GSI IRQ type register with the cached value */
@@ -731,7 +720,6 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct gsi_ring *ring = &evt_ring->ring;
 	const struct reg *reg;
-	size_t size;
 	u32 val;
 
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_0);
@@ -743,8 +731,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_1);
-	size = ring->count * GSI_RING_ELEMENT_SIZE;
-	val = ev_ch_e_cntxt_1_length_encode(gsi->version, size);
+	val = reg_encode(reg, R_LENGTH, ring->count * GSI_RING_ELEMENT_SIZE);
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
 	/* The context 2 and 3 registers store the low-order and
@@ -762,7 +749,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	/* Enable interrupt moderation by setting the moderation delay */
 	reg = gsi_reg(gsi, EV_CH_E_CNTXT_8);
 	val = reg_encode(reg, EV_MODT, GSI_EVT_RING_INT_MODT);
-	val = reg_encode(reg, EV_MODC, 1);	/* comes from channel */
+	val |= reg_encode(reg, EV_MODC, 1);	/* comes from channel */
 	/* EV_MOD_CNT is 0 (no counter-based interrupt coalescing) */
 	iowrite32(val, gsi->virt + reg_n_offset(reg, evt_ring_id));
 
@@ -853,12 +840,15 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	val = ch_c_cntxt_0_type_encode(gsi->version, reg, GSI_CHANNEL_TYPE_GPI);
 	if (channel->toward_ipa)
 		val |= reg_bit(reg, CHTYPE_DIR);
-	val |= reg_encode(reg, ERINDEX, channel->evt_ring_id);
+	if (gsi->version < IPA_VERSION_5_0)
+		val |= reg_encode(reg, ERINDEX, channel->evt_ring_id);
 	val |= reg_encode(reg, ELEMENT_SIZE, GSI_RING_ELEMENT_SIZE);
 	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	reg = gsi_reg(gsi, CH_C_CNTXT_1);
 	val = reg_encode(reg, CH_R_LENGTH, size);
+	if (gsi->version >= IPA_VERSION_5_0)
+		val |= reg_encode(reg, CH_ERINDEX, channel->evt_ring_id);
 	iowrite32(val, gsi->virt + reg_n_offset(reg, channel_id));
 
 	/* The context 2 and 3 registers store the low-order and
@@ -1999,12 +1989,11 @@ static int gsi_irq_setup(struct gsi *gsi)
 
 	/* The inter-EE interrupts are not supported for IPA v3.0-v3.1 */
 	if (gsi->version > IPA_VERSION_3_1) {
-		/* These registers are in the non-adjusted address range */
 		reg = gsi_reg(gsi, INTER_EE_SRC_CH_IRQ_MSK);
-		iowrite32(0, gsi->virt_raw + reg_offset(reg));
+		iowrite32(0, gsi->virt + reg_offset(reg));
 
 		reg = gsi_reg(gsi, INTER_EE_SRC_EV_CH_IRQ_MSK);
-		iowrite32(0, gsi->virt_raw + reg_offset(reg));
+		iowrite32(0, gsi->virt + reg_offset(reg));
 	}
 
 	reg = gsi_reg(gsi, CNTXT_GSI_IRQ_EN);
@@ -2053,7 +2042,12 @@ static int gsi_ring_setup(struct gsi *gsi)
 	}
 	gsi->channel_count = count;
 
-	count = reg_decode(reg, NUM_EV_PER_EE, val);
+	if (gsi->version < IPA_VERSION_5_0) {
+		count = reg_decode(reg, NUM_EV_PER_EE, val);
+	} else {
+		reg = gsi_reg(gsi, HW_PARAM_4);
+		count = reg_decode(reg, EV_PER_EE, val);
+	}
 	if (!count) {
 		dev_err(dev, "GSI reports zero event rings supported\n");
 		return -EINVAL;

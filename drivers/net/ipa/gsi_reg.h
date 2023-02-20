@@ -71,6 +71,7 @@ enum gsi_reg_id {
 	EV_CH_CMD,
 	GENERIC_CMD,
 	HW_PARAM_2,					/* IPA v3.5.1+ */
+	HW_PARAM_4,					/* IPA v5.0+ */
 	CNTXT_TYPE_IRQ,
 	CNTXT_TYPE_IRQ_MSK,
 	CNTXT_SRC_CH_IRQ,
@@ -101,8 +102,8 @@ enum gsi_reg_ch_c_cntxt_0_field_id {
 	CHTYPE_DIR,
 	CH_EE,
 	CHID,
-	CHTYPE_PROTOCOL_MSB,				/* IPA v4.9+ */
-	ERINDEX,
+	CHTYPE_PROTOCOL_MSB,				/* IPA v4.5-4.11 */
+	ERINDEX,					/* Not IPA v5.0+ */
 	CHSTATE,
 	ELEMENT_SIZE,
 };
@@ -124,6 +125,7 @@ enum gsi_channel_type {
 /* CH_C_CNTXT_1 register */
 enum gsi_reg_ch_c_cntxt_1_field_id {
 	CH_R_LENGTH,
+	CH_ERINDEX,					/* IPA v5.0+ */
 };
 
 /* CH_C_QOS register */
@@ -135,6 +137,7 @@ enum gsi_reg_ch_c_qos_field_id {
 	PREFETCH_MODE,					/* IPA v4.5+ */
 	EMPTY_LVL_THRSHOLD,				/* IPA v4.5+ */
 	DB_IN_BYTES,					/* IPA v4.9+ */
+	LOW_LATENCY_EN,					/* IPA v5.0+ */
 };
 
 /** enum gsi_prefetch_mode - PREFETCH_MODE field in CH_C_QOS */
@@ -153,6 +156,11 @@ enum gsi_reg_ch_c_ev_ch_e_cntxt_0_field_id {
 	EV_INTYPE,
 	EV_CHSTATE,
 	EV_ELEMENT_SIZE,
+};
+
+/* EV_CH_E_CNTXT_1 register */
+enum gsi_reg_ev_ch_c_cntxt_1_field_id {
+	R_LENGTH,
 };
 
 /* EV_CH_E_CNTXT_8 register */
@@ -217,7 +225,7 @@ enum gsi_generic_cmd_opcode {
 enum gsi_hw_param_2_field_id {
 	IRAM_SIZE,
 	NUM_CH_PER_EE,
-	NUM_EV_PER_EE,
+	NUM_EV_PER_EE,					/* Not IPA v5.0+ */
 	GSI_CH_PEND_TRANSLATE,
 	GSI_CH_FULL_LOGIC,
 	GSI_USE_SDMA,					/* IPA v4.0+ */
@@ -238,6 +246,12 @@ enum gsi_iram_size {
 	/* The next two values are available for IPA v4.5 and above */
 	IRAM_SIZE_THREE_N_HALF_KB		= 0x4,
 	IRAM_SIZE_FOUR_KB			= 0x5,
+};
+
+/* HW_PARAM_4 register */				/* IPA v5.0+ */
+enum gsi_hw_param_4_field_id {
+	EV_PER_EE,
+	IRAM_PROTOCOL_COUNT,
 };
 
 /**
@@ -351,8 +365,7 @@ const struct reg *gsi_reg(struct gsi *gsi, enum gsi_reg_id reg_id);
  * @pdev:	GSI (IPA) platform device
  *
  * Initialize GSI registers, including looking up and I/O mapping
- * the "gsi" memory space.  This function sets gsi->virt_raw and
- * gsi->virt.
+ * the "gsi" memory space.
  */
 int gsi_reg_init(struct gsi *gsi, struct platform_device *pdev);
 

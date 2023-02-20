@@ -8,15 +8,11 @@
 #include "../reg.h"
 #include "../gsi_reg.h"
 
-/* The inter-EE IRQ registers are relative to gsi->virt_raw (IPA v3.5+) */
-
 REG(INTER_EE_SRC_CH_IRQ_MSK, inter_ee_src_ch_irq_msk,
     0x0000c020 + 0x1000 * GSI_EE_AP);
 
 REG(INTER_EE_SRC_EV_CH_IRQ_MSK, inter_ee_src_ev_ch_irq_msk,
     0x0000c024 + 0x1000 * GSI_EE_AP);
-
-/* All other register offsets are relative to gsi->virt */
 
 static const u32 reg_ch_c_cntxt_0_fmask[] = {
 	[CHTYPE_PROTOCOL]				= GENMASK(2, 0),
@@ -66,10 +62,6 @@ static const u32 reg_error_log_fmask[] = {
 	[ERR_EE]					= GENMASK(31, 28),
 };
 
-REG_FIELDS(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
-
-REG(ERROR_LOG_CLR, error_log_clr, 0x0001f210 + 0x4000 * GSI_EE_AP);
-
 REG_STRIDE(CH_C_SCRATCH_0, ch_c_scratch_0,
 	   0x0001c060 + 0x4000 * GSI_EE_AP, 0x80);
 
@@ -95,8 +87,12 @@ static const u32 reg_ev_ch_e_cntxt_0_fmask[] = {
 REG_STRIDE_FIELDS(EV_CH_E_CNTXT_0, ev_ch_e_cntxt_0,
 		  0x0001d000 + 0x4000 * GSI_EE_AP, 0x80);
 
-REG_STRIDE(EV_CH_E_CNTXT_1, ev_ch_e_cntxt_1,
-	   0x0001d004 + 0x4000 * GSI_EE_AP, 0x80);
+static const u32 reg_ev_ch_e_cntxt_1_fmask[] = {
+	[R_LENGTH]					= GENMASK(15, 0),
+};
+
+REG_STRIDE_FIELDS(EV_CH_E_CNTXT_1, ev_ch_e_cntxt_1,
+		  0x0001d004 + 0x4000 * GSI_EE_AP, 0x80);
 
 REG_STRIDE(EV_CH_E_CNTXT_2, ev_ch_e_cntxt_2,
 	   0x0001d008 + 0x4000 * GSI_EE_AP, 0x80);
@@ -152,6 +148,7 @@ REG_FIELDS(GSI_STATUS, gsi_status, 0x0001f000 + 0x4000 * GSI_EE_AP);
 
 static const u32 reg_ch_cmd_fmask[] = {
 	[CH_CHID]					= GENMASK(7, 0),
+						/* Bits 8-23 reserved */
 	[CH_OPCODE]					= GENMASK(31, 24),
 };
 
@@ -159,6 +156,7 @@ REG_FIELDS(CH_CMD, ch_cmd, 0x0001f008 + 0x4000 * GSI_EE_AP);
 
 static const u32 reg_ev_ch_cmd_fmask[] = {
 	[EV_CHID]					= GENMASK(7, 0),
+						/* Bits 8-23 reserved */
 	[EV_OPCODE]					= GENMASK(31, 24),
 };
 
@@ -219,6 +217,10 @@ static const u32 reg_cntxt_intset_fmask[] = {
 };
 
 REG_FIELDS(CNTXT_INTSET, cntxt_intset, 0x0001f180 + 0x4000 * GSI_EE_AP);
+
+REG_FIELDS(ERROR_LOG, error_log, 0x0001f200 + 0x4000 * GSI_EE_AP);
+
+REG(ERROR_LOG_CLR, error_log_clr, 0x0001f210 + 0x4000 * GSI_EE_AP);
 
 static const u32 reg_cntxt_scratch_0_fmask[] = {
 	[INTER_EE_RESULT]				= GENMASK(2, 0),
