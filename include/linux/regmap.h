@@ -1551,6 +1551,7 @@ struct regmap_irq_chip_data;
  * @use_ack:     Use @ack register even if it is zero.
  * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @clear_ack:  Use this to set 1 and 0 or vice-versa to clear interrupts.
+ * @status_invert: Inverted status register: cleared bits are active interrupts.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
  * @type_in_mask: Use the mask registers for controlling irq type. Use this if
  *		  the hardware provides separate bits for rising/falling edge
@@ -1560,18 +1561,19 @@ struct regmap_irq_chip_data;
  * @clear_on_unmask: For chips with interrupts cleared on read: read the status
  *                   registers before unmasking interrupts to clear any bits
  *                   set when they were masked.
+ * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  * @not_fixed_stride: Used when chip peripherals are not laid out with fixed
  *		      stride. Must be used with sub_reg_offsets containing the
  *		      offsets to each peripheral. Deprecated; the same thing
  *		      can be accomplished with a @get_irq_reg callback, without
  *		      the need for a @sub_reg_offsets table.
- * @status_invert: Inverted status register: cleared bits are active interrupts.
- * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
+ *
  * @irqs:        Descriptors for individual IRQs.  Interrupt numbers are
  *               assigned based on the index in the array of the interrupt.
  * @num_irqs:    Number of descriptors.
+ *
  * @num_type_reg:    Number of type registers. Deprecated, use config registers
  *		     instead.
  * @num_virt_regs:   Number of non-standard irq configuration registers.
@@ -1579,6 +1581,7 @@ struct regmap_irq_chip_data;
  *		     instead.
  * @num_config_bases:	Number of config base registers.
  * @num_config_regs:	Number of config registers for each config base register.
+ *
  * @handle_pre_irq:  Driver specific callback to handle interrupt from device
  *		     before regmap_irq_handler process the interrupts.
  * @handle_post_irq: Driver specific callback to handle interrupt from device
@@ -1625,12 +1628,12 @@ struct regmap_irq_chip {
 	unsigned int use_ack:1;
 	unsigned int ack_invert:1;
 	unsigned int clear_ack:1;
+	unsigned int status_invert:1;
 	unsigned int wake_invert:1;
-	unsigned int runtime_pm:1;
 	unsigned int type_in_mask:1;
 	unsigned int clear_on_unmask:1;
+	unsigned int runtime_pm:1;
 	unsigned int not_fixed_stride:1;
-	unsigned int status_invert:1;
 
 	int num_regs;
 
