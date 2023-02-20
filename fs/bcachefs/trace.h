@@ -837,6 +837,12 @@ DEFINE_EVENT(transaction_event,	trans_restart_injected,
 	TP_ARGS(trans, caller_ip)
 );
 
+DEFINE_EVENT(transaction_event,	trans_restart_split_race,
+	TP_PROTO(struct btree_trans *trans,
+		 unsigned long caller_ip),
+	TP_ARGS(trans, caller_ip)
+);
+
 DEFINE_EVENT(transaction_event,	trans_blocked_journal_reclaim,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip),

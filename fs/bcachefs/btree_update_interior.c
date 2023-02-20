@@ -1717,8 +1717,10 @@ split:
 	 * We could attempt to avoid the transaction restart, by calling
 	 * bch2_btree_path_upgrade() and allocating more nodes:
 	 */
-	if (b->c.level >= as->update_level)
+	if (b->c.level >= as->update_level) {
+		trace_and_count(c, trans_restart_split_race, trans, _THIS_IP_);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_split_race);
+	}
 
 	return btree_split(as, trans, path, b, keys, flags);
 }

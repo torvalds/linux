@@ -1478,7 +1478,8 @@ struct bch_sb_field_disk_groups {
 	x(transaction_commit,				72)	\
 	x(write_super,					73)	\
 	x(trans_restart_would_deadlock_recursion_limit,	74)	\
-	x(trans_restart_write_buffer_flush,		75)
+	x(trans_restart_write_buffer_flush,		75)	\
+	x(trans_restart_split_race,			76)
 
 enum bch_persistent_counters {
 #define x(t, n, ...) BCH_COUNTER_##t,
