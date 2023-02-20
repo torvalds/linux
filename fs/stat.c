@@ -28,7 +28,7 @@
 
 /**
  * generic_fillattr - Fill in the basic attributes from the inode struct
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @inode:	Inode to use as the source
  * @stat:	Where to fill in the attributes
  *
@@ -36,17 +36,17 @@
  * found on the VFS inode structure.  This is the default if no getattr inode
  * operation is supplied.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before filling in the
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then
+ * take care to map the inode according to @idmap before filling in the
  * uid and gid filds. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
+ * performed on the raw inode simply passs @nop_mnt_idmap.
  */
-void generic_fillattr(struct user_namespace *mnt_userns, struct inode *inode,
+void generic_fillattr(struct mnt_idmap *idmap, struct inode *inode,
 		      struct kstat *stat)
 {
-	vfsuid_t vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
-	vfsgid_t vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsgid_t vfsgid = i_gid_into_vfsgid(idmap, inode);
 
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = inode->i_ino;
@@ -98,7 +98,7 @@ EXPORT_SYMBOL(generic_fill_statx_attr);
 int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
-	struct user_namespace *mnt_userns;
+	struct mnt_idmap *idmap;
 	struct inode *inode = d_backing_inode(path->dentry);
 
 	memset(stat, 0, sizeof(*stat));
@@ -128,12 +128,12 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 		stat->change_cookie = inode_query_iversion(inode);
 	}
 
-	mnt_userns = mnt_user_ns(path->mnt);
+	idmap = mnt_idmap(path->mnt);
 	if (inode->i_op->getattr)
-		return inode->i_op->getattr(mnt_userns, path, stat,
+		return inode->i_op->getattr(idmap, path, stat,
 					    request_mask, query_flags);
 
-	generic_fillattr(mnt_userns, inode, stat);
+	generic_fillattr(idmap, inode, stat);
 	return 0;
 }
 EXPORT_SYMBOL(vfs_getattr_nosec);

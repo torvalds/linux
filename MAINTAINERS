@@ -9996,7 +9996,7 @@ S:	Maintained
 T:	git://git.kernel.org/pub/scm/linux/kernel/git/vfs/idmapping.git
 F:	Documentation/filesystems/idmappings.rst
 F:	tools/testing/selftests/mount_setattr/
-F:	include/linux/mnt_idmapping.h
+F:	include/linux/mnt_idmapping.*
 
 IDT VersaClock 5 CLOCK DRIVER
 M:	Luca Ceresoli <luca@lucaceresoli.net>

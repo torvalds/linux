@@ -162,7 +162,7 @@ const struct address_space_operations secretmem_aops = {
 	.migrate_folio	= secretmem_migrate_folio,
 };
 
-static int secretmem_setattr(struct user_namespace *mnt_userns,
+static int secretmem_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -175,7 +175,7 @@ static int secretmem_setattr(struct user_namespace *mnt_userns,
 	if ((ia_valid & ATTR_SIZE) && inode->i_size)
 		ret = -EINVAL;
 	else
-		ret = simple_setattr(mnt_userns, dentry, iattr);
+		ret = simple_setattr(idmap, dentry, iattr);
 
 	filemap_invalidate_unlock(mapping);
 

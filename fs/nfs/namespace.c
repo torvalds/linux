@@ -208,23 +208,23 @@ out_fc:
 }
 
 static int
-nfs_namespace_getattr(struct user_namespace *mnt_userns,
+nfs_namespace_getattr(struct mnt_idmap *idmap,
 		      const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
 	if (NFS_FH(d_inode(path->dentry))->size != 0)
-		return nfs_getattr(mnt_userns, path, stat, request_mask,
+		return nfs_getattr(idmap, path, stat, request_mask,
 				   query_flags);
-	generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);
+	generic_fillattr(&nop_mnt_idmap, d_inode(path->dentry), stat);
 	return 0;
 }
 
 static int
-nfs_namespace_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+nfs_namespace_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct iattr *attr)
 {
 	if (NFS_FH(d_inode(dentry))->size != 0)
-		return nfs_setattr(mnt_userns, dentry, attr);
+		return nfs_setattr(idmap, dentry, attr);
 	return -EACCES;
 }
 

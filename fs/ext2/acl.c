@@ -219,7 +219,7 @@ __ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
  * inode->i_mutex: down
  */
 int
-ext2_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+ext2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	     struct posix_acl *acl, int type)
 {
 	int error;
@@ -228,7 +228,7 @@ ext2_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	umode_t mode = inode->i_mode;
 
 	if (type == ACL_TYPE_ACCESS && acl) {
-		error = posix_acl_update_mode(&init_user_ns, inode, &mode,
+		error = posix_acl_update_mode(&nop_mnt_idmap, inode, &mode,
 					      &acl);
 		if (error)
 			return error;

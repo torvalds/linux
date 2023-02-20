@@ -569,7 +569,7 @@ cifs_hl_exit:
 }
 
 int
-cifs_symlink(struct user_namespace *mnt_userns, struct inode *inode,
+cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	     struct dentry *direntry, const char *symname)
 {
 	int rc = -EOPNOTSUPP;

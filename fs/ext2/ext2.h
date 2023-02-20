@@ -753,8 +753,8 @@ extern struct inode *ext2_iget (struct super_block *, unsigned long);
 extern int ext2_write_inode (struct inode *, struct writeback_control *);
 extern void ext2_evict_inode(struct inode *);
 extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
-extern int ext2_setattr (struct user_namespace *, struct dentry *, struct iattr *);
-extern int ext2_getattr (struct user_namespace *, const struct path *,
+extern int ext2_setattr (struct mnt_idmap *, struct dentry *, struct iattr *);
+extern int ext2_getattr (struct mnt_idmap *, const struct path *,
 			 struct kstat *, u32, unsigned int);
 extern void ext2_set_inode_flags(struct inode *inode);
 extern int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
@@ -762,7 +762,7 @@ extern int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 /* ioctl.c */
 extern int ext2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-extern int ext2_fileattr_set(struct user_namespace *mnt_userns,
+extern int ext2_fileattr_set(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct fileattr *fa);
 extern long ext2_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext2_compat_ioctl(struct file *, unsigned int, unsigned long);

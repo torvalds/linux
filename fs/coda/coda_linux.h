@@ -46,12 +46,12 @@ extern const struct file_operations coda_ioctl_operations;
 /* operations shared over more than one file */
 int coda_open(struct inode *i, struct file *f);
 int coda_release(struct inode *i, struct file *f);
-int coda_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int coda_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask);
 int coda_revalidate_inode(struct inode *);
-int coda_getattr(struct user_namespace *, const struct path *, struct kstat *,
+int coda_getattr(struct mnt_idmap *, const struct path *, struct kstat *,
 		 u32, unsigned int);
-int coda_setattr(struct user_namespace *, struct dentry *, struct iattr *);
+int coda_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
 
 /* this file:  helpers */
 char *coda_f2s(struct CodaFid *f);

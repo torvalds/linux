@@ -252,7 +252,7 @@ static void __ksmbd_inode_close(struct ksmbd_file *fp)
 	filp = fp->filp;
 	if (ksmbd_stream_fd(fp) && (ci->m_flags & S_DEL_ON_CLS_STREAM)) {
 		ci->m_flags &= ~S_DEL_ON_CLS_STREAM;
-		err = ksmbd_vfs_remove_xattr(file_mnt_user_ns(filp),
+		err = ksmbd_vfs_remove_xattr(file_mnt_idmap(filp),
 					     filp->f_path.dentry,
 					     fp->stream.name);
 		if (err)
@@ -267,7 +267,7 @@ static void __ksmbd_inode_close(struct ksmbd_file *fp)
 			dir = dentry->d_parent;
 			ci->m_flags &= ~(S_DEL_ON_CLS | S_DEL_PENDING);
 			write_unlock(&ci->m_lock);
-			ksmbd_vfs_unlink(file_mnt_user_ns(filp), dir, dentry);
+			ksmbd_vfs_unlink(file_mnt_idmap(filp), dir, dentry);
 			write_lock(&ci->m_lock);
 		}
 		write_unlock(&ci->m_lock);

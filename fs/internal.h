@@ -14,9 +14,9 @@ struct path;
 struct mount;
 struct shrink_control;
 struct fs_context;
-struct user_namespace;
 struct pipe_inode_info;
 struct iov_iter;
+struct mnt_idmap;
 
 /*
  * block/bdev.c
@@ -63,7 +63,7 @@ extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct path *);
 int do_rmdir(int dfd, struct filename *name);
 int do_unlinkat(int dfd, struct filename *name);
-int may_linkat(struct user_namespace *mnt_userns, const struct path *link);
+int may_linkat(struct mnt_idmap *idmap, const struct path *link);
 int do_renameat2(int olddfd, struct filename *oldname, int newdfd,
 		 struct filename *newname, unsigned int flags);
 int do_mkdirat(int dfd, struct filename *name, umode_t mode);
@@ -150,8 +150,8 @@ extern int vfs_open(const struct path *, struct file *);
  * inode.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
-int dentry_needs_remove_privs(struct user_namespace *, struct dentry *dentry);
-bool in_group_or_capable(struct user_namespace *mnt_userns,
+int dentry_needs_remove_privs(struct mnt_idmap *, struct dentry *dentry);
+bool in_group_or_capable(struct mnt_idmap *idmap,
 			 const struct inode *inode, vfsgid_t vfsgid);
 
 /*
@@ -234,7 +234,7 @@ ssize_t do_getxattr(struct mnt_idmap *idmap,
 int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
 int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct xattr_ctx *ctx);
-int may_write_xattr(struct user_namespace *mnt_userns, struct inode *inode);
+int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode);
 
 #ifdef CONFIG_FS_POSIX_ACL
 int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
@@ -261,5 +261,8 @@ ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *po
 /*
  * fs/attr.c
  */
-int setattr_should_drop_sgid(struct user_namespace *mnt_userns,
+int setattr_should_drop_sgid(struct mnt_idmap *idmap,
 			     const struct inode *inode);
+struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns);
+struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
+void mnt_idmap_put(struct mnt_idmap *idmap);

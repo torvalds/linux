@@ -606,7 +606,7 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	return 0;
 }
 
-static int udf_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int udf_create(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct inode *inode = udf_new_inode(dir, mode);
@@ -625,7 +625,7 @@ static int udf_create(struct user_namespace *mnt_userns, struct inode *dir,
 	return udf_add_nondir(dentry, inode);
 }
 
-static int udf_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+static int udf_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 		       struct file *file, umode_t mode)
 {
 	struct inode *inode = udf_new_inode(dir, mode);
@@ -645,7 +645,7 @@ static int udf_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	return finish_open_simple(file, 0);
 }
 
-static int udf_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int udf_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
@@ -661,7 +661,7 @@ static int udf_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return udf_add_nondir(dentry, inode);
 }
 
-static int udf_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
@@ -881,7 +881,7 @@ out:
 	return retval;
 }
 
-static int udf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int udf_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *symname)
 {
 	struct inode *inode = udf_new_inode(dir, S_IFLNK | 0777);
@@ -1073,7 +1073,7 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 /* Anybody can rename anything with this: the permission checks are left to the
  * higher-level routines.
  */
-static int udf_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+static int udf_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags)
 {

@@ -756,7 +756,7 @@ error:
 	return ERR_PTR(err);
 }
 
-static int vfat_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int vfat_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct super_block *sb = dir->i_sb;
@@ -844,7 +844,7 @@ out:
 	return err;
 }
 
-static int vfat_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int vfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
@@ -1158,7 +1158,7 @@ error_exchange:
 	goto out;
 }
 
-static int vfat_rename2(struct user_namespace *mnt_userns, struct inode *old_dir,
+static int vfat_rename2(struct mnt_idmap *idmap, struct inode *old_dir,
 			struct dentry *old_dentry, struct inode *new_dir,
 			struct dentry *new_dentry, unsigned int flags)
 {

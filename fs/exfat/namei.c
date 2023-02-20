@@ -551,7 +551,7 @@ out:
 	return ret;
 }
 
-static int exfat_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int exfat_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct super_block *sb = dir->i_sb;
@@ -834,7 +834,7 @@ unlock:
 	return err;
 }
 
-static int exfat_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int exfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
@@ -1285,7 +1285,7 @@ out:
 	return ret;
 }
 
-static int exfat_rename(struct user_namespace *mnt_userns,
+static int exfat_rename(struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)

@@ -1354,7 +1354,7 @@ int security_inode_permission(struct inode *inode, int mask)
 	return call_int_hook(inode_permission, 0, inode, mask);
 }
 
-int security_inode_setattr(struct user_namespace *mnt_userns,
+int security_inode_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
 	int ret;
@@ -1364,7 +1364,7 @@ int security_inode_setattr(struct user_namespace *mnt_userns,
 	ret = call_int_hook(inode_setattr, 0, dentry, attr);
 	if (ret)
 		return ret;
-	return evm_inode_setattr(mnt_userns, dentry, attr);
+	return evm_inode_setattr(idmap, dentry, attr);
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
@@ -1375,7 +1375,7 @@ int security_inode_getattr(const struct path *path)
 	return call_int_hook(inode_getattr, 0, path);
 }
 
-int security_inode_setxattr(struct user_namespace *mnt_userns,
+int security_inode_setxattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
@@ -1387,7 +1387,7 @@ int security_inode_setxattr(struct user_namespace *mnt_userns,
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_setxattr, 1, mnt_userns, dentry, name, value,
+	ret = call_int_hook(inode_setxattr, 1, idmap, dentry, name, value,
 			    size, flags);
 
 	if (ret == 1)
@@ -1397,10 +1397,10 @@ int security_inode_setxattr(struct user_namespace *mnt_userns,
 	ret = ima_inode_setxattr(dentry, name, value, size);
 	if (ret)
 		return ret;
-	return evm_inode_setxattr(mnt_userns, dentry, name, value, size);
+	return evm_inode_setxattr(idmap, dentry, name, value, size);
 }
 
-int security_inode_set_acl(struct user_namespace *mnt_userns,
+int security_inode_set_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name,
 			   struct posix_acl *kacl)
 {
@@ -1408,38 +1408,38 @@ int security_inode_set_acl(struct user_namespace *mnt_userns,
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	ret = call_int_hook(inode_set_acl, 0, mnt_userns, dentry, acl_name,
+	ret = call_int_hook(inode_set_acl, 0, idmap, dentry, acl_name,
 			    kacl);
 	if (ret)
 		return ret;
-	ret = ima_inode_set_acl(mnt_userns, dentry, acl_name, kacl);
+	ret = ima_inode_set_acl(idmap, dentry, acl_name, kacl);
 	if (ret)
 		return ret;
-	return evm_inode_set_acl(mnt_userns, dentry, acl_name, kacl);
+	return evm_inode_set_acl(idmap, dentry, acl_name, kacl);
 }
 
-int security_inode_get_acl(struct user_namespace *mnt_userns,
+int security_inode_get_acl(struct mnt_idmap *idmap,
 			   struct dentry *dentry, const char *acl_name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	return call_int_hook(inode_get_acl, 0, mnt_userns, dentry, acl_name);
+	return call_int_hook(inode_get_acl, 0, idmap, dentry, acl_name);
 }
 
-int security_inode_remove_acl(struct user_namespace *mnt_userns,
+int security_inode_remove_acl(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name)
 {
 	int ret;
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	ret = call_int_hook(inode_remove_acl, 0, mnt_userns, dentry, acl_name);
+	ret = call_int_hook(inode_remove_acl, 0, idmap, dentry, acl_name);
 	if (ret)
 		return ret;
-	ret = ima_inode_remove_acl(mnt_userns, dentry, acl_name);
+	ret = ima_inode_remove_acl(idmap, dentry, acl_name);
 	if (ret)
 		return ret;
-	return evm_inode_remove_acl(mnt_userns, dentry, acl_name);
+	return evm_inode_remove_acl(idmap, dentry, acl_name);
 }
 
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
@@ -1465,7 +1465,7 @@ int security_inode_listxattr(struct dentry *dentry)
 	return call_int_hook(inode_listxattr, 0, dentry);
 }
 
-int security_inode_removexattr(struct user_namespace *mnt_userns,
+int security_inode_removexattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name)
 {
 	int ret;
@@ -1476,15 +1476,15 @@ int security_inode_removexattr(struct user_namespace *mnt_userns,
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_removexattr, 1, mnt_userns, dentry, name);
+	ret = call_int_hook(inode_removexattr, 1, idmap, dentry, name);
 	if (ret == 1)
-		ret = cap_inode_removexattr(mnt_userns, dentry, name);
+		ret = cap_inode_removexattr(idmap, dentry, name);
 	if (ret)
 		return ret;
 	ret = ima_inode_removexattr(dentry, name);
 	if (ret)
 		return ret;
-	return evm_inode_removexattr(mnt_userns, dentry, name);
+	return evm_inode_removexattr(idmap, dentry, name);
 }
 
 int security_inode_need_killpriv(struct dentry *dentry)
@@ -1492,13 +1492,13 @@ int security_inode_need_killpriv(struct dentry *dentry)
 	return call_int_hook(inode_need_killpriv, 0, dentry);
 }
 
-int security_inode_killpriv(struct user_namespace *mnt_userns,
+int security_inode_killpriv(struct mnt_idmap *idmap,
 			    struct dentry *dentry)
 {
-	return call_int_hook(inode_killpriv, 0, mnt_userns, dentry);
+	return call_int_hook(inode_killpriv, 0, idmap, dentry);
 }
 
-int security_inode_getsecurity(struct user_namespace *mnt_userns,
+int security_inode_getsecurity(struct mnt_idmap *idmap,
 			       struct inode *inode, const char *name,
 			       void **buffer, bool alloc)
 {
@@ -1511,7 +1511,7 @@ int security_inode_getsecurity(struct user_namespace *mnt_userns,
 	 * Only one module will provide an attribute with a given name.
 	 */
 	hlist_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
-		rc = hp->hook.inode_getsecurity(mnt_userns, inode, name, buffer, alloc);
+		rc = hp->hook.inode_getsecurity(idmap, inode, name, buffer, alloc);
 		if (rc != LSM_RET_DEFAULT(inode_getsecurity))
 			return rc;
 	}
