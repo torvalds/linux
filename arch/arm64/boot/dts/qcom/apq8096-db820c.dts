@@ -1070,7 +1070,7 @@
 
 		platform {
 			sound-dai = <&q6routing>;
-	};
+		};
 
 		codec {
 			sound-dai = <&wcd9335 AIF4_PB>;
