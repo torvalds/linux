@@ -234,6 +234,7 @@ static IMG_UINT32 sys_gpu_runtime_resume(IMG_HANDLE hd)
 static IMG_UINT32 sys_gpu_runtime_suspend(IMG_HANDLE hd)
 {
 	u0_img_gpu_disable();
+	clk_disable_unprepare(sf_cfg_t.clk_axi);
 	starfive_pmu_hw_event_turn_off_mask((uint32_t)-1);
 
 	return 0;
@@ -310,14 +311,14 @@ err_gpu_unmap:
 
 void u0_img_gpu_enable(void)
 {
-	reset_control_deassert(sf_cfg_t.rst_apb);
-	reset_control_deassert(sf_cfg_t.rst_doma);
-
 	clk_prepare_enable(sf_cfg_t.clk_apb);
 	clk_prepare_enable(sf_cfg_t.clk_rtc);
 	clk_set_rate(sf_cfg_t.clk_div, RGX_STARFIVE_7100_CORE_CLOCK_SPEED);
 	clk_prepare_enable(sf_cfg_t.clk_core);
 	clk_prepare_enable(sf_cfg_t.clk_sys);
+
+	reset_control_deassert(sf_cfg_t.rst_apb);
+	reset_control_deassert(sf_cfg_t.rst_doma);
 }
 
 
