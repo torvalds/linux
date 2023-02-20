@@ -2479,8 +2479,8 @@ static int check_subprogs(struct bpf_verifier_env *env)
 		u8 code = insn[i].code;
 
 		if (code == (BPF_JMP | BPF_CALL) &&
-		    insn[i].imm == BPF_FUNC_tail_call &&
-		    insn[i].src_reg != BPF_PSEUDO_CALL)
+		    insn[i].src_reg == 0 &&
+		    insn[i].imm == BPF_FUNC_tail_call)
 			subprog[cur_subprog].has_tail_call = true;
 		if (BPF_CLASS(code) == BPF_LD &&
 		    (BPF_MODE(code) == BPF_ABS || BPF_MODE(code) == BPF_IND))
