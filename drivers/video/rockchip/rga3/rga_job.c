@@ -536,8 +536,14 @@ static int rga_request_add_acquire_fence_callback(int acquire_fence_fd,
 	ksys_close(acquire_fence_fd);
 
 	ret = rga_dma_fence_get_status(acquire_fence);
-	if (ret != 0)
+	if (ret < 0) {
+		pr_err("%s: Current acquire fence unexpectedly has error status before signal\n",
+		       __func__);
 		return ret;
+	} else if (ret > 0) {
+		/* has been signaled */
+		return ret;
+	}
 
 	/*
 	 * Ensure that the request will not be free early when
@@ -1069,9 +1075,10 @@ int rga_request_submit(struct rga_request *request)
 				request->acquire_fence_fd, request,
 				rga_request_acquire_fence_signaled_cb);
 			if (ret == 0) {
+				/* acquire fence active */
 				goto export_release_fence_fd;
-			} else if (ret == -ENOENT) {
-				/* has been signaled */
+			} else if (ret > 0) {
+				/* acquire fence has been signaled */
 				goto request_commit;
 			} else {
 				pr_err("Failed to add callback with acquire fence fd[%d]!\n",
