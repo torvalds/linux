@@ -64,6 +64,7 @@ obj-$(CONFIG_PINCTRL_MESON)	+= meson/
 obj-y				+= mvebu/
 obj-y				+= nomadik/
 obj-y				+= nuvoton/
+obj-y				+= nxp/
 obj-$(CONFIG_PINCTRL_PXA)	+= pxa/
 obj-$(CONFIG_ARCH_QCOM)		+= qcom/
 obj-$(CONFIG_PINCTRL_RALINK)	+= ralink/
