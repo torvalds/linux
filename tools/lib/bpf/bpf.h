@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 
 /*
- * common eBPF ELF operations.
+ * Common BPF ELF operations.
  *
  * Copyright (C) 2013-2015 Alexei Starovoitov <ast@kernel.org>
  * Copyright (C) 2015 Wang Nan <wangnan0@huawei.com>
@@ -386,14 +386,73 @@ LIBBPF_API int bpf_link_get_fd_by_id(__u32 id);
 LIBBPF_API int bpf_link_get_fd_by_id_opts(__u32 id,
 				const struct bpf_get_fd_by_id_opts *opts);
 LIBBPF_API int bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len);
-/* Type-safe variants of bpf_obj_get_info_by_fd(). The callers still needs to
- * pass info_len, which should normally be
- * sizeof(struct bpf_{prog,map,btf,link}_info), in order to be compatible with
- * different libbpf and kernel versions.
+
+/**
+ * @brief **bpf_prog_get_info_by_fd()** obtains information about the BPF
+ * program corresponding to *prog_fd*.
+ *
+ * Populates up to *info_len* bytes of *info* and updates *info_len* with the
+ * actual number of bytes written to *info*.
+ *
+ * @param prog_fd BPF program file descriptor
+ * @param info pointer to **struct bpf_prog_info** that will be populated with
+ * BPF program information
+ * @param info_len pointer to the size of *info*; on success updated with the
+ * number of bytes written to *info*
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
  */
 LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, __u32 *info_len);
+
+/**
+ * @brief **bpf_map_get_info_by_fd()** obtains information about the BPF
+ * map corresponding to *map_fd*.
+ *
+ * Populates up to *info_len* bytes of *info* and updates *info_len* with the
+ * actual number of bytes written to *info*.
+ *
+ * @param map_fd BPF map file descriptor
+ * @param info pointer to **struct bpf_map_info** that will be populated with
+ * BPF map information
+ * @param info_len pointer to the size of *info*; on success updated with the
+ * number of bytes written to *info*
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
 LIBBPF_API int bpf_map_get_info_by_fd(int map_fd, struct bpf_map_info *info, __u32 *info_len);
+
+/**
+ * @brief **bpf_btf_get_info_by_fd()** obtains information about the 
+ * BTF object corresponding to *btf_fd*.
+ *
+ * Populates up to *info_len* bytes of *info* and updates *info_len* with the
+ * actual number of bytes written to *info*.
+ *
+ * @param btf_fd BTF object file descriptor
+ * @param info pointer to **struct bpf_btf_info** that will be populated with
+ * BTF object information
+ * @param info_len pointer to the size of *info*; on success updated with the
+ * number of bytes written to *info*
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
 LIBBPF_API int bpf_btf_get_info_by_fd(int btf_fd, struct bpf_btf_info *info, __u32 *info_len);
+
+/**
+ * @brief **bpf_btf_get_info_by_fd()** obtains information about the BPF
+ * link corresponding to *link_fd*.
+ *
+ * Populates up to *info_len* bytes of *info* and updates *info_len* with the
+ * actual number of bytes written to *info*.
+ *
+ * @param link_fd BPF link file descriptor
+ * @param info pointer to **struct bpf_link_info** that will be populated with
+ * BPF link information
+ * @param info_len pointer to the size of *info*; on success updated with the
+ * number of bytes written to *info*
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
 LIBBPF_API int bpf_link_get_info_by_fd(int link_fd, struct bpf_link_info *info, __u32 *info_len);
 
 struct bpf_prog_query_opts {
