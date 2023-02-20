@@ -118,7 +118,6 @@ config USB_GR_UDC
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
-	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	help
 	   Many Texas Instruments OMAP processors have flexible full
 	   speed USB device controllers, with support for up to 30
@@ -206,31 +205,6 @@ config USB_PXA27X
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "pxa27x_udc" and force all
 	   gadget drivers to also be dynamically linked.
-
-config USB_S3C2410
-	tristate "S3C2410 USB Device Controller"
-	depends on ARCH_S3C24XX
-	help
-	  Samsung's S3C2410 is an ARM-4 processor with an integrated
-	  full speed USB 1.1 device controller.  It has 4 configurable
-	  endpoints, as well as endpoint zero (for control transfers).
-
-	  This driver has been tested on the S3C2410, S3C2412, and
-	  S3C2440 processors.
-
-config USB_S3C2410_DEBUG
-	bool "S3C2410 udc debug messages"
-	depends on USB_S3C2410
-
-config USB_S3C_HSUDC
-	tristate "S3C2416, S3C2443 and S3C2450 USB Device Controller"
-	depends on ARCH_S3C24XX
-	help
-	  Samsung's S3C2416, S3C2443 and S3C2450 is an ARM9 based SoC
-	  integrated with dual speed USB 2.0 device controller. It has
-	  8 endpoints, as well as endpoint zero.
-
-	  This driver has been tested on S3C2416 and S3C2450 processors.
 
 config USB_MV_UDC
 	tristate "Marvell USB2.0 Device Controller"

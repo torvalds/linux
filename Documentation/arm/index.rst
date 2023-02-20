@@ -64,7 +64,6 @@ SoC-specific documents
    sunxi
 
    samsung/index
-   samsung-s3c24xx/index
 
    sunxi/clocks
 

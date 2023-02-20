@@ -723,11 +723,11 @@ config I2C_IMX_LPI2C
 	  will be called i2c-imx-lpi2c.
 
 config I2C_IOP3XX
-	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
-	depends on ARCH_IOP32X || ARCH_IXP4XX || COMPILE_TEST
+	tristate "Intel IXP4xx on-chip I2C interface"
+	depends on ARCH_IXP4XX || COMPILE_TEST
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Intel IOPx3xx I/O Processors or IXP4xx Network Processors.
+	  the Intel IXP4xx Network Processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
@@ -874,7 +874,7 @@ config I2C_OCORES
 config I2C_OMAP
 	tristate "OMAP I2C adapter"
 	depends on ARCH_OMAP || ARCH_K3 || COMPILE_TEST
-	default y if MACH_OMAP_H3 || MACH_OMAP_OSK
+	default MACH_OMAP_OSK
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Texas Instruments OMAP1/2 family of processors.
@@ -1010,8 +1010,7 @@ config I2C_RZV2M
 
 config I2C_S3C2410
 	tristate "S3C/Exynos I2C Driver"
-	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || \
-		   ARCH_S5PV210 || COMPILE_TEST
+	depends on ARCH_EXYNOS || ARCH_S3C64XX || ARCH_S5PV210 || COMPILE_TEST
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs (S3C, S5Pv210, Exynos).

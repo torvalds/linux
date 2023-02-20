@@ -4,7 +4,6 @@
 
 #include <linux/reboot.h>
 
-struct dsa_chip_data;
 struct mv643xx_eth_platform_data;
 struct mv_sata_platform_data;
 
@@ -42,7 +41,6 @@ void orion5x_setup_wins(void);
 void orion5x_ehci0_init(void);
 void orion5x_ehci1_init(void);
 void orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data);
-void orion5x_eth_switch_init(struct dsa_chip_data *d);
 void orion5x_i2c_init(void);
 void orion5x_sata_init(struct mv_sata_platform_data *sata_data);
 void orion5x_spi_init(void);

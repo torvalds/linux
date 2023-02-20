@@ -1749,23 +1749,6 @@ config SENSORS_SHTC1
 	  This driver can also be built as a module. If so, the module
 	  will be called shtc1.
 
-config SENSORS_S3C
-	tristate "Samsung built-in ADC"
-	depends on S3C_ADC
-	help
-	  If you say yes here you get support for the on-board ADCs of
-	  the Samsung S3C24XX, S3C64XX and other series of SoC
-
-	  This driver can also be built as a module. If so, the module
-	  will be called s3c-hwmon.
-
-config SENSORS_S3C_RAW
-	bool "Include raw channel attributes in sysfs"
-	depends on SENSORS_S3C
-	help
-	  Say Y here if you want to include raw copies of all the ADC
-	  channels in sysfs.
-
 config SENSORS_SIS5595
 	tristate "Silicon Integrated Systems Corp. SiS5595"
 	depends on PCI

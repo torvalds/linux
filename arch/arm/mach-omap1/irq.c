@@ -110,14 +110,6 @@ static void omap_irq_set_cfg(int irq, int fiq, int priority, int trigger)
 	irq_bank_writel(val, bank, offset);
 }
 
-#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
-static struct omap_irq_bank omap7xx_irq_banks[] = {
-	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3f8e22f },
-	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0xfdb9c1f2 },
-	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0x800040f3 },
-};
-#endif
-
 #ifdef CONFIG_ARCH_OMAP15XX
 static struct omap_irq_bank omap1510_irq_banks[] = {
 	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3febfff },
@@ -194,12 +186,6 @@ void __init omap1_init_irq(void)
 	int i, j, irq_base;
 	unsigned long nr_irqs;
 
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	if (cpu_is_omap7xx()) {
-		irq_banks = omap7xx_irq_banks;
-		irq_bank_count = ARRAY_SIZE(omap7xx_irq_banks);
-	}
-#endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		irq_banks = omap1510_irq_banks;
@@ -230,7 +216,7 @@ void __init omap1_init_irq(void)
 		pr_warn("Couldn't allocate IRQ numbers\n");
 		irq_base = 0;
 	}
-	omap_l2_irq = cpu_is_omap7xx() ? irq_base + 1 : irq_base;
+	omap_l2_irq = irq_base;
 	omap_l2_irq -= NR_IRQS_LEGACY;
 
 	domain = irq_domain_add_legacy(NULL, nr_irqs, irq_base, 0,
@@ -248,10 +234,6 @@ void __init omap1_init_irq(void)
 	/* Clear any pending interrupts */
 	irq_bank_writel(0x03, 0, IRQ_CONTROL_REG_OFFSET);
 	irq_bank_writel(0x03, 1, IRQ_CONTROL_REG_OFFSET);
-
-	/* Enable interrupts in global mask */
-	if (cpu_is_omap7xx())
-		irq_bank_writel(0x0, 0, IRQ_GMR_REG_OFFSET);
 
 	/* Install the interrupt handlers for each bank */
 	for (i = 0; i < irq_bank_count; i++) {

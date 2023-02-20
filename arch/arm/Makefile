@@ -152,8 +152,6 @@ CHECKFLAGS	+= -D__arm__
 # during boot, and this offset is critical to the functioning of
 # kexec-tools.
 textofs-y	:= 0x00008000
-# We don't want the htc bootloader to corrupt kernel during resume
-textofs-$(CONFIG_PM_H1940)      := 0x00108000
 # RTD1195 has Boot ROM at start of address space
 textofs-$(CONFIG_ARCH_REALTEK)  := 0x00108000
 # SA1111 DMA bug: we don't want the kernel to live in precious DMA-able memory
@@ -178,7 +176,6 @@ machine-$(CONFIG_ARCH_AXXIA)		+= axxia
 machine-$(CONFIG_ARCH_BCM)		+= bcm
 machine-$(CONFIG_ARCH_BERLIN)		+= berlin
 machine-$(CONFIG_ARCH_CLPS711X)		+= clps711x
-machine-$(CONFIG_ARCH_CNS3XXX)		+= cns3xxx
 machine-$(CONFIG_ARCH_DAVINCI)		+= davinci
 machine-$(CONFIG_ARCH_DIGICOLOR)	+= digicolor
 machine-$(CONFIG_ARCH_DOVE)		+= dove
@@ -189,7 +186,6 @@ machine-$(CONFIG_ARCH_GEMINI)		+= gemini
 machine-$(CONFIG_ARCH_HIGHBANK)		+= highbank
 machine-$(CONFIG_ARCH_HISI)		+= hisi
 machine-$(CONFIG_ARCH_HPE)		+= hpe
-machine-$(CONFIG_ARCH_IOP32X)		+= iop32x
 machine-$(CONFIG_ARCH_IXP4XX)		+= ixp4xx
 machine-$(CONFIG_ARCH_KEYSTONE)		+= keystone
 machine-$(CONFIG_ARCH_LPC18XX)		+= lpc18xx

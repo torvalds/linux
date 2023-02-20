@@ -491,14 +491,13 @@ config IXP4XX_WATCHDOG
 	  Say N if you are unsure.
 
 config S3C2410_WATCHDOG
-	tristate "S3C2410 Watchdog"
-	depends on ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || \
-		   COMPILE_TEST
+	tristate "S3C6410/S5Pv210/Exynos Watchdog"
+	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select WATCHDOG_CORE
 	select MFD_SYSCON if ARCH_EXYNOS
 	help
-	  Watchdog timer block in the Samsung S3C24xx, S3C64xx, S5Pv210 and
-	  Exynos SoCs. This will reboot the system when the timer expires with
+	  Watchdog timer block in the Samsung S3C64xx, S5Pv210 and Exynos
+	  SoCs. This will reboot the system when the timer expires with
 	  the watchdog enabled.
 
 	  The driver is limited by the speed of the system's PCLK

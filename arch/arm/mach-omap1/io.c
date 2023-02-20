@@ -22,92 +22,32 @@
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
  */
-#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
-static struct map_desc omap7xx_io_desc[] __initdata = {
+static struct map_desc omap1_io_desc[] __initdata = {
 	{
 		.virtual	= OMAP1_IO_VIRT,
 		.pfn		= __phys_to_pfn(OMAP1_IO_PHYS),
 		.length		= OMAP1_IO_SIZE,
 		.type		= MT_DEVICE
-	},
-	{
-		.virtual	= OMAP7XX_DSP_BASE,
-		.pfn		= __phys_to_pfn(OMAP7XX_DSP_START),
-		.length		= OMAP7XX_DSP_SIZE,
+	}, {
+		.virtual	= OMAP1_DSP_BASE,
+		.pfn		= __phys_to_pfn(OMAP1_DSP_START),
+		.length		= OMAP1_DSP_SIZE,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= OMAP7XX_DSPREG_BASE,
-		.pfn		= __phys_to_pfn(OMAP7XX_DSPREG_START),
-		.length		= OMAP7XX_DSPREG_SIZE,
+		.virtual	= OMAP1_DSPREG_BASE,
+		.pfn		= __phys_to_pfn(OMAP1_DSPREG_START),
+		.length		= OMAP1_DSPREG_SIZE,
 		.type		= MT_DEVICE
 	}
 };
-#endif
 
-#ifdef CONFIG_ARCH_OMAP15XX
-static struct map_desc omap1510_io_desc[] __initdata = {
-	{
-		.virtual	= OMAP1_IO_VIRT,
-		.pfn		= __phys_to_pfn(OMAP1_IO_PHYS),
-		.length		= OMAP1_IO_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
-		.virtual	= OMAP1510_DSP_BASE,
-		.pfn		= __phys_to_pfn(OMAP1510_DSP_START),
-		.length		= OMAP1510_DSP_SIZE,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= OMAP1510_DSPREG_BASE,
-		.pfn		= __phys_to_pfn(OMAP1510_DSPREG_START),
-		.length		= OMAP1510_DSPREG_SIZE,
-		.type		= MT_DEVICE
-	}
-};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP16XX)
-static struct map_desc omap16xx_io_desc[] __initdata = {
-	{
-		.virtual	= OMAP1_IO_VIRT,
-		.pfn		= __phys_to_pfn(OMAP1_IO_PHYS),
-		.length		= OMAP1_IO_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
-		.virtual	= OMAP16XX_DSP_BASE,
-		.pfn		= __phys_to_pfn(OMAP16XX_DSP_START),
-		.length		= OMAP16XX_DSP_SIZE,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= OMAP16XX_DSPREG_BASE,
-		.pfn		= __phys_to_pfn(OMAP16XX_DSPREG_START),
-		.length		= OMAP16XX_DSPREG_SIZE,
-		.type		= MT_DEVICE
-	}
-};
-#endif
-
-#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
-void __init omap7xx_map_io(void)
+/*
+ * Maps common IO regions for omap1
+ */
+void __init omap1_map_io(void)
 {
-	iotable_init(omap7xx_io_desc, ARRAY_SIZE(omap7xx_io_desc));
+	iotable_init(omap1_io_desc, ARRAY_SIZE(omap1_io_desc));
 }
-#endif
-
-#ifdef CONFIG_ARCH_OMAP15XX
-void __init omap15xx_map_io(void)
-{
-	iotable_init(omap1510_io_desc, ARRAY_SIZE(omap1510_io_desc));
-}
-#endif
-
-#if defined(CONFIG_ARCH_OMAP16XX)
-void __init omap16xx_map_io(void)
-{
-	iotable_init(omap16xx_io_desc, ARRAY_SIZE(omap16xx_io_desc));
-}
-#endif
 
 /*
  * Common low-level hardware init for omap1.

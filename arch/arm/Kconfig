@@ -282,8 +282,7 @@ config PHYS_OFFSET
 	default DRAM_BASE if !MMU
 	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
-	default 0x30000000 if ARCH_S3C24XX
-	default 0xa0000000 if ARCH_IOP32X || ARCH_PXA
+	default 0xa0000000 if ARCH_PXA
 	default 0xc0000000 if ARCH_EP93XX || ARCH_SA1100
 	default 0
 	help
@@ -438,8 +437,6 @@ source "arch/arm/mach-berlin/Kconfig"
 
 source "arch/arm/mach-clps711x/Kconfig"
 
-source "arch/arm/mach-cns3xxx/Kconfig"
-
 source "arch/arm/mach-davinci/Kconfig"
 
 source "arch/arm/mach-digicolor/Kconfig"
@@ -461,8 +458,6 @@ source "arch/arm/mach-hisi/Kconfig"
 source "arch/arm/mach-hpe/Kconfig"
 
 source "arch/arm/mach-imx/Kconfig"
-
-source "arch/arm/mach-iop32x/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 
@@ -930,12 +925,6 @@ config ISA
 # Select ISA DMA interface
 config ISA_DMA_API
 	bool
-
-config PCI_NANOENGINE
-	bool "BSE nanoEngine PCI support"
-	depends on SA1100_NANOENGINE
-	help
-	  Enable PCI on the BSE nanoEngine board.
 
 config ARM_ERRATA_814220
 	bool "ARM errata: Cache maintenance by set/way operations can execute out of order"
@@ -1464,19 +1453,6 @@ config ATAGS
 	  time. If you are solely relying on the flattened device tree (or
 	  the ARM_ATAG_DTB_COMPAT option) then you may unselect this option
 	  to remove ATAGS support from your kernel binary.
-
-config UNUSED_BOARD_FILES
-	bool "Board support for machines without known users"
-	depends on ATAGS
-	help
-	  Most ATAGS based board files are completely unused and are
-	  scheduled for removal in early 2023, and left out of kernels
-	  by default now.  If you are using a board file that is marked
-	  as unused, turn on this option to build support into the kernel.
-
-	  To keep support for your individual board from being removed,
-	  send a reply to the email discussion at
-	  https://lore.kernel.org/all/CAK8P3a0Z9vGEQbVRBo84bSyPFM-LF+hs5w8ZA51g2Z+NsdtDQA@mail.gmail.com/
 
 config DEPRECATED_PARAM_STRUCT
 	bool "Provide old way to pass kernel parameters"

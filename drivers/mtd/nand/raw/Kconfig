@@ -79,7 +79,7 @@ config MTD_NAND_NDFC
 
 config MTD_NAND_S3C2410
 	tristate "Samsung S3C NAND controller"
-	depends on ARCH_S3C24XX || ARCH_S3C64XX
+	depends on ARCH_S3C64XX
 	help
 	  This enables the NAND flash controller on the S3C24xx and S3C64xx
 	  SoCs

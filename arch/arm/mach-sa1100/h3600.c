@@ -14,7 +14,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <linux/platform_data/irda-sa11x0.h>
 
 #include <mach/h3xxx.h>
 #include <mach/irqs.h>
@@ -90,48 +89,11 @@ static void __init h3600_map_io(void)
 	h3xxx_map_io();
 }
 
-/*
- * This turns the IRDA power on or off on the Compaq H3600
- */
-static struct gpio h3600_irda_gpio[] = {
-	{ H3600_EGPIO_IR_ON,	GPIOF_OUT_INIT_LOW, "IrDA power" },
-	{ H3600_EGPIO_IR_FSEL,	GPIOF_OUT_INIT_LOW, "IrDA fsel" },
-};
-
-static int h3600_irda_set_power(struct device *dev, unsigned int state)
-{
-	gpio_set_value(H3600_EGPIO_IR_ON, state);
-	return 0;
-}
-
-static void h3600_irda_set_speed(struct device *dev, unsigned int speed)
-{
-	gpio_set_value(H3600_EGPIO_IR_FSEL, !(speed < 4000000));
-}
-
-static int h3600_irda_startup(struct device *dev)
-{
-	return gpio_request_array(h3600_irda_gpio, sizeof(h3600_irda_gpio));
-}
-
-static void h3600_irda_shutdown(struct device *dev)
-{
-	return gpio_free_array(h3600_irda_gpio, sizeof(h3600_irda_gpio));
-}
-
-static struct irda_platform_data h3600_irda_data = {
-	.set_power	= h3600_irda_set_power,
-	.set_speed	= h3600_irda_set_speed,
-	.startup	= h3600_irda_startup,
-	.shutdown	= h3600_irda_shutdown,
-};
-
 static void __init h3600_mach_init(void)
 {
 	h3xxx_mach_init();
 
 	sa11x0_register_lcd(&h3600_lcd_info);
-	sa11x0_register_irda(&h3600_irda_data);
 }
 
 MACHINE_START(H3600, "Compaq iPAQ H3600")

@@ -44,7 +44,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
-#include <linux/platform_data/irda-sa11x0.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
@@ -116,37 +115,6 @@ static struct gpiod_lookup_table collie_battery_gpiod_table = {
 			    "main charge on", GPIO_ACTIVE_HIGH),
 		{ },
 	},
-};
-
-static int collie_ir_startup(struct device *dev)
-{
-	int rc = gpio_request(COLLIE_GPIO_IR_ON, "IrDA");
-	if (rc)
-		return rc;
-	rc = gpio_direction_output(COLLIE_GPIO_IR_ON, 1);
-
-	if (!rc)
-		return 0;
-
-	gpio_free(COLLIE_GPIO_IR_ON);
-	return rc;
-}
-
-static void collie_ir_shutdown(struct device *dev)
-{
-	gpio_free(COLLIE_GPIO_IR_ON);
-}
-
-static int collie_ir_set_power(struct device *dev, unsigned int state)
-{
-	gpio_set_value(COLLIE_GPIO_IR_ON, !state);
-	return 0;
-}
-
-static struct irda_platform_data collie_ir_data = {
-	.startup = collie_ir_startup,
-	.shutdown = collie_ir_shutdown,
-	.set_power = collie_ir_set_power,
 };
 
 /*
@@ -420,7 +388,6 @@ static void __init collie_init(void)
 	sa11x0_register_mtd(&collie_flash_data, collie_flash_resources,
 			    ARRAY_SIZE(collie_flash_resources));
 	sa11x0_register_mcp(&collie_mcp_data);
-	sa11x0_register_irda(&collie_ir_data);
 
 	sharpsl_save_param();
 }

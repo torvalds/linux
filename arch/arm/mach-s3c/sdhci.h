@@ -48,34 +48,9 @@ extern struct s3c_sdhci_platdata s3c_hsmmc3_def_platdata;
 
 /* Helper function availability */
 
-extern void s3c2416_setup_sdhci0_cfg_gpio(struct platform_device *, int w);
-extern void s3c2416_setup_sdhci1_cfg_gpio(struct platform_device *, int w);
 extern void s3c64xx_setup_sdhci0_cfg_gpio(struct platform_device *, int w);
 extern void s3c64xx_setup_sdhci1_cfg_gpio(struct platform_device *, int w);
 extern void s3c64xx_setup_sdhci2_cfg_gpio(struct platform_device *, int w);
-
-/* S3C2416 SDHCI setup */
-
-#ifdef CONFIG_S3C2416_SETUP_SDHCI
-static inline void s3c2416_default_sdhci0(void)
-{
-#ifdef CONFIG_S3C_DEV_HSMMC
-	s3c_hsmmc0_def_platdata.cfg_gpio = s3c2416_setup_sdhci0_cfg_gpio;
-#endif /* CONFIG_S3C_DEV_HSMMC */
-}
-
-static inline void s3c2416_default_sdhci1(void)
-{
-#ifdef CONFIG_S3C_DEV_HSMMC1
-	s3c_hsmmc1_def_platdata.cfg_gpio = s3c2416_setup_sdhci1_cfg_gpio;
-#endif /* CONFIG_S3C_DEV_HSMMC1 */
-}
-
-#else
-static inline void s3c2416_default_sdhci0(void) { }
-static inline void s3c2416_default_sdhci1(void) { }
-
-#endif /* CONFIG_S3C2416_SETUP_SDHCI */
 
 /* S3C64XX SDHCI setup */
 

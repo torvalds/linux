@@ -1851,21 +1851,6 @@ F:	include/dt-bindings/reset/actions,*
 F:	include/linux/soc/actions/
 N:	owl
 
-ARM/ADS SPHERE MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
-ARM/AFEB9260 MACHINE SUPPORT
-M:	Sergey Lapin <slapin@ossfans.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
-ARM/AJECO 1ARM MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
 ARM/Allwinner SoC Clock Support
 M:	Emilio López <emilio@elopez.com.ar>
 S:	Maintained
@@ -2056,11 +2041,6 @@ F:	arch/arm/boot/dts/ecx-*.dts*
 F:	arch/arm/boot/dts/highbank.dts
 F:	arch/arm/mach-highbank/
 
-ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
-M:	Krzysztof Halasa <khalasa@piap.pl>
-S:	Maintained
-F:	arch/arm/mach-cns3xxx/
-
 ARM/CAVIUM THUNDER NETWORK DRIVER
 M:	Sunil Goutham <sgoutham@marvell.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2089,8 +2069,8 @@ M:	Hartley Sweeten <hsweeten@visionengravers.com>
 M:	Alexander Sverdlin <alexander.sverdlin@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	arch/arm/boot/compressed/misc-ep93xx.h
 F:	arch/arm/mach-ep93xx/
-F:	arch/arm/mach-ep93xx/include/mach/
 
 ARM/CLKDEV SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
@@ -2105,11 +2085,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/cx92755*
 N:	digicolor
-
-ARM/CONTEC MICRO9 MACHINE SUPPORT
-M:	Hubert Feurstein <hubert.feurstein@contec.at>
-S:	Maintained
-F:	arch/arm/mach-ep93xx/micro9.c
 
 ARM/CORESIGHT FRAMEWORK AND DRIVERS
 M:	Mathieu Poirier <mathieu.poirier@linaro.org>
@@ -2136,10 +2111,6 @@ F:	tools/perf/arch/arm/util/cs-etm.h
 F:	tools/perf/arch/arm/util/pmu.c
 F:	tools/perf/util/cs-etm-decoder/*
 F:	tools/perf/util/cs-etm.*
-
-ARM/CORGI MACHINE SUPPORT
-M:	Richard Purdie <rpurdie@rpsys.net>
-S:	Maintained
 
 ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
 M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
@@ -2179,12 +2150,6 @@ F:	drivers/watchdog/armada_37xx_wdt.c
 F:	include/dt-bindings/bus/moxtet.h
 F:	include/linux/armada-37xx-rwtm-mailbox.h
 F:	include/linux/moxtet.h
-
-ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
-M:	Robert Jarzmik <robert.jarzmik@free.fr>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
 M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
@@ -2238,24 +2203,10 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
 F:	arch/arm/boot/dts/vf*
 F:	arch/arm/mach-imx/*vf610*
 
-ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
 ARM/GUMSTIX MACHINE SUPPORT
 M:	Steve Sakoman <sakoman@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-
-ARM/H4700 (HP IPAQ HX4700) MACHINE SUPPORT
-M:	Philipp Zabel <philipp.zabel@gmail.com>
-M:	Paul Parsons <lost.distance@yahoo.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/hx4700.c
-F:	arch/arm/mach-pxa/include/mach/hx4700.h
-F:	sound/soc/pxa/hx4700.c
 
 ARM/HISILICON SOC SUPPORT
 M:	Wei Xu <xuwei5@hisilicon.com>
@@ -2299,27 +2250,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/omap3-igep*
 
-ARM/INCOME PXA270 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/colibri-pxa270-income.c
-
-ARM/INTEL IOP32X ARM ARCHITECTURE
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
-ARM/INTEL IQ81342EX MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
-ARM/INTEL IXDP2850 MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
 ARM/INTEL IXP4XX ARM ARCHITECTURE
 M:	Linus Walleij <linusw@kernel.org>
 M:	Imre Kaloz <kaloz@openwrt.org>
@@ -2352,21 +2282,11 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
-ARM/IP FABRICS DOUBLE ESPRESSO MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
 ARM/LG1K ARCHITECTURE
 M:	Chanho Min <chanho.min@lge.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/lg/
-
-ARM/LOGICPD PXA270 MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
 
 ARM/LPC18XX ARCHITECTURE
 M:	Vladimir Zapolskiy <vz@mleia.com>
@@ -2393,10 +2313,6 @@ F:	drivers/net/ethernet/nxp/lpc_eth.c
 F:	drivers/usb/host/ohci-nxp.c
 F:	drivers/watchdog/pnx4008_wdt.c
 N:	lpc32xx
-
-ARM/MAGICIAN MACHINE SUPPORT
-M:	Philipp Zabel <philipp.zabel@gmail.com>
-S:	Maintained
 
 ARM/Marvell Dove/MV78xx0/Orion SOC support
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -2529,12 +2445,6 @@ F:	arch/arm/boot/dts/milbeaut*
 F:	arch/arm/mach-milbeaut/
 N:	milbeaut
 
-ARM/MIOA701 MACHINE SUPPORT
-M:	Robert Jarzmik <robert.jarzmik@free.fr>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/mioa701.c
-
 ARM/MStar/Sigmastar Armv7 SoC support
 M:	Daniel Palmer <daniel@thingy.jp>
 M:	Romain Perier <romain.perier@gmail.com>
@@ -2554,10 +2464,6 @@ F:	drivers/rtc/rtc-msc313.c
 F:	drivers/watchdog/msc313e_wdt.c
 F:	include/dt-bindings/clock/mstar-*
 F:	include/dt-bindings/gpio/msc313-gpio.h
-
-ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
-M:	Michael Petchkovsky <mkpetch@internode.on.net>
-S:	Maintained
 
 ARM/NOMADIK/Ux500 ARCHITECTURES
 M:	Linus Walleij <linus.walleij@linaro.org>
@@ -2627,13 +2533,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/freescale/s32g*.dts*
 
-ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
-L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
-S:	Orphan
-W:	http://wiki.openmoko.org/wiki/Neo_FreeRunner
-F:	arch/arm/mach-s3c/gta02.h
-F:	arch/arm/mach-s3c/mach-gta02.c
-
 ARM/Orion SoC/Technologic Systems TS-78xx platform support
 M:	Alexander Clouter <alex@digriz.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2650,43 +2549,6 @@ F:	arch/arm/boot/dts/ox8*.dts*
 F:	arch/arm/mach-oxnas/
 F:	drivers/power/reset/oxnas-restart.c
 N:	oxnas
-
-ARM/PALM TREO SUPPORT
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Orphan
-F:	arch/arm/mach-pxa/palmtreo.*
-
-ARM/PALMTX,PALMT5,PALMLD,PALMTE2,PALMTC SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://hackndev.com
-F:	arch/arm/mach-pxa/include/mach/palmld.h
-F:	arch/arm/mach-pxa/include/mach/palmtc.h
-F:	arch/arm/mach-pxa/include/mach/palmtx.h
-F:	arch/arm/mach-pxa/palmld.c
-F:	arch/arm/mach-pxa/palmt5.*
-F:	arch/arm/mach-pxa/palmtc.c
-F:	arch/arm/mach-pxa/palmte2.*
-F:	arch/arm/mach-pxa/palmtx.c
-
-ARM/PALMZ72 SUPPORT
-M:	Sergey Lapin <slapin@ossfans.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://hackndev.com
-F:	arch/arm/mach-pxa/palmz72.*
-
-ARM/PLEB SUPPORT
-M:	Peter Chubb <pleb@gelato.unsw.edu.au>
-S:	Maintained
-W:	http://www.disy.cse.unsw.edu.au/Hardware/PLEB
-
-ARM/PT DIGITAL BOARD PORT
-M:	Stefan Eletzhofer <stefan.eletzhofer@eletztrick.de>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://www.armlinux.org.uk/
 
 ARM/QUALCOMM SUPPORT
 M:	Andy Gross <agross@kernel.org>
@@ -2730,11 +2592,6 @@ F:	drivers/usb/dwc3/dwc3-qcom.c
 F:	include/dt-bindings/*/qcom*
 F:	include/linux/*/qcom*
 F:	include/linux/soc/qcom/
-
-ARM/RADISYS ENP2611 MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
 
 ARM/RDA MICRO ARCHITECTURE
 M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
@@ -2856,7 +2713,6 @@ F:	include/linux/platform_data/*s3c*
 F:	include/linux/serial_s3c.h
 F:	include/linux/soc/samsung/
 N:	exynos
-N:	s3c2410
 N:	s3c64xx
 N:	s5pv210
 
@@ -3067,16 +2923,6 @@ F:	arch/arm64/boot/dts/ti/Makefile
 F:	arch/arm64/boot/dts/ti/k3-*
 F:	include/dt-bindings/pinctrl/k3.h
 
-ARM/THECUS N2100 MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
-ARM/TOSA MACHINE SUPPORT
-M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
-M:	Dirk Opfer <dirk@opfer-online.de>
-S:	Maintained
-
 ARM/TOSHIBA VISCONTI ARCHITECTURE
 M:	Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3133,7 +2979,7 @@ S:	Maintained
 F:	*/*/*/vexpress*
 F:	*/*/vexpress*
 F:	arch/arm/boot/dts/vexpress*
-F:	arch/arm/mach-vexpress/
+F:	arch/arm/mach-versatile/
 F:	arch/arm64/boot/dts/arm/
 F:	drivers/clk/versatile/clk-vexpress-osc.c
 F:	drivers/clocksource/timer-versatile.c
@@ -3145,13 +2991,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	http://www.armlinux.org.uk/
 F:	arch/arm/vfp/
-
-ARM/VOIPAC PXA270 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/include/mach/vpac270.h
-F:	arch/arm/mach-pxa/vpac270.c
 
 ARM/VT8500 ARM ARCHITECTURE
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3169,13 +3008,6 @@ F:	drivers/usb/host/uhci-platform.c
 F:	drivers/video/fbdev/vt8500lcdfb.*
 F:	drivers/video/fbdev/wm8505fb*
 F:	drivers/video/fbdev/wmt_ge_rops.*
-
-ARM/ZIPIT Z2 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/include/mach/z2.h
-F:	arch/arm/mach-pxa/z2.c
 
 ARM/ZYNQ ARCHITECTURE
 M:	Michal Simek <michal.simek@xilinx.com>
@@ -15322,7 +15154,6 @@ Q:	http://patchwork.kernel.org/project/linux-omap/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap.git
 F:	arch/arm/configs/omap1_defconfig
 F:	arch/arm/mach-omap1/
-F:	arch/arm/plat-omap/
 F:	drivers/i2c/busses/i2c-omap.c
 F:	include/linux/platform_data/ams-delta-fiq.h
 F:	include/linux/platform_data/i2c-omap.h
@@ -15337,7 +15168,6 @@ Q:	http://patchwork.kernel.org/project/linux-omap/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap.git
 F:	arch/arm/configs/omap2plus_defconfig
 F:	arch/arm/mach-omap2/
-F:	arch/arm/plat-omap/
 F:	drivers/bus/ti-sysc.c
 F:	drivers/i2c/busses/i2c-omap.c
 F:	drivers/irqchip/irq-omap-intc.c
@@ -18379,19 +18209,6 @@ L:	linux-s390@vger.kernel.org
 S:	Supported
 F:	drivers/s390/scsi/zfcp_*
 
-S3C ADC BATTERY DRIVER
-M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
-L:	linux-samsung-soc@vger.kernel.org
-S:	Odd Fixes
-F:	drivers/power/supply/s3c_adc_battery.c
-F:	include/linux/s3c_adc_battery.h
-
-S3C24XX SD/MMC Driver
-M:	Ben Dooks <ben-linux@fluff.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-F:	drivers/mmc/host/s3cmci.*
-
 SAA6588 RDS RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
@@ -18544,11 +18361,9 @@ F:	Documentation/devicetree/bindings/clock/samsung,*.yaml
 F:	Documentation/devicetree/bindings/clock/samsung,s3c*
 F:	drivers/clk/samsung/
 F:	include/dt-bindings/clock/exynos*.h
-F:	include/dt-bindings/clock/s3c*.h
 F:	include/dt-bindings/clock/s5p*.h
 F:	include/dt-bindings/clock/samsung,*.h
 F:	include/linux/clk/samsung.h
-F:	include/linux/platform_data/clk-s3c2410.h
 
 SAMSUNG SPI DRIVERS
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
@@ -18559,7 +18374,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/spi/samsung,spi*.yaml
 F:	drivers/spi/spi-s3c*
 F:	include/linux/platform_data/spi-s3c64xx.h
-F:	include/linux/spi/s3c24xx-fiq.h
 
 SAMSUNG SXGBE DRIVERS
 M:	Byungho An <bh74.an@samsung.com>
@@ -19128,14 +18942,6 @@ SIMTEC EB110ATX (Chalice CATS)
 M:	Simtec Linux Team <linux@simtec.co.uk>
 S:	Supported
 W:	http://www.simtec.co.uk/products/EB110ATX/
-
-SIMTEC EB2410ITX (BAST)
-M:	Simtec Linux Team <linux@simtec.co.uk>
-S:	Supported
-W:	http://www.simtec.co.uk/products/EB2410ITX/
-F:	arch/arm/mach-s3c/bast-ide.c
-F:	arch/arm/mach-s3c/bast-irq.c
-F:	arch/arm/mach-s3c/mach-bast.c
 
 SIOX
 M:	Thorsten Scherer <t.scherer@eckelmann.de>
@@ -20873,7 +20679,6 @@ W:	https://linuxtv.org
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
 F:	drivers/media/platform/ti/davinci/
-F:	drivers/staging/media/deprecated/vpfe_capture/
 F:	include/media/davinci/
 
 TI ENHANCED CAPTURE (eCAP) DRIVER

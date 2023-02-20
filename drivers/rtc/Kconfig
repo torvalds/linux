@@ -1212,15 +1212,6 @@ config RTC_DRV_RP5C01
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rp5c01.
 
-config RTC_DRV_V3020
-	tristate "EM Microelectronic V3020"
-	help
-	  If you say yes here you will get support for the
-	  EM Microelectronic v3020 RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-v3020.
-
 config RTC_DRV_GAMECUBE
 	tristate "Nintendo GameCube, Wii and Wii U RTC"
 	depends on GAMECUBE || WII || COMPILE_TEST
@@ -1415,17 +1406,13 @@ config RTC_DRV_OMAP
 
 config RTC_DRV_S3C
 	tristate "Samsung S3C series SoC RTC"
-	depends on ARCH_EXYNOS || ARCH_S3C64XX || ARCH_S3C24XX || ARCH_S5PV210 || \
+	depends on ARCH_EXYNOS || ARCH_S3C64XX || ARCH_S5PV210 || \
 		   COMPILE_TEST
 	help
 	  RTC (Realtime Clock) driver for the clock inbuilt into the
-	  Samsung S3C24XX series of SoCs. This can provide periodic
+	  Samsung S3C64XX series of SoCs. This can provide periodic
 	  interrupt rates from 1Hz to 64Hz for user programs, and
 	  wakeup from Alarm.
-
-	  The driver currently supports the common features on all the
-	  S3C24XX range, such as the S3C2410, S3C2412, S3C2413, S3C2440
-	  and S3C2442.
 
 	  This driver can also be build as a module. If so, the module
 	  will be called rtc-s3c.
