@@ -866,7 +866,7 @@ static int get_pattern_play_length_us(struct pattern_cfg *pattern)
 		if (pattern->samples[i].amplitude != 0)
 			break;
 
-	for (j = 0; j < i; j++) {
+	for (j = 0; j <= i; j++) {
 		us_per_sample = pattern->play_rate_us;
 		switch (pattern->samples[j].period) {
 		case T_LRA:
