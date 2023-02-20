@@ -81,7 +81,7 @@ static struct kobj_attribute wcd_usbss_surge_period_attribute =
  * 3. Register 0x06 Bit<0> reads 1 after toggling
  *    register WCD_USBSS_PMP_MISC1 Bit<0> from 0 --> 1 --> 0
  *
- * Returns true if all checks fails (indicates OVP and reset needed), false otherwise
+ * Returns true if any checks fail (indicates OVP and reset needed), false otherwise
  */
 static bool wcd_usbss_is_in_reset_state(void)
 {
@@ -90,14 +90,16 @@ static bool wcd_usbss_is_in_reset_state(void)
 
 	/* Check 1: Read WCD_USBSS_CPLDO_CTL2 */
 	regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_CPLDO_CTL2, &read_val);
-	if (read_val == 0xFF)
-		return false;
+	if (read_val != 0xFF)
+		return true;
 
 	/* Check 2: Read WCD_USBSS_RCO_MISC2 */
 	for (i = 0; i < NUM_RCO_MISC2_READ; i++) {
 		regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_RCO_MISC2, &read_val);
 		if ((read_val & 0x2) == 0)
-			return false;
+			break;
+		if (i == (NUM_RCO_MISC2_READ - 1))
+			return true;
 	}
 
 	/* Toggle WCD_USBSS_PMP_MISC1 bit<0>: 0 --> 1 --> 0 */
@@ -107,11 +109,11 @@ static bool wcd_usbss_is_in_reset_state(void)
 
 	/* Check 3: Read WCD_USBSS_PMP_MISC2 */
 	regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_PMP_MISC2, &read_val);
-	if (read_val & 0x1)
-		return false;
+	if ((read_val & 0x1) == 0)
+		return true;
 
-	/* All checks failed, so a reset has occurred, and return true */
-	return true;
+	/* All checks passed, so a reset has not occurred */
+	return false;
 }
 
 /*
@@ -124,7 +126,11 @@ static int wcd_usbss_reset_routine(void)
 	/* Mark the cache as dirty to force a flush */
 	regcache_mark_dirty(wcd_usbss_ctxt_->regmap);
 	regcache_sync(wcd_usbss_ctxt_->regmap);
-
+	/* Write 0xFF to WCD_USBSS_CPLDO_CTL2 */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_CPLDO_CTL2, 0xFF, 0xFF);
+	/* Set RCO_EN: WCD_USBSS_USB_SS_CNTL Bit<3> --> 0x0 --> 0x1 */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x0);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x8);
 	return wcd_usbss_switch_update(wcd_usbss_ctxt_->cable_type, wcd_usbss_ctxt_->cable_status);
 }
 
@@ -377,6 +383,7 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 	/* Disable Equalizer */
 	regmap_update_bits(priv->regmap, WCD_USBSS_EQUALIZER1,
 			WCD_USBSS_EQUALIZER1_EQ_EN_MASK, 0x00);
+	regmap_update_bits(priv->regmap, WCD_USBSS_USB_SS_CNTL, 0x07, 0x05); /* Mode5: USB*/
 	/* Once plug-out done, restore to MANUAL mode */
 	audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 	return 0;
@@ -384,8 +391,6 @@ static int wcd_usbss_switch_update_defaults(struct wcd_usbss_ctxt *priv)
 
 static void wcd_usbss_update_reg_init(struct regmap *regmap)
 {
-	/* update Register Power On Reset values (if any) */
-	regmap_update_bits(regmap, WCD_USBSS_USB_SS_CNTL, 0x07, 0x02); /*Mode2*/
 	if (audio_fsm_mode == WCD_USBSS_AUDIO_FSM)
 		regmap_update_bits(regmap, WCD_USBSS_FUNCTION_ENABLE, 0x03,
 				0x02); /* AUDIO_FSM mode */
@@ -510,9 +515,15 @@ int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 
 	switch (config_type) {
 	case WCD_USBSS_CONFIG_TYPE_POWER_MODE:
-		/* Configure power mode from RX HPH mixer ctl */
-		regmap_update_bits(wcd_usbss_ctxt_->regmap,
+
+		/* Configure power mode from RX HPH mixer ctl if AATC cable is connected */
+		if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_CONNECT &&
+			(wcd_usbss_ctxt_->cable_type == WCD_USBSS_AATC ||
+			wcd_usbss_ctxt_->cable_type == WCD_USBSS_GND_MIC_SWAP_AATC ||
+			wcd_usbss_ctxt_->cable_type == WCD_USBSS_HSJ_CONNECT))
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 				WCD_USBSS_USB_SS_CNTL, 0x07, power_mode);
+		wcd_usbss_ctxt_->cached_audio_pwr_mode = power_mode;
 		break;
 	default:
 		pr_err("%s Invalid config type %d\n", __func__, config_type);
@@ -555,6 +566,10 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			wcd_usbss_dpdm_switch_update(true, true);
 			break;
 		case WCD_USBSS_AATC:
+			/* Update power mode as per wcd mixer ctls */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+				WCD_USBSS_USB_SS_CNTL, 0x07,
+				wcd_usbss_ctxt_->cached_audio_pwr_mode);
 			/* for AATC plug-in, change mode to FSM */
 			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
@@ -602,6 +617,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		case WCD_USBSS_GND_MIC_SWAP_AATC:
 			dev_info(wcd_usbss_ctxt_->dev,
 					"%s: GND MIC Swap register updates..\n", __func__);
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+				WCD_USBSS_USB_SS_CNTL, 0x07,
+				wcd_usbss_ctxt_->cached_audio_pwr_mode);
 			/* for GND MIC Swap, change mode to FSM */
 			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
@@ -629,6 +647,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 					WCD_USBSS_AUDIO_FSM_START, 0x01, 0x01, NULL, false, true);
 			break;
 		case WCD_USBSS_HSJ_CONNECT:
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+				WCD_USBSS_USB_SS_CNTL, 0x07,
+				wcd_usbss_ctxt_->cached_audio_pwr_mode);
 			/* Select MG2, GSBU1 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x1);
