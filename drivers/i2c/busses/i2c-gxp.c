@@ -129,8 +129,10 @@ static int gxp_i2c_master_xfer(struct i2c_adapter *adapter,
 	if (time_left == 0)
 		return -ETIMEDOUT;
 
-	if (drvdata->state == GXP_I2C_ADDR_NACK ||
-	    drvdata->state == GXP_I2C_DATA_NACK)
+	if (drvdata->state == GXP_I2C_ADDR_NACK)
+		return -ENXIO;
+
+	if (drvdata->state == GXP_I2C_DATA_NACK)
 		return -EIO;
 
 	return ret;
