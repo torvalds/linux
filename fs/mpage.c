@@ -532,6 +532,8 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 		map_bh.b_size = 1 << blkbits;
 		if (mpd->get_block(inode, block_in_file, &map_bh, 1))
 			goto confused;
+		if (!buffer_mapped(&map_bh))
+			goto confused;
 		if (buffer_new(&map_bh))
 			clean_bdev_bh_alias(&map_bh);
 		if (buffer_boundary(&map_bh)) {

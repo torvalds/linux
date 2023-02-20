@@ -54,6 +54,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 	struct udf_part_map *map;
 	struct udf_virtual_data *vdata;
 	struct udf_inode_info *iinfo = UDF_I(sbi->s_vat_inode);
+	int err;
 
 	map = &sbi->s_partmaps[partition];
 	vdata = &map->s_type_specific.s_virtual;
@@ -79,12 +80,10 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 		index = vdata->s_start_offset / sizeof(uint32_t) + block;
 	}
 
-	loc = udf_block_map(sbi->s_vat_inode, newblock);
-
-	bh = sb_bread(sb, loc);
+	bh = udf_bread(sbi->s_vat_inode, newblock, 0, &err);
 	if (!bh) {
-		udf_debug("get_pblock(UDF_VIRTUAL_MAP:%p,%u,%u) VAT: %u[%u]\n",
-			  sb, block, partition, loc, index);
+		udf_debug("get_pblock(UDF_VIRTUAL_MAP:%p,%u,%u)\n",
+			  sb, block, partition);
 		return 0xFFFFFFFF;
 	}
 
