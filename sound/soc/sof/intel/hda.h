@@ -502,7 +502,7 @@ struct sof_intel_hda_dev {
 	u32 stream_max;
 
 	/* PM related */
-	bool l1_support_changed;/* during suspend, is L1SEN changed or not */
+	bool l1_disabled;/* is DMI link L1 disabled? */
 
 	/* DMIC device */
 	struct platform_device *dmic_dev;
