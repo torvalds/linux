@@ -247,10 +247,8 @@ static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 {
 	struct bio *bio;
 
-	if (rq->cmd_flags & REQ_POLLED) {
-		blk_opf_t opf = rq->cmd_flags | REQ_ALLOC_CACHE;
-
-		bio = bio_alloc_bioset(NULL, nr_vecs, opf, gfp_mask,
+	if (rq->cmd_flags & REQ_ALLOC_CACHE) {
+		bio = bio_alloc_bioset(NULL, nr_vecs, rq->cmd_flags, gfp_mask,
 					&fs_bio_set);
 		if (!bio)
 			return NULL;

@@ -432,7 +432,8 @@ Contact:	linux-block@vger.kernel.org
 Description:
 		[RW] This is the maximum number of kilobytes that the block
 		layer will allow for a filesystem request. Must be smaller than
-		or equal to the maximum size allowed by the hardware.
+		or equal to the maximum size allowed by the hardware. Write 0
+		to use default kernel settings.
 
 
 What:		/sys/block/<disk>/queue/max_segment_size

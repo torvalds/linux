@@ -840,7 +840,7 @@ void nvmet_execute_set_features(struct nvmet_req *req)
 	u16 nsqr;
 	u16 ncqr;
 
-	if (!nvmet_check_transfer_len(req, 0))
+	if (!nvmet_check_data_len_lte(req, 0))
 		return;
 
 	switch (cdw10 & 0xff) {
