@@ -279,9 +279,17 @@ static void taprio_update_queue_max_sdu(struct taprio_sched *q,
 			u32 max_frm_len;
 
 			max_frm_len = duration_to_length(q, sched->max_open_gate_duration[tc]);
-			if (stab)
+			/* Compensate for L1 overhead from size table,
+			 * but don't let the frame size go negative
+			 */
+			if (stab) {
 				max_frm_len -= stab->szopts.overhead;
+				max_frm_len = max_t(int, max_frm_len,
+						    dev->hard_header_len + 1);
+			}
 			max_sdu_dynamic = max_frm_len - dev->hard_header_len;
+			if (max_sdu_dynamic > dev->max_mtu)
+				max_sdu_dynamic = U32_MAX;
 		}
 
 		max_sdu = min(max_sdu_dynamic, max_sdu_from_user);
@@ -1833,23 +1841,6 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 		goto free_sched;
 	}
 
-	err = parse_taprio_schedule(q, tb, new_admin, extack);
-	if (err < 0)
-		goto free_sched;
-
-	if (new_admin->num_entries == 0) {
-		NL_SET_ERR_MSG(extack, "There should be at least one entry in the schedule");
-		err = -EINVAL;
-		goto free_sched;
-	}
-
-	err = taprio_parse_clockid(sch, tb, extack);
-	if (err < 0)
-		goto free_sched;
-
-	taprio_set_picos_per_byte(dev, q);
-	taprio_update_queue_max_sdu(q, new_admin, stab);
-
 	if (mqprio) {
 		err = netdev_set_num_tc(dev, mqprio->num_tc);
 		if (err)
@@ -1866,6 +1857,23 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 			netdev_set_prio_tc_map(dev, i,
 					       mqprio->prio_tc_map[i]);
 	}
+
+	err = parse_taprio_schedule(q, tb, new_admin, extack);
+	if (err < 0)
+		goto free_sched;
+
+	if (new_admin->num_entries == 0) {
+		NL_SET_ERR_MSG(extack, "There should be at least one entry in the schedule");
+		err = -EINVAL;
+		goto free_sched;
+	}
+
+	err = taprio_parse_clockid(sch, tb, extack);
+	if (err < 0)
+		goto free_sched;
+
+	taprio_set_picos_per_byte(dev, q);
+	taprio_update_queue_max_sdu(q, new_admin, stab);
 
 	if (FULL_OFFLOAD_IS_ENABLED(q->flags))
 		err = taprio_enable_offload(dev, q, new_admin, extack);
