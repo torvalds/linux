@@ -19,13 +19,14 @@ obj-y :=	open.o read_write.o file_table.o super.o \
 		kernel_read_file.o mnt_idmapping.o remap_range.o
 
 ifeq ($(CONFIG_BLOCK),y)
-obj-y +=	buffer.o direct-io.o mpage.o
+obj-y +=	buffer.o mpage.o
 else
 obj-y +=	no-block.o
 endif
 
 obj-$(CONFIG_PROC_FS) += proc_namespace.o
 
+obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
 obj-y				+= notify/
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
 obj-y				+= anon_inodes.o

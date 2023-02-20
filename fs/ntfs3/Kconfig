@@ -2,6 +2,7 @@
 config NTFS3_FS
 	tristate "NTFS Read-Write file system support"
 	select NLS
+	select LEGACY_DIRECT_IO
 	help
 	  Windows OS native file system (NTFS) support up to NTFS version 3.1.
 

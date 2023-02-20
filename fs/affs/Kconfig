@@ -2,6 +2,7 @@
 config AFFS_FS
 	tristate "Amiga FFS file system support"
 	depends on BLOCK
+	select LEGACY_DIRECT_IO
 	help
 	  The Fast File System (FFS) is the common file system used on hard
 	  disks by Amiga(tm) systems since AmigaOS Version 1.3 (34.20).  Say Y
