@@ -2635,7 +2635,6 @@ static int ext4_check_test_dummy_encryption(const struct fs_context *fc,
 {
 	const struct ext4_fs_context *ctx = fc->fs_private;
 	const struct ext4_sb_info *sbi = EXT4_SB(sb);
-	int err;
 
 	if (!fscrypt_is_dummy_policy_set(&ctx->dummy_enc_policy))
 		return 0;
@@ -2668,17 +2667,7 @@ static int ext4_check_test_dummy_encryption(const struct fs_context *fc,
 			 "Conflicting test_dummy_encryption options");
 		return -EINVAL;
 	}
-	/*
-	 * fscrypt_add_test_dummy_key() technically changes the super_block, so
-	 * technically it should be delayed until ext4_apply_options() like the
-	 * other changes.  But since we never get here for remounts (see above),
-	 * and this is the last chance to report errors, we do it here.
-	 */
-	err = fscrypt_add_test_dummy_key(sb, &ctx->dummy_enc_policy);
-	if (err)
-		ext4_msg(NULL, KERN_WARNING,
-			 "Error adding test dummy encryption key [%d]", err);
-	return err;
+	return 0;
 }
 
 static void ext4_apply_test_dummy_encryption(struct ext4_fs_context *ctx,
