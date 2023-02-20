@@ -4206,10 +4206,10 @@ skip_reset:
 	msleep(reset_timeout_ms);
 
 	status = RREG32(mmPSOC_GLOBAL_CONF_BTM_FSM);
-	if (status & PSOC_GLOBAL_CONF_BTM_FSM_STATE_MASK)
-		dev_err(hdev->dev,
-			"Timeout while waiting for device to reset 0x%x\n",
-			status);
+	if (status & PSOC_GLOBAL_CONF_BTM_FSM_STATE_MASK) {
+		dev_err(hdev->dev, "Timeout while waiting for device to reset 0x%x\n", status);
+		return -ETIMEDOUT;
+	}
 
 	if (gaudi) {
 		gaudi->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q | HW_CAP_HBM |

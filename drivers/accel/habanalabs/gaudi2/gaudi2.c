@@ -6036,7 +6036,7 @@ static void gaudi2_execute_hard_reset(struct hl_device *hdev, u32 reset_sleep_ms
 	WREG32(mmPSOC_RESET_CONF_SW_ALL_RST, 1);
 }
 
-static void gaudi2_get_soft_rst_done_indication(struct hl_device *hdev, u32 poll_timeout_us)
+static int gaudi2_get_soft_rst_done_indication(struct hl_device *hdev, u32 poll_timeout_us)
 {
 	int i, rc = 0;
 	u32 reg_val;
@@ -6053,6 +6053,7 @@ static void gaudi2_get_soft_rst_done_indication(struct hl_device *hdev, u32 poll
 	if (rc)
 		dev_err(hdev->dev, "Timeout while waiting for FW to complete soft reset (0x%x)\n",
 				reg_val);
+	return rc;
 }
 
 /**
@@ -6065,7 +6066,7 @@ static void gaudi2_get_soft_rst_done_indication(struct hl_device *hdev, u32 poll
  *
  * This function executes soft reset based on if driver/FW should do the reset
  */
-static void gaudi2_execute_soft_reset(struct hl_device *hdev, u32 reset_sleep_ms,
+static int gaudi2_execute_soft_reset(struct hl_device *hdev, u32 reset_sleep_ms,
 						bool driver_performs_reset, u32 poll_timeout_us)
 {
 	struct cpu_dyn_regs *dyn_regs = &hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
@@ -6079,8 +6080,8 @@ static void gaudi2_execute_soft_reset(struct hl_device *hdev, u32 reset_sleep_ms
 
 		WREG32(le32_to_cpu(dyn_regs->gic_host_soft_rst_irq),
 			gaudi2_irq_map_table[GAUDI2_EVENT_CPU_SOFT_RESET].cpu_id);
-		gaudi2_get_soft_rst_done_indication(hdev, poll_timeout_us);
-		return;
+
+		return gaudi2_get_soft_rst_done_indication(hdev, poll_timeout_us);
 	}
 
 	/* Block access to engines, QMANs and SM during reset, these
@@ -6095,6 +6096,7 @@ static void gaudi2_execute_soft_reset(struct hl_device *hdev, u32 reset_sleep_ms
 				mmPCIE_VDEC1_MSTR_IF_RR_SHRD_HBW_BASE + HL_BLOCK_SIZE);
 
 	WREG32(mmPSOC_RESET_CONF_SOFT_RST, 1);
+	return 0;
 }
 
 static void gaudi2_poll_btm_indication(struct hl_device *hdev, u32 reset_sleep_ms,
