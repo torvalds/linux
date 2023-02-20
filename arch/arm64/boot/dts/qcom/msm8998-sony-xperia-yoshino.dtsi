@@ -25,7 +25,7 @@
 			pinctrl-names = "default";
 			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
 			#clock-cells = <0>;
-			enable-gpios = <&pm8998_gpio 13 GPIO_ACTIVE_HIGH>;
+			enable-gpios = <&pm8998_gpios 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -65,7 +65,7 @@
 		regulator-name = "cam_vio_vreg";
 		startup-delay-us = <0>;
 		enable-active-high;
-		gpio = <&pmi8998_gpio 1 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmi8998_gpios 1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_vio_default>;
 		vin-supply = <&vreg_lvs1a_1p8>;
@@ -103,7 +103,7 @@
 			    <&cam_snapshot_pin_a>;
 		button-vol-down {
 			label = "Volume Down";
-			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpio-key,wakeup;
@@ -112,7 +112,7 @@
 
 		button-camera-snapshot {
 			label = "Camera Snapshot";
-			gpios = <&pm8998_gpio 7 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA>;
 			debounce-interval = <15>;
@@ -120,7 +120,7 @@
 
 		button-camera-focus {
 			label = "Camera Focus";
-			gpios = <&pm8998_gpio 8 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 8 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA_FOCUS>;
 			debounce-interval = <15>;
@@ -187,7 +187,7 @@
 
 	vibrator {
 		compatible = "gpio-vibrator";
-		enable-gpios = <&pmi8998_gpio 5 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&pmi8998_gpios 5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vib_default>;
 	};
@@ -303,7 +303,7 @@
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	vol_down_pin_a: vol-down-active-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -335,7 +335,7 @@
 	};
 };
 
-&pmi8998_gpio {
+&pmi8998_gpios {
 	cam_vio_default: cam-vio-active-state {
 		pins = "gpio1";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -357,14 +357,9 @@
 	};
 };
 
-&pm8998_pon {
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <GIC_SPI 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEUP>;
-	};
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEUP>;
+	status = "okay";
 };
 
 &qusb2phy {

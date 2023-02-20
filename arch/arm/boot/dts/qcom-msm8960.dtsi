@@ -103,14 +103,13 @@
 		};
 
 		timer@200a000 {
-			compatible = "qcom,kpss-timer",
-				     "qcom,kpss-wdt-msm8960", "qcom,msm-timer";
+			compatible = "qcom,kpss-wdt-msm8960", "qcom,kpss-timer",
+				     "qcom,msm-timer";
 			interrupts = <GIC_PPI 1 0x301>,
 				     <GIC_PPI 2 0x301>,
 				     <GIC_PPI 3 0x301>;
 			reg = <0x0200a000 0x100>;
-			clock-frequency = <27000000>,
-					  <32768>;
+			clock-frequency = <27000000>;
 			cpu-offset = <0x80000>;
 		};
 

@@ -35,6 +35,8 @@ description: |
         mdm9615
         msm8226
         msm8916
+        msm8939
+        msm8953
         msm8956
         msm8974
         msm8976
@@ -47,11 +49,13 @@ description: |
         qru1000
         sa8155p
         sa8540p
+        sa8775p
         sc7180
         sc7280
         sc8180x
         sc8280xp
         sda660
+        sdm450
         sdm630
         sdm632
         sdm636
@@ -62,6 +66,7 @@ description: |
         sdx65
         sm4250
         sm6115
+        sm6115p
         sm6125
         sm6350
         sm6375
@@ -70,6 +75,7 @@ description: |
         sm8250
         sm8350
         sm8450
+        sm8550
 
   The 'board' element must be one of the following strings:
 
@@ -84,6 +90,7 @@ description: |
         liquid
         mtp
         qrd
+        ride
         sbc
         x100
 
@@ -162,6 +169,12 @@ properties:
 
       - items:
           - enum:
+              - sony,kanuti-tulip
+              - square,apq8039-t2
+          - const: qcom,msm8939
+
+      - items:
+          - enum:
               - sony,kugo-row
               - sony,suzu-row
           - const: qcom,msm8956
@@ -194,8 +207,10 @@ properties:
 
       - items:
           - enum:
+              - acer,a1-724
               - alcatel,idol347
               - asus,z00l
+              - gplus,fl8005a
               - huawei,g7
               - longcheer,l8910
               - samsung,a3u-eur
@@ -203,8 +218,13 @@ properties:
               - samsung,e5
               - samsung,e7
               - samsung,grandmax
+              - samsung,gt510
+              - samsung,gt58
               - samsung,j5
+              - samsung,j5x
               - samsung,serranove
+              - thwc,uf896
+              - thwc,ufi001c
               - wingtech,wt88047
           - const: qcom,msm8916
 
@@ -212,6 +232,15 @@ properties:
           - const: longcheer,l8150
           - const: qcom,msm8916-v1-qrd/9-v1
           - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - motorola,potter
+              - xiaomi,daisy
+              - xiaomi,mido
+              - xiaomi,tissot
+              - xiaomi,vince
+          - const: qcom,msm8953
 
       - items:
           - enum:
@@ -627,6 +656,12 @@ properties:
           - const: google,hoglin
           - const: qcom,sc7280
 
+      - description: Qualcomm Technologies, Inc. sc7280 CRD Pro platform (newest rev)
+        items:
+          - const: google,zoglin-sku1536
+          - const: google,hoglin-sku1536
+          - const: qcom,sc7280
+
       - description: Qualcomm Technologies, Inc. sc7280 IDP SKU1 platform
         items:
           - const: qcom,sc7280-idp
@@ -679,6 +714,18 @@ properties:
           - const: google,zombie-sku512
           - const: qcom,sc7280
 
+      - description: Google Zombie with NVMe (newest rev)
+        items:
+          - const: google,zombie-sku2
+          - const: google,zombie-sku3
+          - const: google,zombie-sku515
+          - const: qcom,sc7280
+
+      - description: Google Zombie with LTE and NVMe (newest rev)
+        items:
+          - const: google,zombie-sku514
+          - const: qcom,sc7280
+
       - items:
           - enum:
               - lenovo,flex-5g
@@ -692,6 +739,11 @@ properties:
               - qcom,sc8280xp-crd
               - qcom,sc8280xp-qrd
           - const: qcom,sc8280xp
+
+      - items:
+          - enum:
+              - motorola,ali
+          - const: qcom,sdm450
 
       - items:
           - enum:
@@ -709,6 +761,7 @@ properties:
       - items:
           - enum:
               - fairphone,fp3
+              - motorola,ocean
           - const: qcom,sdm632
 
       - items:
@@ -764,6 +817,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sa8775p-ride
+          - const: qcom,sa8775p
+
+      - items:
+          - enum:
               - google,cheza
               - google,cheza-rev1
               - google,cheza-rev2
@@ -789,6 +847,12 @@ properties:
           - enum:
               - oneplus,billie2
           - const: qcom,sm4250
+
+      - items:
+          - enum:
+              - lenovo,j606f
+          - const: qcom,sm6115p
+          - const: qcom,sm6115
 
       - items:
           - enum:
@@ -826,6 +890,7 @@ properties:
               - qcom,sm8250-mtp
               - sony,pdx203-generic
               - sony,pdx206-generic
+              - xiaomi,elish
           - const: qcom,sm8250
 
       - items:
@@ -844,6 +909,11 @@ properties:
               - sony,pdx223
               - sony,pdx224
           - const: qcom,sm8450
+
+      - items:
+          - enum:
+              - qcom,sm8550-mtp
+          - const: qcom,sm8550
 
   # Board compatibles go above
 
@@ -922,15 +992,22 @@ allOf:
               - qcom,apq8026
               - qcom,apq8094
               - qcom,apq8096
+              - qcom,msm8939
+              - qcom,msm8953
+              - qcom,msm8956
               - qcom,msm8992
               - qcom,msm8994
               - qcom,msm8996
               - qcom,msm8998
+              - qcom,sdm450
               - qcom,sdm630
               - qcom,sdm632
+              - qcom,sdm636
               - qcom,sdm845
               - qcom,sdx55
               - qcom,sdx65
+              - qcom,sm4250
+              - qcom,sm6115
               - qcom,sm6125
               - qcom,sm6350
               - qcom,sm7225
@@ -954,6 +1031,8 @@ allOf:
               - oneplus,dumpling
               - oneplus,enchilada
               - oneplus,fajita
+              - oneplus,oneplus3
+              - oneplus,oneplus3t
     then:
       properties:
         qcom,board-id:

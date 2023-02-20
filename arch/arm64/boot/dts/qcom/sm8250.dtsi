@@ -110,9 +110,15 @@
 			#cooling-cells = <2>;
 			L2_0: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x20000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
 					compatible = "cache";
+					cache-level = <3>;
+					cache-size = <0x400000>;
+					cache-unified;
 				};
 			};
 		};
@@ -134,6 +140,9 @@
 			#cooling-cells = <2>;
 			L2_100: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x20000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -155,6 +164,9 @@
 			#cooling-cells = <2>;
 			L2_200: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x20000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -176,6 +188,9 @@
 			#cooling-cells = <2>;
 			L2_300: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x20000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -197,6 +212,9 @@
 			#cooling-cells = <2>;
 			L2_400: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x40000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -218,6 +236,9 @@
 			#cooling-cells = <2>;
 			L2_500: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x40000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 
@@ -240,6 +261,9 @@
 			#cooling-cells = <2>;
 			L2_600: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x40000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -261,6 +285,9 @@
 			#cooling-cells = <2>;
 			L2_700: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-size = <0x80000>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -650,55 +677,55 @@
 		compatible = "arm,psci-1.0";
 		method = "smc";
 
-		CPU_PD0: cpu0 {
+		CPU_PD0: power-domain-cpu0 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&LITTLE_CPU_SLEEP_0>;
 		};
 
-		CPU_PD1: cpu1 {
+		CPU_PD1: power-domain-cpu1 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&LITTLE_CPU_SLEEP_0>;
 		};
 
-		CPU_PD2: cpu2 {
+		CPU_PD2: power-domain-cpu2 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&LITTLE_CPU_SLEEP_0>;
 		};
 
-		CPU_PD3: cpu3 {
+		CPU_PD3: power-domain-cpu3 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&LITTLE_CPU_SLEEP_0>;
 		};
 
-		CPU_PD4: cpu4 {
+		CPU_PD4: power-domain-cpu4 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&BIG_CPU_SLEEP_0>;
 		};
 
-		CPU_PD5: cpu5 {
+		CPU_PD5: power-domain-cpu5 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&BIG_CPU_SLEEP_0>;
 		};
 
-		CPU_PD6: cpu6 {
+		CPU_PD6: power-domain-cpu6 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&BIG_CPU_SLEEP_0>;
 		};
 
-		CPU_PD7: cpu7 {
+		CPU_PD7: power-domain-cpu7 {
 			#power-domain-cells = <0>;
 			power-domains = <&CLUSTER_PD>;
 			domain-idle-states = <&BIG_CPU_SLEEP_0>;
 		};
 
-		CLUSTER_PD: cpu-cluster0 {
+		CLUSTER_PD: power-domain-cpu-cluster0 {
 			#power-domain-cells = <0>;
 			domain-idle-states = <&CLUSTER_SLEEP_0>;
 		};
@@ -1886,10 +1913,10 @@
 			status = "disabled";
 
 			pcie0_lane: phy@1c06200 {
-				reg = <0 0x1c06200 0 0x170>, /* tx */
-				      <0 0x1c06400 0 0x200>, /* rx */
-				      <0 0x1c06800 0 0x1f0>, /* pcs */
-				      <0 0x1c06c00 0 0xf4>; /* "pcs_lane" same as pcs_misc? */
+				reg = <0 0x01c06200 0 0x170>, /* tx */
+				      <0 0x01c06400 0 0x200>, /* rx */
+				      <0 0x01c06800 0 0x1f0>, /* pcs */
+				      <0 0x01c06c00 0 0xf4>; /* "pcs_lane" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -1992,12 +2019,12 @@
 			status = "disabled";
 
 			pcie1_lane: phy@1c0e200 {
-				reg = <0 0x1c0e200 0 0x170>, /* tx0 */
-				      <0 0x1c0e400 0 0x200>, /* rx0 */
-				      <0 0x1c0ea00 0 0x1f0>, /* pcs */
-				      <0 0x1c0e600 0 0x170>, /* tx1 */
-				      <0 0x1c0e800 0 0x200>, /* rx1 */
-				      <0 0x1c0ee00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
+				reg = <0 0x01c0e200 0 0x170>, /* tx0 */
+				      <0 0x01c0e400 0 0x200>, /* rx0 */
+				      <0 0x01c0ea00 0 0x1f0>, /* pcs */
+				      <0 0x01c0e600 0 0x170>, /* tx1 */
+				      <0 0x01c0e800 0 0x200>, /* rx1 */
+				      <0 0x01c0ee00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_1_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -2081,7 +2108,7 @@
 
 		pcie2_phy: phy@1c16000 {
 			compatible = "qcom,sm8250-qmp-modem-pcie-phy";
-			reg = <0 0x1c16000 0 0x1c0>;
+			reg = <0 0x01c16000 0 0x1c0>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -2100,12 +2127,12 @@
 			status = "disabled";
 
 			pcie2_lane: phy@1c16200 {
-				reg = <0 0x1c16200 0 0x170>, /* tx0 */
-				      <0 0x1c16400 0 0x200>, /* rx0 */
-				      <0 0x1c16a00 0 0x1f0>, /* pcs */
-				      <0 0x1c16600 0 0x170>, /* tx1 */
-				      <0 0x1c16800 0 0x200>, /* rx1 */
-				      <0 0x1c16e00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
+				reg = <0 0x01c16200 0 0x170>, /* tx0 */
+				      <0 0x01c16400 0 0x200>, /* rx0 */
+				      <0 0x01c16a00 0 0x1f0>, /* pcs */
+				      <0 0x01c16600 0 0x170>, /* tx1 */
+				      <0 0x01c16800 0 0x200>, /* rx1 */
+				      <0 0x01c16e00 0 0xf4>; /* "pcs_com" same as pcs_misc? */
 				clocks = <&gcc GCC_PCIE_2_PIPE_CLK>;
 				clock-names = "pipe0";
 
@@ -2188,13 +2215,6 @@
 			};
 		};
 
-		ipa_virt: interconnect@1e00000 {
-			compatible = "qcom,sm8250-ipa-virt";
-			reg = <0 0x01e00000 0 0x1000>;
-			#interconnect-cells = <1>;
-			qcom,bcm-voters = <&apps_bcm_voter>;
-		};
-
 		tcsr_mutex: hwlock@1f40000 {
 			compatible = "qcom,tcsr-mutex";
 			reg = <0x0 0x01f40000 0x0 0x40000>;
@@ -2214,12 +2234,13 @@
 			clock-names = "mclk", "npl", "macro", "dcodec", "va", "fsgen";
 
 			#clock-cells = <0>;
-			clock-frequency = <9600000>;
 			clock-output-names = "mclk";
 			#sound-dai-cells = <1>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&wsa_swr_active>;
+
+			status = "disabled";
 		};
 
 		swr0: soundwire-controller@3250000 {
@@ -2240,6 +2261,8 @@
 			#sound-dai-cells = <1>;
 			#address-cells = <2>;
 			#size-cells = <0>;
+
+			status = "disabled";
 		};
 
 		audiocc: clock-controller@3300000 {
@@ -2262,7 +2285,6 @@
 			clock-names = "mclk", "macro", "dcodec";
 
 			#clock-cells = <0>;
-			clock-frequency = <9600000>;
 			clock-output-names = "fsgen";
 			#sound-dai-cells = <1>;
 		};
@@ -2283,7 +2305,6 @@
 			clock-names = "mclk", "npl", "macro", "dcodec", "fsgen";
 
 			#clock-cells = <0>;
-			clock-frequency = <9600000>;
 			clock-output-names = "mclk";
 			#sound-dai-cells = <1>;
 		};
@@ -2299,15 +2320,15 @@
 			qcom,din-ports = <0>;
 			qcom,dout-ports = <5>;
 
-			qcom,ports-sinterval-low =	/bits/ 8 <0x03 0x1F 0x1F 0x07 0x00>;
-			qcom,ports-offset1 =		/bits/ 8 <0x00 0x00 0x0B 0x01 0x00>;
-			qcom,ports-offset2 =		/bits/ 8 <0x00 0x00 0x0B 0x00 0x00>;
-			qcom,ports-hstart =		/bits/ 8 <0xFF 0x03 0xFF 0xFF 0xFF>;
-			qcom,ports-hstop =		/bits/ 8 <0xFF 0x06 0xFF 0xFF 0xFF>;
-			qcom,ports-word-length =	/bits/ 8 <0x01 0x07 0x04 0xFF 0xFF>;
-			qcom,ports-block-pack-mode =	/bits/ 8 <0xFF 0x00 0x01 0xFF 0xFF>;
+			qcom,ports-sinterval-low =	/bits/ 8 <0x03 0x1f 0x1f 0x07 0x00>;
+			qcom,ports-offset1 =		/bits/ 8 <0x00 0x00 0x0b 0x01 0x00>;
+			qcom,ports-offset2 =		/bits/ 8 <0x00 0x00 0x0b 0x00 0x00>;
+			qcom,ports-hstart =		/bits/ 8 <0xff 0x03 0xff 0xff 0xff>;
+			qcom,ports-hstop =		/bits/ 8 <0xff 0x06 0xff 0xff 0xff>;
+			qcom,ports-word-length =	/bits/ 8 <0x01 0x07 0x04 0xff 0xff>;
+			qcom,ports-block-pack-mode =	/bits/ 8 <0xff 0x00 0x01 0xff 0xff>;
 			qcom,ports-lane-control =	/bits/ 8 <0x01 0x00 0x00 0x00 0x00>;
-			qcom,ports-block-group-count =	/bits/ 8 <0xFF 0xFF 0xFF 0xFF 0x00>;
+			qcom,ports-block-group-count =	/bits/ 8 <0xff 0xff 0xff 0xff 0x00>;
 
 			#sound-dai-cells = <1>;
 			#address-cells = <2>;
@@ -2330,10 +2351,7 @@
 			clock-names = "mclk", "npl", "macro", "dcodec", "fsgen";
 
 			#clock-cells = <0>;
-			clock-frequency = <9600000>;
 			clock-output-names = "mclk";
-			#address-cells = <2>;
-			#size-cells = <2>;
 			#sound-dai-cells = <1>;
 		};
 
@@ -2351,15 +2369,15 @@
 
 			qcom,din-ports = <5>;
 			qcom,dout-ports = <0>;
-			qcom,ports-sinterval-low =	/bits/ 8 <0xFF 0x01 0x01 0x03 0x03>;
-			qcom,ports-offset1 =		/bits/ 8 <0xFF 0x01 0x00 0x02 0x00>;
-			qcom,ports-offset2 =		/bits/ 8 <0xFF 0x00 0x00 0x00 0x00>;
-			qcom,ports-block-pack-mode =	/bits/ 8 <0xFF 0xFF 0xFF 0xFF 0xFF>;
-			qcom,ports-hstart =		/bits/ 8 <0xFF 0xFF 0xFF 0xFF 0xFF>;
-			qcom,ports-hstop =		/bits/ 8 <0xFF 0xFF 0xFF 0xFF 0xFF>;
-			qcom,ports-word-length =	/bits/ 8 <0xFF 0xFF 0xFF 0xFF 0xFF>;
-			qcom,ports-block-group-count =	/bits/ 8 <0xFF 0xFF 0xFF 0xFF 0xFF>;
-			qcom,ports-lane-control =	/bits/ 8 <0xFF 0x00 0x01 0x00 0x01>;
+			qcom,ports-sinterval-low =	/bits/ 8 <0xff 0x01 0x01 0x03 0x03>;
+			qcom,ports-offset1 =		/bits/ 8 <0xff 0x01 0x00 0x02 0x00>;
+			qcom,ports-offset2 =		/bits/ 8 <0xff 0x00 0x00 0x00 0x00>;
+			qcom,ports-block-pack-mode =	/bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
+			qcom,ports-hstart =		/bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
+			qcom,ports-hstop =		/bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
+			qcom,ports-word-length =	/bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
+			qcom,ports-block-group-count =	/bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
+			qcom,ports-lane-control =	/bits/ 8 <0xff 0x00 0x01 0x00 0x01>;
 			#sound-dai-cells = <1>;
 			#address-cells = <2>;
 			#size-cells = <0>;
@@ -2375,7 +2393,7 @@
 			clock-names = "core", "audio", "bus";
 		};
 
-		lpass_tlmm: pinctrl@33c0000{
+		lpass_tlmm: pinctrl@33c0000 {
 			compatible = "qcom,sm8250-lpass-lpi-pinctrl";
 			reg = <0 0x033c0000 0x0 0x20000>,
 			      <0 0x03550000 0x0 0x10000>;
@@ -3322,9 +3340,6 @@
 			};
 		};
 
-		sound: sound {
-		};
-
 		usb_1_hsphy: phy@88e3000 {
 			compatible = "qcom,sm8250-usb-hs-phy",
 				     "qcom,usb-snps-hs-7nm-phy";
@@ -3675,7 +3690,7 @@
 		};
 
 		cci0: cci@ac4f000 {
-			compatible = "qcom,sm8250-cci";
+			compatible = "qcom,sm8250-cci", "qcom,msm8996-cci";
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -3716,7 +3731,7 @@
 		};
 
 		cci1: cci@ac50000 {
-			compatible = "qcom,sm8250-cci";
+			compatible = "qcom,sm8250-cci", "qcom,msm8996-cci";
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -3760,16 +3775,16 @@
 			compatible = "qcom,sm8250-camss";
 			status = "disabled";
 
-			reg = <0 0xac6a000 0 0x2000>,
-			      <0 0xac6c000 0 0x2000>,
-			      <0 0xac6e000 0 0x1000>,
-			      <0 0xac70000 0 0x1000>,
-			      <0 0xac72000 0 0x1000>,
-			      <0 0xac74000 0 0x1000>,
-			      <0 0xacb4000 0 0xd000>,
-			      <0 0xacc3000 0 0xd000>,
-			      <0 0xacd9000 0 0x2200>,
-			      <0 0xacdb200 0 0x2200>;
+			reg = <0 0x0ac6a000 0 0x2000>,
+			      <0 0x0ac6c000 0 0x2000>,
+			      <0 0x0ac6e000 0 0x1000>,
+			      <0 0x0ac70000 0 0x1000>,
+			      <0 0x0ac72000 0 0x1000>,
+			      <0 0x0ac74000 0 0x1000>,
+			      <0 0x0acb4000 0 0xd000>,
+			      <0 0x0acc3000 0 0xd000>,
+			      <0 0x0acd9000 0 0x2200>,
+			      <0 0x0acdb200 0 0x2200>;
 			reg-names = "csiphy0",
 				    "csiphy1",
 				    "csiphy2",
@@ -3954,7 +3969,7 @@
 			#power-domain-cells = <1>;
 		};
 
-		mdss: mdss@ae00000 {
+		mdss: display-subsystem@ae00000 {
 			compatible = "qcom,sm8250-mdss";
 			reg = <0 0x0ae00000 0 0x1000>;
 			reg-names = "mdss";
@@ -4049,7 +4064,8 @@
 			};
 
 			dsi0: dsi@ae94000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,sm8250-dsi-ctrl",
+					     "qcom,mdss-dsi-ctrl";
 				reg = <0 0x0ae94000 0 0x400>;
 				reg-names = "dsi_ctrl";
 
@@ -4140,7 +4156,8 @@
 			};
 
 			dsi1: dsi@ae96000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,sm8250-dsi-ctrl",
+					     "qcom,mdss-dsi-ctrl";
 				reg = <0 0x0ae96000 0 0x400>;
 				reg-names = "dsi_ctrl";
 
@@ -4268,7 +4285,7 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		aoss_qmp: power-controller@c300000 {
+		aoss_qmp: power-management@c300000 {
 			compatible = "qcom,sm8250-aoss-qmp", "qcom,aoss-qmp";
 			reg = <0 0x0c300000 0 0x400>;
 			interrupts-extended = <&ipcc IPCC_CLIENT_AOP
@@ -5467,6 +5484,9 @@
 		};
 	};
 
+	sound: sound {
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13
@@ -5499,7 +5519,7 @@
 					type = "passive";
 				};
 
-				cpu0_crit: cpu_crit {
+				cpu0_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5543,7 +5563,7 @@
 					type = "passive";
 				};
 
-				cpu1_crit: cpu_crit {
+				cpu1_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5587,7 +5607,7 @@
 					type = "passive";
 				};
 
-				cpu2_crit: cpu_crit {
+				cpu2_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5631,7 +5651,7 @@
 					type = "passive";
 				};
 
-				cpu3_crit: cpu_crit {
+				cpu3_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5675,7 +5695,7 @@
 					type = "passive";
 				};
 
-				cpu4_top_crit: cpu_crit {
+				cpu4_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5719,7 +5739,7 @@
 					type = "passive";
 				};
 
-				cpu5_top_crit: cpu_crit {
+				cpu5_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5763,7 +5783,7 @@
 					type = "passive";
 				};
 
-				cpu6_top_crit: cpu_crit {
+				cpu6_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5807,7 +5827,7 @@
 					type = "passive";
 				};
 
-				cpu7_top_crit: cpu_crit {
+				cpu7_top_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5851,7 +5871,7 @@
 					type = "passive";
 				};
 
-				cpu4_bottom_crit: cpu_crit {
+				cpu4_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5895,7 +5915,7 @@
 					type = "passive";
 				};
 
-				cpu5_bottom_crit: cpu_crit {
+				cpu5_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5939,7 +5959,7 @@
 					type = "passive";
 				};
 
-				cpu6_bottom_crit: cpu_crit {
+				cpu6_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -5983,7 +6003,7 @@
 					type = "passive";
 				};
 
-				cpu7_bottom_crit: cpu_crit {
+				cpu7_bottom_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";

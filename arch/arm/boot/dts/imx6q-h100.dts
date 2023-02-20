@@ -76,19 +76,19 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_h100_leds>;
 
-		led0: power {
+		led0: led-power {
 			label = "power";
 			gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		led1: stream {
+		led1: led-stream {
 			label = "stream";
 			gpios = <&gpio2 29 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led2: rec {
+		led2: led-rec {
 			label = "rec";
 			gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
 			default-state = "off";

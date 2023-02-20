@@ -20,6 +20,11 @@ properties:
               - rockchip,rk3568-pipe-grf
               - rockchip,rk3568-pipe-phy-grf
               - rockchip,rk3568-usb2phy-grf
+              - rockchip,rk3588-bigcore0-grf
+              - rockchip,rk3588-bigcore1-grf
+              - rockchip,rk3588-ioc
+              - rockchip,rk3588-php-grf
+              - rockchip,rk3588-sys-grf
               - rockchip,rk3588-pcie3-phy-grf
               - rockchip,rk3588-pcie3-pipe-grf
               - rockchip,rv1108-usbgrf
@@ -92,8 +97,9 @@ allOf:
     then:
       properties:
         edp-phy:
-          description:
-            Documentation/devicetree/bindings/phy/rockchip-dp-phy.txt
+          type: object
+          $ref: /schemas/phy/rockchip,rk3288-dp-phy.yaml#
+          unevaluatedProperties: false
 
   - if:
       properties:
@@ -200,7 +206,7 @@ allOf:
         "usb2phy@[0-9a-f]+$":
           type: object
 
-          $ref: "/schemas/phy/phy-rockchip-inno-usb2.yaml#"
+          $ref: /schemas/phy/rockchip,inno-usb2phy.yaml#
 
           unevaluatedProperties: false
 

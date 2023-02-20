@@ -62,7 +62,13 @@
 		};
 	};
 
-	cpu_opp_table: cpu-opp-table {
+	firmware {
+		scm {
+			compatible = "qcom,scm-sdx55", "qcom,scm";
+		};
+	};
+
+	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -84,12 +90,6 @@
 		opp-1555200000 {
 			opp-hz = /bits/ 64 <1555200000>;
 			required-opps = <&rpmhpd_opp_turbo>;
-		};
-	};
-
-	firmware {
-		scm {
-			compatible = "qcom,scm-sdx55", "qcom,scm";
 		};
 	};
 
@@ -214,7 +214,8 @@
 		};
 
 		usb_hsphy: phy@ff4000 {
-			compatible = "qcom,usb-snps-hs-7nm-phy";
+			compatible = "qcom,sdx55-usb-hs-phy",
+				     "qcom,usb-snps-hs-7nm-phy";
 			reg = <0x00ff4000 0x114>;
 			status = "disabled";
 			#phy-cells = <0>;
@@ -559,7 +560,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			gpio-ranges = <&tlmm 0 0 109>;
+			gpio-ranges = <&tlmm 0 0 108>;
 		};
 
 		sram@1468f000 {
@@ -578,7 +579,7 @@
 		};
 
 		apps_smmu: iommu@15000000 {
-			compatible = "qcom,sdx55-smmu-500", "arm,mmu-500";
+			compatible = "qcom,sdx55-smmu-500", "qcom,smmu-500", "arm,mmu-500";
 			reg = <0x15000000 0x20000>;
 			#iommu-cells = <2>;
 			#global-interrupts = <1>;

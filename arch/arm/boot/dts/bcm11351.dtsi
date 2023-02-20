@@ -50,7 +50,7 @@
 		reg = <0x3404c000 0x400>; /* 1 KiB in SRAM */
 	};
 
-	uart@3e000000 {
+	serial@3e000000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
 		status = "disabled";
 		reg = <0x3e000000 0x1000>;
@@ -60,7 +60,7 @@
 		reg-io-width = <4>;
 	};
 
-	uart@3e001000 {
+	serial@3e001000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
 		status = "disabled";
 		reg = <0x3e001000 0x1000>;
@@ -70,7 +70,7 @@
 		reg-io-width = <4>;
 	};
 
-	uart@3e002000 {
+	serial@3e002000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
 		status = "disabled";
 		reg = <0x3e002000 0x1000>;
@@ -80,7 +80,7 @@
 		reg-io-width = <4>;
 	};
 
-	uart@3e003000 {
+	serial@3e003000 {
 		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
 		status = "disabled";
 		reg = <0x3e003000 0x1000>;

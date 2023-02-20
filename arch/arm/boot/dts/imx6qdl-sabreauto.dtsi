@@ -21,7 +21,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
-		user {
+		led-user {
 			label = "debug";
 			gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>;
 		};

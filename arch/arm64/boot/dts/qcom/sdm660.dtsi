@@ -37,35 +37,35 @@
 			opp-hz = /bits/ 64 <700000000>;
 			opp-level = <RPM_SMD_LEVEL_TURBO>;
 			opp-peak-kBps = <5184000>;
-			opp-supported-hw = <0xFF>;
+			opp-supported-hw = <0xff>;
 		};
 
 		opp-647000000 {
 			opp-hz = /bits/ 64 <647000000>;
 			opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
 			opp-peak-kBps = <4068000>;
-			opp-supported-hw = <0xFF>;
+			opp-supported-hw = <0xff>;
 		};
 
 		opp-588000000 {
 			opp-hz = /bits/ 64 <588000000>;
 			opp-level = <RPM_SMD_LEVEL_NOM>;
 			opp-peak-kBps = <3072000>;
-			opp-supported-hw = <0xFF>;
+			opp-supported-hw = <0xff>;
 		};
 
 		opp-465000000 {
 			opp-hz = /bits/ 64 <465000000>;
 			opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 			opp-peak-kBps = <2724000>;
-			opp-supported-hw = <0xFF>;
+			opp-supported-hw = <0xff>;
 		};
 
 		opp-370000000 {
 			opp-hz = /bits/ 64 <370000000>;
 			opp-level = <RPM_SMD_LEVEL_SVS>;
 			opp-peak-kBps = <2188000>;
-			opp-supported-hw = <0xFF>;
+			opp-supported-hw = <0xff>;
 		};
 		*/
 
@@ -73,14 +73,14 @@
 			opp-hz = /bits/ 64 <266000000>;
 			opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
 			opp-peak-kBps = <1648000>;
-			opp-supported-hw = <0xFF>;
+			opp-supported-hw = <0xff>;
 		};
 
 		opp-160000000 {
 			opp-hz = /bits/ 64 <160000000>;
 			opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
 			opp-peak-kBps = <1200000>;
-			opp-supported-hw = <0xFF>;
+			opp-supported-hw = <0xff>;
 		};
 	};
 };
@@ -142,6 +142,8 @@
 };
 
 &mdp {
+	compatible = "qcom,sdm660-mdp5", "qcom,mdp5";
+
 	ports {
 		port@1 {
 			reg = <1>;
@@ -154,7 +156,8 @@
 
 &mdss {
 	dsi1: dsi@c996000 {
-		compatible = "qcom,mdss-dsi-ctrl";
+		compatible = "qcom,sdm660-dsi-ctrl",
+			     "qcom,mdss-dsi-ctrl";
 		reg = <0x0c996000 0x400>;
 		reg-names = "dsi_ctrl";
 

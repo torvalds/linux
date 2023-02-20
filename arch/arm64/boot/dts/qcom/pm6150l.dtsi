@@ -95,11 +95,11 @@
 			status = "disabled";
 		};
 
-		pm6150l_gpio: gpio@c000 {
+		pm6150l_gpios: gpio@c000 {
 			compatible = "qcom,pm6150l-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pm6150l_gpio 0 0 12>;
+			gpio-ranges = <&pm6150l_gpios 0 0 12>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -111,6 +111,12 @@
 		reg = <0x5 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm6150l_flash: led-controller@d300 {
+			compatible = "qcom,pm6150l-flash-led", "qcom,spmi-flash-led";
+			reg = <0xd300>;
+			status = "disabled";
+		};
 
 		pm6150l_wled: leds@d800 {
 			compatible = "qcom,pm6150l-wled";

@@ -40,6 +40,12 @@
 			enable-method = "psci";
 			reg = <0x001>;
 			cci-control-port = <&cci_control2>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
 			next-level-cache = <&l2_0>;
 		};
 
@@ -49,6 +55,12 @@
 			enable-method = "psci";
 			reg = <0x002>;
 			cci-control-port = <&cci_control2>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
 			next-level-cache = <&l2_0>;
 		};
 
@@ -58,6 +70,12 @@
 			enable-method = "psci";
 			reg = <0x003>;
 			cci-control-port = <&cci_control2>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
 			next-level-cache = <&l2_0>;
 		};
 
@@ -67,6 +85,12 @@
 			enable-method = "psci";
 			reg = <0x100>;
 			cci-control-port = <&cci_control1>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
 			next-level-cache = <&l2_1>;
 		};
 
@@ -76,6 +100,12 @@
 			enable-method = "psci";
 			reg = <0x101>;
 			cci-control-port = <&cci_control1>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
 			next-level-cache = <&l2_1>;
 		};
 
@@ -85,6 +115,12 @@
 			enable-method = "psci";
 			reg = <0x102>;
 			cci-control-port = <&cci_control1>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
 			next-level-cache = <&l2_1>;
 		};
 
@@ -94,6 +130,12 @@
 			enable-method = "psci";
 			reg = <0x103>;
 			cci-control-port = <&cci_control1>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
 			next-level-cache = <&l2_1>;
 		};
 
@@ -138,11 +180,19 @@
 		l2_0: l2-cache0 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
+			cache-unified;
 		};
 
 		l2_1: l2-cache1 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
+			cache-unified;
 		};
 	};
 

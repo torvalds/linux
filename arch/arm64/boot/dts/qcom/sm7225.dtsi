@@ -14,3 +14,22 @@
 &CPU5 { compatible = "qcom,kryo570"; };
 &CPU6 { compatible = "qcom,kryo570"; };
 &CPU7 { compatible = "qcom,kryo570"; };
+
+&cpu0_opp_table {
+	opp-1804800000 {
+		opp-hz = /bits/ 64 <1804800000>;
+		opp-peak-kBps = <(1804000 * 4 * 2 * 2) (1459200 * 16 * 2)>;
+	};
+};
+
+&cpu6_opp_table {
+	opp-2131200000 {
+		opp-hz = /bits/ 64 <2131200000>;
+		opp-peak-kBps = <(2092000 * 4 * 2 * 2) (1459200 * 16 * 2)>;
+	};
+
+	opp-2208000000 {
+		opp-hz = /bits/ 64 <2208000000>;
+		opp-peak-kBps = <(2092000 * 4 * 2 * 2) (1459200 * 16 * 2)>;
+	};
+};

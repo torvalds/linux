@@ -58,6 +58,7 @@
 	L2_0: l2-cache0 {
 		compatible = "cache";
 		cache-level = <2>;
+		cache-unified;
 		cache-size = <0x40000>;
 		cache-line-size = <64>;
 		cache-sets = <256>;

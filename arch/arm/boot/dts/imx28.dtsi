@@ -85,10 +85,6 @@
 					      88 88 88 88
 					      88 88 88 88
 					      87 86 0 0>;
-				interrupt-names = "ssp0", "ssp1", "ssp2", "ssp3",
-						  "gpmi0", "gmpi1", "gpmi2", "gmpi3",
-						  "gpmi4", "gmpi5", "gpmi6", "gmpi7",
-						  "hsadc", "lcdif", "empty", "empty";
 				#dma-cells = <1>;
 				dma-channels = <16>;
 				clocks = <&clks 25>;
@@ -1001,10 +997,6 @@
 					      80 81 68 69
 					      70 71 72 73
 					      74 75 76 77>;
-				interrupt-names = "auart4-rx", "auart4-tx", "spdif-tx", "empty",
-						  "saif0", "saif1", "i2c0", "i2c1",
-						  "auart0-rx", "auart0-tx", "auart1-rx", "auart1-tx",
-						  "auart2-rx", "auart2-tx", "auart3-rx", "auart3-tx";
 				#dma-cells = <1>;
 				dma-channels = <16>;
 				clocks = <&clks 26>;

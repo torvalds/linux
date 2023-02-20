@@ -108,6 +108,24 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&en_pp3300_dx_edp>;
 
+		regulator-enable-ramp-delay = <3000>;
+
+		/*
+		 * eDP panel specs nearly always have a spec that says you
+		 * shouldn't turn them off an on again without waiting 500ms.
+		 * Add this as a board constraint since this rail is shared
+		 * between the panel and touchscreen.
+		 */
+		off-on-delay-us = <500000>;
+
+		/*
+		 * Stat the regulator on. This has the advantage of starting
+		 * the slow process of powering the panel on as soon as we
+		 * probe the regulator. It also avoids tripping the
+		 * off-on-delay immediately on every bootup.
+		 */
+		regulator-boot-on;
+
 		vin-supply = <&pp3300_z1>;
 	};
 
@@ -442,7 +460,11 @@ ap_i2c_tpm: &i2c14 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hot_plug_det>;
+};
+
+&mdss_dp_out {
 	data-lanes = <0 1>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
 };
 
 &mdss_mdp {

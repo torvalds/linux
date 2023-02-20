@@ -16,7 +16,7 @@
 / {
 	memory@40000000 {
 		device_type = "memory";
-		reg = <0x40000000 0x7EA00000>;
+		reg = <0x40000000 0x7ea00000>;
 	};
 
 	chosen {
@@ -35,7 +35,7 @@
 		};
 	};
 
-	bus_wcore_opp_table: opp-table2 {
+	bus_wcore_opp_table: opp-table-2 {
 		compatible = "operating-points-v2";
 
 		/* derived from 532MHz MPLL */
@@ -61,7 +61,7 @@
 		};
 	};
 
-	bus_noc_opp_table: opp-table3 {
+	bus_noc_opp_table: opp-table-3 {
 		compatible = "operating-points-v2";
 
 		/* derived from 666MHz CPLL */
@@ -79,7 +79,7 @@
 		};
 	};
 
-	bus_fsys_apb_opp_table: opp-table4 {
+	bus_fsys_apb_opp_table: opp-table-4 {
 		compatible = "operating-points-v2";
 
 		/* derived from 666MHz CPLL */
@@ -91,7 +91,7 @@
 		};
 	};
 
-	bus_fsys2_opp_table: opp-table5 {
+	bus_fsys2_opp_table: opp-table-5 {
 		compatible = "operating-points-v2";
 
 		/* derived from 600MHz DPLL */
@@ -106,7 +106,7 @@
 		};
 	};
 
-	bus_mfc_opp_table: opp-table6 {
+	bus_mfc_opp_table: opp-table-6 {
 		compatible = "operating-points-v2";
 
 		/* derived from 666MHz CPLL */
@@ -127,7 +127,7 @@
 		};
 	};
 
-	bus_gen_opp_table: opp-table7 {
+	bus_gen_opp_table: opp-table-7 {
 		compatible = "operating-points-v2";
 
 		/* derived from 532MHz MPLL */
@@ -145,7 +145,7 @@
 		};
 	};
 
-	bus_peri_opp_table: opp-table8 {
+	bus_peri_opp_table: opp-table-8 {
 		compatible = "operating-points-v2";
 
 		/* derived from 666MHz CPLL */
@@ -154,7 +154,7 @@
 		};
 	};
 
-	bus_g2d_opp_table: opp-table9 {
+	bus_g2d_opp_table: opp-table-9 {
 		compatible = "operating-points-v2";
 
 		/* derived from 666MHz CPLL */
@@ -175,7 +175,7 @@
 		};
 	};
 
-	bus_g2d_acp_opp_table: opp-table10 {
+	bus_g2d_acp_opp_table: opp-table-10 {
 		compatible = "operating-points-v2";
 
 		/* derived from 532MHz MPLL */
@@ -193,7 +193,7 @@
 		};
 	};
 
-	bus_jpeg_opp_table: opp-table11 {
+	bus_jpeg_opp_table: opp-table-11 {
 		compatible = "operating-points-v2";
 
 		/* derived from 600MHz DPLL */
@@ -211,7 +211,7 @@
 		};
 	};
 
-	bus_jpeg_apb_opp_table: opp-table12 {
+	bus_jpeg_apb_opp_table: opp-table-12 {
 		compatible = "operating-points-v2";
 
 		/* derived from 666MHz CPLL */
@@ -229,7 +229,7 @@
 		};
 	};
 
-	bus_disp1_fimd_opp_table: opp-table13 {
+	bus_disp1_fimd_opp_table: opp-table-13 {
 		compatible = "operating-points-v2";
 
 		/* derived from 600MHz DPLL */
@@ -241,7 +241,7 @@
 		};
 	};
 
-	bus_disp1_opp_table: opp-table14 {
+	bus_disp1_opp_table: opp-table-14 {
 		compatible = "operating-points-v2";
 
 		/* derived from 600MHz DPLL */
@@ -256,7 +256,7 @@
 		};
 	};
 
-	bus_gscl_opp_table: opp-table15 {
+	bus_gscl_opp_table: opp-table-15 {
 		compatible = "operating-points-v2";
 
 		/* derived from 600MHz DPLL */
@@ -271,7 +271,7 @@
 		};
 	};
 
-	bus_mscl_opp_table: opp-table16 {
+	bus_mscl_opp_table: opp-table-16 {
 		compatible = "operating-points-v2";
 
 		/* derived from 666MHz CPLL */
@@ -292,7 +292,7 @@
 		};
 	};
 
-	dmc_opp_table: opp-table17 {
+	dmc_opp_table: opp-table-17 {
 		compatible = "operating-points-v2";
 
 		opp00 {

@@ -7,7 +7,7 @@
 	poweroff: syscon-poweroff {
 		compatible = "syscon-poweroff";
 		regmap = <&pmu_system_controller>;
-		offset = <0x330C>; /* PS_HOLD_CONTROL */
+		offset = <0x330c>; /* PS_HOLD_CONTROL */
 		mask = <0x5200>; /* reset value */
 	};
 

@@ -29,6 +29,14 @@
 	 */
 	chosen {};
 
+	firmware {
+		trusted-foundations {
+			compatible = "tlm,trusted-foundations";
+			tlm,version-major = <0x0>;
+			tlm,version-minor = <0x0>;
+		};
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
@@ -61,18 +69,18 @@
 	};
 
 	gpio@6000d000 {
+		init-low-power-mode-hog {
+			gpio-hog;
+			gpios = <TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
+			input;
+		};
+
 		init-mode-hog {
 			gpio-hog;
 			gpios = <TEGRA_GPIO(DD, 7) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(CC, 6) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 			output-low;
-		};
-
-		init-low-power-mode-hog {
-			gpio-hog;
-			gpios = <TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
-			input;
 		};
 	};
 
@@ -977,17 +985,6 @@
 		};
 	};
 
-	brcm_wifi_pwrseq: wifi-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-
-		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
-		clock-names = "ext_clock";
-
-		reset-gpios = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_LOW>;
-		post-power-on-delay-ms = <300>;
-		power-off-delay-us = <300>;
-	};
-
 	sdmmc3: mmc@78000400 {
 		status = "okay";
 
@@ -1113,31 +1110,22 @@
 		/delete-property/ ddc-i2c-bus;
 	};
 
-	firmware {
-		trusted-foundations {
-			compatible = "tlm,trusted-foundations";
-			tlm,version-major = <0x0>;
-			tlm,version-minor = <0x0>;
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
-
-		switch-hall-sensor {
-			label = "Lid";
-			gpios = <&gpio TEGRA_GPIO(S, 6) GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			debounce-interval = <500>;
-			wakeup-event-action = <EV_ACT_DEASSERTED>;
-			wakeup-source;
-		};
 
 		key-power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(Q, 3) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <10>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
@@ -1152,14 +1140,26 @@
 			wakeup-source;
 		};
 
-		key-volume-down {
-			label = "Volume Down";
-			gpios = <&gpio TEGRA_GPIO(Q, 3) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEDOWN>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
+		switch-hall-sensor {
+			label = "Lid";
+			gpios = <&gpio TEGRA_GPIO(S, 6) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			debounce-interval = <500>;
+			wakeup-event-action = <EV_ACT_DEASSERTED>;
 			wakeup-source;
 		};
+	};
+
+	brcm_wifi_pwrseq: pwrseq-wifi {
+		compatible = "mmc-pwrseq-simple";
+
+		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
+		clock-names = "ext_clock";
+
+		reset-gpios = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <300>;
+		power-off-delay-us = <300>;
 	};
 
 	vdd_5v0_sys: regulator-5v0 {

@@ -31,7 +31,7 @@
 
 	firmware@203f000 {
 		compatible = "samsung,secure-firmware";
-		reg = <0x0203F000 0x1000>;
+		reg = <0x0203f000 0x1000>;
 	};
 
 	mmc_reg: regulator-0 {

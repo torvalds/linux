@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// Copyright (C) 2021-2022 Samuel Holland <samuel@sholland.org>
+
+#define SOC_PERIPHERAL_IRQ(nr)	(nr + 16)
+
+#include "sunxi-d1s-t113.dtsi"
+
+/ {
+	cpus {
+		timebase-frequency = <24000000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			compatible = "thead,c906", "riscv";
+			device_type = "cpu";
+			reg = <0>;
+			clocks = <&ccu CLK_RISCV>;
+			d-cache-block-size = <64>;
+			d-cache-sets = <256>;
+			d-cache-size = <32768>;
+			i-cache-block-size = <64>;
+			i-cache-sets = <128>;
+			i-cache-size = <32768>;
+			mmu-type = "riscv,sv39";
+			operating-points-v2 = <&opp_table_cpu>;
+			riscv,isa = "rv64imafdc";
+			#cooling-cells = <2>;
+
+			cpu0_intc: interrupt-controller {
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+			};
+		};
+	};
+
+	opp_table_cpu: opp-table-cpu {
+		compatible = "operating-points-v2";
+
+		opp-408000000 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <900000 900000 1100000>;
+		};
+
+		opp-1080000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <900000 900000 1100000>;
+		};
+	};
+
+	soc {
+		interrupt-parent = <&plic>;
+
+		riscv_wdt: watchdog@6011000 {
+			compatible = "allwinner,sun20i-d1-wdt";
+			reg = <0x6011000 0x20>;
+			interrupts = <SOC_PERIPHERAL_IRQ(131) IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&dcxo>, <&rtc CLK_OSC32K>;
+			clock-names = "hosc", "losc";
+		};
+
+		plic: interrupt-controller@10000000 {
+			compatible = "allwinner,sun20i-d1-plic",
+				     "thead,c900-plic";
+			reg = <0x10000000 0x4000000>;
+			interrupts-extended = <&cpu0_intc 11>,
+					      <&cpu0_intc 9>;
+			interrupt-controller;
+			riscv,ndev = <175>;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+		};
+	};
+};

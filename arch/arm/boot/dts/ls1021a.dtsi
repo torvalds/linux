@@ -866,6 +866,7 @@
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "ipg", "per";
 			big-endian;
+			status = "disabled";
 		};
 
 		can1: can@2a80000 {
@@ -875,6 +876,7 @@
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "ipg", "per";
 			big-endian;
+			status = "disabled";
 		};
 
 		can2: can@2a90000 {
@@ -884,6 +886,7 @@
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "ipg", "per";
 			big-endian;
+			status = "disabled";
 		};
 
 		can3: can@2aa0000 {
@@ -893,6 +896,7 @@
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
 			clock-names = "ipg", "per";
 			big-endian;
+			status = "disabled";
 		};
 
 		ocram1: sram@10000000 {

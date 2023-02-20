@@ -6,7 +6,7 @@
  * Chanwoo Choi <cw00.choi@samsung.com>
  */
 
-&soc {
+/ {
 	bus_g2d_400: bus0 {
 		compatible = "samsung,exynos-bus";
 		clocks = <&cmu_top CLK_ACLK_G2D_400>;

@@ -23,7 +23,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	vreg_3p3: vreg_3p3_regulator {
+	vreg_3p3: vreg-3p3-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_3p3";
 		regulator-min-microvolt = <3300000>;
@@ -72,7 +72,7 @@
 };
 
 &apps_rsc {
-	pmm8155au-1-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pmm8155au-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -201,7 +201,7 @@
 		};
 	};
 
-	pmm8155au-2-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pmm8155au-rpmh-regulators";
 		qcom,pmic-id = "c";
 

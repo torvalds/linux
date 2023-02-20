@@ -25,17 +25,17 @@
 		pinctrl-0 = <&pinctrl_gpioleds>;
 		status = "disabled";
 
-		red {
+		led-red {
 			label = "phyboard-mira:red";
 			gpios = <&gpio5 22 GPIO_ACTIVE_HIGH>;
 		};
 
-		green {
+		led-green {
 			label = "phyboard-mira:green";
 			gpios = <&gpio5 23 GPIO_ACTIVE_HIGH>;
 		};
 
-		blue {
+		led-blue {
 			label = "phyboard-mira:blue";
 			gpios = <&gpio5 24 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";

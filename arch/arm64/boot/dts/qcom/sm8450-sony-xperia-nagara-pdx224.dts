@@ -12,12 +12,38 @@
 	model = "Sony Xperia 5 IV";
 	compatible = "sony,pdx224", "qcom,sm8450";
 
-	imx563_vdig_vreg: imx563-vdig-regulator {
+	imx563_vdig_regulator: imx563-vdig-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "imx563_vdig_vreg";
+		regulator-name = "imx563_vdig_regulator";
 		gpio = <&tlmm 22 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uwidec_pwr_en>;
 	};
+};
+
+&pm8350b_gpios {
+	gpio-line-names = "CAM_PWR_A_CS", /* GPIO_1 */
+			  "NC",
+			  "NC",
+			  "NC",
+			  "SNAPSHOT_N",
+			  "NC",
+			  "NC",
+			  "FOCUS_N";
+};
+
+&pm8350c_gpios {
+	gpio-line-names = "FL_STROBE_TRIG_WIDE", /* GPIO_1 */
+			  "FL_STROBE_TRIG_TELE",
+			  "WLC_ID",
+			  "WLC_TXPWR_EN",
+			  "NC",
+			  "NC", /* RGBCIR uses a PMIC vreg, so it's most likely NC. */
+			  "NC",
+			  "NC",
+			  "WIDEC_PWR_EN";
 };
 
 &tlmm {
@@ -231,4 +257,12 @@
 			  "APPS_I2C_0_SCL",
 			  "CCI_I2C3_SDA",
 			  "CCI_I2C3_SCL";
+
+	uwidec_pwr_en: uwidec-pwr-en-state {
+		pins = "gpio22";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
 };

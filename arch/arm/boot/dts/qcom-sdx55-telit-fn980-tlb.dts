@@ -98,7 +98,7 @@
 };
 
 &apps_rsc {
-	pmx55-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pmx55-rpmh-regulators";
 		qcom,pmic-id = "e";
 
@@ -233,13 +233,13 @@
 };
 
 &blsp1_uart3 {
-	status = "ok";
+	status = "okay";
 };
 
 &ipa {
-	status = "okay";
-
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
+	status = "okay";
 };
 
 &pcie0_phy {
@@ -258,11 +258,11 @@
 };
 
 &qpic_bam {
-	status = "ok";
+	status = "okay";
 };
 
 &qpic_nand {
-	status = "ok";
+	status = "okay";
 
 	nand@0 {
 		reg = <0>;

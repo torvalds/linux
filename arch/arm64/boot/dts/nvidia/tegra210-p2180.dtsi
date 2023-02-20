@@ -31,6 +31,23 @@
 		status = "okay";
 	};
 
+	i2c@7000c500 {
+		status = "okay";
+
+		/* module ID EEPROM */
+		eeprom@50 {
+			compatible = "atmel,24c02";
+			reg = <0x50>;
+
+			label = "module";
+			vcc-supply = <&vdd_1v8>;
+			address-width = <8>;
+			pagesize = <8>;
+			size = <256>;
+			read-only;
+		};
+	};
+
 	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
@@ -49,6 +66,22 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77620_default>;
+
+			fps {
+				fps0 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+					maxim,suspend-fps-time-period-us = <1280>;
+				};
+
+				fps1 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+					maxim,suspend-fps-time-period-us = <1280>;
+				};
+
+				fps2 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
 
 			max77620_default: pinmux {
 				gpio0 {
@@ -81,22 +114,6 @@
 					pins = "gpio5", "gpio6", "gpio7";
 					function = "gpio";
 					drive-push-pull = <1>;
-				};
-			};
-
-			fps {
-				fps0 {
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
-					maxim,suspend-fps-time-period-us = <1280>;
-				};
-
-				fps1 {
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
-					maxim,suspend-fps-time-period-us = <1280>;
-				};
-
-				fps2 {
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
 				};
 			};
 
@@ -262,23 +279,6 @@
 					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
 				};
 			};
-		};
-	};
-
-	i2c@7000c500 {
-		status = "okay";
-
-		/* module ID EEPROM */
-		eeprom@50 {
-			compatible = "atmel,24c02";
-			reg = <0x50>;
-
-			label = "module";
-			vcc-supply = <&vdd_1v8>;
-			address-width = <8>;
-			pagesize = <8>;
-			size = <256>;
-			read-only;
 		};
 	};
 

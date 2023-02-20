@@ -27,8 +27,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	chosen { };
-
 	aliases {
 		mmc1 = &sdhc_1;
 		mmc2 = &sdhc_2;
@@ -54,6 +52,8 @@
 		spi11 = &spi11;
 	};
 
+	chosen { };
+
 	clocks {
 		xo_board: xo-board {
 			compatible = "fixed-clock";
@@ -65,62 +65,6 @@
 			compatible = "fixed-clock";
 			clock-frequency = <32764>;
 			#clock-cells = <0>;
-		};
-	};
-
-	reserved_memory: reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		hyp_mem: memory@80000000 {
-			reg = <0x0 0x80000000 0x0 0x600000>;
-			no-map;
-		};
-
-		xbl_mem: memory@80600000 {
-			reg = <0x0 0x80600000 0x0 0x200000>;
-			no-map;
-		};
-
-		aop_mem: memory@80800000 {
-			reg = <0x0 0x80800000 0x0 0x20000>;
-			no-map;
-		};
-
-		aop_cmd_db_mem: memory@80820000 {
-			reg = <0x0 0x80820000 0x0 0x20000>;
-			compatible = "qcom,cmd-db";
-			no-map;
-		};
-
-		sec_apps_mem: memory@808ff000 {
-			reg = <0x0 0x808ff000 0x0 0x1000>;
-			no-map;
-		};
-
-		smem_mem: memory@80900000 {
-			reg = <0x0 0x80900000 0x0 0x200000>;
-			no-map;
-		};
-
-		tz_mem: memory@80b00000 {
-			reg = <0x0 0x80b00000 0x0 0x3900000>;
-			no-map;
-		};
-
-		ipa_fw_mem: memory@8b700000 {
-			reg = <0 0x8b700000 0 0x10000>;
-			no-map;
-		};
-
-		rmtfs_mem: memory@94600000 {
-			compatible = "qcom,rmtfs-mem";
-			reg = <0x0 0x94600000 0x0 0x200000>;
-			no-map;
-
-			qcom,client-id = <1>;
-			qcom,vmid = <15>;
 		};
 	};
 
@@ -146,9 +90,11 @@
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			L2_0: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
 					compatible = "cache";
+					cache-level = <3>;
 				};
 			};
 		};
@@ -171,6 +117,7 @@
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			L2_100: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -193,6 +140,7 @@
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			L2_200: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -215,6 +163,7 @@
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			L2_300: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -237,6 +186,7 @@
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			L2_400: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -259,6 +209,7 @@
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			L2_500: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -281,6 +232,7 @@
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			L2_600: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -303,6 +255,7 @@
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			L2_700: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -396,6 +349,18 @@
 				local-timer-stop;
 			};
 		};
+	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm-sc7180", "qcom,scm";
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		/* We expect the bootloader to fill in the size */
+		reg = <0 0x80000000 0 0>;
 	};
 
 	cpu0_opp_table: opp-table-cpu0 {
@@ -538,10 +503,42 @@
 		};
 	};
 
-	memory@80000000 {
-		device_type = "memory";
-		/* We expect the bootloader to fill in the size */
-		reg = <0 0x80000000 0 0>;
+	qspi_opp_table: opp-table-qspi {
+		compatible = "operating-points-v2";
+
+		opp-75000000 {
+			opp-hz = /bits/ 64 <75000000>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+		};
+
+		opp-150000000 {
+			opp-hz = /bits/ 64 <150000000>;
+			required-opps = <&rpmhpd_opp_svs>;
+		};
+
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			required-opps = <&rpmhpd_opp_nom>;
+		};
+	};
+
+	qup_opp_table: opp-table-qup {
+		compatible = "operating-points-v2";
+
+		opp-75000000 {
+			opp-hz = /bits/ 64 <75000000>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+		};
+
+		opp-100000000 {
+			opp-hz = /bits/ 64 <100000000>;
+			required-opps = <&rpmhpd_opp_svs>;
+		};
+
+		opp-128000000 {
+			opp-hz = /bits/ 64 <128000000>;
+			required-opps = <&rpmhpd_opp_nom>;
+		};
 	};
 
 	pmu {
@@ -549,9 +546,64 @@
 		interrupts = <GIC_PPI 5 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	firmware {
-		scm {
-			compatible = "qcom,scm-sc7180", "qcom,scm";
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		hyp_mem: memory@80000000 {
+			reg = <0x0 0x80000000 0x0 0x600000>;
+			no-map;
+		};
+
+		xbl_mem: memory@80600000 {
+			reg = <0x0 0x80600000 0x0 0x200000>;
+			no-map;
+		};
+
+		aop_mem: memory@80800000 {
+			reg = <0x0 0x80800000 0x0 0x20000>;
+			no-map;
+		};
+
+		aop_cmd_db_mem: memory@80820000 {
+			reg = <0x0 0x80820000 0x0 0x20000>;
+			compatible = "qcom,cmd-db";
+			no-map;
+		};
+
+		sec_apps_mem: memory@808ff000 {
+			reg = <0x0 0x808ff000 0x0 0x1000>;
+			no-map;
+		};
+
+		smem_mem: memory@80900000 {
+			reg = <0x0 0x80900000 0x0 0x200000>;
+			no-map;
+		};
+
+		tz_mem: memory@80b00000 {
+			reg = <0x0 0x80b00000 0x0 0x3900000>;
+			no-map;
+		};
+
+		ipa_fw_mem: memory@8b700000 {
+			reg = <0 0x8b700000 0 0x10000>;
+			no-map;
+		};
+
+		rmtfs_mem: memory@94600000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0x94600000 0x0 0x200000>;
+			no-map;
+
+			qcom,client-id = <1>;
+			qcom,vmid = <15>;
 		};
 	};
 
@@ -640,11 +692,6 @@
 		};
 	};
 
-	psci {
-		compatible = "arm,psci-1.0";
-		method = "smc";
-	};
-
 	soc: soc@0 {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -690,8 +737,8 @@
 
 		sdhc_1: mmc@7c4000 {
 			compatible = "qcom,sc7180-sdhci", "qcom,sdhci-msm-v5";
-			reg = <0 0x7c4000 0 0x1000>,
-				<0 0x07c5000 0 0x1000>;
+			reg = <0 0x007c4000 0 0x1000>,
+				<0 0x007c5000 0 0x1000>;
 			reg-names = "hc", "cqhci";
 
 			iommus = <&apps_smmu 0x60 0x0>;
@@ -736,25 +783,6 @@
 					opp-peak-kBps = <5400000 1600000>;
 					opp-avg-kBps = <390000 0>;
 				};
-			};
-		};
-
-		qup_opp_table: opp-table-qup {
-			compatible = "operating-points-v2";
-
-			opp-75000000 {
-				opp-hz = /bits/ 64 <75000000>;
-				required-opps = <&rpmhpd_opp_low_svs>;
-			};
-
-			opp-100000000 {
-				opp-hz = /bits/ 64 <100000000>;
-				required-opps = <&rpmhpd_opp_svs>;
-			};
-
-			opp-128000000 {
-				opp-hz = /bits/ 64 <128000000>;
-				required-opps = <&rpmhpd_opp_nom>;
 			};
 		};
 
@@ -1421,9 +1449,9 @@
 
 			iommus = <&apps_smmu 0x440 0x0>,
 				 <&apps_smmu 0x442 0x0>;
-			reg = <0 0x1e40000 0 0x7000>,
-			      <0 0x1e47000 0 0x2000>,
-			      <0 0x1e04000 0 0x2c000>;
+			reg = <0 0x01e40000 0 0x7000>,
+			      <0 0x01e47000 0 0x2000>,
+			      <0 0x01e04000 0 0x2c000>;
 			reg-names = "ipa-reg",
 				    "ipa-shared",
 				    "gsi";
@@ -1929,8 +1957,7 @@
 
 		remoteproc_mpss: remoteproc@4080000 {
 			compatible = "qcom,sc7180-mpss-pas";
-			reg = <0 0x04080000 0 0x4040>, <0 0x04180000 0 0x48>;
-			reg-names = "qdsp6", "rmb";
+			reg = <0 0x04080000 0 0x4040>;
 
 			interrupts-extended = <&intc GIC_SPI 266 IRQ_TYPE_EDGE_RISING>,
 					      <&modem_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
@@ -1941,14 +1968,8 @@
 			interrupt-names = "wdog", "fatal", "ready", "handover",
 					  "stop-ack", "shutdown-ack";
 
-			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
-				 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
-				 <&gcc GCC_MSS_NAV_AXI_CLK>,
-				 <&gcc GCC_MSS_SNOC_AXI_CLK>,
-				 <&gcc GCC_MSS_MFAB_AXIS_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>;
-			clock-names = "iface", "bus", "nav", "snoc_axi",
-				      "mnoc_axi", "xo";
+			clocks = <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "xo";
 
 			power-domains = <&rpmhpd SC7180_CX>,
 					<&rpmhpd SC7180_MX>,
@@ -1961,13 +1982,6 @@
 
 			qcom,smem-states = <&modem_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
-
-			resets = <&aoss_reset AOSS_CC_MSS_RESTART>,
-				 <&pdc_reset PDC_MODEM_SYNC_RESET>;
-			reset-names = "mss_restart", "pdc_reset";
-
-			qcom,halt-regs = <&tcsr_regs_1 0x3000 0x5000 0x4000>;
-			qcom,spare-regs = <&tcsr_regs_2 0xb3e4>;
 
 			status = "disabled";
 
@@ -2121,6 +2135,12 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
+		};
+
+		dma@10a2000 {
+			compatible = "qcom,sc7180-dcc", "qcom,dcc";
+			reg = <0x0 0x010a2000 0x0 0x1000>,
+			      <0x0 0x010ae000 0x0 0x2000>;
 		};
 
 		stm@6002000 {
@@ -2655,25 +2675,6 @@
 			};
 		};
 
-		qspi_opp_table: opp-table-qspi {
-			compatible = "operating-points-v2";
-
-			opp-75000000 {
-				opp-hz = /bits/ 64 <75000000>;
-				required-opps = <&rpmhpd_opp_low_svs>;
-			};
-
-			opp-150000000 {
-				opp-hz = /bits/ 64 <150000000>;
-				required-opps = <&rpmhpd_opp_svs>;
-			};
-
-			opp-300000000 {
-				opp-hz = /bits/ 64 <300000000>;
-				required-opps = <&rpmhpd_opp_nom>;
-			};
-		};
-
 		qspi: spi@88dc000 {
 			compatible = "qcom,sc7180-qspi", "qcom,qspi-v1";
 			reg = <0 0x088dc000 0 0x600>;
@@ -2921,7 +2922,7 @@
 			#power-domain-cells = <1>;
 		};
 
-		mdss: mdss@ae00000 {
+		mdss: display-subsystem@ae00000 {
 			compatible = "qcom,sc7180-mdss";
 			reg = <0 0x0ae00000 0 0x1000>;
 			reg-names = "mdss";
@@ -3022,7 +3023,8 @@
 			};
 
 			dsi0: dsi@ae94000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,sc7180-dsi-ctrl",
+					     "qcom,mdss-dsi-ctrl";
 				reg = <0 0x0ae94000 0 0x400>;
 				reg-names = "dsi_ctrl";
 
@@ -3116,11 +3118,11 @@
 				compatible = "qcom,sc7180-dp";
 				status = "disabled";
 
-				reg = <0 0xae90000 0 0x200>,
-				      <0 0xae90200 0 0x200>,
-				      <0 0xae90400 0 0xc00>,
-				      <0 0xae91000 0 0x400>,
-				      <0 0xae91400 0 0x400>;
+				reg = <0 0x0ae90000 0 0x200>,
+				      <0 0x0ae90200 0 0x200>,
+				      <0 0x0ae90400 0 0xc00>,
+				      <0 0x0ae91000 0 0x400>,
+				      <0 0x0ae91400 0 0x400>;
 
 				interrupt-parent = <&mdss>;
 				interrupts = <12>;
@@ -3155,7 +3157,7 @@
 
 					port@1 {
 						reg = <1>;
-						dp_out: endpoint { };
+						mdss_dp_out: endpoint { };
 					};
 				};
 
@@ -3248,7 +3250,7 @@
 			#reset-cells = <1>;
 		};
 
-		aoss_qmp: power-controller@c300000 {
+		aoss_qmp: power-management@c300000 {
 			compatible = "qcom,sc7180-aoss-qmp", "qcom,aoss-qmp";
 			reg = <0 0x0c300000 0 0x400>;
 			interrupts = <GIC_SPI 389 IRQ_TYPE_EDGE_RISING>;
@@ -3274,8 +3276,8 @@
 			interrupts-extended = <&pdc 1 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
-			#address-cells = <1>;
-			#size-cells = <1>;
+			#address-cells = <2>;
+			#size-cells = <0>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
 			cell-index = <0>;
@@ -3417,7 +3419,7 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		timer@17c20000{
+		timer@17c20000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0 0 0x20000000>;
@@ -3625,6 +3627,7 @@
 				<&apps_smmu 0x1032 0>;
 
 			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
+			required-opps = <&rpmhpd_opp_nom>;
 
 			status = "disabled";
 
@@ -3655,6 +3658,8 @@
 			clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "iface", "bi_tcxo";
+			power-domains = <&rpmhpd SC7180_CX>;
+
 			#clock-cells = <1>;
 			#power-domain-cells = <1>;
 		};
@@ -3681,7 +3686,7 @@
 					type = "passive";
 				};
 
-				cpu0_crit: cpu_crit {
+				cpu0_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -3730,7 +3735,7 @@
 					type = "passive";
 				};
 
-				cpu1_crit: cpu_crit {
+				cpu1_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -3779,7 +3784,7 @@
 					type = "passive";
 				};
 
-				cpu2_crit: cpu_crit {
+				cpu2_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -3828,7 +3833,7 @@
 					type = "passive";
 				};
 
-				cpu3_crit: cpu_crit {
+				cpu3_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -3877,7 +3882,7 @@
 					type = "passive";
 				};
 
-				cpu4_crit: cpu_crit {
+				cpu4_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -3926,7 +3931,7 @@
 					type = "passive";
 				};
 
-				cpu5_crit: cpu_crit {
+				cpu5_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -3975,7 +3980,7 @@
 					type = "passive";
 				};
 
-				cpu6_crit: cpu_crit {
+				cpu6_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -4016,7 +4021,7 @@
 					type = "passive";
 				};
 
-				cpu7_crit: cpu_crit {
+				cpu7_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -4057,7 +4062,7 @@
 					type = "passive";
 				};
 
-				cpu8_crit: cpu_crit {
+				cpu8_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -4098,7 +4103,7 @@
 					type = "passive";
 				};
 
-				cpu9_crit: cpu_crit {
+				cpu9_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -4132,7 +4137,7 @@
 					type = "hot";
 				};
 
-				aoss0_crit: aoss0_crit {
+				aoss0_crit: aoss0-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4152,7 +4157,7 @@
 					hysteresis = <2000>;
 					type = "hot";
 				};
-				cpuss0_crit: cluster0_crit {
+				cpuss0_crit: cluster0-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4172,7 +4177,7 @@
 					hysteresis = <2000>;
 					type = "hot";
 				};
-				cpuss1_crit: cluster0_crit {
+				cpuss1_crit: cluster0-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4193,7 +4198,7 @@
 					type = "passive";
 				};
 
-				gpuss0_crit: gpuss0_crit {
+				gpuss0_crit: gpuss0-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4221,7 +4226,7 @@
 					type = "passive";
 				};
 
-				gpuss1_crit: gpuss1_crit {
+				gpuss1_crit: gpuss1-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4249,7 +4254,7 @@
 					type = "hot";
 				};
 
-				aoss1_crit: aoss1_crit {
+				aoss1_crit: aoss1-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4270,7 +4275,7 @@
 					type = "hot";
 				};
 
-				cwlan_crit: cwlan_crit {
+				cwlan_crit: cwlan-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4291,7 +4296,7 @@
 					type = "hot";
 				};
 
-				audio_crit: audio_crit {
+				audio_crit: audio-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4312,7 +4317,7 @@
 					type = "hot";
 				};
 
-				ddr_crit: ddr_crit {
+				ddr_crit: ddr-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4333,7 +4338,7 @@
 					type = "hot";
 				};
 
-				q6_hvx_crit: q6_hvx_crit {
+				q6_hvx_crit: q6-hvx-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4354,7 +4359,7 @@
 					type = "hot";
 				};
 
-				camera_crit: camera_crit {
+				camera_crit: camera-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4375,7 +4380,7 @@
 					type = "hot";
 				};
 
-				mdm_crit: mdm_crit {
+				mdm_crit: mdm-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4396,7 +4401,7 @@
 					type = "hot";
 				};
 
-				mdm_dsp_crit: mdm_dsp_crit {
+				mdm_dsp_crit: mdm-dsp-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4417,7 +4422,7 @@
 					type = "hot";
 				};
 
-				npu_crit: npu_crit {
+				npu_crit: npu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -4438,7 +4443,7 @@
 					type = "hot";
 				};
 
-				video_crit: video_crit {
+				video_crit: video-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";

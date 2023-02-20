@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3588s.dtsi"
+#include "rk3588-pinctrl.dtsi"
+
+/ {
+	gmac0: ethernet@fe1b0000 {
+		compatible = "rockchip,rk3588-gmac", "snps,dwmac-4.20a";
+		reg = <0x0 0xfe1b0000 0x0 0x10000>;
+		interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH 0>,
+			     <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		clocks = <&cru CLK_GMAC_125M>, <&cru CLK_GMAC_50M>,
+			 <&cru PCLK_GMAC0>, <&cru ACLK_GMAC0>,
+			 <&cru CLK_GMAC0_PTP_REF>;
+		clock-names = "stmmaceth", "clk_mac_ref",
+			      "pclk_mac", "aclk_mac",
+			      "ptp_ref";
+		power-domains = <&power RK3588_PD_GMAC>;
+		resets = <&cru SRST_A_GMAC0>;
+		reset-names = "stmmaceth";
+		rockchip,grf = <&sys_grf>;
+		rockchip,php-grf = <&php_grf>;
+		snps,axi-config = <&gmac0_stmmac_axi_setup>;
+		snps,mixed-burst;
+		snps,mtl-rx-config = <&gmac0_mtl_rx_setup>;
+		snps,mtl-tx-config = <&gmac0_mtl_tx_setup>;
+		snps,tso;
+		status = "disabled";
+
+		mdio0: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		gmac0_stmmac_axi_setup: stmmac-axi-config {
+			snps,blen = <0 0 0 0 16 8 4>;
+			snps,wr_osr_lmt = <4>;
+			snps,rd_osr_lmt = <8>;
+		};
+
+		gmac0_mtl_rx_setup: rx-queues-config {
+			snps,rx-queues-to-use = <2>;
+			queue0 {};
+			queue1 {};
+		};
+
+		gmac0_mtl_tx_setup: tx-queues-config {
+			snps,tx-queues-to-use = <2>;
+			queue0 {};
+			queue1 {};
+		};
+	};
+};

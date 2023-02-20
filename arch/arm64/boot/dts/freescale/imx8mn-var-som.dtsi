@@ -207,7 +207,7 @@
 			};
 
 			ldo5_reg: LDO5 {
-				regulator-compatible = "ldo5";
+				regulator-name = "ldo5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;

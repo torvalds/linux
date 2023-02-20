@@ -17,5 +17,6 @@
 
 /* Colibri USBH */
 &usbotg2 {
+	disable-over-current;
 	status = "okay";
 };
