@@ -202,6 +202,34 @@ static inline void btrfs_clear_skip_qgroup(struct btrfs_trans_handle *trans)
 	delayed_refs->qgroup_to_skip = 0;
 }
 
+bool __cold abort_should_print_stack(int errno);
+
+/*
+ * Call btrfs_abort_transaction as early as possible when an error condition is
+ * detected, that way the exact stack trace is reported for some errors.
+ */
+#define btrfs_abort_transaction(trans, errno)		\
+do {								\
+	bool first = false;					\
+	/* Report first abort since mount */			\
+	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
+			&((trans)->fs_info->fs_state))) {	\
+		first = true;					\
+		if (WARN(abort_should_print_stack(errno),	\
+			KERN_ERR				\
+			"BTRFS: Transaction aborted (error %d)\n",	\
+			(errno))) {					\
+			/* Stack trace printed. */			\
+		} else {						\
+			btrfs_debug((trans)->fs_info,			\
+				    "Transaction aborted (error %d)", \
+				  (errno));			\
+		}						\
+	}							\
+	__btrfs_abort_transaction((trans), __func__,		\
+				  __LINE__, (errno), first);	\
+} while (0)
+
 int btrfs_end_transaction(struct btrfs_trans_handle *trans);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   unsigned int num_items);
@@ -236,6 +264,9 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction);
 void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
 void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans);
+void __cold __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
+				      const char *function,
+				      unsigned int line, int errno, bool first_hit);
 
 int __init btrfs_transaction_init(void);
 void __cold btrfs_transaction_exit(void);

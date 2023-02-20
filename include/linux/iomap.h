@@ -58,8 +58,7 @@ struct vm_fault;
 #define IOMAP_F_SHARED		(1U << 2)
 #define IOMAP_F_MERGED		(1U << 3)
 #define IOMAP_F_BUFFER_HEAD	(1U << 4)
-#define IOMAP_F_ZONE_APPEND	(1U << 5)
-#define IOMAP_F_XATTR		(1U << 6)
+#define IOMAP_F_XATTR		(1U << 5)
 
 /*
  * Flags set by the core iomap code during operations:

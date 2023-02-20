@@ -36,6 +36,7 @@
 #include "file.h"
 #include "dev-replace.h"
 #include "super.h"
+#include "transaction.h"
 
 static struct kmem_cache *extent_buffer_cache;
 
@@ -99,7 +100,6 @@ struct btrfs_bio_ctrl {
 	struct bio *bio;
 	int mirror_num;
 	enum btrfs_compression_type compress_type;
-	u32 len_to_stripe_boundary;
 	u32 len_to_oe_boundary;
 	btrfs_bio_end_io_t end_io_func;
 
@@ -126,7 +126,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 {
 	struct bio *bio;
 	struct bio_vec *bv;
-	struct btrfs_inode *inode;
+	struct inode *inode;
 	int mirror_num;
 
 	if (!bio_ctrl->bio)
@@ -134,15 +134,13 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 
 	bio = bio_ctrl->bio;
 	bv = bio_first_bvec_all(bio);
-	inode = BTRFS_I(bv->bv_page->mapping->host);
+	inode = bv->bv_page->mapping->host;
 	mirror_num = bio_ctrl->mirror_num;
 
 	/* Caller should ensure the bio has at least some range added */
 	ASSERT(bio->bi_iter.bi_size);
 
-	btrfs_bio(bio)->file_offset = page_offset(bv->bv_page) + bv->bv_offset;
-
-	if (!is_data_inode(&inode->vfs_inode)) {
+	if (!is_data_inode(inode)) {
 		if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
 			/*
 			 * For metadata read, we should have the parent_check,
@@ -153,13 +151,14 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 			       bio_ctrl->parent_check,
 			       sizeof(struct btrfs_tree_parent_check));
 		}
-		btrfs_submit_metadata_bio(inode, bio, mirror_num);
-	} else if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
-		btrfs_submit_data_write_bio(inode, bio, mirror_num);
-	} else {
-		btrfs_submit_data_read_bio(inode, bio, mirror_num,
-					   bio_ctrl->compress_type);
+		bio->bi_opf |= REQ_META;
 	}
+
+	if (btrfs_op(bio) == BTRFS_MAP_READ &&
+	    bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
+		btrfs_submit_compressed_read(inode, bio, mirror_num);
+	else
+		btrfs_submit_bio(bio, mirror_num);
 
 	/* The bio is owned by the end_io handler now */
 	bio_ctrl->bio = NULL;
@@ -515,266 +514,6 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 			       start, end, page_ops, NULL);
 }
 
-static int insert_failrec(struct btrfs_inode *inode,
-			  struct io_failure_record *failrec)
-{
-	struct rb_node *exist;
-
-	spin_lock(&inode->io_failure_lock);
-	exist = rb_simple_insert(&inode->io_failure_tree, failrec->bytenr,
-				 &failrec->rb_node);
-	spin_unlock(&inode->io_failure_lock);
-
-	return (exist == NULL) ? 0 : -EEXIST;
-}
-
-static struct io_failure_record *get_failrec(struct btrfs_inode *inode, u64 start)
-{
-	struct rb_node *node;
-	struct io_failure_record *failrec = ERR_PTR(-ENOENT);
-
-	spin_lock(&inode->io_failure_lock);
-	node = rb_simple_search(&inode->io_failure_tree, start);
-	if (node)
-		failrec = rb_entry(node, struct io_failure_record, rb_node);
-	spin_unlock(&inode->io_failure_lock);
-	return failrec;
-}
-
-static void free_io_failure(struct btrfs_inode *inode,
-			    struct io_failure_record *rec)
-{
-	spin_lock(&inode->io_failure_lock);
-	rb_erase(&rec->rb_node, &inode->io_failure_tree);
-	spin_unlock(&inode->io_failure_lock);
-
-	kfree(rec);
-}
-
-static int next_mirror(const struct io_failure_record *failrec, int cur_mirror)
-{
-	if (cur_mirror == failrec->num_copies)
-		return cur_mirror + 1 - failrec->num_copies;
-	return cur_mirror + 1;
-}
-
-static int prev_mirror(const struct io_failure_record *failrec, int cur_mirror)
-{
-	if (cur_mirror == 1)
-		return failrec->num_copies;
-	return cur_mirror - 1;
-}
-
-/*
- * each time an IO finishes, we do a fast check in the IO failure tree
- * to see if we need to process or clean up an io_failure_record
- */
-int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
-			   struct page *page, unsigned int pg_offset)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_io_tree *io_tree = &inode->io_tree;
-	u64 ino = btrfs_ino(inode);
-	u64 locked_start, locked_end;
-	struct io_failure_record *failrec;
-	int mirror;
-	int ret;
-
-	failrec = get_failrec(inode, start);
-	if (IS_ERR(failrec))
-		return 0;
-
-	BUG_ON(!failrec->this_mirror);
-
-	if (sb_rdonly(fs_info->sb))
-		goto out;
-
-	ret = find_first_extent_bit(io_tree, failrec->bytenr, &locked_start,
-				    &locked_end, EXTENT_LOCKED, NULL);
-	if (ret || locked_start > failrec->bytenr ||
-	    locked_end < failrec->bytenr + failrec->len - 1)
-		goto out;
-
-	mirror = failrec->this_mirror;
-	do {
-		mirror = prev_mirror(failrec, mirror);
-		btrfs_repair_io_failure(fs_info, ino, start, failrec->len,
-				  failrec->logical, page, pg_offset, mirror);
-	} while (mirror != failrec->failed_mirror);
-
-out:
-	free_io_failure(inode, failrec);
-	return 0;
-}
-
-/*
- * Can be called when
- * - hold extent lock
- * - under ordered extent
- * - the inode is freeing
- */
-void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end)
-{
-	struct io_failure_record *failrec;
-	struct rb_node *node, *next;
-
-	if (RB_EMPTY_ROOT(&inode->io_failure_tree))
-		return;
-
-	spin_lock(&inode->io_failure_lock);
-	node = rb_simple_search_first(&inode->io_failure_tree, start);
-	while (node) {
-		failrec = rb_entry(node, struct io_failure_record, rb_node);
-		if (failrec->bytenr > end)
-			break;
-
-		next = rb_next(node);
-		rb_erase(&failrec->rb_node, &inode->io_failure_tree);
-		kfree(failrec);
-
-		node = next;
-	}
-	spin_unlock(&inode->io_failure_lock);
-}
-
-static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode,
-							     struct btrfs_bio *bbio,
-							     unsigned int bio_offset)
-{
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	u64 start = bbio->file_offset + bio_offset;
-	struct io_failure_record *failrec;
-	const u32 sectorsize = fs_info->sectorsize;
-	int ret;
-
-	failrec = get_failrec(BTRFS_I(inode), start);
-	if (!IS_ERR(failrec)) {
-		btrfs_debug(fs_info,
-	"Get IO Failure Record: (found) logical=%llu, start=%llu, len=%llu",
-			failrec->logical, failrec->bytenr, failrec->len);
-		/*
-		 * when data can be on disk more than twice, add to failrec here
-		 * (e.g. with a list for failed_mirror) to make
-		 * clean_io_failure() clean all those errors at once.
-		 */
-		ASSERT(failrec->this_mirror == bbio->mirror_num);
-		ASSERT(failrec->len == fs_info->sectorsize);
-		return failrec;
-	}
-
-	failrec = kzalloc(sizeof(*failrec), GFP_NOFS);
-	if (!failrec)
-		return ERR_PTR(-ENOMEM);
-
-	RB_CLEAR_NODE(&failrec->rb_node);
-	failrec->bytenr = start;
-	failrec->len = sectorsize;
-	failrec->failed_mirror = bbio->mirror_num;
-	failrec->this_mirror = bbio->mirror_num;
-	failrec->logical = (bbio->iter.bi_sector << SECTOR_SHIFT) + bio_offset;
-
-	btrfs_debug(fs_info,
-		    "new io failure record logical %llu start %llu",
-		    failrec->logical, start);
-
-	failrec->num_copies = btrfs_num_copies(fs_info, failrec->logical, sectorsize);
-	if (failrec->num_copies == 1) {
-		/*
-		 * We only have a single copy of the data, so don't bother with
-		 * all the retry and error correction code that follows. No
-		 * matter what the error is, it is very likely to persist.
-		 */
-		btrfs_debug(fs_info,
-			"cannot repair logical %llu num_copies %d",
-			failrec->logical, failrec->num_copies);
-		kfree(failrec);
-		return ERR_PTR(-EIO);
-	}
-
-	/* Set the bits in the private failure tree */
-	ret = insert_failrec(BTRFS_I(inode), failrec);
-	if (ret) {
-		kfree(failrec);
-		return ERR_PTR(ret);
-	}
-
-	return failrec;
-}
-
-int btrfs_repair_one_sector(struct btrfs_inode *inode, struct btrfs_bio *failed_bbio,
-			    u32 bio_offset, struct page *page, unsigned int pgoff,
-			    bool submit_buffered)
-{
-	u64 start = failed_bbio->file_offset + bio_offset;
-	struct io_failure_record *failrec;
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct bio *failed_bio = &failed_bbio->bio;
-	const int icsum = bio_offset >> fs_info->sectorsize_bits;
-	struct bio *repair_bio;
-	struct btrfs_bio *repair_bbio;
-
-	btrfs_debug(fs_info,
-		   "repair read error: read error at %llu", start);
-
-	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
-
-	failrec = btrfs_get_io_failure_record(&inode->vfs_inode, failed_bbio, bio_offset);
-	if (IS_ERR(failrec))
-		return PTR_ERR(failrec);
-
-	/*
-	 * There are two premises:
-	 * a) deliver good data to the caller
-	 * b) correct the bad sectors on disk
-	 *
-	 * Since we're only doing repair for one sector, we only need to get
-	 * a good copy of the failed sector and if we succeed, we have setup
-	 * everything for btrfs_repair_io_failure to do the rest for us.
-	 */
-	failrec->this_mirror = next_mirror(failrec, failrec->this_mirror);
-	if (failrec->this_mirror == failrec->failed_mirror) {
-		btrfs_debug(fs_info,
-			"failed to repair num_copies %d this_mirror %d failed_mirror %d",
-			failrec->num_copies, failrec->this_mirror, failrec->failed_mirror);
-		free_io_failure(inode, failrec);
-		return -EIO;
-	}
-
-	repair_bio = btrfs_bio_alloc(1, REQ_OP_READ, failed_bbio->end_io,
-				     failed_bbio->private);
-	repair_bbio = btrfs_bio(repair_bio);
-	repair_bbio->file_offset = start;
-	repair_bio->bi_iter.bi_sector = failrec->logical >> 9;
-
-	if (failed_bbio->csum) {
-		const u32 csum_size = fs_info->csum_size;
-
-		repair_bbio->csum = repair_bbio->csum_inline;
-		memcpy(repair_bbio->csum,
-		       failed_bbio->csum + csum_size * icsum, csum_size);
-	}
-
-	bio_add_page(repair_bio, page, failrec->len, pgoff);
-	repair_bbio->iter = repair_bio->bi_iter;
-
-	btrfs_debug(fs_info,
-		    "repair read error: submitting new read to mirror %d",
-		    failrec->this_mirror);
-
-	/*
-	 * At this point we have a bio, so any errors from bio submission will
-	 * be handled by the endio on the repair_bio, so we can't return an
-	 * error here.
-	 */
-	if (submit_buffered)
-		btrfs_submit_data_read_bio(inode, repair_bio,
-					   failrec->this_mirror, 0);
-	else
-		btrfs_submit_dio_repair_bio(inode, repair_bio, failrec->this_mirror);
-
-	return BLK_STS_OK;
-}
-
 static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
@@ -801,79 +540,6 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 		unlock_page(page);
 	else
 		btrfs_subpage_end_reader(fs_info, page, start, len);
-}
-
-static void end_sector_io(struct page *page, u64 offset, bool uptodate)
-{
-	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
-	const u32 sectorsize = inode->root->fs_info->sectorsize;
-
-	end_page_read(page, uptodate, offset, sectorsize);
-	unlock_extent(&inode->io_tree, offset, offset + sectorsize - 1, NULL);
-}
-
-static void submit_data_read_repair(struct inode *inode,
-				    struct btrfs_bio *failed_bbio,
-				    u32 bio_offset, const struct bio_vec *bvec,
-				    unsigned int error_bitmap)
-{
-	const unsigned int pgoff = bvec->bv_offset;
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct page *page = bvec->bv_page;
-	const u64 start = page_offset(bvec->bv_page) + bvec->bv_offset;
-	const u64 end = start + bvec->bv_len - 1;
-	const u32 sectorsize = fs_info->sectorsize;
-	const int nr_bits = (end + 1 - start) >> fs_info->sectorsize_bits;
-	int i;
-
-	BUG_ON(bio_op(&failed_bbio->bio) == REQ_OP_WRITE);
-
-	/* This repair is only for data */
-	ASSERT(is_data_inode(inode));
-
-	/* We're here because we had some read errors or csum mismatch */
-	ASSERT(error_bitmap);
-
-	/*
-	 * We only get called on buffered IO, thus page must be mapped and bio
-	 * must not be cloned.
-	 */
-	ASSERT(page->mapping && !bio_flagged(&failed_bbio->bio, BIO_CLONED));
-
-	/* Iterate through all the sectors in the range */
-	for (i = 0; i < nr_bits; i++) {
-		const unsigned int offset = i * sectorsize;
-		bool uptodate = false;
-		int ret;
-
-		if (!(error_bitmap & (1U << i))) {
-			/*
-			 * This sector has no error, just end the page read
-			 * and unlock the range.
-			 */
-			uptodate = true;
-			goto next;
-		}
-
-		ret = btrfs_repair_one_sector(BTRFS_I(inode), failed_bbio,
-				bio_offset + offset, page, pgoff + offset,
-				true);
-		if (!ret) {
-			/*
-			 * We have submitted the read repair, the page release
-			 * will be handled by the endio function of the
-			 * submitted repair bio.
-			 * Thus we don't need to do any thing here.
-			 */
-			continue;
-		}
-		/*
-		 * Continue on failed repair, otherwise the remaining sectors
-		 * will not be properly unlocked.
-		 */
-next:
-		end_sector_io(page, start + offset, uptodate);
-	}
 }
 
 /* lots and lots of room for performance fixes in the end_bio funcs */
@@ -919,7 +585,6 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 	u64 start;
 	u64 end;
 	struct bvec_iter_all iter_all;
-	bool first_bvec = true;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, iter_all) {
@@ -940,11 +605,6 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 
 		start = page_offset(page) + bvec->bv_offset;
 		end = start + bvec->bv_len - 1;
-
-		if (first_bvec) {
-			btrfs_record_physical_zoned(inode, start, bio);
-			first_bvec = false;
-		}
 
 		end_extent_writepage(page, error, start, end);
 
@@ -1093,8 +753,6 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 		struct inode *inode = page->mapping->host;
 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 		const u32 sectorsize = fs_info->sectorsize;
-		unsigned int error_bitmap = (unsigned int)-1;
-		bool repair = false;
 		u64 start;
 		u64 end;
 		u32 len;
@@ -1126,24 +784,13 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 		len = bvec->bv_len;
 
 		mirror = bbio->mirror_num;
-		if (likely(uptodate)) {
-			if (is_data_inode(inode)) {
-				error_bitmap = btrfs_verify_data_csum(bbio,
-						bio_offset, page, start, end);
-				if (error_bitmap)
-					uptodate = false;
-			} else {
-				if (btrfs_validate_metadata_buffer(bbio,
-						page, start, end, mirror))
-					uptodate = false;
-			}
-		}
+		if (uptodate && !is_data_inode(inode) &&
+		    btrfs_validate_metadata_buffer(bbio, page, start, end, mirror))
+			uptodate = false;
 
 		if (likely(uptodate)) {
 			loff_t i_size = i_size_read(inode);
 			pgoff_t end_index = i_size >> PAGE_SHIFT;
-
-			btrfs_clean_io_failure(BTRFS_I(inode), start, page, 0);
 
 			/*
 			 * Zero out the remaining part if this range straddles
@@ -1161,19 +808,7 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 				zero_user_segment(page, zero_start,
 						  offset_in_page(end) + 1);
 			}
-		} else if (is_data_inode(inode)) {
-			/*
-			 * Only try to repair bios that actually made it to a
-			 * device.  If the bio failed to be submitted mirror
-			 * is 0 and we need to fail it without retrying.
-			 *
-			 * This also includes the high level bios for compressed
-			 * extents - these never make it to a device and repair
-			 * is already handled on the lower compressed bio.
-			 */
-			if (mirror > 0)
-				repair = true;
-		} else {
+		} else if (!is_data_inode(inode)) {
 			struct extent_buffer *eb;
 
 			eb = find_extent_buffer_readpage(fs_info, page, start);
@@ -1182,19 +817,10 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 			atomic_dec(&eb->io_pages);
 		}
 
-		if (repair) {
-			/*
-			 * submit_data_read_repair() will handle all the good
-			 * and bad sectors, we just continue to the next bvec.
-			 */
-			submit_data_read_repair(inode, bbio, bio_offset, bvec,
-						error_bitmap);
-		} else {
-			/* Update page status and unlock */
-			end_page_read(page, uptodate, start, len);
-			endio_readpage_release_extent(&processed, BTRFS_I(inode),
-					start, end, PageUptodate(page));
-		}
+		/* Update page status and unlock. */
+		end_page_read(page, uptodate, start, len);
+		endio_readpage_release_extent(&processed, BTRFS_I(inode),
+					      start, end, PageUptodate(page));
 
 		ASSERT(bio_offset + len > bio_offset);
 		bio_offset += len;
@@ -1202,7 +828,6 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 	}
 	/* Release the last extent */
 	endio_readpage_release_extent(&processed, NULL, 0, 0, false);
-	btrfs_bio_free_csum(bbio);
 	bio_put(bio);
 }
 
@@ -1270,11 +895,10 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	u32 real_size;
 	const sector_t sector = disk_bytenr >> SECTOR_SHIFT;
 	bool contig = false;
-	int ret;
 
 	ASSERT(bio);
 	/* The limit should be calculated when bio_ctrl->bio is allocated */
-	ASSERT(bio_ctrl->len_to_oe_boundary && bio_ctrl->len_to_stripe_boundary);
+	ASSERT(bio_ctrl->len_to_oe_boundary);
 	if (bio_ctrl->compress_type != compress_type)
 		return 0;
 
@@ -1310,9 +934,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	if (!contig)
 		return 0;
 
-	real_size = min(bio_ctrl->len_to_oe_boundary,
-			bio_ctrl->len_to_stripe_boundary) - bio_size;
-	real_size = min(real_size, size);
+	real_size = min(bio_ctrl->len_to_oe_boundary - bio_size, size);
 
 	/*
 	 * If real_size is 0, never call bio_add_*_page(), as even size is 0,
@@ -1321,82 +943,45 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	if (real_size == 0)
 		return 0;
 
-	if (bio_op(bio) == REQ_OP_ZONE_APPEND)
-		ret = bio_add_zone_append_page(bio, page, real_size, pg_offset);
-	else
-		ret = bio_add_page(bio, page, real_size, pg_offset);
-
-	return ret;
+	return bio_add_page(bio, page, real_size, pg_offset);
 }
 
-static int calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
-			       struct btrfs_inode *inode, u64 file_offset)
+static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
+				struct btrfs_inode *inode, u64 file_offset)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_io_geometry geom;
 	struct btrfs_ordered_extent *ordered;
-	struct extent_map *em;
-	u64 logical = (bio_ctrl->bio->bi_iter.bi_sector << SECTOR_SHIFT);
-	int ret;
 
 	/*
-	 * Pages for compressed extent are never submitted to disk directly,
-	 * thus it has no real boundary, just set them to U32_MAX.
-	 *
-	 * The split happens for real compressed bio, which happens in
-	 * btrfs_submit_compressed_read/write().
+	 * Limit the extent to the ordered boundary for Zone Append.
+	 * Compressed bios aren't submitted directly, so it doesn't apply to
+	 * them.
 	 */
-	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE) {
-		bio_ctrl->len_to_oe_boundary = U32_MAX;
-		bio_ctrl->len_to_stripe_boundary = U32_MAX;
-		return 0;
-	}
-	em = btrfs_get_chunk_map(fs_info, logical, fs_info->sectorsize);
-	if (IS_ERR(em))
-		return PTR_ERR(em);
-	ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(bio_ctrl->bio),
-				    logical, &geom);
-	free_extent_map(em);
-	if (ret < 0) {
-		return ret;
-	}
-	if (geom.len > U32_MAX)
-		bio_ctrl->len_to_stripe_boundary = U32_MAX;
-	else
-		bio_ctrl->len_to_stripe_boundary = (u32)geom.len;
-
-	if (bio_op(bio_ctrl->bio) != REQ_OP_ZONE_APPEND) {
-		bio_ctrl->len_to_oe_boundary = U32_MAX;
-		return 0;
+	if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE &&
+	    btrfs_use_zone_append(btrfs_bio(bio_ctrl->bio))) {
+		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
+		if (ordered) {
+			bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
+					ordered->file_offset +
+					ordered->disk_num_bytes - file_offset);
+			btrfs_put_ordered_extent(ordered);
+			return;
+		}
 	}
 
-	/* Ordered extent not yet created, so we're good */
-	ordered = btrfs_lookup_ordered_extent(inode, file_offset);
-	if (!ordered) {
-		bio_ctrl->len_to_oe_boundary = U32_MAX;
-		return 0;
-	}
-
-	bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
-		ordered->disk_bytenr + ordered->disk_num_bytes - logical);
-	btrfs_put_ordered_extent(ordered);
-	return 0;
+	bio_ctrl->len_to_oe_boundary = U32_MAX;
 }
 
-static int alloc_new_bio(struct btrfs_inode *inode,
-			 struct btrfs_bio_ctrl *bio_ctrl,
-			 struct writeback_control *wbc,
-			 blk_opf_t opf,
-			 u64 disk_bytenr, u32 offset, u64 file_offset,
-			 enum btrfs_compression_type compress_type)
+static void alloc_new_bio(struct btrfs_inode *inode,
+			  struct btrfs_bio_ctrl *bio_ctrl,
+			  struct writeback_control *wbc, blk_opf_t opf,
+			  u64 disk_bytenr, u32 offset, u64 file_offset,
+			  enum btrfs_compression_type compress_type)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *bio;
-	int ret;
 
-	ASSERT(bio_ctrl->end_io_func);
-
-	bio = btrfs_bio_alloc(BIO_MAX_VECS, opf, bio_ctrl->end_io_func, NULL);
+	bio = btrfs_bio_alloc(BIO_MAX_VECS, opf, inode, bio_ctrl->end_io_func,
+			      NULL);
 	/*
 	 * For compressed page range, its disk_bytenr is always @disk_bytenr
 	 * passed in, no matter if we have added any range into previous bio.
@@ -1405,48 +990,21 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 		bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	else
 		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
+	btrfs_bio(bio)->file_offset = file_offset;
 	bio_ctrl->bio = bio;
 	bio_ctrl->compress_type = compress_type;
-	ret = calc_bio_boundaries(bio_ctrl, inode, file_offset);
-	if (ret < 0)
-		goto error;
+	calc_bio_boundaries(bio_ctrl, inode, file_offset);
 
 	if (wbc) {
 		/*
-		 * For Zone append we need the correct block_device that we are
-		 * going to write to set in the bio to be able to respect the
-		 * hardware limitation.  Look it up here:
+		 * Pick the last added device to support cgroup writeback.  For
+		 * multi-device file systems this means blk-cgroup policies have
+		 * to always be set on the last added/replaced device.
+		 * This is a bit odd but has been like that for a long time.
 		 */
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-			struct btrfs_device *dev;
-
-			dev = btrfs_zoned_get_device(fs_info, disk_bytenr,
-						     fs_info->sectorsize);
-			if (IS_ERR(dev)) {
-				ret = PTR_ERR(dev);
-				goto error;
-			}
-
-			bio_set_dev(bio, dev->bdev);
-		} else {
-			/*
-			 * Otherwise pick the last added device to support
-			 * cgroup writeback.  For multi-device file systems this
-			 * means blk-cgroup policies have to always be set on the
-			 * last added/replaced device.  This is a bit odd but has
-			 * been like that for a long time.
-			 */
-			bio_set_dev(bio, fs_info->fs_devices->latest_dev->bdev);
-		}
+		bio_set_dev(bio, fs_info->fs_devices->latest_dev->bdev);
 		wbc_init_bio(wbc, bio);
-	} else {
-		ASSERT(bio_op(bio) != REQ_OP_ZONE_APPEND);
 	}
-	return 0;
-error:
-	bio_ctrl->bio = NULL;
-	btrfs_bio_end_io(btrfs_bio(bio), errno_to_blk_status(ret));
-	return ret;
 }
 
 /*
@@ -1472,7 +1030,6 @@ static int submit_extent_page(blk_opf_t opf,
 			      enum btrfs_compression_type compress_type,
 			      bool force_bio_submit)
 {
-	int ret = 0;
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
 	unsigned int cur = pg_offset;
 
@@ -1492,12 +1049,9 @@ static int submit_extent_page(blk_opf_t opf,
 
 		/* Allocate new bio if needed */
 		if (!bio_ctrl->bio) {
-			ret = alloc_new_bio(inode, bio_ctrl, wbc, opf,
-					    disk_bytenr, offset,
-					    page_offset(page) + cur,
-					    compress_type);
-			if (ret < 0)
-				return ret;
+			alloc_new_bio(inode, bio_ctrl, wbc, opf, disk_bytenr,
+				      offset, page_offset(page) + cur,
+				      compress_type);
 		}
 		/*
 		 * We must go through btrfs_bio_add_page() to ensure each
@@ -2054,10 +1608,6 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		 * find_next_dirty_byte() are all exclusive
 		 */
 		iosize = min(min(em_end, end + 1), dirty_range_end) - cur;
-
-		if (btrfs_use_zone_append(inode, em->block_start))
-			op = REQ_OP_ZONE_APPEND;
-
 		free_extent_map(em);
 		em = NULL;
 
@@ -2359,13 +1909,6 @@ static void set_btree_ioerr(struct page *page, struct extent_buffer *eb)
 	 * the superblock.
 	 */
 	mapping_set_error(page->mapping, -EIO);
-
-	/*
-	 * If we error out, we should add back the dirty_metadata_bytes
-	 * to make it consistent.
-	 */
-	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes,
-				 eb->len, fs_info->dirty_metadata_batch);
 
 	/*
 	 * If writeback for a btree extent that doesn't belong to a log tree
@@ -4724,11 +4267,24 @@ static void clear_subpage_extent_buffer_dirty(const struct extent_buffer *eb)
 	WARN_ON(atomic_read(&eb->refs) == 0);
 }
 
-void clear_extent_buffer_dirty(const struct extent_buffer *eb)
+void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
+			      struct extent_buffer *eb)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	int i;
 	int num_pages;
 	struct page *page;
+
+	btrfs_assert_tree_write_locked(eb);
+
+	if (trans && btrfs_header_generation(eb) != trans->transid)
+		return;
+
+	if (!test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags))
+		return;
+
+	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes, -eb->len,
+				 fs_info->dirty_metadata_batch);
 
 	if (eb->fs_info->nodesize < PAGE_SIZE)
 		return clear_subpage_extent_buffer_dirty(eb);

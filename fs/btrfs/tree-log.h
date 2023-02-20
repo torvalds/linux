@@ -13,8 +13,13 @@
 /* return value for btrfs_log_dentry_safe that means we don't need to log it at all */
 #define BTRFS_NO_LOG_SYNC 256
 
-/* We can't use the tree log for whatever reason, force a transaction commit */
-#define BTRFS_LOG_FORCE_COMMIT				(1)
+/*
+ * We can't use the tree log for whatever reason, force a transaction commit.
+ * We use a negative value because there are functions through the logging code
+ * that need to return an error (< 0 value), false (0) or true (1). Any negative
+ * value will do, as it will cause the log to be marked for a full sync.
+ */
+#define BTRFS_LOG_FORCE_COMMIT				(-(MAX_ERRNO + 1))
 
 struct btrfs_log_ctx {
 	int log_ret;
