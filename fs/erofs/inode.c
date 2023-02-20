@@ -14,7 +14,7 @@ static void *erofs_read_inode(struct erofs_buf *buf,
 	struct super_block *sb = inode->i_sb;
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	struct erofs_inode *vi = EROFS_I(inode);
-	const erofs_off_t inode_loc = iloc(sbi, vi->nid);
+	const erofs_off_t inode_loc = erofs_iloc(inode);
 
 	erofs_blk_t blkaddr, nblks = 0;
 	void *kaddr;
@@ -308,47 +308,49 @@ out_unlock:
 }
 
 /*
- * erofs nid is 64bits, but i_ino is 'unsigned long', therefore
- * we should do more for 32-bit platform to find the right inode.
+ * ino_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
+ * so that it will fit.
  */
-static int erofs_ilookup_test_actor(struct inode *inode, void *opaque)
+static ino_t erofs_squash_ino(erofs_nid_t nid)
 {
-	const erofs_nid_t nid = *(erofs_nid_t *)opaque;
+	ino_t ino = (ino_t)nid;
 
-	return EROFS_I(inode)->nid == nid;
+	if (sizeof(ino_t) < sizeof(erofs_nid_t))
+		ino ^= nid >> (sizeof(erofs_nid_t) - sizeof(ino_t)) * 8;
+	return ino;
 }
 
-static int erofs_iget_set_actor(struct inode *inode, void *opaque)
+static int erofs_iget5_eq(struct inode *inode, void *opaque)
+{
+	return EROFS_I(inode)->nid == *(erofs_nid_t *)opaque;
+}
+
+static int erofs_iget5_set(struct inode *inode, void *opaque)
 {
 	const erofs_nid_t nid = *(erofs_nid_t *)opaque;
 
-	inode->i_ino = erofs_inode_hash(nid);
+	inode->i_ino = erofs_squash_ino(nid);
+	EROFS_I(inode)->nid = nid;
 	return 0;
 }
 
 struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid)
 {
-	const unsigned long hashval = erofs_inode_hash(nid);
 	struct inode *inode;
 
-	inode = iget5_locked(sb, hashval, erofs_ilookup_test_actor,
-		erofs_iget_set_actor, &nid);
+	inode = iget5_locked(sb, erofs_squash_ino(nid), erofs_iget5_eq,
+			     erofs_iget5_set, &nid);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
 	if (inode->i_state & I_NEW) {
-		int err;
-		struct erofs_inode *vi = EROFS_I(inode);
+		int err = erofs_fill_inode(inode);
 
-		vi->nid = nid;
-
-		err = erofs_fill_inode(inode);
-		if (!err) {
-			unlock_new_inode(inode);
-		} else {
+		if (err) {
 			iget_failed(inode);
-			inode = ERR_PTR(err);
+			return ERR_PTR(err);
 		}
+		unlock_new_inode(inode);
 	}
 	return inode;
 }
