@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Shared Heap for external processors
+#
+config MEM_SHARE_QMI_SERVICE
+	tristate "Shared Heap for external processors"
+	select QCOM_QMI_HELPERS
+	help
+		Memory Share Kernel QTI Messaging Interface Service
+		receives requests from Modem Processor Sub System
+		for heap alloc/free from Application Processor
+		Sub System and send a response back to client with
+		proper handle/address.
