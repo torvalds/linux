@@ -1422,6 +1422,7 @@ static void rtw8852b_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89
 {
 	bool cck_en = chan->channel <= 14;
 	u8 pri_ch_idx = chan->pri_ch_idx;
+	u8 band = chan->band_type, chan_idx;
 
 	if (cck_en)
 		rtw8852b_ctrl_sco_cck(rtwdev,  chan->primary_channel);
@@ -1444,8 +1445,8 @@ static void rtw8852b_set_channel_bb(struct rtw89_dev *rtwdev, const struct rtw89
 				       B_BT_DYN_DC_EST_EN_MSK, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_GNT_BT_WGT_EN, B_GNT_BT_WGT_EN, 0x0);
 	}
-	rtw89_phy_write32_mask(rtwdev, R_MAC_PIN_SEL, B_CH_IDX_SEG0,
-			       chan->primary_channel);
+	chan_idx = rtw89_encode_chan_idx(rtwdev, chan->primary_channel, band);
+	rtw89_phy_write32_mask(rtwdev, R_MAC_PIN_SEL, B_CH_IDX_SEG0, chan_idx);
 	rtw8852b_5m_mask(rtwdev, chan, phy_idx);
 	rtw8852b_bb_set_pop(rtwdev);
 	rtw8852b_bb_reset_all(rtwdev, phy_idx);
@@ -2299,13 +2300,14 @@ static void rtw8852b_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
 					 struct ieee80211_rx_status *status)
 {
 	u16 chan = phy_ppdu->chan_idx;
-	u8 band;
+	enum nl80211_band band;
+	u8 ch;
 
 	if (chan == 0)
 		return;
 
-	band = chan <= 14 ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
-	status->freq = ieee80211_channel_to_frequency(chan, band);
+	rtw89_decode_chan_idx(rtwdev, chan, &ch, &band);
+	status->freq = ieee80211_channel_to_frequency(ch, band);
 	status->band = band;
 }
 
