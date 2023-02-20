@@ -100,7 +100,7 @@
 #![cfg_attr(not(no_global_oom_handling), feature(const_alloc_error))]
 #![feature(const_box)]
 #![cfg_attr(not(no_global_oom_handling), feature(const_btree_new))]
-#![feature(const_cow_is_borrowed)]
+#![cfg_attr(not(no_borrow), feature(const_cow_is_borrowed))]
 #![feature(const_convert)]
 #![feature(const_size_of_val)]
 #![feature(const_align_of_val)]
@@ -215,6 +215,7 @@ pub mod boxed;
 mod boxed {
     pub use std::boxed::Box;
 }
+#[cfg(not(no_borrow))]
 pub mod borrow;
 pub mod collections;
 #[cfg(not(no_global_oom_handling))]
