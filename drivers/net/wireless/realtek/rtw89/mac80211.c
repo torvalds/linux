@@ -676,7 +676,7 @@ static void rtw89_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	rtw89_leave_lps(rtwdev);
 	rtw89_hci_flush_queues(rtwdev, queues, drop);
 
-	if (drop && RTW89_CHK_FW_FEATURE(PACKET_DROP, &rtwdev->fw))
+	if (drop && !RTW89_CHK_FW_FEATURE(NO_PACKET_DROP, &rtwdev->fw))
 		__rtw89_drop_packets(rtwdev, vif);
 	else
 		rtw89_mac_flush_txq(rtwdev, queues, drop);
