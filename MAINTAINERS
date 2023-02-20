@@ -16529,6 +16529,14 @@ S:	Supported
 F:	drivers/gpio/gpio-sama5d2-piobu.c
 F:	drivers/pinctrl/pinctrl-at91*
 
+PIN CONTROLLER - NXP S32
+M:	Chester Lin <clin@suse.com>
+R:	NXP S32 Linux Team <s32@nxp.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pinctrl/nxp,s32*
+F:	drivers/pinctrl/nxp/
+
 PIN CONTROLLER - QUALCOMM
 M:	Bjorn Andersson <andersson@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
