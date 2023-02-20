@@ -99,7 +99,7 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 				oldest = buffer;
 			}
 		}
-		if (oldest && kref_read(&oldest->ref) <= 1)
+		if (oldest && kref_read(&oldest->ref) == 1)
 			kref_put(&oldest->ref, mpp_dma_release_buffer);
 		mutex_unlock(&dma->list_mutex);
 	}
@@ -191,7 +191,8 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	}
 
 	/* remove the oldest before add buffer */
-	mpp_dma_remove_extra_buffer(dma);
+	if (!IS_ENABLED(CONFIG_DMABUF_CACHE))
+		mpp_dma_remove_extra_buffer(dma);
 
 	/* Check whether in dma session */
 	buffer = mpp_dma_find_buffer_fd(dma, fd);
