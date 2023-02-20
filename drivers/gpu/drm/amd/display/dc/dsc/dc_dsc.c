@@ -355,7 +355,7 @@ bool dc_dsc_compute_bandwidth_range(
 
 	options.dsc_min_slice_height_override = dsc_min_slice_height_override;
 	options.max_target_bpp_limit_override_x16 = max_bpp_x16;
-	options.slight_height_granularity = 1;
+	options.slice_height_granularity = 1;
 
 	get_dsc_enc_caps(dsc, &dsc_enc_caps, timing->pix_clk_100hz);
 
@@ -918,7 +918,7 @@ static bool setup_dsc_config(
 		slice_height = min((int)(options->dsc_min_slice_height_override), pic_height);
 
 	while (slice_height < pic_height && (pic_height % slice_height != 0 ||
-		slice_height % options->slight_height_granularity != 0 ||
+		slice_height % options->slice_height_granularity != 0 ||
 		(timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 && slice_height % 2 != 0)))
 		slice_height++;
 
@@ -1111,5 +1111,5 @@ void dc_dsc_get_default_config_option(const struct dc *dc, struct dc_dsc_config_
 {
 	options->dsc_min_slice_height_override = dc->debug.dsc_min_slice_height_override;
 	options->max_target_bpp_limit_override_x16 = 0;
-	options->slight_height_granularity = 1;
+	options->slice_height_granularity = 1;
 }

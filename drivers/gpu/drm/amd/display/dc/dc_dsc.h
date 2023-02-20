@@ -57,7 +57,7 @@ struct dc_dsc_policy {
 struct dc_dsc_config_options {
 	uint32_t dsc_min_slice_height_override;
 	uint32_t max_target_bpp_limit_override_x16;
-	uint32_t slight_height_granularity;
+	uint32_t slice_height_granularity;
 };
 
 bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
