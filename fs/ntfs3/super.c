@@ -1347,10 +1347,19 @@ load_root:
 	ref.low = cpu_to_le32(MFT_REC_ROOT);
 	ref.seq = cpu_to_le16(MFT_REC_ROOT);
 	inode = ntfs_iget5(sb, &ref, &NAME_ROOT);
-	if (IS_ERR(inode) || !inode->i_op) {
+	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		ntfs_err(sb, "Failed to load root (%d).", err);
 		goto out;
+	}
+
+	/*
+	 * Final check. Looks like this case should never occurs.
+	 */
+	if (!inode->i_op) {
+		err = -EINVAL;
+		ntfs_err(sb, "Failed to load root (%d).", err);
+		goto put_inode_out;
 	}
 
 	sb->s_root = d_make_root(inode);
