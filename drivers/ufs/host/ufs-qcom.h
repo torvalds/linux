@@ -476,6 +476,18 @@ struct ufs_qcom_regs {
 	size_t len;
 };
 
+/**
+ * struct cpu_freq_info - keep CPUs frequency info
+ * @cpu: the cpu to bump up when requests on perf core exceeds the threshold
+ * @min_cpu_scale_freq: the minimal frequency of the cpu
+ * @max_cpu_scale_freq: the maximal frequency of the cpu
+ */
+struct cpu_freq_info {
+	u32 cpu;
+	unsigned int min_cpu_scale_freq;
+	unsigned int max_cpu_scale_freq;
+};
+
 struct ufs_qcom_host {
 	/*
 	 * Set this capability if host controller supports the QUniPro mode
@@ -577,9 +589,9 @@ struct ufs_qcom_host {
 	bool cur_freq_vote;
 	struct delayed_work fwork;
 	bool cpufreq_dis;
-	unsigned int min_cpu_scale_freq;
-	unsigned int max_cpu_scale_freq;
-	int config_cpu;
+	struct cpu_freq_info *cpu_info;
+	/* number of CPUs to bump up */
+	int num_cpus;
 	void *ufs_ipc_log_ctx;
 	bool dbg_en;
 	struct device_node *np;
