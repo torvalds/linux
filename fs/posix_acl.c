@@ -175,7 +175,7 @@ static struct posix_acl *__get_acl(struct mnt_idmap *idmap,
 	 * Cache the result, but only if our sentinel is still in place.
 	 */
 	posix_acl_dup(acl);
-	if (unlikely(cmpxchg(p, sentinel, acl) != sentinel))
+	if (unlikely(!try_cmpxchg(p, &sentinel, acl)))
 		posix_acl_release(acl);
 	return acl;
 }
