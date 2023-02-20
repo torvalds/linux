@@ -923,17 +923,13 @@ static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const ch
 
 	p = ep->filter_str;
 	for (i = 0; i < argc; i++) {
-		ret = snprintf(p, len, "%s ", argv[i]);
-		if (ret < 0)
-			goto error;
-		if (ret > len) {
-			ret = -E2BIG;
-			goto error;
-		}
+		if (i)
+			ret = snprintf(p, len, " %s", argv[i]);
+		else
+			ret = snprintf(p, len, "%s", argv[i]);
 		p += ret;
 		len -= ret;
 	}
-	p[-1] = '\0';
 
 	/*
 	 * Ensure the filter string can be parsed correctly. Note, this
