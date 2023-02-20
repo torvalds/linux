@@ -307,9 +307,14 @@ static int hantro_vp9_s_ctrl(struct v4l2_ctrl *ctrl)
 			   struct hantro_ctx, ctrl_handler);
 
 	switch (ctrl->id) {
-	case V4L2_CID_STATELESS_VP9_FRAME:
-		ctx->bit_depth = ctrl->p_new.p_vp9_frame->bit_depth;
-		break;
+	case V4L2_CID_STATELESS_VP9_FRAME: {
+		int bit_depth = ctrl->p_new.p_vp9_frame->bit_depth;
+
+		if (ctx->bit_depth == bit_depth)
+			return 0;
+
+		return hantro_reset_raw_fmt(ctx, bit_depth);
+	}
 	default:
 		return -EINVAL;
 	}
