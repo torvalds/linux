@@ -424,14 +424,11 @@
 		};
 	};
 
-	gt9xx: gt9xx@14 {
-		compatible = "goodix,gt9xx";
+	touchscreen@14 {
+		compatible = "goodix,gt911";
 		reg = <0x14>;
-		touch-gpio = <&gpio 30 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpio = <&gpio 31 GPIO_ACTIVE_HIGH>;
-		max-x = <800>;
-		max-y = <1280>;
-		tp-size = <9112>;
+		irq-gpios = <&gpio 30 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>;
 	};
 };
 

@@ -400,19 +400,6 @@ config TOUCHSCREEN_GOODIX
 	  To compile this driver as a module, choose M here: the
 	  module will be called goodix.
 
-config TOUCHSCREEN_GT9XX
-	tristate "Goodix touch screen gt9xx support for rockchip based platform"
-	depends on I2C
-	help
-	  Say Y here if you have a touchscreen interface using the
-	  two goodix gt9xx, and your board-specific initialization
-	  code includes that in its table of IIC devices.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gt9xx.
-
 config TOUCHSCREEN_HIDEEP
 	tristate "HiDeep Touch IC"
 	depends on I2C

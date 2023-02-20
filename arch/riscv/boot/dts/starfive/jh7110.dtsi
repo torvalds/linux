@@ -10,8 +10,8 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
 #include <dt-bindings/clock/starfive-jh7110-isp.h>
-#include <dt-bindings/power/jh7110-power.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/power/jh7110-power.h>
 
 / {
 	compatible = "starfive,jh7110";
