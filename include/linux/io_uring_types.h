@@ -195,21 +195,23 @@ struct io_alloc_cache {
 struct io_ring_ctx {
 	/* const or read-mostly hot data */
 	struct {
-		struct percpu_ref	refs;
-
-		struct io_rings		*rings;
 		unsigned int		flags;
-		enum task_work_notify_mode	notify_method;
-		unsigned int		compat: 1;
 		unsigned int		drain_next: 1;
 		unsigned int		restricted: 1;
 		unsigned int		off_timeout_used: 1;
 		unsigned int		drain_active: 1;
-		unsigned int		drain_disabled: 1;
 		unsigned int		has_evfd: 1;
-		unsigned int		syscall_iopoll: 1;
 		/* all CQEs should be posted only by the submitter task */
 		unsigned int		task_complete: 1;
+		unsigned int		syscall_iopoll: 1;
+		unsigned int		poll_activated: 1;
+		unsigned int		drain_disabled: 1;
+		unsigned int		compat: 1;
+
+		enum task_work_notify_mode	notify_method;
+		struct io_rings			*rings;
+		struct task_struct		*submitter_task;
+		struct percpu_ref		refs;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -293,6 +295,7 @@ struct io_ring_ctx {
 		spinlock_t		completion_lock;
 
 		bool			poll_multi_queue;
+		bool			cq_waiting;
 
 		/*
 		 * ->iopoll_list is protected by the ctx->uring_lock for
@@ -318,9 +321,8 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	/* Keep this last, we don't need it for the fast path */
-
+	struct wait_queue_head		poll_wq;
 	struct io_restriction		restrictions;
-	struct task_struct		*submitter_task;
 
 	/* slow path rsrc auxilary data, used by update/register */
 	struct io_rsrc_node		*rsrc_backup_node;
@@ -357,6 +359,7 @@ struct io_ring_ctx {
 	u32				iowq_limits[2];
 	bool				iowq_limits_set;
 
+	struct callback_head		poll_wq_task_work;
 	struct list_head		defer_list;
 	unsigned			sq_thread_idle;
 	/* protected by ->completion_lock */

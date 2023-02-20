@@ -68,9 +68,8 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	struct io_kiocb *notif;
 	struct io_notif_data *nd;
 
-	if (unlikely(!io_alloc_req_refill(ctx)))
+	if (unlikely(!io_alloc_req(ctx, &notif)))
 		return NULL;
-	notif = io_alloc_req(ctx);
 	notif->opcode = IORING_OP_NOP;
 	notif->flags = 0;
 	notif->file = NULL;

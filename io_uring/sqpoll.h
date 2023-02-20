@@ -26,4 +26,4 @@ void io_sq_thread_stop(struct io_sq_data *sqd);
 void io_sq_thread_park(struct io_sq_data *sqd);
 void io_sq_thread_unpark(struct io_sq_data *sqd);
 void io_put_sq_data(struct io_sq_data *sqd);
-int io_sqpoll_wait_sq(struct io_ring_ctx *ctx);
+void io_sqpoll_wait_sq(struct io_ring_ctx *ctx);

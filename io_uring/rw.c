@@ -410,7 +410,7 @@ static inline int io_import_iovec(int rw, struct io_kiocb *req,
 				  unsigned int issue_flags)
 {
 	*iovec = __io_import_iovec(rw, req, s, issue_flags);
-	if (unlikely(IS_ERR(*iovec)))
+	if (IS_ERR(*iovec))
 		return PTR_ERR(*iovec);
 
 	iov_iter_save_state(&s->iter, &s->iter_state);
@@ -516,7 +516,7 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     struct io_rw_state *s, bool force)
 {
-	if (!force && !io_op_defs[req->opcode].prep_async)
+	if (!force && !io_cold_defs[req->opcode].prep_async)
 		return 0;
 	if (!req_has_async_data(req)) {
 		struct io_async_rw *iorw;

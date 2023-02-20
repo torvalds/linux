@@ -347,6 +347,8 @@ enum {
  *				applicable for IORING_MSG_DATA, obviously.
  */
 #define IORING_MSG_RING_CQE_SKIP	(1U << 0)
+/* Pass through the flags from sqe->file_index to cqe->flags */
+#define IORING_MSG_RING_FLAGS_PASS	(1U << 1)
 
 /*
  * IO completion data structure (Completion Queue Entry)
@@ -470,6 +472,7 @@ struct io_uring_params {
 #define IORING_FEAT_RSRC_TAGS		(1U << 10)
 #define IORING_FEAT_CQE_SKIP		(1U << 11)
 #define IORING_FEAT_LINKED_FILE		(1U << 12)
+#define IORING_FEAT_REG_REG_RING	(1U << 13)
 
 /*
  * io_uring_register(2) opcodes and arguments
@@ -517,7 +520,10 @@ enum {
 	IORING_REGISTER_FILE_ALLOC_RANGE	= 25,
 
 	/* this goes last */
-	IORING_REGISTER_LAST
+	IORING_REGISTER_LAST,
+
+	/* flag added to the opcode to use a registered ring fd */
+	IORING_REGISTER_USE_REGISTERED_RING	= 1U << 31
 };
 
 /* io-wq worker categories */
