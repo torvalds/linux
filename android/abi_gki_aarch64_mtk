@@ -34,6 +34,7 @@
   __arch_copy_to_user
   arch_timer_read_counter
   arm64_const_caps_ready
+  arm64_noalias_setup_dma_ops
   arm64_use_ng_mappings
   __arm_smccc_hvc
   __arm_smccc_smc
