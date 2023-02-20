@@ -461,6 +461,7 @@ void ip_vs_stats_free(struct ip_vs_stats *stats);
 
 /* Multiple chains processed in same tick */
 struct ip_vs_est_tick_data {
+	struct rcu_head		rcu_head;
 	struct hlist_head	chains[IPVS_EST_TICK_CHAINS];
 	DECLARE_BITMAP(present, IPVS_EST_TICK_CHAINS);
 	DECLARE_BITMAP(full, IPVS_EST_TICK_CHAINS);
