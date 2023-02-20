@@ -381,6 +381,34 @@ const struct x86_dev_info nextbook_ares8_info __initconst = {
 };
 
 /*
+ * Peaq C1010
+ * This is a standard Windows tablet, but it has a special Dolby button.
+ * This button has a WMI interface, but that is broken. Instead of trying to
+ * use the broken WMI interface, instantiate a gpio_keys device for this.
+ */
+static struct x86_gpio_button peaq_c1010_button = {
+	.button = {
+		.code = KEY_SOUND,
+		.active_low = true,
+		.desc = "dolby_key",
+		.type = EV_KEY,
+		.wakeup = false,
+		.debounce_interval = 50,
+	},
+	.chip = "INT33FC:00",
+	.pin = 3,
+};
+
+const struct x86_dev_info peaq_c1010_info __initconst = {
+	.gpio_button = &peaq_c1010_button,
+	/*
+	 * Move the ACPI event handler used by the broken WMI interface out of
+	 * the way. This is the only event handler on INT33FC:00.
+	 */
+	.invalid_aei_gpiochip = "INT33FC:00",
+};
+
+/*
  * Whitelabel (sold as various brands) TM800A550L tablets.
  * These tablet's DSDT contains a whole bunch of bogus ACPI I2C devices
  * (removed through acpi_quirk_skip_i2c_client_enumeration()) and
