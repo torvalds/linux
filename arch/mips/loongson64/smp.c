@@ -27,11 +27,11 @@ DEFINE_PER_CPU(int, cpu_state);
 
 #define LS_IPI_IRQ (MIPS_CPU_IRQ_BASE + 6)
 
-static void *ipi_set0_regs[16];
-static void *ipi_clear0_regs[16];
-static void *ipi_status0_regs[16];
-static void *ipi_en0_regs[16];
-static void *ipi_mailbox_buf[16];
+static void __iomem *ipi_set0_regs[16];
+static void __iomem *ipi_clear0_regs[16];
+static void __iomem *ipi_status0_regs[16];
+static void __iomem *ipi_en0_regs[16];
+static void __iomem *ipi_mailbox_buf[16];
 static uint32_t core0_c0count[NR_CPUS];
 
 /* read a 32bit value from ipi register */
