@@ -6369,6 +6369,16 @@
 			in situations with strict latency requirements (where
 			interruptions from clocksource watchdog are not
 			acceptable).
+			[x86] recalibrate: force recalibration against a HW timer
+			(HPET or PM timer) on systems whose TSC frequency was
+			obtained from HW or FW using either an MSR or CPUID(0x15).
+			Warn if the difference is more than 500 ppm.
+			[x86] watchdog: Use TSC as the watchdog clocksource with
+			which to check other HW timers (HPET or PM timer), but
+			only on systems where TSC has been deemed trustworthy.
+			This will be suppressed by an earlier tsc=nowatchdog and
+			can be overridden by a later tsc=nowatchdog.  A console
+			message will flag any such suppression or overriding.
 
 	tsc_early_khz=  [X86] Skip early TSC calibration and use the given
 			value instead. Useful when the early TSC frequency discovery
