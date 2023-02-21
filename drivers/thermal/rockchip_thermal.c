@@ -2549,7 +2549,17 @@ static struct platform_driver rockchip_thermal_driver = {
 	.shutdown = rockchip_thermal_shutdown,
 };
 
-module_platform_driver(rockchip_thermal_driver);
+static int __init rockchip_thermal_driver_init(void)
+{
+	return platform_driver_register(&rockchip_thermal_driver);
+}
+rootfs_initcall(rockchip_thermal_driver_init);
+
+static void __exit rockchip_thermal_driver_exit(void)
+{
+	platform_driver_unregister(&rockchip_thermal_driver);
+}
+module_exit(rockchip_thermal_driver_exit);
 
 MODULE_DESCRIPTION("ROCKCHIP THERMAL Driver");
 MODULE_AUTHOR("Rockchip, Inc.");
