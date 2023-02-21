@@ -330,7 +330,6 @@ struct atomisp_sub_device {
 	unsigned int mipi_frame_size;
 
 	bool copy_mode; /* CSI2+ use copy mode */
-	bool yuvpp_mode;	/* CSI2+ yuvpp pipe */
 
 	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID / 32 +
 						 1]; /* Record each Raw Buffer lock status */

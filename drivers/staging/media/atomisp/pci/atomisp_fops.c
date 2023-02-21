@@ -399,15 +399,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 		css_video_pipe_id = IA_CSS_PIPE_ID_COPY;
 	}
 
-	if (asd->yuvpp_mode) {
-		capture_pipe = &asd->video_out_capture;
-		video_pipe   = &asd->video_out_video_capture;
-		preview_pipe = &asd->video_out_preview;
-		css_capture_pipe_id = IA_CSS_PIPE_ID_COPY;
-		css_video_pipe_id   = IA_CSS_PIPE_ID_YUVPP;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_YUVPP;
-	}
-
 	if (capture_pipe) {
 		buf_type = atomisp_get_css_buf_type(
 			       asd, css_capture_pipe_id,
@@ -583,7 +574,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 
 	asd->mipi_frame_size = 0;
 	asd->copy_mode = false;
-	asd->yuvpp_mode = false;
 
 	asd->stream_prepared = false;
 	asd->high_speed_mode = false;

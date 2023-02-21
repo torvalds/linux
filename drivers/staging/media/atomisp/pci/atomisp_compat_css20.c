@@ -2445,8 +2445,6 @@ static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
 
 	switch (source_pad) {
 	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO:
-		if (asd->yuvpp_mode)
-			return IA_CSS_PIPE_ID_YUVPP;
 		if (asd->copy_mode)
 			return IA_CSS_PIPE_ID_COPY;
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO
@@ -2465,8 +2463,6 @@ static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
 		}
 		fallthrough;
 	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW:
-		if (asd->yuvpp_mode)
-			return IA_CSS_PIPE_ID_YUVPP;
 		if (asd->copy_mode)
 			return IA_CSS_PIPE_ID_COPY;
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)

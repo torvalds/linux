@@ -4813,7 +4813,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	atomisp_csi_lane_config(isp);
 
 	atomisp_check_copy_mode(asd, source_pad, &backup_fmt);
-	asd->yuvpp_mode = false;			/* Reset variable */
 
 	isp_sink_crop = *atomisp_subdev_get_rect(&asd->subdev, NULL,
 			V4L2_SUBDEV_FORMAT_ACTIVE,
