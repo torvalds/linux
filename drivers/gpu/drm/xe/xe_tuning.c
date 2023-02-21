@@ -24,7 +24,7 @@ static const struct xe_rtp_entry gt_tunings[] = {
 	{}
 };
 
-static const struct xe_rtp_entry context_tunings[] = {
+static const struct xe_rtp_entry lrc_tunings[] = {
 	{ XE_RTP_NAME("1604555607"),
 	  XE_RTP_RULES(GRAPHICS_VERSION(1200)),
 	  XE_RTP_ACTIONS(FIELD_SET_NO_READ_MASK(XEHP_FF_MODE2,
@@ -37,4 +37,17 @@ static const struct xe_rtp_entry context_tunings[] = {
 void xe_tuning_process_gt(struct xe_gt *gt)
 {
 	xe_rtp_process(gt_tunings, &gt->reg_sr, gt, NULL);
+}
+
+/**
+ * xe_tuning_process_lrc - process lrc tunings
+ * @hwe: engine instance to process tunings for
+ *
+ * Process LRC table for this platform, saving in @hwe all the tunings that need
+ * to be applied on context restore. These are tunings touching registers that
+ * are part of the HW context image.
+ */
+void xe_tuning_process_lrc(struct xe_hw_engine *hwe)
+{
+	xe_rtp_process(lrc_tunings, &hwe->reg_lrc, hwe->gt, hwe);
 }

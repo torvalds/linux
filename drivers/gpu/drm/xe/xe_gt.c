@@ -320,6 +320,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 
 		xe_reg_sr_init(&hwe->reg_lrc, "LRC", xe);
 		xe_wa_process_lrc(hwe);
+		xe_tuning_process_lrc(hwe);
 
 		default_lrc = drmm_kzalloc(&xe->drm,
 					   xe_lrc_size(xe, hwe->class),
