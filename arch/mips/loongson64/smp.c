@@ -34,23 +34,6 @@ static void __iomem *ipi_en0_regs[16];
 static void __iomem *ipi_mailbox_buf[16];
 static uint32_t core0_c0count[NR_CPUS];
 
-/* read a 32bit value from ipi register */
-#define loongson3_ipi_read32(addr) readl(addr)
-/* read a 64bit value from ipi register */
-#define loongson3_ipi_read64(addr) readq(addr)
-/* write a 32bit value to ipi register */
-#define loongson3_ipi_write32(action, addr)	\
-	do {					\
-		writel(action, addr);		\
-		nudge_writes();			\
-	} while (0)
-/* write a 64bit value to ipi register */
-#define loongson3_ipi_write64(action, addr)	\
-	do {					\
-		writeq(action, addr);		\
-		nudge_writes();			\
-	} while (0)
-
 static u32 (*ipi_read_clear)(int cpu);
 static void (*ipi_write_action)(int cpu, u32 action);
 static void (*ipi_write_enable)(int cpu);
@@ -136,26 +119,28 @@ static u32 legacy_ipi_read_clear(int cpu)
 	u32 action;
 
 	/* Load the ipi register to figure out what we're supposed to do */
-	action = loongson3_ipi_read32(ipi_status0_regs[cpu_logical_map(cpu)]);
+	action = readl_relaxed(ipi_status0_regs[cpu_logical_map(cpu)]);
 	/* Clear the ipi register to clear the interrupt */
-	loongson3_ipi_write32(action, ipi_clear0_regs[cpu_logical_map(cpu)]);
+	writel_relaxed(action, ipi_clear0_regs[cpu_logical_map(cpu)]);
+	nudge_writes();
 
 	return action;
 }
 
 static void legacy_ipi_write_action(int cpu, u32 action)
 {
-	loongson3_ipi_write32((u32)action, ipi_set0_regs[cpu]);
+	writel_relaxed((u32)action, ipi_set0_regs[cpu]);
+	nudge_writes();
 }
 
 static void legacy_ipi_write_enable(int cpu)
 {
-	loongson3_ipi_write32(0xffffffff, ipi_en0_regs[cpu_logical_map(cpu)]);
+	writel_relaxed(0xffffffff, ipi_en0_regs[cpu_logical_map(cpu)]);
 }
 
 static void legacy_ipi_clear_buf(int cpu)
 {
-	loongson3_ipi_write64(0, ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
+	writeq_relaxed(0, ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
 }
 
 static void legacy_ipi_write_buf(int cpu, struct task_struct *idle)
@@ -171,14 +156,15 @@ static void legacy_ipi_write_buf(int cpu, struct task_struct *idle)
 	pr_debug("CPU#%d, func_pc=%lx, sp=%lx, gp=%lx\n",
 			cpu, startargs[0], startargs[1], startargs[2]);
 
-	loongson3_ipi_write64(startargs[3],
+	writeq_relaxed(startargs[3],
 			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x18);
-	loongson3_ipi_write64(startargs[2],
+	writeq_relaxed(startargs[2],
 			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x10);
-	loongson3_ipi_write64(startargs[1],
+	writeq_relaxed(startargs[1],
 			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x8);
-	loongson3_ipi_write64(startargs[0],
+	writeq_relaxed(startargs[0],
 			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
+	nudge_writes();
 }
 
 static void csr_ipi_probe(void)
