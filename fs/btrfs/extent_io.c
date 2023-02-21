@@ -898,31 +898,6 @@ static bool btrfs_bio_is_contig(struct btrfs_bio_ctrl *bio_ctrl,
 		page_offset(page) + pg_offset;
 }
 
-static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
-				struct btrfs_inode *inode, u64 file_offset)
-{
-	struct btrfs_ordered_extent *ordered;
-
-	/*
-	 * Limit the extent to the ordered boundary for Zone Append.
-	 * Compressed bios aren't submitted directly, so it doesn't apply to
-	 * them.
-	 */
-	if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE &&
-	    btrfs_use_zone_append(btrfs_bio(bio_ctrl->bio))) {
-		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
-		if (ordered) {
-			bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
-					ordered->file_offset +
-					ordered->disk_num_bytes - file_offset);
-			btrfs_put_ordered_extent(ordered);
-			return;
-		}
-	}
-
-	bio_ctrl->len_to_oe_boundary = U32_MAX;
-}
-
 static void alloc_new_bio(struct btrfs_inode *inode,
 			  struct btrfs_bio_ctrl *bio_ctrl,
 			  u64 disk_bytenr, u64 file_offset)
@@ -935,7 +910,25 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	btrfs_bio(bio)->file_offset = file_offset;
 	bio_ctrl->bio = bio;
-	calc_bio_boundaries(bio_ctrl, inode, file_offset);
+	bio_ctrl->len_to_oe_boundary = U32_MAX;
+
+	/*
+	 * Limit the extent to the ordered boundary for Zone Append.
+	 * Compressed bios aren't submitted directly, so it doesn't apply to
+	 * them.
+	 */
+	if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE &&
+	    btrfs_use_zone_append(btrfs_bio(bio))) {
+		struct btrfs_ordered_extent *ordered;
+
+		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
+		if (ordered) {
+			bio_ctrl->len_to_oe_boundary = min_t(u32, U32_MAX,
+					ordered->file_offset +
+					ordered->disk_num_bytes - file_offset);
+			btrfs_put_ordered_extent(ordered);
+		}
+	}
 
 	if (bio_ctrl->wbc) {
 		/*
