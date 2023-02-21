@@ -228,6 +228,22 @@
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "leakage";
 
+		rockchip,pvtm-voltage-sel = <
+			0	1280	0
+			1281	1350	1
+			1351	1420	2
+			1421	9999	3
+		>;
+		rockchip,pvtm-pvtpll;
+		rockchip,pvtm-offset = <0x634>;
+		rockchip,pvtm-sample-time = <1100>;
+		rockchip,pvtm-freq = <1200000>;
+		rockchip,pvtm-volt = <900000>;
+		rockchip,pvtm-ref-temp = <40>;
+		rockchip,pvtm-temp-prop = <0 0>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,grf = <&sys_grf>;
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <825000 825000 1150000>;
@@ -251,27 +267,47 @@
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <862500 862500 1150000>;
+			opp-microvolt = <887500 887500 1150000>;
+			opp-microvolt-L0 = <887500 887500 1150000>;
+			opp-microvolt-L1 = <862500 862500 1150000>;
+			opp-microvolt-L2 = <837500 837500 1150000>;
+			opp-microvolt-L3 = <825000 825000 1150000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
 			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <937500 937500 1150000>;
+			opp-microvolt = <962500 962500 1150000>;
+			opp-microvolt-L0 = <962500 962500 1150000>;
+			opp-microvolt-L1 = <937500 937500 1150000>;
+			opp-microvolt-L2 = <912500 912500 1150000>;
+			opp-microvolt-L3 = <887500 887500 1150000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <1012500 1012500 1150000>;
+			opp-microvolt = <1037500 1037500 1150000>;
+			opp-microvolt-L0 = <1037500 1037500 1150000>;
+			opp-microvolt-L1 = <1012500 1012500 1150000>;
+			opp-microvolt-L2 = <987500 987500 1150000>;
+			opp-microvolt-L3 = <962500 962500 1150000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <1100000 1100000 1150000>;
+			opp-microvolt = <1125000 1125000 1150000>;
+			opp-microvolt-L0 = <1125000 1125000 1150000>;
+			opp-microvolt-L1 = <1100000 1100000 1150000>;
+			opp-microvolt-L2 = <1075000 1075000 1150000>;
+			opp-microvolt-L3 = <1050000 1050000 1150000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2016000000 {
 			opp-hz = /bits/ 64 <2016000000>;
 			opp-microvolt = <1150000 1150000 1150000>;
+			opp-microvolt-L0 = <1150000 1150000 1150000>;
+			opp-microvolt-L1 = <1150000 1150000 1150000>;
+			opp-microvolt-L2 = <1125000 1125000 1150000>;
+			opp-microvolt-L3 = <1100000 1100000 1150000>;
 			clock-latency-ns = <40000>;
 		};
 	};
@@ -1166,6 +1202,22 @@
 		nvmem-cells = <&npu_leakage>;
 		nvmem-cell-names = "leakage";
 
+		rockchip,pvtm-voltage-sel = <
+			0	780	0
+			781	820	1
+			821	860	2
+			861	9999	3
+		>;
+		rockchip,pvtm-pvtpll;
+		rockchip,pvtm-offset = <0x674>;
+		rockchip,pvtm-sample-time = <1100>;
+		rockchip,pvtm-freq = <800000>;
+		rockchip,pvtm-volt = <900000>;
+		rockchip,pvtm-ref-temp = <40>;
+		rockchip,pvtm-temp-prop = <0 0>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,grf = <&sys_grf>;
+
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <825000 825000 1000000>;
@@ -1184,19 +1236,35 @@
 		};
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
-			opp-microvolt = <850000 850000 1000000>;
+			opp-microvolt = <887500 887500 1000000>;
+			opp-microvolt-L0 = <887500 887500 1000000>;
+			opp-microvolt-L1 = <862500 862500 1000000>;
+			opp-microvolt-L2 = <837500 837500 1000000>;
+			opp-microvolt-L3 = <812500 812500 1000000>;
 		};
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <875000 875000 1000000>;
+			opp-microvolt = <925000 925000 1000000>;
+			opp-microvolt-L0 = <925000 925000 1000000>;
+			opp-microvolt-L1 = <900000 900000 1000000>;
+			opp-microvolt-L2 = <875000 875000 1000000>;
+			opp-microvolt-L3 = <850000 850000 1000000>;
 		};
 		opp-900000000 {
 			opp-hz = /bits/ 64 <900000000>;
-			opp-microvolt = <937500 937500 1000000>;
+			opp-microvolt = <1000000 1000000 1000000>;
+			opp-microvolt-L0 = <1000000 1000000 1000000>;
+			opp-microvolt-L1 = <975000 975000 1000000>;
+			opp-microvolt-L2 = <950000 950000 1000000>;
+			opp-microvolt-L3 = <925000 925000 1000000>;
 		};
 		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1000000 1000000 1000000>;
+			opp-microvolt-L0 = <1000000 1000000 1000000>;
+			opp-microvolt-L1 = <1000000 1000000 1000000>;
+			opp-microvolt-L2 = <975000 975000 1000000>;
+			opp-microvolt-L3 = <950000 950000 1000000>;
 		};
 	};
 
@@ -1240,6 +1308,22 @@
 		nvmem-cells = <&gpu_leakage>;
 		nvmem-cell-names = "leakage";
 
+		rockchip,pvtm-voltage-sel = <
+			0	780	0
+			781	820	1
+			821	860	2
+			861	9999	3
+		>;
+		rockchip,pvtm-pvtpll;
+		rockchip,pvtm-offset = <0x654>;
+		rockchip,pvtm-sample-time = <1100>;
+		rockchip,pvtm-freq = <800000>;
+		rockchip,pvtm-volt = <900000>;
+		rockchip,pvtm-ref-temp = <40>;
+		rockchip,pvtm-temp-prop = <0 0>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,grf = <&sys_grf>;
+
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <825000 825000 1000000>;
@@ -1258,15 +1342,27 @@
 		};
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
-			opp-microvolt = <837500 837500 1000000>;
+			opp-microvolt = <862500 862500 1000000>;
+			opp-microvolt-L0 = <862500 862500 1000000>;
+			opp-microvolt-L1 = <837500 837500 1000000>;
+			opp-microvolt-L2 = <825000 825000 1000000>;
+			opp-microvolt-L3 = <825000 825000 1000000>;
 		};
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <900000 900000 1000000>;
+			opp-microvolt = <925000 925000 1000000>;
+			opp-microvolt-L0 = <925000 925000 1000000>;
+			opp-microvolt-L1 = <900000 900000 1000000>;
+			opp-microvolt-L2 = <875000 875000 1000000>;
+			opp-microvolt-L3 = <850000 850000 1000000>;
 		};
 		opp-900000000 {
 			opp-hz = /bits/ 64 <900000000>;
-			opp-microvolt = <975000 975000 1000000>;
+			opp-microvolt = <987500 987500 1000000>;
+			opp-microvolt-L0 = <987500 987500 1000000>;
+			opp-microvolt-L1 = <962500 962500 1000000>;
+			opp-microvolt-L2 = <937500 937500 1000000>;
+			opp-microvolt-L3 = <912500 912500 1000000>;
 		};
 	};
 
