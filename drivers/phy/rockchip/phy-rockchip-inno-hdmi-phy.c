@@ -1214,7 +1214,6 @@ inno_hdmi_phy_rk3528_power_on(struct inno_hdmi_phy *inno,
 		msleep(100);
 	/* set pdata_en to 0/1 */
 	inno_update_bits(inno, 0x02, 1, 0);
-	mdelay(1);
 	inno_update_bits(inno, 0x02, 1, 1);
 
 	/* Enable PHY IRQ */
@@ -1231,8 +1230,6 @@ static void inno_hdmi_phy_rk3528_power_off(struct inno_hdmi_phy *inno)
 	inno_write(inno, 0xb2, 0);
 	/* Power off serializer */
 	inno_write(inno, 0xbe, 0);
-	/* Power off LDO */
-	inno_write(inno, 0xb4, 0);
 	/* Power off post pll */
 	inno_update_bits(inno, 0xaa, 1, 1);
 	/* Power off rxsense detection circuit */
