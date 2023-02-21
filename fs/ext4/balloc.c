@@ -187,8 +187,6 @@ static int ext4_init_block_bitmap(struct super_block *sb,
 
 	ASSERT(buffer_locked(bh));
 
-	/* If checksum is bad mark all blocks used to prevent allocation
-	 * essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sb, block_group, gdp)) {
 		ext4_mark_group_bitmap_corrupted(sb, block_group,
 					EXT4_GROUP_INFO_BBITMAP_CORRUPT |
