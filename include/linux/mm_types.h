@@ -645,7 +645,18 @@ struct mm_struct {
 		 * &struct mm_struct is freed.
 		 */
 		atomic_t mm_count;
-
+#ifdef CONFIG_SCHED_MM_CID
+		/**
+		 * @cid_lock: Protect cid bitmap updates vs lookups.
+		 *
+		 * Prevent situations where updates to the cid bitmap happen
+		 * concurrently with lookups. Those can lead to situations
+		 * where a lookup cannot find a free bit simply because it was
+		 * unlucky enough to load, non-atomically, bitmap words as they
+		 * were being concurrently updated by the updaters.
+		 */
+		raw_spinlock_t cid_lock;
+#endif
 #ifdef CONFIG_MMU
 		atomic_long_t pgtables_bytes;	/* PTE page table pages */
 #endif
@@ -908,6 +919,36 @@ static inline void vma_iter_init(struct vma_iterator *vmi,
 	vmi->mas.index = addr;
 	vmi->mas.node = MAS_START;
 }
+
+#ifdef CONFIG_SCHED_MM_CID
+/* Accessor for struct mm_struct's cidmask. */
+static inline cpumask_t *mm_cidmask(struct mm_struct *mm)
+{
+	unsigned long cid_bitmap = (unsigned long)mm;
+
+	cid_bitmap += offsetof(struct mm_struct, cpu_bitmap);
+	/* Skip cpu_bitmap */
+	cid_bitmap += cpumask_size();
+	return (struct cpumask *)cid_bitmap;
+}
+
+static inline void mm_init_cid(struct mm_struct *mm)
+{
+	raw_spin_lock_init(&mm->cid_lock);
+	cpumask_clear(mm_cidmask(mm));
+}
+
+static inline unsigned int mm_cid_size(void)
+{
+	return cpumask_size();
+}
+#else /* CONFIG_SCHED_MM_CID */
+static inline void mm_init_cid(struct mm_struct *mm) { }
+static inline unsigned int mm_cid_size(void)
+{
+	return 0;
+}
+#endif /* CONFIG_SCHED_MM_CID */
 
 struct mmu_gather;
 extern void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm);

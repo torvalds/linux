@@ -7,13 +7,13 @@
  */
 
 #include <linux/kernel_stat.h>
-#include <linux/sched/cputime.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/timex.h>
 #include <linux/types.h>
 #include <linux/time.h>
 #include <asm/alternative.h>
+#include <asm/cputime.h>
 #include <asm/vtimer.h>
 #include <asm/vtime.h>
 #include <asm/cpu_mf.h>

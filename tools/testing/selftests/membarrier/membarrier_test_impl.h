@@ -9,9 +9,36 @@
 
 #include "../kselftest.h"
 
+static int registrations;
+
 static int sys_membarrier(int cmd, int flags)
 {
 	return syscall(__NR_membarrier, cmd, flags);
+}
+
+static int test_membarrier_get_registrations(int cmd)
+{
+	int ret, flags = 0;
+	const char *test_name =
+		"sys membarrier MEMBARRIER_CMD_GET_REGISTRATIONS";
+
+	registrations |= cmd;
+
+	ret = sys_membarrier(MEMBARRIER_CMD_GET_REGISTRATIONS, 0);
+	if (ret < 0) {
+		ksft_exit_fail_msg(
+			"%s test: flags = %d, errno = %d\n",
+			test_name, flags, errno);
+	} else if (ret != registrations) {
+		ksft_exit_fail_msg(
+			"%s test: flags = %d, ret = %d, registrations = %d\n",
+			test_name, flags, ret, registrations);
+	}
+	ksft_test_result_pass(
+		"%s test: flags = %d, ret = %d, registrations = %d\n",
+		test_name, flags, ret, registrations);
+
+	return 0;
 }
 
 static int test_membarrier_cmd_fail(void)
@@ -113,6 +140,8 @@ static int test_membarrier_register_private_expedited_success(void)
 	ksft_test_result_pass(
 		"%s test: flags = %d\n",
 		test_name, flags);
+
+	test_membarrier_get_registrations(cmd);
 	return 0;
 }
 
@@ -170,6 +199,8 @@ static int test_membarrier_register_private_expedited_sync_core_success(void)
 	ksft_test_result_pass(
 		"%s test: flags = %d\n",
 		test_name, flags);
+
+	test_membarrier_get_registrations(cmd);
 	return 0;
 }
 
@@ -204,6 +235,8 @@ static int test_membarrier_register_global_expedited_success(void)
 	ksft_test_result_pass(
 		"%s test: flags = %d\n",
 		test_name, flags);
+
+	test_membarrier_get_registrations(cmd);
 	return 0;
 }
 
