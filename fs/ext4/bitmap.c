@@ -38,7 +38,7 @@ int ext4_inode_bitmap_csum_verify(struct super_block *sb,
 	return provided == calculated;
 }
 
-void ext4_inode_bitmap_csum_set(struct super_block *sb, ext4_group_t group,
+void ext4_inode_bitmap_csum_set(struct super_block *sb,
 				struct ext4_group_desc *gdp,
 				struct buffer_head *bh, int sz)
 {

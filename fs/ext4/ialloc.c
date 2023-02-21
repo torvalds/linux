@@ -327,7 +327,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 		if (percpu_counter_initialized(&sbi->s_dirs_counter))
 			percpu_counter_dec(&sbi->s_dirs_counter);
 	}
-	ext4_inode_bitmap_csum_set(sb, block_group, gdp, bitmap_bh,
+	ext4_inode_bitmap_csum_set(sb, gdp, bitmap_bh,
 				   EXT4_INODES_PER_GROUP(sb) / 8);
 	ext4_group_desc_csum_set(sb, block_group, gdp);
 	ext4_unlock_group(sb, block_group);
@@ -852,7 +852,7 @@ int ext4_mark_inode_used(struct super_block *sb, int ino)
 
 	ext4_free_inodes_set(sb, gdp, ext4_free_inodes_count(sb, gdp) - 1);
 	if (ext4_has_group_desc_csum(sb)) {
-		ext4_inode_bitmap_csum_set(sb, group, gdp, inode_bitmap_bh,
+		ext4_inode_bitmap_csum_set(sb, gdp, inode_bitmap_bh,
 					   EXT4_INODES_PER_GROUP(sb) / 8);
 		ext4_group_desc_csum_set(sb, group, gdp);
 	}
@@ -1222,7 +1222,7 @@ got:
 		}
 	}
 	if (ext4_has_group_desc_csum(sb)) {
-		ext4_inode_bitmap_csum_set(sb, group, gdp, inode_bitmap_bh,
+		ext4_inode_bitmap_csum_set(sb, gdp, inode_bitmap_bh,
 					   EXT4_INODES_PER_GROUP(sb) / 8);
 		ext4_group_desc_csum_set(sb, group, gdp);
 	}

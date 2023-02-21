@@ -1318,7 +1318,7 @@ static int ext4_set_bitmap_checksums(struct super_block *sb,
 	bh = ext4_get_bitmap(sb, group_data->inode_bitmap);
 	if (!bh)
 		return -EIO;
-	ext4_inode_bitmap_csum_set(sb, group, gdp, bh,
+	ext4_inode_bitmap_csum_set(sb, gdp, bh,
 				   EXT4_INODES_PER_GROUP(sb) / 8);
 	brelse(bh);
 
