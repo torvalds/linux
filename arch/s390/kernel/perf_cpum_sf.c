@@ -672,7 +672,8 @@ static void cpumsf_output_event_pid(struct perf_event *event,
 	/* Protect callchain buffers, tasks */
 	rcu_read_lock();
 
-	perf_prepare_sample(&header, data, event, regs);
+	perf_prepare_sample(data, event, regs);
+	perf_prepare_header(&header, data, event, regs);
 	if (perf_output_begin(&handle, data, event, header.size))
 		goto out;
 
