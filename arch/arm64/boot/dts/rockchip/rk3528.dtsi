@@ -197,13 +197,18 @@
 
 		rockchip,video-4k-freq = <1200000>;
 		rockchip,pvtm-voltage-sel = <
-			0	1310	0
-			1311	1340	1
-			1341	1370	2
-			1371	1400	3
-			1401	1430	4
-			1431	1460	5
-			1461	9999	6
+			0	1320	0
+			1321	1350	1
+			1351	1375	2
+			1376	1405	3
+			1406	1435	4
+			1436	1470	5
+			1471	1505	6
+			1506	1540	7
+			1541	1575	8
+			1576	1610	9
+			1611	1640	10
+			1641	9999	11
 		>;
 		rockchip,pvtm-pvtpll;
 		rockchip,pvtm-offset = <0x18>;
@@ -229,16 +234,19 @@
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <825000 825000 1100000>;
+			opp-microvolt-L0 = <837500 837500 1100000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <825000 825000 1100000>;
+			opp-microvolt-L0 = <837500 837500 1100000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <875000 875000 1100000>;
+			opp-microvolt = <825000 825000 1100000>;
+			opp-microvolt-L0 = <875000 875000 1100000>;
 			opp-microvolt-L1 = <862500 862500 1100000>;
 			opp-microvolt-L2 = <850000 850000 1100000>;
 			opp-microvolt-L3 = <837500 837500 1100000>;
@@ -256,17 +264,26 @@
 			opp-microvolt-L4 = <900000 900000 1100000>;
 			opp-microvolt-L5 = <900000 900000 1100000>;
 			opp-microvolt-L6 = <887500 887500 1100000>;
+			opp-microvolt-L7 = <875000 875000 1100000>;
+			opp-microvolt-L8 = <862500 862500 1100000>;
+			opp-microvolt-L9 = <850000 850000 1100000>;
+			opp-microvolt-L10 = <837500 837500 1100000>;
+			opp-microvolt-L11 = <837500 837500 1100000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <1012500 1012500 1100000>;
-			opp-microvolt-L1 = <1000000 1000000 1100000>;
-			opp-microvolt-L2 = <987500 987500 1100000>;
-			opp-microvolt-L3 = <975000 975000 1100000>;
-			opp-microvolt-L4 = <962500 962500 1100000>;
-			opp-microvolt-L5 = <950000 950000 1100000>;
-			opp-microvolt-L6 = <937500 937500 1100000>;
+			opp-microvolt-L2 = <1000000 1000000 1100000>;
+			opp-microvolt-L3 = <987500 987500 1100000>;
+			opp-microvolt-L4 = <975000 975000 1100000>;
+			opp-microvolt-L5 = <962500 962500 1100000>;
+			opp-microvolt-L6 = <950000 950000 1100000>;
+			opp-microvolt-L7 = <937500 937500 1100000>;
+			opp-microvolt-L8 = <925000 925000 1100000>;
+			opp-microvolt-L9 = <912500 912500 1100000>;
+			opp-microvolt-L10 = <900000 900000 1100000>;
+			opp-microvolt-L11 = <887500 887500 1100000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
@@ -278,6 +295,11 @@
 			opp-microvolt-L4 = <1012500 1012500 1100000>;
 			opp-microvolt-L5 = <1000000 1000000 1100000>;
 			opp-microvolt-L6 = <987500 987500 1100000>;
+			opp-microvolt-L7 = <975000 975000 1100000>;
+			opp-microvolt-L8 = <962500 962500 1100000>;
+			opp-microvolt-L9 = <950000 950000 1100000>;
+			opp-microvolt-L10 = <937500 937500 1100000>;
+			opp-microvolt-L11 = <925000 925000 1100000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2016000000 {
@@ -289,6 +311,11 @@
 			opp-microvolt-L4 = <1050000 1050000 1100000>;
 			opp-microvolt-L5 = <1037500 1037500 1100000>;
 			opp-microvolt-L6 = <1025000 1025000 1100000>;
+			opp-microvolt-L7 = <1012500 1012500 1100000>;
+			opp-microvolt-L8 = <1000000 1000000 1100000>;
+			opp-microvolt-L9 = <987500 987500 1100000>;
+			opp-microvolt-L10 = <975000 975000 1100000>;
+			opp-microvolt-L11 = <962500 962500 1100000>;
 			clock-latency-ns = <40000>;
 		};
 	};
