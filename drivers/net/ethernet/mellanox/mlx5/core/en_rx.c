@@ -379,24 +379,42 @@ static inline void mlx5e_free_rx_wqe(struct mlx5e_rq *rq,
 {
 	int i;
 
-	if (rq->xsk_pool && !(wi->flags & BIT(MLX5E_WQE_FRAG_SKIP_RELEASE))) {
-		/* The `recycle` parameter is ignored, and the page is always
-		 * put into the Reuse Ring, because there is no way to return
-		 * the page to the userspace when the interface goes down.
-		 */
-		xsk_buff_free(*wi->xskp);
-		return;
-	}
-
 	for (i = 0; i < rq->wqe.info.num_frags; i++, wi++)
 		mlx5e_put_rx_frag(rq, wi, recycle);
+}
+
+static void mlx5e_xsk_free_rx_wqe(struct mlx5e_wqe_frag_info *wi)
+{
+	if (!(wi->flags & BIT(MLX5E_WQE_FRAG_SKIP_RELEASE)))
+		xsk_buff_free(*wi->xskp);
 }
 
 static void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix)
 {
 	struct mlx5e_wqe_frag_info *wi = get_frag(rq, ix);
 
-	mlx5e_free_rx_wqe(rq, wi, false);
+	if (rq->xsk_pool)
+		mlx5e_xsk_free_rx_wqe(wi);
+	else
+		mlx5e_free_rx_wqe(rq, wi, false);
+}
+
+static void mlx5e_xsk_free_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
+{
+	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
+	int i;
+
+	for (i = 0; i < wqe_bulk; i++) {
+		int j = mlx5_wq_cyc_ctr2ix(wq, ix + i);
+		struct mlx5e_wqe_frag_info *wi;
+
+		wi = get_frag(rq, j);
+		/* The page is always put into the Reuse Ring, because there
+		 * is no way to return the page to the userspace when the
+		 * interface goes down.
+		 */
+		mlx5e_xsk_free_rx_wqe(wi);
+	}
 }
 
 static void mlx5e_free_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
@@ -818,19 +836,21 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	 */
 	wqe_bulk -= (head + wqe_bulk) & rq->wqe.info.wqe_index_mask;
 
-	mlx5e_free_rx_wqes(rq, head, wqe_bulk);
-
-	if (!rq->xsk_pool)
+	if (!rq->xsk_pool) {
+		mlx5e_free_rx_wqes(rq, head, wqe_bulk);
 		count = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
-	else if (likely(!rq->xsk_pool->dma_need_sync))
+	} else if (likely(!rq->xsk_pool->dma_need_sync)) {
+		mlx5e_xsk_free_rx_wqes(rq, head, wqe_bulk);
 		count = mlx5e_xsk_alloc_rx_wqes_batched(rq, head, wqe_bulk);
-	else
+	} else {
+		mlx5e_xsk_free_rx_wqes(rq, head, wqe_bulk);
 		/* If dma_need_sync is true, it's more efficient to call
 		 * xsk_buff_alloc in a loop, rather than xsk_buff_alloc_batch,
 		 * because the latter does the same check and returns only one
 		 * frame.
 		 */
 		count = mlx5e_xsk_alloc_rx_wqes(rq, head, wqe_bulk);
+	}
 
 	mlx5_wq_cyc_push_n(wq, count);
 	if (unlikely(count != wqe_bulk)) {
