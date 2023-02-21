@@ -427,8 +427,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 			isp_sd->params.video_dis_en = 0;
 
 		if (isp_sd->params.video_dis_en &&
-		    isp_sd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
-		    !isp_sd->continuous_mode->val) {
+		    isp_sd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
 			/* This resolution contains 20 % of DVS slack
 			 * (of the desired captured image before
 			 * scaling, or 1 / 6 of what we get from the
@@ -459,8 +458,7 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 			break;
 
 		if (isp_sd->params.video_dis_en &&
-		    isp_sd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
-		    !isp_sd->continuous_mode->val) {
+		    isp_sd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
 			dvs_w = rounddown(crop[pad]->width / 5,
 					  ATOM_ISP_STEP_WIDTH);
 			dvs_h = rounddown(crop[pad]->height / 5,
@@ -727,11 +725,7 @@ static int __atomisp_update_run_mode(struct atomisp_sub_device *asd)
 	struct v4l2_ctrl *c;
 	s32 mode;
 
-	if (ctrl->val != ATOMISP_RUN_MODE_VIDEO &&
-	    asd->continuous_mode->val)
-		mode = ATOMISP_RUN_MODE_PREVIEW;
-	else
-		mode = ctrl->val;
+	mode = ctrl->val;
 
 	c = v4l2_ctrl_find(
 		isp->inputs[asd->input_curr].camera->ctrl_handler,
@@ -814,24 +808,6 @@ static const struct v4l2_ctrl_config ctrl_vfpp = {
 	.def = 0,
 	.max = 2,
 	.qmenu = ctrl_vfpp_mode_menu,
-};
-
-/*
- * Control for ISP continuous mode
- *
- * When enabled, capture processing is possible without
- * stopping the preview pipeline. When disabled, ISP needs
- * to be restarted between preview and capture.
- */
-static const struct v4l2_ctrl_config ctrl_continuous_mode = {
-	.ops = &ctrl_ops,
-	.id = V4L2_CID_ATOMISP_CONTINUOUS_MODE,
-	.type = V4L2_CTRL_TYPE_BOOLEAN,
-	.name = "Continuous mode",
-	.min = 0,
-	.max = 1,
-	.step = 1,
-	.def = 0,
 };
 
 /*
@@ -1040,8 +1016,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 					     &ctrl_run_mode, NULL);
 	asd->vfpp = v4l2_ctrl_new_custom(&asd->ctrl_handler,
 					 &ctrl_vfpp, NULL);
-	asd->continuous_mode = v4l2_ctrl_new_custom(&asd->ctrl_handler,
-			       &ctrl_continuous_mode, NULL);
 	asd->continuous_viewfinder = v4l2_ctrl_new_custom(&asd->ctrl_handler,
 				     &ctrl_continuous_viewfinder,
 				     NULL);

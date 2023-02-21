@@ -299,26 +299,6 @@ struct atomisp_3a_statistics {
 	u32 isp_config_id; /* isp config ID */
 };
 
-/**
- * struct atomisp_cont_capture_conf - continuous capture parameters
- * @num_captures: number of still images to capture
- * @skip_frames: number of frames to skip between 2 captures
- * @offset: offset in ring buffer to start capture
- *
- * For example, to capture 1 frame from past, current, and 1 from future
- * and skip one frame between each capture, parameters would be:
- * num_captures:3
- * skip_frames:1
- * offset:-2
- */
-
-struct atomisp_cont_capture_conf {
-	int num_captures;
-	unsigned int skip_frames;
-	int offset;
-	__u32 reserved[5];
-};
-
 struct atomisp_ae_window {
 	int x_left;
 	int x_right;
@@ -957,9 +937,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 
 #define ATOMISP_IOC_S_PARAMETERS \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 32, struct atomisp_parameters)
-
-#define ATOMISP_IOC_S_CONT_CAPTURE_CONFIG \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 33, struct atomisp_cont_capture_conf)
 
 #define ATOMISP_IOC_G_METADATA \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 34, struct atomisp_metadata)

@@ -237,8 +237,6 @@ struct atomisp_subdev_params {
 	enum atomisp_flash_state flash_state;
 	enum atomisp_frame_status last_frame_status;
 
-	/* continuous capture */
-	struct atomisp_cont_capture_conf offline_parm;
 	/* Flag to check if driver needs to update params to css */
 	bool css_update_params_needed;
 };
@@ -267,7 +265,6 @@ struct atomisp_sub_device {
 	struct v4l2_ctrl *fmt_auto;
 	struct v4l2_ctrl *run_mode;
 	struct v4l2_ctrl *vfpp;
-	struct v4l2_ctrl *continuous_mode;
 	struct v4l2_ctrl *continuous_raw_buffer_size;
 	struct v4l2_ctrl *continuous_viewfinder;
 	struct v4l2_ctrl *enable_raw_buffer_lock;
@@ -351,7 +348,6 @@ struct atomisp_sub_device {
 
 	struct atomisp_resolution sensor_array_res;
 	bool high_speed_mode; /* Indicate whether now is a high speed mode */
-	int pending_capture_request; /* Indicates the number of pending capture requests. */
 
 	unsigned int preview_exp_id;
 	unsigned int postview_exp_id;

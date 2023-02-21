@@ -268,9 +268,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f);
 int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 			      struct atomisp_shading_table *shading_table);
 
-int atomisp_offline_capture_configure(struct atomisp_sub_device *asd,
-				      struct atomisp_cont_capture_conf *cvf_config);
-
 void atomisp_free_internal_buffers(struct atomisp_sub_device *asd);
 
 int atomisp_s_ae_window(struct atomisp_sub_device *asd,

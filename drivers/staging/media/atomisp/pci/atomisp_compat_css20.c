@@ -658,13 +658,10 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 
 		return false;
 	case ATOMISP_RUN_MODE_PREVIEW:
-		if (!asd->continuous_mode->val) {
-			if (pipe_id == IA_CSS_PIPE_ID_PREVIEW)
-				return true;
+		if (pipe_id == IA_CSS_PIPE_ID_PREVIEW)
+			return true;
 
-			return false;
-		}
-		fallthrough;
+		return false;
 	case ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE:
 		if (pipe_id == IA_CSS_PIPE_ID_CAPTURE ||
 		    pipe_id == IA_CSS_PIPE_ID_PREVIEW)
@@ -672,14 +669,10 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 
 		return false;
 	case ATOMISP_RUN_MODE_VIDEO:
-		if (!asd->continuous_mode->val) {
-			if (pipe_id == IA_CSS_PIPE_ID_VIDEO ||
-			    pipe_id == IA_CSS_PIPE_ID_YUVPP)
-				return true;
-			else
-				return false;
-		}
-		fallthrough;
+		if (pipe_id == IA_CSS_PIPE_ID_VIDEO || pipe_id == IA_CSS_PIPE_ID_YUVPP)
+			return true;
+
+		return false;
 	case ATOMISP_RUN_MODE_SDV:
 		if (pipe_id == IA_CSS_PIPE_ID_CAPTURE ||
 		    pipe_id == IA_CSS_PIPE_ID_VIDEO)
@@ -2139,17 +2132,8 @@ static void __configure_video_preview_output(struct atomisp_sub_device *asd,
 	    __pipe_id_to_pipe_mode(asd, pipe_id);
 	stream_env->update_pipe[pipe_id] = true;
 
-	/*
-	 * second_output will be as video main output in SDV mode
-	 * with SOC camera. output will be as video main output in
-	 * normal video mode.
-	 */
-	if (asd->continuous_mode->val)
-		css_output_info = &stream_env->pipe_configs[pipe_id].
-				  output_info[ATOMISP_CSS_OUTPUT_SECOND_INDEX];
-	else
-		css_output_info = &stream_env->pipe_configs[pipe_id].
-				  output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
+	css_output_info =
+		&stream_env->pipe_configs[pipe_id].output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
 
 	css_output_info->res.width = width;
 	css_output_info->res.height = height;
@@ -2485,17 +2469,8 @@ static void __configure_video_vf_output(struct atomisp_sub_device *asd,
 	    __pipe_id_to_pipe_mode(asd, pipe_id);
 	stream_env->update_pipe[pipe_id] = true;
 
-	/*
-	 * second_vf_output will be as video viewfinder in SDV mode
-	 * with SOC camera. vf_output will be as video viewfinder in
-	 * normal video mode.
-	 */
-	if (asd->continuous_mode->val)
-		css_output_info = &stream_env->pipe_configs[pipe_id].
-				  vf_output_info[ATOMISP_CSS_OUTPUT_SECOND_INDEX];
-	else
-		css_output_info = &stream_env->pipe_configs[pipe_id].
-				  vf_output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
+	css_output_info =
+		&stream_env->pipe_configs[pipe_id].vf_output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
 
 	css_output_info->res.width = width;
 	css_output_info->res.height = height;
@@ -2636,12 +2611,7 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 		*frame_info = info.output_info[0];
 		break;
 	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO:
-		if (ATOMISP_USE_YUVPP(asd) && asd->continuous_mode->val)
-			*frame_info = info.
-				      output_info[ATOMISP_CSS_OUTPUT_SECOND_INDEX];
-		else
-			*frame_info = info.
-				      output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
+		*frame_info = info.output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
 		break;
 	case ATOMISP_SUBDEV_PAD_SOURCE_VF:
 		if (stream_index == ATOMISP_INPUT_STREAM_POSTVIEW)
@@ -2653,15 +2623,7 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
 		    (pipe_index == IA_CSS_PIPE_ID_VIDEO ||
 		     pipe_index == IA_CSS_PIPE_ID_YUVPP))
-			if (ATOMISP_USE_YUVPP(asd) && asd->continuous_mode->val)
-				*frame_info = info.
-					      vf_output_info[ATOMISP_CSS_OUTPUT_SECOND_INDEX];
-			else
-				*frame_info = info.
-					      vf_output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
-		else if (ATOMISP_USE_YUVPP(asd) && asd->continuous_mode->val)
-			*frame_info =
-			    info.output_info[ATOMISP_CSS_OUTPUT_SECOND_INDEX];
+			*frame_info = info.vf_output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
 		else
 			*frame_info =
 			    info.output_info[ATOMISP_CSS_OUTPUT_DEFAULT_INDEX];
@@ -2826,8 +2788,6 @@ int atomisp_css_video_get_viewfinder_frame_info(
 
 	if (ATOMISP_USE_YUVPP(asd)) {
 		pipe_id = IA_CSS_PIPE_ID_YUVPP;
-		if (asd->continuous_mode->val)
-			frame_type = ATOMISP_CSS_SECOND_VF_FRAME;
 	} else {
 		pipe_id = IA_CSS_PIPE_ID_VIDEO;
 	}
@@ -2880,8 +2840,6 @@ int atomisp_css_preview_get_output_frame_info(
 
 	if (ATOMISP_USE_YUVPP(asd)) {
 		pipe_id = IA_CSS_PIPE_ID_YUVPP;
-		if (asd->continuous_mode->val)
-			frame_type = ATOMISP_CSS_SECOND_OUTPUT_FRAME;
 	} else {
 		pipe_id = IA_CSS_PIPE_ID_PREVIEW;
 	}
@@ -2914,8 +2872,6 @@ int atomisp_css_video_get_output_frame_info(
 
 	if (ATOMISP_USE_YUVPP(asd)) {
 		pipe_id = IA_CSS_PIPE_ID_YUVPP;
-		if (asd->continuous_mode->val)
-			frame_type = ATOMISP_CSS_SECOND_OUTPUT_FRAME;
 	} else {
 		pipe_id = IA_CSS_PIPE_ID_VIDEO;
 	}

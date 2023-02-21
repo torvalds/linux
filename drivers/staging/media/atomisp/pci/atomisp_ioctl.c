@@ -1123,13 +1123,6 @@ enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 	if (ATOMISP_USE_YUVPP(asd))
 		return IA_CSS_PIPE_ID_YUVPP;
 
-	if (asd->continuous_mode->val) {
-		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-			return IA_CSS_PIPE_ID_VIDEO;
-		else
-			return IA_CSS_PIPE_ID_PREVIEW;
-	}
-
 	/*
 	 * Disable vf_pp and run CSS in video mode. This allows using ISP
 	 * scaling but it has one frame delay due to CSS internal buffering.
@@ -1164,10 +1157,7 @@ static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
 
 	if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO ||
 	    (asd->run_mode->val == ATOMISP_RUN_MODE_STILL_CAPTURE &&
-	     !atomisp_is_mbuscode_raw(
-		 asd->fmt[
-		  asd->capture_pad].fmt.code) &&
-	     !asd->continuous_mode->val))
+	     !atomisp_is_mbuscode_raw(asd->fmt[asd->capture_pad].fmt.code)))
 		return 2;
 	else
 		return 1;
@@ -1221,57 +1211,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 */
 	sensor_start_stream = atomisp_sensor_start_stream(asd);
 
-	/* Reset pending capture request count. */
-	asd->pending_capture_request = 0;
-
 	if (atomisp_subdev_streaming_count(asd) > sensor_start_stream) {
-		/* trigger still capture */
-		if (asd->continuous_mode->val &&
-		    atomisp_subdev_source_pad(vdev)
-		    == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE) {
-			if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-				dev_dbg(isp->dev, "SDV last video raw buffer id: %u\n",
-					asd->latest_preview_exp_id);
-			else
-				dev_dbg(isp->dev, "ZSL last preview raw buffer id: %u\n",
-					asd->latest_preview_exp_id);
-
-			if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED) {
-				flush_work(&asd->delayed_init_work);
-				mutex_unlock(&isp->mutex);
-				ret = wait_for_completion_interruptible(&asd->init_done);
-				mutex_lock(&isp->mutex);
-				if (ret) {
-					ret = -ERESTARTSYS;
-					goto out_unlock;
-				}
-			}
-
-			/* handle per_frame_setting parameter and buffers */
-			atomisp_handle_parameter_and_buffer(pipe);
-
-			/*
-			 * only ZSL/SDV capture request will be here, raise
-			 * the ISP freq to the highest possible to minimize
-			 * the S2S latency.
-			 */
-			atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_MAX, false);
-			/*
-			 * When asd->enable_raw_buffer_lock->val is true,
-			 * An extra IOCTL is needed to call
-			 * atomisp_css_exp_id_capture and trigger real capture
-			 */
-			if (!asd->enable_raw_buffer_lock->val) {
-				ret = atomisp_css_offline_capture_configure(asd,
-					asd->params.offline_parm.num_captures,
-					asd->params.offline_parm.skip_frames,
-					asd->params.offline_parm.offset);
-				if (ret) {
-					ret = -EINVAL;
-					goto out_unlock;
-				}
-			}
-		}
 		atomisp_qbuffers_to_css(asd);
 		ret = 0;
 		goto out_unlock;
@@ -1369,17 +1309,7 @@ start_sensor:
 		goto out_unlock;
 	}
 
-	if (asd->continuous_mode->val) {
-		atomisp_subdev_get_ffmt(&asd->subdev, NULL,
-				        V4L2_SUBDEV_FORMAT_ACTIVE,
-				        ATOMISP_SUBDEV_PAD_SINK);
-
-		reinit_completion(&asd->init_done);
-		asd->delayed_init = ATOMISP_DELAYED_INIT_QUEUED;
-		queue_work(asd->delayed_init_workq, &asd->delayed_init_work);
-	} else {
-		asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
-	}
+	asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
 
 out_unlock:
 	mutex_unlock(&isp->mutex);
@@ -1419,24 +1349,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	pipe->stopping = false;
 	if (ret == 0)
 		dev_warn(isp->dev, "Warning timeout waiting for CSS to return buffers\n");
-
-	/*
-	 * do only videobuf_streamoff for capture & vf pipes in
-	 * case of continuous capture
-	 */
-	if (asd->continuous_mode->val &&
-	    atomisp_subdev_source_pad(vdev) != ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
-	    atomisp_subdev_source_pad(vdev) != ATOMISP_SUBDEV_PAD_SOURCE_VIDEO) {
-		if (atomisp_subdev_source_pad(vdev) == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE) {
-			/* stop continuous still capture if needed */
-			if (asd->params.offline_parm.num_captures == -1)
-				atomisp_css_offline_capture_configure(asd,
-								      0, 0, 0);
-			atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, false);
-		}
-
-		goto out_unlock;
-	}
 
 	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
 		first_streamoff = true;
@@ -2245,9 +2157,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		err = atomisp_set_parameters(vdev, arg);
 		break;
 
-	case ATOMISP_IOC_S_CONT_CAPTURE_CONFIG:
-		err = atomisp_offline_capture_configure(asd, arg);
-		break;
 	case ATOMISP_IOC_G_METADATA:
 		err = atomisp_get_metadata(asd, 0, arg);
 		break;

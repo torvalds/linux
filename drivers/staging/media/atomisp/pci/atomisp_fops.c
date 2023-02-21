@@ -348,31 +348,6 @@ static int atomisp_get_css_buf_type(struct atomisp_sub_device *asd,
 				    uint16_t source_pad)
 {
 	if (ATOMISP_USE_YUVPP(asd)) {
-		/* when run ZSL case */
-		if (asd->continuous_mode->val &&
-		    asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
-			if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE)
-				return IA_CSS_BUFFER_TYPE_OUTPUT_FRAME;
-			else if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW)
-				return IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME;
-			else
-				return IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME;
-		}
-
-		/*when run SDV case*/
-		if (asd->continuous_mode->val &&
-		    asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-			if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE)
-				return IA_CSS_BUFFER_TYPE_OUTPUT_FRAME;
-			else if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW)
-				return IA_CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME;
-			else if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO)
-				return IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME;
-			else
-				return IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME;
-		}
-
-		/*other case: default setting*/
 		if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE ||
 		    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO ||
 		    (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
@@ -414,22 +389,10 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 		preview_pipe = &asd->video_out_capture;
 		css_preview_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-		if (asd->continuous_mode->val) {
-			capture_pipe = &asd->video_out_capture;
-			vf_pipe = &asd->video_out_vf;
-			css_capture_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
-		}
 		video_pipe = &asd->video_out_video_capture;
 		preview_pipe = &asd->video_out_preview;
 		css_video_pipe_id = IA_CSS_PIPE_ID_VIDEO;
 		css_preview_pipe_id = IA_CSS_PIPE_ID_VIDEO;
-	} else if (asd->continuous_mode->val) {
-		capture_pipe = &asd->video_out_capture;
-		vf_pipe = &asd->video_out_vf;
-		preview_pipe = &asd->video_out_preview;
-
-		css_preview_pipe_id = IA_CSS_PIPE_ID_PREVIEW;
-		css_capture_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
 		preview_pipe = &asd->video_out_preview;
 		css_preview_pipe_id = IA_CSS_PIPE_ID_PREVIEW;
@@ -545,7 +508,6 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 	struct atomisp_video_pipe *pipe = vb_to_pipe(vb);
 	struct ia_css_frame *frame = vb_to_frame(vb);
 	struct atomisp_sub_device *asd = pipe->asd;
-	u16 source_pad = atomisp_subdev_source_pad(&pipe->vdev);
 	unsigned long irqflags;
 	int ret;
 
@@ -591,21 +553,6 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 			atomisp_handle_parameter_and_buffer(pipe);
 		else
 			atomisp_qbuffers_to_css(asd);
-	}
-
-	/*
-	 * Workaround: Due to the design of HALv3,
-	 * sometimes in ZSL or SDV mode HAL needs to
-	 * capture multiple images within one streaming cycle.
-	 * But the capture number cannot be determined by HAL.
-	 * So HAL only sets the capture number to be 1 and queue multiple
-	 * buffers. Atomisp driver needs to check this case and re-trigger
-	 * CSS to do capture when new buffer is queued.
-	 */
-	if (asd->continuous_mode->val && source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE &&
-	    !asd->enable_raw_buffer_lock->val && asd->params.offline_parm.num_captures == 1) {
-		asd->pending_capture_request++;
-		dev_dbg(asd->isp->dev, "Add one pending capture request.\n");
 	}
 
 out_unlock:
@@ -667,9 +614,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 	/* s3a grid not enabled for any pipe */
 	asd->params.s3a_enabled_pipe = IA_CSS_PIPE_ID_NUM;
 
-	asd->params.offline_parm.num_captures = 1;
-	asd->params.offline_parm.skip_frames = 0;
-	asd->params.offline_parm.offset = 0;
 	asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
 	/* Add for channel */
 	asd->input_curr = 0;
