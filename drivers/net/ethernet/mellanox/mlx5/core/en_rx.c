@@ -323,7 +323,7 @@ static inline void mlx5e_put_rx_frag(struct mlx5e_rq *rq,
 				     struct mlx5e_wqe_frag_info *frag,
 				     bool recycle)
 {
-	if (frag->last_in_page)
+	if (frag->flags & BIT(MLX5E_WQE_FRAG_LAST_IN_PAGE))
 		mlx5e_page_release_fragmented(rq, frag->frag_page, recycle);
 }
 

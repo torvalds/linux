@@ -605,13 +605,17 @@ struct mlx5e_frag_page {
 	u16 frags;
 };
 
+enum mlx5e_wqe_frag_flag {
+	MLX5E_WQE_FRAG_LAST_IN_PAGE,
+};
+
 struct mlx5e_wqe_frag_info {
 	union {
 		struct mlx5e_frag_page *frag_page;
 		struct xdp_buff **xskp;
 	};
 	u32 offset;
-	bool last_in_page;
+	u8 flags;
 };
 
 union mlx5e_alloc_units {

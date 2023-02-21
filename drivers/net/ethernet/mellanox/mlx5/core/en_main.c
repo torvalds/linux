@@ -532,7 +532,7 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 				next_frag.frag_page++;
 				next_frag.offset = 0;
 				if (prev)
-					prev->last_in_page = true;
+					prev->flags |= BIT(MLX5E_WQE_FRAG_LAST_IN_PAGE);
 			}
 			*frag = next_frag;
 
@@ -543,7 +543,7 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 	}
 
 	if (prev)
-		prev->last_in_page = true;
+		prev->flags |= BIT(MLX5E_WQE_FRAG_LAST_IN_PAGE);
 }
 
 static void mlx5e_init_xsk_buffs(struct mlx5e_rq *rq)
