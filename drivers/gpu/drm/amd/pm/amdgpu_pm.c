@@ -1686,6 +1686,82 @@ static ssize_t amdgpu_set_thermal_throttling_logging(struct device *dev,
 }
 
 /**
+ * DOC: apu_thermal_cap
+ *
+ * The amdgpu driver provides a sysfs API for retrieving/updating thermal
+ * limit temperature in millidegrees Celsius
+ *
+ * Reading back the file shows you core limit value
+ *
+ * Writing an integer to the file, sets a new thermal limit. The value
+ * should be between 0 and 100. If the value is less than 0 or greater
+ * than 100, then the write request will be ignored.
+ */
+static ssize_t amdgpu_get_apu_thermal_cap(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	int ret, size;
+	u32 limit;
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	ret = amdgpu_dpm_get_apu_thermal_limit(adev, &limit);
+	if (!ret)
+		size = sysfs_emit(buf, "%u\n", limit);
+	else
+		size = sysfs_emit(buf, "failed to get thermal limit\n");
+
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	return size;
+}
+
+static ssize_t amdgpu_set_apu_thermal_cap(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf,
+					 size_t count)
+{
+	int ret;
+	u32 value;
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	ret = kstrtou32(buf, 10, &value);
+	if (ret)
+		return ret;
+
+	if (value < 0 || value > 100) {
+		dev_err(dev, "Invalid argument !\n");
+		return -EINVAL;
+	}
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	ret = amdgpu_dpm_set_apu_thermal_limit(adev, value);
+	if (ret) {
+		dev_err(dev, "failed to update thermal limit\n");
+		return ret;
+	}
+
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	return count;
+}
+
+/**
  * DOC: gpu_metrics
  *
  * The amdgpu driver provides a sysfs API for retrieving current gpu
@@ -1937,6 +2013,7 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(pp_features,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(unique_id,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(thermal_throttling_logging,		ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(apu_thermal_cap,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(gpu_metrics,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(smartshift_apu_power,			ATTR_FLAG_BASIC,
 			      .attr_update = ss_power_attr_update),

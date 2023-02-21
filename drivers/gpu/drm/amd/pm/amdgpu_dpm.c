@@ -456,6 +456,34 @@ int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors senso
 	return ret;
 }
 
+int amdgpu_dpm_get_apu_thermal_limit(struct amdgpu_device *adev, uint32_t *limit)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = -EINVAL;
+
+	if (pp_funcs && pp_funcs->get_apu_thermal_limit) {
+		mutex_lock(&adev->pm.mutex);
+		ret = pp_funcs->get_apu_thermal_limit(adev->powerplay.pp_handle, limit);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return ret;
+}
+
+int amdgpu_dpm_set_apu_thermal_limit(struct amdgpu_device *adev, uint32_t limit)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = -EINVAL;
+
+	if (pp_funcs && pp_funcs->set_apu_thermal_limit) {
+		mutex_lock(&adev->pm.mutex);
+		ret = pp_funcs->set_apu_thermal_limit(adev->powerplay.pp_handle, limit);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return ret;
+}
+
 void amdgpu_dpm_compute_clocks(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
