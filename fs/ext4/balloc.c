@@ -80,32 +80,56 @@ static inline int ext4_block_in_group(struct super_block *sb,
 	return (actual_group == block_group) ? 1 : 0;
 }
 
-/* Return the number of clusters used for file system metadata; this
+/*
+ * Return the number of clusters used for file system metadata; this
  * represents the overhead needed by the file system.
  */
 static unsigned ext4_num_overhead_clusters(struct super_block *sb,
 					   ext4_group_t block_group,
 					   struct ext4_group_desc *gdp)
 {
-	unsigned num_clusters;
-	int block_cluster = -1, inode_cluster = -1, itbl_cluster = -1, i, c;
+	unsigned base_clusters, num_clusters;
+	int block_cluster = -1, inode_cluster;
+	int itbl_cluster_start = -1, itbl_cluster_end = -1;
 	ext4_fsblk_t start = ext4_group_first_block_no(sb, block_group);
-	ext4_fsblk_t itbl_blk;
+	ext4_fsblk_t end = start + EXT4_BLOCKS_PER_GROUP(sb) - 1;
+	ext4_fsblk_t itbl_blk_start, itbl_blk_end;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	/* This is the number of clusters used by the superblock,
 	 * block group descriptors, and reserved block group
 	 * descriptor blocks */
-	num_clusters = ext4_num_base_meta_clusters(sb, block_group);
+	base_clusters = ext4_num_base_meta_clusters(sb, block_group);
+	num_clusters = base_clusters;
 
 	/*
-	 * For the allocation bitmaps and inode table, we first need
-	 * to check to see if the block is in the block group.  If it
-	 * is, then check to see if the cluster is already accounted
-	 * for in the clusters used for the base metadata cluster, or
-	 * if we can increment the base metadata cluster to include
-	 * that block.  Otherwise, we will have to track the cluster
-	 * used for the allocation bitmap or inode table explicitly.
+	 * Account and record inode table clusters if any cluster
+	 * is in the block group, or inode table cluster range is
+	 * [-1, -1] and won't overlap with block/inode bitmap cluster
+	 * accounted below.
+	 */
+	itbl_blk_start = ext4_inode_table(sb, gdp);
+	itbl_blk_end = itbl_blk_start + sbi->s_itb_per_group - 1;
+	if (itbl_blk_start <= end && itbl_blk_end >= start) {
+		itbl_blk_start = itbl_blk_start >= start ?
+			itbl_blk_start : start;
+		itbl_blk_end = itbl_blk_end <= end ?
+			itbl_blk_end : end;
+
+		itbl_cluster_start = EXT4_B2C(sbi, itbl_blk_start - start);
+		itbl_cluster_end = EXT4_B2C(sbi, itbl_blk_end - start);
+
+		num_clusters += itbl_cluster_end - itbl_cluster_start + 1;
+		/* check if border cluster is overlapped */
+		if (itbl_cluster_start == base_clusters - 1)
+			num_clusters--;
+	}
+
+	/*
+	 * For the allocation bitmaps, we first need to check to see
+	 * if the block is in the block group.  If it is, then check
+	 * to see if the cluster is already accounted for in the clusters
+	 * used for the base metadata cluster and inode tables cluster.
 	 * Normally all of these blocks are contiguous, so the special
 	 * case handling shouldn't be necessary except for *very*
 	 * unusual file system layouts.
@@ -113,45 +137,25 @@ static unsigned ext4_num_overhead_clusters(struct super_block *sb,
 	if (ext4_block_in_group(sb, ext4_block_bitmap(sb, gdp), block_group)) {
 		block_cluster = EXT4_B2C(sbi,
 					 ext4_block_bitmap(sb, gdp) - start);
-		if (block_cluster < num_clusters)
-			block_cluster = -1;
-		else if (block_cluster == num_clusters) {
+		if (block_cluster >= base_clusters &&
+		    (block_cluster < itbl_cluster_start ||
+		    block_cluster > itbl_cluster_end))
 			num_clusters++;
-			block_cluster = -1;
-		}
 	}
 
 	if (ext4_block_in_group(sb, ext4_inode_bitmap(sb, gdp), block_group)) {
 		inode_cluster = EXT4_B2C(sbi,
 					 ext4_inode_bitmap(sb, gdp) - start);
-		if (inode_cluster < num_clusters)
-			inode_cluster = -1;
-		else if (inode_cluster == num_clusters) {
+		/*
+		 * Additional check if inode bitmap is in just accounted
+		 * block_cluster
+		 */
+		if (inode_cluster != block_cluster &&
+		    inode_cluster >= base_clusters &&
+		    (inode_cluster < itbl_cluster_start ||
+		    inode_cluster > itbl_cluster_end))
 			num_clusters++;
-			inode_cluster = -1;
-		}
 	}
-
-	itbl_blk = ext4_inode_table(sb, gdp);
-	for (i = 0; i < sbi->s_itb_per_group; i++) {
-		if (ext4_block_in_group(sb, itbl_blk + i, block_group)) {
-			c = EXT4_B2C(sbi, itbl_blk + i - start);
-			if ((c < num_clusters) || (c == inode_cluster) ||
-			    (c == block_cluster) || (c == itbl_cluster))
-				continue;
-			if (c == num_clusters) {
-				num_clusters++;
-				continue;
-			}
-			num_clusters++;
-			itbl_cluster = c;
-		}
-	}
-
-	if (block_cluster != -1)
-		num_clusters++;
-	if (inode_cluster != -1)
-		num_clusters++;
 
 	return num_clusters;
 }
