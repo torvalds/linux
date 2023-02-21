@@ -151,16 +151,6 @@
 		pinctrl-0 = <&vcc5v0_host_en>;
 	};
 
-	vdd_fixed: vdd-fixed {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_fixed";
-		regulator-min-microvolt = <900000>;
-		regulator-max-microvolt = <900000>;
-		regulator-always-on;
-		regulator-boot-on;
-		vin-supply = <&vcc5v0_sys>;
-	};
-
 	vdd_logic: vdd-logic {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 5000 1>;
@@ -251,12 +241,17 @@
 	status = "okay";
 };
 
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &gmac0 {
 	status = "okay";
 };
 
 &gpu {
-	mali-supply = <&vdd_fixed>;
+	mali-supply = <&vdd_logic>;
 	status = "okay";
 };
 
