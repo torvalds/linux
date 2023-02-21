@@ -417,7 +417,8 @@ bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-	if (!__is_ras_eeprom_supported(adev))
+	if (!__is_ras_eeprom_supported(adev) ||
+	    !amdgpu_bad_page_threshold)
 		return false;
 
 	/* skip check eeprom table for VEGA20 Gaming */
@@ -428,10 +429,18 @@ bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev)
 			return false;
 
 	if (con->eeprom_control.tbl_hdr.header == RAS_TABLE_HDR_BAD) {
-		dev_warn(adev->dev, "This GPU is in BAD status.");
-		dev_warn(adev->dev, "Please retire it or set a larger "
-			 "threshold value when reloading driver.\n");
-		return true;
+		if (amdgpu_bad_page_threshold == -1) {
+			dev_warn(adev->dev, "RAS records:%d exceed threshold:%d",
+				con->eeprom_control.ras_num_recs, con->bad_page_cnt_threshold);
+			dev_warn(adev->dev,
+				"But GPU can be operated due to bad_page_threshold = -1.\n");
+			return false;
+		} else {
+			dev_warn(adev->dev, "This GPU is in BAD status.");
+			dev_warn(adev->dev, "Please retire it or set a larger "
+				 "threshold value when reloading driver.\n");
+			return true;
+		}
 	}
 
 	return false;
