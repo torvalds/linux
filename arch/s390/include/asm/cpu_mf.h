@@ -42,7 +42,6 @@ static inline int cpum_sf_avail(void)
 	return test_facility(40) && test_facility(68);
 }
 
-
 struct cpumf_ctr_info {
 	u16   cfvn;
 	u16   auth_ctl;
@@ -274,57 +273,5 @@ static inline int lsctl(struct hws_lsctl_request_block *req)
 		: "cc", "memory");
 
 	return cc ? -EINVAL : 0;
-}
-
-/* Sampling control helper functions */
-
-#include <linux/time.h>
-
-static inline unsigned long freq_to_sample_rate(struct hws_qsi_info_block *qsi,
-						unsigned long freq)
-{
-	return (USEC_PER_SEC / freq) * qsi->cpu_speed;
-}
-
-static inline unsigned long sample_rate_to_freq(struct hws_qsi_info_block *qsi,
-						unsigned long rate)
-{
-	return USEC_PER_SEC * qsi->cpu_speed / rate;
-}
-
-/* Return TOD timestamp contained in an trailer entry */
-static inline unsigned long long trailer_timestamp(struct hws_trailer_entry *te)
-{
-	/* TOD in STCKE format */
-	if (te->header.t)
-		return *((unsigned long long *) &te->timestamp[1]);
-
-	/* TOD in STCK format */
-	return *((unsigned long long *) &te->timestamp[0]);
-}
-
-/* Return pointer to trailer entry of an sample data block */
-static inline unsigned long *trailer_entry_ptr(unsigned long v)
-{
-	void *ret;
-
-	ret = (void *) v;
-	ret += PAGE_SIZE;
-	ret -= sizeof(struct hws_trailer_entry);
-
-	return (unsigned long *) ret;
-}
-
-/* Return true if the entry in the sample data block table (sdbt)
- * is a link to the next sdbt */
-static inline int is_link_entry(unsigned long *s)
-{
-	return *s & 0x1ul ? 1 : 0;
-}
-
-/* Return pointer to the linked sdbt */
-static inline unsigned long *get_next_sdbt(unsigned long *s)
-{
-	return (unsigned long *) (*s & ~0x1ul);
 }
 #endif /* _ASM_S390_CPU_MF_H */

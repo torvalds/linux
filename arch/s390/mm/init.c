@@ -52,9 +52,9 @@
 #include <linux/virtio_config.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(".bss..swapper_pg_dir");
-static pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
+pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
 
-unsigned long s390_invalid_asce;
+unsigned long __bootdata_preserved(s390_invalid_asce);
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
@@ -93,37 +93,8 @@ static void __init setup_zero_pages(void)
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	unsigned long pgd_type, asce_bits;
-	psw_t psw;
 
-	s390_invalid_asce  = (unsigned long)invalid_pg_dir;
-	s390_invalid_asce |= _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
-	crst_table_init((unsigned long *)invalid_pg_dir, _REGION3_ENTRY_EMPTY);
-	init_mm.pgd = swapper_pg_dir;
-	if (VMALLOC_END > _REGION2_SIZE) {
-		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
-		pgd_type = _REGION2_ENTRY_EMPTY;
-	} else {
-		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
-		pgd_type = _REGION3_ENTRY_EMPTY;
-	}
-	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
-	S390_lowcore.kernel_asce = init_mm.context.asce;
-	S390_lowcore.user_asce = s390_invalid_asce;
-	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
-	kasan_copy_shadow_mapping();
-
-	/* enable virtual mapping in kernel mode */
-	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	__ctl_load(S390_lowcore.user_asce, 7, 7);
-	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	psw.mask = __extract_psw();
-	psw_bits(psw).dat = 1;
-	psw_bits(psw).as = PSW_BITS_AS_HOME;
-	__load_psw_mask(psw.mask);
-	kasan_free_early_identity();
-
 	sparse_init();
 	zone_dma_bits = 31;
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
