@@ -1120,9 +1120,6 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 
 enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 {
-	if (ATOMISP_USE_YUVPP(asd))
-		return IA_CSS_PIPE_ID_YUVPP;
-
 	/*
 	 * Disable vf_pp and run CSS in video mode. This allows using ISP
 	 * scaling but it has one frame delay due to CSS internal buffering.

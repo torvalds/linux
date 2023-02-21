@@ -196,7 +196,6 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 			 enum atomisp_dfs_mode mode,
 			 bool force)
 {
-	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	/* FIXME! Only use subdev[0] status yet */
 	struct atomisp_sub_device *asd = &isp->asd[0];
 	const struct atomisp_dfs_config *dfs;
@@ -204,10 +203,6 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 	struct atomisp_freq_scaling_rule curr_rules;
 	int i, ret;
 	unsigned short fps = 0;
-
-	if ((pdev->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
-	    ATOMISP_PCI_DEVICE_SOC_CHT && ATOMISP_USE_YUVPP(asd))
-		isp->dfs = &dfs_config_cht_soc;
 
 	dfs = isp->dfs;
 
@@ -4393,12 +4388,6 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 		}
 	}
 
-	/*
-	 * to SOC camera, use yuvpp pipe.
-	 */
-	if (ATOMISP_USE_YUVPP(asd))
-		pipe_id = IA_CSS_PIPE_ID_YUVPP;
-
 	if (asd->copy_mode)
 		ret = atomisp_css_copy_configure_output(asd, ATOMISP_INPUT_STREAM_GENERAL,
 							pix->width, pix->height,
@@ -5270,9 +5259,7 @@ static int atomisp_get_pipe_id(struct atomisp_video_pipe *pipe)
 		return -EINVAL;
 	}
 
-	if (ATOMISP_USE_YUVPP(asd)) {
-		return IA_CSS_PIPE_ID_YUVPP;
-	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
+	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
 		return IA_CSS_PIPE_ID_VIDEO;
 	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
 		return IA_CSS_PIPE_ID_CAPTURE;

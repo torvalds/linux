@@ -346,16 +346,6 @@ static int atomisp_get_css_buf_type(struct atomisp_sub_device *asd,
 				    enum ia_css_pipe_id pipe_id,
 				    uint16_t source_pad)
 {
-	if (ATOMISP_USE_YUVPP(asd)) {
-		if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE ||
-		    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO ||
-		    (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
-		     asd->run_mode->val != ATOMISP_RUN_MODE_VIDEO))
-			return IA_CSS_BUFFER_TYPE_OUTPUT_FRAME;
-		else
-			return IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME;
-	}
-
 	if (pipe_id == IA_CSS_PIPE_ID_COPY ||
 	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE ||
 	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO ||
@@ -424,12 +414,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 			       atomisp_subdev_source_pad(&capture_pipe->vdev));
 		input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
 
-		/*
-		 * use yuvpp pipe for SOC camera.
-		 */
-		if (ATOMISP_USE_YUVPP(asd))
-			css_capture_pipe_id = IA_CSS_PIPE_ID_YUVPP;
-
 		atomisp_q_video_buffers_to_css(asd, capture_pipe,
 					       input_stream_id,
 					       buf_type, css_capture_pipe_id);
@@ -444,11 +428,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 		else
 			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
 
-		/*
-		 * use yuvpp pipe for SOC camera.
-		 */
-		if (ATOMISP_USE_YUVPP(asd))
-			css_capture_pipe_id = IA_CSS_PIPE_ID_YUVPP;
 		atomisp_q_video_buffers_to_css(asd, vf_pipe,
 					       input_stream_id,
 					       buf_type, css_capture_pipe_id);
@@ -466,12 +445,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 		else
 			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
 
-		/*
-		 * use yuvpp pipe for SOC camera.
-		 */
-		if (ATOMISP_USE_YUVPP(asd))
-			css_preview_pipe_id = IA_CSS_PIPE_ID_YUVPP;
-
 		atomisp_q_video_buffers_to_css(asd, preview_pipe,
 					       input_stream_id,
 					       buf_type, css_preview_pipe_id);
@@ -485,12 +458,6 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
 		else
 			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		/*
-		 * use yuvpp pipe for SOC camera.
-		 */
-		if (ATOMISP_USE_YUVPP(asd))
-			css_video_pipe_id = IA_CSS_PIPE_ID_YUVPP;
 
 		atomisp_q_video_buffers_to_css(asd, video_pipe,
 					       input_stream_id,
