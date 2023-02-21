@@ -2253,23 +2253,20 @@ static void sd_config_protection(struct scsi_disk *sdkp)
 {
 	struct scsi_device *sdp = sdkp->device;
 
-	if (!sdkp->first_scan)
-		return;
-
 	sd_dif_config_host(sdkp);
 
 	if (!sdkp->protection_type)
 		return;
 
 	if (!scsi_host_dif_capable(sdp->host, sdkp->protection_type)) {
-		sd_printk(KERN_NOTICE, sdkp,
-			  "Disabling DIF Type %u protection\n",
-			  sdkp->protection_type);
+		sd_first_printk(KERN_NOTICE, sdkp,
+				"Disabling DIF Type %u protection\n",
+				sdkp->protection_type);
 		sdkp->protection_type = 0;
 	}
 
-	sd_printk(KERN_NOTICE, sdkp, "Enabling DIF Type %u protection\n",
-		  sdkp->protection_type);
+	sd_first_printk(KERN_NOTICE, sdkp, "Enabling DIF Type %u protection\n",
+			sdkp->protection_type);
 }
 
 static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
