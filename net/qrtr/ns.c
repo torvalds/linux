@@ -3,7 +3,7 @@
  * Copyright (c) 2015, Sony Mobile Communications Inc.
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
  * Copyright (c) 2020, Linaro Ltd.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "qrtr: %s(): " fmt, __func__
@@ -95,11 +95,6 @@ static struct qrtr_node *node_get(unsigned int node_id)
 	xa_init(&node->servers);
 
 	xa_store(&nodes, node_id, node, GFP_ATOMIC);
-
-	if (radix_tree_insert(&nodes, node_id, node)) {
-		kfree(node);
-		return NULL;
-	}
 
 	return node;
 }
