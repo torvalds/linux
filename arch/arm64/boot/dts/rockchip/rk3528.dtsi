@@ -341,6 +341,30 @@
 		status = "disabled";
 	};
 
+	dmc: dmc {
+		compatible = "rockchip,rk3528-dmc";
+		clocks = <&scmi_clk SCMI_CLK_DDR>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		nvmem-cells = <&log_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
+
+		opp-1056000000 {
+			opp-hz = /bits/ 64 <1056000000>;
+			opp-microvolt = <900000 900000 1000000>;
+		};
+	};
+
 	firmware {
 		scmi: scmi {
 			compatible = "arm,scmi-smc";
