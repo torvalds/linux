@@ -156,7 +156,7 @@ static char *extra_init_args;
 
 #ifdef CONFIG_BOOT_CONFIG
 /* Is bootconfig on command line? */
-static bool bootconfig_found;
+static bool bootconfig_found = IS_ENABLED(CONFIG_BOOT_CONFIG_FORCE);
 static size_t initargs_offs;
 #else
 # define bootconfig_found false
