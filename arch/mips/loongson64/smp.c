@@ -42,13 +42,13 @@ static uint32_t core0_c0count[NR_CPUS];
 #define loongson3_ipi_write32(action, addr)	\
 	do {					\
 		writel(action, addr);		\
-		__wbflush();			\
+		nudge_writes();			\
 	} while (0)
 /* write a 64bit value to ipi register */
 #define loongson3_ipi_write64(action, addr)	\
 	do {					\
 		writeq(action, addr);		\
-		__wbflush();			\
+		nudge_writes();			\
 	} while (0)
 
 static u32 (*ipi_read_clear)(int cpu);
@@ -418,7 +418,7 @@ static irqreturn_t loongson3_ipi_interrupt(int irq, void *dev_id)
 		c0count = c0count ? c0count : 1;
 		for (i = 1; i < nr_cpu_ids; i++)
 			core0_c0count[i] = c0count;
-		__wbflush(); /* Let others see the result ASAP */
+		nudge_writes(); /* Let others see the result ASAP */
 	}
 
 	return IRQ_HANDLED;
