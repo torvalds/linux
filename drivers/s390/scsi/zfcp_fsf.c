@@ -4,7 +4,7 @@
  *
  * Implementation of FSF commands.
  *
- * Copyright IBM Corp. 2002, 2020
+ * Copyright IBM Corp. 2002, 2023
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -892,8 +892,11 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	req->issued = get_tod_clock();
 	if (zfcp_qdio_send(qdio, &req->qdio_req)) {
 		del_timer_sync(&req->timer);
+
 		/* lookup request again, list might have changed */
-		zfcp_reqlist_find_rm(adapter->req_list, req_id);
+		if (zfcp_reqlist_find_rm(adapter->req_list, req_id) == NULL)
+			zfcp_dbf_hba_fsf_reqid("fsrsrmf", 1, adapter, req_id);
+
 		zfcp_erp_adapter_reopen(adapter, 0, "fsrs__1");
 		return -EIO;
 	}
