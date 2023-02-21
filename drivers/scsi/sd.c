@@ -121,7 +121,6 @@ static void scsi_disk_release(struct device *cdev);
 
 static DEFINE_IDA(sd_index_ida);
 
-static struct kmem_cache *sd_cdb_cache;
 static mempool_t *sd_page_pool;
 static struct lock_class_key sd_bio_compl_lkclass;
 
@@ -3853,19 +3852,11 @@ static int __init init_sd(void)
 	if (err)
 		goto err_out;
 
-	sd_cdb_cache = kmem_cache_create("sd_ext_cdb", SD_EXT_CDB_SIZE,
-					 0, 0, NULL);
-	if (!sd_cdb_cache) {
-		printk(KERN_ERR "sd: can't init extended cdb cache\n");
-		err = -ENOMEM;
-		goto err_out_class;
-	}
-
 	sd_page_pool = mempool_create_page_pool(SD_MEMPOOL_SIZE, 0);
 	if (!sd_page_pool) {
 		printk(KERN_ERR "sd: can't init discard page pool\n");
 		err = -ENOMEM;
-		goto err_out_cache;
+		goto err_out_class;
 	}
 
 	err = scsi_register_driver(&sd_template.gendrv);
@@ -3876,10 +3867,6 @@ static int __init init_sd(void)
 
 err_out_driver:
 	mempool_destroy(sd_page_pool);
-
-err_out_cache:
-	kmem_cache_destroy(sd_cdb_cache);
-
 err_out_class:
 	class_unregister(&sd_disk_class);
 err_out:
@@ -3901,7 +3888,6 @@ static void __exit exit_sd(void)
 
 	scsi_unregister_driver(&sd_template.gendrv);
 	mempool_destroy(sd_page_pool);
-	kmem_cache_destroy(sd_cdb_cache);
 
 	class_unregister(&sd_disk_class);
 
