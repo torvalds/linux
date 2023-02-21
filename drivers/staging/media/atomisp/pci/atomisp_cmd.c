@@ -1001,35 +1001,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		atomisp_qbuffers_to_css(asd);
 }
 
-void atomisp_delayed_init_work(struct work_struct *work)
-{
-	struct atomisp_sub_device *asd = container_of(work,
-					 struct atomisp_sub_device,
-					 delayed_init_work);
-	/*
-	 * to SOC camera, use yuvpp pipe and no support continuous mode.
-	 */
-	if (!ATOMISP_USE_YUVPP(asd)) {
-		struct v4l2_event event = {0};
-		struct ia_css_stream *stream;
-
-		stream = asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream;
-
-
-		if (ia_css_alloc_continuous_frame_remain(stream))
-			return;
-
-		ia_css_update_continuous_frames(stream);
-
-		event.type = V4L2_EVENT_ATOMISP_RAW_BUFFERS_ALLOC_DONE;
-		v4l2_event_queue(asd->subdev.devnode, &event);
-	}
-
-	/* signal streamon after delayed init is done */
-	asd->delayed_init = ATOMISP_DELAYED_INIT_DONE;
-	complete(&asd->init_done);
-}
-
 static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 {
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
@@ -1053,12 +1024,6 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED &&
 		    !asd->stream_prepared)
 			continue;
-
-		if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED)
-			cancel_work_sync(&asd->delayed_init_work);
-
-		complete(&asd->init_done);
-		asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
 
 		stream_restart[asd->index] = true;
 

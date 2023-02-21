@@ -1083,27 +1083,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		}
 	}
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		init_completion(&asd->init_done);
-
-		asd->delayed_init_workq =
-		    alloc_workqueue(isp->v4l2_dev.name, WQ_CPU_INTENSIVE,
-				    1);
-		if (!asd->delayed_init_workq) {
-			dev_err(isp->dev,
-				"Failed to initialize delayed init workq\n");
-			ret = -ENOMEM;
-
-			for (; i > 0; i--)
-				destroy_workqueue(isp->asd[i - 1].
-						  delayed_init_workq);
-			goto wq_alloc_failed;
-		}
-		INIT_WORK(&asd->delayed_init_work, atomisp_delayed_init_work);
-	}
-
 	for (i = 0; i < isp->input_cnt; i++) {
 		if (isp->inputs[i].port >= ATOMISP_CAMERA_NR_PORTS) {
 			dev_err(isp->dev, "isp->inputs port %d not supported\n",
@@ -1126,10 +1105,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	return 0;
 
 link_failed:
-	for (i = 0; i < isp->num_of_streams; i++)
-		destroy_workqueue(isp->asd[i].
-				  delayed_init_workq);
-wq_alloc_failed:
 	for (i = 0; i < isp->num_of_streams; i++)
 		atomisp_subdev_unregister_entities(
 		    &isp->asd[i]);

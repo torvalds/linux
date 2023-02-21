@@ -101,10 +101,6 @@
 #define ATOMISP_METADATA_QUEUE_DEPTH_FOR_HAL	8
 #define ATOMISP_S3A_BUF_QUEUE_DEPTH_FOR_HAL	8
 
-#define ATOMISP_DELAYED_INIT_NOT_QUEUED	0
-#define ATOMISP_DELAYED_INIT_QUEUED	1
-#define ATOMISP_DELAYED_INIT_DONE	2
-
 /*
  * Define how fast CPU should be able to serve ISP interrupts.
  * The bigger the value, the higher risk that the ISP is not

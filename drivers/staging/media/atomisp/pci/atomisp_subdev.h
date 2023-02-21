@@ -325,12 +325,6 @@ struct atomisp_sub_device {
 	 */
 	unsigned int index;
 
-	/* delayed memory allocation for css */
-	struct completion init_done;
-	struct workqueue_struct *delayed_init_workq;
-	unsigned int delayed_init;
-	struct work_struct delayed_init_work;
-
 	unsigned int latest_preview_exp_id; /* CSS ZSL/SDV raw buffer id */
 
 	unsigned int mipi_frame_size;

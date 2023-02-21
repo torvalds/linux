@@ -614,7 +614,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 	/* s3a grid not enabled for any pipe */
 	asd->params.s3a_enabled_pipe = IA_CSS_PIPE_ID_NUM;
 
-	asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
 	/* Add for channel */
 	asd->input_curr = 0;
 

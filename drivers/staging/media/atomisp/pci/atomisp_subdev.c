@@ -189,7 +189,6 @@ static int isp_subdev_subscribe_event(struct v4l2_subdev *sd,
 	    sub->type != V4L2_EVENT_ATOMISP_METADATA_READY &&
 	    sub->type != V4L2_EVENT_ATOMISP_PAUSE_BUFFER &&
 	    sub->type != V4L2_EVENT_ATOMISP_CSS_RESET &&
-	    sub->type != V4L2_EVENT_ATOMISP_RAW_BUFFERS_ALLOC_DONE &&
 	    sub->type != V4L2_EVENT_ATOMISP_ACC_COMPLETE)
 		return -EINVAL;
 

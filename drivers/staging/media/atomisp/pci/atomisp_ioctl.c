@@ -1309,8 +1309,6 @@ start_sensor:
 		goto out_unlock;
 	}
 
-	asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
-
 out_unlock:
 	mutex_unlock(&isp->mutex);
 	return ret;
@@ -1365,11 +1363,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 
 	atomisp_clear_css_buffer_counters(asd);
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
-
-	if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED) {
-		cancel_work_sync(&asd->delayed_init_work);
-		asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
-	}
 
 	css_pipe_id = atomisp_get_css_pipe_id(asd);
 	atomisp_css_stop(asd, css_pipe_id, false);

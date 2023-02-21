@@ -72,7 +72,6 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr);
 const struct atomisp_format_bridge *get_atomisp_format_bridge_from_mbus(
     u32 mbus_code);
 bool atomisp_is_mbuscode_raw(uint32_t code);
-void atomisp_delayed_init_work(struct work_struct *work);
 
 /* Get internal fmt according to V4L2 fmt */
 bool atomisp_is_viewfinder_support(struct atomisp_device *isp);
