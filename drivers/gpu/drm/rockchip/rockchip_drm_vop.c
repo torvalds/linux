@@ -663,6 +663,19 @@ static bool is_uv_swap(uint32_t bus_format, uint32_t output_mode)
 		return false;
 }
 
+static bool is_rb_swap(uint32_t bus_format, uint32_t output_mode)
+{
+	/*
+	 * The default component order of serial rgb3x8 formats
+	 * is BGR. So it is needed to enable RB swap.
+	 */
+	if (bus_format == MEDIA_BUS_FMT_RGB888_3X8 ||
+	    bus_format == MEDIA_BUS_FMT_RGB888_DUMMY_4X8)
+		return true;
+	else
+		return false;
+}
+
 static bool is_yc_swap(uint32_t bus_format)
 {
 	switch (bus_format) {
@@ -3144,7 +3157,8 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	     s->output_if & VOP_OUTPUT_IF_BT656))
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
 
-	if (is_uv_swap(s->bus_format, s->output_mode))
+	if (is_uv_swap(s->bus_format, s->output_mode) ||
+	    is_rb_swap(s->bus_format, s->output_mode))
 		VOP_CTRL_SET(vop, dsp_rb_swap, 1);
 	else
 		VOP_CTRL_SET(vop, dsp_data_swap, 0);
