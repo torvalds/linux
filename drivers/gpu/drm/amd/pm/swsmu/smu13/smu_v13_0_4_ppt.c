@@ -1043,6 +1043,7 @@ void smu_v13_0_4_set_ppt_funcs(struct smu_context *smu)
 	smu->message_map = smu_v13_0_4_message_map;
 	smu->feature_map = smu_v13_0_4_feature_mask_map;
 	smu->table_map = smu_v13_0_4_table_map;
+	smu->smc_driver_if_version = SMU13_0_4_DRIVER_IF_VERSION;
 	smu->is_apu = true;
 
 	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4))

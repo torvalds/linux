@@ -2199,5 +2199,6 @@ void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = smu_v13_0_0_table_map;
 	smu->pwr_src_map = smu_v13_0_0_pwr_src_map;
 	smu->workload_map = smu_v13_0_0_workload_map;
+	smu->smc_driver_if_version = SMU13_0_0_DRIVER_IF_VERSION;
 	smu_v13_0_0_set_smu_mailbox_registers(smu);
 }

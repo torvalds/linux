@@ -2176,5 +2176,6 @@ void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)
 	smu->clock_map = smu_v13_0_6_clk_map;
 	smu->feature_map = smu_v13_0_6_feature_mask_map;
 	smu->table_map = smu_v13_0_6_table_map;
+	smu->smc_driver_if_version = SMU13_0_6_DRIVER_IF_VERSION;
 	smu_v13_0_set_smu_mailbox_registers(smu);
 }

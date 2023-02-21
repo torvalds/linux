@@ -24,6 +24,8 @@
 #ifndef SMU13_DRIVER_IF_V13_0_0_H
 #define SMU13_DRIVER_IF_V13_0_0_H
 
+#define SMU13_0_0_DRIVER_IF_VERSION 0x32
+
 //Increment this version if SkuTable_t or BoardTable_t change
 #define PPTABLE_VERSION 0x26
 

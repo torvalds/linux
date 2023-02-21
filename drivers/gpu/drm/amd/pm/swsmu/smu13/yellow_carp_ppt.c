@@ -1234,5 +1234,6 @@ void yellow_carp_set_ppt_funcs(struct smu_context *smu)
 	smu->feature_map = yellow_carp_feature_mask_map;
 	smu->table_map = yellow_carp_table_map;
 	smu->is_apu = true;
+	smu->smc_driver_if_version = SMU13_YELLOW_CARP_DRIVER_IF_VERSION;
 	smu_v13_0_set_smu_mailbox_registers(smu);
 }

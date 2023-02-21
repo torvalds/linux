@@ -25,7 +25,7 @@
 
 // *** IMPORTANT ***
 // PMFW TEAM: Always increment the interface version on any change to this file
-#define SMU13_DRIVER_IF_VERSION  0x35
+#define SMU13_0_7_DRIVER_IF_VERSION  0x35
 
 //Increment this version if SkuTable_t or BoardTable_t change
 #define PPTABLE_VERSION 0x27
