@@ -739,6 +739,7 @@ void __cpuidle arch_cpu_idle(void)
 {
 	static_call(x86_idle)();
 }
+EXPORT_SYMBOL_GPL(arch_cpu_idle);
 
 #ifdef CONFIG_XEN
 bool xen_set_default_idle(void)

@@ -1864,6 +1864,10 @@ static bool pm_runtime_need_not_resume(struct device *dev)
  * sure the device is put into low power state and it should only be used during
  * system-wide PM transitions to sleep states.  It assumes that the analogous
  * pm_runtime_force_resume() will be used to resume the device.
+ *
+ * Do not use with DPM_FLAG_SMART_SUSPEND as this can lead to an inconsistent
+ * state where this function has called the ->runtime_suspend callback but the
+ * PM core marks the driver as runtime active.
  */
 int pm_runtime_force_suspend(struct device *dev)
 {
