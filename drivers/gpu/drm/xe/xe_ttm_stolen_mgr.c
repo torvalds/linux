@@ -41,6 +41,7 @@ to_stolen_mgr(struct ttm_resource_manager *man)
 /**
  * xe_ttm_stolen_cpu_inaccessible - Can we directly CPU access stolen memory for
  * this device.
+ * @xe: xe device
  *
  * On some integrated platforms we can't directly access stolen via the CPU
  * (like some normal system memory).  Also on small-bar systems for discrete,
