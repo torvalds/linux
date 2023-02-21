@@ -282,7 +282,9 @@ static inline void ast_set_index_reg(struct ast_private *ast,
 				     uint32_t base, uint8_t index,
 				     uint8_t val)
 {
-	ast_io_write16(ast, base, ((u16)val << 8) | index);
+	ast_io_write8(ast, base, index);
+	++base;
+	ast_io_write8(ast, base, val);
 }
 
 void ast_set_index_reg_mask(struct ast_private *ast,
