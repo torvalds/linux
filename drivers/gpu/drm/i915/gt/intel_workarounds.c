@@ -30,7 +30,7 @@
  *   creation to have a "primed golden context", i.e. a context image that
  *   already contains the changes needed to all the registers.
  *
- *   Context workarounds should be implemented in the *_ctx_workarounds_init()
+ *   Context workarounds should be implemented in the \*_ctx_workarounds_init()
  *   variants respective to the targeted platforms.
  *
  * - Engine workarounds: the list of these WAs is applied whenever the specific
@@ -55,7 +55,7 @@
  * - GT workarounds: the list of these WAs is applied whenever these registers
  *   revert to their default values: on GPU reset, suspend/resume [1]_, etc.
  *
- *   GT workarounds should be implemented in the *_gt_workarounds_init()
+ *   GT workarounds should be implemented in the \*_gt_workarounds_init()
  *   variants respective to the targeted platforms.
  *
  * - Register whitelist: some workarounds need to be implemented in userspace,
@@ -64,7 +64,7 @@
  *   this is just a special case of a MMIO workaround (as we write the list of
  *   these to/be-whitelisted registers to some special HW registers).
  *
- *   Register whitelisting should be done in the *_whitelist_build() variants
+ *   Register whitelisting should be done in the \*_whitelist_build() variants
  *   respective to the targeted platforms.
  *
  * - Workaround batchbuffers: buffers that get executed automatically by the
@@ -238,6 +238,12 @@ static void
 wa_write(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
 {
 	wa_write_clr_set(wal, reg, ~0, set);
+}
+
+static void
+wa_mcr_write(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 set)
+{
+	wa_mcr_write_clr_set(wal, reg, ~0, set);
 }
 
 static void
@@ -1676,7 +1682,7 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	wa_mcr_write_or(wal, XEHP_SQCM, EN_32B_ACCESS);
 
 	/* Wa_14015795083 */
-	wa_mcr_write_clr(wal, GEN8_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
+	wa_write_clr(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
 
 	/* Wa_18018781329 */
 	wa_mcr_write_or(wal, RENDER_MOD_CTRL, FORCE_MISS_FTLB);
@@ -1695,7 +1701,7 @@ pvc_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	pvc_init_mcr(gt, wal);
 
 	/* Wa_14015795083 */
-	wa_mcr_write_clr(wal, GEN8_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
+	wa_write_clr(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
 
 	/* Wa_18018781329 */
 	wa_mcr_write_or(wal, RENDER_MOD_CTRL, FORCE_MISS_FTLB);
@@ -2970,9 +2976,9 @@ add_render_compute_tuning_settings(struct drm_i915_private *i915,
 				   struct i915_wa_list *wal)
 {
 	if (IS_PONTEVECCHIO(i915)) {
-		wa_write(wal, XEHPC_L3SCRUB,
-			 SCRUB_CL_DWNGRADE_SHARED | SCRUB_RATE_4B_PER_CLK);
-		wa_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_HOSTCACHEEN);
+		wa_mcr_write(wal, XEHPC_L3SCRUB,
+			     SCRUB_CL_DWNGRADE_SHARED | SCRUB_RATE_4B_PER_CLK);
+		wa_mcr_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_HOSTCACHEEN);
 	}
 
 	if (IS_DG2(i915)) {
@@ -3062,7 +3068,7 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 
 	if (IS_PONTEVECCHIO(i915)) {
 		/* Wa_16016694945 */
-		wa_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_OVRLSCCC);
+		wa_mcr_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_OVRLSCCC);
 	}
 
 	if (IS_XEHPSDV(i915)) {
