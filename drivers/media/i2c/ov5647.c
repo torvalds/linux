@@ -58,6 +58,7 @@
 #define OV5647_REG_MIPI_CTRL00		0x4800
 #define OV5647_REG_MIPI_CTRL14		0x4814
 #define OV5647_REG_AWB			0x5001
+#define OV5647_REG_ISPCTRL3D		0x503d
 
 #define REG_TERM 0xfffe
 #define VAL_TERM 0xfe
@@ -115,6 +116,20 @@ static inline struct ov5647 *to_sensor(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct ov5647, sd);
 }
+
+static const char * const ov5647_test_pattern_menu[] = {
+	"Disabled",
+	"Color Bars",
+	"Color Squares",
+	"Random Data",
+};
+
+static const u8 ov5647_test_pattern_val[] = {
+	0x00,	/* Disabled */
+	0x80,	/* Color Bars */
+	0x82,	/* Color Squares */
+	0x81,	/* Random Data */
+};
 
 static const struct regval_list sensor_oe_disable_regs[] = {
 	{0x3000, 0x00},
@@ -1242,6 +1257,10 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov5647_write16(sd, OV5647_REG_VTS_HI,
 				     sensor->mode->format.height + ctrl->val);
 		break;
+	case V4L2_CID_TEST_PATTERN:
+		ret = ov5647_write(sd, OV5647_REG_ISPCTRL3D,
+				   ov5647_test_pattern_val[ctrl->val]);
+		break;
 
 	/* Read-only, but we adjust it based on mode. */
 	case V4L2_CID_PIXEL_RATE:
@@ -1270,7 +1289,7 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
 	int hblank, exposure_max, exposure_def;
 
-	v4l2_ctrl_handler_init(&sensor->ctrls, 8);
+	v4l2_ctrl_handler_init(&sensor->ctrls, 9);
 
 	v4l2_ctrl_new_std(&sensor->ctrls, &ov5647_ctrl_ops,
 			  V4L2_CID_AUTOGAIN, 0, 1, 1, 0);
@@ -1313,6 +1332,11 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 					   sensor->mode->format.height, 1,
 					   sensor->mode->vts -
 					   sensor->mode->format.height);
+
+	v4l2_ctrl_new_std_menu_items(&sensor->ctrls, &ov5647_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(ov5647_test_pattern_menu) - 1,
+				     0, 0, ov5647_test_pattern_menu);
 
 	if (sensor->ctrls.error)
 		goto handler_free;
