@@ -28,8 +28,6 @@ static char *ifname = "wlan%d";
 static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.link_change			= rtl92e_link_change,
-	.rx_command_packet_handler = NULL,
-	.irq_clear			= rtl92e_clear_irq,
 };
 
 static struct pci_device_id rtl8192_pci_id_tbl[] = {
