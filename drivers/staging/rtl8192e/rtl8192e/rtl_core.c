@@ -30,7 +30,6 @@ static const struct rtl819x_ops rtl819xp_ops = {
 	.link_change			= rtl92e_link_change,
 	.rx_command_packet_handler = NULL,
 	.irq_clear			= rtl92e_clear_irq,
-	.rx_check_stuck_handler	= rtl92e_is_rx_stuck,
 };
 
 static struct pci_device_id rtl8192_pci_id_tbl[] = {
@@ -1063,9 +1062,7 @@ static enum reset_type _rtl92e_tx_check_stuck(struct net_device *dev)
 
 static enum reset_type _rtl92e_rx_check_stuck(struct net_device *dev)
 {
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (priv->ops->rx_check_stuck_handler(dev))
+	if (rtl92e_is_rx_stuck(dev))
 		return RESET_TYPE_SILENT;
 
 	return RESET_TYPE_NORESET;

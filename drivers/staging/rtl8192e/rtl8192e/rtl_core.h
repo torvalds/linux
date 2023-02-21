@@ -211,7 +211,6 @@ struct rtl819x_ops {
 					  struct sk_buff *skb,
 					  struct rx_desc *pdesc);
 	void (*irq_clear)(struct net_device *dev);
-	bool (*rx_check_stuck_handler)(struct net_device *dev);
 };
 
 struct r8192_priv {
