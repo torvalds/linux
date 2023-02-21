@@ -18,6 +18,8 @@
 
 struct wpan_phy;
 struct wpan_phy_cca;
+struct cfg802154_scan_request;
+struct cfg802154_beacon_request;
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 struct ieee802154_llsec_device_key;
@@ -67,6 +69,14 @@ struct cfg802154_ops {
 				struct wpan_dev *wpan_dev, bool mode);
 	int	(*set_ackreq_default)(struct wpan_phy *wpan_phy,
 				      struct wpan_dev *wpan_dev, bool ackreq);
+	int	(*trigger_scan)(struct wpan_phy *wpan_phy,
+				struct cfg802154_scan_request *request);
+	int	(*abort_scan)(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev);
+	int	(*send_beacons)(struct wpan_phy *wpan_phy,
+				struct cfg802154_beacon_request *request);
+	int	(*stop_beacons)(struct wpan_phy *wpan_phy,
+				struct wpan_dev *wpan_dev);
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	void	(*get_llsec_table)(struct wpan_phy *wpan_phy,
 				   struct wpan_dev *wpan_dev,
@@ -241,6 +251,17 @@ static inline void wpan_phy_net_set(struct wpan_phy *wpan_phy, struct net *net)
 	write_pnet(&wpan_phy->_net, net);
 }
 
+static inline bool ieee802154_chan_is_valid(struct wpan_phy *phy,
+					    u8 page, u8 channel)
+{
+	if (page > IEEE802154_MAX_PAGE ||
+	    channel > IEEE802154_MAX_CHANNEL ||
+	    !(phy->supported.channels[page] & BIT(channel)))
+		return false;
+
+	return true;
+}
+
 /**
  * struct ieee802154_addr - IEEE802.15.4 device address
  * @mode: Address mode from frame header. Can be one of:
@@ -276,6 +297,60 @@ struct ieee802154_coord_desc {
 	u16 superframe_spec;
 	u8 link_quality;
 	bool gts_permit;
+};
+
+/**
+ * struct cfg802154_scan_request - Scan request
+ *
+ * @type: type of scan to be performed
+ * @page: page on which to perform the scan
+ * @channels: channels in te %page to be scanned
+ * @duration: time spent on each channel, calculated with:
+ *            aBaseSuperframeDuration * (2 ^ duration + 1)
+ * @wpan_dev: the wpan device on which to perform the scan
+ * @wpan_phy: the wpan phy on which to perform the scan
+ */
+struct cfg802154_scan_request {
+	enum nl802154_scan_types type;
+	u8 page;
+	u32 channels;
+	u8 duration;
+	struct wpan_dev *wpan_dev;
+	struct wpan_phy *wpan_phy;
+};
+
+/**
+ * struct cfg802154_beacon_request - Beacon request descriptor
+ *
+ * @interval: interval n between sendings, in multiple order of the super frame
+ *            duration: aBaseSuperframeDuration * (2^n) unless the interval
+ *            order is greater or equal to 15, in this case beacons won't be
+ *            passively sent out at a fixed rate but instead inform the device
+ *            that it should answer beacon requests as part of active scan
+ *            procedures
+ * @wpan_dev: the concerned wpan device
+ * @wpan_phy: the wpan phy this was for
+ */
+struct cfg802154_beacon_request {
+	u8 interval;
+	struct wpan_dev *wpan_dev;
+	struct wpan_phy *wpan_phy;
+};
+
+/**
+ * struct cfg802154_mac_pkt - MAC packet descriptor (beacon/command)
+ * @node: MAC packets to process list member
+ * @skb: the received sk_buff
+ * @sdata: the interface on which @skb was received
+ * @page: page configuration when @skb was received
+ * @channel: channel configuration when @skb was received
+ */
+struct cfg802154_mac_pkt {
+	struct list_head node;
+	struct sk_buff *skb;
+	struct ieee802154_sub_if_data *sdata;
+	u8 page;
+	u8 channel;
 };
 
 struct ieee802154_llsec_key_id {
@@ -447,6 +522,7 @@ static inline const char *wpan_phy_name(struct wpan_phy *phy)
 	return dev_name(&phy->dev);
 }
 
-void ieee802154_configure_durations(struct wpan_phy *phy);
+void ieee802154_configure_durations(struct wpan_phy *phy,
+				    unsigned int page, unsigned int channel);
 
 #endif /* __NET_CFG802154_H */

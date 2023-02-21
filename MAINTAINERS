@@ -4819,7 +4819,6 @@ L:	linux-wpan@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/ieee802154/cc2520.txt
 F:	drivers/net/ieee802154/cc2520.c
-F:	include/linux/spi/cc2520.h
 
 CCREE ARM TRUSTZONE CRYPTOCELL REE DRIVER
 M:	Gilad Ben-Yossef <gilad@benyossef.com>
