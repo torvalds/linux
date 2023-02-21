@@ -54,6 +54,7 @@ unsigned long physmem_alloc_top_down(enum reserved_range_type type, unsigned lon
 unsigned long physmem_alloc_range(enum reserved_range_type type, unsigned long size,
 				  unsigned long align, unsigned long min, unsigned long max,
 				  bool die_on_oom);
+unsigned long get_physmem_alloc_pos(void);
 bool ipl_report_certs_intersects(unsigned long addr, unsigned long size,
 				 unsigned long *intersection_start);
 bool is_ipl_block_dump(void);
@@ -66,7 +67,8 @@ void verify_facilities(void);
 void print_missing_facilities(void);
 void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
-unsigned long get_random_base(void);
+unsigned long randomize_within_range(unsigned long size, unsigned long align,
+				     unsigned long min, unsigned long max);
 void setup_vmem(unsigned long asce_limit);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 void print_stacktrace(unsigned long sp);

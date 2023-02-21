@@ -91,16 +91,108 @@ static int get_random(unsigned long limit, unsigned long *value)
 	return 0;
 }
 
-unsigned long get_random_base(void)
+static void sort_reserved_ranges(struct reserved_range *res, unsigned long size)
 {
-	unsigned long vmlinux_size = vmlinux.image_size + vmlinux.bss_size;
-	unsigned long minimal_pos = vmlinux.default_lma + vmlinux_size;
-	unsigned long random;
+	struct reserved_range tmp;
+	int i, j;
 
-	/* [vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size : physmem_info.usable] */
-	if (get_random(physmem_info.usable - minimal_pos, &random))
+	for (i = 1; i < size; i++) {
+		tmp = res[i];
+		for (j = i - 1; j >= 0 && res[j].start > tmp.start; j--)
+			res[j + 1] = res[j];
+		res[j + 1] = tmp;
+	}
+}
+
+static unsigned long iterate_valid_positions(unsigned long size, unsigned long align,
+					     unsigned long _min, unsigned long _max,
+					     struct reserved_range *res, size_t res_count,
+					     bool pos_count, unsigned long find_pos)
+{
+	unsigned long start, end, tmp_end, range_pos, pos = 0;
+	struct reserved_range *res_end = res + res_count;
+	struct reserved_range *skip_res;
+	int i;
+
+	align = max(align, 8UL);
+	_min = round_up(_min, align);
+	for_each_physmem_usable_range(i, &start, &end) {
+		if (_min >= end)
+			continue;
+		start = round_up(start, align);
+		if (start >= _max)
+			break;
+		start = max(_min, start);
+		end = min(_max, end);
+
+		while (start + size <= end) {
+			/* skip reserved ranges below the start */
+			while (res && res->end <= start) {
+				res++;
+				if (res >= res_end)
+					res = NULL;
+			}
+			skip_res = NULL;
+			tmp_end = end;
+			/* has intersecting reserved range */
+			if (res && res->start < end) {
+				skip_res = res;
+				tmp_end = res->start;
+			}
+			if (start + size <= tmp_end) {
+				range_pos = (tmp_end - start - size) / align + 1;
+				if (pos_count) {
+					pos += range_pos;
+				} else {
+					if (range_pos >= find_pos)
+						return start + (find_pos - 1) * align;
+					find_pos -= range_pos;
+				}
+			}
+			if (!skip_res)
+				break;
+			start = round_up(skip_res->end, align);
+		}
+	}
+
+	return pos_count ? pos : 0;
+}
+
+/*
+ * Two types of decompressor memory allocations/reserves are considered
+ * differently.
+ *
+ * "Static" or "single" allocations are done via physmem_alloc_range() and
+ * physmem_reserve(), and they are listed in physmem_info.reserved[]. Each
+ * type of "static" allocation can only have one allocation per type and
+ * cannot have chains.
+ *
+ * On the other hand, "dynamic" or "repetitive" allocations are done via
+ * physmem_alloc_top_down(). These allocations are tightly packed together
+ * top down from the end of online memory. physmem_alloc_pos represents
+ * current position where those allocations start.
+ *
+ * Functions randomize_within_range() and iterate_valid_positions()
+ * only consider "dynamic" allocations by never looking above
+ * physmem_alloc_pos. "Static" allocations, however, are explicitly
+ * considered by checking the "res" (reserves) array. The first
+ * reserved_range of a "dynamic" allocation may also be checked along the
+ * way, but it will always be above the maximum value anyway.
+ */
+unsigned long randomize_within_range(unsigned long size, unsigned long align,
+				     unsigned long min, unsigned long max)
+{
+	struct reserved_range res[RR_MAX];
+	unsigned long max_pos, pos;
+
+	memcpy(res, physmem_info.reserved, sizeof(res));
+	sort_reserved_ranges(res, ARRAY_SIZE(res));
+	max = min(max, get_physmem_alloc_pos());
+
+	max_pos = iterate_valid_positions(size, align, min, max, res, ARRAY_SIZE(res), true, 0);
+	if (!max_pos)
 		return 0;
-
-	return physmem_alloc_range(RR_VMLINUX, vmlinux_size, THREAD_SIZE,
-				   vmlinux.default_lma, minimal_pos + random, false);
+	if (get_random(max_pos, &pos))
+		return 0;
+	return iterate_valid_positions(size, align, min, max, res, ARRAY_SIZE(res), false, pos + 1);
 }

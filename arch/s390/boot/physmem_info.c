@@ -321,3 +321,8 @@ unsigned long physmem_alloc_top_down(enum reserved_range_type type, unsigned lon
 	physmem_alloc_ranges = ranges_left;
 	return addr;
 }
+
+unsigned long get_physmem_alloc_pos(void)
+{
+	return physmem_alloc_pos;
+}

@@ -316,7 +316,9 @@ void startup_kernel(void)
 	rescue_initrd(safe_addr, ident_map_size);
 
 	if (kaslr_enabled()) {
-		vmlinux_lma = get_random_base();
+		vmlinux_lma = randomize_within_range(vmlinux.image_size + vmlinux.bss_size,
+						     THREAD_SIZE, vmlinux.default_lma,
+						     ident_map_size);
 		if (vmlinux_lma) {
 			__kaslr_offset = vmlinux_lma - vmlinux.default_lma;
 			offset_vmlinux_info(__kaslr_offset);
