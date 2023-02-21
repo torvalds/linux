@@ -62,7 +62,7 @@ static struct subsys_private *bus_to_subsys(const struct bus_type *bus)
 	struct subsys_private *sp = NULL;
 	struct kobject *kobj;
 
-	if (!bus)
+	if (!bus || !bus_kset)
 		return NULL;
 
 	spin_lock(&bus_kset->list_lock);
