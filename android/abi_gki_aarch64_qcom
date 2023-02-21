@@ -337,6 +337,7 @@
   cfg80211_update_owe_info_event
   cfg80211_vendor_cmd_get_sender
   cfg80211_vendor_cmd_reply
+  cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
   __check_object_size
@@ -1174,6 +1175,7 @@
   _find_next_and_bit
   _find_next_bit
   _find_next_zero_bit
+  find_task_by_vpid
   find_vma
   find_vma_intersection
   find_vpid
@@ -2213,6 +2215,7 @@
   nla_put
   nla_put_64bit
   nla_reserve
+  nla_reserve_64bit
   nla_strscpy
   __nla_validate
   __nlmsg_put
@@ -2486,6 +2489,7 @@
   phy_write_mmd
   pick_highest_pushable_task
   pick_migrate_task
+  pid_nr_ns
   pid_task
   pinconf_generic_dt_node_to_map
   pinctrl_dev_get_drvdata
