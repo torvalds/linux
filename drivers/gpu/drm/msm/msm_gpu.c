@@ -335,6 +335,8 @@ static void get_comm_cmdline(struct msm_gem_submit *submit, char **comm, char **
 	struct msm_file_private *ctx = submit->queue->ctx;
 	struct task_struct *task;
 
+	WARN_ON(!mutex_is_locked(&submit->gpu->lock));
+
 	/* Note that kstrdup will return NULL if argument is NULL: */
 	*comm = kstrdup(ctx->comm, GFP_KERNEL);
 	*cmd  = kstrdup(ctx->cmdline, GFP_KERNEL);

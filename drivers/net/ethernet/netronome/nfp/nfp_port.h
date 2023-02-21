@@ -38,6 +38,16 @@ enum nfp_port_flags {
 	NFP_PORT_CHANGED = 0,
 };
 
+enum {
+	NFP_SPEED_1G,
+	NFP_SPEED_10G,
+	NFP_SPEED_25G,
+	NFP_SPEED_40G,
+	NFP_SPEED_50G,
+	NFP_SPEED_100G,
+	NFP_SUP_SPEED_NUMBER
+};
+
 /**
  * struct nfp_port - structure representing NFP port
  * @netdev:	backpointer to associated netdev
@@ -52,6 +62,7 @@ enum nfp_port_flags {
  * @eth_forced:	for %NFP_PORT_PHYS_PORT port is forced UP or DOWN, don't change
  * @eth_port:	for %NFP_PORT_PHYS_PORT translated ETH Table port entry
  * @eth_stats:	for %NFP_PORT_PHYS_PORT MAC stats if available
+ * @speed_bitmap:	for %NFP_PORT_PHYS_PORT supported speed bitmap
  * @pf_id:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT ID of the PCI PF (0-3)
  * @vf_id:	for %NFP_PORT_VF_PORT ID of the PCI VF within @pf_id
  * @pf_split:	for %NFP_PORT_PF_PORT %true if PCI PF has more than one vNIC
@@ -78,6 +89,7 @@ struct nfp_port {
 			bool eth_forced;
 			struct nfp_eth_table_port *eth_port;
 			u8 __iomem *eth_stats;
+			DECLARE_BITMAP(speed_bitmap, NFP_SUP_SPEED_NUMBER);
 		};
 		/* NFP_PORT_PF_PORT, NFP_PORT_VF_PORT */
 		struct {

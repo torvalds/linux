@@ -128,7 +128,7 @@ static bool is_not(const char *str)
 }
 
 /**
- * prog_entry - a singe entry in the filter program
+ * struct prog_entry - a singe entry in the filter program
  * @target:	     Index to jump to on a branch (actually one minus the index)
  * @when_to_branch:  The value of the result of the predicate to do a branch
  * @pred:	     The predicate to execute.
@@ -140,16 +140,16 @@ struct prog_entry {
 };
 
 /**
- * update_preds- assign a program entry a label target
+ * update_preds - assign a program entry a label target
  * @prog: The program array
  * @N: The index of the current entry in @prog
- * @when_to_branch: What to assign a program entry for its branch condition
+ * @invert: What to assign a program entry for its branch condition
  *
  * The program entry at @N has a target that points to the index of a program
  * entry that can have its target and when_to_branch fields updated.
  * Update the current program entry denoted by index @N target field to be
  * that of the updated entry. This will denote the entry to update if
- * we are processing an "||" after an "&&"
+ * we are processing an "||" after an "&&".
  */
 static void update_preds(struct prog_entry *prog, int N, int invert)
 {

@@ -356,7 +356,7 @@ static int adin1110_read_fifo(struct adin1110_port_priv *port_priv)
 
 	if ((port_priv->flags & IFF_ALLMULTI && rxb->pkt_type == PACKET_MULTICAST) ||
 	    (port_priv->flags & IFF_BROADCAST && rxb->pkt_type == PACKET_BROADCAST))
-		rxb->offload_fwd_mark = 1;
+		rxb->offload_fwd_mark = port_priv->priv->forwarding;
 
 	netif_rx(rxb);
 

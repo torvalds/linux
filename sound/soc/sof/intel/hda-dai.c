@@ -216,6 +216,10 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	sdev = snd_soc_component_get_drvdata(cpu_dai->component);
 	bus = sof_to_bus(sdev);
 
+	hlink = snd_hdac_ext_bus_get_hlink_by_name(bus, codec_dai->component->name);
+	if (!hlink)
+		return -EINVAL;
+
 	hext_stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
 	if (!hext_stream) {
 		hext_stream = hda_link_stream_assign(bus, substream);
@@ -224,10 +228,6 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 
 		snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)hext_stream);
 	}
-
-	hlink = snd_hdac_ext_bus_get_hlink_by_name(bus, codec_dai->component->name);
-	if (!hlink)
-		return -EINVAL;
 
 	/* set the hdac_stream in the codec dai */
 	snd_soc_dai_set_stream(codec_dai, hdac_stream(hext_stream), substream->stream);

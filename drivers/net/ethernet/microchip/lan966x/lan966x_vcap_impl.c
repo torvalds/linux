@@ -95,10 +95,7 @@ lan966x_vcap_is2_get_port_keysets(struct net_device *dev, int lookup,
 	bool found = false;
 	u32 val;
 
-	/* Check if the port keyset selection is enabled */
 	val = lan_rd(lan966x, ANA_VCAP_S2_CFG(port->chip_port));
-	if (!ANA_VCAP_S2_CFG_ENA_GET(val))
-		return -ENOENT;
 
 	/* Collect all keysets for the port in a list */
 	if (l3_proto == ETH_P_ALL)

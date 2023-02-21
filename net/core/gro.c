@@ -162,6 +162,15 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 	struct sk_buff *lp;
 	int segs;
 
+	/* Do not splice page pool based packets w/ non-page pool
+	 * packets. This can result in reference count issues as page
+	 * pool pages will not decrement the reference count and will
+	 * instead be immediately returned to the pool or have frag
+	 * count decremented.
+	 */
+	if (p->pp_recycle != skb->pp_recycle)
+		return -ETOOMANYREFS;
+
 	/* pairs with WRITE_ONCE() in netif_set_gro_max_size() */
 	gro_max_size = READ_ONCE(p->dev->gro_max_size);
 
@@ -505,8 +514,9 @@ found_ptype:
 	NAPI_GRO_CB(skb)->count = 1;
 	if (unlikely(skb_is_gso(skb))) {
 		NAPI_GRO_CB(skb)->count = skb_shinfo(skb)->gso_segs;
-		/* Only support TCP at the moment. */
-		if (!skb_is_gso_tcp(skb))
+		/* Only support TCP and non DODGY users. */
+		if (!skb_is_gso_tcp(skb) ||
+		    (skb_shinfo(skb)->gso_type & SKB_GSO_DODGY))
 			NAPI_GRO_CB(skb)->flush = 1;
 	}
 

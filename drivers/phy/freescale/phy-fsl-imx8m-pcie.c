@@ -255,7 +255,7 @@ static int imx8_pcie_phy_probe(struct platform_device *pdev)
 		imx8_phy->perst =
 			devm_reset_control_get_exclusive(dev, "perst");
 		if (IS_ERR(imx8_phy->perst))
-			dev_err_probe(dev, PTR_ERR(imx8_phy->perst),
+			return dev_err_probe(dev, PTR_ERR(imx8_phy->perst),
 				      "Failed to get PCIE PHY PERST control\n");
 	}
 
