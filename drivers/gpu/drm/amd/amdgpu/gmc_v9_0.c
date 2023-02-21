@@ -1186,9 +1186,10 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 	bool is_vram = bo->tbo.resource->mem_type == TTM_PL_VRAM;
 	bool coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
 	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
-	unsigned int mtype;
-	unsigned int mtype_default;
+	/* TODO: memory partitions struct amdgpu_vm *vm = mapping->bo_va->base.vm;*/
+	unsigned int mtype_local, mtype;
 	bool snoop = false;
+	bool is_local;
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 4, 1):
@@ -1228,35 +1229,26 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 		}
 		break;
 	case IP_VERSION(9, 4, 3):
-		/* FIXME: Needs more work for handling multiple memory
-		 * partitions (> NPS1 mode) e.g. NPS4 for both APU and dGPU
-		 * modes.
-		 * FIXME: Temporarily using MTYPE_CC instead of MTYPE_RW where applicable.
-		 * To force use of MTYPE_RW, set use_mtype_cc_wa=0
+		/* Only local VRAM BOs or system memory on non-NUMA APUs
+		 * can be assumed to be local in their entirety. Choose
+		 * MTYPE_NC as safe fallback for all system memory BOs on
+		 * NUMA systems. Their MTYPE can be overridden per-page in
+		 * gmc_v9_0_override_vm_pte_flags.
 		 */
-		mtype_default = amdgpu_use_mtype_cc_wa ? MTYPE_CC : MTYPE_RW;
+		mtype_local = amdgpu_use_mtype_cc_wa ? MTYPE_CC : MTYPE_RW;
+		is_local = (!is_vram && (adev->flags & AMD_IS_APU) &&
+			    num_possible_nodes() <= 1) ||
+			   (is_vram && adev == bo_adev /* TODO: memory partitions &&
+			    bo->mem_id == vm->mem_id*/);
 		snoop = true;
 		if (uncached) {
 			mtype = MTYPE_UC;
-		} else if (adev->gmc.is_app_apu) {
-			/* FIXME: APU in native mode, NPS1 single socket only
-			 *
-			 * For suporting NUMA partitioned APU e.g. in NPS4 mode,
-			 * this need to look at the NUMA node on which the
-			 * system memory allocation was done.
-			 *
-			 * Memory access by a different partition within same
-			 * socket should be treated as remote access so MTYPE_RW
-			 * cannot be used always.
-			 */
-			mtype = mtype_default;
 		} else if (adev->flags & AMD_IS_APU) {
-			/* APU on carve out mode */
-			mtype = mtype_default;
+			mtype = is_local ? mtype_local : MTYPE_NC;
 		} else {
 			/* dGPU */
-			if (is_vram && bo_adev == adev)
-				mtype = mtype_default;
+			if (is_local)
+				mtype = mtype_local;
 			else if (is_vram)
 				mtype = MTYPE_NC;
 			else

@@ -1151,6 +1151,7 @@ svm_range_get_pte_flags(struct kfd_node *node,
 	bool snoop = (domain != SVM_RANGE_VRAM_DOMAIN);
 	bool coherent = flags & KFD_IOCTL_SVM_FLAG_COHERENT;
 	bool uncached = flags & KFD_IOCTL_SVM_FLAG_UNCACHED;
+	unsigned int mtype_local;
 
 	if (domain == SVM_RANGE_VRAM_DOMAIN)
 		bo_node = prange->svm_bo->node;
@@ -1191,19 +1192,16 @@ svm_range_get_pte_flags(struct kfd_node *node,
 		}
 		break;
 	case IP_VERSION(9, 4, 3):
-		//TODO: Need more work for handling multiple memory partitions
-		//e.g. NPS4. Current approch is only applicable without memory
-		//partitions.
+		mtype_local = amdgpu_use_mtype_cc_wa ? AMDGPU_VM_MTYPE_CC :
+						       AMDGPU_VM_MTYPE_RW;
 		snoop = true;
 		if (uncached) {
 			mapping_flags |= AMDGPU_VM_MTYPE_UC;
 		} else if (domain == SVM_RANGE_VRAM_DOMAIN) {
-			/* local HBM region close to partition
-			 * FIXME: Temporarily using MTYPE_CC instead of MTYPE_RW where applicable.
-			 * To force use of MTYPE_RW, set use_mtype_cc_wa=0
-			 */
-			if (bo_node == node)
-				mapping_flags |= amdgpu_use_mtype_cc_wa ? AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
+			/* local HBM region close to partition */
+			if (bo_node->adev == node->adev /* TODO: memory partitions &&
+			    bo_node->mem_id == node->mem_id*/)
+				mapping_flags |= mtype_local;
 			/* local HBM region far from partition or remote XGMI GPU */
 			else if (svm_nodes_in_same_hive(bo_node, node))
 				mapping_flags |= AMDGPU_VM_MTYPE_NC;
@@ -1212,7 +1210,13 @@ svm_range_get_pte_flags(struct kfd_node *node,
 				mapping_flags |= AMDGPU_VM_MTYPE_UC;
 		/* system memory accessed by the APU */
 		} else if (node->adev->flags & AMD_IS_APU) {
-			mapping_flags |= AMDGPU_VM_MTYPE_NC;
+			/* On NUMA systems, locality is determined per-page
+			 * in amdgpu_gmc_override_vm_pte_flags
+			 */
+			if (num_possible_nodes() <= 1)
+				mapping_flags |= mtype_local;
+			else
+				mapping_flags |= AMDGPU_VM_MTYPE_NC;
 		/* system memory accessed by the dGPU */
 		} else {
 			mapping_flags |= AMDGPU_VM_MTYPE_UC;
