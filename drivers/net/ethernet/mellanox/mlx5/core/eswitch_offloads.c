@@ -2778,7 +2778,9 @@ static int mlx5_esw_offloads_set_ns_peer(struct mlx5_eswitch *esw,
 					 struct mlx5_eswitch *peer_esw,
 					 bool pair)
 {
+	u8 peer_idx = mlx5_get_dev_index(peer_esw->dev);
 	struct mlx5_flow_root_namespace *peer_ns;
+	u8 idx = mlx5_get_dev_index(esw->dev);
 	struct mlx5_flow_root_namespace *ns;
 	int err;
 
@@ -2786,18 +2788,18 @@ static int mlx5_esw_offloads_set_ns_peer(struct mlx5_eswitch *esw,
 	ns = esw->dev->priv.steering->fdb_root_ns;
 
 	if (pair) {
-		err = mlx5_flow_namespace_set_peer(ns, peer_ns);
+		err = mlx5_flow_namespace_set_peer(ns, peer_ns, peer_idx);
 		if (err)
 			return err;
 
-		err = mlx5_flow_namespace_set_peer(peer_ns, ns);
+		err = mlx5_flow_namespace_set_peer(peer_ns, ns, idx);
 		if (err) {
-			mlx5_flow_namespace_set_peer(ns, NULL);
+			mlx5_flow_namespace_set_peer(ns, NULL, peer_idx);
 			return err;
 		}
 	} else {
-		mlx5_flow_namespace_set_peer(ns, NULL);
-		mlx5_flow_namespace_set_peer(peer_ns, NULL);
+		mlx5_flow_namespace_set_peer(ns, NULL, peer_idx);
+		mlx5_flow_namespace_set_peer(peer_ns, NULL, idx);
 	}
 
 	return 0;

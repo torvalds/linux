@@ -139,7 +139,8 @@ static void mlx5_cmd_stub_modify_header_dealloc(struct mlx5_flow_root_namespace 
 }
 
 static int mlx5_cmd_stub_set_peer(struct mlx5_flow_root_namespace *ns,
-				  struct mlx5_flow_root_namespace *peer_ns)
+				  struct mlx5_flow_root_namespace *peer_ns,
+				  u8 peer_idx)
 {
 	return 0;
 }
