@@ -350,9 +350,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Get device resources */
 	/* First CC registers space */
-	req_mem_cc_regs = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
 	/* Map registers space */
-	new_drvdata->cc_base = devm_ioremap_resource(dev, req_mem_cc_regs);
+	new_drvdata->cc_base = devm_platform_get_and_ioremap_resource(plat_dev,
+								      0, &req_mem_cc_regs);
 	if (IS_ERR(new_drvdata->cc_base))
 		return PTR_ERR(new_drvdata->cc_base);
 
