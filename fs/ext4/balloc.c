@@ -385,8 +385,7 @@ static int ext4_validate_block_bitmap(struct super_block *sb,
 	ext4_lock_group(sb, block_group);
 	if (buffer_verified(bh))
 		goto verified;
-	if (unlikely(!ext4_block_bitmap_csum_verify(sb, block_group,
-						    desc, bh) ||
+	if (unlikely(!ext4_block_bitmap_csum_verify(sb, desc, bh) ||
 		     ext4_simulate_fail(sb, EXT4_SIM_BBITMAP_CRC))) {
 		ext4_unlock_group(sb, block_group);
 		ext4_error(sb, "bg %u: bad block bitmap checksum", block_group);
