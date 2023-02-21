@@ -728,13 +728,6 @@ static void atomisp_recover_params_queue(struct atomisp_video_pipe *pipe)
 	atomisp_handle_parameter_and_buffer(pipe);
 }
 
-enum atomisp_metadata_type
-atomisp_get_metadata_type(struct atomisp_sub_device *asd,
-			  enum ia_css_pipe_id pipe_id)
-{
-	return ATOMISP_MAIN_METADATA;
-}
-
 void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		      enum ia_css_buffer_type buf_type,
 		      enum ia_css_pipe_id css_pipe_id,
@@ -806,7 +799,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		if (error)
 			break;
 
-		md_type = atomisp_get_metadata_type(asd, css_pipe_id);
+		md_type = ATOMISP_MAIN_METADATA;
 		list_for_each_entry_safe(md_iter, _md_buf_tmp,
 					 &asd->metadata_in_css[md_type], list) {
 			if (md_iter->metadata ==

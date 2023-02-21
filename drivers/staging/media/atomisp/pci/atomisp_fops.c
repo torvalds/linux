@@ -112,8 +112,7 @@ static int atomisp_q_one_metadata_buffer(struct atomisp_sub_device *asd,
 	enum ia_css_pipe_id css_pipe_id)
 {
 	struct atomisp_metadata_buf *metadata_buf;
-	enum atomisp_metadata_type md_type =
-	    atomisp_get_metadata_type(asd, css_pipe_id);
+	enum atomisp_metadata_type md_type = ATOMISP_MAIN_METADATA;
 	struct list_head *metadata_list;
 
 	if (asd->metadata_bufs_in_css[stream_id][css_pipe_id] >=
