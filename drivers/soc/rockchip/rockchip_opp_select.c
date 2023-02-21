@@ -436,7 +436,7 @@ static int rockchip_get_pvtm_specific_value(struct device *dev,
 		 cur_temp, *target_value, avg_value, diff_value);
 
 resetore_volt:
-	regulator_set_voltage(reg, old_volt, old_volt);
+	regulator_set_voltage(reg, old_volt, INT_MAX);
 restore_clk:
 	clk_set_rate(clk, old_freq);
 pvtm_value_out:
@@ -1076,7 +1076,7 @@ static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 		dev_err(dev, "Failed to set pvtm freq\n");
 		goto put_reg;
 	}
-	ret = regulator_set_voltage(reg, pvtm->volt, pvtm->volt);
+	ret = regulator_set_voltage(reg, pvtm->volt, INT_MAX);
 	if (ret) {
 		dev_err(dev, "Failed to set pvtm_volt\n");
 		goto restore_clk;
@@ -1100,7 +1100,7 @@ static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 	dev_info(dev, "pvtm=%d\n", pvtm_value);
 
 resetore_volt:
-	regulator_set_voltage(reg, old_volt, old_volt);
+	regulator_set_voltage(reg, old_volt, INT_MAX);
 restore_clk:
 	clk_set_rate(clk, old_freq);
 put_reg:
