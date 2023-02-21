@@ -516,7 +516,7 @@
 };
 
 &mct {
-	compatible = "none";
+	status = "disabled";
 };
 
 &mdma1 {
