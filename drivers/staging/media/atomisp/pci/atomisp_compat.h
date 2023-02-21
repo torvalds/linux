@@ -196,9 +196,6 @@ void atomisp_css_input_set_two_pixels_per_clock(
     struct atomisp_sub_device *asd,
     bool two_ppc);
 
-void atomisp_css_enable_raw_binning(struct atomisp_sub_device *asd,
-				    bool enable);
-
 void atomisp_css_enable_dz(struct atomisp_sub_device *asd, bool enable);
 
 void atomisp_css_capture_set_mode(struct atomisp_sub_device *asd,

@@ -1738,25 +1738,6 @@ void atomisp_css_input_set_two_pixels_per_clock(
 		.update_pipe[i] = true;
 }
 
-void atomisp_css_enable_raw_binning(struct atomisp_sub_device *asd,
-				    bool enable)
-{
-	struct atomisp_stream_env *stream_env =
-		    &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL];
-	unsigned int pipe;
-
-	if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-		pipe = IA_CSS_PIPE_ID_VIDEO;
-	else
-		pipe = IA_CSS_PIPE_ID_PREVIEW;
-
-	stream_env->pipe_extra_configs[pipe].enable_raw_binning = enable;
-	stream_env->update_pipe[pipe] = true;
-	if (enable)
-		stream_env->pipe_configs[pipe].output_info[0].padded_width =
-		    stream_env->stream_config.input_config.effective_res.width;
-}
-
 void atomisp_css_enable_dz(struct atomisp_sub_device *asd, bool enable)
 {
 	int i;
