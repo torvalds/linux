@@ -542,4 +542,12 @@ config EDAC_DMC520
 	  Support for error detection and correction on the
 	  SoCs with ARM DMC-520 DRAM controller.
 
+config EDAC_ZYNQMP
+	tristate "Xilinx ZynqMP OCM Controller"
+	depends on ARCH_ZYNQMP || COMPILE_TEST
+	help
+	  This driver supports error detection and correction for the
+	  Xilinx ZynqMP OCM (On Chip Memory) controller. It can also be
+	  built as a module. In that case it will be called zynqmp_edac.
+
 endif # EDAC
