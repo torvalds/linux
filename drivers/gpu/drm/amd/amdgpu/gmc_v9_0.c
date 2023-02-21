@@ -1297,6 +1297,69 @@ static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
 					     mapping, flags);
 }
 
+static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
+					   struct amdgpu_vm *vm,
+					   uint64_t addr, uint64_t *flags)
+{
+	int local_node, nid;
+
+	/* Only GFX 9.4.3 APUs associate GPUs with NUMA nodes. Local system
+	 * memory can use more efficient MTYPEs.
+	 */
+	if (adev->ip_versions[GC_HWIP][0] != IP_VERSION(9, 4, 3))
+		return;
+
+	/* Only direct-mapped memory allows us to determine the NUMA node from
+	 * the DMA address.
+	 */
+	if (!adev->ram_is_direct_mapped) {
+		dev_dbg(adev->dev, "RAM is not direct mapped\n");
+		return;
+	}
+
+	/* Only override mappings with MTYPE_NC, which is the safe default for
+	 * cacheable memory.
+	 */
+	if ((*flags & AMDGPU_PTE_MTYPE_VG10_MASK) !=
+	    AMDGPU_PTE_MTYPE_VG10(MTYPE_NC)) {
+		dev_dbg(adev->dev, "MTYPE is not NC\n");
+		return;
+	}
+
+	/* TODO: memory partitions. mem_id is hard-coded to 0 for now.
+	 * FIXME: Only supported on native mode for now. For carve-out, the
+	 * NUMA affinity of the GPU/VM needs to come from the PCI info because
+	 * memory partitions are not associated with different NUMA nodes.
+	 */
+	if (adev->gmc.is_app_apu) {
+		local_node = adev->gmc.mem_partitions[/*vm->mem_id*/0].numa.node;
+	} else {
+		dev_dbg(adev->dev, "Only native mode APU is supported.\n");
+		return;
+	}
+
+	/* Only handle real RAM. Mappings of PCIe resources don't have struct
+	 * page or NUMA nodes.
+	 */
+	if (!page_is_ram(addr >> PAGE_SHIFT)) {
+		dev_dbg(adev->dev, "Page is not RAM.\n");
+		return;
+	}
+	nid = pfn_to_nid(addr >> PAGE_SHIFT);
+	dev_dbg(adev->dev, "vm->mem_id=%d, local_node=%d, nid=%d\n",
+		/*vm->mem_id*/0, local_node, nid);
+	if (nid == local_node) {
+		unsigned int mtype_local =
+			amdgpu_use_mtype_cc_wa ? MTYPE_CC : MTYPE_RW;
+		uint64_t old_flags = *flags;
+
+		*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
+			 AMDGPU_PTE_MTYPE_VG10(mtype_local);
+		dev_dbg(adev->dev, "flags updated from %llx to %llx\n",
+			old_flags, *flags);
+	}
+}
+
 static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 {
 	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
@@ -1368,6 +1431,7 @@ static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.map_mtype = gmc_v9_0_map_mtype,
 	.get_vm_pde = gmc_v9_0_get_vm_pde,
 	.get_vm_pte = gmc_v9_0_get_vm_pte,
+	.override_vm_pte_flags = gmc_v9_0_override_vm_pte_flags,
 	.get_vbios_fb_size = gmc_v9_0_get_vbios_fb_size,
 	.query_mem_partition_mode = &gmc_v9_0_query_memory_partition,
 };

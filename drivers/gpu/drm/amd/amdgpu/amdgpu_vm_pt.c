@@ -786,18 +786,34 @@ static void amdgpu_vm_pte_update_flags(struct amdgpu_vm_update_params *params,
 				       uint64_t pe, uint64_t addr,
 				       unsigned int count, uint32_t incr,
 				       uint64_t flags)
-
 {
+	struct amdgpu_device *adev = params->adev;
+
 	if (level != AMDGPU_VM_PTB) {
 		flags |= AMDGPU_PDE_PTE;
-		amdgpu_gmc_get_vm_pde(params->adev, level, &addr, &flags);
+		amdgpu_gmc_get_vm_pde(adev, level, &addr, &flags);
 
-	} else if (params->adev->asic_type >= CHIP_VEGA10 &&
+	} else if (adev->asic_type >= CHIP_VEGA10 &&
 		   !(flags & AMDGPU_PTE_VALID) &&
 		   !(flags & AMDGPU_PTE_PRT)) {
 
 		/* Workaround for fault priority problem on GMC9 */
 		flags |= AMDGPU_PTE_EXECUTABLE;
+	}
+
+	/* APUs mapping system memory may need different MTYPEs on different
+	 * NUMA nodes. Only do this for contiguous ranges that can be assumed
+	 * to be on the same NUMA node.
+	 */
+	if ((flags & AMDGPU_PTE_SYSTEM) && (adev->flags & AMD_IS_APU) &&
+	    adev->gmc.gmc_funcs->override_vm_pte_flags &&
+	    num_possible_nodes() > 1) {
+		if (!params->pages_addr)
+			amdgpu_gmc_override_vm_pte_flags(adev, params->vm,
+							 addr, &flags);
+		else
+			dev_dbg(adev->dev,
+				"override_vm_pte_flags skipped: non-contiguous\n");
 	}
 
 	params->vm->update_funcs->update(params, pt, pe, addr, count, incr,
