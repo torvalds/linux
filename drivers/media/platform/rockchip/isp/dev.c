@@ -333,6 +333,12 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 				goto err_stream_off;
 		}
 	} else {
+		if (dev->hw_dev->monitor.is_en) {
+			dev->hw_dev->monitor.is_en = 0;
+			dev->hw_dev->monitor.state = ISP_STOP;
+			if (!completion_done(&dev->hw_dev->monitor.cmpl))
+				complete(&dev->hw_dev->monitor.cmpl);
+		}
 		/* sensor -> phy */
 		for (i = p->num_subdevs - 1; i >= 0; --i) {
 			if ((dev->vicap_in.merge_num > 1) &&
