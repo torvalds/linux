@@ -79,6 +79,25 @@ static const struct iio_chan_spec st_ilps22qs_temp_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1)
 };
 
+static const struct iio_chan_spec st_ilps22qs_qvar_channels[] = {
+	{
+		.type = IIO_ALTVOLTAGE,
+		.address = ST_ILPS22QS_PRESS_OUT_XL_ADDR,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.channel2 = IIO_NO_MOD,
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 24,
+			.storagebits = 32,
+			.endianness = IIO_LE,
+		}
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
 static enum hrtimer_restart
 st_ilps22qs_poll_function_read(struct hrtimer *timer)
 {
@@ -103,8 +122,8 @@ static void st_ilps22qs_report_temp(struct st_ilps22qs_sensor *sensor,
 	iio_push_to_buffers_with_timestamp(iio_dev, iio_buf, timestamp);
 }
 
-static void st_silps22qs_report_press(struct st_ilps22qs_sensor *sensor,
-				      u8 *tmp, int64_t timestamp)
+static void st_silps22qs_report_press_qvar(struct st_ilps22qs_sensor *sensor,
+					   u8 *tmp, int64_t timestamp)
 {
 	struct iio_dev *iio_dev = sensor->hw->iio_devs[sensor->id];
 	u8 iio_buf[ALIGN(3, sizeof(s64)) + sizeof(s64)];
@@ -118,7 +137,6 @@ static void st_ilps22qs_poll_function_work(struct work_struct *iio_work)
 	struct st_ilps22qs_sensor *sensor;
 	struct st_ilps22qs_hw *hw;
 	ktime_t tmpkt, ktdelta;
-	u8 data[3];
 	int len;
 	int err;
 	int id;
@@ -132,6 +150,8 @@ static void st_ilps22qs_poll_function_work(struct work_struct *iio_work)
 	ktdelta = ktime_set(0,
 			    (st_ilps22qs_get_time_ns(hw) - sensor->timestamp));
 
+	mutex_lock(&hw->lock);
+
 	/* avoid negative value in case of high odr */
 	if (ktime_after(sensor->ktime, ktdelta))
 		tmpkt = ktime_sub(sensor->ktime, ktdelta);
@@ -139,26 +159,35 @@ static void st_ilps22qs_poll_function_work(struct work_struct *iio_work)
 		tmpkt = sensor->ktime;
 
 	hrtimer_start(&sensor->hr_timer, tmpkt, HRTIMER_MODE_REL);
+	mutex_unlock(&sensor->hw->lock);
+
 	len = hw->iio_devs[id]->channels->scan_type.realbits >> 3;
 
 	switch (id) {
 	case ST_ILPS22QS_PRESS:
+	case ST_ILPS22QS_QVAR: {
+		u8 data[3];
+
 		err = st_ilps22qs_read_locked(hw,
-				    hw->iio_devs[id]->channels->address,
-				    data, len);
+					    hw->iio_devs[id]->channels->address,
+					    data, len);
 		if (err < 0)
 			return;
 
-		st_silps22qs_report_press(sensor, data, sensor->timestamp);
+		st_silps22qs_report_press_qvar(sensor, data, sensor->timestamp);
+		}
 		break;
-	case ST_ILPS22QS_TEMP:
+	case ST_ILPS22QS_TEMP: {
+		u8 data[2];
+
 		err = st_ilps22qs_read_locked(hw,
-				    hw->iio_devs[id]->channels->address,
-				    data, len);
+					    hw->iio_devs[id]->channels->address,
+					    data, len);
 		if (err < 0)
 			return;
 
 		st_ilps22qs_report_temp(sensor, data, sensor->timestamp);
+		}
 		break;
 	default:
 		break;
@@ -227,7 +256,7 @@ static int st_ilps22qs_set_odr(struct st_ilps22qs_sensor *sensor, u8 odr)
 	int i;
 
 	for (i = 0; i < ST_ILPS22QS_SENSORS_NUM; i++) {
-		if (hw->enable_mask & BIT(i) && sensor->id != i) {
+		if ((hw->enable_mask & BIT(i)) && (sensor->id != i)) {
 			struct st_ilps22qs_sensor *temp;
 
 			temp = iio_priv(hw->iio_devs[i]);
@@ -245,7 +274,7 @@ static int st_ilps22qs_set_odr(struct st_ilps22qs_sensor *sensor, u8 odr)
 		err = st_ilps22qs_update_locked(hw,
 					 st_ilps22qs_odr_table.reg.addr,
 					 st_ilps22qs_odr_table.reg.mask,
-					 st_ilps22qs_odr_table.odr_avl[ret].hz);
+					 st_ilps22qs_odr_table.odr_avl[ret].val);
 		if (err < 0)
 			return err;
 
@@ -255,6 +284,39 @@ static int st_ilps22qs_set_odr(struct st_ilps22qs_sensor *sensor, u8 odr)
 	return 0;
 }
 
+static int st_ilps22qs_check_busy(struct st_ilps22qs_sensor *sensor,
+				  bool enable)
+{
+	int otherid = sensor->id == ST_ILPS22QS_PRESS ? ST_ILPS22QS_QVAR :
+							ST_ILPS22QS_PRESS;
+
+	if (sensor->hw->enable_mask & BIT(otherid))
+		return -EBUSY;
+
+	return 0;
+}
+
+static int st_ilps22qs_hw_enable(struct st_ilps22qs_sensor *sensor, bool enable)
+{
+	int err = 0;
+
+	if (sensor->id == ST_ILPS22QS_TEMP)
+		return 0;
+
+	err = st_ilps22qs_check_busy(sensor, enable);
+	if (err < 0)
+		return err;
+
+	if (sensor->id == ST_ILPS22QS_QVAR) {
+		err = st_ilps22qs_update_locked(sensor->hw,
+						ST_ILPS22QS_CTRL3_ADDR,
+						ST_ILPS22QS_AH_QVAR_EN_MASK,
+						!!enable);
+	}
+
+	return err;
+}
+
 static int st_ilps22qs_set_enable(struct st_ilps22qs_sensor *sensor,
 				  bool enable)
 {
@@ -262,10 +324,15 @@ static int st_ilps22qs_set_enable(struct st_ilps22qs_sensor *sensor,
 	u8 odr = enable ? sensor->odr : 0;
 	int err;
 
+	err = st_ilps22qs_hw_enable(sensor, enable);
+	if (err < 0)
+		return err;
+
 	err = st_ilps22qs_set_odr(sensor, odr);
 	if (err < 0)
 		return err;
 
+	mutex_lock(&hw->lock);
 	if (enable) {
 		ktime_t ktime = ktime_set(0, 1000000000 / sensor->odr);
 
@@ -277,6 +344,7 @@ static int st_ilps22qs_set_enable(struct st_ilps22qs_sensor *sensor,
 		hrtimer_cancel(&sensor->hr_timer);
 		hw->enable_mask &= ~BIT(sensor->id);
 	}
+	mutex_unlock(&hw->lock);
 
 	return 0;
 }
@@ -344,14 +412,23 @@ static int st_ilps22qs_read_raw(struct iio_dev *iio_dev,
 		if (ret < 0)
 			goto read_error;
 
-		if (sensor->id == ST_ILPS22QS_PRESS)
+		switch (sensor->id) {
+		case ST_ILPS22QS_PRESS:
 			*val = (s32)get_unaligned_le32(data);
-		else if (sensor->id == ST_ILPS22QS_TEMP)
+			break;
+		case ST_ILPS22QS_TEMP:
 			*val = (s16)get_unaligned_le16(data);
-
-		ret = st_ilps22qs_set_enable(sensor, false);
+			break;
+		case ST_ILPS22QS_QVAR:
+			*val = (s32)get_unaligned_le32(data);
+			break;
+		default:
+			ret = -ENODEV;
+			goto read_error;
+		}
 
 read_error:
+		st_ilps22qs_set_enable(sensor, false);
 		iio_device_release_direct_mode(iio_dev);
 
 		if (ret < 0)
@@ -368,6 +445,11 @@ read_error:
 			ret = IIO_VAL_FRACTIONAL;
 			break;
 		case IIO_PRESSURE:
+			*val = 0;
+			*val2 = sensor->gain;
+			ret = IIO_VAL_INT_PLUS_NANO;
+			break;
+		case IIO_ALTVOLTAGE:
 			*val = 0;
 			*val2 = sensor->gain;
 			ret = IIO_VAL_INT_PLUS_NANO;
@@ -448,6 +530,22 @@ static const struct attribute_group st_ilps22qs_temp_attribute_group = {
 
 static const struct iio_info st_ilps22qs_temp_info = {
 	.attrs = &st_ilps22qs_temp_attribute_group,
+	.read_raw = st_ilps22qs_read_raw,
+	.write_raw = st_ilps22qs_write_raw,
+	.debugfs_reg_access = st_ilps22qs_reg_access,
+};
+
+static struct attribute *st_ilps22qs_qvar_attributes[] = {
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group st_ilps22qs_qvar_attribute_group = {
+	.attrs = st_ilps22qs_qvar_attributes,
+};
+
+static const struct iio_info st_ilps22qs_qvar_info = {
+	.attrs = &st_ilps22qs_qvar_attribute_group,
 	.read_raw = st_ilps22qs_read_raw,
 	.write_raw = st_ilps22qs_write_raw,
 	.debugfs_reg_access = st_ilps22qs_reg_access,
@@ -569,6 +667,14 @@ static struct iio_dev *st_ilps22qs_alloc_iiodev(struct st_ilps22qs_hw *hw,
 		iio_dev->channels = st_ilps22qs_temp_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_ilps22qs_temp_channels);
 		iio_dev->info = &st_ilps22qs_temp_info;
+		break;
+	case ST_ILPS22QS_QVAR:
+		sensor->gain = ST_ILPS22QS_QVAR_FS_AVL_GAIN;
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  ST_ILPS22QS_DEV_NAME "_qvar");
+		iio_dev->channels = st_ilps22qs_qvar_channels;
+		iio_dev->num_channels = ARRAY_SIZE(st_ilps22qs_qvar_channels);
+		iio_dev->info = &st_ilps22qs_qvar_info;
 		break;
 	default:
 		return NULL;
