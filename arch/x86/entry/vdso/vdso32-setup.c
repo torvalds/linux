@@ -51,16 +51,7 @@ __setup("vdso32=", vdso32_setup);
 __setup_param("vdso=", vdso_setup, vdso32_setup, 0);
 #endif
 
-int __init sysenter_setup(void)
-{
-	init_vdso_image(&vdso_image_32);
-
-	return 0;
-}
-
 #ifdef CONFIG_X86_64
-
-subsys_initcall(sysenter_setup);
 
 #ifdef CONFIG_SYSCTL
 /* Register vsyscall32 into the ABI table */
