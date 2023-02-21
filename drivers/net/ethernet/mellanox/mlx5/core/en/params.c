@@ -674,6 +674,7 @@ static void mlx5e_rx_compute_wqe_bulk_params(struct mlx5e_params *params,
 	u32 bulk_bound_rq_size_in_bytes;
 	u32 sum_frag_strides = 0;
 	u32 wqe_bulk_in_bytes;
+	u16 split_factor;
 	u32 wqe_bulk;
 	int i;
 
@@ -702,6 +703,10 @@ static void mlx5e_rx_compute_wqe_bulk_params(struct mlx5e_params *params,
 	 * by older WQEs.
 	 */
 	info->wqe_bulk = max_t(u16, info->wqe_index_mask + 1, wqe_bulk);
+
+	split_factor = DIV_ROUND_UP(MAX_WQE_BULK_BYTES(params->xdp_prog),
+				    PP_ALLOC_CACHE_REFILL * PAGE_SIZE);
+	info->refill_unit = DIV_ROUND_UP(info->wqe_bulk, split_factor);
 }
 
 #define DEFAULT_FRAG_SIZE (2048)
@@ -817,7 +822,8 @@ out:
 	 */
 	mlx5e_rx_compute_wqe_bulk_params(params, info);
 
-	mlx5_core_dbg(mdev, "%s: wqe_bulk = %u\n", __func__, info->wqe_bulk);
+	mlx5_core_dbg(mdev, "%s: wqe_bulk = %u, wqe_bulk_refill_unit = %u\n",
+		      __func__, info->wqe_bulk, info->refill_unit);
 
 	info->log_num_frags = order_base_2(info->num_frags);
 

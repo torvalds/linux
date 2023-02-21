@@ -449,6 +449,31 @@ static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 	return i;
 }
 
+static int mlx5e_refill_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
+{
+	int remaining = wqe_bulk;
+	int i = 0;
+
+	/* The WQE bulk is split into smaller bulks that are sized
+	 * according to the page pool cache refill size to avoid overflowing
+	 * the page pool cache due to too many page releases at once.
+	 */
+	do {
+		int refill = min_t(u16, rq->wqe.info.refill_unit, remaining);
+		int alloc_count;
+
+		mlx5e_free_rx_wqes(rq, ix + i, refill);
+		alloc_count = mlx5e_alloc_rx_wqes(rq, ix + i, refill);
+		i += alloc_count;
+		if (unlikely(alloc_count != refill))
+			break;
+
+		remaining -= refill;
+	} while (remaining);
+
+	return i;
+}
+
 static inline void
 mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
 		   struct page *page, u32 frag_offset, u32 len,
@@ -837,8 +862,7 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	wqe_bulk -= (head + wqe_bulk) & rq->wqe.info.wqe_index_mask;
 
 	if (!rq->xsk_pool) {
-		mlx5e_free_rx_wqes(rq, head, wqe_bulk);
-		count = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
+		count = mlx5e_refill_rx_wqes(rq, head, wqe_bulk);
 	} else if (likely(!rq->xsk_pool->dma_need_sync)) {
 		mlx5e_xsk_free_rx_wqes(rq, head, wqe_bulk);
 		count = mlx5e_xsk_alloc_rx_wqes_batched(rq, head, wqe_bulk);

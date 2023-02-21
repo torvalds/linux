@@ -671,6 +671,7 @@ struct mlx5e_rq_frags_info {
 	u8 num_frags;
 	u8 log_num_frags;
 	u16 wqe_bulk;
+	u16 refill_unit;
 	u8 wqe_index_mask;
 };
 
