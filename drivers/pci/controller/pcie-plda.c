@@ -983,18 +983,18 @@ static int plda_pcie_probe(struct platform_device *pdev)
 	if (plda_pcie_is_link_up(pcie) == PLDA_LINK_DOWN)
 		goto release;
 
-	ret = pci_host_probe(bridge);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to pci host probe: %d\n", ret);
-		goto release;
-	}
-
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		ret = plda_pcie_enable_msi(pcie, bus);
 		if (ret < 0) {
 			dev_err(&pdev->dev,	"Failed to enable MSI support: %d\n", ret);
 			goto release;
 		}
+	}
+
+	ret = pci_host_probe(bridge);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to pci host probe: %d\n", ret);
+		goto release;
 	}
 
 exit:
