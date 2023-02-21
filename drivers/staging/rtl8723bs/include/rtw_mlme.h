@@ -490,18 +490,6 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, signed int state)
 		pmlmepriv->bScanInProcess = false;
 }
 
-/*
- * No Limit on the calling context,
- * therefore set it to be the critical section...
- */
-static inline void clr_fwstate(struct mlme_priv *pmlmepriv, signed int state)
-{
-	spin_lock_bh(&pmlmepriv->lock);
-	if (check_fwstate(pmlmepriv, state) == true)
-		pmlmepriv->fw_state ^= state;
-	spin_unlock_bh(&pmlmepriv->lock);
-}
-
 static inline void set_scanned_network_val(struct mlme_priv *pmlmepriv, signed int val)
 {
 	spin_lock_bh(&pmlmepriv->lock);
