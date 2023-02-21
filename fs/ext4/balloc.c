@@ -350,13 +350,13 @@ static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 	blk = ext4_inode_table(sb, desc);
 	offset = blk - group_first_block;
 	if (offset < 0 || EXT4_B2C(sbi, offset) >= max_bit ||
-	    EXT4_B2C(sbi, offset + sbi->s_itb_per_group) >= max_bit)
+	    EXT4_B2C(sbi, offset + sbi->s_itb_per_group - 1) >= max_bit)
 		return blk;
 	next_zero_bit = ext4_find_next_zero_bit(bh->b_data,
-			EXT4_B2C(sbi, offset + sbi->s_itb_per_group),
+			EXT4_B2C(sbi, offset + sbi->s_itb_per_group - 1) + 1,
 			EXT4_B2C(sbi, offset));
 	if (next_zero_bit <
-	    EXT4_B2C(sbi, offset + sbi->s_itb_per_group))
+	    EXT4_B2C(sbi, offset + sbi->s_itb_per_group - 1) + 1)
 		/* bad bitmap for inode tables */
 		return blk;
 	return 0;
