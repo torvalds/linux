@@ -757,7 +757,6 @@ typedef struct _MPT_ADAPTER
 	u8			 wait_on_reset_completion;
 	MPT_SCHEDULE_TARGET_RESET schedule_target_reset;
 	MPT_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
-	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
 	struct list_head	 fc_rports;
