@@ -629,23 +629,29 @@ static int ov5647_write(struct v4l2_subdev *sd, u16 reg, u8 val)
 
 static int ov5647_read(struct v4l2_subdev *sd, u16 reg, u8 *val)
 {
-	unsigned char data_w[2] = { reg >> 8, reg & 0xff };
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 buf[2] = { reg >> 8, reg & 0xff };
+	struct i2c_msg msg[2];
 	int ret;
 
-	ret = i2c_master_send(client, data_w, 2);
-	if (ret < 0) {
-		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-			__func__, reg);
-		return ret;
+	msg[0].addr = client->addr;
+	msg[0].flags = client->flags;
+	msg[0].buf = buf;
+	msg[0].len = sizeof(buf);
+
+	msg[1].addr = client->addr;
+	msg[1].flags = client->flags | I2C_M_RD;
+	msg[1].buf = buf;
+	msg[1].len = 1;
+
+	ret = i2c_transfer(client->adapter, msg, 2);
+	if (ret != 2) {
+		dev_err(&client->dev, "%s: i2c read error, reg: %x = %d\n",
+			__func__, reg, ret);
+		return ret >= 0 ? -EINVAL : ret;
 	}
 
-	ret = i2c_master_recv(client, val, 1);
-	if (ret < 0) {
-		dev_dbg(&client->dev, "%s: i2c read error, reg: %x\n",
-				__func__, reg);
-		return ret;
-	}
+	*val = buf[0];
 
 	return 0;
 }
