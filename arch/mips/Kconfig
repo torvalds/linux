@@ -490,7 +490,6 @@ config MACH_LOONGSON64
 	select BOARD_SCACHE
 	select CSRC_R4K
 	select CEVT_R4K
-	select CPU_HAS_WB
 	select FORCE_PCI
 	select ISA
 	select I8259
