@@ -13,14 +13,8 @@
 # will most likely get a sudden build breakage... Hopefully we will fix
 # new warnings before CI updates!
 subdir-ccflags-y := -Wall -Wextra
-# making these call cc-disable-warning breaks when trying to build xe.mod.o
-# by calling make M=drivers/gpu/drm/xe. This doesn't happen in upstream tree,
-# so it was somehow fixed by the changes in the build system. Move it back to
-# $(call cc-disable-warning, ...) after rebase.
-subdir-ccflags-y += -Wno-unused-parameter
-subdir-ccflags-y += -Wno-type-limits
-#subdir-ccflags-y += $(call cc-disable-warning, unused-parameter)
-#subdir-ccflags-y += $(call cc-disable-warning, type-limits)
+subdir-ccflags-y += $(call cc-disable-warning, unused-parameter)
+subdir-ccflags-y += $(call cc-disable-warning, type-limits)
 subdir-ccflags-y += $(call cc-disable-warning, missing-field-initializers)
 subdir-ccflags-y += $(call cc-disable-warning, unused-but-set-variable)
 # clang warnings
