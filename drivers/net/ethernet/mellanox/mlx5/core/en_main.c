@@ -520,6 +520,9 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 
 	next_frag.frag_page = &rq->wqe.alloc_units->frag_pages[0];
 
+	/* Skip first release due to deferred release. */
+	next_frag.flags = BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
+
 	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++) {
 		struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
 		struct mlx5e_wqe_frag_info *frag =
@@ -558,8 +561,14 @@ static void mlx5e_init_xsk_buffs(struct mlx5e_rq *rq)
 	/* Considering the above assumptions a fragment maps to a single
 	 * xsk_buff.
 	 */
-	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++)
+	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++) {
 		rq->wqe.frags[i].xskp = &rq->wqe.alloc_units->xsk_buffs[i];
+
+		/* Skip first release due to deferred release as WQES are
+		 * not allocated yet.
+		 */
+		rq->wqe.frags[i].flags |= BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
+	}
 }
 
 static int mlx5e_init_wqe_alloc_info(struct mlx5e_rq *rq, int node)
@@ -1183,11 +1192,20 @@ void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 						0, true);
 	} else {
 		struct mlx5_wq_cyc *wq = &rq->wqe.wq;
+		u16 missing = mlx5_wq_cyc_missing(wq);
+		u16 head = mlx5_wq_cyc_get_head(wq);
 
 		while (!mlx5_wq_cyc_is_empty(wq)) {
 			wqe_ix = mlx5_wq_cyc_get_tail(wq);
 			rq->dealloc_wqe(rq, wqe_ix);
 			mlx5_wq_cyc_pop(wq);
+		}
+		/* Missing slots might also contain unreleased pages due to
+		 * deferred release.
+		 */
+		while (missing--) {
+			wqe_ix = mlx5_wq_cyc_ctr2ix(wq, head++);
+			rq->dealloc_wqe(rq, wqe_ix);
 		}
 	}
 

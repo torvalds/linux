@@ -189,6 +189,7 @@ int mlx5e_xsk_alloc_rx_wqes_batched(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 
 		addr = xsk_buff_xdp_get_frame_dma(*frag->xskp);
 		wqe->data[0].addr = cpu_to_be64(addr + rq->buff.headroom);
+		frag->flags &= ~BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
 	}
 
 	return alloc;
@@ -215,6 +216,7 @@ int mlx5e_xsk_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 
 		addr = xsk_buff_xdp_get_frame_dma(*frag->xskp);
 		wqe->data[0].addr = cpu_to_be64(addr + rq->buff.headroom);
+		frag->flags &= ~BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
 	}
 
 	return wqe_bulk;

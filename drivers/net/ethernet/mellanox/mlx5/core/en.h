@@ -607,6 +607,7 @@ struct mlx5e_frag_page {
 
 enum mlx5e_wqe_frag_flag {
 	MLX5E_WQE_FRAG_LAST_IN_PAGE,
+	MLX5E_WQE_FRAG_SKIP_RELEASE,
 };
 
 struct mlx5e_wqe_frag_info {
