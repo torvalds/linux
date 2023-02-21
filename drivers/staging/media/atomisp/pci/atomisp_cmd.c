@@ -1114,9 +1114,8 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
 	bool stream_restart[MAX_STREAM_NUM] = {0};
-	bool depth_mode = false;
-	int i, ret, depth_cnt = 0;
 	unsigned long flags;
+	int i, ret;
 
 	lockdep_assert_held(&isp->mutex);
 
@@ -1133,8 +1132,6 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED &&
 		    !asd->stream_prepared)
 			continue;
-
-		depth_cnt++;
 
 		if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED)
 			cancel_work_sync(&asd->delayed_init_work);
@@ -1185,13 +1182,6 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	isp->isp_timeout = true;
 	atomisp_reset(isp);
 	isp->isp_timeout = false;
-
-	if (!isp_timeout) {
-		for (i = 0; i < isp->num_of_streams; i++) {
-			if (isp->asd[i].depth_mode->val)
-				return;
-		}
-	}
 
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd = &isp->asd[i];
@@ -1248,24 +1238,12 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 		atomisp_recover_params_queue(&asd->video_out_preview);
 		atomisp_recover_params_queue(&asd->video_out_video_capture);
 
-		if ((asd->depth_mode->val) &&
-		    (depth_cnt == ATOMISP_DEPTH_SENSOR_STREAMON_COUNT)) {
-			depth_mode = true;
-			continue;
-		}
-
 		ret = v4l2_subdev_call(
 			  isp->inputs[asd->input_curr].camera, video,
 			  s_stream, 1);
 		if (ret)
 			dev_warn(isp->dev,
 				 "can't start streaming on sensor!\n");
-	}
-
-	if (depth_mode) {
-		if (atomisp_stream_on_master_slave_sensor(isp, true))
-			dev_warn(isp->dev,
-				 "master slave sensor stream on failed!\n");
 	}
 }
 

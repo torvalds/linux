@@ -758,23 +758,9 @@ static int s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct atomisp_sub_device *asd = container_of(
 					     ctrl->handler, struct atomisp_sub_device, ctrl_handler);
-	unsigned int streaming;
-	unsigned long flags;
-
 	switch (ctrl->id) {
 	case V4L2_CID_RUN_MODE:
 		return __atomisp_update_run_mode(asd);
-	case V4L2_CID_DEPTH_MODE:
-		/* Use spinlock instead of mutex to avoid possible locking issues */
-		spin_lock_irqsave(&asd->isp->lock, flags);
-		streaming = asd->streaming;
-		spin_unlock_irqrestore(&asd->isp->lock, flags);
-		if (streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
-			dev_err(asd->isp->dev,
-				"ISP is streaming, it is not supported to change the depth mode\n");
-			return -EINVAL;
-		}
-		break;
 	}
 
 	return 0;
@@ -930,24 +916,6 @@ static const struct v4l2_ctrl_config ctrl_disable_dz = {
 	.def = 0,
 };
 
-/*
- * Control for ISP depth mode
- *
- * When enabled, that means ISP will deal with dual streams and sensors will be
- * in slave/master mode.
- * slave sensor will have no output until master sensor is streamed on.
- */
-static const struct v4l2_ctrl_config ctrl_depth_mode = {
-	.ops = &ctrl_ops,
-	.id = V4L2_CID_DEPTH_MODE,
-	.type = V4L2_CTRL_TYPE_BOOLEAN,
-	.name = "Depth mode",
-	.min = 0,
-	.max = 1,
-	.step = 1,
-	.def = 0,
-};
-
 static int atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 				    struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
 {
@@ -1085,10 +1053,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	asd->enable_raw_buffer_lock =
 	    v4l2_ctrl_new_custom(&asd->ctrl_handler,
 				 &ctrl_enable_raw_buffer_lock,
-				 NULL);
-	asd->depth_mode =
-	    v4l2_ctrl_new_custom(&asd->ctrl_handler,
-				 &ctrl_depth_mode,
 				 NULL);
 	asd->disable_dz =
 	    v4l2_ctrl_new_custom(&asd->ctrl_handler,

@@ -1107,8 +1107,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* Lock and unlock raw buffer */
 #define V4L2_CID_ENABLE_RAW_BUFFER_LOCK (V4L2_CID_CAMERA_LASTP1 + 29)
 
-#define V4L2_CID_DEPTH_MODE		(V4L2_CID_CAMERA_LASTP1 + 30)
-
 #define V4L2_CID_EXPOSURE_ZONE_NUM	(V4L2_CID_CAMERA_LASTP1 + 31)
 /* Disable digital zoom */
 #define V4L2_CID_DISABLE_DZ		(V4L2_CID_CAMERA_LASTP1 + 32)

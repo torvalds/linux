@@ -1173,51 +1173,6 @@ static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
 		return 1;
 }
 
-int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
-	bool isp_timeout)
-{
-	unsigned int master, slave, delay_slave = 0;
-	int ret;
-
-	master = ATOMISP_DEPTH_DEFAULT_MASTER_SENSOR;
-	slave = ATOMISP_DEPTH_DEFAULT_SLAVE_SENSOR;
-	dev_warn(isp->dev,
-		 "depth mode use default master=%s.slave=%s.\n",
-		 isp->inputs[master].camera->name,
-		 isp->inputs[slave].camera->name);
-
-	ret = v4l2_subdev_call(isp->inputs[master].camera, core,
-			       ioctl, ATOMISP_IOC_G_DEPTH_SYNC_COMP,
-			       &delay_slave);
-	if (ret)
-		dev_warn(isp->dev,
-			 "get depth sensor %s compensation delay failed.\n",
-			 isp->inputs[master].camera->name);
-
-	ret = v4l2_subdev_call(isp->inputs[master].camera,
-			       video, s_stream, 1);
-	if (ret) {
-		dev_err(isp->dev, "depth mode master sensor %s stream-on failed.\n",
-			isp->inputs[master].camera->name);
-		return -EINVAL;
-	}
-
-	if (delay_slave != 0)
-		udelay(delay_slave);
-
-	ret = v4l2_subdev_call(isp->inputs[slave].camera,
-			       video, s_stream, 1);
-	if (ret) {
-		dev_err(isp->dev, "depth mode slave sensor %s stream-on failed.\n",
-			isp->inputs[slave].camera->name);
-		v4l2_subdev_call(isp->inputs[master].camera, video, s_stream, 0);
-
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* Input system HW workaround */
 /* Input system address translation corrupts burst during */
 /* invalidate. SW workaround for this is to set burst length */
@@ -1396,19 +1351,6 @@ start_sensor:
 			dev_dbg(isp->dev, "DFS auto mode failed!\n");
 	}
 
-	if (asd->depth_mode->val && atomisp_streaming_count(isp) ==
-	    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT) {
-		ret = atomisp_stream_on_master_slave_sensor(isp, false);
-		if (ret) {
-			dev_err(isp->dev, "master slave sensor stream on failed!\n");
-			goto out_unlock;
-		}
-		goto start_delay_wq;
-	} else if (asd->depth_mode->val && (atomisp_streaming_count(isp) <
-					    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT)) {
-		goto start_delay_wq;
-	}
-
 	/* Enable the CSI interface on ANN B0/K0 */
 	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
 					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
@@ -1427,7 +1369,6 @@ start_sensor:
 		goto out_unlock;
 	}
 
-start_delay_wq:
 	if (asd->continuous_mode->val) {
 		atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				        V4L2_SUBDEV_FORMAT_ACTIVE,
