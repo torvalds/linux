@@ -26,7 +26,7 @@ struct zfcp_reqlist {
 	struct list_head buckets[ZFCP_REQ_LIST_BUCKETS];
 };
 
-static inline size_t zfcp_reqlist_hash(unsigned long req_id)
+static inline size_t zfcp_reqlist_hash(u64 req_id)
 {
 	return req_id % ZFCP_REQ_LIST_BUCKETS;
 }
@@ -83,7 +83,7 @@ static inline void zfcp_reqlist_free(struct zfcp_reqlist *rl)
 }
 
 static inline struct zfcp_fsf_req *
-_zfcp_reqlist_find(struct zfcp_reqlist *rl, unsigned long req_id)
+_zfcp_reqlist_find(struct zfcp_reqlist *rl, u64 req_id)
 {
 	struct zfcp_fsf_req *req;
 	size_t i;
@@ -104,7 +104,7 @@ _zfcp_reqlist_find(struct zfcp_reqlist *rl, unsigned long req_id)
  * or NULL if there is no known FSF request with this id.
  */
 static inline struct zfcp_fsf_req *
-zfcp_reqlist_find(struct zfcp_reqlist *rl, unsigned long req_id)
+zfcp_reqlist_find(struct zfcp_reqlist *rl, u64 req_id)
 {
 	unsigned long flags;
 	struct zfcp_fsf_req *req;
@@ -129,7 +129,7 @@ zfcp_reqlist_find(struct zfcp_reqlist *rl, unsigned long req_id)
  * NULL if it has not been found.
  */
 static inline struct zfcp_fsf_req *
-zfcp_reqlist_find_rm(struct zfcp_reqlist *rl, unsigned long req_id)
+zfcp_reqlist_find_rm(struct zfcp_reqlist *rl, u64 req_id)
 {
 	unsigned long flags;
 	struct zfcp_fsf_req *req;

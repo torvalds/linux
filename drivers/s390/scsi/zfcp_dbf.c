@@ -649,7 +649,7 @@ void zfcp_dbf_scsi_common(char *tag, int level, struct scsi_device *sdev,
 		rec->scsi_id = sc->device->id;
 		rec->scsi_lun = (u32)sc->device->lun;
 		rec->scsi_lun_64_hi = (u32)(sc->device->lun >> 32);
-		rec->host_scribble = (unsigned long)sc->host_scribble;
+		rec->host_scribble = (u64)sc->host_scribble;
 
 		memcpy(rec->scsi_opcode, sc->cmnd,
 		       min_t(int, sc->cmd_len, ZFCP_DBF_SCSI_OPCODE));
