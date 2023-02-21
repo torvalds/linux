@@ -868,6 +868,7 @@ static void mlx5_esw_bridge_put(struct mlx5_esw_bridge_offloads *br_offloads,
 		return;
 
 	mlx5_esw_bridge_egress_table_cleanup(bridge);
+	mlx5_esw_bridge_mcast_disable(bridge);
 	list_del(&bridge->list);
 	rhashtable_destroy(&bridge->fdb_ht);
 	kvfree(bridge);
@@ -1456,6 +1457,36 @@ int mlx5_esw_bridge_vlan_proto_set(u16 vport_num, u16 esw_owner_vhca_id, u16 pro
 	mlx5_esw_bridge_vlans_recreate(bridge);
 
 	return 0;
+}
+
+int mlx5_esw_bridge_mcast_set(u16 vport_num, u16 esw_owner_vhca_id, bool enable,
+			      struct mlx5_esw_bridge_offloads *br_offloads)
+{
+	struct mlx5_eswitch *esw = br_offloads->esw;
+	struct mlx5_esw_bridge *bridge;
+	int err = 0;
+	bool mcast;
+
+	if (!(MLX5_CAP_ESW_FLOWTABLE((esw)->dev, fdb_multi_path_any_table) ||
+	      MLX5_CAP_ESW_FLOWTABLE((esw)->dev, fdb_multi_path_any_table_limit_regc)) ||
+	    !MLX5_CAP_ESW_FLOWTABLE((esw)->dev, fdb_uplink_hairpin) ||
+	    !MLX5_CAP_ESW_FLOWTABLE_FDB((esw)->dev, ignore_flow_level))
+		return -EOPNOTSUPP;
+
+	bridge = mlx5_esw_bridge_from_port_lookup(vport_num, esw_owner_vhca_id, br_offloads);
+	if (!bridge)
+		return -EINVAL;
+
+	mcast = bridge->flags & MLX5_ESW_BRIDGE_MCAST_FLAG;
+	if (mcast == enable)
+		return 0;
+
+	if (enable)
+		err = mlx5_esw_bridge_mcast_enable(bridge);
+	else
+		mlx5_esw_bridge_mcast_disable(bridge);
+
+	return err;
 }
 
 static int mlx5_esw_bridge_vport_init(u16 vport_num, u16 esw_owner_vhca_id, u16 flags,

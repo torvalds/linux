@@ -306,6 +306,10 @@ mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
 						     attr->u.vlan_protocol,
 						     br_offloads);
 		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
+		err = mlx5_esw_bridge_mcast_set(vport_num, esw_owner_vhca_id,
+						!attr->u.mc_disabled, br_offloads);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 	}
