@@ -26,7 +26,6 @@ int hwwep = 1;
 static char *ifname = "wlan%d";
 
 static const struct rtl819x_ops rtl819xp_ops = {
-	.nic_type			= NIC_8192E,
 };
 
 static struct pci_device_id rtl8192_pci_id_tbl[] = {

@@ -204,7 +204,6 @@ struct rtl8192_tx_ring {
 };
 
 struct rtl819x_ops {
-	enum nic_t nic_type;
 };
 
 struct r8192_priv {
