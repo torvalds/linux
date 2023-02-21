@@ -238,45 +238,25 @@ struct ast_private *ast_device_create(const struct drm_driver *drv,
 #define AST_IO_VGACRCB_HWC_ENABLED     BIT(1)
 #define AST_IO_VGACRCB_HWC_16BPP       BIT(0) /* set: ARGB4444, cleared: 2bpp palette */
 
-#define __ast_read(x) \
-static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
-u##x val = 0;\
-val = ioread##x(ast->regs + reg); \
-return val;\
+static inline u32 ast_read32(struct ast_private *ast, u32 reg)
+{
+	return ioread32(ast->regs + reg);
 }
 
-__ast_read(8);
-__ast_read(16);
-__ast_read(32)
-
-#define __ast_io_read(x) \
-static inline u##x ast_io_read##x(struct ast_private *ast, u32 reg) { \
-u##x val = 0;\
-val = ioread##x(ast->ioregs + reg); \
-return val;\
+static inline void ast_write32(struct ast_private *ast, u32 reg, u32 val)
+{
+	iowrite32(val, ast->regs + reg);
 }
 
-__ast_io_read(8);
-__ast_io_read(16);
-__ast_io_read(32);
+static inline u8 ast_io_read8(struct ast_private *ast, u32 reg)
+{
+	return ioread8(ast->ioregs + reg);
+}
 
-#define __ast_write(x) \
-static inline void ast_write##x(struct ast_private *ast, u32 reg, u##x val) {\
-	iowrite##x(val, ast->regs + reg);\
-	}
-
-__ast_write(8);
-__ast_write(16);
-__ast_write(32);
-
-#define __ast_io_write(x) \
-static inline void ast_io_write##x(struct ast_private *ast, u32 reg, u##x val) {\
-	iowrite##x(val, ast->ioregs + reg);\
-	}
-
-__ast_io_write(8);
-__ast_io_write(16);
-#undef __ast_io_write
+static inline void ast_io_write8(struct ast_private *ast, u32 reg, u8 val)
+{
+	iowrite8(val, ast->ioregs + reg);
+}
 
 static inline void ast_set_index_reg(struct ast_private *ast,
 				     uint32_t base, uint8_t index,
