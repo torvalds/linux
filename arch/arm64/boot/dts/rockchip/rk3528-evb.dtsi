@@ -275,6 +275,11 @@
 	status = "okay";
 };
 
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &gmac0 {
 	status = "okay";
 };
