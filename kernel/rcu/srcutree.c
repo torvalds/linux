@@ -154,7 +154,7 @@ static void init_srcu_struct_data(struct srcu_struct *ssp)
  */
 static inline bool srcu_invl_snp_seq(unsigned long s)
 {
-	return rcu_seq_state(s) == SRCU_SNP_INIT_SEQ;
+	return s == SRCU_SNP_INIT_SEQ;
 }
 
 /*
@@ -469,24 +469,59 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 
 	/*
 	 * If the locks are the same as the unlocks, then there must have
-	 * been no readers on this index at some time in between. This does
-	 * not mean that there are no more readers, as one could have read
-	 * the current index but not have incremented the lock counter yet.
+	 * been no readers on this index at some point in this function.
+	 * But there might be more readers, as a task might have read
+	 * the current ->srcu_idx but not yet have incremented its CPU's
+	 * ->srcu_lock_count[idx] counter.  In fact, it is possible
+	 * that most of the tasks have been preempted between fetching
+	 * ->srcu_idx and incrementing ->srcu_lock_count[idx].  And there
+	 * could be almost (ULONG_MAX / sizeof(struct task_struct)) tasks
+	 * in a system whose address space was fully populated with memory.
+	 * Call this quantity Nt.
 	 *
-	 * So suppose that the updater is preempted here for so long
-	 * that more than ULONG_MAX non-nested readers come and go in
-	 * the meantime.  It turns out that this cannot result in overflow
-	 * because if a reader modifies its unlock count after we read it
-	 * above, then that reader's next load of ->srcu_idx is guaranteed
-	 * to get the new value, which will cause it to operate on the
-	 * other bank of counters, where it cannot contribute to the
-	 * overflow of these counters.  This means that there is a maximum
-	 * of 2*NR_CPUS increments, which cannot overflow given current
-	 * systems, especially not on 64-bit systems.
+	 * So suppose that the updater is preempted at this point in the
+	 * code for a long time.  That now-preempted updater has already
+	 * flipped ->srcu_idx (possibly during the preceding grace period),
+	 * done an smp_mb() (again, possibly during the preceding grace
+	 * period), and summed up the ->srcu_unlock_count[idx] counters.
+	 * How many times can a given one of the aforementioned Nt tasks
+	 * increment the old ->srcu_idx value's ->srcu_lock_count[idx]
+	 * counter, in the absence of nesting?
 	 *
-	 * OK, how about nesting?  This does impose a limit on nesting
-	 * of floor(ULONG_MAX/NR_CPUS/2), which should be sufficient,
-	 * especially on 64-bit systems.
+	 * It can clearly do so once, given that it has already fetched
+	 * the old value of ->srcu_idx and is just about to use that value
+	 * to index its increment of ->srcu_lock_count[idx].  But as soon as
+	 * it leaves that SRCU read-side critical section, it will increment
+	 * ->srcu_unlock_count[idx], which must follow the updater's above
+	 * read from that same value.  Thus, as soon the reading task does
+	 * an smp_mb() and a later fetch from ->srcu_idx, that task will be
+	 * guaranteed to get the new index.  Except that the increment of
+	 * ->srcu_unlock_count[idx] in __srcu_read_unlock() is after the
+	 * smp_mb(), and the fetch from ->srcu_idx in __srcu_read_lock()
+	 * is before the smp_mb().  Thus, that task might not see the new
+	 * value of ->srcu_idx until the -second- __srcu_read_lock(),
+	 * which in turn means that this task might well increment
+	 * ->srcu_lock_count[idx] for the old value of ->srcu_idx twice,
+	 * not just once.
+	 *
+	 * However, it is important to note that a given smp_mb() takes
+	 * effect not just for the task executing it, but also for any
+	 * later task running on that same CPU.
+	 *
+	 * That is, there can be almost Nt + Nc further increments of
+	 * ->srcu_lock_count[idx] for the old index, where Nc is the number
+	 * of CPUs.  But this is OK because the size of the task_struct
+	 * structure limits the value of Nt and current systems limit Nc
+	 * to a few thousand.
+	 *
+	 * OK, but what about nesting?  This does impose a limit on
+	 * nesting of half of the size of the task_struct structure
+	 * (measured in bytes), which should be sufficient.  A late 2022
+	 * TREE01 rcutorture run reported this size to be no less than
+	 * 9408 bytes, allowing up to 4704 levels of nesting, which is
+	 * comfortably beyond excessive.  Especially on 64-bit systems,
+	 * which are unlikely to be configured with an address space fully
+	 * populated with memory, at least not anytime soon.
 	 */
 	return srcu_readers_lock_idx(ssp, idx) == unlocks;
 }
@@ -726,7 +761,7 @@ static void srcu_gp_start(struct srcu_struct *ssp)
 	int state;
 
 	if (smp_load_acquire(&ssp->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER)
-		sdp = per_cpu_ptr(ssp->sda, 0);
+		sdp = per_cpu_ptr(ssp->sda, get_boot_cpu_id());
 	else
 		sdp = this_cpu_ptr(ssp->sda);
 	lockdep_assert_held(&ACCESS_PRIVATE(ssp, lock));
@@ -837,7 +872,8 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	/* Initiate callback invocation as needed. */
 	ss_state = smp_load_acquire(&ssp->srcu_size_state);
 	if (ss_state < SRCU_SIZE_WAIT_BARRIER) {
-		srcu_schedule_cbs_sdp(per_cpu_ptr(ssp->sda, 0), cbdelay);
+		srcu_schedule_cbs_sdp(per_cpu_ptr(ssp->sda, get_boot_cpu_id()),
+					cbdelay);
 	} else {
 		idx = rcu_seq_ctr(gpseq) % ARRAY_SIZE(snp->srcu_have_cbs);
 		srcu_for_each_node_breadth_first(ssp, snp) {
@@ -914,7 +950,7 @@ static void srcu_funnel_exp_start(struct srcu_struct *ssp, struct srcu_node *snp
 	if (snp)
 		for (; snp != NULL; snp = snp->srcu_parent) {
 			sgsne = READ_ONCE(snp->srcu_gp_seq_needed_exp);
-			if (rcu_seq_done(&ssp->srcu_gp_seq, s) ||
+			if (WARN_ON_ONCE(rcu_seq_done(&ssp->srcu_gp_seq, s)) ||
 			    (!srcu_invl_snp_seq(sgsne) && ULONG_CMP_GE(sgsne, s)))
 				return;
 			spin_lock_irqsave_rcu_node(snp, flags);
@@ -941,6 +977,9 @@ static void srcu_funnel_exp_start(struct srcu_struct *ssp, struct srcu_node *snp
  *
  * Note that this function also does the work of srcu_funnel_exp_start(),
  * in some cases by directly invoking it.
+ *
+ * The srcu read lock should be hold around this function. And s is a seq snap
+ * after holding that lock.
  */
 static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 				 unsigned long s, bool do_norm)
@@ -961,7 +1000,7 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	if (snp_leaf)
 		/* Each pass through the loop does one level of the srcu_node tree. */
 		for (snp = snp_leaf; snp != NULL; snp = snp->srcu_parent) {
-			if (rcu_seq_done(&ssp->srcu_gp_seq, s) && snp != snp_leaf)
+			if (WARN_ON_ONCE(rcu_seq_done(&ssp->srcu_gp_seq, s)) && snp != snp_leaf)
 				return; /* GP already done and CBs recorded. */
 			spin_lock_irqsave_rcu_node(snp, flags);
 			snp_seq = snp->srcu_have_cbs[idx];
@@ -998,8 +1037,8 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	if (!do_norm && ULONG_CMP_LT(ssp->srcu_gp_seq_needed_exp, s))
 		WRITE_ONCE(ssp->srcu_gp_seq_needed_exp, s);
 
-	/* If grace period not already done and none in progress, start it. */
-	if (!rcu_seq_done(&ssp->srcu_gp_seq, s) &&
+	/* If grace period not already in progress, start it. */
+	if (!WARN_ON_ONCE(rcu_seq_done(&ssp->srcu_gp_seq, s)) &&
 	    rcu_seq_state(ssp->srcu_gp_seq) == SRCU_STATE_IDLE) {
 		WARN_ON_ONCE(ULONG_CMP_GE(ssp->srcu_gp_seq, ssp->srcu_gp_seq_needed));
 		srcu_gp_start(ssp);
@@ -1059,10 +1098,11 @@ static void srcu_flip(struct srcu_struct *ssp)
 
 	/*
 	 * Ensure that if the updater misses an __srcu_read_unlock()
-	 * increment, that task's next __srcu_read_lock() will see the
-	 * above counter update.  Note that both this memory barrier
-	 * and the one in srcu_readers_active_idx_check() provide the
-	 * guarantee for __srcu_read_lock().
+	 * increment, that task's __srcu_read_lock() following its next
+	 * __srcu_read_lock() or __srcu_read_unlock() will see the above
+	 * counter update.  Note that both this memory barrier and the
+	 * one in srcu_readers_active_idx_check() provide the guarantee
+	 * for __srcu_read_lock().
 	 */
 	smp_mb(); /* D */  /* Pairs with C. */
 }
@@ -1161,7 +1201,7 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 	idx = __srcu_read_lock_nmisafe(ssp);
 	ss_state = smp_load_acquire(&ssp->srcu_size_state);
 	if (ss_state < SRCU_SIZE_WAIT_CALL)
-		sdp = per_cpu_ptr(ssp->sda, 0);
+		sdp = per_cpu_ptr(ssp->sda, get_boot_cpu_id());
 	else
 		sdp = raw_cpu_ptr(ssp->sda);
 	spin_lock_irqsave_sdp_contention(sdp, &flags);
@@ -1497,7 +1537,7 @@ void srcu_barrier(struct srcu_struct *ssp)
 
 	idx = __srcu_read_lock_nmisafe(ssp);
 	if (smp_load_acquire(&ssp->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER)
-		srcu_barrier_one_cpu(ssp, per_cpu_ptr(ssp->sda, 0));
+		srcu_barrier_one_cpu(ssp, per_cpu_ptr(ssp->sda,	get_boot_cpu_id()));
 	else
 		for_each_possible_cpu(cpu)
 			srcu_barrier_one_cpu(ssp, per_cpu_ptr(ssp->sda, cpu));

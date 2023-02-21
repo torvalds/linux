@@ -38,7 +38,7 @@ by having call_rcu() directly invoke its arguments only if it was called
 from process context.  However, this can fail in a similar manner.
 
 Suppose that an RCU-based algorithm again scans a linked list containing
-elements A, B, and C in process contexts, but that it invokes a function
+elements A, B, and C in process context, but that it invokes a function
 on each element as it is scanned.  Suppose further that this function
 deletes element B from the list, then passes it to call_rcu() for deferred
 freeing.  This may be a bit unconventional, but it is perfectly legal
@@ -59,7 +59,8 @@ Example 3: Death by Deadlock
 Suppose that call_rcu() is invoked while holding a lock, and that the
 callback function must acquire this same lock.  In this case, if
 call_rcu() were to directly invoke the callback, the result would
-be self-deadlock.
+be self-deadlock *even if* this invocation occurred from a later
+call_rcu() invocation a full grace period later.
 
 In some cases, it would possible to restructure to code so that
 the call_rcu() is delayed until after the lock is released.  However,
@@ -84,6 +85,14 @@ Quick Quiz #2:
 	What locking restriction must RCU callbacks respect?
 
 :ref:`Answers to Quick Quiz <answer_quick_quiz_up>`
+
+It is important to note that userspace RCU implementations *do*
+permit call_rcu() to directly invoke callbacks, but only if a full
+grace period has elapsed since those callbacks were queued.  This is
+the case because some userspace environments are extremely constrained.
+Nevertheless, people writing userspace RCU implementations are strongly
+encouraged to avoid invoking callbacks from call_rcu(), thus obtaining
+the deadlock-avoidance benefits called out above.
 
 Summary
 -------
