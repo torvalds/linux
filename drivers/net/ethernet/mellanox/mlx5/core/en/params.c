@@ -667,6 +667,43 @@ static int mlx5e_max_nonlinear_mtu(int first_frag_size, int frag_size, bool xdp)
 	return first_frag_size + (MLX5E_MAX_RX_FRAGS - 2) * frag_size + PAGE_SIZE;
 }
 
+static void mlx5e_rx_compute_wqe_bulk_params(struct mlx5e_params *params,
+					     struct mlx5e_rq_frags_info *info)
+{
+	u16 bulk_bound_rq_size = (1 << params->log_rq_mtu_frames) / 4;
+	u32 bulk_bound_rq_size_in_bytes;
+	u32 sum_frag_strides = 0;
+	u32 wqe_bulk_in_bytes;
+	u32 wqe_bulk;
+	int i;
+
+	for (i = 0; i < info->num_frags; i++)
+		sum_frag_strides += info->arr[i].frag_stride;
+
+	/* For MTUs larger than PAGE_SIZE, align to PAGE_SIZE to reflect
+	 * amount of consumed pages per wqe in bytes.
+	 */
+	if (sum_frag_strides > PAGE_SIZE)
+		sum_frag_strides = ALIGN(sum_frag_strides, PAGE_SIZE);
+
+	bulk_bound_rq_size_in_bytes = bulk_bound_rq_size * sum_frag_strides;
+
+#define MAX_WQE_BULK_BYTES(xdp) ((xdp ? 256 : 512) * 1024)
+
+	/* A WQE bulk should not exceed min(512KB, 1/4 of rq size). For XDP
+	 * keep bulk size smaller to avoid filling the page_pool cache on
+	 * every bulk refill.
+	 */
+	wqe_bulk_in_bytes = min_t(u32, MAX_WQE_BULK_BYTES(params->xdp_prog),
+				  bulk_bound_rq_size_in_bytes);
+	wqe_bulk = DIV_ROUND_UP(wqe_bulk_in_bytes, sum_frag_strides);
+
+	/* Make sure that allocations don't start when the page is still used
+	 * by older WQEs.
+	 */
+	info->wqe_bulk = max_t(u16, info->wqe_index_mask + 1, wqe_bulk);
+}
+
 #define DEFAULT_FRAG_SIZE (2048)
 
 static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
@@ -774,11 +811,13 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	}
 
 out:
-	/* Bulking optimization to skip allocation until at least 8 WQEs can be
-	 * allocated in a row. At the same time, never start allocation when
-	 * the page is still used by older WQEs.
+	/* Bulking optimization to skip allocation until a large enough number
+	 * of WQEs can be allocated in a row. Bulking also influences how well
+	 * deferred page release works.
 	 */
-	info->wqe_bulk = max_t(u8, info->wqe_index_mask + 1, 8);
+	mlx5e_rx_compute_wqe_bulk_params(params, info);
+
+	mlx5_core_dbg(mdev, "%s: wqe_bulk = %u\n", __func__, info->wqe_bulk);
 
 	info->log_num_frags = order_base_2(info->num_frags);
 

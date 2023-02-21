@@ -670,7 +670,7 @@ struct mlx5e_rq_frags_info {
 	struct mlx5e_rq_frag_info arr[MLX5E_MAX_RX_FRAGS];
 	u8 num_frags;
 	u8 log_num_frags;
-	u8 wqe_bulk;
+	u16 wqe_bulk;
 	u8 wqe_index_mask;
 };
 
