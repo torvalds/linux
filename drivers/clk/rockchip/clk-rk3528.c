@@ -280,7 +280,7 @@ static struct rockchip_clk_branch rk3528_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX_HALFDIV(CLK_MATRIX_339M_SRC, "clk_339m_src", "gpll", CLK_IS_CRITICAL,
 	                RK3528_CLKSEL_CON(2), 5, 5, DFLAGS,
 	                RK3528_CLKGATE_CON(0), 7, GFLAGS),
-	COMPOSITE_NOMUX(CLK_MATRIX_400M_SRC, "clk_400m_src", "gpll", CLK_IS_CRITICAL,
+	COMPOSITE_NOMUX(CLK_MATRIX_400M_SRC, "clk_400m_src", "gpll", CLK_IGNORE_UNUSED,
 	                RK3528_CLKSEL_CON(2), 10, 5, DFLAGS,
 	                RK3528_CLKGATE_CON(0), 8, GFLAGS),
 	COMPOSITE_NOMUX(CLK_MATRIX_600M_SRC, "clk_600m_src", "gpll", CLK_IS_CRITICAL,
