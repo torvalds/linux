@@ -161,8 +161,8 @@ static void __init append_ordered_lsm(struct lsm_info *lsm, const char *from)
 		lsm->enabled = &lsm_enabled_true;
 	ordered_lsms[last_lsm++] = lsm;
 
-	init_debug("%s ordering: %s (%sabled)\n", from, lsm->name,
-		   is_enabled(lsm) ? "en" : "dis");
+	init_debug("%s ordered: %s (%s)\n", from, lsm->name,
+		   is_enabled(lsm) ? "enabled" : "disabled");
 }
 
 /* Is an LSM allowed to be initialized? */
@@ -185,11 +185,12 @@ static void __init lsm_set_blob_size(int *need, int *lbs)
 {
 	int offset;
 
-	if (*need > 0) {
-		offset = *lbs;
-		*lbs += *need;
-		*need = offset;
-	}
+	if (*need <= 0)
+		return;
+
+	offset = ALIGN(*lbs, sizeof(void *));
+	*lbs = offset + *need;
+	*need = offset;
 }
 
 static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
@@ -224,7 +225,7 @@ static void __init prepare_lsm(struct lsm_info *lsm)
 	if (enabled) {
 		if ((lsm->flags & LSM_FLAG_EXCLUSIVE) && !exclusive) {
 			exclusive = lsm;
-			init_debug("exclusive chosen: %s\n", lsm->name);
+			init_debug("exclusive chosen:   %s\n", lsm->name);
 		}
 
 		lsm_set_blob_sizes(lsm->blobs);
@@ -252,7 +253,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 	/* LSM_ORDER_FIRST is always first. */
 	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
 		if (lsm->order == LSM_ORDER_FIRST)
-			append_ordered_lsm(lsm, "first");
+			append_ordered_lsm(lsm, "  first");
 	}
 
 	/* Process "security=", if given. */
@@ -270,7 +271,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 			if ((major->flags & LSM_FLAG_LEGACY_MAJOR) &&
 			    strcmp(major->name, chosen_major_lsm) != 0) {
 				set_enabled(major, false);
-				init_debug("security=%s disabled: %s\n",
+				init_debug("security=%s disabled: %s (only one legacy major LSM)\n",
 					   chosen_major_lsm, major->name);
 			}
 		}
@@ -291,7 +292,8 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		}
 
 		if (!found)
-			init_debug("%s ignored: %s\n", origin, name);
+			init_debug("%s ignored: %s (not built into kernel)\n",
+				   origin, name);
 	}
 
 	/* Process "security=", if given. */
@@ -309,7 +311,8 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		if (exists_ordered_lsm(lsm))
 			continue;
 		set_enabled(lsm, false);
-		init_debug("%s disabled: %s\n", origin, lsm->name);
+		init_debug("%s skipped: %s (not in requested order)\n",
+			   origin, lsm->name);
 	}
 
 	kfree(sep);
@@ -320,6 +323,24 @@ static void __init lsm_early_task(struct task_struct *task);
 
 static int lsm_append(const char *new, char **result);
 
+static void __init report_lsm_order(void)
+{
+	struct lsm_info **lsm, *early;
+	int first = 0;
+
+	pr_info("initializing lsm=");
+
+	/* Report each enabled LSM name, comma separated. */
+	for (early = __start_early_lsm_info; early < __end_early_lsm_info; early++)
+		if (is_enabled(early))
+			pr_cont("%s%s", first++ == 0 ? "" : ",", early->name);
+	for (lsm = ordered_lsms; *lsm; lsm++)
+		if (is_enabled(*lsm))
+			pr_cont("%s%s", first++ == 0 ? "" : ",", (*lsm)->name);
+
+	pr_cont("\n");
+}
+
 static void __init ordered_lsm_init(void)
 {
 	struct lsm_info **lsm;
@@ -329,7 +350,8 @@ static void __init ordered_lsm_init(void)
 
 	if (chosen_lsm_order) {
 		if (chosen_major_lsm) {
-			pr_info("security= is ignored because it is superseded by lsm=\n");
+			pr_warn("security=%s is ignored because it is superseded by lsm=%s\n",
+				chosen_major_lsm, chosen_lsm_order);
 			chosen_major_lsm = NULL;
 		}
 		ordered_lsm_parse(chosen_lsm_order, "cmdline");
@@ -338,6 +360,8 @@ static void __init ordered_lsm_init(void)
 
 	for (lsm = ordered_lsms; *lsm; lsm++)
 		prepare_lsm(*lsm);
+
+	report_lsm_order();
 
 	init_debug("cred blob size       = %d\n", blob_sizes.lbs_cred);
 	init_debug("file blob size       = %d\n", blob_sizes.lbs_file);
@@ -395,13 +419,17 @@ int __init security_init(void)
 {
 	struct lsm_info *lsm;
 
-	pr_info("Security Framework initializing\n");
+	init_debug("legacy security=%s\n", chosen_major_lsm ?: " *unspecified*");
+	init_debug("  CONFIG_LSM=%s\n", builtin_lsm_order);
+	init_debug("boot arg lsm=%s\n", chosen_lsm_order ?: " *unspecified*");
 
 	/*
 	 * Append the names of the early LSM modules now that kmalloc() is
 	 * available
 	 */
 	for (lsm = __start_early_lsm_info; lsm < __end_early_lsm_info; lsm++) {
+		init_debug("  early started: %s (%s)\n", lsm->name,
+			   is_enabled(lsm) ? "enabled" : "disabled");
 		if (lsm->enabled)
 			lsm_append(lsm->name, &lsm_names);
 	}
@@ -1372,6 +1400,48 @@ int security_inode_setxattr(struct user_namespace *mnt_userns,
 	return evm_inode_setxattr(mnt_userns, dentry, name, value, size);
 }
 
+int security_inode_set_acl(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, const char *acl_name,
+			   struct posix_acl *kacl)
+{
+	int ret;
+
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+		return 0;
+	ret = call_int_hook(inode_set_acl, 0, mnt_userns, dentry, acl_name,
+			    kacl);
+	if (ret)
+		return ret;
+	ret = ima_inode_set_acl(mnt_userns, dentry, acl_name, kacl);
+	if (ret)
+		return ret;
+	return evm_inode_set_acl(mnt_userns, dentry, acl_name, kacl);
+}
+
+int security_inode_get_acl(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, const char *acl_name)
+{
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+		return 0;
+	return call_int_hook(inode_get_acl, 0, mnt_userns, dentry, acl_name);
+}
+
+int security_inode_remove_acl(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, const char *acl_name)
+{
+	int ret;
+
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+		return 0;
+	ret = call_int_hook(inode_remove_acl, 0, mnt_userns, dentry, acl_name);
+	if (ret)
+		return ret;
+	ret = ima_inode_remove_acl(mnt_userns, dentry, acl_name);
+	if (ret)
+		return ret;
+	return evm_inode_remove_acl(mnt_userns, dentry, acl_name);
+}
+
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
@@ -1650,6 +1720,11 @@ int security_file_open(struct file *file)
 		return ret;
 
 	return fsnotify_perm(file, MAY_OPEN);
+}
+
+int security_file_truncate(struct file *file)
+{
+	return call_int_hook(file_truncate, 0, file);
 }
 
 int security_task_alloc(struct task_struct *task, unsigned long clone_flags)
@@ -2267,11 +2342,11 @@ int security_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(security_sock_rcv_skb);
 
-int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
-				      int __user *optlen, unsigned len)
+int security_socket_getpeersec_stream(struct socket *sock, sockptr_t optval,
+				      sockptr_t optlen, unsigned int len)
 {
 	return call_int_hook(socket_getpeersec_stream, -ENOPROTOOPT, sock,
-				optval, optlen, len);
+			     optval, optlen, len);
 }
 
 int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)

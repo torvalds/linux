@@ -214,7 +214,7 @@ extern ssize_t dvb_ringbuffer_write_user(struct dvb_ringbuffer *rbuf,
  * @buf: Buffer to write.
  * @len: Length of buffer (currently limited to 65535 bytes max).
  *
- * Return: Number of bytes written, or -EFAULT, -ENOMEM, -EVINAL.
+ * Return: Number of bytes written, or -EFAULT, -ENOMEM, -EINVAL.
  */
 extern ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8 *buf,
 					size_t len);

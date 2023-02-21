@@ -786,9 +786,8 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 		return 0;
 
 	/*
-	 * Don't allow link changes if any entity in the graph is
-	 * streaming, modifying the CHSEL register fields can disrupt
-	 * running streams.
+	 * Don't allow link changes if any stream in the graph is active as
+	 * modifying the CHSEL register fields can disrupt running streams.
 	 */
 	media_device_for_each_entity(entity, &group->mdev)
 		if (media_entity_is_streaming(entity))
@@ -1132,6 +1131,7 @@ static const struct rvin_info rcar_info_h1 = {
 	.use_mc = false,
 	.max_width = 2048,
 	.max_height = 2048,
+	.scaler = rvin_scaler_gen2,
 };
 
 static const struct rvin_info rcar_info_m1 = {
@@ -1139,6 +1139,7 @@ static const struct rvin_info rcar_info_m1 = {
 	.use_mc = false,
 	.max_width = 2048,
 	.max_height = 2048,
+	.scaler = rvin_scaler_gen2,
 };
 
 static const struct rvin_info rcar_info_gen2 = {
@@ -1146,6 +1147,7 @@ static const struct rvin_info rcar_info_gen2 = {
 	.use_mc = false,
 	.max_width = 2048,
 	.max_height = 2048,
+	.scaler = rvin_scaler_gen2,
 };
 
 static const struct rvin_group_route rcar_info_r8a774e1_routes[] = {
@@ -1178,6 +1180,7 @@ static const struct rvin_info rcar_info_r8a7795 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7795_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a7795es1_routes[] = {
@@ -1213,6 +1216,7 @@ static const struct rvin_info rcar_info_r8a7796 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7796_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a77965_routes[] = {
@@ -1230,6 +1234,7 @@ static const struct rvin_info rcar_info_r8a77965 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77965_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a77970_routes[] = {
@@ -1272,6 +1277,7 @@ static const struct rvin_info rcar_info_r8a77990 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77990_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a77995_routes[] = {
@@ -1285,6 +1291,7 @@ static const struct rvin_info rcar_info_r8a77995 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77995_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_info rcar_info_r8a779a0 = {
@@ -1409,12 +1416,20 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vin);
 
-	if (vin->info->use_isp)
+	if (vin->info->use_isp) {
 		ret = rvin_isp_init(vin);
-	else if (vin->info->use_mc)
+	} else if (vin->info->use_mc) {
 		ret = rvin_csi2_init(vin);
-	else
+
+		if (vin->info->scaler &&
+		    rvin_group_id_to_master(vin->id) == vin->id)
+			vin->scaler = vin->info->scaler;
+	} else {
 		ret = rvin_parallel_init(vin);
+
+		if (vin->info->scaler)
+			vin->scaler = vin->info->scaler;
+	}
 
 	if (ret) {
 		rvin_dma_unregister(vin);

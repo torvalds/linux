@@ -289,8 +289,7 @@ static const struct hwmon_chip_info aht10_chip_info = {
 	.info = aht10_info,
 };
 
-static int aht10_probe(struct i2c_client *client,
-		       const struct i2c_device_id *aht10_id)
+static int aht10_probe(struct i2c_client *client)
 {
 	struct device *device = &client->dev;
 	struct device *hwmon_dev;
@@ -336,7 +335,7 @@ static struct i2c_driver aht10_driver = {
 	.driver = {
 		.name = "aht10",
 	},
-	.probe      = aht10_probe,
+	.probe_new  = aht10_probe,
 	.id_table   = aht10_id,
 };
 

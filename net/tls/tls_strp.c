@@ -273,7 +273,7 @@ static int tls_strp_read_copyin(struct tls_strparser *strp)
 	return desc.error;
 }
 
-static int tls_strp_read_short(struct tls_strparser *strp)
+static int tls_strp_read_copy(struct tls_strparser *strp, bool qshort)
 {
 	struct skb_shared_info *shinfo;
 	struct page *page;
@@ -283,7 +283,7 @@ static int tls_strp_read_short(struct tls_strparser *strp)
 	 * to read the data out. Otherwise the connection will stall.
 	 * Without pressure threshold of INT_MAX will never be ready.
 	 */
-	if (likely(!tcp_epollin_ready(strp->sk, INT_MAX)))
+	if (likely(qshort && !tcp_epollin_ready(strp->sk, INT_MAX)))
 		return 0;
 
 	shinfo = skb_shinfo(strp->anchor);
@@ -313,6 +313,27 @@ static int tls_strp_read_short(struct tls_strparser *strp)
 	tls_strp_read_copyin(strp);
 
 	return 0;
+}
+
+static bool tls_strp_check_no_dup(struct tls_strparser *strp)
+{
+	unsigned int len = strp->stm.offset + strp->stm.full_len;
+	struct sk_buff *skb;
+	u32 seq;
+
+	skb = skb_shinfo(strp->anchor)->frag_list;
+	seq = TCP_SKB_CB(skb)->seq;
+
+	while (skb->len < len) {
+		seq += skb->len;
+		len -= skb->len;
+		skb = skb->next;
+
+		if (TCP_SKB_CB(skb)->seq != seq)
+			return false;
+	}
+
+	return true;
 }
 
 static void tls_strp_load_anchor_with_queue(struct tls_strparser *strp, int len)
@@ -373,7 +394,7 @@ static int tls_strp_read_sock(struct tls_strparser *strp)
 		return tls_strp_read_copyin(strp);
 
 	if (inq < strp->stm.full_len)
-		return tls_strp_read_short(strp);
+		return tls_strp_read_copy(strp, true);
 
 	if (!strp->stm.full_len) {
 		tls_strp_load_anchor_with_queue(strp, inq);
@@ -387,8 +408,11 @@ static int tls_strp_read_sock(struct tls_strparser *strp)
 		strp->stm.full_len = sz;
 
 		if (!strp->stm.full_len || inq < strp->stm.full_len)
-			return tls_strp_read_short(strp);
+			return tls_strp_read_copy(strp, true);
 	}
+
+	if (!tls_strp_check_no_dup(strp))
+		return tls_strp_read_copy(strp, false);
 
 	strp->msg_ready = 1;
 	tls_rx_msg_ready(strp);

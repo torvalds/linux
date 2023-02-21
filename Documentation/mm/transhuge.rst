@@ -117,31 +117,15 @@ pages:
   - ->_refcount in tail pages is always zero: get_page_unless_zero() never
     succeeds on tail pages.
 
-  - map/unmap of the pages with PTE entry increment/decrement ->_mapcount
-    on relevant sub-page of the compound page.
+  - map/unmap of PMD entry for the whole compound page increment/decrement
+    ->compound_mapcount, stored in the first tail page of the compound page;
+    and also increment/decrement ->subpages_mapcount (also in the first tail)
+    by COMPOUND_MAPPED when compound_mapcount goes from -1 to 0 or 0 to -1.
 
-  - map/unmap of the whole compound page is accounted for in compound_mapcount
-    (stored in first tail page). For file huge pages, we also increment
-    ->_mapcount of all sub-pages in order to have race-free detection of
-    last unmap of subpages.
-
-PageDoubleMap() indicates that the page is *possibly* mapped with PTEs.
-
-For anonymous pages, PageDoubleMap() also indicates ->_mapcount in all
-subpages is offset up by one. This additional reference is required to
-get race-free detection of unmap of subpages when we have them mapped with
-both PMDs and PTEs.
-
-This optimization is required to lower the overhead of per-subpage mapcount
-tracking. The alternative is to alter ->_mapcount in all subpages on each
-map/unmap of the whole compound page.
-
-For anonymous pages, we set PG_double_map when a PMD of the page is split
-for the first time, but still have a PMD mapping. The additional references
-go away with the last compound_mapcount.
-
-File pages get PG_double_map set on the first map of the page with PTE and
-goes away when the page gets evicted from the page cache.
+  - map/unmap of sub-pages with PTE entry increment/decrement ->_mapcount
+    on relevant sub-page of the compound page, and also increment/decrement
+    ->subpages_mapcount, stored in first tail page of the compound page, when
+    _mapcount goes from -1 to 0 or 0 to -1: counting sub-pages mapped by PTE.
 
 split_huge_page internally has to distribute the refcounts in the head
 page to the tail pages before clearing all PG_head/tail bits from the page

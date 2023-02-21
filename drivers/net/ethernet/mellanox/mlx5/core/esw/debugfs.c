@@ -12,10 +12,11 @@ enum vnic_diag_counter {
 	MLX5_VNIC_DIAG_CQ_OVERRUN,
 	MLX5_VNIC_DIAG_INVALID_COMMAND,
 	MLX5_VNIC_DIAG_QOUTA_EXCEEDED_COMMAND,
+	MLX5_VNIC_DIAG_RX_STEERING_DISCARD,
 };
 
 static int mlx5_esw_query_vnic_diag(struct mlx5_vport *vport, enum vnic_diag_counter counter,
-				    u32 *val)
+				    u64 *val)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vnic_env_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_vnic_env_in)] = {};
@@ -57,6 +58,10 @@ static int mlx5_esw_query_vnic_diag(struct mlx5_vport *vport, enum vnic_diag_cou
 	case MLX5_VNIC_DIAG_QOUTA_EXCEEDED_COMMAND:
 		*val = MLX5_GET(vnic_diagnostic_statistics, vnic_diag_out, quota_exceeded_command);
 		break;
+	case MLX5_VNIC_DIAG_RX_STEERING_DISCARD:
+		*val = MLX5_GET64(vnic_diagnostic_statistics, vnic_diag_out,
+				  nic_receive_steering_discard);
+		break;
 	}
 
 	return 0;
@@ -65,14 +70,14 @@ static int mlx5_esw_query_vnic_diag(struct mlx5_vport *vport, enum vnic_diag_cou
 static int __show_vnic_diag(struct seq_file *file, struct mlx5_vport *vport,
 			    enum vnic_diag_counter type)
 {
-	u32 val = 0;
+	u64 val = 0;
 	int ret;
 
 	ret = mlx5_esw_query_vnic_diag(vport, type, &val);
 	if (ret)
 		return ret;
 
-	seq_printf(file, "%d\n", val);
+	seq_printf(file, "%llu\n", val);
 	return 0;
 }
 
@@ -112,6 +117,11 @@ static int quota_exceeded_command_show(struct seq_file *file, void *priv)
 	return __show_vnic_diag(file, file->private, MLX5_VNIC_DIAG_QOUTA_EXCEEDED_COMMAND);
 }
 
+static int rx_steering_discard_show(struct seq_file *file, void *priv)
+{
+	return __show_vnic_diag(file, file->private, MLX5_VNIC_DIAG_RX_STEERING_DISCARD);
+}
+
 DEFINE_SHOW_ATTRIBUTE(total_q_under_processor_handle);
 DEFINE_SHOW_ATTRIBUTE(send_queue_priority_update_flow);
 DEFINE_SHOW_ATTRIBUTE(comp_eq_overrun);
@@ -119,6 +129,7 @@ DEFINE_SHOW_ATTRIBUTE(async_eq_overrun);
 DEFINE_SHOW_ATTRIBUTE(cq_overrun);
 DEFINE_SHOW_ATTRIBUTE(invalid_command);
 DEFINE_SHOW_ATTRIBUTE(quota_exceeded_command);
+DEFINE_SHOW_ATTRIBUTE(rx_steering_discard);
 
 void mlx5_esw_vport_debugfs_destroy(struct mlx5_eswitch *esw, u16 vport_num)
 {
@@ -179,4 +190,9 @@ void mlx5_esw_vport_debugfs_create(struct mlx5_eswitch *esw, u16 vport_num, bool
 	if (MLX5_CAP_GEN(esw->dev, quota_exceeded_count))
 		debugfs_create_file("quota_exceeded_command", 0444, vnic_diag, vport,
 				    &quota_exceeded_command_fops);
+
+	if (MLX5_CAP_GEN(esw->dev, nic_receive_steering_discard))
+		debugfs_create_file("rx_steering_discard", 0444, vnic_diag, vport,
+				    &rx_steering_discard_fops);
+
 }

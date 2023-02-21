@@ -46,7 +46,7 @@ gm200_acr_nofw(struct nvkm_acr *acr, int ver, const struct nvkm_acr_fwif *fwif)
 int
 gm200_acr_init(struct nvkm_acr *acr)
 {
-	return nvkm_acr_hsf_boot(acr, "load");
+	return nvkm_acr_hsfw_boot(acr, "load");
 }
 
 void
@@ -61,7 +61,7 @@ gm200_acr_wpr_check(struct nvkm_acr *acr, u64 *start, u64 *limit)
 	*limit = *limit + 0x20000;
 }
 
-void
+int
 gm200_acr_wpr_patch(struct nvkm_acr *acr, s64 adjust)
 {
 	struct nvkm_subdev *subdev = &acr->subdev;
@@ -86,6 +86,8 @@ gm200_acr_wpr_patch(struct nvkm_acr *acr, s64 adjust)
 		}
 		offset += sizeof(hdr);
 	} while (hdr.falcon_id != WPR_HEADER_V0_FALCON_ID_INVALID);
+
+	return 0;
 }
 
 void
@@ -219,162 +221,50 @@ gm200_acr_wpr_parse(struct nvkm_acr *acr)
 	return 0;
 }
 
-void
-gm200_acr_hsfw_bld(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf)
+int
+gm200_acr_hsfw_load_bld(struct nvkm_falcon_fw *fw)
 {
 	struct flcn_bl_dmem_desc_v1 hsdesc = {
 		.ctx_dma = FALCON_DMAIDX_VIRT,
-		.code_dma_base = hsf->vma->addr,
-		.non_sec_code_off = hsf->non_sec_addr,
-		.non_sec_code_size = hsf->non_sec_size,
-		.sec_code_off = hsf->sec_addr,
-		.sec_code_size = hsf->sec_size,
+		.code_dma_base = fw->vma->addr,
+		.non_sec_code_off = fw->nmem_base,
+		.non_sec_code_size = fw->nmem_size,
+		.sec_code_off = fw->imem_base,
+		.sec_code_size = fw->imem_size,
 		.code_entry_point = 0,
-		.data_dma_base = hsf->vma->addr + hsf->data_addr,
-		.data_size = hsf->data_size,
+		.data_dma_base = fw->vma->addr + fw->dmem_base_img,
+		.data_size = fw->dmem_size,
 	};
 
-	flcn_bl_dmem_desc_v1_dump(&acr->subdev, &hsdesc);
+	flcn_bl_dmem_desc_v1_dump(fw->falcon->user, &hsdesc);
 
-	nvkm_falcon_load_dmem(hsf->falcon, &hsdesc, 0, sizeof(hsdesc), 0);
+	return nvkm_falcon_pio_wr(fw->falcon, (u8 *)&hsdesc, 0, 0, DMEM, 0, sizeof(hsdesc), 0, 0);
 }
 
 int
-gm200_acr_hsfw_boot(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf,
-		    u32 intr_clear, u32 mbox0_ok)
+gm200_acr_hsfw_ctor(struct nvkm_acr *acr, const char *bl, const char *fw, const char *name, int ver,
+		    const struct nvkm_acr_hsf_fwif *fwif)
 {
-	struct nvkm_subdev *subdev = &acr->subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_falcon *falcon = hsf->falcon;
-	u32 mbox0, mbox1;
-	int ret;
+	struct nvkm_acr_hsfw *hsfw;
 
-	/* Reset falcon. */
-	nvkm_falcon_reset(falcon);
-	nvkm_falcon_bind_context(falcon, acr->inst);
-
-	/* Load bootloader into IMEM. */
-	nvkm_falcon_load_imem(falcon, hsf->imem,
-				      falcon->code.limit - hsf->imem_size,
-				      hsf->imem_size,
-				      hsf->imem_tag,
-				      0, false);
-
-	/* Load bootloader data into DMEM. */
-	hsf->func->bld(acr, hsf);
-
-	/* Boot the falcon. */
-	nvkm_mc_intr_mask(device, falcon->owner->type, falcon->owner->inst, false);
-
-	nvkm_falcon_wr32(falcon, 0x040, 0xdeada5a5);
-	nvkm_falcon_set_start_addr(falcon, hsf->imem_tag << 8);
-	nvkm_falcon_start(falcon);
-	ret = nvkm_falcon_wait_for_halt(falcon, 100);
-	if (ret)
-		return ret;
-
-	/* Check for successful completion. */
-	mbox0 = nvkm_falcon_rd32(falcon, 0x040);
-	mbox1 = nvkm_falcon_rd32(falcon, 0x044);
-	nvkm_debug(subdev, "mailbox %08x %08x\n", mbox0, mbox1);
-	if (mbox0 && mbox0 != mbox0_ok)
-		return -EIO;
-
-	nvkm_falcon_clear_interrupt(falcon, intr_clear);
-	nvkm_mc_intr_mask(device, falcon->owner->type, falcon->owner->inst, true);
-	return ret;
-}
-
-int
-gm200_acr_hsfw_load(struct nvkm_acr *acr, struct nvkm_acr_hsfw *hsfw,
-		    struct nvkm_falcon *falcon)
-{
-	struct nvkm_subdev *subdev = &acr->subdev;
-	struct nvkm_acr_hsf *hsf;
-	int ret;
-
-	/* Patch the appropriate signature (production/debug) into the FW
-	 * image, as determined by the mode the falcon is in.
-	 */
-	ret = nvkm_falcon_get(falcon, subdev);
-	if (ret)
-		return ret;
-
-	if (hsfw->sig.patch_loc) {
-		if (!falcon->debug) {
-			nvkm_debug(subdev, "patching production signature\n");
-			memcpy(hsfw->image + hsfw->sig.patch_loc,
-			       hsfw->sig.prod.data,
-			       hsfw->sig.prod.size);
-		} else {
-			nvkm_debug(subdev, "patching debug signature\n");
-			memcpy(hsfw->image + hsfw->sig.patch_loc,
-			       hsfw->sig.dbg.data,
-			       hsfw->sig.dbg.size);
-		}
-	}
-
-	nvkm_falcon_put(falcon, subdev);
-
-	if (!(hsf = kzalloc(sizeof(*hsf), GFP_KERNEL)))
-		return -ENOMEM;
-	hsf->func = hsfw->func;
-	hsf->name = hsfw->name;
-	list_add_tail(&hsf->head, &acr->hsf);
-
-	hsf->imem_size = hsfw->imem_size;
-	hsf->imem_tag = hsfw->imem_tag;
-	hsf->imem = kmemdup(hsfw->imem, hsfw->imem_size, GFP_KERNEL);
-	if (!hsf->imem)
+	if (!(hsfw = kzalloc(sizeof(*hsfw), GFP_KERNEL)))
 		return -ENOMEM;
 
-	hsf->non_sec_addr = hsfw->non_sec_addr;
-	hsf->non_sec_size = hsfw->non_sec_size;
-	hsf->sec_addr = hsfw->sec_addr;
-	hsf->sec_size = hsfw->sec_size;
-	hsf->data_addr = hsfw->data_addr;
-	hsf->data_size = hsfw->data_size;
+	hsfw->falcon_id = fwif->falcon_id;
+	hsfw->boot_mbox0 = fwif->boot_mbox0;
+	hsfw->intr_clear = fwif->intr_clear;
+	list_add_tail(&hsfw->head, &acr->hsfw);
 
-	/* Make the FW image accessible to the HS bootloader. */
-	ret = nvkm_memory_new(subdev->device, NVKM_MEM_TARGET_INST,
-			      hsfw->image_size, 0x1000, false, &hsf->ucode);
-	if (ret)
-		return ret;
-
-	nvkm_kmap(hsf->ucode);
-	nvkm_wobj(hsf->ucode, 0, hsfw->image, hsfw->image_size);
-	nvkm_done(hsf->ucode);
-
-	ret = nvkm_vmm_get(acr->vmm, 12, nvkm_memory_size(hsf->ucode),
-			   &hsf->vma);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_map(hsf->ucode, 0, acr->vmm, hsf->vma, NULL, 0);
-	if (ret)
-		return ret;
-
-	hsf->falcon = falcon;
-	return 0;
+	return nvkm_falcon_fw_ctor_hs(fwif->func, name, &acr->subdev, bl, fw, ver, NULL, &hsfw->fw);
 }
 
-int
-gm200_acr_unload_boot(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf)
-{
-	return gm200_acr_hsfw_boot(acr, hsf, 0, 0x1d);
-}
-
-int
-gm200_acr_unload_load(struct nvkm_acr *acr, struct nvkm_acr_hsfw *hsfw)
-{
-	return gm200_acr_hsfw_load(acr, hsfw, &acr->subdev.device->pmu->falcon);
-}
-
-const struct nvkm_acr_hsf_func
+const struct nvkm_falcon_fw_func
 gm200_acr_unload_0 = {
-	.load = gm200_acr_unload_load,
-	.boot = gm200_acr_unload_boot,
-	.bld = gm200_acr_hsfw_bld,
+	.signature = gm200_flcn_fw_signature,
+	.reset = gm200_flcn_fw_reset,
+	.load = gm200_flcn_fw_load,
+	.load_bld = gm200_acr_hsfw_load_bld,
+	.boot = gm200_flcn_fw_boot,
 };
 
 MODULE_FIRMWARE("nvidia/gm200/acr/ucode_unload.bin");
@@ -384,20 +274,15 @@ MODULE_FIRMWARE("nvidia/gp100/acr/ucode_unload.bin");
 
 static const struct nvkm_acr_hsf_fwif
 gm200_acr_unload_fwif[] = {
-	{ 0, nvkm_acr_hsfw_load, &gm200_acr_unload_0 },
+	{ 0, gm200_acr_hsfw_ctor, &gm200_acr_unload_0, NVKM_ACR_HSF_PMU, 0, 0x00000010 },
 	{}
 };
 
-int
-gm200_acr_load_boot(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf)
-{
-	return gm200_acr_hsfw_boot(acr, hsf, 0x10, 0);
-}
-
 static int
-gm200_acr_load_load(struct nvkm_acr *acr, struct nvkm_acr_hsfw *hsfw)
+gm200_acr_load_setup(struct nvkm_falcon_fw *fw)
 {
-	struct flcn_acr_desc *desc = (void *)&hsfw->image[hsfw->data_addr];
+	struct flcn_acr_desc *desc = (void *)&fw->fw.img[fw->dmem_base_img];
+	struct nvkm_acr *acr = fw->falcon->owner->device->acr;
 
 	desc->wpr_region_id = 1;
 	desc->regions.no_regions = 2;
@@ -408,15 +293,17 @@ gm200_acr_load_load(struct nvkm_acr *acr, struct nvkm_acr_hsfw *hsfw)
 	desc->regions.region_props[0].write_mask = 0xc;
 	desc->regions.region_props[0].client_mask = 0x2;
 	flcn_acr_desc_dump(&acr->subdev, desc);
-
-	return gm200_acr_hsfw_load(acr, hsfw, &acr->subdev.device->pmu->falcon);
+	return 0;
 }
 
-static const struct nvkm_acr_hsf_func
+static const struct nvkm_falcon_fw_func
 gm200_acr_load_0 = {
-	.load = gm200_acr_load_load,
-	.boot = gm200_acr_load_boot,
-	.bld = gm200_acr_hsfw_bld,
+	.signature = gm200_flcn_fw_signature,
+	.reset = gm200_flcn_fw_reset,
+	.setup = gm200_acr_load_setup,
+	.load = gm200_flcn_fw_load,
+	.load_bld = gm200_acr_hsfw_load_bld,
+	.boot = gm200_flcn_fw_boot,
 };
 
 MODULE_FIRMWARE("nvidia/gm200/acr/bl.bin");
@@ -433,7 +320,7 @@ MODULE_FIRMWARE("nvidia/gp100/acr/ucode_load.bin");
 
 static const struct nvkm_acr_hsf_fwif
 gm200_acr_load_fwif[] = {
-	{ 0, nvkm_acr_hsfw_load, &gm200_acr_load_0 },
+	{ 0, gm200_acr_hsfw_ctor, &gm200_acr_load_0, NVKM_ACR_HSF_PMU, 0, 0x00000010 },
 	{}
 };
 

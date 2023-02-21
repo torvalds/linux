@@ -648,8 +648,8 @@ void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct seq_file *m)
 	int i;
 
 	for_each_rsnd_clk(clk, adg, i)
-		dbg_msg(dev, m, "%s    : %pa : %ld\n",
-			clk_name[i], clk, clk_get_rate(clk));
+		dbg_msg(dev, m, "%-18s : %pa : %ld\n",
+			__clk_get_name(clk), clk, clk_get_rate(clk));
 
 	dbg_msg(dev, m, "BRGCKR = 0x%08x, BRRA/BRRB = 0x%x/0x%x\n",
 		adg->ckr, adg->rbga, adg->rbgb);

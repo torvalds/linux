@@ -1046,7 +1046,6 @@
 					      "pixel",
 					      "core";
 				phys = <&dsi_phy0>;
-				phy-names = "dsi-phy";
 
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1070,7 +1069,7 @@
 				};
 			};
 
-			dsi_phy0: dsi-phy@1a98300 {
+			dsi_phy0: phy@1a98300 {
 				compatible = "qcom,dsi-phy-28nm-lp";
 				reg = <0x01a98300 0xd4>,
 				      <0x01a98500 0x280>,
@@ -1264,21 +1263,21 @@
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <17>;
 
-			// vfe:
+			/* VFE */
 			iommu-ctx@3000 {
 				compatible = "qcom,msm-iommu-v1-sec";
 				reg = <0x3000 0x1000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// mdp_0:
+			/* MDP_0 */
 			iommu-ctx@4000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x4000 0x1000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// venus_ns:
+			/* VENUS_NS */
 			iommu-ctx@5000 {
 				compatible = "qcom,msm-iommu-v1-sec";
 				reg = <0x5000 0x1000>;
@@ -1297,14 +1296,14 @@
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <18>;
 
-			// gfx3d_user:
+			/* GFX3D_USER */
 			iommu-ctx@1000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x1000 0x1000>;
 				interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// gfx3d_priv:
+			/* GFX3D_PRIV */
 			iommu-ctx@2000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x2000 0x1000>;
@@ -1345,7 +1344,7 @@
 		};
 
 		mpss: remoteproc@4080000 {
-			compatible = "qcom,msm8916-mss-pil", "qcom,q6v5-pil";
+			compatible = "qcom,msm8916-mss-pil";
 			reg = <0x04080000 0x100>,
 			      <0x04020000 0x040>;
 
@@ -1438,7 +1437,7 @@
 
 		lpass: audio-controller@7708000 {
 			status = "disabled";
-			compatible = "qcom,lpass-cpu-apq8016";
+			compatible = "qcom,apq8016-lpass-cpu";
 
 			/*
 			 * Note: Unlike the name would suggest, the SEC_I2S_CLK

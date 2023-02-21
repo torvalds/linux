@@ -381,8 +381,7 @@ static int adv7393_initialize(struct v4l2_subdev *sd)
 	return err;
 }
 
-static int adv7393_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int adv7393_probe(struct i2c_client *client)
 {
 	struct adv7393_state *state;
 	int err;
@@ -456,7 +455,7 @@ static struct i2c_driver adv7393_driver = {
 	.driver = {
 		.name	= "adv7393",
 	},
-	.probe		= adv7393_probe,
+	.probe_new	= adv7393_probe,
 	.remove		= adv7393_remove,
 	.id_table	= adv7393_id,
 };

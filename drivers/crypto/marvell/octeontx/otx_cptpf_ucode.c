@@ -345,8 +345,7 @@ static void release_tar_archive(struct tar_arch_info_t *tar_arch)
 		kfree(curr);
 	}
 
-	if (tar_arch->fw)
-		release_firmware(tar_arch->fw);
+	release_firmware(tar_arch->fw);
 	kfree(tar_arch);
 }
 

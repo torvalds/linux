@@ -318,6 +318,9 @@ static int dh_safe_prime_init_tfm(struct crypto_kpp *tfm)
 	if (IS_ERR(tfm_ctx->dh_tfm))
 		return PTR_ERR(tfm_ctx->dh_tfm);
 
+	kpp_set_reqsize(tfm, sizeof(struct kpp_request) +
+			     crypto_kpp_reqsize(tfm_ctx->dh_tfm));
+
 	return 0;
 }
 
@@ -593,7 +596,6 @@ static int __maybe_unused __dh_safe_prime_create(
 	inst->alg.max_size = dh_safe_prime_max_size;
 	inst->alg.init = dh_safe_prime_init_tfm;
 	inst->alg.exit = dh_safe_prime_exit_tfm;
-	inst->alg.reqsize = sizeof(struct kpp_request) + dh_alg->reqsize;
 	inst->alg.base.cra_priority = dh_alg->base.cra_priority;
 	inst->alg.base.cra_module = THIS_MODULE;
 	inst->alg.base.cra_ctxsize = sizeof(struct dh_safe_prime_tfm_ctx);

@@ -139,7 +139,7 @@ static int cpuid_device_destroy(unsigned int cpu)
 	return 0;
 }
 
-static char *cpuid_devnode(struct device *dev, umode_t *mode)
+static char *cpuid_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/cpuid", MINOR(dev->devt));
 }

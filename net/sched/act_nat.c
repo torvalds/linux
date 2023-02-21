@@ -24,7 +24,7 @@
 #include <net/tc_act/tc_nat.h>
 #include <net/tcp.h>
 #include <net/udp.h>
-
+#include <net/tc_wrapper.h>
 
 static struct tc_action_ops act_nat_ops;
 
@@ -98,8 +98,9 @@ release_idr:
 	return err;
 }
 
-static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
-		       struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
+				  const struct tc_action *a,
+				  struct tcf_result *res)
 {
 	struct tcf_nat *p = to_tcf_nat(a);
 	struct iphdr *iph;

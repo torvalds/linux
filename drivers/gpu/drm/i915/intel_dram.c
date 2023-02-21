@@ -471,8 +471,7 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915)
 	u32 val = intel_uncore_read(&i915->uncore, MTL_MEM_SS_INFO_GLOBAL);
 	struct dram_info *dram_info = &i915->dram_info;
 
-	val = REG_FIELD_GET(MTL_DDR_TYPE_MASK, val);
-	switch (val) {
+	switch (REG_FIELD_GET(MTL_DDR_TYPE_MASK, val)) {
 	case 0:
 		dram_info->type = INTEL_DRAM_DDR4;
 		break;

@@ -112,5 +112,6 @@ int t7xx_dpmaif_bat_alloc(const struct dpmaif_ctrl *dpmaif_ctrl, struct dpmaif_b
 			  const enum bat_type buf_type);
 void t7xx_dpmaif_bat_free(const struct dpmaif_ctrl *dpmaif_ctrl,
 			  struct dpmaif_bat_request *bat_req);
+int t7xx_dpmaif_napi_rx_poll(struct napi_struct *napi, const int budget);
 
 #endif /* __T7XX_HIF_DPMA_RX_H__ */

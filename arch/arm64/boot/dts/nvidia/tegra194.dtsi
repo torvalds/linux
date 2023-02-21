@@ -86,6 +86,7 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
+			gpio-ranges = <&pinmux 0 0 169>;
 		};
 
 		cbb-noc@2300000 {
@@ -142,7 +143,8 @@
 			reg = <0x2600000 0x210000>;
 			resets = <&bpmp TEGRA194_RESET_GPCDMA>;
 			reset-names = "gpcdma";
-			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>,
@@ -176,6 +178,7 @@
 			#dma-cells = <1>;
 			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
 			dma-coherent;
+			dma-channel-mask = <0xfffffffe>;
 			status = "okay";
 		};
 
@@ -626,12 +629,10 @@
 
 		pinmux: pinmux@2430000 {
 			compatible = "nvidia,tegra194-pinmux";
-			reg = <0x2430000 0x17000>,
-			      <0xc300000 0x4000>;
-
+			reg = <0x2430000 0x17000>;
 			status = "okay";
 
-			pex_rst_c5_out_state: pex_rst_c5_out {
+			pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
 				pex_rst {
 					nvidia,pins = "pex_l5_rst_n_pgg1";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
@@ -642,7 +643,7 @@
 				};
 			};
 
-			clkreq_c5_bi_dir_state: clkreq_c5_bi_dir {
+			clkreq_c5_bi_dir_state: pinmux-clkreq-c5-bi-dir {
 				clkreq {
 					nvidia,pins = "pex_l5_clkreq_n_pgg0";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
@@ -935,7 +936,6 @@
 				 <&bpmp TEGRA194_CLK_QSPI0_PM>;
 			clock-names = "qspi", "qspi_out";
 			resets = <&bpmp TEGRA194_RESET_QSPI0>;
-			reset-names = "qspi";
 			status = "disabled";
 		};
 
@@ -949,7 +949,6 @@
 				 <&bpmp TEGRA194_CLK_QSPI1_PM>;
 			clock-names = "qspi", "qspi_out";
 			resets = <&bpmp TEGRA194_RESET_QSPI1>;
-			reset-names = "qspi";
 			status = "disabled";
 		};
 
@@ -958,7 +957,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x3280000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM1>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM1>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -970,7 +968,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x3290000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM2>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM2>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -982,7 +979,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32a0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM3>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM3>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -994,7 +990,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32c0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM5>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM5>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1006,7 +1001,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32d0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM6>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM6>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1018,7 +1012,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32e0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM7>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM7>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1030,7 +1023,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32f0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM8>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM8>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1154,7 +1146,7 @@
 		};
 
 		hda@3510000 {
-			compatible = "nvidia,tegra194-hda", "nvidia,tegra30-hda";
+			compatible = "nvidia,tegra194-hda";
 			reg = <0x3510000 0x10000>;
 			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_HDA>,
@@ -1364,6 +1356,16 @@
 			clocks = <&bpmp TEGRA194_CLK_CEC>;
 			clock-names = "cec";
 			status = "disabled";
+		};
+
+		hte_lic: hardware-timestamp@3aa0000 {
+			compatible = "nvidia,tegra194-gte-lic";
+			reg = <0x3aa0000 0x10000>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			nvidia,slices = <11>;
+			#timestamp-cells = <1>;
+			status = "okay";
 		};
 
 		hsp_top0: hsp@3c00000 {
@@ -1579,6 +1581,16 @@
 			#mbox-cells = <2>;
 		};
 
+		hte_aon: hardware-timestamp@c1e0000 {
+			compatible = "nvidia,tegra194-gte-aon";
+			reg = <0xc1e0000 0x10000>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			nvidia,slices = <3>;
+			#timestamp-cells = <1>;
+			status = "okay";
+		};
+
 		gen2_i2c: i2c@c240000 {
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0c240000 0x10000>;
@@ -1660,6 +1672,14 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-range = <&pinmux_aon 0 0 30>;
+		};
+
+		pinmux_aon: pinmux@c300000 {
+			compatible = "nvidia,tegra194-pinmux-aon";
+			reg = <0xc300000 0x4000>;
+
+			status = "okay";
 		};
 
 		pwm4: pwm@c340000 {
@@ -1667,7 +1687,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0xc340000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM4>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM4>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1895,7 +1914,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			ranges = <0x15000000 0x15000000 0x01000000>;
+			ranges = <0x14800000 0x14800000 0x02800000>;
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_HOST1XDMAR &emc>;
 			interconnect-names = "dma-mem";
 			iommus = <&smmu TEGRA194_SID_HOST1X>;
@@ -3029,36 +3048,51 @@
 		};
 
 		l2c_0: l2-cache0 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l2c_1: l2-cache1 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l2c_2: l2-cache2 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l2c_3: l2-cache3 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l3c: l3-cache {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <4194304>;
 			cache-line-size = <64>;
+			cache-level = <3>;
 			cache-sets = <4096>;
 		};
 	};

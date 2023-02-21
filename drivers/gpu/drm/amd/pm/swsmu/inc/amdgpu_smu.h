@@ -168,6 +168,7 @@ struct smu_temperature_range {
 	int mem_crit_max;
 	int mem_emergency_max;
 	int software_shutdown_temp;
+	int software_shutdown_temp_offset;
 };
 
 struct smu_state_validation_block {
@@ -568,6 +569,10 @@ struct smu_context
 	u32 param_reg;
 	u32 msg_reg;
 	u32 resp_reg;
+
+	u32 debug_param_reg;
+	u32 debug_msg_reg;
+	u32 debug_resp_reg;
 };
 
 struct i2c_adapter;
@@ -1386,6 +1391,14 @@ enum smu_cmn2asic_mapping_type {
 	CMN2ASIC_MAPPING_TABLE,
 	CMN2ASIC_MAPPING_PWR,
 	CMN2ASIC_MAPPING_WORKLOAD,
+};
+
+enum smu_baco_seq {
+	BACO_SEQ_BACO = 0,
+	BACO_SEQ_MSR,
+	BACO_SEQ_BAMACO,
+	BACO_SEQ_ULPS,
+	BACO_SEQ_COUNT,
 };
 
 #define MSG_MAP(msg, index, valid_in_vf) \

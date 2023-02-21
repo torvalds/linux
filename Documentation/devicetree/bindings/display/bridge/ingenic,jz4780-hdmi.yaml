@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/bridge/ingenic,jz4780-hdmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for Ingenic JZ4780 HDMI Transmitter
+title: Ingenic JZ4780 HDMI Transmitter
 
 maintainers:
   - H. Nikolaus Schaller <hns@goldelico.com>

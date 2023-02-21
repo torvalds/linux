@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2022, Harry Austen <hpausten@protonmail.com>
+ */
+
+/dts-v1/;
+
+#include "msm8996-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 3";
+	compatible = "oneplus,oneplus3", "qcom,msm8996";
+	chassis-type = "handset";
+	qcom,board-id = <8 0 15801 15>, <8 0 15801 16>;
+	qcom,msm-id = <246 0x30001>;
+};
+
+&adsp_pil {
+	firmware-name = "qcom/msm8996/oneplus3/adsp.mbn";
+};
+
+&battery {
+	charge-full-design-microamp-hours = <3000000>;
+	voltage-max-design-microvolt = <4350000>;
+};
+
+&gpu {
+	zap-shader {
+		firmware-name = "qcom/msm8996/oneplus3/a530_zap.mbn";
+	};
+};
+
+&mss_pil {
+	firmware-name = "qcom/msm8996/oneplus3/mba.mbn",
+			"qcom/msm8996/oneplus3/modem.mbn";
+};
+
+&slpi_pil {
+	firmware-name = "qcom/msm8996/oneplus3/slpi.mbn";
+};
+
+&venus {
+	firmware-name = "qcom/msm8996/oneplus3/venus.mbn";
+};

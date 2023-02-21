@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/hycon,hy46xx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Hycon HY46XX series touchscreen controller bindings
+title: Hycon HY46XX series touchscreen controller
 
 description: |
   There are 6 variants of the chip for various touch panel sizes and cover lens material

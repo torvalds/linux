@@ -4094,9 +4094,18 @@ static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,
 		*qp_attr_mask = IB_QP_STATE | IB_QP_ACCESS_FLAGS |
 				IB_QP_PKEY_INDEX | IB_QP_PORT;
 		qp_attr->qp_access_flags = IB_ACCESS_REMOTE_WRITE;
-		if (cm_id_priv->responder_resources)
+		if (cm_id_priv->responder_resources) {
+			struct ib_device *ib_dev = cm_id_priv->id.device;
+			u64 support_flush = ib_dev->attrs.device_cap_flags &
+			  (IB_DEVICE_FLUSH_GLOBAL | IB_DEVICE_FLUSH_PERSISTENT);
+			u32 flushable = support_flush ?
+					(IB_ACCESS_FLUSH_GLOBAL |
+					 IB_ACCESS_FLUSH_PERSISTENT) : 0;
+
 			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ |
-						    IB_ACCESS_REMOTE_ATOMIC;
+						    IB_ACCESS_REMOTE_ATOMIC |
+						    flushable;
+		}
 		qp_attr->pkey_index = cm_id_priv->av.pkey_index;
 		if (cm_id_priv->av.port)
 			qp_attr->port_num = cm_id_priv->av.port->port_num;

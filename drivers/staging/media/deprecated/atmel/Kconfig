@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Atmel media platform drivers"
+
+config VIDEO_ATMEL_ISC
+	tristate "ATMEL Image Sensor Controller (ISC) support (DEPRECATED)"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && COMMON_CLK
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on !VIDEO_MICROCHIP_ISC_BASE || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select REGMAP_MMIO
+	select V4L2_FWNODE
+	select VIDEO_ATMEL_ISC_BASE
+	help
+	   This module makes the ATMEL Image Sensor Controller available
+	   as a v4l2 device.
+
+	   This driver is deprecated and is scheduled for removal by
+	   the beginning of 2026. See the TODO file for more information.
+
+config VIDEO_ATMEL_XISC
+	tristate "ATMEL eXtended Image Sensor Controller (XISC) support (DEPRECATED)"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && COMMON_CLK
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on !VIDEO_MICROCHIP_ISC_BASE || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select REGMAP_MMIO
+	select V4L2_FWNODE
+	select VIDEO_ATMEL_ISC_BASE
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	   This module makes the ATMEL eXtended Image Sensor Controller
+	   available as a v4l2 device.
+
+	   This driver is deprecated and is scheduled for removal by
+	   the beginning of 2026. See the TODO file for more information.
+
+config VIDEO_ATMEL_ISC_BASE
+	tristate
+	default n
+	help
+	  ATMEL ISC and XISC common code base.

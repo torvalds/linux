@@ -17,6 +17,10 @@
 	model = "Apple MacBook Pro (13-inch, M1, 2020)";
 };
 
+&bluetooth0 {
+	brcm,board-type = "apple,honshu";
+};
+
 &wifi0 {
 	brcm,board-type = "apple,honshu";
 };

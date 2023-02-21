@@ -576,8 +576,16 @@ static int rv8803_regs_configure(struct rv8803_data *rv8803)
 	return 0;
 }
 
-static int rv8803_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct i2c_device_id rv8803_id[] = {
+	{ "rv8803", rv_8803 },
+	{ "rv8804", rx_8804 },
+	{ "rx8803", rx_8803 },
+	{ "rx8900", rx_8900 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, rv8803_id);
+
+static int rv8803_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct rv8803_data *rv8803;
@@ -605,11 +613,14 @@ static int rv8803_probe(struct i2c_client *client,
 
 	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_node) {
 		rv8803->type = (enum rv8803_type)
 			of_device_get_match_data(&client->dev);
-	else
+	} else {
+		const struct i2c_device_id *id = i2c_match_id(rv8803_id, client);
+
 		rv8803->type = id->driver_data;
+	}
 	i2c_set_clientdata(client, rv8803);
 
 	flags = rv8803_read_reg(client, RV8803_FLAG);
@@ -666,15 +677,6 @@ static int rv8803_probe(struct i2c_client *client,
 	return 0;
 }
 
-static const struct i2c_device_id rv8803_id[] = {
-	{ "rv8803", rv_8803 },
-	{ "rv8804", rx_8804 },
-	{ "rx8803", rx_8803 },
-	{ "rx8900", rx_8900 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, rv8803_id);
-
 static const __maybe_unused struct of_device_id rv8803_of_match[] = {
 	{
 		.compatible = "microcrystal,rv8803",
@@ -701,7 +703,7 @@ static struct i2c_driver rv8803_driver = {
 		.name = "rtc-rv8803",
 		.of_match_table = of_match_ptr(rv8803_of_match),
 	},
-	.probe		= rv8803_probe,
+	.probe_new	= rv8803_probe,
 	.id_table	= rv8803_id,
 };
 module_i2c_driver(rv8803_driver);

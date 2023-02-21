@@ -78,6 +78,7 @@ struct intel_guc {
 
 	/** @interrupts: pointers to GuC interrupt-managing functions. */
 	struct {
+		bool enabled;
 		void (*reset)(struct intel_guc *guc);
 		void (*enable)(struct intel_guc *guc);
 		void (*disable)(struct intel_guc *guc);
@@ -113,6 +114,10 @@ struct intel_guc {
 		 */
 		struct list_head guc_id_list;
 		/**
+		 * @guc_ids_in_use: Number single-lrc guc_ids in use
+		 */
+		unsigned int guc_ids_in_use;
+		/**
 		 * @destroyed_contexts: list of contexts waiting to be destroyed
 		 * (deregistered with the GuC)
 		 */
@@ -132,6 +137,16 @@ struct intel_guc {
 		 * @reset_fail_mask: mask of engines that failed to reset
 		 */
 		intel_engine_mask_t reset_fail_mask;
+		/**
+		 * @sched_disable_delay_ms: schedule disable delay, in ms, for
+		 * contexts
+		 */
+		unsigned int sched_disable_delay_ms;
+		/**
+		 * @sched_disable_gucid_threshold: threshold of min remaining available
+		 * guc_ids before we start bypassing the schedule disable delay
+		 */
+		unsigned int sched_disable_gucid_threshold;
 	} submission_state;
 
 	/**
@@ -316,9 +331,11 @@ retry:
 	return err;
 }
 
+/* Only call this from the interrupt handler code */
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
 {
-	intel_guc_ct_event_handler(&guc->ct);
+	if (guc->interrupts.enabled)
+		intel_guc_ct_event_handler(&guc->ct);
 }
 
 /* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
@@ -465,5 +482,7 @@ void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
 void intel_guc_write_barrier(struct intel_guc *guc);
 
 void intel_guc_dump_time_info(struct intel_guc *guc, struct drm_printer *p);
+
+int intel_guc_sched_disable_gucid_threshold_max(struct intel_guc *guc);
 
 #endif

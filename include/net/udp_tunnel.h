@@ -68,8 +68,8 @@ typedef int (*udp_tunnel_encap_rcv_t)(struct sock *sk, struct sk_buff *skb);
 typedef int (*udp_tunnel_encap_err_lookup_t)(struct sock *sk,
 					     struct sk_buff *skb);
 typedef void (*udp_tunnel_encap_err_rcv_t)(struct sock *sk,
-					   struct sk_buff *skb,
-					   unsigned int udp_offset);
+					   struct sk_buff *skb, int err,
+					   __be16 port, u32 info, u8 *payload);
 typedef void (*udp_tunnel_encap_destroy_t)(struct sock *sk);
 typedef struct sk_buff *(*udp_tunnel_gro_receive_t)(struct sock *sk,
 						    struct list_head *head,

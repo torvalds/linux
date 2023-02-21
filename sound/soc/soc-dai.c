@@ -386,23 +386,16 @@ int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret = 0;
 
 	if (dai->driver->ops &&
-	    dai->driver->ops->hw_params) {
-		/* perform any topology hw_params fixups before DAI  */
-		ret = snd_soc_link_be_hw_params_fixup(rtd, params);
-		if (ret < 0)
-			goto end;
-
+	    dai->driver->ops->hw_params)
 		ret = dai->driver->ops->hw_params(substream, params, dai);
-	}
 
 	/* mark substream if succeeded */
 	if (ret == 0)
 		soc_dai_mark_push(dai, substream, hw_params);
-end:
+
 	return soc_dai_ret(dai, ret);
 }
 

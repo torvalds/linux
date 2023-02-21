@@ -920,7 +920,12 @@ static int __init vt8623fb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("vt8623fb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("vt8623fb", &option))
 		return -ENODEV;
 

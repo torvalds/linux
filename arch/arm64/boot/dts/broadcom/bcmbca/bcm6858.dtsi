@@ -50,6 +50,7 @@
 		};
 		L2_0: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -108,6 +109,25 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0xff800000 0x62000>;
+
+		twd: timer-mfd@400 {
+			compatible = "brcm,bcm4908-twd", "simple-mfd", "syscon";
+			reg = <0x400 0x4c>;
+			ranges = <0x0 0x400 0x4c>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			timer@0 {
+				compatible = "brcm,bcm63138-timer";
+				reg = <0x0 0x28>;
+			};
+
+			watchdog@28 {
+				compatible = "brcm,bcm6345-wdt";
+				reg = <0x28 0x8>;
+			};
+		};
 
 		uart0: serial@640 {
 			compatible = "brcm,bcm6345-uart";

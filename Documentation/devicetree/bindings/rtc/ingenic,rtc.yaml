@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rtc/ingenic,rtc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs Real-Time Clock DT bindings
+title: Ingenic SoCs Real-Time Clock
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

@@ -758,7 +758,7 @@ static void apple_dart_get_resv_regions(struct device *dev,
 
 		region = iommu_alloc_resv_region(DOORBELL_ADDR,
 						 PAGE_SIZE, prot,
-						 IOMMU_RESV_MSI);
+						 IOMMU_RESV_MSI, GFP_KERNEL);
 		if (!region)
 			return;
 

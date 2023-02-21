@@ -291,7 +291,7 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 	u8 cmd_reg_val = 0x00;
 	int i;
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	netif_stop_queue(dev);

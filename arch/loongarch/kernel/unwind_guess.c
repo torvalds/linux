@@ -3,6 +3,7 @@
  * Copyright (C) 2022 Loongson Technology Corporation Limited
  */
 #include <linux/kernel.h>
+#include <linux/ftrace.h>
 
 #include <asm/unwind.h>
 
@@ -53,7 +54,8 @@ bool unwind_next_frame(struct unwind_state *state)
 		     state->sp < info->end;
 		     state->sp += sizeof(unsigned long)) {
 			addr = *(unsigned long *)(state->sp);
-
+			state->pc = ftrace_graph_ret_addr(state->task, &state->graph_idx,
+					addr, (unsigned long *)(state->sp - GRAPH_FAKE_OFFSET));
 			if (__kernel_text_address(addr))
 				return true;
 		}

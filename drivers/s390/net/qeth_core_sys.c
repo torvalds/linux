@@ -410,13 +410,13 @@ static ssize_t qeth_dev_isolation_show(struct device *dev,
 
 	switch (card->options.isolation) {
 	case ISOLATION_MODE_NONE:
-		return snprintf(buf, 6, "%s\n", ATTR_QETH_ISOLATION_NONE);
+		return sysfs_emit(buf, "%s\n", ATTR_QETH_ISOLATION_NONE);
 	case ISOLATION_MODE_FWD:
-		return snprintf(buf, 9, "%s\n", ATTR_QETH_ISOLATION_FWD);
+		return sysfs_emit(buf, "%s\n", ATTR_QETH_ISOLATION_FWD);
 	case ISOLATION_MODE_DROP:
-		return snprintf(buf, 6, "%s\n", ATTR_QETH_ISOLATION_DROP);
+		return sysfs_emit(buf, "%s\n", ATTR_QETH_ISOLATION_DROP);
 	default:
-		return snprintf(buf, 5, "%s\n", "N/A");
+		return sysfs_emit(buf, "%s\n", "N/A");
 	}
 }
 
@@ -500,9 +500,9 @@ static ssize_t qeth_hw_trap_show(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	if (card->info.hwtrap)
-		return snprintf(buf, 5, "arm\n");
+		return sysfs_emit(buf, "arm\n");
 	else
-		return snprintf(buf, 8, "disarm\n");
+		return sysfs_emit(buf, "disarm\n");
 }
 
 static ssize_t qeth_hw_trap_store(struct device *dev,

@@ -131,7 +131,7 @@ Example:
 	};
 
 NAND chip optional subnodes:
-- Partitions, see Documentation/devicetree/bindings/mtd/partition.txt
+- Partitions, see Documentation/devicetree/bindings/mtd/mtd.yaml
 
 Example:
 	nand@0 {

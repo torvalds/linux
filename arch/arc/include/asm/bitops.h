@@ -82,7 +82,7 @@ static inline __attribute__ ((const)) int fls(unsigned int x)
 /*
  * __fls: Similar to fls, but zero based (0-31)
  */
-static inline __attribute__ ((const)) int __fls(unsigned long x)
+static inline __attribute__ ((const)) unsigned long __fls(unsigned long x)
 {
 	if (!x)
 		return 0;
@@ -131,7 +131,7 @@ static inline __attribute__ ((const)) int fls(unsigned int x)
 /*
  * __fls: Similar to fls, but zero based (0-31). Also 0 if no bit set
  */
-static inline __attribute__ ((const)) int __fls(unsigned long x)
+static inline __attribute__ ((const)) unsigned long __fls(unsigned long x)
 {
 	/* FLS insn has exactly same semantics as the API */
 	return	__builtin_arc_fls(x);

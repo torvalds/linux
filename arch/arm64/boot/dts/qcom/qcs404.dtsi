@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018, Linaro Limited
+/*
+ * Copyright (c) 2018, Linaro Limited
+ */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-qcs404.h>
@@ -593,118 +595,130 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			blsp1_i2c0_default: blsp1-i2c0-default {
+			blsp1_i2c0_default: blsp1-i2c0-default-state {
 				pins = "gpio32", "gpio33";
 				function = "blsp_i2c0";
 			};
 
-			blsp1_i2c1_default: blsp1-i2c1-default {
+			blsp1_i2c1_default: blsp1-i2c1-default-state {
 				pins = "gpio24", "gpio25";
 				function = "blsp_i2c1";
 			};
 
-			blsp1_i2c2_default: blsp1-i2c2-default {
-				sda {
+			blsp1_i2c2_default: blsp1-i2c2-default-state {
+				sda-pins {
 					pins = "gpio19";
 					function = "blsp_i2c_sda_a2";
 				};
 
-				scl {
+				scl-pins {
 					pins = "gpio20";
 					function = "blsp_i2c_scl_a2";
 				};
 			};
 
-			blsp1_i2c3_default: blsp1-i2c3-default {
+			blsp1_i2c3_default: blsp1-i2c3-default-state {
 				pins = "gpio84", "gpio85";
 				function = "blsp_i2c3";
 			};
 
-			blsp1_i2c4_default: blsp1-i2c4-default {
+			blsp1_i2c4_default: blsp1-i2c4-default-state {
 				pins = "gpio117", "gpio118";
 				function = "blsp_i2c4";
 			};
 
-			blsp1_uart0_default: blsp1-uart0-default {
+			blsp1_uart0_default: blsp1-uart0-default-state {
 				pins = "gpio30", "gpio31", "gpio32", "gpio33";
 				function = "blsp_uart0";
 			};
 
-			blsp1_uart1_default: blsp1-uart1-default {
+			blsp1_uart1_default: blsp1-uart1-default-state {
 				pins = "gpio22", "gpio23";
 				function = "blsp_uart1";
 			};
 
-			blsp1_uart2_default: blsp1-uart2-default {
-				rx {
+			blsp1_uart2_default: blsp1-uart2-default-state {
+				rx-pins {
 					pins = "gpio18";
 					function = "blsp_uart_rx_a2";
 				};
 
-				tx {
+				tx-pins {
 					pins = "gpio17";
 					function = "blsp_uart_tx_a2";
 				};
 			};
 
-			blsp1_uart3_default: blsp1-uart3-default {
-				pins = "gpio82", "gpio83", "gpio84", "gpio85";
-				function = "blsp_uart3";
+			blsp1_uart3_default: blsp1-uart3-default-state {
+				cts-pins {
+					pins = "gpio84";
+					function = "blsp_uart3";
+				};
+
+				rts-tx-pins {
+					pins = "gpio85", "gpio82";
+					function = "blsp_uart3";
+				};
+
+				rx-pins {
+					pins = "gpio83";
+					function = "blsp_uart3";
+				};
 			};
 
-			blsp2_i2c0_default: blsp2-i2c0-default {
+			blsp2_i2c0_default: blsp2-i2c0-default-state {
 				pins = "gpio28", "gpio29";
 				function = "blsp_i2c5";
 			};
 
-			blsp1_spi0_default: blsp1-spi0-default {
+			blsp1_spi0_default: blsp1-spi0-default-state {
 				pins = "gpio30", "gpio31", "gpio32", "gpio33";
 				function = "blsp_spi0";
 			};
 
-			blsp1_spi1_default: blsp1-spi1-default {
-				mosi {
+			blsp1_spi1_default: blsp1-spi1-default-state {
+				mosi-pins {
 					pins = "gpio22";
 					function = "blsp_spi_mosi_a1";
 				};
 
-				miso {
+				miso-pins {
 					pins = "gpio23";
 					function = "blsp_spi_miso_a1";
 				};
 
-				cs_n {
+				cs-n-pins {
 					pins = "gpio24";
 					function = "blsp_spi_cs_n_a1";
 				};
 
-				clk {
+				clk-pins {
 					pins = "gpio25";
 					function = "blsp_spi_clk_a1";
 				};
 			};
 
-			blsp1_spi2_default: blsp1-spi2-default {
+			blsp1_spi2_default: blsp1-spi2-default-state {
 				pins = "gpio17", "gpio18", "gpio19", "gpio20";
 				function = "blsp_spi2";
 			};
 
-			blsp1_spi3_default: blsp1-spi3-default {
+			blsp1_spi3_default: blsp1-spi3-default-state {
 				pins = "gpio82", "gpio83", "gpio84", "gpio85";
 				function = "blsp_spi3";
 			};
 
-			blsp1_spi4_default: blsp1-spi4-default {
+			blsp1_spi4_default: blsp1-spi4-default-state {
 				pins = "gpio37", "gpio38", "gpio117", "gpio118";
 				function = "blsp_spi4";
 			};
 
-			blsp2_spi0_default: blsp2-spi0-default {
+			blsp2_spi0_default: blsp2-spi0-default-state {
 				pins = "gpio26", "gpio27", "gpio28", "gpio29";
 				function = "blsp_spi5";
 			};
 
-			blsp2_uart0_default: blsp2-uart0-default {
+			blsp2_uart0_default: blsp2-uart0-default-state {
 				pins = "gpio26", "gpio27", "gpio28", "gpio29";
 				function = "blsp_uart5";
 			};

@@ -429,7 +429,7 @@ CPU_LE(	ext		v0.16b, v0.16b, v0.16b, #8	)
 
 	umov		w0, v0.h[0]
 	.ifc		\p, p8
-	ldp		x29, x30, [sp], #16
+	frame_pop
 	.endif
 	ret
 
@@ -466,8 +466,7 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 // Assumes len >= 16.
 //
 SYM_FUNC_START(crc_t10dif_pmull_p8)
-	stp		x29, x30, [sp, #-16]!
-	mov		x29, sp
+	frame_push	1
 	crc_t10dif_pmull p8
 SYM_FUNC_END(crc_t10dif_pmull_p8)
 

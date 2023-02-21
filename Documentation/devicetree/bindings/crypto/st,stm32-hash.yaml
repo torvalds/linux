@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/crypto/st,stm32-hash.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 HASH bindings
+title: STMicroelectronics STM32 HASH
 
 maintainers:
   - Lionel Debieve <lionel.debieve@foss.st.com>

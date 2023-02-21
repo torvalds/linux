@@ -9,6 +9,9 @@ title: Renesas RZ/{G2L,V2L} ASoC Sound Serial Interface (SSIF-2)
 maintainers:
   - Biju Das <biju.das.jz@bp.renesas.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     items:
@@ -90,7 +93,7 @@ required:
   - resets
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

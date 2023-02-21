@@ -18,10 +18,10 @@ struct core_vma_metadata {
 
 struct coredump_params {
 	const kernel_siginfo_t *siginfo;
-	struct pt_regs *regs;
 	struct file *file;
 	unsigned long limit;
 	unsigned long mm_flags;
+	int cpu;
 	loff_t written;
 	loff_t pos;
 	loff_t to_skip;

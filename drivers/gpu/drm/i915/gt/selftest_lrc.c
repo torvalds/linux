@@ -452,9 +452,7 @@ retry:
 	*cs++ = i915_ggtt_offset(scratch) + RING_TAIL_IDX * sizeof(u32);
 	*cs++ = 0;
 
-	err = i915_request_await_object(rq, scratch->obj, true);
-	if (!err)
-		err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
 
 	i915_request_get(rq);
 	i915_request_add(rq);
@@ -602,9 +600,7 @@ __gpr_read(struct intel_context *ce, struct i915_vma *scratch, u32 *slot)
 	}
 
 	i915_vma_lock(scratch);
-	err = i915_request_await_object(rq, scratch->obj, true);
-	if (!err)
-		err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(scratch);
 
 	i915_request_get(rq);
@@ -1053,21 +1049,6 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 	return batch;
 }
 
-static int move_to_active(struct i915_request *rq,
-			  struct i915_vma *vma,
-			  unsigned int flags)
-{
-	int err;
-
-	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, flags);
-	if (!err)
-		err = i915_vma_move_to_active(vma, rq, flags);
-	i915_vma_unlock(vma);
-
-	return err;
-}
-
 static struct i915_request *
 record_registers(struct intel_context *ce,
 		 struct i915_vma *before,
@@ -1093,19 +1074,19 @@ record_registers(struct intel_context *ce,
 	if (IS_ERR(rq))
 		goto err_after;
 
-	err = move_to_active(rq, before, EXEC_OBJECT_WRITE);
+	err = igt_vma_move_to_active_unlocked(before, rq, EXEC_OBJECT_WRITE);
 	if (err)
 		goto err_rq;
 
-	err = move_to_active(rq, b_before, 0);
+	err = igt_vma_move_to_active_unlocked(b_before, rq, 0);
 	if (err)
 		goto err_rq;
 
-	err = move_to_active(rq, after, EXEC_OBJECT_WRITE);
+	err = igt_vma_move_to_active_unlocked(after, rq, EXEC_OBJECT_WRITE);
 	if (err)
 		goto err_rq;
 
-	err = move_to_active(rq, b_after, 0);
+	err = igt_vma_move_to_active_unlocked(b_after, rq, 0);
 	if (err)
 		goto err_rq;
 
@@ -1243,7 +1224,7 @@ static int poison_registers(struct intel_context *ce, u32 poison, u32 *sema)
 		goto err_batch;
 	}
 
-	err = move_to_active(rq, batch, 0);
+	err = igt_vma_move_to_active_unlocked(batch, rq, 0);
 	if (err)
 		goto err_rq;
 

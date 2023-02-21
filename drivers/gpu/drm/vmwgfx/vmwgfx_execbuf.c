@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009 - 2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009 - 2022 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -25,6 +25,7 @@
  *
  **************************************************************************/
 #include <linux/sync_file.h>
+#include <linux/hashtable.h>
 
 #include "vmwgfx_drv.h"
 #include "vmwgfx_reg.h"
@@ -34,7 +35,6 @@
 #include "vmwgfx_binding.h"
 #include "vmwgfx_mksstat.h"
 
-#define VMW_RES_HT_ORDER 12
 
 /*
  * Helper macro to get dx_ctx_node if available otherwise print an error
@@ -1047,7 +1047,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 
 	if (unlikely(new_query_bo != sw_context->cur_query_bo)) {
 
-		if (unlikely(new_query_bo->base.resource->num_pages > 4)) {
+		if (unlikely(PFN_UP(new_query_bo->base.resource->size) > 4)) {
 			VMW_DEBUG_USER("Query buffer too large.\n");
 			return -EINVAL;
 		}
@@ -3869,7 +3869,6 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
  * @fence: Pointer to the fenc object.
  * @fence_handle: User-space fence handle.
  * @out_fence_fd: exported file descriptor for the fence.  -1 if not used
- * @sync_file:  Only used to clean up in case of an error in this function.
  *
  * This function copies fence information to user-space. If copying fails, the
  * user-space struct drm_vmw_fence_rep::error member is hopefully left
@@ -4101,7 +4100,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	int ret;
 	int32_t out_fence_fd = -1;
 	struct sync_file *sync_file = NULL;
-	DECLARE_VAL_CONTEXT(val_ctx, &sw_context->res_ht, 1);
+	DECLARE_VAL_CONTEXT(val_ctx, sw_context, 1);
 
 	if (flags & DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD) {
 		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
@@ -4163,14 +4162,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 	if (sw_context->staged_bindings)
 		vmw_binding_state_reset(sw_context->staged_bindings);
-
-	if (!sw_context->res_ht_initialized) {
-		ret = vmwgfx_ht_create(&sw_context->res_ht, VMW_RES_HT_ORDER);
-		if (unlikely(ret != 0))
-			goto out_unlock;
-
-		sw_context->res_ht_initialized = true;
-	}
 
 	INIT_LIST_HEAD(&sw_context->staged_cmd_res);
 	sw_context->ctx = &val_ctx;

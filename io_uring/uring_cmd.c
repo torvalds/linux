@@ -56,7 +56,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
 		smp_store_release(&req->iopoll_completed, 1);
 	else
-		__io_req_complete(req, 0);
+		io_req_complete_post(req, 0);
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 

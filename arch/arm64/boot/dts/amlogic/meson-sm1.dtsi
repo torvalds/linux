@@ -88,6 +88,7 @@
 
 		l2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -518,6 +519,10 @@
 
 &pcie {
 	power-domains = <&pwrc PWRC_SM1_PCIE_ID>;
+};
+
+&pmu {
+	compatible = "amlogic,sm1-ddr-pmu";
 };
 
 &pwrc {

@@ -178,12 +178,14 @@ void
 gt215_pmu_fini(struct nvkm_pmu *pmu)
 {
 	nvkm_wr32(pmu->subdev.device, 0x10a014, 0x00000060);
+	flush_work(&pmu->recv.work);
 }
 
 static void
 gt215_pmu_reset(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
+
 	nvkm_mask(device, 0x022210, 0x00000001, 0x00000000);
 	nvkm_mask(device, 0x022210, 0x00000001, 0x00000001);
 	nvkm_rd32(device, 0x022210);
@@ -200,6 +202,23 @@ gt215_pmu_init(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
 	int i;
+
+	/* Inhibit interrupts, and wait for idle. */
+	if (pmu->func->enabled(pmu)) {
+		nvkm_wr32(device, 0x10a014, 0x0000ffff);
+		nvkm_msec(device, 2000,
+			if (!nvkm_rd32(device, 0x10a04c))
+				break;
+		);
+	}
+
+	pmu->func->reset(pmu);
+
+	/* Wait for IMEM/DMEM scrubbing to be complete. */
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x10a10c) & 0x00000006))
+			break;
+	);
 
 	/* upload data segment */
 	nvkm_wr32(device, 0x10a1c0, 0x01000000);
@@ -243,20 +262,6 @@ gt215_pmu_init(struct nvkm_pmu *pmu)
 
 const struct nvkm_falcon_func
 gt215_pmu_flcn = {
-	.debug = 0xc08,
-	.fbif = 0xe00,
-	.load_imem = nvkm_falcon_v1_load_imem,
-	.load_dmem = nvkm_falcon_v1_load_dmem,
-	.read_dmem = nvkm_falcon_v1_read_dmem,
-	.bind_context = nvkm_falcon_v1_bind_context,
-	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
-	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
-	.set_start_addr = nvkm_falcon_v1_set_start_addr,
-	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
-	.disable = nvkm_falcon_v1_disable,
-	.cmdq = { 0x4a0, 0x4b0, 4 },
-	.msgq = { 0x4c8, 0x4cc, 0 },
 };
 
 static const struct nvkm_pmu_func

@@ -45,6 +45,47 @@ wpr_header_v1_dump(struct nvkm_subdev *subdev, const struct wpr_header_v1 *hdr)
 	nvkm_debug(subdev, "\tstatus        : %d\n", hdr->status);
 }
 
+void
+wpr_generic_header_dump(struct nvkm_subdev *subdev, const struct wpr_generic_header *hdr)
+{
+	nvkm_debug(subdev, "wprGenericHeader\n");
+	nvkm_debug(subdev, "\tidentifier : %04x\n", hdr->identifier);
+	nvkm_debug(subdev, "\tversion    : %04x\n", hdr->version);
+	nvkm_debug(subdev, "\tsize       : %08x\n", hdr->size);
+}
+
+void
+wpr_header_v2_dump(struct nvkm_subdev *subdev, const struct wpr_header_v2 *hdr)
+{
+	wpr_generic_header_dump(subdev, &hdr->hdr);
+	wpr_header_v1_dump(subdev, &hdr->wpr);
+}
+
+void
+lsb_header_v2_dump(struct nvkm_subdev *subdev, struct lsb_header_v2 *hdr)
+{
+	wpr_generic_header_dump(subdev, &hdr->hdr);
+	nvkm_debug(subdev, "lsbHeader\n");
+	nvkm_debug(subdev, "\tucodeOff      : 0x%x\n", hdr->ucode_off);
+	nvkm_debug(subdev, "\tucodeSize     : 0x%x\n", hdr->ucode_size);
+	nvkm_debug(subdev, "\tdataSize      : 0x%x\n", hdr->data_size);
+	nvkm_debug(subdev, "\tblCodeSize    : 0x%x\n", hdr->bl_code_size);
+	nvkm_debug(subdev, "\tblImemOff     : 0x%x\n", hdr->bl_imem_off);
+	nvkm_debug(subdev, "\tblDataOff     : 0x%x\n", hdr->bl_data_off);
+	nvkm_debug(subdev, "\tblDataSize    : 0x%x\n", hdr->bl_data_size);
+	nvkm_debug(subdev, "\treserved0     : %08x\n", hdr->rsvd0);
+	nvkm_debug(subdev, "\tappCodeOff    : 0x%x\n", hdr->app_code_off);
+	nvkm_debug(subdev, "\tappCodeSize   : 0x%x\n", hdr->app_code_size);
+	nvkm_debug(subdev, "\tappDataOff    : 0x%x\n", hdr->app_data_off);
+	nvkm_debug(subdev, "\tappDataSize   : 0x%x\n", hdr->app_data_size);
+	nvkm_debug(subdev, "\tappImemOffset : 0x%x\n", hdr->app_imem_offset);
+	nvkm_debug(subdev, "\tappDmemOffset : 0x%x\n", hdr->app_dmem_offset);
+	nvkm_debug(subdev, "\tflags         : 0x%x\n", hdr->flags);
+	nvkm_debug(subdev, "\tmonitorCodeOff: 0x%x\n", hdr->monitor_code_offset);
+	nvkm_debug(subdev, "\tmonitorDataOff: 0x%x\n", hdr->monitor_data_offset);
+	nvkm_debug(subdev, "\tmanifestOffset: 0x%x\n", hdr->manifest_offset);
+}
+
 static void
 lsb_header_tail_dump(struct nvkm_subdev *subdev, struct lsb_header_tail *hdr)
 {

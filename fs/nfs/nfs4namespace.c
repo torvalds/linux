@@ -164,16 +164,17 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 	return 0;
 }
 
-size_t nfs_parse_server_name(char *string, size_t len, struct sockaddr *sa,
+size_t nfs_parse_server_name(char *string, size_t len, struct sockaddr_storage *ss,
 			     size_t salen, struct net *net, int port)
 {
+	struct sockaddr *sa = (struct sockaddr *)ss;
 	ssize_t ret;
 
 	ret = rpc_pton(net, string, len, sa, salen);
 	if (ret == 0) {
 		ret = rpc_uaddr2sockaddr(net, string, len, sa, salen);
 		if (ret == 0) {
-			ret = nfs_dns_resolve_name(net, string, len, sa, salen);
+			ret = nfs_dns_resolve_name(net, string, len, ss, salen);
 			if (ret < 0)
 				ret = 0;
 		}
@@ -331,7 +332,7 @@ static int try_location(struct fs_context *fc,
 
 		ctx->nfs_server.addrlen =
 			nfs_parse_server_name(buf->data, buf->len,
-					      &ctx->nfs_server.address,
+					      &ctx->nfs_server._address,
 					      sizeof(ctx->nfs_server._address),
 					      fc->net_ns, 0);
 		if (ctx->nfs_server.addrlen == 0)
@@ -483,14 +484,13 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 		char *page, char *page2,
 		const struct nfs4_fs_location *location)
 {
-	const size_t addr_bufsize = sizeof(struct sockaddr_storage);
 	struct net *net = rpc_net_ns(server->client);
-	struct sockaddr *sap;
+	struct sockaddr_storage *sap;
 	unsigned int s;
 	size_t salen;
 	int error;
 
-	sap = kmalloc(addr_bufsize, GFP_KERNEL);
+	sap = kmalloc(sizeof(*sap), GFP_KERNEL);
 	if (sap == NULL)
 		return -ENOMEM;
 
@@ -506,10 +506,10 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 			continue;
 
 		salen = nfs_parse_server_name(buf->data, buf->len,
-						sap, addr_bufsize, net, 0);
+					      sap, sizeof(*sap), net, 0);
 		if (salen == 0)
 			continue;
-		rpc_set_port(sap, NFS_PORT);
+		rpc_set_port((struct sockaddr *)sap, NFS_PORT);
 
 		error = -ENOMEM;
 		hostname = kmemdup_nul(buf->data, buf->len, GFP_KERNEL);

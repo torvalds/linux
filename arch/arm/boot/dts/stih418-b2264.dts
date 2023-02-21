@@ -76,7 +76,7 @@
 	soc {
 		leds {
 			compatible = "gpio-leds";
-			green {
+			led-green {
 				gpios = <&pio1 3 GPIO_ACTIVE_HIGH>;
 				default-state = "off";
 			};

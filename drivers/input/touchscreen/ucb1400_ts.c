@@ -401,7 +401,7 @@ static int ucb1400_ts_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused ucb1400_ts_suspend(struct device *dev)
+static int ucb1400_ts_suspend(struct device *dev)
 {
 	struct ucb1400_ts *ucb = dev_get_platdata(dev);
 	struct input_dev *idev = ucb->ts_idev;
@@ -415,7 +415,7 @@ static int __maybe_unused ucb1400_ts_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ucb1400_ts_resume(struct device *dev)
+static int ucb1400_ts_resume(struct device *dev)
 {
 	struct ucb1400_ts *ucb = dev_get_platdata(dev);
 	struct input_dev *idev = ucb->ts_idev;
@@ -429,15 +429,15 @@ static int __maybe_unused ucb1400_ts_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(ucb1400_ts_pm_ops,
-			 ucb1400_ts_suspend, ucb1400_ts_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ucb1400_ts_pm_ops,
+				ucb1400_ts_suspend, ucb1400_ts_resume);
 
 static struct platform_driver ucb1400_ts_driver = {
 	.probe	= ucb1400_ts_probe,
 	.remove	= ucb1400_ts_remove,
 	.driver	= {
 		.name	= "ucb1400_ts",
-		.pm	= &ucb1400_ts_pm_ops,
+		.pm	= pm_sleep_ptr(&ucb1400_ts_pm_ops),
 	},
 };
 module_platform_driver(ucb1400_ts_driver);

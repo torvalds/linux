@@ -39,6 +39,11 @@ static inline void *crypto_aead_ctx(struct crypto_aead *tfm)
 	return crypto_tfm_ctx(&tfm->base);
 }
 
+static inline void *crypto_aead_ctx_dma(struct crypto_aead *tfm)
+{
+	return crypto_tfm_ctx_dma(&tfm->base);
+}
+
 static inline struct crypto_instance *aead_crypto_instance(
 	struct aead_instance *inst)
 {
@@ -63,6 +68,16 @@ static inline void *aead_instance_ctx(struct aead_instance *inst)
 static inline void *aead_request_ctx(struct aead_request *req)
 {
 	return req->__ctx;
+}
+
+static inline void *aead_request_ctx_dma(struct aead_request *req)
+{
+	unsigned int align = crypto_dma_align();
+
+	if (align <= crypto_tfm_ctx_alignment())
+		align = 1;
+
+	return PTR_ALIGN(aead_request_ctx(req), align);
 }
 
 static inline void aead_request_complete(struct aead_request *req, int err)
@@ -105,6 +120,13 @@ static inline struct crypto_aead *crypto_spawn_aead(
 static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 					   unsigned int reqsize)
 {
+	aead->reqsize = reqsize;
+}
+
+static inline void crypto_aead_set_reqsize_dma(struct crypto_aead *aead,
+					       unsigned int reqsize)
+{
+	reqsize += crypto_dma_align() & ~(crypto_tfm_ctx_alignment() - 1);
 	aead->reqsize = reqsize;
 }
 

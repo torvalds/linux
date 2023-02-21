@@ -23,7 +23,9 @@ try:
 	opts = [x for x in flags.split(" ") if x.startswith("--jobserver")]
 
 	# Parse out R,W file descriptor numbers and set them nonblocking.
-	fds = opts[0].split("=", 1)[1]
+	# If the MAKEFLAGS variable contains multiple instances of the
+	# --jobserver-auth= option, the last one is relevant.
+	fds = opts[-1].split("=", 1)[1]
 	reader, writer = [int(x) for x in fds.split(",", 1)]
 	# Open a private copy of reader to avoid setting nonblocking
 	# on an unexpecting process with the same reader fd.

@@ -43,6 +43,7 @@ struct sample {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
+	__uint(max_entries, 4096);
 } ringbuf SEC(".maps");
 
 int err, val;
@@ -66,6 +67,7 @@ static int get_map_val_dynptr(struct bpf_dynptr *ptr)
  * bpf_ringbuf_submit/discard_dynptr call
  */
 SEC("?raw_tp")
+__failure __msg("Unreleased reference id=1")
 int ringbuf_missing_release1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -78,6 +80,7 @@ int ringbuf_missing_release1(void *ctx)
 }
 
 SEC("?raw_tp")
+__failure __msg("Unreleased reference id=2")
 int ringbuf_missing_release2(void *ctx)
 {
 	struct bpf_dynptr ptr1, ptr2;
@@ -113,6 +116,7 @@ static int missing_release_callback_fn(__u32 index, void *data)
 
 /* Any dynptr initialized within a callback must have bpf_dynptr_put called */
 SEC("?raw_tp")
+__failure __msg("Unreleased reference id")
 int ringbuf_missing_release_callback(void *ctx)
 {
 	bpf_loop(10, missing_release_callback_fn, NULL, 0);
@@ -121,6 +125,7 @@ int ringbuf_missing_release_callback(void *ctx)
 
 /* Can't call bpf_ringbuf_submit/discard_dynptr on a non-initialized dynptr */
 SEC("?raw_tp")
+__failure __msg("arg 1 is an unacquired reference")
 int ringbuf_release_uninit_dynptr(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -133,6 +138,7 @@ int ringbuf_release_uninit_dynptr(void *ctx)
 
 /* A dynptr can't be used after it has been invalidated */
 SEC("?raw_tp")
+__failure __msg("Expected an initialized dynptr as arg #3")
 int use_after_invalid(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -152,6 +158,7 @@ int use_after_invalid(void *ctx)
 
 /* Can't call non-dynptr ringbuf APIs on a dynptr ringbuf sample */
 SEC("?raw_tp")
+__failure __msg("type=mem expected=ringbuf_mem")
 int ringbuf_invalid_api(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -174,6 +181,7 @@ done:
 
 /* Can't add a dynptr to a map */
 SEC("?raw_tp")
+__failure __msg("invalid indirect read from stack")
 int add_dynptr_to_map1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -191,6 +199,7 @@ int add_dynptr_to_map1(void *ctx)
 
 /* Can't add a struct with an embedded dynptr to a map */
 SEC("?raw_tp")
+__failure __msg("invalid indirect read from stack")
 int add_dynptr_to_map2(void *ctx)
 {
 	struct test_info x;
@@ -208,6 +217,7 @@ int add_dynptr_to_map2(void *ctx)
 
 /* A data slice can't be accessed out of bounds */
 SEC("?raw_tp")
+__failure __msg("value is outside of the allowed memory range")
 int data_slice_out_of_bounds_ringbuf(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -228,6 +238,7 @@ done:
 }
 
 SEC("?raw_tp")
+__failure __msg("value is outside of the allowed memory range")
 int data_slice_out_of_bounds_map_value(void *ctx)
 {
 	__u32 key = 0, map_val;
@@ -248,6 +259,7 @@ int data_slice_out_of_bounds_map_value(void *ctx)
 
 /* A data slice can't be used after it has been released */
 SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
 int data_slice_use_after_release1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -279,6 +291,7 @@ done:
  * ptr2 is at fp - 16).
  */
 SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
 int data_slice_use_after_release2(void *ctx)
 {
 	struct bpf_dynptr ptr1, ptr2;
@@ -310,6 +323,7 @@ done:
 
 /* A data slice must be first checked for NULL */
 SEC("?raw_tp")
+__failure __msg("invalid mem access 'mem_or_null'")
 int data_slice_missing_null_check1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -330,6 +344,7 @@ int data_slice_missing_null_check1(void *ctx)
 
 /* A data slice can't be dereferenced if it wasn't checked for null */
 SEC("?raw_tp")
+__failure __msg("invalid mem access 'mem_or_null'")
 int data_slice_missing_null_check2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -352,6 +367,7 @@ done:
  * dynptr argument
  */
 SEC("?raw_tp")
+__failure __msg("invalid indirect read from stack")
 int invalid_helper1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -366,6 +382,7 @@ int invalid_helper1(void *ctx)
 
 /* A dynptr can't be passed into a helper function at a non-zero offset */
 SEC("?raw_tp")
+__failure __msg("Expected an initialized dynptr as arg #3")
 int invalid_helper2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -381,6 +398,7 @@ int invalid_helper2(void *ctx)
 
 /* A bpf_dynptr is invalidated if it's been written into */
 SEC("?raw_tp")
+__failure __msg("Expected an initialized dynptr as arg #1")
 int invalid_write1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -402,6 +420,7 @@ int invalid_write1(void *ctx)
  * offset
  */
 SEC("?raw_tp")
+__failure __msg("Expected an initialized dynptr as arg #3")
 int invalid_write2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -425,6 +444,7 @@ int invalid_write2(void *ctx)
  * non-const offset
  */
 SEC("?raw_tp")
+__failure __msg("Expected an initialized dynptr as arg #1")
 int invalid_write3(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -456,6 +476,7 @@ static int invalid_write4_callback(__u32 index, void *data)
  * be invalidated as a dynptr
  */
 SEC("?raw_tp")
+__failure __msg("arg 1 is an unacquired reference")
 int invalid_write4(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -472,7 +493,9 @@ int invalid_write4(void *ctx)
 
 /* A globally-defined bpf_dynptr can't be used (it must reside as a stack frame) */
 struct bpf_dynptr global_dynptr;
+
 SEC("?raw_tp")
+__failure __msg("type=map_value expected=fp")
 int global(void *ctx)
 {
 	/* this should fail */
@@ -485,6 +508,7 @@ int global(void *ctx)
 
 /* A direct read should fail */
 SEC("?raw_tp")
+__failure __msg("invalid read from stack")
 int invalid_read1(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -501,6 +525,7 @@ int invalid_read1(void *ctx)
 
 /* A direct read at an offset should fail */
 SEC("?raw_tp")
+__failure __msg("cannot pass in dynptr at an offset")
 int invalid_read2(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -516,6 +541,7 @@ int invalid_read2(void *ctx)
 
 /* A direct read at an offset into the lower stack slot should fail */
 SEC("?raw_tp")
+__failure __msg("invalid read from stack")
 int invalid_read3(void *ctx)
 {
 	struct bpf_dynptr ptr1, ptr2;
@@ -542,6 +568,7 @@ static int invalid_read4_callback(__u32 index, void *data)
 
 /* A direct read within a callback function should fail */
 SEC("?raw_tp")
+__failure __msg("invalid read from stack")
 int invalid_read4(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -557,6 +584,7 @@ int invalid_read4(void *ctx)
 
 /* Initializing a dynptr on an offset should fail */
 SEC("?raw_tp")
+__failure __msg("invalid write to stack")
 int invalid_offset(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -571,6 +599,7 @@ int invalid_offset(void *ctx)
 
 /* Can't release a dynptr twice */
 SEC("?raw_tp")
+__failure __msg("arg 1 is an unacquired reference")
 int release_twice(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -597,6 +626,7 @@ static int release_twice_callback_fn(__u32 index, void *data)
  * within a calback function, fails
  */
 SEC("?raw_tp")
+__failure __msg("arg 1 is an unacquired reference")
 int release_twice_callback(void *ctx)
 {
 	struct bpf_dynptr ptr;
@@ -612,6 +642,7 @@ int release_twice_callback(void *ctx)
 
 /* Reject unsupported local mem types for dynptr_from_mem API */
 SEC("?raw_tp")
+__failure __msg("Unsupported reg type fp for bpf_dynptr_from_mem data")
 int dynptr_from_mem_invalid_api(void *ctx)
 {
 	struct bpf_dynptr ptr;

@@ -124,7 +124,9 @@ static int iblock_configure_device(struct se_device *dev)
 	q = bdev_get_queue(bd);
 
 	dev->dev_attrib.hw_block_size = bdev_logical_block_size(bd);
-	dev->dev_attrib.hw_max_sectors = queue_max_hw_sectors(q);
+	dev->dev_attrib.hw_max_sectors = mult_frac(queue_max_hw_sectors(q),
+			SECTOR_SIZE,
+			dev->dev_attrib.hw_block_size);
 	dev->dev_attrib.hw_queue_depth = q->nr_requests;
 
 	/*
@@ -230,14 +232,12 @@ static void iblock_unplug_device(struct se_dev_plug *se_plug)
 	clear_bit(IBD_PLUGF_PLUGGED, &ib_dev_plug->flags);
 }
 
-static unsigned long long iblock_emulate_read_cap_with_block_size(
-	struct se_device *dev,
-	struct block_device *bd,
-	struct request_queue *q)
+static sector_t iblock_get_blocks(struct se_device *dev)
 {
-	u32 block_size = bdev_logical_block_size(bd);
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	u32 block_size = bdev_logical_block_size(ib_dev->ibd_bd);
 	unsigned long long blocks_long =
-		div_u64(bdev_nr_bytes(bd), block_size) - 1;
+		div_u64(bdev_nr_bytes(ib_dev->ibd_bd), block_size) - 1;
 
 	if (block_size == dev->dev_attrib.block_size)
 		return blocks_long;
@@ -827,15 +827,6 @@ fail_free_ibr:
 	kfree(ibr);
 fail:
 	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-}
-
-static sector_t iblock_get_blocks(struct se_device *dev)
-{
-	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
-	struct block_device *bd = ib_dev->ibd_bd;
-	struct request_queue *q = bdev_get_queue(bd);
-
-	return iblock_emulate_read_cap_with_block_size(dev, bd, q);
 }
 
 static sector_t iblock_get_alignment_offset_lbas(struct se_device *dev)

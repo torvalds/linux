@@ -8,6 +8,7 @@
 #include <sys/resource.h>
 #include "cpumap.h"
 #include "rblist.h"
+#include "counts.h"
 
 struct perf_cpu_map;
 struct perf_stat_config;
@@ -42,9 +43,29 @@ enum perf_stat_evsel_id {
 	PERF_STAT_EVSEL_ID__MAX,
 };
 
+/* hold aggregated event info */
+struct perf_stat_aggr {
+	/* aggregated values */
+	struct perf_counts_values	counts;
+	/* number of entries (CPUs) aggregated */
+	int				nr;
+	/* whether any entry has failed to read/process event */
+	bool				failed;
+	/* to mark this data is processed already */
+	bool				used;
+};
+
+/* per-evsel event stats */
 struct perf_stat_evsel {
+	/* used for repeated runs */
 	struct stats		 res_stats;
+	/* evsel id for quick check */
 	enum perf_stat_evsel_id	 id;
+	/* number of allocated 'aggr' */
+	int			 nr_aggr;
+	/* aggregated event values */
+	struct perf_stat_aggr	*aggr;
+	/* used for group read */
 	u64			*group_data;
 };
 
@@ -139,7 +160,6 @@ struct perf_stat_config {
 	bool			 metric_no_group;
 	bool			 metric_no_merge;
 	bool			 stop_read_counter;
-	bool			 quiet;
 	bool			 iostat_run;
 	char			 *user_requested_cpu_list;
 	bool			 system_wide;
@@ -203,15 +223,6 @@ static inline void update_rusage_stats(struct rusage_stats *ru_stats, struct rus
 struct evsel;
 struct evlist;
 
-struct perf_aggr_thread_value {
-	struct evsel *counter;
-	struct aggr_cpu_id id;
-	double uval;
-	u64 val;
-	u64 run;
-	u64 ena;
-};
-
 bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id);
 
 #define perf_stat_evsel__is(evsel, id) \
@@ -248,15 +259,23 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct runtime_stat *st);
 void perf_stat__collect_metric_expr(struct evlist *);
 
-int evlist__alloc_stats(struct evlist *evlist, bool alloc_raw);
+int evlist__alloc_stats(struct perf_stat_config *config,
+			struct evlist *evlist, bool alloc_raw);
 void evlist__free_stats(struct evlist *evlist);
 void evlist__reset_stats(struct evlist *evlist);
 void evlist__reset_prev_raw_counts(struct evlist *evlist);
 void evlist__copy_prev_raw_counts(struct evlist *evlist);
 void evlist__save_aggr_prev_raw_counts(struct evlist *evlist);
 
+int evlist__alloc_aggr_stats(struct evlist *evlist, int nr_aggr);
+void evlist__reset_aggr_stats(struct evlist *evlist);
+
 int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct evsel *counter);
+void perf_stat_merge_counters(struct perf_stat_config *config, struct evlist *evlist);
+void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *evlist);
+void perf_stat_process_shadow_stats(struct perf_stat_config *config, struct evlist *evlist);
+
 struct perf_tool;
 union perf_event;
 struct perf_session;

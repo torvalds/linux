@@ -433,7 +433,7 @@ static int inject_virtual_interrupt(struct intel_vgpu *vgpu)
 	 * enabled by guest. so if msi_trigger is null, success is still
 	 * returned and don't inject interrupt into guest.
 	 */
-	if (!vgpu->attached)
+	if (!test_bit(INTEL_VGPU_STATUS_ATTACHED, vgpu->status))
 		return -ESRCH;
 	if (vgpu->msi_trigger && eventfd_signal(vgpu->msi_trigger, 1) != 1)
 		return -EFAULT;

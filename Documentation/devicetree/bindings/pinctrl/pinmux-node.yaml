@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/pinmux-node.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic pin multiplexing node schema
+title: Generic Pin Multiplexing Node
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>

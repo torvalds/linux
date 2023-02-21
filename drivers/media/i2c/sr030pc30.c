@@ -675,8 +675,7 @@ static int sr030pc30_detect(struct i2c_client *client)
 }
 
 
-static int sr030pc30_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int sr030pc30_probe(struct i2c_client *client)
 {
 	struct sr030pc30_info *info;
 	struct v4l2_subdev *sd;
@@ -751,7 +750,7 @@ static struct i2c_driver sr030pc30_i2c_driver = {
 	.driver = {
 		.name = MODULE_NAME
 	},
-	.probe		= sr030pc30_probe,
+	.probe_new	= sr030pc30_probe,
 	.remove		= sr030pc30_remove,
 	.id_table	= sr030pc30_id,
 };

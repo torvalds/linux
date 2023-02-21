@@ -271,5 +271,6 @@ struct plat_stmmacenet_data {
 	int msi_tx_base_vec;
 	bool use_phy_wol;
 	bool sph_disable;
+	bool serdes_up_after_phy_linkup;
 };
 #endif

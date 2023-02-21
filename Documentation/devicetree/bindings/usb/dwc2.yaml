@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/dwc2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: DesignWare HS OTG USB 2.0 controller Bindings
+title: DesignWare HS OTG USB 2.0 controller
 
 maintainers:
   - Rob Herring <robh@kernel.org>
@@ -43,7 +43,10 @@ properties:
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
       - const: lantiq,arx100-usb
+      - const: lantiq,ase-usb
+      - const: lantiq,danube-usb
       - const: lantiq,xrx200-usb
+      - const: lantiq,xrx300-usb
       - items:
           - enum:
               - amlogic,meson8-usb

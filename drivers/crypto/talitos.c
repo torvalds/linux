@@ -1999,7 +1999,7 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 		/* Buffer up to one whole block */
 		nents = sg_nents_for_len(areq->src, nbytes);
 		if (nents < 0) {
-			dev_err(ctx->dev, "Invalid number of src SG.\n");
+			dev_err(dev, "Invalid number of src SG.\n");
 			return nents;
 		}
 		sg_copy_to_buffer(areq->src, nents,
@@ -2040,7 +2040,7 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 			offset = nbytes_to_hash - req_ctx->nbuf;
 		nents = sg_nents_for_len(areq->src, offset);
 		if (nents < 0) {
-			dev_err(ctx->dev, "Invalid number of src SG.\n");
+			dev_err(dev, "Invalid number of src SG.\n");
 			return nents;
 		}
 		sg_copy_to_buffer(areq->src, nents,
@@ -2054,7 +2054,7 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 	if (to_hash_later) {
 		nents = sg_nents_for_len(areq->src, nbytes);
 		if (nents < 0) {
-			dev_err(ctx->dev, "Invalid number of src SG.\n");
+			dev_err(dev, "Invalid number of src SG.\n");
 			return nents;
 		}
 		sg_pcopy_to_buffer(areq->src, nents,

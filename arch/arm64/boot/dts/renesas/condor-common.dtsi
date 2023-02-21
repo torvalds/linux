@@ -21,6 +21,7 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 	};
 
 	d1_8v: regulator-2 {

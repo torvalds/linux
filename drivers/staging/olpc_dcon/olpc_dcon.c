@@ -579,7 +579,7 @@ static int dcon_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return 0;
 }
 
-static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int dcon_probe(struct i2c_client *client)
 {
 	struct dcon_priv *dcon;
 	int rc, i, j;
@@ -779,7 +779,7 @@ static struct i2c_driver dcon_driver = {
 	},
 	.class = I2C_CLASS_DDC | I2C_CLASS_HWMON,
 	.id_table = dcon_idtable,
-	.probe = dcon_probe,
+	.probe_new = dcon_probe,
 	.remove = dcon_remove,
 	.detect = dcon_detect,
 	.address_list = normal_i2c,

@@ -16,6 +16,7 @@ static ssize_t vfio_ccw_schib_region_read(struct vfio_ccw_private *private,
 					  char __user *buf, size_t count,
 					  loff_t *ppos)
 {
+	struct subchannel *sch = to_subchannel(private->vdev.dev->parent);
 	unsigned int i = VFIO_CCW_OFFSET_TO_INDEX(*ppos) - VFIO_CCW_NUM_REGIONS;
 	loff_t pos = *ppos & VFIO_CCW_OFFSET_MASK;
 	struct ccw_schib_region *region;
@@ -27,12 +28,12 @@ static ssize_t vfio_ccw_schib_region_read(struct vfio_ccw_private *private,
 	mutex_lock(&private->io_mutex);
 	region = private->region[i].data;
 
-	if (cio_update_schib(private->sch)) {
+	if (cio_update_schib(sch)) {
 		ret = -ENODEV;
 		goto out;
 	}
 
-	memcpy(region, &private->sch->schib, sizeof(*region));
+	memcpy(region, &sch->schib, sizeof(*region));
 
 	if (copy_to_user(buf, (void *)region + pos, count)) {
 		ret = -EFAULT;

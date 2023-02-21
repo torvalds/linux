@@ -16,6 +16,8 @@
 #ifndef __IA_CSS_PIPE_BINARYDESC_H__
 #define __IA_CSS_PIPE_BINARYDESC_H__
 
+#include <linux/math.h>
+
 #include <ia_css_types.h>		/* ia_css_pipe */
 #include <ia_css_frame_public.h>	/* ia_css_frame_info */
 #include <ia_css_binary.h>		/* ia_css_binary_descr */
@@ -56,17 +58,12 @@ void ia_css_pipe_get_vfpp_binarydesc(
  *
  * @param[in] bds_factor: The bayer downscaling factor.
  *		(= The bds_factor member in the sh_css_bds_factor structure.)
- * @param[out] bds_factor_numerator: The numerator of the bayer downscaling factor.
- *		(= The numerator member in the sh_css_bds_factor structure.)
- * @param[out] bds_factor_denominator: The denominator of the bayer downscaling factor.
- *		(= The denominator member in the sh_css_bds_factor structure.)
+ * @param[out] bds: The rational fraction of the bayer downscaling factor.
+ *		(= The respective member in the sh_css_bds_factor structure.)
  * @return	0 or error code upon error.
  *
  */
-int sh_css_bds_factor_get_numerator_denominator(
-    unsigned int bds_factor,
-    unsigned int *bds_factor_numerator,
-    unsigned int *bds_factor_denominator);
+int sh_css_bds_factor_get_fract(unsigned int bds_factor, struct u32_fract *bds);
 
 /* @brief Get a binary descriptor for preview stage.
  *

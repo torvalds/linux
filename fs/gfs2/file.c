@@ -1445,14 +1445,13 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 static void __flock_holder_uninit(struct file *file, struct gfs2_holder *fl_gh)
 {
-	struct gfs2_glock *gl = fl_gh->gh_gl;
+	struct gfs2_glock *gl = gfs2_glock_hold(fl_gh->gh_gl);
 
 	/*
 	 * Make sure gfs2_glock_put() won't sleep under the file->f_lock
 	 * spinlock.
 	 */
 
-	gfs2_glock_hold(gl);
 	spin_lock(&file->f_lock);
 	gfs2_holder_uninit(fl_gh);
 	spin_unlock(&file->f_lock);

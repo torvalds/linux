@@ -332,8 +332,7 @@ static inline void aat2870_init_debugfs(struct aat2870_data *aat2870)
 }
 #endif /* CONFIG_DEBUG_FS */
 
-static int aat2870_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int aat2870_i2c_probe(struct i2c_client *client)
 {
 	struct aat2870_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct aat2870_data *aat2870;
@@ -409,7 +408,6 @@ out_disable:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int aat2870_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -438,10 +436,9 @@ static int aat2870_i2c_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(aat2870_pm_ops, aat2870_i2c_suspend,
-			 aat2870_i2c_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(aat2870_pm_ops, aat2870_i2c_suspend,
+				aat2870_i2c_resume);
 
 static const struct i2c_device_id aat2870_i2c_id_table[] = {
 	{ "aat2870", 0 },
@@ -451,10 +448,10 @@ static const struct i2c_device_id aat2870_i2c_id_table[] = {
 static struct i2c_driver aat2870_i2c_driver = {
 	.driver = {
 		.name			= "aat2870",
-		.pm			= &aat2870_pm_ops,
+		.pm			= pm_sleep_ptr(&aat2870_pm_ops),
 		.suppress_bind_attrs	= true,
 	},
-	.probe		= aat2870_i2c_probe,
+	.probe_new	= aat2870_i2c_probe,
 	.id_table	= aat2870_i2c_id_table,
 };
 

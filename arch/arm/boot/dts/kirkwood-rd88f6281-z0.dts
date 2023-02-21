@@ -19,7 +19,7 @@
 };
 
 &eth1 {
-      status = "disabled";
+	status = "disabled";
 };
 
 &switch {

@@ -238,7 +238,7 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 		dm_requeue_original_request(tio, true);
 		break;
 	default:
-		DMWARN("unimplemented target endio return value: %d", r);
+		DMCRIT("unimplemented target endio return value: %d", r);
 		BUG();
 	}
 }
@@ -409,7 +409,7 @@ static int map_request(struct dm_rq_target_io *tio)
 		dm_kill_unmapped_request(rq, BLK_STS_IOERR);
 		break;
 	default:
-		DMWARN("unimplemented target map return value: %d", r);
+		DMCRIT("unimplemented target map return value: %d", r);
 		BUG();
 	}
 

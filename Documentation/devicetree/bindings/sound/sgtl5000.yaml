@@ -9,6 +9,9 @@ title: Freescale SGTL5000 Stereo Codec
 maintainers:
   - Fabio Estevam <festevam@gmail.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: fsl,sgtl5000
@@ -88,7 +91,7 @@ required:
   - VDDA-supply
   - VDDIO-supply
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -688,8 +688,8 @@ i915_drop_caches_set(void *data, u64 val)
 	unsigned int flags;
 	int ret;
 
-	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
-		  val, val & DROP_ALL);
+	drm_dbg(&i915->drm, "Dropping caches: 0x%08llx [0x%08llx]\n",
+		val, val & DROP_ALL);
 
 	ret = gt_drop_caches(to_gt(i915), val);
 	if (ret)

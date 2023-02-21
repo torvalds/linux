@@ -2071,6 +2071,20 @@ static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
 	    !(qc->flags & ATA_QCFLAG_FAILED)) {
 		ata_tf_from_fis(rx_fis + RX_FIS_PIO_SETUP, &qc->result_tf);
 		qc->result_tf.status = (rx_fis + RX_FIS_PIO_SETUP)[15];
+
+	/*
+	 * For NCQ commands, we never get a D2H FIS, so reading the D2H Register
+	 * FIS area of the Received FIS Structure (which contains a copy of the
+	 * last D2H FIS received) will contain an outdated status code.
+	 * For NCQ commands, we instead get a SDB FIS, so read the SDB FIS area
+	 * instead. However, the SDB FIS does not contain the LBA, so we can't
+	 * use the ata_tf_from_fis() helper.
+	 */
+	} else if (ata_is_ncq(qc->tf.protocol)) {
+		const u8 *fis = rx_fis + RX_FIS_SDB;
+
+		qc->result_tf.status = fis[2];
+		qc->result_tf.error = fis[3];
 	} else
 		ata_tf_from_fis(rx_fis + RX_FIS_D2H_REG, &qc->result_tf);
 
@@ -2106,7 +2120,7 @@ void ahci_error_handler(struct ata_port *ap)
 {
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 
-	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
+	if (!ata_port_is_frozen(ap)) {
 		/* restart engine */
 		hpriv->stop_engine(ap);
 		hpriv->start_engine(ap);
@@ -2297,7 +2311,7 @@ static void ahci_pmp_attach(struct ata_port *ap)
 	 * Note that during initialization, the port is marked as
 	 * frozen since the irq handler is not yet registered.
 	 */
-	if (!(ap->pflags & ATA_PFLAG_FROZEN))
+	if (!ata_port_is_frozen(ap))
 		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
@@ -2316,7 +2330,7 @@ static void ahci_pmp_detach(struct ata_port *ap)
 	pp->intr_mask &= ~PORT_IRQ_BAD_PMP;
 
 	/* see comment above in ahci_pmp_attach() */
-	if (!(ap->pflags & ATA_PFLAG_FROZEN))
+	if (!ata_port_is_frozen(ap))
 		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 

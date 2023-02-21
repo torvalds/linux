@@ -21,29 +21,6 @@
 #define ARCH_PERFMON_EVENTSEL_OS			(1ULL << 17)
 #define ARCH_PERFMON_EVENTSEL_ENABLE			(1ULL << 22)
 
-union cpuid10_eax {
-	struct {
-		unsigned int version_id:8;
-		unsigned int num_counters:8;
-		unsigned int bit_width:8;
-		unsigned int mask_length:8;
-	} split;
-	unsigned int full;
-};
-
-union cpuid10_ebx {
-	struct {
-		unsigned int no_unhalted_core_cycles:1;
-		unsigned int no_instructions_retired:1;
-		unsigned int no_unhalted_reference_cycles:1;
-		unsigned int no_llc_reference:1;
-		unsigned int no_llc_misses:1;
-		unsigned int no_branch_instruction_retired:1;
-		unsigned int no_branch_misses_retired:1;
-	} split;
-	unsigned int full;
-};
-
 /* End of stuff taken from perf_event.h. */
 
 /* Oddly, this isn't in perf_event.h. */
@@ -380,46 +357,31 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 }
 
 /*
- * Check for a non-zero PMU version, at least one general-purpose
- * counter per logical processor, an EBX bit vector of length greater
- * than 5, and EBX[5] clear.
- */
-static bool check_intel_pmu_leaf(const struct kvm_cpuid_entry2 *entry)
-{
-	union cpuid10_eax eax = { .full = entry->eax };
-	union cpuid10_ebx ebx = { .full = entry->ebx };
-
-	return eax.split.version_id && eax.split.num_counters > 0 &&
-		eax.split.mask_length > ARCH_PERFMON_BRANCHES_RETIRED &&
-		!ebx.split.no_branch_instruction_retired;
-}
-
-/*
- * Note that CPUID leaf 0xa is Intel-specific. This leaf should be
- * clear on AMD hardware.
+ * On Intel, check for a non-zero PMU version, at least one general-purpose
+ * counter per logical processor, and support for counting the number of branch
+ * instructions retired.
  */
 static bool use_intel_pmu(void)
 {
-	const struct kvm_cpuid_entry2 *entry;
-
-	entry = kvm_get_supported_cpuid_entry(0xa);
-	return is_intel_cpu() && check_intel_pmu_leaf(entry);
+	return is_intel_cpu() &&
+	       kvm_cpu_property(X86_PROPERTY_PMU_VERSION) &&
+	       kvm_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS) &&
+	       kvm_pmu_has(X86_PMU_FEATURE_BRANCH_INSNS_RETIRED);
 }
 
-static bool is_zen1(uint32_t eax)
+static bool is_zen1(uint32_t family, uint32_t model)
 {
-	return x86_family(eax) == 0x17 && x86_model(eax) <= 0x0f;
+	return family == 0x17 && model <= 0x0f;
 }
 
-static bool is_zen2(uint32_t eax)
+static bool is_zen2(uint32_t family, uint32_t model)
 {
-	return x86_family(eax) == 0x17 &&
-		x86_model(eax) >= 0x30 && x86_model(eax) <= 0x3f;
+	return family == 0x17 && model >= 0x30 && model <= 0x3f;
 }
 
-static bool is_zen3(uint32_t eax)
+static bool is_zen3(uint32_t family, uint32_t model)
 {
-	return x86_family(eax) == 0x19 && x86_model(eax) <= 0x0f;
+	return family == 0x19 && model <= 0x0f;
 }
 
 /*
@@ -432,13 +394,13 @@ static bool is_zen3(uint32_t eax)
  */
 static bool use_amd_pmu(void)
 {
-	const struct kvm_cpuid_entry2 *entry;
+	uint32_t family = kvm_cpu_family();
+	uint32_t model = kvm_cpu_model();
 
-	entry = kvm_get_supported_cpuid_entry(1);
 	return is_amd_cpu() &&
-		(is_zen1(entry->eax) ||
-		 is_zen2(entry->eax) ||
-		 is_zen3(entry->eax));
+		(is_zen1(family, model) ||
+		 is_zen2(family, model) ||
+		 is_zen3(family, model));
 }
 
 int main(int argc, char *argv[])
@@ -446,9 +408,6 @@ int main(int argc, char *argv[])
 	void (*guest_code)(void);
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_PMU_EVENT_FILTER));
 

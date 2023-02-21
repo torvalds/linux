@@ -4,21 +4,21 @@ KernelVersion:	5.18
 Contact:	"David E. Box" <david.e.box@linux.intel.com>
 Description:
 		This directory contains interface files for accessing Intel
-		Software Defined Silicon (SDSi) features on a CPU. X
-		represents the socket instance (though not the socket ID).
-		The socket ID is determined by reading the registers file
-		and decoding it per the specification.
+		On Demand (formerly Software Defined Silicon or SDSi) features
+		on a CPU. X represents the socket instance (though not the
+		socket ID). The socket ID is determined by reading the
+		registers file and decoding it per the specification.
 
-		Some files communicate with SDSi hardware through a mailbox.
-		Should the operation fail, one of the following error codes
-		may be returned:
+		Some files communicate with On Demand hardware through a
+		mailbox. Should the operation fail, one of the following error
+		codes may be returned:
 
 		==========	=====
 		Error Code	Cause
 		==========	=====
 		EIO		General mailbox failure. Log may indicate cause.
 		EBUSY		Mailbox is owned by another agent.
-		EPERM		SDSI capability is not enabled in hardware.
+		EPERM		On Demand capability is not enabled in hardware.
 		EPROTO		Failure in mailbox protocol detected by driver.
 				See log for details.
 		EOVERFLOW	For provision commands, the size of the data
@@ -54,8 +54,8 @@ KernelVersion:	5.18
 Contact:	"David E. Box" <david.e.box@linux.intel.com>
 Description:
 		(WO) Used to write an Authentication Key Certificate (AKC) to
-		the SDSi NVRAM for the CPU. The AKC is used to authenticate a
-		Capability Activation Payload. Mailbox command.
+		the On Demand NVRAM for the CPU. The AKC is used to authenticate
+		a Capability Activation Payload. Mailbox command.
 
 What:		/sys/bus/auxiliary/devices/intel_vsec.sdsi.X/provision_cap
 Date:		Feb 2022
@@ -63,17 +63,28 @@ KernelVersion:	5.18
 Contact:	"David E. Box" <david.e.box@linux.intel.com>
 Description:
 		(WO) Used to write a Capability Activation Payload (CAP) to the
-		SDSi NVRAM for the CPU. CAPs are used to activate a given CPU
-		feature. A CAP is validated by SDSi hardware using a previously
-		provisioned AKC file. Upon successful authentication, the CPU
-		configuration is updated. A cold reboot is required to fully
-		activate the feature. Mailbox command.
+		On Demand NVRAM for the CPU. CAPs are used to activate a given
+		CPU feature. A CAP is validated by On Demand hardware using a
+		previously provisioned AKC file. Upon successful authentication,
+		the CPU configuration is updated. A cold reboot is required to
+		fully activate the feature. Mailbox command.
+
+What:		/sys/bus/auxiliary/devices/intel_vsec.sdsi.X/meter_certificate
+Date:		Nov 2022
+KernelVersion:	6.2
+Contact:	"David E. Box" <david.e.box@linux.intel.com>
+Description:
+		(RO) Used to read back the current meter certificate for the CPU
+		from Intel On Demand hardware. The meter certificate contains
+		utilization metrics of On Demand enabled features. Mailbox
+		command.
 
 What:		/sys/bus/auxiliary/devices/intel_vsec.sdsi.X/state_certificate
 Date:		Feb 2022
 KernelVersion:	5.18
 Contact:	"David E. Box" <david.e.box@linux.intel.com>
 Description:
-		(RO) Used to read back the current State Certificate for the CPU
-		from SDSi hardware. The State Certificate contains information
-		about the current licenses on the CPU. Mailbox command.
+		(RO) Used to read back the current state certificate for the CPU
+		from On Demand hardware. The state certificate contains
+		information about the current licenses on the CPU. Mailbox
+		command.

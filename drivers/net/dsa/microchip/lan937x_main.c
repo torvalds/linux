@@ -242,7 +242,11 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	}
 
 	/* Write the frame size in PORT_MAX_FR_SIZE register */
-	ksz_pwrite16(dev, port, PORT_MAX_FR_SIZE, new_mtu);
+	ret = ksz_pwrite16(dev, port, PORT_MAX_FR_SIZE, new_mtu);
+	if (ret) {
+		dev_err(ds->dev, "failed to update mtu for port %d\n", port);
+		return ret;
+	}
 
 	return 0;
 }

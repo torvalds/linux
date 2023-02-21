@@ -1,7 +1,6 @@
 [
     {
         "BriefDescription": "pclk Cycles",
-        "Counter": "0,1,2,3",
         "EventName": "UNC_P_CLOCKTICKS",
         "PerPkg": "1",
         "PublicDescription": "The PCU runs off a fixed 800 MHz clock.  This event counts the number of pclk cycles measured while the counter was enabled.  The pclk, like the Memory Controller's dclk, counts at a constant rate making it a good measure of actual wall time.",
@@ -9,87 +8,70 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x3",
         "EventName": "UNC_P_CORE0_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_P_CORE1_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x5",
         "EventName": "UNC_P_CORE2_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_P_CORE3_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_P_CORE4_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8",
         "EventName": "UNC_P_CORE5_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_P_CORE6_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0xa",
         "EventName": "UNC_P_CORE7_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x1e",
         "EventName": "UNC_P_DEMOTIONS_CORE0",
         "PerPkg": "1",
@@ -98,7 +80,6 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x1f",
         "EventName": "UNC_P_DEMOTIONS_CORE1",
         "PerPkg": "1",
@@ -107,7 +88,6 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_P_DEMOTIONS_CORE2",
         "PerPkg": "1",
@@ -116,7 +96,6 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_P_DEMOTIONS_CORE3",
         "PerPkg": "1",
@@ -125,7 +104,6 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_P_DEMOTIONS_CORE4",
         "PerPkg": "1",
@@ -134,7 +112,6 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_P_DEMOTIONS_CORE5",
         "PerPkg": "1",
@@ -143,7 +120,6 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_P_DEMOTIONS_CORE6",
         "PerPkg": "1",
@@ -152,7 +128,6 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_P_DEMOTIONS_CORE7",
         "PerPkg": "1",
@@ -161,7 +136,6 @@
     },
     {
         "BriefDescription": "Frequency Residency",
-        "Counter": "0,1,2,3",
         "EventCode": "0xb",
         "EventName": "UNC_P_FREQ_BAND0_CYCLES",
         "PerPkg": "1",
@@ -170,7 +144,6 @@
     },
     {
         "BriefDescription": "Frequency Residency",
-        "Counter": "0,1,2,3",
         "EventCode": "0xc",
         "EventName": "UNC_P_FREQ_BAND1_CYCLES",
         "PerPkg": "1",
@@ -179,7 +152,6 @@
     },
     {
         "BriefDescription": "Frequency Residency",
-        "Counter": "0,1,2,3",
         "EventCode": "0xd",
         "EventName": "UNC_P_FREQ_BAND2_CYCLES",
         "PerPkg": "1",
@@ -188,7 +160,6 @@
     },
     {
         "BriefDescription": "Frequency Residency",
-        "Counter": "0,1,2,3",
         "EventCode": "0xe",
         "EventName": "UNC_P_FREQ_BAND3_CYCLES",
         "PerPkg": "1",
@@ -197,7 +168,6 @@
     },
     {
         "BriefDescription": "Current Strongest Upper Limit Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_P_FREQ_MAX_CURRENT_CYCLES",
         "PerPkg": "1",
@@ -206,7 +176,6 @@
     },
     {
         "BriefDescription": "Thermal Strongest Upper Limit Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES",
         "PerPkg": "1",
@@ -215,7 +184,6 @@
     },
     {
         "BriefDescription": "OS Strongest Upper Limit Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_P_FREQ_MAX_OS_CYCLES",
         "PerPkg": "1",
@@ -224,7 +192,6 @@
     },
     {
         "BriefDescription": "Power Strongest Upper Limit Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x5",
         "EventName": "UNC_P_FREQ_MAX_POWER_CYCLES",
         "PerPkg": "1",
@@ -233,36 +200,29 @@
     },
     {
         "BriefDescription": "IO P Limit Strongest Lower Limit Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_P_FREQ_MIN_IO_P_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles when IO P Limit is preventing us from dropping the frequency lower.  This algorithm monitors the needs to the IO subsystem on both local and remote sockets and will maintain a frequency high enough to maintain good IO BW.  This is necessary for when all the IA cores on a socket are idle but a user still would like to maintain high IO Bandwidth.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Perf P Limit Strongest Lower Limit Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UNC_P_FREQ_MIN_PERF_P_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles when Perf P Limit is preventing us from dropping the frequency lower.  Perf P Limit is an algorithm that takes input from remote sockets when determining if a socket should drop it's frequency down.  This is largely to minimize increases in snoop and remote read latencies.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Cycles spent changing Frequency",
-        "Counter": "0,1,2,3",
         "EventName": "UNC_P_FREQ_TRANS_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles when the system is changing frequency.  This can not be filtered by thread ID.  One can also use it with the occupancy counter that monitors number of threads in C0 to estimate the performance impact that frequency transitions had on the system.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Memory Phase Shedding Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2f",
         "EventName": "UNC_P_MEMORY_PHASE_SHEDDING_CYCLES",
         "PerPkg": "1",
@@ -271,7 +231,6 @@
     },
     {
         "BriefDescription": "Number of cores in C0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C0",
         "PerPkg": "1",
@@ -280,7 +239,6 @@
     },
     {
         "BriefDescription": "Number of cores in C0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C3",
         "PerPkg": "1",
@@ -289,7 +247,6 @@
     },
     {
         "BriefDescription": "Number of cores in C0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C6",
         "PerPkg": "1",
@@ -298,7 +255,6 @@
     },
     {
         "BriefDescription": "External Prochot",
-        "Counter": "0,1,2,3",
         "EventCode": "0xa",
         "EventName": "UNC_P_PROCHOT_EXTERNAL_CYCLES",
         "PerPkg": "1",
@@ -307,7 +263,6 @@
     },
     {
         "BriefDescription": "Internal Prochot",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_P_PROCHOT_INTERNAL_CYCLES",
         "PerPkg": "1",
@@ -316,17 +271,14 @@
     },
     {
         "BriefDescription": "Total Core C State Transition Cycles",
-        "Counter": "0,1,2,3",
         "EventCode": "0xb",
         "EventName": "UNC_P_TOTAL_TRANSITION_CYCLES",
-        "ExtSel": "1",
         "PerPkg": "1",
         "PublicDescription": "Number of cycles spent performing core C state transitions across all cores.",
         "Unit": "PCU"
     },
     {
         "BriefDescription": "Cycles Changing Voltage",
-        "Counter": "0,1,2,3",
         "EventCode": "0x3",
         "EventName": "UNC_P_VOLT_TRANS_CYCLES_CHANGE",
         "PerPkg": "1",
@@ -335,7 +287,6 @@
     },
     {
         "BriefDescription": "Cycles Decreasing Voltage",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UNC_P_VOLT_TRANS_CYCLES_DECREASE",
         "PerPkg": "1",
@@ -344,7 +295,6 @@
     },
     {
         "BriefDescription": "Cycles Increasing Voltage",
-        "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_P_VOLT_TRANS_CYCLES_INCREASE",
         "PerPkg": "1",
@@ -353,7 +303,6 @@
     },
     {
         "BriefDescription": "VR Hot",
-        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "UNC_P_VR_HOT_CYCLES",
         "PerPkg": "1",

@@ -13,6 +13,7 @@
 
 #include "chip.h"
 #include "global1.h"
+#include "trace.h"
 
 /* Offset 0x02: VTU FID Register */
 
@@ -628,14 +629,12 @@ static irqreturn_t mv88e6xxx_g1_vtu_prob_irq_thread_fn(int irq, void *dev_id)
 	spid = val & MV88E6XXX_G1_VTU_OP_SPID_MASK;
 
 	if (val & MV88E6XXX_G1_VTU_OP_MEMBER_VIOLATION) {
-		dev_err_ratelimited(chip->dev, "VTU member violation for vid %d, source port %d\n",
-				    vid, spid);
+		trace_mv88e6xxx_vtu_member_violation(chip->dev, spid, vid);
 		chip->ports[spid].vtu_member_violation++;
 	}
 
 	if (val & MV88E6XXX_G1_VTU_OP_MISS_VIOLATION) {
-		dev_dbg_ratelimited(chip->dev, "VTU miss violation for vid %d, source port %d\n",
-				    vid, spid);
+		trace_mv88e6xxx_vtu_miss_violation(chip->dev, spid, vid);
 		chip->ports[spid].vtu_miss_violation++;
 	}
 

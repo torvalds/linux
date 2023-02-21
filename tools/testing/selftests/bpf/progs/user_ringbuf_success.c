@@ -47,14 +47,14 @@ record_sample(struct bpf_dynptr *dynptr, void *context)
 		if (status) {
 			bpf_printk("bpf_dynptr_read() failed: %d\n", status);
 			err = 1;
-			return 0;
+			return 1;
 		}
 	} else {
 		sample = bpf_dynptr_data(dynptr, 0, sizeof(*sample));
 		if (!sample) {
 			bpf_printk("Unexpectedly failed to get sample\n");
 			err = 2;
-			return 0;
+			return 1;
 		}
 		stack_sample = *sample;
 	}

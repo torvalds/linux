@@ -249,8 +249,6 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 
-#define kern_addr_valid(addr)		(1)
-
 extern void __init paging_init(void);
 extern void __init mmu_init(void);
 

@@ -116,9 +116,9 @@ config SERIAL_8250_CONSOLE
 
 	  If unsure, say N.
 
-config SERIAL_8250_GSC
+config SERIAL_8250_PARISC
 	tristate
-	depends on SERIAL_8250 && GSC
+	depends on SERIAL_8250 && PARISC
 	default SERIAL_8250
 
 config SERIAL_8250_DMA

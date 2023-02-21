@@ -115,7 +115,7 @@ properties:
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     patternProperties:
-      port(@[0-9a-f]+)?:
+      '^port(@[0-9a-f]+)?$':
         $ref: audio-graph-port.yaml#
         unevaluatedProperties: false
 
@@ -274,6 +274,7 @@ required:
   - "#sound-dai-cells"
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -304,7 +305,7 @@ allOf:
               - ssi
               - audmapp
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

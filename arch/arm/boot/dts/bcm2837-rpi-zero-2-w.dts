@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "bcm2837.dtsi"
 #include "bcm2836-rpi.dtsi"
+#include "bcm283x-rpi-led-deprecated.dtsi"
 #include "bcm283x-rpi-usb-otg.dtsi"
 #include "bcm283x-rpi-wifi-bt.dtsi"
 
@@ -21,12 +22,6 @@
 	chosen {
 		/* 8250 auxiliary UART instead of pl011 */
 		stdout-path = "serial1:115200n8";
-	};
-
-	leds {
-		led-act {
-			gpios = <&gpio 29 GPIO_ACTIVE_LOW>;
-		};
 	};
 };
 
@@ -107,6 +102,10 @@
 	hpd-gpios = <&gpio 28 GPIO_ACTIVE_LOW>;
 	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
 	status = "okay";
+};
+
+&led_act {
+	gpios = <&gpio 29 GPIO_ACTIVE_LOW>;
 };
 
 &sdhci {

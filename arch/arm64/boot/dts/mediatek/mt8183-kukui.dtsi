@@ -221,11 +221,6 @@
 	};
 };
 
-&afe {
-	i2s3-share = "I2S2";
-	i2s0-share = "I2S5";
-};
-
 &auxadc {
 	status = "okay";
 };
@@ -378,7 +373,6 @@
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
 	max-frequency = <200000000>;
-	drv-type = <2>;
 	cap-sd-highspeed;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;

@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/brcm,bcmbca-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Broadband SoC timer
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  compatible:
+    oneOf:
+      - const: brcm,bcm6345-timer
+        description: >
+          An old block with 3 timers.
+
+          It can be found in BCM6345, BCM6838 and BCM63268.
+      - const: brcm,bcm63138-timer
+        description: >
+          Updated block with 4 timers and control regs at the beginning.
+
+          It can be found in newer SoCs, e.g. BCM63138, BCM63148, BCM63381,
+          BCM68360, BCM6848, BCM6858, BCM4908.
+
+  reg:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - reg
+
+examples:
+  - |
+    timer@fffe0200 {
+      compatible = "brcm,bcm6345-timer";
+      reg = <0xfffe0200 0x1c>;
+    };

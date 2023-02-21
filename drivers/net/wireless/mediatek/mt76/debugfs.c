@@ -100,23 +100,6 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
 }
 EXPORT_SYMBOL_GPL(mt76_seq_puts_array);
 
-static int mt76_read_rate_txpower(struct seq_file *s, void *data)
-{
-	struct mt76_dev *dev = dev_get_drvdata(s->private);
-
-	mt76_seq_puts_array(s, "CCK", dev->rate_power.cck,
-			    ARRAY_SIZE(dev->rate_power.cck));
-	mt76_seq_puts_array(s, "OFDM", dev->rate_power.ofdm,
-			    ARRAY_SIZE(dev->rate_power.ofdm));
-	mt76_seq_puts_array(s, "STBC", dev->rate_power.stbc,
-			    ARRAY_SIZE(dev->rate_power.stbc));
-	mt76_seq_puts_array(s, "HT", dev->rate_power.ht,
-			    ARRAY_SIZE(dev->rate_power.ht));
-	mt76_seq_puts_array(s, "VHT", dev->rate_power.vht,
-			    ARRAY_SIZE(dev->rate_power.vht));
-	return 0;
-}
-
 struct dentry *
 mt76_register_debugfs_fops(struct mt76_phy *phy,
 			   const struct file_operations *ops)
@@ -137,8 +120,6 @@ mt76_register_debugfs_fops(struct mt76_phy *phy,
 	debugfs_create_blob("eeprom", 0400, dir, &dev->eeprom);
 	if (dev->otp.data)
 		debugfs_create_blob("otp", 0400, dir, &dev->otp);
-	debugfs_create_devm_seqfile(dev->dev, "rate_txpower", dir,
-				    mt76_read_rate_txpower);
 	debugfs_create_devm_seqfile(dev->dev, "rx-queues", dir,
 				    mt76_rx_queues_read);
 

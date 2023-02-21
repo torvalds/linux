@@ -31,7 +31,7 @@
 
 	wkup_i2c0: i2c@2b200000 {
 		compatible = "ti,am64-i2c", "ti,omap4-i2c";
-		reg = <0x00 0x02b200000 0x00 0x100>;
+		reg = <0x00 0x2b200000 0x00 0x100>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;

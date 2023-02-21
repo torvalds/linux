@@ -540,8 +540,7 @@ static int img_spfi_probe(struct platform_device *pdev)
 	spfi->master = master;
 	spin_lock_init(&spfi->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spfi->regs = devm_ioremap_resource(spfi->dev, res);
+	spfi->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(spfi->regs)) {
 		ret = PTR_ERR(spfi->regs);
 		goto put_spi;

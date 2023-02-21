@@ -18,4 +18,10 @@ properties:
       This property is added to a supply in order to list the devices which
       supply it power, referenced by their phandles.
 
+  monitored-battery:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The battery (with "simple-battery" compatible) being monitored by this
+      power supply.
+
 additionalProperties: true

@@ -73,17 +73,24 @@ static int nxp_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	struct nxp_nci_info *info = nci_get_drvdata(ndev);
 	int r;
 
-	if (!info->phy_ops->write)
+	if (!info->phy_ops->write) {
+		kfree_skb(skb);
 		return -EOPNOTSUPP;
+	}
 
-	if (info->mode != NXP_NCI_MODE_NCI)
+	if (info->mode != NXP_NCI_MODE_NCI) {
+		kfree_skb(skb);
 		return -EINVAL;
+	}
 
 	r = info->phy_ops->write(info->phy_id, skb);
-	if (r < 0)
+	if (r < 0) {
 		kfree_skb(skb);
+		return r;
+	}
 
-	return r;
+	consume_skb(skb);
+	return 0;
 }
 
 static int nxp_nci_rf_pll_unlocked_ntf(struct nci_dev *ndev,

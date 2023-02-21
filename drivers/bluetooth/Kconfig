@@ -45,6 +45,17 @@ config BT_HCIBTUSB_AUTOSUSPEND
 	  This can be overridden by passing btusb.enable_autosuspend=[y|n]
 	  on the kernel commandline.
 
+config BT_HCIBTUSB_POLL_SYNC
+	bool "Enable USB poll_sync for Bluetooth USB devices by default"
+	depends on BT_HCIBTUSB
+	default y
+	help
+	  poll_sync synchronizes the USB data and event endpoints by
+	  prioritizing the later.
+
+	  Say Y here to enable USB poll_sync for Bluetooth USB devices by
+	  default.
+
 config BT_HCIBTUSB_BCM
 	bool "Broadcom protocol support"
 	depends on BT_HCIBTUSB
@@ -273,6 +284,18 @@ config BT_HCIBCM203X
 
 	  Say Y here to compile support for HCI BCM203x devices into the
 	  kernel or say M to compile it as module (bcm203x).
+
+
+config BT_HCIBCM4377
+	tristate "HCI BCM4377/4378/4387 PCIe driver"
+	depends on PCI
+	select FW_LOADER
+	help
+	  Support for Broadcom BCM4377/4378/4387 Bluetooth chipsets attached via
+	  PCIe. These are usually found in Apple machines.
+
+	  Say Y here to compile support for HCI BCM4377 family devices into the
+	  kernel or say M to compile it as module (hci_bcm4377).
 
 config BT_HCIBPA10X
 	tristate "HCI BPA10x USB driver"

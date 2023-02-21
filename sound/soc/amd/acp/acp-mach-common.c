@@ -167,11 +167,14 @@ static int acp_card_hs_startup(struct snd_pcm_substream *substream)
 				      &constraints_channels);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				      &constraints_rates);
-	if (!drvdata->soc_mclk) {
-		ret = acp_clk_enable(drvdata);
-		if (ret < 0) {
-			dev_err(rtd->card->dev, "Failed to enable HS clk: %d\n", ret);
-			return ret;
+
+	if (strcmp(codec_dai->name, "rt5682s-aif1") && strcmp(codec_dai->name, "rt5682s-aif2")) {
+		if (!drvdata->soc_mclk) {
+			ret = acp_clk_enable(drvdata);
+			if (ret < 0) {
+				dev_err(rtd->card->dev, "Failed to enable HS clk: %d\n", ret);
+				return ret;
+			}
 		}
 	}
 
@@ -280,7 +283,6 @@ static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 
 static const struct snd_soc_ops acp_card_rt5682s_ops = {
 	.startup = acp_card_hs_startup,
-	.shutdown = acp_card_shutdown,
 };
 
 static const unsigned int dmic_channels[] = {
@@ -570,6 +572,52 @@ SND_SOC_DAILINK_DEF(sof_dmic,
 SND_SOC_DAILINK_DEF(pdm_dmic,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-pdm-dmic")));
 
+static int acp_rtk_set_bias_level(struct snd_soc_card *card,
+				  struct snd_soc_dapm_context *dapm,
+				  enum snd_soc_bias_level level)
+{
+	struct snd_soc_component *component = dapm->component;
+	struct acp_card_drvdata *drvdata = card->drvdata;
+	int ret = 0;
+
+	if (!component)
+		return 0;
+
+	if (strncmp(component->name, "i2c-RTL5682", 11) &&
+	    strncmp(component->name, "i2c-10EC1019", 12))
+		return 0;
+
+	/*
+	 * For Realtek's codec and amplifier components,
+	 * the lrck and bclk must be enabled brfore their all dapms be powered on,
+	 * and must be disabled after their all dapms be powered down
+	 * to avoid any pop.
+	 */
+	switch (level) {
+	case SND_SOC_BIAS_STANDBY:
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
+			clk_set_rate(drvdata->wclk, 48000);
+			clk_set_rate(drvdata->bclk, 48000 * 64);
+
+			/* Increase bclk's enable_count */
+			ret = clk_prepare_enable(drvdata->bclk);
+			if (ret < 0)
+				dev_err(component->dev, "Failed to enable bclk %d\n", ret);
+		} else {
+			/*
+			 * Decrease bclk's enable_count.
+			 * While the enable_count is 0, the bclk would be closed.
+			 */
+			clk_disable_unprepare(drvdata->bclk);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *links;
@@ -730,6 +778,7 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 
 	card->dai_link = links;
 	card->num_links = num_links;
+	card->set_bias_level = acp_rtk_set_bias_level;
 
 	return 0;
 }
@@ -907,6 +956,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 
 	card->dai_link = links;
 	card->num_links = num_links;
+	card->set_bias_level = acp_rtk_set_bias_level;
 
 	return 0;
 }

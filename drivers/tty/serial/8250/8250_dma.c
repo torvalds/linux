@@ -38,9 +38,8 @@ static void __dma_tx_complete(void *param)
 	spin_unlock_irqrestore(&p->port.lock, flags);
 }
 
-static void __dma_rx_complete(void *param)
+static void __dma_rx_complete(struct uart_8250_port *p)
 {
-	struct uart_8250_port	*p = param;
 	struct uart_8250_dma	*dma = p->dma;
 	struct tty_port		*tty_port = &p->port.state->port;
 	struct dma_tx_state	state;
@@ -55,6 +54,20 @@ static void __dma_rx_complete(void *param)
 	p->port.icount.rx += count;
 
 	tty_flip_buffer_push(tty_port);
+}
+
+static void dma_rx_complete(void *param)
+{
+	struct uart_8250_port *p = param;
+	struct uart_8250_dma *dma = p->dma;
+	unsigned long flags;
+
+	__dma_rx_complete(p);
+
+	spin_lock_irqsave(&p->port.lock, flags);
+	if (!dma->rx_running && (serial_lsr_in(p) & UART_LSR_DR))
+		p->dma->rx_dma(p);
+	spin_unlock_irqrestore(&p->port.lock, flags);
 }
 
 int serial8250_tx_dma(struct uart_8250_port *p)
@@ -130,7 +143,7 @@ int serial8250_rx_dma(struct uart_8250_port *p)
 		return -EBUSY;
 
 	dma->rx_running = 1;
-	desc->callback = __dma_rx_complete;
+	desc->callback = dma_rx_complete;
 	desc->callback_param = p;
 
 	dma->rx_cookie = dmaengine_submit(desc);

@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * CSS tweaks for the Alabaster theme
+ */
+
+/* Shrink the headers a bit */
+div.body h1 { font-size: 180%; }
+div.body h2 { font-size: 150%; }
+div.body h3 { font-size: 130%; }
+
+/* Tighten up the layout slightly */
+div.body { padding: 0 15px 0 10px; }
+div.sphinxsidebarwrapper { padding: 1em 0.4em; }
+div.sphinxsidebar { font-size: inherit; }
+/* Tweak document margins and don't force width */
+div.document {
+    margin: 20px 10px 0 10px; 
+    width: auto;
+}
+
+/*
+ * Parameters for the display of function prototypes and such included
+ * from C source files.
+ */
+dl.function, dl.struct, dl.enum { margin-top: 2em; background-color: #ecf0f3; }
+/* indent lines 2+ of multi-line function prototypes */
+dl.function dt { margin-left: 10em; text-indent: -10em; }
+dt.sig-object { font-size: larger; }
+div.kernelindent { margin-left: 2em; margin-right: 4em; }

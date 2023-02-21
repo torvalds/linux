@@ -457,7 +457,7 @@ prestera_kern_neigh_cache_find(struct prestera_switch *sw,
 	n_cache =
 	 rhashtable_lookup_fast(&sw->router->kern_neigh_cache_ht, key,
 				__prestera_kern_neigh_cache_ht_params);
-	return IS_ERR(n_cache) ? NULL : n_cache;
+	return n_cache;
 }
 
 static void

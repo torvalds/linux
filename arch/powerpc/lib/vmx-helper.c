@@ -36,7 +36,17 @@ int exit_vmx_usercopy(void)
 {
 	disable_kernel_altivec();
 	pagefault_enable();
-	preempt_enable();
+	preempt_enable_no_resched();
+	/*
+	 * Must never explicitly call schedule (including preempt_enable())
+	 * while in a kuap-unlocked user copy, because the AMR register will
+	 * not be saved and restored across context switch. However preempt
+	 * kernels need to be preempted as soon as possible if need_resched is
+	 * set and we are preemptible. The hack here is to schedule a
+	 * decrementer to fire here and reschedule for us if necessary.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPT) && need_resched())
+		set_dec(1);
 	return 0;
 }
 

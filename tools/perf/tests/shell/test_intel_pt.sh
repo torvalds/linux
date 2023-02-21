@@ -526,6 +526,12 @@ test_kernel_trace()
 test_virtual_lbr()
 {
 	echo "--- Test virtual LBR ---"
+	# Check if python script is supported
+	libpython=$(perf version --build-options | grep python | grep -cv OFF)
+	if [ "${libpython}" != "1" ] ; then
+		echo "SKIP: python scripting is not supported"
+		return 2
+	fi
 
 	# Python script to determine the maximum size of branch stacks
 	cat << "_end_of_file_" > "${maxbrstack}"

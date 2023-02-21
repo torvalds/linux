@@ -110,7 +110,6 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev);
 void adf_cleanup_etr_data(struct adf_accel_dev *accel_dev);
 int qat_crypto_register(void);
 int qat_crypto_unregister(void);
-int qat_crypto_dev_config(struct adf_accel_dev *accel_dev);
 int qat_crypto_vf_dev_config(struct adf_accel_dev *accel_dev);
 struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
@@ -120,6 +119,14 @@ int qat_algs_register(void);
 void qat_algs_unregister(void);
 int qat_asym_algs_register(void);
 void qat_asym_algs_unregister(void);
+
+struct qat_compression_instance *qat_compression_get_instance_node(int node);
+void qat_compression_put_instance(struct qat_compression_instance *inst);
+int qat_compression_register(void);
+int qat_compression_unregister(void);
+int qat_comp_algs_register(void);
+void qat_comp_algs_unregister(void);
+void qat_comp_alg_callback(void *resp);
 
 int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
 void adf_isr_resource_free(struct adf_accel_dev *accel_dev);

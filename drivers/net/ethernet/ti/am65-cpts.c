@@ -176,6 +176,16 @@ struct am65_cpts {
 	u32 genf_enable;
 	u32 hw_ts_enable;
 	struct sk_buff_head txq;
+	/* context save/restore */
+	u64 sr_cpts_ns;
+	u64 sr_ktime_ns;
+	u32 sr_control;
+	u32 sr_int_enable;
+	u32 sr_rftclk_sel;
+	u32 sr_ts_ppm_hi;
+	u32 sr_ts_ppm_low;
+	struct am65_genf_regs sr_genf[AM65_CPTS_GENF_MAX_NUM];
+	struct am65_genf_regs sr_estf[AM65_CPTS_ESTF_MAX_NUM];
 };
 
 struct am65_cpts_skb_cb_data {
@@ -381,9 +391,10 @@ static irqreturn_t am65_cpts_interrupt(int irq, void *dev_id)
 }
 
 /* PTP clock operations */
-static int am65_cpts_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct am65_cpts *cpts = container_of(ptp, struct am65_cpts, ptp_info);
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	int neg_adj = 0;
 	u64 adj_period;
 	u32 val;
@@ -615,7 +626,7 @@ static long am65_cpts_ts_work(struct ptp_clock_info *ptp);
 static struct ptp_clock_info am65_ptp_info = {
 	.owner		= THIS_MODULE,
 	.name		= "CTPS timer",
-	.adjfreq	= am65_cpts_ptp_adjfreq,
+	.adjfine	= am65_cpts_ptp_adjfine,
 	.adjtime	= am65_cpts_ptp_adjtime,
 	.gettimex64	= am65_cpts_ptp_gettimex,
 	.settime64	= am65_cpts_ptp_settime,
@@ -1028,6 +1039,72 @@ refclk_disable:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(am65_cpts_create);
+
+void am65_cpts_suspend(struct am65_cpts *cpts)
+{
+	/* save state and disable CPTS */
+	cpts->sr_control = am65_cpts_read32(cpts, control);
+	cpts->sr_int_enable = am65_cpts_read32(cpts, int_enable);
+	cpts->sr_rftclk_sel = am65_cpts_read32(cpts, rftclk_sel);
+	cpts->sr_ts_ppm_hi = am65_cpts_read32(cpts, ts_ppm_hi);
+	cpts->sr_ts_ppm_low = am65_cpts_read32(cpts, ts_ppm_low);
+	cpts->sr_cpts_ns = am65_cpts_gettime(cpts, NULL);
+	cpts->sr_ktime_ns = ktime_to_ns(ktime_get_real());
+	am65_cpts_disable(cpts);
+	clk_disable(cpts->refclk);
+
+	/* Save GENF state */
+	memcpy_fromio(&cpts->sr_genf, &cpts->reg->genf, sizeof(cpts->sr_genf));
+
+	/* Save ESTF state */
+	memcpy_fromio(&cpts->sr_estf, &cpts->reg->estf, sizeof(cpts->sr_estf));
+}
+EXPORT_SYMBOL_GPL(am65_cpts_suspend);
+
+void am65_cpts_resume(struct am65_cpts *cpts)
+{
+	int i;
+	s64 ktime_ns;
+
+	/* restore state and enable CPTS */
+	clk_enable(cpts->refclk);
+	am65_cpts_write32(cpts, cpts->sr_rftclk_sel, rftclk_sel);
+	am65_cpts_set_add_val(cpts);
+	am65_cpts_write32(cpts, cpts->sr_control, control);
+	am65_cpts_write32(cpts, cpts->sr_int_enable, int_enable);
+
+	/* Restore time to saved CPTS time + time in suspend/resume */
+	ktime_ns = ktime_to_ns(ktime_get_real());
+	ktime_ns -= cpts->sr_ktime_ns;
+	am65_cpts_settime(cpts, cpts->sr_cpts_ns + ktime_ns);
+
+	/* Restore compensation (PPM) */
+	am65_cpts_write32(cpts, cpts->sr_ts_ppm_hi, ts_ppm_hi);
+	am65_cpts_write32(cpts, cpts->sr_ts_ppm_low, ts_ppm_low);
+
+	/* Restore GENF state */
+	for (i = 0; i < AM65_CPTS_GENF_MAX_NUM; i++) {
+		am65_cpts_write32(cpts, 0, genf[i].length);	/* TRM sequence */
+		am65_cpts_write32(cpts, cpts->sr_genf[i].comp_hi, genf[i].comp_hi);
+		am65_cpts_write32(cpts, cpts->sr_genf[i].comp_lo, genf[i].comp_lo);
+		am65_cpts_write32(cpts, cpts->sr_genf[i].length, genf[i].length);
+		am65_cpts_write32(cpts, cpts->sr_genf[i].control, genf[i].control);
+		am65_cpts_write32(cpts, cpts->sr_genf[i].ppm_hi, genf[i].ppm_hi);
+		am65_cpts_write32(cpts, cpts->sr_genf[i].ppm_low, genf[i].ppm_low);
+	}
+
+	/* Restore ESTTF state */
+	for (i = 0; i < AM65_CPTS_ESTF_MAX_NUM; i++) {
+		am65_cpts_write32(cpts, 0, estf[i].length);	/* TRM sequence */
+		am65_cpts_write32(cpts, cpts->sr_estf[i].comp_hi, estf[i].comp_hi);
+		am65_cpts_write32(cpts, cpts->sr_estf[i].comp_lo, estf[i].comp_lo);
+		am65_cpts_write32(cpts, cpts->sr_estf[i].length, estf[i].length);
+		am65_cpts_write32(cpts, cpts->sr_estf[i].control, estf[i].control);
+		am65_cpts_write32(cpts, cpts->sr_estf[i].ppm_hi, estf[i].ppm_hi);
+		am65_cpts_write32(cpts, cpts->sr_estf[i].ppm_low, estf[i].ppm_low);
+	}
+}
+EXPORT_SYMBOL_GPL(am65_cpts_resume);
 
 static int am65_cpts_probe(struct platform_device *pdev)
 {

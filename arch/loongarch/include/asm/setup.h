@@ -13,6 +13,7 @@
 
 extern unsigned long eentry;
 extern unsigned long tlbrentry;
+extern char init_command_line[COMMAND_LINE_SIZE];
 extern void tlb_init(int cpu);
 extern void cpu_cache_init(void);
 extern void cache_error_setup(void);

@@ -13,6 +13,9 @@
  * more details.
  */
 
+#include <linux/kernel.h>
+#include <linux/math.h>
+
 #include "ia_css_pipe_binarydesc.h"
 #include "ia_css_frame_format.h"
 #include "ia_css_pipe.h"
@@ -23,7 +26,6 @@
 #include <assert_support.h>
 /* HRT_GDC_N */
 #include "gdc_device.h"
-#include <linux/kernel.h>
 
 /* This module provides a binary descriptions to used to find a binary. Since,
  * every stage is associated with a binary, it implicity helps stage
@@ -126,40 +128,29 @@ void ia_css_pipe_get_vfpp_binarydesc(
 	IA_CSS_LEAVE_PRIVATE("");
 }
 
-static struct sh_css_bds_factor bds_factors_list[] = {
-	{1, 1, SH_CSS_BDS_FACTOR_1_00},
-	{5, 4, SH_CSS_BDS_FACTOR_1_25},
-	{3, 2, SH_CSS_BDS_FACTOR_1_50},
-	{2, 1, SH_CSS_BDS_FACTOR_2_00},
-	{9, 4, SH_CSS_BDS_FACTOR_2_25},
-	{5, 2, SH_CSS_BDS_FACTOR_2_50},
-	{3, 1, SH_CSS_BDS_FACTOR_3_00},
-	{4, 1, SH_CSS_BDS_FACTOR_4_00},
-	{9, 2, SH_CSS_BDS_FACTOR_4_50},
-	{5, 1, SH_CSS_BDS_FACTOR_5_00},
-	{6, 1, SH_CSS_BDS_FACTOR_6_00},
-	{8, 1, SH_CSS_BDS_FACTOR_8_00}
+static struct u32_fract bds_factors_list[] = {
+	[SH_CSS_BDS_FACTOR_1_00] = {1, 1},
+	[SH_CSS_BDS_FACTOR_1_25] = {5, 4},
+	[SH_CSS_BDS_FACTOR_1_50] = {3, 2},
+	[SH_CSS_BDS_FACTOR_2_00] = {2, 1},
+	[SH_CSS_BDS_FACTOR_2_25] = {9, 4},
+	[SH_CSS_BDS_FACTOR_2_50] = {5, 2},
+	[SH_CSS_BDS_FACTOR_3_00] = {3, 1},
+	[SH_CSS_BDS_FACTOR_4_00] = {4, 1},
+	[SH_CSS_BDS_FACTOR_4_50] = {9, 2},
+	[SH_CSS_BDS_FACTOR_5_00] = {5, 1},
+	[SH_CSS_BDS_FACTOR_6_00] = {6, 1},
+	[SH_CSS_BDS_FACTOR_8_00] = {8, 1},
 };
 
-int sh_css_bds_factor_get_numerator_denominator(
-    unsigned int bds_factor,
-    unsigned int *bds_factor_numerator,
-    unsigned int *bds_factor_denominator)
+int sh_css_bds_factor_get_fract(unsigned int bds_factor, struct u32_fract *bds)
 {
-	unsigned int i;
+	/* Throw an error since bds_factor cannot be found in bds_factors_list */
+	if (bds_factor >= ARRAY_SIZE(bds_factors_list))
+		return -EINVAL;
 
-	/* Loop over all bds factors until a match is found */
-	for (i = 0; i < ARRAY_SIZE(bds_factors_list); i++) {
-		if (bds_factors_list[i].bds_factor == bds_factor) {
-			*bds_factor_numerator = bds_factors_list[i].numerator;
-			*bds_factor_denominator = bds_factors_list[i].denominator;
-			return 0;
-		}
-	}
-
-	/* Throw an error since bds_factor cannot be found
-	in bds_factors_list */
-	return -EINVAL;
+	*bds = bds_factors_list[bds_factor];
+	return 0;
 }
 
 int binarydesc_calculate_bds_factor(
@@ -194,7 +185,7 @@ int binarydesc_calculate_bds_factor(
 			    (out_h * num / den <= in_h);
 
 		if (cond) {
-			*bds_factor = bds_factors_list[i].bds_factor;
+			*bds_factor = i;
 			return 0;
 		}
 	}

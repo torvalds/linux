@@ -399,7 +399,7 @@
 			};
 		};
 
-		state_i2cmux_ddc: pinmux_i2cmux_ddc {
+		state_i2cmux_ddc: pinmux-i2cmux-ddc {
 			ddc {
 				nvidia,pins = "ddc";
 				nvidia,function = "i2c2";
@@ -411,7 +411,7 @@
 			};
 		};
 
-		state_i2cmux_pta: pinmux_i2cmux_pta {
+		state_i2cmux_pta: pinmux-i2cmux-pta {
 			ddc {
 				nvidia,pins = "ddc";
 				nvidia,function = "rsvd4";
@@ -423,7 +423,7 @@
 			};
 		};
 
-		state_i2cmux_idle: pinmux_i2cmux_idle {
+		state_i2cmux_idle: pinmux-i2cmux-idle {
 			ddc {
 				nvidia,pins = "ddc";
 				nvidia,function = "rsvd4";
@@ -1019,7 +1019,7 @@
 	};
 
 	display-panel {
-		compatible = "panel-lvds";
+		compatible = "auo,b101ew05", "panel-lvds";
 
 		/* AUO B101EW05 using custom timings */
 

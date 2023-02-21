@@ -109,6 +109,15 @@ config GPIO_REGMAP
 config GPIO_MAX730X
 	tristate
 
+config GPIO_IDIO_16
+	tristate
+	help
+	  Enables support for the idio-16 library functions. The idio-16 library
+	  provides functions to facilitate communication with devices within the
+	  ACCES IDIO-16 family such as the 104-IDIO-16 and the PCI-IDIO-16.
+
+	  If built as a module its name will be gpio-idio-16.
+
 menu "Memory mapped GPIO drivers"
 	depends on HAS_IOMEM
 
@@ -219,7 +228,7 @@ config GPIO_CLPS711X
 	  Say yes here to support GPIO on CLPS711X SoCs.
 
 config GPIO_DAVINCI
-	bool "TI Davinci/Keystone GPIO support"
+	tristate "TI Davinci/Keystone GPIO support"
 	default y if ARCH_DAVINCI
 	depends on (ARM || ARM64) && (ARCH_DAVINCI || ARCH_KEYSTONE || ARCH_K3)
 	help
@@ -310,7 +319,7 @@ config GPIO_GRGPIO
 
 config GPIO_HISI
 	tristate "HiSilicon GPIO controller driver"
-	depends on (ARM64 && ACPI) || COMPILE_TEST
+	depends on ARM64 || COMPILE_TEST
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
@@ -600,14 +609,6 @@ config GPIO_SPRD
 	help
 	  Say yes here to support Spreadtrum GPIO device.
 
-config GPIO_STA2X11
-	bool "STA2x11/ConneXt GPIO support"
-	depends on MFD_STA2X11
-	select GENERIC_IRQ_CHIP
-	help
-	  Say yes here to support the STA2x11/ConneXt GPIO device.
-	  The GPIO module has 128 GPIO pins with alternate functions.
-
 config GPIO_STP_XWAY
 	bool "XWAY STP GPIOs"
 	depends on SOC_XWAY || COMPILE_TEST
@@ -857,6 +858,7 @@ config GPIO_104_IDIO_16
 	depends on PC104
 	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
+	select GPIO_IDIO_16
 	help
 	  Enables GPIO support for the ACCES 104-IDIO-16 family (104-IDIO-16,
 	  104-IDIO-16E, 104-IDO-16, 104-IDIO-8, 104-IDIO-8E, 104-IDO-8). The
@@ -1561,6 +1563,7 @@ config GPIO_PCH
 config GPIO_PCI_IDIO_16
 	tristate "ACCES PCI-IDIO-16 GPIO support"
 	select GPIOLIB_IRQCHIP
+	select GPIO_IDIO_16
 	help
 	  Enables GPIO support for the ACCES PCI-IDIO-16. An interrupt is
 	  generated when any of the inputs change state (low to high or high to
@@ -1680,6 +1683,12 @@ config GPIO_AGGREGATOR
 	    - Provide a generic driver for a GPIO-operated device in an
 	      industrial control context, to be operated from userspace using
 	      the GPIO chardev interface.
+
+config GPIO_LATCH
+	tristate "GPIO latch driver"
+	help
+	  Say yes here to enable a driver for GPIO multiplexers based on latches
+	  connected to other GPIOs.
 
 config GPIO_MOCKUP
 	tristate "GPIO Testing Driver"

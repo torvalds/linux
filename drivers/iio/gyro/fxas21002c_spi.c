@@ -54,7 +54,7 @@ MODULE_DEVICE_TABLE(of, fxas21002c_spi_of_match);
 static struct spi_driver fxas21002c_spi_driver = {
 	.driver = {
 		.name = "fxas21002c_spi",
-		.pm = &fxas21002c_pm_ops,
+		.pm = pm_ptr(&fxas21002c_pm_ops),
 		.of_match_table = fxas21002c_spi_of_match,
 	},
 	.probe		= fxas21002c_spi_probe,
@@ -66,3 +66,4 @@ module_spi_driver(fxas21002c_spi_driver);
 MODULE_AUTHOR("Rui Miguel Silva <rui.silva@linaro.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("FXAS21002C SPI Gyro driver");
+MODULE_IMPORT_NS(IIO_FXAS21002C);

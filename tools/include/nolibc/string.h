@@ -19,9 +19,9 @@ static __attribute__((unused))
 int memcmp(const void *s1, const void *s2, size_t n)
 {
 	size_t ofs = 0;
-	char c1 = 0;
+	int c1 = 0;
 
-	while (ofs < n && !(c1 = ((char *)s1)[ofs] - ((char *)s2)[ofs])) {
+	while (ofs < n && !(c1 = ((unsigned char *)s1)[ofs] - ((unsigned char *)s2)[ofs])) {
 		ofs++;
 	}
 	return c1;
@@ -125,14 +125,18 @@ char *strcpy(char *dst, const char *src)
 }
 
 /* this function is only used with arguments that are not constants or when
- * it's not known because optimizations are disabled.
+ * it's not known because optimizations are disabled. Note that gcc 12
+ * recognizes an strlen() pattern and replaces it with a jump to strlen(),
+ * thus itself, hence the asm() statement below that's meant to disable this
+ * confusing practice.
  */
 static __attribute__((unused))
-size_t nolibc_strlen(const char *str)
+size_t strlen(const char *str)
 {
 	size_t len;
 
-	for (len = 0; str[len]; len++);
+	for (len = 0; str[len]; len++)
+		asm("");
 	return len;
 }
 
@@ -140,13 +144,12 @@ size_t nolibc_strlen(const char *str)
  * the two branches, then will rely on an external definition of strlen().
  */
 #if defined(__OPTIMIZE__)
+#define nolibc_strlen(x) strlen(x)
 #define strlen(str) ({                          \
 	__builtin_constant_p((str)) ?           \
 		__builtin_strlen((str)) :       \
 		nolibc_strlen((str));           \
 })
-#else
-#define strlen(str) nolibc_strlen((str))
 #endif
 
 static __attribute__((unused))

@@ -261,16 +261,6 @@ SYM_FUNC_START(startup_32_smp)
 	addl $__PAGE_OFFSET, %esp
 
 /*
- * start system 32-bit setup. We need to re-do some of the things done
- * in 16-bit mode for the "real" operations.
- */
-	movl setup_once_ref,%eax
-	andl %eax,%eax
-	jz 1f				# Did we do this already?
-	call *%eax
-1:
-
-/*
  * Check if it is 486
  */
 	movb $4,X86			# at least 486
@@ -331,18 +321,7 @@ SYM_FUNC_END(startup_32_smp)
 
 #include "verify_cpu.S"
 
-/*
- *  setup_once
- *
- *  The setup work we only want to run on the BSP.
- *
- *  Warning: %esi is live across this function.
- */
 __INIT
-setup_once:
-	andl $0,setup_once_ref	/* Once is enough, thanks */
-	RET
-
 SYM_FUNC_START(early_idt_handler_array)
 	# 36(%esp) %eflags
 	# 32(%esp) %cs
@@ -458,7 +437,6 @@ SYM_DATA(early_recursion_flag, .long 0)
 __REFDATA
 	.align 4
 SYM_DATA(initial_code,		.long i386_start_kernel)
-SYM_DATA(setup_once_ref,	.long setup_once)
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 #define	PGD_ALIGN	(2 * PAGE_SIZE)

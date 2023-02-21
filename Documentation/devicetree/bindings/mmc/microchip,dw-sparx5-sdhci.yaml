@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/microchip,dw-sparx5-sdhci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip Sparx5 Mobile Storage Host Controller Binding
+title: Microchip Sparx5 Mobile Storage Host Controller
 
 allOf:
   - $ref: "mmc-controller.yaml"

@@ -141,8 +141,7 @@ static const struct v4l2_subdev_ops tef6862_ops = {
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static int tef6862_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int tef6862_probe(struct i2c_client *client)
 {
 	struct tef6862_state *state;
 	struct v4l2_subdev *sd;
@@ -184,7 +183,7 @@ static struct i2c_driver tef6862_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 	},
-	.probe		= tef6862_probe,
+	.probe_new	= tef6862_probe,
 	.remove		= tef6862_remove,
 	.id_table	= tef6862_id,
 };

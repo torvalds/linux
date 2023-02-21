@@ -678,7 +678,7 @@ static int adc_tm5_register_tzd(struct adc_tm5_chip *adc_tm)
 						    &adc_tm5_thermal_ops);
 		if (IS_ERR(tzd)) {
 			if (PTR_ERR(tzd) == -ENODEV) {
-				dev_warn(adc_tm->dev, "thermal sensor on channel %d is not used\n",
+				dev_dbg(adc_tm->dev, "thermal sensor on channel %d is not used\n",
 					 adc_tm->channels[i].channel);
 				continue;
 			}
@@ -1030,10 +1030,8 @@ static int adc_tm5_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = adc_tm5_get_dt_data(adc_tm, node);
-	if (ret) {
-		dev_err(dev, "get dt data failed: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "get dt data failed\n");
 
 	ret = adc_tm->data->init(adc_tm);
 	if (ret) {

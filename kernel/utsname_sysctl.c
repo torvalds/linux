@@ -74,6 +74,7 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 static DEFINE_CTL_TABLE_POLL(hostname_poll);
 static DEFINE_CTL_TABLE_POLL(domainname_poll);
 
+// Note: update 'enum uts_proc' to match any changes to this table
 static struct ctl_table uts_kern_table[] = {
 	{
 		.procname	= "arch",

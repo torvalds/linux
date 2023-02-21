@@ -27,7 +27,7 @@
 			bias-pull-up;
 		};
 
-		pma8084_gpios: gpios@c000 {
+		pma8084_gpios: gpio@c000 {
 			compatible = "qcom,pma8084-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
@@ -64,22 +64,27 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
-			die_temp {
+			adc-chan@8 {
 				reg = <VADC_DIE_TEMP>;
 			};
-			ref_625mv {
+
+			adc-chan@9 {
 				reg = <VADC_REF_625MV>;
 			};
-			ref_1250v {
+
+			adc-chan@a {
 				reg = <VADC_REF_1250MV>;
 			};
-			ref_buf_625mv {
+
+			adc-chan@c {
 				reg = <VADC_SPARE1>;
 			};
-			ref_gnd {
+
+			adc-chan@e {
 				reg = <VADC_GND_REF>;
 			};
-			ref_vdd {
+
+			adc-chan@f {
 				reg = <VADC_VDD_VADC>;
 			};
 		};

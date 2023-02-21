@@ -132,7 +132,7 @@ static int zpci_clear_irq(struct zpci_dev *zdev)
 static int zpci_set_irq_affinity(struct irq_data *data, const struct cpumask *dest,
 				 bool force)
 {
-	struct msi_desc *entry = irq_get_msi_desc(data->irq);
+	struct msi_desc *entry = irq_data_get_msi_desc(data);
 	struct msi_msg msg = entry->msg;
 	int cpu_addr = smp_cpu_get_cpu_address(cpumask_first(dest));
 

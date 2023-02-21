@@ -760,8 +760,6 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_S390_MEM_OP));
 
-	setbuf(stdout, NULL);	/* Tell stdout not to buffer its content */
-
 	ksft_print_header();
 
 	ksft_set_plan(ARRAY_SIZE(testlist));

@@ -691,7 +691,8 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	for (i = 0; i < argc && i < MAX_TRACE_ARGS; i++) {
 		trace_probe_log_set_index(i + 2);
 		ret = traceprobe_parse_probe_arg(&tu->tp, i, argv[i],
-					is_return ? TPARG_FL_RETURN : 0);
+					(is_return ? TPARG_FL_RETURN : 0) |
+					TPARG_FL_USER);
 		if (ret)
 			goto error;
 	}
