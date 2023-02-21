@@ -457,7 +457,7 @@ int gh_reclaim_mem(struct gh_vm *vm, phys_addr_t phys,
 	ret = qcom_scm_assign_mem(phys, size, &srcVM, destVM, ARRAY_SIZE(destVM));
 	if (ret)
 		pr_err("failed qcom_assign for %pa address of size %zx - subsys VMid %d rc:%d\n",
-			phys, size, vmid, ret);
+			&phys, size, vmid, ret);
 	return ret;
 }
 
@@ -523,7 +523,7 @@ int gh_provide_mem(struct gh_vm *vm, phys_addr_t phys,
 				      srcVM, ARRAY_SIZE(srcVM));
 		if (ret)
 			pr_err("failed qcom_assign for %pa address of size %zx - subsys VMid %d rc:%d\n",
-				phys, size, srcVM[0].vmid, ret);
+				&phys, size, srcVM[0].vmid, ret);
 	}
 
 err_hyp_assign:
