@@ -187,7 +187,7 @@ config ARCH_MVEBU
 	select PINCTRL_ARMADA_CP110
 	select PINCTRL_AC5
 	help
-	  This enables support for Marvell EBU familly, including:
+	  This enables support for Marvell EBU family, including:
 	   - Armada 3700 SoC Family
 	   - Armada 7K SoC Family
 	   - Armada 8K SoC Family
