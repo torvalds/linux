@@ -233,8 +233,7 @@ static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 				     ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_DIV2);
 
 		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_PCS_DW1_LN(0, phy),
-				     DCC_MODE_SELECT_MASK,
-				     DCC_MODE_SELECT_CONTINUOSLY);
+				     DCC_MODE_SELECT_MASK, RUN_DCC_ONCE);
 	}
 
 	ret &= icl_verify_procmon_ref_values(dev_priv, phy);
@@ -354,7 +353,7 @@ skip_phy_misc:
 
 			val = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_LN(0, phy));
 			val &= ~DCC_MODE_SELECT_MASK;
-			val |= DCC_MODE_SELECT_CONTINUOSLY;
+			val |= RUN_DCC_ONCE;
 			intel_de_write(dev_priv, ICL_PORT_PCS_DW1_GRP(phy), val);
 		}
 
