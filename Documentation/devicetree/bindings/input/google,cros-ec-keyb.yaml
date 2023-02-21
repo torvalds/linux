@@ -45,7 +45,7 @@ properties:
       when the keyboard has a custom design for the top row keys.
 
 dependencies:
-  function-row-phsymap: [ 'linux,keymap' ]
+  function-row-physmap: [ 'linux,keymap' ]
   google,needs-ghost-filter: [ 'linux,keymap' ]
 
 required:
