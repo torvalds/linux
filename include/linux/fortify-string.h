@@ -90,10 +90,17 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
  * size, rather than struct size), but there remain some stragglers using
  * type 0 that will be converted in the future.
  */
+#if __has_builtin(__builtin_dynamic_object_size)
+#define POS			__pass_dynamic_object_size(1)
+#define POS0			__pass_dynamic_object_size(0)
+#define __struct_size(p)	__builtin_dynamic_object_size(p, 0)
+#define __member_size(p)	__builtin_dynamic_object_size(p, 1)
+#else
 #define POS			__pass_object_size(1)
 #define POS0			__pass_object_size(0)
 #define __struct_size(p)	__builtin_object_size(p, 0)
 #define __member_size(p)	__builtin_object_size(p, 1)
+#endif
 
 #define __compiletime_lessthan(bounds, length)	(	\
 	__builtin_constant_p((bounds) < (length)) &&	\

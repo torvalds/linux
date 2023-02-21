@@ -297,6 +297,11 @@
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#pass-object-size-pass-dynamic-object-size
  */
+#if __has_attribute(__pass_dynamic_object_size__)
+# define __pass_dynamic_object_size(type)	__attribute__((__pass_dynamic_object_size__(type)))
+#else
+# define __pass_dynamic_object_size(type)
+#endif
 #if __has_attribute(__pass_object_size__)
 # define __pass_object_size(type)	__attribute__((__pass_object_size__(type)))
 #else

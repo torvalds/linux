@@ -795,7 +795,7 @@ struct rxrpc_txbuf {
 			u8	data[RXRPC_JUMBO_DATALEN]; /* Data packet */
 			struct {
 				struct rxrpc_ackpacket ack;
-				u8 acks[0];
+				DECLARE_FLEX_ARRAY(u8, acks);
 			};
 		};
 	} __aligned(64);
