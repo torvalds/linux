@@ -1383,6 +1383,7 @@ config BOOT_CONFIG
 config BOOT_CONFIG_FORCE
 	bool "Force unconditional bootconfig processing"
 	depends on BOOT_CONFIG
+	default y if BOOT_CONFIG_EMBED
 	help
 	  With this Kconfig option set, BOOT_CONFIG processing is carried
 	  out even when the "bootconfig" kernel-boot parameter is omitted.
