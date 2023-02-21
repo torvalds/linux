@@ -474,16 +474,18 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
 			goto out;
 		}
 		err = ext4_init_block_bitmap(sb, bh, block_group, desc);
+		if (err) {
+			ext4_unlock_group(sb, block_group);
+			unlock_buffer(bh);
+			ext4_error(sb, "Failed to init block bitmap for group "
+				   "%u: %d", block_group, err);
+			goto out;
+		}
 		set_bitmap_uptodate(bh);
 		set_buffer_uptodate(bh);
 		set_buffer_verified(bh);
 		ext4_unlock_group(sb, block_group);
 		unlock_buffer(bh);
-		if (err) {
-			ext4_error(sb, "Failed to init block bitmap for group "
-				   "%u: %d", block_group, err);
-			goto out;
-		}
 		goto verify;
 	}
 	ext4_unlock_group(sb, block_group);
