@@ -220,7 +220,6 @@ static inline void fixup_objfreelist_debug(struct kmem_cache *cachep,
 static inline void fixup_slab_list(struct kmem_cache *cachep,
 				struct kmem_cache_node *n, struct slab *slab,
 				void **list);
-static int slab_early_init = 1;
 
 #define INDEX_NODE kmalloc_index(sizeof(struct kmem_cache_node))
 
@@ -1249,8 +1248,6 @@ void __init kmem_cache_init(void)
 	slab_state = PARTIAL_NODE;
 	setup_kmalloc_cache_index_table();
 
-	slab_early_init = 0;
-
 	/* 5) Replace the bootstrap kmem_cache_node */
 	{
 		int nid;
@@ -1389,7 +1386,7 @@ static void kmem_freepages(struct kmem_cache *cachep, struct slab *slab)
 
 	BUG_ON(!folio_test_slab(folio));
 	__slab_clear_pfmemalloc(slab);
-	page_mapcount_reset(folio_page(folio, 0));
+	page_mapcount_reset(&folio->page);
 	folio->mapping = NULL;
 	/* Make the mapping reset visible before clearing the flag */
 	smp_wmb();
@@ -1398,7 +1395,7 @@ static void kmem_freepages(struct kmem_cache *cachep, struct slab *slab)
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += 1 << order;
 	unaccount_slab(slab, order, cachep);
-	__free_pages(folio_page(folio, 0), order);
+	__free_pages(&folio->page, order);
 }
 
 static void kmem_rcu_free(struct rcu_head *head)
@@ -1413,13 +1410,10 @@ static void kmem_rcu_free(struct rcu_head *head)
 }
 
 #if DEBUG
-static bool is_debug_pagealloc_cache(struct kmem_cache *cachep)
+static inline bool is_debug_pagealloc_cache(struct kmem_cache *cachep)
 {
-	if (debug_pagealloc_enabled_static() && OFF_SLAB(cachep) &&
-		(cachep->size % PAGE_SIZE) == 0)
-		return true;
-
-	return false;
+	return debug_pagealloc_enabled_static() && OFF_SLAB(cachep) &&
+			((cachep->size % PAGE_SIZE) == 0);
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
