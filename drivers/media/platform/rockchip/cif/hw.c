@@ -869,6 +869,10 @@ static const char * const rk3562_cif_clks[] = {
 	"aclk_cif",
 	"hclk_cif",
 	"dclk_cif",
+	"csirx0_data",
+	"csirx1_data",
+	"csirx2_data",
+	"csirx3_data",
 };
 
 static const char * const rk3562_cif_rsts[] = {
