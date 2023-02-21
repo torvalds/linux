@@ -266,7 +266,7 @@ static int system_heap_sgl_sync_range(struct device *dev,
 	return 0;
 }
 
-static int
+static int __maybe_unused
 system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 					     enum dma_data_direction direction,
 					     unsigned int offset,
@@ -296,7 +296,7 @@ system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 	return ret;
 }
 
-static int
+static int __maybe_unused
 system_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 					   enum dma_data_direction direction,
 					   unsigned int offset,
@@ -479,8 +479,10 @@ static const struct dma_buf_ops system_heap_buf_ops = {
 	.unmap_dma_buf = system_heap_unmap_dma_buf,
 	.begin_cpu_access = system_heap_dma_buf_begin_cpu_access,
 	.end_cpu_access = system_heap_dma_buf_end_cpu_access,
+#ifdef CONFIG_DMABUF_PARTIAL
 	.begin_cpu_access_partial = system_heap_dma_buf_begin_cpu_access_partial,
 	.end_cpu_access_partial = system_heap_dma_buf_end_cpu_access_partial,
+#endif
 	.mmap = system_heap_mmap,
 	.vmap = system_heap_vmap,
 	.vunmap = system_heap_vunmap,

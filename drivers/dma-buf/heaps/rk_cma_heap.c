@@ -135,7 +135,7 @@ static void cma_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	dma_unmap_sgtable(attachment->dev, table, direction, attrs);
 }
 
-static int
+static int __maybe_unused
 cma_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 					  enum dma_data_direction direction,
 					  unsigned int offset,
@@ -160,7 +160,7 @@ cma_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 	return 0;
 }
 
-static int
+static int __maybe_unused
 cma_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 					enum dma_data_direction direction,
 					unsigned int offset,
@@ -334,8 +334,10 @@ static const struct dma_buf_ops cma_heap_buf_ops = {
 	.unmap_dma_buf = cma_heap_unmap_dma_buf,
 	.begin_cpu_access = cma_heap_dma_buf_begin_cpu_access,
 	.end_cpu_access = cma_heap_dma_buf_end_cpu_access,
+#ifdef CONFIG_DMABUF_PARTIAL
 	.begin_cpu_access_partial = cma_heap_dma_buf_begin_cpu_access_partial,
 	.end_cpu_access_partial = cma_heap_dma_buf_end_cpu_access_partial,
+#endif
 	.mmap = cma_heap_mmap,
 	.vmap = cma_heap_vmap,
 	.vunmap = cma_heap_vunmap,

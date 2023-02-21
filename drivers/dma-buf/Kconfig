@@ -24,6 +24,17 @@ config RK_DMABUF_DEBUG_ADVANCED
 	  This option support to debug all the dmabuf on db_list, allows to attach
 	  and map a dmabuf who has no attachment. If not sure, say N
 
+config DMABUF_PARTIAL
+	bool "Support for partial cache maintenance"
+	default y
+	help
+	  In order to improve performance, allow dma-buf clients to
+	  apply cache maintenance to only a subset of a dma-buf.
+
+	  Kernel clients will be able to use the dma_buf_begin_cpu_access_partial
+	  and dma_buf_end_cpu_access_partial functions to only apply cache
+	  maintenance to a range within the dma-buf.
+
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
