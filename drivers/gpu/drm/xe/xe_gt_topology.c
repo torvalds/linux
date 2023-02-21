@@ -94,31 +94,6 @@ xe_gt_topology_init(struct xe_gt *gt)
 	xe_gt_topology_dump(gt, &p);
 }
 
-unsigned int
-xe_gt_topology_count_dss(xe_dss_mask_t mask)
-{
-	return bitmap_weight(mask, XE_MAX_DSS_FUSE_BITS);
-}
-
-u64
-xe_gt_topology_dss_group_mask(xe_dss_mask_t mask, int grpsize)
-{
-	xe_dss_mask_t per_dss_mask = {};
-	u64 grpmask = 0;
-
-	WARN_ON(DIV_ROUND_UP(XE_MAX_DSS_FUSE_BITS, grpsize) > BITS_PER_TYPE(grpmask));
-
-	bitmap_fill(per_dss_mask, grpsize);
-	for (int i = 0; !bitmap_empty(mask, XE_MAX_DSS_FUSE_BITS); i++) {
-		if (bitmap_intersects(mask, per_dss_mask, grpsize))
-			grpmask |= BIT(i);
-
-		bitmap_shift_right(mask, mask, grpsize, XE_MAX_DSS_FUSE_BITS);
-	}
-
-	return grpmask;
-}
-
 void
 xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 {
