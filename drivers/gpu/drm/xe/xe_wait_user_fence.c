@@ -56,9 +56,9 @@ static const enum xe_engine_class user_to_xe_engine_class[] = {
 	[DRM_XE_ENGINE_CLASS_COMPUTE] = XE_ENGINE_CLASS_COMPUTE,
 };
 
-int check_hw_engines(struct xe_device *xe,
-		     struct drm_xe_engine_class_instance *eci,
-		     int num_engines)
+static int check_hw_engines(struct xe_device *xe,
+			    struct drm_xe_engine_class_instance *eci,
+			    int num_engines)
 {
 	int i;
 

@@ -237,7 +237,7 @@ static void guc_init_params(struct xe_guc *guc)
  * transfer. These parameters are read by the firmware on startup
  * and cannot be changed thereafter.
  */
-void guc_write_params(struct xe_guc *guc)
+static void guc_write_params(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	int i;
@@ -560,7 +560,7 @@ static void guc_handle_mmio_msg(struct xe_guc *guc)
 			"Received early GuC exception notification!\n");
 }
 
-void guc_enable_irq(struct xe_guc *guc)
+static void guc_enable_irq(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 events = xe_gt_is_media_type(gt) ?

@@ -218,7 +218,7 @@ static void gt_fini(struct drm_device *drm, void *arg)
 
 static void gt_reset_worker(struct work_struct *w);
 
-int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
+static int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
 {
 	struct xe_sched_job *job;
 	struct xe_bb *bb;
@@ -252,7 +252,7 @@ int emit_nop_job(struct xe_gt *gt, struct xe_engine *e)
 	return 0;
 }
 
-int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
+static int emit_wa_job(struct xe_gt *gt, struct xe_engine *e)
 {
 	struct xe_reg_sr *sr = &e->hwe->reg_lrc;
 	struct xe_reg_sr_entry *entry;
@@ -609,7 +609,7 @@ int xe_gt_init(struct xe_gt *gt)
 	return 0;
 }
 
-int do_gt_reset(struct xe_gt *gt)
+static int do_gt_reset(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;

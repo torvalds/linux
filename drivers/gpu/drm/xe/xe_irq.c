@@ -448,7 +448,7 @@ static void dg1_irq_reset(struct xe_gt *gt)
 	GEN3_IRQ_RESET(gt, GEN8_PCU_);
 }
 
-void xe_irq_reset(struct xe_device *xe)
+static void xe_irq_reset(struct xe_device *xe)
 {
 	struct xe_gt *gt;
 	u8 id;
