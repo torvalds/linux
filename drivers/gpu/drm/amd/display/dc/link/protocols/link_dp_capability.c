@@ -47,6 +47,7 @@
 #include "resource.h"
 #include "link_enc_cfg.h"
 #include "dc_dmub_srv.h"
+#include "gpio_service_interface.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -276,7 +277,6 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 		int length)
 {
 	int retry = 0;
-	union dp_downstream_port_present ds_port = { 0 };
 
 	if (!link->dpcd_caps.dpcd_rev.raw) {
 		do {
@@ -288,9 +288,6 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 				DP_DPCD_REV];
 		} while (retry++ < 4 && !link->dpcd_caps.dpcd_rev.raw);
 	}
-
-	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
-				 DP_DPCD_REV];
 
 	if (link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER) {
 		switch (link->dpcd_caps.branch_dev_id) {
@@ -1606,7 +1603,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 			dpcd_data[DP_TRAINING_AUX_RD_INTERVAL];
 
 		link->dpcd_caps.ext_receiver_cap_field_present =
-				aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1 ? true:false;
+				aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1;
 
 		if (aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1) {
 			uint8_t ext_cap_data[16];
@@ -2127,7 +2124,7 @@ static bool dp_verify_link_cap(
 		if (status == LINK_TRAINING_SUCCESS) {
 			success = true;
 			udelay(1000);
-			if (dp_read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
+			if (dc_link_dp_read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
 					dc_link_check_link_loss_status(
 							link,
 							&irq_data))
@@ -2168,7 +2165,7 @@ bool dp_verify_link_cap_with_retries(
 
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
-		if (!dc_link_detect_sink(link, &type) || type == dc_connection_none) {
+		if (!dc_link_detect_connection_type(link, &type) || type == dc_connection_none) {
 			link->verified_link_cap = fail_safe_link_settings;
 			break;
 		} else if (dp_verify_link_cap(link, known_limit_link_setting,
@@ -2183,4 +2180,67 @@ bool dp_verify_link_cap_with_retries(
 	dp_trace_set_lt_end_timestamp(link, true);
 
 	return success;
+}
+
+/**
+ * dc_link_is_dp_sink_present() - Check if there is a native DP
+ * or passive DP-HDMI dongle connected
+ */
+bool dc_link_is_dp_sink_present(struct dc_link *link)
+{
+	enum gpio_result gpio_result;
+	uint32_t clock_pin = 0;
+	uint8_t retry = 0;
+	struct ddc *ddc;
+
+	enum connector_id connector_id =
+		dal_graphics_object_id_get_connector_id(link->link_id);
+
+	bool present =
+		((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
+		(connector_id == CONNECTOR_ID_EDP) ||
+		(connector_id == CONNECTOR_ID_USBC));
+
+	ddc = get_ddc_pin(link->ddc);
+
+	if (!ddc) {
+		BREAK_TO_DEBUGGER();
+		return present;
+	}
+
+	/* Open GPIO and set it to I2C mode */
+	/* Note: this GpioMode_Input will be converted
+	 * to GpioConfigType_I2cAuxDualMode in GPIO component,
+	 * which indicates we need additional delay
+	 */
+
+	if (dal_ddc_open(ddc, GPIO_MODE_INPUT,
+			 GPIO_DDC_CONFIG_TYPE_MODE_I2C) != GPIO_RESULT_OK) {
+		dal_ddc_close(ddc);
+
+		return present;
+	}
+
+	/*
+	 * Read GPIO: DP sink is present if both clock and data pins are zero
+	 *
+	 * [W/A] plug-unplug DP cable, sometimes customer board has
+	 * one short pulse on clk_pin(1V, < 1ms). DP will be config to HDMI/DVI
+	 * then monitor can't br light up. Add retry 3 times
+	 * But in real passive dongle, it need additional 3ms to detect
+	 */
+	do {
+		gpio_result = dal_gpio_get_value(ddc->pin_clock, &clock_pin);
+		ASSERT(gpio_result == GPIO_RESULT_OK);
+		if (clock_pin)
+			udelay(1000);
+		else
+			break;
+	} while (retry++ < 3);
+
+	present = (gpio_result == GPIO_RESULT_OK) && !clock_pin;
+
+	dal_ddc_close(ddc);
+
+	return present;
 }

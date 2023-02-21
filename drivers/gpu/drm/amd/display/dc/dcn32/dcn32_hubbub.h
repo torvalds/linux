@@ -204,6 +204,8 @@ void hubbub32_force_usr_retraining_allow(struct hubbub *hubbub, bool allow);
 
 void hubbub32_force_wm_propagate_to_pipes(struct hubbub *hubbub);
 
+void hubbub32_init(struct hubbub *hubbub);
+
 void dcn32_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigned int det_buffer_size_in_kbyte);
 
 void hubbub32_construct(struct dcn20_hubbub *hubbub2,

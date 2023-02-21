@@ -3480,7 +3480,7 @@ bool dml32_CalculatePrefetchSchedule(
 	double  prefetch_sw_bytes;
 	double  bytes_pp;
 	double  dep_bytes;
-	unsigned int max_vratio_pre = __DML_MAX_VRATIO_PRE__;
+	unsigned int max_vratio_pre = v->MaxVRatioPre;
 	double  min_Lsw;
 	double  Tsw_est1 = 0;
 	double  Tsw_est3 = 0;
@@ -6143,29 +6143,46 @@ void dml32_CalculatePrefetchBandwithSupport(unsigned int NumberOfActiveSurfaces,
 		double UrgentBurstFactorLumaPre[],
 		double UrgentBurstFactorChromaPre[],
 		double UrgentBurstFactorCursorPre[],
+		double PrefetchBW[],
+		double VRatio[],
+		double MaxVRatioPre,
 
 		/* output */
-		double  *PrefetchBandwidth,
+		double  *MaxPrefetchBandwidth,
 		double  *FractionOfUrgentBandwidth,
 		bool *PrefetchBandwidthSupport)
 {
 	unsigned int k;
+	double ActiveBandwidthPerSurface;
 	bool NotEnoughUrgentLatencyHiding = false;
+	double TotalActiveBandwidth = 0;
+	double TotalPrefetchBandwidth = 0;
+
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (NotUrgentLatencyHiding[k]) {
 			NotEnoughUrgentLatencyHiding = true;
 		}
 	}
 
-	*PrefetchBandwidth = 0;
+	*MaxPrefetchBandwidth = 0;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		*PrefetchBandwidth = *PrefetchBandwidth + dml_max3(NumberOfDPP[k] * prefetch_vmrow_bw[k],
-				ReadBandwidthLuma[k] * UrgentBurstFactorLuma[k] + ReadBandwidthChroma[k] * UrgentBurstFactorChroma[k] + cursor_bw[k] * UrgentBurstFactorCursor[k] + NumberOfDPP[k] * (meta_row_bandwidth[k] + dpte_row_bandwidth[k]),
+		ActiveBandwidthPerSurface = ReadBandwidthLuma[k] * UrgentBurstFactorLuma[k] + ReadBandwidthChroma[k] * UrgentBurstFactorChroma[k] + cursor_bw[k] * UrgentBurstFactorCursor[k] + NumberOfDPP[k] * (meta_row_bandwidth[k] + dpte_row_bandwidth[k]);
+
+		TotalActiveBandwidth += ActiveBandwidthPerSurface;
+
+		TotalPrefetchBandwidth = TotalPrefetchBandwidth + PrefetchBW[k] * VRatio[k];
+
+		*MaxPrefetchBandwidth = *MaxPrefetchBandwidth + dml_max3(NumberOfDPP[k] * prefetch_vmrow_bw[k],
+				ActiveBandwidthPerSurface,
 				NumberOfDPP[k] * (PrefetchBandwidthLuma[k] * UrgentBurstFactorLumaPre[k] + PrefetchBandwidthChroma[k] * UrgentBurstFactorChromaPre[k]) + cursor_bw_pre[k] * UrgentBurstFactorCursorPre[k]);
 	}
 
-	*PrefetchBandwidthSupport = (*PrefetchBandwidth <= ReturnBW) && !NotEnoughUrgentLatencyHiding;
-	*FractionOfUrgentBandwidth = *PrefetchBandwidth / ReturnBW;
+	if (MaxVRatioPre == __DML_MAX_VRATIO_PRE__)
+		*PrefetchBandwidthSupport = (*MaxPrefetchBandwidth <= ReturnBW) && (TotalPrefetchBandwidth <= TotalActiveBandwidth * __DML_MAX_BW_RATIO_PRE__) && !NotEnoughUrgentLatencyHiding;
+	else
+		*PrefetchBandwidthSupport = (*MaxPrefetchBandwidth <= ReturnBW) && !NotEnoughUrgentLatencyHiding;
+
+	*FractionOfUrgentBandwidth = *MaxPrefetchBandwidth / ReturnBW;
 }
 
 double dml32_CalculateBandwidthAvailableForImmediateFlip(unsigned int NumberOfActiveSurfaces,

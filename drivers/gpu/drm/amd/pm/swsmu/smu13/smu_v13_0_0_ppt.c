@@ -138,6 +138,7 @@ static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(GetPptLimit,			PPSMC_MSG_GetPptLimit,                 0),
 	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,           0),
 	MSG_MAP(Mode1Reset,			PPSMC_MSG_Mode1Reset,                  0),
+	MSG_MAP(Mode2Reset,			PPSMC_MSG_Mode2Reset,	       		   0),
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 	MSG_MAP(DFCstateControl,		PPSMC_MSG_SetExternalClientDfCstateAllow, 0),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       0),
@@ -407,6 +408,9 @@ static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
 
 	ret = smu_v13_0_0_get_pptable_from_pmfw(smu,
 						&smu_table->power_play_table,
@@ -1258,6 +1262,9 @@ static int smu_v13_0_0_get_thermal_temperature_range(struct smu_context *smu,
 		table_context->power_play_table;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
 	if (!range)
 		return -EINVAL;
 
@@ -1957,6 +1964,30 @@ static int smu_v13_0_0_mode1_reset(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v13_0_0_mode2_reset(struct smu_context *smu)
+{
+	int ret;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode2Reset, NULL);
+	else
+		return -EOPNOTSUPP;
+
+	return ret;
+}
+
+static int smu_v13_0_0_enable_gfx_features(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10))
+		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnableAllSmuFeatures,
+										   FEATURE_PWR_GFX, NULL);
+	else
+		return -EOPNOTSUPP;
+}
+
 static void smu_v13_0_0_set_smu_mailbox_registers(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -2072,6 +2103,8 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.baco_exit = smu_v13_0_0_baco_exit,
 	.mode1_reset_is_support = smu_v13_0_0_is_mode1_reset_supported,
 	.mode1_reset = smu_v13_0_0_mode1_reset,
+	.mode2_reset = smu_v13_0_0_mode2_reset,
+	.enable_gfx_features = smu_v13_0_0_enable_gfx_features,
 	.set_mp1_state = smu_v13_0_0_set_mp1_state,
 	.set_df_cstate = smu_v13_0_0_set_df_cstate,
 	.send_hbm_bad_pages_num = smu_v13_0_0_smu_send_bad_mem_page_num,

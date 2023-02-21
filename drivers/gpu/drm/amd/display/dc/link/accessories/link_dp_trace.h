@@ -24,6 +24,7 @@
  */
 #ifndef __LINK_DP_TRACE_H__
 #define __LINK_DP_TRACE_H__
+#include "link.h"
 
 void dp_trace_init(struct dc_link *link);
 void dp_trace_reset(struct dc_link *link);

@@ -3685,7 +3685,7 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 	/* TODO: validate audio ASIC caps, encoder */
 
 	if (res == DC_OK)
-		res = dc_link_validate_mode_timing(stream,
+		res = link_validate_mode_timing(stream,
 		      link,
 		      &stream->timing);
 

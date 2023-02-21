@@ -1104,7 +1104,7 @@ bool dm_helpers_dp_handle_test_pattern_request(
 		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
 		pipe_ctx->stream->timing.pixel_encoding = requestPixelEncoding;
 
-		dp_update_dsc_config(pipe_ctx);
+		dc_link_update_dsc_config(pipe_ctx);
 
 		aconnector->timing_changed = true;
 		/* store current timing */

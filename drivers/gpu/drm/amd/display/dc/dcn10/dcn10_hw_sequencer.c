@@ -1017,7 +1017,7 @@ static void dcn10_reset_back_end_for_pipe(
 		 * VBIOS lit up eDP, so check link status too.
 		 */
 		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			core_link_disable_stream(pipe_ctx);
+			link_set_dpms_off(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
@@ -1564,7 +1564,7 @@ void dcn10_init_hw(struct dc *dc)
 	}
 
 	/* we want to turn off all dp displays before doing detection */
-	dc_link_blank_all_dp_displays(dc);
+	link_blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -3223,12 +3223,16 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
-			enum display_dongle_type dongle = \
-					stream->link->ddc->dongle_type;
-			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
-				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
-				flags->DISABLE_STEREO_DP_SYNC = 1;
+
+			if (stream->link && stream->link->ddc) {
+				enum display_dongle_type dongle = \
+						stream->link->ddc->dongle_type;
+
+				if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
+					dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+					flags->DISABLE_STEREO_DP_SYNC = 1;
+			}
 		}
 		flags->RIGHT_EYE_POLARITY =\
 				stream->timing.flags.RIGHT_EYE_3D_POLARITY;
@@ -3624,7 +3628,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 						(int)hubp->curs_attr.width || pos_cpy.x
 						<= (int)hubp->curs_attr.width +
 						pipe_ctx->plane_state->src_rect.x) {
-						pos_cpy.x = temp_x + viewport_width;
+						pos_cpy.x = 2 * viewport_width - temp_x;
 					}
 				}
 			} else {

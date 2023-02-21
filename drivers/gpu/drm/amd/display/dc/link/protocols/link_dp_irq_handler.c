@@ -24,7 +24,8 @@
  */
 
 /* FILE POLICY AND INTENDED USAGE:
- *
+ * This file implements DP HPD short pulse handling sequence according to DP
+ * specifications
  *
  */
 
@@ -33,6 +34,7 @@
 #include "link_dp_training.h"
 #include "link_dp_capability.h"
 #include "link/accessories/link_dp_trace.h"
+#include "link/link_dpms.h"
 #include "dm_helpers.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -174,44 +176,31 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 
 void dc_link_dp_handle_link_loss(struct dc_link *link)
 {
+	struct pipe_ctx *pipes[MAX_PIPES];
+	struct dc_state *state = link->dc->current_state;
+	uint8_t count;
 	int i;
-	struct pipe_ctx *pipe_ctx;
 
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link)
-			break;
-	}
+	link_get_master_pipes_with_dpms_on(link, state, &count, pipes);
 
-	if (pipe_ctx == NULL || pipe_ctx->stream == NULL)
-		return;
+	for (i = 0; i < count; i++)
+		link_set_dpms_off(pipes[i]);
 
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
-				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe)
-			core_link_disable_stream(pipe_ctx);
-	}
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off
-				&& pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			// Always use max settings here for DP 1.4a LL Compliance CTS
-			if (link->is_automated) {
-				pipe_ctx->link_config.dp_link_settings.lane_count =
-						link->verified_link_cap.lane_count;
-				pipe_ctx->link_config.dp_link_settings.link_rate =
-						link->verified_link_cap.link_rate;
-				pipe_ctx->link_config.dp_link_settings.link_spread =
-						link->verified_link_cap.link_spread;
-			}
-			core_link_enable_stream(link->dc->current_state, pipe_ctx);
+	for (i = count - 1; i >= 0; i--) {
+		// Always use max settings here for DP 1.4a LL Compliance CTS
+		if (link->is_automated) {
+			pipes[i]->link_config.dp_link_settings.lane_count =
+					link->verified_link_cap.lane_count;
+			pipes[i]->link_config.dp_link_settings.link_rate =
+					link->verified_link_cap.link_rate;
+			pipes[i]->link_config.dp_link_settings.link_spread =
+					link->verified_link_cap.link_spread;
 		}
+		link_set_dpms_on(link->dc->current_state, pipes[i]);
 	}
 }
 
-enum dc_status dp_read_hpd_rx_irq_data(
+enum dc_status dc_link_dp_read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data)
 {
@@ -299,7 +288,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		 * dal_dpsst_ls_read_hpd_irq_data
 		 * Order of calls is important too
 		 */
-	result = dp_read_hpd_rx_irq_data(link, &hpd_irq_dpcd_data);
+	result = dc_link_dp_read_hpd_rx_irq_data(link, &hpd_irq_dpcd_data);
 	if (out_hpd_irq_dpcd_data)
 		*out_hpd_irq_dpcd_data = hpd_irq_dpcd_data;
 
@@ -398,4 +387,3 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	 */
 	return status;
 }
-

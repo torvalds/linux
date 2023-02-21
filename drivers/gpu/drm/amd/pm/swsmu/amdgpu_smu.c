@@ -904,9 +904,8 @@ static int smu_alloc_dummy_read_table(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	dummy_read_1_table->size = 0x40000;
-	dummy_read_1_table->align = PAGE_SIZE;
-	dummy_read_1_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
+	if (!dummy_read_1_table->size)
+		return 0;
 
 	ret = amdgpu_bo_create_kernel(adev,
 				      dummy_read_1_table->size,
@@ -2859,6 +2858,23 @@ static int smu_mode2_reset(void *handle)
 	return ret;
 }
 
+static int smu_enable_gfx_features(void *handle)
+{
+	struct smu_context *smu = handle;
+	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return -EOPNOTSUPP;
+
+	if (smu->ppt_funcs->enable_gfx_features)
+		ret = smu->ppt_funcs->enable_gfx_features(smu);
+
+	if (ret)
+		dev_err(smu->adev->dev, "enable gfx features failed!\n");
+
+	return ret;
+}
+
 static int smu_get_max_sustainable_clocks_by_dc(void *handle,
 						struct pp_smu_nv_clock_table *max_clocks)
 {
@@ -3043,6 +3059,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_ppfeature_status             = smu_sys_get_pp_feature_mask,
 	.set_ppfeature_status             = smu_sys_set_pp_feature_mask,
 	.asic_reset_mode_2                = smu_mode2_reset,
+	.asic_reset_enable_gfx_features   = smu_enable_gfx_features,
 	.set_df_cstate                    = smu_set_df_cstate,
 	.set_xgmi_pstate                  = smu_set_xgmi_pstate,
 	.get_gpu_metrics                  = smu_sys_get_gpu_metrics,

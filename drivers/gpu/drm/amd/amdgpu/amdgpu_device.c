@@ -164,7 +164,7 @@ static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev);
  *
  * The amdgpu driver provides a sysfs API for reporting the product name
  * for the device
- * The file serial_number is used for this and returns the product name
+ * The file product_name is used for this and returns the product name
  * as returned from the FRU.
  * NOTE: This is only available for certain server cards
  */
@@ -186,7 +186,7 @@ static DEVICE_ATTR(product_name, S_IRUGO,
  *
  * The amdgpu driver provides a sysfs API for reporting the part number
  * for the device
- * The file serial_number is used for this and returns the part number
+ * The file product_number is used for this and returns the part number
  * as returned from the FRU.
  * NOTE: This is only available for certain server cards
  */
@@ -4269,6 +4269,9 @@ exit:
 #endif
 	}
 	adev->in_suspend = false;
+
+	if (adev->enable_mes)
+		amdgpu_mes_self_test(adev);
 
 	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D0))
 		DRM_WARN("smart shift update failed\n");

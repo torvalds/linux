@@ -620,7 +620,8 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	 */
 	if (!dev_entered)
 		WARN_ON(psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_LOAD_ASD &&
-			psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_UNLOAD_TA);
+			psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_UNLOAD_TA &&
+			psp->cmd_buf_mem->cmd_id != GFX_CMD_ID_INVOKE_CMD);
 
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 

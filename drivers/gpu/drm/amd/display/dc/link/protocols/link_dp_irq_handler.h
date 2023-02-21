@@ -28,8 +28,4 @@
 
 #include "link.h"
 
-enum dc_status dp_read_hpd_rx_irq_data(
-	struct dc_link *link,
-	union hpd_irq_data *irq_data);
-
 #endif /* __DC_LINK_DP_IRQ_HANDLER_H__ */
