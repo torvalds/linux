@@ -1590,6 +1590,21 @@ static int vangogh_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
+static int vangogh_get_apu_thermal_limit(struct smu_context *smu, uint32_t *limit)
+{
+	return smu_cmn_send_smc_msg_with_param(smu,
+					      SMU_MSG_GetThermalLimit,
+					      0, limit);
+}
+
+int vangogh_set_apu_thermal_limit(struct smu_context *smu, uint32_t limit)
+{
+	return smu_cmn_send_smc_msg_with_param(smu,
+					      SMU_MSG_SetReducedThermalLimit,
+					      limit, NULL);
+}
+
+
 static int vangogh_set_watermarks_table(struct smu_context *smu,
 				       struct pp_smu_wm_range_sets *clock_ranges)
 {
@@ -2425,6 +2440,8 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.dpm_set_jpeg_enable = vangogh_dpm_set_jpeg_enable,
 	.is_dpm_running = vangogh_is_dpm_running,
 	.read_sensor = vangogh_read_sensor,
+	.get_apu_thermal_limit = vangogh_get_apu_thermal_limit,
+	.set_apu_thermal_limit = vangogh_set_apu_thermal_limit,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_watermarks_table = vangogh_set_watermarks_table,
