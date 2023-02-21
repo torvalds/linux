@@ -98,7 +98,7 @@ static int ext4_validate_inode_bitmap(struct super_block *sb,
 	if (buffer_verified(bh))
 		goto verified;
 	blk = ext4_inode_bitmap(sb, desc);
-	if (!ext4_inode_bitmap_csum_verify(sb, block_group, desc, bh,
+	if (!ext4_inode_bitmap_csum_verify(sb, desc, bh,
 					   EXT4_INODES_PER_GROUP(sb) / 8) ||
 	    ext4_simulate_fail(sb, EXT4_SIM_IBITMAP_CRC)) {
 		ext4_unlock_group(sb, block_group);
