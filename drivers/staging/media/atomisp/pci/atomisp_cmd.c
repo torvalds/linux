@@ -4629,13 +4629,13 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct v4l2_pix_format backup_fmt, s_fmt;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
 	unsigned int padding_w = pad_w, padding_h = pad_h;
-	bool res_overflow = false, crop_needs_override = false;
 	struct v4l2_mbus_framefmt isp_source_fmt = {0};
 	struct v4l2_subdev_format vformat = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 	struct v4l2_rect isp_sink_crop;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
+	bool res_overflow = false;
 	struct v4l2_subdev_fh fh;
 	int ret;
 
@@ -4845,7 +4845,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	}
 
 	atomisp_csi_lane_config(isp);
-	crop_needs_override = true;
 
 	atomisp_check_copy_mode(asd, source_pad, &backup_fmt);
 	asd->yuvpp_mode = false;			/* Reset variable */
@@ -4907,30 +4906,27 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		 * which appears to be related by a hardware
 		 * performance limitation.  It's unclear why this
 		 * particular code triggers the issue. */
-		if (crop_needs_override) {
-			if (isp_sink_crop.width * main_compose.height >
-			    isp_sink_crop.height * main_compose.width) {
-				sink_crop.height = isp_sink_crop.height;
-				sink_crop.width = DIV_NEAREST_STEP(
-						      sink_crop.height *
-						      f->fmt.pix.width,
-						      f->fmt.pix.height,
-						      ATOM_ISP_STEP_WIDTH);
-			} else {
-				sink_crop.width = isp_sink_crop.width;
-				sink_crop.height = DIV_NEAREST_STEP(
-						       sink_crop.width *
-						       f->fmt.pix.height,
-						       f->fmt.pix.width,
-						       ATOM_ISP_STEP_HEIGHT);
-			}
-			atomisp_subdev_set_selection(&asd->subdev, fh.state,
-						     V4L2_SUBDEV_FORMAT_ACTIVE,
-						     ATOMISP_SUBDEV_PAD_SINK,
-						     V4L2_SEL_TGT_CROP,
-						     V4L2_SEL_FLAG_KEEP_CONFIG,
-						     &sink_crop);
+		if (isp_sink_crop.width * main_compose.height >
+		    isp_sink_crop.height * main_compose.width) {
+			sink_crop.height = isp_sink_crop.height;
+			sink_crop.width =
+				DIV_NEAREST_STEP(sink_crop.height * f->fmt.pix.width,
+						 f->fmt.pix.height,
+						 ATOM_ISP_STEP_WIDTH);
+		} else {
+			sink_crop.width = isp_sink_crop.width;
+			sink_crop.height =
+				DIV_NEAREST_STEP(sink_crop.width * f->fmt.pix.height,
+						 f->fmt.pix.width,
+						 ATOM_ISP_STEP_HEIGHT);
 		}
+		atomisp_subdev_set_selection(&asd->subdev, fh.state,
+					     V4L2_SUBDEV_FORMAT_ACTIVE,
+					     ATOMISP_SUBDEV_PAD_SINK,
+					     V4L2_SEL_TGT_CROP,
+					     V4L2_SEL_FLAG_KEEP_CONFIG,
+					     &sink_crop);
+
 		atomisp_subdev_set_selection(&asd->subdev, fh.state,
 					     V4L2_SUBDEV_FORMAT_ACTIVE,
 					     source_pad,
