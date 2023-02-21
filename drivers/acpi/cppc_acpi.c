@@ -193,7 +193,7 @@ static struct attribute *cppc_attrs[] = {
 };
 ATTRIBUTE_GROUPS(cppc);
 
-static struct kobj_type cppc_ktype = {
+static const struct kobj_type cppc_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = cppc_groups,
 };
@@ -595,6 +595,7 @@ bool __weak cpc_supported_by_cpu(void)
 
 /**
  * pcc_data_alloc() - Allocate the pcc_data memory for pcc subspace
+ * @pcc_ss_id: PCC Subspace index as in the PCC client ACPI package.
  *
  * Check and allocate the cppc_pcc_data memory.
  * In some processor configurations it is possible that same subspace
@@ -1603,6 +1604,7 @@ EXPORT_SYMBOL_GPL(cppc_set_perf);
 
 /**
  * cppc_get_transition_latency - returns frequency transition latency in ns
+ * @cpu_num: CPU number for per_cpu().
  *
  * ACPI CPPC does not explicitly specify how a platform can specify the
  * transition latency for performance change requests. The closest we have
