@@ -2196,11 +2196,12 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	/*
 	 * Justification of value bad_page_cnt_threshold in ras structure
 	 *
-	 * Generally, -1 <= amdgpu_bad_page_threshold <= max record length
-	 * in eeprom, and introduce two scenarios accordingly.
+	 * Generally, 0 <= amdgpu_bad_page_threshold <= max record length
+	 * in eeprom or amdgpu_bad_page_threshold == -2, introduce two
+	 * scenarios accordingly.
 	 *
 	 * Bad page retirement enablement:
-	 *    - If amdgpu_bad_page_threshold = -1,
+	 *    - If amdgpu_bad_page_threshold = -2,
 	 *      bad_page_cnt_threshold = typical value by formula.
 	 *
 	 *    - When the value from user is 0 < amdgpu_bad_page_threshold <

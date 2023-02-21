@@ -1191,8 +1191,8 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 		} else {
 			dev_err(adev->dev, "RAS records:%d exceed threshold:%d",
 				control->ras_num_recs, ras->bad_page_cnt_threshold);
-			if (amdgpu_bad_page_threshold == -2) {
-				dev_warn(adev->dev, "GPU will be initialized due to bad_page_threshold = -2.");
+			if (amdgpu_bad_page_threshold == -1) {
+				dev_warn(adev->dev, "GPU will be initialized due to bad_page_threshold = -1.");
 				res = 0;
 			} else {
 				*exceed_err_limit = true;
