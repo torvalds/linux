@@ -564,7 +564,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 	asd->params.fpn_en = false;
 	asd->params.xnr_en = false;
 	asd->params.false_color = 0;
-	asd->params.online_process = 1;
 	asd->params.yuv_ds_en = 0;
 	/* s3a grid not enabled for any pipe */
 	asd->params.s3a_enabled_pipe = IA_CSS_PIPE_ID_NUM;

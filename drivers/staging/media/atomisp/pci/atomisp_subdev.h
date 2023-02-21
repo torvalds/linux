@@ -183,9 +183,6 @@ struct atomisp_css_params {
 };
 
 struct atomisp_subdev_params {
-	/* FIXME: Determines whether raw capture buffer are being passed to
-	 * user space. Unimplemented for now. */
-	int online_process;
 	int yuv_ds_en;
 	unsigned int color_effect;
 	bool gdc_cac_en;
@@ -303,7 +300,6 @@ struct atomisp_sub_device {
 	spinlock_t dis_stats_lock;
 
 	struct ia_css_frame *vf_frame; /* TODO: needed? */
-	struct ia_css_frame *raw_output_frame;
 	enum atomisp_frame_status frame_status[VIDEO_MAX_FRAME];
 
 	/* This field specifies which camera (v4l2 input) is selected. */

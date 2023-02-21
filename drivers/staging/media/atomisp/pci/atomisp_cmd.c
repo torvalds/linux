@@ -1622,11 +1622,6 @@ int atomisp_formats(struct atomisp_sub_device *asd, int flag,
 void atomisp_free_internal_buffers(struct atomisp_sub_device *asd)
 {
 	atomisp_free_css_parameters(&asd->params.css_param);
-
-	if (asd->raw_output_frame) {
-		ia_css_frame_free(asd->raw_output_frame);
-		asd->raw_output_frame = NULL;
-	}
 }
 
 static void atomisp_update_grid_info(struct atomisp_sub_device *asd,
@@ -4216,7 +4211,6 @@ static int css_input_resolution_changed(struct atomisp_sub_device *asd,
 
 static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 				  struct ia_css_frame_info *output_info,
-				  struct ia_css_frame_info *raw_output_info,
 				  struct v4l2_pix_format *pix,
 				  unsigned int source_pad)
 {
@@ -4367,20 +4361,13 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 
 		/* in case of ANR, force capture pipe to offline mode */
 		atomisp_css_capture_enable_online(asd, ATOMISP_INPUT_STREAM_GENERAL,
-						  asd->params.low_light ?
-						  false : asd->params.online_process);
+						  !asd->params.low_light);
 
 		configure_output = atomisp_css_capture_configure_output;
 		get_frame_info = atomisp_css_capture_get_output_frame_info;
 		configure_pp_input = atomisp_css_capture_configure_pp_input;
 		pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 
-		if (!asd->params.online_process) {
-			ret = atomisp_css_capture_get_output_raw_frame_info(asd,
-				raw_output_info);
-			if (ret)
-				return ret;
-		}
 		if (asd->run_mode->val != ATOMISP_RUN_MODE_STILL_CAPTURE) {
 			dev_err(isp->dev,
 				"Need to set the running mode first\n");
@@ -4425,16 +4412,6 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	}
 
 	atomisp_update_grid_info(asd, pipe_id, source_pad);
-
-	/* Free the raw_dump buffer first */
-	ia_css_frame_free(asd->raw_output_frame);
-	asd->raw_output_frame = NULL;
-
-	if (!asd->params.online_process &&
-	    ia_css_frame_allocate_from_info(&asd->raw_output_frame,
-		    raw_output_info))
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -4590,7 +4567,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct atomisp_sub_device *asd = pipe->asd;
 	const struct atomisp_format_bridge *format_bridge;
 	const struct atomisp_format_bridge *snr_format_bridge;
-	struct ia_css_frame_info output_info, raw_output_info;
+	struct ia_css_frame_info output_info;
 	struct v4l2_pix_format snr_fmt;
 	struct v4l2_pix_format backup_fmt, s_fmt;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
@@ -4900,8 +4877,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	}
 
 set_fmt_to_isp:
-	ret = atomisp_set_fmt_to_isp(vdev, &output_info, &raw_output_info,
-				     &f->fmt.pix, source_pad);
+	ret = atomisp_set_fmt_to_isp(vdev, &output_info, &f->fmt.pix, source_pad);
 	if (ret) {
 		dev_warn(isp->dev, "Can't set format on ISP. Error %d\n", ret);
 		return -EINVAL;

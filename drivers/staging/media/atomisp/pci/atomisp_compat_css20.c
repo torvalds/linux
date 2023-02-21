@@ -2640,14 +2640,6 @@ int atomisp_css_capture_get_viewfinder_frame_info(
 				ATOMISP_CSS_VF_FRAME, IA_CSS_PIPE_ID_CAPTURE);
 }
 
-int atomisp_css_capture_get_output_raw_frame_info(
-    struct atomisp_sub_device *asd,
-    struct ia_css_frame_info *info)
-{
-	return __get_frame_info(asd, ATOMISP_INPUT_STREAM_GENERAL, info,
-				ATOMISP_CSS_RAW_FRAME, IA_CSS_PIPE_ID_CAPTURE);
-}
-
 int atomisp_css_copy_get_output_frame_info(
     struct atomisp_sub_device *asd,
     unsigned int stream_index,

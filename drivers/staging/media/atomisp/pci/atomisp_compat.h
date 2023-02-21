@@ -303,10 +303,6 @@ int atomisp_css_copy_get_output_frame_info(
     unsigned int stream_index,
     struct ia_css_frame_info *info);
 
-int atomisp_css_capture_get_output_raw_frame_info(
-    struct atomisp_sub_device *asd,
-    struct ia_css_frame_info *info);
-
 int atomisp_css_preview_get_output_frame_info(
     struct atomisp_sub_device *asd,
     struct ia_css_frame_info *info);
