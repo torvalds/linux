@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// ethtool interface for for Ethernet PSE (Power Sourcing Equipment)
+// ethtool interface for Ethernet PSE (Power Sourcing Equipment)
 // and PD (Powered Device)
 //
 // Copyright (c) 2022 Pengutronix, Oleksij Rempel <kernel@pengutronix.de>
