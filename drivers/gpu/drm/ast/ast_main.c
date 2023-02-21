@@ -66,7 +66,7 @@ uint8_t ast_get_index_reg_mask(struct ast_device *ast,
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 {
 	struct device_node *np = dev->dev->of_node;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t data, jregd0, jregd1;
 
@@ -122,7 +122,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 
 static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 {
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t jreg, scu_rev;
 
@@ -271,7 +271,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 static int ast_get_dram_info(struct drm_device *dev)
 {
 	struct device_node *np = dev->dev->of_node;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
 	uint32_t denum, num, div, ref_pll, dsel;
 

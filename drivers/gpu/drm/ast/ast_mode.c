@@ -645,7 +645,7 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 						   struct drm_atomic_state *state)
 {
 	struct drm_device *dev = plane->dev;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
@@ -683,7 +683,7 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 						   struct drm_atomic_state *state)
 {
-	struct ast_device *ast = to_ast_private(plane->dev);
+	struct ast_device *ast = to_ast_device(plane->dev);
 	struct ast_plane *ast_plane = to_ast_plane(plane);
 
 	/*
@@ -699,7 +699,7 @@ static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 						    struct drm_atomic_state *state)
 {
-	struct ast_device *ast = to_ast_private(plane->dev);
+	struct ast_device *ast = to_ast_device(plane->dev);
 
 	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
 }
@@ -888,7 +888,7 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
-	struct ast_device *ast = to_ast_private(plane->dev);
+	struct ast_device *ast = to_ast_device(plane->dev);
 	struct iosys_map src_map = shadow_plane_state->data[0];
 	struct drm_rect damage;
 	const u8 *src = src_map.vaddr; /* TODO: Use mapping abstraction properly */
@@ -943,7 +943,7 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 static void ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
 						   struct drm_atomic_state *state)
 {
-	struct ast_device *ast = to_ast_private(plane->dev);
+	struct ast_device *ast = to_ast_device(plane->dev);
 
 	ast_set_cursor_enabled(ast, false);
 }
@@ -1007,7 +1007,7 @@ static int ast_cursor_plane_init(struct ast_device *ast)
 
 static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	struct ast_device *ast = to_ast_private(crtc->dev);
+	struct ast_device *ast = to_ast_device(crtc->dev);
 	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
@@ -1064,7 +1064,7 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 static enum drm_mode_status
 ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 {
-	struct ast_device *ast = to_ast_private(crtc->dev);
+	struct ast_device *ast = to_ast_device(crtc->dev);
 	enum drm_mode_status status;
 	uint32_t jtemp;
 
@@ -1189,7 +1189,7 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
 	struct drm_device *dev = crtc->dev;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
@@ -1214,7 +1214,7 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 static void ast_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	struct ast_vbios_mode_info *vbios_mode_info =
@@ -1236,7 +1236,7 @@ static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_ato
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct drm_device *dev = crtc->dev;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
@@ -1324,7 +1324,7 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 
 static int ast_crtc_init(struct drm_device *dev)
 {
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct drm_crtc *crtc = &ast->crtc;
 	int ret;
 
@@ -1350,7 +1350,7 @@ static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct ast_vga_connector *ast_vga_connector = to_ast_vga_connector(connector);
 	struct drm_device *dev = connector->dev;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct edid *edid;
 	int count;
 
@@ -1456,7 +1456,7 @@ static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector
 {
 	struct ast_sil164_connector *ast_sil164_connector = to_ast_sil164_connector(connector);
 	struct drm_device *dev = connector->dev;
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	struct edid *edid;
 	int count;
 
@@ -1733,7 +1733,7 @@ static int ast_astdp_output_init(struct ast_device *ast)
 
 static void ast_mode_config_helper_atomic_commit_tail(struct drm_atomic_state *state)
 {
-	struct ast_device *ast = to_ast_private(state->dev);
+	struct ast_device *ast = to_ast_device(state->dev);
 
 	/*
 	 * Concurrent operations could possibly trigger a call to
@@ -1754,7 +1754,7 @@ static enum drm_mode_status ast_mode_config_mode_valid(struct drm_device *dev,
 						       const struct drm_display_mode *mode)
 {
 	static const unsigned long max_bpp = 4; /* DRM_FORMAT_XRGB8888 */
-	struct ast_device *ast = to_ast_private(dev);
+	struct ast_device *ast = to_ast_device(dev);
 	unsigned long fbsize, fbpages, max_fbpages;
 
 	max_fbpages = (ast->vram_fb_available) >> PAGE_SHIFT;

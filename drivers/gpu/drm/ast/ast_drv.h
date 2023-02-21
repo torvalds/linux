@@ -210,7 +210,7 @@ struct ast_device {
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };
 
-static inline struct ast_device *to_ast_private(struct drm_device *dev)
+static inline struct ast_device *to_ast_device(struct drm_device *dev)
 {
 	return container_of(dev, struct ast_device, base);
 }
