@@ -889,11 +889,11 @@ static unsigned ext4_num_base_meta_clusters(struct super_block *sb,
 	    block_group < le32_to_cpu(sbi->s_es->s_first_meta_bg) *
 			  sbi->s_desc_per_block) {
 		if (num) {
-			num += ext4_bg_num_gdb(sb, block_group);
+			num += ext4_bg_num_gdb_nometa(sb, block_group);
 			num += le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks);
 		}
 	} else { /* For META_BG_BLOCK_GROUPS */
-		num += ext4_bg_num_gdb(sb, block_group);
+		num += ext4_bg_num_gdb_meta(sb, block_group);
 	}
 	return EXT4_NUM_B2C(sbi, num);
 }
