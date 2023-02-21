@@ -32,8 +32,6 @@ int	rtw_init_mlme_priv(struct adapter *padapter)
 	INIT_LIST_HEAD(&pmlmepriv->scanned_queue.queue);
 	spin_lock_init(&pmlmepriv->scanned_queue.lock);
 
-	set_scanned_network_val(pmlmepriv, 0);
-
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
 
 	pbuf = vzalloc(array_size(MAX_BSS_CNT, sizeof(struct wlan_network)));
@@ -161,8 +159,6 @@ struct	wlan_network *rtw_alloc_network(struct	mlme_priv *pmlmepriv)
 	pnetwork->aid = 0;
 	pnetwork->join_res = 0;
 
-	pmlmepriv->num_of_scanned++;
-
 exit:
 	spin_unlock_bh(&free_queue->lock);
 
@@ -198,8 +194,6 @@ void _rtw_free_network(struct	mlme_priv *pmlmepriv, struct wlan_network *pnetwor
 
 	list_add_tail(&(pnetwork->list), &(free_queue->queue));
 
-	pmlmepriv->num_of_scanned--;
-
 	spin_unlock_bh(&free_queue->lock);
 }
 
@@ -219,8 +213,6 @@ void _rtw_free_network_nolock(struct	mlme_priv *pmlmepriv, struct wlan_network *
 	list_del_init(&(pnetwork->list));
 
 	list_add_tail(&(pnetwork->list), get_list_head(free_queue));
-
-	pmlmepriv->num_of_scanned--;
 
 	/* spin_unlock_irqrestore(&free_queue->lock, irqL); */
 }
@@ -863,7 +855,6 @@ static void free_scanqueue(struct	mlme_priv *pmlmepriv)
 		list_del_init(plist);
 		list_add_tail(plist, &free_queue->queue);
 		plist = ptemp;
-		pmlmepriv->num_of_scanned--;
 	}
 
 	spin_unlock_bh(&free_queue->lock);
