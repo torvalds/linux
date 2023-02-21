@@ -27,7 +27,6 @@ static char *ifname = "wlan%d";
 
 static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
-	.link_change			= rtl92e_link_change,
 };
 
 static struct pci_device_id rtl8192_pci_id_tbl[] = {
@@ -762,7 +761,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 
 	priv->rtllib->softmac_hard_start_xmit	= _rtl92e_hard_start_xmit;
 	priv->rtllib->set_chan			= _rtl92e_set_chan;
-	priv->rtllib->link_change		= priv->ops->link_change;
+	priv->rtllib->link_change		= rtl92e_link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = _rtl92e_hard_data_xmit;
 	priv->rtllib->check_nic_enough_desc	= _rtl92e_check_nic_enough_desc;
 	priv->rtllib->handle_assoc_response	= _rtl92e_handle_assoc_response;
