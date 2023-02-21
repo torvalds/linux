@@ -12,6 +12,7 @@
 
 #include <linux/efi.h>
 #include <linux/gpio/machine.h>
+#include <linux/mfd/intel_soc_pmic.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/lp855x.h>
@@ -334,6 +335,17 @@ static const struct software_node lenovo_yt3_bq25892_0_node = {
 	.properties = lenovo_yt3_bq25892_0_props,
 };
 
+static const struct property_entry lenovo_yt3_hideep_ts_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1600),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 2560),
+	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 255),
+	{ }
+};
+
+static const struct software_node lenovo_yt3_hideep_ts_node = {
+	.properties = lenovo_yt3_hideep_ts_props,
+};
+
 static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 	{
 		/* bq27500 fuel-gauge for the flat lipo battery behind the screen */
@@ -369,6 +381,22 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.swnode = &fg_bq25890_1_supply_node,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C2",
+	}, {
+		/* HiDeep IST520E Touchscreen */
+		.board_info = {
+			.type = "hideep_ts",
+			.addr = 0x6c,
+			.dev_name = "hideep_ts",
+			.swnode = &lenovo_yt3_hideep_ts_node,
+		},
+		.adapter_path = "\\_SB_.PCI0.I2C6",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FF:03",
+			.index = 77,
+			.trigger = ACPI_LEVEL_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
 	}
 };
 
@@ -409,11 +437,29 @@ static int __init lenovo_yt3_init(void)
 
 	gpiod_set_value(gpiod, 0);
 
+	/* Enable the regulators used by the touchscreen */
+	intel_soc_pmic_exec_mipi_pmic_seq_element(0x6e, 0x9b, 0x02, 0xff);
+	intel_soc_pmic_exec_mipi_pmic_seq_element(0x6e, 0xa0, 0x02, 0xff);
+
 	return 0;
 }
+
+static struct gpiod_lookup_table lenovo_yt3_hideep_gpios = {
+	.dev_id = "i2c-hideep_ts",
+	.table = {
+		GPIO_LOOKUP("INT33FF:00", 7, "reset", GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table * const lenovo_yt3_gpios[] = {
+	&lenovo_yt3_hideep_gpios,
+	NULL
+};
 
 const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_info = lenovo_yt3_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
+	.gpiod_lookup_tables = lenovo_yt3_gpios,
 	.init = lenovo_yt3_init,
 };
