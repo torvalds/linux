@@ -1422,8 +1422,12 @@
 		reg-names = "cif_regs";
 		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif-intr";
-		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>, <&cru DCLK_VICAP>;
-		clock-names = "aclk_cif", "hclk_cif", "dclk_cif";
+		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>, <&cru DCLK_VICAP>,
+			 <&cru CSIRX0_CLK_DATA>, <&cru CSIRX1_CLK_DATA>,
+			 <&cru CSIRX2_CLK_DATA>, <&cru CSIRX3_CLK_DATA>;
+		clock-names = "aclk_cif", "hclk_cif", "dclk_cif",
+			      "csirx0_data", "csirx1_data", "csirx2_data",
+			      "csirx3_data";
 		resets = <&cru SRST_A_VICAP>, <&cru SRST_H_VICAP>, <&cru SRST_D_VICAP>,
 			 <&cru SRST_I0_VICAP>, <&cru SRST_I1_VICAP>, <&cru SRST_I2_VICAP>,
 			 <&cru SRST_I3_VICAP>;
