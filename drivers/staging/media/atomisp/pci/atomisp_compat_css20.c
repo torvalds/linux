@@ -597,8 +597,6 @@ static void __apply_additional_pipe_config(
 		.enable_reduced_pipe = true;
 		stream_env->pipe_configs[pipe_id]
 		.enable_dz = false;
-		if (ATOMISP_SOC_CAMERA(asd))
-			stream_env->pipe_configs[pipe_id].enable_dz = true;
 
 		if (asd->params.video_dis_en) {
 			stream_env->pipe_extra_configs[pipe_id]
@@ -612,10 +610,7 @@ static void __apply_additional_pipe_config(
 		break;
 	case IA_CSS_PIPE_ID_YUVPP:
 	case IA_CSS_PIPE_ID_COPY:
-		if (ATOMISP_SOC_CAMERA(asd))
-			stream_env->pipe_configs[pipe_id].enable_dz = true;
-		else
-			stream_env->pipe_configs[pipe_id].enable_dz = false;
+		stream_env->pipe_configs[pipe_id].enable_dz = false;
 		break;
 	default:
 		break;
@@ -2573,13 +2568,9 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 	int stream_index;
 	struct atomisp_device *isp = asd->isp;
 
-	if (ATOMISP_SOC_CAMERA(asd)) {
-		stream_index = ATOMISP_INPUT_STREAM_GENERAL;
-	} else {
-		stream_index = (pipe_index == IA_CSS_PIPE_ID_YUVPP) ?
+	stream_index = (pipe_index == IA_CSS_PIPE_ID_YUVPP) ?
 			       ATOMISP_INPUT_STREAM_VIDEO :
 			       ATOMISP_INPUT_STREAM_GENERAL;
-	}
 
 	if (0 != ia_css_pipe_get_info(asd->stream_env[stream_index]
 		.pipes[pipe_index], &info)) {

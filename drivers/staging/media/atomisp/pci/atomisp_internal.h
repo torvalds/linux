@@ -117,17 +117,7 @@
 #define ATOMISP_CSS_OUTPUT_SECOND_INDEX     1
 #define ATOMISP_CSS_OUTPUT_DEFAULT_INDEX    0
 
-/*
- * ATOMISP_SOC_CAMERA
- * This is to differentiate between ext-isp and soc camera in
- * Moorefield/Baytrail platform.
- */
-#define ATOMISP_SOC_CAMERA(asd)  \
-	(asd->isp->inputs[asd->input_curr].type == SOC_CAMERA)
-
-#define ATOMISP_USE_YUVPP(asd)  \
-	(ATOMISP_SOC_CAMERA(asd) && ATOMISP_CSS_SUPPORT_YUVPP && \
-	!asd->copy_mode)
+#define ATOMISP_USE_YUVPP(asd)		false
 
 /* ISP2401 */
 #define ATOMISP_ION_DEVICE_FD_OFFSET   16

@@ -458,10 +458,8 @@ int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 		buf_type = atomisp_get_css_buf_type(
 			       asd, css_preview_pipe_id,
 			       atomisp_subdev_source_pad(&preview_pipe->vdev));
-		if (ATOMISP_SOC_CAMERA(asd) && css_preview_pipe_id == IA_CSS_PIPE_ID_YUVPP)
-			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-		/* else for ext isp use case */
-		else if (css_preview_pipe_id == IA_CSS_PIPE_ID_YUVPP)
+
+		if (css_preview_pipe_id == IA_CSS_PIPE_ID_YUVPP)
 			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
 		else if (asd->stream_env[ATOMISP_INPUT_STREAM_PREVIEW].stream)
 			input_stream_id = ATOMISP_INPUT_STREAM_PREVIEW;

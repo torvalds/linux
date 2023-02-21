@@ -1068,9 +1068,7 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 		if (!stream_restart[i])
 			continue;
 
-		if (isp->inputs[asd->input_curr].type != FILE_INPUT)
-			atomisp_css_input_set_mode(asd,
-						   IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
+		atomisp_css_input_set_mode(asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
 
 		css_pipe_id = atomisp_get_css_pipe_id(asd);
 		if (atomisp_css_start(asd, css_pipe_id, true)) {
@@ -4264,8 +4262,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	if (!format)
 		return -EINVAL;
 
-	if (isp->inputs[asd->input_curr].type != TEST_PATTERN &&
-	    isp->inputs[asd->input_curr].type != FILE_INPUT) {
+	if (isp->inputs[asd->input_curr].type != TEST_PATTERN) {
 		mipi_info = atomisp_to_sensor_mipi_info(
 				isp->inputs[asd->input_curr].camera);
 		if (!mipi_info) {
@@ -4366,13 +4363,6 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 		configure_pp_input = atomisp_css_preview_configure_pp_input;
 		pipe_id = IA_CSS_PIPE_ID_PREVIEW;
 	} else {
-		/* CSS doesn't support low light mode on SOC cameras, so disable
-		 * it. FIXME: if this is done elsewhere, it gives corrupted
-		 * colors into thumbnail image.
-		 */
-		if (isp->inputs[asd->input_curr].type == SOC_CAMERA)
-			asd->params.low_light = false;
-
 		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
 			atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_RAW);
 			atomisp_css_enable_dz(asd, false);
@@ -4463,12 +4453,6 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 				    unsigned int width, unsigned int height,
 				    unsigned int *dvs_env_w, unsigned int *dvs_env_h)
 {
-	struct atomisp_device *isp = asd->isp;
-
-	/* if subdev type is SOC camera,we do not need to set DVS */
-	if (isp->inputs[asd->input_curr].type == SOC_CAMERA)
-		asd->params.video_dis_en = false;
-
 	if (asd->params.video_dis_en &&
 	    asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
 		/* envelope is 20% of the output resolution */

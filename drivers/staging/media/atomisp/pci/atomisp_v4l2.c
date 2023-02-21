@@ -842,8 +842,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	for (i = 0; i < isp->input_cnt; i++) {
 		struct camera_mipi_info *mipi_info;
 
-		if (isp->inputs[i].type != RAW_CAMERA &&
-		    isp->inputs[i].type != SOC_CAMERA)
+		if (isp->inputs[i].type != RAW_CAMERA)
 			continue;
 
 		mipi_info = atomisp_to_sensor_mipi_info(isp->inputs[i].camera);
@@ -923,8 +922,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		int camera_count = 0;
 
 		for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
-			if (subdevs->type == RAW_CAMERA ||
-			    subdevs->type == SOC_CAMERA)
+			if (subdevs->type == RAW_CAMERA)
 				camera_count++;
 		}
 		if (camera_count)
@@ -945,9 +943,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		case RAW_CAMERA:
 			dev_dbg(isp->dev, "raw_index: %d\n", raw_index);
 			raw_index = isp->input_cnt;
-			fallthrough;
-		case SOC_CAMERA:
-			dev_dbg(isp->dev, "SOC_INDEX: %d\n", isp->input_cnt);
 			if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
 				dev_warn(isp->dev,
 					 "too many atomisp inputs, ignored\n");
@@ -974,7 +969,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			isp->motor = subdevs->subdev;
 			break;
 		case LED_FLASH:
-		case XENON_FLASH:
 			if (isp->flash) {
 				dev_warn(isp->dev, "too many atomisp flash devices\n");
 				continue;
