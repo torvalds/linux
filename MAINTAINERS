@@ -9207,9 +9207,12 @@ M:	Benjamin Tissoires <benjamin.tissoires@redhat.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hid/hid.git
+F:	Documentation/hid/
 F:	drivers/hid/
 F:	include/linux/hid*
 F:	include/uapi/linux/hid*
+F:	samples/hid/
+F:	tools/testing/selftests/hid/
 
 HID LOGITECH DRIVERS
 R:	Filipe Laíns <lains@riseup.net>
