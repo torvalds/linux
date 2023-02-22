@@ -15322,18 +15322,6 @@ S:	Maintained
 F:	Documentation/filesystems/omfs.rst
 F:	fs/omfs/
 
-OMNIKEY CARDMAN 4000 DRIVER
-M:	Harald Welte <laforge@gnumonks.org>
-S:	Maintained
-F:	drivers/char/pcmcia/cm4000_cs.c
-F:	include/linux/cm4000_cs.h
-F:	include/uapi/linux/cm4000_cs.h
-
-OMNIKEY CARDMAN 4040 DRIVER
-M:	Harald Welte <laforge@gnumonks.org>
-S:	Maintained
-F:	drivers/char/pcmcia/cm4040_cs.*
-
 OMNIVISION OG01A1B SENSOR DRIVER
 M:	Shawn Tu <shawnx.tu@intel.com>
 L:	linux-media@vger.kernel.org
@@ -18608,11 +18596,6 @@ F:	include/linux/sched.h
 F:	include/linux/wait.h
 F:	include/uapi/linux/sched.h
 F:	kernel/sched/
-
-SCR24X CHIP CARD INTERFACE DRIVER
-M:	Lubomir Rintel <lkundrak@v3.sk>
-S:	Supported
-F:	drivers/char/pcmcia/scr24x_cs.c
 
 SCSI RDMA PROTOCOL (SRP) INITIATOR
 M:	Bart Van Assche <bvanassche@acm.org>
