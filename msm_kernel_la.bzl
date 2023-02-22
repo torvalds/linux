@@ -160,7 +160,7 @@ def _define_kernel_build(
             name = "{}_abi".format(target),
             kernel_build = ":{}".format(target),
             define_abi_targets = True,
-            abi_definition = "//msm-kernel:android/abi_gki_aarch64.xml",
+            abi_definition_xml = "//msm-kernel:android/abi_gki_aarch64.xml",
             kmi_enforced = kmi_enforced,
             module_grouping = False,
             kmi_symbol_list_add_only = True,
