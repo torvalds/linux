@@ -1438,12 +1438,23 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 	int ret;
 
 	if (data->eee_enabled) {
-		if (data->advertised)
+		if (data->advertised) {
+			__ETHTOOL_DECLARE_LINK_MODE_MASK(adv);
+
+			ethtool_convert_legacy_u32_to_link_mode(adv,
+								data->advertised);
+			linkmode_andnot(adv, adv, phydev->supported_eee);
+			if (!linkmode_empty(adv)) {
+				phydev_warn(phydev, "At least some EEE link modes are not supported.\n");
+				return -EINVAL;
+			}
+
 			ethtool_convert_legacy_u32_to_link_mode(phydev->advertising_eee,
 								data->advertised);
-		else
+		} else {
 			linkmode_copy(phydev->advertising_eee,
 				      phydev->supported_eee);
+		}
 
 		phydev->eee_enabled = true;
 	} else {
