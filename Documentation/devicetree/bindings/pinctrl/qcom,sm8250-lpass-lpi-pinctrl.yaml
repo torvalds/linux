@@ -64,7 +64,7 @@ $defs:
           subnode.
         items:
           oneOf:
-            - pattern: "^gpio([0-9]|[1-9][0-9])$"
+            - pattern: "^gpio([0-9]|1[0-3])$"
         minItems: 1
         maxItems: 14
 

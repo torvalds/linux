@@ -532,6 +532,14 @@ static void gpiochip_free_valid_mask(struct gpio_chip *gc)
 
 static int gpiochip_add_pin_ranges(struct gpio_chip *gc)
 {
+	/*
+	 * Device Tree platforms are supposed to use "gpio-ranges"
+	 * property. This check ensures that the ->add_pin_ranges()
+	 * won't be called for them.
+	 */
+	if (device_property_present(&gc->gpiodev->dev, "gpio-ranges"))
+		return 0;
+
 	if (gc->add_pin_ranges)
 		return gc->add_pin_ranges(gc);
 
