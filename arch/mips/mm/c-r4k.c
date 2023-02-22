@@ -1867,15 +1867,9 @@ void r4k_cache_init(void)
 	__local_flush_icache_user_range	= local_r4k_flush_icache_user_range;
 
 #ifdef CONFIG_DMA_NONCOHERENT
-	if (dma_default_coherent) {
-		_dma_cache_wback_inv	= (void *)cache_noop;
-		_dma_cache_wback	= (void *)cache_noop;
-		_dma_cache_inv		= (void *)cache_noop;
-	} else {
-		_dma_cache_wback_inv	= r4k_dma_cache_wback_inv;
-		_dma_cache_wback	= r4k_dma_cache_wback_inv;
-		_dma_cache_inv		= r4k_dma_cache_inv;
-	}
+	_dma_cache_wback_inv	= r4k_dma_cache_wback_inv;
+	_dma_cache_wback	= r4k_dma_cache_wback_inv;
+	_dma_cache_inv		= r4k_dma_cache_inv;
 #endif /* CONFIG_DMA_NONCOHERENT */
 
 	build_clear_page();
