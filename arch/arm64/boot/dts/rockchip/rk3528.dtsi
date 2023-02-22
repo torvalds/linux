@@ -1306,6 +1306,8 @@
 		rockchip,lumafilter7 = <0x08de055f>;
 		rockchip,tve-upsample = <DCLK_UPSAMPLEx4>;
 		rockchip,grf = <&grf>;
+		nvmem-cells = <&vdac_out_current>, <&test_version>;
+		nvmem-cell-names = "out-current", "version";
 		status = "disabled";
 
 		ports {
@@ -2085,11 +2087,17 @@
 		gpu_leakage: gpu-leakage@1c {
 			reg = <0x1c 0x1>;
 		};
+		test_version: test-version@29 {
+			reg = <0x29 0x1>;
+		};
 		macphy_bgs: macphy-bgs@2d {
 			reg = <0x2d 0x1>;
 		};
 		macphy_txlevel: macphy-txlevel@2e {
 			reg = <0x2e 0x2>;
+		};
+		vdac_out_current: vdac-out-current@30 {
+			reg = <0x30 0x1>;
 		};
 		cpu_opp_info: cpu-opp-info@32 {
 			reg = <0x32 0x6>;
