@@ -21,12 +21,10 @@ ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode, u32 v_retval,
 u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed);
 int
 ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
-			 u16 vf_id, bool *is_mal_vf);
-void
-ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, u16 vf_id,
-		    struct ice_mbx_vf_info *vf_info);
+			 struct ice_mbx_vf_info *vf_info, bool *is_mal_vf);
+void ice_mbx_clear_malvf(struct ice_mbx_vf_info *vf_info);
 void ice_mbx_init_vf_info(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info);
-int ice_mbx_init_snapshot(struct ice_hw *hw, u16 vf_count);
+void ice_mbx_init_snapshot(struct ice_hw *hw);
 void ice_mbx_deinit_snapshot(struct ice_hw *hw);
 int
 ice_mbx_report_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,

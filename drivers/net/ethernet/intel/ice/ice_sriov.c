@@ -204,8 +204,7 @@ void ice_free_vfs(struct ice_pf *pf)
 		}
 
 		/* clear malicious info since the VF is getting released */
-		ice_mbx_clear_malvf(&hw->mbx_snapshot, vf->vf_id,
-				    &vf->mbx_info);
+		list_del(&vf->mbx_info.list_entry);
 
 		mutex_unlock(&vf->cfg_lock);
 	}
@@ -1025,9 +1024,7 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return -EBUSY;
 	}
 
-	err = ice_mbx_init_snapshot(&pf->hw, num_vfs);
-	if (err)
-		return err;
+	ice_mbx_init_snapshot(&pf->hw);
 
 	err = ice_pci_sriov_ena(pf, num_vfs);
 	if (err) {
@@ -1818,7 +1815,7 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 	mbxdata.async_watermark_val = ICE_MBX_OVERFLOW_WATERMARK;
 
 	/* check to see if we have a malicious VF */
-	status = ice_mbx_vf_state_handler(&pf->hw, &mbxdata, vf_id, &malvf);
+	status = ice_mbx_vf_state_handler(&pf->hw, &mbxdata, &vf->mbx_info, &malvf);
 	if (status)
 		goto out_put_vf;
 

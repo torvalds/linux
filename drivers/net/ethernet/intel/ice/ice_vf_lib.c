@@ -496,8 +496,7 @@ void ice_reset_all_vfs(struct ice_pf *pf)
 
 	/* clear all malicious info if the VFs are getting reset */
 	ice_for_each_vf(pf, bkt, vf)
-		ice_mbx_clear_malvf(&hw->mbx_snapshot, vf->vf_id,
-				    &vf->mbx_info);
+		ice_mbx_clear_malvf(&vf->mbx_info);
 
 	/* If VFs have been disabled, there is no need to reset */
 	if (test_and_set_bit(ICE_VF_DIS, pf->state)) {
@@ -599,12 +598,10 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
 	struct device *dev;
-	struct ice_hw *hw;
 	int err = 0;
 	bool rsd;
 
 	dev = ice_pf_to_dev(pf);
-	hw = &pf->hw;
 
 	if (flags & ICE_VF_RESET_NOTIFY)
 		ice_notify_vf_reset(vf);
@@ -703,7 +700,7 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	ice_eswitch_replay_vf_mac_rule(vf);
 
 	/* if the VF has been reset allow it to come up again */
-	ice_mbx_clear_malvf(&hw->mbx_snapshot, vf->vf_id, &vf->mbx_info);
+	ice_mbx_clear_malvf(&vf->mbx_info);
 
 out_unlock:
 	if (flags & ICE_VF_RESET_LOCK)

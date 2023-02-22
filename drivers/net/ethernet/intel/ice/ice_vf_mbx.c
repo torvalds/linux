@@ -93,36 +93,31 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
  *
  * 2. When the caller starts processing its mailbox queue in response to an
  * interrupt, the structure ice_mbx_snapshot is expected to be cleared before
- * the algorithm can be run for the first time for that interrupt. This can be
- * done via ice_mbx_reset_snapshot().
+ * the algorithm can be run for the first time for that interrupt. This
+ * requires calling ice_mbx_reset_snapshot() as well as calling
+ * ice_mbx_reset_vf_info() for each VF tracking structure.
  *
  * 3. For every message read by the caller from the MBX Queue, the caller must
  * call the detection algorithm's entry function ice_mbx_vf_state_handler().
  * Before every call to ice_mbx_vf_state_handler() the struct ice_mbx_data is
  * filled as it is required to be passed to the algorithm.
  *
- * 4. Every time a message is read from the MBX queue, a VFId is received which
- * is passed to the state handler. The boolean output is_malvf of the state
- * handler ice_mbx_vf_state_handler() serves as an indicator to the caller
- * whether this VF is malicious or not.
+ * 4. Every time a message is read from the MBX queue, a tracking structure
+ * for the VF must be passed to the state handler. The boolean output
+ * report_malvf from ice_mbx_vf_state_handler() serves as an indicator to the
+ * caller whether it must report this VF as malicious or not.
  *
  * 5. When a VF is identified to be malicious, the caller can send a message
- * to the system administrator. The caller can invoke ice_mbx_report_malvf()
- * to help determine if a malicious VF is to be reported or not. This function
- * requires the caller to maintain a global bitmap to track all malicious VFs
- * and pass that to ice_mbx_report_malvf() along with the VFID which was identified
- * to be malicious by ice_mbx_vf_state_handler().
+ * to the system administrator.
  *
- * 6. The global bitmap maintained by PF can be cleared completely if PF is in
- * reset or the bit corresponding to a VF can be cleared if that VF is in reset.
- * When a VF is shut down and brought back up, we assume that the new VF
- * brought up is not malicious and hence report it if found malicious.
+ * 6. The PF is responsible for maintaining the struct ice_mbx_vf_info
+ * structure for each VF. The PF should clear the VF tracking structure if the
+ * VF is reset. When a VF is shut down and brought back up, we will then
+ * assume that the new VF is not malicious and may report it again if we
+ * detect it again.
  *
  * 7. The function ice_mbx_reset_snapshot() is called to reset the information
  * in ice_mbx_snapshot for every new mailbox interrupt handled.
- *
- * 8. The memory allocated for variables in ice_mbx_snapshot is de-allocated
- * when driver is unloaded.
  */
 #define ICE_RQ_DATA_MASK(rq_data) ((rq_data) & PF_MBX_ARQH_ARQH_M)
 /* Using the highest value for an unsigned 16-bit value 0xFFFF to indicate that
@@ -132,26 +127,21 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 
 /**
  * ice_mbx_reset_snapshot - Reset mailbox snapshot structure
- * @snap: pointer to mailbox snapshot structure in the ice_hw struct
- *
- * Reset the mailbox snapshot structure and clear VF counter array.
+ * @snap: pointer to the mailbox snapshot
  */
 static void ice_mbx_reset_snapshot(struct ice_mbx_snapshot *snap)
 {
-	u32 vfcntr_len;
+	struct ice_mbx_vf_info *vf_info;
 
-	if (!snap || !snap->mbx_vf.vf_cntr)
-		return;
-
-	/* Clear VF counters. */
-	vfcntr_len = snap->mbx_vf.vfcntr_len;
-	if (vfcntr_len)
-		memset(snap->mbx_vf.vf_cntr, 0,
-		       (vfcntr_len * sizeof(*snap->mbx_vf.vf_cntr)));
-
-	/* Reset mailbox snapshot for a new capture. */
+	/* Clear mbx_buf in the mailbox snaphot structure and setting the
+	 * mailbox snapshot state to a new capture.
+	 */
 	memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
 	snap->mbx_buf.state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
+
+	/* Reset message counts for all VFs to zero */
+	list_for_each_entry(vf_info, &snap->mbx_vf, list_entry)
+		vf_info->msg_count = 0;
 }
 
 /**
@@ -195,7 +185,7 @@ ice_mbx_traverse(struct ice_hw *hw,
 /**
  * ice_mbx_detect_malvf - Detect malicious VF in snapshot
  * @hw: pointer to the HW struct
- * @vf_id: relative virtual function ID
+ * @vf_info: mailbox tracking structure for a VF
  * @new_state: new algorithm state
  * @is_malvf: boolean output to indicate if VF is malicious
  *
@@ -204,19 +194,14 @@ ice_mbx_traverse(struct ice_hw *hw,
  * the permissible number of messages to send.
  */
 static int
-ice_mbx_detect_malvf(struct ice_hw *hw, u16 vf_id,
+ice_mbx_detect_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
 		     enum ice_mbx_snapshot_state *new_state,
 		     bool *is_malvf)
 {
-	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
+	/* increment the message count for this VF */
+	vf_info->msg_count++;
 
-	if (vf_id >= snap->mbx_vf.vfcntr_len)
-		return -EIO;
-
-	/* increment the message count in the VF array */
-	snap->mbx_vf.vf_cntr[vf_id]++;
-
-	if (snap->mbx_vf.vf_cntr[vf_id] >= ICE_ASYNC_VF_MSG_THRESHOLD)
+	if (vf_info->msg_count >= ICE_ASYNC_VF_MSG_THRESHOLD)
 		*is_malvf = true;
 
 	/* continue to iterate through the mailbox snapshot */
@@ -229,7 +214,7 @@ ice_mbx_detect_malvf(struct ice_hw *hw, u16 vf_id,
  * ice_mbx_vf_state_handler - Handle states of the overflow algorithm
  * @hw: pointer to the HW struct
  * @mbx_data: pointer to structure containing mailbox data
- * @vf_id: relative virtual function (VF) ID
+ * @vf_info: mailbox tracking structure for the VF in question
  * @is_malvf: boolean output to indicate if VF is malicious
  *
  * The function serves as an entry point for the malicious VF
@@ -250,7 +235,8 @@ ice_mbx_detect_malvf(struct ice_hw *hw, u16 vf_id,
  */
 int
 ice_mbx_vf_state_handler(struct ice_hw *hw,
-			 struct ice_mbx_data *mbx_data, u16 vf_id,
+			 struct ice_mbx_data *mbx_data,
+			 struct ice_mbx_vf_info *vf_info,
 			 bool *is_malvf)
 {
 	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
@@ -315,7 +301,8 @@ ice_mbx_vf_state_handler(struct ice_hw *hw,
 		if (snap_buf->num_pending_arq >=
 		    mbx_data->async_watermark_val) {
 			new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
-			status = ice_mbx_detect_malvf(hw, vf_id, &new_state, is_malvf);
+			status = ice_mbx_detect_malvf(hw, vf_info, &new_state,
+						      is_malvf);
 		} else {
 			new_state = ICE_MAL_VF_DETECT_STATE_TRAVERSE;
 			ice_mbx_traverse(hw, &new_state);
@@ -329,7 +316,8 @@ ice_mbx_vf_state_handler(struct ice_hw *hw,
 
 	case ICE_MAL_VF_DETECT_STATE_DETECT:
 		new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
-		status = ice_mbx_detect_malvf(hw, vf_id, &new_state, is_malvf);
+		status = ice_mbx_detect_malvf(hw, vf_info, &new_state,
+					      is_malvf);
 		break;
 
 	default:
@@ -367,34 +355,16 @@ ice_mbx_report_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
 }
 
 /**
- * ice_mbx_clear_malvf - Clear VF bitmap and counter for VF ID
- * @snap: pointer to the mailbox snapshot structure
- * @vf_id: relative virtual function ID of the malicious VF
- * @vf_info: mailbox tracking structure for this VF
+ * ice_mbx_clear_malvf - Clear VF mailbox info
+ * @vf_info: the mailbox tracking structure for a VF
  *
-* In case of a VF reset, this function shall be called to clear the VF's
-* current mailbox tracking state.
-*/
-void
-ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, u16 vf_id,
-		    struct ice_mbx_vf_info *vf_info)
+ * In case of a VF reset, this function shall be called to clear the VF's
+ * current mailbox tracking state.
+ */
+void ice_mbx_clear_malvf(struct ice_mbx_vf_info *vf_info)
 {
-	if (WARN_ON(!snap))
-		return;
-
-	/* Ensure VF ID value is not larger than bitmap or VF counter length */
-	if (WARN_ON(vf_id >= snap->mbx_vf.vfcntr_len))
-		return;
-
 	vf_info->malicious = 0;
-
-	/* Clear the VF counter in the mailbox snapshot structure for that VF ID.
-	 * This is to ensure that if a VF is unloaded and a new one brought back
-	 * up with the same VF ID for a snapshot currently in traversal or detect
-	 * state the counter for that VF ID does not increment on top of existing
-	 * values in the mailbox overflow detection algorithm.
-	 */
-	snap->mbx_vf.vf_cntr[vf_id] = 0;
+	vf_info->msg_count = 0;
 }
 
 /**
@@ -402,55 +372,32 @@ ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, u16 vf_id,
  * @hw: pointer to the hardware structure
  * @vf_info: the mailbox tracking info structure for a VF
  *
- * Initialize a VF mailbox tracking info structure.
+ * Initialize a VF mailbox tracking info structure and insert it into the
+ * snapshot list.
+ *
+ * If you remove the VF, you must also delete the associated VF info structure
+ * from the linked list.
  */
 void ice_mbx_init_vf_info(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info)
 {
-	vf_info->malicious = 0;
+	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
+
+	ice_mbx_clear_malvf(vf_info);
+	list_add(&vf_info->list_entry, &snap->mbx_vf);
 }
 
 /**
- * ice_mbx_init_snapshot - Initialize mailbox snapshot structure
+ * ice_mbx_init_snapshot - Initialize mailbox snapshot data
  * @hw: pointer to the hardware structure
- * @vf_count: number of VFs allocated on a PF
  *
- * Clear the mailbox snapshot structure and allocate memory
- * for the VF counter array based on the number of VFs allocated
- * on that PF.
- *
- * Assumption: This function will assume ice_get_caps() has already been
- * called to ensure that the vf_count can be compared against the number
- * of VFs supported as defined in the functional capabilities of the device.
+ * Clear the mailbox snapshot structure and initialize the VF mailbox list.
  */
-int ice_mbx_init_snapshot(struct ice_hw *hw, u16 vf_count)
+void ice_mbx_init_snapshot(struct ice_hw *hw)
 {
 	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
 
-	/* Ensure that the number of VFs allocated is non-zero and
-	 * is not greater than the number of supported VFs defined in
-	 * the functional capabilities of the PF.
-	 */
-	if (!vf_count || vf_count > hw->func_caps.num_allocd_vfs)
-		return -EINVAL;
-
-	snap->mbx_vf.vf_cntr = devm_kcalloc(ice_hw_to_dev(hw), vf_count,
-					    sizeof(*snap->mbx_vf.vf_cntr),
-					    GFP_KERNEL);
-	if (!snap->mbx_vf.vf_cntr)
-		return -ENOMEM;
-
-	/* Setting the VF counter length to the number of allocated
-	 * VFs for given PF's functional capabilities.
-	 */
-	snap->mbx_vf.vfcntr_len = vf_count;
-
-	/* Clear mbx_buf in the mailbox snaphot structure and setting the
-	 * mailbox snapshot state to a new capture.
-	 */
-	memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
-	snap->mbx_buf.state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
-
-	return 0;
+	INIT_LIST_HEAD(&snap->mbx_vf);
+	ice_mbx_reset_snapshot(snap);
 }
 
 /**
@@ -462,10 +409,6 @@ int ice_mbx_init_snapshot(struct ice_hw *hw, u16 vf_count)
 void ice_mbx_deinit_snapshot(struct ice_hw *hw)
 {
 	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
-
-	/* Free VF counter array and reset VF counter length */
-	devm_kfree(ice_hw_to_dev(hw), snap->mbx_vf.vf_cntr);
-	snap->mbx_vf.vfcntr_len = 0;
 
 	/* Clear mbx_buf in the mailbox snaphot structure */
 	memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
