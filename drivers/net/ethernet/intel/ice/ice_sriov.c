@@ -1820,7 +1820,7 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 		u8 zero_addr[ETH_ALEN] = {};
 
 		dev_warn(dev, "VF MAC %pM on PF MAC %pM is generating asynchronous messages and may be overflowing the PF message queue. Please see the Adapter User Guide for more information\n",
-			 &vf->dev_lan_addr[0],
+			 vf->dev_lan_addr,
 			 pf_vsi ? pf_vsi->netdev->dev_addr : zero_addr);
 	}
 
