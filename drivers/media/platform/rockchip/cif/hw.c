@@ -604,12 +604,20 @@ static const char * const rk3588_cif_clks[] = {
 	"aclk_cif",
 	"hclk_cif",
 	"dclk_cif",
+	"iclk_host0",
+	"iclk_host1",
 };
 
 static const char * const rk3588_cif_rsts[] = {
 	"rst_cif_a",
 	"rst_cif_h",
 	"rst_cif_d",
+	"rst_cif_host0",
+	"rst_cif_host1",
+	"rst_cif_host2",
+	"rst_cif_host3",
+	"rst_cif_host4",
+	"rst_cif_host5",
 };
 
 static const struct cif_reg rk3588_cif_regs[] = {
