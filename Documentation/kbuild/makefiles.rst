@@ -1215,10 +1215,6 @@ KBUILD_LDFLAGS_MODULE
 KBUILD_LDS
   The linker script with full path. Assigned by the top-level Makefile.
 
-KBUILD_LDS_MODULE
-  The module linker script with full path. Assigned by the top-level
-  Makefile and additionally by the arch Makefile.
-
 KBUILD_VMLINUX_OBJS
   All object files for vmlinux. They are linked to vmlinux in the same
   order as listed in KBUILD_VMLINUX_OBJS.
