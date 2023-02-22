@@ -325,7 +325,7 @@ static void dac_enable(struct rockchip_tve *tve, bool enable)
 			msleep(20);
 			tve_dac_writel(VDAC_CLK_RST, v_ANALOG_RST(1) | v_DIGITAL_RST(1));
 
-			tve_dac_writel(VDAC_CURRENT_CTRL, v_OUT_CURRENT(0xd2));
+			tve_dac_writel(VDAC_CURRENT_CTRL, v_OUT_CURRENT(tve->vdac_out_current));
 
 			val = v_REF_VOLTAGE(7) | v_DAC_PWN(1) | v_BIAS_PWN(1);
 			offset = VDAC_PWM_REF_CTRL;
@@ -518,9 +518,34 @@ rockchip_tve_encoder_helper_funcs = {
 	.atomic_check = rockchip_tve_encoder_atomic_check,
 };
 
+static int tve_read_otp_by_name(struct rockchip_tve *tve, char *name, u8 *val, u8 default_val)
+{
+	struct nvmem_cell *cell;
+	size_t len;
+	unsigned char *efuse_buf;
+	int ret = -EINVAL;
+
+	*val = default_val;
+	cell = nvmem_cell_get(tve->dev, name);
+	if (!IS_ERR(cell)) {
+		efuse_buf = nvmem_cell_read(cell, &len);
+		nvmem_cell_put(cell);
+		if (!IS_ERR(efuse_buf)) {
+			*val = efuse_buf[0];
+			kfree(efuse_buf);
+			return 0;
+		}
+	}
+
+	dev_err(tve->dev, "failed to read %s from otp, use default\n", name);
+
+	return ret;
+}
+
 static int tve_parse_dt(struct device_node *np, struct rockchip_tve *tve)
 {
 	int ret, val;
+	u8 out_current, version;
 
 	ret = of_property_read_u32(np, "rockchip,tvemode", &val);
 	if (ret < 0) {
@@ -575,6 +600,31 @@ static int tve_parse_dt(struct device_node *np, struct rockchip_tve *tve)
 	if (val > DCLK_UPSAMPLEx4 || ret < 0)
 		return -EINVAL;
 	tve->upsample_mode = val;
+
+	/*
+	 * Read vdac output current from OTP if exists, and the default
+	 * current val is 0xd2.
+	 */
+	ret = tve_read_otp_by_name(tve, "out-current", &out_current, 0xd2);
+	if (!ret) {
+		if (out_current) {
+			/*
+			 * If test version is 0x0, the value of vdac out current
+			 * needs to be reduced by one.
+			 */
+			ret = tve_read_otp_by_name(tve, "version", &version, 0x0);
+			if (!ret) {
+				if (version == 0x0)
+					out_current -= 1;
+			}
+		} else {
+			/*
+			 * If the current value read from OTP is 0, set it to default.
+			 */
+			out_current = 0xd2;
+		}
+	}
+	tve->vdac_out_current = out_current;
 
 	return 0;
 }
