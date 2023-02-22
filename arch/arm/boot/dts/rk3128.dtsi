@@ -169,6 +169,10 @@
 		 <&qos_vip0>;
 };
 
+&sdmmc_pwren {
+	rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_default>;
+};
+
 &video_phy {
 	status = "okay";
 };
