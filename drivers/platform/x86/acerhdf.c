@@ -544,11 +544,6 @@ static int acerhdf_probe(struct platform_device *device)
 	return 0;
 }
 
-static int acerhdf_remove(struct platform_device *device)
-{
-	return 0;
-}
-
 static const struct dev_pm_ops acerhdf_pm_ops = {
 	.suspend = acerhdf_suspend,
 	.freeze  = acerhdf_suspend,
@@ -560,7 +555,6 @@ static struct platform_driver acerhdf_driver = {
 		.pm    = &acerhdf_pm_ops,
 	},
 	.probe = acerhdf_probe,
-	.remove = acerhdf_remove,
 };
 
 /* check hardware */
