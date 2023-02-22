@@ -75,6 +75,7 @@ struct tick_sched {
 	ktime_t				idle_waketime;
 
 	/* Idle entry */
+	seqcount_t			idle_sleeptime_seq;
 	ktime_t				idle_entrytime;
 
 	/* Tick stop */
