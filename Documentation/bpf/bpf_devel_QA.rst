@@ -469,7 +469,7 @@ under test should match the config file fragment in
 tools/testing/selftests/bpf as closely as possible.
 
 Finally to ensure support for latest BPF Type Format features -
-discussed in `Documentation/bpf/btf.rst`_ - pahole version 1.16
+discussed in Documentation/bpf/btf.rst - pahole version 1.16
 is required for kernels built with CONFIG_DEBUG_INFO_BTF=y.
 pahole is delivered in the dwarves package or can be built
 from source at
@@ -690,6 +690,5 @@ when:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/testing/selftests/bpf/
 .. _Documentation/dev-tools/kselftest.rst:
    https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html
-.. _Documentation/bpf/btf.rst: btf.rst
 
 Happy BPF hacking!
