@@ -299,28 +299,28 @@
 		mclkin_i2s0: mclkin-i2s0 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <12288000>;
+			clock-frequency = <0>;
 			clock-output-names = "i2s0_mclkin";
 		};
 
 		mclkin_i2s1: mclkin-i2s1 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <12288000>;
+			clock-frequency = <0>;
 			clock-output-names = "i2s1_mclkin";
 		};
 
 		mclkin_i2s2: mclkin-i2s2 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <12288000>;
+			clock-frequency = <0>;
 			clock-output-names = "i2s2_mclkin";
 		};
 
 		mclkin_i2s3: mclkin-i2s3 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <12288000>;
+			clock-frequency = <0>;
 			clock-output-names = "i2s3_mclkin";
 		};
 
