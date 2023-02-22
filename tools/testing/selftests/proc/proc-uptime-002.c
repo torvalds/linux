@@ -13,8 +13,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-// Test that values in /proc/uptime increment monotonically
-// while shifting across CPUs.
+// Test that boottime value in /proc/uptime increments monotonically
+// while shifting across CPUs. We don't test idle time monotonicity
+// due to broken iowait task counting, cf: comment above get_cpu_idle_time_us()
 #undef NDEBUG
 #include <assert.h>
 #include <errno.h>
@@ -45,7 +46,7 @@ int main(void)
 	unsigned int len;
 	unsigned long *m;
 	unsigned int cpu;
-	uint64_t u0, u1, i0, i1;
+	uint64_t u0, u1;
 	int fd;
 
 	/* find out "nr_cpu_ids" */
@@ -60,7 +61,7 @@ int main(void)
 	fd = open("/proc/uptime", O_RDONLY);
 	assert(fd >= 0);
 
-	proc_uptime(fd, &u0, &i0);
+	u0 = proc_uptime(fd);
 	for (cpu = 0; cpu < len * 8; cpu++) {
 		memset(m, 0, len);
 		m[cpu / (8 * sizeof(unsigned long))] |= 1UL << (cpu % (8 * sizeof(unsigned long)));
@@ -68,11 +69,9 @@ int main(void)
 		/* CPU might not exist, ignore error */
 		sys_sched_setaffinity(0, len, m);
 
-		proc_uptime(fd, &u1, &i1);
+		u1 = proc_uptime(fd);
 		assert(u1 >= u0);
-		assert(i1 >= i0);
 		u0 = u1;
-		i0 = i1;
 	}
 
 	return 0;
