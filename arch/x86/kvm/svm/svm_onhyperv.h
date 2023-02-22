@@ -30,7 +30,7 @@ static inline void svm_hv_init_vmcb(struct vmcb *vmcb)
 		hve->hv_enlightenments_control.msr_bitmap = 1;
 }
 
-static inline void svm_hv_hardware_setup(void)
+static inline __init void svm_hv_hardware_setup(void)
 {
 	if (npt_enabled &&
 	    ms_hyperv.nested_features & HV_X64_NESTED_ENLIGHTENED_TLB) {
@@ -84,7 +84,7 @@ static inline void svm_hv_init_vmcb(struct vmcb *vmcb)
 {
 }
 
-static inline void svm_hv_hardware_setup(void)
+static inline __init void svm_hv_hardware_setup(void)
 {
 }
 
