@@ -175,7 +175,7 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	 * Use DS1PR and DS2PR to configure planes priorities and connects the
 	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
 	 */
-	rcar_du_group_write(rgrp, DORCR, DORCR_PG1D_DS1 | DORCR_DPRS);
+	rcar_du_group_write(rgrp, DORCR, DORCR_PG0D_DS0 | DORCR_DPRS);
 
 	/* Apply planes to CRTCs association. */
 	mutex_lock(&rgrp->lock);
@@ -349,7 +349,7 @@ int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 	struct rcar_du_device *rcdu = rgrp->dev;
 	u32 dorcr = rcar_du_group_read(rgrp, DORCR);
 
-	dorcr &= ~(DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_MASK);
+	dorcr &= ~(DORCR_PG1T | DORCR_DK1S | DORCR_PG1D_MASK);
 
 	/*
 	 * Set the DPAD1 pins sources. Select CRTC 0 if explicitly requested and
@@ -357,9 +357,9 @@ int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 	 * by default.
 	 */
 	if (rcdu->dpad1_source == rgrp->index * 2)
-		dorcr |= DORCR_PG2D_DS1;
+		dorcr |= DORCR_PG1D_DS0;
 	else
-		dorcr |= DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_DS2;
+		dorcr |= DORCR_PG1T | DORCR_DK1S | DORCR_PG1D_DS1;
 
 	rcar_du_group_write(rgrp, DORCR, dorcr);
 
