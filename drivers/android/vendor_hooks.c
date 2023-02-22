@@ -12,7 +12,6 @@
 
 #include <trace/hooks/fpsimd.h>
 #include <trace/hooks/binder.h>
-#include <trace/hooks/dma_buf.h>
 #include <trace/hooks/cpuidle.h>
 #include <trace/hooks/mpam.h>
 #include <trace/hooks/wqlockup.h>
@@ -81,7 +80,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_send_uic_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_send_tm_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_check_int_errors);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cgroup_attach);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ignore_dmabuf_vmap_bounds);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_iommu_setup_dma_ops);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_iommu_iovad_alloc_iova);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_iommu_iovad_free_iova);
