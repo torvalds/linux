@@ -22,3 +22,7 @@ $(kapi)/cpucaps.h: $(src)/gen-cpucaps.awk $(src)/cpucaps FORCE
 
 $(kapi)/sysreg-defs.h: $(src)/gen-sysreg.awk $(src)/sysreg FORCE
 	$(call if_changed,gen_sysreg)
+
+HOST_EXTRACFLAGS += -I$(objtree)/include
+hostprogs += gen-hyprel
+gen-hyprel: $(obj)/gen-hyprel

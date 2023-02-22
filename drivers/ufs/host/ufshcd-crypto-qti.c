@@ -129,8 +129,7 @@ static int ufshcd_crypto_qti_keyslot_evict(
 
 static int ufshcd_crypto_qti_derive_raw_secret(
 					       struct blk_crypto_profile *profile,
-					       const u8 *wrapped_key,
-					       unsigned int wrapped_key_size,
+					       const u8 *eph_key, size_t eph_key_size,
 					       u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
 {
 	int err = 0;
@@ -150,7 +149,7 @@ static int ufshcd_crypto_qti_derive_raw_secret(
 		return err;
 	}
 
-	err =  crypto_qti_derive_raw_secret(wrapped_key, wrapped_key_size,
+	err =  crypto_qti_derive_raw_secret(eph_key, eph_key_size,
 				sw_secret, BLK_CRYPTO_SW_SECRET_SIZE);
 	if (err)
 		pr_err("%s: failed with error %d\n", __func__, err);

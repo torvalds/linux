@@ -1316,6 +1316,9 @@ config RELR
 config ARCH_HAS_MEM_ENCRYPT
 	bool
 
+config ARCH_HAS_MEM_RELINQUISH
+	bool
+
 config ARCH_HAS_CC_PLATFORM
 	bool
 

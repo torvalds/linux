@@ -16,6 +16,12 @@
 #define local_softirq_pending() (S390_lowcore.softirq_pending)
 #define set_softirq_pending(x) (S390_lowcore.softirq_pending = (x))
 #define or_softirq_pending(x)  (S390_lowcore.softirq_pending |= (x))
+/*
+ *  Not sure what the right thing is here  for s390,
+ *  but returning 0 will result in no logical change
+ *  from what happens now
+ */
+#define __cpu_softirq_pending(x) (0)
 
 #define __ARCH_IRQ_STAT
 #define __ARCH_IRQ_EXIT_IRQS_DISABLED

@@ -8,6 +8,8 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 
+DEFINE_PER_CPU(int, hyp_cpu_number);
+
 /*
  * nVHE copy of data structures tracking available CPU cores.
  * Only entries for CPUs that were online at KVM init are populated.
@@ -22,6 +24,8 @@ u64 cpu_logical_map(unsigned int cpu)
 
 	return hyp_cpu_logical_map[cpu];
 }
+
+unsigned long __ro_after_init kvm_arm_hyp_percpu_base[NR_CPUS];
 
 unsigned long __hyp_per_cpu_offset(unsigned int cpu)
 {

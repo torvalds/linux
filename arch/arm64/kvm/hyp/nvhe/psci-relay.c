@@ -11,7 +11,9 @@
 #include <linux/kvm_host.h>
 #include <uapi/linux/psci.h>
 
+#include <nvhe/mem_protect.h>
 #include <nvhe/memory.h>
+#include <nvhe/pkvm.h>
 #include <nvhe/trap_handler.h>
 
 void kvm_hyp_cpu_entry(unsigned long r0);
@@ -21,6 +23,20 @@ void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
 
 /* Config options set by the host. */
 struct kvm_host_psci_config __ro_after_init kvm_host_psci_config;
+
+static void (*pkvm_psci_notifier)(enum pkvm_psci_notification, struct kvm_cpu_context *);
+static void pkvm_psci_notify(enum pkvm_psci_notification notif, struct kvm_cpu_context *host_ctxt)
+{
+	if (READ_ONCE(pkvm_psci_notifier))
+		pkvm_psci_notifier(notif, host_ctxt);
+}
+
+#ifdef CONFIG_MODULES
+int __pkvm_register_psci_notifier(void (*cb)(enum pkvm_psci_notification, struct kvm_cpu_context *))
+{
+	return cmpxchg(&pkvm_psci_notifier, NULL, cb) ? -EBUSY : 0;
+}
+#endif
 
 #define INVALID_CPU_ID	UINT_MAX
 
@@ -167,6 +183,8 @@ static int psci_cpu_suspend(u64 func_id, struct kvm_cpu_context *host_ctxt)
 	boot_args->pc = pc;
 	boot_args->r0 = r0;
 
+	pkvm_psci_notify(PKVM_PSCI_CPU_SUSPEND, host_ctxt);
+
 	/*
 	 * Will either return if shallow sleep state, or wake up into the entry
 	 * point if it is a deep sleep state.
@@ -194,6 +212,8 @@ static int psci_system_suspend(u64 func_id, struct kvm_cpu_context *host_ctxt)
 	boot_args->pc = pc;
 	boot_args->r0 = r0;
 
+	pkvm_psci_notify(PKVM_PSCI_SYSTEM_SUSPEND, host_ctxt);
+
 	/* Will only return on error. */
 	return psci_call(func_id,
 			 __hyp_pa(&kvm_hyp_cpu_resume),
@@ -218,7 +238,47 @@ asmlinkage void __noreturn kvm_host_psci_cpu_entry(bool is_cpu_on)
 	if (is_cpu_on)
 		release_boot_args(boot_args);
 
+	pkvm_psci_notify(PKVM_PSCI_CPU_ENTRY, host_ctxt);
+
 	__host_enter(host_ctxt);
+}
+
+static DEFINE_HYP_SPINLOCK(mem_protect_lock);
+
+static u64 psci_mem_protect(s64 offset)
+{
+	static u64 cnt;
+	u64 new = cnt + offset;
+
+	hyp_assert_lock_held(&mem_protect_lock);
+
+	if (!offset || kvm_host_psci_config.version < PSCI_VERSION(1, 1))
+		return cnt;
+
+	if (!cnt || !new)
+		psci_call(PSCI_1_1_FN_MEM_PROTECT, offset < 0 ? 0 : 1, 0, 0);
+
+	cnt = new;
+	return cnt;
+}
+
+static bool psci_mem_protect_active(void)
+{
+	return psci_mem_protect(0);
+}
+
+void psci_mem_protect_inc(u64 n)
+{
+	hyp_spin_lock(&mem_protect_lock);
+	psci_mem_protect(n);
+	hyp_spin_unlock(&mem_protect_lock);
+}
+
+void psci_mem_protect_dec(u64 n)
+{
+	hyp_spin_lock(&mem_protect_lock);
+	psci_mem_protect(-n);
+	hyp_spin_unlock(&mem_protect_lock);
 }
 
 static unsigned long psci_0_1_handler(u64 func_id, struct kvm_cpu_context *host_ctxt)
@@ -249,6 +309,9 @@ static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_
 	 */
 	case PSCI_0_2_FN_SYSTEM_OFF:
 	case PSCI_0_2_FN_SYSTEM_RESET:
+		pkvm_poison_pvmfw_pages();
+		/* Avoid racing with a MEM_PROTECT call. */
+		hyp_spin_lock(&mem_protect_lock);
 		return psci_forward(host_ctxt);
 	case PSCI_0_2_FN64_CPU_SUSPEND:
 		return psci_cpu_suspend(func_id, host_ctxt);
@@ -262,9 +325,14 @@ static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_
 static unsigned long psci_1_0_handler(u64 func_id, struct kvm_cpu_context *host_ctxt)
 {
 	switch (func_id) {
+	case PSCI_1_1_FN64_SYSTEM_RESET2:
+		pkvm_poison_pvmfw_pages();
+		hyp_spin_lock(&mem_protect_lock);
+		if (psci_mem_protect_active())
+			cpu_reg(host_ctxt, 0) = PSCI_0_2_FN_SYSTEM_RESET;
+		fallthrough;
 	case PSCI_1_0_FN_PSCI_FEATURES:
 	case PSCI_1_0_FN_SET_SUSPEND_MODE:
-	case PSCI_1_1_FN64_SYSTEM_RESET2:
 		return psci_forward(host_ctxt);
 	case PSCI_1_0_FN64_SYSTEM_SUSPEND:
 		return psci_system_suspend(func_id, host_ctxt);
