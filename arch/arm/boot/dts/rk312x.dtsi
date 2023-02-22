@@ -832,12 +832,11 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_bus4>;
-		clock-freq-min-max = <400000 50000000>;
-		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
-		clock-names = "biu", "ciu";
+		max-frequency = <50000000>;
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>, <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		dmas = <&pdma 10>;
 		dma-names = "rx-tx";
-		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
 		status = "disabled";
@@ -1464,6 +1463,10 @@
 		sdmmc {
 			sdmmc_clk: sdmmc-clk {
 				rockchip,pins = <1 RK_PC0 1 &pcfg_pull_none>;
+			};
+
+			sdmmc_det: sdmmc-det {
+				rockchip,pins = <1 RK_PC1 1 &pcfg_pull_none>;
 			};
 
 			sdmmc_cmd: sdmmc-cmd {
