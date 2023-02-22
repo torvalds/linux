@@ -10,7 +10,7 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 # We need a select here so we don't match all nodes with 'arm,primecell'
 select:
@@ -45,7 +45,7 @@ properties:
     description: delay in ms following transfer completion before the
       runtime power management system suspends the device. A setting of 0
       indicates no delay and the device will be suspended immediately.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   pl022,rt:
     description: indicates the controller should run the message pump with realtime
@@ -81,7 +81,7 @@ patternProperties:
     properties:
       pl022,interface:
         description: SPI interface type
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         enum:
           - 0      # SPI
           - 1      # Texas Instruments Synchronous Serial Frame Format
@@ -89,7 +89,7 @@ patternProperties:
 
       pl022,com-mode:
         description: Specifies the transfer mode
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         enum:
           - 0      # interrupt mode
           - 1      # polling mode
@@ -98,30 +98,30 @@ patternProperties:
 
       pl022,rx-level-trig:
         description: Rx FIFO watermark level
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 4
 
       pl022,tx-level-trig:
         description: Tx FIFO watermark level
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 4
 
       pl022,ctrl-len:
         description: Microwire interface - Control length
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0x03
         maximum: 0x1f
 
       pl022,wait-state:
         description: Microwire interface - Wait state
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1]
 
       pl022,duplex:
         description: Microwire interface - Full/Half duplex
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1]
 
 required:
