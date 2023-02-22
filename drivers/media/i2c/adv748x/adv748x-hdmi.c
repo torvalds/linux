@@ -176,9 +176,9 @@ static int adv748x_hdmi_set_video_timings(struct adv748x_state *state,
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(adv748x_hdmi_video_standards); i++) {
-		if (!v4l2_match_dv_timings(timings, &stds[i].timings, 250000,
-					   false))
-			continue;
+		if (v4l2_match_dv_timings(timings, &stds[i].timings, 250000,
+					  false))
+			break;
 	}
 
 	if (i >= ARRAY_SIZE(adv748x_hdmi_video_standards))
