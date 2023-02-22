@@ -2231,7 +2231,7 @@ int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 {
 	int err;
 
-	err = genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	err = genphy_c45_an_config_eee_aneg(phydev);
 	if (err < 0)
 		return err;
 	else if (err)

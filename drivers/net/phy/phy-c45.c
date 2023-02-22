@@ -262,7 +262,7 @@ int genphy_c45_an_config_aneg(struct phy_device *phydev)
 	linkmode_and(phydev->advertising, phydev->advertising,
 		     phydev->supported);
 
-	ret = genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	ret = genphy_c45_an_config_eee_aneg(phydev);
 	if (ret < 0)
 		return ret;
 	else if (ret)
@@ -857,6 +857,15 @@ int genphy_c45_read_eee_abilities(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(genphy_c45_read_eee_abilities);
+
+/**
+ * genphy_c45_an_config_eee_aneg - configure EEE advertisement
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_an_config_eee_aneg(struct phy_device *phydev)
+{
+	return genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+}
 
 /**
  * genphy_c45_pma_read_abilities - read supported link modes from PMA
