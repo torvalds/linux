@@ -346,6 +346,20 @@ static const struct software_node lenovo_yt3_hideep_ts_node = {
 	.properties = lenovo_yt3_hideep_ts_props,
 };
 
+/*
+ * The YT3 uses an TI LP8557 LED backlight controller, the LP8557's PWM input is
+ * connected to a PWM output coming from the LCD panel's controller. The Android
+ * kernel has a hack in the i915 driver to write the non-standard DSI reg 0x51
+ * with the desired level to set the duty-cycle of the LCD's PWM output.
+ *
+ * To avoid having to have a similar hack in the mainline kernel program the
+ * LP8557 to directly set the level and use the lp855x_bl driver for control.
+ */
+static struct lp855x_platform_data lenovo_yt3_lp8557_pdata = {
+	.device_control = 0x86,
+	.initial_brightness = 128,
+};
+
 static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 	{
 		/* bq27500 fuel-gauge for the flat lipo battery behind the screen */
@@ -397,6 +411,15 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.trigger = ACPI_LEVEL_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
 		},
+	}, {
+		/* LP8557 Backlight controller */
+		.board_info = {
+			.type = "lp8557",
+			.addr = 0x2c,
+			.dev_name = "lp8557",
+			.platform_data = &lenovo_yt3_lp8557_pdata,
+		},
+		.adapter_path = "\\_SB_.PCI0.I2C1",
 	}
 };
 
