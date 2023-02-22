@@ -520,6 +520,7 @@ typedef void (*regmap_hw_free_context)(void *context);
  *	     to perform locking. This field is ignored if custom lock/unlock
  *	     functions are used (see fields lock/unlock of
  *	     struct regmap_config).
+ * @free_on_exit: kfree this on exit of regmap
  * @write: Write operation.
  * @gather_write: Write operation with split register/value, return -ENOTSUPP
  *                if not implemented  on a given device.
@@ -548,10 +549,10 @@ typedef void (*regmap_hw_free_context)(void *context);
  *     DEFAULT, BIG is assumed.
  * @max_raw_read: Max raw read size that can be used on the bus.
  * @max_raw_write: Max raw write size that can be used on the bus.
- * @free_on_exit: kfree this on exit of regmap
  */
 struct regmap_bus {
 	bool fast_io;
+	bool free_on_exit;
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_async_write async_write;
@@ -568,7 +569,6 @@ struct regmap_bus {
 	enum regmap_endian val_format_endian_default;
 	size_t max_raw_read;
 	size_t max_raw_write;
-	bool free_on_exit;
 };
 
 /*
@@ -1540,9 +1540,6 @@ struct regmap_irq_chip_data;
  * @config_base: Base address for IRQ type config regs. If null unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
- * @mask_invert: Inverted mask register: cleared bits are masked out.
- *		 Deprecated; prefer describing an inverted mask register as
- *		 an unmask register.
  * @mask_unmask_non_inverted: Controls mask bit inversion for chips that set
  *	both @mask_base and @unmask_base. If false, mask and unmask bits are
  *	inverted (which is deprecated behavior); if true, bits will not be
@@ -1555,8 +1552,6 @@ struct regmap_irq_chip_data;
  * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @clear_ack:  Use this to set 1 and 0 or vice-versa to clear interrupts.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
- * @type_invert: Invert the type flags. Deprecated, use config registers
- *		 instead.
  * @type_in_mask: Use the mask registers for controlling irq type. Use this if
  *		  the hardware provides separate bits for rising/falling edge
  *		  or low/high level interrupts and they should be combined into
@@ -1626,14 +1621,12 @@ struct regmap_irq_chip {
 	const unsigned int *config_base;
 	unsigned int irq_reg_stride;
 	unsigned int init_ack_masked:1;
-	unsigned int mask_invert:1;
 	unsigned int mask_unmask_non_inverted:1;
 	unsigned int use_ack:1;
 	unsigned int ack_invert:1;
 	unsigned int clear_ack:1;
 	unsigned int wake_invert:1;
 	unsigned int runtime_pm:1;
-	unsigned int type_invert:1;
 	unsigned int type_in_mask:1;
 	unsigned int clear_on_unmask:1;
 	unsigned int not_fixed_stride:1;
