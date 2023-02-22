@@ -1271,7 +1271,7 @@ display_result:
 		ret = isst_get_coremask_info(id, tdp_level, &ctdp_level);
 		if (ret) {
 			isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
-			return;
+			goto free_mask;
 		}
 		if (ctdp_level.cpu_count) {
 			int i, max_cpus = get_topo_max_cpus();
@@ -1288,6 +1288,8 @@ display_result:
 				}
 			}
 		}
+free_mask:
+		free_cpu_set(ctdp_level.core_cpumask);
 	}
 }
 
