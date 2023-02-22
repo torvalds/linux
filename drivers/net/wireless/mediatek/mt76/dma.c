@@ -402,8 +402,8 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 		*info = le32_to_cpu(desc->info);
 
 	if (mt76_queue_is_wed_rx(q)) {
-		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN,
-				      le32_to_cpu(desc->buf1));
+		u32 buf1 = le32_to_cpu(desc->buf1);
+		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN, buf1);
 		struct mt76_txwi_cache *t = mt76_rx_token_release(dev, token);
 
 		if (!t)
@@ -424,6 +424,8 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 
 			*drop = !!(ctrl & (MT_DMA_CTL_TO_HOST_A |
 					   MT_DMA_CTL_DROP));
+
+			*drop |= !!(buf1 & MT_DMA_CTL_WO_DROP);
 		}
 	} else {
 		buf = e->buf;
