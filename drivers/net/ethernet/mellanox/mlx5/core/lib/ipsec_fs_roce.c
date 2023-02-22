@@ -162,7 +162,7 @@ int mlx5_ipsec_fs_roce_tx_create(struct mlx5_core_dev *mdev,
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		mlx5_core_err(mdev, "Fail to create RoCE IPsec tx ft err=%d\n", err);
-		return err;
+		goto free_in;
 	}
 
 	roce->ft = ft;
@@ -174,22 +174,25 @@ int mlx5_ipsec_fs_roce_tx_create(struct mlx5_core_dev *mdev,
 	if (IS_ERR(g)) {
 		err = PTR_ERR(g);
 		mlx5_core_err(mdev, "Fail to create RoCE IPsec tx group err=%d\n", err);
-		goto fail;
+		goto destroy_table;
 	}
 	roce->g = g;
 
 	err = ipsec_fs_roce_tx_rule_setup(mdev, roce, pol_ft);
 	if (err) {
 		mlx5_core_err(mdev, "Fail to create RoCE IPsec tx rules err=%d\n", err);
-		goto rule_fail;
+		goto destroy_group;
 	}
 
+	kvfree(in);
 	return 0;
 
-rule_fail:
+destroy_group:
 	mlx5_destroy_flow_group(roce->g);
-fail:
+destroy_table:
 	mlx5_destroy_flow_table(ft);
+free_in:
+	kvfree(in);
 	return err;
 }
 
