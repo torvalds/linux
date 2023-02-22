@@ -77,8 +77,6 @@ struct xe_device {
 		u8 tile_count;
 		/** @vm_max_level: Max VM level */
 		u8 vm_max_level;
-		/** @media_ver: Media version */
-		u8 media_ver;
 		/** @supports_usm: Supports unified shared memory */
 		bool supports_usm;
 		/** @has_asid: Has address space ID */

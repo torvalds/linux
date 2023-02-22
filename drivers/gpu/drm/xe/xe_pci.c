@@ -408,7 +408,6 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	xe->info.vram_flags = desc->vram_flags;
 	xe->info.tile_count = desc->max_tiles;
 	xe->info.vm_max_level = desc->vm_max_level;
-	xe->info.media_ver = desc->media_ver;
 	xe->info.supports_usm = desc->supports_usm;
 	xe->info.has_asid = desc->has_asid;
 	xe->info.has_flat_ccs = desc->has_flat_ccs;
