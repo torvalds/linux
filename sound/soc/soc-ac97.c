@@ -14,10 +14,9 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/export.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
-#include <linux/of_gpio.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
@@ -29,9 +28,9 @@ struct snd_ac97_reset_cfg {
 	struct pinctrl_state *pstate_reset;
 	struct pinctrl_state *pstate_warm_reset;
 	struct pinctrl_state *pstate_run;
-	int gpio_sdata;
-	int gpio_sync;
-	int gpio_reset;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *sdata_gpio;
+	struct gpio_desc *sync_gpio;
 };
 
 static struct snd_ac97_bus soc_ac97_bus = {
@@ -268,11 +267,11 @@ static void snd_soc_ac97_warm_reset(struct snd_ac97 *ac97)
 
 	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_warm_reset);
 
-	gpio_direction_output(snd_ac97_rst_cfg.gpio_sync, 1);
+	gpiod_direction_output_raw(snd_ac97_rst_cfg.sync_gpio, 1);
 
 	udelay(10);
 
-	gpio_direction_output(snd_ac97_rst_cfg.gpio_sync, 0);
+	gpiod_direction_output_raw(snd_ac97_rst_cfg.sync_gpio, 0);
 
 	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_run);
 	msleep(2);
@@ -284,13 +283,13 @@ static void snd_soc_ac97_reset(struct snd_ac97 *ac97)
 
 	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_reset);
 
-	gpio_direction_output(snd_ac97_rst_cfg.gpio_sync, 0);
-	gpio_direction_output(snd_ac97_rst_cfg.gpio_sdata, 0);
-	gpio_direction_output(snd_ac97_rst_cfg.gpio_reset, 0);
+	gpiod_direction_output_raw(snd_ac97_rst_cfg.sync_gpio, 0);
+	gpiod_direction_output_raw(snd_ac97_rst_cfg.sdata_gpio, 0);
+	gpiod_direction_output_raw(snd_ac97_rst_cfg.reset_gpio, 0);
 
 	udelay(10);
 
-	gpio_direction_output(snd_ac97_rst_cfg.gpio_reset, 1);
+	gpiod_direction_output_raw(snd_ac97_rst_cfg.reset_gpio, 1);
 
 	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_run);
 	msleep(2);
@@ -301,8 +300,6 @@ static int snd_soc_ac97_parse_pinctl(struct device *dev,
 {
 	struct pinctrl *p;
 	struct pinctrl_state *state;
-	int gpio;
-	int ret;
 
 	p = devm_pinctrl_get(dev);
 	if (IS_ERR(p)) {
@@ -332,41 +329,20 @@ static int snd_soc_ac97_parse_pinctl(struct device *dev,
 	}
 	cfg->pstate_run = state;
 
-	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 0);
-	if (gpio < 0) {
-		dev_err(dev, "Can't find ac97-sync gpio\n");
-		return gpio;
-	}
-	ret = devm_gpio_request(dev, gpio, "AC97 link sync");
-	if (ret) {
-		dev_err(dev, "Failed requesting ac97-sync gpio\n");
-		return ret;
-	}
-	cfg->gpio_sync = gpio;
+	cfg->sync_gpio = devm_gpiod_get_index(dev, "ac97", 0, GPIOD_ASIS);
+	if (IS_ERR(cfg->sync_gpio))
+		return dev_err_probe(dev, PTR_ERR(cfg->sync_gpio), "Can't find ac97-sync gpio\n");
+	gpiod_set_consumer_name(cfg->sync_gpio, "AC97 link sync");
 
-	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 1);
-	if (gpio < 0) {
-		dev_err(dev, "Can't find ac97-sdata gpio %d\n", gpio);
-		return gpio;
-	}
-	ret = devm_gpio_request(dev, gpio, "AC97 link sdata");
-	if (ret) {
-		dev_err(dev, "Failed requesting ac97-sdata gpio\n");
-		return ret;
-	}
-	cfg->gpio_sdata = gpio;
+	cfg->sdata_gpio = devm_gpiod_get_index(dev, "ac97", 1, GPIOD_ASIS);
+	if (IS_ERR(cfg->sdata_gpio))
+		return dev_err_probe(dev, PTR_ERR(cfg->sdata_gpio), "Can't find ac97-sdata gpio\n");
+	gpiod_set_consumer_name(cfg->sdata_gpio, "AC97 link sdata");
 
-	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 2);
-	if (gpio < 0) {
-		dev_err(dev, "Can't find ac97-reset gpio\n");
-		return gpio;
-	}
-	ret = devm_gpio_request(dev, gpio, "AC97 link reset");
-	if (ret) {
-		dev_err(dev, "Failed requesting ac97-reset gpio\n");
-		return ret;
-	}
-	cfg->gpio_reset = gpio;
+	cfg->reset_gpio = devm_gpiod_get_index(dev, "ac97", 2, GPIOD_ASIS);
+	if (IS_ERR(cfg->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(cfg->reset_gpio), "Can't find ac97-reset gpio\n");
+	gpiod_set_consumer_name(cfg->reset_gpio, "AC97 link reset");
 
 	return 0;
 }

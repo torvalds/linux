@@ -12,6 +12,7 @@
 #define __SOF_AMD_ACP_H
 
 #include "../sof-priv.h"
+#include "../sof-audio.h"
 
 #define ACP_MAX_STREAM	8
 
@@ -71,6 +72,8 @@
 
 #define EXCEPT_MAX_HDR_SIZE			0x400
 #define AMD_STACK_DUMP_SIZE			32
+
+#define SRAM1_SIZE				0x13A000
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -209,10 +212,10 @@ int acp_dsp_block_read(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_ty
 
 /* IPC callbacks */
 irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context);
-int acp_sof_ipc_msg_data(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
+int acp_sof_ipc_msg_data(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *sps,
 			 void *p, size_t sz);
 int acp_set_stream_data_offset(struct snd_sof_dev *sdev,
-			       struct snd_pcm_substream *substream,
+			       struct snd_sof_pcm_stream *sps,
 			       size_t posn_offset);
 int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev,
 			 struct snd_sof_ipc_msg *msg);
