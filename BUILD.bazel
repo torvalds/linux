@@ -17,23 +17,39 @@ load("@kernel_toolchain_info//:dict.bzl", "BRANCH")
 define_common_kernels(branch = BRANCH, target_configs = {
     "kernel_aarch64": {
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        "kmi_symbol_list_strict_mode": False,
+        "trim_nonlisted_kmi": False,
     },
     "kernel_aarch64_16k": {
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        "kmi_symbol_list_strict_mode": False,
+        "trim_nonlisted_kmi": False,
     },
     "kernel_aarch64_debug": {
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        "kmi_symbol_list_strict_mode": False,
+        "trim_nonlisted_kmi": False,
     },
     "kernel_riscv64": {
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        "kmi_symbol_list_strict_mode": False,
+        "trim_nonlisted_kmi": False,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        "trim_nonlisted_kmi": False,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        "trim_nonlisted_kmi": False,
     },
 })
 
@@ -225,6 +241,7 @@ define_db845c(
         "sound/soc/qcom/qdsp6/snd-q6apm.ko",
         "sound/soc/qcom/qdsp6/snd-q6dsp-common.ko",
         "sound/soc/qcom/snd-soc-qcom-common.ko",
+        "sound/soc/qcom/snd-soc-qcom-sdw.ko",
         "sound/soc/qcom/snd-soc-sdm845.ko",
         "sound/soc/qcom/snd-soc-sm8250.ko",
     ],

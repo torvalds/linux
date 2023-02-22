@@ -37,7 +37,7 @@
 		status = "okay";
 	};
 
-	ddrc_cache_hi: memory@1000000000 {
+	ddrc_cache_hi: memory@1040000000 {
 		device_type = "memory";
 		reg = <0x10 0x40000000 0x0 0x40000000>;
 		status = "okay";

@@ -15,36 +15,9 @@
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/rculist.h>
-#include <linux/jhash.h>
 #include "hsr_main.h"
 #include "hsr_framereg.h"
 #include "hsr_netlink.h"
-
-#ifdef CONFIG_LOCKDEP
-int lockdep_hsr_is_held(spinlock_t *lock)
-{
-	return lockdep_is_held(lock);
-}
-#endif
-
-u32 hsr_mac_hash(struct hsr_priv *hsr, const unsigned char *addr)
-{
-	u32 hash = jhash(addr, ETH_ALEN, hsr->hash_seed);
-
-	return reciprocal_scale(hash, hsr->hash_buckets);
-}
-
-struct hsr_node *hsr_node_get_first(struct hlist_head *head, spinlock_t *lock)
-{
-	struct hlist_node *first;
-
-	first = rcu_dereference_bh_check(hlist_first_rcu(head),
-					 lockdep_hsr_is_held(lock));
-	if (first)
-		return hlist_entry(first, struct hsr_node, mac_list);
-
-	return NULL;
-}
 
 /* seq_nr_after(a, b) - return true if a is after (higher in sequence than) b,
  * false otherwise.
@@ -67,7 +40,8 @@ bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr)
 {
 	struct hsr_node *node;
 
-	node = hsr_node_get_first(&hsr->self_node_db, &hsr->list_lock);
+	node = list_first_or_null_rcu(&hsr->self_node_db, struct hsr_node,
+				      mac_list);
 	if (!node) {
 		WARN_ONCE(1, "HSR: No self node\n");
 		return false;
@@ -83,12 +57,12 @@ bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr)
 
 /* Search for mac entry. Caller must hold rcu read lock.
  */
-static struct hsr_node *find_node_by_addr_A(struct hlist_head *node_db,
+static struct hsr_node *find_node_by_addr_A(struct list_head *node_db,
 					    const unsigned char addr[ETH_ALEN])
 {
 	struct hsr_node *node;
 
-	hlist_for_each_entry_rcu(node, node_db, mac_list) {
+	list_for_each_entry_rcu(node, node_db, mac_list) {
 		if (ether_addr_equal(node->macaddress_A, addr))
 			return node;
 	}
@@ -103,7 +77,7 @@ int hsr_create_self_node(struct hsr_priv *hsr,
 			 const unsigned char addr_a[ETH_ALEN],
 			 const unsigned char addr_b[ETH_ALEN])
 {
-	struct hlist_head *self_node_db = &hsr->self_node_db;
+	struct list_head *self_node_db = &hsr->self_node_db;
 	struct hsr_node *node, *oldnode;
 
 	node = kmalloc(sizeof(*node), GFP_KERNEL);
@@ -114,13 +88,14 @@ int hsr_create_self_node(struct hsr_priv *hsr,
 	ether_addr_copy(node->macaddress_B, addr_b);
 
 	spin_lock_bh(&hsr->list_lock);
-	oldnode = hsr_node_get_first(self_node_db, &hsr->list_lock);
+	oldnode = list_first_or_null_rcu(self_node_db,
+					 struct hsr_node, mac_list);
 	if (oldnode) {
-		hlist_replace_rcu(&oldnode->mac_list, &node->mac_list);
+		list_replace_rcu(&oldnode->mac_list, &node->mac_list);
 		spin_unlock_bh(&hsr->list_lock);
 		kfree_rcu(oldnode, rcu_head);
 	} else {
-		hlist_add_tail_rcu(&node->mac_list, self_node_db);
+		list_add_tail_rcu(&node->mac_list, self_node_db);
 		spin_unlock_bh(&hsr->list_lock);
 	}
 
@@ -129,25 +104,25 @@ int hsr_create_self_node(struct hsr_priv *hsr,
 
 void hsr_del_self_node(struct hsr_priv *hsr)
 {
-	struct hlist_head *self_node_db = &hsr->self_node_db;
+	struct list_head *self_node_db = &hsr->self_node_db;
 	struct hsr_node *node;
 
 	spin_lock_bh(&hsr->list_lock);
-	node = hsr_node_get_first(self_node_db, &hsr->list_lock);
+	node = list_first_or_null_rcu(self_node_db, struct hsr_node, mac_list);
 	if (node) {
-		hlist_del_rcu(&node->mac_list);
+		list_del_rcu(&node->mac_list);
 		kfree_rcu(node, rcu_head);
 	}
 	spin_unlock_bh(&hsr->list_lock);
 }
 
-void hsr_del_nodes(struct hlist_head *node_db)
+void hsr_del_nodes(struct list_head *node_db)
 {
 	struct hsr_node *node;
-	struct hlist_node *tmp;
+	struct hsr_node *tmp;
 
-	hlist_for_each_entry_safe(node, tmp, node_db, mac_list)
-		kfree_rcu(node, rcu_head);
+	list_for_each_entry_safe(node, tmp, node_db, mac_list)
+		kfree(node);
 }
 
 void prp_handle_san_frame(bool san, enum hsr_port_type port,
@@ -168,7 +143,7 @@ void prp_handle_san_frame(bool san, enum hsr_port_type port,
  * originating from the newly added node.
  */
 static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
-				     struct hlist_head *node_db,
+				     struct list_head *node_db,
 				     unsigned char addr[],
 				     u16 seq_out, bool san,
 				     enum hsr_port_type rx_port)
@@ -182,6 +157,7 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 		return NULL;
 
 	ether_addr_copy(new_node->macaddress_A, addr);
+	spin_lock_init(&new_node->seq_out_lock);
 
 	/* We are only interested in time diffs here, so use current jiffies
 	 * as initialization. (0 could trigger an spurious ring error warning).
@@ -198,14 +174,14 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 		hsr->proto_ops->handle_san_frame(san, rx_port, new_node);
 
 	spin_lock_bh(&hsr->list_lock);
-	hlist_for_each_entry_rcu(node, node_db, mac_list,
-				 lockdep_hsr_is_held(&hsr->list_lock)) {
+	list_for_each_entry_rcu(node, node_db, mac_list,
+				lockdep_is_held(&hsr->list_lock)) {
 		if (ether_addr_equal(node->macaddress_A, addr))
 			goto out;
 		if (ether_addr_equal(node->macaddress_B, addr))
 			goto out;
 	}
-	hlist_add_tail_rcu(&new_node->mac_list, node_db);
+	list_add_tail_rcu(&new_node->mac_list, node_db);
 	spin_unlock_bh(&hsr->list_lock);
 	return new_node;
 out:
@@ -225,7 +201,7 @@ void prp_update_san_info(struct hsr_node *node, bool is_sup)
 
 /* Get the hsr_node from which 'skb' was sent.
  */
-struct hsr_node *hsr_get_node(struct hsr_port *port, struct hlist_head *node_db,
+struct hsr_node *hsr_get_node(struct hsr_port *port, struct list_head *node_db,
 			      struct sk_buff *skb, bool is_sup,
 			      enum hsr_port_type rx_port)
 {
@@ -241,7 +217,7 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct hlist_head *node_db,
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
-	hlist_for_each_entry_rcu(node, node_db, mac_list) {
+	list_for_each_entry_rcu(node, node_db, mac_list) {
 		if (ether_addr_equal(node->macaddress_A, ethhdr->h_source)) {
 			if (hsr->proto_ops->update_san_info)
 				hsr->proto_ops->update_san_info(node, is_sup);
@@ -291,12 +267,11 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 	struct hsr_sup_tlv *hsr_sup_tlv;
 	struct hsr_node *node_real;
 	struct sk_buff *skb = NULL;
-	struct hlist_head *node_db;
+	struct list_head *node_db;
 	struct ethhdr *ethhdr;
 	int i;
 	unsigned int pull_size = 0;
 	unsigned int total_pull_size = 0;
-	u32 hash;
 
 	/* Here either frame->skb_hsr or frame->skb_prp should be
 	 * valid as supervision frame always will have protocol
@@ -334,13 +309,11 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 	hsr_sp = (struct hsr_sup_payload *)skb->data;
 
 	/* Merge node_curr (registered on macaddress_B) into node_real */
-	node_db = port_rcv->hsr->node_db;
-	hash = hsr_mac_hash(hsr, hsr_sp->macaddress_A);
-	node_real = find_node_by_addr_A(&node_db[hash], hsr_sp->macaddress_A);
+	node_db = &port_rcv->hsr->node_db;
+	node_real = find_node_by_addr_A(node_db, hsr_sp->macaddress_A);
 	if (!node_real)
 		/* No frame received from AddrA of this node yet */
-		node_real = hsr_add_node(hsr, &node_db[hash],
-					 hsr_sp->macaddress_A,
+		node_real = hsr_add_node(hsr, node_db, hsr_sp->macaddress_A,
 					 HSR_SEQNR_START - 1, true,
 					 port_rcv->type);
 	if (!node_real)
@@ -374,14 +347,14 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 		hsr_sp = (struct hsr_sup_payload *)skb->data;
 
 		/* Check if redbox mac and node mac are equal. */
-		if (!ether_addr_equal(node_real->macaddress_A,
-				      hsr_sp->macaddress_A)) {
+		if (!ether_addr_equal(node_real->macaddress_A, hsr_sp->macaddress_A)) {
 			/* This is a redbox supervision frame for a VDAN! */
 			goto done;
 		}
 	}
 
 	ether_addr_copy(node_real->macaddress_B, ethhdr->h_source);
+	spin_lock_bh(&node_real->seq_out_lock);
 	for (i = 0; i < HSR_PT_PORTS; i++) {
 		if (!node_curr->time_in_stale[i] &&
 		    time_after(node_curr->time_in[i], node_real->time_in[i])) {
@@ -392,12 +365,16 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 		if (seq_nr_after(node_curr->seq_out[i], node_real->seq_out[i]))
 			node_real->seq_out[i] = node_curr->seq_out[i];
 	}
+	spin_unlock_bh(&node_real->seq_out_lock);
 	node_real->addr_B_port = port_rcv->type;
 
 	spin_lock_bh(&hsr->list_lock);
-	hlist_del_rcu(&node_curr->mac_list);
+	if (!node_curr->removed) {
+		list_del_rcu(&node_curr->mac_list);
+		node_curr->removed = true;
+		kfree_rcu(node_curr, rcu_head);
+	}
 	spin_unlock_bh(&hsr->list_lock);
-	kfree_rcu(node_curr, rcu_head);
 
 done:
 	/* Push back here */
@@ -433,7 +410,6 @@ void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
 			 struct hsr_port *port)
 {
 	struct hsr_node *node_dst;
-	u32 hash;
 
 	if (!skb_mac_header_was_set(skb)) {
 		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
@@ -443,8 +419,7 @@ void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
 	if (!is_unicast_ether_addr(eth_hdr(skb)->h_dest))
 		return;
 
-	hash = hsr_mac_hash(port->hsr, eth_hdr(skb)->h_dest);
-	node_dst = find_node_by_addr_A(&port->hsr->node_db[hash],
+	node_dst = find_node_by_addr_A(&port->hsr->node_db,
 				       eth_hdr(skb)->h_dest);
 	if (!node_dst) {
 		if (net_ratelimit())
@@ -484,13 +459,17 @@ void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port,
 int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
 			   u16 sequence_nr)
 {
+	spin_lock_bh(&node->seq_out_lock);
 	if (seq_nr_before_or_eq(sequence_nr, node->seq_out[port->type]) &&
 	    time_is_after_jiffies(node->time_out[port->type] +
-	    msecs_to_jiffies(HSR_ENTRY_FORGET_TIME)))
+	    msecs_to_jiffies(HSR_ENTRY_FORGET_TIME))) {
+		spin_unlock_bh(&node->seq_out_lock);
 		return 1;
+	}
 
 	node->time_out[port->type] = jiffies;
 	node->seq_out[port->type] = sequence_nr;
+	spin_unlock_bh(&node->seq_out_lock);
 	return 0;
 }
 
@@ -520,71 +499,60 @@ static struct hsr_port *get_late_port(struct hsr_priv *hsr,
 void hsr_prune_nodes(struct timer_list *t)
 {
 	struct hsr_priv *hsr = from_timer(hsr, t, prune_timer);
-	struct hlist_node *tmp;
 	struct hsr_node *node;
+	struct hsr_node *tmp;
 	struct hsr_port *port;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
-	int i;
 
 	spin_lock_bh(&hsr->list_lock);
+	list_for_each_entry_safe(node, tmp, &hsr->node_db, mac_list) {
+		/* Don't prune own node. Neither time_in[HSR_PT_SLAVE_A]
+		 * nor time_in[HSR_PT_SLAVE_B], will ever be updated for
+		 * the master port. Thus the master node will be repeatedly
+		 * pruned leading to packet loss.
+		 */
+		if (hsr_addr_is_self(hsr, node->macaddress_A))
+			continue;
 
-	for (i = 0; i < hsr->hash_buckets; i++) {
-		hlist_for_each_entry_safe(node, tmp, &hsr->node_db[i],
-					  mac_list) {
-			/* Don't prune own node.
-			 * Neither time_in[HSR_PT_SLAVE_A]
-			 * nor time_in[HSR_PT_SLAVE_B], will ever be updated
-			 * for the master port. Thus the master node will be
-			 * repeatedly pruned leading to packet loss.
-			 */
-			if (hsr_addr_is_self(hsr, node->macaddress_A))
-				continue;
+		/* Shorthand */
+		time_a = node->time_in[HSR_PT_SLAVE_A];
+		time_b = node->time_in[HSR_PT_SLAVE_B];
 
-			/* Shorthand */
-			time_a = node->time_in[HSR_PT_SLAVE_A];
-			time_b = node->time_in[HSR_PT_SLAVE_B];
+		/* Check for timestamps old enough to risk wrap-around */
+		if (time_after(jiffies, time_a + MAX_JIFFY_OFFSET / 2))
+			node->time_in_stale[HSR_PT_SLAVE_A] = true;
+		if (time_after(jiffies, time_b + MAX_JIFFY_OFFSET / 2))
+			node->time_in_stale[HSR_PT_SLAVE_B] = true;
 
-			/* Check for timestamps old enough to
-			 * risk wrap-around
-			 */
-			if (time_after(jiffies, time_a + MAX_JIFFY_OFFSET / 2))
-				node->time_in_stale[HSR_PT_SLAVE_A] = true;
-			if (time_after(jiffies, time_b + MAX_JIFFY_OFFSET / 2))
-				node->time_in_stale[HSR_PT_SLAVE_B] = true;
+		/* Get age of newest frame from node.
+		 * At least one time_in is OK here; nodes get pruned long
+		 * before both time_ins can get stale
+		 */
+		timestamp = time_a;
+		if (node->time_in_stale[HSR_PT_SLAVE_A] ||
+		    (!node->time_in_stale[HSR_PT_SLAVE_B] &&
+		    time_after(time_b, time_a)))
+			timestamp = time_b;
 
-			/* Get age of newest frame from node.
-			 * At least one time_in is OK here; nodes get pruned
-			 * long before both time_ins can get stale
-			 */
-			timestamp = time_a;
-			if (node->time_in_stale[HSR_PT_SLAVE_A] ||
-			    (!node->time_in_stale[HSR_PT_SLAVE_B] &&
-			     time_after(time_b, time_a)))
-				timestamp = time_b;
+		/* Warn of ring error only as long as we get frames at all */
+		if (time_is_after_jiffies(timestamp +
+				msecs_to_jiffies(1.5 * MAX_SLAVE_DIFF))) {
+			rcu_read_lock();
+			port = get_late_port(hsr, node);
+			if (port)
+				hsr_nl_ringerror(hsr, node->macaddress_A, port);
+			rcu_read_unlock();
+		}
 
-			/* Warn of ring error only as long as we get
-			 * frames at all
-			 */
-			if (time_is_after_jiffies(timestamp +
-						  msecs_to_jiffies(1.5 * MAX_SLAVE_DIFF))) {
-				rcu_read_lock();
-				port = get_late_port(hsr, node);
-				if (port)
-					hsr_nl_ringerror(hsr,
-							 node->macaddress_A,
-							 port);
-				rcu_read_unlock();
-			}
-
-			/* Prune old entries */
-			if (time_is_before_jiffies(timestamp +
-						   msecs_to_jiffies(HSR_NODE_FORGET_TIME))) {
-				hsr_nl_nodedown(hsr, node->macaddress_A);
-				hlist_del_rcu(&node->mac_list);
-				/* Note that we need to free this
-				 * entry later:
-				 */
+		/* Prune old entries */
+		if (time_is_before_jiffies(timestamp +
+				msecs_to_jiffies(HSR_NODE_FORGET_TIME))) {
+			hsr_nl_nodedown(hsr, node->macaddress_A);
+			if (!node->removed) {
+				list_del_rcu(&node->mac_list);
+				node->removed = true;
+				/* Note that we need to free this entry later: */
 				kfree_rcu(node, rcu_head);
 			}
 		}
@@ -600,20 +568,17 @@ void *hsr_get_next_node(struct hsr_priv *hsr, void *_pos,
 			unsigned char addr[ETH_ALEN])
 {
 	struct hsr_node *node;
-	u32 hash;
-
-	hash = hsr_mac_hash(hsr, addr);
 
 	if (!_pos) {
-		node = hsr_node_get_first(&hsr->node_db[hash],
-					  &hsr->list_lock);
+		node = list_first_or_null_rcu(&hsr->node_db,
+					      struct hsr_node, mac_list);
 		if (node)
 			ether_addr_copy(addr, node->macaddress_A);
 		return node;
 	}
 
 	node = _pos;
-	hlist_for_each_entry_continue_rcu(node, mac_list) {
+	list_for_each_entry_continue_rcu(node, &hsr->node_db, mac_list) {
 		ether_addr_copy(addr, node->macaddress_A);
 		return node;
 	}
@@ -633,11 +598,8 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	struct hsr_node *node;
 	struct hsr_port *port;
 	unsigned long tdiff;
-	u32 hash;
 
-	hash = hsr_mac_hash(hsr, addr);
-
-	node = find_node_by_addr_A(&hsr->node_db[hash], addr);
+	node = find_node_by_addr_A(&hsr->node_db, addr);
 	if (!node)
 		return -ENOENT;
 

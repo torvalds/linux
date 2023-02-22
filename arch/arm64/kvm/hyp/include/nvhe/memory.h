@@ -13,6 +13,7 @@
  */
 #define HOST_PAGE_NEED_POISONING	BIT(0)
 #define HOST_PAGE_PENDING_RECLAIM	BIT(1)
+#define MODULE_OWNED_PAGE		BIT(2)
 
 struct hyp_page {
 	unsigned short refcount;

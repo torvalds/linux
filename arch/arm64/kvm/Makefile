@@ -8,7 +8,7 @@ ccflags-y += -I $(srctree)/$(src)
 include $(srctree)/virt/kvm/Makefile.kvm
 
 obj-$(CONFIG_KVM) += kvm.o
-obj-$(CONFIG_KVM) += hyp/ iommu/
+obj-$(CONFIG_KVM) += hyp/
 
 kvm-y += arm.o mmu.o mmio.o psci.o hypercalls.o pvtime.o \
 	 inject_fault.o va_layout.o handle_exit.o \
@@ -23,6 +23,8 @@ kvm-y += arm.o mmu.o mmio.o psci.o hypercalls.o pvtime.o \
 	 vgic/vgic-its.o vgic/vgic-debug.o
 
 kvm-$(CONFIG_HW_PERF_EVENTS)  += pmu-emul.o pmu.o
+
+kvm-$(CONFIG_TRACING) += hyp_events.o hyp_trace.o
 
 always-y := hyp_constants.h hyp-constants.s
 

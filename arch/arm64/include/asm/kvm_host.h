@@ -392,19 +392,12 @@ struct pkvm_iommu_driver {
 	atomic_t state;
 };
 
-extern struct pkvm_iommu_driver kvm_nvhe_sym(pkvm_s2mpu_driver);
-extern struct pkvm_iommu_driver kvm_nvhe_sym(pkvm_sysmmu_sync_driver);
-
-int pkvm_iommu_driver_init(struct pkvm_iommu_driver *drv, void *data, size_t size);
-int pkvm_iommu_register(struct device *dev, struct pkvm_iommu_driver *drv,
+int pkvm_iommu_driver_init(u64 drv, void *data, size_t size);
+int pkvm_iommu_register(struct device *dev, u64 drv,
 			phys_addr_t pa, size_t size, struct device *parent);
 int pkvm_iommu_suspend(struct device *dev);
 int pkvm_iommu_resume(struct device *dev);
 
-int pkvm_iommu_s2mpu_init(u32 version);
-int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t pa);
-int pkvm_iommu_sysmmu_sync_register(struct device *dev, phys_addr_t pa,
-				    struct device *parent);
 /* Reject future calls to pkvm_iommu_driver_init() and pkvm_iommu_register(). */
 int pkvm_iommu_finalize(void);
 

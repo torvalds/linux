@@ -27,6 +27,8 @@
 #define CREATE_TRACE_POINTS
 #include "trace_arm.h"
 
+#include "hyp_trace.h"
+
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
@@ -2009,10 +2011,13 @@ static void kvm_hyp_init_symbols(void)
 	kvm_nvhe_sym(id_aa64mmfr0_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	kvm_nvhe_sym(id_aa64mmfr1_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
 	kvm_nvhe_sym(id_aa64mmfr2_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64MMFR2_EL1);
+	kvm_nvhe_sym(id_aa64smfr0_el1_sys_val) = read_sanitised_ftr_reg(SYS_ID_AA64SMFR0_EL1);
 	kvm_nvhe_sym(__icache_flags) = __icache_flags;
 	kvm_nvhe_sym(kvm_arm_vmid_bits) = kvm_arm_vmid_bits;
 	kvm_nvhe_sym(smccc_trng_available) = smccc_trng_available;
 }
+
+int kvm_hyp_init_events(void);
 
 static int kvm_hyp_init_protection(u32 hyp_va_bits)
 {
@@ -2200,6 +2205,11 @@ static int init_hyp_mode(void)
 	}
 
 	kvm_hyp_init_symbols();
+
+	/* TODO: Real .h interface */
+#ifdef CONFIG_TRACING
+	kvm_hyp_init_events();
+#endif
 
 	if (is_protected_kvm_enabled()) {
 		init_cpu_logical_map();
@@ -2390,6 +2400,10 @@ int kvm_arch_init(void *opaque)
 			kvm_err("Failed to finalize Hyp protection\n");
 			goto out_hyp;
 		}
+
+		err = init_hyp_tracefs();
+		if (err)
+			kvm_err("Failed to initialize Hyp tracing\n");
 	}
 
 	if (is_protected_kvm_enabled()) {

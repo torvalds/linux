@@ -150,6 +150,7 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
 			 * then return an error.
 			 */
 			if (strlen(ctrl->p_new.p_char) == ctrl->maximum && last)
+			ctrl->is_new = 1;
 				return -ERANGE;
 		}
 		return ret;

@@ -13,12 +13,23 @@
 	*(__kvm_ex_table)					\
 	__stop___kvm_ex_table = .;
 
+#ifdef CONFIG_TRACING
+#define HYPERVISOR_EVENT_IDS 					\
+		. = ALIGN(PAGE_SIZE);				\
+		__hyp_event_ids_start = .;			\
+		*(HYP_SECTION_NAME(_hyp_event_ids))		\
+		__hyp_event_ids_end = .;
+#else
+#define HYPERVISOR_EVENT_IDS
+#endif
+
 #define HYPERVISOR_RODATA_SECTIONS				\
 	HYP_SECTION_NAME(.rodata) : {				\
 		. = ALIGN(PAGE_SIZE);				\
 		__hyp_rodata_start = .;				\
 		*(HYP_SECTION_NAME(.data..ro_after_init))	\
 		*(HYP_SECTION_NAME(.rodata))			\
+		HYPERVISOR_EVENT_IDS				\
 		. = ALIGN(PAGE_SIZE);				\
 		__hyp_rodata_end = .;				\
 	}
@@ -51,6 +62,17 @@
 	. = ALIGN(PAGE_SIZE);					\
 	__hyp_bss_end = .;
 
+#ifdef CONFIG_TRACING
+#define HYPERVISOR_EVENTS					\
+	.hyp.events : {						\
+		__start_hyp_events = .;				\
+		*(_hyp_events)					\
+		__stop_hyp_events = .;				\
+	}
+#else
+#define HYPERVISOR_EVENTS
+#endif
+
 /*
  * We require that __hyp_bss_start and __bss_start are aligned, and enforce it
  * with an assertion. But the BSS_SECTION macro places an empty .sbss section
@@ -64,6 +86,7 @@
 #define HYPERVISOR_DATA_SECTION
 #define HYPERVISOR_PERCPU_SECTION
 #define HYPERVISOR_RELOC_SECTION
+#define HYPERVISOR_EVENTS
 #define SBSS_ALIGN			0
 #endif
 
@@ -197,6 +220,8 @@ SECTIONS
 
 	/* everything from this point to __init_begin will be marked RO NX */
 	RO_DATA(PAGE_SIZE)
+
+	HYPERVISOR_EVENTS
 
 	HYPERVISOR_RODATA_SECTIONS
 

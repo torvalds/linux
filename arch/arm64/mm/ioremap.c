@@ -70,17 +70,6 @@ static int __init ioremap_guard_setup(char *str)
 }
 early_param("ioremap_guard", ioremap_guard_setup);
 
-static void fixup_fixmap(void)
-{
-	pte_t *ptep = __get_fixmap_pte(FIX_EARLYCON_MEM_BASE);
-
-	if (!ptep)
-		return;
-
-	ioremap_phys_range_hook(__pte_to_phys(*ptep), PAGE_SIZE,
-				__pgprot(pte_val(*ptep) & PTE_ATTRINDX_MASK));
-}
-
 void kvm_init_ioremap_services(void)
 {
 	struct arm_smccc_res res;
@@ -111,7 +100,6 @@ void kvm_init_ioremap_services(void)
 	if (res.a0 == SMCCC_RET_SUCCESS) {
 		guard_granule = granule;
 		static_branch_enable(&ioremap_guard_key);
-		fixup_fixmap();
 		pr_info("Using KVM MMIO guard for ioremap\n");
 	} else {
 		pr_warn("KVM MMIO guard registration failed (%ld)\n", res.a0);

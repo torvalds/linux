@@ -90,9 +90,21 @@ static void mlx5i_get_ringparam(struct net_device *dev,
 static int mlx5i_set_channels(struct net_device *dev,
 			      struct ethtool_channels *ch)
 {
-	struct mlx5e_priv *priv = mlx5i_epriv(dev);
+	struct mlx5i_priv *ipriv = netdev_priv(dev);
+	struct mlx5e_priv *epriv = mlx5i_epriv(dev);
 
-	return mlx5e_ethtool_set_channels(priv, ch);
+	/* rtnl lock protects from race between this ethtool op and sub
+	 * interface ndo_init/uninit.
+	 */
+	ASSERT_RTNL();
+	if (ipriv->num_sub_interfaces > 0) {
+		mlx5_core_warn(epriv->mdev,
+			       "can't change number of channels for interfaces with sub interfaces (%u)\n",
+			       ipriv->num_sub_interfaces);
+		return -EINVAL;
+	}
+
+	return mlx5e_ethtool_set_channels(epriv, ch);
 }
 
 static void mlx5i_get_channels(struct net_device *dev,

@@ -187,6 +187,7 @@ EXPORT_SYMBOL_GPL(ucsi_send_command);
 
 struct ucsi_work {
 	struct delayed_work work;
+	struct list_head node;
 	unsigned long delay;
 	unsigned int count;
 	struct ucsi_connector *con;
@@ -202,6 +203,7 @@ static void ucsi_poll_worker(struct work_struct *work)
 	mutex_lock(&con->lock);
 
 	if (!con->partner) {
+		list_del(&uwork->node);
 		mutex_unlock(&con->lock);
 		kfree(uwork);
 		return;
@@ -209,10 +211,12 @@ static void ucsi_poll_worker(struct work_struct *work)
 
 	ret = uwork->cb(con);
 
-	if (uwork->count-- && (ret == -EBUSY || ret == -ETIMEDOUT))
+	if (uwork->count-- && (ret == -EBUSY || ret == -ETIMEDOUT)) {
 		queue_delayed_work(con->wq, &uwork->work, uwork->delay);
-	else
+	} else {
+		list_del(&uwork->node);
 		kfree(uwork);
+	}
 
 	mutex_unlock(&con->lock);
 }
@@ -236,6 +240,7 @@ static int ucsi_partner_task(struct ucsi_connector *con,
 	uwork->con = con;
 	uwork->cb = cb;
 
+	list_add_tail(&uwork->node, &con->partner_tasks);
 	queue_delayed_work(con->wq, &uwork->work, delay);
 
 	return 0;
@@ -1056,6 +1061,7 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	INIT_WORK(&con->work, ucsi_handle_connector_change);
 	init_completion(&con->complete);
 	mutex_init(&con->lock);
+	INIT_LIST_HEAD(&con->partner_tasks);
 	con->num = index + 1;
 	con->ucsi = ucsi;
 
@@ -1420,8 +1426,20 @@ void ucsi_unregister(struct ucsi *ucsi)
 		ucsi_unregister_altmodes(&ucsi->connector[i],
 					 UCSI_RECIPIENT_CON);
 		ucsi_unregister_port_psy(&ucsi->connector[i]);
-		if (ucsi->connector[i].wq)
+
+		if (ucsi->connector[i].wq) {
+			struct ucsi_work *uwork;
+
+			mutex_lock(&ucsi->connector[i].lock);
+			/*
+			 * queue delayed items immediately so they can execute
+			 * and free themselves before the wq is destroyed
+			 */
+			list_for_each_entry(uwork, &ucsi->connector[i].partner_tasks, node)
+				mod_delayed_work(ucsi->connector[i].wq, &uwork->work, 0);
+			mutex_unlock(&ucsi->connector[i].lock);
 			destroy_workqueue(ucsi->connector[i].wq);
+		}
 		typec_unregister_port(ucsi->connector[i].port);
 	}
 

@@ -568,6 +568,10 @@ struct smu_context
 	u32 param_reg;
 	u32 msg_reg;
 	u32 resp_reg;
+
+	u32 debug_param_reg;
+	u32 debug_msg_reg;
+	u32 debug_resp_reg;
 };
 
 struct i2c_adapter;

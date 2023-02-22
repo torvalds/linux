@@ -1437,7 +1437,7 @@ set_sndbuf:
 		break;
 		}
 	case SO_INCOMING_CPU:
-		WRITE_ONCE(sk->sk_incoming_cpu, val);
+		reuseport_update_incoming_cpu(sk, val);
 		break;
 
 	case SO_CNX_ADVICE:
@@ -3276,7 +3276,7 @@ void sock_def_readable(struct sock *sk)
 	if (skwq_has_sleeper(wq)) {
 		int done = 0;
 
-		trace_android_vh_do_wake_up_sync(&wq->wait, &done);
+		trace_android_vh_do_wake_up_sync(&wq->wait, &done, sk);
 		if (done)
 			goto out;
 
