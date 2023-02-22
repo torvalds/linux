@@ -1048,61 +1048,6 @@ static int mlx5e_hairpin_get_prio(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static int debugfs_hairpin_queues_set(void *data, u64 val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	if (!val) {
-		mlx5_core_err(hp->mdev,
-			      "Number of hairpin queues must be > 0\n");
-		return -EINVAL;
-	}
-
-	hp->num_queues = val;
-
-	return 0;
-}
-
-static int debugfs_hairpin_queues_get(void *data, u64 *val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	*val = hp->num_queues;
-
-	return 0;
-}
-DEFINE_DEBUGFS_ATTRIBUTE(fops_hairpin_queues, debugfs_hairpin_queues_get,
-			 debugfs_hairpin_queues_set, "%llu\n");
-
-static int debugfs_hairpin_queue_size_set(void *data, u64 val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	if (val > BIT(MLX5_CAP_GEN(hp->mdev, log_max_hairpin_num_packets))) {
-		mlx5_core_err(hp->mdev,
-			      "Invalid hairpin queue size, must be <= %lu\n",
-			      BIT(MLX5_CAP_GEN(hp->mdev,
-					       log_max_hairpin_num_packets)));
-		return -EINVAL;
-	}
-
-	hp->queue_size = roundup_pow_of_two(val);
-
-	return 0;
-}
-
-static int debugfs_hairpin_queue_size_get(void *data, u64 *val)
-{
-	struct mlx5e_hairpin_params *hp = data;
-
-	*val = hp->queue_size;
-
-	return 0;
-}
-DEFINE_DEBUGFS_ATTRIBUTE(fops_hairpin_queue_size,
-			 debugfs_hairpin_queue_size_get,
-			 debugfs_hairpin_queue_size_set, "%llu\n");
-
 static int debugfs_hairpin_num_active_get(void *data, u64 *val)
 {
 	struct mlx5e_tc_table *tc = data;
@@ -1148,10 +1093,6 @@ static void mlx5e_tc_debugfs_init(struct mlx5e_tc_table *tc,
 
 	tc->dfs_root = debugfs_create_dir("tc", dfs_root);
 
-	debugfs_create_file("hairpin_num_queues", 0644, tc->dfs_root,
-			    &tc->hairpin_params, &fops_hairpin_queues);
-	debugfs_create_file("hairpin_queue_size", 0644, tc->dfs_root,
-			    &tc->hairpin_params, &fops_hairpin_queue_size);
 	debugfs_create_file("hairpin_num_active", 0444, tc->dfs_root, tc,
 			    &fops_hairpin_num_active);
 	debugfs_create_file("hairpin_table_dump", 0444, tc->dfs_root, tc,
