@@ -609,4 +609,3 @@ static struct platform_driver aspeed_sgpio_driver = {
 
 module_platform_driver_probe(aspeed_sgpio_driver, aspeed_sgpio_probe);
 MODULE_DESCRIPTION("Aspeed Serial GPIO Driver");
-MODULE_LICENSE("GPL");
