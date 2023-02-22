@@ -137,7 +137,7 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 
 		ret = iommufd_vfio_compat_ioas_id(iommufd, &ioas_id);
 		if (ret) {
-			iommufd_ctx_put(group->iommufd);
+			iommufd_ctx_put(iommufd);
 			goto out_unlock;
 		}
 
