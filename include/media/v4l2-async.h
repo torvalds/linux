@@ -65,10 +65,10 @@ struct v4l2_async_match_desc {
  * struct v4l2_async_subdev - sub-device descriptor, as known to a bridge
  *
  * @match:	struct of match type and per-bus type matching data sets
- * @asd_list:	used to add struct v4l2_async_subdev objects to the
+ * @asd_entry:	used to add struct v4l2_async_subdev objects to the
  *		master notifier @asd_list
- * @list:	used to link struct v4l2_async_subdev objects, waiting to be
- *		probed, to a notifier->waiting list
+ * @waiting_entry: used to link struct v4l2_async_subdev objects, waiting to be
+ *		probed, to a notifier->waiting_list list
  *
  * When this struct is used as a member in a driver specific struct,
  * the driver specific struct shall contain the &struct
@@ -76,8 +76,8 @@ struct v4l2_async_match_desc {
  */
 struct v4l2_async_subdev {
 	struct v4l2_async_match_desc match;
-	struct list_head list;
-	struct list_head asd_list;
+	struct list_head asd_entry;
+	struct list_head waiting_entry;
 };
 
 /**
@@ -107,9 +107,9 @@ struct v4l2_async_notifier_operations {
  * @sd:		sub-device that registered the notifier, NULL otherwise
  * @parent:	parent notifier
  * @asd_list:	master list of struct v4l2_async_subdev
- * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
- * @done:	list of struct v4l2_subdev, already probed
- * @list:	member in a global list of notifiers
+ * @waiting_list: list of struct v4l2_async_subdev, waiting for their drivers
+ * @done_list:	list of struct v4l2_subdev, already probed
+ * @notifier_entry: member in a global list of notifiers
  */
 struct v4l2_async_notifier {
 	const struct v4l2_async_notifier_operations *ops;
@@ -117,9 +117,9 @@ struct v4l2_async_notifier {
 	struct v4l2_subdev *sd;
 	struct v4l2_async_notifier *parent;
 	struct list_head asd_list;
-	struct list_head waiting;
-	struct list_head done;
-	struct list_head list;
+	struct list_head waiting_list;
+	struct list_head done_list;
+	struct list_head notifier_entry;
 };
 
 /**
