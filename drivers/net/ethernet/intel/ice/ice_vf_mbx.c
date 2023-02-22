@@ -215,7 +215,7 @@ ice_mbx_detect_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
  * @hw: pointer to the HW struct
  * @mbx_data: pointer to structure containing mailbox data
  * @vf_info: mailbox tracking structure for the VF in question
- * @is_malvf: boolean output to indicate if VF is malicious
+ * @report_malvf: boolean output to indicate whether VF should be reported
  *
  * The function serves as an entry point for the malicious VF
  * detection algorithm by handling the different states and state
@@ -234,25 +234,24 @@ ice_mbx_detect_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
  * the static snapshot and look for a malicious VF.
  */
 int
-ice_mbx_vf_state_handler(struct ice_hw *hw,
-			 struct ice_mbx_data *mbx_data,
-			 struct ice_mbx_vf_info *vf_info,
-			 bool *is_malvf)
+ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
+			 struct ice_mbx_vf_info *vf_info, bool *report_malvf)
 {
 	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
 	struct ice_mbx_snap_buffer_data *snap_buf;
 	struct ice_ctl_q_info *cq = &hw->mailboxq;
 	enum ice_mbx_snapshot_state new_state;
+	bool is_malvf = false;
 	int status = 0;
 
-	if (!is_malvf || !mbx_data)
+	if (!report_malvf || !mbx_data || !vf_info)
 		return -EINVAL;
+
+	*report_malvf = false;
 
 	/* When entering the mailbox state machine assume that the VF
 	 * is not malicious until detected.
 	 */
-	*is_malvf = false;
-
 	 /* Checking if max messages allowed to be processed while servicing current
 	  * interrupt is not less than the defined AVF message threshold.
 	  */
@@ -301,8 +300,7 @@ ice_mbx_vf_state_handler(struct ice_hw *hw,
 		if (snap_buf->num_pending_arq >=
 		    mbx_data->async_watermark_val) {
 			new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
-			status = ice_mbx_detect_malvf(hw, vf_info, &new_state,
-						      is_malvf);
+			status = ice_mbx_detect_malvf(hw, vf_info, &new_state, &is_malvf);
 		} else {
 			new_state = ICE_MAL_VF_DETECT_STATE_TRAVERSE;
 			ice_mbx_traverse(hw, &new_state);
@@ -316,8 +314,7 @@ ice_mbx_vf_state_handler(struct ice_hw *hw,
 
 	case ICE_MAL_VF_DETECT_STATE_DETECT:
 		new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
-		status = ice_mbx_detect_malvf(hw, vf_info, &new_state,
-					      is_malvf);
+		status = ice_mbx_detect_malvf(hw, vf_info, &new_state, &is_malvf);
 		break;
 
 	default:
@@ -327,31 +324,13 @@ ice_mbx_vf_state_handler(struct ice_hw *hw,
 
 	snap_buf->state = new_state;
 
+	/* Only report VFs as malicious the first time we detect it */
+	if (is_malvf && !vf_info->malicious) {
+		vf_info->malicious = 1;
+		*report_malvf = true;
+	}
+
 	return status;
-}
-
-/**
- * ice_mbx_report_malvf - Track and note malicious VF
- * @hw: pointer to the HW struct
- * @vf_info: the mailbox tracking info structure for a VF
- * @report_malvf: boolean to indicate if malicious VF must be reported
- *
- * This function updates the malicious indicator bit in the VF mailbox
- * tracking structure. A malicious VF must be reported only once if discovered
- * between VF resets or loading so the function first checks if the VF has
- * already been detected in any previous mailbox iterations.
- */
-int
-ice_mbx_report_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
-		     bool *report_malvf)
-{
-	if (!report_malvf)
-		return -EINVAL;
-
-	*report_malvf = !vf_info->malicious;
-	vf_info->malicious = 1;
-
-	return 0;
 }
 
 /**

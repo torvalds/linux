@@ -1794,7 +1794,7 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 	s16 vf_id = le16_to_cpu(event->desc.retval);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_mbx_data mbxdata;
-	bool malvf = false;
+	bool report_malvf = false;
 	struct ice_vf *vf;
 	int status;
 
@@ -1811,33 +1811,23 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 #define ICE_MBX_OVERFLOW_WATERMARK 64
 	mbxdata.async_watermark_val = ICE_MBX_OVERFLOW_WATERMARK;
 
-	/* check to see if we have a malicious VF */
-	status = ice_mbx_vf_state_handler(&pf->hw, &mbxdata, &vf->mbx_info, &malvf);
+	/* check to see if we have a newly malicious VF */
+	status = ice_mbx_vf_state_handler(&pf->hw, &mbxdata, &vf->mbx_info,
+					  &report_malvf);
 	if (status)
 		goto out_put_vf;
 
-	if (malvf) {
-		bool report_vf = false;
+	if (report_malvf) {
+		struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
 
-		/* if the VF is malicious and we haven't let the user
-		 * know about it, then let them know now
-		 */
-		status = ice_mbx_report_malvf(&pf->hw, &vf->mbx_info,
-					      &report_vf);
-		if (status)
-			dev_dbg(dev, "Error reporting malicious VF\n");
-
-		if (report_vf) {
-			struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
-
-			if (pf_vsi)
-				dev_warn(dev, "VF MAC %pM on PF MAC %pM is generating asynchronous messages and may be overflowing the PF message queue. Please see the Adapter User Guide for more information\n",
-					 &vf->dev_lan_addr[0],
-					 pf_vsi->netdev->dev_addr);
-		}
+		if (pf_vsi)
+			dev_warn(dev, "VF MAC %pM on PF MAC %pM is generating asynchronous messages and may be overflowing the PF message queue. Please see the Adapter User Guide for more information\n",
+				 &vf->dev_lan_addr[0],
+				 pf_vsi->netdev->dev_addr);
 	}
 
 out_put_vf:
 	ice_put_vf(vf);
-	return malvf;
+
+	return vf->mbx_info.malicious;
 }
