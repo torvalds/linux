@@ -442,6 +442,9 @@ struct dma_buf {
 #ifdef CONFIG_NO_GKI
 	dma_buf_destructor dtor;
 	void *dtor_data;
+#ifdef CONFIG_DMABUF_CACHE
+	struct mutex cache_lock;
+#endif
 #endif
 
 	ANDROID_KABI_RESERVE(1);

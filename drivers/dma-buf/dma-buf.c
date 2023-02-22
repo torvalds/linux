@@ -702,6 +702,9 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	dmabuf->exp_name = exp_info->exp_name;
 	dmabuf->owner = exp_info->owner;
 	spin_lock_init(&dmabuf->name_lock);
+#ifdef CONFIG_DMABUF_CACHE
+	mutex_init(&dmabuf->cache_lock);
+#endif
 	init_waitqueue_head(&dmabuf->poll);
 	dmabuf->cb_excl.poll = dmabuf->cb_shared.poll = &dmabuf->poll;
 	dmabuf->cb_excl.active = dmabuf->cb_shared.active = 0;
