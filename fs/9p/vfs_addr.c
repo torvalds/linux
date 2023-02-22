@@ -40,7 +40,7 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 	size_t len = subreq->len   - subreq->transferred;
 	int total, err;
 
-	iov_iter_xarray(&to, READ, &rreq->mapping->i_pages, pos, len);
+	iov_iter_xarray(&to, ITER_DEST, &rreq->mapping->i_pages, pos, len);
 
 	total = p9_client_read(fid, pos, &to, &err);
 
@@ -172,7 +172,7 @@ static int v9fs_vfs_write_folio_locked(struct folio *folio)
 
 	len = min_t(loff_t, i_size - start, len);
 
-	iov_iter_xarray(&from, WRITE, &folio_mapping(folio)->i_pages, start, len);
+	iov_iter_xarray(&from, ITER_SOURCE, &folio_mapping(folio)->i_pages, start, len);
 
 	/* We should have writeback_fid always set */
 	BUG_ON(!v9inode->writeback_fid);

@@ -75,7 +75,6 @@ arch/arm64/include/asm/image.h
 arch/arm64/include/asm/insn-def.h
 arch/arm64/include/asm/insn.h
 arch/arm64/include/asm/io.h
-arch/arm64/include/asm/io-mpt-s2mpu.h
 arch/arm64/include/asm/irqflags.h
 arch/arm64/include/asm/irq.h
 arch/arm64/include/asm/irq_work.h
@@ -90,7 +89,10 @@ arch/arm64/include/asm/kvm_arm.h
 arch/arm64/include/asm/kvm_asm.h
 arch/arm64/include/asm/kvm_emulate.h
 arch/arm64/include/asm/kvm_host.h
+arch/arm64/include/asm/kvm_hypevents_defs.h
+arch/arm64/include/asm/kvm_hypevents.h
 arch/arm64/include/asm/kvm_hyp.h
+arch/arm64/include/asm/kvm_hyptrace.h
 arch/arm64/include/asm/kvm_mmu.h
 arch/arm64/include/asm/kvm_mte.h
 arch/arm64/include/asm/kvm_pgtable.h
@@ -98,7 +100,6 @@ arch/arm64/include/asm/kvm_pkvm.h
 arch/arm64/include/asm/kvm_pkvm_module.h
 arch/arm64/include/asm/kvm_ptrauth.h
 arch/arm64/include/asm/kvm_ras.h
-arch/arm64/include/asm/kvm_s2mpu.h
 arch/arm64/include/asm/kvm_types.h
 arch/arm64/include/asm/linkage.h
 arch/arm64/include/asm/lse.h
@@ -304,6 +305,7 @@ arch/arm64/kvm/handle_exit.c
 arch/arm64/kvm/hyp/aarch32.c
 arch/arm64/kvm/hyp/entry.S
 arch/arm64/kvm/hypercalls.c
+arch/arm64/kvm/hyp_events.c
 arch/arm64/kvm/hyp/exception.c
 arch/arm64/kvm/hyp/fpsimd.S
 arch/arm64/kvm/hyp/hyp-constants.c
@@ -313,6 +315,7 @@ arch/arm64/kvm/hyp/include/hyp/debug-sr.h
 arch/arm64/kvm/hyp/include/hyp/fault.h
 arch/arm64/kvm/hyp/include/hyp/switch.h
 arch/arm64/kvm/hyp/include/hyp/sysreg-sr.h
+arch/arm64/kvm/hyp/include/nvhe/clock.h
 arch/arm64/kvm/hyp/include/nvhe/early_alloc.h
 arch/arm64/kvm/hyp/include/nvhe/ffa.h
 arch/arm64/kvm/hyp/include/nvhe/gfp.h
@@ -324,10 +327,13 @@ arch/arm64/kvm/hyp/include/nvhe/modules.h
 arch/arm64/kvm/hyp/include/nvhe/pkvm.h
 arch/arm64/kvm/hyp/include/nvhe/serial.h
 arch/arm64/kvm/hyp/include/nvhe/spinlock.h
+arch/arm64/kvm/hyp/include/nvhe/trace.h
 arch/arm64/kvm/hyp/include/nvhe/trap_handler.h
 arch/arm64/kvm/hyp/nvhe/cache.S
+arch/arm64/kvm/hyp/nvhe/clock.c
 arch/arm64/kvm/hyp/nvhe/debug-sr.c
 arch/arm64/kvm/hyp/nvhe/early_alloc.c
+arch/arm64/kvm/hyp/nvhe/events.c
 arch/arm64/kvm/hyp/nvhe/ffa.c
 arch/arm64/kvm/hyp/nvhe/host.S
 arch/arm64/kvm/hyp/nvhe/hyp-init.S
@@ -335,8 +341,6 @@ arch/arm64/kvm/hyp/nvhe/hyp.lds.S
 arch/arm64/kvm/hyp/nvhe/hyp-main.c
 arch/arm64/kvm/hyp/nvhe/hyp-smp.c
 arch/arm64/kvm/hyp/nvhe/iommu.c
-arch/arm64/kvm/hyp/nvhe/iommu/io-mpt-s2mpu.c
-arch/arm64/kvm/hyp/nvhe/iommu/s2mpu.c
 arch/arm64/kvm/hyp/nvhe/list_debug.c
 arch/arm64/kvm/hyp/nvhe/mem_protect.c
 arch/arm64/kvm/hyp/nvhe/mm.c
@@ -352,7 +356,10 @@ arch/arm64/kvm/hyp/nvhe/sys_regs.c
 arch/arm64/kvm/hyp/nvhe/sysreg-sr.c
 arch/arm64/kvm/hyp/nvhe/timer-sr.c
 arch/arm64/kvm/hyp/nvhe/tlb.c
+arch/arm64/kvm/hyp/nvhe/trace.c
 arch/arm64/kvm/hyp/pgtable.c
+arch/arm64/kvm/hyp_trace.c
+arch/arm64/kvm/hyp_trace.h
 arch/arm64/kvm/hyp/vgic-v2-cpuif-proxy.c
 arch/arm64/kvm/hyp/vgic-v3-sr.c
 arch/arm64/kvm/hyp/vhe/debug-sr.c
@@ -362,7 +369,6 @@ arch/arm64/kvm/hyp/vhe/timer-sr.c
 arch/arm64/kvm/hyp/vhe/tlb.c
 arch/arm64/kvm/inject_fault.c
 arch/arm64/kvm/iommu.c
-arch/arm64/kvm/iommu/s2mpu.c
 arch/arm64/kvm/irq.h
 arch/arm64/kvm/mmio.c
 arch/arm64/kvm/mmu.c
@@ -487,6 +493,7 @@ block/blk-settings.c
 block/blk-stat.c
 block/blk-stat.h
 block/blk-sysfs.c
+block/blk-throttle.c
 block/blk-throttle.h
 block/blk-timeout.c
 block/blk-wbt.h
@@ -674,6 +681,7 @@ drivers/base/trace.h
 drivers/base/transport_class.c
 drivers/block/brd.c
 drivers/block/loop.c
+drivers/block/ublk_drv.c
 drivers/block/zram/zcomp.c
 drivers/block/zram/zcomp.h
 drivers/block/zram/zram_drv.c
@@ -789,6 +797,8 @@ drivers/dma-buf/dma-fence-chain.c
 drivers/dma-buf/dma-fence-unwrap.c
 drivers/dma-buf/dma-heap.c
 drivers/dma-buf/dma-resv.c
+drivers/dma-buf/heaps/deferred-free-helper.c
+drivers/dma-buf/heaps/deferred-free-helper.h
 drivers/dma-buf/sync_file.c
 drivers/dma/dmaengine.c
 drivers/dma/dmaengine.h
@@ -3392,6 +3402,7 @@ include/linux/rethook.h
 include/linux/rfkill.h
 include/linux/rhashtable.h
 include/linux/rhashtable-types.h
+include/linux/ring_buffer_ext.h
 include/linux/ring_buffer.h
 include/linux/rmap.h
 include/linux/rodata_test.h
@@ -3671,6 +3682,7 @@ include/linux/user.h
 include/linux/usermode_driver.h
 include/linux/user_namespace.h
 include/linux/user-return-notifier.h
+include/linux/util_macros.h
 include/linux/uts.h
 include/linux/utsname.h
 include/linux/uuid.h
@@ -4148,6 +4160,7 @@ include/trace/events/watchdog.h
 include/trace/events/workqueue.h
 include/trace/events/writeback.h
 include/trace/events/xdp.h
+include/trace/hooks/audio_usboffload.h
 include/trace/hooks/avc.h
 include/trace/hooks/binder.h
 include/trace/hooks/cgroup.h
@@ -4162,6 +4175,9 @@ include/trace/hooks/fips140.h
 include/trace/hooks/fpsimd.h
 include/trace/hooks/ftrace_dump.h
 include/trace/hooks/futex.h
+include/trace/hooks/gic.h
+include/trace/hooks/gic_v3.h
+include/trace/hooks/hung_task.h
 include/trace/hooks/iommu.h
 include/trace/hooks/module.h
 include/trace/hooks/mpam.h
@@ -4177,6 +4193,7 @@ include/trace/hooks/syscall_check.h
 include/trace/hooks/sys.h
 include/trace/hooks/sysrqcrash.h
 include/trace/hooks/timer.h
+include/trace/hooks/topology.h
 include/trace/hooks/ufshcd.h
 include/trace/hooks/vendor_hooks.h
 include/trace/hooks/vmscan.h
@@ -4593,6 +4610,7 @@ include/uapi/linux/tls.h
 include/uapi/linux/tty_flags.h
 include/uapi/linux/tty.h
 include/uapi/linux/types.h
+include/uapi/linux/ublk_cmd.h
 include/uapi/linux/udp.h
 include/uapi/linux/uhid.h
 include/uapi/linux/uinput.h
@@ -4811,6 +4829,7 @@ kernel/bpf/reuseport_array.c
 kernel/bpf/ringbuf.c
 kernel/bpf/stackmap.c
 kernel/bpf/syscall.c
+kernel/bpf/sysfs_btf.c
 kernel/bpf/task_iter.c
 kernel/bpf/tnum.c
 kernel/bpf/trampoline.c
@@ -5912,6 +5931,7 @@ net/netfilter/core.c
 net/netfilter/nf_conncount.c
 net/netfilter/nf_conntrack_acct.c
 net/netfilter/nf_conntrack_amanda.c
+net/netfilter/nf_conntrack_bpf.c
 net/netfilter/nf_conntrack_broadcast.c
 net/netfilter/nf_conntrack_core.c
 net/netfilter/nf_conntrack_ecache.c
@@ -5942,6 +5962,7 @@ net/netfilter/nf_conntrack_tftp.c
 net/netfilter/nf_internals.h
 net/netfilter/nf_log.c
 net/netfilter/nf_nat_amanda.c
+net/netfilter/nf_nat_bpf.c
 net/netfilter/nf_nat_core.c
 net/netfilter/nf_nat_ftp.c
 net/netfilter/nf_nat_helper.c

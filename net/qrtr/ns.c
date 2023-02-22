@@ -96,6 +96,11 @@ static struct qrtr_node *node_get(unsigned int node_id)
 
 	xa_store(&nodes, node_id, node, GFP_ATOMIC);
 
+	if (radix_tree_insert(&nodes, node_id, node)) {
+		kfree(node);
+		return NULL;
+	}
+
 	return node;
 }
 

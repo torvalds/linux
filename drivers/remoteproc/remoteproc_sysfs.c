@@ -51,12 +51,16 @@ static ssize_t recovery_store(struct device *dev,
 
 	if (sysfs_streq(buf, "enabled")) {
 		/* change the flag and begin the recovery process if needed */
+		mutex_lock(&rproc->lock);
 		rproc->recovery_disabled = false;
 		trace_android_vh_rproc_recovery_set(rproc);
+		mutex_unlock(&rproc->lock);
 		rproc_trigger_recovery(rproc);
 	} else if (sysfs_streq(buf, "disabled")) {
+		mutex_lock(&rproc->lock);
 		rproc->recovery_disabled = true;
 		trace_android_vh_rproc_recovery_set(rproc);
+		mutex_unlock(&rproc->lock);
 	} else if (sysfs_streq(buf, "recover")) {
 		/* begin the recovery process without changing the flag */
 		rproc_trigger_recovery(rproc);

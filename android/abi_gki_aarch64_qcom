@@ -1771,6 +1771,7 @@
   kmemdup
   kmemdup_nul
   kmsg_dump_get_buffer
+  kmsg_dump_get_line
   kmsg_dump_register
   kmsg_dump_rewind
   kmsg_dump_unregister
@@ -3292,6 +3293,7 @@
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
+  __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
   __traceiter_android_vh_ftrace_dump_buffer
@@ -3379,6 +3381,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
   __tracepoint_android_vh_ftrace_oops_enter

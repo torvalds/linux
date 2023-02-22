@@ -587,6 +587,7 @@
   btbcm_setup_patchram
   cancel_delayed_work
   device_wakeup_disable
+  __dev_kfree_skb_irq
   disable_irq
   disable_irq_nosync
   enable_irq
