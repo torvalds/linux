@@ -69,7 +69,7 @@ The accelerator devices will be exposed to the user space with the dedicated
 
 - device char files - /dev/accel/accel*
 - sysfs             - /sys/class/accel/accel*/
-- debugfs           - /sys/kernel/debug/accel/accel*/
+- debugfs           - /sys/kernel/debug/accel/*/
 
 Getting Started
 ===============

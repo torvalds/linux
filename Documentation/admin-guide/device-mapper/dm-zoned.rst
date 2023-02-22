@@ -46,7 +46,7 @@ just like conventional zones.
 The zones of the device(s) are separated into 2 types:
 
 1) Metadata zones: these are conventional zones used to store metadata.
-Metadata zones are not reported as useable capacity to the user.
+Metadata zones are not reported as usable capacity to the user.
 
 2) Data zones: all remaining zones, the vast majority of which will be
 sequential zones used exclusively to store user data. The conventional

@@ -2891,6 +2891,4 @@ config RUST_BUILD_ASSERT_ALLOW
 
 endmenu # "Rust"
 
-source "Documentation/Kconfig"
-
 endmenu # Kernel hacking

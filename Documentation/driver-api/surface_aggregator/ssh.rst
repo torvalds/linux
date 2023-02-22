@@ -77,7 +77,7 @@ after the frame structure and before the payload. The payload is followed by
 its own CRC (over all payload bytes). If the payload is not present (i.e.
 the frame has ``LEN=0``), the CRC of the payload is still present and will
 evaluate to ``0xffff``. The |LEN| field does not include any of the CRCs, it
-equals the number of bytes inbetween the CRC of the frame and the CRC of the
+equals the number of bytes between the CRC of the frame and the CRC of the
 payload.
 
 Additionally, the following fixed two-byte sequences are used:

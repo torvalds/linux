@@ -473,7 +473,7 @@ Unit Tests for amd-pstate
 
  * We can introduce more functional or performance tests to align the result together, it will benefit power and performance scale optimization.
 
-1. Test case decriptions
+1. Test case descriptions
 
     1). Basic tests
 
