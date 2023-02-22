@@ -210,6 +210,7 @@
 #define   CM_TFR_ST_STS			GENMASK(21, 16)
 #define     CM_TFR_ST_STS_HALT		0x13
 #define   CM_TFR_STS			GENMASK(13, 8)
+#define     CM_TFR_STS_MASTER_SERV_IBI	0xe
 #define     CM_TFR_STS_MASTER_HALT	0xf
 #define     CM_TFR_STS_SLAVE_HALT	0x6
 
@@ -410,6 +411,7 @@ struct aspeed_i3c_master {
 	} xferqueue;
 	struct {
 		struct i3c_dev_desc *slots[MAX_DEVS];
+		u32 received_ibi_len[MAX_DEVS];
 		spinlock_t lock;
 	} ibi;
 	struct aspeed_i3c_master_caps caps;
@@ -484,6 +486,42 @@ static void aspeed_i3c_toggle_scl_in(struct aspeed_i3c_master *master, u32 times
 
 	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
 			  SCL_IN_SW_MODE_EN, 0);
+}
+
+static bool aspeed_i3c_fsm_is_idle(struct aspeed_i3c_master *master)
+{
+	/*
+	 * Clear the IBI queue to enable the hardware to generate SCL and
+	 * begin detecting the T-bit low to stop reading IBI data.
+	 */
+	readl(master->regs + IBI_QUEUE_DATA);
+	if (FIELD_GET(CM_TFR_STS, readl(master->regs + PRESENT_STATE)))
+		return false;
+	return true;
+}
+
+static void aspeed_i3c_gen_tbits_in(struct aspeed_i3c_master *master)
+{
+	bool is_idle;
+	int ret;
+
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SDA_IN_SW_MODE_EN, SDA_IN_SW_MODE_EN);
+
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SDA_IN_SW_MODE_VAL, 0);
+	ret = readx_poll_timeout_atomic(aspeed_i3c_fsm_is_idle, master, is_idle,
+					is_idle, 0, 2000000);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SDA_IN_SW_MODE_EN, 0);
+	if (ret)
+		dev_err(master->dev,
+			"Failed to recovery the i3c fsm from %lx to idle: %d",
+			FIELD_GET(CM_TFR_STS,
+				  readl(master->regs + PRESENT_STATE)),
+			ret);
 }
 
 static bool aspeed_i3c_master_supports_ccc_cmd(struct i3c_master_controller *m,
@@ -844,6 +882,16 @@ static void aspeed_i3c_master_sir_handler(struct aspeed_i3c_master *master,
 		pr_err("no free ibi slot\n");
 		goto out_unlock;
 	}
+	master->ibi.received_ibi_len[addr] += length;
+	if (master->ibi.received_ibi_len[addr] >
+	    slot->dev->ibi->max_payload_len) {
+		pr_err("received ibi payload %d > device requested buffer %d",
+		       master->ibi.received_ibi_len[addr],
+		       slot->dev->ibi->max_payload_len);
+		goto out_unlock;
+	}
+	if (ibi_status & IBI_QUEUE_STATUS_LAST_FRAG)
+		master->ibi.received_ibi_len[addr] = 0;
 	buf = slot->data;
 	/* prepend ibi status */
 	memcpy(buf, &ibi_status, sizeof(ibi_status));
@@ -864,6 +912,11 @@ out:
 
 		for (i = 0; i < nwords; i++)
 			readl(master->regs + IBI_QUEUE_DATA);
+		if (FIELD_GET(CM_TFR_STS,
+			      readl(master->regs + PRESENT_STATE)) ==
+		    CM_TFR_STS_MASTER_SERV_IBI)
+			aspeed_i3c_gen_tbits_in(master);
+		master->ibi.received_ibi_len[addr] = 0;
 	}
 }
 
@@ -2325,8 +2378,9 @@ static int aspeed_i3c_master_request_ibi(struct i3c_dev_desc *dev,
 
 	spin_lock_irqsave(&master->ibi.lock, flags);
 	master->ibi.slots[dev->info.dyn_addr & 0x7f] = dev;
-	data->ibi =
-		aspeed_i3c_master_get_group_hw_index(master, dev->info.dyn_addr);
+	master->ibi.received_ibi_len[dev->info.dyn_addr & 0x7f] = 0;
+	data->ibi = aspeed_i3c_master_get_group_hw_index(master,
+							 dev->info.dyn_addr);
 	spin_unlock_irqrestore(&master->ibi.lock, flags);
 
 	if (i < MAX_DEVS)
