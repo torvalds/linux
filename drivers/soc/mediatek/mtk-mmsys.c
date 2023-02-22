@@ -491,19 +491,7 @@ static struct platform_driver mtk_mmsys_drv = {
 	.probe = mtk_mmsys_probe,
 	.remove = mtk_mmsys_remove,
 };
-
-static int __init mtk_mmsys_init(void)
-{
-	return platform_driver_register(&mtk_mmsys_drv);
-}
-
-static void __exit mtk_mmsys_exit(void)
-{
-	platform_driver_unregister(&mtk_mmsys_drv);
-}
-
-module_init(mtk_mmsys_init);
-module_exit(mtk_mmsys_exit);
+module_platform_driver(mtk_mmsys_drv);
 
 MODULE_AUTHOR("Yongqiang Niu <yongqiang.niu@mediatek.com>");
 MODULE_DESCRIPTION("MediaTek SoC MMSYS driver");
