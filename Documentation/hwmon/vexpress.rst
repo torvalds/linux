@@ -27,7 +27,7 @@ Versatile Express platform (http://www.arm.com/versatileexpress/) is a
 reference & prototyping system for ARM Ltd. processors. It can be set up
 from a wide range of boards, each of them containing (apart of the main
 chip/FPGA) a number of microcontrollers responsible for platform
-configuration and control. Theses microcontrollers can also monitor the
+configuration and control. These microcontrollers can also monitor the
 board and its environment by a number of internal and external sensors,
 providing information about power lines voltages and currents, board
 temperature and power usage. Some of them also calculate consumed energy
