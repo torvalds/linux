@@ -315,4 +315,9 @@ extern void hfi_exit(void);
 extern struct isst_platform_ops *mbox_get_platform_ops(void);
 extern struct isst_platform_ops *tpmi_get_platform_ops(void);
 
+/* Cgroup related interface */
+extern int enable_cpuset_controller(void);
+extern int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int level);
+extern int use_cgroupv2(void);
+
 #endif

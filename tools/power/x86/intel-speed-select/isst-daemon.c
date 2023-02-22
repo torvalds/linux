@@ -83,6 +83,19 @@ void process_level_change(struct isst_id *id)
 		return;
 	}
 
+	if (use_cgroupv2()) {
+		int ret;
+
+		ret = enable_cpuset_controller();
+		if (ret)
+			goto use_offline;
+
+		isolate_cpus(id, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask, pkg_dev.current_level);
+
+		goto free_mask;
+	}
+
+use_offline:
 	if (ctdp_level.cpu_count) {
 		int i, max_cpus = get_topo_max_cpus();
 		for (i = 0; i < max_cpus; ++i) {
@@ -97,7 +110,7 @@ void process_level_change(struct isst_id *id)
 			}
 		}
 	}
-
+free_mask:
 	free_cpu_set(ctdp_level.core_cpumask);
 }
 

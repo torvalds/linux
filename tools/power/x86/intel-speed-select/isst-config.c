@@ -44,6 +44,7 @@ static int cmd_help;
 static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
+static int cgroupv2;
 
 /* clos related */
 static int current_clos = -1;
@@ -834,7 +835,137 @@ int find_phy_core_num(int logical_cpu)
 	return -EINVAL;
 }
 
+int use_cgroupv2(void)
+{
+	return cgroupv2;
+}
 
+int enable_cpuset_controller(void)
+{
+	int fd, ret;
+
+	fd = open("/sys/fs/cgroup/cgroup.subtree_control", O_RDWR, 0);
+	if (fd < 0) {
+		debug_printf("Can't activate cpuset controller\n");
+		debug_printf("Either you are not root user or CGroup v2 is not supported\n");
+		return fd;
+	}
+
+	ret = write(fd, " +cpuset", strlen(" +cpuset"));
+	close(fd);
+
+	if (ret == -1) {
+		debug_printf("Can't activate cpuset controller: Write failed\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int level)
+{
+	int i, first, curr_index, index, ret, fd;
+	static char str[512], dir_name[64];
+	static char cpuset_cpus[128];
+	int str_len = sizeof(str);
+	DIR *dir;
+
+	snprintf(dir_name, sizeof(dir_name), "/sys/fs/cgroup/%d-%d-%d", id->pkg, id->die, id->punit);
+	dir = opendir(dir_name);
+	if (!dir) {
+		ret = mkdir(dir_name, 0744);
+		if (ret) {
+			debug_printf("Can't create dir:%s errno:%d\n", dir_name, errno);
+			return ret;
+		}
+	}
+	closedir(dir);
+
+	if (!level) {
+		sprintf(cpuset_cpus, "%s/cpuset.cpus.partition", dir_name);
+
+		fd = open(cpuset_cpus, O_RDWR, 0);
+		if (fd < 0) {
+			return fd;
+		}
+
+		ret = write(fd, "member", strlen("member"));
+		if (ret == -1) {
+			printf("Can't update to member\n");
+			return ret;
+		}
+
+		return 0;
+	}
+
+	if (!CPU_COUNT_S(mask_size, cpu_mask)) {
+		return -1;
+	}
+
+	curr_index = 0;
+	first = 1;
+	str[0] = '\0';
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (!is_cpu_in_power_domain(i, id))
+			continue;
+
+		if (CPU_ISSET_S(i, mask_size, cpu_mask))
+			continue;
+
+		if (!first) {
+			index = snprintf(&str[curr_index],
+					 str_len - curr_index, ",");
+			curr_index += index;
+			if (curr_index >= str_len)
+				break;
+		}
+		index = snprintf(&str[curr_index], str_len - curr_index, "%d",
+				 i);
+		curr_index += index;
+		if (curr_index >= str_len)
+			break;
+		first = 0;
+	}
+
+	debug_printf("isolated CPUs list: package:%d curr_index:%d [%s]\n", id->pkg, curr_index ,str);
+
+	snprintf(cpuset_cpus, sizeof(cpuset_cpus), "%s/cpuset.cpus", dir_name);
+
+	fd = open(cpuset_cpus, O_RDWR, 0);
+	if (fd < 0) {
+		return fd;
+	}
+
+	ret = write(fd, str, strlen(str));
+	close(fd);
+
+	if (ret == -1) {
+		debug_printf("Can't activate cpuset controller: Write failed\n");
+		return ret;
+	}
+
+	snprintf(cpuset_cpus, sizeof(cpuset_cpus), "%s/cpuset.cpus.partition", dir_name);
+
+	fd = open(cpuset_cpus, O_RDWR, 0);
+	if (fd < 0) {
+		return fd;
+	}
+
+	ret = write(fd, "isolated", strlen("isolated"));
+	if (ret == -1) {
+		debug_printf("Can't update to isolated\n");
+		ret = write(fd, "root", strlen("root"));
+		if (ret == -1)
+			debug_printf("Can't update to root\n");
+	}
+
+	close(fd);
+
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
 
 static int isst_fill_platform_info(void)
 {
@@ -1273,6 +1404,23 @@ display_result:
 			isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
 			goto free_mask;
 		}
+
+		if (use_cgroupv2()) {
+			int ret;
+
+			fprintf(stderr, "Using cgroup v2 in lieu of online/offline\n");
+			ret = enable_cpuset_controller();
+			if (ret)
+				goto use_offline;
+
+			ret = isolate_cpus(id, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask, tdp_level);
+			if (ret)
+				goto use_offline;
+
+			goto free_mask;
+		}
+
+use_offline:
 		if (ctdp_level.cpu_count) {
 			int i, max_cpus = get_topo_max_cpus();
 			for (i = 0; i < max_cpus; ++i) {
@@ -2787,6 +2935,7 @@ static void usage(void)
 	printf("\t[-b|--oob : Start a daemon to process HFI events for perf profile change from Out of Band agent.\n");
 	printf("\t[-n|--no-daemon : Don't run as daemon. By default --oob will turn on daemon mode\n");
 	printf("\t[-w|--delay : Delay for reading config level state change in OOB poll mode.\n");
+	printf("\t[-g|--cgroupv2 : Try to use cgroup v2 CPU isolation instead of CPU online/offline.\n");
 	printf("\nResult format\n");
 	printf("\tResult display uses a common format for each command:\n");
 	printf("\tResults are formatted in text/JSON with\n");
@@ -2839,6 +2988,7 @@ static void cmdline(int argc, char **argv)
 		{ "oob", no_argument, 0, 'b' },
 		{ "no-daemon", no_argument, 0, 'n' },
 		{ "poll-interval", required_argument, 0, 'w' },
+		{ "cgroupv2", required_argument, 0, 'g' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -2869,7 +3019,7 @@ static void cmdline(int argc, char **argv)
 		goto out;
 
 	progname = argv[0];
-	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:n", long_options,
+	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:ng", long_options,
 				       &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -2927,6 +3077,9 @@ static void cmdline(int argc, char **argv)
 				exit(0);
 			}
 			poll_interval = ret;
+			break;
+		case 'g':
+			cgroupv2 = 1;
 			break;
 		default:
 			usage();
