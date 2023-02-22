@@ -194,7 +194,7 @@
 		clocks = <&rk817 1>;
 		clock-names = "ext_clock";
 		//wifi-bt-power-toggle;
-		uart_rts_gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_LOW>;
+		uart_rts_gpios = <&gpio1 RK_PD3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart1m0_rtsn>;
 		pinctrl-1 = <&uart1_gpios>;
@@ -908,7 +908,7 @@
 
 	wireless-bluetooth {
 		uart1_gpios: uart1-gpios {
-			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
