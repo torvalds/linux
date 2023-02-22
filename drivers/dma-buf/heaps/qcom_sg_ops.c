@@ -578,11 +578,6 @@ EXPORT_SYMBOL(qcom_sg_buf_ops);
 int qti_smmu_proxy_register_callbacks(smmu_proxy_map_sgtable map_sgtable_fn_ptr,
 				      smmu_proxy_unmap_sgtable unmap_sgtable_fn_ptr)
 {
-	if (!map_sgtable_fn_ptr || !unmap_sgtable_fn_ptr) {
-		pr_err("%s: All callbacks must be provided!\n", __func__);
-		return -EINVAL;
-	}
-
 	smmu_proxy_callback_ops.map_sgtable = map_sgtable_fn_ptr;
 	smmu_proxy_callback_ops.unmap_sgtable = unmap_sgtable_fn_ptr;
 
