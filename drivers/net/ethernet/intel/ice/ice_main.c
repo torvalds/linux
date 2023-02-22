@@ -1517,8 +1517,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 			data.max_num_msgs_mbx = hw->mailboxq.num_rq_entries;
 			data.async_watermark_val = ICE_MBX_OVERFLOW_WATERMARK;
 
-			if (!ice_is_malicious_vf(pf, &event, &data))
-				ice_vc_process_vf_msg(pf, &event);
+			ice_vc_process_vf_msg(pf, &event, &data);
 			break;
 		case ice_aqc_opc_fw_logging:
 			ice_output_fw_log(hw, &event.desc, event.msg_buf);
