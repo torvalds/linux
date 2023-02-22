@@ -283,6 +283,16 @@ static int adv748x_hdmi_query_dv_timings(struct v4l2_subdev *sd,
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
+	/*
+	 * If the pattern generator is enabled the device shall not be queried
+	 * for timings. Instead the timings programmed shall be reported as they
+	 * are the ones being used to generate the pattern.
+	 */
+	if (cp_read(state, ADV748X_CP_PAT_GEN) & ADV748X_CP_PAT_GEN_EN) {
+		*timings = hdmi->timings;
+		return 0;
+	}
+
 	if (!adv748x_hdmi_has_signal(state))
 		return -ENOLINK;
 
