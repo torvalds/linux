@@ -37,10 +37,10 @@
 #include "aops.h"
 
 
-void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
-			    unsigned int from, unsigned int len)
+void gfs2_trans_add_databufs(struct gfs2_inode *ip, struct folio *folio,
+			     unsigned int from, unsigned int len)
 {
-	struct buffer_head *head = page_buffers(page);
+	struct buffer_head *head = folio_buffers(folio);
 	unsigned int bsize = head->b_size;
 	struct buffer_head *bh;
 	unsigned int to = from + len;
@@ -127,7 +127,6 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 {
 	struct inode *inode = page->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
 	if (PageChecked(page)) {
 		ClearPageChecked(page);
@@ -135,7 +134,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 			create_empty_buffers(page, inode->i_sb->s_blocksize,
 					     BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
-		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize);
+		gfs2_trans_add_databufs(ip, page_folio(page), 0, PAGE_SIZE);
 	}
 	return gfs2_write_jdata_page(page, wbc);
 }
