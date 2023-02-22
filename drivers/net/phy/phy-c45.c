@@ -721,8 +721,7 @@ int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv)
  * @phydev: target phy_device struct
  * @adv: the linkmode advertisement status
  */
-static int genphy_c45_read_eee_adv(struct phy_device *phydev,
-				   unsigned long *adv)
+int genphy_c45_read_eee_adv(struct phy_device *phydev, unsigned long *adv)
 {
 	int val;
 
@@ -864,7 +863,13 @@ EXPORT_SYMBOL_GPL(genphy_c45_read_eee_abilities);
  */
 int genphy_c45_an_config_eee_aneg(struct phy_device *phydev)
 {
-	return genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	if (!phydev->eee_enabled) {
+		__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
+
+		return genphy_c45_write_eee_adv(phydev, adv);
+	}
+
+	return genphy_c45_write_eee_adv(phydev, phydev->advertising_eee);
 }
 
 /**
@@ -1430,17 +1435,22 @@ EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_eee *data)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
 	int ret;
 
 	if (data->eee_enabled) {
 		if (data->advertised)
-			adv[0] = data->advertised;
+			ethtool_convert_legacy_u32_to_link_mode(phydev->advertising_eee,
+								data->advertised);
 		else
-			linkmode_copy(adv, phydev->supported_eee);
+			linkmode_copy(phydev->advertising_eee,
+				      phydev->supported_eee);
+
+		phydev->eee_enabled = true;
+	} else {
+		phydev->eee_enabled = false;
 	}
 
-	ret = genphy_c45_write_eee_adv(phydev, adv);
+	ret = genphy_c45_an_config_eee_aneg(phydev);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
