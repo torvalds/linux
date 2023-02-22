@@ -298,12 +298,25 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		escr = params.escr;
 	}
 
-	if (rcdu->info->gen < 4) {
+	/*
+	 * The ESCR register only exists in DU channels that can output to an
+	 * LVDS or DPAT, and the OTAR register in DU channels that can output
+	 * to a DPAD.
+	 */
+	if ((rcdu->info->routes[RCAR_DU_OUTPUT_DPAD0].possible_crtcs |
+	     rcdu->info->routes[RCAR_DU_OUTPUT_DPAD1].possible_crtcs |
+	     rcdu->info->routes[RCAR_DU_OUTPUT_LVDS0].possible_crtcs |
+	     rcdu->info->routes[RCAR_DU_OUTPUT_LVDS1].possible_crtcs) &
+	    BIT(rcrtc->index)) {
 		dev_dbg(rcrtc->dev->dev, "%s: ESCR 0x%08x\n", __func__, escr);
 
 		rcar_du_crtc_write(rcrtc, rcrtc->index % 2 ? ESCR13 : ESCR02, escr);
-		rcar_du_crtc_write(rcrtc, rcrtc->index % 2 ? OTAR13 : OTAR02, 0);
 	}
+
+	if ((rcdu->info->routes[RCAR_DU_OUTPUT_DPAD0].possible_crtcs |
+	     rcdu->info->routes[RCAR_DU_OUTPUT_DPAD1].possible_crtcs) &
+	    BIT(rcrtc->index))
+		rcar_du_crtc_write(rcrtc, rcrtc->index % 2 ? OTAR13 : OTAR02, 0);
 
 	/* Signal polarities */
 	dsmr = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? DSMR_VSL : 0)
