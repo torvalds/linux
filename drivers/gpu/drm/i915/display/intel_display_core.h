@@ -103,7 +103,7 @@ struct intel_audio {
 	u32 freq_cntrl;
 
 	/* current audio state for the audio component hooks */
-	struct intel_audio_state state[I915_MAX_PIPES];
+	struct intel_audio_state state[I915_MAX_TRANSCODERS];
 
 	/* necessary resource sharing with HDMI LPE audio driver. */
 	struct {
