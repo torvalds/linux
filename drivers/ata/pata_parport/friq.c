@@ -35,7 +35,7 @@
 #include <linux/wait.h>
 #include <asm/io.h>
 
-#include "paride.h"
+#include <linux/pata_parport.h>
 
 #define CMD(x)		w2(4);w0(0xff);w0(0xff);w0(0x73);w0(0x73);\
 			w0(0xc9);w0(0xc9);w0(0x26);w0(0x26);w0(x);w0(x);

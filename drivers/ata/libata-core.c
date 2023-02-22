@@ -552,7 +552,7 @@ static const u8 ata_rw_cmds[] = {
 	0,
 	0,
 	0,
-	ATA_CMD_WRITE_MULTI_FUA_EXT,
+	0,
 	/* pio */
 	ATA_CMD_PIO_READ,
 	ATA_CMD_PIO_WRITE,
@@ -574,17 +574,18 @@ static const u8 ata_rw_cmds[] = {
 };
 
 /**
- *	ata_rwcmd_protocol - set taskfile r/w commands and protocol
- *	@tf: command to examine and configure
- *	@dev: device tf belongs to
+ *	ata_set_rwcmd_protocol - set taskfile r/w command and protocol
+ *	@dev: target device for the taskfile
+ *	@tf: taskfile to examine and configure
  *
- *	Examine the device configuration and tf->flags to calculate
- *	the proper read/write commands and protocol to use.
+ *	Examine the device configuration and tf->flags to determine
+ *	the proper read/write command and protocol to use for @tf.
  *
  *	LOCKING:
  *	caller.
  */
-static int ata_rwcmd_protocol(struct ata_taskfile *tf, struct ata_device *dev)
+static bool ata_set_rwcmd_protocol(struct ata_device *dev,
+				   struct ata_taskfile *tf)
 {
 	u8 cmd;
 
@@ -607,11 +608,12 @@ static int ata_rwcmd_protocol(struct ata_taskfile *tf, struct ata_device *dev)
 	}
 
 	cmd = ata_rw_cmds[index + fua + lba48 + write];
-	if (cmd) {
-		tf->command = cmd;
-		return 0;
-	}
-	return -1;
+	if (!cmd)
+		return false;
+
+	tf->command = cmd;
+
+	return true;
 }
 
 /**
@@ -725,7 +727,8 @@ int ata_build_rw_tf(struct ata_queued_cmd *qc, u64 block, u32 n_block,
 	} else if (dev->flags & ATA_DFLAG_LBA) {
 		tf->flags |= ATA_TFLAG_LBA;
 
-		if (lba_28_ok(block, n_block)) {
+		/* We need LBA48 for FUA writes */
+		if (!(tf->flags & ATA_TFLAG_FUA) && lba_28_ok(block, n_block)) {
 			/* use LBA28 */
 			tf->device |= (block >> 24) & 0xf;
 		} else if (lba_48_ok(block, n_block)) {
@@ -740,11 +743,12 @@ int ata_build_rw_tf(struct ata_queued_cmd *qc, u64 block, u32 n_block,
 			tf->hob_lbah = (block >> 40) & 0xff;
 			tf->hob_lbam = (block >> 32) & 0xff;
 			tf->hob_lbal = (block >> 24) & 0xff;
-		} else
+		} else {
 			/* request too large even for LBA48 */
 			return -ERANGE;
+		}
 
-		if (unlikely(ata_rwcmd_protocol(tf, dev) < 0))
+		if (unlikely(!ata_set_rwcmd_protocol(dev, tf)))
 			return -EINVAL;
 
 		tf->nsect = n_block & 0xff;
@@ -762,7 +766,7 @@ int ata_build_rw_tf(struct ata_queued_cmd *qc, u64 block, u32 n_block,
 		if (!lba_28_ok(block, n_block))
 			return -ERANGE;
 
-		if (unlikely(ata_rwcmd_protocol(tf, dev) < 0))
+		if (unlikely(!ata_set_rwcmd_protocol(dev, tf)))
 			return -EINVAL;
 
 		/* Convert LBA to CHS */
@@ -1590,7 +1594,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ap->ops->post_internal_cmd(qc);
 
 	/* perform minimal error analysis */
-	if (qc->flags & ATA_QCFLAG_FAILED) {
+	if (qc->flags & ATA_QCFLAG_EH) {
 		if (qc->result_tf.status & (ATA_ERR | ATA_DF))
 			qc->err_mask |= AC_ERR_DEV;
 
@@ -2420,6 +2424,28 @@ static void ata_dev_config_chs(struct ata_device *dev)
 			     dev->heads, dev->sectors);
 }
 
+static void ata_dev_config_fua(struct ata_device *dev)
+{
+	/* Ignore FUA support if its use is disabled globally */
+	if (!libata_fua)
+		goto nofua;
+
+	/* Ignore devices without support for WRITE DMA FUA EXT */
+	if (!(dev->flags & ATA_DFLAG_LBA48) || !ata_id_has_fua(dev->id))
+		goto nofua;
+
+	/* Ignore known bad devices and devices that lack NCQ support */
+	if (!ata_ncq_supported(dev) || (dev->horkage & ATA_HORKAGE_NO_FUA))
+		goto nofua;
+
+	dev->flags |= ATA_DFLAG_FUA;
+
+	return;
+
+nofua:
+	dev->flags &= ~ATA_DFLAG_FUA;
+}
+
 static void ata_dev_config_devslp(struct ata_device *dev)
 {
 	u8 *sata_setting = dev->link->ap->sector_buf;
@@ -2508,7 +2534,8 @@ static void ata_dev_print_features(struct ata_device *dev)
 		return;
 
 	ata_dev_info(dev,
-		     "Features:%s%s%s%s%s%s\n",
+		     "Features:%s%s%s%s%s%s%s\n",
+		     dev->flags & ATA_DFLAG_FUA ? " FUA" : "",
 		     dev->flags & ATA_DFLAG_TRUSTED ? " Trust" : "",
 		     dev->flags & ATA_DFLAG_DA ? " Dev-Attention" : "",
 		     dev->flags & ATA_DFLAG_DEVSLP ? " Dev-Sleep" : "",
@@ -2669,6 +2696,7 @@ int ata_dev_configure(struct ata_device *dev)
 			ata_dev_config_chs(dev);
 		}
 
+		ata_dev_config_fua(dev);
 		ata_dev_config_devslp(dev);
 		ata_dev_config_sense_reporting(dev);
 		ata_dev_config_zac(dev);
@@ -4106,6 +4134,12 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 */
 	{ "SATADOM-ML 3ME",		NULL,	ATA_HORKAGE_NO_LOG_DIR },
 
+	/* Buggy FUA */
+	{ "Maxtor",		"BANC1G10",	ATA_HORKAGE_NO_FUA },
+	{ "WDC*WD2500J*",	NULL,		ATA_HORKAGE_NO_FUA },
+	{ "OCZ-VERTEX*",	NULL,		ATA_HORKAGE_NO_FUA },
+	{ "INTEL*SSDSC2CT*",	NULL,		ATA_HORKAGE_NO_FUA },
+
 	/* End Marker */
 	{ }
 };
@@ -4686,10 +4720,10 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	/* XXX: New EH and old EH use different mechanisms to
 	 * synchronize EH with regular execution path.
 	 *
-	 * In new EH, a failed qc is marked with ATA_QCFLAG_FAILED.
+	 * In new EH, a qc owned by EH is marked with ATA_QCFLAG_EH.
 	 * Normal execution path is responsible for not accessing a
-	 * failed qc.  libata core enforces the rule by returning NULL
-	 * from ata_qc_from_tag() for failed qcs.
+	 * qc owned by EH.  libata core enforces the rule by returning NULL
+	 * from ata_qc_from_tag() for qcs owned by EH.
 	 *
 	 * Old EH depends on ata_qc_complete() nullifying completion
 	 * requests if ATA_QCFLAG_EH_SCHEDULED is set.  Old EH does
@@ -4701,7 +4735,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
 		if (unlikely(qc->err_mask))
-			qc->flags |= ATA_QCFLAG_FAILED;
+			qc->flags |= ATA_QCFLAG_EH;
 
 		/*
 		 * Finish internal commands without any further processing
@@ -4718,7 +4752,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		 * Non-internal qc has failed.  Fill the result TF and
 		 * summon EH.
 		 */
-		if (unlikely(qc->flags & ATA_QCFLAG_FAILED)) {
+		if (unlikely(qc->flags & ATA_QCFLAG_EH)) {
 			fill_result_tf(qc);
 			trace_ata_qc_complete_failed(qc);
 			ata_qc_schedule_eh(qc);
@@ -6217,6 +6251,7 @@ static const struct ata_force_param force_tbl[] __initconst = {
 	force_horkage_onoff(lpm,	ATA_HORKAGE_NOLPM),
 	force_horkage_onoff(setxfer,	ATA_HORKAGE_NOSETXFER),
 	force_horkage_on(dump_id,	ATA_HORKAGE_DUMP_ID),
+	force_horkage_onoff(fua,	ATA_HORKAGE_NO_FUA),
 
 	force_horkage_on(disable,	ATA_HORKAGE_DISABLE),
 };

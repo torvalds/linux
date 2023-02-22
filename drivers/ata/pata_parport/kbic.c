@@ -28,7 +28,7 @@
 #include <linux/wait.h>
 #include <asm/io.h>
 
-#include "paride.h"
+#include <linux/pata_parport.h>
 
 #define r12w()			(delay_p,inw(pi->port+1)&0xffff) 
 

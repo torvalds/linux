@@ -31,7 +31,7 @@
 #include <linux/parport.h>
 
 #include "ppc6lnx.c"
-#include "paride.h"
+#include <linux/pata_parport.h>
 
 /* PARAMETERS */
 static bool verbose; /* set this to 1 to see debugging messages and whatnot */

@@ -5370,9 +5370,9 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 					continue;
 
 				ipr_cmd->done = ipr_sata_eh_done;
-				if (!(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
+				if (!(ipr_cmd->qc->flags & ATA_QCFLAG_EH)) {
 					ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
-					ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
+					ipr_cmd->qc->flags |= ATA_QCFLAG_EH;
 				}
 			}
 		}
@@ -7142,11 +7142,8 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 /**
  * ipr_qc_fill_rtf - Read result TF
  * @qc: ATA queued command
- *
- * Return value:
- * 	true
  **/
-static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
+static void ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct ipr_sata_port *sata_port = qc->ap->private_data;
 	struct ipr_ioasa_gata *g = &sata_port->ioasa;
@@ -7163,8 +7160,6 @@ static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
 	tf->hob_lbal = g->hob_lbal;
 	tf->hob_lbam = g->hob_lbam;
 	tf->hob_lbah = g->hob_lbah;
-
-	return true;
 }
 
 static struct ata_port_operations ipr_sata_ops = {

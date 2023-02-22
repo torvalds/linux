@@ -112,6 +112,8 @@ obj-$(CONFIG_PATA_RZ1000)	+= pata_rz1000.o
 
 obj-$(CONFIG_PATA_PXA)		+= pata_pxa.o
 
+obj-$(CONFIG_PATA_PARPORT)	+= pata_parport/
+
 # Should be last but two libata driver
 obj-$(CONFIG_PATA_ACPI)		+= pata_acpi.o
 # Should be last but one libata driver
