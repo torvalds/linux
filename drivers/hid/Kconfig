@@ -1025,12 +1025,20 @@ config HID_SPEEDLINK
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
 config HID_STEAM
-	tristate "Steam Controller support"
+	tristate "Steam Controller/Deck support"
 	select POWER_SUPPLY
 	help
-	Say Y here if you have a Steam Controller if you want to use it
+	Say Y here if you have a Steam Controller or Deck if you want to use it
 	without running the Steam Client. It supports both the wired and
 	the wireless adaptor.
+
+config STEAM_FF
+	bool "Steam Deck force feedback support"
+	depends on HID_STEAM
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for the Steam
+	Deck.
 
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
