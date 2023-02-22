@@ -5926,7 +5926,8 @@ int ring_buffer_read_page(struct trace_buffer *buffer,
 	 * Otherwise, we can simply swap the page with the one passed in.
 	 */
 	if (read || (len < (commit - read)) ||
-	    cpu_buffer->reader_page == cpu_buffer->commit_page) {
+	    cpu_buffer->reader_page == cpu_buffer->commit_page ||
+	    unlikely(has_ext_writer(buffer))) {
 		struct buffer_data_page *rpage = cpu_buffer->reader_page->page;
 		unsigned int rpos = read;
 		unsigned int pos = 0;
@@ -5991,21 +5992,14 @@ int ring_buffer_read_page(struct trace_buffer *buffer,
 		cpu_buffer->read += rb_page_entries(reader);
 		cpu_buffer->read_bytes += BUF_PAGE_SIZE;
 
-		if (unlikely(has_ext_writer(buffer))) {
-			u64 commit = local_read(&reader->page->commit);
-
-			memcpy(bpage, reader->page,
-			       BUF_PAGE_HDR_SIZE + commit);
-		} else {
-			/* swap the pages */
-			rb_init_page(bpage);
-			bpage = reader->page;
-			reader->page = *data_page;
-			local_set(&reader->write, 0);
-			local_set(&reader->entries, 0);
-			reader->read = 0;
-			*data_page = bpage;
-		}
+		/* swap the pages */
+		rb_init_page(bpage);
+		bpage = reader->page;
+		reader->page = *data_page;
+		local_set(&reader->write, 0);
+		local_set(&reader->entries, 0);
+		reader->read = 0;
+		*data_page = bpage;
 
 		/*
 		 * Use the real_end for the data size,
