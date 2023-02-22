@@ -256,6 +256,7 @@ void omap_fbdev_init(struct drm_device *dev)
 fini:
 	drm_fb_helper_fini(helper);
 fail:
+	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
 
 	dev_warn(dev->dev, "omap_fbdev_init failed\n");
@@ -286,6 +287,7 @@ void omap_fbdev_fini(struct drm_device *dev)
 	if (fbdev->fb)
 		drm_framebuffer_remove(fbdev->fb);
 
+	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
 
 	priv->fbdev = NULL;

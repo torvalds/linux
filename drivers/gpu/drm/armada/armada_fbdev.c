@@ -147,6 +147,7 @@ int armada_fbdev_init(struct drm_device *dev)
  err_fb_setup:
 	drm_fb_helper_fini(fbh);
  err_fb_helper:
+	drm_fb_helper_unprepare(fbh);
 	priv->fbdev = NULL;
 	return ret;
 }
@@ -163,6 +164,8 @@ void armada_fbdev_fini(struct drm_device *dev)
 
 		if (fbh->fb)
 			fbh->fb->funcs->destroy(fbh->fb);
+
+		drm_fb_helper_unprepare(fbh);
 
 		priv->fbdev = NULL;
 	}

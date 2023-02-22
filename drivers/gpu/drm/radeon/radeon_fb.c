@@ -367,6 +367,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 fini:
 	drm_fb_helper_fini(&rfbdev->helper);
 free:
+	drm_fb_helper_unprepare(&rfbdev->helper);
 	kfree(rfbdev);
 	return ret;
 }
@@ -377,6 +378,7 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 		return;
 
 	radeon_fbdev_destroy(rdev->ddev, rdev->mode_info.rfbdev);
+	drm_fb_helper_unprepare(&rdev->mode_info.rfbdev->helper);
 	kfree(rdev->mode_info.rfbdev);
 	rdev->mode_info.rfbdev = NULL;
 }

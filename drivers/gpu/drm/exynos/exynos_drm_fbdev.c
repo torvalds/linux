@@ -183,8 +183,8 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 err_setup:
 	drm_fb_helper_fini(helper);
-
 err_init:
+	drm_fb_helper_unprepare(helper);
 	private->fb_helper = NULL;
 	kfree(fbdev);
 
@@ -219,6 +219,7 @@ void exynos_drm_fbdev_fini(struct drm_device *dev)
 	fbdev = to_exynos_fbdev(private->fb_helper);
 
 	exynos_drm_fbdev_destroy(dev, private->fb_helper);
+	drm_fb_helper_unprepare(private->fb_helper);
 	kfree(fbdev);
 	private->fb_helper = NULL;
 }
