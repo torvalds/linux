@@ -1210,6 +1210,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	unsigned long off;
 	size_t size;
 	int ret, nr_pages, i;
+	struct folio *folio;
 
 	*pimu = ctx->dummy_ubuf;
 	if (!iov->iov_base)
@@ -1224,6 +1225,21 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 		goto done;
 	}
 
+	/* If it's a huge page, try to coalesce them into a single bvec entry */
+	if (nr_pages > 1) {
+		folio = page_folio(pages[0]);
+		for (i = 1; i < nr_pages; i++) {
+			if (page_folio(pages[i]) != folio) {
+				folio = NULL;
+				break;
+			}
+		}
+		if (folio) {
+			folio_put_refs(folio, nr_pages - 1);
+			nr_pages = 1;
+		}
+	}
+
 	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
 	if (!imu)
 		goto done;
@@ -1236,6 +1252,17 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 
 	off = (unsigned long) iov->iov_base & ~PAGE_MASK;
 	size = iov->iov_len;
+	/* store original address for later verification */
+	imu->ubuf = (unsigned long) iov->iov_base;
+	imu->ubuf_end = imu->ubuf + iov->iov_len;
+	imu->nr_bvecs = nr_pages;
+	*pimu = imu;
+	ret = 0;
+
+	if (folio) {
+		bvec_set_page(&imu->bvec[0], pages[0], size, off);
+		goto done;
+	}
 	for (i = 0; i < nr_pages; i++) {
 		size_t vec_len;
 
@@ -1244,12 +1271,6 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 		off = 0;
 		size -= vec_len;
 	}
-	/* store original address for later verification */
-	imu->ubuf = (unsigned long) iov->iov_base;
-	imu->ubuf_end = imu->ubuf + iov->iov_len;
-	imu->nr_bvecs = nr_pages;
-	*pimu = imu;
-	ret = 0;
 done:
 	if (ret)
 		kvfree(imu);
@@ -1364,6 +1385,11 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		const struct bio_vec *bvec = imu->bvec;
 
 		if (offset <= bvec->bv_len) {
+			/*
+			 * Note, huge pages buffers consists of one large
+			 * bvec entry and should always go this way. The other
+			 * branch doesn't expect non PAGE_SIZE'd chunks.
+			 */
 			iter->bvec = bvec;
 			iter->nr_segs = bvec->bv_len;
 			iter->count -= offset;
