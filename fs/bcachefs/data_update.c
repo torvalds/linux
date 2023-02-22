@@ -97,8 +97,10 @@ static void bch2_bkey_mark_dev_cached(struct bkey_s k, unsigned dev)
 	struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr)
-		if (ptr->dev == dev)
-			ptr->cached = true;
+		if (ptr->dev == dev) {
+			bch2_extent_ptr_set_cached(k, ptr);
+			return;
+		}
 }
 
 static int __bch2_data_update_index_update(struct btree_trans *trans,

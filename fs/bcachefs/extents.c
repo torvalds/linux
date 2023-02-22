@@ -950,6 +950,29 @@ bool bch2_extent_has_ptr(struct bkey_s_c k1, struct extent_ptr_decoded p1,
 	return false;
 }
 
+void bch2_extent_ptr_set_cached(struct bkey_s k, struct bch_extent_ptr *ptr)
+{
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
+	union bch_extent_entry *entry;
+	union bch_extent_entry *ec = NULL;
+
+	bkey_extent_entry_for_each(ptrs, entry) {
+		if (&entry->ptr == ptr) {
+			ptr->cached = true;
+			if (ec)
+				extent_entry_drop(k, ec);
+			return;
+		}
+
+		if (extent_entry_is_stripe_ptr(entry))
+			ec = entry;
+		else if (extent_entry_is_ptr(entry))
+			ec = NULL;
+	}
+
+	BUG();
+}
+
 /*
  * bch_extent_normalize - clean up an extent, dropping stale pointers etc.
  *
@@ -1093,7 +1116,7 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	unsigned size_ondisk = k.k->size;
 	unsigned nonce = UINT_MAX;
 	unsigned nr_ptrs = 0;
-	bool unwritten = false;
+	bool unwritten = false, have_ec = false;
 	int ret;
 
 	if (bkey_is_btree_ptr(k.k))
@@ -1129,7 +1152,13 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				return -BCH_ERR_invalid_bkey;
 			}
 
+			if (entry->ptr.cached && have_ec) {
+				prt_printf(err, "cached, erasure coded ptr");
+				return -BCH_ERR_invalid_bkey;
+			}
+
 			unwritten = entry->ptr.unwritten;
+			have_ec = false;
 			nr_ptrs++;
 			break;
 		case BCH_EXTENT_ENTRY_crc32:
@@ -1165,6 +1194,7 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			}
 			break;
 		case BCH_EXTENT_ENTRY_stripe_ptr:
+			have_ec = true;
 			break;
 		}
 	}
