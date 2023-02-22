@@ -68,14 +68,14 @@
 		mclkin_sai0: mclkin-sai0 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <12288000>;
+			clock-frequency = <0>;
 			clock-output-names = "i2s0_mclkin";
 		};
 
 		mclkin_sai1: mclkin-sai1 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <12288000>;
+			clock-frequency = <0>;
 			clock-output-names = "i2s1_mclkin";
 		};
 
