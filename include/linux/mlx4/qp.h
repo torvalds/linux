@@ -446,6 +446,7 @@ enum {
 
 struct mlx4_wqe_inline_seg {
 	__be32			byte_count;
+	__u8			data[];
 };
 
 enum mlx4_update_qp_attr {

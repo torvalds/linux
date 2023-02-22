@@ -20,6 +20,7 @@
 #include <linux/skbuff.h>
 #include <net/page_pool.h>
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 
 #include "cpsw.h"
 #include "cpts.h"

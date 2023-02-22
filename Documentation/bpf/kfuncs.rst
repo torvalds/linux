@@ -1,3 +1,7 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+.. _kfuncs-header-label:
+
 =============================
 BPF Kernel Functions (kfuncs)
 =============================
@@ -9,7 +13,7 @@ BPF Kernel Functions or more commonly known as kfuncs are functions in the Linux
 kernel which are exposed for use by BPF programs. Unlike normal BPF helpers,
 kfuncs do not have a stable interface and can change from one kernel release to
 another. Hence, BPF programs need to be updated in response to changes in the
-kernel.
+kernel. See :ref:`BPF_kfunc_lifecycle_expectations` for more information.
 
 2. Defining a kfunc
 ===================
@@ -37,7 +41,7 @@ An example is given below::
         __diag_ignore_all("-Wmissing-prototypes",
                           "Global kfuncs as their definitions will be in BTF");
 
-        struct task_struct *bpf_find_get_task_by_vpid(pid_t nr)
+        __bpf_kfunc struct task_struct *bpf_find_get_task_by_vpid(pid_t nr)
         {
                 return find_get_task_by_vpid(nr);
         }
@@ -62,7 +66,7 @@ kfunc with a __tag, where tag may be one of the supported annotations.
 This annotation is used to indicate a memory and size pair in the argument list.
 An example is given below::
 
-        void bpf_memzero(void *mem, int mem__sz)
+        __bpf_kfunc void bpf_memzero(void *mem, int mem__sz)
         {
         ...
         }
@@ -82,7 +86,7 @@ safety of the program.
 
 An example is given below::
 
-        void *bpf_obj_new(u32 local_type_id__k, ...)
+        __bpf_kfunc void *bpf_obj_new(u32 local_type_id__k, ...)
         {
         ...
         }
@@ -120,6 +124,20 @@ flags on a set of kfuncs as follows::
 
 This set encodes the BTF ID of each kfunc listed above, and encodes the flags
 along with it. Ofcourse, it is also allowed to specify no flags.
+
+kfunc definitions should also always be annotated with the ``__bpf_kfunc``
+macro. This prevents issues such as the compiler inlining the kfunc if it's a
+static kernel function, or the function being elided in an LTO build as it's
+not used in the rest of the kernel. Developers should not manually add
+annotations to their kfunc to prevent these issues. If an annotation is
+required to prevent such an issue with your kfunc, it is a bug and should be
+added to the definition of the macro so that other kfuncs are similarly
+protected. An example is given below::
+
+        __bpf_kfunc struct task_struct *bpf_get_task_pid(s32 pid)
+        {
+        ...
+        }
 
 2.4.1 KF_ACQUIRE flag
 ---------------------
@@ -163,7 +181,8 @@ KF_ACQUIRE and KF_RET_NULL flags.
 The KF_TRUSTED_ARGS flag is used for kfuncs taking pointer arguments. It
 indicates that the all pointer arguments are valid, and that all pointers to
 BTF objects have been passed in their unmodified form (that is, at a zero
-offset, and without having been obtained from walking another pointer).
+offset, and without having been obtained from walking another pointer, with one
+exception described below).
 
 There are two types of pointers to kernel objects which are considered "valid":
 
@@ -175,6 +194,25 @@ KF_TRUSTED_ARGS kfuncs, and may have a non-zero offset.
 
 The definition of "valid" pointers is subject to change at any time, and has
 absolutely no ABI stability guarantees.
+
+As mentioned above, a nested pointer obtained from walking a trusted pointer is
+no longer trusted, with one exception. If a struct type has a field that is
+guaranteed to be valid as long as its parent pointer is trusted, the
+``BTF_TYPE_SAFE_NESTED`` macro can be used to express that to the verifier as
+follows:
+
+.. code-block:: c
+
+	BTF_TYPE_SAFE_NESTED(struct task_struct) {
+		const cpumask_t *cpus_ptr;
+	};
+
+In other words, you must:
+
+1. Wrap the trusted pointer type in the ``BTF_TYPE_SAFE_NESTED`` macro.
+
+2. Specify the type and name of the trusted nested field. This field must match
+   the field in the original type definition exactly.
 
 2.4.6 KF_SLEEPABLE flag
 -----------------------
@@ -200,6 +238,28 @@ single argument which must be a trusted argument or a MEM_RCU pointer.
 The argument may have reference count of 0 and the kfunc must take this
 into consideration.
 
+.. _KF_deprecated_flag:
+
+2.4.9 KF_DEPRECATED flag
+------------------------
+
+The KF_DEPRECATED flag is used for kfuncs which are scheduled to be
+changed or removed in a subsequent kernel release. A kfunc that is
+marked with KF_DEPRECATED should also have any relevant information
+captured in its kernel doc. Such information typically includes the
+kfunc's expected remaining lifespan, a recommendation for new
+functionality that can replace it if any is available, and possibly a
+rationale for why it is being removed.
+
+Note that while on some occasions, a KF_DEPRECATED kfunc may continue to be
+supported and have its KF_DEPRECATED flag removed, it is likely to be far more
+difficult to remove a KF_DEPRECATED flag after it's been added than it is to
+prevent it from being added in the first place. As described in
+:ref:`BPF_kfunc_lifecycle_expectations`, users that rely on specific kfuncs are
+encouraged to make their use-cases known as early as possible, and participate
+in upstream discussions regarding whether to keep, change, deprecate, or remove
+those kfuncs if and when such discussions occur.
+
 2.5 Registering the kfuncs
 --------------------------
 
@@ -223,14 +283,150 @@ type. An example is shown below::
         }
         late_initcall(init_subsystem);
 
-3. Core kfuncs
+2.6  Specifying no-cast aliases with ___init
+--------------------------------------------
+
+The verifier will always enforce that the BTF type of a pointer passed to a
+kfunc by a BPF program, matches the type of pointer specified in the kfunc
+definition. The verifier, does, however, allow types that are equivalent
+according to the C standard to be passed to the same kfunc arg, even if their
+BTF_IDs differ.
+
+For example, for the following type definition:
+
+.. code-block:: c
+
+	struct bpf_cpumask {
+		cpumask_t cpumask;
+		refcount_t usage;
+	};
+
+The verifier would allow a ``struct bpf_cpumask *`` to be passed to a kfunc
+taking a ``cpumask_t *`` (which is a typedef of ``struct cpumask *``). For
+instance, both ``struct cpumask *`` and ``struct bpf_cpmuask *`` can be passed
+to bpf_cpumask_test_cpu().
+
+In some cases, this type-aliasing behavior is not desired. ``struct
+nf_conn___init`` is one such example:
+
+.. code-block:: c
+
+	struct nf_conn___init {
+		struct nf_conn ct;
+	};
+
+The C standard would consider these types to be equivalent, but it would not
+always be safe to pass either type to a trusted kfunc. ``struct
+nf_conn___init`` represents an allocated ``struct nf_conn`` object that has
+*not yet been initialized*, so it would therefore be unsafe to pass a ``struct
+nf_conn___init *`` to a kfunc that's expecting a fully initialized ``struct
+nf_conn *`` (e.g. ``bpf_ct_change_timeout()``).
+
+In order to accommodate such requirements, the verifier will enforce strict
+PTR_TO_BTF_ID type matching if two types have the exact same name, with one
+being suffixed with ``___init``.
+
+.. _BPF_kfunc_lifecycle_expectations:
+
+3. kfunc lifecycle expectations
+===============================
+
+kfuncs provide a kernel <-> kernel API, and thus are not bound by any of the
+strict stability restrictions associated with kernel <-> user UAPIs. This means
+they can be thought of as similar to EXPORT_SYMBOL_GPL, and can therefore be
+modified or removed by a maintainer of the subsystem they're defined in when
+it's deemed necessary.
+
+Like any other change to the kernel, maintainers will not change or remove a
+kfunc without having a reasonable justification.  Whether or not they'll choose
+to change a kfunc will ultimately depend on a variety of factors, such as how
+widely used the kfunc is, how long the kfunc has been in the kernel, whether an
+alternative kfunc exists, what the norm is in terms of stability for the
+subsystem in question, and of course what the technical cost is of continuing
+to support the kfunc.
+
+There are several implications of this:
+
+a) kfuncs that are widely used or have been in the kernel for a long time will
+   be more difficult to justify being changed or removed by a maintainer. In
+   other words, kfuncs that are known to have a lot of users and provide
+   significant value provide stronger incentives for maintainers to invest the
+   time and complexity in supporting them. It is therefore important for
+   developers that are using kfuncs in their BPF programs to communicate and
+   explain how and why those kfuncs are being used, and to participate in
+   discussions regarding those kfuncs when they occur upstream.
+
+b) Unlike regular kernel symbols marked with EXPORT_SYMBOL_GPL, BPF programs
+   that call kfuncs are generally not part of the kernel tree. This means that
+   refactoring cannot typically change callers in-place when a kfunc changes,
+   as is done for e.g. an upstreamed driver being updated in place when a
+   kernel symbol is changed.
+
+   Unlike with regular kernel symbols, this is expected behavior for BPF
+   symbols, and out-of-tree BPF programs that use kfuncs should be considered
+   relevant to discussions and decisions around modifying and removing those
+   kfuncs. The BPF community will take an active role in participating in
+   upstream discussions when necessary to ensure that the perspectives of such
+   users are taken into account.
+
+c) A kfunc will never have any hard stability guarantees. BPF APIs cannot and
+   will not ever hard-block a change in the kernel purely for stability
+   reasons. That being said, kfuncs are features that are meant to solve
+   problems and provide value to users. The decision of whether to change or
+   remove a kfunc is a multivariate technical decision that is made on a
+   case-by-case basis, and which is informed by data points such as those
+   mentioned above. It is expected that a kfunc being removed or changed with
+   no warning will not be a common occurrence or take place without sound
+   justification, but it is a possibility that must be accepted if one is to
+   use kfuncs.
+
+3.1 kfunc deprecation
+---------------------
+
+As described above, while sometimes a maintainer may find that a kfunc must be
+changed or removed immediately to accommodate some changes in their subsystem,
+usually kfuncs will be able to accommodate a longer and more measured
+deprecation process. For example, if a new kfunc comes along which provides
+superior functionality to an existing kfunc, the existing kfunc may be
+deprecated for some period of time to allow users to migrate their BPF programs
+to use the new one. Or, if a kfunc has no known users, a decision may be made
+to remove the kfunc (without providing an alternative API) after some
+deprecation period so as to provide users with a window to notify the kfunc
+maintainer if it turns out that the kfunc is actually being used.
+
+It's expected that the common case will be that kfuncs will go through a
+deprecation period rather than being changed or removed without warning. As
+described in :ref:`KF_deprecated_flag`, the kfunc framework provides the
+KF_DEPRECATED flag to kfunc developers to signal to users that a kfunc has been
+deprecated. Once a kfunc has been marked with KF_DEPRECATED, the following
+procedure is followed for removal:
+
+1. Any relevant information for deprecated kfuncs is documented in the kfunc's
+   kernel docs. This documentation will typically include the kfunc's expected
+   remaining lifespan, a recommendation for new functionality that can replace
+   the usage of the deprecated function (or an explanation as to why no such
+   replacement exists), etc.
+
+2. The deprecated kfunc is kept in the kernel for some period of time after it
+   was first marked as deprecated. This time period will be chosen on a
+   case-by-case basis, and will typically depend on how widespread the use of
+   the kfunc is, how long it has been in the kernel, and how hard it is to move
+   to alternatives. This deprecation time period is "best effort", and as
+   described :ref:`above<BPF_kfunc_lifecycle_expectations>`, circumstances may
+   sometimes dictate that the kfunc be removed before the full intended
+   deprecation period has elapsed.
+
+3. After the deprecation period the kfunc will be removed. At this point, BPF
+   programs calling the kfunc will be rejected by the verifier.
+
+4. Core kfuncs
 ==============
 
 The BPF subsystem provides a number of "core" kfuncs that are potentially
 applicable to a wide variety of different possible use cases and programs.
 Those kfuncs are documented here.
 
-3.1 struct task_struct * kfuncs
+4.1 struct task_struct * kfuncs
 -------------------------------
 
 There are a number of kfuncs that allow ``struct task_struct *`` objects to be
@@ -306,7 +502,7 @@ Here is an example of it being used:
 		return 0;
 	}
 
-3.2 struct cgroup * kfuncs
+4.2 struct cgroup * kfuncs
 --------------------------
 
 ``struct cgroup *`` objects also have acquire and release functions:
@@ -420,3 +616,10 @@ the verifier. bpf_cgroup_ancestor() can be used as follows:
 		bpf_cgroup_release(parent);
 		return 0;
 	}
+
+4.3 struct cpumask * kfuncs
+---------------------------
+
+BPF provides a set of kfuncs that can be used to query, allocate, mutate, and
+destroy struct cpumask * objects. Please refer to :ref:`cpumasks-header-label`
+for more details.

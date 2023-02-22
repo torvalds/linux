@@ -1069,7 +1069,7 @@ The kernel interface functions are as follows:
      This value can be used to determine if the remote client has been
      restarted as it shouldn't change otherwise.
 
- (#) Set the maxmimum lifespan on a call::
+ (#) Set the maximum lifespan on a call::
 
 	void rxrpc_kernel_set_max_life(struct socket *sock,
 				       struct rxrpc_call *call,

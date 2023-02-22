@@ -7928,13 +7928,10 @@ exit:
 }
 
 static s32
-cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
-		     struct ieee80211_channel *chan,
-		     enum nl80211_channel_type channel_type)
+brcmf_set_channel(struct brcmf_cfg80211_info *cfg, struct ieee80211_channel *chan)
 {
 	u16 chspec = 0;
 	int err = 0;
-	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 
 	if (chan->flags & IEEE80211_CHAN_DISABLED)
@@ -7994,7 +7991,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* Setting current channel to the requested channel */
 	info->filled = 0;
-	if (cfg80211_set_channel(wiphy, ndev, info->channel, NL80211_CHAN_HT20))
+	if (brcmf_set_channel(cfg, info->channel))
 		return 0;
 
 	/* Disable mpc */

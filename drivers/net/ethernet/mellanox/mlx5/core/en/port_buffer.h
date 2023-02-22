@@ -60,6 +60,7 @@ struct mlx5e_bufferx_reg {
 struct mlx5e_port_buffer {
 	u32                       port_buffer_size;
 	u32                       spare_buffer_size;
+	u32                       headroom_size;
 	struct mlx5e_bufferx_reg  buffer[MLX5E_MAX_BUFFER];
 };
 

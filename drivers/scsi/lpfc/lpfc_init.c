@@ -30,6 +30,7 @@
 #include <linux/kthread.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
+#include <linux/sched/clock.h>
 #include <linux/ctype.h>
 #include <linux/aer.h>
 #include <linux/slab.h>

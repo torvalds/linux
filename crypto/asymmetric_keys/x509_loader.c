@@ -55,3 +55,4 @@ dodgy_cert:
 	pr_err("Problem parsing in-kernel X.509 certificate list\n");
 	return 0;
 }
+EXPORT_SYMBOL_GPL(x509_load_certificate_list);

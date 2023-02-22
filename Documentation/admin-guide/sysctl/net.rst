@@ -215,6 +215,12 @@ rmem_max
 
 The maximum receive socket buffer size in bytes.
 
+rps_default_mask
+----------------
+
+The default RPS CPU mask used on newly created network devices. An empty
+mask means RPS disabled by default.
+
 tstamp_allow_data
 -----------------
 Allow processes to receive tx timestamps looped together with the original

@@ -15,7 +15,8 @@
 
 struct patch_insn {
 	void *addr;
-	u32 insn;
+	u32 *insns;
+	int ninsns;
 	atomic_t cpu_count;
 };
 
@@ -102,12 +103,15 @@ NOKPROBE_SYMBOL(patch_text_nosync);
 static int patch_text_cb(void *data)
 {
 	struct patch_insn *patch = data;
-	int ret = 0;
+	unsigned long len;
+	int i, ret = 0;
 
 	if (atomic_inc_return(&patch->cpu_count) == num_online_cpus()) {
-		ret =
-		    patch_text_nosync(patch->addr, &patch->insn,
-					    GET_INSN_LENGTH(patch->insn));
+		for (i = 0; ret == 0 && i < patch->ninsns; i++) {
+			len = GET_INSN_LENGTH(patch->insns[i]);
+			ret = patch_text_nosync(patch->addr + i * len,
+						&patch->insns[i], len);
+		}
 		atomic_inc(&patch->cpu_count);
 	} else {
 		while (atomic_read(&patch->cpu_count) <= num_online_cpus())
@@ -119,11 +123,12 @@ static int patch_text_cb(void *data)
 }
 NOKPROBE_SYMBOL(patch_text_cb);
 
-int patch_text(void *addr, u32 insn)
+int patch_text(void *addr, u32 *insns, int ninsns)
 {
 	struct patch_insn patch = {
 		.addr = addr,
-		.insn = insn,
+		.insns = insns,
+		.ninsns = ninsns,
 		.cpu_count = ATOMIC_INIT(0),
 	};
 

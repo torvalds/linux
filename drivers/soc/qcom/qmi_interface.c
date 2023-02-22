@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <net/sock.h>
 #include <linux/workqueue.h>
+#include <trace/events/sock.h>
 #include <linux/soc/qcom/qmi.h>
 
 static struct socket *qmi_sock_create(struct qmi_handle *qmi,
@@ -568,6 +569,8 @@ static void qmi_data_ready_work(struct work_struct *work)
 static void qmi_data_ready(struct sock *sk)
 {
 	struct qmi_handle *qmi = sk->sk_user_data;
+
+	trace_sk_data_ready(sk);
 
 	/*
 	 * This will be NULL if we receive data while being in

@@ -178,7 +178,7 @@ The following code snippet shows how to update an XSKMAP with an XSK entry.
 
 For an example on how create AF_XDP sockets, please see the AF_XDP-example and
 AF_XDP-forwarding programs in the `bpf-examples`_ directory in the `libxdp`_ repository.
-For a detailed explaination of the AF_XDP interface please see:
+For a detailed explanation of the AF_XDP interface please see:
 
 - `libxdp-readme`_.
 - `AF_XDP`_ kernel documentation.

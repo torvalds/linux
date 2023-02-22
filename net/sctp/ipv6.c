@@ -807,8 +807,6 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 
 	newsk->sk_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 
-	sk_refcnt_debug_inc(newsk);
-
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);
 		newsk = NULL;

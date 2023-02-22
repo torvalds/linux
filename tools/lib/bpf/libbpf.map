@@ -382,3 +382,11 @@ LIBBPF_1.1.0 {
 		user_ring_buffer__reserve_blocking;
 		user_ring_buffer__submit;
 } LIBBPF_1.0.0;
+
+LIBBPF_1.2.0 {
+	global:
+		bpf_btf_get_info_by_fd;
+		bpf_link_get_info_by_fd;
+		bpf_map_get_info_by_fd;
+		bpf_prog_get_info_by_fd;
+} LIBBPF_1.1.0;

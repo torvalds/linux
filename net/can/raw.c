@@ -523,6 +523,7 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 	struct can_filter sfilter;         /* single filter */
 	struct net_device *dev = NULL;
 	can_err_mask_t err_mask = 0;
+	int fd_frames;
 	int count = 0;
 	int err = 0;
 
@@ -664,17 +665,17 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case CAN_RAW_FD_FRAMES:
-		if (optlen != sizeof(ro->fd_frames))
+		if (optlen != sizeof(fd_frames))
 			return -EINVAL;
 
-		if (copy_from_sockptr(&ro->fd_frames, optval, optlen))
+		if (copy_from_sockptr(&fd_frames, optval, optlen))
 			return -EFAULT;
 
 		/* Enabling CAN XL includes CAN FD */
-		if (ro->xl_frames && !ro->fd_frames) {
-			ro->fd_frames = ro->xl_frames;
+		if (ro->xl_frames && !fd_frames)
 			return -EINVAL;
-		}
+
+		ro->fd_frames = fd_frames;
 		break;
 
 	case CAN_RAW_XL_FRAMES:

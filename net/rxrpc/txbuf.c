@@ -110,12 +110,8 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 
 	_enter("%x/%x/%x", call->tx_bottom, call->acks_hard_ack, call->tx_top);
 
-	for (;;) {
-		spin_lock(&call->tx_lock);
-		txb = list_first_entry_or_null(&call->tx_buffer,
-					       struct rxrpc_txbuf, call_link);
-		if (!txb)
-			break;
+	while ((txb = list_first_entry_or_null(&call->tx_buffer,
+					       struct rxrpc_txbuf, call_link))) {
 		hard_ack = smp_load_acquire(&call->acks_hard_ack);
 		if (before(hard_ack, txb->seq))
 			break;
@@ -128,14 +124,10 @@ void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
 
 		trace_rxrpc_txqueue(call, rxrpc_txqueue_dequeue);
 
-		spin_unlock(&call->tx_lock);
-
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_rotated);
 		if (after(call->acks_hard_ack, call->tx_bottom + 128))
 			wake = true;
 	}
-
-	spin_unlock(&call->tx_lock);
 
 	if (wake)
 		wake_up(&call->waitq);

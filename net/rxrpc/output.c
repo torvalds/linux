@@ -80,62 +80,40 @@ static void rxrpc_set_keepalive(struct rxrpc_call *call)
  */
 static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 				 struct rxrpc_call *call,
-				 struct rxrpc_txbuf *txb)
+				 struct rxrpc_txbuf *txb,
+				 u16 *_rwind)
 {
 	struct rxrpc_ackinfo ackinfo;
-	unsigned int qsize;
-	rxrpc_seq_t window, wtop, wrap_point, ix, first;
+	unsigned int qsize, sack, wrap, to;
+	rxrpc_seq_t window, wtop;
 	int rsize;
-	u64 wtmp;
 	u32 mtu, jmax;
 	u8 *ackp = txb->acks;
-	u8 sack_buffer[sizeof(call->ackr_sack_table)] __aligned(8);
 
-	atomic_set(&call->ackr_nr_unacked, 0);
+	call->ackr_nr_unacked = 0;
 	atomic_set(&call->ackr_nr_consumed, 0);
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_fill);
+	clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags);
 
-	/* Barrier against rxrpc_input_data(). */
-retry:
-	wtmp   = atomic64_read_acquire(&call->ackr_window);
-	window = lower_32_bits(wtmp);
-	wtop   = upper_32_bits(wtmp);
+	window = call->ackr_window;
+	wtop   = call->ackr_wtop;
+	sack   = call->ackr_sack_base % RXRPC_SACK_SIZE;
 	txb->ack.firstPacket = htonl(window);
-	txb->ack.nAcks = 0;
+	txb->ack.nAcks = wtop - window;
 
 	if (after(wtop, window)) {
-		/* Try to copy the SACK ring locklessly.  We can use the copy,
-		 * only if the now-current top of the window didn't go past the
-		 * previously read base - otherwise we can't know whether we
-		 * have old data or new data.
-		 */
-		memcpy(sack_buffer, call->ackr_sack_table, sizeof(sack_buffer));
-		wrap_point = window + RXRPC_SACK_SIZE - 1;
-		wtmp   = atomic64_read_acquire(&call->ackr_window);
-		window = lower_32_bits(wtmp);
-		wtop   = upper_32_bits(wtmp);
-		if (after(wtop, wrap_point)) {
-			cond_resched();
-			goto retry;
-		}
+		wrap = RXRPC_SACK_SIZE - sack;
+		to = min_t(unsigned int, txb->ack.nAcks, RXRPC_SACK_SIZE);
 
-		/* The buffer is maintained as a ring with an invariant mapping
-		 * between bit position and sequence number, so we'll probably
-		 * need to rotate it.
-		 */
-		txb->ack.nAcks = wtop - window;
-		ix = window % RXRPC_SACK_SIZE;
-		first = sizeof(sack_buffer) - ix;
-
-		if (ix + txb->ack.nAcks <= RXRPC_SACK_SIZE) {
-			memcpy(txb->acks, sack_buffer + ix, txb->ack.nAcks);
+		if (sack + txb->ack.nAcks <= RXRPC_SACK_SIZE) {
+			memcpy(txb->acks, call->ackr_sack_table + sack, txb->ack.nAcks);
 		} else {
-			memcpy(txb->acks, sack_buffer + ix, first);
-			memcpy(txb->acks + first, sack_buffer,
-			       txb->ack.nAcks - first);
+			memcpy(txb->acks, call->ackr_sack_table + sack, wrap);
+			memcpy(txb->acks + wrap, call->ackr_sack_table,
+			       to - wrap);
 		}
 
-		ackp += txb->ack.nAcks;
+		ackp += to;
 	} else if (before(wtop, window)) {
 		pr_warn("ack window backward %x %x", window, wtop);
 	} else if (txb->ack.reason == RXRPC_ACK_DELAY) {
@@ -147,6 +125,7 @@ retry:
 	jmax = rxrpc_rx_jumbo_max;
 	qsize = (window - 1) - call->rx_consumed;
 	rsize = max_t(int, call->rx_winsize - qsize, 0);
+	*_rwind = rsize;
 	ackinfo.rxMTU		= htonl(rxrpc_rx_mtu);
 	ackinfo.maxMTU		= htonl(mtu);
 	ackinfo.rwind		= htonl(rsize);
@@ -213,6 +192,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	rxrpc_serial_t serial;
 	size_t len, n;
 	int ret, rtt_slot = -1;
+	u16 rwind;
 
 	if (test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
 		return -ECONNRESET;
@@ -228,7 +208,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	if (txb->ack.reason == RXRPC_ACK_PING)
 		txb->wire.flags |= RXRPC_REQUEST_ACK;
 
-	n = rxrpc_fill_out_ack(conn, call, txb);
+	n = rxrpc_fill_out_ack(conn, call, txb, &rwind);
 	if (n == 0)
 		return 0;
 
@@ -240,7 +220,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	txb->wire.serial = htonl(serial);
 	trace_rxrpc_tx_ack(call->debug_id, serial,
 			   ntohl(txb->ack.firstPacket),
-			   ntohl(txb->ack.serial), txb->ack.reason, txb->ack.nAcks);
+			   ntohl(txb->ack.serial), txb->ack.reason, txb->ack.nAcks,
+			   rwind);
 
 	if (txb->ack.reason == RXRPC_ACK_PING)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_ping);
@@ -253,12 +234,15 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	call->peer->last_tx_at = ktime_get_seconds();
-	if (ret < 0)
+	if (ret < 0) {
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_ack);
-	else
+	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,
 				      rxrpc_tx_point_call_ack);
+		if (txb->wire.flags & RXRPC_REQUEST_ACK)
+			call->peer->rtt_last_req = ktime_get_real();
+	}
 	rxrpc_tx_backoff(call, ret);
 
 	if (!__rxrpc_call_is_complete(call)) {
@@ -429,8 +413,6 @@ dont_set_request_ack:
 	if (txb->len >= call->peer->maxdata)
 		goto send_fragmentable;
 
-	down_read(&conn->local->defrag_sem);
-
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
@@ -445,7 +427,6 @@ dont_set_request_ack:
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	conn->peer->last_tx_at = ktime_get_seconds();
 
-	up_read(&conn->local->defrag_sem);
 	if (ret < 0) {
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
 		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
@@ -506,8 +487,6 @@ send_fragmentable:
 	/* attempt to send this message with fragmentation enabled */
 	_debug("send fragment");
 
-	down_write(&conn->local->defrag_sem);
-
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
@@ -539,8 +518,6 @@ send_fragmentable:
 				      rxrpc_tx_point_call_data_frag);
 	}
 	rxrpc_tx_backoff(call, ret);
-
-	up_write(&conn->local->defrag_sem);
 	goto done;
 }
 

@@ -57,6 +57,15 @@ patternProperties:
         enum:
           - mscc,ocelot-miim
 
+  "^ethernet-switch@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/net/mscc,vsc7514-switch.yaml
+    unevaluatedProperties: false
+    properties:
+      compatible:
+        enum:
+          - mscc,vsc7512-switch
+
 required:
   - compatible
   - reg

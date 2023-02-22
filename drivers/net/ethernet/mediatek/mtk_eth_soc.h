@@ -77,12 +77,24 @@
 #define	MTK_HW_LRO_REPLACE_DELTA	1000
 #define	MTK_HW_LRO_SDL_REMAIN_ROOM	1522
 
+/* Frame Engine Global Configuration */
+#define MTK_FE_GLO_CFG		0x00
+#define MTK_FE_LINK_DOWN_P3	BIT(11)
+#define MTK_FE_LINK_DOWN_P4	BIT(12)
+
 /* Frame Engine Global Reset Register */
 #define MTK_RST_GL		0x04
 #define RST_GL_PSE		BIT(0)
 
 /* Frame Engine Interrupt Status Register */
 #define MTK_INT_STATUS2		0x08
+#define MTK_FE_INT_ENABLE	0x0c
+#define MTK_FE_INT_FQ_EMPTY	BIT(8)
+#define MTK_FE_INT_TSO_FAIL	BIT(12)
+#define MTK_FE_INT_TSO_ILLEGAL	BIT(13)
+#define MTK_FE_INT_TSO_ALIGN	BIT(14)
+#define MTK_FE_INT_RFIFO_OV	BIT(18)
+#define MTK_FE_INT_RFIFO_UF	BIT(19)
 #define MTK_GDM1_AF		BIT(28)
 #define MTK_GDM2_AF		BIT(29)
 
@@ -271,6 +283,8 @@
 #define MTK_TX_DONE_INT		MTK_TX_DONE_DLY
 
 #define MTK_RX_DONE_INT_V2	BIT(14)
+
+#define MTK_CDM_TXFIFO_RDY	BIT(7)
 
 /* QDMA Interrupt grouping registers */
 #define MTK_RLS_DONE_INT	BIT(0)
@@ -561,6 +575,17 @@
 #define MT7628_SDM_RPCNT	(MT7628_SDM_OFFSET + 0x108)
 #define MT7628_SDM_RBCNT	(MT7628_SDM_OFFSET + 0x10c)
 #define MT7628_SDM_CS_ERR	(MT7628_SDM_OFFSET + 0x110)
+
+#define MTK_FE_CDM1_FSM		0x220
+#define MTK_FE_CDM2_FSM		0x224
+#define MTK_FE_CDM3_FSM		0x238
+#define MTK_FE_CDM4_FSM		0x298
+#define MTK_FE_CDM5_FSM		0x318
+#define MTK_FE_CDM6_FSM		0x328
+#define MTK_FE_GDM1_FSM		0x228
+#define MTK_FE_GDM2_FSM		0x22C
+
+#define MTK_MAC_FSM(x)		(0x1010C + ((x) * 0x100))
 
 struct mtk_rx_dma {
 	unsigned int rxd1;
@@ -958,6 +983,7 @@ struct mtk_reg_map {
 		u32	delay_irq;	/* delay interrupt */
 		u32	irq_status;	/* interrupt status */
 		u32	irq_mask;	/* interrupt mask */
+		u32	adma_rx_dbg0;
 		u32	int_grp;
 	} pdma;
 	struct {
@@ -986,6 +1012,8 @@ struct mtk_reg_map {
 	u32	gdma_to_ppe;
 	u32	ppe_base;
 	u32	wdma_base[2];
+	u32	pse_iq_sta;
+	u32	pse_oq_sta;
 };
 
 /* struct mtk_eth_data -	This is the structure holding all differences
@@ -1027,6 +1055,8 @@ struct mtk_soc_data {
 		u32	dma_len_offset;
 	} txrx;
 };
+
+#define MTK_DMA_MONITOR_TIMEOUT		msecs_to_jiffies(1000)
 
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
@@ -1154,6 +1184,14 @@ struct mtk_eth {
 	struct rhashtable		flow_table;
 
 	struct bpf_prog			__rcu *prog;
+
+	struct {
+		struct delayed_work monitor_work;
+		u32 wdidx;
+		u8 wdma_hang_count;
+		u8 qdma_hang_count;
+		u8 adma_hang_count;
+	} reset;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
