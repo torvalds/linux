@@ -1764,6 +1764,7 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 void bch2_fs_ec_exit(struct bch_fs *c)
 {
 	struct ec_stripe_head *h;
+	unsigned i;
 
 	while (1) {
 		mutex_lock(&c->ec_stripe_head_lock);
@@ -1775,7 +1776,12 @@ void bch2_fs_ec_exit(struct bch_fs *c)
 		if (!h)
 			break;
 
-		BUG_ON(h->s);
+		if (h->s) {
+			for (i = 0; i < h->s->new_stripe.key.v.nr_blocks; i++)
+				BUG_ON(h->s->blocks[i]);
+
+			kfree(h->s);
+		}
 		kfree(h);
 	}
 
