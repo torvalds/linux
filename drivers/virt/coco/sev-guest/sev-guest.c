@@ -379,8 +379,25 @@ static int handle_guest_request(struct snp_guest_dev *snp_dev, u64 exit_code, in
 		snp_dev->input.data_npages = certs_npages;
 	}
 
+	/*
+	 * Increment the message sequence number. There is no harm in doing
+	 * this now because decryption uses the value stored in the response
+	 * structure and any failure will wipe the VMPCK, preventing further
+	 * use anyway.
+	 */
+	snp_inc_msg_seqno(snp_dev);
+
 	if (fw_err)
 		*fw_err = err;
+
+	/*
+	 * If an extended guest request was issued and the supplied certificate
+	 * buffer was not large enough, a standard guest request was issued to
+	 * prevent IV reuse. If the standard request was successful, return -EIO
+	 * back to the caller as would have originally been returned.
+	 */
+	if (!rc && err == SNP_GUEST_REQ_INVALID_LEN)
+		return -EIO;
 
 	if (rc) {
 		dev_alert(snp_dev->dev,
@@ -396,9 +413,6 @@ static int handle_guest_request(struct snp_guest_dev *snp_dev, u64 exit_code, in
 			  rc);
 		goto disable_vmpck;
 	}
-
-	/* Increment to new message sequence after payload decryption was successful. */
-	snp_inc_msg_seqno(snp_dev);
 
 	return 0;
 
