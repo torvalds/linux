@@ -121,6 +121,8 @@ static const struct mtk_mmsys_driver_data mt8365_mmsys_driver_data = {
 struct mtk_mmsys {
 	void __iomem *regs;
 	const struct mtk_mmsys_driver_data *data;
+	struct platform_device *clks_pdev;
+	struct platform_device *drm_pdev;
 	spinlock_t lock; /* protects mmsys_sw_rst_b reg */
 	struct reset_controller_dev rcdev;
 	struct cmdq_client_reg cmdq_base;
@@ -386,6 +388,7 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 					     PLATFORM_DEVID_AUTO, NULL, 0);
 	if (IS_ERR(clks))
 		return PTR_ERR(clks);
+	mmsys->clks_pdev = clks;
 
 	if (mmsys->data->is_vppsys)
 		goto out_probe_done;
@@ -396,8 +399,19 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 		platform_device_unregister(clks);
 		return PTR_ERR(drm);
 	}
+	mmsys->drm_pdev = drm;
 
 out_probe_done:
+	return 0;
+}
+
+static int mtk_mmsys_remove(struct platform_device *pdev)
+{
+	struct mtk_mmsys *mmsys = platform_get_drvdata(pdev);
+
+	platform_device_unregister(mmsys->drm_pdev);
+	platform_device_unregister(mmsys->clks_pdev);
+
 	return 0;
 }
 
@@ -475,6 +489,7 @@ static struct platform_driver mtk_mmsys_drv = {
 		.of_match_table = of_match_mtk_mmsys,
 	},
 	.probe = mtk_mmsys_probe,
+	.remove = mtk_mmsys_remove,
 };
 
 static int __init mtk_mmsys_init(void)
