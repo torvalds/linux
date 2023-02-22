@@ -344,13 +344,13 @@ static long qcom_stats_device_ioctl(struct file *file, unsigned int cmd,
 	u32 stats_id;
 	int ret;
 
-	mutex_lock(&drv->lock);
+	mutex_lock(&sleep_stats_mutex);
 	if (cmd != DDR_STATS_IOCTL)
 		stat = kzalloc(sizeof(struct sleep_stats), GFP_KERNEL);
 	else
 		stat = kcalloc(DDR_STATS_MAX_NUM_MODES, sizeof(struct sleep_stats), GFP_KERNEL);
 	if (!stat) {
-		mutex_unlock(&drv->lock);
+		mutex_unlock(&sleep_stats_mutex);
 		return -ENOMEM;
 	}
 
@@ -439,7 +439,7 @@ static long qcom_stats_device_ioctl(struct file *file, unsigned int cmd,
 
 exit:
 	kfree(stat);
-	mutex_unlock(&drv->lock);
+	mutex_unlock(&sleep_stats_mutex);
 	return ret;
 }
 
