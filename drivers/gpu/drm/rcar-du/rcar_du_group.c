@@ -138,6 +138,7 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
 	u32 defr7 = DEFR7_CODE;
+	u32 dorcr;
 
 	/* Enable extended features */
 	rcar_du_group_write(rgrp, DEFR, DEFR_CODE | DEFR_DEFE);
@@ -174,8 +175,15 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	/*
 	 * Use DS1PR and DS2PR to configure planes priorities and connects the
 	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
+	 *
+	 * Groups that have a single channel have a hardcoded configuration. On
+	 * Gen3 and newer, the documentation requires PG1T, DK1S and PG1D_DS1 to
+	 * always be set in this case.
 	 */
-	rcar_du_group_write(rgrp, DORCR, DORCR_PG0D_DS0 | DORCR_DPRS);
+	dorcr = DORCR_PG0D_DS0 | DORCR_DPRS;
+	if (rcdu->info->gen >= 3 && rgrp->num_crtcs == 1)
+		dorcr |= DORCR_PG1T | DORCR_DK1S | DORCR_PG1D_DS1;
+	rcar_du_group_write(rgrp, DORCR, dorcr);
 
 	/* Apply planes to CRTCs association. */
 	mutex_lock(&rgrp->lock);
