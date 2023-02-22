@@ -226,6 +226,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u32 sw, sh;
 	u32 dw, dh;
 	u8 rotate_mode;
+	u8 vsp_scale_mode = 0;
 	u8 scale_w_flag, scale_h_flag;
 
 	bRGA_SRC_INFO = (u32 *) (base + RGA2_SRC_INFO_OFFSET);
@@ -287,6 +288,18 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		/* uvvds need to force tile mode. */
 		if (msg->uvvds_mode && scale_w_flag == 0)
 			scale_w_flag = 3;
+	}
+
+	/* VSP scale mode select, HSD > VSD > VSP > HSP */
+	if (scale_h_flag == 0x2) {
+		/* After HSD, VSP needs to check dst_width */
+		if ((scale_w_flag == 0x1) && (dw < RGA2_VSP_BICUBIC_LIMIT))
+			vsp_scale_mode = 0x0;
+		else if (sw < RGA2_VSP_BICUBIC_LIMIT)
+			vsp_scale_mode = 0x0;
+		else
+			/* default select bilinear */
+			vsp_scale_mode = 0x1;
 	}
 
 	switch (msg->src.format) {
@@ -559,8 +572,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		 ((msg->alpha_rop_flag >> 4) & 0x1)));
 	reg =
 		((reg & (~m_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL)) |
-		 (s_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL((
-			 msg->scale_bicu_mode >> 4))));
+		 (s_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL((vsp_scale_mode))));
 	reg =
 		((reg & (~m_RGA2_SRC_INFO_SW_SW_YUV10_E)) |
 		 (s_RGA2_SRC_INFO_SW_SW_YUV10_E((yuv10))));
@@ -1842,9 +1854,6 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 		req->rotate_mode |= (3 << 4);
 		break;
 	}
-
-	if ((req->dst.act_w > 2048) && (req->src.act_h < req->dst.act_h))
-		req->scale_bicu_mode |= (1 << 4);
 
 	req->LUT_addr = req_rga->LUT_addr;
 	req->rop_mask_addr = req_rga->rop_mask_addr;

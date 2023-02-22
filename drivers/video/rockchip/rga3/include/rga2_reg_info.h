@@ -432,6 +432,8 @@
 #define s_RGA2_MMU_CTRL1_SW_ELS_MMU_EN(x)		((x & 0x1) << 12)
 #define s_RGA2_MMU_CTRL1_SW_ELS_MMU_FLUSH(x)		((x & 0x1) << 13)
 
+#define RGA2_VSP_BICUBIC_LIMIT				1996
+
 extern const struct rga_backend_ops rga2_ops;
 
 #endif
