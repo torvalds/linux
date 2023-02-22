@@ -1461,14 +1461,11 @@ static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 	dp->reoq_lut.vaddr = dma_alloc_coherent(ab->dev,
 						DP_REOQ_LUT_SIZE,
 						&dp->reoq_lut.paddr,
-						GFP_KERNEL);
-
+						GFP_KERNEL | __GFP_ZERO);
 	if (!dp->reoq_lut.vaddr) {
 		ath12k_warn(ab, "failed to allocate memory for reoq table");
 		return -ENOMEM;
 	}
-
-	memset(dp->reoq_lut.vaddr, 0, DP_REOQ_LUT_SIZE);
 
 	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE0(ab),
 			   dp->reoq_lut.paddr);
