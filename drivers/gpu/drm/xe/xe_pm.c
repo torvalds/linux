@@ -117,6 +117,14 @@ void xe_pm_runtime_init(struct xe_device *xe)
 	pm_runtime_put_autosuspend(dev);
 }
 
+void xe_pm_runtime_fini(struct xe_device *xe)
+{
+	struct device *dev = xe->drm.dev;
+
+	pm_runtime_get_sync(dev);
+	pm_runtime_forbid(dev);
+}
+
 int xe_pm_runtime_suspend(struct xe_device *xe)
 {
 	struct xe_gt *gt;
