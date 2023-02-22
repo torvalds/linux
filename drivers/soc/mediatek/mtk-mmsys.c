@@ -416,71 +416,24 @@ static int mtk_mmsys_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id of_match_mtk_mmsys[] = {
-	{
-		.compatible = "mediatek,mt2701-mmsys",
-		.data = &mt2701_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt2712-mmsys",
-		.data = &mt2712_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt6779-mmsys",
-		.data = &mt6779_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt6797-mmsys",
-		.data = &mt6797_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8167-mmsys",
-		.data = &mt8167_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8173-mmsys",
-		.data = &mt8173_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8183-mmsys",
-		.data = &mt8183_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8186-mmsys",
-		.data = &mt8186_mmsys_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8188-vdosys0",
-		.data = &mt8188_vdosys0_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8192-mmsys",
-		.data = &mt8192_mmsys_driver_data,
-	},
-	{	/* deprecated compatible */
-		.compatible = "mediatek,mt8195-mmsys",
-		.data = &mt8195_vdosys0_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8195-vdosys0",
-		.data = &mt8195_vdosys0_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8195-vdosys1",
-		.data = &mt8195_vdosys1_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8195-vppsys0",
-		.data = &mt8195_vppsys0_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8195-vppsys1",
-		.data = &mt8195_vppsys1_driver_data,
-	},
-	{
-		.compatible = "mediatek,mt8365-mmsys",
-		.data = &mt8365_mmsys_driver_data,
-	},
-	{ }
+	{ .compatible = "mediatek,mt2701-mmsys", .data = &mt2701_mmsys_driver_data },
+	{ .compatible = "mediatek,mt2712-mmsys", .data = &mt2712_mmsys_driver_data },
+	{ .compatible = "mediatek,mt6779-mmsys", .data = &mt6779_mmsys_driver_data },
+	{ .compatible = "mediatek,mt6797-mmsys", .data = &mt6797_mmsys_driver_data },
+	{ .compatible = "mediatek,mt8167-mmsys", .data = &mt8167_mmsys_driver_data },
+	{ .compatible = "mediatek,mt8173-mmsys", .data = &mt8173_mmsys_driver_data },
+	{ .compatible = "mediatek,mt8183-mmsys", .data = &mt8183_mmsys_driver_data },
+	{ .compatible = "mediatek,mt8186-mmsys", .data = &mt8186_mmsys_driver_data },
+	{ .compatible = "mediatek,mt8188-vdosys0", .data = &mt8188_vdosys0_driver_data },
+	{ .compatible = "mediatek,mt8192-mmsys", .data = &mt8192_mmsys_driver_data },
+	/* "mediatek,mt8195-mmsys" compatible is deprecated */
+	{ .compatible = "mediatek,mt8195-mmsys", .data = &mt8195_vdosys0_driver_data },
+	{ .compatible = "mediatek,mt8195-vdosys0", .data = &mt8195_vdosys0_driver_data },
+	{ .compatible = "mediatek,mt8195-vdosys1", .data = &mt8195_vdosys1_driver_data },
+	{ .compatible = "mediatek,mt8195-vppsys0", .data = &mt8195_vppsys0_driver_data },
+	{ .compatible = "mediatek,mt8195-vppsys1", .data = &mt8195_vppsys1_driver_data },
+	{ .compatible = "mediatek,mt8365-mmsys", .data = &mt8365_mmsys_driver_data },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver mtk_mmsys_drv = {
