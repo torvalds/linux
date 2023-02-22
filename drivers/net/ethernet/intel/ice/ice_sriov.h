@@ -36,7 +36,7 @@ void ice_free_vfs(struct ice_pf *pf);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
 bool
 ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
-		    u16 num_msg_proc, u16 num_msg_pending);
+		    struct ice_mbx_data *mbxdata);
 
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
@@ -75,8 +75,7 @@ static inline void ice_restore_all_vfs_msi_state(struct pci_dev *pdev) { }
 static inline bool
 ice_is_malicious_vf(struct ice_pf __always_unused *pf,
 		    struct ice_rq_event_info __always_unused *event,
-		    u16 __always_unused num_msg_proc,
-		    u16 __always_unused num_msg_pending)
+		    struct ice_mbx_data *mbxdata)
 {
 	return false;
 }

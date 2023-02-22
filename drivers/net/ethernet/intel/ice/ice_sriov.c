@@ -1782,16 +1782,14 @@ void ice_restore_all_vfs_msi_state(struct pci_dev *pdev)
  * ice_is_malicious_vf - helper function to detect a malicious VF
  * @pf: ptr to struct ice_pf
  * @event: pointer to the AQ event
- * @num_msg_proc: the number of messages processed so far
- * @num_msg_pending: the number of messages peinding in admin queue
+ * @mbxdata: data about the state of the mailbox
  */
 bool
 ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
-		    u16 num_msg_proc, u16 num_msg_pending)
+		    struct ice_mbx_data *mbxdata)
 {
 	s16 vf_id = le16_to_cpu(event->desc.retval);
 	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_mbx_data mbxdata;
 	bool report_malvf = false;
 	struct ice_vf *vf;
 	int status;
@@ -1803,14 +1801,8 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 	if (test_bit(ICE_VF_STATE_DIS, vf->vf_states))
 		goto out_put_vf;
 
-	mbxdata.num_msg_proc = num_msg_proc;
-	mbxdata.num_pending_arq = num_msg_pending;
-	mbxdata.max_num_msgs_mbx = pf->hw.mailboxq.num_rq_entries;
-#define ICE_MBX_OVERFLOW_WATERMARK 64
-	mbxdata.async_watermark_val = ICE_MBX_OVERFLOW_WATERMARK;
-
 	/* check to see if we have a newly malicious VF */
-	status = ice_mbx_vf_state_handler(&pf->hw, &mbxdata, &vf->mbx_info,
+	status = ice_mbx_vf_state_handler(&pf->hw, mbxdata, &vf->mbx_info,
 					  &report_malvf);
 	if (status)
 		goto out_put_vf;
