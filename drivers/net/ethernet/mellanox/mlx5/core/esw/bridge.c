@@ -61,7 +61,7 @@ mlx5_esw_bridge_pkt_reformat_vlan_pop_create(struct mlx5_eswitch *esw)
 	return mlx5_packet_reformat_alloc(esw->dev, &reformat_params, MLX5_FLOW_NAMESPACE_FDB);
 }
 
-static struct mlx5_flow_table *
+struct mlx5_flow_table *
 mlx5_esw_bridge_table_create(int max_fte, u32 level, struct mlx5_eswitch *esw)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
@@ -1506,6 +1506,15 @@ static int mlx5_esw_bridge_vport_init(u16 vport_num, u16 esw_owner_vhca_id, u16 
 	port->bridge = bridge;
 	port->flags |= flags;
 	xa_init(&port->vlans);
+
+	err = mlx5_esw_bridge_port_mcast_init(port);
+	if (err) {
+		esw_warn(esw->dev,
+			 "Failed to initialize port multicast (vport=%u,esw_owner_vhca_id=%u,err=%d)\n",
+			 port->vport_num, port->esw_owner_vhca_id, err);
+		goto err_port_mcast;
+	}
+
 	err = mlx5_esw_bridge_port_insert(port, br_offloads);
 	if (err) {
 		esw_warn(esw->dev,
@@ -1518,6 +1527,8 @@ static int mlx5_esw_bridge_vport_init(u16 vport_num, u16 esw_owner_vhca_id, u16 
 	return 0;
 
 err_port_insert:
+	mlx5_esw_bridge_port_mcast_cleanup(port);
+err_port_mcast:
 	kvfree(port);
 	return err;
 }
@@ -1535,6 +1546,7 @@ static int mlx5_esw_bridge_vport_cleanup(struct mlx5_esw_bridge_offloads *br_off
 
 	trace_mlx5_esw_bridge_vport_cleanup(port);
 	mlx5_esw_bridge_port_vlans_flush(port, bridge);
+	mlx5_esw_bridge_port_mcast_cleanup(port);
 	mlx5_esw_bridge_port_erase(port, br_offloads);
 	kvfree(port);
 	mlx5_esw_bridge_put(br_offloads, bridge);
