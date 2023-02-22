@@ -131,21 +131,18 @@ struct mtk_mmsys {
 static void mtk_mmsys_update_bits(struct mtk_mmsys *mmsys, u32 offset, u32 mask, u32 val,
 				  struct cmdq_pkt *cmdq_pkt)
 {
+	int ret;
 	u32 tmp;
 
-#if IS_REACHABLE(CONFIG_MTK_CMDQ)
-	if (cmdq_pkt) {
-		if (mmsys->cmdq_base.size == 0) {
-			pr_err("mmsys lose gce property, failed to update mmsys bits with cmdq");
+	if (mmsys->cmdq_base.size && cmdq_pkt) {
+		ret = cmdq_pkt_write_mask(cmdq_pkt, mmsys->cmdq_base.subsys,
+					  mmsys->cmdq_base.offset + offset, val,
+					  mask);
+		if (ret)
+			pr_debug("CMDQ unavailable: using CPU write\n");
+		else
 			return;
-		}
-		cmdq_pkt_write_mask(cmdq_pkt, mmsys->cmdq_base.subsys,
-				    mmsys->cmdq_base.offset + offset, val,
-				    mask);
-		return;
 	}
-#endif
-
 	tmp = readl_relaxed(mmsys->regs + offset);
 	tmp = (tmp & ~mask) | (val & mask);
 	writel_relaxed(tmp, mmsys->regs + offset);
@@ -376,11 +373,10 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 		}
 	}
 
-#if IS_REACHABLE(CONFIG_MTK_CMDQ)
+	/* CMDQ is optional */
 	ret = cmdq_dev_get_client_reg(dev, &mmsys->cmdq_base, 0);
 	if (ret)
 		dev_dbg(dev, "No mediatek,gce-client-reg!\n");
-#endif
 
 	platform_set_drvdata(pdev, mmsys);
 
