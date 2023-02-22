@@ -13,9 +13,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-// Test that boottime value in /proc/uptime increments monotonically
-// while shifting across CPUs. We don't test idle time monotonicity
-// due to broken iowait task counting, cf: comment above get_cpu_idle_time_us()
+// Test that boottime value in /proc/uptime and CLOCK_BOOTTIME increment
+// monotonically while shifting across CPUs. We don't test idle time
+// monotonicity due to broken iowait task counting, cf: comment above
+// get_cpu_idle_time_us()
 #undef NDEBUG
 #include <assert.h>
 #include <errno.h>
@@ -43,10 +44,10 @@ static inline int sys_sched_setaffinity(pid_t pid, unsigned int len, unsigned lo
 
 int main(void)
 {
+	uint64_t u0, u1, c0, c1;
 	unsigned int len;
 	unsigned long *m;
 	unsigned int cpu;
-	uint64_t u0, u1;
 	int fd;
 
 	/* find out "nr_cpu_ids" */
@@ -62,6 +63,8 @@ int main(void)
 	assert(fd >= 0);
 
 	u0 = proc_uptime(fd);
+	c0 = clock_boottime();
+
 	for (cpu = 0; cpu < len * 8; cpu++) {
 		memset(m, 0, len);
 		m[cpu / (8 * sizeof(unsigned long))] |= 1UL << (cpu % (8 * sizeof(unsigned long)));
@@ -70,8 +73,19 @@ int main(void)
 		sys_sched_setaffinity(0, len, m);
 
 		u1 = proc_uptime(fd);
+		c1 = clock_boottime();
+
+		/* Is /proc/uptime monotonic ? */
 		assert(u1 >= u0);
+
+		/* Is CLOCK_BOOTTIME monotonic ? */
+		assert(c1 >= c0);
+
+		/* Is CLOCK_BOOTTIME VS /proc/uptime monotonic ? */
+		assert(c0 >= u0);
+
 		u0 = u1;
+		c0 = c1;
 	}
 
 	return 0;

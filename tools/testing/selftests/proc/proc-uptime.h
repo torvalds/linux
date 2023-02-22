@@ -19,8 +19,20 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "proc.h"
+
+static uint64_t clock_boottime(void)
+{
+	struct timespec ts;
+	int err;
+
+	err = clock_gettime(CLOCK_BOOTTIME, &ts);
+	assert(err >= 0);
+
+	return (ts.tv_sec * 100) + (ts.tv_nsec / 10000000);
+}
 
 static uint64_t proc_uptime(int fd)
 {
