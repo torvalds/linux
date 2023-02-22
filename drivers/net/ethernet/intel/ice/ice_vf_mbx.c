@@ -399,17 +399,3 @@ void ice_mbx_init_snapshot(struct ice_hw *hw)
 	INIT_LIST_HEAD(&snap->mbx_vf);
 	ice_mbx_reset_snapshot(snap);
 }
-
-/**
- * ice_mbx_deinit_snapshot - Free mailbox snapshot structure
- * @hw: pointer to the hardware structure
- *
- * Clear the mailbox snapshot structure and free the VF counter array.
- */
-void ice_mbx_deinit_snapshot(struct ice_hw *hw)
-{
-	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
-
-	/* Clear mbx_buf in the mailbox snaphot structure */
-	memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
-}

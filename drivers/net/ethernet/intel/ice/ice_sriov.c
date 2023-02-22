@@ -1014,7 +1014,6 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	if (!num_vfs) {
 		if (!pci_vfs_assigned(pdev)) {
 			ice_free_vfs(pf);
-			ice_mbx_deinit_snapshot(&pf->hw);
 			if (pf->lag)
 				ice_enable_lag(pf->lag);
 			return 0;
@@ -1027,10 +1026,8 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	ice_mbx_init_snapshot(&pf->hw);
 
 	err = ice_pci_sriov_ena(pf, num_vfs);
-	if (err) {
-		ice_mbx_deinit_snapshot(&pf->hw);
+	if (err)
 		return err;
-	}
 
 	if (pf->lag)
 		ice_disable_lag(pf->lag);
