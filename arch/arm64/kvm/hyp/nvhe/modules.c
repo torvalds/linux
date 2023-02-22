@@ -137,6 +137,8 @@ int __pkvm_register_hcall(unsigned long hvn_hyp_va)
 	dyn_hcall_t hfn = (void *)hvn_hyp_va;
 	int reserved_id, ret;
 
+	assert_in_mod_range(hvn_hyp_va);
+
 	hyp_spin_lock(&dyn_hcall_lock);
 
 	reserved_id = atomic_read(&num_dynamic_hcalls);

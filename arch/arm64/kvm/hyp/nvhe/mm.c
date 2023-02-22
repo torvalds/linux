@@ -115,7 +115,7 @@ static void update_mod_range(unsigned long addr, size_t size)
 	hyp_spin_unlock(&mod_range_lock);
 }
 
-static void assert_in_mod_range(unsigned long addr)
+void assert_in_mod_range(unsigned long addr)
 {
 	/*
 	 * This is not entirely watertight if there are private range
@@ -128,7 +128,6 @@ static void assert_in_mod_range(unsigned long addr)
 }
 #else
 static inline void update_mod_range(unsigned long addr, size_t size) { }
-static inline void assert_in_mod_range(unsigned long addr) { }
 #endif
 
 void *__pkvm_alloc_module_va(u64 nr_pages)
