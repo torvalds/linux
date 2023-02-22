@@ -1487,7 +1487,6 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 {
 	ktime_t remaining, now;
 	s64 ns;
-	u32 tmcct;
 
 	ASSERT(apic != NULL);
 
@@ -1502,10 +1501,7 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 		remaining = 0;
 
 	ns = mod_64(ktime_to_ns(remaining), apic->lapic_timer.period);
-	tmcct = div64_u64(ns,
-			 (APIC_BUS_CYCLE_NS * apic->divide_count));
-
-	return tmcct;
+	return div64_u64(ns, (APIC_BUS_CYCLE_NS * apic->divide_count));
 }
 
 static void __report_tpr_access(struct kvm_lapic *apic, bool write)
@@ -1565,19 +1561,15 @@ static inline struct kvm_lapic *to_lapic(struct kvm_io_device *dev)
 #define APIC_REGS_MASK(first, count) \
 	(APIC_REG_MASK(first) * ((1ull << (count)) - 1))
 
-static int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
-			      void *data)
+u64 kvm_lapic_readable_reg_mask(struct kvm_lapic *apic)
 {
-	unsigned char alignment = offset & 0xf;
-	u32 result;
-	/* this bitmask has a bit cleared for each reserved register */
+	/* Leave bits '0' for reserved and write-only registers. */
 	u64 valid_reg_mask =
 		APIC_REG_MASK(APIC_ID) |
 		APIC_REG_MASK(APIC_LVR) |
 		APIC_REG_MASK(APIC_TASKPRI) |
 		APIC_REG_MASK(APIC_PROCPRI) |
 		APIC_REG_MASK(APIC_LDR) |
-		APIC_REG_MASK(APIC_DFR) |
 		APIC_REG_MASK(APIC_SPIV) |
 		APIC_REGS_MASK(APIC_ISR, APIC_ISR_NR) |
 		APIC_REGS_MASK(APIC_TMR, APIC_ISR_NR) |
@@ -1597,21 +1589,33 @@ static int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 	if (kvm_lapic_lvt_supported(apic, LVT_CMCI))
 		valid_reg_mask |= APIC_REG_MASK(APIC_LVTCMCI);
 
-	/*
-	 * ARBPRI and ICR2 are not valid in x2APIC mode.  WARN if KVM reads ICR
-	 * in x2APIC mode as it's an 8-byte register in x2APIC and needs to be
-	 * manually handled by the caller.
-	 */
+	/* ARBPRI, DFR, and ICR2 are not valid in x2APIC mode. */
 	if (!apic_x2apic_mode(apic))
 		valid_reg_mask |= APIC_REG_MASK(APIC_ARBPRI) |
+				  APIC_REG_MASK(APIC_DFR) |
 				  APIC_REG_MASK(APIC_ICR2);
-	else
-		WARN_ON_ONCE(offset == APIC_ICR);
+
+	return valid_reg_mask;
+}
+EXPORT_SYMBOL_GPL(kvm_lapic_readable_reg_mask);
+
+static int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
+			      void *data)
+{
+	unsigned char alignment = offset & 0xf;
+	u32 result;
+
+	/*
+	 * WARN if KVM reads ICR in x2APIC mode, as it's an 8-byte register in
+	 * x2APIC and needs to be manually handled by the caller.
+	 */
+	WARN_ON_ONCE(apic_x2apic_mode(apic) && offset == APIC_ICR);
 
 	if (alignment + len > 4)
 		return 1;
 
-	if (offset > 0x3f0 || !(valid_reg_mask & APIC_REG_MASK(offset)))
+	if (offset > 0x3f0 ||
+	    !(kvm_lapic_readable_reg_mask(apic) & APIC_REG_MASK(offset)))
 		return 1;
 
 	result = __apic_read(apic, offset & ~0xf);
@@ -1964,8 +1968,12 @@ static bool set_target_expiration(struct kvm_lapic *apic, u32 count_reg)
 		if (unlikely(count_reg != APIC_TMICT)) {
 			deadline = tmict_to_ns(apic,
 				     kvm_lapic_get_reg(apic, count_reg));
-			if (unlikely(deadline <= 0))
-				deadline = apic->lapic_timer.period;
+			if (unlikely(deadline <= 0)) {
+				if (apic_lvtt_period(apic))
+					deadline = apic->lapic_timer.period;
+				else
+					deadline = 0;
+			}
 			else if (unlikely(deadline > apic->lapic_timer.period)) {
 				pr_info_ratelimited(
 				    "vcpu %i: requested lapic timer restore with "
@@ -2328,10 +2336,14 @@ static int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 		break;
 
 	case APIC_SELF_IPI:
-		if (apic_x2apic_mode(apic))
-			kvm_apic_send_ipi(apic, APIC_DEST_SELF | (val & APIC_VECTOR_MASK), 0);
-		else
+		/*
+		 * Self-IPI exists only when x2APIC is enabled.  Bits 7:0 hold
+		 * the vector, everything else is reserved.
+		 */
+		if (!apic_x2apic_mode(apic) || (val & ~APIC_VECTOR_MASK))
 			ret = 1;
+		else
+			kvm_apic_send_ipi(apic, APIC_DEST_SELF | val, 0);
 		break;
 	default:
 		ret = 1;
@@ -2498,8 +2510,12 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 		}
 	}
 
-	if (((old_value ^ value) & X2APIC_ENABLE) && (value & X2APIC_ENABLE))
-		kvm_apic_set_x2apic_id(apic, vcpu->vcpu_id);
+	if ((old_value ^ value) & X2APIC_ENABLE) {
+		if (value & X2APIC_ENABLE)
+			kvm_apic_set_x2apic_id(apic, vcpu->vcpu_id);
+		else if (value & MSR_IA32_APICBASE_ENABLE)
+			kvm_apic_set_xapic_id(apic, vcpu->vcpu_id);
+	}
 
 	if ((old_value ^ value) & (MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE)) {
 		kvm_make_request(KVM_REQ_APICV_UPDATE, vcpu);
@@ -3114,12 +3130,16 @@ static int kvm_lapic_msr_read(struct kvm_lapic *apic, u32 reg, u64 *data)
 static int kvm_lapic_msr_write(struct kvm_lapic *apic, u32 reg, u64 data)
 {
 	/*
-	 * ICR is a 64-bit register in x2APIC mode (and Hyper'v PV vAPIC) and
+	 * ICR is a 64-bit register in x2APIC mode (and Hyper-V PV vAPIC) and
 	 * can be written as such, all other registers remain accessible only
 	 * through 32-bit reads/writes.
 	 */
 	if (reg == APIC_ICR)
 		return kvm_x2apic_icr_write(apic, data);
+
+	/* Bits 63:32 are reserved in all other registers. */
+	if (data >> 32)
+		return 1;
 
 	return kvm_lapic_reg_write(apic, reg, (u32)data);
 }
@@ -3141,9 +3161,6 @@ int kvm_x2apic_msr_read(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 	u32 reg = (msr - APIC_BASE_MSR) << 4;
 
 	if (!lapic_in_kernel(vcpu) || !apic_x2apic_mode(apic))
-		return 1;
-
-	if (reg == APIC_DFR)
 		return 1;
 
 	return kvm_lapic_msr_read(apic, reg, data);
