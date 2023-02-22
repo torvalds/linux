@@ -1817,11 +1817,11 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 
 	if (report_malvf) {
 		struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
+		u8 zero_addr[ETH_ALEN] = {};
 
-		if (pf_vsi)
-			dev_warn(dev, "VF MAC %pM on PF MAC %pM is generating asynchronous messages and may be overflowing the PF message queue. Please see the Adapter User Guide for more information\n",
-				 &vf->dev_lan_addr[0],
-				 pf_vsi->netdev->dev_addr);
+		dev_warn(dev, "VF MAC %pM on PF MAC %pM is generating asynchronous messages and may be overflowing the PF message queue. Please see the Adapter User Guide for more information\n",
+			 &vf->dev_lan_addr[0],
+			 pf_vsi ? pf_vsi->netdev->dev_addr : zero_addr);
 	}
 
 out_put_vf:
