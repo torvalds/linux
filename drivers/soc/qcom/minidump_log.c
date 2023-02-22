@@ -44,6 +44,7 @@
 
 #include <asm/memory.h>
 
+#include <linux/sched/cputime.h>
 #include "../../../kernel/sched/sched.h"
 #include <linux/sched/walt.h>
 
@@ -131,6 +132,7 @@ static DEFINE_PER_CPU(struct pt_regs, regs_before_stop);
 #endif
 
 /* Meminfo */
+#ifdef CONFIG_QCOM_MINIDUMP_PANIC_MEMORY_INFO
 static struct seq_buf *md_meminfo_seq_buf;
 
 /* Slabinfo */
@@ -153,6 +155,7 @@ char *md_dma_buf_info_addr;
 
 size_t md_dma_buf_procs_size = SZ_256K;
 char *md_dma_buf_procs_addr;
+#endif
 
 /* Modules information */
 #ifdef CONFIG_MODULES
@@ -1108,6 +1111,7 @@ dump_rq:
 #endif
 	md_dump_next_event();
 	md_dump_runqueues();
+#ifdef CONFIG_QCOM_MINIDUMP_PANIC_MEMORY_INFO
 	if (md_meminfo_seq_buf)
 		md_dump_meminfo(md_meminfo_seq_buf);
 
@@ -1129,6 +1133,7 @@ dump_rq:
 		md_dma_buf_info(md_dma_buf_info_addr, md_dma_buf_info_size);
 	if (md_dma_buf_procs_addr)
 		md_dma_buf_procs(md_dma_buf_procs_addr, md_dma_buf_procs_size);
+#endif
 	md_in_oops_handler = false;
 }
 EXPORT_SYMBOL(md_dump_process);
@@ -1200,15 +1205,9 @@ err_seq_buf:
 
 static void md_register_panic_data(void)
 {
+#ifdef CONFIG_QCOM_MINIDUMP_PANIC_MEMORY_INFO
 	struct dentry *minidump_dir = NULL;
 
-	md_register_panic_entries(MD_RUNQUEUE_PAGES, "KRUNQUEUE",
-				  &md_runq_seq_buf);
-#ifdef CONFIG_QCOM_MINIDUMP_PANIC_CPU_CONTEXT
-	md_register_panic_entries(MD_CPU_CNTXT_PAGES, "KCNTXT",
-				  &md_cntxt_seq_buf);
-	register_trace_android_vh_ipi_stop(md_ipi_stop, NULL);
-#endif
 	md_register_panic_entries(MD_MEMINFO_PAGES, "MEMINFO",
 				  &md_meminfo_seq_buf);
 #ifdef CONFIG_SLUB_DEBUG
@@ -1233,6 +1232,14 @@ static void md_register_panic_data(void)
 	md_debugfs_dmabufinfo(minidump_dir);
 	md_register_memory_dump(md_dma_buf_procs_size, "DMA_PROC");
 	md_debugfs_dmabufprocs(minidump_dir);
+#endif
+#ifdef CONFIG_QCOM_MINIDUMP_PANIC_CPU_CONTEXT
+	md_register_panic_entries(MD_CPU_CNTXT_PAGES, "KCNTXT",
+				  &md_cntxt_seq_buf);
+	register_trace_android_vh_ipi_stop(md_ipi_stop, NULL);
+#endif
+	md_register_panic_entries(MD_RUNQUEUE_PAGES, "KRUNQUEUE",
+				  &md_runq_seq_buf);
 }
 
 static int register_vmap_mem(const char *name, void *virual_addr, size_t dump_len)
