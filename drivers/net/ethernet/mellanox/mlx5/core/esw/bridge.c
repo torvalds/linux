@@ -1095,8 +1095,21 @@ mlx5_esw_bridge_vlan_push_mark_cleanup(struct mlx5_esw_bridge_vlan *vlan, struct
 }
 
 static int
-mlx5_esw_bridge_vlan_push_pop_create(u16 vlan_proto, u16 flags, struct mlx5_esw_bridge_vlan *vlan,
-				     struct mlx5_eswitch *esw)
+mlx5_esw_bridge_vlan_push_pop_fhs_create(u16 vlan_proto, struct mlx5_esw_bridge_port *port,
+					 struct mlx5_esw_bridge_vlan *vlan)
+{
+	return mlx5_esw_bridge_vlan_mcast_init(vlan_proto, port, vlan);
+}
+
+static void
+mlx5_esw_bridge_vlan_push_pop_fhs_cleanup(struct mlx5_esw_bridge_vlan *vlan)
+{
+	mlx5_esw_bridge_vlan_mcast_cleanup(vlan);
+}
+
+static int
+mlx5_esw_bridge_vlan_push_pop_create(u16 vlan_proto, u16 flags, struct mlx5_esw_bridge_port *port,
+				     struct mlx5_esw_bridge_vlan *vlan, struct mlx5_eswitch *esw)
 {
 	int err;
 
@@ -1114,10 +1127,16 @@ mlx5_esw_bridge_vlan_push_pop_create(u16 vlan_proto, u16 flags, struct mlx5_esw_
 		err = mlx5_esw_bridge_vlan_pop_create(vlan, esw);
 		if (err)
 			goto err_vlan_pop;
+
+		err = mlx5_esw_bridge_vlan_push_pop_fhs_create(vlan_proto, port, vlan);
+		if (err)
+			goto err_vlan_pop_fhs;
 	}
 
 	return 0;
 
+err_vlan_pop_fhs:
+	mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
 err_vlan_pop:
 	if (vlan->pkt_mod_hdr_push_mark)
 		mlx5_esw_bridge_vlan_push_mark_cleanup(vlan, esw);
@@ -1142,7 +1161,7 @@ mlx5_esw_bridge_vlan_create(u16 vlan_proto, u16 vid, u16 flags, struct mlx5_esw_
 	vlan->flags = flags;
 	INIT_LIST_HEAD(&vlan->fdb_list);
 
-	err = mlx5_esw_bridge_vlan_push_pop_create(vlan_proto, flags, vlan, esw);
+	err = mlx5_esw_bridge_vlan_push_pop_create(vlan_proto, flags, port, vlan, esw);
 	if (err)
 		goto err_vlan_push_pop;
 
@@ -1154,6 +1173,8 @@ mlx5_esw_bridge_vlan_create(u16 vlan_proto, u16 vid, u16 flags, struct mlx5_esw_
 	return vlan;
 
 err_xa_insert:
+	if (vlan->mcast_handle)
+		mlx5_esw_bridge_vlan_push_pop_fhs_cleanup(vlan);
 	if (vlan->pkt_reformat_pop)
 		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
 	if (vlan->pkt_mod_hdr_push_mark)
@@ -1180,6 +1201,8 @@ static void mlx5_esw_bridge_vlan_flush(struct mlx5_esw_bridge_vlan *vlan,
 	list_for_each_entry_safe(entry, tmp, &vlan->fdb_list, vlan_list)
 		mlx5_esw_bridge_fdb_entry_notify_and_cleanup(entry, bridge);
 
+	if (vlan->mcast_handle)
+		mlx5_esw_bridge_vlan_push_pop_fhs_cleanup(vlan);
 	if (vlan->pkt_reformat_pop)
 		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
 	if (vlan->pkt_mod_hdr_push_mark)
@@ -1218,8 +1241,8 @@ static int mlx5_esw_bridge_port_vlans_recreate(struct mlx5_esw_bridge_port *port
 
 	xa_for_each(&port->vlans, i, vlan) {
 		mlx5_esw_bridge_vlan_flush(vlan, bridge);
-		err = mlx5_esw_bridge_vlan_push_pop_create(bridge->vlan_proto, vlan->flags, vlan,
-							   br_offloads->esw);
+		err = mlx5_esw_bridge_vlan_push_pop_create(bridge->vlan_proto, vlan->flags, port,
+							   vlan, br_offloads->esw);
 		if (err) {
 			esw_warn(br_offloads->esw->dev,
 				 "Failed to create VLAN=%u(proto=%x) push/pop actions (vport=%u,err=%d)\n",
