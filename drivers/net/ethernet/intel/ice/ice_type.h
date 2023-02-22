@@ -794,6 +794,13 @@ struct ice_mbx_vf_counter {
 	u32 vfcntr_len;
 };
 
+/* Structure used to track a single VF's messages on the mailbox:
+ * 1. malicious: whether this VF has been detected as malicious before
+ */
+struct ice_mbx_vf_info {
+	u8 malicious : 1;
+};
+
 /* Structure to hold data relevant to the captured static snapshot
  * of the PF-VF mailbox.
  */

@@ -204,8 +204,8 @@ void ice_free_vfs(struct ice_pf *pf)
 		}
 
 		/* clear malicious info since the VF is getting released */
-		ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->vfs.malvfs,
-				    ICE_MAX_SRIOV_VFS, vf->vf_id);
+		ice_mbx_clear_malvf(&hw->mbx_snapshot, vf->vf_id,
+				    &vf->mbx_info);
 
 		mutex_unlock(&vf->cfg_lock);
 	}
@@ -1828,8 +1828,7 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 		/* if the VF is malicious and we haven't let the user
 		 * know about it, then let them know now
 		 */
-		status = ice_mbx_report_malvf(&pf->hw, pf->vfs.malvfs,
-					      ICE_MAX_SRIOV_VFS, vf_id,
+		status = ice_mbx_report_malvf(&pf->hw, &vf->mbx_info,
 					      &report_vf);
 		if (status)
 			dev_dbg(dev, "Error reporting malicious VF\n");

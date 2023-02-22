@@ -345,35 +345,23 @@ ice_mbx_vf_state_handler(struct ice_hw *hw,
 /**
  * ice_mbx_report_malvf - Track and note malicious VF
  * @hw: pointer to the HW struct
- * @all_malvfs: all malicious VFs tracked by PF
- * @bitmap_len: length of bitmap in bits
- * @vf_id: relative virtual function ID of the malicious VF
+ * @vf_info: the mailbox tracking info structure for a VF
  * @report_malvf: boolean to indicate if malicious VF must be reported
  *
- * This function will update a bitmap that keeps track of the malicious
- * VFs attached to the PF. A malicious VF must be reported only once if
- * discovered between VF resets or loading so the function checks
- * the input vf_id against the bitmap to verify if the VF has been
- * detected in any previous mailbox iterations.
+ * This function updates the malicious indicator bit in the VF mailbox
+ * tracking structure. A malicious VF must be reported only once if discovered
+ * between VF resets or loading so the function first checks if the VF has
+ * already been detected in any previous mailbox iterations.
  */
 int
-ice_mbx_report_malvf(struct ice_hw *hw, unsigned long *all_malvfs,
-		     u16 bitmap_len, u16 vf_id, bool *report_malvf)
+ice_mbx_report_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
+		     bool *report_malvf)
 {
-	if (!all_malvfs || !report_malvf)
+	if (!report_malvf)
 		return -EINVAL;
 
-	*report_malvf = false;
-
-	if (bitmap_len < hw->mbx_snapshot.mbx_vf.vfcntr_len)
-		return -EINVAL;
-
-	if (vf_id >= bitmap_len)
-		return -EIO;
-
-	/* If the vf_id is found in the bitmap set bit and boolean to true */
-	if (!test_and_set_bit(vf_id, all_malvfs))
-		*report_malvf = true;
+	*report_malvf = !vf_info->malicious;
+	vf_info->malicious = 1;
 
 	return 0;
 }
@@ -381,33 +369,24 @@ ice_mbx_report_malvf(struct ice_hw *hw, unsigned long *all_malvfs,
 /**
  * ice_mbx_clear_malvf - Clear VF bitmap and counter for VF ID
  * @snap: pointer to the mailbox snapshot structure
- * @all_malvfs: all malicious VFs tracked by PF
- * @bitmap_len: length of bitmap in bits
  * @vf_id: relative virtual function ID of the malicious VF
+ * @vf_info: mailbox tracking structure for this VF
  *
- * In case of a VF reset, this function can be called to clear
- * the bit corresponding to the VF ID in the bitmap tracking all
- * malicious VFs attached to the PF. The function also clears the
- * VF counter array at the index of the VF ID. This is to ensure
- * that the new VF loaded is not considered malicious before going
- * through the overflow detection algorithm.
- */
+* In case of a VF reset, this function shall be called to clear the VF's
+* current mailbox tracking state.
+*/
 void
-ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, unsigned long *all_malvfs,
-		    u16 bitmap_len, u16 vf_id)
+ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, u16 vf_id,
+		    struct ice_mbx_vf_info *vf_info)
 {
-	if (WARN_ON(!snap || !all_malvfs))
-		return;
-
-	if (WARN_ON(bitmap_len < snap->mbx_vf.vfcntr_len))
+	if (WARN_ON(!snap))
 		return;
 
 	/* Ensure VF ID value is not larger than bitmap or VF counter length */
-	if (WARN_ON(vf_id >= bitmap_len || vf_id >= snap->mbx_vf.vfcntr_len))
+	if (WARN_ON(vf_id >= snap->mbx_vf.vfcntr_len))
 		return;
 
-	/* Clear VF ID bit in the bitmap tracking malicious VFs attached to PF */
-	clear_bit(vf_id, all_malvfs);
+	vf_info->malicious = 0;
 
 	/* Clear the VF counter in the mailbox snapshot structure for that VF ID.
 	 * This is to ensure that if a VF is unloaded and a new one brought back
@@ -416,6 +395,18 @@ ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, unsigned long *all_malvfs,
 	 * values in the mailbox overflow detection algorithm.
 	 */
 	snap->mbx_vf.vf_cntr[vf_id] = 0;
+}
+
+/**
+ * ice_mbx_init_vf_info - Initialize a new VF mailbox tracking info
+ * @hw: pointer to the hardware structure
+ * @vf_info: the mailbox tracking info structure for a VF
+ *
+ * Initialize a VF mailbox tracking info structure.
+ */
+void ice_mbx_init_vf_info(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info)
+{
+	vf_info->malicious = 0;
 }
 
 /**
