@@ -2594,6 +2594,16 @@ static int geni_i3c_remove(struct platform_device *pdev)
 
 static int geni_i3c_resume_early(struct device *dev)
 {
+	struct geni_i3c_dev *gi3c = dev_get_drvdata(dev);
+
+	if (gi3c->ibi.ibic_naon && !gi3c->ibi.naon_clk_en) {
+		if (geni_i3c_enable_naon_ibi_clks(gi3c, true)) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"%s:  NAON clock failure\n", __func__);
+			return -EAGAIN;
+		}
+	}
+
 	return 0;
 }
 
@@ -2648,6 +2658,14 @@ static int geni_i3c_runtime_resume(struct device *dev)
 static int geni_i3c_suspend_late(struct device *dev)
 {
 	struct geni_i3c_dev *gi3c = dev_get_drvdata(dev);
+
+	if (gi3c->ibi.ibic_naon && gi3c->ibi.naon_clk_en) {
+		if (geni_i3c_enable_naon_ibi_clks(gi3c, false)) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				"%s:  NAON clock failure\n", __func__);
+			return -EAGAIN;
+		}
+	}
 
 	if (!pm_runtime_status_suspended(dev)) {
 		I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
