@@ -31,22 +31,6 @@ int bch2_keylist_realloc(struct keylist *l, u64 *inline_u64s,
 	return 0;
 }
 
-void bch2_keylist_add_in_order(struct keylist *l, struct bkey_i *insert)
-{
-	struct bkey_i *where;
-
-	for_each_keylist_key(l, where)
-		if (bpos_lt(insert->k.p, where->k.p))
-			break;
-
-	memmove_u64s_up((u64 *) where + insert->k.u64s,
-			where,
-			((u64 *) l->top) - ((u64 *) where));
-
-	l->top_p += insert->k.u64s;
-	bkey_copy(where, insert);
-}
-
 void bch2_keylist_pop_front(struct keylist *l)
 {
 	l->top_p -= bch2_keylist_front(l)->k.u64s;

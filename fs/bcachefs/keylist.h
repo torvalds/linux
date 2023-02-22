@@ -5,7 +5,6 @@
 #include "keylist_types.h"
 
 int bch2_keylist_realloc(struct keylist *, u64 *, size_t, size_t);
-void bch2_keylist_add_in_order(struct keylist *, struct bkey_i *);
 void bch2_keylist_pop_front(struct keylist *);
 
 static inline void bch2_keylist_init(struct keylist *l, u64 *inline_keys)
