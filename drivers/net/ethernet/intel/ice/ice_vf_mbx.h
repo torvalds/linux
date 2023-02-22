@@ -43,5 +43,9 @@ ice_conv_link_speed_to_virtchnl(bool __always_unused adv_link_support,
 	return 0;
 }
 
+static inline void ice_mbx_init_snapshot(struct ice_hw *hw)
+{
+}
+
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_VF_MBX_H_ */
