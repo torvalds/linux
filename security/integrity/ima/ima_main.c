@@ -89,7 +89,8 @@ static int mmap_violation_check(enum ima_hooks func, struct file *file,
 	struct inode *inode;
 	int rc = 0;
 
-	if ((func == MMAP_CHECK) && mapping_writably_mapped(file->f_mapping)) {
+	if ((func == MMAP_CHECK || func == MMAP_CHECK_REQPROT) &&
+	    mapping_writably_mapped(file->f_mapping)) {
 		rc = -ETXTBSY;
 		inode = file_inode(file);
 
@@ -227,7 +228,8 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	action = ima_get_action(file_mnt_idmap(file), inode, cred, secid,
 				mask, func, &pcr, &template_desc, NULL,
 				&allowed_algos);
-	violation_check = ((func == FILE_CHECK || func == MMAP_CHECK) &&
+	violation_check = ((func == FILE_CHECK || func == MMAP_CHECK ||
+			    func == MMAP_CHECK_REQPROT) &&
 			   (ima_policy_flag & IMA_MEASURE));
 	if (!action && !violation_check)
 		return 0;
@@ -337,7 +339,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	hash_algo = ima_get_hash_algo(xattr_value, xattr_len);
 
 	rc = ima_collect_measurement(iint, file, buf, size, hash_algo, modsig);
-	if (rc == -ENOMEM)
+	if (rc != 0 && rc != -EBADF && rc != -EINVAL)
 		goto out_locked;
 
 	if (!pathbuf)	/* ima_rdwr_violation possibly pre-fetched */
@@ -397,7 +399,9 @@ out:
 /**
  * ima_file_mmap - based on policy, collect/store measurement.
  * @file: pointer to the file to be measured (May be NULL)
- * @prot: contains the protection that will be applied by the kernel.
+ * @reqprot: protection requested by the application
+ * @prot: protection that will be applied by the kernel
+ * @flags: operational flags
  *
  * Measure files being mmapped executable based on the ima_must_measure()
  * policy decision.
@@ -405,15 +409,27 @@ out:
  * On success return 0.  On integrity appraisal error, assuming the file
  * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
  */
-int ima_file_mmap(struct file *file, unsigned long prot)
+int ima_file_mmap(struct file *file, unsigned long reqprot,
+		  unsigned long prot, unsigned long flags)
 {
 	u32 secid;
+	int ret;
 
-	if (file && (prot & PROT_EXEC)) {
-		security_current_getsecid_subj(&secid);
+	if (!file)
+		return 0;
+
+	security_current_getsecid_subj(&secid);
+
+	if (reqprot & PROT_EXEC) {
+		ret = process_measurement(file, current_cred(), secid, NULL,
+					  0, MAY_EXEC, MMAP_CHECK_REQPROT);
+		if (ret)
+			return ret;
+	}
+
+	if (prot & PROT_EXEC)
 		return process_measurement(file, current_cred(), secid, NULL,
 					   0, MAY_EXEC, MMAP_CHECK);
-	}
 
 	return 0;
 }
@@ -454,6 +470,10 @@ int ima_file_mprotect(struct vm_area_struct *vma, unsigned long prot)
 	action = ima_get_action(file_mnt_idmap(vma->vm_file), inode,
 				current_cred(), secid, MAY_EXEC, MMAP_CHECK,
 				&pcr, &template, NULL, NULL);
+	action |= ima_get_action(file_mnt_idmap(vma->vm_file), inode,
+				 current_cred(), secid, MAY_EXEC,
+				 MMAP_CHECK_REQPROT, &pcr, &template, NULL,
+				 NULL);
 
 	/* Is the mmap'ed file in policy? */
 	if (!(action & (IMA_MEASURE | IMA_APPRAISE_SUBMASK)))
@@ -563,7 +583,7 @@ static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
 	 * ima_file_hash can be called when ima_collect_measurement has still
 	 * not been called, we might not always have a hash.
 	 */
-	if (!iint->ima_hash) {
+	if (!iint->ima_hash || !(iint->flags & IMA_COLLECTED)) {
 		mutex_unlock(&iint->mutex);
 		return -EOPNOTSUPP;
 	}

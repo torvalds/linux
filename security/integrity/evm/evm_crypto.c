@@ -183,8 +183,8 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
  * Dump large security xattr values as a continuous ascii hexademical string.
  * (pr_debug is limited to 64 bytes.)
  */
-static void dump_security_xattr(const char *prefix, const void *src,
-				size_t count)
+static void dump_security_xattr_l(const char *prefix, const void *src,
+				  size_t count)
 {
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	char *asciihex, *p;
@@ -198,6 +198,16 @@ static void dump_security_xattr(const char *prefix, const void *src,
 	pr_debug("%s: (%zu) %.*s\n", prefix, count, (int)count * 2, asciihex);
 	kfree(asciihex);
 #endif
+}
+
+static void dump_security_xattr(const char *name, const char *value,
+				size_t value_len)
+{
+	if (value_len < 64)
+		pr_debug("%s: (%zu) [%*phN]\n", name, value_len,
+			 (int)value_len, value);
+	else
+		dump_security_xattr_l(name, value, value_len);
 }
 
 /*
@@ -254,15 +264,9 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 			if (is_ima)
 				ima_present = true;
 
-			if (req_xattr_value_len < 64)
-				pr_debug("%s: (%zu) [%*phN]\n", req_xattr_name,
-					 req_xattr_value_len,
-					 (int)req_xattr_value_len,
-					 req_xattr_value);
-			else
-				dump_security_xattr(req_xattr_name,
-						    req_xattr_value,
-						    req_xattr_value_len);
+			dump_security_xattr(req_xattr_name,
+					    req_xattr_value,
+					    req_xattr_value_len);
 			continue;
 		}
 		size = vfs_getxattr_alloc(&nop_mnt_idmap, dentry, xattr->name,
@@ -286,12 +290,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 		if (is_ima)
 			ima_present = true;
 
-		if (xattr_size < 64)
-			pr_debug("%s: (%zu) [%*phN]", xattr->name, xattr_size,
-				 (int)xattr_size, xattr_value);
-		else
-			dump_security_xattr(xattr->name, xattr_value,
-					    xattr_size);
+		dump_security_xattr(xattr->name, xattr_value, xattr_size);
 	}
 	hmac_add_misc(desc, inode, type, data->digest);
 

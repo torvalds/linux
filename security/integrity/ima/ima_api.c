@@ -179,7 +179,8 @@ err_out:
  *		subj=, obj=, type=, func=, mask=, fsmagic=
  *	subj,obj, and type: are LSM specific.
  *	func: FILE_CHECK | BPRM_CHECK | CREDS_CHECK | MMAP_CHECK | MODULE_CHECK
- *	| KEXEC_CMDLINE | KEY_CHECK | CRITICAL_DATA
+ *	| KEXEC_CMDLINE | KEY_CHECK | CRITICAL_DATA | SETXATTR_CHECK
+ *	| MMAP_CHECK_REQPROT
  *	mask: contains the permission mask
  *	fsmagic: hex value
  *
@@ -292,7 +293,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 		result = ima_calc_file_hash(file, &hash.hdr);
 	}
 
-	if (result == -ENOMEM)
+	if (result && result != -EBADF && result != -EINVAL)
 		goto out;
 
 	length = sizeof(hash.hdr) + hash.hdr.length;
