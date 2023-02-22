@@ -336,48 +336,6 @@ out:
 }
 
 /*
- * Locate the file_offset of @cur_disk_bytenr of a @bio.
- *
- * Bio of btrfs represents read range of
- * [bi_sector << 9, bi_sector << 9 + bi_size).
- * Knowing this, we can iterate through each bvec to locate the page belong to
- * @cur_disk_bytenr and get the file offset.
- *
- * @inode is used to determine if the bvec page really belongs to @inode.
- *
- * Return false if we can't find the file offset
- * Return true if we find the file offset and restore it to @file_offset_ret
- */
-static int search_file_offset_in_bio(struct bio *bio, struct inode *inode,
-				     u64 disk_bytenr, u64 *file_offset_ret)
-{
-	struct bvec_iter iter;
-	struct bio_vec bvec;
-	u64 cur = bio->bi_iter.bi_sector << SECTOR_SHIFT;
-	bool ret = false;
-
-	bio_for_each_segment(bvec, bio, iter) {
-		struct page *page = bvec.bv_page;
-
-		if (cur > disk_bytenr)
-			break;
-		if (cur + bvec.bv_len <= disk_bytenr) {
-			cur += bvec.bv_len;
-			continue;
-		}
-		ASSERT(in_range(disk_bytenr, cur, bvec.bv_len));
-		if (page->mapping && page->mapping->host &&
-		    page->mapping->host == inode) {
-			ret = true;
-			*file_offset_ret = page_offset(page) + bvec.bv_offset +
-					   disk_bytenr - cur;
-			break;
-		}
-	}
-	return ret;
-}
-
-/*
  * Lookup the checksum for the read bio in csum tree.
  *
  * Return: BLK_STS_RESOURCE if allocating memory fails, BLK_STS_OK otherwise.
@@ -386,7 +344,6 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 {
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_io_tree *io_tree = &inode->io_tree;
 	struct bio *bio = &bbio->bio;
 	struct btrfs_path *path;
 	const u32 sectorsize = fs_info->sectorsize;
@@ -493,13 +450,10 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 
 			if (inode->root->root_key.objectid ==
 			    BTRFS_DATA_RELOC_TREE_OBJECTID) {
-				u64 file_offset;
+				u64 file_offset = bbio->file_offset +
+					cur_disk_bytenr - orig_disk_bytenr;
 
-				if (search_file_offset_in_bio(bio,
-							      &inode->vfs_inode,
-							      cur_disk_bytenr,
-							      &file_offset))
-					set_extent_bits(io_tree, file_offset,
+				set_extent_bits(&inode->io_tree, file_offset,
 						file_offset + sectorsize - 1,
 						EXTENT_NODATASUM);
 			} else {
