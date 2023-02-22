@@ -392,19 +392,19 @@ ice_mbx_report_malvf(struct ice_hw *hw, unsigned long *all_malvfs,
  * that the new VF loaded is not considered malicious before going
  * through the overflow detection algorithm.
  */
-int
+void
 ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, unsigned long *all_malvfs,
 		    u16 bitmap_len, u16 vf_id)
 {
-	if (!snap || !all_malvfs)
-		return -EINVAL;
+	if (WARN_ON(!snap || !all_malvfs))
+		return;
 
-	if (bitmap_len < snap->mbx_vf.vfcntr_len)
-		return -EINVAL;
+	if (WARN_ON(bitmap_len < snap->mbx_vf.vfcntr_len))
+		return;
 
 	/* Ensure VF ID value is not larger than bitmap or VF counter length */
-	if (vf_id >= bitmap_len || vf_id >= snap->mbx_vf.vfcntr_len)
-		return -EIO;
+	if (WARN_ON(vf_id >= bitmap_len || vf_id >= snap->mbx_vf.vfcntr_len))
+		return;
 
 	/* Clear VF ID bit in the bitmap tracking malicious VFs attached to PF */
 	clear_bit(vf_id, all_malvfs);
@@ -416,8 +416,6 @@ ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, unsigned long *all_malvfs,
 	 * values in the mailbox overflow detection algorithm.
 	 */
 	snap->mbx_vf.vf_cntr[vf_id] = 0;
-
-	return 0;
 }
 
 /**

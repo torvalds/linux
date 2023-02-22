@@ -204,10 +204,8 @@ void ice_free_vfs(struct ice_pf *pf)
 		}
 
 		/* clear malicious info since the VF is getting released */
-		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->vfs.malvfs,
-					ICE_MAX_SRIOV_VFS, vf->vf_id))
-			dev_dbg(dev, "failed to clear malicious VF state for VF %u\n",
-				vf->vf_id);
+		ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->vfs.malvfs,
+				    ICE_MAX_SRIOV_VFS, vf->vf_id);
 
 		mutex_unlock(&vf->cfg_lock);
 	}
