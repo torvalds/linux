@@ -865,25 +865,6 @@ err:
 	return ret;
 }
 
-static void extent_stripe_ptr_add(struct bkey_s_extent e,
-				  struct ec_stripe_buf *s,
-				  struct bch_extent_ptr *ptr,
-				  unsigned block)
-{
-	struct bch_extent_stripe_ptr *dst = (void *) ptr;
-	union bch_extent_entry *end = extent_entry_last(e);
-
-	memmove_u64s_up(dst + 1, dst, (u64 *) end - (u64 *) dst);
-	e.k->u64s += sizeof(*dst) / sizeof(u64);
-
-	*dst = (struct bch_extent_stripe_ptr) {
-		.type = 1 << BCH_EXTENT_ENTRY_stripe_ptr,
-		.block		= block,
-		.redundancy	= s->key.v.nr_redundant,
-		.idx		= s->key.k.p.offset,
-	};
-}
-
 static int ec_stripe_update_extent(struct btree_trans *trans,
 				   struct bpos bucket, u8 gen,
 				   struct ec_stripe_buf *s,
@@ -895,6 +876,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	struct bkey_s_c k;
 	const struct bch_extent_ptr *ptr_c;
 	struct bch_extent_ptr *ptr, *ec_ptr = NULL;
+	struct bch_extent_stripe_ptr stripe_ptr;
 	struct bkey_i *n;
 	int ret, dev, block;
 
@@ -933,16 +915,27 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 
 	dev = s->key.v.ptrs[block].dev;
 
-	n = bch2_bkey_make_mut(trans, k);
+	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k) + sizeof(stripe_ptr));
 	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		goto out;
+
+	bkey_reassemble(n, k);
 
 	bch2_bkey_drop_ptrs(bkey_i_to_s(n), ptr, ptr->dev != dev);
 	ec_ptr = (void *) bch2_bkey_has_device(bkey_i_to_s_c(n), dev);
 	BUG_ON(!ec_ptr);
 
-	extent_stripe_ptr_add(bkey_i_to_s_extent(n), s, ec_ptr, block);
+	stripe_ptr = (struct bch_extent_stripe_ptr) {
+		.type = 1 << BCH_EXTENT_ENTRY_stripe_ptr,
+		.block		= block,
+		.redundancy	= s->key.v.nr_redundant,
+		.idx		= s->key.k.p.offset,
+	};
+
+	__extent_entry_insert(n,
+			(union bch_extent_entry *) ec_ptr,
+			(union bch_extent_entry *) &stripe_ptr);
 
 	ret = bch2_trans_update(trans, &iter, n, 0);
 out:

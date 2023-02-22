@@ -705,18 +705,6 @@ void bch2_bkey_extent_entry_drop(struct bkey_i *k, union bch_extent_entry *entry
 	k->k.u64s -= extent_entry_u64s(entry);
 }
 
-static inline void __extent_entry_insert(struct bkey_i *k,
-					 union bch_extent_entry *dst,
-					 union bch_extent_entry *new)
-{
-	union bch_extent_entry *end = bkey_val_end(bkey_i_to_s(k));
-
-	memmove_u64s_up_small((u64 *) dst + extent_entry_u64s(new),
-			      dst, (u64 *) end - (u64 *) dst);
-	k->k.u64s += extent_entry_u64s(new);
-	memcpy_u64s_small(dst, new, extent_entry_u64s(new));
-}
-
 void bch2_extent_ptr_decoded_append(struct bkey_i *k,
 				    struct extent_ptr_decoded *p)
 {
