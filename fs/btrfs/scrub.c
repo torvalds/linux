@@ -423,11 +423,6 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 static void scrub_bio_end_io(struct bio *bio);
 static void scrub_bio_end_io_worker(struct work_struct *work);
 static void scrub_block_complete(struct scrub_block *sblock);
-static void scrub_find_good_copy(struct btrfs_fs_info *fs_info,
-				 u64 extent_logical, u32 extent_len,
-				 u64 *extent_physical,
-				 struct btrfs_device **extent_dev,
-				 int *extent_mirror_num);
 static int scrub_add_sector_to_wr_bio(struct scrub_ctx *sctx,
 				      struct scrub_sector *sector);
 static void scrub_wr_submit(struct scrub_ctx *sctx);
@@ -2710,6 +2705,110 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 	return 1;
 }
 
+static bool should_use_device(struct btrfs_fs_info *fs_info,
+			      struct btrfs_device *dev,
+			      bool follow_replace_read_mode)
+{
+	struct btrfs_device *replace_srcdev = fs_info->dev_replace.srcdev;
+	struct btrfs_device *replace_tgtdev = fs_info->dev_replace.tgtdev;
+
+	if (!dev->bdev)
+		return false;
+
+	/*
+	 * We're doing scrub/replace, if it's pure scrub, no tgtdev should be
+	 * here.  If it's replace, we're going to write data to tgtdev, thus
+	 * the current data of the tgtdev is all garbage, thus we can not use
+	 * it at all.
+	 */
+	if (dev == replace_tgtdev)
+		return false;
+
+	/* No need to follow replace read mode, any existing device is fine. */
+	if (!follow_replace_read_mode)
+		return true;
+
+	/* Need to follow the mode. */
+	if (fs_info->dev_replace.cont_reading_from_srcdev_mode ==
+	    BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_AVOID)
+		return dev != replace_srcdev;
+	return true;
+}
+static int scrub_find_good_copy(struct btrfs_fs_info *fs_info,
+				u64 extent_logical, u32 extent_len,
+				u64 *extent_physical,
+				struct btrfs_device **extent_dev,
+				int *extent_mirror_num)
+{
+	u64 mapped_length;
+	struct btrfs_io_context *bioc = NULL;
+	int ret;
+	int i;
+
+	mapped_length = extent_len;
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
+			      extent_logical, &mapped_length, &bioc, 0);
+	if (ret || !bioc || mapped_length < extent_len) {
+		btrfs_put_bioc(bioc);
+		btrfs_err_rl(fs_info, "btrfs_map_block() failed for logical %llu: %d",
+				extent_logical, ret);
+		return -EIO;
+	}
+
+	/*
+	 * First loop to exclude all missing devices and the source device if
+	 * needed.  And we don't want to use target device as mirror either, as
+	 * we're doing the replace, the target device range contains nothing.
+	 */
+	for (i = 0; i < bioc->num_stripes - bioc->replace_nr_stripes; i++) {
+		struct btrfs_io_stripe *stripe = &bioc->stripes[i];
+
+		if (!should_use_device(fs_info, stripe->dev, true))
+			continue;
+		goto found;
+	}
+	/*
+	 * We didn't find any alternative mirrors, we have to break our replace
+	 * read mode, or we can not read at all.
+	 */
+	for (i = 0; i < bioc->num_stripes - bioc->replace_nr_stripes; i++) {
+		struct btrfs_io_stripe *stripe = &bioc->stripes[i];
+
+		if (!should_use_device(fs_info, stripe->dev, false))
+			continue;
+		goto found;
+	}
+
+	btrfs_err_rl(fs_info, "failed to find any live mirror for logical %llu",
+			extent_logical);
+	return -EIO;
+
+found:
+	*extent_physical = bioc->stripes[i].physical;
+	*extent_mirror_num = i + 1;
+	*extent_dev = bioc->stripes[i].dev;
+	btrfs_put_bioc(bioc);
+	return 0;
+}
+
+static bool scrub_need_different_mirror(struct scrub_ctx *sctx,
+					struct map_lookup *map,
+					struct btrfs_device *dev)
+{
+	/*
+	 * For RAID56, all the extra mirrors are rebuilt from other P/Q,
+	 * cannot utilize other mirrors directly.
+	 */
+	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
+		return false;
+
+	if (!dev->bdev)
+		return true;
+
+	return sctx->fs_info->dev_replace.cont_reading_from_srcdev_mode ==
+		BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_AVOID;
+}
+
 /* scrub extent tries to collect up to 64 kB for each bio */
 static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 			u64 logical, u32 len,
@@ -2747,17 +2846,15 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 	}
 
 	/*
-	 * For dev-replace case, we can have @dev being a missing device.
-	 * Regular scrub will avoid its execution on missing device at all,
-	 * as that would trigger tons of read error.
-	 *
-	 * Reading from missing device will cause read error counts to
-	 * increase unnecessarily.
-	 * So here we change the read source to a good mirror.
+	 * For dev-replace case, we can have @dev being a missing device, or
+	 * we want to avoid reading from the source device if possible.
 	 */
-	if (sctx->is_dev_replace && !dev->bdev)
-		scrub_find_good_copy(sctx->fs_info, logical, len, &src_physical,
-				     &src_dev, &src_mirror);
+	if (sctx->is_dev_replace && scrub_need_different_mirror(sctx, map, dev)) {
+		ret = scrub_find_good_copy(sctx->fs_info, logical, len,
+					   &src_physical, &src_dev, &src_mirror);
+		if (ret < 0)
+			return ret;
+	}
 	while (len) {
 		u32 l = min(len, blocksize);
 		int have_csum = 0;
@@ -4543,29 +4640,4 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 	return dev ? (sctx ? 0 : -ENOTCONN) : -ENODEV;
-}
-
-static void scrub_find_good_copy(struct btrfs_fs_info *fs_info,
-				 u64 extent_logical, u32 extent_len,
-				 u64 *extent_physical,
-				 struct btrfs_device **extent_dev,
-				 int *extent_mirror_num)
-{
-	u64 mapped_length;
-	struct btrfs_io_context *bioc = NULL;
-	int ret;
-
-	mapped_length = extent_len;
-	ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, extent_logical,
-			      &mapped_length, &bioc, 0);
-	if (ret || !bioc || mapped_length < extent_len ||
-	    !bioc->stripes[0].dev->bdev) {
-		btrfs_put_bioc(bioc);
-		return;
-	}
-
-	*extent_physical = bioc->stripes[0].physical;
-	*extent_mirror_num = bioc->mirror_num;
-	*extent_dev = bioc->stripes[0].dev;
-	btrfs_put_bioc(bioc);
 }
