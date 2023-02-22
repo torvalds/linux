@@ -123,8 +123,14 @@ struct vport_ingress {
 	} offloads;
 };
 
+enum vport_egress_acl_type {
+	VPORT_EGRESS_ACL_TYPE_DEFAULT,
+	VPORT_EGRESS_ACL_TYPE_SHARED_FDB,
+};
+
 struct vport_egress {
 	struct mlx5_flow_table *acl;
+	enum vport_egress_acl_type type;
 	struct mlx5_flow_handle  *allowed_vlan;
 	struct mlx5_flow_group *vlan_grp;
 	union {
@@ -136,7 +142,7 @@ struct vport_egress {
 		struct {
 			struct mlx5_flow_group *fwd_grp;
 			struct mlx5_flow_handle *fwd_rule;
-			struct mlx5_flow_handle *bounce_rule;
+			struct xarray bounce_rules;
 			struct mlx5_flow_group *bounce_grp;
 		} offloads;
 	};
