@@ -350,10 +350,9 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	const u32 csum_size = fs_info->csum_size;
 	u32 orig_len = bio->bi_iter.bi_size;
 	u64 orig_disk_bytenr = bio->bi_iter.bi_sector << SECTOR_SHIFT;
-	u64 cur_disk_bytenr;
 	const unsigned int nblocks = orig_len >> fs_info->sectorsize_bits;
-	int count = 0;
 	blk_status_t ret = BLK_STS_OK;
+	u32 bio_offset = 0;
 
 	if ((inode->flags & BTRFS_INODE_NODATASUM) ||
 	    test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state))
@@ -404,28 +403,14 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		path->skip_locking = 1;
 	}
 
-	for (cur_disk_bytenr = orig_disk_bytenr;
-	     cur_disk_bytenr < orig_disk_bytenr + orig_len;
-	     cur_disk_bytenr += (count * sectorsize)) {
-		u64 search_len = orig_disk_bytenr + orig_len - cur_disk_bytenr;
-		unsigned int sector_offset;
-		u8 *csum_dst;
-
-		/*
-		 * Although both cur_disk_bytenr and orig_disk_bytenr is u64,
-		 * we're calculating the offset to the bio start.
-		 *
-		 * Bio size is limited to UINT_MAX, thus unsigned int is large
-		 * enough to contain the raw result, not to mention the right
-		 * shifted result.
-		 */
-		ASSERT(cur_disk_bytenr - orig_disk_bytenr < UINT_MAX);
-		sector_offset = (cur_disk_bytenr - orig_disk_bytenr) >>
-				fs_info->sectorsize_bits;
-		csum_dst = bbio->csum + sector_offset * csum_size;
+	while (bio_offset < orig_len) {
+		int count;
+		u64 cur_disk_bytenr = orig_disk_bytenr + bio_offset;
+		u8 *csum_dst = bbio->csum +
+			(bio_offset >> fs_info->sectorsize_bits) * csum_size;
 
 		count = search_csum_tree(fs_info, path, cur_disk_bytenr,
-					 search_len, csum_dst);
+					 orig_len - bio_offset, csum_dst);
 		if (count < 0) {
 			ret = errno_to_blk_status(count);
 			if (bbio->csum != bbio->csum_inline)
@@ -450,8 +435,7 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 
 			if (inode->root->root_key.objectid ==
 			    BTRFS_DATA_RELOC_TREE_OBJECTID) {
-				u64 file_offset = bbio->file_offset +
-					cur_disk_bytenr - orig_disk_bytenr;
+				u64 file_offset = bbio->file_offset + bio_offset;
 
 				set_extent_bits(&inode->io_tree, file_offset,
 						file_offset + sectorsize - 1,
@@ -462,6 +446,7 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 				cur_disk_bytenr, cur_disk_bytenr + sectorsize);
 			}
 		}
+		bio_offset += count * sectorsize;
 	}
 
 	btrfs_free_path(path);
