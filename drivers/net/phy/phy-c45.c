@@ -674,7 +674,7 @@ int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv)
 {
 	int val, changed;
 
-	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP1_FEATURES)) {
 		val = linkmode_to_mii_eee_cap1_t(adv);
 
 		/* In eee_broken_modes are stored MDIO_AN_EEE_ADV specific raw
@@ -726,7 +726,7 @@ static int genphy_c45_read_eee_adv(struct phy_device *phydev,
 {
 	int val;
 
-	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP1_FEATURES)) {
 		/* IEEE 802.3-2018 45.2.7.13 EEE advertisement 1
 		 * (Register 7.60)
 		 */
@@ -762,7 +762,7 @@ static int genphy_c45_read_eee_lpa(struct phy_device *phydev,
 {
 	int val;
 
-	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP1_FEATURES)) {
 		/* IEEE 802.3-2018 45.2.7.14 EEE link partner ability 1
 		 * (Register 7.61)
 		 */
