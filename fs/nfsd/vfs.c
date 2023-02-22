@@ -126,9 +126,13 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 	struct dentry *dentry = *dpp;
 	struct path path = {.mnt = mntget(exp->ex_path.mnt),
 			    .dentry = dget(dentry)};
+	unsigned int follow_flags = 0;
 	int err = 0;
 
-	err = follow_down(&path);
+	if (exp->ex_flags & NFSEXP_CROSSMOUNT)
+		follow_flags = LOOKUP_AUTOMOUNT;
+
+	err = follow_down(&path, follow_flags);
 	if (err < 0)
 		goto out;
 	if (path.mnt == exp->ex_path.mnt && path.dentry == dentry &&
@@ -223,7 +227,7 @@ int nfsd_mountpoint(struct dentry *dentry, struct svc_export *exp)
 		return 1;
 	if (nfsd4_is_junction(dentry))
 		return 1;
-	if (d_mountpoint(dentry))
+	if (d_managed(dentry))
 		/*
 		 * Might only be a mountpoint in a different namespace,
 		 * but we need to check.

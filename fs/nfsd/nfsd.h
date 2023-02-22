@@ -86,7 +86,7 @@ bool		nfssvc_encode_voidres(struct svc_rqst *rqstp,
  * Function prototypes.
  */
 int		nfsd_svc(int nrservs, struct net *net, const struct cred *cred);
-int		nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp);
+int		nfsd_dispatch(struct svc_rqst *rqstp);
 
 int		nfsd_nrthreads(struct net *);
 int		nfsd_nrpools(struct net *);

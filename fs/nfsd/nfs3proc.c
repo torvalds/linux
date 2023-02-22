@@ -1064,10 +1064,11 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 	},
 };
 
-static unsigned int nfsd_count3[ARRAY_SIZE(nfsd_procedures3)];
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nfsd_count3[ARRAY_SIZE(nfsd_procedures3)]);
 const struct svc_version nfsd_version3 = {
 	.vs_vers	= 3,
-	.vs_nproc	= 22,
+	.vs_nproc	= ARRAY_SIZE(nfsd_procedures3),
 	.vs_proc	= nfsd_procedures3,
 	.vs_dispatch	= nfsd_dispatch,
 	.vs_count	= nfsd_count3,
