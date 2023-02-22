@@ -959,7 +959,8 @@ static int _set_required_opps(struct device *dev,
 			      struct dev_pm_opp *opp, bool up)
 {
 	struct opp_table **required_opp_tables = opp_table->required_opp_tables;
-	struct device **genpd_virt_devs = opp_table->genpd_virt_devs;
+	struct device **genpd_virt_devs =
+		opp_table->genpd_virt_devs ? opp_table->genpd_virt_devs : &dev;
 	int i, ret = 0;
 
 	if (!required_opp_tables)
@@ -978,12 +979,6 @@ static int _set_required_opps(struct device *dev,
 		dev_err(dev, "required-opps don't belong to a genpd\n");
 		return -ENOENT;
 	}
-
-	/* Single genpd case */
-	if (!genpd_virt_devs)
-		return _set_required_opp(dev, dev, opp, 0);
-
-	/* Multiple genpd case */
 
 	/*
 	 * Acquire genpd_virt_dev_lock to make sure we don't use a genpd_dev
