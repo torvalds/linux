@@ -367,4 +367,3 @@ int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");
 MODULE_DESCRIPTION("CPUfreq frequency table helpers");
-MODULE_LICENSE("GPL");
