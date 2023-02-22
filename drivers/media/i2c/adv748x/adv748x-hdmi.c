@@ -721,11 +721,10 @@ static int adv748x_hdmi_init_controls(struct adv748x_hdmi *hdmi)
 int adv748x_hdmi_init(struct adv748x_hdmi *hdmi)
 {
 	struct adv748x_state *state = adv748x_hdmi_to_state(hdmi);
-	static const struct v4l2_dv_timings cea1280x720 =
-		V4L2_DV_BT_CEA_1280X720P30;
+	struct v4l2_dv_timings cea1280x720 = V4L2_DV_BT_CEA_1280X720P30;
 	int ret;
 
-	hdmi->timings = cea1280x720;
+	adv748x_hdmi_s_dv_timings(&hdmi->sd, &cea1280x720);
 
 	/* Initialise a default 16:9 aspect ratio */
 	hdmi->aspect_ratio.numerator = 16;
