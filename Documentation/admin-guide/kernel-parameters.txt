@@ -4296,7 +4296,9 @@
 				specified, e.g., 12@pci:8086:9c22:103c:198f
 				for 4096-byte alignment.
 		ecrc=		Enable/disable PCIe ECRC (transaction layer
-				end-to-end CRC checking).
+				end-to-end CRC checking). Only effective if
+				OS has native AER control (either granted by
+				ACPI _OSC or forced via "pcie_ports=native")
 				bios: Use BIOS/firmware settings. This is the
 				the default.
 				off: Turn ECRC off
