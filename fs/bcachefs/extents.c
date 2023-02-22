@@ -1116,7 +1116,7 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	unsigned size_ondisk = k.k->size;
 	unsigned nonce = UINT_MAX;
 	unsigned nr_ptrs = 0;
-	bool unwritten = false, have_ec = false;
+	bool unwritten = false, have_ec = false, crc_since_last_ptr = false;
 	int ret;
 
 	if (bkey_is_btree_ptr(k.k))
@@ -1159,6 +1159,7 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 			unwritten = entry->ptr.unwritten;
 			have_ec = false;
+			crc_since_last_ptr = false;
 			nr_ptrs++;
 			break;
 		case BCH_EXTENT_ENTRY_crc32:
@@ -1192,15 +1193,40 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 					return -BCH_ERR_invalid_bkey;
 				}
 			}
+
+			if (crc_since_last_ptr) {
+				prt_printf(err, "redundant crc entry");
+				return -BCH_ERR_invalid_bkey;
+			}
+			crc_since_last_ptr = true;
 			break;
 		case BCH_EXTENT_ENTRY_stripe_ptr:
+			if (have_ec) {
+				prt_printf(err, "redundant stripe entry");
+				return -BCH_ERR_invalid_bkey;
+			}
 			have_ec = true;
 			break;
 		}
 	}
 
+	if (!nr_ptrs) {
+		prt_str(err, "no ptrs");
+		return -BCH_ERR_invalid_bkey;
+	}
+
 	if (nr_ptrs >= BCH_BKEY_PTRS_MAX) {
 		prt_str(err, "too many ptrs");
+		return -BCH_ERR_invalid_bkey;
+	}
+
+	if (crc_since_last_ptr) {
+		prt_printf(err, "redundant crc entry");
+		return -BCH_ERR_invalid_bkey;
+	}
+
+	if (have_ec) {
+		prt_printf(err, "redundant stripe entry");
 		return -BCH_ERR_invalid_bkey;
 	}
 
