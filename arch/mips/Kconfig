@@ -134,7 +134,6 @@ choice
 
 config MIPS_GENERIC_KERNEL
 	bool "Generic board-agnostic MIPS kernel"
-	select ARCH_HAS_SETUP_DMA_OPS
 	select MIPS_GENERIC
 	select BOOT_RAW
 	select BUILTIN_DTB
@@ -1069,6 +1068,7 @@ config DMA_NONCOHERENT
 	# by pgprot_writcombine can be mixed, and the latter sometimes provides
 	# significant advantages.
 	#
+	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_DMA_WRITE_COMBINE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
