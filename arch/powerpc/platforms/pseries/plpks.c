@@ -22,6 +22,7 @@
 #include <asm/hvcall.h>
 #include <asm/machdep.h>
 #include <asm/plpks.h>
+#include <asm/firmware.h>
 
 static u8 *ospassword;
 static u16 ospasswordlength;
@@ -376,6 +377,9 @@ u16 plpks_get_passwordlen(void)
 bool plpks_is_available(void)
 {
 	int rc;
+
+	if (!firmware_has_feature(FW_FEATURE_LPAR))
+		return false;
 
 	rc = _plpks_get_config();
 	if (rc)
