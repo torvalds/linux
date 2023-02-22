@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -1737,6 +1738,11 @@ static void gpi_process_events(struct gpii *gpii)
 				  gpi_event->gpi_ere.dword[1],
 				  gpi_event->gpi_ere.dword[2],
 				  gpi_event->gpi_ere.dword[3]);
+			if (chid >= MAX_CHANNELS_PER_GPII) {
+				GPII_ERR(gpii, GPI_DBG_COMMON,
+					"gpii channel:%d not valid\n", chid);
+				goto error_irq;
+			}
 
 			switch (type) {
 			case XFER_COMPLETE_EV_TYPE:
@@ -1776,6 +1782,15 @@ static void gpi_process_events(struct gpii *gpii)
 	} while (rp != ev_ring->rp);
 
 	GPII_VERB(gpii, GPI_DBG_COMMON, "exit: c_rp:%pa\n", &cntxt_rp);
+	return;
+error_irq:
+	/* clear pending IEOB events */
+	gpi_write_reg(gpii, gpii->ieob_clr_reg, BIT(0));
+
+	for (chid = 0, gpii_chan = gpii->gpii_chan;
+	     chid < MAX_CHANNELS_PER_GPII; chid++, gpii_chan++)
+		gpi_generate_cb_event(gpii_chan, MSM_GPI_QUP_FW_ERROR,
+				      (type << 8) | chid);
 }
 
 /* processing events using tasklet */
