@@ -199,8 +199,8 @@
 		interrupt-names = "csi-intr1", "csi-intr2";
 		clocks = <&cru PCLK_CSI_HOST_4>;
 		clock-names = "pclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_4>, <&cru SRST_CSIHOST4_VICAP>;
-		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		resets = <&cru SRST_P_CSI_HOST_4>;
+		reset-names = "srst_csihost_p";
 		status = "disabled";
 	};
 
@@ -213,8 +213,8 @@
 		interrupt-names = "csi-intr1", "csi-intr2";
 		clocks = <&cru PCLK_CSI_HOST_5>;
 		clock-names = "pclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_5>, <&cru SRST_CSIHOST5_VICAP>;
-		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		resets = <&cru SRST_P_CSI_HOST_5>;
+		reset-names = "srst_csihost_p";
 		status = "disabled";
 	};
 

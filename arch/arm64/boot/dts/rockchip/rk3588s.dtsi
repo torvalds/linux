@@ -3769,10 +3769,17 @@
 		reg-names = "cif_regs";
 		interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif-intr";
-		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>, <&cru DCLK_VICAP>;
-		clock-names = "aclk_cif", "hclk_cif", "dclk_cif";
-		resets = <&cru SRST_A_VICAP>, <&cru SRST_H_VICAP>, <&cru SRST_D_VICAP>;
-		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_d";
+		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>, <&cru DCLK_VICAP>,
+			 <&cru ICLK_CSIHOST0>, <&cru ICLK_CSIHOST1>;
+		clock-names = "aclk_cif", "hclk_cif", "dclk_cif",
+			      "iclk_host0", "iclk_host1";
+		resets = <&cru SRST_A_VICAP>, <&cru SRST_H_VICAP>, <&cru SRST_D_VICAP>,
+			 <&cru SRST_CSIHOST0_VICAP>, <&cru SRST_CSIHOST1_VICAP>,
+			 <&cru SRST_CSIHOST2_VICAP>, <&cru SRST_CSIHOST3_VICAP>,
+			 <&cru SRST_CSIHOST4_VICAP>, <&cru SRST_CSIHOST5_VICAP>;
+		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_d",
+			      "rst_cif_host0", "rst_cif_host1", "rst_cif_host2",
+			      "rst_cif_host3", "rst_cif_host4", "rst_cif_host5";
 		assigned-clocks = <&cru DCLK_VICAP>;
 		assigned-clock-rates = <600000000>;
 		power-domains = <&power RK3588_PD_VI>;
@@ -3802,10 +3809,10 @@
 		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "csi-intr1", "csi-intr2";
-		clocks = <&cru PCLK_CSI_HOST_0>, <&cru ICLK_CSIHOST0>;
-		clock-names = "pclk_csi2host", "iclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_0>, <&cru SRST_CSIHOST0_VICAP>;
-		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		clocks = <&cru PCLK_CSI_HOST_0>;
+		clock-names = "pclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_0>;
+		reset-names = "srst_csihost_p";
 		status = "disabled";
 	};
 
@@ -3816,9 +3823,9 @@
 		interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "csi-intr1", "csi-intr2";
-		clocks = <&cru PCLK_CSI_HOST_1>, <&cru ICLK_CSIHOST1>;
-		clock-names = "pclk_csi2host", "iclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_1>, <&cru SRST_CSIHOST1_VICAP>;
+		clocks = <&cru PCLK_CSI_HOST_1>;
+		clock-names = "pclk_csi2host";
+		resets = <&cru SRST_P_CSI_HOST_1>;
 		reset-names = "srst_csihost_p", "srst_csihost_vicap";
 		status = "disabled";
 	};
@@ -3832,8 +3839,8 @@
 		interrupt-names = "csi-intr1", "csi-intr2";
 		clocks = <&cru PCLK_CSI_HOST_2>;
 		clock-names = "pclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_2>, <&cru SRST_CSIHOST2_VICAP>;
-		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		resets = <&cru SRST_P_CSI_HOST_2>;
+		reset-names = "srst_csihost_p";
 		status = "disabled";
 	};
 
@@ -3846,8 +3853,8 @@
 		interrupt-names = "csi-intr1", "csi-intr2";
 		clocks = <&cru PCLK_CSI_HOST_3>;
 		clock-names = "pclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_3>, <&cru SRST_CSIHOST3_VICAP>;
-		reset-names = "srst_csihost_p", "srst_csihost_vicap";
+		resets = <&cru SRST_P_CSI_HOST_3>;
+		reset-names = "srst_csihost_p";
 		status = "disabled";
 	};
 
