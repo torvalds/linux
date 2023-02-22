@@ -382,7 +382,7 @@ static void one_packet(dma_addr_t phys)
 		if (req_ctx->hmac_virt)
 			finish_scattered_hmac(crypt);
 
-		req->base.complete(&req->base, failed);
+		aead_request_complete(req, failed);
 		break;
 	}
 	case CTL_FLAG_PERFORM_ABLK: {
@@ -407,7 +407,7 @@ static void one_packet(dma_addr_t phys)
 			free_buf_chain(dev, req_ctx->dst, crypt->dst_buf);
 
 		free_buf_chain(dev, req_ctx->src, crypt->src_buf);
-		req->base.complete(&req->base, failed);
+		skcipher_request_complete(req, failed);
 		break;
 	}
 	case CTL_FLAG_GEN_ICV:

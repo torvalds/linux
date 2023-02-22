@@ -220,7 +220,7 @@ static inline int chcr_handle_aead_resp(struct aead_request *req,
 		reqctx->verify = VERIFY_HW;
 	}
 	chcr_dec_wrcount(dev);
-	req->base.complete(&req->base, err);
+	aead_request_complete(req, err);
 
 	return err;
 }
@@ -1235,7 +1235,7 @@ complete:
 		complete(&ctx->cbc_aes_aio_done);
 	}
 	chcr_dec_wrcount(dev);
-	req->base.complete(&req->base, err);
+	skcipher_request_complete(req, err);
 	return err;
 }
 
@@ -2132,7 +2132,7 @@ unmap:
 
 out:
 	chcr_dec_wrcount(dev);
-	req->base.complete(&req->base, err);
+	ahash_request_complete(req, err);
 }
 
 /*

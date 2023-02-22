@@ -105,7 +105,7 @@
 
 #define MAX_SG 8
 
-#define CE_MAX_CLOCKS 3
+#define CE_MAX_CLOCKS 4
 
 #define MAXFLOW 4
 
