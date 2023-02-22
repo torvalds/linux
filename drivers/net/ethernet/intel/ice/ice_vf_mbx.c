@@ -131,6 +131,30 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 #define ICE_IGNORE_MAX_MSG_CNT	0xFFFF
 
 /**
+ * ice_mbx_reset_snapshot - Reset mailbox snapshot structure
+ * @snap: pointer to mailbox snapshot structure in the ice_hw struct
+ *
+ * Reset the mailbox snapshot structure and clear VF counter array.
+ */
+static void ice_mbx_reset_snapshot(struct ice_mbx_snapshot *snap)
+{
+	u32 vfcntr_len;
+
+	if (!snap || !snap->mbx_vf.vf_cntr)
+		return;
+
+	/* Clear VF counters. */
+	vfcntr_len = snap->mbx_vf.vfcntr_len;
+	if (vfcntr_len)
+		memset(snap->mbx_vf.vf_cntr, 0,
+		       (vfcntr_len * sizeof(*snap->mbx_vf.vf_cntr)));
+
+	/* Reset mailbox snapshot for a new capture. */
+	memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
+	snap->mbx_buf.state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
+}
+
+/**
  * ice_mbx_traverse - Pass through mailbox snapshot
  * @hw: pointer to the HW struct
  * @new_state: new algorithm state
@@ -199,30 +223,6 @@ ice_mbx_detect_malvf(struct ice_hw *hw, u16 vf_id,
 	ice_mbx_traverse(hw, new_state);
 
 	return 0;
-}
-
-/**
- * ice_mbx_reset_snapshot - Reset mailbox snapshot structure
- * @snap: pointer to mailbox snapshot structure in the ice_hw struct
- *
- * Reset the mailbox snapshot structure and clear VF counter array.
- */
-static void ice_mbx_reset_snapshot(struct ice_mbx_snapshot *snap)
-{
-	u32 vfcntr_len;
-
-	if (!snap || !snap->mbx_vf.vf_cntr)
-		return;
-
-	/* Clear VF counters. */
-	vfcntr_len = snap->mbx_vf.vfcntr_len;
-	if (vfcntr_len)
-		memset(snap->mbx_vf.vf_cntr, 0,
-		       (vfcntr_len * sizeof(*snap->mbx_vf.vf_cntr)));
-
-	/* Reset mailbox snapshot for a new capture. */
-	memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
-	snap->mbx_buf.state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
 }
 
 /**
