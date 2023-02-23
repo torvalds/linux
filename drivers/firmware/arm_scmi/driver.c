@@ -2657,6 +2657,7 @@ static int scmi_probe(struct platform_device *pdev)
 	struct scmi_handle *handle;
 	const struct scmi_desc *desc;
 	struct scmi_info *info;
+	bool coex = IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX);
 	struct device *dev = &pdev->dev;
 	struct device_node *child, *np = dev->of_node;
 
@@ -2731,9 +2732,6 @@ static int scmi_probe(struct platform_device *pdev)
 			dev_warn(dev, "Failed to setup SCMI debugfs.\n");
 
 		if (IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT)) {
-			bool coex =
-			      IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX);
-
 			ret = scmi_debugfs_raw_mode_setup(info);
 			if (!coex) {
 				if (ret)
@@ -2764,6 +2762,8 @@ static int scmi_probe(struct platform_device *pdev)
 	ret = scmi_protocol_acquire(handle, SCMI_PROTOCOL_BASE);
 	if (ret) {
 		dev_err(dev, "unable to communicate with SCMI\n");
+		if (coex)
+			return 0;
 		goto notification_exit;
 	}
 
