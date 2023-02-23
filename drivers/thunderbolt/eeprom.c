@@ -471,14 +471,13 @@ err:
 
 static int tb_drom_copy_nvm(struct tb_switch *sw, u16 *size)
 {
-	u32 drom_offset;
+	u16 drom_offset;
 	int ret;
 
 	if (!sw->dma_port)
 		return -ENODEV;
 
-	ret = tb_sw_read(sw, &drom_offset, TB_CFG_SWITCH,
-			 sw->cap_plug_events + 12, 1);
+	ret = tb_eeprom_get_drom_offset(sw, &drom_offset);
 	if (ret)
 		return ret;
 
