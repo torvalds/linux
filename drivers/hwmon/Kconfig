@@ -2340,7 +2340,7 @@ config SENSORS_XGENE
 
 config SENSORS_INTEL_M10_BMC_HWMON
 	tristate "Intel MAX10 BMC Hardware Monitoring"
-	depends on MFD_INTEL_M10_BMC
+	depends on MFD_INTEL_M10_BMC_CORE
 	help
 	  This driver provides support for the hardware monitoring functionality
 	  on Intel MAX10 BMC chip.
