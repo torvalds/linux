@@ -205,6 +205,53 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	return 0;
 }
 
+/*
+ * begin cpu access => for_cpu = true
+ * end cpu access => for_cpu = false
+ */
+static void __maybe_unused rknpu_dma_buf_sync(struct rknpu_device *rknpu_dev,
+					      struct rknpu_mem_object *rknpu_obj,
+					      u32 offset, u32 length,
+					      enum dma_data_direction dir,
+					      bool for_cpu)
+{
+	struct device *dev = rknpu_dev->dev;
+	struct sg_table *sgt = rknpu_obj->sgt;
+	struct scatterlist *sg = sgt->sgl;
+	dma_addr_t sg_dma_addr = sg_dma_address(sg);
+	unsigned int len = 0;
+	int i;
+
+	for_each_sgtable_sg(sgt, sg, i) {
+		unsigned int sg_offset, sg_left, size = 0;
+
+		len += sg->length;
+		if (len <= offset) {
+			sg_dma_addr += sg->length;
+			continue;
+		}
+
+		sg_left = len - offset;
+		sg_offset = sg->length - sg_left;
+
+		size = (length < sg_left) ? length : sg_left;
+
+		if (for_cpu)
+			dma_sync_single_range_for_cpu(dev, sg_dma_addr,
+						      sg_offset, size, dir);
+		else
+			dma_sync_single_range_for_device(dev, sg_dma_addr,
+							 sg_offset, size, dir);
+
+		offset += size;
+		length -= size;
+		sg_dma_addr += sg->length;
+
+		if (length == 0)
+			break;
+	}
+}
+
 int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 {
 	struct rknpu_mem_object *rknpu_obj = NULL;
@@ -229,6 +276,18 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	rknpu_obj = (struct rknpu_mem_object *)(uintptr_t)args.obj_addr;
 	dmabuf = rknpu_obj->dmabuf;
 
+#ifndef CONFIG_DMABUF_PARTIAL
+	if (args.flags & RKNPU_MEM_SYNC_TO_DEVICE) {
+		rknpu_dma_buf_sync(rknpu_dev, rknpu_obj,
+				   args.offset, args.size, DMA_TO_DEVICE,
+				   false);
+	}
+	if (args.flags & RKNPU_MEM_SYNC_FROM_DEVICE) {
+		rknpu_dma_buf_sync(rknpu_dev, rknpu_obj,
+				   args.offset, args.size, DMA_FROM_DEVICE,
+				   true);
+	}
+#else
 	if (args.flags & RKNPU_MEM_SYNC_TO_DEVICE) {
 		dmabuf->ops->end_cpu_access_partial(dmabuf, DMA_TO_DEVICE,
 						    args.offset, args.size);
@@ -237,6 +296,7 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 		dmabuf->ops->begin_cpu_access_partial(dmabuf, DMA_FROM_DEVICE,
 						      args.offset, args.size);
 	}
+#endif
 
 	return 0;
 }
