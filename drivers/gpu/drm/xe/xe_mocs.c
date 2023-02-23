@@ -25,7 +25,6 @@ static inline void mocs_dbg(const struct drm_device *dev,
 
 enum {
 	HAS_GLOBAL_MOCS = BIT(0),
-	HAS_RENDER_L3CC = BIT(1),
 };
 
 struct xe_mocs_entry {
@@ -440,10 +439,11 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	 */
 	XE_WARN_ON(info->unused_entries_index == 0);
 
-	if (XE_WARN_ON(info->size > info->n_entries))
+	if (XE_WARN_ON(info->size > info->n_entries)) {
+		info->table = NULL;
 		return 0;
+	}
 
-	flags = HAS_RENDER_L3CC;
 	if (!IS_DGFX(xe))
 		flags |= HAS_GLOBAL_MOCS;
 
@@ -538,6 +538,6 @@ void xe_mocs_init(struct xe_gt *gt)
 	 * sure the LNCFCMOCSx registers are programmed for the subsequent
 	 * memory transactions including guc transactions
 	 */
-	if (flags & HAS_RENDER_L3CC)
+	if (table.table)
 		init_l3cc_table(gt, &table);
 }
