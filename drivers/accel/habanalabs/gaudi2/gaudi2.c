@@ -3024,16 +3024,21 @@ static int gaudi2_scrub_arc_dccm(struct hl_device *hdev, u32 cpu_id)
 	return 0;
 }
 
-static void gaudi2_scrub_arcs_dccm(struct hl_device *hdev)
+static int gaudi2_scrub_arcs_dccm(struct hl_device *hdev)
 {
 	u16 arc_id;
+	int rc;
 
 	for (arc_id = CPU_ID_SCHED_ARC0 ; arc_id < CPU_ID_MAX ; arc_id++) {
 		if (!gaudi2_is_arc_enabled(hdev, arc_id))
 			continue;
 
-		gaudi2_scrub_arc_dccm(hdev, arc_id);
+		rc = gaudi2_scrub_arc_dccm(hdev, arc_id);
+		if (rc)
+			return rc;
 	}
+
+	return 0;
 }
 
 static int gaudi2_late_init(struct hl_device *hdev)
@@ -3057,7 +3062,13 @@ static int gaudi2_late_init(struct hl_device *hdev)
 	}
 
 	gaudi2_init_arcs(hdev);
-	gaudi2_scrub_arcs_dccm(hdev);
+
+	rc = gaudi2_scrub_arcs_dccm(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to scrub arcs DCCM\n");
+		goto disable_pci_access;
+	}
+
 	gaudi2_init_security(hdev);
 
 	return 0;
@@ -6643,12 +6654,19 @@ static int gaudi2_compute_reset_late_init(struct hl_device *hdev)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	size_t irq_arr_size;
+	int rc;
 
 	/* TODO: missing gaudi2_nic_resume.
 	 * Until implemented nic_hw_cap_initialized will remain zeroed
 	 */
 	gaudi2_init_arcs(hdev);
-	gaudi2_scrub_arcs_dccm(hdev);
+
+	rc = gaudi2_scrub_arcs_dccm(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to scrub arcs DCCM\n");
+		return rc;
+	}
+
 	gaudi2_init_security(hdev);
 
 	/* Unmask all IRQs since some could have been received during the soft reset */
