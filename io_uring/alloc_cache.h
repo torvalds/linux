@@ -7,7 +7,7 @@
 #define IO_ALLOC_CACHE_MAX	512
 
 struct io_cache_entry {
-	struct hlist_node	node;
+	struct io_wq_work_node node;
 };
 
 static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
@@ -15,7 +15,7 @@ static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 {
 	if (cache->nr_cached < IO_ALLOC_CACHE_MAX) {
 		cache->nr_cached++;
-		hlist_add_head(&entry->node, &cache->list);
+		wq_stack_add_head(&entry->node, &cache->list);
 		return true;
 	}
 	return false;
@@ -23,12 +23,13 @@ static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 
 static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *cache)
 {
-	if (!hlist_empty(&cache->list)) {
-		struct hlist_node *node = cache->list.first;
+	if (cache->list.next) {
+		struct io_cache_entry *entry;
 
-		hlist_del(node);
+		entry = container_of(cache->list.next, struct io_cache_entry, node);
+		cache->list.next = cache->list.next->next;
 		cache->nr_cached--;
-		return container_of(node, struct io_cache_entry, node);
+		return entry;
 	}
 
 	return NULL;
@@ -36,18 +37,19 @@ static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *c
 
 static inline void io_alloc_cache_init(struct io_alloc_cache *cache)
 {
-	INIT_HLIST_HEAD(&cache->list);
+	cache->list.next = NULL;
 	cache->nr_cached = 0;
 }
 
 static inline void io_alloc_cache_free(struct io_alloc_cache *cache,
 					void (*free)(struct io_cache_entry *))
 {
-	while (!hlist_empty(&cache->list)) {
-		struct hlist_node *node = cache->list.first;
+	while (1) {
+		struct io_cache_entry *entry = io_alloc_cache_get(cache);
 
-		hlist_del(node);
-		free(container_of(node, struct io_cache_entry, node));
+		if (!entry)
+			break;
+		free(entry);
 	}
 	cache->nr_cached = 0;
 }
