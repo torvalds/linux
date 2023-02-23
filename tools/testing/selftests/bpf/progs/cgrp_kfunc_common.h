@@ -24,6 +24,7 @@ struct cgroup *bpf_cgroup_acquire(struct cgroup *p) __ksym;
 struct cgroup *bpf_cgroup_kptr_get(struct cgroup **pp) __ksym;
 void bpf_cgroup_release(struct cgroup *p) __ksym;
 struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level) __ksym;
+struct cgroup *bpf_cgroup_from_id(u64 cgid) __ksym;
 
 static inline struct __cgrps_kfunc_map_value *cgrps_kfunc_map_value_lookup(struct cgroup *cgrp)
 {
