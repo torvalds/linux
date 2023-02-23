@@ -1483,7 +1483,8 @@ static const struct v4l2_async_notifier_operations vpif_async_ops = {
 };
 
 static struct vpif_capture_config *
-vpif_capture_get_pdata(struct platform_device *pdev)
+vpif_capture_get_pdata(struct platform_device *pdev,
+		       struct v4l2_device *v4l2_dev)
 {
 	struct device_node *endpoint = NULL;
 	struct device_node *rem = NULL;
@@ -1492,7 +1493,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 	struct vpif_capture_chan_config *chan;
 	unsigned int i;
 
-	v4l2_async_nf_init(&vpif_obj.notifier);
+	v4l2_async_nf_init(&vpif_obj.notifier, v4l2_dev);
 
 	/*
 	 * DT boot: OF node from parent device contains
@@ -1640,7 +1641,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto vpif_unregister;
 	} while (++res_idx);
 
-	pdev->dev.platform_data = vpif_capture_get_pdata(pdev);
+	pdev->dev.platform_data =
+		vpif_capture_get_pdata(pdev, &vpif_obj.v4l2_dev);
 	if (!pdev->dev.platform_data) {
 		dev_warn(&pdev->dev, "Missing platform data. Giving up.\n");
 		goto vpif_unregister;
@@ -1683,8 +1685,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 	} else {
 		vpif_obj.notifier.ops = &vpif_async_ops;
-		err = v4l2_async_nf_register(&vpif_obj.v4l2_dev,
-					     &vpif_obj.notifier);
+		err = v4l2_async_nf_register(&vpif_obj.notifier);
 		if (err) {
 			vpif_err("Error registering async notifier\n");
 			err = -EINVAL;

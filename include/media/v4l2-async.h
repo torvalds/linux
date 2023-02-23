@@ -148,13 +148,30 @@ void v4l2_async_debug_init(struct dentry *debugfs_dir);
  * v4l2_async_nf_init - Initialize a notifier.
  *
  * @notifier: pointer to &struct v4l2_async_notifier
+ * @v4l2_dev: pointer to &struct v4l2_device
+ *
+ * This function initializes the notifier @asc_entry. It must be called
+ * before adding a subdevice to a notifier, using one of:
+ * v4l2_async_nf_add_fwnode_remote(),
+ * v4l2_async_nf_add_fwnode() or
+ * v4l2_async_nf_add_i2c().
+ */
+void v4l2_async_nf_init(struct v4l2_async_notifier *notifier,
+			struct v4l2_device *v4l2_dev);
+
+/**
+ * v4l2_async_subdev_nf_init - Initialize a sub-device notifier.
+ *
+ * @notifier: pointer to &struct v4l2_async_notifier
+ * @sd: pointer to &struct v4l2_subdev
  *
  * This function initializes the notifier @asc_list. It must be called
  * before adding a subdevice to a notifier, using one of:
  * v4l2_async_nf_add_fwnode_remote(), v4l2_async_nf_add_fwnode() or
  * v4l2_async_nf_add_i2c().
  */
-void v4l2_async_nf_init(struct v4l2_async_notifier *notifier);
+void v4l2_async_subdev_nf_init(struct v4l2_async_notifier *notifier,
+			       struct v4l2_subdev *sd);
 
 struct v4l2_async_connection *
 __v4l2_async_nf_add_fwnode(struct v4l2_async_notifier *notifier,
@@ -259,21 +276,9 @@ v4l2_async_connection_unique(struct v4l2_subdev *sd);
 /**
  * v4l2_async_nf_register - registers a subdevice asynchronous notifier
  *
- * @v4l2_dev: pointer to &struct v4l2_device
  * @notifier: pointer to &struct v4l2_async_notifier
  */
-int v4l2_async_nf_register(struct v4l2_device *v4l2_dev,
-			   struct v4l2_async_notifier *notifier);
-
-/**
- * v4l2_async_subdev_nf_register - registers a subdevice asynchronous
- *					 notifier for a sub-device
- *
- * @sd: pointer to &struct v4l2_subdev
- * @notifier: pointer to &struct v4l2_async_notifier
- */
-int v4l2_async_subdev_nf_register(struct v4l2_subdev *sd,
-				  struct v4l2_async_notifier *notifier);
+int v4l2_async_nf_register(struct v4l2_async_notifier *notifier);
 
 /**
  * v4l2_async_nf_unregister - unregisters a subdevice

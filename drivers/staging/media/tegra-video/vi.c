@@ -1181,7 +1181,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	}
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		v4l2_async_nf_init(&chan->notifier);
+		v4l2_async_nf_init(&chan->notifier, &vid->v4l2_dev);
 
 	return 0;
 
@@ -1748,7 +1748,6 @@ cleanup:
 
 static int tegra_vi_graph_init(struct tegra_vi *vi)
 {
-	struct tegra_video_device *vid = dev_get_drvdata(vi->client.host);
 	struct tegra_vi_channel *chan;
 	struct fwnode_handle *fwnode = dev_fwnode(vi->dev);
 	int ret;
@@ -1779,7 +1778,7 @@ static int tegra_vi_graph_init(struct tegra_vi *vi)
 			continue;
 
 		chan->notifier.ops = &tegra_vi_async_ops;
-		ret = v4l2_async_nf_register(&vid->v4l2_dev, &chan->notifier);
+		ret = v4l2_async_nf_register(&chan->notifier);
 		if (ret < 0) {
 			dev_err(vi->dev,
 				"failed to register channel %d notifier: %d\n",

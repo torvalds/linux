@@ -238,7 +238,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	if (!ep)
 		return -ENODEV;
 
-	v4l2_async_nf_init(&mcam->notifier);
+	v4l2_async_nf_init(&mcam->notifier, &mcam->v4l2_dev);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&mcam->notifier, ep,
 					      struct v4l2_async_connection);

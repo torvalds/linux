@@ -773,7 +773,7 @@ static int ub953_v4l2_notifier_register(struct ub953_data *priv)
 		return -ENODEV;
 	}
 
-	v4l2_async_nf_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&priv->notifier, ep_fwnode,
 					      struct v4l2_async_connection);
@@ -788,7 +788,7 @@ static int ub953_v4l2_notifier_register(struct ub953_data *priv)
 
 	priv->notifier.ops = &ub953_notify_ops;
 
-	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret) {
 		dev_err(dev, "Failed to register subdev_notifier");
 		v4l2_async_nf_cleanup(&priv->notifier);

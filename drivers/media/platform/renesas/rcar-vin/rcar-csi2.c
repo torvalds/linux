@@ -1122,7 +1122,7 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 
 	dev_dbg(priv->dev, "Found '%pOF'\n", to_of_node(fwnode));
 
-	v4l2_async_nf_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->subdev);
 	priv->notifier.ops = &rcar_csi2_notify_ops;
 
 	asc = v4l2_async_nf_add_fwnode(&priv->notifier, fwnode,
@@ -1131,7 +1131,7 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 	if (IS_ERR(asc))
 		return PTR_ERR(asc);
 
-	ret = v4l2_async_subdev_nf_register(&priv->subdev, &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret)
 		v4l2_async_nf_cleanup(&priv->notifier);
 

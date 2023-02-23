@@ -558,12 +558,23 @@ static int v4l2_async_nf_match_valid(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-void v4l2_async_nf_init(struct v4l2_async_notifier *notifier)
+void v4l2_async_nf_init(struct v4l2_async_notifier *notifier,
+			struct v4l2_device *v4l2_dev)
 {
 	INIT_LIST_HEAD(&notifier->waiting_list);
 	INIT_LIST_HEAD(&notifier->done_list);
+	notifier->v4l2_dev = v4l2_dev;
 }
 EXPORT_SYMBOL(v4l2_async_nf_init);
+
+void v4l2_async_subdev_nf_init(struct v4l2_async_notifier *notifier,
+			       struct v4l2_subdev *sd)
+{
+	INIT_LIST_HEAD(&notifier->waiting_list);
+	INIT_LIST_HEAD(&notifier->done_list);
+	notifier->sd = sd;
+}
+EXPORT_SYMBOL_GPL(v4l2_async_subdev_nf_init);
 
 static int __v4l2_async_nf_register(struct v4l2_async_notifier *notifier)
 {
@@ -605,15 +616,12 @@ err_unlock:
 	return ret;
 }
 
-int v4l2_async_nf_register(struct v4l2_device *v4l2_dev,
-			   struct v4l2_async_notifier *notifier)
+int v4l2_async_nf_register(struct v4l2_async_notifier *notifier)
 {
 	int ret;
 
-	if (WARN_ON(!v4l2_dev || notifier->sd))
+	if (WARN_ON(!notifier->v4l2_dev == !notifier->sd))
 		return -EINVAL;
-
-	notifier->v4l2_dev = v4l2_dev;
 
 	ret = __v4l2_async_nf_register(notifier);
 	if (ret)
@@ -623,24 +631,6 @@ int v4l2_async_nf_register(struct v4l2_device *v4l2_dev,
 }
 EXPORT_SYMBOL(v4l2_async_nf_register);
 
-int v4l2_async_subdev_nf_register(struct v4l2_subdev *sd,
-				  struct v4l2_async_notifier *notifier)
-{
-	int ret;
-
-	if (WARN_ON(!sd || notifier->v4l2_dev))
-		return -EINVAL;
-
-	notifier->sd = sd;
-
-	ret = __v4l2_async_nf_register(notifier);
-	if (ret)
-		notifier->sd = NULL;
-
-	return ret;
-}
-EXPORT_SYMBOL(v4l2_async_subdev_nf_register);
-
 static void
 __v4l2_async_nf_unregister(struct v4l2_async_notifier *notifier)
 {
@@ -648,9 +638,6 @@ __v4l2_async_nf_unregister(struct v4l2_async_notifier *notifier)
 		return;
 
 	v4l2_async_nf_unbind_all_subdevs(notifier);
-
-	notifier->sd = NULL;
-	notifier->v4l2_dev = NULL;
 
 	list_del(&notifier->notifier_entry);
 }
@@ -683,6 +670,9 @@ static void __v4l2_async_nf_cleanup(struct v4l2_async_notifier *notifier)
 
 		kfree(asc);
 	}
+
+	notifier->sd = NULL;
+	notifier->v4l2_dev = NULL;
 }
 
 void v4l2_async_nf_cleanup(struct v4l2_async_notifier *notifier)

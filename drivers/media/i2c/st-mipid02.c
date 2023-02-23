@@ -911,7 +911,7 @@ static int mipid02_parse_rx_ep(struct mipid02_dev *bridge)
 	bridge->rx = ep;
 
 	/* register async notifier so we get noticed when sensor is connected */
-	v4l2_async_nf_init(&bridge->notifier);
+	v4l2_async_subdev_nf_init(&bridge->notifier, &bridge->sd);
 	asd = v4l2_async_nf_add_fwnode_remote(&bridge->notifier,
 					      of_fwnode_handle(ep_node),
 					      struct v4l2_async_connection);
@@ -924,7 +924,7 @@ static int mipid02_parse_rx_ep(struct mipid02_dev *bridge)
 	}
 	bridge->notifier.ops = &mipid02_notifier_ops;
 
-	ret = v4l2_async_subdev_nf_register(&bridge->sd, &bridge->notifier);
+	ret = v4l2_async_nf_register(&bridge->notifier);
 	if (ret)
 		v4l2_async_nf_cleanup(&bridge->notifier);
 

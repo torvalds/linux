@@ -2420,13 +2420,13 @@ static int isp_probe(struct platform_device *pdev)
 
 	isp->notifier.ops = &isp_subdev_notifier_ops;
 
-	v4l2_async_nf_init(&isp->notifier);
+	v4l2_async_nf_init(&isp->notifier, &isp->v4l2_dev);
 
 	ret = isp_parse_of_endpoints(isp);
 	if (ret < 0)
 		goto error_register_entities;
 
-	ret = v4l2_async_nf_register(&isp->v4l2_dev, &isp->notifier);
+	ret = v4l2_async_nf_register(&isp->notifier);
 	if (ret)
 		goto error_register_entities;
 

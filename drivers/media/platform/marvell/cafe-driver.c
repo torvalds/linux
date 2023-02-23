@@ -540,7 +540,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_smbus_shutdown;
 
-	v4l2_async_nf_init(&mcam->notifier);
+	v4l2_async_nf_init(&mcam->notifier, &mcam->v4l2_dev);
 
 	asd = v4l2_async_nf_add_i2c(&mcam->notifier,
 				    i2c_adapter_id(cam->i2c_adapter),

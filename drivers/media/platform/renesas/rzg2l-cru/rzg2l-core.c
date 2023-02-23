@@ -182,7 +182,7 @@ static int rzg2l_cru_mc_parse_of_graph(struct rzg2l_cru_dev *cru)
 {
 	int ret;
 
-	v4l2_async_nf_init(&cru->notifier);
+	v4l2_async_nf_init(&cru->notifier, &cru->v4l2_dev);
 
 	ret = rzg2l_cru_mc_parse_of(cru);
 	if (ret)
@@ -193,7 +193,7 @@ static int rzg2l_cru_mc_parse_of_graph(struct rzg2l_cru_dev *cru)
 	if (list_empty(&cru->notifier.waiting_list))
 		return 0;
 
-	ret = v4l2_async_nf_register(&cru->v4l2_dev, &cru->notifier);
+	ret = v4l2_async_nf_register(&cru->notifier);
 	if (ret < 0) {
 		dev_err(cru->dev, "Notifier registration failed\n");
 		v4l2_async_nf_cleanup(&cru->notifier);

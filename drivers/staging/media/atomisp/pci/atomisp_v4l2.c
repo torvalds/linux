@@ -1508,7 +1508,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
-	err = v4l2_async_nf_register(&isp->v4l2_dev, &isp->notifier);
+	err = v4l2_async_nf_register(&isp->notifier);
 	if (err) {
 		dev_err(isp->dev, "failed to register async notifier : %d\n", err);
 		goto css_init_fail;

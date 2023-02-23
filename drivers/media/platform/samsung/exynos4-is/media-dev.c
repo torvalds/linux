@@ -1478,7 +1478,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fmd);
 
-	v4l2_async_nf_init(&fmd->subdev_notifier);
+	v4l2_async_nf_init(&fmd->subdev_notifier, &fmd->v4l2_dev);
 
 	ret = fimc_md_register_platform_entities(fmd, dev->of_node);
 	if (ret)
@@ -1506,8 +1506,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
-		ret = v4l2_async_nf_register(&fmd->v4l2_dev,
-					     &fmd->subdev_notifier);
+		ret = v4l2_async_nf_register(&fmd->subdev_notifier);
 		if (ret)
 			goto err_clk_p;
 	}

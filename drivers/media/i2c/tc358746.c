@@ -1460,7 +1460,7 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 		return err;
 	}
 
-	v4l2_async_nf_init(&tc358746->notifier);
+	v4l2_async_subdev_nf_init(&tc358746->notifier, &tc358746->sd);
 	asd = v4l2_async_nf_add_fwnode_remote(&tc358746->notifier, ep,
 					      struct v4l2_async_connection);
 	fwnode_handle_put(ep);
@@ -1472,7 +1472,7 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 
 	tc358746->notifier.ops = &tc358746_notify_ops;
 
-	err = v4l2_async_subdev_nf_register(&tc358746->sd, &tc358746->notifier);
+	err = v4l2_async_nf_register(&tc358746->notifier);
 	if (err)
 		goto err_cleanup;
 

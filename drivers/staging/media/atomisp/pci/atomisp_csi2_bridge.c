@@ -825,7 +825,7 @@ int atomisp_csi2_bridge_parse_firmware(struct atomisp_device *isp)
 {
 	int i, mipi_port, ret;
 
-	v4l2_async_nf_init(&isp->notifier);
+	v4l2_async_nf_init(&isp->notifier, &isp->v4l2_dev);
 	isp->notifier.ops = &atomisp_async_ops;
 
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {

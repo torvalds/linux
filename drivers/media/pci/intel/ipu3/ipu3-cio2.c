@@ -1500,7 +1500,7 @@ err_parse:
 	 * suspend.
 	 */
 	cio2->notifier.ops = &cio2_async_ops;
-	ret = v4l2_async_nf_register(&cio2->v4l2_dev, &cio2->notifier);
+	ret = v4l2_async_nf_register(&cio2->notifier);
 	if (ret)
 		dev_err(dev, "failed to register async notifier : %d\n", ret);
 
@@ -1795,7 +1795,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	if (r)
 		goto fail_v4l2_device_unregister;
 
-	v4l2_async_nf_init(&cio2->notifier);
+	v4l2_async_nf_init(&cio2->notifier, &cio2->v4l2_dev);
 
 	/* Register notifier for subdevices we care */
 	r = cio2_parse_firmware(cio2);

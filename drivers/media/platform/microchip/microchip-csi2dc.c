@@ -523,7 +523,7 @@ static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 	struct v4l2_async_connection *asd;
 	int ret = 0;
 
-	v4l2_async_nf_init(&csi2dc->notifier);
+	v4l2_async_subdev_nf_init(&csi2dc->notifier, &csi2dc->csi2dc_sd);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi2dc->notifier,
 					      input_fwnode,
@@ -542,8 +542,7 @@ static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 
 	csi2dc->notifier.ops = &csi2dc_async_ops;
 
-	ret = v4l2_async_subdev_nf_register(&csi2dc->csi2dc_sd,
-					    &csi2dc->notifier);
+	ret = v4l2_async_nf_register(&csi2dc->notifier);
 	if (ret) {
 		dev_err(csi2dc->dev, "fail to register async notifier: %d\n",
 			ret);

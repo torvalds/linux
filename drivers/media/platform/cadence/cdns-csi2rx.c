@@ -474,7 +474,7 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 		return -EINVAL;
 	}
 
-	v4l2_async_nf_init(&csi2rx->notifier);
+	v4l2_async_subdev_nf_init(&csi2rx->notifier, &csi2rx->subdev);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi2rx->notifier, fwh,
 					      struct v4l2_async_connection);
@@ -484,7 +484,7 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 
 	csi2rx->notifier.ops = &csi2rx_notifier_ops;
 
-	ret = v4l2_async_subdev_nf_register(&csi2rx->subdev, &csi2rx->notifier);
+	ret = v4l2_async_nf_register(&csi2rx->notifier);
 	if (ret)
 		v4l2_async_nf_cleanup(&csi2rx->notifier);
 
