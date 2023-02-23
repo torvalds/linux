@@ -550,15 +550,6 @@ config KEYBOARD_PXA27x
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa27x_keypad.
 
-config KEYBOARD_PXA930_ROTARY
-	tristate "PXA930/PXA935 Enhanced Rotary Controller Support"
-	depends on CPU_PXA930 || CPU_PXA935
-	help
-	  Enable support for PXA930/PXA935 Enhanced Rotary Controller.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pxa930_rotary.
-
 config KEYBOARD_PMIC8XXX
 	tristate "Qualcomm PMIC8XXX keypad support"
 	depends on MFD_PM8XXX
@@ -656,16 +647,6 @@ config KEYBOARD_SUN4I_LRADC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun4i-lradc-keys.
-
-config KEYBOARD_DAVINCI
-	tristate "TI DaVinci Key Scan"
-	depends on ARCH_DAVINCI_DM365
-	help
-	  Say Y to enable keypad module support for the TI DaVinci
-	  platforms (DM365).
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called davinci_keyscan.
 
 config KEYBOARD_IPAQ_MICRO
 	tristate "Buttons on Micro SoC (iPaq h3100,h3600,h3700)"

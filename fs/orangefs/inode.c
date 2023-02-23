@@ -49,10 +49,8 @@ static int orangefs_writepage_locked(struct page *page,
 	/* Should've been handled in orangefs_invalidate_folio. */
 	WARN_ON(off == len || off + wlen > len);
 
-	bv.bv_page = page;
-	bv.bv_len = wlen;
-	bv.bv_offset = off % PAGE_SIZE;
 	WARN_ON(wlen == 0);
+	bvec_set_page(&bv, page, wlen, off % PAGE_SIZE);
 	iov_iter_bvec(&iter, ITER_SOURCE, &bv, 1, wlen);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
@@ -102,15 +100,11 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 
 	for (i = 0; i < ow->npages; i++) {
 		set_page_writeback(ow->pages[i]);
-		ow->bv[i].bv_page = ow->pages[i];
-		ow->bv[i].bv_len = min(page_offset(ow->pages[i]) + PAGE_SIZE,
-		    ow->off + ow->len) -
-		    max(ow->off, page_offset(ow->pages[i]));
-		if (i == 0)
-			ow->bv[i].bv_offset = ow->off -
-			    page_offset(ow->pages[i]);
-		else
-			ow->bv[i].bv_offset = 0;
+		bvec_set_page(&ow->bv[i], ow->pages[i],
+			      min(page_offset(ow->pages[i]) + PAGE_SIZE,
+			          ow->off + ow->len) -
+			      max(ow->off, page_offset(ow->pages[i])),
+			      i == 0 ? ow->off - page_offset(ow->pages[i]) : 0);
 	}
 	iov_iter_bvec(&iter, ITER_SOURCE, ow->bv, ow->npages, ow->len);
 
@@ -300,9 +294,7 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 		orangefs_launder_folio(folio);
 
 	off = folio_pos(folio);
-	bv.bv_page = &folio->page;
-	bv.bv_len = folio_size(folio);
-	bv.bv_offset = 0;
+	bvec_set_folio(&bv, folio, folio_size(folio), 0);
 	iov_iter_bvec(&iter, ITER_DEST, &bv, 1, folio_size(folio));
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
@@ -822,7 +814,7 @@ again:
 		ORANGEFS_I(inode)->attr_uid = current_fsuid();
 		ORANGEFS_I(inode)->attr_gid = current_fsgid();
 	}
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	spin_unlock(&inode->i_lock);
 	mark_inode_dirty(inode);
 
@@ -839,20 +831,20 @@ int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr)
 	ret = __orangefs_setattr(inode, iattr);
 	/* change mode on a file that has ACLs */
 	if (!ret && (iattr->ia_valid & ATTR_MODE))
-		ret = posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
+		ret = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
 	return ret;
 }
 
 /*
  * Change attributes of an object referenced by dentry.
  */
-int orangefs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int orangefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *iattr)
 {
 	int ret;
 	gossip_debug(GOSSIP_INODE_DEBUG, "__orangefs_setattr: called on %pd\n",
 	    dentry);
-	ret = setattr_prepare(&init_user_ns, dentry, iattr);
+	ret = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (ret)
 	        goto out;
 	ret = __orangefs_setattr_mode(dentry, iattr);
@@ -866,7 +858,7 @@ out:
 /*
  * Obtain attributes of an object given a dentry
  */
-int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		     struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int ret;
@@ -879,7 +871,7 @@ int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	ret = orangefs_inode_getattr(inode,
 	    request_mask & STATX_SIZE ? ORANGEFS_GETATTR_SIZE : 0);
 	if (ret == 0) {
-		generic_fillattr(&init_user_ns, inode, stat);
+		generic_fillattr(&nop_mnt_idmap, inode, stat);
 
 		/* override block size reported to stat */
 		if (!(request_mask & STATX_SIZE))
@@ -890,7 +882,7 @@ int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	return ret;
 }
 
-int orangefs_permission(struct user_namespace *mnt_userns,
+int orangefs_permission(struct mnt_idmap *idmap,
 			struct inode *inode, int mask)
 {
 	int ret;
@@ -905,7 +897,7 @@ int orangefs_permission(struct user_namespace *mnt_userns,
 	if (ret < 0)
 		return ret;
 
-	return generic_permission(&init_user_ns, inode, mask);
+	return generic_permission(&nop_mnt_idmap, inode, mask);
 }
 
 int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)
@@ -944,7 +936,7 @@ static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 	return 0;
 }
 
-static int orangefs_fileattr_set(struct user_namespace *mnt_userns,
+static int orangefs_fileattr_set(struct mnt_idmap *idmap,
 				 struct dentry *dentry, struct fileattr *fa)
 {
 	u64 val = 0;

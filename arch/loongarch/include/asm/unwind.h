@@ -8,7 +8,9 @@
 #define _ASM_UNWIND_H
 
 #include <linux/sched.h>
+#include <linux/ftrace.h>
 
+#include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
 enum unwinder_type {
@@ -20,10 +22,12 @@ struct unwind_state {
 	char type; /* UNWINDER_XXX */
 	struct stack_info stack_info;
 	struct task_struct *task;
-	bool first, error, is_ftrace;
+	bool first, error, reset;
 	int graph_idx;
 	unsigned long sp, pc, ra;
 };
+
+bool default_next_frame(struct unwind_state *state);
 
 void unwind_start(struct unwind_state *state,
 		  struct task_struct *task, struct pt_regs *regs);
@@ -40,4 +44,39 @@ static inline bool unwind_error(struct unwind_state *state)
 	return state->error;
 }
 
+#define GRAPH_FAKE_OFFSET (sizeof(struct pt_regs) - offsetof(struct pt_regs, regs[1]))
+
+static inline unsigned long unwind_graph_addr(struct unwind_state *state,
+					unsigned long pc, unsigned long cfa)
+{
+	return ftrace_graph_ret_addr(state->task, &state->graph_idx,
+				     pc, (unsigned long *)(cfa - GRAPH_FAKE_OFFSET));
+}
+
+static __always_inline void __unwind_start(struct unwind_state *state,
+					struct task_struct *task, struct pt_regs *regs)
+{
+	memset(state, 0, sizeof(*state));
+	if (regs) {
+		state->sp = regs->regs[3];
+		state->pc = regs->csr_era;
+		state->ra = regs->regs[1];
+	} else if (task && task != current) {
+		state->sp = thread_saved_fp(task);
+		state->pc = thread_saved_ra(task);
+		state->ra = 0;
+	} else {
+		state->sp = (unsigned long)__builtin_frame_address(0);
+		state->pc = (unsigned long)__builtin_return_address(0);
+		state->ra = 0;
+	}
+	state->task = task;
+	get_stack_info(state->sp, state->task, &state->stack_info);
+	state->pc = unwind_graph_addr(state, state->pc, state->sp);
+}
+
+static __always_inline unsigned long __unwind_get_return_address(struct unwind_state *state)
+{
+	return unwind_done(state) ? 0 : state->pc;
+}
 #endif /* _ASM_UNWIND_H */

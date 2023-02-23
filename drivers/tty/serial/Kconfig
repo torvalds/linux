@@ -242,23 +242,23 @@ config SERIAL_SAMSUNG
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung
-	  S3C24xx/S3C64xx/S5Pv210/Exynos and Apple M1 SoCs, providing
+	  S3C64xx/S5Pv210/Exynos and Apple M1 SoCs, providing
 	  /dev/ttySAC0, 1 and 2 (note, some machines may not provide all of
 	  these ports, depending on how the serial port pins are configured.
+
 	  Choose Y/M here only if you build for such SoC.
 
 config SERIAL_SAMSUNG_UARTS_4
 	bool
 	depends on SERIAL_SAMSUNG
-	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
+	default y
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
 config SERIAL_SAMSUNG_UARTS
 	int
 	depends on SERIAL_SAMSUNG
-	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
-	default 3
+	default 4
 	help
 	  Select the number of available UART ports for the Samsung S3C
 	  serial driver

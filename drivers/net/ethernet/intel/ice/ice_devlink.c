@@ -899,7 +899,7 @@ static int ice_set_object_tx_priority(struct ice_port_info *pi, struct ice_sched
 {
 	int status;
 
-	if (node->tx_priority >= 8) {
+	if (priority >= 8) {
 		NL_SET_ERR_MSG_MOD(extack, "Priority should be less than 8");
 		return -EINVAL;
 	}
@@ -929,7 +929,7 @@ static int ice_set_object_tx_weight(struct ice_port_info *pi, struct ice_sched_n
 {
 	int status;
 
-	if (node->tx_weight > 200 || node->tx_weight < 1) {
+	if (weight > 200 || weight < 1) {
 		NL_SET_ERR_MSG_MOD(extack, "Weight must be between 1 and 200");
 		return -EINVAL;
 	}

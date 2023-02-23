@@ -10,6 +10,16 @@
 	compatible = "google,tomato-rev1", "google,tomato", "mediatek,mt8195";
 };
 
+&audio_codec {
+	compatible = "realtek,rt5682i";
+	realtek,btndet-delay = <16>;
+};
+
+&sound {
+	compatible = "mediatek,mt8195_mt6359_rt1019_rt5682";
+	model = "mt8195_r1019_5682";
+};
+
 &ts_10 {
 	status = "okay";
 };

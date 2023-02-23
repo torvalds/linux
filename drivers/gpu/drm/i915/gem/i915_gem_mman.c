@@ -697,7 +697,7 @@ insert:
 	GEM_BUG_ON(lookup_mmo(obj, mmap_type) != mmo);
 out:
 	if (file)
-		drm_vma_node_allow(&mmo->vma_node, file);
+		drm_vma_node_allow_once(&mmo->vma_node, file);
 	return mmo;
 
 err:

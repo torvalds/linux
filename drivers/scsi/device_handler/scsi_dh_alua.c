@@ -981,6 +981,9 @@ queue_rtpg:
  *
  * Returns true if and only if alua_rtpg_work() will be called asynchronously.
  * That function is responsible for calling @qdata->fn().
+ *
+ * Context: may be called from atomic context (alua_check()) only if the caller
+ *	holds an sdev reference.
  */
 static bool alua_rtpg_queue(struct alua_port_group *pg,
 			    struct scsi_device *sdev,
@@ -988,8 +991,6 @@ static bool alua_rtpg_queue(struct alua_port_group *pg,
 {
 	int start_queue = 0;
 	unsigned long flags;
-
-	might_sleep();
 
 	if (WARN_ON_ONCE(!pg) || scsi_device_get(sdev))
 		return false;

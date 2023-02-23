@@ -81,7 +81,7 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 	init_completion(&entity->entity_idle);
 
 	/* We start in an idle state. */
-	complete(&entity->entity_idle);
+	complete_all(&entity->entity_idle);
 
 	spin_lock_init(&entity->rq_lock);
 	spsc_queue_init(&entity->job_queue);

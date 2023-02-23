@@ -608,7 +608,7 @@ out_unlock:
 	return error;
 }
 
-static int mqueue_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int mqueue_create(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, umode_t mode, bool excl)
 {
 	return mqueue_create_attr(dentry, mode, NULL);
@@ -887,7 +887,7 @@ static int prepare_open(struct dentry *dentry, int oflag, int ro,
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY))
 		return -EINVAL;
 	acc = oflag2acc[oflag & O_ACCMODE];
-	return inode_permission(&init_user_ns, d_inode(dentry), acc);
+	return inode_permission(&nop_mnt_idmap, d_inode(dentry), acc);
 }
 
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
@@ -979,7 +979,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 		err = -ENOENT;
 	} else {
 		ihold(inode);
-		err = vfs_unlink(&init_user_ns, d_inode(dentry->d_parent),
+		err = vfs_unlink(&nop_mnt_idmap, d_inode(dentry->d_parent),
 				 dentry, NULL);
 	}
 	dput(dentry);

@@ -68,7 +68,7 @@ restart:
 
 	while (1) {
 		struct xfs_dquot *batch[XFS_DQ_LOOKUP_BATCH];
-		int		error = 0;
+		int		error;
 		int		i;
 
 		mutex_lock(&qi->qi_tree_lock);
@@ -787,7 +787,7 @@ xfs_qm_qino_alloc(
 
 		error = xfs_dialloc(&tp, 0, S_IFREG, &ino);
 		if (!error)
-			error = xfs_init_new_inode(&init_user_ns, tp, NULL, ino,
+			error = xfs_init_new_inode(&nop_mnt_idmap, tp, NULL, ino,
 					S_IFREG, 1, 0, 0, false, ipp);
 		if (error) {
 			xfs_trans_cancel(tp);

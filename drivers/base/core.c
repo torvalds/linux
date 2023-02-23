@@ -181,7 +181,6 @@ void fw_devlink_purge_absent_suppliers(struct fwnode_handle *fwnode)
 }
 EXPORT_SYMBOL_GPL(fw_devlink_purge_absent_suppliers);
 
-#ifdef CONFIG_SRCU
 static DEFINE_MUTEX(device_links_lock);
 DEFINE_STATIC_SRCU(device_links_srcu);
 
@@ -220,47 +219,6 @@ static void device_link_remove_from_lists(struct device_link *link)
 	list_del_rcu(&link->s_node);
 	list_del_rcu(&link->c_node);
 }
-#else /* !CONFIG_SRCU */
-static DECLARE_RWSEM(device_links_lock);
-
-static inline void device_links_write_lock(void)
-{
-	down_write(&device_links_lock);
-}
-
-static inline void device_links_write_unlock(void)
-{
-	up_write(&device_links_lock);
-}
-
-int device_links_read_lock(void)
-{
-	down_read(&device_links_lock);
-	return 0;
-}
-
-void device_links_read_unlock(int not_used)
-{
-	up_read(&device_links_lock);
-}
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-int device_links_read_lock_held(void)
-{
-	return lockdep_is_held(&device_links_lock);
-}
-#endif
-
-static inline void device_link_synchronize_removal(void)
-{
-}
-
-static void device_link_remove_from_lists(struct device_link *link)
-{
-	list_del(&link->s_node);
-	list_del(&link->c_node);
-}
-#endif /* !CONFIG_SRCU */
 
 static bool device_is_ancestor(struct device *dev, struct device *target)
 {

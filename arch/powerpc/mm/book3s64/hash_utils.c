@@ -1012,7 +1012,7 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 
 void hpt_clear_stress(void);
 static struct timer_list stress_hpt_timer;
-void stress_hpt_timer_fn(struct timer_list *timer)
+static void stress_hpt_timer_fn(struct timer_list *timer)
 {
 	int next_cpu;
 

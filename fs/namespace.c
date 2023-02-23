@@ -75,22 +75,6 @@ static DECLARE_RWSEM(namespace_sem);
 static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 static LIST_HEAD(ex_mountpoints); /* protected by namespace_sem */
 
-struct mnt_idmap {
-	struct user_namespace *owner;
-	refcount_t count;
-};
-
-/*
- * Carries the initial idmapping of 0:0:4294967295 which is an identity
- * mapping. This means that {g,u}id 0 is mapped to {g,u}id 0, {g,u}id 1 is
- * mapped to {g,u}id 1, [...], {g,u}id 1000 to {g,u}id 1000, [...].
- */
-struct mnt_idmap nop_mnt_idmap = {
-	.owner	= &init_user_ns,
-	.count	= REFCOUNT_INIT(1),
-};
-EXPORT_SYMBOL_GPL(nop_mnt_idmap);
-
 struct mount_kattr {
 	unsigned int attr_set;
 	unsigned int attr_clr;
@@ -208,104 +192,6 @@ int mnt_get_count(struct mount *mnt)
 #else
 	return mnt->mnt_count;
 #endif
-}
-
-/**
- * mnt_idmap_owner - retrieve owner of the mount's idmapping
- * @idmap: mount idmapping
- *
- * This helper will go away once the conversion to use struct mnt_idmap
- * everywhere has finished at which point the helper will be unexported.
- *
- * Only code that needs to perform permission checks based on the owner of the
- * idmapping will get access to it. All other code will solely rely on
- * idmappings. This will get us type safety so it's impossible to conflate
- * filesystems idmappings with mount idmappings.
- *
- * Return: The owner of the idmapping.
- */
-struct user_namespace *mnt_idmap_owner(const struct mnt_idmap *idmap)
-{
-	return idmap->owner;
-}
-EXPORT_SYMBOL_GPL(mnt_idmap_owner);
-
-/**
- * mnt_user_ns - retrieve owner of an idmapped mount
- * @mnt: the relevant vfsmount
- *
- * This helper will go away once the conversion to use struct mnt_idmap
- * everywhere has finished at which point the helper will be unexported.
- *
- * Only code that needs to perform permission checks based on the owner of the
- * idmapping will get access to it. All other code will solely rely on
- * idmappings. This will get us type safety so it's impossible to conflate
- * filesystems idmappings with mount idmappings.
- *
- * Return: The owner of the idmapped.
- */
-struct user_namespace *mnt_user_ns(const struct vfsmount *mnt)
-{
-	struct mnt_idmap *idmap = mnt_idmap(mnt);
-
-	/* Return the actual owner of the filesystem instead of the nop. */
-	if (idmap == &nop_mnt_idmap &&
-	    !initial_idmapping(mnt->mnt_sb->s_user_ns))
-		return mnt->mnt_sb->s_user_ns;
-	return mnt_idmap_owner(idmap);
-}
-EXPORT_SYMBOL_GPL(mnt_user_ns);
-
-/**
- * alloc_mnt_idmap - allocate a new idmapping for the mount
- * @mnt_userns: owning userns of the idmapping
- *
- * Allocate a new struct mnt_idmap which carries the idmapping of the mount.
- *
- * Return: On success a new idmap, on error an error pointer is returned.
- */
-static struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns)
-{
-	struct mnt_idmap *idmap;
-
-	idmap = kzalloc(sizeof(struct mnt_idmap), GFP_KERNEL_ACCOUNT);
-	if (!idmap)
-		return ERR_PTR(-ENOMEM);
-
-	idmap->owner = get_user_ns(mnt_userns);
-	refcount_set(&idmap->count, 1);
-	return idmap;
-}
-
-/**
- * mnt_idmap_get - get a reference to an idmapping
- * @idmap: the idmap to bump the reference on
- *
- * If @idmap is not the @nop_mnt_idmap bump the reference count.
- *
- * Return: @idmap with reference count bumped if @not_mnt_idmap isn't passed.
- */
-static inline struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap)
-{
-	if (idmap != &nop_mnt_idmap)
-		refcount_inc(&idmap->count);
-
-	return idmap;
-}
-
-/**
- * mnt_idmap_put - put a reference to an idmapping
- * @idmap: the idmap to put the reference on
- *
- * If this is a non-initial idmapping, put the reference count when a mount is
- * released and free it if we're the last user.
- */
-static inline void mnt_idmap_put(struct mnt_idmap *idmap)
-{
-	if (idmap != &nop_mnt_idmap && refcount_dec_and_test(&idmap->count)) {
-		put_user_ns(idmap->owner);
-		kfree(idmap);
-	}
 }
 
 static struct mount *alloc_vfsmnt(const char *name)
@@ -4094,7 +3980,7 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 	 * Creating an idmapped mount with the filesystem wide idmapping
 	 * doesn't make sense so block that. We don't allow mushy semantics.
 	 */
-	if (mnt_idmap_owner(kattr->mnt_idmap) == fs_userns)
+	if (!check_fsmapping(kattr->mnt_idmap, m->mnt_sb))
 		return -EINVAL;
 
 	/*
@@ -4340,7 +4226,7 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 	 * result.
 	 */
 	mnt_userns = container_of(ns, struct user_namespace, ns);
-	if (initial_idmapping(mnt_userns)) {
+	if (mnt_userns == &init_user_ns) {
 		err = -EPERM;
 		goto out_fput;
 	}

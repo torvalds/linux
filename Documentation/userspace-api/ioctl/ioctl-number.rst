@@ -201,7 +201,6 @@ Code  Seq#    Include File                                           Comments
 'V'   all    linux/videodev2.h                                       conflict!
 'V'   C0     linux/ivtvfb.h                                          conflict!
 'V'   C0     linux/ivtv.h                                            conflict!
-'V'   C0     media/davinci/vpfe_capture.h                            conflict!
 'V'   C0     media/si4713.h                                          conflict!
 'W'   00-1F  linux/watchdog.h                                        conflict!
 'W'   00-1F  linux/wanrouter.h                                       conflict! (pre 3.9)

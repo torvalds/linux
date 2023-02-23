@@ -61,6 +61,7 @@
 #include "memory.h"
 #include "config.h"
 
+#define DLM_SHUTDOWN_WAIT_TIMEOUT msecs_to_jiffies(5000)
 #define NEEDED_RMEM (4*1024*1024)
 
 struct connection {
@@ -99,6 +100,7 @@ struct connection {
 	struct connection *othercon;
 	struct work_struct rwork; /* receive worker */
 	struct work_struct swork; /* send worker */
+	wait_queue_head_t shutdown_wait;
 	unsigned char rx_leftover_buf[DLM_MAX_SOCKET_BUFSIZE];
 	int rx_leftover;
 	int mark;
@@ -282,6 +284,7 @@ static void dlm_con_init(struct connection *con, int nodeid)
 	INIT_WORK(&con->swork, process_send_sockets);
 	INIT_WORK(&con->rwork, process_recv_sockets);
 	spin_lock_init(&con->addrs_lock);
+	init_waitqueue_head(&con->shutdown_wait);
 }
 
 /*
@@ -788,6 +791,43 @@ static void close_connection(struct connection *con, bool and_other)
 	clear_bit(CF_RECV_PENDING, &con->flags);
 	clear_bit(CF_SEND_PENDING, &con->flags);
 	up_write(&con->sock_lock);
+}
+
+static void shutdown_connection(struct connection *con, bool and_other)
+{
+	int ret;
+
+	if (con->othercon && and_other)
+		shutdown_connection(con->othercon, false);
+
+	flush_workqueue(io_workqueue);
+	down_read(&con->sock_lock);
+	/* nothing to shutdown */
+	if (!con->sock) {
+		up_read(&con->sock_lock);
+		return;
+	}
+
+	ret = kernel_sock_shutdown(con->sock, SHUT_WR);
+	up_read(&con->sock_lock);
+	if (ret) {
+		log_print("Connection %p failed to shutdown: %d will force close",
+			  con, ret);
+		goto force_close;
+	} else {
+		ret = wait_event_timeout(con->shutdown_wait, !con->sock,
+					 DLM_SHUTDOWN_WAIT_TIMEOUT);
+		if (ret == 0) {
+			log_print("Connection %p shutdown timed out, will force close",
+				  con);
+			goto force_close;
+		}
+	}
+
+	return;
+
+force_close:
+	close_connection(con, false);
 }
 
 static struct processqueue_entry *new_processqueue_entry(int nodeid,
@@ -1488,6 +1528,7 @@ static void process_recv_sockets(struct work_struct *work)
 		break;
 	case DLM_IO_EOF:
 		close_connection(con, false);
+		wake_up(&con->shutdown_wait);
 		/* CF_RECV_PENDING cleared */
 		break;
 	case DLM_IO_RESCHED:
@@ -1695,6 +1736,9 @@ static int work_start(void)
 
 void dlm_lowcomms_shutdown(void)
 {
+	struct connection *con;
+	int i, idx;
+
 	/* stop lowcomms_listen_data_ready calls */
 	lock_sock(listen_con.sock->sk);
 	listen_con.sock->sk->sk_data_ready = listen_sock.sk_data_ready;
@@ -1703,29 +1747,20 @@ void dlm_lowcomms_shutdown(void)
 	cancel_work_sync(&listen_con.rwork);
 	dlm_close_sock(&listen_con.sock);
 
-	flush_workqueue(process_workqueue);
-}
-
-void dlm_lowcomms_shutdown_node(int nodeid, bool force)
-{
-	struct connection *con;
-	int idx;
-
 	idx = srcu_read_lock(&connections_srcu);
-	con = nodeid2con(nodeid, 0);
-	if (WARN_ON_ONCE(!con)) {
-		srcu_read_unlock(&connections_srcu, idx);
-		return;
-	}
+	for (i = 0; i < CONN_HASH_SIZE; i++) {
+		hlist_for_each_entry_rcu(con, &connection_hash[i], list) {
+			shutdown_connection(con, true);
+			stop_connection_io(con);
+			flush_workqueue(process_workqueue);
+			close_connection(con, true);
 
-	flush_work(&con->swork);
-	stop_connection_io(con);
-	WARN_ON_ONCE(!force && !list_empty(&con->writequeue));
-	close_connection(con, true);
-	clean_one_writequeue(con);
-	if (con->othercon)
-		clean_one_writequeue(con->othercon);
-	allow_connection_io(con);
+			clean_one_writequeue(con);
+			if (con->othercon)
+				clean_one_writequeue(con->othercon);
+			allow_connection_io(con);
+		}
+	}
 	srcu_read_unlock(&connections_srcu, idx);
 }
 

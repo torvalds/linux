@@ -605,23 +605,23 @@
 		enable-gpios = <&gpio TEGRA_GPIO(H, 7) GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&vdd_3v3_sys>;
 	};
-};
 
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-533000000-1200;
-	/delete-node/ opp-625000000-1200;
-	/delete-node/ opp-625000000-1250;
-	/delete-node/ opp-667000000-1200;
-	/delete-node/ opp-750000000-1300;
-	/delete-node/ opp-800000000-1300;
-	/delete-node/ opp-900000000-1350;
-};
+	opp-table-actmon {
+		/delete-node/ opp-533000000;
+		/delete-node/ opp-625000000;
+		/delete-node/ opp-667000000;
+		/delete-node/ opp-750000000;
+		/delete-node/ opp-800000000;
+		/delete-node/ opp-900000000;
+	};
 
-&emc_bw_dfs_opp_table {
-	/delete-node/ opp-533000000;
-	/delete-node/ opp-625000000;
-	/delete-node/ opp-667000000;
-	/delete-node/ opp-750000000;
-	/delete-node/ opp-800000000;
-	/delete-node/ opp-900000000;
+	opp-table-emc {
+		/delete-node/ opp-533000000-1200;
+		/delete-node/ opp-625000000-1200;
+		/delete-node/ opp-625000000-1250;
+		/delete-node/ opp-667000000-1200;
+		/delete-node/ opp-750000000-1300;
+		/delete-node/ opp-800000000-1300;
+		/delete-node/ opp-900000000-1350;
+	};
 };

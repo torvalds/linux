@@ -486,11 +486,11 @@ EXPORT_SYMBOL(file_ns_capable);
  * Return true if the inode uid and gid are within the namespace.
  */
 bool privileged_wrt_inode_uidgid(struct user_namespace *ns,
-				 struct user_namespace *mnt_userns,
+				 struct mnt_idmap *idmap,
 				 const struct inode *inode)
 {
-	return vfsuid_has_mapping(ns, i_uid_into_vfsuid(mnt_userns, inode)) &&
-	       vfsgid_has_mapping(ns, i_gid_into_vfsgid(mnt_userns, inode));
+	return vfsuid_has_mapping(ns, i_uid_into_vfsuid(idmap, inode)) &&
+	       vfsgid_has_mapping(ns, i_gid_into_vfsgid(idmap, inode));
 }
 
 /**
@@ -502,13 +502,13 @@ bool privileged_wrt_inode_uidgid(struct user_namespace *ns,
  * its own user namespace and that the given inode's uid and gid are
  * mapped into the current user namespace.
  */
-bool capable_wrt_inode_uidgid(struct user_namespace *mnt_userns,
+bool capable_wrt_inode_uidgid(struct mnt_idmap *idmap,
 			      const struct inode *inode, int cap)
 {
 	struct user_namespace *ns = current_user_ns();
 
 	return ns_capable(ns, cap) &&
-	       privileged_wrt_inode_uidgid(ns, mnt_userns, inode);
+	       privileged_wrt_inode_uidgid(ns, idmap, inode);
 }
 EXPORT_SYMBOL(capable_wrt_inode_uidgid);
 

@@ -87,6 +87,10 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 			return -EFAULT;
 
 		count = consumed;
+	} else {
+		spin_unlock_irq(&motu->lock);
+
+		count = 0;
 	}
 
 	return count;

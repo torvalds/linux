@@ -316,18 +316,6 @@ config USB_OCTEON_HCD
 	  To compile this driver as a module, choose M here. The module
 	  will be called octeon-hcd.
 
-config USB_CNS3XXX_EHCI
-	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"
-	depends on ARCH_CNS3XXX || COMPILE_TEST
-	select USB_EHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_EHCI_HCD_PLATFORM instead.
-
-	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
-	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
-	  support.
-
 config USB_EHCI_HCD_PLATFORM
 	tristate "Generic EHCI driver for a platform device"
 	help
@@ -421,7 +409,6 @@ if USB_OHCI_HCD
 config USB_OHCI_HCD_OMAP1
 	tristate "OHCI support for OMAP1/2 chips"
 	depends on ARCH_OMAP1
-	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	default y
 	help
 	  Enables support for the OHCI controller on OMAP1/2 chips.
@@ -444,12 +431,12 @@ config USB_OHCI_HCD_STI
 	  STMicroelectronics consumer electronics SoC's.
 
 config USB_OHCI_HCD_S3C2410
-	tristate "OHCI support for Samsung S3C24xx/S3C64xx SoC series"
-	depends on USB_OHCI_HCD && (ARCH_S3C24XX || ARCH_S3C64XX || COMPILE_TEST)
-	default y if (ARCH_S3C24XX || ARCH_S3C64XX)
+	tristate "OHCI support for Samsung S3C64xx SoC series"
+	depends on USB_OHCI_HCD && (ARCH_S3C64XX || COMPILE_TEST)
+	default ARCH_S3C64XX
 	help
 	  Enables support for the on-chip OHCI controller on
-	  S3C24xx/S3C64xx chips.
+	  S3C64xx chips.
 
 config USB_OHCI_HCD_LPC32XX
 	tristate "Support for LPC on-chip OHCI USB controller"
@@ -565,17 +552,6 @@ config USB_OHCI_EXYNOS
 	help
 	  Enable support for the Samsung S5Pv210 and Exynos SOC's on-chip OHCI
 	  controller.
-
-config USB_CNS3XXX_OHCI
-	bool "Cavium CNS3XXX OHCI Module (DEPRECATED)"
-	depends on ARCH_CNS3XXX || COMPILE_TEST
-	select USB_OHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_OHCI_HCD_PLATFORM instead.
-
-	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
-	  It is needed for low-speed USB 1.0 device support.
 
 config USB_OHCI_HCD_PLATFORM
 	tristate "Generic OHCI driver for a platform device"

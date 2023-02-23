@@ -708,12 +708,6 @@ config SPI_TI_QSPI
 	  This device supports single, dual and quad read support, while
 	  it only supports single write mode.
 
-config SPI_OMAP_100K
-	tristate "OMAP SPI 100K"
-	depends on ARCH_OMAP850 || ARCH_OMAP730 || COMPILE_TEST
-	help
-	  OMAP SPI 100K master controller for omap7xx boards.
-
 config SPI_ORION
 	tristate "Orion SPI master"
 	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
@@ -843,24 +837,6 @@ config SPI_QCOM_GENI
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called spi-geni-qcom.
-
-config SPI_S3C24XX
-	tristate "Samsung S3C24XX series SPI"
-	depends on ARCH_S3C24XX
-	select SPI_BITBANG
-	help
-	  SPI driver for Samsung S3C24XX series ARM SoCs
-
-config SPI_S3C24XX_FIQ
-	bool "S3C24XX driver with FIQ pseudo-DMA"
-	depends on SPI_S3C24XX
-	select FIQ
-	help
-	  Enable FIQ support for the S3C24XX SPI driver to provide pseudo
-	  DMA by using the fast-interrupt request framework, This allows
-	  the driver to get DMA-like performance when there are either
-	  no free DMA channels, or when doing transfers that required both
-	  TX and RX data paths.
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX/Exynos SoC series type SPI"

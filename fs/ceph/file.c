@@ -103,14 +103,10 @@ static ssize_t __iter_get_bvecs(struct iov_iter *iter, size_t maxsize,
 		size += bytes;
 
 		for ( ; bytes; idx++, bvec_idx++) {
-			struct bio_vec bv = {
-				.bv_page = pages[idx],
-				.bv_len = min_t(int, bytes, PAGE_SIZE - start),
-				.bv_offset = start,
-			};
+			int len = min_t(int, bytes, PAGE_SIZE - start);
 
-			bvecs[bvec_idx] = bv;
-			bytes -= bv.bv_len;
+			bvec_set_page(&bvecs[bvec_idx], pages[idx], len, start);
+			bytes -= len;
 			start = 0;
 		}
 	}
@@ -2010,6 +2006,9 @@ static int ceph_zero_partial_object(struct inode *inode,
 	int ret = 0;
 	loff_t zero = 0;
 	int op;
+
+	if (ceph_inode_is_shutdown(inode))
+		return -EIO;
 
 	if (!length) {
 		op = offset ? CEPH_OSD_OP_DELETE : CEPH_OSD_OP_TRUNCATE;

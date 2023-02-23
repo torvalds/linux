@@ -33,7 +33,7 @@ static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, un
 	return d_splice_alias(inode, dentry);
 }
 
-static int minix_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	int error;
@@ -52,7 +52,7 @@ static int minix_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return error;
 }
 
-static int minix_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 			 struct file *file, umode_t mode)
 {
 	int error;
@@ -65,13 +65,13 @@ static int minix_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	return finish_open_simple(file, error);
 }
 
-static int minix_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_create(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return minix_mknod(mnt_userns, dir, dentry, mode, 0);
+	return minix_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
 
-static int minix_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	int err = -ENAMETOOLONG;
@@ -111,7 +111,7 @@ static int minix_link(struct dentry * old_dentry, struct inode * dir,
 	return add_nondir(dentry, inode);
 }
 
-static int minix_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int minix_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	struct inode * inode;
@@ -184,7 +184,7 @@ static int minix_rmdir(struct inode * dir, struct dentry *dentry)
 	return err;
 }
 
-static int minix_rename(struct user_namespace *mnt_userns,
+static int minix_rename(struct mnt_idmap *idmap,
 			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)

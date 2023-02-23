@@ -559,7 +559,7 @@ static int read_name(struct inode *ino, char *name)
 	return 0;
 }
 
-static int hostfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int hostfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			 struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct inode *inode;
@@ -658,7 +658,7 @@ static int hostfs_unlink(struct inode *ino, struct dentry *dentry)
 	return err;
 }
 
-static int hostfs_symlink(struct user_namespace *mnt_userns, struct inode *ino,
+static int hostfs_symlink(struct mnt_idmap *idmap, struct inode *ino,
 			  struct dentry *dentry, const char *to)
 {
 	char *file;
@@ -671,7 +671,7 @@ static int hostfs_symlink(struct user_namespace *mnt_userns, struct inode *ino,
 	return err;
 }
 
-static int hostfs_mkdir(struct user_namespace *mnt_userns, struct inode *ino,
+static int hostfs_mkdir(struct mnt_idmap *idmap, struct inode *ino,
 			struct dentry *dentry, umode_t mode)
 {
 	char *file;
@@ -696,7 +696,7 @@ static int hostfs_rmdir(struct inode *ino, struct dentry *dentry)
 	return err;
 }
 
-static int hostfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int hostfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
@@ -734,7 +734,7 @@ static int hostfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return err;
 }
 
-static int hostfs_rename2(struct user_namespace *mnt_userns,
+static int hostfs_rename2(struct mnt_idmap *idmap,
 			  struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry,
 			  unsigned int flags)
@@ -763,7 +763,7 @@ static int hostfs_rename2(struct user_namespace *mnt_userns,
 	return err;
 }
 
-static int hostfs_permission(struct user_namespace *mnt_userns,
+static int hostfs_permission(struct mnt_idmap *idmap,
 			     struct inode *ino, int desired)
 {
 	char *name;
@@ -786,11 +786,11 @@ static int hostfs_permission(struct user_namespace *mnt_userns,
 		err = access_file(name, r, w, x);
 	__putname(name);
 	if (!err)
-		err = generic_permission(&init_user_ns, ino, desired);
+		err = generic_permission(&nop_mnt_idmap, ino, desired);
 	return err;
 }
 
-static int hostfs_setattr(struct user_namespace *mnt_userns,
+static int hostfs_setattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -800,7 +800,7 @@ static int hostfs_setattr(struct user_namespace *mnt_userns,
 
 	int fd = HOSTFS_I(inode)->fd;
 
-	err = setattr_prepare(&init_user_ns, dentry, attr);
+	err = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (err)
 		return err;
 
@@ -857,7 +857,7 @@ static int hostfs_setattr(struct user_namespace *mnt_userns,
 	    attr->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attr->ia_size);
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

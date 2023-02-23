@@ -16,5 +16,5 @@ Contents
 
 Support
 =======
-If you got any problem, contact Wangxun support team via support@trustnetic.com
+If you got any problem, contact Wangxun support team via nic-support@net-swift.com
 and Cc: netdev.

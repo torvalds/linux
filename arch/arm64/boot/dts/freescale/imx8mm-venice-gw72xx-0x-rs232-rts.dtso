@@ -33,7 +33,6 @@
 	pinctrl-0 = <&pinctrl_uart2>;
 	rts-gpios = <&gpio5 29 GPIO_ACTIVE_LOW>;
 	cts-gpios = <&gpio5 28 GPIO_ACTIVE_LOW>;
-	uart-has-rtscts;
 	status = "okay";
 };
 

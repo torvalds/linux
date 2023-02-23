@@ -261,7 +261,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 				      rxrpc_tx_point_call_ack);
 	rxrpc_tx_backoff(call, ret);
 
-	if (call->state < RXRPC_CALL_COMPLETE) {
+	if (!__rxrpc_call_is_complete(call)) {
 		if (ret < 0)
 			rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		rxrpc_set_keepalive(call);
@@ -545,6 +545,62 @@ send_fragmentable:
 }
 
 /*
+ * Transmit a connection-level abort.
+ */
+void rxrpc_send_conn_abort(struct rxrpc_connection *conn)
+{
+	struct rxrpc_wire_header whdr;
+	struct msghdr msg;
+	struct kvec iov[2];
+	__be32 word;
+	size_t len;
+	u32 serial;
+	int ret;
+
+	msg.msg_name	= &conn->peer->srx.transport;
+	msg.msg_namelen	= conn->peer->srx.transport_len;
+	msg.msg_control	= NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags	= 0;
+
+	whdr.epoch	= htonl(conn->proto.epoch);
+	whdr.cid	= htonl(conn->proto.cid);
+	whdr.callNumber	= 0;
+	whdr.seq	= 0;
+	whdr.type	= RXRPC_PACKET_TYPE_ABORT;
+	whdr.flags	= conn->out_clientflag;
+	whdr.userStatus	= 0;
+	whdr.securityIndex = conn->security_ix;
+	whdr._rsvd	= 0;
+	whdr.serviceId	= htons(conn->service_id);
+
+	word		= htonl(conn->abort_code);
+
+	iov[0].iov_base	= &whdr;
+	iov[0].iov_len	= sizeof(whdr);
+	iov[1].iov_base	= &word;
+	iov[1].iov_len	= sizeof(word);
+
+	len = iov[0].iov_len + iov[1].iov_len;
+
+	serial = atomic_inc_return(&conn->serial);
+	whdr.serial = htonl(serial);
+
+	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 2, len);
+	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
+	if (ret < 0) {
+		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
+				    rxrpc_tx_point_conn_abort);
+		_debug("sendmsg failed: %d", ret);
+		return;
+	}
+
+	trace_rxrpc_tx_packet(conn->debug_id, &whdr, rxrpc_tx_point_conn_abort);
+
+	conn->peer->last_tx_at = ktime_get_seconds();
+}
+
+/*
  * Reject a packet through the local endpoint.
  */
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
@@ -667,7 +723,7 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 static inline void rxrpc_instant_resend(struct rxrpc_call *call,
 					struct rxrpc_txbuf *txb)
 {
-	if (call->state < RXRPC_CALL_COMPLETE)
+	if (!__rxrpc_call_is_complete(call))
 		kdebug("resend");
 }
 

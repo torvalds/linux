@@ -428,6 +428,7 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.disposition = FILE_CREATE;
 	oparms.fid = &fid;
 	oparms.reconnect = false;
+	oparms.mode = 0644;
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL,
 		       NULL, NULL);
@@ -568,7 +569,7 @@ cifs_hl_exit:
 }
 
 int
-cifs_symlink(struct user_namespace *mnt_userns, struct inode *inode,
+cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	     struct dentry *direntry, const char *symname)
 {
 	int rc = -EOPNOTSUPP;

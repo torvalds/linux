@@ -51,7 +51,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
 
 		key-power {
 			debounce-interval = <10>;

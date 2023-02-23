@@ -44,13 +44,16 @@ unsigned int vclocks_used __read_mostly;
 unsigned int __read_mostly vdso64_enabled = 1;
 #endif
 
-void __init init_vdso_image(const struct vdso_image *image)
+int __init init_vdso_image(const struct vdso_image *image)
 {
+	BUILD_BUG_ON(VDSO_CLOCKMODE_MAX >= 32);
 	BUG_ON(image->size % PAGE_SIZE != 0);
 
 	apply_alternatives((struct alt_instr *)(image->data + image->alt),
 			   (struct alt_instr *)(image->data + image->alt +
 						image->alt_len));
+
+	return 0;
 }
 
 static const struct vm_special_mapping vvar_mapping;
@@ -418,18 +421,4 @@ static __init int vdso_setup(char *s)
 	return 1;
 }
 __setup("vdso=", vdso_setup);
-
-static int __init init_vdso(void)
-{
-	BUILD_BUG_ON(VDSO_CLOCKMODE_MAX >= 32);
-
-	init_vdso_image(&vdso_image_64);
-
-#ifdef CONFIG_X86_X32_ABI
-	init_vdso_image(&vdso_image_x32);
-#endif
-
-	return 0;
-}
-subsys_initcall(init_vdso);
 #endif /* CONFIG_X86_64 */

@@ -6,6 +6,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/gpio/machine.h>
+#include <linux/leds.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/types.h>
@@ -27,6 +28,8 @@
 
 #define GPIO_REGULATOR_NAME_LENGTH				21
 #define GPIO_REGULATOR_SUPPLY_NAME_LENGTH			9
+
+#define INT3472_LED_MAX_NAME_LEN				32
 
 #define CIO2_SENSOR_SSDB_MCLKSPEED_OFFSET			86
 
@@ -96,9 +99,15 @@ struct int3472_discrete_device {
 		struct clk_hw clk_hw;
 		struct clk_lookup *cl;
 		struct gpio_desc *ena_gpio;
-		struct gpio_desc *led_gpio;
 		u32 frequency;
 	} clock;
+
+	struct int3472_pled {
+		struct led_classdev classdev;
+		struct led_lookup_data lookup;
+		char name[INT3472_LED_MAX_NAME_LEN];
+		struct gpio_desc *gpio;
+	} pled;
 
 	unsigned int ngpios; /* how many GPIOs have we seen */
 	unsigned int n_sensor_gpios; /* how many have we mapped to sensor */
@@ -112,11 +121,16 @@ int skl_int3472_get_sensor_adev_and_name(struct device *dev,
 					 struct acpi_device **sensor_adev_ret,
 					 const char **name_ret);
 
-int skl_int3472_register_clock(struct int3472_discrete_device *int3472);
+int skl_int3472_register_clock(struct int3472_discrete_device *int3472,
+			       struct acpi_resource_gpio *agpio, u32 polarity);
 void skl_int3472_unregister_clock(struct int3472_discrete_device *int3472);
 
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
 				   struct acpi_resource_gpio *agpio);
 void skl_int3472_unregister_regulator(struct int3472_discrete_device *int3472);
+
+int skl_int3472_register_pled(struct int3472_discrete_device *int3472,
+			      struct acpi_resource_gpio *agpio, u32 polarity);
+void skl_int3472_unregister_pled(struct int3472_discrete_device *int3472);
 
 #endif

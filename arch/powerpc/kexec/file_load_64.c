@@ -26,6 +26,7 @@
 #include <asm/firmware.h>
 #include <asm/kexec_ranges.h>
 #include <asm/crashdump-ppc64.h>
+#include <asm/mmzone.h>
 #include <asm/prom.h>
 
 struct umem_info {
@@ -989,10 +990,13 @@ unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 	 * linux,drconf-usable-memory properties. Get an approximate on the
 	 * number of usable memory entries and use for FDT size estimation.
 	 */
-	usm_entries = ((memblock_end_of_DRAM() / drmem_lmb_size()) +
-		       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
-
-	extra_size = (unsigned int)(usm_entries * sizeof(u64));
+	if (drmem_lmb_size()) {
+		usm_entries = ((memory_hotplug_max() / drmem_lmb_size()) +
+			       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
+		extra_size = (unsigned int)(usm_entries * sizeof(u64));
+	} else {
+		extra_size = 0;
+	}
 
 	/*
 	 * Get the number of CPU nodes in the current DT. This allows to

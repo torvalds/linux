@@ -58,7 +58,6 @@ u32 larch_insn_gen_nop(void)
 u32 larch_insn_gen_b(unsigned long pc, unsigned long dest)
 {
 	long offset = dest - pc;
-	unsigned int immediate_l, immediate_h;
 	union loongarch_instruction insn;
 
 	if ((offset & 3) || offset < -SZ_128M || offset >= SZ_128M) {
@@ -66,15 +65,7 @@ u32 larch_insn_gen_b(unsigned long pc, unsigned long dest)
 		return INSN_BREAK;
 	}
 
-	offset >>= 2;
-
-	immediate_l = offset & 0xffff;
-	offset >>= 16;
-	immediate_h = offset & 0x3ff;
-
-	insn.reg0i26_format.opcode = b_op;
-	insn.reg0i26_format.immediate_l = immediate_l;
-	insn.reg0i26_format.immediate_h = immediate_h;
+	emit_b(&insn, offset >> 2);
 
 	return insn.word;
 }
@@ -82,7 +73,6 @@ u32 larch_insn_gen_b(unsigned long pc, unsigned long dest)
 u32 larch_insn_gen_bl(unsigned long pc, unsigned long dest)
 {
 	long offset = dest - pc;
-	unsigned int immediate_l, immediate_h;
 	union loongarch_instruction insn;
 
 	if ((offset & 3) || offset < -SZ_128M || offset >= SZ_128M) {
@@ -90,15 +80,7 @@ u32 larch_insn_gen_bl(unsigned long pc, unsigned long dest)
 		return INSN_BREAK;
 	}
 
-	offset >>= 2;
-
-	immediate_l = offset & 0xffff;
-	offset >>= 16;
-	immediate_h = offset & 0x3ff;
-
-	insn.reg0i26_format.opcode = bl_op;
-	insn.reg0i26_format.immediate_l = immediate_l;
-	insn.reg0i26_format.immediate_h = immediate_h;
+	emit_bl(&insn, offset >> 2);
 
 	return insn.word;
 }
@@ -107,10 +89,7 @@ u32 larch_insn_gen_or(enum loongarch_gpr rd, enum loongarch_gpr rj, enum loongar
 {
 	union loongarch_instruction insn;
 
-	insn.reg3_format.opcode = or_op;
-	insn.reg3_format.rd = rd;
-	insn.reg3_format.rj = rj;
-	insn.reg3_format.rk = rk;
+	emit_or(&insn, rd, rj, rk);
 
 	return insn.word;
 }
@@ -124,9 +103,7 @@ u32 larch_insn_gen_lu12iw(enum loongarch_gpr rd, int imm)
 {
 	union loongarch_instruction insn;
 
-	insn.reg1i20_format.opcode = lu12iw_op;
-	insn.reg1i20_format.rd = rd;
-	insn.reg1i20_format.immediate = imm;
+	emit_lu12iw(&insn, rd, imm);
 
 	return insn.word;
 }
@@ -135,9 +112,7 @@ u32 larch_insn_gen_lu32id(enum loongarch_gpr rd, int imm)
 {
 	union loongarch_instruction insn;
 
-	insn.reg1i20_format.opcode = lu32id_op;
-	insn.reg1i20_format.rd = rd;
-	insn.reg1i20_format.immediate = imm;
+	emit_lu32id(&insn, rd, imm);
 
 	return insn.word;
 }
@@ -146,10 +121,7 @@ u32 larch_insn_gen_lu52id(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
 {
 	union loongarch_instruction insn;
 
-	insn.reg2i12_format.opcode = lu52id_op;
-	insn.reg2i12_format.rd = rd;
-	insn.reg2i12_format.rj = rj;
-	insn.reg2i12_format.immediate = imm;
+	emit_lu52id(&insn, rd, rj, imm);
 
 	return insn.word;
 }
@@ -158,10 +130,7 @@ u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, unsigned l
 {
 	union loongarch_instruction insn;
 
-	insn.reg2i16_format.opcode = jirl_op;
-	insn.reg2i16_format.rd = rd;
-	insn.reg2i16_format.rj = rj;
-	insn.reg2i16_format.immediate = (dest - pc) >> 2;
+	emit_jirl(&insn, rj, rd, (dest - pc) >> 2);
 
 	return insn.word;
 }

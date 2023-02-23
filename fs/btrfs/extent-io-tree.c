@@ -972,8 +972,8 @@ static int __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
-	struct rb_node **p;
-	struct rb_node *parent;
+	struct rb_node **p = NULL;
+	struct rb_node *parent = NULL;
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
@@ -1218,8 +1218,8 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
-	struct rb_node **p;
-	struct rb_node *parent;
+	struct rb_node **p = NULL;
+	struct rb_node *parent = NULL;
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
@@ -1551,7 +1551,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 	u64 last = 0;
 	int found = 0;
 
-	if (WARN_ON(search_end <= cur_start))
+	if (WARN_ON(search_end < cur_start))
 		return 0;
 
 	spin_lock(&tree->lock);
@@ -1625,7 +1625,7 @@ search:
 }
 
 /*
- * Searche a range in the state tree for a given mask.  If 'filled' == 1, this
+ * Search a range in the state tree for a given mask.  If 'filled' == 1, this
  * returns 1 only if every extent in the tree has the bits set.  Otherwise, 1
  * is returned if any bit in the range is found set.
  */

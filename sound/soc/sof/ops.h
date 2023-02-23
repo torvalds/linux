@@ -357,7 +357,7 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 }
 
 static inline void snd_sof_dsp_update8(struct snd_sof_dev *sdev, u32 bar,
-				       u32 offset, u8 value, u8 mask)
+				       u32 offset, u8 mask, u8 value)
 {
 	u8 reg;
 

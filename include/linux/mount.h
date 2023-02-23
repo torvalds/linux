@@ -74,8 +74,6 @@ struct vfsmount {
 	struct mnt_idmap *mnt_idmap;
 } __randomize_layout;
 
-struct user_namespace *mnt_user_ns(const struct vfsmount *mnt);
-struct user_namespace *mnt_idmap_owner(const struct mnt_idmap *idmap);
 static inline struct mnt_idmap *mnt_idmap(const struct vfsmount *mnt)
 {
 	/* Pairs with smp_store_release() in do_idmap_mount(). */

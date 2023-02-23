@@ -2,6 +2,10 @@
 #ifndef PINCTRL_PINCTRL_ABx500_H
 #define PINCTRL_PINCTRL_ABx500_H
 
+#include <linux/types.h>
+
+struct pinctrl_pin_desc;
+
 /* Package definitions */
 #define PINCTRL_AB8500	0
 #define PINCTRL_AB8505	1

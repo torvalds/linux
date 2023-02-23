@@ -540,12 +540,6 @@ static int f2fs_set_test_dummy_encryption(struct super_block *sb,
 				  opt, err);
 		return -EINVAL;
 	}
-	err = fscrypt_add_test_dummy_key(sb, policy);
-	if (err) {
-		f2fs_warn(sbi, "Error adding test dummy encryption key [%d]",
-			  err);
-		return err;
-	}
 	f2fs_warn(sbi, "Test dummy encryption mode enabled");
 	return 0;
 }
