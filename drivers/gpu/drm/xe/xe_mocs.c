@@ -381,6 +381,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->unused_entries_index = 5;
 		break;
 	case XE_TIGERLAKE:
+	case XE_ROCKETLAKE:
 	case XE_ALDERLAKE_S:
 	case XE_ALDERLAKE_P:
 		info->size  = ARRAY_SIZE(gen12_mocs_desc);
