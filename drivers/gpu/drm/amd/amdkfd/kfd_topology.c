@@ -1942,8 +1942,12 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 		amdgpu_amdkfd_get_max_engine_clock_in_mhz(dev->gpu->adev);
 	dev->node_props.max_engine_clk_ccompute =
 		cpufreq_quick_get_max(0) / 1000;
-	dev->node_props.drm_render_minor =
-		gpu->kfd->shared_resources.drm_render_minor;
+
+	if (gpu->xcp)
+		dev->node_props.drm_render_minor = gpu->xcp->ddev->render->index;
+	else
+		dev->node_props.drm_render_minor =
+				gpu->kfd->shared_resources.drm_render_minor;
 
 	dev->node_props.hive_id = gpu->kfd->hive_id;
 	dev->node_props.num_sdma_engines = kfd_get_num_sdma_engines(gpu);
