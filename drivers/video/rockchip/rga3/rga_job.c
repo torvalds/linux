@@ -746,16 +746,16 @@ static int rga_request_timeout_query_state(struct rga_request *request)
 		if (scheduler->running_job) {
 			job = scheduler->running_job;
 			if (request->id == job->request_id) {
-				if (test_bit(RGA_JOB_DONE, &job->state) &&
+				if (test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 				    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 					return request->ret;
-				} else if (!test_bit(RGA_JOB_DONE, &job->state) &&
+				} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 					   test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 					pr_err("hardware has finished, but the software has timeout!\n");
 					return -EBUSY;
-				} else if (!test_bit(RGA_JOB_DONE, &job->state) &&
+				} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 					   !test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 					pr_err("hardware has timeout.\n");
