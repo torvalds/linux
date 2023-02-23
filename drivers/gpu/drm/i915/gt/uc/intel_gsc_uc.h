@@ -26,6 +26,7 @@ void intel_gsc_uc_init_early(struct intel_gsc_uc *gsc);
 int intel_gsc_uc_init(struct intel_gsc_uc *gsc);
 void intel_gsc_uc_fini(struct intel_gsc_uc *gsc);
 void intel_gsc_uc_suspend(struct intel_gsc_uc *gsc);
+void intel_gsc_uc_resume(struct intel_gsc_uc *gsc);
 void intel_gsc_uc_flush_work(struct intel_gsc_uc *gsc);
 void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc);
 

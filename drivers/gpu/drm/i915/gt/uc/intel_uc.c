@@ -139,6 +139,7 @@ void intel_uc_init_early(struct intel_uc *uc)
 void intel_uc_init_late(struct intel_uc *uc)
 {
 	intel_guc_init_late(&uc->guc);
+	intel_gsc_uc_load_start(&uc->gsc);
 }
 
 void intel_uc_driver_late_release(struct intel_uc *uc)
@@ -543,8 +544,6 @@ static int __uc_init_hw(struct intel_uc *uc)
 		intel_rps_lower_unslice(&uc_to_gt(uc)->rps);
 	}
 
-	intel_gsc_uc_load_start(&uc->gsc);
-
 	guc_info(guc, "submission %s\n", str_enabled_disabled(intel_uc_uses_guc_submission(uc)));
 	guc_info(guc, "SLPC %s\n", str_enabled_disabled(intel_uc_uses_guc_slpc(uc)));
 
@@ -713,6 +712,8 @@ static int __uc_resume(struct intel_uc *uc, bool enable_communication)
 		guc_dbg(guc, "Failed to resume, %pe", ERR_PTR(err));
 		return err;
 	}
+
+	intel_gsc_uc_resume(&uc->gsc);
 
 	return 0;
 }

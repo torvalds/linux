@@ -124,6 +124,25 @@ void intel_gsc_uc_flush_work(struct intel_gsc_uc *gsc)
 	flush_work(&gsc->work);
 }
 
+void intel_gsc_uc_resume(struct intel_gsc_uc *gsc)
+{
+	if (!intel_uc_fw_is_loadable(&gsc->fw))
+		return;
+
+	/*
+	 * we only want to start the GSC worker from here in the actual resume
+	 * flow and not during driver load. This is because GSC load is slow and
+	 * therefore we want to make sure that the default state init completes
+	 * first to not slow down the init thread. A separate call to
+	 * intel_gsc_uc_load_start will ensure that the GSC is loaded during
+	 * driver load.
+	 */
+	if (!gsc_uc_to_gt(gsc)->engine[GSC0]->default_state)
+		return;
+
+	intel_gsc_uc_load_start(gsc);
+}
+
 void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc)
 {
 	if (!intel_uc_fw_is_loadable(&gsc->fw))
