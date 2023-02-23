@@ -299,13 +299,13 @@ int live_rps_clock_interval(void *arg)
 			for (i = 0; i < 5; i++) {
 				preempt_disable();
 
-				dt_[i] = ktime_get();
 				cycles_[i] = -intel_uncore_read_fw(gt->uncore, GEN6_RP_CUR_UP_EI);
+				dt_[i] = ktime_get();
 
 				udelay(1000);
 
-				dt_[i] = ktime_sub(ktime_get(), dt_[i]);
 				cycles_[i] += intel_uncore_read_fw(gt->uncore, GEN6_RP_CUR_UP_EI);
+				dt_[i] = ktime_sub(ktime_get(), dt_[i]);
 
 				preempt_enable();
 			}
