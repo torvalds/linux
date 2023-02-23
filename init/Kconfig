@@ -1384,6 +1384,19 @@ config BOOT_CONFIG
 
 	  If unsure, say Y.
 
+config BOOT_CONFIG_FORCE
+	bool "Force unconditional bootconfig processing"
+	depends on BOOT_CONFIG
+	default y if BOOT_CONFIG_EMBED
+	help
+	  With this Kconfig option set, BOOT_CONFIG processing is carried
+	  out even when the "bootconfig" kernel-boot parameter is omitted.
+	  In fact, with this Kconfig option set, there is no way to
+	  make the kernel ignore the BOOT_CONFIG-supplied kernel-boot
+	  parameters.
+
+	  If unsure, say N.
+
 config BOOT_CONFIG_EMBED
 	bool "Embed bootconfig file in the kernel"
 	depends on BOOT_CONFIG
