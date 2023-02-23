@@ -604,8 +604,8 @@ static void restrict_rsz_resolution(struct rkisp_stream *stream,
 	} else if (stream->id == RKISP_STREAM_LUMA) {
 		u32 div = dev->is_bigmode ? 32 : 16;
 
-		max_rsz->width = input_win->width / div;
-		max_rsz->height = input_win->height / div;
+		max_rsz->width = ALIGN(DIV_ROUND_UP(input_win->width, div), 4);
+		max_rsz->height = DIV_ROUND_UP(input_win->height, div);
 	} else if (dev->hw_dev->is_unite) {
 		/* scale down only for unite mode */
 		max_rsz->width = min_t(int, input_win->width, cfg->max_rsz_width);
