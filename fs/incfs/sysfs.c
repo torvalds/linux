@@ -34,12 +34,14 @@ DECLARE_FEATURE_FLAG(corefs);
 DECLARE_FEATURE_FLAG(zstd);
 DECLARE_FEATURE_FLAG(v2);
 DECLARE_FEATURE_FLAG(bugfix_throttling);
+DECLARE_FEATURE_FLAG(bugfix_inode_eviction);
 
 static struct attribute *attributes[] = {
 	&corefs_attr.attr,
 	&zstd_attr.attr,
 	&v2_attr.attr,
 	&bugfix_throttling_attr.attr,
+	&bugfix_inode_eviction_attr.attr,
 	NULL,
 };
 
