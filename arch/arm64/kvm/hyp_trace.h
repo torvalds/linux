@@ -8,9 +8,9 @@
 
 struct ht_iterator {
 	struct ring_buffer_iter **buf_iter;
-	struct trace_buffer *trace_buffer;
 	struct hyp_entry_hdr *ent;
 	struct trace_seq seq;
+	struct list_head list;
 	u64 ts;
 	void *spare;
 	size_t copy_leftover;
