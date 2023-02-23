@@ -722,9 +722,19 @@ u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 	 * (LinkSymbolClock)* 8 * (TimeSlots / 64)
 	 * for SST -> TimeSlots is 64(i.e all TimeSlots that are available)
 	 * for MST -> TimeSlots has to be calculated, based on mode requirements
+	 *
+	 * Due to FEC overhead, the available bw is reduced to 97.2261%.
+	 * To support the given mode:
+	 * Bandwidth required should be <= Available link Bandwidth * FEC Overhead
+	 * =>ModeClock * bits_per_pixel <= Available Link Bandwidth * FEC Overhead
+	 * =>bits_per_pixel <= Available link Bandwidth * FEC Overhead / ModeClock
+	 * =>bits_per_pixel <= (NumberOfLanes * LinkSymbolClock) * 8 (TimeSlots / 64) /
+	 *		       (ModeClock / FEC Overhead)
+	 * =>bits_per_pixel <= (NumberOfLanes * LinkSymbolClock * TimeSlots) /
+	 *		       (ModeClock / FEC Overhead * 8)
 	 */
-	bits_per_pixel = DIV_ROUND_UP((link_clock * lane_count) * timeslots,
-				      intel_dp_mode_to_fec_clock(mode_clock) * 8);
+	bits_per_pixel = ((link_clock * lane_count) * timeslots) /
+			 (intel_dp_mode_to_fec_clock(mode_clock) * 8);
 
 	drm_dbg_kms(&i915->drm, "Max link bpp is %u for %u timeslots "
 				"total bw %u pixel clock %u\n",
