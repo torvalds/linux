@@ -247,47 +247,6 @@ struct xe_mocs_info {
 		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
 		L3_1_UC)
 
-static const struct xe_mocs_entry tgl_mocs_desc[] = {
-	/*
-	 * NOTE:
-	 * Reserved and unspecified MOCS indices have been set to (L3 + LCC).
-	 * These reserved entries should never be used, they may be changed
-	 * to low performant variants with better coherency in the future if
-	 * more entries are needed. We are programming index XE_MOCS_PTE(1)
-	 * only, __init_mocs_table() take care to program unused index with
-	 * this entry.
-	 */
-	MOCS_ENTRY(XE_MOCS_PTE,
-		   LE_0_PAGETABLE | LE_TC_0_PAGETABLE,
-		   L3_1_UC),
-	GEN11_MOCS_ENTRIES,
-
-	/* Implicitly enable L1 - HDC:L1 + L3 + LLC */
-	MOCS_ENTRY(48,
-		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
-		   L3_3_WB),
-	/* Implicitly enable L1 - HDC:L1 + L3 */
-	MOCS_ENTRY(49,
-		   LE_1_UC | LE_TC_1_LLC,
-		   L3_3_WB),
-	/* Implicitly enable L1 - HDC:L1 + LLC */
-	MOCS_ENTRY(50,
-		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
-		   L3_1_UC),
-	/* Implicitly enable L1 - HDC:L1 */
-	MOCS_ENTRY(51,
-		   LE_1_UC | LE_TC_1_LLC,
-		   L3_1_UC),
-	/* HW Special Case (CCS) */
-	MOCS_ENTRY(60,
-		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
-		   L3_1_UC),
-	/* HW Special Case (Displayable) */
-	MOCS_ENTRY(61,
-		   LE_1_UC | LE_TC_1_LLC,
-		   L3_3_WB),
-};
-
 static const struct xe_mocs_entry dg1_mocs_desc[] = {
 	/* UC */
 	MOCS_ENTRY(1, 0, L3_1_UC),
@@ -422,11 +381,6 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->unused_entries_index = 5;
 		break;
 	case XE_TIGERLAKE:
-		info->size  = ARRAY_SIZE(tgl_mocs_desc);
-		info->table = tgl_mocs_desc;
-		info->n_entries = GEN9_NUM_MOCS_ENTRIES;
-		info->uc_index = 3;
-		break;
 	case XE_ALDERLAKE_S:
 	case XE_ALDERLAKE_P:
 		info->size  = ARRAY_SIZE(gen12_mocs_desc);
