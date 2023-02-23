@@ -1298,7 +1298,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	 * At this point, pending calls to invalidate_range_start()
 	 * have completed but no more MMU notifiers will run, so
 	 * mn_active_invalidate_count may remain unbalanced.
-	 * No threads can be waiting in install_new_memslots as the
+	 * No threads can be waiting in kvm_swap_active_memslots() as the
 	 * last reference on KVM has been dropped, but freeing
 	 * memslots would deadlock without this manual intervention.
 	 */
@@ -1742,13 +1742,13 @@ static void kvm_invalidate_memslot(struct kvm *kvm,
 	kvm_arch_flush_shadow_memslot(kvm, old);
 	kvm_arch_guest_memory_reclaimed(kvm);
 
-	/* Was released by kvm_swap_active_memslots, reacquire. */
+	/* Was released by kvm_swap_active_memslots(), reacquire. */
 	mutex_lock(&kvm->slots_arch_lock);
 
 	/*
 	 * Copy the arch-specific field of the newly-installed slot back to the
 	 * old slot as the arch data could have changed between releasing
-	 * slots_arch_lock in install_new_memslots() and re-acquiring the lock
+	 * slots_arch_lock in kvm_swap_active_memslots() and re-acquiring the lock
 	 * above.  Writers are required to retrieve memslots *after* acquiring
 	 * slots_arch_lock, thus the active slot's data is guaranteed to be fresh.
 	 */
@@ -1810,11 +1810,11 @@ static int kvm_set_memslot(struct kvm *kvm,
 	int r;
 
 	/*
-	 * Released in kvm_swap_active_memslots.
+	 * Released in kvm_swap_active_memslots().
 	 *
-	 * Must be held from before the current memslots are copied until
-	 * after the new memslots are installed with rcu_assign_pointer,
-	 * then released before the synchronize srcu in kvm_swap_active_memslots.
+	 * Must be held from before the current memslots are copied until after
+	 * the new memslots are installed with rcu_assign_pointer, then
+	 * released before the synchronize srcu in kvm_swap_active_memslots().
 	 *
 	 * When modifying memslots outside of the slots_lock, must be held
 	 * before reading the pointer to the current memslots until after all
