@@ -27,7 +27,7 @@
 
 #define CIF_ISP_REQ_BUFS_MIN 0
 
-static int mi_frame_end(struct rkisp_stream *stream);
+static int mi_frame_end(struct rkisp_stream *stream, u32 state);
 static int mi_frame_start(struct rkisp_stream *stream, u32 mis);
 static int rkisp_create_dummy_buf(struct rkisp_stream *stream);
 
@@ -752,7 +752,7 @@ static int mp_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 
 	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
 	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
@@ -843,7 +843,7 @@ static int sp_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 
 	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
 	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
@@ -886,7 +886,7 @@ static int bp_config_mi(struct rkisp_stream *stream)
 	rkisp_set_bits(dev, ISP3X_MI_WR_CTRL, 0, val, false);
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 
 	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
 	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
@@ -916,7 +916,7 @@ static int ds_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 
 	rkisp_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
 	rkisp_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
@@ -1098,7 +1098,6 @@ static void update_mi(struct rkisp_stream *stream)
 
 		if (dev->tb_addr_idx < dev->tb_stream_info.buf_max - 1)
 			dev->tb_addr_idx++;
-		stream->is_tb_s_info = true;
 	} else if (!stream->is_pause) {
 		stream->is_pause = true;
 		stream->ops->disable_mi(stream);
@@ -1220,7 +1219,7 @@ end:
 	}
 }
 
-static int luma_frame_end(struct rkisp_stream *stream)
+static int luma_frame_end(struct rkisp_stream *stream, u32 state)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	u32 val;
@@ -1364,27 +1363,47 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
  * is processing and we should set up buffer for next-next frame,
  * otherwise it will overflow.
  */
-static int mi_frame_end(struct rkisp_stream *stream)
+static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	unsigned long lock_flags = 0;
+	struct rkisp_buffer *buf = NULL;
 	u32 i;
 
 	if (stream->id == RKISP_STREAM_VIR)
 		return 0;
 
-	set_mirror_flip(stream);
+	if (dev->cap_dev.is_done_early &&
+	    (state == FRAME_IRQ || state == FRAME_WORK)) {
+		/* skip mainpath wrap mode */
+		if (stream->id == RKISP_STREAM_MP && dev->cap_dev.wrap_line)
+			return 0;
+		spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+		if (state == FRAME_IRQ && stream->curr_buf)
+			stream->frame_early = false;
+		else
+			stream->frame_early = true;
+		buf = stream->curr_buf;
+		stream->curr_buf = NULL;
+		spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+		if ((!stream->frame_early && state == FRAME_WORK) ||
+		    (stream->frame_early && state == FRAME_IRQ))
+			goto end;
+	} else {
+		buf = stream->curr_buf;
+	}
 
-	if (stream->curr_buf) {
-		struct vb2_buffer *vb2_buf = &stream->curr_buf->vb.vb2_buf;
+	if (buf) {
+		struct vb2_buffer *vb2_buf = &buf->vb.vb2_buf;
 		struct rkisp_stream *vir = &dev->cap_dev.stream[RKISP_STREAM_VIR];
+		u64 ns = 0;
 
 		if (dev->skip_frame) {
 			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-			list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+			list_add_tail(&buf->queue, &stream->buf_queue);
 			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
-			goto next;
+			goto end;
 		}
 
 		for (i = 0; i < isp_fmt->mplanes; i++) {
@@ -1393,22 +1412,37 @@ static int mi_frame_end(struct rkisp_stream *stream)
 			vb2_set_plane_payload(vb2_buf, i, payload_size);
 		}
 
+		rkisp_dmarx_get_frame(dev, &i, NULL, &ns, true);
+		if (!ns)
+			ns = ktime_get_ns();
+		buf->vb.sequence = i;
+		buf->vb.vb2_buf.timestamp = ns;
+		ns = ktime_get_ns();
+		stream->dbg.interval = ns - stream->dbg.timestamp;
+		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
+		stream->dbg.timestamp = ns;
+		stream->dbg.id = i;
+
 		if (vb2_buf->memory) {
 			if (vir->streaming && vir->conn_id == stream->id) {
 				spin_lock_irqsave(&vir->vbq_lock, lock_flags);
-				list_add_tail(&stream->curr_buf->queue,
+				list_add_tail(&buf->queue,
 					      &dev->cap_dev.vir_cpy.queue);
 				spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
 				if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
 					complete(&dev->cap_dev.vir_cpy.cmpl);
 			} else {
-				rkisp_stream_buf_done(stream, stream->curr_buf);
+				rkisp_stream_buf_done(stream, buf);
 			}
 		} else {
 			rkisp_rockit_buf_done(stream, ROCKIT_DVBM_END);
 		}
 	}
-next:
+
+end:
+	if (state == FRAME_WORK)
+		return 0;
+	set_mirror_flip(stream);
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	stream->curr_buf = stream->next_buf;
 	stream->next_buf = NULL;
@@ -2221,31 +2255,6 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 		if (i == RKISP_STREAM_MP)
 			rkisp_dvbm_event(dev, CIF_MI_MP_FRAME);
 
-		rkisp_dmarx_get_frame(dev, &seq, NULL, &ns, true);
-		if (!ns)
-			ns = ktime_get_ns();
-		if (stream->curr_buf) {
-			stream->curr_buf->vb.sequence = seq;
-			stream->curr_buf->vb.vb2_buf.timestamp = ns;
-
-			ns = ktime_get_ns();
-			stream->dbg.interval = ns - stream->dbg.timestamp;
-			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
-			stream->dbg.timestamp = ns;
-			stream->dbg.id = seq;
-		}
-		if (stream->is_tb_s_info) {
-			struct rkisp_tb_stream_info *tb_info = &dev->tb_stream_info;
-			u32 idx;
-
-			if (tb_info->buf_cnt < tb_info->buf_max)
-				tb_info->buf_cnt++;
-			idx = tb_info->buf_cnt - 1;
-			dev->tb_stream_info.buf[idx].sequence = seq;
-			dev->tb_stream_info.buf[idx].timestamp = ns;
-			stream->is_tb_s_info = false;
-		}
-
 		if (stream->stopping) {
 			/*
 			 * Make sure stream is actually stopped, whose state
@@ -2265,9 +2274,15 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 				stream->streaming = false;
 				wake_up(&stream->done);
 			}
+		} else if (stream->id == RKISP_STREAM_MP && dev->cap_dev.wrap_line) {
+			ns = ktime_get_ns();
+			rkisp_dmarx_get_frame(dev, &seq, NULL, NULL, true);
+			stream->dbg.interval = ns - stream->dbg.timestamp;
+			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
+			stream->dbg.timestamp = ns;
+			stream->dbg.id = seq;
 		} else {
-			if (stream->id != RKISP_STREAM_MP || !dev->cap_dev.wrap_line)
-				mi_frame_end(stream);
+			mi_frame_end(stream, FRAME_IRQ);
 		}
 	}
 

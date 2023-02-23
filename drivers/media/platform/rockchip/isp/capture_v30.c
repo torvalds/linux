@@ -15,7 +15,7 @@
 
 #define CIF_ISP_REQ_BUFS_MIN 0
 
-static int mi_frame_end(struct rkisp_stream *stream);
+static int mi_frame_end(struct rkisp_stream *stream, u32 state);
 static int mi_frame_start(struct rkisp_stream *stream, u32 mis);
 
 static const struct capture_fmt mp_fmts[] = {
@@ -521,7 +521,7 @@ static int mp_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -614,7 +614,7 @@ static int sp_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -642,7 +642,7 @@ static int fbc_config_mi(struct rkisp_stream *stream)
 			     false, is_unite);
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -685,7 +685,7 @@ static int bp_config_mi(struct rkisp_stream *stream)
 	rkisp_unite_set_bits(dev, ISP3X_MI_WR_CTRL, 0, val, false, is_unite);
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -951,19 +951,37 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
  * is processing and we should set up buffer for next-next frame,
  * otherwise it will overflow.
  */
-static int mi_frame_end(struct rkisp_stream *stream)
+static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
+	struct rkisp_buffer *buf = NULL;
 	unsigned long lock_flags = 0;
 	int i = 0;
 
 	if (stream->id == RKISP_STREAM_VIR)
 		return 0;
 
-	if (stream->curr_buf) {
+	if (dev->cap_dev.is_done_early &&
+	    (state == FRAME_IRQ || state == FRAME_WORK)) {
+		spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+		if (state == FRAME_IRQ && stream->curr_buf)
+			stream->frame_early = false;
+		else
+			stream->frame_early = true;
+		buf = stream->curr_buf;
+		stream->curr_buf = NULL;
+		spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+		if ((!stream->frame_early && state == FRAME_WORK) ||
+		    (stream->frame_early && state == FRAME_IRQ))
+			goto end;
+	} else {
+		buf = stream->curr_buf;
+	}
+
+	if (buf) {
 		struct rkisp_stream *vir = &dev->cap_dev.stream[RKISP_STREAM_VIR];
-		struct vb2_buffer *vb2_buf = &stream->curr_buf->vb.vb2_buf;
+		struct vb2_buffer *vb2_buf = &buf->vb.vb2_buf;
 		u64 ns = 0;
 
 		/* Dequeue a filled buffer */
@@ -974,7 +992,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		}
 
 		rkisp_dmarx_get_frame(dev, &i, NULL, &ns, true);
-		stream->curr_buf->vb.sequence = i;
+		buf->vb.sequence = i;
 		if (!ns)
 			ns = ktime_get_ns();
 		vb2_buf->timestamp = ns;
@@ -982,34 +1000,34 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		ns = ktime_get_ns();
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.timestamp = ns;
-		stream->dbg.id = stream->curr_buf->vb.sequence;
+		stream->dbg.id = buf->vb.sequence;
 		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 
 		if (vir->streaming && vir->conn_id == stream->id) {
 			spin_lock_irqsave(&vir->vbq_lock, lock_flags);
-			list_add_tail(&stream->curr_buf->queue,
+			list_add_tail(&buf->queue,
 				      &dev->cap_dev.vir_cpy.queue);
 			spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
 			if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
 				complete(&dev->cap_dev.vir_cpy.cmpl);
 		} else {
-			rkisp_stream_buf_done(stream, stream->curr_buf);
+			rkisp_stream_buf_done(stream, buf);
 		}
-
-		stream->curr_buf = NULL;
 	}
 
+end:
+	if (state == FRAME_WORK)
+		return 0;
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	stream->curr_buf = stream->next_buf;
 	stream->next_buf = NULL;
-	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (!list_empty(&stream->buf_queue)) {
 		stream->next_buf = list_first_entry(&stream->buf_queue,
 						    struct rkisp_buffer, queue);
 		list_del(&stream->next_buf->queue);
 	}
-	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
-
 	stream->ops->update_mi(stream);
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	return 0;
 }
@@ -1711,7 +1729,7 @@ void rkisp_mi_v30_isr(u32 mis_val, struct rkisp_device *dev)
 				wake_up(&stream->done);
 			}
 		} else {
-			mi_frame_end(stream);
+			mi_frame_end(stream, FRAME_IRQ);
 		}
 	}
 

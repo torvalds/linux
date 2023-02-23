@@ -15,7 +15,7 @@
 
 #define CIF_ISP_REQ_BUFS_MIN			0
 
-static int mi_frame_end(struct rkisp_stream *stream);
+static int mi_frame_end(struct rkisp_stream *stream, u32 state);
 static void rkisp_buf_queue(struct vb2_buffer *vb);
 static int rkisp_create_dummy_buf(struct rkisp_stream *stream);
 
@@ -517,7 +517,7 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	mp_mi_ctrl_autoupdate_en(base);
 
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -594,7 +594,7 @@ static int sp_config_mi(struct rkisp_stream *stream)
 	sp_mi_ctrl_autoupdate_en(base);
 
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -708,7 +708,7 @@ static struct streams_ops rkisp_sp_streams_ops = {
  * is processing and we should set up buffer for next-next frame,
  * otherwise it will overflow.
  */
-static int mi_frame_end(struct rkisp_stream *stream)
+static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
@@ -1262,7 +1262,7 @@ void rkisp_mi_v1x_isr(u32 mis_val, struct rkisp_device *dev)
 				wake_up(&stream->done);
 			}
 		} else {
-			mi_frame_end(stream);
+			mi_frame_end(stream, FRAME_IRQ);
 		}
 	}
 }

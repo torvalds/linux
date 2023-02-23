@@ -15,7 +15,7 @@
 
 #define CIF_ISP_REQ_BUFS_MIN			0
 
-static int mi_frame_end(struct rkisp_stream *stream);
+static int mi_frame_end(struct rkisp_stream *stream, u32 state);
 static void rkisp_buf_queue(struct vb2_buffer *vb);
 
 static const struct capture_fmt mp_fmts[] = {
@@ -720,7 +720,7 @@ static int mp_config_mi(struct rkisp_stream *stream)
 			stream->out_isp_fmt.write_format, false);
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -794,7 +794,7 @@ static int sp_config_mi(struct rkisp_stream *stream)
 			CIF_MI_SP_AUTOUPDATE_ENABLE, false);
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	return 0;
 }
 
@@ -823,7 +823,7 @@ static int dmatx3_config_mi(struct rkisp_stream *stream)
 			    stream->out_fmt.height);
 	raw_wr_set_pic_offs(stream, 0);
 	mi_set_y_size(stream, in_size);
-	mi_frame_end(stream);
+	mi_frame_end(stream, FRAME_INIT);
 	mi_frame_end_int_enable(stream);
 	mi_wr_ctrl2(base, SW_RAW3_WR_AUTOUPD);
 	mi_raw_length(stream);
@@ -869,7 +869,7 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 				    stream->out_fmt.height);
 		raw_wr_set_pic_offs(stream, 0);
 		mi_set_y_size(stream, in_size);
-		mi_frame_end(stream);
+		mi_frame_end(stream, FRAME_INIT);
 		mi_frame_end_int_enable(stream);
 		mi_wr_ctrl2(base, SW_RAW1_WR_AUTOUPD);
 		mi_raw_length(stream);
@@ -915,7 +915,7 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 				    stream->out_fmt.height);
 		raw_wr_set_pic_offs(stream, 0);
 		mi_set_y_size(stream, in_size);
-		mi_frame_end(stream);
+		mi_frame_end(stream, FRAME_INIT);
 		mi_frame_end_int_enable(stream);
 		mi_wr_ctrl2(base, SW_RAW0_WR_AUTOUPD);
 		mi_raw_length(stream);
@@ -1197,7 +1197,7 @@ RDBK_FRM_UNMATCH:
  * is processing and we should set up buffer for next-next frame,
  * otherwise it will overflow.
  */
-static int mi_frame_end(struct rkisp_stream *stream)
+static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_capture_device *cap = &dev->cap_dev;
@@ -1940,7 +1940,7 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 				end_tx2 = false;
 			}
 		} else {
-			mi_frame_end(stream);
+			mi_frame_end(stream, FRAME_IRQ);
 			if (dev->dmarx_dev.trigger == T_AUTO &&
 			    ((dev->hdr.op_mode == HDR_RDBK_FRAME1 && end_tx2) ||
 			     (dev->hdr.op_mode == HDR_RDBK_FRAME2 && end_tx2 && end_tx0))) {

@@ -2126,6 +2126,30 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 		 atomic_read(&dev->hw_dev->refcnt),
 		 dev->hw_dev->dev_link_num);
 
+	dev->cap_dev.is_done_early = false;
+	if (dev->cap_dev.wait_line >= dev->isp_sdev.out_crop.height)
+		dev->cap_dev.wait_line = 0;
+	if (dev->cap_dev.wait_line) {
+		dev->cap_dev.is_done_early = true;
+		if (dev->isp_ver >= ISP_V32) {
+			val = dev->cap_dev.wait_line;
+			rkisp_write(dev, ISP32_ISP_IRQ_CFG0, val << 16, false);
+			rkisp_set_bits(dev, CIF_ISP_IMSC, 0, ISP3X_OUT_FRM_HALF, false);
+		} else {
+			/* using AF 15x15 block */
+			val = dev->isp_sdev.out_crop.height / 15;
+			val = dev->cap_dev.wait_line / val;
+			val = ISP3X_RAWAF_INELINE0(val) | ISP3X_RAWAF_INTLINE0_EN;
+			rkisp_unite_write(dev, ISP3X_RAWAF_INT_LINE,
+				val, false, dev->hw_dev->is_unite);
+			rkisp_unite_set_bits(dev, ISP_ISP3A_IMSC, 0,
+				ISP2X_3A_RAWAF, false, dev->hw_dev->is_unite);
+			rkisp_unite_clear_bits(dev, CIF_ISP_IMSC,
+				ISP2X_LSC_LUT_ERR, false, dev->hw_dev->is_unite);
+			dev->rawaf_irq_cnt = 0;
+		}
+	}
+
 	/* Activate MIPI */
 	if (sensor && sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
@@ -2817,7 +2841,7 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 			    stream->id == RKISP_STREAM_LUMA)
 				continue;
 			if (stream->streaming && !stream->curr_buf)
-				stream->ops->frame_end(stream);
+				stream->ops->frame_end(stream, FRAME_INIT);
 		}
 	}
 	rkisp_stats_next_ddr_config(&dev->stats_vdev);
@@ -3968,7 +3992,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		ISP2X_3A_RAWHIST_BIG | ISP2X_3A_RAWHIST_CH0 |
 		ISP2X_3A_RAWHIST_CH1 | ISP2X_3A_RAWHIST_CH2 |
 		ISP2X_3A_RAWAF_SUM | ISP2X_3A_RAWAF_LUM |
-		ISP2X_3A_RAWAF | ISP2X_3A_RAWAWB;
+		ISP2X_3A_RAWAWB;
 	bool sof_event_later = false;
 
 	/*
@@ -4085,6 +4109,16 @@ vs_skip:
 		}
 	}
 
+	if (isp3a_mis & ISP2X_3A_RAWAF) {
+		writel(ISP3X_3A_RAWAF, base + ISP3X_ISP_3A_ICR);
+		/* 3a irq will with lsc_lut_err irq if isp version below isp32 */
+		if (isp_mis & ISP2X_LSC_LUT_ERR)
+			isp_mis &= ~ISP2X_LSC_LUT_ERR;
+		if (dev->rawaf_irq_cnt == 0)
+			rkisp_stream_buf_done_early(dev);
+		dev->rawaf_irq_cnt++;
+	}
+
 	if (isp_mis & ISP2X_LSC_LUT_ERR) {
 		writel(ISP2X_LSC_LUT_ERR, base + CIF_ISP_ICR);
 
@@ -4108,6 +4142,7 @@ vs_skip:
 
 	/* frame was completely put out */
 	if (isp_mis & CIF_ISP_FRAME) {
+		dev->rawaf_irq_cnt = 0;
 		if (!dev->is_pre_on || !IS_HDR_RDBK(dev->rd_mode))
 			dev->isp_sdev.dbg.interval =
 				ktime_get_ns() - dev->isp_sdev.dbg.timestamp;
@@ -4164,7 +4199,7 @@ vs_skip:
 		if (dev->hw_dev->isp_ver == ISP_V32) {
 			struct rkisp_stream *s = &dev->cap_dev.stream[RKISP_STREAM_LUMA];
 
-			s->ops->frame_end(s);
+			s->ops->frame_end(s, FRAME_IRQ);
 		}
 		if (dev->procfs.is_fe_wait) {
 			dev->procfs.is_fe_wait = false;
@@ -4177,7 +4212,8 @@ vs_skip:
 	 * lot of register writes. Do those only one per frame.
 	 * Do the updates in the order of the processing flow.
 	 */
-	rkisp_params_isr(&dev->params_vdev, isp_mis);
+	if (isp_mis & (CIF_ISP_V_START | CIF_ISP_FRAME))
+		rkisp_params_isr(&dev->params_vdev, isp_mis);
 
 	/* cur frame end and next frame start irq togeter */
 	if (dev->vs_irq < 0 && sof_event_later) {
@@ -4193,6 +4229,7 @@ vs_skip:
 	if (isp_mis & ISP3X_OUT_FRM_HALF) {
 		writel(ISP3X_OUT_FRM_HALF, base + CIF_ISP_ICR);
 		rkisp_dvbm_event(dev, ISP3X_OUT_FRM_HALF);
+		rkisp_stream_buf_done_early(dev);
 	}
 	if (isp_mis & ISP3X_OUT_FRM_END) {
 		writel(ISP3X_OUT_FRM_END, base + CIF_ISP_ICR);

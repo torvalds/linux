@@ -166,7 +166,7 @@ int hdr_update_dmatx_buf(struct rkisp_device *dev)
 	for (i = RKISP_STREAM_DMATX0; i <= RKISP_STREAM_DMATX2; i++) {
 		dmatx = &dev->cap_dev.stream[i];
 		if (dmatx->ops && dmatx->ops->frame_end)
-			dmatx->ops->frame_end(dmatx);
+			dmatx->ops->frame_end(dmatx, FRAME_INIT);
 	}
 
 	if (dev->dmarx_dev.trigger)
@@ -453,6 +453,26 @@ int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis)
 	}
 
 	return 0;
+}
+
+void rkisp_stream_buf_done_early(struct rkisp_device *dev)
+{
+	struct rkisp_stream *stream;
+	int i;
+
+	if (!dev->cap_dev.is_done_early)
+		return;
+
+	for (i = 0; i < RKISP_MAX_STREAM; i++) {
+		if (i == RKISP_STREAM_VIR || i == RKISP_STREAM_LUMA ||
+		    i == RKISP_STREAM_DMATX0 || i == RKISP_STREAM_DMATX1 ||
+		    i == RKISP_STREAM_DMATX2 || i == RKISP_STREAM_DMATX3)
+			continue;
+		stream = &dev->cap_dev.stream[i];
+		if (stream->streaming && !stream->stopping &&
+		    stream->ops && stream->ops->frame_end)
+			stream->ops->frame_end(stream, FRAME_WORK);
+	}
 }
 
 struct stream_config rkisp_mp_stream_config = {

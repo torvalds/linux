@@ -253,5 +253,6 @@ struct rkisp_device {
 
 	u8 multi_mode;
 	u8 multi_index;
+	u8 rawaf_irq_cnt;
 };
 #endif

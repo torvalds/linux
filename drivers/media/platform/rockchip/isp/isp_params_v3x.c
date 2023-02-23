@@ -1061,14 +1061,6 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 				 ISP3X_RAWAF_SIZE_WINA + i * 8, id);
 	}
 
-	var = 0;
-	for (i = 0; i < ISP3X_RAWAF_LINE_NUM; i++) {
-		if (arg->line_en[i])
-			var |= ISP3X_RAWAF_INTLINE0_EN << i;
-		var |= ISP3X_RAWAF_INELINE0(arg->line_num[i]) << 4 * i;
-	}
-	isp3_param_write(params_vdev, var, ISP3X_RAWAF_INT_LINE, id);
-
 	var = isp3_param_read(params_vdev, ISP3X_RAWAF_THRES, id);
 	var &= ~0xFFFF;
 	var |= arg->afm_thres;
