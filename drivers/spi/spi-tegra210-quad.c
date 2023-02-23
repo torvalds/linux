@@ -1532,6 +1532,7 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_MODE_0 | SPI_MODE_3 | SPI_CS_HIGH |
 			    SPI_TX_DUAL | SPI_RX_DUAL | SPI_TX_QUAD | SPI_RX_QUAD;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
+	master->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	master->setup = tegra_qspi_setup;
 	master->transfer_one_message = tegra_qspi_transfer_one_message;
 	master->num_chipselect = 1;
