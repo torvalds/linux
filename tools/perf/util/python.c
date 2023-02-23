@@ -20,6 +20,7 @@
 #include "stat.h"
 #include "metricgroup.h"
 #include "util/env.h"
+#include "util/pmu.h"
 #include <internal/lib.h>
 #include "util.h"
 
@@ -76,14 +77,7 @@ const char *perf_env__arch(struct perf_env *env __maybe_unused)
 }
 
 /*
- * Add this one here not to drag util/stat-shadow.c
- */
-void perf_stat__collect_metric_expr(struct evlist *evsel_list)
-{
-}
-
-/*
- * This one is needed not to drag the PMU bandwagon, jevents generated
+ * These ones are needed not to drag the PMU bandwagon, jevents generated
  * pmu_sys_event_tables, etc and evsel__find_pmu() is used so far just for
  * doing per PMU perf_event_attr.exclude_guest handling, not really needed, so
  * far, for the perf python binding known usecases, revisit if this become
@@ -92,6 +86,11 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 struct perf_pmu *evsel__find_pmu(struct evsel *evsel __maybe_unused)
 {
 	return NULL;
+}
+
+int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...)
+{
+	return EOF;
 }
 
 /*
@@ -442,10 +441,8 @@ tracepoint_field(struct pyrf_event *pe, struct tep_format_field *field)
 			offset  = val;
 			len     = offset >> 16;
 			offset &= 0xffff;
-#ifdef HAVE_LIBTRACEEVENT_TEP_FIELD_IS_RELATIVE
-			if (field->flags & TEP_FIELD_IS_RELATIVE)
+			if (tep_field_is_relative(field->flags))
 				offset += field->offset + field->size;
-#endif
 		}
 		if (field->flags & TEP_FIELD_IS_STRING &&
 		    is_printable_array(data + offset, len)) {

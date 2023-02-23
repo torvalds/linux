@@ -20,7 +20,7 @@ static void sighandler(int sig __maybe_unused)
 noinline void test_loop(void)
 {
 	while (!done)
-		count++;
+		__atomic_fetch_add(&count, 1, __ATOMIC_RELAXED);
 }
 
 static void *thfunc(void *arg)
