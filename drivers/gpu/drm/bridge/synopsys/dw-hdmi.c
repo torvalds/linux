@@ -2634,6 +2634,38 @@ static void hdmi_disable_overflow_interrupts(struct dw_hdmi *hdmi)
 		    HDMI_IH_MUTE_FC_STAT2);
 }
 
+static void dw_hdmi_force_output_pattern(struct dw_hdmi *hdmi, const struct drm_display_mode *mode)
+{
+	/* force output black */
+	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
+		enum hdmi_quantization_range rgb_quant_range = drm_default_rgb_quant_range(mode);
+
+		if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_FULL) {
+			hdmi_writeb(hdmi, 0x00, HDMI_FC_DBGTMDS2);	/*R*/
+			hdmi_writeb(hdmi, 0x00, HDMI_FC_DBGTMDS1);	/*G*/
+			hdmi_writeb(hdmi, 0x00, HDMI_FC_DBGTMDS0);	/*B*/
+		} else if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_LIMITED) {
+			hdmi_writeb(hdmi, 0x10, HDMI_FC_DBGTMDS2);	/*R*/
+			hdmi_writeb(hdmi, 0x10, HDMI_FC_DBGTMDS1);	/*G*/
+			hdmi_writeb(hdmi, 0x10, HDMI_FC_DBGTMDS0);	/*B*/
+		} else if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_DEFAULT) {
+			if (rgb_quant_range == HDMI_QUANTIZATION_RANGE_FULL) {
+				hdmi_writeb(hdmi, 0x00, HDMI_FC_DBGTMDS2);	/*R*/
+				hdmi_writeb(hdmi, 0x00, HDMI_FC_DBGTMDS1);	/*G*/
+				hdmi_writeb(hdmi, 0x00, HDMI_FC_DBGTMDS0);	/*B*/
+			} else if (rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED) {
+				hdmi_writeb(hdmi, 0x10, HDMI_FC_DBGTMDS2);	/*R*/
+				hdmi_writeb(hdmi, 0x10, HDMI_FC_DBGTMDS1);	/*G*/
+				hdmi_writeb(hdmi, 0x10, HDMI_FC_DBGTMDS0);	/*B*/
+			}
+		}
+	} else {
+		hdmi_writeb(hdmi, 0x80, HDMI_FC_DBGTMDS2);	/*Cr*/
+		hdmi_writeb(hdmi, 0x10, HDMI_FC_DBGTMDS1);	/*Y*/
+		hdmi_writeb(hdmi, 0x80, HDMI_FC_DBGTMDS0);	/*Cb*/
+	}
+}
+
 static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 			 const struct drm_connector *connector,
 			 const struct drm_display_mode *mode)
@@ -2723,6 +2755,8 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 		(mode->flags & DRM_MODE_FLAG_DBLCLK) ? 1 : 0;
 	hdmi->hdmi_data.video_mode.mdataenablepolarity = true;
 
+	dw_hdmi_force_output_pattern(hdmi, mode);
+
 	/* HDMI Initialization Step B.1 */
 	hdmi_av_composer(hdmi, &connector->display_info, mode);
 
@@ -2769,6 +2803,16 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 	}
 
 	dw_hdmi_clear_overflow(hdmi);
+
+	/*
+	 * konka tv should switch pattern after set to yuv420 10bit or
+	 * the TV might not recognize the signal.
+	 */
+	if (!hdmi->update) {
+		hdmi_writeb(hdmi, 1, HDMI_FC_DBGFORCE);
+		msleep(50);
+		hdmi_writeb(hdmi, 0, HDMI_FC_DBGFORCE);
+	}
 
 	return 0;
 }
@@ -3182,6 +3226,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 						       vmode->mpixelclock);
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 			vmode->mtmdsclock /= 2;
+
+		dw_hdmi_force_output_pattern(hdmi, mode);
 	}
 
 	if (check_hdr_color_change(old_state, new_state, hdmi) || hdmi->logo_plug_out ||
