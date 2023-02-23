@@ -5,6 +5,8 @@
 
 #include <kunit/test.h>
 
+#include "tests/xe_dma_buf_test.h"
+
 #include "xe_pci.h"
 
 static bool p2p_enabled(struct dma_buf_test_params *params)

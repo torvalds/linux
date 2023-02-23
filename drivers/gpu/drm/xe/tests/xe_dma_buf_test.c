@@ -3,9 +3,9 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include <kunit/test.h>
+#include "xe_dma_buf_test.h"
 
-void xe_dma_buf_kunit(struct kunit *test);
+#include <kunit/test.h>
 
 static struct kunit_case xe_dma_buf_tests[] = {
 	KUNIT_CASE(xe_dma_buf_kunit),

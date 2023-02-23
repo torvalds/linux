@@ -5,6 +5,8 @@
 
 #include <kunit/test.h>
 
+#include "tests/xe_migrate_test.h"
+
 #include "xe_pci.h"
 
 static bool sanity_fence_failed(struct xe_device *xe, struct dma_fence *fence,

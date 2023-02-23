@@ -5,6 +5,8 @@
 
 #include <kunit/test.h>
 
+#include "tests/xe_bo_test.h"
+
 #include "xe_bo_evict.h"
 #include "xe_pci.h"
 

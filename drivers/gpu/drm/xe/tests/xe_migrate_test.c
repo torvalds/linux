@@ -3,9 +3,9 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include <kunit/test.h>
+#include "xe_migrate_test.h"
 
-void xe_migrate_sanity_kunit(struct kunit *test);
+#include <kunit/test.h>
 
 static struct kunit_case xe_migrate_tests[] = {
 	KUNIT_CASE(xe_migrate_sanity_kunit),

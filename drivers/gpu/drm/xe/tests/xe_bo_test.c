@@ -3,10 +3,9 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include <kunit/test.h>
+#include "xe_bo_test.h"
 
-void xe_ccs_migrate_kunit(struct kunit *test);
-void xe_bo_evict_kunit(struct kunit *test);
+#include <kunit/test.h>
 
 static struct kunit_case xe_bo_tests[] = {
 	KUNIT_CASE(xe_ccs_migrate_kunit),
