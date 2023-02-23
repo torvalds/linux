@@ -21,6 +21,7 @@ static int one_hundred = 100;
 static int one_thousand = 1000;
 static int one_thousand_twenty_four = 1024;
 static int two_thousand = 2000;
+static int walt_max_cpus = WALT_NR_CPUS;
 
 /*
  * CFS task prio range is [100 ... 139]
@@ -80,6 +81,7 @@ unsigned int sysctl_sched_cluster_util_thres_pct;
 unsigned int sysctl_ed_boost_pct;
 unsigned int sysctl_em_inflate_pct = 100;
 unsigned int sysctl_em_inflate_thres = 1024;
+unsigned int sysctl_sched_heavy_nr;
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -1108,6 +1110,15 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &one_thousand_twenty_four,
+	},
+	{
+		.procname	= "sched_heavy_nr",
+		.data		= &sysctl_sched_heavy_nr,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &walt_max_cpus,
 	},
 	{ }
 };

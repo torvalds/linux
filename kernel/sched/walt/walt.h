@@ -61,6 +61,9 @@ enum migrate_types {
 #define WALT_LOW_LATENCY_PROCFS		BIT(0)
 #define WALT_LOW_LATENCY_BINDER		BIT(1)
 #define WALT_LOW_LATENCY_PIPELINE	BIT(2)
+#define WALT_LOW_LATENCY_HEAVY		BIT(3)
+
+#define WALT_LOW_LATENCY_MASK		(WALT_LOW_LATENCY_PIPELINE|WALT_LOW_LATENCY_HEAVY)
 
 struct walt_cpu_load {
 	unsigned long	nl;
@@ -233,6 +236,7 @@ extern unsigned int sysctl_sched_long_running_rt_task_ms;
 extern unsigned int sysctl_ed_boost_pct;
 extern unsigned int sysctl_em_inflate_pct;
 extern unsigned int sysctl_em_inflate_thres;
+extern unsigned int sysctl_sched_heavy_nr;
 
 extern int cpufreq_walt_set_adaptive_freq(unsigned int cpu, unsigned int adaptive_low_freq,
 					  unsigned int adaptive_high_freq);
@@ -456,7 +460,7 @@ static inline bool walt_low_latency_task(struct task_struct *p)
 	if (!wts->low_latency)
 		return false;
 
-	if (wts->low_latency == WALT_LOW_LATENCY_PIPELINE)
+	if (wts->low_latency & WALT_LOW_LATENCY_MASK)
 		return true;
 
 	/* WALT_LOW_LATENCY_BINDER and WALT_LOW_LATENCY_PROCFS remain */
@@ -483,7 +487,7 @@ static inline bool walt_pipeline_low_latency_task(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	return wts->low_latency & WALT_LOW_LATENCY_PIPELINE;
+	return wts->low_latency & WALT_LOW_LATENCY_MASK;
 }
 
 static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)

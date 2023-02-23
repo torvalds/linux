@@ -823,6 +823,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	bool energy_eval_needed = true;
 	struct compute_energy_output output;
 	struct walt_task_struct *wts;
+	int pipeline_cpu;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
 			cpumask_test_cpu(prev_cpu, p->cpus_ptr))
@@ -836,11 +837,15 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	cpumask_clear(candidates);
 
 	wts = (struct walt_task_struct *) p->android_vendor_data1;
-	if ((wts->low_latency == WALT_LOW_LATENCY_PIPELINE) &&
-			(wts->pipeline_cpu != -1) &&
-			walt_task_skip_min_cpu(p)) {
-		if (!walt_pipeline_low_latency_task(cpu_rq(wts->pipeline_cpu)->curr)) {
-			best_energy_cpu = wts->pipeline_cpu;
+	pipeline_cpu = wts->pipeline_cpu;
+	if ((wts->low_latency & WALT_LOW_LATENCY_MASK) &&
+			(pipeline_cpu != -1) &&
+			walt_task_skip_min_cpu(p) &&
+			cpumask_test_cpu(pipeline_cpu, p->cpus_ptr) &&
+			cpu_active(pipeline_cpu) &&
+			!cpu_halted(pipeline_cpu)) {
+		if (!walt_pipeline_low_latency_task(cpu_rq(pipeline_cpu)->curr)) {
+			best_energy_cpu = pipeline_cpu;
 			fbt_env.fastpath = PIPELINE_FASTPATH;
 			goto out;
 		}
