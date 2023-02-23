@@ -121,7 +121,7 @@ static int __init exynos4x12_isp_clk_probe(struct platform_device *pdev)
 	if (!exynos4x12_save_isp)
 		return -ENOMEM;
 
-	ctx = samsung_clk_init(np, reg_base, CLK_NR_ISP_CLKS);
+	ctx = samsung_clk_init(reg_base, CLK_NR_ISP_CLKS);
 	ctx->dev = dev;
 
 	platform_set_drvdata(pdev, ctx);
