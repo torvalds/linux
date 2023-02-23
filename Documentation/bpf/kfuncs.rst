@@ -583,12 +583,16 @@ Here's an example of how it can be used:
 
 ----
 
-Another kfunc available for interacting with ``struct cgroup *`` objects is
-bpf_cgroup_ancestor(). This allows callers to access the ancestor of a cgroup,
-and return it as a cgroup kptr.
+Other kfuncs available for interacting with ``struct cgroup *`` objects are
+bpf_cgroup_ancestor() and bpf_cgroup_from_id(), allowing callers to access
+the ancestor of a cgroup and find a cgroup by its ID, respectively. Both
+return a cgroup kptr.
 
 .. kernel-doc:: kernel/bpf/helpers.c
    :identifiers: bpf_cgroup_ancestor
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_from_id
 
 Eventually, BPF should be updated to allow this to happen with a normal memory
 load in the program itself. This is currently not possible without more work in
