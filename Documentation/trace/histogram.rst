@@ -81,6 +81,7 @@ Documentation written by Tom Zanussi
 	.usecs         display a common_timestamp in microseconds
         .percent       display a number of percentage value
         .graph         display a bar-graph of a value
+	.stacktrace    display as a stacktrace (must by a long[] type)
 	=============  =================================================
 
   Note that in general the semantics of a given field aren't
@@ -1786,6 +1787,8 @@ or assigned to a variable and referenced in a subsequent expression::
   # echo 'hist:keys=next_pid:us_per_sec=1000000 ...' >> event/trigger
   # echo 'hist:keys=next_pid:timestamp_secs=common_timestamp/$us_per_sec ...' >> event/trigger
 
+Variables can even hold stacktraces, which are useful with synthetic events.
+
 2.2.2 Synthetic Events
 ----------------------
 
@@ -1861,7 +1864,7 @@ A histogram can now be defined for the new synthetic event::
 The above shows the latency "lat" in a power of 2 grouping.
 
 Like any other event, once a histogram is enabled for the event, the
-output can be displayed by reading the event's 'hist' file.
+output can be displayed by reading the event's 'hist' file::
 
   # cat /sys/kernel/tracing/events/synthetic/wakeup_latency/hist
 
@@ -1908,7 +1911,7 @@ output can be displayed by reading the event's 'hist' file.
 
 
 The latency values can also be grouped linearly by a given size with
-the ".buckets" modifier and specify a size (in this case groups of 10).
+the ".buckets" modifier and specify a size (in this case groups of 10)::
 
   # echo 'hist:keys=pid,prio,lat.buckets=10:sort=lat' >> \
         /sys/kernel/tracing/events/synthetic/wakeup_latency/trigger
@@ -1939,6 +1942,157 @@ the ".buckets" modifier and specify a size (in this case groups of 10).
       Hits: 2112
       Entries: 16
       Dropped: 0
+
+To save stacktraces, create a synthetic event with a field of type "unsigned long[]"
+or even just "long[]". For example, to see how long a task is blocked in an
+uninterruptible state::
+
+  # cd /sys/kernel/tracing
+  # echo 's:block_lat pid_t pid; u64 delta; unsigned long[] stack;' > dynamic_events
+  # echo 'hist:keys=next_pid:ts=common_timestamp.usecs,st=stacktrace  if prev_state == 2' >> events/sched/sched_switch/trigger
+  # echo 'hist:keys=prev_pid:delta=common_timestamp.usecs-$ts,s=$st:onmax($delta).trace(block_lat,prev_pid,$delta,$s)' >> events/sched/sched_switch/trigger
+  # echo 1 > events/synthetic/block_lat/enable
+  # cat trace
+
+  # tracer: nop
+  #
+  # entries-in-buffer/entries-written: 2/2   #P:8
+  #
+  #                                _-----=> irqs-off/BH-disabled
+  #                               / _----=> need-resched
+  #                              | / _---=> hardirq/softirq
+  #                              || / _--=> preempt-depth
+  #                              ||| / _-=> migrate-disable
+  #                              |||| /     delay
+  #           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION
+  #              | |         |   |||||     |         |
+            <idle>-0       [005] d..4.   521.164922: block_lat: pid=0 delta=8322 stack=STACK:
+  => __schedule+0x448/0x7b0
+  => schedule+0x5a/0xb0
+  => io_schedule+0x42/0x70
+  => bit_wait_io+0xd/0x60
+  => __wait_on_bit+0x4b/0x140
+  => out_of_line_wait_on_bit+0x91/0xb0
+  => jbd2_journal_commit_transaction+0x1679/0x1a70
+  => kjournald2+0xa9/0x280
+  => kthread+0xe9/0x110
+  => ret_from_fork+0x2c/0x50
+
+             <...>-2       [004] d..4.   525.184257: block_lat: pid=2 delta=76 stack=STACK:
+  => __schedule+0x448/0x7b0
+  => schedule+0x5a/0xb0
+  => schedule_timeout+0x11a/0x150
+  => wait_for_completion_killable+0x144/0x1f0
+  => __kthread_create_on_node+0xe7/0x1e0
+  => kthread_create_on_node+0x51/0x70
+  => create_worker+0xcc/0x1a0
+  => worker_thread+0x2ad/0x380
+  => kthread+0xe9/0x110
+  => ret_from_fork+0x2c/0x50
+
+A synthetic event that has a stacktrace field may use it as a key in
+histogram::
+
+  # echo 'hist:keys=delta.buckets=100,stack.stacktrace:sort=delta' > events/synthetic/block_lat/trigger
+  # cat events/synthetic/block_lat/hist
+
+  # event histogram
+  #
+  # trigger info: hist:keys=delta.buckets=100,stack.stacktrace:vals=hitcount:sort=delta.buckets=100:size=2048 [active]
+  #
+  { delta: ~ 0-99, stack.stacktrace         __schedule+0xa19/0x1520
+         schedule+0x6b/0x110
+         io_schedule+0x46/0x80
+         bit_wait_io+0x11/0x80
+         __wait_on_bit+0x4e/0x120
+         out_of_line_wait_on_bit+0x8d/0xb0
+         __wait_on_buffer+0x33/0x40
+         jbd2_journal_commit_transaction+0x155a/0x19b0
+         kjournald2+0xab/0x270
+         kthread+0xfa/0x130
+         ret_from_fork+0x29/0x50
+  } hitcount:          1
+  { delta: ~ 0-99, stack.stacktrace         __schedule+0xa19/0x1520
+         schedule+0x6b/0x110
+         io_schedule+0x46/0x80
+         rq_qos_wait+0xd0/0x170
+         wbt_wait+0x9e/0xf0
+         __rq_qos_throttle+0x25/0x40
+         blk_mq_submit_bio+0x2c3/0x5b0
+         __submit_bio+0xff/0x190
+         submit_bio_noacct_nocheck+0x25b/0x2b0
+         submit_bio_noacct+0x20b/0x600
+         submit_bio+0x28/0x90
+         ext4_bio_write_page+0x1e0/0x8c0
+         mpage_submit_page+0x60/0x80
+         mpage_process_page_bufs+0x16c/0x180
+         mpage_prepare_extent_to_map+0x23f/0x530
+  } hitcount:          1
+  { delta: ~ 0-99, stack.stacktrace         __schedule+0xa19/0x1520
+         schedule+0x6b/0x110
+         schedule_hrtimeout_range_clock+0x97/0x110
+         schedule_hrtimeout_range+0x13/0x20
+         usleep_range_state+0x65/0x90
+         __intel_wait_for_register+0x1c1/0x230 [i915]
+         intel_psr_wait_for_idle_locked+0x171/0x2a0 [i915]
+         intel_pipe_update_start+0x169/0x360 [i915]
+         intel_update_crtc+0x112/0x490 [i915]
+         skl_commit_modeset_enables+0x199/0x600 [i915]
+         intel_atomic_commit_tail+0x7c4/0x1080 [i915]
+         intel_atomic_commit_work+0x12/0x20 [i915]
+         process_one_work+0x21c/0x3f0
+         worker_thread+0x50/0x3e0
+         kthread+0xfa/0x130
+  } hitcount:          3
+  { delta: ~ 0-99, stack.stacktrace         __schedule+0xa19/0x1520
+         schedule+0x6b/0x110
+         schedule_timeout+0x11e/0x160
+         __wait_for_common+0x8f/0x190
+         wait_for_completion+0x24/0x30
+         __flush_work.isra.0+0x1cc/0x360
+         flush_work+0xe/0x20
+         drm_mode_rmfb+0x18b/0x1d0 [drm]
+         drm_mode_rmfb_ioctl+0x10/0x20 [drm]
+         drm_ioctl_kernel+0xb8/0x150 [drm]
+         drm_ioctl+0x243/0x560 [drm]
+         __x64_sys_ioctl+0x92/0xd0
+         do_syscall_64+0x59/0x90
+         entry_SYSCALL_64_after_hwframe+0x72/0xdc
+  } hitcount:          1
+  { delta: ~ 0-99, stack.stacktrace         __schedule+0xa19/0x1520
+         schedule+0x6b/0x110
+         schedule_timeout+0x87/0x160
+         __wait_for_common+0x8f/0x190
+         wait_for_completion_timeout+0x1d/0x30
+         drm_atomic_helper_wait_for_flip_done+0x57/0x90 [drm_kms_helper]
+         intel_atomic_commit_tail+0x8ce/0x1080 [i915]
+         intel_atomic_commit_work+0x12/0x20 [i915]
+         process_one_work+0x21c/0x3f0
+         worker_thread+0x50/0x3e0
+         kthread+0xfa/0x130
+         ret_from_fork+0x29/0x50
+  } hitcount:          1
+  { delta: ~ 100-199, stack.stacktrace         __schedule+0xa19/0x1520
+         schedule+0x6b/0x110
+         schedule_hrtimeout_range_clock+0x97/0x110
+         schedule_hrtimeout_range+0x13/0x20
+         usleep_range_state+0x65/0x90
+         pci_set_low_power_state+0x17f/0x1f0
+         pci_set_power_state+0x49/0x250
+         pci_finish_runtime_suspend+0x4a/0x90
+         pci_pm_runtime_suspend+0xcb/0x1b0
+         __rpm_callback+0x48/0x120
+         rpm_callback+0x67/0x70
+         rpm_suspend+0x167/0x780
+         rpm_idle+0x25a/0x380
+         pm_runtime_work+0x93/0xc0
+         process_one_work+0x21c/0x3f0
+  } hitcount:          1
+
+  Totals:
+    Hits: 10
+    Entries: 7
+    Dropped: 0
 
 2.2.3 Hist trigger 'handlers' and 'actions'
 -------------------------------------------
@@ -2054,11 +2208,11 @@ The following commonly-used handler.action pairs are available:
               wakeup_new_test($testpid) if comm=="cyclictest"' >> \
               /sys/kernel/tracing/events/sched/sched_wakeup_new/trigger
 
-    Or, equivalently, using the 'trace' keyword syntax:
+    Or, equivalently, using the 'trace' keyword syntax::
 
-    # echo 'hist:keys=$testpid:testpid=pid:onmatch(sched.sched_wakeup_new).\
-            trace(wakeup_new_test,$testpid) if comm=="cyclictest"' >> \
-            /sys/kernel/tracing/events/sched/sched_wakeup_new/trigger
+      # echo 'hist:keys=$testpid:testpid=pid:onmatch(sched.sched_wakeup_new).\
+              trace(wakeup_new_test,$testpid) if comm=="cyclictest"' >> \
+              /sys/kernel/tracing/events/sched/sched_wakeup_new/trigger
 
     Creating and displaying a histogram based on those events is now
     just a matter of using the fields and new synthetic event in the
@@ -2191,48 +2345,48 @@ The following commonly-used handler.action pairs are available:
     resulting latency, stored in wakeup_lat, exceeds the current
     maximum latency, a snapshot is taken.  As part of the setup, all
     the scheduler events are also enabled, which are the events that
-    will show up in the snapshot when it is taken at some point:
+    will show up in the snapshot when it is taken at some point::
 
-    # echo 1 > /sys/kernel/tracing/events/sched/enable
+      # echo 1 > /sys/kernel/tracing/events/sched/enable
 
-    # echo 'hist:keys=pid:ts0=common_timestamp.usecs \
-            if comm=="cyclictest"' >> \
-            /sys/kernel/tracing/events/sched/sched_waking/trigger
+      # echo 'hist:keys=pid:ts0=common_timestamp.usecs \
+              if comm=="cyclictest"' >> \
+              /sys/kernel/tracing/events/sched/sched_waking/trigger
 
-    # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0: \
-            onmax($wakeup_lat).save(next_prio,next_comm,prev_pid,prev_prio, \
-	    prev_comm):onmax($wakeup_lat).snapshot() \
-	    if next_comm=="cyclictest"' >> \
-	    /sys/kernel/tracing/events/sched/sched_switch/trigger
+      # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0: \
+              onmax($wakeup_lat).save(next_prio,next_comm,prev_pid,prev_prio, \
+	      prev_comm):onmax($wakeup_lat).snapshot() \
+	      if next_comm=="cyclictest"' >> \
+	      /sys/kernel/tracing/events/sched/sched_switch/trigger
 
     When the histogram is displayed, for each bucket the max value
     and the saved values corresponding to the max are displayed
     following the rest of the fields.
 
     If a snapshot was taken, there is also a message indicating that,
-    along with the value and event that triggered the global maximum:
+    along with the value and event that triggered the global maximum::
 
-    # cat /sys/kernel/tracing/events/sched/sched_switch/hist
-      { next_pid:       2101 } hitcount:        200
-	max:         52  next_prio:        120  next_comm: cyclictest \
-        prev_pid:          0  prev_prio:        120  prev_comm: swapper/6
+      # cat /sys/kernel/tracing/events/sched/sched_switch/hist
+        { next_pid:       2101 } hitcount:        200
+	  max:         52  next_prio:        120  next_comm: cyclictest \
+          prev_pid:          0  prev_prio:        120  prev_comm: swapper/6
 
-      { next_pid:       2103 } hitcount:       1326
-	max:        572  next_prio:         19  next_comm: cyclictest \
-        prev_pid:          0  prev_prio:        120  prev_comm: swapper/1
+        { next_pid:       2103 } hitcount:       1326
+	  max:        572  next_prio:         19  next_comm: cyclictest \
+          prev_pid:          0  prev_prio:        120  prev_comm: swapper/1
 
-      { next_pid:       2102 } hitcount:       1982 \
-	max:         74  next_prio:         19  next_comm: cyclictest \
-        prev_pid:          0  prev_prio:        120  prev_comm: swapper/5
+        { next_pid:       2102 } hitcount:       1982 \
+	  max:         74  next_prio:         19  next_comm: cyclictest \
+          prev_pid:          0  prev_prio:        120  prev_comm: swapper/5
 
-    Snapshot taken (see tracing/snapshot).  Details:
-	triggering value { onmax($wakeup_lat) }:        572	\
-	triggered by event with key: { next_pid:       2103 }
+      Snapshot taken (see tracing/snapshot).  Details:
+	  triggering value { onmax($wakeup_lat) }:        572	\
+	  triggered by event with key: { next_pid:       2103 }
 
-    Totals:
-        Hits: 3508
-        Entries: 3
-        Dropped: 0
+      Totals:
+          Hits: 3508
+          Entries: 3
+          Dropped: 0
 
     In the above case, the event that triggered the global maximum has
     the key with next_pid == 2103.  If you look at the bucket that has
@@ -2310,15 +2464,15 @@ The following commonly-used handler.action pairs are available:
     $cwnd variable.  If the value has changed, a snapshot is taken.
     As part of the setup, all the scheduler and tcp events are also
     enabled, which are the events that will show up in the snapshot
-    when it is taken at some point:
+    when it is taken at some point::
 
-    # echo 1 > /sys/kernel/tracing/events/sched/enable
-    # echo 1 > /sys/kernel/tracing/events/tcp/enable
+      # echo 1 > /sys/kernel/tracing/events/sched/enable
+      # echo 1 > /sys/kernel/tracing/events/tcp/enable
 
-    # echo 'hist:keys=dport:cwnd=snd_cwnd: \
-            onchange($cwnd).save(snd_wnd,srtt,rcv_wnd): \
-	    onchange($cwnd).snapshot()' >> \
-	    /sys/kernel/tracing/events/tcp/tcp_probe/trigger
+      # echo 'hist:keys=dport:cwnd=snd_cwnd: \
+              onchange($cwnd).save(snd_wnd,srtt,rcv_wnd): \
+	      onchange($cwnd).snapshot()' >> \
+	      /sys/kernel/tracing/events/tcp/tcp_probe/trigger
 
     When the histogram is displayed, for each bucket the tracked value
     and the saved values corresponding to that value are displayed
@@ -2341,10 +2495,10 @@ The following commonly-used handler.action pairs are available:
       { dport:        443 } hitcount:        211
 	changed:         10  snd_wnd:      26960  srtt:      17379  rcv_wnd:      28800
 
-    Snapshot taken (see tracing/snapshot).  Details::
+      Snapshot taken (see tracing/snapshot).  Details:
 
-        triggering value { onchange($cwnd) }:         10
-        triggered by event with key: { dport:         80 }
+          triggering value { onchange($cwnd) }:         10
+          triggered by event with key: { dport:         80 }
 
       Totals:
           Hits: 414
