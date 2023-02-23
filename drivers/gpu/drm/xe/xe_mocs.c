@@ -352,7 +352,6 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->table = dg1_mocs_desc;
 		info->uc_index = 1;
 		info->n_entries = GEN9_NUM_MOCS_ENTRIES;
-		info->uc_index = 1;
 		info->unused_entries_index = 5;
 		break;
 	case XE_TIGERLAKE:
