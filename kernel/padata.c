@@ -491,7 +491,7 @@ void __init padata_do_multithreaded(struct padata_mt_job *job)
 		return;
 
 	/* Ensure at least one thread when size < min_chunk. */
-	nworks = max(job->size / job->min_chunk, 1ul);
+	nworks = max(job->size / max(job->min_chunk, job->align), 1ul);
 	nworks = min(nworks, job->max_threads);
 
 	if (nworks == 1) {
