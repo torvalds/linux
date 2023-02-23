@@ -16,6 +16,8 @@ static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 	if (cache->nr_cached < IO_ALLOC_CACHE_MAX) {
 		cache->nr_cached++;
 		wq_stack_add_head(&entry->node, &cache->list);
+		/* KASAN poisons object */
+		kasan_slab_free_mempool(entry);
 		return true;
 	}
 	return false;
@@ -27,6 +29,7 @@ static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *c
 		struct io_cache_entry *entry;
 
 		entry = container_of(cache->list.next, struct io_cache_entry, node);
+		kasan_unpoison_range(entry, cache->elem_size);
 		cache->list.next = cache->list.next->next;
 		cache->nr_cached--;
 		return entry;
@@ -35,10 +38,11 @@ static inline struct io_cache_entry *io_alloc_cache_get(struct io_alloc_cache *c
 	return NULL;
 }
 
-static inline void io_alloc_cache_init(struct io_alloc_cache *cache)
+static inline void io_alloc_cache_init(struct io_alloc_cache *cache, size_t size)
 {
 	cache->list.next = NULL;
 	cache->nr_cached = 0;
+	cache->elem_size = size;
 }
 
 static inline void io_alloc_cache_free(struct io_alloc_cache *cache,

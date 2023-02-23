@@ -190,6 +190,7 @@ struct io_ev_fd {
 struct io_alloc_cache {
 	struct io_wq_work_node	list;
 	unsigned int		nr_cached;
+	size_t			elem_size;
 };
 
 struct io_ring_ctx {
