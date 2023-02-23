@@ -298,6 +298,7 @@ extern int isst_read_pm_config(struct isst_id *id, int *cp_state, int *cp_cap);
 extern void isst_display_error_info_message(int error, char *msg, int arg_valid, int arg);
 extern int is_skx_based_platform(void);
 extern int is_spr_platform(void);
+extern int is_emr_platform(void);
 extern int is_icx_platform(void);
 extern void isst_trl_display_information(struct isst_id *id, FILE *outf, unsigned long long trl);
 

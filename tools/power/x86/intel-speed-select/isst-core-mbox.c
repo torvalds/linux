@@ -404,7 +404,7 @@ static void _get_uncore_mem_freq(struct isst_id *id, int config_index,
 	}
 
 	ctdp_level->mem_freq = resp & GENMASK(7, 0);
-	if (is_spr_platform()) {
+	if (is_spr_platform() || is_emr_platform()) {
 		ctdp_level->mem_freq *= 200;
 	} else if (is_icx_platform()) {
 		if (ctdp_level->mem_freq < 7) {
