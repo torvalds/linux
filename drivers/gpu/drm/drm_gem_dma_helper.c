@@ -477,8 +477,8 @@ drm_gem_dma_prime_import_sg_table(struct drm_device *dev,
 	dma_obj->dma_addr = sg_dma_address(sgt->sgl);
 	dma_obj->sgt = sgt;
 
-	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &dma_obj->dma_addr,
-			attach->dmabuf->size);
+	drm_dbg_prime(dev, "dma_addr = %pad, size = %zu\n", &dma_obj->dma_addr,
+		      attach->dmabuf->size);
 
 	return &dma_obj->base;
 }

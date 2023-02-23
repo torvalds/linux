@@ -398,6 +398,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	if (intel_dp_is_edp(intel_dp))
 		intel_edp_fixup_vbt_bpp(encoder, pipe_config->pipe_bpp);
+
+	intel_audio_codec_get_config(encoder, pipe_config);
 }
 
 static void

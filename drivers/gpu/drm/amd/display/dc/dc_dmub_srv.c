@@ -698,7 +698,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
  *
  * @dc: [in] current dc state
  * @context: [in] new dc state
- * @cmd: [in] DMUB cmd to be populated with SubVP info
+ * @enable: [in] if true enables the pipes population
  *
  * This function loops through each pipe and populates the DMUB SubVP CMD info
  * based on the pipe (e.g. SubVP, VBLANK).

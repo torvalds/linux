@@ -34,9 +34,9 @@
 #include "dmub/dmub_srv.h"
 #include "resource.h"
 #include "dsc.h"
-#include "dc_link_dp.h"
 #include "link_hwss.h"
 #include "dc/dc_dmub_srv.h"
+#include "link/protocols/link_dp_capability.h"
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 #include "amdgpu_dm_psr.h"
@@ -419,67 +419,38 @@ static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 	return result;
 }
 
-static int dp_lttpr_status_show(struct seq_file *m, void *d)
+static int dp_lttpr_status_show(struct seq_file *m, void *unused)
 {
-	char *data;
-	struct amdgpu_dm_connector *connector = file_inode(m->file)->i_private;
-	struct dc_link *link = connector->dc_link;
-	uint32_t read_size = 1;
-	uint8_t repeater_count = 0;
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector =
+		to_amdgpu_dm_connector(connector);
+	struct dc_lttpr_caps caps = aconnector->dc_link->dpcd_caps.lttpr_caps;
 
-	data = kzalloc(read_size, GFP_KERNEL);
-	if (!data)
-		return 0;
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
 
-	dm_helpers_dp_read_dpcd(link->ctx, link, 0xF0002, data, read_size);
+	seq_printf(m, "phy repeater count: %u (raw: 0x%x)\n",
+		   dp_parse_lttpr_repeater_count(caps.phy_repeater_cnt),
+		   caps.phy_repeater_cnt);
 
-	switch ((uint8_t)*data) {
-	case 0x80:
-		repeater_count = 1;
+	seq_puts(m, "phy repeater mode: ");
+
+	switch (caps.mode) {
+	case DP_PHY_REPEATER_MODE_TRANSPARENT:
+		seq_puts(m, "transparent");
 		break;
-	case 0x40:
-		repeater_count = 2;
+	case DP_PHY_REPEATER_MODE_NON_TRANSPARENT:
+		seq_puts(m, "non-transparent");
 		break;
-	case 0x20:
-		repeater_count = 3;
-		break;
-	case 0x10:
-		repeater_count = 4;
-		break;
-	case 0x8:
-		repeater_count = 5;
-		break;
-	case 0x4:
-		repeater_count = 6;
-		break;
-	case 0x2:
-		repeater_count = 7;
-		break;
-	case 0x1:
-		repeater_count = 8;
-		break;
-	case 0x0:
-		repeater_count = 0;
+	case 0x00:
+		seq_puts(m, "non lttpr");
 		break;
 	default:
-		repeater_count = (uint8_t)*data;
+		seq_printf(m, "read error (raw: 0x%x)", caps.mode);
 		break;
 	}
 
-	seq_printf(m, "phy repeater count: %d\n", repeater_count);
-
-	dm_helpers_dp_read_dpcd(link->ctx, link, 0xF0003, data, read_size);
-
-	if ((uint8_t)*data == 0x55)
-		seq_printf(m, "phy repeater mode: transparent\n");
-	else if ((uint8_t)*data == 0xAA)
-		seq_printf(m, "phy repeater mode: non-transparent\n");
-	else if ((uint8_t)*data == 0x00)
-		seq_printf(m, "phy repeater mode: non lttpr\n");
-	else
-		seq_printf(m, "phy repeater mode: read error\n");
-
-	kfree(data);
+	seq_puts(m, "\n");
 	return 0;
 }
 
@@ -1192,7 +1163,7 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
 			break;
 		}
 		dpcd_caps = aconnector->dc_link->dpcd_caps;
-		if (aconnector->port) {
+		if (aconnector->mst_output_port) {
 			/* aconnector sets dsc_aux during get_modes call
 			 * if MST connector has it means it can either
 			 * enable DSC on the sink device or on MST branch
@@ -1279,14 +1250,14 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	mutex_lock(&aconnector->hpd_lock);
 
 	/* Don't support for mst end device*/
-	if (aconnector->mst_port) {
+	if (aconnector->mst_root) {
 		mutex_unlock(&aconnector->hpd_lock);
 		return -EINVAL;
 	}
 
 	if (param[0] == 1) {
 
-		if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type) &&
+		if (!dc_link_detect_connection_type(aconnector->dc_link, &new_connection_type) &&
 			new_connection_type != dc_connection_none)
 			goto unlock;
 
@@ -1323,7 +1294,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 
 		/* If the aconnector is the root node in mst topology */
 		if (aconnector->mst_mgr.mst_state == true)
-			reset_cur_dp_mst_topology(link);
+			dc_link_reset_cur_dp_mst_topology(link);
 
 		drm_modeset_lock_all(dev);
 		dm_restore_drm_connector_state(dev, connector);
@@ -1375,14 +1346,9 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -1481,12 +1447,12 @@ static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
 	}
 
-	if (!pipe_ctx || !pipe_ctx->stream)
+	if (!pipe_ctx->stream)
 		goto done;
 
 	// Get CRTC state
@@ -1566,14 +1532,9 @@ static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -1670,12 +1631,12 @@ static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
 	}
 
-	if (!pipe_ctx || !pipe_ctx->stream)
+	if (!pipe_ctx->stream)
 		goto done;
 
 	// Safely get CRTC state
@@ -1755,14 +1716,9 @@ static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -1859,12 +1815,12 @@ static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
 	}
 
-	if (!pipe_ctx || !pipe_ctx->stream)
+	if (!pipe_ctx->stream)
 		goto done;
 
 	// Get CRTC state
@@ -1940,14 +1896,9 @@ static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -2041,12 +1992,12 @@ static ssize_t dp_dsc_bits_per_pixel_write(struct file *f, const char __user *bu
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
 	}
 
-	if (!pipe_ctx || !pipe_ctx->stream)
+	if (!pipe_ctx->stream)
 		goto done;
 
 	// Get CRTC state
@@ -2120,14 +2071,9 @@ static ssize_t dp_dsc_pic_width_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -2181,14 +2127,9 @@ static ssize_t dp_dsc_pic_height_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -2257,14 +2198,9 @@ static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -2333,14 +2269,9 @@ static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream &&
+		if (pipe_ctx->stream &&
 		    pipe_ctx->stream->link == aconnector->dc_link)
 			break;
-	}
-
-	if (!pipe_ctx) {
-		kfree(rd_buf);
-		return -ENXIO;
 	}
 
 	dsc = pipe_ctx->stream_res.dsc;
@@ -2578,13 +2509,13 @@ static int dp_is_mst_connector_show(struct seq_file *m, void *unused)
 
 	if (aconnector->mst_mgr.mst_state) {
 		role = "root";
-	} else if (aconnector->mst_port &&
-		aconnector->mst_port->mst_mgr.mst_state) {
+	} else if (aconnector->mst_root &&
+		aconnector->mst_root->mst_mgr.mst_state) {
 
 		role = "end";
 
-		mgr = &aconnector->mst_port->mst_mgr;
-		port = aconnector->port;
+		mgr = &aconnector->mst_root->mst_mgr;
+		port = aconnector->mst_output_port;
 
 		drm_modeset_lock(&mgr->base.lock, NULL);
 		if (port->pdt == DP_PEER_DEVICE_MST_BRANCHING &&
@@ -3245,46 +3176,24 @@ DEFINE_DEBUGFS_ATTRIBUTE(crc_win_y_end_fops, crc_win_y_end_get,
  */
 static int crc_win_update_set(void *data, u64 val)
 {
-	struct drm_crtc *new_crtc = data;
-	struct drm_crtc *old_crtc = NULL;
-	struct amdgpu_crtc *new_acrtc, *old_acrtc;
-	struct amdgpu_device *adev = drm_to_adev(new_crtc->dev);
-	struct crc_rd_work *crc_rd_wrk = adev->dm.crc_rd_wrk;
-
-	if (!crc_rd_wrk)
-		return 0;
+	struct drm_crtc *crtc = data;
+	struct amdgpu_crtc *acrtc;
+	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 
 	if (val) {
-		new_acrtc = to_amdgpu_crtc(new_crtc);
+		acrtc = to_amdgpu_crtc(crtc);
 		mutex_lock(&adev->dm.dc_lock);
 		/* PSR may write to OTG CRC window control register,
 		 * so close it before starting secure_display.
 		 */
-		amdgpu_dm_psr_disable(new_acrtc->dm_irq_params.stream);
+		amdgpu_dm_psr_disable(acrtc->dm_irq_params.stream);
 
 		spin_lock_irq(&adev_to_drm(adev)->event_lock);
-		spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
-		if (crc_rd_wrk->crtc) {
-			old_crtc = crc_rd_wrk->crtc;
-			old_acrtc = to_amdgpu_crtc(old_crtc);
-		}
 
-		if (old_crtc && old_crtc != new_crtc) {
-			old_acrtc->dm_irq_params.window_param.activated = false;
-			old_acrtc->dm_irq_params.window_param.update_win = false;
-			old_acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
+		acrtc->dm_irq_params.window_param.activated = true;
+		acrtc->dm_irq_params.window_param.update_win = true;
+		acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
 
-			new_acrtc->dm_irq_params.window_param.activated = true;
-			new_acrtc->dm_irq_params.window_param.update_win = true;
-			new_acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
-			crc_rd_wrk->crtc = new_crtc;
-		} else {
-			new_acrtc->dm_irq_params.window_param.activated = true;
-			new_acrtc->dm_irq_params.window_param.update_win = true;
-			new_acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
-			crc_rd_wrk->crtc = new_crtc;
-		}
-		spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
 		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
 		mutex_unlock(&adev->dm.dc_lock);
 	}
@@ -3453,12 +3362,12 @@ static int trigger_hpd_mst_set(void *data, u64 val)
 			if (!aconnector->dc_link)
 				continue;
 
-			if (!aconnector->mst_port)
+			if (!aconnector->mst_root)
 				continue;
 
 			link = aconnector->dc_link;
-			dp_receiver_power_ctrl(link, false);
-			drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_port->mst_mgr, false);
+			dc_link_dp_receiver_power_ctrl(link, false);
+			drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_root->mst_mgr, false);
 			link->mst_stream_alloc_table.stream_count = 0;
 			memset(link->mst_stream_alloc_table.stream_allocations, 0,
 					sizeof(link->mst_stream_alloc_table.stream_allocations));

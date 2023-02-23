@@ -25,6 +25,8 @@
 
 #include "i915_reg_defs.h"
 
+#include "intel_display_limits.h"
+
 enum drm_connector_status;
 struct drm_display_mode;
 struct i2c_adapter;
@@ -32,9 +34,8 @@ struct i2c_adapter;
 struct intel_dvo_device {
 	const char *name;
 	int type;
-	/* DVOA/B/C output register */
-	i915_reg_t dvo_reg;
-	i915_reg_t dvo_srcdim_reg;
+	/* DVOA/B/C */
+	enum port port;
 	/* GPIO register used for i2c bus to control this device */
 	u32 gpio;
 	int slave_addr;

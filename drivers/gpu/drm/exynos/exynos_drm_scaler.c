@@ -550,8 +550,6 @@ static int scaler_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
 static int clk_disable_unprepare_wrapper(struct clk *clk)
 {
 	clk_disable_unprepare(clk);
@@ -584,13 +582,9 @@ static int scaler_runtime_resume(struct device *dev)
 
 	return  scaler_clk_ctrl(scaler, true);
 }
-#endif
 
-static const struct dev_pm_ops scaler_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(scaler_runtime_suspend, scaler_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(scaler_pm_ops, scaler_runtime_suspend,
+				 scaler_runtime_resume, NULL);
 
 static const struct drm_exynos_ipp_limit scaler_5420_two_pixel_hv_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, SZ_8K }, .v = { 16, SZ_8K }) },
@@ -731,7 +725,7 @@ struct platform_driver scaler_driver = {
 	.driver		= {
 		.name	= "exynos-scaler",
 		.owner	= THIS_MODULE,
-		.pm	= &scaler_pm_ops,
+		.pm	= pm_ptr(&scaler_pm_ops),
 		.of_match_table = exynos_scaler_match,
 	},
 };
