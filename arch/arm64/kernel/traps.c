@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
+#include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
@@ -34,6 +35,7 @@
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
+#include <asm/efi.h>
 #include <asm/esr.h>
 #include <asm/exception.h>
 #include <asm/extable.h>
@@ -491,6 +493,10 @@ void do_el0_bti(struct pt_regs *regs)
 
 void do_el1_bti(struct pt_regs *regs, unsigned long esr)
 {
+	if (efi_runtime_fixup_exception(regs, "BTI violation")) {
+		regs->pstate &= ~PSR_BTYPE_MASK;
+		return;
+	}
 	die("Oops - BTI", regs, esr);
 }
 

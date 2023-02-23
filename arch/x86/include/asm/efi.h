@@ -106,6 +106,8 @@ static inline void efi_fpu_end(void)
 
 extern asmlinkage u64 __efi_call(void *fp, ...);
 
+extern bool efi_disable_ibt_for_runtime;
+
 #define efi_call(...) ({						\
 	__efi_nargs_check(efi_call, 7, __VA_ARGS__);			\
 	__efi_call(__VA_ARGS__);					\
@@ -121,7 +123,7 @@ extern asmlinkage u64 __efi_call(void *fp, ...);
 
 #undef arch_efi_call_virt
 #define arch_efi_call_virt(p, f, args...) ({				\
-	u64 ret, ibt = ibt_save();					\
+	u64 ret, ibt = ibt_save(efi_disable_ibt_for_runtime);		\
 	ret = efi_call((void *)p->f, args);				\
 	ibt_restore(ibt);						\
 	ret;								\
@@ -334,6 +336,16 @@ static inline u32 efi64_convert_status(efi_status_t status)
 /* file system protocol */
 #define __efi64_argmap_open_volume(prot, file) \
 	((prot), efi64_zero_upper(file))
+
+/* Memory Attribute Protocol */
+#define __efi64_argmap_get_memory_attributes(protocol, phys, size, flags) \
+	((protocol), __efi64_split(phys), __efi64_split(size), (flags))
+
+#define __efi64_argmap_set_memory_attributes(protocol, phys, size, flags) \
+	((protocol), __efi64_split(phys), __efi64_split(size), __efi64_split(flags))
+
+#define __efi64_argmap_clear_memory_attributes(protocol, phys, size, flags) \
+	((protocol), __efi64_split(phys), __efi64_split(size), __efi64_split(flags))
 
 /*
  * The macros below handle the plumbing for the argument mapping. To add a

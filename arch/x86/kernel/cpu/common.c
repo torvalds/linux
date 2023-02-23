@@ -571,13 +571,14 @@ __setup("nopku", setup_disable_pku);
 
 #ifdef CONFIG_X86_KERNEL_IBT
 
-__noendbr u64 ibt_save(void)
+__noendbr u64 ibt_save(bool disable)
 {
 	u64 msr = 0;
 
 	if (cpu_feature_enabled(X86_FEATURE_IBT)) {
 		rdmsrl(MSR_IA32_S_CET, msr);
-		wrmsrl(MSR_IA32_S_CET, msr & ~CET_ENDBR_EN);
+		if (disable)
+			wrmsrl(MSR_IA32_S_CET, msr & ~CET_ENDBR_EN);
 	}
 
 	return msr;

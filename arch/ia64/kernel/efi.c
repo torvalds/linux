@@ -525,7 +525,7 @@ efi_init (void)
 	 */
 	if (efi_systab == NULL)
 		panic("Whoa! Can't find EFI system table.\n");
-	if (efi_systab_check_header(&efi_systab->hdr, 1))
+	if (efi_systab_check_header(&efi_systab->hdr))
 		panic("Whoa! EFI system table signature incorrect\n");
 
 	efi_systab_report_header(&efi_systab->hdr, efi_systab->fw_vendor);
