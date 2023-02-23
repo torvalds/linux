@@ -732,23 +732,58 @@ static const struct file_operations hyp_trace_fops = {
 	.release	= hyp_trace_release,
 };
 
-/*
- * TODO: should be merged with the ring_buffer_iterator version
- */
-static void *trace_buffer_peek(struct ht_iterator *iter)
+static struct ring_buffer_event *__ht_next_pipe_event(struct ht_iterator *iter)
+{
+	struct ring_buffer_event *evt = NULL;
+	int cpu = iter->cpu;
+
+	if (cpu != RING_BUFFER_ALL_CPUS) {
+		if (ring_buffer_empty_cpu(hyp_trace_buffer, cpu))
+			return NULL;
+
+		iter->ent_cpu = cpu;
+
+		return ring_buffer_peek(hyp_trace_buffer, cpu, &iter->ts,
+					&iter->lost_events);
+	}
+
+	iter->ts = LLONG_MAX;
+	for_each_cpu(cpu, iter->cpus) {
+		struct ring_buffer_event *_evt;
+		unsigned long lost_events;
+		u64 ts;
+
+		if (ring_buffer_empty_cpu(hyp_trace_buffer, cpu))
+			continue;
+
+		_evt = ring_buffer_peek(hyp_trace_buffer, cpu, &ts,
+					&lost_events);
+		if (!_evt)
+			continue;
+
+		if (ts >= iter->ts)
+			continue;
+
+		iter->ts = ts;
+		iter->ent_cpu = cpu;
+		iter->lost_events = lost_events;
+		evt = _evt;
+
+	}
+
+	return evt;
+}
+
+static void *ht_next_pipe_event(struct ht_iterator *iter)
 {
 	struct ring_buffer_event *event;
 
-	if (ring_buffer_empty_cpu(iter->trace_buffer, iter->cpu))
-		return NULL;
-
-	event = ring_buffer_peek(iter->trace_buffer, iter->cpu, &iter->ts, &iter->lost_events);
+	event = __ht_next_pipe_event(iter);
 	if (!event)
 		return NULL;
 
 	iter->ent = (struct hyp_entry_hdr *)&event->array[1];
 	iter->ent_size = event->array[0];
-	iter->ent_cpu = iter->cpu;
 
 	return iter;
 }
@@ -758,21 +793,19 @@ hyp_trace_pipe_read(struct file *file, char __user *ubuf,
 		    size_t cnt, loff_t *ppos)
 {
 	struct ht_iterator *iter = (struct ht_iterator *)file->private_data;
-	struct trace_buffer *trace_buffer = iter->trace_buffer;
 	int ret;
 
 	trace_seq_init(&iter->seq);
 again:
-	ret = ring_buffer_wait(trace_buffer, iter->cpu, 0);
+	ret = ring_buffer_wait(hyp_trace_buffer, iter->cpu, 0);
 	if (ret < 0)
 		return ret;
 
 	hyp_trace_read_start(iter->cpu);
-	while (trace_buffer_peek(iter)) {
-		unsigned long lost_events;
-
+	while (ht_next_pipe_event(iter)) {
 		ht_print_trace_fmt(iter);
-		ring_buffer_consume(iter->trace_buffer, iter->cpu, NULL, &lost_events);
+		ring_buffer_consume(hyp_trace_buffer, iter->ent_cpu, NULL,
+				    NULL);
 	}
 	hyp_trace_read_stop(iter->cpu);
 
@@ -787,10 +820,16 @@ static void __poke_reader(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ht_iterator *iter;
+	int cpu;
 
 	iter = container_of(dwork, struct ht_iterator, poke_work);
 
-	WARN_ON_ONCE(ring_buffer_poke(iter->trace_buffer, iter->cpu));
+	if (iter->cpu == RING_BUFFER_ALL_CPUS) {
+		for_each_cpu(cpu, iter->cpus)
+			WARN_ON_ONCE(ring_buffer_poke(iter->trace_buffer, cpu));
+	} else {
+		WARN_ON_ONCE(ring_buffer_poke(iter->trace_buffer, iter->cpu));
+	}
 
 	schedule_delayed_work((struct delayed_work *)work,
 			      msecs_to_jiffies(RB_POLL_MS));
@@ -810,10 +849,6 @@ static int hyp_trace_pipe_open(struct inode *inode, struct file *file)
 			goto unlock;
 	}
 
-	ret = ring_buffer_poke(hyp_trace_buffer, cpu);
-	if (ret)
-		goto unlock;
-
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter) {
 		ret = -ENOMEM;
@@ -822,15 +857,31 @@ static int hyp_trace_pipe_open(struct inode *inode, struct file *file)
 
 	iter->cpu = cpu;
 	iter->trace_buffer = hyp_trace_buffer;
+	file->private_data = iter;
+
+	if (cpu == RING_BUFFER_ALL_CPUS) {
+		if (!zalloc_cpumask_var(&iter->cpus, GFP_KERNEL)) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
+		for_each_possible_cpu(cpu) {
+			if (!ring_buffer_poke(hyp_trace_buffer, cpu))
+				cpumask_set_cpu(cpu, iter->cpus);
+		}
+	} else {
+		ret = ring_buffer_poke(hyp_trace_buffer, cpu);
+		if (ret)
+			goto unlock;
+	}
 
 	INIT_DELAYED_WORK(&iter->poke_work, __poke_reader);
 	schedule_delayed_work(&iter->poke_work, msecs_to_jiffies(RB_POLL_MS));
 
-	file->private_data = iter;
-
 	hyp_inc_readers();
 unlock:
 	mutex_unlock(&hyp_trace_lock);
+	if (ret)
+		kfree(iter);
 
 	return ret;
 }
@@ -841,6 +892,7 @@ static int hyp_trace_pipe_release(struct inode *inode, struct file *file)
 
 	cancel_delayed_work_sync(&iter->poke_work);
 
+	free_cpumask_var(iter->cpus);
 	kfree(iter);
 
 	mutex_lock(&hyp_trace_lock);
@@ -978,6 +1030,10 @@ int init_hyp_tracefs(void)
 
 	hyp_tracefs_create_cpu_file("trace", RING_BUFFER_ALL_CPUS,
 				    TRACEFS_MODE_WRITE, &hyp_trace_fops,
+				    root_dir);
+
+	hyp_tracefs_create_cpu_file("trace_pipe", RING_BUFFER_ALL_CPUS,
+				    TRACEFS_MODE_READ, &hyp_trace_pipe_fops,
 				    root_dir);
 
 	per_cpu_root_dir = tracefs_create_dir("per_cpu", root_dir);
