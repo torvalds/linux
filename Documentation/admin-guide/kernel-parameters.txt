@@ -6130,15 +6130,6 @@
 			later by a loaded module cannot be set this way.
 			Example: sysctl.vm.swappiness=40
 
-	sysfs.deprecated=0|1 [KNL]
-			Enable/disable old style sysfs layout for old udev
-			on older distributions. When this option is enabled
-			very new udev will not work anymore. When this option
-			is disabled (or CONFIG_SYSFS_DEPRECATED not compiled)
-			in older udev will not work anymore.
-			Default depends on CONFIG_SYSFS_DEPRECATED_V2 set in
-			the kernel configuration.
-
 	sysrq_always_enabled
 			[KNL]
 			Ignore sysrq setting - this boot parameter will

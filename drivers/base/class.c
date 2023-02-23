@@ -180,7 +180,7 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 
 #if defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
-	if (!sysfs_deprecated || cls != &block_class)
+	if (cls != &block_class)
 		cp->subsys.kobj.kset = class_kset;
 #else
 	cp->subsys.kobj.kset = class_kset;

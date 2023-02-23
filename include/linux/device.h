@@ -1092,10 +1092,4 @@ int dev_err_probe(const struct device *dev, int err, const char *fmt, ...);
 #define MODULE_ALIAS_CHARDEV_MAJOR(major) \
 	MODULE_ALIAS("char-major-" __stringify(major) "-*")
 
-#ifdef CONFIG_SYSFS_DEPRECATED
-extern long sysfs_deprecated;
-#else
-#define sysfs_deprecated 0
-#endif
-
 #endif /* _DEVICE_H_ */
