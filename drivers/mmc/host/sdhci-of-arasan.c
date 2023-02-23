@@ -1630,6 +1630,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	int ret;
 	struct device_node *node;
 	struct clk *clk_xin;
+	struct clk *clk_dll;
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct device *dev = &pdev->dev;
@@ -1701,6 +1702,12 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "Unable to enable SD clock.\n");
 		goto clk_dis_ahb;
+	}
+
+	clk_dll = devm_clk_get_optional_enabled(dev, "gate");
+	if (IS_ERR(clk_dll)) {
+		ret = dev_err_probe(dev, PTR_ERR(clk_dll), "failed to get dll clk\n");
+		goto clk_disable_all;
 	}
 
 	if (of_property_read_bool(np, "xlnx,fails-without-test-cd"))
