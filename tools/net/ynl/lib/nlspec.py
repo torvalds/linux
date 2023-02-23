@@ -3,7 +3,6 @@
 import collections
 import importlib
 import os
-import traceback
 import yaml
 
 
@@ -234,8 +233,7 @@ class SpecFamily(SpecElement):
                 resolved.append(elem)
 
             if len(resolved) == 0:
-                traceback.print_exception(last_exception)
-                raise Exception("Could not resolve any spec element, infinite loop?")
+                raise last_exception
 
     def new_attr_set(self, elem):
         return SpecAttrSet(self, elem)
