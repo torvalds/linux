@@ -777,6 +777,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_ROCKCHIP
 	tristate "Rockchip SPI controller driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	help
 	  This selects a driver for Rockchip SPI controller.
 
