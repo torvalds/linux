@@ -672,7 +672,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 	int err;
 
 	/* flush the GSC worker */
-	intel_gsc_uc_suspend(&uc->gsc);
+	intel_gsc_uc_flush_work(&uc->gsc);
 
 	if (!intel_guc_is_ready(guc)) {
 		guc->interrupts.enabled = false;

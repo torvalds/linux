@@ -785,6 +785,29 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 	intel_gsc_fini(&gt->gsc);
 
 	/*
+	 * If we unload the driver and wedge before the GSC worker is complete,
+	 * the worker will hit an error on its submission to the GSC engine and
+	 * then exit. This is hard to hit for a user, but it is reproducible
+	 * with skipping selftests. The error is handled gracefully by the
+	 * worker, so there are no functional issues, but we still end up with
+	 * an error message in dmesg, which is something we want to avoid as
+	 * this is a supported scenario. We could modify the worker to better
+	 * handle a wedging occurring during its execution, but that gets
+	 * complicated for a couple of reasons:
+	 * - We do want the error on runtime wedging, because there are
+	 *   implications for subsystems outside of GT (i.e., PXP, HDCP), it's
+	 *   only the error on driver unload that we want to silence.
+	 * - The worker is responsible for multiple submissions (GSC FW load,
+	 *   HuC auth, SW proxy), so all of those will have to be adapted to
+	 *   handle the wedged_on_fini scenario.
+	 * Therefore, it's much simpler to just wait for the worker to be done
+	 * before wedging on driver removal, also considering that the worker
+	 * will likely already be idle in the great majority of non-selftest
+	 * scenarios.
+	 */
+	intel_gsc_uc_flush_work(&gt->uc.gsc);
+
+	/*
 	 * Upon unregistering the device to prevent any new users, cancel
 	 * all in-flight requests so that we can quickly unbind the active
 	 * resources.

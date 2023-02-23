@@ -116,7 +116,7 @@ void intel_gsc_uc_fini(struct intel_gsc_uc *gsc)
 	intel_uc_fw_fini(&gsc->fw);
 }
 
-void intel_gsc_uc_suspend(struct intel_gsc_uc *gsc)
+void intel_gsc_uc_flush_work(struct intel_gsc_uc *gsc)
 {
 	if (!intel_uc_fw_is_loadable(&gsc->fw))
 		return;
