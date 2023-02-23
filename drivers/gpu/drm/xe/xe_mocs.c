@@ -62,6 +62,10 @@ struct xe_mocs_info {
 #define L3_GLBGO(value)		((value) << 6)
 #define L3_LKUP(value)		((value) << 7)
 
+/* Defines for the tables (GLOB_MOCS_0 - GLOB_MOCS_16) */
+#define _L4_CACHEABILITY	REG_GENMASK(3, 2)
+#define IG_PAT			REG_BIT(8)
+
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 #define PVC_NUM_MOCS_ENTRIES	3
@@ -88,6 +92,12 @@ struct xe_mocs_info {
 #define L3_1_UC			_L3_CACHEABILITY(1)
 #define L3_2_RESERVED		_L3_CACHEABILITY(2)
 #define L3_3_WB			_L3_CACHEABILITY(3)
+
+/* L4 caching options */
+#define L4_0_WB                 REG_FIELD_PREP(_L4_CACHEABILITY, 0)
+#define L4_1_WT                 REG_FIELD_PREP(_L4_CACHEABILITY, 1)
+#define L4_2_RESERVED           REG_FIELD_PREP(_L4_CACHEABILITY, 2)
+#define L4_3_UC                 REG_FIELD_PREP(_L4_CACHEABILITY, 3)
 
 #define MOCS_ENTRY(__idx, __control_value, __l3cc_value) \
 	[__idx] = { \
@@ -310,6 +320,57 @@ static const struct xe_mocs_entry pvc_mocs_desc[] = {
 	MOCS_ENTRY(2, 0, L3_3_WB),
 };
 
+static const struct xe_mocs_entry mtl_mocs_desc[] = {
+	/* Error - Reserved for Non-Use */
+	MOCS_ENTRY(0,
+		   0,
+		   L3_LKUP(1) | L3_3_WB),
+	/* Cached - L3 + L4 */
+	MOCS_ENTRY(1,
+		   IG_PAT,
+		   L3_LKUP(1) | L3_3_WB),
+	/* L4 - GO:L3 */
+	MOCS_ENTRY(2,
+		   IG_PAT,
+		   L3_LKUP(1) | L3_1_UC),
+	/* Uncached - GO:L3 */
+	MOCS_ENTRY(3,
+		   IG_PAT | L4_3_UC,
+		   L3_LKUP(1) | L3_1_UC),
+	/* L4 - GO:Mem */
+	MOCS_ENTRY(4,
+		   IG_PAT,
+		   L3_LKUP(1) | L3_GLBGO(1) | L3_1_UC),
+	/* Uncached - GO:Mem */
+	MOCS_ENTRY(5,
+		   IG_PAT | L4_3_UC,
+		   L3_LKUP(1) | L3_GLBGO(1) | L3_1_UC),
+	/* L4 - L3:NoLKUP; GO:L3 */
+	MOCS_ENTRY(6,
+		   IG_PAT,
+		   L3_1_UC),
+	/* Uncached - L3:NoLKUP; GO:L3 */
+	MOCS_ENTRY(7,
+		   IG_PAT | L4_3_UC,
+		   L3_1_UC),
+	/* L4 - L3:NoLKUP; GO:Mem */
+	MOCS_ENTRY(8,
+		   IG_PAT,
+		   L3_GLBGO(1) | L3_1_UC),
+	/* Uncached - L3:NoLKUP; GO:Mem */
+	MOCS_ENTRY(9,
+		   IG_PAT | L4_3_UC,
+		   L3_GLBGO(1) | L3_1_UC),
+	/* Display - L3; L4:WT */
+	MOCS_ENTRY(14,
+		   IG_PAT | L4_1_WT,
+		   L3_LKUP(1) | L3_3_WB),
+	/* CCS - Non-Displayable */
+	MOCS_ENTRY(15,
+		   IG_PAT,
+		   L3_GLBGO(1) | L3_1_UC),
+};
+
 static unsigned int get_mocs_settings(struct xe_device *xe,
 				      struct xe_mocs_info *info)
 {
@@ -327,11 +388,11 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->unused_entries_index = 2;
 		break;
 	case XE_METEORLAKE:
-		info->size = ARRAY_SIZE(dg2_mocs_desc);
-		info->table = dg2_mocs_desc;
+		info->size = ARRAY_SIZE(mtl_mocs_desc);
+		info->table = mtl_mocs_desc;
 		info->n_entries = MTL_NUM_MOCS_ENTRIES;
-		info->uc_index = 1;
-		info->unused_entries_index = 3;
+		info->uc_index = 9;
+		info->unused_entries_index = 1;
 		break;
 	case XE_DG2:
 		if (xe->info.subplatform == XE_SUBPLATFORM_DG2_G10 &&
