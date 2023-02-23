@@ -7,6 +7,7 @@
  */
 
 #include <linux/bits.h>
+#include <linux/bitfield.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/module.h>
