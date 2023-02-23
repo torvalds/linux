@@ -889,7 +889,7 @@ struct dc {
 
 	uint8_t link_count;
 	struct dc_link *links[MAX_PIPES * 2];
-	const struct link_service *link_srv;
+	struct link_service *link_srv;
 
 	struct dc_state *current_state;
 	struct resource_pool *res_pool;
@@ -1370,6 +1370,11 @@ struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
 
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
+/* The function returns minimum bandwidth required to drive a given timing
+ * return - minimum required timing bandwidth in kbps.
+ */
+uint32_t dc_bandwidth_in_kbps_from_timing(const struct dc_crtc_timing *timing);
+
 /* Link Interfaces */
 /*
  * A link contains one or more sinks and their connected status.
@@ -1723,12 +1728,6 @@ bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link);
 uint32_t dc_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_setting);
-
-/* The function returns minimum bandwidth required to drive a given timing
- * return - minimum required timing bandwidth in kbps.
- */
-uint32_t dc_bandwidth_in_kbps_from_timing(
-	const struct dc_crtc_timing *timing);
 
 /* The function takes a snapshot of current link resource allocation state
  * @dc: pointer to dc of the dm calling this

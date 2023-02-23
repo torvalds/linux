@@ -148,7 +148,7 @@ static void destroy_links(struct dc *dc)
 
 	for (i = 0; i < dc->link_count; i++) {
 		if (NULL != dc->links[i])
-			link_destroy(&dc->links[i]);
+			dc->link_srv->destroy_link(&dc->links[i]);
 	}
 }
 
@@ -217,7 +217,7 @@ static bool create_links(
 		link_init_params.connector_index = i;
 		link_init_params.link_index = dc->link_count;
 		link_init_params.dc = dc;
-		link = link_create(&link_init_params);
+		link = dc->link_srv->create_link(&link_init_params);
 
 		if (link) {
 			dc->links[dc->link_count] = link;
@@ -239,7 +239,7 @@ static bool create_links(
 		link_init_params.dc = dc;
 		link_init_params.is_dpia_link = true;
 
-		link = link_create(&link_init_params);
+		link = dc->link_srv->create_link(&link_init_params);
 		if (link) {
 			dc->links[dc->link_count] = link;
 			link->dc = dc;
@@ -823,6 +823,9 @@ static void dc_destruct(struct dc *dc)
 
 	dc_destroy_resource_pool(dc);
 
+	if (dc->link_srv)
+		link_destroy_link_service(&dc->link_srv);
+
 	if (dc->ctx->gpio_service)
 		dal_gpio_service_destroy(&dc->ctx->gpio_service);
 
@@ -982,7 +985,7 @@ static bool dc_construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc->link_srv = link_get_link_service();
+	dc->link_srv = link_create_link_service();
 
 	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_ctx->dce_version);
 	if (!dc->res_pool)
@@ -1263,7 +1266,7 @@ static void disable_vbios_mode_if_required(
 						pipe->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 					if (pix_clk_100hz != requested_pix_clk_100hz) {
-						link_set_dpms_off(pipe);
+						dc->link_srv->set_dpms_off(pipe);
 						pipe->stream->dpms_off = false;
 					}
 				}
@@ -1718,7 +1721,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		return false;
 	}
 
-	if (link_is_edp_ilr_optimization_required(link, crtc_timing)) {
+	if (dc->link_srv->edp_is_ilr_optimization_required(link, crtc_timing)) {
 		DC_LOG_EVENT_LINK_TRAINING("Seamless boot disabled to optimize eDP link rate\n");
 		return false;
 	}
@@ -3192,7 +3195,9 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				dc->hwss.update_info_frame(pipe_ctx);
 
 				if (dc_is_dp_signal(pipe_ctx->stream->signal))
-					link_dp_source_sequence_trace(pipe_ctx->stream->link, DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME);
+					dc->link_srv->dp_trace_source_sequence(
+							pipe_ctx->stream->link,
+							DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME);
 			}
 
 			if (stream_update->hdr_static_metadata &&
@@ -3228,13 +3233,15 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				continue;
 
 			if (stream_update->dsc_config)
-				link_update_dsc_config(pipe_ctx);
+				dc->link_srv->update_dsc_config(pipe_ctx);
 
 			if (stream_update->mst_bw_update) {
 				if (stream_update->mst_bw_update->is_increase)
-					link_increase_mst_payload(pipe_ctx, stream_update->mst_bw_update->mst_stream_bw);
+					dc->link_srv->increase_mst_payload(pipe_ctx,
+							stream_update->mst_bw_update->mst_stream_bw);
  				else
-					link_reduce_mst_payload(pipe_ctx, stream_update->mst_bw_update->mst_stream_bw);
+					dc->link_srv->reduce_mst_payload(pipe_ctx,
+							stream_update->mst_bw_update->mst_stream_bw);
  			}
 
 			if (stream_update->pending_test_pattern) {
@@ -3248,7 +3255,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->dpms_off) {
 				if (*stream_update->dpms_off) {
-					link_set_dpms_off(pipe_ctx);
+					dc->link_srv->set_dpms_off(pipe_ctx);
 					/* for dpms, keep acquired resources*/
 					if (pipe_ctx->stream_res.audio && !dc->debug.az_endpoint_mute_only)
 						pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
@@ -3258,7 +3265,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				} else {
 					if (get_seamless_boot_stream_count(context) == 0)
 						dc->hwss.prepare_bandwidth(dc, dc->current_state);
-					link_set_dpms_on(dc->current_state, pipe_ctx);
+					dc->link_srv->set_dpms_on(dc->current_state, pipe_ctx);
 				}
 			}
 
@@ -4322,7 +4329,7 @@ void dc_resume(struct dc *dc)
 	uint32_t i;
 
 	for (i = 0; i < dc->link_count; i++)
-		link_resume(dc->links[i]);
+		dc->link_srv->resume(dc->links[i]);
 }
 
 bool dc_is_dmcu_initialized(struct dc *dc)

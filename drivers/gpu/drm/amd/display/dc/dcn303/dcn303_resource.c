@@ -1051,8 +1051,11 @@ static void dcn303_resource_destruct(struct resource_pool *pool)
 	if (pool->dccg != NULL)
 		dcn_dccg_destroy(&pool->dccg);
 
-	if (pool->oem_device != NULL)
-		link_destroy_ddc_service(&pool->oem_device);
+	if (pool->oem_device != NULL) {
+		struct dc *dc = pool->oem_device->ctx->dc;
+
+		dc->link_srv->destroy_ddc_service(&pool->oem_device);
+	}
 }
 
 static void dcn303_destroy_resource_pool(struct resource_pool **pool)
@@ -1417,7 +1420,7 @@ static bool dcn303_resource_construct(
 		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
 		ddc_init_data.id.enum_id = 0;
 		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
-		pool->oem_device = link_create_ddc_service(&ddc_init_data);
+		pool->oem_device = dc->link_srv->create_ddc_service(&ddc_init_data);
 	} else {
 		pool->oem_device = NULL;
 	}

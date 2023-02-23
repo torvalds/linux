@@ -28,6 +28,7 @@
 #include "link/protocols/link_dp_training.h"
 #include "link/protocols/link_dp_phy.h"
 #include "link/protocols/link_dp_training_fixed_vs_pe_retimer.h"
+#include "link/protocols/link_dp_capability.h"
 #include "link/link_dpms.h"
 #include "resource.h"
 #include "dm_helpers.h"

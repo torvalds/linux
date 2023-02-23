@@ -145,7 +145,7 @@ unsigned int dp_trace_get_link_loss_count(struct dc_link *link)
 	return link->dp_trace.link_loss_count;
 }
 
-void link_dp_trace_set_edp_power_timestamp(struct dc_link *link,
+void dp_trace_set_edp_power_timestamp(struct dc_link *link,
 		bool power_up)
 {
 	if (!power_up)
@@ -155,17 +155,17 @@ void link_dp_trace_set_edp_power_timestamp(struct dc_link *link,
 		link->dp_trace.edp_trace_power_timestamps.poweron = dm_get_timestamp(link->dc->ctx);
 }
 
-uint64_t link_dp_trace_get_edp_poweron_timestamp(struct dc_link *link)
+uint64_t dp_trace_get_edp_poweron_timestamp(struct dc_link *link)
 {
 	return link->dp_trace.edp_trace_power_timestamps.poweron;
 }
 
-uint64_t link_dp_trace_get_edp_poweroff_timestamp(struct dc_link *link)
+uint64_t dp_trace_get_edp_poweroff_timestamp(struct dc_link *link)
 {
 	return link->dp_trace.edp_trace_power_timestamps.poweroff;
 }
 
-void link_dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode)
+void dp_trace_source_sequence(struct dc_link *link, uint8_t dp_test_mode)
 {
 	if (link != NULL && link->dc->debug.enable_driver_sequence_debug)
 		core_link_write_dpcd(link, DP_SOURCE_SEQUENCE,

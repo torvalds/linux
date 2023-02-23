@@ -347,7 +347,7 @@ bool dp_should_enable_fec(const struct dc_link *link)
 	return !force_disable && dp_is_fec_supported(link);
 }
 
-bool link_is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx)
+bool dp_is_128b_132b_signal(struct pipe_ctx *pipe_ctx)
 {
 	/* If this assert is hit then we have a link encoder dynamic management issue */
 	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
@@ -656,7 +656,7 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	 */
 	while (current_link_setting.link_rate <=
 			link->verified_link_cap.link_rate) {
-		link_bw = dc_link_bandwidth_kbps(
+		link_bw = dp_link_bandwidth_kbps(
 				link,
 				&current_link_setting);
 		if (req_bw <= link_bw) {
@@ -712,7 +712,7 @@ bool edp_decide_link_settings(struct dc_link *link,
 	 */
 	while (current_link_setting.link_rate <=
 			link->verified_link_cap.link_rate) {
-		link_bw = dc_link_bandwidth_kbps(
+		link_bw = dp_link_bandwidth_kbps(
 				link,
 				&current_link_setting);
 		if (req_bw <= link_bw) {
@@ -891,7 +891,7 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting)
 {
 	struct dc_link *link = stream->link;
-	uint32_t req_bw = link_timing_bandwidth_kbps(&stream->timing);
+	uint32_t req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 
 	memset(link_setting, 0, sizeof(*link_setting));
 
@@ -924,7 +924,7 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 
 				tmp_link_setting.link_rate = LINK_RATE_UNKNOWN;
 				tmp_timing.flags.DSC = 0;
-				orig_req_bw = link_timing_bandwidth_kbps(&tmp_timing);
+				orig_req_bw = dc_bandwidth_in_kbps_from_timing(&tmp_timing);
 				edp_decide_link_settings(link, &tmp_link_setting, orig_req_bw);
 				max_link_rate = tmp_link_setting.link_rate;
 			}

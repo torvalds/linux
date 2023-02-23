@@ -42,6 +42,7 @@
 #include "link_dp_capability.h"
 #include "link_edp_panel_control.h"
 #include "link/link_detection.h"
+#include "link/link_validation.h"
 #include "atomfirmware.h"
 #include "link_enc_cfg.h"
 #include "resource.h"
@@ -861,8 +862,9 @@ static enum dc_status configure_lttpr_mode_non_transparent(
 	uint8_t repeater_id;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
+	const struct dc *dc = link->dc;
 
-	enum dp_link_encoding encoding = link_dp_get_encoding_format(&lt_settings->link_settings);
+	enum dp_link_encoding encoding = dc->link_srv->dp_get_encoding_format(&lt_settings->link_settings);
 
 	if (encoding == DP_8b_10b_ENCODING) {
 		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
@@ -1675,7 +1677,7 @@ bool perform_link_training_with_retries(
 			/* Flag if reduced link bandwidth no longer meets stream requirements or fallen back to
 			 * minimum link bandwidth.
 			 */
-			req_bw = link_timing_bandwidth_kbps(&stream->timing);
+			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 			link_bw = dp_link_bandwidth_kbps(link, &cur_link_settings);
 			is_link_bw_low = (req_bw > link_bw);
 			is_link_bw_min = ((cur_link_settings.link_rate <= LINK_RATE_LOW) &&

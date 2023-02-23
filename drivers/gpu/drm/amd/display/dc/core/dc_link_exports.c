@@ -80,67 +80,63 @@ bool dc_get_edp_link_panel_inst(const struct dc *dc,
 
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
-	return link_detect(link, reason);
+	return link->dc->link_srv->detect_link(link, reason);
 }
 
 bool dc_link_detect_connection_type(struct dc_link *link,
 		enum dc_connection_type *type)
 {
-	return link_detect_connection_type(link, type);
+	return link->dc->link_srv->detect_connection_type(link, type);
 }
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *link)
 {
-	return link_get_status(link);
+	return link->dc->link_srv->get_status(link);
 }
 
 /* return true if the connected receiver supports the hdcp version */
 bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal)
 {
-	return link_is_hdcp14(link, signal);
+	return link->dc->link_srv->is_hdcp1x_supported(link, signal);
 }
 
 bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal)
 {
-	return link_is_hdcp22(link, signal);
+	return link->dc->link_srv->is_hdcp2x_supported(link, signal);
 }
 
 void dc_link_clear_dprx_states(struct dc_link *link)
 {
-	link_clear_dprx_states(link);
+	link->dc->link_srv->clear_dprx_states(link);
 }
 
 bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link)
 {
-	return link_reset_cur_dp_mst_topology(link);
+	return link->dc->link_srv->reset_cur_dp_mst_topology(link);
 }
 
 uint32_t dc_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_settings)
 {
-	return dp_link_bandwidth_kbps(link, link_settings);
-}
-
-uint32_t dc_bandwidth_in_kbps_from_timing(
-	const struct dc_crtc_timing *timing)
-{
-	return link_timing_bandwidth_kbps(timing);
+	return link->dc->link_srv->dp_link_bandwidth_kbps(link, link_settings);
 }
 
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
 {
-	link_get_cur_res_map(dc, map);
+	dc->link_srv->get_cur_res_map(dc, map);
 }
 
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map)
 {
-	link_restore_res_map(dc, map);
+	dc->link_srv->restore_res_map(dc, map);
 }
 
 bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx)
 {
-	return link_update_dsc_config(pipe_ctx);
+	struct dc_link *link = pipe_ctx->stream->link;
+
+	return link->dc->link_srv->update_dsc_config(pipe_ctx);
 }
 
 bool dc_is_oem_i2c_device_present(
@@ -210,8 +206,8 @@ void dc_link_set_drive_settings(struct dc *dc,
 {
 	struct link_resource link_res;
 
-	link_get_cur_link_res(link, &link_res);
-	dp_set_drive_settings(link, &link_res, lt_settings);
+	dc->link_srv->get_cur_link_res(link, &link_res);
+	dc->link_srv->dp_set_drive_settings(link, &link_res, lt_settings);
 }
 
 void dc_link_set_preferred_link_settings(struct dc *dc,

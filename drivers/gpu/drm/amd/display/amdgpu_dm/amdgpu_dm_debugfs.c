@@ -2802,7 +2802,7 @@ static int psr_read_residency(void *data, u64 *val)
 	struct dc_link *link = connector->dc_link;
 	u32 residency;
 
-	link_get_psr_residency(link, &residency);
+	link->dc->link_srv->edp_get_psr_residency(link, &residency);
 
 	*val = (u64)residency;
 

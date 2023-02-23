@@ -255,8 +255,7 @@ uint32_t dp_link_bandwidth_kbps(
 	return link_rate_per_lane_kbps * link_settings->lane_count / 10000 * total_data_bw_efficiency_x10000;
 }
 
-uint32_t link_timing_bandwidth_kbps(
-	const struct dc_crtc_timing *timing)
+uint32_t link_timing_bandwidth_kbps(const struct dc_crtc_timing *timing)
 {
 	uint32_t bits_per_channel = 0;
 	uint32_t kbps;
@@ -337,7 +336,7 @@ static bool dp_validate_mode_timing(
 	*/
 
 	req_bw = dc_bandwidth_in_kbps_from_timing(timing);
-	max_bw = dc_link_bandwidth_kbps(link, link_setting);
+	max_bw = dp_link_bandwidth_kbps(link, link_setting);
 
 	if (req_bw <= max_bw) {
 		/* remember the biggest mode here, during

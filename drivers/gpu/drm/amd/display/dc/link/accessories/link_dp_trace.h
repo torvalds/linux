@@ -54,5 +54,10 @@ unsigned long long dp_trace_get_lt_end_timestamp(struct dc_link *link,
 const struct dp_trace_lt_counts *dp_trace_get_lt_counts(struct dc_link *link,
 		bool in_detection);
 unsigned int dp_trace_get_link_loss_count(struct dc_link *link);
+void dp_trace_set_edp_power_timestamp(struct dc_link *link,
+		bool power_up);
+uint64_t dp_trace_get_edp_poweron_timestamp(struct dc_link *link);
+uint64_t dp_trace_get_edp_poweroff_timestamp(struct dc_link *link);
+void dp_trace_source_sequence(struct dc_link *link, uint8_t dp_test_mode);
 
 #endif /* __LINK_DP_TRACE_H__ */

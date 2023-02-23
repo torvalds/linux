@@ -40,6 +40,9 @@ bool dp_get_max_link_enc_cap(const struct dc_link *link,
 const struct dc_link_settings *dp_get_verified_link_cap(
 		const struct dc_link *link);
 
+enum dp_link_encoding link_dp_get_encoding_format(
+		const struct dc_link_settings *link_settings);
+
 enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link);
 
 /* Convert PHY repeater count read from DPCD uint8_t. */
@@ -59,11 +62,17 @@ void dpcd_write_cable_id_to_dprx(struct dc_link *link);
 
 bool dp_should_enable_fec(const struct dc_link *link);
 
+bool dp_is_128b_132b_signal(struct pipe_ctx *pipe_ctx);
+
 /* Initialize output parameter lt_settings. */
 void dp_decide_training_settings(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	struct link_training_settings *lt_settings);
+
+bool link_decide_link_settings(
+	struct dc_stream_state *stream,
+	struct dc_link_settings *link_setting);
 
 bool edp_decide_link_settings(struct dc_link *link,
 		struct dc_link_settings *link_setting, uint32_t req_bw);

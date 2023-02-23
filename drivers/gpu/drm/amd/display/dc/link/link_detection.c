@@ -876,7 +876,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		return true;
 	}
 
-	if (!dc_link_detect_connection_type(link, &new_connection_type)) {
+	if (!link_detect_connection_type(link, &new_connection_type)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}

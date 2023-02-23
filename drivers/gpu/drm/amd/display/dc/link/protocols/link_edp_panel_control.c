@@ -201,7 +201,7 @@ bool edp_get_backlight_level_nits(struct dc_link *link,
 	return true;
 }
 
-bool link_backlight_enable_aux(struct dc_link *link, bool enable)
+bool edp_backlight_enable_aux(struct dc_link *link, bool enable)
 {
 	uint8_t backlight_enable = enable ? 1 : 0;
 
@@ -249,7 +249,7 @@ bool set_default_brightness_aux(struct dc_link *link)
 	return false;
 }
 
-bool link_is_edp_ilr_optimization_required(struct dc_link *link,
+bool edp_is_ilr_optimization_required(struct dc_link *link,
 		struct dc_crtc_timing *crtc_timing)
 {
 	struct dc_link_settings link_setting;
@@ -282,7 +282,7 @@ bool link_is_edp_ilr_optimization_required(struct dc_link *link,
 	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
 				&lane_count_set.raw, sizeof(lane_count_set));
 
-	req_bw = link_timing_bandwidth_kbps(crtc_timing);
+	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
 
 	if (!crtc_timing->flags.DSC)
 		edp_decide_link_settings(link, &link_setting, req_bw);
@@ -322,13 +322,13 @@ bool edp_wait_for_t12(struct dc_link *link)
 	return false;
 }
 
-void link_edp_add_delay_for_T9(struct dc_link *link)
+void edp_add_delay_for_T9(struct dc_link *link)
 {
 	if (link && link->panel_config.pps.extra_delay_backlight_off > 0)
 		fsleep(link->panel_config.pps.extra_delay_backlight_off * 1000);
 }
 
-bool link_edp_receiver_ready_T9(struct dc_link *link)
+bool edp_receiver_ready_T9(struct dc_link *link)
 {
 	unsigned int tries = 0;
 	unsigned char sinkstatus = 0;
@@ -353,7 +353,7 @@ bool link_edp_receiver_ready_T9(struct dc_link *link)
 	return result;
 }
 
-bool link_edp_receiver_ready_T7(struct dc_link *link)
+bool edp_receiver_ready_T7(struct dc_link *link)
 {
 	unsigned char sinkstatus = 0;
 	unsigned char edpRev = 0;
@@ -388,7 +388,7 @@ bool link_edp_receiver_ready_T7(struct dc_link *link)
 	return result;
 }
 
-bool link_power_alpm_dpcd_enable(struct dc_link *link, bool enable)
+bool edp_power_alpm_dpcd_enable(struct dc_link *link, bool enable)
 {
 	bool ret = false;
 	union dpcd_alpm_configuration alpm_config;
@@ -623,7 +623,7 @@ bool edp_setup_psr(struct dc_link *link,
 		sizeof(psr_configuration.raw));
 
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) {
-		link_power_alpm_dpcd_enable(link, true);
+		edp_power_alpm_dpcd_enable(link, true);
 		psr_context->su_granularity_required =
 			psr_config->su_granularity_required;
 		psr_context->su_y_granularity =
@@ -752,7 +752,7 @@ bool edp_setup_psr(struct dc_link *link,
 
 }
 
-void link_get_psr_residency(const struct dc_link *link, uint32_t *residency)
+void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmub_psr *psr = dc->res_pool->psr;
@@ -767,7 +767,7 @@ void link_get_psr_residency(const struct dc_link *link, uint32_t *residency)
 	else
 		*residency = 0;
 }
-bool link_set_sink_vtotal_in_psr_active(const struct dc_link *link, uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su)
+bool edp_set_sink_vtotal_in_psr_active(const struct dc_link *link, uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su)
 {
 	struct dc *dc = link->ctx->dc;
 	struct dmub_psr *psr = dc->res_pool->psr;
