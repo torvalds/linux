@@ -226,7 +226,8 @@ static int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	if (bkey_deleted(&n->k))
 		n->k.size = 0;
 
-	return bch2_trans_update(trans, iter, n, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+	return bch2_trans_relock(trans) ?:
+		bch2_trans_update(trans, iter, n, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 		bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
 }
 
