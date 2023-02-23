@@ -942,13 +942,13 @@ static void hdmirx_cec_state_reconfiguration(struct rk_hdmirx_dev *hdmirx_dev, b
 {
 	unsigned int irqs;
 
-	if (en) {
-		hdmirx_update_bits(hdmirx_dev, GLOBAL_SWENABLE, CEC_ENABLE, CEC_ENABLE);
-		hdmirx_update_bits(hdmirx_dev, CEC_CONFIG, RX_AUTO_DRIVE_ACKNOWLEDGE,
-				   RX_AUTO_DRIVE_ACKNOWLEDGE);
-		irqs = CECTX_LINE_ERR | CECTX_NACK | CECRX_EOM | CECTX_DONE;
-		hdmirx_writel(hdmirx_dev, CEC_INT_MASK_N, irqs);
-	}
+	hdmirx_update_bits(hdmirx_dev, GLOBAL_SWENABLE, CEC_ENABLE, CEC_ENABLE);
+	hdmirx_update_bits(hdmirx_dev, CEC_CONFIG, RX_AUTO_DRIVE_ACKNOWLEDGE,
+			   RX_AUTO_DRIVE_ACKNOWLEDGE);
+	hdmirx_writel(hdmirx_dev, CEC_ADDR, hdmirx_dev->cec->addresses);
+	irqs = CECTX_LINE_ERR | CECTX_NACK | CECRX_EOM | CECTX_DONE;
+	hdmirx_writel(hdmirx_dev, CEC_INT_MASK_N, irqs);
+
 	cec_queue_pin_hpd_event(hdmirx_dev->cec->adap, en, ktime_get());
 }
 
@@ -3489,6 +3489,9 @@ static int hdmirx_runtime_resume(struct device *dev)
 	usleep_range(150, 160);
 
 	hdmirx_edid_init_config(hdmirx_dev);
+
+	if (hdmirx_dev->cec && hdmirx_dev->cec->adap)
+		hdmirx_cec_state_reconfiguration(hdmirx_dev, false);
 
 	if (hdmirx_dev->initialized) {
 		enable_irq(hdmirx_dev->hdmi_irq);
