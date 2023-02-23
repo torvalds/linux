@@ -442,15 +442,14 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 	percpu_ref_put(&ca->io_ref);
 }
 
-static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *stripe)
+static int get_stripe_key_trans(struct btree_trans *trans, u64 idx,
+				struct ec_stripe_buf *stripe)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_stripes,
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_stripes,
 			     POS(0, idx), BTREE_ITER_SLOTS);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
@@ -462,9 +461,13 @@ static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *strip
 	}
 	bkey_reassemble(&stripe->key.k_i, k);
 err:
-	bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
+}
+
+static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *stripe)
+{
+	return bch2_trans_run(c, get_stripe_key_trans(&trans, idx, stripe));
 }
 
 /* recovery read path: */
@@ -1479,8 +1482,9 @@ static s64 get_existing_stripe(struct bch_fs *c,
 	return ret;
 }
 
-static int __bch2_ec_stripe_head_reuse(struct bch_fs *c, struct ec_stripe_head *h)
+static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stripe_head *h)
 {
+	struct bch_fs *c = trans->c;
 	unsigned i;
 	s64 idx;
 	int ret;
@@ -1490,7 +1494,7 @@ static int __bch2_ec_stripe_head_reuse(struct bch_fs *c, struct ec_stripe_head *
 		return -BCH_ERR_ENOSPC_stripe_reuse;
 
 	h->s->have_existing_stripe = true;
-	ret = get_stripe_key(c, idx, &h->s->existing_stripe);
+	ret = get_stripe_key_trans(trans, idx, &h->s->existing_stripe);
 	if (ret) {
 		bch2_fs_fatal_error(c, "error reading stripe key: %i", ret);
 		return ret;
@@ -1619,7 +1623,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		goto err;
 
 	if (ret && needs_stripe_new)
-		ret = __bch2_ec_stripe_head_reuse(c, h);
+		ret = __bch2_ec_stripe_head_reuse(trans, h);
 	if (ret) {
 		bch_err_ratelimited(c, "failed to get stripe: %s", bch2_err_str(ret));
 		goto err;
