@@ -1961,6 +1961,16 @@ static int nl80211_send_band_rateinfo(struct sk_buff *msg,
 
 	nla_nest_end(msg, nl_rates);
 
+	/* S1G capabilities */
+	if (sband->band == NL80211_BAND_S1GHZ && sband->s1g_cap.s1g &&
+	    (nla_put(msg, NL80211_BAND_ATTR_S1G_CAPA,
+		     sizeof(sband->s1g_cap.cap),
+		     sband->s1g_cap.cap) ||
+	     nla_put(msg, NL80211_BAND_ATTR_S1G_MCS_NSS_SET,
+		     sizeof(sband->s1g_cap.nss_mcs),
+		     sband->s1g_cap.nss_mcs)))
+		return -ENOBUFS;
+
 	return 0;
 }
 

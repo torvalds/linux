@@ -4061,6 +4061,10 @@ enum nl80211_band_iftype_attr {
  * @NL80211_BAND_ATTR_EDMG_BW_CONFIG: Channel BW Configuration subfield encodes
  *	the allowed channel bandwidth configurations.
  *	Defined by IEEE P802.11ay/D4.0 section 9.4.2.251, Table 13.
+ * @NL80211_BAND_ATTR_S1G_MCS_NSS_SET: S1G capabilities, supported S1G-MCS and NSS
+ *	set subfield, as in the S1G information IE, 5 bytes
+ * @NL80211_BAND_ATTR_S1G_CAPA: S1G capabilities information subfield as in the
+ *	S1G information IE, 10 bytes
  * @NL80211_BAND_ATTR_MAX: highest band attribute currently defined
  * @__NL80211_BAND_ATTR_AFTER_LAST: internal use
  */
@@ -4080,6 +4084,9 @@ enum nl80211_band_attr {
 
 	NL80211_BAND_ATTR_EDMG_CHANNELS,
 	NL80211_BAND_ATTR_EDMG_BW_CONFIG,
+
+	NL80211_BAND_ATTR_S1G_MCS_NSS_SET,
+	NL80211_BAND_ATTR_S1G_CAPA,
 
 	/* keep last */
 	__NL80211_BAND_ATTR_AFTER_LAST,
