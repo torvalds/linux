@@ -52,6 +52,8 @@ static void cifs_undirty_folios(struct inode *inode, loff_t start, unsigned int 
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each_marked(&xas, folio, end, PAGECACHE_TAG_DIRTY) {
+		if (xas_retry(&xas, folio))
+			continue;
 		xas_pause(&xas);
 		rcu_read_unlock();
 		folio_lock(folio);
@@ -81,6 +83,8 @@ void cifs_pages_written_back(struct inode *inode, loff_t start, unsigned int len
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each(&xas, folio, end) {
+		if (xas_retry(&xas, folio))
+			continue;
 		if (!folio_test_writeback(folio)) {
 			WARN_ONCE(1, "bad %x @%llx page %lx %lx\n",
 				  len, start, folio_index(folio), end);
@@ -112,6 +116,8 @@ void cifs_pages_write_failed(struct inode *inode, loff_t start, unsigned int len
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each(&xas, folio, end) {
+		if (xas_retry(&xas, folio))
+			continue;
 		if (!folio_test_writeback(folio)) {
 			WARN_ONCE(1, "bad %x @%llx page %lx %lx\n",
 				  len, start, folio_index(folio), end);
