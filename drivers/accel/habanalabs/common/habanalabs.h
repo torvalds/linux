@@ -2320,7 +2320,7 @@ struct hl_debugfs_entry {
  * @userptr_list: list of available userptrs (virtual memory chunk descriptor).
  * @userptr_spinlock: protects userptr_list.
  * @ctx_mem_hash_list: list of available contexts with MMU mappings.
- * @ctx_mem_hash_spinlock: protects cb_list.
+ * @ctx_mem_hash_mutex: protects list of available contexts with MMU mappings.
  * @data_dma_blob_desc: data DMA descriptor of blob.
  * @mon_dump_blob_desc: monitor dump descriptor of blob.
  * @state_dump: data of the system states in case of a bad cs.
@@ -2351,7 +2351,7 @@ struct hl_dbg_device_entry {
 	struct list_head		userptr_list;
 	spinlock_t			userptr_spinlock;
 	struct list_head		ctx_mem_hash_list;
-	spinlock_t			ctx_mem_hash_spinlock;
+	struct mutex			ctx_mem_hash_mutex;
 	struct debugfs_blob_wrapper	data_dma_blob_desc;
 	struct debugfs_blob_wrapper	mon_dump_blob_desc;
 	char				*state_dump[HL_STATE_DUMP_HIST_LEN];

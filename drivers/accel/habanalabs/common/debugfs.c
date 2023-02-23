@@ -258,7 +258,7 @@ static int vm_show(struct seq_file *s, void *data)
 	if (!dev_entry->hdev->mmu_enable)
 		return 0;
 
-	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_lock(&dev_entry->ctx_mem_hash_mutex);
 
 	list_for_each_entry(ctx, &dev_entry->ctx_mem_hash_list, debugfs_list) {
 		once = false;
@@ -329,7 +329,7 @@ static int vm_show(struct seq_file *s, void *data)
 
 	}
 
-	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_unlock(&dev_entry->ctx_mem_hash_mutex);
 
 	ctx = hl_get_compute_ctx(dev_entry->hdev);
 	if (ctx) {
@@ -1785,7 +1785,7 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	spin_lock_init(&dev_entry->cs_spinlock);
 	spin_lock_init(&dev_entry->cs_job_spinlock);
 	spin_lock_init(&dev_entry->userptr_spinlock);
-	spin_lock_init(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_init(&dev_entry->ctx_mem_hash_mutex);
 
 	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
 						hl_debug_root);
@@ -1802,6 +1802,7 @@ void hl_debugfs_remove_device(struct hl_device *hdev)
 
 	debugfs_remove_recursive(entry->root);
 
+	mutex_destroy(&entry->ctx_mem_hash_mutex);
 	mutex_destroy(&entry->file_mutex);
 
 	vfree(entry->data_dma_blob_desc.data);
@@ -1908,18 +1909,18 @@ void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 {
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 
-	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_lock(&dev_entry->ctx_mem_hash_mutex);
 	list_add(&ctx->debugfs_list, &dev_entry->ctx_mem_hash_list);
-	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_unlock(&dev_entry->ctx_mem_hash_mutex);
 }
 
 void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 {
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 
-	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_lock(&dev_entry->ctx_mem_hash_mutex);
 	list_del(&ctx->debugfs_list);
-	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+	mutex_unlock(&dev_entry->ctx_mem_hash_mutex);
 }
 
 /**
