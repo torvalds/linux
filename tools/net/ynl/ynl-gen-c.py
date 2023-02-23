@@ -546,7 +546,7 @@ class Struct:
         max_val = 0
         self.attr_max_val = None
         for name, attr in self.attr_list:
-            if attr.value > max_val:
+            if attr.value >= max_val:
                 max_val = attr.value
                 self.attr_max_val = attr
             self.attrs[name] = attr
