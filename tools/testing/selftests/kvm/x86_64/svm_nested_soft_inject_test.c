@@ -41,8 +41,17 @@ static void guest_int_handler(struct ex_regs *regs)
 static void l2_guest_code_int(void)
 {
 	GUEST_ASSERT_1(int_fired == 1, int_fired);
-	vmmcall();
-	ud2();
+
+	/*
+         * Same as the vmmcall() function, but with a ud2 sneaked after the
+         * vmmcall.  The caller injects an exception with the return address
+         * increased by 2, so the "pop rbp" must be after the ud2 and we cannot
+	 * use vmmcall() directly.
+         */
+	__asm__ __volatile__("push %%rbp; vmmcall; ud2; pop %%rbp"
+                             : : "a"(0xdeadbeef), "c"(0xbeefdead)
+                             : "rbx", "rdx", "rsi", "rdi", "r8", "r9",
+                               "r10", "r11", "r12", "r13", "r14", "r15");
 
 	GUEST_ASSERT_1(bp_fired == 1, bp_fired);
 	hlt();

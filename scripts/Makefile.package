@@ -158,6 +158,7 @@ $(perf-tar-pkgs):
 PHONY += help
 help:
 	@echo '  rpm-pkg             - Build both source and binary RPM kernel packages'
+	@echo '  srcrpm-pkg          - Build only the source kernel RPM package'
 	@echo '  binrpm-pkg          - Build only the binary kernel RPM package'
 	@echo '  deb-pkg             - Build both source and binary deb kernel packages'
 	@echo '  bindeb-pkg          - Build only the binary kernel deb package'
