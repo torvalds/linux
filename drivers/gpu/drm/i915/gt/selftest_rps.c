@@ -537,8 +537,8 @@ static u64 __measure_frequency(u32 *cntr, int duration_ms)
 {
 	u64 dc, dt;
 
-	dt = ktime_get();
 	dc = READ_ONCE(*cntr);
+	dt = ktime_get();
 	usleep_range(1000 * duration_ms, 2000 * duration_ms);
 	dc = READ_ONCE(*cntr) - dc;
 	dt = ktime_get() - dt;
@@ -566,8 +566,8 @@ static u64 __measure_cs_frequency(struct intel_engine_cs *engine,
 {
 	u64 dc, dt;
 
-	dt = ktime_get();
 	dc = intel_uncore_read_fw(engine->uncore, CS_GPR(0));
+	dt = ktime_get();
 	usleep_range(1000 * duration_ms, 2000 * duration_ms);
 	dc = intel_uncore_read_fw(engine->uncore, CS_GPR(0)) - dc;
 	dt = ktime_get() - dt;
@@ -1094,8 +1094,8 @@ static u64 __measure_power(int duration_ms)
 {
 	u64 dE, dt;
 
-	dt = ktime_get();
 	dE = librapl_energy_uJ();
+	dt = ktime_get();
 	usleep_range(1000 * duration_ms, 2000 * duration_ms);
 	dE = librapl_energy_uJ() - dE;
 	dt = ktime_get() - dt;
