@@ -2976,8 +2976,8 @@ struct cs_timeout_info {
  * @cq_addr: the address of the current handled command buffer
  * @cq_size: the size of the current handled command buffer
  * @cb_addr_streams_len: num of streams - actual len of cb_addr_streams array.
- *                       should be equal to 1 incase of undefined opcode
- *                       in Upper-CP (specific stream) and equal to 4 incase
+ *                       should be equal to 1 in case of undefined opcode
+ *                       in Upper-CP (specific stream) and equal to 4 in case
  *                       of undefined opcode in Lower-CP.
  * @engine_id: engine-id that the error occurred on
  * @stream_id: the stream id the error occurred on. In case the stream equals to

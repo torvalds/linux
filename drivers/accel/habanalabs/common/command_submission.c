@@ -657,7 +657,7 @@ static inline void cs_release_sob_reset_handler(struct hl_device *hdev,
 	/*
 	 * we get refcount upon reservation of signals or signal/wait cs for the
 	 * hw_sob object, and need to put it when the first staged cs
-	 * (which cotains the encaps signals) or cs signal/wait is completed.
+	 * (which contains the encaps signals) or cs signal/wait is completed.
 	 */
 	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
 			(hl_cs_cmpl->type == CS_TYPE_WAIT) ||

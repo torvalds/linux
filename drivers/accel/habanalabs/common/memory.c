@@ -2230,11 +2230,11 @@ static struct hl_mmap_mem_buf_behavior hl_ts_behavior = {
  * allocate_timestamps_buffers() - allocate timestamps buffers
  * This function will allocate ts buffer that will later on be mapped to the user
  * in order to be able to read the timestamp.
- * in additon it'll allocate an extra buffer for registration management.
+ * in addition it'll allocate an extra buffer for registration management.
  * since we cannot fail during registration for out-of-memory situation, so
  * we'll prepare a pool which will be used as user interrupt nodes and instead
  * of dynamically allocating nodes while registration we'll pick the node from
- * this pool. in addtion it'll add node to the mapping hash which will be used
+ * this pool. in addition it'll add node to the mapping hash which will be used
  * to map user ts buffer to the internal kernel ts buffer.
  * @hpriv: pointer to the private data of the fd
  * @args: ioctl input
