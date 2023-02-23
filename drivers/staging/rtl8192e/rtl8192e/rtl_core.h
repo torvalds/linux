@@ -198,9 +198,6 @@ struct rtl8192_tx_ring {
 	struct sk_buff_head queue;
 };
 
-struct rtl819x_ops {
-};
-
 struct r8192_priv {
 	struct pci_dev *pdev;
 	struct pci_dev *bridge_pdev;
@@ -218,7 +215,6 @@ struct r8192_priv {
 	struct delayed_work		txpower_tracking_wq;
 	struct delayed_work		rfpath_check_wq;
 	struct delayed_work		gpio_change_rf_wq;
-	struct rtl819x_ops			*ops;
 	struct rtllib_device			*rtllib;
 
 	struct work_struct				reset_wq;

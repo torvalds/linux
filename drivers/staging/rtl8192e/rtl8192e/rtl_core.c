@@ -25,9 +25,6 @@
 int hwwep = 1;
 static char *ifname = "wlan%d";
 
-static const struct rtl819x_ops rtl819xp_ops = {
-};
-
 static struct pci_device_id rtl8192_pci_id_tbl[] = {
 	{PCI_DEVICE(0x10ec, 0x8192)},
 	{PCI_DEVICE(0x07aa, 0x0044)},
@@ -2190,7 +2187,6 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	unsigned long ioaddr = 0;
 	struct net_device *dev = NULL;
 	struct r8192_priv *priv = NULL;
-	struct rtl819x_ops *ops = (struct rtl819x_ops *)(id->driver_data);
 	unsigned long pmem_start, pmem_len, pmem_flags;
 	int err = -ENOMEM;
 	u8 revision_id;
@@ -2256,8 +2252,6 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	/* If the revisionid is 0x10, the device uses rtl8192se. */
 	if (pdev->device == 0x8192 && revision_id == 0x10)
 		goto err_unmap;
-
-	priv->ops = ops;
 
 	if (!rtl92e_check_adapter(pdev, dev))
 		goto err_unmap;
