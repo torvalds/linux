@@ -124,8 +124,8 @@ static int clk_mt8173_mm_probe(struct platform_device *pdev)
 
 	data = &mt8173_mmsys_driver_data;
 
-	ret = mtk_clk_register_gates(node, data->gates_clk, data->gates_num,
-				     clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, data->gates_clk,
+				     data->gates_num, clk_data);
 	if (ret)
 		return ret;
 
@@ -136,11 +136,29 @@ static int clk_mt8173_mm_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int clk_mt8173_mm_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *node = dev->parent->of_node;
+	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
+	const struct clk_mt8173_mm_driver_data *data = &mt8173_mmsys_driver_data;
+
+	of_clk_del_provider(node);
+	mtk_clk_unregister_gates(data->gates_clk, data->gates_num, clk_data);
+	mtk_free_clk_data(clk_data);
+
+	return 0;
+}
+
 static struct platform_driver clk_mt8173_mm_drv = {
 	.driver = {
 		.name = "clk-mt8173-mm",
 	},
 	.probe = clk_mt8173_mm_probe,
+	.remove = clk_mt8173_mm_remove,
 };
 
 builtin_platform_driver(clk_mt8173_mm_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8173 MultiMedia clocks driver");
+MODULE_LICENSE("GPL");
