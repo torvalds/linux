@@ -23,30 +23,6 @@ static inline void mocs_dbg(const struct drm_device *dev,
 { /* noop */ }
 #endif
 
-/*
- * MOCS indexes used for GPU surfaces, defining the cacheability of the
- * surface data and the coherency for this data wrt. CPU vs. GPU accesses.
- */
-enum xe_mocs_info_index {
-	/*
-	 * Not cached anywhere, coherency between CPU and GPU accesses is
-	 * guaranteed.
-	 */
-	XE_MOCS_UNCACHED,
-	/*
-	 * Cacheability and coherency controlled by the kernel automatically
-	 * based on the xxxx  IOCTL setting and the current
-	 * usage of the surface (used for display scanout or not).
-	 */
-	XE_MOCS_PTE,
-	/*
-	 * Cached in all GPU caches available on the platform.
-	 * Coherency between CPU and GPU accesses to the surface is not
-	 * guaranteed without extra synchronization.
-	 */
-	XE_MOCS_CACHED,
-};
-
 enum {
 	HAS_GLOBAL_MOCS = BIT(0),
 	HAS_RENDER_L3CC = BIT(1),
@@ -341,7 +317,6 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 
 	memset(info, 0, sizeof(struct xe_mocs_info));
 
-	info->unused_entries_index = XE_MOCS_PTE;
 	switch (xe->info.platform) {
 	case XE_PVC:
 		info->size = ARRAY_SIZE(pvc_mocs_desc);
@@ -395,6 +370,16 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		return 0;
 	}
 
+	/*
+	 * Index 0 is a reserved/unused table entry on most platforms, but
+	 * even on those where it does represent a legitimate MOCS entry, it
+	 * never represents the "most cached, least coherent" behavior we want
+	 * to populate undefined table rows with.  So if unused_entries_index
+	 * is still 0 at this point, we'll assume that it was omitted by
+	 * mistake in the switch statement above.
+	 */
+	XE_WARN_ON(info->unused_entries_index == 0);
+
 	if (XE_WARN_ON(info->size > info->n_entries))
 		return 0;
 
@@ -406,9 +391,8 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 }
 
 /*
- * Get control_value from MOCS entry taking into account when it's not used
- * then if unused_entries_index is non-zero then its value will be returned
- * otherwise XE_MOCS_PTE's value is returned in this case.
+ * Get control_value from MOCS entry.  If the table entry is not defined, the
+ * settings from unused_entries_index will be returned.
  */
 static u32 get_entry_control(const struct xe_mocs_info *info,
 			     unsigned int index)
