@@ -383,10 +383,11 @@ static void _get_p1_info(struct isst_id *id, int config_index,
 	ctdp_level->sse_p1 = resp & GENMASK(7, 0);
 	ctdp_level->avx2_p1 = (resp & GENMASK(15, 8)) >> 8;
 	ctdp_level->avx512_p1 = (resp & GENMASK(23, 16)) >> 16;
+	ctdp_level->amx_p1 = (resp & GENMASK(31, 24)) >> 24;
 	debug_printf(
-		"cpu:%d ctdp:%d CONFIG_TDP_GET_P1_INFO resp:%x sse_p1:%d avx2_p1:%d avx512_p1:%d\n",
+		"cpu:%d ctdp:%d CONFIG_TDP_GET_P1_INFO resp:%x sse_p1:%d avx2_p1:%d avx512_p1:%d amx_p1:%d\n",
 		id->cpu, config_index, resp, ctdp_level->sse_p1,
-		ctdp_level->avx2_p1, ctdp_level->avx512_p1);
+		ctdp_level->avx2_p1, ctdp_level->avx512_p1, ctdp_level->amx_p1);
 }
 
 static void _get_uncore_mem_freq(struct isst_id *id, int config_index,

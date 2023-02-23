@@ -424,7 +424,7 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			format_and_print(outf, level + 2, header, value);
 		}
 
-		if (api_version() > 1 && ctdp_level->amx_p1) {
+		if (ctdp_level->amx_p1) {
 			snprintf(header, sizeof(header), "base-frequency-amx(MHz)");
 			snprintf(value, sizeof(value), "%d",
 			ctdp_level->amx_p1 * isst_get_disp_freq_multiplier());
