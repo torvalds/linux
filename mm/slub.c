@@ -2066,7 +2066,7 @@ static void __free_slab(struct kmem_cache *s, struct slab *slab)
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
 	unaccount_slab(slab, order, s);
-	__free_pages(folio_page(folio, 0), order);
+	__free_pages(&folio->page, order);
 }
 
 static void rcu_free_slab(struct rcu_head *h)
@@ -3913,6 +3913,7 @@ static inline int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags,
 			size_t size, void **p, struct obj_cgroup *objcg)
 {
 	struct kmem_cache_cpu *c;
+	unsigned long irqflags;
 	int i;
 
 	/*
@@ -3921,7 +3922,7 @@ static inline int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags,
 	 * handlers invoking normal fastpath.
 	 */
 	c = slub_get_cpu_ptr(s->cpu_slab);
-	local_lock_irq(&s->cpu_slab->lock);
+	local_lock_irqsave(&s->cpu_slab->lock, irqflags);
 
 	for (i = 0; i < size; i++) {
 		void *object = kfence_alloc(s, s->object_size, flags);
@@ -3942,7 +3943,7 @@ static inline int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags,
 			 */
 			c->tid = next_tid(c->tid);
 
-			local_unlock_irq(&s->cpu_slab->lock);
+			local_unlock_irqrestore(&s->cpu_slab->lock, irqflags);
 
 			/*
 			 * Invoking slow path likely have side-effect
@@ -3956,7 +3957,7 @@ static inline int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags,
 			c = this_cpu_ptr(s->cpu_slab);
 			maybe_wipe_obj_freeptr(s, p[i]);
 
-			local_lock_irq(&s->cpu_slab->lock);
+			local_lock_irqsave(&s->cpu_slab->lock, irqflags);
 
 			continue; /* goto for-loop */
 		}
@@ -3965,7 +3966,7 @@ static inline int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags,
 		maybe_wipe_obj_freeptr(s, p[i]);
 	}
 	c->tid = next_tid(c->tid);
-	local_unlock_irq(&s->cpu_slab->lock);
+	local_unlock_irqrestore(&s->cpu_slab->lock, irqflags);
 	slub_put_cpu_ptr(s->cpu_slab);
 
 	return i;
@@ -6449,7 +6450,7 @@ static void debugfs_slab_add(struct kmem_cache *s)
 
 void debugfs_slab_release(struct kmem_cache *s)
 {
-	debugfs_remove_recursive(debugfs_lookup(s->name, slab_debugfs_root));
+	debugfs_lookup_and_remove(s->name, slab_debugfs_root);
 }
 
 static int __init slab_debugfs_init(void)
