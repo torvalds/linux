@@ -820,7 +820,7 @@ config SPI_RSPI
 
 config SPI_QCOM_QSPI
 	tristate "QTI QSPI controller"
-	depends on ARCH_QCOM
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  QSPI(Quad SPI) driver for Qualcomm QSPI controller.
 
