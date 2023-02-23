@@ -19,7 +19,7 @@
  * @NETDEV_XDP_ACT_XSK_ZEROCOPY: This feature informs if netdev supports AF_XDP
  *   in zero copy mode.
  * @NETDEV_XDP_ACT_HW_OFFLOAD: This feature informs if netdev supports XDP hw
- *   oflloading.
+ *   offloading.
  * @NETDEV_XDP_ACT_RX_SG: This feature informs if netdev implements non-linear
  *   XDP buffer support in the driver napi callback.
  * @NETDEV_XDP_ACT_NDO_XMIT_SG: This feature informs if netdev implements

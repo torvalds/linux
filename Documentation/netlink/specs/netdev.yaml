@@ -28,7 +28,7 @@ definitions:
       -
         name: hw-offload
         doc:
-         This feature informs if netdev supports XDP hw oflloading.
+         This feature informs if netdev supports XDP hw offloading.
       -
         name: rx-sg
         doc:
