@@ -1270,7 +1270,6 @@ static void guc_engine_resume(struct xe_engine *e)
 
 	XE_BUG_ON(e->guc->suspend_pending);
 
-	xe_mocs_init_engine(e);
 	guc_engine_add_msg(e, msg, RESUME);
 }
 

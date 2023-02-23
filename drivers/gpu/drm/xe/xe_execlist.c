@@ -460,7 +460,7 @@ static void execlist_engine_suspend_wait(struct xe_engine *e)
 
 static void execlist_engine_resume(struct xe_engine *e)
 {
-	xe_mocs_init_engine(e);
+	/* NIY */
 }
 
 static const struct xe_engine_ops execlist_engine_ops = {

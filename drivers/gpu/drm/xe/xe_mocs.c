@@ -517,19 +517,6 @@ static void init_l3cc_table(struct xe_gt *gt,
 	}
 }
 
-void xe_mocs_init_engine(const struct xe_engine *engine)
-{
-	struct xe_mocs_info table;
-	unsigned int flags;
-
-	flags = get_mocs_settings(engine->gt->xe, &table);
-	if (!flags)
-		return;
-
-	if (flags & HAS_RENDER_L3CC && engine->class == XE_ENGINE_CLASS_RENDER)
-		init_l3cc_table(engine->gt, &table);
-}
-
 void xe_mocs_init(struct xe_gt *gt)
 {
 	struct xe_mocs_info table;

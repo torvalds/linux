@@ -11,7 +11,6 @@
 struct xe_engine;
 struct xe_gt;
 
-void xe_mocs_init_engine(const struct xe_engine *engine);
 void xe_mocs_init(struct xe_gt *gt);
 
 /**

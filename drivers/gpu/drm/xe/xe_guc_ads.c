@@ -207,6 +207,11 @@ static void guc_ads_fini(struct drm_device *drm, void *arg)
 	xe_bo_unpin_map_no_vm(ads->bo);
 }
 
+static bool needs_wa_1607983814(struct xe_device *xe)
+{
+	return GRAPHICS_VERx100(xe) < 1250;
+}
+
 static size_t calculate_regset_size(struct xe_gt *gt)
 {
 	struct xe_reg_sr_entry *sr_entry;
@@ -219,7 +224,10 @@ static size_t calculate_regset_size(struct xe_gt *gt)
 		xa_for_each(&hwe->reg_sr.xa, sr_idx, sr_entry)
 			count++;
 
-	count += (ADS_REGSET_EXTRA_MAX + LNCFCMOCS_REG_COUNT) * XE_NUM_HW_ENGINES;
+	count += ADS_REGSET_EXTRA_MAX * XE_NUM_HW_ENGINES;
+
+	if (needs_wa_1607983814(gt_to_xe(gt)))
+		count += LNCFCMOCS_REG_COUNT;
 
 	return count * sizeof(struct guc_mmio_reg);
 }
@@ -431,6 +439,7 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 					  struct iosys_map *regset_map,
 					  struct xe_hw_engine *hwe)
 {
+	struct xe_device *xe = ads_to_xe(ads);
 	struct xe_hw_engine *hwe_rcs_reset_domain =
 		xe_gt_any_hw_engine_by_reset_domain(hwe->gt, XE_ENGINE_CLASS_RENDER);
 	struct xe_reg_sr_entry *entry;
@@ -465,9 +474,12 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 					  e->reg, e->flags, count++);
 	}
 
-	for (i = 0; i < LNCFCMOCS_REG_COUNT; i++) {
-		guc_mmio_regset_write_one(ads, regset_map,
-					  GEN9_LNCFCMOCS(i).reg, 0, count++);
+	/* Wa_1607983814 */
+	if (needs_wa_1607983814(xe) && hwe->class == XE_ENGINE_CLASS_RENDER) {
+		for (i = 0; i < LNCFCMOCS_REG_COUNT; i++) {
+			guc_mmio_regset_write_one(ads, regset_map,
+						  GEN9_LNCFCMOCS(i).reg, 0, count++);
+		}
 	}
 
 	XE_BUG_ON(ads->regset_size < (count * sizeof(struct guc_mmio_reg)));
