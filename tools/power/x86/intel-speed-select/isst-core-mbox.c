@@ -8,6 +8,8 @@
 static int mbox_delay;
 static int mbox_retries = 3;
 
+#define MAX_TRL_LEVELS_EMR	5
+
 static int mbox_get_disp_freq_multiplier(void)
 {
         return DISP_FREQ_MULTIPLIER;
@@ -15,11 +17,24 @@ static int mbox_get_disp_freq_multiplier(void)
 
 static int mbox_get_trl_max_levels(void)
 {
+	if (is_emr_platform())
+		return MAX_TRL_LEVELS_EMR;
+
         return 3;
 }
 
 static char *mbox_get_trl_level_name(int level)
 {
+	if (is_emr_platform()) {
+		static char level_str[18];
+
+		if (level >= MAX_TRL_LEVELS_EMR)
+			return NULL;
+
+		snprintf(level_str, sizeof(level_str), "level-%d", level);
+		return level_str;
+	}
+
         switch (level) {
         case 0:
                 return "sse";
