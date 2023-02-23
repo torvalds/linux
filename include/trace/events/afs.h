@@ -654,12 +654,12 @@ TRACE_EVENT(afs_receive_data,
 	    TP_ARGS(call, iter, want_more, ret),
 
 	    TP_STRUCT__entry(
-		    __field(loff_t,			remain		)
-		    __field(unsigned int,		call		)
-		    __field(enum afs_call_state,	state		)
-		    __field(unsigned short,		unmarshall	)
-		    __field(bool,			want_more	)
-		    __field(int,			ret		)
+		    __field(loff_t,			remain)
+		    __field(unsigned int,		call)
+		    __field(enum afs_call_state,	state)
+		    __field(unsigned short,		unmarshall)
+		    __field(bool,			want_more)
+		    __field(int,			ret)
 			     ),
 
 	    TP_fast_assign(
@@ -686,9 +686,9 @@ TRACE_EVENT(afs_notify_call,
 	    TP_ARGS(rxcall, call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum afs_call_state,	state		)
-		    __field(unsigned short,		unmarshall	)
+		    __field(unsigned int,		call)
+		    __field(enum afs_call_state,	state)
+		    __field(unsigned short,		unmarshall)
 			     ),
 
 	    TP_fast_assign(
@@ -708,9 +708,9 @@ TRACE_EVENT(afs_cb_call,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(u32,			op		)
-		    __field(u16,			service_id	)
+		    __field(unsigned int,		call)
+		    __field(u32,			op)
+		    __field(u16,			service_id)
 			     ),
 
 	    TP_fast_assign(
@@ -733,11 +733,11 @@ TRACE_EVENT(afs_call,
 	    TP_ARGS(call_debug_id, op, ref, outstanding, where),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(int,			op		)
-		    __field(int,			ref		)
-		    __field(int,			outstanding	)
-		    __field(const void *,		where		)
+		    __field(unsigned int,		call)
+		    __field(int,			op)
+		    __field(int,			ref)
+		    __field(int,			outstanding)
+		    __field(const void *,		where)
 			     ),
 
 	    TP_fast_assign(
@@ -762,9 +762,9 @@ TRACE_EVENT(afs_make_fs_call,
 	    TP_ARGS(call, fid),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum afs_fs_operation,	op		)
-		    __field_struct(struct afs_fid,	fid		)
+		    __field(unsigned int,		call)
+		    __field(enum afs_fs_operation,	op)
+		    __field_struct(struct afs_fid,	fid)
 			     ),
 
 	    TP_fast_assign(
@@ -794,10 +794,10 @@ TRACE_EVENT(afs_make_fs_calli,
 	    TP_ARGS(call, fid, i),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(unsigned int,		i		)
-		    __field(enum afs_fs_operation,	op		)
-		    __field_struct(struct afs_fid,	fid		)
+		    __field(unsigned int,		call)
+		    __field(unsigned int,		i)
+		    __field(enum afs_fs_operation,	op)
+		    __field_struct(struct afs_fid,	fid)
 			     ),
 
 	    TP_fast_assign(
@@ -829,10 +829,10 @@ TRACE_EVENT(afs_make_fs_call1,
 	    TP_ARGS(call, fid, name),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum afs_fs_operation,	op		)
-		    __field_struct(struct afs_fid,	fid		)
-		    __array(char,			name, 24	)
+		    __field(unsigned int,		call)
+		    __field(enum afs_fs_operation,	op)
+		    __field_struct(struct afs_fid,	fid)
+		    __array(char,			name, 24)
 			     ),
 
 	    TP_fast_assign(
@@ -866,11 +866,11 @@ TRACE_EVENT(afs_make_fs_call2,
 	    TP_ARGS(call, fid, name, name2),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum afs_fs_operation,	op		)
-		    __field_struct(struct afs_fid,	fid		)
-		    __array(char,			name, 24	)
-		    __array(char,			name2, 24	)
+		    __field(unsigned int,		call)
+		    __field(enum afs_fs_operation,	op)
+		    __field_struct(struct afs_fid,	fid)
+		    __array(char,			name, 24)
+		    __array(char,			name2, 24)
 			     ),
 
 	    TP_fast_assign(
@@ -907,8 +907,8 @@ TRACE_EVENT(afs_make_vl_call,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum afs_vl_operation,	op		)
+		    __field(unsigned int,		call)
+		    __field(enum afs_vl_operation,	op)
 			     ),
 
 	    TP_fast_assign(
@@ -927,10 +927,10 @@ TRACE_EVENT(afs_call_done,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(struct rxrpc_call *,	rx_call		)
-		    __field(int,			ret		)
-		    __field(u32,			abort_code	)
+		    __field(unsigned int,		call)
+		    __field(struct rxrpc_call *,	rx_call)
+		    __field(int,			ret)
+		    __field(u32,			abort_code)
 			     ),
 
 	    TP_fast_assign(
@@ -953,10 +953,10 @@ TRACE_EVENT(afs_send_data,
 	    TP_ARGS(call, msg),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(unsigned int,		flags		)
-		    __field(loff_t,			offset		)
-		    __field(loff_t,			count		)
+		    __field(unsigned int,		call)
+		    __field(unsigned int,		flags)
+		    __field(loff_t,			offset)
+		    __field(loff_t,			count)
 			     ),
 
 	    TP_fast_assign(
@@ -977,10 +977,10 @@ TRACE_EVENT(afs_sent_data,
 	    TP_ARGS(call, msg, ret),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(int,			ret		)
-		    __field(loff_t,			offset		)
-		    __field(loff_t,			count		)
+		    __field(unsigned int,		call)
+		    __field(int,			ret)
+		    __field(loff_t,			offset)
+		    __field(loff_t,			count)
 			     ),
 
 	    TP_fast_assign(
@@ -1001,9 +1001,9 @@ TRACE_EVENT(afs_dir_check_failed,
 	    TP_ARGS(vnode, off, i_size),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_vnode *,		vnode		)
-		    __field(loff_t,			off		)
-		    __field(loff_t,			i_size		)
+		    __field(struct afs_vnode *,		vnode)
+		    __field(loff_t,			off)
+		    __field(loff_t,			i_size)
 			     ),
 
 	    TP_fast_assign(
@@ -1022,11 +1022,11 @@ TRACE_EVENT(afs_folio_dirty,
 	    TP_ARGS(vnode, where, folio),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_vnode *,		vnode		)
-		    __field(const char *,		where		)
-		    __field(pgoff_t,			index		)
-		    __field(unsigned long,		from		)
-		    __field(unsigned long,		to		)
+		    __field(struct afs_vnode *,		vnode)
+		    __field(const char *,		where)
+		    __field(pgoff_t,			index)
+		    __field(unsigned long,		from)
+		    __field(unsigned long,		to)
 			     ),
 
 	    TP_fast_assign(
@@ -1056,11 +1056,11 @@ TRACE_EVENT(afs_call_state,
 	    TP_ARGS(call, from, to, ret, remote_abort),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum afs_call_state,	from		)
-		    __field(enum afs_call_state,	to		)
-		    __field(int,			ret		)
-		    __field(u32,			abort		)
+		    __field(unsigned int,		call)
+		    __field(enum afs_call_state,	from)
+		    __field(enum afs_call_state,	to)
+		    __field(int,			ret)
+		    __field(u32,			abort)
 			     ),
 
 	    TP_fast_assign(
@@ -1084,9 +1084,9 @@ TRACE_EVENT(afs_lookup,
 	    TP_ARGS(dvnode, name, fid),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	dfid		)
-		    __field_struct(struct afs_fid,	fid		)
-		    __array(char,			name, 24	)
+		    __field_struct(struct afs_fid,	dfid)
+		    __field_struct(struct afs_fid,	fid)
+		    __array(char,			name, 24)
 			     ),
 
 	    TP_fast_assign(
@@ -1116,15 +1116,15 @@ TRACE_EVENT(afs_edit_dir,
 	    TP_ARGS(dvnode, why, op, block, slot, f_vnode, f_unique, name),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		vnode		)
-		    __field(unsigned int,		unique		)
-		    __field(enum afs_edit_dir_reason,	why		)
-		    __field(enum afs_edit_dir_op,	op		)
-		    __field(unsigned int,		block		)
-		    __field(unsigned short,		slot		)
-		    __field(unsigned int,		f_vnode		)
-		    __field(unsigned int,		f_unique	)
-		    __array(char,			name, 24	)
+		    __field(unsigned int,		vnode)
+		    __field(unsigned int,		unique)
+		    __field(enum afs_edit_dir_reason,	why)
+		    __field(enum afs_edit_dir_op,	op)
+		    __field(unsigned int,		block)
+		    __field(unsigned short,		slot)
+		    __field(unsigned int,		f_vnode)
+		    __field(unsigned int,		f_unique)
+		    __array(char,			name, 24)
 			     ),
 
 	    TP_fast_assign(
@@ -1157,8 +1157,8 @@ TRACE_EVENT(afs_protocol_error,
 	    TP_ARGS(call, cause),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(enum afs_eproto_cause,	cause		)
+		    __field(unsigned int,		call)
+		    __field(enum afs_eproto_cause,	cause)
 			     ),
 
 	    TP_fast_assign(
@@ -1177,9 +1177,9 @@ TRACE_EVENT(afs_io_error,
 	    TP_ARGS(call, error, where),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,	call		)
-		    __field(int,		error		)
-		    __field(enum afs_io_error,	where		)
+		    __field(unsigned int,	call)
+		    __field(int,		error)
+		    __field(enum afs_io_error,	where)
 			     ),
 
 	    TP_fast_assign(
@@ -1199,9 +1199,9 @@ TRACE_EVENT(afs_file_error,
 	    TP_ARGS(vnode, error, where),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	fid		)
-		    __field(int,			error		)
-		    __field(enum afs_file_error,	where		)
+		    __field_struct(struct afs_fid,	fid)
+		    __field(int,			error)
+		    __field(enum afs_file_error,	where)
 			     ),
 
 	    TP_fast_assign(
@@ -1222,9 +1222,9 @@ TRACE_EVENT(afs_cm_no_server,
 	    TP_ARGS(call, srx),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call	)
-		    __field(unsigned int,			op_id	)
-		    __field_struct(struct sockaddr_rxrpc,	srx	)
+		    __field(unsigned int,			call)
+		    __field(unsigned int,			op_id)
+		    __field_struct(struct sockaddr_rxrpc,	srx)
 			     ),
 
 	    TP_fast_assign(
@@ -1243,9 +1243,9 @@ TRACE_EVENT(afs_cm_no_server_u,
 	    TP_ARGS(call, uuid),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,			call	)
-		    __field(unsigned int,			op_id	)
-		    __field_struct(uuid_t,			uuid	)
+		    __field(unsigned int,			call)
+		    __field(unsigned int,			op_id)
+		    __field_struct(uuid_t,			uuid)
 			     ),
 
 	    TP_fast_assign(
@@ -1265,11 +1265,11 @@ TRACE_EVENT(afs_flock_ev,
 	    TP_ARGS(vnode, fl, event, error),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	fid		)
-		    __field(enum afs_flock_event,	event		)
-		    __field(enum afs_lock_state,	state		)
-		    __field(int,			error		)
-		    __field(unsigned int,		debug_id	)
+		    __field_struct(struct afs_fid,	fid)
+		    __field(enum afs_flock_event,	event)
+		    __field(enum afs_lock_state,	state)
+		    __field(int,			error)
+		    __field(unsigned int,		debug_id)
 			     ),
 
 	    TP_fast_assign(
@@ -1295,13 +1295,13 @@ TRACE_EVENT(afs_flock_op,
 	    TP_ARGS(vnode, fl, op),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	fid		)
-		    __field(loff_t,			from		)
-		    __field(loff_t,			len		)
-		    __field(enum afs_flock_operation,	op		)
-		    __field(unsigned char,		type		)
-		    __field(unsigned int,		flags		)
-		    __field(unsigned int,		debug_id	)
+		    __field_struct(struct afs_fid,	fid)
+		    __field(loff_t,			from)
+		    __field(loff_t,			len)
+		    __field(enum afs_flock_operation,	op)
+		    __field(unsigned char,		type)
+		    __field(unsigned int,		flags)
+		    __field(unsigned int,		debug_id)
 			     ),
 
 	    TP_fast_assign(
@@ -1328,7 +1328,7 @@ TRACE_EVENT(afs_reload_dir,
 	    TP_ARGS(vnode),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	fid		)
+		    __field_struct(struct afs_fid,	fid)
 			     ),
 
 	    TP_fast_assign(
@@ -1345,8 +1345,8 @@ TRACE_EVENT(afs_silly_rename,
 	    TP_ARGS(vnode, done),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	fid		)
-		    __field(bool,			done		)
+		    __field_struct(struct afs_fid,	fid)
+		    __field(bool,			done)
 			     ),
 
 	    TP_fast_assign(
@@ -1365,9 +1365,9 @@ TRACE_EVENT(afs_get_tree,
 	    TP_ARGS(cell, volume),
 
 	    TP_STRUCT__entry(
-		    __field(u64,			vid		)
-		    __array(char,			cell, 24	)
-		    __array(char,			volume, 24	)
+		    __field(u64,			vid)
+		    __array(char,			cell, 24)
+		    __array(char,			volume, 24)
 			     ),
 
 	    TP_fast_assign(
@@ -1392,10 +1392,10 @@ TRACE_EVENT(afs_cb_break,
 	    TP_ARGS(fid, cb_break, reason, skipped),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	fid		)
-		    __field(unsigned int,		cb_break	)
-		    __field(enum afs_cb_break_reason,	reason		)
-		    __field(bool,			skipped		)
+		    __field_struct(struct afs_fid,	fid)
+		    __field(unsigned int,		cb_break)
+		    __field(enum afs_cb_break_reason,	reason)
+		    __field(bool,			skipped)
 			     ),
 
 	    TP_fast_assign(
@@ -1418,8 +1418,8 @@ TRACE_EVENT(afs_cb_miss,
 	    TP_ARGS(fid, reason),
 
 	    TP_STRUCT__entry(
-		    __field_struct(struct afs_fid,	fid		)
-		    __field(enum afs_cb_break_reason,	reason		)
+		    __field_struct(struct afs_fid,	fid)
+		    __field(enum afs_cb_break_reason,	reason)
 			     ),
 
 	    TP_fast_assign(
@@ -1439,10 +1439,10 @@ TRACE_EVENT(afs_server,
 	    TP_ARGS(server_debug_id, ref, active, reason),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		server		)
-		    __field(int,			ref		)
-		    __field(int,			active		)
-		    __field(int,			reason		)
+		    __field(unsigned int,		server)
+		    __field(int,			ref)
+		    __field(int,			active)
+		    __field(int,			reason)
 			     ),
 
 	    TP_fast_assign(
@@ -1465,9 +1465,9 @@ TRACE_EVENT(afs_volume,
 	    TP_ARGS(vid, ref, reason),
 
 	    TP_STRUCT__entry(
-		    __field(afs_volid_t,		vid		)
-		    __field(int,			ref		)
-		    __field(enum afs_volume_trace,	reason		)
+		    __field(afs_volid_t,		vid)
+		    __field(int,			ref)
+		    __field(enum afs_volume_trace,	reason)
 			     ),
 
 	    TP_fast_assign(
@@ -1489,10 +1489,10 @@ TRACE_EVENT(afs_cell,
 	    TP_ARGS(cell_debug_id, ref, active, reason),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		cell		)
-		    __field(int,			ref		)
-		    __field(int,			active		)
-		    __field(int,			reason		)
+		    __field(unsigned int,		cell)
+		    __field(int,			ref)
+		    __field(int,			active)
+		    __field(int,			reason)
 			     ),
 
 	    TP_fast_assign(
