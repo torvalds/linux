@@ -14,6 +14,7 @@ package(
 
 _aarch64_additional_kmi_symbol_lists = [
     # keep sorted
+    "android/abi_gki_aarch64_db845c",
     "android/abi_gki_aarch64_pixel",
     "android/abi_gki_aarch64_qcom",
     "android/abi_gki_aarch64_virtual_device",
@@ -59,6 +60,8 @@ define_db845c(
         "arch/arm64/boot/dts/qcom/sdm845-db845c.dtb",
         "arch/arm64/boot/dts/qcom/sm8450-qrd.dtb",
     ],
+    define_abi_targets = True,
+    kmi_symbol_list = "//common:android/abi_gki_aarch64_db845c",
     module_outs = [
         # keep sorted
         "crypto/michael_mic.ko",
