@@ -352,20 +352,19 @@ static void lpt_disable_backlight(const struct drm_connector_state *old_conn_sta
 		intel_de_write(i915, BLC_PWM_CPU_CTL2, tmp & ~BLM_PWM_ENABLE);
 	}
 
-	tmp = intel_de_rmw(i915, BLC_PWM_PCH_CTL1, BLM_PCH_PWM_ENABLE, 0);
+	intel_de_rmw(i915, BLC_PWM_PCH_CTL1, BLM_PCH_PWM_ENABLE, 0);
 }
 
 static void pch_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	u32 tmp;
 
 	intel_backlight_set_pwm_level(old_conn_state, val);
 
 	intel_de_rmw(i915, BLC_PWM_CPU_CTL2, BLM_PWM_ENABLE, 0);
 
-	tmp = intel_de_rmw(i915, BLC_PWM_PCH_CTL1, BLM_PCH_PWM_ENABLE, 0);
+	intel_de_rmw(i915, BLC_PWM_PCH_CTL1, BLM_PCH_PWM_ENABLE, 0);
 }
 
 static void i9xx_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
@@ -376,11 +375,10 @@ static void i9xx_disable_backlight(const struct drm_connector_state *old_conn_st
 static void i965_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
 	struct drm_i915_private *i915 = to_i915(old_conn_state->connector->dev);
-	u32 tmp;
 
 	intel_backlight_set_pwm_level(old_conn_state, val);
 
-	tmp = intel_de_rmw(i915, BLC_PWM_CTL2, BLM_PWM_ENABLE, 0);
+	intel_de_rmw(i915, BLC_PWM_CTL2, BLM_PWM_ENABLE, 0);
 }
 
 static void vlv_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
@@ -388,11 +386,10 @@ static void vlv_disable_backlight(const struct drm_connector_state *old_conn_sta
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	enum pipe pipe = to_intel_crtc(old_conn_state->crtc)->pipe;
-	u32 tmp;
 
 	intel_backlight_set_pwm_level(old_conn_state, val);
 
-	tmp = intel_de_rmw(i915, VLV_BLC_PWM_CTL2(pipe), BLM_PWM_ENABLE, 0);
+	intel_de_rmw(i915, VLV_BLC_PWM_CTL2(pipe), BLM_PWM_ENABLE, 0);
 }
 
 static void bxt_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
