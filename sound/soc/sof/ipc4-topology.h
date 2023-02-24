@@ -266,8 +266,8 @@ struct sof_ipc4_control_data {
 	int index;
 
 	union {
-		struct sof_ipc4_ctrl_value_chan chanv[0];
-		struct sof_abi_hdr data[0];
+		DECLARE_FLEX_ARRAY(struct sof_ipc4_ctrl_value_chan, chanv);
+		DECLARE_FLEX_ARRAY(struct sof_abi_hdr, data);
 	};
 };
 
