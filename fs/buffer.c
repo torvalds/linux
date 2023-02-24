@@ -308,20 +308,19 @@ static void verify_bh(struct work_struct *work)
 	struct buffer_head *bh = ctx->bh;
 	bool valid;
 
-	valid = fsverity_verify_blocks(page_folio(bh->b_page), bh->b_size,
-				       bh_offset(bh));
+	valid = fsverity_verify_blocks(bh->b_folio, bh->b_size, bh_offset(bh));
 	end_buffer_async_read(bh, valid);
 	kfree(ctx);
 }
 
 static bool need_fsverity(struct buffer_head *bh)
 {
-	struct page *page = bh->b_page;
-	struct inode *inode = page->mapping->host;
+	struct folio *folio = bh->b_folio;
+	struct inode *inode = folio->mapping->host;
 
 	return fsverity_active(inode) &&
 		/* needed by ext4 */
-		page->index < DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
+		folio->index < DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
 }
 
 static void decrypt_bh(struct work_struct *work)
