@@ -36,8 +36,6 @@ static void domain_init(struct xe_force_wake_domain *domain,
 	domain->mask = mask;
 }
 
-#define FORCEWAKE_ACK_GT_MTL                 _MMIO(0xdfc)
-
 void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 {
 	struct xe_device *xe = gt_to_xe(gt);
@@ -48,7 +46,7 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 	/* Assuming gen11+ so assert this assumption is correct */
 	XE_BUG_ON(GRAPHICS_VER(gt_to_xe(gt)) < 11);
 
-	if (xe->info.platform == XE_METEORLAKE) {
+	if (xe->info.graphics_verx100 >= 1270) {
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
 			    XE_FW_DOMAIN_ID_GT,
 			    FORCEWAKE_GT_GEN9.reg,
