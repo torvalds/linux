@@ -209,76 +209,81 @@ static struct md_rdev *next_active_rdev(struct md_rdev *rdev, struct mddev *mdde
 	return NULL;
 }
 
-static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
+static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
+			   struct page *page)
 {
-	struct md_rdev *rdev;
 	struct block_device *bdev;
 	struct mddev *mddev = bitmap->mddev;
 	struct bitmap_storage *store = &bitmap->storage;
+	loff_t offset = mddev->bitmap_info.offset;
+	int size = PAGE_SIZE;
 
-restart:
-	rdev = NULL;
-	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
-		int size = PAGE_SIZE;
-		loff_t offset = mddev->bitmap_info.offset;
+	bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
+	if (page->index == store->file_pages - 1) {
+		int last_page_size = store->bytes & (PAGE_SIZE - 1);
 
-		bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
-
-		if (page->index == store->file_pages-1) {
-			int last_page_size = store->bytes & (PAGE_SIZE-1);
-			if (last_page_size == 0)
-				last_page_size = PAGE_SIZE;
-			size = roundup(last_page_size,
-				       bdev_logical_block_size(bdev));
-		}
-		/* Just make sure we aren't corrupting data or
-		 * metadata
-		 */
-		if (mddev->external) {
-			/* Bitmap could be anywhere. */
-			if (rdev->sb_start + offset + (page->index
-						       * (PAGE_SIZE/512))
-			    > rdev->data_offset
-			    &&
-			    rdev->sb_start + offset
-			    < (rdev->data_offset + mddev->dev_sectors
-			     + (PAGE_SIZE/512)))
-				goto bad_alignment;
-		} else if (offset < 0) {
-			/* DATA  BITMAP METADATA  */
-			if (offset
-			    + (long)(page->index * (PAGE_SIZE/512))
-			    + size/512 > 0)
-				/* bitmap runs in to metadata */
-				goto bad_alignment;
-			if (rdev->data_offset + mddev->dev_sectors
-			    > rdev->sb_start + offset)
-				/* data runs in to bitmap */
-				goto bad_alignment;
-		} else if (rdev->sb_start < rdev->data_offset) {
-			/* METADATA BITMAP DATA */
-			if (rdev->sb_start
-			    + offset
-			    + page->index*(PAGE_SIZE/512) + size/512
-			    > rdev->data_offset)
-				/* bitmap runs in to data */
-				goto bad_alignment;
-		} else {
-			/* DATA METADATA BITMAP - no problems */
-		}
-		md_super_write(mddev, rdev,
-			       rdev->sb_start + offset
-			       + page->index * (PAGE_SIZE/512),
-			       size,
-			       page);
+		if (last_page_size == 0)
+			last_page_size = PAGE_SIZE;
+		size = roundup(last_page_size,
+			       bdev_logical_block_size(bdev));
 	}
 
-	if (wait && md_super_wait(mddev) < 0)
-		goto restart;
-	return 0;
+	/* Just make sure we aren't corrupting data or metadata */
+	if (mddev->external) {
+		/* Bitmap could be anywhere. */
+		if (rdev->sb_start + offset
+		    + (page->index * (PAGE_SIZE / SECTOR_SIZE))
+		    > rdev->data_offset &&
+		    rdev->sb_start + offset
+		    < (rdev->data_offset + mddev->dev_sectors
+		     + (PAGE_SIZE / SECTOR_SIZE)))
+			return -EINVAL;
+	} else if (offset < 0) {
+		/* DATA  BITMAP METADATA  */
+		if (offset
+		    + (long)(page->index * (PAGE_SIZE / SECTOR_SIZE))
+		    + size / SECTOR_SIZE > 0)
+			/* bitmap runs in to metadata */
+			return -EINVAL;
 
- bad_alignment:
-	return -EINVAL;
+		if (rdev->data_offset + mddev->dev_sectors
+		    > rdev->sb_start + offset)
+			/* data runs in to bitmap */
+			return -EINVAL;
+	} else if (rdev->sb_start < rdev->data_offset) {
+		/* METADATA BITMAP DATA */
+		if (rdev->sb_start + offset
+		    + page->index * (PAGE_SIZE / SECTOR_SIZE)
+		    + size / SECTOR_SIZE > rdev->data_offset)
+			/* bitmap runs in to data */
+			return -EINVAL;
+	} else {
+		/* DATA METADATA BITMAP - no problems */
+	}
+
+	md_super_write(mddev, rdev,
+		       rdev->sb_start + offset
+		       + page->index * (PAGE_SIZE / SECTOR_SIZE),
+		       size, page);
+	return 0;
+}
+
+static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
+{
+	struct md_rdev *rdev;
+	struct mddev *mddev = bitmap->mddev;
+	int ret;
+
+	do {
+		rdev = NULL;
+		while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
+			ret = __write_sb_page(rdev, bitmap, page);
+			if (ret)
+				return ret;
+		}
+	} while (wait && md_super_wait(mddev) < 0);
+
+	return 0;
 }
 
 static void md_bitmap_file_kick(struct bitmap *bitmap);
