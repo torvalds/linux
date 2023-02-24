@@ -155,6 +155,7 @@ def _define_kernel_build(
         kmi_symbol_list = None,
         additional_kmi_symbol_lists = None,
         abi_definition = None,
+        strip_modules = True,
         enable_interceptor = define_compile_commands,
         visibility = ["//visibility:public"],
     )
