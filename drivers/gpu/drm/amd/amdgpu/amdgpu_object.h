@@ -336,15 +336,22 @@ uint32_t amdgpu_bo_get_preferred_domain(struct amdgpu_device *adev,
 /*
  * sub allocation
  */
-
-static inline uint64_t amdgpu_sa_bo_gpu_addr(struct amdgpu_sa_bo *sa_bo)
+static inline struct amdgpu_sa_manager *
+to_amdgpu_sa_manager(struct drm_suballoc_manager *manager)
 {
-	return sa_bo->manager->gpu_addr + sa_bo->soffset;
+	return container_of(manager, struct amdgpu_sa_manager, base);
 }
 
-static inline void * amdgpu_sa_bo_cpu_addr(struct amdgpu_sa_bo *sa_bo)
+static inline uint64_t amdgpu_sa_bo_gpu_addr(struct drm_suballoc *sa_bo)
 {
-	return sa_bo->manager->cpu_ptr + sa_bo->soffset;
+	return to_amdgpu_sa_manager(sa_bo->manager)->gpu_addr +
+		drm_suballoc_soffset(sa_bo);
+}
+
+static inline void *amdgpu_sa_bo_cpu_addr(struct drm_suballoc *sa_bo)
+{
+	return to_amdgpu_sa_manager(sa_bo->manager)->cpu_ptr +
+		drm_suballoc_soffset(sa_bo);
 }
 
 int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
@@ -355,11 +362,11 @@ void amdgpu_sa_bo_manager_fini(struct amdgpu_device *adev,
 int amdgpu_sa_bo_manager_start(struct amdgpu_device *adev,
 				      struct amdgpu_sa_manager *sa_manager);
 int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
-		     struct amdgpu_sa_bo **sa_bo,
-		     unsigned size, unsigned align);
+		     struct drm_suballoc **sa_bo,
+		     unsigned int size);
 void amdgpu_sa_bo_free(struct amdgpu_device *adev,
-			      struct amdgpu_sa_bo **sa_bo,
-			      struct dma_fence *fence);
+		       struct drm_suballoc **sa_bo,
+		       struct dma_fence *fence);
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);
