@@ -504,4 +504,5 @@ static inline u16 folded_qp(u32 q)
 
 u16 mlx4_qp_roce_entropy(struct mlx4_dev *dev, u32 qpn);
 
+void mlx4_put_qp(struct mlx4_qp *qp);
 #endif /* MLX4_QP_H */
