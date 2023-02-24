@@ -744,14 +744,14 @@ static int __gc2093_power_on(struct gc2093 *gc2093)
 	}
 
 	if (!IS_ERR(gc2093->reset_gpio))
-		gpiod_set_value_cansleep(gc2093->reset_gpio, 1);
+		gpiod_direction_output(gc2093->reset_gpio, 1);
 
 	usleep_range(1000, 2000);
 
 	if (!IS_ERR(gc2093->pwdn_gpio))
-		gpiod_set_value_cansleep(gc2093->pwdn_gpio, 1);
+		gpiod_direction_output(gc2093->pwdn_gpio, 1);
 	if (!IS_ERR(gc2093->reset_gpio))
-		gpiod_set_value_cansleep(gc2093->reset_gpio, 0);
+		gpiod_direction_output(gc2093->reset_gpio, 0);
 
 	usleep_range(10000, 20000);
 
@@ -775,12 +775,11 @@ static void __gc2093_power_off(struct gc2093 *gc2093)
 	}
 
 	if (!IS_ERR(gc2093->reset_gpio))
-		gpiod_set_value_cansleep(gc2093->reset_gpio, 1);
+		gpiod_direction_output(gc2093->reset_gpio, 1);
 	if (!IS_ERR(gc2093->pwdn_gpio))
-		gpiod_set_value_cansleep(gc2093->pwdn_gpio, 0);
+		gpiod_direction_output(gc2093->pwdn_gpio, 0);
 
 	regulator_bulk_disable(GC2093_NUM_SUPPLIES, gc2093->supplies);
-	clk_disable_unprepare(gc2093->xvclk);
 }
 
 static int gc2093_check_sensor_id(struct gc2093 *gc2093)
