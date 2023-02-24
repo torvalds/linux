@@ -588,8 +588,8 @@ static inline bool is_cxl_root(struct cxl_port *port)
 	return port->uport == port->dev.parent;
 }
 
-bool is_cxl_port(struct device *dev);
-struct cxl_port *to_cxl_port(struct device *dev);
+bool is_cxl_port(const struct device *dev);
+struct cxl_port *to_cxl_port(const struct device *dev);
 struct pci_bus;
 int devm_cxl_register_pci_bus(struct device *host, struct device *uport,
 			      struct pci_bus *bus);

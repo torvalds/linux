@@ -27,7 +27,7 @@ static void cxl_memdev_release(struct device *dev)
 	kfree(cxlmd);
 }
 
-static char *cxl_memdev_devnode(struct device *dev, umode_t *mode, kuid_t *uid,
+static char *cxl_memdev_devnode(const struct device *dev, umode_t *mode, kuid_t *uid,
 				kgid_t *gid)
 {
 	return kasprintf(GFP_KERNEL, "cxl/%s", dev_name(dev));
@@ -162,7 +162,7 @@ static const struct device_type cxl_memdev_type = {
 	.groups = cxl_memdev_attribute_groups,
 };
 
-bool is_cxl_memdev(struct device *dev)
+bool is_cxl_memdev(const struct device *dev)
 {
 	return dev->type == &cxl_memdev_type;
 }

@@ -92,12 +92,12 @@ static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 	return 0;
 }
 
-static int xenbus_uevent_backend(struct device *dev,
+static int xenbus_uevent_backend(const struct device *dev,
 				 struct kobj_uevent_env *env)
 {
-	struct xenbus_device *xdev;
-	struct xenbus_driver *drv;
-	struct xen_bus_type *bus;
+	const struct xenbus_device *xdev;
+	const struct xenbus_driver *drv;
+	const struct xen_bus_type *bus;
 
 	DPRINTK("");
 

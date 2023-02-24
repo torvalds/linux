@@ -35,9 +35,9 @@ static struct attribute *ssam_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ssam_device);
 
-static int ssam_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int ssam_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct ssam_device *sdev = to_ssam_device(dev);
+	const struct ssam_device *sdev = to_ssam_device(dev);
 
 	return add_uevent_var(env, "MODALIAS=ssam:d%02Xc%02Xt%02Xi%02Xf%02X",
 			      sdev->uid.domain, sdev->uid.category,

@@ -350,9 +350,9 @@ static int typec_match(struct device *dev, struct device_driver *driver)
 	return 0;
 }
 
-static int typec_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int typec_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct typec_altmode *altmode = to_typec_altmode(dev);
+	const struct typec_altmode *altmode = to_typec_altmode(dev);
 
 	if (add_uevent_var(env, "SVID=%04X", altmode->svid))
 		return -ENOMEM;

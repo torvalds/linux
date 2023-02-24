@@ -28,7 +28,7 @@ static int nvdimm_bus_major;
 struct class *nd_class;
 static DEFINE_IDA(nd_ida);
 
-static int to_nd_device_type(struct device *dev)
+static int to_nd_device_type(const struct device *dev)
 {
 	if (is_nvdimm(dev))
 		return ND_DEVICE_DIMM;
@@ -42,7 +42,7 @@ static int to_nd_device_type(struct device *dev)
 	return 0;
 }
 
-static int nvdimm_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int nvdimm_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return add_uevent_var(env, "MODALIAS=" ND_DEVICE_MODALIAS_FMT,
 			to_nd_device_type(dev));

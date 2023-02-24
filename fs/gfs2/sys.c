@@ -769,10 +769,10 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	wait_for_completion(&sdp->sd_kobj_unregister);
 }
 
-static int gfs2_uevent(struct kobject *kobj, struct kobj_uevent_env *env)
+static int gfs2_uevent(const struct kobject *kobj, struct kobj_uevent_env *env)
 {
-	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
-	struct super_block *s = sdp->sd_vfs;
+	const struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
+	const struct super_block *s = sdp->sd_vfs;
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);

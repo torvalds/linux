@@ -396,7 +396,7 @@ static inline struct ps3_system_bus_driver *ps3_drv_to_system_bus_drv(
 	return container_of(_drv, struct ps3_system_bus_driver, core);
 }
 static inline struct ps3_system_bus_device *ps3_dev_to_system_bus_dev(
-	struct device *_dev)
+	const struct device *_dev)
 {
 	return container_of(_dev, struct ps3_system_bus_device, core);
 }

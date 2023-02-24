@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/kstrtox.h>
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
 #include <linux/efi_embedded_fw.h>
@@ -50,7 +51,7 @@ struct test_batched_req {
 };
 
 /**
- * test_config - represents configuration for the test for different triggers
+ * struct test_config - represents configuration for the test for different triggers
  *
  * @name: the name of the firmware file to look for
  * @into_buf: when the into_buf is used if this is true
@@ -358,7 +359,7 @@ static int test_dev_config_update_bool(const char *buf, size_t size,
 	int ret;
 
 	mutex_lock(&test_fw_mutex);
-	if (strtobool(buf, cfg) < 0)
+	if (kstrtobool(buf, cfg) < 0)
 		ret = -EINVAL;
 	else
 		ret = size;

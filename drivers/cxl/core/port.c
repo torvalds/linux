@@ -38,7 +38,7 @@ static ssize_t devtype_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(devtype);
 
-static int cxl_device_id(struct device *dev)
+static int cxl_device_id(const struct device *dev)
 {
 	if (dev->type == &cxl_nvdimm_bridge_type)
 		return CXL_DEVICE_NVDIMM_BRIDGE;
@@ -523,13 +523,13 @@ static const struct device_type cxl_port_type = {
 	.groups = cxl_port_attribute_groups,
 };
 
-bool is_cxl_port(struct device *dev)
+bool is_cxl_port(const struct device *dev)
 {
 	return dev->type == &cxl_port_type;
 }
 EXPORT_SYMBOL_NS_GPL(is_cxl_port, CXL);
 
-struct cxl_port *to_cxl_port(struct device *dev)
+struct cxl_port *to_cxl_port(const struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, dev->type != &cxl_port_type,
 			  "not a cxl_port device\n"))
@@ -1826,7 +1826,7 @@ void cxl_driver_unregister(struct cxl_driver *cxl_drv)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_driver_unregister, CXL);
 
-static int cxl_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int cxl_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return add_uevent_var(env, "MODALIAS=" CXL_MODALIAS_FMT,
 			      cxl_device_id(dev));

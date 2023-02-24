@@ -927,9 +927,9 @@ static int pcmcia_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int pcmcia_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int pcmcia_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct pcmcia_device *p_dev;
+	const struct pcmcia_device *p_dev;
 	int i;
 	u32 hash[4] = { 0, 0, 0, 0};
 
