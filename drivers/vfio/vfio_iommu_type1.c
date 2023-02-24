@@ -37,7 +37,6 @@
 #include <linux/vfio.h>
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
-#include <linux/irqdomain.h>
 #include "vfio.h"
 
 #define DRIVER_VERSION  "0.2"
@@ -2170,12 +2169,6 @@ static void vfio_iommu_iova_insert_copy(struct vfio_iommu *iommu,
 	list_splice_tail(iova_copy, iova);
 }
 
-/* Redundantly walks non-present capabilities to simplify caller */
-static int vfio_iommu_device_capable(struct device *dev, void *data)
-{
-	return device_iommu_capable(dev, (enum iommu_cap)data);
-}
-
 static int vfio_iommu_domain_alloc(struct device *dev, void *data)
 {
 	struct iommu_domain **domain = data;
@@ -2190,7 +2183,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	struct vfio_iommu *iommu = iommu_data;
 	struct vfio_iommu_group *group;
 	struct vfio_domain *domain, *d;
-	bool resv_msi, msi_remap;
+	bool resv_msi;
 	phys_addr_t resv_msi_base = 0;
 	struct iommu_domain_geometry *geo;
 	LIST_HEAD(iova_copy);
@@ -2288,11 +2281,8 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	INIT_LIST_HEAD(&domain->group_list);
 	list_add(&group->next, &domain->group_list);
 
-	msi_remap = irq_domain_check_msi_remap() ||
-		    iommu_group_for_each_dev(iommu_group, (void *)IOMMU_CAP_INTR_REMAP,
-					     vfio_iommu_device_capable);
-
-	if (!allow_unsafe_interrupts && !msi_remap) {
+	if (!allow_unsafe_interrupts &&
+	    !iommu_group_has_isolated_msi(iommu_group)) {
 		pr_warn("%s: No interrupt remapping support.  Use the module param \"allow_unsafe_interrupts\" to enable VFIO IOMMU support on this platform\n",
 		       __func__);
 		ret = -EPERM;
