@@ -75,6 +75,7 @@
 
 #define REG_TX_INTSTATE(idx)		(0x0030 + (idx) * 4)
 #define REG_RX_INTSTATE(idx)		(0x0040 + (idx) * 4)
+#define REG_GLOBAL_INTSTATE(idx)	(0x0050 + (idx) * 4)
 #define REG_CHAN_INTSTATUS(ch, idx)	(0x8010 + (ch) * 0x200 + (idx) * 4)
 #define REG_CHAN_INTMASK(ch, idx)	(0x8020 + (ch) * 0x200 + (idx) * 4)
 
@@ -672,13 +673,14 @@ static void admac_handle_chan_int(struct admac_data *ad, int no)
 static irqreturn_t admac_interrupt(int irq, void *devid)
 {
 	struct admac_data *ad = devid;
-	u32 rx_intstate, tx_intstate;
+	u32 rx_intstate, tx_intstate, global_intstate;
 	int i;
 
 	rx_intstate = readl_relaxed(ad->base + REG_RX_INTSTATE(ad->irq_index));
 	tx_intstate = readl_relaxed(ad->base + REG_TX_INTSTATE(ad->irq_index));
+	global_intstate = readl_relaxed(ad->base + REG_GLOBAL_INTSTATE(ad->irq_index));
 
-	if (!tx_intstate && !rx_intstate)
+	if (!tx_intstate && !rx_intstate && !global_intstate)
 		return IRQ_NONE;
 
 	for (i = 0; i < ad->nchannels; i += 2) {
@@ -691,6 +693,12 @@ static irqreturn_t admac_interrupt(int irq, void *devid)
 		if (rx_intstate & 1)
 			admac_handle_chan_int(ad, i);
 		rx_intstate >>= 1;
+	}
+
+	if (global_intstate) {
+		dev_warn(ad->dev, "clearing unknown global interrupt flag: %x\n",
+			 global_intstate);
+		writel_relaxed(~(u32) 0, ad->base + REG_GLOBAL_INTSTATE(ad->irq_index));
 	}
 
 	return IRQ_HANDLED;
