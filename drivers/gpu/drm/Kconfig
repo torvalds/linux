@@ -231,6 +231,10 @@ config DRM_GEM_SHMEM_HELPER
 	help
 	  Choose this if you need the GEM shmem helper functions
 
+config DRM_SUBALLOC_HELPER
+	tristate
+	depends on DRM
+
 config DRM_SCHED
 	tristate
 	depends on DRM
