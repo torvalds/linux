@@ -202,7 +202,7 @@ do_nothing_cb(struct bpf_dynptr *dynptr, void *context)
 	return 0;
 }
 
-SEC("fentry/" SYS_PREFIX "sys_getrlimit")
+SEC("fentry/" SYS_PREFIX "sys_prlimit64")
 int test_user_ringbuf_epoll(void *ctx)
 {
 	long num_samples;
