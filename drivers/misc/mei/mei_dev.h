@@ -13,6 +13,11 @@
 #include <linux/mei.h>
 #include <linux/mei_cl_bus.h>
 
+static inline int uuid_le_cmp(const uuid_le u1, const uuid_le u2)
+{
+	return memcmp(&u1, &u2, sizeof(uuid_le));
+}
+
 #include "hw.h"
 #include "hbm.h"
 

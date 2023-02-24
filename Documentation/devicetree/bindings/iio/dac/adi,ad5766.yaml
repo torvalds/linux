@@ -51,15 +51,15 @@ additionalProperties: false
 examples:
   - |
     spi {
-          #address-cells = <1>;
-          #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-          ad5766@0 {
-              compatible = "adi,ad5766";
-              output-range-microvolts = <(-5000000) 5000000>;
-              reg = <0>;
-              spi-cpol;
-              spi-max-frequency = <1000000>;
-              reset-gpios = <&gpio 22 0>;
-            };
-      };
+        ad5766@0 {
+            compatible = "adi,ad5766";
+            output-range-microvolts = <(-5000000) 5000000>;
+            reg = <0>;
+            spi-cpol;
+            spi-max-frequency = <1000000>;
+            reset-gpios = <&gpio 22 0>;
+        };
+    };

@@ -46,7 +46,7 @@ static const char *dfl_pdata_key_strings[DFL_ID_MAX] = {
 };
 
 /**
- * dfl_dev_info - dfl feature device information.
+ * struct dfl_dev_info - dfl feature device information.
  * @name: name string of the feature platform device.
  * @dfh_id: id value in Device Feature Header (DFH) register by DFL spec.
  * @id: idr id of the feature dev.
@@ -68,7 +68,7 @@ static struct dfl_dev_info dfl_devs[] = {
 };
 
 /**
- * dfl_chardev_info - chardev information of dfl feature device
+ * struct dfl_chardev_info - chardev information of dfl feature device
  * @name: nmae string of the char device.
  * @devt: devt of the char device.
  */
