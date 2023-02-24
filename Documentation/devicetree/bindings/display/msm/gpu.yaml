@@ -89,7 +89,7 @@ properties:
       help bring the GPU out of secure mode.
     properties:
       memory-region:
-        $ref: /schemas/types.yaml#/definitions/phandle
+        maxItems: 1
 
       firmware-name:
         description: |

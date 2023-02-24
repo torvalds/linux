@@ -71,8 +71,7 @@ properties:
     items:
       - const: dp
 
-  operating-points-v2:
-    maxItems: 1
+  operating-points-v2: true
 
   opp-table: true
 
