@@ -26,6 +26,8 @@ struct qcom_icc_provider {
 	struct device *dev;
 	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
+	struct qcom_icc_node * const *nodes;
+	size_t num_nodes;
 	struct list_head probe_list;
 	struct regmap *regmap;
 	struct clk_bulk_data *clks;
@@ -179,4 +181,5 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev);
 int qcom_icc_rpmh_remove(struct platform_device *pdev);
 void qcom_icc_rpmh_sync_state(struct device *dev);
 int qcom_icc_get_bw_stub(struct icc_node *node, u32 *avg, u32 *peak);
+int qcom_icc_rpmh_configure_qos(struct qcom_icc_provider *qp);
 #endif
