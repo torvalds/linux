@@ -320,6 +320,7 @@ struct hid_data {
 	int bat_connected;
 	int ps_connected;
 	bool pad_input_event_flag;
+	int time_delayed;
 };
 
 struct wacom_remote_data {
