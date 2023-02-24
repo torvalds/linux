@@ -331,8 +331,8 @@ static void decrypt_bh(struct work_struct *work)
 	struct buffer_head *bh = ctx->bh;
 	int err;
 
-	err = fscrypt_decrypt_pagecache_blocks(page_folio(bh->b_page),
-					       bh->b_size, bh_offset(bh));
+	err = fscrypt_decrypt_pagecache_blocks(bh->b_folio, bh->b_size,
+					       bh_offset(bh));
 	if (err == 0 && need_fsverity(bh)) {
 		/*
 		 * We use different work queues for decryption and for verity
