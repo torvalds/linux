@@ -2325,6 +2325,7 @@ static struct genl_family nbd_genl_family __ro_after_init = {
 	.n_small_ops	= ARRAY_SIZE(nbd_connect_genl_ops),
 	.resv_start_op	= NBD_CMD_STATUS + 1,
 	.maxattr	= NBD_ATTR_MAX,
+	.netnsok	= 1,
 	.policy = nbd_attr_policy,
 	.mcgrps		= nbd_mcast_grps,
 	.n_mcgrps	= ARRAY_SIZE(nbd_mcast_grps),
