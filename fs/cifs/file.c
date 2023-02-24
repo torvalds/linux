@@ -2893,8 +2893,9 @@ redo_folio:
 
 			if (folio_mapping(folio) != mapping ||
 			    !folio_test_dirty(folio)) {
+				start += folio_size(folio);
 				folio_unlock(folio);
-				goto skip_write;
+				continue;
 			}
 
 			if (folio_test_writeback(folio) ||
