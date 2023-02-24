@@ -4,7 +4,6 @@
  */
 
 #include <linux/mfd/ocelot.h>
-#include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <soc/mscc/ocelot.h>
