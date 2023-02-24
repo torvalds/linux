@@ -471,13 +471,10 @@ static void cpumf_pmu_enable(struct pmu *pmu)
 		return;
 
 	err = lcctl(cpuhw->state | cpuhw->dev_state);
-	if (err) {
-		pr_err("Enabling the performance measuring unit "
-		       "failed with rc=%x\n", err);
-		return;
-	}
-
-	cpuhw->flags |= PMU_F_ENABLED;
+	if (err)
+		pr_err("Enabling the performance measuring unit failed with rc=%x\n", err);
+	else
+		cpuhw->flags |= PMU_F_ENABLED;
 }
 
 /*
@@ -497,13 +494,10 @@ static void cpumf_pmu_disable(struct pmu *pmu)
 	inactive = cpuhw->state & ~((1 << CPUMF_LCCTL_ENABLE_SHIFT) - 1);
 	inactive |= cpuhw->dev_state;
 	err = lcctl(inactive);
-	if (err) {
-		pr_err("Disabling the performance measuring unit "
-		       "failed with rc=%x\n", err);
-		return;
-	}
-
-	cpuhw->flags &= ~PMU_F_ENABLED;
+	if (err)
+		pr_err("Disabling the performance measuring unit failed with rc=%x\n", err);
+	else
+		cpuhw->flags &= ~PMU_F_ENABLED;
 }
 
 #define PMC_INIT      0UL
