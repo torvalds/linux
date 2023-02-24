@@ -3370,6 +3370,7 @@
 		rockchip,taskqueue-node = <7>;
 		rockchip,task-capacity = <8>;
 		power-domains = <&power RK3588_PD_VENC0>;
+		operating-points-v2 = <&venc_opp_table>;
 		status = "disabled";
 	};
 
@@ -3408,6 +3409,7 @@
 		rockchip,taskqueue-node = <7>;
 		rockchip,task-capacity = <8>;
 		power-domains = <&power RK3588_PD_VENC1>;
+		operating-points-v2 = <&venc_opp_table>;
 		status = "disabled";
 	};
 
@@ -3425,6 +3427,38 @@
 		#iommu-cells = <0>;
 		power-domains = <&power RK3588_PD_VENC1>;
 		status = "disabled";
+	};
+
+	venc_opp_table: venc-opp-table {
+		compatible = "operating-points-v2";
+
+		nvmem-cells = <&codec_leakage>;
+		nvmem-cell-names = "leakage";
+		rockchip,leakage-voltage-sel = <
+			1	8	0
+			9	20	1
+			21	254	2
+		>;
+
+		rockchip,grf = <&sys_grf>;
+		volt-mem-read-margin = <
+			855000	1
+			765000	2
+			675000	3
+			495000	4
+		>;
+
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+			opp-microvolt-L0 = <800000 800000 850000>,
+					   <800000 800000 850000>;
+			opp-microvolt-L1 = <775000 775000 850000>,
+					   <775000 775000 850000>;
+			opp-microvolt-L2 = <750000 750000 850000>,
+					   <750000 750000 850000>;
+		};
 	};
 
 	rkvdec_ccu: rkvdec-ccu@fdc30000 {
