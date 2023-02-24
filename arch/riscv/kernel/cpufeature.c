@@ -8,20 +8,15 @@
 
 #include <linux/bitmap.h>
 #include <linux/ctype.h>
-#include <linux/libfdt.h>
 #include <linux/log2.h>
 #include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
-#include <asm/errata_list.h>
 #include <asm/hwcap.h>
 #include <asm/patch.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/smp.h>
-#include <asm/switch_to.h>
 
 #define NUM_ALPHA_EXTS ('z' - 'a' + 1)
 
