@@ -854,7 +854,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
  * Search for a key in the given extent_buffer.
  *
  * The lower boundary for the search is specified by the slot number @first_slot.
- * Use a value of 0 to search over the whole extent buffer.
+ * Use a value of 0 to search over the whole extent buffer. Works for both
+ * leaves and nodes.
  *
  * The slot in the extent buffer is returned via @slot. If the key exists in the
  * extent buffer, then @slot will point to the slot where the key is, otherwise
@@ -863,8 +864,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
  * Slot may point to the total number of items (i.e. one position beyond the last
  * key) if the key is bigger than the last key in the extent buffer.
  */
-int btrfs_generic_bin_search(struct extent_buffer *eb, int first_slot,
-			     const struct btrfs_key *key, int *slot)
+int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
+		     const struct btrfs_key *key, int *slot)
 {
 	unsigned long p;
 	int item_size;
@@ -1871,7 +1872,7 @@ static inline int search_for_key_slot(struct extent_buffer *eb,
 		return 0;
 	}
 
-	return btrfs_generic_bin_search(eb, search_low_slot, key, slot);
+	return btrfs_bin_search(eb, search_low_slot, key, slot);
 }
 
 static int search_leaf(struct btrfs_trans_handle *trans,
@@ -2328,7 +2329,7 @@ again:
 		 */
 		btrfs_unlock_up_safe(p, level + 1);
 
-		ret = btrfs_bin_search(b, key, &slot);
+		ret = btrfs_bin_search(b, 0, key, &slot);
 		if (ret < 0)
 			goto done;
 
@@ -4575,7 +4576,7 @@ again:
 	while (1) {
 		nritems = btrfs_header_nritems(cur);
 		level = btrfs_header_level(cur);
-		sret = btrfs_bin_search(cur, min_key, &slot);
+		sret = btrfs_bin_search(cur, 0, min_key, &slot);
 		if (sret < 0) {
 			ret = sret;
 			goto out;

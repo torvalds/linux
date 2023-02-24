@@ -4099,7 +4099,7 @@ static int drop_inode_items(struct btrfs_trans_handle *trans,
 
 		found_key.offset = 0;
 		found_key.type = 0;
-		ret = btrfs_bin_search(path->nodes[0], &found_key, &start_slot);
+		ret = btrfs_bin_search(path->nodes[0], 0, &found_key, &start_slot);
 		if (ret < 0)
 			break;
 
