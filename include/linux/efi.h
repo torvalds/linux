@@ -668,7 +668,8 @@ extern struct efi {
 
 #define EFI_RT_SUPPORTED_ALL					0x3fff
 
-#define EFI_RT_SUPPORTED_TIME_SERVICES				0x000f
+#define EFI_RT_SUPPORTED_TIME_SERVICES				0x0003
+#define EFI_RT_SUPPORTED_WAKEUP_SERVICES			0x000c
 #define EFI_RT_SUPPORTED_VARIABLE_SERVICES			0x0070
 
 extern struct mm_struct efi_mm;
@@ -1169,8 +1170,6 @@ void efi_check_for_embedded_firmwares(void);
 #else
 static inline void efi_check_for_embedded_firmwares(void) { }
 #endif
-
-efi_status_t efi_random_get_seed(void);
 
 #define arch_efi_call_virt(p, f, args...)	((p)->f(args))
 

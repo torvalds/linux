@@ -62,6 +62,7 @@ struct mlx5e_macsec_sa {
 	u32 enc_key_id;
 	u32 next_pn;
 	sci_t sci;
+	ssci_t ssci;
 	salt_t salt;
 
 	struct rhash_head hash;
@@ -358,7 +359,6 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_macsec_obj_attrs obj_attrs;
 	union mlx5e_macsec_rule *macsec_rule;
-	struct macsec_key *key;
 	int err;
 
 	obj_attrs.next_pn = sa->next_pn;
@@ -368,13 +368,9 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	obj_attrs.aso_pdn = macsec->aso.pdn;
 	obj_attrs.epn_state = sa->epn_state;
 
-	key = (is_tx) ? &ctx->sa.tx_sa->key : &ctx->sa.rx_sa->key;
-
 	if (sa->epn_state.epn_enabled) {
-		obj_attrs.ssci = (is_tx) ? cpu_to_be32((__force u32)ctx->sa.tx_sa->ssci) :
-					   cpu_to_be32((__force u32)ctx->sa.rx_sa->ssci);
-
-		memcpy(&obj_attrs.salt, &key->salt, sizeof(key->salt));
+		obj_attrs.ssci = cpu_to_be32((__force u32)sa->ssci);
+		memcpy(&obj_attrs.salt, &sa->salt, sizeof(sa->salt));
 	}
 
 	obj_attrs.replay_window = ctx->secy->replay_window;
@@ -499,10 +495,11 @@ mlx5e_macsec_get_macsec_device_context(const struct mlx5e_macsec *macsec,
 }
 
 static void update_macsec_epn(struct mlx5e_macsec_sa *sa, const struct macsec_key *key,
-			      const pn_t *next_pn_halves)
+			      const pn_t *next_pn_halves, ssci_t ssci)
 {
 	struct mlx5e_macsec_epn_state *epn_state = &sa->epn_state;
 
+	sa->ssci = ssci;
 	sa->salt = key->salt;
 	epn_state->epn_enabled = 1;
 	epn_state->epn_msb = next_pn_halves->upper;
@@ -550,7 +547,8 @@ static int mlx5e_macsec_add_txsa(struct macsec_context *ctx)
 	tx_sa->assoc_num = assoc_num;
 
 	if (secy->xpn)
-		update_macsec_epn(tx_sa, &ctx_tx_sa->key, &ctx_tx_sa->next_pn_halves);
+		update_macsec_epn(tx_sa, &ctx_tx_sa->key, &ctx_tx_sa->next_pn_halves,
+				  ctx_tx_sa->ssci);
 
 	err = mlx5_create_encryption_key(mdev, ctx->sa.key, secy->key_len,
 					 MLX5_ACCEL_OBJ_MACSEC_KEY,
@@ -945,7 +943,8 @@ static int mlx5e_macsec_add_rxsa(struct macsec_context *ctx)
 	rx_sa->fs_id = rx_sc->sc_xarray_element->fs_id;
 
 	if (ctx->secy->xpn)
-		update_macsec_epn(rx_sa, &ctx_rx_sa->key, &ctx_rx_sa->next_pn_halves);
+		update_macsec_epn(rx_sa, &ctx_rx_sa->key, &ctx_rx_sa->next_pn_halves,
+				  ctx_rx_sa->ssci);
 
 	err = mlx5_create_encryption_key(mdev, ctx->sa.key, ctx->secy->key_len,
 					 MLX5_ACCEL_OBJ_MACSEC_KEY,

@@ -57,7 +57,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Be quiet (do not show any messages including errors).
+	Do not show any warnings or messages.
 	Can not use with -v.
 
 -a::

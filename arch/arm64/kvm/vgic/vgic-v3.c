@@ -350,26 +350,23 @@ retry:
  * The deactivation of the doorbell interrupt will trigger the
  * unmapping of the associated vPE.
  */
-static void unmap_all_vpes(struct vgic_dist *dist)
+static void unmap_all_vpes(struct kvm *kvm)
 {
-	struct irq_desc *desc;
+	struct vgic_dist *dist = &kvm->arch.vgic;
 	int i;
 
-	for (i = 0; i < dist->its_vm.nr_vpes; i++) {
-		desc = irq_to_desc(dist->its_vm.vpes[i]->irq);
-		irq_domain_deactivate_irq(irq_desc_get_irq_data(desc));
-	}
+	for (i = 0; i < dist->its_vm.nr_vpes; i++)
+		free_irq(dist->its_vm.vpes[i]->irq, kvm_get_vcpu(kvm, i));
 }
 
-static void map_all_vpes(struct vgic_dist *dist)
+static void map_all_vpes(struct kvm *kvm)
 {
-	struct irq_desc *desc;
+	struct vgic_dist *dist = &kvm->arch.vgic;
 	int i;
 
-	for (i = 0; i < dist->its_vm.nr_vpes; i++) {
-		desc = irq_to_desc(dist->its_vm.vpes[i]->irq);
-		irq_domain_activate_irq(irq_desc_get_irq_data(desc), false);
-	}
+	for (i = 0; i < dist->its_vm.nr_vpes; i++)
+		WARN_ON(vgic_v4_request_vpe_irq(kvm_get_vcpu(kvm, i),
+						dist->its_vm.vpes[i]->irq));
 }
 
 /**
@@ -394,7 +391,7 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 	 * and enabling of the doorbells have already been done.
 	 */
 	if (kvm_vgic_global_state.has_gicv4_1) {
-		unmap_all_vpes(dist);
+		unmap_all_vpes(kvm);
 		vlpi_avail = true;
 	}
 
@@ -444,7 +441,7 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 
 out:
 	if (vlpi_avail)
-		map_all_vpes(dist);
+		map_all_vpes(kvm);
 
 	return ret;
 }
@@ -724,15 +721,8 @@ void vgic_v3_load(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
 
-	/*
-	 * If dealing with a GICv2 emulation on GICv3, VMCR_EL2.VFIQen
-	 * is dependent on ICC_SRE_EL1.SRE, and we have to perform the
-	 * VMCR_EL2 save/restore in the world switch.
-	 */
-	if (likely(cpu_if->vgic_sre))
-		kvm_call_hyp(__vgic_v3_write_vmcr, cpu_if->vgic_vmcr);
-
-	kvm_call_hyp(__vgic_v3_restore_aprs, cpu_if);
+	if (likely(!is_protected_kvm_enabled()))
+		kvm_call_hyp(__vgic_v3_restore_vmcr_aprs, cpu_if);
 
 	if (has_vhe())
 		__vgic_v3_activate_traps(cpu_if);
@@ -740,23 +730,14 @@ void vgic_v3_load(struct kvm_vcpu *vcpu)
 	WARN_ON(vgic_v4_load(vcpu));
 }
 
-void vgic_v3_vmcr_sync(struct kvm_vcpu *vcpu)
+void vgic_v3_put(struct kvm_vcpu *vcpu, bool blocking)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
 
-	if (likely(cpu_if->vgic_sre))
-		cpu_if->vgic_vmcr = kvm_call_hyp_ret(__vgic_v3_read_vmcr);
-}
+	WARN_ON(vgic_v4_put(vcpu, blocking));
 
-void vgic_v3_put(struct kvm_vcpu *vcpu)
-{
-	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
-
-	WARN_ON(vgic_v4_put(vcpu, false));
-
-	vgic_v3_vmcr_sync(vcpu);
-
-	kvm_call_hyp(__vgic_v3_save_aprs, cpu_if);
+	if (likely(!is_protected_kvm_enabled()))
+		kvm_call_hyp(__vgic_v3_save_vmcr_aprs, cpu_if);
 
 	if (has_vhe())
 		__vgic_v3_deactivate_traps(cpu_if);

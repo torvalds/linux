@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2006-2022 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -41,8 +41,6 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/rcupdate.h>
-
-#include "vmwgfx_hashtab.h"
 
 /**
  * enum ttm_object_type
@@ -104,7 +102,7 @@ struct ttm_base_object {
 	struct ttm_object_file *tfile;
 	struct kref refcount;
 	void (*refcount_release) (struct ttm_base_object **base);
-	u32 handle;
+	u64 handle;
 	enum ttm_object_type object_type;
 	u32 shareable;
 };
@@ -164,7 +162,7 @@ extern int ttm_base_object_init(struct ttm_object_file *tfile,
  */
 
 extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
-						      *tfile, uint32_t key);
+						      *tfile, uint64_t key);
 
 /**
  * ttm_base_object_lookup_for_ref
@@ -178,7 +176,7 @@ extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
  */
 
 extern struct ttm_base_object *
-ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key);
+ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint64_t key);
 
 /**
  * ttm_base_object_unref
@@ -237,14 +235,12 @@ extern int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
  * ttm_object_file_init - initialize a struct ttm_object file
  *
  * @tdev: A struct ttm_object device this file is initialized on.
- * @hash_order: Order of the hash table used to hold the reference objects.
  *
  * This is typically called by the file_ops::open function.
  */
 
 extern struct ttm_object_file *ttm_object_file_init(struct ttm_object_device
-						    *tdev,
-						    unsigned int hash_order);
+						    *tdev);
 
 /**
  * ttm_object_file_release - release data held by a ttm_object_file
@@ -262,7 +258,6 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
 /**
  * ttm_object device init - initialize a struct ttm_object_device
  *
- * @hash_order: Order of hash table used to hash the base objects.
  * @ops: DMA buf ops for prime objects of this device.
  *
  * This function is typically called on device initialization to prepare
@@ -270,8 +265,7 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
  */
 
 extern struct ttm_object_device *
-ttm_object_device_init(unsigned int hash_order,
-		       const struct dma_buf_ops *ops);
+ttm_object_device_init(const struct dma_buf_ops *ops);
 
 /**
  * ttm_object_device_release - release data held by a ttm_object_device
@@ -313,18 +307,4 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 #define ttm_prime_object_kfree(__obj, __prime)		\
 	kfree_rcu(__obj, __prime.base.rhead)
 
-struct ttm_base_object *
-ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key);
-
-/**
- * ttm_base_object_noref_release - release a base object pointer looked up
- * without reference
- *
- * Releases a base object pointer looked up with ttm_base_object_noref_lookup().
- */
-static inline void ttm_base_object_noref_release(void)
-{
-	__acquire(RCU);
-	rcu_read_unlock();
-}
 #endif

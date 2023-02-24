@@ -173,60 +173,50 @@ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
 				struct mt7915_phy *phy)
 {
-	u8 nss, nss_band, nss_band_max, *eeprom = dev->mt76.eeprom.data;
+	u8 path, nss, nss_max = 4, *eeprom = dev->mt76.eeprom.data;
 	struct mt76_phy *mphy = phy->mt76;
-	bool ext_phy = phy != &dev->phy;
 
 	mt7915_eeprom_parse_band_config(phy);
 
-	/* read tx/rx mask from eeprom */
+	/* read tx/rx path from eeprom */
 	if (is_mt7915(&dev->mt76)) {
-		nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
-				eeprom[MT_EE_WIFI_CONF]);
+		path = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
+				 eeprom[MT_EE_WIFI_CONF]);
 	} else {
-		nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
-				eeprom[MT_EE_WIFI_CONF + phy->band_idx]);
+		path = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
+				 eeprom[MT_EE_WIFI_CONF + phy->band_idx]);
 	}
 
-	if (!nss || nss > 4)
-		nss = 4;
+	if (!path || path > 4)
+		path = 4;
 
 	/* read tx/rx stream */
-	nss_band = nss;
-
+	nss = path;
 	if (dev->dbdc_support) {
 		if (is_mt7915(&dev->mt76)) {
-			nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B0,
-					     eeprom[MT_EE_WIFI_CONF + 3]);
+			path = min_t(u8, path, 2);
+			nss = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B0,
+					eeprom[MT_EE_WIFI_CONF + 3]);
 			if (phy->band_idx)
-				nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B1,
-						     eeprom[MT_EE_WIFI_CONF + 3]);
+				nss = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B1,
+						eeprom[MT_EE_WIFI_CONF + 3]);
 		} else {
-			nss_band = FIELD_GET(MT_EE_WIFI_CONF_STREAM_NUM,
-					     eeprom[MT_EE_WIFI_CONF + 2 + phy->band_idx]);
+			nss = FIELD_GET(MT_EE_WIFI_CONF_STREAM_NUM,
+					eeprom[MT_EE_WIFI_CONF + 2 + phy->band_idx]);
 		}
 
-		nss_band_max = is_mt7986(&dev->mt76) ?
-			       MT_EE_NSS_MAX_DBDC_MA7986 : MT_EE_NSS_MAX_DBDC_MA7915;
-	} else {
-		nss_band_max = is_mt7986(&dev->mt76) ?
-			       MT_EE_NSS_MAX_MA7986 : MT_EE_NSS_MAX_MA7915;
+		if (!is_mt7986(&dev->mt76))
+			nss_max = 2;
 	}
 
-	if (!nss_band || nss_band > nss_band_max)
-		nss_band = nss_band_max;
+	if (!nss)
+		nss = nss_max;
+	nss = min_t(u8, min_t(u8, nss_max, nss), path);
 
-	if (nss_band > nss) {
-		dev_warn(dev->mt76.dev,
-			 "nss mismatch, nss(%d) nss_band(%d) band(%d) ext_phy(%d)\n",
-			 nss, nss_band, phy->band_idx, ext_phy);
-		nss = nss_band;
-	}
-
-	mphy->chainmask = BIT(nss) - 1;
-	if (ext_phy)
+	mphy->chainmask = BIT(path) - 1;
+	if (phy->band_idx)
 		mphy->chainmask <<= dev->chainshift;
-	mphy->antenna_mask = BIT(nss_band) - 1;
+	mphy->antenna_mask = BIT(nss) - 1;
 	dev->chainmask |= mphy->chainmask;
 	dev->chainshift = hweight8(dev->mphy.chainmask);
 }

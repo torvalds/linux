@@ -532,6 +532,7 @@
   dec_zone_page_state
   default_llseek
   default_wake_function
+  deferred_free
   delayed_work_timer_fn
   del_gendisk
   del_timer
@@ -584,6 +585,7 @@
   device_for_each_child
   device_for_each_child_reverse
   device_get_child_node_count
+  device_get_dma_attr
   device_get_match_data
   device_get_next_child_node
   device_get_phy_mode
@@ -1769,6 +1771,7 @@
   kmemdup
   kmemdup_nul
   kmsg_dump_get_buffer
+  kmsg_dump_get_line
   kmsg_dump_register
   kmsg_dump_rewind
   kmsg_dump_unregister
@@ -2855,6 +2858,7 @@
   set_capacity
   set_capacity_and_notify
   set_cpus_allowed_ptr
+  set_direct_map_range_uncached
   set_next_entity
   set_normalized_timespec64
   set_page_dirty_lock
@@ -3264,6 +3268,7 @@
   __traceiter_android_rvh_select_fallback_rq
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_set_balance_anon_file_reclaim
   __traceiter_android_rvh_set_cpus_allowed_by_task
   __traceiter_android_rvh_setscheduler
   __traceiter_android_rvh_set_task_cpu
@@ -3288,6 +3293,7 @@
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
+  __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
   __traceiter_android_vh_ftrace_dump_buffer
@@ -3303,6 +3309,8 @@
   __traceiter_android_vh_rproc_recovery_set
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
+  __traceiter_android_vh_show_resume_epoch_val
+  __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
@@ -3310,10 +3318,15 @@
   __traceiter_android_vh_ufs_send_tm_command
   __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_update_topology_flags_workfn
+  __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
+  __traceiter_cpu_idle
   __traceiter_gpu_mem_total
   __traceiter_ipi_entry
   __traceiter_ipi_raise
+  __traceiter_mmap_lock_acquire_returned
+  __traceiter_mmap_lock_released
+  __traceiter_mmap_lock_start_locking
   __traceiter_sched_overutilized_tp
   __traceiter_sched_switch
   __traceiter_suspend_resume
@@ -3368,6 +3381,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
   __tracepoint_android_vh_ftrace_oops_enter

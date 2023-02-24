@@ -1,4 +1,3 @@
 # SPDX-License-Identifier: GPL-2.0-only
-gen-hyprel
 hyp.lds
 hyp-reloc.S

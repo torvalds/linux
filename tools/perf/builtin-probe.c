@@ -40,7 +40,6 @@ static struct {
 	int command;	/* Command short_name */
 	bool list_events;
 	bool uprobes;
-	bool quiet;
 	bool target_used;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
@@ -514,8 +513,8 @@ __cmd_probe(int argc, const char **argv)
 	struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
-	OPT_BOOLEAN('q', "quiet", &params.quiet,
-		    "be quiet (do not show any messages)"),
+	OPT_BOOLEAN('q', "quiet", &quiet,
+		    "be quiet (do not show any warnings or messages)"),
 	OPT_CALLBACK_DEFAULT('l', "list", NULL, "[GROUP:]EVENT",
 			     "list up probe events",
 			     opt_set_filter_with_command, DEFAULT_LIST_FILTER),
@@ -613,6 +612,15 @@ __cmd_probe(int argc, const char **argv)
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
+
+	if (quiet) {
+		if (verbose != 0) {
+			pr_err("  Error: -v and -q are exclusive.\n");
+			return -EINVAL;
+		}
+		verbose = -1;
+	}
+
 	if (argc > 0) {
 		if (strcmp(argv[0], "-") == 0) {
 			usage_with_options_msg(probe_usage, options,
@@ -633,14 +641,6 @@ __cmd_probe(int argc, const char **argv)
 	ret = symbol__validate_sym_arguments();
 	if (ret)
 		return ret;
-
-	if (params.quiet) {
-		if (verbose != 0) {
-			pr_err("  Error: -v and -q are exclusive.\n");
-			return -EINVAL;
-		}
-		verbose = -1;
-	}
 
 	if (probe_conf.max_probes == 0)
 		probe_conf.max_probes = MAX_PROBES;

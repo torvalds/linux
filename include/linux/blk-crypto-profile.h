@@ -60,7 +60,7 @@ struct blk_crypto_ll_ops {
 
 	/**
 	 * @derive_sw_secret: Derive the software secret from a hardware-wrapped
-	 *		      key.
+	 *		      key in ephemerally-wrapped form.
 	 *
 	 * This only needs to be implemented if BLK_CRYPTO_KEY_TYPE_HW_WRAPPED
 	 * is supported.
@@ -69,8 +69,7 @@ struct blk_crypto_ll_ops {
 	 * -errno code on other errors.
 	 */
 	int (*derive_sw_secret)(struct blk_crypto_profile *profile,
-				const u8 *wrapped_key,
-				unsigned int wrapped_key_size,
+				const u8 *eph_key, size_t eph_key_size,
 				u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE]);
 };
 
@@ -100,7 +99,7 @@ struct blk_crypto_profile {
 	unsigned int max_dun_bytes_supported;
 
 	/**
-	 * @key_types_supported: Supported types of keys --
+	 * @key_types_supported: A bitmask of the supported key types:
 	 * BLK_CRYPTO_KEY_TYPE_STANDARD and/or BLK_CRYPTO_KEY_TYPE_HW_WRAPPED.
 	 */
 	unsigned int key_types_supported;
@@ -159,26 +158,9 @@ int devm_blk_crypto_profile_init(struct device *dev,
 
 unsigned int blk_crypto_keyslot_index(struct blk_crypto_keyslot *slot);
 
-blk_status_t blk_crypto_get_keyslot(struct blk_crypto_profile *profile,
-				    const struct blk_crypto_key *key,
-				    struct blk_crypto_keyslot **slot_ptr);
-
-void blk_crypto_put_keyslot(struct blk_crypto_keyslot *slot);
-
-bool __blk_crypto_cfg_supported(struct blk_crypto_profile *profile,
-				const struct blk_crypto_config *cfg);
-
-int __blk_crypto_evict_key(struct blk_crypto_profile *profile,
-			   const struct blk_crypto_key *key);
-
 void blk_crypto_reprogram_all_keys(struct blk_crypto_profile *profile);
 
 void blk_crypto_profile_destroy(struct blk_crypto_profile *profile);
-
-int blk_crypto_derive_sw_secret(struct blk_crypto_profile *profile,
-				const u8 *wrapped_key,
-				unsigned int wrapped_key_size,
-				u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE]);
 
 void blk_crypto_intersect_capabilities(struct blk_crypto_profile *parent,
 				       const struct blk_crypto_profile *child);

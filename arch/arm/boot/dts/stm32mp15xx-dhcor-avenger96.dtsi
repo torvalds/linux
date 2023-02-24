@@ -100,7 +100,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpios = <&gpioz 3 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpioz 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 };

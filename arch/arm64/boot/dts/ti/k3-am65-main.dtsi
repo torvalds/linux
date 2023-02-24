@@ -120,7 +120,6 @@
 		dmas = <&main_udmap 0xc001>, <&main_udmap 0x4002>,
 				<&main_udmap 0x4003>;
 		dma-names = "tx", "rx1", "rx2";
-		dma-coherent;
 
 		rng: rng@4e10000 {
 			compatible = "inside-secure,safexcel-eip76";

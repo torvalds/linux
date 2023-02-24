@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM dma_buf
+#define TRACE_SYSTEM dmabuf
 
 #define TRACE_INCLUDE_PATH trace/hooks
 
 #if !defined(_TRACE_HOOK_DMA_BUF_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_DMA_BUF_H
 
-#include <linux/dma-buf.h>
+struct dma_buf;
 
 #include <trace/hooks/vendor_hooks.h>
 

@@ -391,6 +391,43 @@ void ieee80211_ba_session_work(struct work_struct *work)
 
 		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
 		if (!blocked && tid_tx) {
+			struct ieee80211_sub_if_data *sdata = sta->sdata;
+			struct ieee80211_local *local = sdata->local;
+
+			if (local->ops->wake_tx_queue) {
+				struct txq_info *txqi =
+					to_txq_info(sta->sta.txq[tid]);
+				struct fq *fq = &local->fq;
+
+				spin_lock_bh(&fq->lock);
+
+				/* Allow only frags to be dequeued */
+				set_bit(IEEE80211_TXQ_STOP, &txqi->flags);
+
+				if (!skb_queue_empty(&txqi->frags)) {
+					/* Fragmented Tx is ongoing, wait for it
+					 * to finish. Reschedule worker to retry
+					 * later.
+					 */
+
+					spin_unlock_bh(&fq->lock);
+					spin_unlock_bh(&sta->lock);
+
+					/* Give the task working on the txq a
+					 * chance to send out the queued frags
+					 */
+					synchronize_net();
+
+					mutex_unlock(&sta->ampdu_mlme.mtx);
+
+					ieee80211_queue_work(&sdata->local->hw,
+							     work);
+					return;
+				}
+
+				spin_unlock_bh(&fq->lock);
+			}
+
 			/*
 			 * Assign it over to the normal tid_tx array
 			 * where it "goes live".

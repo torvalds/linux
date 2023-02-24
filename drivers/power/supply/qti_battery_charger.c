@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"BATTERY_CHG: %s: " fmt, __func__
@@ -1408,6 +1408,7 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 		devm_power_supply_register(bcdev->dev, &usb_psy_desc, &psy_cfg);
 	if (IS_ERR(bcdev->psy_list[PSY_TYPE_USB].psy)) {
 		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_USB].psy);
+		bcdev->psy_list[PSY_TYPE_USB].psy = NULL;
 		pr_err("Failed to register USB power supply, rc=%d\n", rc);
 		return rc;
 	}
@@ -1416,6 +1417,7 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 		devm_power_supply_register(bcdev->dev, &wls_psy_desc, &psy_cfg);
 	if (IS_ERR(bcdev->psy_list[PSY_TYPE_WLS].psy)) {
 		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_WLS].psy);
+		bcdev->psy_list[PSY_TYPE_WLS].psy = NULL;
 		pr_err("Failed to register wireless power supply, rc=%d\n", rc);
 		return rc;
 	}
@@ -1425,6 +1427,7 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 						&psy_cfg);
 	if (IS_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy)) {
 		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy);
+		bcdev->psy_list[PSY_TYPE_BATTERY].psy = NULL;
 		pr_err("Failed to register battery power supply, rc=%d\n", rc);
 		return rc;
 	}

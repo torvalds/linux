@@ -468,3 +468,68 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 	return ret;
 }
 #endif
+
+__read_mostly unsigned int sched_pelt_lshift;
+
+#ifdef CONFIG_SYSCTL
+#include <trace/hooks/sched.h>
+static unsigned int sysctl_sched_pelt_multiplier = 1;
+
+int sched_pelt_multiplier(struct ctl_table *table, int write, void *buffer,
+			  size_t *lenp, loff_t *ppos)
+{
+	static DEFINE_MUTEX(mutex);
+	unsigned int old;
+	int ret;
+
+	mutex_lock(&mutex);
+	old = sysctl_sched_pelt_multiplier;
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto undo;
+	if (!write)
+		goto done;
+
+	trace_android_vh_sched_pelt_multiplier(old, sysctl_sched_pelt_multiplier, &ret);
+	if (ret)
+		goto undo;
+
+	switch (sysctl_sched_pelt_multiplier)  {
+	case 1:
+		fallthrough;
+	case 2:
+		fallthrough;
+	case 4:
+		WRITE_ONCE(sched_pelt_lshift,
+			   sysctl_sched_pelt_multiplier >> 1);
+		goto done;
+	default:
+		ret = -EINVAL;
+	}
+
+undo:
+	sysctl_sched_pelt_multiplier = old;
+done:
+	mutex_unlock(&mutex);
+
+	return ret;
+}
+
+static struct ctl_table sched_pelt_sysctls[] = {
+	{
+		.procname       = "sched_pelt_multiplier",
+		.data           = &sysctl_sched_pelt_multiplier,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = sched_pelt_multiplier,
+	},
+	{}
+};
+
+static int __init sched_pelt_sysctl_init(void)
+{
+	register_sysctl_init("kernel", sched_pelt_sysctls);
+	return 0;
+}
+late_initcall(sched_pelt_sysctl_init);
+#endif

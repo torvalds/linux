@@ -585,6 +585,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		yellow_carp_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(13, 0, 4):
+	case IP_VERSION(13, 0, 11):
 		smu_v13_0_4_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(13, 0, 5):
@@ -1491,6 +1492,20 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 5):
 		case IP_VERSION(11, 0, 9):
 		case IP_VERSION(13, 0, 7):
+			return 0;
+		default:
+			break;
+		}
+	}
+
+	/*
+	 * For SMU 13.0.4/11, PMFW will handle the features disablement properly
+	 * for gpu reset case. Driver involvement is unnecessary.
+	 */
+	if (amdgpu_in_reset(adev)) {
+		switch (adev->ip_versions[MP1_HWIP][0]) {
+		case IP_VERSION(13, 0, 4):
+		case IP_VERSION(13, 0, 11):
 			return 0;
 		default:
 			break;

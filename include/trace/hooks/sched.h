@@ -317,6 +317,26 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_thermal_stats,
 		TP_PROTO(int cpu),
 		TP_ARGS(cpu), 1);
 
+DECLARE_HOOK(android_vh_do_wake_up_sync,
+	TP_PROTO(struct wait_queue_head *wq_head, int *done, struct sock *sk),
+	TP_ARGS(wq_head, done, sk));
+
+DECLARE_HOOK(android_vh_set_wake_flags,
+	TP_PROTO(int *wake_flags, unsigned int *mode),
+	TP_ARGS(wake_flags, mode));
+
+DECLARE_RESTRICTED_HOOK(android_rvh_find_new_ilb,
+	TP_PROTO(struct cpumask *nohz_idle_cpus_mask, int *ilb),
+	TP_ARGS(nohz_idle_cpus_mask, ilb), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_find_energy_efficient_cpu,
+	TP_PROTO(struct task_struct *p, int prev_cpu, int sync, int *new_cpu),
+	TP_ARGS(p, prev_cpu, sync, new_cpu), 1);
+
+DECLARE_HOOK(android_vh_sched_pelt_multiplier,
+	TP_PROTO(unsigned int old, unsigned int cur, int *ret),
+	TP_ARGS(old, cur, ret));
+
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */

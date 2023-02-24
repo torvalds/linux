@@ -142,7 +142,7 @@ Therefore, we also introduce *blk-crypto-fallback*, which is an implementation
 of inline encryption using the kernel crypto API.  blk-crypto-fallback is built
 into the block layer, so it works on any block device without any special setup.
 Essentially, when a bio with an encryption context is submitted to a
-request_queue that doesn't support that encryption context, the block layer will
+block_device that doesn't support that encryption context, the block layer will
 handle en/decryption of the bio using blk-crypto-fallback.
 
 For encryption, the data cannot be encrypted in-place, as callers usually rely
@@ -187,7 +187,7 @@ API presented to users of the block layer
 
 ``blk_crypto_config_supported()`` allows users to check ahead of time whether
 inline encryption with particular crypto settings will work on a particular
-request_queue -- either via hardware or via blk-crypto-fallback.  This function
+block_device -- either via hardware or via blk-crypto-fallback.  This function
 takes in a ``struct blk_crypto_config`` which is like blk_crypto_key, but omits
 the actual bytes of the key and instead just contains the algorithm, data unit
 size, etc.  This function can be useful if blk-crypto-fallback is disabled.
@@ -195,7 +195,7 @@ size, etc.  This function can be useful if blk-crypto-fallback is disabled.
 ``blk_crypto_init_key()`` allows users to initialize a blk_crypto_key.
 
 Users must call ``blk_crypto_start_using_key()`` before actually starting to use
-a blk_crypto_key on a request_queue (even if ``blk_crypto_config_supported()``
+a blk_crypto_key on a block_device (even if ``blk_crypto_config_supported()``
 was called earlier).  This is needed to initialize blk-crypto-fallback if it
 will be needed.  This must not be called from the data path, as this may have to
 allocate resources, which may deadlock in that case.
@@ -207,7 +207,7 @@ for en/decryption.  Users don't need to worry about freeing the bio_crypt_ctx
 later, as that happens automatically when the bio is freed or reset.
 
 Finally, when done using inline encryption with a blk_crypto_key on a
-request_queue, users must call ``blk_crypto_evict_key()``.  This ensures that
+block_device, users must call ``blk_crypto_evict_key()``.  This ensures that
 the key is evicted from all keyslots it may be programmed into and unlinked from
 any kernel data structures it may be linked into.
 
@@ -221,9 +221,9 @@ as follows:
 5. ``blk_crypto_evict_key()`` (after all I/O has completed)
 6. Zeroize the blk_crypto_key (this has no dedicated function)
 
-If a blk_crypto_key is being used on multiple request_queues, then
+If a blk_crypto_key is being used on multiple block_devices, then
 ``blk_crypto_config_supported()`` (if used), ``blk_crypto_start_using_key()``,
-and ``blk_crypto_evict_key()`` must be called on each request_queue.
+and ``blk_crypto_evict_key()`` must be called on each block_device.
 
 API presented to device drivers
 ===============================
@@ -388,8 +388,8 @@ such as in file-based encryption.  Key wrapping is a commonly used technique.)
 The key which wraps (encrypts) hardware-wrapped keys is a hardware-internal key
 that is never exposed to software; it is either a persistent key (a "long-term
 wrapping key") or a per-boot key (an "ephemeral wrapping key").  The long-term
-wrapped form of the key is what is initially unlocked, but it is discarded as
-soon as it is converted into an ephemerally-wrapped key.  In-use
+wrapped form of the key is what is initially unlocked, but it is erased from
+memory as soon as it is converted into an ephemerally-wrapped key.  In-use
 hardware-wrapped keys are always ephemerally-wrapped, not long-term wrapped.
 
 As inline encryption hardware can only be used to encrypt/decrypt data on-disk,
@@ -442,8 +442,8 @@ The components are:
   for cryptographic applications that require up to a 256-bit security strength.
   Some use cases (e.g. full-disk encryption) won't require the software secret.
 
-Example: in the case of fscrypt, the fscrypt master key (the key used to unlock
-a particular set of encrypted directories) is made hardware-wrapped.  The inline
+Example: in the case of fscrypt, the fscrypt master key (the key that protects a
+particular set of encrypted directories) is made hardware-wrapped.  The inline
 encryption key is used as the file contents encryption key, while the software
 secret (rather than the master key directly) is used to key fscrypt's KDF
 (HKDF-SHA512) to derive other subkeys such as filenames encryption keys.
@@ -512,5 +512,6 @@ the hardware RNG and its use to generate the key, as well as the testing of the
 "import" mode as that should cover all parts other than the key generation.
 
 For an example of a test that verifies the ciphertext written to disk in the
-"import" mode, see `Android's vts_kernel_encryption_test
+"import" mode, see the fscrypt hardware-wrapped key tests in xfstests, or
+`Android's vts_kernel_encryption_test
 <https://android.googlesource.com/platform/test/vts-testcase/kernel/+/refs/heads/master/encryption/>`_.

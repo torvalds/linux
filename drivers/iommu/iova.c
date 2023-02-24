@@ -11,6 +11,7 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <trace/hooks/iommu.h>
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
@@ -70,6 +71,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
+	android_init_vendor_data(iovad, 1);
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
 
@@ -186,8 +188,11 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	unsigned long align_mask = ~0UL;
 	unsigned long high_pfn = limit_pfn, low_pfn = iovad->start_pfn;
 
-	if (size_aligned)
-		align_mask <<= fls_long(size - 1);
+	if (size_aligned) {
+		unsigned long shift = fls_long(size - 1);
+		trace_android_rvh_iommu_limit_align_shift(iovad, size, &shift);
+		align_mask <<= shift;
+	}
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
@@ -197,7 +202,7 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 
 	curr = __get_cached_rbnode(iovad, limit_pfn);
 	curr_iova = to_iova(curr);
-	retry_pfn = curr_iova->pfn_hi + 1;
+	retry_pfn = curr_iova->pfn_hi;
 
 retry:
 	do {
@@ -211,7 +216,7 @@ retry:
 	if (high_pfn < size || new_pfn < low_pfn) {
 		if (low_pfn == iovad->start_pfn && retry_pfn < limit_pfn) {
 			high_pfn = limit_pfn;
-			low_pfn = retry_pfn;
+			low_pfn = retry_pfn + 1;
 			curr = iova_find_limit(iovad, limit_pfn);
 			curr_iova = to_iova(curr);
 			goto retry;
@@ -316,14 +321,18 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	bool size_aligned)
 {
 	struct iova *new_iova;
-	int ret;
+	int ret = -1;
 
 	new_iova = alloc_iova_mem();
 	if (!new_iova)
 		return NULL;
 
-	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn + 1,
-			new_iova, size_aligned);
+	trace_android_rvh_iommu_alloc_insert_iova(iovad, size, limit_pfn + 1,
+			new_iova, size_aligned, &ret);
+	if (ret) {
+		ret = __alloc_and_insert_iova_range(iovad, size,
+			limit_pfn + 1, new_iova, size_aligned);
+	}
 
 	if (ret) {
 		free_iova_mem(new_iova);

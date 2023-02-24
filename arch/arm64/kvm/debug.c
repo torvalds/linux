@@ -39,9 +39,7 @@ static DEFINE_PER_CPU(u64, mdcr_el2);
  */
 static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 {
-	u64 val = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
-
-	vcpu->arch.guest_debug_preserved.mdscr_el1 = val;
+	__vcpu_save_guest_debug_regs(vcpu);
 
 	trace_kvm_arm_set_dreg32("Saved MDSCR_EL1",
 				vcpu->arch.guest_debug_preserved.mdscr_el1);
@@ -52,9 +50,7 @@ static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 
 static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
 {
-	u64 val = vcpu->arch.guest_debug_preserved.mdscr_el1;
-
-	vcpu_write_sys_reg(vcpu, val, MDSCR_EL1);
+	__vcpu_restore_guest_debug_regs(vcpu);
 
 	trace_kvm_arm_set_dreg32("Restored MDSCR_EL1",
 				vcpu_read_sys_reg(vcpu, MDSCR_EL1));
@@ -175,7 +171,7 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 	kvm_arm_setup_mdcr_el2(vcpu);
 
 	/* Check if we need to use the debug registers. */
-	if (vcpu->guest_debug || kvm_vcpu_os_lock_enabled(vcpu)) {
+	if (kvm_vcpu_needs_debug_regs(vcpu)) {
 		/* Save guest debug state */
 		save_guest_debug_regs(vcpu);
 
@@ -284,7 +280,7 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 	/*
 	 * Restore the guest's debug registers if we were using them.
 	 */
-	if (vcpu->guest_debug || kvm_vcpu_os_lock_enabled(vcpu)) {
+	if (kvm_vcpu_needs_debug_regs(vcpu)) {
 		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
 			if (!(*vcpu_cpsr(vcpu) & DBG_SPSR_SS))
 				/*

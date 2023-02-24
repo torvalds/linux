@@ -440,7 +440,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
 
-	if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)))
+	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)))
 		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	dma_set_max_seg_size(dev, UINT_MAX);
 
@@ -474,6 +474,29 @@ err_remap_bar4:
 err_remap_bar0:
 	pci_release_regions(pci);
 	return ret;
+}
+
+static void avs_pci_shutdown(struct pci_dev *pci)
+{
+	struct hdac_bus *bus = pci_get_drvdata(pci);
+	struct avs_dev *adev = hdac_to_avs(bus);
+
+	cancel_work_sync(&adev->probe_work);
+	avs_ipc_block(adev->ipc);
+
+	snd_hdac_stop_streams(bus);
+	avs_dsp_op(adev, int_control, false);
+	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
+	snd_hdac_ext_bus_link_power_down_all(bus);
+
+	snd_hdac_bus_stop_chip(bus);
+	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
+
+	if (avs_platattr_test(adev, CLDMA))
+		pci_free_irq(pci, 0, &code_loader);
+	pci_free_irq(pci, 0, adev);
+	pci_free_irq(pci, 0, bus);
+	pci_free_irq_vectors(pci);
 }
 
 static void avs_pci_remove(struct pci_dev *pci)
@@ -679,6 +702,7 @@ static struct pci_driver avs_pci_driver = {
 	.id_table = avs_ids,
 	.probe = avs_pci_probe,
 	.remove = avs_pci_remove,
+	.shutdown = avs_pci_shutdown,
 	.driver = {
 		.pm = &avs_dev_pm,
 	},

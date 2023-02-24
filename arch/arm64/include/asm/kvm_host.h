@@ -73,6 +73,64 @@ u32 __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
 void kvm_arm_vcpu_destroy(struct kvm_vcpu *vcpu);
 
+struct kvm_hyp_memcache {
+	phys_addr_t head;
+	unsigned long nr_pages;
+};
+
+static inline void push_hyp_memcache(struct kvm_hyp_memcache *mc,
+				     phys_addr_t *p,
+				     phys_addr_t (*to_pa)(void *virt))
+{
+	*p = mc->head;
+	mc->head = to_pa(p);
+	mc->nr_pages++;
+}
+
+static inline void *pop_hyp_memcache(struct kvm_hyp_memcache *mc,
+				     void *(*to_va)(phys_addr_t phys))
+{
+	phys_addr_t *p = to_va(mc->head);
+
+	if (!mc->nr_pages)
+		return NULL;
+
+	mc->head = *p;
+	mc->nr_pages--;
+
+	return p;
+}
+
+static inline int __topup_hyp_memcache(struct kvm_hyp_memcache *mc,
+				       unsigned long min_pages,
+				       void *(*alloc_fn)(void *arg),
+				       phys_addr_t (*to_pa)(void *virt),
+				       void *arg)
+{
+	while (mc->nr_pages < min_pages) {
+		phys_addr_t *p = alloc_fn(arg);
+
+		if (!p)
+			return -ENOMEM;
+		push_hyp_memcache(mc, p, to_pa);
+	}
+
+	return 0;
+}
+
+static inline void __free_hyp_memcache(struct kvm_hyp_memcache *mc,
+				       void (*free_fn)(void *virt, void *arg),
+				       void *(*to_va)(phys_addr_t phys),
+				       void *arg)
+{
+	while (mc->nr_pages)
+		free_fn(pop_hyp_memcache(mc, to_va), arg);
+}
+
+void free_hyp_memcache(struct kvm_hyp_memcache *mc, struct kvm *kvm);
+void free_hyp_stage2_memcache(struct kvm_hyp_memcache *mc, struct kvm *kvm);
+int topup_hyp_memcache(struct kvm_vcpu *vcpu);
+
 struct kvm_vmid {
 	atomic64_t id;
 };
@@ -115,6 +173,23 @@ struct kvm_smccc_features {
 	unsigned long vendor_hyp_bmap;
 };
 
+struct kvm_pinned_page {
+	struct rb_node		node;
+	struct page		*page;
+	u64			ipa;
+};
+
+typedef unsigned int pkvm_handle_t;
+
+struct kvm_protected_vm {
+	pkvm_handle_t handle;
+	struct kvm_hyp_memcache teardown_mc;
+	struct kvm_hyp_memcache teardown_stage2_mc;
+	struct rb_root pinned_pages;
+	gpa_t pvmfw_load_addr;
+	bool enabled;
+};
+
 struct kvm_arch {
 	struct kvm_s2_mmu mmu;
 
@@ -149,7 +224,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_EL1_32BIT				4
 	/* PSCI SYSTEM_SUSPEND enabled for the guest */
 #define KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED		5
-
+	/* Guest has bought into the MMIO guard extension */
+#define KVM_ARCH_FLAG_MMIO_GUARD			6
 	unsigned long flags;
 
 	/*
@@ -166,6 +242,12 @@ struct kvm_arch {
 
 	/* Hypercall features firmware registers' descriptor */
 	struct kvm_smccc_features smccc_feat;
+
+	/*
+	 * For an untrusted host VM, 'pkvm.handle' is used to lookup
+	 * the associated pKVM instance in the hypervisor.
+	 */
+	struct kvm_protected_vm pkvm;
 };
 
 struct kvm_vcpu_fault_info {
@@ -277,6 +359,7 @@ struct kvm_host_data {
 struct kvm_host_psci_config {
 	/* PSCI version used by host. */
 	u32 version;
+	u32 smccc_version;
 
 	/* Function IDs used by host if version is v0.1. */
 	struct psci_0_1_function_ids function_ids_0_1;
@@ -295,6 +378,28 @@ extern s64 kvm_nvhe_sym(hyp_physvirt_offset);
 
 extern u64 kvm_nvhe_sym(hyp_cpu_logical_map)[NR_CPUS];
 #define hyp_cpu_logical_map CHOOSE_NVHE_SYM(hyp_cpu_logical_map)
+
+enum pkvm_iommu_pm_event {
+	PKVM_IOMMU_PM_SUSPEND,
+	PKVM_IOMMU_PM_RESUME,
+};
+
+struct pkvm_iommu_ops;
+
+struct pkvm_iommu_driver {
+	const struct pkvm_iommu_ops *ops;
+	struct list_head list;
+	atomic_t state;
+};
+
+int pkvm_iommu_driver_init(u64 drv, void *data, size_t size);
+int pkvm_iommu_register(struct device *dev, u64 drv,
+			phys_addr_t pa, size_t size, struct device *parent);
+int pkvm_iommu_suspend(struct device *dev);
+int pkvm_iommu_resume(struct device *dev);
+
+/* Reject future calls to pkvm_iommu_driver_init() and pkvm_iommu_register(). */
+int pkvm_iommu_finalize(void);
 
 struct vcpu_reset_state {
 	unsigned long	pc;
@@ -399,8 +504,12 @@ struct kvm_vcpu_arch {
 	/* vcpu power state */
 	struct kvm_mp_state mp_state;
 
-	/* Cache some mmu pages needed inside spinlock regions */
-	struct kvm_mmu_memory_cache mmu_page_cache;
+	union {
+		/* Cache some mmu pages needed inside spinlock regions */
+		struct kvm_mmu_memory_cache mmu_page_cache;
+		/* Pages to be donated to pkvm/EL2 if it runs out */
+		struct kvm_hyp_memcache pkvm_memcache;
+	};
 
 	/* Target CPU and feature flags */
 	int target;
@@ -474,9 +583,25 @@ struct kvm_vcpu_arch {
 		*fset &= ~(m);					\
 	} while (0)
 
+#define __vcpu_copy_flag(vt, vs, flagset, f, m)			\
+	do {							\
+		typeof(vs->arch.flagset) tmp, val;		\
+								\
+		__build_check_flag(vs, flagset, f, m);		\
+								\
+		val = READ_ONCE(vs->arch.flagset);		\
+		val &= (m);					\
+		tmp = READ_ONCE(vt->arch.flagset);		\
+		tmp &= ~(m);					\
+		tmp |= val;					\
+		WRITE_ONCE(vt->arch.flagset, tmp);		\
+	} while (0)
+
+
 #define vcpu_get_flag(v, ...)	__vcpu_get_flag((v), __VA_ARGS__)
 #define vcpu_set_flag(v, ...)	__vcpu_set_flag((v), __VA_ARGS__)
 #define vcpu_clear_flag(v, ...)	__vcpu_clear_flag((v), __VA_ARGS__)
+#define vcpu_copy_flag(vt, vs,...) __vcpu_copy_flag((vt), (vs), __VA_ARGS__)
 
 /* SVE exposed to guest */
 #define GUEST_HAS_SVE		__vcpu_single_flag(cflags, BIT(0))
@@ -494,6 +619,8 @@ struct kvm_vcpu_arch {
 #define INCREMENT_PC		__vcpu_single_flag(iflags, BIT(1))
 /* Target EL/MODE (not a single flag, but let's abuse the macro) */
 #define EXCEPT_MASK		__vcpu_single_flag(iflags, GENMASK(3, 1))
+/* Cover both PENDING_EXCEPTION and EXCEPT_MASK for global operations */
+#define PC_UPDATE_REQ		__vcpu_single_flag(iflags, GENMASK(3, 0))
 
 /* Helpers to encode exceptions with minimum fuss */
 #define __EXCEPT_MASK_VAL	unpack_vcpu_flag(EXCEPT_MASK)
@@ -525,6 +652,8 @@ struct kvm_vcpu_arch {
 #define DEBUG_STATE_SAVE_SPE	__vcpu_single_flag(iflags, BIT(5))
 /* Save TRBE context if active  */
 #define DEBUG_STATE_SAVE_TRBE	__vcpu_single_flag(iflags, BIT(6))
+/* pKVM host vcpu state is dirty, needs resync */
+#define PKVM_HOST_STATE_DIRTY	__vcpu_single_flag(iflags, BIT(7))
 
 /* SVE enabled for host EL0 */
 #define HOST_SVE_ENABLED	__vcpu_single_flag(sflags, BIT(0))
@@ -600,9 +729,6 @@ struct kvm_vcpu_arch {
 #define ctxt_sys_reg(c,r)	(*__ctxt_sys_reg(c,r))
 
 #define __vcpu_sys_reg(v,r)	(ctxt_sys_reg(&(v)->arch.ctxt, (r)))
-
-u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg);
-void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg);
 
 static inline bool __vcpu_read_sys_reg_from_cpu(int reg, u64 *val)
 {
@@ -695,8 +821,32 @@ static inline bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 	return true;
 }
 
+#define vcpu_read_sys_reg(__vcpu, reg)					\
+	({								\
+		u64 __val = 0x8badf00d8badf00d;				\
+									\
+		/* SYSREGS_ON_CPU is only used in VHE */		\
+		((!is_nvhe_hyp_code() &&				\
+		  vcpu_get_flag(__vcpu, SYSREGS_ON_CPU) &&		\
+		  __vcpu_read_sys_reg_from_cpu(reg, &__val))) ?		\
+		 __val							\
+		 :							\
+		 ctxt_sys_reg(&__vcpu->arch.ctxt, reg);			\
+	 })
+
+#define vcpu_write_sys_reg(__vcpu, __val, reg)				\
+	do {								\
+		/* SYSREGS_ON_CPU is only used in VHE */		\
+		if (is_nvhe_hyp_code() ||				\
+		    !vcpu_get_flag(__vcpu, SYSREGS_ON_CPU) ||		\
+		    !__vcpu_write_sys_reg_to_cpu(__val, reg))		\
+			ctxt_sys_reg(&__vcpu->arch.ctxt, reg) = __val;	\
+	} while (0)
+
 struct kvm_vm_stat {
 	struct kvm_vm_stat_generic generic;
+	atomic64_t protected_hyp_mem;
+	atomic64_t protected_shared_mem;
 };
 
 struct kvm_vcpu_stat {
@@ -869,8 +1019,25 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu);
 
+#define __vcpu_save_guest_debug_regs(vcpu)				\
+	do {								\
+		u64 val = vcpu_read_sys_reg(vcpu, MDSCR_EL1);		\
+									\
+		(vcpu)->arch.guest_debug_preserved.mdscr_el1 = val;	\
+	} while(0)
+
+#define __vcpu_restore_guest_debug_regs(vcpu)				\
+	do {								\
+		u64 val = (vcpu)->arch.guest_debug_preserved.mdscr_el1;	\
+									\
+		vcpu_write_sys_reg(vcpu, val, MDSCR_EL1);		\
+	} while (0)
+
 #define kvm_vcpu_os_lock_enabled(vcpu)		\
 	(!!(__vcpu_sys_reg(vcpu, OSLSR_EL1) & SYS_OSLSR_OSLK))
+
+#define kvm_vcpu_needs_debug_regs(vcpu)		\
+	((vcpu)->guest_debug || kvm_vcpu_os_lock_enabled(vcpu))
 
 int kvm_arm_vcpu_arch_set_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
@@ -915,12 +1082,7 @@ int kvm_set_ipa_limit(void);
 #define __KVM_HAVE_ARCH_VM_ALLOC
 struct kvm *kvm_arch_alloc_vm(void);
 
-int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type);
-
-static inline bool kvm_vm_is_protected(struct kvm *kvm)
-{
-	return false;
-}
+#define kvm_vm_is_protected(kvm)	((kvm)->arch.pkvm.enabled)
 
 void kvm_init_protected_traps(struct kvm_vcpu *vcpu);
 

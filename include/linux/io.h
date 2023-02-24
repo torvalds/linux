@@ -21,6 +21,8 @@ void __ioread32_copy(void *to, const void __iomem *from, size_t count);
 void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
 
 #ifdef CONFIG_MMU
+void ioremap_phys_range_hook(phys_addr_t phys_addr, size_t size, pgprot_t prot);
+void iounmap_phys_range_hook(phys_addr_t phys_addr, size_t size);
 int ioremap_page_range(unsigned long addr, unsigned long end,
 		       phys_addr_t phys_addr, pgprot_t prot);
 #else

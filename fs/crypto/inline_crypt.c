@@ -12,7 +12,7 @@
  * provides the key and IV to use.
  */
 
-#include <linux/blk-crypto-profile.h>
+#include <linux/blk-crypto.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/sched/mm.h>
@@ -77,10 +77,8 @@ static void fscrypt_log_blk_crypto_impl(struct fscrypt_mode *mode,
 	unsigned int i;
 
 	for (i = 0; i < num_devs; i++) {
-		struct request_queue *q = bdev_get_queue(devs[i]);
-
 		if (!IS_ENABLED(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK) ||
-		    __blk_crypto_cfg_supported(q->crypto_profile, cfg)) {
+		    blk_crypto_config_supported_natively(devs[i], cfg)) {
 			if (!xchg(&mode->logged_blk_crypto_native, 1))
 				pr_info("fscrypt: %s using blk-crypto (native)\n",
 					mode->friendly_name);
@@ -143,8 +141,7 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 		return PTR_ERR(devs);
 
 	for (i = 0; i < num_devs; i++) {
-		if (!blk_crypto_config_supported(bdev_get_queue(devs[i]),
-						 &crypto_cfg))
+		if (!blk_crypto_config_supported(devs[i], &crypto_cfg))
 			goto out_free_devs;
 	}
 
@@ -158,8 +155,7 @@ out_free_devs:
 }
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
-				     const u8 *raw_key,
-				     unsigned int raw_key_size,
+				     const u8 *raw_key, size_t raw_key_size,
 				     bool is_hw_wrapped,
 				     const struct fscrypt_info *ci)
 {
@@ -193,8 +189,7 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 		goto fail;
 	}
 	for (i = 0; i < num_devs; i++) {
-		err = blk_crypto_start_using_key(blk_key,
-						 bdev_get_queue(devs[i]));
+		err = blk_crypto_start_using_key(devs[i], blk_key);
 		if (err)
 			break;
 	}
@@ -233,7 +228,7 @@ void fscrypt_destroy_inline_crypt_key(struct super_block *sb,
 	devs = fscrypt_get_devices(sb, &num_devs);
 	if (!IS_ERR(devs)) {
 		for (i = 0; i < num_devs; i++)
-			blk_crypto_evict_key(bdev_get_queue(devs[i]), blk_key);
+			blk_crypto_evict_key(devs[i], blk_key);
 		kfree(devs);
 	}
 	kfree_sensitive(blk_key);
@@ -244,41 +239,26 @@ void fscrypt_destroy_inline_crypt_key(struct super_block *sb,
  * hardware-wrapped key.  Returns -EOPNOTSUPP if hardware-wrapped keys aren't
  * supported on this filesystem or hardware.
  */
-int fscrypt_derive_sw_secret(struct super_block *sb, const u8 *wrapped_key,
-			     unsigned int wrapped_key_size,
+int fscrypt_derive_sw_secret(struct super_block *sb,
+			     const u8 *wrapped_key, size_t wrapped_key_size,
 			     u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
 {
-	struct blk_crypto_profile *profile;
-	struct block_device **devs;
-	unsigned int num_devs;
-	unsigned int i;
 	int err;
 
-	/* The filesystem must be mounted with -o inlinecrypt */
-	if (!(sb->s_flags & SB_INLINECRYPT))
+	/* The filesystem must be mounted with -o inlinecrypt. */
+	if (!(sb->s_flags & SB_INLINECRYPT)) {
+		fscrypt_warn(NULL,
+			     "%s: filesystem not mounted with inlinecrypt\n",
+			     sb->s_id);
 		return -EOPNOTSUPP;
-
-	/*
-	 * Hardware-wrapped keys might be specific to a particular storage
-	 * device, so for now we don't allow them to be used if the filesystem
-	 * uses block devices with different crypto profiles.  This way, there
-	 * is no ambiguity about which ->derive_sw_secret method to call.
-	 */
-	devs = fscrypt_get_devices(sb, &num_devs);
-	if (IS_ERR(devs))
-		return PTR_ERR(devs);
-	profile = bdev_get_queue(devs[0])->crypto_profile;
-	for (i = 1; i < num_devs; i++) {
-		if (bdev_get_queue(devs[i])->crypto_profile != profile) {
-			fscrypt_warn(NULL,
-				     "unsupported multi-device configuration for hardware-wrapped keys");
-			kfree(devs);
-			return -EOPNOTSUPP;
-		}
 	}
-	err = blk_crypto_derive_sw_secret(profile, wrapped_key,
+
+	err = blk_crypto_derive_sw_secret(sb->s_bdev, wrapped_key,
 					  wrapped_key_size, sw_secret);
-	kfree(devs);
+	if (err == -EOPNOTSUPP)
+		fscrypt_warn(NULL,
+			     "%s: block device doesn't support hardware-wrapped keys\n",
+			     sb->s_id);
 	return err;
 }
 

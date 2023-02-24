@@ -821,6 +821,7 @@ static void terminate_big_destroy(struct hci_dev *hdev, void *data, int err)
 static int hci_le_terminate_big(struct hci_dev *hdev, u8 big, u8 bis)
 {
 	struct iso_list_data *d;
+	int ret;
 
 	bt_dev_dbg(hdev, "big 0x%2.2x bis 0x%2.2x", big, bis);
 
@@ -832,8 +833,12 @@ static int hci_le_terminate_big(struct hci_dev *hdev, u8 big, u8 bis)
 	d->big = big;
 	d->bis = bis;
 
-	return hci_cmd_sync_queue(hdev, terminate_big_sync, d,
-				  terminate_big_destroy);
+	ret = hci_cmd_sync_queue(hdev, terminate_big_sync, d,
+				 terminate_big_destroy);
+	if (ret)
+		kfree(d);
+
+	return ret;
 }
 
 static int big_terminate_sync(struct hci_dev *hdev, void *data)
@@ -858,6 +863,7 @@ static int big_terminate_sync(struct hci_dev *hdev, void *data)
 static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, u16 sync_handle)
 {
 	struct iso_list_data *d;
+	int ret;
 
 	bt_dev_dbg(hdev, "big 0x%2.2x sync_handle 0x%4.4x", big, sync_handle);
 
@@ -869,8 +875,12 @@ static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, u16 sync_handle)
 	d->big = big;
 	d->sync_handle = sync_handle;
 
-	return hci_cmd_sync_queue(hdev, big_terminate_sync, d,
-				  terminate_big_destroy);
+	ret = hci_cmd_sync_queue(hdev, big_terminate_sync, d,
+				 terminate_big_destroy);
+	if (ret)
+		kfree(d);
+
+	return ret;
 }
 
 /* Cleanup BIS connection
@@ -1881,7 +1891,7 @@ static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
 			continue;
 
 		/* Check if all CIS(s) belonging to a CIG are ready */
-		if (conn->link->state != BT_CONNECTED ||
+		if (!conn->link || conn->link->state != BT_CONNECTED ||
 		    conn->state != BT_CONNECT) {
 			cmd.cp.num_cis = 0;
 			break;

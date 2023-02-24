@@ -1,138 +1,152 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=======================
-ARM Hypercall Interface
-=======================
+===============================================
+KVM/arm64-specific hypercalls exposed to guests
+===============================================
 
-KVM handles the hypercall services as requested by the guests. New hypercall
-services are regularly made available by the ARM specification or by KVM (as
-vendor services) if they make sense from a virtualization point of view.
+This file documents the KVM/arm64-specific hypercalls which may be
+exposed by KVM/arm64 to guest operating systems. These hypercalls are
+issued using the HVC instruction according to version 1.1 of the Arm SMC
+Calling Convention (DEN0028/C):
 
-This means that a guest booted on two different versions of KVM can observe
-two different "firmware" revisions. This could cause issues if a given guest
-is tied to a particular version of a hypercall service, or if a migration
-causes a different version to be exposed out of the blue to an unsuspecting
-guest.
+https://developer.arm.com/docs/den0028/c
 
-In order to remedy this situation, KVM exposes a set of "firmware
-pseudo-registers" that can be manipulated using the GET/SET_ONE_REG
-interface. These registers can be saved/restored by userspace, and set
-to a convenient value as required.
+All KVM/arm64-specific hypercalls are allocated within the "Vendor
+Specific Hypervisor Service Call" range with a UID of
+``28b46fb6-2ec5-11e9-a9ca-4b564d003a74``. This UID should be queried by the
+guest using the standard "Call UID" function for the service range in
+order to determine that the KVM/arm64-specific hypercalls are available.
 
-The following registers are defined:
+``ARM_SMCCC_KVM_FUNC_FEATURES``
+---------------------------------------------
 
-* KVM_REG_ARM_PSCI_VERSION:
+Provides a discovery mechanism for other KVM/arm64 hypercalls.
 
-  KVM implements the PSCI (Power State Coordination Interface)
-  specification in order to provide services such as CPU on/off, reset
-  and power-off to the guest.
++---------------------+-------------------------------------------------------------+
+| Presence:           | Mandatory for the KVM/arm64 UID                             |
++---------------------+-------------------------------------------------------------+
+| Calling convention: | HVC32                                                       |
++---------------------+----------+--------------------------------------------------+
+| Function ID:        | (uint32) | 0x86000000                                       |
++---------------------+----------+--------------------------------------------------+
+| Arguments:          | None                                                        |
++---------------------+----------+----+---------------------------------------------+
+| Return Values:      | (uint32) | R0 | Bitmap of available function numbers 0-31   |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint32) | R1 | Bitmap of available function numbers 32-63  |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint32) | R2 | Bitmap of available function numbers 64-95  |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint32) | R3 | Bitmap of available function numbers 96-127 |
++---------------------+----------+----+---------------------------------------------+
 
-  - Only valid if the vcpu has the KVM_ARM_VCPU_PSCI_0_2 feature set
-    (and thus has already been initialized)
-  - Returns the current PSCI version on GET_ONE_REG (defaulting to the
-    highest PSCI version implemented by KVM and compatible with v0.2)
-  - Allows any PSCI version implemented by KVM and compatible with
-    v0.2 to be set with SET_ONE_REG
-  - Affects the whole VM (even if the register view is per-vcpu)
+``ARM_SMCCC_KVM_FUNC_PTP``
+----------------------------------------
 
-* KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1:
-    Holds the state of the firmware support to mitigate CVE-2017-5715, as
-    offered by KVM to the guest via a HVC call. The workaround is described
-    under SMCCC_ARCH_WORKAROUND_1 in [1].
+See ptp_kvm.rst
 
-  Accepted values are:
+``ARM_SMCCC_KVM_FUNC_HYP_MEMINFO``
+----------------------------------
 
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL:
-      KVM does not offer
-      firmware support for the workaround. The mitigation status for the
-      guest is unknown.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_AVAIL:
-      The workaround HVC call is
-      available to the guest and required for the mitigation.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_REQUIRED:
-      The workaround HVC call
-      is available to the guest, but it is not needed on this VCPU.
+Query the memory protection parameters for a protected virtual machine.
 
-* KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2:
-    Holds the state of the firmware support to mitigate CVE-2018-3639, as
-    offered by KVM to the guest via a HVC call. The workaround is described
-    under SMCCC_ARCH_WORKAROUND_2 in [1]_.
++---------------------+-------------------------------------------------------------+
+| Presence:           | Optional; protected guests only.                            |
++---------------------+-------------------------------------------------------------+
+| Calling convention: | HVC64                                                       |
++---------------------+----------+--------------------------------------------------+
+| Function ID:        | (uint32) | 0xC6000002                                       |
++---------------------+----------+----+---------------------------------------------+
+| Arguments:          | (uint64) | R1 | Reserved / Must be zero                     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R2 | Reserved / Must be zero                     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R3 | Reserved / Must be zero                     |
++---------------------+----------+----+---------------------------------------------+
+| Return Values:      | (int64)  | R0 | ``INVALID_PARAMETER (-3)`` on error, else   |
+|                     |          |    | memory protection granule in bytes          |
++---------------------+----------+----+---------------------------------------------+
 
-  Accepted values are:
+``ARM_SMCCC_KVM_FUNC_MEM_SHARE``
+--------------------------------
 
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL:
-      A workaround is not
-      available. KVM does not offer firmware support for the workaround.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_UNKNOWN:
-      The workaround state is
-      unknown. KVM does not offer firmware support for the workaround.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_AVAIL:
-      The workaround is available,
-      and can be disabled by a vCPU. If
-      KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ENABLED is set, it is active for
-      this vCPU.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_REQUIRED:
-      The workaround is always active on this vCPU or it is not needed.
+Share a region of memory with the KVM host, granting it read, write and execute
+permissions. The size of the region is equal to the memory protection granule
+advertised by ``ARM_SMCCC_KVM_FUNC_HYP_MEMINFO``.
 
++---------------------+-------------------------------------------------------------+
+| Presence:           | Optional; protected guests only.                            |
++---------------------+-------------------------------------------------------------+
+| Calling convention: | HVC64                                                       |
++---------------------+----------+--------------------------------------------------+
+| Function ID:        | (uint32) | 0xC6000003                                       |
++---------------------+----------+----+---------------------------------------------+
+| Arguments:          | (uint64) | R1 | Base IPA of memory region to share          |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R2 | Reserved / Must be zero                     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R3 | Reserved / Must be zero                     |
++---------------------+----------+----+---------------------------------------------+
+| Return Values:      | (int64)  | R0 | ``SUCCESS (0)``                             |
+|                     |          |    +---------------------------------------------+
+|                     |          |    | ``INVALID_PARAMETER (-3)``                  |
++---------------------+----------+----+---------------------------------------------+
 
-Bitmap Feature Firmware Registers
----------------------------------
+``ARM_SMCCC_KVM_FUNC_MEM_UNSHARE``
+----------------------------------
 
-Contrary to the above registers, the following registers exposes the
-hypercall services in the form of a feature-bitmap to the userspace. This
-bitmap is translated to the services that are available to the guest.
-There is a register defined per service call owner and can be accessed via
-GET/SET_ONE_REG interface.
+Revoke access permission from the KVM host to a memory region previously shared
+with ``ARM_SMCCC_KVM_FUNC_MEM_SHARE``. The size of the region is equal to the
+memory protection granule advertised by ``ARM_SMCCC_KVM_FUNC_HYP_MEMINFO``.
 
-By default, these registers are set with the upper limit of the features
-that are supported. This way userspace can discover all the usable
-hypercall services via GET_ONE_REG. The user-space can write-back the
-desired bitmap back via SET_ONE_REG. The features for the registers that
-are untouched, probably because userspace isn't aware of them, will be
-exposed as is to the guest.
++---------------------+-------------------------------------------------------------+
+| Presence:           | Optional; protected guests only.                            |
++---------------------+-------------------------------------------------------------+
+| Calling convention: | HVC64                                                       |
++---------------------+----------+--------------------------------------------------+
+| Function ID:        | (uint32) | 0xC6000004                                       |
++---------------------+----------+----+---------------------------------------------+
+| Arguments:          | (uint64) | R1 | Base IPA of memory region to unshare        |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R2 | Reserved / Must be zero                     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R3 | Reserved / Must be zero                     |
++---------------------+----------+----+---------------------------------------------+
+| Return Values:      | (int64)  | R0 | ``SUCCESS (0)``                             |
+|                     |          |    +---------------------------------------------+
+|                     |          |    | ``INVALID_PARAMETER (-3)``                  |
++---------------------+----------+----+---------------------------------------------+
 
-Note that KVM will not allow the userspace to configure the registers
-anymore once any of the vCPUs has run at least once. Instead, it will
-return a -EBUSY.
+``ARM_SMCCC_KVM_FUNC_MEM_RELINQUISH``
+--------------------------------------
 
-The pseudo-firmware bitmap register are as follows:
+Cooperatively relinquish ownership of a memory region. The size of the
+region is equal to the memory protection granule advertised by
+``ARM_SMCCC_KVM_FUNC_HYP_MEMINFO``. If this hypercall is advertised
+then it is mandatory to call it before freeing memory via, for
+example, virtio balloon. If the caller is a protected VM, it is
+guaranteed that the memory region will be completely cleared before
+becoming visible to another VM.
 
-* KVM_REG_ARM_STD_BMAP:
-    Controls the bitmap of the ARM Standard Secure Service Calls.
++---------------------+-------------------------------------------------------------+
+| Presence:           | Optional.                                                   |
++---------------------+-------------------------------------------------------------+
+| Calling convention: | HVC64                                                       |
++---------------------+----------+--------------------------------------------------+
+| Function ID:        | (uint32) | 0xC6000009                                       |
++---------------------+----------+----+---------------------------------------------+
+| Arguments:          | (uint64) | R1 | Base IPA of memory region to relinquish     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R2 | Reserved / Must be zero                     |
+|                     +----------+----+---------------------------------------------+
+|                     | (uint64) | R3 | Reserved / Must be zero                     |
++---------------------+----------+----+---------------------------------------------+
+| Return Values:      | (int64)  | R0 | ``SUCCESS (0)``                             |
+|                     |          |    +---------------------------------------------+
+|                     |          |    | ``INVALID_PARAMETER (-3)``                  |
++---------------------+----------+----+---------------------------------------------+
 
-  The following bits are accepted:
+``ARM_SMCCC_KVM_FUNC_MMIO_GUARD_*``
+-----------------------------------
 
-    Bit-0: KVM_REG_ARM_STD_BIT_TRNG_V1_0:
-      The bit represents the services offered under v1.0 of ARM True Random
-      Number Generator (TRNG) specification, ARM DEN0098.
-
-* KVM_REG_ARM_STD_HYP_BMAP:
-    Controls the bitmap of the ARM Standard Hypervisor Service Calls.
-
-  The following bits are accepted:
-
-    Bit-0: KVM_REG_ARM_STD_HYP_BIT_PV_TIME:
-      The bit represents the Paravirtualized Time service as represented by
-      ARM DEN0057A.
-
-* KVM_REG_ARM_VENDOR_HYP_BMAP:
-    Controls the bitmap of the Vendor specific Hypervisor Service Calls.
-
-  The following bits are accepted:
-
-    Bit-0: KVM_REG_ARM_VENDOR_HYP_BIT_FUNC_FEAT
-      The bit represents the ARM_SMCCC_VENDOR_HYP_KVM_FEATURES_FUNC_ID
-      and ARM_SMCCC_VENDOR_HYP_CALL_UID_FUNC_ID function-ids.
-
-    Bit-1: KVM_REG_ARM_VENDOR_HYP_BIT_PTP:
-      The bit represents the Precision Time Protocol KVM service.
-
-Errors:
-
-    =======  =============================================================
-    -ENOENT   Unknown register accessed.
-    -EBUSY    Attempt a 'write' to the register after the VM has started.
-    -EINVAL   Invalid bitmap written to the register.
-    =======  =============================================================
-
-.. [1] https://developer.arm.com/-/media/developer/pdf/ARM_DEN_0070A_Firmware_interfaces_for_mitigating_CVE-2017-5715.pdf
+See mmio-guard.rst
