@@ -1841,9 +1841,6 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 					  int stream)
 {
 	switch (chip->usb_id) {
-#ifdef CONFIG_HID_RKVR
-	case USB_ID(0x071B, 0x3205): /* RockChip NanoC VR */
-#endif
 	case USB_ID(0x0a92, 0x0053): /* AudioTrak Optoplay */
 		/* Optoplay sets the sample rate attribute although
 		 * it seems not supporting it in fact.
