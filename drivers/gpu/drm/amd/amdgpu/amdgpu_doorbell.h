@@ -21,6 +21,9 @@
  *
  */
 
+#ifndef AMDGPU_DOORBELL_H
+#define AMDGPU_DOORBELL_H
+
 /*
  * GPU doorbell structures, functions & helpers
  */
@@ -308,3 +311,4 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 #define RDOORBELL64(index) amdgpu_mm_rdoorbell64(adev, (index))
 #define WDOORBELL64(index, v) amdgpu_mm_wdoorbell64(adev, (index), (v))
 
+#endif
