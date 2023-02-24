@@ -125,8 +125,20 @@ static void st_ilps22qs_report_temp(struct st_ilps22qs_sensor *sensor,
 static void st_silps22qs_report_press_qvar(struct st_ilps22qs_sensor *sensor,
 					   u8 *tmp, int64_t timestamp)
 {
-	struct iio_dev *iio_dev = sensor->hw->iio_devs[sensor->id];
 	u8 iio_buf[ALIGN(3, sizeof(s64)) + sizeof(s64)];
+	struct st_ilps22qs_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev;
+
+	mutex_lock(&hw->lock);
+	if (hw->interleave) {
+		if (tmp[0] & 0x01)
+			iio_dev = sensor->hw->iio_devs[ST_ILPS22QS_QVAR];
+		else
+			iio_dev = sensor->hw->iio_devs[ST_ILPS22QS_PRESS];
+	} else {
+		iio_dev = sensor->hw->iio_devs[sensor->id];
+	}
+	mutex_unlock(&hw->lock);
 
 	memcpy(iio_buf, tmp, 3);
 	iio_push_to_buffers_with_timestamp(iio_dev, iio_buf, timestamp);
@@ -150,9 +162,8 @@ static void st_ilps22qs_poll_function_work(struct work_struct *iio_work)
 	ktdelta = ktime_set(0,
 			    (st_ilps22qs_get_time_ns(hw) - sensor->timestamp));
 
-	mutex_lock(&hw->lock);
-
 	/* avoid negative value in case of high odr */
+	mutex_lock(&hw->lock);
 	if (ktime_after(sensor->ktime, ktdelta))
 		tmpkt = ktime_sub(sensor->ktime, ktdelta);
 	else
@@ -284,37 +295,80 @@ static int st_ilps22qs_set_odr(struct st_ilps22qs_sensor *sensor, u8 odr)
 	return 0;
 }
 
-static int st_ilps22qs_check_busy(struct st_ilps22qs_sensor *sensor,
-				  bool enable)
+/* need hw->lock */
+static int st_ilps22qs_set_interleave(struct st_ilps22qs_sensor *sensor,
+				      bool enable)
 {
+	struct st_ilps22qs_hw *hw = sensor->hw;
 	int otherid = sensor->id == ST_ILPS22QS_PRESS ? ST_ILPS22QS_QVAR :
 							ST_ILPS22QS_PRESS;
+	int interleave;
+	int err = 0;
 
-	if (sensor->hw->enable_mask & BIT(otherid))
-		return -EBUSY;
+	/* both press / qvar enabling ? */
+	mutex_lock(&hw->lock);
+	interleave = (!!(hw->enable_mask & BIT(otherid))) && enable;
+	if (interleave) {
+		unsigned int ctrl1;
 
-	return 0;
+		err = regmap_bulk_read(hw->regmap,
+				       ST_ILPS22QS_CTRL1_ADDR,
+				       &ctrl1, 1);
+		if (err < 0)
+			goto unlock;
+
+		err = regmap_update_bits(hw->regmap,
+					 ST_ILPS22QS_CTRL1_ADDR,
+					 ST_ILPS22QS_ODR_MASK, 0);
+		if (err < 0)
+			goto unlock;
+
+		err = regmap_update_bits(hw->regmap,
+					 ST_ILPS22QS_CTRL3_ADDR,
+					 ST_ILPS22QS_AH_QVAR_EN_MASK, 0);
+		if (err < 0)
+			goto unlock;
+
+		err = regmap_update_bits(hw->regmap, ST_ILPS22QS_CTRL3_ADDR,
+					 ST_ILPS22QS_AH_QVAR_P_AUTO_EN_MASK,
+					 ST_ILPS22QS_SHIFT_VAL(interleave,
+					    ST_ILPS22QS_AH_QVAR_P_AUTO_EN_MASK));
+		if (err < 0)
+			goto unlock;
+
+		err = regmap_update_bits(hw->regmap, ST_ILPS22QS_CTRL1_ADDR,
+					 ST_ILPS22QS_ODR_MASK, ctrl1);
+		if (err < 0)
+			goto unlock;
+	} else if (hw->interleave) {
+		err = regmap_update_bits(hw->regmap, ST_ILPS22QS_CTRL3_ADDR,
+					 ST_ILPS22QS_AH_QVAR_P_AUTO_EN_MASK, 0);
+		if (err < 0)
+			goto unlock;
+	}
+
+	hw->interleave = interleave;
+
+unlock:
+	mutex_unlock(&hw->lock);
+
+	return err;
 }
 
 static int st_ilps22qs_hw_enable(struct st_ilps22qs_sensor *sensor, bool enable)
 {
-	int err = 0;
+	int ret = 0;
 
-	if (sensor->id == ST_ILPS22QS_TEMP)
+	switch (sensor->id) {
+	case ST_ILPS22QS_QVAR:
+	case ST_ILPS22QS_PRESS:
+		ret = st_ilps22qs_set_interleave(sensor, enable);
+		break;
+	default:
 		return 0;
-
-	err = st_ilps22qs_check_busy(sensor, enable);
-	if (err < 0)
-		return err;
-
-	if (sensor->id == ST_ILPS22QS_QVAR) {
-		err = st_ilps22qs_update_locked(sensor->hw,
-						ST_ILPS22QS_CTRL3_ADDR,
-						ST_ILPS22QS_AH_QVAR_EN_MASK,
-						!!enable);
 	}
 
-	return err;
+	return ret;
 }
 
 static int st_ilps22qs_set_enable(struct st_ilps22qs_sensor *sensor,
@@ -344,9 +398,17 @@ static int st_ilps22qs_set_enable(struct st_ilps22qs_sensor *sensor,
 		hrtimer_cancel(&sensor->hr_timer);
 		hw->enable_mask &= ~BIT(sensor->id);
 	}
+
+	if (!hw->interleave) {
+		err = regmap_update_bits(hw->regmap,
+					 ST_ILPS22QS_CTRL3_ADDR,
+					 ST_ILPS22QS_AH_QVAR_EN_MASK,
+					 ST_ILPS22QS_SHIFT_VAL(!!(hw->enable_mask & BIT(ST_ILPS22QS_QVAR)),
+					  ST_ILPS22QS_AH_QVAR_EN_MASK));
+	}
 	mutex_unlock(&hw->lock);
 
-	return 0;
+	return err;
 }
 
 static int st_ilps22qs_init_sensors(struct st_ilps22qs_hw *hw)
@@ -360,6 +422,9 @@ static int st_ilps22qs_init_sensors(struct st_ilps22qs_hw *hw)
 		return err;
 
 	usleep_range(50, 60);
+
+	/* interleave disabled by default */
+	hw->interleave = false;
 
 	/* enable BDU */
 	return st_ilps22qs_update_locked(hw, ST_ILPS22QS_CTRL1_ADDR,

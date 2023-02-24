@@ -78,6 +78,7 @@ struct st_ilps22qs_hw {
 	struct regmap *regmap;
 	struct device *dev;
 	struct mutex lock;
+	bool interleave;
 	u8 enable_mask;
 	u8 odr;
 };
