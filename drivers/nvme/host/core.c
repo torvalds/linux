@@ -3104,7 +3104,7 @@ static void nvme_init_known_nvm_effects(struct nvme_ctrl *ctrl)
 	 * Rather than blindly freezing the IO queues for this effect that
 	 * doesn't even apply to IO, mask it off.
 	 */
-	log->acs[nvme_admin_security_recv] &= ~NVME_CMD_EFFECTS_CSE_MASK;
+	log->acs[nvme_admin_security_recv] &= cpu_to_le32(~NVME_CMD_EFFECTS_CSE_MASK);
 
 	log->iocs[nvme_cmd_write] |= cpu_to_le32(NVME_CMD_EFFECTS_LBCC);
 	log->iocs[nvme_cmd_write_zeroes] |= cpu_to_le32(NVME_CMD_EFFECTS_LBCC);
