@@ -209,10 +209,10 @@ static int umc_v8_10_swizzle_mode_na_to_pa(struct amdgpu_device *adev,
 	return 0;
 }
 
-void umc_v8_10_convert_error_address(struct amdgpu_device *adev,
-				    struct ras_err_data *err_data, uint64_t err_addr,
-				    uint32_t ch_inst, uint32_t umc_inst,
-				    uint32_t node_inst, uint64_t mc_umc_status)
+static void umc_v8_10_convert_error_address(struct amdgpu_device *adev,
+					    struct ras_err_data *err_data, uint64_t err_addr,
+					    uint32_t ch_inst, uint32_t umc_inst,
+					    uint32_t node_inst, uint64_t mc_umc_status)
 {
 	uint64_t na_err_addr_base;
 	uint64_t na_err_addr, retired_page_addr;
@@ -434,7 +434,7 @@ static void umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
 					uint32_t umc_inst,
 					uint32_t node_inst)
 {
-	uint32_t eccinfo_table_idx, channel_index;
+	uint32_t eccinfo_table_idx;
 	uint64_t mc_umc_status, err_addr;
 
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
@@ -443,11 +443,6 @@ static void umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
 				  adev->umc.channel_inst_num +
 				  umc_inst * adev->umc.channel_inst_num +
 				  ch_inst;
-	channel_index =
-		adev->umc.channel_idx_tbl[node_inst * adev->umc.umc_inst_num *
-						  adev->umc.channel_inst_num +
-						  umc_inst * adev->umc.channel_inst_num +
-						  ch_inst];
 
 	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
 
