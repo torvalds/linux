@@ -591,16 +591,19 @@ static int stf_positive_gain_set(struct snd_kcontrol *kcontrol,
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
 	int gain_db = ucontrol->value.integer.value[0];
+	bool change = false;
 
 	afe_priv->stf_positive_gain_db = gain_db;
 
 	if (gain_db >= 0 && gain_db <= 24) {
-		regmap_update_bits(afe->regmap,
-				   AFE_SIDETONE_GAIN,
-				   POSITIVE_GAIN_MASK_SFT,
-				   (gain_db / 6) << POSITIVE_GAIN_SFT);
+		regmap_update_bits_check(afe->regmap,
+					 AFE_SIDETONE_GAIN,
+					 POSITIVE_GAIN_MASK_SFT,
+					 (gain_db / 6) << POSITIVE_GAIN_SFT,
+					 &change);
 	}
-	return 0;
+
+	return change;
 }
 
 static int mt8192_adda_dmic_get(struct snd_kcontrol *kcontrol,
@@ -621,12 +624,17 @@ static int mt8192_adda_dmic_set(struct snd_kcontrol *kcontrol,
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
 	int dmic_on;
+	bool change;
 
 	dmic_on = ucontrol->value.integer.value[0];
 
+	change = (afe_priv->mtkaif_dmic != dmic_on) ||
+		(afe_priv->mtkaif_dmic_ch34 != dmic_on);
+
 	afe_priv->mtkaif_dmic = dmic_on;
 	afe_priv->mtkaif_dmic_ch34 = dmic_on;
-	return 0;
+
+	return change;
 }
 
 static int mt8192_adda6_only_get(struct snd_kcontrol *kcontrol,
@@ -647,11 +655,14 @@ static int mt8192_adda6_only_set(struct snd_kcontrol *kcontrol,
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
 	int mtkaif_adda6_only;
+	bool change;
 
 	mtkaif_adda6_only = ucontrol->value.integer.value[0];
 
+	change = afe_priv->mtkaif_adda6_only != mtkaif_adda6_only;
 	afe_priv->mtkaif_adda6_only = mtkaif_adda6_only;
-	return 0;
+
+	return change;
 }
 
 static const struct snd_kcontrol_new mtk_adda_controls[] = {
