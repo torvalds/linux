@@ -392,9 +392,6 @@ static void rtw_init_default_value(struct adapter *padapter)
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
 	/* xmit_priv */
-	pxmitpriv->vcs_setting = pregistrypriv->vrtl_carrier_sense;
-	pxmitpriv->vcs = pregistrypriv->vcs_type;
-	pxmitpriv->vcs_type = pregistrypriv->vcs_type;
 	pxmitpriv->frag_len = pregistrypriv->frag_thresh;
 
 	/* mlme_priv */
@@ -485,7 +482,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		goto free_mlme_ext;
 	}
 
-	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL) {
+	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter)) {
 		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_recv_priv failed\n");
 		goto free_xmit_priv;
 	}
@@ -634,8 +631,8 @@ static int _netdev_open(struct net_device *pnetdev)
 			pr_info("can't init mlme_ext_priv\n");
 			goto netdev_open_error;
 		}
-		if (padapter->intf_start)
-			padapter->intf_start(padapter);
+		if (rtl8188eu_inirp_init(padapter))
+			goto netdev_open_error;
 
 		rtw_led_control(padapter, LED_CTL_NO_LINK);
 
@@ -687,8 +684,8 @@ static int  ips_netdrv_open(struct adapter *padapter)
 	if (status == _FAIL)
 		goto netdev_open_error;
 
-	if (padapter->intf_start)
-		padapter->intf_start(padapter);
+	if (rtl8188eu_inirp_init(padapter))
+		goto netdev_open_error;
 
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 5000);
@@ -764,8 +761,8 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 {
 	rtw_fifo_cleanup(padapter);
 
-	if (padapter->intf_stop)
-		padapter->intf_stop(padapter);
+	rtw_read_port_cancel(padapter);
+	rtw_write_port_cancel(padapter);
 
 	/* s5. */
 	if (!padapter->bSurpriseRemoved)
