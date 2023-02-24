@@ -1934,11 +1934,11 @@ static int nbd_genl_connect(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 		}
 	}
-	if (!info->attrs[NBD_ATTR_SOCKETS]) {
+	if (GENL_REQ_ATTR_CHECK(info, NBD_ATTR_SOCKETS)) {
 		pr_err("must specify at least one socket\n");
 		return -EINVAL;
 	}
-	if (!info->attrs[NBD_ATTR_SIZE_BYTES]) {
+	if (GENL_REQ_ATTR_CHECK(info, NBD_ATTR_SIZE_BYTES)) {
 		pr_err("must specify a size in bytes for the device\n");
 		return -EINVAL;
 	}
@@ -2123,7 +2123,7 @@ static int nbd_genl_disconnect(struct sk_buff *skb, struct genl_info *info)
 	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!info->attrs[NBD_ATTR_INDEX]) {
+	if (GENL_REQ_ATTR_CHECK(info, NBD_ATTR_INDEX)) {
 		pr_err("must specify an index to disconnect\n");
 		return -EINVAL;
 	}
@@ -2161,7 +2161,7 @@ static int nbd_genl_reconfigure(struct sk_buff *skb, struct genl_info *info)
 	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!info->attrs[NBD_ATTR_INDEX]) {
+	if (GENL_REQ_ATTR_CHECK(info, NBD_ATTR_INDEX)) {
 		pr_err("must specify a device to reconfigure\n");
 		return -EINVAL;
 	}
