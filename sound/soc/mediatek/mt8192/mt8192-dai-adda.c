@@ -601,6 +601,8 @@ static int stf_positive_gain_set(struct snd_kcontrol *kcontrol,
 					 POSITIVE_GAIN_MASK_SFT,
 					 (gain_db / 6) << POSITIVE_GAIN_SFT,
 					 &change);
+	} else {
+		return -EINVAL;
 	}
 
 	return change;
