@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -319,6 +319,9 @@ static int cpucp_log_probe(struct platform_device *pdev)
 
 exit:
 	kfree(info->rmem);
+	/* devm will free up buffers in lists so just re-initialize lists */
+	INIT_LIST_HEAD(&full_buffers_list);
+	INIT_LIST_HEAD(&free_buffers_list);
 	return ret;
 }
 
