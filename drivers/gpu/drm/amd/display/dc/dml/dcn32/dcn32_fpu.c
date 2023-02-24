@@ -2315,6 +2315,9 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 			num_dcfclk_dpms++;
 	}
 
+	if (num_dcfclk_dpms > 0 && bw_params->clk_table.entries[0].fclk_mhz > min_fclk_mhz)
+		min_fclk_mhz = bw_params->clk_table.entries[0].fclk_mhz;
+
 	if (!max_dcfclk_mhz || !max_dispclk_mhz || !max_dtbclk_mhz)
 		return -1;
 
@@ -2423,7 +2426,6 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 		for (i = *num_entries - 1; i >= 0 ; i--) {
 			if (table[i].fabricclk_mhz < min_fclk_mhz) {
 				table[i].fabricclk_mhz = min_fclk_mhz;
-				break;
 			}
 		}
 	}
@@ -2432,7 +2434,6 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 	for (i = *num_entries - 1; i >= 0 ; i--) {
 		if (table[i].dcfclk_mhz < min_dcfclk_mhz) {
 			table[i].dcfclk_mhz = min_dcfclk_mhz;
-			break;
 		}
 	}
 
