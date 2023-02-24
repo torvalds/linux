@@ -246,15 +246,16 @@ static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
 	return 0;
 }
 
-static void check_regcomp(regex_t *pattern, const char *regex)
+static bool check_regcomp(regex_t *pattern, const char *regex)
 {
 	int err;
 
 	err = regcomp(pattern, regex, REG_EXTENDED | REG_NEWLINE);
 	if (err != 0 || pattern->re_nsub != 1) {
 		fprintf(stderr, "Invalid pattern %s code %d\n", regex, err);
-		exit(1);
+		return false;
 	}
+	return true;
 }
 
 static char **explode(char sep, const char *str, int *size)
@@ -494,28 +495,28 @@ static bool is_need(char *buf)
 	return true;
 }
 
-static void add_list(char *buf, int len, char *ext_buf)
+static bool add_list(char *buf, int len, char *ext_buf)
 {
 	if (list_size != 0 &&
 		len == list[list_size-1].len &&
 		memcmp(buf, list[list_size-1].txt, len) == 0) {
 		list[list_size-1].num++;
 		list[list_size-1].page_num += get_page_num(buf);
-		return;
+		return true;
 	}
 	if (list_size == max_size) {
 		fprintf(stderr, "max_size too small??\n");
-		exit(1);
+		return false;
 	}
 	if (!is_need(buf))
-		return;
+		return true;
 	list[list_size].pid = get_pid(buf);
 	list[list_size].tgid = get_tgid(buf);
 	list[list_size].comm = get_comm(buf);
 	list[list_size].txt = malloc(len+1);
 	if (!list[list_size].txt) {
 		fprintf(stderr, "Out of memory\n");
-		exit(1);
+		return false;
 	}
 	memcpy(list[list_size].txt, buf, len);
 	list[list_size].txt[len] = 0;
@@ -534,6 +535,7 @@ static void add_list(char *buf, int len, char *ext_buf)
 		printf("loaded %d\r", list_size);
 		fflush(stdout);
 	}
+	return true;
 }
 
 static bool parse_cull_args(const char *arg_str)
@@ -790,12 +792,19 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	check_regcomp(&order_pattern, "order\\s*([0-9]*),");
-	check_regcomp(&pid_pattern, "pid\\s*([0-9]*),");
-	check_regcomp(&tgid_pattern, "tgid\\s*([0-9]*) ");
-	check_regcomp(&comm_pattern, "tgid\\s*[0-9]*\\s*\\((.*)\\),\\s*ts");
-	check_regcomp(&ts_nsec_pattern, "ts\\s*([0-9]*)\\s*ns,");
-	check_regcomp(&free_ts_nsec_pattern, "free_ts\\s*([0-9]*)\\s*ns");
+	if (!check_regcomp(&order_pattern, "order\\s*([0-9]*),"))
+		goto out_order;
+	if (!check_regcomp(&pid_pattern, "pid\\s*([0-9]*),"))
+		goto out_pid;
+	if (!check_regcomp(&tgid_pattern, "tgid\\s*([0-9]*) "))
+		goto out_tgid;
+	if (!check_regcomp(&comm_pattern, "tgid\\s*[0-9]*\\s*\\((.*)\\),\\s*ts"))
+		goto out_comm;
+	if (!check_regcomp(&ts_nsec_pattern, "ts\\s*([0-9]*)\\s*ns,"))
+		goto out_ts;
+	if (!check_regcomp(&free_ts_nsec_pattern, "free_ts\\s*([0-9]*)\\s*ns"))
+		goto out_free_ts;
+
 	fstat(fileno(fin), &st);
 	max_size = st.st_size / 100; /* hack ... */
 
@@ -804,7 +813,7 @@ int main(int argc, char **argv)
 	ext_buf = malloc(BUF_SIZE);
 	if (!list || !buf || !ext_buf) {
 		fprintf(stderr, "Out of memory\n");
-		exit(1);
+		goto out_free;
 	}
 
 	for ( ; ; ) {
@@ -812,7 +821,8 @@ int main(int argc, char **argv)
 
 		if (buf_len < 0)
 			break;
-		add_list(buf, buf_len, ext_buf);
+		if (!add_list(buf, buf_len, ext_buf))
+			goto out_free;
 	}
 
 	printf("loaded %d\n", list_size);
@@ -862,11 +872,26 @@ int main(int argc, char **argv)
 			fprintf(fout, "\n");
 		}
 	}
-	regfree(&order_pattern);
-	regfree(&pid_pattern);
-	regfree(&tgid_pattern);
-	regfree(&comm_pattern);
-	regfree(&ts_nsec_pattern);
+
+out_free:
+	if (ext_buf)
+		free(ext_buf);
+	if (buf)
+		free(buf);
+	if (list)
+		free(list);
+out_free_ts:
 	regfree(&free_ts_nsec_pattern);
+out_ts:
+	regfree(&ts_nsec_pattern);
+out_comm:
+	regfree(&comm_pattern);
+out_tgid:
+	regfree(&tgid_pattern);
+out_pid:
+	regfree(&pid_pattern);
+out_order:
+	regfree(&order_pattern);
+
 	return 0;
 }

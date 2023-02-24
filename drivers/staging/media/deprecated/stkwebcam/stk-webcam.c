@@ -779,7 +779,7 @@ static int v4l_stk_mmap(struct file *fp, struct vm_area_struct *vma)
 	ret = remap_vmalloc_range(vma, sbuf->buffer, 0);
 	if (ret)
 		return ret;
-	vma->vm_flags |= VM_DONTEXPAND;
+	vm_flags_set(vma, VM_DONTEXPAND);
 	vma->vm_private_data = sbuf;
 	vma->vm_ops = &stk_v4l_vm_ops;
 	sbuf->v4lbuf.flags |= V4L2_BUF_FLAG_MAPPED;

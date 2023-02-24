@@ -442,7 +442,7 @@ static int ivpu_bo_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 		return dma_buf_mmap(obj->dma_buf, vma, 0);
 	}
 
-	vma->vm_flags |= VM_PFNMAP | VM_DONTEXPAND;
+	vm_flags_set(vma, VM_PFNMAP | VM_DONTEXPAND);
 	vma->vm_page_prot = ivpu_bo_pgprot(bo, vm_get_page_prot(vma->vm_flags));
 
 	return 0;

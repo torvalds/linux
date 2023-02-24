@@ -10,7 +10,7 @@ dmesg -C
 
 for file in "$DBGFS/"*
 do
-	echo "$(basename "$f")" > "$DBGFS/rm_contexts"
+	(echo "$(basename "$f")" > "$DBGFS/rm_contexts") &> /dev/null
 	if dmesg | grep -q BUG
 	then
 		dmesg

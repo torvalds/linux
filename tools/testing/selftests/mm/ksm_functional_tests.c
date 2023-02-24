@@ -37,7 +37,7 @@ static bool range_maps_duplicates(char *addr, unsigned long size)
 	/*
 	 * There is no easy way to check if there are KSM pages mapped into
 	 * this range. We only check that the range does not map the same PFN
-	 * twice by comaring each pair of mapped pages.
+	 * twice by comparing each pair of mapped pages.
 	 */
 	for (offs_a = 0; offs_a < size; offs_a += pagesize) {
 		pfn_a = pagemap_get_pfn(pagemap_fd, addr + offs_a);
