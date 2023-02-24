@@ -173,13 +173,6 @@ config ROCKCHIP_CLK_PVTM
 config ROCKCHIP_DDRCLK
 	bool
 
-config ROCKCHIP_DDRCLK_SCPI
-	bool "Rockchip DDR Clk SCPI"
-	default y if RK3368_SCPI_PROTOCOL
-	select ROCKCHIP_DDRCLK
-	help
-	  Say y here to enable ddr clk scpi.
-
 config ROCKCHIP_DDRCLK_SIP
 	bool "Rockchip DDR Clk SIP"
 	default y if CPU_RK3399

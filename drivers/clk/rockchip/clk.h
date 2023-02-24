@@ -666,10 +666,8 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 /*
  * DDRCLK flags, including method of setting the rate
  * ROCKCHIP_DDRCLK_SIP: use SIP call to bl31 to change ddrclk rate.
- * ROCKCHIP_DDRCLK_SCPI: use SCPI APIs to let mcu change ddrclk rate.
  */
 #define ROCKCHIP_DDRCLK_SIP		BIT(0)
-#define ROCKCHIP_DDRCLK_SCPI		0x02
 #define ROCKCHIP_DDRCLK_SIP_V2		0x03
 
 #ifdef CONFIG_ROCKCHIP_DDRCLK

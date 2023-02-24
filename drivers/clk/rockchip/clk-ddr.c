@@ -12,15 +12,11 @@
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/slab.h>
 #include <soc/rockchip/rockchip_sip.h>
-#include <soc/rockchip/scpi.h>
-#include <uapi/drm/drm_mode.h>
 #ifdef CONFIG_ARM
 #include <asm/psci.h>
 #endif
 
 #include "clk.h"
-
-#define MHZ		(1000000)
 
 struct rockchip_ddrclk {
 	struct clk_hw	hw;
@@ -119,57 +115,6 @@ static const struct clk_ops rockchip_ddrclk_sip_ops = {
 	.get_parent = rockchip_ddrclk_get_parent,
 };
 
-static u32 ddr_clk_cached;
-
-static int rockchip_ddrclk_scpi_set_rate(struct clk_hw *hw, unsigned long drate,
-					 unsigned long prate)
-{
-	u32 ret;
-	u32 lcdc_type = 0;
-	struct share_params_ddrclk *p;
-
-	p = (struct share_params_ddrclk *)ddr_data.params;
-	if (p)
-		lcdc_type = p->lcdc_type;
-
-	ret = scpi_ddr_set_clk_rate(drate / MHZ, lcdc_type);
-	if (ret) {
-		ddr_clk_cached = ret;
-		ret = 0;
-	} else {
-		ddr_clk_cached = 0;
-		ret = -1;
-	}
-
-	return ret;
-}
-
-static unsigned long rockchip_ddrclk_scpi_recalc_rate(struct clk_hw *hw,
-						      unsigned long parent_rate)
-{
-	if (ddr_clk_cached)
-		return (MHZ * ddr_clk_cached);
-	else
-		return (MHZ * scpi_ddr_get_clk_rate());
-}
-
-static long rockchip_ddrclk_scpi_round_rate(struct clk_hw *hw,
-					    unsigned long rate,
-					    unsigned long *prate)
-{
-	rate = rate / MHZ;
-	rate = (rate / 12) * 12;
-
-	return (rate * MHZ);
-}
-
-static const struct clk_ops rockchip_ddrclk_scpi_ops __maybe_unused = {
-	.recalc_rate = rockchip_ddrclk_scpi_recalc_rate,
-	.set_rate = rockchip_ddrclk_scpi_set_rate,
-	.round_rate = rockchip_ddrclk_scpi_round_rate,
-	.get_parent = rockchip_ddrclk_get_parent,
-};
-
 static int rockchip_ddrclk_sip_set_rate_v2(struct clk_hw *hw,
 					   unsigned long drate,
 					   unsigned long prate)
@@ -262,11 +207,6 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 #ifdef CONFIG_ROCKCHIP_DDRCLK_SIP
 	case ROCKCHIP_DDRCLK_SIP:
 		init.ops = &rockchip_ddrclk_sip_ops;
-		break;
-#endif
-#ifdef CONFIG_ROCKCHIP_DDRCLK_SCPI
-	case ROCKCHIP_DDRCLK_SCPI:
-		init.ops = &rockchip_ddrclk_scpi_ops;
 		break;
 #endif
 #ifdef CONFIG_ROCKCHIP_DDRCLK_SIP_V2
