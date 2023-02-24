@@ -29,7 +29,9 @@ struct amdgpu_doorbell {
 	resource_size_t		base;
 	resource_size_t		size;
 	u32 __iomem		*ptr;
-	u32			num_doorbells;	/* Number of doorbells actually reserved for amdgpu. */
+
+	/* Number of doorbells reserved for amdgpu kernel driver */
+	u32 num_kernel_doorbells;
 };
 
 /* Reserved doorbells for amdgpu (including multimedia).
