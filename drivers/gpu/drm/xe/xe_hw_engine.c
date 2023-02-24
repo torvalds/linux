@@ -31,11 +31,7 @@ struct engine_info {
 	unsigned int class : 8;
 	unsigned int instance : 8;
 	enum xe_force_wake_domains domain;
-	/* mmio bases table *must* be sorted in reverse graphics_ver order */
-	struct engine_mmio_base {
-		unsigned int graphics_ver : 8;
-		unsigned int base : 24;
-	} mmio_bases[MAX_MMIO_BASES];
+	u32 mmio_base;
 };
 
 static const struct engine_info engine_infos[] = {
@@ -44,90 +40,70 @@ static const struct engine_info engine_infos[] = {
 		.class = XE_ENGINE_CLASS_RENDER,
 		.instance = 0,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 1, .base = RENDER_RING_BASE }
-		},
+		.mmio_base = RENDER_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS0] = {
 		.name = "bcs0",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 0,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 6, .base = BLT_RING_BASE }
-		},
+		.mmio_base = BLT_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS1] = {
 		.name = "bcs1",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 1,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS1_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS1_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS2] = {
 		.name = "bcs2",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 2,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS2_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS2_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS3] = {
 		.name = "bcs3",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 3,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS3_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS3_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS4] = {
 		.name = "bcs4",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 4,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS4_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS4_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS5] = {
 		.name = "bcs5",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 5,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS5_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS5_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS6] = {
 		.name = "bcs6",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 6,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS6_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS6_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS7] = {
 		.name = "bcs7",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 7,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS7_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS7_RING_BASE,
 	},
 	[XE_HW_ENGINE_BCS8] = {
 		.name = "bcs8",
 		.class = XE_ENGINE_CLASS_COPY,
 		.instance = 8,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHPC_BCS8_RING_BASE }
-		},
+		.mmio_base = XEHPC_BCS8_RING_BASE,
 	},
 
 	[XE_HW_ENGINE_VCS0] = {
@@ -135,165 +111,114 @@ static const struct engine_info engine_infos[] = {
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 0,
 		.domain = XE_FW_MEDIA_VDBOX0,
-		.mmio_bases = {
-			{ .graphics_ver = 11, .base = GEN11_BSD_RING_BASE },
-			{ .graphics_ver = 6, .base = GEN6_BSD_RING_BASE },
-			{ .graphics_ver = 4, .base = BSD_RING_BASE }
-		},
+		.mmio_base = GEN11_BSD_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS1] = {
 		.name = "vcs1",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 1,
 		.domain = XE_FW_MEDIA_VDBOX1,
-		.mmio_bases = {
-			{ .graphics_ver = 11, .base = GEN11_BSD2_RING_BASE },
-			{ .graphics_ver = 8, .base = GEN8_BSD2_RING_BASE }
-		},
+		.mmio_base = GEN11_BSD2_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS2] = {
 		.name = "vcs2",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 2,
 		.domain = XE_FW_MEDIA_VDBOX2,
-		.mmio_bases = {
-			{ .graphics_ver = 11, .base = GEN11_BSD3_RING_BASE }
-		},
+		.mmio_base = GEN11_BSD3_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS3] = {
 		.name = "vcs3",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 3,
 		.domain = XE_FW_MEDIA_VDBOX3,
-		.mmio_bases = {
-			{ .graphics_ver = 11, .base = GEN11_BSD4_RING_BASE }
-		},
+		.mmio_base = GEN11_BSD4_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS4] = {
 		.name = "vcs4",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 4,
 		.domain = XE_FW_MEDIA_VDBOX4,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHP_BSD5_RING_BASE }
-		},
+		.mmio_base = XEHP_BSD5_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS5] = {
 		.name = "vcs5",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 5,
 		.domain = XE_FW_MEDIA_VDBOX5,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHP_BSD6_RING_BASE }
-		},
+		.mmio_base = XEHP_BSD6_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS6] = {
 		.name = "vcs6",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 6,
 		.domain = XE_FW_MEDIA_VDBOX6,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHP_BSD7_RING_BASE }
-		},
+		.mmio_base = XEHP_BSD7_RING_BASE,
 	},
 	[XE_HW_ENGINE_VCS7] = {
 		.name = "vcs7",
 		.class = XE_ENGINE_CLASS_VIDEO_DECODE,
 		.instance = 7,
 		.domain = XE_FW_MEDIA_VDBOX7,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHP_BSD8_RING_BASE }
-		},
+		.mmio_base = XEHP_BSD8_RING_BASE,
 	},
 	[XE_HW_ENGINE_VECS0] = {
 		.name = "vecs0",
 		.class = XE_ENGINE_CLASS_VIDEO_ENHANCE,
 		.instance = 0,
 		.domain = XE_FW_MEDIA_VEBOX0,
-		.mmio_bases = {
-			{ .graphics_ver = 11, .base = GEN11_VEBOX_RING_BASE },
-			{ .graphics_ver = 7, .base = VEBOX_RING_BASE }
-		},
+		.mmio_base = GEN11_VEBOX_RING_BASE,
 	},
 	[XE_HW_ENGINE_VECS1] = {
 		.name = "vecs1",
 		.class = XE_ENGINE_CLASS_VIDEO_ENHANCE,
 		.instance = 1,
 		.domain = XE_FW_MEDIA_VEBOX1,
-		.mmio_bases = {
-			{ .graphics_ver = 11, .base = GEN11_VEBOX2_RING_BASE }
-		},
+		.mmio_base = GEN11_VEBOX2_RING_BASE,
 	},
 	[XE_HW_ENGINE_VECS2] = {
 		.name = "vecs2",
 		.class = XE_ENGINE_CLASS_VIDEO_ENHANCE,
 		.instance = 2,
 		.domain = XE_FW_MEDIA_VEBOX2,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHP_VEBOX3_RING_BASE }
-		},
+		.mmio_base = XEHP_VEBOX3_RING_BASE,
 	},
 	[XE_HW_ENGINE_VECS3] = {
 		.name = "vecs3",
 		.class = XE_ENGINE_CLASS_VIDEO_ENHANCE,
 		.instance = 3,
 		.domain = XE_FW_MEDIA_VEBOX3,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = XEHP_VEBOX4_RING_BASE }
-		},
+		.mmio_base = XEHP_VEBOX4_RING_BASE,
 	},
 	[XE_HW_ENGINE_CCS0] = {
 		.name = "ccs0",
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 0,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = GEN12_COMPUTE0_RING_BASE },
-		},
+		.mmio_base = GEN12_COMPUTE0_RING_BASE,
 	},
 	[XE_HW_ENGINE_CCS1] = {
 		.name = "ccs1",
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 1,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = GEN12_COMPUTE1_RING_BASE },
-		},
+		.mmio_base = GEN12_COMPUTE1_RING_BASE,
 	},
 	[XE_HW_ENGINE_CCS2] = {
 		.name = "ccs2",
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 2,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = GEN12_COMPUTE2_RING_BASE },
-		},
+		.mmio_base = GEN12_COMPUTE2_RING_BASE,
 	},
 	[XE_HW_ENGINE_CCS3] = {
 		.name = "ccs3",
 		.class = XE_ENGINE_CLASS_COMPUTE,
 		.instance = 3,
 		.domain = XE_FW_RENDER,
-		.mmio_bases = {
-			{ .graphics_ver = 12, .base = GEN12_COMPUTE3_RING_BASE },
-		},
+		.mmio_base = GEN12_COMPUTE3_RING_BASE,
 	},
 };
-
-static u32 engine_info_mmio_base(const struct engine_info *info,
-				 unsigned int graphics_ver)
-{
-	int i;
-
-	for (i = 0; i < MAX_MMIO_BASES; i++)
-		if (graphics_ver >= info->mmio_bases[i].graphics_ver)
-			break;
-
-	XE_BUG_ON(i == MAX_MMIO_BASES);
-	XE_BUG_ON(!info->mmio_bases[i].base);
-
-	return info->mmio_bases[i].base;
-}
 
 static void hw_engine_fini(struct drm_device *drm, void *arg)
 {
@@ -346,7 +271,6 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 				 enum xe_hw_engine_id id)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	const struct engine_info *info;
 
 	if (WARN_ON(id >= ARRAY_SIZE(engine_infos) || !engine_infos[id].name))
@@ -362,7 +286,7 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	hwe->gt = gt;
 	hwe->class = info->class;
 	hwe->instance = info->instance;
-	hwe->mmio_base = engine_info_mmio_base(info, GRAPHICS_VER(xe));
+	hwe->mmio_base = info->mmio_base;
 	hwe->domain = info->domain;
 	hwe->name = info->name;
 	hwe->fence_irq = &gt->fence_irq[info->class];
