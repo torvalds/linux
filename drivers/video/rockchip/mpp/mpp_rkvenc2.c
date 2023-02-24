@@ -282,6 +282,11 @@ struct rkvenc_dev {
 	dma_addr_t sram_iova;
 	u32 sram_enabled;
 	struct page *rcb_page;
+
+#ifdef CONFIG_PM_DEVFREQ
+	struct rockchip_opp_info opp_info;
+	struct monitor_dev_info *mdev_info;
+#endif
 };
 
 struct rkvenc_ccu {
@@ -1674,6 +1679,101 @@ static inline int rkvenc_procfs_ccu_init(struct mpp_dev *mpp)
 }
 #endif
 
+#ifdef CONFIG_PM_DEVFREQ
+static int rk3588_venc_set_read_margin(struct device *dev,
+				       struct rockchip_opp_info *opp_info,
+				       u32 rm)
+{
+	if (!opp_info->grf || !opp_info->volt_rm_tbl)
+		return 0;
+
+	if (rm == opp_info->current_rm || rm == UINT_MAX)
+		return 0;
+
+	dev_dbg(dev, "set rm to %d\n", rm);
+
+	regmap_write(opp_info->grf, 0x214, 0x001c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x218, 0x001c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x220, 0x003c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x224, 0x003c0000 | (rm << 2));
+
+	opp_info->current_rm = rm;
+
+	return 0;
+}
+
+static const struct rockchip_opp_data rk3588_venc_opp_data = {
+	.set_read_margin = rk3588_venc_set_read_margin,
+};
+
+static const struct of_device_id rockchip_rkvenc_of_match[] = {
+	{
+		.compatible = "rockchip,rk3588",
+		.data = (void *)&rk3588_venc_opp_data,
+	},
+	{},
+};
+
+static struct monitor_dev_profile venc_mdevp = {
+	.type = MONITOR_TPYE_DEV,
+	.update_volt = rockchip_monitor_check_rate_volt,
+};
+
+static int rkvenc_devfreq_init(struct mpp_dev *mpp)
+{
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct clk *clk_core = enc->core_clk_info.clk;
+	struct device *dev = mpp->dev;
+	struct opp_table *reg_table = NULL;
+	struct opp_table *clk_table = NULL;
+	const char *const reg_names[] = { "venc", "mem" };
+	int ret = 0;
+
+	if (!clk_core)
+		return 0;
+
+	if (of_find_property(dev->of_node, "venc-supply", NULL) &&
+	    of_find_property(dev->of_node, "mem-supply", NULL)) {
+		reg_table = dev_pm_opp_set_regulators(dev, reg_names, 2);
+		if (IS_ERR(reg_table))
+			return PTR_ERR(reg_table);
+	} else {
+		reg_table = dev_pm_opp_set_regulators(dev, reg_names, 1);
+		if (IS_ERR(reg_table))
+			return PTR_ERR(reg_table);
+	}
+
+	clk_table = dev_pm_opp_set_clkname(dev, "clk_core");
+	if (IS_ERR(clk_table))
+		return PTR_ERR(clk_table);
+
+	rockchip_get_opp_data(rockchip_rkvenc_of_match, &enc->opp_info);
+	ret = rockchip_init_opp_table(dev, &enc->opp_info, "leakage", "venc");
+	if (ret) {
+		dev_err(dev, "failed to init_opp_table\n");
+		return ret;
+	}
+
+	enc->mdev_info = rockchip_system_monitor_register(dev, &venc_mdevp);
+	if (IS_ERR(enc->mdev_info)) {
+		dev_dbg(dev, "without system monitor\n");
+		enc->mdev_info = NULL;
+	}
+
+	return ret;
+}
+
+static int rkvenc_devfreq_remove(struct mpp_dev *mpp)
+{
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+
+	if (enc->mdev_info)
+		rockchip_system_monitor_unregister(enc->mdev_info);
+
+	return 0;
+}
+#endif
+
 static int rkvenc_init(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
@@ -1709,6 +1809,21 @@ static int rkvenc_init(struct mpp_dev *mpp)
 	enc->rst_core = mpp_reset_control_get(mpp, RST_TYPE_CORE, "video_core");
 	if (!enc->rst_core)
 		mpp_err("No core reset resource define\n");
+
+#ifdef CONFIG_PM_DEVFREQ
+	ret = rkvenc_devfreq_init(mpp);
+	if (ret)
+		mpp_err("failed to add venc devfreq\n");
+#endif
+
+	return 0;
+}
+
+static int rkvenc_exit(struct mpp_dev *mpp)
+{
+#ifdef CONFIG_PM_DEVFREQ
+	rkvenc_devfreq_remove(mpp);
+#endif
 
 	return 0;
 }
@@ -1979,6 +2094,7 @@ task_done_ret:
 
 static struct mpp_hw_ops rkvenc_hw_ops = {
 	.init = rkvenc_init,
+	.exit = rkvenc_exit,
 	.clk_on = rkvenc_clk_on,
 	.clk_off = rkvenc_clk_off,
 	.set_freq = rkvenc_set_freq,
