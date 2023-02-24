@@ -67,8 +67,8 @@ static irqreturn_t jh7110_cryp_irq_thread(int irq, void *arg)
 		if (sdev->cry_type != JH7110_PKA_TYPE)
 			return IRQ_HANDLED;
 
-	mutex_unlock(&sdev->doing);
 
+	complete(&sdev->rsa_comp);
 	return IRQ_HANDLED;
 }
 
@@ -180,6 +180,7 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 	mutex_init(&sdev->sha_lock);
 	mutex_init(&sdev->aes_lock);
 	mutex_init(&sdev->rsa_lock);
+	init_completion(&sdev->rsa_comp);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "secreg");
 	sdev->io_base = devm_ioremap_resource(dev, res);

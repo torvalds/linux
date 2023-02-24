@@ -45,6 +45,9 @@ static int jh7110_pka_wait_done(struct jh7110_sec_dev *sdev)
 {
 	int ret = -1;
 
+	wait_for_completion(&sdev->rsa_comp);
+	reinit_completion(&sdev->rsa_comp);
+	mutex_unlock(&sdev->doing);
 	mutex_lock(&sdev->doing);
 	if (sdev->done_flags & JH7110_PKA_DONE)
 		ret = 0;
