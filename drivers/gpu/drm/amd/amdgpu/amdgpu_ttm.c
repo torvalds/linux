@@ -1644,14 +1644,15 @@ static int amdgpu_ttm_training_reserve_vram_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
+static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev,
+						uint32_t reserve_size)
 {
 	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
 
 	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->c2p_train_data_offset =
-		ALIGN((adev->gmc.mc_vram_size - adev->mman.discovery_tmr_size - SZ_1M), SZ_1M);
+		ALIGN((adev->gmc.mc_vram_size - reserve_size - SZ_1M), SZ_1M);
 	ctx->p2c_train_data_offset =
 		(adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
 	ctx->train_data_size =
@@ -1669,9 +1670,10 @@ static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
  */
 static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 {
-	int ret;
 	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
 	bool mem_train_support = false;
+	uint32_t reserve_size = 0;
+	int ret;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		if (amdgpu_atomfirmware_mem_training_supported(adev))
@@ -1687,14 +1689,15 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	 * Otherwise, fallback to legacy approach to check and reserve tmr block for ip
 	 * discovery data and G6 memory training data respectively
 	 */
-	adev->mman.discovery_tmr_size =
-		amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
-	if (!adev->mman.discovery_tmr_size)
-		adev->mman.discovery_tmr_size = DISCOVERY_TMR_OFFSET;
+	if (adev->bios)
+		reserve_size =
+			amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
+	if (!reserve_size)
+		reserve_size = DISCOVERY_TMR_OFFSET;
 
 	if (mem_train_support) {
 		/* reserve vram for mem train according to TMR location */
-		amdgpu_ttm_training_data_block_init(adev);
+		amdgpu_ttm_training_data_block_init(adev, reserve_size);
 		ret = amdgpu_bo_create_kernel_at(adev,
 						 ctx->c2p_train_data_offset,
 						 ctx->train_data_size,
@@ -1709,15 +1712,13 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	}
 
 	if (!adev->gmc.is_app_apu) {
-		ret = amdgpu_bo_create_kernel_at(adev,
-						 adev->gmc.real_vram_size -
-						 adev->mman.discovery_tmr_size,
-						 adev->mman.discovery_tmr_size,
-						 &adev->mman.discovery_memory,
-						 NULL);
+		ret = amdgpu_bo_create_kernel_at(
+			adev, adev->gmc.real_vram_size - reserve_size,
+			reserve_size, &adev->mman.fw_reserved_memory, NULL);
 		if (ret) {
 			DRM_ERROR("alloc tmr failed(%d)!\n", ret);
-			amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
+			amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory,
+					      NULL, NULL);
 			return ret;
 		}
 	} else {
@@ -1905,8 +1906,9 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	if (!adev->gmc.is_app_apu) {
 		amdgpu_bo_free_kernel(&adev->mman.stolen_vga_memory, NULL, NULL);
 		amdgpu_bo_free_kernel(&adev->mman.stolen_extended_memory, NULL, NULL);
-		/* return the IP Discovery TMR memory back to VRAM */
-		amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
+		/* return the FW reserved memory back to VRAM */
+		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory, NULL,
+				      NULL);
 		if (adev->mman.stolen_reserved_size)
 			amdgpu_bo_free_kernel(&adev->mman.stolen_reserved_memory,
 					      NULL, NULL);
