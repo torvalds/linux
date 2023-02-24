@@ -1166,6 +1166,11 @@ static int intel_engine_init_tlb_invalidation(struct intel_engine_cs *engine)
 		[COPY_ENGINE_CLASS].mcr_reg	  = XEHP_BLT_TLB_INV_CR,
 		[COMPUTE_CLASS].mcr_reg		  = XEHP_COMPCTX_TLB_INV_CR,
 	};
+	static const union intel_engine_tlb_inv_reg xelpmp_regs[] = {
+		[VIDEO_DECODE_CLASS].reg	  = GEN12_VD_TLB_INV_CR,
+		[VIDEO_ENHANCEMENT_CLASS].reg     = GEN12_VE_TLB_INV_CR,
+		[OTHER_CLASS].reg		  = XELPMP_GSC_TLB_INV_CR,
+	};
 	struct drm_i915_private *i915 = engine->i915;
 	const unsigned int instance = engine->instance;
 	const unsigned int class = engine->class;
@@ -1185,19 +1190,28 @@ static int intel_engine_init_tlb_invalidation(struct intel_engine_cs *engine)
 	 * 12.00 -> 12.50 transition multi cast handling is required too.
 	 */
 
-	if (GRAPHICS_VER_FULL(i915) == IP_VER(12, 50) ||
-	    GRAPHICS_VER_FULL(i915) == IP_VER(12, 55)) {
-		regs = xehp_regs;
-		num = ARRAY_SIZE(xehp_regs);
-	} else if (GRAPHICS_VER_FULL(i915) == IP_VER(12, 0) ||
-		   GRAPHICS_VER_FULL(i915) == IP_VER(12, 10)) {
-		regs = gen12_regs;
-		num = ARRAY_SIZE(gen12_regs);
-	} else if (GRAPHICS_VER(i915) >= 8 && GRAPHICS_VER(i915) <= 11) {
-		regs = gen8_regs;
-		num = ARRAY_SIZE(gen8_regs);
-	} else if (GRAPHICS_VER(i915) < 8) {
-		return 0;
+	if (engine->gt->type == GT_MEDIA) {
+		if (MEDIA_VER_FULL(i915) == IP_VER(13, 0)) {
+			regs = xelpmp_regs;
+			num = ARRAY_SIZE(xelpmp_regs);
+		}
+	} else {
+		if (GRAPHICS_VER_FULL(i915) == IP_VER(12, 71) ||
+		    GRAPHICS_VER_FULL(i915) == IP_VER(12, 70) ||
+		    GRAPHICS_VER_FULL(i915) == IP_VER(12, 50) ||
+		    GRAPHICS_VER_FULL(i915) == IP_VER(12, 55)) {
+			regs = xehp_regs;
+			num = ARRAY_SIZE(xehp_regs);
+		} else if (GRAPHICS_VER_FULL(i915) == IP_VER(12, 0) ||
+			   GRAPHICS_VER_FULL(i915) == IP_VER(12, 10)) {
+			regs = gen12_regs;
+			num = ARRAY_SIZE(gen12_regs);
+		} else if (GRAPHICS_VER(i915) >= 8 && GRAPHICS_VER(i915) <= 11) {
+			regs = gen8_regs;
+			num = ARRAY_SIZE(gen8_regs);
+		} else if (GRAPHICS_VER(i915) < 8) {
+			return 0;
+		}
 	}
 
 	if (gt_WARN_ONCE(engine->gt, !num,
@@ -1212,7 +1226,14 @@ static int intel_engine_init_tlb_invalidation(struct intel_engine_cs *engine)
 
 	reg = regs[class];
 
-	if (regs == gen8_regs && class == VIDEO_DECODE_CLASS && instance == 1) {
+	if (regs == xelpmp_regs && class == OTHER_CLASS) {
+		/*
+		 * There's only a single GSC instance, but it uses register bit
+		 * 1 instead of either 0 or OTHER_GSC_INSTANCE.
+		 */
+		GEM_WARN_ON(instance != OTHER_GSC_INSTANCE);
+		val = 1;
+	} else if (regs == gen8_regs && class == VIDEO_DECODE_CLASS && instance == 1) {
 		reg.reg = GEN8_M2TCR;
 		val = 0;
 	} else {
@@ -1228,7 +1249,8 @@ static int intel_engine_init_tlb_invalidation(struct intel_engine_cs *engine)
 	if (GRAPHICS_VER(i915) >= 12 &&
 	    (engine->class == VIDEO_DECODE_CLASS ||
 	     engine->class == VIDEO_ENHANCEMENT_CLASS ||
-	     engine->class == COMPUTE_CLASS))
+	     engine->class == COMPUTE_CLASS ||
+	     engine->class == OTHER_CLASS))
 		engine->tlb_inv.request = _MASKED_BIT_ENABLE(val);
 	else
 		engine->tlb_inv.request = val;
