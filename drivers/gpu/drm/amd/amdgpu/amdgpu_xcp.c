@@ -364,6 +364,9 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 			break;
 		}
 	}
+
+	fpriv->vm.mem_id = fpriv->xcp_id == ~0 ? -1 :
+				adev->xcp_mgr->xcp[fpriv->xcp_id].mem_id;
 	return 0;
 }
 

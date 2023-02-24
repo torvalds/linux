@@ -329,6 +329,9 @@ struct amdgpu_vm {
 	struct ttm_lru_bulk_move lru_bulk_move;
 	/* Flag to indicate if VM is used for compute */
 	bool			is_compute_context;
+
+	/* Memory partition number, -1 means any partition */
+	int8_t			mem_id;
 };
 
 struct amdgpu_vm_manager {
