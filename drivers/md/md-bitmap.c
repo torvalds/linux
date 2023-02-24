@@ -215,12 +215,13 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 	struct block_device *bdev;
 	struct mddev *mddev = bitmap->mddev;
 	struct bitmap_storage *store = &bitmap->storage;
-	loff_t offset = mddev->bitmap_info.offset;
-	int size = PAGE_SIZE;
+	sector_t offset = mddev->bitmap_info.offset;
+	sector_t ps, sboff, doff;
+	unsigned int size = PAGE_SIZE;
 
 	bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
 	if (page->index == store->file_pages - 1) {
-		int last_page_size = store->bytes & (PAGE_SIZE - 1);
+		unsigned int last_page_size = store->bytes & (PAGE_SIZE - 1);
 
 		if (last_page_size == 0)
 			last_page_size = PAGE_SIZE;
@@ -228,43 +229,35 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 			       bdev_logical_block_size(bdev));
 	}
 
+	ps = page->index * PAGE_SIZE / SECTOR_SIZE;
+	sboff = rdev->sb_start + offset;
+	doff = rdev->data_offset;
+
 	/* Just make sure we aren't corrupting data or metadata */
 	if (mddev->external) {
 		/* Bitmap could be anywhere. */
-		if (rdev->sb_start + offset
-		    + (page->index * (PAGE_SIZE / SECTOR_SIZE))
-		    > rdev->data_offset &&
-		    rdev->sb_start + offset
-		    < (rdev->data_offset + mddev->dev_sectors
-		     + (PAGE_SIZE / SECTOR_SIZE)))
+		if (sboff + ps > doff &&
+		    sboff < (doff + mddev->dev_sectors + PAGE_SIZE / SECTOR_SIZE))
 			return -EINVAL;
 	} else if (offset < 0) {
 		/* DATA  BITMAP METADATA  */
-		if (offset
-		    + (long)(page->index * (PAGE_SIZE / SECTOR_SIZE))
-		    + size / SECTOR_SIZE > 0)
+		if (offset + ps + size / SECTOR_SIZE > 0)
 			/* bitmap runs in to metadata */
 			return -EINVAL;
 
-		if (rdev->data_offset + mddev->dev_sectors
-		    > rdev->sb_start + offset)
+		if (doff + mddev->dev_sectors > sboff)
 			/* data runs in to bitmap */
 			return -EINVAL;
 	} else if (rdev->sb_start < rdev->data_offset) {
 		/* METADATA BITMAP DATA */
-		if (rdev->sb_start + offset
-		    + page->index * (PAGE_SIZE / SECTOR_SIZE)
-		    + size / SECTOR_SIZE > rdev->data_offset)
+		if (sboff + ps + size / SECTOR_SIZE > doff)
 			/* bitmap runs in to data */
 			return -EINVAL;
 	} else {
 		/* DATA METADATA BITMAP - no problems */
 	}
 
-	md_super_write(mddev, rdev,
-		       rdev->sb_start + offset
-		       + page->index * (PAGE_SIZE / SECTOR_SIZE),
-		       size, page);
+	md_super_write(mddev, rdev, sboff + ps, (int) size, page);
 	return 0;
 }
 
