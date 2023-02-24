@@ -303,9 +303,6 @@ static int mtk_adda_ul_event(struct snd_soc_dapm_widget *w,
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
 	int mtkaif_dmic = afe_priv->mtkaif_dmic;
 
-	dev_info(afe->dev, "%s(), name %s, event 0x%x, mtkaif_dmic %d\n",
-		 __func__, w->name, event, mtkaif_dmic);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		mt8192_afe_gpio_request(afe->dev, true, MT8192_DAI_ADDA, 1);
@@ -344,10 +341,6 @@ static int mtk_adda_ch34_ul_event(struct snd_soc_dapm_widget *w,
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
 	int mtkaif_dmic = afe_priv->mtkaif_dmic_ch34;
 	int mtkaif_adda6_only = afe_priv->mtkaif_adda6_only;
-
-	dev_info(afe->dev,
-		 "%s(), name %s, event 0x%x, mtkaif_dmic %d, mtkaif_adda6_only %d\n",
-		 __func__, w->name, event, mtkaif_dmic, mtkaif_adda6_only);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -538,9 +531,6 @@ static int mtk_adda_dl_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 
-	dev_info(afe->dev, "%s(), name %s, event 0x%x\n",
-		 __func__, w->name, event);
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		mt8192_afe_gpio_request(afe->dev, true, MT8192_DAI_ADDA, 0);
@@ -563,9 +553,6 @@ static int mtk_adda_ch34_dl_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
-
-	dev_info(afe->dev, "%s(), name %s, event 0x%x\n",
-		 __func__, w->name, event);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -612,9 +599,6 @@ static int stf_positive_gain_set(struct snd_kcontrol *kcontrol,
 				   AFE_SIDETONE_GAIN,
 				   POSITIVE_GAIN_MASK_SFT,
 				   (gain_db / 6) << POSITIVE_GAIN_SFT);
-	} else {
-		dev_warn(afe->dev, "%s(), gain_db %d invalid\n",
-			 __func__, gain_db);
 	}
 	return 0;
 }
@@ -639,9 +623,6 @@ static int mt8192_adda_dmic_set(struct snd_kcontrol *kcontrol,
 	int dmic_on;
 
 	dmic_on = ucontrol->value.integer.value[0];
-
-	dev_info(afe->dev, "%s(), kcontrol name %s, dmic_on %d\n",
-		 __func__, kcontrol->id.name, dmic_on);
 
 	afe_priv->mtkaif_dmic = dmic_on;
 	afe_priv->mtkaif_dmic_ch34 = dmic_on;
@@ -668,9 +649,6 @@ static int mt8192_adda6_only_set(struct snd_kcontrol *kcontrol,
 	int mtkaif_adda6_only;
 
 	mtkaif_adda6_only = ucontrol->value.integer.value[0];
-
-	dev_info(afe->dev, "%s(), kcontrol name %s, mtkaif_adda6_only %d\n",
-		 __func__, kcontrol->id.name, mtkaif_adda6_only);
 
 	afe_priv->mtkaif_adda6_only = mtkaif_adda6_only;
 	return 0;
@@ -749,9 +727,6 @@ static int mtk_stf_event(struct snd_soc_dapm_widget *w,
 	}
 
 	regmap_read(afe->regmap, AFE_SIDETONE_CON1, &reg_value);
-
-	dev_info(afe->dev, "%s(), name %s, event 0x%x, ul_rate 0x%x, AFE_SIDETONE_CON1 0x%x\n",
-		 __func__, w->name, event, ul_rate, reg_value);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1163,12 +1138,6 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	int id = dai->id;
 
-	dev_info(afe->dev, "%s(), id %d, stream %d, rate %d\n",
-		 __func__,
-		 id,
-		 substream->stream,
-		 rate);
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		unsigned int dl_src2_con0 = 0;
 		unsigned int dl_src2_con1 = 0;
@@ -1440,8 +1409,6 @@ int mt8192_dai_adda_register(struct mtk_base_afe *afe)
 {
 	struct mtk_base_afe_dai *dai;
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
-
-	dev_info(afe->dev, "%s()\n", __func__);
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
