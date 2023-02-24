@@ -5488,20 +5488,36 @@ static void ath11k_mac_set_hemcsmap(struct ath11k *ar,
 				    struct ieee80211_sta_he_cap *he_cap,
 				    int band)
 {
-	struct ath11k_band_cap *band_cap = &cap->band[band];
+	u16 txmcs_map, rxmcs_map;
+	u32 i;
 
+	rxmcs_map = 0;
+	txmcs_map = 0;
+	for (i = 0; i < 8; i++) {
+		if (i < ar->num_tx_chains &&
+		    (ar->cfg_tx_chainmask >> cap->tx_chain_mask_shift) & BIT(i))
+			txmcs_map |= IEEE80211_HE_MCS_SUPPORT_0_11 << (i * 2);
+		else
+			txmcs_map |= IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2);
+
+		if (i < ar->num_rx_chains &&
+		    (ar->cfg_rx_chainmask >> cap->tx_chain_mask_shift) & BIT(i))
+			rxmcs_map |= IEEE80211_HE_MCS_SUPPORT_0_11 << (i * 2);
+		else
+			rxmcs_map |= IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2);
+	}
 	he_cap->he_mcs_nss_supp.rx_mcs_80 =
-		cpu_to_le16(band_cap->he_mcs & 0xffff);
+		cpu_to_le16(rxmcs_map & 0xffff);
 	he_cap->he_mcs_nss_supp.tx_mcs_80 =
-		cpu_to_le16(band_cap->he_mcs & 0xffff);
+		cpu_to_le16(txmcs_map & 0xffff);
 	he_cap->he_mcs_nss_supp.rx_mcs_160 =
-		cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+		cpu_to_le16(rxmcs_map & 0xffff);
 	he_cap->he_mcs_nss_supp.tx_mcs_160 =
-		cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+		cpu_to_le16(txmcs_map & 0xffff);
 	he_cap->he_mcs_nss_supp.rx_mcs_80p80 =
-		cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+		cpu_to_le16(rxmcs_map & 0xffff);
 	he_cap->he_mcs_nss_supp.tx_mcs_80p80 =
-		cpu_to_le16((band_cap->he_mcs >> 16) & 0xffff);
+		cpu_to_le16(txmcs_map & 0xffff);
 }
 
 static int ath11k_mac_copy_he_cap(struct ath11k *ar,
