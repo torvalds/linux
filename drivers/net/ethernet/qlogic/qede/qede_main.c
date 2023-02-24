@@ -960,7 +960,6 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 {
 	u8 fp_combined, fp_rx = edev->fp_num_rx;
 	struct qede_fastpath *fp;
-	void *mem;
 	int i;
 
 	edev->fp_array = kcalloc(QEDE_QUEUE_CNT(edev),
@@ -971,20 +970,14 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 	}
 
 	if (!edev->coal_entry) {
-		mem = kcalloc(QEDE_MAX_RSS_CNT(edev),
-			      sizeof(*edev->coal_entry), GFP_KERNEL);
-	} else {
-		mem = krealloc(edev->coal_entry,
-			       QEDE_QUEUE_CNT(edev) * sizeof(*edev->coal_entry),
-			       GFP_KERNEL);
+		edev->coal_entry = kcalloc(QEDE_MAX_RSS_CNT(edev),
+					   sizeof(*edev->coal_entry),
+					   GFP_KERNEL);
+		if (!edev->coal_entry) {
+			DP_ERR(edev, "coalesce entry allocation failed\n");
+			goto err;
+		}
 	}
-
-	if (!mem) {
-		DP_ERR(edev, "coalesce entry allocation failed\n");
-		kfree(edev->coal_entry);
-		goto err;
-	}
-	edev->coal_entry = mem;
 
 	fp_combined = QEDE_QUEUE_CNT(edev) - fp_rx - edev->fp_num_tx;
 
