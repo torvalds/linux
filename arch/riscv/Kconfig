@@ -378,9 +378,9 @@ config RISCV_ALTERNATIVE
 	depends on !XIP_KERNEL
 	help
 	  This Kconfig allows the kernel to automatically patch the
-	  errata required by the execution platform at run time. The
-	  code patching overhead is minimal, as it's only done once
-	  at boot and once on each module load.
+	  erratum or cpufeature required by the execution platform at run
+	  time. The code patching overhead is minimal, as it's only done
+	  once at boot and once on each module load.
 
 config RISCV_ALTERNATIVE_EARLY
 	bool
