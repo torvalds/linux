@@ -209,6 +209,28 @@ static struct md_rdev *next_active_rdev(struct md_rdev *rdev, struct mddev *mdde
 	return NULL;
 }
 
+static unsigned int optimal_io_size(struct block_device *bdev,
+				    unsigned int last_page_size,
+				    unsigned int io_size)
+{
+	if (bdev_io_opt(bdev) > bdev_logical_block_size(bdev))
+		return roundup(last_page_size, bdev_io_opt(bdev));
+	return io_size;
+}
+
+static unsigned int bitmap_io_size(unsigned int io_size, unsigned int opt_size,
+				   sector_t start, sector_t boundary)
+{
+	if (io_size != opt_size &&
+	    start + opt_size / SECTOR_SIZE <= boundary)
+		return opt_size;
+	if (start + io_size / SECTOR_SIZE <= boundary)
+		return io_size;
+
+	/* Overflows boundary */
+	return 0;
+}
+
 static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 			   struct page *page)
 {
@@ -218,6 +240,7 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 	sector_t offset = mddev->bitmap_info.offset;
 	sector_t ps, sboff, doff;
 	unsigned int size = PAGE_SIZE;
+	unsigned int opt_size = PAGE_SIZE;
 
 	bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
 	if (page->index == store->file_pages - 1) {
@@ -225,8 +248,8 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 
 		if (last_page_size == 0)
 			last_page_size = PAGE_SIZE;
-		size = roundup(last_page_size,
-			       bdev_logical_block_size(bdev));
+		size = roundup(last_page_size, bdev_logical_block_size(bdev));
+		opt_size = optimal_io_size(bdev, last_page_size, size);
 	}
 
 	ps = page->index * PAGE_SIZE / SECTOR_SIZE;
@@ -241,7 +264,8 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 			return -EINVAL;
 	} else if (offset < 0) {
 		/* DATA  BITMAP METADATA  */
-		if (offset + ps + size / SECTOR_SIZE > 0)
+		size = bitmap_io_size(size, opt_size, offset + ps, 0);
+		if (size == 0)
 			/* bitmap runs in to metadata */
 			return -EINVAL;
 
@@ -250,7 +274,8 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 			return -EINVAL;
 	} else if (rdev->sb_start < rdev->data_offset) {
 		/* METADATA BITMAP DATA */
-		if (sboff + ps + size / SECTOR_SIZE > doff)
+		size = bitmap_io_size(size, opt_size, sboff + ps, doff);
+		if (size == 0)
 			/* bitmap runs in to data */
 			return -EINVAL;
 	} else {
