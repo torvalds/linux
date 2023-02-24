@@ -200,7 +200,7 @@ static const struct dentry_operations vfat_dentry_ops = {
 
 /* Characters that are undesirable in an MS-DOS file name */
 
-static inline wchar_t vfat_bad_char(wchar_t w)
+static inline bool vfat_bad_char(wchar_t w)
 {
 	return (w < 0x0020)
 	    || (w == '*') || (w == '?') || (w == '<') || (w == '>')
@@ -208,7 +208,7 @@ static inline wchar_t vfat_bad_char(wchar_t w)
 	    || (w == '\\');
 }
 
-static inline wchar_t vfat_replace_char(wchar_t w)
+static inline bool vfat_replace_char(wchar_t w)
 {
 	return (w == '[') || (w == ']') || (w == ';') || (w == ',')
 	    || (w == '+') || (w == '=');

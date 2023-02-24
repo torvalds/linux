@@ -1185,12 +1185,15 @@ config DEBUG_TIMEKEEPING
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
 	depends on DEBUG_KERNEL && PREEMPTION && TRACE_IRQFLAGS_SUPPORT
-	default y
 	help
 	  If you say Y here then the kernel will use a debug variant of the
 	  commonly used smp_processor_id() function and will print warnings
 	  if kernel code uses it in a preemption-unsafe way. Also, the kernel
 	  will detect preemption count underflows.
+
+	  This option has potential to introduce high runtime overhead,
+	  depending on workload as it triggers debugging routines for each
+	  this_cpu operation. It should only be used for debugging purposes.
 
 menu "Lock Debugging (spinlocks, mutexes, etc...)"
 
@@ -2028,6 +2031,41 @@ menuconfig RUNTIME_TESTING_MENU
 	def_bool y
 
 if RUNTIME_TESTING_MENU
+
+config TEST_DHRY
+	tristate "Dhrystone benchmark test"
+	help
+	  Enable this to include the Dhrystone 2.1 benchmark.  This test
+	  calculates the number of Dhrystones per second, and the number of
+	  DMIPS (Dhrystone MIPS) obtained when the Dhrystone score is divided
+	  by 1757 (the number of Dhrystones per second obtained on the VAX
+	  11/780, nominally a 1 MIPS machine).
+
+	  To run the benchmark, it needs to be enabled explicitly, either from
+	  the kernel command line (when built-in), or from userspace (when
+	  built-in or modular.
+
+	  Run once during kernel boot:
+
+	      test_dhry.run
+
+	  Set number of iterations from kernel command line:
+
+	      test_dhry.iterations=<n>
+
+	  Set number of iterations from userspace:
+
+	      echo <n> > /sys/module/test_dhry/parameters/iterations
+
+	  Trigger manual run from userspace:
+
+	      echo y > /sys/module/test_dhry/parameters/run
+
+	  If the number of iterations is <= 0, the test will devise a suitable
+	  number of iterations (test runs for at least 2s) automatically.
+	  This process takes ca. 4s.
+
+	  If unsure, say N.
 
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
