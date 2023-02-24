@@ -28,9 +28,6 @@ config MGCOGE
 
 endif
 
-config PQ2ADS
-	bool
-
 config 8260
 	bool
 	depends on PPC_BOOK3S_32
@@ -46,6 +43,3 @@ config 8272
 	help
 	  The MPC8272 CPM has a different internal dpram setup than other CPM2
 	  devices
-
-config PQ2_ADS_PCI_PIC
-	bool
