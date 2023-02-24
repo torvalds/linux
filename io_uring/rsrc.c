@@ -1210,7 +1210,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	unsigned long off;
 	size_t size;
 	int ret, nr_pages, i;
-	struct folio *folio;
+	struct folio *folio = NULL;
 
 	*pimu = ctx->dummy_ubuf;
 	if (!iov->iov_base)
