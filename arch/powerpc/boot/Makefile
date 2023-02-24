@@ -329,7 +329,6 @@ image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200b
 image-$(CONFIG_PPC_MEDIA5200)		+= cuImage.media5200
 
 # Board ports in arch/powerpc/platform/82xx/Kconfig
-image-$(CONFIG_MPC8272_ADS)		+= cuImage.mpc8272ads
 image-$(CONFIG_PQ2FADS)			+= cuImage.pq2fads
 image-$(CONFIG_EP8248E)			+= dtbImage.ep8248e
 
