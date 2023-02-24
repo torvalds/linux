@@ -1079,6 +1079,7 @@ static void phantom_pipe_blank(
 	struct output_pixel_processor *opp = NULL;
 	uint32_t num_opps, opp_id_src0, opp_id_src1;
 	uint32_t otg_active_width, otg_active_height;
+	uint32_t i;
 
 	/* program opp dpg blank color */
 	color_space = COLOR_SPACE_SRGB;
@@ -1090,17 +1091,24 @@ static void phantom_pipe_blank(
 	/* get the OPTC source */
 	tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
 	ASSERT(opp_id_src0 < dc->res_pool->res_cap->num_opp);
-	opp = dc->res_pool->opps[opp_id_src0];
 
-	opp->funcs->opp_set_disp_pattern_generator(
-			opp,
-			CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR,
-			CONTROLLER_DP_COLOR_SPACE_UDEFINED,
-			COLOR_DEPTH_UNDEFINED,
-			&black_color,
-			otg_active_width,
-			otg_active_height,
-			0);
+	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
+		if (dc->res_pool->opps[i] != NULL && dc->res_pool->opps[i]->inst == opp_id_src0) {
+			opp = dc->res_pool->opps[i];
+			break;
+		}
+	}
+
+	if (opp && opp->funcs->opp_set_disp_pattern_generator)
+		opp->funcs->opp_set_disp_pattern_generator(
+				opp,
+				CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR,
+				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
+				COLOR_DEPTH_UNDEFINED,
+				&black_color,
+				otg_active_width,
+				otg_active_height,
+				0);
 
 	if (tg->funcs->is_tg_enabled(tg))
 		hws->funcs.wait_for_blank_complete(opp);
