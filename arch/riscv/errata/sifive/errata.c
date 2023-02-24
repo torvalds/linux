@@ -14,7 +14,7 @@
 #include <asm/errata_list.h>
 
 struct errata_info_t {
-	char name[ERRATA_STRING_LENGTH_MAX];
+	char name[32];
 	bool (*check_func)(unsigned long  arch_id, unsigned long impid);
 };
 

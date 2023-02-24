@@ -6,8 +6,6 @@
 #ifndef __ASM_ALTERNATIVE_H
 #define __ASM_ALTERNATIVE_H
 
-#define ERRATA_STRING_LENGTH_MAX 32
-
 #include <asm/alternative-macros.h>
 
 #ifndef __ASSEMBLY__
@@ -41,11 +39,6 @@ struct alt_entry {
 	u16 vendor_id;		/* cpu vendor id */
 	u16 alt_len;		/* The replacement size */
 	u32 errata_id;		/* The errata id */
-};
-
-struct errata_checkfunc_id {
-	unsigned long vendor_id;
-	bool (*func)(struct alt_entry *alt);
 };
 
 void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
