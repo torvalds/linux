@@ -91,30 +91,15 @@
 
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
 
-#define SYS(fmt, ...)						\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		if (!ASSERT_OK(system(cmd), cmd))		\
-			goto fail;				\
-	})
-
-#define SYS_NOFAIL(fmt, ...)					\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		system(cmd);					\
-	})
-
 static int config_device(void)
 {
-	SYS("ip netns add at_ns0");
-	SYS("ip link add veth0 address " MAC_VETH1 " type veth peer name veth1");
-	SYS("ip link set veth0 netns at_ns0");
-	SYS("ip addr add " IP4_ADDR1_VETH1 "/24 dev veth1");
-	SYS("ip link set dev veth1 up mtu 1500");
-	SYS("ip netns exec at_ns0 ip addr add " IP4_ADDR_VETH0 "/24 dev veth0");
-	SYS("ip netns exec at_ns0 ip link set dev veth0 up mtu 1500");
+	SYS(fail, "ip netns add at_ns0");
+	SYS(fail, "ip link add veth0 address " MAC_VETH1 " type veth peer name veth1");
+	SYS(fail, "ip link set veth0 netns at_ns0");
+	SYS(fail, "ip addr add " IP4_ADDR1_VETH1 "/24 dev veth1");
+	SYS(fail, "ip link set dev veth1 up mtu 1500");
+	SYS(fail, "ip netns exec at_ns0 ip addr add " IP4_ADDR_VETH0 "/24 dev veth0");
+	SYS(fail, "ip netns exec at_ns0 ip link set dev veth0 up mtu 1500");
 
 	return 0;
 fail:
@@ -132,23 +117,23 @@ static void cleanup(void)
 static int add_vxlan_tunnel(void)
 {
 	/* at_ns0 namespace */
-	SYS("ip netns exec at_ns0 ip link add dev %s type vxlan external gbp dstport 4789",
+	SYS(fail, "ip netns exec at_ns0 ip link add dev %s type vxlan external gbp dstport 4789",
 	    VXLAN_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip link set dev %s address %s up",
+	SYS(fail, "ip netns exec at_ns0 ip link set dev %s address %s up",
 	    VXLAN_TUNL_DEV0, MAC_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip addr add dev %s %s/24",
+	SYS(fail, "ip netns exec at_ns0 ip addr add dev %s %s/24",
 	    VXLAN_TUNL_DEV0, IP4_ADDR_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip neigh add %s lladdr %s dev %s",
+	SYS(fail, "ip netns exec at_ns0 ip neigh add %s lladdr %s dev %s",
 	    IP4_ADDR_TUNL_DEV1, MAC_TUNL_DEV1, VXLAN_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip neigh add %s lladdr %s dev veth0",
+	SYS(fail, "ip netns exec at_ns0 ip neigh add %s lladdr %s dev veth0",
 	    IP4_ADDR2_VETH1, MAC_VETH1);
 
 	/* root namespace */
-	SYS("ip link add dev %s type vxlan external gbp dstport 4789",
+	SYS(fail, "ip link add dev %s type vxlan external gbp dstport 4789",
 	    VXLAN_TUNL_DEV1);
-	SYS("ip link set dev %s address %s up", VXLAN_TUNL_DEV1, MAC_TUNL_DEV1);
-	SYS("ip addr add dev %s %s/24", VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
-	SYS("ip neigh add %s lladdr %s dev %s",
+	SYS(fail, "ip link set dev %s address %s up", VXLAN_TUNL_DEV1, MAC_TUNL_DEV1);
+	SYS(fail, "ip addr add dev %s %s/24", VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
+	SYS(fail, "ip neigh add %s lladdr %s dev %s",
 	    IP4_ADDR_TUNL_DEV0, MAC_TUNL_DEV0, VXLAN_TUNL_DEV1);
 
 	return 0;
@@ -165,26 +150,26 @@ static void delete_vxlan_tunnel(void)
 
 static int add_ip6vxlan_tunnel(void)
 {
-	SYS("ip netns exec at_ns0 ip -6 addr add %s/96 dev veth0",
+	SYS(fail, "ip netns exec at_ns0 ip -6 addr add %s/96 dev veth0",
 	    IP6_ADDR_VETH0);
-	SYS("ip netns exec at_ns0 ip link set dev veth0 up");
-	SYS("ip -6 addr add %s/96 dev veth1", IP6_ADDR1_VETH1);
-	SYS("ip -6 addr add %s/96 dev veth1", IP6_ADDR2_VETH1);
-	SYS("ip link set dev veth1 up");
+	SYS(fail, "ip netns exec at_ns0 ip link set dev veth0 up");
+	SYS(fail, "ip -6 addr add %s/96 dev veth1", IP6_ADDR1_VETH1);
+	SYS(fail, "ip -6 addr add %s/96 dev veth1", IP6_ADDR2_VETH1);
+	SYS(fail, "ip link set dev veth1 up");
 
 	/* at_ns0 namespace */
-	SYS("ip netns exec at_ns0 ip link add dev %s type vxlan external dstport 4789",
+	SYS(fail, "ip netns exec at_ns0 ip link add dev %s type vxlan external dstport 4789",
 	    IP6VXLAN_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip addr add dev %s %s/24",
+	SYS(fail, "ip netns exec at_ns0 ip addr add dev %s %s/24",
 	    IP6VXLAN_TUNL_DEV0, IP4_ADDR_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip link set dev %s address %s up",
+	SYS(fail, "ip netns exec at_ns0 ip link set dev %s address %s up",
 	    IP6VXLAN_TUNL_DEV0, MAC_TUNL_DEV0);
 
 	/* root namespace */
-	SYS("ip link add dev %s type vxlan external dstport 4789",
+	SYS(fail, "ip link add dev %s type vxlan external dstport 4789",
 	    IP6VXLAN_TUNL_DEV1);
-	SYS("ip addr add dev %s %s/24", IP6VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
-	SYS("ip link set dev %s address %s up",
+	SYS(fail, "ip addr add dev %s %s/24", IP6VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
+	SYS(fail, "ip link set dev %s address %s up",
 	    IP6VXLAN_TUNL_DEV1, MAC_TUNL_DEV1);
 
 	return 0;
@@ -205,7 +190,7 @@ static void delete_ip6vxlan_tunnel(void)
 
 static int test_ping(int family, const char *addr)
 {
-	SYS("%s %s %s > /dev/null", ping_command(family), PING_ARGS, addr);
+	SYS(fail, "%s %s %s > /dev/null", ping_command(family), PING_ARGS, addr);
 	return 0;
 fail:
 	return -1;

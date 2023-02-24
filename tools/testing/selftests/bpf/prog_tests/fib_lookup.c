@@ -8,14 +8,6 @@
 #include "network_helpers.h"
 #include "fib_lookup.skel.h"
 
-#define SYS(fmt, ...)						\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		if (!ASSERT_OK(system(cmd), cmd))		\
-			goto fail;				\
-	})
-
 #define NS_TEST			"fib_lookup_ns"
 #define IPV6_IFACE_ADDR		"face::face"
 #define IPV6_NUD_FAILED_ADDR	"face::1"
@@ -59,16 +51,16 @@ static int setup_netns(void)
 {
 	int err;
 
-	SYS("ip link add veth1 type veth peer name veth2");
-	SYS("ip link set dev veth1 up");
+	SYS(fail, "ip link add veth1 type veth peer name veth2");
+	SYS(fail, "ip link set dev veth1 up");
 
-	SYS("ip addr add %s/64 dev veth1 nodad", IPV6_IFACE_ADDR);
-	SYS("ip neigh add %s dev veth1 nud failed", IPV6_NUD_FAILED_ADDR);
-	SYS("ip neigh add %s dev veth1 lladdr %s nud stale", IPV6_NUD_STALE_ADDR, DMAC);
+	SYS(fail, "ip addr add %s/64 dev veth1 nodad", IPV6_IFACE_ADDR);
+	SYS(fail, "ip neigh add %s dev veth1 nud failed", IPV6_NUD_FAILED_ADDR);
+	SYS(fail, "ip neigh add %s dev veth1 lladdr %s nud stale", IPV6_NUD_STALE_ADDR, DMAC);
 
-	SYS("ip addr add %s/24 dev veth1 nodad", IPV4_IFACE_ADDR);
-	SYS("ip neigh add %s dev veth1 nud failed", IPV4_NUD_FAILED_ADDR);
-	SYS("ip neigh add %s dev veth1 lladdr %s nud stale", IPV4_NUD_STALE_ADDR, DMAC);
+	SYS(fail, "ip addr add %s/24 dev veth1 nodad", IPV4_IFACE_ADDR);
+	SYS(fail, "ip neigh add %s dev veth1 nud failed", IPV4_NUD_FAILED_ADDR);
+	SYS(fail, "ip neigh add %s dev veth1 lladdr %s nud stale", IPV4_NUD_STALE_ADDR, DMAC);
 
 	err = write_sysctl("/proc/sys/net/ipv4/conf/veth1/forwarding", "1");
 	if (!ASSERT_OK(err, "write_sysctl(net.ipv4.conf.veth1.forwarding)"))
@@ -140,7 +132,7 @@ void test_fib_lookup(void)
 		return;
 	prog_fd = bpf_program__fd(skel->progs.fib_lookup);
 
-	SYS("ip netns add %s", NS_TEST);
+	SYS(fail, "ip netns add %s", NS_TEST);
 
 	nstoken = open_netns(NS_TEST);
 	if (!ASSERT_OK_PTR(nstoken, "open_netns"))
@@ -182,6 +174,6 @@ void test_fib_lookup(void)
 fail:
 	if (nstoken)
 		close_netns(nstoken);
-	system("ip netns del " NS_TEST " &> /dev/null");
+	SYS_NOFAIL("ip netns del " NS_TEST " &> /dev/null");
 	fib_lookup__destroy(skel);
 }
