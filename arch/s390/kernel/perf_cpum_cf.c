@@ -1290,7 +1290,7 @@ static size_t cfset_needspace(unsigned int sets)
 static int cfset_all_copy(unsigned long arg, cpumask_t *mask)
 {
 	struct s390_ctrset_read __user *ctrset_read;
-	unsigned int cpu, cpus, rc;
+	unsigned int cpu, cpus, rc = 0;
 	void __user *uptr;
 
 	ctrset_read = (struct s390_ctrset_read __user *)arg;
@@ -1304,17 +1304,20 @@ static int cfset_all_copy(unsigned long arg, cpumask_t *mask)
 		rc |= put_user(cpuhw->sets, &ctrset_cpudata->no_sets);
 		rc |= copy_to_user(ctrset_cpudata->data, cpuhw->data,
 				   cpuhw->used);
-		if (rc)
-			return -EFAULT;
+		if (rc) {
+			rc = -EFAULT;
+			goto out;
+		}
 		uptr += sizeof(struct s390_ctrset_cpudata) + cpuhw->used;
 		cond_resched();
 	}
 	cpus = cpumask_weight(mask);
 	if (put_user(cpus, &ctrset_read->no_cpus))
-		return -EFAULT;
-	debug_sprintf_event(cf_dbg, 4, "%s copied %ld\n", __func__,
+		rc = -EFAULT;
+out:
+	debug_sprintf_event(cf_dbg, 4, "%s rc %d copied %ld\n", __func__, rc,
 			    uptr - (void __user *)ctrset_read->data);
-	return 0;
+	return rc;
 }
 
 static size_t cfset_cpuset_read(struct s390_ctrset_setdata *p, int ctrset,
