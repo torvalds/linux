@@ -31,8 +31,7 @@ void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
 long bch2_bucket_alloc_new_fs(struct bch_dev *);
 
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *, struct bch_dev *,
-				      enum alloc_reserve, bool,
-				      struct closure *);
+				      enum alloc_reserve, struct closure *);
 
 static inline void ob_push(struct bch_fs *c, struct open_buckets *obs,
 			   struct open_bucket *ob)
@@ -152,8 +151,9 @@ static inline bool bch2_bucket_is_open_safe(struct bch_fs *c, unsigned dev, u64 
 
 int bch2_bucket_alloc_set_trans(struct btree_trans *, struct open_buckets *,
 		      struct dev_stripe_state *, struct bch_devs_mask *,
-		      unsigned, unsigned *, bool *, enum alloc_reserve,
-		      unsigned, struct closure *);
+		      unsigned, unsigned *, bool *, unsigned,
+		      enum bch_data_type, enum alloc_reserve,
+		      struct closure *);
 
 int bch2_alloc_sectors_start_trans(struct btree_trans *,
 				   unsigned, unsigned,

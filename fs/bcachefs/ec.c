@@ -1451,9 +1451,9 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 					    &devs,
 					    h->s->nr_parity,
 					    &nr_have_parity,
-					    &have_cache,
+					    &have_cache, 0,
+					    BCH_DATA_parity,
 					    reserve,
-					    0,
 					    cl);
 
 		open_bucket_for_each(c, &buckets, ob, i) {
@@ -1478,9 +1478,9 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 					    &devs,
 					    h->s->nr_data,
 					    &nr_have_data,
-					    &have_cache,
+					    &have_cache, 0,
+					    BCH_DATA_user,
 					    reserve,
-					    0,
 					    cl);
 
 		open_bucket_for_each(c, &buckets, ob, i) {

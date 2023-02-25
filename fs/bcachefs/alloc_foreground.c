@@ -154,23 +154,17 @@ static void open_bucket_free_unused(struct bch_fs *c,
 				    struct write_point *wp,
 				    struct open_bucket *ob)
 {
-	bool may_realloc = wp->data_type == BCH_DATA_user;
-
 	BUG_ON(c->open_buckets_partial_nr >=
 	       ARRAY_SIZE(c->open_buckets_partial));
 
-	if (may_realloc) {
-		spin_lock(&c->freelist_lock);
-		ob->on_partial_list = true;
-		c->open_buckets_partial[c->open_buckets_partial_nr++] =
-			ob - c->open_buckets;
-		spin_unlock(&c->freelist_lock);
+	spin_lock(&c->freelist_lock);
+	ob->on_partial_list = true;
+	c->open_buckets_partial[c->open_buckets_partial_nr++] =
+		ob - c->open_buckets;
+	spin_unlock(&c->freelist_lock);
 
-		closure_wake_up(&c->open_buckets_wait);
-		closure_wake_up(&c->freelist_wait);
-	} else {
-		bch2_open_bucket_put(c, ob);
-	}
+	closure_wake_up(&c->open_buckets_wait);
+	closure_wake_up(&c->freelist_wait);
 }
 
 /* _only_ for allocating the journal on a new device: */
@@ -256,7 +250,6 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 
 	ob->valid	= true;
 	ob->sectors_free = ca->mi.bucket_size;
-	ob->alloc_reserve = reserve;
 	ob->dev		= ca->dev_idx;
 	ob->gen		= a->gen;
 	ob->bucket	= bucket;
@@ -383,33 +376,6 @@ err:
 	return ob;
 }
 
-static struct open_bucket *try_alloc_partial_bucket(struct bch_fs *c, struct bch_dev *ca,
-						    enum alloc_reserve reserve)
-{
-	struct open_bucket *ob;
-	int i;
-
-	spin_lock(&c->freelist_lock);
-
-	for (i = c->open_buckets_partial_nr - 1; i >= 0; --i) {
-		ob = c->open_buckets + c->open_buckets_partial[i];
-
-		if (ob->dev == ca->dev_idx &&
-		    reserve <= ob->alloc_reserve) {
-			array_remove_item(c->open_buckets_partial,
-					  c->open_buckets_partial_nr,
-					  i);
-			ob->on_partial_list = false;
-			ob->alloc_reserve = reserve;
-			spin_unlock(&c->freelist_lock);
-			return ob;
-		}
-	}
-
-	spin_unlock(&c->freelist_lock);
-	return NULL;
-}
-
 /*
  * This path is for before the freespace btree is initialized:
  *
@@ -533,7 +499,6 @@ again:
 static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 				      struct bch_dev *ca,
 				      enum alloc_reserve reserve,
-				      bool may_alloc_partial,
 				      struct closure *cl,
 				      struct bch_dev_usage *usage)
 {
@@ -572,12 +537,6 @@ again:
 
 	if (waiting)
 		closure_wake_up(&c->freelist_wait);
-
-	if (may_alloc_partial) {
-		ob = try_alloc_partial_bucket(c, ca, reserve);
-		if (ob)
-			return ob;
-	}
 alloc:
 	ob = likely(freespace)
 		? bch2_bucket_alloc_freelist(trans, ca, reserve, &s, cl)
@@ -597,7 +556,6 @@ err:
 	if (!IS_ERR(ob))
 		trace_and_count(c, bucket_alloc, ca,
 				bch2_alloc_reserves[reserve],
-				may_alloc_partial,
 				ob->bucket,
 				usage->d[BCH_DATA_free].buckets,
 				avail,
@@ -609,7 +567,6 @@ err:
 	else if (!bch2_err_matches(PTR_ERR(ob), BCH_ERR_transaction_restart))
 		trace_and_count(c, bucket_alloc_fail, ca,
 				bch2_alloc_reserves[reserve],
-				may_alloc_partial,
 				0,
 				usage->d[BCH_DATA_free].buckets,
 				avail,
@@ -624,7 +581,6 @@ err:
 
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 				      enum alloc_reserve reserve,
-				      bool may_alloc_partial,
 				      struct closure *cl)
 {
 	struct bch_dev_usage usage;
@@ -632,7 +588,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 
 	bch2_trans_do(c, NULL, NULL, 0,
 		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(&trans, ca, reserve,
-							may_alloc_partial, cl, &usage)));
+							cl, &usage)));
 	return ob;
 }
 
@@ -689,12 +645,10 @@ void bch2_dev_stripe_increment(struct bch_dev *ca,
 	bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 }
 
-#define BUCKET_MAY_ALLOC_PARTIAL	(1 << 0)
-#define BUCKET_ALLOC_USE_DURABILITY	(1 << 1)
-
-static void add_new_bucket(struct bch_fs *c,
+static int add_new_bucket(struct bch_fs *c,
 			   struct open_buckets *ptrs,
 			   struct bch_devs_mask *devs_may_alloc,
+			   unsigned nr_replicas,
 			   unsigned *nr_effective,
 			   bool *have_cache,
 			   unsigned flags,
@@ -703,12 +657,21 @@ static void add_new_bucket(struct bch_fs *c,
 	unsigned durability =
 		bch_dev_bkey_exists(c, ob->dev)->mi.durability;
 
+	BUG_ON(*nr_effective >= nr_replicas);
+	BUG_ON(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS);
+
 	__clear_bit(ob->dev, devs_may_alloc->d);
-	*nr_effective	+= (flags & BUCKET_ALLOC_USE_DURABILITY)
+	*nr_effective	+= (flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)
 		? durability : 1;
 	*have_cache	|= !durability;
 
 	ob_push(c, ptrs, ob);
+
+	if (*nr_effective >= nr_replicas)
+		return 1;
+	if (ob->ec)
+		return 1;
+	return 0;
 }
 
 int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
@@ -718,8 +681,9 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 		      unsigned nr_replicas,
 		      unsigned *nr_effective,
 		      bool *have_cache,
-		      enum alloc_reserve reserve,
 		      unsigned flags,
+		      enum bch_data_type data_type,
+		      enum alloc_reserve reserve,
 		      struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -752,8 +716,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		ob = bch2_bucket_alloc_trans(trans, ca, reserve,
-				flags & BUCKET_MAY_ALLOC_PARTIAL, cl, &usage);
+		ob = bch2_bucket_alloc_trans(trans, ca, reserve, cl, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 		percpu_ref_put(&ca->ref);
@@ -765,10 +728,11 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		add_new_bucket(c, ptrs, devs_may_alloc,
-			       nr_effective, have_cache, flags, ob);
+		ob->data_type = data_type;
 
-		if (*nr_effective >= nr_replicas) {
+		if (add_new_bucket(c, ptrs, devs_may_alloc,
+				   nr_replicas, nr_effective,
+				   have_cache, flags, ob)) {
 			ret = 0;
 			break;
 		}
@@ -790,7 +754,6 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 			 struct write_point *wp,
 			 struct bch_devs_mask *devs_may_alloc,
 			 u16 target,
-			 unsigned erasure_code,
 			 unsigned nr_replicas,
 			 unsigned *nr_effective,
 			 bool *have_cache,
@@ -804,9 +767,7 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 	struct open_bucket *ob;
 	struct bch_dev *ca;
 	unsigned i, ec_idx;
-
-	if (!erasure_code)
-		return 0;
+	int ret = 0;
 
 	if (nr_replicas < 2)
 		return 0;
@@ -840,45 +801,190 @@ got_bucket:
 	ob->ec		= h->s;
 	ec_stripe_new_get(h->s);
 
-	add_new_bucket(c, ptrs, devs_may_alloc,
-		       nr_effective, have_cache, flags, ob);
+	ret = add_new_bucket(c, ptrs, devs_may_alloc,
+			     nr_replicas, nr_effective,
+			     have_cache, flags, ob);
 out_put_head:
 	bch2_ec_stripe_head_put(c, h);
-	return 0;
+	return ret;
 }
 
 /* Sector allocator */
 
-static void get_buckets_from_writepoint(struct bch_fs *c,
-					struct open_buckets *ptrs,
-					struct write_point *wp,
-					struct bch_devs_mask *devs_may_alloc,
-					unsigned nr_replicas,
-					unsigned *nr_effective,
-					bool *have_cache,
-					unsigned flags,
-					bool need_ec)
+static bool want_bucket(struct bch_fs *c,
+			struct write_point *wp,
+			struct bch_devs_mask *devs_may_alloc,
+			bool *have_cache, bool ec,
+			struct open_bucket *ob)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+
+	if (!test_bit(ob->dev, devs_may_alloc->d))
+		return false;
+
+	if (ob->data_type != wp->data_type)
+		return false;
+
+	if (!ca->mi.durability &&
+	    (wp->data_type == BCH_DATA_btree || ec || *have_cache))
+		return false;
+
+	if (ec != (ob->ec != NULL))
+		return false;
+
+	return true;
+}
+
+static int bucket_alloc_set_writepoint(struct bch_fs *c,
+				       struct open_buckets *ptrs,
+				       struct write_point *wp,
+				       struct bch_devs_mask *devs_may_alloc,
+				       unsigned nr_replicas,
+				       unsigned *nr_effective,
+				       bool *have_cache,
+				       bool ec, unsigned flags)
 {
 	struct open_buckets ptrs_skip = { .nr = 0 };
 	struct open_bucket *ob;
 	unsigned i;
+	int ret = 0;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
-
-		if (*nr_effective < nr_replicas &&
-		    test_bit(ob->dev, devs_may_alloc->d) &&
-		    (ca->mi.durability ||
-		     (wp->data_type == BCH_DATA_user && !*have_cache)) &&
-		    (ob->ec || !need_ec)) {
-			add_new_bucket(c, ptrs, devs_may_alloc,
-				       nr_effective, have_cache,
-				       flags, ob);
-		} else {
+		if (!ret && want_bucket(c, wp, devs_may_alloc,
+					have_cache, ec, ob))
+			ret = add_new_bucket(c, ptrs, devs_may_alloc,
+				       nr_replicas, nr_effective,
+				       have_cache, flags, ob);
+		else
 			ob_push(c, &ptrs_skip, ob);
-		}
 	}
 	wp->ptrs = ptrs_skip;
+
+	return ret;
+}
+
+static int bucket_alloc_set_partial(struct bch_fs *c,
+				    struct open_buckets *ptrs,
+				    struct write_point *wp,
+				    struct bch_devs_mask *devs_may_alloc,
+				    unsigned nr_replicas,
+				    unsigned *nr_effective,
+				    bool *have_cache, bool ec,
+				    enum alloc_reserve reserve,
+				    unsigned flags)
+{
+	int i, ret = 0;
+
+	if (!c->open_buckets_partial_nr)
+		return 0;
+
+	spin_lock(&c->freelist_lock);
+
+	if (!c->open_buckets_partial_nr)
+		goto unlock;
+
+	for (i = c->open_buckets_partial_nr - 1; i >= 0; --i) {
+		struct open_bucket *ob = c->open_buckets + c->open_buckets_partial[i];
+
+		if (want_bucket(c, wp, devs_may_alloc, have_cache, ec, ob)) {
+			struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+			struct bch_dev_usage usage;
+			u64 avail;
+
+			bch2_dev_usage_read_fast(ca, &usage);
+			avail = dev_buckets_free(ca, usage, reserve);
+			if (!avail)
+				continue;
+
+			array_remove_item(c->open_buckets_partial,
+					  c->open_buckets_partial_nr,
+					  i);
+			ob->on_partial_list = false;
+
+			ret = add_new_bucket(c, ptrs, devs_may_alloc,
+					     nr_replicas, nr_effective,
+					     have_cache, flags, ob);
+			if (ret)
+				break;
+		}
+	}
+unlock:
+	spin_unlock(&c->freelist_lock);
+	return ret;
+}
+
+static int __open_bucket_add_buckets(struct btree_trans *trans,
+			struct open_buckets *ptrs,
+			struct write_point *wp,
+			struct bch_devs_list *devs_have,
+			u16 target,
+			bool erasure_code,
+			unsigned nr_replicas,
+			unsigned *nr_effective,
+			bool *have_cache,
+			enum alloc_reserve reserve,
+			unsigned flags,
+			struct closure *_cl)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_devs_mask devs;
+	struct open_bucket *ob;
+	struct closure *cl = NULL;
+	unsigned i;
+	int ret;
+
+	rcu_read_lock();
+	devs = target_rw_devs(c, wp->data_type, target);
+	rcu_read_unlock();
+
+	/* Don't allocate from devices we already have pointers to: */
+	for (i = 0; i < devs_have->nr; i++)
+		__clear_bit(devs_have->devs[i], devs.d);
+
+	open_bucket_for_each(c, ptrs, ob, i)
+		__clear_bit(ob->dev, devs.d);
+
+	if (erasure_code && ec_open_bucket(c, ptrs))
+		return 0;
+
+	ret = bucket_alloc_set_writepoint(c, ptrs, wp, &devs,
+				 nr_replicas, nr_effective,
+				 have_cache, erasure_code, flags);
+	if (ret)
+		return ret;
+
+	ret = bucket_alloc_set_partial(c, ptrs, wp, &devs,
+				 nr_replicas, nr_effective,
+				 have_cache, erasure_code, reserve, flags);
+	if (ret)
+		return ret;
+
+	if (erasure_code) {
+		ret = bucket_alloc_from_stripe(trans, ptrs, wp, &devs,
+					 target,
+					 nr_replicas, nr_effective,
+					 have_cache,
+					 reserve, flags, _cl);
+	} else {
+retry_blocking:
+		/*
+		 * Try nonblocking first, so that if one device is full we'll try from
+		 * other devices:
+		 */
+		ret = bch2_bucket_alloc_set_trans(trans, ptrs, &wp->stripe, &devs,
+					nr_replicas, nr_effective, have_cache,
+					flags, wp->data_type, reserve, cl);
+		if (ret &&
+		    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
+		    !bch2_err_matches(ret, BCH_ERR_insufficient_devices) &&
+		    !cl && _cl) {
+			cl = _cl;
+			goto retry_blocking;
+		}
+
+	}
+
+	return ret;
 }
 
 static int open_bucket_add_buckets(struct btree_trans *trans,
@@ -892,72 +998,29 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 			bool *have_cache,
 			enum alloc_reserve reserve,
 			unsigned flags,
-			struct closure *_cl)
+			struct closure *cl)
 {
-	struct bch_fs *c = trans->c;
-	struct bch_devs_mask devs;
-	struct open_bucket *ob;
-	struct closure *cl = NULL;
 	int ret;
-	unsigned i;
-
-	rcu_read_lock();
-	devs = target_rw_devs(c, wp->data_type, target);
-	rcu_read_unlock();
-
-	/* Don't allocate from devices we already have pointers to: */
-	for (i = 0; i < devs_have->nr; i++)
-		__clear_bit(devs_have->devs[i], devs.d);
-
-	open_bucket_for_each(c, ptrs, ob, i)
-		__clear_bit(ob->dev, devs.d);
 
 	if (erasure_code) {
-		if (!ec_open_bucket(c, ptrs)) {
-			get_buckets_from_writepoint(c, ptrs, wp, &devs,
-						    nr_replicas, nr_effective,
-						    have_cache, flags, true);
-			if (*nr_effective >= nr_replicas)
-				return 0;
-		}
-
-		if (!ec_open_bucket(c, ptrs)) {
-			ret = bucket_alloc_from_stripe(trans, ptrs, wp, &devs,
-						 target, erasure_code,
-						 nr_replicas, nr_effective,
-						 have_cache, reserve, flags, _cl);
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
-			    bch2_err_matches(ret, BCH_ERR_freelist_empty) ||
-			    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
-				return ret;
-			if (*nr_effective >= nr_replicas)
-				return 0;
-		}
-	}
-
-	get_buckets_from_writepoint(c, ptrs, wp, &devs,
-				    nr_replicas, nr_effective,
-				    have_cache, flags, false);
-	if (*nr_effective >= nr_replicas)
-		return 0;
-
-retry_blocking:
-	/*
-	 * Try nonblocking first, so that if one device is full we'll try from
-	 * other devices:
-	 */
-	ret = bch2_bucket_alloc_set_trans(trans, ptrs, &wp->stripe, &devs,
+		ret = __open_bucket_add_buckets(trans, ptrs, wp,
+				devs_have, target, erasure_code,
 				nr_replicas, nr_effective, have_cache,
 				reserve, flags, cl);
-	if (ret &&
-	    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
-	    !bch2_err_matches(ret, BCH_ERR_insufficient_devices) &&
-	    !cl && _cl) {
-		cl = _cl;
-		goto retry_blocking;
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
+		    bch2_err_matches(ret, BCH_ERR_operation_blocked) ||
+		    bch2_err_matches(ret, BCH_ERR_freelist_empty) ||
+		    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
+			return ret;
+		if (*nr_effective >= nr_replicas)
+			return 0;
 	}
 
-	return ret;
+	ret = __open_bucket_add_buckets(trans, ptrs, wp,
+			devs_have, target, false,
+			nr_replicas, nr_effective, have_cache,
+			reserve, flags, cl);
+	return ret < 0 ? ret : 0;
 }
 
 void bch2_open_buckets_stop_dev(struct bch_fs *c, struct bch_dev *ca,
@@ -1156,13 +1219,11 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 	struct open_bucket *ob;
 	struct open_buckets ptrs;
 	unsigned nr_effective, write_points_nr;
-	unsigned ob_flags = 0;
 	bool have_cache;
 	int ret;
 	int i;
 
-	if (!(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS))
-		ob_flags |= BUCKET_ALLOC_USE_DURABILITY;
+	BUG_ON(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS);
 
 	BUG_ON(!nr_replicas || !nr_replicas_required);
 retry:
@@ -1173,34 +1234,42 @@ retry:
 
 	*wp_ret = wp = writepoint_find(trans, write_point.v);
 
-	if (wp->data_type == BCH_DATA_user)
-		ob_flags |= BUCKET_MAY_ALLOC_PARTIAL;
-
 	/* metadata may not allocate on cache devices: */
 	if (wp->data_type != BCH_DATA_user)
 		have_cache = true;
 
-	if (!target || (flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)) {
+	if (target && !(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)) {
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
 					      &have_cache, reserve,
-					      ob_flags, cl);
-	} else {
-		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
-					      target, erasure_code,
-					      nr_replicas, &nr_effective,
-					      &have_cache, reserve,
-					      ob_flags, NULL);
+					      flags, NULL);
 		if (!ret ||
 		    bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto alloc_done;
+
+		/* Don't retry from all devices if we're out of open buckets: */
+		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
+			goto allocate_blocking;
+
+		/*
+		 * Only try to allocate cache (durability = 0 devices) from the
+		 * specified target:
+		 */
+		have_cache = true;
 
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      0, erasure_code,
 					      nr_replicas, &nr_effective,
 					      &have_cache, reserve,
-					      ob_flags, cl);
+					      flags, cl);
+	} else {
+allocate_blocking:
+		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
+					      target, erasure_code,
+					      nr_replicas, &nr_effective,
+					      &have_cache, reserve,
+					      flags, cl);
 	}
 alloc_done:
 	BUG_ON(!ret && nr_effective < nr_replicas);
