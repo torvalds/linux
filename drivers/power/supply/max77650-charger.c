@@ -141,7 +141,7 @@ static int max77650_charger_enable(struct max77650_charger_data *chg)
 	return rv;
 }
 
-static int max77650_charger_disable(struct max77650_charger_data *chg)
+static void max77650_charger_disable(struct max77650_charger_data *chg)
 {
 	int rv;
 
@@ -151,8 +151,6 @@ static int max77650_charger_disable(struct max77650_charger_data *chg)
 				MAX77650_CHARGER_DISABLED);
 	if (rv)
 		dev_err(chg->dev, "unable to disable the charger: %d\n", rv);
-
-	return rv;
 }
 
 static irqreturn_t max77650_charger_check_status(int irq, void *data)
@@ -351,7 +349,9 @@ static int max77650_charger_remove(struct platform_device *pdev)
 {
 	struct max77650_charger_data *chg = platform_get_drvdata(pdev);
 
-	return max77650_charger_disable(chg);
+	max77650_charger_disable(chg);
+
+	return 0;
 }
 
 static const struct of_device_id max77650_charger_of_match[] = {

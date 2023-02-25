@@ -296,7 +296,7 @@ static ssize_t fast_charge_timer_show(struct device *dev,
 		break;
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static int max77693_set_fast_charge_timer(struct max77693_charger *chg,
@@ -357,7 +357,7 @@ static ssize_t top_off_threshold_current_show(struct device *dev,
 	else
 		val = data * 50000;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static int max77693_set_top_off_threshold_current(struct max77693_charger *chg,
@@ -405,7 +405,7 @@ static ssize_t top_off_timer_show(struct device *dev,
 
 	val = data * 10;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static int max77693_set_top_off_timer(struct max77693_charger *chg,
