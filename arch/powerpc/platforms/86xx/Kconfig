@@ -10,13 +10,6 @@ menuconfig PPC_86xx
 
 if PPC_86xx
 
-config MPC8610_HPCD
-	bool "Freescale MPC8610 HPCD"
-	select DEFAULT_UIMAGE
-	select FSL_ULI1575 if PCI
-	help
-	  This option enables support for the MPC8610 HPCD board.
-
 config GEF_PPC9A
 	bool "GE PPC9A"
 	select DEFAULT_UIMAGE
@@ -67,4 +60,3 @@ config MPC8610
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8610_HPCD
