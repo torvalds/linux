@@ -679,8 +679,8 @@ static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 
 static int rtas_msi_init(void)
 {
-	query_token  = rtas_token("ibm,query-interrupt-source-number");
-	change_token = rtas_token("ibm,change-msi");
+	query_token  = rtas_function_token(RTAS_FN_IBM_QUERY_INTERRUPT_SOURCE_NUMBER);
+	change_token = rtas_function_token(RTAS_FN_IBM_CHANGE_MSI);
 
 	if ((query_token == RTAS_UNKNOWN_SERVICE) ||
 			(change_token == RTAS_UNKNOWN_SERVICE)) {

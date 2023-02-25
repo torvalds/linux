@@ -506,7 +506,7 @@ static int __init rtas_event_scan_init(void)
 		return 0;
 
 	/* No RTAS */
-	event_scan = rtas_token("event-scan");
+	event_scan = rtas_function_token(RTAS_FN_EVENT_SCAN);
 	if (event_scan == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_INFO "rtasd: No event-scan on system\n");
 		return -ENODEV;

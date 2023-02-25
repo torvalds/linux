@@ -348,15 +348,11 @@ static int parent(struct shared_info *info, pid_t pid)
 
 static int write_core_pattern(const char *core_pattern)
 {
-	size_t len = strlen(core_pattern), ret;
-	FILE *f;
+	int err;
 
-	f = fopen(core_pattern_file, "w");
-	SKIP_IF_MSG(!f, "Try with root privileges");
-
-	ret = fwrite(core_pattern, 1, len, f);
-	fclose(f);
-	if (ret != len) {
+	err = write_file(core_pattern_file, core_pattern, strlen(core_pattern));
+	if (err) {
+		SKIP_IF_MSG(err == -EPERM, "Try with root privileges");
 		perror("Error writing to core_pattern file");
 		return TEST_FAIL;
 	}
@@ -366,8 +362,8 @@ static int write_core_pattern(const char *core_pattern)
 
 static int setup_core_pattern(char **core_pattern_, bool *changed_)
 {
-	FILE *f;
 	char *core_pattern;
+	size_t len;
 	int ret;
 
 	core_pattern = malloc(PATH_MAX);
@@ -376,22 +372,14 @@ static int setup_core_pattern(char **core_pattern_, bool *changed_)
 		return TEST_FAIL;
 	}
 
-	f = fopen(core_pattern_file, "r");
-	if (!f) {
-		perror("Error opening core_pattern file");
-		ret = TEST_FAIL;
-		goto out;
-	}
-
-	ret = fread(core_pattern, 1, PATH_MAX - 1, f);
-	fclose(f);
-	if (!ret) {
+	ret = read_file(core_pattern_file, core_pattern, PATH_MAX - 1, &len);
+	if (ret) {
 		perror("Error reading core_pattern file");
 		ret = TEST_FAIL;
 		goto out;
 	}
 
-	core_pattern[ret] = '\0';
+	core_pattern[len] = '\0';
 
 	/* Check whether we can predict the name of the core file. */
 	if (!strcmp(core_pattern, "core") || !strcmp(core_pattern, "core.%p"))

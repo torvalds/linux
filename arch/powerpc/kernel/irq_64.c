@@ -70,22 +70,19 @@ int distribute_irqs = 1;
 
 static inline void next_interrupt(struct pt_regs *regs)
 {
-	/*
-	 * Softirq processing can enable/disable irqs, which will leave
-	 * MSR[EE] enabled and the soft mask set to IRQS_DISABLED. Fix
-	 * this up.
-	 */
-	if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
-		hard_irq_disable();
-	else
-		irq_soft_mask_set(IRQS_ALL_DISABLED);
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG)) {
+		WARN_ON(!(local_paca->irq_happened & PACA_IRQ_HARD_DIS));
+		WARN_ON(irq_soft_mask_return() != IRQS_ALL_DISABLED);
+	}
 
 	/*
 	 * We are responding to the next interrupt, so interrupt-off
 	 * latencies should be reset here.
 	 */
+	lockdep_hardirq_exit();
 	trace_hardirqs_on();
 	trace_hardirqs_off();
+	lockdep_hardirq_enter();
 }
 
 static inline bool irq_happened_test_and_clear(u8 irq)
@@ -97,22 +94,11 @@ static inline bool irq_happened_test_and_clear(u8 irq)
 	return false;
 }
 
-void replay_soft_interrupts(void)
+static __no_kcsan void __replay_soft_interrupts(void)
 {
 	struct pt_regs regs;
 
 	/*
-	 * Be careful here, calling these interrupt handlers can cause
-	 * softirqs to be raised, which they may run when calling irq_exit,
-	 * which will cause local_irq_enable() to be run, which can then
-	 * recurse into this function. Don't keep any state across
-	 * interrupt handler calls which may change underneath us.
-	 *
-	 * Softirqs can not be disabled over replay to stop this recursion
-	 * because interrupts taken in idle code may require RCU softirq
-	 * to run in the irq RCU tracking context. This is a hard problem
-	 * to fix without changes to the softirq or idle layer.
-	 *
 	 * We use local_paca rather than get_paca() to avoid all the
 	 * debug_smp_processor_id() business in this low level function.
 	 */
@@ -120,13 +106,20 @@ void replay_soft_interrupts(void)
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG)) {
 		WARN_ON_ONCE(mfmsr() & MSR_EE);
 		WARN_ON(!(local_paca->irq_happened & PACA_IRQ_HARD_DIS));
+		WARN_ON(local_paca->irq_happened & PACA_IRQ_REPLAYING);
 	}
+
+	/*
+	 * PACA_IRQ_REPLAYING prevents interrupt handlers from enabling
+	 * MSR[EE] to get PMIs, which can result in more IRQs becoming
+	 * pending.
+	 */
+	local_paca->irq_happened |= PACA_IRQ_REPLAYING;
 
 	ppc_save_regs(&regs);
 	regs.softe = IRQS_ENABLED;
 	regs.msr |= MSR_EE;
 
-again:
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
 	 * Any HV call will have this side effect.
@@ -175,17 +168,18 @@ again:
 		next_interrupt(&regs);
 	}
 
-	/*
-	 * Softirq processing can enable and disable interrupts, which can
-	 * result in new irqs becoming pending. Must keep looping until we
-	 * have cleared out all pending interrupts.
-	 */
-	if (local_paca->irq_happened & ~PACA_IRQ_HARD_DIS)
-		goto again;
+	local_paca->irq_happened &= ~PACA_IRQ_REPLAYING;
+}
+
+__no_kcsan void replay_soft_interrupts(void)
+{
+	irq_enter(); /* See comment in arch_local_irq_restore */
+	__replay_soft_interrupts();
+	irq_exit();
 }
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_KUAP)
-static inline void replay_soft_interrupts_irqrestore(void)
+static inline __no_kcsan void replay_soft_interrupts_irqrestore(void)
 {
 	unsigned long kuap_state = get_kuap();
 
@@ -200,16 +194,16 @@ static inline void replay_soft_interrupts_irqrestore(void)
 	if (kuap_state != AMR_KUAP_BLOCKED)
 		set_kuap(AMR_KUAP_BLOCKED);
 
-	replay_soft_interrupts();
+	__replay_soft_interrupts();
 
 	if (kuap_state != AMR_KUAP_BLOCKED)
 		set_kuap(kuap_state);
 }
 #else
-#define replay_soft_interrupts_irqrestore() replay_soft_interrupts()
+#define replay_soft_interrupts_irqrestore() __replay_soft_interrupts()
 #endif
 
-notrace void arch_local_irq_restore(unsigned long mask)
+notrace __no_kcsan void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
 
@@ -219,9 +213,13 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		return;
 	}
 
-	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-		WARN_ON_ONCE(in_nmi() || in_hardirq());
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG)) {
+		WARN_ON_ONCE(in_nmi());
+		WARN_ON_ONCE(in_hardirq());
+		WARN_ON_ONCE(local_paca->irq_happened & PACA_IRQ_REPLAYING);
+	}
 
+again:
 	/*
 	 * After the stb, interrupts are unmasked and there are no interrupts
 	 * pending replay. The restart sequence makes this atomic with
@@ -248,6 +246,12 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		WARN_ON_ONCE(!(mfmsr() & MSR_EE));
 
+	/*
+	 * If we came here from the replay below, we might have a preempt
+	 * pending (due to preempt_enable_no_resched()). Have to check now.
+	 */
+	preempt_check_resched();
+
 	return;
 
 happened:
@@ -261,6 +265,7 @@ happened:
 		irq_soft_mask_set(IRQS_ENABLED);
 		local_paca->irq_happened = 0;
 		__hard_irq_enable();
+		preempt_check_resched();
 		return;
 	}
 
@@ -296,12 +301,38 @@ happened:
 	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
 
+	/*
+	 * Now enter interrupt context. The interrupt handlers themselves
+	 * also call irq_enter/exit (which is okay, they can nest). But call
+	 * it here now to hold off softirqs until the below irq_exit(). If
+	 * we allowed replayed handlers to run softirqs, that enables irqs,
+	 * which must replay interrupts, which recurses in here and makes
+	 * things more complicated. The recursion is limited to 2, and it can
+	 * be made to work, but it's complicated.
+	 *
+	 * local_bh_disable can not be used here because interrupts taken in
+	 * idle are not in the right context (RCU, tick, etc) to run softirqs
+	 * so irq_enter must be called.
+	 */
+	irq_enter();
+
 	replay_soft_interrupts_irqrestore();
+
+	irq_exit();
+
+	if (unlikely(local_paca->irq_happened != PACA_IRQ_HARD_DIS)) {
+		/*
+		 * The softirq processing in irq_exit() may enable interrupts
+		 * temporarily, which can result in MSR[EE] being enabled and
+		 * more irqs becoming pending. Go around again if that happens.
+		 */
+		trace_hardirqs_on();
+		preempt_enable_no_resched();
+		goto again;
+	}
 
 	trace_hardirqs_on();
 	irq_soft_mask_set(IRQS_ENABLED);
-	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-		WARN_ON(local_paca->irq_happened != PACA_IRQ_HARD_DIS);
 	local_paca->irq_happened = 0;
 	__hard_irq_enable();
 	preempt_enable();
