@@ -2175,21 +2175,25 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 	}
 	mutex_unlock(&c->btree_reserve_cache_lock);
 
-	while (1) {
-		struct open_bucket *ob;
+	spin_lock(&c->freelist_lock);
+	i = 0;
+	while (i < c->open_buckets_partial_nr) {
+		struct open_bucket *ob =
+			c->open_buckets + c->open_buckets_partial[i];
 
-		spin_lock(&c->freelist_lock);
-		if (!ca->open_buckets_partial_nr) {
+		if (ob->dev == ca->dev_idx) {
+			--c->open_buckets_partial_nr;
+			swap(c->open_buckets_partial[i],
+			     c->open_buckets_partial[c->open_buckets_partial_nr]);
+			ob->on_partial_list = false;
 			spin_unlock(&c->freelist_lock);
-			break;
+			bch2_open_bucket_put(c, ob);
+			spin_lock(&c->freelist_lock);
+		} else {
+			i++;
 		}
-		ob = c->open_buckets +
-			ca->open_buckets_partial[--ca->open_buckets_partial_nr];
-		ob->on_partial_list = false;
-		spin_unlock(&c->freelist_lock);
-
-		bch2_open_bucket_put(c, ob);
 	}
+	spin_unlock(&c->freelist_lock);
 
 	bch2_ec_stop_dev(c, ca);
 

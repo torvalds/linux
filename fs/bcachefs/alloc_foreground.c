@@ -154,18 +154,15 @@ static void open_bucket_free_unused(struct bch_fs *c,
 				    struct write_point *wp,
 				    struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
 	bool may_realloc = wp->data_type == BCH_DATA_user;
 
-	BUG_ON(ca->open_buckets_partial_nr >
-	       ARRAY_SIZE(ca->open_buckets_partial));
+	BUG_ON(c->open_buckets_partial_nr >=
+	       ARRAY_SIZE(c->open_buckets_partial));
 
-	if (ca->open_buckets_partial_nr <
-	    ARRAY_SIZE(ca->open_buckets_partial) &&
-	    may_realloc) {
+	if (may_realloc) {
 		spin_lock(&c->freelist_lock);
 		ob->on_partial_list = true;
-		ca->open_buckets_partial[ca->open_buckets_partial_nr++] =
+		c->open_buckets_partial[c->open_buckets_partial_nr++] =
 			ob - c->open_buckets;
 		spin_unlock(&c->freelist_lock);
 
@@ -394,12 +391,13 @@ static struct open_bucket *try_alloc_partial_bucket(struct bch_fs *c, struct bch
 
 	spin_lock(&c->freelist_lock);
 
-	for (i = ca->open_buckets_partial_nr - 1; i >= 0; --i) {
-		ob = c->open_buckets + ca->open_buckets_partial[i];
+	for (i = c->open_buckets_partial_nr - 1; i >= 0; --i) {
+		ob = c->open_buckets + c->open_buckets_partial[i];
 
-		if (reserve <= ob->alloc_reserve) {
-			array_remove_item(ca->open_buckets_partial,
-					  ca->open_buckets_partial_nr,
+		if (ob->dev == ca->dev_idx &&
+		    reserve <= ob->alloc_reserve) {
+			array_remove_item(c->open_buckets_partial,
+					  c->open_buckets_partial_nr,
 					  i);
 			ob->on_partial_list = false;
 			ob->alloc_reserve = reserve;

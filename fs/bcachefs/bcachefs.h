@@ -516,9 +516,6 @@ struct bch_dev {
 	unsigned		nr_open_buckets;
 	unsigned		nr_btree_reserve;
 
-	open_bucket_idx_t	open_buckets_partial[OPEN_BUCKETS_COUNT];
-	open_bucket_idx_t	open_buckets_partial_nr;
-
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
 	size_t			buckets_waiting_on_journal;
@@ -858,6 +855,9 @@ struct bch_fs {
 	struct closure_waitlist	open_buckets_wait;
 	struct open_bucket	open_buckets[OPEN_BUCKETS_COUNT];
 	open_bucket_idx_t	open_buckets_hash[OPEN_BUCKETS_COUNT];
+
+	open_bucket_idx_t	open_buckets_partial[OPEN_BUCKETS_COUNT];
+	open_bucket_idx_t	open_buckets_partial_nr;
 
 	struct write_point	btree_write_point;
 	struct write_point	rebalance_write_point;
