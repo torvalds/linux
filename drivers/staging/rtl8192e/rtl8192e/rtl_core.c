@@ -703,8 +703,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	if (priv->up == 0)
 		return -1;
 
-	if (priv->rtllib->rtllib_ips_leave)
-		priv->rtllib->rtllib_ips_leave(dev);
+	priv->rtllib->rtllib_ips_leave(dev);
 
 	if (priv->rtllib->state == RTLLIB_LINKED)
 		rtl92e_leisure_ps_leave(dev);

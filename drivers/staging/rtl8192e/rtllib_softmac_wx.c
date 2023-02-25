@@ -355,8 +355,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 	/* wait for ps packet to be kicked out successfully */
 	msleep(50);
 
-	if (ieee->ScanOperationBackupHandler)
-		ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
+	ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
 	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht &&
 	    ieee->ht_info->bCurBW40MHz) {
@@ -381,8 +380,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 		ieee->set_chan(ieee->dev, chan);
 	}
 
-	if (ieee->ScanOperationBackupHandler)
-		ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_RESTORE);
+	ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_RESTORE);
 
 	ieee->state = RTLLIB_LINKED;
 	ieee->link_change(ieee->dev);

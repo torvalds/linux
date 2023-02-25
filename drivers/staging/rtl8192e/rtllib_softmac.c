@@ -1572,8 +1572,7 @@ static void rtllib_associate_procedure_wq(void *data)
 				     struct rtllib_device,
 				     associate_procedure_wq);
 	rtllib_stop_scan_syncro(ieee);
-	if (ieee->rtllib_ips_leave != NULL)
-		ieee->rtllib_ips_leave(ieee->dev);
+	ieee->rtllib_ips_leave(ieee->dev);
 	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->data_hard_stop)
@@ -2850,8 +2849,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 	if (shutdown) {
 		ieee->proto_started = 0;
 		ieee->proto_stoppping = 1;
-		if (ieee->rtllib_ips_leave != NULL)
-			ieee->rtllib_ips_leave(ieee->dev);
+		ieee->rtllib_ips_leave(ieee->dev);
 	}
 
 	rtllib_stop_send_beacons(ieee);
