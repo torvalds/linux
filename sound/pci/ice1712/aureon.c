@@ -1896,10 +1896,6 @@ static int aureon_add_controls(struct snd_ice1712 *ice)
 		if (id != 0x41)
 			dev_info(ice->card->dev,
 				 "No CS8415 chip. Skipping CS8415 controls.\n");
-		else if ((id & 0x0F) != 0x01)
-			dev_info(ice->card->dev,
-				 "Detected unsupported CS8415 rev. (%c)\n",
-				 (char)((id & 0x0F) + 'A' - 1));
 		else {
 			for (i = 0; i < ARRAY_SIZE(cs8415_controls); i++) {
 				struct snd_kcontrol *kctl;
