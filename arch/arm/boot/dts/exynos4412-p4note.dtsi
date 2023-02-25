@@ -195,7 +195,7 @@
 			st,ref-sel = <0>;
 			st,sample-time = <3>;
 
-			stmpe_adc {
+			adc {
 				compatible = "st,stmpe-adc";
 				#io-channel-cells = <1>;
 				st,norequest-mask = <0x2f>;
