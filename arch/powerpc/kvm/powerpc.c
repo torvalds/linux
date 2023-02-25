@@ -435,21 +435,6 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 }
 EXPORT_SYMBOL_GPL(kvmppc_ld);
 
-int kvm_arch_hardware_enable(void)
-{
-	return 0;
-}
-
-int kvm_arch_hardware_setup(void *opaque)
-{
-	return 0;
-}
-
-int kvm_arch_check_processor_compat(void *opaque)
-{
-	return kvmppc_core_check_processor_compat();
-}
-
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	struct kvmppc_ops *kvm_ops = NULL;
@@ -2543,11 +2528,6 @@ void kvmppc_init_lpid(unsigned long nr_lpids_param)
 	nr_lpids = nr_lpids_param;
 }
 EXPORT_SYMBOL_GPL(kvmppc_init_lpid);
-
-int kvm_arch_init(void *opaque)
-{
-	return 0;
-}
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_ppc_instr);
 
