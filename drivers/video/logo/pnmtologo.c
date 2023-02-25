@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Convert a logo in ASCII PNM format to C source suitable for inclusion in
  *  the Linux kernel
  *
  *  (C) Copyright 2001-2003 by Geert Uytterhoeven <geert@linux-m68k.org>
- *
- *  --------------------------------------------------------------------------
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License. See the file COPYING in the main directory of the Linux
- *  distribution for more details.
  */
 
 #include <ctype.h>
