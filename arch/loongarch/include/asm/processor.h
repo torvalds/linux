@@ -125,6 +125,7 @@ struct thread_struct {
 	/* Other stuff associated with the thread. */
 	unsigned long trap_nr;
 	unsigned long error_code;
+	unsigned long single_step; /* Used by PTRACE_SINGLESTEP */
 	struct loongarch_vdso_info *vdso;
 
 	/*

@@ -153,6 +153,22 @@ void ptrace_hw_copy_thread(struct task_struct *tsk)
  */
 void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 {
+	int i;
+	struct thread_struct *t = &tsk->thread;
+
+	for (i = 0; i < LOONGARCH_MAX_BRP; i++) {
+		if (t->hbp_break[i]) {
+			unregister_hw_breakpoint(t->hbp_break[i]);
+			t->hbp_break[i] = NULL;
+		}
+	}
+
+	for (i = 0; i < LOONGARCH_MAX_WRP; i++) {
+		if (t->hbp_watch[i]) {
+			unregister_hw_breakpoint(t->hbp_watch[i]);
+			t->hbp_watch[i] = NULL;
+		}
+	}
 }
 
 static int hw_breakpoint_control(struct perf_event *bp,
@@ -501,12 +517,21 @@ arch_initcall(arch_hw_breakpoint_init);
 
 void hw_breakpoint_thread_switch(struct task_struct *next)
 {
+	u64 addr, mask;
 	struct pt_regs *regs = task_pt_regs(next);
 
-	/* Update breakpoints */
-	update_bp_registers(regs, 1, 0);
-	/* Update watchpoints */
-	update_bp_registers(regs, 1, 1);
+	if (test_tsk_thread_flag(next, TIF_SINGLESTEP)) {
+		addr = read_wb_reg(CSR_CFG_ADDR, 0, 0);
+		mask = read_wb_reg(CSR_CFG_MASK, 0, 0);
+		if (!((regs->csr_era ^ addr) & ~mask))
+			csr_write32(CSR_FWPC_SKIP, LOONGARCH_CSR_FWPS);
+		regs->csr_prmd |= CSR_PRMD_PWE;
+	} else {
+		/* Update breakpoints */
+		update_bp_registers(regs, 1, 0);
+		/* Update watchpoints */
+		update_bp_registers(regs, 1, 1);
+	}
 }
 
 void hw_breakpoint_pmu_read(struct perf_event *bp)

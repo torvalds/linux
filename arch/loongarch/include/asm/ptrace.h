@@ -183,4 +183,8 @@ static inline void user_stack_pointer_set(struct pt_regs *regs,
 	regs->regs[3] = val;
 }
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+#define arch_has_single_step()		(1)
+#endif
+
 #endif /* _ASM_PTRACE_H */

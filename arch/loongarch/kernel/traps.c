@@ -513,14 +513,49 @@ asmlinkage void noinstr do_watch(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
-	breakpoint_handler(regs);
-	watchpoint_handler(regs);
-	force_sig(SIGTRAP);
-#else
+#ifndef CONFIG_HAVE_HW_BREAKPOINT
 	pr_warn("Hardware watch point handler not implemented!\n");
-#endif
+#else
+	if (test_tsk_thread_flag(current, TIF_SINGLESTEP)) {
+		int llbit = (csr_read32(LOONGARCH_CSR_LLBCTL) & 0x1);
+		unsigned long pc = instruction_pointer(regs);
+		union loongarch_instruction *ip = (union loongarch_instruction *)pc;
 
+		if (llbit) {
+			/*
+			 * When the ll-sc combo is encountered, it is regarded as an single
+			 * instruction. So don't clear llbit and reset CSR.FWPS.Skip until
+			 * the llsc execution is completed.
+			 */
+			csr_write32(CSR_FWPC_SKIP, LOONGARCH_CSR_FWPS);
+			csr_write32(CSR_LLBCTL_KLO, LOONGARCH_CSR_LLBCTL);
+			goto out;
+		}
+
+		if (pc == current->thread.single_step) {
+			/*
+			 * Certain insns are occasionally not skipped when CSR.FWPS.Skip is
+			 * set, such as fld.d/fst.d. So singlestep needs to compare whether
+			 * the csr_era is equal to the value of singlestep which last time set.
+			 */
+			if (!is_self_loop_ins(ip, regs)) {
+				/*
+				 * Check if the given instruction the target pc is equal to the
+				 * current pc, If yes, then we should not set the CSR.FWPS.SKIP
+				 * bit to break the original instruction stream.
+				 */
+				csr_write32(CSR_FWPC_SKIP, LOONGARCH_CSR_FWPS);
+				goto out;
+			}
+		}
+	} else {
+		breakpoint_handler(regs);
+		watchpoint_handler(regs);
+	}
+
+	force_sig(SIGTRAP);
+out:
+#endif
 	irqentry_exit(regs, state);
 }
 

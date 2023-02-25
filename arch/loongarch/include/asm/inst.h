@@ -351,6 +351,44 @@ static inline bool is_stack_alloc_ins(union loongarch_instruction *ip)
 		is_imm12_negative(ip->reg2i12_format.immediate);
 }
 
+static inline bool is_self_loop_ins(union loongarch_instruction *ip, struct pt_regs *regs)
+{
+	switch (ip->reg0i26_format.opcode) {
+	case b_op:
+	case bl_op:
+		if (ip->reg0i26_format.immediate_l == 0
+		    && ip->reg0i26_format.immediate_h == 0)
+			return true;
+	}
+
+	switch (ip->reg1i21_format.opcode) {
+	case beqz_op:
+	case bnez_op:
+	case bceqz_op:
+		if (ip->reg1i21_format.immediate_l == 0
+		    && ip->reg1i21_format.immediate_h == 0)
+			return true;
+	}
+
+	switch (ip->reg2i16_format.opcode) {
+	case beq_op:
+	case bne_op:
+	case blt_op:
+	case bge_op:
+	case bltu_op:
+	case bgeu_op:
+		if (ip->reg2i16_format.immediate == 0)
+			return true;
+		break;
+	case jirl_op:
+		if (regs->regs[ip->reg2i16_format.rj] +
+		    ((unsigned long)ip->reg2i16_format.immediate << 2) == (unsigned long)ip)
+			return true;
+	}
+
+	return false;
+}
+
 int larch_insn_read(void *addr, u32 *insnp);
 int larch_insn_write(void *addr, u32 insn);
 int larch_insn_patch_text(void *addr, u32 insn);

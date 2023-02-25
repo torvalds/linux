@@ -1055,6 +1055,9 @@ static __always_inline void iocsr_write64(u64 val, u32 reg)
 #define LOONGARCH_CSR_DERA		0x501	/* debug era */
 #define LOONGARCH_CSR_DESAVE		0x502	/* debug save */
 
+#define CSR_FWPC_SKIP_SHIFT		16
+#define CSR_FWPC_SKIP			(_ULCAST_(1) << CSR_FWPC_SKIP_SHIFT)
+
 /*
  * CSR_ECFG IM
  */
