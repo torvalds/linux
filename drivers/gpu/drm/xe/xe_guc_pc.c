@@ -21,12 +21,12 @@
 #include "xe_mmio.h"
 #include "xe_pcode.h"
 
-#include "intel_mchbar_regs.h"
+#define MCHBAR_MIRROR_BASE_SNB	0x140000
 
-/* For GEN6_RP_STATE_CAP.reg to be merged when the definition moves to Xe */
-#define   RP0_MASK	REG_GENMASK(7, 0)
-#define   RP1_MASK	REG_GENMASK(15, 8)
-#define   RPN_MASK	REG_GENMASK(23, 16)
+#define GEN6_RP_STATE_CAP			_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5998)
+#define   RP0_MASK				REG_GENMASK(7, 0)
+#define   RP1_MASK				REG_GENMASK(15, 8)
+#define   RPN_MASK				REG_GENMASK(23, 16)
 
 #define GEN10_FREQ_INFO_REC	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
 #define   RPE_MASK		REG_GENMASK(15, 8)
