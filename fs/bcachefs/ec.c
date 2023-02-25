@@ -138,20 +138,28 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 			 struct bkey_s_c k)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
-	unsigned i;
+	unsigned i, nr_data = s->nr_blocks - s->nr_redundant;
 
 	prt_printf(out, "algo %u sectors %u blocks %u:%u csum %u gran %u",
 	       s->algorithm,
 	       le16_to_cpu(s->sectors),
-	       s->nr_blocks - s->nr_redundant,
+	       nr_data,
 	       s->nr_redundant,
 	       s->csum_type,
 	       1U << s->csum_granularity_bits);
 
-	for (i = 0; i < s->nr_blocks; i++)
-		prt_printf(out, " %u:%llu:%u", s->ptrs[i].dev,
-		       (u64) s->ptrs[i].offset,
-		       stripe_blockcount_get(s, i));
+	for (i = 0; i < s->nr_blocks; i++) {
+		const struct bch_extent_ptr *ptr = s->ptrs + i;
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		u32 offset;
+		u64 b = sector_to_bucket_and_offset(ca, ptr->offset, &offset);
+
+		prt_printf(out, " %u:%llu:%u", ptr->dev, b, offset);
+		if (i < nr_data)
+			prt_printf(out, "#%u", stripe_blockcount_get(s, i));
+		if (ptr_stale(ca, ptr))
+			prt_printf(out, " stale");
+	}
 }
 
 /* returns blocknr in stripe that we matched: */
