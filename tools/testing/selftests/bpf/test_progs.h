@@ -376,6 +376,21 @@ int test__join_cgroup(const char *path);
 	___ok;								\
 })
 
+#define SYS(goto_label, fmt, ...)					\
+	({								\
+		char cmd[1024];						\
+		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);		\
+		if (!ASSERT_OK(system(cmd), cmd))			\
+			goto goto_label;				\
+	})
+
+#define SYS_NOFAIL(fmt, ...)						\
+	({								\
+		char cmd[1024];						\
+		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);		\
+		system(cmd);						\
+	})
+
 static inline __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64) (unsigned long) ptr;
