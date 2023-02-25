@@ -50,11 +50,8 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	li.d		t0, CSR_DMW1_INIT	# CA, PLV0, 0x9000 xxxx xxxx xxxx
 	csrwr		t0, LOONGARCH_CSR_DMWIN1
 
-	/* We might not get launched at the address the kernel is linked to,
-	   so we jump there.  */
-	la.abs		t0, 0f
-	jr		t0
-0:
+	JUMP_VIRT_ADDR	t0, t1
+
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD
@@ -106,9 +103,8 @@ SYM_CODE_START(smpboot_entry)
 	li.d		t0, CSR_DMW1_INIT	# CA, PLV0
 	csrwr		t0, LOONGARCH_CSR_DMWIN1
 
-	la.abs		t0, 0f
-	jr		t0
-0:
+	JUMP_VIRT_ADDR	t0, t1
+
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD
