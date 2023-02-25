@@ -1059,7 +1059,9 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 			case BPF_KPTR_UNREF:
 			case BPF_KPTR_REF:
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
+				    map->map_type != BPF_MAP_TYPE_PERCPU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
+				    map->map_type != BPF_MAP_TYPE_LRU_PERCPU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_ARRAY &&
 				    map->map_type != BPF_MAP_TYPE_PERCPU_ARRAY) {
 					ret = -EOPNOTSUPP;
