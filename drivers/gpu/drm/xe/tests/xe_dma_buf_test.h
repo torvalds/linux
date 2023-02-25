@@ -3,8 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#ifndef __XE_DMA_BUF_TEST_H__
-#define __XE_DMA_BUF_TEST_H__
+#ifndef _XE_DMA_BUF_TEST_H_
+#define _XE_DMA_BUF_TEST_H_
 
 struct kunit;
 

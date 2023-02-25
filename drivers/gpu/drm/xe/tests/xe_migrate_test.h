@@ -3,8 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#ifndef __XE_MIGRATE_TEST_H__
-#define __XE_MIGRATE_TEST_H__
+#ifndef _XE_MIGRATE_TEST_H_
+#define _XE_MIGRATE_TEST_H_
 
 struct kunit;
 

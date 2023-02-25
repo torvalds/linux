@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef __XE_GT_TOPOLOGY_H__
-#define __XE_GT_TOPOLOGY_H__
+#ifndef _XE_GT_TOPOLOGY_H_
+#define _XE_GT_TOPOLOGY_H_
 
 #include "xe_gt_types.h"
 
@@ -17,4 +17,4 @@ void xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p);
 unsigned int
 xe_dss_mask_group_ffs(xe_dss_mask_t mask, int groupsize, int groupnum);
 
-#endif /* __XE_GT_TOPOLOGY_H__ */
+#endif /* _XE_GT_TOPOLOGY_H_ */

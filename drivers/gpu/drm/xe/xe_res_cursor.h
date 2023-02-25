@@ -21,8 +21,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __XE_RES_CURSOR_H__
-#define __XE_RES_CURSOR_H__
+#ifndef _XE_RES_CURSOR_H_
+#define _XE_RES_CURSOR_H_
 
 #include <linux/scatterlist.h>
 

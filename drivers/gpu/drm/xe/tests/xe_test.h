@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef __XE_TEST_H__
-#define __XE_TEST_H__
+#ifndef _XE_TEST_H_
+#define _XE_TEST_H_
 
 #include <linux/types.h>
 

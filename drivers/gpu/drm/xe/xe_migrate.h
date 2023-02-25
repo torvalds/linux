@@ -3,8 +3,8 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#ifndef __XE_MIGRATE__
-#define __XE_MIGRATE__
+#ifndef _XE_MIGRATE_
+#define _XE_MIGRATE_
 
 #include <drm/drm_mm.h>
 

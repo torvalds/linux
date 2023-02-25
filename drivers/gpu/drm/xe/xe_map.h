@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef __XE_MAP_H__
-#define __XE_MAP_H__
+#ifndef _XE_MAP_H_
+#define _XE_MAP_H_
 
 #include <linux/iosys-map.h>
 
