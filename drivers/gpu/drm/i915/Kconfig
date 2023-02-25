@@ -127,9 +127,10 @@ config DRM_I915_GVT_KVMGT
 	depends on X86
 	depends on 64BIT
 	depends on KVM
-	depends on VFIO_MDEV
+	depends on VFIO
 	select DRM_I915_GVT
 	select KVM_EXTERNAL_WRITE_TRACKING
+	select VFIO_MDEV
 
 	help
 	  Choose this option if you want to enable Intel GVT-g graphics

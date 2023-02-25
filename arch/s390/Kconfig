@@ -714,7 +714,9 @@ config EADM_SCH
 config VFIO_CCW
 	def_tristate n
 	prompt "Support for VFIO-CCW subchannels"
-	depends on S390_CCW_IOMMU && VFIO_MDEV
+	depends on S390_CCW_IOMMU
+	depends on VFIO
+	select VFIO_MDEV
 	help
 	  This driver allows usage of I/O subchannels via VFIO-CCW.
 
@@ -724,8 +726,10 @@ config VFIO_CCW
 config VFIO_AP
 	def_tristate n
 	prompt "VFIO support for AP devices"
-	depends on S390_AP_IOMMU && VFIO_MDEV && KVM
+	depends on S390_AP_IOMMU && KVM
+	depends on VFIO
 	depends on ZCRYPT
+	select VFIO_MDEV
 	help
 	  This driver grants access to Adjunct Processor (AP) devices
 	  via the VFIO mediated device interface.
