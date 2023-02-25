@@ -932,11 +932,14 @@ static int check_one_backpointer(struct btree_trans *trans,
 				 struct bpos bucket,
 				 u64 *bp_offset,
 				 struct bbpos start,
-				 struct bbpos end)
+				 struct bbpos end,
+				 struct bpos *last_flushed_pos)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bch_backpointer bp;
 	struct bbpos pos;
+	struct bpos bp_pos;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
 	int ret;
@@ -957,17 +960,31 @@ static int check_one_backpointer(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (fsck_err_on(!k.k, trans->c,
+	bp_pos = bucket_pos_to_bp(c, bucket,
+			max(*bp_offset, BACKPOINTER_OFFSET_MAX) - BACKPOINTER_OFFSET_MAX);
+
+	if (!k.k && !bpos_eq(*last_flushed_pos, bp_pos)) {
+		*last_flushed_pos = bp_pos;
+		pr_info("flushing at %llu:%llu",
+			last_flushed_pos->inode,
+			last_flushed_pos->offset);
+
+		ret = bch2_btree_write_buffer_flush_sync(trans) ?:
+			-BCH_ERR_transaction_restart_write_buffer_flush;
+		goto out;
+	}
+
+	if (fsck_err_on(!k.k, c,
 			"%s backpointer points to missing extent\n%s",
 			*bp_offset < BACKPOINTER_OFFSET_MAX ? "alloc" : "btree",
 			(bch2_backpointer_to_text(&buf, &bp), buf.buf))) {
 		ret = bch2_backpointer_del_by_offset(trans, bucket, *bp_offset, bp);
 		if (ret == -ENOENT)
-			bch_err(trans->c, "backpointer at %llu not found", *bp_offset);
+			bch_err(c, "backpointer at %llu not found", *bp_offset);
 	}
-
-	bch2_trans_iter_exit(trans, &iter);
+out:
 fsck_err:
+	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -978,6 +995,7 @@ static int bch2_check_backpointers_to_extents_pass(struct btree_trans *trans,
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	struct bpos last_flushed_pos = SPOS_MAX;
 	int ret = 0;
 
 	for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
@@ -987,7 +1005,8 @@ static int bch2_check_backpointers_to_extents_pass(struct btree_trans *trans,
 		while (!(ret = commit_do(trans, NULL, NULL,
 					 BTREE_INSERT_LAZY_RW|
 					 BTREE_INSERT_NOFAIL,
-				check_one_backpointer(trans, iter.pos, &bp_offset, start, end))) &&
+				check_one_backpointer(trans, iter.pos, &bp_offset,
+						      start, end, &last_flushed_pos))) &&
 		       bp_offset < U64_MAX)
 			bp_offset++;
 
