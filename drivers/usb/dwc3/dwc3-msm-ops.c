@@ -73,31 +73,25 @@ static int entry_dwc3_send_gadget_ep_cmd(struct kretprobe_instance *ri,
 	return 0;
 }
 
+static int entry___dwc3_gadget_ep_enable(struct kretprobe_instance *ri,
+				   struct pt_regs *regs)
+{
+	struct dwc3_ep *dep = (struct dwc3_ep *)regs->regs[0];
+	unsigned int action = (unsigned int)regs->regs[1];
+
+	/* DWC3_DEPCFG_ACTION_MODIFY is only done during CONNDONE */
+	if (action == DWC3_DEPCFG_ACTION_MODIFY && dep->number == 1)
+		dwc3_msm_notify_event(dep->dwc, DWC3_CONTROLLER_CONNDONE_EVENT, 0);
+
+	return 0;
+}
+
 static int entry_dwc3_gadget_reset_interrupt(struct kretprobe_instance *ri,
 				   struct pt_regs *regs)
 {
 	struct dwc3 *dwc = (struct dwc3 *)regs->regs[0];
 
 	dwc3_msm_notify_event(dwc, DWC3_CONTROLLER_NOTIFY_CLEAR_DB, 0);
-	return 0;
-}
-
-static int entry_dwc3_gadget_conndone_interrupt(struct kretprobe_instance *ri,
-				   struct pt_regs *regs)
-{
-	struct kprobe_data *data = (struct kprobe_data *)ri->data;
-
-	data->dwc = (struct dwc3 *)regs->regs[0];
-	return 0;
-}
-
-static int exit_dwc3_gadget_conndone_interrupt(struct kretprobe_instance *ri,
-				   struct pt_regs *regs)
-{
-	struct kprobe_data *data = (struct kprobe_data *)ri->data;
-
-	dwc3_msm_notify_event(data->dwc, DWC3_CONTROLLER_CONNDONE_EVENT, 0);
-
 	return 0;
 }
 
@@ -218,7 +212,7 @@ static struct kretprobe dwc3_msm_probes[] = {
 	ENTRY(dwc3_gadget_run_stop),
 	ENTRY(dwc3_send_gadget_ep_cmd),
 	ENTRY(dwc3_gadget_reset_interrupt),
-	ENTRY_EXIT(dwc3_gadget_conndone_interrupt),
+	ENTRY(__dwc3_gadget_ep_enable),
 	ENTRY_EXIT(dwc3_gadget_pullup),
 	ENTRY(__dwc3_gadget_start),
 	ENTRY(trace_event_raw_event_dwc3_log_request),
