@@ -94,6 +94,7 @@ config LOONGARCH
 	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EBPF_JIT
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS if !ARCH_STRICT_ALIGN
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -440,6 +441,24 @@ config ARCH_IOREMAP
 	  We use generic TLB-based ioremap() by default since it has page
 	  protection support. However, you can enable LoongArch DMW-based
 	  ioremap() for better performance.
+
+config ARCH_STRICT_ALIGN
+	bool "Enable -mstrict-align to prevent unaligned accesses" if EXPERT
+	default y
+	help
+	  Not all LoongArch cores support h/w unaligned access, we can use
+	  -mstrict-align build parameter to prevent unaligned accesses.
+
+	  CPUs with h/w unaligned access support:
+	  Loongson-2K2000/2K3000/3A5000/3C5000/3D5000.
+
+	  CPUs without h/w unaligned access support:
+	  Loongson-2K500/2K1000.
+
+	  This option is enabled by default to make the kernel be able to run
+	  on all LoongArch systems. But you can disable it manually if you want
+	  to run kernel only on systems with h/w unaligned access support in
+	  order to optimise for performance.
 
 config KEXEC
 	bool "Kexec system call"

@@ -371,8 +371,13 @@ int no_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
 
 asmlinkage void noinstr do_ale(struct pt_regs *regs)
 {
-	unsigned int *pc;
 	irqentry_state_t state = irqentry_enter(regs);
+
+#ifndef CONFIG_ARCH_STRICT_ALIGN
+	die_if_kernel("Kernel ale access", regs);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)regs->csr_badvaddr);
+#else
+	unsigned int *pc;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, regs->csr_badvaddr);
 
@@ -397,8 +402,8 @@ asmlinkage void noinstr do_ale(struct pt_regs *regs)
 sigbus:
 	die_if_kernel("Kernel ale access", regs);
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)regs->csr_badvaddr);
-
 out:
+#endif
 	irqentry_exit(regs, state);
 }
 
