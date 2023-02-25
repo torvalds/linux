@@ -34,6 +34,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/devinfo.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeirq.h>
@@ -282,7 +283,9 @@ static void i2c_gpio_init_pinctrl_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
 	struct device *dev = &adap->dev;
-	struct pinctrl *p = bri->pinctrl;
+	struct pinctrl *p = bri->pinctrl ?: dev_pinctrl(dev->parent);
+
+	bri->pinctrl = p;
 
 	/*
 	 * we can't change states without pinctrl, so remove the states if
