@@ -943,9 +943,8 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		}
 
 		if (!i)
-			dev_warn(dev, "Failed to enable %s%u[0x%x]\n",
-				 priv->reg_layout == CLK_REG_LAYOUT_RZ_A ?
-				 "STB" : "SMSTP", reg, oldval & mask);
+			dev_warn(dev, "Failed to enable SMSTP%u[0x%x]\n", reg,
+				 oldval & mask);
 	}
 
 	return 0;
@@ -989,7 +988,6 @@ static int __init cpg_mssr_common_init(struct device *dev,
 		goto out_err;
 	}
 
-	cpg_mssr_priv = priv;
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
@@ -1018,6 +1016,8 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	error = of_clk_add_provider(np, cpg_mssr_clk_src_twocell_get, priv);
 	if (error)
 		goto out_err;
+
+	cpg_mssr_priv = priv;
 
 	return 0;
 
@@ -1113,19 +1113,6 @@ static int __init cpg_mssr_init(void)
 
 subsys_initcall(cpg_mssr_init);
 
-void __init cpg_core_nullify_range(struct cpg_core_clk *core_clks,
-				   unsigned int num_core_clks,
-				   unsigned int first_clk,
-				   unsigned int last_clk)
-{
-	unsigned int i;
-
-	for (i = 0; i < num_core_clks; i++)
-		if (core_clks[i].id >= first_clk &&
-		    core_clks[i].id <= last_clk)
-			core_clks[i].name = NULL;
-}
-
 void __init mssr_mod_nullify(struct mssr_mod_clk *mod_clks,
 			     unsigned int num_mod_clks,
 			     const unsigned int *clks, unsigned int n)
@@ -1135,20 +1122,6 @@ void __init mssr_mod_nullify(struct mssr_mod_clk *mod_clks,
 	for (i = 0, j = 0; i < num_mod_clks && j < n; i++)
 		if (mod_clks[i].id == clks[j]) {
 			mod_clks[i].name = NULL;
-			j++;
-		}
-}
-
-void __init mssr_mod_reparent(struct mssr_mod_clk *mod_clks,
-			      unsigned int num_mod_clks,
-			      const struct mssr_mod_reparent *clks,
-			      unsigned int n)
-{
-	unsigned int i, j;
-
-	for (i = 0, j = 0; i < num_mod_clks && j < n; i++)
-		if (mod_clks[i].id == clks[j].clk) {
-			mod_clks[i].parent = clks[j].parent;
 			j++;
 		}
 }

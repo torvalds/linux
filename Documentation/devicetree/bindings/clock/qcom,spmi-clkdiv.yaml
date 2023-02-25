@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,spmi-clkdiv.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm SPMI PMIC clock divider
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Stephen Boyd <sboyd@kernel.org>
+
+description: |
+  Qualcomm SPMI PMIC clock divider configures the clock frequency of a set of
+  outputs on the PMIC.  These clocks are typically wired through alternate
+  functions on GPIO pins.
+
+properties:
+  compatible:
+    const: qcom,spmi-clkdiv
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Board XO source
+
+  clock-names:
+    items:
+      - const: xo
+
+  "#clock-cells":
+    const: 1
+
+  qcom,num-clkdivs:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of CLKDIV peripherals.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - "#clock-cells"
+  - qcom,num-clkdivs
+
+additionalProperties: false
+
+examples:
+  - |
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock-controller@5b00 {
+            compatible = "qcom,spmi-clkdiv";
+            reg = <0x5b00>;
+            clocks = <&xo_board>;
+            clock-names = "xo";
+            #clock-cells = <1>;
+            qcom,num-clkdivs = <3>;
+
+            assigned-clocks = <&pm8998_clk_divs 1>,
+                              <&pm8998_clk_divs 2>,
+                              <&pm8998_clk_divs 3>;
+            assigned-clock-rates = <9600000>,
+                                   <9600000>,
+                                   <9600000>;
+        };
+    };
