@@ -136,6 +136,13 @@ struct sg_table *qcom_sg_map_dma_buf(struct dma_buf_attachment *attachment,
 	buffer = attachment->dmabuf->priv;
 	vmperm = buffer->vmperm;
 
+	if (smmu_proxy_callback_ops.map_sgtable &&
+	    (attrs & DMA_ATTR_QTI_SMMU_PROXY_MAP)) {
+		ret = smmu_proxy_callback_ops.map_sgtable(attachment->dev, table,
+							  attachment->dmabuf);
+		return ret ? ERR_PTR(ret) : table;
+	}
+
 	/* Prevent map/unmap during begin/end_cpu_access */
 	mutex_lock(&buffer->lock);
 
@@ -144,11 +151,7 @@ struct sg_table *qcom_sg_map_dma_buf(struct dma_buf_attachment *attachment,
 	if (buffer->uncached || !mem_buf_vmperm_can_cmo(vmperm))
 		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
 
-	if (smmu_proxy_callback_ops.map_sgtable &&
-	    (attrs & DMA_ATTR_QTI_SMMU_PROXY_MAP)) {
-		ret = smmu_proxy_callback_ops.map_sgtable(attachment->dev, table,
-							  attachment->dmabuf);
-	} else if (attrs & DMA_ATTR_DELAYED_UNMAP) {
+	if (attrs & DMA_ATTR_DELAYED_UNMAP) {
 		ret = msm_dma_map_sgtable(attachment->dev, table, direction,
 					  attachment->dmabuf, attrs);
 	} else {
@@ -182,6 +185,13 @@ void qcom_sg_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	buffer = attachment->dmabuf->priv;
 	vmperm = buffer->vmperm;
 
+	if (smmu_proxy_callback_ops.unmap_sgtable &&
+	    (attrs & DMA_ATTR_QTI_SMMU_PROXY_MAP)) {
+		smmu_proxy_callback_ops.unmap_sgtable(attachment->dev, table,
+						      attachment->dmabuf);
+		return;
+	}
+
 	/* Prevent map/unmap during begin/end_cpu_access */
 	mutex_lock(&buffer->lock);
 
@@ -190,11 +200,7 @@ void qcom_sg_unmap_dma_buf(struct dma_buf_attachment *attachment,
 
 	a->mapped = false;
 
-	if (smmu_proxy_callback_ops.unmap_sgtable &&
-	    (attrs & DMA_ATTR_QTI_SMMU_PROXY_MAP)) {
-		smmu_proxy_callback_ops.unmap_sgtable(attachment->dev, table,
-						      attachment->dmabuf);
-	} else if (attrs & DMA_ATTR_DELAYED_UNMAP) {
+	if (attrs & DMA_ATTR_DELAYED_UNMAP) {
 		msm_dma_unmap_sgtable(attachment->dev, table, direction,
 				      attachment->dmabuf, attrs);
 	} else {
