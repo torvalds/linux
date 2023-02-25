@@ -7,17 +7,12 @@
 
 #include <linux/bitmap.h>
 
+#include "regs/xe_gt_regs.h"
 #include "xe_gt.h"
 #include "xe_mmio.h"
 
 #define XE_MAX_DSS_FUSE_BITS (32 * XE_MAX_DSS_FUSE_REGS)
 #define XE_MAX_EU_FUSE_BITS (32 * XE_MAX_EU_FUSE_REGS)
-
-#define XELP_EU_ENABLE				0x9134	/* "_DISABLE" on Xe_LP */
-#define   XELP_EU_MASK				REG_GENMASK(7, 0)
-#define XELP_GT_GEOMETRY_DSS_ENABLE		0x913c
-#define XEHP_GT_COMPUTE_DSS_ENABLE		0x9144
-#define XEHPC_GT_COMPUTE_DSS_ENABLE_EXT		0x9148
 
 static void
 load_dss_mask(struct xe_gt *gt, xe_dss_mask_t mask, int numregs, ...)
@@ -41,7 +36,7 @@ static void
 load_eu_mask(struct xe_gt *gt, xe_eu_mask_t mask)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	u32 reg = xe_mmio_read32(gt, XELP_EU_ENABLE);
+	u32 reg = xe_mmio_read32(gt, XELP_EU_ENABLE.reg);
 	u32 val = 0;
 	int i;
 
@@ -86,10 +81,10 @@ xe_gt_topology_init(struct xe_gt *gt)
 	}
 
 	load_dss_mask(gt, gt->fuse_topo.g_dss_mask, num_geometry_regs,
-		      XELP_GT_GEOMETRY_DSS_ENABLE);
+		      XELP_GT_GEOMETRY_DSS_ENABLE.reg);
 	load_dss_mask(gt, gt->fuse_topo.c_dss_mask, num_compute_regs,
-		      XEHP_GT_COMPUTE_DSS_ENABLE,
-		      XEHPC_GT_COMPUTE_DSS_ENABLE_EXT);
+		      XEHP_GT_COMPUTE_DSS_ENABLE.reg,
+		      XEHPC_GT_COMPUTE_DSS_ENABLE_EXT.reg);
 	load_eu_mask(gt, gt->fuse_topo.eu_mask_per_dss);
 
 	xe_gt_topology_dump(gt, &p);

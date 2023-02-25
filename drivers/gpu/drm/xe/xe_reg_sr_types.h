@@ -9,8 +9,6 @@
 #include <linux/types.h>
 #include <linux/xarray.h>
 
-#include "i915_reg_defs.h"
-
 struct xe_reg_sr_entry {
 	u32		clr_bits;
 	u32		set_bits;

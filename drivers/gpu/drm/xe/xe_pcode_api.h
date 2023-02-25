@@ -5,6 +5,8 @@
 
 /* Internal to xe_pcode */
 
+#include "regs/xe_reg_defs.h"
+
 #define PCODE_MAILBOX			_MMIO(0x138124)
 #define   PCODE_READY			REG_BIT(31)
 #define   PCODE_MB_PARAM2		REG_GENMASK(23, 16)

@@ -6,7 +6,7 @@
 #ifndef _XE_GT_REGS_H_
 #define _XE_GT_REGS_H_
 
-#include "i915_reg_defs.h"
+#include "regs/xe_reg_defs.h"
 
 /* RPM unit config (Gen8+) */
 #define RPM_CONFIG0				_MMIO(0xd00)
@@ -107,6 +107,12 @@
 #define   GEN11_GT_VDBOX_DISABLE_MASK		0xff
 #define   GEN11_GT_VEBOX_DISABLE_SHIFT		16
 #define   GEN11_GT_VEBOX_DISABLE_MASK		(0x0f << GEN11_GT_VEBOX_DISABLE_SHIFT)
+
+#define XELP_EU_ENABLE				_MMIO(0x9134)	/* "_DISABLE" on Xe_LP */
+#define   XELP_EU_MASK				REG_GENMASK(7, 0)
+#define XELP_GT_GEOMETRY_DSS_ENABLE		_MMIO(0x913c)
+#define XEHP_GT_COMPUTE_DSS_ENABLE		_MMIO(0x9144)
+#define XEHPC_GT_COMPUTE_DSS_ENABLE_EXT		_MMIO(0x9148)
 
 #define GEN6_GDRST				_MMIO(0x941c)
 #define   GEN11_GRDOM_GUC			REG_BIT(3)

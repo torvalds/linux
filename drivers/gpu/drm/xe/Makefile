@@ -100,9 +100,6 @@ xe-y += xe_bb.o \
 	xe_wa.o \
 	xe_wopcm.o
 
-# XXX: Needed for i915 register definitions. Will be removed after xe-regs.
-subdir-ccflags-y += -I$(srctree)/drivers/gpu/drm/i915/
-
 obj-$(CONFIG_DRM_XE) += xe.o
 obj-$(CONFIG_DRM_XE_KUNIT_TEST) += tests/
 \

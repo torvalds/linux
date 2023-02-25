@@ -5,6 +5,8 @@
 
 #include "xe_step.h"
 
+#include <linux/bitfield.h>
+
 #include "xe_device.h"
 #include "xe_platform_types.h"
 

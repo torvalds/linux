@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#include "i915_reg_defs.h"
-
 struct xe_hw_engine;
 struct xe_gt;
 

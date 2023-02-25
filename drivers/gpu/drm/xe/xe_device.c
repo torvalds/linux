@@ -12,6 +12,7 @@
 #include <drm/drm_managed.h>
 #include <drm/xe_drm.h>
 
+#include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_debugfs.h"
 #include "xe_dma_buf.h"
@@ -334,8 +335,6 @@ static void device_kill_persitent_engines(struct xe_device *xe,
 		}
 	mutex_unlock(&xe->persitent_engines.lock);
 }
-
-#define SOFTWARE_FLAGS_SPR33         _MMIO(0x4F084)
 
 void xe_device_wmb(struct xe_device *xe)
 {

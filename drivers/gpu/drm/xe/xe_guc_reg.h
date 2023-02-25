@@ -9,7 +9,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-#include "i915_reg_defs.h"
+#include "regs/xe_reg_defs.h"
 
 /* Definitions of GuC H/W registers, bits, etc */
 
@@ -93,6 +93,10 @@
 #define   GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA	(1<<10)
 #define   GUC_ENABLE_MIA_CLOCK_GATING		(1<<15)
 #define   GUC_GEN10_SHIM_WC_ENABLE		(1<<21)
+#define   PVC_GUC_MOCS_INDEX_MASK		REG_GENMASK(25, 24)
+#define   PVC_MOCS_UC_INDEX			1
+#define   PVC_GUC_MOCS_INDEX(index)		REG_FIELD_PREP(PVC_GUC_MOCS_INDEX_MASK,\
+							       index)
 
 #define GUC_SEND_INTERRUPT		_MMIO(0xc4c8)
 #define   GUC_SEND_TRIGGER		  (1<<0)

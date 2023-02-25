@@ -5,6 +5,7 @@
 
 #include "xe_migrate.h"
 
+#include <linux/bitfield.h>
 #include <linux/sizes.h>
 
 #include <drm/drm_managed.h>

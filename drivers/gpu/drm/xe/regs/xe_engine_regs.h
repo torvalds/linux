@@ -8,7 +8,7 @@
 
 #include <asm/page.h>
 
-#include "i915_reg_defs.h"
+#include "regs/xe_reg_defs.h"
 
 #define RING_TAIL(base)				_MMIO((base) + 0x30)
 

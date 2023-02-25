@@ -6,7 +6,7 @@
 #ifndef _XE_GT_MCR_H_
 #define _XE_GT_MCR_H_
 
-#include "i915_reg_defs.h"
+#include "regs/xe_reg_defs.h"
 
 struct drm_printer;
 struct xe_gt;

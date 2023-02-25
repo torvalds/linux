@@ -11,8 +11,6 @@
 
 #include "xe_rtp_types.h"
 
-#include "i915_reg_defs.h"
-
 /*
  * Register table poke infrastructure
  */

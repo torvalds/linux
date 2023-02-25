@@ -5,6 +5,7 @@
 
 #include "xe_gt_pagefault.h"
 
+#include <linux/bitfield.h>
 #include <linux/circ_buf.h>
 
 #include <drm/drm_managed.h>

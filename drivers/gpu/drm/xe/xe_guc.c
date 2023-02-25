@@ -22,14 +22,6 @@
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
-#include "i915_reg_defs.h"
-
-/* TODO: move to common file */
-#define GUC_PVC_MOCS_INDEX_MASK		REG_GENMASK(25, 24)
-#define PVC_MOCS_UC_INDEX		1
-#define PVC_GUC_MOCS_INDEX(index)	REG_FIELD_PREP(GUC_PVC_MOCS_INDEX_MASK,\
-						       index)
-
 static struct xe_gt *
 guc_to_gt(struct xe_guc *guc)
 {

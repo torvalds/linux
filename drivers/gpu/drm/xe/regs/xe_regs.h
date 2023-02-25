@@ -5,7 +5,7 @@
 #ifndef _XE_REGS_H_
 #define _XE_REGS_H_
 
-#include "i915_reg_defs.h"
+#include "regs/xe_reg_defs.h"
 
 #define GU_CNTL					_MMIO(0x101010)
 #define   LMEM_INIT				REG_BIT(7)
@@ -69,6 +69,8 @@
 #define PIPE_D_OFFSET				0x73000
 #define PIPE_DSI0_OFFSET			0x7b000
 #define PIPE_DSI1_OFFSET			0x7b800
+
+#define SOFTWARE_FLAGS_SPR33			_MMIO(0x4f084)
 
 #define GEN8_PCU_ISR				_MMIO(0x444e0)
 #define GEN8_PCU_IMR				_MMIO(0x444e4)
