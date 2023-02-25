@@ -86,7 +86,7 @@
  * new value in sp.
  */
 	.macro	get_saved_sp docfi=0
-	la.abs	  t1, kernelsp
+	la_abs	  t1, kernelsp
 #ifdef CONFIG_SMP
 	csrrd	  t0, PERCPU_BASE_KS
 	LONG_ADD  t1, t1, t0

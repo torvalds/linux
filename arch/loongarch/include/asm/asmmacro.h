@@ -274,4 +274,8 @@
 	nor	\dst, \src, zero
 .endm
 
+.macro la_abs reg, sym
+	la.abs	\reg, \sym
+.endm
+
 #endif /* _ASM_ASMMACRO_H */
