@@ -155,7 +155,6 @@ static void xe_device_destroy(struct drm_device *dev, void *dummy)
 	struct xe_device *xe = to_xe_device(dev);
 
 	destroy_workqueue(xe->ordered_wq);
-	mutex_destroy(&xe->persitent_engines.lock);
 	ttm_device_fini(&xe->ttm);
 }
 
@@ -187,10 +186,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	init_waitqueue_head(&xe->ufence_wq);
 
-	mutex_init(&xe->usm.lock);
+	drmm_mutex_init(&xe->drm, &xe->usm.lock);
 	xa_init_flags(&xe->usm.asid_to_vm, XA_FLAGS_ALLOC1);
 
-	mutex_init(&xe->persitent_engines.lock);
+	drmm_mutex_init(&xe->drm, &xe->persitent_engines.lock);
 	INIT_LIST_HEAD(&xe->persitent_engines.list);
 
 	spin_lock_init(&xe->pinned.lock);
@@ -200,14 +199,15 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	xe->ordered_wq = alloc_ordered_workqueue("xe-ordered-wq", 0);
 
-	mutex_init(&xe->sb_lock);
+	drmm_mutex_init(&xe->drm, &xe->sb_lock);
 	xe->enabled_irq_mask = ~0;
 
 	err = drmm_add_action_or_reset(&xe->drm, xe_device_destroy, NULL);
 	if (err)
 		goto err_put;
 
-	mutex_init(&xe->mem_access.lock);
+	drmm_mutex_init(&xe->drm, &xe->mem_access.lock);
+
 	return xe;
 
 err_put:
