@@ -3,18 +3,19 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_pt.h"
+
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
-#include "xe_pt.h"
 #include "xe_pt_types.h"
 #include "xe_pt_walk.h"
-#include "xe_vm.h"
 #include "xe_res_cursor.h"
 #include "xe_trace.h"
 #include "xe_ttm_stolen_mgr.h"
+#include "xe_vm.h"
 
 struct xe_pt_dir {
 	struct xe_pt pt;

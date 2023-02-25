@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_guc_submit.h"
+
 #include <linux/bitfield.h>
 #include <linux/bitmap.h>
 #include <linux/circ_buf.h>
@@ -13,13 +15,12 @@
 
 #include "xe_device.h"
 #include "xe_engine.h"
+#include "xe_force_wake.h"
+#include "xe_gpu_scheduler.h"
+#include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_engine_types.h"
-#include "xe_guc_submit.h"
-#include "xe_gt.h"
-#include "xe_force_wake.h"
-#include "xe_gpu_scheduler.h"
 #include "xe_hw_engine.h"
 #include "xe_hw_fence.h"
 #include "xe_lrc.h"

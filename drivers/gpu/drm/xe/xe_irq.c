@@ -3,19 +3,21 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "xe_irq.h"
+
 #include <linux/sched/clock.h>
 
 #include <drm/drm_managed.h>
 
 #include "xe_device.h"
 #include "xe_drv.h"
-#include "xe_guc.h"
 #include "xe_gt.h"
+#include "xe_guc.h"
 #include "xe_hw_engine.h"
 #include "xe_mmio.h"
 
-#include "i915_reg.h"
 #include "gt/intel_gt_regs.h"
+#include "i915_reg.h"
 
 static void gen3_assert_iir_is_zero(struct xe_gt *gt, i915_reg_t reg)
 {

@@ -3,13 +3,15 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/xe_drm.h>
-#include <drm/ttm/ttm_tt.h>
+#include "xe_vm_madvise.h"
+
 #include <linux/nospec.h>
+
+#include <drm/ttm/ttm_tt.h>
+#include <drm/xe_drm.h>
 
 #include "xe_bo.h"
 #include "xe_vm.h"
-#include "xe_vm_madvise.h"
 
 static int madvise_preferred_mem_class(struct xe_device *xe, struct xe_vm *vm,
 				       struct xe_vma **vmas, int num_vmas,

@@ -8,8 +8,8 @@
 #include <drm/drm_mm.h>
 
 #include <drm/ttm/ttm_device.h>
-#include <drm/ttm/ttm_range_manager.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_range_manager.h>
 
 #include "../i915/i915_reg.h"
 

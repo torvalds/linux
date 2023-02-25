@@ -6,20 +6,20 @@
 #include "xe_ggtt.h"
 
 #include <linux/sizes.h>
-#include <drm/i915_drm.h>
 
 #include <drm/drm_managed.h>
+#include <drm/i915_drm.h>
 
-#include "xe_device.h"
 #include "xe_bo.h"
+#include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_wopcm.h"
 
-#include "i915_reg.h"
 #include "gt/intel_gt_regs.h"
+#include "i915_reg.h"
 
 /* FIXME: Common file, preferably auto-gen */
 #define MTL_GGTT_PTE_PAT0	BIT_ULL(52)

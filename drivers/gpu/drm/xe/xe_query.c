@@ -3,17 +3,19 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include <drm/xe_drm.h>
-#include <drm/ttm/ttm_placement.h>
+#include "xe_query.h"
+
 #include <linux/nospec.h>
+
+#include <drm/ttm/ttm_placement.h>
+#include <drm/xe_drm.h>
 
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_gt.h"
-#include "xe_macros.h"
-#include "xe_query.h"
 #include "xe_ggtt.h"
+#include "xe_gt.h"
 #include "xe_guc_hwconfig.h"
+#include "xe_macros.h"
 
 static const enum xe_engine_class xe_to_user_engine_class[] = {
 	[XE_ENGINE_CLASS_RENDER] = DRM_XE_ENGINE_CLASS_RENDER,

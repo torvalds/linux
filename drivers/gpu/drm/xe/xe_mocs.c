@@ -3,13 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_mocs.h"
+
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_engine.h"
 #include "xe_gt.h"
-#include "xe_platform_types.h"
 #include "xe_mmio.h"
-#include "xe_mocs.h"
+#include "xe_platform_types.h"
 #include "xe_step_types.h"
 
 #include "gt/intel_gt_regs.h"

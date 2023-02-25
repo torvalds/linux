@@ -6,8 +6,8 @@
 #ifndef _XE_HW_FENCE_TYPES_H_
 #define _XE_HW_FENCE_TYPES_H_
 
-#include <linux/iosys-map.h>
 #include <linux/dma-fence.h>
+#include <linux/iosys-map.h>
 #include <linux/irq_work.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>

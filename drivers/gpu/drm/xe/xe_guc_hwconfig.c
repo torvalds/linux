@@ -3,13 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_guc_hwconfig.h"
+
 #include <drm/drm_managed.h>
 
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
-#include "xe_guc_hwconfig.h"
 #include "xe_map.h"
 
 static struct xe_gt *

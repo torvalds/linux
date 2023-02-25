@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_guc_ct.h"
+
 #include <linux/bitfield.h>
 #include <linux/circ_buf.h>
 #include <linux/delay.h>
@@ -12,10 +14,9 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
-#include "xe_guc.h"
-#include "xe_guc_ct.h"
 #include "xe_gt_pagefault.h"
 #include "xe_gt_tlb_invalidation.h"
+#include "xe_guc.h"
 #include "xe_guc_submit.h"
 #include "xe_map.h"
 #include "xe_trace.h"

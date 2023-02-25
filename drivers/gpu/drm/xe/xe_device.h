@@ -12,8 +12,8 @@ struct xe_file;
 #include <drm/drm_util.h>
 
 #include "xe_device_types.h"
-#include "xe_macros.h"
 #include "xe_force_wake.h"
+#include "xe_macros.h"
 
 #include "gt/intel_gpu_commands.h"
 

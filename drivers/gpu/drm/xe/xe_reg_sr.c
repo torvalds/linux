@@ -9,16 +9,16 @@
 #include <linux/string_helpers.h>
 #include <linux/xarray.h>
 
-#include <drm/drm_print.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
-#include "xe_rtp_types.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
+#include "xe_rtp_types.h"
 
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"

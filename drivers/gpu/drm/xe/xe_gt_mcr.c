@@ -3,8 +3,9 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include "xe_gt.h"
 #include "xe_gt_mcr.h"
+
+#include "xe_gt.h"
 #include "xe_gt_topology.h"
 #include "xe_gt_types.h"
 #include "xe_mmio.h"

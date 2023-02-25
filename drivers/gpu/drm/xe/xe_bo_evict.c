@@ -3,8 +3,9 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include "xe_bo.h"
 #include "xe_bo_evict.h"
+
+#include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"

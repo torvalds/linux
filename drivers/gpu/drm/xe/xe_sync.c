@@ -8,13 +8,14 @@
 #include <linux/kthread.h>
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
-#include <drm/xe_drm.h>
+
 #include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
+#include <drm/xe_drm.h>
 
 #include "xe_device_types.h"
-#include "xe_sched_job_types.h"
 #include "xe_macros.h"
+#include "xe_sched_job_types.h"
 
 #define SYNC_FLAGS_TYPE_MASK 0x3
 #define SYNC_FLAGS_FENCE_INSTALLED	0x10000

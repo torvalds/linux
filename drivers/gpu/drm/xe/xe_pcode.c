@@ -3,15 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include "xe_pcode_api.h"
 #include "xe_pcode.h"
+
+#include <linux/delay.h>
+#include <linux/errno.h>
 
 #include "xe_gt.h"
 #include "xe_mmio.h"
-
-#include <linux/errno.h>
-
-#include <linux/delay.h>
+#include "xe_pcode_api.h"
 
 /**
  * DOC: PCODE

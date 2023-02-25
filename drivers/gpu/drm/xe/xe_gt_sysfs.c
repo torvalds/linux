@@ -3,11 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_gt_sysfs.h"
+
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+
 #include <drm/drm_managed.h>
+
 #include "xe_gt.h"
-#include "xe_gt_sysfs.h"
 
 static void xe_gt_sysfs_kobj_release(struct kobject *kobj)
 {

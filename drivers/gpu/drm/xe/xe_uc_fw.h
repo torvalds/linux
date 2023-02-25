@@ -8,9 +8,9 @@
 
 #include <linux/errno.h>
 
-#include "xe_uc_fw_types.h"
-#include "xe_uc_fw_abi.h"
 #include "xe_macros.h"
+#include "xe_uc_fw_abi.h"
+#include "xe_uc_fw_types.h"
 
 struct drm_printer;
 

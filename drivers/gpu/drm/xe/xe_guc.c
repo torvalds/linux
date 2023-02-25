@@ -3,24 +3,26 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_guc.h"
+
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_guc.h"
+#include "xe_force_wake.h"
+#include "xe_gt.h"
 #include "xe_guc_ads.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
-#include "xe_guc_reg.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_reg.h"
 #include "xe_guc_submit.h"
-#include "xe_gt.h"
+#include "xe_mmio.h"
 #include "xe_platform_types.h"
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
-#include "xe_mmio.h"
-#include "xe_force_wake.h"
-#include "i915_reg_defs.h"
+
 #include "gt/intel_gt_regs.h"
+#include "i915_reg_defs.h"
 
 /* TODO: move to common file */
 #define GUC_PVC_MOCS_INDEX_MASK		REG_GENMASK(25, 24)

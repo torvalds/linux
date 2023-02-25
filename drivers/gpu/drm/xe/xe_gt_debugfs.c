@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_gt_debugfs.h"
+
 #include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
@@ -10,7 +12,6 @@
 #include "xe_force_wake.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
-#include "xe_gt_debugfs.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"

@@ -3,15 +3,15 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/drm_managed.h>
-
 #include "xe_execlist.h"
+
+#include <drm/drm_managed.h>
 
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_engine.h"
-#include "xe_hw_fence.h"
 #include "xe_gt.h"
+#include "xe_hw_fence.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
@@ -19,11 +19,11 @@
 #include "xe_ring_ops_types.h"
 #include "xe_sched_job.h"
 
-#include "i915_reg.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc_reg.h"
-#include "gt/intel_engine_regs.h"
+#include "i915_reg.h"
 
 #define XE_EXECLIST_HANG_LIMIT 1
 

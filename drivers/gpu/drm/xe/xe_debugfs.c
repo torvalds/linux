@@ -3,13 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_debugfs.h"
+
 #include <linux/string_helpers.h>
 
 #include <drm/drm_debugfs.h>
 
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_debugfs.h"
 #include "xe_gt_debugfs.h"
 #include "xe_step.h"
 

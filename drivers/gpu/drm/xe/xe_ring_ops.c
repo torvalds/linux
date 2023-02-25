@@ -3,18 +3,19 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_ring_ops.h"
+
 #include "xe_engine_types.h"
 #include "xe_gt.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
-#include "xe_ring_ops.h"
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"
 
-#include "i915_reg.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc_reg.h"
+#include "i915_reg.h"
 
 static u32 preparser_disable(bool state)
 {

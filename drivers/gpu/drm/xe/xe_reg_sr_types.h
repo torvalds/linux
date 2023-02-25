@@ -6,8 +6,8 @@
 #ifndef _XE_REG_SR_TYPES_
 #define _XE_REG_SR_TYPES_
 
-#include <linux/xarray.h>
 #include <linux/types.h>
+#include <linux/xarray.h>
 
 #include "i915_reg_defs.h"
 

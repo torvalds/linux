@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_exec.h"
+
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 #include <drm/xe_drm.h>
@@ -10,7 +12,6 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_engine.h"
-#include "xe_exec.h"
 #include "xe_macros.h"
 #include "xe_sched_job.h"
 #include "xe_sync.h"

@@ -3,13 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_wopcm.h"
+
 #include "xe_device.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_guc_reg.h"
 #include "xe_mmio.h"
 #include "xe_uc_fw.h"
-#include "xe_wopcm.h"
 
 /**
  * DOC: Write Once Protected Content Memory (WOPCM) Layout

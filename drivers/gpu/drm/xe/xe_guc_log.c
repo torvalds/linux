@@ -3,11 +3,12 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_guc_log.h"
+
 #include <drm/drm_managed.h>
 
 #include "xe_bo.h"
 #include "xe_gt.h"
-#include "xe_guc_log.h"
 #include "xe_map.h"
 #include "xe_module.h"
 

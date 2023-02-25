@@ -6,8 +6,8 @@
 #ifndef _XE_GUC_H_
 #define _XE_GUC_H_
 
-#include "xe_hw_engine_types.h"
 #include "xe_guc_types.h"
+#include "xe_hw_engine_types.h"
 #include "xe_macros.h"
 
 struct drm_printer;

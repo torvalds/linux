@@ -3,13 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_uc.h"
+
 #include "xe_device.h"
-#include "xe_huc.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_guc_pc.h"
 #include "xe_guc_submit.h"
-#include "xe_uc.h"
+#include "xe_huc.h"
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 

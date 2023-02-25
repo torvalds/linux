@@ -2,7 +2,14 @@
 /*
  * Copyright © 2020 Intel Corporation
  */
+
 #include "xe_migrate.h"
+
+#include <linux/sizes.h>
+
+#include <drm/drm_managed.h>
+#include <drm/ttm/ttm_tt.h>
+#include <drm/xe_drm.h>
 
 #include "xe_bb.h"
 #include "xe_bo.h"
@@ -19,11 +26,6 @@
 #include "xe_sync.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
-
-#include <linux/sizes.h>
-#include <drm/drm_managed.h>
-#include <drm/ttm/ttm_tt.h>
-#include <drm/xe_drm.h>
 
 #include "gt/intel_gpu_commands.h"
 

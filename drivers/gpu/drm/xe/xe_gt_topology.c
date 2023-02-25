@@ -3,10 +3,11 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_gt_topology.h"
+
 #include <linux/bitmap.h>
 
 #include "xe_gt.h"
-#include "xe_gt_topology.h"
 #include "xe_mmio.h"
 
 #define XE_MAX_DSS_FUSE_BITS (32 * XE_MAX_DSS_FUSE_REGS)

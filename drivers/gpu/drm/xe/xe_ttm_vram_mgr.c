@@ -6,8 +6,8 @@
 
 #include <drm/drm_managed.h>
 
-#include <drm/ttm/ttm_range_manager.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_range_manager.h>
 
 #include "xe_bo.h"
 #include "xe_device.h"

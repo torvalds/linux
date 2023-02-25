@@ -3,20 +3,19 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_dma_buf.h"
+
+#include <kunit/test.h>
 #include <linux/dma-buf.h>
+#include <linux/pci-p2pdma.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_prime.h>
-
 #include <drm/ttm/ttm_tt.h>
-
-#include <kunit/test.h>
-#include <linux/pci-p2pdma.h>
 
 #include "tests/xe_test.h"
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_dma_buf.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_vm.h"
 

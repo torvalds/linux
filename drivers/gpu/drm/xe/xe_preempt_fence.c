@@ -3,10 +3,11 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_preempt_fence.h"
+
 #include <linux/slab.h>
 
 #include "xe_engine.h"
-#include "xe_preempt_fence.h"
 #include "xe_vm.h"
 
 static void preempt_fence_work_func(struct work_struct *w)

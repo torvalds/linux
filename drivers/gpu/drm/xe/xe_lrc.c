@@ -9,15 +9,15 @@
 #include "xe_device.h"
 #include "xe_engine_types.h"
 #include "xe_gt.h"
-#include "xe_map.h"
 #include "xe_hw_fence.h"
+#include "xe_map.h"
 #include "xe_vm.h"
 
-#include "i915_reg.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc_reg.h"
-#include "gt/intel_engine_regs.h"
+#include "i915_reg.h"
 
 #define GEN8_CTX_VALID				(1 << 0)
 #define GEN8_CTX_L3LLC_COHERENT			(1 << 5)

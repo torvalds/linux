@@ -6,8 +6,8 @@
 #ifndef _XE_RTP_
 #define _XE_RTP_
 
-#include <linux/xarray.h>
 #include <linux/types.h>
+#include <linux/xarray.h>
 
 #include "xe_rtp_types.h"
 

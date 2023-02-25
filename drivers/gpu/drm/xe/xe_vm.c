@@ -25,8 +25,8 @@
 #include "xe_preempt_fence.h"
 #include "xe_pt.h"
 #include "xe_res_cursor.h"
-#include "xe_trace.h"
 #include "xe_sync.h"
+#include "xe_trace.h"
 
 #define TEST_VM_ASYNC_OPS_ERROR
 

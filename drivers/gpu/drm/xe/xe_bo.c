@@ -3,7 +3,6 @@
  * Copyright © 2021 Intel Corporation
  */
 
-
 #include "xe_bo.h"
 
 #include <linux/dma-buf.h>

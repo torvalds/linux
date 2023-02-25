@@ -3,14 +3,16 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_sa.h"
+
 #include <linux/kernel.h>
+
 #include <drm/drm_managed.h>
 
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_map.h"
-#include "xe_sa.h"
 
 static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)
 {

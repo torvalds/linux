@@ -3,8 +3,9 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include "xe_gt.h"
 #include "xe_gt_tlb_invalidation.h"
+
+#include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_trace.h"

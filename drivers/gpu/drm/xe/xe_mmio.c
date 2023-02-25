@@ -14,9 +14,9 @@
 #include "xe_macros.h"
 #include "xe_module.h"
 
-#include "i915_reg.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
+#include "i915_reg.h"
 
 #define XEHP_MTCFG_ADDR		_MMIO(0x101800)
 #define TILE_COUNT		REG_GENMASK(15, 8)

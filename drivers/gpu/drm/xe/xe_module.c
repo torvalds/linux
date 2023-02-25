@@ -3,6 +3,8 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "xe_module.h"
+
 #include <linux/init.h>
 #include <linux/module.h>
 

@@ -9,14 +9,14 @@
 #if !defined(_XE_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _XE_TRACE_H_
 
-#include <linux/types.h>
 #include <linux/tracepoint.h>
+#include <linux/types.h>
 
 #include "xe_bo_types.h"
 #include "xe_engine_types.h"
 #include "xe_gpu_scheduler_types.h"
-#include "xe_gt_types.h"
 #include "xe_gt_tlb_invalidation_types.h"
+#include "xe_gt_types.h"
 #include "xe_guc_engine_types.h"
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"

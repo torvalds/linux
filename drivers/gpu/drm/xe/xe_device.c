@@ -5,12 +5,12 @@
 
 #include "xe_device.h"
 
-#include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_aperture.h>
-#include <drm/drm_ioctl.h>
-#include <drm/xe_drm.h>
-#include <drm/drm_managed.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_gem_ttm_helper.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_managed.h>
+#include <drm/xe_drm.h>
 
 #include "xe_bo.h"
 #include "xe_debugfs.h"
@@ -20,8 +20,8 @@
 #include "xe_exec.h"
 #include "xe_gt.h"
 #include "xe_irq.h"
-#include "xe_module.h"
 #include "xe_mmio.h"
+#include "xe_module.h"
 #include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_query.h"

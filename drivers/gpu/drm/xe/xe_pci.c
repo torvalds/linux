@@ -10,12 +10,12 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_drv.h>
 #include <drm/drm_color_mgmt.h>
+#include <drm/drm_drv.h>
 #include <drm/xe_pciids.h>
 
-#include "xe_drv.h"
 #include "xe_device.h"
+#include "xe_drv.h"
 #include "xe_macros.h"
 #include "xe_module.h"
 #include "xe_pm.h"

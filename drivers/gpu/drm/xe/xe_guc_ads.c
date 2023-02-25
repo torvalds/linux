@@ -3,20 +3,22 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_guc_ads.h"
+
 #include <drm/drm_managed.h>
 
 #include "xe_bo.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
-#include "xe_guc_ads.h"
 #include "xe_guc_reg.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
-#include "gt/intel_gt_regs.h"
+
 #include "gt/intel_engine_regs.h"
+#include "gt/intel_gt_regs.h"
 
 /* Slack of a few additional entries per engine */
 #define ADS_REGSET_EXTRA_MAX	8

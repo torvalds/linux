@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_pm.h"
+
 #include <linux/pm_runtime.h>
 
 #include <drm/ttm/ttm_placement.h>
@@ -10,9 +12,8 @@
 #include "xe_bo.h"
 #include "xe_bo_evict.h"
 #include "xe_device.h"
-#include "xe_pm.h"
-#include "xe_gt.h"
 #include "xe_ggtt.h"
+#include "xe_gt.h"
 #include "xe_irq.h"
 #include "xe_pcode.h"
 

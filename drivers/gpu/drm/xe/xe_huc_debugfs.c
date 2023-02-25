@@ -3,13 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_huc_debugfs.h"
+
 #include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_huc.h"
-#include "xe_huc_debugfs.h"
 #include "xe_macros.h"
 
 static struct xe_gt *

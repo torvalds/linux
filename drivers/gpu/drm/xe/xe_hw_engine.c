@@ -22,8 +22,8 @@
 #include "xe_wa.h"
 
 #include "gt/intel_engine_regs.h"
-#include "i915_reg.h"
 #include "gt/intel_gt_regs.h"
+#include "i915_reg.h"
 
 #define MAX_MMIO_BASES 3
 struct engine_info {

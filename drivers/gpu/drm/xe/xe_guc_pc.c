@@ -3,21 +3,24 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_guc_pc.h"
+
+#include <linux/delay.h>
+
 #include <drm/drm_managed.h>
+
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
-#include "xe_gt_types.h"
 #include "xe_gt_sysfs.h"
+#include "xe_gt_types.h"
 #include "xe_guc_ct.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_pcode.h"
-#include "i915_reg_defs.h"
+
 #include "i915_reg.h"
-
-#include <linux/delay.h>
-
+#include "i915_reg_defs.h"
 #include "intel_mchbar_regs.h"
 
 /* For GEN6_RP_STATE_CAP.reg to be merged when the definition moves to Xe */

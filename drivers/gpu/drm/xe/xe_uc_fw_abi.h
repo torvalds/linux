@@ -6,8 +6,8 @@
 #ifndef _XE_UC_FW_ABI_H
 #define _XE_UC_FW_ABI_H
 
-#include <linux/types.h>
 #include <linux/build_bug.h>
+#include <linux/types.h>
 
 /**
  * DOC: Firmware Layout

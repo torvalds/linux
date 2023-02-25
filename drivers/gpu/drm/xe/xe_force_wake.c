@@ -3,13 +3,14 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "xe_force_wake.h"
+
 #include <drm/drm_util.h>
 
-#include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_mmio.h"
-#include "gt/intel_gt_regs.h"
 
+#include "gt/intel_gt_regs.h"
 
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
 
