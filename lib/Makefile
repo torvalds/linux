@@ -127,14 +127,10 @@ CFLAGS_test_fpu.o += $(FPU_CFLAGS)
 
 obj-$(CONFIG_TEST_LIVEPATCH) += livepatch/
 
-obj-$(CONFIG_KUNIT) += kunit/
-# Include the KUnit hooks unconditionally. They'll compile to nothing if
-# CONFIG_KUNIT=n, otherwise will be a small table of static data (static key,
-# function pointers) which need to be built-in even when KUnit is a module.
-ifeq ($(CONFIG_KUNIT), m)
-obj-y += kunit/hooks.o
-else
-obj-$(CONFIG_KUNIT) += kunit/hooks.o
+# Some KUnit files (hooks.o) need to be built-in even when KUnit is a module,
+# so we can't just use obj-$(CONFIG_KUNIT).
+ifdef CONFIG_KUNIT
+obj-y += kunit/
 endif
 
 ifeq ($(CONFIG_DEBUG_KOBJECT),y)
