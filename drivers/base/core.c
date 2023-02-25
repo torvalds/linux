@@ -98,7 +98,7 @@ static int __fwnode_link_add(struct fwnode_handle *con,
 
 	list_add(&link->s_hook, &sup->consumers);
 	list_add(&link->c_hook, &con->suppliers);
-	pr_debug("%pfwP Linked as a fwnode consumer to %pfwP\n",
+	pr_debug("%pfwf Linked as a fwnode consumer to %pfwf\n",
 		 con, sup);
 
 	return 0;
@@ -122,7 +122,7 @@ int fwnode_link_add(struct fwnode_handle *con, struct fwnode_handle *sup)
  */
 static void __fwnode_link_del(struct fwnode_link *link)
 {
-	pr_debug("%pfwP Dropping the fwnode link to %pfwP\n",
+	pr_debug("%pfwf Dropping the fwnode link to %pfwf\n",
 		 link->consumer, link->supplier);
 	list_del(&link->s_hook);
 	list_del(&link->c_hook);
@@ -1062,7 +1062,7 @@ int device_links_check_suppliers(struct device *dev)
 		if (!dev_is_best_effort(dev)) {
 			fwnode_ret = -EPROBE_DEFER;
 			dev_err_probe(dev, -EPROBE_DEFER,
-				    "wait for supplier %pfwP\n", sup_fw);
+				    "wait for supplier %pfwf\n", sup_fw);
 		} else {
 			fwnode_ret = -EAGAIN;
 		}
