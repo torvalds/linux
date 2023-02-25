@@ -672,7 +672,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_read_mdix);
  */
 int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv)
 {
-	int val, changed;
+	int val, changed = 0;
 
 	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP1_FEATURES)) {
 		val = linkmode_to_mii_eee_cap1_t(adv);
