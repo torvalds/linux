@@ -67,6 +67,7 @@ SYM_FUNC_START(handle_syscall)
 
 	RESTORE_ALL_AND_RET
 SYM_FUNC_END(handle_syscall)
+_ASM_NOKPROBE(handle_syscall)
 
 SYM_CODE_START(ret_from_fork)
 	bl		schedule_tail		# a0 = struct task_struct *prev
