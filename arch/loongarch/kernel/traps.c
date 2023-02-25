@@ -511,7 +511,17 @@ out_sigsegv:
 
 asmlinkage void noinstr do_watch(struct pt_regs *regs)
 {
+	irqentry_state_t state = irqentry_enter(regs);
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	breakpoint_handler(regs);
+	watchpoint_handler(regs);
+	force_sig(SIGTRAP);
+#else
 	pr_warn("Hardware watch point handler not implemented!\n");
+#endif
+
+	irqentry_exit(regs, state);
 }
 
 asmlinkage void noinstr do_ri(struct pt_regs *regs)
