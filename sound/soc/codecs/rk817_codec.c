@@ -945,14 +945,16 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	 * is before playback/capture_path_put, therefore, we need to configure
 	 * APLL_CFG3/DTOP_DIGEN_CLKE/DDAC_SR_LMT0 for different sample rates.
 	 */
-	snd_soc_component_write(component, RK817_CODEC_APLL_CFG3, apll_cfg3_val);
-	/* The 0x00 contains ADC_DIG_CLK_DIS and DAC_DIG_CLK_DIS */
-	snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
-				      dtop_digen_clke, 0x00);
-	snd_soc_component_update_bits(component, RK817_CODEC_DDAC_SR_LMT0,
-				      DACSRT_MASK, dtop_digen_sr_lmt0);
-	snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
-				      dtop_digen_clke, dtop_digen_clke);
+	if (!((substream->stream == SNDRV_PCM_STREAM_CAPTURE) && rk817->pdmdata_out_enable)) {
+		snd_soc_component_write(component, RK817_CODEC_APLL_CFG3, apll_cfg3_val);
+		/* The 0x00 contains ADC_DIG_CLK_DIS and DAC_DIG_CLK_DIS */
+		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+					      dtop_digen_clke, 0x00);
+		snd_soc_component_update_bits(component, RK817_CODEC_DDAC_SR_LMT0,
+					      DACSRT_MASK, dtop_digen_sr_lmt0);
+		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+					      dtop_digen_clke, dtop_digen_clke);
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
