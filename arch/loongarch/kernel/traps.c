@@ -437,7 +437,9 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	unsigned long era = exception_era(regs);
 	irqentry_state_t state = irqentry_enter(regs);
 
-	local_irq_enable();
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_enable();
+
 	current->thread.trap_nr = read_csr_excode();
 	if (__get_inst(&opcode, (u32 *)era, user))
 		goto out_sigsegv;
@@ -450,14 +452,12 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	 */
 	switch (bcode) {
 	case BRK_KPROBE_BP:
-		if (notify_die(DIE_BREAK, "Kprobe", regs, bcode,
-			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+		if (kprobe_breakpoint_handler(regs))
 			goto out;
 		else
 			break;
 	case BRK_KPROBE_SSTEPBP:
-		if (notify_die(DIE_SSTEPBP, "Kprobe_SingleStep", regs, bcode,
-			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+		if (kprobe_singlestep_handler(regs))
 			goto out;
 		else
 			break;
@@ -500,7 +500,9 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	}
 
 out:
-	local_irq_disable();
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_disable();
+
 	irqentry_exit(regs, state);
 	return;
 
