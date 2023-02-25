@@ -996,7 +996,7 @@ static int pci_register_host_bridge(struct pci_host_bridge *bridge)
 	resource_list_for_each_entry_safe(window, n, &resources) {
 		offset = window->offset;
 		res = window->res;
-		if (!res->end)
+		if (!res->flags && !res->start && !res->end)
 			continue;
 
 		list_move_tail(&window->node, &bridge->windows);
@@ -1841,6 +1841,8 @@ int pci_setup_device(struct pci_dev *dev)
 
 	pci_set_of_node(dev);
 	pci_set_acpi_fwnode(dev);
+	if (dev->dev.fwnode && !fwnode_device_is_available(dev->dev.fwnode))
+		return -ENODEV;
 
 	pci_dev_assign_slot(dev);
 
