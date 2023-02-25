@@ -669,8 +669,7 @@ EXPORT_SYMBOL(rtllib_stop_send_beacons);
 
 void rtllib_start_send_beacons(struct rtllib_device *ieee)
 {
-	if (ieee->start_send_beacons)
-		ieee->start_send_beacons(ieee->dev);
+	ieee->start_send_beacons(ieee->dev);
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		rtllib_beacons_start(ieee);
 }
