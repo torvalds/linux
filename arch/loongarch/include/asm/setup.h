@@ -33,7 +33,7 @@ extern long __la_abs_end;
 extern long __rela_dyn_begin;
 extern long __rela_dyn_end;
 
-extern void __init relocate_kernel(void);
+extern void * __init relocate_kernel(void);
 
 #endif
 

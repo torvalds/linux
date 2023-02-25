@@ -87,7 +87,20 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	set_saved_sp	sp, t0, t1
 
 #ifdef CONFIG_RELOCATABLE
+
 	bl		relocate_kernel
+
+#ifdef CONFIG_RANDOMIZE_BASE
+	/* Repoint the sp into the new kernel */
+	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
+	PTR_ADD		sp, sp, tp
+	set_saved_sp	sp, t0, t1
+#endif
+
+	/* relocate_kernel() returns the new kernel entry point */
+	jr		a0
+	ASM_BUG()
+
 #endif
 
 	bl		start_kernel
