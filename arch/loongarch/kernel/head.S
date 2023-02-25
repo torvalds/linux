@@ -86,6 +86,10 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
 
+#ifdef CONFIG_RELOCATABLE
+	bl		relocate_kernel
+#endif
+
 	bl		start_kernel
 	ASM_BUG()
 

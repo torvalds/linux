@@ -493,6 +493,14 @@ config PHYSICAL_START
 	  specified in the "crashkernel=YM@XM" command line boot parameter
 	  passed to the panic-ed kernel).
 
+config RELOCATABLE
+	bool "Relocatable kernel"
+	help
+	  This builds the kernel as a Position Independent Executable (PIE),
+	  which retains all relocation metadata required, so as to relocate
+	  the kernel binary at runtime to a different virtual address from
+	  its link address.
+
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
