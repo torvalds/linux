@@ -31,12 +31,6 @@
 #define GEN10_FREQ_INFO_REC	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
 #define   RPE_MASK		REG_GENMASK(15, 8)
 
-/* For GEN6_RPNSWREQ.reg to be merged when the definition moves to Xe */
-#define   REQ_RATIO_MASK	REG_GENMASK(31, 23)
-
-/* For GEN6_GT_CORE_STATUS.reg to be merged when the definition moves to Xe */
-#define   RCN_MASK	REG_GENMASK(2, 0)
-
 #define GEN12_RPSTAT1		_MMIO(0x1381b4)
 #define   GEN12_CAGF_MASK	REG_GENMASK(19, 11)
 

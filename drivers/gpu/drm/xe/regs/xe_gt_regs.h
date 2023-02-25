@@ -187,6 +187,7 @@
 #define   DFR_DISABLE				(1 << 9)
 
 #define GEN6_RPNSWREQ				_MMIO(0xa008)
+#define   REQ_RATIO_MASK			REG_GENMASK(31, 23)
 #define GEN6_RC_CONTROL				_MMIO(0xa090)
 #define GEN6_RC_STATE				_MMIO(0xa094)
 
@@ -243,6 +244,7 @@
 #define   FORCEWAKE_KERNEL_FALLBACK		BIT(15)
 
 #define GEN6_GT_CORE_STATUS			_MMIO(0x138060)
+#define   RCN_MASK				REG_GENMASK(2, 0)
 #define   GEN6_RC0				0
 #define   GEN6_RC6				3
 
