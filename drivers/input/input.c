@@ -19,6 +19,7 @@
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/pm.h>
 #include <linux/poll.h>
 #include <linux/device.h>
 #include <linux/kstrtox.h>
@@ -1828,7 +1829,6 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int input_dev_suspend(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
@@ -1903,15 +1903,12 @@ static const struct dev_pm_ops input_dev_pm_ops = {
 	.poweroff	= input_dev_poweroff,
 	.restore	= input_dev_resume,
 };
-#endif /* CONFIG_PM */
 
 static const struct device_type input_dev_type = {
 	.groups		= input_dev_attr_groups,
 	.release	= input_dev_release,
 	.uevent		= input_dev_uevent,
-#ifdef CONFIG_PM_SLEEP
-	.pm		= &input_dev_pm_ops,
-#endif
+	.pm		= pm_sleep_ptr(&input_dev_pm_ops),
 };
 
 static char *input_devnode(const struct device *dev, umode_t *mode)
