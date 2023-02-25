@@ -7,10 +7,9 @@
 
 #include <drm/drm_util.h>
 
+#include "regs/xe_gt_regs.h"
 #include "xe_gt.h"
 #include "xe_mmio.h"
-
-#include "gt/intel_gt_regs.h"
 
 #define XE_FORCE_WAKE_ACK_TIMEOUT_MS	50
 

@@ -13,6 +13,7 @@
 #include <drm/drm_print.h>
 
 #include "regs/xe_engine_regs.h"
+#include "regs/xe_gt_regs.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
@@ -20,8 +21,6 @@
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_rtp_types.h"
-
-#include "gt/intel_gt_regs.h"
 
 #define XE_REG_SR_GROW_STEP_DEFAULT	16
 

@@ -9,6 +9,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "regs/xe_gt_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
@@ -31,7 +32,6 @@
 #define GEN10_FREQ_INFO_REC	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
 #define   RPE_MASK		REG_GENMASK(15, 8)
 
-#include "gt/intel_gt_regs.h"
 /* For GEN6_RPNSWREQ.reg to be merged when the definition moves to Xe */
 #define   REQ_RATIO_MASK	REG_GENMASK(31, 23)
 

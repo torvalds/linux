@@ -6,11 +6,10 @@
 #include "xe_reg_whitelist.h"
 
 #include "regs/xe_engine_regs.h"
+#include "regs/xe_gt_regs.h"
 #include "xe_gt_types.h"
 #include "xe_platform_types.h"
 #include "xe_rtp.h"
-
-#include "gt/intel_gt_regs.h"
 
 #undef _MMIO
 #undef MCR_REG

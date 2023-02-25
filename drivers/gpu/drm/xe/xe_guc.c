@@ -5,6 +5,7 @@
 
 #include "xe_guc.h"
 
+#include "regs/xe_gt_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
@@ -21,7 +22,6 @@
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
-#include "gt/intel_gt_regs.h"
 #include "i915_reg_defs.h"
 
 /* TODO: move to common file */

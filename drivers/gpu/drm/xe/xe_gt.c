@@ -9,6 +9,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "regs/xe_gt_regs.h"
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
@@ -40,8 +41,6 @@
 #include "xe_vm.h"
 #include "xe_wa.h"
 #include "xe_wopcm.h"
-
-#include "gt/intel_gt_regs.h"
 
 struct xe_gt *xe_find_full_gt(struct xe_gt *gt)
 {

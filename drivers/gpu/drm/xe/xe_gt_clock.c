@@ -5,12 +5,12 @@
 
 #include "xe_gt_clock.h"
 
+#include "regs/xe_gt_regs.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
 
-#include "gt/intel_gt_regs.h"
 #include "i915_reg.h"
 
 static u32 read_reference_ts_freq(struct xe_gt *gt)
