@@ -7,6 +7,7 @@
 
 #include <linux/types.h>
 #include <asm/asm.h>
+#include <asm/ptrace.h>
 
 #define INSN_NOP		0x03400000
 #define INSN_BREAK		0x002a0000
@@ -32,6 +33,7 @@ enum reg1i20_op {
 	lu12iw_op	= 0x0a,
 	lu32id_op	= 0x0b,
 	pcaddi_op	= 0x0c,
+	pcalau12i_op	= 0x0d,
 	pcaddu12i_op	= 0x0e,
 	pcaddu18i_op	= 0x0f,
 };
@@ -388,6 +390,9 @@ static inline bool is_self_loop_ins(union loongarch_instruction *ip, struct pt_r
 
 	return false;
 }
+
+void simu_pc(struct pt_regs *regs, union loongarch_instruction insn);
+void simu_branch(struct pt_regs *regs, union loongarch_instruction insn);
 
 int larch_insn_read(void *addr, u32 *insnp);
 int larch_insn_write(void *addr, u32 insn);

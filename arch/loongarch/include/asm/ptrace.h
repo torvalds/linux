@@ -6,6 +6,7 @@
 #define _ASM_PTRACE_H
 
 #include <asm/page.h>
+#include <asm/irqflags.h>
 #include <asm/thread_info.h>
 #include <uapi/asm/ptrace.h>
 
