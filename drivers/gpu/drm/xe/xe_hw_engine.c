@@ -9,6 +9,7 @@
 
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_execlist.h"
@@ -22,8 +23,6 @@
 #include "xe_reg_sr.h"
 #include "xe_sched_job.h"
 #include "xe_wa.h"
-
-#include "i915_reg.h"
 
 #define MAX_MMIO_BASES 3
 struct engine_info {

@@ -10,14 +10,13 @@
 #include <drm/drm_managed.h>
 
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_regs.h"
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_hw_engine.h"
 #include "xe_mmio.h"
-
-#include "i915_reg.h"
 
 static void gen3_assert_iir_is_zero(struct xe_gt *gt, i915_reg_t reg)
 {

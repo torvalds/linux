@@ -14,14 +14,13 @@
 #include <drm/drm_drv.h>
 #include <drm/xe_pciids.h>
 
+#include "regs/xe_regs.h"
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_macros.h"
 #include "xe_module.h"
 #include "xe_pm.h"
 #include "xe_step.h"
-
-#include "i915_reg.h"
 
 #define DEV_INFO_FOR_EACH_FLAG(func) \
 	func(require_force_probe); \

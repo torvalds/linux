@@ -9,6 +9,7 @@
 
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_regs.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
@@ -17,8 +18,6 @@
 #include "xe_platform_types.h"
 #include "xe_rtp.h"
 #include "xe_step.h"
-
-#include "i915_reg.h"
 
 /**
  * DOC: Hardware workarounds

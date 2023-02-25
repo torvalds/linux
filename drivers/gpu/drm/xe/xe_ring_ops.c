@@ -8,14 +8,13 @@
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
+#include "regs/xe_regs.h"
 #include "xe_engine_types.h"
 #include "xe_gt.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"
-
-#include "i915_reg.h"
 
 /*
  * 3D-related flags that can't be set on _engines_ that lack access to the 3D
@@ -39,7 +38,6 @@
 		PIPE_CONTROL_FLUSH_ENABLE | \
 		PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE | \
 		PIPE_CONTROL_DC_FLUSH_ENABLE)
-
 
 static u32 preparser_disable(bool state)
 {

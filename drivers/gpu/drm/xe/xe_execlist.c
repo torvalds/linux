@@ -11,6 +11,7 @@
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
+#include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_engine.h"
@@ -22,8 +23,6 @@
 #include "xe_mocs.h"
 #include "xe_ring_ops_types.h"
 #include "xe_sched_job.h"
-
-#include "i915_reg.h"
 
 #define XE_EXECLIST_HANG_LIMIT 1
 
