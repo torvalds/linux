@@ -1649,7 +1649,7 @@ static void __bch2_write(struct bch_write_op *op)
 
 	nofs_flags = memalloc_nofs_save();
 
-	if (unlikely(op->opts.nocow)) {
+	if (unlikely(op->opts.nocow && c->opts.nocow_enabled)) {
 		bch2_nocow_write(op);
 		if (op->flags & BCH_WRITE_DONE)
 			goto out_nofs_restore;

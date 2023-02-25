@@ -327,8 +327,9 @@ void bch2_data_update_exit(struct data_update *update)
 	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		bch2_bucket_nocow_unlock(&c->nocow_locks,
-					 PTR_BUCKET_POS(c, ptr), 0);
+		if (c->opts.nocow_enabled)
+			bch2_bucket_nocow_unlock(&c->nocow_locks,
+						 PTR_BUCKET_POS(c, ptr), 0);
 		percpu_ref_put(&bch_dev_bkey_exists(c, ptr->dev)->ref);
 	}
 
@@ -488,23 +489,26 @@ int bch2_data_update_init(struct btree_trans *trans,
 		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
 			m->op.incompressible = true;
 
-		if (ctxt) {
-			move_ctxt_wait_event(ctxt, trans,
-					(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
-								  PTR_BUCKET_POS(c, &p.ptr), 0)) ||
-					!atomic_read(&ctxt->read_sectors));
+		if (c->opts.nocow_enabled) {
+			if (ctxt) {
+				move_ctxt_wait_event(ctxt, trans,
+						(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
+									  PTR_BUCKET_POS(c, &p.ptr), 0)) ||
+						!atomic_read(&ctxt->read_sectors));
 
-			if (!locked)
-				bch2_bucket_nocow_lock(&c->nocow_locks,
-						       PTR_BUCKET_POS(c, &p.ptr), 0);
-		} else {
-			if (!bch2_bucket_nocow_trylock(&c->nocow_locks,
-						       PTR_BUCKET_POS(c, &p.ptr), 0)) {
-				ret = -BCH_ERR_nocow_lock_blocked;
-				goto err;
+				if (!locked)
+					bch2_bucket_nocow_lock(&c->nocow_locks,
+							       PTR_BUCKET_POS(c, &p.ptr), 0);
+			} else {
+				if (!bch2_bucket_nocow_trylock(&c->nocow_locks,
+							       PTR_BUCKET_POS(c, &p.ptr), 0)) {
+					ret = -BCH_ERR_nocow_lock_blocked;
+					goto err;
+				}
 			}
+			ptrs_locked |= (1U << i);
 		}
-		ptrs_locked |= (1U << i);
+
 		i++;
 	}
 

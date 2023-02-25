@@ -404,6 +404,12 @@ enum opt_type {
 	  NULL,		"Nocow mode: Writes will be done in place when possible.\n"\
 			"Snapshots and reflink will still caused writes to be COW\n"\
 			"Implicitly disables data checksumming, compression and encryption")\
+	x(nocow_enabled,		u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,			true,			\
+	  NULL,		"Enable nocow mode: enables runtime locking in\n"\
+			"data move path needed if nocow will ever be in use\n")\
 	x(no_data_io,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\
