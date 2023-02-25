@@ -13,6 +13,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "regs/xe_lrc_layout.h"
 #include "xe_device.h"
 #include "xe_engine.h"
 #include "xe_force_wake.h"
@@ -31,8 +32,6 @@
 #include "xe_sched_job.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
-
-#include "gt/intel_lrc_reg.h"
 
 static struct xe_gt *
 guc_to_gt(struct xe_guc *guc)
