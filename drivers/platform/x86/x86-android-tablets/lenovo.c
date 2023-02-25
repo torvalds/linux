@@ -56,6 +56,19 @@ static const struct software_node lenovo_yoga_tab2_830_1050_bq24190_node = {
 	.properties = lenovo_yoga_tab2_830_1050_bq24190_props,
 };
 
+static struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid = {
+	.button = {
+		.code = SW_LID,
+		.active_low = true,
+		.desc = "lid_sw",
+		.type = EV_SW,
+		.wakeup = true,
+		.debounce_interval = 50,
+	},
+	.chip = "INT33FC:02",
+	.pin = 26,
+};
+
 /* This gets filled by lenovo_yoga_tab2_830_1050_init() */
 static struct rmi_device_platform_data lenovo_yoga_tab2_830_1050_rmi_pdata = { };
 
@@ -154,6 +167,7 @@ struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initdata = {
 	/* i2c_client_count gets set by lenovo_yoga_tab2_830_1050_init() */
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
+	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
 	.gpiod_lookup_tables = lenovo_yoga_tab2_830_1050_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
