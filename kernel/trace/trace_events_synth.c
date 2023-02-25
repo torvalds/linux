@@ -448,12 +448,12 @@ static unsigned int trace_string(struct synth_trace_event *entry,
 		data_offset = struct_size(entry, fields, event->n_u64);
 		data_offset += data_size;
 
-		len = kern_fetch_store_strlen((unsigned long)str_val);
+		len = fetch_store_strlen((unsigned long)str_val);
 
 		data_offset |= len << 16;
 		*(u32 *)&entry->fields[*n_u64] = data_offset;
 
-		ret = kern_fetch_store_string((unsigned long)str_val, &entry->fields[*n_u64], entry);
+		ret = fetch_store_string((unsigned long)str_val, &entry->fields[*n_u64], entry);
 
 		(*n_u64)++;
 	} else {
@@ -542,7 +542,7 @@ static notrace void trace_event_raw_event_synth(void *__data,
 			len = *((unsigned long *)str_val);
 			len *= sizeof(unsigned long);
 		} else {
-			len = kern_fetch_store_strlen((unsigned long)str_val);
+			len = fetch_store_strlen((unsigned long)str_val);
 		}
 
 		fields_size += len;
