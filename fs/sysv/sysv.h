@@ -148,12 +148,13 @@ extern void sysv_destroy_icache(void);
 
 
 /* dir.c */
+extern void dir_put_page(struct page *page, void *vaddr);
 extern struct sysv_dir_entry *sysv_find_entry(struct dentry *, struct page **);
 extern int sysv_add_link(struct dentry *, struct inode *);
 extern int sysv_delete_entry(struct sysv_dir_entry *, struct page *);
 extern int sysv_make_empty(struct inode *, struct inode *);
 extern int sysv_empty_dir(struct inode *);
-extern void sysv_set_link(struct sysv_dir_entry *, struct page *,
+extern int sysv_set_link(struct sysv_dir_entry *, struct page *,
 			struct inode *);
 extern struct sysv_dir_entry *sysv_dotdot(struct inode *, struct page **);
 extern ino_t sysv_inode_by_name(struct dentry *);
