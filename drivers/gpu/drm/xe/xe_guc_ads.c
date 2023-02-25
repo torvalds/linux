@@ -7,6 +7,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "regs/xe_engine_regs.h"
 #include "xe_bo.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
@@ -17,8 +18,8 @@
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
 
-#include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
+
 
 /* Slack of a few additional entries per engine */
 #define ADS_REGSET_EXTRA_MAX	8

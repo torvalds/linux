@@ -8,13 +8,13 @@
 #include <drm/drm_managed.h>
 #include <drm/xe_drm.h>
 
+#include "regs/xe_engine_regs.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_macros.h"
 #include "xe_module.h"
 
-#include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
 #include "i915_reg.h"
 

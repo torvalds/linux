@@ -5,6 +5,7 @@
 
 #include "xe_lrc.h"
 
+#include "regs/xe_engine_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_engine_types.h"
@@ -13,7 +14,6 @@
 #include "xe_map.h"
 #include "xe_vm.h"
 
-#include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc_reg.h"
