@@ -8,6 +8,7 @@
 #include <drm/drm_managed.h>
 
 #include "regs/xe_engine_regs.h"
+#include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
 #include "xe_bo.h"
@@ -22,7 +23,6 @@
 #include "xe_ring_ops_types.h"
 #include "xe_sched_job.h"
 
-#include "gt/intel_gpu_commands.h"
 #include "i915_reg.h"
 
 #define XE_EXECLIST_HANG_LIMIT 1

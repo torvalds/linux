@@ -11,6 +11,7 @@
 #include <drm/ttm/ttm_tt.h>
 #include <drm/xe_drm.h>
 
+#include "regs/xe_gpu_commands.h"
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_engine.h"
@@ -26,8 +27,6 @@
 #include "xe_sync.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
-
-#include "gt/intel_gpu_commands.h"
 
 /**
  * struct xe_migrate - migrate context.

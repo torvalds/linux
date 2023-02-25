@@ -11,11 +11,10 @@ struct xe_file;
 
 #include <drm/drm_util.h>
 
+#include "regs/xe_gpu_commands.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
 #include "xe_macros.h"
-
-#include "gt/intel_gpu_commands.h"
 
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {

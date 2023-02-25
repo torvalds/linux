@@ -5,6 +5,7 @@
 
 #include "xe_ring_ops.h"
 
+#include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
 #include "xe_engine_types.h"
@@ -14,8 +15,31 @@
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"
 
-#include "gt/intel_gpu_commands.h"
 #include "i915_reg.h"
+
+/*
+ * 3D-related flags that can't be set on _engines_ that lack access to the 3D
+ * pipeline (i.e., CCS engines).
+ */
+#define PIPE_CONTROL_3D_ENGINE_FLAGS (\
+		PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH | \
+		PIPE_CONTROL_DEPTH_CACHE_FLUSH | \
+		PIPE_CONTROL_TILE_CACHE_FLUSH | \
+		PIPE_CONTROL_DEPTH_STALL | \
+		PIPE_CONTROL_STALL_AT_SCOREBOARD | \
+		PIPE_CONTROL_PSD_SYNC | \
+		PIPE_CONTROL_AMFS_FLUSH | \
+		PIPE_CONTROL_VF_CACHE_INVALIDATE | \
+		PIPE_CONTROL_GLOBAL_SNAPSHOT_RESET)
+
+/* 3D-related flags that can't be set on _platforms_ that lack a 3D pipeline */
+#define PIPE_CONTROL_3D_ARCH_FLAGS ( \
+		PIPE_CONTROL_3D_ENGINE_FLAGS | \
+		PIPE_CONTROL_INDIRECT_STATE_DISABLE | \
+		PIPE_CONTROL_FLUSH_ENABLE | \
+		PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE | \
+		PIPE_CONTROL_DC_FLUSH_ENABLE)
+
 
 static u32 preparser_disable(bool state)
 {
@@ -180,29 +204,6 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
-
-/*
- * 3D-related flags that can't be set on _engines_ that lack access to the 3D
- * pipeline (i.e., CCS engines).
- */
-#define PIPE_CONTROL_3D_ENGINE_FLAGS (\
-		PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH | \
-		PIPE_CONTROL_DEPTH_CACHE_FLUSH | \
-		PIPE_CONTROL_TILE_CACHE_FLUSH | \
-		PIPE_CONTROL_DEPTH_STALL | \
-		PIPE_CONTROL_STALL_AT_SCOREBOARD | \
-		PIPE_CONTROL_PSD_SYNC | \
-		PIPE_CONTROL_AMFS_FLUSH | \
-		PIPE_CONTROL_VF_CACHE_INVALIDATE | \
-		PIPE_CONTROL_GLOBAL_SNAPSHOT_RESET)
-
-/* 3D-related flags that can't be set on _platforms_ that lack a 3D pipeline */
-#define PIPE_CONTROL_3D_ARCH_FLAGS ( \
-		PIPE_CONTROL_3D_ENGINE_FLAGS | \
-		PIPE_CONTROL_INDIRECT_STATE_DISABLE | \
-		PIPE_CONTROL_FLUSH_ENABLE | \
-		PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE | \
-		PIPE_CONTROL_DC_FLUSH_ENABLE)
 
 static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 					    struct xe_lrc *lrc,
