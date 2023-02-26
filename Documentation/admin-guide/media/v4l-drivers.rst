@@ -11,14 +11,12 @@ Video4Linux (V4L) driver-specific documentation
 
 	bttv
 	cafe_ccic
-	cpia2
 	cx88
 	fimc
 	imx
 	imx7
 	ipu3
 	ivtv
-	meye
 	omap3isp
 	omap4_camera
 	philips
