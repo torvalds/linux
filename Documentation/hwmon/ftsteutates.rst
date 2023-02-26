@@ -36,7 +36,7 @@ correct path to the alarm file::
 
 	echo 0 >XXXX_alarm
 
-Specification of the chip can be found here:
+Specifications of the chip can be found at the `Kontron FTP Server <http://ftp.kontron.com/>`_ (username = "anonymous", no password required)
+under the following path:
 
-- ftp://ftp.ts.fujitsu.com/pub/Mainboard-OEM-Sales/Services/Software&Tools/Linux_SystemMonitoring&Watchdog&GPIO/BMC-Teutates_Specification_V1.21.pdf
-- ftp://ftp.ts.fujitsu.com/pub/Mainboard-OEM-Sales/Services/Software&Tools/Linux_SystemMonitoring&Watchdog&GPIO/Fujitsu_mainboards-1-Sensors_HowTo-en-US.pdf
+  /Services/Software_Tools/Linux_SystemMonitoring_Watchdog_GPIO/BMC-Teutates_Specification_V1.21.pdf
