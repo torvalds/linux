@@ -637,9 +637,6 @@ static const char * const hp_in_mux_map[] = {
 	"Audio Playback",
 	"Test Mode",
 	"HP Impedance",
-	"undefined1",
-	"undefined2",
-	"undefined3",
 };
 
 static int hp_in_mux_map_value[] = {
@@ -648,9 +645,6 @@ static int hp_in_mux_map_value[] = {
 	HP_MUX_HP,
 	HP_MUX_TEST_MODE,
 	HP_MUX_HP_IMPEDANCE,
-	HP_MUX_OPEN,
-	HP_MUX_OPEN,
-	HP_MUX_OPEN,
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(hpl_in_mux_map_enum,
