@@ -296,15 +296,7 @@ out:
 
 int bch2_data_update_index_update(struct bch_write_op *op)
 {
-	struct bch_fs *c = op->c;
-	struct btree_trans trans;
-	int ret;
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
-	ret = __bch2_data_update_index_update(&trans, op);
-	bch2_trans_exit(&trans);
-
-	return ret;
+	return bch2_trans_run(op->c, __bch2_data_update_index_update(&trans, op));
 }
 
 void bch2_data_update_read_done(struct data_update *m,
