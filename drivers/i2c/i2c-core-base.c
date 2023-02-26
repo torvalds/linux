@@ -1050,7 +1050,7 @@ static int dummy_probe(struct i2c_client *client)
 
 static struct i2c_driver dummy_driver = {
 	.driver.name	= "dummy",
-	.probe_new	= dummy_probe,
+	.probe		= dummy_probe,
 	.id_table	= dummy_id,
 };
 
