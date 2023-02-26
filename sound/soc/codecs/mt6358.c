@@ -560,6 +560,9 @@ static int mt6358_put_wov(struct snd_kcontrol *kcontrol,
 	struct mt6358_priv *priv = snd_soc_component_get_drvdata(c);
 	int enabled = ucontrol->value.integer.value[0];
 
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
+
 	if (priv->wov_enabled != enabled) {
 		if (enabled)
 			mt6358_enable_wov_phase2(priv);
