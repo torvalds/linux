@@ -567,6 +567,8 @@ static int mt6358_put_wov(struct snd_kcontrol *kcontrol,
 			mt6358_disable_wov_phase2(priv);
 
 		priv->wov_enabled = enabled;
+
+		return 1;
 	}
 
 	return 0;
