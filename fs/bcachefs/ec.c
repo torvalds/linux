@@ -1003,6 +1003,35 @@ err:
 	return ret;
 }
 
+static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
+				       struct ec_stripe_new *s,
+				       unsigned block,
+				       struct open_bucket *ob)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+	unsigned offset = ca->mi.bucket_size - ob->sectors_free;
+	int ret;
+
+	if (!bch2_dev_get_ioref(ca, WRITE)) {
+		s->err = -EROFS;
+		return;
+	}
+
+	memset(s->new_stripe.data[block] + (offset << 9),
+	       0,
+	       ob->sectors_free << 9);
+
+	ret = blkdev_issue_zeroout(ca->disk_sb.bdev,
+			ob->bucket * ca->mi.bucket_size + offset,
+			ob->sectors_free,
+			GFP_KERNEL, 0);
+
+	percpu_ref_put(&ca->io_ref);
+
+	if (ret)
+		s->err = ret;
+}
+
 /*
  * data buckets of new stripe all written: create the stripe
  */
@@ -1017,6 +1046,14 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	BUG_ON(s->h->s == s);
 
 	closure_sync(&s->iodone);
+
+	for (i = 0; i < nr_data; i++)
+		if (s->blocks[i]) {
+			ob = c->open_buckets + s->blocks[i];
+
+			if (ob->sectors_free)
+				zero_out_rest_of_ec_bucket(c, s, i, ob);
+		}
 
 	if (s->err) {
 		if (!bch2_err_matches(s->err, EROFS))
@@ -1158,9 +1195,6 @@ static void ec_stripe_set_pending(struct bch_fs *c, struct ec_stripe_head *h)
 void bch2_ec_bucket_written(struct bch_fs *c, struct open_bucket *ob)
 {
 	struct ec_stripe_new *s = ob->ec;
-
-	if (ob->sectors_free)
-		s->err = -1;
 
 	ec_stripe_new_put(c, s);
 }
