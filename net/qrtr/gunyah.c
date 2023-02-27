@@ -104,7 +104,8 @@ static void qrtr_gunyah_kick(struct qrtr_gunyah_dev *qdev)
 
 	ret = gh_dbl_send(qdev->tx_dbl, &dbl_mask, GH_DBL_NONBLOCK);
 	if (ret) {
-		dev_err(qdev->dev, "failed to raise doorbell %d\n", ret);
+		if (ret != EAGAIN)
+			dev_err(qdev->dev, "failed to raise doorbell %d\n", ret);
 		if (!qdev->master)
 			schedule_work(&qdev->work);
 	}
