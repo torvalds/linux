@@ -1202,10 +1202,10 @@
 
 				lvds_bridge: bridge@5c {
 					compatible = "fsl,imx8mp-ldb";
-					clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
-					clock-names = "ldb";
 					reg = <0x5c 0x4>, <0x128 0x4>;
 					reg-names = "ldb", "lvds";
+					clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
+					clock-names = "ldb";
 					assigned-clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
 					assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>;
 					status = "disabled";
