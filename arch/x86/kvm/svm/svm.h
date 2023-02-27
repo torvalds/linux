@@ -36,6 +36,7 @@ extern bool npt_enabled;
 extern int vgif;
 extern bool intercept_smi;
 extern bool x2avic_enabled;
+extern bool vnmi;
 
 /*
  * Clean bits in VMCB.
@@ -546,6 +547,27 @@ static inline bool is_x2apic_msrpm_offset(u32 offset)
 
 	return (msr >= APIC_BASE_MSR) &&
 	       (msr < (APIC_BASE_MSR + 0x100));
+}
+
+static inline struct vmcb *get_vnmi_vmcb_l1(struct vcpu_svm *svm)
+{
+	if (!vnmi)
+		return NULL;
+
+	if (is_guest_mode(&svm->vcpu))
+		return NULL;
+	else
+		return svm->vmcb01.ptr;
+}
+
+static inline bool is_vnmi_enabled(struct vcpu_svm *svm)
+{
+	struct vmcb *vmcb = get_vnmi_vmcb_l1(svm);
+
+	if (vmcb)
+		return !!(vmcb->control.int_ctl & V_NMI_ENABLE_MASK);
+	else
+		return false;
 }
 
 /* svm.c */
