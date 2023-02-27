@@ -21,11 +21,10 @@
 
 static unsigned long rt5350_get_mem_size(void)
 {
-	void __iomem *sysc = (void __iomem *) KSEG1ADDR(RT305X_SYSC_BASE);
 	unsigned long ret;
 	u32 t;
 
-	t = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG);
+	t = __raw_readl(RT305X_SYSC_BASE + SYSC_REG_SYSTEM_CONFIG);
 	t = (t >> RT5350_SYSCFG0_DRAM_SIZE_SHIFT) &
 		RT5350_SYSCFG0_DRAM_SIZE_MASK;
 
@@ -142,14 +141,13 @@ void __init ralink_of_remap(void)
 
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
-	void __iomem *sysc = (void __iomem *) KSEG1ADDR(RT305X_SYSC_BASE);
 	unsigned char *name;
 	u32 n0;
 	u32 n1;
 	u32 id;
 
-	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
+	n0 = __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_NAME0);
+	n1 = __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_NAME1);
 
 	if (n0 == RT3052_CHIP_NAME0 && n1 == RT3052_CHIP_NAME1) {
 		unsigned long icache_sets;
