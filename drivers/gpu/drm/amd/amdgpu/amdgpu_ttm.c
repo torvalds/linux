@@ -631,6 +631,7 @@ struct amdgpu_ttm_tt {
 	struct task_struct	*usertask;
 	uint32_t		userflags;
 	bool			bound;
+	int32_t			pool_id;
 };
 
 #define ttm_to_amdgpu_ttm_tt(ptr)	container_of(ptr, struct amdgpu_ttm_tt, ttm)
@@ -1059,6 +1060,7 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 		return NULL;
 	}
 	gtt->gobj = &bo->base;
+	gtt->pool_id = NUMA_NO_NODE;
 
 	if (abo->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
 		caching = ttm_write_combined;
@@ -1085,6 +1087,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
 	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
+	struct ttm_pool *pool;
 	pgoff_t i;
 	int ret;
 
@@ -1099,7 +1102,11 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 	if (ttm->page_flags & TTM_TT_FLAG_EXTERNAL)
 		return 0;
 
-	ret = ttm_pool_alloc(&adev->mman.bdev.pool, ttm, ctx);
+	if (adev->mman.ttm_pools && gtt->pool_id >= 0)
+		pool = &adev->mman.ttm_pools[gtt->pool_id];
+	else
+		pool = &adev->mman.bdev.pool;
+	ret = ttm_pool_alloc(pool, ttm, ctx);
 	if (ret)
 		return ret;
 
@@ -1120,6 +1127,7 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
 {
 	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
 	struct amdgpu_device *adev;
+	struct ttm_pool *pool;
 	pgoff_t i;
 
 	amdgpu_ttm_backend_unbind(bdev, ttm);
@@ -1138,7 +1146,13 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
 		ttm->pages[i]->mapping = NULL;
 
 	adev = amdgpu_ttm_adev(bdev);
-	return ttm_pool_free(&adev->mman.bdev.pool, ttm);
+
+	if (adev->mman.ttm_pools && gtt->pool_id >= 0)
+		pool = &adev->mman.ttm_pools[gtt->pool_id];
+	else
+		pool = &adev->mman.bdev.pool;
+
+	return ttm_pool_free(pool, ttm);
 }
 
 /**
@@ -1728,6 +1742,41 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int amdgpu_ttm_pools_init(struct amdgpu_device *adev)
+{
+	int i;
+
+	if (!adev->gmc.is_app_apu || !adev->gmc.num_mem_partitions)
+		return 0;
+
+	adev->mman.ttm_pools = kcalloc(adev->gmc.num_mem_partitions,
+				       sizeof(*adev->mman.ttm_pools),
+				       GFP_KERNEL);
+	if (!adev->mman.ttm_pools)
+		return -ENOMEM;
+
+	for (i = 0; i < adev->gmc.num_mem_partitions; i++) {
+		ttm_pool_init(&adev->mman.ttm_pools[i], adev->dev,
+			      adev->gmc.mem_partitions[i].numa.node,
+			      false, false);
+	}
+	return 0;
+}
+
+static void amdgpu_ttm_pools_fini(struct amdgpu_device *adev)
+{
+	int i;
+
+	if (!adev->gmc.is_app_apu || !adev->mman.ttm_pools)
+		return;
+
+	for (i = 0; i < adev->gmc.num_mem_partitions; i++)
+		ttm_pool_fini(&adev->mman.ttm_pools[i]);
+
+	kfree(adev->mman.ttm_pools);
+	adev->mman.ttm_pools = NULL;
+}
+
 /*
  * amdgpu_ttm_init - Init the memory management (ttm) as well as various
  * gtt/vram related fields.
@@ -1752,6 +1801,12 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 			       dma_addressing_limited(adev->dev));
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
+		return r;
+	}
+
+	r = amdgpu_ttm_pools_init(adev);
+	if (r) {
+		DRM_ERROR("failed to init ttm pools(%d).\n", r);
 		return r;
 	}
 	adev->mman.initialized = true;
@@ -1900,6 +1955,8 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	int idx;
 	if (!adev->mman.initialized)
 		return;
+
+	amdgpu_ttm_pools_fini(adev);
 
 	amdgpu_ttm_training_reserve_vram_fini(adev);
 	/* return the stolen vga memory back to VRAM */
