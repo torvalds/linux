@@ -32,6 +32,7 @@ choice
 
 	config SOC_RT305X
 		bool "RT305x"
+		select SOC_BUS
 
 	config SOC_RT3883
 		bool "RT3883"
