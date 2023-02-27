@@ -2403,7 +2403,7 @@ static int hci_pause_addr_resolution(struct hci_dev *hdev)
 
 	/* Return if address resolution is disabled and RPA is not used. */
 	if (!err && scan_use_rpa(hdev))
-		return err;
+		return 0;
 
 	hci_resume_advertising_sync(hdev);
 	return err;
