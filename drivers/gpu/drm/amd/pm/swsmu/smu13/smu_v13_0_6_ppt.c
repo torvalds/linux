@@ -1256,21 +1256,6 @@ static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
 	uint32_t power_limit = 0;
 	int ret;
 
-	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		if (current_power_limit)
-			*current_power_limit = 0;
-		if (default_power_limit)
-			*default_power_limit = 0;
-		if (max_power_limit)
-			*max_power_limit = 0;
-
-		dev_warn(
-			smu->adev->dev,
-			"PPT feature is not enabled, power values can't be fetched.");
-
-		return 0;
-	}
-
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit, &power_limit);
 
 	if (ret) {
