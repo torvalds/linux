@@ -197,6 +197,8 @@ static int qcom_hwspinlock_probe(struct platform_device *pdev)
 
 		bank->lock[i].priv = devm_regmap_field_alloc(&pdev->dev,
 							     regmap, field);
+		if (IS_ERR(bank->lock[i].priv))
+			return PTR_ERR(bank->lock[i].priv);
 	}
 
 	return devm_hwspin_lock_register(&pdev->dev, bank, &qcom_hwspinlock_ops,
