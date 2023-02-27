@@ -37,7 +37,7 @@ mlx5e_tc_act_stats_create(void)
 	int err;
 
 	handle = kvzalloc(sizeof(*handle), GFP_KERNEL);
-	if (IS_ERR(handle))
+	if (!handle)
 		return ERR_PTR(-ENOMEM);
 
 	err = rhashtable_init(&handle->ht, &act_counters_ht_params);

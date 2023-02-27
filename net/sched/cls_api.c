@@ -3241,9 +3241,9 @@ EXPORT_SYMBOL(tcf_exts_init_ex);
 
 void tcf_exts_destroy(struct tcf_exts *exts)
 {
-#ifdef CONFIG_NET_CLS_ACT
 	tcf_exts_miss_cookie_base_destroy(exts);
 
+#ifdef CONFIG_NET_CLS_ACT
 	if (exts->actions) {
 		tcf_action_destroy(exts->actions, TCA_ACT_UNBIND);
 		kfree(exts->actions);

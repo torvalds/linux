@@ -2231,7 +2231,7 @@ int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 {
 	int err;
 
-	err = genphy_c45_write_eee_adv(phydev, phydev->supported_eee);
+	err = genphy_c45_an_config_eee_aneg(phydev);
 	if (err < 0)
 		return err;
 	else if (err)
@@ -3140,6 +3140,25 @@ static int phy_probe(struct device *dev)
 
 	of_set_phy_supported(phydev);
 	phy_advertise_supported(phydev);
+
+	/* Get PHY default EEE advertising modes and handle them as potentially
+	 * safe initial configuration.
+	 */
+	err = genphy_c45_read_eee_adv(phydev, phydev->advertising_eee);
+	if (err)
+		return err;
+
+	/* There is no "enabled" flag. If PHY is advertising, assume it is
+	 * kind of enabled.
+	 */
+	phydev->eee_enabled = !linkmode_empty(phydev->advertising_eee);
+
+	/* Some PHYs may advertise, by default, not support EEE modes. So,
+	 * we need to clean them.
+	 */
+	if (phydev->eee_enabled)
+		linkmode_and(phydev->advertising_eee, phydev->supported_eee,
+			     phydev->advertising_eee);
 
 	/* Get the EEE modes we want to prohibit. We will ask
 	 * the PHY stop advertising these mode later on

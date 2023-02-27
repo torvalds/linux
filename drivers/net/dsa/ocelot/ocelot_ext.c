@@ -4,7 +4,6 @@
  */
 
 #include <linux/mfd/ocelot.h>
-#include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <soc/mscc/ocelot.h>
@@ -149,7 +148,7 @@ MODULE_DEVICE_TABLE(of, ocelot_ext_switch_of_match);
 
 static struct platform_driver ocelot_ext_switch_driver = {
 	.driver = {
-		.name = "ocelot-switch",
+		.name = "ocelot-ext-switch",
 		.of_match_table = of_match_ptr(ocelot_ext_switch_of_match),
 	},
 	.probe = ocelot_ext_probe,

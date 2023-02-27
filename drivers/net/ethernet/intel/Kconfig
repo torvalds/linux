@@ -296,6 +296,7 @@ config ICE
 	default n
 	depends on PCI_MSI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on GNSS || GNSS = n
 	select AUXILIARY_BUS
 	select DIMLIB
 	select NET_DEVLINK
@@ -336,9 +337,6 @@ config ICE_HWTS
 	  with PCIe PTM support. The cross-timestamp is available through
 	  the PTP clock driver precise cross-timestamp ioctl
 	  (PTP_SYS_OFFSET_PRECISE).
-
-config ICE_GNSS
-	def_bool GNSS = y || GNSS = ICE
 
 config FM10K
 	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
