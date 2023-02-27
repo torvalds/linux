@@ -2819,7 +2819,6 @@ EXPORT_SYMBOL(dquot_get_state);
 int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii)
 {
 	struct mem_dqinfo *mi;
-	int err = 0;
 
 	if ((ii->i_fieldmask & QC_WARNS_MASK) ||
 	    (ii->i_fieldmask & QC_RT_SPC_TIMER))
@@ -2846,8 +2845,7 @@ int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii)
 	spin_unlock(&dq_data_lock);
 	mark_info_dirty(sb, type);
 	/* Force write to disk */
-	sb->dq_op->write_info(sb, type);
-	return err;
+	return sb->dq_op->write_info(sb, type);
 }
 EXPORT_SYMBOL(dquot_set_dqinfo);
 
