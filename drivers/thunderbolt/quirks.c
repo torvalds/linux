@@ -10,6 +10,7 @@
 static void quirk_force_power_link(struct tb_switch *sw)
 {
 	sw->quirks |= QUIRK_FORCE_POWER_LINK_CONTROLLER;
+	tb_sw_dbg(sw, "forcing power to link controller\n");
 }
 
 static void quirk_dp_credit_allocation(struct tb_switch *sw)
