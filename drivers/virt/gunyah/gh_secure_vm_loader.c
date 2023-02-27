@@ -234,15 +234,6 @@ static int gh_sec_vm_loader_load_fw(struct gh_sec_vm_dev *vm_dev,
 
 	vm_name = get_gh_vm_name(vm_dev->vm_name);
 
-	ret = gh_rm_vm_alloc_vmid(vm_name, &vm_dev->vmid);
-	if (ret < 0) {
-		dev_err(dev, "Couldn't allocate VMID for %s %d\n",
-						vm_dev->vm_name, ret);
-		return ret;
-	}
-
-	vm->status.vm_status = GH_RM_VM_STATUS_LOAD;
-	vm->vmid = vm_dev->vmid;
 	if (!vm_dev->is_static) {
 		virt = dma_alloc_coherent(dev, vm_dev->fw_size, &dma_handle,
 				GFP_KERNEL);
@@ -256,6 +247,18 @@ static int gh_sec_vm_loader_load_fw(struct gh_sec_vm_dev *vm_dev,
 		vm_dev->fw_virt = virt;
 		vm_dev->fw_phys = dma_to_phys(dev, dma_handle);
 	}
+
+	ret = gh_rm_vm_alloc_vmid(vm_name, &vm_dev->vmid);
+	if (ret < 0) {
+		dev_err(dev, "Couldn't allocate VMID for %s %d\n",
+						vm_dev->vm_name, ret);
+		if (!vm_dev->is_static)
+			dma_free_coherent(dev, vm_dev->fw_size, virt, dma_handle);
+		return ret;
+	}
+
+	vm->status.vm_status = GH_RM_VM_STATUS_LOAD;
+	vm->vmid = vm_dev->vmid;
 
 	ret = gh_vm_loader_sec_load(vm_dev, vm);
 	if (ret) {
