@@ -3428,14 +3428,13 @@
 			1 to enable accounting
 			Default value is 0.
 
-	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
-			See Documentation/admin-guide/nfs/nfsroot.rst.
+	nfs.cache_getent=
+			[NFS] sets the pathname to the program which is used
+			to update the NFS client cache entries.
 
-	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
-			See Documentation/admin-guide/nfs/nfsroot.rst.
-
-	nfsrootdebug	[NFS] enable nfsroot debugging messages.
-			See Documentation/admin-guide/nfs/nfsroot.rst.
+	nfs.cache_getent_timeout=
+			[NFS] sets the timeout after which an attempt to
+			update a cache entry is deemed to have failed.
 
 	nfs.callback_nr_threads=
 			[NFSv4] set the total number of threads that the
@@ -3446,24 +3445,16 @@
 			[NFS] set the TCP port on which the NFSv4 callback
 			channel should listen.
 
-	nfs.cache_getent=
-			[NFS] sets the pathname to the program which is used
-			to update the NFS client cache entries.
-
-	nfs.cache_getent_timeout=
-			[NFS] sets the timeout after which an attempt to
-			update a cache entry is deemed to have failed.
-
-	nfs.idmap_cache_timeout=
-			[NFS] set the maximum lifetime for idmapper cache
-			entries.
-
 	nfs.enable_ino64=
 			[NFS] enable 64-bit inode numbers.
 			If zero, the NFS client will fake up a 32-bit inode
 			number for the readdir() and stat() syscalls instead
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
+
+	nfs.idmap_cache_timeout=
+			[NFS] set the maximum lifetime for idmapper cache
+			entries.
 
 	nfs.max_session_cb_slots=
 			[NFSv4.1] Sets the maximum number of session
@@ -3492,21 +3483,14 @@
 			will be autodetected by the client, and it will fall
 			back to using the idmapper.
 			To turn off this behaviour, set the value to '0'.
+
 	nfs.nfs4_unique_id=
 			[NFS4] Specify an additional fixed unique ident-
 			ification string that NFSv4 clients can insert into
 			their nfs_client_id4 string.  This is typically a
 			UUID that is generated at system install time.
 
-	nfs.send_implementation_id =
-			[NFSv4.1] Send client implementation identification
-			information in exchange_id requests.
-			If zero, no implementation identification information
-			will be sent.
-			The default is to send the implementation identification
-			information.
-
-	nfs.recover_lost_locks =
+	nfs.recover_lost_locks=
 			[NFSv4] Attempt to recover locks that were lost due
 			to a lease timeout on the server. Please note that
 			doing this risks data corruption, since there are
@@ -3518,7 +3502,15 @@
 			The default parameter value of '0' causes the kernel
 			not to attempt recovery of lost locks.
 
-	nfs4.layoutstats_timer =
+	nfs.send_implementation_id=
+			[NFSv4.1] Send client implementation identification
+			information in exchange_id requests.
+			If zero, no implementation identification information
+			will be sent.
+			The default is to send the implementation identification
+			information.
+
+	nfs4.layoutstats_timer=
 			[NFSv4.2] Change the rate at which the kernel sends
 			layoutstats to the pNFS metadata server.
 
@@ -3527,18 +3519,10 @@
 			driver. A non-zero value sets the minimum interval
 			in seconds between layoutstats transmissions.
 
-	nfsd.inter_copy_offload_enable =
+	nfsd.inter_copy_offload_enable=
 			[NFSv4.2] When set to 1, the server will support
 			server-to-server copies for which this server is
 			the destination of the copy.
-
-	nfsd.nfsd4_ssc_umount_timeout =
-			[NFSv4.2] When used as the destination of a
-			server-to-server copy, knfsd temporarily mounts
-			the source server.  It caches the mount in case
-			it will be needed again, and discards it if not
-			used for the number of milliseconds specified by
-			this parameter.
 
 	nfsd.nfs4_disable_idmapping=
 			[NFSv4] When set to the default of '1', the NFSv4
@@ -3547,6 +3531,22 @@
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
 
+	nfsd.nfsd4_ssc_umount_timeout=
+			[NFSv4.2] When used as the destination of a
+			server-to-server copy, knfsd temporarily mounts
+			the source server.  It caches the mount in case
+			it will be needed again, and discards it if not
+			used for the number of milliseconds specified by
+			this parameter.
+
+	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
+
+	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
+
+	nfsrootdebug	[NFS] enable nfsroot debugging messages.
+			See Documentation/admin-guide/nfs/nfsroot.rst.
 
 	nmi_backtrace.backtrace_idle [KNL]
 			Dump stacks even of idle CPUs in response to an
