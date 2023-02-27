@@ -1438,12 +1438,14 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 
 	stream->stopping = true;
 	stream->is_pause = false;
-	if (stream->ops->disable_mi)
+	if (stream->ops->disable_mi && dev->hw_dev->is_single)
 		stream->ops->disable_mi(stream);
 	if (IS_HDR_RDBK(dev->rd_mode)) {
 		spin_lock_irqsave(&dev->hw_dev->rdbk_lock, lock_flags);
 		if (dev->hw_dev->cur_dev_id != dev->dev_id || dev->hw_dev->is_idle) {
 			is_wait = false;
+			if (stream->ops->disable_mi)
+				stream->ops->disable_mi(stream);
 			/* force update to close */
 			if (dev->hw_dev->is_single)
 				stream_self_update(stream);
@@ -1489,7 +1491,6 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 static int rkisp_start(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	bool is_update = atomic_read(&dev->cap_dev.refcnt) > 1 ? false : true;
 	int ret;
 
 	if (stream->ops->set_data_path)
@@ -1504,10 +1505,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	if (stream->ops->enable_mi && !stream->is_pause)
 		stream->ops->enable_mi(stream);
 
-	if (is_update)
-		dev->irq_ends_mask |= get_stream_irq_mask(stream);
 	stream->streaming = true;
-
 	return 0;
 }
 
@@ -2275,26 +2273,20 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 
 	if (mis_val & ISP3X_MI_MP_FRAME) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_MP];
-		if (!stream->streaming || stream->is_pause)
+		if (!stream->streaming)
 			dev->irq_ends_mask &= ~ISP_FRAME_MP;
-		else
-			dev->irq_ends_mask |= ISP_FRAME_MP;
 		rkisp_check_idle(dev, ISP_FRAME_MP);
 	}
 	if (mis_val & ISP3X_MI_SP_FRAME) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
-		if (!stream->streaming || stream->is_pause)
+		if (!stream->streaming)
 			dev->irq_ends_mask &= ~ISP_FRAME_SP;
-		else
-			dev->irq_ends_mask |= ISP_FRAME_SP;
 		rkisp_check_idle(dev, ISP_FRAME_SP);
 	}
 	if (mis_val & ISP3X_MI_BP_FRAME) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_BP];
-		if (!stream->streaming || stream->is_pause)
+		if (!stream->streaming)
 			dev->irq_ends_mask &= ~ISP_FRAME_BP;
-		else
-			dev->irq_ends_mask |= ISP_FRAME_BP;
 		rkisp_check_idle(dev, ISP_FRAME_BP);
 	}
 }

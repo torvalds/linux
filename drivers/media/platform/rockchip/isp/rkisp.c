@@ -703,22 +703,6 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 				 dev->multi_mode, dev->multi_index, val);
 		}
 		is_upd = true;
-		/* if output stream enable, wait it end */
-		val = rkisp_read(dev, CIF_MI_CTRL_SHD, true);
-		if (val & CIF_MI_CTRL_SHD_MP_OUT_ENABLED &&
-		    !(dev->irq_ends_mask & ISP_FRAME_MP))
-			dev->irq_ends_mask |= ISP_FRAME_MP;
-		if (val & CIF_MI_CTRL_SHD_SP_OUT_ENABLED &&
-		    !(dev->irq_ends_mask & ISP_FRAME_SP))
-			dev->irq_ends_mask |= ISP_FRAME_SP;
-		if (dev->isp_ver == ISP_V30 &&
-		    !(dev->irq_ends_mask & ISP_FRAME_MPFBC) &&
-		    rkisp_read(dev, ISP3X_MPFBC_CTRL, true) & ISP3X_MPFBC_EN_SHD)
-			dev->irq_ends_mask |= ISP_FRAME_MPFBC;
-		if (dev->isp_ver == ISP_V32 &&
-		    !(dev->irq_ends_mask & ISP_FRAME_BP) &&
-		    rkisp_read(dev, ISP32_MI_WR_CTRL2_SHD, true) & ISP32_BP_EN_OUT_SHD)
-			dev->irq_ends_mask |= ISP_FRAME_BP;
 	}
 
 	if (dev->isp_ver > ISP_V20)
@@ -778,6 +762,31 @@ run_next:
 	}
 	if (is_3dlut_upd)
 		rkisp_unite_write(dev, ISP_3DLUT_UPDATE, 1, true, hw->is_unite);
+
+	/* if output stream enable, wait it end */
+	val = rkisp_read(dev, CIF_MI_CTRL_SHD, true);
+	if (val & CIF_MI_CTRL_SHD_MP_OUT_ENABLED)
+		dev->irq_ends_mask |= ISP_FRAME_MP;
+	else
+		dev->irq_ends_mask &= ~ISP_FRAME_MP;
+	if (val & CIF_MI_CTRL_SHD_SP_OUT_ENABLED)
+		dev->irq_ends_mask |= ISP_FRAME_SP;
+	else
+		dev->irq_ends_mask &= ~ISP_FRAME_SP;
+	if ((dev->isp_ver == ISP_V20 &&
+	     rkisp_read(dev, ISP_MPFBC_CTRL, true) & SW_MPFBC_EN) ||
+	    (dev->isp_ver == ISP_V30 &&
+	     rkisp_read(dev, ISP3X_MPFBC_CTRL, true) & ISP3X_MPFBC_EN_SHD))
+		dev->irq_ends_mask |= ISP_FRAME_MPFBC;
+	else
+		dev->irq_ends_mask &= ~ISP_FRAME_MPFBC;
+	if ((dev->isp_ver == ISP_V30 &&
+	     rkisp_read(dev, ISP3X_BP_ENABLE, true) & ISP3X_BP_ENABLE) ||
+	    (dev->isp_ver == ISP_V32 &&
+	     rkisp_read(dev, ISP32_MI_WR_CTRL2_SHD, true) & ISP32_BP_EN_OUT_SHD))
+		dev->irq_ends_mask |= ISP_FRAME_BP;
+	else
+		dev->irq_ends_mask &= ~ISP_FRAME_BP;
 
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
 	val &= ~SW_IBUF_OP_MODE(0xf);
@@ -1019,6 +1028,8 @@ end:
 		schedule_work(&dev->rdbk_work);
 	else
 		rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
+	if (dev->isp_state == ISP_STOP)
+		wake_up(&dev->sync_onoff);
 }
 
 static void rkisp_set_state(u32 *state, u32 val)
@@ -2826,6 +2837,10 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 					wake_up(&s->done);
 			}
 		}
+		wait_event_timeout(isp_dev->sync_onoff,
+				   isp_dev->isp_state & ISP_STOP ||
+				   !IS_HDR_RDBK(isp_dev->rd_mode),
+				   msecs_to_jiffies(50));
 		rkisp_isp_stop(isp_dev);
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
