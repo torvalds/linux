@@ -7,7 +7,7 @@
 #include <linux/adreno-smmu-priv.h>
 #include <linux/delay.h>
 #include <linux/of_device.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #include "arm-smmu.h"
 #include "arm-smmu-qcom.h"

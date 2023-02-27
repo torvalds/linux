@@ -38,6 +38,10 @@ properties:
               - sifive,fu740-c000-ccache
           - const: cache
       - items:
+          - const: starfive,jh7110-ccache
+          - const: sifive,ccache0
+          - const: cache
+      - items:
           - const: microchip,mpfs-ccache
           - const: sifive,fu540-c000-ccache
           - const: cache
@@ -84,6 +88,7 @@ allOf:
           contains:
             enum:
               - sifive,fu740-c000-ccache
+              - starfive,jh7110-ccache
               - microchip,mpfs-ccache
 
     then:
@@ -104,7 +109,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: sifive,fu740-c000-ccache
+            enum:
+              - sifive,fu740-c000-ccache
+              - starfive,jh7110-ccache
 
     then:
       properties:

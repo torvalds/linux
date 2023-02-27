@@ -34,7 +34,7 @@
 #include "qcom_pil_info.h"
 #include "qcom_q6v5.h"
 
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #define MPSS_CRASH_REASON_SMEM		421
 

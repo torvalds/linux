@@ -8,7 +8,7 @@
 
 #include <linux/ascii85.h>
 #include <linux/interconnect.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/pm_opp.h>
