@@ -139,52 +139,109 @@ void __init ralink_of_remap(void)
 		panic("Failed to remap core resources");
 }
 
-void __init prom_soc_init(struct ralink_soc_info *soc_info)
+static unsigned int __init rt305x_get_soc_name0(void)
 {
-	unsigned char *name;
-	u32 n0;
-	u32 n1;
-	u32 id;
+	return __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_NAME0);
+}
 
-	n0 = __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_NAME1);
+static unsigned int __init rt305x_get_soc_name1(void)
+{
+	return __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_NAME1);
+}
 
-	if (n0 == RT3052_CHIP_NAME0 && n1 == RT3052_CHIP_NAME1) {
+static bool __init rt3052_soc_valid(void)
+{
+	if (rt305x_get_soc_name0() == RT3052_CHIP_NAME0 &&
+	    rt305x_get_soc_name1() == RT3052_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static bool __init rt3350_soc_valid(void)
+{
+	if (rt305x_get_soc_name0() == RT3350_CHIP_NAME0 &&
+	    rt305x_get_soc_name1() == RT3350_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static bool __init rt3352_soc_valid(void)
+{
+	if (rt305x_get_soc_name0() == RT3352_CHIP_NAME0 &&
+	    rt305x_get_soc_name1() == RT3352_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static bool __init rt5350_soc_valid(void)
+{
+	if (rt305x_get_soc_name0() == RT5350_CHIP_NAME0 &&
+	    rt305x_get_soc_name1() == RT5350_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static const char __init *rt305x_get_soc_name(struct ralink_soc_info *soc_info)
+{
+	if (rt3052_soc_valid()) {
 		unsigned long icache_sets;
 
 		icache_sets = (read_c0_config1() >> 22) & 7;
 		if (icache_sets == 1) {
 			ralink_soc = RT305X_SOC_RT3050;
-			name = "RT3050";
 			soc_info->compatible = "ralink,rt3050-soc";
+			return "RT3050";
 		} else {
 			ralink_soc = RT305X_SOC_RT3052;
-			name = "RT3052";
 			soc_info->compatible = "ralink,rt3052-soc";
+			return "RT3052";
 		}
-	} else if (n0 == RT3350_CHIP_NAME0 && n1 == RT3350_CHIP_NAME1) {
+	} else if (rt3350_soc_valid()) {
 		ralink_soc = RT305X_SOC_RT3350;
-		name = "RT3350";
 		soc_info->compatible = "ralink,rt3350-soc";
-	} else if (n0 == RT3352_CHIP_NAME0 && n1 == RT3352_CHIP_NAME1) {
+		return "RT3350";
+	} else if (rt3352_soc_valid()) {
 		ralink_soc = RT305X_SOC_RT3352;
-		name = "RT3352";
 		soc_info->compatible = "ralink,rt3352-soc";
-	} else if (n0 == RT5350_CHIP_NAME0 && n1 == RT5350_CHIP_NAME1) {
+		return "RT3352";
+	} else if (rt5350_soc_valid()) {
 		ralink_soc = RT305X_SOC_RT5350;
-		name = "RT5350";
 		soc_info->compatible = "ralink,rt5350-soc";
+		return "RT5350";
 	} else {
-		panic("rt305x: unknown SoC, n0:%08x n1:%08x", n0, n1);
+		panic("rt305x: unknown SoC, n0:%08x n1:%08x",
+		      rt305x_get_soc_name0(), rt305x_get_soc_name1());
 	}
+}
 
-	id = __raw_readl(sysc + SYSC_REG_CHIP_ID);
+static unsigned int __init rt305x_get_soc_id(void)
+{
+	return __raw_readl(RT305X_SYSC_BASE + SYSC_REG_CHIP_ID);
+}
+
+static unsigned int __init rt305x_get_soc_ver(void)
+{
+	return (rt305x_get_soc_id() >> CHIP_ID_ID_SHIFT) & CHIP_ID_ID_MASK;
+}
+
+static unsigned int __init rt305x_get_soc_rev(void)
+{
+	return (rt305x_get_soc_id() & CHIP_ID_REV_MASK);
+}
+
+void __init prom_soc_init(struct ralink_soc_info *soc_info)
+{
+	const char *name = rt305x_get_soc_name(soc_info);
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
 		"Ralink %s id:%u rev:%u",
 		name,
-		(id >> CHIP_ID_ID_SHIFT) & CHIP_ID_ID_MASK,
-		(id & CHIP_ID_REV_MASK));
+		rt305x_get_soc_ver(),
+		rt305x_get_soc_rev());
 
 	soc_info->mem_base = RT305X_SDRAM_BASE;
 	if (soc_is_rt5350()) {
