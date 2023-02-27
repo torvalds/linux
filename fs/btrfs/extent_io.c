@@ -866,6 +866,38 @@ int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
 	return 0;
 }
 
+static bool btrfs_bio_is_contig(struct btrfs_bio_ctrl *bio_ctrl,
+				struct page *page, u64 disk_bytenr,
+				unsigned int pg_offset)
+{
+	struct bio *bio = bio_ctrl->bio;
+	struct bio_vec *bvec = bio_last_bvec_all(bio);
+	const sector_t sector = disk_bytenr >> SECTOR_SHIFT;
+
+	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE) {
+		/*
+		 * For compression, all IO should have its logical bytenr set
+		 * to the starting bytenr of the compressed extent.
+		 */
+		return bio->bi_iter.bi_sector == sector;
+	}
+
+	/*
+	 * The contig check requires the following conditions to be met:
+	 *
+	 * 1) The pages are belonging to the same inode
+	 *    This is implied by the call chain.
+	 *
+	 * 2) The range has adjacent logical bytenr
+	 *
+	 * 3) The range has adjacent file offset
+	 *    This is required for the usage of btrfs_bio->file_offset.
+	 */
+	return bio_end_sector(bio) == sector &&
+		page_offset(bvec->bv_page) + bvec->bv_offset + bvec->bv_len ==
+		page_offset(page) + pg_offset;
+}
+
 /*
  * Attempt to add a page to bio.
  *
@@ -890,43 +922,10 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	struct bio *bio = bio_ctrl->bio;
 	u32 bio_size = bio->bi_iter.bi_size;
 	u32 real_size;
-	const sector_t sector = disk_bytenr >> SECTOR_SHIFT;
-	bool contig = false;
 
 	ASSERT(bio);
 	/* The limit should be calculated when bio_ctrl->bio is allocated */
 	ASSERT(bio_ctrl->len_to_oe_boundary);
-
-	if (bio->bi_iter.bi_size == 0) {
-		/* We can always add a page into an empty bio. */
-		contig = true;
-	} else if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE) {
-		struct bio_vec *bvec = bio_last_bvec_all(bio);
-
-		/*
-		 * The contig check requires the following conditions to be met:
-		 * 1) The pages are belonging to the same inode
-		 *    This is implied by the call chain.
-		 *
-		 * 2) The range has adjacent logical bytenr
-		 *
-		 * 3) The range has adjacent file offset
-		 *    This is required for the usage of btrfs_bio->file_offset.
-		 */
-		if (bio_end_sector(bio) == sector &&
-		    page_offset(bvec->bv_page) + bvec->bv_offset +
-		    bvec->bv_len == page_offset(page) + pg_offset)
-			contig = true;
-	} else {
-		/*
-		 * For compression, all IO should have its logical bytenr
-		 * set to the starting bytenr of the compressed extent.
-		 */
-		contig = bio->bi_iter.bi_sector == sector;
-	}
-
-	if (!contig)
-		return 0;
 
 	real_size = min(bio_ctrl->len_to_oe_boundary - bio_size, size);
 
@@ -1023,6 +1022,10 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 	       pg_offset + size <= PAGE_SIZE);
 
 	ASSERT(bio_ctrl->end_io_func);
+
+	if (bio_ctrl->bio &&
+	    !btrfs_bio_is_contig(bio_ctrl, page, disk_bytenr, pg_offset))
+		submit_one_bio(bio_ctrl);
 
 	while (cur < pg_offset + size) {
 		u32 offset = cur - pg_offset;
