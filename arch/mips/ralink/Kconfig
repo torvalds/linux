@@ -29,6 +29,7 @@ choice
 		select MIPS_AUTO_PFN_OFFSET
 		select MIPS_L1_CACHE_SHIFT_4
 		select HAVE_PCI
+		select SOC_BUS
 
 	config SOC_RT305X
 		bool "RT305x"
