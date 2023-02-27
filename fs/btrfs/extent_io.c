@@ -118,9 +118,6 @@ struct btrfs_bio_ctrl {
 	 * does the unlocking.
 	 */
 	bool extent_locked;
-
-	/* Tell the submit_bio code to use REQ_SYNC */
-	bool sync_io;
 };
 
 static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
@@ -1802,6 +1799,7 @@ static void end_extent_buffer_writeback(struct extent_buffer *eb)
  * Return <0 if something went wrong, no page is locked.
  */
 static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb,
+			  struct writeback_control *wbc,
 			  struct btrfs_bio_ctrl *bio_ctrl)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
@@ -1817,7 +1815,7 @@ static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb
 
 	if (test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags)) {
 		btrfs_tree_unlock(eb);
-		if (!bio_ctrl->sync_io)
+		if (wbc->sync_mode != WB_SYNC_ALL)
 			return 0;
 		if (!flush) {
 			submit_write_bio(bio_ctrl, 0);
@@ -2260,7 +2258,7 @@ static int submit_eb_subpage(struct page *page,
 		if (!eb)
 			continue;
 
-		ret = lock_extent_buffer_for_io(eb, bio_ctrl);
+		ret = lock_extent_buffer_for_io(eb, wbc, bio_ctrl);
 		if (ret == 0) {
 			free_extent_buffer(eb);
 			continue;
@@ -2359,7 +2357,7 @@ static int submit_eb_page(struct page *page, struct writeback_control *wbc,
 
 	*eb_context = eb;
 
-	ret = lock_extent_buffer_for_io(eb, bio_ctrl);
+	ret = lock_extent_buffer_for_io(eb, wbc, bio_ctrl);
 	if (ret <= 0) {
 		btrfs_revert_meta_write_pointer(cache, eb);
 		if (cache)
@@ -2388,7 +2386,6 @@ int btree_write_cache_pages(struct address_space *mapping,
 	struct btrfs_bio_ctrl bio_ctrl = {
 		.opf = REQ_OP_WRITE | wbc_to_write_flags(wbc),
 		.extent_locked = 0,
-		.sync_io = (wbc->sync_mode == WB_SYNC_ALL),
 	};
 	struct btrfs_fs_info *fs_info = BTRFS_I(mapping->host)->root->fs_info;
 	int ret = 0;
@@ -2685,7 +2682,6 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end)
 	struct btrfs_bio_ctrl bio_ctrl = {
 		.opf = REQ_OP_WRITE | wbc_to_write_flags(&wbc_writepages),
 		.extent_locked = 1,
-		.sync_io = 1,
 	};
 
 	ASSERT(IS_ALIGNED(start, sectorsize) && IS_ALIGNED(end + 1, sectorsize));
@@ -2732,7 +2728,6 @@ int extent_writepages(struct address_space *mapping,
 	struct btrfs_bio_ctrl bio_ctrl = {
 		.opf = REQ_OP_WRITE | wbc_to_write_flags(wbc),
 		.extent_locked = 0,
-		.sync_io = (wbc->sync_mode == WB_SYNC_ALL),
 	};
 
 	/*
