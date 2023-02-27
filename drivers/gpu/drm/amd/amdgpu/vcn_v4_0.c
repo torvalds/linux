@@ -78,10 +78,11 @@ static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev);
 static int vcn_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i;
 
 	if (amdgpu_sriov_vf(adev)) {
 		adev->vcn.harvest_config = VCN_HARVEST_MMSCH;
-		for (int i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_ENCODE_RING, i)) {
 				adev->vcn.harvest_config |= 1 << i;
 				dev_info(adev->dev, "VCN%d is disabled by hypervisor\n", i);
