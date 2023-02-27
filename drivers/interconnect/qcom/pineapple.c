@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -2310,7 +2310,7 @@ static struct qcom_icc_bcm bcm_sh1_disp = {
 static struct qcom_icc_bcm bcm_acv_cam_ife_0 = {
 	.name = "ACV",
 	.voter_idx = 2,
-	.enable_mask = 0x0,
+	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_0 },
 };
@@ -2357,7 +2357,7 @@ static struct qcom_icc_bcm bcm_sh1_cam_ife_0 = {
 static struct qcom_icc_bcm bcm_acv_cam_ife_1 = {
 	.name = "ACV",
 	.voter_idx = 3,
-	.enable_mask = 0x0,
+	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_1 },
 };
@@ -2404,7 +2404,7 @@ static struct qcom_icc_bcm bcm_sh1_cam_ife_1 = {
 static struct qcom_icc_bcm bcm_acv_cam_ife_2 = {
 	.name = "ACV",
 	.voter_idx = 4,
-	.enable_mask = 0x0,
+	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_2 },
 };
