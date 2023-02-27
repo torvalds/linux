@@ -1235,7 +1235,16 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 		 * NUMA systems. Their MTYPE can be overridden per-page in
 		 * gmc_v9_0_override_vm_pte_flags.
 		 */
-		mtype_local = amdgpu_use_mtype_cc_wa ? MTYPE_CC : MTYPE_RW;
+		mtype_local = MTYPE_CC;
+		if (amdgpu_mtype_local == 1) {
+			DRM_INFO_ONCE("Using MTYPE_NC for local memory\n");
+			mtype_local = MTYPE_NC;
+		} else if (amdgpu_mtype_local == 2) {
+			DRM_INFO_ONCE("Using MTYPE_RW for local memory\n");
+			mtype_local = MTYPE_RW;
+		} else {
+			DRM_INFO_ONCE("Using MTYPE_CC for local memory\n");
+		}
 		is_local = (!is_vram && (adev->flags & AMD_IS_APU) &&
 			    num_possible_nodes() <= 1) ||
 			   (is_vram && adev == bo_adev /* TODO: memory partitions &&
@@ -1349,9 +1358,13 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 	dev_dbg(adev->dev, "vm->mem_id=%d, local_node=%d, nid=%d\n",
 		/*vm->mem_id*/0, local_node, nid);
 	if (nid == local_node) {
-		unsigned int mtype_local =
-			amdgpu_use_mtype_cc_wa ? MTYPE_CC : MTYPE_RW;
 		uint64_t old_flags = *flags;
+		unsigned int mtype_local = MTYPE_CC;
+
+		if (amdgpu_mtype_local == 1)
+			mtype_local = MTYPE_NC;
+		else if (amdgpu_mtype_local == 2)
+			mtype_local = MTYPE_RW;
 
 		*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
 			 AMDGPU_PTE_MTYPE_VG10(mtype_local);

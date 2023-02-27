@@ -823,11 +823,11 @@ module_param_named(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm
 #endif
 
 /**
- * DOC: use_mtype_cc_wa (bool)
+ * DOC: mtype_local (int)
  */
-bool amdgpu_use_mtype_cc_wa = true;
-MODULE_PARM_DESC(use_mtype_cc_wa, "Use MTYPE_CC workaround (0 = use MTYPE_RW where applicable, 1 = use MTYPE_CC where applicable (default))");
-module_param_named(use_mtype_cc_wa, amdgpu_use_mtype_cc_wa, bool, 0444);
+int amdgpu_mtype_local;
+MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (0 = MTYPE_CC (default), 1 = MTYPE_NC, 2 = MTYPE_RW)");
+module_param_named(mtype_local, amdgpu_mtype_local, int, 0444);
 
 /**
  * DOC: pcie_p2p (bool)
