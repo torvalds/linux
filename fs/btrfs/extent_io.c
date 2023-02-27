@@ -4449,7 +4449,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	btrfs_subpage_start_reader(fs_info, page, eb->start, eb->len);
 	ret = submit_extent_page(REQ_OP_READ, NULL, &bio_ctrl,
 				 eb->start, page, eb->len,
-				 eb->start - page_offset(page), 0, true);
+				 eb->start - page_offset(page), 0, false);
 	if (ret) {
 		/*
 		 * In the endio function, if we hit something wrong we will
