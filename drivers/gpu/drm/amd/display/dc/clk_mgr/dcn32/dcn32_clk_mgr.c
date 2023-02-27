@@ -255,6 +255,40 @@ static void dcn32_update_dppclk_dispclk_freq(struct clk_mgr_internal *clk_mgr, s
 	}
 }
 
+void dcn32_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
+		struct dc_state *context, bool safe_to_lower)
+{
+	int i;
+
+	clk_mgr->dccg->ref_dppclk = clk_mgr->base.clks.dppclk_khz;
+	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+		int dpp_inst, dppclk_khz, prev_dppclk_khz;
+
+		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
+		if (context->res_ctx.pipe_ctx[i].plane_res.dpp)
+			dpp_inst = context->res_ctx.pipe_ctx[i].plane_res.dpp->inst;
+		else if (!context->res_ctx.pipe_ctx[i].plane_res.dpp && dppclk_khz == 0) {
+			/* dpp == NULL && dppclk_khz == 0 is valid because of pipe harvesting.
+			 * In this case just continue in loop
+			 */
+			continue;
+		} else if (!context->res_ctx.pipe_ctx[i].plane_res.dpp && dppclk_khz > 0) {
+			/* The software state is not valid if dpp resource is NULL and
+			 * dppclk_khz > 0.
+			 */
+			ASSERT(false);
+			continue;
+		}
+
+		prev_dppclk_khz = clk_mgr->dccg->pipe_dppclk_khz[i];
+
+		if (safe_to_lower || prev_dppclk_khz < dppclk_khz)
+			clk_mgr->dccg->funcs->update_dpp_dto(
+							clk_mgr->dccg, dpp_inst, dppclk_khz);
+	}
+}
+
 static void dcn32_update_clocks_update_dentist(
 		struct clk_mgr_internal *clk_mgr,
 		struct dc_state *context)
@@ -524,7 +558,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			/* if clock is being lowered, increase DTO before lowering refclk */
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+			dcn32_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 			dcn32_update_clocks_update_dentist(clk_mgr, context);
 			if (clk_mgr->smu_present)
 				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DPPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
@@ -536,7 +570,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			 * that we do not lower dto when it is not safe to lower. We do not need to
 			 * compare the current and new dppclk before calling this function.
 			 */
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+			dcn32_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 		}
 	}
 
