@@ -10,12 +10,16 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/rt3883.h>
 
 #include "common.h"
+
+static struct ralink_soc_info *soc_info_ptr;
 
 void __init ralink_clk_init(void)
 {
@@ -112,6 +116,30 @@ static unsigned int __init rt3883_get_soc_rev(void)
 	return (rt3883_get_soc_id() & RT3883_REVID_ECO_ID_MASK);
 }
 
+static int __init rt3883_soc_dev_init(void)
+{
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return -ENOMEM;
+
+	soc_dev_attr->family = "Ralink";
+	soc_dev_attr->soc_id = rt3883_get_soc_name();
+
+	soc_dev_attr->data = soc_info_ptr;
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		kfree(soc_dev_attr);
+		return PTR_ERR(soc_dev);
+	}
+
+	return 0;
+}
+device_initcall(rt3883_soc_dev_init);
+
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
 	if (rt3883_soc_valid())
@@ -131,4 +159,5 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 	soc_info->mem_size_max = RT3883_MEM_SIZE_MAX;
 
 	ralink_soc = RT3883_SOC;
+	soc_info_ptr = soc_info;
 }

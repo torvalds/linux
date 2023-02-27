@@ -37,6 +37,7 @@ choice
 	config SOC_RT3883
 		bool "RT3883"
 		select HAVE_PCI
+		select SOC_BUS
 
 	config SOC_MT7620
 		bool "MT7620/8"
