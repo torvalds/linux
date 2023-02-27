@@ -229,6 +229,23 @@ static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 	return dev_inst;
 }
 
+static uint32_t aqua_vanjaram_logical_to_dev_mask(struct amdgpu_device *adev,
+					 enum amd_hw_ip_block_type block,
+					 uint32_t mask)
+{
+	uint32_t dev_mask = 0;
+	int8_t log_inst, dev_inst;
+
+	while (mask) {
+		log_inst = ffs(mask) - 1;
+		dev_inst = aqua_vanjaram_logical_to_dev_inst(adev, block, log_inst);
+		dev_mask |= (1 << dev_inst);
+		mask &= ~(1 << log_inst);
+	}
+
+	return dev_mask;
+}
+
 static void aqua_vanjaram_populate_ip_map(struct amdgpu_device *adev,
 					  enum amd_hw_ip_block_type ip_block,
 					  uint32_t inst_mask)
@@ -257,6 +274,7 @@ void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
 		aqua_vanjaram_populate_ip_map(adev, ip_map[i][0], ip_map[i][1]);
 
 	adev->ip_map.logical_to_dev_inst = aqua_vanjaram_logical_to_dev_inst;
+	adev->ip_map.logical_to_dev_mask = aqua_vanjaram_logical_to_dev_mask;
 }
 
 /* Fixed pattern for smn addressing on different AIDs:
