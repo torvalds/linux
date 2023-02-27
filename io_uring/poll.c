@@ -51,6 +51,9 @@ struct io_poll_table {
 
 #define IO_WQE_F_DOUBLE		1
 
+static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
+			void *key);
+
 static inline struct io_kiocb *wqe_to_req(struct wait_queue_entry *wqe)
 {
 	unsigned long priv = (unsigned long)wqe->private;
@@ -164,15 +167,14 @@ static void io_poll_tw_hash_eject(struct io_kiocb *req, bool *locked)
 	}
 }
 
-static void io_init_poll_iocb(struct io_poll *poll, __poll_t events,
-			      wait_queue_func_t wake_func)
+static void io_init_poll_iocb(struct io_poll *poll, __poll_t events)
 {
 	poll->head = NULL;
 #define IO_POLL_UNMASK	(EPOLLERR|EPOLLHUP|EPOLLNVAL|EPOLLRDHUP)
 	/* mask in events that we always want/need */
 	poll->events = events | IO_POLL_UNMASK;
 	INIT_LIST_HEAD(&poll->wait.entry);
-	init_waitqueue_func_entry(&poll->wait, wake_func);
+	init_waitqueue_func_entry(&poll->wait, io_poll_wake);
 }
 
 static inline void io_poll_remove_entry(struct io_poll *poll)
@@ -508,7 +510,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 
 		/* mark as double wq entry */
 		wqe_private |= IO_WQE_F_DOUBLE;
-		io_init_poll_iocb(poll, first->events, first->wait.func);
+		io_init_poll_iocb(poll, first->events);
 		if (!io_poll_double_prepare(req)) {
 			/* the request is completing, just back off */
 			kfree(poll);
@@ -569,7 +571,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 
 	INIT_HLIST_NODE(&req->hash_node);
 	req->work.cancel_seq = atomic_read(&ctx->cancel_seq);
-	io_init_poll_iocb(poll, mask, io_poll_wake);
+	io_init_poll_iocb(poll, mask);
 	poll->file = req->file;
 	req->apoll_events = poll->events;
 
