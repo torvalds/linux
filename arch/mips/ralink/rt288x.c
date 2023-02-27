@@ -59,15 +59,14 @@ void __init ralink_of_remap(void)
 
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
-	void __iomem *sysc = (void __iomem *) KSEG1ADDR(RT2880_SYSC_BASE);
 	const char *name;
 	u32 n0;
 	u32 n1;
 	u32 id;
 
-	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
-	id = __raw_readl(sysc + SYSC_REG_CHIP_ID);
+	n0 = __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_NAME0);
+	n1 = __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_NAME1);
+	id = __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_ID);
 
 	if (n0 == RT2880_CHIP_NAME0 && n1 == RT2880_CHIP_NAME1) {
 		soc_info->compatible = "ralink,r2880-soc";
