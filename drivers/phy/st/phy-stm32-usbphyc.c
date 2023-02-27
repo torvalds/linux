@@ -317,6 +317,9 @@ static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
 
 	stm32_usbphyc_set_bits(pll_reg, PLLEN);
 
+	/* Wait for maximum lock time */
+	usleep_range(200, 300);
+
 	return 0;
 
 reg_disable:
