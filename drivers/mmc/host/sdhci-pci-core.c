@@ -251,13 +251,16 @@ static int ricoh_probe(struct sdhci_pci_chip *chip)
 
 static int ricoh_mmc_probe_slot(struct sdhci_pci_slot *slot)
 {
-	slot->host->caps =
+	u32 caps =
 		FIELD_PREP(SDHCI_TIMEOUT_CLK_MASK, 0x21) |
 		FIELD_PREP(SDHCI_CLOCK_BASE_MASK, 0x21) |
 		SDHCI_TIMEOUT_CLK_UNIT |
 		SDHCI_CAN_VDD_330 |
 		SDHCI_CAN_DO_HISPD |
 		SDHCI_CAN_DO_SDMA;
+	u32 caps1 = 0;
+
+	__sdhci_read_caps(slot->host, NULL, &caps, &caps1);
 	return 0;
 }
 
@@ -286,8 +289,7 @@ static const struct sdhci_pci_fixes sdhci_ricoh_mmc = {
 #endif
 	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
 			  SDHCI_QUIRK_CLOCK_BEFORE_RESET |
-			  SDHCI_QUIRK_NO_CARD_NO_RESET |
-			  SDHCI_QUIRK_MISSING_CAPS
+			  SDHCI_QUIRK_NO_CARD_NO_RESET,
 };
 
 static void ene_714_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
