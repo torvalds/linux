@@ -70,29 +70,61 @@ void __init ralink_of_remap(void)
 		panic("Failed to remap core resources");
 }
 
+static unsigned int __init rt3883_get_soc_name0(void)
+{
+	return __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_CHIPID0_3);
+}
+
+static unsigned int __init rt3883_get_soc_name1(void)
+{
+	return __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_CHIPID4_7);
+}
+
+static bool __init rt3883_soc_valid(void)
+{
+	if (rt3883_get_soc_name0() == RT3883_CHIP_NAME0 &&
+	    rt3883_get_soc_name1() == RT3883_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static const char __init *rt3883_get_soc_name(void)
+{
+	if (rt3883_soc_valid())
+		return "RT3883";
+	else
+		return "invalid";
+}
+
+static unsigned int __init rt3883_get_soc_id(void)
+{
+	return __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_REVID);
+}
+
+static unsigned int __init rt3883_get_soc_ver(void)
+{
+	return (rt3883_get_soc_id() >> RT3883_REVID_VER_ID_SHIFT) & RT3883_REVID_VER_ID_MASK;
+}
+
+static unsigned int __init rt3883_get_soc_rev(void)
+{
+	return (rt3883_get_soc_id() & RT3883_REVID_ECO_ID_MASK);
+}
+
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
-	const char *name;
-	u32 n0;
-	u32 n1;
-	u32 id;
-
-	n0 = __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_CHIPID0_3);
-	n1 = __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_CHIPID4_7);
-	id = __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_REVID);
-
-	if (n0 == RT3883_CHIP_NAME0 && n1 == RT3883_CHIP_NAME1) {
+	if (rt3883_soc_valid())
 		soc_info->compatible = "ralink,rt3883-soc";
-		name = "RT3883";
-	} else {
-		panic("rt3883: unknown SoC, n0:%08x n1:%08x", n0, n1);
-	}
+	else
+		panic("rt3883: unknown SoC, n0:%08x n1:%08x",
+		      rt3883_get_soc_name0(), rt3883_get_soc_name1());
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
 		"Ralink %s ver:%u eco:%u",
-		name,
-		(id >> RT3883_REVID_VER_ID_SHIFT) & RT3883_REVID_VER_ID_MASK,
-		(id & RT3883_REVID_ECO_ID_MASK));
+		rt3883_get_soc_name(),
+		rt3883_get_soc_ver(),
+		rt3883_get_soc_rev());
 
 	soc_info->mem_base = RT3883_SDRAM_BASE;
 	soc_info->mem_size_min = RT3883_MEM_SIZE_MIN;
