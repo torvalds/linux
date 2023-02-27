@@ -438,22 +438,16 @@ DECLARE_EVENT_CLASS(cdns3_log_ring,
 	TP_PROTO(struct cdns3_endpoint *priv_ep),
 	TP_ARGS(priv_ep),
 	TP_STRUCT__entry(
-		__dynamic_array(u8, ring, TRB_RING_SIZE)
-		__dynamic_array(u8, priv_ep, sizeof(struct cdns3_endpoint))
 		__dynamic_array(char, buffer,
-				(TRBS_PER_SEGMENT * 65) + CDNS3_MSG_MAX)
+				GET_TRBS_PER_SEGMENT(priv_ep->type) > TRBS_PER_SEGMENT ?
+				CDNS3_MSG_MAX :
+				(GET_TRBS_PER_SEGMENT(priv_ep->type) * 65) + CDNS3_MSG_MAX)
 	),
 	TP_fast_assign(
-		memcpy(__get_dynamic_array(priv_ep), priv_ep,
-		       sizeof(struct cdns3_endpoint));
-		memcpy(__get_dynamic_array(ring), priv_ep->trb_pool,
-		       TRB_RING_SIZE);
+		cdns3_dbg_ring(priv_ep, __get_str(buffer));
 	),
 
-	TP_printk("%s",
-		  cdns3_dbg_ring((struct cdns3_endpoint *)__get_str(priv_ep),
-				 (struct cdns3_trb *)__get_str(ring),
-				 __get_str(buffer)))
+	TP_printk("%s", __get_str(buffer))
 );
 
 DEFINE_EVENT(cdns3_log_ring, cdns3_ring,
