@@ -967,8 +967,7 @@ static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 
 static void alloc_new_bio(struct btrfs_inode *inode,
 			  struct btrfs_bio_ctrl *bio_ctrl,
-			  u64 disk_bytenr, u32 offset, u64 file_offset,
-			  enum btrfs_compression_type compress_type)
+			  u64 disk_bytenr, u32 offset, u64 file_offset)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *bio;
@@ -979,13 +978,12 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 	 * For compressed page range, its disk_bytenr is always @disk_bytenr
 	 * passed in, no matter if we have added any range into previous bio.
 	 */
-	if (compress_type != BTRFS_COMPRESS_NONE)
+	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
 		bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	else
 		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
 	btrfs_bio(bio)->file_offset = file_offset;
 	bio_ctrl->bio = bio;
-	bio_ctrl->compress_type = compress_type;
 	calc_bio_boundaries(bio_ctrl, inode, file_offset);
 
 	if (bio_ctrl->wbc) {
@@ -1006,7 +1004,6 @@ static void alloc_new_bio(struct btrfs_inode *inode,
  * @size:	portion of page that we want to write to
  * @pg_offset:	offset of the new bio or to check whether we are adding
  *              a contiguous page to the previous one
- * @compress_type:   compress type for current bio
  *
  * The will either add the page into the existing @bio_ctrl->bio, or allocate a
  * new one in @bio_ctrl->bio.
@@ -1015,8 +1012,7 @@ static void alloc_new_bio(struct btrfs_inode *inode,
  */
 static int submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 			      u64 disk_bytenr, struct page *page,
-			      size_t size, unsigned long pg_offset,
-			      enum btrfs_compression_type compress_type)
+			      size_t size, unsigned long pg_offset)
 {
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
 	unsigned int cur = pg_offset;
@@ -1035,14 +1031,13 @@ static int submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 		/* Allocate new bio if needed */
 		if (!bio_ctrl->bio) {
 			alloc_new_bio(inode, bio_ctrl, disk_bytenr,
-				      offset, page_offset(page) + cur,
-				      compress_type);
+				      offset, page_offset(page) + cur);
 		}
 		/*
 		 * We must go through btrfs_bio_add_page() to ensure each
 		 * page range won't cross various boundaries.
 		 */
-		if (compress_type != BTRFS_COMPRESS_NONE)
+		if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
 			added = btrfs_bio_add_page(bio_ctrl, page, disk_bytenr,
 					size - offset, pg_offset + offset);
 		else
@@ -1314,13 +1309,15 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 			continue;
 		}
 
-		if (bio_ctrl->compress_type != compress_type)
+		if (bio_ctrl->compress_type != compress_type) {
 			submit_one_bio(bio_ctrl);
+			bio_ctrl->compress_type = compress_type;
+		}
 
 		if (force_bio_submit)
 			submit_one_bio(bio_ctrl);
 		ret = submit_extent_page(bio_ctrl, disk_bytenr, page, iosize,
-					 pg_offset, compress_type);
+					 pg_offset);
 		if (ret) {
 			/*
 			 * We have to unlock the remaining range, or the page
@@ -1626,7 +1623,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		btrfs_page_clear_dirty(fs_info, page, cur, iosize);
 
 		ret = submit_extent_page(bio_ctrl, disk_bytenr, page,
-					 iosize, cur - page_offset(page), 0);
+					 iosize, cur - page_offset(page));
 		if (ret) {
 			has_error = true;
 			if (!saved_ret)
@@ -2116,7 +2113,7 @@ static int write_one_subpage_eb(struct extent_buffer *eb,
 	bio_ctrl->end_io_func = end_bio_subpage_eb_writepage;
 
 	ret = submit_extent_page(bio_ctrl, eb->start, page, eb->len,
-			eb->start - page_offset(page), 0);
+			eb->start - page_offset(page));
 	if (ret) {
 		btrfs_subpage_clear_writeback(fs_info, page, eb->start, eb->len);
 		set_btree_ioerr(page, eb);
@@ -2153,8 +2150,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
-		ret = submit_extent_page(bio_ctrl, disk_bytenr, p,
-					 PAGE_SIZE, 0, 0);
+		ret = submit_extent_page(bio_ctrl, disk_bytenr, p, PAGE_SIZE, 0);
 		if (ret) {
 			set_btree_ioerr(p, eb);
 			if (PageWriteback(p))
@@ -4423,7 +4419,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 
 	btrfs_subpage_start_reader(fs_info, page, eb->start, eb->len);
 	ret = submit_extent_page(&bio_ctrl, eb->start, page, eb->len,
-				 eb->start - page_offset(page), 0);
+				 eb->start - page_offset(page));
 	if (ret) {
 		/*
 		 * In the endio function, if we hit something wrong we will
@@ -4534,7 +4530,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 			ClearPageError(page);
 			err = submit_extent_page(&bio_ctrl,
 						 page_offset(page), page,
-						 PAGE_SIZE, 0, 0);
+						 PAGE_SIZE, 0);
 			if (err) {
 				/*
 				 * We failed to submit the bio so it's the
