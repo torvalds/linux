@@ -516,7 +516,7 @@ static int gxp_i2c_probe(struct platform_device *pdev)
 		i2cg_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							   "hpe,sysreg");
 		if (IS_ERR(i2cg_map)) {
-			return dev_err_probe(&pdev->dev, IS_ERR(i2cg_map),
+			return dev_err_probe(&pdev->dev, PTR_ERR(i2cg_map),
 					     "failed to map i2cg_handle\n");
 		}
 
