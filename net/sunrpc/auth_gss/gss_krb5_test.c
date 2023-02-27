@@ -519,6 +519,7 @@ static struct kunit_case rfc3961_test_cases[] = {
 		.run_case		= kdf_case,
 		.generate_params	= rfc3961_kdf_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc3961_suite = {
@@ -780,6 +781,7 @@ static struct kunit_case rfc3962_test_cases[] = {
 		.run_case		= rfc3962_encrypt_case,
 		.generate_params	= rfc3962_encrypt_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc3962_suite = {
@@ -1415,6 +1417,7 @@ static struct kunit_case rfc6803_test_cases[] = {
 		.run_case		= rfc6803_encrypt_case,
 		.generate_params	= rfc6803_encrypt_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc6803_suite = {
@@ -1907,6 +1910,7 @@ static struct kunit_case rfc8009_test_cases[] = {
 		.run_case		= rfc8009_encrypt_case,
 		.generate_params	= rfc8009_encrypt_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc8009_suite = {
@@ -2029,6 +2033,7 @@ static struct kunit_case encryption_test_cases[] = {
 		.run_case		= encrypt_selftest_case,
 		.generate_params	= encrypt_selftest_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite encryption_test_suite = {
