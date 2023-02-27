@@ -411,15 +411,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err_disable_aer;
 	}
 
-	ret = hw_data->dev_config(accel_dev);
-	if (ret)
-		goto out_err_disable_aer;
-
-	ret = adf_dev_init(accel_dev);
-	if (ret)
-		goto out_err_dev_shutdown;
-
-	ret = adf_dev_start(accel_dev);
+	ret = adf_dev_up(accel_dev, true);
 	if (ret)
 		goto out_err_dev_stop;
 
@@ -430,9 +422,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ret;
 
 out_err_dev_stop:
-	adf_dev_stop(accel_dev);
-out_err_dev_shutdown:
-	adf_dev_shutdown(accel_dev);
+	adf_dev_down(accel_dev, false);
 out_err_disable_aer:
 	adf_disable_aer(accel_dev);
 out_err:
@@ -448,8 +438,7 @@ static void adf_remove(struct pci_dev *pdev)
 		pr_err("QAT: Driver removal failed\n");
 		return;
 	}
-	adf_dev_stop(accel_dev);
-	adf_dev_shutdown(accel_dev);
+	adf_dev_down(accel_dev, false);
 	adf_disable_aer(accel_dev);
 	adf_cleanup_accel(accel_dev);
 }

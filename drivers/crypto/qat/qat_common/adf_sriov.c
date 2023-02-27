@@ -159,7 +159,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 			return -EBUSY;
 		}
 
-		ret = adf_dev_shutdown_cache_cfg(accel_dev);
+		ret = adf_dev_down(accel_dev, true);
 		if (ret)
 			return ret;
 	}
@@ -184,13 +184,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 	if (!accel_dev->pf.vf_info)
 		return -ENOMEM;
 
-	if (adf_dev_init(accel_dev)) {
-		dev_err(&GET_DEV(accel_dev), "Failed to init qat_dev%d\n",
-			accel_dev->accel_id);
-		return -EFAULT;
-	}
-
-	if (adf_dev_start(accel_dev)) {
+	if (adf_dev_up(accel_dev, false)) {
 		dev_err(&GET_DEV(accel_dev), "Failed to start qat_dev%d\n",
 			accel_dev->accel_id);
 		return -EFAULT;

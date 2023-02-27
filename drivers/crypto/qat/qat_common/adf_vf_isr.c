@@ -71,8 +71,7 @@ static void adf_dev_stop_async(struct work_struct *work)
 	struct adf_accel_dev *accel_dev = stop_data->accel_dev;
 
 	adf_dev_restarting_notify(accel_dev);
-	adf_dev_stop(accel_dev);
-	adf_dev_shutdown(accel_dev);
+	adf_dev_down(accel_dev, false);
 
 	/* Re-enable PF2VF interrupts */
 	adf_enable_pf2vf_interrupts(accel_dev);

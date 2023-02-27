@@ -244,8 +244,7 @@ static void adf_ctl_stop_devices(u32 id)
 			if (!accel_dev->is_vf)
 				continue;
 
-			adf_dev_stop(accel_dev);
-			adf_dev_shutdown(accel_dev);
+			adf_dev_down(accel_dev, false);
 		}
 	}
 
@@ -254,8 +253,7 @@ static void adf_ctl_stop_devices(u32 id)
 			if (!adf_dev_started(accel_dev))
 				continue;
 
-			adf_dev_stop(accel_dev);
-			adf_dev_shutdown(accel_dev);
+			adf_dev_down(accel_dev, false);
 		}
 	}
 }
@@ -309,23 +307,16 @@ static int adf_ctl_ioctl_dev_start(struct file *fp, unsigned int cmd,
 	if (!accel_dev)
 		goto out;
 
-	if (!adf_dev_started(accel_dev)) {
-		dev_info(&GET_DEV(accel_dev),
-			 "Starting acceleration device qat_dev%d.\n",
-			 ctl_data->device_id);
-		ret = adf_dev_init(accel_dev);
-		if (!ret)
-			ret = adf_dev_start(accel_dev);
-	} else {
-		dev_info(&GET_DEV(accel_dev),
-			 "Acceleration device qat_dev%d already started.\n",
-			 ctl_data->device_id);
-	}
+	dev_info(&GET_DEV(accel_dev),
+		 "Starting acceleration device qat_dev%d.\n",
+		 ctl_data->device_id);
+
+	ret = adf_dev_up(accel_dev, false);
+
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev), "Failed to start qat_dev%d\n",
 			ctl_data->device_id);
-		adf_dev_stop(accel_dev);
-		adf_dev_shutdown(accel_dev);
+		adf_dev_down(accel_dev, false);
 	}
 out:
 	kfree(ctl_data);
