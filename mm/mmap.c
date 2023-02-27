@@ -575,6 +575,8 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 	vma->vm_pgoff = pgoff;
 	/* Note: mas must be pointing to the expanding VMA */
 	vma_mas_store(vma, mas);
+	if (remove_next)
+		vma_mark_detached(next, true);
 
 	if (file) {
 		vma_interval_tree_insert(vma, root);
@@ -857,6 +859,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 
 	if (remove_next) {
 again:
+		vma_mark_detached(next, true);
 		if (file) {
 			uprobe_munmap(next, next->vm_start, next->vm_end);
 			fput(file);
@@ -2323,6 +2326,7 @@ static inline int munmap_sidetree(struct vm_area_struct *vma, int count,
 	if (mas_store_gfp(mas_detach, vma, GFP_KERNEL))
 		return -ENOMEM;
 
+	vma_mark_detached(vma, true);
 	if (vma->vm_flags & VM_LOCKED)
 		vma->vm_mm->locked_vm -= vma_pages(vma);
 
