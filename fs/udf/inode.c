@@ -193,7 +193,7 @@ static int udf_adinicb_writepage(struct folio *folio,
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	BUG_ON(!PageLocked(page));
-	memcpy_to_page(page, 0, iinfo->i_data + iinfo->i_lenEAttr,
+	memcpy_from_page(iinfo->i_data + iinfo->i_lenEAttr, page, 0,
 		       i_size_read(inode));
 	unlock_page(page);
 	mark_inode_dirty(inode);
