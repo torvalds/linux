@@ -324,34 +324,76 @@ mt7628_dram_init(struct ralink_soc_info *soc_info)
 	}
 }
 
-void __init prom_soc_init(struct ralink_soc_info *soc_info)
+static unsigned int __init mt7620_get_soc_name0(void)
 {
-	unsigned char *name = NULL;
-	u32 n0;
-	u32 n1;
-	u32 rev;
-	u32 cfg0;
-	u32 pmu0;
-	u32 pmu1;
-	u32 bga;
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME0);
+}
 
-	n0 = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME1);
-	rev = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_REV);
-	bga = (rev >> CHIP_REV_PKG_SHIFT) & CHIP_REV_PKG_MASK;
+static unsigned int __init mt7620_get_soc_name1(void)
+{
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME1);
+}
 
-	if (n0 == MT7620_CHIP_NAME0 && n1 == MT7620_CHIP_NAME1) {
+static bool __init mt7620_soc_valid(void)
+{
+	if (mt7620_get_soc_name0() == MT7620_CHIP_NAME0 &&
+	    mt7620_get_soc_name1() == MT7620_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static bool __init mt7628_soc_valid(void)
+{
+	if (mt7620_get_soc_name0() == MT7620_CHIP_NAME0 &&
+	    mt7620_get_soc_name1() == MT7628_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static unsigned int __init mt7620_get_rev(void)
+{
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_REV);
+}
+
+static unsigned int __init mt7620_get_bga(void)
+{
+	return (mt7620_get_rev() >> CHIP_REV_PKG_SHIFT) & CHIP_REV_PKG_MASK;
+}
+
+static unsigned int __init mt7620_get_efuse(void)
+{
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_EFUSE_CFG);
+}
+
+static unsigned int __init mt7620_get_soc_ver(void)
+{
+	return (mt7620_get_rev() >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK;
+}
+
+static unsigned int __init mt7620_get_soc_eco(void)
+{
+	return (mt7620_get_rev() & CHIP_REV_ECO_MASK);
+}
+
+static const char __init *mt7620_get_soc_name(struct ralink_soc_info *soc_info)
+{
+	if (mt7620_soc_valid()) {
+		u32 bga = mt7620_get_bga();
+
 		if (bga) {
 			ralink_soc = MT762X_SOC_MT7620A;
-			name = "MT7620A";
 			soc_info->compatible = "ralink,mt7620a-soc";
+			return "MT7620A";
 		} else {
 			ralink_soc = MT762X_SOC_MT7620N;
-			name = "MT7620N";
 			soc_info->compatible = "ralink,mt7620n-soc";
+			return "MT7620N";
 		}
-	} else if (n0 == MT7620_CHIP_NAME0 && n1 == MT7628_CHIP_NAME1) {
-		u32 efuse = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_EFUSE_CFG);
+	} else if (mt7628_soc_valid()) {
+		u32 efuse = mt7620_get_efuse();
+		unsigned char *name = NULL;
 
 		if (efuse & EFUSE_MT7688) {
 			ralink_soc = MT762X_SOC_MT7688;
@@ -361,15 +403,23 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 			name = "MT7628AN";
 		}
 		soc_info->compatible = "ralink,mt7628an-soc";
+		return name;
 	} else {
-		panic("mt762x: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
+		panic("mt762x: unknown SoC, n0:%08x n1:%08x\n",
+		      mt7620_get_soc_name0(), mt7620_get_soc_name1());
 	}
+}
+
+void __init prom_soc_init(struct ralink_soc_info *soc_info)
+{
+	const char *name = mt7620_get_soc_name(soc_info);
+	u32 cfg0;
+	u32 pmu0;
+	u32 pmu1;
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
 		"MediaTek %s ver:%u eco:%u",
-		name,
-		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
-		(rev & CHIP_REV_ECO_MASK));
+		name, mt7620_get_soc_ver(), mt7620_get_soc_eco());
 
 	cfg0 = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_SYSTEM_CONFIG0);
 	if (is_mt76x8()) {
