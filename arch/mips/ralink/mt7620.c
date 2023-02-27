@@ -326,7 +326,6 @@ mt7628_dram_init(struct ralink_soc_info *soc_info)
 
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
-	void __iomem *sysc = (void __iomem *) KSEG1ADDR(MT7620_SYSC_BASE);
 	unsigned char *name = NULL;
 	u32 n0;
 	u32 n1;
@@ -336,9 +335,9 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 	u32 pmu1;
 	u32 bga;
 
-	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
-	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
+	n0 = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME0);
+	n1 = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME1);
+	rev = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_REV);
 	bga = (rev >> CHIP_REV_PKG_SHIFT) & CHIP_REV_PKG_MASK;
 
 	if (n0 == MT7620_CHIP_NAME0 && n1 == MT7620_CHIP_NAME1) {
@@ -352,7 +351,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 			soc_info->compatible = "ralink,mt7620n-soc";
 		}
 	} else if (n0 == MT7620_CHIP_NAME0 && n1 == MT7628_CHIP_NAME1) {
-		u32 efuse = __raw_readl(sysc + SYSC_REG_EFUSE_CFG);
+		u32 efuse = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_EFUSE_CFG);
 
 		if (efuse & EFUSE_MT7688) {
 			ralink_soc = MT762X_SOC_MT7688;
@@ -372,7 +371,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
 		(rev & CHIP_REV_ECO_MASK));
 
-	cfg0 = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG0);
+	cfg0 = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_SYSTEM_CONFIG0);
 	if (is_mt76x8()) {
 		dram_type = cfg0 & DRAM_TYPE_MT7628_MASK;
 	} else {
@@ -388,8 +387,8 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 	else
 		mt7620_dram_init(soc_info);
 
-	pmu0 = __raw_readl(sysc + PMU0_CFG);
-	pmu1 = __raw_readl(sysc + PMU1_CFG);
+	pmu0 = __raw_readl(MT7620_SYSC_BASE + PMU0_CFG);
+	pmu1 = __raw_readl(MT7620_SYSC_BASE + PMU1_CFG);
 
 	pr_info("Analog PMU set to %s control\n",
 		(pmu0 & PMU_SW_SET) ? ("sw") : ("hw"));
