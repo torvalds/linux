@@ -1502,10 +1502,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	u64 extent_offset;
 	u64 block_start;
 	struct extent_map *em;
-	int saved_ret = 0;
 	int ret = 0;
 	int nr = 0;
-	bool has_error = false;
 	bool compressed;
 
 	ret = btrfs_writepage_cow_fixup(page);
@@ -1556,10 +1554,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		if (IS_ERR(em)) {
 			btrfs_page_set_error(fs_info, page, cur, end - cur + 1);
 			ret = PTR_ERR_OR_ZERO(em);
-			has_error = true;
-			if (!saved_ret)
-				saved_ret = ret;
-			break;
+			goto out_error;
 		}
 
 		extent_offset = cur - em->start;
@@ -1613,18 +1608,19 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 
 		submit_extent_page(bio_ctrl, disk_bytenr, page, iosize,
 				   cur - page_offset(page));
-		ret = 0;
 		cur += iosize;
 		nr++;
 	}
+
+	btrfs_page_assert_not_dirty(fs_info, page);
+	*nr_ret = nr;
+	return 0;
+
+out_error:
 	/*
 	 * If we finish without problem, we should not only clear page dirty,
 	 * but also empty subpage dirty bits
 	 */
-	if (!has_error)
-		btrfs_page_assert_not_dirty(fs_info, page);
-	else
-		ret = saved_ret;
 	*nr_ret = nr;
 	return ret;
 }
