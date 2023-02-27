@@ -74,6 +74,30 @@ enum socinfo_parttype {
 	SOCINFO_PART_MAX_PARTTYPE
 };
 
+enum subset_part_type {
+	PART_UNKNOWN,
+	PART_GPU,
+	PART_VIDEO,
+	PART_CAMERA,
+	PART_DISPLAY,
+	PART_AUDIO,
+	PART_MODEM,
+	PART_WLAN,
+	PART_COMP,
+	PART_SENSORS,
+	PART_NPU,
+	PART_SPSS,
+	PART_NAV,
+	PART_COMP1,
+	PART_DISPLAY1,
+	NUM_PARTS_MAX,
+};
+
+enum subset_cluster_type {
+	CLUSTER_CPUSS,
+	NUM_CLUSTERS_MAX,
+};
+
 #if IS_ENABLED(CONFIG_QCOM_SOCINFO)
 uint32_t socinfo_get_id(void);
 uint32_t socinfo_get_serial_number(void);
@@ -84,6 +108,8 @@ char *socinfo_get_partinfo_part_name(unsigned int part_id);
 uint32_t socinfo_get_partinfo_chip_id(unsigned int part_id);
 uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id);
 int socinfo_get_oem_variant_id(void);
+uint32_t socinfo_get_cluster_info(enum subset_cluster_type cluster);
+bool socinfo_get_part_info(enum subset_part_type part);
 #else
 static inline uint32_t socinfo_get_id(void)
 {
@@ -122,6 +148,14 @@ uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id)
 int socinfo_get_oem_variant_id(void)
 {
 	return -EINVAL;
+}
+uint32_t socinfo_get_cluster_info(enum subset_cluster_type cluster)
+{
+	return 0;
+}
+bool socinfo_get_part_info(enum subset_part_type part)
+{
+	return FALSE;
 }
 #endif /* CONFIG_QCOM_SOCINFO */
 
