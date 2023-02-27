@@ -94,7 +94,7 @@ examples:
     #include <dt-bindings/clock/imx8mp-clock.h>
     #include <dt-bindings/power/imx8mp-power.h>
 
-    media_blk_ctl: blk-ctl@32ec0000 {
+    blk-ctrl@32ec0000 {
         compatible = "fsl,imx8mp-media-blk-ctrl", "syscon";
         reg = <0x32ec0000 0x138>;
         power-domains = <&mediamix_pd>, <&mipi_phy1_pd>, <&mipi_phy1_pd>,
