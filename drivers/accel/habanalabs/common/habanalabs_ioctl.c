@@ -1002,6 +1002,8 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_FW_ERR_EVENT:
 		return fw_err_info(hpriv, args);
 
+	case HL_INFO_DRAM_USAGE:
+		return dram_usage_info(hpriv, args);
 	default:
 		break;
 	}
@@ -1014,10 +1016,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	}
 
 	switch (args->op) {
-	case HL_INFO_DRAM_USAGE:
-		rc = dram_usage_info(hpriv, args);
-		break;
-
 	case HL_INFO_HW_IDLE:
 		rc = hw_idle(hdev, args);
 		break;
