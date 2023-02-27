@@ -49,7 +49,8 @@ static void kdf_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	derivedkey.data = kunit_kzalloc(test, param->expected_result->len,
 					GFP_KERNEL);
@@ -83,7 +84,8 @@ static void checksum_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	Kc.len = gk5e->Kc_length;
 	Kc.data = kunit_kzalloc(test, Kc.len, GFP_KERNEL);
@@ -725,7 +727,8 @@ static void rfc3962_encrypt_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
@@ -1319,7 +1322,8 @@ static void rfc6803_encrypt_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	usage.data[3] = param->constant;
 
@@ -1810,7 +1814,8 @@ static void rfc8009_encrypt_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	*(__be32 *)usage.data = cpu_to_be32(2);
 
@@ -1975,7 +1980,8 @@ static void encrypt_selftest_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
