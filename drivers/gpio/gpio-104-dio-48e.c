@@ -194,13 +194,9 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 		return -ENOMEM;
 
 	chip->name = name;
-	/* No IRQ status register so use CLEAR_INTERRUPT register instead */
-	chip->status_base = DIO48E_CLEAR_INTERRUPT;
 	chip->mask_base = DIO48E_ENABLE_INTERRUPT;
 	chip->ack_base = DIO48E_CLEAR_INTERRUPT;
-	/* CLEAR_INTERRUPT doubles as status register so we need it cleared */
-	chip->clear_ack = true;
-	chip->status_invert = true;
+	chip->no_status = true;
 	chip->num_regs = 1;
 	chip->irqs = dio48e_regmap_irqs;
 	chip->num_irqs = ARRAY_SIZE(dio48e_regmap_irqs);
