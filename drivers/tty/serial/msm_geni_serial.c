@@ -106,6 +106,7 @@ static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENAB
 
 /* UART DMA Rx GP_IRQ_BITS */
 #define UART_DMA_RX_PARITY_ERR	BIT(5)
+#define UART_DMA_RX_FRAMING_ERR	BIT(6)
 #define UART_DMA_RX_ERRS	(GENMASK(6, 5))
 #define UART_DMA_RX_BREAK	(GENMASK(8, 7))
 
@@ -231,6 +232,7 @@ static void __ftrace_dbg(struct device *dev, const char *fmt, ...)
  *  and SOC is not ready to receive data
  * @UART_ERROR_FLOW_OFF: used to indicate when UART is not ready to
  *  receive data and flow is turned off
+ * @UART_ERROR_RX_FRAMING_ERR: used when Rx framing error encountered
  */
 enum uart_error_code {
 	UART_ERROR_DEFAULT = 0,
@@ -255,6 +257,7 @@ enum uart_error_code {
 	UART_ERROR_RX_SBE_ERROR = 19,
 	SOC_ERROR_START_TX_IOS_SOC_RFR_HIGH = 20,
 	UART_ERROR_FLOW_OFF = 21,
+	UART_ERROR_RX_FRAMING_ERR = 22,
 
 	/* keep last */
 	UART_ERROR_CODE_MAX,
@@ -2952,61 +2955,69 @@ static bool handle_rx_dma_xfer(u32 s_irq_status, struct uart_port *uport)
 	unsigned long lock_flags;
 
 	spin_lock_irqsave(&msm_port->rx_lock, lock_flags);
-	dma_rx_status = geni_read_reg(uport->membase,
-						SE_DMA_RX_IRQ_STAT);
+	dma_rx_status = geni_read_reg(uport->membase, SE_DMA_RX_IRQ_STAT);
 
 	if (dma_rx_status) {
-		geni_write_reg(dma_rx_status, uport->membase,
-					SE_DMA_RX_IRQ_CLR);
+		geni_write_reg(dma_rx_status, uport->membase, SE_DMA_RX_IRQ_CLR);
 
 		if (dma_rx_status & RX_RESET_DONE) {
 			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
-			"%s.Reset done.  0x%x.\n", __func__, dma_rx_status);
+				     "%s Rx Reset done dma_rx_status=0x%x\n",
+				     __func__, dma_rx_status);
 			ret = true;
 		}
 
-		if (dma_rx_status & UART_DMA_RX_ERRS) {
-			if (dma_rx_status & UART_DMA_RX_PARITY_ERR) {
-				uport->icount.parity++;
-				msm_geni_update_uart_error_code(msm_port,
-					UART_ERROR_RX_PARITY_ERROR);
-			}
-			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
-				"%s.Rx Errors.  0x%x parity:%d\n",
-					__func__, dma_rx_status,
-					uport->icount.parity);
-			drop_rx = true;
-		} else if (dma_rx_status & UART_DMA_RX_BREAK) {
-			uport->icount.brk++;
-			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
-				"%s.Rx Errors.  0x%x break:%d\n",
-				__func__, dma_rx_status,
-				uport->icount.brk);
+		if (dma_rx_status & UART_DMA_RX_PARITY_ERR) {
+			uport->icount.parity++;
 			msm_geni_update_uart_error_code(msm_port,
-						UART_ERROR_RX_BREAK_ERROR);
+							UART_ERROR_RX_PARITY_ERROR);
+			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
+				     "%s dma_rx_status:0x%x Rx Parity error:%d\n",
+				     __func__, dma_rx_status,
+				     uport->icount.parity);
+			drop_rx = true;
 		}
 
-		if (dma_rx_status & RX_EOT ||
-				dma_rx_status & RX_DMA_DONE) {
-			msm_geni_serial_handle_dma_rx(uport,
-						drop_rx);
+		if (dma_rx_status & UART_DMA_RX_FRAMING_ERR) {
+			uport->icount.frame++;
+			msm_geni_update_uart_error_code(msm_port,
+							UART_ERROR_RX_FRAMING_ERR);
+			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
+				     "%s dma_rx_status:0x%x Rx Framing error:%d\n",
+				     __func__, dma_rx_status,
+				     uport->icount.frame);
+			drop_rx = true;
+		}
+
+		if (dma_rx_status & UART_DMA_RX_BREAK) {
+			uport->icount.brk++;
+			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
+				     "%s dma_rx_status:0x%x Rx Break error:%d\n",
+				     __func__, dma_rx_status, uport->icount.brk);
+			msm_geni_update_uart_error_code(msm_port,
+							UART_ERROR_RX_BREAK_ERROR);
+		}
+
+		if (dma_rx_status & RX_EOT || dma_rx_status & RX_DMA_DONE) {
+			msm_geni_serial_handle_dma_rx(uport, drop_rx);
 			if (!(dma_rx_status & RX_GENI_CANCEL_IRQ)) {
 				UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
-				"%s. mapping rx dma\n", __func__);
+					     "%s mapping rx dma\n", __func__);
 				geni_se_common_rx_dma_start(uport->membase,
-				DMA_RX_BUF_SIZE, &msm_port->rx_dma);
+							    DMA_RX_BUF_SIZE,
+							    &msm_port->rx_dma);
 			} else {
 				UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
-				"%s. not mapping rx dma\n",
-				__func__);
+					     "%s not mapping rx dma\n", __func__);
 			}
 		}
 
 		if (dma_rx_status & RX_SBE) {
 			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
-				"%s.Rx Errors.  0x%x\n",
-				__func__, dma_rx_status);
-			msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_SBE_ERROR);
+				     "%s dma_rx_status:0x%x\n", __func__,
+				     dma_rx_status);
+			msm_geni_update_uart_error_code(msm_port,
+							UART_ERROR_RX_SBE_ERROR);
 			WARN_ON(1);
 		}
 
