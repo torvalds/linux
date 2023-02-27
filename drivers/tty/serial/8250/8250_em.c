@@ -20,7 +20,6 @@
 #define UART_DLM_EM 10
 
 struct serial8250_em_priv {
-	struct clk *sclk;
 	int line;
 };
 
@@ -82,6 +81,7 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uart_8250_port up;
 	struct resource *regs;
+	struct clk *sclk;
 	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
@@ -96,9 +96,9 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->sclk = devm_clk_get(dev, "sclk");
-	if (IS_ERR(priv->sclk))
-		return dev_err_probe(dev, PTR_ERR(priv->sclk), "unable to get clock\n");
+	sclk = devm_clk_get_enabled(dev, "sclk");
+	if (IS_ERR(sclk))
+		return dev_err_probe(dev, PTR_ERR(sclk), "unable to get clock\n");
 
 	memset(&up, 0, sizeof(up));
 	up.port.mapbase = regs->start;
@@ -108,8 +108,7 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	up.port.dev = dev;
 	up.port.private_data = priv;
 
-	clk_prepare_enable(priv->sclk);
-	up.port.uartclk = clk_get_rate(priv->sclk);
+	up.port.uartclk = clk_get_rate(sclk);
 
 	up.port.iotype = UPIO_MEM32;
 	up.port.serial_in = serial8250_em_serial_in;
@@ -118,10 +117,8 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	up.dl_write = serial8250_em_serial_dl_write;
 
 	ret = serial8250_register_8250_port(&up);
-	if (ret < 0) {
-		clk_disable_unprepare(priv->sclk);
+	if (ret < 0)
 		return dev_err_probe(dev, ret, "unable to register 8250 port\n");
-	}
 
 	priv->line = ret;
 	platform_set_drvdata(pdev, priv);
@@ -133,7 +130,6 @@ static int serial8250_em_remove(struct platform_device *pdev)
 	struct serial8250_em_priv *priv = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(priv->line);
-	clk_disable_unprepare(priv->sclk);
 	return 0;
 }
 
