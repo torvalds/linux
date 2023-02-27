@@ -3146,7 +3146,7 @@ static int phy_probe(struct device *dev)
 	 */
 	err = genphy_c45_read_eee_adv(phydev, phydev->advertising_eee);
 	if (err)
-		return err;
+		goto out;
 
 	/* There is no "enabled" flag. If PHY is advertising, assume it is
 	 * kind of enabled.
