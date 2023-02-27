@@ -28,8 +28,12 @@
 };
 
 /*
- * The pins of pcie2x1 and rgb are multiplexed
+ * The pins of gmac0/pcie2x1 and rgb are multiplexed
  */
+&gmac0 {
+	status = "disabled";
+};
+
 &pcie2x1 {
 	status = "disabled";
 };
@@ -213,9 +217,13 @@
 };
 
 /*
- * The pins of sai0 and backlight are multiplexed
+ * The pins of sai0/vcc_mipicsi0 and rgb are multiplexed
  */
 &sai0 {
+	status = "disabled";
+};
+
+&vcc_mipicsi0 {
 	status = "disabled";
 };
 
