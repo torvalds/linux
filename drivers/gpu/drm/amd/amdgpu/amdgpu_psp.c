@@ -1672,13 +1672,32 @@ int psp_ras_initialize(struct psp_context *psp)
 }
 
 int psp_ras_trigger_error(struct psp_context *psp,
-			  struct ta_ras_trigger_error_input *info)
+			  struct ta_ras_trigger_error_input *info, uint32_t instance_mask)
 {
 	struct ta_ras_shared_memory *ras_cmd;
+	struct amdgpu_device *adev = psp->adev;
 	int ret;
+	uint32_t dev_mask;
 
 	if (!psp->ras_context.context.initialized)
 		return -EINVAL;
+
+	switch (info->block_id) {
+	case TA_RAS_BLOCK__GFX:
+		dev_mask = GET_MASK(GC, instance_mask);
+		break;
+	case TA_RAS_BLOCK__SDMA:
+		dev_mask = GET_MASK(SDMA0, instance_mask);
+		break;
+	default:
+		dev_mask = instance_mask;
+		break;
+	}
+
+	/* reuse sub_block_index for backward compatibility */
+	dev_mask <<= AMDGPU_RAS_INST_SHIFT;
+	dev_mask &= AMDGPU_RAS_INST_MASK;
+	info->sub_block_index |= dev_mask;
 
 	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
 	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));

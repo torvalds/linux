@@ -256,6 +256,8 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 	int block_id;
 	uint32_t sub_block;
 	u64 address, value;
+	/* default value is 0 if the mask is not set by user */
+	u32 instance_mask = 0;
 
 	if (*pos)
 		return -EINVAL;
@@ -306,7 +308,11 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		data->op = op;
 
 		if (op == 2) {
-			if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
+			if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx 0x%x",
+				   &sub_block, &address, &value, &instance_mask) != 4 &&
+			    sscanf(str, "%*s %*s %*s %u %llu %llu %u",
+				   &sub_block, &address, &value, &instance_mask) != 4 &&
+				sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
 				   &sub_block, &address, &value) != 3 &&
 			    sscanf(str, "%*s %*s %*s %u %llu %llu",
 				   &sub_block, &address, &value) != 3)
@@ -314,6 +320,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 			data->head.sub_block_index = sub_block;
 			data->inject.address = address;
 			data->inject.value = value;
+			data->inject.instance_mask = instance_mask;
 		}
 	} else {
 		if (size < sizeof(*data))
@@ -341,7 +348,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  * sub_block_index: some IPs have subcomponets. say, GFX, sDMA.
  * name: the name of IP.
  *
- * inject has two more members than head, they are address, value.
+ * inject has three more members than head, they are address, value and mask.
  * As their names indicate, inject operation will write the
  * value to the address.
  *
@@ -365,7 +372,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *
  *	echo "disable <block>" > /sys/kernel/debug/dri/<N>/ras/ras_ctrl
  *	echo "enable  <block> <error>" > /sys/kernel/debug/dri/<N>/ras/ras_ctrl
- *	echo "inject  <block> <error> <sub-block> <address> <value> > /sys/kernel/debug/dri/<N>/ras/ras_ctrl
+ *	echo "inject  <block> <error> <sub-block> <address> <value> <mask>" > /sys/kernel/debug/dri/<N>/ras/ras_ctrl
  *
  * Where N, is the card which you want to affect.
  *
@@ -382,13 +389,14 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *
  * The sub-block is a the sub-block index, pass 0 if there is no sub-block.
  * The address and value are hexadecimal numbers, leading 0x is optional.
+ * The mask means instance mask, is optional, default value is 0x1.
  *
  * For instance,
  *
  * .. code-block:: bash
  *
  *	echo inject umc ue 0x0 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
- *	echo inject umc ce 0 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ce 0 0 0 3 > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *	echo disable umc > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *
  * How to check the result of the operation?
@@ -1117,13 +1125,14 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 
 	if (info->head.block == AMDGPU_RAS_BLOCK__GFX) {
 		if (block_obj->hw_ops->ras_error_inject)
-			ret = block_obj->hw_ops->ras_error_inject(adev, info);
+			ret = block_obj->hw_ops->ras_error_inject(adev, info, info->instance_mask);
 	} else {
 		/* If defined special ras_error_inject(e.g: xgmi), implement special ras_error_inject */
 		if (block_obj->hw_ops->ras_error_inject)
-			ret = block_obj->hw_ops->ras_error_inject(adev, &block_info);
+			ret = block_obj->hw_ops->ras_error_inject(adev, &block_info,
+						info->instance_mask);
 		else  /*If not defined .ras_error_inject, use default ras_error_inject*/
-			ret = psp_ras_trigger_error(&adev->psp, &block_info);
+			ret = psp_ras_trigger_error(&adev->psp, &block_info, info->instance_mask);
 	}
 
 	if (ret)

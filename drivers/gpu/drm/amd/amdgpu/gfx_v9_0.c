@@ -770,7 +770,7 @@ static u64 gfx_v9_0_ring_get_rptr_compute(struct amdgpu_ring *ring);
 static void gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 					  void *ras_error_status);
 static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
-				     void *inject_if);
+				     void *inject_if, uint32_t instance_mask);
 static void gfx_v9_0_reset_ras_error_count(struct amdgpu_device *adev);
 
 static void gfx_v9_0_kiq_set_resources(struct amdgpu_ring *kiq_ring,
@@ -6335,7 +6335,7 @@ static const struct soc15_ras_field_entry gfx_v9_0_ras_fields[] = {
 };
 
 static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
-				     void *inject_if)
+				     void *inject_if, uint32_t instance_mask)
 {
 	struct ras_inject_if *info = (struct ras_inject_if *)inject_if;
 	int ret;
@@ -6374,7 +6374,7 @@ static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 	block_info.value = info->value;
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	ret = psp_ras_trigger_error(&adev->psp, &block_info);
+	ret = psp_ras_trigger_error(&adev->psp, &block_info, instance_mask);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return ret;

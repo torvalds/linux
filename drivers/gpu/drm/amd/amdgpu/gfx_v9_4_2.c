@@ -1699,7 +1699,8 @@ static void gfx_v9_4_2_reset_ras_error_count(struct amdgpu_device *adev)
 	gfx_v9_4_2_query_utc_edc_count(adev, NULL, NULL);
 }
 
-static int gfx_v9_4_2_ras_error_inject(struct amdgpu_device *adev, void *inject_if)
+static int gfx_v9_4_2_ras_error_inject(struct amdgpu_device *adev,
+			void *inject_if, uint32_t instance_mask)
 {
 	struct ras_inject_if *info = (struct ras_inject_if *)inject_if;
 	int ret;
@@ -1715,7 +1716,7 @@ static int gfx_v9_4_2_ras_error_inject(struct amdgpu_device *adev, void *inject_
 	block_info.value = info->value;
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	ret = psp_ras_trigger_error(&adev->psp, &block_info);
+	ret = psp_ras_trigger_error(&adev->psp, &block_info, instance_mask);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return ret;

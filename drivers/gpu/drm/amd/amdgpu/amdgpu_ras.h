@@ -32,6 +32,11 @@
 struct amdgpu_iv_entry;
 
 #define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		(0x1 << 0)
+/* position of instance value in sub_block_index of
+ * ta_ras_trigger_error_input, the sub block uses lower 12 bits
+ */
+#define AMDGPU_RAS_INST_MASK 0xfffff000
+#define AMDGPU_RAS_INST_SHIFT 0xc
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
@@ -508,6 +513,7 @@ struct ras_inject_if {
 	struct ras_common_if head;
 	uint64_t address;
 	uint64_t value;
+	uint32_t instance_mask;
 };
 
 struct ras_cure_if {
@@ -545,7 +551,8 @@ struct amdgpu_ras_block_object {
 };
 
 struct amdgpu_ras_block_hw_ops {
-	int  (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
+	int  (*ras_error_inject)(struct amdgpu_device *adev,
+			void *inject_if, uint32_t instance_mask);
 	void (*query_ras_error_count)(struct amdgpu_device *adev, void *ras_error_status);
 	void (*query_ras_error_status)(struct amdgpu_device *adev);
 	void (*query_ras_error_address)(struct amdgpu_device *adev, void *ras_error_status);
