@@ -25,7 +25,9 @@
 
 #ifndef DC_INC_LINK_DP_DPIA_BW_H_
 #define DC_INC_LINK_DP_DPIA_BW_H_
+
 #include "link.h"
+
 /*
  * Host Router BW type
  */
@@ -79,5 +81,17 @@ int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pea
  * return: none
  */
 void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result);
+
+/*
+ * Handle the validation of total BW here and confirm that the bw used by each
+ * DPIA doesn't exceed available BW for each host router (HR)
+ *
+ * @link[]: array of link pointer to all possible DPIA links
+ * @bw_needed[]: bw needed for each DPIA link based on timing
+ * @num_dpias: Number of DPIAs for the above 2 arrays. Should always be <= MAX_DPIA_NUM
+ *
+ * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
+ */
+bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, uint8_t num_dpias);
 
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */

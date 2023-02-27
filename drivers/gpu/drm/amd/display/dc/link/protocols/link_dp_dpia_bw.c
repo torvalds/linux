@@ -33,6 +33,10 @@
 #define DC_LOGGER \
 	link->ctx->logger
 
+/* Number of Host Routers per motherboard is 2 */
+#define MAX_HR_NUM			2
+/* Number of DPIA per host router is 2 */
+#define MAX_DPIA_NUM		(MAX_HR_NUM * 2)
 #define Kbps_TO_Gbps (1000 * 1000)
 
 // ------------------------------------------------------------------
@@ -456,5 +460,35 @@ int link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int re
 	}
 
 out:
+	return ret;
+}
+bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed_per_dpia, uint8_t num_dpias)
+{
+	bool ret = true;
+	int bw_needed_per_hr[MAX_HR_NUM] = { 0, 0 };
+	uint8_t lowest_dpia_index = 0, dpia_index = 0;
+
+	if (!num_dpias || num_dpias > MAX_DPIA_NUM)
+		return ret;
+
+	//Get total Host Router BW & Validate against each Host Router max BW
+	for (uint8_t i = 0; i < num_dpias; ++i) {
+
+		if (!link[i]->dpia_bw_alloc_config.bw_alloc_enabled)
+			continue;
+
+		lowest_dpia_index = get_lowest_dpia_index(link[i]);
+		if (link[i]->link_index < lowest_dpia_index)
+			continue;
+
+		dpia_index = (link[i]->link_index - lowest_dpia_index) / 2;
+		bw_needed_per_hr[dpia_index] += bw_needed_per_dpia[i];
+		if (bw_needed_per_hr[dpia_index] > get_host_router_total_bw(link[i], HOST_ROUTER_BW_ALLOCATED)) {
+
+			ret = false;
+			break;
+		}
+	}
+
 	return ret;
 }
