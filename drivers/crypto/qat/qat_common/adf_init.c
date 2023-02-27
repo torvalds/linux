@@ -464,3 +464,21 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_dev_up);
+
+int adf_dev_restart(struct adf_accel_dev *accel_dev)
+{
+	int ret = 0;
+
+	if (!accel_dev)
+		return -EFAULT;
+
+	adf_dev_down(accel_dev, false);
+
+	ret = adf_dev_up(accel_dev, false);
+	/* if device is already up return success*/
+	if (ret == -EALREADY)
+		return 0;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_dev_restart);
