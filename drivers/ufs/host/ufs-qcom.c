@@ -1177,7 +1177,7 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 			err = ufs_qcom_clk_scale_down_post_change(hba);
 
 
-		if (err || !dev_req_params) {
+		if (err) {
 			ufshcd_uic_hibern8_exit(hba);
 			return err;
 		}
