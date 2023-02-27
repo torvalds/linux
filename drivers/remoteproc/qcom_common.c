@@ -170,7 +170,8 @@ static int qcom_add_minidump_segments(struct rproc *rproc, struct minidump_subsy
 	int seg_cnt, i;
 	dma_addr_t da;
 	size_t size;
-	char *name;
+	char *name, *dbg_buf_name = "md_dbg_buf";
+	int len = strlen(dbg_buf_name);
 
 	if (WARN_ON(!list_empty(&rproc->dump_segments))) {
 		dev_err(&rproc->dev, "dump segment list already populated\n");
@@ -193,6 +194,13 @@ static int qcom_add_minidump_segments(struct rproc *rproc, struct minidump_subsy
 			}
 			da = le64_to_cpu(region.address);
 			size = le32_to_cpu(region.size);
+			if (le32_to_cpu(subsystem->encryption_status) != MD_SS_ENCR_DONE) {
+				if (!i && len < MAX_REGION_NAME_LENGTH &&
+				    !strcmp(name, dbg_buf_name))
+					rproc_coredump_add_custom_segment(rproc, da, size, dumpfn,
+									  name);
+				break;
+			}
 			rproc_coredump_add_custom_segment(rproc, da, size, dumpfn, name);
 		}
 	}
@@ -341,10 +349,8 @@ void qcom_minidump(struct rproc *rproc, struct device *md_dev, unsigned int mini
 	    qcom_collect_both_coredumps)
 		rproc_coredump(rproc);
 
-	if (le32_to_cpu(subsystem->encryption_status) != MD_SS_ENCR_DONE) {
-		dev_err(&rproc->dev, "Minidump not ready, skipping\n");
-		return;
-	}
+	if (le32_to_cpu(subsystem->encryption_status) != MD_SS_ENCR_DONE)
+		dev_err(&rproc->dev, "encryption_status != MD_SS_ENCR_DONE\n");
 
 	rproc_coredump_cleanup(rproc);
 

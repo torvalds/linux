@@ -149,6 +149,21 @@ void adsp_segment_dump(struct rproc *rproc, struct rproc_dump_segment *segment,
 {
 	struct qcom_adsp *adsp = rproc->priv;
 	int total_offset;
+	void __iomem *base;
+	int len = strlen("md_dbg_buf");
+
+	if (strnlen(segment->priv, len + 1) == len &&
+		    !strcmp(segment->priv, "md_dbg_buf")) {
+		base = ioremap((unsigned long)le64_to_cpu(segment->da), size);
+		if (!base) {
+			pr_err("failed to map md_dbg_buf region\n");
+			return;
+		}
+
+		memcpy_fromio(dest, base, size);
+		iounmap(base);
+		return;
+	}
 
 	total_offset = segment->da + segment->offset + offset - adsp->mem_phys;
 	if (total_offset < 0 || total_offset + size > adsp->mem_size) {
