@@ -741,7 +741,8 @@ st_asm330lhhx_mlc_alloc_iio_dev(struct st_asm330lhhx_hw *hw,
 		iio_dev->channels = st_asm330lhhx_mlc_fsm_x_ch;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_mlc_fsm_x_ch);
 		iio_dev->info = &st_asm330lhhx_mlc_event_info;
-		scnprintf(sensor->name, sizeof(sensor->name), "asm330lhhx_mlc");
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_mlc", hw->settings->id.name);
 		break;
 	case ST_ASM330LHHX_ID_MLC_0:
 	case ST_ASM330LHHX_ID_MLC_1:
@@ -757,7 +758,8 @@ st_asm330lhhx_mlc_alloc_iio_dev(struct st_asm330lhhx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_mlc_fsm_x_ch);
 		iio_dev->info = &st_asm330lhhx_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  "asm330lhhx_mlc_%d", id - ST_ASM330LHHX_ID_MLC_0);
+			  "%s_mlc_%d", hw->settings->id.name,
+			  id - ST_ASM330LHHX_ID_MLC_0);
 		sensor->outreg_addr = ST_ASM330LHHX_REG_MLC0_SRC_ADDR +
 				id - ST_ASM330LHHX_ID_MLC_0;
 		sensor->status = ST_ASM330LHHX_MLC_ENABLED;
@@ -787,7 +789,8 @@ st_asm330lhhx_mlc_alloc_iio_dev(struct st_asm330lhhx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_mlc_fsm_x_ch);
 		iio_dev->info = &st_asm330lhhx_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  "asm330lhhx_fsm_%d", id - ST_ASM330LHHX_ID_FSM_0);
+			  "%s_fsm_%d", hw->settings->id.name,
+			  id - ST_ASM330LHHX_ID_FSM_0);
 		sensor->outreg_addr = ST_ASM330LHHX_FSM_OUTS1_ADDR +
 				id - ST_ASM330LHHX_ID_FSM_0;
 		sensor->status = ST_ASM330LHHX_FSM_ENABLED;

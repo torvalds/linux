@@ -420,25 +420,29 @@ struct iio_dev *st_asm330lhhx_alloc_event_iiodev(struct st_asm330lhhx_hw *hw,
 	case ST_ASM330LHHX_ID_WK:
 		iio_dev->channels = st_asm330lhhx_wk_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_wk_channels);
-		iio_dev->name = "asm330lhhx_wk";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_wk", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_wk_info;
 		break;
 	case ST_ASM330LHHX_ID_FF:
 		iio_dev->channels = st_asm330lhhx_ff_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_ff_channels);
-		iio_dev->name = "asm330lhhx_ff";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_ff", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_ff_info;
 		break;
 	case ST_ASM330LHHX_ID_SC:
 		iio_dev->channels = st_asm330lhhx_sc_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_sc_channels);
-		iio_dev->name = "asm330lhhx_sc";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_sc", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_sc_info;
 		break;
 	case ST_ASM330LHHX_ID_6D:
 		iio_dev->channels = st_asm330lhhx_6D_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_6D_channels);
-		iio_dev->name = "asm330lhhx_6d";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_6d", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_6D_info;
 		break;
 	default:
@@ -446,6 +450,8 @@ struct iio_dev *st_asm330lhhx_alloc_event_iiodev(struct st_asm330lhhx_hw *hw,
 
 		return NULL;
 	}
+
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }
