@@ -57,29 +57,60 @@ void __init ralink_of_remap(void)
 		panic("Failed to remap core resources");
 }
 
+static unsigned int __init rt2880_get_soc_name0(void)
+{
+	return __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_NAME0);
+}
+
+static unsigned int __init rt2880_get_soc_name1(void)
+{
+	return __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_NAME1);
+}
+
+static bool __init rt2880_soc_valid(void)
+{
+	if (rt2880_get_soc_name0() == RT2880_CHIP_NAME0 &&
+	    rt2880_get_soc_name1() == RT2880_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static const char __init *rt2880_get_soc_name(void)
+{
+	if (rt2880_soc_valid())
+		return "RT2880";
+	else
+		return "invalid";
+}
+
+static unsigned int __init rt2880_get_soc_id(void)
+{
+	return __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_ID);
+}
+
+static unsigned int __init rt2880_get_soc_ver(void)
+{
+	return (rt2880_get_soc_id() >> CHIP_ID_ID_SHIFT) & CHIP_ID_ID_MASK;
+}
+
+static unsigned int __init rt2880_get_soc_rev(void)
+{
+	return (rt2880_get_soc_id() & CHIP_ID_REV_MASK);
+}
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
-	const char *name;
-	u32 n0;
-	u32 n1;
-	u32 id;
-
-	n0 = __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_NAME1);
-	id = __raw_readl(RT2880_SYSC_BASE + SYSC_REG_CHIP_ID);
-
-	if (n0 == RT2880_CHIP_NAME0 && n1 == RT2880_CHIP_NAME1) {
+	if (rt2880_soc_valid())
 		soc_info->compatible = "ralink,r2880-soc";
-		name = "RT2880";
-	} else {
-		panic("rt288x: unknown SoC, n0:%08x n1:%08x", n0, n1);
-	}
+	else
+		panic("rt288x: unknown SoC, n0:%08x n1:%08x",
+		      rt2880_get_soc_name0(), rt2880_get_soc_name1());
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
 		"Ralink %s id:%u rev:%u",
-		name,
-		(id >> CHIP_ID_ID_SHIFT) & CHIP_ID_ID_MASK,
-		(id & CHIP_ID_REV_MASK));
+		rt2880_get_soc_name(),
+		rt2880_get_soc_ver(),
+		rt2880_get_soc_rev());
 
 	soc_info->mem_base = RT2880_SDRAM_BASE;
 	soc_info->mem_size_min = RT2880_MEM_SIZE_MIN;
