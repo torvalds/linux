@@ -875,7 +875,6 @@ int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
  *                  a contiguous page to the previous one
  * @size:	    portion of page that we want to write
  * @pg_offset:	    starting offset in the page
- * @compress_type:  compression type of the current bio to see if we can merge them
  *
  * Attempt to add a page to bio considering stripe alignment etc.
  *
@@ -886,8 +885,7 @@ int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
 static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 			      struct page *page,
 			      u64 disk_bytenr, unsigned int size,
-			      unsigned int pg_offset,
-			      enum btrfs_compression_type compress_type)
+			      unsigned int pg_offset)
 {
 	struct bio *bio = bio_ctrl->bio;
 	u32 bio_size = bio->bi_iter.bi_size;
@@ -898,9 +896,6 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	ASSERT(bio);
 	/* The limit should be calculated when bio_ctrl->bio is allocated */
 	ASSERT(bio_ctrl->len_to_oe_boundary);
-	if (bio_ctrl->compress_type != compress_type)
-		return 0;
-
 
 	if (bio->bi_iter.bi_size == 0) {
 		/* We can always add a page into an empty bio. */
@@ -1049,12 +1044,11 @@ static int submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 		 */
 		if (compress_type != BTRFS_COMPRESS_NONE)
 			added = btrfs_bio_add_page(bio_ctrl, page, disk_bytenr,
-					size - offset, pg_offset + offset,
-					compress_type);
+					size - offset, pg_offset + offset);
 		else
 			added = btrfs_bio_add_page(bio_ctrl, page,
 					disk_bytenr + offset, size - offset,
-					pg_offset + offset, compress_type);
+					pg_offset + offset);
 
 		/* Metadata page range should never be split */
 		if (!is_data_inode(&inode->vfs_inode))
@@ -1319,6 +1313,9 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 			pg_offset += iosize;
 			continue;
 		}
+
+		if (bio_ctrl->compress_type != this_bio_flag)
+			submit_one_bio(bio_ctrl);
 
 		if (force_bio_submit)
 			submit_one_bio(bio_ctrl);
