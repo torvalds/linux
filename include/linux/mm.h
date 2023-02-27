@@ -665,18 +665,23 @@ static inline void vma_end_read(struct vm_area_struct *vma)
 	rcu_read_unlock();
 }
 
-static inline void vma_start_write(struct vm_area_struct *vma)
+static bool __is_vma_write_locked(struct vm_area_struct *vma, int *mm_lock_seq)
 {
-	int mm_lock_seq;
-
 	mmap_assert_write_locked(vma->vm_mm);
 
 	/*
 	 * current task is holding mmap_write_lock, both vma->vm_lock_seq and
 	 * mm->mm_lock_seq can't be concurrently modified.
 	 */
-	mm_lock_seq = READ_ONCE(vma->vm_mm->mm_lock_seq);
-	if (vma->vm_lock_seq == mm_lock_seq)
+	*mm_lock_seq = READ_ONCE(vma->vm_mm->mm_lock_seq);
+	return (vma->vm_lock_seq == *mm_lock_seq);
+}
+
+static inline void vma_start_write(struct vm_area_struct *vma)
+{
+	int mm_lock_seq;
+
+	if (__is_vma_write_locked(vma, &mm_lock_seq))
 		return;
 
 	down_write(&vma->lock);
@@ -684,14 +689,26 @@ static inline void vma_start_write(struct vm_area_struct *vma)
 	up_write(&vma->lock);
 }
 
+static inline bool vma_try_start_write(struct vm_area_struct *vma)
+{
+	int mm_lock_seq;
+
+	if (__is_vma_write_locked(vma, &mm_lock_seq))
+		return true;
+
+	if (!down_write_trylock(&vma->vm_lock->lock))
+		return false;
+
+	vma->vm_lock_seq = mm_lock_seq;
+	up_write(&vma->vm_lock->lock);
+	return true;
+}
+
 static inline void vma_assert_write_locked(struct vm_area_struct *vma)
 {
-	mmap_assert_write_locked(vma->vm_mm);
-	/*
-	 * current task is holding mmap_write_lock, both vma->vm_lock_seq and
-	 * mm->mm_lock_seq can't be concurrently modified.
-	 */
-	VM_BUG_ON_VMA(vma->vm_lock_seq != READ_ONCE(vma->vm_mm->mm_lock_seq), vma);
+	int mm_lock_seq;
+
+	VM_BUG_ON_VMA(!__is_vma_write_locked(vma, &mm_lock_seq), vma);
 }
 
 #else /* CONFIG_PER_VMA_LOCK */
@@ -701,6 +718,8 @@ static inline bool vma_start_read(struct vm_area_struct *vma)
 		{ return false; }
 static inline void vma_end_read(struct vm_area_struct *vma) {}
 static inline void vma_start_write(struct vm_area_struct *vma) {}
+static inline bool vma_try_start_write(struct vm_area_struct *vma)
+		{ return true; }
 static inline void vma_assert_write_locked(struct vm_area_struct *vma) {}
 
 #endif /* CONFIG_PER_VMA_LOCK */
