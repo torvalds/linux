@@ -19,6 +19,13 @@
 #define UART_DLL_EM 9
 #define UART_DLM_EM 10
 
+/*
+ * A high value for UART_FCR_EM avoids overlapping with existing UART_*
+ * register defines. UART_FCR_EM_HW is the real HW register offset.
+ */
+#define UART_FCR_EM 0x10003
+#define UART_FCR_EM_HW 3
+
 struct serial8250_em_priv {
 	int line;
 };
@@ -29,11 +36,14 @@ static void serial8250_em_serial_out(struct uart_port *p, int offset, int value)
 	case UART_TX: /* TX @ 0x00 */
 		writeb(value, p->membase);
 		break;
-	case UART_FCR: /* FCR @ 0x0c (+1) */
 	case UART_LCR: /* LCR @ 0x10 (+1) */
 	case UART_MCR: /* MCR @ 0x14 (+1) */
 	case UART_SCR: /* SCR @ 0x20 (+1) */
 		writel(value, p->membase + ((offset + 1) << 2));
+		break;
+	case UART_FCR:
+	case UART_FCR_EM:
+		writel(value, p->membase + (UART_FCR_EM_HW << 2));
 		break;
 	case UART_IER: /* IER @ 0x04 */
 		value &= 0x0f; /* only 4 valid bits - not Xscale */
@@ -55,6 +65,8 @@ static unsigned int serial8250_em_serial_in(struct uart_port *p, int offset)
 	case UART_MSR: /* MSR @ 0x1c (+1) */
 	case UART_SCR: /* SCR @ 0x20 (+1) */
 		return readl(p->membase + ((offset + 1) << 2));
+	case UART_FCR_EM:
+		return readl(p->membase + (UART_FCR_EM_HW << 2));
 	case UART_IER: /* IER @ 0x04 */
 	case UART_IIR: /* IIR @ 0x08 */
 	case UART_DLL_EM: /* DLL @ 0x24 (+9) */
