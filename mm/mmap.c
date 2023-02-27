@@ -2317,6 +2317,7 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 static inline int munmap_sidetree(struct vm_area_struct *vma, int count,
 				   struct ma_state *mas_detach)
 {
+	vma_start_write(vma);
 	mas_set(mas_detach, count);
 	if (mas_store_gfp(mas_detach, vma, GFP_KERNEL))
 		return -ENOMEM;
