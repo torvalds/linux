@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "cpufreq_hw_debug: %s: " fmt, __func__
@@ -18,6 +19,8 @@ enum debug_hw_regs_data {
 	REG_PERF_STATE,
 	REG_CYCLE_CNTR,
 	REG_PSTATE_STATUS,
+	REG_EPSS_DEBUG_STATUS,
+	REG_EPSS_DEBUG_SRB,
 
 	REG_ARRAY_SIZE,
 };
@@ -36,32 +39,39 @@ struct cpufreq_register_data {
 static struct cpufreq_hwregs *hw_regs;
 static const u16 *offsets;
 
-static const u16 cpufreq_qcom_std_data[REG_ARRAY_SIZE] = {
+static const u16 cpufreq_qcom_std_data[] = {
 	[REG_PERF_STATE]		= 0x920,
 	[REG_CYCLE_CNTR]		= 0x9c0,
 	[REG_PSTATE_STATUS]		= 0x700,
 };
 
-static const u16 cpufreq_qcom_std_epss_data[REG_ARRAY_SIZE] = {
+static const u16 cpufreq_qcom_std_epss_data[] = {
 	[REG_PERF_STATE]		= 0x320,
 	[REG_CYCLE_CNTR]		= 0x3c4,
 	[REG_PSTATE_STATUS]		= 0x020,
+	[REG_EPSS_DEBUG_STATUS]		= 0x01c,
+	[REG_EPSS_DEBUG_SRB]		= 0x0bc,
 };
 
 static int print_cpufreq_hw_debug_regs(struct seq_file *s, void *unused)
 {
-	int i, j;
+	int i, j, size = ARRAY_SIZE(cpufreq_qcom_std_data);
 	u32 regval;
 
 	static struct cpufreq_register_data data[] = {
 		{"PERF_STATE_DESIRED", REG_PERF_STATE},
 		{"CYCLE_CNTR_VAL", REG_CYCLE_CNTR},
 		{"PSTATE_STATUS", REG_PSTATE_STATUS},
+		{"EPSS_DEBUG_STATUS", REG_EPSS_DEBUG_STATUS},
+		{"EPSS_DEBUG_SRB", REG_EPSS_DEBUG_SRB},
 	};
+
+	if (offsets == cpufreq_qcom_std_epss_data)
+		size = ARRAY_SIZE(cpufreq_qcom_std_epss_data);
 
 	for (i = 0; i < hw_regs->domain_cnt; i++) {
 		seq_printf(s, "FREQUENCY DOMAIN %d\n", i);
-		for (j = 0; j < ARRAY_SIZE(data); j++) {
+		for (j = 0; j < size; j++) {
 			regval = readl_relaxed(hw_regs->base[i] +
 						offsets[data[j].offset]);
 			seq_printf(s, "%25s: 0x%.8x\n", data[j].name, regval);
@@ -86,18 +96,23 @@ static const struct file_operations cpufreq_debug_register_fops = {
 static int cpufreq_panic_callback(struct notifier_block *nfb,
 				  unsigned long event, void *unused)
 {
-	int i, j;
+	int i, j, size = ARRAY_SIZE(cpufreq_qcom_std_data);
 	u32 regval;
 
 	static struct cpufreq_register_data data[] = {
 		{"PERF_STATE_DESIRED", REG_PERF_STATE},
 		{"CYCLE_CNTR_VAL", REG_CYCLE_CNTR},
 		{"PSTATE_STATUS", REG_PSTATE_STATUS},
+		{"EPSS_DEBUG_STATUS", REG_EPSS_DEBUG_STATUS},
+		{"EPSS_DEBUG_SRB", REG_EPSS_DEBUG_SRB},
 	};
+
+	if (offsets == cpufreq_qcom_std_epss_data)
+		size = ARRAY_SIZE(cpufreq_qcom_std_epss_data);
 
 	for (i = 0; i < hw_regs->domain_cnt; i++) {
 		pr_err("FREQUENCY DOMAIN %d\n", i);
-		for (j = 0; j < ARRAY_SIZE(data); j++) {
+		for (j = 0; j < size; j++) {
 			regval = readl_relaxed(hw_regs->base[i] +
 						offsets[data[j].offset]);
 			pr_err("%25s: 0x%.8x\n", data[j].name, regval);
