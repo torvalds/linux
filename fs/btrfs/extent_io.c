@@ -898,47 +898,6 @@ static bool btrfs_bio_is_contig(struct btrfs_bio_ctrl *bio_ctrl,
 		page_offset(page) + pg_offset;
 }
 
-/*
- * Attempt to add a page to bio.
- *
- * @bio_ctrl:       record both the bio, and its bio_flags
- * @page:	    page to add to the bio
- * @disk_bytenr:    offset of the new bio or to check whether we are adding
- *                  a contiguous page to the previous one
- * @size:	    portion of page that we want to write
- * @pg_offset:	    starting offset in the page
- *
- * Attempt to add a page to bio considering stripe alignment etc.
- *
- * Return >= 0 for the number of bytes added to the bio.
- * Can return 0 if the current bio is already at stripe/zone boundary.
- * Return <0 for error.
- */
-static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
-			      struct page *page,
-			      u64 disk_bytenr, unsigned int size,
-			      unsigned int pg_offset)
-{
-	struct bio *bio = bio_ctrl->bio;
-	u32 bio_size = bio->bi_iter.bi_size;
-	u32 real_size;
-
-	ASSERT(bio);
-	/* The limit should be calculated when bio_ctrl->bio is allocated */
-	ASSERT(bio_ctrl->len_to_oe_boundary);
-
-	real_size = min(bio_ctrl->len_to_oe_boundary - bio_size, size);
-
-	/*
-	 * If real_size is 0, never call bio_add_*_page(), as even size is 0,
-	 * bio will still execute its endio function on the page!
-	 */
-	if (real_size == 0)
-		return 0;
-
-	return bio_add_page(bio, page, real_size, pg_offset);
-}
-
 static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 				struct btrfs_inode *inode, u64 file_offset)
 {
@@ -966,21 +925,14 @@ static void calc_bio_boundaries(struct btrfs_bio_ctrl *bio_ctrl,
 
 static void alloc_new_bio(struct btrfs_inode *inode,
 			  struct btrfs_bio_ctrl *bio_ctrl,
-			  u64 disk_bytenr, u32 offset, u64 file_offset)
+			  u64 disk_bytenr, u64 file_offset)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *bio;
 
 	bio = btrfs_bio_alloc(BIO_MAX_VECS, bio_ctrl->opf, inode,
 			      bio_ctrl->end_io_func, NULL);
-	/*
-	 * For compressed page range, its disk_bytenr is always @disk_bytenr
-	 * passed in, no matter if we have added any range into previous bio.
-	 */
-	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
-		bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
-	else
-		bio->bi_iter.bi_sector = (disk_bytenr + offset) >> SECTOR_SHIFT;
+	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	btrfs_bio(bio)->file_offset = file_offset;
 	bio_ctrl->bio = bio;
 	calc_bio_boundaries(bio_ctrl, inode, file_offset);
@@ -1014,56 +966,48 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 			       size_t size, unsigned long pg_offset)
 {
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
-	unsigned int cur = pg_offset;
 
-	ASSERT(bio_ctrl);
-
-	ASSERT(pg_offset < PAGE_SIZE && size <= PAGE_SIZE &&
-	       pg_offset + size <= PAGE_SIZE);
-
+	ASSERT(pg_offset + size <= PAGE_SIZE);
 	ASSERT(bio_ctrl->end_io_func);
 
 	if (bio_ctrl->bio &&
 	    !btrfs_bio_is_contig(bio_ctrl, page, disk_bytenr, pg_offset))
 		submit_one_bio(bio_ctrl);
 
-	while (cur < pg_offset + size) {
-		u32 offset = cur - pg_offset;
-		int added;
+	do {
+		u32 len = size;
 
 		/* Allocate new bio if needed */
 		if (!bio_ctrl->bio) {
 			alloc_new_bio(inode, bio_ctrl, disk_bytenr,
-				      offset, page_offset(page) + cur);
+				      page_offset(page) + pg_offset);
 		}
-		/*
-		 * We must go through btrfs_bio_add_page() to ensure each
-		 * page range won't cross various boundaries.
-		 */
-		if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
-			added = btrfs_bio_add_page(bio_ctrl, page, disk_bytenr,
-					size - offset, pg_offset + offset);
-		else
-			added = btrfs_bio_add_page(bio_ctrl, page,
-					disk_bytenr + offset, size - offset,
-					pg_offset + offset);
 
-		/* Metadata page range should never be split */
-		if (!is_data_inode(&inode->vfs_inode))
-			ASSERT(added == 0 || added == size - offset);
+		/* Cap to the current ordered extent boundary if there is one. */
+		if (len > bio_ctrl->len_to_oe_boundary) {
+			ASSERT(bio_ctrl->compress_type == BTRFS_COMPRESS_NONE);
+			ASSERT(is_data_inode(&inode->vfs_inode));
+			len = bio_ctrl->len_to_oe_boundary;
+		}
 
-		/* At least we added some page, update the account */
-		if (bio_ctrl->wbc && added)
-			wbc_account_cgroup_owner(bio_ctrl->wbc, page, added);
-
-		/* We have reached boundary, submit right now */
-		if (added < size - offset) {
-			/* The bio should contain some page(s) */
-			ASSERT(bio_ctrl->bio->bi_iter.bi_size);
+		if (bio_add_page(bio_ctrl->bio, page, len, pg_offset) != len) {
+			/* bio full: move on to a new one */
 			submit_one_bio(bio_ctrl);
+			continue;
 		}
-		cur += added;
-	}
+
+		if (bio_ctrl->wbc)
+			wbc_account_cgroup_owner(bio_ctrl->wbc, page, len);
+
+		size -= len;
+		pg_offset += len;
+		disk_bytenr += len;
+		bio_ctrl->len_to_oe_boundary -= len;
+
+		/* Ordered extent boundary: move on to a new bio. */
+		if (bio_ctrl->len_to_oe_boundary == 0)
+			submit_one_bio(bio_ctrl);
+	} while (size);
 }
 
 static int attach_extent_buffer_page(struct extent_buffer *eb,
