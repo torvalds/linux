@@ -36,6 +36,18 @@
 	/delete-node/ rk8602@42;
 };
 
+&rkvenc0 {
+	venc-supply = <&vdd_log_s0>;
+	mem-supply = <&vdd_log_s0>;
+	status = "okay";
+};
+
+&rkvenc1 {
+	venc-supply = <&vdd_log_s0>;
+	mem-supply = <&vdd_log_s0>;
+	status = "okay";
+};
+
 &spi2 {
 	rk806single@0 {
 		regulators {
