@@ -2845,6 +2845,7 @@ err_xid:
 	free_xid(xid);
 	if (rc == 0) {
 		wbc->nr_to_write = count;
+		rc = len;
 	} else if (is_retryable_error(rc)) {
 		cifs_pages_write_redirty(inode, start, len);
 	} else {
