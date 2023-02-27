@@ -313,6 +313,7 @@ static void amdgpu_discovery_harvest_config_quirk(struct amdgpu_device *adev)
 		case 0xCF:
 		case 0xDF:
 			adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
+			adev->vcn.inst_mask &= ~AMDGPU_VCN_HARVEST_VCN1;
 			break;
 		default:
 			break;
@@ -899,7 +900,7 @@ static uint8_t amdgpu_discovery_get_harvest_info(struct amdgpu_device *adev,
 	/* Until a uniform way is figured, get mask based on hwid */
 	switch (hw_id) {
 	case VCN_HWID:
-		harvest = (1 << inst) & adev->vcn.harvest_config;
+		harvest = ((1 << inst) & adev->vcn.inst_mask) == 0;
 		break;
 	case DMU_HWID:
 		if (adev->harvest_ip_mask & AMD_HARVEST_IP_DMU_MASK)
