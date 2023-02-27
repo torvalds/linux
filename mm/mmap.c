@@ -2227,7 +2227,8 @@ static void unmap_region(struct mm_struct *mm, struct maple_tree *mt,
 	update_hiwater_rss(mm);
 	unmap_vmas(&tlb, mt, vma, start, end, start_t, end_t, mm_wr_locked);
 	free_pgtables(&tlb, mt, vma, prev ? prev->vm_end : FIRST_USER_ADDRESS,
-		      next ? next->vm_start : USER_PGTABLES_CEILING, start_t);
+		      next ? next->vm_start : USER_PGTABLES_CEILING, start_t,
+		      mm_wr_locked);
 	tlb_finish_mmu(&tlb);
 }
 
@@ -3163,7 +3164,7 @@ void exit_mmap(struct mm_struct *mm)
 	mmap_write_lock(mm);
 	mt_clear_in_rcu(&mm->mm_mt);
 	free_pgtables(&tlb, &mm->mm_mt, vma, FIRST_USER_ADDRESS,
-		      USER_PGTABLES_CEILING, vma->vm_end);
+		      USER_PGTABLES_CEILING, vma->vm_end, true);
 	tlb_finish_mmu(&tlb);
 
 	/*
