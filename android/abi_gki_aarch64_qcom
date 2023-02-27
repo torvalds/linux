@@ -1090,6 +1090,8 @@
   drm_modeset_unlock_all
   drm_mode_sort
   drm_mode_vrefresh
+  drm_mode_prune_invalid
+  drm_connector_list_update
   drm_object_attach_property
   drm_object_property_set_value
   drm_of_component_match_add
