@@ -4246,6 +4246,8 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 
 	svm->vgif_enabled = vgif && guest_cpuid_has(vcpu, X86_FEATURE_VGIF);
 
+	svm->vnmi_enabled = vnmi && guest_cpuid_has(vcpu, X86_FEATURE_VNMI);
+
 	svm_recalc_instruction_intercepts(vcpu, svm);
 
 	/* For sev guests, the memory encryption bit is not reserved in CR3.  */
@@ -5000,6 +5002,9 @@ static __init void svm_set_cpu_caps(void)
 
 		if (vgif)
 			kvm_cpu_cap_set(X86_FEATURE_VGIF);
+
+		if (vnmi)
+			kvm_cpu_cap_set(X86_FEATURE_VNMI);
 
 		/* Nested VM can receive #VMEXIT instead of triggering #GP */
 		kvm_cpu_cap_set(X86_FEATURE_SVME_ADDR_CHK);

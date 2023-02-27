@@ -266,6 +266,7 @@ struct vcpu_svm {
 	bool pause_filter_enabled         : 1;
 	bool pause_threshold_enabled      : 1;
 	bool vgif_enabled                 : 1;
+	bool vnmi_enabled                 : 1;
 
 	u32 ldr_reg;
 	u32 dfr_reg;
@@ -538,6 +539,12 @@ static inline bool gif_set(struct vcpu_svm *svm)
 static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 {
 	return svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE;
+}
+
+static inline bool nested_vnmi_enabled(struct vcpu_svm *svm)
+{
+	return svm->vnmi_enabled &&
+	       (svm->nested.ctl.int_ctl & V_NMI_ENABLE_MASK);
 }
 
 static inline bool is_x2apic_msrpm_offset(u32 offset)

@@ -281,6 +281,11 @@ static bool __nested_vmcb_check_controls(struct kvm_vcpu *vcpu,
 	if (CC(!nested_svm_check_tlb_ctl(vcpu, control->tlb_ctl)))
 		return false;
 
+	if (CC((control->int_ctl & V_NMI_ENABLE_MASK) &&
+	       !vmcb12_is_intercept(control, INTERCEPT_NMI))) {
+		return false;
+	}
+
 	return true;
 }
 
@@ -435,6 +440,9 @@ void nested_sync_control_from_vmcb02(struct vcpu_svm *svm)
 
 	if (nested_vgif_enabled(svm))
 		mask |= V_GIF_MASK;
+
+	if (nested_vnmi_enabled(svm))
+		mask |= V_NMI_BLOCKING_MASK | V_NMI_PENDING_MASK;
 
 	svm->nested.ctl.int_ctl        &= ~mask;
 	svm->nested.ctl.int_ctl        |= svm->vmcb->control.int_ctl & mask;
@@ -654,6 +662,17 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 		int_ctl_vmcb12_bits |= (V_GIF_MASK | V_GIF_ENABLE_MASK);
 	else
 		int_ctl_vmcb01_bits |= (V_GIF_MASK | V_GIF_ENABLE_MASK);
+
+	if (vnmi) {
+		if (vmcb01->control.int_ctl & V_NMI_PENDING_MASK) {
+			svm->vcpu.arch.nmi_pending++;
+			kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+		}
+		if (nested_vnmi_enabled(svm))
+			int_ctl_vmcb12_bits |= (V_NMI_PENDING_MASK |
+						V_NMI_ENABLE_MASK |
+						V_NMI_BLOCKING_MASK);
+	}
 
 	/* Copied from vmcb01.  msrpm_base can be overwritten later.  */
 	vmcb02->control.nested_ctl = vmcb01->control.nested_ctl;
@@ -1053,6 +1072,20 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	} else if (unlikely(vmcb01->control.virt_ext & LBR_CTL_ENABLE_MASK)) {
 		svm_copy_lbrs(vmcb01, vmcb02);
 		svm_update_lbrv(vcpu);
+	}
+
+	if (vnmi) {
+		if (vmcb02->control.int_ctl & V_NMI_BLOCKING_MASK)
+			vmcb01->control.int_ctl |= V_NMI_BLOCKING_MASK;
+		else
+			vmcb01->control.int_ctl &= ~V_NMI_BLOCKING_MASK;
+
+		if (vcpu->arch.nmi_pending) {
+			vcpu->arch.nmi_pending--;
+			vmcb01->control.int_ctl |= V_NMI_PENDING_MASK;
+		} else {
+			vmcb01->control.int_ctl &= ~V_NMI_PENDING_MASK;
+		}
 	}
 
 	/*
