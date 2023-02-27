@@ -72,15 +72,14 @@ void __init ralink_of_remap(void)
 
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
-	void __iomem *sysc = (void __iomem *) KSEG1ADDR(RT3883_SYSC_BASE);
 	const char *name;
 	u32 n0;
 	u32 n1;
 	u32 id;
 
-	n0 = __raw_readl(sysc + RT3883_SYSC_REG_CHIPID0_3);
-	n1 = __raw_readl(sysc + RT3883_SYSC_REG_CHIPID4_7);
-	id = __raw_readl(sysc + RT3883_SYSC_REG_REVID);
+	n0 = __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_CHIPID0_3);
+	n1 = __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_CHIPID4_7);
+	id = __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_REVID);
 
 	if (n0 == RT3883_CHIP_NAME0 && n1 == RT3883_CHIP_NAME1) {
 		soc_info->compatible = "ralink,rt3883-soc";
