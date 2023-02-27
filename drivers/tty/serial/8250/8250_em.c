@@ -42,6 +42,7 @@ static void serial8250_em_serial_out(struct uart_port *p, int offset, int value)
 	case UART_DLL_EM: /* DLL @ 0x24 (+9) */
 	case UART_DLM_EM: /* DLM @ 0x28 (+9) */
 		writel(value, p->membase + (offset << 2));
+		break;
 	}
 }
 
