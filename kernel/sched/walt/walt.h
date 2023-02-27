@@ -451,8 +451,14 @@ static inline bool walt_low_latency_task(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	return wts->low_latency &&
-		(task_util(p) < sysctl_walt_low_latency_task_threshold);
+	if (!wts->low_latency)
+		return false;
+
+	if (wts->low_latency == WALT_LOW_LATENCY_PIPELINE)
+		return true;
+
+	/* WALT_LOW_LATENCY_BINDER and WALT_LOW_LATENCY_PROCFS remain */
+	return (task_util(p) < sysctl_walt_low_latency_task_threshold);
 }
 
 static inline bool walt_binder_low_latency_task(struct task_struct *p)
