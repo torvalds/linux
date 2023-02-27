@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/bug.h>
+#include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
@@ -48,6 +50,8 @@
 
 /* does the board have sdram or ddram */
 static int dram_type;
+
+static struct ralink_soc_info *soc_info_ptr;
 
 static __init u32
 mt7620_calc_rate(u32 ref_rate, u32 mul, u32 div)
@@ -410,6 +414,44 @@ static const char __init *mt7620_get_soc_name(struct ralink_soc_info *soc_info)
 	}
 }
 
+static const char __init *mt7620_get_soc_id_name(void)
+{
+	if (ralink_soc == MT762X_SOC_MT7620A)
+		return "mt7620a";
+	else if (ralink_soc == MT762X_SOC_MT7620N)
+		return "mt7620n";
+	else if (ralink_soc == MT762X_SOC_MT7688)
+		return "mt7688";
+	else if (ralink_soc == MT762X_SOC_MT7628AN)
+		return "mt7628n";
+	else
+		return "invalid";
+}
+
+static int __init mt7620_soc_dev_init(void)
+{
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return -ENOMEM;
+
+	soc_dev_attr->family = "Ralink";
+	soc_dev_attr->soc_id = mt7620_get_soc_id_name();
+
+	soc_dev_attr->data = soc_info_ptr;
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		kfree(soc_dev_attr);
+		return PTR_ERR(soc_dev);
+	}
+
+	return 0;
+}
+device_initcall(mt7620_soc_dev_init);
+
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
 	const char *name = mt7620_get_soc_name(soc_info);
@@ -444,4 +486,6 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 		(pmu0 & PMU_SW_SET) ? ("sw") : ("hw"));
 	pr_info("Digital PMU set to %s control\n",
 		(pmu1 & DIG_SW_SEL) ? ("sw") : ("hw"));
+
+	soc_info_ptr = soc_info;
 }
