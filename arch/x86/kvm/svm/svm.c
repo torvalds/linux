@@ -1584,6 +1584,16 @@ static void svm_set_vintr(struct vcpu_svm *svm)
 	svm_set_intercept(svm, INTERCEPT_VINTR);
 
 	/*
+	 * Recalculating intercepts may have cleared the VINTR intercept.  If
+	 * V_INTR_MASKING is enabled in vmcb12, then the effective RFLAGS.IF
+	 * for L1 physical interrupts is L1's RFLAGS.IF at the time of VMRUN.
+	 * Requesting an interrupt window if save.RFLAGS.IF=0 is pointless as
+	 * interrupts will never be unblocked while L2 is running.
+	 */
+	if (!svm_is_intercept(svm, INTERCEPT_VINTR))
+		return;
+
+	/*
 	 * This is just a dummy VINTR to actually cause a vmexit to happen.
 	 * Actual injection of virtual interrupts happens through EVENTINJ.
 	 */
