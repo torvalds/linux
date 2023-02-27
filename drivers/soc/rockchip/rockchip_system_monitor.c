@@ -770,14 +770,18 @@ static int monitor_device_parse_dt(struct device *dev,
 int rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low)
 {
-	if (info->low_limit) {
-		if (is_low)
-			freq_qos_update_request(&info->max_temp_freq_req,
-						info->low_limit / 1000);
-		else
-			freq_qos_update_request(&info->max_temp_freq_req,
-						FREQ_QOS_MAX_DEFAULT_VALUE);
-	}
+	if (!info->low_limit)
+		return 0;
+
+	if (!freq_qos_request_active(&info->max_temp_freq_req))
+		return 0;
+
+	if (is_low)
+		freq_qos_update_request(&info->max_temp_freq_req,
+					info->low_limit / 1000);
+	else
+		freq_qos_update_request(&info->max_temp_freq_req,
+					FREQ_QOS_MAX_DEFAULT_VALUE);
 
 	return 0;
 }
@@ -787,6 +791,9 @@ int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high)
 {
 	if (!info->high_limit)
+		return 0;
+
+	if (!freq_qos_request_active(&info->max_temp_freq_req))
 		return 0;
 
 	if (info->high_limit_table) {
@@ -809,6 +816,9 @@ EXPORT_SYMBOL(rockchip_monitor_cpu_high_temp_adjust);
 int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low)
 {
+	if (!dev_pm_qos_request_active(&info->dev_max_freq_req))
+		return 0;
+
 	if (!info->low_limit)
 		return 0;
 
@@ -826,6 +836,9 @@ EXPORT_SYMBOL(rockchip_monitor_dev_low_temp_adjust);
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high)
 {
+	if (!dev_pm_qos_request_active(&info->dev_max_freq_req))
+		return 0;
+
 	if (!info->high_limit)
 		return 0;
 
@@ -1081,6 +1094,9 @@ rockchip_system_monitor_freq_qos_requset(struct monitor_dev_info *info)
 	struct cpufreq_policy *policy;
 	int max_default_value = FREQ_QOS_MAX_DEFAULT_VALUE;
 	int ret;
+
+	if (!info->devp->data)
+		return 0;
 
 	if (info->is_low_temp && info->low_limit)
 		max_default_value = info->low_limit / 1000;
@@ -1399,6 +1415,9 @@ rockchip_system_monitor_register(struct device *dev,
 	if (!system_monitor)
 		return ERR_PTR(-ENOMEM);
 
+	if (!devp)
+		return ERR_PTR(-EINVAL);
+
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
@@ -1440,11 +1459,15 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 	up_write(&mdev_list_sem);
 
 	if (info->devp->type == MONITOR_TPYE_CPU) {
-		freq_qos_remove_request(&info->max_temp_freq_req);
-		freq_qos_remove_request(&info->min_sta_freq_req);
-		freq_qos_remove_request(&info->max_sta_freq_req);
+		if (freq_qos_request_active(&info->max_temp_freq_req))
+			freq_qos_remove_request(&info->max_temp_freq_req);
+		if (freq_qos_request_active(&info->min_sta_freq_req))
+			freq_qos_remove_request(&info->min_sta_freq_req);
+		if (freq_qos_request_active(&info->max_sta_freq_req))
+			freq_qos_remove_request(&info->max_sta_freq_req);
 	} else {
-		dev_pm_qos_remove_request(&info->dev_max_freq_req);
+		if (dev_pm_qos_request_active(&info->dev_max_freq_req))
+			dev_pm_qos_remove_request(&info->dev_max_freq_req);
 	}
 
 	kfree(info->low_temp_adjust_table);
@@ -1633,6 +1656,11 @@ static void rockchip_system_status_cpu_limit_freq(struct monitor_dev_info *info,
 						  unsigned long status)
 {
 	unsigned int target_freq = 0;
+
+	if (!freq_qos_request_active(&info->min_sta_freq_req))
+		return;
+	if (!freq_qos_request_active(&info->max_sta_freq_req))
+		return;
 
 	if (status & SYS_STATUS_REBOOT) {
 		freq_qos_update_request(&info->max_sta_freq_req,
