@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  *
+ * Version  Sensor  I2C_ADDR   Lanes
+ * v1.0.0   os04a10   0x36    lane0~1(dphy1)
+ *          sc4336    0x30    lane2~3(dphy2)
+ * v1.1.0   gc2053    0x37    lane0~1(dphy1)
+ *          gc2053    0x3f    lane2~3(dphy2)
  */
 
 &csi2_dphy_hw {
@@ -20,9 +25,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			csi_dphy_input: endpoint@1 {
+			csi_dphy_input0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&os04a10_out>;
+				data-lanes = <1 2>;
+			};
+
+			csi_dphy_input2: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&gc2053_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -52,9 +63,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			csi_dphy_input1: endpoint@2 {
-				reg = <2>;
+			csi_dphy_input1: endpoint@1 {
+				reg = <1>;
 				remote-endpoint = <&sc3336_out>;
+				data-lanes = <1 2>;
+			};
+
+			csi_dphy_input3: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&gc2053_1_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -94,7 +111,29 @@
 		rockchip,camera-module-lens-name = "50IRC-F16";
 		port {
 			os04a10_out: endpoint {
-				remote-endpoint = <&csi_dphy_input>;
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	gc2053: gc2053@37 {
+		compatible = "galaxycore,gc2053";
+		status = "okay";
+		reg = <0x37>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2274-V10";
+		rockchip,camera-module-lens-name = "28IRC-F20";
+		port {
+			gc2053_out: endpoint {
+				remote-endpoint = <&csi_dphy_input2>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -117,6 +156,28 @@
 		port {
 			sc3336_out: endpoint {
 				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	gc2053_1: gc2053_1@3f {
+		compatible = "galaxycore,gc2053";
+		status = "okay";
+		reg = <0x3f>;
+		clocks = <&cru MCLK_REF_MIPI1>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out1>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2274-V10";
+		rockchip,camera-module-lens-name = "28IRC-F20";
+		port {
+			gc2053_1_out: endpoint {
+				remote-endpoint = <&csi_dphy_input3>;
 				data-lanes = <1 2>;
 			};
 		};
