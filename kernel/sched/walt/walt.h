@@ -20,6 +20,8 @@
 #include <linux/sched/clock.h>
 #include <trace/hooks/cgroup.h>
 
+#define MSEC_TO_NSEC (1000 * 1000)
+
 #ifdef CONFIG_HZ_300
 /*
  * Tick interval becomes to 3333333 due to
@@ -157,6 +159,7 @@ extern struct walt_sched_cluster *sched_cluster[WALT_NR_CPUS];
 /*END SCHED.H PORT*/
 
 extern int num_sched_clusters;
+extern int nr_big_cpus;
 extern unsigned int sched_capacity_margin_up[WALT_NR_CPUS];
 extern unsigned int sched_capacity_margin_down[WALT_NR_CPUS];
 extern cpumask_t asym_cap_sibling_cpus;
@@ -1097,6 +1100,9 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 	/* the packing cpu can be used, so pack! */
 	return packing_cpu;
 }
+
+extern int add_pipeline(struct walt_task_struct *wts);
+extern int remove_pipeline(struct walt_task_struct *wts);
 
 extern void walt_task_dump(struct task_struct *p);
 extern void walt_rq_dump(int cpu);

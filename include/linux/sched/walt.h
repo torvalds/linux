@@ -139,6 +139,7 @@ struct walt_task_struct {
 	int				new_cpu;
 	u8				enqueue_after_migration;
 	u8				hung_detect_status;
+	int				pipeline_cpu;
 };
 
 /*
