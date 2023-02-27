@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+// When building LKL with libFuzzer instrumentation (-fsanitize=fuzzer) provide
+// an empty linker script to avoid section merging. For additional information
+// refer to arch/lkl/Makefile.postlink.
+#if !defined(CONFIG_LKL_FUZZING) || defined(LKL_FUZZING_POSTLINK)
 #include <asm/vmlinux.lds.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
@@ -67,5 +72,10 @@ SECTIONS
 	STABS_DEBUG
 	DWARF_DEBUG
 
+	// Don't include DISCARDS section to build the target with code coverage.
+#if !defined(CONFIG_LKL_FUZZING)
 	DISCARDS
+#endif // !defined(CONFIG_LKL_FUZZING)
 }
+
+#endif // !defined(CONFIG_LKL_FUZZING) || defined(LKL_FUZZING_POSTLINK)

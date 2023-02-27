@@ -169,7 +169,19 @@ define do_autoconf_llvm
   $(eval LD_FMT := $(call llvm_target_to_ld_fmt))
 endef
 
+define do_autoconf_fuzzing
+  export KCONFIG := fuzzing_defconfig
+  export LLVM := 1
+  export CROSS_COMPILE := x86_64-linux-gnu
+  $(eval LLVM := 1)
+  $(eval CROSS_COMPILE := x86_64-linux-gnu)
+  $(eval kasan := yes)
+  $(call set_kernel_config,LKL_FUZZING,y)
+  $(if $(LKL_LINE_COV),$(call set_kernel_config,LKL_LINE_COV,y))
+endef
+
 define do_autoconf
+  $(if $(LKL_FUZZING),$(call do_autoconf_fuzzing))
   $(if $(LLVM),$(call do_autoconf_llvm),$(call do_autoconf_gnu))
   $(eval EXEC_FMT := $(shell echo $(LD_FMT) | cut -d "-" -f1))
   $(call set_kernel_config,OUTPUT_FORMAT,\"$(LD_FMT)\")

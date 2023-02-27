@@ -31,6 +31,11 @@ jobs:
             runs_on: ubuntu-22.04
             shell: bash
             build_options: "LLVM=1 CROSS_COMPILE=x86_64-linux-gnu"
+          - displayTargetName: lkl-fuzzers
+            os: unix
+            runs_on: ubuntu-22.04
+            shell: bash
+            build_options: "LKL_FUZZING=1 fuzzers"
     timeout-minutes: 100
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache

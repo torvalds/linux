@@ -26,3 +26,7 @@ progs-y += tests/disk
 progs-y += tests/disk-vfio-pci
 progs-y += tests/net-test
 progs-y += tests/config
+
+# LKL fuzzers
+fuzzers-y += fuzzers/hid/hid-fuzzer
+

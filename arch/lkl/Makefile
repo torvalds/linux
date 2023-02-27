@@ -27,6 +27,28 @@ else # e.g., FreeBSD
 NPROC=$(shell sysctl -n hw.ncpu)
 endif
 
+ifdef CONFIG_CC_IS_CLANG
+# LKL fuzzing is based on libFuzzer which depends on clang compiler.
+ifdef CONFIG_LKL_FUZZING
+# This makes sure assembly code is compiled with clang's integerated assembler
+# so the result object files are compatible with the fuzzing flag.
+KBUILD_CFLAGS += -integrated-as
+
+# We want debug symbols for fuzzing (e.g. better stack trace in gdb).
+KBUILD_CFLAGS += -g
+
+# Enabling libfuzzer instrumentation
+KBUILD_CFLAGS += -fsanitize=fuzzer-no-link
+
+KEEP_EH_FRAMES := true
+endif
+
+# This flag enables clang's extra instrumentation for visualizing line coverage.
+ifdef CONFIG_LKL_LINE_COV
+KBUILD_CFLAGS += -fprofile-instr-generate -fcoverage-mapping
+endif
+endif
+
 LDFLAGS_vmlinux += -r
 LKL_ENTRY_POINTS := lkl_start_kernel lkl_sys_halt lkl_syscall lkl_trigger_irq \
 	lkl_get_free_irq lkl_put_irq lkl_is_running lkl_bug lkl_printf \
@@ -45,7 +67,7 @@ core-y += arch/lkl/drivers/
 all: lkl.o arch/lkl/include/generated/uapi/asm/syscall_defs.h
 
 lkl.o: vmlinux
-	$(OBJCOPY) -R .eh_frame -R .syscall_defs $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) --prefix-symbols=$(prefix) vmlinux lkl.o
+	$(OBJCOPY) $(if $(KEEP_EH_FRAMES),,-R .eh_frame) -R .syscall_defs $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) --prefix-symbols=$(prefix) vmlinux lkl.o
 
 arch/lkl/include/generated/uapi/asm/syscall_defs.h: vmlinux
 	$(OBJCOPY) -j .syscall_defs -O binary --set-section-flags .syscall_defs=alloc $< $@
