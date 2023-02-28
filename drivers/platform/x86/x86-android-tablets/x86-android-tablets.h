@@ -94,7 +94,7 @@ extern const struct x86_dev_info asus_me176c_info;
 extern const struct x86_dev_info asus_tf103c_info;
 extern const struct x86_dev_info chuwi_hi8_info;
 extern const struct x86_dev_info czc_p10t;
-extern const struct x86_dev_info lenovo_yogabook_x9x_info;
+extern const struct x86_dev_info lenovo_yogabook_x91_info;
 /* Not const as this gets modified by its init callback */
 extern struct x86_dev_info lenovo_yoga_tab2_830_1050_info;
 extern const struct x86_dev_info lenovo_yt3_info;

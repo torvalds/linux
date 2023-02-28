@@ -24,8 +24,8 @@
 #include "shared-psy-info.h"
 #include "x86-android-tablets.h"
 
-/* Lenovo Yoga Book X90F / X91F / X91L need manual instantiation of the fg client */
-static const struct x86_i2c_client_info lenovo_yogabook_x9x_i2c_clients[] __initconst = {
+/* Lenovo Yoga Book X91F/L Windows tablet needs manual instantiation of the fg client */
+static const struct x86_i2c_client_info lenovo_yogabook_x91_i2c_clients[] __initconst = {
 	{
 		/* BQ27542 fuel-gauge */
 		.board_info = {
@@ -38,9 +38,9 @@ static const struct x86_i2c_client_info lenovo_yogabook_x9x_i2c_clients[] __init
 	},
 };
 
-const struct x86_dev_info lenovo_yogabook_x9x_info __initconst = {
-	.i2c_client_info = lenovo_yogabook_x9x_i2c_clients,
-	.i2c_client_count = ARRAY_SIZE(lenovo_yogabook_x9x_i2c_clients),
+const struct x86_dev_info lenovo_yogabook_x91_info __initconst = {
+	.i2c_client_info = lenovo_yogabook_x91_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(lenovo_yogabook_x91_i2c_clients),
 };
 
 /* Lenovo Yoga Tablet 2 1050F/L's Android factory img has everything hardcoded */
