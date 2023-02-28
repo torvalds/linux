@@ -1703,6 +1703,7 @@
 	no-sd;
 	non-removable;
 	max-frequency = <200000000>;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 
