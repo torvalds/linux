@@ -595,6 +595,8 @@ static inline int btree_trans_too_many_iters(struct btree_trans *trans)
 	return 0;
 }
 
+struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_iter *);
+
 static inline struct bkey_s_c
 __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 				   struct btree_iter *iter, unsigned flags)

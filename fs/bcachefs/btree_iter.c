@@ -2568,6 +2568,18 @@ struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *iter)
 	return bch2_btree_iter_peek_slot(iter);
 }
 
+struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_iter *iter)
+{
+	struct bkey_s_c k;
+
+	while (btree_trans_too_many_iters(iter->trans) ||
+	       (k = bch2_btree_iter_peek_type(iter, iter->flags),
+		bch2_err_matches(bkey_err(k), BCH_ERR_transaction_restart)))
+		bch2_trans_begin(iter->trans);
+
+	return k;
+}
+
 /* new transactional stuff: */
 
 #ifdef CONFIG_BCACHEFS_DEBUG
