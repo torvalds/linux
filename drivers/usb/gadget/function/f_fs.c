@@ -2292,8 +2292,11 @@ static int __ffs_do_os_desc_header(enum ffs_os_desc_type *next_type,
 	u16 bcd_version = le16_to_cpu(desc->bcdVersion);
 	u16 w_index = le16_to_cpu(desc->wIndex);
 
-	if (bcd_version != 1) {
-		pr_vdebug("unsupported os descriptors version: %d",
+	if (bcd_version == 0x1) {
+		pr_warn("bcdVersion must be 0x0100, stored in Little Endian order. "
+			"Userspace driver should be fixed, accepting 0x0001 for compatibility.\n");
+	} else if (bcd_version != 0x100) {
+		pr_vdebug("unsupported os descriptors version: 0x%x\n",
 			  bcd_version);
 		return -EINVAL;
 	}
