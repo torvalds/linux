@@ -2083,6 +2083,12 @@ static int ext4_writepage(struct page *page,
 	return ret;
 }
 
+static void mpage_page_done(struct mpage_da_data *mpd, struct page *page)
+{
+	mpd->first_page++;
+	unlock_page(page);
+}
+
 static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 {
 	int len;
@@ -2111,10 +2117,8 @@ static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 	else
 		len = PAGE_SIZE;
 	err = ext4_bio_write_page(&mpd->io_submit, page, len);
-	unlock_page(page);
 	if (!err)
 		mpd->wbc->nr_to_write--;
-	mpd->first_page++;
 
 	return err;
 }
@@ -2226,6 +2230,7 @@ static int mpage_process_page_bufs(struct mpage_da_data *mpd,
 	/* So far everything mapped? Submit the page for IO. */
 	if (mpd->map.m_len == 0) {
 		err = mpage_submit_page(mpd, head->b_page);
+		mpage_page_done(mpd, head->b_page);
 		if (err < 0)
 			return err;
 	}
@@ -2357,6 +2362,7 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 				goto out;
 			/* Page fully mapped - let IO run! */
 			err = mpage_submit_page(mpd, page);
+			mpage_page_done(mpd, page);
 			if (err < 0)
 				goto out;
 		}
@@ -2666,14 +2672,11 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 * modify metadata is simple. Just submit the page.
 			 */
 			if (!mpd->can_map) {
-				if (ext4_page_nomap_can_writeout(&folio->page)) {
+				if (ext4_page_nomap_can_writeout(&folio->page))
 					err = mpage_submit_page(mpd, &folio->page);
-					if (err < 0)
-						goto out;
-				} else {
-					folio_unlock(folio);
-					mpd->first_page += folio_nr_pages(folio);
-				}
+				mpage_page_done(mpd, &folio->page);
+				if (err < 0)
+					goto out;
 			} else {
 				/* Add all dirty buffers to mpd */
 				lblk = ((ext4_lblk_t)folio->index) <<
