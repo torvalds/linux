@@ -78,10 +78,12 @@ strncmp_zbb:
 	/* Main loop for aligned string.  */
 	.p2align 3
 1:
-	bgt	a0, t6, 3f
+	bge	a0, t6, 3f
 	REG_L	t0, 0(a0)
 	REG_L	t1, 0(a1)
 	orc.b	t3, t0
+	bne	t3, t5, 2f
+	orc.b	t3, t1
 	bne	t3, t5, 2f
 	addi	a0, a0, SZREG
 	addi	a1, a1, SZREG
