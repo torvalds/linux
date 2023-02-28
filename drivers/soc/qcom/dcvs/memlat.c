@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "qcom-memlat: " fmt
@@ -428,6 +428,35 @@ static ssize_t show_freq_map(struct kobject *kobj,
 	return cnt;
 }
 
+static int update_cpucp_sample_ms(unsigned int val)
+{
+	const struct qcom_scmi_vendor_ops *ops =  memlat_data->ops;
+	struct memlat_group *grp;
+	int i, ret;
+
+	if (!ops)
+		return -ENODEV;
+
+	for (i = 0; i < MAX_MEMLAT_GRPS; i++) {
+		grp = memlat_data->groups[i];
+		if (grp->cpucp_enabled)
+			break;
+	}
+	if (i == MAX_MEMLAT_GRPS)
+		return 0;
+
+	ret = ops->set_param(memlat_data->ph, &val,
+			MEMLAT_ALGO_STR, MEMLAT_SAMPLE_MS, sizeof(val));
+	if (ret < 0) {
+		pr_err("Failed to set cpucp sample ms :%d\n", ret);
+		return ret;
+	}
+
+	memlat_data->cpucp_sample_ms = val;
+
+	return ret;
+}
+
 #define MIN_SAMPLE_MS	4U
 #define MAX_SAMPLE_MS	1000U
 static ssize_t store_sample_ms(struct kobject *kobj,
@@ -445,6 +474,12 @@ static ssize_t store_sample_ms(struct kobject *kobj,
 
 	memlat_data->sample_ms = val;
 
+	if (memlat_data->ops) {
+		ret = update_cpucp_sample_ms(val);
+		if (ret < 0)
+			pr_err("Warning: CPUCP sample_ms not set: %d\n", ret);
+	}
+
 	return count;
 }
 
@@ -458,34 +493,19 @@ static ssize_t store_cpucp_sample_ms(struct kobject *kobj,
 				     struct attribute *attr, const char *buf,
 				     size_t count)
 {
-	int ret, i;
+	int ret;
 	unsigned int val;
-	const struct qcom_scmi_vendor_ops *ops =  memlat_data->ops;
-	struct memlat_group *grp;
-	if (!ops)
-		return -ENODEV;
-
-	for (i = 0; i < MAX_MEMLAT_GRPS; i++) {
-		grp = memlat_data->groups[i];
-		if (grp->cpucp_enabled)
-			break;
-	}
-	if (i == MAX_MEMLAT_GRPS)
-		return count;
 
 	ret = kstrtouint(buf, 10, &val);
 	if (ret < 0)
 		return ret;
 	val = max(val, MIN_SAMPLE_MS);
 	val = min(val, MAX_SAMPLE_MS);
-	ret = ops->set_param(memlat_data->ph, &val,
-			MEMLAT_ALGO_STR, MEMLAT_SAMPLE_MS, sizeof(val));
-	if (ret < 0) {
-		pr_err("Failed to set cpucp sample ms :%d\n", ret);
-		return ret;
-	}
 
-	memlat_data->cpucp_sample_ms = val;
+	ret = update_cpucp_sample_ms(val);
+	if (ret < 0)
+		return ret;
+
 	return count;
 }
 
