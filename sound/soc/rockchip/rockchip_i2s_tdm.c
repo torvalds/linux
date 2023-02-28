@@ -397,17 +397,6 @@ static int rockchip_i2s_tdm_clear(struct rk_i2s_tdm_dev *i2s_tdm,
 		return -EINVAL;
 	}
 
-	regmap_update_bits(i2s_tdm->regmap, I2S_CLR, clr, clr);
-	ret = regmap_read_poll_timeout_atomic(i2s_tdm->regmap, I2S_CLR, val,
-					      !(val & clr), 10, 100);
-	if (ret < 0) {
-		dev_warn(i2s_tdm->dev, "failed to clear %u\n", clr);
-		goto clear2;
-	}
-
-	return 0;
-
-clear2:
 	/*
 	 * Workaround for FIFO clear on SLAVE mode:
 	 *
@@ -420,23 +409,23 @@ clear2:
 	 *
 	 * Now we choose plan B here.
 	 */
-	if (!i2s_tdm->is_master_mode) {
+	if (!i2s_tdm->is_master_mode)
 		regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
 				   I2S_CKR_MSS_MASK, I2S_CKR_MSS_MASTER);
-
-		ret = regmap_read_poll_timeout_atomic(i2s_tdm->regmap, I2S_CLR, val,
-						      !(val & clr), 10, 100);
-
+	regmap_update_bits(i2s_tdm->regmap, I2S_CLR, clr, clr);
+	ret = regmap_read_poll_timeout_atomic(i2s_tdm->regmap, I2S_CLR, val,
+					      !(val & clr), 10, 100);
+	if (!i2s_tdm->is_master_mode)
 		regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
 				   I2S_CKR_MSS_MASK, I2S_CKR_MSS_SLAVE);
 
-		if (ret < 0) {
-			dev_warn(i2s_tdm->dev, "failed to clear on slave mode %u\n", clr);
-			goto reset;
-		}
-
-		return 0;
+	if (ret < 0) {
+		dev_warn(i2s_tdm->dev, "failed to clear %u on %s mode\n",
+			 clr, i2s_tdm->is_master_mode ? "master" : "slave");
+		goto reset;
 	}
+
+	return 0;
 
 reset:
 	if (i2s_tdm->clk_trcm)
@@ -1251,24 +1240,22 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 	dma_data->maxburst = MAXBURST_PER_FIFO * params_channels(params) / 2;
 
-	if (i2s_tdm->is_master_mode) {
-		if (i2s_tdm->mclk_calibrate)
-			rockchip_i2s_tdm_calibrate_mclk(i2s_tdm, substream,
-							params_rate(params));
+	if (i2s_tdm->mclk_calibrate)
+		rockchip_i2s_tdm_calibrate_mclk(i2s_tdm, substream,
+						params_rate(params));
 
-		ret = rockchip_i2s_tdm_set_mclk(i2s_tdm, substream, &mclk);
-		if (ret)
-			goto err;
+	ret = rockchip_i2s_tdm_set_mclk(i2s_tdm, substream, &mclk);
+	if (ret)
+		goto err;
 
-		mclk_rate = clk_get_rate(mclk);
-		bclk_rate = i2s_tdm->bclk_fs * params_rate(params);
-		if (!bclk_rate) {
-			ret = -EINVAL;
-			goto err;
-		}
-		div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
-		div_lrck = bclk_rate / params_rate(params);
+	mclk_rate = clk_get_rate(mclk);
+	bclk_rate = i2s_tdm->bclk_fs * params_rate(params);
+	if (!bclk_rate) {
+		ret = -EINVAL;
+		goto err;
 	}
+	div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
+	div_lrck = bclk_rate / params_rate(params);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
