@@ -45,6 +45,7 @@
 #include <linux/cache.h>
 #include <asm/processor.h>
 #include <asm/accounting.h>
+#include <asm/ppc_asm.h>
 
 #define SLB_PRELOAD_NR	16U
 /*
@@ -185,6 +186,43 @@ static inline bool test_thread_local_flags(unsigned int flags)
 #else
 #define is_elf2_task() (0)
 #endif
+
+/*
+ * Walks up the stack frames to make sure that the specified object is
+ * entirely contained by a single stack frame.
+ *
+ * Returns:
+ *	GOOD_FRAME	if within a frame
+ *	BAD_STACK	if placed across a frame boundary (or outside stack)
+ */
+static inline int arch_within_stack_frames(const void * const stack,
+					   const void * const stackend,
+					   const void *obj, unsigned long len)
+{
+	const void *params;
+	const void *frame;
+
+	params = *(const void * const *)current_stack_pointer + STACK_FRAME_PARAMS;
+	frame = **(const void * const * const *)current_stack_pointer;
+
+	/*
+	 * low -----------------------------------------------------------> high
+	 * [backchain][metadata][params][local vars][saved registers][backchain]
+	 *                      ^------------------------------------^
+	 *                      |  allows copies only in this region |
+	 *                      |                                    |
+	 *                    params                               frame
+	 * The metadata region contains the saved LR, CR etc.
+	 */
+	while (stack <= frame && frame < stackend) {
+		if (obj + len <= frame)
+			return obj >= params ? GOOD_FRAME : BAD_STACK;
+		params = frame + STACK_FRAME_PARAMS;
+		frame = *(const void * const *)frame;
+	}
+
+	return BAD_STACK;
+}
 
 #endif	/* !__ASSEMBLY__ */
 
