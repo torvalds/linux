@@ -241,6 +241,15 @@ static int udf_read_folio(struct file *file, struct folio *folio)
 
 static void udf_readahead(struct readahead_control *rac)
 {
+	struct udf_inode_info *iinfo = UDF_I(rac->mapping->host);
+
+	/*
+	 * No readahead needed for in-ICB files and udf_get_block() would get
+	 * confused for such file anyway.
+	 */
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		return;
+
 	mpage_readahead(rac, udf_get_block);
 }
 
