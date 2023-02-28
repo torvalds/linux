@@ -3612,7 +3612,7 @@ static ssize_t __cifs_writev(
 
 		ctx->nr_pinned_pages = rc;
 		ctx->bv = (void *)ctx->iter.bvec;
-		ctx->bv_need_unpin = iov_iter_extract_will_pin(&ctx->iter);
+		ctx->bv_need_unpin = iov_iter_extract_will_pin(from);
 	} else if ((iov_iter_is_bvec(from) || iov_iter_is_kvec(from)) &&
 		   !is_sync_kiocb(iocb)) {
 		/*
@@ -4148,7 +4148,7 @@ static ssize_t __cifs_readv(
 
 		ctx->nr_pinned_pages = rc;
 		ctx->bv = (void *)ctx->iter.bvec;
-		ctx->bv_need_unpin = iov_iter_extract_will_pin(&ctx->iter);
+		ctx->bv_need_unpin = iov_iter_extract_will_pin(to);
 		ctx->should_dirty = true;
 	} else if ((iov_iter_is_bvec(to) || iov_iter_is_kvec(to)) &&
 		   !is_sync_kiocb(iocb)) {
