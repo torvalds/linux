@@ -1,11 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("//msm-kernel/arch/arm64/boot/dts/vendor:qcom/platform_map.bzl", "platform_map")
-
-def _get_dtb_platform(target):
-    if not target in platform_map:
-        fail("{} not in devicetree platform map!".format(target))
-
-    return platform_map[target]
+load("//msm-kernel/arch/arm64/boot/dts/vendor:qcom/platform_map.bzl", _get_dtb_list = "get_dtb_list", _get_dtbo_list = "get_dtbo_list")
 
 def define_top_level_rules():
     for skippable in ["abl", "dtc", "test_mapping", "abi"]:
@@ -28,10 +22,10 @@ def get_build_config_fragments(target):
     return []
 
 def get_dtb_list(target):
-    return _get_dtb_platform(target)["dtb_list"]
+    return _get_dtb_list(target)
 
 def get_dtbo_list(target):
-    return _get_dtb_platform(target)["dtbo_list"]
+    return _get_dtbo_list(target)
 
 def get_dtstree(target):
     return "//msm-kernel/arch/arm64/boot/dts/vendor:msm_dt"
