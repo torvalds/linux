@@ -1107,8 +1107,6 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 			bch2_err_str(ret));
 		goto err;
 	}
-
-	bch2_stripe_close(c, s);
 err:
 	bch2_disk_reservation_put(c, &s->res);
 
@@ -1123,6 +1121,8 @@ err:
 				bch2_open_bucket_put(c, ob);
 			}
 		}
+
+	bch2_stripe_close(c, s);
 
 	ec_stripe_buf_exit(&s->existing_stripe);
 	ec_stripe_buf_exit(&s->new_stripe);
