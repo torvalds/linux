@@ -159,20 +159,14 @@ _LPP_OFFSET	= __LC_LPP
 	.section .kprobes.text, "ax"
 .Ldummy:
 	/*
-	 * This nop exists only in order to avoid that __bpon starts at
-	 * the beginning of the kprobes text section. In that case we would
-	 * have several symbols at the same address. E.g. objdump would take
-	 * an arbitrary symbol name when disassembling this code.
-	 * With the added nop in between the __bpon symbol is unique
-	 * again.
+	 * The following nop exists only in order to avoid that the next
+	 * symbol starts at the beginning of the kprobes text section.
+	 * In that case there would be several symbols at the same address.
+	 * E.g. objdump would take an arbitrary symbol when disassembling
+	 * the code.
+	 * With the added nop in between this cannot happen.
 	 */
 	nop	0
-
-ENTRY(__bpon)
-	.globl __bpon
-	BPON
-	BR_EX	%r14
-ENDPROC(__bpon)
 
 /*
  * Scheduler resume function, called by switch_to
