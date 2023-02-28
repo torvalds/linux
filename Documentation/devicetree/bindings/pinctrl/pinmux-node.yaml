@@ -31,7 +31,7 @@ description: |
     };
   };
   state_1_node_a {
-    spi0 {
+    spi {
       function = "spi0";
       groups = "spi0pins";
     };

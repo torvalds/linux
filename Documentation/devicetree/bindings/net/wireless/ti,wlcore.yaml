@@ -89,7 +89,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     // For wl12xx family:
-    spi1 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -104,8 +104,11 @@ examples:
         };
     };
 
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
     // For wl18xx family:
-    spi2 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -117,6 +120,9 @@ examples:
             vwlan-supply = <&vwlan_fixed>;
         };
     };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
 
     // SDIO example:
     mmc3 {
