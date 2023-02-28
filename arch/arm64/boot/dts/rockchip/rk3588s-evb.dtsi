@@ -1021,6 +1021,7 @@
 	max-frequency = <200000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 
