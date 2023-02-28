@@ -13,6 +13,7 @@
 #include <linux/notifier.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
+#include <linux/auxiliary_bus.h>
 #include <linux/gunyah_rsc_mgr.h>
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
@@ -152,6 +153,7 @@ struct gh_rm {
 	struct mutex send_lock;
 	struct blocking_notifier_head nh;
 
+	struct auxiliary_device adev;
 	struct miscdevice miscdev;
 	struct irq_domain *irq_domain;
 };
@@ -704,6 +706,7 @@ free:
 	kfree(connection);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(gh_rm_call);
 
 
 int gh_rm_notifier_register(struct gh_rm *rm, struct notifier_block *nb)
@@ -744,6 +747,32 @@ static const struct file_operations gh_dev_fops = {
 	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= noop_llseek,
 };
+
+static void gh_adev_release(struct device *dev)
+{
+	/* no-op */
+}
+
+static int gh_adev_init(struct gh_rm *rm, const char *name)
+{
+	struct auxiliary_device *adev = &rm->adev;
+	int ret = 0;
+
+	adev->name = name;
+	adev->dev.parent = rm->dev;
+	adev->dev.release = gh_adev_release;
+	ret = auxiliary_device_init(adev);
+	if (ret)
+		return ret;
+
+	ret = auxiliary_device_add(adev);
+	if (ret) {
+		auxiliary_device_uninit(adev);
+		return ret;
+	}
+
+	return ret;
+}
 
 static int gh_msgq_platform_probe_direction(struct platform_device *pdev, bool tx,
 					    struct gh_resource *ghrsc)
@@ -841,7 +870,16 @@ static int gh_rm_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_irq_domain;
 
+	ret = gh_adev_init(rm, "gh_rm_core");
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to add gh_rm_core device\n");
+		goto err_misc_device;
+	}
+
 	return 0;
+
+err_misc_device:
+	misc_deregister(&rm->miscdev);
 err_irq_domain:
 	irq_domain_remove(rm->irq_domain);
 err_msgq:
@@ -856,6 +894,8 @@ static int gh_rm_drv_remove(struct platform_device *pdev)
 {
 	struct gh_rm *rm = platform_get_drvdata(pdev);
 
+	auxiliary_device_delete(&rm->adev);
+	auxiliary_device_uninit(&rm->adev);
 	misc_deregister(&rm->miscdev);
 	irq_domain_remove(rm->irq_domain);
 	mbox_free_channel(gh_msgq_chan(&rm->msgq));

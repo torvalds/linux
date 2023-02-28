@@ -5,6 +5,7 @@ config GUNYAH
 	depends on ARM64
 	depends on MAILBOX
 	select GUNYAH_PLATFORM_HOOKS
+	select AUXILIARY_BUS
 	help
 	  The Gunyah drivers are the helper interfaces that run in a guest VM
 	  such as basic inter-VM IPC and signaling mechanisms, and higher level
