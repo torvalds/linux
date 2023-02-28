@@ -329,8 +329,6 @@ static __always_inline void __noreturn disabled_wait(void)
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 
-extern int s390_isolate_bp_guest(void);
-
 static __always_inline bool regs_irqs_disabled(struct pt_regs *regs)
 {
 	return arch_irqs_disabled_flags(regs->psw.mask);
