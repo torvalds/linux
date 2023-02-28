@@ -919,14 +919,13 @@ static bool set_nr_if_polling(struct task_struct *p)
 	struct thread_info *ti = task_thread_info(p);
 	typeof(ti->flags) val = READ_ONCE(ti->flags);
 
-	for (;;) {
+	do {
 		if (!(val & _TIF_POLLING_NRFLAG))
 			return false;
 		if (val & _TIF_NEED_RESCHED)
 			return true;
-		if (try_cmpxchg(&ti->flags, &val, val | _TIF_NEED_RESCHED))
-			break;
-	}
+	} while (!try_cmpxchg(&ti->flags, &val, val | _TIF_NEED_RESCHED));
+
 	return true;
 }
 
