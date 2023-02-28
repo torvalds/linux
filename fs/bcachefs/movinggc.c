@@ -26,6 +26,7 @@
 #include "super-io.h"
 #include "trace.h"
 
+#include <linux/bsearch.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/math64.h>
@@ -70,62 +71,146 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	return ret;
 }
 
-static int bch2_copygc_next_bucket(struct btree_trans *trans,
-				   struct bpos *bucket, u8 *gen, struct bpos *pos)
+typedef FIFO(struct move_bucket_in_flight) move_buckets_in_flight;
+
+struct move_bucket {
+	struct bpos		bucket;
+	u8			gen;
+};
+
+typedef DARRAY(struct move_bucket) move_buckets;
+
+static int move_bucket_cmp(const void *_l, const void *_r)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
+	const struct move_bucket *l = _l;
+	const struct move_bucket *r = _r;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_lru,
-				  bpos_max(*pos, lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0)),
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
-				  0, k, ({
-		*bucket = u64_to_bucket(k.k->p.offset);
-
-		bch2_bucket_is_movable(trans, *bucket, lru_pos_time(k.k->p), gen);
-	}));
-
-	*pos = iter.pos;
-	if (ret < 0)
-		return ret;
-	return ret ? 0 : -ENOENT;
+	return bkey_cmp(l->bucket, r->bucket);
 }
 
-static int bch2_copygc(struct bch_fs *c)
+static bool bucket_in_flight(move_buckets *buckets_sorted, struct move_bucket b)
 {
-	struct bch_move_stats move_stats;
-	struct btree_trans trans;
-	struct moving_context ctxt;
+	return bsearch(&b,
+		       buckets_sorted->data,
+		       buckets_sorted->nr,
+		       sizeof(buckets_sorted->data[0]),
+		       move_bucket_cmp) != NULL;
+}
+
+static void move_buckets_wait(struct btree_trans *trans,
+			      struct moving_context *ctxt,
+			      move_buckets_in_flight *buckets_in_flight,
+			      size_t nr, bool verify_evacuated)
+{
+	while (!fifo_empty(buckets_in_flight)) {
+		struct move_bucket_in_flight *i = &fifo_peek_front(buckets_in_flight);
+
+		if (fifo_used(buckets_in_flight) > nr)
+			move_ctxt_wait_event(ctxt, trans, !atomic_read(&i->count));
+
+		if (atomic_read(&i->count))
+			break;
+
+		/*
+		 * moving_ctxt_exit calls bch2_write as it flushes pending
+		 * reads, which inits another btree_trans; this one must be
+		 * unlocked:
+		 */
+		if (verify_evacuated)
+			bch2_verify_bucket_evacuated(trans, i->bucket, i->gen);
+		buckets_in_flight->front++;
+	}
+
+	bch2_trans_unlock(trans);
+}
+
+static int bch2_copygc_get_buckets(struct btree_trans *trans,
+			struct moving_context *ctxt,
+			move_buckets_in_flight *buckets_in_flight,
+			move_buckets *buckets)
+{
+	struct btree_iter iter;
+	move_buckets buckets_sorted = { 0 };
+	struct move_bucket_in_flight *i;
+	struct bkey_s_c k;
+	size_t fifo_iter, nr_to_get;
+	int ret;
+
+	move_buckets_wait(trans, ctxt, buckets_in_flight, buckets_in_flight->size / 2, true);
+
+	nr_to_get = max(16UL, fifo_used(buckets_in_flight) / 4);
+
+	fifo_for_each_entry_ptr(i, buckets_in_flight, fifo_iter) {
+		ret = darray_push(&buckets_sorted, ((struct move_bucket) {i->bucket, i->gen}));
+		if (ret) {
+			bch_err(trans->c, "error allocating move_buckets_sorted");
+			goto err;
+		}
+	}
+
+	sort(buckets_sorted.data,
+	     buckets_sorted.nr,
+	     sizeof(buckets_sorted.data[0]),
+	     move_bucket_cmp,
+	     NULL);
+
+	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_lru,
+				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
+				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
+				  0, k, ({
+		struct move_bucket b = { .bucket = u64_to_bucket(k.k->p.offset) };
+		int ret = 0;
+
+		if (!bucket_in_flight(&buckets_sorted, b) &&
+		    bch2_bucket_is_movable(trans, b.bucket, lru_pos_time(k.k->p), &b.gen))
+			ret = darray_push(buckets, b) ?: buckets->nr >= nr_to_get;
+
+		ret;
+	}));
+err:
+	darray_exit(&buckets_sorted);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int bch2_copygc(struct btree_trans *trans,
+		       struct moving_context *ctxt,
+		       move_buckets_in_flight *buckets_in_flight)
+{
+	struct bch_fs *c = trans->c;
 	struct data_update_opts data_opts = {
 		.btree_insert_flags = BTREE_INSERT_USE_RESERVE|JOURNAL_WATERMARK_copygc,
 	};
-	struct bpos bucket;
-	struct bpos pos;
-	u8 gen = 0;
-	unsigned nr_evacuated;
+	move_buckets buckets = { 0 };
+	struct move_bucket_in_flight *f;
+	struct move_bucket *i;
+	u64 moved = atomic64_read(&ctxt->stats->sectors_moved);
 	int ret = 0;
 
-	bch2_move_stats_init(&move_stats, "copygc");
-	bch2_moving_ctxt_init(&ctxt, c, NULL, &move_stats,
-			      writepoint_ptr(&c->copygc_write_point),
-			      false);
-	bch2_trans_init(&trans, c, 0, 0);
+	ret = bch2_btree_write_buffer_flush(trans);
+	if (bch2_fs_fatal_err_on(ret, c, "%s: error %s from bch2_btree_write_buffer_flush()",
+				 __func__, bch2_err_str(ret)))
+		return ret;
 
-	ret = bch2_btree_write_buffer_flush(&trans);
-	BUG_ON(ret);
+	ret = bch2_copygc_get_buckets(trans, ctxt, buckets_in_flight, &buckets);
+	if (ret)
+		goto err;
 
-	for (nr_evacuated = 0, pos = POS_MIN;
-	     nr_evacuated < 32 && !ret;
-	     nr_evacuated++, pos = bpos_nosnap_successor(pos)) {
-		ret = bch2_copygc_next_bucket(&trans, &bucket, &gen, &pos) ?:
-			__bch2_evacuate_bucket(&trans, &ctxt, bucket, gen, data_opts);
-		if (bkey_eq(pos, POS_MAX))
+	darray_for_each(buckets, i) {
+		if (unlikely(freezing(current)))
 			break;
-	}
 
-	bch2_trans_exit(&trans);
-	bch2_moving_ctxt_exit(&ctxt);
+		f = fifo_push_ref(buckets_in_flight);
+		f->bucket	= i->bucket;
+		f->gen		= i->gen;
+		atomic_set(&f->count, 0);
+
+		ret = __bch2_evacuate_bucket(trans, ctxt, f, f->bucket, f->gen, data_opts);
+		if (ret)
+			goto err;
+	}
+err:
+	darray_exit(&buckets);
 
 	/* no entries in LRU btree found, or got to end: */
 	if (ret == -ENOENT)
@@ -134,7 +219,8 @@ static int bch2_copygc(struct bch_fs *c)
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))
 		bch_err(c, "error from bch2_move_data() in copygc: %s", bch2_err_str(ret));
 
-	trace_and_count(c, copygc, c, atomic64_read(&move_stats.sectors_moved), 0, 0, 0);
+	moved = atomic64_read(&ctxt->stats->sectors_moved) - moved;
+	trace_and_count(c, copygc, c, moved, 0, 0, 0);
 	return ret;
 }
 
@@ -162,7 +248,7 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 	for_each_rw_member(ca, c, dev_idx) {
 		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
 
-		fragmented_allowed = ((__dev_buckets_available(ca, usage, RESERVE_none) *
+		fragmented_allowed = ((__dev_buckets_available(ca, usage, RESERVE_stripe) *
 				       ca->mi.bucket_size) >> 1);
 		fragmented = 0;
 
@@ -191,22 +277,47 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 static int bch2_copygc_thread(void *arg)
 {
 	struct bch_fs *c = arg;
+	struct btree_trans trans;
+	struct moving_context ctxt;
+	struct bch_move_stats move_stats;
 	struct io_clock *clock = &c->io_clock[WRITE];
+	move_buckets_in_flight move_buckets;
 	u64 last, wait;
 	int ret = 0;
 
+	if (!init_fifo(&move_buckets, 1 << 14, GFP_KERNEL)) {
+		bch_err(c, "error allocating copygc buckets in flight");
+		return -ENOMEM;
+	}
+
 	set_freezable();
+	bch2_trans_init(&trans, c, 0, 0);
+
+	bch2_move_stats_init(&move_stats, "copygc");
+	bch2_moving_ctxt_init(&ctxt, c, NULL, &move_stats,
+			      writepoint_ptr(&c->copygc_write_point),
+			      false);
 
 	while (!ret && !kthread_should_stop()) {
+		bch2_trans_unlock(&trans);
 		cond_resched();
 
-		if (kthread_wait_freezable(c->copy_gc_enabled))
-			break;
+		if (!c->copy_gc_enabled) {
+			move_buckets_wait(&trans, &ctxt, &move_buckets, 0, true);
+			kthread_wait_freezable(c->copy_gc_enabled);
+		}
+
+		if (unlikely(freezing(current))) {
+			move_buckets_wait(&trans, &ctxt, &move_buckets, 0, true);
+			__refrigerator(false);
+			continue;
+		}
 
 		last = atomic64_read(&clock->now);
 		wait = bch2_copygc_wait_amount(c);
 
 		if (wait > clock->max_slop) {
+			move_buckets_wait(&trans, &ctxt, &move_buckets, 0, true);
 			trace_and_count(c, copygc_wait, c, wait, last + wait);
 			c->copygc_wait = last + wait;
 			bch2_kthread_io_clock_wait(clock, last + wait,
@@ -217,11 +328,15 @@ static int bch2_copygc_thread(void *arg)
 		c->copygc_wait = 0;
 
 		c->copygc_running = true;
-		ret = bch2_copygc(c);
+		ret = bch2_copygc(&trans, &ctxt, &move_buckets);
 		c->copygc_running = false;
 
 		wake_up(&c->copygc_running_wq);
 	}
+
+	bch2_moving_ctxt_exit(&ctxt);
+	bch2_trans_exit(&trans);
+	free_fifo(&move_buckets);
 
 	return 0;
 }

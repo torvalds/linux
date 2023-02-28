@@ -30,6 +30,8 @@ struct moving_context {
 	wait_queue_head_t	wait;
 };
 
+void bch2_verify_bucket_evacuated(struct btree_trans *, struct bpos, int);
+
 #define move_ctxt_wait_event(_ctxt, _trans, _cond)			\
 do {									\
 	bool cond_finished = false;					\
@@ -68,6 +70,7 @@ int bch2_move_data(struct bch_fs *,
 
 int __bch2_evacuate_bucket(struct btree_trans *,
 			   struct moving_context *,
+			   struct move_bucket_in_flight *,
 			   struct bpos, int,
 			   struct data_update_opts);
 int bch2_evacuate_bucket(struct bch_fs *, struct bpos, int,

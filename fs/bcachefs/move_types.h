@@ -16,4 +16,10 @@ struct bch_move_stats {
 	atomic64_t		sectors_raced;
 };
 
+struct move_bucket_in_flight {
+	struct bpos		bucket;
+	u8			gen;
+	atomic_t		count;
+};
+
 #endif /* _BCACHEFS_MOVE_TYPES_H */
