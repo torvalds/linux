@@ -1643,6 +1643,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	uint64_t aligned_size;
 	u64 alloc_flags;
 	int ret;
+	int mem_id = 0; /* Fixme : to be changed when mem_id support patch lands, until then NPS1, SPX only */
 
 	/*
 	 * Check on which domain to allocate BO
@@ -1750,6 +1751,11 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	    ((*mem)->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)) {
 		bo->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
 		bo->preferred_domains = AMDGPU_GEM_DOMAIN_GTT;
+		ret = amdgpu_ttm_tt_set_mem_pool(&bo->tbo, mem_id);
+		if (ret) {
+			pr_debug("failed to set ttm mem pool %d\n", ret);
+			goto err_set_mem_partition;
+		}
 	}
 
 	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, user_addr);
@@ -1778,6 +1784,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 allocate_init_user_pages_failed:
 err_pin_bo:
 	remove_kgd_mem_from_kfd_bo_list(*mem, avm->process_info);
+err_set_mem_partition:
 	drm_vma_node_revoke(&gobj->vma_node, drm_priv);
 err_node_allow:
 	/* Don't unreserve system mem limit twice */
