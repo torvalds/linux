@@ -7,8 +7,8 @@ workflows related to reporting bugs, submitting patches, and queueing
 patches for stable kernels.
 
 For general information about submitting patches, please refer to
-`Documentation/process/`_. This document only describes additional specifics
-related to BPF.
+Documentation/process/submitting-patches.rst. This document only describes
+additional specifics related to BPF.
 
 .. contents::
     :local:
@@ -684,7 +684,6 @@ when:
 
 
 .. Links
-.. _Documentation/process/: https://www.kernel.org/doc/html/latest/process/
 .. _netdev-FAQ: Documentation/process/maintainer-netdev.rst
 .. _selftests:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/testing/selftests/bpf/
