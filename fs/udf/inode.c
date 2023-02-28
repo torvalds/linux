@@ -416,6 +416,9 @@ static int udf_map_block(struct inode *inode, struct udf_map_rq *map)
 	int err;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
+	if (WARN_ON_ONCE(iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB))
+		return -EFSCORRUPTED;
+
 	map->oflags = 0;
 	if (!(map->iflags & UDF_MAP_CREATE)) {
 		struct kernel_lb_addr eloc;
