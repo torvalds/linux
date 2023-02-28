@@ -38,7 +38,7 @@ const struct efi_smbios_record *efi_get_smbios_record(u8 type)
 }
 
 const u8 *__efi_get_smbios_string(const struct efi_smbios_record *record,
-				  u8 type, int offset, int recsize)
+				  u8 type, int offset)
 {
 	const u8 *strtable;
 

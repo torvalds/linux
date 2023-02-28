@@ -1122,14 +1122,13 @@ struct efi_smbios_type4_record {
 };
 
 #define efi_get_smbios_string(__record, __type, __name) ({		\
-	int size = sizeof(struct efi_smbios_type ## __type ## _record);	\
 	int off = offsetof(struct efi_smbios_type ## __type ## _record,	\
 			   __name);					\
-	__efi_get_smbios_string((__record), __type, off, size);		\
+	__efi_get_smbios_string((__record), __type, off);		\
 })
 
 const u8 *__efi_get_smbios_string(const struct efi_smbios_record *record,
-				  u8 type, int offset, int recsize);
+				  u8 type, int offset);
 
 void efi_remap_image(unsigned long image_base, unsigned alloc_size,
 		     unsigned long code_size);
