@@ -501,9 +501,9 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
-	unsigned long cap_array[_KERNEL_CAPABILITY_U32S];
-	kernel_cap_t new_cap;
-	int err, i;
+	unsigned long cap_array[2];
+	kernel_cap_t new_cap, *cap;
+	int err;
 
 	if (write && (!capable(CAP_SETPCAP) ||
 		      !capable(CAP_SYS_MODULE)))
@@ -514,14 +514,16 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	 * userspace if this is a read.
 	 */
 	spin_lock(&umh_sysctl_lock);
-	for (i = 0; i < _KERNEL_CAPABILITY_U32S; i++)  {
-		if (table->data == CAP_BSET)
-			cap_array[i] = usermodehelper_bset.cap[i];
-		else if (table->data == CAP_PI)
-			cap_array[i] = usermodehelper_inheritable.cap[i];
-		else
-			BUG();
-	}
+	if (table->data == CAP_BSET)
+		cap = &usermodehelper_bset;
+	else if (table->data == CAP_PI)
+		cap = &usermodehelper_inheritable;
+	else
+		BUG();
+
+	/* Legacy format: capabilities are exposed as two 32-bit values */
+	cap_array[0] = (u32) cap->val;
+	cap_array[1] = cap->val >> 32;
 	spin_unlock(&umh_sysctl_lock);
 
 	t = *table;
@@ -535,22 +537,15 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	if (err < 0)
 		return err;
 
-	/*
-	 * convert from the sysctl array of ulongs to the kernel_cap_t
-	 * internal representation
-	 */
-	for (i = 0; i < _KERNEL_CAPABILITY_U32S; i++)
-		new_cap.cap[i] = cap_array[i];
+	new_cap.val = (u32)cap_array[0];
+	new_cap.val += (u64)cap_array[1] << 32;
 
 	/*
 	 * Drop everything not in the new_cap (but don't add things)
 	 */
 	if (write) {
 		spin_lock(&umh_sysctl_lock);
-		if (table->data == CAP_BSET)
-			usermodehelper_bset = cap_intersect(usermodehelper_bset, new_cap);
-		if (table->data == CAP_PI)
-			usermodehelper_inheritable = cap_intersect(usermodehelper_inheritable, new_cap);
+		*cap = cap_intersect(*cap, new_cap);
 		spin_unlock(&umh_sysctl_lock);
 	}
 
@@ -561,14 +556,14 @@ struct ctl_table usermodehelper_table[] = {
 	{
 		.procname	= "bset",
 		.data		= CAP_BSET,
-		.maxlen		= _KERNEL_CAPABILITY_U32S * sizeof(unsigned long),
+		.maxlen		= 2 * sizeof(unsigned long),
 		.mode		= 0600,
 		.proc_handler	= proc_cap_handler,
 	},
 	{
 		.procname	= "inheritable",
 		.data		= CAP_PI,
-		.maxlen		= _KERNEL_CAPABILITY_U32S * sizeof(unsigned long),
+		.maxlen		= 2 * sizeof(unsigned long),
 		.mode		= 0600,
 		.proc_handler	= proc_cap_handler,
 	},

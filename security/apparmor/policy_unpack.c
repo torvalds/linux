@@ -304,6 +304,26 @@ fail:
 }
 EXPORT_SYMBOL_IF_KUNIT(aa_unpack_u64);
 
+static bool aa_unpack_cap_low(struct aa_ext *e, kernel_cap_t *data, const char *name)
+{
+	u32 val;
+
+	if (!aa_unpack_u32(e, &val, name))
+		return false;
+	data->val = val;
+	return true;
+}
+
+static bool aa_unpack_cap_high(struct aa_ext *e, kernel_cap_t *data, const char *name)
+{
+	u32 val;
+
+	if (!aa_unpack_u32(e, &val, name))
+		return false;
+	data->val = (u32)data->val | ((u64)val << 32);
+	return true;
+}
+
 VISIBLE_IF_KUNIT bool aa_unpack_array(struct aa_ext *e, const char *name, u16 *size)
 {
 	void *pos = e->pos;
@@ -897,25 +917,25 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->path_flags = PATH_MEDIATE_DELETED;
 
 	info = "failed to unpack profile capabilities";
-	if (!aa_unpack_u32(e, &(rules->caps.allow.cap[0]), NULL))
+	if (!aa_unpack_cap_low(e, &rules->caps.allow, NULL))
 		goto fail;
-	if (!aa_unpack_u32(e, &(rules->caps.audit.cap[0]), NULL))
+	if (!aa_unpack_cap_low(e, &rules->caps.audit, NULL))
 		goto fail;
-	if (!aa_unpack_u32(e, &(rules->caps.quiet.cap[0]), NULL))
+	if (!aa_unpack_cap_low(e, &rules->caps.quiet, NULL))
 		goto fail;
-	if (!aa_unpack_u32(e, &tmpcap.cap[0], NULL))
+	if (!aa_unpack_cap_low(e, &tmpcap, NULL))
 		goto fail;
 
 	info = "failed to unpack upper profile capabilities";
 	if (aa_unpack_nameX(e, AA_STRUCT, "caps64")) {
 		/* optional upper half of 64 bit caps */
-		if (!aa_unpack_u32(e, &(rules->caps.allow.cap[1]), NULL))
+		if (!aa_unpack_cap_high(e, &rules->caps.allow, NULL))
 			goto fail;
-		if (!aa_unpack_u32(e, &(rules->caps.audit.cap[1]), NULL))
+		if (!aa_unpack_cap_high(e, &rules->caps.audit, NULL))
 			goto fail;
-		if (!aa_unpack_u32(e, &(rules->caps.quiet.cap[1]), NULL))
+		if (!aa_unpack_cap_high(e, &rules->caps.quiet, NULL))
 			goto fail;
-		if (!aa_unpack_u32(e, &(tmpcap.cap[1]), NULL))
+		if (!aa_unpack_cap_high(e, &tmpcap, NULL))
 			goto fail;
 		if (!aa_unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
@@ -924,9 +944,9 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	info = "failed to unpack extended profile capabilities";
 	if (aa_unpack_nameX(e, AA_STRUCT, "capsx")) {
 		/* optional extended caps mediation mask */
-		if (!aa_unpack_u32(e, &(rules->caps.extended.cap[0]), NULL))
+		if (!aa_unpack_cap_low(e, &rules->caps.extended, NULL))
 			goto fail;
-		if (!aa_unpack_u32(e, &(rules->caps.extended.cap[1]), NULL))
+		if (!aa_unpack_cap_high(e, &rules->caps.extended, NULL))
 			goto fail;
 		if (!aa_unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
