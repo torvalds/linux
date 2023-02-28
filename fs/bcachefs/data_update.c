@@ -425,7 +425,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	struct extent_ptr_decoded p;
 	const struct bch_extent_ptr *ptr;
 	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
-	unsigned int ptrs_locked = 0;
+	unsigned ptrs_locked = 0;
 	int ret;
 
 	bch2_bkey_buf_init(&m->k);
@@ -438,6 +438,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	m->op.version	= k.k->version;
 	m->op.target	= data_opts.target;
 	m->op.write_point = wp;
+	m->op.nr_replicas = 0;
 	m->op.flags	|= BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|
 		BCH_WRITE_DATA_ENCODED|
@@ -456,17 +457,16 @@ int bch2_data_update_init(struct btree_trans *trans,
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		bool locked;
 
-		if (((1U << i) & m->data_opts.rewrite_ptrs) &&
-		    p.ptr.cached)
-			BUG();
+		if (((1U << i) & m->data_opts.rewrite_ptrs)) {
+			BUG_ON(p.ptr.cached);
 
-		if (!((1U << i) & m->data_opts.rewrite_ptrs) &&
-		    !p.ptr.cached)
+			if (crc_is_compressed(p.crc))
+				reserve_sectors += k.k->size;
+
+			m->op.nr_replicas += bch2_extent_ptr_durability(c, &p);
+		} else if (!p.ptr.cached) {
 			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
-
-		if (((1U << i) & m->data_opts.rewrite_ptrs) &&
-		    crc_is_compressed(p.crc))
-			reserve_sectors += k.k->size;
+		}
 
 		/*
 		 * op->csum_type is normally initialized from the fs/file's
@@ -513,8 +513,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 			goto err;
 	}
 
-	m->op.nr_replicas = m->op.nr_replicas_required =
-		hweight32(m->data_opts.rewrite_ptrs) + m->data_opts.extra_replicas;
+	m->op.nr_replicas += m->data_opts.extra_replicas;
+	m->op.nr_replicas_required = m->op.nr_replicas;
 
 	BUG_ON(!m->op.nr_replicas);
 
