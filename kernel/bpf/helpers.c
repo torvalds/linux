@@ -2106,8 +2106,7 @@ __bpf_kfunc struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level)
  * bpf_cgroup_from_id - Find a cgroup from its ID. A cgroup returned by this
  * kfunc which is not subsequently stored in a map, must be released by calling
  * bpf_cgroup_release().
- * @cgrp: The cgroup for which we're performing a lookup.
- * @level: The level of ancestor to look up.
+ * @cgid: cgroup id.
  */
 __bpf_kfunc struct cgroup *bpf_cgroup_from_id(u64 cgid)
 {
