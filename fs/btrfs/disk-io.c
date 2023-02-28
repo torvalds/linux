@@ -3353,14 +3353,11 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	struct btrfs_root *tree_root;
 	struct btrfs_root *chunk_root;
 	int ret;
-	int err = -EINVAL;
 	int level;
 
 	ret = init_mount_fs_info(fs_info, sb);
-	if (ret) {
-		err = ret;
+	if (ret)
 		goto fail;
-	}
 
 	/* These need to be init'ed before we start creating inodes and such. */
 	tree_root = btrfs_alloc_root(fs_info, BTRFS_ROOT_TREE_OBJECTID,
@@ -3370,15 +3367,13 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 				      GFP_KERNEL);
 	fs_info->chunk_root = chunk_root;
 	if (!tree_root || !chunk_root) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto fail;
 	}
 
 	ret = btrfs_init_btree_inode(sb);
-	if (ret) {
-		err = ret;
+	if (ret)
 		goto fail;
-	}
 
 	invalidate_bdev(fs_devices->latest_dev->bdev);
 
@@ -3387,7 +3382,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 */
 	disk_super = btrfs_read_dev_super(fs_devices->latest_dev->bdev);
 	if (IS_ERR(disk_super)) {
-		err = PTR_ERR(disk_super);
+		ret = PTR_ERR(disk_super);
 		goto fail_alloc;
 	}
 
@@ -3399,7 +3394,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	if (!btrfs_supported_super_csum(csum_type)) {
 		btrfs_err(fs_info, "unsupported checksum algorithm: %u",
 			  csum_type);
-		err = -EINVAL;
+		ret = -EINVAL;
 		btrfs_release_disk_super(disk_super);
 		goto fail_alloc;
 	}
@@ -3408,7 +3403,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 
 	ret = btrfs_init_csum_hash(fs_info, csum_type);
 	if (ret) {
-		err = ret;
 		btrfs_release_disk_super(disk_super);
 		goto fail_alloc;
 	}
@@ -3419,7 +3413,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 */
 	if (btrfs_check_super_csum(fs_info, disk_super)) {
 		btrfs_err(fs_info, "superblock checksum mismatch");
-		err = -EINVAL;
+		ret = -EINVAL;
 		btrfs_release_disk_super(disk_super);
 		goto fail_alloc;
 	}
@@ -3449,12 +3443,15 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	ret = btrfs_validate_mount_super(fs_info);
 	if (ret) {
 		btrfs_err(fs_info, "superblock contains fatal errors");
-		err = -EINVAL;
+		ret = -EINVAL;
 		goto fail_alloc;
 	}
 
-	if (!btrfs_super_root(disk_super))
+	if (!btrfs_super_root(disk_super)) {
+		btrfs_err(fs_info, "invalid superblock tree root bytenr");
+		ret = -EINVAL;
 		goto fail_alloc;
+	}
 
 	/* check FS state, whether FS is broken. */
 	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_ERROR)
@@ -3481,16 +3478,12 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->stripesize = stripesize;
 
 	ret = btrfs_parse_options(fs_info, options, sb->s_flags);
-	if (ret) {
-		err = ret;
+	if (ret)
 		goto fail_alloc;
-	}
 
 	ret = btrfs_check_features(fs_info, !sb_rdonly(sb));
-	if (ret < 0) {
-		err = ret;
+	if (ret < 0)
 		goto fail_alloc;
-	}
 
 	if (sectorsize < PAGE_SIZE) {
 		struct btrfs_subpage_info *subpage_info;
@@ -3510,17 +3503,17 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		"read-write for sector size %u with page size %lu is experimental",
 			   sectorsize, PAGE_SIZE);
 		subpage_info = kzalloc(sizeof(*subpage_info), GFP_KERNEL);
-		if (!subpage_info)
+		if (!subpage_info) {
+			ret = -ENOMEM;
 			goto fail_alloc;
+		}
 		btrfs_init_subpage_info(subpage_info, sectorsize);
 		fs_info->subpage_info = subpage_info;
 	}
 
 	ret = btrfs_init_workqueues(fs_info);
-	if (ret) {
-		err = ret;
+	if (ret)
 		goto fail_sb_buffer;
-	}
 
 	sb->s_bdi->ra_pages *= btrfs_super_num_devices(disk_super);
 	sb->s_bdi->ra_pages = max(sb->s_bdi->ra_pages, SZ_4M / PAGE_SIZE);
@@ -3566,6 +3559,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	btrfs_free_extra_devids(fs_devices);
 	if (!fs_devices->latest_dev->bdev) {
 		btrfs_err(fs_info, "failed to read devices");
+		ret = -EIO;
 		goto fail_tree_roots;
 	}
 
@@ -3581,8 +3575,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	ret = btrfs_get_dev_zone_info_all_devices(fs_info);
 	if (ret) {
 		btrfs_err(fs_info,
-			  "zoned: failed to read device zone info: %d",
-			  ret);
+			  "zoned: failed to read device zone info: %d", ret);
 		goto fail_block_groups;
 	}
 
@@ -3661,19 +3654,24 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	    !btrfs_check_rw_degradable(fs_info, NULL)) {
 		btrfs_warn(fs_info,
 		"writable mount is not allowed due to too many missing devices");
+		ret = -EINVAL;
 		goto fail_sysfs;
 	}
 
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, fs_info,
 					       "btrfs-cleaner");
-	if (IS_ERR(fs_info->cleaner_kthread))
+	if (IS_ERR(fs_info->cleaner_kthread)) {
+		ret = PTR_ERR(fs_info->cleaner_kthread);
 		goto fail_sysfs;
+	}
 
 	fs_info->transaction_kthread = kthread_run(transaction_kthread,
 						   tree_root,
 						   "btrfs-transaction");
-	if (IS_ERR(fs_info->transaction_kthread))
+	if (IS_ERR(fs_info->transaction_kthread)) {
+		ret = PTR_ERR(fs_info->transaction_kthread);
 		goto fail_cleaner;
+	}
 
 	if (!btrfs_test_opt(fs_info, NOSSD) &&
 	    !fs_info->fs_devices->rotating) {
@@ -3718,16 +3716,14 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	    !btrfs_test_opt(fs_info, NOLOGREPLAY)) {
 		btrfs_info(fs_info, "start tree-log replay");
 		ret = btrfs_replay_log(fs_info, fs_devices);
-		if (ret) {
-			err = ret;
+		if (ret)
 			goto fail_qgroup;
-		}
 	}
 
 	fs_info->fs_root = btrfs_get_fs_root(fs_info, BTRFS_FS_TREE_OBJECTID, true);
 	if (IS_ERR(fs_info->fs_root)) {
-		err = PTR_ERR(fs_info->fs_root);
-		btrfs_warn(fs_info, "failed to read fs tree: %d", err);
+		ret = PTR_ERR(fs_info->fs_root);
+		btrfs_warn(fs_info, "failed to read fs tree: %d", ret);
 		fs_info->fs_root = NULL;
 		goto fail_qgroup;
 	}
@@ -3804,7 +3800,8 @@ fail_alloc:
 	iput(fs_info->btree_inode);
 fail:
 	btrfs_close_devices(fs_info->fs_devices);
-	return err;
+	ASSERT(ret < 0);
+	return ret;
 }
 ALLOW_ERROR_INJECTION(open_ctree, ERRNO);
 
