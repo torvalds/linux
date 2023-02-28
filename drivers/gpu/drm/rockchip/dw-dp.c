@@ -2921,7 +2921,16 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 	int ret;
 
 	connector = drm_atomic_get_new_connector_for_encoder(state, bridge->encoder);
+	if (!connector) {
+		dev_err(dp->dev, "failed to get connector\n");
+		return;
+	}
+
 	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state) {
+		dev_err(dp->dev, "failed to get connector state\n");
+		return;
+	}
 
 	set_bit(0, dp->sdp_reg_bank);
 
