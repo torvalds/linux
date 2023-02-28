@@ -535,6 +535,8 @@ static struct ceph_vxattr *ceph_match_vxattr(struct inode *inode,
 	return NULL;
 }
 
+#define MAX_XATTR_VAL_PRINT_LEN 256
+
 static int __set_xattr(struct ceph_inode_info *ci,
 			   const char *name, int name_len,
 			   const char *val, int val_len,
@@ -597,7 +599,7 @@ static int __set_xattr(struct ceph_inode_info *ci,
 		xattr->should_free_name = update_xattr;
 
 		ci->i_xattrs.count++;
-		dout("__set_xattr count=%d\n", ci->i_xattrs.count);
+		dout("%s count=%d\n", __func__, ci->i_xattrs.count);
 	} else {
 		kfree(*newxattr);
 		*newxattr = NULL;
@@ -625,11 +627,13 @@ static int __set_xattr(struct ceph_inode_info *ci,
 	if (new) {
 		rb_link_node(&xattr->node, parent, p);
 		rb_insert_color(&xattr->node, &ci->i_xattrs.index);
-		dout("__set_xattr_val p=%p\n", p);
+		dout("%s p=%p\n", __func__, p);
 	}
 
-	dout("__set_xattr_val added %llx.%llx xattr %p %.*s=%.*s\n",
-	     ceph_vinop(&ci->netfs.inode), xattr, name_len, name, val_len, val);
+	dout("%s added %llx.%llx xattr %p %.*s=%.*s%s\n", __func__,
+	     ceph_vinop(&ci->netfs.inode), xattr, name_len, name,
+	     min(val_len, MAX_XATTR_VAL_PRINT_LEN), val,
+	     val_len > MAX_XATTR_VAL_PRINT_LEN ? "..." : "");
 
 	return 0;
 }
@@ -655,13 +659,15 @@ static struct ceph_inode_xattr *__get_xattr(struct ceph_inode_info *ci,
 		else if (c > 0)
 			p = &(*p)->rb_right;
 		else {
-			dout("__get_xattr %s: found %.*s\n", name,
-			     xattr->val_len, xattr->val);
+			int len = min(xattr->val_len, MAX_XATTR_VAL_PRINT_LEN);
+
+			dout("%s %s: found %.*s%s\n", __func__, name, len,
+			     xattr->val, xattr->val_len > len ? "..." : "");
 			return xattr;
 		}
 	}
 
-	dout("__get_xattr %s: not found\n", name);
+	dout("%s %s: not found\n", __func__, name);
 
 	return NULL;
 }
