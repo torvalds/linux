@@ -3200,6 +3200,10 @@ config CC_HAS_MNO_BRANCH_LIKELY
 	def_bool y
 	depends on $(cc-option,-mno-branch-likely)
 
+# https://github.com/llvm/llvm-project/issues/61045
+config CC_HAS_BROKEN_INLINE_COMPAT_BRANCH
+	def_bool y if CC_IS_CLANG
+
 menu "Power management options"
 
 config ARCH_HIBERNATION_POSSIBLE
