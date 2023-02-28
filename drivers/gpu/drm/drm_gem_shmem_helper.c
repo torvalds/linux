@@ -88,6 +88,8 @@ __drm_gem_shmem_create(struct drm_device *dev, size_t size, bool private)
 	if (ret)
 		goto err_release;
 
+	mutex_init(&shmem->pages_lock);
+	mutex_init(&shmem->vmap_lock);
 	INIT_LIST_HEAD(&shmem->madv_list);
 
 	if (!private) {
@@ -139,13 +141,11 @@ void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
+	drm_WARN_ON(obj->dev, shmem->vmap_use_count);
+
 	if (obj->import_attach) {
 		drm_prime_gem_destroy(obj, shmem->sgt);
 	} else {
-		dma_resv_lock(shmem->base.resv, NULL);
-
-		drm_WARN_ON(obj->dev, shmem->vmap_use_count);
-
 		if (shmem->sgt) {
 			dma_unmap_sgtable(obj->dev->dev, shmem->sgt,
 					  DMA_BIDIRECTIONAL, 0);
@@ -154,18 +154,18 @@ void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
 		}
 		if (shmem->pages)
 			drm_gem_shmem_put_pages(shmem);
-
-		drm_WARN_ON(obj->dev, shmem->pages_use_count);
-
-		dma_resv_unlock(shmem->base.resv);
 	}
 
+	drm_WARN_ON(obj->dev, shmem->pages_use_count);
+
 	drm_gem_object_release(obj);
+	mutex_destroy(&shmem->pages_lock);
+	mutex_destroy(&shmem->vmap_lock);
 	kfree(shmem);
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_free);
 
-static int drm_gem_shmem_get_pages(struct drm_gem_shmem_object *shmem)
+static int drm_gem_shmem_get_pages_locked(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 	struct page **pages;
@@ -197,16 +197,35 @@ static int drm_gem_shmem_get_pages(struct drm_gem_shmem_object *shmem)
 }
 
 /*
- * drm_gem_shmem_put_pages - Decrease use count on the backing pages for a shmem GEM object
+ * drm_gem_shmem_get_pages - Allocate backing pages for a shmem GEM object
  * @shmem: shmem GEM object
  *
- * This function decreases the use count and puts the backing pages when use drops to zero.
+ * This function makes sure that backing pages exists for the shmem GEM object
+ * and increases the use count.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
-void drm_gem_shmem_put_pages(struct drm_gem_shmem_object *shmem)
+int drm_gem_shmem_get_pages(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
+	int ret;
 
-	dma_resv_assert_held(shmem->base.resv);
+	drm_WARN_ON(obj->dev, obj->import_attach);
+
+	ret = mutex_lock_interruptible(&shmem->pages_lock);
+	if (ret)
+		return ret;
+	ret = drm_gem_shmem_get_pages_locked(shmem);
+	mutex_unlock(&shmem->pages_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_shmem_get_pages);
+
+static void drm_gem_shmem_put_pages_locked(struct drm_gem_shmem_object *shmem)
+{
+	struct drm_gem_object *obj = &shmem->base;
 
 	if (drm_WARN_ON_ONCE(obj->dev, !shmem->pages_use_count))
 		return;
@@ -224,6 +243,19 @@ void drm_gem_shmem_put_pages(struct drm_gem_shmem_object *shmem)
 			  shmem->pages_mark_accessed_on_put);
 	shmem->pages = NULL;
 }
+
+/*
+ * drm_gem_shmem_put_pages - Decrease use count on the backing pages for a shmem GEM object
+ * @shmem: shmem GEM object
+ *
+ * This function decreases the use count and puts the backing pages when use drops to zero.
+ */
+void drm_gem_shmem_put_pages(struct drm_gem_shmem_object *shmem)
+{
+	mutex_lock(&shmem->pages_lock);
+	drm_gem_shmem_put_pages_locked(shmem);
+	mutex_unlock(&shmem->pages_lock);
+}
 EXPORT_SYMBOL(drm_gem_shmem_put_pages);
 
 /**
@@ -239,8 +271,6 @@ EXPORT_SYMBOL(drm_gem_shmem_put_pages);
 int drm_gem_shmem_pin(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
-
-	dma_resv_assert_held(shmem->base.resv);
 
 	drm_WARN_ON(obj->dev, obj->import_attach);
 
@@ -259,31 +289,14 @@ void drm_gem_shmem_unpin(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
-	dma_resv_assert_held(shmem->base.resv);
-
 	drm_WARN_ON(obj->dev, obj->import_attach);
 
 	drm_gem_shmem_put_pages(shmem);
 }
 EXPORT_SYMBOL(drm_gem_shmem_unpin);
 
-/*
- * drm_gem_shmem_vmap - Create a virtual mapping for a shmem GEM object
- * @shmem: shmem GEM object
- * @map: Returns the kernel virtual address of the SHMEM GEM object's backing
- *       store.
- *
- * This function makes sure that a contiguous kernel virtual address mapping
- * exists for the buffer backing the shmem GEM object. It hides the differences
- * between dma-buf imported and natively allocated objects.
- *
- * Acquired mappings should be cleaned up by calling drm_gem_shmem_vunmap().
- *
- * Returns:
- * 0 on success or a negative error code on failure.
- */
-int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
-		       struct iosys_map *map)
+static int drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem,
+				     struct iosys_map *map)
 {
 	struct drm_gem_object *obj = &shmem->base;
 	int ret = 0;
@@ -298,8 +311,6 @@ int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
 		}
 	} else {
 		pgprot_t prot = PAGE_KERNEL;
-
-		dma_resv_assert_held(shmem->base.resv);
 
 		if (shmem->vmap_use_count++ > 0) {
 			iosys_map_set_vaddr(map, shmem->vaddr);
@@ -335,7 +346,57 @@ err_zero_use:
 
 	return ret;
 }
+
+/*
+ * drm_gem_shmem_vmap - Create a virtual mapping for a shmem GEM object
+ * @shmem: shmem GEM object
+ * @map: Returns the kernel virtual address of the SHMEM GEM object's backing
+ *       store.
+ *
+ * This function makes sure that a contiguous kernel virtual address mapping
+ * exists for the buffer backing the shmem GEM object. It hides the differences
+ * between dma-buf imported and natively allocated objects.
+ *
+ * Acquired mappings should be cleaned up by calling drm_gem_shmem_vunmap().
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
+		       struct iosys_map *map)
+{
+	int ret;
+
+	ret = mutex_lock_interruptible(&shmem->vmap_lock);
+	if (ret)
+		return ret;
+	ret = drm_gem_shmem_vmap_locked(shmem, map);
+	mutex_unlock(&shmem->vmap_lock);
+
+	return ret;
+}
 EXPORT_SYMBOL(drm_gem_shmem_vmap);
+
+static void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem,
+					struct iosys_map *map)
+{
+	struct drm_gem_object *obj = &shmem->base;
+
+	if (obj->import_attach) {
+		dma_buf_vunmap(obj->import_attach->dmabuf, map);
+	} else {
+		if (drm_WARN_ON_ONCE(obj->dev, !shmem->vmap_use_count))
+			return;
+
+		if (--shmem->vmap_use_count > 0)
+			return;
+
+		vunmap(shmem->vaddr);
+		drm_gem_shmem_put_pages(shmem);
+	}
+
+	shmem->vaddr = NULL;
+}
 
 /*
  * drm_gem_shmem_vunmap - Unmap a virtual mapping for a shmem GEM object
@@ -352,24 +413,9 @@ EXPORT_SYMBOL(drm_gem_shmem_vmap);
 void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem,
 			  struct iosys_map *map)
 {
-	struct drm_gem_object *obj = &shmem->base;
-
-	if (obj->import_attach) {
-		dma_buf_vunmap(obj->import_attach->dmabuf, map);
-	} else {
-		dma_resv_assert_held(shmem->base.resv);
-
-		if (drm_WARN_ON_ONCE(obj->dev, !shmem->vmap_use_count))
-			return;
-
-		if (--shmem->vmap_use_count > 0)
-			return;
-
-		vunmap(shmem->vaddr);
-		drm_gem_shmem_put_pages(shmem);
-	}
-
-	shmem->vaddr = NULL;
+	mutex_lock(&shmem->vmap_lock);
+	drm_gem_shmem_vunmap_locked(shmem, map);
+	mutex_unlock(&shmem->vmap_lock);
 }
 EXPORT_SYMBOL(drm_gem_shmem_vunmap);
 
@@ -401,23 +447,23 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
  */
 int drm_gem_shmem_madvise(struct drm_gem_shmem_object *shmem, int madv)
 {
-	dma_resv_assert_held(shmem->base.resv);
+	mutex_lock(&shmem->pages_lock);
 
 	if (shmem->madv >= 0)
 		shmem->madv = madv;
 
 	madv = shmem->madv;
 
+	mutex_unlock(&shmem->pages_lock);
+
 	return (madv >= 0);
 }
 EXPORT_SYMBOL(drm_gem_shmem_madvise);
 
-void drm_gem_shmem_purge(struct drm_gem_shmem_object *shmem)
+void drm_gem_shmem_purge_locked(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 	struct drm_device *dev = obj->dev;
-
-	dma_resv_assert_held(shmem->base.resv);
 
 	drm_WARN_ON(obj->dev, !drm_gem_shmem_is_purgeable(shmem));
 
@@ -426,7 +472,7 @@ void drm_gem_shmem_purge(struct drm_gem_shmem_object *shmem)
 	kfree(shmem->sgt);
 	shmem->sgt = NULL;
 
-	drm_gem_shmem_put_pages(shmem);
+	drm_gem_shmem_put_pages_locked(shmem);
 
 	shmem->madv = -1;
 
@@ -441,6 +487,17 @@ void drm_gem_shmem_purge(struct drm_gem_shmem_object *shmem)
 	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
 
 	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping, 0, (loff_t)-1);
+}
+EXPORT_SYMBOL(drm_gem_shmem_purge_locked);
+
+bool drm_gem_shmem_purge(struct drm_gem_shmem_object *shmem)
+{
+	if (!mutex_trylock(&shmem->pages_lock))
+		return false;
+	drm_gem_shmem_purge_locked(shmem);
+	mutex_unlock(&shmem->pages_lock);
+
+	return true;
 }
 EXPORT_SYMBOL(drm_gem_shmem_purge);
 
@@ -494,7 +551,7 @@ static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
-	dma_resv_lock(shmem->base.resv, NULL);
+	mutex_lock(&shmem->pages_lock);
 
 	if (page_offset >= num_pages ||
 	    drm_WARN_ON_ONCE(obj->dev, !shmem->pages) ||
@@ -506,7 +563,7 @@ static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
 		ret = vmf_insert_pfn(vma, vmf->address, page_to_pfn(page));
 	}
 
-	dma_resv_unlock(shmem->base.resv);
+	mutex_unlock(&shmem->pages_lock);
 
 	return ret;
 }
@@ -518,7 +575,7 @@ static void drm_gem_shmem_vm_open(struct vm_area_struct *vma)
 
 	drm_WARN_ON(obj->dev, obj->import_attach);
 
-	dma_resv_lock(shmem->base.resv, NULL);
+	mutex_lock(&shmem->pages_lock);
 
 	/*
 	 * We should have already pinned the pages when the buffer was first
@@ -528,7 +585,7 @@ static void drm_gem_shmem_vm_open(struct vm_area_struct *vma)
 	if (!drm_WARN_ON_ONCE(obj->dev, !shmem->pages_use_count))
 		shmem->pages_use_count++;
 
-	dma_resv_unlock(shmem->base.resv);
+	mutex_unlock(&shmem->pages_lock);
 
 	drm_gem_vm_open(vma);
 }
@@ -538,10 +595,7 @@ static void drm_gem_shmem_vm_close(struct vm_area_struct *vma)
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 
-	dma_resv_lock(shmem->base.resv, NULL);
 	drm_gem_shmem_put_pages(shmem);
-	dma_resv_unlock(shmem->base.resv);
-
 	drm_gem_vm_close(vma);
 }
 
@@ -576,10 +630,7 @@ int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct
 		return dma_buf_mmap(obj->dma_buf, vma, 0);
 	}
 
-	dma_resv_lock(shmem->base.resv, NULL);
 	ret = drm_gem_shmem_get_pages(shmem);
-	dma_resv_unlock(shmem->base.resv);
-
 	if (ret)
 		return ret;
 
@@ -645,7 +696,7 @@ static struct sg_table *drm_gem_shmem_get_pages_sgt_locked(struct drm_gem_shmem_
 
 	drm_WARN_ON(obj->dev, obj->import_attach);
 
-	ret = drm_gem_shmem_get_pages(shmem);
+	ret = drm_gem_shmem_get_pages_locked(shmem);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -667,7 +718,7 @@ err_free_sgt:
 	sg_free_table(sgt);
 	kfree(sgt);
 err_put_pages:
-	drm_gem_shmem_put_pages(shmem);
+	drm_gem_shmem_put_pages_locked(shmem);
 	return ERR_PTR(ret);
 }
 
@@ -692,11 +743,11 @@ struct sg_table *drm_gem_shmem_get_pages_sgt(struct drm_gem_shmem_object *shmem)
 	int ret;
 	struct sg_table *sgt;
 
-	ret = dma_resv_lock_interruptible(shmem->base.resv, NULL);
+	ret = mutex_lock_interruptible(&shmem->pages_lock);
 	if (ret)
 		return ERR_PTR(ret);
 	sgt = drm_gem_shmem_get_pages_sgt_locked(shmem);
-	dma_resv_unlock(shmem->base.resv);
+	mutex_unlock(&shmem->pages_lock);
 
 	return sgt;
 }

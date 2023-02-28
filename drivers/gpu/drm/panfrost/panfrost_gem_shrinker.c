@@ -48,14 +48,14 @@ static bool panfrost_gem_purge(struct drm_gem_object *obj)
 	if (!mutex_trylock(&bo->mappings.lock))
 		return false;
 
-	if (!dma_resv_trylock(shmem->base.resv))
+	if (!mutex_trylock(&shmem->pages_lock))
 		goto unlock_mappings;
 
 	panfrost_gem_teardown_mappings_locked(bo);
-	drm_gem_shmem_purge(&bo->base);
+	drm_gem_shmem_purge_locked(&bo->base);
 	ret = true;
 
-	dma_resv_unlock(shmem->base.resv);
+	mutex_unlock(&shmem->pages_lock);
 
 unlock_mappings:
 	mutex_unlock(&bo->mappings.lock);
