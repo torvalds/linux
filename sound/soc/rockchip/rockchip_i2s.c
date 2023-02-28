@@ -99,12 +99,31 @@ static int rockchip_i2s_clear(struct rk_i2s_dev *i2s)
 	unsigned int val = 0;
 	int ret;
 
+	/*
+	 * Workaround for FIFO clear on SLAVE mode:
+	 *
+	 * A Suggest to do reset hclk domain and then do mclk
+	 *   domain, especially for SLAVE mode without CLK in.
+	 *   at last, recovery regmap config.
+	 *
+	 * B Suggest to switch to MASTER, and then do FIFO clr,
+	 *   at last, bring back to SLAVE.
+	 *
+	 * Now we choose plan B here.
+	 */
+	if (!i2s->is_master_mode)
+		regmap_update_bits(i2s->regmap, I2S_CKR,
+				   I2S_CKR_MSS_MASK, I2S_CKR_MSS_MASTER);
 	regmap_update_bits(i2s->regmap, I2S_CLR, clr, clr);
 
 	ret = regmap_read_poll_timeout_atomic(i2s->regmap, I2S_CLR, val,
 					      !(val & clr), 10, 100);
+	if (!i2s->is_master_mode)
+		regmap_update_bits(i2s->regmap, I2S_CKR,
+				   I2S_CKR_MSS_MASK, I2S_CKR_MSS_SLAVE);
 	if (ret < 0)
-		dev_warn(i2s->dev, "fail to clear\n");
+		dev_warn(i2s->dev, "failed to clear fifo on %s mode\n",
+			 i2s->is_master_mode ? "master" : "slave");
 
 	return ret;
 }
