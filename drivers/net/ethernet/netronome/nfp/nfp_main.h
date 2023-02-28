@@ -28,6 +28,7 @@ struct nfp_hwinfo;
 struct nfp_mip;
 struct nfp_net;
 struct nfp_nsp_identify;
+struct nfp_eth_media_buf;
 struct nfp_port;
 struct nfp_rtsym;
 struct nfp_rtsym_table;
