@@ -135,7 +135,7 @@ static int qcom_ddump_share_mem(struct qcom_dmesg_dumper *qdd, gh_vmid_t self,
 	sgl->sgl_entries[0].ipa_base = qdd->res.start;
 	sgl->sgl_entries[0].size = resource_size(&qdd->res);
 
-	ret = gh_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, qdd->label,
+	ret = ghd_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, qdd->label,
 			      acl, sgl, NULL, &qdd->memparcel);
 	if (ret) {
 		dev_err(qdd->dev, "Gunyah mem share addr=%x size=%u failed: %d\n",
@@ -163,7 +163,7 @@ static void qcom_ddump_unshare_mem(struct qcom_dmesg_dumper *qdd, gh_vmid_t self
 	u64 src_vmid = BIT(self) | BIT(peer);
 	int ret;
 
-	ret = gh_rm_mem_reclaim(qdd->memparcel, 0);
+	ret = ghd_rm_mem_reclaim(qdd->memparcel, 0);
 	if (ret)
 		dev_err(qdd->dev, "Gunyah mem reclaim failed: %d\n", ret);
 
@@ -192,9 +192,9 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 	if (vm_status_payload->vm_status != GH_RM_VM_STATUS_READY &&
 	    vm_status_payload->vm_status != GH_RM_VM_STATUS_RESET)
 		return NOTIFY_DONE;
-	if (gh_rm_get_vmid(qdd->peer_name, &peer_vmid))
+	if (ghd_rm_get_vmid(qdd->peer_name, &peer_vmid))
 		return NOTIFY_DONE;
-	if (gh_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
+	if (ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
 		return NOTIFY_DONE;
 	if (peer_vmid != vm_status_payload->vmid)
 		return NOTIFY_DONE;

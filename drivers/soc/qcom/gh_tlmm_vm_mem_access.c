@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -37,8 +38,8 @@ static struct gh_acl_desc *gh_tlmm_vm_get_acl(enum gh_vm_names vm_name)
 	gh_vmid_t vmid;
 	gh_vmid_t primary_vmid;
 
-	gh_rm_get_vmid(vm_name, &vmid);
-	gh_rm_get_vmid(GH_PRIMARY_VM, &primary_vmid);
+	ghd_rm_get_vmid(vm_name, &vmid);
+	ghd_rm_get_vmid(GH_PRIMARY_VM, &primary_vmid);
 
 	acl_desc = kzalloc(offsetof(struct gh_acl_desc, acl_entries[2]),
 			GFP_KERNEL);
@@ -96,7 +97,7 @@ static int gh_tlmm_vm_mem_share(struct gh_tlmm_vm_info *gh_tlmm_vm_info_data)
 		goto sgl_error;
 	}
 
-	rc = gh_rm_mem_share(GH_RM_MEM_TYPE_IO, 0, GH_TLMM_MEM_LABEL,
+	rc = ghd_rm_mem_share(GH_RM_MEM_TYPE_IO, 0, GH_TLMM_MEM_LABEL,
 			acl_desc, sgl_desc, NULL, &mem_handle);
 	if (rc) {
 		dev_err(gh_tlmm_dev, "Failed to share IO memories for TLMM rc:%d\n", rc);
@@ -126,7 +127,7 @@ static int __maybe_unused gh_guest_memshare_nb_handler(struct notifier_block *th
 	if (cmd != GH_RM_NOTIF_VM_STATUS)
 		return NOTIFY_DONE;
 
-	gh_rm_get_vmid(GH_TRUSTED_VM, &peer_vmid);
+	ghd_rm_get_vmid(GH_TRUSTED_VM, &peer_vmid);
 
 	if (peer_vmid != vm_status_payload->vmid)
 		return NOTIFY_DONE;
@@ -174,7 +175,7 @@ static int gh_tlmm_vm_mem_reclaim(struct gh_tlmm_vm_info *gh_tlmm_vm_info_data)
 		return -EINVAL;
 	}
 
-	rc = gh_rm_mem_reclaim(gh_tlmm_vm_info_data->vm_mem_handle, 0);
+	rc = ghd_rm_mem_reclaim(gh_tlmm_vm_info_data->vm_mem_handle, 0);
 	if (rc)
 		dev_err(gh_tlmm_dev, "VM mem reclaim failed rc:%d\n", rc);
 
@@ -346,7 +347,7 @@ static int gh_tlmm_vm_mem_access_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	} else {
-		ret = gh_rm_get_vmid(GH_TRUSTED_VM, &vmid);
+		ret = ghd_rm_get_vmid(GH_TRUSTED_VM, &vmid);
 		if (ret)
 			return ret;
 

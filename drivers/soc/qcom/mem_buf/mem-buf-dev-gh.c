@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -382,12 +382,12 @@ int mem_buf_assign_mem_gunyah(u32 op, struct sg_table *sgt,
 
 	pr_debug("%s: Invoking Gunyah Lend/Share\n", __func__);
 	if (op == GH_RM_TRANS_TYPE_LEND) {
-		ret = gh_rm_mem_lend(GH_RM_MEM_TYPE_NORMAL, arg->flags,
+		ret = ghd_rm_mem_lend(GH_RM_MEM_TYPE_NORMAL, arg->flags,
 				     arg->label, gh_acl, gh_sgl,
 				     NULL /* Default memory attributes */,
 				     &arg->memparcel_hdl);
 	} else if (op == GH_RM_TRANS_TYPE_SHARE) {
-		ret = gh_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, arg->flags,
+		ret = ghd_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, arg->flags,
 				     arg->label, gh_acl, gh_sgl,
 				     NULL /* Default memory attributes */,
 				     &arg->memparcel_hdl);
@@ -424,7 +424,7 @@ int mem_buf_unassign_mem_gunyah(gh_memparcel_handle_t memparcel_hdl)
 	int ret;
 
 	pr_debug("%s: Beginning gunyah reclaim\n", __func__);
-	ret = gh_rm_mem_reclaim(memparcel_hdl, 0);
+	ret = ghd_rm_mem_reclaim(memparcel_hdl, 0);
 	if (ret) {
 		pr_err("%s: Gunyah reclaim failed\n", __func__);
 		return ret;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -176,7 +177,7 @@ int gh_irq_lend_v2(enum gh_irq_label label, enum gh_vm_names name,
 		return -EINVAL;
 	}
 
-	ret = gh_rm_get_vmid(name, &entry->vmid);
+	ret = ghd_rm_get_vmid(name, &entry->vmid);
 	if (ret) {
 		entry->state = GH_IRQ_STATE_NONE;
 		spin_unlock_irqrestore(&gh_irq_lend_lock, flags);
