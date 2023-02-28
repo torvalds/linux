@@ -1449,6 +1449,20 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *	a firmware handled hotkey. Therefor userspace must not include the
  *	privacy-screen sw-state in an atomic commit unless it wants to change
  *	its value.
+ *
+ * left margin, right margin, top margin, bottom margin:
+ *	Add margins to the connector's viewport. This is typically used to
+ *	mitigate underscan on TVs.
+ *
+ *	The value is the size in pixels of the black border which will be
+ *	added. The attached CRTC's content will be scaled to fill the whole
+ *	area inside the margin.
+ *
+ *	The margins configuration might be sent to the sink, e.g. via HDMI AVI
+ *	InfoFrames.
+ *
+ *	Drivers can set up these properties by calling
+ *	drm_mode_create_tv_margin_properties().
  */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
@@ -1593,10 +1607,6 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
 
 /*
  * TODO: Document the properties:
- *   - left margin
- *   - right margin
- *   - top margin
- *   - bottom margin
  *   - brightness
  *   - contrast
  *   - flicker reduction
