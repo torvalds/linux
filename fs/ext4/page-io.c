@@ -502,7 +502,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	/* Nothing to submit? Just unlock the page... */
 	if (!nr_to_submit)
-		goto unlock;
+		return 0;
 
 	bh = head = page_buffers(page);
 
@@ -550,7 +550,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 				}
 				bh = bh->b_this_page;
 			} while (bh != head);
-			goto unlock;
+
+			return ret;
 		}
 	}
 
@@ -565,7 +566,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			continue;
 		io_submit_add_bh(io, inode, page, bounce_page, bh);
 	} while ((bh = bh->b_this_page) != head);
-unlock:
-	unlock_page(page);
-	return ret;
+
+	return 0;
 }

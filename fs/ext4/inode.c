@@ -2076,6 +2076,7 @@ static int ext4_writepage(struct page *page,
 		return -ENOMEM;
 	}
 	ret = ext4_bio_write_page(&io_submit, page, len);
+	unlock_page(page);
 	ext4_io_submit(&io_submit);
 	/* Drop io_end reference we got from init */
 	ext4_put_io_end_defer(io_submit.io_end);
@@ -2110,6 +2111,7 @@ static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 	else
 		len = PAGE_SIZE;
 	err = ext4_bio_write_page(&mpd->io_submit, page, len);
+	unlock_page(page);
 	if (!err)
 		mpd->wbc->nr_to_write--;
 	mpd->first_page++;
