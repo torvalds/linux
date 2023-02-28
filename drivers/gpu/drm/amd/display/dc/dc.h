@@ -1768,8 +1768,7 @@ void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
 bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx);
 
 /* translate a raw link rate data to bandwidth in kbps */
-uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(
-		struct dc *dc, uint8_t bw);
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(const struct dc *dc, uint8_t bw);
 
 /* determine the optimal bandwidth given link and required bw.
  * @link - current detected link

@@ -285,8 +285,7 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 			ddc, payload, operation_result);
 }
 
-uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(
-		struct dc *dc, uint8_t bw)
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(const struct dc *dc, uint8_t bw)
 {
 	return dc->link_srv->bw_kbps_from_raw_frl_link_rate_data(bw);
 }
