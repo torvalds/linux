@@ -1004,30 +1004,6 @@ int ext4_walk_page_buffers(handle_t *handle, struct inode *inode,
 	return ret;
 }
 
-/*
- * To preserve ordering, it is essential that the hole instantiation and
- * the data write be encapsulated in a single transaction.  We cannot
- * close off a transaction and start a new one between the ext4_get_block()
- * and the commit_write().  So doing the jbd2_journal_start at the start of
- * prepare_write() is the right place.
- *
- * Also, this function can nest inside ext4_writepage().  In that case, we
- * *know* that ext4_writepage() has generated enough buffer credits to do the
- * whole page.  So we won't block on the journal in that case, which is good,
- * because the caller may be PF_MEMALLOC.
- *
- * By accident, ext4 can be reentered when a transaction is open via
- * quota file writes.  If we were to commit the transaction while thus
- * reentered, there can be a deadlock - we would be holding a quota
- * lock, and the commit would never complete if another thread had a
- * transaction open and was blocking on the quota lock - a ranking
- * violation.
- *
- * So what we do is to rely on the fact that jbd2_journal_stop/journal_start
- * will _not_ run commit under these circumstances because handle->h_ref
- * is elevated.  We'll still have enough credits for the tiny quotafile
- * write.
- */
 int do_journal_get_write_access(handle_t *handle, struct inode *inode,
 				struct buffer_head *bh)
 {
@@ -1149,6 +1125,13 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 }
 #endif
 
+/*
+ * To preserve ordering, it is essential that the hole instantiation and
+ * the data write be encapsulated in a single transaction.  We cannot
+ * close off a transaction and start a new one between the ext4_get_block()
+ * and the ext4_write_end().  So doing the jbd2_journal_start at the start of
+ * ext4_write_begin() is the right place.
+ */
 static int ext4_write_begin(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len,
 			    struct page **pagep, void **fsdata)
