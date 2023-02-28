@@ -184,33 +184,33 @@ struct btree_node_iter {
 /*
  * Iterate over all possible positions, synthesizing deleted keys for holes:
  */
-#define BTREE_ITER_SLOTS		(1 << 0)
-#define BTREE_ITER_ALL_LEVELS		(1 << 1)
+static const u16 BTREE_ITER_SLOTS		= 1 << 0;
+static const u16 BTREE_ITER_ALL_LEVELS		= 1 << 1;
 /*
  * Indicates that intent locks should be taken on leaf nodes, because we expect
  * to be doing updates:
  */
-#define BTREE_ITER_INTENT		(1 << 2)
+static const u16 BTREE_ITER_INTENT		= 1 << 2;
 /*
  * Causes the btree iterator code to prefetch additional btree nodes from disk:
  */
-#define BTREE_ITER_PREFETCH		(1 << 3)
+static const u16 BTREE_ITER_PREFETCH		= 1 << 3;
 /*
  * Used in bch2_btree_iter_traverse(), to indicate whether we're searching for
  * @pos or the first key strictly greater than @pos
  */
-#define BTREE_ITER_IS_EXTENTS		(1 << 4)
-#define BTREE_ITER_NOT_EXTENTS		(1 << 5)
-#define BTREE_ITER_CACHED		(1 << 6)
-#define BTREE_ITER_WITH_KEY_CACHE	(1 << 7)
-#define BTREE_ITER_WITH_UPDATES		(1 << 8)
-#define BTREE_ITER_WITH_JOURNAL		(1 << 9)
-#define __BTREE_ITER_ALL_SNAPSHOTS	(1 << 10)
-#define BTREE_ITER_ALL_SNAPSHOTS	(1 << 11)
-#define BTREE_ITER_FILTER_SNAPSHOTS	(1 << 12)
-#define BTREE_ITER_NOPRESERVE		(1 << 13)
-#define BTREE_ITER_CACHED_NOFILL	(1 << 14)
-#define BTREE_ITER_KEY_CACHE_FILL	(1 << 15)
+static const u16 BTREE_ITER_IS_EXTENTS		= 1 << 4;
+static const u16 BTREE_ITER_NOT_EXTENTS		= 1 << 5;
+static const u16 BTREE_ITER_CACHED		= 1 << 6;
+static const u16 BTREE_ITER_WITH_KEY_CACHE	= 1 << 7;
+static const u16 BTREE_ITER_WITH_UPDATES	= 1 << 8;
+static const u16 BTREE_ITER_WITH_JOURNAL	= 1 << 9;
+static const u16 __BTREE_ITER_ALL_SNAPSHOTS	= 1 << 10;
+static const u16 BTREE_ITER_ALL_SNAPSHOTS	= 1 << 11;
+static const u16 BTREE_ITER_FILTER_SNAPSHOTS	= 1 << 12;
+static const u16 BTREE_ITER_NOPRESERVE		= 1 << 13;
+static const u16 BTREE_ITER_CACHED_NOFILL	= 1 << 14;
+static const u16 BTREE_ITER_KEY_CACHE_FILL	= 1 << 15;
 
 enum btree_path_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
