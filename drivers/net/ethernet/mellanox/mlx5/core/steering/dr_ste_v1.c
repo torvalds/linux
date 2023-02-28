@@ -604,9 +604,6 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 			allow_modify_hdr = false;
 	}
 
-	if (action_type_set[DR_ACTION_TYP_CTR])
-		dr_ste_v1_set_counter_id(last_ste, attr->ctr_id);
-
 	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
 		if (!allow_modify_hdr || action_sz < DR_STE_ACTION_DOUBLE_SZ) {
 			dr_ste_v1_arr_init_next_match(&last_ste, added_stes,
@@ -723,6 +720,10 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 						  attr->range.min,
 						  attr->range.max);
 	}
+
+	/* set counter ID on the last STE to adhere to DMFS behavior */
+	if (action_type_set[DR_ACTION_TYP_CTR])
+		dr_ste_v1_set_counter_id(last_ste, attr->ctr_id);
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
 	dr_ste_v1_set_hit_addr(last_ste, attr->final_icm_addr, 1);
