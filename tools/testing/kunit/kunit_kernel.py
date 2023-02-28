@@ -106,6 +106,7 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 		self._kernel_path = qemu_arch_params.kernel_path
 		self._kernel_command_line = qemu_arch_params.kernel_command_line + ' kunit_shutdown=reboot'
 		self._extra_qemu_params = qemu_arch_params.extra_qemu_params
+		self._serial = qemu_arch_params.serial
 
 	def make_arch_config(self, base_kunitconfig: kunit_config.Kconfig) -> kunit_config.Kconfig:
 		kconfig = kunit_config.parse_from_string(self._kconfig)
@@ -121,7 +122,7 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 				'-append', ' '.join(params + [self._kernel_command_line]),
 				'-no-reboot',
 				'-nographic',
-				'-serial', 'stdio'] + self._extra_qemu_params
+				'-serial', self._serial] + self._extra_qemu_params
 		# Note: shlex.join() does what we want, but requires python 3.8+.
 		print('Running tests with:\n$', ' '.join(shlex.quote(arg) for arg in qemu_command))
 		return subprocess.Popen(qemu_command,
