@@ -426,7 +426,7 @@ static int rockchip_mcu_panel_parse_cmd_seq(struct device *dev,
 static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb, struct device_node *np_mcu_panel)
 {
 	struct device *dev = rgb->dev;
-	struct device_node *port, *endpoint, *np_crtc;
+	struct device_node *port, *endpoint, *np_crtc, *remote;
 	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
 	struct drm_display_mode *mode;
 	const void *data;
@@ -510,16 +510,28 @@ static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb, struct device_node 
 		}
 	}
 
+	/*
+	 * Support to find crtc device for both vop and vop3:
+	 * vopl/vopb       -> rgb
+	 * vop2/vop3 -> vp -> rgb
+	 */
 	port = of_graph_get_port_by_id(dev->of_node, 0);
 	if (port) {
-		endpoint = of_get_next_child(port, NULL);
-		/* get connect device node */
-		np_crtc = of_graph_get_remote_port_parent(endpoint);
-		if (IS_ERR_OR_NULL(np_crtc)) {
-			DRM_DEV_ERROR(dev, "failed to get crtc node\n");
+		for_each_child_of_node(port, endpoint) {
+			if (of_device_is_available(endpoint)) {
+				remote = of_graph_get_remote_endpoint(endpoint);
+				if (remote) {
+					np_crtc = of_get_next_parent(remote);
+					mcu_panel->np_crtc = np_crtc;
+					break;
+				}
+			}
+		}
+
+		if (!mcu_panel->np_crtc) {
+			DRM_DEV_ERROR(dev, "failed to find available crtc for mcu panel\n");
 			return -EINVAL;
 		}
-		mcu_panel->np_crtc = np_crtc;
 	}
 
 	return 0;
@@ -533,54 +545,43 @@ static void rockchip_mcu_panel_sleep(unsigned int msec)
 		usleep_range(msec * 1000, (msec + 1) * 1000);
 }
 
-static void rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
-					   struct device_node *np_crtc,
-					   u32 type, u32 value)
-{
-	struct drm_crtc *crtc;
-	int pipe = 0;
-	struct rockchip_drm_private *priv;
-
-	drm_for_each_crtc(crtc, drm_dev) {
-		/*
-		 * Support to find crtc device for both vop and vop3:
-		 * vop  -> rgb out
-		 * vop3 -> vp -> rgb out
-		 */
-		if (of_get_parent(of_get_parent(crtc->port)) == np_crtc ||
-		    of_get_parent(crtc->port) == np_crtc) {
-			break;
-		}
-	}
-
-	pipe = drm_crtc_index(crtc);
-	priv = crtc->dev->dev_private;
-	if (priv->crtc_funcs[pipe]->crtc_send_mcu_cmd)
-		priv->crtc_funcs[pipe]->crtc_send_mcu_cmd(crtc, type, value);
-}
-
 static int rockchip_mcu_panel_xfer_mcu_cmd_seq(struct rockchip_mcu_panel *mcu_panel,
 					       struct mcu_cmd_seq *cmds)
 {
+	struct drm_device *drm_dev = mcu_panel->drm_dev;
+	struct drm_panel *panel = &mcu_panel->base;
+	struct device_node *np_crtc = mcu_panel->np_crtc;
+	struct drm_crtc *crtc;
 	struct mcu_cmd_desc *cmd;
-	u32 value;
+	struct rockchip_drm_private *priv;
 	int i;
+	int pipe = 0;
+	u32 value;
 
 	if (!cmds)
 		return -EINVAL;
 
-	rockchip_drm_crtc_send_mcu_cmd(mcu_panel->drm_dev,
-				       mcu_panel->np_crtc, MCU_SETBYPASS, 1);
+	drm_for_each_crtc(crtc, drm_dev) {
+		if (crtc->port == np_crtc)
+			break;
+	}
+
+	pipe = drm_crtc_index(crtc);
+	priv = crtc->dev->dev_private;
+	if (!priv->crtc_funcs[pipe]->crtc_send_mcu_cmd) {
+		DRM_DEV_ERROR(panel->dev, "crtc not supported to send mcu cmds\n");
+		return -EINVAL;
+	}
+
+	priv->crtc_funcs[pipe]->crtc_send_mcu_cmd(crtc, MCU_SETBYPASS, 1);
 	for (i = 0; i < cmds->cmd_cnt; i++) {
 		cmd = &cmds->cmds[i];
 		value = cmd->payload[0];
-		rockchip_drm_crtc_send_mcu_cmd(mcu_panel->drm_dev, mcu_panel->np_crtc,
-					       cmd->header.data_type, value);
+		priv->crtc_funcs[pipe]->crtc_send_mcu_cmd(crtc, cmd->header.data_type, value);
 		if (cmd->header.delay)
 			rockchip_mcu_panel_sleep(cmd->header.delay);
 	}
-	rockchip_drm_crtc_send_mcu_cmd(mcu_panel->drm_dev,
-				       mcu_panel->np_crtc, MCU_SETBYPASS, 0);
+	priv->crtc_funcs[pipe]->crtc_send_mcu_cmd(crtc, MCU_SETBYPASS, 0);
 
 	return 0;
 }
