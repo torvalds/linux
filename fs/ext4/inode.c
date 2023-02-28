@@ -2580,7 +2580,6 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 	struct address_space *mapping = mpd->inode->i_mapping;
 	struct folio_batch fbatch;
 	unsigned int nr_folios;
-	long left = mpd->wbc->nr_to_write;
 	pgoff_t index = mpd->first_page;
 	pgoff_t end = mpd->last_page;
 	xa_mark_t tag;
@@ -2613,7 +2612,9 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 * newly appeared dirty pages, but have not synced all
 			 * of the old dirty pages.
 			 */
-			if (mpd->wbc->sync_mode == WB_SYNC_NONE && left <= 0)
+			if (mpd->wbc->sync_mode == WB_SYNC_NONE &&
+			    mpd->wbc->nr_to_write <=
+			    mpd->map.m_len >> (PAGE_SHIFT - blkbits))
 				goto out;
 
 			/* If we can't merge this page, we are done. */
@@ -2682,7 +2683,6 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 					goto out;
 				err = 0;
 			}
-			left -= folio_nr_pages(folio);
 		}
 		folio_batch_release(&fbatch);
 		cond_resched();
