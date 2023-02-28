@@ -60,7 +60,7 @@ struct gh_vm {
 	struct rw_semaphore mmio_handler_lock;
 };
 
-int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *region);
+int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *region, bool lend);
 void gh_vm_mem_reclaim(struct gh_vm *ghvm, struct gh_vm_mem *mapping);
 int gh_vm_mem_free(struct gh_vm *ghvm, u32 label);
 struct gh_vm_mem *gh_vm_mem_find_by_label(struct gh_vm *ghvm, u32 label);

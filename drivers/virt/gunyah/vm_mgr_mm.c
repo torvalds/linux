@@ -85,7 +85,7 @@ struct gh_vm_mem *gh_vm_mem_find_by_label(struct gh_vm *ghvm, u32 label)
 	return mapping ? : ERR_PTR(-ENODEV);
 }
 
-int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *region)
+int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *region, bool lend)
 {
 	struct gh_vm_mem *mapping, *tmp_mapping;
 	struct gh_rm_mem_entry *mem_entries;
@@ -157,8 +157,13 @@ int gh_vm_mem_alloc(struct gh_vm *ghvm, struct gh_userspace_memory_region *regio
 		goto reclaim;
 	}
 
-	parcel->n_acl_entries = 2;
-	mapping->share_type = VM_MEM_SHARE;
+	if (lend) {
+		parcel->n_acl_entries = 1;
+		mapping->share_type = VM_MEM_LEND;
+	} else {
+		parcel->n_acl_entries = 2;
+		mapping->share_type = VM_MEM_SHARE;
+	}
 	parcel->acl_entries = kcalloc(parcel->n_acl_entries, sizeof(*parcel->acl_entries),
 					GFP_KERNEL);
 	if (!parcel->acl_entries) {

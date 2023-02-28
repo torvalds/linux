@@ -254,4 +254,14 @@ struct gh_vcpu_run {
 #define GH_VCPU_RUN		_IO(GH_IOCTL_TYPE, 0x5)
 #define GH_VCPU_MMAP_SIZE	_IO(GH_IOCTL_TYPE, 0x6)
 
+/**
+ * ANDROID: android14-6.1 unfortunately contains UAPI that won't be carried
+ * in kernel.org. Expose orthogonal ioctls that will never conflict with
+ * kernel.org for these UAPIs. See b/268234781.
+ */
+#define GH_ANDROID_IOCTL_TYPE		'A'
+
+#define GH_VM_ANDROID_LEND_USER_MEM	_IOW(GH_ANDROID_IOCTL_TYPE, 0x11, \
+						struct gh_userspace_memory_region)
+
 #endif
