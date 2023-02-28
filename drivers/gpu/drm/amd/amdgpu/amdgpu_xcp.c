@@ -335,3 +335,32 @@ void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev)
 		drm_dev_unplug(adev->xcp_mgr->xcp[i].ddev);
 }
 
+int amdgpu_xcp_open_device(struct amdgpu_device *adev,
+			   struct amdgpu_fpriv *fpriv,
+			   struct drm_file *file_priv)
+{
+	int i;
+
+	if (!adev->xcp_mgr)
+		return 0;
+
+	fpriv->xcp_id = ~0;
+	for (i = 0; i < MAX_XCP; ++i) {
+		if (!adev->xcp_mgr->xcp[i].ddev)
+			break;
+
+		if (file_priv->minor == adev->xcp_mgr->xcp[i].ddev->render) {
+			if (adev->xcp_mgr->xcp[i].valid == FALSE) {
+				dev_err(adev->dev, "renderD%d partition %d not valid!",
+						file_priv->minor->index, i);
+				return -ENOENT;
+			}
+			dev_dbg(adev->dev, "renderD%d partition %d openned!",
+					file_priv->minor->index, i);
+			fpriv->xcp_id = i;
+			break;
+		}
+	}
+	return 0;
+}
+

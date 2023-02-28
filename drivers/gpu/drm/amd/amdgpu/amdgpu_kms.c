@@ -1223,6 +1223,10 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		goto out_suspend;
 	}
 
+	r = amdgpu_xcp_open_device(adev, fpriv, file_priv);
+	if (r)
+		return r;
+
 	pasid = amdgpu_pasid_alloc(16);
 	if (pasid < 0) {
 		dev_warn(adev->dev, "No more PASIDs available!");

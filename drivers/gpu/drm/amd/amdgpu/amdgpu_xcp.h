@@ -119,6 +119,9 @@ int amdgpu_xcp_get_inst_details(struct amdgpu_xcp *xcp,
 int amdgpu_xcp_dev_register(struct amdgpu_device *adev,
 				const struct pci_device_id *ent);
 void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev);
+int amdgpu_xcp_open_device(struct amdgpu_device *adev,
+			   struct amdgpu_fpriv *fpriv,
+			   struct drm_file *file_priv);
 
 static inline int amdgpu_xcp_get_num_xcp(struct amdgpu_xcp_mgr *xcp_mgr)
 {
