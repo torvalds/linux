@@ -206,8 +206,6 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (err)
 		goto err_put;
 
-	drmm_mutex_init(&xe->drm, &xe->mem_access.lock);
-
 	return xe;
 
 err_put:
@@ -354,25 +352,25 @@ u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size)
 void xe_device_mem_access_get(struct xe_device *xe)
 {
 	bool resumed = xe_pm_runtime_resume_if_suspended(xe);
+	int ref = atomic_inc_return(&xe->mem_access.ref);
 
-	mutex_lock(&xe->mem_access.lock);
-	if (xe->mem_access.ref++ == 0)
+	if (ref == 1)
 		xe->mem_access.hold_rpm = xe_pm_runtime_get_if_active(xe);
-	mutex_unlock(&xe->mem_access.lock);
 
 	/* The usage counter increased if device was immediately resumed */
 	if (resumed)
 		xe_pm_runtime_put(xe);
 
-	XE_WARN_ON(xe->mem_access.ref == S32_MAX);
+	XE_WARN_ON(ref == S32_MAX);
 }
 
 void xe_device_mem_access_put(struct xe_device *xe)
 {
-	mutex_lock(&xe->mem_access.lock);
-	if (--xe->mem_access.ref == 0 && xe->mem_access.hold_rpm)
-		xe_pm_runtime_put(xe);
-	mutex_unlock(&xe->mem_access.lock);
+	bool hold = xe->mem_access.hold_rpm;
+	int ref = atomic_dec_return(&xe->mem_access.ref);
 
-	XE_WARN_ON(xe->mem_access.ref < 0);
+	if (!ref && hold)
+		xe_pm_runtime_put(xe);
+
+	XE_WARN_ON(ref < 0);
 }
