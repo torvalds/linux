@@ -1211,4 +1211,3 @@ static void __exit tegra234_cbb_exit(void)
 module_exit(tegra234_cbb_exit);
 
 MODULE_DESCRIPTION("Control Backbone 2.0 error handling driver for Tegra234");
-MODULE_LICENSE("GPL");
