@@ -461,8 +461,8 @@ needed::
 
   $ sudo make run_tests
 
-See the kernels selftest `Documentation/dev-tools/kselftest.rst`_
-document for further documentation.
+See :doc:`kernel selftest documentation </dev-tools/kselftest>`
+for details.
 
 To maximize the number of tests passing, the .config of the kernel
 under test should match the config file fragment in
@@ -688,7 +688,5 @@ when:
 .. _netdev-FAQ: Documentation/process/maintainer-netdev.rst
 .. _selftests:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/testing/selftests/bpf/
-.. _Documentation/dev-tools/kselftest.rst:
-   https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html
 
 Happy BPF hacking!
