@@ -355,6 +355,7 @@ ENTRY(pgm_check_handler)
 #if IS_ENABLED(CONFIG_KVM)
 	# cleanup critical section for program checks in __sie64a
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,1f
+	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 	SIEEXIT
 	lghi	%r10,_PIF_GUEST_FAULT
 #endif
