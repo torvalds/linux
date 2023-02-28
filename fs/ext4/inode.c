@@ -2230,9 +2230,9 @@ static int mpage_process_page_bufs(struct mpage_da_data *mpd,
 	/* So far everything mapped? Submit the page for IO. */
 	if (mpd->map.m_len == 0) {
 		err = mpage_submit_page(mpd, head->b_page);
-		mpage_page_done(mpd, head->b_page);
 		if (err < 0)
 			return err;
+		mpage_page_done(mpd, head->b_page);
 	}
 	if (lblk >= blocks) {
 		mpd->scanned_until_end = 1;
@@ -2362,9 +2362,9 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 				goto out;
 			/* Page fully mapped - let IO run! */
 			err = mpage_submit_page(mpd, page);
-			mpage_page_done(mpd, page);
 			if (err < 0)
 				goto out;
+			mpage_page_done(mpd, page);
 		}
 		folio_batch_release(&fbatch);
 	}
@@ -2672,11 +2672,12 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 * modify metadata is simple. Just submit the page.
 			 */
 			if (!mpd->can_map) {
-				if (ext4_page_nomap_can_writeout(&folio->page))
+				if (ext4_page_nomap_can_writeout(&folio->page)) {
 					err = mpage_submit_page(mpd, &folio->page);
+					if (err < 0)
+						goto out;
+				}
 				mpage_page_done(mpd, &folio->page);
-				if (err < 0)
-					goto out;
 			} else {
 				/* Add all dirty buffers to mpd */
 				lblk = ((ext4_lblk_t)folio->index) <<
