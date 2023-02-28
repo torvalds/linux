@@ -1123,8 +1123,6 @@
 			pd_gpu@RK3562_PD_GPU {
 				reg = <RK3562_PD_GPU>;
 				pm_qos = <&qos_gpu>;
-				/* Make the source clock clk_matrix_200m_src enable */
-				clocks = <&cru CLK_GPU_BRG>;
 			};
 			/* These power domains are grouped by VD_NPU */
 			pd_npu@RK3562_PD_NPU {
