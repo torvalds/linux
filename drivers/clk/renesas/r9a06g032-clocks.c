@@ -29,6 +29,27 @@
 #define R9A06G032_SYSCTRL_USB_H2MODE  (1<<1)
 #define R9A06G032_SYSCTRL_DMAMUX 0xA0
 
+/**
+ * struct r9a06g032_gate - clock-related control bits
+ * @gate:   clock enable/disable
+ * @reset:  clock module reset (active low)
+ * @ready:  enables NoC forwarding of read/write requests to device,
+ *          (eg. device is ready to handle read/write requests)
+ * @midle:  request to idle the NoC interconnect
+ *
+ * Each of these fields describes a single bit in a register,
+ * which controls some aspect of clock gating. The @gate field
+ * is mandatory, this one enables/disables the clock. The
+ * other fields are optional, with zero indicating "not used".
+ *
+ * In most cases there is a @reset bit which needs to be
+ * de-asserted to bring the module out of reset.
+ *
+ * Modules may also need to signal when they are @ready to
+ * handle requests (read/writes) from the NoC interconnect.
+ *
+ * Similarly, the @midle bit is used to idle the master.
+ */
 struct r9a06g032_gate {
 	u16 gate, reset, ready, midle;
 	/* Unused fields omitted to save space */
@@ -43,7 +64,34 @@ enum gate_type {
 	K_DUALGATE	/* special for UARTs */
 };
 
-/* This is used to describe a clock for instantiation */
+/**
+ * struct r9a06g032_clkdesc - describe a single clock
+ * @name:      string describing this clock
+ * @managed:   boolean indicating if this clock should be
+ *             started/stopped as part of power management
+ * @type:      see enum @gate_type
+ * @index:     the ID of this clock element
+ * @source:    the ID+1 of the parent clock element.
+ *             Root clock uses ID of ~0 (PARENT_ID);
+ * @gate:      clock enable/disable
+ * @div_min:   smallest permitted clock divider
+ * @div_max:   largest permitted clock divider
+ * @reg:       clock divider register offset, in 32-bit words
+ * @div_table: optional list of fixed clock divider values;
+ *             must be in ascending order, zero for unused
+ * @div:       divisor for fixed-factor clock
+ * @mul:       multiplier for fixed-factor clock
+ * @group:     UART group, 0=UART0/1/2, 1=UART3/4/5/6/7
+ * @sel:       select either g1/r1 or g2/r2 as clock source
+ * @g1:        1st source gate (clock enable/disable)
+ * @r1:        1st source reset (module reset)
+ * @g2:        2nd source gate (clock enable/disable)
+ * @r2:        2nd source reset (module reset)
+ *
+ * Describes a single element in the clock tree hierarchy.
+ * As there are quite a large number of clock elements, this
+ * structure is packed tightly to conserve space.
+ */
 struct r9a06g032_clkdesc {
 	const char *name;
 	uint32_t managed:1;
