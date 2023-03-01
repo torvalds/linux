@@ -8137,6 +8137,20 @@ static int msm_pcie_pm_resume(struct pci_dev *dev,
 	if (dev) {
 		PCIE_DBG(pcie_dev, "RC%d: restore config space\n",
 			 pcie_dev->rc_idx);
+
+		/*
+		 * Pci framework tries to read the pm_cap config register
+		 * during the system resume process and since our pcie
+		 * controller might not have the clocks/regulators on at
+		 * that time, framework will put the power_state as D3Cold.
+		 *
+		 * Since the power_state is D3Cold, pci_restore_state API
+		 * will not be able to write the MSI address to config space.
+		 * Thereby resulting in a smmu fault when trying to rise a
+		 * MSI for the AER.
+		 */
+		pci_set_power_state(dev, PCI_D0);
+
 		pci_load_and_free_saved_state(dev, &pcie_dev->saved_state);
 		pci_restore_state(dev);
 	}
