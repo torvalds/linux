@@ -33,7 +33,7 @@ struct bcm2711_thermal_priv {
 
 static int bcm2711_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct bcm2711_thermal_priv *priv = tz->devdata;
+	struct bcm2711_thermal_priv *priv = thermal_zone_device_priv(tz);
 	int slope = thermal_zone_get_slope(tz);
 	int offset = thermal_zone_get_offset(tz);
 	u32 val;

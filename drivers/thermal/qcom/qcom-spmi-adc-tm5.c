@@ -360,7 +360,7 @@ static irqreturn_t adc_tm5_gen2_isr(int irq, void *data)
 
 static int adc_tm5_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct adc_tm5_channel *channel = tz->devdata;
+	struct adc_tm5_channel *channel = thermal_zone_device_priv(tz);
 	int ret;
 
 	if (!channel || !channel->iio)
@@ -642,7 +642,7 @@ config_fail:
 
 static int adc_tm5_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct adc_tm5_channel *channel = tz->devdata;
+	struct adc_tm5_channel *channel = thermal_zone_device_priv(tz);
 	struct adc_tm5_chip *chip;
 	int ret;
 

@@ -167,7 +167,7 @@ static int rcar_gen3_thermal_round(int temp)
 
 static int rcar_gen3_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct rcar_gen3_thermal_tsc *tsc = tz->devdata;
+	struct rcar_gen3_thermal_tsc *tsc = thermal_zone_device_priv(tz);
 	int mcelsius, val;
 	int reg;
 
@@ -206,7 +206,7 @@ static int rcar_gen3_thermal_mcelsius_to_temp(struct rcar_gen3_thermal_tsc *tsc,
 
 static int rcar_gen3_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct rcar_gen3_thermal_tsc *tsc = tz->devdata;
+	struct rcar_gen3_thermal_tsc *tsc = thermal_zone_device_priv(tz);
 	u32 irqmsk = 0;
 
 	if (low != -INT_MAX) {

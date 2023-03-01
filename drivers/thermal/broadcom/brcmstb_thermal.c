@@ -152,7 +152,7 @@ static inline u32 avs_tmon_temp_to_code(struct brcmstb_thermal_priv *priv,
 
 static int brcmstb_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct brcmstb_thermal_priv *priv = tz->devdata;
+	struct brcmstb_thermal_priv *priv = thermal_zone_device_priv(tz);
 	u32 val;
 	long t;
 
@@ -262,7 +262,7 @@ static irqreturn_t brcmstb_tmon_irq_thread(int irq, void *data)
 
 static int brcmstb_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct brcmstb_thermal_priv *priv = tz->devdata;
+	struct brcmstb_thermal_priv *priv = thermal_zone_device_priv(tz);
 
 	dev_dbg(priv->dev, "set trips %d <--> %d\n", low, high);
 

@@ -252,7 +252,7 @@ static u32 lvts_temp_to_raw(int temperature)
 
 static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct lvts_sensor *lvts_sensor = tz->devdata;
+	struct lvts_sensor *lvts_sensor = thermal_zone_device_priv(tz);
 	void __iomem *msr = lvts_sensor->msr;
 	u32 value;
 
@@ -290,7 +290,7 @@ static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 
 static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct lvts_sensor *lvts_sensor = tz->devdata;
+	struct lvts_sensor *lvts_sensor = thermal_zone_device_priv(tz);
 	void __iomem *base = lvts_sensor->base;
 	u32 raw_low = lvts_temp_to_raw(low);
 	u32 raw_high = lvts_temp_to_raw(high);

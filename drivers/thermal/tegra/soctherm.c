@@ -423,7 +423,7 @@ static int translate_temp(u16 val)
 
 static int tegra_thermctl_get_temp(struct thermal_zone_device *tz, int *out_temp)
 {
-	struct tegra_thermctl_zone *zone = tz->devdata;
+	struct tegra_thermctl_zone *zone = thermal_zone_device_priv(tz);
 	u32 val;
 
 	val = readl(zone->reg);
@@ -584,7 +584,7 @@ static int tsensor_group_thermtrip_get(struct tegra_soctherm *ts, int id)
 
 static int tegra_thermctl_set_trip_temp(struct thermal_zone_device *tz, int trip_id, int temp)
 {
-	struct tegra_thermctl_zone *zone = tz->devdata;
+	struct tegra_thermctl_zone *zone = thermal_zone_device_priv(tz);
 	struct tegra_soctherm *ts = zone->ts;
 	struct thermal_trip trip;
 	const struct tegra_tsensor_group *sg = zone->sg;
@@ -658,7 +658,7 @@ static void thermal_irq_disable(struct tegra_thermctl_zone *zn)
 
 static int tegra_thermctl_set_trips(struct thermal_zone_device *tz, int lo, int hi)
 {
-	struct tegra_thermctl_zone *zone = tz->devdata;
+	struct tegra_thermctl_zone *zone = thermal_zone_device_priv(tz);
 	u32 r;
 
 	thermal_irq_disable(zone);

@@ -68,7 +68,7 @@ static inline int ti_thermal_hotspot_temperature(int t, int s, int c)
 static inline int __ti_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct thermal_zone_device *pcb_tz = NULL;
-	struct ti_thermal_data *data = tz->devdata;
+	struct ti_thermal_data *data = thermal_zone_device_priv(tz);
 	struct ti_bandgap *bgp;
 	const struct ti_temp_sensor *s;
 	int ret, tmp, slope, constant;
@@ -109,7 +109,7 @@ static inline int __ti_thermal_get_temp(struct thermal_zone_device *tz, int *tem
 
 static int __ti_thermal_get_trend(struct thermal_zone_device *tz, int trip, enum thermal_trend *trend)
 {
-	struct ti_thermal_data *data = tz->devdata;
+	struct ti_thermal_data *data = thermal_zone_device_priv(tz);
 	struct ti_bandgap *bgp;
 	int id, tr, ret = 0;
 

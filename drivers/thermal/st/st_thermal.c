@@ -108,7 +108,7 @@ static int st_thermal_calibration(struct st_thermal_sensor *sensor)
 /* Callback to get temperature from HW*/
 static int st_thermal_get_temp(struct thermal_zone_device *th, int *temperature)
 {
-	struct st_thermal_sensor *sensor = th->devdata;
+	struct st_thermal_sensor *sensor = thermal_zone_device_priv(th);
 	struct device *dev = sensor->dev;
 	unsigned int temp;
 	unsigned int overflow;

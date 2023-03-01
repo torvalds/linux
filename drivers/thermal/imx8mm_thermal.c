@@ -141,7 +141,7 @@ static int imx8mp_tmu_get_temp(void *data, int *temp)
 
 static int tmu_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct tmu_sensor *sensor = tz->devdata;
+	struct tmu_sensor *sensor = thermal_zone_device_priv(tz);
 	struct imx8mm_tmu *tmu = sensor->priv;
 
 	return tmu->socdata->get_temp(sensor, temp);

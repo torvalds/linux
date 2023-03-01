@@ -252,7 +252,7 @@ static void imx_set_alarm_temp(struct imx_thermal_data *data,
 
 static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct imx_thermal_data *data = tz->devdata;
+	struct imx_thermal_data *data = thermal_zone_device_priv(tz);
 	const struct thermal_soc_data *soc_data = data->socdata;
 	struct regmap *map = data->tempmon;
 	unsigned int n_meas;
@@ -311,7 +311,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 static int imx_change_mode(struct thermal_zone_device *tz,
 			   enum thermal_device_mode mode)
 {
-	struct imx_thermal_data *data = tz->devdata;
+	struct imx_thermal_data *data = thermal_zone_device_priv(tz);
 
 	if (mode == THERMAL_DEVICE_ENABLED) {
 		pm_runtime_get(data->dev);
@@ -342,7 +342,7 @@ static int imx_get_crit_temp(struct thermal_zone_device *tz, int *temp)
 static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip,
 			     int temp)
 {
-	struct imx_thermal_data *data = tz->devdata;
+	struct imx_thermal_data *data = thermal_zone_device_priv(tz);
 	int ret;
 
 	ret = pm_runtime_resume_and_get(data->dev);

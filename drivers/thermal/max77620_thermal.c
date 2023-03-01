@@ -46,7 +46,7 @@ struct max77620_therm_info {
 
 static int max77620_thermal_read_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct max77620_therm_info *mtherm = tz->devdata;
+	struct max77620_therm_info *mtherm = thermal_zone_device_priv(tz);
 	unsigned int val;
 	int ret;
 

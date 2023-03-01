@@ -110,7 +110,7 @@ static int sun50i_h5_calc_temp(struct ths_device *tmdev,
 
 static int sun8i_ths_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct tsensor *s = tz->devdata;
+	struct tsensor *s = thermal_zone_device_priv(tz);
 	struct ths_device *tmdev = s->tmdev;
 	int val = 0;
 

@@ -46,7 +46,7 @@ static int imx_sc_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct imx_sc_msg_misc_get_temp msg;
 	struct imx_sc_rpc_msg *hdr = &msg.hdr;
-	struct imx_sc_sensor *sensor = tz->devdata;
+	struct imx_sc_sensor *sensor = thermal_zone_device_priv(tz);
 	int ret;
 
 	msg.data.req.resource_id = sensor->resource_id;
