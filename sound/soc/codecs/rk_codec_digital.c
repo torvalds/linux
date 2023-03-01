@@ -407,13 +407,13 @@ static int rk_codec_digital_set_clk_sync(struct rk_codec_digital_priv *rcd,
 			   ACDCDIG_DACSCLKRXINT_DIV_SCKRXDIV(div_bclk));
 	regmap_update_bits(rcd->regmap, I2S_CKR0,
 			   ACDCDIG_I2S_CKR0_RSD_MASK,
-			   ACDCDIG_I2S_CKR0_RSD(64));
+			   ACDCDIG_I2S_CKR0_RSD_64);
 	regmap_update_bits(rcd->regmap, ADCSCLKTXINT_DIV,
 			   ACDCDIG_ADCSCLKTXINT_DIV_SCKTXDIV_MASK,
 			   ACDCDIG_ADCSCLKTXINT_DIV_SCKTXDIV(div_bclk));
 	regmap_update_bits(rcd->regmap, I2S_CKR0,
 			   ACDCDIG_I2S_CKR0_TSD_MASK,
-			   ACDCDIG_I2S_CKR0_TSD(64));
+			   ACDCDIG_I2S_CKR0_TSD_64);
 
 	return 0;
 }
@@ -450,7 +450,7 @@ static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
 				   ACDCDIG_DACSCLKRXINT_DIV_SCKRXDIV(div_bclk));
 		regmap_update_bits(rcd->regmap, I2S_CKR0,
 				   ACDCDIG_I2S_CKR0_RSD_MASK,
-				   ACDCDIG_I2S_CKR0_RSD(64));
+				   ACDCDIG_I2S_CKR0_RSD_64);
 	} else {
 		clk_set_rate(rcd->clk_adc, mclk);
 
@@ -464,7 +464,7 @@ static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
 				   ACDCDIG_ADCSCLKTXINT_DIV_SCKTXDIV(div_bclk));
 		regmap_update_bits(rcd->regmap, I2S_CKR0,
 				   ACDCDIG_I2S_CKR0_TSD_MASK,
-				   ACDCDIG_I2S_CKR0_TSD(64));
+				   ACDCDIG_I2S_CKR0_TSD_64);
 	}
 
 	return 0;
