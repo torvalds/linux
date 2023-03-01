@@ -449,6 +449,7 @@ void intel_dmc_disable_pipe(struct drm_i915_private *i915, enum pipe pipe)
  */
 void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 {
+	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
 	struct intel_dmc *dmc = &dev_priv->display.dmc;
 	enum intel_dmc_id dmc_id;
 	u32 i;
@@ -481,7 +482,7 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	dev_priv->display.dmc.dc_state = 0;
+	power_domains->dc_state = 0;
 
 	gen9_set_dc_state_debugmask(dev_priv);
 

@@ -40,9 +40,6 @@ struct intel_dmc {
 		bool present;
 	} dmc_info[DMC_FW_MAX];
 
-	u32 dc_state;
-	u32 target_dc_state;
-	u32 allowed_dc_mask;
 	intel_wakeref_t wakeref;
 };
 

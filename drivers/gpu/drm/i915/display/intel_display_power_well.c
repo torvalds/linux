@@ -691,19 +691,20 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	return mask;
 }
 
-void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
+void gen9_sanitize_dc_state(struct drm_i915_private *i915)
 {
+	struct i915_power_domains *power_domains = &i915->display.power.domains;
 	u32 val;
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(i915))
 		return;
 
-	val = intel_de_read(dev_priv, DC_STATE_EN) & gen9_dc_mask(dev_priv);
+	val = intel_de_read(i915, DC_STATE_EN) & gen9_dc_mask(i915);
 
-	drm_dbg_kms(&dev_priv->drm,
+	drm_dbg_kms(&i915->drm,
 		    "Resetting DC state tracking from %02x to %02x\n",
-		    dev_priv->display.dmc.dc_state, val);
-	dev_priv->display.dmc.dc_state = val;
+		    power_domains->dc_state, val);
+	power_domains->dc_state = val;
 }
 
 /**
@@ -731,6 +732,7 @@ void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
  */
 void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 {
+	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
 	u32 val;
 	u32 mask;
 
@@ -738,8 +740,8 @@ void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 		return;
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm,
-			     state & ~dev_priv->display.dmc.allowed_dc_mask))
-		state &= dev_priv->display.dmc.allowed_dc_mask;
+			     state & ~power_domains->allowed_dc_mask))
+		state &= power_domains->allowed_dc_mask;
 
 	val = intel_de_read(dev_priv, DC_STATE_EN);
 	mask = gen9_dc_mask(dev_priv);
@@ -747,16 +749,16 @@ void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 		    val & mask, state);
 
 	/* Check if DMC is ignoring our DC state requests */
-	if ((val & mask) != dev_priv->display.dmc.dc_state)
+	if ((val & mask) != power_domains->dc_state)
 		drm_err(&dev_priv->drm, "DC state mismatch (0x%x -> 0x%x)\n",
-			dev_priv->display.dmc.dc_state, val & mask);
+			power_domains->dc_state, val & mask);
 
 	val &= ~mask;
 	val |= state;
 
 	gen9_write_dc_state(dev_priv, val);
 
-	dev_priv->display.dmc.dc_state = val & mask;
+	power_domains->dc_state = val & mask;
 }
 
 static void tgl_enable_dc3co(struct drm_i915_private *dev_priv)
@@ -944,9 +946,10 @@ static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 
 void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
+	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
 	struct intel_cdclk_config cdclk_config = {};
 
-	if (dev_priv->display.dmc.target_dc_state == DC_STATE_EN_DC3CO) {
+	if (power_domains->target_dc_state == DC_STATE_EN_DC3CO) {
 		tgl_disable_dc3co(dev_priv);
 		return;
 	}
@@ -985,10 +988,12 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
+	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+
 	if (!intel_dmc_has_payload(dev_priv))
 		return;
 
-	switch (dev_priv->display.dmc.target_dc_state) {
+	switch (power_domains->target_dc_state) {
 	case DC_STATE_EN_DC3CO:
 		tgl_enable_dc3co(dev_priv);
 		break;
