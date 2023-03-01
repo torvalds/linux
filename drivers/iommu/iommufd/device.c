@@ -186,6 +186,8 @@ static bool iommufd_hw_pagetable_has_group(struct iommufd_hw_pagetable *hwpt,
 {
 	struct iommufd_device *cur_dev;
 
+	lockdep_assert_held(&hwpt->devices_lock);
+
 	list_for_each_entry(cur_dev, &hwpt->devices, devices_item)
 		if (cur_dev->group == group)
 			return true;
