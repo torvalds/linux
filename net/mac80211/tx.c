@@ -5121,6 +5121,10 @@ static int ieee80211_beacon_protect(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
+	if (!(tx.key->conf.flags & IEEE80211_KEY_FLAG_SW_MGMT_TX) &&
+	    tx.key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
+		IEEE80211_SKB_CB(skb)->control.hw_key = &tx.key->conf;
+
 	tx.local = local;
 	tx.sdata = sdata;
 	__skb_queue_head_init(&tx.skbs);
