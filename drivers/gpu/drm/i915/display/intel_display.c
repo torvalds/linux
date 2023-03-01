@@ -116,6 +116,7 @@
 #include "intel_tv.h"
 #include "intel_vblank.h"
 #include "intel_vdsc.h"
+#include "intel_vdsc_regs.h"
 #include "intel_vga.h"
 #include "intel_vrr.h"
 #include "intel_wm.h"

@@ -17,6 +17,7 @@
 #include "intel_dsi.h"
 #include "intel_qp_tables.h"
 #include "intel_vdsc.h"
+#include "intel_vdsc_regs.h"
 
 enum ROW_INDEX_BPP {
 	ROW_INDEX_6BPP = 0,
