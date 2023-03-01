@@ -3105,6 +3105,72 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 }
 #endif
 
+static int pmbus_write_smbalert_mask(struct i2c_client *client, u8 page, u8 reg, u8 val)
+{
+	return pmbus_write_word_data(client, page, PMBUS_SMBALERT_MASK, reg | (val << 8));
+}
+
+static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
+{
+	struct pmbus_data *data = pdata;
+	struct i2c_client *client = to_i2c_client(data->dev);
+
+	mutex_lock(&data->update_lock);
+	/* TODO: Check status flag & notify hwmon events */
+
+	pmbus_clear_faults(client);
+	mutex_unlock(&data->update_lock);
+
+	return IRQ_HANDLED;
+}
+
+static int pmbus_irq_setup(struct i2c_client *client, struct pmbus_data *data)
+{
+	struct device *dev = &client->dev;
+	const struct pmbus_status_category *cat;
+	const struct pmbus_status_assoc *bit;
+	int i, j, err, func;
+	u8 mask;
+
+	static const u8 misc_status[] = {PMBUS_STATUS_CML, PMBUS_STATUS_OTHER,
+					 PMBUS_STATUS_MFR_SPECIFIC, PMBUS_STATUS_FAN_12,
+					 PMBUS_STATUS_FAN_34};
+
+	if (!client->irq)
+		return 0;
+
+	for (i = 0; i < data->info->pages; i++) {
+		func = data->info->func[i];
+
+		for (j = 0; j < ARRAY_SIZE(pmbus_status_flag_map); j++) {
+			cat = &pmbus_status_flag_map[j];
+			if (!(func & cat->func))
+				continue;
+			mask = 0;
+			for (bit = cat->bits; bit->pflag; bit++)
+				mask |= bit->pflag;
+
+			err = pmbus_write_smbalert_mask(client, i, cat->reg, ~mask);
+			if (err)
+				dev_dbg_once(dev, "Failed to set smbalert for reg 0x%02x\n",
+					     cat->reg);
+		}
+
+		for (j = 0; j < ARRAY_SIZE(misc_status); j++)
+			pmbus_write_smbalert_mask(client, i, misc_status[j], 0xff);
+	}
+
+	/* Register notifiers */
+	err = devm_request_threaded_irq(dev, client->irq, NULL, pmbus_fault_handler, 0,
+					"pmbus-irq", data);
+	if (err) {
+		dev_err(dev, "failed to request an irq %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 static struct dentry *pmbus_debugfs_dir;	/* pmbus debugfs directory */
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -3464,6 +3530,10 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	}
 
 	ret = pmbus_regulator_register(data);
+	if (ret)
+		return ret;
+
+	ret = pmbus_irq_setup(client, data);
 	if (ret)
 		return ret;
 
