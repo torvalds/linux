@@ -38,9 +38,37 @@
  * low-power state and comes back to normal.
  */
 
+enum intel_dmc_id {
+	DMC_FW_MAIN = 0,
+	DMC_FW_PIPEA,
+	DMC_FW_PIPEB,
+	DMC_FW_PIPEC,
+	DMC_FW_PIPED,
+	DMC_FW_MAX
+};
+
+struct intel_dmc {
+	struct drm_i915_private *i915;
+	struct work_struct work;
+	const char *fw_path;
+	u32 max_fw_size; /* bytes */
+	u32 version;
+	struct dmc_fw_info {
+		u32 mmio_count;
+		i915_reg_t mmioaddr[20];
+		u32 mmiodata[20];
+		u32 dmc_offset;
+		u32 start_mmioaddr;
+		u32 dmc_fw_size; /*dwords */
+		u32 *payload;
+		bool present;
+	} dmc_info[DMC_FW_MAX];
+};
+
+/* Note: This may be NULL. */
 static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 {
-	return &i915->display.dmc;
+	return i915->display.dmc.dmc;
 }
 
 #define DMC_VERSION(major, minor)	((major) << 16 | (minor))
@@ -947,7 +975,10 @@ void intel_dmc_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_dmc_runtime_pm_get(dev_priv);
 
-	dmc = i915_to_dmc(dev_priv);
+	dmc = kzalloc(sizeof(*dmc), GFP_KERNEL);
+	if (!dmc)
+		return;
+
 	dmc->i915 = dev_priv;
 
 	INIT_WORK(&dmc->work, dmc_load_work_fn);
@@ -991,10 +1022,9 @@ void intel_dmc_init(struct drm_i915_private *dev_priv)
 
 	if (dev_priv->params.dmc_firmware_path) {
 		if (strlen(dev_priv->params.dmc_firmware_path) == 0) {
-			dmc->fw_path = NULL;
 			drm_info(&dev_priv->drm,
 				 "Disabling DMC firmware and runtime PM\n");
-			return;
+			goto out;
 		}
 
 		dmc->fw_path = dev_priv->params.dmc_firmware_path;
@@ -1003,11 +1033,18 @@ void intel_dmc_init(struct drm_i915_private *dev_priv)
 	if (!dmc->fw_path) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "No known DMC firmware for platform, disabling runtime PM\n");
-		return;
+		goto out;
 	}
+
+	dev_priv->display.dmc.dmc = dmc;
 
 	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", dmc->fw_path);
 	schedule_work(&dmc->work);
+
+	return;
+
+out:
+	kfree(dmc);
 }
 
 /**
@@ -1074,6 +1111,9 @@ void intel_dmc_fini(struct drm_i915_private *dev_priv)
 	if (dmc) {
 		for_each_dmc_id(dmc_id)
 			kfree(dmc->dmc_info[dmc_id].payload);
+
+		kfree(dmc);
+		dev_priv->display.dmc.dmc = NULL;
 	}
 }
 

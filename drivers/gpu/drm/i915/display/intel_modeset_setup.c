@@ -22,6 +22,7 @@
 #include "intel_display.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_dmc.h"
 #include "intel_fifo_underrun.h"
 #include "intel_modeset_setup.h"
 #include "intel_pch_display.h"
