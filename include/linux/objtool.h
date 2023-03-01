@@ -49,7 +49,7 @@
 #define ANNOTATE_NOENDBR					\
 	"986: \n\t"						\
 	".pushsection .discard.noendbr\n\t"			\
-	_ASM_PTR " 986b\n\t"					\
+	".long 986b - .\n\t"					\
 	".popsection\n\t"
 
 #define ASM_REACHABLE							\
@@ -67,7 +67,7 @@
 #define ANNOTATE_INTRA_FUNCTION_CALL				\
 	999:							\
 	.pushsection .discard.intra_function_calls;		\
-	.long 999b;						\
+	.long 999b - .;						\
 	.popsection;
 
 /*
@@ -92,10 +92,10 @@
  * inconsistencies.
  */
 .macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0 end=0
-.Lunwind_hint_ip_\@:
+.Lhere_\@:
 	.pushsection .discard.unwind_hints
 		/* struct unwind_hint */
-		.long .Lunwind_hint_ip_\@ - .
+		.long .Lhere_\@ - .
 		.short \sp_offset
 		.byte \sp_reg
 		.byte \type
@@ -107,7 +107,7 @@
 
 .macro STACK_FRAME_NON_STANDARD func:req
 	.pushsection .discard.func_stack_frame_non_standard, "aw"
-	_ASM_PTR \func
+	.long \func - .
 	.popsection
 .endm
 
@@ -120,7 +120,7 @@
 .macro ANNOTATE_NOENDBR
 .Lhere_\@:
 	.pushsection .discard.noendbr
-	.quad	.Lhere_\@
+	.long	.Lhere_\@ - .
 	.popsection
 .endm
 
