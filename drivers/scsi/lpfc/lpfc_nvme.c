@@ -2265,6 +2265,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 			}
 			if (!vport->localport ||
 			    test_bit(HBA_PCI_ERR, &vport->phba->bit_flags) ||
+			    phba->link_state == LPFC_HBA_ERROR ||
 			    vport->load_flag & FC_UNLOADING)
 				return;
 
@@ -2630,7 +2631,8 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * return values is ignored.  The upcall is a courtesy to the
 		 * transport.
 		 */
-		if (vport->load_flag & FC_UNLOADING)
+		if (vport->load_flag & FC_UNLOADING ||
+		    unlikely(vport->phba->link_state == LPFC_HBA_ERROR))
 			(void)nvme_fc_set_remoteport_devloss(remoteport, 0);
 
 		ret = nvme_fc_unregister_remoteport(remoteport);
