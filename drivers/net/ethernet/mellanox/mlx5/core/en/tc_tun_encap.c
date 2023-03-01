@@ -1016,6 +1016,89 @@ out_err:
 	return err;
 }
 
+int mlx5e_tc_tun_encap_dests_set(struct mlx5e_priv *priv,
+				 struct mlx5e_tc_flow *flow,
+				 struct mlx5_flow_attr *attr,
+				 struct netlink_ext_ack *extack,
+				 bool *vf_tun)
+{
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5_esw_flow_attr *esw_attr;
+	struct net_device *encap_dev = NULL;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_priv *out_priv;
+	int out_index;
+	int err = 0;
+
+	if (!mlx5e_is_eswitch_flow(flow))
+		return 0;
+
+	parse_attr = attr->parse_attr;
+	esw_attr = attr->esw_attr;
+	*vf_tun = false;
+
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		struct net_device *out_dev;
+		int mirred_ifindex;
+
+		if (!(esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
+		mirred_ifindex = parse_attr->mirred_ifindex[out_index];
+		out_dev = dev_get_by_index(dev_net(priv->netdev), mirred_ifindex);
+		if (!out_dev) {
+			NL_SET_ERR_MSG_MOD(extack, "Requested mirred device not found");
+			err = -ENODEV;
+			goto out;
+		}
+		err = mlx5e_attach_encap(priv, flow, attr, out_dev, out_index,
+					 extack, &encap_dev);
+		dev_put(out_dev);
+		if (err)
+			goto out;
+
+		if (esw_attr->dests[out_index].flags &
+		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE &&
+		    !esw_attr->dest_int_port)
+			*vf_tun = true;
+
+		out_priv = netdev_priv(encap_dev);
+		rpriv = out_priv->ppriv;
+		esw_attr->dests[out_index].rep = rpriv->rep;
+		esw_attr->dests[out_index].mdev = out_priv->mdev;
+	}
+
+	if (*vf_tun && esw_attr->out_count > 1) {
+		NL_SET_ERR_MSG_MOD(extack, "VF tunnel encap with mirroring is not supported");
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+out:
+	return err;
+}
+
+void mlx5e_tc_tun_encap_dests_unset(struct mlx5e_priv *priv,
+				    struct mlx5e_tc_flow *flow,
+				    struct mlx5_flow_attr *attr)
+{
+	struct mlx5_esw_flow_attr *esw_attr;
+	int out_index;
+
+	if (!mlx5e_is_eswitch_flow(flow))
+		return;
+
+	esw_attr = attr->esw_attr;
+
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		if (!(esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
+		mlx5e_detach_encap(flow->priv, flow, attr, out_index);
+		kfree(attr->parse_attr->tun_info[out_index]);
+	}
+}
+
 static int cmp_route_info(struct mlx5e_route_key *a,
 			  struct mlx5e_route_key *b)
 {
