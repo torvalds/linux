@@ -605,7 +605,7 @@ TEST_F(iommufd_ioas, access_pin)
 			       MOCK_FLAGS_ACCESS_CREATE_NEEDS_PIN_PAGES);
 
 	for (npages = 1; npages < BUFFER_SIZE / PAGE_SIZE; npages++) {
-		uint32_t mock_device_id;
+		uint32_t mock_stdev_id;
 		uint32_t mock_hwpt_id;
 
 		access_cmd.access_pages.length = npages * PAGE_SIZE;
@@ -637,14 +637,14 @@ TEST_F(iommufd_ioas, access_pin)
 		ASSERT_EQ(0, ioctl(self->fd,
 				   _IOMMU_TEST_CMD(IOMMU_TEST_OP_ACCESS_PAGES),
 				   &access_cmd));
-		test_cmd_mock_domain(self->ioas_id, &mock_device_id,
+		test_cmd_mock_domain(self->ioas_id, &mock_stdev_id,
 				     &mock_hwpt_id);
 		check_map_cmd.id = mock_hwpt_id;
 		ASSERT_EQ(0, ioctl(self->fd,
 				   _IOMMU_TEST_CMD(IOMMU_TEST_OP_MD_CHECK_MAP),
 				   &check_map_cmd));
 
-		test_ioctl_destroy(mock_device_id);
+		test_ioctl_destroy(mock_stdev_id);
 		test_ioctl_destroy(mock_hwpt_id);
 		test_cmd_destroy_access_pages(
 			access_cmd.id,
@@ -1197,14 +1197,14 @@ TEST_F(iommufd_mock_domain, all_aligns_copy)
 		for (; end < buf_size; end += MOCK_PAGE_SIZE) {
 			size_t length = end - start;
 			unsigned int old_id;
-			uint32_t mock_device_id;
+			uint32_t mock_stdev_id;
 			__u64 iova;
 
 			test_ioctl_ioas_map(buf + start, length, &iova);
 
 			/* Add and destroy a domain while the area exists */
 			old_id = self->hwpt_ids[1];
-			test_cmd_mock_domain(self->ioas_id, &mock_device_id,
+			test_cmd_mock_domain(self->ioas_id, &mock_stdev_id,
 					     &self->hwpt_ids[1]);
 
 			check_mock_iova(buf + start, iova, length);
@@ -1213,7 +1213,7 @@ TEST_F(iommufd_mock_domain, all_aligns_copy)
 					   start / PAGE_SIZE * PAGE_SIZE,
 				   1);
 
-			test_ioctl_destroy(mock_device_id);
+			test_ioctl_destroy(mock_stdev_id);
 			test_ioctl_destroy(self->hwpt_ids[1]);
 			self->hwpt_ids[1] = old_id;
 
