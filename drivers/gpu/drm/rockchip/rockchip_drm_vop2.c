@@ -7745,13 +7745,11 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	if (vcstate->max_refresh_rate && vcstate->min_refresh_rate)
 		VOP_MODULE_SET(vop2, vp, sw_dsp_vtotal_imd, 1);
 
-	if (vop2->version == VOP_VERSION_RK3568 || vop2->version == VOP_VERSION_RK3562) {
-		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK ||
-		    vcstate->output_if & VOP_OUTPUT_IF_BT656)
-			VOP_MODULE_SET(vop2, vp, core_dclk_div, 1);
-		else
-			VOP_MODULE_SET(vop2, vp, core_dclk_div, 0);
-	}
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK ||
+	    vcstate->output_if & VOP_OUTPUT_IF_BT656)
+		VOP_MODULE_SET(vop2, vp, core_dclk_div, 1);
+	else
+		VOP_MODULE_SET(vop2, vp, core_dclk_div, 0);
 
 	if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420) {
 		VOP_MODULE_SET(vop2, vp, dclk_div2, 1);
