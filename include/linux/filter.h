@@ -1546,6 +1546,8 @@ static __always_inline int __bpf_xdp_redirect_map(struct bpf_map *map, u64 index
 int __bpf_skb_load_bytes(const struct sk_buff *skb, u32 offset, void *to, u32 len);
 int __bpf_skb_store_bytes(struct sk_buff *skb, u32 offset, const void *from,
 			  u32 len, u64 flags);
+int __bpf_xdp_load_bytes(struct xdp_buff *xdp, u32 offset, void *buf, u32 len);
+int __bpf_xdp_store_bytes(struct xdp_buff *xdp, u32 offset, void *buf, u32 len);
 #else /* CONFIG_NET */
 static inline int __bpf_skb_load_bytes(const struct sk_buff *skb, u32 offset,
 				       void *to, u32 len)
@@ -1555,6 +1557,18 @@ static inline int __bpf_skb_load_bytes(const struct sk_buff *skb, u32 offset,
 
 static inline int __bpf_skb_store_bytes(struct sk_buff *skb, u32 offset,
 					const void *from, u32 len, u64 flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int __bpf_xdp_load_bytes(struct xdp_buff *xdp, u32 offset,
+				       void *buf, u32 len)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int __bpf_xdp_store_bytes(struct xdp_buff *xdp, u32 offset,
+					void *buf, u32 len)
 {
 	return -EOPNOTSUPP;
 }

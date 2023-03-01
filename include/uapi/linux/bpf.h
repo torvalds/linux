@@ -5344,7 +5344,7 @@ union bpf_attr {
  *		*len* must be a statically known value. The returned data slice
  *		is invalidated whenever the dynptr is invalidated.
  *
- *		skb type dynptrs may not use bpf_dynptr_data. They should
+ *		skb and xdp type dynptrs may not use bpf_dynptr_data. They should
  *		instead use bpf_dynptr_slice and bpf_dynptr_slice_rdwr.
  *	Return
  *		Pointer to the underlying dynptr data, NULL if the dynptr is
