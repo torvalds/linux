@@ -194,6 +194,7 @@ read_attribute(btree_cache);
 read_attribute(btree_key_cache);
 read_attribute(stripes_heap);
 read_attribute(open_buckets);
+read_attribute(open_buckets_partial);
 read_attribute(write_points);
 read_attribute(nocow_lock_table);
 
@@ -455,6 +456,9 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_open_buckets)
 		bch2_open_buckets_to_text(out, c);
 
+	if (attr == &sysfs_open_buckets_partial)
+		bch2_open_buckets_partial_to_text(out, c);
+
 	if (attr == &sysfs_write_points)
 		bch2_write_points_to_text(out, c);
 
@@ -663,6 +667,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_new_stripes,
 	&sysfs_stripes_heap,
 	&sysfs_open_buckets,
+	&sysfs_open_buckets_partial,
 	&sysfs_write_points,
 #ifdef BCH_WRITE_REF_DEBUG
 	&sysfs_write_refs,

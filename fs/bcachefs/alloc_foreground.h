@@ -221,6 +221,7 @@ static inline struct write_point_specifier writepoint_ptr(struct write_point *wp
 void bch2_fs_allocator_foreground_init(struct bch_fs *);
 
 void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *);
+void bch2_open_buckets_partial_to_text(struct printbuf *, struct bch_fs *);
 
 void bch2_write_points_to_text(struct printbuf *, struct bch_fs *);
 
