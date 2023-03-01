@@ -1367,7 +1367,7 @@ xfs_itruncate_extents_flags(
 
 	unmap_len = XFS_MAX_FILEOFF - first_unmap_block + 1;
 	while (unmap_len > 0) {
-		ASSERT(tp->t_firstblock == NULLFSBLOCK);
+		ASSERT(tp->t_highest_agno == NULLAGNUMBER);
 		error = __xfs_bunmapi(tp, ip, first_unmap_block, &unmap_len,
 				flags, XFS_ITRUNC_MAX_EXTENTS);
 		if (error)
