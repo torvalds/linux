@@ -1438,6 +1438,7 @@ static int i3c_master_early_i3c_dev_add(struct i3c_master_controller *master,
 {
 	struct i3c_device_info info = {
 		.static_addr = boardinfo->static_addr,
+		.pid = boardinfo->pid,
 	};
 	struct i3c_dev_desc *i3cdev;
 	int ret;
