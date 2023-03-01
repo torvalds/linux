@@ -959,39 +959,49 @@ static int destroy_if_dynptr_stack_slot(struct bpf_verifier_env *env,
 	return 0;
 }
 
-static bool is_dynptr_reg_valid_uninit(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
-				       int spi)
+static bool is_dynptr_reg_valid_uninit(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
 {
+	int spi;
+
 	if (reg->type == CONST_PTR_TO_DYNPTR)
 		return false;
 
-	/* For -ERANGE (i.e. spi not falling into allocated stack slots), we
-	 * will do check_mem_access to check and update stack bounds later, so
-	 * return true for that case.
+	spi = dynptr_get_spi(env, reg);
+
+	/* -ERANGE (i.e. spi not falling into allocated stack slots) isn't an
+	 * error because this just means the stack state hasn't been updated yet.
+	 * We will do check_mem_access to check and update stack bounds later.
 	 */
-	if (spi < 0)
-		return spi == -ERANGE;
-	/* We allow overwriting existing unreferenced STACK_DYNPTR slots, see
-	 * mark_stack_slots_dynptr which calls destroy_if_dynptr_stack_slot to
-	 * ensure dynptr objects at the slots we are touching are completely
-	 * destructed before we reinitialize them for a new one. For referenced
-	 * ones, destroy_if_dynptr_stack_slot returns an error early instead of
-	 * delaying it until the end where the user will get "Unreleased
+	if (spi < 0 && spi != -ERANGE)
+		return false;
+
+	/* We don't need to check if the stack slots are marked by previous
+	 * dynptr initializations because we allow overwriting existing unreferenced
+	 * STACK_DYNPTR slots, see mark_stack_slots_dynptr which calls
+	 * destroy_if_dynptr_stack_slot to ensure dynptr objects at the slots we are
+	 * touching are completely destructed before we reinitialize them for a new
+	 * one. For referenced ones, destroy_if_dynptr_stack_slot returns an error early
+	 * instead of delaying it until the end where the user will get "Unreleased
 	 * reference" error.
 	 */
 	return true;
 }
 
-static bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
-				     int spi)
+static bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
 {
 	struct bpf_func_state *state = func(env, reg);
-	int i;
+	int i, spi;
 
-	/* This already represents first slot of initialized bpf_dynptr */
+	/* This already represents first slot of initialized bpf_dynptr.
+	 *
+	 * CONST_PTR_TO_DYNPTR already has fixed and var_off as 0 due to
+	 * check_func_arg_reg_off's logic, so we don't need to check its
+	 * offset and alignment.
+	 */
 	if (reg->type == CONST_PTR_TO_DYNPTR)
 		return true;
 
+	spi = dynptr_get_spi(env, reg);
 	if (spi < 0)
 		return false;
 	if (!state->stack[spi].spilled_ptr.dynptr.first_slot)
@@ -6215,11 +6225,10 @@ static int process_kptr_func(struct bpf_verifier_env *env, int regno,
  * Helpers which do not mutate the bpf_dynptr set MEM_RDONLY in their argument
  * type, and declare it as 'const struct bpf_dynptr *' in their prototype.
  */
-int process_dynptr_func(struct bpf_verifier_env *env, int regno,
-			enum bpf_arg_type arg_type, struct bpf_call_arg_meta *meta)
+static int process_dynptr_func(struct bpf_verifier_env *env, int regno,
+			       enum bpf_arg_type arg_type, struct bpf_call_arg_meta *meta)
 {
 	struct bpf_reg_state *regs = cur_regs(env), *reg = &regs[regno];
-	int spi = 0;
 
 	/* MEM_UNINIT and MEM_RDONLY are exclusive, when applied to an
 	 * ARG_PTR_TO_DYNPTR (or ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_*):
@@ -6227,15 +6236,6 @@ int process_dynptr_func(struct bpf_verifier_env *env, int regno,
 	if ((arg_type & (MEM_UNINIT | MEM_RDONLY)) == (MEM_UNINIT | MEM_RDONLY)) {
 		verbose(env, "verifier internal error: misconfigured dynptr helper type flags\n");
 		return -EFAULT;
-	}
-	/* CONST_PTR_TO_DYNPTR already has fixed and var_off as 0 due to
-	 * check_func_arg_reg_off's logic. We only need to check offset
-	 * and its alignment for PTR_TO_STACK.
-	 */
-	if (reg->type == PTR_TO_STACK) {
-		spi = dynptr_get_spi(env, reg);
-		if (spi < 0 && spi != -ERANGE)
-			return spi;
 	}
 
 	/*  MEM_UNINIT - Points to memory that is an appropriate candidate for
@@ -6254,7 +6254,7 @@ int process_dynptr_func(struct bpf_verifier_env *env, int regno,
 	 *		 to.
 	 */
 	if (arg_type & MEM_UNINIT) {
-		if (!is_dynptr_reg_valid_uninit(env, reg, spi)) {
+		if (!is_dynptr_reg_valid_uninit(env, reg)) {
 			verbose(env, "Dynptr has to be an uninitialized dynptr\n");
 			return -EINVAL;
 		}
@@ -6277,7 +6277,7 @@ int process_dynptr_func(struct bpf_verifier_env *env, int regno,
 			return -EINVAL;
 		}
 
-		if (!is_dynptr_reg_valid_init(env, reg, spi)) {
+		if (!is_dynptr_reg_valid_init(env, reg)) {
 			verbose(env,
 				"Expected an initialized dynptr as arg #%d\n",
 				regno);
