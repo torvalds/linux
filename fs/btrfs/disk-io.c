@@ -1341,17 +1341,8 @@ struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 {
 	int ret;
-	unsigned int nofs_flag;
 
-	/*
-	 * We might be called under a transaction (e.g. indirect backref
-	 * resolution) which could deadlock if it triggers memory reclaim
-	 */
-	nofs_flag = memalloc_nofs_save();
-	ret = btrfs_drew_lock_init(&root->snapshot_lock);
-	memalloc_nofs_restore(nofs_flag);
-	if (ret)
-		goto fail;
+	btrfs_drew_lock_init(&root->snapshot_lock);
 
 	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID &&
 	    !btrfs_is_data_reloc_root(root)) {
@@ -2065,7 +2056,6 @@ void btrfs_put_root(struct btrfs_root *root)
 		WARN_ON(test_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state));
 		if (root->anon_dev)
 			free_anon_bdev(root->anon_dev);
-		btrfs_drew_lock_destroy(&root->snapshot_lock);
 		free_root_extent_buffers(root);
 #ifdef CONFIG_BTRFS_DEBUG
 		spin_lock(&root->fs_info->fs_roots_radix_lock);
