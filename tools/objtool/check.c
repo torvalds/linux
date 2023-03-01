@@ -17,7 +17,7 @@
 #include <objtool/warn.h>
 #include <objtool/endianness.h>
 
-#include <linux/objtool.h>
+#include <linux/objtool_types.h>
 #include <linux/hashtable.h>
 #include <linux/kernel.h>
 #include <linux/static_call_types.h>
