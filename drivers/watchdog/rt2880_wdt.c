@@ -54,12 +54,12 @@ MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static inline void rt_wdt_w32(void __iomem *base, unsigned reg, u32 val)
+static inline void rt_wdt_w32(void __iomem *base, unsigned int reg, u32 val)
 {
 	iowrite32(val, base + reg);
 }
 
-static inline u32 rt_wdt_r32(void __iomem *base, unsigned reg)
+static inline u32 rt_wdt_r32(void __iomem *base, unsigned int reg)
 {
 	return ioread32(base + reg);
 }
