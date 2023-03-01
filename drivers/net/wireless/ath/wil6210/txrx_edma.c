@@ -751,6 +751,92 @@ static int wil_tx_ring_modify_edma(struct wil6210_vif *vif, int ring_id,
 	return -EOPNOTSUPP;
 }
 
+static int wil_check_amsdu(struct wil6210_priv *wil, void *msg, int cid,
+			   struct wil_ring_rx_data *rxdata,
+			   struct sk_buff *skb)
+{
+	u8 *sa, *da;
+	int mid, tid;
+	u16 seq;
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
+	struct wil_sta_info *sta;
+
+	/* drop all WDS packets - not supported */
+	if (wil_rx_status_get_ds_type(wil, msg) == WIL_RX_EDMA_DS_TYPE_WDS) {
+		wil_dbg_txrx(wil, "WDS is not supported");
+		return -EAGAIN;
+	}
+
+	/* check amsdu packets */
+	sta = &wil->sta[cid];
+	if (!wil_rx_status_is_basic_amsdu(msg)) {
+		if (sta->amsdu_drop_sn != -1)
+			wil_sta_info_amsdu_init(sta);
+		return 0;
+	}
+
+	mid = wil_rx_status_get_mid(msg);
+	tid = wil_rx_status_get_tid(msg);
+	seq = le16_to_cpu(wil_rx_status_get_seq(wil, msg));
+	vif = wil->vifs[mid];
+
+	if (unlikely(!vif)) {
+		wil_dbg_txrx(wil, "amsdu with invalid mid %d", mid);
+		return -EAGAIN;
+	}
+
+	if (unlikely(sta->amsdu_drop)) {
+		if (sta->amsdu_drop_sn == seq && sta->amsdu_drop_tid == tid) {
+			wil_dbg_txrx(wil, "Drop AMSDU sub frame, sn=%d\n",
+				     seq);
+			return -EAGAIN;
+		}
+
+		/* previous AMSDU finished - clear drop amsdu flag */
+		sta->amsdu_drop = 0;
+	}
+
+	da = wil_skb_get_da(skb);
+	/* for all sub frame of the AMSDU, check that the SA or DA are valid
+	 * compared with client/AP mac addresses
+	 */
+	switch (vif->wdev.iftype) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		if (is_multicast_ether_addr(da))
+			return 0;
+
+		/* On client side, DA should be the client mac address */
+		ndev = vif_to_ndev(vif);
+		if (ether_addr_equal(ndev->dev_addr, da))
+			return 0;
+		break;
+
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_AP:
+		sa = wil_skb_get_sa(skb);
+		/* On AP side, the packet SA should be the client mac address.
+		 * check also the DA is not rfc 1042 header
+		 */
+		if (ether_addr_equal(sta->addr, sa) &&
+		    !ether_addr_equal(rfc1042_header, da))
+			return 0;
+		break;
+	default:
+		return 0;
+	}
+
+	sta->amsdu_drop_sn = seq;
+	sta->amsdu_drop_tid = tid;
+	sta->amsdu_drop = 1;
+	wil_dbg_txrx(wil,
+		     "Drop AMSDU frame, sn=%d. Drop this and all next sub frames\n",
+		     seq);
+
+	return -EAGAIN;
+}
+
 /* This function is used only for RX SW reorder */
 static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 			 struct sk_buff *skb, struct wil_net_stats *stats)
@@ -1053,6 +1139,12 @@ skipping:
 
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
+
+	if (!wil->use_compressed_rx_status &&
+	    wil_check_amsdu(wil, msg, cid, rxdata, skb)) {
+		kfree_skb(skb);
+		goto again;
+	}
 
 	/* Has to be done after dma_unmap_single as skb->cb is also
 	 * used for holding the pa
