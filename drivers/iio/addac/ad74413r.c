@@ -100,6 +100,7 @@ struct ad74413r_state {
 #define AD74413R_REG_ADC_CONFIG_X(x)		(0x05 + (x))
 #define AD74413R_ADC_CONFIG_RANGE_MASK		GENMASK(7, 5)
 #define AD74413R_ADC_CONFIG_REJECTION_MASK	GENMASK(4, 3)
+#define AD74413R_ADC_CONFIG_CH_200K_TO_GND	BIT(2)
 #define AD74413R_ADC_RANGE_10V			0b000
 #define AD74413R_ADC_RANGE_2P5V_EXT_POW		0b001
 #define AD74413R_ADC_RANGE_2P5V_INT_POW		0b010
@@ -438,9 +439,20 @@ static int ad74413r_set_channel_dac_code(struct ad74413r_state *st,
 static int ad74413r_set_channel_function(struct ad74413r_state *st,
 					 unsigned int channel, u8 func)
 {
-	return regmap_update_bits(st->regmap,
+	int ret;
+
+	ret = regmap_update_bits(st->regmap,
 				  AD74413R_REG_CH_FUNC_SETUP_X(channel),
 				  AD74413R_CH_FUNC_SETUP_MASK, func);
+	if (ret)
+		return ret;
+
+	if (func == CH_FUNC_CURRENT_INPUT_LOOP_POWER)
+		ret = regmap_set_bits(st->regmap,
+				      AD74413R_REG_ADC_CONFIG_X(channel),
+				      AD74413R_ADC_CONFIG_CH_200K_TO_GND);
+
+	return ret;
 }
 
 static int ad74413r_set_adc_conv_seq(struct ad74413r_state *st,
@@ -1126,6 +1138,11 @@ static struct iio_chan_spec ad74413r_current_input_channels[] = {
 	AD74413R_ADC_CURRENT_CHANNEL,
 };
 
+static struct iio_chan_spec ad74413r_current_input_loop_channels[] = {
+	AD74413R_DAC_CHANNEL(IIO_CURRENT, BIT(IIO_CHAN_INFO_SCALE)),
+	AD74413R_ADC_CURRENT_CHANNEL,
+};
+
 static struct iio_chan_spec ad74413r_resistance_input_channels[] = {
 	AD74413R_ADC_CHANNEL(IIO_RESISTANCE, BIT(IIO_CHAN_INFO_PROCESSED)),
 };
@@ -1149,7 +1166,7 @@ static const struct ad74413r_channels ad74413r_channels_map[] = {
 	[CH_FUNC_CURRENT_OUTPUT] = AD74413R_CHANNELS(current_output),
 	[CH_FUNC_VOLTAGE_INPUT] = AD74413R_CHANNELS(voltage_input),
 	[CH_FUNC_CURRENT_INPUT_EXT_POWER] = AD74413R_CHANNELS(current_input),
-	[CH_FUNC_CURRENT_INPUT_LOOP_POWER] = AD74413R_CHANNELS(current_input),
+	[CH_FUNC_CURRENT_INPUT_LOOP_POWER] = AD74413R_CHANNELS(current_input_loop),
 	[CH_FUNC_RESISTANCE_INPUT] = AD74413R_CHANNELS(resistance_input),
 	[CH_FUNC_DIGITAL_INPUT_LOGIC] = AD74413R_CHANNELS(digital_input),
 	[CH_FUNC_DIGITAL_INPUT_LOOP_POWER] = AD74413R_CHANNELS(digital_input),
