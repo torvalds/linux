@@ -2243,6 +2243,7 @@ static void set_func_state(struct cfi_state *state)
 	memcpy(&state->regs, &initial_func_cfi.regs,
 	       CFI_NUM_REGS * sizeof(struct cfi_reg));
 	state->stack_size = initial_func_cfi.cfa.offset;
+	state->type = UNWIND_HINT_TYPE_CALL;
 }
 
 static int read_unwind_hints(struct objtool_file *file)
@@ -2327,7 +2328,6 @@ static int read_unwind_hints(struct objtool_file *file)
 		cfi.cfa.offset = bswap_if_needed(file->elf, hint->sp_offset);
 		cfi.type = hint->type;
 		cfi.signal = hint->signal;
-		cfi.end = hint->end;
 
 		insn->cfi = cfi_hash_find_or_add(&cfi);
 	}

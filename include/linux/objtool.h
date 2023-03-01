@@ -10,7 +10,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define UNWIND_HINT(type, sp_reg, sp_offset, signal, end)	\
+#define UNWIND_HINT(type, sp_reg, sp_offset, signal)	\
 	"987: \n\t"						\
 	".pushsection .discard.unwind_hints\n\t"		\
 	/* struct unwind_hint */				\
@@ -19,7 +19,6 @@
 	".byte " __stringify(sp_reg) "\n\t"			\
 	".byte " __stringify(type) "\n\t"			\
 	".byte " __stringify(signal) "\n\t"			\
-	".byte " __stringify(end) "\n\t"			\
 	".balign 4 \n\t"					\
 	".popsection\n\t"
 
@@ -91,7 +90,7 @@
  * the debuginfo as necessary.  It will also warn if it sees any
  * inconsistencies.
  */
-.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0 end=0
+.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0
 .Lhere_\@:
 	.pushsection .discard.unwind_hints
 		/* struct unwind_hint */
@@ -100,7 +99,6 @@
 		.byte \sp_reg
 		.byte \type
 		.byte \signal
-		.byte \end
 		.balign 4
 	.popsection
 .endm
@@ -153,14 +151,14 @@
 
 #ifndef __ASSEMBLY__
 
-#define UNWIND_HINT(type, sp_reg, sp_offset, signal, end) "\n\t"
+#define UNWIND_HINT(type, sp_reg, sp_offset, signal) "\n\t"
 #define STACK_FRAME_NON_STANDARD(func)
 #define STACK_FRAME_NON_STANDARD_FP(func)
 #define ANNOTATE_NOENDBR
 #define ASM_REACHABLE
 #else
 #define ANNOTATE_INTRA_FUNCTION_CALL
-.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0 end=0
+.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 signal=0
 .endm
 .macro STACK_FRAME_NON_STANDARD func:req
 .endm
