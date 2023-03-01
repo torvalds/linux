@@ -12,7 +12,7 @@
  *      Changed the compression method from stem compression to "table lookup"
  *      compression (see scripts/kallsyms.c for a more complete description)
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * This driver is based on Google Debug Kinfo Driver
  */
 
@@ -92,8 +92,15 @@ static unsigned int debug_symbol_expand_symbol(unsigned int off,
 	data = &debug_symbol.names[off];
 	len = *data;
 	data++;
+	off++;
 
-	off += len + 1;
+	if ((len & 0x80) != 0) {
+		len = (len & 0x7F) | (*data << 7);
+		data++;
+		off++;
+	}
+
+	off += len;
 
 	while (len) {
 		tptr = &debug_symbol.token_table[debug_symbol.token_index[*data]];
@@ -143,18 +150,7 @@ static bool cleanup_symbol_name(char *s)
 	if (!IS_ENABLED(CONFIG_LTO_CLANG))
 		return false;
 
-	res = strnchr(s, KSYM_NAME_LEN, '.');
-	if (res) {
-		*res = '\0';
-		return true;
-	}
-
-	if (!IS_ENABLED(CONFIG_CFI_CLANG) ||
-	    !IS_ENABLED(CONFIG_LTO_CLANG_THIN) ||
-	    CONFIG_CLANG_VERSION >= 130000)
-		return false;
-
-	res = strrchr(s, '$');
+	res = strchr(s, '.');
 	if (res) {
 		*res = '\0';
 		return true;
