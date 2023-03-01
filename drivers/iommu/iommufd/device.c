@@ -282,7 +282,10 @@ static int iommufd_device_auto_get_domain(struct iommufd_device *idev,
 		if (!hwpt->auto_domain)
 			continue;
 
+		if (!iommufd_lock_obj(&hwpt->obj))
+			continue;
 		rc = iommufd_device_do_attach(idev, hwpt);
+		iommufd_put_object(&hwpt->obj);
 
 		/*
 		 * -EINVAL means the domain is incompatible with the device.
