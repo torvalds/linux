@@ -79,14 +79,12 @@ static const struct xe_step_info dg2_g12_revid_step_tbl[] = {
 };
 
 static const struct xe_step_info pvc_revid_step_tbl[] = {
-	[0x3] = { .graphics = STEP_A0 },
 	[0x5] = { .graphics = STEP_B0 },
 	[0x6] = { .graphics = STEP_B1 },
 	[0x7] = { .graphics = STEP_C0 },
 };
 
 static const int pvc_basedie_subids[] = {
-	[0x0] = STEP_A0,
 	[0x3] = STEP_B0,
 	[0x4] = STEP_B1,
 	[0x5] = STEP_B3,
