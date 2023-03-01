@@ -101,7 +101,7 @@ size parameter, and the value of the constant matters for program safety, __k
 suffix should be used.
 
 2.2.2 __uninit Annotation
---------------------
+-------------------------
 
 This annotation is used to indicate that the argument will be treated as
 uninitialized.
