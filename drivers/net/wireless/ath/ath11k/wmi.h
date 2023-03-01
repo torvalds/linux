@@ -4139,6 +4139,7 @@ enum cc_setting_code {
 
 	/* add new setting code above, update in
 	 * @enum wmi_reg_cc_setting_code as well.
+	 * Also handle it in ath11k_cc_status_to_str()
 	 */
 };
 
@@ -4163,20 +4164,161 @@ ath11k_wmi_cc_setting_code_to_reg(enum wmi_reg_cc_setting_code status_code)
 	return REG_SET_CC_STATUS_FAIL;
 }
 
+static inline const char *ath11k_cc_status_to_str(enum cc_setting_code code)
+{
+	switch (code) {
+	case REG_SET_CC_STATUS_PASS:
+		return "REG_SET_CC_STATUS_PASS";
+	case REG_CURRENT_ALPHA2_NOT_FOUND:
+		return "REG_CURRENT_ALPHA2_NOT_FOUND";
+	case REG_INIT_ALPHA2_NOT_FOUND:
+		return "REG_INIT_ALPHA2_NOT_FOUND";
+	case REG_SET_CC_CHANGE_NOT_ALLOWED:
+		return "REG_SET_CC_CHANGE_NOT_ALLOWED";
+	case REG_SET_CC_STATUS_NO_MEMORY:
+		return "REG_SET_CC_STATUS_NO_MEMORY";
+	case REG_SET_CC_STATUS_FAIL:
+		return "REG_SET_CC_STATUS_FAIL";
+	}
+
+	return "Unknown CC status";
+}
+
 enum wmi_reg_6ghz_ap_type {
 	WMI_REG_INDOOR_AP = 0,
 	WMI_REG_STANDARD_POWER_AP = 1,
 	WMI_REG_VERY_LOW_POWER_AP = 2,
 
+	/* add AP type above, handle in ath11k_6ghz_ap_type_to_str()
+	 */
 	WMI_REG_CURRENT_MAX_AP_TYPE,
 	WMI_REG_MAX_AP_TYPE = 7,
 };
+
+static inline const char *
+ath11k_6ghz_ap_type_to_str(enum wmi_reg_6ghz_ap_type type)
+{
+	switch (type) {
+	case WMI_REG_INDOOR_AP:
+		return "INDOOR AP";
+	case WMI_REG_STANDARD_POWER_AP:
+		return "STANDARD POWER AP";
+	case WMI_REG_VERY_LOW_POWER_AP:
+		return "VERY LOW POWER AP";
+	case WMI_REG_CURRENT_MAX_AP_TYPE:
+		return "CURRENT_MAX_AP_TYPE";
+	case WMI_REG_MAX_AP_TYPE:
+		return "MAX_AP_TYPE";
+	}
+
+	return "unknown 6 GHz AP type";
+}
 
 enum wmi_reg_6ghz_client_type {
 	WMI_REG_DEFAULT_CLIENT = 0,
 	WMI_REG_SUBORDINATE_CLIENT = 1,
 	WMI_REG_MAX_CLIENT_TYPE = 2,
+
+	/* add client type above, handle it in
+	 * ath11k_6ghz_client_type_to_str()
+	 */
 };
+
+static inline const char *
+ath11k_6ghz_client_type_to_str(enum wmi_reg_6ghz_client_type type)
+{
+	switch (type) {
+	case WMI_REG_DEFAULT_CLIENT:
+		return "DEFAULT CLIENT";
+	case WMI_REG_SUBORDINATE_CLIENT:
+		return "SUBORDINATE CLIENT";
+	case WMI_REG_MAX_CLIENT_TYPE:
+		return "MAX_CLIENT_TYPE";
+	}
+
+	return "unknown 6 GHz client type";
+}
+
+enum reg_subdomains_6ghz {
+	EMPTY_6GHZ = 0x0,
+	FCC1_CLIENT_LPI_REGULAR_6GHZ = 0x01,
+	FCC1_CLIENT_SP_6GHZ = 0x02,
+	FCC1_AP_LPI_6GHZ = 0x03,
+	FCC1_CLIENT_LPI_SUBORDINATE = FCC1_AP_LPI_6GHZ,
+	FCC1_AP_SP_6GHZ = 0x04,
+	ETSI1_LPI_6GHZ = 0x10,
+	ETSI1_VLP_6GHZ = 0x11,
+	ETSI2_LPI_6GHZ = 0x12,
+	ETSI2_VLP_6GHZ = 0x13,
+	APL1_LPI_6GHZ = 0x20,
+	APL1_VLP_6GHZ = 0x21,
+
+	/* add sub-domain above, handle it in
+	 * ath11k_sub_reg_6ghz_to_str()
+	 */
+};
+
+static inline const char *
+ath11k_sub_reg_6ghz_to_str(enum reg_subdomains_6ghz sub_id)
+{
+	switch (sub_id) {
+	case EMPTY_6GHZ:
+		return "N/A";
+	case FCC1_CLIENT_LPI_REGULAR_6GHZ:
+		return "FCC1_CLIENT_LPI_REGULAR_6GHZ";
+	case FCC1_CLIENT_SP_6GHZ:
+		return "FCC1_CLIENT_SP_6GHZ";
+	case FCC1_AP_LPI_6GHZ:
+		return "FCC1_AP_LPI_6GHZ/FCC1_CLIENT_LPI_SUBORDINATE";
+	case FCC1_AP_SP_6GHZ:
+		return "FCC1_AP_SP_6GHZ";
+	case ETSI1_LPI_6GHZ:
+		return "ETSI1_LPI_6GHZ";
+	case ETSI1_VLP_6GHZ:
+		return "ETSI1_VLP_6GHZ";
+	case ETSI2_LPI_6GHZ:
+		return "ETSI2_LPI_6GHZ";
+	case ETSI2_VLP_6GHZ:
+		return "ETSI2_VLP_6GHZ";
+	case APL1_LPI_6GHZ:
+		return "APL1_LPI_6GHZ";
+	case APL1_VLP_6GHZ:
+		return "APL1_VLP_6GHZ";
+	}
+
+	return "unknown sub reg id";
+}
+
+enum reg_super_domain_6ghz {
+	FCC1_6GHZ = 0x01,
+	ETSI1_6GHZ = 0x02,
+	ETSI2_6GHZ = 0x03,
+	APL1_6GHZ = 0x04,
+	FCC1_6GHZ_CL = 0x05,
+
+	/* add super domain above, handle it in
+	 * ath11k_super_reg_6ghz_to_str()
+	 */
+};
+
+static inline const char *
+ath11k_super_reg_6ghz_to_str(enum reg_super_domain_6ghz domain_id)
+{
+	switch (domain_id) {
+	case FCC1_6GHZ:
+		return "FCC1_6GHZ";
+	case ETSI1_6GHZ:
+		return "ETSI1_6GHZ";
+	case ETSI2_6GHZ:
+		return "ETSI2_6GHZ";
+	case APL1_6GHZ:
+		return "APL1_6GHZ";
+	case FCC1_6GHZ_CL:
+		return "FCC1_6GHZ_CL";
+	}
+
+	return "unknown domain id";
+}
 
 struct cur_reg_rule {
 	u16 start_freq;
