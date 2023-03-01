@@ -759,12 +759,10 @@ static int mchp_pdmc_pcm_new(struct snd_soc_pcm_runtime *rtd,
 	int ret;
 
 	ret = mchp_pdmc_add_chmap_ctls(rtd->pcm, dd);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dd->dev, "failed to add channel map controls: %d\n", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_dai_driver mchp_pdmc_dai = {
