@@ -100,6 +100,23 @@ Hence, whenever a constant scalar argument is accepted by a kfunc which is not a
 size parameter, and the value of the constant matters for program safety, __k
 suffix should be used.
 
+2.2.2 __uninit Annotation
+--------------------
+
+This annotation is used to indicate that the argument will be treated as
+uninitialized.
+
+An example is given below::
+
+        __bpf_kfunc int bpf_dynptr_from_skb(..., struct bpf_dynptr_kern *ptr__uninit)
+        {
+        ...
+        }
+
+Here, the dynptr will be treated as an uninitialized dynptr. Without this
+annotation, the verifier will reject the program if the dynptr passed in is
+not initialized.
+
 .. _BPF_kfunc_nodef:
 
 2.3 Using an existing kernel function
