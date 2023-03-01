@@ -516,6 +516,7 @@ struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
 		return NULL;
 	}
 	INIT_LIST_HEAD(&new->anon_vma_chain);
+	vma_numab_state_init(new);
 	dup_anon_vma_name(orig, new);
 
 	return new;
@@ -523,6 +524,7 @@ struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
 
 void __vm_area_free(struct vm_area_struct *vma)
 {
+	vma_numab_state_free(vma);
 	free_anon_vma_name(vma);
 	vma_lock_free(vma);
 	kmem_cache_free(vm_area_cachep, vma);
