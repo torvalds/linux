@@ -55,7 +55,7 @@ static struct sk_buff *ieee80211_clean_skb(struct sk_buff *skb,
 	/* After pulling radiotap header, clear all flags that indicate
 	 * info in skb->data.
 	 */
-	status->flag &= ~(RX_FLAG_RADIOTAP_VENDOR_DATA |
+	status->flag &= ~(RX_FLAG_RADIOTAP_TLV_AT_END |
 			  RX_FLAG_RADIOTAP_LSIG |
 			  RX_FLAG_RADIOTAP_HE_MU |
 			  RX_FLAG_RADIOTAP_HE);
@@ -126,9 +126,6 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 	/* allocate extra bitmaps */
 	if (status->chains)
 		len += 4 * hweight8(status->chains);
-	/* vendor presence bitmap */
-	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA)
-		len += 4;
 
 	if (ieee80211_have_rx_timestamp(status)) {
 		len = ALIGN(len, 8);
@@ -190,34 +187,28 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 		len += 2 * hweight8(status->chains);
 	}
 
-	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA) {
-		struct ieee80211_vendor_radiotap *rtap;
-		int vendor_data_offset = 0;
+	if (status->flag & RX_FLAG_RADIOTAP_TLV_AT_END) {
+		int tlv_offset = 0;
 
 		/*
 		 * The position to look at depends on the existence (or non-
 		 * existence) of other elements, so take that into account...
 		 */
 		if (status->flag & RX_FLAG_RADIOTAP_HE)
-			vendor_data_offset +=
+			tlv_offset +=
 				sizeof(struct ieee80211_radiotap_he);
 		if (status->flag & RX_FLAG_RADIOTAP_HE_MU)
-			vendor_data_offset +=
+			tlv_offset +=
 				sizeof(struct ieee80211_radiotap_he_mu);
 		if (status->flag & RX_FLAG_RADIOTAP_LSIG)
-			vendor_data_offset +=
+			tlv_offset +=
 				sizeof(struct ieee80211_radiotap_lsig);
 
-		rtap = (void *)&skb->data[vendor_data_offset];
+		/* ensure 4 byte alignment for TLV */
+		len = ALIGN(len, 4);
 
-		/* alignment for fixed 6-byte vendor data header */
-		len = ALIGN(len, 2);
-		/* vendor data header */
-		len += 6;
-		if (WARN_ON(rtap->align == 0))
-			rtap->align = 1;
-		len = ALIGN(len, rtap->align);
-		len += rtap->len + rtap->pad;
+		/* TLVs until the mac header */
+		len += skb_mac_header(skb) - &skb->data[tlv_offset];
 	}
 
 	return len;
@@ -313,9 +304,9 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	u32 it_present_val;
 	u16 rx_flags = 0;
 	u16 channel_flags = 0;
+	u32 tlvs_len = 0;
 	int mpdulen, chain;
 	unsigned long chains = status->chains;
-	struct ieee80211_vendor_radiotap rtap = {};
 	struct ieee80211_radiotap_he he = {};
 	struct ieee80211_radiotap_he_mu he_mu = {};
 	struct ieee80211_radiotap_lsig lsig = {};
@@ -336,18 +327,17 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		skb_pull(skb, sizeof(lsig));
 	}
 
-	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA) {
-		rtap = *(struct ieee80211_vendor_radiotap *)skb->data;
-		/* rtap.len and rtap.pad are undone immediately */
-		skb_pull(skb, sizeof(rtap) + rtap.len + rtap.pad);
+	if (status->flag & RX_FLAG_RADIOTAP_TLV_AT_END) {
+		/* data is pointer at tlv all other info was pulled off */
+		tlvs_len = skb_mac_header(skb) - skb->data;
 	}
 
 	mpdulen = skb->len;
 	if (!(has_fcs && ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS)))
 		mpdulen += FCS_LEN;
 
-	rthdr = skb_push(skb, rtap_len);
-	memset(rthdr, 0, rtap_len - rtap.len - rtap.pad);
+	rthdr = skb_push(skb, rtap_len - tlvs_len);
+	memset(rthdr, 0, rtap_len - tlvs_len);
 	it_present = &rthdr->it_present;
 
 	/* radiotap header, set always present flags */
@@ -369,13 +359,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 				 BIT(IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
 	}
 
-	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA) {
-		it_present_val |= BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE) |
-				  BIT(IEEE80211_RADIOTAP_EXT);
-		put_unaligned_le32(it_present_val, it_present);
-		it_present++;
-		it_present_val = rtap.present;
-	}
+	if (status->flag & RX_FLAG_RADIOTAP_TLV_AT_END)
+		it_present_val |= BIT(IEEE80211_RADIOTAP_TLV);
 
 	put_unaligned_le32(it_present_val, it_present);
 
@@ -706,22 +691,6 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		*pos++ = status->chain_signal[chain];
 		*pos++ = chain;
 	}
-
-	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA) {
-		/* ensure 2 byte alignment for the vendor field as required */
-		if ((pos - (u8 *)rthdr) & 1)
-			*pos++ = 0;
-		*pos++ = rtap.oui[0];
-		*pos++ = rtap.oui[1];
-		*pos++ = rtap.oui[2];
-		*pos++ = rtap.subns;
-		put_unaligned_le16(rtap.len, pos);
-		pos += 2;
-		/* align the actual payload as requested */
-		while ((pos - (u8 *)rthdr) & (rtap.align - 1))
-			*pos++ = 0;
-		/* data (and possible padding) already follows */
-	}
 }
 
 static struct sk_buff *
@@ -797,6 +766,13 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	bool only_monitor = false;
 	unsigned int min_head_len;
 
+	if (WARN_ON_ONCE(status->flag & RX_FLAG_RADIOTAP_TLV_AT_END &&
+			 !skb_mac_header_was_set(origskb))) {
+		/* with this skb no way to know where frame payload starts */
+		dev_kfree_skb(origskb);
+		return NULL;
+	}
+
 	if (status->flag & RX_FLAG_RADIOTAP_HE)
 		rtap_space += sizeof(struct ieee80211_radiotap_he);
 
@@ -806,12 +782,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	if (status->flag & RX_FLAG_RADIOTAP_LSIG)
 		rtap_space += sizeof(struct ieee80211_radiotap_lsig);
 
-	if (unlikely(status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA)) {
-		struct ieee80211_vendor_radiotap *rtap =
-			(void *)(origskb->data + rtap_space);
-
-		rtap_space += sizeof(*rtap) + rtap->len + rtap->pad;
-	}
+	if (status->flag & RX_FLAG_RADIOTAP_TLV_AT_END)
+		rtap_space += skb_mac_header(origskb) - &origskb->data[rtap_space];
 
 	min_head_len = rtap_space;
 

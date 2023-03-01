@@ -369,6 +369,26 @@ struct ieee80211_radiotap_tlv {
 	u8 data[];
 } __packed;
 
+/**
+ * struct ieee80211_radiotap_vendor_tlv - vendor radiotap data information
+ * @type: should always be set to IEEE80211_RADIOTAP_VENDOR_NAMESPACE
+ * @len: length of data
+ * @oui: radiotap vendor namespace OUI
+ * @oui_subtype: radiotap vendor sub namespace
+ * @vendor_type: radiotap vendor type
+ * @reserved: should always be set to zero (to avoid leaking memory)
+ * @data: the actual vendor namespace data
+ */
+struct ieee80211_radiotap_vendor_tlv {
+	__le16 type; /* IEEE80211_RADIOTAP_VENDOR_NAMESPACE */
+	__le16 len;
+	u8 oui[3];
+	u8 oui_subtype;
+	__le16 vendor_type;
+	__le16 reserved;
+	u8 data[];
+} __packed;
+
 /* ieee80211_radiotap_eht_usig - content of U-SIG tlv (type 33)
  * see www.radiotap.org/fields/U-SIG.html for details
  */

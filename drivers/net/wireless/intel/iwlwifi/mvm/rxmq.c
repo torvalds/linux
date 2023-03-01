@@ -209,33 +209,34 @@ static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 					    struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_vendor_radiotap *radiotap;
-	const int size = sizeof(*radiotap) + sizeof(__le16);
+	struct ieee80211_radiotap_vendor_tlv *radiotap;
+	const u16 vendor_data_len = sizeof(mvm->cur_aid);
+	const u16 padding = ALIGN(vendor_data_len, 4) - vendor_data_len;
 
 	if (!mvm->cur_aid)
 		return;
 
-	/* ensure alignment */
-	BUILD_BUG_ON((size + 2) % 4);
+	radiotap = skb_put(skb, sizeof(*radiotap) + vendor_data_len + padding);
+	radiotap->type = cpu_to_le16(IEEE80211_RADIOTAP_VENDOR_NAMESPACE);
+	radiotap->len = cpu_to_le16(sizeof(*radiotap) -
+				    sizeof(struct ieee80211_radiotap_tlv) +
+				    vendor_data_len);
 
-	radiotap = skb_put(skb, size + 2);
-	radiotap->align = 1;
 	/* Intel OUI */
 	radiotap->oui[0] = 0xf6;
 	radiotap->oui[1] = 0x54;
 	radiotap->oui[2] = 0x25;
 	/* radiotap sniffer config sub-namespace */
-	radiotap->subns = 1;
-	radiotap->present = 0x1;
-	radiotap->len = size - sizeof(*radiotap);
-	radiotap->pad = 2;
-
+	radiotap->oui_subtype = 1;
+	radiotap->vendor_type = 0;
+	/* clear reserved field */
+	radiotap->reserved = 0;
 	/* fill the data now */
 	memcpy(radiotap->data, &mvm->cur_aid, sizeof(mvm->cur_aid));
 	/* and clear the padding */
-	memset(radiotap->data + sizeof(__le16), 0, radiotap->pad);
+	memset(radiotap->data + vendor_data_len, 0, padding);
 
-	rx_status->flag |= RX_FLAG_RADIOTAP_VENDOR_DATA;
+	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 }
 
 /* iwl_mvm_pass_packet_to_mac80211 - passes the packet for mac80211 */

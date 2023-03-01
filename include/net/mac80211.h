@@ -1375,9 +1375,12 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	subframes share the same sequence number. Reported subframes can be
  *	either regular MSDU or singly A-MSDUs. Subframes must not be
  *	interleaved with other frames.
- * @RX_FLAG_RADIOTAP_VENDOR_DATA: This frame contains vendor-specific
- *	radiotap data in the skb->data (before the frame) as described by
- *	the &struct ieee80211_vendor_radiotap.
+ * @RX_FLAG_RADIOTAP_TLV_AT_END: This frame contains radiotap TLVs in the
+ *	skb->data (before the 802.11 header).
+ *	If used, the SKB's mac_header pointer must be set to point
+ *	to the 802.11 header after the TLVs, and any padding added after TLV
+ *	data to align to 4 must be cleared by the driver putting the TLVs
+ *	in the skb.
  * @RX_FLAG_ALLOW_SAME_PN: Allow the same PN as same packet before.
  *	This is used for AMSDU subframes which can have the same PN as
  *	the first subframe.
@@ -1429,7 +1432,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_ONLY_MONITOR		= BIT(17),
 	RX_FLAG_SKIP_MONITOR		= BIT(18),
 	RX_FLAG_AMSDU_MORE		= BIT(19),
-	RX_FLAG_RADIOTAP_VENDOR_DATA	= BIT(20),
+	RX_FLAG_RADIOTAP_TLV_AT_END	= BIT(20),
 	RX_FLAG_MIC_STRIPPED		= BIT(21),
 	RX_FLAG_ALLOW_SAME_PN		= BIT(22),
 	RX_FLAG_ICV_STRIPPED		= BIT(23),
@@ -1568,39 +1571,6 @@ ieee80211_rx_status_to_khz(struct ieee80211_rx_status *rx_status)
 	return MHZ_TO_KHZ(rx_status->freq) +
 	       (rx_status->freq_offset ? 500 : 0);
 }
-
-/**
- * struct ieee80211_vendor_radiotap - vendor radiotap data information
- * @present: presence bitmap for this vendor namespace
- *	(this could be extended in the future if any vendor needs more
- *	 bits, the radiotap spec does allow for that)
- * @align: radiotap vendor namespace alignment. This defines the needed
- *	alignment for the @data field below, not for the vendor namespace
- *	description itself (which has a fixed 2-byte alignment)
- *	Must be a power of two, and be set to at least 1!
- * @oui: radiotap vendor namespace OUI
- * @subns: radiotap vendor sub namespace
- * @len: radiotap vendor sub namespace skip length, if alignment is done
- *	then that's added to this, i.e. this is only the length of the
- *	@data field.
- * @pad: number of bytes of padding after the @data, this exists so that
- *	the skb data alignment can be preserved even if the data has odd
- *	length
- * @data: the actual vendor namespace data
- *
- * This struct, including the vendor data, goes into the skb->data before
- * the 802.11 header. It's split up in mac80211 using the align/oui/subns
- * data.
- */
-struct ieee80211_vendor_radiotap {
-	u32 present;
-	u8 align;
-	u8 oui[3];
-	u8 subns;
-	u8 pad;
-	u16 len;
-	u8 data[];
-} __packed;
 
 /**
  * enum ieee80211_conf_flags - configuration flags
