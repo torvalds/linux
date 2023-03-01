@@ -34,64 +34,103 @@ struct r9a06g032_gate {
 		scon, mirack, mistat;
 };
 
+enum gate_type {
+	K_GATE = 0,	/* gate which enable/disable */
+	K_FFC,		/* fixed factor clock */
+	K_DIV,		/* divisor */
+	K_BITSEL,	/* special for UARTs */
+	K_DUALGATE	/* special for UARTs */
+};
+
 /* This is used to describe a clock for instantiation */
 struct r9a06g032_clkdesc {
 	const char *name;
-	uint32_t managed: 1;
-	uint32_t type: 3;
-	uint32_t index: 8;
-	uint32_t source : 8; /* source index + 1 (0 == none) */
-	/* these are used to populate the bitsel struct */
+	uint32_t managed:1;
+	enum gate_type type:3;
+	uint32_t index:8;
+	uint32_t source:8; /* source index + 1 (0 == none) */
 	union {
+		/* type = K_GATE */
 		struct r9a06g032_gate gate;
-		/* for dividers */
+		/* type = K_DIV  */
 		struct {
-			unsigned int div_min : 10, div_max : 10, reg: 10;
+			unsigned int div_min:10, div_max:10, reg:10;
 			u16 div_table[4];
 		};
-		/* For fixed-factor ones */
+		/* type = K_FFC */
 		struct {
 			u16 div, mul;
 		};
-		/* for dual gate */
+		/* type = K_DUALGATE */
 		struct {
-			uint16_t group : 1;
+			uint16_t group:1;
 			u16 sel, g1, r1, g2, r2;
 		} dual;
 	};
 };
 
-#define I_GATE(_clk, _rst, _rdy, _midle, _scon, _mirack, _mistat) \
-	{ .gate = _clk, .reset = _rst, \
-		.ready = _rdy, .midle = _midle, \
-		.scon = _scon, .mirack = _mirack, .mistat = _mistat }
-#define D_GATE(_idx, _n, _src, ...) \
-	{ .type = K_GATE, .index = R9A06G032_##_idx, \
-		.source = 1 + R9A06G032_##_src, .name = _n, \
-		.gate = I_GATE(__VA_ARGS__) }
-#define D_MODULE(_idx, _n, _src, ...) \
-	{ .type = K_GATE, .index = R9A06G032_##_idx, \
-		.source = 1 + R9A06G032_##_src, .name = _n, \
-		.managed = 1, .gate = I_GATE(__VA_ARGS__) }
-#define D_ROOT(_idx, _n, _mul, _div) \
-	{ .type = K_FFC, .index = R9A06G032_##_idx, .name = _n, \
-		.div = _div, .mul = _mul }
-#define D_FFC(_idx, _n, _src, _div) \
-	{ .type = K_FFC, .index = R9A06G032_##_idx, \
-		.source = 1 + R9A06G032_##_src, .name = _n, \
-		.div = _div, .mul = 1}
-#define D_DIV(_idx, _n, _src, _reg, _min, _max, ...) \
-	{ .type = K_DIV, .index = R9A06G032_##_idx, \
-		.source = 1 + R9A06G032_##_src, .name = _n, \
-		.reg = _reg, .div_min = _min, .div_max = _max, \
-		.div_table = { __VA_ARGS__ } }
-#define D_UGATE(_idx, _n, _src, _g, _g1, _r1, _g2, _r2) \
-	{ .type = K_DUALGATE, .index = R9A06G032_##_idx, \
-		.source = 1 + R9A06G032_##_src, .name = _n, \
-		.dual = { .group = _g, \
-			.g1 = _g1, .r1 = _r1, .g2 = _g2, .r2 = _r2 }, }
-
-enum { K_GATE = 0, K_FFC, K_DIV, K_BITSEL, K_DUALGATE };
+#define I_GATE(_clk, _rst, _rdy, _midle, _scon, _mirack, _mistat) { \
+	.gate = _clk, \
+	.reset = _rst, \
+	.ready = _rdy, \
+	.midle = _midle, \
+	.scon = _scon, \
+	.mirack = _mirack, \
+	.mistat = _mistat \
+}
+#define D_GATE(_idx, _n, _src, ...) { \
+	.type = K_GATE, \
+	.index = R9A06G032_##_idx, \
+	.source = 1 + R9A06G032_##_src, \
+	.name = _n, \
+	.gate = I_GATE(__VA_ARGS__) \
+}
+#define D_MODULE(_idx, _n, _src, ...) { \
+	.type = K_GATE, \
+	.index = R9A06G032_##_idx, \
+	.source = 1 + R9A06G032_##_src, \
+	.name = _n, \
+	.managed = 1, \
+	.gate = I_GATE(__VA_ARGS__) \
+}
+#define D_ROOT(_idx, _n, _mul, _div) { \
+	.type = K_FFC, \
+	.index = R9A06G032_##_idx, \
+	.name = _n, \
+	.div = _div, \
+	.mul = _mul \
+}
+#define D_FFC(_idx, _n, _src, _div) { \
+	.type = K_FFC, \
+	.index = R9A06G032_##_idx, \
+	.source = 1 + R9A06G032_##_src, \
+	.name = _n, \
+	.div = _div, \
+	.mul = 1 \
+}
+#define D_DIV(_idx, _n, _src, _reg, _min, _max, ...) { \
+	.type = K_DIV, \
+	.index = R9A06G032_##_idx, \
+	.source = 1 + R9A06G032_##_src, \
+	.name = _n, \
+	.reg = _reg, \
+	.div_min = _min, \
+	.div_max = _max, \
+	.div_table = { __VA_ARGS__ } \
+}
+#define D_UGATE(_idx, _n, _src, _g, _g1, _r1, _g2, _r2) { \
+	.type = K_DUALGATE, \
+	.index = R9A06G032_##_idx, \
+	.source = 1 + R9A06G032_##_src, \
+	.name = _n, \
+	.dual = { \
+		.group = _g, \
+		.g1 = _g1, \
+		.r1 = _r1, \
+		.g2 = _g2, \
+		.r2 = _r2 \
+	}, \
+}
 
 /* Internal clock IDs */
 #define R9A06G032_CLKOUT		0
