@@ -357,9 +357,9 @@ static const struct llcc_slice_config kalama_data[] =  {
 };
 
 static const struct llcc_slice_config pineapple_data[] = {
-	{LLCC_CPUSS,     1,    0, 1, 1,      0x0, 0x0, 0, 0x0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_CPUSS,     1, 2048, 1, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{LLCC_VIDSC0,    2,  512, 3, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{LLCC_AUDIO,     6, 1024, 1, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{LLCC_AUDIO,     6,  512, 1, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{LLCC_MDMHPGRW, 25, 1024, 3, 0, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{LLCC_MDMHW,    26, 1024, 1, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	{LLCC_CMPT,     10, 4096, 1, 1, 0xFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
