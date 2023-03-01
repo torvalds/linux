@@ -1098,12 +1098,12 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	seq_printf(m, "Pipe A fw needed: %s\n",
 		   str_yes_no(GRAPHICS_VER(i915) >= 12));
 	seq_printf(m, "Pipe A fw loaded: %s\n",
-		   str_yes_no(dmc->dmc_info[DMC_FW_PIPEA].payload));
+		   str_yes_no(has_dmc_id_fw(i915, DMC_FW_PIPEA)));
 	seq_printf(m, "Pipe B fw needed: %s\n",
 		   str_yes_no(IS_ALDERLAKE_P(i915) ||
 			      DISPLAY_VER(i915) >= 14));
 	seq_printf(m, "Pipe B fw loaded: %s\n",
-		   str_yes_no(dmc->dmc_info[DMC_FW_PIPEB].payload));
+		   str_yes_no(has_dmc_id_fw(i915, DMC_FW_PIPEB)));
 
 	if (!intel_dmc_has_payload(i915))
 		goto out;
