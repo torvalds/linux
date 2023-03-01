@@ -33,7 +33,8 @@
 #define NOTIFY_1_IDX	0x6
 #define QRTR_DBL_MASK	0x1
 
-#define MAX_PKT_SZ	SZ_64K
+/* Add potential padding and header space to 64k */
+#define MAX_PKT_SZ	(SZ_64K + SZ_32)
 
 struct gunyah_ring {
 	void *buf;
