@@ -2835,6 +2835,9 @@ static int rv1106_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	phy_update_bits(rphy->phy_base + 0x1a4, GENMASK(7, 4), (0x01 << 4));
 	phy_update_bits(rphy->phy_base + 0x1b4, GENMASK(7, 4), (0x01 << 4));
 
+	/* Set HS disconnect detect mode to single ended detect mode */
+	phy_set_bits(rphy->phy_base + 0x70, BIT(2));
+
 	return 0;
 }
 
