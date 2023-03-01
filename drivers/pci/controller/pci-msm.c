@@ -1714,7 +1714,7 @@ static void msm_pcie_loopback(struct msm_pcie_dev_t *dev, bool local)
 	/* PCIe DBI base + 8MB as initial PCIe address to be translated to target address */
 	phys_addr_t loopback_lbar_phy =
 		dev->res[MSM_PCIE_RES_DM_CORE].resource->start + SZ_8M;
-	u8 *src_vir_addr = (u8 *) ioremap(loopback_lbar_phy, SZ_4K);
+	u8 *src_vir_addr;
 	void __iomem *iatu_base_vir;
 	u32 dbi_base_addr = dev->res[MSM_PCIE_RES_DM_CORE].resource->start;
 	u32 iatu_base_phy, iatu_ctrl1_offset, iatu_ctrl2_offset, iatu_lbar_offset, iatu_ubar_offset,
@@ -1727,6 +1727,12 @@ static void msm_pcie_loopback(struct msm_pcie_dev_t *dev, bool local)
 	u32 ltar_addr_lo;
 	bool loopback_test_fail = false;
 	int i = 0;
+
+	src_vir_addr = (u8 *)ioremap(loopback_lbar_phy, SZ_4K);
+	if (!src_vir_addr) {
+		PCIE_ERR(dev, "PCIe: RC%d: ioremap fails for loopback_lbar_phy\n", dev->rc_idx);
+		return;
+	}
 
 	/*
 	 * Use platform dev to get buffer. Doing so will
