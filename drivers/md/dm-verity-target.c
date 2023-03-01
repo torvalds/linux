@@ -16,6 +16,7 @@
 #include "dm-verity.h"
 #include "dm-verity-fec.h"
 #include "dm-verity-verify-sig.h"
+#include "dm-audit.h"
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/scatterlist.h>
@@ -248,8 +249,10 @@ static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 	DMERR_LIMIT("%s: %s block %llu is corrupted", v->data_dev->name,
 		    type_str, block);
 
-	if (v->corrupted_errs == DM_VERITY_MAX_CORRUPTED_ERRS)
+	if (v->corrupted_errs == DM_VERITY_MAX_CORRUPTED_ERRS) {
 		DMERR("%s: reached maximum errors", v->data_dev->name);
+		dm_audit_log_target(DM_MSG_PREFIX, "max-corrupted-errors", v->ti, 0);
+	}
 
 	snprintf(verity_env, DM_VERITY_ENV_LENGTH, "%s=%d,%llu",
 		DM_VERITY_ENV_VAR_NAME, type, block);
@@ -340,6 +343,11 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		else if (verity_handle_err(v,
 					   DM_VERITY_BLOCK_TYPE_METADATA,
 					   hash_block)) {
+			struct bio *bio =
+				dm_bio_from_per_bio_data(io,
+							 v->ti->per_io_data_size);
+			dm_audit_log_bio(DM_MSG_PREFIX, "verify-metadata", bio,
+					 block, 0);
 			r = -EIO;
 			goto release_ret_r;
 		}
@@ -590,8 +598,11 @@ static int verity_verify_io(struct dm_verity_io *io)
 				return -EIO;
 			}
 			if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
-					      cur_block))
+					      cur_block)) {
+				dm_audit_log_bio(DM_MSG_PREFIX, "verify-data",
+						 bio, cur_block, 0);
 				return -EIO;
+			}
 		}
 	}
 
@@ -975,6 +986,8 @@ static void verity_dtr(struct dm_target *ti)
 		static_branch_dec(&use_tasklet_enabled);
 
 	kfree(v);
+
+	dm_audit_log_dtr(DM_MSG_PREFIX, ti, 1);
 }
 
 static int verity_alloc_most_once(struct dm_verity *v)
@@ -1429,11 +1442,14 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	verity_verify_sig_opts_cleanup(&verify_args);
 
+	dm_audit_log_ctr(DM_MSG_PREFIX, ti, 1);
+
 	return 0;
 
 bad:
 
 	verity_verify_sig_opts_cleanup(&verify_args);
+	dm_audit_log_ctr(DM_MSG_PREFIX, ti, 0);
 	verity_dtr(ti);
 
 	return r;
