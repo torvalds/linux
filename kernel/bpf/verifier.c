@@ -759,6 +759,22 @@ static enum bpf_dynptr_type arg_to_dynptr_type(enum bpf_arg_type arg_type)
 	}
 }
 
+static enum bpf_type_flag get_dynptr_type_flag(enum bpf_dynptr_type type)
+{
+	switch (type) {
+	case BPF_DYNPTR_TYPE_LOCAL:
+		return DYNPTR_TYPE_LOCAL;
+	case BPF_DYNPTR_TYPE_RINGBUF:
+		return DYNPTR_TYPE_RINGBUF;
+	case BPF_DYNPTR_TYPE_SKB:
+		return DYNPTR_TYPE_SKB;
+	case BPF_DYNPTR_TYPE_XDP:
+		return DYNPTR_TYPE_XDP;
+	default:
+		return 0;
+	}
+}
+
 static bool dynptr_type_refcounted(enum bpf_dynptr_type type)
 {
 	return type == BPF_DYNPTR_TYPE_RINGBUF;
@@ -1679,6 +1695,12 @@ static bool reg_is_pkt_pointer_any(const struct bpf_reg_state *reg)
 {
 	return reg_is_pkt_pointer(reg) ||
 	       reg->type == PTR_TO_PACKET_END;
+}
+
+static bool reg_is_dynptr_slice_pkt(const struct bpf_reg_state *reg)
+{
+	return base_type(reg->type) == PTR_TO_MEM &&
+		(reg->type & DYNPTR_TYPE_SKB || reg->type & DYNPTR_TYPE_XDP);
 }
 
 /* Unmodified PTR_TO_PACKET[_META,_END] register from ctx access. */
@@ -7429,6 +7451,9 @@ static int check_func_proto(const struct bpf_func_proto *fn, int func_id)
 
 /* Packet data might have moved, any old PTR_TO_PACKET[_META,_END]
  * are now invalid, so turn them into unknown SCALAR_VALUE.
+ *
+ * This also applies to dynptr slices belonging to skb and xdp dynptrs,
+ * since these slices point to packet data.
  */
 static void clear_all_pkt_pointers(struct bpf_verifier_env *env)
 {
@@ -7436,7 +7461,7 @@ static void clear_all_pkt_pointers(struct bpf_verifier_env *env)
 	struct bpf_reg_state *reg;
 
 	bpf_for_each_reg_in_vstate(env->cur_state, state, reg, ({
-		if (reg_is_pkt_pointer_any(reg))
+		if (reg_is_pkt_pointer_any(reg) || reg_is_dynptr_slice_pkt(reg))
 			mark_reg_invalid(env, reg);
 	}));
 }
@@ -8688,6 +8713,11 @@ struct bpf_kfunc_call_arg_meta {
 	struct {
 		struct btf_field *field;
 	} arg_rbtree_root;
+	struct {
+		enum bpf_dynptr_type type;
+		u32 id;
+	} initialized_dynptr;
+	u64 mem_size;
 };
 
 static bool is_kfunc_acquire(struct bpf_kfunc_call_arg_meta *meta)
@@ -8759,6 +8789,19 @@ static bool is_kfunc_arg_mem_size(const struct btf *btf,
 		return false;
 
 	return __kfunc_param_match_suffix(btf, arg, "__sz");
+}
+
+static bool is_kfunc_arg_const_mem_size(const struct btf *btf,
+					const struct btf_param *arg,
+					const struct bpf_reg_state *reg)
+{
+	const struct btf_type *t;
+
+	t = btf_type_skip_modifiers(btf, arg->type, NULL);
+	if (!btf_type_is_scalar(t) || reg->type != SCALAR_VALUE)
+		return false;
+
+	return __kfunc_param_match_suffix(btf, arg, "__szk");
 }
 
 static bool is_kfunc_arg_constant(const struct btf *btf, const struct btf_param *arg)
@@ -8949,6 +8992,8 @@ enum special_kfunc_type {
 	KF_bpf_rbtree_first,
 	KF_bpf_dynptr_from_skb,
 	KF_bpf_dynptr_from_xdp,
+	KF_bpf_dynptr_slice,
+	KF_bpf_dynptr_slice_rdwr,
 };
 
 BTF_SET_START(special_kfunc_set)
@@ -8965,6 +9010,8 @@ BTF_ID(func, bpf_rbtree_add)
 BTF_ID(func, bpf_rbtree_first)
 BTF_ID(func, bpf_dynptr_from_skb)
 BTF_ID(func, bpf_dynptr_from_xdp)
+BTF_ID(func, bpf_dynptr_slice)
+BTF_ID(func, bpf_dynptr_slice_rdwr)
 BTF_SET_END(special_kfunc_set)
 
 BTF_ID_LIST(special_kfunc_list)
@@ -8983,6 +9030,8 @@ BTF_ID(func, bpf_rbtree_add)
 BTF_ID(func, bpf_rbtree_first)
 BTF_ID(func, bpf_dynptr_from_skb)
 BTF_ID(func, bpf_dynptr_from_xdp)
+BTF_ID(func, bpf_dynptr_slice)
+BTF_ID(func, bpf_dynptr_slice_rdwr)
 
 static bool is_kfunc_bpf_rcu_read_lock(struct bpf_kfunc_call_arg_meta *meta)
 {
@@ -9062,7 +9111,10 @@ get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
 	if (is_kfunc_arg_callback(env, meta->btf, &args[argno]))
 		return KF_ARG_PTR_TO_CALLBACK;
 
-	if (argno + 1 < nargs && is_kfunc_arg_mem_size(meta->btf, &args[argno + 1], &regs[regno + 1]))
+
+	if (argno + 1 < nargs &&
+	    (is_kfunc_arg_mem_size(meta->btf, &args[argno + 1], &regs[regno + 1]) ||
+	     is_kfunc_arg_const_mem_size(meta->btf, &args[argno + 1], &regs[regno + 1])))
 		arg_mem_size = true;
 
 	/* This is the catch all argument type of register types supported by
@@ -9745,6 +9797,18 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 			ret = process_dynptr_func(env, regno, insn_idx, dynptr_arg_type);
 			if (ret < 0)
 				return ret;
+
+			if (!(dynptr_arg_type & MEM_UNINIT)) {
+				int id = dynptr_id(env, reg);
+
+				if (id < 0) {
+					verbose(env, "verifier internal error: failed to obtain dynptr id\n");
+					return id;
+				}
+				meta->initialized_dynptr.id = id;
+				meta->initialized_dynptr.type = dynptr_get_type(env, reg);
+			}
+
 			break;
 		}
 		case KF_ARG_PTR_TO_LIST_HEAD:
@@ -9840,14 +9904,33 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				return ret;
 			break;
 		case KF_ARG_PTR_TO_MEM_SIZE:
-			ret = check_kfunc_mem_size_reg(env, &regs[regno + 1], regno + 1);
+		{
+			struct bpf_reg_state *size_reg = &regs[regno + 1];
+			const struct btf_param *size_arg = &args[i + 1];
+
+			ret = check_kfunc_mem_size_reg(env, size_reg, regno + 1);
 			if (ret < 0) {
 				verbose(env, "arg#%d arg#%d memory, len pair leads to invalid memory access\n", i, i + 1);
 				return ret;
 			}
-			/* Skip next '__sz' argument */
+
+			if (is_kfunc_arg_const_mem_size(meta->btf, size_arg, size_reg)) {
+				if (meta->arg_constant.found) {
+					verbose(env, "verifier internal error: only one constant argument permitted\n");
+					return -EFAULT;
+				}
+				if (!tnum_is_const(size_reg->var_off)) {
+					verbose(env, "R%d must be a known constant\n", regno + 1);
+					return -EINVAL;
+				}
+				meta->arg_constant.found = true;
+				meta->arg_constant.value = size_reg->var_off.value;
+			}
+
+			/* Skip next '__sz' or '__szk' argument */
 			i++;
 			break;
+		}
 		case KF_ARG_PTR_TO_CALLBACK:
 			meta->subprogno = reg->subprogno;
 			break;
@@ -10082,6 +10165,42 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
 				regs[BPF_REG_0].btf = desc_btf;
 				regs[BPF_REG_0].btf_id = meta.arg_constant.value;
+			} else if (meta.func_id == special_kfunc_list[KF_bpf_dynptr_slice] ||
+				   meta.func_id == special_kfunc_list[KF_bpf_dynptr_slice_rdwr]) {
+				enum bpf_type_flag type_flag = get_dynptr_type_flag(meta.initialized_dynptr.type);
+
+				mark_reg_known_zero(env, regs, BPF_REG_0);
+
+				if (!meta.arg_constant.found) {
+					verbose(env, "verifier internal error: bpf_dynptr_slice(_rdwr) no constant size\n");
+					return -EFAULT;
+				}
+
+				regs[BPF_REG_0].mem_size = meta.arg_constant.value;
+
+				/* PTR_MAYBE_NULL will be added when is_kfunc_ret_null is checked */
+				regs[BPF_REG_0].type = PTR_TO_MEM | type_flag;
+
+				if (meta.func_id == special_kfunc_list[KF_bpf_dynptr_slice]) {
+					regs[BPF_REG_0].type |= MEM_RDONLY;
+				} else {
+					/* this will set env->seen_direct_write to true */
+					if (!may_access_direct_pkt_data(env, NULL, BPF_WRITE)) {
+						verbose(env, "the prog does not allow writes to packet data\n");
+						return -EINVAL;
+					}
+				}
+
+				if (!meta.initialized_dynptr.id) {
+					verbose(env, "verifier internal error: no dynptr id\n");
+					return -EFAULT;
+				}
+				regs[BPF_REG_0].dynptr_id = meta.initialized_dynptr.id;
+
+				/* we don't need to set BPF_REG_0's ref obj id
+				 * because packet slices are not refcounted (see
+				 * dynptr_type_refcounted)
+				 */
 			} else {
 				verbose(env, "kernel function %s unhandled dynamic return type\n",
 					meta.func_name);

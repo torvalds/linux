@@ -2193,6 +2193,142 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
 	return p;
 }
 
+/**
+ * bpf_dynptr_slice - Obtain a read-only pointer to the dynptr data.
+ *
+ * For non-skb and non-xdp type dynptrs, there is no difference between
+ * bpf_dynptr_slice and bpf_dynptr_data.
+ *
+ * If the intention is to write to the data slice, please use
+ * bpf_dynptr_slice_rdwr.
+ *
+ * The user must check that the returned pointer is not null before using it.
+ *
+ * Please note that in the case of skb and xdp dynptrs, bpf_dynptr_slice
+ * does not change the underlying packet data pointers, so a call to
+ * bpf_dynptr_slice will not invalidate any ctx->data/data_end pointers in
+ * the bpf program.
+ *
+ * @ptr: The dynptr whose data slice to retrieve
+ * @offset: Offset into the dynptr
+ * @buffer: User-provided buffer to copy contents into
+ * @buffer__szk: Size (in bytes) of the buffer. This is the length of the
+ * requested slice. This must be a constant.
+ *
+ * @returns: NULL if the call failed (eg invalid dynptr), pointer to a read-only
+ * data slice (can be either direct pointer to the data or a pointer to the user
+ * provided buffer, with its contents containing the data, if unable to obtain
+ * direct pointer)
+ */
+__bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset,
+				   void *buffer, u32 buffer__szk)
+{
+	enum bpf_dynptr_type type;
+	u32 len = buffer__szk;
+	int err;
+
+	if (!ptr->data)
+		return 0;
+
+	err = bpf_dynptr_check_off_len(ptr, offset, len);
+	if (err)
+		return 0;
+
+	type = bpf_dynptr_get_type(ptr);
+
+	switch (type) {
+	case BPF_DYNPTR_TYPE_LOCAL:
+	case BPF_DYNPTR_TYPE_RINGBUF:
+		return ptr->data + ptr->offset + offset;
+	case BPF_DYNPTR_TYPE_SKB:
+		return skb_header_pointer(ptr->data, ptr->offset + offset, len, buffer);
+	case BPF_DYNPTR_TYPE_XDP:
+	{
+		void *xdp_ptr = bpf_xdp_pointer(ptr->data, ptr->offset + offset, len);
+		if (xdp_ptr)
+			return xdp_ptr;
+
+		bpf_xdp_copy_buf(ptr->data, ptr->offset + offset, buffer, len, false);
+		return buffer;
+	}
+	default:
+		WARN_ONCE(true, "unknown dynptr type %d\n", type);
+		return 0;
+	}
+}
+
+/**
+ * bpf_dynptr_slice_rdwr - Obtain a writable pointer to the dynptr data.
+ *
+ * For non-skb and non-xdp type dynptrs, there is no difference between
+ * bpf_dynptr_slice and bpf_dynptr_data.
+ *
+ * The returned pointer is writable and may point to either directly the dynptr
+ * data at the requested offset or to the buffer if unable to obtain a direct
+ * data pointer to (example: the requested slice is to the paged area of an skb
+ * packet). In the case where the returned pointer is to the buffer, the user
+ * is responsible for persisting writes through calling bpf_dynptr_write(). This
+ * usually looks something like this pattern:
+ *
+ * struct eth_hdr *eth = bpf_dynptr_slice_rdwr(&dynptr, 0, buffer, sizeof(buffer));
+ * if (!eth)
+ *	return TC_ACT_SHOT;
+ *
+ * // mutate eth header //
+ *
+ * if (eth == buffer)
+ *	bpf_dynptr_write(&ptr, 0, buffer, sizeof(buffer), 0);
+ *
+ * Please note that, as in the example above, the user must check that the
+ * returned pointer is not null before using it.
+ *
+ * Please also note that in the case of skb and xdp dynptrs, bpf_dynptr_slice_rdwr
+ * does not change the underlying packet data pointers, so a call to
+ * bpf_dynptr_slice_rdwr will not invalidate any ctx->data/data_end pointers in
+ * the bpf program.
+ *
+ * @ptr: The dynptr whose data slice to retrieve
+ * @offset: Offset into the dynptr
+ * @buffer: User-provided buffer to copy contents into
+ * @buffer__szk: Size (in bytes) of the buffer. This is the length of the
+ * requested slice. This must be a constant.
+ *
+ * @returns: NULL if the call failed (eg invalid dynptr), pointer to a
+ * data slice (can be either direct pointer to the data or a pointer to the user
+ * provided buffer, with its contents containing the data, if unable to obtain
+ * direct pointer)
+ */
+__bpf_kfunc void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr_kern *ptr, u32 offset,
+					void *buffer, u32 buffer__szk)
+{
+	if (!ptr->data || bpf_dynptr_is_rdonly(ptr))
+		return 0;
+
+	/* bpf_dynptr_slice_rdwr is the same logic as bpf_dynptr_slice.
+	 *
+	 * For skb-type dynptrs, it is safe to write into the returned pointer
+	 * if the bpf program allows skb data writes. There are two possiblities
+	 * that may occur when calling bpf_dynptr_slice_rdwr:
+	 *
+	 * 1) The requested slice is in the head of the skb. In this case, the
+	 * returned pointer is directly to skb data, and if the skb is cloned, the
+	 * verifier will have uncloned it (see bpf_unclone_prologue()) already.
+	 * The pointer can be directly written into.
+	 *
+	 * 2) Some portion of the requested slice is in the paged buffer area.
+	 * In this case, the requested data will be copied out into the buffer
+	 * and the returned pointer will be a pointer to the buffer. The skb
+	 * will not be pulled. To persist the write, the user will need to call
+	 * bpf_dynptr_write(), which will pull the skb and commit the write.
+	 *
+	 * Similarly for xdp programs, if the requested slice is not across xdp
+	 * fragments, then a direct pointer will be returned, otherwise the data
+	 * will be copied out into the buffer and the user will need to call
+	 * bpf_dynptr_write() to commit changes.
+	 */
+	return bpf_dynptr_slice(ptr, offset, buffer, buffer__szk);
+}
+
 __bpf_kfunc void *bpf_cast_to_kern_ctx(void *obj)
 {
 	return obj;
@@ -2262,6 +2398,8 @@ BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx)
 BTF_ID_FLAGS(func, bpf_rdonly_cast)
 BTF_ID_FLAGS(func, bpf_rcu_read_lock)
 BTF_ID_FLAGS(func, bpf_rcu_read_unlock)
+BTF_ID_FLAGS(func, bpf_dynptr_slice, KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_dynptr_slice_rdwr, KF_RET_NULL)
 BTF_SET8_END(common_btf_ids)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {
