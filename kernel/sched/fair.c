@@ -2941,7 +2941,7 @@ static bool vma_is_accessed(struct vm_area_struct *vma)
 		return true;
 
 	pids = vma->numab_state->access_pids[0] | vma->numab_state->access_pids[1];
-	return test_bit(current->pid % BITS_PER_LONG, &pids);
+	return test_bit(hash_32(current->pid, ilog2(BITS_PER_LONG)), &pids);
 }
 
 #define VMA_PID_RESET_PERIOD (4 * sysctl_numa_balancing_scan_delay)
