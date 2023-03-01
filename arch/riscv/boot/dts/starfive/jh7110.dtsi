@@ -31,6 +31,7 @@
 			opp-750000000 {
 					opp-hz = /bits/ 64 <750000000>;
 					opp-microvolt = <800000>;
+					opp-suspend;
 			};
 			opp-1500000000 {
 					opp-hz = /bits/ 64 <1500000000>;
