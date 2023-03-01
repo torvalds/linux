@@ -5115,6 +5115,12 @@ static int ieee80211_beacon_protect(struct sk_buff *skb,
 	tx.key = rcu_dereference(link->default_beacon_key);
 	if (!tx.key)
 		return 0;
+
+	if (unlikely(tx.key->flags & KEY_FLAG_TAINTED)) {
+		tx.key = NULL;
+		return -EINVAL;
+	}
+
 	tx.local = local;
 	tx.sdata = sdata;
 	__skb_queue_head_init(&tx.skbs);
