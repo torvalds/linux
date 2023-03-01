@@ -1430,3 +1430,39 @@ const struct amdgpu_ip_block_version vcn_v4_0_3_ip_block = {
 	.rev = 3,
 	.funcs = &vcn_v4_0_3_ip_funcs,
 };
+
+static const struct amdgpu_ras_err_status_reg_entry vcn_v4_0_3_ue_reg_list[] = {
+	{AMDGPU_RAS_REG_ENTRY(VCN, 0, regVCN_UE_ERR_STATUS_LO_VIDD, regVCN_UE_ERR_STATUS_HI_VIDD),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "VIDD"},
+	{AMDGPU_RAS_REG_ENTRY(VCN, 0, regVCN_UE_ERR_STATUS_LO_VIDV, regVCN_UE_ERR_STATUS_HI_VIDV),
+	1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "VIDV"},
+};
+
+static void vcn_v4_0_3_inst_query_ras_error_count(struct amdgpu_device *adev,
+						  uint32_t vcn_inst,
+						  void *ras_err_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_err_status;
+
+	/* vcn v4_0_3 only support query uncorrectable errors */
+	amdgpu_ras_inst_query_ras_error_count(adev,
+			vcn_v4_0_3_ue_reg_list,
+			ARRAY_SIZE(vcn_v4_0_3_ue_reg_list),
+			NULL, 0, GET_INST(VCN, vcn_inst),
+			AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+			&err_data->ue_count);
+}
+
+static void vcn_v4_0_3_query_ras_error_count(struct amdgpu_device *adev,
+					     void *ras_err_status)
+{
+	uint32_t i;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN)) {
+		dev_warn(adev->dev, "VCN RAS is not supported\n");
+		return;
+	}
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
+		vcn_v4_0_3_inst_query_ras_error_count(adev, i, ras_err_status);
+}
