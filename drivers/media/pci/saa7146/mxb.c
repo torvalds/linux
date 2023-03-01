@@ -587,7 +587,6 @@ static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_fre
 {
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
-	struct saa7146_vv *vv = dev->vv_data;
 
 	if (f->tuner)
 		return -EINVAL;
@@ -604,15 +603,6 @@ static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_fre
 	tuner_call(mxb, tuner, g_frequency, &mxb->cur_freq);
 	if (mxb->cur_audinput == 0)
 		mxb_update_audmode(mxb);
-
-	if (mxb->cur_input)
-		return 0;
-
-	/* hack: changing the frequency should invalidate the vbi-counter (=> alevt) */
-	spin_lock(&dev->slock);
-	vv->vbi_fieldcount = 0;
-	spin_unlock(&dev->slock);
-
 	return 0;
 }
 

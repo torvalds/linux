@@ -6,7 +6,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
 #include <media/drv-intf/saa7146.h>
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf2-dma-sg.h>
 
 #define MAX_SAA7146_CAPTURE_BUFFERS	32	/* arbitrary */
 #define BUFFER_TIMEOUT     (HZ/2)  /* 0.5 seconds */
@@ -57,7 +57,8 @@ struct saa7146_standard
 /* buffer for one video/vbi frame */
 struct saa7146_buf {
 	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer vb;
+	struct vb2_v4l2_buffer vb;
+	struct list_head list;
 
 	/* saa7146 specific */
 	int (*activate)(struct saa7146_dev *dev,
@@ -73,21 +74,8 @@ struct saa7146_dmaqueue {
 	struct saa7146_buf	*curr;
 	struct list_head	queue;
 	struct timer_list	timeout;
+	struct vb2_queue	q;
 };
-
-/* per open data */
-struct saa7146_fh {
-	/* Must be the first field! */
-	struct v4l2_fh		fh;
-
-	/* video capture */
-	struct videobuf_queue	video_q;
-
-	/* vbi capture */
-	struct videobuf_queue	vbi_q;
-};
-
-#define STATUS_CAPTURE	0x02
 
 struct saa7146_vv
 {
@@ -95,19 +83,14 @@ struct saa7146_vv
 	struct saa7146_dmaqueue		vbi_dmaq;
 	struct v4l2_vbi_format		vbi_fmt;
 	struct timer_list		vbi_read_timeout;
-	struct file			*vbi_read_timeout_file;
 	/* vbi workaround interrupt queue */
 	wait_queue_head_t		vbi_wq;
-	int				vbi_fieldcount;
-	struct saa7146_fh		*vbi_streaming;
-
-	int				video_status;
-	struct saa7146_fh		*video_fh;
 
 	/* video capture */
 	struct saa7146_dmaqueue		video_dmaq;
 	struct v4l2_pix_format		video_fmt;
 	enum v4l2_field			last_field;
+	u32				seqnr;
 
 	/* common: fixme? shouldn't this be in saa7146_fh?
 	   (this leads to a more complicated question: shall the driver
@@ -122,7 +105,7 @@ struct saa7146_vv
 	int	current_hps_source;
 	int	current_hps_sync;
 
-	unsigned int resources;	/* resource management for device */
+	unsigned int resources; /* resource management for device */
 };
 
 /* flags */
@@ -152,10 +135,7 @@ struct saa7146_ext_vv
 
 struct saa7146_use_ops  {
 	void (*init)(struct saa7146_dev *, struct saa7146_vv *);
-	int(*open)(struct saa7146_dev *, struct file *);
-	void (*release)(struct saa7146_dev *, struct file *);
 	void (*irq_done)(struct saa7146_dev *, unsigned long status);
-	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
 };
 
 /* from saa7146_fops.c */
@@ -165,8 +145,6 @@ void saa7146_buffer_finish(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, 
 void saa7146_buffer_next(struct saa7146_dev *dev, struct saa7146_dmaqueue *q,int vbi);
 int saa7146_buffer_queue(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, struct saa7146_buf *buf);
 void saa7146_buffer_timeout(struct timer_list *t);
-void saa7146_dma_free(struct saa7146_dev* dev,struct videobuf_queue *q,
-						struct saa7146_buf *buf);
 
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv);
 int saa7146_vv_release(struct saa7146_dev* dev);
@@ -181,11 +159,13 @@ void saa7146_set_gpio(struct saa7146_dev *saa, u8 pin, u8 data);
 extern const struct v4l2_ioctl_ops saa7146_video_ioctl_ops;
 extern const struct v4l2_ioctl_ops saa7146_vbi_ioctl_ops;
 extern const struct saa7146_use_ops saa7146_video_uops;
+extern const struct vb2_ops video_qops;
 long saa7146_video_do_ioctl(struct file *file, unsigned int cmd, void *arg);
 int saa7146_s_ctrl(struct v4l2_ctrl *ctrl);
 
 /* from saa7146_vbi.c */
 extern const struct saa7146_use_ops saa7146_vbi_uops;
+extern const struct vb2_ops vbi_qops;
 
 /* resource management functions */
 int saa7146_res_get(struct saa7146_dev *dev, unsigned int bit);
