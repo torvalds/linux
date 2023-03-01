@@ -95,15 +95,22 @@ class SpecAttrSet(SpecElement):
         self.attrs = collections.OrderedDict()
         self.attrs_by_val = collections.OrderedDict()
 
-        val = 0
-        for elem in self.yaml['attributes']:
-            if 'value' in elem:
-                val = elem['value']
+        if self.subset_of is None:
+            val = 0
+            for elem in self.yaml['attributes']:
+                if 'value' in elem:
+                    val = elem['value']
 
-            attr = self.new_attr(elem, val)
-            self.attrs[attr.name] = attr
-            self.attrs_by_val[attr.value] = attr
-            val += 1
+                attr = self.new_attr(elem, val)
+                self.attrs[attr.name] = attr
+                self.attrs_by_val[attr.value] = attr
+                val += 1
+        else:
+            real_set = family.attr_sets[self.subset_of]
+            for elem in self.yaml['attributes']:
+                attr = real_set[elem['name']]
+                self.attrs[attr.name] = attr
+                self.attrs_by_val[attr.value] = attr
 
     def new_attr(self, elem, value):
         return SpecAttr(self.family, self, elem, value)

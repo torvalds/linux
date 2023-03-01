@@ -199,7 +199,8 @@ The ``value`` property can be skipped, in which case the attribute ID
 will be the value of the previous attribute plus one (recursively)
 and ``0`` for the first attribute in the attribute set.
 
-Note that the ``value`` of an attribute is defined only in its main set.
+Note that the ``value`` of an attribute is defined only in its main set
+(not in subsets).
 
 enum
 ~~~~
