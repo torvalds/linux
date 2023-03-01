@@ -42,8 +42,7 @@ struct unwind_hint {
 #define UNWIND_HINT_TYPE_REGS_PARTIAL	2
 /* The below hint types don't have corresponding ORC types */
 #define UNWIND_HINT_TYPE_FUNC		3
-#define UNWIND_HINT_TYPE_ENTRY		4
-#define UNWIND_HINT_TYPE_SAVE		5
-#define UNWIND_HINT_TYPE_RESTORE	6
+#define UNWIND_HINT_TYPE_SAVE		4
+#define UNWIND_HINT_TYPE_RESTORE	5
 
 #endif /* _LINUX_OBJTOOL_TYPES_H */
