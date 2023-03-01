@@ -181,9 +181,12 @@ static struct sg_table *rga_alloc_sgt(struct rga_virt_addr *virt_addr)
 	}
 
 	/* get sg form pages. */
-	ret = sg_alloc_table_from_pages(sgt, virt_addr->pages,
+	/* iova requires minimum page alignment, so sgt cannot have offset */
+	ret = sg_alloc_table_from_pages(sgt,
+					virt_addr->pages,
 					virt_addr->page_count,
-					0, virt_addr->size,
+					0,
+					virt_addr->size,
 					GFP_KERNEL);
 	if (ret) {
 		pr_err("sg_alloc_table_from_pages failed");
@@ -618,7 +621,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	internal_buffer->virt_addr = virt_addr;
 	internal_buffer->dma_buffer = buffer;
 	internal_buffer->mm_flag = mm_flag;
-	internal_buffer->phys_addr = phys_addr ? phys_addr : 0;
+	internal_buffer->phys_addr = phys_addr ? phys_addr + virt_addr->offset : 0;
 
 	return 0;
 
