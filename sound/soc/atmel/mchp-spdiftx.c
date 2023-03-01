@@ -306,15 +306,10 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
 	struct mchp_spdiftx_mixer_control *ctrl = &dev->control;
-	u32 mr;
-	int running;
 	int ret;
 
 	/* do not start/stop while channel status or user data is updated */
 	spin_lock(&ctrl->lock);
-	regmap_read(dev->regmap, SPDIFTX_MR, &mr);
-	running = !!(mr & SPDIFTX_MR_TXEN_ENABLE);
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
@@ -323,10 +318,8 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 		dev->suspend_irq = 0;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (!running) {
-			mr &= ~SPDIFTX_MR_TXEN_MASK;
-			mr |= SPDIFTX_MR_TXEN_ENABLE;
-		}
+		ret = regmap_update_bits(dev->regmap, SPDIFTX_MR, SPDIFTX_MR_TXEN_MASK,
+					 SPDIFTX_MR_TXEN_ENABLE);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		regmap_read(dev->regmap, SPDIFTX_IMR, &dev->suspend_irq);
@@ -336,17 +329,12 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 			     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (running) {
-			mr &= ~SPDIFTX_MR_TXEN_MASK;
-			mr |= SPDIFTX_MR_TXEN_DISABLE;
-		}
+		ret = regmap_update_bits(dev->regmap, SPDIFTX_MR, SPDIFTX_MR_TXEN_MASK,
+					 SPDIFTX_MR_TXEN_DISABLE);
 		break;
 	default:
-		spin_unlock(&ctrl->lock);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-
-	ret = regmap_write(dev->regmap, SPDIFTX_MR, mr);
 	spin_unlock(&ctrl->lock);
 	if (ret)
 		dev_err(dev->dev, "unable to disable TX: %d\n", ret);
