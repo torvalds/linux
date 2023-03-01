@@ -43,32 +43,6 @@ int xe_reg_sr_init(struct xe_reg_sr *sr, const char *name, struct xe_device *xe)
 	return drmm_add_action_or_reset(&xe->drm, reg_sr_fini, sr);
 }
 
-int xe_reg_sr_dump_kv(struct xe_reg_sr *sr,
-		      struct xe_reg_sr_kv **dst)
-{
-	struct xe_reg_sr_kv *iter;
-	struct xe_reg_sr_entry *entry;
-	unsigned long idx;
-
-	if (xa_empty(&sr->xa)) {
-		*dst = NULL;
-		return 0;
-	}
-
-	*dst = kmalloc_array(sr->pool.used, sizeof(**dst), GFP_KERNEL);
-	if (!*dst)
-		return -ENOMEM;
-
-	iter = *dst;
-	xa_for_each(&sr->xa, idx, entry) {
-		iter->k = idx;
-		iter->v = *entry;
-		iter++;
-	}
-
-	return 0;
-}
-
 static struct xe_reg_sr_entry *alloc_entry(struct xe_reg_sr *sr)
 {
 	if (sr->pool.used == sr->pool.allocated) {

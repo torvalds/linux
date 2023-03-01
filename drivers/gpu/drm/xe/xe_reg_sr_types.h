@@ -23,11 +23,6 @@ struct xe_reg_sr_entry {
 	u8		reg_type;
 };
 
-struct xe_reg_sr_kv {
-	u32			k;
-	struct xe_reg_sr_entry	v;
-};
-
 struct xe_reg_sr {
 	struct {
 		struct xe_reg_sr_entry *arr;

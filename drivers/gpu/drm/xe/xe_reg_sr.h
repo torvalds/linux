@@ -16,8 +16,6 @@ struct xe_device;
 struct xe_gt;
 
 int xe_reg_sr_init(struct xe_reg_sr *sr, const char *name, struct xe_device *xe);
-int xe_reg_sr_dump_kv(struct xe_reg_sr *sr,
-		      struct xe_reg_sr_kv **dst);
 
 int xe_reg_sr_add(struct xe_reg_sr *sr, u32 reg,
 		  const struct xe_reg_sr_entry *e);
