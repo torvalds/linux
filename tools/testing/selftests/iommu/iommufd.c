@@ -186,7 +186,7 @@ FIXTURE(iommufd_ioas)
 {
 	int fd;
 	uint32_t ioas_id;
-	uint32_t domain_id;
+	uint32_t stdev_id;
 	uint64_t base_iova;
 };
 
@@ -212,7 +212,7 @@ FIXTURE_SETUP(iommufd_ioas)
 	}
 
 	for (i = 0; i != variant->mock_domains; i++) {
-		test_cmd_mock_domain(self->ioas_id, NULL, &self->domain_id);
+		test_cmd_mock_domain(self->ioas_id, &self->stdev_id, NULL);
 		self->base_iova = MOCK_APERTURE_START;
 	}
 }
@@ -249,8 +249,8 @@ TEST_F(iommufd_ioas, ioas_auto_destroy)
 
 TEST_F(iommufd_ioas, ioas_destroy)
 {
-	if (self->domain_id) {
-		/* IOAS cannot be freed while a domain is on it */
+	if (self->stdev_id) {
+		/* IOAS cannot be freed while a device has a HWPT using it */
 		EXPECT_ERRNO(EBUSY,
 			     _test_ioctl_destroy(self->fd, self->ioas_id));
 	} else {
@@ -263,7 +263,7 @@ TEST_F(iommufd_ioas, ioas_area_destroy)
 {
 	/* Adding an area does not change ability to destroy */
 	test_ioctl_ioas_map_fixed(buffer, PAGE_SIZE, self->base_iova);
-	if (self->domain_id)
+	if (self->stdev_id)
 		EXPECT_ERRNO(EBUSY,
 			     _test_ioctl_destroy(self->fd, self->ioas_id));
 	else
@@ -382,7 +382,7 @@ TEST_F(iommufd_ioas, area_auto_iova)
 	for (i = 0; i != 10; i++) {
 		size_t length = PAGE_SIZE * (i + 1);
 
-		if (self->domain_id) {
+		if (self->stdev_id) {
 			test_ioctl_ioas_map(buffer, length, &iovas[i]);
 		} else {
 			test_ioctl_ioas_map((void *)(1UL << 31), length,
@@ -418,7 +418,7 @@ TEST_F(iommufd_ioas, area_auto_iova)
 		     ioctl(self->fd, IOMMU_IOAS_ALLOW_IOVAS, &allow_cmd));
 
 	/* Allocate from an allowed region */
-	if (self->domain_id) {
+	if (self->stdev_id) {
 		ranges[0].start = MOCK_APERTURE_START + PAGE_SIZE;
 		ranges[0].last = MOCK_APERTURE_START + PAGE_SIZE * 600 - 1;
 	} else {
@@ -525,7 +525,7 @@ TEST_F(iommufd_ioas, iova_ranges)
 	/* Range can be read */
 	ASSERT_EQ(0, ioctl(self->fd, IOMMU_IOAS_IOVA_RANGES, &ranges_cmd));
 	EXPECT_EQ(1, ranges_cmd.num_iovas);
-	if (!self->domain_id) {
+	if (!self->stdev_id) {
 		EXPECT_EQ(0, ranges[0].start);
 		EXPECT_EQ(SIZE_MAX, ranges[0].last);
 		EXPECT_EQ(1, ranges_cmd.out_iova_alignment);
@@ -550,7 +550,7 @@ TEST_F(iommufd_ioas, iova_ranges)
 			&test_cmd));
 	ranges_cmd.num_iovas = BUFFER_SIZE / sizeof(*ranges);
 	ASSERT_EQ(0, ioctl(self->fd, IOMMU_IOAS_IOVA_RANGES, &ranges_cmd));
-	if (!self->domain_id) {
+	if (!self->stdev_id) {
 		EXPECT_EQ(2, ranges_cmd.num_iovas);
 		EXPECT_EQ(0, ranges[0].start);
 		EXPECT_EQ(PAGE_SIZE - 1, ranges[0].last);
@@ -565,7 +565,7 @@ TEST_F(iommufd_ioas, iova_ranges)
 	/* Buffer too small */
 	memset(ranges, 0, BUFFER_SIZE);
 	ranges_cmd.num_iovas = 1;
-	if (!self->domain_id) {
+	if (!self->stdev_id) {
 		EXPECT_ERRNO(EMSGSIZE, ioctl(self->fd, IOMMU_IOAS_IOVA_RANGES,
 					     &ranges_cmd));
 		EXPECT_EQ(2, ranges_cmd.num_iovas);
@@ -789,7 +789,7 @@ TEST_F(iommufd_ioas, fork_gone)
 	ASSERT_NE(-1, child);
 	ASSERT_EQ(child, waitpid(child, NULL, 0));
 
-	if (self->domain_id) {
+	if (self->stdev_id) {
 		/*
 		 * If a domain already existed then everything was pinned within
 		 * the fork, so this copies from one domain to another.
