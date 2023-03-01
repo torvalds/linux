@@ -7,12 +7,11 @@
 /****************************************************************************/
 /* resource management functions, shamelessly stolen from saa7134 driver */
 
-int saa7146_res_get(struct saa7146_fh *fh, unsigned int bit)
+int saa7146_res_get(struct saa7146_dev *dev, unsigned int bit)
 {
-	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
-	if (fh->resources & bit) {
+	if (vv->resources & bit) {
 		DEB_D("already allocated! want: 0x%02x, cur:0x%02x\n",
 		      bit, vv->resources);
 		/* have it already allocated */
@@ -27,20 +26,17 @@ int saa7146_res_get(struct saa7146_fh *fh, unsigned int bit)
 		return 0;
 	}
 	/* it's free, grab it */
-	fh->resources |= bit;
 	vv->resources |= bit;
 	DEB_D("res: get 0x%02x, cur:0x%02x\n", bit, vv->resources);
 	return 1;
 }
 
-void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits)
+void saa7146_res_free(struct saa7146_dev *dev, unsigned int bits)
 {
-	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
-	BUG_ON((fh->resources & bits) != bits);
+	WARN_ON((vv->resources & bits) != bits);
 
-	fh->resources &= ~bits;
 	vv->resources &= ~bits;
 	DEB_D("res: put 0x%02x, cur:0x%02x\n", bits, vv->resources);
 }
@@ -221,7 +217,6 @@ static int fops_open(struct file *file)
 	v4l2_fh_init(&fh->fh, vdev);
 
 	file->private_data = &fh->fh;
-	fh->dev = dev;
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		DEB_S("initializing vbi...\n");
@@ -257,8 +252,8 @@ out:
 static int fops_release(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh  *fh  = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
 
 	DEB_EE("file:%p\n", file);
 
@@ -287,6 +282,7 @@ static int fops_release(struct file *file)
 static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = file->private_data;
 	struct videobuf_queue *q;
 	int res;
@@ -301,7 +297,7 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 	case VFL_TYPE_VBI: {
 		DEB_EE("V4L2_BUF_TYPE_VBI_CAPTURE: file:%p, vma:%p\n",
 		       file, vma);
-		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_SLICED_VBI_OUTPUT)
+		if (dev->ext_vv_data->capabilities & V4L2_CAP_SLICED_VBI_OUTPUT)
 			return -ENODEV;
 		q = &fh->vbi_q;
 		break;
@@ -320,6 +316,7 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 static __poll_t __fops_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = file->private_data;
 	struct videobuf_buffer *buf = NULL;
 	struct videobuf_queue *q;
@@ -328,7 +325,7 @@ static __poll_t __fops_poll(struct file *file, struct poll_table_struct *wait)
 	DEB_EE("file:%p, poll:%p\n", file, wait);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
-		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_SLICED_VBI_OUTPUT)
+		if (dev->ext_vv_data->capabilities & V4L2_CAP_SLICED_VBI_OUTPUT)
 			return res | EPOLLOUT | EPOLLWRNORM;
 		if( 0 == fh->vbi_q.streaming )
 			return res | videobuf_poll_stream(file, &fh->vbi_q, wait);
@@ -370,7 +367,7 @@ static __poll_t fops_poll(struct file *file, struct poll_table_struct *wait)
 static ssize_t fops_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct saa7146_fh *fh = file->private_data;
+	struct saa7146_dev *dev = video_drvdata(file);
 	int ret;
 
 	switch (vdev->vfl_type) {
@@ -385,7 +382,7 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 		DEB_EE("V4L2_BUF_TYPE_VBI_CAPTURE: file:%p, data:%p, count:%lu\n",
 		       file, data, (unsigned long)count);
 */
-		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE) {
+		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE) {
 			if (mutex_lock_interruptible(vdev->lock))
 				return -ERESTARTSYS;
 			ret = saa7146_vbi_uops.read(file, data, count, ppos);
@@ -401,17 +398,17 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 static ssize_t fops_write(struct file *file, const char __user *data, size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct saa7146_fh *fh = file->private_data;
+	struct saa7146_dev *dev = video_drvdata(file);
 	int ret;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_VIDEO:
 		return -EINVAL;
 	case VFL_TYPE_VBI:
-		if (fh->dev->ext_vv_data->vbi_fops.write) {
+		if (dev->ext_vv_data->vbi_fops.write) {
 			if (mutex_lock_interruptible(vdev->lock))
 				return -ERESTARTSYS;
-			ret = fh->dev->ext_vv_data->vbi_fops.write(file, data, count, ppos);
+			ret = dev->ext_vv_data->vbi_fops.write(file, data, count, ppos);
 			mutex_unlock(vdev->lock);
 			return ret;
 		}

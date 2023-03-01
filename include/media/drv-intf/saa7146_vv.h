@@ -80,15 +80,12 @@ struct saa7146_dmaqueue {
 struct saa7146_fh {
 	/* Must be the first field! */
 	struct v4l2_fh		fh;
-	struct saa7146_dev	*dev;
 
 	/* video capture */
 	struct videobuf_queue	video_q;
 
 	/* vbi capture */
 	struct videobuf_queue	vbi_q;
-
-	unsigned int resources;	/* resource management for device open */
 };
 
 #define STATUS_CAPTURE	0x02
@@ -192,8 +189,8 @@ int saa7146_s_ctrl(struct v4l2_ctrl *ctrl);
 extern const struct saa7146_use_ops saa7146_vbi_uops;
 
 /* resource management functions */
-int saa7146_res_get(struct saa7146_fh *fh, unsigned int bit);
-void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits);
+int saa7146_res_get(struct saa7146_dev *dev, unsigned int bit);
+void saa7146_res_free(struct saa7146_dev *dev, unsigned int bits);
 
 #define RESOURCE_DMA1_HPS	0x1
 #define RESOURCE_DMA2_CLP	0x2

@@ -219,8 +219,7 @@ static int buffer_activate(struct saa7146_dev *dev,
 static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,enum v4l2_field field)
 {
 	struct file *file = q->priv_data;
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
 	int err = 0;
@@ -289,8 +288,7 @@ static int buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned 
 static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct file *file = q->priv_data;
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
@@ -301,8 +299,7 @@ static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct file *file = q->priv_data;
-	struct saa7146_fh *fh   = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
 	DEB_VBI("vb:%p\n", vb);
@@ -320,7 +317,7 @@ static const struct videobuf_queue_ops vbi_qops = {
 
 static void vbi_stop(struct saa7146_fh *fh, struct file *file)
 {
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 	unsigned long flags;
 	DEB_VBI("dev:%p, fh:%p\n", dev, fh);
@@ -353,8 +350,8 @@ static void vbi_read_timeout(struct timer_list *t)
 {
 	struct saa7146_vv *vv = from_timer(vv, t, vbi_read_timeout);
 	struct file *file = vv->vbi_read_timeout_file;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
 
 	DEB_VBI("dev:%p, fh:%p\n", dev, fh);
 
@@ -376,14 +373,14 @@ static void vbi_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 static int vbi_open(struct saa7146_dev *dev, struct file *file)
 {
 	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_vv *vv = fh->dev->vv_data;
+	struct saa7146_vv *vv = dev->vv_data;
 
 	u32 arbtr_ctrl	= saa7146_read(dev, PCI_BT_V1);
 	int ret = 0;
 
 	DEB_VBI("dev:%p, fh:%p\n", dev, fh);
 
-	ret = saa7146_res_get(fh, RESOURCE_DMA3_BRS);
+	ret = saa7146_res_get(dev, RESOURCE_DMA3_BRS);
 	if (0 == ret) {
 		DEB_S("cannot get vbi RESOURCE_DMA3_BRS resource\n");
 		return -EBUSY;
@@ -431,7 +428,7 @@ static void vbi_close(struct saa7146_dev *dev, struct file *file)
 	if( fh == vv->vbi_streaming ) {
 		vbi_stop(fh, file);
 	}
-	saa7146_res_free(fh, RESOURCE_DMA3_BRS);
+	saa7146_res_free(dev, RESOURCE_DMA3_BRS);
 }
 
 static void vbi_irq_done(struct saa7146_dev *dev, unsigned long status)
@@ -456,7 +453,7 @@ static void vbi_irq_done(struct saa7146_dev *dev, unsigned long status)
 static ssize_t vbi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 	ssize_t ret = 0;
 

@@ -211,9 +211,8 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 /********************************************************************************/
 /* file operations */
 
-static int video_begin(struct saa7146_fh *fh)
+static int video_begin(struct saa7146_dev *dev, struct saa7146_fh *fh)
 {
-	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 	struct saa7146_format *fmt = NULL;
 	unsigned int resource;
@@ -241,7 +240,7 @@ static int video_begin(struct saa7146_fh *fh)
 		resource = RESOURCE_DMA1_HPS;
 	}
 
-	ret = saa7146_res_get(fh, resource);
+	ret = saa7146_res_get(dev, resource);
 	if (0 == ret) {
 		DEB_S("cannot get capture resource %d\n", resource);
 		return -EBUSY;
@@ -259,9 +258,8 @@ static int video_begin(struct saa7146_fh *fh)
 	return 0;
 }
 
-static int video_end(struct saa7146_fh *fh, struct file *file)
+static int video_end(struct saa7146_dev *dev, struct saa7146_fh *fh)
 {
-	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 	struct saa7146_dmaqueue *q = &vv->video_dmaq;
 	struct saa7146_format *fmt = NULL;
@@ -311,14 +309,14 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 	vv->video_fh = NULL;
 	vv->video_status = 0;
 
-	saa7146_res_free(fh, resource);
+	saa7146_res_free(dev, resource);
 
 	return 0;
 }
 
 static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 
 	strscpy((char *)cap->driver, "saa7146 v4l2", sizeof(cap->driver));
 	strscpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
@@ -391,7 +389,7 @@ int saa7146_s_ctrl(struct v4l2_ctrl *ctrl)
 static int vidioc_g_parm(struct file *file, void *fh,
 		struct v4l2_streamparm *parm)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -404,7 +402,7 @@ static int vidioc_g_parm(struct file *file, void *fh,
 
 static int vidioc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 
 	f->fmt.pix = vv->video_fmt;
@@ -413,7 +411,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 
 static int vidioc_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 
 	f->fmt.vbi = vv->vbi_fmt;
@@ -422,7 +420,7 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format 
 
 static int vidioc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 	struct saa7146_format *fmt;
 	enum v4l2_field field;
@@ -487,8 +485,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_forma
 
 static int vidioc_s_fmt_vid_cap(struct file *file, void *__fh, struct v4l2_format *f)
 {
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = __fh;
-	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 	int err;
 
@@ -508,7 +506,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *__fh, struct v4l2_forma
 
 static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *norm)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 
 	*norm = vv->standard->id;
@@ -535,7 +533,7 @@ static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *norm)
 
 static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id id)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 	int found = 0;
 	int i;
@@ -612,12 +610,13 @@ static int vidioc_dqbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 
 static int vidioc_streamon(struct file *file, void *__fh, enum v4l2_buf_type type)
 {
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = __fh;
 	int err;
 
 	DEB_D("VIDIOC_STREAMON, type:%d\n", type);
 
-	err = video_begin(fh);
+	err = video_begin(dev, fh);
 	if (err)
 		return err;
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -629,8 +628,8 @@ static int vidioc_streamon(struct file *file, void *__fh, enum v4l2_buf_type typ
 
 static int vidioc_streamoff(struct file *file, void *__fh, enum v4l2_buf_type type)
 {
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = __fh;
-	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 	int err;
 
@@ -656,9 +655,9 @@ static int vidioc_streamoff(struct file *file, void *__fh, enum v4l2_buf_type ty
 		err = videobuf_streamoff(&fh->vbi_q);
 	if (0 != err) {
 		DEB_D("warning: videobuf_streamoff() failed\n");
-		video_end(fh, file);
+		video_end(dev, fh);
 	} else {
-		err = video_end(fh, file);
+		err = video_end(dev, fh);
 	}
 	return err;
 }
@@ -727,8 +726,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 			  struct videobuf_buffer *vb, enum v4l2_field field)
 {
 	struct file *file = q->priv_data;
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 	int size,err = 0;
@@ -808,8 +806,8 @@ static int buffer_prepare(struct videobuf_queue *q,
 static int buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 {
 	struct file *file = q->priv_data;
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_vv *vv = fh->dev->vv_data;
+	struct saa7146_dev *dev = video_drvdata(file);
+	struct saa7146_vv *vv = dev->vv_data;
 
 	if (0 == *count || *count > MAX_SAA7146_CAPTURE_BUFFERS)
 		*count = MAX_SAA7146_CAPTURE_BUFFERS;
@@ -829,20 +827,18 @@ static int buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned 
 static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct file *file = q->priv_data;
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
 	DEB_CAP("vbuf:%p\n", vb);
-	saa7146_buffer_queue(fh->dev, &vv->video_dmaq, buf);
+	saa7146_buffer_queue(dev, &vv->video_dmaq, buf);
 }
 
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct file *file = q->priv_data;
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
 	DEB_CAP("vbuf:%p\n", vb);
@@ -900,7 +896,7 @@ static void video_close(struct saa7146_dev *dev, struct file *file)
 	struct videobuf_queue *q = &fh->video_q;
 
 	if (IS_CAPTURE_ACTIVE(fh) != 0)
-		video_end(fh, file);
+		video_end(dev, fh);
 
 	videobuf_stop(q);
 	/* hmm, why is this function declared void? */
@@ -926,8 +922,8 @@ static void video_irq_done(struct saa7146_dev *dev, unsigned long st)
 
 static ssize_t video_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 	ssize_t ret = 0;
 
@@ -943,7 +939,7 @@ static ssize_t video_read(struct file *file, char __user *data, size_t count, lo
 		return -EBUSY;
 	}
 
-	ret = video_begin(fh);
+	ret = video_begin(dev, fh);
 	if( 0 != ret) {
 		goto out;
 	}
@@ -951,9 +947,9 @@ static ssize_t video_read(struct file *file, char __user *data, size_t count, lo
 	ret = videobuf_read_one(&fh->video_q , data, count, ppos,
 				file->f_flags & O_NONBLOCK);
 	if (ret != 0) {
-		video_end(fh, file);
+		video_end(dev, fh);
 	} else {
-		ret = video_end(fh, file);
+		ret = video_end(dev, fh);
 	}
 out:
 	return ret;

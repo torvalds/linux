@@ -213,9 +213,8 @@ static const struct v4l2_audio msp3400_v4l2_audio = {
 	.capability = V4L2_AUDCAP_STEREO
 };
 
-static int av7110_dvb_c_switch(struct saa7146_fh *fh)
+static int av7110_dvb_c_switch(struct saa7146_dev *dev)
 {
-	struct saa7146_dev *dev = fh->dev;
 	struct av7110 *av7110 = (struct av7110*)dev->ext_priv;
 	u16 adswitch;
 	int source, sync;
@@ -295,7 +294,7 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 
 static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 	u16 stereo_det;
 	s8 stereo;
@@ -339,7 +338,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 
 static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *t)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 	u16 fm_matrix, src;
 	dprintk(2, "VIDIOC_S_TUNER: %d\n", t->index);
@@ -383,7 +382,7 @@ static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *
 
 static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_G_FREQ: freq:0x%08x\n", f->frequency);
@@ -399,7 +398,7 @@ static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency
 
 static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_S_FREQUENCY: freq:0x%08x\n", f->frequency);
@@ -429,7 +428,7 @@ static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_fre
 
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_ENUMINPUT: %d\n", i->index);
@@ -449,7 +448,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 
 static int vidioc_g_input(struct file *file, void *fh, unsigned int *input)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	*input = av7110->current_input;
@@ -459,7 +458,7 @@ static int vidioc_g_input(struct file *file, void *fh, unsigned int *input)
 
 static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_S_INPUT: %d\n", input);
@@ -471,7 +470,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 		return -EINVAL;
 
 	av7110->current_input = input;
-	return av7110_dvb_c_switch(fh);
+	return av7110_dvb_c_switch(dev);
 }
 
 static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
@@ -485,7 +484,7 @@ static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
 
 static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_G_AUDIO: %d\n", a->index);
@@ -499,7 +498,7 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 
 static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *a)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_S_AUDIO: %d\n", a->index);
@@ -511,7 +510,7 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 static int vidioc_g_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_sliced_vbi_cap *cap)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_G_SLICED_VBI_CAP\n");
@@ -527,7 +526,7 @@ static int vidioc_g_sliced_vbi_cap(struct file *file, void *fh,
 static int vidioc_g_fmt_sliced_vbi_out(struct file *file, void *fh,
 					struct v4l2_format *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_G_FMT:\n");
@@ -545,7 +544,7 @@ static int vidioc_g_fmt_sliced_vbi_out(struct file *file, void *fh,
 static int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh,
 					struct v4l2_format *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_S_FMT\n");
@@ -573,8 +572,7 @@ static int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh,
 
 static int av7110_vbi_reset(struct file *file)
 {
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110*) dev->ext_priv;
 
 	dprintk(2, "%s\n", __func__);
@@ -588,8 +586,7 @@ static int av7110_vbi_reset(struct file *file)
 
 static ssize_t av7110_vbi_write(struct file *file, const char __user *data, size_t count, loff_t *ppos)
 {
-	struct saa7146_fh *fh = file->private_data;
-	struct saa7146_dev *dev = fh->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110*) dev->ext_priv;
 	struct v4l2_sliced_vbi_data d;
 	int rc;

@@ -456,7 +456,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 
 static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 	*i = mxb->cur_input;
 
@@ -466,7 +466,7 @@ static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 
 static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 	int err = 0;
 	int i = 0;
@@ -528,7 +528,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	if (t->index) {
@@ -550,7 +550,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 
 static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *t)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	if (t->index) {
@@ -565,14 +565,14 @@ static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *
 
 static int vidioc_querystd(struct file *file, void *fh, v4l2_std_id *norm)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 
 	return call_all(dev, video, querystd, norm);
 }
 
 static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	if (f->tuner)
@@ -585,7 +585,7 @@ static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency
 
 static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *f)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 	struct saa7146_vv *vv = dev->vv_data;
 
@@ -626,7 +626,7 @@ static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
 
 static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	DEB_EE("VIDIOC_G_AUDIO\n");
@@ -636,7 +636,7 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 
 static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *a)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	DEB_D("VIDIOC_S_AUDIO %d\n", a->index);
@@ -656,7 +656,7 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 
 	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
 		return -EINVAL;
@@ -667,7 +667,7 @@ static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_regist
 
 static int vidioc_s_register(struct file *file, void *fh, const struct v4l2_dbg_register *reg)
 {
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = video_drvdata(file);
 
 	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
 		return -EINVAL;
