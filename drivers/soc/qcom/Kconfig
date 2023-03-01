@@ -678,15 +678,6 @@ config MSM_BOOT_STATS
 	  This figures are reported in mpm sleep clock cycles and have a
 	  resolution of 31 bits as 1 bit is used as an overflow check.
 
-config MSM_BOOT_TIME_MARKER
-	bool "Use MSM boot time marker reporting"
-	depends on MSM_BOOT_STATS
-	help
-	  Use this to mark msm boot kpi for measurement.
-	  An instrumentation for boot time measurement.
-	  To create an entry, call "place_marker" function.
-	  At userspace, write marker name to "/sys/kernel/boot_kpi/kpi_values"
-
 config QCOM_CPU_VENDOR_HOOKS
         tristate "QTI Vendor Hooks Support"
         depends on ARCH_QCOM && ANDROID_VENDOR_HOOKS
