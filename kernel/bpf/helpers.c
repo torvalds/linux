@@ -2194,7 +2194,12 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
 }
 
 /**
- * bpf_dynptr_slice - Obtain a read-only pointer to the dynptr data.
+ * bpf_dynptr_slice() - Obtain a read-only pointer to the dynptr data.
+ * @ptr: The dynptr whose data slice to retrieve
+ * @offset: Offset into the dynptr
+ * @buffer: User-provided buffer to copy contents into
+ * @buffer__szk: Size (in bytes) of the buffer. This is the length of the
+ *		 requested slice. This must be a constant.
  *
  * For non-skb and non-xdp type dynptrs, there is no difference between
  * bpf_dynptr_slice and bpf_dynptr_data.
@@ -2209,13 +2214,7 @@ __bpf_kfunc struct task_struct *bpf_task_from_pid(s32 pid)
  * bpf_dynptr_slice will not invalidate any ctx->data/data_end pointers in
  * the bpf program.
  *
- * @ptr: The dynptr whose data slice to retrieve
- * @offset: Offset into the dynptr
- * @buffer: User-provided buffer to copy contents into
- * @buffer__szk: Size (in bytes) of the buffer. This is the length of the
- * requested slice. This must be a constant.
- *
- * @returns: NULL if the call failed (eg invalid dynptr), pointer to a read-only
+ * Return: NULL if the call failed (eg invalid dynptr), pointer to a read-only
  * data slice (can be either direct pointer to the data or a pointer to the user
  * provided buffer, with its contents containing the data, if unable to obtain
  * direct pointer)
@@ -2258,7 +2257,12 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
 }
 
 /**
- * bpf_dynptr_slice_rdwr - Obtain a writable pointer to the dynptr data.
+ * bpf_dynptr_slice_rdwr() - Obtain a writable pointer to the dynptr data.
+ * @ptr: The dynptr whose data slice to retrieve
+ * @offset: Offset into the dynptr
+ * @buffer: User-provided buffer to copy contents into
+ * @buffer__szk: Size (in bytes) of the buffer. This is the length of the
+ *		 requested slice. This must be a constant.
  *
  * For non-skb and non-xdp type dynptrs, there is no difference between
  * bpf_dynptr_slice and bpf_dynptr_data.
@@ -2287,13 +2291,7 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
  * bpf_dynptr_slice_rdwr will not invalidate any ctx->data/data_end pointers in
  * the bpf program.
  *
- * @ptr: The dynptr whose data slice to retrieve
- * @offset: Offset into the dynptr
- * @buffer: User-provided buffer to copy contents into
- * @buffer__szk: Size (in bytes) of the buffer. This is the length of the
- * requested slice. This must be a constant.
- *
- * @returns: NULL if the call failed (eg invalid dynptr), pointer to a
+ * Return: NULL if the call failed (eg invalid dynptr), pointer to a
  * data slice (can be either direct pointer to the data or a pointer to the user
  * provided buffer, with its contents containing the data, if unable to obtain
  * direct pointer)
