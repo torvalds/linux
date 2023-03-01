@@ -39,6 +39,10 @@
 #define ORC_REG_SP_INDIRECT		9
 #define ORC_REG_MAX			15
 
+#define ORC_TYPE_CALL			0
+#define ORC_TYPE_REGS			1
+#define ORC_TYPE_REGS_PARTIAL		2
+
 #ifndef __ASSEMBLY__
 #include <asm/byteorder.h>
 
