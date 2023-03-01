@@ -477,7 +477,8 @@ struct vma_lock {
 
 struct vma_numab_state {
 	unsigned long next_scan;
-	unsigned long access_pids;
+	unsigned long next_pid_reset;
+	unsigned long access_pids[2];
 };
 
 /*

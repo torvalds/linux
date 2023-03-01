@@ -2930,6 +2930,7 @@ static void reset_ptenuma_scan(struct task_struct *p)
 
 static bool vma_is_accessed(struct vm_area_struct *vma)
 {
+	unsigned long pids;
 	/*
 	 * Allow unconditional access first two times, so that all the (pages)
 	 * of VMAs get prot_none fault introduced irrespective of accesses.
@@ -2939,9 +2940,11 @@ static bool vma_is_accessed(struct vm_area_struct *vma)
 	if (READ_ONCE(current->mm->numa_scan_seq) < 2)
 		return true;
 
-	return test_bit(current->pid % BITS_PER_LONG,
-				&vma->numab_state->access_pids);
+	pids = vma->numab_state->access_pids[0] | vma->numab_state->access_pids[1];
+	return test_bit(current->pid % BITS_PER_LONG, &pids);
 }
+
+#define VMA_PID_RESET_PERIOD (4 * sysctl_numa_balancing_scan_delay)
 
 /*
  * The expensive part of numa migration is done from task_work context.
@@ -3051,6 +3054,10 @@ static void task_numa_work(struct callback_head *work)
 
 			vma->numab_state->next_scan = now +
 				msecs_to_jiffies(sysctl_numa_balancing_scan_delay);
+
+			/* Reset happens after 4 times scan delay of scan start */
+			vma->numab_state->next_pid_reset =  vma->numab_state->next_scan +
+				msecs_to_jiffies(VMA_PID_RESET_PERIOD);
 		}
 
 		/*
@@ -3064,6 +3071,18 @@ static void task_numa_work(struct callback_head *work)
 		/* Do not scan the VMA if task has not accessed */
 		if (!vma_is_accessed(vma))
 			continue;
+
+		/*
+		 * RESET access PIDs regularly for old VMAs. Resetting after checking
+		 * vma for recent access to avoid clearing PID info before access..
+		 */
+		if (mm->numa_scan_seq &&
+				time_after(jiffies, vma->numab_state->next_pid_reset)) {
+			vma->numab_state->next_pid_reset = vma->numab_state->next_pid_reset +
+				msecs_to_jiffies(VMA_PID_RESET_PERIOD);
+			vma->numab_state->access_pids[0] = READ_ONCE(vma->numab_state->access_pids[1]);
+			vma->numab_state->access_pids[1] = 0;
+		}
 
 		do {
 			start = max(start, vma->vm_start);
