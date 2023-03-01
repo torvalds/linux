@@ -43,6 +43,7 @@ static struct sk_buff *ieee80211_clean_skb(struct sk_buff *skb,
 					   unsigned int present_fcs_len,
 					   unsigned int rtap_space)
 {
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr;
 	unsigned int hdrlen;
 	__le16 fc;
@@ -50,6 +51,14 @@ static struct sk_buff *ieee80211_clean_skb(struct sk_buff *skb,
 	if (present_fcs_len)
 		__pskb_trim(skb, skb->len - present_fcs_len);
 	pskb_pull(skb, rtap_space);
+
+	/* After pulling radiotap header, clear all flags that indicate
+	 * info in skb->data.
+	 */
+	status->flag &= ~(RX_FLAG_RADIOTAP_VENDOR_DATA |
+			  RX_FLAG_RADIOTAP_LSIG |
+			  RX_FLAG_RADIOTAP_HE_MU |
+			  RX_FLAG_RADIOTAP_HE);
 
 	hdr = (void *)skb->data;
 	fc = hdr->frame_control;
@@ -3916,8 +3925,6 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 	if (!local->cooked_mntrs)
 		goto out_free_skb;
 
-	/* vendor data is long removed here */
-	status->flag &= ~RX_FLAG_RADIOTAP_VENDOR_DATA;
 	/* room for the radiotap header based on driver features */
 	needed_headroom = ieee80211_rx_radiotap_hdrlen(local, status, skb);
 
