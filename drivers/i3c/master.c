@@ -1147,6 +1147,13 @@ int i3c_master_setmrl_locked(struct i3c_master_controller *master,
 	if (!mrl)
 		return -ENOMEM;
 
+	/*
+	 * When the device does not have IBI payload SETMRL only sends 2
+	 * bytes of data.
+	 */
+	if (!(info->bcr & I3C_BCR_IBI_PAYLOAD))
+		dest.payload.len -= 1;
+
 	mrl->read_len = cpu_to_be16(read_len);
 	mrl->ibi_len = ibi_len;
 	info->max_read_len = read_len;
