@@ -988,8 +988,8 @@ FIXTURE(iommufd_mock_domain)
 {
 	int fd;
 	uint32_t ioas_id;
-	uint32_t domain_id;
-	uint32_t domain_ids[2];
+	uint32_t hwpt_id;
+	uint32_t hwpt_ids[2];
 	int mmap_flags;
 	size_t mmap_buf_size;
 };
@@ -1008,11 +1008,11 @@ FIXTURE_SETUP(iommufd_mock_domain)
 	ASSERT_NE(-1, self->fd);
 	test_ioctl_ioas_alloc(&self->ioas_id);
 
-	ASSERT_GE(ARRAY_SIZE(self->domain_ids), variant->mock_domains);
+	ASSERT_GE(ARRAY_SIZE(self->hwpt_ids), variant->mock_domains);
 
 	for (i = 0; i != variant->mock_domains; i++)
-		test_cmd_mock_domain(self->ioas_id, NULL, &self->domain_ids[i]);
-	self->domain_id = self->domain_ids[0];
+		test_cmd_mock_domain(self->ioas_id, NULL, &self->hwpt_ids[i]);
+	self->hwpt_id = self->hwpt_ids[0];
 
 	self->mmap_flags = MAP_SHARED | MAP_ANONYMOUS;
 	self->mmap_buf_size = PAGE_SIZE * 8;
@@ -1061,7 +1061,7 @@ FIXTURE_VARIANT_ADD(iommufd_mock_domain, two_domains_hugepage)
 		struct iommu_test_cmd check_map_cmd = {                      \
 			.size = sizeof(check_map_cmd),                       \
 			.op = IOMMU_TEST_OP_MD_CHECK_MAP,                    \
-			.id = self->domain_id,                               \
+			.id = self->hwpt_id,                                 \
 			.check_map = { .iova = _iova,                        \
 				       .length = _length,                    \
 				       .uptr = (uintptr_t)(_ptr) },          \
@@ -1070,8 +1070,8 @@ FIXTURE_VARIANT_ADD(iommufd_mock_domain, two_domains_hugepage)
 			  ioctl(self->fd,                                    \
 				_IOMMU_TEST_CMD(IOMMU_TEST_OP_MD_CHECK_MAP), \
 				&check_map_cmd));                            \
-		if (self->domain_ids[1]) {                                   \
-			check_map_cmd.id = self->domain_ids[1];              \
+		if (self->hwpt_ids[1]) {                                     \
+			check_map_cmd.id = self->hwpt_ids[1];                \
 			ASSERT_EQ(0,                                         \
 				  ioctl(self->fd,                            \
 					_IOMMU_TEST_CMD(                     \
@@ -1203,9 +1203,9 @@ TEST_F(iommufd_mock_domain, all_aligns_copy)
 			test_ioctl_ioas_map(buf + start, length, &iova);
 
 			/* Add and destroy a domain while the area exists */
-			old_id = self->domain_ids[1];
+			old_id = self->hwpt_ids[1];
 			test_cmd_mock_domain(self->ioas_id, &mock_device_id,
-					     &self->domain_ids[1]);
+					     &self->hwpt_ids[1]);
 
 			check_mock_iova(buf + start, iova, length);
 			check_refs(buf + start / PAGE_SIZE * PAGE_SIZE,
@@ -1214,8 +1214,8 @@ TEST_F(iommufd_mock_domain, all_aligns_copy)
 				   1);
 
 			test_ioctl_destroy(mock_device_id);
-			test_ioctl_destroy(self->domain_ids[1]);
-			self->domain_ids[1] = old_id;
+			test_ioctl_destroy(self->hwpt_ids[1]);
+			self->hwpt_ids[1] = old_id;
 
 			test_ioctl_ioas_unmap(iova, length);
 		}
