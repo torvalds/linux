@@ -1371,8 +1371,8 @@
 		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
-		clock-names = "spiclk", "apb_pclk";
+		clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>, <&cru SCLK_IN_SPI0>;
+		clock-names = "spiclk", "apb_pclk", "sclk_in";
 		dmas = <&dmac 25>, <&dmac 24>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default";
@@ -1386,8 +1386,8 @@
 		interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
-		clock-names = "spiclk", "apb_pclk";
+		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>, <&cru SCLK_IN_SPI1>;
+		clock-names = "spiclk", "apb_pclk", "sclk_in";
 		dmas = <&dmac 31>, <&dmac 30>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default";
