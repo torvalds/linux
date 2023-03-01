@@ -1093,6 +1093,9 @@ struct spi_message {
 
 	unsigned		is_dma_mapped:1;
 
+	/* spi_prepare_message() was called for this message */
+	bool			prepared;
+
 	/* REVISIT:  we might want a flag affecting the behavior of the
 	 * last transfer ... allowing things like "read 16 bit length L"
 	 * immediately followed by "read L bytes".  Basically imposing
@@ -1105,11 +1108,11 @@ struct spi_message {
 	 */
 
 	/* Completion is reported through a callback */
+	int			status;
 	void			(*complete)(void *context);
 	void			*context;
 	unsigned		frame_length;
 	unsigned		actual_length;
-	int			status;
 
 	/* For optional use by whatever driver currently owns the
 	 * spi_message ...  between calls to spi_async and then later
@@ -1120,9 +1123,6 @@ struct spi_message {
 
 	/* List of spi_res reources when the spi message is processed */
 	struct list_head        resources;
-
-	/* spi_prepare_message() was called for this message */
-	bool			prepared;
 };
 
 static inline void spi_message_init_no_memset(struct spi_message *m)
