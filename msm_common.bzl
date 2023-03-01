@@ -34,6 +34,9 @@ def gen_config_without_source_lines(build_config, target):
     return ":" + rule_name
 
 def get_out_dir(msm_target, variant):
+    if msm_target.find("allyes") != -1:
+        le_target = msm_target.split(".")[0];
+        return "out/msm-kernel-{}-{}".format(le_target.replace("-", "_"), variant.replace("-", "_"))
     return "out/msm-kernel-{}-{}".format(msm_target.replace("-", "_"), variant.replace("-", "_"))
 
 def define_signing_keys():

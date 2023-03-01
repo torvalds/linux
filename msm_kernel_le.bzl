@@ -182,6 +182,7 @@ def _define_kernel_dist(target, msm_target, variant):
         ":{}_images".format(target),
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
+        ":{}_dummy_files".format(msm_target),
     ]
 
     copy_to_dist_dir(
@@ -279,10 +280,10 @@ def define_msm_le(
     )
 
 
-    _define_kernel_dist(target, msm_target, variant)
+    _define_kernel_dist(target, le_target, variant)
 
-    define_abl_dist(target, msm_target, variant)
+    define_abl_dist(target, le_target, variant)
 
-    define_dtc_dist(target, msm_target, variant)
+    define_dtc_dist(target, le_target, variant)
 
-    define_extras(target)
+    define_extras(target, flavor = "allyes")
