@@ -427,6 +427,7 @@ int get_bpf_max_tramp_links(void);
 struct test_loader {
 	char *log_buf;
 	size_t log_buf_sz;
+	size_t next_match_pos;
 
 	struct bpf_object *obj;
 };
