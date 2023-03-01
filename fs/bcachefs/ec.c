@@ -898,8 +898,21 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	if (*bp_offset == U64_MAX)
 		return 0;
 
-	if (bch2_fs_inconsistent_on(bp.level, c, "found btree node in erasure coded bucket!?"))
+	if (bp.level) {
+		struct printbuf buf = PRINTBUF;
+		struct btree_iter node_iter;
+		struct btree *b;
+
+		b = bch2_backpointer_get_node(trans, &node_iter, bucket, *bp_offset, bp);
+		bch2_trans_iter_exit(trans, &node_iter);
+
+		prt_printf(&buf, "found btree node in erasure coded bucket: b=%px\n", b);
+		bch2_backpointer_to_text(&buf, &bp);
+
+		bch2_fs_inconsistent(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		return -EIO;
+	}
 
 	k = bch2_backpointer_get_key(trans, &iter, bucket, *bp_offset, bp);
 	ret = bkey_err(k);
