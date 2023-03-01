@@ -899,9 +899,3 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->clock_gating_funcs = &nop_clock_gating_funcs;
 	}
 }
-
-void intel_pm_setup(struct drm_i915_private *dev_priv)
-{
-	dev_priv->runtime_pm.suspended = false;
-	atomic_set(&dev_priv->runtime_pm.wakeref_count, 0);
-}
