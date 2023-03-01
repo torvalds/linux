@@ -25,6 +25,7 @@ enum intel_dmc_id {
 };
 
 struct intel_dmc {
+	struct drm_i915_private *i915;
 	struct work_struct work;
 	const char *fw_path;
 	u32 max_fw_size; /* bytes */
