@@ -445,10 +445,21 @@ static int target_tpg_register_rtpi(struct se_portal_group *se_tpg)
 	u32 val;
 	int ret;
 
-	ret = xa_alloc(&tpg_xa, &val, se_tpg,
-		       XA_LIMIT(1, USHRT_MAX), GFP_KERNEL);
-	if (!ret)
-		se_tpg->tpg_rtpi = val;
+	if (se_tpg->rtpi_manual) {
+		ret = xa_insert(&tpg_xa, se_tpg->tpg_rtpi, se_tpg, GFP_KERNEL);
+		if (ret) {
+			pr_info("%s_TPG[%hu] - Can not set RTPI %#x, it is already busy",
+				se_tpg->se_tpg_tfo->fabric_name,
+				se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg),
+				se_tpg->tpg_rtpi);
+			return -EINVAL;
+		}
+	} else {
+		ret = xa_alloc(&tpg_xa, &val, se_tpg,
+			       XA_LIMIT(1, USHRT_MAX), GFP_KERNEL);
+		if (!ret)
+			se_tpg->tpg_rtpi = val;
+	}
 
 	return ret;
 }
