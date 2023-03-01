@@ -197,7 +197,12 @@ value
 Numerical attribute ID, used in serialized Netlink messages.
 The ``value`` property can be skipped, in which case the attribute ID
 will be the value of the previous attribute plus one (recursively)
-and ``0`` for the first attribute in the attribute set.
+and ``1`` for the first attribute in the attribute set.
+
+Attributes (and operations) use ``1`` as the default value for the first
+entry (unlike enums in definitions which start from ``0``) because
+entry ``0`` is almost always reserved as undefined. Spec can explicitly
+set value to ``0`` if needed.
 
 Note that the ``value`` of an attribute is defined only in its main set
 (not in subsets).

@@ -96,7 +96,7 @@ class SpecAttrSet(SpecElement):
         self.attrs_by_val = collections.OrderedDict()
 
         if self.subset_of is None:
-            val = 0
+            val = 1
             for elem in self.yaml['attributes']:
                 if 'value' in elem:
                     val = elem['value']
@@ -252,7 +252,7 @@ class SpecFamily(SpecElement):
         self._resolution_list.append(elem)
 
     def _dictify_ops_unified(self):
-        val = 0
+        val = 1
         for elem in self.yaml['operations']['list']:
             if 'value' in elem:
                 val = elem['value']
@@ -263,7 +263,7 @@ class SpecFamily(SpecElement):
             self.msgs[op.name] = op
 
     def _dictify_ops_directional(self):
-        req_val = rsp_val = 0
+        req_val = rsp_val = 1
         for elem in self.yaml['operations']['list']:
             if 'notify' in elem:
                 if 'value' in elem:
