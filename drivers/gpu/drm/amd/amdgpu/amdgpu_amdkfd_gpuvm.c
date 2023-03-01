@@ -1583,7 +1583,7 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev)
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
-	size_t available;
+	ssize_t available;
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
 	available = adev->gmc.real_vram_size
@@ -1591,6 +1591,9 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev)
 		- atomic64_read(&adev->vram_pin_size)
 		- reserved_for_pt;
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
+
+	if (available < 0)
+		available = 0;
 
 	return ALIGN_DOWN(available, VRAM_AVAILABLITY_ALIGN);
 }
