@@ -302,7 +302,7 @@ static int iommufd_test_mock_domain(struct iommufd_ucmd *ucmd,
 
 	/* Userspace must destroy both of these IDs to destroy the object */
 	cmd->mock_domain.out_hwpt_id = hwpt->obj.id;
-	cmd->mock_domain.out_device_id = sobj->obj.id;
+	cmd->mock_domain.out_stdev_id = sobj->obj.id;
 	iommufd_object_finalize(ucmd->ictx, &sobj->obj);
 	iommufd_put_object(&ioas->obj);
 	return iommufd_ucmd_respond(ucmd, sizeof(*cmd));
