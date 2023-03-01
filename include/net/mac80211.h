@@ -534,6 +534,7 @@ struct ieee80211_fils_discovery {
  * This structure keeps information about a BSS (and an association
  * to that BSS) that can change during the lifetime of the BSS.
  *
+ * @vif: reference to owning VIF
  * @addr: (link) address used locally
  * @link_id: link ID, or 0 for non-MLO
  * @htc_trig_based_pkt_ext: default PE in 4us units, if BSS supports HE
@@ -675,6 +676,8 @@ struct ieee80211_fils_discovery {
  *	bandwidth
  */
 struct ieee80211_bss_conf {
+	struct ieee80211_vif *vif;
+
 	const u8 *bssid;
 	unsigned int link_id;
 	u8 addr[ETH_ALEN] __aligned(2);
