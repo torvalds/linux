@@ -9,7 +9,6 @@
 #include "intel_display.h"
 #include "intel_display_trace.h"
 #include "intel_mchbar_regs.h"
-#include "intel_pm.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
 #include "vlv_sideband.h"

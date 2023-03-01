@@ -28,7 +28,6 @@
 #include "intel_migrate.h"
 #include "intel_mocs.h"
 #include "intel_pci_config.h"
-#include "intel_pm.h"
 #include "intel_rc6.h"
 #include "intel_renderstate.h"
 #include "intel_rps.h"
