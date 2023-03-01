@@ -619,7 +619,7 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 	u32 flags;
 	char alpha2[3];
 
-	num_rules = reg_info->num_5g_reg_rules + reg_info->num_2g_reg_rules;
+	num_rules = reg_info->num_5ghz_reg_rules + reg_info->num_2ghz_reg_rules;
 
 	if (!num_rules)
 		goto ret;
@@ -644,20 +644,20 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 		   alpha2, ath11k_reg_get_regdom_str(tmp_regd->dfs_region),
 		   reg_info->dfs_region, num_rules);
 	/* Update reg_rules[] below. Firmware is expected to
-	 * send these rules in order(2G rules first and then 5G)
+	 * send these rules in order(2 GHz rules first and then 5 GHz)
 	 */
 	for (; i < num_rules; i++) {
-		if (reg_info->num_2g_reg_rules &&
-		    (i < reg_info->num_2g_reg_rules)) {
-			reg_rule = reg_info->reg_rules_2g_ptr + i;
+		if (reg_info->num_2ghz_reg_rules &&
+		    (i < reg_info->num_2ghz_reg_rules)) {
+			reg_rule = reg_info->reg_rules_2ghz_ptr + i;
 			max_bw = min_t(u16, reg_rule->max_bw,
-				       reg_info->max_bw_2g);
+				       reg_info->max_bw_2ghz);
 			flags = 0;
-		} else if (reg_info->num_5g_reg_rules &&
-			   (j < reg_info->num_5g_reg_rules)) {
-			reg_rule = reg_info->reg_rules_5g_ptr + j++;
+		} else if (reg_info->num_5ghz_reg_rules &&
+			   (j < reg_info->num_5ghz_reg_rules)) {
+			reg_rule = reg_info->reg_rules_5ghz_ptr + j++;
 			max_bw = min_t(u16, reg_rule->max_bw,
-				       reg_info->max_bw_5g);
+				       reg_info->max_bw_5ghz);
 
 			/* FW doesn't pass NL80211_RRF_AUTO_BW flag for
 			 * BW Auto correction, we can enable this by default

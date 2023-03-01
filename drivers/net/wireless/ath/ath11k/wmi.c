@@ -4959,7 +4959,7 @@ static int ath11k_pull_reg_chan_list_update_ev(struct ath11k_base *ab,
 	const void **tb;
 	const struct wmi_reg_chan_list_cc_event *chan_list_event_hdr;
 	struct wmi_regulatory_rule_struct *wmi_reg_rule;
-	u32 num_2g_reg_rules, num_5g_reg_rules;
+	u32 num_2ghz_reg_rules, num_5ghz_reg_rules;
 	int ret;
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI, "processing regulatory channel list\n");
@@ -4978,10 +4978,10 @@ static int ath11k_pull_reg_chan_list_update_ev(struct ath11k_base *ab,
 		return -EPROTO;
 	}
 
-	reg_info->num_2g_reg_rules = chan_list_event_hdr->num_2g_reg_rules;
-	reg_info->num_5g_reg_rules = chan_list_event_hdr->num_5g_reg_rules;
+	reg_info->num_2ghz_reg_rules = chan_list_event_hdr->num_2ghz_reg_rules;
+	reg_info->num_5ghz_reg_rules = chan_list_event_hdr->num_5ghz_reg_rules;
 
-	if (!(reg_info->num_2g_reg_rules + reg_info->num_5g_reg_rules)) {
+	if (!(reg_info->num_2ghz_reg_rules + reg_info->num_5ghz_reg_rules)) {
 		ath11k_warn(ab, "No regulatory rules available in the event info\n");
 		kfree(tb);
 		return -EINVAL;
@@ -5008,46 +5008,48 @@ static int ath11k_pull_reg_chan_list_update_ev(struct ath11k_base *ab,
 	else if (chan_list_event_hdr->status_code == WMI_REG_SET_CC_STATUS_FAIL)
 		reg_info->status_code = REG_SET_CC_STATUS_FAIL;
 
-	reg_info->min_bw_2g = chan_list_event_hdr->min_bw_2g;
-	reg_info->max_bw_2g = chan_list_event_hdr->max_bw_2g;
-	reg_info->min_bw_5g = chan_list_event_hdr->min_bw_5g;
-	reg_info->max_bw_5g = chan_list_event_hdr->max_bw_5g;
+	reg_info->min_bw_2ghz = chan_list_event_hdr->min_bw_2ghz;
+	reg_info->max_bw_2ghz = chan_list_event_hdr->max_bw_2ghz;
+	reg_info->min_bw_5ghz = chan_list_event_hdr->min_bw_5ghz;
+	reg_info->max_bw_5ghz = chan_list_event_hdr->max_bw_5ghz;
 
-	num_2g_reg_rules = reg_info->num_2g_reg_rules;
-	num_5g_reg_rules = reg_info->num_5g_reg_rules;
+	num_2ghz_reg_rules = reg_info->num_2ghz_reg_rules;
+	num_5ghz_reg_rules = reg_info->num_5ghz_reg_rules;
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
-		   "%s:cc %s dsf %d BW: min_2g %d max_2g %d min_5g %d max_5g %d",
+		   "%s:cc %s dsf %d BW: min_2ghz %d max_2ghz %d min_5ghz %d max_5ghz %d",
 		   __func__, reg_info->alpha2, reg_info->dfs_region,
-		   reg_info->min_bw_2g, reg_info->max_bw_2g,
-		   reg_info->min_bw_5g, reg_info->max_bw_5g);
+		   reg_info->min_bw_2ghz, reg_info->max_bw_2ghz,
+		   reg_info->min_bw_5ghz, reg_info->max_bw_5ghz);
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
-		   "%s: num_2g_reg_rules %d num_5g_reg_rules %d", __func__,
-		   num_2g_reg_rules, num_5g_reg_rules);
+		   "%s: num_2ghz_reg_rules %d num_5ghz_reg_rules %d", __func__,
+		   num_2ghz_reg_rules, num_5ghz_reg_rules);
 
 	wmi_reg_rule =
 		(struct wmi_regulatory_rule_struct *)((u8 *)chan_list_event_hdr
 						+ sizeof(*chan_list_event_hdr)
 						+ sizeof(struct wmi_tlv));
 
-	if (num_2g_reg_rules) {
-		reg_info->reg_rules_2g_ptr = create_reg_rules_from_wmi(num_2g_reg_rules,
-								       wmi_reg_rule);
-		if (!reg_info->reg_rules_2g_ptr) {
+	if (num_2ghz_reg_rules) {
+		reg_info->reg_rules_2ghz_ptr =
+				create_reg_rules_from_wmi(num_2ghz_reg_rules,
+							  wmi_reg_rule);
+		if (!reg_info->reg_rules_2ghz_ptr) {
 			kfree(tb);
-			ath11k_warn(ab, "Unable to Allocate memory for 2g rules\n");
+			ath11k_warn(ab, "Unable to Allocate memory for 2 GHz rules\n");
 			return -ENOMEM;
 		}
 	}
 
-	if (num_5g_reg_rules) {
-		wmi_reg_rule += num_2g_reg_rules;
-		reg_info->reg_rules_5g_ptr = create_reg_rules_from_wmi(num_5g_reg_rules,
-								       wmi_reg_rule);
-		if (!reg_info->reg_rules_5g_ptr) {
+	if (num_5ghz_reg_rules) {
+		wmi_reg_rule += num_2ghz_reg_rules;
+		reg_info->reg_rules_5ghz_ptr =
+				create_reg_rules_from_wmi(num_5ghz_reg_rules,
+							  wmi_reg_rule);
+		if (!reg_info->reg_rules_5ghz_ptr) {
 			kfree(tb);
-			ath11k_warn(ab, "Unable to Allocate memory for 5g rules\n");
+			ath11k_warn(ab, "Unable to Allocate memory for 5 GHz rules\n");
 			return -ENOMEM;
 		}
 	}
@@ -6619,8 +6621,8 @@ fallback:
 	WARN_ON(1);
 mem_free:
 	if (reg_info) {
-		kfree(reg_info->reg_rules_2g_ptr);
-		kfree(reg_info->reg_rules_5g_ptr);
+		kfree(reg_info->reg_rules_2ghz_ptr);
+		kfree(reg_info->reg_rules_5ghz_ptr);
 		kfree(reg_info);
 	}
 	return ret;
