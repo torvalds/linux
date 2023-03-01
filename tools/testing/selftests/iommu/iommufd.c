@@ -187,6 +187,7 @@ FIXTURE(iommufd_ioas)
 	int fd;
 	uint32_t ioas_id;
 	uint32_t stdev_id;
+	uint32_t hwpt_id;
 	uint64_t base_iova;
 };
 
@@ -212,7 +213,8 @@ FIXTURE_SETUP(iommufd_ioas)
 	}
 
 	for (i = 0; i != variant->mock_domains; i++) {
-		test_cmd_mock_domain(self->ioas_id, &self->stdev_id, NULL);
+		test_cmd_mock_domain(self->ioas_id, &self->stdev_id,
+				     &self->hwpt_id);
 		self->base_iova = MOCK_APERTURE_START;
 	}
 }
@@ -256,6 +258,16 @@ TEST_F(iommufd_ioas, ioas_destroy)
 	} else {
 		/* Can allocate and manually free an IOAS table */
 		test_ioctl_destroy(self->ioas_id);
+	}
+}
+
+TEST_F(iommufd_ioas, hwpt_attach)
+{
+	/* Create a device attached directly to a hwpt */
+	if (self->stdev_id) {
+		test_cmd_mock_domain(self->hwpt_id, NULL, NULL);
+	} else {
+		test_err_mock_domain(ENOENT, self->hwpt_id, NULL, NULL);
 	}
 }
 
