@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v10-dual-cam.dts"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V11 Dual Camera Board";
+	compatible = "rockchip,rv1106g-evb1-v11-dual-cam", "rockchip,rv1106";
+
+	/delete-node/ vcc5v0-usb;
+};
+
+&pinctrl {
+	/delete-node/ usb;
+};
+
+&sfc {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <75000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&u2phy_otg {
+	/delete-property/ vbus-supply;
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "peripheral";
+};
