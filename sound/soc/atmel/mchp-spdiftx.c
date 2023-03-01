@@ -337,7 +337,7 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 	}
 	spin_unlock(&ctrl->lock);
 	if (ret)
-		dev_err(dev->dev, "unable to disable TX: %d\n", ret);
+		dev_err(dev->dev, "unable to start/stop TX: %d\n", ret);
 
 	return ret;
 }
