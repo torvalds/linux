@@ -1420,9 +1420,19 @@ static bool bpf_dynptr_is_rdonly(const struct bpf_dynptr_kern *ptr)
 	return ptr->size & DYNPTR_RDONLY_BIT;
 }
 
+void bpf_dynptr_set_rdonly(struct bpf_dynptr_kern *ptr)
+{
+	ptr->size |= DYNPTR_RDONLY_BIT;
+}
+
 static void bpf_dynptr_set_type(struct bpf_dynptr_kern *ptr, enum bpf_dynptr_type type)
 {
 	ptr->size |= type << DYNPTR_TYPE_SHIFT;
+}
+
+static enum bpf_dynptr_type bpf_dynptr_get_type(const struct bpf_dynptr_kern *ptr)
+{
+	return (ptr->size & ~(DYNPTR_RDONLY_BIT)) >> DYNPTR_TYPE_SHIFT;
 }
 
 u32 bpf_dynptr_get_size(const struct bpf_dynptr_kern *ptr)
@@ -1497,6 +1507,7 @@ static const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern *, src,
 	   u32, offset, u64, flags)
 {
+	enum bpf_dynptr_type type;
 	int err;
 
 	if (!src->data || flags)
@@ -1506,13 +1517,23 @@ BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern 
 	if (err)
 		return err;
 
-	/* Source and destination may possibly overlap, hence use memmove to
-	 * copy the data. E.g. bpf_dynptr_from_mem may create two dynptr
-	 * pointing to overlapping PTR_TO_MAP_VALUE regions.
-	 */
-	memmove(dst, src->data + src->offset + offset, len);
+	type = bpf_dynptr_get_type(src);
 
-	return 0;
+	switch (type) {
+	case BPF_DYNPTR_TYPE_LOCAL:
+	case BPF_DYNPTR_TYPE_RINGBUF:
+		/* Source and destination may possibly overlap, hence use memmove to
+		 * copy the data. E.g. bpf_dynptr_from_mem may create two dynptr
+		 * pointing to overlapping PTR_TO_MAP_VALUE regions.
+		 */
+		memmove(dst, src->data + src->offset + offset, len);
+		return 0;
+	case BPF_DYNPTR_TYPE_SKB:
+		return __bpf_skb_load_bytes(src->data, src->offset + offset, dst, len);
+	default:
+		WARN_ONCE(true, "bpf_dynptr_read: unknown dynptr type %d\n", type);
+		return -EFAULT;
+	}
 }
 
 static const struct bpf_func_proto bpf_dynptr_read_proto = {
@@ -1529,22 +1550,36 @@ static const struct bpf_func_proto bpf_dynptr_read_proto = {
 BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u32, offset, void *, src,
 	   u32, len, u64, flags)
 {
+	enum bpf_dynptr_type type;
 	int err;
 
-	if (!dst->data || flags || bpf_dynptr_is_rdonly(dst))
+	if (!dst->data || bpf_dynptr_is_rdonly(dst))
 		return -EINVAL;
 
 	err = bpf_dynptr_check_off_len(dst, offset, len);
 	if (err)
 		return err;
 
-	/* Source and destination may possibly overlap, hence use memmove to
-	 * copy the data. E.g. bpf_dynptr_from_mem may create two dynptr
-	 * pointing to overlapping PTR_TO_MAP_VALUE regions.
-	 */
-	memmove(dst->data + dst->offset + offset, src, len);
+	type = bpf_dynptr_get_type(dst);
 
-	return 0;
+	switch (type) {
+	case BPF_DYNPTR_TYPE_LOCAL:
+	case BPF_DYNPTR_TYPE_RINGBUF:
+		if (flags)
+			return -EINVAL;
+		/* Source and destination may possibly overlap, hence use memmove to
+		 * copy the data. E.g. bpf_dynptr_from_mem may create two dynptr
+		 * pointing to overlapping PTR_TO_MAP_VALUE regions.
+		 */
+		memmove(dst->data + dst->offset + offset, src, len);
+		return 0;
+	case BPF_DYNPTR_TYPE_SKB:
+		return __bpf_skb_store_bytes(dst->data, dst->offset + offset, src, len,
+					     flags);
+	default:
+		WARN_ONCE(true, "bpf_dynptr_write: unknown dynptr type %d\n", type);
+		return -EFAULT;
+	}
 }
 
 static const struct bpf_func_proto bpf_dynptr_write_proto = {
@@ -1560,6 +1595,7 @@ static const struct bpf_func_proto bpf_dynptr_write_proto = {
 
 BPF_CALL_3(bpf_dynptr_data, const struct bpf_dynptr_kern *, ptr, u32, offset, u32, len)
 {
+	enum bpf_dynptr_type type;
 	int err;
 
 	if (!ptr->data)
@@ -1572,7 +1608,19 @@ BPF_CALL_3(bpf_dynptr_data, const struct bpf_dynptr_kern *, ptr, u32, offset, u3
 	if (bpf_dynptr_is_rdonly(ptr))
 		return 0;
 
-	return (unsigned long)(ptr->data + ptr->offset + offset);
+	type = bpf_dynptr_get_type(ptr);
+
+	switch (type) {
+	case BPF_DYNPTR_TYPE_LOCAL:
+	case BPF_DYNPTR_TYPE_RINGBUF:
+		return (unsigned long)(ptr->data + ptr->offset + offset);
+	case BPF_DYNPTR_TYPE_SKB:
+		/* skb dynptrs should use bpf_dynptr_slice / bpf_dynptr_slice_rdwr */
+		return 0;
+	default:
+		WARN_ONCE(true, "bpf_dynptr_data: unknown dynptr type %d\n", type);
+		return 0;
+	}
 }
 
 static const struct bpf_func_proto bpf_dynptr_data_proto = {
