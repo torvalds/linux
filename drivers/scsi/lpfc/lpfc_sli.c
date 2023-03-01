@@ -8080,16 +8080,16 @@ int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
 /**
  * lpfc_rx_monitor_destroy_ring - Free ring buffer for rx_monitor
  * @rx_monitor: Pointer to lpfc_rx_info_monitor object
+ *
+ * Called after cancellation of cmf_timer.
  **/
 void lpfc_rx_monitor_destroy_ring(struct lpfc_rx_info_monitor *rx_monitor)
 {
-	spin_lock(&rx_monitor->lock);
 	kfree(rx_monitor->ring);
 	rx_monitor->ring = NULL;
 	rx_monitor->entries = 0;
 	rx_monitor->head_idx = 0;
 	rx_monitor->tail_idx = 0;
-	spin_unlock(&rx_monitor->lock);
 }
 
 /**
