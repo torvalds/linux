@@ -397,4 +397,16 @@ struct xe_reg_sr;
 void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
 		    struct xe_gt *gt, struct xe_hw_engine *hwe);
 
+/* Match functions to be used with XE_RTP_MATCH_FUNC */
+
+/**
+ * xe_rtp_match_even_instance - Match if engine instance is even
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Returns: true if engine instance is even, false otherwise
+ */
+bool xe_rtp_match_even_instance(const struct xe_gt *gt,
+				const struct xe_hw_engine *hwe);
+
 #endif

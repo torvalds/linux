@@ -154,3 +154,9 @@ void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
 		}
 	}
 }
+
+bool xe_rtp_match_even_instance(const struct xe_gt *gt,
+				const struct xe_hw_engine *hwe)
+{
+	return hwe->instance % 2 == 0;
+}

@@ -91,17 +91,11 @@
 #define _MMIO(x)	_XE_RTP_REG(x)
 #define MCR_REG(x)	_XE_RTP_MCR_REG(x)
 
-static bool match_14011060649(const struct xe_gt *gt,
-			      const struct xe_hw_engine *hwe)
-{
-	return hwe->instance % 2 == 0;
-}
-
 static const struct xe_rtp_entry gt_was[] = {
 	{ XE_RTP_NAME("14011060649"),
 	  XE_RTP_RULES(MEDIA_VERSION_RANGE(1200, 1255),
 		       ENGINE_CLASS(VIDEO_DECODE),
-		       FUNC(match_14011060649)),
+		       FUNC(xe_rtp_match_even_instance)),
 	  XE_RTP_ACTIONS(SET(VDBOX_CGCTL3F10(0), IECPUNIT_CLKGATE_DIS)),
 	  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE),
 	},
