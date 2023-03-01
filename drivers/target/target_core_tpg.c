@@ -31,6 +31,7 @@
 #include "target_core_ua.h"
 
 extern struct se_device *g_lun0_dev;
+static DEFINE_XARRAY_ALLOC(tpg_xa);
 
 /*	__core_tpg_get_initiator_node_acl():
  *
@@ -439,6 +440,57 @@ static void core_tpg_lun_ref_release(struct percpu_ref *ref)
 	complete(&lun->lun_shutdown_comp);
 }
 
+static int target_tpg_register_rtpi(struct se_portal_group *se_tpg)
+{
+	u32 val;
+	int ret;
+
+	ret = xa_alloc(&tpg_xa, &val, se_tpg,
+		       XA_LIMIT(1, USHRT_MAX), GFP_KERNEL);
+	if (!ret)
+		se_tpg->tpg_rtpi = val;
+
+	return ret;
+}
+
+static void target_tpg_deregister_rtpi(struct se_portal_group *se_tpg)
+{
+	if (se_tpg->tpg_rtpi && se_tpg->enabled)
+		xa_erase(&tpg_xa, se_tpg->tpg_rtpi);
+}
+
+int target_tpg_enable(struct se_portal_group *se_tpg)
+{
+	int ret;
+
+	ret = target_tpg_register_rtpi(se_tpg);
+	if (ret)
+		return ret;
+
+	ret = se_tpg->se_tpg_tfo->fabric_enable_tpg(se_tpg, true);
+	if (ret) {
+		target_tpg_deregister_rtpi(se_tpg);
+		return ret;
+	}
+
+	se_tpg->enabled = true;
+
+	return 0;
+}
+
+int target_tpg_disable(struct se_portal_group *se_tpg)
+{
+	int ret;
+
+	target_tpg_deregister_rtpi(se_tpg);
+
+	ret = se_tpg->se_tpg_tfo->fabric_enable_tpg(se_tpg, false);
+	if (!ret)
+		se_tpg->enabled = false;
+
+	return ret;
+}
+
 /* Does not change se_wwn->priv. */
 int core_tpg_register(
 	struct se_wwn *se_wwn,
@@ -534,6 +586,8 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 		core_tpg_remove_lun(se_tpg, se_tpg->tpg_virt_lun0);
 		kfree_rcu(se_tpg->tpg_virt_lun0, rcu_head);
 	}
+
+	target_tpg_deregister_rtpi(se_tpg);
 
 	return 0;
 }

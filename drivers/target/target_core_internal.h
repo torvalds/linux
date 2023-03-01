@@ -132,6 +132,8 @@ void core_tpg_remove_lun(struct se_portal_group *, struct se_lun *);
 struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *tpg,
 		const char *initiatorname);
 void core_tpg_del_initiator_node_acl(struct se_node_acl *acl);
+int target_tpg_enable(struct se_portal_group *se_tpg);
+int target_tpg_disable(struct se_portal_group *se_tpg);
 
 /* target_core_transport.c */
 int	init_se_kmem_caches(void);

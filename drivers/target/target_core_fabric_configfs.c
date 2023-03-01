@@ -836,13 +836,12 @@ static ssize_t target_fabric_tpg_base_enable_store(struct config_item *item,
 
 	if (se_tpg->enabled == op)
 		return count;
-
-	ret = se_tpg->se_tpg_tfo->fabric_enable_tpg(se_tpg, op);
+	if (op)
+		ret = target_tpg_enable(se_tpg);
+	else
+		ret = target_tpg_disable(se_tpg);
 	if (ret)
 		return ret;
-
-	se_tpg->enabled = op;
-
 	return count;
 }
 
