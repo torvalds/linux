@@ -476,8 +476,8 @@ lpfc_free_ct_rsp(struct lpfc_hba *phba, struct lpfc_dmabuf *mlist)
 	struct lpfc_dmabuf *mlast, *next_mlast;
 
 	list_for_each_entry_safe(mlast, next_mlast, &mlist->list, list) {
-		lpfc_mbuf_free(phba, mlast->virt, mlast->phys);
 		list_del(&mlast->list);
+		lpfc_mbuf_free(phba, mlast->virt, mlast->phys);
 		kfree(mlast);
 	}
 	lpfc_mbuf_free(phba, mlist->virt, mlist->phys);
