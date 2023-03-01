@@ -318,7 +318,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		if (gt->default_lrc[hwe->class])
 			continue;
 
-		xe_reg_sr_init(&hwe->reg_lrc, "LRC", xe);
+		xe_reg_sr_init(&hwe->reg_lrc, hwe->name, xe);
 		xe_wa_process_lrc(hwe);
 		xe_tuning_process_lrc(hwe);
 
