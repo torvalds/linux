@@ -30,8 +30,9 @@
 #define R9A06G032_SYSCTRL_DMAMUX 0xA0
 
 struct r9a06g032_gate {
-	u16 gate, reset, ready, midle,
-		scon, mirack, mistat;
+	u16 gate, reset, ready, midle;
+	/* Unused fields omitted to save space */
+	/* u16 scon, mirack, mistat; */
 };
 
 enum gate_type {
@@ -69,14 +70,18 @@ struct r9a06g032_clkdesc {
 	};
 };
 
+/*
+ * The last three arguments are not currently used,
+ * but are kept in the r9a06g032_clocks table below.
+ */
 #define I_GATE(_clk, _rst, _rdy, _midle, _scon, _mirack, _mistat) { \
 	.gate = _clk, \
 	.reset = _rst, \
 	.ready = _rdy, \
 	.midle = _midle, \
-	.scon = _scon, \
-	.mirack = _mirack, \
-	.mistat = _mistat \
+	/* .scon = _scon, */ \
+	/* .mirack = _mirack, */ \
+	/* .mistat = _mistat */ \
 }
 #define D_GATE(_idx, _n, _src, ...) { \
 	.type = K_GATE, \
