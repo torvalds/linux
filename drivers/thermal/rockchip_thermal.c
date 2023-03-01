@@ -320,10 +320,10 @@ struct rockchip_thermal_data {
 #define PX30S_TSADC_TDC_MODE			(0x10001 << 4)
 #define PX30S_TSADC_TRIM			(0xf0007 << 0)
 
-#define MIN_TEMP				(-40000)
-#define LOWEST_TEMP				(-273000)
-#define MAX_TEMP				(125000)
-#define MAX_ENV_TEMP				(85000)
+
+/* -40 to 125 is reliable, outside the range existed unreliability */
+#define MIN_TEMP				(-60000)
+#define MAX_TEMP				(180000)
 
 /**
  * struct tsadc_table - code to temperature conversion table
@@ -341,16 +341,19 @@ struct tsadc_table {
 };
 
 static const struct tsadc_table rv1106_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{363, MIN_TEMP},
 	{396, -40000},
 	{504, 25000},
 	{605, 85000},
 	{673, 125000},
-	{TSADCV2_DATA_MASK, 125000},
+	{758, MAX_TEMP},
+	{TSADCV2_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rv1108_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{342, MIN_TEMP},
 	{374, -40000},
 	{382, -35000},
 	{389, -30000},
@@ -385,11 +388,13 @@ static const struct tsadc_table rv1108_table[] = {
 	{618, 115000},
 	{626, 120000},
 	{634, 125000},
-	{TSADCV2_DATA_MASK, 125000},
+	{722, MAX_TEMP},
+	{TSADCV2_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk1808_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{3423, MIN_TEMP},
 	{3455, -40000},
 	{3463, -35000},
 	{3471, -30000},
@@ -424,11 +429,13 @@ static const struct tsadc_table rk1808_code_table[] = {
 	{3709, 115000},
 	{3718, 120000},
 	{3726, 125000},
-	{TSADCV2_DATA_MASK, 125000},
+	{3820, MAX_TEMP},
+	{TSADCV2_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3228_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{568, MIN_TEMP},
 	{588, -40000},
 	{593, -35000},
 	{598, -30000},
@@ -463,11 +470,13 @@ static const struct tsadc_table rk3228_code_table[] = {
 	{749, 115000},
 	{754, 120000},
 	{760, 125000},
-	{TSADCV2_DATA_MASK, 125000},
+	{821, MAX_TEMP},
+	{TSADCV2_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3288_code_table[] = {
-	{TSADCV2_DATA_MASK, -40000},
+	{TSADCV2_DATA_MASK, MIN_TEMP},
+	{3833, MIN_TEMP},
 	{3800, -40000},
 	{3792, -35000},
 	{3783, -30000},
@@ -502,11 +511,15 @@ static const struct tsadc_table rk3288_code_table[] = {
 	{3452, 115000},
 	{3437, 120000},
 	{3421, 125000},
-	{0, 125000},
+	{3350, 145000},
+	{3270, 165000},
+	{3195, MAX_TEMP},
+	{0, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3328_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{261, MIN_TEMP},
 	{296, -40000},
 	{304, -35000},
 	{313, -30000},
@@ -540,11 +553,15 @@ static const struct tsadc_table rk3328_code_table[] = {
 	{644, 115000},
 	{659, 120000},
 	{675, 125000},
-	{TSADCV2_DATA_MASK, 125000},
+	{745, 145000},
+	{825, 165000},
+	{900, MAX_TEMP},
+	{TSADCV2_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3368_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{98, MIN_TEMP},
 	{106, -40000},
 	{108, -35000},
 	{110, -30000},
@@ -579,11 +596,13 @@ static const struct tsadc_table rk3368_code_table[] = {
 	{167, 115000},
 	{169, 120000},
 	{171, 125000},
-	{TSADCV3_DATA_MASK, 125000},
+	{193, MAX_TEMP},
+	{TSADCV3_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3399_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{368, MIN_TEMP},
 	{402, -40000},
 	{410, -35000},
 	{419, -30000},
@@ -618,11 +637,13 @@ static const struct tsadc_table rk3399_code_table[] = {
 	{668, 115000},
 	{677, 120000},
 	{685, 125000},
-	{TSADCV3_DATA_MASK, 125000},
+	{782, MAX_TEMP},
+	{TSADCV3_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3528_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{1386, MIN_TEMP},
 	{1419, -40000},
 	{1427, -35000},
 	{1435, -30000},
@@ -657,11 +678,13 @@ static const struct tsadc_table rk3528_code_table[] = {
 	{1679, 115000},
 	{1688, 120000},
 	{1696, 125000},
-	{TSADCV5_DATA_MASK, 125000},
+	{1790, MAX_TEMP},
+	{TSADCV5_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3562_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{1385, MIN_TEMP},
 	{1419, -40000},
 	{1428, -35000},
 	{1436, -30000},
@@ -696,11 +719,13 @@ static const struct tsadc_table rk3562_code_table[] = {
 	{1682, 115000},
 	{1691, 120000},
 	{1699, 125000},
-	{TSADCV2_DATA_MASK, 125000},
+	{1793, MAX_TEMP},
+	{TSADCV2_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3568_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{1448, MIN_TEMP},
 	{1584, -40000},
 	{1620, -35000},
 	{1652, -30000},
@@ -735,16 +760,19 @@ static const struct tsadc_table rk3568_code_table[] = {
 	{2636, 115000},
 	{2672, 120000},
 	{2704, 125000},
-	{TSADCV2_DATA_MASK, 125000},
+	{3076, MAX_TEMP},
+	{TSADCV2_DATA_MASK, MAX_TEMP},
 };
 
 static const struct tsadc_table rk3588_code_table[] = {
-	{0, -40000},
+	{0, MIN_TEMP},
+	{194, MIN_TEMP},
 	{215, -40000},
 	{285, 25000},
 	{350, 85000},
 	{395, 125000},
-	{TSADCV4_DATA_MASK, 125000},
+	{455, MAX_TEMP},
+	{TSADCV4_DATA_MASK, MAX_TEMP},
 };
 
 static u32 rk_tsadcv2_temp_to_code(const struct chip_tsadc_table *table,
