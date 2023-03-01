@@ -645,7 +645,6 @@ TEST_F(iommufd_ioas, access_pin)
 				   &check_map_cmd));
 
 		test_ioctl_destroy(mock_stdev_id);
-		test_ioctl_destroy(mock_hwpt_id);
 		test_cmd_destroy_access_pages(
 			access_cmd.id,
 			access_cmd.access_pages.out_access_pages_id);
@@ -1214,7 +1213,6 @@ TEST_F(iommufd_mock_domain, all_aligns_copy)
 				   1);
 
 			test_ioctl_destroy(mock_stdev_id);
-			test_ioctl_destroy(self->hwpt_ids[1]);
 			self->hwpt_ids[1] = old_id;
 
 			test_ioctl_ioas_unmap(iova, length);

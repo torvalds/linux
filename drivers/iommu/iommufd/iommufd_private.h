@@ -297,12 +297,6 @@ void iopt_remove_access(struct io_pagetable *iopt,
 void iommufd_access_destroy_object(struct iommufd_object *obj);
 
 #ifdef CONFIG_IOMMUFD_TEST
-struct iommufd_hw_pagetable *
-iommufd_device_selftest_attach(struct iommufd_ctx *ictx,
-			       struct iommufd_ioas *ioas,
-			       struct device *mock_dev);
-void iommufd_device_selftest_detach(struct iommufd_ctx *ictx,
-				    struct iommufd_hw_pagetable *hwpt);
 int iommufd_test(struct iommufd_ucmd *ucmd);
 void iommufd_selftest_destroy(struct iommufd_object *obj);
 extern size_t iommufd_test_memory_limit;
@@ -311,6 +305,7 @@ void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 bool iommufd_should_fail(void);
 void __init iommufd_test_init(void);
 void iommufd_test_exit(void);
+bool iommufd_selftest_is_mock_dev(struct device *dev);
 #else
 static inline void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 						 unsigned int ioas_id,
@@ -326,6 +321,10 @@ static inline void __init iommufd_test_init(void)
 }
 static inline void iommufd_test_exit(void)
 {
+}
+static inline bool iommufd_selftest_is_mock_dev(struct device *dev)
+{
+	return false;
 }
 #endif
 #endif

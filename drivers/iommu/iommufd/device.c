@@ -22,7 +22,8 @@ void iommufd_device_destroy(struct iommufd_object *obj)
 
 	iommu_device_release_dma_owner(idev->dev);
 	iommu_group_put(idev->group);
-	iommufd_ctx_put(idev->ictx);
+	if (!iommufd_selftest_is_mock_dev(idev->dev))
+		iommufd_ctx_put(idev->ictx);
 }
 
 /**
@@ -69,7 +70,8 @@ struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 		goto out_release_owner;
 	}
 	idev->ictx = ictx;
-	iommufd_ctx_get(ictx);
+	if (!iommufd_selftest_is_mock_dev(dev))
+		iommufd_ctx_get(ictx);
 	idev->dev = dev;
 	idev->enforce_cache_coherency =
 		device_iommu_capable(dev, IOMMU_CAP_ENFORCE_CACHE_COHERENCY);
@@ -151,7 +153,8 @@ static int iommufd_device_setup_msi(struct iommufd_device *idev,
 	 * operation from the device (eg a simple DMA) cannot trigger an
 	 * interrupt outside this iommufd context.
 	 */
-	if (!iommu_group_has_isolated_msi(idev->group)) {
+	if (!iommufd_selftest_is_mock_dev(idev->dev) &&
+	    !iommu_group_has_isolated_msi(idev->group)) {
 		if (!allow_unsafe_interrupts)
 			return -EPERM;
 
@@ -706,34 +709,3 @@ err_out:
 	return rc;
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_access_rw, IOMMUFD);
-
-#ifdef CONFIG_IOMMUFD_TEST
-/*
- * Creating a real iommufd_device is too hard, bypass creating a iommufd_device
- * and go directly to attaching a domain.
- */
-struct iommufd_hw_pagetable *
-iommufd_device_selftest_attach(struct iommufd_ctx *ictx,
-			       struct iommufd_ioas *ioas,
-			       struct device *mock_dev)
-{
-	struct iommufd_device tmp_idev = { .dev = mock_dev };
-	struct iommufd_hw_pagetable *hwpt;
-
-	mutex_lock(&ioas->mutex);
-	hwpt = iommufd_hw_pagetable_alloc(ictx, ioas, &tmp_idev, false);
-	mutex_unlock(&ioas->mutex);
-	if (IS_ERR(hwpt))
-		return hwpt;
-
-	refcount_inc(&hwpt->obj.users);
-	iommufd_object_finalize(ictx, &hwpt->obj);
-	return hwpt;
-}
-
-void iommufd_device_selftest_detach(struct iommufd_ctx *ictx,
-				    struct iommufd_hw_pagetable *hwpt)
-{
-	refcount_dec(&hwpt->obj.users);
-}
-#endif

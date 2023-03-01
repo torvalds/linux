@@ -323,8 +323,6 @@ TEST_FAIL_NTH(basic_fail_nth, map_domain)
 
 	if (_test_ioctl_destroy(self->fd, stdev_id))
 		return -1;
-	if (_test_ioctl_destroy(self->fd, hwpt_id))
-		return -1;
 
 	if (_test_cmd_mock_domain(self->fd, ioas_id, &stdev_id, &hwpt_id))
 		return -1;
@@ -365,12 +363,8 @@ TEST_FAIL_NTH(basic_fail_nth, map_two_domains)
 
 	if (_test_ioctl_destroy(self->fd, stdev_id))
 		return -1;
-	if (_test_ioctl_destroy(self->fd, hwpt_id))
-		return -1;
 
 	if (_test_ioctl_destroy(self->fd, stdev_id2))
-		return -1;
-	if (_test_ioctl_destroy(self->fd, hwpt_id2))
 		return -1;
 
 	if (_test_cmd_mock_domain(self->fd, ioas_id, &stdev_id, &hwpt_id))
@@ -571,8 +565,6 @@ TEST_FAIL_NTH(basic_fail_nth, access_pin_domain)
 	self->access_id = 0;
 
 	if (_test_ioctl_destroy(self->fd, stdev_id))
-		return -1;
-	if (_test_ioctl_destroy(self->fd, hwpt_id))
 		return -1;
 	return 0;
 }
