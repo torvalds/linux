@@ -2,10 +2,33 @@
 #ifndef __BPF_MISC_H__
 #define __BPF_MISC_H__
 
+/* This set of attributes controls behavior of the
+ * test_loader.c:test_loader__run_subtests().
+ *
+ * __msg             Message expected to be found in the verifier log.
+ *                   Multiple __msg attributes could be specified.
+ *
+ * __success         Expect program load success in privileged mode.
+ *
+ * __failure         Expect program load failure in privileged mode.
+ *
+ * __log_level       Log level to use for the program, numeric value expected.
+ *
+ * __flag            Adds one flag use for the program, the following values are valid:
+ *                   - BPF_F_STRICT_ALIGNMENT;
+ *                   - BPF_F_TEST_RND_HI32;
+ *                   - BPF_F_TEST_STATE_FREQ;
+ *                   - BPF_F_SLEEPABLE;
+ *                   - BPF_F_XDP_HAS_FRAGS;
+ *                   - A numeric value.
+ *                   Multiple __flag attributes could be specified, the final flags
+ *                   value is derived by applying binary "or" to all specified values.
+ */
 #define __msg(msg)		__attribute__((btf_decl_tag("comment:test_expect_msg=" msg)))
 #define __failure		__attribute__((btf_decl_tag("comment:test_expect_failure")))
 #define __success		__attribute__((btf_decl_tag("comment:test_expect_success")))
 #define __log_level(lvl)	__attribute__((btf_decl_tag("comment:test_log_level="#lvl)))
+#define __flag(flag)		__attribute__((btf_decl_tag("comment:test_prog_flags="#flag)))
 
 /* Convenience macro for use with 'asm volatile' blocks */
 #define __naked __attribute__((naked))
