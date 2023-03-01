@@ -289,7 +289,7 @@ static int aspeed_acry_rsa_ctx_copy(struct aspeed_acry_dev *acry_dev, void *buf,
 
 			if (mode == ASPEED_RSA_EXP_MODE)
 				idx = acry_dev->exp_dw_mapping[j - 1];
-			else if (mode == ASPEED_RSA_MOD_MODE)
+			else /* mode == ASPEED_RSA_MOD_MODE */
 				idx = acry_dev->mod_dw_mapping[j - 1];
 
 			dw_buf[idx] = cpu_to_le32(data);
