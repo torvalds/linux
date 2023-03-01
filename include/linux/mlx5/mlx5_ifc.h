@@ -880,7 +880,12 @@ enum {
 
 struct mlx5_ifc_flow_table_eswitch_cap_bits {
 	u8      fdb_to_vport_reg_c_id[0x8];
-	u8      reserved_at_8[0xd];
+	u8      reserved_at_8[0x5];
+	u8      fdb_uplink_hairpin[0x1];
+	u8      fdb_multi_path_any_table_limit_regc[0x1];
+	u8      reserved_at_f[0x3];
+	u8      fdb_multi_path_any_table[0x1];
+	u8      reserved_at_13[0x2];
 	u8      fdb_modify_header_fwd_to_table[0x1];
 	u8      fdb_ipv4_ttl_modify[0x1];
 	u8      flow_source[0x1];
