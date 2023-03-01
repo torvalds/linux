@@ -849,6 +849,18 @@ static void bch2_write_index(struct closure *cl)
 	queue_work(wq, &wp->index_update_work);
 }
 
+static inline void bch2_write_queue(struct bch_write_op *op, struct write_point *wp)
+{
+	op->btree_update_ready = false;
+	op->wp = wp;
+
+	spin_lock(&wp->writes_lock);
+	list_add_tail(&op->wp_list, &wp->writes);
+	if (wp->state == WRITE_POINT_stopped)
+		__wp_update_state(wp, WRITE_POINT_waiting_io);
+	spin_unlock(&wp->writes_lock);
+}
+
 void bch2_write_point_do_index_updates(struct work_struct *work)
 {
 	struct write_point *wp =
@@ -1707,15 +1719,6 @@ again:
 		bch2_alloc_sectors_done_inlined(c, wp);
 err:
 		if (ret <= 0) {
-			if (!(op->flags & BCH_WRITE_SYNC)) {
-				spin_lock(&wp->writes_lock);
-				op->wp = wp;
-				list_add_tail(&op->wp_list, &wp->writes);
-				if (wp->state == WRITE_POINT_stopped)
-					__wp_update_state(wp, WRITE_POINT_waiting_io);
-				spin_unlock(&wp->writes_lock);
-			}
-
 			op->flags |= BCH_WRITE_DONE;
 
 			if (ret < 0) {
@@ -1754,6 +1757,7 @@ err:
 			goto again;
 		bch2_write_done(&op->cl);
 	} else {
+		bch2_write_queue(op, wp);
 		continue_at(&op->cl, bch2_write_index, NULL);
 	}
 out_nofs_restore:
