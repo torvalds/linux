@@ -1076,8 +1076,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_suspend_encoders(dev_priv);
 
-	intel_suspend_hw(dev_priv);
-
 	/* Must be called before GGTT is suspended. */
 	intel_dpt_suspend(dev_priv);
 	i915_ggtt_suspend(to_gt(dev_priv)->ggtt);

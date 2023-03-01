@@ -320,16 +320,6 @@ static void lpt_init_clock_gating(struct drm_i915_private *dev_priv)
 			 0, TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 }
 
-static void lpt_suspend_hw(struct drm_i915_private *dev_priv)
-{
-	if (HAS_PCH_LPT_LP(dev_priv)) {
-		u32 val = intel_uncore_read(&dev_priv->uncore, SOUTH_DSPCLK_GATE_D);
-
-		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
-		intel_uncore_write(&dev_priv->uncore, SOUTH_DSPCLK_GATE_D, val);
-	}
-}
-
 static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 				   int general_prio_credits,
 				   int high_prio_credits)
@@ -787,12 +777,6 @@ static void i830_init_clock_gating(struct drm_i915_private *dev_priv)
 void intel_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	dev_priv->clock_gating_funcs->init_clock_gating(dev_priv);
-}
-
-void intel_suspend_hw(struct drm_i915_private *dev_priv)
-{
-	if (HAS_PCH_LPT(dev_priv))
-		lpt_suspend_hw(dev_priv);
 }
 
 static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
