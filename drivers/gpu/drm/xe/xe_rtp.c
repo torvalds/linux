@@ -160,3 +160,13 @@ bool xe_rtp_match_even_instance(const struct xe_gt *gt,
 {
 	return hwe->instance % 2 == 0;
 }
+
+bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
+					  const struct xe_hw_engine *hwe)
+{
+	u64 render_compute_mask = gt->info.engine_mask &
+		(XE_HW_ENGINE_CCS_MASK | XE_HW_ENGINE_RCS_MASK);
+
+	return render_compute_mask &&
+		hwe->engine_id == __ffs(render_compute_mask);
+}

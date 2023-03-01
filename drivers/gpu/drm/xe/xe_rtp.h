@@ -409,4 +409,22 @@ void xe_rtp_process(const struct xe_rtp_entry *entries, struct xe_reg_sr *sr,
 bool xe_rtp_match_even_instance(const struct xe_gt *gt,
 				const struct xe_hw_engine *hwe);
 
+/*
+ * xe_rtp_match_first_render_or_compute - Match if it's first render or compute
+ * engine in the GT
+ *
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Registers on the render reset domain need to have their values re-applied
+ * when any of those engines are reset. Since the engines reset together, a
+ * programming can be set to just one of them. For simplicity the first engine
+ * of either render or compute class can be chosen.
+ *
+ * Returns: true if engine id is the first to match the render reset domain,
+ * false otherwise.
+ */
+bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
+					  const struct xe_hw_engine *hwe);
+
 #endif
