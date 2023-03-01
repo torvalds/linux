@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-vehicle-evb-v20.dtsi"
+#include "rk3588-vehicle-serdes-display-v20.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 VEHICLE EVB V20 Board";
+	compatible = "rockchip,rk3588-vehicle-evb-v20", "rockchip,rk3588";
+};
