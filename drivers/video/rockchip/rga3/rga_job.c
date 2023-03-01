@@ -355,7 +355,13 @@ static void rga_job_insert_todo_list(struct rga_job *job)
 
 static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 {
+	int i;
 	struct rga_scheduler_t *scheduler = NULL;
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+		rga_job_scheduler_timeout_clean(scheduler);
+	}
 
 	if (rga_drvdata->num_of_scheduler > 1) {
 		job->core = rga_job_assign(job);
@@ -375,8 +381,6 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 		job->ret = -EFAULT;
 		return NULL;
 	}
-
-	rga_job_scheduler_timeout_clean(scheduler);
 
 	return scheduler;
 }
