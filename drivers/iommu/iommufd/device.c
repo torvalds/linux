@@ -243,6 +243,7 @@ static int iommufd_device_do_attach(struct iommufd_device *idev,
 						   hwpt->domain);
 			if (rc)
 				goto out_detach;
+			list_add_tail(&hwpt->hwpt_item, &hwpt->ioas->hwpt_list);
 		}
 	}
 
@@ -307,7 +308,6 @@ static int iommufd_device_auto_get_domain(struct iommufd_device *idev,
 	rc = iommufd_device_do_attach(idev, hwpt);
 	if (rc)
 		goto out_abort;
-	list_add_tail(&hwpt->hwpt_item, &ioas->hwpt_list);
 
 	mutex_unlock(&ioas->mutex);
 	iommufd_object_finalize(idev->ictx, &hwpt->obj);
@@ -753,6 +753,10 @@ iommufd_device_selftest_attach(struct iommufd_ctx *ictx,
 	if (rc)
 		goto out_hwpt;
 
+	mutex_lock(&ioas->mutex);
+	list_add_tail(&hwpt->hwpt_item, &hwpt->ioas->hwpt_list);
+	mutex_unlock(&ioas->mutex);
+
 	refcount_inc(&hwpt->obj.users);
 	iommufd_object_finalize(ictx, &hwpt->obj);
 	return hwpt;
@@ -765,7 +769,10 @@ out_hwpt:
 void iommufd_device_selftest_detach(struct iommufd_ctx *ictx,
 				    struct iommufd_hw_pagetable *hwpt)
 {
+	mutex_lock(&hwpt->ioas->mutex);
 	iopt_table_remove_domain(&hwpt->ioas->iopt, hwpt->domain);
+	list_del(&hwpt->hwpt_item);
+	mutex_unlock(&hwpt->ioas->mutex);
 	refcount_dec(&hwpt->obj.users);
 }
 #endif
