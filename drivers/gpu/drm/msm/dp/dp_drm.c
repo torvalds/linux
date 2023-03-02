@@ -107,6 +107,137 @@ static const struct drm_bridge_funcs dp_bridge_ops = {
 	.hpd_notify   = dp_bridge_hpd_notify,
 };
 
+static int edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
+				   struct drm_bridge_state *bridge_state,
+				   struct drm_crtc_state *crtc_state,
+				   struct drm_connector_state *conn_state)
+{
+	struct msm_dp *dp = to_dp_bridge(drm_bridge)->dp_display;
+
+	if (WARN_ON(!conn_state))
+		return -ENODEV;
+
+	if (!conn_state->crtc || !crtc_state)
+		return 0;
+
+	if (crtc_state->self_refresh_active && !dp->psr_supported)
+		return -EINVAL;
+
+	return 0;
+}
+
+static void edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
+				     struct drm_bridge_state *old_bridge_state)
+{
+	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	struct msm_dp_bridge *dp_bridge = to_dp_bridge(drm_bridge);
+	struct msm_dp *dp = dp_bridge->dp_display;
+
+	/*
+	 * Check the old state of the crtc to determine if the panel
+	 * was put into psr state previously by the edp_bridge_atomic_disable.
+	 * If the panel is in psr, just exit psr state and skip the full
+	 * bridge enable sequence.
+	 */
+	crtc = drm_atomic_get_new_crtc_for_encoder(atomic_state,
+						   drm_bridge->encoder);
+	if (!crtc)
+		return;
+
+	old_crtc_state = drm_atomic_get_old_crtc_state(atomic_state, crtc);
+
+	if (old_crtc_state && old_crtc_state->self_refresh_active) {
+		dp_display_set_psr(dp, false);
+		return;
+	}
+
+	dp_bridge_atomic_enable(drm_bridge, old_bridge_state);
+}
+
+static void edp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
+				      struct drm_bridge_state *old_bridge_state)
+{
+	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *new_crtc_state = NULL, *old_crtc_state = NULL;
+	struct msm_dp_bridge *dp_bridge = to_dp_bridge(drm_bridge);
+	struct msm_dp *dp = dp_bridge->dp_display;
+
+	crtc = drm_atomic_get_old_crtc_for_encoder(atomic_state,
+						   drm_bridge->encoder);
+	if (!crtc)
+		goto out;
+
+	new_crtc_state = drm_atomic_get_new_crtc_state(atomic_state, crtc);
+	if (!new_crtc_state)
+		goto out;
+
+	old_crtc_state = drm_atomic_get_old_crtc_state(atomic_state, crtc);
+	if (!old_crtc_state)
+		goto out;
+
+	/*
+	 * Set self refresh mode if current crtc state is active.
+	 *
+	 * If old crtc state is active, then this is a display disable
+	 * call while the sink is in psr state. So, exit psr here.
+	 * The eDP controller will be disabled in the
+	 * edp_bridge_atomic_post_disable function.
+	 *
+	 * We observed sink is stuck in self refresh if psr exit is skipped
+	 * when display disable occurs while the sink is in psr state.
+	 */
+	if (new_crtc_state->self_refresh_active) {
+		dp_display_set_psr(dp, true);
+		return;
+	} else if (old_crtc_state->self_refresh_active) {
+		dp_display_set_psr(dp, false);
+		return;
+	}
+
+out:
+	dp_bridge_atomic_disable(drm_bridge, old_bridge_state);
+}
+
+static void edp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
+				struct drm_bridge_state *old_bridge_state)
+{
+	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
+
+	crtc = drm_atomic_get_old_crtc_for_encoder(atomic_state,
+						   drm_bridge->encoder);
+	if (!crtc)
+		return;
+
+	new_crtc_state = drm_atomic_get_new_crtc_state(atomic_state, crtc);
+	if (!new_crtc_state)
+		return;
+
+	/*
+	 * Self refresh mode is already set in edp_bridge_atomic_disable.
+	 */
+	if (new_crtc_state->self_refresh_active)
+		return;
+
+	dp_bridge_atomic_post_disable(drm_bridge, old_bridge_state);
+}
+
+static const struct drm_bridge_funcs edp_bridge_ops = {
+	.atomic_enable = edp_bridge_atomic_enable,
+	.atomic_disable = edp_bridge_atomic_disable,
+	.atomic_post_disable = edp_bridge_atomic_post_disable,
+	.mode_set = dp_bridge_mode_set,
+	.mode_valid = dp_bridge_mode_valid,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_check = edp_bridge_atomic_check,
+};
+
 struct drm_bridge *dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 			struct drm_encoder *encoder)
 {
@@ -121,7 +252,7 @@ struct drm_bridge *dp_bridge_init(struct msm_dp *dp_display, struct drm_device *
 	dp_bridge->dp_display = dp_display;
 
 	bridge = &dp_bridge->bridge;
-	bridge->funcs = &dp_bridge_ops;
+	bridge->funcs = dp_display->is_edp ? &edp_bridge_ops : &dp_bridge_ops;
 	bridge->type = dp_display->connector_type;
 
 	/*
