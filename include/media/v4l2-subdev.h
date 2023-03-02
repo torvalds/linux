@@ -1642,13 +1642,13 @@ u64 v4l2_subdev_state_xlate_streams(const struct v4l2_subdev_state *state,
  * enum v4l2_subdev_routing_restriction - Subdevice internal routing restrictions
  *
  * @V4L2_SUBDEV_ROUTING_NO_1_TO_N:
- *	an input stream may not be routed to multiple output streams (stream
+ *	an input stream shall not be routed to multiple output streams (stream
  *	duplication)
  * @V4L2_SUBDEV_ROUTING_NO_N_TO_1:
- *	multiple input streams may not be routed to the same output stream
+ *	multiple input streams shall not be routed to the same output stream
  *	(stream merging)
  * @V4L2_SUBDEV_ROUTING_NO_STREAM_MIX:
- *	streams on the same pad may not be routed to streams on different pads
+ *	streams on the same pad shall not be routed to streams on different pads
  * @V4L2_SUBDEV_ROUTING_ONLY_1_TO_1:
  *	only non-overlapping 1-to-1 stream routing is allowed (a combination of
  *	@V4L2_SUBDEV_ROUTING_NO_1_TO_N and @V4L2_SUBDEV_ROUTING_NO_N_TO_1)

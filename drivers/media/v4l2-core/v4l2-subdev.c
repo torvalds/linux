@@ -1738,7 +1738,7 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 
 		/*
 		 * V4L2_SUBDEV_ROUTING_NO_STREAM_MIX: Streams on the same pad
-		 * may not be routed to streams on different pads.
+		 * shall not be routed to streams on different pads.
 		 */
 		if (disallow & V4L2_SUBDEV_ROUTING_NO_STREAM_MIX) {
 			if (remote_pads[route->sink_pad] != U32_MAX &&
