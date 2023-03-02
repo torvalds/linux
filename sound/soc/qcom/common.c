@@ -8,6 +8,11 @@
 #include "qdsp6/q6afe.h"
 #include "common.h"
 
+static const struct snd_soc_dapm_widget qcom_jack_snd_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+};
+
 int qcom_snd_parse_of(struct snd_soc_card *card)
 {
 	struct device_node *np;
@@ -151,6 +156,11 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		of_node_put(cpu);
 		of_node_put(codec);
 		of_node_put(platform);
+	}
+
+	if (!card->dapm_widgets) {
+		card->dapm_widgets = qcom_jack_snd_widgets;
+		card->num_dapm_widgets = ARRAY_SIZE(qcom_jack_snd_widgets);
 	}
 
 	return 0;
