@@ -172,6 +172,18 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 	return wait;
 }
 
+void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	prt_printf(out, "Currently waiting for:     ");
+	prt_human_readable_u64(out, max(0LL, c->copygc_wait -
+					atomic64_read(&c->io_clock[WRITE].now)) << 9);
+	prt_newline(out);
+
+	prt_printf(out, "Currently calculated wait: ");
+	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
+	prt_newline(out);
+}
+
 static int bch2_copygc_thread(void *arg)
 {
 	struct bch_fs *c = arg;

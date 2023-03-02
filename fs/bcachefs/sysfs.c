@@ -27,6 +27,7 @@
 #include "journal.h"
 #include "keylist.h"
 #include "move.h"
+#include "movinggc.h"
 #include "nocow_locking.h"
 #include "opts.h"
 #include "rebalance.h"
@@ -427,9 +428,9 @@ SHOW(bch2_fs)
 
 	sysfs_printf(rebalance_enabled,		"%i", c->rebalance.enabled);
 	sysfs_pd_controller_show(rebalance,	&c->rebalance.pd); /* XXX */
-	sysfs_hprint(copy_gc_wait,
-		     max(0LL, c->copygc_wait -
-			 atomic64_read(&c->io_clock[WRITE].now)) << 9);
+
+	if (attr == &sysfs_copy_gc_wait)
+		bch2_copygc_wait_to_text(out, c);
 
 	if (attr == &sysfs_rebalance_work)
 		bch2_rebalance_work_to_text(out, c);
