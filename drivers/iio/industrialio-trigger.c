@@ -192,6 +192,12 @@ static void iio_trigger_notify_done_atomic(struct iio_trigger *trig)
 		schedule_work(&trig->reenable_work);
 }
 
+/**
+ * iio_trigger_poll() - Call the IRQ trigger handler of the consumers
+ * @trig: trigger which occurred
+ *
+ * This function should only be called from a hard IRQ context.
+ */
 void iio_trigger_poll(struct iio_trigger *trig)
 {
 	int i;
