@@ -117,6 +117,8 @@ static int edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
 	if (WARN_ON(!conn_state))
 		return -ENODEV;
 
+	conn_state->self_refresh_aware = dp->psr_supported;
+
 	if (!conn_state->crtc || !crtc_state)
 		return 0;
 
