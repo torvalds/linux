@@ -262,6 +262,7 @@ struct usb_interface {
 	unsigned resetting_device:1;	/* true: bandwidth alloc after reset */
 	unsigned authorized:1;		/* used for interface authorization */
 	enum usb_wireless_status wireless_status;
+	struct work_struct wireless_status_work;
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;
@@ -896,6 +897,10 @@ static inline int usb_interface_claimed(struct usb_interface *iface)
 
 extern void usb_driver_release_interface(struct usb_driver *driver,
 			struct usb_interface *iface);
+
+int usb_set_wireless_status(struct usb_interface *iface,
+			enum usb_wireless_status status);
+
 const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 					 const struct usb_device_id *id);
 extern int usb_match_one_id(struct usb_interface *interface,
