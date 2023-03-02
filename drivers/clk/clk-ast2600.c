@@ -73,6 +73,27 @@ static void __iomem *scu_g6_base;
 static u8 soc_rev;
 
 /*
+ * The majority of the clocks in the system are gates paired with a reset
+ * controller that holds the IP in reset; this is represented by the @reset_idx
+ * member of entries here.
+ *
+ * This borrows from clk_hw_register_gate, but registers two 'gates', one
+ * to control the clock enable register and the other to control the reset
+ * IP. This allows us to enforce the ordering:
+ *
+ * 1. Place IP in reset
+ * 2. Enable clock
+ * 3. Delay
+ * 4. Release reset
+ *
+ * Consequently, if reset_idx is set, reset control is implicit: the clock
+ * consumer does not need its own reset handling, as enabling the clock will
+ * also deassert reset.
+ *
+ * There are some gates that do not have an associated reset; these are
+ * handled by using -1 as the index for the reset, and the consumer must
+ * explictly assert/deassert reset lines as required.
+ *
  * Clocks marked with CLK_IS_CRITICAL:
  *
  *  ref0 and ref1 are essential for the SoC to operate
