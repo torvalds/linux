@@ -144,14 +144,11 @@
 #define DSM_I2S_RXCR1_RCSR_MASK			GENMASK(7, 6)
 #define DSM_I2S_RXCR1_RCSR_2CH			(0x0 << 6)
 /* I2S_CKR0 */
-#define DSM_I2S_CKR0_TSD_MASK			GENMASK(1, 0)
-#define DSM_I2S_CKR0_TSD(x)			((x) << 0)
 #define DSM_I2S_CKR0_RSD_MASK			GENMASK(3, 2)
-#define DSM_I2S_CKR0_RSD(x)			((x) << 2)
+#define DSM_I2S_CKR0_RSD_64			(0 << 2)
+#define DSM_I2S_CKR0_RSD_128			(1 << 2)
+#define DSM_I2S_CKR0_RSD_256			(2 << 2)
 /* I2S_CKR1 */
-#define DSM_I2S_CKR1_TLP_MASK			BIT(0)
-#define DSM_I2S_CKR1_TLP_INVERTED		BIT(0)
-#define DSM_I2S_CKR1_TLP_NORMAL			0
 #define DSM_I2S_CKR1_RLP_MASK			BIT(1)
 #define DSM_I2S_CKR1_RLP_INVERTED		BIT(1)
 #define DSM_I2S_CKR1_RLP_NORMAL			0
@@ -161,15 +158,10 @@
 #define DSM_I2S_CKR1_MSS_MASK			BIT(3)
 #define DSM_I2S_CKR1_MSS_MASTER			0
 /* I2S_XFER */
-#define DSM_I2S_XFER_TXS_MASK			BIT(0)
-#define DSM_I2S_XFER_TXS_START			BIT(0)
-#define DSM_I2S_XFER_TXS_STOP			0
 #define DSM_I2S_XFER_RXS_MASK			BIT(1)
 #define DSM_I2S_XFER_RXS_START			BIT(1)
 #define DSM_I2S_XFER_RXS_STOP			0
 /* I2S_CLR */
-#define DSM_I2S_CLR_TXC_MASK			BIT(0)
-#define DSM_I2S_CLR_TXC_CLR			BIT(0)
 #define DSM_I2S_CLR_RXC_MASK			BIT(1)
 #define DSM_I2S_CLR_RXC_CLR			BIT(1)
 

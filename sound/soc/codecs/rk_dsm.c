@@ -239,7 +239,7 @@ static int rk_dsm_set_clk(struct rk_dsm_priv *rd,
 				   DSM_DACSCLKRXINT_DIV_SCKRXDIV(div_bclk));
 		regmap_update_bits(rd->regmap, I2S_CKR0,
 				   DSM_I2S_CKR0_RSD_MASK,
-				   DSM_I2S_CKR0_RSD(64));
+				   DSM_I2S_CKR0_RSD_64);
 	}
 
 	return 0;
@@ -258,29 +258,24 @@ static int rk_dsm_set_dai_fmt(struct snd_soc_dai *dai,
 			   DSM_I2S_CKR1_MSS_MASTER);
 
 	mask = DSM_I2S_CKR1_CKP_MASK |
-	       DSM_I2S_CKR1_RLP_MASK |
-	       DSM_I2S_CKR1_TLP_MASK;
+	       DSM_I2S_CKR1_RLP_MASK;
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
 		val = DSM_I2S_CKR1_CKP_NORMAL |
-		      DSM_I2S_CKR1_RLP_NORMAL |
-		      DSM_I2S_CKR1_TLP_NORMAL;
+		      DSM_I2S_CKR1_RLP_NORMAL;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 		val = DSM_I2S_CKR1_CKP_INVERTED |
-		      DSM_I2S_CKR1_RLP_INVERTED |
-		      DSM_I2S_CKR1_TLP_INVERTED;
+		      DSM_I2S_CKR1_RLP_INVERTED;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		val = DSM_I2S_CKR1_CKP_INVERTED |
-		      DSM_I2S_CKR1_RLP_NORMAL |
-		      DSM_I2S_CKR1_TLP_NORMAL;
+		      DSM_I2S_CKR1_RLP_NORMAL;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
 		val = DSM_I2S_CKR1_CKP_NORMAL |
-		      DSM_I2S_CKR1_RLP_INVERTED |
-		      DSM_I2S_CKR1_TLP_INVERTED;
+		      DSM_I2S_CKR1_RLP_INVERTED;
 		break;
 	default:
 		return -EINVAL;
