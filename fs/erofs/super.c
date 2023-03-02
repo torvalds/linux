@@ -252,7 +252,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		if (IS_ERR(fscache))
 			return PTR_ERR(fscache);
 		dif->fscache = fscache;
-	} else {
+	} else if (!sbi->devs->flatdev) {
 		bdev = blkdev_get_by_path(dif->path, FMODE_READ | FMODE_EXCL,
 					  sb->s_type);
 		if (IS_ERR(bdev))
@@ -293,6 +293,9 @@ static int erofs_scan_devices(struct super_block *sb,
 	}
 	if (!ondisk_extradevs)
 		return 0;
+
+	if (!sbi->devs->extra_devices && !erofs_is_fscache_mode(sb))
+		sbi->devs->flatdev = true;
 
 	sbi->device_id_mask = roundup_pow_of_two(ondisk_extradevs + 1) - 1;
 	pos = le16_to_cpu(dsb->devt_slotoff) * EROFS_DEVT_SLOT_SIZE;

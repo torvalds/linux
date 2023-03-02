@@ -81,6 +81,7 @@ struct erofs_dev_context {
 	struct rw_semaphore rwsem;
 
 	unsigned int extra_devices;
+	bool flatdev;
 };
 
 struct erofs_fs_context {
