@@ -270,6 +270,41 @@ struct bpf_call_arg_meta {
 	struct btf_field *kptr_field;
 };
 
+struct bpf_kfunc_call_arg_meta {
+	/* In parameters */
+	struct btf *btf;
+	u32 func_id;
+	u32 kfunc_flags;
+	const struct btf_type *func_proto;
+	const char *func_name;
+	/* Out parameters */
+	u32 ref_obj_id;
+	u8 release_regno;
+	bool r0_rdonly;
+	u32 ret_btf_id;
+	u64 r0_size;
+	u32 subprogno;
+	struct {
+		u64 value;
+		bool found;
+	} arg_constant;
+	struct {
+		struct btf *btf;
+		u32 btf_id;
+	} arg_obj_drop;
+	struct {
+		struct btf_field *field;
+	} arg_list_head;
+	struct {
+		struct btf_field *field;
+	} arg_rbtree_root;
+	struct {
+		enum bpf_dynptr_type type;
+		u32 id;
+	} initialized_dynptr;
+	u64 mem_size;
+};
+
 struct btf *btf_vmlinux;
 
 static DEFINE_MUTEX(bpf_verifier_lock);
@@ -8810,41 +8845,6 @@ static void mark_btf_func_reg_size(struct bpf_verifier_env *env, u32 regno,
 		}
 	}
 }
-
-struct bpf_kfunc_call_arg_meta {
-	/* In parameters */
-	struct btf *btf;
-	u32 func_id;
-	u32 kfunc_flags;
-	const struct btf_type *func_proto;
-	const char *func_name;
-	/* Out parameters */
-	u32 ref_obj_id;
-	u8 release_regno;
-	bool r0_rdonly;
-	u32 ret_btf_id;
-	u64 r0_size;
-	u32 subprogno;
-	struct {
-		u64 value;
-		bool found;
-	} arg_constant;
-	struct {
-		struct btf *btf;
-		u32 btf_id;
-	} arg_obj_drop;
-	struct {
-		struct btf_field *field;
-	} arg_list_head;
-	struct {
-		struct btf_field *field;
-	} arg_rbtree_root;
-	struct {
-		enum bpf_dynptr_type type;
-		u32 id;
-	} initialized_dynptr;
-	u64 mem_size;
-};
 
 static bool is_kfunc_acquire(struct bpf_kfunc_call_arg_meta *meta)
 {
