@@ -1194,7 +1194,7 @@ static void at91_dma_buffer_done(void *data)
 {
 	struct iio_dev *indio_dev = data;
 
-	iio_trigger_poll_chained(indio_dev->trig);
+	iio_trigger_poll_nested(indio_dev->trig);
 }
 
 static int at91_adc_dma_start(struct iio_dev *indio_dev)

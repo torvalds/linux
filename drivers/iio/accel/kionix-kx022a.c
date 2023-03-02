@@ -899,7 +899,7 @@ static irqreturn_t kx022a_irq_thread_handler(int irq, void *private)
 	mutex_lock(&data->mutex);
 
 	if (data->trigger_enabled) {
-		iio_trigger_poll_chained(data->trig);
+		iio_trigger_poll_nested(data->trig);
 		ret = IRQ_HANDLED;
 	}
 
