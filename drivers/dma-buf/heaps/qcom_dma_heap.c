@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -16,6 +16,15 @@
 #include "qcom_system_heap.h"
 #include "qcom_carveout_heap.h"
 #include "qcom_secure_system_heap.h"
+#include "qcom_dma_heap_priv.h"
+
+/*
+ * We cache the file ops used by DMA-BUFs so that a user with a struct file
+ * pointer can determine if that file is for a DMA-BUF. We can't initialize
+ * the pointer here at compile time as ERR_PTR() evaluates to a function.
+ */
+#define FOPS_INIT_VAL ERR_PTR(-EINVAL)
+static const struct file_operations *dma_buf_cached_fops;
 
 static int qcom_dma_heap_probe(struct platform_device *pdev)
 {
@@ -85,8 +94,23 @@ static int qcom_dma_heap_probe(struct platform_device *pdev)
 
 	free_pdata(heaps);
 
+	dma_buf_cached_fops = FOPS_INIT_VAL;
+
 	return ret;
 }
+
+void qcom_store_dma_buf_fops(struct file *file)
+{
+	if (dma_buf_cached_fops == FOPS_INIT_VAL)
+		dma_buf_cached_fops = file->f_op;
+}
+EXPORT_SYMBOL(qcom_store_dma_buf_fops);
+
+bool qcom_is_dma_buf_file(struct file *file)
+{
+	return file->f_op == dma_buf_cached_fops;
+}
+EXPORT_SYMBOL(qcom_is_dma_buf_file);
 
 static const struct of_device_id qcom_dma_heap_match_table[] = {
 	{.compatible = "qcom,dma-heaps"},

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef _QCOM_DMA_HEAP_H
 #define _QCOM_DMA_HEAP_H
@@ -36,6 +36,8 @@
 #define QCOM_DMA_HEAP_FLAGS_CP_MASK	GENMASK(30, 15)
 
 #define QCOM_DMA_HEAP_FLAG_SECURE	BIT(31)
+
+bool qcom_is_dma_buf_file(struct file *file);
 
 struct dma_buf_heap_prefetch_region {
 	u64 size;

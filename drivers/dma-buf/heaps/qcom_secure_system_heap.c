@@ -41,6 +41,7 @@
  *	Andrew F. Davis <afd@ti.com>
  *
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-buf.h>
@@ -577,7 +578,7 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 	exp_info.size = buffer->len;
 	exp_info.flags = fd_flags;
 	exp_info.priv = buffer;
-	dmabuf = mem_buf_dma_buf_export(&exp_info, &qcom_sg_buf_ops);
+	dmabuf = qcom_dma_buf_export(&exp_info, &qcom_sg_buf_ops);
 	if (IS_ERR(dmabuf)) {
 		ret = PTR_ERR(dmabuf);
 		goto vmperm_release;
