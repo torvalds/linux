@@ -515,6 +515,7 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 const struct v4l2_ioctl_ops saa7146_vbi_ioctl_ops = {
 	.vidioc_querycap             = vidioc_querycap,
 	.vidioc_g_fmt_vbi_cap        = vidioc_g_fmt_vbi_cap,
+	.vidioc_try_fmt_vbi_cap      = vidioc_g_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap        = vidioc_g_fmt_vbi_cap,
 	.vidioc_g_std                = vidioc_g_std,
 	.vidioc_s_std                = vidioc_s_std,
