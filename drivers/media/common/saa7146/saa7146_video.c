@@ -392,6 +392,10 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_forma
 
 	f->fmt.pix.field = field;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	if (f->fmt.pix.width < 48)
+		f->fmt.pix.width = 48;
+	if (f->fmt.pix.height < 32)
+		f->fmt.pix.height = 32;
 	if (f->fmt.pix.width > maxw)
 		f->fmt.pix.width = maxw;
 	if (f->fmt.pix.height > maxh)
