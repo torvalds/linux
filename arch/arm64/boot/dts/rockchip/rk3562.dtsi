@@ -1395,6 +1395,7 @@
 		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>, <&cru CLK_RKVDEC_HEVC_CA>;
 		clock-names = "aclk", "iface", "clk_hevc_cabac";
 		power-domains = <&power RK3562_PD_VDPU>;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1428,6 +1429,7 @@
 		clocks = <&cru ACLK_RKVENC>, <&cru HCLK_RKVENC>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3562_PD_VEPU>;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1712,6 +1714,7 @@
 		clock-names = "aclk", "iface";
 		clocks = <&cru ACLK_JDEC>, <&cru HCLK_JDEC>;
 		power-domains = <&power RK3562_PD_RGA>;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
