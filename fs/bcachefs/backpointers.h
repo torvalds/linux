@@ -96,12 +96,20 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 	return bch2_trans_update_buffered(trans, BTREE_ID_backpointers, &bp_k->k_i);
 }
 
+static inline enum bch_data_type bkey_ptr_data_type(enum btree_id btree_id, unsigned level,
+						    struct bkey_s_c k, struct extent_ptr_decoded p)
+{
+	return  level		? BCH_DATA_btree :
+		p.has_ec	? BCH_DATA_stripe :
+				  BCH_DATA_user;
+}
+
 static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c k, struct extent_ptr_decoded p,
 			   struct bpos *bucket_pos, struct bch_backpointer *bp)
 {
-	enum bch_data_type data_type = level ? BCH_DATA_btree : BCH_DATA_user;
+	enum bch_data_type data_type = bkey_ptr_data_type(btree_id, level, k, p);
 	s64 sectors = level ? btree_sectors(c) : k.k->size;
 	u32 bucket_offset;
 

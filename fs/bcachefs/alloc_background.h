@@ -44,10 +44,10 @@ static inline enum bch_data_type __alloc_data_type(u32 dirty_sectors,
 						   struct bch_alloc_v4 a,
 						   enum bch_data_type data_type)
 {
+	if (stripe)
+		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
 	if (dirty_sectors)
 		return data_type;
-	if (stripe)
-		return BCH_DATA_stripe;
 	if (cached_sectors)
 		return BCH_DATA_cached;
 	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
@@ -64,19 +64,31 @@ static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
 				 a.stripe, a, data_type);
 }
 
+static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
+{
+	return data_type == BCH_DATA_stripe ? BCH_DATA_user : data_type;
+}
+
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
 	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
 }
 
+#define DATA_TYPES_MOVABLE		\
+	((1U << BCH_DATA_btree)|	\
+	 (1U << BCH_DATA_user)|		\
+	 (1U << BCH_DATA_stripe))
+
+static inline bool data_type_movable(enum bch_data_type type)
+{
+	return (1U << type) & DATA_TYPES_MOVABLE;
+}
+
 static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 					      struct bch_dev *ca)
 {
-	if (a.data_type != BCH_DATA_btree &&
-	    a.data_type != BCH_DATA_user)
-		return 0;
-
-	if (a.dirty_sectors >= ca->mi.bucket_size)
+	if (!data_type_movable(a.data_type) ||
+	    a.dirty_sectors >= ca->mi.bucket_size)
 		return 0;
 
 	return div_u64((u64) a.dirty_sectors * (1ULL << 31), ca->mi.bucket_size);

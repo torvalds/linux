@@ -55,8 +55,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 
 	a = bch2_alloc_to_v4(k, &_a);
 	*gen = a->gen;
-	ret = (a->data_type == BCH_DATA_btree ||
-	       a->data_type == BCH_DATA_user) &&
+	ret = data_type_movable(a->data_type) &&
 		a->fragmentation_lru &&
 		a->fragmentation_lru <= time;
 
@@ -158,13 +157,18 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 	struct bch_dev *ca;
 	unsigned dev_idx;
 	s64 wait = S64_MAX, fragmented_allowed, fragmented;
+	unsigned i;
 
 	for_each_rw_member(ca, c, dev_idx) {
 		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
 
 		fragmented_allowed = ((__dev_buckets_available(ca, usage, RESERVE_none) *
 				       ca->mi.bucket_size) >> 1);
-		fragmented = usage.d[BCH_DATA_user].fragmented;
+		fragmented = 0;
+
+		for (i = 0; i < BCH_DATA_NR; i++)
+			if (data_type_movable(i))
+				fragmented += usage.d[i].fragmented;
 
 		wait = min(wait, max(0LL, fragmented_allowed - fragmented));
 	}
