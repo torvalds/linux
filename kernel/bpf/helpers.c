@@ -2227,11 +2227,11 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
 	int err;
 
 	if (!ptr->data)
-		return 0;
+		return NULL;
 
 	err = bpf_dynptr_check_off_len(ptr, offset, len);
 	if (err)
-		return 0;
+		return NULL;
 
 	type = bpf_dynptr_get_type(ptr);
 
@@ -2252,7 +2252,7 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr_kern *ptr, u32 offset
 	}
 	default:
 		WARN_ONCE(true, "unknown dynptr type %d\n", type);
-		return 0;
+		return NULL;
 	}
 }
 
@@ -2300,7 +2300,7 @@ __bpf_kfunc void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr_kern *ptr, u32 o
 					void *buffer, u32 buffer__szk)
 {
 	if (!ptr->data || bpf_dynptr_is_rdonly(ptr))
-		return 0;
+		return NULL;
 
 	/* bpf_dynptr_slice_rdwr is the same logic as bpf_dynptr_slice.
 	 *
