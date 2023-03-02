@@ -74,6 +74,7 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS	BIT(27)
 #define HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS	BIT(28)
 #define HIDPP_QUIRK_HI_RES_SCROLL_1P0		BIT(29)
+#define HIDPP_QUIRK_WIRELESS_STATUS		BIT(30)
 
 /* These are just aliases for now */
 #define HIDPP_QUIRK_KBD_SCROLL_WHEEL HIDPP_QUIRK_HIDPP_WHEELS
@@ -471,6 +472,26 @@ static void hidpp_prefix_name(char **name, int name_length)
 	kfree(*name);
 
 	*name = new_name;
+}
+
+/*
+ * Updates the USB wireless_status based on whether the headset
+ * is turned on and reachable.
+ */
+static void hidpp_update_usb_wireless_status(struct hidpp_device *hidpp)
+{
+	struct hid_device *hdev = hidpp->hid_dev;
+	struct usb_interface *intf;
+
+	if (!(hidpp->quirks & HIDPP_QUIRK_WIRELESS_STATUS))
+		return;
+	if (!hid_is_usb(hdev))
+		return;
+
+	intf = to_usb_interface(hdev->dev.parent);
+	usb_set_wireless_status(intf, hidpp->battery.online ?
+				USB_WIRELESS_STATUS_CONNECTED :
+				USB_WIRELESS_STATUS_DISCONNECTED);
 }
 
 /**
@@ -1920,6 +1941,7 @@ static int hidpp20_query_adc_measurement_info_1f20(struct hidpp_device *hidpp)
 								 &hidpp->battery.voltage);
 	hidpp->battery.capacity = hidpp20_map_adc_measurement_1f20_capacity(hidpp->hid_dev,
 									    hidpp->battery.voltage);
+	hidpp_update_usb_wireless_status(hidpp);
 
 	return 0;
 }
@@ -1944,6 +1966,7 @@ static int hidpp20_adc_measurement_event_1f20(struct hidpp_device *hidpp,
 		hidpp->battery.capacity = hidpp20_map_adc_measurement_1f20_capacity(hidpp->hid_dev, voltage);
 		if (hidpp->battery.ps)
 			power_supply_changed(hidpp->battery.ps);
+		hidpp_update_usb_wireless_status(hidpp);
 	}
 	return 0;
 }
@@ -4595,7 +4618,8 @@ static const struct hid_device_id hidpp_devices[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC088) },
 
 	{ /* G935 Gaming Headset */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0x0a87) },
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0x0a87),
+		.driver_data = HIDPP_QUIRK_WIRELESS_STATUS },
 
 	{ /* MX5000 keyboard over Bluetooth */
 	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb305),
