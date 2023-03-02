@@ -73,8 +73,8 @@ static struct clk_regmap gpll0_vote = {
 	.enable_mask = BIT(0),
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll0_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &gpll0.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&gpll0.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -104,8 +104,8 @@ static struct clk_regmap gpll1_vote = {
 	.enable_mask = BIT(1),
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll1_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &gpll1.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&gpll1.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -135,8 +135,8 @@ static struct clk_regmap gpll2_vote = {
 	.enable_mask = BIT(2),
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll2_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &gpll2.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&gpll2.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -166,8 +166,8 @@ static struct clk_regmap bimc_pll_vote = {
 	.enable_mask = BIT(3),
 	.hw.init = &(struct clk_init_data){
 		.name = "bimc_pll_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &bimc_pll.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&bimc_pll.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -197,8 +197,8 @@ static struct clk_regmap gpll3_vote = {
 	.enable_mask = BIT(4),
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll3_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &gpll3.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&gpll3.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -244,8 +244,8 @@ static struct clk_regmap gpll4_vote = {
 	.enable_mask = BIT(5),
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll4_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &gpll4.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&gpll4.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -290,8 +290,8 @@ static struct clk_regmap gpll5_vote = {
 	.enable_mask = BIT(6),
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll5_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &gpll5.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&gpll5.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -321,8 +321,8 @@ static struct clk_regmap gpll6_vote = {
 	.enable_mask = BIT(7),
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll6_vote",
-		.parent_data = &(const struct clk_parent_data) {
-			.hw = &gpll6.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]) {
+			&gpll6.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_pll_vote_ops,
@@ -1033,7 +1033,20 @@ static struct clk_rcg2 cci_clk_src = {
 	},
 };
 
+/*
+ * This is a frequency table for "General Purpose" clocks.
+ * These clocks can be muxed to the SoC pins and may be used by
+ * external devices. They're often used as PWM source.
+ *
+ * See comment at ftbl_gcc_gp1_3_clk.
+ */
 static const struct freq_tbl ftbl_gcc_camss_gp0_1_clk[] = {
+	F(10000,   P_XO,    16,  1, 120),
+	F(100000,  P_XO,    16,  1,  12),
+	F(500000,  P_GPLL0, 16,  1, 100),
+	F(1000000, P_GPLL0, 16,  1,  50),
+	F(2500000, P_GPLL0, 16,  1,  20),
+	F(5000000, P_GPLL0, 16,  1,  10),
 	F(100000000, P_GPLL0, 8, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
 	{ }
@@ -1198,7 +1211,29 @@ static struct clk_rcg2 crypto_clk_src = {
 	},
 };
 
+/*
+ * This is a frequency table for "General Purpose" clocks.
+ * These clocks can be muxed to the SoC pins and may be used by
+ * external devices. They're often used as PWM source.
+ *
+ * Please note that MND divider must be enabled for duty-cycle
+ * control to be possible. (M != N) Also since D register is configured
+ * with a value multiplied by 2, and duty cycle is calculated as
+ *                             (2 * D) % 2^W
+ *                DutyCycle = ----------------
+ *                              2 * (N % 2^W)
+ * (where W = .mnd_width)
+ * N must be half or less than maximum value for the register.
+ * Otherwise duty-cycle control would be limited.
+ * (e.g. for 8-bit NMD N should be less than 128)
+ */
 static const struct freq_tbl ftbl_gcc_gp1_3_clk[] = {
+	F(10000,   P_XO,    16,  1, 120),
+	F(100000,  P_XO,    16,  1,  12),
+	F(500000,  P_GPLL0, 16,  1, 100),
+	F(1000000, P_GPLL0, 16,  1,  50),
+	F(2500000, P_GPLL0, 16,  1,  20),
+	F(5000000, P_GPLL0, 16,  1,  10),
 	F(19200000, P_XO, 1, 0,	0),
 	{ }
 };

@@ -494,8 +494,7 @@ static const struct v4l2_subdev_ops s2250_ops = {
 
 /* --------------------------------------------------------------------------*/
 
-static int s2250_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int s2250_probe(struct i2c_client *client)
 {
 	struct i2c_client *audio;
 	struct i2c_adapter *adapter = client->adapter;
@@ -621,7 +620,7 @@ static struct i2c_driver s2250_driver = {
 	.driver = {
 		.name	= "s2250",
 	},
-	.probe		= s2250_probe,
+	.probe_new	= s2250_probe,
 	.remove		= s2250_remove,
 	.id_table	= s2250_id,
 };

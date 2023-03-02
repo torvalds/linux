@@ -39,7 +39,7 @@ static struct clk *spear1340_cpu_get_possible_parent(unsigned long newfreq)
 	 * In SPEAr1340, cpu clk's parent sys clk can take input from
 	 * following sources
 	 */
-	const char *sys_clk_src[] = {
+	static const char * const sys_clk_src[] = {
 		"sys_syn_clk",
 		"pll1_clk",
 		"pll2_clk",

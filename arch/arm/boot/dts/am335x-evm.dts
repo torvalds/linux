@@ -126,7 +126,7 @@
 		backlight = <&backlight>;
 
 		port {
-			panel_0: endpoint@0 {
+			panel_0: endpoint {
 				remote-endpoint = <&lcdc_0>;
 			};
 		};
@@ -544,7 +544,7 @@
 		#size-cells = <1>;
 		partition@0 {
 			label = "NAND.SPL";
-			reg = <0x00000000 0x000020000>;
+			reg = <0x00000000 0x00020000>;
 		};
 		partition@1 {
 			label = "NAND.SPL.backup1";

@@ -109,7 +109,7 @@ struct clk *ahci_platform_find_clk(struct ahci_host_priv *hpriv, const char *con
 	int i;
 
 	for (i = 0; i < hpriv->n_clks; i++) {
-		if (!strcmp(hpriv->clks[i].id, con_id))
+		if (hpriv->clks[i].id && !strcmp(hpriv->clks[i].id, con_id))
 			return hpriv->clks[i].clk;
 	}
 

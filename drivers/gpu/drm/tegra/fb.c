@@ -206,6 +206,8 @@ static int tegra_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 static const struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
+	.fb_read = drm_fb_helper_sys_read,
+	.fb_write = drm_fb_helper_sys_write,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
@@ -243,7 +245,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	info = drm_fb_helper_alloc_fbi(helper);
+	info = drm_fb_helper_alloc_info(helper);
 	if (IS_ERR(info)) {
 		dev_err(drm->dev, "failed to allocate framebuffer info\n");
 		drm_gem_object_put(&bo->gem);
@@ -261,7 +263,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 	fb = fbdev->fb;
 	helper->fb = fb;
-	helper->fbdev = info;
+	helper->info = info;
 
 	info->fbops = &tegra_fb_ops;
 
@@ -280,7 +282,6 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		}
 	}
 
-	drm->mode_config.fb_base = (resource_size_t)bo->iova;
 	info->screen_base = (void __iomem *)bo->vaddr + offset;
 	info->screen_size = size;
 	info->fix.smem_start = (unsigned long)(bo->iova + offset);
@@ -307,18 +308,18 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	drm_fb_helper_prepare(drm, &fbdev->base, &tegra_fb_helper_funcs);
+	drm_fb_helper_prepare(drm, &fbdev->base, 32, &tegra_fb_helper_funcs);
 
 	return fbdev;
 }
 
 static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 {
+	drm_fb_helper_unprepare(&fbdev->base);
 	kfree(fbdev);
 }
 
 static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
-			    unsigned int preferred_bpp,
 			    unsigned int num_crtc,
 			    unsigned int max_connectors)
 {
@@ -332,7 +333,7 @@ static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
 		return err;
 	}
 
-	err = drm_fb_helper_initial_config(&fbdev->base, preferred_bpp);
+	err = drm_fb_helper_initial_config(&fbdev->base);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to set initial configuration: %d\n",
 			err);
@@ -348,7 +349,7 @@ fini:
 
 static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
-	drm_fb_helper_unregister_fbi(&fbdev->base);
+	drm_fb_helper_unregister_info(&fbdev->base);
 
 	if (fbdev->fb) {
 		struct tegra_bo *bo = tegra_fb_get_plane(fbdev->fb, 0);
@@ -395,7 +396,7 @@ int tegra_drm_fb_init(struct drm_device *drm)
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
-	err = tegra_fbdev_init(tegra->fbdev, 32, drm->mode_config.num_crtc,
+	err = tegra_fbdev_init(tegra->fbdev, drm->mode_config.num_crtc,
 			       drm->mode_config.num_connector);
 	if (err < 0)
 		return err;

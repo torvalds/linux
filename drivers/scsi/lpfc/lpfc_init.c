@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -30,13 +30,13 @@
 #include <linux/kthread.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
+#include <linux/sched/clock.h>
 #include <linux/ctype.h>
 #include <linux/aer.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/miscdevice.h>
 #include <linux/percpu.h>
-#include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/bitops.h>
 #include <linux/crash_dump.h>
@@ -699,6 +699,8 @@ lpfc_sli4_refresh_params(struct lpfc_hba *phba)
 		return rc;
 	}
 	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	phba->sli4_hba.pc_sli4_params.mi_cap =
+		bf_get(cfg_mi_ver, mbx_sli4_parameters);
 
 	/* Are we forcing MI off via module parameter? */
 	if (phba->cfg_enable_mi)
@@ -5188,16 +5190,25 @@ static void
 lpfc_sli4_parse_latt_fault(struct lpfc_hba *phba,
 			   struct lpfc_acqe_link *acqe_link)
 {
-	switch (bf_get(lpfc_acqe_link_fault, acqe_link)) {
-	case LPFC_ASYNC_LINK_FAULT_NONE:
-	case LPFC_ASYNC_LINK_FAULT_LOCAL:
-	case LPFC_ASYNC_LINK_FAULT_REMOTE:
-	case LPFC_ASYNC_LINK_FAULT_LR_LRR:
+	switch (bf_get(lpfc_acqe_fc_la_att_type, acqe_link)) {
+	case LPFC_FC_LA_TYPE_LINK_DOWN:
+	case LPFC_FC_LA_TYPE_TRUNKING_EVENT:
+	case LPFC_FC_LA_TYPE_ACTIVATE_FAIL:
+	case LPFC_FC_LA_TYPE_LINK_RESET_PRTCL_EVT:
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0398 Unknown link fault code: x%x\n",
-				bf_get(lpfc_acqe_link_fault, acqe_link));
+		switch (bf_get(lpfc_acqe_link_fault, acqe_link)) {
+		case LPFC_ASYNC_LINK_FAULT_NONE:
+		case LPFC_ASYNC_LINK_FAULT_LOCAL:
+		case LPFC_ASYNC_LINK_FAULT_REMOTE:
+		case LPFC_ASYNC_LINK_FAULT_LR_LRR:
+			break;
+		default:
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"0398 Unknown link fault code: x%x\n",
+					bf_get(lpfc_acqe_link_fault, acqe_link));
+			break;
+		}
 		break;
 	}
 }
@@ -6280,6 +6291,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
 	struct lpfc_mbx_read_top *la;
+	char *log_level;
 	int rc;
 
 	if (bf_get(lpfc_trailer_type, acqe_fc) !=
@@ -6311,25 +6323,70 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 				bf_get(lpfc_acqe_fc_la_port_number, acqe_fc);
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_fc);
+	phba->sli4_hba.link_state.link_status =
+				bf_get(lpfc_acqe_fc_la_link_status, acqe_fc);
 
-	if (bf_get(lpfc_acqe_fc_la_att_type, acqe_fc) ==
-	    LPFC_FC_LA_TYPE_LINK_DOWN)
-		phba->sli4_hba.link_state.logical_speed = 0;
-	else if (!phba->sli4_hba.conf_trunk)
-		phba->sli4_hba.link_state.logical_speed =
+	/*
+	 * Only select attention types need logical speed modification to what
+	 * was previously set.
+	 */
+	if (phba->sli4_hba.link_state.status >= LPFC_FC_LA_TYPE_LINK_UP &&
+	    phba->sli4_hba.link_state.status < LPFC_FC_LA_TYPE_ACTIVATE_FAIL) {
+		if (bf_get(lpfc_acqe_fc_la_att_type, acqe_fc) ==
+		    LPFC_FC_LA_TYPE_LINK_DOWN)
+			phba->sli4_hba.link_state.logical_speed = 0;
+		else if (!phba->sli4_hba.conf_trunk)
+			phba->sli4_hba.link_state.logical_speed =
 				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
+	}
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2896 Async FC event - Speed:%dGBaud Topology:x%x "
 			"LA Type:x%x Port Type:%d Port Number:%d Logical speed:"
-			"%dMbps Fault:%d\n",
+			"%dMbps Fault:x%x Link Status:x%x\n",
 			phba->sli4_hba.link_state.speed,
 			phba->sli4_hba.link_state.topology,
 			phba->sli4_hba.link_state.status,
 			phba->sli4_hba.link_state.type,
 			phba->sli4_hba.link_state.number,
 			phba->sli4_hba.link_state.logical_speed,
-			phba->sli4_hba.link_state.fault);
+			phba->sli4_hba.link_state.fault,
+			phba->sli4_hba.link_state.link_status);
+
+	/*
+	 * The following attention types are informational only, providing
+	 * further details about link status.  Overwrite the value of
+	 * link_state.status appropriately.  No further action is required.
+	 */
+	if (phba->sli4_hba.link_state.status >= LPFC_FC_LA_TYPE_ACTIVATE_FAIL) {
+		switch (phba->sli4_hba.link_state.status) {
+		case LPFC_FC_LA_TYPE_ACTIVATE_FAIL:
+			log_level = KERN_WARNING;
+			phba->sli4_hba.link_state.status =
+					LPFC_FC_LA_TYPE_LINK_DOWN;
+			break;
+		case LPFC_FC_LA_TYPE_LINK_RESET_PRTCL_EVT:
+			/*
+			 * During bb credit recovery establishment, receiving
+			 * this attention type is normal.  Link Up attention
+			 * type is expected to occur before this informational
+			 * attention type so keep the Link Up status.
+			 */
+			log_level = KERN_INFO;
+			phba->sli4_hba.link_state.status =
+					LPFC_FC_LA_TYPE_LINK_UP;
+			break;
+		default:
+			log_level = KERN_INFO;
+			break;
+		}
+		lpfc_log_msg(phba, log_level, LOG_SLI,
+			     "2992 Async FC event - Informational Link "
+			     "Attention Type x%x\n",
+			     bf_get(lpfc_acqe_fc_la_att_type, acqe_fc));
+		return;
+	}
+
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -10093,17 +10150,15 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		qmin = phba->sli4_hba.max_cfg_param.max_wq;
 		if (phba->sli4_hba.max_cfg_param.max_cq < qmin)
 			qmin = phba->sli4_hba.max_cfg_param.max_cq;
-		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
-			qmin = phba->sli4_hba.max_cfg_param.max_eq;
 		/*
-		 * Whats left after this can go toward NVME / FCP.
-		 * The minus 4 accounts for ELS, NVME LS, MBOX
-		 * plus one extra. When configured for
-		 * NVMET, FCP io channel WQs are not created.
+		 * Reserve 4 (ELS, NVME LS, MBOX, plus one extra) and
+		 * the remainder can be used for NVME / FCP.
 		 */
 		qmin -= 4;
+		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
+			qmin = phba->sli4_hba.max_cfg_param.max_eq;
 
-		/* Check to see if there is enough for NVME */
+		/* Check to see if there is enough for default cfg */
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -13842,6 +13897,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					   mbx_sli4_parameters);
 	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
 	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
+	sli4_params->mi_cap = bf_get(cfg_mi_ver, mbx_sli4_parameters);
 
 	/* Check for Extended Pre-Registered SGL support */
 	phba->cfg_xpsgl = bf_get(cfg_xpsgl, mbx_sli4_parameters);
@@ -13916,6 +13972,13 @@ fcponly:
 	/* Make sure that sge_supp_len can be handled by the driver */
 	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
 		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
+
+	rc = dma_set_max_seg_size(&phba->pcidev->dev, sli4_params->sge_supp_len);
+	if (unlikely(rc)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"6400 Can't set dma maximum segment size\n");
+		return rc;
+	}
 
 	/*
 	 * Check whether the adapter supports an embedded copy of the

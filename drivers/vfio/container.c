@@ -29,13 +29,6 @@ static struct vfio {
 	struct mutex			iommu_drivers_lock;
 } vfio;
 
-#ifdef CONFIG_VFIO_NOIOMMU
-bool vfio_noiommu __read_mostly;
-module_param_named(enable_unsafe_noiommu_mode,
-		   vfio_noiommu, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  This mode provides no device isolation, no DMA translation, no host kernel protection, cannot be used for device assignment to virtual machines, requires RAWIO permissions, and will taint the kernel.  If you do not know what this is for, step away. (default: false)");
-#endif
-
 static void *vfio_noiommu_open(unsigned long arg)
 {
 	if (arg != VFIO_NOIOMMU_IOMMU)
@@ -188,8 +181,9 @@ void vfio_device_container_unregister(struct vfio_device *device)
 			device->group->container->iommu_data, device);
 }
 
-long vfio_container_ioctl_check_extension(struct vfio_container *container,
-					  unsigned long arg)
+static long
+vfio_container_ioctl_check_extension(struct vfio_container *container,
+				     unsigned long arg)
 {
 	struct vfio_iommu_driver *driver;
 	long ret = 0;
@@ -366,7 +360,7 @@ static int vfio_fops_open(struct inode *inode, struct file *filep)
 {
 	struct vfio_container *container;
 
-	container = kzalloc(sizeof(*container), GFP_KERNEL);
+	container = kzalloc(sizeof(*container), GFP_KERNEL_ACCOUNT);
 	if (!container)
 		return -ENOMEM;
 
@@ -382,11 +376,6 @@ static int vfio_fops_open(struct inode *inode, struct file *filep)
 static int vfio_fops_release(struct inode *inode, struct file *filep)
 {
 	struct vfio_container *container = filep->private_data;
-	struct vfio_iommu_driver *driver = container->iommu_driver;
-
-	if (driver && driver->ops->notify)
-		driver->ops->notify(container->iommu_data,
-				    VFIO_IOMMU_CONTAINER_CLOSE);
 
 	filep->private_data = NULL;
 
@@ -511,14 +500,15 @@ void vfio_group_detach_container(struct vfio_group *group)
 	vfio_container_put(container);
 }
 
-int vfio_device_assign_container(struct vfio_device *device)
+int vfio_group_use_container(struct vfio_group *group)
 {
-	struct vfio_group *group = device->group;
-
 	lockdep_assert_held(&group->group_lock);
 
-	if (!group->container || !group->container->iommu_driver ||
-	    WARN_ON(!group->container_users))
+	/*
+	 * The container fd has been assigned with VFIO_GROUP_SET_CONTAINER but
+	 * VFIO_SET_IOMMU hasn't been done yet.
+	 */
+	if (!group->container->iommu_driver)
 		return -EINVAL;
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
@@ -529,122 +519,56 @@ int vfio_device_assign_container(struct vfio_device *device)
 	return 0;
 }
 
-void vfio_device_unassign_container(struct vfio_device *device)
+void vfio_group_unuse_container(struct vfio_group *group)
 {
-	mutex_lock(&device->group->group_lock);
-	WARN_ON(device->group->container_users <= 1);
-	device->group->container_users--;
-	fput(device->group->opened_file);
-	mutex_unlock(&device->group->group_lock);
+	lockdep_assert_held(&group->group_lock);
+
+	WARN_ON(group->container_users <= 1);
+	group->container_users--;
+	fput(group->opened_file);
 }
 
-/*
- * Pin contiguous user pages and return their associated host pages for local
- * domain only.
- * @device [in]  : device
- * @iova [in]    : starting IOVA of user pages to be pinned.
- * @npage [in]   : count of pages to be pinned.  This count should not
- *		   be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
- * @prot [in]    : protection flags
- * @pages[out]   : array of host pages
- * Return error or number of pages pinned.
- *
- * A driver may only call this function if the vfio_device was created
- * by vfio_register_emulated_iommu_dev().
- */
-int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
-		   int npage, int prot, struct page **pages)
+int vfio_device_container_pin_pages(struct vfio_device *device,
+				    dma_addr_t iova, int npage,
+				    int prot, struct page **pages)
 {
-	struct vfio_container *container;
-	struct vfio_group *group = device->group;
-	struct vfio_iommu_driver *driver;
-	int ret;
-
-	if (!pages || !npage || !vfio_assert_device_open(device))
-		return -EINVAL;
+	struct vfio_container *container = device->group->container;
+	struct iommu_group *iommu_group = device->group->iommu_group;
+	struct vfio_iommu_driver *driver = container->iommu_driver;
 
 	if (npage > VFIO_PIN_PAGES_MAX_ENTRIES)
 		return -E2BIG;
 
-	/* group->container cannot change while a vfio device is open */
-	container = group->container;
-	driver = container->iommu_driver;
-	if (likely(driver && driver->ops->pin_pages))
-		ret = driver->ops->pin_pages(container->iommu_data,
-					     group->iommu_group, iova,
-					     npage, prot, pages);
-	else
-		ret = -ENOTTY;
-
-	return ret;
+	if (unlikely(!driver || !driver->ops->pin_pages))
+		return -ENOTTY;
+	return driver->ops->pin_pages(container->iommu_data, iommu_group, iova,
+				      npage, prot, pages);
 }
-EXPORT_SYMBOL(vfio_pin_pages);
 
-/*
- * Unpin contiguous host pages for local domain only.
- * @device [in]  : device
- * @iova [in]    : starting address of user pages to be unpinned.
- * @npage [in]   : count of pages to be unpinned.  This count should not
- *                 be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
- */
-void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova, int npage)
+void vfio_device_container_unpin_pages(struct vfio_device *device,
+				       dma_addr_t iova, int npage)
 {
-	struct vfio_container *container;
-	struct vfio_iommu_driver *driver;
+	struct vfio_container *container = device->group->container;
 
 	if (WARN_ON(npage <= 0 || npage > VFIO_PIN_PAGES_MAX_ENTRIES))
 		return;
 
-	if (WARN_ON(!vfio_assert_device_open(device)))
-		return;
-
-	/* group->container cannot change while a vfio device is open */
-	container = device->group->container;
-	driver = container->iommu_driver;
-
-	driver->ops->unpin_pages(container->iommu_data, iova, npage);
+	container->iommu_driver->ops->unpin_pages(container->iommu_data, iova,
+						  npage);
 }
-EXPORT_SYMBOL(vfio_unpin_pages);
 
-/*
- * This interface allows the CPUs to perform some sort of virtual DMA on
- * behalf of the device.
- *
- * CPUs read/write from/into a range of IOVAs pointing to user space memory
- * into/from a kernel buffer.
- *
- * As the read/write of user space memory is conducted via the CPUs and is
- * not a real device DMA, it is not necessary to pin the user space memory.
- *
- * @device [in]		: VFIO device
- * @iova [in]		: base IOVA of a user space buffer
- * @data [in]		: pointer to kernel buffer
- * @len [in]		: kernel buffer length
- * @write		: indicate read or write
- * Return error code on failure or 0 on success.
- */
-int vfio_dma_rw(struct vfio_device *device, dma_addr_t iova, void *data,
-		size_t len, bool write)
+int vfio_device_container_dma_rw(struct vfio_device *device,
+				 dma_addr_t iova, void *data,
+				 size_t len, bool write)
 {
-	struct vfio_container *container;
-	struct vfio_iommu_driver *driver;
-	int ret = 0;
+	struct vfio_container *container = device->group->container;
+	struct vfio_iommu_driver *driver = container->iommu_driver;
 
-	if (!data || len <= 0 || !vfio_assert_device_open(device))
-		return -EINVAL;
-
-	/* group->container cannot change while a vfio device is open */
-	container = device->group->container;
-	driver = container->iommu_driver;
-
-	if (likely(driver && driver->ops->dma_rw))
-		ret = driver->ops->dma_rw(container->iommu_data,
-					  iova, data, len, write);
-	else
-		ret = -ENOTTY;
-	return ret;
+	if (unlikely(!driver || !driver->ops->dma_rw))
+		return -ENOTTY;
+	return driver->ops->dma_rw(container->iommu_data, iova, data, len,
+				   write);
 }
-EXPORT_SYMBOL(vfio_dma_rw);
 
 int __init vfio_container_init(void)
 {
@@ -678,3 +602,6 @@ void vfio_container_cleanup(void)
 	misc_deregister(&vfio_dev);
 	mutex_destroy(&vfio.iommu_drivers_lock);
 }
+
+MODULE_ALIAS_MISCDEV(VFIO_MINOR);
+MODULE_ALIAS("devname:vfio/vfio");

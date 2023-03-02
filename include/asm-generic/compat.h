@@ -15,7 +15,7 @@
 #endif
 
 #ifndef compat_arg_u64
-#ifdef CONFIG_CPU_BIG_ENDIAN
+#ifndef CONFIG_CPU_BIG_ENDIAN
 #define compat_arg_u64(name)		u32  name##_lo, u32  name##_hi
 #define compat_arg_u64_dual(name)	u32, name##_lo, u32, name##_hi
 #else

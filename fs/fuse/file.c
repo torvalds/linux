@@ -18,6 +18,8 @@
 #include <linux/falloc.h>
 #include <linux/uio.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
+#include <linux/file.h>
 
 static int fuse_send_open(struct fuse_mount *fm, u64 nodeid,
 			  unsigned int open_flags, int opcode,
@@ -477,48 +479,36 @@ static void fuse_sync_writes(struct inode *inode)
 	fuse_release_nowrite(inode);
 }
 
-static int fuse_flush(struct file *file, fl_owner_t id)
-{
-	struct inode *inode = file_inode(file);
-	struct fuse_mount *fm = get_fuse_mount(inode);
-	struct fuse_file *ff = file->private_data;
+struct fuse_flush_args {
+	struct fuse_args args;
 	struct fuse_flush_in inarg;
-	FUSE_ARGS(args);
+	struct work_struct work;
+	struct file *file;
+};
+
+static int fuse_do_flush(struct fuse_flush_args *fa)
+{
 	int err;
-
-	if (fuse_is_bad(inode))
-		return -EIO;
-
-	if (ff->open_flags & FOPEN_NOFLUSH && !fm->fc->writeback_cache)
-		return 0;
+	struct inode *inode = file_inode(fa->file);
+	struct fuse_mount *fm = get_fuse_mount(inode);
 
 	err = write_inode_now(inode, 1);
 	if (err)
-		return err;
+		goto out;
 
 	inode_lock(inode);
 	fuse_sync_writes(inode);
 	inode_unlock(inode);
 
-	err = filemap_check_errors(file->f_mapping);
+	err = filemap_check_errors(fa->file->f_mapping);
 	if (err)
-		return err;
+		goto out;
 
 	err = 0;
 	if (fm->fc->no_flush)
 		goto inval_attr_out;
 
-	memset(&inarg, 0, sizeof(inarg));
-	inarg.fh = ff->fh;
-	inarg.lock_owner = fuse_lock_owner_id(fm->fc, id);
-	args.opcode = FUSE_FLUSH;
-	args.nodeid = get_node_id(inode);
-	args.in_numargs = 1;
-	args.in_args[0].size = sizeof(inarg);
-	args.in_args[0].value = &inarg;
-	args.force = true;
-
-	err = fuse_simple_request(fm, &args);
+	err = fuse_simple_request(fm, &fa->args);
 	if (err == -ENOSYS) {
 		fm->fc->no_flush = 1;
 		err = 0;
@@ -531,7 +521,55 @@ inval_attr_out:
 	 */
 	if (!err && fm->fc->writeback_cache)
 		fuse_invalidate_attr_mask(inode, STATX_BLOCKS);
+
+out:
+	fput(fa->file);
+	kfree(fa);
 	return err;
+}
+
+static void fuse_flush_async(struct work_struct *work)
+{
+	struct fuse_flush_args *fa = container_of(work, typeof(*fa), work);
+
+	fuse_do_flush(fa);
+}
+
+static int fuse_flush(struct file *file, fl_owner_t id)
+{
+	struct fuse_flush_args *fa;
+	struct inode *inode = file_inode(file);
+	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_file *ff = file->private_data;
+
+	if (fuse_is_bad(inode))
+		return -EIO;
+
+	if (ff->open_flags & FOPEN_NOFLUSH && !fm->fc->writeback_cache)
+		return 0;
+
+	fa = kzalloc(sizeof(*fa), GFP_KERNEL);
+	if (!fa)
+		return -ENOMEM;
+
+	fa->inarg.fh = ff->fh;
+	fa->inarg.lock_owner = fuse_lock_owner_id(fm->fc, id);
+	fa->args.opcode = FUSE_FLUSH;
+	fa->args.nodeid = get_node_id(inode);
+	fa->args.in_numargs = 1;
+	fa->args.in_args[0].size = sizeof(fa->inarg);
+	fa->args.in_args[0].value = &fa->inarg;
+	fa->args.force = true;
+	fa->file = get_file(file);
+
+	/* Don't wait if the task is exiting */
+	if (current->flags & PF_EXITING) {
+		INIT_WORK(&fa->work, fuse_flush_async);
+		schedule_work(&fa->work);
+		return 0;
+	}
+
+	return fuse_do_flush(fa);
 }
 
 int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
@@ -652,7 +690,7 @@ static ssize_t fuse_get_res_by_io(struct fuse_io_priv *io)
 	return io->bytes < 0 ? io->size : io->bytes;
 }
 
-/**
+/*
  * In case of short read, the caller sets 'pos' to the position of
  * actual end of fuse request in IO request. Otherwise, if bytes_requested
  * == bytes_transferred or rw == WRITE, the caller sets 'pos' to -1.
@@ -1313,7 +1351,8 @@ static ssize_t fuse_cache_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			return err;
 
 		if (fc->handle_killpriv_v2 &&
-		    should_remove_suid(file_dentry(file))) {
+		    setattr_should_drop_suidgid(&nop_mnt_idmap,
+						file_inode(file))) {
 			goto writethrough;
 		}
 
@@ -1563,14 +1602,47 @@ static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	return res;
 }
 
+static bool fuse_direct_write_extending_i_size(struct kiocb *iocb,
+					       struct iov_iter *iter)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+
+	return iocb->ki_pos + iov_iter_count(iter) > i_size_read(inode);
+}
+
 static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
+	struct file *file = iocb->ki_filp;
+	struct fuse_file *ff = file->private_data;
 	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
 	ssize_t res;
+	bool exclusive_lock =
+		!(ff->open_flags & FOPEN_PARALLEL_DIRECT_WRITES) ||
+		iocb->ki_flags & IOCB_APPEND ||
+		fuse_direct_write_extending_i_size(iocb, from);
 
-	/* Don't allow parallel writes to the same file */
-	inode_lock(inode);
+	/*
+	 * Take exclusive lock if
+	 * - Parallel direct writes are disabled - a user space decision
+	 * - Parallel direct writes are enabled and i_size is being extended.
+	 *   This might not be needed at all, but needs further investigation.
+	 */
+	if (exclusive_lock)
+		inode_lock(inode);
+	else {
+		inode_lock_shared(inode);
+
+		/* A race with truncate might have come up as the decision for
+		 * the lock type was done without holding the lock, check again.
+		 */
+		if (fuse_direct_write_extending_i_size(iocb, from)) {
+			inode_unlock_shared(inode);
+			inode_lock(inode);
+			exclusive_lock = true;
+		}
+	}
+
 	res = generic_write_checks(iocb, from);
 	if (res > 0) {
 		if (!is_sync_kiocb(iocb) && iocb->ki_flags & IOCB_DIRECT) {
@@ -1581,7 +1653,10 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			fuse_write_update_attr(inode, iocb->ki_pos, res);
 		}
 	}
-	inode_unlock(inode);
+	if (exclusive_lock)
+		inode_unlock(inode);
+	else
+		inode_unlock_shared(inode);
 
 	return res;
 }
@@ -2148,7 +2223,7 @@ static bool fuse_writepage_need_send(struct fuse_conn *fc, struct page *page,
 	return false;
 }
 
-static int fuse_writepages_fill(struct page *page,
+static int fuse_writepages_fill(struct folio *folio,
 		struct writeback_control *wbc, void *_data)
 {
 	struct fuse_fill_wb_data *data = _data;
@@ -2167,7 +2242,7 @@ static int fuse_writepages_fill(struct page *page,
 			goto out_unlock;
 	}
 
-	if (wpa && fuse_writepage_need_send(fc, page, ap, data)) {
+	if (wpa && fuse_writepage_need_send(fc, &folio->page, ap, data)) {
 		fuse_writepages_send(data);
 		data->wpa = NULL;
 	}
@@ -2202,7 +2277,7 @@ static int fuse_writepages_fill(struct page *page,
 		data->max_pages = 1;
 
 		ap = &wpa->ia.ap;
-		fuse_write_args_fill(&wpa->ia, data->ff, page_offset(page), 0);
+		fuse_write_args_fill(&wpa->ia, data->ff, folio_pos(folio), 0);
 		wpa->ia.write.in.write_flags |= FUSE_WRITE_CACHE;
 		wpa->next = NULL;
 		ap->args.in_pages = true;
@@ -2210,13 +2285,13 @@ static int fuse_writepages_fill(struct page *page,
 		ap->num_pages = 0;
 		wpa->inode = inode;
 	}
-	set_page_writeback(page);
+	folio_start_writeback(folio);
 
-	copy_highpage(tmp_page, page);
+	copy_highpage(tmp_page, &folio->page);
 	ap->pages[ap->num_pages] = tmp_page;
 	ap->descs[ap->num_pages].offset = 0;
 	ap->descs[ap->num_pages].length = PAGE_SIZE;
-	data->orig_pages[ap->num_pages] = page;
+	data->orig_pages[ap->num_pages] = &folio->page;
 
 	inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
 	inc_node_page_state(tmp_page, NR_WRITEBACK_TEMP);
@@ -2230,13 +2305,13 @@ static int fuse_writepages_fill(struct page *page,
 		spin_lock(&fi->lock);
 		ap->num_pages++;
 		spin_unlock(&fi->lock);
-	} else if (fuse_writepage_add(wpa, page)) {
+	} else if (fuse_writepage_add(wpa, &folio->page)) {
 		data->wpa = wpa;
 	} else {
-		end_page_writeback(page);
+		folio_end_writeback(folio);
 	}
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 
 	return err;
 }
@@ -2931,6 +3006,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 	if (iov_iter_rw(iter) == WRITE) {
 		fuse_write_update_attr(inode, pos, ret);
+		/* For extending writes we already hold exclusive lock */
 		if (ret < 0 && offset + count > i_size)
 			fuse_do_truncate(file);
 	}
@@ -2963,11 +3039,9 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 		.mode = mode
 	};
 	int err;
-	bool lock_inode = !(mode & FALLOC_FL_KEEP_SIZE) ||
-			   (mode & (FALLOC_FL_PUNCH_HOLE |
-				    FALLOC_FL_ZERO_RANGE));
-
-	bool block_faults = FUSE_IS_DAX(inode) && lock_inode;
+	bool block_faults = FUSE_IS_DAX(inode) &&
+		(!(mode & FALLOC_FL_KEEP_SIZE) ||
+		 (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)));
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
 		     FALLOC_FL_ZERO_RANGE))
@@ -2976,22 +3050,20 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	if (fm->fc->no_fallocate)
 		return -EOPNOTSUPP;
 
-	if (lock_inode) {
-		inode_lock(inode);
-		if (block_faults) {
-			filemap_invalidate_lock(inode->i_mapping);
-			err = fuse_dax_break_layouts(inode, 0, 0);
-			if (err)
-				goto out;
-		}
+	inode_lock(inode);
+	if (block_faults) {
+		filemap_invalidate_lock(inode->i_mapping);
+		err = fuse_dax_break_layouts(inode, 0, 0);
+		if (err)
+			goto out;
+	}
 
-		if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)) {
-			loff_t endbyte = offset + length - 1;
+	if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)) {
+		loff_t endbyte = offset + length - 1;
 
-			err = fuse_writeback_range(inode, offset, endbyte);
-			if (err)
-				goto out;
-		}
+		err = fuse_writeback_range(inode, offset, endbyte);
+		if (err)
+			goto out;
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
@@ -3000,6 +3072,10 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 		if (err)
 			goto out;
 	}
+
+	err = file_modified(file);
+	if (err)
+		goto out;
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE))
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
@@ -3035,8 +3111,7 @@ out:
 	if (block_faults)
 		filemap_invalidate_unlock(inode->i_mapping);
 
-	if (lock_inode)
-		inode_unlock(inode);
+	inode_unlock(inode);
 
 	fuse_flush_time_update(inode);
 

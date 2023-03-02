@@ -157,13 +157,13 @@ config INTEL_RST
 	  as usual.
 
 config INTEL_SDSI
-	tristate "Intel Software Defined Silicon Driver"
+	tristate "Intel On Demand (Software Defined Silicon) Driver"
 	depends on INTEL_VSEC
 	depends on X86_64
 	help
-	  This driver enables access to the Intel Software Defined Silicon
-	  interface used to provision silicon features with an authentication
-	  certificate and capability license.
+	  This driver enables access to the Intel On Demand (formerly Software
+	  Defined Silicon) interface used to provision silicon features with an
+	  authentication certificate and capability license.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_sdsi.
@@ -181,6 +181,19 @@ config INTEL_SMARTCONNECT
 
 	  This driver checks to determine whether the device has Intel Smart
 	  Connect enabled, and if so disables it.
+
+config INTEL_TPMI
+	tristate "Intel Topology Aware Register and PM Capsule Interface (TPMI)"
+	depends on INTEL_VSEC
+	depends on X86_64
+	help
+	  The Intel Topology Aware Register and PM Capsule Interface (TPMI),
+	  provides enumerable MMIO interface for power management features.
+	  This driver creates devices, so that other PM feature driver can
+	  be loaded for PM specific feature operation.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel_vsec_tpmi.
 
 config INTEL_TURBO_MAX_3
 	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"

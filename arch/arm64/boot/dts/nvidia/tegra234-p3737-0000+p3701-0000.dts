@@ -17,873 +17,17 @@
 		serial1 = &uarta;
 	};
 
+	chosen {
+		bootargs = "console=ttyTCU0,115200n8";
+		stdout-path = "serial0:115200n8";
+	};
+
 	bus@0 {
 		aconnect@2900000 {
 			status = "okay";
 
 			ahub@2900800 {
 				status = "okay";
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0x0>;
-
-						xbar_admaif0: endpoint {
-							remote-endpoint = <&admaif0>;
-						};
-					};
-
-					port@1 {
-						reg = <0x1>;
-
-						xbar_admaif1: endpoint {
-							remote-endpoint = <&admaif1>;
-						};
-					};
-
-					port@2 {
-						reg = <0x2>;
-
-						xbar_admaif2: endpoint {
-							remote-endpoint = <&admaif2>;
-						};
-					};
-
-					port@3 {
-						reg = <0x3>;
-
-						xbar_admaif3: endpoint {
-							remote-endpoint = <&admaif3>;
-						};
-					};
-
-					port@4 {
-						reg = <0x4>;
-
-						xbar_admaif4: endpoint {
-							remote-endpoint = <&admaif4>;
-						};
-					};
-
-					port@5 {
-						reg = <0x5>;
-
-						xbar_admaif5: endpoint {
-							remote-endpoint = <&admaif5>;
-						};
-					};
-
-					port@6 {
-						reg = <0x6>;
-
-						xbar_admaif6: endpoint {
-							remote-endpoint = <&admaif6>;
-						};
-					};
-
-					port@7 {
-						reg = <0x7>;
-
-						xbar_admaif7: endpoint {
-							remote-endpoint = <&admaif7>;
-						};
-					};
-
-					port@8 {
-						reg = <0x8>;
-
-						xbar_admaif8: endpoint {
-							remote-endpoint = <&admaif8>;
-						};
-					};
-
-					port@9 {
-						reg = <0x9>;
-
-						xbar_admaif9: endpoint {
-							remote-endpoint = <&admaif9>;
-						};
-					};
-
-					port@a {
-						reg = <0xa>;
-
-						xbar_admaif10: endpoint {
-							remote-endpoint = <&admaif10>;
-						};
-					};
-
-					port@b {
-						reg = <0xb>;
-
-						xbar_admaif11: endpoint {
-							remote-endpoint = <&admaif11>;
-						};
-					};
-
-					port@c {
-						reg = <0xc>;
-
-						xbar_admaif12: endpoint {
-							remote-endpoint = <&admaif12>;
-						};
-					};
-
-					port@d {
-						reg = <0xd>;
-
-						xbar_admaif13: endpoint {
-							remote-endpoint = <&admaif13>;
-						};
-					};
-
-					port@e {
-						reg = <0xe>;
-
-						xbar_admaif14: endpoint {
-							remote-endpoint = <&admaif14>;
-						};
-					};
-
-					port@f {
-						reg = <0xf>;
-
-						xbar_admaif15: endpoint {
-							remote-endpoint = <&admaif15>;
-						};
-					};
-
-					port@10 {
-						reg = <0x10>;
-
-						xbar_admaif16: endpoint {
-							remote-endpoint = <&admaif16>;
-						};
-					};
-
-					port@11 {
-						reg = <0x11>;
-
-						xbar_admaif17: endpoint {
-							remote-endpoint = <&admaif17>;
-						};
-					};
-
-					port@12 {
-						reg = <0x12>;
-
-						xbar_admaif18: endpoint {
-							remote-endpoint = <&admaif18>;
-						};
-					};
-
-					port@13 {
-						reg = <0x13>;
-
-						xbar_admaif19: endpoint {
-							remote-endpoint = <&admaif19>;
-						};
-					};
-
-					xbar_i2s1_port: port@14 {
-						reg = <0x14>;
-
-						xbar_i2s1: endpoint {
-							remote-endpoint = <&i2s1_cif>;
-						};
-					};
-
-					xbar_i2s2_port: port@15 {
-						reg = <0x15>;
-
-						xbar_i2s2: endpoint {
-							remote-endpoint = <&i2s2_cif>;
-						};
-					};
-
-					xbar_i2s4_port: port@17 {
-						reg = <0x17>;
-
-						xbar_i2s4: endpoint {
-							remote-endpoint = <&i2s4_cif>;
-						};
-					};
-
-					xbar_i2s6_port: port@19 {
-						reg = <0x19>;
-
-						xbar_i2s6: endpoint {
-							remote-endpoint = <&i2s6_cif>;
-						};
-					};
-
-					xbar_dmic3_port: port@1c {
-						reg = <0x1c>;
-
-						xbar_dmic3: endpoint {
-							remote-endpoint = <&dmic3_cif>;
-						};
-					};
-
-					xbar_sfc1_in_port: port@20 {
-						reg = <0x20>;
-
-						xbar_sfc1_in: endpoint {
-							remote-endpoint = <&sfc1_cif_in>;
-						};
-					};
-
-					port@21 {
-						reg = <0x21>;
-
-						xbar_sfc1_out: endpoint {
-							remote-endpoint = <&sfc1_cif_out>;
-						};
-					};
-
-					xbar_sfc2_in_port: port@22 {
-						reg = <0x22>;
-
-						xbar_sfc2_in: endpoint {
-							remote-endpoint = <&sfc2_cif_in>;
-						};
-					};
-
-					port@23 {
-						reg = <0x23>;
-
-						xbar_sfc2_out: endpoint {
-							remote-endpoint = <&sfc2_cif_out>;
-						};
-					};
-
-					xbar_sfc3_in_port: port@24 {
-						reg = <0x24>;
-
-						xbar_sfc3_in: endpoint {
-							remote-endpoint = <&sfc3_cif_in>;
-						};
-					};
-
-					port@25 {
-						reg = <0x25>;
-
-						xbar_sfc3_out: endpoint {
-							remote-endpoint = <&sfc3_cif_out>;
-						};
-					};
-
-					xbar_sfc4_in_port: port@26 {
-						reg = <0x26>;
-
-						xbar_sfc4_in: endpoint {
-							remote-endpoint = <&sfc4_cif_in>;
-						};
-					};
-
-					port@27 {
-						reg = <0x27>;
-
-						xbar_sfc4_out: endpoint {
-							remote-endpoint = <&sfc4_cif_out>;
-						};
-					};
-
-					xbar_mvc1_in_port: port@28 {
-						reg = <0x28>;
-
-						xbar_mvc1_in: endpoint {
-							remote-endpoint = <&mvc1_cif_in>;
-						};
-					};
-
-					port@29 {
-						reg = <0x29>;
-
-						xbar_mvc1_out: endpoint {
-							remote-endpoint = <&mvc1_cif_out>;
-						};
-					};
-
-					xbar_mvc2_in_port: port@2a {
-						reg = <0x2a>;
-
-						xbar_mvc2_in: endpoint {
-							remote-endpoint = <&mvc2_cif_in>;
-						};
-					};
-
-					port@2b {
-						reg = <0x2b>;
-
-						xbar_mvc2_out: endpoint {
-							remote-endpoint = <&mvc2_cif_out>;
-						};
-					};
-
-					xbar_amx1_in1_port: port@2c {
-						reg = <0x2c>;
-
-						xbar_amx1_in1: endpoint {
-							remote-endpoint = <&amx1_in1>;
-						};
-					};
-
-					xbar_amx1_in2_port: port@2d {
-						reg = <0x2d>;
-
-						xbar_amx1_in2: endpoint {
-							remote-endpoint = <&amx1_in2>;
-						};
-					};
-
-					xbar_amx1_in3_port: port@2e {
-						reg = <0x2e>;
-
-						xbar_amx1_in3: endpoint {
-							remote-endpoint = <&amx1_in3>;
-						};
-					};
-
-					xbar_amx1_in4_port: port@2f {
-						reg = <0x2f>;
-
-						xbar_amx1_in4: endpoint {
-							remote-endpoint = <&amx1_in4>;
-						};
-					};
-
-					port@30 {
-						reg = <0x30>;
-
-						xbar_amx1_out: endpoint {
-							remote-endpoint = <&amx1_out>;
-						};
-					};
-
-					xbar_amx2_in1_port: port@31 {
-						reg = <0x31>;
-
-						xbar_amx2_in1: endpoint {
-							remote-endpoint = <&amx2_in1>;
-						};
-					};
-
-					xbar_amx2_in2_port: port@32 {
-						reg = <0x32>;
-
-						xbar_amx2_in2: endpoint {
-							remote-endpoint = <&amx2_in2>;
-						};
-					};
-
-					xbar_amx2_in3_port: port@33 {
-						reg = <0x33>;
-
-						xbar_amx2_in3: endpoint {
-							remote-endpoint = <&amx2_in3>;
-						};
-					};
-
-					xbar_amx2_in4_port: port@34 {
-						reg = <0x34>;
-
-						xbar_amx2_in4: endpoint {
-							remote-endpoint = <&amx2_in4>;
-						};
-					};
-
-					port@35 {
-						reg = <0x35>;
-
-						xbar_amx2_out: endpoint {
-							remote-endpoint = <&amx2_out>;
-						};
-					};
-
-					xbar_amx3_in1_port: port@36 {
-						reg = <0x36>;
-
-						xbar_amx3_in1: endpoint {
-							remote-endpoint = <&amx3_in1>;
-						};
-					};
-
-					xbar_amx3_in2_port: port@37 {
-						reg = <0x37>;
-
-						xbar_amx3_in2: endpoint {
-							remote-endpoint = <&amx3_in2>;
-						};
-					};
-
-					xbar_amx3_in3_port: port@38 {
-						reg = <0x38>;
-
-						xbar_amx3_in3: endpoint {
-							remote-endpoint = <&amx3_in3>;
-						};
-					};
-
-					xbar_amx3_in4_port: port@39 {
-						reg = <0x39>;
-
-						xbar_amx3_in4: endpoint {
-							remote-endpoint = <&amx3_in4>;
-						};
-					};
-
-					port@3a {
-						reg = <0x3a>;
-
-						xbar_amx3_out: endpoint {
-							remote-endpoint = <&amx3_out>;
-						};
-					};
-
-					xbar_amx4_in1_port: port@3b {
-						reg = <0x3b>;
-
-						xbar_amx4_in1: endpoint {
-							remote-endpoint = <&amx4_in1>;
-						};
-					};
-
-					xbar_amx4_in2_port: port@3c {
-						reg = <0x3c>;
-
-						xbar_amx4_in2: endpoint {
-							remote-endpoint = <&amx4_in2>;
-						};
-					};
-
-					xbar_amx4_in3_port: port@3d {
-						reg = <0x3d>;
-
-						xbar_amx4_in3: endpoint {
-							remote-endpoint = <&amx4_in3>;
-						};
-					};
-
-					xbar_amx4_in4_port: port@3e {
-						reg = <0x3e>;
-
-						xbar_amx4_in4: endpoint {
-							remote-endpoint = <&amx4_in4>;
-						};
-					};
-
-					port@3f {
-						reg = <0x3f>;
-
-						xbar_amx4_out: endpoint {
-							remote-endpoint = <&amx4_out>;
-						};
-					};
-
-					xbar_adx1_in_port: port@40 {
-						reg = <0x40>;
-
-						xbar_adx1_in: endpoint {
-							remote-endpoint = <&adx1_in>;
-						};
-					};
-
-					port@41 {
-						reg = <0x41>;
-
-						xbar_adx1_out1: endpoint {
-							remote-endpoint = <&adx1_out1>;
-						};
-					};
-
-					port@42 {
-						reg = <0x42>;
-
-						xbar_adx1_out2: endpoint {
-							remote-endpoint = <&adx1_out2>;
-						};
-					};
-
-					port@43 {
-						reg = <0x43>;
-
-						xbar_adx1_out3: endpoint {
-							remote-endpoint = <&adx1_out3>;
-						};
-					};
-
-					port@44 {
-						reg = <0x44>;
-
-						xbar_adx1_out4: endpoint {
-							remote-endpoint = <&adx1_out4>;
-						};
-					};
-
-					xbar_adx2_in_port: port@45 {
-						reg = <0x45>;
-
-						xbar_adx2_in: endpoint {
-							remote-endpoint = <&adx2_in>;
-						};
-					};
-
-					port@46 {
-						reg = <0x46>;
-
-						xbar_adx2_out1: endpoint {
-							remote-endpoint = <&adx2_out1>;
-						};
-					};
-
-					port@47 {
-						reg = <0x47>;
-
-						xbar_adx2_out2: endpoint {
-							remote-endpoint = <&adx2_out2>;
-						};
-					};
-
-					port@48 {
-						reg = <0x48>;
-
-						xbar_adx2_out3: endpoint {
-							remote-endpoint = <&adx2_out3>;
-						};
-					};
-
-					port@49 {
-						reg = <0x49>;
-
-						xbar_adx2_out4: endpoint {
-							remote-endpoint = <&adx2_out4>;
-						};
-					};
-
-					xbar_adx3_in_port: port@4a {
-						reg = <0x4a>;
-
-						xbar_adx3_in: endpoint {
-							remote-endpoint = <&adx3_in>;
-						};
-					};
-
-					port@4b {
-						reg = <0x4b>;
-
-						xbar_adx3_out1: endpoint {
-							remote-endpoint = <&adx3_out1>;
-						};
-					};
-
-					port@4c {
-						reg = <0x4c>;
-
-						xbar_adx3_out2: endpoint {
-							remote-endpoint = <&adx3_out2>;
-						};
-					};
-
-					port@4d {
-						reg = <0x4d>;
-
-						xbar_adx3_out3: endpoint {
-							remote-endpoint = <&adx3_out3>;
-						};
-					};
-
-					port@4e {
-						reg = <0x4e>;
-
-						xbar_adx3_out4: endpoint {
-							remote-endpoint = <&adx3_out4>;
-						};
-					};
-
-					xbar_adx4_in_port: port@4f {
-						reg = <0x4f>;
-
-						xbar_adx4_in: endpoint {
-							remote-endpoint = <&adx4_in>;
-						};
-					};
-
-					port@50 {
-						reg = <0x50>;
-
-						xbar_adx4_out1: endpoint {
-							remote-endpoint = <&adx4_out1>;
-						};
-					};
-
-					port@51 {
-						reg = <0x51>;
-
-						xbar_adx4_out2: endpoint {
-							remote-endpoint = <&adx4_out2>;
-						};
-					};
-
-					port@52 {
-						reg = <0x52>;
-
-						xbar_adx4_out3: endpoint {
-							remote-endpoint = <&adx4_out3>;
-						};
-					};
-
-					port@53 {
-						reg = <0x53>;
-
-						xbar_adx4_out4: endpoint {
-							remote-endpoint = <&adx4_out4>;
-						};
-					};
-
-					xbar_mix_in1_port: port@54 {
-						reg = <0x54>;
-
-						xbar_mix_in1: endpoint {
-							remote-endpoint = <&mix_in1>;
-						};
-					};
-
-					xbar_mix_in2_port: port@55 {
-						reg = <0x55>;
-
-						xbar_mix_in2: endpoint {
-							remote-endpoint = <&mix_in2>;
-						};
-					};
-
-					xbar_mix_in3_port: port@56 {
-						reg = <0x56>;
-
-						xbar_mix_in3: endpoint {
-							remote-endpoint = <&mix_in3>;
-						};
-					};
-
-					xbar_mix_in4_port: port@57 {
-						reg = <0x57>;
-
-						xbar_mix_in4: endpoint {
-							remote-endpoint = <&mix_in4>;
-						};
-					};
-
-					xbar_mix_in5_port: port@58 {
-						reg = <0x58>;
-
-						xbar_mix_in5: endpoint {
-							remote-endpoint = <&mix_in5>;
-						};
-					};
-
-					xbar_mix_in6_port: port@59 {
-						reg = <0x59>;
-
-						xbar_mix_in6: endpoint {
-							remote-endpoint = <&mix_in6>;
-						};
-					};
-
-					xbar_mix_in7_port: port@5a {
-						reg = <0x5a>;
-
-						xbar_mix_in7: endpoint {
-							remote-endpoint = <&mix_in7>;
-						};
-					};
-
-					xbar_mix_in8_port: port@5b {
-						reg = <0x5b>;
-
-						xbar_mix_in8: endpoint {
-							remote-endpoint = <&mix_in8>;
-						};
-					};
-
-					xbar_mix_in9_port: port@5c {
-						reg = <0x5c>;
-
-						xbar_mix_in9: endpoint {
-							remote-endpoint = <&mix_in9>;
-						};
-					};
-
-					xbar_mix_in10_port: port@5d {
-						reg = <0x5d>;
-
-						xbar_mix_in10: endpoint {
-							remote-endpoint = <&mix_in10>;
-						};
-					};
-
-					port@5e {
-						reg = <0x5e>;
-
-						xbar_mix_out1: endpoint {
-							remote-endpoint = <&mix_out1>;
-						};
-					};
-
-					port@5f {
-						reg = <0x5f>;
-
-						xbar_mix_out2: endpoint {
-							remote-endpoint = <&mix_out2>;
-						};
-					};
-
-					port@60 {
-						reg = <0x60>;
-
-						xbar_mix_out3: endpoint {
-							remote-endpoint = <&mix_out3>;
-						};
-					};
-
-					port@61 {
-						reg = <0x61>;
-
-						xbar_mix_out4: endpoint {
-							remote-endpoint = <&mix_out4>;
-						};
-					};
-
-					port@62 {
-						reg = <0x62>;
-
-						xbar_mix_out5: endpoint {
-							remote-endpoint = <&mix_out5>;
-						};
-					};
-
-					xbar_asrc_in1_port: port@63 {
-						reg = <0x63>;
-
-						xbar_asrc_in1_ep: endpoint {
-							remote-endpoint = <&asrc_in1_ep>;
-						};
-					};
-
-					port@64 {
-						reg = <0x64>;
-
-						xbar_asrc_out1_ep: endpoint {
-							remote-endpoint = <&asrc_out1_ep>;
-						};
-					};
-
-					xbar_asrc_in2_port: port@65 {
-						reg = <0x65>;
-
-						xbar_asrc_in2_ep: endpoint {
-							remote-endpoint = <&asrc_in2_ep>;
-						};
-					};
-
-					port@66 {
-						reg = <0x66>;
-
-						xbar_asrc_out2_ep: endpoint {
-							remote-endpoint = <&asrc_out2_ep>;
-						};
-					};
-
-					xbar_asrc_in3_port: port@67 {
-						reg = <0x67>;
-
-						xbar_asrc_in3_ep: endpoint {
-							remote-endpoint = <&asrc_in3_ep>;
-						};
-					};
-
-					port@68 {
-						reg = <0x68>;
-
-						xbar_asrc_out3_ep: endpoint {
-							remote-endpoint = <&asrc_out3_ep>;
-						};
-					};
-
-					xbar_asrc_in4_port: port@69 {
-						reg = <0x69>;
-
-						xbar_asrc_in4_ep: endpoint {
-							remote-endpoint = <&asrc_in4_ep>;
-						};
-					};
-
-					port@6a {
-						reg = <0x6a>;
-
-						xbar_asrc_out4_ep: endpoint {
-							remote-endpoint = <&asrc_out4_ep>;
-						};
-					};
-
-					xbar_asrc_in5_port: port@6b {
-						reg = <0x6b>;
-
-						xbar_asrc_in5_ep: endpoint {
-							remote-endpoint = <&asrc_in5_ep>;
-						};
-					};
-
-					port@6c {
-						reg = <0x6c>;
-
-						xbar_asrc_out5_ep: endpoint {
-							remote-endpoint = <&asrc_out5_ep>;
-						};
-					};
-
-					xbar_asrc_in6_port: port@6d {
-						reg = <0x6d>;
-
-						xbar_asrc_in6_ep: endpoint {
-							remote-endpoint = <&asrc_in6_ep>;
-						};
-					};
-
-					port@6e {
-						reg = <0x6e>;
-
-						xbar_asrc_out6_ep: endpoint {
-							remote-endpoint = <&asrc_out6_ep>;
-						};
-					};
-
-					xbar_asrc_in7_port: port@6f {
-						reg = <0x6f>;
-
-						xbar_asrc_in7_ep: endpoint {
-							remote-endpoint = <&asrc_in7_ep>;
-						};
-					};
-
-					xbar_ope1_in_port: port@70 {
-						reg = <0x70>;
-
-						xbar_ope1_in_ep: endpoint {
-							remote-endpoint = <&ope1_cif_in_ep>;
-						};
-					};
-
-					port@71 {
-						reg = <0x71>;
-
-						xbar_ope1_out_ep: endpoint {
-							remote-endpoint = <&ope1_cif_out_ep>;
-						};
-					};
-				};
 
 				i2s@2901000 {
 					status = "okay";
@@ -1991,6 +1135,867 @@
 						};
 					};
 				};
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0x0>;
+
+						xbar_admaif0: endpoint {
+							remote-endpoint = <&admaif0>;
+						};
+					};
+
+					port@1 {
+						reg = <0x1>;
+
+						xbar_admaif1: endpoint {
+							remote-endpoint = <&admaif1>;
+						};
+					};
+
+					port@2 {
+						reg = <0x2>;
+
+						xbar_admaif2: endpoint {
+							remote-endpoint = <&admaif2>;
+						};
+					};
+
+					port@3 {
+						reg = <0x3>;
+
+						xbar_admaif3: endpoint {
+							remote-endpoint = <&admaif3>;
+						};
+					};
+
+					port@4 {
+						reg = <0x4>;
+
+						xbar_admaif4: endpoint {
+							remote-endpoint = <&admaif4>;
+						};
+					};
+
+					port@5 {
+						reg = <0x5>;
+
+						xbar_admaif5: endpoint {
+							remote-endpoint = <&admaif5>;
+						};
+					};
+
+					port@6 {
+						reg = <0x6>;
+
+						xbar_admaif6: endpoint {
+							remote-endpoint = <&admaif6>;
+						};
+					};
+
+					port@7 {
+						reg = <0x7>;
+
+						xbar_admaif7: endpoint {
+							remote-endpoint = <&admaif7>;
+						};
+					};
+
+					port@8 {
+						reg = <0x8>;
+
+						xbar_admaif8: endpoint {
+							remote-endpoint = <&admaif8>;
+						};
+					};
+
+					port@9 {
+						reg = <0x9>;
+
+						xbar_admaif9: endpoint {
+							remote-endpoint = <&admaif9>;
+						};
+					};
+
+					port@a {
+						reg = <0xa>;
+
+						xbar_admaif10: endpoint {
+							remote-endpoint = <&admaif10>;
+						};
+					};
+
+					port@b {
+						reg = <0xb>;
+
+						xbar_admaif11: endpoint {
+							remote-endpoint = <&admaif11>;
+						};
+					};
+
+					port@c {
+						reg = <0xc>;
+
+						xbar_admaif12: endpoint {
+							remote-endpoint = <&admaif12>;
+						};
+					};
+
+					port@d {
+						reg = <0xd>;
+
+						xbar_admaif13: endpoint {
+							remote-endpoint = <&admaif13>;
+						};
+					};
+
+					port@e {
+						reg = <0xe>;
+
+						xbar_admaif14: endpoint {
+							remote-endpoint = <&admaif14>;
+						};
+					};
+
+					port@f {
+						reg = <0xf>;
+
+						xbar_admaif15: endpoint {
+							remote-endpoint = <&admaif15>;
+						};
+					};
+
+					port@10 {
+						reg = <0x10>;
+
+						xbar_admaif16: endpoint {
+							remote-endpoint = <&admaif16>;
+						};
+					};
+
+					port@11 {
+						reg = <0x11>;
+
+						xbar_admaif17: endpoint {
+							remote-endpoint = <&admaif17>;
+						};
+					};
+
+					port@12 {
+						reg = <0x12>;
+
+						xbar_admaif18: endpoint {
+							remote-endpoint = <&admaif18>;
+						};
+					};
+
+					port@13 {
+						reg = <0x13>;
+
+						xbar_admaif19: endpoint {
+							remote-endpoint = <&admaif19>;
+						};
+					};
+
+					xbar_i2s1_port: port@14 {
+						reg = <0x14>;
+
+						xbar_i2s1: endpoint {
+							remote-endpoint = <&i2s1_cif>;
+						};
+					};
+
+					xbar_i2s2_port: port@15 {
+						reg = <0x15>;
+
+						xbar_i2s2: endpoint {
+							remote-endpoint = <&i2s2_cif>;
+						};
+					};
+
+					xbar_i2s4_port: port@17 {
+						reg = <0x17>;
+
+						xbar_i2s4: endpoint {
+							remote-endpoint = <&i2s4_cif>;
+						};
+					};
+
+					xbar_i2s6_port: port@19 {
+						reg = <0x19>;
+
+						xbar_i2s6: endpoint {
+							remote-endpoint = <&i2s6_cif>;
+						};
+					};
+
+					xbar_dmic3_port: port@1c {
+						reg = <0x1c>;
+
+						xbar_dmic3: endpoint {
+							remote-endpoint = <&dmic3_cif>;
+						};
+					};
+
+					xbar_sfc1_in_port: port@20 {
+						reg = <0x20>;
+
+						xbar_sfc1_in: endpoint {
+							remote-endpoint = <&sfc1_cif_in>;
+						};
+					};
+
+					port@21 {
+						reg = <0x21>;
+
+						xbar_sfc1_out: endpoint {
+							remote-endpoint = <&sfc1_cif_out>;
+						};
+					};
+
+					xbar_sfc2_in_port: port@22 {
+						reg = <0x22>;
+
+						xbar_sfc2_in: endpoint {
+							remote-endpoint = <&sfc2_cif_in>;
+						};
+					};
+
+					port@23 {
+						reg = <0x23>;
+
+						xbar_sfc2_out: endpoint {
+							remote-endpoint = <&sfc2_cif_out>;
+						};
+					};
+
+					xbar_sfc3_in_port: port@24 {
+						reg = <0x24>;
+
+						xbar_sfc3_in: endpoint {
+							remote-endpoint = <&sfc3_cif_in>;
+						};
+					};
+
+					port@25 {
+						reg = <0x25>;
+
+						xbar_sfc3_out: endpoint {
+							remote-endpoint = <&sfc3_cif_out>;
+						};
+					};
+
+					xbar_sfc4_in_port: port@26 {
+						reg = <0x26>;
+
+						xbar_sfc4_in: endpoint {
+							remote-endpoint = <&sfc4_cif_in>;
+						};
+					};
+
+					port@27 {
+						reg = <0x27>;
+
+						xbar_sfc4_out: endpoint {
+							remote-endpoint = <&sfc4_cif_out>;
+						};
+					};
+
+					xbar_mvc1_in_port: port@28 {
+						reg = <0x28>;
+
+						xbar_mvc1_in: endpoint {
+							remote-endpoint = <&mvc1_cif_in>;
+						};
+					};
+
+					port@29 {
+						reg = <0x29>;
+
+						xbar_mvc1_out: endpoint {
+							remote-endpoint = <&mvc1_cif_out>;
+						};
+					};
+
+					xbar_mvc2_in_port: port@2a {
+						reg = <0x2a>;
+
+						xbar_mvc2_in: endpoint {
+							remote-endpoint = <&mvc2_cif_in>;
+						};
+					};
+
+					port@2b {
+						reg = <0x2b>;
+
+						xbar_mvc2_out: endpoint {
+							remote-endpoint = <&mvc2_cif_out>;
+						};
+					};
+
+					xbar_amx1_in1_port: port@2c {
+						reg = <0x2c>;
+
+						xbar_amx1_in1: endpoint {
+							remote-endpoint = <&amx1_in1>;
+						};
+					};
+
+					xbar_amx1_in2_port: port@2d {
+						reg = <0x2d>;
+
+						xbar_amx1_in2: endpoint {
+							remote-endpoint = <&amx1_in2>;
+						};
+					};
+
+					xbar_amx1_in3_port: port@2e {
+						reg = <0x2e>;
+
+						xbar_amx1_in3: endpoint {
+							remote-endpoint = <&amx1_in3>;
+						};
+					};
+
+					xbar_amx1_in4_port: port@2f {
+						reg = <0x2f>;
+
+						xbar_amx1_in4: endpoint {
+							remote-endpoint = <&amx1_in4>;
+						};
+					};
+
+					port@30 {
+						reg = <0x30>;
+
+						xbar_amx1_out: endpoint {
+							remote-endpoint = <&amx1_out>;
+						};
+					};
+
+					xbar_amx2_in1_port: port@31 {
+						reg = <0x31>;
+
+						xbar_amx2_in1: endpoint {
+							remote-endpoint = <&amx2_in1>;
+						};
+					};
+
+					xbar_amx2_in2_port: port@32 {
+						reg = <0x32>;
+
+						xbar_amx2_in2: endpoint {
+							remote-endpoint = <&amx2_in2>;
+						};
+					};
+
+					xbar_amx2_in3_port: port@33 {
+						reg = <0x33>;
+
+						xbar_amx2_in3: endpoint {
+							remote-endpoint = <&amx2_in3>;
+						};
+					};
+
+					xbar_amx2_in4_port: port@34 {
+						reg = <0x34>;
+
+						xbar_amx2_in4: endpoint {
+							remote-endpoint = <&amx2_in4>;
+						};
+					};
+
+					port@35 {
+						reg = <0x35>;
+
+						xbar_amx2_out: endpoint {
+							remote-endpoint = <&amx2_out>;
+						};
+					};
+
+					xbar_amx3_in1_port: port@36 {
+						reg = <0x36>;
+
+						xbar_amx3_in1: endpoint {
+							remote-endpoint = <&amx3_in1>;
+						};
+					};
+
+					xbar_amx3_in2_port: port@37 {
+						reg = <0x37>;
+
+						xbar_amx3_in2: endpoint {
+							remote-endpoint = <&amx3_in2>;
+						};
+					};
+
+					xbar_amx3_in3_port: port@38 {
+						reg = <0x38>;
+
+						xbar_amx3_in3: endpoint {
+							remote-endpoint = <&amx3_in3>;
+						};
+					};
+
+					xbar_amx3_in4_port: port@39 {
+						reg = <0x39>;
+
+						xbar_amx3_in4: endpoint {
+							remote-endpoint = <&amx3_in4>;
+						};
+					};
+
+					port@3a {
+						reg = <0x3a>;
+
+						xbar_amx3_out: endpoint {
+							remote-endpoint = <&amx3_out>;
+						};
+					};
+
+					xbar_amx4_in1_port: port@3b {
+						reg = <0x3b>;
+
+						xbar_amx4_in1: endpoint {
+							remote-endpoint = <&amx4_in1>;
+						};
+					};
+
+					xbar_amx4_in2_port: port@3c {
+						reg = <0x3c>;
+
+						xbar_amx4_in2: endpoint {
+							remote-endpoint = <&amx4_in2>;
+						};
+					};
+
+					xbar_amx4_in3_port: port@3d {
+						reg = <0x3d>;
+
+						xbar_amx4_in3: endpoint {
+							remote-endpoint = <&amx4_in3>;
+						};
+					};
+
+					xbar_amx4_in4_port: port@3e {
+						reg = <0x3e>;
+
+						xbar_amx4_in4: endpoint {
+							remote-endpoint = <&amx4_in4>;
+						};
+					};
+
+					port@3f {
+						reg = <0x3f>;
+
+						xbar_amx4_out: endpoint {
+							remote-endpoint = <&amx4_out>;
+						};
+					};
+
+					xbar_adx1_in_port: port@40 {
+						reg = <0x40>;
+
+						xbar_adx1_in: endpoint {
+							remote-endpoint = <&adx1_in>;
+						};
+					};
+
+					port@41 {
+						reg = <0x41>;
+
+						xbar_adx1_out1: endpoint {
+							remote-endpoint = <&adx1_out1>;
+						};
+					};
+
+					port@42 {
+						reg = <0x42>;
+
+						xbar_adx1_out2: endpoint {
+							remote-endpoint = <&adx1_out2>;
+						};
+					};
+
+					port@43 {
+						reg = <0x43>;
+
+						xbar_adx1_out3: endpoint {
+							remote-endpoint = <&adx1_out3>;
+						};
+					};
+
+					port@44 {
+						reg = <0x44>;
+
+						xbar_adx1_out4: endpoint {
+							remote-endpoint = <&adx1_out4>;
+						};
+					};
+
+					xbar_adx2_in_port: port@45 {
+						reg = <0x45>;
+
+						xbar_adx2_in: endpoint {
+							remote-endpoint = <&adx2_in>;
+						};
+					};
+
+					port@46 {
+						reg = <0x46>;
+
+						xbar_adx2_out1: endpoint {
+							remote-endpoint = <&adx2_out1>;
+						};
+					};
+
+					port@47 {
+						reg = <0x47>;
+
+						xbar_adx2_out2: endpoint {
+							remote-endpoint = <&adx2_out2>;
+						};
+					};
+
+					port@48 {
+						reg = <0x48>;
+
+						xbar_adx2_out3: endpoint {
+							remote-endpoint = <&adx2_out3>;
+						};
+					};
+
+					port@49 {
+						reg = <0x49>;
+
+						xbar_adx2_out4: endpoint {
+							remote-endpoint = <&adx2_out4>;
+						};
+					};
+
+					xbar_adx3_in_port: port@4a {
+						reg = <0x4a>;
+
+						xbar_adx3_in: endpoint {
+							remote-endpoint = <&adx3_in>;
+						};
+					};
+
+					port@4b {
+						reg = <0x4b>;
+
+						xbar_adx3_out1: endpoint {
+							remote-endpoint = <&adx3_out1>;
+						};
+					};
+
+					port@4c {
+						reg = <0x4c>;
+
+						xbar_adx3_out2: endpoint {
+							remote-endpoint = <&adx3_out2>;
+						};
+					};
+
+					port@4d {
+						reg = <0x4d>;
+
+						xbar_adx3_out3: endpoint {
+							remote-endpoint = <&adx3_out3>;
+						};
+					};
+
+					port@4e {
+						reg = <0x4e>;
+
+						xbar_adx3_out4: endpoint {
+							remote-endpoint = <&adx3_out4>;
+						};
+					};
+
+					xbar_adx4_in_port: port@4f {
+						reg = <0x4f>;
+
+						xbar_adx4_in: endpoint {
+							remote-endpoint = <&adx4_in>;
+						};
+					};
+
+					port@50 {
+						reg = <0x50>;
+
+						xbar_adx4_out1: endpoint {
+							remote-endpoint = <&adx4_out1>;
+						};
+					};
+
+					port@51 {
+						reg = <0x51>;
+
+						xbar_adx4_out2: endpoint {
+							remote-endpoint = <&adx4_out2>;
+						};
+					};
+
+					port@52 {
+						reg = <0x52>;
+
+						xbar_adx4_out3: endpoint {
+							remote-endpoint = <&adx4_out3>;
+						};
+					};
+
+					port@53 {
+						reg = <0x53>;
+
+						xbar_adx4_out4: endpoint {
+							remote-endpoint = <&adx4_out4>;
+						};
+					};
+
+					xbar_mix_in1_port: port@54 {
+						reg = <0x54>;
+
+						xbar_mix_in1: endpoint {
+							remote-endpoint = <&mix_in1>;
+						};
+					};
+
+					xbar_mix_in2_port: port@55 {
+						reg = <0x55>;
+
+						xbar_mix_in2: endpoint {
+							remote-endpoint = <&mix_in2>;
+						};
+					};
+
+					xbar_mix_in3_port: port@56 {
+						reg = <0x56>;
+
+						xbar_mix_in3: endpoint {
+							remote-endpoint = <&mix_in3>;
+						};
+					};
+
+					xbar_mix_in4_port: port@57 {
+						reg = <0x57>;
+
+						xbar_mix_in4: endpoint {
+							remote-endpoint = <&mix_in4>;
+						};
+					};
+
+					xbar_mix_in5_port: port@58 {
+						reg = <0x58>;
+
+						xbar_mix_in5: endpoint {
+							remote-endpoint = <&mix_in5>;
+						};
+					};
+
+					xbar_mix_in6_port: port@59 {
+						reg = <0x59>;
+
+						xbar_mix_in6: endpoint {
+							remote-endpoint = <&mix_in6>;
+						};
+					};
+
+					xbar_mix_in7_port: port@5a {
+						reg = <0x5a>;
+
+						xbar_mix_in7: endpoint {
+							remote-endpoint = <&mix_in7>;
+						};
+					};
+
+					xbar_mix_in8_port: port@5b {
+						reg = <0x5b>;
+
+						xbar_mix_in8: endpoint {
+							remote-endpoint = <&mix_in8>;
+						};
+					};
+
+					xbar_mix_in9_port: port@5c {
+						reg = <0x5c>;
+
+						xbar_mix_in9: endpoint {
+							remote-endpoint = <&mix_in9>;
+						};
+					};
+
+					xbar_mix_in10_port: port@5d {
+						reg = <0x5d>;
+
+						xbar_mix_in10: endpoint {
+							remote-endpoint = <&mix_in10>;
+						};
+					};
+
+					port@5e {
+						reg = <0x5e>;
+
+						xbar_mix_out1: endpoint {
+							remote-endpoint = <&mix_out1>;
+						};
+					};
+
+					port@5f {
+						reg = <0x5f>;
+
+						xbar_mix_out2: endpoint {
+							remote-endpoint = <&mix_out2>;
+						};
+					};
+
+					port@60 {
+						reg = <0x60>;
+
+						xbar_mix_out3: endpoint {
+							remote-endpoint = <&mix_out3>;
+						};
+					};
+
+					port@61 {
+						reg = <0x61>;
+
+						xbar_mix_out4: endpoint {
+							remote-endpoint = <&mix_out4>;
+						};
+					};
+
+					port@62 {
+						reg = <0x62>;
+
+						xbar_mix_out5: endpoint {
+							remote-endpoint = <&mix_out5>;
+						};
+					};
+
+					xbar_asrc_in1_port: port@63 {
+						reg = <0x63>;
+
+						xbar_asrc_in1_ep: endpoint {
+							remote-endpoint = <&asrc_in1_ep>;
+						};
+					};
+
+					port@64 {
+						reg = <0x64>;
+
+						xbar_asrc_out1_ep: endpoint {
+							remote-endpoint = <&asrc_out1_ep>;
+						};
+					};
+
+					xbar_asrc_in2_port: port@65 {
+						reg = <0x65>;
+
+						xbar_asrc_in2_ep: endpoint {
+							remote-endpoint = <&asrc_in2_ep>;
+						};
+					};
+
+					port@66 {
+						reg = <0x66>;
+
+						xbar_asrc_out2_ep: endpoint {
+							remote-endpoint = <&asrc_out2_ep>;
+						};
+					};
+
+					xbar_asrc_in3_port: port@67 {
+						reg = <0x67>;
+
+						xbar_asrc_in3_ep: endpoint {
+							remote-endpoint = <&asrc_in3_ep>;
+						};
+					};
+
+					port@68 {
+						reg = <0x68>;
+
+						xbar_asrc_out3_ep: endpoint {
+							remote-endpoint = <&asrc_out3_ep>;
+						};
+					};
+
+					xbar_asrc_in4_port: port@69 {
+						reg = <0x69>;
+
+						xbar_asrc_in4_ep: endpoint {
+							remote-endpoint = <&asrc_in4_ep>;
+						};
+					};
+
+					port@6a {
+						reg = <0x6a>;
+
+						xbar_asrc_out4_ep: endpoint {
+							remote-endpoint = <&asrc_out4_ep>;
+						};
+					};
+
+					xbar_asrc_in5_port: port@6b {
+						reg = <0x6b>;
+
+						xbar_asrc_in5_ep: endpoint {
+							remote-endpoint = <&asrc_in5_ep>;
+						};
+					};
+
+					port@6c {
+						reg = <0x6c>;
+
+						xbar_asrc_out5_ep: endpoint {
+							remote-endpoint = <&asrc_out5_ep>;
+						};
+					};
+
+					xbar_asrc_in6_port: port@6d {
+						reg = <0x6d>;
+
+						xbar_asrc_in6_ep: endpoint {
+							remote-endpoint = <&asrc_in6_ep>;
+						};
+					};
+
+					port@6e {
+						reg = <0x6e>;
+
+						xbar_asrc_out6_ep: endpoint {
+							remote-endpoint = <&asrc_out6_ep>;
+						};
+					};
+
+					xbar_asrc_in7_port: port@6f {
+						reg = <0x6f>;
+
+						xbar_asrc_in7_ep: endpoint {
+							remote-endpoint = <&asrc_in7_ep>;
+						};
+					};
+
+					xbar_ope1_in_port: port@70 {
+						reg = <0x70>;
+
+						xbar_ope1_in_ep: endpoint {
+							remote-endpoint = <&ope1_cif_in_ep>;
+						};
+					};
+
+					port@71 {
+						reg = <0x71>;
+
+						xbar_ope1_out_ep: endpoint {
+							remote-endpoint = <&ope1_cif_out_ep>;
+						};
+					};
+				};
 			};
 
 			dma-controller@2930000 {
@@ -2007,18 +2012,115 @@
 			status = "okay";
 		};
 
+		serial@31d0000 {
+			current-speed = <115200>;
+			status = "okay";
+		};
+
+		pwm@32a0000 {
+			assigned-clocks = <&bpmp TEGRA234_CLK_PWM3>;
+			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			status = "okay";
+		};
+
 		hda@3510000 {
 			nvidia,model = "NVIDIA Jetson AGX Orin HDA";
 			status = "okay";
 		};
-	};
 
-	chosen {
-		bootargs = "console=ttyS0,115200n8";
-		stdout-path = "serial0:115200n8";
-	};
+		padctl@3520000 {
+			status = "okay";
 
-	bus@0 {
+			pads {
+				usb2 {
+					lanes {
+						usb2-0 {
+							status = "okay";
+						};
+
+						usb2-1 {
+							status = "okay";
+						};
+
+						usb2-2 {
+							status = "okay";
+						};
+
+						usb2-3 {
+							status = "okay";
+						};
+					};
+				};
+
+				usb3 {
+					lanes {
+						usb3-0 {
+							status = "okay";
+						};
+
+						usb3-1 {
+							status = "okay";
+						};
+
+						usb3-2 {
+							status = "okay";
+						};
+					};
+				};
+			};
+
+			ports {
+				usb2-0 {
+					mode = "host";
+					status = "okay";
+				};
+
+				usb2-1 {
+					mode = "host";
+					status = "okay";
+				};
+
+				usb2-2 {
+					mode = "host";
+					status = "okay";
+				};
+
+				usb2-3 {
+					mode = "host";
+					status = "okay";
+				};
+
+				usb3-0 {
+					nvidia,usb2-companion = <1>;
+					status = "okay";
+				};
+
+				usb3-1 {
+					nvidia,usb2-companion = <0>;
+					status = "okay";
+				};
+
+				usb3-2 {
+					nvidia,usb2-companion = <3>;
+					status = "okay";
+				};
+			};
+		};
+
+		usb@3610000 {
+			status = "okay";
+
+			phys = <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-0}>,
+			       <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-1}>,
+			       <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-2}>,
+			       <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-3}>,
+			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-0}>,
+			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-1}>,
+			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-2}>;
+			phy-names = "usb2-0", "usb2-1", "usb2-2", "usb2-3",
+				    "usb3-0", "usb3-1", "usb3-2";
+		};
+
 		ethernet@6800000 {
 			status = "okay";
 
@@ -2036,6 +2138,57 @@
 					#phy-cells = <0>;
 				};
 			};
+		};
+
+		pcie@14100000 {
+			status = "okay";
+
+			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+
+			phys = <&p2u_hsio_3>;
+			phy-names = "p2u-0";
+		};
+
+		pcie@14160000 {
+			status = "okay";
+
+			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+
+			phys = <&p2u_hsio_4>, <&p2u_hsio_5>, <&p2u_hsio_6>,
+			       <&p2u_hsio_7>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
+		};
+
+		pcie@141a0000 {
+			status = "okay";
+
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+			vpcie3v3-supply = <&vdd_3v3_pcie>;
+			vpcie12v-supply = <&vdd_12v_pcie>;
+
+			phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
+			       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
+			       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
+				    "p2u-5", "p2u-6", "p2u-7";
+		};
+
+		pcie-ep@141a0000 {
+			status = "disabled";
+
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+
+			reset-gpios = <&gpio TEGRA234_MAIN_GPIO(AF, 1) GPIO_ACTIVE_LOW>;
+
+			nvidia,refclk-select-gpios = <&gpio_aon
+						      TEGRA234_AON_GPIO(AA, 4)
+						      GPIO_ACTIVE_HIGH>;
+
+			phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
+			       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
+			       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
+				    "p2u-5", "p2u-6", "p2u-7";
 		};
 	};
 
@@ -2065,6 +2218,14 @@
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_SLEEP>;
 		};
+	};
+
+	pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm3 0 45334>;
+
+		cooling-levels = <0 95 178 255>;
+		#cooling-cells = <2>;
 	};
 
 	serial {
@@ -2132,56 +2293,5 @@
 		       <&dmic3_port>;
 
 		label = "NVIDIA Jetson AGX Orin APE";
-	};
-
-	pcie@14100000 {
-		status = "okay";
-
-		vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-
-		phys = <&p2u_hsio_3>;
-		phy-names = "p2u-0";
-	};
-
-	pcie@14160000 {
-		status = "okay";
-
-		vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-
-		phys = <&p2u_hsio_4>, <&p2u_hsio_5>, <&p2u_hsio_6>,
-		       <&p2u_hsio_7>;
-		phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
-	};
-
-	pcie@141a0000 {
-		status = "okay";
-
-		vddio-pex-ctl-supply = <&vdd_1v8_ls>;
-		vpcie3v3-supply = <&vdd_3v3_pcie>;
-		vpcie12v-supply = <&vdd_12v_pcie>;
-
-		phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
-		       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
-		       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
-		phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
-			    "p2u-5", "p2u-6", "p2u-7";
-	};
-
-	pcie-ep@141a0000 {
-		status = "disabled";
-
-		vddio-pex-ctl-supply = <&vdd_1v8_ls>;
-
-		reset-gpios = <&gpio TEGRA234_MAIN_GPIO(AF, 1) GPIO_ACTIVE_LOW>;
-
-		nvidia,refclk-select-gpios = <&gpio_aon
-					      TEGRA234_AON_GPIO(AA, 4)
-					      GPIO_ACTIVE_HIGH>;
-
-		phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
-		       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
-		       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
-		phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
-			    "p2u-5", "p2u-6", "p2u-7";
 	};
 };

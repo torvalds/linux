@@ -56,27 +56,27 @@
 	};
 
 	led-controller {
-		compatible = "pwm-leds";
+		compatible = "pwm-leds-multicolor";
 
-		led-0 {
+		multi-led {
+			color = <LED_COLOR_ID_RGB>;
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_BLUE>;
 			max-brightness = <248>;
-			pwms = <&pwm2 0 50000 0>;
-		};
 
-		led-1 {
-			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_GREEN>;
-			max-brightness = <248>;
-			pwms = <&pwm4 0 50000 0>;
-		};
+			led-0 {
+				color = <LED_COLOR_ID_BLUE>;
+				pwms = <&pwm2 0 50000 0>;
+			};
 
-		led-2 {
-			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_RED>;
-			max-brightness = <248>;
-			pwms = <&pwm3 0 50000 0>;
+			led-1 {
+				color = <LED_COLOR_ID_GREEN>;
+				pwms = <&pwm4 0 50000 0>;
+			};
+
+			led-2 {
+				color = <LED_COLOR_ID_RED>;
+				pwms = <&pwm3 0 50000 0>;
+			};
 		};
 	};
 
@@ -311,15 +311,15 @@
 	ddrc_opp_table: opp-table {
 		compatible = "operating-points-v2";
 
-		opp-25M {
+		opp-25000000 {
 			opp-hz = /bits/ 64 <25000000>;
 		};
 
-		opp-100M {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 		};
 
-		opp-800M {
+		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 		};
 	};

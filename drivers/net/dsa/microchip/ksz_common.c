@@ -6,6 +6,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dsa/ksz_common.h>
 #include <linux/export.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
@@ -14,6 +15,7 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_mdio.h>
@@ -21,13 +23,19 @@
 #include <linux/of_net.h>
 #include <linux/micrel_phy.h>
 #include <net/dsa.h>
+#include <net/pkt_cls.h>
 #include <net/switchdev.h>
 
 #include "ksz_common.h"
+#include "ksz_ptp.h"
 #include "ksz8.h"
 #include "ksz9477.h"
 #include "lan937x.h"
 
+#define KSZ_CBS_ENABLE ((MTI_SCHEDULE_STRICT_PRIO << MTI_SCHEDULE_MODE_S) | \
+			(MTI_SHAPING_SRP << MTI_SHAPING_S))
+#define KSZ_CBS_DISABLE ((MTI_SCHEDULE_WRR << MTI_SCHEDULE_MODE_S) |\
+			 (MTI_SHAPING_OFF << MTI_SHAPING_S))
 #define MIB_COUNTER_NUM 0x20
 
 struct ksz_stats_raw {
@@ -65,6 +73,43 @@ struct ksz_stats_raw {
 	u64 tx_mult_col;
 	u64 rx_total;
 	u64 tx_total;
+	u64 rx_discards;
+	u64 tx_discards;
+};
+
+struct ksz88xx_stats_raw {
+	u64 rx;
+	u64 rx_hi;
+	u64 rx_undersize;
+	u64 rx_fragments;
+	u64 rx_oversize;
+	u64 rx_jabbers;
+	u64 rx_symbol_err;
+	u64 rx_crc_err;
+	u64 rx_align_err;
+	u64 rx_mac_ctrl;
+	u64 rx_pause;
+	u64 rx_bcast;
+	u64 rx_mcast;
+	u64 rx_ucast;
+	u64 rx_64_or_less;
+	u64 rx_65_127;
+	u64 rx_128_255;
+	u64 rx_256_511;
+	u64 rx_512_1023;
+	u64 rx_1024_1522;
+	u64 tx;
+	u64 tx_hi;
+	u64 tx_late_col;
+	u64 tx_pause;
+	u64 tx_bcast;
+	u64 tx_mcast;
+	u64 tx_ucast;
+	u64 tx_deferred;
+	u64 tx_total_col;
+	u64 tx_exc_col;
+	u64 tx_single_col;
+	u64 tx_mult_col;
 	u64 rx_discards;
 	u64 tx_discards;
 };
@@ -155,6 +200,7 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.w_phy = ksz8_w_phy,
 	.r_mib_cnt = ksz8_r_mib_cnt,
 	.r_mib_pkt = ksz8_r_mib_pkt,
+	.r_mib_stat64 = ksz88xx_r_mib_stats64,
 	.freeze_mib = ksz8_freeze_mib,
 	.port_init_cnt = ksz8_port_init_cnt,
 	.fdb_dump = ksz8_fdb_dump,
@@ -171,6 +217,7 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.reset = ksz8_reset_switch,
 	.init = ksz8_switch_init,
 	.exit = ksz8_switch_exit,
+	.change_mtu = ksz8_change_mtu,
 };
 
 static void ksz9477_phylink_mac_link_up(struct ksz_device *dev, int port,
@@ -206,9 +253,9 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.mdb_add = ksz9477_mdb_add,
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = ksz9477_change_mtu,
-	.max_mtu = ksz9477_max_mtu,
 	.phylink_mac_link_up = ksz9477_phylink_mac_link_up,
 	.config_cpu_port = ksz9477_config_cpu_port,
+	.tc_cbs_set_cinc = ksz9477_tc_cbs_set_cinc,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
 	.reset = ksz9477_reset_switch,
 	.init = ksz9477_switch_init,
@@ -243,9 +290,9 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.mdb_add = ksz9477_mdb_add,
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = lan937x_change_mtu,
-	.max_mtu = ksz9477_max_mtu,
 	.phylink_mac_link_up = ksz9477_phylink_mac_link_up,
 	.config_cpu_port = lan937x_config_cpu_port,
+	.tc_cbs_set_cinc = lan937x_tc_cbs_set_cinc,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
 	.reset = lan937x_reset_switch,
 	.init = lan937x_switch_init,
@@ -1039,6 +1086,9 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x07,	/* can be configured as cpu port */
 		.port_cnt = 3,		/* total port count */
+		.port_nirqs = 3,
+		.num_tx_queues = 4,
+		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1065,6 +1115,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
+		.num_tx_queues = 4,
 		.ops = &ksz8_dev_ops,
 		.ksz87xx_eee_link_erratum = true,
 		.mib_names = ksz9477_mib_names,
@@ -1103,6 +1154,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
+		.num_tx_queues = 4,
 		.ops = &ksz8_dev_ops,
 		.ksz87xx_eee_link_erratum = true,
 		.mib_names = ksz9477_mib_names,
@@ -1127,6 +1179,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
+		.num_tx_queues = 4,
 		.ops = &ksz8_dev_ops,
 		.ksz87xx_eee_link_erratum = true,
 		.mib_names = ksz9477_mib_names,
@@ -1151,6 +1204,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x4,	/* can be configured as cpu port */
 		.port_cnt = 3,
+		.num_tx_queues = 4,
 		.ops = &ksz8_dev_ops,
 		.mib_names = ksz88xx_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz88xx_mib_names),
@@ -1172,6 +1226,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
 		.port_nirqs = 4,
+		.num_tx_queues = 4,
+		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1204,6 +1260,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x3F,	/* can be configured as cpu port */
 		.port_cnt = 6,		/* total physical port count */
 		.port_nirqs = 2,
+		.num_tx_queues = 4,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1236,6 +1293,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
 		.port_nirqs = 2,
+		.num_tx_queues = 4,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1266,6 +1324,34 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x07,	/* can be configured as cpu port */
 		.port_cnt = 3,		/* total port count */
 		.port_nirqs = 2,
+		.num_tx_queues = 4,
+		.ops = &ksz9477_dev_ops,
+		.mib_names = ksz9477_mib_names,
+		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
+		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.regs = ksz9477_regs,
+		.masks = ksz9477_masks,
+		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz8795_xmii_ctrl1, /* Same as ksz8795 */
+		.supports_mii = {false, false, true},
+		.supports_rmii = {false, false, true},
+		.supports_rgmii = {false, false, true},
+		.internal_phy = {true, true, false},
+		.gbit_capable = {true, true, true},
+	},
+
+	[KSZ9563] = {
+		.chip_id = KSZ9563_CHIP_ID,
+		.dev_name = "KSZ9563",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x07,	/* can be configured as cpu port */
+		.port_cnt = 3,		/* total port count */
+		.port_nirqs = 3,
+		.num_tx_queues = 4,
+		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1291,6 +1377,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
 		.port_nirqs = 3,
+		.num_tx_queues = 4,
+		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1321,6 +1409,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total physical port count */
 		.port_nirqs = 6,
+		.num_tx_queues = 8,
+		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1345,6 +1435,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x30,	/* can be configured as cpu port */
 		.port_cnt = 6,		/* total physical port count */
 		.port_nirqs = 6,
+		.num_tx_queues = 8,
+		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1369,6 +1461,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x30,	/* can be configured as cpu port */
 		.port_cnt = 8,		/* total physical port count */
 		.port_nirqs = 6,
+		.num_tx_queues = 8,
+		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1397,6 +1491,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x38,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total physical port count */
 		.port_nirqs = 6,
+		.num_tx_queues = 8,
+		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1425,6 +1521,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x30,	/* can be configured as cpu port */
 		.port_cnt = 8,		/* total physical port count */
 		.port_nirqs = 6,
+		.num_tx_queues = 8,
+		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1557,6 +1655,55 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 	spin_unlock(&mib->stats64_lock);
 }
 
+void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port)
+{
+	struct ethtool_pause_stats *pstats;
+	struct rtnl_link_stats64 *stats;
+	struct ksz88xx_stats_raw *raw;
+	struct ksz_port_mib *mib;
+
+	mib = &dev->ports[port].mib;
+	stats = &mib->stats64;
+	pstats = &mib->pause_stats;
+	raw = (struct ksz88xx_stats_raw *)mib->counters;
+
+	spin_lock(&mib->stats64_lock);
+
+	stats->rx_packets = raw->rx_bcast + raw->rx_mcast + raw->rx_ucast +
+		raw->rx_pause;
+	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast +
+		raw->tx_pause;
+
+	/* HW counters are counting bytes + FCS which is not acceptable
+	 * for rtnl_link_stats64 interface
+	 */
+	stats->rx_bytes = raw->rx + raw->rx_hi - stats->rx_packets * ETH_FCS_LEN;
+	stats->tx_bytes = raw->tx + raw->tx_hi - stats->tx_packets * ETH_FCS_LEN;
+
+	stats->rx_length_errors = raw->rx_undersize + raw->rx_fragments +
+		raw->rx_oversize;
+
+	stats->rx_crc_errors = raw->rx_crc_err;
+	stats->rx_frame_errors = raw->rx_align_err;
+	stats->rx_dropped = raw->rx_discards;
+	stats->rx_errors = stats->rx_length_errors + stats->rx_crc_errors +
+		stats->rx_frame_errors  + stats->rx_dropped;
+
+	stats->tx_window_errors = raw->tx_late_col;
+	stats->tx_fifo_errors = raw->tx_discards;
+	stats->tx_aborted_errors = raw->tx_exc_col;
+	stats->tx_errors = stats->tx_window_errors + stats->tx_fifo_errors +
+		stats->tx_aborted_errors;
+
+	stats->multicast = raw->rx_mcast;
+	stats->collisions = raw->tx_total_col;
+
+	pstats->tx_pause_frames = raw->tx_pause;
+	pstats->rx_pause_frames = raw->rx_pause;
+
+	spin_unlock(&mib->stats64_lock);
+}
+
 static void ksz_get_stats64(struct dsa_switch *ds, int port,
 			    struct rtnl_link_stats64 *s)
 {
@@ -1662,9 +1809,6 @@ static int ksz_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
 	u16 val;
 	int ret;
 
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	ret = dev->dev_ops->r_phy(dev, addr, regnum, &val);
 	if (ret < 0)
 		return ret;
@@ -1676,9 +1820,6 @@ static int ksz_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 			     u16 val)
 {
 	struct ksz_device *dev = bus->priv;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	return dev->dev_ops->w_phy(dev, addr, regnum, val);
 }
@@ -1883,8 +2024,7 @@ static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
 		irq_create_mapping(kirq->domain, n);
 
 	ret = request_threaded_irq(kirq->irq_num, NULL, ksz_irq_thread_fn,
-				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
-				   kirq->name, kirq);
+				   IRQF_ONESHOT, kirq->name, kirq);
 	if (ret)
 		goto out;
 
@@ -1957,6 +2097,8 @@ static int ksz_setup(struct dsa_switch *ds)
 
 	dev->dev_ops->enable_stp_addr(dev);
 
+	ds->num_tx_queues = dev->info->num_tx_queues;
+
 	regmap_update_bits(dev->regmap[0], regs[S_MULTICAST_CTRL],
 			   MULTICAST_STORM_DISABLE, MULTICAST_STORM_DISABLE);
 
@@ -1987,13 +2129,23 @@ static int ksz_setup(struct dsa_switch *ds)
 			ret = ksz_pirq_setup(dev, dp->index);
 			if (ret)
 				goto out_girq;
+
+			ret = ksz_ptp_irq_setup(ds, dp->index);
+			if (ret)
+				goto out_pirq;
 		}
+	}
+
+	ret = ksz_ptp_clock_register(ds);
+	if (ret) {
+		dev_err(dev->dev, "Failed to register PTP clock: %d\n", ret);
+		goto out_ptpirq;
 	}
 
 	ret = ksz_mdio_register(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to register the mdio");
-		goto out_pirq;
+		goto out_ptp_clock_unregister;
 	}
 
 	/* start switch */
@@ -2002,6 +2154,12 @@ static int ksz_setup(struct dsa_switch *ds)
 
 	return 0;
 
+out_ptp_clock_unregister:
+	ksz_ptp_clock_unregister(ds);
+out_ptpirq:
+	if (dev->irq > 0)
+		dsa_switch_for_each_user_port(dp, dev->ds)
+			ksz_ptp_irq_free(ds, dp->index);
 out_pirq:
 	if (dev->irq > 0)
 		dsa_switch_for_each_user_port(dp, dev->ds)
@@ -2018,9 +2176,14 @@ static void ksz_teardown(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 	struct dsa_port *dp;
 
+	ksz_ptp_clock_unregister(ds);
+
 	if (dev->irq > 0) {
-		dsa_switch_for_each_user_port(dp, dev->ds)
+		dsa_switch_for_each_user_port(dp, dev->ds) {
+			ksz_ptp_irq_free(ds, dp->index);
+
 			ksz_irq_free(&dev->ports[dp->index].pirq);
+		}
 
 		ksz_irq_free(&dev->girq);
 	}
@@ -2389,7 +2552,8 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 
 	if (dev->chip_id == KSZ8830_CHIP_ID ||
 	    dev->chip_id == KSZ8563_CHIP_ID ||
-	    dev->chip_id == KSZ9893_CHIP_ID)
+	    dev->chip_id == KSZ9893_CHIP_ID ||
+	    dev->chip_id == KSZ9563_CHIP_ID)
 		proto = DSA_TAG_PROTO_KSZ9893;
 
 	if (dev->chip_id == KSZ9477_CHIP_ID ||
@@ -2402,6 +2566,17 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 		proto = DSA_TAG_PROTO_LAN937X_VALUE;
 
 	return proto;
+}
+
+static int ksz_connect_tag_protocol(struct dsa_switch *ds,
+				    enum dsa_tag_protocol proto)
+{
+	struct ksz_tagger_data *tagger_data;
+
+	tagger_data = ksz_tagger_data(ds);
+	tagger_data->xmit_work_fn = ksz_port_deferred_xmit;
+
+	return 0;
 }
 
 static int ksz_port_vlan_filtering(struct dsa_switch *ds, int port,
@@ -2473,10 +2648,93 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (!dev->dev_ops->max_mtu)
+	switch (dev->chip_id) {
+	case KSZ8795_CHIP_ID:
+	case KSZ8794_CHIP_ID:
+	case KSZ8765_CHIP_ID:
+		return KSZ8795_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
+	case KSZ8830_CHIP_ID:
+		return KSZ8863_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+	case LAN9370_CHIP_ID:
+	case LAN9371_CHIP_ID:
+	case LAN9372_CHIP_ID:
+	case LAN9373_CHIP_ID:
+	case LAN9374_CHIP_ID:
+		return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int ksz_validate_eee(struct dsa_switch *ds, int port)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->info->internal_phy[port])
 		return -EOPNOTSUPP;
 
-	return dev->dev_ops->max_mtu(dev, port);
+	switch (dev->chip_id) {
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int ksz_get_mac_eee(struct dsa_switch *ds, int port,
+			   struct ethtool_eee *e)
+{
+	int ret;
+
+	ret = ksz_validate_eee(ds, port);
+	if (ret)
+		return ret;
+
+	/* There is no documented control of Tx LPI configuration. */
+	e->tx_lpi_enabled = true;
+
+	/* There is no documented control of Tx LPI timer. According to tests
+	 * Tx LPI timer seems to be set by default to minimal value.
+	 */
+	e->tx_lpi_timer = 0;
+
+	return 0;
+}
+
+static int ksz_set_mac_eee(struct dsa_switch *ds, int port,
+			   struct ethtool_eee *e)
+{
+	struct ksz_device *dev = ds->priv;
+	int ret;
+
+	ret = ksz_validate_eee(ds, port);
+	if (ret)
+		return ret;
+
+	if (!e->tx_lpi_enabled) {
+		dev_err(dev->dev, "Disabling EEE Tx LPI is not supported\n");
+		return -EINVAL;
+	}
+
+	if (e->tx_lpi_timer) {
+		dev_err(dev->dev, "Setting EEE Tx LPI timer is not supported\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static void ksz_set_xmii(struct ksz_device *dev, int port,
@@ -2509,7 +2767,8 @@ static void ksz_set_xmii(struct ksz_device *dev, int port,
 		data8 |= bitval[P_RGMII_SEL];
 		/* On KSZ9893, disable RGMII in-band status support */
 		if (dev->chip_id == KSZ9893_CHIP_ID ||
-		    dev->chip_id == KSZ8563_CHIP_ID)
+		    dev->chip_id == KSZ8563_CHIP_ID ||
+		    dev->chip_id == KSZ9563_CHIP_ID)
 			data8 &= ~P_MII_MAC_MODE;
 		break;
 	default:
@@ -2782,6 +3041,8 @@ static int ksz_switch_detect(struct ksz_device *dev)
 
 			if (id4 == SKU_ID_KSZ8563)
 				dev->chip_id = KSZ8563_CHIP_ID;
+			else if (id4 == SKU_ID_KSZ9563)
+				dev->chip_id = KSZ9563_CHIP_ID;
 			else
 				dev->chip_id = KSZ9893_CHIP_ID;
 
@@ -2795,8 +3056,104 @@ static int ksz_switch_detect(struct ksz_device *dev)
 	return 0;
 }
 
+/* Bandwidth is calculated by idle slope/transmission speed. Then the Bandwidth
+ * is converted to Hex-decimal using the successive multiplication method. On
+ * every step, integer part is taken and decimal part is carry forwarded.
+ */
+static int cinc_cal(s32 idle_slope, s32 send_slope, u32 *bw)
+{
+	u32 cinc = 0;
+	u32 txrate;
+	u32 rate;
+	u8 temp;
+	u8 i;
+
+	txrate = idle_slope - send_slope;
+
+	if (!txrate)
+		return -EINVAL;
+
+	rate = idle_slope;
+
+	/* 24 bit register */
+	for (i = 0; i < 6; i++) {
+		rate = rate * 16;
+
+		temp = rate / txrate;
+
+		rate %= txrate;
+
+		cinc = ((cinc << 4) | temp);
+	}
+
+	*bw = cinc;
+
+	return 0;
+}
+
+static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
+			    struct tc_cbs_qopt_offload *qopt)
+{
+	struct ksz_device *dev = ds->priv;
+	int ret;
+	u32 bw;
+
+	if (!dev->info->tc_cbs_supported)
+		return -EOPNOTSUPP;
+
+	if (qopt->queue > dev->info->num_tx_queues)
+		return -EINVAL;
+
+	/* Queue Selection */
+	ret = ksz_pwrite32(dev, port, REG_PORT_MTI_QUEUE_INDEX__4, qopt->queue);
+	if (ret)
+		return ret;
+
+	if (!qopt->enable)
+		return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
+				   KSZ_CBS_DISABLE);
+
+	/* High Credit */
+	ret = ksz_pwrite16(dev, port, REG_PORT_MTI_HI_WATER_MARK,
+			   qopt->hicredit);
+	if (ret)
+		return ret;
+
+	/* Low Credit */
+	ret = ksz_pwrite16(dev, port, REG_PORT_MTI_LO_WATER_MARK,
+			   qopt->locredit);
+	if (ret)
+		return ret;
+
+	/* Credit Increment Register */
+	ret = cinc_cal(qopt->idleslope, qopt->sendslope, &bw);
+	if (ret)
+		return ret;
+
+	if (dev->dev_ops->tc_cbs_set_cinc) {
+		ret = dev->dev_ops->tc_cbs_set_cinc(dev, port, bw);
+		if (ret)
+			return ret;
+	}
+
+	return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
+			   KSZ_CBS_ENABLE);
+}
+
+static int ksz_setup_tc(struct dsa_switch *ds, int port,
+			enum tc_setup_type type, void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_QDISC_CBS:
+		return ksz_setup_tc_cbs(ds, port, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
+	.connect_tag_protocol   = ksz_connect_tag_protocol,
 	.get_phy_flags		= ksz_get_phy_flags,
 	.setup			= ksz_setup,
 	.teardown		= ksz_teardown,
@@ -2831,6 +3188,14 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_pause_stats	= ksz_get_pause_stats,
 	.port_change_mtu	= ksz_change_mtu,
 	.port_max_mtu		= ksz_max_mtu,
+	.get_ts_info		= ksz_get_ts_info,
+	.port_hwtstamp_get	= ksz_hwtstamp_get,
+	.port_hwtstamp_set	= ksz_hwtstamp_set,
+	.port_txtstamp		= ksz_port_txtstamp,
+	.port_rxtstamp		= ksz_port_rxtstamp,
+	.port_setup_tc		= ksz_setup_tc,
+	.get_mac_eee		= ksz_get_mac_eee,
+	.set_mac_eee		= ksz_set_mac_eee,
 };
 
 struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)

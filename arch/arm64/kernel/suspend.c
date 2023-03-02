@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/pgtable.h>
+#include <linux/cpuidle.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
@@ -60,6 +61,8 @@ void notrace __cpu_suspend_exit(void)
 	 * PSTATE was not saved over suspend/resume, re-enable any detected
 	 * features that might not have been set correctly.
 	 */
+	if (cpus_have_const_cap(ARM64_HAS_DIT))
+		set_pstate_dit(1);
 	__uaccess_enable_hw_pan();
 
 	/*
@@ -102,6 +105,10 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 * From this point debug exceptions are disabled to prevent
 	 * updates to mdscr register (saved and restored along with
 	 * general purpose registers) from kernel debuggers.
+	 *
+	 * Strictly speaking the trace_hardirqs_off() here is superfluous,
+	 * hardirqs should be firmly off by now. This really ought to use
+	 * something like raw_local_daif_save().
 	 */
 	flags = local_daif_save();
 
@@ -118,6 +125,8 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 */
 	arm_cpuidle_save_irq_context(&context);
 
+	ct_cpuidle_enter();
+
 	if (__cpu_suspend_enter(&state)) {
 		/* Call the suspend finisher */
 		ret = fn(arg);
@@ -131,8 +140,11 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		 */
 		if (!ret)
 			ret = -EOPNOTSUPP;
+
+		ct_cpuidle_exit();
 	} else {
-		RCU_NONIDLE(__cpu_suspend_exit());
+		ct_cpuidle_exit();
+		__cpu_suspend_exit();
 	}
 
 	arm_cpuidle_restore_irq_context(&context);

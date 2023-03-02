@@ -33,37 +33,37 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		led-power {
 			label = "white:power";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		wan-red {
+		led-wan-red {
 			label = "red:wan";
 			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
 		};
 
-		lan {
+		led-lan {
 			label = "white:lan";
 			gpios = <&chipcommon 21 GPIO_ACTIVE_LOW>;
 		};
 
-		usb2 {
+		led-usb2 {
 			label = "white:usb2";
 			gpios = <&chipcommon 16 GPIO_ACTIVE_LOW>;
 			trigger-sources = <&ehci_port2>;
 			linux,default-trigger = "usbport";
 		};
 
-		usb3 {
+		led-usb3 {
 			label = "white:usb3";
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
 			trigger-sources = <&ehci_port1>, <&xhci_port1>;
 			linux,default-trigger = "usbport";
 		};
 
-		wps {
+		led-wps {
 			label = "white:wps";
 			gpios = <&chipcommon 19 GPIO_ACTIVE_LOW>;
 		};

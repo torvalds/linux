@@ -480,6 +480,22 @@ static inline void drv_sta_add_debugfs(struct ieee80211_local *local,
 		local->ops->sta_add_debugfs(&local->hw, &sdata->vif,
 					    sta, dir);
 }
+
+static inline void drv_link_sta_add_debugfs(struct ieee80211_local *local,
+					    struct ieee80211_sub_if_data *sdata,
+					    struct ieee80211_link_sta *link_sta,
+					    struct dentry *dir)
+{
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (local->ops->link_sta_add_debugfs)
+		local->ops->link_sta_add_debugfs(&local->hw, &sdata->vif,
+						 link_sta, dir);
+}
 #endif
 
 static inline void drv_sta_pre_rcu_remove(struct ieee80211_local *local,
@@ -1183,7 +1199,7 @@ static inline void drv_wake_tx_queue(struct ieee80211_local *local,
 
 	/* In reconfig don't transmit now, but mark for waking later */
 	if (local->in_reconfig) {
-		set_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txq->flags);
+		set_bit(IEEE80211_TXQ_DIRTY, &txq->flags);
 		return;
 	}
 

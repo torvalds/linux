@@ -10,33 +10,42 @@ ldflags-y += --wrap=devm_cxl_add_passthrough_decoder
 ldflags-y += --wrap=devm_cxl_enumerate_decoders
 ldflags-y += --wrap=cxl_await_media_ready
 ldflags-y += --wrap=cxl_hdm_decode_init
+ldflags-y += --wrap=cxl_dvsec_rr_decode
+ldflags-y += --wrap=cxl_rcrb_to_component
 
 DRIVERS := ../../../drivers
 CXL_SRC := $(DRIVERS)/cxl
 CXL_CORE_SRC := $(DRIVERS)/cxl/core
 ccflags-y := -I$(srctree)/drivers/cxl/
 ccflags-y += -D__mock=__weak
+ccflags-y += -DTRACE_INCLUDE_PATH=$(CXL_CORE_SRC) -I$(srctree)/drivers/cxl/core/
 
 obj-m += cxl_acpi.o
 
 cxl_acpi-y := $(CXL_SRC)/acpi.o
 cxl_acpi-y += mock_acpi.o
 cxl_acpi-y += config_check.o
+cxl_acpi-y += cxl_acpi_test.o
 
 obj-m += cxl_pmem.o
 
 cxl_pmem-y := $(CXL_SRC)/pmem.o
+cxl_pmem-y += $(CXL_SRC)/security.o
 cxl_pmem-y += config_check.o
+cxl_pmem-y += cxl_pmem_test.o
 
 obj-m += cxl_port.o
 
 cxl_port-y := $(CXL_SRC)/port.o
 cxl_port-y += config_check.o
+cxl_port-y += cxl_port_test.o
+
 
 obj-m += cxl_mem.o
 
 cxl_mem-y := $(CXL_SRC)/mem.o
 cxl_mem-y += config_check.o
+cxl_mem-y += cxl_mem_test.o
 
 obj-m += cxl_core.o
 
@@ -47,7 +56,9 @@ cxl_core-y += $(CXL_CORE_SRC)/memdev.o
 cxl_core-y += $(CXL_CORE_SRC)/mbox.o
 cxl_core-y += $(CXL_CORE_SRC)/pci.o
 cxl_core-y += $(CXL_CORE_SRC)/hdm.o
+cxl_core-$(CONFIG_TRACING) += $(CXL_CORE_SRC)/trace.o
 cxl_core-$(CONFIG_CXL_REGION) += $(CXL_CORE_SRC)/region.o
 cxl_core-y += config_check.o
+cxl_core-y += cxl_core_test.o
 
 obj-m += test/

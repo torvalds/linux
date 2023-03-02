@@ -12,6 +12,8 @@
 
 #define BIO_MAX_VECS		256U
 
+struct queue_limits;
+
 static inline unsigned int bio_max_segs(unsigned int nr_segs)
 {
 	return min(nr_segs, BIO_MAX_VECS);
@@ -375,6 +377,8 @@ static inline void bip_set_seed(struct bio_integrity_payload *bip,
 void bio_trim(struct bio *bio, sector_t offset, sector_t size);
 extern struct bio *bio_split(struct bio *bio, int sectors,
 			     gfp_t gfp, struct bio_set *bs);
+struct bio *bio_split_rw(struct bio *bio, const struct queue_limits *lim,
+		unsigned *segs, struct bio_set *bs, unsigned max_bytes);
 
 /**
  * bio_next_split - get next @sectors from a bio, splitting if necessary
@@ -784,8 +788,7 @@ static inline void bio_set_polled(struct bio *bio, struct kiocb *kiocb)
 
 static inline void bio_clear_polled(struct bio *bio)
 {
-	/* can't support alloc cache if we turn off polling */
-	bio->bi_opf &= ~(REQ_POLLED | REQ_ALLOC_CACHE);
+	bio->bi_opf &= ~REQ_POLLED;
 }
 
 struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,

@@ -299,7 +299,7 @@ static int rockchip_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 }
 
 /*
- * gpiolib gpio_to_irq callback function. Creates a mapping between a GPIO pin
+ * gpiod_to_irq() callback function. Creates a mapping between a GPIO pin
  * and a virtual IRQ, if not already present.
  */
 static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
@@ -610,6 +610,7 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 			return -ENODATA;
 
 		pctldev = of_pinctrl_get(pctlnp);
+		of_node_put(pctlnp);
 		if (!pctldev)
 			return -ENODEV;
 

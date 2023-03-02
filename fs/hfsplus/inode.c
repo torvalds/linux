@@ -170,12 +170,12 @@ const struct address_space_operations hfsplus_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio	= hfsplus_read_folio,
-	.writepage	= hfsplus_writepage,
 	.write_begin	= hfsplus_write_begin,
 	.write_end	= generic_write_end,
 	.bmap		= hfsplus_bmap,
 	.direct_IO	= hfsplus_direct_IO,
 	.writepages	= hfsplus_writepages,
+	.migrate_folio	= buffer_migrate_folio,
 };
 
 const struct dentry_operations hfsplus_dentry_operations = {
@@ -192,11 +192,11 @@ static void hfsplus_get_perms(struct inode *inode,
 	mode = be16_to_cpu(perms->mode);
 
 	i_uid_write(inode, be32_to_cpu(perms->owner));
-	if (!i_uid_read(inode) && !mode)
+	if ((test_bit(HFSPLUS_SB_UID, &sbi->flags)) || (!i_uid_read(inode) && !mode))
 		inode->i_uid = sbi->uid;
 
 	i_gid_write(inode, be32_to_cpu(perms->group));
-	if (!i_gid_read(inode) && !mode)
+	if ((test_bit(HFSPLUS_SB_GID, &sbi->flags)) || (!i_gid_read(inode) && !mode))
 		inode->i_gid = sbi->gid;
 
 	if (dir) {
@@ -246,13 +246,13 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hfsplus_setattr(struct user_namespace *mnt_userns,
+static int hfsplus_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	error = setattr_prepare(&init_user_ns, dentry, attr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -270,13 +270,13 @@ static int hfsplus_setattr(struct user_namespace *mnt_userns,
 		inode->i_mtime = inode->i_ctime = current_time(inode);
 	}
 
-	setattr_copy(&init_user_ns, inode, attr);
+	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
 
 	return 0;
 }
 
-int hfsplus_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int hfsplus_getattr(struct mnt_idmap *idmap, const struct path *path,
 		    struct kstat *stat, u32 request_mask,
 		    unsigned int query_flags)
 {
@@ -298,7 +298,7 @@ int hfsplus_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	stat->attributes_mask |= STATX_ATTR_APPEND | STATX_ATTR_IMMUTABLE |
 				 STATX_ATTR_NODUMP;
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	return 0;
 }
 
@@ -390,7 +390,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
 		return NULL;
 
 	inode->i_ino = sbi->next_cnid++;
-	inode_init_owner(&init_user_ns, inode, dir, mode);
+	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
 	set_nlink(inode, 1);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 
@@ -655,7 +655,7 @@ int hfsplus_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 	return 0;
 }
 
-int hfsplus_fileattr_set(struct user_namespace *mnt_userns,
+int hfsplus_fileattr_set(struct mnt_idmap *idmap,
 			 struct dentry *dentry, struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);

@@ -616,7 +616,8 @@ static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 }
 
 static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
-		struct dc_info_packet *infopacket)
+		struct dc_info_packet *infopacket,
+		bool freesync_on_desktop)
 {
 	unsigned int min_refresh;
 	unsigned int max_refresh;
@@ -649,9 +650,15 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 		infopacket->sb[6] |= 0x02;
 
 	/* PB6 = [Bit 2 = FreeSync Active] */
-	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
+	if (freesync_on_desktop) {
+		if (vrr->state != VRR_STATE_DISABLED &&
+			vrr->state != VRR_STATE_UNSUPPORTED)
+			infopacket->sb[6] |= 0x04;
+	} else {
+		if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
 			vrr->state == VRR_STATE_ACTIVE_FIXED)
-		infopacket->sb[6] |= 0x04;
+			infopacket->sb[6] |= 0x04;
+	}
 
 	min_refresh = (vrr->min_refresh_in_uhz + 500000) / 1000000;
 	max_refresh = (vrr->max_refresh_in_uhz + 500000) / 1000000;
@@ -688,10 +695,10 @@ static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
 	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
 		infopacket->valid = true;
 
-		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
-
-		if (app_tf == TRANSFER_FUNC_GAMMA_22) {
-			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
+		if (app_tf != TRANSFER_FUNC_PQ2084) {
+			infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
+			if (app_tf == TRANSFER_FUNC_GAMMA_22)
+				infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
 		}
 	}
 }
@@ -898,51 +905,19 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 
 	infopacket->valid = true;
 }
-#ifndef TRIM_FSFT
-static void build_vrr_infopacket_fast_transport_data(
-	bool ftActive,
-	unsigned int ftOutputRate,
-	struct dc_info_packet *infopacket)
-{
-	/* PB9 : bit7 - fast transport Active*/
-	unsigned char activeBit = (ftActive) ? 1 << 7 : 0;
-
-	infopacket->sb[1] &= ~activeBit;  //clear bit
-	infopacket->sb[1] |=  activeBit;  //set bit
-
-	/* PB13 : Target Output Pixel Rate [kHz] - bits 7:0  */
-	infopacket->sb[13] = ftOutputRate & 0xFF;
-
-	/* PB14 : Target Output Pixel Rate [kHz] - bits 15:8  */
-	infopacket->sb[14] = (ftOutputRate >> 8) & 0xFF;
-
-	/* PB15 : Target Output Pixel Rate [kHz] - bits 23:16  */
-	infopacket->sb[15] = (ftOutputRate >> 16) & 0xFF;
-
-}
-#endif
 
 static void build_vrr_infopacket_v3(enum signal_type signal,
 		const struct mod_vrr_params *vrr,
-#ifndef TRIM_FSFT
-		bool ftActive, unsigned int ftOutputRate,
-#endif
 		enum color_transfer_func app_tf,
-		struct dc_info_packet *infopacket)
+		struct dc_info_packet *infopacket,
+		bool freesync_on_desktop)
 {
 	unsigned int payload_size = 0;
 
 	build_vrr_infopacket_header_v3(signal, infopacket, &payload_size);
-	build_vrr_infopacket_data_v3(vrr, infopacket);
+	build_vrr_infopacket_data_v3(vrr, infopacket, freesync_on_desktop);
 
 	build_vrr_infopacket_fs2_data(app_tf, infopacket);
-
-#ifndef TRIM_FSFT
-	build_vrr_infopacket_fast_transport_data(
-			ftActive,
-			ftOutputRate,
-			infopacket);
-#endif
 
 	build_vrr_infopacket_checksum(&payload_size, infopacket);
 
@@ -980,31 +955,26 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
+	bool freesync_on_desktop;
+	bool fams_enable;
+
+	fams_enable = stream->ctx->dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
+	freesync_on_desktop = stream->freesync_on_desktop && fams_enable;
+
 	if (!vrr->send_info_frame)
 		return;
 
 	switch (packet_type) {
 	case PACKET_TYPE_FS_V3:
-#ifndef TRIM_FSFT
-		// always populate with pixel rate.
-		build_vrr_infopacket_v3(
-				stream->signal, vrr,
-				stream->timing.flags.FAST_TRANSPORT,
-				(stream->timing.flags.FAST_TRANSPORT) ?
-						stream->timing.fast_transport_output_rate_100hz :
-						stream->timing.pix_clk_100hz,
-				app_tf, infopacket);
-#else
-		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket);
-#endif
+		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket, freesync_on_desktop);
 		break;
 	case PACKET_TYPE_FS_V2:
-		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket, stream->freesync_on_desktop);
+		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket, freesync_on_desktop);
 		break;
 	case PACKET_TYPE_VRR:
 	case PACKET_TYPE_FS_V1:
 	default:
-		build_vrr_infopacket_v1(stream->signal, vrr, infopacket, stream->freesync_on_desktop);
+		build_vrr_infopacket_v1(stream->signal, vrr, infopacket, freesync_on_desktop);
 	}
 
 	if (true == pack_sdp_v1_3 &&

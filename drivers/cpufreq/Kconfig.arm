@@ -41,6 +41,15 @@ config ARM_ALLWINNER_SUN50I_CPUFREQ_NVMEM
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun50i-cpufreq-nvmem.
 
+config ARM_APPLE_SOC_CPUFREQ
+	tristate "Apple Silicon SoC CPUFreq support"
+	depends on ARCH_APPLE || (COMPILE_TEST && 64BIT)
+	select PM_OPP
+	default ARCH_APPLE
+	help
+	  This adds the CPUFreq driver for Apple Silicon machines
+	  (e.g. Apple M1).
+
 config ARM_ARMADA_37XX_CPUFREQ
 	tristate "Armada 37xx CPUFreq support"
 	depends on ARCH_MVEBU && CPUFREQ_DT
@@ -180,84 +189,6 @@ config ARM_RASPBERRYPI_CPUFREQ
 
 	  If in doubt, say N.
 
-config ARM_S3C_CPUFREQ
-	bool
-	help
-	  Internal configuration node for common cpufreq on Samsung SoC
-
-config ARM_S3C24XX_CPUFREQ
-	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
-	depends on ARCH_S3C24XX
-	select ARM_S3C_CPUFREQ
-	help
-	  This enables the CPUfreq driver for the Samsung S3C24XX family
-	  of CPUs.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
-config ARM_S3C24XX_CPUFREQ_DEBUG
-	bool "Debug CPUfreq Samsung driver core"
-	depends on ARM_S3C24XX_CPUFREQ
-	help
-	  Enable s3c_freq_dbg for the Samsung S3C CPUfreq core
-
-config ARM_S3C24XX_CPUFREQ_IODEBUG
-	bool "Debug CPUfreq Samsung driver IO timing"
-	depends on ARM_S3C24XX_CPUFREQ
-	help
-	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
-
-config ARM_S3C24XX_CPUFREQ_DEBUGFS
-	bool "Export debugfs for CPUFreq"
-	depends on ARM_S3C24XX_CPUFREQ && DEBUG_FS
-	help
-	  Export status information via debugfs.
-
-config ARM_S3C2410_CPUFREQ
-	bool
-	depends on ARM_S3C24XX_CPUFREQ && CPU_S3C2410
-	help
-	  CPU Frequency scaling support for S3C2410
-
-config ARM_S3C2412_CPUFREQ
-	bool
-	depends on ARM_S3C24XX_CPUFREQ && CPU_S3C2412
-	default y
-	select S3C2412_IOTIMING
-	help
-	  CPU Frequency scaling support for S3C2412 and S3C2413 SoC CPUs.
-
-config ARM_S3C2416_CPUFREQ
-	bool "S3C2416 CPU Frequency scaling support"
-	depends on CPU_S3C2416
-	help
-	  This adds the CPUFreq driver for the Samsung S3C2416 and
-	  S3C2450 SoC. The S3C2416 supports changing the rate of the
-	  armdiv clock source and also entering a so called dynamic
-	  voltage scaling mode in which it is possible to reduce the
-	  core voltage of the CPU.
-
-	  If in doubt, say N.
-
-config ARM_S3C2416_CPUFREQ_VCORESCALE
-	bool "Allow voltage scaling for S3C2416 arm core"
-	depends on ARM_S3C2416_CPUFREQ && REGULATOR
-	help
-	  Enable CPU voltage scaling when entering the dvs mode.
-	  It uses information gathered through existing hardware and
-	  tests but not documented in any datasheet.
-
-	  If in doubt, say N.
-
-config ARM_S3C2440_CPUFREQ
-	bool "S3C2440/S3C2442 CPU Frequency scaling support"
-	depends on ARM_S3C24XX_CPUFREQ && (CPU_S3C2440 || CPU_S3C2442)
-	default y
-	help
-	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
-
 config ARM_S3C64XX_CPUFREQ
 	bool "Samsung S3C64XX"
 	depends on CPU_S3C6410
@@ -276,9 +207,6 @@ config ARM_S5PV210_CPUFREQ
 	  S5PC110 SoCs.
 
 	  If in doubt, say N.
-
-config ARM_SA1100_CPUFREQ
-	bool
 
 config ARM_SA1110_CPUFREQ
 	bool
@@ -340,8 +268,8 @@ config ARM_TEGRA194_CPUFREQ
 
 config ARM_TI_CPUFREQ
 	bool "Texas Instruments CPUFreq support"
-	depends on ARCH_OMAP2PLUS
-	default ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || ARCH_K3
+	default y
 	help
 	  This driver enables valid OPPs on the running platform based on
 	  values contained within the SoC in use. Enable this in order to

@@ -105,8 +105,8 @@ static void pwm_sifive_update_clock(struct pwm_sifive_ddata *ddata,
 		"New real_period = %u ns\n", ddata->real_period);
 }
 
-static void pwm_sifive_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-				 struct pwm_state *state)
+static int pwm_sifive_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+				struct pwm_state *state)
 {
 	struct pwm_sifive_ddata *ddata = pwm_sifive_chip_to_ddata(chip);
 	u32 duty, val;
@@ -123,6 +123,8 @@ static void pwm_sifive_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->duty_cycle =
 		(u64)duty * ddata->real_period >> PWM_SIFIVE_CMPWIDTH;
 	state->polarity = PWM_POLARITY_INVERSED;
+
+	return 0;
 }
 
 static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -159,7 +161,13 @@ static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	mutex_lock(&ddata->lock);
 	if (state->period != ddata->approx_period) {
-		if (ddata->user_count != 1) {
+		/*
+		 * Don't let a 2nd user change the period underneath the 1st user.
+		 * However if ddate->approx_period == 0 this is the first time we set
+		 * any period, so let whoever gets here first set the period so other
+		 * users who agree on the period won't fail.
+		 */
+		if (ddata->user_count != 1 && ddata->approx_period) {
 			mutex_unlock(&ddata->lock);
 			return -EBUSY;
 		}
@@ -204,8 +212,11 @@ static int pwm_sifive_clock_notifier(struct notifier_block *nb,
 	struct pwm_sifive_ddata *ddata =
 		container_of(nb, struct pwm_sifive_ddata, notifier);
 
-	if (event == POST_RATE_CHANGE)
+	if (event == POST_RATE_CHANGE) {
+		mutex_lock(&ddata->lock);
 		pwm_sifive_update_clock(ddata, ndata->new_rate);
+		mutex_unlock(&ddata->lock);
+	}
 
 	return NOTIFY_OK;
 }

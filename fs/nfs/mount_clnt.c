@@ -158,7 +158,7 @@ int nfs_mount(struct nfs_mount_request *info, int timeo, int retrans)
 	struct rpc_create_args args = {
 		.net		= info->net,
 		.protocol	= info->protocol,
-		.address	= info->sap,
+		.address	= (struct sockaddr *)info->sap,
 		.addrsize	= info->salen,
 		.timeout	= &mnt_timeout,
 		.servername	= info->hostname,
@@ -245,7 +245,7 @@ void nfs_umount(const struct nfs_mount_request *info)
 	struct rpc_create_args args = {
 		.net		= info->net,
 		.protocol	= IPPROTO_UDP,
-		.address	= info->sap,
+		.address	= (struct sockaddr *)info->sap,
 		.addrsize	= info->salen,
 		.timeout	= &nfs_umnt_timeout,
 		.servername	= info->hostname,

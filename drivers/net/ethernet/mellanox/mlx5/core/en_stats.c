@@ -1241,6 +1241,23 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(phy)
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 }
 
+void mlx5e_get_link_ext_stats(struct net_device *dev,
+			      struct ethtool_link_ext_stats *stats)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	u32 out[MLX5_ST_SZ_DW(ppcnt_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {};
+	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+
+	MLX5_SET(ppcnt_reg, in, local_port, 1);
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_COUNTERS_GROUP);
+	mlx5_core_access_reg(priv->mdev, in, sz, out,
+			     MLX5_ST_SZ_BYTES(ppcnt_reg), MLX5_REG_PPCNT, 0, 0);
+
+	stats->link_down_events = MLX5_GET(ppcnt_reg, out,
+					   counter_set.phys_layer_cntrs.link_down_events);
+}
+
 static int fec_num_lanes(struct mlx5_core_dev *dev)
 {
 	u32 out[MLX5_ST_SZ_DW(pmlp_reg)] = {};
@@ -2121,6 +2138,7 @@ static const struct counter_desc ptp_cq_stats_desc[] = {
 	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, abort_abs_diff_ns) },
 	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, resync_cqe) },
 	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, resync_event) },
+	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, ooo_cqe_drop) },
 };
 
 static const struct counter_desc ptp_rq_stats_desc[] = {
@@ -2463,6 +2481,7 @@ mlx5e_stats_grp_t mlx5e_nic_stats_grps[] = {
 	&MLX5E_STATS_GRP(per_prio),
 	&MLX5E_STATS_GRP(pme),
 #ifdef CONFIG_MLX5_EN_IPSEC
+	&MLX5E_STATS_GRP(ipsec_hw),
 	&MLX5E_STATS_GRP(ipsec_sw),
 #endif
 	&MLX5E_STATS_GRP(tls),

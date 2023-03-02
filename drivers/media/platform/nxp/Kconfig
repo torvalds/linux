@@ -4,6 +4,19 @@
 
 comment "NXP media platform drivers"
 
+config VIDEO_IMX7_CSI
+	tristate "NXP CSI Bridge driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_DMA
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Driver for the NXP Camera Sensor Interface (CSI) Bridge. This device
+	  is found in the i.MX6UL/L, i.MX7 and i.MX8M[MQ] SoCs.
+
 config VIDEO_IMX_MIPI_CSIS
 	tristate "NXP MIPI CSI-2 CSIS receiver found on i.MX7 and i.MX8 models"
 	depends on ARCH_MXC || COMPILE_TEST

@@ -18,11 +18,12 @@
 			};
 		};
 
-		mmc0: dwmmc0@ff704000 {
+		mmc0: mmc@ff704000 {
 			broken-cd;
 			bus-width = <4>;
 			cap-mmc-highspeed;
 			cap-sd-highspeed;
+			clk-phase-sd-hs = <0>, <135>;
 		};
 
 		sysmgr@ffd08000 {

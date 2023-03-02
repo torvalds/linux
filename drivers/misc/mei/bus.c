@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012-2019, Intel Corporation. All rights reserved.
+ * Copyright (c) 2012-2023, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#include <linux/scatterlist.h>
 #include <linux/mei_cl_bus.h>
 
 #include "mei_dev.h"
@@ -33,6 +34,26 @@
  */
 ssize_t __mei_cl_send(struct mei_cl *cl, const u8 *buf, size_t length, u8 vtag,
 		      unsigned int mode)
+{
+	return __mei_cl_send_timeout(cl, buf, length, vtag, mode, MAX_SCHEDULE_TIMEOUT);
+}
+
+/**
+ * __mei_cl_send_timeout - internal client send (write)
+ *
+ * @cl: host client
+ * @buf: buffer to send
+ * @length: buffer length
+ * @vtag: virtual tag
+ * @mode: sending mode
+ * @timeout: send timeout in milliseconds.
+ *           effective only for blocking writes: the MEI_CL_IO_TX_BLOCKING mode bit is set.
+ *           set timeout to the MAX_SCHEDULE_TIMEOUT to maixum allowed wait.
+ *
+ * Return: written size bytes or < 0 on error
+ */
+ssize_t __mei_cl_send_timeout(struct mei_cl *cl, const u8 *buf, size_t length, u8 vtag,
+			      unsigned int mode, unsigned long timeout)
 {
 	struct mei_device *bus;
 	struct mei_cl_cb *cb;
@@ -100,8 +121,17 @@ ssize_t __mei_cl_send(struct mei_cl *cl, const u8 *buf, size_t length, u8 vtag,
 	cb->internal = !!(mode & MEI_CL_IO_TX_INTERNAL);
 	cb->blocking = !!(mode & MEI_CL_IO_TX_BLOCKING);
 	memcpy(cb->buf.data, buf, length);
+	/* hack we point data to header */
+	if (mode & MEI_CL_IO_SGL) {
+		cb->ext_hdr = (struct mei_ext_hdr *)cb->buf.data;
+		cb->buf.data = NULL;
+		cb->buf.size = 0;
+	}
 
-	rets = mei_cl_write(cl, cb);
+	rets = mei_cl_write(cl, cb, timeout);
+
+	if (mode & MEI_CL_IO_SGL && rets == 0)
+		rets = length;
 
 out:
 	mutex_unlock(&bus->device_lock);
@@ -205,9 +235,16 @@ copy:
 		goto free;
 	}
 
-	r_length = min_t(size_t, length, cb->buf_idx);
-	memcpy(buf, cb->buf.data, r_length);
+	/* for the GSC type - copy the extended header to the buffer */
+	if (cb->ext_hdr && cb->ext_hdr->type == MEI_EXT_HDR_GSC) {
+		r_length = min_t(size_t, length, cb->ext_hdr->length * sizeof(u32));
+		memcpy(buf, cb->ext_hdr, r_length);
+	} else {
+		r_length = min_t(size_t, length, cb->buf_idx);
+		memcpy(buf, cb->buf.data, r_length);
+	}
 	rets = r_length;
+
 	if (vtag)
 		*vtag = cb->vtag;
 
@@ -665,13 +702,15 @@ void *mei_cldev_dma_map(struct mei_cl_device *cldev, u8 buffer_id, size_t size)
 	if (cl->state == MEI_FILE_UNINITIALIZED) {
 		ret = mei_cl_link(cl);
 		if (ret)
-			goto out;
+			goto notlinked;
 		/* update pointers */
 		cl->cldev = cldev;
 	}
 
 	ret = mei_cl_dma_alloc_and_map(cl, NULL, buffer_id, size);
-out:
+	if (ret)
+		mei_cl_unlink(cl);
+notlinked:
 	mutex_unlock(&bus->device_lock);
 	if (ret)
 		return ERR_PTR(ret);
@@ -721,7 +760,7 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 	if (cl->state == MEI_FILE_UNINITIALIZED) {
 		ret = mei_cl_link(cl);
 		if (ret)
-			goto out;
+			goto notlinked;
 		/* update pointers */
 		cl->cldev = cldev;
 	}
@@ -748,6 +787,9 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 	}
 
 out:
+	if (ret)
+		mei_cl_unlink(cl);
+notlinked:
 	mutex_unlock(&bus->device_lock);
 
 	return ret;
@@ -821,6 +863,131 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(mei_cldev_disable);
+
+/**
+ * mei_cldev_send_gsc_command - sends a gsc command, by sending
+ * a gsl mei message to gsc and receiving reply from gsc
+ *
+ * @cldev: me client device
+ * @client_id: client id to send the command to
+ * @fence_id: fence id to send the command to
+ * @sg_in: scatter gather list containing addresses for rx message buffer
+ * @total_in_len: total length of data in 'in' sg, can be less than the sum of buffers sizes
+ * @sg_out: scatter gather list containing addresses for tx message buffer
+ *
+ * Return:
+ *  * written size in bytes
+ *  * < 0 on error
+ */
+ssize_t mei_cldev_send_gsc_command(struct mei_cl_device *cldev,
+				   u8 client_id, u32 fence_id,
+				   struct scatterlist *sg_in,
+				   size_t total_in_len,
+				   struct scatterlist *sg_out)
+{
+	struct mei_cl *cl;
+	struct mei_device *bus;
+	ssize_t ret = 0;
+
+	struct mei_ext_hdr_gsc_h2f *ext_hdr;
+	size_t buf_sz = sizeof(struct mei_ext_hdr_gsc_h2f);
+	int sg_out_nents, sg_in_nents;
+	int i;
+	struct scatterlist *sg;
+	struct mei_ext_hdr_gsc_f2h rx_msg;
+	unsigned int sg_len;
+
+	if (!cldev || !sg_in || !sg_out)
+		return -EINVAL;
+
+	cl = cldev->cl;
+	bus = cldev->bus;
+
+	dev_dbg(bus->dev, "client_id %u, fence_id %u\n", client_id, fence_id);
+
+	if (!bus->hbm_f_gsc_supported)
+		return -EOPNOTSUPP;
+
+	sg_out_nents = sg_nents(sg_out);
+	sg_in_nents = sg_nents(sg_in);
+	/* at least one entry in tx and rx sgls must be present */
+	if (sg_out_nents <= 0 || sg_in_nents <= 0)
+		return -EINVAL;
+
+	buf_sz += (sg_out_nents + sg_in_nents) * sizeof(struct mei_gsc_sgl);
+	ext_hdr = kzalloc(buf_sz, GFP_KERNEL);
+	if (!ext_hdr)
+		return -ENOMEM;
+
+	/* construct the GSC message */
+	ext_hdr->hdr.type = MEI_EXT_HDR_GSC;
+	ext_hdr->hdr.length = buf_sz / sizeof(u32); /* length is in dw */
+
+	ext_hdr->client_id = client_id;
+	ext_hdr->addr_type = GSC_ADDRESS_TYPE_PHYSICAL_SGL;
+	ext_hdr->fence_id = fence_id;
+	ext_hdr->input_address_count = sg_in_nents;
+	ext_hdr->output_address_count = sg_out_nents;
+	ext_hdr->reserved[0] = 0;
+	ext_hdr->reserved[1] = 0;
+
+	/* copy in-sgl to the message */
+	for (i = 0, sg = sg_in; i < sg_in_nents; i++, sg++) {
+		ext_hdr->sgl[i].low = lower_32_bits(sg_dma_address(sg));
+		ext_hdr->sgl[i].high = upper_32_bits(sg_dma_address(sg));
+		sg_len = min_t(unsigned int, sg_dma_len(sg), PAGE_SIZE);
+		ext_hdr->sgl[i].length = (sg_len <= total_in_len) ? sg_len : total_in_len;
+		total_in_len -= ext_hdr->sgl[i].length;
+	}
+
+	/* copy out-sgl to the message */
+	for (i = sg_in_nents, sg = sg_out; i < sg_in_nents + sg_out_nents; i++, sg++) {
+		ext_hdr->sgl[i].low = lower_32_bits(sg_dma_address(sg));
+		ext_hdr->sgl[i].high = upper_32_bits(sg_dma_address(sg));
+		sg_len = min_t(unsigned int, sg_dma_len(sg), PAGE_SIZE);
+		ext_hdr->sgl[i].length = sg_len;
+	}
+
+	/* send the message to GSC */
+	ret = __mei_cl_send(cl, (u8 *)ext_hdr, buf_sz, 0, MEI_CL_IO_SGL);
+	if (ret < 0) {
+		dev_err(bus->dev, "__mei_cl_send failed, returned %zd\n", ret);
+		goto end;
+	}
+	if (ret != buf_sz) {
+		dev_err(bus->dev, "__mei_cl_send returned %zd instead of expected %zd\n",
+			ret, buf_sz);
+		ret = -EIO;
+		goto end;
+	}
+
+	/* receive the reply from GSC, note that at this point sg_in should contain the reply */
+	ret = __mei_cl_recv(cl, (u8 *)&rx_msg, sizeof(rx_msg), NULL, MEI_CL_IO_SGL, 0);
+
+	if (ret != sizeof(rx_msg)) {
+		dev_err(bus->dev, "__mei_cl_recv returned %zd instead of expected %zd\n",
+			ret, sizeof(rx_msg));
+		if (ret >= 0)
+			ret = -EIO;
+		goto end;
+	}
+
+	/* check rx_msg.client_id and rx_msg.fence_id match the ones we send */
+	if (rx_msg.client_id != client_id || rx_msg.fence_id != fence_id) {
+		dev_err(bus->dev, "received client_id/fence_id  %u/%u  instead of %u/%u sent\n",
+			rx_msg.client_id, rx_msg.fence_id, client_id, fence_id);
+		ret = -EFAULT;
+		goto end;
+	}
+
+	dev_dbg(bus->dev, "gsc command: successfully written %u bytes\n",  rx_msg.written);
+	ret = rx_msg.written;
+
+end:
+	kfree(ext_hdr);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mei_cldev_send_gsc_command);
 
 /**
  * mei_cl_device_find - find matching entry in the driver id table
@@ -1060,9 +1227,9 @@ ATTRIBUTE_GROUPS(mei_cldev);
  *
  * Return: 0 on success -ENOMEM on when add_uevent_var fails
  */
-static int mei_cl_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int mei_cl_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	const struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
 	u8 version = mei_me_cl_ver(cldev->me_cl);
 
@@ -1115,7 +1282,6 @@ static void mei_cl_bus_dev_release(struct device *dev)
 	mei_cl_flush_queues(cldev->cl, NULL);
 	mei_me_cl_put(cldev->me_cl);
 	mei_dev_bus_put(cldev->bus);
-	mei_cl_unlink(cldev->cl);
 	kfree(cldev->cl);
 	kfree(cldev);
 }
@@ -1226,6 +1392,7 @@ static int mei_cl_bus_dev_add(struct mei_cl_device *cldev)
  */
 static void mei_cl_bus_dev_stop(struct mei_cl_device *cldev)
 {
+	cldev->do_match = 0;
 	if (cldev->is_added)
 		device_release_driver(&cldev->dev);
 }

@@ -14,6 +14,7 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/pagemap.h>
 
 static int flush_racache(struct inode *inode)
@@ -273,7 +274,6 @@ out:
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			"%s(%pU): PUT buffer_index %d\n",
 			__func__, handle, buffer_index);
-		buffer_index = -1;
 	}
 	op_release(new_op);
 	return ret;
@@ -390,8 +390,7 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		     "orangefs_file_mmap: called on %pD\n", file);
 
 	/* set the sequential readahead hint */
-	vma->vm_flags |= VM_SEQ_READ;
-	vma->vm_flags &= ~VM_RAND_READ;
+	vm_flags_mod(vma, VM_SEQ_READ, VM_RAND_READ);
 
 	file_accessed(file);
 	vma->vm_ops = &orangefs_file_vm_ops;

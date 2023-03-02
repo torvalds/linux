@@ -185,6 +185,7 @@ struct timing_generator_funcs {
 #ifdef CONFIG_DRM_AMD_DC_DCN
 	void (*phantom_crtc_post_enable)(struct timing_generator *tg);
 #endif
+	void (*disable_phantom_crtc)(struct timing_generator *tg);
 	bool (*immediate_disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);
 	void (*get_position)(struct timing_generator *tg,
@@ -301,6 +302,11 @@ struct timing_generator_funcs {
 	void (*get_dsc_status)(struct timing_generator *optc,
 					uint32_t *dsc_mode);
 	void (*set_odm_bypass)(struct timing_generator *optc, const struct dc_crtc_timing *dc_crtc_timing);
+
+	/**
+	 * @set_odm_combine: Set up the ODM block to read from the correct
+	 * OPP(s) and turn on/off ODM memory.
+	 */
 	void (*set_odm_combine)(struct timing_generator *optc, int *opp_id, int opp_cnt,
 			struct dc_crtc_timing *timing);
 	void (*set_h_timing_div_manual_mode)(struct timing_generator *optc, bool manual_mode);
@@ -325,6 +331,7 @@ struct timing_generator_funcs {
 			uint32_t vtotal_change_limit);
 
 	void (*init_odm)(struct timing_generator *tg);
+	void (*wait_drr_doublebuffer_pending_clear)(struct timing_generator *tg);
 };
 
 #endif

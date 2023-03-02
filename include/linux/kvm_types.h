@@ -40,7 +40,7 @@ typedef unsigned long  gva_t;
 typedef u64            gpa_t;
 typedef u64            gfn_t;
 
-#define GPA_INVALID	(~(gpa_t)0)
+#define INVALID_GPA	(~(gpa_t)0)
 
 typedef unsigned long  hva_t;
 typedef u64            hpa_t;
@@ -67,6 +67,7 @@ struct gfn_to_pfn_cache {
 	gpa_t gpa;
 	unsigned long uhva;
 	struct kvm_memory_slot *memslot;
+	struct kvm *kvm;
 	struct kvm_vcpu *vcpu;
 	struct list_head list;
 	rwlock_t lock;

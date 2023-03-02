@@ -95,6 +95,7 @@ struct bq25890_init_data {
 
 struct bq25890_state {
 	u8 online;
+	u8 hiz;
 	u8 chrg_status;
 	u8 chrg_fault;
 	u8 vsys_status;
@@ -107,6 +108,10 @@ struct bq25890_device {
 	struct i2c_client *client;
 	struct device *dev;
 	struct power_supply *charger;
+	struct power_supply *secondary_chrg;
+	struct power_supply_desc desc;
+	char name[28]; /* "bq25890-charger-%d" */
+	int id;
 
 	struct usb_phy *usb_phy;
 	struct notifier_block usb_nb;
@@ -119,13 +124,18 @@ struct bq25890_device {
 
 	bool skip_reset;
 	bool read_back_init_data;
+	bool force_hiz;
 	u32 pump_express_vbus_max;
+	u32 iinlim_percentage;
 	enum bq25890_chip_version chip_version;
 	struct bq25890_init_data init_data;
 	struct bq25890_state state;
 
 	struct mutex lock; /* protect state data */
 };
+
+static DEFINE_IDR(bq25890_id);
+static DEFINE_MUTEX(bq25890_id_mutex);
 
 static const struct regmap_range bq25890_readonly_reg_ranges[] = {
 	regmap_reg_range(0x0b, 0x0c),
@@ -454,20 +464,18 @@ static int bq25890_get_vbus_voltage(struct bq25890_device *bq)
 	return bq25890_find_val(ret, TBL_VBUSV);
 }
 
-static int bq25890_power_supply_get_property(struct power_supply *psy,
-					     enum power_supply_property psp,
-					     union power_supply_propval *val)
+static void bq25890_update_state(struct bq25890_device *bq,
+				 enum power_supply_property psp,
+				 struct bq25890_state *state)
 {
-	struct bq25890_device *bq = power_supply_get_drvdata(psy);
-	struct bq25890_state state;
 	bool do_adc_conv;
 	int ret;
 
 	mutex_lock(&bq->lock);
 	/* update state in case we lost an interrupt */
 	__bq25890_handle_irq(bq);
-	state = bq->state;
-	do_adc_conv = !state.online && bq25890_is_adc_property(psp);
+	*state = bq->state;
+	do_adc_conv = (!state->online || state->hiz) && bq25890_is_adc_property(psp);
 	if (do_adc_conv)
 		bq25890_field_write(bq, F_CONV_START, 1);
 	mutex_unlock(&bq->lock);
@@ -475,10 +483,21 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 	if (do_adc_conv)
 		regmap_field_read_poll_timeout(bq->rmap_fields[F_CONV_START],
 			ret, !ret, 25000, 1000000);
+}
+
+static int bq25890_power_supply_get_property(struct power_supply *psy,
+					     enum power_supply_property psp,
+					     union power_supply_propval *val)
+{
+	struct bq25890_device *bq = power_supply_get_drvdata(psy);
+	struct bq25890_state state;
+	int ret;
+
+	bq25890_update_state(bq, psp, &state);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (!state.online)
+		if (!state.online || state.hiz)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else if (state.chrg_status == STATUS_NOT_CHARGING)
 			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -493,7 +512,8 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
-		if (!state.online || state.chrg_status == STATUS_NOT_CHARGING ||
+		if (!state.online || state.hiz ||
+		    state.chrg_status == STATUS_NOT_CHARGING ||
 		    state.chrg_status == STATUS_TERMINATION_DONE)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
 		else if (state.chrg_status == STATUS_PRE_CHARGING)
@@ -513,7 +533,7 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = state.online;
+		val->intval = state.online && !state.hiz;
 		break;
 
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -527,40 +547,6 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
 		else
 			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-		break;
-
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
-
-		/* When temperature is too low, charge current is decreased */
-		if (bq->state.ntc_fault == NTC_FAULT_COOL) {
-			ret = bq25890_field_read(bq, F_JEITA_ISET);
-			if (ret < 0)
-				return ret;
-
-			if (ret)
-				val->intval /= 5;
-			else
-				val->intval /= 2;
-		}
-		break;
-
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
-		if (!state.online) {
-			val->intval = 0;
-			break;
-		}
-
-		ret = bq25890_field_read(bq, F_BATV); /* read measured value */
-		if (ret < 0)
-			return ret;
-
-		/* converted_val = 2.304V + ADC_val * 20mV (table 10.3.15) */
-		val->intval = 2304000 + ret * 20000;
-		break;
-
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
-		val->intval = bq25890_find_val(bq->init_data.vreg, TBL_VREG);
 		break;
 
 	case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
@@ -579,8 +565,71 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		val->intval = bq25890_find_val(ret, TBL_IINLIM);
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = bq25890_field_read(bq, F_SYSV); /* read measured value */
+	case POWER_SUPPLY_PROP_CURRENT_NOW:	/* I_BAT now */
+		/*
+		 * This is ADC-sampled immediate charge current supplied
+		 * from charger to battery. The property name is confusing,
+		 * for clarification refer to:
+		 * Documentation/ABI/testing/sysfs-class-power
+		 * /sys/class/power_supply/<supply_name>/current_now
+		 */
+		ret = bq25890_field_read(bq, F_ICHGR); /* read measured value */
+		if (ret < 0)
+			return ret;
+
+		/* converted_val = ADC_val * 50mA (table 10.3.19) */
+		val->intval = ret * -50000;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:	/* I_BAT user limit */
+		/*
+		 * This is user-configured constant charge current supplied
+		 * from charger to battery in first phase of charging, when
+		 * battery voltage is below constant charge voltage.
+		 *
+		 * This value reflects the current hardware setting.
+		 *
+		 * The POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX is the
+		 * maximum value of this property.
+		 */
+		ret = bq25890_field_read(bq, F_ICHG);
+		if (ret < 0)
+			return ret;
+		val->intval = bq25890_find_val(ret, TBL_ICHG);
+
+		/* When temperature is too low, charge current is decreased */
+		if (bq->state.ntc_fault == NTC_FAULT_COOL) {
+			ret = bq25890_field_read(bq, F_JEITA_ISET);
+			if (ret < 0)
+				return ret;
+
+			if (ret)
+				val->intval /= 5;
+			else
+				val->intval /= 2;
+		}
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:	/* I_BAT max */
+		/*
+		 * This is maximum allowed constant charge current supplied
+		 * from charger to battery in first phase of charging, when
+		 * battery voltage is below constant charge voltage.
+		 *
+		 * This value is constant for each battery and set from DT.
+		 */
+		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
+		break;
+
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:	/* V_BAT now */
+		/*
+		 * This is ADC-sampled immediate charge voltage supplied
+		 * from charger to battery. The property name is confusing,
+		 * for clarification refer to:
+		 * Documentation/ABI/testing/sysfs-class-power
+		 * /sys/class/power_supply/<supply_name>/voltage_now
+		 */
+		ret = bq25890_field_read(bq, F_BATV); /* read measured value */
 		if (ret < 0)
 			return ret;
 
@@ -588,13 +637,33 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		val->intval = 2304000 + ret * 20000;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		ret = bq25890_field_read(bq, F_ICHGR); /* read measured value */
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:	/* V_BAT user limit */
+		/*
+		 * This is user-configured constant charge voltage supplied
+		 * from charger to battery in second phase of charging, when
+		 * battery voltage reached constant charge voltage.
+		 *
+		 * This value reflects the current hardware setting.
+		 *
+		 * The POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX is the
+		 * maximum value of this property.
+		 */
+		ret = bq25890_field_read(bq, F_VREG);
 		if (ret < 0)
 			return ret;
 
-		/* converted_val = ADC_val * 50mA (table 10.3.19) */
-		val->intval = ret * -50000;
+		val->intval = bq25890_find_val(ret, TBL_VREG);
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:	/* V_BAT max */
+		/*
+		 * This is maximum allowed constant charge voltage supplied
+		 * from charger to battery in second phase of charging, when
+		 * battery voltage reached constant charge voltage.
+		 *
+		 * This value is constant for each battery and set from DT.
+		 */
+		val->intval = bq25890_find_val(bq->init_data.vreg, TBL_VREG);
 		break;
 
 	case POWER_SUPPLY_PROP_TEMP:
@@ -618,12 +687,28 @@ static int bq25890_power_supply_set_property(struct power_supply *psy,
 					     const union power_supply_propval *val)
 {
 	struct bq25890_device *bq = power_supply_get_drvdata(psy);
+	struct bq25890_state state;
+	int maxval, ret;
 	u8 lval;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+		maxval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
+		lval = bq25890_find_idx(min(val->intval, maxval), TBL_ICHG);
+		return bq25890_field_write(bq, F_ICHG, lval);
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		maxval = bq25890_find_val(bq->init_data.vreg, TBL_VREG);
+		lval = bq25890_find_idx(min(val->intval, maxval), TBL_VREG);
+		return bq25890_field_write(bq, F_VREG, lval);
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		lval = bq25890_find_idx(val->intval, TBL_IINLIM);
 		return bq25890_field_write(bq, F_IINLIM, lval);
+	case POWER_SUPPLY_PROP_ONLINE:
+		ret = bq25890_field_write(bq, F_EN_HIZ, !val->intval);
+		if (!ret)
+			bq->force_hiz = !val->intval;
+		bq25890_update_state(bq, psp, &state);
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -633,11 +718,26 @@ static int bq25890_power_supply_property_is_writeable(struct power_supply *psy,
 						      enum power_supply_property psp)
 {
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+	case POWER_SUPPLY_PROP_ONLINE:
 		return true;
 	default:
 		return false;
 	}
+}
+
+/*
+ * If there are multiple chargers the maximum current the external power-supply
+ * can deliver needs to be divided over the chargers. This is done according
+ * to the bq->iinlim_percentage setting.
+ */
+static int bq25890_charger_get_scaled_iinlim_regval(struct bq25890_device *bq,
+						    int iinlim_ua)
+{
+	iinlim_ua = iinlim_ua * bq->iinlim_percentage / 100;
+	return bq25890_find_idx(iinlim_ua, TBL_IINLIM);
 }
 
 /* On the BQ25892 try to get charger-type info from our supplier */
@@ -658,7 +758,7 @@ static void bq25890_charger_external_power_changed(struct power_supply *psy)
 
 	switch (val.intval) {
 	case POWER_SUPPLY_USB_TYPE_DCP:
-		input_current_limit = bq25890_find_idx(2000000, TBL_IINLIM);
+		input_current_limit = bq25890_charger_get_scaled_iinlim_regval(bq, 2000000);
 		if (bq->pump_express_vbus_max) {
 			queue_delayed_work(system_power_efficient_wq,
 					   &bq->pump_express_work,
@@ -667,11 +767,11 @@ static void bq25890_charger_external_power_changed(struct power_supply *psy)
 		break;
 	case POWER_SUPPLY_USB_TYPE_CDP:
 	case POWER_SUPPLY_USB_TYPE_ACA:
-		input_current_limit = bq25890_find_idx(1500000, TBL_IINLIM);
+		input_current_limit = bq25890_charger_get_scaled_iinlim_regval(bq, 1500000);
 		break;
 	case POWER_SUPPLY_USB_TYPE_SDP:
 	default:
-		input_current_limit = bq25890_find_idx(500000, TBL_IINLIM);
+		input_current_limit = bq25890_charger_get_scaled_iinlim_regval(bq, 500000);
 	}
 
 	bq25890_field_write(bq, F_IINLIM, input_current_limit);
@@ -688,6 +788,7 @@ static int bq25890_get_chip_state(struct bq25890_device *bq,
 	} state_fields[] = {
 		{F_CHG_STAT,	&state->chrg_status},
 		{F_PG_STAT,	&state->online},
+		{F_EN_HIZ,	&state->hiz},
 		{F_VSYS_STAT,	&state->vsys_status},
 		{F_BOOST_FAULT, &state->boost_fault},
 		{F_BAT_FAULT,	&state->bat_fault},
@@ -703,16 +804,18 @@ static int bq25890_get_chip_state(struct bq25890_device *bq,
 		*state_fields[i].data = ret;
 	}
 
-	dev_dbg(bq->dev, "S:CHG/PG/VSYS=%d/%d/%d, F:CHG/BOOST/BAT/NTC=%d/%d/%d/%d\n",
-		state->chrg_status, state->online, state->vsys_status,
-		state->chrg_fault, state->boost_fault, state->bat_fault,
-		state->ntc_fault);
+	dev_dbg(bq->dev, "S:CHG/PG/HIZ/VSYS=%d/%d/%d/%d, F:CHG/BOOST/BAT/NTC=%d/%d/%d/%d\n",
+		state->chrg_status, state->online,
+		state->hiz, state->vsys_status,
+		state->chrg_fault, state->boost_fault,
+		state->bat_fault, state->ntc_fault);
 
 	return 0;
 }
 
 static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq)
 {
+	bool adc_conv_rate, new_adc_conv_rate;
 	struct bq25890_state new_state;
 	int ret;
 
@@ -723,14 +826,23 @@ static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq)
 	if (!memcmp(&bq->state, &new_state, sizeof(new_state)))
 		return IRQ_NONE;
 
-	if (!new_state.online && bq->state.online) {	    /* power removed */
-		/* disable ADC */
-		ret = bq25890_field_write(bq, F_CONV_RATE, 0);
+	/*
+	 * Restore HiZ bit in case it was set by user. The chip does not retain
+	 * this bit on cable replug, hence the bit must be reset manually here.
+	 */
+	if (new_state.online && !bq->state.online && bq->force_hiz) {
+		ret = bq25890_field_write(bq, F_EN_HIZ, bq->force_hiz);
 		if (ret < 0)
 			goto error;
-	} else if (new_state.online && !bq->state.online) { /* power inserted */
-		/* enable ADC, to have control of charge current/voltage */
-		ret = bq25890_field_write(bq, F_CONV_RATE, 1);
+		new_state.hiz = 1;
+	}
+
+	/* Should period ADC sampling be enabled? */
+	adc_conv_rate = bq->state.online && !bq->state.hiz;
+	new_adc_conv_rate = new_state.online && !new_state.hiz;
+
+	if (new_adc_conv_rate != adc_conv_rate) {
+		ret = bq25890_field_write(bq, F_CONV_RATE, new_adc_conv_rate);
 		if (ret < 0)
 			goto error;
 	}
@@ -864,7 +976,7 @@ static int bq25890_hw_init(struct bq25890_device *bq)
 	}
 
 	/* Configure ADC for continuous conversions when charging */
-	ret = bq25890_field_write(bq, F_CONV_RATE, !!bq->state.online);
+	ret = bq25890_field_write(bq, F_CONV_RATE, bq->state.online && !bq->state.hiz);
 	if (ret < 0) {
 		dev_dbg(bq->dev, "Config ADC failed %d\n", ret);
 		return ret;
@@ -880,6 +992,7 @@ static const enum power_supply_property bq25890_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
@@ -896,7 +1009,6 @@ static char *bq25890_charger_supplied_to[] = {
 };
 
 static const struct power_supply_desc bq25890_power_supply_desc = {
-	.name = "bq25890-charger",
 	.type = POWER_SUPPLY_TYPE_USB,
 	.properties = bq25890_power_supply_props,
 	.num_properties = ARRAY_SIZE(bq25890_power_supply_props),
@@ -910,12 +1022,21 @@ static int bq25890_power_supply_init(struct bq25890_device *bq)
 {
 	struct power_supply_config psy_cfg = { .drv_data = bq, };
 
+	/* Get ID for the device */
+	mutex_lock(&bq25890_id_mutex);
+	bq->id = idr_alloc(&bq25890_id, bq, 0, 0, GFP_KERNEL);
+	mutex_unlock(&bq25890_id_mutex);
+	if (bq->id < 0)
+		return bq->id;
+
+	snprintf(bq->name, sizeof(bq->name), "bq25890-charger-%d", bq->id);
+	bq->desc = bq25890_power_supply_desc;
+	bq->desc.name = bq->name;
+
 	psy_cfg.supplied_to = bq25890_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq25890_charger_supplied_to);
 
-	bq->charger = devm_power_supply_register(bq->dev,
-						 &bq25890_power_supply_desc,
-						 &psy_cfg);
+	bq->charger = devm_power_supply_register(bq->dev, &bq->desc, &psy_cfg);
 
 	return PTR_ERR_OR_ZERO(bq->charger);
 }
@@ -935,9 +1056,16 @@ static void bq25890_pump_express_work(struct work_struct *data)
 {
 	struct bq25890_device *bq =
 		container_of(data, struct bq25890_device, pump_express_work.work);
+	union power_supply_propval value;
 	int voltage, i, ret;
 
 	dev_dbg(bq->dev, "Start to request input voltage increasing\n");
+
+	/* If there is a second charger put in Hi-Z mode */
+	if (bq->secondary_chrg) {
+		value.intval = 0;
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &value);
+	}
 
 	/* Enable current pulse voltage control protocol */
 	ret = bq25890_field_write(bq, F_PUMPX_EN, 1);
@@ -969,6 +1097,11 @@ static void bq25890_pump_express_work(struct work_struct *data)
 	}
 
 	bq25890_field_write(bq, F_PUMPX_EN, 0);
+
+	if (bq->secondary_chrg) {
+		value.intval = 1;
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &value);
+	}
 
 	dev_info(bq->dev, "Hi-voltage charging requested, input voltage is %d mV\n",
 		 voltage);
@@ -1016,6 +1149,17 @@ static int bq25890_usb_notifier(struct notifier_block *nb, unsigned long val,
 static int bq25890_vbus_enable(struct regulator_dev *rdev)
 {
 	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+	union power_supply_propval val = {
+		.intval = 0,
+	};
+
+	/*
+	 * When enabling 5V boost / Vbus output, we need to put the secondary
+	 * charger in Hi-Z mode to avoid it trying to charge the secondary
+	 * battery from the 5V boost output.
+	 */
+	if (bq->secondary_chrg)
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &val);
 
 	return bq25890_set_otg_cfg(bq, 1);
 }
@@ -1023,8 +1167,19 @@ static int bq25890_vbus_enable(struct regulator_dev *rdev)
 static int bq25890_vbus_disable(struct regulator_dev *rdev)
 {
 	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+	union power_supply_propval val = {
+		.intval = 1,
+	};
+	int ret;
 
-	return bq25890_set_otg_cfg(bq, 0);
+	ret = bq25890_set_otg_cfg(bq, 0);
+	if (ret)
+		return ret;
+
+	if (bq->secondary_chrg)
+		power_supply_set_property(bq->secondary_chrg, POWER_SUPPLY_PROP_ONLINE, &val);
+
+	return 0;
 }
 
 static int bq25890_vbus_is_enabled(struct regulator_dev *rdev)
@@ -1034,10 +1189,32 @@ static int bq25890_vbus_is_enabled(struct regulator_dev *rdev)
 	return bq25890_field_read(bq, F_OTG_CFG);
 }
 
+static int bq25890_vbus_get_voltage(struct regulator_dev *rdev)
+{
+	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+
+	return bq25890_get_vbus_voltage(bq);
+}
+
+static int bq25890_vsys_get_voltage(struct regulator_dev *rdev)
+{
+	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+	int ret;
+
+	/* Should be some output voltage ? */
+	ret = bq25890_field_read(bq, F_SYSV); /* read measured value */
+	if (ret < 0)
+		return ret;
+
+	/* converted_val = 2.304V + ADC_val * 20mV (table 10.3.15) */
+	return 2304000 + ret * 20000;
+}
+
 static const struct regulator_ops bq25890_vbus_ops = {
 	.enable = bq25890_vbus_enable,
 	.disable = bq25890_vbus_disable,
 	.is_enabled = bq25890_vbus_is_enabled,
+	.get_voltage = bq25890_vbus_get_voltage,
 };
 
 static const struct regulator_desc bq25890_vbus_desc = {
@@ -1046,9 +1223,54 @@ static const struct regulator_desc bq25890_vbus_desc = {
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,
 	.ops = &bq25890_vbus_ops,
-	.fixed_uV = 5000000,
-	.n_voltages = 1,
 };
+
+static const struct regulator_ops bq25890_vsys_ops = {
+	.get_voltage = bq25890_vsys_get_voltage,
+};
+
+static const struct regulator_desc bq25890_vsys_desc = {
+	.name = "vsys",
+	.of_match = "vsys",
+	.type = REGULATOR_VOLTAGE,
+	.owner = THIS_MODULE,
+	.ops = &bq25890_vsys_ops,
+};
+
+static int bq25890_register_regulator(struct bq25890_device *bq)
+{
+	struct bq25890_platform_data *pdata = dev_get_platdata(bq->dev);
+	struct regulator_config cfg = {
+		.dev = bq->dev,
+		.driver_data = bq,
+	};
+	struct regulator_dev *reg;
+
+	if (pdata)
+		cfg.init_data = pdata->regulator_init_data;
+
+	reg = devm_regulator_register(bq->dev, &bq25890_vbus_desc, &cfg);
+	if (IS_ERR(reg)) {
+		return dev_err_probe(bq->dev, PTR_ERR(reg),
+				     "registering vbus regulator");
+	}
+
+	/* pdata->regulator_init_data is for vbus only */
+	cfg.init_data = NULL;
+	reg = devm_regulator_register(bq->dev, &bq25890_vsys_desc, &cfg);
+	if (IS_ERR(reg)) {
+		return dev_err_probe(bq->dev, PTR_ERR(reg),
+				     "registering vsys regulator");
+	}
+
+	return 0;
+}
+#else
+static inline int
+bq25890_register_regulator(struct bq25890_device *bq)
+{
+	return 0;
+}
 #endif
 
 static int bq25890_get_chip_version(struct bq25890_device *bq)
@@ -1168,10 +1390,30 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 {
 	int ret;
 	struct bq25890_init_data *init = &bq->init_data;
+	const char *str;
+	u32 val;
+
+	ret = device_property_read_string(bq->dev, "linux,secondary-charger-name", &str);
+	if (ret == 0) {
+		bq->secondary_chrg = power_supply_get_by_name(str);
+		if (!bq->secondary_chrg)
+			return -EPROBE_DEFER;
+	}
 
 	/* Optional, left at 0 if property is not present */
 	device_property_read_u32(bq->dev, "linux,pump-express-vbus-max",
 				 &bq->pump_express_vbus_max);
+
+	ret = device_property_read_u32(bq->dev, "linux,iinlim-percentage", &val);
+	if (ret == 0) {
+		if (val > 100) {
+			dev_err(bq->dev, "Error linux,iinlim-percentage %u > 100\n", val);
+			return -EINVAL;
+		}
+		bq->iinlim_percentage = val;
+	} else {
+		bq->iinlim_percentage = 100;
+	}
 
 	bq->skip_reset = device_property_read_bool(bq->dev, "linux,skip-reset");
 	bq->read_back_init_data = device_property_read_bool(bq->dev,
@@ -1189,8 +1431,20 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 	return 0;
 }
 
-static int bq25890_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static void bq25890_non_devm_cleanup(void *data)
+{
+	struct bq25890_device *bq = data;
+
+	cancel_delayed_work_sync(&bq->pump_express_work);
+
+	if (bq->id >= 0) {
+		mutex_lock(&bq25890_id_mutex);
+		idr_remove(&bq25890_id, bq->id);
+		mutex_unlock(&bq25890_id_mutex);
+	}
+}
+
+static int bq25890_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct bq25890_device *bq;
@@ -1202,6 +1456,7 @@ static int bq25890_probe(struct i2c_client *client,
 
 	bq->client = client;
 	bq->dev = dev;
+	bq->id = -1;
 
 	mutex_init(&bq->lock);
 	INIT_DELAYED_WORK(&bq->pump_express_work, bq25890_pump_express_work);
@@ -1244,56 +1499,47 @@ static int bq25890_probe(struct i2c_client *client,
 
 	/* OTG reporting */
 	bq->usb_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
-		INIT_WORK(&bq->usb_work, bq25890_usb_work);
-		bq->usb_nb.notifier_call = bq25890_usb_notifier;
-		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
-	}
-#ifdef CONFIG_REGULATOR
-	else {
-		struct bq25890_platform_data *pdata = dev_get_platdata(dev);
-		struct regulator_config cfg = { };
-		struct regulator_dev *reg;
 
-		cfg.dev = dev;
-		cfg.driver_data = bq;
-		if (pdata)
-			cfg.init_data = pdata->regulator_init_data;
+	/*
+	 * This must be before bq25890_power_supply_init(), so that it runs
+	 * after devm unregisters the power_supply.
+	 */
+	ret = devm_add_action_or_reset(dev, bq25890_non_devm_cleanup, bq);
+	if (ret)
+		return ret;
 
-		reg = devm_regulator_register(dev, &bq25890_vbus_desc, &cfg);
-		if (IS_ERR(reg))
-			return dev_err_probe(dev, PTR_ERR(reg), "registering regulator");
-	}
-#endif
+	ret = bq25890_register_regulator(bq);
+	if (ret)
+		return ret;
 
 	ret = bq25890_power_supply_init(bq);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register power supply\n");
-		goto err_unregister_usb_notifier;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "registering power supply\n");
 
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					bq25890_irq_handler_thread,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					BQ25890_IRQ_PIN, bq);
 	if (ret)
-		goto err_unregister_usb_notifier;
+		return ret;
+
+	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
+		INIT_WORK(&bq->usb_work, bq25890_usb_work);
+		bq->usb_nb.notifier_call = bq25890_usb_notifier;
+		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
+	}
 
 	return 0;
-
-err_unregister_usb_notifier:
-	if (!IS_ERR_OR_NULL(bq->usb_phy))
-		usb_unregister_notifier(bq->usb_phy, &bq->usb_nb);
-
-	return ret;
 }
 
 static void bq25890_remove(struct i2c_client *client)
 {
 	struct bq25890_device *bq = i2c_get_clientdata(client);
 
-	if (!IS_ERR_OR_NULL(bq->usb_phy))
+	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
 		usb_unregister_notifier(bq->usb_phy, &bq->usb_nb);
+		cancel_work_sync(&bq->usb_work);
+	}
 
 	if (!bq->skip_reset) {
 		/* reset all registers to default values */
@@ -1400,7 +1646,7 @@ static struct i2c_driver bq25890_driver = {
 		.acpi_match_table = ACPI_PTR(bq25890_acpi_match),
 		.pm = &bq25890_pm,
 	},
-	.probe = bq25890_probe,
+	.probe_new = bq25890_probe,
 	.remove = bq25890_remove,
 	.shutdown = bq25890_shutdown,
 	.id_table = bq25890_i2c_ids,

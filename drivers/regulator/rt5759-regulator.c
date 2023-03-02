@@ -243,6 +243,7 @@ static int rt5759_regulator_register(struct rt5759_priv *priv)
 	if (priv->chip_type == CHIP_TYPE_RT5759A)
 		reg_desc->uV_step = RT5759A_STEP_UV;
 
+	memset(&reg_cfg, 0, sizeof(reg_cfg));
 	reg_cfg.dev = priv->dev;
 	reg_cfg.of_node = np;
 	reg_cfg.init_data = of_get_regulator_init_data(priv->dev, np, reg_desc);

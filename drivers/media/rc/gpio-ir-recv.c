@@ -74,13 +74,9 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gpio_dev->gpiod = devm_gpiod_get(dev, NULL, GPIOD_IN);
-	if (IS_ERR(gpio_dev->gpiod)) {
-		rc = PTR_ERR(gpio_dev->gpiod);
-		/* Just try again if this happens */
-		if (rc != -EPROBE_DEFER)
-			dev_err(dev, "error getting gpio (%d)\n", rc);
-		return rc;
-	}
+	if (IS_ERR(gpio_dev->gpiod))
+		return dev_err_probe(dev, PTR_ERR(gpio_dev->gpiod),
+				     "error getting gpio\n");
 	gpio_dev->irq = gpiod_to_irq(gpio_dev->gpiod);
 	if (gpio_dev->irq < 0)
 		return gpio_dev->irq;
@@ -128,6 +124,23 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	return devm_request_irq(dev, gpio_dev->irq, gpio_ir_recv_irq,
 				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 				"gpio-ir-recv-irq", gpio_dev);
+}
+
+static int gpio_ir_recv_remove(struct platform_device *pdev)
+{
+	struct gpio_rc_dev *gpio_dev = platform_get_drvdata(pdev);
+	struct device *pmdev = gpio_dev->pmdev;
+
+	if (pmdev) {
+		pm_runtime_get_sync(pmdev);
+		cpu_latency_qos_remove_request(&gpio_dev->qos);
+
+		pm_runtime_disable(pmdev);
+		pm_runtime_put_noidle(pmdev);
+		pm_runtime_set_suspended(pmdev);
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -189,6 +202,7 @@ MODULE_DEVICE_TABLE(of, gpio_ir_recv_of_match);
 
 static struct platform_driver gpio_ir_recv_driver = {
 	.probe  = gpio_ir_recv_probe,
+	.remove = gpio_ir_recv_remove,
 	.driver = {
 		.name   = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),

@@ -231,7 +231,7 @@ patternProperties:
   ".*-supply$":
     description: Input supply phandle(s) for this node
 
-  regulator-state-(standby|mem|disk):
+  "^regulator-state-(standby|mem|disk)$":
     type: object
     description:
       sub-nodes for regulator state in Standby, Suspend-to-RAM, and

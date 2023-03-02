@@ -445,7 +445,7 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 				    const struct clk_pcr_layout *layout,
 				    const char *name, const char *parent_name,
 				    u32 id, const struct clk_range *range,
-				    int chg_pid)
+				    int chg_pid, unsigned long flags)
 {
 	struct clk_sam9x5_peripheral *periph;
 	struct clk_init_data init;
@@ -462,12 +462,12 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 	init.name = name;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
+	init.flags = flags;
 	if (chg_pid < 0) {
-		init.flags = 0;
 		init.ops = &sam9x5_peripheral_ops;
 	} else {
-		init.flags = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
-			     CLK_SET_RATE_PARENT;
+		init.flags |= CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
+			      CLK_SET_RATE_PARENT;
 		init.ops = &sam9x5_peripheral_chg_ops;
 	}
 

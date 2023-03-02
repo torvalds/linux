@@ -10,10 +10,9 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/of_gpio.h>
 
 #include <video/omapfb_dss.h>
 
@@ -58,7 +57,7 @@ struct panel_drv_data {
 
 	struct spi_device *spi;
 	struct regulator *vcc_reg;
-	int nreset_gpio;
+	struct gpio_desc *reset_gpio;
 	u16 gamma[12];
 	u32 mode;
 	u32 hmirror:1;
@@ -296,8 +295,7 @@ static int tpo_td043_power_on(struct panel_drv_data *ddata)
 	/* wait for panel to stabilize */
 	msleep(160);
 
-	if (gpio_is_valid(ddata->nreset_gpio))
-		gpio_set_value(ddata->nreset_gpio, 1);
+	gpiod_set_value_cansleep(ddata->reset_gpio, 0);
 
 	tpo_td043_write(ddata->spi, 2,
 			TPO_R02_MODE(ddata->mode) | TPO_R02_NCLK_RISING);
@@ -320,8 +318,7 @@ static void tpo_td043_power_off(struct panel_drv_data *ddata)
 	tpo_td043_write(ddata->spi, 3,
 			TPO_R03_VAL_STANDBY | TPO_R03_EN_PWM);
 
-	if (gpio_is_valid(ddata->nreset_gpio))
-		gpio_set_value(ddata->nreset_gpio, 0);
+	gpiod_set_value_cansleep(ddata->reset_gpio, 1);
 
 	/* wait for at least 2 vsyncs before cutting off power */
 	msleep(50);
@@ -454,32 +451,6 @@ static struct omap_dss_driver tpo_td043_ops = {
 	.get_resolution	= omapdss_default_get_resolution,
 };
 
-
-static int tpo_td043_probe_of(struct spi_device *spi)
-{
-	struct device_node *node = spi->dev.of_node;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct omap_dss_device *in;
-	int gpio;
-
-	gpio = of_get_named_gpio(node, "reset-gpios", 0);
-	if (!gpio_is_valid(gpio)) {
-		dev_err(&spi->dev, "failed to parse enable gpio\n");
-		return gpio;
-	}
-	ddata->nreset_gpio = gpio;
-
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&spi->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
-	return 0;
-}
-
 static int tpo_td043_probe(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata;
@@ -508,9 +479,12 @@ static int tpo_td043_probe(struct spi_device *spi)
 
 	ddata->spi = spi;
 
-	r = tpo_td043_probe_of(spi);
-	if (r)
+	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_node);
+	r = PTR_ERR_OR_ZERO(ddata->in);
+	if (r) {
+		dev_err(&spi->dev, "failed to find video source: %d\n", r);
 		return r;
+	}
 
 	ddata->mode = TPO_R02_MODE_800x480;
 	memcpy(ddata->gamma, tpo_td043_def_gamma, sizeof(ddata->gamma));
@@ -521,15 +495,14 @@ static int tpo_td043_probe(struct spi_device *spi)
 		goto err_regulator;
 	}
 
-	if (gpio_is_valid(ddata->nreset_gpio)) {
-		r = devm_gpio_request_one(&spi->dev,
-				ddata->nreset_gpio, GPIOF_OUT_INIT_LOW,
-				"lcd reset");
-		if (r < 0) {
-			dev_err(&spi->dev, "couldn't request reset GPIO\n");
-			goto err_gpio_req;
-		}
+	ddata->reset_gpio = devm_gpiod_get(&spi->dev, "reset", GPIOD_OUT_HIGH);
+	r = PTR_ERR_OR_ZERO(ddata->reset_gpio);
+	if (r) {
+		dev_err(&spi->dev, "couldn't request reset GPIO\n");
+		goto err_gpio_req;
 	}
+
+	gpiod_set_consumer_name(ddata->reset_gpio, "lcd reset");
 
 	r = sysfs_create_group(&spi->dev.kobj, &tpo_td043_attr_group);
 	if (r) {

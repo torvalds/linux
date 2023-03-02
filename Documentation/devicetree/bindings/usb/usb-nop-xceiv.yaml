@@ -35,9 +35,14 @@ properties:
     maxItems: 1
 
   vbus-regulator:
-    description: Should specifiy the regulator supplying current drawn from
+    description: Should specify the regulator supplying current drawn from
       the VBus line.
     $ref: /schemas/types.yaml#/definitions/phandle
+
+  wakeup-source:
+    description:
+      Specify if the USB phy can detect the remote wakeup signal
+      while the system sleep.
 
 required:
   - compatible

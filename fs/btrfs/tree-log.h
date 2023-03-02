@@ -6,14 +6,20 @@
 #ifndef BTRFS_TREE_LOG_H
 #define BTRFS_TREE_LOG_H
 
+#include "messages.h"
 #include "ctree.h"
 #include "transaction.h"
 
 /* return value for btrfs_log_dentry_safe that means we don't need to log it at all */
 #define BTRFS_NO_LOG_SYNC 256
 
-/* We can't use the tree log for whatever reason, force a transaction commit */
-#define BTRFS_LOG_FORCE_COMMIT				(1)
+/*
+ * We can't use the tree log for whatever reason, force a transaction commit.
+ * We use a negative value because there are functions through the logging code
+ * that need to return an error (< 0 value), false (0) or true (1). Any negative
+ * value will do, as it will cause the log to be marked for a full sync.
+ */
+#define BTRFS_LOG_FORCE_COMMIT				(-(MAX_ERRNO + 1))
 
 struct btrfs_log_ctx {
 	int log_ret;
@@ -23,8 +29,6 @@ struct btrfs_log_ctx {
 	bool logging_new_delayed_dentries;
 	/* Indicate if the inode being logged was logged before. */
 	bool logged_before;
-	/* Tracks the last logged dir item/index key offset. */
-	u64 last_dir_item_offset;
 	struct inode *inode;
 	struct list_head list;
 	/* Only used for fast fsyncs. */
@@ -86,11 +90,11 @@ int btrfs_log_dentry_safe(struct btrfs_trans_handle *trans,
 			  struct btrfs_log_ctx *ctx);
 void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
-				  const char *name, int name_len,
+				  const struct fscrypt_str *name,
 				  struct btrfs_inode *dir, u64 index);
 void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				const char *name, int name_len,
+				const struct fscrypt_str *name,
 				struct btrfs_inode *inode, u64 dirid);
 void btrfs_end_log_trans(struct btrfs_root *root);
 void btrfs_pin_log_trans(struct btrfs_root *root);

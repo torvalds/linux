@@ -21,6 +21,7 @@
 #define INSTR_CLIENT_SHIFT      29
 #define   INSTR_MI_CLIENT       0x0
 #define   INSTR_BC_CLIENT       0x2
+#define   INSTR_GSC_CLIENT      0x2 /* MTL+ */
 #define   INSTR_RC_CLIENT       0x3
 #define INSTR_SUBCLIENT_SHIFT   27
 #define INSTR_SUBCLIENT_MASK    0x18000000
@@ -186,6 +187,10 @@
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
 #define   MI_BATCH_RESOURCE_STREAMER REG_BIT(10)
 #define   MI_BATCH_PREDICATE         REG_BIT(15) /* HSW+ on RCS only*/
+
+#define MI_OPCODE(x)		(((x) >> 23) & 0x3f)
+#define IS_MI_LRI_CMD(x)	(MI_OPCODE(x) == MI_OPCODE(MI_INSTR(0x22, 0)))
+#define MI_LRI_LEN(x)		(((x) & 0xff) + 1)
 
 /*
  * 3D instructions used by the kernel
@@ -427,6 +432,12 @@
 
 #define COLOR_BLT     ((0x2<<29)|(0x40<<22))
 #define SRC_COPY_BLT  ((0x2<<29)|(0x43<<22))
+
+#define GSC_INSTR(opcode, data, flags) \
+	(__INSTR(INSTR_GSC_CLIENT) | (opcode) << 22 | (data) << 9 | (flags))
+
+#define GSC_FW_LOAD GSC_INSTR(1, 0, 2)
+#define   HECI1_FW_LIMIT_VALID (1 << 31)
 
 /*
  * Used to convert any address to canonical form.

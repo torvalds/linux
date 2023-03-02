@@ -4,7 +4,7 @@ High Speed Synchronous Serial Interface (HSI)
 Introduction
 ---------------
 
-High Speed Syncronous Interface (HSI) is a fullduplex, low latency protocol,
+High Speed Synchronous Interface (HSI) is a full duplex, low latency protocol,
 that is optimized for die-level interconnect between an Application Processor
 and a Baseband chipset. It has been specified by the MIPI alliance in 2003 and
 implemented by multiple vendors since then.
@@ -52,7 +52,7 @@ hsi-char Device
 ------------------
 
 Each port automatically registers a generic client driver called hsi_char,
-which provides a charecter device for userspace representing the HSI port.
+which provides a character device for userspace representing the HSI port.
 It can be used to communicate via HSI from userspace. Userspace may
 configure the hsi_char device using the following ioctl commands:
 

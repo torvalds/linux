@@ -4,14 +4,19 @@
  * Copyright (c) 2020 Linaro Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/seq_file.h>
+
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
+
 #include "../pinctrl-utils.h"
+
 #include "pinctrl-lpass-lpi.h"
 
 #define MAX_LPI_NUM_CLKS	2
@@ -425,7 +430,6 @@ int lpi_pinctrl_probe(struct platform_device *pdev)
 	pctrl->chip.base = -1;
 	pctrl->chip.ngpio = data->npins;
 	pctrl->chip.label = dev_name(dev);
-	pctrl->chip.of_gpio_n_cells = 2;
 	pctrl->chip.can_sleep = false;
 
 	mutex_init(&pctrl->slew_access_lock);

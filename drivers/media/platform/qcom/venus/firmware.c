@@ -12,7 +12,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/sizes.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
@@ -38,8 +38,8 @@ static void venus_reset_cpu(struct venus_core *core)
 	writel(fw_size, wrapper_base + WRAPPER_FW_END_ADDR);
 	writel(0, wrapper_base + WRAPPER_CPA_START_ADDR);
 	writel(fw_size, wrapper_base + WRAPPER_CPA_END_ADDR);
-	writel(fw_size, wrapper_base + WRAPPER_NONPIX_START_ADDR);
-	writel(fw_size, wrapper_base + WRAPPER_NONPIX_END_ADDR);
+	writel(0, wrapper_base + WRAPPER_NONPIX_START_ADDR);
+	writel(0, wrapper_base + WRAPPER_NONPIX_END_ADDR);
 
 	if (IS_V6(core)) {
 		/* Bring XTSS out of reset */
@@ -68,9 +68,11 @@ int venus_set_hw_state(struct venus_core *core, bool resume)
 		venus_reset_cpu(core);
 	} else {
 		if (IS_V6(core))
-			writel(1, core->wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+			writel(WRAPPER_XTSS_SW_RESET_BIT,
+			       core->wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
 		else
-			writel(1, core->wrapper_base + WRAPPER_A9SS_SW_RESET);
+			writel(WRAPPER_A9SS_SW_RESET_BIT,
+			       core->wrapper_base + WRAPPER_A9SS_SW_RESET);
 	}
 
 	return 0;
@@ -156,7 +158,7 @@ static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
 	core->fw.mapped_mem_size = mem_size;
 
 	ret = iommu_map(iommu, VENUS_FW_START_ADDR, mem_phys, mem_size,
-			IOMMU_READ | IOMMU_WRITE | IOMMU_PRIV);
+			IOMMU_READ | IOMMU_WRITE | IOMMU_PRIV, GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "could not map video firmware region\n");
 		return ret;
@@ -179,17 +181,15 @@ static int venus_shutdown_no_tz(struct venus_core *core)
 
 	if (IS_V6(core)) {
 		/* Assert the reset to XTSS */
-		reg = readl_relaxed(wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+		reg = readl(wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
 		reg |= WRAPPER_XTSS_SW_RESET_BIT;
-		writel_relaxed(reg, wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+		writel(reg, wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
 	} else {
 		/* Assert the reset to ARM9 */
-		reg = readl_relaxed(wrapper_base + WRAPPER_A9SS_SW_RESET);
+		reg = readl(wrapper_base + WRAPPER_A9SS_SW_RESET);
 		reg |= WRAPPER_A9SS_SW_RESET_BIT;
-		writel_relaxed(reg, wrapper_base + WRAPPER_A9SS_SW_RESET);
+		writel(reg, wrapper_base + WRAPPER_A9SS_SW_RESET);
 	}
-	/* Make sure reset is asserted before the mapping is removed */
-	mb();
 
 	iommu = core->fw.iommu_domain;
 

@@ -1424,7 +1424,7 @@ static const struct attribute_group mip4_attr_group = {
 	.attrs = mip4_attrs,
 };
 
-static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int mip4_probe(struct i2c_client *client)
 {
 	struct mip4_ts *ts;
 	struct input_dev *input;
@@ -1528,7 +1528,7 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int __maybe_unused mip4_suspend(struct device *dev)
+static int mip4_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mip4_ts *ts = i2c_get_clientdata(client);
@@ -1546,7 +1546,7 @@ static int __maybe_unused mip4_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mip4_resume(struct device *dev)
+static int mip4_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mip4_ts *ts = i2c_get_clientdata(client);
@@ -1564,7 +1564,7 @@ static int __maybe_unused mip4_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mip4_pm_ops, mip4_suspend, mip4_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mip4_pm_ops, mip4_suspend, mip4_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id mip4_of_match[] = {
@@ -1590,12 +1590,12 @@ MODULE_DEVICE_TABLE(i2c, mip4_i2c_ids);
 
 static struct i2c_driver mip4_driver = {
 	.id_table = mip4_i2c_ids,
-	.probe = mip4_probe,
+	.probe_new = mip4_probe,
 	.driver = {
 		.name = MIP4_DEVICE_NAME,
 		.of_match_table = of_match_ptr(mip4_of_match),
 		.acpi_match_table = ACPI_PTR(mip4_acpi_match),
-		.pm = &mip4_pm_ops,
+		.pm = pm_sleep_ptr(&mip4_pm_ops),
 	},
 };
 module_i2c_driver(mip4_driver);

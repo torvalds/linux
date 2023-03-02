@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/qcom,qfprom.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc, QFPROM Efuse bindings
+title: Qualcomm Technologies Inc, QFPROM Efuse
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -19,16 +19,21 @@ properties:
           - qcom,apq8064-qfprom
           - qcom,apq8084-qfprom
           - qcom,ipq8064-qfprom
-          - qcom,msm8974-qfprom
+          - qcom,ipq8074-qfprom
           - qcom,msm8916-qfprom
+          - qcom,msm8974-qfprom
+          - qcom,msm8976-qfprom
           - qcom,msm8996-qfprom
           - qcom,msm8998-qfprom
           - qcom,qcs404-qfprom
           - qcom,sc7180-qfprom
           - qcom,sc7280-qfprom
           - qcom,sdm630-qfprom
+          - qcom,sdm670-qfprom
           - qcom,sdm845-qfprom
           - qcom,sm6115-qfprom
+          - qcom,sm8150-qfprom
+          - qcom,sm8250-qfprom
       - const: qcom,qfprom
 
   reg:

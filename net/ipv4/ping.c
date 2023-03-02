@@ -49,6 +49,11 @@
 #include <net/transp_v6.h>
 #endif
 
+#define ping_portaddr_for_each_entry(__sk, node, list) \
+	hlist_nulls_for_each_entry(__sk, node, list, sk_nulls_node)
+#define ping_portaddr_for_each_entry_rcu(__sk, node, list) \
+	hlist_nulls_for_each_entry_rcu(__sk, node, list, sk_nulls_node)
+
 struct ping_table {
 	struct hlist_nulls_head	hash[PING_HTABLE_SIZE];
 	spinlock_t		lock;
@@ -138,7 +143,7 @@ next_port:
 
 fail:
 	spin_unlock(&ping_table.lock);
-	return 1;
+	return -EADDRINUSE;
 }
 EXPORT_SYMBOL_GPL(ping_get_port);
 
@@ -192,7 +197,7 @@ static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
 		return NULL;
 	}
 
-	ping_portaddr_for_each_entry(sk, hnode, hslot) {
+	ping_portaddr_for_each_entry_rcu(sk, hnode, hslot) {
 		isk = inet_sk(sk);
 
 		pr_debug("iterate\n");

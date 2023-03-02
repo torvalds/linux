@@ -94,6 +94,8 @@ int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 	unsigned long i, nr = folio_nr_pages(folio);
 	void *old;
 
+	xas_set_update(&xas, workingset_update_node);
+
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(folio_test_swapcache(folio), folio);
 	VM_BUG_ON_FOLIO(!folio_test_swapbacked(folio), folio);
@@ -144,6 +146,8 @@ void __delete_from_swap_cache(struct folio *folio,
 	long nr = folio_nr_pages(folio);
 	pgoff_t idx = swp_offset(entry);
 	XA_STATE(xas, &address_space->i_pages, idx);
+
+	xas_set_update(&xas, workingset_update_node);
 
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(!folio_test_swapcache(folio), folio);
@@ -252,6 +256,8 @@ void clear_shadow_from_swap_cache(int type, unsigned long begin,
 		struct address_space *address_space = swap_address_space(entry);
 		XA_STATE(xas, &address_space->i_pages, curr);
 
+		xas_set_update(&xas, workingset_update_node);
+
 		xa_lock_irq(&address_space->i_pages);
 		xas_for_each(&xas, old, end) {
 			if (!xa_is_value(old))
@@ -303,15 +309,12 @@ void free_page_and_swap_cache(struct page *page)
  * Passed an array of pages, drop them all from swapcache and then release
  * them.  They are removed from the LRU and freed if this is their last use.
  */
-void free_pages_and_swap_cache(struct page **pages, int nr)
+void free_pages_and_swap_cache(struct encoded_page **pages, int nr)
 {
-	struct page **pagep = pages;
-	int i;
-
 	lru_add_drain();
-	for (i = 0; i < nr; i++)
-		free_swap_cache(pagep[i]);
-	release_pages(pagep, nr);
+	for (int i = 0; i < nr; i++)
+		free_swap_cache(encoded_page_ptr(pages[i]));
+	release_pages(pages, nr);
 }
 
 static inline bool swap_use_vma_readahead(void)
@@ -324,19 +327,15 @@ static inline bool swap_use_vma_readahead(void)
  * unlocked and with its refcount incremented - we rely on the kernel
  * lock getting page table operations atomic even if we drop the folio
  * lock before returning.
+ *
+ * Caller must lock the swap device or hold a reference to keep it valid.
  */
 struct folio *swap_cache_get_folio(swp_entry_t entry,
 		struct vm_area_struct *vma, unsigned long addr)
 {
 	struct folio *folio;
-	struct swap_info_struct *si;
 
-	si = get_swap_device(entry);
-	if (!si)
-		return NULL;
 	folio = filemap_get_folio(swap_address_space(entry), swp_offset(entry));
-	put_swap_device(si);
-
 	if (folio) {
 		bool vma_ra = swap_use_vma_readahead();
 		bool readahead;
@@ -373,30 +372,28 @@ struct folio *swap_cache_get_folio(swp_entry_t entry,
 }
 
 /**
- * find_get_incore_page - Find and get a page from the page or swap caches.
+ * filemap_get_incore_folio - Find and get a folio from the page or swap caches.
  * @mapping: The address_space to search.
  * @index: The page cache index.
  *
- * This differs from find_get_page() in that it will also look for the
- * page in the swap cache.
+ * This differs from filemap_get_folio() in that it will also look for the
+ * folio in the swap cache.
  *
- * Return: The found page or %NULL.
+ * Return: The found folio or %NULL.
  */
-struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index)
+struct folio *filemap_get_incore_folio(struct address_space *mapping,
+		pgoff_t index)
 {
 	swp_entry_t swp;
 	struct swap_info_struct *si;
-	struct page *page = pagecache_get_page(mapping, index,
-						FGP_ENTRY | FGP_HEAD, 0);
+	struct folio *folio = __filemap_get_folio(mapping, index, FGP_ENTRY, 0);
 
-	if (!page)
-		return page;
-	if (!xa_is_value(page))
-		return find_subpage(page, index);
+	if (!xa_is_value(folio))
+		goto out;
 	if (!shmem_mapping(mapping))
 		return NULL;
 
-	swp = radix_to_swp_entry(page);
+	swp = radix_to_swp_entry(folio);
 	/* There might be swapin error entries in shmem mapping. */
 	if (non_swap_entry(swp))
 		return NULL;
@@ -404,9 +401,11 @@ struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index)
 	si = get_swap_device(swp);
 	if (!si)
 		return NULL;
-	page = find_get_page(swap_address_space(swp), swp_offset(swp));
+	index = swp_offset(swp);
+	folio = filemap_get_folio(swap_address_space(swp), index);
 	put_swap_device(si);
-	return page;
+out:
+	return folio;
 }
 
 struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
@@ -696,28 +695,15 @@ void exit_swap_address_space(unsigned int type)
 	swapper_spaces[type] = NULL;
 }
 
-static inline void swap_ra_clamp_pfn(struct vm_area_struct *vma,
-				     unsigned long faddr,
-				     unsigned long lpfn,
-				     unsigned long rpfn,
-				     unsigned long *start,
-				     unsigned long *end)
-{
-	*start = max3(lpfn, PFN_DOWN(vma->vm_start),
-		      PFN_DOWN(faddr & PMD_MASK));
-	*end = min3(rpfn, PFN_DOWN(vma->vm_end),
-		    PFN_DOWN((faddr & PMD_MASK) + PMD_SIZE));
-}
-
 static void swap_ra_info(struct vm_fault *vmf,
-			struct vma_swap_readahead *ra_info)
+			 struct vma_swap_readahead *ra_info)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	unsigned long ra_val;
-	unsigned long faddr, pfn, fpfn;
+	unsigned long faddr, pfn, fpfn, lpfn, rpfn;
 	unsigned long start, end;
 	pte_t *pte, *orig_pte;
-	unsigned int max_win, hits, prev_win, win, left;
+	unsigned int max_win, hits, prev_win, win;
 #ifndef CONFIG_64BIT
 	pte_t *tpte;
 #endif
@@ -730,8 +716,6 @@ static void swap_ra_info(struct vm_fault *vmf,
 	}
 
 	faddr = vmf->address;
-	orig_pte = pte = pte_offset_map(vmf->pmd, faddr);
-
 	fpfn = PFN_DOWN(faddr);
 	ra_val = GET_SWAP_RA_VAL(vma);
 	pfn = PFN_DOWN(SWAP_RA_ADDR(ra_val));
@@ -742,22 +726,28 @@ static void swap_ra_info(struct vm_fault *vmf,
 	atomic_long_set(&vma->swap_readahead_info,
 			SWAP_RA_VAL(faddr, win, 0));
 
-	if (win == 1) {
-		pte_unmap(orig_pte);
+	if (win == 1)
 		return;
-	}
 
 	/* Copy the PTEs because the page table may be unmapped */
-	if (fpfn == pfn + 1)
-		swap_ra_clamp_pfn(vma, faddr, fpfn, fpfn + win, &start, &end);
-	else if (pfn == fpfn + 1)
-		swap_ra_clamp_pfn(vma, faddr, fpfn - win + 1, fpfn + 1,
-				  &start, &end);
-	else {
-		left = (win - 1) / 2;
-		swap_ra_clamp_pfn(vma, faddr, fpfn - left, fpfn + win - left,
-				  &start, &end);
+	orig_pte = pte = pte_offset_map(vmf->pmd, faddr);
+	if (fpfn == pfn + 1) {
+		lpfn = fpfn;
+		rpfn = fpfn + win;
+	} else if (pfn == fpfn + 1) {
+		lpfn = fpfn - win + 1;
+		rpfn = fpfn + 1;
+	} else {
+		unsigned int left = (win - 1) / 2;
+
+		lpfn = fpfn - left;
+		rpfn = fpfn + win - left;
 	}
+	start = max3(lpfn, PFN_DOWN(vma->vm_start),
+		     PFN_DOWN(faddr & PMD_MASK));
+	end = min3(rpfn, PFN_DOWN(vma->vm_end),
+		   PFN_DOWN((faddr & PMD_MASK) + PMD_SIZE));
+
 	ra_info->nr_pte = end - start;
 	ra_info->offset = fpfn - start;
 	pte -= ra_info->offset;

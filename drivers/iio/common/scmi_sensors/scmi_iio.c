@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/scmi_protocol.h>
 #include <linux/time.h>
 #include <linux/types.h>
@@ -27,6 +28,8 @@ struct scmi_iio_priv {
 	struct scmi_protocol_handle *ph;
 	const struct scmi_sensor_info *sensor_info;
 	struct iio_dev *indio_dev;
+	/* lock to protect against multiple access to the device */
+	struct mutex lock;
 	/* adding one additional channel for timestamp */
 	s64 iio_buf[SCMI_IIO_NUM_OF_AXIS + 1];
 	struct notifier_block sensor_update_nb;
@@ -198,13 +201,14 @@ static int scmi_iio_write_raw(struct iio_dev *iio_dev,
 			      struct iio_chan_spec const *chan, int val,
 			      int val2, long mask)
 {
+	struct scmi_iio_priv *sensor = iio_priv(iio_dev);
 	int err;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		mutex_lock(&iio_dev->mlock);
+		mutex_lock(&sensor->lock);
 		err = scmi_iio_set_odr_val(iio_dev, val, val2);
-		mutex_unlock(&iio_dev->mlock);
+		mutex_unlock(&sensor->lock);
 		return err;
 	default:
 		return -EINVAL;
@@ -396,12 +400,12 @@ static ssize_t scmi_iio_get_raw_available(struct iio_dev *iio_dev,
 			rem = do_div(resolution,
 				     int_pow(10, abs(exponent))
 				     );
-			len = scnprintf(buf, PAGE_SIZE,
+			len = sysfs_emit(buf,
 					"[%lld %llu.%llu %lld]\n", min_range,
 					resolution, rem, max_range);
 		} else {
 			resolution = resolution * int_pow(10, exponent);
-			len = scnprintf(buf, PAGE_SIZE, "[%lld %llu %lld]\n",
+			len = sysfs_emit(buf, "[%lld %llu %lld]\n",
 					min_range, resolution, max_range);
 		}
 	}
@@ -586,6 +590,7 @@ scmi_alloc_iiodev(struct scmi_device *sdev,
 	sensor->sensor_info = sensor_info;
 	sensor->sensor_update_nb.notifier_call = scmi_iio_sensor_update_cb;
 	sensor->indio_dev = iiodev;
+	mutex_init(&sensor->lock);
 
 	/* adding one additional channel for timestamp */
 	iiodev->num_channels = sensor_info->num_axis + 1;

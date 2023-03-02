@@ -145,7 +145,7 @@ static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 		return prog_fd;
 
 	memset(info, 0, sizeof(*info));
-	err = bpf_obj_get_info_by_fd(prog_fd, info, &len);
+	err = bpf_prog_get_info_by_fd(prog_fd, info, &len);
 	if (err)
 		p_err("can't get prog info: %s", strerror(errno));
 	close(prog_fd);
@@ -204,9 +204,8 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 
 		jsonw_name(json_wtr, "pinned");
 		jsonw_start_array(json_wtr);
-		hashmap__for_each_key_entry(link_table, entry,
-					    u32_as_hash_field(info->id))
-			jsonw_string(json_wtr, entry->value);
+		hashmap__for_each_key_entry(link_table, entry, info->id)
+			jsonw_string(json_wtr, entry->pvalue);
 		jsonw_end_array(json_wtr);
 	}
 
@@ -309,9 +308,8 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 	if (!hashmap__empty(link_table)) {
 		struct hashmap_entry *entry;
 
-		hashmap__for_each_key_entry(link_table, entry,
-					    u32_as_hash_field(info->id))
-			printf("\n\tpinned %s", (char *)entry->value);
+		hashmap__for_each_key_entry(link_table, entry, info->id)
+			printf("\n\tpinned %s", (char *)entry->pvalue);
 	}
 	emit_obj_refs_plain(refs_table, info->id, "\n\tpids ");
 
@@ -329,7 +327,7 @@ static int do_show_link(int fd)
 
 	memset(&info, 0, sizeof(info));
 again:
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
 	if (err) {
 		p_err("can't get link info: %s",
 		      strerror(errno));

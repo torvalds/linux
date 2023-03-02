@@ -16,11 +16,13 @@ struct fsverity_hash_alg fsverity_hash_algs[] = {
 		.name = "sha256",
 		.digest_size = SHA256_DIGEST_SIZE,
 		.block_size = SHA256_BLOCK_SIZE,
+		.algo_id = HASH_ALGO_SHA256,
 	},
 	[FS_VERITY_HASH_ALG_SHA512] = {
 		.name = "sha512",
 		.digest_size = SHA512_DIGEST_SIZE,
 		.block_size = SHA512_BLOCK_SIZE,
+		.algo_id = HASH_ALGO_SHA512,
 	},
 };
 
@@ -218,35 +220,33 @@ err_free:
 }
 
 /**
- * fsverity_hash_page() - hash a single data or hash page
+ * fsverity_hash_block() - hash a single data or hash block
  * @params: the Merkle tree's parameters
  * @inode: inode for which the hashing is being done
  * @req: preallocated hash request
- * @page: the page to hash
+ * @page: the page containing the block to hash
+ * @offset: the offset of the block within @page
  * @out: output digest, size 'params->digest_size' bytes
  *
- * Hash a single data or hash block, assuming block_size == PAGE_SIZE.
- * The hash is salted if a salt is specified in the Merkle tree parameters.
+ * Hash a single data or hash block.  The hash is salted if a salt is specified
+ * in the Merkle tree parameters.
  *
  * Return: 0 on success, -errno on failure
  */
-int fsverity_hash_page(const struct merkle_tree_params *params,
-		       const struct inode *inode,
-		       struct ahash_request *req, struct page *page, u8 *out)
+int fsverity_hash_block(const struct merkle_tree_params *params,
+			const struct inode *inode, struct ahash_request *req,
+			struct page *page, unsigned int offset, u8 *out)
 {
 	struct scatterlist sg;
 	DECLARE_CRYPTO_WAIT(wait);
 	int err;
 
-	if (WARN_ON(params->block_size != PAGE_SIZE))
-		return -EINVAL;
-
 	sg_init_table(&sg, 1);
-	sg_set_page(&sg, page, PAGE_SIZE, 0);
+	sg_set_page(&sg, page, params->block_size, offset);
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP |
 					CRYPTO_TFM_REQ_MAY_BACKLOG,
 				   crypto_req_done, &wait);
-	ahash_request_set_crypt(req, &sg, out, PAGE_SIZE);
+	ahash_request_set_crypt(req, &sg, out, params->block_size);
 
 	if (params->hashstate) {
 		err = crypto_ahash_import(req, params->hashstate);
@@ -262,7 +262,7 @@ int fsverity_hash_page(const struct merkle_tree_params *params,
 
 	err = crypto_wait_req(err, &wait);
 	if (err)
-		fsverity_err(inode, "Error %d computing page hash", err);
+		fsverity_err(inode, "Error %d computing block hash", err);
 	return err;
 }
 
@@ -324,5 +324,9 @@ void __init fsverity_check_hash_algs(void)
 		 */
 		BUG_ON(!is_power_of_2(alg->digest_size));
 		BUG_ON(!is_power_of_2(alg->block_size));
+
+		/* Verify that there is a valid mapping to HASH_ALGO_*. */
+		BUG_ON(alg->algo_id == 0);
+		BUG_ON(alg->digest_size != hash_digest_size[alg->algo_id]);
 	}
 }

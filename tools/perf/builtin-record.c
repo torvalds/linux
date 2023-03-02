@@ -154,6 +154,7 @@ struct record {
 	struct perf_tool	tool;
 	struct record_opts	opts;
 	u64			bytes_written;
+	u64			thread_bytes_written;
 	struct perf_data	data;
 	struct auxtrace_record	*itr;
 	struct evlist	*evlist;
@@ -226,14 +227,7 @@ static bool switch_output_time(struct record *rec)
 
 static u64 record__bytes_written(struct record *rec)
 {
-	int t;
-	u64 bytes_written = rec->bytes_written;
-	struct record_thread *thread_data = rec->thread_data;
-
-	for (t = 0; t < rec->nr_threads; t++)
-		bytes_written += thread_data[t].bytes_written;
-
-	return bytes_written;
+	return rec->bytes_written + rec->thread_bytes_written;
 }
 
 static bool record__output_max_size_exceeded(struct record *rec)
@@ -255,10 +249,12 @@ static int record__write(struct record *rec, struct mmap *map __maybe_unused,
 		return -1;
 	}
 
-	if (map && map->file)
+	if (map && map->file) {
 		thread->bytes_written += size;
-	else
+		rec->thread_bytes_written += size;
+	} else {
 		rec->bytes_written += size;
+	}
 
 	if (record__output_max_size_exceeded(rec) && !done) {
 		fprintf(stderr, "[ perf record: perf size limit reached (%" PRIu64 " KB),"
@@ -646,10 +642,10 @@ static int record__pushfn(struct mmap *map, void *to, void *bf, size_t size)
 	return record__write(rec, map, bf, size);
 }
 
-static volatile int signr = -1;
-static volatile int child_finished;
+static volatile sig_atomic_t signr = -1;
+static volatile sig_atomic_t child_finished;
 #ifdef HAVE_EVENTFD_SUPPORT
-static volatile int done_fd = -1;
+static volatile sig_atomic_t done_fd = -1;
 #endif
 
 static void sig_handler(int sig)
@@ -1701,8 +1697,10 @@ static void record__init_features(struct record *rec)
 	if (rec->no_buildid)
 		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (!have_tracepoints(&rec->evlist->core.entries))
 		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
+#endif
 
 	if (!rec->opts.branch_stack)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
@@ -1926,7 +1924,7 @@ static void record__read_lost_samples(struct record *rec)
 
 }
 
-static volatile int workload_exec_errno;
+static volatile sig_atomic_t workload_exec_errno;
 
 /*
  * evlist__prepare_workload will send a SIGUSR1
@@ -3378,8 +3376,6 @@ static struct option __record_options[] = {
 	OPT_CALLBACK(0, "mmap-flush", &record.opts, "number",
 		     "Minimal number of bytes that is extracted from mmap data pages (default: 1)",
 		     record__mmap_flush_parse),
-	OPT_BOOLEAN(0, "group", &record.opts.group,
-		    "put the counters into a counter group"),
 	OPT_CALLBACK_NOOPT('g', NULL, &callchain_param,
 			   NULL, "enables call-graph recording" ,
 			   &record_callchain_opt),
@@ -3388,7 +3384,7 @@ static struct option __record_options[] = {
 		     &record_parse_callchain_opt),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any warnings or messages"),
 	OPT_BOOLEAN('s', "stat", &record.opts.inherit_stat,
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &record.opts.sample_address, "Record the sample addresses"),
@@ -3555,7 +3551,7 @@ static int record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_cp
 		/* Return ENODEV is input cpu is greater than max cpu */
 		if ((unsigned long)cpu.cpu > mask->nbits)
 			return -ENODEV;
-		set_bit(cpu.cpu, mask->bits);
+		__set_bit(cpu.cpu, mask->bits);
 	}
 
 	return 0;
@@ -3627,9 +3623,9 @@ static int record__init_thread_cpu_masks(struct record *rec, struct perf_cpu_map
 	pr_debug("nr_threads: %d\n", rec->nr_threads);
 
 	for (t = 0; t < rec->nr_threads; t++) {
-		set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].maps.bits);
-		set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].affinity.bits);
-		if (verbose) {
+		__set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].maps.bits);
+		__set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].affinity.bits);
+		if (verbose > 0) {
 			pr_debug("thread_masks[%d]: ", t);
 			mmap_cpu_mask__scnprintf(&rec->thread_masks[t].maps, "maps");
 			pr_debug("thread_masks[%d]: ", t);
@@ -3726,7 +3722,7 @@ static int record__init_thread_masks_spec(struct record *rec, struct perf_cpu_ma
 		}
 		rec->thread_masks = thread_masks;
 		rec->thread_masks[t] = thread_mask;
-		if (verbose) {
+		if (verbose > 0) {
 			pr_debug("thread_masks[%d]: ", t);
 			mmap_cpu_mask__scnprintf(&rec->thread_masks[t].maps, "maps");
 			pr_debug("thread_masks[%d]: ", t);

@@ -16,8 +16,11 @@ description:
 
 properties:
   compatible:
-    items:
+    oneOf:
       - const: goodix,gt7375p
+      - items:
+          - const: goodix,gt7986u
+          - const: goodix,gt7375p
 
   reg:
     enum:
@@ -32,6 +35,13 @@ properties:
 
   vdd-supply:
     description: The 3.3V supply to the touchscreen.
+
+  mainboard-vddio-supply:
+    description:
+      The supply on the main board needed to power up IO signals going
+      to the touchscreen. This supply need not go to the touchscreen
+      itself as long as it allows the main board to make signals compatible
+      with what the touchscreen is expecting for its IO rails.
 
 required:
   - compatible

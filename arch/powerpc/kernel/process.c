@@ -862,10 +862,8 @@ static inline int set_breakpoint_8xx(struct arch_hw_breakpoint *brk)
 	return 0;
 }
 
-void __set_breakpoint(int nr, struct arch_hw_breakpoint *brk)
+static void set_hw_breakpoint(int nr, struct arch_hw_breakpoint *brk)
 {
-	memcpy(this_cpu_ptr(&current_brk[nr]), brk, sizeof(*brk));
-
 	if (dawr_enabled())
 		// Power8 or later
 		set_dawr(nr, brk);
@@ -879,6 +877,12 @@ void __set_breakpoint(int nr, struct arch_hw_breakpoint *brk)
 		WARN_ON_ONCE(1);
 }
 
+void __set_breakpoint(int nr, struct arch_hw_breakpoint *brk)
+{
+	memcpy(this_cpu_ptr(&current_brk[nr]), brk, sizeof(*brk));
+	set_hw_breakpoint(nr, brk);
+}
+
 /* Check if we have DAWR or DABR hardware */
 bool ppc_breakpoint_available(void)
 {
@@ -890,6 +894,34 @@ bool ppc_breakpoint_available(void)
 	return true;
 }
 EXPORT_SYMBOL_GPL(ppc_breakpoint_available);
+
+/* Disable the breakpoint in hardware without touching current_brk[] */
+void suspend_breakpoints(void)
+{
+	struct arch_hw_breakpoint brk = {0};
+	int i;
+
+	if (!ppc_breakpoint_available())
+		return;
+
+	for (i = 0; i < nr_wp_slots(); i++)
+		set_hw_breakpoint(i, &brk);
+}
+
+/*
+ * Re-enable breakpoints suspended by suspend_breakpoints() in hardware
+ * from current_brk[]
+ */
+void restore_breakpoints(void)
+{
+	int i;
+
+	if (!ppc_breakpoint_available())
+		return;
+
+	for (i = 0; i < nr_wp_slots(); i++)
+		set_hw_breakpoint(i, this_cpu_ptr(&current_brk[i]));
+}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 
@@ -1359,7 +1391,7 @@ static void show_instructions(struct pt_regs *regs)
 	unsigned long nip = regs->nip;
 	unsigned long pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
 
-	printk("Instruction dump:");
+	printk("Code: ");
 
 	/*
 	 * If we were executing with the MMU off for instructions, adjust pc
@@ -1373,11 +1405,7 @@ static void show_instructions(struct pt_regs *regs)
 	for (i = 0; i < NR_INSN_TO_PRINT; i++) {
 		int instr;
 
-		if (!(i % 8))
-			pr_cont("\n");
-
-		if (!__kernel_text_address(pc) ||
-		    get_kernel_nofault(instr, (const void *)pc)) {
+		if (get_kernel_nofault(instr, (const void *)pc)) {
 			pr_cont("XXXXXXXX ");
 		} else {
 			if (nip == pc)
@@ -1726,13 +1754,17 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	klp_init_thread_info(p);
 
+	/* Create initial stack frame. */
+	sp -= STACK_USER_INT_FRAME_SIZE;
+	*(unsigned long *)(sp + STACK_INT_FRAME_MARKER) = STACK_FRAME_REGS_MARKER;
+
 	/* Copy registers */
-	sp -= sizeof(struct pt_regs);
-	childregs = (struct pt_regs *) sp;
+	childregs = (struct pt_regs *)(sp + STACK_INT_FRAME_REGS);
 	if (unlikely(args->fn)) {
 		/* kernel thread */
+		((unsigned long *)sp)[0] = 0;
 		memset(childregs, 0, sizeof(struct pt_regs));
-		childregs->gpr[1] = sp + sizeof(struct pt_regs);
+		childregs->gpr[1] = sp + STACK_USER_INT_FRAME_SIZE;
 		/* function */
 		if (args->fn)
 			childregs->gpr[14] = ppc_function_entry((void *)args->fn);
@@ -1750,6 +1782,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		*childregs = *regs;
 		if (usp)
 			childregs->gpr[1] = usp;
+		((unsigned long *)sp)[0] = childregs->gpr[1];
 		p->thread.regs = childregs;
 		/* 64s sets this in ret_from_fork */
 		if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
@@ -1767,7 +1800,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 			f = ret_from_fork;
 	}
 	childregs->msr &= ~(MSR_FP|MSR_VEC|MSR_VSX);
-	sp -= STACK_FRAME_OVERHEAD;
 
 	/*
 	 * The way this works is that at some point in the future
@@ -1777,11 +1809,12 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 * do some house keeping and then return from the fork or clone
 	 * system call, using the stack frame created above.
 	 */
-	((unsigned long *)sp)[0] = 0;
-	sp -= sizeof(struct pt_regs);
-	kregs = (struct pt_regs *) sp;
-	sp -= STACK_FRAME_OVERHEAD;
+	((unsigned long *)sp)[STACK_FRAME_LR_SAVE] = (unsigned long)f;
+	sp -= STACK_SWITCH_FRAME_SIZE;
+	((unsigned long *)sp)[0] = sp + STACK_SWITCH_FRAME_SIZE;
+	kregs = (struct pt_regs *)(sp + STACK_SWITCH_FRAME_REGS);
 	p->thread.ksp = sp;
+
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	for (i = 0; i < nr_wp_slots(); i++)
 		p->thread.ptrace_bps[i] = NULL;
@@ -2084,6 +2117,9 @@ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 	unsigned long stack_page;
 	unsigned long cpu = task_cpu(p);
 
+	if (!hardirq_ctx[cpu] || !softirq_ctx[cpu])
+		return 0;
+
 	stack_page = (unsigned long)hardirq_ctx[cpu];
 	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
@@ -2105,6 +2141,14 @@ static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 	if (!paca_ptrs)
 		return 0;
 
+	if (!paca_ptrs[cpu]->emergency_sp)
+		return 0;
+
+# ifdef CONFIG_PPC_BOOK3S_64
+	if (!paca_ptrs[cpu]->nmi_emergency_sp || !paca_ptrs[cpu]->mc_emergency_sp)
+		return 0;
+#endif
+
 	stack_page = (unsigned long)paca_ptrs[cpu]->emergency_sp - THREAD_SIZE;
 	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
@@ -2123,9 +2167,12 @@ static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 	return 0;
 }
 
-
-int validate_sp(unsigned long sp, struct task_struct *p,
-		       unsigned long nbytes)
+/*
+ * validate the stack frame of a particular minimum size, used for when we are
+ * looking at a certain object in the stack beyond the minimum.
+ */
+int validate_sp_size(unsigned long sp, struct task_struct *p,
+		     unsigned long nbytes)
 {
 	unsigned long stack_page = (unsigned long)task_stack_page(p);
 
@@ -2141,7 +2188,10 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 	return valid_emergency_stack(sp, p, nbytes);
 }
 
-EXPORT_SYMBOL(validate_sp);
+int validate_sp(unsigned long sp, struct task_struct *p)
+{
+	return validate_sp_size(sp, p, STACK_FRAME_MIN_SIZE);
+}
 
 static unsigned long ___get_wchan(struct task_struct *p)
 {
@@ -2149,13 +2199,12 @@ static unsigned long ___get_wchan(struct task_struct *p)
 	int count = 0;
 
 	sp = p->thread.ksp;
-	if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD))
+	if (!validate_sp(sp, p))
 		return 0;
 
 	do {
 		sp = READ_ONCE_NOCHECK(*(unsigned long *)sp);
-		if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD) ||
-		    task_is_running(p))
+		if (!validate_sp(sp, p) || task_is_running(p))
 			return 0;
 		if (count > 0) {
 			ip = READ_ONCE_NOCHECK(((unsigned long *)sp)[STACK_FRAME_LR_SAVE]);
@@ -2209,7 +2258,7 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 	lr = 0;
 	printk("%sCall Trace:\n", loglvl);
 	do {
-		if (!validate_sp(sp, tsk, STACK_FRAME_OVERHEAD))
+		if (!validate_sp(sp, tsk))
 			break;
 
 		stack = (unsigned long *) sp;
@@ -2230,12 +2279,16 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 
 		/*
 		 * See if this is an exception frame.
-		 * We look for the "regshere" marker in the current frame.
+		 * We look for the "regs" marker in the current frame.
+		 *
+		 * STACK_SWITCH_FRAME_SIZE being the smallest frame that
+		 * could hold a pt_regs, if that does not fit then it can't
+		 * have regs.
 		 */
-		if (validate_sp(sp, tsk, STACK_FRAME_WITH_PT_REGS)
-		    && stack[STACK_FRAME_MARKER] == STACK_FRAME_REGS_MARKER) {
+		if (validate_sp_size(sp, tsk, STACK_SWITCH_FRAME_SIZE)
+		    && stack[STACK_INT_FRAME_MARKER_LONGS] == STACK_FRAME_REGS_MARKER) {
 			struct pt_regs *regs = (struct pt_regs *)
-				(sp + STACK_FRAME_OVERHEAD);
+				(sp + STACK_INT_FRAME_REGS);
 
 			lr = regs->link;
 			printk("%s--- interrupt: %lx at %pS\n",
@@ -2303,6 +2356,6 @@ void notrace __ppc64_runlatch_off(void)
 unsigned long arch_align_stack(unsigned long sp)
 {
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
-		sp -= prandom_u32_max(PAGE_SIZE);
+		sp -= get_random_u32_below(PAGE_SIZE);
 	return sp & ~0xf;
 }

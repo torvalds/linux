@@ -194,11 +194,6 @@ struct atomisp_regs {
 	u32 csi_access_viol;
 };
 
-struct atomisp_sw_contex {
-	int power_state;
-	int running_freq;
-};
-
 #define ATOMISP_DEVICE_STREAMING_DISABLED	0
 #define ATOMISP_DEVICE_STREAMING_ENABLED	1
 #define ATOMISP_DEVICE_STREAMING_STOPPING	2
@@ -215,6 +210,7 @@ struct atomisp_device {
 	void __iomem *base;
 	const struct firmware *firmware;
 
+	struct dev_pm_domain pm_domain;
 	struct pm_qos_request pm_qos;
 	s32 max_isr_latency;
 
@@ -243,7 +239,6 @@ struct atomisp_device {
 	struct v4l2_subdev *motor;
 
 	struct atomisp_regs saved_regs;
-	struct atomisp_sw_contex sw_contex;
 	struct atomisp_css_env css_env;
 
 	/* isp timeout status flag */
@@ -258,6 +253,7 @@ struct atomisp_device {
 	unsigned int mipi_frame_size;
 	const struct atomisp_dfs_config *dfs;
 	unsigned int hpll_freq;
+	unsigned int running_freq;
 
 	bool css_initialized;
 };

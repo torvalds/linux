@@ -231,3 +231,14 @@ ACPI FADT表中指明了它。在这种情况下，Linux会自动禁用MSI。有
 
 也需要检查设备驱动程序，看它是否支持MSI。例如，它可能包含对带有PCI_IRQ_MSI或
 PCI_IRQ_MSIX标志的pci_alloc_irq_vectors（）的调用。
+
+
+MSI(-X) APIs设备驱动程序列表
+============================
+
+PCI/MSI子系统有一个专门的C文件，用于其导出的设备驱动程序APIs - `drivers/pci/msi/api.c` 。
+以下是导出的函数:
+
+该API在以下内核代码中:
+
+drivers/pci/msi/api.c

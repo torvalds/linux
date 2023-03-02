@@ -51,6 +51,7 @@ dtb-$(CONFIG_SOC_AT91SAM9) += \
 	at91sam9x25ek.dtb \
 	at91sam9x35ek.dtb
 dtb-$(CONFIG_SOC_SAM9X60) += \
+	at91-sam9x60_curiosity.dtb \
 	at91-sam9x60ek.dtb
 dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-kizbox2-2.dtb \
@@ -129,6 +130,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4709-tplink-archer-c9-v1.dtb \
 	bcm47094-asus-rt-ac88u.dtb \
 	bcm47094-dlink-dir-885l.dtb \
+	bcm47094-dlink-dir-890l.dtb \
 	bcm47094-linksys-panamera.dtb \
 	bcm47094-luxul-abr-4500.dtb \
 	bcm47094-luxul-xap-1610.dtb \
@@ -139,6 +141,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm47094-netgear-r8500.dtb \
 	bcm47094-phicomm-k3.dtb \
 	bcm53015-meraki-mr26.dtb \
+	bcm53016-dlink-dwl-8610ap.dtb \
 	bcm53016-meraki-mr32.dtb \
 	bcm94708.dtb \
 	bcm94709.dtb \
@@ -244,6 +247,7 @@ dtb-$(CONFIG_ARCH_EXYNOS5) += \
 	exynos5422-odroidxu3.dtb \
 	exynos5422-odroidxu3-lite.dtb \
 	exynos5422-odroidxu4.dtb \
+	exynos5422-samsung-k3g.dtb \
 	exynos5800-peach-pi.dtb
 dtb-$(CONFIG_ARCH_GEMINI) += \
 	gemini-dlink-dir-685.dtb \
@@ -355,6 +359,7 @@ dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-ns2mini.dtb \
 	kirkwood-nsa310.dtb \
 	kirkwood-nsa310a.dtb \
+	kirkwood-nsa310s.dtb \
 	kirkwood-nsa320.dtb \
 	kirkwood-nsa325.dtb \
 	kirkwood-openblocks_a6.dtb \
@@ -462,6 +467,7 @@ dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-ppd.dtb \
 	imx53-qsb.dtb \
 	imx53-qsrb.dtb \
+	imx53-sk-imx53.dtb \
 	imx53-smd.dtb \
 	imx53-tx53-x03x.dtb \
 	imx53-tx53-x13x.dtb \
@@ -681,6 +687,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6s-dhcom-drc02.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
+	imx6sl-kobo-aura2.dtb \
 	imx6sl-tolino-shine2hd.dtb \
 	imx6sl-tolino-shine3.dtb \
 	imx6sl-tolino-vision5.dtb \
@@ -736,6 +743,9 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ull-colibri-wifi-eval-v3.dtb \
 	imx6ull-colibri-wifi-iris.dtb \
 	imx6ull-colibri-wifi-iris-v2.dtb \
+	imx6ull-dhcom-drc02.dtb \
+	imx6ull-dhcom-pdk2.dtb \
+	imx6ull-dhcom-picoitx.dtb \
 	imx6ull-jozacp.dtb \
 	imx6ull-kontron-bl.dtb \
 	imx6ull-myir-mys-6ulx-eval.dtb \
@@ -1029,7 +1039,9 @@ dtb-$(CONFIG_ARCH_OXNAS) += \
 dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-apq8016-sbc.dtb \
 	qcom-apq8026-asus-sparrow.dtb \
+	qcom-apq8026-huawei-sturgeon.dtb \
 	qcom-apq8026-lg-lenok.dtb \
+	qcom-apq8026-samsung-matisse-wifi.dtb \
 	qcom-apq8060-dragonboard.dtb \
 	qcom-apq8064-cm-qs600.dtb \
 	qcom-apq8064-ifc6410.dtb \
@@ -1059,6 +1071,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8974-sony-xperia-rhine-amami.dtb \
 	qcom-msm8974-sony-xperia-rhine-honami.dtb \
 	qcom-msm8974pro-fairphone-fp2.dtb \
+	qcom-msm8974pro-oneplus-bacon.dtb \
 	qcom-msm8974pro-samsung-klte.dtb \
 	qcom-msm8974pro-sony-xperia-shinano-castor.dtb \
 	qcom-mdm9615-wp8548-mangoh-green.dtb \
@@ -1120,12 +1133,14 @@ dtb-$(CONFIG_ARCH_RENESAS) += \
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1108-elgin-r1.dtb \
 	rv1108-evb.dtb \
+	rv1126-edgeble-neu2-io.dtb \
 	rk3036-evb.dtb \
 	rk3036-kylin.dtb \
 	rk3066a-bqcurie2.dtb \
 	rk3066a-marsboard.dtb \
 	rk3066a-mk808.dtb \
 	rk3066a-rayeager.dtb \
+	rk3128-evb.dtb \
 	rk3188-bqedison2qc.dtb \
 	rk3188-px3-evb.dtb \
 	rk3188-radxarock.dtb \
@@ -1156,8 +1171,6 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-veyron-speedy.dtb \
 	rk3288-veyron-tiger.dtb \
 	rk3288-vyasa.dtb
-dtb-$(CONFIG_ARCH_S3C24XX) += \
-	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \
 	s3c6410-mini6410.dtb \
 	s3c6410-smdk6410.dtb
@@ -1172,6 +1185,7 @@ dtb-$(CONFIG_ARCH_S5PV210) += \
 dtb-$(CONFIG_ARCH_INTEL_SOCFPGA) += \
 	socfpga_arria5_socdk.dtb \
 	socfpga_arria10_chameleonv3.dtb \
+	socfpga_arria10_mercury_pe1.dtb \
 	socfpga_arria10_socdk_nand.dtb \
 	socfpga_arria10_socdk_qspi.dtb \
 	socfpga_arria10_socdk_sdmmc.dtb \
@@ -1214,6 +1228,7 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp151a-prtt1a.dtb \
 	stm32mp151a-prtt1c.dtb \
 	stm32mp151a-prtt1s.dtb \
+	stm32mp151a-dhcor-testbench.dtb \
 	stm32mp153c-dhcom-drc02.dtb \
 	stm32mp153c-dhcor-drc-compact.dtb \
 	stm32mp157a-avenger96.dtb \
@@ -1454,6 +1469,8 @@ dtb-$(CONFIG_ARCH_UNIPHIER) += \
 	uniphier-pro4-ace.dtb \
 	uniphier-pro4-ref.dtb \
 	uniphier-pro4-sanji.dtb \
+	uniphier-pro5-epcore.dtb \
+	uniphier-pro5-proex.dtb \
 	uniphier-pxs2-gentil.dtb \
 	uniphier-pxs2-vodka.dtb \
 	uniphier-sld8-ref.dtb
@@ -1588,12 +1605,14 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-asrock-e3c246d4i.dtb \
 	aspeed-bmc-asrock-romed8hm3.dtb \
 	aspeed-bmc-bytedance-g220a.dtb \
+	aspeed-bmc-delta-ahe50dc.dtb \
 	aspeed-bmc-facebook-bletchley.dtb \
 	aspeed-bmc-facebook-cloudripper.dtb \
 	aspeed-bmc-facebook-cmm.dtb \
 	aspeed-bmc-facebook-elbert.dtb \
 	aspeed-bmc-facebook-fuji.dtb \
 	aspeed-bmc-facebook-galaxy100.dtb \
+	aspeed-bmc-facebook-greatlakes.dtb \
 	aspeed-bmc-facebook-minipack.dtb \
 	aspeed-bmc-facebook-tiogapass.dtb \
 	aspeed-bmc-facebook-wedge40.dtb \
@@ -1601,6 +1620,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-facebook-wedge400.dtb \
 	aspeed-bmc-facebook-yamp.dtb \
 	aspeed-bmc-facebook-yosemitev2.dtb \
+	aspeed-bmc-ibm-bonnell.dtb \
 	aspeed-bmc-ibm-everest.dtb \
 	aspeed-bmc-ibm-rainier.dtb \
 	aspeed-bmc-ibm-rainier-1s4u.dtb \
@@ -1612,7 +1632,6 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-lenovo-hr855xg2.dtb \
 	aspeed-bmc-microsoft-olympus.dtb \
 	aspeed-bmc-opp-lanyang.dtb \
-	aspeed-bmc-opp-mihawk.dtb \
 	aspeed-bmc-opp-mowgli.dtb \
 	aspeed-bmc-opp-nicole.dtb \
 	aspeed-bmc-opp-palmetto.dtb \
@@ -1630,6 +1649,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-inventec-transformers.dtb \
 	aspeed-bmc-tyan-s7106.dtb \
 	aspeed-bmc-tyan-s8036.dtb \
+	aspeed-bmc-ufispace-ncplite.dtb \
 	aspeed-bmc-vegman-n110.dtb \
 	aspeed-bmc-vegman-rx20.dtb \
 	aspeed-bmc-vegman-sx20.dtb

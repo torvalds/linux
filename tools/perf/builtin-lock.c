@@ -12,6 +12,7 @@
 #include "util/target.h"
 #include "util/callchain.h"
 #include "util/lock-contention.h"
+#include "util/bpf_skel/lock_data.h"
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
@@ -24,12 +25,14 @@
 #include "util/data.h"
 #include "util/string2.h"
 #include "util/map.h"
+#include "util/util.h"
 
 #include <sys/types.h>
 #include <sys/prctl.h>
 #include <semaphore.h>
 #include <math.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include <linux/list.h>
 #include <linux/hash.h>
@@ -54,22 +57,28 @@ static struct rb_root		thread_stats;
 
 static bool combine_locks;
 static bool show_thread_stats;
+static bool show_lock_addrs;
+static bool show_lock_owner;
 static bool use_bpf;
 static unsigned long bpf_map_entries = 10240;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;
+static LIST_HEAD(callstack_filters);
 
-static enum {
-	LOCK_AGGR_ADDR,
-	LOCK_AGGR_TASK,
-	LOCK_AGGR_CALLER,
-} aggr_mode = LOCK_AGGR_ADDR;
+struct callstack_filter {
+	struct list_head list;
+	char name[];
+};
 
-static u64 sched_text_start;
-static u64 sched_text_end;
-static u64 lock_text_start;
-static u64 lock_text_end;
+static struct lock_filter filters;
+
+static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
+
+static bool needs_callstack(void)
+{
+	return verbose > 0 || !list_empty(&callstack_filters);
+}
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -457,7 +466,7 @@ static struct lock_stat *pop_from_result(void)
 	return container_of(node, struct lock_stat, rb);
 }
 
-static struct lock_stat *lock_stat_find(u64 addr)
+struct lock_stat *lock_stat_find(u64 addr)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret;
@@ -469,7 +478,7 @@ static struct lock_stat *lock_stat_find(u64 addr)
 	return NULL;
 }
 
-static struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags)
+struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret, *new;
@@ -499,6 +508,34 @@ static struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags
 alloc_failed:
 	pr_err("memory allocation failed\n");
 	return NULL;
+}
+
+bool match_callstack_filter(struct machine *machine, u64 *callstack)
+{
+	struct map *kmap;
+	struct symbol *sym;
+	u64 ip;
+
+	if (list_empty(&callstack_filters))
+		return true;
+
+	for (int i = 0; i < max_stack_depth; i++) {
+		struct callstack_filter *filter;
+
+		if (!callstack || !callstack[i])
+			break;
+
+		ip = callstack[i];
+		sym = machine__find_kernel_symbol(machine, ip, &kmap);
+		if (sym == NULL)
+			continue;
+
+		list_for_each_entry(filter, &callstack_filters, list) {
+			if (strstr(sym->name, filter->name))
+				return true;
+		}
+	}
+	return false;
 }
 
 struct trace_lock_handler {
@@ -853,55 +890,6 @@ end:
 	return 0;
 }
 
-bool is_lock_function(struct machine *machine, u64 addr)
-{
-	if (!sched_text_start) {
-		struct map *kmap;
-		struct symbol *sym;
-
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__sched_text_start",
-							  &kmap);
-		if (!sym) {
-			/* to avoid retry */
-			sched_text_start = 1;
-			return false;
-		}
-
-		sched_text_start = kmap->unmap_ip(kmap, sym->start);
-
-		/* should not fail from here */
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__sched_text_end",
-							  &kmap);
-		sched_text_end = kmap->unmap_ip(kmap, sym->start);
-
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__lock_text_start",
-							  &kmap);
-		lock_text_start = kmap->unmap_ip(kmap, sym->start);
-
-		sym = machine__find_kernel_symbol_by_name(machine,
-							  "__lock_text_end",
-							  &kmap);
-		lock_text_end = kmap->unmap_ip(kmap, sym->start);
-	}
-
-	/* failed to get kernel symbols */
-	if (sched_text_start == 1)
-		return false;
-
-	/* mutex and rwsem functions are in sched text section */
-	if (sched_text_start <= addr && addr < sched_text_end)
-		return true;
-
-	/* spinlock functions are in lock text section */
-	if (lock_text_start <= addr && addr < lock_text_end)
-		return true;
-
-	return false;
-}
-
 static int get_symbol_name_offset(struct map *map, struct symbol *sym, u64 ip,
 				  char *buf, int size)
 {
@@ -960,7 +948,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 			goto next;
 
 		sym = node->ms.sym;
-		if (sym && !is_lock_function(machine, node->ip)) {
+		if (sym && !machine__is_lock_function(machine, node->ip)) {
 			get_symbol_name_offset(node->ms.map, sym, node->ip,
 					       buf, size);
 			return 0;
@@ -1006,7 +994,7 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 		if (++skip <= stack_skip)
 			goto next;
 
-		if (node->ms.sym && is_lock_function(machine, node->ip))
+		if (node->ms.sym && machine__is_lock_function(machine, node->ip))
 			goto next;
 
 		hash ^= hash_long((unsigned long)node->ip, 64);
@@ -1045,31 +1033,116 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 addr = evsel__intval(evsel, sample, "lock_addr");
+	unsigned int flags = evsel__intval(evsel, sample, "flags");
 	u64 key;
-	int ret;
+	int i, ret;
+	static bool kmap_loaded;
+	struct machine *machine = &session->machines.host;
+	struct map *kmap;
+	struct symbol *sym;
 
 	ret = get_key_by_aggr_mode(&key, addr, evsel, sample);
 	if (ret < 0)
 		return ret;
 
+	if (!kmap_loaded) {
+		unsigned long *addrs;
+
+		/* make sure it loads the kernel map to find lock symbols */
+		map__load(machine__kernel_map(machine));
+		kmap_loaded = true;
+
+		/* convert (kernel) symbols to addresses */
+		for (i = 0; i < filters.nr_syms; i++) {
+			sym = machine__find_kernel_symbol_by_name(machine,
+								  filters.syms[i],
+								  &kmap);
+			if (sym == NULL) {
+				pr_warning("ignore unknown symbol: %s\n",
+					   filters.syms[i]);
+				continue;
+			}
+
+			addrs = realloc(filters.addrs,
+					(filters.nr_addrs + 1) * sizeof(*addrs));
+			if (addrs == NULL) {
+				pr_warning("memory allocation failure\n");
+				return -ENOMEM;
+			}
+
+			addrs[filters.nr_addrs++] = kmap->unmap_ip(kmap, sym->start);
+			filters.addrs = addrs;
+		}
+	}
+
 	ls = lock_stat_find(key);
 	if (!ls) {
 		char buf[128];
-		const char *caller = buf;
-		unsigned int flags = evsel__intval(evsel, sample, "flags");
+		const char *name = "";
 
-		if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
-			caller = "Unknown";
+		switch (aggr_mode) {
+		case LOCK_AGGR_ADDR:
+			sym = machine__find_kernel_symbol(machine, key, &kmap);
+			if (sym)
+				name = sym->name;
+			break;
+		case LOCK_AGGR_CALLER:
+			name = buf;
+			if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
+				name = "Unknown";
+			break;
+		case LOCK_AGGR_TASK:
+		default:
+			break;
+		}
 
-		ls = lock_stat_findnew(key, caller, flags);
+		ls = lock_stat_findnew(key, name, flags);
 		if (!ls)
 			return -ENOMEM;
+	}
 
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
-			ls->callstack = get_callstack(sample, max_stack_depth);
-			if (ls->callstack == NULL)
-				return -ENOMEM;
+	if (filters.nr_types) {
+		bool found = false;
+
+		for (i = 0; i < filters.nr_types; i++) {
+			if (flags == filters.types[i]) {
+				found = true;
+				break;
+			}
 		}
+
+		if (!found)
+			return 0;
+	}
+
+	if (filters.nr_addrs) {
+		bool found = false;
+
+		for (i = 0; i < filters.nr_addrs; i++) {
+			if (addr == filters.addrs[i]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			return 0;
+	}
+
+	if (needs_callstack()) {
+		u64 *callstack = get_callstack(sample, max_stack_depth);
+		if (callstack == NULL)
+			return -ENOMEM;
+
+		if (!match_callstack_filter(machine, callstack)) {
+			free(callstack);
+			return 0;
+		}
+
+		if (ls->callstack == NULL)
+			ls->callstack = callstack;
+		else
+			free(callstack);
 	}
 
 	ts = thread_stat_findnew(sample->tid);
@@ -1250,7 +1323,7 @@ static void print_bad_events(int bad, int total)
 	for (i = 0; i < BROKEN_MAX; i++)
 		broken += bad_hist[i];
 
-	if (quiet || (broken == 0 && !verbose))
+	if (quiet || (broken == 0 && verbose <= 0))
 		return;
 
 	pr_info("\n=== output for debug===\n\n");
@@ -1389,6 +1462,34 @@ static int dump_info(void)
 	return rc;
 }
 
+static const struct evsel_str_handler lock_tracepoints[] = {
+	{ "lock:lock_acquire",	 evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
+	{ "lock:lock_acquired",	 evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_contended", evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_release",	 evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
+};
+
+static const struct evsel_str_handler contention_tracepoints[] = {
+	{ "lock:contention_begin", evsel__process_contention_begin, },
+	{ "lock:contention_end",   evsel__process_contention_end,   },
+};
+
+static int process_event_update(struct perf_tool *tool,
+				union perf_event *event,
+				struct evlist **pevlist)
+{
+	int ret;
+
+	ret = perf_event__process_event_update(tool, event, pevlist);
+	if (ret < 0)
+		return ret;
+
+	/* this can return -EEXIST since we call it for each evsel */
+	perf_session__set_tracepoints_handlers(session, lock_tracepoints);
+	perf_session__set_tracepoints_handlers(session, contention_tracepoints);
+	return 0;
+}
+
 typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
@@ -1445,32 +1546,58 @@ static void sort_result(void)
 	}
 }
 
-static const char *get_type_str(struct lock_stat *st)
-{
-	static const struct {
-		unsigned int flags;
-		const char *name;
-	} table[] = {
-		{ 0,				"semaphore" },
-		{ LCB_F_SPIN,			"spinlock" },
-		{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
-		{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
-		{ LCB_F_READ,			"rwsem:R" },
-		{ LCB_F_WRITE,			"rwsem:W" },
-		{ LCB_F_RT,			"rtmutex" },
-		{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
-		{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
-		{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
-		{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
-		{ LCB_F_MUTEX,			"mutex" },
-		{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
-	};
+static const struct {
+	unsigned int flags;
+	const char *name;
+} lock_type_table[] = {
+	{ 0,				"semaphore" },
+	{ LCB_F_SPIN,			"spinlock" },
+	{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
+	{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
+	{ LCB_F_READ,			"rwsem:R" },
+	{ LCB_F_WRITE,			"rwsem:W" },
+	{ LCB_F_RT,			"rtmutex" },
+	{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
+	{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
+	{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
+	{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
+	{ LCB_F_MUTEX,			"mutex" },
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
+	/* alias for get_type_flag() */
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex-spin" },
+};
 
-	for (unsigned int i = 0; i < ARRAY_SIZE(table); i++) {
-		if (table[i].flags == st->flags)
-			return table[i].name;
+static const char *get_type_str(unsigned int flags)
+{
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (lock_type_table[i].flags == flags)
+			return lock_type_table[i].name;
 	}
 	return "unknown";
+}
+
+static unsigned int get_type_flag(const char *str)
+{
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (!strcmp(lock_type_table[i].name, str))
+			return lock_type_table[i].flags;
+	}
+	return UINT_MAX;
+}
+
+static void lock_filter_finish(void)
+{
+	zfree(&filters.types);
+	filters.nr_types = 0;
+
+	zfree(&filters.addrs);
+	filters.nr_addrs = 0;
+
+	for (int i = 0; i < filters.nr_syms; i++)
+		free(filters.syms[i]);
+
+	zfree(&filters.syms);
+	filters.nr_syms = 0;
 }
 
 static void sort_contention_result(void)
@@ -1488,10 +1615,20 @@ static void print_contention_result(struct lock_contention *con)
 		list_for_each_entry(key, &lock_keys, list)
 			pr_info("%*s ", key->len, key->header);
 
-		if (show_thread_stats)
-			pr_info("  %10s   %s\n\n", "pid", "comm");
-		else
+		switch (aggr_mode) {
+		case LOCK_AGGR_TASK:
+			pr_info("  %10s   %s\n\n", "pid",
+				show_lock_owner ? "owner" : "comm");
+			break;
+		case LOCK_AGGR_CALLER:
 			pr_info("  %10s   %s\n\n", "type", "caller");
+			break;
+		case LOCK_AGGR_ADDR:
+			pr_info("  %16s   %s\n\n", "address", "symbol");
+			break;
+		default:
+			break;
+		}
 	}
 
 	bad = total = printed = 0;
@@ -1499,27 +1636,40 @@ static void print_contention_result(struct lock_contention *con)
 		bad = bad_hist[BROKEN_CONTENDED];
 
 	while ((st = pop_from_result())) {
+		struct thread *t;
+		int pid;
+
 		total += use_bpf ? st->nr_contended : 1;
 		if (st->broken)
 			bad++;
+
+		if (!st->wait_time_total)
+			continue;
 
 		list_for_each_entry(key, &lock_keys, list) {
 			key->print(key, st);
 			pr_info(" ");
 		}
 
-		if (show_thread_stats) {
-			struct thread *t;
-			int pid = st->addr;
-
-			/* st->addr contains tid of thread */
+		switch (aggr_mode) {
+		case LOCK_AGGR_CALLER:
+			pr_info("  %10s   %s\n", get_type_str(st->flags), st->name);
+			break;
+		case LOCK_AGGR_TASK:
+			pid = st->addr;
 			t = perf_session__findnew(session, pid);
-			pr_info("  %10d   %s\n", pid, thread__comm_str(t));
-			goto next;
+			pr_info("  %10d   %s\n",
+				pid, pid == -1 ? "Unknown" : thread__comm_str(t));
+			break;
+		case LOCK_AGGR_ADDR:
+			pr_info("  %016llx   %s\n", (unsigned long long)st->addr,
+				st->name ? : "");
+			break;
+		default:
+			break;
 		}
 
-		pr_info("  %10s   %s\n", get_type_str(st), st->name);
-		if (verbose) {
+		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
 			struct map *kmap;
 			struct symbol *sym;
 			char buf[128];
@@ -1536,7 +1686,6 @@ static void print_contention_result(struct lock_contention *con)
 			}
 		}
 
-next:
 		if (++printed >= print_nr_entries)
 			break;
 	}
@@ -1544,28 +1693,19 @@ next:
 	print_bad_events(bad, total);
 }
 
-static const struct evsel_str_handler lock_tracepoints[] = {
-	{ "lock:lock_acquire",	 evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
-	{ "lock:lock_acquired",	 evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_contended", evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_release",	 evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
-};
-
-static const struct evsel_str_handler contention_tracepoints[] = {
-	{ "lock:contention_begin", evsel__process_contention_begin, },
-	{ "lock:contention_end",   evsel__process_contention_end,   },
-};
-
 static bool force;
 
 static int __cmd_report(bool display_info)
 {
 	int err = -EINVAL;
 	struct perf_tool eops = {
+		.attr		 = perf_event__process_attr,
+		.event_update	 = process_event_update,
 		.sample		 = process_sample_event,
 		.comm		 = perf_event__process_comm,
 		.mmap		 = perf_event__process_mmap,
 		.namespaces	 = perf_event__process_namespaces,
+		.tracing_data	 = perf_event__process_tracing_data,
 		.ordered_events	 = true,
 	};
 	struct perf_data data = {
@@ -1582,19 +1722,22 @@ static int __cmd_report(bool display_info)
 
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
+	symbol_conf.allow_aliases = true;
 	symbol__init(&session->header.env);
 
-	if (!perf_session__has_traces(session, "lock record"))
-		goto out_delete;
+	if (!data.is_pipe) {
+		if (!perf_session__has_traces(session, "lock record"))
+			goto out_delete;
 
-	if (perf_session__set_tracepoints_handlers(session, lock_tracepoints)) {
-		pr_err("Initializing perf session tracepoint handlers failed\n");
-		goto out_delete;
-	}
+		if (perf_session__set_tracepoints_handlers(session, lock_tracepoints)) {
+			pr_err("Initializing perf session tracepoint handlers failed\n");
+			goto out_delete;
+		}
 
-	if (perf_session__set_tracepoints_handlers(session, contention_tracepoints)) {
-		pr_err("Initializing perf session tracepoint handlers failed\n");
-		goto out_delete;
+		if (perf_session__set_tracepoints_handlers(session, contention_tracepoints)) {
+			pr_err("Initializing perf session tracepoint handlers failed\n");
+			goto out_delete;
+		}
 	}
 
 	if (setup_output_field(false, output_fields))
@@ -1628,13 +1771,47 @@ static void sighandler(int sig __maybe_unused)
 {
 }
 
+static int check_lock_contention_options(const struct option *options,
+					 const char * const *usage)
+
+{
+	if (show_thread_stats && show_lock_addrs) {
+		pr_err("Cannot use thread and addr mode together\n");
+		parse_options_usage(usage, options, "threads", 0);
+		parse_options_usage(NULL, options, "lock-addr", 0);
+		return -1;
+	}
+
+	if (show_lock_owner && !use_bpf) {
+		pr_err("Lock owners are available only with BPF\n");
+		parse_options_usage(usage, options, "lock-owner", 0);
+		parse_options_usage(NULL, options, "use-bpf", 0);
+		return -1;
+	}
+
+	if (show_lock_owner && show_lock_addrs) {
+		pr_err("Cannot use owner and addr mode together\n");
+		parse_options_usage(usage, options, "lock-owner", 0);
+		parse_options_usage(NULL, options, "lock-addr", 0);
+		return -1;
+	}
+
+	if (show_lock_owner)
+		show_thread_stats = true;
+
+	return 0;
+}
+
 static int __cmd_contention(int argc, const char **argv)
 {
 	int err = -EINVAL;
 	struct perf_tool eops = {
+		.attr		 = perf_event__process_attr,
+		.event_update	 = process_event_update,
 		.sample		 = process_sample_event,
 		.comm		 = perf_event__process_comm,
 		.mmap		 = perf_event__process_mmap,
+		.tracing_data	 = perf_event__process_tracing_data,
 		.ordered_events	 = true,
 	};
 	struct perf_data data = {
@@ -1648,6 +1825,9 @@ static int __cmd_contention(int argc, const char **argv)
 		.map_nr_entries = bpf_map_entries,
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
+		.filters = &filters,
+		.save_callstack = needs_callstack(),
+		.owner = show_lock_owner,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -1658,8 +1838,15 @@ static int __cmd_contention(int argc, const char **argv)
 
 	con.machine = &session->machines.host;
 
+	con.aggr_mode = aggr_mode = show_thread_stats ? LOCK_AGGR_TASK :
+		show_lock_addrs ? LOCK_AGGR_ADDR : LOCK_AGGR_CALLER;
+
+	if (con.aggr_mode == LOCK_AGGR_CALLER)
+		con.save_callstack = true;
+
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
+	symbol_conf.allow_aliases = true;
 	symbol__init(&session->header.env);
 
 	if (use_bpf) {
@@ -1697,7 +1884,7 @@ static int __cmd_contention(int argc, const char **argv)
 			pr_err("lock contention BPF setup failed\n");
 			goto out_delete;
 		}
-	} else {
+	} else if (!data.is_pipe) {
 		if (!perf_session__has_traces(session, "lock record"))
 			goto out_delete;
 
@@ -1719,11 +1906,6 @@ static int __cmd_contention(int argc, const char **argv)
 
 	if (select_key(true))
 		goto out_delete;
-
-	if (show_thread_stats)
-		aggr_mode = LOCK_AGGR_TASK;
-	else
-		aggr_mode = LOCK_AGGR_CALLER;
 
 	if (use_bpf) {
 		lock_contention_start();
@@ -1750,6 +1932,7 @@ static int __cmd_contention(int argc, const char **argv)
 	print_contention_result(&con);
 
 out_delete:
+	lock_filter_finish();
 	evlist__delete(con.evlist);
 	lock_contention_finish();
 	perf_session__delete(session);
@@ -1858,6 +2041,203 @@ static int parse_map_entry(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int parse_max_stack(const struct option *opt, const char *str,
+			   int unset __maybe_unused)
+{
+	unsigned long *len = (unsigned long *)opt->value;
+	long val;
+	char *endptr;
+
+	errno = 0;
+	val = strtol(str, &endptr, 0);
+	if (*endptr != '\0' || errno != 0) {
+		pr_err("invalid max stack depth: %s\n", str);
+		return -1;
+	}
+
+	if (val < 0 || val > sysctl__max_stack()) {
+		pr_err("invalid max stack depth: %ld\n", val);
+		return -1;
+	}
+
+	*len = val;
+	return 0;
+}
+
+static bool add_lock_type(unsigned int flags)
+{
+	unsigned int *tmp;
+
+	tmp = realloc(filters.types, (filters.nr_types + 1) * sizeof(*filters.types));
+	if (tmp == NULL)
+		return false;
+
+	tmp[filters.nr_types++] = flags;
+	filters.types = tmp;
+	return true;
+}
+
+static int parse_lock_type(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		unsigned int flags = get_type_flag(tok);
+
+		if (flags == -1U) {
+			char buf[32];
+
+			if (strchr(tok, ':'))
+			    continue;
+
+			/* try :R and :W suffixes for rwlock, rwsem, ... */
+			scnprintf(buf, sizeof(buf), "%s:R", tok);
+			flags = get_type_flag(buf);
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+
+			scnprintf(buf, sizeof(buf), "%s:W", tok);
+			flags = get_type_flag(buf);
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+			continue;
+		}
+
+		if (!add_lock_type(flags)) {
+			ret = -1;
+			break;
+		}
+
+		if (!strcmp(tok, "mutex")) {
+			flags = get_type_flag("mutex-spin");
+			if (flags != UINT_MAX) {
+				if (!add_lock_type(flags)) {
+					ret = -1;
+					break;
+				}
+			}
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
+static bool add_lock_addr(unsigned long addr)
+{
+	unsigned long *tmp;
+
+	tmp = realloc(filters.addrs, (filters.nr_addrs + 1) * sizeof(*filters.addrs));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp[filters.nr_addrs++] = addr;
+	filters.addrs = tmp;
+	return true;
+}
+
+static bool add_lock_sym(char *name)
+{
+	char **tmp;
+	char *sym = strdup(name);
+
+	if (sym == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp = realloc(filters.syms, (filters.nr_syms + 1) * sizeof(*filters.syms));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		free(sym);
+		return false;
+	}
+
+	tmp[filters.nr_syms++] = sym;
+	filters.syms = tmp;
+	return true;
+}
+
+static int parse_lock_addr(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+	u64 addr;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		char *end;
+
+		addr = strtoul(tok, &end, 16);
+		if (*end == '\0') {
+			if (!add_lock_addr(addr)) {
+				ret = -1;
+				break;
+			}
+			continue;
+		}
+
+		/*
+		 * At this moment, we don't have kernel symbols.  Save the symbols
+		 * in a separate list and resolve them to addresses later.
+		 */
+		if (!add_lock_sym(tok)) {
+			ret = -1;
+			break;
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
+static int parse_call_stack(const struct option *opt __maybe_unused, const char *str,
+			   int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		struct callstack_filter *entry;
+
+		entry = malloc(sizeof(*entry) + strlen(tok) + 1);
+		if (entry == NULL) {
+			pr_err("Memory allocation failure\n");
+			return -1;
+		}
+
+		strcpy(entry->name, tok);
+		list_add_tail(&entry->list, &callstack_filters);
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -1869,7 +2249,7 @@ int cmd_lock(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any warnings or messages"),
 	OPT_END()
 	};
 
@@ -1913,13 +2293,21 @@ int cmd_lock(int argc, const char **argv)
 		   "Trace on existing thread id (exclusive to --pid)"),
 	OPT_CALLBACK(0, "map-nr-entries", &bpf_map_entries, "num",
 		     "Max number of BPF map entries", parse_map_entry),
-	OPT_INTEGER(0, "max-stack", &max_stack_depth,
-		    "Set the maximum stack depth when collecting lock contention, "
-		    "Default: " __stringify(CONTENTION_STACK_DEPTH)),
+	OPT_CALLBACK(0, "max-stack", &max_stack_depth, "num",
+		     "Set the maximum stack depth when collecting lopck contention, "
+		     "Default: " __stringify(CONTENTION_STACK_DEPTH), parse_max_stack),
 	OPT_INTEGER(0, "stack-skip", &stack_skip,
 		    "Set the number of stack depth to skip when finding a lock caller, "
 		    "Default: " __stringify(CONTENTION_STACK_SKIP)),
 	OPT_INTEGER('E', "entries", &print_nr_entries, "display this many functions"),
+	OPT_BOOLEAN('l', "lock-addr", &show_lock_addrs, "show lock stats by address"),
+	OPT_CALLBACK('Y', "type-filter", NULL, "FLAGS",
+		     "Filter specific type of locks", parse_lock_type),
+	OPT_CALLBACK('L', "lock-filter", NULL, "ADDRS/NAMES",
+		     "Filter specific address/symbol of locks", parse_lock_addr),
+	OPT_CALLBACK('S', "callstack-filter", NULL, "NAMES",
+		     "Filter specific function in the callstack", parse_call_stack),
+	OPT_BOOLEAN('o', "lock-owner", &show_lock_owner, "show lock owners instead of waiters"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -1989,6 +2377,11 @@ int cmd_lock(int argc, const char **argv)
 			argc = parse_options(argc, argv, contention_options,
 					     contention_usage, 0);
 		}
+
+		if (check_lock_contention_options(contention_options,
+						  contention_usage) < 0)
+			return -1;
+
 		rc = __cmd_contention(argc, argv);
 	} else {
 		usage_with_options(lock_usage, lock_options);

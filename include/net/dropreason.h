@@ -68,6 +68,16 @@
 	FN(IP_INADDRERRORS)		\
 	FN(IP_INNOROUTES)		\
 	FN(PKT_TOO_BIG)			\
+	FN(DUP_FRAG)			\
+	FN(FRAG_REASM_TIMEOUT)		\
+	FN(FRAG_TOO_FAR)		\
+	FN(TCP_MINTTL)			\
+	FN(IPV6_BAD_EXTHDR)		\
+	FN(IPV6_NDISC_FRAG)		\
+	FN(IPV6_NDISC_HOP_LIMIT)	\
+	FN(IPV6_NDISC_BAD_CODE)		\
+	FN(IPV6_NDISC_BAD_OPTIONS)	\
+	FN(IPV6_NDISC_NS_OTHERHOST)	\
 	FNe(MAX)
 
 /**
@@ -80,6 +90,8 @@ enum skb_drop_reason {
 	 * @SKB_NOT_DROPPED_YET: skb is not dropped yet (used for no-drop case)
 	 */
 	SKB_NOT_DROPPED_YET = 0,
+	/** @SKB_CONSUMED: packet has been consumed */
+	SKB_CONSUMED,
 	/** @SKB_DROP_REASON_NOT_SPECIFIED: drop reason is not specified */
 	SKB_DROP_REASON_NOT_SPECIFIED,
 	/** @SKB_DROP_REASON_NO_SOCKET: socket not found */
@@ -298,6 +310,34 @@ enum skb_drop_reason {
 	 * MTU)
 	 */
 	SKB_DROP_REASON_PKT_TOO_BIG,
+	/** @SKB_DROP_REASON_DUP_FRAG: duplicate fragment */
+	SKB_DROP_REASON_DUP_FRAG,
+	/** @SKB_DROP_REASON_FRAG_REASM_TIMEOUT: fragment reassembly timeout */
+	SKB_DROP_REASON_FRAG_REASM_TIMEOUT,
+	/**
+	 * @SKB_DROP_REASON_FRAG_TOO_FAR: ipv4 fragment too far.
+	 * (/proc/sys/net/ipv4/ipfrag_max_dist)
+	 */
+	SKB_DROP_REASON_FRAG_TOO_FAR,
+	/**
+	 * @SKB_DROP_REASON_TCP_MINTTL: ipv4 ttl or ipv6 hoplimit below
+	 * the threshold (IP_MINTTL or IPV6_MINHOPCOUNT).
+	 */
+	SKB_DROP_REASON_TCP_MINTTL,
+	/** @SKB_DROP_REASON_IPV6_BAD_EXTHDR: Bad IPv6 extension header. */
+	SKB_DROP_REASON_IPV6_BAD_EXTHDR,
+	/** @SKB_DROP_REASON_IPV6_NDISC_FRAG: invalid frag (suppress_frag_ndisc). */
+	SKB_DROP_REASON_IPV6_NDISC_FRAG,
+	/** @SKB_DROP_REASON_IPV6_NDISC_HOP_LIMIT: invalid hop limit. */
+	SKB_DROP_REASON_IPV6_NDISC_HOP_LIMIT,
+	/** @SKB_DROP_REASON_IPV6_NDISC_BAD_CODE: invalid NDISC icmp6 code. */
+	SKB_DROP_REASON_IPV6_NDISC_BAD_CODE,
+	/** @SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS: invalid NDISC options. */
+	SKB_DROP_REASON_IPV6_NDISC_BAD_OPTIONS,
+	/** @SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST: NEIGHBOUR SOLICITATION
+	 * for another host.
+	 */
+	SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
 	 * used as a real 'reason'

@@ -39,6 +39,8 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 		  ieee80211_csa_finalize_work);
 	INIT_WORK(&link->color_change_finalize_work,
 		  ieee80211_color_change_finalize_work);
+	INIT_DELAYED_WORK(&link->color_collision_detect_work,
+			  ieee80211_color_collision_detection_work);
 	INIT_LIST_HEAD(&link->assigned_chanctx_list);
 	INIT_LIST_HEAD(&link->reserved_chanctx_list);
 	INIT_DELAYED_WORK(&link->dfs_cac_timer_work,
@@ -66,6 +68,7 @@ void ieee80211_link_stop(struct ieee80211_link_data *link)
 	if (link->sdata->vif.type == NL80211_IFTYPE_STATION)
 		ieee80211_mgd_stop_link(link);
 
+	cancel_delayed_work_sync(&link->color_collision_detect_work);
 	ieee80211_link_release_channel(link);
 }
 
@@ -357,6 +360,11 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sdata != sta->sdata)
 			continue;
+
+		/* this is very temporary, but do it anyway */
+		__ieee80211_sta_recalc_aggregates(sta,
+						  old_active | active_links);
+
 		ret = drv_change_sta_links(local, sdata, &sta->sta,
 					   old_active,
 					   old_active | active_links);
@@ -369,10 +377,22 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sdata != sta->sdata)
 			continue;
+
+		__ieee80211_sta_recalc_aggregates(sta, active_links);
+
 		ret = drv_change_sta_links(local, sdata, &sta->sta,
 					   old_active | active_links,
 					   active_links);
 		WARN_ON_ONCE(ret);
+
+		/*
+		 * Do it again, just in case - the driver might very
+		 * well have called ieee80211_sta_recalc_aggregates()
+		 * from there when filling in the new links, which
+		 * would set it wrong since the vif's active links are
+		 * not switched yet...
+		 */
+		__ieee80211_sta_recalc_aggregates(sta, active_links);
 	}
 
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {

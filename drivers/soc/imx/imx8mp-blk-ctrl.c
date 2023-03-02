@@ -4,7 +4,9 @@
  * Copyright 2022 Pengutronix, Lucas Stach <kernel@pengutronix.de>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/interconnect.h>
 #include <linux/module.h>
@@ -21,6 +23,15 @@
 #define  USB_CLOCK_MODULE_EN	BIT(1)
 #define  PCIE_PHY_APB_RST	BIT(4)
 #define  PCIE_PHY_INIT_RST	BIT(5)
+#define GPR_REG1		0x4
+#define  PLL_LOCK		BIT(13)
+#define GPR_REG2		0x8
+#define  P_PLL_MASK		GENMASK(5, 0)
+#define  M_PLL_MASK		GENMASK(15, 6)
+#define  S_PLL_MASK		GENMASK(18, 16)
+#define GPR_REG3		0xc
+#define  PLL_CKE		BIT(17)
+#define  PLL_RST		BIT(31)
 
 struct imx8mp_blk_ctrl_domain;
 
@@ -60,6 +71,7 @@ struct imx8mp_blk_ctrl_domain {
 
 struct imx8mp_blk_ctrl_data {
 	int max_reg;
+	int (*probe) (struct imx8mp_blk_ctrl *bc);
 	notifier_fn_t power_notifier_fn;
 	void (*power_off) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
 	void (*power_on) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
@@ -71,6 +83,92 @@ static inline struct imx8mp_blk_ctrl_domain *
 to_imx8mp_blk_ctrl_domain(struct generic_pm_domain *genpd)
 {
 	return container_of(genpd, struct imx8mp_blk_ctrl_domain, genpd);
+}
+
+struct clk_hsio_pll {
+	struct clk_hw	hw;
+	struct regmap *regmap;
+};
+
+static inline struct clk_hsio_pll *to_clk_hsio_pll(struct clk_hw *hw)
+{
+	return container_of(hw, struct clk_hsio_pll, hw);
+}
+
+static int clk_hsio_pll_prepare(struct clk_hw *hw)
+{
+	struct clk_hsio_pll *clk = to_clk_hsio_pll(hw);
+	u32 val;
+
+	/* set the PLL configuration */
+	regmap_update_bits(clk->regmap, GPR_REG2,
+			   P_PLL_MASK | M_PLL_MASK | S_PLL_MASK,
+			   FIELD_PREP(P_PLL_MASK, 12) |
+			   FIELD_PREP(M_PLL_MASK, 800) |
+			   FIELD_PREP(S_PLL_MASK, 4));
+
+	/* de-assert PLL reset */
+	regmap_update_bits(clk->regmap, GPR_REG3, PLL_RST, PLL_RST);
+
+	/* enable PLL */
+	regmap_update_bits(clk->regmap, GPR_REG3, PLL_CKE, PLL_CKE);
+
+	return regmap_read_poll_timeout(clk->regmap, GPR_REG1, val,
+					val & PLL_LOCK, 10, 100);
+}
+
+static void clk_hsio_pll_unprepare(struct clk_hw *hw)
+{
+	struct clk_hsio_pll *clk = to_clk_hsio_pll(hw);
+
+	regmap_update_bits(clk->regmap, GPR_REG3, PLL_RST | PLL_CKE, 0);
+}
+
+static int clk_hsio_pll_is_prepared(struct clk_hw *hw)
+{
+	struct clk_hsio_pll *clk = to_clk_hsio_pll(hw);
+
+	return regmap_test_bits(clk->regmap, GPR_REG1, PLL_LOCK);
+}
+
+static unsigned long clk_hsio_pll_recalc_rate(struct clk_hw *hw,
+					      unsigned long parent_rate)
+{
+	return 100000000;
+}
+
+static const struct clk_ops clk_hsio_pll_ops = {
+	.prepare = clk_hsio_pll_prepare,
+	.unprepare = clk_hsio_pll_unprepare,
+	.is_prepared = clk_hsio_pll_is_prepared,
+	.recalc_rate = clk_hsio_pll_recalc_rate,
+};
+
+static int imx8mp_hsio_blk_ctrl_probe(struct imx8mp_blk_ctrl *bc)
+{
+	struct clk_hsio_pll *clk_hsio_pll;
+	struct clk_hw *hw;
+	struct clk_init_data init = {};
+	int ret;
+
+	clk_hsio_pll = devm_kzalloc(bc->dev, sizeof(*clk_hsio_pll), GFP_KERNEL);
+	if (!clk_hsio_pll)
+		return -ENOMEM;
+
+	init.name = "hsio_pll";
+	init.ops = &clk_hsio_pll_ops;
+	init.parent_names = (const char *[]){"osc_24m"};
+	init.num_parents = 1;
+
+	clk_hsio_pll->regmap = bc->regmap;
+	clk_hsio_pll->hw.init = &init;
+
+	hw = &clk_hsio_pll->hw;
+	ret = devm_clk_hw_register(bc->dev, hw);
+	if (ret)
+		return ret;
+
+	return devm_of_clk_add_hw_provider(bc->dev, of_clk_hw_simple_get, hw);
 }
 
 static void imx8mp_hsio_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
@@ -187,6 +285,7 @@ static const struct imx8mp_blk_ctrl_domain_data imx8mp_hsio_domain_data[] = {
 
 static const struct imx8mp_blk_ctrl_data imx8mp_hsio_blk_ctl_dev_data = {
 	.max_reg = 0x24,
+	.probe = imx8mp_hsio_blk_ctrl_probe,
 	.power_on = imx8mp_hsio_blk_ctrl_power_on,
 	.power_off = imx8mp_hsio_blk_ctrl_power_off,
 	.power_notifier_fn = imx8mp_hsio_power_notifier,
@@ -201,6 +300,7 @@ static const struct imx8mp_blk_ctrl_data imx8mp_hsio_blk_ctl_dev_data = {
 #define HDMI_RTX_CLK_CTL3	0x70
 #define HDMI_RTX_CLK_CTL4	0x80
 #define HDMI_TX_CONTROL0	0x200
+#define  HDMI_LCDIF_NOC_HURRY_MASK		GENMASK(14, 12)
 
 static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
 					  struct imx8mp_blk_ctrl_domain *domain)
@@ -212,11 +312,13 @@ static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
 		break;
 	case IMX8MP_HDMIBLK_PD_LCDIF:
 		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
-				BIT(7) | BIT(16) | BIT(17) | BIT(18) |
+				BIT(16) | BIT(17) | BIT(18) |
 				BIT(19) | BIT(20));
 		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(11));
 		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
 				BIT(4) | BIT(5) | BIT(6));
+		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0,
+				FIELD_PREP(HDMI_LCDIF_NOC_HURRY_MASK, 7));
 		break;
 	case IMX8MP_HDMIBLK_PD_PAI:
 		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(17));
@@ -241,6 +343,7 @@ static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
 		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(1));
 		break;
 	case IMX8MP_HDMIBLK_PD_HDMI_TX_PHY:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0, BIT(7));
 		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(22) | BIT(24));
 		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(12));
 		regmap_clear_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(3));
@@ -270,7 +373,7 @@ static void imx8mp_hdmi_blk_ctrl_power_off(struct imx8mp_blk_ctrl *bc,
 				  BIT(4) | BIT(5) | BIT(6));
 		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(11));
 		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
-				  BIT(7) | BIT(16) | BIT(17) | BIT(18) |
+				  BIT(16) | BIT(17) | BIT(18) |
 				  BIT(19) | BIT(20));
 		break;
 	case IMX8MP_HDMIBLK_PD_PAI:
@@ -298,6 +401,7 @@ static void imx8mp_hdmi_blk_ctrl_power_off(struct imx8mp_blk_ctrl *bc,
 	case IMX8MP_HDMIBLK_PD_HDMI_TX_PHY:
 		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(3));
 		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(12));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0, BIT(7));
 		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(22) | BIT(24));
 		break;
 	case IMX8MP_HDMIBLK_PD_HDCP:
@@ -590,7 +694,6 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 			ret = PTR_ERR(domain->power_dev);
 			goto cleanup_pds;
 		}
-		dev_set_name(domain->power_dev, "%s", data->name);
 
 		domain->genpd.name = data->name;
 		domain->genpd.power_on = imx8mp_blk_ctrl_power_on;
@@ -632,6 +735,12 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err_probe(dev, ret, "failed to add power notifier\n");
 		goto cleanup_provider;
+	}
+
+	if (bc_data->probe) {
+		ret = bc_data->probe(bc);
+		if (ret)
+			goto cleanup_provider;
 	}
 
 	dev_set_drvdata(dev, bc);

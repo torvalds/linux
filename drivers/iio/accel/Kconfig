@@ -380,7 +380,7 @@ config IIO_ST_ACCEL_3AXIS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics accelerometers:
-	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
+	  LSM303C, LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
 	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL,
 	  LNG2DM, LIS3DE, LIS2DE12, LIS2HH12
 
@@ -408,6 +408,27 @@ config IIO_ST_ACCEL_SPI_3AXIS
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called st_accel_spi.
+
+config IIO_KX022A
+	tristate
+
+config IIO_KX022A_SPI
+	tristate "Kionix KX022A tri-axis digital accelerometer SPI interface"
+	depends on SPI
+	select IIO_KX022A
+	select REGMAP_SPI
+	help
+	  Enable support for the Kionix KX022A digital tri-axis
+	  accelerometer connected to I2C interface.
+
+config IIO_KX022A_I2C
+	tristate "Kionix KX022A tri-axis digital accelerometer I2C interface"
+	depends on I2C
+	select IIO_KX022A
+	select REGMAP_I2C
+	help
+	  Enable support for the Kionix KX022A digital tri-axis
+	  accelerometer connected to I2C interface.
 
 config KXSD9
 	tristate "Kionix KXSD9 Accelerometer Driver"

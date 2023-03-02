@@ -46,6 +46,7 @@
 
 		l2: l2-cache {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -712,6 +713,7 @@
 			reg = <0 0x5000000 0 0x800000>;
 			#global-interrupts = <8>;
 			#iommu-cells = <1>;
+			dma-coherent;
 			stream-match-mask = <0x7c00>;
 			/* global secure fault */
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,

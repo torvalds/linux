@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <signal.h>
 #include <inttypes.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -313,7 +314,9 @@ void perf_session__delete(struct perf_session *session)
 			evlist__delete(session->evlist);
 		perf_data__close(session->data);
 	}
+#ifdef HAVE_LIBTRACEEVENT
 	trace_event__cleanup(&session->tevent);
+#endif
 	free(session);
 }
 
@@ -1177,7 +1180,7 @@ static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 		struct branch_entry *e = &entries[i];
 
 		if (!callstack) {
-			printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x %s\n",
+			printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x %s %s\n",
 				i, e->from, e->to,
 				(unsigned short)e->flags.cycles,
 				e->flags.mispred ? "M" : " ",
@@ -1185,7 +1188,8 @@ static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 				e->flags.abort ? "A" : " ",
 				e->flags.in_tx ? "T" : " ",
 				(unsigned)e->flags.reserved,
-				get_branch_type(e));
+				get_branch_type(e),
+				e->flags.spec ? branch_spec_desc(e->flags.spec) : "");
 		} else {
 			if (i == 0) {
 				printf("..... %2"PRIu64": %016" PRIx64 "\n"
@@ -1696,8 +1700,13 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	case PERF_RECORD_AUXTRACE_INFO:
 		return tool->auxtrace_info(session, event);
 	case PERF_RECORD_AUXTRACE:
-		/* setup for reading amidst mmap */
-		lseek(fd, file_offset + event->header.size, SEEK_SET);
+		/*
+		 * Setup for reading amidst mmap, but only when we
+		 * are in 'file' mode.  The 'pipe' fd is in proper
+		 * place already.
+		 */
+		if (!perf_data__is_pipe(session->data))
+			lseek(fd, file_offset + event->header.size, SEEK_SET);
 		return tool->auxtrace(session, event);
 	case PERF_RECORD_AUXTRACE_ERROR:
 		perf_session__auxtrace_error_inc(session, event);
@@ -2022,7 +2031,7 @@ static int perf_session__flush_thread_stacks(struct perf_session *session)
 					 NULL);
 }
 
-volatile int session_done;
+volatile sig_atomic_t session_done;
 
 static int __perf_session__process_decomp_events(struct perf_session *session);
 
@@ -2748,7 +2757,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 			goto out_delete_map;
 		}
 
-		set_bit(cpu.cpu, cpu_bitmap);
+		__set_bit(cpu.cpu, cpu_bitmap);
 	}
 
 	err = 0;

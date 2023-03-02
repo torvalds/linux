@@ -38,7 +38,7 @@ void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 static int rtl8188eu_init_recv_priv(struct adapter *padapter)
 {
 	struct recv_priv *precvpriv = &padapter->recvpriv;
-	int i, res = _SUCCESS;
+	int i, err = 0;
 	struct recv_buf *precvbuf;
 
 	tasklet_init(&precvpriv->recv_tasklet,
@@ -50,10 +50,8 @@ static int rtl8188eu_init_recv_priv(struct adapter *padapter)
 
 	precvpriv->pallocated_recv_buf = kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4,
 						 GFP_KERNEL);
-	if (!precvpriv->pallocated_recv_buf) {
-		res = _FAIL;
-		goto exit;
-	}
+	if (!precvpriv->pallocated_recv_buf)
+		return -ENOMEM;
 
 	precvpriv->precv_buf = (u8 *)ALIGN((size_t)(precvpriv->pallocated_recv_buf), 4);
 
@@ -64,7 +62,7 @@ static int rtl8188eu_init_recv_priv(struct adapter *padapter)
 		precvbuf->reuse = false;
 		precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!precvbuf->purb) {
-			res = _FAIL;
+			err = -ENOMEM;
 			break;
 		}
 		precvbuf->adapter = padapter;
@@ -94,17 +92,15 @@ static int rtl8188eu_init_recv_priv(struct adapter *padapter)
 			pskb = NULL;
 		}
 	}
-exit:
-	return res;
+
+	return err;
 }
 
 int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 {
 	int i;
-
 	struct recv_frame *precvframe;
-
-	int	res = _SUCCESS;
+	int err;
 
 	spin_lock_init(&precvpriv->lock);
 
@@ -117,11 +113,8 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
 
 	precvpriv->pallocated_frame_buf = vzalloc(NR_RECVFRAME * sizeof(struct recv_frame) + RXFRAME_ALIGN_SZ);
-
-	if (!precvpriv->pallocated_frame_buf) {
-		res = _FAIL;
-		goto exit;
-	}
+	if (!precvpriv->pallocated_frame_buf)
+		return -ENOMEM;
 
 	precvpriv->precv_frame_buf = (u8 *)ALIGN((size_t)(precvpriv->pallocated_frame_buf), RXFRAME_ALIGN_SZ);
 
@@ -141,15 +134,14 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	}
 	precvpriv->rx_pending_cnt = 1;
 
-	res = rtl8188eu_init_recv_priv(padapter);
+	err = rtl8188eu_init_recv_priv(padapter);
 
 	timer_setup(&precvpriv->signal_stat_timer, rtw_signal_stat_timer_hdl, 0);
 	precvpriv->signal_stat_sampling_interval = 1000; /* ms */
 
 	rtw_set_signal_stat_timer(precvpriv);
-exit:
 
-	return res;
+	return err;
 }
 
 static void rtl8188eu_free_recv_priv(struct adapter *padapter)
@@ -779,9 +771,8 @@ static int ap2sta_data_frame(
 		}
 
 		/*  check BSSID */
-		if (!memcmp(pattrib->bssid, "\x0\x0\x0\x0\x0\x0", ETH_ALEN) ||
-		    !memcmp(mybssid, "\x0\x0\x0\x0\x0\x0", ETH_ALEN) ||
-		     (memcmp(pattrib->bssid, mybssid, ETH_ALEN))) {
+		if (is_zero_ether_addr(pattrib->bssid) || is_zero_ether_addr(mybssid) ||
+		    (memcmp(pattrib->bssid, mybssid, ETH_ALEN))) {
 			if (!bmcast)
 				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
 
@@ -972,7 +963,7 @@ static void validate_recv_ctrl_frame(struct adapter *padapter,
 			if (psta->sleepq_len == 0) {
 				pstapriv->tim_bitmap &= ~BIT(psta->aid);
 
-				/* upate BCN for TIM IE */
+				/* update BCN for TIM IE */
 				/* update_BCNTIM(padapter); */
 				update_beacon(padapter, _TIM_IE_, NULL, false);
 			}
@@ -986,7 +977,7 @@ static void validate_recv_ctrl_frame(struct adapter *padapter,
 
 				pstapriv->tim_bitmap &= ~BIT(psta->aid);
 
-				/* upate BCN for TIM IE */
+				/* update BCN for TIM IE */
 				/* update_BCNTIM(padapter); */
 				update_beacon(padapter, _TIM_IE_, NULL, false);
 			}
@@ -1032,7 +1023,6 @@ static int validate_recv_data_frame(struct adapter *adapter,
 				    struct recv_frame *precv_frame)
 {
 	struct sta_info *psta = NULL;
-	u8 *ptr = precv_frame->rx_data;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct rx_pkt_attrib	*pattrib = &precv_frame->attrib;
 	struct security_priv	*psecuritypriv = &adapter->securitypriv;
@@ -1065,18 +1055,18 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	if (!psta)
 		return _FAIL;
 
-	/* psta->rssi = prxcmd->rssi; */
-	/* psta->signal_quality = prxcmd->sq; */
 	precv_frame->psta = psta;
 
 	pattrib->amsdu = 0;
 	pattrib->ack_policy = 0;
 	/* parsing QC field */
 	if (pattrib->qos) {
+		struct ieee80211_qos_hdr *qos_hdr = (struct ieee80211_qos_hdr *)hdr;
+
 		pattrib->priority = ieee80211_get_tid(hdr);
-		pattrib->ack_policy = GetAckpolicy((ptr + 24));
-		pattrib->amsdu = GetAMsdu((ptr + 24));
-		pattrib->hdrlen = 26;
+		pattrib->ack_policy = GetAckpolicy(&qos_hdr->qos_ctrl);
+		pattrib->amsdu = GetAMsdu(&qos_hdr->qos_ctrl);
+		pattrib->hdrlen = sizeof(*qos_hdr);
 
 		if (pattrib->priority != 0 && pattrib->priority != 3)
 			adapter->recvpriv.bIsAnyNonBEPkts = true;
@@ -1415,7 +1405,6 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	struct __queue *pfree_recv_queue = &precvpriv->free_recv_queue;
-	int	ret = _SUCCESS;
 
 	nr_subframes = 0;
 
@@ -1513,7 +1502,7 @@ exit:
 	prframe->len = 0;
 	rtw_free_recvframe(prframe, pfree_recv_queue);/* free this recv_frame */
 
-	return ret;
+	return _SUCCESS;
 }
 
 static bool check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num)
@@ -1984,13 +1973,13 @@ static void rtw_signal_stat_timer_hdl(struct timer_list *t)
 	} else {
 		if (recvpriv->signal_strength_data.update_req == 0) {/*  update_req is clear, means we got rx */
 			avg_signal_strength = recvpriv->signal_strength_data.avg_val;
-			/*  after avg_vals are accquired, we can re-stat the signal values */
+			/*  after avg_vals are acquired, we can re-stat the signal values */
 			recvpriv->signal_strength_data.update_req = 1;
 		}
 
 		if (recvpriv->signal_qual_data.update_req == 0) {/*  update_req is clear, means we got rx */
 			avg_signal_qual = recvpriv->signal_qual_data.avg_val;
-			/*  after avg_vals are accquired, we can re-stat the signal values */
+			/*  after avg_vals are acquired, we can re-stat the signal values */
 			recvpriv->signal_qual_data.update_req = 1;
 		}
 

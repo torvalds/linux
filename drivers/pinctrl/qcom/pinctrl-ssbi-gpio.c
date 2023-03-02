@@ -4,18 +4,20 @@
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
  */
 
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinconf-generic.h>
-#include <linux/slab.h>
-#include <linux/regmap.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
@@ -534,7 +536,6 @@ static int pm8xxx_gpio_of_xlate(struct gpio_chip *chip,
 
 
 #ifdef CONFIG_DEBUG_FS
-#include <linux/seq_file.h>
 
 static void pm8xxx_gpio_dbg_show_one(struct seq_file *s,
 				  struct pinctrl_dev *pctldev,
@@ -790,7 +791,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	girq->chip = &pm8xxx_irq_chip;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = of_node_to_fwnode(pctrl->dev->of_node);
+	girq->fwnode = dev_fwnode(pctrl->dev);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = pm8xxx_child_to_parent_hwirq;
 	girq->populate_parent_alloc_arg = gpiochip_populate_parent_fwspec_twocell;

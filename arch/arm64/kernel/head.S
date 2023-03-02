@@ -70,13 +70,14 @@
 
 	__EFI_PE_HEADER
 
-	__INIT
+	.section ".idmap.text","a"
 
 	/*
 	 * The following callee saved general purpose registers are used on the
 	 * primary lowlevel boot path:
 	 *
 	 *  Register   Scope                      Purpose
+	 *  x19        primary_entry() .. start_kernel()        whether we entered with the MMU on
 	 *  x20        primary_entry() .. __primary_switch()    CPU boot mode
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
 	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
@@ -86,10 +87,23 @@
 	 *  x28        create_idmap()                           callee preserved temp register
 	 */
 SYM_CODE_START(primary_entry)
+	bl	record_mmu_state
 	bl	preserve_boot_args
+	bl	create_idmap
+
+	/*
+	 * If we entered with the MMU and caches on, clean the ID mapped part
+	 * of the primary boot code to the PoC so we can safely execute it with
+	 * the MMU off.
+	 */
+	cbz	x19, 0f
+	adrp	x0, __idmap_text_start
+	adr_l	x1, __idmap_text_end
+	adr_l	x2, dcache_clean_poc
+	blr	x2
+0:	mov	x0, x19
 	bl	init_kernel_el			// w0=cpu_boot_mode
 	mov	x20, x0
-	bl	create_idmap
 
 	/*
 	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
@@ -109,6 +123,40 @@ SYM_CODE_START(primary_entry)
 	b	__primary_switch
 SYM_CODE_END(primary_entry)
 
+	__INIT
+SYM_CODE_START_LOCAL(record_mmu_state)
+	mrs	x19, CurrentEL
+	cmp	x19, #CurrentEL_EL2
+	mrs	x19, sctlr_el1
+	b.ne	0f
+	mrs	x19, sctlr_el2
+0:
+CPU_LE( tbnz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
+CPU_BE( tbz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
+	tst	x19, #SCTLR_ELx_C		// Z := (C == 0)
+	and	x19, x19, #SCTLR_ELx_M		// isolate M bit
+	csel	x19, xzr, x19, eq		// clear x19 if Z
+	ret
+
+	/*
+	 * Set the correct endianness early so all memory accesses issued
+	 * before init_kernel_el() occur in the correct byte order. Note that
+	 * this means the MMU must be disabled, or the active ID map will end
+	 * up getting interpreted with the wrong byte order.
+	 */
+1:	eor	x19, x19, #SCTLR_ELx_EE
+	bic	x19, x19, #SCTLR_ELx_M
+	b.ne	2f
+	pre_disable_mmu_workaround
+	msr	sctlr_el2, x19
+	b	3f
+	pre_disable_mmu_workaround
+2:	msr	sctlr_el1, x19
+3:	isb
+	mov	x19, xzr
+	ret
+SYM_CODE_END(record_mmu_state)
+
 /*
  * Preserve the arguments passed by the bootloader in x0 .. x3
  */
@@ -119,11 +167,14 @@ SYM_CODE_START_LOCAL(preserve_boot_args)
 	stp	x21, x1, [x0]			// x0 .. x3 at kernel entry
 	stp	x2, x3, [x0, #16]
 
+	cbnz	x19, 0f				// skip cache invalidation if MMU is on
 	dmb	sy				// needed before dc ivac with
 						// MMU off
 
 	add	x1, x0, #0x20			// 4 x 8 bytes
 	b	dcache_inval_poc		// tail call
+0:	str_l   x19, mmu_enabled_at_boot, x0
+	ret
 SYM_CODE_END(preserve_boot_args)
 
 SYM_FUNC_START_LOCAL(clear_page_tables)
@@ -360,12 +411,13 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	 * accesses (MMU disabled), invalidate those tables again to
 	 * remove any speculatively loaded cache lines.
 	 */
+	cbnz	x19, 0f				// skip cache invalidation if MMU is on
 	dmb	sy
 
 	adrp	x0, init_idmap_pg_dir
 	adrp	x1, init_idmap_pg_end
 	bl	dcache_inval_poc
-	ret	x28
+0:	ret	x28
 SYM_FUNC_END(create_idmap)
 
 SYM_FUNC_START_LOCAL(create_kernel_mapping)
@@ -404,7 +456,7 @@ SYM_FUNC_END(create_kernel_mapping)
 	stp	xzr, xzr, [sp, #S_STACKFRAME]
 	add	x29, sp, #S_STACKFRAME
 
-	scs_load \tsk
+	scs_load_current
 
 	adr_l	\tmp1, __per_cpu_offset
 	ldr	w\tmp2, [\tsk, #TSK_TI_CPU]
@@ -462,6 +514,9 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	bl	early_fdt_map			// Try mapping the FDT early
 	mov	x0, x20				// pass the full boot status
 	bl	init_feature_override		// Parse cpu feature overrides
+#ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
+	bl	scs_patch_vmlinux
+#endif
 	mov	x0, x20
 	bl	finalise_el2			// Prefer VHE if possible
 	ldp	x29, x30, [sp], #16
@@ -473,7 +528,7 @@ SYM_FUNC_END(__primary_switched)
  * end early head section, begin head code that is also used for
  * hotplug and needs to have the same protections as the text region
  */
-	.section ".idmap.text","awx"
+	.section ".idmap.text","a"
 
 /*
  * Starting from EL2 or EL1, configure the CPU to execute at the highest
@@ -486,14 +541,17 @@ SYM_FUNC_END(__primary_switched)
  * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in x0 if
  * booted in EL1 or EL2 respectively, with the top 32 bits containing
  * potential context flags. These flags are *not* stored in __boot_cpu_mode.
+ *
+ * x0: whether we are being called from the primary boot path with the MMU on
  */
 SYM_FUNC_START(init_kernel_el)
-	mrs	x0, CurrentEL
-	cmp	x0, #CurrentEL_EL2
+	mrs	x1, CurrentEL
+	cmp	x1, #CurrentEL_EL2
 	b.eq	init_el2
 
 SYM_INNER_LABEL(init_el1, SYM_L_LOCAL)
 	mov_q	x0, INIT_SCTLR_EL1_MMU_OFF
+	pre_disable_mmu_workaround
 	msr	sctlr_el1, x0
 	isb
 	mov_q	x0, INIT_PSTATE_EL1
@@ -503,6 +561,15 @@ SYM_INNER_LABEL(init_el1, SYM_L_LOCAL)
 	eret
 
 SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
+	msr	elr_el2, lr
+
+	// clean all HYP code to the PoC if we booted at EL2 with the MMU on
+	cbz	x0, 0f
+	adrp	x0, __hyp_idmap_text_start
+	adr_l	x1, __hyp_text_end
+	adr_l	x2, dcache_clean_poc
+	blr	x2
+0:
 	mov_q	x0, HCR_HOST_NVHE_FLAGS
 	msr	hcr_el2, x0
 	isb
@@ -526,38 +593,27 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	cbz	x0, 1f
 
 	/* Set a sane SCTLR_EL1, the VHE way */
+	pre_disable_mmu_workaround
 	msr_s	SYS_SCTLR_EL12, x1
 	mov	x2, #BOOT_CPU_FLAG_E2H
 	b	2f
 
 1:
+	pre_disable_mmu_workaround
 	msr	sctlr_el1, x1
 	mov	x2, xzr
 2:
-	msr	elr_el2, lr
 	mov	w0, #BOOT_CPU_MODE_EL2
 	orr	x0, x0, x2
 	eret
 SYM_FUNC_END(init_kernel_el)
-
-/*
- * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
- * in w0. See arch/arm64/include/asm/virt.h for more info.
- */
-SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
-	adr_l	x1, __boot_cpu_mode
-	cmp	w0, #BOOT_CPU_MODE_EL2
-	b.ne	1f
-	add	x1, x1, #4
-1:	str	w0, [x1]			// Save CPU boot mode
-	ret
-SYM_FUNC_END(set_cpu_boot_mode_flag)
 
 	/*
 	 * This provides a "holding pen" for platforms to hold all secondary
 	 * cores are held until we're ready for them to initialise.
 	 */
 SYM_FUNC_START(secondary_holding_pen)
+	mov	x0, xzr
 	bl	init_kernel_el			// w0=cpu_boot_mode
 	mrs	x2, mpidr_el1
 	mov_q	x1, MPIDR_HWID_BITMASK
@@ -575,6 +631,7 @@ SYM_FUNC_END(secondary_holding_pen)
 	 * be used where CPUs are brought online dynamically by the kernel.
 	 */
 SYM_FUNC_START(secondary_entry)
+	mov	x0, xzr
 	bl	init_kernel_el			// w0=cpu_boot_mode
 	b	secondary_startup
 SYM_FUNC_END(secondary_entry)
@@ -584,7 +641,6 @@ SYM_FUNC_START_LOCAL(secondary_startup)
 	 * Common entry point for secondary CPUs.
 	 */
 	mov	x20, x0				// preserve boot mode
-	bl	finalise_el2
 	bl	__cpu_secondary_check52bitva
 #if VA_BITS > 48
 	ldr_l	x0, vabits_actual
@@ -597,9 +653,14 @@ SYM_FUNC_START_LOCAL(secondary_startup)
 	br	x8
 SYM_FUNC_END(secondary_startup)
 
+	.text
 SYM_FUNC_START_LOCAL(__secondary_switched)
 	mov	x0, x20
 	bl	set_cpu_boot_mode_flag
+
+	mov	x0, x20
+	bl	finalise_el2
+
 	str_l	xzr, __early_cpu_boot_status, x3
 	adr_l	x5, vectors
 	msr	vbar_el1, x5
@@ -624,6 +685,19 @@ SYM_FUNC_START_LOCAL(__secondary_too_slow)
 	wfi
 	b	__secondary_too_slow
 SYM_FUNC_END(__secondary_too_slow)
+
+/*
+ * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
+ * in w0. See arch/arm64/include/asm/virt.h for more info.
+ */
+SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
+	adr_l	x1, __boot_cpu_mode
+	cmp	w0, #BOOT_CPU_MODE_EL2
+	b.ne	1f
+	add	x1, x1, #4
+1:	str	w0, [x1]			// Save CPU boot mode
+	ret
+SYM_FUNC_END(set_cpu_boot_mode_flag)
 
 /*
  * The booting CPU updates the failed status @__early_cpu_boot_status,
@@ -656,6 +730,7 @@ SYM_FUNC_END(__secondary_too_slow)
  * Checks if the selected granule size is supported by the CPU.
  * If it isn't, park the CPU
  */
+	.section ".idmap.text","a"
 SYM_FUNC_START(__enable_mmu)
 	mrs	x3, ID_AA64MMFR0_EL1
 	ubfx	x3, x3, #ID_AA64MMFR0_EL1_TGRAN_SHIFT, 4

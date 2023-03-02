@@ -104,7 +104,8 @@ static inline void drm_vblank_flush_worker(struct drm_vblank_crtc *vblank)
 
 static inline void drm_vblank_destroy_worker(struct drm_vblank_crtc *vblank)
 {
-	kthread_destroy_worker(vblank->worker);
+	if (vblank->worker)
+		kthread_destroy_worker(vblank->worker);
 }
 
 int drm_vblank_worker_init(struct drm_vblank_crtc *vblank);
@@ -185,6 +186,7 @@ int drm_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root);
 void drm_debugfs_cleanup(struct drm_minor *minor);
+void drm_debugfs_late_register(struct drm_device *dev);
 void drm_debugfs_connector_add(struct drm_connector *connector);
 void drm_debugfs_connector_remove(struct drm_connector *connector);
 void drm_debugfs_crtc_add(struct drm_crtc *crtc);
@@ -198,6 +200,10 @@ static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 }
 
 static inline void drm_debugfs_cleanup(struct drm_minor *minor)
+{
+}
+
+static inline void drm_debugfs_late_register(struct drm_device *dev)
 {
 }
 

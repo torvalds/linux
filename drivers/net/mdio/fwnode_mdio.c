@@ -98,6 +98,7 @@ int fwnode_mdiobus_phy_device_register(struct mii_bus *mdio,
 	 */
 	rc = phy_device_register(phy);
 	if (rc) {
+		device_set_node(&phy->mdio.dev, NULL);
 		fwnode_handle_put(child);
 		return rc;
 	}
@@ -114,7 +115,7 @@ int fwnode_mdiobus_register_phy(struct mii_bus *bus,
 	struct mii_timestamper *mii_ts = NULL;
 	struct pse_control *psec = NULL;
 	struct phy_device *phy;
-	bool is_c45 = false;
+	bool is_c45;
 	u32 phy_id;
 	int rc;
 
@@ -128,11 +129,7 @@ int fwnode_mdiobus_register_phy(struct mii_bus *bus,
 		goto clean_pse;
 	}
 
-	rc = fwnode_property_match_string(child, "compatible",
-					  "ethernet-phy-ieee802.3-c45");
-	if (rc >= 0)
-		is_c45 = true;
-
+	is_c45 = fwnode_device_is_compatible(child, "ethernet-phy-ieee802.3-c45");
 	if (is_c45 || fwnode_get_phy_id(child, &phy_id))
 		phy = get_phy_device(bus, addr, is_c45);
 	else
@@ -148,12 +145,13 @@ int fwnode_mdiobus_register_phy(struct mii_bus *bus,
 		/* Associate the fwnode with the device structure so it
 		 * can be looked up later.
 		 */
-		phy->mdio.dev.fwnode = child;
+		phy->mdio.dev.fwnode = fwnode_handle_get(child);
 
 		/* All data is now stored in the phy struct, so register it */
 		rc = phy_device_register(phy);
 		if (rc) {
-			fwnode_handle_put(phy->mdio.dev.fwnode);
+			phy->mdio.dev.fwnode = NULL;
+			fwnode_handle_put(child);
 			goto clean_phy;
 		}
 	} else if (is_of_node(child)) {

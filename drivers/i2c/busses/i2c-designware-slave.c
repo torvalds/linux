@@ -78,13 +78,7 @@ static int i2c_dw_reg_slave(struct i2c_client *slave)
 
 	__i2c_dw_enable(dev);
 
-	dev->cmd_err = 0;
-	dev->msg_write_idx = 0;
-	dev->msg_read_idx = 0;
-	dev->msg_err = 0;
-	dev->status = STATUS_IDLE;
-	dev->abort_source = 0;
-	dev->rx_outstanding = 0;
+	dev->status = 0;
 
 	return 0;
 }
@@ -93,7 +87,7 @@ static int i2c_dw_unreg_slave(struct i2c_client *slave)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
 
-	dev->disable_int(dev);
+	regmap_write(dev->map, DW_IC_INTR_MASK, 0);
 	dev->disable(dev);
 	synchronize_irq(dev->irq);
 	dev->slave = NULL;
@@ -104,7 +98,7 @@ static int i2c_dw_unreg_slave(struct i2c_client *slave)
 
 static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
 {
-	u32 stat, dummy;
+	unsigned int stat, dummy;
 
 	/*
 	 * The IC_INTR_STAT register just indicates "enabled" interrupts.
@@ -153,10 +147,10 @@ static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
  * Interrupt service routine. This gets called whenever an I2C slave interrupt
  * occurs.
  */
-
-static int i2c_dw_irq_handler_slave(struct dw_i2c_dev *dev)
+static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
 {
-	u32 raw_stat, stat, enabled, tmp;
+	struct dw_i2c_dev *dev = dev_id;
+	unsigned int raw_stat, stat, enabled, tmp;
 	u8 val = 0, slave_activity;
 
 	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
@@ -165,7 +159,7 @@ static int i2c_dw_irq_handler_slave(struct dw_i2c_dev *dev)
 	slave_activity = ((tmp & DW_IC_STATUS_SLAVE_ACTIVITY) >> 6);
 
 	if (!enabled || !(raw_stat & ~DW_IC_INTR_ACTIVITY) || !dev->slave)
-		return 0;
+		return IRQ_NONE;
 
 	stat = i2c_dw_read_clear_intrbits_slave(dev);
 	dev_dbg(dev->dev,
@@ -173,55 +167,45 @@ static int i2c_dw_irq_handler_slave(struct dw_i2c_dev *dev)
 		enabled, slave_activity, raw_stat, stat);
 
 	if (stat & DW_IC_INTR_RX_FULL) {
-		if (dev->status != STATUS_WRITE_IN_PROGRESS) {
-			dev->status = STATUS_WRITE_IN_PROGRESS;
+		if (!(dev->status & STATUS_WRITE_IN_PROGRESS)) {
+			dev->status |= STATUS_WRITE_IN_PROGRESS;
+			dev->status &= ~STATUS_READ_IN_PROGRESS;
 			i2c_slave_event(dev->slave, I2C_SLAVE_WRITE_REQUESTED,
 					&val);
 		}
 
-		regmap_read(dev->map, DW_IC_DATA_CMD, &tmp);
-		val = tmp;
-		if (!i2c_slave_event(dev->slave, I2C_SLAVE_WRITE_RECEIVED,
-				     &val))
-			dev_vdbg(dev->dev, "Byte %X acked!", val);
+		do {
+			regmap_read(dev->map, DW_IC_DATA_CMD, &tmp);
+			val = tmp;
+			i2c_slave_event(dev->slave, I2C_SLAVE_WRITE_RECEIVED,
+					&val);
+			regmap_read(dev->map, DW_IC_STATUS, &tmp);
+		} while (tmp & DW_IC_STATUS_RFNE);
 	}
 
 	if (stat & DW_IC_INTR_RD_REQ) {
 		if (slave_activity) {
 			regmap_read(dev->map, DW_IC_CLR_RD_REQ, &tmp);
 
-			dev->status = STATUS_READ_IN_PROGRESS;
-			if (!i2c_slave_event(dev->slave,
-					     I2C_SLAVE_READ_REQUESTED,
-					     &val))
-				regmap_write(dev->map, DW_IC_DATA_CMD, val);
+			if (!(dev->status & STATUS_READ_IN_PROGRESS)) {
+				i2c_slave_event(dev->slave,
+						I2C_SLAVE_READ_REQUESTED,
+						&val);
+				dev->status |= STATUS_READ_IN_PROGRESS;
+				dev->status &= ~STATUS_WRITE_IN_PROGRESS;
+			} else {
+				i2c_slave_event(dev->slave,
+						I2C_SLAVE_READ_PROCESSED,
+						&val);
+			}
+			regmap_write(dev->map, DW_IC_DATA_CMD, val);
 		}
 	}
 
-	if (stat & DW_IC_INTR_RX_DONE) {
-		if (!i2c_slave_event(dev->slave, I2C_SLAVE_READ_PROCESSED,
-				     &val))
-			regmap_read(dev->map, DW_IC_CLR_RX_DONE, &tmp);
-	}
-
-	if (stat & DW_IC_INTR_STOP_DET) {
-		dev->status = STATUS_IDLE;
+	if (stat & DW_IC_INTR_STOP_DET)
 		i2c_slave_event(dev->slave, I2C_SLAVE_STOP, &val);
-	}
 
-	return 1;
-}
-
-static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
-{
-	struct dw_i2c_dev *dev = dev_id;
-	int ret;
-
-	ret = i2c_dw_irq_handler_slave(dev);
-	if (ret > 0)
-		complete(&dev->cmd_complete);
-
-	return IRQ_RETVAL(ret);
+	return IRQ_HANDLED;
 }
 
 static const struct i2c_algorithm i2c_dw_algo = {
@@ -246,11 +230,8 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 	struct i2c_adapter *adap = &dev->adapter;
 	int ret;
 
-	init_completion(&dev->cmd_complete);
-
 	dev->init = i2c_dw_init_slave;
 	dev->disable = i2c_dw_disable;
-	dev->disable_int = i2c_dw_disable_int;
 
 	ret = i2c_dw_init_regmap(dev);
 	if (ret)

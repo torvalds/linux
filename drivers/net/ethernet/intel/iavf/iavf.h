@@ -30,6 +30,7 @@
 #include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 #include <net/udp.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
@@ -249,6 +250,7 @@ struct iavf_cloud_filter {
 
 /* board specific private data structure */
 struct iavf_adapter {
+	struct workqueue_struct *wq;
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
@@ -275,8 +277,8 @@ struct iavf_adapter {
 	u64 hw_csum_rx_error;
 	u32 rx_desc_count;
 	int num_msix_vectors;
-	int num_iwarp_msix;
-	int iwarp_base_vector;
+	int num_rdma_msix;
+	int rdma_base_vector;
 	u32 client_pending;
 	struct iavf_client_instance *cinst;
 	struct msix_entry *msix_entries;
@@ -298,7 +300,6 @@ struct iavf_adapter {
 #define IAVF_FLAG_QUEUES_DISABLED		BIT(17)
 #define IAVF_FLAG_SETUP_NETDEV_FEATURES		BIT(18)
 #define IAVF_FLAG_REINIT_MSIX_NEEDED		BIT(20)
-#define IAVF_FLAG_INITIAL_MAC_SET		BIT(23)
 /* duplicates for common code */
 #define IAVF_FLAG_DCB_ENABLED			0
 	/* flags for admin queue service task */
@@ -384,7 +385,7 @@ struct iavf_adapter {
 	enum virtchnl_ops current_op;
 #define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
 			    (_a)->vf_res->vf_cap_flags & \
-				VIRTCHNL_VF_OFFLOAD_IWARP : \
+				VIRTCHNL_VF_OFFLOAD_RDMA : \
 			    0)
 #define CLIENT_ENABLED(_a) ((_a)->cinst)
 /* RSS by the PF should be preferred over RSS via other methods. */
@@ -460,7 +461,6 @@ struct iavf_device {
 
 /* needed by iavf_ethtool.c */
 extern char iavf_driver_name[];
-extern struct workqueue_struct *iavf_wq;
 
 static inline const char *iavf_state_str(enum iavf_state_t state)
 {

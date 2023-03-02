@@ -266,6 +266,7 @@ __add_event(struct list_head *list, int *idx,
 	evsel->core.own_cpus = perf_cpu_map__get(cpus);
 	evsel->core.requires_cpu = pmu ? pmu->is_uncore : false;
 	evsel->auto_merge_stats = auto_merge_stats;
+	evsel->pmu = pmu;
 
 	if (name)
 		evsel->name = strdup(name);
@@ -444,6 +445,7 @@ out_free_terms:
 	return ret;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static void tracepoint_error(struct parse_events_error *e, int err,
 			     const char *sys, const char *name)
 {
@@ -592,6 +594,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 	closedir(events_dir);
 	return ret;
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 #ifdef HAVE_LIBBPF_SUPPORT
 struct __add_bpf_event_param {
@@ -1142,6 +1145,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 		return config_term_common(attr, term, err);
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int config_term_tracepoint(struct perf_event_attr *attr,
 				  struct parse_events_term *term,
 				  struct parse_events_error *err)
@@ -1169,6 +1173,7 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 
 	return 0;
 }
+#endif
 
 static int config_attr(struct perf_event_attr *attr,
 		       struct list_head *head,
@@ -1324,6 +1329,7 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				struct parse_events_error *err,
 				struct list_head *head_config)
 {
+#ifdef HAVE_LIBTRACEEVENT
 	if (head_config) {
 		struct perf_event_attr attr;
 
@@ -1338,6 +1344,16 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 	else
 		return add_tracepoint_event(list, idx, sys, event,
 					    err, head_config);
+#else
+	(void)list;
+	(void)idx;
+	(void)sys;
+	(void)event;
+	(void)head_config;
+	parse_events_error__handle(err, 0, strdup("unsupported tracepoint"),
+				strdup("libtraceevent is necessary for tracepoint support"));
+	return -1;
+#endif
 }
 
 int parse_events_add_numeric(struct parse_events_state *parse_state,
@@ -1554,8 +1570,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	evsel->scale = info.scale;
 	evsel->per_pkg = info.per_pkg;
 	evsel->snapshot = info.snapshot;
-	evsel->metric_expr = info.metric_expr;
-	evsel->metric_name = info.metric_name;
 	return 0;
 }
 

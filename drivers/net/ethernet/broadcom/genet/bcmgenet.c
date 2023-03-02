@@ -117,24 +117,6 @@ static inline void dmadesc_set(struct bcmgenet_priv *priv,
 	dmadesc_set_length_status(priv, d, val);
 }
 
-static inline dma_addr_t dmadesc_get_addr(struct bcmgenet_priv *priv,
-					  void __iomem *d)
-{
-	dma_addr_t addr;
-
-	addr = bcmgenet_readl(d + DMA_DESC_ADDRESS_LO);
-
-	/* Register writes to GISB bus can take couple hundred nanoseconds
-	 * and are done for each packet, save these expensive writes unless
-	 * the platform is explicitly configured for 64-bits/LPAE.
-	 */
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-	if (priv->hw_params->flags & GENET_HAS_40BITS)
-		addr |= (u64)bcmgenet_readl(d + DMA_DESC_ADDRESS_HI) << 32;
-#endif
-	return addr;
-}
-
 #define GENET_VER_FMT	"%1d.%1d EPHY: 0x%04x"
 
 #define GENET_MSG_DEFAULT	(NETIF_MSG_DRV | NETIF_MSG_PROBE | \
@@ -1387,7 +1369,8 @@ static int bcmgenet_validate_flow(struct net_device *dev,
 	struct ethtool_usrip4_spec *l4_mask;
 	struct ethhdr *eth_mask;
 
-	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES) {
+	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES &&
+	    cmd->fs.location != RX_CLS_LOC_ANY) {
 		netdev_err(dev, "rxnfc: Invalid location (%d)\n",
 			   cmd->fs.location);
 		return -EINVAL;
@@ -1452,7 +1435,7 @@ static int bcmgenet_insert_flow(struct net_device *dev,
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct bcmgenet_rxnfc_rule *loc_rule;
-	int err;
+	int err, i;
 
 	if (priv->hw_params->hfb_filter_size < 128) {
 		netdev_err(dev, "rxnfc: Not supported by this device\n");
@@ -1470,7 +1453,29 @@ static int bcmgenet_insert_flow(struct net_device *dev,
 	if (err)
 		return err;
 
-	loc_rule = &priv->rxnfc_rules[cmd->fs.location];
+	if (cmd->fs.location == RX_CLS_LOC_ANY) {
+		list_for_each_entry(loc_rule, &priv->rxnfc_list, list) {
+			cmd->fs.location = loc_rule->fs.location;
+			err = memcmp(&loc_rule->fs, &cmd->fs,
+				     sizeof(struct ethtool_rx_flow_spec));
+			if (!err)
+				/* rule exists so return current location */
+				return 0;
+		}
+		for (i = 0; i < MAX_NUM_OF_FS_RULES; i++) {
+			loc_rule = &priv->rxnfc_rules[i];
+			if (loc_rule->state == BCMGENET_RXNFC_STATE_UNUSED) {
+				cmd->fs.location = i;
+				break;
+			}
+		}
+		if (i == MAX_NUM_OF_FS_RULES) {
+			cmd->fs.location = RX_CLS_LOC_ANY;
+			return -ENOSPC;
+		}
+	} else {
+		loc_rule = &priv->rxnfc_rules[cmd->fs.location];
+	}
 	if (loc_rule->state == BCMGENET_RXNFC_STATE_ENABLED)
 		bcmgenet_hfb_disable_filter(priv, cmd->fs.location);
 	if (loc_rule->state != BCMGENET_RXNFC_STATE_UNUSED) {
@@ -1583,7 +1588,7 @@ static int bcmgenet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bcmgenet_get_num_flows(priv);
-		cmd->data = MAX_NUM_OF_FS_RULES;
+		cmd->data = MAX_NUM_OF_FS_RULES | RX_CLS_LOC_SPECIAL;
 		break;
 	case ETHTOOL_GRXCLSRULE:
 		err = bcmgenet_get_flow(dev, cmd, cmd->fs.location);
@@ -2310,6 +2315,14 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 			  "%s:p_ind=%d c_ind=%d read_ptr=%d len_stat=0x%08x\n",
 			  __func__, p_index, ring->c_index,
 			  ring->read_ptr, dma_length_status);
+
+		if (unlikely(len > RX_BUF_LENGTH)) {
+			netif_err(priv, rx_status, dev, "oversized packet\n");
+			dev->stats.rx_length_errors++;
+			dev->stats.rx_errors++;
+			dev_kfree_skb_any(skb);
+			goto next;
+		}
 
 		if (unlikely(!(dma_flag & DMA_EOP) || !(dma_flag & DMA_SOP))) {
 			netif_err(priv, rx_status, dev,

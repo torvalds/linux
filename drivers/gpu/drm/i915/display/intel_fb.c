@@ -174,7 +174,7 @@ static const struct intel_modifier_desc intel_modifiers[] = {
 		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC,
 	}, {
 		.modifier = I915_FORMAT_MOD_4_TILED,
-		.display_ver = { 13, 13 },
+		.display_ver = { 13, -1 },
 		.plane_caps = INTEL_PLANE_CAP_TILING_4,
 	}, {
 		.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS,
@@ -298,6 +298,19 @@ static bool plane_caps_contain_any(u8 caps, u8 mask)
 static bool plane_caps_contain_all(u8 caps, u8 mask)
 {
 	return (caps & mask) == mask;
+}
+
+/**
+ * intel_fb_is_tiled_modifier: Check if a modifier is a tiled modifier type
+ * @modifier: Modifier to check
+ *
+ * Returns:
+ * Returns %true if @modifier is a tiled modifier.
+ */
+bool intel_fb_is_tiled_modifier(u64 modifier)
+{
+	return plane_caps_contain_any(lookup_modifier(modifier)->plane_caps,
+				      INTEL_PLANE_CAP_TILING_MASK);
 }
 
 /**

@@ -206,6 +206,8 @@ enum cache_policy {
 
 #define KFD_GC_VERSION(dev) ((dev)->adev->ip_versions[GC_HWIP][0])
 #define KFD_IS_SOC15(dev)   ((KFD_GC_VERSION(dev)) >= (IP_VERSION(9, 0, 1)))
+#define KFD_SUPPORT_XNACK_PER_PROCESS(dev)\
+		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2))
 
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
@@ -254,8 +256,6 @@ struct kfd_dev {
 	struct amdgpu_device *adev;
 
 	struct kfd_device_info device_info;
-	struct pci_dev *pdev;
-	struct drm_device *ddev;
 
 	unsigned int id;		/* topology stub index */
 
@@ -1365,7 +1365,7 @@ void kfd_dec_compute_active(struct kfd_dev *dev);
 static inline int kfd_devcgroup_check_permission(struct kfd_dev *kfd)
 {
 #if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
-	struct drm_device *ddev = kfd->ddev;
+	struct drm_device *ddev = adev_to_drm(kfd->adev);
 
 	return devcgroup_check_permission(DEVCG_DEV_CHAR, DRM_MAJOR,
 					  ddev->render->index,

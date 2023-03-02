@@ -24,14 +24,13 @@
 #include <asm/set_memory.h>
 #include <asm/sections.h>
 #include <asm/dis.h>
+#include "kprobes.h"
 #include "entry.h"
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = { };
-
-DEFINE_INSN_CACHE_OPS(s390_insn);
 
 static int insn_page_in_use;
 
@@ -282,16 +281,6 @@ static void pop_kprobe(struct kprobe_ctlblk *kcb)
 }
 NOKPROBE_SYMBOL(pop_kprobe);
 
-void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	ri->ret_addr = (kprobe_opcode_t *)regs->gprs[14];
-	ri->fp = (void *)regs->gprs[15];
-
-	/* Replace the return addr with trampoline addr */
-	regs->gprs[14] = (unsigned long)&__kretprobe_trampoline;
-}
-NOKPROBE_SYMBOL(arch_prepare_kretprobe);
-
 static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 {
 	switch (kcb->kprobe_status) {
@@ -371,26 +360,6 @@ static int kprobe_handler(struct pt_regs *regs)
 	return 0;
 }
 NOKPROBE_SYMBOL(kprobe_handler);
-
-void arch_kretprobe_fixup_return(struct pt_regs *regs,
-				 kprobe_opcode_t *correct_ret_addr)
-{
-	/* Replace fake return address with real one. */
-	regs->gprs[14] = (unsigned long)correct_ret_addr;
-}
-NOKPROBE_SYMBOL(arch_kretprobe_fixup_return);
-
-/*
- * Called from __kretprobe_trampoline
- */
-void trampoline_probe_handler(struct pt_regs *regs)
-{
-	kretprobe_trampoline_handler(regs, (void *)regs->gprs[15]);
-}
-NOKPROBE_SYMBOL(trampoline_probe_handler);
-
-/* assembler function that handles the kretprobes must not be probed itself */
-NOKPROBE_SYMBOL(__kretprobe_trampoline);
 
 /*
  * Called after single-stepping.  p->addr is the address of the

@@ -64,36 +64,6 @@ static int irdma_query_device(struct ib_device *ibdev,
 }
 
 /**
- * irdma_get_eth_speed_and_width - Get IB port speed and width from netdev speed
- * @link_speed: netdev phy link speed
- * @active_speed: IB port speed
- * @active_width: IB port width
- */
-static void irdma_get_eth_speed_and_width(u32 link_speed, u16 *active_speed,
-					  u8 *active_width)
-{
-	if (link_speed <= SPEED_1000) {
-		*active_width = IB_WIDTH_1X;
-		*active_speed = IB_SPEED_SDR;
-	} else if (link_speed <= SPEED_10000) {
-		*active_width = IB_WIDTH_1X;
-		*active_speed = IB_SPEED_FDR10;
-	} else if (link_speed <= SPEED_20000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_DDR;
-	} else if (link_speed <= SPEED_25000) {
-		*active_width = IB_WIDTH_1X;
-		*active_speed = IB_SPEED_EDR;
-	} else if (link_speed <= SPEED_40000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_FDR10;
-	} else {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_EDR;
-	}
-}
-
-/**
  * irdma_query_port - get port attributes
  * @ibdev: device pointer from stack
  * @port: port number for query
@@ -120,8 +90,9 @@ static int irdma_query_port(struct ib_device *ibdev, u32 port,
 		props->state = IB_PORT_DOWN;
 		props->phys_state = IB_PORT_PHYS_STATE_DISABLED;
 	}
-	irdma_get_eth_speed_and_width(SPEED_100000, &props->active_speed,
-				      &props->active_width);
+
+	ib_get_eth_speed(ibdev, port, &props->active_speed,
+			 &props->active_width);
 
 	if (rdma_protocol_roce(ibdev, 1)) {
 		props->gid_tbl_len = 32;
@@ -1242,6 +1213,7 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		av->attrs = attr->ah_attr;
 		rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid_attr->gid);
 		rdma_gid2ip((struct sockaddr *)&av->dgid_addr, &attr->ah_attr.grh.dgid);
+		av->net_type = rdma_gid_attr_network_type(sgid_attr);
 		if (av->net_type == RDMA_NETWORK_IPV6) {
 			__be32 *daddr =
 				av->dgid_addr.saddr_in6.sin6_addr.in6_u.u6_addr32;
@@ -2358,9 +2330,10 @@ static bool irdma_check_mr_contiguous(struct irdma_pble_alloc *palloc,
  * @rf: RDMA PCI function
  * @iwmr: mr pointer for this memory registration
  * @use_pbles: flag if to use pble's
+ * @lvl_1_only: request only level 1 pble if true
  */
 static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
-			     bool use_pbles)
+			     bool use_pbles, bool lvl_1_only)
 {
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
@@ -2371,7 +2344,7 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 
 	if (use_pbles) {
 		status = irdma_get_pble(rf->pble_rsrc, palloc, iwmr->page_cnt,
-					false);
+					lvl_1_only);
 		if (status)
 			return status;
 
@@ -2414,15 +2387,9 @@ static int irdma_handle_q_mem(struct irdma_device *iwdev,
 	bool ret = true;
 
 	pg_size = iwmr->page_size;
-	err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles);
+	err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles, true);
 	if (err)
 		return err;
-
-	if (use_pbles && palloc->level != PBLE_LEVEL_1) {
-		irdma_free_pble(iwdev->rf->pble_rsrc, palloc);
-		iwpbl->pbl_allocated = false;
-		return -ENOMEM;
-	}
 
 	if (use_pbles)
 		arr = palloc->level1.addr;
@@ -2778,6 +2745,162 @@ static int irdma_hwreg_mr(struct irdma_device *iwdev, struct irdma_mr *iwmr,
 	return ret;
 }
 
+static int irdma_reg_user_mr_type_mem(struct irdma_mr *iwmr, int access)
+{
+	struct irdma_device *iwdev = to_iwdev(iwmr->ibmr.device);
+	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
+	bool use_pbles;
+	u32 stag;
+	int err;
+
+	use_pbles = iwmr->page_cnt != 1;
+
+	err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles, false);
+	if (err)
+		return err;
+
+	if (use_pbles) {
+		err = irdma_check_mr_contiguous(&iwpbl->pble_alloc,
+						iwmr->page_size);
+		if (err) {
+			irdma_free_pble(iwdev->rf->pble_rsrc, &iwpbl->pble_alloc);
+			iwpbl->pbl_allocated = false;
+		}
+	}
+
+	stag = irdma_create_stag(iwdev);
+	if (!stag) {
+		err = -ENOMEM;
+		goto free_pble;
+	}
+
+	iwmr->stag = stag;
+	iwmr->ibmr.rkey = stag;
+	iwmr->ibmr.lkey = stag;
+	err = irdma_hwreg_mr(iwdev, iwmr, access);
+	if (err)
+		goto err_hwreg;
+
+	return 0;
+
+err_hwreg:
+	irdma_free_stag(iwdev, stag);
+
+free_pble:
+	if (iwpbl->pble_alloc.level != PBLE_LEVEL_0 && iwpbl->pbl_allocated)
+		irdma_free_pble(iwdev->rf->pble_rsrc, &iwpbl->pble_alloc);
+
+	return err;
+}
+
+static struct irdma_mr *irdma_alloc_iwmr(struct ib_umem *region,
+					 struct ib_pd *pd, u64 virt,
+					 enum irdma_memreg_type reg_type)
+{
+	struct irdma_device *iwdev = to_iwdev(pd->device);
+	struct irdma_pbl *iwpbl = NULL;
+	struct irdma_mr *iwmr = NULL;
+	unsigned long pgsz_bitmap;
+
+	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
+	if (!iwmr)
+		return ERR_PTR(-ENOMEM);
+
+	iwpbl = &iwmr->iwpbl;
+	iwpbl->iwmr = iwmr;
+	iwmr->region = region;
+	iwmr->ibmr.pd = pd;
+	iwmr->ibmr.device = pd->device;
+	iwmr->ibmr.iova = virt;
+	iwmr->type = reg_type;
+
+	pgsz_bitmap = (reg_type == IRDMA_MEMREG_TYPE_MEM) ?
+		iwdev->rf->sc_dev.hw_attrs.page_size_cap : PAGE_SIZE;
+
+	iwmr->page_size = ib_umem_find_best_pgsz(region, pgsz_bitmap, virt);
+	if (unlikely(!iwmr->page_size)) {
+		kfree(iwmr);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	iwmr->len = region->length;
+	iwpbl->user_base = virt;
+	iwmr->page_cnt = ib_umem_num_dma_blocks(region, iwmr->page_size);
+
+	return iwmr;
+}
+
+static void irdma_free_iwmr(struct irdma_mr *iwmr)
+{
+	kfree(iwmr);
+}
+
+static int irdma_reg_user_mr_type_qp(struct irdma_mem_reg_req req,
+				     struct ib_udata *udata,
+				     struct irdma_mr *iwmr)
+{
+	struct irdma_device *iwdev = to_iwdev(iwmr->ibmr.device);
+	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
+	struct irdma_ucontext *ucontext = NULL;
+	unsigned long flags;
+	bool use_pbles;
+	u32 total;
+	int err;
+
+	total = req.sq_pages + req.rq_pages + 1;
+	if (total > iwmr->page_cnt)
+		return -EINVAL;
+
+	total = req.sq_pages + req.rq_pages;
+	use_pbles = total > 2;
+	err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+	if (err)
+		return err;
+
+	ucontext = rdma_udata_to_drv_context(udata, struct irdma_ucontext,
+					     ibucontext);
+	spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
+	list_add_tail(&iwpbl->list, &ucontext->qp_reg_mem_list);
+	iwpbl->on_list = true;
+	spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
+
+	return 0;
+}
+
+static int irdma_reg_user_mr_type_cq(struct irdma_mem_reg_req req,
+				     struct ib_udata *udata,
+				     struct irdma_mr *iwmr)
+{
+	struct irdma_device *iwdev = to_iwdev(iwmr->ibmr.device);
+	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
+	struct irdma_ucontext *ucontext = NULL;
+	u8 shadow_pgcnt = 1;
+	unsigned long flags;
+	bool use_pbles;
+	u32 total;
+	int err;
+
+	if (iwdev->rf->sc_dev.hw_attrs.uk_attrs.feature_flags & IRDMA_FEATURE_CQ_RESIZE)
+		shadow_pgcnt = 0;
+	total = req.cq_pages + shadow_pgcnt;
+	if (total > iwmr->page_cnt)
+		return -EINVAL;
+
+	use_pbles = req.cq_pages > 1;
+	err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+	if (err)
+		return err;
+
+	ucontext = rdma_udata_to_drv_context(udata, struct irdma_ucontext,
+					     ibucontext);
+	spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
+	list_add_tail(&iwpbl->list, &ucontext->cq_reg_mem_list);
+	iwpbl->on_list = true;
+	spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
+
+	return 0;
+}
+
 /**
  * irdma_reg_user_mr - Register a user memory region
  * @pd: ptr of pd
@@ -2793,18 +2916,10 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 {
 #define IRDMA_MEM_REG_MIN_REQ_LEN offsetofend(struct irdma_mem_reg_req, sq_pages)
 	struct irdma_device *iwdev = to_iwdev(pd->device);
-	struct irdma_ucontext *ucontext;
-	struct irdma_pble_alloc *palloc;
-	struct irdma_pbl *iwpbl;
-	struct irdma_mr *iwmr;
-	struct ib_umem *region;
-	struct irdma_mem_reg_req req;
-	u32 total, stag = 0;
-	u8 shadow_pgcnt = 1;
-	bool use_pbles = false;
-	unsigned long flags;
-	int err = -EINVAL;
-	int ret;
+	struct irdma_mem_reg_req req = {};
+	struct ib_umem *region = NULL;
+	struct irdma_mr *iwmr = NULL;
+	int err;
 
 	if (len > iwdev->rf->sc_dev.hw_attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);
@@ -2825,122 +2940,80 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 		return ERR_PTR(-EFAULT);
 	}
 
-	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
-	if (!iwmr) {
+	iwmr = irdma_alloc_iwmr(region, pd, virt, req.reg_type);
+	if (IS_ERR(iwmr)) {
 		ib_umem_release(region);
-		return ERR_PTR(-ENOMEM);
+		return (struct ib_mr *)iwmr;
 	}
-
-	iwpbl = &iwmr->iwpbl;
-	iwpbl->iwmr = iwmr;
-	iwmr->region = region;
-	iwmr->ibmr.pd = pd;
-	iwmr->ibmr.device = pd->device;
-	iwmr->ibmr.iova = virt;
-	iwmr->page_size = PAGE_SIZE;
-
-	if (req.reg_type == IRDMA_MEMREG_TYPE_MEM) {
-		iwmr->page_size = ib_umem_find_best_pgsz(region,
-							 iwdev->rf->sc_dev.hw_attrs.page_size_cap,
-							 virt);
-		if (unlikely(!iwmr->page_size)) {
-			kfree(iwmr);
-			ib_umem_release(region);
-			return ERR_PTR(-EOPNOTSUPP);
-		}
-	}
-	iwmr->len = region->length;
-	iwpbl->user_base = virt;
-	palloc = &iwpbl->pble_alloc;
-	iwmr->type = req.reg_type;
-	iwmr->page_cnt = ib_umem_num_dma_blocks(region, iwmr->page_size);
 
 	switch (req.reg_type) {
 	case IRDMA_MEMREG_TYPE_QP:
-		total = req.sq_pages + req.rq_pages + shadow_pgcnt;
-		if (total > iwmr->page_cnt) {
-			err = -EINVAL;
-			goto error;
-		}
-		total = req.sq_pages + req.rq_pages;
-		use_pbles = (total > 2);
-		err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+		err = irdma_reg_user_mr_type_qp(req, udata, iwmr);
 		if (err)
 			goto error;
 
-		ucontext = rdma_udata_to_drv_context(udata, struct irdma_ucontext,
-						     ibucontext);
-		spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
-		list_add_tail(&iwpbl->list, &ucontext->qp_reg_mem_list);
-		iwpbl->on_list = true;
-		spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
 		break;
 	case IRDMA_MEMREG_TYPE_CQ:
-		if (iwdev->rf->sc_dev.hw_attrs.uk_attrs.feature_flags & IRDMA_FEATURE_CQ_RESIZE)
-			shadow_pgcnt = 0;
-		total = req.cq_pages + shadow_pgcnt;
-		if (total > iwmr->page_cnt) {
-			err = -EINVAL;
-			goto error;
-		}
-
-		use_pbles = (req.cq_pages > 1);
-		err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+		err = irdma_reg_user_mr_type_cq(req, udata, iwmr);
 		if (err)
 			goto error;
-
-		ucontext = rdma_udata_to_drv_context(udata, struct irdma_ucontext,
-						     ibucontext);
-		spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
-		list_add_tail(&iwpbl->list, &ucontext->cq_reg_mem_list);
-		iwpbl->on_list = true;
-		spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
 		break;
 	case IRDMA_MEMREG_TYPE_MEM:
-		use_pbles = (iwmr->page_cnt != 1);
-
-		err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles);
+		err = irdma_reg_user_mr_type_mem(iwmr, access);
 		if (err)
 			goto error;
-
-		if (use_pbles) {
-			ret = irdma_check_mr_contiguous(palloc,
-							iwmr->page_size);
-			if (ret) {
-				irdma_free_pble(iwdev->rf->pble_rsrc, palloc);
-				iwpbl->pbl_allocated = false;
-			}
-		}
-
-		stag = irdma_create_stag(iwdev);
-		if (!stag) {
-			err = -ENOMEM;
-			goto error;
-		}
-
-		iwmr->stag = stag;
-		iwmr->ibmr.rkey = stag;
-		iwmr->ibmr.lkey = stag;
-		err = irdma_hwreg_mr(iwdev, iwmr, access);
-		if (err) {
-			irdma_free_stag(iwdev, stag);
-			goto error;
-		}
 
 		break;
 	default:
+		err = -EINVAL;
 		goto error;
 	}
 
-	iwmr->type = req.reg_type;
+	return &iwmr->ibmr;
+error:
+	ib_umem_release(region);
+	irdma_free_iwmr(iwmr);
+
+	return ERR_PTR(err);
+}
+
+static struct ib_mr *irdma_reg_user_mr_dmabuf(struct ib_pd *pd, u64 start,
+					      u64 len, u64 virt,
+					      int fd, int access,
+					      struct ib_udata *udata)
+{
+	struct irdma_device *iwdev = to_iwdev(pd->device);
+	struct ib_umem_dmabuf *umem_dmabuf;
+	struct irdma_mr *iwmr;
+	int err;
+
+	if (len > iwdev->rf->sc_dev.hw_attrs.max_mr_size)
+		return ERR_PTR(-EINVAL);
+
+	umem_dmabuf = ib_umem_dmabuf_get_pinned(pd->device, start, len, fd, access);
+	if (IS_ERR(umem_dmabuf)) {
+		err = PTR_ERR(umem_dmabuf);
+		ibdev_dbg(&iwdev->ibdev, "Failed to get dmabuf umem[%d]\n", err);
+		return ERR_PTR(err);
+	}
+
+	iwmr = irdma_alloc_iwmr(&umem_dmabuf->umem, pd, virt, IRDMA_MEMREG_TYPE_MEM);
+	if (IS_ERR(iwmr)) {
+		err = PTR_ERR(iwmr);
+		goto err_release;
+	}
+
+	err = irdma_reg_user_mr_type_mem(iwmr, access);
+	if (err)
+		goto err_iwmr;
 
 	return &iwmr->ibmr;
 
-error:
-	if (palloc->level != PBLE_LEVEL_0 && iwpbl->pbl_allocated)
-		irdma_free_pble(iwdev->rf->pble_rsrc, palloc);
-	ib_umem_release(region);
-	kfree(iwmr);
+err_iwmr:
+	irdma_free_iwmr(iwmr);
+
+err_release:
+	ib_umem_release(&umem_dmabuf->umem);
 
 	return ERR_PTR(err);
 }
@@ -3165,30 +3238,20 @@ static int irdma_post_send(struct ib_qp *ibqp,
 				info.stag_to_inv = ib_wr->ex.invalidate_rkey;
 			}
 
-			if (ib_wr->send_flags & IB_SEND_INLINE) {
-				info.op.inline_send.data = (void *)(unsigned long)
-							   ib_wr->sg_list[0].addr;
-				info.op.inline_send.len = ib_wr->sg_list[0].length;
-				if (iwqp->ibqp.qp_type == IB_QPT_UD ||
-				    iwqp->ibqp.qp_type == IB_QPT_GSI) {
-					ah = to_iwah(ud_wr(ib_wr)->ah);
-					info.op.inline_send.ah_id = ah->sc_ah.ah_info.ah_idx;
-					info.op.inline_send.qkey = ud_wr(ib_wr)->remote_qkey;
-					info.op.inline_send.dest_qp = ud_wr(ib_wr)->remote_qpn;
-				}
-				err = irdma_uk_inline_send(ukqp, &info, false);
-			} else {
-				info.op.send.num_sges = ib_wr->num_sge;
-				info.op.send.sg_list = ib_wr->sg_list;
-				if (iwqp->ibqp.qp_type == IB_QPT_UD ||
-				    iwqp->ibqp.qp_type == IB_QPT_GSI) {
-					ah = to_iwah(ud_wr(ib_wr)->ah);
-					info.op.send.ah_id = ah->sc_ah.ah_info.ah_idx;
-					info.op.send.qkey = ud_wr(ib_wr)->remote_qkey;
-					info.op.send.dest_qp = ud_wr(ib_wr)->remote_qpn;
-				}
-				err = irdma_uk_send(ukqp, &info, false);
+			info.op.send.num_sges = ib_wr->num_sge;
+			info.op.send.sg_list = ib_wr->sg_list;
+			if (iwqp->ibqp.qp_type == IB_QPT_UD ||
+			    iwqp->ibqp.qp_type == IB_QPT_GSI) {
+				ah = to_iwah(ud_wr(ib_wr)->ah);
+				info.op.send.ah_id = ah->sc_ah.ah_info.ah_idx;
+				info.op.send.qkey = ud_wr(ib_wr)->remote_qkey;
+				info.op.send.dest_qp = ud_wr(ib_wr)->remote_qpn;
 			}
+
+			if (ib_wr->send_flags & IB_SEND_INLINE)
+				err = irdma_uk_inline_send(ukqp, &info, false);
+			else
+				err = irdma_uk_send(ukqp, &info, false);
 			break;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			if (ukqp->qp_caps & IRDMA_WRITE_WITH_IMM) {
@@ -3205,22 +3268,15 @@ static int irdma_post_send(struct ib_qp *ibqp,
 			else
 				info.op_type = IRDMA_OP_TYPE_RDMA_WRITE;
 
-			if (ib_wr->send_flags & IB_SEND_INLINE) {
-				info.op.inline_rdma_write.data = (void *)(uintptr_t)ib_wr->sg_list[0].addr;
-				info.op.inline_rdma_write.len =
-						ib_wr->sg_list[0].length;
-				info.op.inline_rdma_write.rem_addr.addr =
-						rdma_wr(ib_wr)->remote_addr;
-				info.op.inline_rdma_write.rem_addr.lkey =
-						rdma_wr(ib_wr)->rkey;
+			info.op.rdma_write.num_lo_sges = ib_wr->num_sge;
+			info.op.rdma_write.lo_sg_list = ib_wr->sg_list;
+			info.op.rdma_write.rem_addr.addr =
+				rdma_wr(ib_wr)->remote_addr;
+			info.op.rdma_write.rem_addr.lkey = rdma_wr(ib_wr)->rkey;
+			if (ib_wr->send_flags & IB_SEND_INLINE)
 				err = irdma_uk_inline_rdma_write(ukqp, &info, false);
-			} else {
-				info.op.rdma_write.lo_sg_list = (void *)ib_wr->sg_list;
-				info.op.rdma_write.num_lo_sges = ib_wr->num_sge;
-				info.op.rdma_write.rem_addr.addr = rdma_wr(ib_wr)->remote_addr;
-				info.op.rdma_write.rem_addr.lkey = rdma_wr(ib_wr)->rkey;
+			else
 				err = irdma_uk_rdma_write(ukqp, &info, false);
-			}
 			break;
 		case IB_WR_RDMA_READ_WITH_INV:
 			inv_stag = true;
@@ -3380,7 +3436,6 @@ static enum ib_wc_status irdma_flush_err_to_ib_wc_status(enum irdma_flush_opcode
 static void irdma_process_cqe(struct ib_wc *entry,
 			      struct irdma_cq_poll_info *cq_poll_info)
 {
-	struct irdma_qp *iwqp;
 	struct irdma_sc_qp *qp;
 
 	entry->wc_flags = 0;
@@ -3388,7 +3443,6 @@ static void irdma_process_cqe(struct ib_wc *entry,
 	entry->wr_id = cq_poll_info->wr_id;
 
 	qp = cq_poll_info->qp_handle;
-	iwqp = qp->qp_uk.back_qp;
 	entry->qp = qp->qp_uk.back_qp;
 
 	if (cq_poll_info->error) {
@@ -3421,42 +3475,17 @@ static void irdma_process_cqe(struct ib_wc *entry,
 		}
 	}
 
-	switch (cq_poll_info->op_type) {
-	case IRDMA_OP_TYPE_RDMA_WRITE:
-	case IRDMA_OP_TYPE_RDMA_WRITE_SOL:
-		entry->opcode = IB_WC_RDMA_WRITE;
-		break;
-	case IRDMA_OP_TYPE_RDMA_READ_INV_STAG:
-	case IRDMA_OP_TYPE_RDMA_READ:
-		entry->opcode = IB_WC_RDMA_READ;
-		break;
-	case IRDMA_OP_TYPE_SEND_INV:
-	case IRDMA_OP_TYPE_SEND_SOL:
-	case IRDMA_OP_TYPE_SEND_SOL_INV:
-	case IRDMA_OP_TYPE_SEND:
-		entry->opcode = IB_WC_SEND;
-		break;
-	case IRDMA_OP_TYPE_FAST_REG_NSMR:
-		entry->opcode = IB_WC_REG_MR;
-		break;
-	case IRDMA_OP_TYPE_INV_STAG:
-		entry->opcode = IB_WC_LOCAL_INV;
-		break;
-	case IRDMA_OP_TYPE_REC_IMM:
-	case IRDMA_OP_TYPE_REC:
-		entry->opcode = cq_poll_info->op_type == IRDMA_OP_TYPE_REC_IMM ?
-			IB_WC_RECV_RDMA_WITH_IMM : IB_WC_RECV;
+	if (cq_poll_info->q_type == IRDMA_CQE_QTYPE_SQ) {
+		set_ib_wc_op_sq(cq_poll_info, entry);
+	} else {
+		set_ib_wc_op_rq(cq_poll_info, entry,
+				qp->qp_uk.qp_caps & IRDMA_SEND_WITH_IMM ?
+				true : false);
 		if (qp->qp_uk.qp_type != IRDMA_QP_TYPE_ROCE_UD &&
 		    cq_poll_info->stag_invalid_set) {
 			entry->ex.invalidate_rkey = cq_poll_info->inv_stag;
 			entry->wc_flags |= IB_WC_WITH_INVALIDATE;
 		}
-		break;
-	default:
-		ibdev_err(&iwqp->iwdev->ibdev,
-			  "Invalid opcode = %d in CQE\n", cq_poll_info->op_type);
-		entry->status = IB_WC_GENERAL_ERR;
-		return;
 	}
 
 	if (qp->qp_uk.qp_type == IRDMA_QP_TYPE_ROCE_UD) {
@@ -4495,6 +4524,7 @@ static const struct ib_device_ops irdma_dev_ops = {
 	.query_port = irdma_query_port,
 	.query_qp = irdma_query_qp,
 	.reg_user_mr = irdma_reg_user_mr,
+	.reg_user_mr_dmabuf = irdma_reg_user_mr_dmabuf,
 	.req_notify_cq = irdma_req_notify_cq,
 	.resize_cq = irdma_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, irdma_pd, ibpd),

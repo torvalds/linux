@@ -6,6 +6,7 @@
  */
 
 #include "g4x_hdmi.h"
+#include "i915_reg.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
@@ -78,6 +79,18 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	return ret;
 }
 
+static int g4x_hdmi_compute_config(struct intel_encoder *encoder,
+				   struct intel_crtc_state *crtc_state,
+				   struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (HAS_PCH_SPLIT(i915))
+		crtc_state->has_pch_encoder = true;
+
+	return intel_hdmi_compute_config(encoder, crtc_state, conn_state);
+}
+
 static void intel_hdmi_get_config(struct intel_encoder *encoder,
 				  struct intel_crtc_state *pipe_config)
 {
@@ -142,12 +155,12 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	intel_read_infoframe(encoder, pipe_config,
 			     HDMI_INFOFRAME_TYPE_VENDOR,
 			     &pipe_config->infoframes.hdmi);
+
+	intel_audio_codec_get_config(encoder, pipe_config);
 }
 
-static void g4x_enable_hdmi(struct intel_atomic_state *state,
-			    struct intel_encoder *encoder,
-			    const struct intel_crtc_state *pipe_config,
-			    const struct drm_connector_state *conn_state)
+static void g4x_hdmi_enable_port(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -162,6 +175,16 @@ static void g4x_enable_hdmi(struct intel_atomic_state *state,
 
 	intel_de_write(dev_priv, intel_hdmi->hdmi_reg, temp);
 	intel_de_posting_read(dev_priv, intel_hdmi->hdmi_reg);
+}
+
+static void g4x_enable_hdmi(struct intel_atomic_state *state,
+			    struct intel_encoder *encoder,
+			    const struct intel_crtc_state *pipe_config,
+			    const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	g4x_hdmi_enable_port(encoder, pipe_config);
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
 		    !pipe_config->has_hdmi_sink);
@@ -281,6 +304,11 @@ static void vlv_enable_hdmi(struct intel_atomic_state *state,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
+		    !pipe_config->has_hdmi_sink);
+	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void intel_disable_hdmi(struct intel_atomic_state *state,
@@ -402,7 +430,7 @@ static void vlv_hdmi_pre_enable(struct intel_atomic_state *state,
 			      pipe_config->has_infoframe,
 			      pipe_config, conn_state);
 
-	g4x_enable_hdmi(state, encoder, pipe_config, conn_state);
+	g4x_hdmi_enable_port(encoder, pipe_config);
 
 	vlv_wait_port_ready(dev_priv, dig_port, 0x0);
 }
@@ -479,7 +507,7 @@ static void chv_hdmi_pre_enable(struct intel_atomic_state *state,
 			      pipe_config->has_infoframe,
 			      pipe_config, conn_state);
 
-	g4x_enable_hdmi(state, encoder, pipe_config, conn_state);
+	g4x_hdmi_enable_port(encoder, pipe_config);
 
 	vlv_wait_port_ready(dev_priv, dig_port, 0x0);
 
@@ -543,7 +571,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 			 "HDMI %c", port_name(port));
 
 	intel_encoder->hotplug = intel_hdmi_hotplug;
-	intel_encoder->compute_config = intel_hdmi_compute_config;
+	intel_encoder->compute_config = g4x_hdmi_compute_config;
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		intel_encoder->disable = pch_disable_hdmi;
 		intel_encoder->post_disable = pch_post_disable_hdmi;
@@ -585,7 +613,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	} else {
 		intel_encoder->pipe_mask = ~0;
 	}
-	intel_encoder->cloneable = 1 << INTEL_OUTPUT_ANALOG;
+	intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG);
 	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 	/*
 	 * BSpec is unclear about HDMI+HDMI cloning on g4x, but it seems
@@ -593,7 +621,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	 * only one port anyway, nothing is lost by allowing it.
 	 */
 	if (IS_G4X(dev_priv))
-		intel_encoder->cloneable |= 1 << INTEL_OUTPUT_HDMI;
+		intel_encoder->cloneable |= BIT(INTEL_OUTPUT_HDMI);
 
 	dig_port->hdmi.hdmi_reg = hdmi_reg;
 	dig_port->dp.output_reg = INVALID_MMIO_REG;

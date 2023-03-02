@@ -4,7 +4,7 @@
 # subdirectories here. Add them in the ".gitignore" file
 # in that subdirectory instead.
 #
-# NOTE! Please use 'git ls-files -i --exclude-standard'
+# NOTE! Please use 'git ls-files -i -c --exclude-per-directory=.gitignore'
 # command after changing this file, to see if there are
 # any tracked files which get ignored after the change.
 #
@@ -16,10 +16,12 @@
 *.bin
 *.bz2
 *.c.[012]*.*
+*.cover
 *.dt.yaml
 *.dtb
 *.dtbo
 *.dtb.S
+*.dtbo.S
 *.dwo
 *.elf
 *.gcno
@@ -32,12 +34,14 @@
 *.lz4
 *.lzma
 *.lzo
+*.mbx
 *.mod
 *.mod.c
 *.o
 *.o.*
 *.patch
 *.rmeta
+*.rpm
 *.rsi
 *.s
 *.so

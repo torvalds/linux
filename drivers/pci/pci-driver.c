@@ -572,7 +572,7 @@ static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
 
 static void pci_pm_bridge_power_up_actions(struct pci_dev *pci_dev)
 {
-	pci_bridge_wait_for_secondary_bus(pci_dev);
+	pci_bridge_wait_for_secondary_bus(pci_dev, "resume", PCI_RESET_WAIT);
 	/*
 	 * When powering on a bridge from D3cold, the whole hierarchy may be
 	 * powered on into D0uninitialized state, resume them to give them a
@@ -646,7 +646,7 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
+static int pci_legacy_suspend_late(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 
@@ -848,7 +848,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 		return 0;
 
 	if (pci_has_legacy_pm_support(pci_dev))
-		return pci_legacy_suspend_late(dev, PMSG_SUSPEND);
+		return pci_legacy_suspend_late(dev);
 
 	if (!pm) {
 		pci_save_state(pci_dev);
@@ -1060,7 +1060,7 @@ static int pci_pm_freeze_noirq(struct device *dev)
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (pci_has_legacy_pm_support(pci_dev))
-		return pci_legacy_suspend_late(dev, PMSG_FREEZE);
+		return pci_legacy_suspend_late(dev);
 
 	if (pm && pm->freeze_noirq) {
 		int error;
@@ -1179,7 +1179,7 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 		return 0;
 
 	if (pci_has_legacy_pm_support(pci_dev))
-		return pci_legacy_suspend_late(dev, PMSG_HIBERNATE);
+		return pci_legacy_suspend_late(dev);
 
 	if (!pm) {
 		pci_fixup_device(pci_fixup_suspend_late, pci_dev);
@@ -1545,9 +1545,9 @@ void pci_dev_put(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_dev_put);
 
-static int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int pci_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct pci_dev *pdev;
+	const struct pci_dev *pdev;
 
 	if (!dev)
 		return -ENODEV;

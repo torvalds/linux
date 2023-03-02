@@ -267,7 +267,6 @@ static void tpm_dev_release(struct device *dev)
 	idr_remove(&dev_nums_idr, chip->dev_num);
 	mutex_unlock(&idr_lock);
 
-	kfree(chip->log.bios_event_log);
 	kfree(chip->work_space.context_buf);
 	kfree(chip->work_space.session_buf);
 	kfree(chip->allocated_banks);
@@ -373,6 +372,11 @@ out:
 }
 EXPORT_SYMBOL_GPL(tpm_chip_alloc);
 
+static void tpm_put_device(void *dev)
+{
+	put_device(dev);
+}
+
 /**
  * tpmm_chip_alloc() - allocate a new struct tpm_chip instance
  * @pdev: parent device to which the chip is associated
@@ -391,7 +395,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *pdev,
 		return chip;
 
 	rc = devm_add_action_or_reset(pdev,
-				      (void (*)(void *)) put_device,
+				      tpm_put_device,
 				      &chip->dev);
 	if (rc)
 		return ERR_PTR(rc);

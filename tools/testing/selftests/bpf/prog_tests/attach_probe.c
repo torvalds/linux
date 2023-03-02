@@ -33,8 +33,8 @@ void test_attach_probe(void)
 	struct test_attach_probe* skel;
 	ssize_t uprobe_offset, ref_ctr_offset;
 	struct bpf_link *uprobe_err_link;
+	FILE *devnull;
 	bool legacy;
-	char *mem;
 
 	/* Check if new-style kprobe/uprobe API is supported.
 	 * Kernels that support new FD-based kprobe and uprobe BPF attachment
@@ -147,7 +147,7 @@ void test_attach_probe(void)
 	/* test attach by name for a library function, using the library
 	 * as the binary argument. libc.so.6 will be resolved via dlopen()/dlinfo().
 	 */
-	uprobe_opts.func_name = "malloc";
+	uprobe_opts.func_name = "fopen";
 	uprobe_opts.retprobe = false;
 	skel->links.handle_uprobe_byname2 =
 			bpf_program__attach_uprobe_opts(skel->progs.handle_uprobe_byname2,
@@ -157,7 +157,7 @@ void test_attach_probe(void)
 	if (!ASSERT_OK_PTR(skel->links.handle_uprobe_byname2, "attach_uprobe_byname2"))
 		goto cleanup;
 
-	uprobe_opts.func_name = "free";
+	uprobe_opts.func_name = "fclose";
 	uprobe_opts.retprobe = true;
 	skel->links.handle_uretprobe_byname2 =
 			bpf_program__attach_uprobe_opts(skel->progs.handle_uretprobe_byname2,
@@ -195,8 +195,8 @@ void test_attach_probe(void)
 	usleep(1);
 
 	/* trigger & validate shared library u[ret]probes attached by name */
-	mem = malloc(1);
-	free(mem);
+	devnull = fopen("/dev/null", "r");
+	fclose(devnull);
 
 	/* trigger & validate uprobe & uretprobe */
 	trigger_func();

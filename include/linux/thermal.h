@@ -100,6 +100,7 @@ struct thermal_cooling_device_ops {
 struct thermal_cooling_device {
 	int id;
 	char *type;
+	unsigned long max_state;
 	struct device device;
 	struct device_node *np;
 	void *devdata;
@@ -331,6 +332,25 @@ static inline void devm_thermal_of_zone_unregister(struct device *dev,
 						   struct thermal_zone_device *tz)
 {
 }
+#endif
+
+int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
+			    struct thermal_trip *trip);
+int thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
+			  struct thermal_trip *trip);
+
+int thermal_zone_set_trip(struct thermal_zone_device *tz, int trip_id,
+			  const struct thermal_trip *trip);
+
+int thermal_zone_get_num_trips(struct thermal_zone_device *tz);
+
+int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp);
+
+#ifdef CONFIG_THERMAL_ACPI
+int thermal_acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp);
+int thermal_acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp);
+int thermal_acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp);
+int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp);
 #endif
 
 #ifdef CONFIG_THERMAL

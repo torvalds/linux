@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 #ifndef _dcn_3_0_0_OFFSET_HEADER
 #define _dcn_3_0_0_OFFSET_HEADER
 

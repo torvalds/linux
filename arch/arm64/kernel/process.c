@@ -307,29 +307,32 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 
 	/*
 	 * In the unlikely event that we create a new thread with ZA
-	 * enabled we should retain the ZA state so duplicate it here.
-	 * This may be shortly freed if we exec() or if CLONE_SETTLS
-	 * but it's simpler to do it here. To avoid confusing the rest
-	 * of the code ensure that we have a sve_state allocated
-	 * whenever za_state is allocated.
+	 * enabled we should retain the ZA and ZT state so duplicate
+	 * it here.  This may be shortly freed if we exec() or if
+	 * CLONE_SETTLS but it's simpler to do it here. To avoid
+	 * confusing the rest of the code ensure that we have a
+	 * sve_state allocated whenever sme_state is allocated.
 	 */
 	if (thread_za_enabled(&src->thread)) {
 		dst->thread.sve_state = kzalloc(sve_state_size(src),
 						GFP_KERNEL);
 		if (!dst->thread.sve_state)
 			return -ENOMEM;
-		dst->thread.za_state = kmemdup(src->thread.za_state,
-					       za_state_size(src),
-					       GFP_KERNEL);
-		if (!dst->thread.za_state) {
+
+		dst->thread.sme_state = kmemdup(src->thread.sme_state,
+						sme_state_size(src),
+						GFP_KERNEL);
+		if (!dst->thread.sme_state) {
 			kfree(dst->thread.sve_state);
 			dst->thread.sve_state = NULL;
 			return -ENOMEM;
 		}
 	} else {
-		dst->thread.za_state = NULL;
+		dst->thread.sme_state = NULL;
 		clear_tsk_thread_flag(dst, TIF_SME);
 	}
+
+	dst->thread.fp_type = FP_STATE_FPSIMD;
 
 	/* clear any pending asynchronous tag fault raised by the parent */
 	clear_tsk_thread_flag(dst, TIF_MTE_ASYNC_FAULT);
@@ -591,7 +594,7 @@ unsigned long __get_wchan(struct task_struct *p)
 unsigned long arch_align_stack(unsigned long sp)
 {
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
-		sp -= prandom_u32_max(PAGE_SIZE);
+		sp -= get_random_u32_below(PAGE_SIZE);
 	return sp & ~0xf;
 }
 

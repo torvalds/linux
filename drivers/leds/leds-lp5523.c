@@ -581,8 +581,8 @@ static ssize_t lp5523_selftest(struct device *dev,
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
 	struct lp55xx_platform_data *pdata = chip->pdata;
-	int i, ret, pos = 0;
-	u8 status, adc, vdd;
+	int ret, pos = 0;
+	u8 status, adc, vdd, i;
 
 	mutex_lock(&chip->lock);
 
@@ -612,20 +612,21 @@ static ssize_t lp5523_selftest(struct device *dev,
 
 	vdd--;	/* There may be some fluctuation in measurement */
 
-	for (i = 0; i < LP5523_MAX_LEDS; i++) {
-		/* Skip non-existing channels */
+	for (i = 0; i < pdata->num_channels; i++) {
+		/* Skip disabled channels */
 		if (pdata->led_config[i].led_current == 0)
 			continue;
 
 		/* Set default current */
-		lp55xx_write(chip, LP5523_REG_LED_CURRENT_BASE + i,
+		lp55xx_write(chip, LP5523_REG_LED_CURRENT_BASE + led->chan_nr,
 			pdata->led_config[i].led_current);
 
-		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + i, 0xff);
+		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + led->chan_nr,
+			     0xff);
 		/* let current stabilize 2 - 4ms before measurements start */
 		usleep_range(2000, 4000);
 		lp55xx_write(chip, LP5523_REG_LED_TEST_CTRL,
-			     LP5523_EN_LEDTEST | i);
+			     LP5523_EN_LEDTEST | led->chan_nr);
 		/* ADC conversion time is 2.7 ms typically */
 		usleep_range(3000, 6000);
 		ret = lp55xx_read(chip, LP5523_REG_STATUS, &status);
@@ -633,20 +634,22 @@ static ssize_t lp5523_selftest(struct device *dev,
 			goto fail;
 
 		if (!(status & LP5523_LEDTEST_DONE))
-			usleep_range(3000, 6000);/* Was not ready. Wait. */
+			usleep_range(3000, 6000); /* Was not ready. Wait. */
 
 		ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &adc);
 		if (ret < 0)
 			goto fail;
 
 		if (adc >= vdd || adc < LP5523_ADC_SHORTCIRC_LIM)
-			pos += sprintf(buf + pos, "LED %d FAIL\n", i);
+			pos += sprintf(buf + pos, "LED %d FAIL\n",
+				       led->chan_nr);
 
-		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + i, 0x00);
+		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + led->chan_nr,
+			     0x00);
 
 		/* Restore current */
-		lp55xx_write(chip, LP5523_REG_LED_CURRENT_BASE + i,
-			led->led_current);
+		lp55xx_write(chip, LP5523_REG_LED_CURRENT_BASE + led->chan_nr,
+			     led->led_current);
 		led++;
 	}
 	if (pos == 0)
@@ -884,9 +887,9 @@ static struct lp55xx_device_config lp5523_cfg = {
 	.dev_attr_group     = &lp5523_group,
 };
 
-static int lp5523_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lp5523_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
@@ -980,7 +983,7 @@ static struct i2c_driver lp5523_driver = {
 		.name	= "lp5523x",
 		.of_match_table = of_match_ptr(of_lp5523_leds_match),
 	},
-	.probe		= lp5523_probe,
+	.probe_new	= lp5523_probe,
 	.remove		= lp5523_remove,
 	.id_table	= lp5523_id,
 };

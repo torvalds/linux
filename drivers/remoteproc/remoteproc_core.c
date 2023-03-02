@@ -509,7 +509,13 @@ static int rproc_handle_vdev(struct rproc *rproc, void *ptr,
 	rvdev_data.rsc_offset = offset;
 	rvdev_data.rsc = rsc;
 
-	pdev = platform_device_register_data(dev, "rproc-virtio", rvdev_data.index, &rvdev_data,
+	/*
+	 * When there is more than one remote processor, rproc->nb_vdev number is
+	 * same for each separate instances of "rproc". If rvdev_data.index is used
+	 * as device id, then we get duplication in sysfs, so need to use
+	 * PLATFORM_DEVID_AUTO to auto select device id.
+	 */
+	pdev = platform_device_register_data(dev, "rproc-virtio", PLATFORM_DEVID_AUTO, &rvdev_data,
 					     sizeof(rvdev_data));
 	if (IS_ERR(pdev)) {
 		dev_err(dev, "failed to create rproc-virtio device\n");
@@ -637,7 +643,8 @@ static int rproc_handle_devmem(struct rproc *rproc, void *ptr,
 	if (!mapping)
 		return -ENOMEM;
 
-	ret = iommu_map(rproc->domain, rsc->da, rsc->pa, rsc->len, rsc->flags);
+	ret = iommu_map(rproc->domain, rsc->da, rsc->pa, rsc->len, rsc->flags,
+			GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "failed to map devmem: %d\n", ret);
 		goto out;
@@ -731,7 +738,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 		}
 
 		ret = iommu_map(rproc->domain, mem->da, dma, mem->len,
-				mem->flags);
+				mem->flags, GFP_KERNEL);
 		if (ret) {
 			dev_err(dev, "iommu_map failed: %d\n", ret);
 			goto free_mapping;
@@ -1862,10 +1869,16 @@ static void rproc_crash_handler_work(struct work_struct *work)
 
 	mutex_lock(&rproc->lock);
 
-	if (rproc->state == RPROC_CRASHED || rproc->state == RPROC_OFFLINE) {
+	if (rproc->state == RPROC_CRASHED) {
 		/* handle only the first crash detected */
 		mutex_unlock(&rproc->lock);
 		return;
+	}
+
+	if (rproc->state == RPROC_OFFLINE) {
+		/* Don't recover if the remote processor was stopped */
+		mutex_unlock(&rproc->lock);
+		goto out;
 	}
 
 	rproc->state = RPROC_CRASHED;
@@ -1877,6 +1890,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
 	if (!rproc->recovery_disabled)
 		rproc_trigger_recovery(rproc);
 
+out:
 	pm_relax(rproc->dev.parent);
 }
 
@@ -2106,7 +2120,7 @@ struct rproc *rproc_get_by_phandle(phandle phandle)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(r, &rproc_list, node) {
-		if (r->dev.parent && r->dev.parent->of_node == np) {
+		if (r->dev.parent && device_match_of_node(r->dev.parent, np)) {
 			/* prevent underlying implementation from being removed */
 			if (!try_module_get(r->dev.parent->driver->owner)) {
 				dev_err(&r->dev, "can't get owner\n");

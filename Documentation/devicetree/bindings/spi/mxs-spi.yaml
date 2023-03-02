@@ -10,7 +10,7 @@ maintainers:
   - Marek Vasut <marex@denx.de>
 
 allOf:
-  - $ref: "/schemas/spi/spi-controller.yaml#"
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:

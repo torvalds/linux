@@ -31,7 +31,6 @@
 	gfpflag_string(__GFP_HIGHMEM),		\
 	gfpflag_string(GFP_DMA32),		\
 	gfpflag_string(__GFP_HIGH),		\
-	gfpflag_string(__GFP_ATOMIC),		\
 	gfpflag_string(__GFP_IO),		\
 	gfpflag_string(__GFP_FS),		\
 	gfpflag_string(__GFP_NOWARN),		\
@@ -91,10 +90,10 @@
 #define IF_HAVE_PG_IDLE(flag,string)
 #endif
 
-#ifdef CONFIG_64BIT
-#define IF_HAVE_PG_ARCH_2(flag,string) ,{1UL << flag, string}
+#ifdef CONFIG_ARCH_USES_PG_ARCH_X
+#define IF_HAVE_PG_ARCH_X(flag,string) ,{1UL << flag, string}
 #else
-#define IF_HAVE_PG_ARCH_2(flag,string)
+#define IF_HAVE_PG_ARCH_X(flag,string)
 #endif
 
 #ifdef CONFIG_KASAN_HW_TAGS
@@ -130,7 +129,8 @@ IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
 IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
 IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
 IF_HAVE_PG_IDLE(PG_idle,		"idle"		)		\
-IF_HAVE_PG_ARCH_2(PG_arch_2,		"arch_2"	)		\
+IF_HAVE_PG_ARCH_X(PG_arch_2,		"arch_2"	)		\
+IF_HAVE_PG_ARCH_X(PG_arch_3,		"arch_3"	)		\
 IF_HAVE_PG_SKIP_KASAN_POISON(PG_skip_kasan_poison, "skip_kasan_poison")
 
 #define show_page_flags(flags)						\

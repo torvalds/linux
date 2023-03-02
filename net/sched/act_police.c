@@ -19,6 +19,7 @@
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_police.h>
+#include <net/tc_wrapper.h>
 
 /* Each policer is serialized by its individual spinlock */
 
@@ -242,8 +243,9 @@ static bool tcf_police_mtu_check(struct sk_buff *skb, u32 limit)
 	return len <= limit;
 }
 
-static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
-			  struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_police_act(struct sk_buff *skb,
+				     const struct tc_action *a,
+				     struct tcf_result *res)
 {
 	struct tcf_police *police = to_police(a);
 	s64 now, toks, ppstoks = 0, ptoks = 0;

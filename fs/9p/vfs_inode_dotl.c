@@ -15,7 +15,6 @@
 #include <linux/string.h>
 #include <linux/inet.h>
 #include <linux/namei.h>
-#include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
@@ -31,7 +30,7 @@
 #include "acl.h"
 
 static int
-v9fs_vfs_mknod_dotl(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev);
 
 /**
@@ -212,7 +211,7 @@ int v9fs_open_to_dotl_flags(int flags)
 
 /**
  * v9fs_vfs_create_dotl - VFS hook to create files for 9P2000.L protocol.
- * @mnt_userns: The user namespace of the mount
+ * @idmap: The user namespace of the mount
  * @dir: directory inode that is being created
  * @dentry:  dentry that is being deleted
  * @omode: create permissions
@@ -220,10 +219,10 @@ int v9fs_open_to_dotl_flags(int flags)
  *
  */
 static int
-v9fs_vfs_create_dotl(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_create_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, umode_t omode, bool excl)
 {
-	return v9fs_vfs_mknod_dotl(mnt_userns, dir, dentry, omode, 0);
+	return v9fs_vfs_mknod_dotl(idmap, dir, dentry, omode, 0);
 }
 
 static int
@@ -317,8 +316,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 
 	v9inode = V9FS_I(inode);
 	mutex_lock(&v9inode->v_mutex);
-	if ((v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) &&
-	    !v9inode->writeback_fid &&
+	if ((v9ses->cache) && !v9inode->writeback_fid &&
 	    ((flags & O_ACCMODE) != O_RDONLY)) {
 		/*
 		 * clone a fid and add it to writeback_fid
@@ -341,9 +339,11 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto out;
 	file->private_data = ofid;
-	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
+#ifdef CONFIG_9P_FSCACHE
+	if (v9ses->cache == CACHE_FSCACHE)
 		fscache_use_cookie(v9fs_inode_cookie(v9inode),
 				   file->f_mode & FMODE_WRITE);
+#endif
 	v9fs_open_fid_add(inode, &ofid);
 	file->f_mode |= FMODE_CREATED;
 out:
@@ -357,14 +357,14 @@ out:
 
 /**
  * v9fs_vfs_mkdir_dotl - VFS mkdir hook to create a directory
- * @mnt_userns: The user namespace of the mount
+ * @idmap: The idmap of the mount
  * @dir:  inode that is being unlinked
  * @dentry: dentry that is being unlinked
  * @omode: mode for new directory
  *
  */
 
-static int v9fs_vfs_mkdir_dotl(struct user_namespace *mnt_userns,
+static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 			       struct inode *dir, struct dentry *dentry,
 			       umode_t omode)
 {
@@ -451,7 +451,7 @@ error:
 }
 
 static int
-v9fs_vfs_getattr_dotl(struct user_namespace *mnt_userns,
+v9fs_vfs_getattr_dotl(struct mnt_idmap *idmap,
 		      const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int flags)
 {
@@ -463,7 +463,7 @@ v9fs_vfs_getattr_dotl(struct user_namespace *mnt_userns,
 	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
-		generic_fillattr(&init_user_ns, d_inode(dentry), stat);
+		generic_fillattr(&nop_mnt_idmap, d_inode(dentry), stat);
 		return 0;
 	}
 	fid = v9fs_fid_lookup(dentry);
@@ -480,7 +480,7 @@ v9fs_vfs_getattr_dotl(struct user_namespace *mnt_userns,
 		return PTR_ERR(st);
 
 	v9fs_stat2inode_dotl(st, d_inode(dentry), 0);
-	generic_fillattr(&init_user_ns, d_inode(dentry), stat);
+	generic_fillattr(&nop_mnt_idmap, d_inode(dentry), stat);
 	/* Change block size to what the server returned */
 	stat->blksize = st->st_blksize;
 
@@ -530,13 +530,13 @@ static int v9fs_mapped_iattr_valid(int iattr_valid)
 
 /**
  * v9fs_vfs_setattr_dotl - set file metadata
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dentry: file whose metadata to set
  * @iattr: metadata assignment structure
  *
  */
 
-int v9fs_vfs_setattr_dotl(struct user_namespace *mnt_userns,
+int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct iattr *iattr)
 {
 	int retval, use_dentry = 0;
@@ -549,7 +549,7 @@ int v9fs_vfs_setattr_dotl(struct user_namespace *mnt_userns,
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 
-	retval = setattr_prepare(&init_user_ns, dentry, iattr);
+	retval = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (retval)
 		return retval;
 
@@ -598,7 +598,7 @@ int v9fs_vfs_setattr_dotl(struct user_namespace *mnt_userns,
 		truncate_setsize(inode, iattr->ia_size);
 
 	v9fs_invalidate_inode_attr(inode);
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	mark_inode_dirty(inode);
 	if (iattr->ia_valid & ATTR_MODE) {
 		/* We also want to update ACL when we update mode bits */
@@ -688,7 +688,7 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode,
 }
 
 static int
-v9fs_vfs_symlink_dotl(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_symlink_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, const char *symname)
 {
 	int err;
@@ -818,7 +818,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 
 /**
  * v9fs_vfs_mknod_dotl - create a special file
- * @mnt_userns: The user namespace of the mount
+ * @idmap: The idmap of the mount
  * @dir: inode destination for new link
  * @dentry: dentry for file
  * @omode: mode for creation
@@ -826,7 +826,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
  *
  */
 static int
-v9fs_vfs_mknod_dotl(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_mknod_dotl(struct mnt_idmap *idmap, struct inode *dir,
 		    struct dentry *dentry, umode_t omode, dev_t rdev)
 {
 	int err;
@@ -983,14 +983,18 @@ const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.listxattr = v9fs_listxattr,
+	.get_inode_acl = v9fs_iop_get_inode_acl,
 	.get_acl = v9fs_iop_get_acl,
+	.set_acl = v9fs_iop_set_acl,
 };
 
 const struct inode_operations v9fs_file_inode_operations_dotl = {
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.listxattr = v9fs_listxattr,
+	.get_inode_acl = v9fs_iop_get_inode_acl,
 	.get_acl = v9fs_iop_get_acl,
+	.set_acl = v9fs_iop_set_acl,
 };
 
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {

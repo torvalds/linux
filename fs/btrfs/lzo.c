@@ -13,8 +13,10 @@
 #include <linux/bio.h>
 #include <linux/lzo.h>
 #include <linux/refcount.h>
+#include "messages.h"
 #include "compression.h"
 #include "ctree.h"
+#include "super.h"
 
 #define LZO_LEN	4
 
@@ -278,7 +280,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 		}
 
 		/* Check if we have reached page boundary */
-		if (IS_ALIGNED(cur_in, PAGE_SIZE)) {
+		if (PAGE_ALIGNED(cur_in)) {
 			put_page(page_in);
 			page_in = NULL;
 		}
@@ -425,7 +427,7 @@ out:
 	return ret;
 }
 
-int lzo_decompress(struct list_head *ws, unsigned char *data_in,
+int lzo_decompress(struct list_head *ws, const u8 *data_in,
 		struct page *dest_page, unsigned long start_byte, size_t srclen,
 		size_t destlen)
 {

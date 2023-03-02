@@ -39,7 +39,7 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 	       "AIL buffer %p: blocknr %llu state 0x%08lx mapping %p page "
 	       "state 0x%lx\n",
 	       bh, (unsigned long long)bh->b_blocknr, bh->b_state,
-	       bh->b_page->mapping, bh->b_page->flags);
+	       bh->b_folio->mapping, bh->b_folio->flags);
 	fs_err(sdp, "AIL glock %u:%llu mapping %p\n",
 	       gl->gl_name.ln_type, gl->gl_name.ln_number,
 	       gfs2_glock2aspace(gl));
@@ -193,7 +193,7 @@ static int rgrp_go_sync(struct gfs2_glock *gl)
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	int error;
 
-	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
+	if (!rgd || !test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return 0;
 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
@@ -222,9 +222,12 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	const unsigned bsize = sdp->sd_sb.sb_bsize;
-	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
-	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
+	loff_t start, end;
 
+	if (!rgd)
+		return;
+	start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 	gfs2_rgrp_brelse(rgd);
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
 	truncate_inode_pages_range(mapping, start, end);
@@ -397,38 +400,39 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	struct timespec64 atime;
 	u16 height, depth;
 	umode_t mode = be32_to_cpu(str->di_mode);
-	bool is_new = ip->i_inode.i_state & I_NEW;
+	struct inode *inode = &ip->i_inode;
+	bool is_new = inode->i_state & I_NEW;
 
 	if (unlikely(ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)))
 		goto corrupt;
-	if (unlikely(!is_new && inode_wrong_type(&ip->i_inode, mode)))
+	if (unlikely(!is_new && inode_wrong_type(inode, mode)))
 		goto corrupt;
 	ip->i_no_formal_ino = be64_to_cpu(str->di_num.no_formal_ino);
-	ip->i_inode.i_mode = mode;
+	inode->i_mode = mode;
 	if (is_new) {
-		ip->i_inode.i_rdev = 0;
+		inode->i_rdev = 0;
 		switch (mode & S_IFMT) {
 		case S_IFBLK:
 		case S_IFCHR:
-			ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
-						   be32_to_cpu(str->di_minor));
+			inode->i_rdev = MKDEV(be32_to_cpu(str->di_major),
+					      be32_to_cpu(str->di_minor));
 			break;
 		}
 	}
 
-	i_uid_write(&ip->i_inode, be32_to_cpu(str->di_uid));
-	i_gid_write(&ip->i_inode, be32_to_cpu(str->di_gid));
-	set_nlink(&ip->i_inode, be32_to_cpu(str->di_nlink));
-	i_size_write(&ip->i_inode, be64_to_cpu(str->di_size));
-	gfs2_set_inode_blocks(&ip->i_inode, be64_to_cpu(str->di_blocks));
+	i_uid_write(inode, be32_to_cpu(str->di_uid));
+	i_gid_write(inode, be32_to_cpu(str->di_gid));
+	set_nlink(inode, be32_to_cpu(str->di_nlink));
+	i_size_write(inode, be64_to_cpu(str->di_size));
+	gfs2_set_inode_blocks(inode, be64_to_cpu(str->di_blocks));
 	atime.tv_sec = be64_to_cpu(str->di_atime);
 	atime.tv_nsec = be32_to_cpu(str->di_atime_nsec);
-	if (timespec64_compare(&ip->i_inode.i_atime, &atime) < 0)
-		ip->i_inode.i_atime = atime;
-	ip->i_inode.i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
-	ip->i_inode.i_mtime.tv_nsec = be32_to_cpu(str->di_mtime_nsec);
-	ip->i_inode.i_ctime.tv_sec = be64_to_cpu(str->di_ctime);
-	ip->i_inode.i_ctime.tv_nsec = be32_to_cpu(str->di_ctime_nsec);
+	if (timespec64_compare(&inode->i_atime, &atime) < 0)
+		inode->i_atime = atime;
+	inode->i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
+	inode->i_mtime.tv_nsec = be32_to_cpu(str->di_mtime_nsec);
+	inode->i_ctime.tv_sec = be64_to_cpu(str->di_ctime);
+	inode->i_ctime.tv_nsec = be32_to_cpu(str->di_ctime_nsec);
 
 	ip->i_goal = be64_to_cpu(str->di_goal_meta);
 	ip->i_generation = be64_to_cpu(str->di_generation);
@@ -436,7 +440,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_diskflags = be32_to_cpu(str->di_flags);
 	ip->i_eattr = be64_to_cpu(str->di_eattr);
 	/* i_diskflags and i_eattr must be set before gfs2_set_inode_flags() */
-	gfs2_set_inode_flags(&ip->i_inode);
+	gfs2_set_inode_flags(inode);
 	height = be16_to_cpu(str->di_height);
 	if (unlikely(height > GFS2_MAX_META_HEIGHT))
 		goto corrupt;
@@ -448,8 +452,11 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_depth = (u8)depth;
 	ip->i_entries = be32_to_cpu(str->di_entries);
 
-	if (S_ISREG(ip->i_inode.i_mode))
-		gfs2_set_aops(&ip->i_inode);
+	if (gfs2_is_stuffed(ip) && inode->i_size > gfs2_max_stuffed_size(ip))
+		goto corrupt;
+
+	if (S_ISREG(inode->i_mode))
+		gfs2_set_aops(inode);
 
 	return 0;
 corrupt:
@@ -641,21 +648,16 @@ static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 	struct gfs2_inode *ip = gl->gl_object;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (!remote || sb_rdonly(sdp->sd_vfs))
+	if (!remote || sb_rdonly(sdp->sd_vfs) ||
+	    test_bit(SDF_DEACTIVATING, &sdp->sd_flags))
 		return;
 
 	if (gl->gl_demote_state == LM_ST_UNLOCKED &&
 	    gl->gl_state == LM_ST_SHARED && ip) {
 		gl->gl_lockref.count++;
-		if (!queue_delayed_work(gfs2_delete_workqueue,
-					&gl->gl_delete, 0))
+		if (!gfs2_queue_try_to_evict(gl))
 			gl->gl_lockref.count--;
 	}
-}
-
-static int iopen_go_demote_ok(const struct gfs2_glock *gl)
-{
-       return !gfs2_delete_work_queued(gl);
 }
 
 /**
@@ -763,7 +765,6 @@ const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_type = LM_TYPE_IOPEN,
 	.go_callback = iopen_go_callback,
 	.go_dump = inode_go_dump,
-	.go_demote_ok = iopen_go_demote_ok,
 	.go_flags = GLOF_LRU | GLOF_NONDISK,
 	.go_subclass = 1,
 };

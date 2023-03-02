@@ -64,8 +64,11 @@ static int psci_pd_init(struct device_node *np, bool use_osi)
 
 	pd->flags |= GENPD_FLAG_IRQ_SAFE | GENPD_FLAG_CPU_DOMAIN;
 
-	/* Allow power off when OSI has been successfully enabled. */
-	if (use_osi)
+	/*
+	 * Allow power off when OSI has been successfully enabled.
+	 * PREEMPT_RT is not yet ready to enter domain idle states.
+	 */
+	if (use_osi && !IS_ENABLED(CONFIG_PREEMPT_RT))
 		pd->power_off = psci_pd_power_off;
 	else
 		pd->flags |= GENPD_FLAG_ALWAYS_ON;
@@ -181,7 +184,8 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 	if (ret)
 		goto remove_pd;
 
-	pr_info("Initialized CPU PM domain topology\n");
+	pr_info("Initialized CPU PM domain topology using %s mode\n",
+		use_osi ? "OSI" : "PC");
 	return 0;
 
 put_node:

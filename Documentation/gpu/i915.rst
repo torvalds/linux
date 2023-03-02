@@ -494,7 +494,7 @@ WOPCM
 WOPCM Layout
 ~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_wopcm.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_wopcm.c
    :doc: WOPCM Layout
 
 GuC

@@ -463,7 +463,6 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct opregion_asle *asle = dev_priv->display.opregion.asle;
-	struct drm_device *dev = &dev_priv->drm;
 
 	drm_dbg(&dev_priv->drm, "bclp = 0x%08x\n", bclp);
 
@@ -480,7 +479,7 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	if (bclp > 255)
 		return ASLC_BACKLIGHT_FAILED;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex, NULL);
 
 	/*
 	 * Update backlight on all connectors that support backlight (usually
@@ -488,13 +487,13 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	 */
 	drm_dbg_kms(&dev_priv->drm, "updating opregion backlight %d/255\n",
 		    bclp);
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter)
 		intel_backlight_set_acpi(connector->base.state, bclp, 255);
 	drm_connector_list_iter_end(&conn_iter);
 	asle->cblv = DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID;
 
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_modeset_unlock(&dev_priv->drm.mode_config.connection_mutex);
 
 
 	return 0;
@@ -1102,41 +1101,34 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
  * The EDID in the OpRegion, or NULL if there is none or it's invalid.
  *
  */
-struct edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
+const struct drm_edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
 {
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_opregion *opregion = &i915->display.opregion;
-	const void *in_edid;
-	const struct edid *edid;
-	struct edid *new_edid;
+	const struct drm_edid *drm_edid;
+	const void *edid;
 	int len;
 
 	if (!opregion->asle_ext)
 		return NULL;
 
-	in_edid = opregion->asle_ext->bddc;
+	edid = opregion->asle_ext->bddc;
 
 	/* Validity corresponds to number of 128-byte blocks */
 	len = (opregion->asle_ext->phed & ASLE_PHED_EDID_VALID_MASK) * 128;
-	if (!len || !memchr_inv(in_edid, 0, len))
+	if (!len || !memchr_inv(edid, 0, len))
 		return NULL;
 
-	edid = in_edid;
+	drm_edid = drm_edid_alloc(edid, len);
 
-	if (len < EDID_LENGTH * (1 + edid->extensions)) {
-		drm_dbg_kms(&i915->drm, "Invalid EDID in ACPI OpRegion (Mailbox #5): too short\n");
-		return NULL;
-	}
-	new_edid = drm_edid_duplicate(edid);
-	if (!new_edid)
-		return NULL;
-	if (!drm_edid_is_valid(new_edid)) {
-		kfree(new_edid);
+	if (!drm_edid_valid(drm_edid)) {
 		drm_dbg_kms(&i915->drm, "Invalid EDID in ACPI OpRegion (Mailbox #5)\n");
-		return NULL;
+		drm_edid_free(drm_edid);
+		drm_edid = NULL;
 	}
-	return new_edid;
+
+	return drm_edid;
 }
 
 bool intel_opregion_headless_sku(struct drm_i915_private *i915)

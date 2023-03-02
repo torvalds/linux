@@ -1,7 +1,6 @@
 [
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IPQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.IPQ_HIT",
         "PerPkg": "1",
@@ -10,7 +9,6 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IPQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.IPQ_MISS",
         "PerPkg": "1",
@@ -19,7 +17,6 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.IRQ_HIT",
         "PerPkg": "1",
@@ -27,8 +24,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ ",
-        "Counter": "0,1,2,3",
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.IRQ_MISS",
         "PerPkg": "1",
@@ -37,7 +33,6 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ or PRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.LOC_ALL",
         "PerPkg": "1",
@@ -46,7 +41,6 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -PRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.PRQ_HIT",
         "PerPkg": "1",
@@ -55,7 +49,6 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -PRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_C_TOR_INSERTS.PRQ_MISS",
         "PerPkg": "1",
@@ -64,43 +57,38 @@
     },
     {
         "BriefDescription": "Counts the number of read requests and streaming stores that hit in MCDRAM cache and the data in MCDRAM is clean with respect to DDR. This event is only valid in cache and hybrid memory mode.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.HIT_CLEAN",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "EDC_UCLK"
     },
     {
-        "BriefDescription": "Counts the number of read requests and streaming stores that hit in MCDRAM cache and the data in MCDRAM is dirty with respect to DDR. This event is only valid in cache and hybrid memory mode. ",
-        "Counter": "0,1,2,3",
+        "BriefDescription": "Counts the number of read requests and streaming stores that hit in MCDRAM cache and the data in MCDRAM is dirty with respect to DDR. This event is only valid in cache and hybrid memory mode.",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.HIT_DIRTY",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "EDC_UCLK"
     },
     {
         "BriefDescription": "Counts the number of read requests and streaming stores that miss in MCDRAM cache and the data evicted from the MCDRAM is clean with respect to DDR. This event is only valid in cache and hybrid memory mode.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.MISS_CLEAN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "EDC_UCLK"
     },
     {
         "BriefDescription": "Counts the number of read requests and streaming stores that miss in MCDRAM cache and the data evicted from the MCDRAM is dirty with respect to DDR. This event is only valid in cache and hybrid memory mode.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.MISS_DIRTY",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "EDC_UCLK"
     },
     {
         "BriefDescription": "Number of EDC Hits or Misses. Miss I",
-        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.MISS_INVALID",
         "PerPkg": "1",
@@ -109,75 +97,66 @@
     },
     {
         "BriefDescription": "ECLK count",
-        "Counter": "0,1,2,3",
         "EventName": "UNC_E_E_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "EDC_ECLK"
     },
     {
-        "BriefDescription": "Counts the number of read requests received by the MCDRAM controller. This event is valid in all three memory modes: flat, cache and hybrid. In cache and hybrid memory mode, this event counts all read requests as well as streaming stores that hit or miss in the MCDRAM cache. ",
-        "Counter": "0,1,2,3",
+        "BriefDescription": "Counts the number of read requests received by the MCDRAM controller. This event is valid in all three memory modes: flat, cache and hybrid. In cache and hybrid memory mode, this event counts all read requests as well as streaming stores that hit or miss in the MCDRAM cache.",
         "EventCode": "0x01",
         "EventName": "UNC_E_RPQ_INSERTS",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "EDC_ECLK"
     },
     {
         "BriefDescription": "UCLK count",
-        "Counter": "0,1,2,3",
         "EventName": "UNC_E_U_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "EDC_UCLK"
     },
     {
         "BriefDescription": "Counts the number of write requests received by the MCDRAM controller. This event is valid in all three memory modes: flat, cache and hybrid. In cache and hybrid memory mode, this event counts all streaming stores, writebacks and, read requests that miss in MCDRAM cache.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_WPQ_INSERTS",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "EDC_ECLK"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR4",
         "PerPkg": "1",
@@ -186,7 +165,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR5",
         "PerPkg": "1",
@@ -195,7 +173,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR6",
         "PerPkg": "1",
@@ -204,7 +181,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED.TGR7",
         "PerPkg": "1",
@@ -213,61 +189,54 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x81",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Acquired For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x81",
         "EventName": "UNC_H_AG0_AD_CRD_ACQUIRED_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR4",
         "PerPkg": "1",
@@ -276,7 +245,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR5",
         "PerPkg": "1",
@@ -285,7 +253,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR6",
         "PerPkg": "1",
@@ -294,7 +261,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x82",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY.TGR7",
         "PerPkg": "1",
@@ -303,61 +269,54 @@
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 AD Credits Occupancy For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x83",
         "EventName": "UNC_H_AG0_AD_CRD_OCCUPANCY_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR4",
         "PerPkg": "1",
@@ -366,7 +325,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR5",
         "PerPkg": "1",
@@ -375,7 +333,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR6",
         "PerPkg": "1",
@@ -384,7 +341,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED.TGR7",
         "PerPkg": "1",
@@ -393,61 +349,54 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Acquired For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "UNC_H_AG0_BL_CRD_ACQUIRED_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR4",
         "PerPkg": "1",
@@ -456,7 +405,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR5",
         "PerPkg": "1",
@@ -465,7 +413,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR6",
         "PerPkg": "1",
@@ -474,7 +421,6 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8A",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY.TGR7",
         "PerPkg": "1",
@@ -483,61 +429,54 @@
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8B",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent0 BL Credits Occupancy For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8B",
         "EventName": "UNC_H_AG0_BL_CRD_OCCUPANCY_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR4",
         "PerPkg": "1",
@@ -546,7 +485,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR5",
         "PerPkg": "1",
@@ -555,7 +493,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR6",
         "PerPkg": "1",
@@ -564,7 +501,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD0",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR7",
         "PerPkg": "1",
@@ -573,61 +509,54 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD1",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD1",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR4",
         "PerPkg": "1",
@@ -636,7 +565,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR5",
         "PerPkg": "1",
@@ -645,7 +573,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR6",
         "PerPkg": "1",
@@ -654,7 +581,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD4",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR7",
         "PerPkg": "1",
@@ -663,61 +589,54 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR4",
         "PerPkg": "1",
@@ -726,7 +645,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR5",
         "PerPkg": "1",
@@ -735,7 +653,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR6",
         "PerPkg": "1",
@@ -744,7 +661,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x84",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED.TGR7",
         "PerPkg": "1",
@@ -753,61 +669,54 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x85",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Acquired For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x85",
         "EventName": "UNC_H_AG1_AD_CRD_ACQUIRED_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR4",
         "PerPkg": "1",
@@ -816,7 +725,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR5",
         "PerPkg": "1",
@@ -825,7 +733,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR6",
         "PerPkg": "1",
@@ -834,7 +741,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY.TGR7",
         "PerPkg": "1",
@@ -843,61 +749,54 @@
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x87",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 AD Credits Occupancy For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x87",
         "EventName": "UNC_H_AG1_AD_CRD_OCCUPANCY_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR4",
         "PerPkg": "1",
@@ -906,7 +805,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR5",
         "PerPkg": "1",
@@ -915,7 +813,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR6",
         "PerPkg": "1",
@@ -924,7 +821,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8C",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED.TGR7",
         "PerPkg": "1",
@@ -933,61 +829,54 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8D",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Acquired For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8D",
         "EventName": "UNC_H_AG1_BL_CRD_ACQUIRED_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR4",
         "PerPkg": "1",
@@ -996,7 +885,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR5",
         "PerPkg": "1",
@@ -1005,7 +893,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR6",
         "PerPkg": "1",
@@ -1014,7 +901,6 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8E",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY.TGR7",
         "PerPkg": "1",
@@ -1023,61 +909,54 @@
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8F",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Agent1 BL Credits Occupancy For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0x8F",
         "EventName": "UNC_H_AG1_BL_CRD_OCCUPANCY_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR4",
         "PerPkg": "1",
@@ -1086,7 +965,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR5",
         "PerPkg": "1",
@@ -1095,7 +973,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR6",
         "PerPkg": "1",
@@ -1104,7 +981,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD2",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR7",
         "PerPkg": "1",
@@ -1113,61 +989,54 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD3",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD3",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR1",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR2",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR3",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR4",
         "PerPkg": "1",
@@ -1176,7 +1045,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR5",
         "PerPkg": "1",
@@ -1185,7 +1053,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR6",
         "PerPkg": "1",
@@ -1194,7 +1061,6 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD6",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR7",
         "PerPkg": "1",
@@ -1203,43 +1069,38 @@
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD7",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
-        "Counter": "0,1,2,3",
         "EventCode": "0xD7",
         "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.TGR8",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cachable and UC.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.E_STATE",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for any transaction originating from the IPQ or IRQ.  This does not include lookups originating from the ISMQ.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.F_STATE",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Lines Victimized that Match NID",
-        "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.LOCAL",
         "PerPkg": "1",
@@ -1248,16 +1109,14 @@
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Read transactions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.M_STATE",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Lines Victimized that Does Not Match NID",
-        "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.REMOTE",
         "PerPkg": "1",
@@ -1266,16 +1125,14 @@
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for only snoop requests coming from the remote socket(s) through the IPQ.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.S_STATE",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Uncore Clocks",
-        "Counter": "0,1,2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_H_CLOCK",
         "PerPkg": "1",
@@ -1283,313 +1140,278 @@
     },
     {
         "BriefDescription": "CMS Horizontal ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9D",
         "EventName": "UNC_H_EGRESS_HORZ_ADS_USED.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9D",
         "EventName": "UNC_H_EGRESS_HORZ_ADS_USED.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9D",
         "EventName": "UNC_H_EGRESS_HORZ_ADS_USED.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Bypass. AD ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9F",
         "EventName": "UNC_H_EGRESS_HORZ_BYPASS.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Bypass. AK ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9F",
         "EventName": "UNC_H_EGRESS_HORZ_BYPASS.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Bypass. BL ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9F",
         "EventName": "UNC_H_EGRESS_HORZ_BYPASS.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Bypass. IV ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9F",
         "EventName": "UNC_H_EGRESS_HORZ_BYPASS.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Full AD",
-        "Counter": "0,1,2,3",
         "EventCode": "0x96",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_FULL.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Full AK",
-        "Counter": "0,1,2,3",
         "EventCode": "0x96",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_FULL.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Full BL",
-        "Counter": "0,1,2,3",
         "EventCode": "0x96",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_FULL.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Full IV",
-        "Counter": "0,1,2,3",
         "EventCode": "0x96",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_FULL.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty AD",
-        "Counter": "0,1,2,3",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty AK",
-        "Counter": "0,1,2,3",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty BL",
-        "Counter": "0,1,2,3",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty IV",
-        "Counter": "0,1,2,3",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Inserts AD",
-        "Counter": "0,1,2,3",
         "EventCode": "0x95",
         "EventName": "UNC_H_EGRESS_HORZ_INSERTS.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Inserts AK",
-        "Counter": "0,1,2,3",
         "EventCode": "0x95",
         "EventName": "UNC_H_EGRESS_HORZ_INSERTS.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Inserts BL",
-        "Counter": "0,1,2,3",
         "EventCode": "0x95",
         "EventName": "UNC_H_EGRESS_HORZ_INSERTS.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Inserts IV",
-        "Counter": "0,1,2,3",
         "EventCode": "0x95",
         "EventName": "UNC_H_EGRESS_HORZ_INSERTS.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x99",
         "EventName": "UNC_H_EGRESS_HORZ_NACK.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x99",
         "EventName": "UNC_H_EGRESS_HORZ_NACK.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x99",
         "EventName": "UNC_H_EGRESS_HORZ_NACK.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x99",
         "EventName": "UNC_H_EGRESS_HORZ_NACK.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Occupancy AD",
-        "Counter": "0,1,2,3",
         "EventCode": "0x94",
         "EventName": "UNC_H_EGRESS_HORZ_OCCUPANCY.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Occupancy AK",
-        "Counter": "0,1,2,3",
         "EventCode": "0x94",
         "EventName": "UNC_H_EGRESS_HORZ_OCCUPANCY.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Occupancy BL",
-        "Counter": "0,1,2,3",
         "EventCode": "0x94",
         "EventName": "UNC_H_EGRESS_HORZ_OCCUPANCY.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Occupancy IV",
-        "Counter": "0,1,2,3",
         "EventCode": "0x94",
         "EventName": "UNC_H_EGRESS_HORZ_OCCUPANCY.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9B",
         "EventName": "UNC_H_EGRESS_HORZ_STARVED.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9B",
         "EventName": "UNC_H_EGRESS_HORZ_STARVED.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9B",
         "EventName": "UNC_H_EGRESS_HORZ_STARVED.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Horizontal Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9B",
         "EventName": "UNC_H_EGRESS_HORZ_STARVED.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts number of cycles IV was blocked in the TGR Egress due to SNP/GO Ordering requirements",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAE",
         "EventName": "UNC_H_EGRESS_ORDERING.IV_SNP_GO_DN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts number of cycles IV was blocked in the TGR Egress due to SNP/GO Ordering requirements",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAE",
         "EventName": "UNC_H_EGRESS_ORDERING.IV_SNP_GO_UP",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9C",
         "EventName": "UNC_H_EGRESS_VERT_ADS_USED.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9C",
         "EventName": "UNC_H_EGRESS_VERT_ADS_USED.AD_AG1",
         "PerPkg": "1",
@@ -1598,16 +1420,14 @@
     },
     {
         "BriefDescription": "CMS Vertical ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9C",
         "EventName": "UNC_H_EGRESS_VERT_ADS_USED.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9C",
         "EventName": "UNC_H_EGRESS_VERT_ADS_USED.AK_AG1",
         "PerPkg": "1",
@@ -1616,16 +1436,14 @@
     },
     {
         "BriefDescription": "CMS Vertical ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9C",
         "EventName": "UNC_H_EGRESS_VERT_ADS_USED.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical ADS Used",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9C",
         "EventName": "UNC_H_EGRESS_VERT_ADS_USED.BL_AG1",
         "PerPkg": "1",
@@ -1634,16 +1452,14 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress Bypass. AD ring agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9E",
         "EventName": "UNC_H_EGRESS_VERT_BYPASS.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress Bypass. AD ring agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9E",
         "EventName": "UNC_H_EGRESS_VERT_BYPASS.AD_AG1",
         "PerPkg": "1",
@@ -1652,16 +1468,14 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress Bypass. AK ring agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9E",
         "EventName": "UNC_H_EGRESS_VERT_BYPASS.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress Bypass. AK ring agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9E",
         "EventName": "UNC_H_EGRESS_VERT_BYPASS.AK_AG1",
         "PerPkg": "1",
@@ -1670,16 +1484,14 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress Bypass. BL ring agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9E",
         "EventName": "UNC_H_EGRESS_VERT_BYPASS.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress Bypass. BL ring agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9E",
         "EventName": "UNC_H_EGRESS_VERT_BYPASS.BL_AG1",
         "PerPkg": "1",
@@ -1688,25 +1500,22 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress Bypass. IV ring agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9E",
         "EventName": "UNC_H_EGRESS_VERT_BYPASS.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Full AD - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x92",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_FULL.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Full AD - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x92",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_FULL.AD_AG1",
         "PerPkg": "1",
@@ -1715,16 +1524,14 @@
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Full AK - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x92",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_FULL.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Full AK - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x92",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_FULL.AK_AG1",
         "PerPkg": "1",
@@ -1733,16 +1540,14 @@
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Full BL - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x92",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_FULL.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Full BL - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x92",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_FULL.BL_AG1",
         "PerPkg": "1",
@@ -1751,25 +1556,22 @@
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Full IV - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x92",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_FULL.IV_AG0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AD - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AD - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AD_AG1",
         "PerPkg": "1",
@@ -1778,16 +1580,14 @@
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AK - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AK - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AK_AG1",
         "PerPkg": "1",
@@ -1796,16 +1596,14 @@
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty BL - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty BL - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.BL_AG1",
         "PerPkg": "1",
@@ -1814,25 +1612,22 @@
     },
     {
         "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty IV - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.IV_AG0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Allocations AD - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_H_EGRESS_VERT_INSERTS.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Allocations AD - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_H_EGRESS_VERT_INSERTS.AD_AG1",
         "PerPkg": "1",
@@ -1841,16 +1636,14 @@
     },
     {
         "BriefDescription": "CMS Vert Egress Allocations AK - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_H_EGRESS_VERT_INSERTS.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Allocations AK - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_H_EGRESS_VERT_INSERTS.AK_AG1",
         "PerPkg": "1",
@@ -1859,16 +1652,14 @@
     },
     {
         "BriefDescription": "CMS Vert Egress Allocations BL - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_H_EGRESS_VERT_INSERTS.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Allocations BL - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_H_EGRESS_VERT_INSERTS.BL_AG1",
         "PerPkg": "1",
@@ -1877,25 +1668,22 @@
     },
     {
         "BriefDescription": "CMS Vert Egress Allocations IV - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x91",
         "EventName": "UNC_H_EGRESS_VERT_INSERTS.IV_AG0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x98",
         "EventName": "UNC_H_EGRESS_VERT_NACK.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x98",
         "EventName": "UNC_H_EGRESS_VERT_NACK.AD_AG1",
         "PerPkg": "1",
@@ -1904,16 +1692,14 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress NACKs Onto AK Ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x98",
         "EventName": "UNC_H_EGRESS_VERT_NACK.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x98",
         "EventName": "UNC_H_EGRESS_VERT_NACK.AK_AG1",
         "PerPkg": "1",
@@ -1922,16 +1708,14 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress NACKs Onto BL Ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x98",
         "EventName": "UNC_H_EGRESS_VERT_NACK.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x98",
         "EventName": "UNC_H_EGRESS_VERT_NACK.BL_AG1",
         "PerPkg": "1",
@@ -1940,25 +1724,22 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress NACKs",
-        "Counter": "0,1,2,3",
         "EventCode": "0x98",
         "EventName": "UNC_H_EGRESS_VERT_NACK.IV_AG0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Occupancy AD - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_H_EGRESS_VERT_OCCUPANCY.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Occupancy AD - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_H_EGRESS_VERT_OCCUPANCY.AD_AG1",
         "PerPkg": "1",
@@ -1967,16 +1748,14 @@
     },
     {
         "BriefDescription": "CMS Vert Egress Occupancy AK - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_H_EGRESS_VERT_OCCUPANCY.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Occupancy AK - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_H_EGRESS_VERT_OCCUPANCY.AK_AG1",
         "PerPkg": "1",
@@ -1985,16 +1764,14 @@
     },
     {
         "BriefDescription": "CMS Vert Egress Occupancy BL - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_H_EGRESS_VERT_OCCUPANCY.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vert Egress Occupancy BL - Agent 1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_H_EGRESS_VERT_OCCUPANCY.BL_AG1",
         "PerPkg": "1",
@@ -2003,25 +1780,22 @@
     },
     {
         "BriefDescription": "CMS Vert Egress Occupancy IV - Agent 0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x90",
         "EventName": "UNC_H_EGRESS_VERT_OCCUPANCY.IV_AG0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9A",
         "EventName": "UNC_H_EGRESS_VERT_STARVED.AD_AG0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9A",
         "EventName": "UNC_H_EGRESS_VERT_STARVED.AD_AG1",
         "PerPkg": "1",
@@ -2030,16 +1804,14 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress Injection Starvation Onto AK Ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9A",
         "EventName": "UNC_H_EGRESS_VERT_STARVED.AK_AG0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9A",
         "EventName": "UNC_H_EGRESS_VERT_STARVED.AK_AG1",
         "PerPkg": "1",
@@ -2048,16 +1820,14 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress Injection Starvation Onto BL Ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9A",
         "EventName": "UNC_H_EGRESS_VERT_STARVED.BL_AG0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "CMS Vertical Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9A",
         "EventName": "UNC_H_EGRESS_VERT_STARVED.BL_AG1",
         "PerPkg": "1",
@@ -2066,25 +1836,22 @@
     },
     {
         "BriefDescription": "CMS Vertical Egress Injection Starvation",
-        "Counter": "0,1,2,3",
         "EventCode": "0x9A",
         "EventName": "UNC_H_EGRESS_VERT_STARVED.IV_AG0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts cycles source throttling is adderted - horizontal",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA5",
         "EventName": "UNC_H_FAST_ASSERTED.HORZ",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts cycles source throttling is adderted - vertical",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA5",
         "EventName": "UNC_H_FAST_ASSERTED.VERT",
         "PerPkg": "1",
@@ -2092,160 +1859,142 @@
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AD ring is being used at this ring stop - Left and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA7",
         "EventName": "UNC_H_HORZ_RING_AD_IN_USE.LEFT_EVEN",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AD ring is being used at this ring stop - Left and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA7",
         "EventName": "UNC_H_HORZ_RING_AD_IN_USE.LEFT_ODD",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AD ring is being used at this ring stop - Right and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA7",
         "EventName": "UNC_H_HORZ_RING_AD_IN_USE.RIGHT_EVEN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AD ring is being used at this ring stop - Right and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA7",
         "EventName": "UNC_H_HORZ_RING_AD_IN_USE.RIGHT_ODD",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AK ring is being used at this ring stop - Left and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA9",
         "EventName": "UNC_H_HORZ_RING_AK_IN_USE.LEFT_EVEN",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AK ring is being used at this ring stop - Left and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA9",
         "EventName": "UNC_H_HORZ_RING_AK_IN_USE.LEFT_ODD",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AK ring is being used at this ring stop - Right and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA9",
         "EventName": "UNC_H_HORZ_RING_AK_IN_USE.RIGHT_EVEN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal AK ring is being used at this ring stop - Right and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA9",
         "EventName": "UNC_H_HORZ_RING_AK_IN_USE.RIGHT_ODD",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal BL ring is being used at this ring stop - Left and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAB",
         "EventName": "UNC_H_HORZ_RING_BL_IN_USE.LEFT_EVEN",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal BL ring is being used at this ring stop - Left and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAB",
         "EventName": "UNC_H_HORZ_RING_BL_IN_USE.LEFT_ODD",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal BL ring is being used at this ring stop - Right and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAB",
         "EventName": "UNC_H_HORZ_RING_BL_IN_USE.RIGHT_EVEN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal BL ring is being used at this ring stop - Right and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAB",
         "EventName": "UNC_H_HORZ_RING_BL_IN_USE.RIGHT_ODD",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal IV ring is being used at this ring stop - Left",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAD",
         "EventName": "UNC_H_HORZ_RING_IV_IN_USE.LEFT",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Horizontal IV ring is being used at this ring stop - Right",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAD",
         "EventName": "UNC_H_HORZ_RING_IV_IN_USE.RIGHT",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Allocations. Counts number of allocations per cycle into the specified Ingress queue. - IPQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x13",
         "EventName": "UNC_H_INGRESS_INSERTS.IPQ",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Allocations. Counts number of allocations per cycle into the specified Ingress queue. - IRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x13",
         "EventName": "UNC_H_INGRESS_INSERTS.IRQ",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Allocations. Counts number of allocations per cycle into the specified Ingress queue. - IRQ Rejected",
-        "Counter": "0,1,2,3",
         "EventCode": "0x13",
         "EventName": "UNC_H_INGRESS_INSERTS.IRQ_REJ",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Allocations. Counts number of allocations per cycle into the specified Ingress queue. - PRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x13",
         "EventName": "UNC_H_INGRESS_INSERTS.PRQ",
         "PerPkg": "1",
@@ -2254,7 +2003,6 @@
     },
     {
         "BriefDescription": "Ingress Allocations. Counts number of allocations per cycle into the specified Ingress queue. - PRQ Rejected",
-        "Counter": "0,1,2,3",
         "EventCode": "0x13",
         "EventName": "UNC_H_INGRESS_INSERTS.PRQ_REJ",
         "PerPkg": "1",
@@ -2263,34 +2011,30 @@
     },
     {
         "BriefDescription": "Cycles with the IPQ in Internal Starvation.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x14",
         "EventName": "UNC_H_INGRESS_INT_STARVED.IPQ",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles with the IRQ in Internal Starvation.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x14",
         "EventName": "UNC_H_INGRESS_INT_STARVED.IRQ",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cycles with the ISMQ in Internal Starvation.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x14",
         "EventName": "UNC_H_INGRESS_INT_STARVED.ISMQ",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress internal starvation cycles. Counts cycles in internal starvation. This occurs when one or more of the entries in the ingress queue are being starved out by other entries in the queue.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x14",
         "EventName": "UNC_H_INGRESS_INT_STARVED.PRQ",
         "PerPkg": "1",
@@ -2302,7 +2046,7 @@
         "EventCode": "0x11",
         "EventName": "UNC_H_INGRESS_OCCUPANCY.IPQ",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
@@ -2310,7 +2054,7 @@
         "EventCode": "0x11",
         "EventName": "UNC_H_INGRESS_OCCUPANCY.IRQ",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
@@ -2318,7 +2062,7 @@
         "EventCode": "0x11",
         "EventName": "UNC_H_INGRESS_OCCUPANCY.IRQ_REJ",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
@@ -2339,25 +2083,22 @@
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.AD_REQ_VN0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.AD_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.AK_NON_UPI",
         "PerPkg": "1",
@@ -2366,7 +2107,6 @@
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.BL_NCB_VN0",
         "PerPkg": "1",
@@ -2375,7 +2115,6 @@
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.BL_NCS_VN0",
         "PerPkg": "1",
@@ -2384,25 +2123,22 @@
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.BL_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.BL_WB_VN0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.IV_NON_UPI",
         "PerPkg": "1",
@@ -2411,7 +2147,6 @@
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ1_REJECT.ALLOW_SNP",
         "PerPkg": "1",
@@ -2420,16 +2155,14 @@
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ1_REJECT.ANY_REJECT_IPQ0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ1_REJECT.PA_MATCH",
         "PerPkg": "1",
@@ -2438,16 +2171,14 @@
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ1_REJECT.SF_VICTIM",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_H_INGRESS_RETRY_IPQ1_REJECT.SF_WAY",
         "PerPkg": "1",
@@ -2456,25 +2187,22 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.AD_REQ_VN0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.AD_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.AK_NON_UPI",
         "PerPkg": "1",
@@ -2483,7 +2211,6 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.BL_NCB_VN0",
         "PerPkg": "1",
@@ -2492,7 +2219,6 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.BL_NCS_VN0",
         "PerPkg": "1",
@@ -2501,25 +2227,22 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.BL_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.BL_WB_VN0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x18",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.IV_NON_UPI",
         "PerPkg": "1",
@@ -2528,7 +2251,6 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x19",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ1_REJECT.ALLOW_SNP",
         "PerPkg": "1",
@@ -2537,16 +2259,14 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x19",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ1_REJECT.ANY_REJECT_IRQ0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x19",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ1_REJECT.PA_MATCH",
         "PerPkg": "1",
@@ -2555,16 +2275,14 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x19",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ1_REJECT.SF_VICTIM",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x19",
         "EventName": "UNC_H_INGRESS_RETRY_IRQ1_REJECT.SF_WAY",
         "PerPkg": "1",
@@ -2573,25 +2291,22 @@
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.AD_REQ_VN0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.AD_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.AK_NON_UPI",
         "PerPkg": "1",
@@ -2600,7 +2315,6 @@
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.BL_NCB_VN0",
         "PerPkg": "1",
@@ -2609,7 +2323,6 @@
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.BL_NCS_VN0",
         "PerPkg": "1",
@@ -2618,25 +2331,22 @@
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.BL_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.BL_WB_VN0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.IV_NON_UPI",
         "PerPkg": "1",
@@ -2645,25 +2355,22 @@
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.AD_REQ_VN0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.AD_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.AK_NON_UPI",
         "PerPkg": "1",
@@ -2672,7 +2379,6 @@
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.BL_NCB_VN0",
         "PerPkg": "1",
@@ -2681,7 +2387,6 @@
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.BL_NCS_VN0",
         "PerPkg": "1",
@@ -2690,25 +2395,22 @@
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.BL_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.BL_WB_VN0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "ISMQ Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.IV_NON_UPI",
         "PerPkg": "1",
@@ -2717,25 +2419,22 @@
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.AD_REQ_VN0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.AD_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.AK_NON_UPI",
         "PerPkg": "1",
@@ -2744,7 +2443,6 @@
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.BL_NCB_VN0",
         "PerPkg": "1",
@@ -2753,7 +2451,6 @@
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.BL_NCS_VN0",
         "PerPkg": "1",
@@ -2762,25 +2459,22 @@
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.BL_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.BL_WB_VN0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.IV_NON_UPI",
         "PerPkg": "1",
@@ -2789,7 +2483,6 @@
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2F",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER1_RETRY.ALLOW_SNP",
         "PerPkg": "1",
@@ -2798,16 +2491,14 @@
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2F",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER1_RETRY.ANY_REJECT_IRQ0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2F",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER1_RETRY.PA_MATCH",
         "PerPkg": "1",
@@ -2816,16 +2507,14 @@
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2F",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER1_RETRY.SF_VICTIM",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Other Queue Retries",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2F",
         "EventName": "UNC_H_INGRESS_RETRY_OTHER1_RETRY.SF_WAY",
         "PerPkg": "1",
@@ -2834,25 +2523,22 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.AD_REQ_VN0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.AD_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.AK_NON_UPI",
         "PerPkg": "1",
@@ -2861,7 +2547,6 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.BL_NCB_VN0",
         "PerPkg": "1",
@@ -2870,7 +2555,6 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.BL_NCS_VN0",
         "PerPkg": "1",
@@ -2879,25 +2563,22 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.BL_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.BL_WB_VN0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.IV_NON_UPI",
         "PerPkg": "1",
@@ -2906,7 +2587,6 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ1_REJECT.ALLOW_SNP",
         "PerPkg": "1",
@@ -2915,16 +2595,14 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ1_REJECT.ANY_REJECT_IRQ0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ1_REJECT.PA_MATCH",
         "PerPkg": "1",
@@ -2933,16 +2611,14 @@
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ1_REJECT.SF_VICTIM",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Ingress Request Queue Rejects",
-        "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_INGRESS_RETRY_PRQ1_REJECT.SF_WAY",
         "PerPkg": "1",
@@ -2951,25 +2627,22 @@
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.AD_REQ_VN0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.AD_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.AK_NON_UPI",
         "PerPkg": "1",
@@ -2978,7 +2651,6 @@
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.BL_NCB_VN0",
         "PerPkg": "1",
@@ -2987,7 +2659,6 @@
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.BL_NCS_VN0",
         "PerPkg": "1",
@@ -2996,25 +2667,22 @@
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.BL_RSP_VN0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.BL_WB_VN0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.IV_NON_UPI",
         "PerPkg": "1",
@@ -3023,7 +2691,6 @@
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2B",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q1_RETRY.ALLOW_SNP",
         "PerPkg": "1",
@@ -3032,16 +2699,14 @@
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2B",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q1_RETRY.ANY_REJECT_IRQ0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2B",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q1_RETRY.PA_MATCH",
         "PerPkg": "1",
@@ -3050,16 +2715,14 @@
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2B",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q1_RETRY.SF_VICTIM",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "REQUESTQ'' includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x2B",
         "EventName": "UNC_H_INGRESS_RETRY_REQ_Q1_RETRY.SF_WAY",
         "PerPkg": "1",
@@ -3068,7 +2731,6 @@
     },
     {
         "BriefDescription": "Miscellaneous events in the Cbo. CV0 Prefetch Miss",
-        "Counter": "0,1,2,3",
         "EventCode": "0x39",
         "EventName": "UNC_H_MISC.CV0_PREF_MISS",
         "PerPkg": "1",
@@ -3077,7 +2739,6 @@
     },
     {
         "BriefDescription": "Miscellaneous events in the Cbo. CV0 Prefetch Victim",
-        "Counter": "0,1,2,3",
         "EventCode": "0x39",
         "EventName": "UNC_H_MISC.CV0_PREF_VIC",
         "PerPkg": "1",
@@ -3086,178 +2747,158 @@
     },
     {
         "BriefDescription": "Miscellaneous events in the Cbo. RFO HitS",
-        "Counter": "0,1,2,3",
         "EventCode": "0x39",
         "EventName": "UNC_H_MISC.RFO_HIT_S",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Miscellaneous events in the Cbo. Silent Snoop Eviction",
-        "Counter": "0,1,2,3",
         "EventCode": "0x39",
         "EventName": "UNC_H_MISC.RSPI_WAS_FSE",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Miscellaneous events in the Cbo. Write Combining Aliasing",
-        "Counter": "0,1,2,3",
         "EventCode": "0x39",
         "EventName": "UNC_H_MISC.WC_ALIASING",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UNC_H_RING_BOUNCES_HORZ.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type - Acknowledgements to core",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UNC_H_RING_BOUNCES_HORZ.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type - Data Responses to core.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UNC_H_RING_BOUNCES_HORZ.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type - Snoops of processor's cache.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UNC_H_RING_BOUNCES_HORZ.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_H_RING_BOUNCES_VERT.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type - Acknowledgements to core",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_H_RING_BOUNCES_VERT.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type - Data Responses to core.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_H_RING_BOUNCES_VERT.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type - Snoops of processor's cache.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA0",
         "EventName": "UNC_H_RING_BOUNCES_VERT.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Horizontal ring sink starvation count - AD ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA3",
         "EventName": "UNC_H_RING_SINK_STARVED_HORZ.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Horizontal ring sink starvation count - AK ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA3",
         "EventName": "UNC_H_RING_SINK_STARVED_HORZ.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Horizontal ring sink starvation count - BL ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA3",
         "EventName": "UNC_H_RING_SINK_STARVED_HORZ.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Horizontal ring sink starvation count - IV ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA3",
         "EventName": "UNC_H_RING_SINK_STARVED_HORZ.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Vertical ring sink starvation count - AD ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "UNC_H_RING_SINK_STARVED_VERT.AD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Vertical ring sink starvation count - AK ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "UNC_H_RING_SINK_STARVED_VERT.AK",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Vertical ring sink starvation count - BL ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "UNC_H_RING_SINK_STARVED_VERT.BL",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Vertical ring sink starvation count - IV ring",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "UNC_H_RING_SINK_STARVED_VERT.IV",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts cycles in throttle mode.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA4",
         "EventName": "UNC_H_RING_SRC_THRTL",
         "PerPkg": "1",
@@ -3265,7 +2906,6 @@
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for any transaction originating from the IPQ or IRQ.  This does not include lookups originating from the ISMQ.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "UNC_H_SF_LOOKUP.ANY",
         "PerPkg": "1",
@@ -3274,43 +2914,38 @@
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Read transactions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "UNC_H_SF_LOOKUP.DATA_READ",
         "PerPkg": "1",
-        "UMask": "0x03",
+        "UMask": "0x3",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for only snoop requests coming from the remote socket(s) through the IPQ.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "UNC_H_SF_LOOKUP.REMOTE_SNOOP",
         "PerPkg": "1",
-        "UMask": "0x09",
+        "UMask": "0x9",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Writeback transactions from L2 to the LLC  This includes all write transactions -- both Cachable and UC.",
-        "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "UNC_H_SF_LOOKUP.WRITE",
         "PerPkg": "1",
-        "UMask": "0x05",
+        "UMask": "0x5",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.AD_BNC",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.AD_CRD",
         "PerPkg": "1",
@@ -3319,16 +2954,14 @@
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.BL_BNC",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.BL_CRD",
         "PerPkg": "1",
@@ -3337,16 +2970,14 @@
     },
     {
         "BriefDescription": "Transgress Ingress Bypass. Number of packets bypassing the CMS Ingress .",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "UNC_H_TG_INGRESS_BYPASS.AD_BNC",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Bypass. Number of packets bypassing the CMS Ingress .",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "UNC_H_TG_INGRESS_BYPASS.AD_CRD",
         "PerPkg": "1",
@@ -3355,25 +2986,22 @@
     },
     {
         "BriefDescription": "Transgress Ingress Bypass. Number of packets bypassing the CMS Ingress .",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "UNC_H_TG_INGRESS_BYPASS.AK_BNC",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Bypass. Number of packets bypassing the CMS Ingress .",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "UNC_H_TG_INGRESS_BYPASS.BL_BNC",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Bypass. Number of packets bypassing the CMS Ingress .",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "UNC_H_TG_INGRESS_BYPASS.BL_CRD",
         "PerPkg": "1",
@@ -3382,25 +3010,22 @@
     },
     {
         "BriefDescription": "Transgress Ingress Bypass. Number of packets bypassing the CMS Ingress .",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB2",
         "EventName": "UNC_H_TG_INGRESS_BYPASS.IV_BNC",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.AD_BNC",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.AD_CRD",
         "PerPkg": "1",
@@ -3409,25 +3034,22 @@
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.AK_BNC",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.BL_BNC",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.BL_CRD",
         "PerPkg": "1",
@@ -3436,7 +3058,6 @@
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.IFV",
         "PerPkg": "1",
@@ -3445,25 +3066,22 @@
     },
     {
         "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.IV_BNC",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Allocations. Number of allocations into the CMS Ingress  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_H_TG_INGRESS_INSERTS.AD_BNC",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Allocations. Number of allocations into the CMS Ingress  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_H_TG_INGRESS_INSERTS.AD_CRD",
         "PerPkg": "1",
@@ -3472,25 +3090,22 @@
     },
     {
         "BriefDescription": "Transgress Ingress Allocations. Number of allocations into the CMS Ingress  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_H_TG_INGRESS_INSERTS.AK_BNC",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Allocations. Number of allocations into the CMS Ingress  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_H_TG_INGRESS_INSERTS.BL_BNC",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Allocations. Number of allocations into the CMS Ingress  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_H_TG_INGRESS_INSERTS.BL_CRD",
         "PerPkg": "1",
@@ -3499,25 +3114,22 @@
     },
     {
         "BriefDescription": "Transgress Ingress Allocations. Number of allocations into the CMS Ingress  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UNC_H_TG_INGRESS_INSERTS.IV_BNC",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Occupancy. Occupancy event for the Ingress buffers in the CMS  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_H_TG_INGRESS_OCCUPANCY.AD_BNC",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Occupancy. Occupancy event for the Ingress buffers in the CMS  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_H_TG_INGRESS_OCCUPANCY.AD_CRD",
         "PerPkg": "1",
@@ -3526,25 +3138,22 @@
     },
     {
         "BriefDescription": "Transgress Ingress Occupancy. Occupancy event for the Ingress buffers in the CMS  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_H_TG_INGRESS_OCCUPANCY.AK_BNC",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Occupancy. Occupancy event for the Ingress buffers in the CMS  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_H_TG_INGRESS_OCCUPANCY.BL_BNC",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Transgress Ingress Occupancy. Occupancy event for the Ingress buffers in the CMS  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_H_TG_INGRESS_OCCUPANCY.BL_CRD",
         "PerPkg": "1",
@@ -3553,16 +3162,14 @@
     },
     {
         "BriefDescription": "Transgress Ingress Occupancy. Occupancy event for the Ingress buffers in the CMS  The Ingress is used to queue up requests received from the mesh",
-        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "UNC_H_TG_INGRESS_OCCUPANCY.IV_BNC",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -SF/LLC Evictions",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_H_TOR_INSERTS.EVICT",
         "PerPkg": "1",
@@ -3571,16 +3178,14 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -Hit (Not a Miss)",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_H_TOR_INSERTS.HIT",
         "PerPkg": "1",
-        "UMask": "0x1F",
+        "UMask": "0x1f",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IPQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_H_TOR_INSERTS.IPQ",
         "PerPkg": "1",
@@ -3589,7 +3194,6 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_H_TOR_INSERTS.IRQ",
         "PerPkg": "1",
@@ -3598,16 +3202,14 @@
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -Miss",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_H_TOR_INSERTS.MISS",
         "PerPkg": "1",
-        "UMask": "0x2F",
+        "UMask": "0x2f",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -PRQ",
-        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_H_TOR_INSERTS.PRQ",
         "PerPkg": "1",
@@ -3627,7 +3229,7 @@
         "EventCode": "0x36",
         "EventName": "UNC_H_TOR_OCCUPANCY.HIT",
         "PerPkg": "1",
-        "UMask": "0x1F",
+        "UMask": "0x1f",
         "Unit": "CHA"
     },
     {
@@ -3683,7 +3285,7 @@
         "EventCode": "0x36",
         "EventName": "UNC_H_TOR_OCCUPANCY.MISS",
         "PerPkg": "1",
-        "UMask": "0x2F",
+        "UMask": "0x2f",
         "Unit": "CHA"
     },
     {
@@ -3712,167 +3314,148 @@
     },
     {
         "BriefDescription": "Uncore Clocks",
-        "Counter": "0,1,2,3",
         "EventName": "UNC_H_U_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AD ring is being used at this ring stop - Down and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA6",
         "EventName": "UNC_H_VERT_RING_AD_IN_USE.DN_EVEN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AD ring is being used at this ring stop - Down and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA6",
         "EventName": "UNC_H_VERT_RING_AD_IN_USE.DN_ODD",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AD ring is being used at this ring stop - Up and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA6",
         "EventName": "UNC_H_VERT_RING_AD_IN_USE.UP_EVEN",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AD ring is being used at this ring stop - Up and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA6",
         "EventName": "UNC_H_VERT_RING_AD_IN_USE.UP_ODD",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AK ring is being used at this ring stop - Down and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA8",
         "EventName": "UNC_H_VERT_RING_AK_IN_USE.DN_EVEN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AK ring is being used at this ring stop - Down and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA8",
         "EventName": "UNC_H_VERT_RING_AK_IN_USE.DN_ODD",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AK ring is being used at this ring stop - Up and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA8",
         "EventName": "UNC_H_VERT_RING_AK_IN_USE.UP_EVEN",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical AK ring is being used at this ring stop - Up and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xA8",
         "EventName": "UNC_H_VERT_RING_AK_IN_USE.UP_ODD",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical BL ring is being used at this ring stop - Down and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAA",
         "EventName": "UNC_H_VERT_RING_BL_IN_USE.DN_EVEN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical BL ring is being used at this ring stop - Down and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAA",
         "EventName": "UNC_H_VERT_RING_BL_IN_USE.DN_ODD",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical BL ring is being used at this ring stop - Up and Even",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAA",
         "EventName": "UNC_H_VERT_RING_BL_IN_USE.UP_EVEN",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical BL ring is being used at this ring stop - Up and Odd",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAA",
         "EventName": "UNC_H_VERT_RING_BL_IN_USE.UP_ODD",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical IV ring is being used at this ring stop - Down",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAC",
         "EventName": "UNC_H_VERT_RING_IV_IN_USE.DN",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Counts the number of cycles that the Vertical IV ring is being used at this ring stop - Up",
-        "Counter": "0,1,2,3",
         "EventCode": "0xAC",
         "EventName": "UNC_H_VERT_RING_IV_IN_USE.UP",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "CHA"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Full. Counts the number of cycles when the M2PCIe Egress is full.  AD_0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_M2P_EGRESS_CYCLES_FULL.AD_0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Full. Counts the number of cycles when the M2PCIe Egress is full.  AD_1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_M2P_EGRESS_CYCLES_FULL.AD_1",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Full. Counts the number of cycles when the M2PCIe Egress is full.  AK_0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_M2P_EGRESS_CYCLES_FULL.AK_0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Full. Counts the number of cycles when the M2PCIe Egress is full.  AK_1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_M2P_EGRESS_CYCLES_FULL.AK_1",
         "PerPkg": "1",
@@ -3881,16 +3464,14 @@
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Full. Counts the number of cycles when the M2PCIe Egress is full.  BL_0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_M2P_EGRESS_CYCLES_FULL.BL_0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Full. Counts the number of cycles when the M2PCIe Egress is full.  BL_1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_M2P_EGRESS_CYCLES_FULL.BL_1",
         "PerPkg": "1",
@@ -3899,34 +3480,30 @@
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AD_0",
-        "Counter": "0,1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AD_0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AD_1",
-        "Counter": "0,1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AD_1",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AK_0",
-        "Counter": "0,1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AK_0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AK_1",
-        "Counter": "0,1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AK_1",
         "PerPkg": "1",
@@ -3935,16 +3512,14 @@
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  BL_0",
-        "Counter": "0,1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.BL_0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  BL_1",
-        "Counter": "0,1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.BL_1",
         "PerPkg": "1",
@@ -3953,16 +3528,14 @@
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. AD_0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.AD_0",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. AD_1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.AD_1",
         "PerPkg": "1",
@@ -3971,16 +3544,14 @@
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. AK_0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.AK_0",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. AK_1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.AK_1",
         "PerPkg": "1",
@@ -3989,16 +3560,14 @@
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. AK_CRD_0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.AK_CRD_0",
         "PerPkg": "1",
-        "UMask": "0x08",
+        "UMask": "0x8",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. AK_CRD_1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.AK_CRD_1",
         "PerPkg": "1",
@@ -4007,16 +3576,14 @@
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. BL_0",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.BL_0",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Egress (to CMS) Ingress. Counts the number of number of messages inserted into the  the M2PCIe Egress queue. BL_1",
-        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_M2P_EGRESS_INSERTS.BL_1",
         "PerPkg": "1",
@@ -4025,7 +3592,6 @@
     },
     {
         "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.ALL",
-        "Counter": "0,1,2,3",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.ALL",
         "PerPkg": "1",
@@ -4034,68 +3600,60 @@
     },
     {
         "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.CBO_IDI",
-        "Counter": "0,1,2,3",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.CBO_IDI",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.CBO_NCB",
-        "Counter": "0,1,2,3",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.CBO_NCB",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.CBO_NCS",
-        "Counter": "0,1,2,3",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.CBO_NCS",
         "PerPkg": "1",
-        "UMask": "0x04",
+        "UMask": "0x4",
         "Unit": "M2PCIe"
     },
     {
         "BriefDescription": "CAS All",
-        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "UNC_M_CAS_COUNT.ALL",
         "PerPkg": "1",
-        "UMask": "0x03",
+        "UMask": "0x3",
         "Unit": "iMC_DCLK"
     },
     {
         "BriefDescription": "CAS Reads",
-        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "UNC_M_CAS_COUNT.RD",
         "PerPkg": "1",
-        "UMask": "0x01",
+        "UMask": "0x1",
         "Unit": "iMC_DCLK"
     },
     {
         "BriefDescription": "CAS Writes",
-        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "UNC_M_CAS_COUNT.WR",
         "PerPkg": "1",
-        "UMask": "0x02",
+        "UMask": "0x2",
         "Unit": "iMC_DCLK"
     },
     {
         "BriefDescription": "DCLK count",
-        "Counter": "0,1,2,3",
         "EventName": "UNC_M_D_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "iMC_DCLK"
     },
     {
         "BriefDescription": "UCLK count",
-        "Counter": "0,1,2,3",
         "EventName": "UNC_M_U_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "iMC_UCLK"

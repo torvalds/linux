@@ -6,18 +6,32 @@
 
 #include <asm/vmx.h>
 
-#include "evmcs.h"
+#include "hyperv.h"
 #include "vmcs.h"
 #include "../x86.h"
 
 void vmread_error(unsigned long field, bool fault);
-__attribute__((regparm(0))) void vmread_error_trampoline(unsigned long field,
-							 bool fault);
 void vmwrite_error(unsigned long field, unsigned long value);
 void vmclear_error(struct vmcs *vmcs, u64 phys_addr);
 void vmptrld_error(struct vmcs *vmcs, u64 phys_addr);
 void invvpid_error(unsigned long ext, u16 vpid, gva_t gva);
 void invept_error(unsigned long ext, u64 eptp, gpa_t gpa);
+
+#ifndef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+/*
+ * The VMREAD error trampoline _always_ uses the stack to pass parameters, even
+ * for 64-bit targets.  Preserving all registers allows the VMREAD inline asm
+ * blob to avoid clobbering GPRs, which in turn allows the compiler to better
+ * optimize sequences of VMREADs.
+ *
+ * Declare the trampoline as an opaque label as it's not safe to call from C
+ * code; there is no way to tell the compiler to pass params on the stack for
+ * 64-bit targets.
+ *
+ * void vmread_error_trampoline(unsigned long field, bool fault);
+ */
+extern unsigned long vmread_error_trampoline;
+#endif
 
 static __always_inline void vmcs_check16(unsigned long field)
 {
@@ -86,8 +100,10 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 	return value;
 
 do_fail:
-	WARN_ONCE(1, "kvm: vmread failed: field=%lx\n", field);
-	pr_warn_ratelimited("kvm: vmread failed: field=%lx\n", field);
+	instrumentation_begin();
+	WARN_ONCE(1, KBUILD_MODNAME ": vmread failed: field=%lx\n", field);
+	pr_warn_ratelimited(KBUILD_MODNAME ": vmread failed: field=%lx\n", field);
+	instrumentation_end();
 	return 0;
 
 do_exception:

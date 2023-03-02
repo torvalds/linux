@@ -1563,7 +1563,7 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_ichg(bq,
-				bat_info->constant_charge_current_max_ua);
+				bq->chip_info->bq256xx_def_ichg);
 	if (ret)
 		return ret;
 
@@ -1573,7 +1573,7 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_vbatreg(bq,
-				bat_info->constant_charge_voltage_max_uv);
+				bq->chip_info->bq256xx_def_vbatreg);
 	if (ret)
 		return ret;
 
@@ -1619,9 +1619,9 @@ static int bq256xx_parse_dt(struct bq256xx_device *bq,
 	return 0;
 }
 
-static int bq256xx_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int bq256xx_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct bq256xx_device *bq;
 	struct power_supply_config psy_cfg = { };
@@ -1744,7 +1744,7 @@ static struct i2c_driver bq256xx_driver = {
 		.of_match_table = bq256xx_of_match,
 		.acpi_match_table = bq256xx_acpi_match,
 	},
-	.probe = bq256xx_probe,
+	.probe_new = bq256xx_probe,
 	.id_table = bq256xx_i2c_ids,
 };
 module_i2c_driver(bq256xx_driver);

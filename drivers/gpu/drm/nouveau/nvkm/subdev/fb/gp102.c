@@ -24,71 +24,22 @@
 #include "gf100.h"
 #include "ram.h"
 
-#include <core/firmware.h>
-#include <core/memory.h>
-#include <nvfw/fw.h>
-#include <nvfw/hs.h>
 #include <engine/nvdec.h>
 
 int
 gp102_fb_vpr_scrub(struct nvkm_fb *fb)
 {
 	struct nvkm_subdev *subdev = &fb->subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_falcon *falcon = &device->nvdec[0]->falcon;
-	struct nvkm_blob *blob = &fb->vpr_scrubber;
-	const struct nvfw_bin_hdr *hsbin_hdr;
-	const struct nvfw_hs_header *fw_hdr;
-	const struct nvfw_hs_load_header *lhdr;
-	void *scrub_data;
-	u32 patch_loc, patch_sig;
+	struct nvkm_falcon_fw fw = {};
 	int ret;
 
-	nvkm_falcon_get(falcon, subdev);
+	ret = nvkm_falcon_fw_ctor_hs(&gm200_flcn_fw, "mem-unlock", subdev, NULL,
+				     "nvdec/scrubber", 0, &subdev->device->nvdec[0]->falcon, &fw);
+	if (ret)
+		return ret;
 
-	hsbin_hdr = nvfw_bin_hdr(subdev, blob->data);
-	fw_hdr = nvfw_hs_header(subdev, blob->data + hsbin_hdr->header_offset);
-	lhdr = nvfw_hs_load_header(subdev, blob->data + fw_hdr->hdr_offset);
-	scrub_data = blob->data + hsbin_hdr->data_offset;
-
-	patch_loc = *(u32 *)(blob->data + fw_hdr->patch_loc);
-	patch_sig = *(u32 *)(blob->data + fw_hdr->patch_sig);
-	if (falcon->debug) {
-		memcpy(scrub_data + patch_loc,
-		       blob->data + fw_hdr->sig_dbg_offset + patch_sig,
-		       fw_hdr->sig_dbg_size);
-	} else {
-		memcpy(scrub_data + patch_loc,
-		       blob->data + fw_hdr->sig_prod_offset + patch_sig,
-		       fw_hdr->sig_prod_size);
-	}
-
-	nvkm_falcon_reset(falcon);
-	nvkm_falcon_bind_context(falcon, NULL);
-
-	nvkm_falcon_load_imem(falcon, scrub_data, lhdr->non_sec_code_off,
-			      lhdr->non_sec_code_size,
-			      lhdr->non_sec_code_off >> 8, 0, false);
-	nvkm_falcon_load_imem(falcon, scrub_data + lhdr->apps[0],
-			      ALIGN(lhdr->apps[0], 0x100),
-			      lhdr->apps[1],
-			      lhdr->apps[0] >> 8, 0, true);
-	nvkm_falcon_load_dmem(falcon, scrub_data + lhdr->data_dma_base, 0,
-			      lhdr->data_size, 0);
-
-	nvkm_falcon_set_start_addr(falcon, 0x0);
-	nvkm_falcon_start(falcon);
-
-	ret = nvkm_falcon_wait_for_halt(falcon, 500);
-	if (ret < 0) {
-		ret = -ETIMEDOUT;
-		goto end;
-	}
-
-	/* put nvdec in clean state - without reset it will remain in HS mode */
-	nvkm_falcon_reset(falcon);
-end:
-	nvkm_falcon_put(falcon, subdev);
+	ret = nvkm_falcon_fw_boot(&fw, subdev, true, NULL, NULL, 0, 0x00000000);
+	nvkm_falcon_fw_dtor(&fw);
 	return ret;
 }
 
@@ -104,9 +55,10 @@ static const struct nvkm_fb_func
 gp102_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
-	.init = gp100_fb_init,
+	.init = gm200_fb_init,
 	.init_remapper = gp100_fb_init_remapper,
 	.init_page = gm200_fb_init_page,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.vpr.scrub_required = gp102_fb_vpr_scrub_required,
 	.vpr.scrub = gp102_fb_vpr_scrub,
 	.ram_new = gp100_ram_new,

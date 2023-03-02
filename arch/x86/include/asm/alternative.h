@@ -6,8 +6,10 @@
 #include <linux/stringify.h>
 #include <asm/asm.h>
 
-#define ALTINSTR_FLAG_INV	(1 << 15)
-#define ALT_NOT(feat)		((feat) | ALTINSTR_FLAG_INV)
+#define ALT_FLAGS_SHIFT		16
+
+#define ALT_FLAG_NOT		BIT(0)
+#define ALT_NOT(feature)	((ALT_FLAG_NOT << ALT_FLAGS_SHIFT) | (feature))
 
 #ifndef __ASSEMBLY__
 
@@ -59,10 +61,27 @@
 	".long 999b - .\n\t"					\
 	".popsection\n\t"
 
+/*
+ * The patching flags are part of the upper bits of the @ft_flags parameter when
+ * specifying them. The split is currently like this:
+ *
+ * [31... flags ...16][15... CPUID feature bit ...0]
+ *
+ * but since this is all hidden in the macros argument being split, those fields can be
+ * extended in the future to fit in a u64 or however the need arises.
+ */
 struct alt_instr {
 	s32 instr_offset;	/* original instruction */
 	s32 repl_offset;	/* offset to replacement instruction */
-	u16 cpuid;		/* cpuid bit set for replacement */
+
+	union {
+		struct {
+			u32 cpuid: 16;	/* CPUID bit set for replacement */
+			u32 flags: 16;	/* patching control flags */
+		};
+		u32 ft_flags;
+	};
+
 	u8  instrlen;		/* length of original instruction */
 	u8  replacementlen;	/* length of new instruction */
 } __packed;
@@ -78,8 +97,43 @@ extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 extern void apply_retpolines(s32 *start, s32 *end);
 extern void apply_returns(s32 *start, s32 *end);
 extern void apply_ibt_endbr(s32 *start, s32 *end);
+extern void apply_fineibt(s32 *start_retpoline, s32 *end_retpoine,
+			  s32 *start_cfi, s32 *end_cfi);
 
 struct module;
+struct paravirt_patch_site;
+
+struct callthunk_sites {
+	s32				*call_start, *call_end;
+	struct paravirt_patch_site	*pv_start, *pv_end;
+};
+
+#ifdef CONFIG_CALL_THUNKS
+extern void callthunks_patch_builtin_calls(void);
+extern void callthunks_patch_module_calls(struct callthunk_sites *sites,
+					  struct module *mod);
+extern void *callthunks_translate_call_dest(void *dest);
+extern bool is_callthunk(void *addr);
+extern int x86_call_depth_emit_accounting(u8 **pprog, void *func);
+#else
+static __always_inline void callthunks_patch_builtin_calls(void) {}
+static __always_inline void
+callthunks_patch_module_calls(struct callthunk_sites *sites,
+			      struct module *mod) {}
+static __always_inline void *callthunks_translate_call_dest(void *dest)
+{
+	return dest;
+}
+static __always_inline bool is_callthunk(void *addr)
+{
+	return false;
+}
+static __always_inline int x86_call_depth_emit_accounting(u8 **pprog,
+							  void *func)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_SMP
 extern void alternatives_smp_module_add(struct module *mod, char *name,
@@ -147,10 +201,10 @@ static inline int alternatives_text_reserved(void *start, void *end)
 		" - (" alt_slen ")), 0x90\n"							\
 	alt_end_marker ":\n"
 
-#define ALTINSTR_ENTRY(feature, num)					      \
+#define ALTINSTR_ENTRY(ft_flags, num)					      \
 	" .long 661b - .\n"				/* label           */ \
 	" .long " b_replacement(num)"f - .\n"		/* new instruction */ \
-	" .word " __stringify(feature) "\n"		/* feature bit     */ \
+	" .4byte " __stringify(ft_flags) "\n"		/* feature + flags */ \
 	" .byte " alt_total_slen "\n"			/* source len      */ \
 	" .byte " alt_rlen(num) "\n"			/* replacement len */
 
@@ -159,20 +213,20 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	b_replacement(num)":\n\t" newinstr "\n" e_replacement(num) ":\n"
 
 /* alternative assembly primitive: */
-#define ALTERNATIVE(oldinstr, newinstr, feature)			\
+#define ALTERNATIVE(oldinstr, newinstr, ft_flags)			\
 	OLDINSTR(oldinstr, 1)						\
 	".pushsection .altinstructions,\"a\"\n"				\
-	ALTINSTR_ENTRY(feature, 1)					\
+	ALTINSTR_ENTRY(ft_flags, 1)					\
 	".popsection\n"							\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr, 1)				\
 	".popsection\n"
 
-#define ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2)\
+#define ALTERNATIVE_2(oldinstr, newinstr1, ft_flags1, newinstr2, ft_flags2) \
 	OLDINSTR_2(oldinstr, 1, 2)					\
 	".pushsection .altinstructions,\"a\"\n"				\
-	ALTINSTR_ENTRY(feature1, 1)					\
-	ALTINSTR_ENTRY(feature2, 2)					\
+	ALTINSTR_ENTRY(ft_flags1, 1)					\
+	ALTINSTR_ENTRY(ft_flags2, 2)					\
 	".popsection\n"							\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr1, 1)				\
@@ -180,21 +234,22 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	".popsection\n"
 
 /* If @feature is set, patch in @newinstr_yes, otherwise @newinstr_no. */
-#define ALTERNATIVE_TERNARY(oldinstr, feature, newinstr_yes, newinstr_no) \
+#define ALTERNATIVE_TERNARY(oldinstr, ft_flags, newinstr_yes, newinstr_no) \
 	ALTERNATIVE_2(oldinstr, newinstr_no, X86_FEATURE_ALWAYS,	\
-		      newinstr_yes, feature)
+		      newinstr_yes, ft_flags)
 
-#define ALTERNATIVE_3(oldinsn, newinsn1, feat1, newinsn2, feat2, newinsn3, feat3) \
-	OLDINSTR_3(oldinsn, 1, 2, 3)						\
-	".pushsection .altinstructions,\"a\"\n"					\
-	ALTINSTR_ENTRY(feat1, 1)						\
-	ALTINSTR_ENTRY(feat2, 2)						\
-	ALTINSTR_ENTRY(feat3, 3)						\
-	".popsection\n"								\
-	".pushsection .altinstr_replacement, \"ax\"\n"				\
-	ALTINSTR_REPLACEMENT(newinsn1, 1)					\
-	ALTINSTR_REPLACEMENT(newinsn2, 2)					\
-	ALTINSTR_REPLACEMENT(newinsn3, 3)					\
+#define ALTERNATIVE_3(oldinsn, newinsn1, ft_flags1, newinsn2, ft_flags2, \
+			newinsn3, ft_flags3)				\
+	OLDINSTR_3(oldinsn, 1, 2, 3)					\
+	".pushsection .altinstructions,\"a\"\n"				\
+	ALTINSTR_ENTRY(ft_flags1, 1)					\
+	ALTINSTR_ENTRY(ft_flags2, 2)					\
+	ALTINSTR_ENTRY(ft_flags3, 3)					\
+	".popsection\n"							\
+	".pushsection .altinstr_replacement, \"ax\"\n"			\
+	ALTINSTR_REPLACEMENT(newinsn1, 1)				\
+	ALTINSTR_REPLACEMENT(newinsn2, 2)				\
+	ALTINSTR_REPLACEMENT(newinsn3, 3)				\
 	".popsection\n"
 
 /*
@@ -209,14 +264,14 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * For non barrier like inlines please define new variants
  * without volatile and memory clobber.
  */
-#define alternative(oldinstr, newinstr, feature)			\
-	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, feature) : : : "memory")
+#define alternative(oldinstr, newinstr, ft_flags)			\
+	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, ft_flags) : : : "memory")
 
-#define alternative_2(oldinstr, newinstr1, feature1, newinstr2, feature2) \
-	asm_inline volatile(ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2) ::: "memory")
+#define alternative_2(oldinstr, newinstr1, ft_flags1, newinstr2, ft_flags2) \
+	asm_inline volatile(ALTERNATIVE_2(oldinstr, newinstr1, ft_flags1, newinstr2, ft_flags2) ::: "memory")
 
-#define alternative_ternary(oldinstr, feature, newinstr_yes, newinstr_no) \
-	asm_inline volatile(ALTERNATIVE_TERNARY(oldinstr, feature, newinstr_yes, newinstr_no) ::: "memory")
+#define alternative_ternary(oldinstr, ft_flags, newinstr_yes, newinstr_no) \
+	asm_inline volatile(ALTERNATIVE_TERNARY(oldinstr, ft_flags, newinstr_yes, newinstr_no) ::: "memory")
 
 /*
  * Alternative inline assembly with input.
@@ -226,8 +281,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * Argument numbers start with 1.
  * Leaving an unused argument 0 to keep API compatibility.
  */
-#define alternative_input(oldinstr, newinstr, feature, input...)	\
-	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, feature)	\
+#define alternative_input(oldinstr, newinstr, ft_flags, input...)	\
+	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, ft_flags)	\
 		: : "i" (0), ## input)
 
 /*
@@ -238,20 +293,20 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * Otherwise, if CPU has feature1, newinstr1 is used.
  * Otherwise, oldinstr is used.
  */
-#define alternative_input_2(oldinstr, newinstr1, feature1, newinstr2,	     \
-			   feature2, input...)				     \
-	asm_inline volatile(ALTERNATIVE_2(oldinstr, newinstr1, feature1,     \
-		newinstr2, feature2)					     \
+#define alternative_input_2(oldinstr, newinstr1, ft_flags1, newinstr2,	     \
+			   ft_flags2, input...)				     \
+	asm_inline volatile(ALTERNATIVE_2(oldinstr, newinstr1, ft_flags1,     \
+		newinstr2, ft_flags2)					     \
 		: : "i" (0), ## input)
 
 /* Like alternative_input, but with a single output argument */
-#define alternative_io(oldinstr, newinstr, feature, output, input...)	\
-	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, feature)	\
+#define alternative_io(oldinstr, newinstr, ft_flags, output, input...)	\
+	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, ft_flags)	\
 		: output : "i" (0), ## input)
 
 /* Like alternative_io, but for replacing a direct call with another one. */
-#define alternative_call(oldfunc, newfunc, feature, output, input...)	\
-	asm_inline volatile (ALTERNATIVE("call %P[old]", "call %P[new]", feature) \
+#define alternative_call(oldfunc, newfunc, ft_flags, output, input...)	\
+	asm_inline volatile (ALTERNATIVE("call %P[old]", "call %P[new]", ft_flags) \
 		: output : [old] "i" (oldfunc), [new] "i" (newfunc), ## input)
 
 /*
@@ -260,10 +315,10 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * Otherwise, if CPU has feature1, function1 is used.
  * Otherwise, old function is used.
  */
-#define alternative_call_2(oldfunc, newfunc1, feature1, newfunc2, feature2,   \
+#define alternative_call_2(oldfunc, newfunc1, ft_flags1, newfunc2, ft_flags2,   \
 			   output, input...)				      \
-	asm_inline volatile (ALTERNATIVE_2("call %P[old]", "call %P[new1]", feature1,\
-		"call %P[new2]", feature2)				      \
+	asm_inline volatile (ALTERNATIVE_2("call %P[old]", "call %P[new1]", ft_flags1,\
+		"call %P[new2]", ft_flags2)				      \
 		: output, ASM_CALL_CONSTRAINT				      \
 		: [old] "i" (oldfunc), [new1] "i" (newfunc1),		      \
 		  [new2] "i" (newfunc2), ## input)
@@ -312,10 +367,10 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * enough information for the alternatives patching code to patch an
  * instruction. See apply_alternatives().
  */
-.macro altinstruction_entry orig alt feature orig_len alt_len
+.macro altinstr_entry orig alt ft_flags orig_len alt_len
 	.long \orig - .
 	.long \alt - .
-	.word \feature
+	.4byte \ft_flags
 	.byte \orig_len
 	.byte \alt_len
 .endm
@@ -326,7 +381,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * @newinstr. ".skip" directive takes care of proper instruction padding
  * in case @newinstr is longer than @oldinstr.
  */
-.macro ALTERNATIVE oldinstr, newinstr, feature
+.macro ALTERNATIVE oldinstr, newinstr, ft_flags
 140:
 	\oldinstr
 141:
@@ -334,7 +389,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 142:
 
 	.pushsection .altinstructions,"a"
-	altinstruction_entry 140b,143f,\feature,142b-140b,144f-143f
+	altinstr_entry 140b,143f,\ft_flags,142b-140b,144f-143f
 	.popsection
 
 	.pushsection .altinstr_replacement,"ax"
@@ -347,6 +402,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 #define old_len			141b-140b
 #define new_len1		144f-143f
 #define new_len2		145f-144f
+#define new_len3		146f-145f
 
 /*
  * gas compatible max based on the idea from:
@@ -354,7 +410,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
  *
  * The additional "-" is needed because gas uses a "true" value of -1.
  */
-#define alt_max_short(a, b)	((a) ^ (((a) ^ (b)) & -(-((a) < (b)))))
+#define alt_max_2(a, b)		((a) ^ (((a) ^ (b)) & -(-((a) < (b)))))
+#define alt_max_3(a, b, c)	(alt_max_2(alt_max_2(a, b), c))
 
 
 /*
@@ -362,17 +419,17 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * has @feature1, it replaces @oldinstr with @newinstr1. If CPU has
  * @feature2, it replaces @oldinstr with @feature2.
  */
-.macro ALTERNATIVE_2 oldinstr, newinstr1, feature1, newinstr2, feature2
+.macro ALTERNATIVE_2 oldinstr, newinstr1, ft_flags1, newinstr2, ft_flags2
 140:
 	\oldinstr
 141:
-	.skip -((alt_max_short(new_len1, new_len2) - (old_len)) > 0) * \
-		(alt_max_short(new_len1, new_len2) - (old_len)),0x90
+	.skip -((alt_max_2(new_len1, new_len2) - (old_len)) > 0) * \
+		(alt_max_2(new_len1, new_len2) - (old_len)),0x90
 142:
 
 	.pushsection .altinstructions,"a"
-	altinstruction_entry 140b,143f,\feature1,142b-140b,144f-143f
-	altinstruction_entry 140b,144f,\feature2,142b-140b,145f-144f
+	altinstr_entry 140b,143f,\ft_flags1,142b-140b,144f-143f
+	altinstr_entry 140b,144f,\ft_flags2,142b-140b,145f-144f
 	.popsection
 
 	.pushsection .altinstr_replacement,"ax"
@@ -384,10 +441,35 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	.popsection
 .endm
 
+.macro ALTERNATIVE_3 oldinstr, newinstr1, ft_flags1, newinstr2, ft_flags2, newinstr3, ft_flags3
+140:
+	\oldinstr
+141:
+	.skip -((alt_max_3(new_len1, new_len2, new_len3) - (old_len)) > 0) * \
+		(alt_max_3(new_len1, new_len2, new_len3) - (old_len)),0x90
+142:
+
+	.pushsection .altinstructions,"a"
+	altinstr_entry 140b,143f,\ft_flags1,142b-140b,144f-143f
+	altinstr_entry 140b,144f,\ft_flags2,142b-140b,145f-144f
+	altinstr_entry 140b,145f,\ft_flags3,142b-140b,146f-145f
+	.popsection
+
+	.pushsection .altinstr_replacement,"ax"
+143:
+	\newinstr1
+144:
+	\newinstr2
+145:
+	\newinstr3
+146:
+	.popsection
+.endm
+
 /* If @feature is set, patch in @newinstr_yes, otherwise @newinstr_no. */
-#define ALTERNATIVE_TERNARY(oldinstr, feature, newinstr_yes, newinstr_no) \
+#define ALTERNATIVE_TERNARY(oldinstr, ft_flags, newinstr_yes, newinstr_no) \
 	ALTERNATIVE_2 oldinstr, newinstr_no, X86_FEATURE_ALWAYS,	\
-	newinstr_yes, feature
+	newinstr_yes, ft_flags
 
 #endif /* __ASSEMBLY__ */
 

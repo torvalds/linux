@@ -195,6 +195,9 @@ M(CPT_STATS,            0xA05, cpt_sts, cpt_sts_req, cpt_sts_rsp)	\
 M(CPT_RXC_TIME_CFG,     0xA06, cpt_rxc_time_cfg, cpt_rxc_time_cfg_req,  \
 			       msg_rsp)                                 \
 M(CPT_CTX_CACHE_SYNC,   0xA07, cpt_ctx_cache_sync, msg_req, msg_rsp)    \
+M(CPT_LF_RESET,         0xA08, cpt_lf_reset, cpt_lf_rst_req, msg_rsp)	\
+M(CPT_FLT_ENG_INFO,     0xA09, cpt_flt_eng_info, cpt_flt_eng_info_req,	\
+			       cpt_flt_eng_info_rsp)			\
 /* SDP mbox IDs (range 0x1000 - 0x11FF) */				\
 M(SET_SDP_CHAN_INFO, 0x1000, set_sdp_chan_info, sdp_chan_info_msg, msg_rsp) \
 M(GET_SDP_CHAN_INFO, 0x1001, get_sdp_chan_info, msg_req, sdp_get_chan_info_msg) \
@@ -245,6 +248,9 @@ M(NPC_MCAM_GET_STATS, 0x6012, npc_mcam_entry_stats,                     \
 M(NPC_GET_SECRET_KEY, 0x6013, npc_get_secret_key,                     \
 				   npc_get_secret_key_req,              \
 				   npc_get_secret_key_rsp)              \
+M(NPC_GET_FIELD_STATUS, 0x6014, npc_get_field_status,                     \
+				   npc_get_field_status_req,              \
+				   npc_get_field_status_rsp)              \
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -294,6 +300,8 @@ M(NIX_BANDPROF_FREE,	0x801e, nix_bandprof_free, nix_bandprof_free_req,   \
 				msg_rsp)				    \
 M(NIX_BANDPROF_GET_HWINFO, 0x801f, nix_bandprof_get_hwinfo, msg_req,		\
 				nix_bandprof_get_hwinfo_rsp)		    \
+M(NIX_READ_INLINE_IPSEC_CFG, 0x8023, nix_read_inline_ipsec_cfg,		\
+				msg_req, nix_inline_ipsec_cfg)		\
 /* MCS mbox IDs (range 0xA000 - 0xBFFF) */					\
 M(MCS_ALLOC_RESOURCES,	0xa000, mcs_alloc_resources, mcs_alloc_rsrc_req,	\
 				mcs_alloc_rsrc_rsp)				\
@@ -1193,7 +1201,7 @@ struct nix_inline_ipsec_cfg {
 	u32 cpt_credit;
 	struct {
 		u8 egrp;
-		u8 opcode;
+		u16 opcode;
 		u16 param1;
 		u16 param2;
 	} gen_cfg;
@@ -1202,6 +1210,8 @@ struct nix_inline_ipsec_cfg {
 		u8 cpt_slot;
 	} inst_qsel;
 	u8 enable;
+	u16 bpid;
+	u32 credit_th;
 };
 
 /* Per NIX LF inline IPSec configuration */
@@ -1437,6 +1447,10 @@ struct flow_msg {
 	u8 tc;
 	__be16 sport;
 	__be16 dport;
+	union {
+		u8 ip_flag;
+		u8 next_header;
+	};
 };
 
 struct npc_install_flow_req {
@@ -1541,6 +1555,17 @@ struct ptp_rsp {
 	u64 clk;
 };
 
+struct npc_get_field_status_req {
+	struct mbox_msghdr hdr;
+	u8 intf;
+	u8 field;
+};
+
+struct npc_get_field_status_rsp {
+	struct mbox_msghdr hdr;
+	u8 enable;
+};
+
 struct set_vf_perm  {
 	struct  mbox_msghdr hdr;
 	u16	vf;
@@ -1591,6 +1616,8 @@ struct cpt_lf_alloc_req_msg {
 	u16 sso_pf_func;
 	u16 eng_grpmsk;
 	int blkaddr;
+	u8 ctx_ilen_valid : 1;
+	u8 ctx_ilen : 7;
 };
 
 #define CPT_INLINE_INBOUND      0
@@ -1671,6 +1698,28 @@ struct cpt_rxc_time_cfg_req {
 struct cpt_inst_lmtst_req {
 	struct mbox_msghdr hdr;
 	u64 inst[8];
+	u64 rsvd;
+};
+
+/* Mailbox message format to request for CPT LF reset */
+struct cpt_lf_rst_req {
+	struct mbox_msghdr hdr;
+	u32 slot;
+	u32 rsvd;
+};
+
+/* Mailbox message format to request for CPT faulted engines */
+struct cpt_flt_eng_info_req {
+	struct mbox_msghdr hdr;
+	int blkaddr;
+	bool reset;
+	u32 rsvd;
+};
+
+struct cpt_flt_eng_info_rsp {
+	struct mbox_msghdr hdr;
+	u64 flt_eng_map[CPT_10K_AF_INT_VEC_RVU];
+	u64 rcvrd_eng_map[CPT_10K_AF_INT_VEC_RVU];
 	u64 rsvd;
 };
 

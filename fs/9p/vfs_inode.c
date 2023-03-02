@@ -17,7 +17,6 @@
 #include <linux/string.h>
 #include <linux/inet.h>
 #include <linux/namei.h>
-#include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
@@ -261,7 +260,7 @@ int v9fs_init_inode(struct v9fs_session_info *v9ses,
 {
 	int err = 0;
 
-	inode_init_owner(&init_user_ns, inode, NULL, mode);
+	inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
 	inode->i_blocks = 0;
 	inode->i_rdev = rdev;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
@@ -673,7 +672,7 @@ error:
 
 /**
  * v9fs_vfs_create - VFS hook to create a regular file
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dir: The parent directory
  * @dentry: The name of file to be created
  * @mode: The UNIX file mode to set
@@ -685,7 +684,7 @@ error:
  */
 
 static int
-v9fs_vfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
@@ -705,14 +704,14 @@ v9fs_vfs_create(struct user_namespace *mnt_userns, struct inode *dir,
 
 /**
  * v9fs_vfs_mkdir - VFS mkdir hook to create a directory
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dir:  inode that is being unlinked
  * @dentry: dentry that is being unlinked
  * @mode: mode for new directory
  *
  */
 
-static int v9fs_vfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int v9fs_vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			  struct dentry *dentry, umode_t mode)
 {
 	int err;
@@ -844,8 +843,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	inode = d_inode(dentry);
 	v9inode = V9FS_I(inode);
 	mutex_lock(&v9inode->v_mutex);
-	if ((v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) &&
-	    !v9inode->writeback_fid &&
+	if ((v9ses->cache) && !v9inode->writeback_fid &&
 	    ((flags & O_ACCMODE) != O_RDONLY)) {
 		/*
 		 * clone a fid and add it to writeback_fid
@@ -909,7 +907,7 @@ int v9fs_vfs_rmdir(struct inode *i, struct dentry *d)
 
 /**
  * v9fs_vfs_rename - VFS hook to rename an inode
- * @mnt_userns: The user namespace of the mount
+ * @idmap: The idmap of the mount
  * @old_dir:  old dir inode
  * @old_dentry: old dentry
  * @new_dir: new dir inode
@@ -919,7 +917,7 @@ int v9fs_vfs_rmdir(struct inode *i, struct dentry *d)
  */
 
 int
-v9fs_vfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+v9fs_vfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		struct dentry *old_dentry, struct inode *new_dir,
 		struct dentry *new_dentry, unsigned int flags)
 {
@@ -1019,7 +1017,7 @@ error:
 
 /**
  * v9fs_vfs_getattr - retrieve file metadata
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @path: Object to query
  * @stat: metadata structure to populate
  * @request_mask: Mask of STATX_xxx flags indicating the caller's interests
@@ -1028,7 +1026,7 @@ error:
  */
 
 static int
-v9fs_vfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+v9fs_vfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
@@ -1039,7 +1037,7 @@ v9fs_vfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
-		generic_fillattr(&init_user_ns, d_inode(dentry), stat);
+		generic_fillattr(&nop_mnt_idmap, d_inode(dentry), stat);
 		return 0;
 	}
 	fid = v9fs_fid_lookup(dentry);
@@ -1052,7 +1050,7 @@ v9fs_vfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		return PTR_ERR(st);
 
 	v9fs_stat2inode(st, d_inode(dentry), dentry->d_sb, 0);
-	generic_fillattr(&init_user_ns, d_inode(dentry), stat);
+	generic_fillattr(&nop_mnt_idmap, d_inode(dentry), stat);
 
 	p9stat_free(st);
 	kfree(st);
@@ -1061,13 +1059,13 @@ v9fs_vfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 
 /**
  * v9fs_vfs_setattr - set file metadata
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dentry: file whose metadata to set
  * @iattr: metadata assignment structure
  *
  */
 
-static int v9fs_vfs_setattr(struct user_namespace *mnt_userns,
+static int v9fs_vfs_setattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct iattr *iattr)
 {
 	int retval, use_dentry = 0;
@@ -1078,7 +1076,7 @@ static int v9fs_vfs_setattr(struct user_namespace *mnt_userns,
 	struct p9_wstat wstat;
 
 	p9_debug(P9_DEBUG_VFS, "\n");
-	retval = setattr_prepare(&init_user_ns, dentry, iattr);
+	retval = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (retval)
 		return retval;
 
@@ -1136,7 +1134,7 @@ static int v9fs_vfs_setattr(struct user_namespace *mnt_userns,
 
 	v9fs_invalidate_inode_attr(inode);
 
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -1301,7 +1299,7 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 
 /**
  * v9fs_vfs_symlink - helper function to create symlinks
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dir: directory inode containing symlink
  * @dentry: dentry for symlink
  * @symname: symlink data
@@ -1311,7 +1309,7 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
  */
 
 static int
-v9fs_vfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		 struct dentry *dentry, const char *symname)
 {
 	p9_debug(P9_DEBUG_VFS, " %lu,%pd,%s\n",
@@ -1357,7 +1355,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 
 /**
  * v9fs_vfs_mknod - create a special file
- * @mnt_userns: The user namespace of the mount
+ * @idmap: idmap of the mount
  * @dir: inode destination for new link
  * @dentry: dentry for file
  * @mode: mode for creation
@@ -1366,7 +1364,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
  */
 
 static int
-v9fs_vfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+v9fs_vfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);

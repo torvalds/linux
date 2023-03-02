@@ -119,12 +119,12 @@ struct uv_hub {
 
 static ssize_t hub_name_show(struct uv_bios_hub_info *hub_info, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", hub_info->name);
+	return sysfs_emit(buf, "%s\n", hub_info->name);
 }
 
 static ssize_t hub_location_show(struct uv_bios_hub_info *hub_info, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", hub_info->location);
+	return sysfs_emit(buf, "%s\n", hub_info->location);
 }
 
 static ssize_t hub_partition_show(struct uv_bios_hub_info *hub_info, char *buf)
@@ -203,7 +203,7 @@ static const struct sysfs_ops hub_sysfs_ops = {
 	.show = hub_type_show,
 };
 
-static struct kobj_type hub_attr_type = {
+static const struct kobj_type hub_attr_type = {
 	.release	= hub_release,
 	.sysfs_ops	= &hub_sysfs_ops,
 	.default_groups	= uv_hub_groups,
@@ -356,7 +356,7 @@ static const struct sysfs_ops uv_port_sysfs_ops = {
 	.show = uv_port_type_show,
 };
 
-static struct kobj_type uv_port_attr_type = {
+static const struct kobj_type uv_port_attr_type = {
 	.release	= uv_port_release,
 	.sysfs_ops	= &uv_port_sysfs_ops,
 	.default_groups	= uv_port_groups,
@@ -460,12 +460,12 @@ struct uv_pci_top_obj {
 
 static ssize_t uv_pci_type_show(struct uv_pci_top_obj *top_obj, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", top_obj->type);
+	return sysfs_emit(buf, "%s\n", top_obj->type);
 }
 
 static ssize_t uv_pci_location_show(struct uv_pci_top_obj *top_obj, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", top_obj->location);
+	return sysfs_emit(buf, "%s\n", top_obj->location);
 }
 
 static ssize_t uv_pci_iio_stack_show(struct uv_pci_top_obj *top_obj, char *buf)
@@ -475,7 +475,7 @@ static ssize_t uv_pci_iio_stack_show(struct uv_pci_top_obj *top_obj, char *buf)
 
 static ssize_t uv_pci_ppb_addr_show(struct uv_pci_top_obj *top_obj, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", top_obj->ppb_addr);
+	return sysfs_emit(buf, "%s\n", top_obj->ppb_addr);
 }
 
 static ssize_t uv_pci_slot_show(struct uv_pci_top_obj *top_obj, char *buf)
@@ -528,7 +528,7 @@ static const struct sysfs_ops uv_pci_top_sysfs_ops = {
 	.show = pci_top_type_show,
 };
 
-static struct kobj_type uv_pci_top_attr_type = {
+static const struct kobj_type uv_pci_top_attr_type = {
 	.release	= uv_pci_top_release,
 	.sysfs_ops	= &uv_pci_top_sysfs_ops,
 };
@@ -737,7 +737,7 @@ static ssize_t coherence_id_show(struct kobject *kobj,
 static ssize_t uv_type_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", uv_type_string());
+	return sysfs_emit(buf, "%s\n", uv_type_string());
 }
 
 static ssize_t uv_archtype_show(struct kobject *kobj,
@@ -749,13 +749,13 @@ static ssize_t uv_archtype_show(struct kobject *kobj,
 static ssize_t uv_hub_type_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", uv_hub_type());
+	return sysfs_emit(buf, "0x%x\n", uv_hub_type());
 }
 
 static ssize_t uv_hubless_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", uv_get_hubless_system());
+	return sysfs_emit(buf, "0x%x\n", uv_get_hubless_system());
 }
 
 static struct kobj_attribute partition_id_attr =

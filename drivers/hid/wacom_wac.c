@@ -2520,11 +2520,12 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 
 	if (!delay_pen_events(wacom_wac) && wacom_wac->tool[0]) {
 		int id = wacom_wac->id[0];
-		if (wacom_wac->features.quirks & WACOM_QUIRK_PEN_BUTTON3 &&
-		    wacom_wac->hid_data.barrelswitch & wacom_wac->hid_data.barrelswitch2) {
-			wacom_wac->hid_data.barrelswitch = 0;
-			wacom_wac->hid_data.barrelswitch2 = 0;
-			wacom_wac->hid_data.barrelswitch3 = 1;
+		if (wacom_wac->features.quirks & WACOM_QUIRK_PEN_BUTTON3) {
+			int sw_state = wacom_wac->hid_data.barrelswitch |
+				       (wacom_wac->hid_data.barrelswitch2 << 1);
+			wacom_wac->hid_data.barrelswitch = sw_state == 1;
+			wacom_wac->hid_data.barrelswitch2 = sw_state == 2;
+			wacom_wac->hid_data.barrelswitch3 = sw_state == 3;
 		}
 		input_report_key(input, BTN_STYLUS, wacom_wac->hid_data.barrelswitch);
 		input_report_key(input, BTN_STYLUS2, wacom_wac->hid_data.barrelswitch2);
@@ -4881,6 +4882,9 @@ static const struct wacom_features wacom_features_0x3dd =
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC, .oVid = HID_ANY_ID, .oPid = HID_ANY_ID };
 
+static const struct wacom_features wacom_features_0x94 =
+	{ "Wacom Bootloader", .type = BOOTLOADER };
+
 #define USB_DEVICE_WACOM(prod)						\
 	HID_DEVICE(BUS_USB, HID_GROUP_WACOM, USB_VENDOR_ID_WACOM, prod),\
 	.driver_data = (kernel_ulong_t)&wacom_features_##prod
@@ -4954,6 +4958,7 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x84) },
 	{ USB_DEVICE_WACOM(0x90) },
 	{ USB_DEVICE_WACOM(0x93) },
+	{ USB_DEVICE_WACOM(0x94) },
 	{ USB_DEVICE_WACOM(0x97) },
 	{ USB_DEVICE_WACOM(0x9A) },
 	{ USB_DEVICE_WACOM(0x9F) },

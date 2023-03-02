@@ -23,6 +23,7 @@ extern void my_tramp2(void *);
 #ifdef CONFIG_X86_64
 
 #include <asm/ibt.h>
+#include <asm/nospec-branch.h>
 
 asm (
 "	.pushsection    .text, \"ax\", @progbits\n"
@@ -32,6 +33,7 @@ asm (
 	ASM_ENDBR
 "	pushq %rbp\n"
 "	movq %rsp, %rbp\n"
+	CALL_DEPTH_ACCOUNT
 "	pushq %rdi\n"
 "	movq 8(%rbp), %rdi\n"
 "	call my_direct_func1\n"
@@ -46,6 +48,7 @@ asm (
 	ASM_ENDBR
 "	pushq %rbp\n"
 "	movq %rsp, %rbp\n"
+	CALL_DEPTH_ACCOUNT
 "	pushq %rdi\n"
 "	movq 8(%rbp), %rdi\n"
 "	call my_direct_func2\n"
@@ -149,6 +152,7 @@ static void __exit ftrace_direct_multi_exit(void)
 {
 	kthread_stop(simple_tsk);
 	unregister_ftrace_direct_multi(&direct, my_tramp);
+	ftrace_free_filter(&direct);
 }
 
 module_init(ftrace_direct_multi_init);

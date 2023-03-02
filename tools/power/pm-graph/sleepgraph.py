@@ -120,9 +120,9 @@ class SystemValues:
 	cgexp = False
 	testdir = ''
 	outdir = ''
-	tpath = '/sys/kernel/debug/tracing/'
+	tpath = '/sys/kernel/tracing/'
 	fpdtpath = '/sys/firmware/acpi/tables/FPDT'
-	epath = '/sys/kernel/debug/tracing/events/power/'
+	epath = '/sys/kernel/tracing/events/power/'
 	pmdpath = '/sys/power/pm_debug_messages'
 	s0ixpath = '/sys/module/intel_pmc_core/parameters/warn_on_s0ix_failures'
 	s0ixres = '/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us'
@@ -1462,7 +1462,7 @@ class Data:
 		'TIMEOUT' : r'(?i).*\bTIMEOUT\b.*',
 		'ABORT'   : r'(?i).*\bABORT\b.*',
 		'IRQ'     : r'.*\bgenirq: .*',
-		'TASKFAIL': r'.*Freezing of tasks *.*',
+		'TASKFAIL': r'.*Freezing .*after *.*',
 		'ACPI'    : r'.*\bACPI *(?P<b>[A-Za-z]*) *Error[: ].*',
 		'DISKFULL': r'.*\bNo space left on device.*',
 		'USBERR'  : r'.*usb .*device .*, error [0-9-]*',

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/riscv/cpus.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: RISC-V bindings for 'cpus' DT nodes
+title: RISC-V CPUs
 
 maintainers:
   - Paul Walmsley <paul.walmsley@sifive.com>
@@ -28,17 +28,20 @@ properties:
     oneOf:
       - items:
           - enum:
-              - sifive,rocket0
+              - andestech,ax45mp
+              - canaan,k210
               - sifive,bullet0
               - sifive,e5
               - sifive,e7
               - sifive,e71
-              - sifive,u74-mc
-              - sifive,u54
-              - sifive,u74
+              - sifive,rocket0
               - sifive,u5
+              - sifive,u54
               - sifive,u7
-              - canaan,k210
+              - sifive,u74
+              - sifive,u74-mc
+              - thead,c906
+              - thead,c910
           - const: riscv
       - items:
           - enum:
@@ -80,7 +83,7 @@ properties:
       insensitive, letters in the riscv,isa string must be all
       lowercase to simplify parsing.
     $ref: "/schemas/types.yaml#/definitions/string"
-    pattern: ^rv(?:64|32)imaf?d?q?c?b?v?k?h?(?:_[hsxz](?:[a-z])+)*$
+    pattern: ^rv(?:64|32)imaf?d?q?c?b?k?j?p?v?h?(?:[hsxz](?:[a-z])+)?(?:_[hsxz](?:[a-z])+)*$
 
   # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
   timebase-frequency: false
@@ -110,6 +113,12 @@ properties:
     description: |
       List of phandles to idle state nodes supported
       by this hart (see ./idle-states.yaml).
+
+  capacity-dmips-mhz:
+    description:
+      u32 value representing CPU capacity (see ../cpu/cpu-capacity.txt) in
+      DMIPS/MHz, relative to highest capacity-dmips-mhz
+      in the system.
 
 required:
   - riscv,isa

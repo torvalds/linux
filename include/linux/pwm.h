@@ -276,8 +276,8 @@ struct pwm_ops {
 		       struct pwm_capture *result, unsigned long timeout);
 	int (*apply)(struct pwm_chip *chip, struct pwm_device *pwm,
 		     const struct pwm_state *state);
-	void (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
-			  struct pwm_state *state);
+	int (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
+			 struct pwm_state *state);
 	struct module *owner;
 };
 
@@ -440,13 +440,6 @@ static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 	return -EINVAL;
 }
 
-static inline int pwm_capture(struct pwm_device *pwm,
-			      struct pwm_capture *result,
-			      unsigned long timeout)
-{
-	return -EINVAL;
-}
-
 static inline int pwm_enable(struct pwm_device *pwm)
 {
 	might_sleep();
@@ -456,6 +449,13 @@ static inline int pwm_enable(struct pwm_device *pwm)
 static inline void pwm_disable(struct pwm_device *pwm)
 {
 	might_sleep();
+}
+
+static inline int pwm_capture(struct pwm_device *pwm,
+			      struct pwm_capture *result,
+			      unsigned long timeout)
+{
+	return -EINVAL;
 }
 
 static inline int pwm_set_chip_data(struct pwm_device *pwm, void *data)
@@ -474,6 +474,11 @@ static inline int pwmchip_add(struct pwm_chip *chip)
 }
 
 static inline int pwmchip_remove(struct pwm_chip *chip)
+{
+	return -EINVAL;
+}
+
+static inline int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip)
 {
 	return -EINVAL;
 }

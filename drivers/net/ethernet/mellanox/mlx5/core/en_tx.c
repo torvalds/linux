@@ -305,6 +305,8 @@ static void mlx5e_sq_calc_wqe_attr(struct sk_buff *skb, const struct mlx5e_tx_at
 	u16 ds_cnt_inl = 0;
 	u16 ds_cnt_ids = 0;
 
+	/* Sync the calculation with MLX5E_MAX_TX_WQEBBS. */
+
 	if (attr->insz)
 		ds_cnt_ids = DIV_ROUND_UP(sizeof(struct mlx5_wqe_inline_seg) + attr->insz,
 					  MLX5_SEND_WQE_DS);
@@ -317,6 +319,9 @@ static void mlx5e_sq_calc_wqe_attr(struct sk_buff *skb, const struct mlx5e_tx_at
 			inl += VLAN_HLEN;
 
 		ds_cnt_inl = DIV_ROUND_UP(inl, MLX5_SEND_WQE_DS);
+		if (WARN_ON_ONCE(ds_cnt_inl > MLX5E_MAX_TX_INLINE_DS))
+			netdev_warn(skb->dev, "ds_cnt_inl = %u > max %u\n", ds_cnt_inl,
+				    (u16)MLX5E_MAX_TX_INLINE_DS);
 		ds_cnt += ds_cnt_inl;
 	}
 
@@ -713,21 +718,6 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	mlx5e_sq_xmit_wqe(sq, skb, &attr, &wqe_attr, wqe, pi, netdev_xmit_more());
 
 	return NETDEV_TX_OK;
-}
-
-void mlx5e_sq_xmit_simple(struct mlx5e_txqsq *sq, struct sk_buff *skb, bool xmit_more)
-{
-	struct mlx5e_tx_wqe_attr wqe_attr;
-	struct mlx5e_tx_attr attr;
-	struct mlx5e_tx_wqe *wqe;
-	u16 pi;
-
-	mlx5e_sq_xmit_prepare(sq, skb, NULL, &attr);
-	mlx5e_sq_calc_wqe_attr(skb, &attr, &wqe_attr);
-	pi = mlx5e_txqsq_get_next_pi(sq, wqe_attr.num_wqebbs);
-	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
-	mlx5e_txwqe_build_eseg_csum(sq, skb, NULL, &wqe->eth);
-	mlx5e_sq_xmit_wqe(sq, skb, &attr, &wqe_attr, wqe, pi, xmit_more);
 }
 
 static void mlx5e_tx_wi_dma_unmap(struct mlx5e_txqsq *sq, struct mlx5e_tx_wqe_info *wi,

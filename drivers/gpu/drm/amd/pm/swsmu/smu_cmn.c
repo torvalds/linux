@@ -233,6 +233,18 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 	WREG32(smu->msg_reg, msg);
 }
 
+static int __smu_cmn_send_debug_msg(struct smu_context *smu,
+			       u32 msg,
+			       u32 param)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	WREG32(smu->debug_param_reg, param);
+	WREG32(smu->debug_msg_reg, msg);
+	WREG32(smu->debug_resp_reg, 0);
+
+	return 0;
+}
 /**
  * smu_cmn_send_msg_without_waiting -- send the message; don't wait for status
  * @smu: pointer to an SMU context
@@ -384,6 +396,18 @@ int smu_cmn_send_smc_msg(struct smu_context *smu,
 					       msg,
 					       0,
 					       read_arg);
+}
+
+int smu_cmn_send_debug_smc_msg(struct smu_context *smu,
+			 uint32_t msg)
+{
+	return __smu_cmn_send_debug_msg(smu, msg, 0);
+}
+
+int smu_cmn_send_debug_smc_msg_with_param(struct smu_context *smu,
+			 uint32_t msg, uint32_t param)
+{
+	return __smu_cmn_send_debug_msg(smu, msg, param);
 }
 
 int smu_cmn_to_asic_specific_index(struct smu_context *smu,

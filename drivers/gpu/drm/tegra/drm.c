@@ -1057,7 +1057,7 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *dma)
 
 	*dma = iova_dma_addr(&tegra->carveout.domain, alloc);
 	err = iommu_map(tegra->domain, *dma, virt_to_phys(virt),
-			size, IOMMU_READ | IOMMU_WRITE);
+			size, IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (err < 0)
 		goto free_iova;
 
@@ -1092,6 +1092,10 @@ static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 {
 	struct host1x *host1x = dev_get_drvdata(dev->dev.parent);
 	struct iommu_domain *domain;
+
+	/* Our IOMMU usage policy doesn't currently play well with GART */
+	if (of_machine_is_compatible("nvidia,tegra20"))
+		return false;
 
 	/*
 	 * If the Tegra DRM clients are backed by an IOMMU, push buffers are
@@ -1382,6 +1386,7 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra194-vic", },
 	{ .compatible = "nvidia,tegra194-nvdec", },
 	{ .compatible = "nvidia,tegra234-vic", },
+	{ .compatible = "nvidia,tegra234-nvdec", },
 	{ /* sentinel */ }
 };
 

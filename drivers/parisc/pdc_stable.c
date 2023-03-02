@@ -14,7 +14,7 @@
  *    all) PA-RISC machines should have them. Anyway, for safety reasons, the
  *    following code can deal with just 96 bytes of Stable Storage, and all
  *    sizes between 96 and 192 bytes (provided they are multiple of struct
- *    device_path size, eg: 128, 160 and 192) to provide full information.
+ *    pdc_module_path size, eg: 128, 160 and 192) to provide full information.
  *    One last word: there's one path we can always count on: the primary path.
  *    Anything above 224 bytes is used for 'osdep2' OS-dependent storage area.
  *
@@ -88,7 +88,7 @@ struct pdcspath_entry {
 	short ready;			/* entry record is valid if != 0 */
 	unsigned long addr;		/* entry address in stable storage */
 	char *name;			/* entry name */
-	struct device_path devpath;	/* device path in parisc representation */
+	struct pdc_module_path devpath;	/* device path in parisc representation */
 	struct device *dev;		/* corresponding device */
 	struct kobject kobj;
 };
@@ -138,7 +138,7 @@ struct pdcspath_attribute paths_attr_##_name = { \
 static int
 pdcspath_fetch(struct pdcspath_entry *entry)
 {
-	struct device_path *devpath;
+	struct pdc_module_path *devpath;
 
 	if (!entry)
 		return -EINVAL;
@@ -153,7 +153,7 @@ pdcspath_fetch(struct pdcspath_entry *entry)
 		return -EIO;
 		
 	/* Find the matching device.
-	   NOTE: hardware_path overlays with device_path, so the nice cast can
+	   NOTE: hardware_path overlays with pdc_module_path, so the nice cast can
 	   be used */
 	entry->dev = hwpath_to_device((struct hardware_path *)devpath);
 
@@ -179,7 +179,7 @@ pdcspath_fetch(struct pdcspath_entry *entry)
 static void
 pdcspath_store(struct pdcspath_entry *entry)
 {
-	struct device_path *devpath;
+	struct pdc_module_path *devpath;
 
 	BUG_ON(!entry);
 
@@ -221,7 +221,7 @@ static ssize_t
 pdcspath_hwpath_read(struct pdcspath_entry *entry, char *buf)
 {
 	char *out = buf;
-	struct device_path *devpath;
+	struct pdc_module_path *devpath;
 	short i;
 
 	if (!entry || !buf)
@@ -236,11 +236,11 @@ pdcspath_hwpath_read(struct pdcspath_entry *entry, char *buf)
 		return -ENODATA;
 	
 	for (i = 0; i < 6; i++) {
-		if (devpath->bc[i] >= 128)
+		if (devpath->path.bc[i] < 0)
 			continue;
-		out += sprintf(out, "%u/", (unsigned char)devpath->bc[i]);
+		out += sprintf(out, "%d/", devpath->path.bc[i]);
 	}
-	out += sprintf(out, "%u\n", (unsigned char)devpath->mod);
+	out += sprintf(out, "%u\n", (unsigned char)devpath->path.mod);
 	
 	return out - buf;
 }
@@ -274,8 +274,7 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 
 	/* We'll use a local copy of buf */
 	count = min_t(size_t, count, sizeof(in)-1);
-	strncpy(in, buf, count);
-	in[count] = '\0';
+	strscpy(in, buf, count + 1);
 	
 	/* Let's clean up the target. 0xff is a blank pattern */
 	memset(&hwpath, 0xff, sizeof(hwpath));
@@ -296,12 +295,12 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 	for (i=5; ((temp = strrchr(in, '/'))) && (temp-in > 0) && (likely(i)); i--) {
 		hwpath.bc[i] = simple_strtoul(temp+1, NULL, 10);
 		in[temp-in] = '\0';
-		DPRINTK("%s: bc[%d]: %d\n", __func__, i, hwpath.bc[i]);
+		DPRINTK("%s: bc[%d]: %d\n", __func__, i, hwpath.path.bc[i]);
 	}
 	
 	/* Store the final field */		
 	hwpath.bc[i] = simple_strtoul(in, NULL, 10);
-	DPRINTK("%s: bc[%d]: %d\n", __func__, i, hwpath.bc[i]);
+	DPRINTK("%s: bc[%d]: %d\n", __func__, i, hwpath.path.bc[i]);
 	
 	/* Now we check that the user isn't trying to lure us */
 	if (!(dev = hwpath_to_device((struct hardware_path *)&hwpath))) {
@@ -342,7 +341,7 @@ static ssize_t
 pdcspath_layer_read(struct pdcspath_entry *entry, char *buf)
 {
 	char *out = buf;
-	struct device_path *devpath;
+	struct pdc_module_path *devpath;
 	short i;
 
 	if (!entry || !buf)
@@ -388,8 +387,7 @@ pdcspath_layer_write(struct pdcspath_entry *entry, const char *buf, size_t count
 
 	/* We'll use a local copy of buf */
 	count = min_t(size_t, count, sizeof(in)-1);
-	strncpy(in, buf, count);
-	in[count] = '\0';
+	strscpy(in, buf, count + 1);
 	
 	/* Let's clean up the target. 0 is a blank pattern */
 	memset(&layers, 0, sizeof(layers));
@@ -547,7 +545,7 @@ static ssize_t pdcs_auto_read(struct kobject *kobj,
 	pathentry = &pdcspath_entry_primary;
 
 	read_lock(&pathentry->rw_lock);
-	out += sprintf(out, "%s\n", (pathentry->devpath.flags & knob) ?
+	out += sprintf(out, "%s\n", (pathentry->devpath.path.flags & knob) ?
 					"On" : "Off");
 	read_unlock(&pathentry->rw_lock);
 
@@ -594,8 +592,8 @@ static ssize_t pdcs_timer_read(struct kobject *kobj,
 
 	/* print the timer value in seconds */
 	read_lock(&pathentry->rw_lock);
-	out += sprintf(out, "%u\n", (pathentry->devpath.flags & PF_TIMER) ?
-				(1 << (pathentry->devpath.flags & PF_TIMER)) : 0);
+	out += sprintf(out, "%u\n", (pathentry->devpath.path.flags & PF_TIMER) ?
+				(1 << (pathentry->devpath.path.flags & PF_TIMER)) : 0);
 	read_unlock(&pathentry->rw_lock);
 
 	return out - buf;
@@ -756,15 +754,14 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 
 	/* We'll use a local copy of buf */
 	count = min_t(size_t, count, sizeof(in)-1);
-	strncpy(in, buf, count);
-	in[count] = '\0';
+	strscpy(in, buf, count + 1);
 
 	/* Current flags are stored in primary boot path entry */
 	pathentry = &pdcspath_entry_primary;
 	
 	/* Be nice to the existing flag record */
 	read_lock(&pathentry->rw_lock);
-	flags = pathentry->devpath.flags;
+	flags = pathentry->devpath.path.flags;
 	read_unlock(&pathentry->rw_lock);
 	
 	DPRINTK("%s: flags before: 0x%X\n", __func__, flags);
@@ -785,7 +782,7 @@ static ssize_t pdcs_auto_write(struct kobject *kobj,
 	write_lock(&pathentry->rw_lock);
 	
 	/* Change the path entry flags first */
-	pathentry->devpath.flags = flags;
+	pathentry->devpath.path.flags = flags;
 		
 	/* Now, dive in. Write back to the hardware */
 	pdcspath_store(pathentry);

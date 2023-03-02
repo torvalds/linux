@@ -136,6 +136,10 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 				      &control_flags);
 	prph_sc_ctrl->control.control_flags = cpu_to_le32(control_flags);
 
+	/* initialize the Step equalizer data */
+	prph_sc_ctrl->step_cfg.mbx_addr_0 = cpu_to_le32(trans->mbx_addr_0_step);
+	prph_sc_ctrl->step_cfg.mbx_addr_1 = cpu_to_le32(trans->mbx_addr_1_step);
+
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_init_fw_sec(trans, fw, &prph_scratch->dram);
 	if (ret)
@@ -343,3 +347,4 @@ int iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
 
 	return 0;
 }
+

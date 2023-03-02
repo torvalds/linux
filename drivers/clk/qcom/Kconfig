@@ -401,6 +401,24 @@ config SC_DISPCC_7280
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SC_DISPCC_8280XP
+	tristate "SC8280XP Display Clock Controller"
+	select SC_GCC_8280XP
+	help
+	  Support for the two display clock controllers on Qualcomm
+	  Technologies, Inc. SC8280XP devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
+config SA_GCC_8775P
+	tristate "SA8775 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SA8775 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, UFS, SDCC, etc.
+
 config SC_GCC_7180
 	tristate "SC7180 Global Clock Controller"
 	select QCOM_GDSC
@@ -560,6 +578,14 @@ config QCS_Q6SSTOP_404
 	  Say Y if you want to use the Q6SSTOP branch clocks of the WCSS clock
 	  controller to reset the Q6SSTOP subsystem.
 
+config QDU_GCC_1000
+	tristate "QDU1000/QRU1000 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on QDU1000 and
+	  QRU1000 devices. Say Y if you want to use peripheral
+	  devices such as UART, SPI, I2C, USB, SD, PCIe, etc.
+
 config SDM_GCC_845
 	tristate "SDM845/SDM670 Global Clock Controller"
 	select QCOM_GDSC
@@ -618,6 +644,13 @@ config SDX_GCC_65
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SM_CAMCC_6350
+	tristate "SM6350 Camera Clock Controller"
+	select SM_GCC_6350
+	help
+	  Support for the camera clock controller on SM6350 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_CAMCC_8250
 	tristate "SM8250 Camera Clock Controller"
 	select SM_GCC_8250
@@ -668,12 +701,30 @@ config SM_DISPCC_6350
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SM_DISPCC_6375
+	tristate "SM6375 Display Clock Controller"
+	depends on SM_GCC_6375
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SM6375 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config SM_DISPCC_8450
 	tristate "SM8450 Display Clock Controller"
 	depends on SM_GCC_8450
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
 	  SM8450 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
+config SM_DISPCC_8550
+	tristate "SM8550 Display Clock Controller"
+	depends on SM_GCC_8550
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SM8550 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
@@ -739,6 +790,14 @@ config SM_GCC_8450
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SM_GCC_8550
+	tristate "SM8550 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SM8550 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
 config SM_GPUCC_6350
 	tristate "SM6350 Graphics Clock Controller"
 	select SM_GCC_6350
@@ -770,6 +829,13 @@ config SM_GPUCC_8350
 	  Support for the graphics clock controller on SM8350 devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
+
+config SM_TCSRCC_8550
+	tristate "SM8550 TCSR Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the TCSR clock controller on SM8550 devices.
+	  Say Y if you want to use peripheral devices such as SD/UFS.
 
 config SM_VIDEOCC_8150
 	tristate "SM8150 Video Clock Controller"

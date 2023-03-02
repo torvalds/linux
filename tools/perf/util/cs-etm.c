@@ -35,6 +35,7 @@
 #include "tool.h"
 #include "thread.h"
 #include "thread-stack.h"
+#include "tsc.h"
 #include <tools/libc_compat.h>
 #include "util/synthetic-events.h"
 
@@ -46,10 +47,12 @@ struct cs_etm_auxtrace {
 	struct perf_session *session;
 	struct machine *machine;
 	struct thread *unknown_thread;
+	struct perf_tsc_conversion tc;
 
 	u8 timeless_decoding;
 	u8 snapshot_mode;
 	u8 data_queued;
+	u8 has_virtual_ts; /* Virtual/Kernel timestamps in the trace. */
 
 	int num_cpu;
 	u64 latest_kernel_timestamp;
@@ -464,12 +467,12 @@ static void cs_etm__set_trace_param_ete(struct cs_etm_trace_params *t_params,
 	u64 **metadata = etm->metadata;
 
 	t_params[idx].protocol = CS_ETM_PROTO_ETE;
-	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETMV4_TRCIDR0];
-	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETMV4_TRCIDR1];
-	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETMV4_TRCIDR2];
-	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETMV4_TRCIDR8];
-	t_params[idx].ete.reg_configr = metadata[idx][CS_ETMV4_TRCCONFIGR];
-	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETMV4_TRCTRACEIDR];
+	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETE_TRCIDR0];
+	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETE_TRCIDR1];
+	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETE_TRCIDR2];
+	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETE_TRCIDR8];
+	t_params[idx].ete.reg_configr = metadata[idx][CS_ETE_TRCCONFIGR];
+	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETE_TRCTRACEIDR];
 	t_params[idx].ete.reg_devarch = metadata[idx][CS_ETE_TRCDEVARCH];
 }
 
@@ -1161,6 +1164,30 @@ static void cs_etm__copy_insn(struct cs_etm_queue *etmq,
 			   sample->insn_len, (void *)sample->insn);
 }
 
+u64 cs_etm__convert_sample_time(struct cs_etm_queue *etmq, u64 cs_timestamp)
+{
+	struct cs_etm_auxtrace *etm = etmq->etm;
+
+	if (etm->has_virtual_ts)
+		return tsc_to_perf_time(cs_timestamp, &etm->tc);
+	else
+		return cs_timestamp;
+}
+
+static inline u64 cs_etm__resolve_sample_time(struct cs_etm_queue *etmq,
+					       struct cs_etm_traceid_queue *tidq)
+{
+	struct cs_etm_auxtrace *etm = etmq->etm;
+	struct cs_etm_packet_queue *packet_queue = &tidq->packet_queue;
+
+	if (etm->timeless_decoding)
+		return 0;
+	else if (etm->has_virtual_ts)
+		return packet_queue->cs_timestamp;
+	else
+		return etm->latest_kernel_timestamp;
+}
+
 static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 					    struct cs_etm_traceid_queue *tidq,
 					    u64 addr, u64 period)
@@ -1174,8 +1201,9 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
-	if (!etm->timeless_decoding)
-		sample.time = etm->latest_kernel_timestamp;
+	/* Set time field based on etm auxtrace config. */
+	sample.time = cs_etm__resolve_sample_time(etmq, tidq);
+
 	sample.ip = addr;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -1232,8 +1260,9 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
-	if (!etm->timeless_decoding)
-		sample.time = etm->latest_kernel_timestamp;
+	/* Set time field based on etm auxtrace config. */
+	sample.time = cs_etm__resolve_sample_time(etmq, tidq);
+
 	sample.ip = ip;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -2510,141 +2539,6 @@ static bool cs_etm__is_timeless_decoding(struct cs_etm_auxtrace *etm)
 	return timeless_decoding;
 }
 
-static const char * const cs_etm_global_header_fmts[] = {
-	[CS_HEADER_VERSION]	= "	Header version		       %llx\n",
-	[CS_PMU_TYPE_CPUS]	= "	PMU type/num cpus	       %llx\n",
-	[CS_ETM_SNAPSHOT]	= "	Snapshot		       %llx\n",
-};
-
-static const char * const cs_etm_priv_fmts[] = {
-	[CS_ETM_MAGIC]		= "	Magic number		       %llx\n",
-	[CS_ETM_CPU]		= "	CPU			       %lld\n",
-	[CS_ETM_NR_TRC_PARAMS]	= "	NR_TRC_PARAMS		       %llx\n",
-	[CS_ETM_ETMCR]		= "	ETMCR			       %llx\n",
-	[CS_ETM_ETMTRACEIDR]	= "	ETMTRACEIDR		       %llx\n",
-	[CS_ETM_ETMCCER]	= "	ETMCCER			       %llx\n",
-	[CS_ETM_ETMIDR]		= "	ETMIDR			       %llx\n",
-};
-
-static const char * const cs_etmv4_priv_fmts[] = {
-	[CS_ETM_MAGIC]		= "	Magic number		       %llx\n",
-	[CS_ETM_CPU]		= "	CPU			       %lld\n",
-	[CS_ETM_NR_TRC_PARAMS]	= "	NR_TRC_PARAMS		       %llx\n",
-	[CS_ETMV4_TRCCONFIGR]	= "	TRCCONFIGR		       %llx\n",
-	[CS_ETMV4_TRCTRACEIDR]	= "	TRCTRACEIDR		       %llx\n",
-	[CS_ETMV4_TRCIDR0]	= "	TRCIDR0			       %llx\n",
-	[CS_ETMV4_TRCIDR1]	= "	TRCIDR1			       %llx\n",
-	[CS_ETMV4_TRCIDR2]	= "	TRCIDR2			       %llx\n",
-	[CS_ETMV4_TRCIDR8]	= "	TRCIDR8			       %llx\n",
-	[CS_ETMV4_TRCAUTHSTATUS] = "	TRCAUTHSTATUS		       %llx\n",
-	[CS_ETE_TRCDEVARCH]	= "	TRCDEVARCH                     %llx\n"
-};
-
-static const char * const param_unk_fmt =
-	"	Unknown parameter [%d]	       %llx\n";
-static const char * const magic_unk_fmt =
-	"	Magic number Unknown	       %llx\n";
-
-static int cs_etm__print_cpu_metadata_v0(__u64 *val, int *offset)
-{
-	int i = *offset, j, nr_params = 0, fmt_offset;
-	__u64 magic;
-
-	/* check magic value */
-	magic = val[i + CS_ETM_MAGIC];
-	if ((magic != __perf_cs_etmv3_magic) &&
-	    (magic != __perf_cs_etmv4_magic)) {
-		/* failure - note bad magic value */
-		fprintf(stdout, magic_unk_fmt, magic);
-		return -EINVAL;
-	}
-
-	/* print common header block */
-	fprintf(stdout, cs_etm_priv_fmts[CS_ETM_MAGIC], val[i++]);
-	fprintf(stdout, cs_etm_priv_fmts[CS_ETM_CPU], val[i++]);
-
-	if (magic == __perf_cs_etmv3_magic) {
-		nr_params = CS_ETM_NR_TRC_PARAMS_V0;
-		fmt_offset = CS_ETM_ETMCR;
-		/* after common block, offset format index past NR_PARAMS */
-		for (j = fmt_offset; j < nr_params + fmt_offset; j++, i++)
-			fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
-	} else if (magic == __perf_cs_etmv4_magic) {
-		nr_params = CS_ETMV4_NR_TRC_PARAMS_V0;
-		fmt_offset = CS_ETMV4_TRCCONFIGR;
-		/* after common block, offset format index past NR_PARAMS */
-		for (j = fmt_offset; j < nr_params + fmt_offset; j++, i++)
-			fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
-	}
-	*offset = i;
-	return 0;
-}
-
-static int cs_etm__print_cpu_metadata_v1(__u64 *val, int *offset)
-{
-	int i = *offset, j, total_params = 0;
-	__u64 magic;
-
-	magic = val[i + CS_ETM_MAGIC];
-	/* total params to print is NR_PARAMS + common block size for v1 */
-	total_params = val[i + CS_ETM_NR_TRC_PARAMS] + CS_ETM_COMMON_BLK_MAX_V1;
-
-	if (magic == __perf_cs_etmv3_magic) {
-		for (j = 0; j < total_params; j++, i++) {
-			/* if newer record - could be excess params */
-			if (j >= CS_ETM_PRIV_MAX)
-				fprintf(stdout, param_unk_fmt, j, val[i]);
-			else
-				fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
-		}
-	} else if (magic == __perf_cs_etmv4_magic || magic == __perf_cs_ete_magic) {
-		/*
-		 * ETE and ETMv4 can be printed in the same block because the number of parameters
-		 * is saved and they share the list of parameter names. ETE is also only supported
-		 * in V1 files.
-		 */
-		for (j = 0; j < total_params; j++, i++) {
-			/* if newer record - could be excess params */
-			if (j >= CS_ETE_PRIV_MAX)
-				fprintf(stdout, param_unk_fmt, j, val[i]);
-			else
-				fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
-		}
-	} else {
-		/* failure - note bad magic value and error out */
-		fprintf(stdout, magic_unk_fmt, magic);
-		return -EINVAL;
-	}
-	*offset = i;
-	return 0;
-}
-
-static void cs_etm__print_auxtrace_info(__u64 *val, int num)
-{
-	int i, cpu = 0, version, err;
-
-	/* bail out early on bad header version */
-	version = val[0];
-	if (version > CS_HEADER_CURRENT_VERSION) {
-		/* failure.. return */
-		fprintf(stdout, "	Unknown Header Version = %x, ", version);
-		fprintf(stdout, "Version supported <= %x\n", CS_HEADER_CURRENT_VERSION);
-		return;
-	}
-
-	for (i = 0; i < CS_HEADER_VERSION_MAX; i++)
-		fprintf(stdout, cs_etm_global_header_fmts[i], val[i]);
-
-	for (i = CS_HEADER_VERSION_MAX; cpu < num; cpu++) {
-		if (version == 0)
-			err = cs_etm__print_cpu_metadata_v0(val, &i);
-		else if (version == 1)
-			err = cs_etm__print_cpu_metadata_v1(val, &i);
-		if (err)
-			return;
-	}
-}
-
 /*
  * Read a single cpu parameter block from the auxtrace_info priv block.
  *
@@ -2881,57 +2775,50 @@ static int cs_etm__queue_aux_records(struct perf_session *session)
 	return 0;
 }
 
-int cs_etm__process_auxtrace_info(union perf_event *event,
-				  struct perf_session *session)
+#define HAS_PARAM(j, type, param) (metadata[(j)][CS_ETM_NR_TRC_PARAMS] <= \
+				  (CS_##type##_##param - CS_ETM_COMMON_BLK_MAX_V1))
+
+/*
+ * Loop through the ETMs and complain if we find at least one where ts_source != 1 (virtual
+ * timestamps).
+ */
+static bool cs_etm__has_virtual_ts(u64 **metadata, int num_cpu)
+{
+	int j;
+
+	for (j = 0; j < num_cpu; j++) {
+		switch (metadata[j][CS_ETM_MAGIC]) {
+		case __perf_cs_etmv4_magic:
+			if (HAS_PARAM(j, ETMV4, TS_SOURCE) || metadata[j][CS_ETMV4_TS_SOURCE] != 1)
+				return false;
+			break;
+		case __perf_cs_ete_magic:
+			if (HAS_PARAM(j, ETE, TS_SOURCE) || metadata[j][CS_ETE_TS_SOURCE] != 1)
+				return false;
+			break;
+		default:
+			/* Unknown / unsupported magic number. */
+			return false;
+		}
+	}
+	return true;
+}
+
+int cs_etm__process_auxtrace_info_full(union perf_event *event,
+				       struct perf_session *session)
 {
 	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	struct cs_etm_auxtrace *etm = NULL;
 	struct int_node *inode;
-	unsigned int pmu_type;
+	struct perf_record_time_conv *tc = &session->time_conv;
 	int event_header_size = sizeof(struct perf_event_header);
-	int info_header_size;
 	int total_size = auxtrace_info->header.size;
 	int priv_size = 0;
 	int num_cpu, trcidr_idx;
 	int err = 0;
 	int i, j;
-	u64 *ptr, *hdr = NULL;
+	u64 *ptr = NULL;
 	u64 **metadata = NULL;
-	u64 hdr_version;
-
-	/*
-	 * sizeof(auxtrace_info_event::type) +
-	 * sizeof(auxtrace_info_event::reserved) == 8
-	 */
-	info_header_size = 8;
-
-	if (total_size < (event_header_size + info_header_size))
-		return -EINVAL;
-
-	priv_size = total_size - event_header_size - info_header_size;
-
-	/* First the global part */
-	ptr = (u64 *) auxtrace_info->priv;
-
-	/* Look for version of the header */
-	hdr_version = ptr[0];
-	if (hdr_version > CS_HEADER_CURRENT_VERSION) {
-		/* print routine will print an error on bad version */
-		if (dump_trace)
-			cs_etm__print_auxtrace_info(auxtrace_info->priv, 0);
-		return -EINVAL;
-	}
-
-	hdr = zalloc(sizeof(*hdr) * CS_HEADER_VERSION_MAX);
-	if (!hdr)
-		return -ENOMEM;
-
-	/* Extract header information - see cs-etm.h for format */
-	for (i = 0; i < CS_HEADER_VERSION_MAX; i++)
-		hdr[i] = ptr[i];
-	num_cpu = hdr[CS_PMU_TYPE_CPUS] & 0xffffffff;
-	pmu_type = (unsigned int) ((hdr[CS_PMU_TYPE_CPUS] >> 32) &
-				    0xffffffff);
 
 	/*
 	 * Create an RB tree for traceID-metadata tuple.  Since the conversion
@@ -2939,16 +2826,20 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	 * in anything other than a sequential array is worth doing.
 	 */
 	traceid_list = intlist__new(NULL);
-	if (!traceid_list) {
-		err = -ENOMEM;
-		goto err_free_hdr;
-	}
+	if (!traceid_list)
+		return -ENOMEM;
 
+	/* First the global part */
+	ptr = (u64 *) auxtrace_info->priv;
+	num_cpu = ptr[CS_PMU_TYPE_CPUS] & 0xffffffff;
 	metadata = zalloc(sizeof(*metadata) * num_cpu);
 	if (!metadata) {
 		err = -ENOMEM;
 		goto err_free_traceid_list;
 	}
+
+	/* Start parsing after the common part of the header */
+	i = CS_HEADER_VERSION_MAX;
 
 	/*
 	 * The metadata is stored in the auxtrace_info section and encodes
@@ -3019,6 +2910,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	 * The following tests if the correct number of double words was
 	 * present in the auxtrace info section.
 	 */
+	priv_size = total_size - event_header_size - INFO_HEADER_SIZE;
 	if (i * 8 != priv_size) {
 		err = -EINVAL;
 		goto err_free_metadata;
@@ -3047,11 +2939,18 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	etm->machine = &session->machines.host;
 
 	etm->num_cpu = num_cpu;
-	etm->pmu_type = pmu_type;
-	etm->snapshot_mode = (hdr[CS_ETM_SNAPSHOT] != 0);
+	etm->pmu_type = (unsigned int) ((ptr[CS_PMU_TYPE_CPUS] >> 32) & 0xffffffff);
+	etm->snapshot_mode = (ptr[CS_ETM_SNAPSHOT] != 0);
 	etm->metadata = metadata;
 	etm->auxtrace_type = auxtrace_info->type;
 	etm->timeless_decoding = cs_etm__is_timeless_decoding(etm);
+
+	/* Use virtual timestamps if all ETMs report ts_source = 1 */
+	etm->has_virtual_ts = cs_etm__has_virtual_ts(metadata, num_cpu);
+
+	if (!etm->has_virtual_ts)
+		ui__warning("Virtual timestamps are not enabled, or not supported by the traced system.\n"
+			    "The time field of the samples will not be set accurately.\n\n");
 
 	etm->auxtrace.process_event = cs_etm__process_event;
 	etm->auxtrace.process_auxtrace_event = cs_etm__process_auxtrace_event;
@@ -3082,10 +2981,15 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 		goto err_delete_thread;
 	}
 
-	if (dump_trace) {
-		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
+	etm->tc.time_shift = tc->time_shift;
+	etm->tc.time_mult = tc->time_mult;
+	etm->tc.time_zero = tc->time_zero;
+	if (event_contains(*tc, time_cycles)) {
+		etm->tc.time_cycles = tc->time_cycles;
+		etm->tc.time_mask = tc->time_mask;
+		etm->tc.cap_user_time_zero = tc->cap_user_time_zero;
+		etm->tc.cap_user_time_short = tc->cap_user_time_short;
 	}
-
 	err = cs_etm__synth_events(etm, session);
 	if (err)
 		goto err_delete_thread;
@@ -3119,14 +3023,5 @@ err_free_metadata:
 	zfree(&metadata);
 err_free_traceid_list:
 	intlist__delete(traceid_list);
-err_free_hdr:
-	zfree(&hdr);
-	/*
-	 * At this point, as a minimum we have valid header. Dump the rest of
-	 * the info section - the print routines will error out on structural
-	 * issues.
-	 */
-	if (dump_trace)
-		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
 	return err;
 }

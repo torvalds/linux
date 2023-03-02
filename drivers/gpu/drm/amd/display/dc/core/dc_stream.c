@@ -332,9 +332,21 @@ bool dc_stream_set_cursor_attributes(
 
 	dc = stream->ctx->dc;
 
-	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384)
-		if (stream->mall_stream_config.type == SUBVP_MAIN)
+	/* SubVP is not compatible with HW cursor larger than 64 x 64 x 4.
+	 * Therefore, if cursor is greater than 64 x 64 x 4, fallback to SW cursor in the following case:
+	 * 1. For single display cases, if resolution is >= 5K and refresh rate < 120hz
+	 * 2. For multi display cases, if resolution is >= 4K and refresh rate < 120hz
+	 *
+	 * [< 120hz is a requirement for SubVP configs]
+	 */
+	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384) {
+		if (dc->current_state->stream_count == 1 && stream->timing.v_addressable >= 2880 &&
+				((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
 			return false;
+		else if (dc->current_state->stream_count > 1 && stream->timing.v_addressable >= 2160 &&
+				((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
+			return false;
+	}
 
 	stream->cursor_attributes = *attributes;
 
@@ -396,7 +408,7 @@ bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
-	struct dc  *dc = stream->ctx->dc;
+	struct dc *dc;
 	bool reset_idle_optimizations = false;
 
 	if (NULL == stream) {
@@ -469,6 +481,7 @@ bool dc_stream_add_writeback(struct dc *dc,
 	}
 
 	if (!isDrc) {
+		ASSERT(stream->num_wb_info + 1 <= MAX_DWB_PIPES);
 		stream->writeback_info[stream->num_wb_info++] = *wb_info;
 	}
 
@@ -514,6 +527,11 @@ bool dc_stream_remove_writeback(struct dc *dc,
 		return false;
 	}
 
+	if (stream->num_wb_info > MAX_DWB_PIPES) {
+		dm_error("DC: num_wb_info is invalid!\n");
+		return false;
+	}
+
 //	stream->writeback_info[dwb_pipe_inst].wb_enabled = false;
 	for (i = 0; i < stream->num_wb_info; i++) {
 		/*dynamic update*/
@@ -528,7 +546,8 @@ bool dc_stream_remove_writeback(struct dc *dc,
 		if (stream->writeback_info[i].wb_enabled) {
 			if (j < i)
 				/* trim the array */
-				stream->writeback_info[j] = stream->writeback_info[i];
+				memcpy(&stream->writeback_info[j], &stream->writeback_info[i],
+						sizeof(struct dc_writeback_info));
 			j++;
 		}
 	}

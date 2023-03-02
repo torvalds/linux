@@ -172,7 +172,7 @@ config PINCTRL_DA9062
 
 config PINCTRL_DIGICOLOR
 	bool
-	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
+	depends on ARCH_DIGICOLOR || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
 
@@ -257,6 +257,17 @@ config PINCTRL_FALCON
 	bool
 	depends on SOC_FALCON
 	depends on PINCTRL_LANTIQ
+
+config PINCTRL_LOONGSON2
+	tristate "Pinctrl driver for the Loongson-2 SoC"
+	depends on OF && (LOONGARCH || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	 This selects pin control driver for the Loongson-2 SoC. It
+	 provides pin config functions multiplexing.  GPIO pin pull-up,
+	 pull-down functions are not supported. Say yes to enable
+	 pinctrl for Loongson-2 SoC.
 
 config PINCTRL_XWAY
 	bool

@@ -6,6 +6,7 @@
  * Copyright (C) 2004 Kay Sievers <kay.sievers@vrfy.org>
  */
 
+#include <asm/byteorder.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
@@ -20,6 +21,14 @@
 
 #include <linux/rcupdate.h>	/* rcu_expedited and rcu_normal */
 
+#if defined(__LITTLE_ENDIAN)
+#define CPU_BYTEORDER_STRING	"little"
+#elif defined(__BIG_ENDIAN)
+#define CPU_BYTEORDER_STRING	"big"
+#else
+#error Unknown byteorder
+#endif
+
 #define KERNEL_ATTR_RO(_name) \
 static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
 
@@ -33,6 +42,22 @@ static ssize_t uevent_seqnum_show(struct kobject *kobj,
 	return sprintf(buf, "%llu\n", (unsigned long long)uevent_seqnum);
 }
 KERNEL_ATTR_RO(uevent_seqnum);
+
+/* cpu byteorder */
+static ssize_t cpu_byteorder_show(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%s\n", CPU_BYTEORDER_STRING);
+}
+KERNEL_ATTR_RO(cpu_byteorder);
+
+/* address bits */
+static ssize_t address_bits_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%zu\n", sizeof(void *) * 8 /* CHAR_BIT */);
+}
+KERNEL_ATTR_RO(address_bits);
 
 #ifdef CONFIG_UEVENT_HELPER
 /* uevent helper program, used during early boot */
@@ -215,6 +240,8 @@ EXPORT_SYMBOL_GPL(kernel_kobj);
 static struct attribute * kernel_attrs[] = {
 	&fscaps_attr.attr,
 	&uevent_seqnum_attr.attr,
+	&cpu_byteorder_attr.attr,
+	&address_bits_attr.attr,
 #ifdef CONFIG_UEVENT_HELPER
 	&uevent_helper_attr.attr,
 #endif

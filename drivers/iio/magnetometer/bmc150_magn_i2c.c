@@ -16,9 +16,9 @@
 
 #include "bmc150_magn.h"
 
-static int bmc150_magn_i2c_probe(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+static int bmc150_magn_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regmap *regmap;
 	const char *name = NULL;
 
@@ -71,7 +71,7 @@ static struct i2c_driver bmc150_magn_driver = {
 		.acpi_match_table = ACPI_PTR(bmc150_magn_acpi_match),
 		.pm	= &bmc150_magn_pm_ops,
 	},
-	.probe		= bmc150_magn_i2c_probe,
+	.probe_new	= bmc150_magn_i2c_probe,
 	.remove		= bmc150_magn_i2c_remove,
 	.id_table	= bmc150_magn_i2c_id,
 };

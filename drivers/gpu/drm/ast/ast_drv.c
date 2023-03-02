@@ -31,9 +31,9 @@
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 
@@ -63,7 +63,7 @@ static const struct drm_driver ast_driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	DRM_GEM_VRAM_DRIVER
+	DRM_GEM_SHMEM_DRIVER_OPS
 };
 
 /*

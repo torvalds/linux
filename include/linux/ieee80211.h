@@ -338,6 +338,17 @@ struct ieee80211_qos_hdr {
 	__le16 qos_ctrl;
 } __packed __aligned(2);
 
+struct ieee80211_qos_hdr_4addr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+	__le16 qos_ctrl;
+} __packed __aligned(2);
+
 struct ieee80211_trigger {
 	__le16 frame_control;
 	__le16 duration;
@@ -1345,6 +1356,7 @@ struct ieee80211_mgmt {
 				} __packed wnm_timing_msr;
 			} u;
 		} __packed action;
+		DECLARE_FLEX_ARRAY(u8, body); /* Generic frame body */
 	} u;
 } __packed __aligned(2);
 
@@ -4060,16 +4072,21 @@ struct ieee80211_he_6ghz_capa {
  * @hdr: the frame
  *
  * The qos ctrl bytes come after the frame_control, duration, seq_num
- * and 3 or 4 addresses of length ETH_ALEN.
- * 3 addr: 2 + 2 + 2 + 3*6 = 24
- * 4 addr: 2 + 2 + 2 + 4*6 = 30
+ * and 3 or 4 addresses of length ETH_ALEN. Checks frame_control to choose
+ * between struct ieee80211_qos_hdr_4addr and struct ieee80211_qos_hdr.
  */
 static inline u8 *ieee80211_get_qos_ctl(struct ieee80211_hdr *hdr)
 {
-	if (ieee80211_has_a4(hdr->frame_control))
-		return (u8 *)hdr + 30;
+	union {
+		struct ieee80211_qos_hdr	addr3;
+		struct ieee80211_qos_hdr_4addr	addr4;
+	} *qos;
+
+	qos = (void *)hdr;
+	if (ieee80211_has_a4(qos->addr3.frame_control))
+		return (u8 *)&qos->addr4.qos_ctrl;
 	else
-		return (u8 *)hdr + 24;
+		return (u8 *)&qos->addr3.qos_ctrl;
 }
 
 /**
@@ -4573,18 +4590,17 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
 
 	switch (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE)) {
 	case IEEE80211_ML_CONTROL_TYPE_BASIC:
-		common += sizeof(struct ieee80211_mle_basic_common_info);
-		break;
 	case IEEE80211_ML_CONTROL_TYPE_PREQ:
-		common += sizeof(struct ieee80211_mle_preq_common_info);
+	case IEEE80211_ML_CONTROL_TYPE_TDLS:
+		/*
+		 * The length is the first octet pointed by mle->variable so no
+		 * need to add anything
+		 */
 		break;
 	case IEEE80211_ML_CONTROL_TYPE_RECONF:
 		if (control & IEEE80211_MLC_RECONF_PRES_MLD_MAC_ADDR)
 			common += ETH_ALEN;
 		return common;
-	case IEEE80211_ML_CONTROL_TYPE_TDLS:
-		common += sizeof(struct ieee80211_mle_tdls_common_info);
-		break;
 	case IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS:
 		if (control & IEEE80211_MLC_PRIO_ACCESS_PRES_AP_MLD_MAC_ADDR)
 			common += ETH_ALEN;
@@ -4594,7 +4610,7 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
 		return 0;
 	}
 
-	return common + mle->variable[0];
+	return sizeof(*mle) + common + mle->variable[0];
 }
 
 /**
@@ -4602,7 +4618,7 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
  * @data: pointer to the element data
  * @len: length of the containing element
  */
-static inline bool ieee80211_mle_size_ok(const u8 *data, u8 len)
+static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 {
 	const struct ieee80211_multi_link_elem *mle = (const void *)data;
 	u8 fixed = sizeof(*mle);
@@ -4667,6 +4683,7 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, u8 len)
 
 enum ieee80211_mle_subelems {
 	IEEE80211_MLE_SUBELEM_PER_STA_PROFILE		= 0,
+	IEEE80211_MLE_SUBELEM_FRAGMENT		        = 254,
 };
 
 #define IEEE80211_MLE_STA_CONTROL_LINK_ID			0x000f
@@ -4684,6 +4701,46 @@ struct ieee80211_mle_per_sta_profile {
 	u8 sta_info_len;
 	u8 variable[];
 } __packed;
+
+/**
+ * ieee80211_mle_sta_prof_size_ok - validate multi-link element sta profile size
+ * @data: pointer to the sub element data
+ * @len: length of the containing sub element
+ */
+static inline bool ieee80211_mle_sta_prof_size_ok(const u8 *data, size_t len)
+{
+	const struct ieee80211_mle_per_sta_profile *prof = (const void *)data;
+	u16 control;
+	u8 fixed = sizeof(*prof);
+	u8 info_len = 1;
+
+	if (len < fixed)
+		return false;
+
+	control = le16_to_cpu(prof->control);
+
+	if (control & IEEE80211_MLE_STA_CONTROL_STA_MAC_ADDR_PRESENT)
+		info_len += 6;
+	if (control & IEEE80211_MLE_STA_CONTROL_BEACON_INT_PRESENT)
+		info_len += 2;
+	if (control & IEEE80211_MLE_STA_CONTROL_TSF_OFFS_PRESENT)
+		info_len += 8;
+	if (control & IEEE80211_MLE_STA_CONTROL_DTIM_INFO_PRESENT)
+		info_len += 2;
+	if (control & IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT)
+		info_len += 1;
+
+	if (control & IEEE80211_MLE_STA_CONTROL_COMPLETE_PROFILE &&
+	    control & IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE) {
+		if (control & IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE)
+			info_len += 2;
+		else
+			info_len += 1;
+	}
+
+	return prof->sta_info_len >= info_len &&
+	       fixed + prof->sta_info_len <= len;
+}
 
 #define for_each_mle_subelement(_elem, _data, _len)			\
 	if (ieee80211_mle_size_ok(_data, _len))				\

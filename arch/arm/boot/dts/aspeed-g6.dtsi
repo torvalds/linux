@@ -36,6 +36,10 @@
 		serial4 = &uart5;
 		serial5 = &vuart1;
 		serial6 = &vuart2;
+		mdio0 = &mdio0;
+		mdio1 = &mdio1;
+		mdio2 = &mdio2;
+		mdio3 = &mdio3;
 	};
 
 
@@ -93,6 +97,11 @@
 			    <0x40464000 0x2000>,
 			    <0x40466000 0x2000>;
 			};
+
+		ahbc: bus@1e600000 {
+			compatible = "aspeed,ast2600-ahbc", "syscon";
+			reg = <0x1e600000 0x100>;
+		};
 
 		fmc: spi@1e620000 {
 			reg = <0x1e620000 0xc4>, <0x20000000 0x10000000>;
@@ -425,6 +434,14 @@
 			sbc: secure-boot-controller@1e6f2000 {
 				compatible = "aspeed,ast2600-sbc";
 				reg = <0x1e6f2000 0x1000>;
+			};
+
+			acry: crypto@1e6fa000 {
+				compatible = "aspeed,ast2600-acry";
+				reg = <0x1e6fa000 0x400>, <0x1e710000 0x1800>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_RSACLK>;
+				aspeed,ahbc = <&ahbc>;
 			};
 
 			video: video@1e700000 {

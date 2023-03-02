@@ -1047,7 +1047,7 @@ xfs_file_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = xfs_vn_setattr_size(file_mnt_user_ns(file),
+		error = xfs_vn_setattr_size(file_mnt_idmap(file),
 					    file_dentry(file), &iattr);
 		if (error)
 			goto out_unlock;
@@ -1261,7 +1261,7 @@ xfs_file_llseek(
 }
 
 #ifdef CONFIG_FS_DAX
-static int
+static inline vm_fault_t
 xfs_dax_fault(
 	struct vm_fault		*vmf,
 	enum page_entry_size	pe_size,
@@ -1274,14 +1274,15 @@ xfs_dax_fault(
 				&xfs_read_iomap_ops);
 }
 #else
-static int
+static inline vm_fault_t
 xfs_dax_fault(
 	struct vm_fault		*vmf,
 	enum page_entry_size	pe_size,
 	bool			write_fault,
 	pfn_t			*pfn)
 {
-	return 0;
+	ASSERT(0);
+	return VM_FAULT_SIGBUS;
 }
 #endif
 
@@ -1324,7 +1325,7 @@ __xfs_filemap_fault(
 		if (write_fault) {
 			xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 			ret = iomap_page_mkwrite(vmf,
-					&xfs_buffered_write_iomap_ops);
+					&xfs_page_mkwrite_iomap_ops);
 			xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 		} else {
 			ret = filemap_fault(vmf);
@@ -1428,7 +1429,7 @@ xfs_file_mmap(
 	file_accessed(file);
 	vma->vm_ops = &xfs_file_vm_ops;
 	if (IS_DAX(inode))
-		vma->vm_flags |= VM_HUGEPAGE;
+		vm_flags_set(vma, VM_HUGEPAGE);
 	return 0;
 }
 

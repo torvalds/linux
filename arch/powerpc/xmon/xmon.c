@@ -76,9 +76,6 @@ static cpumask_t xmon_batch_cpus = CPU_MASK_NONE;
 #define xmon_owner 0
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_PPC_PSERIES
-static int set_indicator_token = RTAS_UNKNOWN_SERVICE;
-#endif
 static unsigned long in_xmon __read_mostly = 0;
 static int xmon_on = IS_ENABLED(CONFIG_XMON_DEFAULT);
 static bool xmon_is_ro = IS_ENABLED(CONFIG_XMON_DEFAULT_RO_MODE);
@@ -398,6 +395,7 @@ static inline void disable_surveillance(void)
 #ifdef CONFIG_PPC_PSERIES
 	/* Since this can't be a module, args should end up below 4GB. */
 	static struct rtas_args args;
+	const s32 token = rtas_function_token(RTAS_FN_SET_INDICATOR);
 
 	/*
 	 * At this point we have got all the cpus we can into
@@ -406,10 +404,10 @@ static inline void disable_surveillance(void)
 	 * If we did try to take rtas.lock there would be a
 	 * real possibility of deadlock.
 	 */
-	if (set_indicator_token == RTAS_UNKNOWN_SERVICE)
+	if (token == RTAS_UNKNOWN_SERVICE)
 		return;
 
-	rtas_call_unlocked(&args, set_indicator_token, 3, 1, NULL,
+	rtas_call_unlocked(&args, token, 3, 1, NULL,
 			   SURVEILLANCE_TOKEN, 0, 0);
 
 #endif /* CONFIG_PPC_PSERIES */
@@ -1525,9 +1523,9 @@ bpt_cmds(void)
 	cmd = inchar();
 
 	switch (cmd) {
-	static const char badaddr[] = "Only kernel addresses are permitted for breakpoints\n";
-	int mode;
-	case 'd':	/* bd - hardware data breakpoint */
+	case 'd': {	/* bd - hardware data breakpoint */
+		static const char badaddr[] = "Only kernel addresses are permitted for breakpoints\n";
+		int mode;
 		if (xmon_is_ro) {
 			printf(xmon_ro_msg);
 			break;
@@ -1560,6 +1558,7 @@ bpt_cmds(void)
 
 		force_enable_xmon();
 		break;
+	}
 
 	case 'i':	/* bi - hardware instr breakpoint */
 		if (xmon_is_ro) {
@@ -1720,7 +1719,6 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 }
 
 #define LRSAVE_OFFSET		(STACK_FRAME_LR_SAVE * sizeof(unsigned long))
-#define MARKER_OFFSET		(STACK_FRAME_MARKER * sizeof(unsigned long))
 
 static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			    unsigned long pc)
@@ -1781,14 +1779,13 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			xmon_print_symbol(ip, " ", "\n");
 		}
 
-		/* Look for "regshere" marker to see if this is
+		/* Look for "regs" marker to see if this is
 		   an exception frame. */
-		if (mread(sp + MARKER_OFFSET, &marker, sizeof(unsigned long))
+		if (mread(sp + STACK_INT_FRAME_MARKER, &marker, sizeof(unsigned long))
 		    && marker == STACK_FRAME_REGS_MARKER) {
-			if (mread(sp + STACK_FRAME_OVERHEAD, &regs, sizeof(regs))
-			    != sizeof(regs)) {
+			if (mread(sp + STACK_INT_FRAME_REGS, &regs, sizeof(regs)) != sizeof(regs)) {
 				printf("Couldn't read registers at %lx\n",
-				       sp + STACK_FRAME_OVERHEAD);
+				       sp + STACK_INT_FRAME_REGS);
 				break;
 			}
 			printf("--- Exception: %lx %s at ", regs.trap,
@@ -3977,14 +3974,6 @@ static void xmon_init(int enable)
 		__debugger_iabr_match = xmon_iabr_match;
 		__debugger_break_match = xmon_break_match;
 		__debugger_fault_handler = xmon_fault_handler;
-
-#ifdef CONFIG_PPC_PSERIES
-		/*
-		 * Get the token here to avoid trying to get a lock
-		 * during the crash, causing a deadlock.
-		 */
-		set_indicator_token = rtas_token("set-indicator");
-#endif
 	} else {
 		__debugger = NULL;
 		__debugger_ipi = NULL;

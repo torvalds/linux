@@ -87,6 +87,17 @@ static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.mdcr_el2_host = read_sysreg(mdcr_el2);
 	write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
+
+	if (cpus_have_final_cap(ARM64_SME)) {
+		sysreg_clear_set_s(SYS_HFGRTR_EL2,
+				   HFGxTR_EL2_nSMPRI_EL1_MASK |
+				   HFGxTR_EL2_nTPIDR2_EL0_MASK,
+				   0);
+		sysreg_clear_set_s(SYS_HFGWTR_EL2,
+				   HFGxTR_EL2_nSMPRI_EL1_MASK |
+				   HFGxTR_EL2_nTPIDR2_EL0_MASK,
+				   0);
+	}
 }
 
 static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
@@ -96,6 +107,15 @@ static inline void __deactivate_traps_common(struct kvm_vcpu *vcpu)
 	write_sysreg(0, hstr_el2);
 	if (kvm_arm_support_pmu_v3())
 		write_sysreg(0, pmuserenr_el0);
+
+	if (cpus_have_final_cap(ARM64_SME)) {
+		sysreg_clear_set_s(SYS_HFGRTR_EL2, 0,
+				   HFGxTR_EL2_nSMPRI_EL1_MASK |
+				   HFGxTR_EL2_nTPIDR2_EL0_MASK);
+		sysreg_clear_set_s(SYS_HFGWTR_EL2, 0,
+				   HFGxTR_EL2_nSMPRI_EL1_MASK |
+				   HFGxTR_EL2_nTPIDR2_EL0_MASK);
+	}
 }
 
 static inline void ___activate_traps(struct kvm_vcpu *vcpu)
@@ -347,7 +367,7 @@ static bool kvm_hyp_handle_dabt_low(struct kvm_vcpu *vcpu, u64 *exit_code)
 	if (static_branch_unlikely(&vgic_v2_cpuif_trap)) {
 		bool valid;
 
-		valid = kvm_vcpu_trap_get_fault_type(vcpu) == FSC_FAULT &&
+		valid = kvm_vcpu_trap_get_fault_type(vcpu) == ESR_ELx_FSC_FAULT &&
 			kvm_vcpu_dabt_isvalid(vcpu) &&
 			!kvm_vcpu_abt_issea(vcpu) &&
 			!kvm_vcpu_abt_iss1tw(vcpu);

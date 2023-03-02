@@ -48,7 +48,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-
 #ifdef __arm__
 #include <asm/mach-types.h>
 #endif
@@ -1796,6 +1795,7 @@ failed_ioremap:
 failed_regions:
 	cyberpro_free_fb_info(cfb);
 failed_release:
+	pci_disable_device(dev);
 	return err;
 }
 
@@ -1812,6 +1812,7 @@ static void cyberpro_pci_remove(struct pci_dev *dev)
 			int_cfb_info = NULL;
 
 		pci_release_regions(dev);
+		pci_disable_device(dev);
 	}
 }
 
@@ -1876,7 +1877,12 @@ static int __init cyber2000fb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("CyberPro"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("cyber2000fb", &option))
 		return -ENODEV;
 	cyber2000fb_setup(option);

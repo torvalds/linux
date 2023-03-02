@@ -12,7 +12,7 @@
  */
 #ifdef CONFIG_NFS_V3_ACL
 extern struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu);
-extern int nfs3_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+extern int nfs3_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 			struct posix_acl *acl, int type);
 extern int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		struct posix_acl *dfacl);

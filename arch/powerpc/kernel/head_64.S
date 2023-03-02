@@ -18,6 +18,7 @@
  *  variants.
  */
 
+#include <linux/linkage.h>
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <asm/reg.h>
@@ -159,12 +160,8 @@ __secondary_hold:
 	std	r24,(ABS_ADDR(__secondary_hold_acknowledge, first_256B))(0)
 	sync
 
-	li	r26,0
-#ifdef CONFIG_PPC_BOOK3E_64
-	tovirt(r26,r26)
-#endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(r26)
+100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(0)
 	cmpdi	0,r12,0
 	beq	100b
 
@@ -424,7 +421,7 @@ generic_secondary_common_init:
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
+	subi	r1,r1,STACK_FRAME_MIN_SIZE
 
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
@@ -462,7 +459,7 @@ generic_secondary_common_init:
  * Assumes we're mapped EA == RA if the MMU is on.
  */
 #ifdef CONFIG_PPC_BOOK3S
-__mmu_off:
+SYM_FUNC_START_LOCAL(__mmu_off)
 	mfmsr	r3
 	andi.	r0,r3,MSR_IR|MSR_DR
 	beqlr
@@ -473,8 +470,32 @@ __mmu_off:
 	sync
 	rfid
 	b	.	/* prevent speculative execution */
-#endif
+SYM_FUNC_END(__mmu_off)
 
+SYM_FUNC_START_LOCAL(start_initialization_book3s)
+	mflr	r25
+
+	/* Setup some critical 970 SPRs before switching MMU off */
+	mfspr	r0,SPRN_PVR
+	srwi	r0,r0,16
+	cmpwi	r0,0x39		/* 970 */
+	beq	1f
+	cmpwi	r0,0x3c		/* 970FX */
+	beq	1f
+	cmpwi	r0,0x44		/* 970MP */
+	beq	1f
+	cmpwi	r0,0x45		/* 970GX */
+	bne	2f
+1:	bl	__cpu_preinit_ppc970
+2:
+
+	/* Switch off MMU if not already off */
+	bl	__mmu_off
+
+	mtlr	r25
+	blr
+SYM_FUNC_END(start_initialization_book3s)
+#endif
 
 /*
  * Here is our main kernel entry point. We support currently 2 kind of entries
@@ -521,26 +542,10 @@ __start_initialization_multiplatform:
 
 #ifdef CONFIG_PPC_BOOK3E_64
 	bl	start_initialization_book3e
-	b	__after_prom_start
 #else
-	/* Setup some critical 970 SPRs before switching MMU off */
-	mfspr	r0,SPRN_PVR
-	srwi	r0,r0,16
-	cmpwi	r0,0x39		/* 970 */
-	beq	1f
-	cmpwi	r0,0x3c		/* 970FX */
-	beq	1f
-	cmpwi	r0,0x44		/* 970MP */
-	beq	1f
-	cmpwi	r0,0x45		/* 970GX */
-	bne	2f
-1:	bl	__cpu_preinit_ppc970
-2:
-
-	/* Switch off MMU if not already off */
-	bl	__mmu_off
-	b	__after_prom_start
+	bl	start_initialization_book3s
 #endif /* CONFIG_PPC_BOOK3E_64 */
+	b	__after_prom_start
 
 __REF
 __boot_from_prom:
@@ -780,7 +785,7 @@ _GLOBAL(pmac_secondary_start)
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
+	subi	r1,r1,STACK_FRAME_MIN_SIZE
 
 	b	__secondary_start
 
@@ -869,7 +874,7 @@ _GLOBAL(start_secondary_resume)
 /*
  * This subroutine clobbers r11 and r12
  */
-enable_64b_mode:
+SYM_FUNC_START_LOCAL(enable_64b_mode)
 	mfmsr	r11			/* grab the current MSR */
 #ifdef CONFIG_PPC_BOOK3E_64
 	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
@@ -881,6 +886,7 @@ enable_64b_mode:
 	isync
 #endif
 	blr
+SYM_FUNC_END(enable_64b_mode)
 
 /*
  * This puts the TOC pointer into r2, offset by 0x8000 (as expected
@@ -958,7 +964,7 @@ start_here_multiplatform:
 	LOAD_REG_IMMEDIATE(r1,THREAD_SIZE)
 	add	r1,r3,r1
 	li	r0,0
-	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
+	stdu	r0,-STACK_FRAME_MIN_SIZE(r1)
 
 	/*
 	 * Do very early kernel initializations, including initial hash table

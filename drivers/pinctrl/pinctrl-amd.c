@@ -218,6 +218,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 	char *orientation;
 	char debounce_value[40];
 	char *debounce_enable;
+	char *wake_cntrlz;
 
 	for (bank = 0; bank < gpio_dev->hwbank_num; bank++) {
 		unsigned int time = 0;
@@ -305,6 +306,12 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 				wake_cntrl2 = " ∅";
 			seq_printf(s, "S4/S5 %s| ", wake_cntrl2);
 
+			if (pin_reg & BIT(WAKECNTRL_Z_OFF))
+				wake_cntrlz = "⏰";
+			else
+				wake_cntrlz = " ∅";
+			seq_printf(s, "Z %s| ", wake_cntrlz);
+
 			if (pin_reg & BIT(PULL_UP_ENABLE_OFF)) {
 				pull_up_enable = "+";
 				if (pin_reg & BIT(PULL_UP_SEL_OFF))
@@ -365,6 +372,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 
 			} else {
 				debounce_enable = "  ∅";
+				time = 0;
 			}
 			snprintf(debounce_value, sizeof(debounce_value), "%u", time * unit);
 			seq_printf(s, "debounce %s (🕑 %sus)| ", debounce_enable, debounce_value);
@@ -628,13 +636,15 @@ static bool do_amd_gpio_irq_handler(int irq, void *dev_id)
 		/* Each status bit covers four pins */
 		for (i = 0; i < 4; i++) {
 			regval = readl(regs + i);
-			/* caused wake on resume context for shared IRQ */
-			if (irq < 0 && (regval & BIT(WAKE_STS_OFF))) {
+
+			if (regval & PIN_IRQ_PENDING)
 				dev_dbg(&gpio_dev->pdev->dev,
-					"Waking due to GPIO %d: 0x%x",
+					"GPIO %d is active: 0x%x",
 					irqnr + i, regval);
+
+			/* caused wake on resume context for shared IRQ */
+			if (irq < 0 && (regval & BIT(WAKE_STS_OFF)))
 				return true;
-			}
 
 			if (!(regval & PIN_IRQ_PENDING) ||
 			    !(regval & BIT(INTERRUPT_MASK_OFF)))

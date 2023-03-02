@@ -4,6 +4,7 @@
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
 #include <linux/debugfs.h>
+#include <linux/highmem.h>
 #include "gup_test.h"
 
 static void put_back_pages(unsigned int cmd, struct page **pages,
@@ -203,6 +204,138 @@ free_pages:
 	return ret;
 }
 
+static DEFINE_MUTEX(pin_longterm_test_mutex);
+static struct page **pin_longterm_test_pages;
+static unsigned long pin_longterm_test_nr_pages;
+
+static inline void pin_longterm_test_stop(void)
+{
+	if (pin_longterm_test_pages) {
+		if (pin_longterm_test_nr_pages)
+			unpin_user_pages(pin_longterm_test_pages,
+					 pin_longterm_test_nr_pages);
+		kvfree(pin_longterm_test_pages);
+		pin_longterm_test_pages = NULL;
+		pin_longterm_test_nr_pages = 0;
+	}
+}
+
+static inline int pin_longterm_test_start(unsigned long arg)
+{
+	long nr_pages, cur_pages, addr, remaining_pages;
+	int gup_flags = FOLL_LONGTERM;
+	struct pin_longterm_test args;
+	struct page **pages;
+	int ret = 0;
+	bool fast;
+
+	if (pin_longterm_test_pages)
+		return -EINVAL;
+
+	if (copy_from_user(&args, (void __user *)arg, sizeof(args)))
+		return -EFAULT;
+
+	if (args.flags &
+	    ~(PIN_LONGTERM_TEST_FLAG_USE_WRITE|PIN_LONGTERM_TEST_FLAG_USE_FAST))
+		return -EINVAL;
+	if (!IS_ALIGNED(args.addr | args.size, PAGE_SIZE))
+		return -EINVAL;
+	if (args.size > LONG_MAX)
+		return -EINVAL;
+	nr_pages = args.size / PAGE_SIZE;
+	if (!nr_pages)
+		return -EINVAL;
+
+	pages = kvcalloc(nr_pages, sizeof(void *), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	if (args.flags & PIN_LONGTERM_TEST_FLAG_USE_WRITE)
+		gup_flags |= FOLL_WRITE;
+	fast = !!(args.flags & PIN_LONGTERM_TEST_FLAG_USE_FAST);
+
+	if (!fast && mmap_read_lock_killable(current->mm)) {
+		kvfree(pages);
+		return -EINTR;
+	}
+
+	pin_longterm_test_pages = pages;
+	pin_longterm_test_nr_pages = 0;
+
+	while (nr_pages - pin_longterm_test_nr_pages) {
+		remaining_pages = nr_pages - pin_longterm_test_nr_pages;
+		addr = args.addr + pin_longterm_test_nr_pages * PAGE_SIZE;
+
+		if (fast)
+			cur_pages = pin_user_pages_fast(addr, remaining_pages,
+							gup_flags, pages);
+		else
+			cur_pages = pin_user_pages(addr, remaining_pages,
+						   gup_flags, pages, NULL);
+		if (cur_pages < 0) {
+			pin_longterm_test_stop();
+			ret = cur_pages;
+			break;
+		}
+		pin_longterm_test_nr_pages += cur_pages;
+		pages += cur_pages;
+	}
+
+	if (!fast)
+		mmap_read_unlock(current->mm);
+	return ret;
+}
+
+static inline int pin_longterm_test_read(unsigned long arg)
+{
+	__u64 user_addr;
+	unsigned long i;
+
+	if (!pin_longterm_test_pages)
+		return -EINVAL;
+
+	if (copy_from_user(&user_addr, (void __user *)arg, sizeof(user_addr)))
+		return -EFAULT;
+
+	for (i = 0; i < pin_longterm_test_nr_pages; i++) {
+		void *addr = kmap_local_page(pin_longterm_test_pages[i]);
+		unsigned long ret;
+
+		ret = copy_to_user((void __user *)(unsigned long)user_addr, addr,
+				   PAGE_SIZE);
+		kunmap_local(addr);
+		if (ret)
+			return -EFAULT;
+		user_addr += PAGE_SIZE;
+	}
+	return 0;
+}
+
+static long pin_longterm_test_ioctl(struct file *filep, unsigned int cmd,
+				    unsigned long arg)
+{
+	int ret = -EINVAL;
+
+	if (mutex_lock_killable(&pin_longterm_test_mutex))
+		return -EINTR;
+
+	switch (cmd) {
+	case PIN_LONGTERM_TEST_START:
+		ret = pin_longterm_test_start(arg);
+		break;
+	case PIN_LONGTERM_TEST_STOP:
+		pin_longterm_test_stop();
+		ret = 0;
+		break;
+	case PIN_LONGTERM_TEST_READ:
+		ret = pin_longterm_test_read(arg);
+		break;
+	}
+
+	mutex_unlock(&pin_longterm_test_mutex);
+	return ret;
+}
+
 static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 		unsigned long arg)
 {
@@ -217,6 +350,10 @@ static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 	case PIN_BASIC_TEST:
 	case DUMP_USER_PAGES_TEST:
 		break;
+	case PIN_LONGTERM_TEST_START:
+	case PIN_LONGTERM_TEST_STOP:
+	case PIN_LONGTERM_TEST_READ:
+		return pin_longterm_test_ioctl(filep, cmd, arg);
 	default:
 		return -EINVAL;
 	}
@@ -234,9 +371,17 @@ static long gup_test_ioctl(struct file *filep, unsigned int cmd,
 	return 0;
 }
 
+static int gup_test_release(struct inode *inode, struct file *file)
+{
+	pin_longterm_test_stop();
+
+	return 0;
+}
+
 static const struct file_operations gup_test_fops = {
 	.open = nonseekable_open,
 	.unlocked_ioctl = gup_test_ioctl,
+	.release = gup_test_release,
 };
 
 static int __init gup_test_init(void)

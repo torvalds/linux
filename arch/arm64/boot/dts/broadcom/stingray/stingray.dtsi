@@ -108,18 +108,22 @@
 
 		CLUSTER0_L2: l2-cache@0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		CLUSTER1_L2: l2-cache@100 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		CLUSTER2_L2: l2-cache@200 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		CLUSTER3_L2: l2-cache@300 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -182,7 +186,7 @@
 			};
 		};
 
-		smmu: mmu@3000000 {
+		smmu: iommu@3000000 {
 			compatible = "arm,mmu-500";
 			reg = <0x03000000 0x80000>;
 			#global-interrupts = <1>;
@@ -471,7 +475,6 @@
 		};
 
 		uart0: serial@100000 {
-			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00100000 0x1000>;
 			reg-shift = <2>;
@@ -482,7 +485,6 @@
 		};
 
 		uart1: serial@110000 {
-			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00110000 0x1000>;
 			reg-shift = <2>;
@@ -493,7 +495,6 @@
 		};
 
 		uart2: serial@120000 {
-			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00120000 0x1000>;
 			reg-shift = <2>;
@@ -504,7 +505,6 @@
 		};
 
 		uart3: serial@130000 {
-			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
 			reg = <0x00130000 0x1000>;
 			reg-shift = <2>;

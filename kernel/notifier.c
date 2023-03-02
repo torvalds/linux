@@ -62,7 +62,7 @@ static int notifier_chain_unregister(struct notifier_block **nl,
  *			value of this parameter is -1.
  *	@nr_calls:	Records the number of notifications sent. Don't care
  *			value of this field is NULL.
- *	@returns:	notifier_call_chain returns the value returned by the
+ *	Return:		notifier_call_chain returns the value returned by the
  *			last notifier function called.
  */
 static int notifier_call_chain(struct notifier_block **nl,
@@ -105,13 +105,13 @@ NOKPROBE_SYMBOL(notifier_call_chain);
  * @val_up:	Value passed unmodified to the notifier function
  * @val_down:	Value passed unmodified to the notifier function when recovering
  *              from an error on @val_up
- * @v		Pointer passed unmodified to the notifier function
+ * @v:		Pointer passed unmodified to the notifier function
  *
  * NOTE:	It is important the @nl chain doesn't change between the two
  *		invocations of notifier_call_chain() such that we visit the
  *		exact same notifier callbacks; this rules out any RCU usage.
  *
- * Returns:	the return value of the @val_up call.
+ * Return:	the return value of the @val_up call.
  */
 static int notifier_call_chain_robust(struct notifier_block **nl,
 				     unsigned long val_up, unsigned long val_down,
@@ -456,7 +456,6 @@ int raw_notifier_call_chain(struct raw_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(raw_notifier_call_chain);
 
-#ifdef CONFIG_SRCU
 /*
  *	SRCU notifier chain routines.    Registration and unregistration
  *	use a mutex, and call_chain is synchronized by SRCU (no locks).
@@ -572,8 +571,6 @@ void srcu_init_notifier_head(struct srcu_notifier_head *nh)
 	nh->head = NULL;
 }
 EXPORT_SYMBOL_GPL(srcu_init_notifier_head);
-
-#endif /* CONFIG_SRCU */
 
 static ATOMIC_NOTIFIER_HEAD(die_chain);
 

@@ -93,7 +93,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 		goto fail;
 	}
 
-	fbi = drm_fb_helper_alloc_fbi(helper);
+	fbi = drm_fb_helper_alloc_info(helper);
 	if (IS_ERR(fbi)) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate fb info\n");
 		ret = PTR_ERR(fbi);
@@ -108,8 +108,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->fbops = &msm_fb_ops;
 
 	drm_fb_helper_fill_info(fbi, helper, sizes);
-
-	dev->mode_config.fb_base = paddr;
 
 	fbi->screen_base = msm_gem_get_vaddr(bo);
 	if (IS_ERR(fbi->screen_base)) {
@@ -144,11 +142,11 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
-		goto fail;
+		return NULL;
 
 	helper = &fbdev->base;
 
-	drm_fb_helper_prepare(dev, helper, &msm_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, helper, 32, &msm_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper);
 	if (ret) {
@@ -161,7 +159,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	ret = drm_fb_helper_initial_config(helper, 32);
+	ret = drm_fb_helper_initial_config(helper);
 	if (ret)
 		goto fini;
 
@@ -172,6 +170,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 fini:
 	drm_fb_helper_fini(helper);
 fail:
+	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
 	return NULL;
 }
@@ -184,7 +183,7 @@ void msm_fbdev_free(struct drm_device *dev)
 
 	DBG();
 
-	drm_fb_helper_unregister_fbi(helper);
+	drm_fb_helper_unregister_info(helper);
 
 	drm_fb_helper_fini(helper);
 
@@ -198,6 +197,7 @@ void msm_fbdev_free(struct drm_device *dev)
 		drm_framebuffer_remove(fbdev->fb);
 	}
 
+	drm_fb_helper_unprepare(helper);
 	kfree(fbdev);
 
 	priv->fbdev = NULL;

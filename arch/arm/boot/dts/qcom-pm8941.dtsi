@@ -27,7 +27,7 @@
 			bias-pull-up;
 		};
 
-		usb_id: misc@900 {
+		usb_id: usb-detect@900 {
 			compatible = "qcom,pm8941-misc";
 			reg = <0x900>;
 			interrupts = <0x0 0x9 0 IRQ_TYPE_EDGE_BOTH>;
@@ -59,7 +59,7 @@
 			chg_otg: otg-vbus { };
 		};
 
-		pm8941_gpios: gpios@c000 {
+		pm8941_gpios: gpio@c000 {
 			compatible = "qcom,pm8941-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
@@ -101,37 +101,44 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
-			bat_temp {
-				reg = <VADC_LR_MUX1_BAT_THERM>;
+
+			adc-chan@6 {
+				reg = <VADC_VBAT_SNS>;
 			};
-			die_temp {
+
+			adc-chan@8 {
 				reg = <VADC_DIE_TEMP>;
 			};
-			ref_625mv {
+
+			adc-chan@9 {
 				reg = <VADC_REF_625MV>;
 			};
-			ref_1250v {
+
+			adc-chan@a {
 				reg = <VADC_REF_1250MV>;
 			};
-			ref_gnd {
+
+			adc-chan@e {
 				reg = <VADC_GND_REF>;
 			};
-			ref_vdd {
+
+			adc-chan@f {
 				reg = <VADC_VDD_VADC>;
 			};
-			vbat_sns {
-				reg = <VADC_VBAT_SNS>;
+
+			adc-chan@30 {
+				reg = <VADC_LR_MUX1_BAT_THERM>;
 			};
 		};
 
-		pm8941_iadc: iadc@3600 {
+		pm8941_iadc: adc@3600 {
 			compatible = "qcom,pm8941-iadc", "qcom,spmi-iadc";
 			reg = <0x3600>;
 			interrupts = <0x0 0x36 0x0 IRQ_TYPE_EDGE_RISING>;
 			qcom,external-resistor-micro-ohms = <10000>;
 		};
 
-		pm8941_coincell: coincell@2800 {
+		pm8941_coincell: charger@2800 {
 			compatible = "qcom,pm8941-coincell";
 			reg = <0x2800>;
 			status = "disabled";
@@ -151,6 +158,12 @@
 			#size-cells = <0>;
 			#pwm-cells = <2>;
 
+			status = "disabled";
+		};
+
+		pm8941_vib: vibrator@c000 {
+			compatible = "qcom,pm8916-vib";
+			reg = <0xc000>;
 			status = "disabled";
 		};
 

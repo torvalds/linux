@@ -61,8 +61,8 @@ Work items:
 
 - Get rid of struct of_mm_gpio_chip altogether: use the generic  MMIO
   GPIO for all current users (see below). Delete struct of_mm_gpio_chip,
-  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_add()
-  of_mm_gpiochip_remove() from the kernel.
+  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_remove()
+  from the kernel.
 
 - Change all consumer drivers that #include <linux/of_gpio.h> to
   #include <linux/gpio/consumer.h> and stop doing custom parsing of the
@@ -122,6 +122,13 @@ Work items:
 - Expand the MMIO GPIO or write a new library for port-mapped I/O
   helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
   this with dry-coding and sending to maintainers to test
+
+
+Generic regmap GPIO
+
+In the very similar way to Generic MMIO GPIO convert the users which can
+take advantage of using regmap over direct IO accessors. Note, even in
+MMIO case the regmap MMIO with gpio-regmap.c is preferable over gpio-mmio.c.
 
 
 GPIOLIB irqchip

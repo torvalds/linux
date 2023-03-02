@@ -9,6 +9,7 @@
 / {
 	model = "LGE MSM 8974 HAMMERHEAD";
 	compatible = "lge,hammerhead", "qcom,msm8974";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart1;
@@ -247,31 +248,6 @@
 	status = "okay";
 };
 
-&otg {
-	status = "okay";
-
-	phys = <&usb_hs1_phy>;
-	phy-select = <&tcsr 0xb000 0>;
-
-	extcon = <&charger>, <&usb_id>;
-	vbus-supply = <&usb_otg_vbus>;
-
-	hnp-disable;
-	srp-disable;
-	adp-disable;
-
-	ulpi {
-		phy@a {
-			status = "okay";
-
-			v1p8-supply = <&pm8941_l6>;
-			v3p3-supply = <&pm8941_l24>;
-
-			qcom,init-seq = /bits/ 8 <0x1 0x64>;
-		};
-	};
-};
-
 &pm8941_gpios {
 	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3";
@@ -343,8 +319,19 @@
 	};
 };
 
+&remoteproc_adsp {
+	cx-supply = <&pm8841_s2>;
+};
+
+&remoteproc_mss {
+	cx-supply = <&pm8841_s2>;
+	mss-supply = <&pm8841_s3>;
+	mx-supply = <&pm8841_s1>;
+	pll-supply = <&pm8941_l12>;
+};
+
 &rpm_requests {
-	pm8841-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8841-regulators";
 
 		pm8841_s1: s1 {
@@ -368,7 +355,7 @@
 		};
 	};
 
-	pm8941-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pm8941-regulators";
 
 		vdd_l1_l3-supply = <&pm8941_s1>;
@@ -573,43 +560,43 @@
 };
 
 &tlmm {
-	sdc1_on: sdc1-on {
-		clk {
+	sdc1_on: sdc1-on-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			drive-strength = <16>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc1_cmd", "sdc1_data";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
 	};
 
-	sdc2_on: sdc2-on {
-		clk {
+	sdc2_on: sdc2-on-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			drive-strength = <6>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc2_cmd", "sdc2_data";
 			drive-strength = <6>;
 			bias-pull-up;
 		};
 	};
 
-	mpu6515_pin: mpu6515 {
+	mpu6515_pin: mpu6515-state {
 		pins = "gpio73";
 		function = "gpio";
 		bias-disable;
 		input-enable;
 	};
 
-	touch_pin: touch {
-		int {
+	touch_pin: touch-state {
+		int-pins {
 			pins = "gpio5";
 			function = "gpio";
 
@@ -618,7 +605,7 @@
 			input-enable;
 		};
 
-		reset {
+		reset-pins {
 			pins = "gpio8";
 			function = "gpio";
 
@@ -627,27 +614,50 @@
 		};
 	};
 
-	panel_pin: panel {
+	panel_pin: panel-state {
 		pins = "gpio12";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	bt_pin: bt {
-		hostwake {
+	bt_pin: bt-state {
+		hostwake-pins {
 			pins = "gpio42";
 			function = "gpio";
 		};
 
-		devwake {
+		devwake-pins {
 			pins = "gpio62";
 			function = "gpio";
 		};
 
-		shutdown {
+		shutdown-pins {
 			pins = "gpio41";
 			function = "gpio";
 		};
 	};
+};
+
+&usb {
+	status = "okay";
+
+	phys = <&usb_hs1_phy>;
+	phy-select = <&tcsr 0xb000 0>;
+
+	extcon = <&charger>, <&usb_id>;
+	vbus-supply = <&usb_otg_vbus>;
+
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+};
+
+&usb_hs1_phy {
+	status = "okay";
+
+	v1p8-supply = <&pm8941_l6>;
+	v3p3-supply = <&pm8941_l24>;
+
+	qcom,init-seq = /bits/ 8 <0x1 0x64>;
 };

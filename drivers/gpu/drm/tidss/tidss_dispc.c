@@ -1858,8 +1858,8 @@ static const struct {
 	{ DRM_FORMAT_XBGR4444, 0x21, },
 	{ DRM_FORMAT_RGBX4444, 0x22, },
 
-	{ DRM_FORMAT_ARGB1555, 0x25, },
-	{ DRM_FORMAT_ABGR1555, 0x26, },
+	{ DRM_FORMAT_XRGB1555, 0x25, },
+	{ DRM_FORMAT_XBGR1555, 0x26, },
 
 	{ DRM_FORMAT_XRGB8888, 0x27, },
 	{ DRM_FORMAT_XBGR8888, 0x28, },
@@ -2685,6 +2685,8 @@ int dispc_init(struct tidss_device *tidss)
 		if (r)
 			dev_warn(dev, "cannot set DMA masks to 48-bit\n");
 	}
+
+	dma_set_max_seg_size(dev, UINT_MAX);
 
 	dispc = devm_kzalloc(dev, sizeof(*dispc), GFP_KERNEL);
 	if (!dispc)

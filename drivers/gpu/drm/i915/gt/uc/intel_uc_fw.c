@@ -19,11 +19,18 @@
 static inline struct intel_gt *
 ____uc_fw_to_gt(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
 {
-	if (type == INTEL_UC_FW_TYPE_GUC)
-		return container_of(uc_fw, struct intel_gt, uc.guc.fw);
+	GEM_BUG_ON(type >= INTEL_UC_FW_NUM_TYPES);
 
-	GEM_BUG_ON(type != INTEL_UC_FW_TYPE_HUC);
-	return container_of(uc_fw, struct intel_gt, uc.huc.fw);
+	switch (type) {
+	case INTEL_UC_FW_TYPE_GUC:
+		return container_of(uc_fw, struct intel_gt, uc.guc.fw);
+	case INTEL_UC_FW_TYPE_HUC:
+		return container_of(uc_fw, struct intel_gt, uc.huc.fw);
+	case INTEL_UC_FW_TYPE_GSC:
+		return container_of(uc_fw, struct intel_gt, uc.gsc.fw);
+	}
+
+	return NULL;
 }
 
 static inline struct intel_gt *__uc_fw_to_gt(struct intel_uc_fw *uc_fw)
@@ -93,7 +100,8 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	fw_def(BROXTON,      0, guc_mmp(bxt,  70, 1, 1)) \
 	fw_def(SKYLAKE,      0, guc_mmp(skl,  70, 1, 1))
 
-#define INTEL_HUC_FIRMWARE_DEFS(fw_def, huc_raw, huc_mmp) \
+#define INTEL_HUC_FIRMWARE_DEFS(fw_def, huc_raw, huc_mmp, huc_gsc) \
+	fw_def(DG2,          0, huc_gsc(dg2)) \
 	fw_def(ALDERLAKE_P,  0, huc_raw(tgl)) \
 	fw_def(ALDERLAKE_P,  0, huc_mmp(tgl,  7, 9, 3)) \
 	fw_def(ALDERLAKE_S,  0, huc_raw(tgl)) \
@@ -117,32 +125,35 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  */
 #define __MAKE_UC_FW_PATH_BLANK(prefix_, name_) \
 	"i915/" \
-	__stringify(prefix_) name_ ".bin"
+	__stringify(prefix_) "_" name_ ".bin"
 
 #define __MAKE_UC_FW_PATH_MAJOR(prefix_, name_, major_) \
 	"i915/" \
-	__stringify(prefix_) name_ \
+	__stringify(prefix_) "_" name_ "_" \
 	__stringify(major_) ".bin"
 
 #define __MAKE_UC_FW_PATH_MMP(prefix_, name_, major_, minor_, patch_) \
 	"i915/" \
-	__stringify(prefix_) name_ \
+	__stringify(prefix_) "_" name_  "_" \
 	__stringify(major_) "." \
 	__stringify(minor_) "." \
 	__stringify(patch_) ".bin"
 
 /* Minor for internal driver use, not part of file name */
 #define MAKE_GUC_FW_PATH_MAJOR(prefix_, major_, minor_) \
-	__MAKE_UC_FW_PATH_MAJOR(prefix_, "_guc_", major_)
+	__MAKE_UC_FW_PATH_MAJOR(prefix_, "guc", major_)
 
 #define MAKE_GUC_FW_PATH_MMP(prefix_, major_, minor_, patch_) \
-	__MAKE_UC_FW_PATH_MMP(prefix_, "_guc_", major_, minor_, patch_)
+	__MAKE_UC_FW_PATH_MMP(prefix_, "guc", major_, minor_, patch_)
 
 #define MAKE_HUC_FW_PATH_BLANK(prefix_) \
-	__MAKE_UC_FW_PATH_BLANK(prefix_, "_huc")
+	__MAKE_UC_FW_PATH_BLANK(prefix_, "huc")
+
+#define MAKE_HUC_FW_PATH_GSC(prefix_) \
+	__MAKE_UC_FW_PATH_BLANK(prefix_, "huc_gsc")
 
 #define MAKE_HUC_FW_PATH_MMP(prefix_, major_, minor_, patch_) \
-	__MAKE_UC_FW_PATH_MMP(prefix_, "_huc_", major_, minor_, patch_)
+	__MAKE_UC_FW_PATH_MMP(prefix_, "huc", major_, minor_, patch_)
 
 /*
  * All blobs need to be declared via MODULE_FIRMWARE().
@@ -153,7 +164,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	MODULE_FIRMWARE(uc_);
 
 INTEL_GUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_GUC_FW_PATH_MAJOR, MAKE_GUC_FW_PATH_MMP)
-INTEL_HUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_HUC_FW_PATH_BLANK, MAKE_HUC_FW_PATH_MMP)
+INTEL_HUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_HUC_FW_PATH_BLANK, MAKE_HUC_FW_PATH_MMP, MAKE_HUC_FW_PATH_GSC)
 
 /*
  * The next expansion of the table macros (in __uc_fw_auto_select below) provides
@@ -168,6 +179,7 @@ struct __packed uc_fw_blob {
 	u8 major;
 	u8 minor;
 	u8 patch;
+	bool loaded_via_gsc;
 };
 
 #define UC_FW_BLOB_BASE(major_, minor_, patch_, path_) \
@@ -176,16 +188,16 @@ struct __packed uc_fw_blob {
 	.patch = patch_, \
 	.path = path_,
 
-#define UC_FW_BLOB_NEW(major_, minor_, patch_, path_) \
+#define UC_FW_BLOB_NEW(major_, minor_, patch_, gsc_, path_) \
 	{ UC_FW_BLOB_BASE(major_, minor_, patch_, path_) \
-	  .legacy = false }
+	  .legacy = false, .loaded_via_gsc = gsc_ }
 
 #define UC_FW_BLOB_OLD(major_, minor_, patch_, path_) \
 	{ UC_FW_BLOB_BASE(major_, minor_, patch_, path_) \
 	  .legacy = true }
 
 #define GUC_FW_BLOB(prefix_, major_, minor_) \
-	UC_FW_BLOB_NEW(major_, minor_, 0, \
+	UC_FW_BLOB_NEW(major_, minor_, 0, false, \
 		       MAKE_GUC_FW_PATH_MAJOR(prefix_, major_, minor_))
 
 #define GUC_FW_BLOB_MMP(prefix_, major_, minor_, patch_) \
@@ -193,11 +205,14 @@ struct __packed uc_fw_blob {
 		       MAKE_GUC_FW_PATH_MMP(prefix_, major_, minor_, patch_))
 
 #define HUC_FW_BLOB(prefix_) \
-	UC_FW_BLOB_NEW(0, 0, 0, MAKE_HUC_FW_PATH_BLANK(prefix_))
+	UC_FW_BLOB_NEW(0, 0, 0, false, MAKE_HUC_FW_PATH_BLANK(prefix_))
 
 #define HUC_FW_BLOB_MMP(prefix_, major_, minor_, patch_) \
 	UC_FW_BLOB_OLD(major_, minor_, patch_, \
 		       MAKE_HUC_FW_PATH_MMP(prefix_, major_, minor_, patch_))
+
+#define HUC_FW_BLOB_GSC(prefix_) \
+	UC_FW_BLOB_NEW(0, 0, 0, true, MAKE_HUC_FW_PATH_GSC(prefix_))
 
 struct __packed uc_fw_platform_requirement {
 	enum intel_platform p;
@@ -224,19 +239,27 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 		INTEL_GUC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB, GUC_FW_BLOB_MMP)
 	};
 	static const struct uc_fw_platform_requirement blobs_huc[] = {
-		INTEL_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB, HUC_FW_BLOB_MMP)
+		INTEL_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB, HUC_FW_BLOB_MMP, HUC_FW_BLOB_GSC)
 	};
 	static const struct fw_blobs_by_type blobs_all[INTEL_UC_FW_NUM_TYPES] = {
 		[INTEL_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
 		[INTEL_UC_FW_TYPE_HUC] = { blobs_huc, ARRAY_SIZE(blobs_huc) },
 	};
-	static bool verified;
+	static bool verified[INTEL_UC_FW_NUM_TYPES];
 	const struct uc_fw_platform_requirement *fw_blobs;
 	enum intel_platform p = INTEL_INFO(i915)->platform;
 	u32 fw_count;
 	u8 rev = INTEL_REVID(i915);
 	int i;
 	bool found;
+
+	/*
+	 * GSC FW support is still not fully in place, so we're not defining
+	 * the FW blob yet because we don't want the driver to attempt to load
+	 * it until we're ready for it.
+	 */
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GSC)
+		return;
 
 	/*
 	 * The only difference between the ADL GuC FWs is the HWConfig support.
@@ -270,8 +293,9 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 
 		uc_fw->file_selected.path = blob->path;
 		uc_fw->file_wanted.path = blob->path;
-		uc_fw->file_wanted.major_ver = blob->major;
-		uc_fw->file_wanted.minor_ver = blob->minor;
+		uc_fw->file_wanted.ver.major = blob->major;
+		uc_fw->file_wanted.ver.minor = blob->minor;
+		uc_fw->loaded_via_gsc = blob->loaded_via_gsc;
 		found = true;
 		break;
 	}
@@ -282,8 +306,8 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 	}
 
 	/* make sure the list is ordered as expected */
-	if (IS_ENABLED(CONFIG_DRM_I915_SELFTEST) && !verified) {
-		verified = true;
+	if (IS_ENABLED(CONFIG_DRM_I915_SELFTEST) && !verified[uc_fw->type]) {
+		verified[uc_fw->type] = true;
 
 		for (i = 1; i < fw_count; i++) {
 			/* Next platform is good: */
@@ -334,7 +358,8 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 				continue;
 
 bad:
-			drm_err(&i915->drm, "Invalid FW blob order: %s r%u %s%d.%d.%d comes before %s r%u %s%d.%d.%d\n",
+			drm_err(&i915->drm, "Invalid %s blob order: %s r%u %s%d.%d.%d comes before %s r%u %s%d.%d.%d\n",
+				intel_uc_fw_type_repr(uc_fw->type),
 				intel_platform_name(fw_blobs[i - 1].p), fw_blobs[i - 1].rev,
 				fw_blobs[i - 1].blob.legacy ? "L" : "v",
 				fw_blobs[i - 1].blob.major,
@@ -365,6 +390,11 @@ static const char *__override_huc_firmware_path(struct drm_i915_private *i915)
 	return "";
 }
 
+static const char *__override_gsc_firmware_path(struct drm_i915_private *i915)
+{
+	return i915->params.gsc_firmware_path;
+}
+
 static void __uc_fw_user_override(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 {
 	const char *path = NULL;
@@ -375,6 +405,9 @@ static void __uc_fw_user_override(struct drm_i915_private *i915, struct intel_uc
 		break;
 	case INTEL_UC_FW_TYPE_HUC:
 		path = __override_huc_firmware_path(i915);
+		break;
+	case INTEL_UC_FW_TYPE_GSC:
+		path = __override_gsc_firmware_path(i915);
 		break;
 	}
 
@@ -429,28 +462,28 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
 		uc_fw->user_overridden = user;
 	} else if (i915_inject_probe_error(i915, e)) {
 		/* require next major version */
-		uc_fw->file_wanted.major_ver += 1;
-		uc_fw->file_wanted.minor_ver = 0;
+		uc_fw->file_wanted.ver.major += 1;
+		uc_fw->file_wanted.ver.minor = 0;
 		uc_fw->user_overridden = user;
 	} else if (i915_inject_probe_error(i915, e)) {
 		/* require next minor version */
-		uc_fw->file_wanted.minor_ver += 1;
+		uc_fw->file_wanted.ver.minor += 1;
 		uc_fw->user_overridden = user;
-	} else if (uc_fw->file_wanted.major_ver &&
+	} else if (uc_fw->file_wanted.ver.major &&
 		   i915_inject_probe_error(i915, e)) {
 		/* require prev major version */
-		uc_fw->file_wanted.major_ver -= 1;
-		uc_fw->file_wanted.minor_ver = 0;
+		uc_fw->file_wanted.ver.major -= 1;
+		uc_fw->file_wanted.ver.minor = 0;
 		uc_fw->user_overridden = user;
-	} else if (uc_fw->file_wanted.minor_ver &&
+	} else if (uc_fw->file_wanted.ver.minor &&
 		   i915_inject_probe_error(i915, e)) {
 		/* require prev minor version - hey, this should work! */
-		uc_fw->file_wanted.minor_ver -= 1;
+		uc_fw->file_wanted.ver.minor -= 1;
 		uc_fw->user_overridden = user;
 	} else if (user && i915_inject_probe_error(i915, e)) {
 		/* officially unsupported platform */
-		uc_fw->file_wanted.major_ver = 0;
-		uc_fw->file_wanted.minor_ver = 0;
+		uc_fw->file_wanted.ver.major = 0;
+		uc_fw->file_wanted.ver.minor = 0;
 		uc_fw->user_overridden = true;
 	}
 }
@@ -462,17 +495,74 @@ static int check_gsc_manifest(const struct firmware *fw,
 	u32 version_hi = dw[HUC_GSC_VERSION_HI_DW];
 	u32 version_lo = dw[HUC_GSC_VERSION_LO_DW];
 
-	uc_fw->file_selected.major_ver = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, version_hi);
-	uc_fw->file_selected.minor_ver = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, version_hi);
-	uc_fw->file_selected.patch_ver = FIELD_GET(HUC_GSC_PATCH_VER_LO_MASK, version_lo);
+	uc_fw->file_selected.ver.major = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, version_hi);
+	uc_fw->file_selected.ver.minor = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, version_hi);
+	uc_fw->file_selected.ver.patch = FIELD_GET(HUC_GSC_PATCH_VER_LO_MASK, version_lo);
 
 	return 0;
 }
 
-static int check_ccs_header(struct drm_i915_private *i915,
+static void uc_unpack_css_version(struct intel_uc_fw_ver *ver, u32 css_value)
+{
+	/* Get version numbers from the CSS header */
+	ver->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css_value);
+	ver->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css_value);
+	ver->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css_value);
+}
+
+static void guc_read_css_info(struct intel_uc_fw *uc_fw, struct uc_css_header *css)
+{
+	struct intel_guc *guc = container_of(uc_fw, struct intel_guc, fw);
+
+	/*
+	 * The GuC firmware includes an extra version number to specify the
+	 * submission API level. This allows submission code to work with
+	 * multiple GuC versions without having to know the absolute firmware
+	 * version number (there are likely to be multiple firmware releases
+	 * which all support the same submission API level).
+	 *
+	 * Note that the spec for the CSS header defines this version number
+	 * as 'vf_version' as it was originally intended for virtualisation.
+	 * However, it is applicable to native submission as well.
+	 *
+	 * Unfortunately, due to an oversight, this version number was only
+	 * exposed in the CSS header from v70.6.0.
+	 */
+	if (uc_fw->file_selected.ver.major >= 70) {
+		if (uc_fw->file_selected.ver.minor >= 6) {
+			/* v70.6.0 adds CSS header support */
+			uc_unpack_css_version(&guc->submission_version, css->vf_version);
+		} else if (uc_fw->file_selected.ver.minor >= 3) {
+			/* v70.3.0 introduced v1.1.0 */
+			guc->submission_version.major = 1;
+			guc->submission_version.minor = 1;
+			guc->submission_version.patch = 0;
+		} else {
+			/* v70.0.0 introduced v1.0.0 */
+			guc->submission_version.major = 1;
+			guc->submission_version.minor = 0;
+			guc->submission_version.patch = 0;
+		}
+	} else if (uc_fw->file_selected.ver.major >= 69) {
+		/* v69.0.0 introduced v0.10.0 */
+		guc->submission_version.major = 0;
+		guc->submission_version.minor = 10;
+		guc->submission_version.patch = 0;
+	} else {
+		/* Prior versions were v0.1.0 */
+		guc->submission_version.major = 0;
+		guc->submission_version.minor = 1;
+		guc->submission_version.patch = 0;
+	}
+
+	uc_fw->private_data_size = css->private_data_size;
+}
+
+static int check_ccs_header(struct intel_gt *gt,
 			    const struct firmware *fw,
 			    struct intel_uc_fw *uc_fw)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	struct uc_css_header *css;
 	size_t size;
 
@@ -514,23 +604,99 @@ static int check_ccs_header(struct drm_i915_private *i915,
 
 	/* Sanity check whether this fw is not larger than whole WOPCM memory */
 	size = __intel_uc_fw_get_upload_size(uc_fw);
-	if (unlikely(size >= i915->wopcm.size)) {
+	if (unlikely(size >= gt->wopcm.size)) {
 		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu > %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
-			 size, (size_t)i915->wopcm.size);
+			 size, (size_t)gt->wopcm.size);
 		return -E2BIG;
 	}
 
-	/* Get version numbers from the CSS header */
-	uc_fw->file_selected.major_ver = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
-						   css->sw_version);
-	uc_fw->file_selected.minor_ver = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
-						   css->sw_version);
-	uc_fw->file_selected.patch_ver = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
-						   css->sw_version);
+	uc_unpack_css_version(&uc_fw->file_selected.ver, css->sw_version);
 
 	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
-		uc_fw->private_data_size = css->private_data_size;
+		guc_read_css_info(uc_fw, css);
+
+	return 0;
+}
+
+static bool is_ver_8bit(struct intel_uc_fw_ver *ver)
+{
+	return ver->major < 0xFF && ver->minor < 0xFF && ver->patch < 0xFF;
+}
+
+static bool guc_check_version_range(struct intel_uc_fw *uc_fw)
+{
+	struct intel_guc *guc = container_of(uc_fw, struct intel_guc, fw);
+
+	/*
+	 * GuC version number components are defined as being 8-bits.
+	 * The submission code relies on this to optimise version comparison
+	 * tests. So enforce the restriction here.
+	 */
+
+	if (!is_ver_8bit(&uc_fw->file_selected.ver)) {
+		drm_warn(&__uc_fw_to_gt(uc_fw)->i915->drm, "%s firmware: invalid file version: 0x%02X:%02X:%02X\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 uc_fw->file_selected.ver.major,
+			 uc_fw->file_selected.ver.minor,
+			 uc_fw->file_selected.ver.patch);
+		return false;
+	}
+
+	if (!is_ver_8bit(&guc->submission_version)) {
+		drm_warn(&__uc_fw_to_gt(uc_fw)->i915->drm, "%s firmware: invalid submit version: 0x%02X:%02X:%02X\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 guc->submission_version.major,
+			 guc->submission_version.minor,
+			 guc->submission_version.patch);
+		return false;
+	}
+
+	return true;
+}
+
+static int check_fw_header(struct intel_gt *gt,
+			   const struct firmware *fw,
+			   struct intel_uc_fw *uc_fw)
+{
+	int err = 0;
+
+	/* GSC FW version is queried after the FW is loaded */
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GSC)
+		return 0;
+
+	if (uc_fw->loaded_via_gsc)
+		err = check_gsc_manifest(fw, uc_fw);
+	else
+		err = check_ccs_header(gt, fw, uc_fw);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int try_firmware_load(struct intel_uc_fw *uc_fw, const struct firmware **fw)
+{
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
+	struct device *dev = gt->i915->drm.dev;
+	int err;
+
+	err = firmware_request_nowarn(fw, uc_fw->file_selected.path, dev);
+
+	if (err)
+		return err;
+
+	if ((*fw)->size > INTEL_UC_RSVD_GGTT_PER_FW) {
+		drm_err(&gt->i915->drm,
+			"%s firmware %s: size (%zuKB) exceeds max supported size (%uKB)\n",
+			intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
+			(*fw)->size / SZ_1K, INTEL_UC_RSVD_GGTT_PER_FW / SZ_1K);
+
+		/* try to find another blob to load */
+		release_firmware(*fw);
+		*fw = NULL;
+		return -ENOENT;
+	}
 
 	return 0;
 }
@@ -545,15 +711,15 @@ static int check_ccs_header(struct drm_i915_private *i915,
  */
 int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 {
-	struct drm_i915_private *i915 = __uc_fw_to_gt(uc_fw)->i915;
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
+	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uc_fw_file file_ideal;
-	struct device *dev = i915->drm.dev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
 	bool old_ver = false;
 	int err;
 
-	GEM_BUG_ON(!i915->wopcm.size);
+	GEM_BUG_ON(!gt->wopcm.size);
 	GEM_BUG_ON(!intel_uc_fw_is_enabled(uc_fw));
 
 	err = i915_inject_probe_error(i915, -ENXIO);
@@ -563,7 +729,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	__force_fw_fetch_failures(uc_fw, -EINVAL);
 	__force_fw_fetch_failures(uc_fw, -ESTALE);
 
-	err = firmware_request_nowarn(&fw, uc_fw->file_selected.path, dev);
+	err = try_firmware_load(uc_fw, &fw);
 	memcpy(&file_ideal, &uc_fw->file_wanted, sizeof(file_ideal));
 
 	/* Any error is terminal if overriding. Don't bother searching for older versions */
@@ -586,37 +752,37 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			break;
 		}
 
-		err = firmware_request_nowarn(&fw, uc_fw->file_selected.path, dev);
+		err = try_firmware_load(uc_fw, &fw);
 	}
 
 	if (err)
 		goto fail;
 
-	if (uc_fw->loaded_via_gsc)
-		err = check_gsc_manifest(fw, uc_fw);
-	else
-		err = check_ccs_header(i915, fw, uc_fw);
+	err = check_fw_header(gt, fw, uc_fw);
 	if (err)
 		goto fail;
 
-	if (uc_fw->file_wanted.major_ver) {
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC && !guc_check_version_range(uc_fw))
+		goto fail;
+
+	if (uc_fw->file_wanted.ver.major && uc_fw->file_selected.ver.major) {
 		/* Check the file's major version was as it claimed */
-		if (uc_fw->file_selected.major_ver != uc_fw->file_wanted.major_ver) {
+		if (uc_fw->file_selected.ver.major != uc_fw->file_wanted.ver.major) {
 			drm_notice(&i915->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
 				   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
-				   uc_fw->file_selected.major_ver, uc_fw->file_selected.minor_ver,
-				   uc_fw->file_wanted.major_ver, uc_fw->file_wanted.minor_ver);
+				   uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor,
+				   uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor);
 			if (!intel_uc_fw_is_overridden(uc_fw)) {
 				err = -ENOEXEC;
 				goto fail;
 			}
 		} else {
-			if (uc_fw->file_selected.minor_ver < uc_fw->file_wanted.minor_ver)
+			if (uc_fw->file_selected.ver.minor < uc_fw->file_wanted.ver.minor)
 				old_ver = true;
 		}
 	}
 
-	if (old_ver) {
+	if (old_ver && uc_fw->file_selected.ver.major) {
 		/* Preserve the version that was really wanted */
 		memcpy(&uc_fw->file_wanted, &file_ideal, sizeof(uc_fw->file_wanted));
 
@@ -624,9 +790,9 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			   "%s firmware %s (%d.%d) is recommended, but only %s (%d.%d) was found\n",
 			   intel_uc_fw_type_repr(uc_fw->type),
 			   uc_fw->file_wanted.path,
-			   uc_fw->file_wanted.major_ver, uc_fw->file_wanted.minor_ver,
+			   uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor,
 			   uc_fw->file_selected.path,
-			   uc_fw->file_selected.major_ver, uc_fw->file_selected.minor_ver);
+			   uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor);
 		drm_info(&i915->drm,
 			 "Consider updating your linux-firmware pkg or downloading from %s\n",
 			 INTEL_UC_FIRMWARE_URL);
@@ -668,14 +834,30 @@ fail:
 
 static u32 uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw)
 {
-	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
+	struct i915_ggtt *ggtt = gt->ggtt;
 	struct drm_mm_node *node = &ggtt->uc_fw;
+	u32 offset = uc_fw->type * INTEL_UC_RSVD_GGTT_PER_FW;
+
+	/*
+	 * The media GT shares the GGTT with the root GT, which means that
+	 * we need to use different offsets for the binaries on the media GT.
+	 * To keep the math simple, we use 8MB for the root tile and 8MB for
+	 * the media one. This will need to be updated if we ever have more
+	 * than 1 media GT.
+	 */
+	BUILD_BUG_ON(INTEL_UC_FW_NUM_TYPES * INTEL_UC_RSVD_GGTT_PER_FW > SZ_8M);
+	GEM_BUG_ON(gt->type == GT_MEDIA && gt->info.id > 1);
+	if (gt->type == GT_MEDIA)
+		offset += SZ_8M;
 
 	GEM_BUG_ON(!drm_mm_node_allocated(node));
 	GEM_BUG_ON(upper_32_bits(node->start));
 	GEM_BUG_ON(upper_32_bits(node->start + node->size - 1));
+	GEM_BUG_ON(offset + uc_fw->obj->base.size > node->size);
+	GEM_BUG_ON(uc_fw->obj->base.size > INTEL_UC_RSVD_GGTT_PER_FW);
 
-	return lower_32_bits(node->start);
+	return lower_32_bits(node->start + offset);
 }
 
 static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
@@ -690,7 +872,6 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 	dummy->bi.pages = obj->mm.pages;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
-	GEM_BUG_ON(dummy->node_size > ggtt->uc_fw.size);
 
 	/* uc_fw->obj cache domains were not controlled across suspend */
 	if (i915_gem_object_has_struct_page(obj))
@@ -763,6 +944,20 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	return ret;
 }
 
+int intel_uc_fw_mark_load_failed(struct intel_uc_fw *uc_fw, int err)
+{
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
+
+	GEM_BUG_ON(!intel_uc_fw_is_loadable(uc_fw));
+
+	i915_probe_error(gt->i915, "Failed to load %s firmware %s (%d)\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
+			 err);
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
+
+	return err;
+}
+
 /**
  * intel_uc_fw_upload - load uC firmware using custom loader
  * @uc_fw: uC firmware
@@ -799,11 +994,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	return 0;
 
 fail:
-	i915_probe_error(gt->i915, "Failed to load %s firmware %s (%d)\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
-			 err);
-	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
-	return err;
+	return intel_uc_fw_mark_load_failed(uc_fw, err);
 }
 
 static inline bool uc_fw_need_rsa_in_memory(struct intel_uc_fw *uc_fw)
@@ -904,7 +1095,6 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 out_unpin:
 	i915_gem_object_unpin_pages(uc_fw->obj);
 out:
-	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_INIT_FAIL);
 	return err;
 }
 
@@ -1018,7 +1208,7 @@ size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
  */
 void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 {
-	u32 ver_sel, ver_want;
+	bool got_wanted;
 
 	drm_printf(p, "%s firmware: %s\n",
 		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path);
@@ -1027,25 +1217,32 @@ void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 			   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_wanted.path);
 	drm_printf(p, "\tstatus: %s\n",
 		   intel_uc_fw_status_repr(uc_fw->status));
-	ver_sel = MAKE_UC_VER(uc_fw->file_selected.major_ver,
-			      uc_fw->file_selected.minor_ver,
-			      uc_fw->file_selected.patch_ver);
-	ver_want = MAKE_UC_VER(uc_fw->file_wanted.major_ver,
-			       uc_fw->file_wanted.minor_ver,
-			       uc_fw->file_wanted.patch_ver);
-	if (ver_sel < ver_want)
+
+	if (uc_fw->file_selected.ver.major < uc_fw->file_wanted.ver.major)
+		got_wanted = false;
+	else if ((uc_fw->file_selected.ver.major == uc_fw->file_wanted.ver.major) &&
+		 (uc_fw->file_selected.ver.minor < uc_fw->file_wanted.ver.minor))
+		got_wanted = false;
+	else if ((uc_fw->file_selected.ver.major == uc_fw->file_wanted.ver.major) &&
+		 (uc_fw->file_selected.ver.minor == uc_fw->file_wanted.ver.minor) &&
+		 (uc_fw->file_selected.ver.patch < uc_fw->file_wanted.ver.patch))
+		got_wanted = false;
+	else
+		got_wanted = true;
+
+	if (!got_wanted)
 		drm_printf(p, "\tversion: wanted %u.%u.%u, found %u.%u.%u\n",
-			   uc_fw->file_wanted.major_ver,
-			   uc_fw->file_wanted.minor_ver,
-			   uc_fw->file_wanted.patch_ver,
-			   uc_fw->file_selected.major_ver,
-			   uc_fw->file_selected.minor_ver,
-			   uc_fw->file_selected.patch_ver);
+			   uc_fw->file_wanted.ver.major,
+			   uc_fw->file_wanted.ver.minor,
+			   uc_fw->file_wanted.ver.patch,
+			   uc_fw->file_selected.ver.major,
+			   uc_fw->file_selected.ver.minor,
+			   uc_fw->file_selected.ver.patch);
 	else
 		drm_printf(p, "\tversion: found %u.%u.%u\n",
-			   uc_fw->file_selected.major_ver,
-			   uc_fw->file_selected.minor_ver,
-			   uc_fw->file_selected.patch_ver);
+			   uc_fw->file_selected.ver.major,
+			   uc_fw->file_selected.ver.minor,
+			   uc_fw->file_selected.ver.patch);
 	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
 	drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
 }

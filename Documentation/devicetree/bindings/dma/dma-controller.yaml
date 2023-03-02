@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/dma/dma-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: DMA Controller Generic Binding
+title: DMA Controller Common Properties
 
 maintainers:
   - Vinod Koul <vkoul@kernel.org>
 
 allOf:
-  - $ref: "dma-common.yaml#"
+  - $ref: dma-common.yaml#
 
 # Everything else is described in the common file
 properties:

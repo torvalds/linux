@@ -20,8 +20,9 @@
 #define show_dev(dev) MAJOR(dev), MINOR(dev)
 
 TRACE_EVENT(zonefs_zone_mgmt,
-	    TP_PROTO(struct inode *inode, enum req_op op),
-	    TP_ARGS(inode, op),
+	    TP_PROTO(struct super_block *sb, struct zonefs_zone *z,
+		     enum req_op op),
+	    TP_ARGS(sb, z, op),
 	    TP_STRUCT__entry(
 			     __field(dev_t, dev)
 			     __field(ino_t, ino)
@@ -30,12 +31,12 @@ TRACE_EVENT(zonefs_zone_mgmt,
 			     __field(sector_t, nr_sectors)
 	    ),
 	    TP_fast_assign(
-			   __entry->dev = inode->i_sb->s_dev;
-			   __entry->ino = inode->i_ino;
+			   __entry->dev = sb->s_dev;
+			   __entry->ino =
+				z->z_sector >> ZONEFS_SB(sb)->s_zone_sectors_shift;
 			   __entry->op = op;
-			   __entry->sector = ZONEFS_I(inode)->i_zsector;
-			   __entry->nr_sectors =
-				   ZONEFS_I(inode)->i_zone_size >> SECTOR_SHIFT;
+			   __entry->sector = z->z_sector;
+			   __entry->nr_sectors = z->z_size >> SECTOR_SHIFT;
 	    ),
 	    TP_printk("bdev=(%d,%d), ino=%lu op=%s, sector=%llu, nr_sectors=%llu",
 		      show_dev(__entry->dev), (unsigned long)__entry->ino,
@@ -58,9 +59,10 @@ TRACE_EVENT(zonefs_file_dio_append,
 	    TP_fast_assign(
 			   __entry->dev = inode->i_sb->s_dev;
 			   __entry->ino = inode->i_ino;
-			   __entry->sector = ZONEFS_I(inode)->i_zsector;
+			   __entry->sector = zonefs_inode_zone(inode)->z_sector;
 			   __entry->size = size;
-			   __entry->wpoffset = ZONEFS_I(inode)->i_wpoffset;
+			   __entry->wpoffset =
+				zonefs_inode_zone(inode)->z_wpoffset;
 			   __entry->ret = ret;
 	    ),
 	    TP_printk("bdev=(%d, %d), ino=%lu, sector=%llu, size=%zu, wpoffset=%llu, ret=%zu",

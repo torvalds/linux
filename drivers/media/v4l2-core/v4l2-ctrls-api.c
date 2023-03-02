@@ -151,6 +151,7 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
 			 */
 			if (strlen(ctrl->p_new.p_char) == ctrl->maximum && last)
 				return -ERANGE;
+			ctrl->is_new = 1;
 		}
 		return ret;
 	default:

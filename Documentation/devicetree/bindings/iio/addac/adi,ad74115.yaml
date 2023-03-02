@@ -1,0 +1,373 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/addac/adi,ad74115.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD74115H device
+
+maintainers:
+  - Cosmin Tanislav <cosmin.tanislav@analog.com>
+
+description: |
+  The AD74115H is a single-channel software configurable input/output
+  device for industrial control applications. It contains functionality for
+  analog output, analog input, digital output, digital input, resistance
+  temperature detector, and thermocouple measurements integrated into a single
+  chip solution with an SPI interface. The device features a 16-bit ADC and a
+  14-bit DAC.
+
+    https://www.analog.com/en/products/ad74115h.html
+
+properties:
+  compatible:
+    enum:
+      - adi,ad74115h
+
+  reg:
+    maxItems: 1
+
+  spi-max-frequency:
+    maximum: 24000000
+
+  spi-cpol: true
+
+  reset-gpios: true
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - adc_rdy
+        - alert
+
+  avdd-supply: true
+  avcc-supply: true
+  dvcc-supply: true
+  dovdd-supply: true
+  refin-supply: true
+
+  adi,ch-func:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Channel function.
+      0 - High impedance
+      1 - Voltage output
+      2 - Current output
+      3 - Voltage input
+      4 - Current input, externally-powered
+      5 - Current input, loop-powered
+      6 - Resistance input
+      7 - RTD measure
+      8 - Digital input logic
+      9 - Digital input, loop-powered
+      10 - Current output with HART
+      11 - Current input, externally-powered, with HART
+      12 - Current input, loop-powered, with HART
+    minimum: 0
+    maximum: 12
+    default: 0
+
+  adi,conv2-mux:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Input node for ADC conversion 2.
+      0 - SENSE_EXT1 to AGND_SENSE
+      1 - SENSE_EXT2 to AGND_SENSE
+      2 - SENSE_EXT2 to SENSE_EXT1
+      3 - AGND to AGND
+    minimum: 0
+    maximum: 3
+    default: 0
+
+  adi,conv2-range-microvolt:
+    description: Conversion range for ADC conversion 2.
+    oneOf:
+      - items:
+          - enum: [-2500000, 0]
+          - const: 2500000
+      - items:
+          - enum: [-12000000, 0]
+          - const: 12000000
+      - items:
+          - const: -2500000
+          - const: 0
+      - items:
+          - const: -104000
+          - const: 104000
+      - items:
+          - const: 0
+          - const: 625000
+
+  adi,sense-agnd-buffer-low-power:
+    type: boolean
+    description:
+      Whether to enable low-power buffered mode for the AGND sense pin.
+
+  adi,lf-buffer-low-power:
+    type: boolean
+    description:
+      Whether to enable low-power buffered mode for the low-side filtered
+      sense pin.
+
+  adi,hf-buffer-low-power:
+    type: boolean
+    description:
+      Whether to enable low-power buffered mode for the high-side filtered
+      sense pin.
+
+  adi,ext2-buffer-low-power:
+    type: boolean
+    description: Whether to enable low-power buffered mode for the EXT2 pin.
+
+  adi,ext1-buffer-low-power:
+    type: boolean
+    description: Whether to enable low-power buffered mode for the EXT1 pin.
+
+  adi,comparator-invert:
+    type: boolean
+    description: Whether to invert the comparator output.
+
+  adi,digital-input-sink-range-high:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      When not present, the digital input range is from 0 to 3700uA in steps
+      of 120uA, with a ~2k series resistance.
+      When present, the digital input range is from 0 to 7400uA in steps
+      of 240uA, with a ~1k series resistance.
+
+  adi,digital-input-sink-microamp:
+    description: Sink current in digital input mode.
+    minimum: 0
+    maximum: 3700
+    default: 0
+
+  adi,digital-input-debounce-mode-counter-reset:
+    type: boolean
+    description: |
+      When not present, a counter increments when the signal is asserted
+      and decrements when the signal is de-asserted.
+      When present, a counter increments while the signal is asserted and
+      resets when the signal de-asserts
+
+  adi,digital-input-unbuffered:
+    type: boolean
+    description: Whether to buffer digital input signals.
+
+  adi,digital-input-short-circuit-detection:
+    type: boolean
+    description: Whether to detect digital input short circuits.
+
+  adi,digital-input-open-circuit-detection:
+    type: boolean
+    description: Whether to detect digital input open circuits.
+
+  adi,digital-input-threshold-mode-fixed:
+    type: boolean
+    description: |
+      When not present, the digital input threshold range is -0.96 * AVDD
+      to AVDD.
+      When present, the threshold range is fixed from -19V to 30V.
+
+  adi,dac-bipolar:
+    type: boolean
+    description: |
+      When not present, the DAC operates in the 0V to 12V range.
+      When present, the DAC operates in the -12V to 12V range.
+
+  adi,charge-pump:
+    type: boolean
+    description: Whether to enable the internal charge pump.
+
+  adi,dac-hart-slew:
+    type: boolean
+    description: Whether to use a HART-compatible slew rate.
+
+  adi,dac-current-limit-low:
+    type: boolean
+    description: |
+      When not present, the DAC short-circuit current limit is 32mA in
+      either source or sink for VOUT and 4mA sink for IOUT.
+      When present, the limit is 16mA in either source or sink for VOUT,
+      1mA sink for IOUT.
+
+  adi,4-wire-rtd:
+    type: boolean
+    description: |
+      When not present, the ADC should be used for measuring 3-wire RTDs.
+      When present, the ADC should be used for measuring 4-wire RTDs.
+
+  adi,3-wire-rtd-excitation-swap:
+    type: boolean
+    description: Whether to swap the excitation for 3-wire RTD.
+
+  adi,rtd-excitation-current-microamp:
+    description: Excitation current to apply to RTD.
+    enum: [250, 500, 750, 1000]
+    default: 250
+
+  adi,ext1-burnout:
+    type: boolean
+    description: Whether to enable burnout current for EXT1.
+
+  adi,ext1-burnout-current-nanoamp:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Burnout current in nanoamps to be applied to EXT1.
+    enum: [0, 50, 500, 1000, 10000]
+    default: 0
+
+  adi,ext1-burnout-current-polarity-sourcing:
+    type: boolean
+    description: |
+      When not present, the burnout current polarity for EXT1 is sinking.
+      When present, the burnout current polarity for EXT1 is sourcing.
+
+  adi,ext2-burnout:
+    type: boolean
+    description: Whether to enable burnout current for EXT2.
+
+  adi,ext2-burnout-current-nanoamp:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Burnout current in nanoamps to be applied to EXT2.
+    enum: [0, 50, 500, 1000, 10000]
+    default: 0
+
+  adi,ext2-burnout-current-polarity-sourcing:
+    type: boolean
+    description: |
+      When not present, the burnout current polarity for EXT2 is sinking.
+      When present, the burnout current polarity for EXT2 is sourcing.
+
+  adi,viout-burnout:
+    type: boolean
+    description: Whether to enable burnout current for VIOUT.
+
+  adi,viout-burnout-current-nanoamp:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Burnout current in nanoamps to be applied to VIOUT.
+    enum: [0, 1000, 10000]
+    default: 0
+
+  adi,viout-burnout-current-polarity-sourcing:
+    type: boolean
+    description: |
+      When not present, the burnout current polarity for VIOUT is sinking.
+      When present, the burnout current polarity for VIOUT is sourcing.
+
+  adi,gpio0-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      GPIO functions.
+      0 - Disabled
+      1 - Logic I/O
+      2 - Comparator output
+      3 - Control HART CD
+      4 - Monitor HART CD
+      5 - Monitor HART EOM status
+    minimum: 0
+    maximum: 5
+    default: 0
+
+  adi,gpio1-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      GPIO functions.
+      0 - Disabled
+      1 - Logic I/O
+      2 - Drive external digital output FET
+      3 - Control HART RXD
+      4 - Monitor HART RXD
+      5 - Monitor HART SOM status
+    minimum: 0
+    maximum: 5
+    default: 0
+
+  adi,gpio2-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      GPIO functions.
+      0 - Disabled
+      1 - Logic I/O
+      2 - Drive internal digital output FET
+      3 - Control HART TXD
+      4 - Monitor HART TXD
+      5 - Monitor HART TX complete status
+    minimum: 0
+    maximum: 5
+    default: 0
+
+  adi,gpio3-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      GPIO functions.
+      0 - Disabled
+      1 - Logic I/O
+      2 - High impedance
+      3 - Control HART RTS
+      4 - Monitor HART RTS
+      5 - Monitor HART CD complete status
+    minimum: 0
+    maximum: 5
+    default: 0
+
+required:
+  - compatible
+  - reg
+  - spi-cpol
+  - avdd-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - if:
+      required:
+        - adi,digital-input-sink-range-high
+    then:
+      properties:
+        adi,digital-input-sink-microamp:
+          maximum: 7400
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      addac@0 {
+        compatible = "adi,ad74115h";
+        reg = <0>;
+
+        spi-max-frequency = <12000000>;
+        spi-cpol;
+
+        reset-gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
+
+        interrupt-parent = <&gpio>;
+        interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+        interrupt-names = "adc_rdy";
+
+        avdd-supply = <&ad74115_avdd>;
+
+        adi,ch-func = <1>;
+        adi,conv2-mux = <2>;
+        adi,conv2-range-microvolt = <(-12000000) 12000000>;
+
+        adi,gpio0-mode = <1>;
+        adi,gpio1-mode = <1>;
+        adi,gpio2-mode = <1>;
+        adi,gpio3-mode = <1>;
+
+        adi,dac-bipolar;
+      };
+    };
+...

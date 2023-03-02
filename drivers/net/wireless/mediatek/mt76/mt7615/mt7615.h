@@ -376,6 +376,12 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 		      int irq, const u32 *map);
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 
+u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
+int mt7615_led_set_blink(struct led_classdev *led_cdev,
+			 unsigned long *delay_on,
+			 unsigned long *delay_off);
+void mt7615_led_set_brightness(struct led_classdev *led_cdev,
+			       enum led_brightness brightness);
 void mt7615_init_device(struct mt7615_dev *dev);
 int mt7615_register_device(struct mt7615_dev *dev);
 void mt7615_unregister_device(struct mt7615_dev *dev);
@@ -469,10 +475,12 @@ void mt7615_init_work(struct mt7615_dev *dev);
 int mt7615_mcu_restart(struct mt76_dev *dev);
 void mt7615_update_channel(struct mt76_phy *mphy);
 bool mt7615_mac_wtbl_update(struct mt7615_dev *dev, int idx, u32 mask);
-void mt7615_mac_reset_counters(struct mt7615_dev *dev);
+void mt7615_mac_reset_counters(struct mt7615_phy *phy);
 void mt7615_mac_cca_stats_reset(struct mt7615_phy *phy);
 void mt7615_mac_set_scs(struct mt7615_phy *phy, bool enable);
 void mt7615_mac_enable_nf(struct mt7615_dev *dev, bool ext_phy);
+void mt7615_mac_enable_rtscts(struct mt7615_dev *dev,
+			      struct ieee80211_vif *vif, bool enable);
 void mt7615_mac_sta_poll(struct mt7615_dev *dev);
 int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
@@ -511,7 +519,7 @@ void mt7615_tx_worker(struct mt76_worker *w);
 void mt7615_tx_token_put(struct mt7615_dev *dev);
 bool mt7615_rx_check(struct mt76_dev *mdev, void *data, int len);
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb);
+			 struct sk_buff *skb, u32 *info);
 void mt7615_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
 int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);

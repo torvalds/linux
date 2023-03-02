@@ -73,12 +73,12 @@
 #include <linux/mmu_notifier.h>
 #endif
 
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
 #include <drm/drm_gem.h>
+#include <drm/drm_audio_component.h>
 
 #include "radeon_family.h"
 #include "radeon_mode.h"
@@ -1796,6 +1796,9 @@ struct r600_audio {
 	struct radeon_audio_funcs *hdmi_funcs;
 	struct radeon_audio_funcs *dp_funcs;
 	struct radeon_audio_basic_funcs *funcs;
+	struct drm_audio_component *component;
+	bool component_registered;
+	struct mutex component_mutex;
 };
 
 /*
@@ -2993,6 +2996,10 @@ void radeon_irq_kms_set_irq_n_enabled(struct radeon_device *rdev,
 				      u32 reg, u32 mask,
 				      bool enable, const char *name,
 				      unsigned n);
+
+/* Audio component binding */
+void radeon_audio_component_init(struct radeon_device *rdev);
+void radeon_audio_component_fini(struct radeon_device *rdev);
 
 #include "radeon_object.h"
 

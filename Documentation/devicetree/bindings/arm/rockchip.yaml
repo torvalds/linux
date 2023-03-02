@@ -30,9 +30,24 @@ properties:
           - const: amarula,vyasa-rk3288
           - const: rockchip,rk3288
 
+      - description: Anbernic RG351M
+        items:
+          - const: anbernic,rg351m
+          - const: rockchip,rk3326
+
       - description: Anbernic RG353P
         items:
           - const: anbernic,rg353p
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353V
+        items:
+          - const: anbernic,rg353v
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353VS
+        items:
+          - const: anbernic,rg353vs
           - const: rockchip,rk3566
 
       - description: Anbernic RG503
@@ -75,10 +90,32 @@ properties:
           - const: chipspark,rayeager-px2
           - const: rockchip,rk3066a
 
+      - description: Edgeble Neural Compute Module 2(Neu2) SoM based boards
+        items:
+          - const: edgeble,neural-compute-module-2-io   # Edgeble Neural Compute Module 2 IO Board
+          - const: edgeble,neural-compute-module-2      # Edgeble Neural Compute Module 2 SoM
+          - const: rockchip,rv1126
+
+      - description: Edgeble Neural Compute Module 6(Neu6) Model A SoM based boards
+        items:
+          - const: edgeble,neural-compute-module-6a-io  # Edgeble Neural Compute Module 6A IO Board
+          - const: edgeble,neural-compute-module-6a     # Edgeble Neural Compute Module 6A SoM
+          - const: rockchip,rk3588
+
       - description: Elgin RV1108 R1
         items:
           - const: elgin,rv1108-r1
           - const: rockchip,rv1108
+
+      - description: EmbedFire LubanCat 1
+        items:
+          - const: embedfire,lubancat-1
+          - const: rockchip,rk3566
+
+      - description: EmbedFire LubanCat 2
+        items:
+          - const: embedfire,lubancat-2
+          - const: rockchip,rk3568
 
       - description: Engicam PX30.Core C.TOUCH 2.0
         items:
@@ -468,6 +505,21 @@ properties:
           - const: hardkernel,rk3326-odroid-go2
           - const: rockchip,rk3326
 
+      - description: Hardkernel Odroid Go Advance Black Edition
+        items:
+          - const: hardkernel,rk3326-odroid-go2-v11
+          - const: rockchip,rk3326
+
+      - description: Hardkernel Odroid Go Super
+        items:
+          - const: hardkernel,rk3326-odroid-go3
+          - const: rockchip,rk3326
+
+      - description: Hardkernel Odroid M1
+        items:
+          - const: rockchip,rk3568-odroid-m1
+          - const: rockchip,rk3568
+
       - description: Hugsun X99 TV Box
         items:
           - const: hugsun,x99
@@ -563,9 +615,25 @@ properties:
       - description: Pine64 SoQuartz SoM
         items:
           - enum:
+              - pine64,soquartz-blade
               - pine64,soquartz-cm4io
+              - pine64,soquartz-model-a
           - const: pine64,soquartz
           - const: rockchip,rk3566
+
+      - description: Radxa Compute Module 3(CM3)
+        items:
+          - enum:
+              - radxa,cm3-io
+          - const: radxa,cm3
+          - const: rockchip,rk3566
+
+      - description: Radxa CM3 Industrial
+        items:
+          - enum:
+              - radxa,e25
+          - const: radxa,cm3i
+          - const: rockchip,rk3568
 
       - description: Radxa Rock
         items:
@@ -620,6 +688,16 @@ properties:
           - const: radxa,rock3a
           - const: rockchip,rk3568
 
+      - description: Radxa ROCK 5 Model A
+        items:
+          - const: radxa,rock-5a
+          - const: rockchip,rk3588s
+
+      - description: Radxa ROCK 5 Model B
+        items:
+          - const: radxa,rock-5b
+          - const: rockchip,rk3588
+
       - description: Rikomagic MK808 v1
         items:
           - const: rikomagic,mk808
@@ -656,6 +734,11 @@ properties:
         items:
           - const: rockchip,rk3036-evb
           - const: rockchip,rk3036
+
+      - description: Rockchip RK3128 Evaluation board
+        items:
+          - const: rockchip,rk3128-evb
+          - const: rockchip,rk3128
 
       - description: Rockchip RK3228 Evaluation board
         items:
@@ -704,10 +787,20 @@ properties:
           - const: rockchip,rk3399-sapphire-excavator
           - const: rockchip,rk3399
 
+      - description: Rockchip RK3588 Evaluation board
+        items:
+          - const: rockchip,rk3588-evb1-v10
+          - const: rockchip,rk3588
+
       - description: Rockchip RV1108 Evaluation board
         items:
           - const: rockchip,rv1108-evb
           - const: rockchip,rv1108
+
+      - description: Theobroma Systems PX30-uQ7 with Haikou baseboard
+        items:
+          - const: tsd,px30-ringneck-haikou
+          - const: rockchip,px30
 
       - description: Theobroma Systems RK3368-uQ7 with Haikou baseboard
         items:
@@ -724,10 +817,20 @@ properties:
           - const: tronsmart,orion-r68-meta
           - const: rockchip,rk3368
 
+      - description: Xunlong Orange Pi R1 Plus
+        items:
+          - const: xunlong,orangepi-r1-plus
+          - const: rockchip,rk3328
+
       - description: Zkmagic A95X Z2
         items:
           - const: zkmagic,a95x-z2
           - const: rockchip,rk3318
+
+      - description: Rockchip RK3566 BOX Evaluation Demo board
+        items:
+          - const: rockchip,rk3566-box-demo
+          - const: rockchip,rk3566
 
       - description: Rockchip RK3568 Evaluation board
         items:

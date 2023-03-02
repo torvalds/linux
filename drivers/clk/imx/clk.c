@@ -110,8 +110,21 @@ struct clk_hw *imx_obtain_fixed_clock_hw(
 	return __clk_get_hw(clk);
 }
 
-struct clk_hw * imx_obtain_fixed_clk_hw(struct device_node *np,
-					const char *name)
+struct clk_hw *imx_obtain_fixed_of_clock(struct device_node *np,
+					 const char *name, unsigned long rate)
+{
+	struct clk *clk = of_clk_get_by_name(np, name);
+	struct clk_hw *hw;
+
+	if (IS_ERR(clk))
+		hw = imx_obtain_fixed_clock_hw(name, rate);
+	else
+		hw = __clk_get_hw(clk);
+
+	return hw;
+}
+
+struct clk_hw *imx_get_clk_hw_by_name(struct device_node *np, const char *name)
 {
 	struct clk *clk;
 
@@ -121,7 +134,7 @@ struct clk_hw * imx_obtain_fixed_clk_hw(struct device_node *np,
 
 	return __clk_get_hw(clk);
 }
-EXPORT_SYMBOL_GPL(imx_obtain_fixed_clk_hw);
+EXPORT_SYMBOL_GPL(imx_get_clk_hw_by_name);
 
 /*
  * This fixups the register CCM_CSCMR1 write value.
@@ -166,8 +179,10 @@ __setup_param("earlycon", imx_keep_uart_earlycon,
 __setup_param("earlyprintk", imx_keep_uart_earlyprintk,
 	      imx_keep_uart_clocks_param, 0);
 
-void imx_register_uart_clocks(unsigned int clk_count)
+void imx_register_uart_clocks(void)
 {
+	unsigned int num __maybe_unused;
+
 	imx_enabled_uart_clocks = 0;
 
 /* i.MX boards use device trees now.  For build tests without CONFIG_OF, do nothing */
@@ -175,14 +190,18 @@ void imx_register_uart_clocks(unsigned int clk_count)
 	if (imx_keep_uart_clocks) {
 		int i;
 
-		imx_uart_clocks = kcalloc(clk_count, sizeof(struct clk *), GFP_KERNEL);
-		if (!imx_uart_clocks)
+		num = of_clk_get_parent_count(of_stdout);
+		if (!num)
 			return;
 
 		if (!of_stdout)
 			return;
 
-		for (i = 0; i < clk_count; i++) {
+		imx_uart_clocks = kcalloc(num, sizeof(struct clk *), GFP_KERNEL);
+		if (!imx_uart_clocks)
+			return;
+
+		for (i = 0; i < num; i++) {
 			imx_uart_clocks[imx_enabled_uart_clocks] = of_clk_get(of_stdout, i);
 
 			/* Stop if there are no more of_stdout references */
@@ -206,8 +225,9 @@ static int __init imx_clk_disable_uart(void)
 			clk_disable_unprepare(imx_uart_clocks[i]);
 			clk_put(imx_uart_clocks[i]);
 		}
-		kfree(imx_uart_clocks);
 	}
+
+	kfree(imx_uart_clocks);
 
 	return 0;
 }

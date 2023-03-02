@@ -215,11 +215,3 @@ config MB_MANAGER
 	  Say N here unless you know what you are doing.
 
 endmenu
-
-menu "Bus Options"
-
-config PCI_XILINX
-	bool "Xilinx PCI host bridge support"
-	depends on PCI
-
-endmenu

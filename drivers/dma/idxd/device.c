@@ -7,7 +7,6 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/dmaengine.h>
 #include <linux/irq.h>
-#include <linux/msi.h>
 #include <uapi/linux/idxd.h>
 #include "../dmaengine.h"
 #include "idxd.h"
@@ -390,7 +389,7 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	clear_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
 	memset(wq->name, 0, WQ_NAME_SIZE);
 	wq->max_xfer_bytes = WQ_DEFAULT_MAX_XFER;
-	wq->max_batch_size = WQ_DEFAULT_MAX_BATCH;
+	idxd_wq_set_max_batch_size(idxd->data->type, wq, WQ_DEFAULT_MAX_BATCH);
 	if (wq->opcap_bmap)
 		bitmap_copy(wq->opcap_bmap, idxd->opcap_bmap, IDXD_MAX_OPCAP_BITS);
 }
@@ -700,9 +699,13 @@ static void idxd_groups_clear_state(struct idxd_device *idxd)
 		group->num_engines = 0;
 		group->num_wqs = 0;
 		group->use_rdbuf_limit = false;
-		group->rdbufs_allowed = 0;
+		/*
+		 * The default value is the same as the value of
+		 * total read buffers in GRPCAP.
+		 */
+		group->rdbufs_allowed = idxd->max_rdbufs;
 		group->rdbufs_reserved = 0;
-		if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override) {
+		if (idxd->hw.version <= DEVICE_VERSION_2 && !tc_override) {
 			group->tc_a = 1;
 			group->tc_b = 1;
 		} else {
@@ -730,13 +733,21 @@ static void idxd_device_wqs_clear_state(struct idxd_device *idxd)
 
 void idxd_device_clear_state(struct idxd_device *idxd)
 {
-	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
-		return;
+	/* IDXD is always disabled. Other states are cleared only when IDXD is configurable. */
+	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
+		/*
+		 * Clearing wq state is protected by wq lock.
+		 * So no need to be protected by device lock.
+		 */
+		idxd_device_wqs_clear_state(idxd);
 
-	idxd_device_wqs_clear_state(idxd);
-	spin_lock(&idxd->dev_lock);
-	idxd_groups_clear_state(idxd);
-	idxd_engines_clear_state(idxd);
+		spin_lock(&idxd->dev_lock);
+		idxd_groups_clear_state(idxd);
+		idxd_engines_clear_state(idxd);
+	} else {
+		spin_lock(&idxd->dev_lock);
+	}
+
 	idxd->state = IDXD_DEV_DISABLED;
 	spin_unlock(&idxd->dev_lock);
 }
@@ -869,7 +880,7 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 
 	/* bytes 12-15 */
 	wq->wqcfg->max_xfer_shift = ilog2(wq->max_xfer_bytes);
-	wq->wqcfg->max_batch_shift = ilog2(wq->max_batch_size);
+	idxd_wqcfg_set_max_batch_shift(idxd->data->type, wq->wqcfg, ilog2(wq->max_batch_size));
 
 	/* bytes 32-63 */
 	if (idxd->hw.wq_cap.op_config && wq->opcap_bmap) {
@@ -927,11 +938,7 @@ static void idxd_group_flags_setup(struct idxd_device *idxd)
 			group->grpcfg.flags.tc_b = group->tc_b;
 		group->grpcfg.flags.use_rdbuf_limit = group->use_rdbuf_limit;
 		group->grpcfg.flags.rdbufs_reserved = group->rdbufs_reserved;
-		if (group->rdbufs_allowed)
-			group->grpcfg.flags.rdbufs_allowed = group->rdbufs_allowed;
-		else
-			group->grpcfg.flags.rdbufs_allowed = idxd->max_rdbufs;
-
+		group->grpcfg.flags.rdbufs_allowed = group->rdbufs_allowed;
 		group->grpcfg.flags.desc_progress_limit = group->desc_progress_limit;
 		group->grpcfg.flags.batch_progress_limit = group->batch_progress_limit;
 	}
@@ -1051,7 +1058,7 @@ static int idxd_wq_load_config(struct idxd_wq *wq)
 	wq->priority = wq->wqcfg->priority;
 
 	wq->max_xfer_bytes = 1ULL << wq->wqcfg->max_xfer_shift;
-	wq->max_batch_size = 1ULL << wq->wqcfg->max_batch_shift;
+	idxd_wq_set_max_batch_size(idxd->data->type, wq, 1U << wq->wqcfg->max_batch_shift);
 
 	for (i = 0; i < WQCFG_STRIDES(idxd); i++) {
 		wqcfg_offset = WQCFG_OFFSET(idxd, wq->id, i);
@@ -1165,8 +1172,19 @@ static void idxd_flush_pending_descs(struct idxd_irq_entry *ie)
 	spin_unlock(&ie->list_lock);
 
 	list_for_each_entry_safe(desc, itr, &flist, list) {
+		struct dma_async_tx_descriptor *tx;
+
 		list_del(&desc->list);
 		ctype = desc->completion->status ? IDXD_COMPLETE_NORMAL : IDXD_COMPLETE_ABORT;
+		/*
+		 * wq is being disabled. Any remaining descriptors are
+		 * likely to be stuck and can be dropped. callback could
+		 * point to code that is no longer accessible, for example
+		 * if dmatest module has been unloaded.
+		 */
+		tx = &desc->txd;
+		tx->callback = NULL;
+		tx->callback_result = NULL;
 		idxd_dma_complete_txd(desc, ctype, true);
 	}
 }
@@ -1383,8 +1401,7 @@ err_res_alloc:
 err_irq:
 	idxd_wq_unmap_portal(wq);
 err_map_portal:
-	rc = idxd_wq_disable(wq, false);
-	if (rc < 0)
+	if (idxd_wq_disable(wq, false))
 		dev_dbg(dev, "wq %s disable failed\n", dev_name(wq_confdev(wq)));
 err:
 	return rc;
@@ -1401,11 +1418,11 @@ void drv_disable_wq(struct idxd_wq *wq)
 		dev_warn(dev, "Clients has claim on wq %d: %d\n",
 			 wq->id, idxd_wq_refcount(wq));
 
-	idxd_wq_free_resources(wq);
 	idxd_wq_unmap_portal(wq);
 	idxd_wq_drain(wq);
 	idxd_wq_free_irq(wq);
 	idxd_wq_reset(wq);
+	idxd_wq_free_resources(wq);
 	percpu_ref_exit(&wq->wq_active);
 	wq->type = IDXD_WQT_NONE;
 	wq->client_count = 0;

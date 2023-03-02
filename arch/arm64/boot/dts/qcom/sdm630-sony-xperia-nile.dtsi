@@ -57,7 +57,7 @@
 		regulator-boot-on;
 	};
 
-	cam_vdig_imx300_219_vreg: cam_vdig_imx300_219_vreg {
+	cam_vdig_imx300_219_vreg: cam-vdig-imx300-219-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_vdig_imx300_219_vreg";
 		startup-delay-us = <0>;
@@ -67,7 +67,7 @@
 		pinctrl-0 = <&cam_vdig_default>;
 	};
 
-	cam_vana_front_vreg: cam_vana_front_vreg {
+	cam_vana_front_vreg: cam-vana-front-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_vana_front_vreg";
 		startup-delay-us = <0>;
@@ -77,7 +77,7 @@
 		pinctrl-0 = <&imx219_vana_default>;
 	};
 
-	cam_vana_rear_vreg: cam_vana_rear_vreg {
+	cam_vana_rear_vreg: cam-vana-rear-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_vana_rear_vreg";
 		startup-delay-us = <0>;
@@ -133,13 +133,18 @@
 			status = "okay";
 		};
 
-		debug_region@ffb00000 {
+		debug@ffb00000 {
 			reg = <0x00 0xffb00000 0x00 0x100000>;
 			no-map;
 		};
 
-		removed_region@85800000 {
+		reserved@85800000 {
 			reg = <0x00 0x85800000 0x00 0x3700000>;
+			no-map;
+		};
+
+		cont_splash_mem: splash@9d400000 {
+			reg = <0 0x9d400000 0 (1920 * 1080 * 4)>;
 			no-map;
 		};
 	};
@@ -155,7 +160,7 @@
 };
 
 &adsp_pil {
-	firmware-name = "adsp.mdt";
+	firmware-name = "qcom/sdm630/Sony/nile/adsp.mdt";
 };
 
 &blsp_i2c1 {
@@ -260,7 +265,7 @@
 };
 
 &rpm_requests {
-	pm660l-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm660l-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -394,7 +399,7 @@
 		};
 	};
 
-	pm660-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pm660-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -577,16 +582,18 @@
 };
 
 &sdc2_state_on {
-	sd-cd {
+	sd-cd-pins {
 		pins = "gpio54";
+		function = "gpio";
 		bias-pull-up;
 		drive-strength = <2>;
 	};
 };
 
 &sdc2_state_off {
-	sd-cd {
+	sd-cd-pins {
 		pins = "gpio54";
+		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
@@ -615,33 +622,35 @@
 &tlmm {
 	gpio-reserved-ranges = <8 4>;
 
-	ts_int_active: ts-int-active {
+	ts_int_active: ts-int-active-state {
 		pins = "gpio45";
+		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
 	};
 
-	ts_lcd_id_active: ts-lcd-id-active {
+	ts_lcd_id_active: ts-lcd-id-active-state {
 		pins = "gpio56";
+		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
 	};
 
-	imx300_vana_default: imx300-vana-default {
+	imx300_vana_default: imx300-vana-default-state {
 		pins = "gpio50";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	imx219_vana_default: imx219-vana-default {
+	imx219_vana_default: imx219-vana-default-state {
 		pins = "gpio51";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	cam_vdig_default: cam-vdig-default {
+	cam_vdig_default: cam-vdig-default-state {
 		pins = "gpio52";
 		function = "gpio";
 		bias-disable;

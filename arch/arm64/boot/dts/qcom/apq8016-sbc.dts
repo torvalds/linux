@@ -169,10 +169,6 @@
 	};
 };
 
-&blsp_dma {
-	status = "okay";
-};
-
 &blsp_i2c2 {
 	/* On Low speed expansion */
 	status = "okay";
@@ -718,14 +714,14 @@
 		"USR_LED_2_CTRL", /* GPIO 120 */
 		"SB_HS_ID";
 
-	msmgpio_leds: msmgpio-leds {
+	msmgpio_leds: msmgpio-leds-state {
 		pins = "gpio21", "gpio120";
 		function = "gpio";
 
 		output-low;
 	};
 
-	usb_id_default: usb-id-default {
+	usb_id_default: usb-id-default-state {
 		pins = "gpio121";
 		function = "gpio";
 
@@ -734,7 +730,7 @@
 		bias-pull-up;
 	};
 
-	adv7533_int_active: adv533-int-active {
+	adv7533_int_active: adv533-int-active-state {
 		pins = "gpio31";
 		function = "gpio";
 
@@ -742,7 +738,7 @@
 		bias-disable;
 	};
 
-	adv7533_int_suspend: adv7533-int-suspend {
+	adv7533_int_suspend: adv7533-int-suspend-state {
 		pins = "gpio31";
 		function = "gpio";
 
@@ -750,7 +746,7 @@
 		bias-disable;
 	};
 
-	adv7533_switch_active: adv7533-switch-active {
+	adv7533_switch_active: adv7533-switch-active-state {
 		pins = "gpio32";
 		function = "gpio";
 
@@ -758,7 +754,7 @@
 		bias-disable;
 	};
 
-	adv7533_switch_suspend: adv7533-switch-suspend {
+	adv7533_switch_suspend: adv7533-switch-suspend-state {
 		pins = "gpio32";
 		function = "gpio";
 
@@ -766,7 +762,7 @@
 		bias-disable;
 	};
 
-	msm_key_volp_n_default: msm-key-volp-n-default {
+	msm_key_volp_n_default: msm-key-volp-n-default-state {
 		pins = "gpio107";
 		function = "gpio";
 
@@ -839,7 +835,7 @@
 		function = "digital";
 
 		output-low;
-		power-source = <PM8916_MPP_L5>;	// 1.8V
+		power-source = <PM8916_MPP_L5>;	/* 1.8V */
 	};
 
 	pm8916_mpps_leds: pm8916-mpps-state {

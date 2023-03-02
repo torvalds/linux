@@ -26,6 +26,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	dmic-codec {
+		compatible = "dmic-codec";
+		num-channels = <2>;
+		wakeup-delay-ms = <50>;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x80000000>;
@@ -117,6 +123,118 @@
 			reg = <0 0x50000000 0 0x2900000>;
 			no-map;
 		};
+
+		adsp_mem: memory@60000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60000000 0 0xd80000>;
+			no-map;
+		};
+
+		afe_mem: memory@60d80000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60d80000 0 0x100000>;
+			no-map;
+		};
+
+		adsp_device_mem: memory@60e80000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60e80000 0 0x280000>;
+			no-map;
+		};
+	};
+
+	spk_amplifier: rt1019p {
+		compatible = "realtek,rt1019p";
+		label = "rt1019p";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rt1019p_pins_default>;
+		sdb-gpios = <&pio 100 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&adsp {
+	status = "okay";
+
+	memory-region = <&adsp_device_mem>, <&adsp_mem>;
+};
+
+&afe {
+	status = "okay";
+
+	mediatek,etdm-in2-cowork-source = <2>;
+	mediatek,etdm-out2-cowork-source = <0>;
+	memory-region = <&afe_mem>;
+};
+
+&dp_intf0 {
+	status = "okay";
+
+	port {
+		dp_intf0_out: endpoint {
+			remote-endpoint = <&edp_in>;
+		};
+	};
+};
+
+&dp_intf1 {
+	status = "okay";
+
+	port {
+		dp_intf1_out: endpoint {
+			remote-endpoint = <&dptx_in>;
+		};
+	};
+};
+
+&edp_tx {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&edptx_pins_default>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			edp_in: endpoint {
+				remote-endpoint = <&dp_intf0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			edp_out: endpoint {
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&dp_tx {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dptx_pin>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dptx_in: endpoint {
+				remote-endpoint = <&dp_intf1_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dptx_out: endpoint {
+				data-lanes = <0 1 2 3>;
+			};
+		};
 	};
 };
 
@@ -153,6 +271,17 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
+
+	audio_codec: codec@1a {
+		/* Realtek RT5682i or RT5682s, sharing the same configuration */
+		reg = <0x1a>;
+		interrupts-extended = <&pio 89 IRQ_TYPE_EDGE_BOTH>;
+		realtek,jd-src = <1>;
+
+		AVDD-supply = <&mt6359_vio18_ldo_reg>;
+		MICVDD-supply = <&pp3300_z2>;
+		VBAT-supply = <&pp3300_z5>;
+	};
 };
 
 &i2c3 {
@@ -255,6 +384,11 @@
 	sd-uhs-sdr104;
 	vmmc-supply = <&mt_pmic_vmch_ldo_reg>;
 	vqmmc-supply = <&mt_pmic_vmc_ldo_reg>;
+};
+
+&mt6359codec {
+	mediatek,dmic-mode = <1>;  /* one-wire */
+	mediatek,mic-type-0 = <2>; /* DMIC */
 };
 
 /* for CPU-L */
@@ -464,6 +598,34 @@
 		"AP_SPI_FLASH_MOSI",
 		"AP_SPI_FLASH_MISO";
 
+	aud_pins_default: audio-default-pins {
+		pins-cmd-dat {
+		    pinmux = <PINMUX_GPIO69__FUNC_AUD_CLK_MOSI>,
+			     <PINMUX_GPIO70__FUNC_AUD_SYNC_MOSI>,
+			     <PINMUX_GPIO71__FUNC_AUD_DAT_MOSI0>,
+			     <PINMUX_GPIO72__FUNC_AUD_DAT_MOSI1>,
+			     <PINMUX_GPIO73__FUNC_AUD_DAT_MISO0>,
+			     <PINMUX_GPIO74__FUNC_AUD_DAT_MISO1>,
+			     <PINMUX_GPIO75__FUNC_AUD_DAT_MISO2>,
+			     <PINMUX_GPIO0__FUNC_TDMIN_MCK>,
+			     <PINMUX_GPIO1__FUNC_TDMIN_DI>,
+			     <PINMUX_GPIO2__FUNC_TDMIN_LRCK>,
+			     <PINMUX_GPIO3__FUNC_TDMIN_BCK>,
+			     <PINMUX_GPIO60__FUNC_I2SO2_D0>,
+			     <PINMUX_GPIO49__FUNC_I2SIN_D0>,
+			     <PINMUX_GPIO50__FUNC_I2SO1_MCK>,
+			     <PINMUX_GPIO51__FUNC_I2SO1_BCK>,
+			     <PINMUX_GPIO52__FUNC_I2SO1_WS>,
+			     <PINMUX_GPIO53__FUNC_I2SO1_D0>;
+		};
+
+		pins-hp-jack-int-odl {
+			pinmux = <PINMUX_GPIO89__FUNC_GPIO89>;
+			input-enable;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+	};
+
 	cr50_int: cr50-irq-default-pins {
 		pins-gsc-ap-int-odl {
 			pinmux = <PINMUX_GPIO88__FUNC_GPIO88>;
@@ -476,6 +638,20 @@
 			pinmux = <PINMUX_GPIO4__FUNC_GPIO4>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 			input-enable;
+		};
+	};
+
+	edptx_pins_default: edptx-default-pins {
+		pins-cmd-dat {
+			pinmux = <PINMUX_GPIO7__FUNC_EDP_TX_HPD>;
+			bias-pull-up;
+		};
+	};
+
+	dptx_pin: dptx-default-pins {
+		pins-cmd-dat {
+			pinmux = <PINMUX_GPIO18__FUNC_DP_TX_HPD>;
+			bias-pull-up;
 		};
 	};
 
@@ -691,6 +867,13 @@
 		};
 	};
 
+	rt1019p_pins_default: rt1019p-default-pins {
+		pins-amp-sdb {
+			pinmux = <PINMUX_GPIO100__FUNC_GPIO100>;
+			output-low;
+		};
+	};
+
 	scp_pins: scp-default-pins {
 		pins-vreq {
 			pinmux = <PINMUX_GPIO76__FUNC_SCP_VREQ_VAO>;
@@ -762,6 +945,18 @@
 		compatible = "google,cros-ec-rpmsg";
 		mediatek,rpmsg-name = "cros-ec-rpmsg";
 	};
+};
+
+&sound {
+	status = "okay";
+
+	mediatek,adsp = <&adsp>;
+	mediatek,dai-link =
+		"DL10_FE", "DPTX_BE", "ETDM1_IN_BE", "ETDM2_IN_BE",
+		"ETDM1_OUT_BE", "ETDM2_OUT_BE","UL_SRC1_BE",
+		"AFE_SOF_DL2", "AFE_SOF_DL3", "AFE_SOF_UL4", "AFE_SOF_UL5";
+	pinctrl-names = "default";
+	pinctrl-0 = <&aud_pins_default>;
 };
 
 &spi0 {

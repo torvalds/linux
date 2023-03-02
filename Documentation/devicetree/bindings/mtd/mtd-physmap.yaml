@@ -13,6 +13,10 @@ description: |
   Flash chips (Memory Technology Devices) are often used for solid state
   file systems on embedded devices.
 
+allOf:
+  - $ref: "mtd.yaml#"
+  - $ref: /schemas/memory-controllers/mc-peripheral-props.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -120,10 +124,6 @@ properties:
 
   big-endian: true
   little-endian: true
-
-patternProperties:
-  '@[0-9a-f]+$':
-    $ref: partitions/partition.yaml
 
 required:
   - compatible

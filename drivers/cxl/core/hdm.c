@@ -82,46 +82,77 @@ static void parse_hdm_decoder_caps(struct cxl_hdm *cxlhdm)
 		cxlhdm->interleave_mask |= GENMASK(14, 12);
 }
 
-static void __iomem *map_hdm_decoder_regs(struct cxl_port *port,
-					  void __iomem *crb)
+static int map_hdm_decoder_regs(struct cxl_port *port, void __iomem *crb,
+				struct cxl_component_regs *regs)
 {
-	struct cxl_component_reg_map map;
+	struct cxl_register_map map = {
+		.resource = port->component_reg_phys,
+		.base = crb,
+		.max_size = CXL_COMPONENT_REG_BLOCK_SIZE,
+	};
 
-	cxl_probe_component_regs(&port->dev, crb, &map);
-	if (!map.hdm_decoder.valid) {
+	cxl_probe_component_regs(&port->dev, crb, &map.component_map);
+	if (!map.component_map.hdm_decoder.valid) {
 		dev_err(&port->dev, "HDM decoder registers invalid\n");
-		return IOMEM_ERR_PTR(-ENXIO);
+		return -ENXIO;
 	}
 
-	return crb + map.hdm_decoder.offset;
+	return cxl_map_component_regs(&port->dev, regs, &map,
+				      BIT(CXL_CM_CAP_CAP_ID_HDM));
 }
 
-/**
- * devm_cxl_setup_hdm - map HDM decoder component registers
- * @port: cxl_port to map
- */
-struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port)
+static struct cxl_hdm *devm_cxl_setup_emulated_hdm(struct cxl_port *port,
+						   struct cxl_endpoint_dvsec_info *info)
 {
 	struct device *dev = &port->dev;
-	void __iomem *crb, *hdm;
 	struct cxl_hdm *cxlhdm;
+
+	if (!info->mem_enabled)
+		return ERR_PTR(-ENODEV);
 
 	cxlhdm = devm_kzalloc(dev, sizeof(*cxlhdm), GFP_KERNEL);
 	if (!cxlhdm)
 		return ERR_PTR(-ENOMEM);
 
 	cxlhdm->port = port;
-	crb = devm_cxl_iomap_block(dev, port->component_reg_phys,
-				   CXL_COMPONENT_REG_BLOCK_SIZE);
+	cxlhdm->decoder_count = info->ranges;
+	cxlhdm->target_count = info->ranges;
+	dev_set_drvdata(&port->dev, cxlhdm);
+
+	return cxlhdm;
+}
+
+/**
+ * devm_cxl_setup_hdm - map HDM decoder component registers
+ * @port: cxl_port to map
+ * @info: cached DVSEC range register info
+ */
+struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
+				   struct cxl_endpoint_dvsec_info *info)
+{
+	struct device *dev = &port->dev;
+	struct cxl_hdm *cxlhdm;
+	void __iomem *crb;
+	int rc;
+
+	cxlhdm = devm_kzalloc(dev, sizeof(*cxlhdm), GFP_KERNEL);
+	if (!cxlhdm)
+		return ERR_PTR(-ENOMEM);
+
+	cxlhdm->port = port;
+	crb = ioremap(port->component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE);
 	if (!crb) {
+		if (info && info->mem_enabled)
+			return devm_cxl_setup_emulated_hdm(port, info);
+
 		dev_err(dev, "No component registers mapped\n");
 		return ERR_PTR(-ENXIO);
 	}
 
-	hdm = map_hdm_decoder_regs(port, crb);
-	if (IS_ERR(hdm))
-		return ERR_CAST(hdm);
-	cxlhdm->regs.hdm_decoder = hdm;
+	rc = map_hdm_decoder_regs(port, crb, &cxlhdm->regs);
+	iounmap(crb);
+	if (rc)
+		return ERR_PTR(rc);
 
 	parse_hdm_decoder_caps(cxlhdm);
 	if (cxlhdm->decoder_count == 0) {
@@ -274,7 +305,7 @@ success:
 	return 0;
 }
 
-static int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
+int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 				resource_size_t base, resource_size_t len,
 				resource_size_t skipped)
 {
@@ -290,6 +321,7 @@ static int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 
 	return devm_add_action_or_reset(&port->dev, cxl_dpa_release, cxled);
 }
+EXPORT_SYMBOL_NS_GPL(devm_cxl_dpa_reserve, CXL);
 
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled)
 {
@@ -489,10 +521,10 @@ static void cxld_set_interleave(struct cxl_decoder *cxld, u32 *ctrl)
 	 * Input validation ensures these warns never fire, but otherwise
 	 * suppress unititalized variable usage warnings.
 	 */
-	if (WARN_ONCE(ways_to_cxl(cxld->interleave_ways, &eiw),
+	if (WARN_ONCE(ways_to_eiw(cxld->interleave_ways, &eiw),
 		      "invalid interleave_ways: %d\n", cxld->interleave_ways))
 		return;
-	if (WARN_ONCE(granularity_to_cxl(cxld->interleave_granularity, &eig),
+	if (WARN_ONCE(granularity_to_eig(cxld->interleave_granularity, &eig),
 		      "invalid interleave_granularity: %d\n",
 		      cxld->interleave_granularity))
 		return;
@@ -671,12 +703,71 @@ static int cxl_decoder_reset(struct cxl_decoder *cxld)
 	port->commit_end--;
 	cxld->flags &= ~CXL_DECODER_F_ENABLE;
 
+	/* Userspace is now responsible for reconfiguring this decoder */
+	if (is_endpoint_decoder(&cxld->dev)) {
+		struct cxl_endpoint_decoder *cxled;
+
+		cxled = to_cxl_endpoint_decoder(&cxld->dev);
+		cxled->state = CXL_DECODER_STATE_MANUAL;
+	}
+
 	return 0;
+}
+
+static int cxl_setup_hdm_decoder_from_dvsec(struct cxl_port *port,
+					    struct cxl_decoder *cxld, int which,
+					    struct cxl_endpoint_dvsec_info *info)
+{
+	if (!is_cxl_endpoint(port))
+		return -EOPNOTSUPP;
+
+	if (!range_len(&info->dvsec_range[which]))
+		return -ENOENT;
+
+	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->commit = NULL;
+	cxld->reset = NULL;
+	cxld->hpa_range = info->dvsec_range[which];
+
+	/*
+	 * Set the emulated decoder as locked pending additional support to
+	 * change the range registers at run time.
+	 */
+	cxld->flags |= CXL_DECODER_F_ENABLE | CXL_DECODER_F_LOCK;
+	port->commit_end = cxld->id;
+
+	return 0;
+}
+
+static bool should_emulate_decoders(struct cxl_port *port)
+{
+	struct cxl_hdm *cxlhdm = dev_get_drvdata(&port->dev);
+	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
+	u32 ctrl;
+	int i;
+
+	if (!is_cxl_endpoint(cxlhdm->port))
+		return false;
+
+	if (!hdm)
+		return true;
+
+	/*
+	 * If any decoders are committed already, there should not be any
+	 * emulated DVSEC decoders.
+	 */
+	for (i = 0; i < cxlhdm->decoder_count; i++) {
+		ctrl = readl(hdm + CXL_HDM_DECODER0_CTRL_OFFSET(i));
+		if (FIELD_GET(CXL_HDM_DECODER0_CTRL_COMMITTED, ctrl))
+			return false;
+	}
+
+	return true;
 }
 
 static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			    int *target_map, void __iomem *hdm, int which,
-			    u64 *dpa_base)
+			    u64 *dpa_base, struct cxl_endpoint_dvsec_info *info)
 {
 	struct cxl_endpoint_decoder *cxled = NULL;
 	u64 size, base, skip, dpa_size;
@@ -688,6 +779,9 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		u64 value;
 		unsigned char target_id[8];
 	} target_list;
+
+	if (should_emulate_decoders(port))
+		return cxl_setup_hdm_decoder_from_dvsec(port, cxld, which, info);
 
 	if (is_endpoint_decoder(&cxld->dev))
 		cxled = to_cxl_endpoint_decoder(&cxld->dev);
@@ -711,6 +805,9 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		.start = base,
 		.end = base + size - 1,
 	};
+
+	if (cxled && !committed && range_len(&info->dvsec_range[which]))
+		return cxl_setup_hdm_decoder_from_dvsec(port, cxld, which, info);
 
 	/* decoders are enabled if committed */
 	if (committed) {
@@ -736,16 +833,16 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		}
 		cxld->target_type = CXL_DECODER_EXPANDER;
 	}
-	rc = cxl_to_ways(FIELD_GET(CXL_HDM_DECODER0_CTRL_IW_MASK, ctrl),
-			 &cxld->interleave_ways);
+	rc = eiw_to_ways(FIELD_GET(CXL_HDM_DECODER0_CTRL_IW_MASK, ctrl),
+			  &cxld->interleave_ways);
 	if (rc) {
 		dev_warn(&port->dev,
 			 "decoder%d.%d: Invalid interleave ways (ctrl: %#x)\n",
 			 port->id, cxld->id, ctrl);
 		return rc;
 	}
-	rc = cxl_to_granularity(FIELD_GET(CXL_HDM_DECODER0_CTRL_IG_MASK, ctrl),
-				&cxld->interleave_granularity);
+	rc = eig_to_granularity(FIELD_GET(CXL_HDM_DECODER0_CTRL_IG_MASK, ctrl),
+				 &cxld->interleave_granularity);
 	if (rc)
 		return rc;
 
@@ -778,20 +875,20 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		return rc;
 	}
 	*dpa_base += dpa_size + skip;
+
+	cxled->state = CXL_DECODER_STATE_AUTO;
+
 	return 0;
 }
 
-/**
- * devm_cxl_enumerate_decoders - add decoder objects per HDM register set
- * @cxlhdm: Structure to populate with HDM capabilities
- */
-int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
+static void cxl_settle_decoders(struct cxl_hdm *cxlhdm)
 {
 	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
-	struct cxl_port *port = cxlhdm->port;
-	int i, committed;
-	u64 dpa_base = 0;
+	int committed, i;
 	u32 ctrl;
+
+	if (!hdm)
+		return;
 
 	/*
 	 * Since the register resource was recently claimed via request_region()
@@ -809,6 +906,22 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 	/* ensure that future checks of committed can be trusted */
 	if (committed != cxlhdm->decoder_count)
 		msleep(20);
+}
+
+/**
+ * devm_cxl_enumerate_decoders - add decoder objects per HDM register set
+ * @cxlhdm: Structure to populate with HDM capabilities
+ * @info: cached DVSEC range register info
+ */
+int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
+				struct cxl_endpoint_dvsec_info *info)
+{
+	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
+	struct cxl_port *port = cxlhdm->port;
+	int i;
+	u64 dpa_base = 0;
+
+	cxl_settle_decoders(cxlhdm);
 
 	for (i = 0; i < cxlhdm->decoder_count; i++) {
 		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
@@ -821,7 +934,8 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			cxled = cxl_endpoint_decoder_alloc(port);
 			if (IS_ERR(cxled)) {
 				dev_warn(&port->dev,
-					 "Failed to allocate the decoder\n");
+					 "Failed to allocate decoder%d.%d\n",
+					 port->id, i);
 				return PTR_ERR(cxled);
 			}
 			cxld = &cxled->cxld;
@@ -831,21 +945,26 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			cxlsd = cxl_switch_decoder_alloc(port, target_count);
 			if (IS_ERR(cxlsd)) {
 				dev_warn(&port->dev,
-					 "Failed to allocate the decoder\n");
+					 "Failed to allocate decoder%d.%d\n",
+					 port->id, i);
 				return PTR_ERR(cxlsd);
 			}
 			cxld = &cxlsd->cxld;
 		}
 
-		rc = init_hdm_decoder(port, cxld, target_map, hdm, i, &dpa_base);
+		rc = init_hdm_decoder(port, cxld, target_map, hdm, i,
+				      &dpa_base, info);
 		if (rc) {
+			dev_warn(&port->dev,
+				 "Failed to initialize decoder%d.%d\n",
+				 port->id, i);
 			put_device(&cxld->dev);
 			return rc;
 		}
 		rc = add_hdm_decoder(port, cxld, target_map);
 		if (rc) {
 			dev_warn(&port->dev,
-				 "Failed to add decoder to port\n");
+				 "Failed to add decoder%d.%d\n", port->id, i);
 			return rc;
 		}
 	}

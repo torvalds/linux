@@ -44,6 +44,7 @@ struct dentry;
  *
  * Should be initialized by calling clk_hw_init_rate_request().
  *
+ * @core: 		Pointer to the struct clk_core affected by this request
  * @rate:		Requested clock rate. This field will be adjusted by
  *			clock drivers according to hardware capabilities.
  * @min_rate:		Minimum rate imposed by clk users.
@@ -55,6 +56,7 @@ struct dentry;
  *
  */
 struct clk_rate_request {
+	struct clk_core *core;
 	unsigned long rate;
 	unsigned long min_rate;
 	unsigned long max_rate;

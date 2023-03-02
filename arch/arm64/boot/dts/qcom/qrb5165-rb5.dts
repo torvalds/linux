@@ -238,7 +238,7 @@
 };
 
 &apps_rsc {
-	pm8009-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8009-1-rpmh-regulators";
 		qcom,pmic-id = "f";
 
@@ -284,7 +284,7 @@
 		};
 	};
 
-	pm8150-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8150-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -417,7 +417,7 @@
 		};
 	};
 
-	pm8150l-rpmh-regulators {
+	regulators-2 {
 		compatible = "qcom,pm8150l-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -867,7 +867,7 @@
 };
 
 &q6afedai {
-	qi2s@16 {
+	dai@16 {
 		reg = <PRIMARY_MI2S_RX>;
 		qcom,sd-lines = <0 1 2 3>;
 	};
@@ -875,7 +875,7 @@
 
 /* TERT I2S Uses 1 I2S SD Lines for audio on LT9611 HDMI Bridge */
 &q6afedai {
-	qi2s@20 {
+	dai@20 {
 		reg = <TERTIARY_MI2S_RX>;
 		qcom,sd-lines = <0>;
 	};
@@ -904,7 +904,7 @@
 	cd-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
 	no-sdio;
-	no-emmc;
+	no-mmc;
 };
 
 &sound {
@@ -1007,7 +1007,9 @@
 };
 
 &swr0 {
-	left_spkr: wsa8810-left{
+	status = "okay";
+
+	left_spkr: speaker@0,3 {
 		compatible = "sdw10217211000";
 		reg = <0 3>;
 		powerdown-gpios = <&tlmm 130 GPIO_ACTIVE_HIGH>;
@@ -1016,7 +1018,7 @@
 		#sound-dai-cells = <0>;
 	};
 
-	right_spkr: wsa8810-right{
+	right_spkr: speaker@0,4 {
 		compatible = "sdw10217211000";
 		reg = <0 4>;
 		powerdown-gpios = <&tlmm 130 GPIO_ACTIVE_HIGH>;
@@ -1210,33 +1212,33 @@
 		"HST_WLAN_UART_TX",
 		"HST_WLAN_UART_RX";
 
-	lt9611_irq_pin: lt9611-irq {
+	lt9611_irq_pin: lt9611-irq-state {
 		pins = "gpio63";
 		function = "gpio";
 		bias-disable;
 	};
 
-	sdc2_default_state: sdc2-default {
-		clk {
+	sdc2_default_state: sdc2-default-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			bias-disable;
 			drive-strength = <16>;
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		data {
+		data-pins {
 			pins = "sdc2_data";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 	};
 
-	sdc2_card_det_n: sd-card-det-n {
+	sdc2_card_det_n: sd-card-det-n-state {
 		pins = "gpio77";
 		function = "gpio";
 		bias-pull-up;
@@ -1319,6 +1321,10 @@
 };
 
 &venus {
+	status = "okay";
+};
+
+&wsamacro {
 	status = "okay";
 };
 

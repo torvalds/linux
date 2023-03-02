@@ -126,7 +126,7 @@ __test(const char *expect, int elen, const char *fmt, ...)
 	 * be able to print it as expected.
 	 */
 	failed_tests += do_test(BUF_SIZE, expect, elen, fmt, ap);
-	rand = 1 + prandom_u32_max(elen+1);
+	rand = get_random_u32_inclusive(1, elen + 1);
 	/* Since elen < BUF_SIZE, we have 1 <= rand <= BUF_SIZE. */
 	failed_tests += do_test(rand, expect, elen, fmt, ap);
 	failed_tests += do_test(0, expect, elen, fmt, ap);
@@ -179,18 +179,6 @@ test_number(void)
 	 * behaviour.
 	 */
 	test("00|0|0|0|0", "%.2d|%.1d|%.0d|%.*d|%1.0d", 0, 0, 0, 0, 0, 0);
-#ifndef __CHAR_UNSIGNED__
-	{
-		/*
-		 * Passing a 'char' to a %02x specifier doesn't do
-		 * what was presumably the intention when char is
-		 * signed and the value is negative. One must either &
-		 * with 0xff or cast to u8.
-		 */
-		char val = -16;
-		test("0xfffffff0|0xf0|0xf0", "%#02x|%#02x|%#02x", val, val & 0xff, (u8)val);
-	}
-#endif
 }
 
 static void __init
@@ -686,17 +674,17 @@ flags(void)
 	gfp = GFP_ATOMIC|__GFP_DMA;
 	test("GFP_ATOMIC|GFP_DMA", "%pGg", &gfp);
 
-	gfp = __GFP_ATOMIC;
-	test("__GFP_ATOMIC", "%pGg", &gfp);
+	gfp = __GFP_HIGH;
+	test("__GFP_HIGH", "%pGg", &gfp);
 
 	/* Any flags not translated by the table should remain numeric */
 	gfp = ~__GFP_BITS_MASK;
 	snprintf(cmp_buffer, BUF_SIZE, "%#lx", (unsigned long) gfp);
 	test(cmp_buffer, "%pGg", &gfp);
 
-	snprintf(cmp_buffer, BUF_SIZE, "__GFP_ATOMIC|%#lx",
+	snprintf(cmp_buffer, BUF_SIZE, "__GFP_HIGH|%#lx",
 							(unsigned long) gfp);
-	gfp |= __GFP_ATOMIC;
+	gfp |= __GFP_HIGH;
 	test(cmp_buffer, "%pGg", &gfp);
 
 	kfree(cmp_buffer);
@@ -704,31 +692,29 @@ flags(void)
 
 static void __init fwnode_pointer(void)
 {
-	const struct software_node softnodes[] = {
-		{ .name = "first", },
-		{ .name = "second", .parent = &softnodes[0], },
-		{ .name = "third", .parent = &softnodes[1], },
-		{ NULL /* Guardian */ }
-	};
-	const char * const full_name = "first/second/third";
+	const struct software_node first = { .name = "first" };
+	const struct software_node second = { .name = "second", .parent = &first };
+	const struct software_node third = { .name = "third", .parent = &second };
+	const struct software_node *group[] = { &first, &second, &third, NULL };
 	const char * const full_name_second = "first/second";
+	const char * const full_name_third = "first/second/third";
 	const char * const second_name = "second";
 	const char * const third_name = "third";
 	int rval;
 
-	rval = software_node_register_nodes(softnodes);
+	rval = software_node_register_node_group(group);
 	if (rval) {
 		pr_warn("cannot register softnodes; rval %d\n", rval);
 		return;
 	}
 
-	test(full_name_second, "%pfw", software_node_fwnode(&softnodes[1]));
-	test(full_name, "%pfw", software_node_fwnode(&softnodes[2]));
-	test(full_name, "%pfwf", software_node_fwnode(&softnodes[2]));
-	test(second_name, "%pfwP", software_node_fwnode(&softnodes[1]));
-	test(third_name, "%pfwP", software_node_fwnode(&softnodes[2]));
+	test(full_name_second, "%pfw", software_node_fwnode(&second));
+	test(full_name_third, "%pfw", software_node_fwnode(&third));
+	test(full_name_third, "%pfwf", software_node_fwnode(&third));
+	test(second_name, "%pfwP", software_node_fwnode(&second));
+	test(third_name, "%pfwP", software_node_fwnode(&third));
 
-	software_node_unregister_nodes(softnodes);
+	software_node_unregister_node_group(group);
 }
 
 static void __init fourcc_pointer(void)

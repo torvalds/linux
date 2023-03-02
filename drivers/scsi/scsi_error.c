@@ -231,6 +231,11 @@ scsi_abort_command(struct scsi_cmnd *scmd)
 	struct Scsi_Host *shost = sdev->host;
 	unsigned long flags;
 
+	if (!shost->hostt->eh_abort_handler) {
+		/* No abort handler, fail command directly */
+		return FAILED;
+	}
+
 	if (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) {
 		/*
 		 * Retry after abort failed, escalate to next level.
@@ -312,7 +317,7 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 	 * Ensure that all tasks observe the host state change before the
 	 * host_failed change.
 	 */
-	call_rcu(&scmd->rcu, scsi_eh_inc_host_failed);
+	call_rcu_hurry(&scmd->rcu, scsi_eh_inc_host_failed);
 }
 
 /**
@@ -328,7 +333,6 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 enum blk_eh_timer_return scsi_timeout(struct request *req)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
-	enum blk_eh_timer_return rtn = BLK_EH_DONE;
 	struct Scsi_Host *host = scmd->device->host;
 
 	trace_scsi_dispatch_cmd_timeout(scmd);
@@ -338,31 +342,30 @@ enum blk_eh_timer_return scsi_timeout(struct request *req)
 	if (host->eh_deadline != -1 && !host->last_reset)
 		host->last_reset = jiffies;
 
-	if (host->hostt->eh_timed_out)
-		rtn = host->hostt->eh_timed_out(scmd);
-
-	if (rtn == BLK_EH_DONE) {
-		/*
-		 * Set the command to complete first in order to prevent a real
-		 * completion from releasing the command while error handling
-		 * is using it. If the command was already completed, then the
-		 * lower level driver beat the timeout handler, and it is safe
-		 * to return without escalating error recovery.
-		 *
-		 * If timeout handling lost the race to a real completion, the
-		 * block layer may ignore that due to a fake timeout injection,
-		 * so return RESET_TIMER to allow error handling another shot
-		 * at this command.
-		 */
-		if (test_and_set_bit(SCMD_STATE_COMPLETE, &scmd->state))
+	if (host->hostt->eh_timed_out) {
+		switch (host->hostt->eh_timed_out(scmd)) {
+		case SCSI_EH_DONE:
+			return BLK_EH_DONE;
+		case SCSI_EH_RESET_TIMER:
 			return BLK_EH_RESET_TIMER;
-		if (scsi_abort_command(scmd) != SUCCESS) {
-			set_host_byte(scmd, DID_TIME_OUT);
-			scsi_eh_scmd_add(scmd);
+		case SCSI_EH_NOT_HANDLED:
+			break;
 		}
 	}
 
-	return rtn;
+	/*
+	 * If scsi_done() has already set SCMD_STATE_COMPLETE, do not modify
+	 * *scmd.
+	 */
+	if (test_and_set_bit(SCMD_STATE_COMPLETE, &scmd->state))
+		return BLK_EH_DONE;
+	atomic_inc(&scmd->device->iodone_cnt);
+	if (scsi_abort_command(scmd) != SUCCESS) {
+		set_host_byte(scmd, DID_TIME_OUT);
+		scsi_eh_scmd_add(scmd);
+	}
+
+	return BLK_EH_DONE;
 }
 
 /**

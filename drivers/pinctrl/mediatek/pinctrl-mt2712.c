@@ -567,6 +567,7 @@ static const struct mtk_pinctrl_devdata mt2712_pinctrl_data = {
 		.ports     = 8,
 		.ap_num    = 229,
 		.db_cnt    = 40,
+		.db_time   = debounce_time_mt2701,
 	},
 };
 

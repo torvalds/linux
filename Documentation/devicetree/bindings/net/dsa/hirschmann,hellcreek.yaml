@@ -4,15 +4,15 @@
 $id: http://devicetree.org/schemas/net/dsa/hirschmann,hellcreek.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Hirschmann Hellcreek TSN Switch Device Tree Bindings
+title: Hirschmann Hellcreek TSN Switch
 
 allOf:
-  - $ref: dsa.yaml#
+  - $ref: dsa.yaml#/$defs/ethernet-ports
 
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>
   - Florian Fainelli <f.fainelli@gmail.com>
-  - Vivien Didelot <vivien.didelot@gmail.com>
+  - Vladimir Oltean <olteanv@gmail.com>
   - Kurt Kanzenbach <kurt@linutronix.de>
 
 description:

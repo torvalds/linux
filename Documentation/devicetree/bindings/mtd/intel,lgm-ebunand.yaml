@@ -39,14 +39,8 @@ properties:
       - const: tx
       - const: rx
 
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 0
-
 patternProperties:
-  "^nand@[a-f0-9]+$":
+  "^nand@[a-f0-9]$":
     type: object
     properties:
       reg:
@@ -67,33 +61,31 @@ required:
   - clocks
   - dmas
   - dma-names
-  - "#address-cells"
-  - "#size-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
     nand-controller@e0f00000 {
-      compatible = "intel,lgm-ebunand";
-      reg = <0xe0f00000 0x100>,
-            <0xe1000000 0x300>,
-            <0xe1400000 0x8000>,
-            <0xe1c00000 0x1000>,
-            <0x17400000 0x4>,
-            <0x17c00000 0x4>;
-      reg-names = "ebunand", "hsnand", "nand_cs0", "nand_cs1",
-        "addr_sel0", "addr_sel1";
-      clocks = <&cgu0 125>;
-      dmas = <&dma0 8>, <&dma0 9>;
-      dma-names = "tx", "rx";
-      #address-cells = <1>;
-      #size-cells = <0>;
+        compatible = "intel,lgm-ebunand";
+        reg = <0xe0f00000 0x100>,
+              <0xe1000000 0x300>,
+              <0xe1400000 0x8000>,
+              <0xe1c00000 0x1000>,
+              <0x17400000 0x4>,
+              <0x17c00000 0x4>;
+        reg-names = "ebunand", "hsnand", "nand_cs0", "nand_cs1",
+                    "addr_sel0", "addr_sel1";
+        clocks = <&cgu0 125>;
+        dmas = <&dma0 8>, <&dma0 9>;
+        dma-names = "tx", "rx";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      nand@0 {
-        reg = <0>;
-        nand-ecc-mode = "hw";
-      };
+        nand@0 {
+            reg = <0>;
+            nand-ecc-mode = "hw";
+        };
     };
 
 ...

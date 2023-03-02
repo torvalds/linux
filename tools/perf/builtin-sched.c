@@ -1573,7 +1573,7 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 
 	if (sched->map.comp) {
 		cpus_nr = bitmap_weight(sched->map.comp_cpus_mask, MAX_CPUS);
-		if (!test_and_set_bit(this_cpu.cpu, sched->map.comp_cpus_mask)) {
+		if (!__test_and_set_bit(this_cpu.cpu, sched->map.comp_cpus_mask)) {
 			sched->map.comp_cpus[cpus_nr++] = this_cpu;
 			new_cpu = true;
 		}

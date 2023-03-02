@@ -390,45 +390,6 @@ struct nstoken {
 	int orig_netns_fd;
 };
 
-static int setns_by_fd(int nsfd)
-{
-	int err;
-
-	err = setns(nsfd, CLONE_NEWNET);
-	close(nsfd);
-
-	if (!ASSERT_OK(err, "setns"))
-		return err;
-
-	/* Switch /sys to the new namespace so that e.g. /sys/class/net
-	 * reflects the devices in the new namespace.
-	 */
-	err = unshare(CLONE_NEWNS);
-	if (!ASSERT_OK(err, "unshare"))
-		return err;
-
-	/* Make our /sys mount private, so the following umount won't
-	 * trigger the global umount in case it's shared.
-	 */
-	err = mount("none", "/sys", NULL, MS_PRIVATE, NULL);
-	if (!ASSERT_OK(err, "remount private /sys"))
-		return err;
-
-	err = umount2("/sys", MNT_DETACH);
-	if (!ASSERT_OK(err, "umount2 /sys"))
-		return err;
-
-	err = mount("sysfs", "/sys", "sysfs", 0, NULL);
-	if (!ASSERT_OK(err, "mount /sys"))
-		return err;
-
-	err = mount("bpffs", "/sys/fs/bpf", "bpf", 0, NULL);
-	if (!ASSERT_OK(err, "mount /sys/fs/bpf"))
-		return err;
-
-	return 0;
-}
-
 struct nstoken *open_netns(const char *name)
 {
 	int nsfd;
@@ -449,8 +410,9 @@ struct nstoken *open_netns(const char *name)
 	if (!ASSERT_GE(nsfd, 0, "open netns fd"))
 		goto fail;
 
-	err = setns_by_fd(nsfd);
-	if (!ASSERT_OK(err, "setns_by_fd"))
+	err = setns(nsfd, CLONE_NEWNET);
+	close(nsfd);
+	if (!ASSERT_OK(err, "setns"))
 		goto fail;
 
 	return token;
@@ -461,6 +423,7 @@ fail:
 
 void close_netns(struct nstoken *token)
 {
-	ASSERT_OK(setns_by_fd(token->orig_netns_fd), "setns_by_fd");
+	ASSERT_OK(setns(token->orig_netns_fd, CLONE_NEWNET), "setns");
+	close(token->orig_netns_fd);
 	free(token);
 }

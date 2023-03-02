@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_modeset_helper_vtables.h>
 
 #include "cdv_device.h"
 #include "framebuffer.h"

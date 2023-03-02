@@ -464,9 +464,10 @@ to address dependencies, since the address of a location accessed
 through a pointer will depend on the value read earlier from that
 pointer.
 
-Finally, a read event and another memory access event are linked by a
-control dependency if the value obtained by the read affects whether
-the second event is executed at all.  Simple example:
+Finally, a read event X and a write event Y are linked by a control
+dependency if Y syntactically lies within an arm of an if statement and
+X affects the evaluation of the if condition via a data or address
+dependency (or similarly for a switch statement).  Simple example:
 
 	int x, y;
 
@@ -1005,6 +1006,36 @@ order.  Equivalently,
 
 where the rmw relation links the read and write events making up each
 atomic update.  This is what the LKMM's "atomic" axiom says.
+
+Atomic rmw updates play one more role in the LKMM: They can form "rmw
+sequences".  An rmw sequence is simply a bunch of atomic updates where
+each update reads from the previous one.  Written using events, it
+looks like this:
+
+	Z0 ->rf Y1 ->rmw Z1 ->rf ... ->rf Yn ->rmw Zn,
+
+where Z0 is some store event and n can be any number (even 0, in the
+degenerate case).  We write this relation as: Z0 ->rmw-sequence Zn.
+Note that this implies Z0 and Zn are stores to the same variable.
+
+Rmw sequences have a special property in the LKMM: They can extend the
+cumul-fence relation.  That is, if we have:
+
+	U ->cumul-fence X -> rmw-sequence Y
+
+then also U ->cumul-fence Y.  Thinking about this in terms of the
+operational model, U ->cumul-fence X says that the store U propagates
+to each CPU before the store X does.  Then the fact that X and Y are
+linked by an rmw sequence means that U also propagates to each CPU
+before Y does.  In an analogous way, rmw sequences can also extend
+the w-post-bounded relation defined below in the PLAIN ACCESSES AND
+DATA RACES section.
+
+(The notion of rmw sequences in the LKMM is similar to, but not quite
+the same as, that of release sequences in the C11 memory model.  They
+were added to the LKMM to fix an obscure bug; without them, atomic
+updates with full-barrier semantics did not always guarantee ordering
+at least as strong as atomic updates with release-barrier semantics.)
 
 
 THE PRESERVED PROGRAM ORDER RELATION: ppo
@@ -2544,7 +2575,7 @@ smp_store_release() -- which is basically how the Linux kernel treats
 them.
 
 Although we said that plain accesses are not linked by the ppo
-relation, they do contribute to it indirectly.  Namely, when there is
+relation, they do contribute to it indirectly.  Firstly, when there is
 an address dependency from a marked load R to a plain store W,
 followed by smp_wmb() and then a marked store W', the LKMM creates a
 ppo link from R to W'.  The reasoning behind this is perhaps a little
@@ -2552,6 +2583,13 @@ shaky, but essentially it says there is no way to generate object code
 for this source code in which W' could execute before R.  Just as with
 pre-bounding by address dependencies, it is possible for the compiler
 to undermine this relation if sufficient care is not taken.
+
+Secondly, plain accesses can carry dependencies: If a data dependency
+links a marked load R to a store W, and the store is read by a load R'
+from the same thread, then the data loaded by R' depends on the data
+loaded originally by R. Thus, if R' is linked to any access X by a
+dependency, R is also linked to access X by the same dependency, even
+if W' or R' (or both!) are plain.
 
 There are a few oddball fences which need special treatment:
 smp_mb__before_atomic(), smp_mb__after_atomic(), and

@@ -247,6 +247,32 @@ xfs_fs_show_options(
 	return 0;
 }
 
+static bool
+xfs_set_inode_alloc_perag(
+	struct xfs_perag	*pag,
+	xfs_ino_t		ino,
+	xfs_agnumber_t		max_metadata)
+{
+	if (!xfs_is_inode32(pag->pag_mount)) {
+		set_bit(XFS_AGSTATE_ALLOWS_INODES, &pag->pag_opstate);
+		clear_bit(XFS_AGSTATE_PREFERS_METADATA, &pag->pag_opstate);
+		return false;
+	}
+
+	if (ino > XFS_MAXINUMBER_32) {
+		clear_bit(XFS_AGSTATE_ALLOWS_INODES, &pag->pag_opstate);
+		clear_bit(XFS_AGSTATE_PREFERS_METADATA, &pag->pag_opstate);
+		return false;
+	}
+
+	set_bit(XFS_AGSTATE_ALLOWS_INODES, &pag->pag_opstate);
+	if (pag->pag_agno < max_metadata)
+		set_bit(XFS_AGSTATE_PREFERS_METADATA, &pag->pag_opstate);
+	else
+		clear_bit(XFS_AGSTATE_PREFERS_METADATA, &pag->pag_opstate);
+	return true;
+}
+
 /*
  * Set parameters for inode allocation heuristics, taking into account
  * filesystem size and inode32/inode64 mount options; i.e. specifically
@@ -310,24 +336,8 @@ xfs_set_inode_alloc(
 		ino = XFS_AGINO_TO_INO(mp, index, agino);
 
 		pag = xfs_perag_get(mp, index);
-
-		if (xfs_is_inode32(mp)) {
-			if (ino > XFS_MAXINUMBER_32) {
-				pag->pagi_inodeok = 0;
-				pag->pagf_metadata = 0;
-			} else {
-				pag->pagi_inodeok = 1;
-				maxagi++;
-				if (index < max_metadata)
-					pag->pagf_metadata = 1;
-				else
-					pag->pagf_metadata = 0;
-			}
-		} else {
-			pag->pagi_inodeok = 1;
-			pag->pagf_metadata = 0;
-		}
-
+		if (xfs_set_inode_alloc_perag(pag, ino, max_metadata))
+			maxagi++;
 		xfs_perag_put(pag);
 	}
 
@@ -1110,7 +1120,7 @@ xfs_fs_put_super(
 	if (!sb->s_fs_info)
 		return;
 
-	xfs_notice(mp, "Unmounting Filesystem");
+	xfs_notice(mp, "Unmounting Filesystem %pU", &mp->m_sb.sb_uuid);
 	xfs_filestream_unmount(mp);
 	xfs_unmountfs(mp);
 
@@ -1922,7 +1932,6 @@ static int xfs_init_fs_context(
 		return -ENOMEM;
 
 	spin_lock_init(&mp->m_sb_lock);
-	spin_lock_init(&mp->m_agirotor_lock);
 	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
 	spin_lock_init(&mp->m_perag_lock);
 	mutex_init(&mp->m_growlock);
@@ -2028,18 +2037,14 @@ xfs_init_caches(void)
 		goto out_destroy_trans_cache;
 
 	xfs_efd_cache = kmem_cache_create("xfs_efd_item",
-					(sizeof(struct xfs_efd_log_item) +
-					(XFS_EFD_MAX_FAST_EXTENTS - 1) *
-					sizeof(struct xfs_extent)),
-					0, 0, NULL);
+			xfs_efd_log_item_sizeof(XFS_EFD_MAX_FAST_EXTENTS),
+			0, 0, NULL);
 	if (!xfs_efd_cache)
 		goto out_destroy_buf_item_cache;
 
 	xfs_efi_cache = kmem_cache_create("xfs_efi_item",
-					 (sizeof(struct xfs_efi_log_item) +
-					 (XFS_EFI_MAX_FAST_EXTENTS - 1) *
-					 sizeof(struct xfs_extent)),
-					 0, 0, NULL);
+			xfs_efi_log_item_sizeof(XFS_EFI_MAX_FAST_EXTENTS),
+			0, 0, NULL);
 	if (!xfs_efi_cache)
 		goto out_destroy_efd_cache;
 

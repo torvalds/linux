@@ -33,6 +33,12 @@ config HAVE_KVM_DIRTY_RING_ACQ_REL
        bool
        select HAVE_KVM_DIRTY_RING
 
+# Allow enabling both the dirty bitmap and dirty ring. Only architectures
+# that need to dirty memory outside of a vCPU context should select this.
+config NEED_KVM_DIRTY_RING_WITH_BITMAP
+	bool
+	depends on HAVE_KVM_DIRTY_RING
+
 config HAVE_KVM_EVENTFD
        bool
        select EVENTFD
@@ -85,4 +91,7 @@ config KVM_XFER_TO_GUEST_WORK
        bool
 
 config HAVE_KVM_PM_NOTIFIER
+       bool
+
+config KVM_GENERIC_HARDWARE_ENABLING
        bool

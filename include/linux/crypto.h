@@ -176,7 +176,7 @@ struct crypto_async_request;
 struct crypto_tfm;
 struct crypto_type;
 
-typedef void (*crypto_completion_t)(struct crypto_async_request *req, int err);
+typedef void (*crypto_completion_t)(void *req, int err);
 
 /**
  * DOC: Block Cipher Context Data Structures
@@ -595,7 +595,7 @@ struct crypto_wait {
 /*
  * Async ops completion helper functioons
  */
-void crypto_req_done(struct crypto_async_request *req, int err);
+void crypto_req_done(void *req, int err);
 
 static inline int crypto_wait_req(int err, struct crypto_wait *wait)
 {
@@ -712,11 +712,6 @@ static inline void crypto_tfm_set_flags(struct crypto_tfm *tfm, u32 flags)
 static inline void crypto_tfm_clear_flags(struct crypto_tfm *tfm, u32 flags)
 {
 	tfm->crt_flags &= ~flags;
-}
-
-static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
-{
-	return tfm->__crt_ctx;
 }
 
 static inline unsigned int crypto_tfm_ctx_alignment(void)

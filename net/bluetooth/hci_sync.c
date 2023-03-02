@@ -12,6 +12,7 @@
 #include <net/bluetooth/mgmt.h>
 
 #include "hci_request.h"
+#include "hci_codec.h"
 #include "hci_debugfs.h"
 #include "smp.h"
 #include "eir.h"
@@ -3054,6 +3055,7 @@ int hci_update_name_sync(struct hci_dev *hdev)
  * Enable Authentication
  * lmp_bredr_capable(Set Fast Connectable -> Set Scan Type -> Set Class ->
  * Set Name -> Set EIR)
+ * HCI_FORCE_STATIC_ADDR | BDADDR_ANY && !HCI_BREDR_ENABLED (Set Static Address)
  */
 int hci_powered_update_sync(struct hci_dev *hdev)
 {
@@ -3091,6 +3093,23 @@ int hci_powered_update_sync(struct hci_dev *hdev)
 		hci_update_class_sync(hdev);
 		hci_update_name_sync(hdev);
 		hci_update_eir_sync(hdev);
+	}
+
+	/* If forcing static address is in use or there is no public
+	 * address use the static address as random address (but skip
+	 * the HCI command if the current random address is already the
+	 * static one.
+	 *
+	 * In case BR/EDR has been disabled on a dual-mode controller
+	 * and a static address has been configured, then use that
+	 * address instead of the public BR/EDR address.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
+	    (!bacmp(&hdev->bdaddr, BDADDR_ANY) &&
+	    !hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))) {
+		if (bacmp(&hdev->static_addr, BDADDR_ANY))
+			return hci_set_random_addr_sync(hdev,
+							&hdev->static_addr);
 	}
 
 	return 0;
@@ -3553,7 +3572,7 @@ static const struct hci_init_stage hci_init2[] = {
 static int hci_le_read_buffer_size_sync(struct hci_dev *hdev)
 {
 	/* Use Read LE Buffer Size V2 if supported */
-	if (hdev->commands[41] & 0x20)
+	if (iso_capable(hdev) && hdev->commands[41] & 0x20)
 		return __hci_cmd_sync_status(hdev,
 					     HCI_OP_LE_READ_BUFFER_SIZE_V2,
 					     0, NULL, HCI_CMD_TIMEOUT);
@@ -3578,10 +3597,10 @@ static int hci_le_read_supported_states_sync(struct hci_dev *hdev)
 
 /* LE Controller init stage 2 command sequence */
 static const struct hci_init_stage le_init2[] = {
-	/* HCI_OP_LE_READ_BUFFER_SIZE */
-	HCI_INIT(hci_le_read_buffer_size_sync),
 	/* HCI_OP_LE_READ_LOCAL_FEATURES */
 	HCI_INIT(hci_le_read_local_features_sync),
+	/* HCI_OP_LE_READ_BUFFER_SIZE */
+	HCI_INIT(hci_le_read_buffer_size_sync),
 	/* HCI_OP_LE_READ_SUPPORTED_STATES */
 	HCI_INIT(hci_le_read_supported_states_sync),
 	{}
@@ -3780,7 +3799,8 @@ static int hci_read_page_scan_activity_sync(struct hci_dev *hdev)
 static int hci_read_def_err_data_reporting_sync(struct hci_dev *hdev)
 {
 	if (!(hdev->commands[18] & 0x04) ||
-	    !(hdev->features[0][6] & LMP_ERR_DATA_REPORTING))
+	    !(hdev->features[0][6] & LMP_ERR_DATA_REPORTING) ||
+	    test_bit(HCI_QUIRK_BROKEN_ERR_DATA_REPORTING, &hdev->quirks))
 		return 0;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_READ_DEF_ERR_DATA_REPORTING,
@@ -4238,11 +4258,12 @@ static int hci_set_event_mask_page_2_sync(struct hci_dev *hdev)
 /* Read local codec list if the HCI command is supported */
 static int hci_read_local_codecs_sync(struct hci_dev *hdev)
 {
-	if (!(hdev->commands[29] & 0x20))
-		return 0;
+	if (hdev->commands[45] & 0x04)
+		hci_read_supported_codecs_v2(hdev);
+	else if (hdev->commands[29] & 0x20)
+		hci_read_supported_codecs(hdev);
 
-	return __hci_cmd_sync_status(hdev, HCI_OP_READ_LOCAL_CODECS, 0, NULL,
-				     HCI_CMD_TIMEOUT);
+	return 0;
 }
 
 /* Read local pairing options if the HCI command is supported */
@@ -4258,7 +4279,7 @@ static int hci_read_local_pairing_opts_sync(struct hci_dev *hdev)
 /* Get MWS transport configuration if the HCI command is supported */
 static int hci_get_mws_transport_config_sync(struct hci_dev *hdev)
 {
-	if (!(hdev->commands[30] & 0x08))
+	if (!mws_transport_config_capable(hdev))
 		return 0;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_GET_MWS_TRANSPORT_CONFIG,
@@ -4298,7 +4319,8 @@ static int hci_set_err_data_report_sync(struct hci_dev *hdev)
 	bool enabled = hci_dev_test_flag(hdev, HCI_WIDEBAND_SPEECH_ENABLED);
 
 	if (!(hdev->commands[18] & 0x08) ||
-	    !(hdev->features[0][6] & LMP_ERR_DATA_REPORTING))
+	    !(hdev->features[0][6] & LMP_ERR_DATA_REPORTING) ||
+	    test_bit(HCI_QUIRK_BROKEN_ERR_DATA_REPORTING, &hdev->quirks))
 		return 0;
 
 	if (enabled == hdev->err_data_reporting)
@@ -4457,6 +4479,9 @@ static const struct {
 	HCI_QUIRK_BROKEN(STORED_LINK_KEY,
 			 "HCI Delete Stored Link Key command is advertised, "
 			 "but not supported."),
+	HCI_QUIRK_BROKEN(ERR_DATA_REPORTING,
+			 "HCI Read Default Erroneous Data Reporting command is "
+			 "advertised, but not supported."),
 	HCI_QUIRK_BROKEN(READ_TRANSMIT_POWER,
 			 "HCI Read Transmit Power Level command is advertised, "
 			 "but not supported."),
@@ -4696,6 +4721,7 @@ int hci_dev_open_sync(struct hci_dev *hdev)
 			hdev->flush(hdev);
 
 		if (hdev->sent_cmd) {
+			cancel_delayed_work_sync(&hdev->cmd_timer);
 			kfree_skb(hdev->sent_cmd);
 			hdev->sent_cmd = NULL;
 		}
@@ -6161,20 +6187,13 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 
 static int _update_adv_data_sync(struct hci_dev *hdev, void *data)
 {
-	u8 instance = *(u8 *)data;
-
-	kfree(data);
+	u8 instance = PTR_ERR(data);
 
 	return hci_update_adv_data_sync(hdev, instance);
 }
 
 int hci_update_adv_data(struct hci_dev *hdev, u8 instance)
 {
-	u8 *inst_ptr = kmalloc(1, GFP_KERNEL);
-
-	if (!inst_ptr)
-		return -ENOMEM;
-
-	*inst_ptr = instance;
-	return hci_cmd_sync_queue(hdev, _update_adv_data_sync, inst_ptr, NULL);
+	return hci_cmd_sync_queue(hdev, _update_adv_data_sync,
+				  ERR_PTR(instance), NULL);
 }

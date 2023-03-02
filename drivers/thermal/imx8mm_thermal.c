@@ -10,27 +10,64 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
+#include "thermal_hwmon.h"
 
 #define TER			0x0	/* TMU enable */
 #define TPS			0x4
 #define TRITSR			0x20	/* TMU immediate temp */
+/* TMU calibration data registers */
+#define TASR			0x28
+#define TASR_BUF_SLOPE_MASK	GENMASK(19, 16)
+#define TASR_BUF_VREF_MASK	GENMASK(4, 0)	/* TMU_V1 */
+#define TASR_BUF_VERF_SEL_MASK	GENMASK(1, 0)	/* TMU_V2 */
+#define TCALIV(n)		(0x30 + ((n) * 4))
+#define TCALIV_EN		BIT(31)
+#define TCALIV_HR_MASK		GENMASK(23, 16)	/* TMU_V1 */
+#define TCALIV_RT_MASK		GENMASK(7, 0)	/* TMU_V1 */
+#define TCALIV_SNSR105C_MASK	GENMASK(27, 16)	/* TMU_V2 */
+#define TCALIV_SNSR25C_MASK	GENMASK(11, 0)	/* TMU_V2 */
+#define TRIM			0x3c
+#define TRIM_BJT_CUR_MASK	GENMASK(23, 20)
+#define TRIM_BGR_MASK		GENMASK(31, 28)
+#define TRIM_VLSB_MASK		GENMASK(15, 12)
+#define TRIM_EN_CH		BIT(7)
 
 #define TER_ADC_PD		BIT(30)
 #define TER_EN			BIT(31)
-#define TRITSR_TEMP0_VAL_MASK	0xff
-#define TRITSR_TEMP1_VAL_MASK	0xff0000
+#define TRITSR_TEMP0_VAL_MASK	GENMASK(7, 0)
+#define TRITSR_TEMP1_VAL_MASK	GENMASK(23, 16)
 
 #define PROBE_SEL_ALL		GENMASK(31, 30)
 
 #define probe_status_offset(x)	(30 + x)
 #define SIGN_BIT		BIT(7)
 #define TEMP_VAL_MASK		GENMASK(6, 0)
+
+/* TMU OCOTP calibration data bitfields */
+#define ANA0_EN			BIT(25)
+#define ANA0_BUF_VREF_MASK	GENMASK(24, 20)
+#define ANA0_BUF_SLOPE_MASK	GENMASK(19, 16)
+#define ANA0_HR_MASK		GENMASK(15, 8)
+#define ANA0_RT_MASK		GENMASK(7, 0)
+#define TRIM2_VLSB_MASK		GENMASK(23, 20)
+#define TRIM2_BGR_MASK		GENMASK(19, 16)
+#define TRIM2_BJT_CUR_MASK	GENMASK(15, 12)
+#define TRIM2_BUF_SLOP_SEL_MASK	GENMASK(11, 8)
+#define TRIM2_BUF_VERF_SEL_MASK	GENMASK(7, 6)
+#define TRIM3_TCA25_0_LSB_MASK	GENMASK(31, 28)
+#define TRIM3_TCA40_0_MASK	GENMASK(27, 16)
+#define TRIM4_TCA40_1_MASK	GENMASK(31, 20)
+#define TRIM4_TCA105_0_MASK	GENMASK(19, 8)
+#define TRIM4_TCA25_0_MSB_MASK	GENMASK(7, 0)
+#define TRIM5_TCA105_1_MASK	GENMASK(23, 12)
+#define TRIM5_TCA25_1_MASK	GENMASK(11, 0)
 
 #define VER1_TEMP_LOW_LIMIT	10000
 #define VER2_TEMP_LOW_LIMIT	-40000
@@ -65,8 +102,14 @@ static int imx8mm_tmu_get_temp(void *data, int *temp)
 	u32 val;
 
 	val = readl_relaxed(tmu->base + TRITSR) & TRITSR_TEMP0_VAL_MASK;
+
+	/*
+	 * Do not validate against the V bit (bit 31) due to errata
+	 * ERR051272: TMU: Bit 31 of registers TMU_TSCR/TMU_TRITSR/TMU_TRATSR invalid
+	 */
+
 	*temp = val * 1000;
-	if (*temp < VER1_TEMP_LOW_LIMIT)
+	if (*temp < VER1_TEMP_LOW_LIMIT || *temp > VER2_TEMP_HIGH_LIMIT)
 		return -EAGAIN;
 
 	return 0;
@@ -128,6 +171,129 @@ static void imx8mm_tmu_probe_sel_all(struct imx8mm_tmu *tmu)
 	writel_relaxed(val, tmu->base + TPS);
 }
 
+static int imx8mm_tmu_probe_set_calib_v1(struct platform_device *pdev,
+					 struct imx8mm_tmu *tmu)
+{
+	struct device *dev = &pdev->dev;
+	u32 ana0;
+	int ret;
+
+	ret = nvmem_cell_read_u32(&pdev->dev, "calib", &ana0);
+	if (ret) {
+		dev_warn(dev, "Failed to read OCOTP nvmem cell (%d).\n", ret);
+		return ret;
+	}
+
+	writel(FIELD_PREP(TASR_BUF_VREF_MASK,
+			  FIELD_GET(ANA0_BUF_VREF_MASK, ana0)) |
+	       FIELD_PREP(TASR_BUF_SLOPE_MASK,
+			  FIELD_GET(ANA0_BUF_SLOPE_MASK, ana0)),
+	       tmu->base + TASR);
+
+	writel(FIELD_PREP(TCALIV_RT_MASK, FIELD_GET(ANA0_RT_MASK, ana0)) |
+	       FIELD_PREP(TCALIV_HR_MASK, FIELD_GET(ANA0_HR_MASK, ana0)) |
+	       ((ana0 & ANA0_EN) ? TCALIV_EN : 0),
+	       tmu->base + TCALIV(0));
+
+	return 0;
+}
+
+static int imx8mm_tmu_probe_set_calib_v2(struct platform_device *pdev,
+					 struct imx8mm_tmu *tmu)
+{
+	struct device *dev = &pdev->dev;
+	struct nvmem_cell *cell;
+	u32 trim[4] = { 0 };
+	size_t len;
+	void *buf;
+
+	cell = nvmem_cell_get(dev, "calib");
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	buf = nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	memcpy(trim, buf, min(len, sizeof(trim)));
+	kfree(buf);
+
+	if (len != 16) {
+		dev_err(dev,
+			"OCOTP nvmem cell length is %zu, must be 16.\n", len);
+		return -EINVAL;
+	}
+
+	/* Blank sample hardware */
+	if (!trim[0] && !trim[1] && !trim[2] && !trim[3]) {
+		/* Use a default 25C binary codes */
+		writel(FIELD_PREP(TCALIV_SNSR25C_MASK, 0x63c),
+		       tmu->base + TCALIV(0));
+		writel(FIELD_PREP(TCALIV_SNSR25C_MASK, 0x63c),
+		       tmu->base + TCALIV(1));
+		return 0;
+	}
+
+	writel(FIELD_PREP(TASR_BUF_VERF_SEL_MASK,
+			  FIELD_GET(TRIM2_BUF_VERF_SEL_MASK, trim[0])) |
+	       FIELD_PREP(TASR_BUF_SLOPE_MASK,
+			  FIELD_GET(TRIM2_BUF_SLOP_SEL_MASK, trim[0])),
+	       tmu->base + TASR);
+
+	writel(FIELD_PREP(TRIM_BJT_CUR_MASK,
+			  FIELD_GET(TRIM2_BJT_CUR_MASK, trim[0])) |
+	       FIELD_PREP(TRIM_BGR_MASK, FIELD_GET(TRIM2_BGR_MASK, trim[0])) |
+	       FIELD_PREP(TRIM_VLSB_MASK, FIELD_GET(TRIM2_VLSB_MASK, trim[0])) |
+	       TRIM_EN_CH,
+	       tmu->base + TRIM);
+
+	writel(FIELD_PREP(TCALIV_SNSR25C_MASK,
+			  FIELD_GET(TRIM3_TCA25_0_LSB_MASK, trim[1]) |
+			  (FIELD_GET(TRIM4_TCA25_0_MSB_MASK, trim[2]) << 4)) |
+	       FIELD_PREP(TCALIV_SNSR105C_MASK,
+			  FIELD_GET(TRIM4_TCA105_0_MASK, trim[2])),
+	       tmu->base + TCALIV(0));
+
+	writel(FIELD_PREP(TCALIV_SNSR25C_MASK,
+			  FIELD_GET(TRIM5_TCA25_1_MASK, trim[3])) |
+	       FIELD_PREP(TCALIV_SNSR105C_MASK,
+			  FIELD_GET(TRIM5_TCA105_1_MASK, trim[3])),
+	       tmu->base + TCALIV(1));
+
+	writel(FIELD_PREP(TCALIV_SNSR25C_MASK,
+			  FIELD_GET(TRIM3_TCA40_0_MASK, trim[1])) |
+	       FIELD_PREP(TCALIV_SNSR105C_MASK,
+			  FIELD_GET(TRIM4_TCA40_1_MASK, trim[2])),
+	       tmu->base + TCALIV(2));
+
+	return 0;
+}
+
+static int imx8mm_tmu_probe_set_calib(struct platform_device *pdev,
+				      struct imx8mm_tmu *tmu)
+{
+	struct device *dev = &pdev->dev;
+
+	/*
+	 * Lack of calibration data OCOTP reference is not considered
+	 * fatal to retain compatibility with old DTs. It is however
+	 * strongly recommended to update such old DTs to get correct
+	 * temperature compensation values for each SoC.
+	 */
+	if (!of_find_property(pdev->dev.of_node, "nvmem-cells", NULL)) {
+		dev_warn(dev,
+			 "No OCOTP nvmem reference found, SoC-specific calibration not loaded. Please update your DT.\n");
+		return 0;
+	}
+
+	if (tmu->socdata->version == TMU_VER1)
+		return imx8mm_tmu_probe_set_calib_v1(pdev, tmu);
+
+	return imx8mm_tmu_probe_set_calib_v2(pdev, tmu);
+}
+
 static int imx8mm_tmu_probe(struct platform_device *pdev)
 {
 	const struct thermal_soc_data *data;
@@ -176,9 +342,16 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 			goto disable_clk;
 		}
 		tmu->sensors[i].hw_id = i;
+
+		if (devm_thermal_add_hwmon_sysfs(tmu->sensors[i].tzd))
+			dev_warn(&pdev->dev, "failed to add hwmon sysfs attributes\n");
 	}
 
 	platform_set_drvdata(pdev, tmu);
+
+	ret = imx8mm_tmu_probe_set_calib(pdev, tmu);
+	if (ret)
+		goto disable_clk;
 
 	/* enable all the probes for V2 TMU */
 	if (tmu->socdata->version == TMU_VER2)

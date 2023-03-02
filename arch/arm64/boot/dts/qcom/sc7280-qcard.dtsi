@@ -37,7 +37,7 @@
 		pinctrl-0 = <&wcd_reset_n>, <&us_euro_hs_sel>;
 		pinctrl-1 = <&wcd_reset_n_sleep>, <&us_euro_hs_sel>;
 
-		reset-gpios = <&tlmm 83 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 83 GPIO_ACTIVE_LOW>;
 		us-euro-gpios = <&tlmm 81 GPIO_ACTIVE_HIGH>;
 
 		qcom,rx-device = <&wcd_rx>;
@@ -230,9 +230,15 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		/*
+		 * The initial design of this regulator was to use it as 3.3V,
+		 * but due to later changes in design it was changed to 1.8V.
+		 * The original name is kept due to same schematic.
+		 */
+		ts_avccio:
 		vreg_l3c_3p0: ldo3 {
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <3540000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -335,11 +341,6 @@
 };
 
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
-
-&ipa {
-	status = "okay";
-	modem-init;
-};
 
 &lpass_va_macro {
 	vdd-micb-supply = <&vreg_bob>;
@@ -595,7 +596,7 @@ mos_bt_uart: &uart7 {
 };
 
 &tlmm {
-	mos_bt_en: mos-bt-en-pins {
+	mos_bt_en: mos-bt-en-state {
 		pins = "gpio85";
 		function = "gpio";
 		drive-strength = <2>;
@@ -603,7 +604,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_cts: qup-uart7-sleep-cts-pins {
+	qup_uart7_sleep_cts: qup-uart7-sleep-cts-state {
 		pins = "gpio28";
 		function = "gpio";
 		/*
@@ -617,7 +618,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_rts: qup-uart7-sleep-rts-pins {
+	qup_uart7_sleep_rts: qup-uart7-sleep-rts-state {
 		pins = "gpio29";
 		function = "gpio";
 		/*
@@ -630,7 +631,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_rx: qup-uart7-sleep-rx-pins {
+	qup_uart7_sleep_rx: qup-uart7-sleep-rx-state {
 		pins = "gpio31";
 		function = "gpio";
 		/*
@@ -642,7 +643,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_tx: qup-uart7-sleep-tx-pins {
+	qup_uart7_sleep_tx: qup-uart7-sleep-tx-state {
 		pins = "gpio30";
 		function = "gpio";
 		/*
@@ -652,32 +653,32 @@ mos_bt_uart: &uart7 {
 		bias-pull-up;
 	};
 
-	ts_int_conn: ts-int-conn-pins {
+	ts_int_conn: ts-int-conn-state {
 		pins = "gpio55";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	ts_rst_conn: ts-rst-conn-pins {
+	ts_rst_conn: ts-rst-conn-state {
 		pins = "gpio54";
 		function = "gpio";
 		drive-strength = <2>;
 	};
 
-	us_euro_hs_sel: us-euro-hs-sel {
+	us_euro_hs_sel: us-euro-hs-sel-state {
 		pins = "gpio81";
 		function = "gpio";
 		bias-pull-down;
 		drive-strength = <2>;
 	};
 
-	wcd_reset_n: wcd-reset-n {
+	wcd_reset_n: wcd-reset-n-state {
 		pins = "gpio83";
 		function = "gpio";
 		drive-strength = <8>;
 	};
 
-	wcd_reset_n_sleep: wcd-reset-n-sleep {
+	wcd_reset_n_sleep: wcd-reset-n-sleep-state {
 		pins = "gpio83";
 		function = "gpio";
 		drive-strength = <8>;

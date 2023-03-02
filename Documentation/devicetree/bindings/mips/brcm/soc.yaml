@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mips/brcm/soc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom cable/DSL/settop platforms
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+description: |
+    Boards Broadcom cable/DSL/settop SoC shall have the following properties.
+    The experimental -viper variants are for running Linux on the 3384's
+    BMIPS4355 cable modem CPU instead of the BMIPS5000 application processor.
+
+properties:
+  $nodename:
+    const: '/'
+
+  compatible:
+    enum:
+      - brcm,bcm3368
+      - brcm,bcm3384
+      - brcm,bcm33843
+      - brcm,bcm3384-viper
+      - brcm,bcm33843-viper
+      - brcm,bcm6328
+      - brcm,bcm6358
+      - brcm,bcm6362
+      - brcm,bcm6368
+      - brcm,bcm63168
+      - brcm,bcm63268
+      - brcm,bcm7125
+      - brcm,bcm7346
+      - brcm,bcm7358
+      - brcm,bcm7360
+      - brcm,bcm7362
+      - brcm,bcm7420
+      - brcm,bcm7425
+
+  cpus:
+    type: object
+    additionalProperties: false
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+      mips-hpt-frequency:
+        description: MIPS counter high precision timer frequency.
+         This is common to all CPUs in the system so it lives
+         under the "cpus" node.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+    patternProperties:
+      "^cpu@[0-9]$":
+        type: object
+        $ref: /schemas/mips/cpus.yaml#
+        unevaluatedProperties: false
+
+    required:
+      - mips-hpt-frequency
+
+additionalProperties: true
+
+examples:
+  - |
+     / {
+         compatible = "brcm,bcm3368";
+         #address-cells = <1>;
+         #size-cells = <1>;
+         model = "Broadcom 3368";
+
+         cpus {
+           #address-cells = <1>;
+           #size-cells = <0>;
+
+           mips-hpt-frequency = <150000000>;
+
+           cpu@0 {
+             compatible = "brcm,bmips4350";
+             device_type = "cpu";
+             reg = <0>;
+           };
+
+           cpu@1 {
+             compatible = "brcm,bmips4350";
+             device_type = "cpu";
+             reg = <1>;
+           };
+         };
+       };
+...

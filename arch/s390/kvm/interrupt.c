@@ -83,8 +83,9 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 		struct esca_block *sca = vcpu->kvm->arch.sca;
 		union esca_sigp_ctrl *sigp_ctrl =
 			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
-		union esca_sigp_ctrl new_val = {0}, old_val = *sigp_ctrl;
+		union esca_sigp_ctrl new_val = {0}, old_val;
 
+		old_val = READ_ONCE(*sigp_ctrl);
 		new_val.scn = src_id;
 		new_val.c = 1;
 		old_val.c = 0;
@@ -95,8 +96,9 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 		struct bsca_block *sca = vcpu->kvm->arch.sca;
 		union bsca_sigp_ctrl *sigp_ctrl =
 			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
-		union bsca_sigp_ctrl new_val = {0}, old_val = *sigp_ctrl;
+		union bsca_sigp_ctrl new_val = {0}, old_val;
 
+		old_val = READ_ONCE(*sigp_ctrl);
 		new_val.scn = src_id;
 		new_val.c = 1;
 		old_val.c = 0;
@@ -126,16 +128,18 @@ static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 		struct esca_block *sca = vcpu->kvm->arch.sca;
 		union esca_sigp_ctrl *sigp_ctrl =
 			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
-		union esca_sigp_ctrl old = *sigp_ctrl;
+		union esca_sigp_ctrl old;
 
+		old = READ_ONCE(*sigp_ctrl);
 		expect = old.value;
 		rc = cmpxchg(&sigp_ctrl->value, old.value, 0);
 	} else {
 		struct bsca_block *sca = vcpu->kvm->arch.sca;
 		union bsca_sigp_ctrl *sigp_ctrl =
 			&(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
-		union bsca_sigp_ctrl old = *sigp_ctrl;
+		union bsca_sigp_ctrl old;
 
+		old = READ_ONCE(*sigp_ctrl);
 		expect = old.value;
 		rc = cmpxchg(&sigp_ctrl->value, old.value, 0);
 	}
@@ -312,11 +316,6 @@ static inline void gisa_set_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
 static inline u8 gisa_get_ipm(struct kvm_s390_gisa *gisa)
 {
 	return READ_ONCE(gisa->ipm);
-}
-
-static inline void gisa_clear_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
-{
-	clear_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *) gisa);
 }
 
 static inline int gisa_tac_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
@@ -3104,9 +3103,9 @@ static enum hrtimer_restart gisa_vcpu_kicker(struct hrtimer *timer)
 static void process_gib_alert_list(void)
 {
 	struct kvm_s390_gisa_interrupt *gi;
+	u32 final, gisa_phys, origin = 0UL;
 	struct kvm_s390_gisa *gisa;
 	struct kvm *kvm;
-	u32 final, origin = 0UL;
 
 	do {
 		/*
@@ -3132,9 +3131,10 @@ static void process_gib_alert_list(void)
 		 * interruptions asap.
 		 */
 		while (origin & GISA_ADDR_MASK) {
-			gisa = (struct kvm_s390_gisa *)(u64)origin;
+			gisa_phys = origin;
+			gisa = phys_to_virt(gisa_phys);
 			origin = gisa->next_alert;
-			gisa->next_alert = (u32)(u64)gisa;
+			gisa->next_alert = gisa_phys;
 			kvm = container_of(gisa, struct sie_page2, gisa)->kvm;
 			gi = &kvm->arch.gisa_int;
 			if (hrtimer_active(&gi->timer))
@@ -3416,8 +3416,9 @@ void kvm_s390_gib_destroy(void)
 	gib = NULL;
 }
 
-int kvm_s390_gib_init(u8 nisc)
+int __init kvm_s390_gib_init(u8 nisc)
 {
+	u32 gib_origin;
 	int rc = 0;
 
 	if (!css_general_characteristics.aiv) {
@@ -3439,7 +3440,8 @@ int kvm_s390_gib_init(u8 nisc)
 	}
 
 	gib->nisc = nisc;
-	if (chsc_sgib((u32)(u64)gib)) {
+	gib_origin = virt_to_phys(gib);
+	if (chsc_sgib(gib_origin)) {
 		pr_err("Associating the GIB with the AIV facility failed\n");
 		free_page((unsigned long)gib);
 		gib = NULL;

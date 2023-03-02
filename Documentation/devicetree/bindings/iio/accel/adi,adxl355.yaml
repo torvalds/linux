@@ -4,20 +4,22 @@
 $id: http://devicetree.org/schemas/iio/accel/adi,adxl355.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices ADXL355 3-Axis, Low noise MEMS Accelerometer
+title: Analog Devices ADXL355 and ADXL359 3-Axis, Low noise MEMS Accelerometers
 
 maintainers:
   - Puranjay Mohan <puranjay12@gmail.com>
 
 description: |
-  Analog Devices ADXL355 3-Axis, Low noise MEMS Accelerometer that supports
-  both I2C & SPI interfaces
+  Analog Devices ADXL355 and ADXL359 3-Axis, Low noise MEMS Accelerometers that
+  support both I2C & SPI interfaces
     https://www.analog.com/en/products/adxl355.html
+    https://www.analog.com/en/products/adxl359.html
 
 properties:
   compatible:
     enum:
       - adi,adxl355
+      - adi,adxl359
 
   reg:
     maxItems: 1
@@ -56,34 +58,34 @@ unevaluatedProperties: false
 
 examples:
   - |
-        #include <dt-bindings/gpio/gpio.h>
-        #include <dt-bindings/interrupt-controller/irq.h>
-        i2c {
-                #address-cells = <1>;
-                #size-cells = <0>;
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-                /* Example for a I2C device node */
-                accelerometer@1d {
-                        compatible = "adi,adxl355";
-                        reg = <0x1d>;
-                        interrupt-parent = <&gpio>;
-                        interrupts = <25 IRQ_TYPE_EDGE_RISING>;
-                        interrupt-names = "DRDY";
-                };
+        /* Example for a I2C device node */
+        accelerometer@1d {
+            compatible = "adi,adxl355";
+            reg = <0x1d>;
+            interrupt-parent = <&gpio>;
+            interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "DRDY";
         };
+    };
   - |
-        #include <dt-bindings/gpio/gpio.h>
-        #include <dt-bindings/interrupt-controller/irq.h>
-        spi {
-                #address-cells = <1>;
-                #size-cells = <0>;
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-                accelerometer@0 {
-                        compatible = "adi,adxl355";
-                        reg = <0>;
-                        spi-max-frequency = <1000000>;
-                        interrupt-parent = <&gpio>;
-                        interrupts = <25 IRQ_TYPE_EDGE_RISING>;
-                        interrupt-names = "DRDY";
-                };
+        accelerometer@0 {
+            compatible = "adi,adxl355";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            interrupt-parent = <&gpio>;
+            interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "DRDY";
         };
+    };

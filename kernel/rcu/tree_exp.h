@@ -11,6 +11,7 @@
 
 static void rcu_exp_handler(void *unused);
 static int rcu_print_task_exp_stall(struct rcu_node *rnp);
+static void rcu_exp_print_detail_task_stall_rnp(struct rcu_node *rnp);
 
 /*
  * Record the start of an expedited grace period.
@@ -667,8 +668,11 @@ static void synchronize_rcu_expedited_wait(void)
 				mask = leaf_node_cpu_bit(rnp, cpu);
 				if (!(READ_ONCE(rnp->expmask) & mask))
 					continue;
+				preempt_disable(); // For smp_processor_id() in dump_cpu_task().
 				dump_cpu_task(cpu);
+				preempt_enable();
 			}
+			rcu_exp_print_detail_task_stall_rnp(rnp);
 		}
 		jiffies_stall = 3 * rcu_exp_jiffies_till_stall_check() + 3;
 		panic_on_rcu_stall();
@@ -811,6 +815,36 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
 	return ndetected;
 }
 
+/*
+ * Scan the current list of tasks blocked within RCU read-side critical
+ * sections, dumping the stack of each that is blocking the current
+ * expedited grace period.
+ */
+static void rcu_exp_print_detail_task_stall_rnp(struct rcu_node *rnp)
+{
+	unsigned long flags;
+	struct task_struct *t;
+
+	if (!rcu_exp_stall_task_details)
+		return;
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	if (!READ_ONCE(rnp->exp_tasks)) {
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		return;
+	}
+	t = list_entry(rnp->exp_tasks->prev,
+		       struct task_struct, rcu_node_entry);
+	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
+		/*
+		 * We could be printing a lot while holding a spinlock.
+		 * Avoid triggering hard lockup.
+		 */
+		touch_nmi_watchdog();
+		sched_show_task(t);
+	}
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+}
+
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
 /* Request an expedited quiescent state. */
@@ -883,6 +917,15 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
 	return 0;
 }
 
+/*
+ * Because preemptible RCU does not exist, we never have to print out
+ * tasks blocked within RCU read-side critical sections that are blocking
+ * the current expedited grace period.
+ */
+static void rcu_exp_print_detail_task_stall_rnp(struct rcu_node *rnp)
+{
+}
+
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
 /**
@@ -937,7 +980,7 @@ void synchronize_rcu_expedited(void)
 
 	/* If expedited grace periods are prohibited, fall back to normal. */
 	if (rcu_gp_is_normal()) {
-		wait_rcu_gp(call_rcu);
+		wait_rcu_gp(call_rcu_hurry);
 		return;
 	}
 

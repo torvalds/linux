@@ -35,6 +35,7 @@ iwl_ops
 kernel_param_ops
 kgdb_arch
 kgdb_io
+kobj_type
 kset_uevent_ops
 lock_manager_operations
 machine_desc

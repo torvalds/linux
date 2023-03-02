@@ -28,33 +28,7 @@ void rtw_free_evt_priv(struct	evt_priv *pevtpriv)
 	}
 }
 
-/* Calling Context:
- *
- * rtw_enqueue_cmd can only be called between kernel thread,
- * since only spin_lock is used.
- *
- * ISR/Call-Back functions can't call this sub-function.
- */
-
-static int _rtw_enqueue_cmd(struct __queue *queue, struct cmd_obj *obj)
-{
-	unsigned long flags;
-
-	if (!obj)
-		goto exit;
-
-	spin_lock_irqsave(&queue->lock, flags);
-
-	list_add_tail(&obj->list, &queue->queue);
-
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-exit:
-
-	return _SUCCESS;
-}
-
-u32	rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
+int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	init_completion(&pcmdpriv->enqueue_cmd);
 	/* sema_init(&(pcmdpriv->cmd_done_sema), 0); */
@@ -65,13 +39,11 @@ u32	rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 
-	pcmdpriv->cmd_seq = 1;
-
 	pcmdpriv->cmd_allocated_buf = kzalloc(MAX_CMDSZ + CMDBUFF_ALIGN_SZ,
 					      GFP_KERNEL);
 
 	if (!pcmdpriv->cmd_allocated_buf)
-		return _FAIL;
+		return -ENOMEM;
 
 	pcmdpriv->cmd_buf = pcmdpriv->cmd_allocated_buf  +  CMDBUFF_ALIGN_SZ - ((size_t)(pcmdpriv->cmd_allocated_buf) & (CMDBUFF_ALIGN_SZ - 1));
 
@@ -79,7 +51,7 @@ u32	rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 
 	if (!pcmdpriv->rsp_allocated_buf) {
 		kfree(pcmdpriv->cmd_allocated_buf);
-		return _FAIL;
+		return -ENOMEM;
 	}
 
 	pcmdpriv->rsp_buf = pcmdpriv->rsp_allocated_buf  +  4 - ((size_t)(pcmdpriv->rsp_allocated_buf) & 3);
@@ -87,13 +59,11 @@ u32	rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 	pcmdpriv->cmd_done_cnt = 0;
 	pcmdpriv->rsp_cnt = 0;
 
-	return _SUCCESS;
+	return 0;
 }
 
-u32 rtw_init_evt_priv(struct evt_priv *pevtpriv)
+int rtw_init_evt_priv(struct evt_priv *pevtpriv)
 {
-	u32 res = _SUCCESS;
-
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 	atomic_set(&pevtpriv->event_seq, 0);
 
@@ -101,9 +71,9 @@ u32 rtw_init_evt_priv(struct evt_priv *pevtpriv)
 	pevtpriv->c2h_wk_alive = false;
 	pevtpriv->c2h_queue = rtw_cbuf_alloc(C2H_QUEUE_MAX_LEN + 1);
 	if (!pevtpriv->c2h_queue)
-		res = _FAIL;
+		return -ENOMEM;
 
-	return res;
+	return 0;
 }
 
 void rtw_free_cmd_priv(struct	cmd_priv *pcmdpriv)
@@ -129,28 +99,25 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 
 u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 {
-	int res = _FAIL;
+	unsigned long flags;
 	struct adapter *padapter = pcmdpriv->padapter;
 
 	if (!cmd_obj)
-		goto exit;
+		return _FAIL;
 
 	cmd_obj->padapter = padapter;
 
-	res = rtw_cmd_filter(pcmdpriv, cmd_obj);
-	if (res == _FAIL) {
+	if (rtw_cmd_filter(pcmdpriv, cmd_obj) == _FAIL) {
 		rtw_free_cmd_obj(cmd_obj);
-		goto exit;
+		return _FAIL;
 	}
 
-	res = _rtw_enqueue_cmd(&pcmdpriv->cmd_queue, cmd_obj);
+	spin_lock_irqsave(&pcmdpriv->cmd_queue.lock, flags);
+	list_add_tail(&cmd_obj->list, &pcmdpriv->cmd_queue.queue);
+	spin_unlock_irqrestore(&pcmdpriv->cmd_queue.lock, flags);
 
-	if (res == _SUCCESS)
-		complete(&pcmdpriv->enqueue_cmd);
-
-exit:
-
-	return res;
+	complete(&pcmdpriv->enqueue_cmd);
+	return _SUCCESS;
 }
 
 struct	cmd_obj	*rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
@@ -235,8 +202,6 @@ _next:
 				ret = cmd_hdl(pcmd->padapter, pcmdbuf);
 				pcmd->res = ret;
 			}
-
-			pcmdpriv->cmd_seq++;
 		} else {
 			pcmd->res = H2C_PARAMETERS_ERROR;
 		}
@@ -342,33 +307,29 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 	return res;
 }
 
-u8 rtw_setdatarate_cmd(struct adapter *padapter, u8 *rateset)
+int rtw_setdatarate_cmd(struct adapter *padapter, u8 *rateset)
 {
 	struct cmd_obj *ph2c;
 	struct setdatarate_parm *pbsetdataratepara;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-	u8	res = _SUCCESS;
 
 	ph2c = kzalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (!ph2c) {
-		res = _FAIL;
-		goto exit;
-	}
+	if (!ph2c)
+		return -ENOMEM;
 
 	pbsetdataratepara = kzalloc(sizeof(*pbsetdataratepara), GFP_ATOMIC);
 	if (!pbsetdataratepara) {
 		kfree(ph2c);
-		res = _FAIL;
-		goto exit;
+		return -ENOMEM;
 	}
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pbsetdataratepara, GEN_CMD_CODE(_SetDataRate));
 	pbsetdataratepara->mac_id = 5;
 	memcpy(pbsetdataratepara->datarates, rateset, NumRates);
-	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
-exit:
+	if (rtw_enqueue_cmd(pcmdpriv, ph2c) == _FAIL)
+		return -EPERM;
 
-	return res;
+	return 0;
 }
 
 void rtw_getbbrfreg_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -1207,24 +1168,20 @@ static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 	}
 }
 
-u8 rtw_chk_hi_queue_cmd(struct adapter *padapter)
+void rtw_chk_hi_queue_cmd(struct adapter *padapter)
 {
 	struct cmd_obj	*ph2c;
 	struct drvextra_cmd_parm	*pdrvextra_cmd_parm;
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
-	u8	res = _SUCCESS;
 
 	ph2c = kzalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (!ph2c) {
-		res = _FAIL;
-		goto exit;
-	}
+	if (!ph2c)
+		return;
 
 	pdrvextra_cmd_parm = kzalloc(sizeof(*pdrvextra_cmd_parm), GFP_ATOMIC);
 	if (!pdrvextra_cmd_parm) {
 		kfree(ph2c);
-		res = _FAIL;
-		goto exit;
+		return;
 	}
 
 	pdrvextra_cmd_parm->ec_id = CHECK_HIQ_WK_CID;
@@ -1233,9 +1190,7 @@ u8 rtw_chk_hi_queue_cmd(struct adapter *padapter)
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
 
-	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
-exit:
-	return res;
+	rtw_enqueue_cmd(pcmdpriv, ph2c);
 }
 
 u8 rtw_c2h_wk_cmd(struct adapter *padapter, u8 *c2h_evt)

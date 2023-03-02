@@ -959,7 +959,7 @@ static const struct attribute_group hideep_ts_attr_group = {
 	.attrs = hideep_ts_sysfs_entries,
 };
 
-static int __maybe_unused hideep_suspend(struct device *dev)
+static int hideep_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct hideep_ts *ts = i2c_get_clientdata(client);
@@ -970,7 +970,7 @@ static int __maybe_unused hideep_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused hideep_resume(struct device *dev)
+static int hideep_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct hideep_ts *ts = i2c_get_clientdata(client);
@@ -987,7 +987,7 @@ static int __maybe_unused hideep_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(hideep_pm_ops, hideep_suspend, hideep_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(hideep_pm_ops, hideep_suspend, hideep_resume);
 
 static const struct regmap_config hideep_regmap_config = {
 	.reg_bits = 16,
@@ -997,8 +997,7 @@ static const struct regmap_config hideep_regmap_config = {
 	.max_register = 0xffff,
 };
 
-static int hideep_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int hideep_probe(struct i2c_client *client)
 {
 	struct hideep_ts *ts;
 	int error;
@@ -1109,10 +1108,10 @@ static struct i2c_driver hideep_driver = {
 		.name			= HIDEEP_I2C_NAME,
 		.of_match_table		= of_match_ptr(hideep_match_table),
 		.acpi_match_table	= ACPI_PTR(hideep_acpi_id),
-		.pm			= &hideep_pm_ops,
+		.pm			= pm_sleep_ptr(&hideep_pm_ops),
 	},
 	.id_table	= hideep_i2c_id,
-	.probe		= hideep_probe,
+	.probe_new	= hideep_probe,
 };
 
 module_i2c_driver(hideep_driver);

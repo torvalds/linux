@@ -198,7 +198,7 @@ static int iio_event_getfd(struct iio_dev *indio_dev)
 	if (ev_int == NULL)
 		return -ENODEV;
 
-	fd = mutex_lock_interruptible(&indio_dev->mlock);
+	fd = mutex_lock_interruptible(&iio_dev_opaque->mlock);
 	if (fd)
 		return fd;
 
@@ -219,7 +219,7 @@ static int iio_event_getfd(struct iio_dev *indio_dev)
 	}
 
 unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 	return fd;
 }
 
@@ -556,7 +556,7 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 
 	ret = iio_device_register_sysfs_group(indio_dev, &ev_int->group);
 	if (ret)
-		goto error_free_setup_event_lines;
+		goto error_free_group_attrs;
 
 	ev_int->ioctl_handler.ioctl = iio_event_ioctl;
 	iio_device_ioctl_handler_register(&iio_dev_opaque->indio_dev,
@@ -564,6 +564,8 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 
 	return 0;
 
+error_free_group_attrs:
+	kfree(ev_int->group.attrs);
 error_free_setup_event_lines:
 	iio_free_chan_devattr_list(&ev_int->dev_attr_list);
 	kfree(ev_int);

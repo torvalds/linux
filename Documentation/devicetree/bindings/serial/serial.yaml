@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/serial/serial.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Serial Interface Generic DT Bindings
+title: Serial Interface Generic
 
 maintainers:
   - Rob Herring <robh@kernel.org>
@@ -96,7 +96,7 @@ then:
     rts-gpios: false
 
 patternProperties:
-  ".*":
+  "^bluetooth|gnss|gps|mcu$":
     if:
       type: object
     then:
@@ -141,13 +141,13 @@ additionalProperties: true
 examples:
   - |
     serial@1234 {
-            compatible = "ns16550a";
-            reg = <0x1234 0x20>;
-            interrupts = <1>;
+        compatible = "ns16550a";
+        reg = <0x1234 0x20>;
+        interrupts = <1>;
 
-            bluetooth {
-                    compatible = "brcm,bcm4330-bt";
-                    interrupt-parent = <&gpio>;
-                    interrupts = <10>;
-            };
+        bluetooth {
+            compatible = "brcm,bcm4330-bt";
+            interrupt-parent = <&gpio>;
+            interrupts = <10>;
+        };
     };

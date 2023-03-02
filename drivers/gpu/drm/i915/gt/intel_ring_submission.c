@@ -12,7 +12,9 @@
 #include "gen6_ppgtt.h"
 #include "gen7_renderclear.h"
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "i915_mitigations.h"
+#include "i915_reg.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine_regs.h"
@@ -895,7 +897,7 @@ static int clear_residuals(struct i915_request *rq)
 	}
 
 	ret = engine->emit_bb_start(rq,
-				    engine->wa_ctx.vma->node.start, 0,
+				    i915_vma_offset(engine->wa_ctx.vma), 0,
 				    0);
 	if (ret)
 		return ret;

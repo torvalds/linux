@@ -2,8 +2,8 @@
 menuconfig FSL_DPAA_ETH
 	tristate "DPAA Ethernet"
 	depends on FSL_DPAA && FSL_FMAN
-	select PHYLIB
-	select FIXED_PHY
+	select PHYLINK
+	select PCS_LYNX
 	help
 	  Data Path Acceleration Architecture Ethernet driver,
 	  supporting the Freescale QorIQ chips.

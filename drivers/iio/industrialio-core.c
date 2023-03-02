@@ -8,30 +8,32 @@
 
 #define pr_fmt(fmt) "iio-core: " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/anon_inodes.h>
+#include <linux/cdev.h>
+#include <linux/debugfs.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/kdev_t.h>
-#include <linux/err.h>
-#include <linux/device.h>
-#include <linux/fs.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/property.h>
 #include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/cdev.h>
 #include <linux/slab.h>
-#include <linux/anon_inodes.h>
-#include <linux/debugfs.h>
-#include <linux/mutex.h>
-#include <linux/iio/iio.h>
-#include <linux/iio/iio-opaque.h>
-#include "iio_core.h"
-#include "iio_core_trigger.h"
-#include <linux/iio/sysfs.h>
-#include <linux/iio/events.h>
+#include <linux/wait.h>
+
 #include <linux/iio/buffer.h>
 #include <linux/iio/buffer_impl.h>
+#include <linux/iio/events.h>
+#include <linux/iio/iio-opaque.h>
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+
+#include "iio_core.h"
+#include "iio_core_trigger.h"
 
 /* IDA to assign each registered device a unique id */
 static DEFINE_IDA(iio_ida);
@@ -205,36 +207,6 @@ bool iio_buffer_enabled(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL_GPL(iio_buffer_enabled);
 
-/**
- * iio_sysfs_match_string_with_gaps - matches given string in an array with gaps
- * @array: array of strings
- * @n: number of strings in the array
- * @str: string to match with
- *
- * Returns index of @str in the @array or -EINVAL, similar to match_string().
- * Uses sysfs_streq instead of strcmp for matching.
- *
- * This routine will look for a string in an array of strings.
- * The search will continue until the element is found or the n-th element
- * is reached, regardless of any NULL elements in the array.
- */
-static int iio_sysfs_match_string_with_gaps(const char * const *array, size_t n,
-					    const char *str)
-{
-	const char *item;
-	int index;
-
-	for (index = 0; index < n; index++) {
-		item = array[index];
-		if (!item)
-			continue;
-		if (sysfs_streq(item, str))
-			return index;
-	}
-
-	return -EINVAL;
-}
-
 #if defined(CONFIG_DEBUG_FS)
 /*
  * There's also a CONFIG_DEBUG_FS guard in include/linux/iio/iio.h for
@@ -285,16 +257,16 @@ int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	const struct iio_event_interface *ev_int = iio_dev_opaque->event_interface;
 
-	ret = mutex_lock_interruptible(&indio_dev->mlock);
+	ret = mutex_lock_interruptible(&iio_dev_opaque->mlock);
 	if (ret)
 		return ret;
 	if ((ev_int && iio_event_enabled(ev_int)) ||
 	    iio_buffer_enabled(indio_dev)) {
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&iio_dev_opaque->mlock);
 		return -EBUSY;
 	}
 	iio_dev_opaque->clock_id = clock_id;
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 
 	return 0;
 }
@@ -569,7 +541,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 	if (!e->set)
 		return -EINVAL;
 
-	ret = iio_sysfs_match_string_with_gaps(e->items, e->num_items, buf);
+	ret = __sysfs_match_string(e->items, e->num_items, buf);
 	if (ret < 0)
 		return ret;
 
@@ -1674,7 +1646,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	indio_dev->dev.type = &iio_device_type;
 	indio_dev->dev.bus = &iio_bus_type;
 	device_initialize(&indio_dev->dev);
-	mutex_init(&indio_dev->mlock);
+	mutex_init(&iio_dev_opaque->mlock);
 	mutex_init(&iio_dev_opaque->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
@@ -1696,7 +1668,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
 
 	lockdep_register_key(&iio_dev_opaque->mlock_key);
-	lockdep_set_class(&indio_dev->mlock, &iio_dev_opaque->mlock_key);
+	lockdep_set_class(&iio_dev_opaque->mlock, &iio_dev_opaque->mlock_key);
 
 	return indio_dev;
 }
@@ -2058,10 +2030,12 @@ EXPORT_SYMBOL_GPL(__devm_iio_device_register);
  */
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
 {
-	mutex_lock(&indio_dev->mlock);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	mutex_lock(&iio_dev_opaque->mlock);
 
 	if (iio_buffer_enabled(indio_dev)) {
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&iio_dev_opaque->mlock);
 		return -EBUSY;
 	}
 	return 0;
@@ -2079,9 +2053,49 @@ EXPORT_SYMBOL_GPL(iio_device_claim_direct_mode);
  */
 void iio_device_release_direct_mode(struct iio_dev *indio_dev)
 {
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&to_iio_dev_opaque(indio_dev)->mlock);
 }
 EXPORT_SYMBOL_GPL(iio_device_release_direct_mode);
+
+/**
+ * iio_device_claim_buffer_mode - Keep device in buffer mode
+ * @indio_dev:	the iio_dev associated with the device
+ *
+ * If the device is in buffer mode it is guaranteed to stay
+ * that way until iio_device_release_buffer_mode() is called.
+ *
+ * Use with iio_device_release_buffer_mode().
+ *
+ * Returns: 0 on success, -EBUSY on failure.
+ */
+int iio_device_claim_buffer_mode(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	mutex_lock(&iio_dev_opaque->mlock);
+
+	if (iio_buffer_enabled(indio_dev))
+		return 0;
+
+	mutex_unlock(&iio_dev_opaque->mlock);
+	return -EBUSY;
+}
+EXPORT_SYMBOL_GPL(iio_device_claim_buffer_mode);
+
+/**
+ * iio_device_release_buffer_mode - releases claim on buffer mode
+ * @indio_dev:	the iio_dev associated with the device
+ *
+ * Release the claim. Device is no longer guaranteed to stay
+ * in buffer mode.
+ *
+ * Use with iio_device_claim_buffer_mode().
+ */
+void iio_device_release_buffer_mode(struct iio_dev *indio_dev)
+{
+	mutex_unlock(&to_iio_dev_opaque(indio_dev)->mlock);
+}
+EXPORT_SYMBOL_GPL(iio_device_release_buffer_mode);
 
 /**
  * iio_device_get_current_mode() - helper function providing read-only access to

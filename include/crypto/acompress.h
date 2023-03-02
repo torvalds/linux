@@ -11,6 +11,7 @@
 #include <linux/crypto.h>
 
 #define CRYPTO_ACOMP_ALLOC_OUTPUT	0x00000001
+#define CRYPTO_ACOMP_DST_MAX		131072
 
 /**
  * struct acomp_req - asynchronous (de)compression request

@@ -139,7 +139,7 @@
 			pcie1: pcie@2 {
 				device_type = "pci";
 				status = "disabled";
-				assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
+				assigned-addresses = <0x82001000 0 0x80000 0 0x2000>;
 				reg = <0x1000 0 0 0 0>;
 				clocks = <&gate_clk 5>;
 				marvell,pcie-port = <1>;
@@ -382,7 +382,6 @@
 					interrupts = <29>;
 					/* overwrite MAC address in bootloader */
 					local-mac-address = [00 00 00 00 00 00];
-					phy-handle = <&ethphy>;
 				};
 			};
 
@@ -394,10 +393,6 @@
 				interrupts = <30>;
 				clocks = <&gate_clk 2>;
 				status = "disabled";
-
-				ethphy: ethernet-phy {
-					/* set phy address in board file */
-				};
 			};
 
 			sdio0: sdio-host@92000 {

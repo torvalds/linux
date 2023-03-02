@@ -67,7 +67,7 @@
 		reg = <0x5b0e0200 0x200>;
 	};
 
-	usbphy2: usbphy@0x5b110000 {
+	usbphy2: usbphy@5b110000 {
 		compatible = "fsl,imx8dxl-usbphy", "fsl,imx7ulp-usbphy";
 		reg = <0x5b110000 0x1000>;
 		clocks = <&usb2_2_lpcg IMX_LPCG_CLK_7>;
@@ -139,4 +139,14 @@
 &usdhc3 {
 	compatible = "fsl,imx8dxl-usdhc", "fsl,imx8qxp-usdhc";
 	interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&usbotg1 {
+	interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+	/*
+	 * usbotg1 and usbotg2 share one clock
+	 * scfw disable clock access and keep it always on
+	 * in case other core (M4) use one of these.
+	 */
+	clocks = <&clk_dummy>;
 };

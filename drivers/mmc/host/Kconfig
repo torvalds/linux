@@ -14,6 +14,15 @@ config MMC_DEBUG
 	  added host drivers please don't invent their private macro for
 	  debugging.
 
+config MMC_SUNPLUS
+	tristate "Sunplus SP7021 MMC Controller"
+	depends on ARCH_SUNPLUS || COMPILE_TEST
+	help
+	  If you say yes here, you will get support for eMMC host interface
+	  on Sunplus SoCs.
+
+	  If unsure, say N
+
 config MMC_ARMMMCI
 	tristate "ARM AMBA Multimedia Card Interface support"
 	depends on ARM_AMBA
@@ -253,17 +262,6 @@ config MMC_SDHCI_CADENCE
 
 	  If unsure, say N.
 
-config MMC_SDHCI_CNS3XXX
-	tristate "SDHCI support on the Cavium Networks CNS3xxx SoC"
-	depends on ARCH_CNS3XXX || COMPILE_TEST
-	depends on MMC_SDHCI_PLTFM
-	help
-	  This selects the SDHCI support for CNS3xxx System-on-Chip devices.
-
-	  If you have a controller with this interface, say Y or M here.
-
-	  If unsure, say N.
-
 config MMC_SDHCI_ESDHC_MCF
 	tristate "SDHCI support for the Freescale eSDHC ColdFire controller"
 	depends on M5441x
@@ -323,9 +321,8 @@ config MMC_SDHCI_S3C
 	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
-	  often referrered to as the HSMMC block in some of the Samsung S3C
-	  (S3C2416, S3C2443, S3C6410), S5Pv210 and Exynos (Exynso4210,
-	  Exynos4412) SoCs.
+	  often referrered to as the HSMMC block in some of the Samsung
+	  S3C6410, S5Pv210 and Exynos (Exynso4210, Exynos4412) SoCs.
 
 	  If you have a controller with this interface (thereforeyou build for
 	  such Samsung SoC), say Y or M here.
@@ -351,6 +348,7 @@ config MMC_SDHCI_PXAV2
 	depends on MMC_SDHCI_PLTFM
 	depends on ARCH_MMP || COMPILE_TEST
 	default CPU_PXA910
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Marvell(R) PXAV2 SD Host Controller.
 	  If you have a PXA9XX platform with SD Host Controller
@@ -491,7 +489,6 @@ config MMC_SDHCI_ST
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP
-	depends on TPS65010 || !MACH_OMAP_H2
 	help
 	  This selects the TI OMAP Multimedia card Interface.
 	  If you have an OMAP board with a Multimedia Card slot,
@@ -631,49 +628,6 @@ config MMC_SPI
 
 	  If unsure, or if your system has no SPI master driver, say N.
 
-config MMC_S3C
-	tristate "Samsung S3C SD/MMC Card Interface support"
-	depends on ARCH_S3C24XX || COMPILE_TEST
-	depends on S3C24XX_DMAC || COMPILE_TEST
-	help
-	  This selects a driver for the MCI interface found in
-	  Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
-	  If you have a board based on one of those and a MMC/SD
-	  slot, say Y or M here.
-
-	  If unsure, say N.
-
-config MMC_S3C_HW_SDIO_IRQ
-	bool "Hardware support for SDIO IRQ"
-	depends on MMC_S3C
-	help
-	  Enable the hardware support for SDIO interrupts instead of using
-	  the generic polling code.
-
-choice
-	prompt "Samsung S3C SD/MMC transfer code"
-	depends on MMC_S3C
-
-config MMC_S3C_PIO
-	bool "Use PIO transfers only"
-	help
-	  Use PIO to transfer data between memory and the hardware.
-
-	  PIO is slower than DMA as it requires CPU instructions to
-	  move the data. This has been the traditional default for
-	  the S3C MCI driver.
-
-config MMC_S3C_DMA
-	bool "Use DMA transfers only"
-	help
-	  Use DMA to transfer data between memory and the hardware.
-
-	  Currently, the DMA support in this driver seems to not be
-	  working properly and needs to be debugged before this
-	  option is useful.
-
-endchoice
-
 config MMC_SDRICOH_CS
 	tristate "MMC/SD driver for Ricoh Bay1Controllers"
 	depends on PCI && PCMCIA
@@ -700,14 +654,6 @@ config MMC_SDHCI_SPRD
 
 config MMC_TMIO_CORE
 	tristate
-
-config MMC_TMIO
-	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
-	depends on MFD_TMIO || MFD_ASIC3 || COMPILE_TEST
-	select MMC_TMIO_CORE
-	help
-	  This provides support for the SD/MMC cell found in TC6393XB,
-	  T7L66XB and also HTC ASIC3
 
 config MMC_SDHI
 	tristate "Renesas SDHI SD/SDIO controller support"
@@ -870,6 +816,16 @@ config MMC_DW_ROCKCHIP
 	  This selects support for Rockchip SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
+
+config MMC_DW_STARFIVE
+	tristate "StarFive specific extensions for Synopsys DW Memory Card Interface"
+	depends on SOC_STARFIVE
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	help
+	  This selects support for StarFive JH7110 SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on StarFive JH7110 SoC.
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
@@ -1040,10 +996,10 @@ config MMC_SDHCI_MICROCHIP_PIC32
 
 config MMC_SDHCI_BRCMSTB
 	tristate "Broadcom SDIO/SD/MMC support"
-	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
 	depends on MMC_SDHCI_PLTFM
 	select MMC_CQHCI
-	default y
+	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  This selects support for the SDIO/SD/MMC Host Controller on
 	  Broadcom STB SoCs.

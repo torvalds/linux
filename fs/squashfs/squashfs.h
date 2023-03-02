@@ -38,11 +38,24 @@ extern const struct squashfs_decompressor *squashfs_lookup_decompressor(int);
 extern void *squashfs_decompressor_setup(struct super_block *, unsigned short);
 
 /* decompressor_xxx.c */
-extern void *squashfs_decompressor_create(struct squashfs_sb_info *, void *);
-extern void squashfs_decompressor_destroy(struct squashfs_sb_info *);
-extern int squashfs_decompress(struct squashfs_sb_info *, struct bio *,
-				int, int, struct squashfs_page_actor *);
-extern int squashfs_max_decompressors(void);
+
+struct squashfs_decompressor_thread_ops {
+	void * (*create)(struct squashfs_sb_info *msblk, void *comp_opts);
+	void (*destroy)(struct squashfs_sb_info *msblk);
+	int (*decompress)(struct squashfs_sb_info *msblk, struct bio *bio,
+			  int offset, int length, struct squashfs_page_actor *output);
+	int (*max_decompressors)(void);
+};
+
+#ifdef CONFIG_SQUASHFS_DECOMP_SINGLE
+extern const struct squashfs_decompressor_thread_ops squashfs_decompressor_single;
+#endif
+#ifdef CONFIG_SQUASHFS_DECOMP_MULTI
+extern const struct squashfs_decompressor_thread_ops squashfs_decompressor_multi;
+#endif
+#ifdef CONFIG_SQUASHFS_DECOMP_MULTI_PERCPU
+extern const struct squashfs_decompressor_thread_ops squashfs_decompressor_percpu;
+#endif
 
 /* export.c */
 extern __le64 *squashfs_read_inode_lookup_table(struct super_block *, u64, u64,

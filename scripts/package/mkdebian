@@ -84,16 +84,16 @@ set_debarch() {
 	fi
 }
 
+rm -rf debian
+
 # Some variables and settings used throughout the script
 version=$KERNELRELEASE
 if [ -n "$KDEB_PKGVERSION" ]; then
 	packageversion=$KDEB_PKGVERSION
-	revision=${packageversion##*-}
 else
-	revision=$(cat .version 2>/dev/null||echo 1)
-	packageversion=$version-$revision
+	packageversion=$version-$($srctree/init/build-version)
 fi
-sourcename=$KDEB_SOURCENAME
+sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
 if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux
@@ -133,7 +133,24 @@ else
 fi
 
 mkdir -p debian/source/
-echo "1.0" > debian/source/format
+echo "3.0 (quilt)" > debian/source/format
+
+{
+	echo "diff-ignore"
+	echo "extend-diff-ignore = .*"
+} > debian/source/local-options
+
+# Add .config as a patch
+mkdir -p debian/patches
+{
+	echo "Subject: Add .config"
+	echo "Author: ${maintainer}"
+	echo
+	echo "--- /dev/null"
+	echo "+++ linux/.config"
+	diff -u /dev/null "${KCONFIG_CONFIG}" | tail -n +3
+} > debian/patches/config
+echo config > debian/patches/series
 
 echo $debarch > debian/arch
 extra_build_depends=", $(if_enabled_echo CONFIG_UNWINDER_ORC libelf-dev:native)"
@@ -175,7 +192,7 @@ Section: kernel
 Priority: optional
 Maintainer: $maintainer
 Rules-Requires-Root: no
-Build-Depends: bc, rsync, kmod, cpio, bison, flex | flex:native $extra_build_depends
+Build-Depends: bc, rsync, kmod, cpio, bison, flex $extra_build_depends
 Homepage: https://www.kernel.org/
 
 Package: $packagename-$version
@@ -225,19 +242,18 @@ srctree ?= .
 
 build-indep:
 build-arch:
-	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
-	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \
+	\$(shell \$(srctree)/scripts/package/deb-build-option) \
+	olddefconfig all
 
 build: build-arch
 
 binary-indep:
 binary-arch: build-arch
-	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
-	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile intdeb-pkg
-
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} intdeb-pkg
 clean:
-	rm -rf debian/*tmp debian/files
-	\$(MAKE) clean
+	rm -rf debian/files debian/linux-*
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} clean
 
 binary: binary-arch
 EOF

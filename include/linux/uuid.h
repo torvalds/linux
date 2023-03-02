@@ -8,14 +8,24 @@
 #ifndef _LINUX_UUID_H_
 #define _LINUX_UUID_H_
 
-#include <uapi/linux/uuid.h>
 #include <linux/string.h>
 
 #define UUID_SIZE 16
 
 typedef struct {
 	__u8 b[UUID_SIZE];
+} guid_t;
+
+typedef struct {
+	__u8 b[UUID_SIZE];
 } uuid_t;
+
+#define GUID_INIT(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)			\
+((guid_t)								\
+{{ (a) & 0xff, ((a) >> 8) & 0xff, ((a) >> 16) & 0xff, ((a) >> 24) & 0xff, \
+   (b) & 0xff, ((b) >> 8) & 0xff,					\
+   (c) & 0xff, ((c) >> 8) & 0xff,					\
+   (d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7) }})
 
 #define UUID_INIT(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)			\
 ((uuid_t)								\
@@ -97,10 +107,7 @@ extern const u8 uuid_index[16];
 int guid_parse(const char *uuid, guid_t *u);
 int uuid_parse(const char *uuid, uuid_t *u);
 
-/* backwards compatibility, don't use in new code */
-static inline int uuid_le_cmp(const guid_t u1, const guid_t u2)
-{
-	return memcmp(&u1, &u2, sizeof(guid_t));
-}
+/* MEI UUID type, don't use anywhere else */
+#include <uapi/linux/uuid.h>
 
 #endif

@@ -506,14 +506,13 @@ int kfd_criu_restore_event(struct file *devkfd,
 		ret = create_other_event(p, ev, &ev_priv->event_id);
 		break;
 	}
+	mutex_unlock(&p->event_mutex);
 
 exit:
 	if (ret)
 		kfree(ev);
 
 	kfree(ev_priv);
-
-	mutex_unlock(&p->event_mutex);
 
 	return ret;
 }
@@ -1053,8 +1052,8 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	pfn = __pa(page->kernel_address);
 	pfn >>= PAGE_SHIFT;
 
-	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
-		       | VM_DONTDUMP | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
+		       | VM_DONTDUMP | VM_PFNMAP);
 
 	pr_debug("Mapping signal page\n");
 	pr_debug("     start user address  == 0x%08lx\n", vma->vm_start);

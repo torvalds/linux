@@ -23,6 +23,17 @@
 		};
 	};
 
+	clk_pwm: pwm {
+		compatible = "clk-pwm";
+		#pwm-cells = <2>;
+
+		clocks = <&gcc GCC_GP2_CLK>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&motor_pwm_default>;
+		status = "disabled";
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -59,6 +70,24 @@
 			linux,code = <SW_LID>;
 			linux,can-disable;
 		};
+	};
+
+	/*
+	 * NOTE: A5 connects GPIO 76 to a reglator powering the motor
+	 * driver IC but A3 connects the same signal to an ENABLE pin of
+	 * the driver.
+	 */
+	reg_motor_vdd: regulator-motor-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "motor_vdd";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		gpio = <&msmgpio 76 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&motor_en_default>;
 	};
 
 	reg_vdd_tsp_a: regulator-vdd-tsp-a {
@@ -144,7 +173,7 @@
 			interrupt-parent = <&msmgpio>;
 			interrupts = <21 IRQ_TYPE_EDGE_RISING>;
 
-			en-gpios = <&msmgpio 20 GPIO_ACTIVE_HIGH>;
+			en-gpios = <&msmgpio 20 GPIO_ACTIVE_LOW>;
 			wake-gpios = <&msmgpio 49 GPIO_ACTIVE_HIGH>;
 
 			clocks = <&rpmcc RPM_SMD_BB_CLK2_PIN>;
@@ -152,6 +181,16 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&nfc_default &nfc_clk_req>;
 		};
+	};
+
+	vibrator: vibrator {
+		compatible = "pwm-vibrator";
+
+		pwms = <&clk_pwm 0 100000>;
+		pwm-names = "enable";
+
+		vcc-supply = <&reg_motor_vdd>;
+		status = "disabled";
 	};
 };
 
@@ -348,7 +387,7 @@
 };
 
 &msmgpio {
-	accel_int_default: accel-int-default {
+	accel_int_default: accel-int-default-state {
 		pins = "gpio115";
 		function = "gpio";
 
@@ -356,7 +395,7 @@
 		bias-disable;
 	};
 
-	fg_alert_default: fg-alert-default {
+	fg_alert_default: fg-alert-default-state {
 		pins = "gpio121";
 		function = "gpio";
 
@@ -364,7 +403,7 @@
 		bias-disable;
 	};
 
-	gpio_keys_default: gpio-keys-default {
+	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107", "gpio109";
 		function = "gpio";
 
@@ -372,7 +411,7 @@
 		bias-pull-up;
 	};
 
-	gpio_hall_sensor_default: gpio-hall-sensor-default {
+	gpio_hall_sensor_default: gpio-hall-sensor-default-state {
 		pins = "gpio52";
 		function = "gpio";
 
@@ -380,24 +419,35 @@
 		bias-disable;
 	};
 
-	mdss {
-		mdss_default: mdss-default {
-			pins = "gpio25";
-			function = "gpio";
+	mdss_default: mdss-default-state {
+		pins = "gpio25";
+		function = "gpio";
 
-			drive-strength = <8>;
-			bias-disable;
-		};
-		mdss_sleep: mdss-sleep {
-			pins = "gpio25";
-			function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+	mdss_sleep: mdss-sleep-state {
+		pins = "gpio25";
+		function = "gpio";
 
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
-	muic_i2c_default: muic-i2c-default {
+	motor_en_default: motor-en-default-state {
+		pins = "gpio76";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	motor_pwm_default: motor-pwm-default-state {
+		pins = "gpio50";
+		function = "gcc_gp2_clk_a";
+	};
+
+	muic_i2c_default: muic-i2c-default-state {
 		pins = "gpio105", "gpio106";
 		function = "gpio";
 
@@ -405,7 +455,7 @@
 		bias-disable;
 	};
 
-	muic_int_default: muic-int-default {
+	muic_int_default: muic-int-default-state {
 		pins = "gpio12";
 		function = "gpio";
 
@@ -413,14 +463,16 @@
 		bias-disable;
 	};
 
-	nfc_default: nfc-default {
-		pins = "gpio20", "gpio49";
-		function = "gpio";
+	nfc_default: nfc-default-state {
+		nfc-pins {
+			pins = "gpio20", "gpio49";
+			function = "gpio";
 
-		drive-strength = <2>;
-		bias-disable;
+			drive-strength = <2>;
+			bias-disable;
+		};
 
-		irq {
+		irq-pins {
 			pins = "gpio21";
 			function = "gpio";
 
@@ -429,7 +481,7 @@
 		};
 	};
 
-	nfc_i2c_default: nfc-i2c-default {
+	nfc_i2c_default: nfc-i2c-default-state {
 		pins = "gpio0", "gpio1";
 		function = "gpio";
 
@@ -437,7 +489,7 @@
 		bias-disable;
 	};
 
-	tkey_default: tkey-default {
+	tkey_default: tkey-default-state {
 		pins = "gpio98";
 		function = "gpio";
 
@@ -445,7 +497,7 @@
 		bias-disable;
 	};
 
-	tkey_i2c_default: tkey-i2c-default {
+	tkey_i2c_default: tkey-i2c-default-state {
 		pins = "gpio16", "gpio17";
 		function = "gpio";
 
@@ -453,7 +505,7 @@
 		bias-disable;
 	};
 
-	tsp_en_default: tsp-en-default {
+	tsp_en_default: tsp-en-default-state {
 		pins = "gpio73";
 		function = "gpio";
 
@@ -461,7 +513,7 @@
 		bias-disable;
 	};
 
-	ts_int_default: ts-int-default {
+	ts_int_default: ts-int-default-state {
 		pins = "gpio13";
 		function = "gpio";
 

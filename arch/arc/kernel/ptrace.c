@@ -185,7 +185,7 @@ static int genregs_set(struct task_struct *target,
 
 #define REG_IGNORE_ONE(LOC)		\
 	if (!ret)			\
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, \
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, \
 			offsetof(struct user_regs_struct, LOC), \
 			offsetof(struct user_regs_struct, LOC) + 4);
 

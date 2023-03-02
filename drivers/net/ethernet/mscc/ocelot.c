@@ -6,12 +6,16 @@
  */
 #include <linux/dsa/ocelot.h>
 #include <linux/if_bridge.h>
+#include <linux/iopoll.h>
 #include <soc/mscc/ocelot_vcap.h>
 #include "ocelot.h"
 #include "ocelot_vcap.h"
 
-#define TABLE_UPDATE_SLEEP_US 10
-#define TABLE_UPDATE_TIMEOUT_US 100000
+#define TABLE_UPDATE_SLEEP_US	10
+#define TABLE_UPDATE_TIMEOUT_US	100000
+#define MEM_INIT_SLEEP_US	1000
+#define MEM_INIT_TIMEOUT_US	100000
+
 #define OCELOT_RSV_VLAN_RANGE_START 4000
 
 struct ocelot_mact_entry {
@@ -872,10 +876,8 @@ void ocelot_phylink_mac_link_up(struct ocelot *ocelot, int port,
 		return;
 	}
 
-	/* Handle RX pause in all cases, with 2500base-X this is used for rate
-	 * adaptation.
-	 */
-	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
+	if (rx_pause)
+		mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
 
 	if (tx_pause)
 		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |
@@ -2715,6 +2717,46 @@ static void ocelot_detect_features(struct ocelot *ocelot)
 	ocelot->num_frame_refs = QSYS_MMGT_EQ_CTRL_FP_FREE_CNT(eq_ctrl);
 }
 
+static int ocelot_mem_init_status(struct ocelot *ocelot)
+{
+	unsigned int val;
+	int err;
+
+	err = regmap_field_read(ocelot->regfields[SYS_RESET_CFG_MEM_INIT],
+				&val);
+
+	return err ?: val;
+}
+
+int ocelot_reset(struct ocelot *ocelot)
+{
+	int err;
+	u32 val;
+
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
+	if (err)
+		return err;
+
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
+
+	/* MEM_INIT is a self-clearing bit. Wait for it to be cleared (should be
+	 * 100us) before enabling the switch core.
+	 */
+	err = readx_poll_timeout(ocelot_mem_init_status, ocelot, val, !val,
+				 MEM_INIT_SLEEP_US, MEM_INIT_TIMEOUT_US);
+	if (err)
+		return err;
+
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
+
+	return regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
+}
+EXPORT_SYMBOL(ocelot_reset);
+
 int ocelot_init(struct ocelot *ocelot)
 {
 	int i, ret;
@@ -2740,10 +2782,8 @@ int ocelot_init(struct ocelot *ocelot)
 		return -ENOMEM;
 
 	ret = ocelot_stats_init(ocelot);
-	if (ret) {
-		destroy_workqueue(ocelot->owq);
-		return ret;
-	}
+	if (ret)
+		goto err_stats_init;
 
 	INIT_LIST_HEAD(&ocelot->multicast);
 	INIT_LIST_HEAD(&ocelot->pgids);
@@ -2757,6 +2797,12 @@ int ocelot_init(struct ocelot *ocelot)
 
 	if (ocelot->ops->psfp_init)
 		ocelot->ops->psfp_init(ocelot);
+
+	if (ocelot->mm_supported) {
+		ret = ocelot_mm_init(ocelot);
+		if (ret)
+			goto err_mm_init;
+	}
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		/* Clear all counters (5 groups) */
@@ -2855,6 +2901,12 @@ int ocelot_init(struct ocelot *ocelot)
 				 ANA_CPUQ_8021_CFG, i);
 
 	return 0;
+
+err_mm_init:
+	ocelot_stats_deinit(ocelot);
+err_stats_init:
+	destroy_workqueue(ocelot->owq);
+	return ret;
 }
 EXPORT_SYMBOL(ocelot_init);
 

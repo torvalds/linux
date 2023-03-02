@@ -918,6 +918,11 @@ S: Ottawa, Ontario
 S: K1N 6Z9
 S: CANADA
 
+N: Vivien Didelot
+E: vivien.didelot@gmail.com
+D: DSA framework and MV88E6XXX driver
+S: Montreal, Quebec, Canada
+
 N: Jeff Dike
 E: jdike@karaya.com
 W: http://user-mode-linux.sourceforge.net
@@ -1167,6 +1172,10 @@ E: faith@acm.org
 D: Future Domain TMC-16x0 SCSI driver (author)
 D: APM driver (early port)
 D: DRM drivers (author of several)
+
+N: Veaceslav Falico
+E: vfalico@gmail.com
+D: Co-maintainer and co-author of the network bonding driver.
 
 N: János Farkas
 E: chexum@shadow.banki.hu
@@ -1433,6 +1442,10 @@ S: Germany
 N: Justin Guyett
 E: jguyett@andrew.cmu.edu
 D: via-rhine net driver hacking
+
+N: Nitin Gupta
+E: ngupta@vflare.org
+D: zsmalloc memory allocator and zram block device driver
 
 N: Danny ter Haar
 E: dth@cistron.nl
@@ -1839,11 +1852,11 @@ E: ajoshi@shell.unixbox.com
 D: fbdev hacking
 
 N: Jesper Juhl
-E: jj@chaosbits.net
+E: jesperjuhl76@gmail.com
 D: Various fixes, cleanups and minor features all over the tree.
 D: Wrote initial version of the hdaps driver (since passed on to others).
-S: Lemnosvej 1, 3.tv
-S: 2300 Copenhagen S.
+S: Titangade 5G, 2.tv
+S: 2200 Copenhagen N.
 S: Denmark
 
 N: Jozsef Kadlecsik
@@ -2447,6 +2460,10 @@ S: 482 Shadowgraph Dr.
 S: San Jose, CA  95110
 S: USA
 
+N: Michal Marek
+E: michal.lkml@markovi.net
+D: Kbuild Maintainer 2009-2017
+
 N: Martin Mares
 E: mj@ucw.cz
 W: http://www.ucw.cz/~mj/
@@ -2475,6 +2492,13 @@ D: XF86_Mach32
 D: XF86_Mach8
 D: XF86_8514
 D: cfdisk (curses based disk partitioning program)
+
+N: Mat Martineau
+E: mat@martineau.name
+D: MPTCP subsystem co-maintainer 2020-2023
+D: Keyctl restricted keyring and Diffie-Hellman UAPI
+D: Bluetooth L2CAP ERTM mode and AMP
+S: USA
 
 N: John S. Marvin
 E: jsm@fc.hp.com
@@ -4158,6 +4182,10 @@ D: Freescale QE SoC support and Ethernet driver
 S: B-1206 Jingmao Guojigongyu
 S: 16 Baliqiao Nanjie, Beijing 101100
 S: People's Repulic of China
+
+N: Vlad Yasevich
+E: vyasevich@gmail.com
+D: SCTP protocol maintainer.
 
 N: Aviad Yehezkel
 E: aviadye@nvidia.com

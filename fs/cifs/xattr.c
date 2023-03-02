@@ -89,7 +89,7 @@ static int cifs_creation_time_set(unsigned int xid, struct cifs_tcon *pTcon,
 }
 
 static int cifs_xattr_set(const struct xattr_handler *handler,
-			  struct user_namespace *mnt_userns,
+			  struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct inode *inode,
 			  const char *name, const void *value,
 			  size_t size, int flags)
@@ -200,32 +200,6 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		}
 		break;
 	}
-
-#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-	case XATTR_ACL_ACCESS:
-#ifdef CONFIG_CIFS_POSIX
-		if (!value)
-			goto out;
-		if (sb->s_flags & SB_POSIXACL)
-			rc = CIFSSMBSetPosixACL(xid, pTcon, full_path,
-				value, (const int)size,
-				ACL_TYPE_ACCESS, cifs_sb->local_nls,
-				cifs_remap(cifs_sb));
-#endif  /* CONFIG_CIFS_POSIX */
-		break;
-
-	case XATTR_ACL_DEFAULT:
-#ifdef CONFIG_CIFS_POSIX
-		if (!value)
-			goto out;
-		if (sb->s_flags & SB_POSIXACL)
-			rc = CIFSSMBSetPosixACL(xid, pTcon, full_path,
-				value, (const int)size,
-				ACL_TYPE_DEFAULT, cifs_sb->local_nls,
-				cifs_remap(cifs_sb));
-#endif  /* CONFIG_CIFS_POSIX */
-		break;
-#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 	}
 
 out:
@@ -366,27 +340,6 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		}
 		break;
 	}
-#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-	case XATTR_ACL_ACCESS:
-#ifdef CONFIG_CIFS_POSIX
-		if (sb->s_flags & SB_POSIXACL)
-			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
-				value, size, ACL_TYPE_ACCESS,
-				cifs_sb->local_nls,
-				cifs_remap(cifs_sb));
-#endif  /* CONFIG_CIFS_POSIX */
-		break;
-
-	case XATTR_ACL_DEFAULT:
-#ifdef CONFIG_CIFS_POSIX
-		if (sb->s_flags & SB_POSIXACL)
-			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
-				value, size, ACL_TYPE_DEFAULT,
-				cifs_sb->local_nls,
-				cifs_remap(cifs_sb));
-#endif  /* CONFIG_CIFS_POSIX */
-		break;
-#endif /* ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 	}
 
 	/* We could add an additional check for streams ie
@@ -525,21 +478,6 @@ static const struct xattr_handler smb3_ntsd_full_xattr_handler = {
 	.set = cifs_xattr_set,
 };
 
-
-static const struct xattr_handler cifs_posix_acl_access_xattr_handler = {
-	.name = XATTR_NAME_POSIX_ACL_ACCESS,
-	.flags = XATTR_ACL_ACCESS,
-	.get = cifs_xattr_get,
-	.set = cifs_xattr_set,
-};
-
-static const struct xattr_handler cifs_posix_acl_default_xattr_handler = {
-	.name = XATTR_NAME_POSIX_ACL_DEFAULT,
-	.flags = XATTR_ACL_DEFAULT,
-	.get = cifs_xattr_get,
-	.set = cifs_xattr_set,
-};
-
 const struct xattr_handler *cifs_xattr_handlers[] = {
 	&cifs_user_xattr_handler,
 	&cifs_os2_xattr_handler,
@@ -549,7 +487,9 @@ const struct xattr_handler *cifs_xattr_handlers[] = {
 	&smb3_ntsd_xattr_handler, /* alias for above since avoiding "cifs" */
 	&cifs_cifs_ntsd_full_xattr_handler,
 	&smb3_ntsd_full_xattr_handler, /* alias for above since avoiding "cifs" */
-	&cifs_posix_acl_access_xattr_handler,
-	&cifs_posix_acl_default_xattr_handler,
+#ifdef CONFIG_FS_POSIX_ACL
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
+#endif
 	NULL
 };

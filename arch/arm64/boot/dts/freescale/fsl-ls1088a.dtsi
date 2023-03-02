@@ -674,6 +674,7 @@
 			reg = <0 0x5000000 0 0x800000>;
 			#iommu-cells = <1>;
 			stream-match-mask = <0x7C00>;
+			dma-coherent;
 			#global-interrupts = <12>;
 				     // global secure fault
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
@@ -779,6 +780,9 @@
 			little-endian;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clock-frequency = <2500000>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			status = "disabled";
 		};
 
@@ -788,6 +792,9 @@
 			little-endian;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clock-frequency = <2500000>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(1)>;
 			status = "disabled";
 		};
 

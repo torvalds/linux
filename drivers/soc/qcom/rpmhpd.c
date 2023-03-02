@@ -39,6 +39,7 @@
  * @res_name:		Resource name used for cmd-db lookup
  * @addr:		Resource address as looped up using resource name from
  *			cmd-db
+ * @state_synced:	Indicator that sync_state has been invoked for the rpmhpd resource
  */
 struct rpmhpd {
 	struct device	*dev;
@@ -54,6 +55,7 @@ struct rpmhpd {
 	bool		enabled;
 	const char	*res_name;
 	u32		addr;
+	bool		state_synced;
 };
 
 struct rpmhpd_desc {
@@ -185,6 +187,16 @@ static struct rpmhpd nsp = {
 	.res_name = "nsp.lvl",
 };
 
+static struct rpmhpd nsp0 = {
+	.pd = { .name = "nsp0", },
+	.res_name = "nsp0.lvl",
+};
+
+static struct rpmhpd nsp1 = {
+	.pd = { .name = "nsp1", },
+	.res_name = "nsp1.lvl",
+};
+
 static struct rpmhpd qphy = {
 	.pd = { .name = "qphy", },
 	.res_name = "qphy.lvl",
@@ -208,6 +220,46 @@ static struct rpmhpd *sa8540p_rpmhpds[] = {
 static const struct rpmhpd_desc sa8540p_desc = {
 	.rpmhpds = sa8540p_rpmhpds,
 	.num_pds = ARRAY_SIZE(sa8540p_rpmhpds),
+};
+
+/* SA8775P RPMH power domains */
+static struct rpmhpd *sa8775p_rpmhpds[] = {
+	[SA8775P_CX] = &cx,
+	[SA8775P_CX_AO] = &cx_ao,
+	[SA8775P_EBI] = &ebi,
+	[SA8775P_GFX] = &gfx,
+	[SA8775P_LCX] = &lcx,
+	[SA8775P_LMX] = &lmx,
+	[SA8775P_MMCX] = &mmcx,
+	[SA8775P_MMCX_AO] = &mmcx_ao,
+	[SA8775P_MXC] = &mxc,
+	[SA8775P_MXC_AO] = &mxc_ao,
+	[SA8775P_MX] = &mx,
+	[SA8775P_MX_AO] = &mx_ao,
+	[SA8775P_NSP0] = &nsp0,
+	[SA8775P_NSP1] = &nsp1,
+};
+
+static const struct rpmhpd_desc sa8775p_desc = {
+	.rpmhpds = sa8775p_rpmhpds,
+	.num_pds = ARRAY_SIZE(sa8775p_rpmhpds),
+};
+
+/* SDM670 RPMH powerdomains */
+static struct rpmhpd *sdm670_rpmhpds[] = {
+	[SDM670_CX] = &cx_w_mx_parent,
+	[SDM670_CX_AO] = &cx_ao_w_mx_parent,
+	[SDM670_GFX] = &gfx,
+	[SDM670_LCX] = &lcx,
+	[SDM670_LMX] = &lmx,
+	[SDM670_MSS] = &mss,
+	[SDM670_MX] = &mx,
+	[SDM670_MX_AO] = &mx_ao,
+};
+
+static const struct rpmhpd_desc sdm670_desc = {
+	.rpmhpds = sdm670_rpmhpds,
+	.num_pds = ARRAY_SIZE(sdm670_rpmhpds),
 };
 
 /* SDM845 RPMH powerdomains */
@@ -353,6 +405,42 @@ static const struct rpmhpd_desc sm8450_desc = {
 	.num_pds = ARRAY_SIZE(sm8450_rpmhpds),
 };
 
+/* SM8550 RPMH powerdomains */
+static struct rpmhpd *sm8550_rpmhpds[] = {
+	[SM8550_CX] = &cx,
+	[SM8550_CX_AO] = &cx_ao,
+	[SM8550_EBI] = &ebi,
+	[SM8550_GFX] = &gfx,
+	[SM8550_LCX] = &lcx,
+	[SM8550_LMX] = &lmx,
+	[SM8550_MMCX] = &mmcx_w_cx_parent,
+	[SM8550_MMCX_AO] = &mmcx_ao_w_cx_parent,
+	[SM8550_MSS] = &mss,
+	[SM8550_MX] = &mx,
+	[SM8550_MX_AO] = &mx_ao,
+	[SM8550_MXC] = &mxc,
+	[SM8550_MXC_AO] = &mxc_ao,
+	[SM8550_NSP] = &nsp,
+};
+
+static const struct rpmhpd_desc sm8550_desc = {
+	.rpmhpds = sm8550_rpmhpds,
+	.num_pds = ARRAY_SIZE(sm8550_rpmhpds),
+};
+
+/* QDU1000/QRU1000 RPMH powerdomains */
+static struct rpmhpd *qdu1000_rpmhpds[] = {
+	[QDU1000_CX] = &cx,
+	[QDU1000_EBI] = &ebi,
+	[QDU1000_MSS] = &mss,
+	[QDU1000_MX] = &mx,
+};
+
+static const struct rpmhpd_desc qdu1000_desc = {
+	.rpmhpds = qdu1000_rpmhpds,
+	.num_pds = ARRAY_SIZE(qdu1000_rpmhpds),
+};
+
 /* SC7180 RPMH powerdomains */
 static struct rpmhpd *sc7180_rpmhpds[] = {
 	[SC7180_CX] = &cx_w_mx_parent,
@@ -430,11 +518,14 @@ static const struct rpmhpd_desc sc8280xp_desc = {
 };
 
 static const struct of_device_id rpmhpd_match_table[] = {
+	{ .compatible = "qcom,qdu1000-rpmhpd", .data = &qdu1000_desc },
 	{ .compatible = "qcom,sa8540p-rpmhpd", .data = &sa8540p_desc },
+	{ .compatible = "qcom,sa8775p-rpmhpd", .data = &sa8775p_desc },
 	{ .compatible = "qcom,sc7180-rpmhpd", .data = &sc7180_desc },
 	{ .compatible = "qcom,sc7280-rpmhpd", .data = &sc7280_desc },
 	{ .compatible = "qcom,sc8180x-rpmhpd", .data = &sc8180x_desc },
 	{ .compatible = "qcom,sc8280xp-rpmhpd", .data = &sc8280xp_desc },
+	{ .compatible = "qcom,sdm670-rpmhpd", .data = &sdm670_desc },
 	{ .compatible = "qcom,sdm845-rpmhpd", .data = &sdm845_desc },
 	{ .compatible = "qcom,sdx55-rpmhpd", .data = &sdx55_desc},
 	{ .compatible = "qcom,sdx65-rpmhpd", .data = &sdx65_desc},
@@ -443,6 +534,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sm8250-rpmhpd", .data = &sm8250_desc },
 	{ .compatible = "qcom,sm8350-rpmhpd", .data = &sm8350_desc },
 	{ .compatible = "qcom,sm8450-rpmhpd", .data = &sm8450_desc },
+	{ .compatible = "qcom,sm8550-rpmhpd", .data = &sm8550_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmhpd_match_table);
@@ -493,7 +585,13 @@ static int rpmhpd_aggregate_corner(struct rpmhpd *pd, unsigned int corner)
 	unsigned int this_active_corner = 0, this_sleep_corner = 0;
 	unsigned int peer_active_corner = 0, peer_sleep_corner = 0;
 
-	to_active_sleep(pd, corner, &this_active_corner, &this_sleep_corner);
+	if (pd->state_synced) {
+		to_active_sleep(pd, corner, &this_active_corner, &this_sleep_corner);
+	} else {
+		/* Clamp to highest corner if sync_state hasn't happened */
+		this_active_corner = pd->level_count - 1;
+		this_sleep_corner = pd->level_count - 1;
+	}
 
 	if (peer && peer->enabled)
 		to_active_sleep(peer, peer->corner, &peer_active_corner,
@@ -708,11 +806,40 @@ static int rpmhpd_probe(struct platform_device *pdev)
 	return of_genpd_add_provider_onecell(pdev->dev.of_node, data);
 }
 
+static void rpmhpd_sync_state(struct device *dev)
+{
+	const struct rpmhpd_desc *desc = of_device_get_match_data(dev);
+	struct rpmhpd **rpmhpds = desc->rpmhpds;
+	unsigned int corner;
+	struct rpmhpd *pd;
+	unsigned int i;
+	int ret;
+
+	mutex_lock(&rpmhpd_lock);
+	for (i = 0; i < desc->num_pds; i++) {
+		pd = rpmhpds[i];
+		if (!pd)
+			continue;
+
+		pd->state_synced = true;
+		if (pd->enabled)
+			corner = max(pd->corner, pd->enable_corner);
+		else
+			corner = 0;
+
+		ret = rpmhpd_aggregate_corner(pd, corner);
+		if (ret)
+			dev_err(dev, "failed to sync %s\n", pd->res_name);
+	}
+	mutex_unlock(&rpmhpd_lock);
+}
+
 static struct platform_driver rpmhpd_driver = {
 	.driver = {
 		.name = "qcom-rpmhpd",
 		.of_match_table = rpmhpd_match_table,
 		.suppress_bind_attrs = true,
+		.sync_state = rpmhpd_sync_state,
 	},
 	.probe = rpmhpd_probe,
 };

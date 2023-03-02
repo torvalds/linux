@@ -168,8 +168,7 @@ static void max11801_ts_phy_init(struct max11801_data *data)
 	max11801_write_reg(client, OP_MODE_CONF_REG, 0x36);
 }
 
-static int max11801_ts_probe(struct i2c_client *client,
-				       const struct i2c_device_id *id)
+static int max11801_ts_probe(struct i2c_client *client)
 {
 	struct max11801_data *data;
 	struct input_dev *input_dev;
@@ -231,7 +230,7 @@ static struct i2c_driver max11801_ts_driver = {
 		.of_match_table = max11801_ts_dt_ids,
 	},
 	.id_table	= max11801_ts_id,
-	.probe		= max11801_ts_probe,
+	.probe_new	= max11801_ts_probe,
 };
 
 module_i2c_driver(max11801_ts_driver);

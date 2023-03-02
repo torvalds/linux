@@ -27,6 +27,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "gem/selftests/mock_context.h"
 #include "gt/intel_context.h"
@@ -60,7 +61,6 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 #define PFN_BIAS 0x1000
 	struct sg_table *pages;
 	struct scatterlist *sg;
-	unsigned int sg_page_sizes;
 	typeof(obj->base.size) rem;
 
 	pages = kmalloc(sizeof(*pages), GFP);
@@ -68,12 +68,15 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 		return -ENOMEM;
 
 	rem = round_up(obj->base.size, BIT(31)) >> 31;
+	/* restricted by sg_alloc_table */
+	if (overflows_type(rem, unsigned int))
+		return -E2BIG;
+
 	if (sg_alloc_table(pages, rem, GFP)) {
 		kfree(pages);
 		return -ENOMEM;
 	}
 
-	sg_page_sizes = 0;
 	rem = obj->base.size;
 	for (sg = pages->sgl; sg; sg = sg_next(sg)) {
 		unsigned long len = min_t(typeof(rem), rem, BIT(31));
@@ -82,13 +85,12 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 		sg_set_page(sg, pfn_to_page(PFN_BIAS), len, 0);
 		sg_dma_address(sg) = page_to_phys(sg_page(sg));
 		sg_dma_len(sg) = len;
-		sg_page_sizes |= len;
 
 		rem -= len;
 	}
 	GEM_BUG_ON(rem);
 
-	__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
+	__i915_gem_object_set_pages(obj, pages);
 
 	return 0;
 #undef GFP
@@ -1113,15 +1115,8 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	expected_node_size = expected_vma_size;
 
 	if (HAS_64K_PAGES(vm->i915) && i915_gem_object_is_lmem(obj)) {
-		/*
-		 * The compact-pt should expand lmem node to 2MB for the ppGTT,
-		 * for all other cases we should only expect 64K.
-		 */
 		expected_vma_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
-		if (NEEDS_COMPACT_PT(vm->i915) && !i915_is_ggtt(vm))
-			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_2M);
-		else
-			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
+		expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
 	}
 
 	if (vma->size != expected_vma_size || vma->node.size != expected_node_size) {

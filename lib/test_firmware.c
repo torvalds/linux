@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/kstrtox.h>
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
 #include <linux/efi_embedded_fw.h>
@@ -50,7 +51,7 @@ struct test_batched_req {
 };
 
 /**
- * test_config - represents configuration for the test for different triggers
+ * struct test_config - represents configuration for the test for different triggers
  *
  * @name: the name of the firmware file to look for
  * @into_buf: when the into_buf is used if this is true
@@ -284,7 +285,7 @@ static ssize_t config_show(struct device *dev,
 				test_fw_config->name);
 	else
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-				"name:\tEMTPY\n");
+				"name:\tEMPTY\n");
 
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"num_requests:\t%u\n", test_fw_config->num_requests);
@@ -315,7 +316,7 @@ static ssize_t config_show(struct device *dev,
 				test_fw_config->upload_name);
 	else
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-				"upload_name:\tEMTPY\n");
+				"upload_name:\tEMPTY\n");
 
 	mutex_unlock(&test_fw_mutex);
 
@@ -358,7 +359,7 @@ static int test_dev_config_update_bool(const char *buf, size_t size,
 	int ret;
 
 	mutex_lock(&test_fw_mutex);
-	if (strtobool(buf, cfg) < 0)
+	if (kstrtobool(buf, cfg) < 0)
 		ret = -EINVAL;
 	else
 		ret = size;
@@ -1491,6 +1492,7 @@ static int __init test_firmware_init(void)
 
 	rc = misc_register(&test_fw_misc_device);
 	if (rc) {
+		__test_firmware_config_free();
 		kfree(test_fw_config);
 		pr_err("could not register misc device: %d\n", rc);
 		return rc;

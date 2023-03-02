@@ -422,8 +422,9 @@
 		clock-names = "xin24m";
 		#clock-cells = <1>;
 		#reset-cells = <1>;
-		assigned-clocks = <&cru PLL_GPLL>, <&pmucru PLL_PPLL>;
-		assigned-clock-rates = <1200000000>, <200000000>;
+		assigned-clocks = <&pmucru CLK_RTC_32K>, <&cru PLL_GPLL>, <&pmucru PLL_PPLL>;
+		assigned-clock-rates = <32768>, <1200000000>, <200000000>;
+		assigned-clock-parents = <&pmucru CLK_RTC32K_FRAC>;
 		rockchip,grf = <&grf>;
 	};
 
@@ -966,6 +967,7 @@
 		clock-names = "aclk_mst", "aclk_slv",
 			      "aclk_dbi", "pclk", "aux";
 		device_type = "pci";
+		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map = <0 0 0 1 &pcie_intc 0>,
 				<0 0 0 2 &pcie_intc 1>,
@@ -1049,20 +1051,6 @@
 		status = "disabled";
 	};
 
-	spdif: spdif@fe460000 {
-		compatible = "rockchip,rk3568-spdif";
-		reg = <0x0 0xfe460000 0x0 0x1000>;
-		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
-		clock-names = "mclk", "hclk";
-		clocks = <&cru MCLK_SPDIF_8CH>, <&cru HCLK_SPDIF_8CH>;
-		dmas = <&dmac1 1>;
-		dma-names = "tx";
-		pinctrl-names = "default";
-		pinctrl-0 = <&spdifm0_tx>;
-		#sound-dai-cells = <0>;
-		status = "disabled";
-	};
-
 	i2s0_8ch: i2s@fe400000 {
 		compatible = "rockchip,rk3568-i2s-tdm";
 		reg = <0x0 0xfe400000 0x0 0x1000>;
@@ -1105,6 +1093,28 @@
 		status = "disabled";
 	};
 
+	i2s2_2ch: i2s@fe420000 {
+		compatible = "rockchip,rk3568-i2s-tdm";
+		reg = <0x0 0xfe420000 0x0 0x1000>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		assigned-clocks = <&cru CLK_I2S2_2CH_SRC>;
+		assigned-clock-rates = <1188000000>;
+		clocks = <&cru MCLK_I2S2_2CH>, <&cru MCLK_I2S2_2CH>, <&cru HCLK_I2S2_2CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		dmas = <&dmac1 4>, <&dmac1 5>;
+		dma-names = "tx", "rx";
+		resets = <&cru SRST_M_I2S2_2CH>;
+		reset-names = "m";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s2m0_sclktx
+				&i2s2m0_lrcktx
+				&i2s2m0_sdi
+				&i2s2m0_sdo>;
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
 	i2s3_2ch: i2s@fe430000 {
 		compatible = "rockchip,rk3568-i2s-tdm";
 		reg = <0x0 0xfe430000 0x0 0x1000>;
@@ -1138,6 +1148,20 @@
 		pinctrl-names = "default";
 		resets = <&cru SRST_M_PDM>;
 		reset-names = "pdm-m";
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	spdif: spdif@fe460000 {
+		compatible = "rockchip,rk3568-spdif";
+		reg = <0x0 0xfe460000 0x0 0x1000>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		clock-names = "mclk", "hclk";
+		clocks = <&cru MCLK_SPDIF_8CH>, <&cru HCLK_SPDIF_8CH>;
+		dmas = <&dmac1 1>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdifm0_tx>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};

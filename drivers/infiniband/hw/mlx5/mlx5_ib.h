@@ -38,6 +38,10 @@
 	dev_warn(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,     \
 		 __LINE__, current->pid, ##arg)
 
+#define mlx5_ib_log(lvl, _dev, format, arg...)                                 \
+	dev_printk(lvl, &(_dev)->ib_dev.dev,  "%s:%d:(pid %d): " format,       \
+		   __func__, __LINE__, current->pid, ##arg)
+
 #define MLX5_IB_DEFAULT_UIDX 0xffffff
 #define MLX5_USER_ASSIGNED_UIDX_MASK __mlx5_mask(qpc, user_index)
 
@@ -613,12 +617,21 @@ enum mlx5_mkey_type {
 	MLX5_MKEY_INDIRECT_DEVX,
 };
 
+struct mlx5r_cache_rb_key {
+	u8 ats:1;
+	unsigned int access_mode;
+	unsigned int access_flags;
+	unsigned int ndescs;
+};
+
 struct mlx5_ib_mkey {
 	u32 key;
 	enum mlx5_mkey_type type;
 	unsigned int ndescs;
 	struct wait_queue_head wait;
 	refcount_t usecount;
+	/* User Mkey must hold either a rb_key or a cache_ent. */
+	struct mlx5r_cache_rb_key rb_key;
 	struct mlx5_cache_ent *cache_ent;
 };
 
@@ -733,11 +746,11 @@ struct mlx5_cache_ent {
 	unsigned long		reserved;
 
 	char                    name[4];
-	u32                     order;
-	u32			access_mode;
-	u32			page;
-	unsigned int		ndescs;
 
+	struct rb_node		node;
+	struct mlx5r_cache_rb_key rb_key;
+
+	u8 is_tmp:1;
 	u8 disabled:1;
 	u8 fill_to_high_water:1;
 
@@ -767,9 +780,11 @@ struct mlx5r_async_create_mkey {
 
 struct mlx5_mkey_cache {
 	struct workqueue_struct *wq;
-	struct mlx5_cache_ent	ent[MAX_MKEY_CACHE_ENTRIES];
-	struct dentry		*root;
+	struct rb_root		rb_root;
+	struct mutex		rb_lock;
+	struct dentry		*fs_root;
 	unsigned long		last_add;
+	struct delayed_work	remove_ent_dwork;
 };
 
 struct mlx5_ib_port_resources {
@@ -828,6 +843,9 @@ struct mlx5_roce {
 	rwlock_t		netdev_lock;
 	struct net_device	*netdev;
 	struct notifier_block	nb;
+	struct netdev_net_notifier nn;
+	struct notifier_block	mdev_nb;
+	struct net_device	*tracking_netdev;
 	atomic_t		tx_port_affinity;
 	enum ib_port_state last_port_state;
 	struct mlx5_ib_dev	*dev;
@@ -870,6 +888,8 @@ enum mlx5_ib_dbg_cc_types {
 	MLX5_IB_DBG_CC_NP_CNP_DSCP,
 	MLX5_IB_DBG_CC_NP_CNP_PRIO_MODE,
 	MLX5_IB_DBG_CC_NP_CNP_PRIO,
+	MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP_VALID,
+	MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP,
 	MLX5_IB_DBG_CC_MAX,
 };
 
@@ -1047,6 +1067,13 @@ struct mlx5_port_caps {
 	u8 ext_port_cap;
 };
 
+
+struct mlx5_special_mkeys {
+	u32 dump_fill_mkey;
+	__be32 null_mkey;
+	__be32 terminate_scatter_list_mkey;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -1077,7 +1104,6 @@ struct mlx5_ib_dev {
 
 	struct xarray		odp_mkeys;
 
-	u32			null_mkey;
 	struct mlx5_ib_flow_db	*flow_db;
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
@@ -1106,6 +1132,7 @@ struct mlx5_ib_dev {
 	struct mlx5_port_caps port_caps[MLX5_MAX_PORTS];
 	u16 pkey_table_len;
 	u8 lag_ports;
+	struct mlx5_special_mkeys mkeys;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -1312,11 +1339,15 @@ void mlx5_ib_populate_pas(struct ib_umem *umem, size_t page_size, __be64 *pas,
 void mlx5_ib_copy_pas(u64 *old, u64 *new, int step, int num);
 int mlx5_ib_get_cqe_size(struct ib_cq *ibcq);
 int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev);
-int mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev);
+void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev);
+struct mlx5_cache_ent *
+mlx5r_cache_create_ent_locked(struct mlx5_ib_dev *dev,
+			      struct mlx5r_cache_rb_key rb_key,
+			      bool persistent_entry);
 
 struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
-				       struct mlx5_cache_ent *ent,
-				       int access_flags);
+				       int access_flags, int access_mode,
+				       int ndescs);
 
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
@@ -1340,7 +1371,7 @@ int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq);
 void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *ibdev);
 int __init mlx5_ib_odp_init(void);
 void mlx5_ib_odp_cleanup(void);
-void mlx5_odp_init_mkey_cache_entry(struct mlx5_cache_ent *ent);
+int mlx5_odp_init_mkey_cache(struct mlx5_ib_dev *dev);
 void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
 			   struct mlx5_ib_mr *mr, int flags);
 
@@ -1359,7 +1390,10 @@ static inline int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev,
 static inline void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *ibdev) {}
 static inline int mlx5_ib_odp_init(void) { return 0; }
 static inline void mlx5_ib_odp_cleanup(void)				    {}
-static inline void mlx5_odp_init_mkey_cache_entry(struct mlx5_cache_ent *ent) {}
+static inline int mlx5_odp_init_mkey_cache(struct mlx5_ib_dev *dev)
+{
+	return 0;
+}
 static inline void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
 					 struct mlx5_ib_mr *mr, int flags) {}
 

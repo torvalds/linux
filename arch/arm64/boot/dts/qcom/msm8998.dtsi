@@ -108,6 +108,12 @@
 			reg = <0x0 0x95700000 0x0 0x100000>;
 			no-map;
 		};
+
+		mdata_mem: mpss-metadata {
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			size = <0x0 0x4000>;
+			no-map;
+		};
 	};
 
 	clocks {
@@ -465,7 +471,7 @@
 					type = "passive";
 				};
 
-				cpu0_crit: cpu_crit {
+				cpu0_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -486,7 +492,7 @@
 					type = "passive";
 				};
 
-				cpu1_crit: cpu_crit {
+				cpu1_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -507,7 +513,7 @@
 					type = "passive";
 				};
 
-				cpu2_crit: cpu_crit {
+				cpu2_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -528,7 +534,7 @@
 					type = "passive";
 				};
 
-				cpu3_crit: cpu_crit {
+				cpu3_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -549,7 +555,7 @@
 					type = "passive";
 				};
 
-				cpu4_crit: cpu_crit {
+				cpu4_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -570,7 +576,7 @@
 					type = "passive";
 				};
 
-				cpu5_crit: cpu_crit {
+				cpu5_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -591,7 +597,7 @@
 					type = "passive";
 				};
 
-				cpu6_crit: cpu_crit {
+				cpu6_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -612,7 +618,7 @@
 					type = "passive";
 				};
 
-				cpu7_crit: cpu_crit {
+				cpu7_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -808,7 +814,7 @@
 			reg = <0x00100000 0xb0000>;
 
 			clock-names = "xo", "sleep_clk";
-			clocks = <&xo>, <&sleep_clk>;
+			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>, <&sleep_clk>;
 
 			/*
 			 * The hypervisor typically configures the memory region where these clocks
@@ -900,7 +906,7 @@
 		};
 
 		pcie0: pci@1c00000 {
-			compatible = "qcom,pcie-msm8996";
+			compatible = "qcom,pcie-msm8998", "qcom,pcie-msm8996";
 			reg =	<0x01c00000 0x2000>,
 				<0x1b000000 0xf1d>,
 				<0x1b000f20 0xa8>,
@@ -929,11 +935,11 @@
 					<0 0 0 4 &intc 0 0 139 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>,
-				 <&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
-				 <&gcc GCC_PCIE_0_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_0_AUX_CLK>,
 				 <&gcc GCC_PCIE_0_CFG_AHB_CLK>,
-				 <&gcc GCC_PCIE_0_AUX_CLK>;
-			clock-names = "pipe", "bus_master", "bus_slave", "cfg", "aux";
+				 <&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_0_SLV_AXI_CLK>;
+			clock-names = "pipe", "aux", "cfg", "bus_master", "bus_slave";
 
 			power-domains = <&gcc PCIE_0_GDSC>;
 			iommu-map = <0x100 &anoc1_smmu 0x1480 1>;
@@ -1056,81 +1062,82 @@
 			compatible = "qcom,msm8998-pinctrl";
 			reg = <0x03400000 0xc00000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-ranges = <&tlmm 0 0 150>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			sdc2_on: sdc2-on {
-				clk {
+			sdc2_on: sdc2-on-state {
+				clk-pins {
 					pins = "sdc2_clk";
 					drive-strength = <16>;
 					bias-disable;
 				};
 
-				cmd {
+				cmd-pins {
 					pins = "sdc2_cmd";
 					drive-strength = <10>;
 					bias-pull-up;
 				};
 
-				data {
+				data-pins {
 					pins = "sdc2_data";
 					drive-strength = <10>;
 					bias-pull-up;
 				};
 			};
 
-			sdc2_off: sdc2-off {
-				clk {
+			sdc2_off: sdc2-off-state {
+				clk-pins {
 					pins = "sdc2_clk";
 					drive-strength = <2>;
 					bias-disable;
 				};
 
-				cmd {
+				cmd-pins {
 					pins = "sdc2_cmd";
 					drive-strength = <2>;
 					bias-pull-up;
 				};
 
-				data {
+				data-pins {
 					pins = "sdc2_data";
 					drive-strength = <2>;
 					bias-pull-up;
 				};
 			};
 
-			sdc2_cd: sdc2-cd {
+			sdc2_cd: sdc2-cd-state {
 				pins = "gpio95";
 				function = "gpio";
 				bias-pull-up;
 				drive-strength = <2>;
 			};
 
-			blsp1_uart3_on: blsp1-uart3-on {
-				tx {
+			blsp1_uart3_on: blsp1-uart3-on-state {
+				tx-pins {
 					pins = "gpio45";
 					function = "blsp_uart3_a";
 					drive-strength = <2>;
 					bias-disable;
 				};
 
-				rx {
+				rx-pins {
 					pins = "gpio46";
 					function = "blsp_uart3_a";
 					drive-strength = <2>;
 					bias-disable;
 				};
 
-				cts {
+				cts-pins {
 					pins = "gpio47";
 					function = "blsp_uart3_a";
 					drive-strength = <2>;
 					bias-disable;
 				};
 
-				rfr {
+				rfr-pins {
 					pins = "gpio48";
 					function = "blsp_uart3_a";
 					drive-strength = <2>;
@@ -1138,168 +1145,168 @@
 				};
 			};
 
-			blsp1_i2c1_default: blsp1-i2c1-default {
+			blsp1_i2c1_default: blsp1-i2c1-default-state {
 				pins = "gpio2", "gpio3";
 				function = "blsp_i2c1";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp1_i2c1_sleep: blsp1-i2c1-sleep {
+			blsp1_i2c1_sleep: blsp1-i2c1-sleep-state-state {
 				pins = "gpio2", "gpio3";
 				function = "blsp_i2c1";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp1_i2c2_default: blsp1-i2c2-default {
+			blsp1_i2c2_default: blsp1-i2c2-default-state {
 				pins = "gpio32", "gpio33";
 				function = "blsp_i2c2";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp1_i2c2_sleep: blsp1-i2c2-sleep {
+			blsp1_i2c2_sleep: blsp1-i2c2-sleep-state-state {
 				pins = "gpio32", "gpio33";
 				function = "blsp_i2c2";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp1_i2c3_default: blsp1-i2c3-default {
+			blsp1_i2c3_default: blsp1-i2c3-default-state {
 				pins = "gpio47", "gpio48";
 				function = "blsp_i2c3";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp1_i2c3_sleep: blsp1-i2c3-sleep {
+			blsp1_i2c3_sleep: blsp1-i2c3-sleep-state {
 				pins = "gpio47", "gpio48";
 				function = "blsp_i2c3";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp1_i2c4_default: blsp1-i2c4-default {
+			blsp1_i2c4_default: blsp1-i2c4-default-state {
 				pins = "gpio10", "gpio11";
 				function = "blsp_i2c4";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp1_i2c4_sleep: blsp1-i2c4-sleep {
+			blsp1_i2c4_sleep: blsp1-i2c4-sleep-state {
 				pins = "gpio10", "gpio11";
 				function = "blsp_i2c4";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp1_i2c5_default: blsp1-i2c5-default {
+			blsp1_i2c5_default: blsp1-i2c5-default-state {
 				pins = "gpio87", "gpio88";
 				function = "blsp_i2c5";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp1_i2c5_sleep: blsp1-i2c5-sleep {
+			blsp1_i2c5_sleep: blsp1-i2c5-sleep-state {
 				pins = "gpio87", "gpio88";
 				function = "blsp_i2c5";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp1_i2c6_default: blsp1-i2c6-default {
+			blsp1_i2c6_default: blsp1-i2c6-default-state {
 				pins = "gpio43", "gpio44";
 				function = "blsp_i2c6";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp1_i2c6_sleep: blsp1-i2c6-sleep {
+			blsp1_i2c6_sleep: blsp1-i2c6-sleep-state {
 				pins = "gpio43", "gpio44";
 				function = "blsp_i2c6";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 			/* 6 interfaces per QUP, BLSP2 indexes are numbered (n)+6 */
-			blsp2_i2c1_default: blsp2-i2c1-default {
+			blsp2_i2c1_default: blsp2-i2c1-default-state {
 				pins = "gpio55", "gpio56";
 				function = "blsp_i2c7";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_i2c1_sleep: blsp2-i2c1-sleep {
+			blsp2_i2c1_sleep: blsp2-i2c1-sleep-state {
 				pins = "gpio55", "gpio56";
 				function = "blsp_i2c7";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp2_i2c2_default: blsp2-i2c2-default {
+			blsp2_i2c2_default: blsp2-i2c2-default-state {
 				pins = "gpio6", "gpio7";
 				function = "blsp_i2c8";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_i2c2_sleep: blsp2-i2c2-sleep {
+			blsp2_i2c2_sleep: blsp2-i2c2-sleep-state {
 				pins = "gpio6", "gpio7";
 				function = "blsp_i2c8";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp2_i2c3_default: blsp2-i2c3-default {
+			blsp2_i2c3_default: blsp2-i2c3-default-state {
 				pins = "gpio51", "gpio52";
 				function = "blsp_i2c9";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_i2c3_sleep: blsp2-i2c3-sleep {
+			blsp2_i2c3_sleep: blsp2-i2c3-sleep-state {
 				pins = "gpio51", "gpio52";
 				function = "blsp_i2c9";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp2_i2c4_default: blsp2-i2c4-default {
+			blsp2_i2c4_default: blsp2-i2c4-default-state {
 				pins = "gpio67", "gpio68";
 				function = "blsp_i2c10";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_i2c4_sleep: blsp2-i2c4-sleep {
+			blsp2_i2c4_sleep: blsp2-i2c4-sleep-state {
 				pins = "gpio67", "gpio68";
 				function = "blsp_i2c10";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp2_i2c5_default: blsp2-i2c5-default {
+			blsp2_i2c5_default: blsp2-i2c5-default-state {
 				pins = "gpio60", "gpio61";
 				function = "blsp_i2c11";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_i2c5_sleep: blsp2-i2c5-sleep {
+			blsp2_i2c5_sleep: blsp2-i2c5-sleep-state {
 				pins = "gpio60", "gpio61";
 				function = "blsp_i2c11";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
 
-			blsp2_i2c6_default: blsp2-i2c6-default {
+			blsp2_i2c6_default: blsp2-i2c6-default-state {
 				pins = "gpio83", "gpio84";
 				function = "blsp_i2c12";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_i2c6_sleep: blsp2-i2c6-sleep {
+			blsp2_i2c6_sleep: blsp2-i2c6-sleep-state {
 				pins = "gpio83", "gpio84";
 				function = "blsp_i2c12";
 				drive-strength = <2>;
@@ -1356,6 +1363,10 @@
 				memory-region = <&mpss_mem>;
 			};
 
+			metadata {
+				memory-region = <&mdata_mem>;
+			};
+
 			glink-edge {
 				interrupts = <GIC_SPI 452 IRQ_TYPE_EDGE_RISING>;
 				label = "modem";
@@ -1393,43 +1404,43 @@
 				opp-710000097 {
 					opp-hz = /bits/ 64 <710000097>;
 					opp-level = <RPM_SMD_LEVEL_TURBO>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 
 				opp-670000048 {
 					opp-hz = /bits/ 64 <670000048>;
 					opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 
 				opp-596000097 {
 					opp-hz = /bits/ 64 <596000097>;
 					opp-level = <RPM_SMD_LEVEL_NOM>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 
 				opp-515000097 {
 					opp-hz = /bits/ 64 <515000097>;
 					opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 
 				opp-414000000 {
 					opp-hz = /bits/ 64 <414000000>;
 					opp-level = <RPM_SMD_LEVEL_SVS>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 
 				opp-342000000 {
 					opp-hz = /bits/ 64 <342000000>;
 					opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 
 				opp-257000000 {
 					opp-hz = /bits/ 64 <257000000>;
 					opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
-					opp-supported-hw = <0xFF>;
+					opp-supported-hw = <0xff>;
 				};
 			};
 		};
@@ -1903,7 +1914,7 @@
 
 			cpu = <&CPU4>;
 
-			port{
+			port {
 				etm4_out: endpoint {
 					remote-endpoint = <&apss_funnel_in4>;
 				};
@@ -1920,7 +1931,7 @@
 
 			cpu = <&CPU5>;
 
-			port{
+			port {
 				etm5_out: endpoint {
 					remote-endpoint = <&apss_funnel_in5>;
 				};
@@ -1937,7 +1948,7 @@
 
 			cpu = <&CPU6>;
 
-			port{
+			port {
 				etm6_out: endpoint {
 					remote-endpoint = <&apss_funnel_in6>;
 				};
@@ -1954,7 +1965,7 @@
 
 			cpu = <&CPU7>;
 
-			port{
+			port {
 				etm7_out: endpoint {
 					remote-endpoint = <&apss_funnel_in7>;
 				};
@@ -2087,7 +2098,7 @@
 			clock-names = "iface", "core", "xo";
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
 				 <&gcc GCC_SDCC2_APPS_CLK>,
-				 <&xo>;
+				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			bus-width = <4>;
 			status = "disabled";
 		};
@@ -2397,11 +2408,9 @@
 				      "dsi1byte",
 				      "hdmipll",
 				      "dplink",
-				      "dpvco",
-				      "core_bi_pll_test_se";
+				      "dpvco";
 			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
 				 <&gcc GCC_MMSS_GPLL0_CLK>,
-				 <0>,
 				 <0>,
 				 <0>,
 				 <0>,

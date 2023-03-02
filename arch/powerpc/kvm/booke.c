@@ -912,16 +912,15 @@ static int kvmppc_handle_debug(struct kvm_vcpu *vcpu)
 
 static void kvmppc_fill_pt_regs(struct pt_regs *regs)
 {
-	ulong r1, ip, msr, lr;
+	ulong r1, msr, lr;
 
 	asm("mr %0, 1" : "=r"(r1));
 	asm("mflr %0" : "=r"(lr));
 	asm("mfmsr %0" : "=r"(msr));
-	asm("bl 1f; 1: mflr %0" : "=r"(ip));
 
 	memset(regs, 0, sizeof(*regs));
 	regs->gpr[1] = r1;
-	regs->nip = ip;
+	regs->nip = _THIS_IP_;
 	regs->msr = msr;
 	regs->link = lr;
 }
@@ -1014,6 +1013,9 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 	int idx;
 	u32 last_inst = KVM_INST_FETCH_FAILED;
 	enum emulation_result emulated = EMULATE_DONE;
+
+	/* Fix irq state (pairs with kvmppc_fix_ee_before_entry()) */
+	kvmppc_fix_ee_after_exit();
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
@@ -1208,7 +1210,7 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 
 /*
  * On cores with Vector category, KVM is loaded only if CONFIG_ALTIVEC,
- * see kvmppc_core_check_processor_compat().
+ * see kvmppc_e500mc_check_processor_compat().
  */
 #ifdef CONFIG_ALTIVEC
 	case BOOKE_INTERRUPT_ALTIVEC_UNAVAIL:

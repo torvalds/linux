@@ -17,6 +17,7 @@ config ARM
 	select ARCH_HAS_PTE_SPECIAL if ARM_LPAE
 	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_SET_MEMORY
+	select ARCH_STACKWALK
 	select ARCH_HAS_STRICT_KERNEL_RWX if MMU && !XIP_KERNEL
 	select ARCH_HAS_STRICT_MODULE_RWX if MMU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
@@ -27,6 +28,7 @@ config ARM
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if CPU_V7 || CPU_V7M || CPU_V6K
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_KEEP_MEMBLOCK
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT if CPU_V7
@@ -95,6 +97,7 @@ config ARM
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP if ARM_LPAE
 	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
+	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
 	select HAVE_GCC_PLUGINS
@@ -279,8 +282,7 @@ config PHYS_OFFSET
 	default DRAM_BASE if !MMU
 	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
-	default 0x30000000 if ARCH_S3C24XX
-	default 0xa0000000 if ARCH_IOP32X || ARCH_PXA
+	default 0xa0000000 if ARCH_PXA
 	default 0xc0000000 if ARCH_EP93XX || ARCH_SA1100
 	default 0
 	help
@@ -342,12 +344,16 @@ comment "CPU Core family selection"
 config ARCH_MULTI_V4
 	bool "ARMv4 based platforms (FA526, StrongARM)"
 	depends on !ARCH_MULTI_V6_V7
+	# https://github.com/llvm/llvm-project/issues/50764
+	depends on !LD_IS_LLD || LLD_VERSION >= 160000
 	select ARCH_MULTI_V4_V5
 	select CPU_FA526 if !(CPU_SA110 || CPU_SA1100)
 
 config ARCH_MULTI_V4T
 	bool "ARMv4T based platforms (ARM720T, ARM920T, ...)"
 	depends on !ARCH_MULTI_V6_V7
+	# https://github.com/llvm/llvm-project/issues/50764
+	depends on !LD_IS_LLD || LLD_VERSION >= 160000
 	select ARCH_MULTI_V4_V5
 	select CPU_ARM920T if !(CPU_ARM7TDMI || CPU_ARM720T || \
 		CPU_ARM740T || CPU_ARM9TDMI || CPU_ARM922T || \
@@ -433,8 +439,6 @@ source "arch/arm/mach-berlin/Kconfig"
 
 source "arch/arm/mach-clps711x/Kconfig"
 
-source "arch/arm/mach-cns3xxx/Kconfig"
-
 source "arch/arm/mach-davinci/Kconfig"
 
 source "arch/arm/mach-digicolor/Kconfig"
@@ -456,8 +460,6 @@ source "arch/arm/mach-hisi/Kconfig"
 source "arch/arm/mach-hpe/Kconfig"
 
 source "arch/arm/mach-imx/Kconfig"
-
-source "arch/arm/mach-iop32x/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 
@@ -656,7 +658,9 @@ config ARM_ERRATA_458693
 	  hazard might then cause a processor deadlock. The workaround enables
 	  the L1 caching of the NEON accesses and disables the PLD instruction
 	  in the ACTLR register. Note that setting specific bits in the ACTLR
-	  register may not be available in non-secure mode.
+	  register may not be available in non-secure mode and thus is not
+	  available on a multiplatform kernel. This should be applied by the
+	  bootloader instead.
 
 config ARM_ERRATA_460075
 	bool "ARM errata: Data written to the L2 cache can be overwritten with stale data"
@@ -669,7 +673,9 @@ config ARM_ERRATA_460075
 	  and overwritten with stale memory contents from external memory. The
 	  workaround disables the write-allocate mode for the L2 cache via the
 	  ACTLR register. Note that setting specific bits in the ACTLR register
-	  may not be available in non-secure mode.
+	  may not be available in non-secure mode and thus is not available on
+	  a multiplatform kernel. This should be applied by the bootloader
+	  instead.
 
 config ARM_ERRATA_742230
 	bool "ARM errata: DMB operation may be faulty"
@@ -682,7 +688,10 @@ config ARM_ERRATA_742230
 	  ordering of the two writes. This workaround sets a specific bit in
 	  the diagnostic register of the Cortex-A9 which causes the DMB
 	  instruction to behave as a DSB, ensuring the correct behaviour of
-	  the two writes.
+	  the two writes. Note that setting specific bits in the diagnostics
+	  register may not be available in non-secure mode and thus is not
+	  available on a multiplatform kernel. This should be applied by the
+	  bootloader instead.
 
 config ARM_ERRATA_742231
 	bool "ARM errata: Incorrect hazard handling in the SCU may lead to data corruption"
@@ -697,7 +706,10 @@ config ARM_ERRATA_742231
 	  replaced from one of the CPUs at the same time as another CPU is
 	  accessing it. This workaround sets specific bits in the diagnostic
 	  register of the Cortex-A9 which reduces the linefill issuing
-	  capabilities of the processor.
+	  capabilities of the processor. Note that setting specific bits in the
+	  diagnostics register may not be available in non-secure mode and thus
+	  is not available on a multiplatform kernel. This should be applied by
+	  the bootloader instead.
 
 config ARM_ERRATA_643719
 	bool "ARM errata: LoUIS bit field in CLIDR register is incorrect"
@@ -734,7 +746,9 @@ config ARM_ERRATA_743622
 	  register of the Cortex-A9 which disables the Store Buffer
 	  optimisation, preventing the defect from occurring. This has no
 	  visible impact on the overall performance or power consumption of the
-	  processor.
+	  processor. Note that setting specific bits in the diagnostics register
+	  may not be available in non-secure mode and thus is not available on a
+	  multiplatform kernel. This should be applied by the bootloader instead.
 
 config ARM_ERRATA_751472
 	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
@@ -746,6 +760,10 @@ config ARM_ERRATA_751472
 	  completion of a following broadcasted operation if the second
 	  operation is received by a CPU before the ICIALLUIS has completed,
 	  potentially leading to corrupted entries in the cache or TLB.
+	  Note that setting specific bits in the diagnostics register may
+	  not be available in non-secure mode and thus is not available on
+	  a multiplatform kernel. This should be applied by the bootloader
+	  instead.
 
 config ARM_ERRATA_754322
 	bool "ARM errata: possible faulty MMU translations following an ASID switch"
@@ -925,12 +943,6 @@ config ISA
 # Select ISA DMA interface
 config ISA_DMA_API
 	bool
-
-config PCI_NANOENGINE
-	bool "BSE nanoEngine PCI support"
-	depends on SA1100_NANOENGINE
-	help
-	  Enable PCI on the BSE nanoEngine board.
 
 config ARM_ERRATA_814220
 	bool "ARM errata: Cache maintenance by set/way operations can execute out of order"
@@ -1154,27 +1166,6 @@ config ARM_PSCI
 	  management operations described in ARM document number ARM DEN
 	  0022A ("Power State Coordination Interface System Software on
 	  ARM processors").
-
-# The GPIO number here must be sorted by descending number. In case of
-# a multiplatform kernel, we just want the highest value required by the
-# selected platforms.
-config ARCH_NR_GPIO
-	int
-	default 2048 if ARCH_INTEL_SOCFPGA
-	default 1024 if ARCH_BRCMSTB || ARCH_RENESAS || ARCH_TEGRA || \
-		ARCH_ZYNQ || ARCH_ASPEED
-	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5 || \
-		SOC_DRA7XX || ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210
-	default 416 if ARCH_SUNXI
-	default 392 if ARCH_U8500
-	default 352 if ARCH_VT8500
-	default 288 if ARCH_ROCKCHIP
-	default 264 if MACH_H4700
-	default 0
-	help
-	  Maximum number of GPIOs in the system.
-
-	  If unsure, leave the default value.
 
 config HZ_FIXED
 	int
@@ -1480,19 +1471,6 @@ config ATAGS
 	  time. If you are solely relying on the flattened device tree (or
 	  the ARM_ATAG_DTB_COMPAT option) then you may unselect this option
 	  to remove ATAGS support from your kernel binary.
-
-config UNUSED_BOARD_FILES
-	bool "Board support for machines without known users"
-	depends on ATAGS
-	help
-	  Most ATAGS based board files are completely unused and are
-	  scheduled for removal in early 2023, and left out of kernels
-	  by default now.  If you are using a board file that is marked
-	  as unused, turn on this option to build support into the kernel.
-
-	  To keep support for your individual board from being removed,
-	  send a reply to the email discussion at
-	  https://lore.kernel.org/all/CAK8P3a0Z9vGEQbVRBo84bSyPFM-LF+hs5w8ZA51g2Z+NsdtDQA@mail.gmail.com/
 
 config DEPRECATED_PARAM_STRUCT
 	bool "Provide old way to pass kernel parameters"

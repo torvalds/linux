@@ -5,9 +5,9 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/mtd/spi-nor.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
-#include <linux/mtd/spi-nor.h>
 
 #include "core.h"
 
@@ -135,8 +135,7 @@ struct sfdp_4bait {
 /**
  * spi_nor_read_raw() - raw read of serial flash memory. read_opcode,
  *			addr_nbytes and read_dummy members of the struct spi_nor
- *			should be previously
- * set.
+ *			should be previously set.
  * @nor:	pointer to a 'struct spi_nor'
  * @addr:	offset in the serial flash memory
  * @len:	number of bytes to read
@@ -243,64 +242,64 @@ static const struct sfdp_bfpt_read sfdp_bfpt_reads[] = {
 	/* Fast Read 1-1-2 */
 	{
 		SNOR_HWCAPS_READ_1_1_2,
-		BFPT_DWORD(1), BIT(16),	/* Supported bit */
-		BFPT_DWORD(4), 0,	/* Settings */
+		SFDP_DWORD(1), BIT(16),	/* Supported bit */
+		SFDP_DWORD(4), 0,	/* Settings */
 		SNOR_PROTO_1_1_2,
 	},
 
 	/* Fast Read 1-2-2 */
 	{
 		SNOR_HWCAPS_READ_1_2_2,
-		BFPT_DWORD(1), BIT(20),	/* Supported bit */
-		BFPT_DWORD(4), 16,	/* Settings */
+		SFDP_DWORD(1), BIT(20),	/* Supported bit */
+		SFDP_DWORD(4), 16,	/* Settings */
 		SNOR_PROTO_1_2_2,
 	},
 
 	/* Fast Read 2-2-2 */
 	{
 		SNOR_HWCAPS_READ_2_2_2,
-		BFPT_DWORD(5),  BIT(0),	/* Supported bit */
-		BFPT_DWORD(6), 16,	/* Settings */
+		SFDP_DWORD(5),  BIT(0),	/* Supported bit */
+		SFDP_DWORD(6), 16,	/* Settings */
 		SNOR_PROTO_2_2_2,
 	},
 
 	/* Fast Read 1-1-4 */
 	{
 		SNOR_HWCAPS_READ_1_1_4,
-		BFPT_DWORD(1), BIT(22),	/* Supported bit */
-		BFPT_DWORD(3), 16,	/* Settings */
+		SFDP_DWORD(1), BIT(22),	/* Supported bit */
+		SFDP_DWORD(3), 16,	/* Settings */
 		SNOR_PROTO_1_1_4,
 	},
 
 	/* Fast Read 1-4-4 */
 	{
 		SNOR_HWCAPS_READ_1_4_4,
-		BFPT_DWORD(1), BIT(21),	/* Supported bit */
-		BFPT_DWORD(3), 0,	/* Settings */
+		SFDP_DWORD(1), BIT(21),	/* Supported bit */
+		SFDP_DWORD(3), 0,	/* Settings */
 		SNOR_PROTO_1_4_4,
 	},
 
 	/* Fast Read 4-4-4 */
 	{
 		SNOR_HWCAPS_READ_4_4_4,
-		BFPT_DWORD(5), BIT(4),	/* Supported bit */
-		BFPT_DWORD(7), 16,	/* Settings */
+		SFDP_DWORD(5), BIT(4),	/* Supported bit */
+		SFDP_DWORD(7), 16,	/* Settings */
 		SNOR_PROTO_4_4_4,
 	},
 };
 
 static const struct sfdp_bfpt_erase sfdp_bfpt_erases[] = {
 	/* Erase Type 1 in DWORD8 bits[15:0] */
-	{BFPT_DWORD(8), 0},
+	{SFDP_DWORD(8), 0},
 
 	/* Erase Type 2 in DWORD8 bits[31:16] */
-	{BFPT_DWORD(8), 16},
+	{SFDP_DWORD(8), 16},
 
 	/* Erase Type 3 in DWORD9 bits[15:0] */
-	{BFPT_DWORD(9), 0},
+	{SFDP_DWORD(9), 0},
 
 	/* Erase Type 4 in DWORD9 bits[31:16] */
-	{BFPT_DWORD(9), 16},
+	{SFDP_DWORD(9), 16},
 };
 
 /**
@@ -459,7 +458,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	le32_to_cpu_array(bfpt.dwords, BFPT_DWORD_MAX);
 
 	/* Number of address bytes. */
-	switch (bfpt.dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) {
+	switch (bfpt.dwords[SFDP_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) {
 	case BFPT_DWORD1_ADDRESS_BYTES_3_ONLY:
 	case BFPT_DWORD1_ADDRESS_BYTES_3_OR_4:
 		params->addr_nbytes = 3;
@@ -476,7 +475,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	}
 
 	/* Flash Memory Density (in bits). */
-	val = bfpt.dwords[BFPT_DWORD(2)];
+	val = bfpt.dwords[SFDP_DWORD(2)];
 	if (val & BIT(31)) {
 		val &= ~BIT(31);
 
@@ -556,13 +555,13 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
 
 	/* Page size: this field specifies 'N' so the page size = 2^N bytes. */
-	val = bfpt.dwords[BFPT_DWORD(11)];
+	val = bfpt.dwords[SFDP_DWORD(11)];
 	val &= BFPT_DWORD11_PAGE_SIZE_MASK;
 	val >>= BFPT_DWORD11_PAGE_SIZE_SHIFT;
 	params->page_size = 1U << val;
 
 	/* Quad Enable Requirements. */
-	switch (bfpt.dwords[BFPT_DWORD(15)] & BFPT_DWORD15_QER_MASK) {
+	switch (bfpt.dwords[SFDP_DWORD(15)] & BFPT_DWORD15_QER_MASK) {
 	case BFPT_DWORD15_QER_NONE:
 		params->quad_enable = NULL;
 		break;
@@ -609,7 +608,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	}
 
 	/* Soft Reset support. */
-	if (bfpt.dwords[BFPT_DWORD(16)] & BFPT_DWORD16_SWRST_EN_RST)
+	if (bfpt.dwords[SFDP_DWORD(16)] & BFPT_DWORD16_SWRST_EN_RST)
 		nor->flags |= SNOR_F_SOFT_RESET;
 
 	/* Stop here if not JESD216 rev C or later. */
@@ -617,7 +616,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
 
 	/* 8D-8D-8D command extension. */
-	switch (bfpt.dwords[BFPT_DWORD(18)] & BFPT_DWORD18_CMD_EXT_MASK) {
+	switch (bfpt.dwords[SFDP_DWORD(18)] & BFPT_DWORD18_CMD_EXT_MASK) {
 	case BFPT_DWORD18_CMD_EXT_REP:
 		nor->cmd_ext_type = SPI_NOR_EXT_REPEAT;
 		break;
@@ -876,7 +875,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 	 */
 	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
 		if (!(regions_erase_type & BIT(erase[i].idx)))
-			spi_nor_set_erase_type(&erase[i], 0, 0xFF);
+			spi_nor_mask_erase_type(&erase[i]);
 
 	return 0;
 }
@@ -1005,7 +1004,7 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 
 		discard_hwcaps |= read->hwcaps;
 		if ((params->hwcaps.mask & read->hwcaps) &&
-		    (dwords[0] & read->supported_bit))
+		    (dwords[SFDP_DWORD(1)] & read->supported_bit))
 			read_hwcaps |= read->hwcaps;
 	}
 
@@ -1024,7 +1023,7 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 		 * authority for specifying Page Program support.
 		 */
 		discard_hwcaps |= program->hwcaps;
-		if (dwords[0] & program->supported_bit)
+		if (dwords[SFDP_DWORD(1)] & program->supported_bit)
 			pp_hwcaps |= program->hwcaps;
 	}
 
@@ -1036,7 +1035,7 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++) {
 		const struct sfdp_4bait *erase = &erases[i];
 
-		if (dwords[0] & erase->supported_bit)
+		if (dwords[SFDP_DWORD(1)] & erase->supported_bit)
 			erase_mask |= BIT(i);
 	}
 
@@ -1087,10 +1086,10 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 
 	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++) {
 		if (erase_mask & BIT(i))
-			erase_type[i].opcode = (dwords[1] >>
+			erase_type[i].opcode = (dwords[SFDP_DWORD(2)] >>
 						erase_type[i].idx * 8) & 0xFF;
 		else
-			spi_nor_set_erase_type(&erase_type[i], 0u, 0xFF);
+			spi_nor_mask_erase_type(&erase_type[i]);
 	}
 
 	/*
@@ -1146,15 +1145,15 @@ static int spi_nor_parse_profile1(struct spi_nor *nor,
 	le32_to_cpu_array(dwords, profile1_header->length);
 
 	/* Get 8D-8D-8D fast read opcode and dummy cycles. */
-	opcode = FIELD_GET(PROFILE1_DWORD1_RD_FAST_CMD, dwords[0]);
+	opcode = FIELD_GET(PROFILE1_DWORD1_RD_FAST_CMD, dwords[SFDP_DWORD(1)]);
 
 	 /* Set the Read Status Register dummy cycles and dummy address bytes. */
-	if (dwords[0] & PROFILE1_DWORD1_RDSR_DUMMY)
+	if (dwords[SFDP_DWORD(1)] & PROFILE1_DWORD1_RDSR_DUMMY)
 		nor->params->rdsr_dummy = 8;
 	else
 		nor->params->rdsr_dummy = 4;
 
-	if (dwords[0] & PROFILE1_DWORD1_RDSR_ADDR_BYTES)
+	if (dwords[SFDP_DWORD(1)] & PROFILE1_DWORD1_RDSR_ADDR_BYTES)
 		nor->params->rdsr_addr_nbytes = 4;
 	else
 		nor->params->rdsr_addr_nbytes = 0;
@@ -1168,13 +1167,16 @@ static int spi_nor_parse_profile1(struct spi_nor *nor,
 	 * Default to PROFILE1_DUMMY_DEFAULT if we don't find anything, and let
 	 * flashes set the correct value if needed in their fixup hooks.
 	 */
-	dummy = FIELD_GET(PROFILE1_DWORD4_DUMMY_200MHZ, dwords[3]);
+	dummy = FIELD_GET(PROFILE1_DWORD4_DUMMY_200MHZ, dwords[SFDP_DWORD(4)]);
 	if (!dummy)
-		dummy = FIELD_GET(PROFILE1_DWORD5_DUMMY_166MHZ, dwords[4]);
+		dummy = FIELD_GET(PROFILE1_DWORD5_DUMMY_166MHZ,
+				  dwords[SFDP_DWORD(5)]);
 	if (!dummy)
-		dummy = FIELD_GET(PROFILE1_DWORD5_DUMMY_133MHZ, dwords[4]);
+		dummy = FIELD_GET(PROFILE1_DWORD5_DUMMY_133MHZ,
+				  dwords[SFDP_DWORD(5)]);
 	if (!dummy)
-		dummy = FIELD_GET(PROFILE1_DWORD5_DUMMY_100MHZ, dwords[4]);
+		dummy = FIELD_GET(PROFILE1_DWORD5_DUMMY_100MHZ,
+				  dwords[SFDP_DWORD(5)]);
 	if (!dummy)
 		dev_dbg(nor->dev,
 			"Can't find dummy cycles from Profile 1.0 table\n");
@@ -1183,9 +1185,16 @@ static int spi_nor_parse_profile1(struct spi_nor *nor,
 	dummy = round_up(dummy, 2);
 
 	/* Update the fast read settings. */
+	nor->params->hwcaps.mask |= SNOR_HWCAPS_READ_8_8_8_DTR;
 	spi_nor_set_read_settings(&nor->params->reads[SNOR_CMD_READ_8_8_8_DTR],
 				  0, dummy, opcode,
 				  SNOR_PROTO_8_8_8_DTR);
+
+	/*
+	 * Page Program is "Required Command" in the xSPI Profile 1.0. Update
+	 * the params->hwcaps.mask here.
+	 */
+	nor->params->hwcaps.mask |= SNOR_HWCAPS_PP_8_8_8_DTR;
 
 out:
 	kfree(dwords);
@@ -1222,7 +1231,8 @@ static int spi_nor_parse_sccr(struct spi_nor *nor,
 
 	le32_to_cpu_array(dwords, sccr_header->length);
 
-	if (FIELD_GET(SCCR_DWORD22_OCTAL_DTR_EN_VOLATILE, dwords[22]))
+	if (FIELD_GET(SCCR_DWORD22_OCTAL_DTR_EN_VOLATILE,
+		      dwords[SFDP_DWORD(22)]))
 		nor->flags |= SNOR_F_IO_MODE_EN_VOLATILE;
 
 out:
@@ -1247,6 +1257,33 @@ static void spi_nor_post_sfdp_fixups(struct spi_nor *nor)
 
 	if (nor->info->fixups && nor->info->fixups->post_sfdp)
 		nor->info->fixups->post_sfdp(nor);
+}
+
+/**
+ * spi_nor_check_sfdp_signature() - check for a valid SFDP signature
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Used to detect if the flash supports the RDSFDP command as well as the
+ * presence of a valid SFDP table.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+int spi_nor_check_sfdp_signature(struct spi_nor *nor)
+{
+	u32 signature;
+	int err;
+
+	/* Get the SFDP header. */
+	err = spi_nor_read_sfdp_dma_unsafe(nor, 0, sizeof(signature),
+					   &signature);
+	if (err < 0)
+		return err;
+
+	/* Check the SFDP signature. */
+	if (le32_to_cpu(signature) != SFDP_SIGNATURE)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**

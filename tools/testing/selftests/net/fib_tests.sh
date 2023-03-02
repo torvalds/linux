@@ -9,7 +9,7 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh"
+TESTS="unregister down carrier nexthop suppress ipv6_notify ipv4_notify ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -653,6 +653,98 @@ fib_nexthop_test()
 	$IP link del red
 	) 2>/dev/null
 	cleanup
+}
+
+fib6_notify_test()
+{
+	setup
+
+	echo
+	echo "Fib6 info length calculation in route notify test"
+	set -e
+
+	for i in 10 20 30 40 50 60 70;
+	do
+		$IP link add dummy_$i type dummy
+		$IP link set dev dummy_$i up
+		$IP -6 address add 2001:$i::1/64 dev dummy_$i
+	done
+
+	$NS_EXEC ip monitor route &> errors.txt &
+	sleep 2
+
+	$IP -6 route add 2001::/64 \
+                nexthop via 2001:10::2 dev dummy_10 \
+                nexthop encap ip6 dst 2002::20 via 2001:20::2 dev dummy_20 \
+                nexthop encap ip6 dst 2002::30 via 2001:30::2 dev dummy_30 \
+                nexthop encap ip6 dst 2002::40 via 2001:40::2 dev dummy_40 \
+                nexthop encap ip6 dst 2002::50 via 2001:50::2 dev dummy_50 \
+                nexthop encap ip6 dst 2002::60 via 2001:60::2 dev dummy_60 \
+                nexthop encap ip6 dst 2002::70 via 2001:70::2 dev dummy_70
+
+	set +e
+
+	err=`cat errors.txt |grep "Message too long"`
+	if [ -z "$err" ];then
+		ret=0
+	else
+		ret=1
+	fi
+
+	log_test $ret 0 "ipv6 route add notify"
+
+	{ kill %% && wait %%; } 2>/dev/null
+
+	#rm errors.txt
+
+	cleanup &> /dev/null
+}
+
+
+fib_notify_test()
+{
+	setup
+
+	echo
+	echo "Fib4 info length calculation in route notify test"
+
+	set -e
+
+	for i in 10 20 30 40 50 60 70;
+	do
+		$IP link add dummy_$i type dummy
+		$IP link set dev dummy_$i up
+		$IP address add 20.20.$i.2/24 dev dummy_$i
+	done
+
+	$NS_EXEC ip monitor route &> errors.txt &
+	sleep 2
+
+        $IP route add 10.0.0.0/24 \
+                nexthop via 20.20.10.1 dev dummy_10 \
+                nexthop encap ip dst 192.168.10.20 via 20.20.20.1 dev dummy_20 \
+                nexthop encap ip dst 192.168.10.30 via 20.20.30.1 dev dummy_30 \
+                nexthop encap ip dst 192.168.10.40 via 20.20.40.1 dev dummy_40 \
+                nexthop encap ip dst 192.168.10.50 via 20.20.50.1 dev dummy_50 \
+                nexthop encap ip dst 192.168.10.60 via 20.20.60.1 dev dummy_60 \
+                nexthop encap ip dst 192.168.10.70 via 20.20.70.1 dev dummy_70
+
+	set +e
+
+	err=`cat errors.txt |grep "Message too long"`
+	if [ -z "$err" ];then
+		ret=0
+	else
+		ret=1
+	fi
+
+	log_test $ret 0 "ipv4 route add notify"
+
+	{ kill %% && wait %%; } 2>/dev/null
+
+	rm  errors.txt
+
+	cleanup &> /dev/null
 }
 
 fib_suppress_test()
@@ -1711,13 +1803,21 @@ ipv4_del_addr_test()
 
 	$IP addr add dev dummy1 172.16.104.1/24
 	$IP addr add dev dummy1 172.16.104.11/24
+	$IP addr add dev dummy1 172.16.104.12/24
+	$IP addr add dev dummy1 172.16.104.13/24
 	$IP addr add dev dummy2 172.16.104.1/24
 	$IP addr add dev dummy2 172.16.104.11/24
+	$IP addr add dev dummy2 172.16.104.12/24
 	$IP route add 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+	$IP route add 172.16.106.0/24 dev lo src 172.16.104.12
+	$IP route add table 0 172.16.107.0/24 via 172.16.104.2 src 172.16.104.13
 	$IP route add vrf red 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
+	$IP route add vrf red 172.16.106.0/24 dev lo src 172.16.104.12
 	set +e
 
 	# removing address from device in vrf should only remove route from vrf table
+	echo "    Regular FIB info"
+
 	$IP addr del dev dummy2 172.16.104.11/24
 	$IP ro ls vrf red | grep -q 172.16.105.0/24
 	log_test $? 1 "Route removed from VRF when source address deleted"
@@ -1734,6 +1834,35 @@ ipv4_del_addr_test()
 
 	$IP ro ls vrf red | grep -q 172.16.105.0/24
 	log_test $? 0 "Route in VRF is not removed by address delete"
+
+	# removing address from device in vrf should only remove route from vrf
+	# table even when the associated fib info only differs in table ID
+	echo "    Identical FIB info with different table ID"
+
+	$IP addr del dev dummy2 172.16.104.12/24
+	$IP ro ls vrf red | grep -q 172.16.106.0/24
+	log_test $? 1 "Route removed from VRF when source address deleted"
+
+	$IP ro ls | grep -q 172.16.106.0/24
+	log_test $? 0 "Route in default VRF not removed"
+
+	$IP addr add dev dummy2 172.16.104.12/24
+	$IP route add vrf red 172.16.106.0/24 dev lo src 172.16.104.12
+
+	$IP addr del dev dummy1 172.16.104.12/24
+	$IP ro ls | grep -q 172.16.106.0/24
+	log_test $? 1 "Route removed in default VRF when source address deleted"
+
+	$IP ro ls vrf red | grep -q 172.16.106.0/24
+	log_test $? 0 "Route in VRF is not removed by address delete"
+
+	# removing address from device in default vrf should remove route from
+	# the default vrf even when route was inserted with a table ID of 0.
+	echo "    Table ID 0"
+
+	$IP addr del dev dummy1 172.16.104.13/24
+	$IP ro ls | grep -q 172.16.107.0/24
+	log_test $? 1 "Route removed in default VRF when source address deleted"
 
 	$IP li del dummy1
 	$IP li del dummy2
@@ -2028,6 +2157,8 @@ EOF
 ################################################################################
 # main
 
+trap cleanup EXIT
+
 while getopts :t:pPhv o
 do
 	case $o in
@@ -2072,6 +2203,8 @@ do
 	fib_carrier_test|carrier)	fib_carrier_test;;
 	fib_rp_filter_test|rp_filter)	fib_rp_filter_test;;
 	fib_nexthop_test|nexthop)	fib_nexthop_test;;
+	fib_notify_test|ipv4_notify)	fib_notify_test;;
+	fib6_notify_test|ipv6_notify)	fib6_notify_test;;
 	fib_suppress_test|suppress)	fib_suppress_test;;
 	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
 	ipv4_route_test|ipv4_rt)	ipv4_route_test;;

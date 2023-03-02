@@ -11,6 +11,7 @@
 #include "std.h"
 
 /* system includes */
+#include <asm/fcntl.h>   // for O_*
 #include <asm/unistd.h>
 #include <asm/signal.h>  // for SIGCHLD
 #include <asm/ioctls.h>
@@ -18,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/loop.h>
 #include <linux/time.h>
+#include <linux/auxvec.h>
 
 #include "arch.h"
 #include "errno.h"
@@ -498,6 +500,26 @@ pid_t gettid(void)
 	return sys_gettid();
 }
 
+static unsigned long getauxval(unsigned long key);
+
+/*
+ * long getpagesize(void);
+ */
+
+static __attribute__((unused))
+long getpagesize(void)
+{
+	long ret;
+
+	ret = getauxval(AT_PAGESZ);
+	if (!ret) {
+		SET_ERRNO(ENOENT);
+		return -1;
+	}
+
+	return ret;
+}
+
 
 /*
  * int gettimeofday(struct timeval *tv, struct timezone *tz);
@@ -686,6 +708,7 @@ int mknod(const char *path, mode_t mode, dev_t dev)
 #define MAP_FAILED ((void *)-1)
 #endif
 
+#ifndef sys_mmap
 static __attribute__((unused))
 void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	       off_t offset)
@@ -707,6 +730,7 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	return (void *)my_syscall6(n, addr, length, prot, flags, fd, offset);
 #endif
 }
+#endif
 
 static __attribute__((unused))
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
@@ -1243,5 +1267,7 @@ ssize_t write(int fd, const void *buf, size_t count)
 	return ret;
 }
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
 
 #endif /* _NOLIBC_SYS_H */

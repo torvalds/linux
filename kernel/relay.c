@@ -91,7 +91,7 @@ static int relay_mmap_buf(struct rchan_buf *buf, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_ops = &relay_file_mmap_ops;
-	vma->vm_flags |= VM_DONTEXPAND;
+	vm_flags_set(vma, VM_DONTEXPAND);
 	vma->vm_private_data = buf;
 
 	return 0;
@@ -148,13 +148,13 @@ static struct rchan_buf *relay_create_buf(struct rchan *chan)
 {
 	struct rchan_buf *buf;
 
-	if (chan->n_subbufs > KMALLOC_MAX_SIZE / sizeof(size_t *))
+	if (chan->n_subbufs > KMALLOC_MAX_SIZE / sizeof(size_t))
 		return NULL;
 
 	buf = kzalloc(sizeof(struct rchan_buf), GFP_KERNEL);
 	if (!buf)
 		return NULL;
-	buf->padding = kmalloc_array(chan->n_subbufs, sizeof(size_t *),
+	buf->padding = kmalloc_array(chan->n_subbufs, sizeof(size_t),
 				     GFP_KERNEL);
 	if (!buf->padding)
 		goto free_buf;
@@ -507,7 +507,7 @@ struct rchan *relay_open(const char *base_filename,
 	chan->private_data = private_data;
 	if (base_filename) {
 		chan->has_base_filename = 1;
-		strlcpy(chan->base_filename, base_filename, NAME_MAX);
+		strscpy(chan->base_filename, base_filename, NAME_MAX);
 	}
 	chan->cb = cb;
 	kref_init(&chan->kref);
@@ -578,7 +578,7 @@ int relay_late_setup_files(struct rchan *chan,
 	if (!chan || !base_filename)
 		return -EINVAL;
 
-	strlcpy(chan->base_filename, base_filename, NAME_MAX);
+	strscpy(chan->base_filename, base_filename, NAME_MAX);
 
 	mutex_lock(&relay_channels_mutex);
 	/* Is chan already set up? */

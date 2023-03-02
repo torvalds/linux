@@ -53,6 +53,12 @@
 #define	    CXL_DVSEC_REG_LOCATOR_BLOCK_ID_MASK			GENMASK(15, 8)
 #define     CXL_DVSEC_REG_LOCATOR_BLOCK_OFF_LOW_MASK		GENMASK(31, 16)
 
+/*
+ * NOTE: Currently all the functions which are enabled for CXL require their
+ * vectors to be in the first 16.  Use this as the default max.
+ */
+#define CXL_PCI_DEFAULT_MAX_VECTORS 16
+
 /* Register Block Identifier (RBI) */
 enum cxl_regloc_type {
 	CXL_REGLOC_RBI_EMPTY = 0,
@@ -62,17 +68,12 @@ enum cxl_regloc_type {
 	CXL_REGLOC_RBI_TYPES
 };
 
-static inline resource_size_t cxl_regmap_to_base(struct pci_dev *pdev,
-						 struct cxl_register_map *map)
-{
-	if (map->block_offset == U64_MAX)
-		return CXL_RESOURCE_NONE;
-
-	return pci_resource_start(pdev, map->barno) + map->block_offset;
-}
-
 int devm_cxl_port_enumerate_dports(struct cxl_port *port);
 struct cxl_dev_state;
-int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm);
+int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
+			struct cxl_endpoint_dvsec_info *info);
 void read_cdat_data(struct cxl_port *port);
+void cxl_cor_error_detected(struct pci_dev *pdev);
+pci_ers_result_t cxl_error_detected(struct pci_dev *pdev,
+				    pci_channel_state_t state);
 #endif /* __CXL_PCI_H__ */

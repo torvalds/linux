@@ -352,6 +352,14 @@ struct mod_kallsyms {
 };
 
 #ifdef CONFIG_LIVEPATCH
+/**
+ * struct klp_modinfo - Elf information preserved from the livepatch module
+ *
+ * @hdr: Elf header
+ * @sechdrs: Section header table
+ * @secstrings: String table for the section headers
+ * @symndx: The symbol table section index
+ */
 struct klp_modinfo {
 	Elf_Ehdr hdr;
 	Elf_Shdr *sechdrs;
@@ -827,7 +835,6 @@ void *dereference_module_function_descriptor(struct module *mod, void *ptr)
 #ifdef CONFIG_SYSFS
 extern struct kset *module_kset;
 extern struct kobj_type module_ktype;
-extern int module_sysfs_initialized;
 #endif /* CONFIG_SYSFS */
 
 #define symbol_request(x) try_then_request_module(symbol_get(x), "symbol:" #x)
@@ -879,8 +886,19 @@ static inline bool module_sig_ok(struct module *module)
 }
 #endif	/* CONFIG_MODULE_SIG */
 
-int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
+#if defined(CONFIG_MODULES) && defined(CONFIG_KALLSYMS)
+int module_kallsyms_on_each_symbol(const char *modname,
+				   int (*fn)(void *, const char *,
 					     struct module *, unsigned long),
 				   void *data);
+#else
+static inline int module_kallsyms_on_each_symbol(const char *modname,
+						 int (*fn)(void *, const char *,
+						 struct module *, unsigned long),
+						 void *data)
+{
+	return -EOPNOTSUPP;
+}
+#endif  /* CONFIG_MODULES && CONFIG_KALLSYMS */
 
 #endif /* _LINUX_MODULE_H */

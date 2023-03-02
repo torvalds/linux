@@ -372,8 +372,7 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 		p = qe2cpu_addr(be32_to_cpu(bdp->buf), qe_port);
 		while (count < qe_port->tx_fifosize) {
 			*p++ = xmit->buf[xmit->tail];
-			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-			port->icount.tx++;
+			uart_xmit_advance(port, 1);
 			count++;
 			if (xmit->head == xmit->tail)
 				break;
@@ -1468,6 +1467,8 @@ static int ucc_uart_remove(struct platform_device *ofdev)
 	dev_info(&ofdev->dev, "removing /dev/ttyQE%u\n", qe_port->port.line);
 
 	uart_remove_one_port(&ucc_uart_driver, &qe_port->port);
+
+	of_node_put(qe_port->np);
 
 	kfree(qe_port);
 

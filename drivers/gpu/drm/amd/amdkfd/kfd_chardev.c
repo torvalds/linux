@@ -1065,6 +1065,20 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		mutex_unlock(&p->svms.lock);
 		return -EADDRINUSE;
 	}
+
+	/* When register user buffer check if it has been registered by svm by
+	 * buffer cpu virtual address.
+	 */
+	if ((flags & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) &&
+	    interval_tree_iter_first(&p->svms.objects,
+				     args->mmap_offset >> PAGE_SHIFT,
+				     (args->mmap_offset  + args->size - 1) >> PAGE_SHIFT)) {
+		pr_err("User Buffer Address: 0x%llx already allocated by SVM\n",
+			args->mmap_offset);
+		mutex_unlock(&p->svms.lock);
+		return -EADDRINUSE;
+	}
+
 	mutex_unlock(&p->svms.lock);
 #endif
 	mutex_lock(&p->mutex);
@@ -1127,8 +1141,13 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	}
 
 	/* Update the VRAM usage count */
-	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)
-		WRITE_ONCE(pdd->vram_usage, pdd->vram_usage + args->size);
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
+		uint64_t size = args->size;
+
+		if (flags & KFD_IOC_ALLOC_MEM_FLAGS_AQL_QUEUE_MEM)
+			size >>= 1;
+		WRITE_ONCE(pdd->vram_usage, pdd->vram_usage + PAGE_ALIGN(size));
+	}
 
 	mutex_unlock(&p->mutex);
 
@@ -1950,7 +1969,7 @@ static int criu_checkpoint(struct file *filep,
 {
 	int ret;
 	uint32_t num_devices, num_bos, num_objects;
-	uint64_t priv_size, priv_offset = 0;
+	uint64_t priv_size, priv_offset = 0, bo_priv_offset;
 
 	if (!args->devices || !args->bos || !args->priv_data)
 		return -EINVAL;
@@ -1994,38 +2013,34 @@ static int criu_checkpoint(struct file *filep,
 	if (ret)
 		goto exit_unlock;
 
-	ret = criu_checkpoint_bos(p, num_bos, (uint8_t __user *)args->bos,
-			    (uint8_t __user *)args->priv_data, &priv_offset);
-	if (ret)
-		goto exit_unlock;
+	/* Leave room for BOs in the private data. They need to be restored
+	 * before events, but we checkpoint them last to simplify the error
+	 * handling.
+	 */
+	bo_priv_offset = priv_offset;
+	priv_offset += num_bos * sizeof(struct kfd_criu_bo_priv_data);
 
 	if (num_objects) {
 		ret = kfd_criu_checkpoint_queues(p, (uint8_t __user *)args->priv_data,
 						 &priv_offset);
 		if (ret)
-			goto close_bo_fds;
+			goto exit_unlock;
 
 		ret = kfd_criu_checkpoint_events(p, (uint8_t __user *)args->priv_data,
 						 &priv_offset);
 		if (ret)
-			goto close_bo_fds;
+			goto exit_unlock;
 
 		ret = kfd_criu_checkpoint_svm(p, (uint8_t __user *)args->priv_data, &priv_offset);
 		if (ret)
-			goto close_bo_fds;
+			goto exit_unlock;
 	}
 
-close_bo_fds:
-	if (ret) {
-		/* If IOCTL returns err, user assumes all FDs opened in criu_dump_bos are closed */
-		uint32_t i;
-		struct kfd_criu_bo_bucket *bo_buckets = (struct kfd_criu_bo_bucket *) args->bos;
-
-		for (i = 0; i < num_bos; i++) {
-			if (bo_buckets[i].alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)
-				close_fd(bo_buckets[i].dmabuf_fd);
-		}
-	}
+	/* This must be the last thing in this function that can fail.
+	 * Otherwise we leak dmabuf file descriptors.
+	 */
+	ret = criu_checkpoint_bos(p, num_bos, (uint8_t __user *)args->bos,
+			   (uint8_t __user *)args->priv_data, &bo_priv_offset);
 
 exit_unlock:
 	mutex_unlock(&p->mutex);
@@ -2883,8 +2898,8 @@ static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
 
 	address = dev->adev->rmmio_remap.bus_addr;
 
-	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
-				VM_DONTDUMP | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
+				VM_DONTDUMP | VM_PFNMAP);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 

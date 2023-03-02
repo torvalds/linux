@@ -259,7 +259,7 @@
 		xtal-trim = /bits/ 8 <0x06>;
 
 		sleep-gpio = <&gpio0 24 GPIO_ACTIVE_HIGH>;
-		reset-gpio = <&gpio6 10 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio6 10 GPIO_ACTIVE_LOW>;
 
 		fsl,spi-cs-sck-delay = <180>;
 		fsl,spi-sck-cs-delay = <250>;
@@ -340,7 +340,7 @@
 };
 
 &i2c2 {
-	tca9548@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		pinctrl-0 = <&pinctrl_i2c_mux_reset>;
 		pinctrl-names = "default";

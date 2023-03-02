@@ -157,7 +157,6 @@ struct btrfs_ordered_extent {
 	 * command in a workqueue context
 	 */
 	u64 physical;
-	struct block_device *bdev;
 };
 
 static inline void
@@ -187,7 +186,7 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_inode *inode,
 							 u64 file_offset);
-void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry, int wait);
+void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry);
 int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
 struct btrfs_ordered_extent *
 btrfs_lookup_first_ordered_extent(struct btrfs_inode *inode, u64 file_offset);
@@ -206,7 +205,8 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
 					u64 end,
 					struct extent_state **cached_state);
-bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end);
+bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
+				  struct extent_state **cached_state);
 int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
 			       u64 post);
 int __init ordered_data_init(void);

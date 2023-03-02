@@ -19,10 +19,12 @@
 
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_modeset_helper.h>
 
 #include "framebuffer.h"
 #include "gem.h"
@@ -139,7 +141,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	 */
 	vma->vm_ops = &psbfb_vm_ops;
 	vma->vm_private_data = (void *)fb;
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP);
 	return 0;
 }
 
@@ -147,6 +149,8 @@ static const struct fb_ops psbfb_unaccel_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_setcolreg = psbfb_setcolreg,
+	.fb_read = drm_fb_helper_cfb_read,
+	.fb_write = drm_fb_helper_cfb_write,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
@@ -268,7 +272,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 
 	memset(dev_priv->vram_addr + backing->offset, 0, size);
 
-	info = drm_fb_helper_alloc_fbi(fb_helper);
+	info = drm_fb_helper_alloc_info(fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
 		goto err_drm_gem_object_put;
@@ -286,7 +290,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 
 	info->fbops = &psbfb_unaccel_ops;
 
-	info->fix.smem_start = dev->mode_config.fb_base;
+	info->fix.smem_start = dev_priv->fb_base;
 	info->fix.smem_len = size;
 	info->fix.ywrapstep = 0;
 	info->fix.ypanstep = 0;
@@ -294,11 +298,6 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	/* Accessed stolen memory directly */
 	info->screen_base = dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
-
-	if (dev_priv->gtt.stolen_size) {
-		info->apertures->ranges[0].base = dev->mode_config.fb_base;
-		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
-	}
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
@@ -383,7 +382,7 @@ static int psb_fbdev_destroy(struct drm_device *dev,
 {
 	struct drm_framebuffer *fb = fb_helper->fb;
 
-	drm_fb_helper_unregister_fbi(fb_helper);
+	drm_fb_helper_unregister_info(fb_helper);
 
 	drm_fb_helper_fini(fb_helper);
 	drm_framebuffer_unregister_private(fb);
@@ -410,7 +409,7 @@ int psb_fbdev_init(struct drm_device *dev)
 
 	dev_priv->fb_helper = fb_helper;
 
-	drm_fb_helper_prepare(dev, fb_helper, &psb_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, fb_helper, 32, &psb_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, fb_helper);
 	if (ret)
@@ -419,7 +418,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	ret = drm_fb_helper_initial_config(fb_helper, 32);
+	ret = drm_fb_helper_initial_config(fb_helper);
 	if (ret)
 		goto fini;
 
@@ -428,6 +427,7 @@ int psb_fbdev_init(struct drm_device *dev)
 fini:
 	drm_fb_helper_fini(fb_helper);
 free:
+	drm_fb_helper_unprepare(fb_helper);
 	kfree(fb_helper);
 	return ret;
 }
@@ -440,6 +440,7 @@ static void psb_fbdev_fini(struct drm_device *dev)
 		return;
 
 	psb_fbdev_destroy(dev, dev_priv->fb_helper);
+	drm_fb_helper_unprepare(dev_priv->fb_helper);
 	kfree(dev_priv->fb_helper);
 	dev_priv->fb_helper = NULL;
 }
@@ -527,7 +528,7 @@ void psb_modeset_init(struct drm_device *dev)
 
 	/* set memory base */
 	/* Oaktrail and Poulsbo should use BAR 2*/
-	pci_read_config_dword(pdev, PSB_BSM, (u32 *)&(dev->mode_config.fb_base));
+	pci_read_config_dword(pdev, PSB_BSM, (u32 *)&(dev_priv->fb_base));
 
 	/* num pipes is 2 for PSB but 1 for Mrst */
 	for (i = 0; i < dev_priv->num_pipe; i++)

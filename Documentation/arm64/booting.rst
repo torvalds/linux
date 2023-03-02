@@ -121,8 +121,9 @@ Header notes:
 			  to the base of DRAM, since memory below it is not
 			  accessible via the linear mapping
 			1
-			  2MB aligned base may be anywhere in physical
-			  memory
+			  2MB aligned base such that all image_size bytes
+			  counted from the start of the image are within
+			  the 48-bit addressable range of physical memory
   Bits 4-63	Reserved.
   ============= ===============================================================
 
@@ -222,7 +223,7 @@ Before jumping into the kernel, the following conditions must be met:
   For systems with a GICv3 interrupt controller to be used in v3 mode:
   - If EL3 is present:
 
-      - ICC_SRE_EL3.Enable (bit 3) must be initialiased to 0b1.
+      - ICC_SRE_EL3.Enable (bit 3) must be initialised to 0b1.
       - ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b1.
       - ICC_CTLR_EL3.PMHE (bit 6) must be set to the same value across
         all CPUs the kernel is executing on, and must stay constant
@@ -340,7 +341,15 @@ Before jumping into the kernel, the following conditions must be met:
     - SMCR_EL2.LEN must be initialised to the same value for all CPUs the
       kernel will execute on.
 
-  For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64)
+    - HWFGRTR_EL2.nTPIDR2_EL0 (bit 55) must be initialised to 0b01.
+
+    - HWFGWTR_EL2.nTPIDR2_EL0 (bit 55) must be initialised to 0b01.
+
+    - HWFGRTR_EL2.nSMPRI_EL1 (bit 54) must be initialised to 0b01.
+
+    - HWFGWTR_EL2.nSMPRI_EL1 (bit 54) must be initialised to 0b01.
+
+  For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64):
 
   - If EL3 is present:
 
@@ -359,6 +368,16 @@ Before jumping into the kernel, the following conditions must be met:
   - If the kernel is entered at EL1 and EL2 is present:
 
     - HCR_EL2.ATA (bit 56) must be initialised to 0b1.
+
+  For CPUs with the Scalable Matrix Extension version 2 (FEAT_SME2):
+
+  - If EL3 is present:
+
+    - SMCR_EL3.EZT0 (bit 30) must be initialised to 0b1.
+
+ - If the kernel is entered at EL1 and EL2 is present:
+
+    - SMCR_EL2.EZT0 (bit 30) must be initialised to 0b1.
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

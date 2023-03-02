@@ -32,7 +32,8 @@ config IOMMU_IO_PGTABLE
 config IOMMU_IO_PGTABLE_LPAE
 	bool "ARMv7/v8 Long Descriptor Format"
 	select IOMMU_IO_PGTABLE
-	depends on ARM || ARM64 || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for cpmxchg64()
 	help
 	  Enable support for the ARM long descriptor pagetable format.
 	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
@@ -70,7 +71,8 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 config IOMMU_IO_PGTABLE_DART
 	bool "Apple DART Formats"
 	select IOMMU_IO_PGTABLE
-	depends on ARM64 || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on ARM64 || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for cpmxchg64()
 	help
 	  Enable support for the Apple DART pagetable formats. These include
 	  the t8020 and t6000/t8110 DART formats used in Apple M1/M2 family
@@ -188,6 +190,7 @@ config MSM_IOMMU
 
 source "drivers/iommu/amd/Kconfig"
 source "drivers/iommu/intel/Kconfig"
+source "drivers/iommu/iommufd/Kconfig"
 
 config IRQ_REMAP
 	bool "Support for Interrupt Remapping"
@@ -283,7 +286,8 @@ config EXYNOS_IOMMU_DEBUG
 
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
-	depends on ARCH_RENESAS || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU
@@ -303,7 +307,8 @@ config SPAPR_TCE_IOMMU
 
 config APPLE_DART
 	tristate "Apple DART IOMMU Support"
-	depends on ARCH_APPLE || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on ARCH_APPLE || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_DART
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_DART
 	default ARCH_APPLE
@@ -318,7 +323,8 @@ config APPLE_DART
 # ARM IOMMU support
 config ARM_SMMU
 	tristate "ARM Ltd. System MMU (SMMU) Support"
-	depends on ARM64 || ARM || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on ARM64 || ARM || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU if ARM
@@ -389,7 +395,7 @@ config ARM_SMMU_V3
 	depends on ARM64
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 	help
 	  Support for implementations of the ARM System MMU architecture
 	  version 3 providing translation support to a PCIe root complex.
@@ -465,7 +471,8 @@ config MTK_IOMMU_V1
 config QCOM_IOMMU
 	# Note: iommu drivers cannot (yet?) be built as modules
 	bool "Qualcomm IOMMU Support"
-	depends on ARCH_QCOM || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE
 	select QCOM_SCM
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
@@ -474,13 +481,13 @@ config QCOM_IOMMU
 	  Support for IOMMU on certain Qualcomm SoCs.
 
 config HYPERV_IOMMU
-	bool "Hyper-V x2APIC IRQ Handling"
+	bool "Hyper-V IRQ Handling"
 	depends on HYPERV && X86
 	select IOMMU_API
 	default HYPERV
 	help
-	  Stub IOMMU driver to handle IRQs as to allow Hyper-V Linux
-	  guests to run with x2APIC mode enabled.
+	  Stub IOMMU driver to handle IRQs to support Hyper-V Linux
+	  guest and root partitions.
 
 config VIRTIO_IOMMU
 	tristate "Virtio IOMMU driver"

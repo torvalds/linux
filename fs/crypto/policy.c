@@ -53,14 +53,20 @@ int fscrypt_policy_to_key_spec(const union fscrypt_policy *policy,
 	}
 }
 
-static const union fscrypt_policy *
-fscrypt_get_dummy_policy(struct super_block *sb)
+const union fscrypt_policy *fscrypt_get_dummy_policy(struct super_block *sb)
 {
 	if (!sb->s_cop->get_dummy_policy)
 		return NULL;
 	return sb->s_cop->get_dummy_policy(sb);
 }
 
+/*
+ * Return %true if the given combination of encryption modes is supported for v1
+ * (and later) encryption policies.
+ *
+ * Do *not* add anything new here, since v1 encryption policies are deprecated.
+ * New combinations of modes should go in fscrypt_valid_enc_modes_v2() only.
+ */
 static bool fscrypt_valid_enc_modes_v1(u32 contents_mode, u32 filenames_mode)
 {
 	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
@@ -83,6 +89,11 @@ static bool fscrypt_valid_enc_modes_v2(u32 contents_mode, u32 filenames_mode)
 	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
 	    filenames_mode == FSCRYPT_MODE_AES_256_HCTR2)
 		return true;
+
+	if (contents_mode == FSCRYPT_MODE_SM4_XTS &&
+	    filenames_mode == FSCRYPT_MODE_SM4_CTS)
+		return true;
+
 	return fscrypt_valid_enc_modes_v1(contents_mode, filenames_mode);
 }
 
@@ -494,7 +505,7 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 		return -EFAULT;
 	policy.version = version;
 
-	if (!inode_owner_or_capable(&init_user_ns, inode))
+	if (!inode_owner_or_capable(&nop_mnt_idmap, inode))
 		return -EACCES;
 
 	ret = mnt_want_write_file(filp);

@@ -299,18 +299,6 @@ static void ipmmu_utlb_enable(struct ipmmu_vmsa_domain *domain,
 	mmu->utlb_ctx[utlb] = domain->context_id;
 }
 
-/*
- * Disable MMU translation for the microTLB.
- */
-static void ipmmu_utlb_disable(struct ipmmu_vmsa_domain *domain,
-			       unsigned int utlb)
-{
-	struct ipmmu_vmsa_device *mmu = domain->mmu;
-
-	ipmmu_imuctr_write(mmu, utlb, 0);
-	mmu->utlb_ctx[utlb] = IPMMU_CTX_INVALID;
-}
-
 static void ipmmu_tlb_flush_all(void *cookie)
 {
 	struct ipmmu_vmsa_domain *domain = cookie;
@@ -628,8 +616,6 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 		 * Something is wrong, we can't attach two devices using
 		 * different IOMMUs to the same domain.
 		 */
-		dev_err(dev, "Can't attach IPMMU %s to domain on IPMMU %s\n",
-			dev_name(mmu->dev), dev_name(domain->mmu->dev));
 		ret = -EINVAL;
 	} else
 		dev_info(dev, "Reusing IPMMU context %u\n", domain->context_id);
@@ -645,38 +631,23 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 	return 0;
 }
 
-static void ipmmu_detach_device(struct iommu_domain *io_domain,
-				struct device *dev)
-{
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
-	unsigned int i;
-
-	for (i = 0; i < fwspec->num_ids; ++i)
-		ipmmu_utlb_disable(domain, fwspec->ids[i]);
-
-	/*
-	 * TODO: Optimize by disabling the context when no device is attached.
-	 */
-}
-
 static int ipmmu_map(struct iommu_domain *io_domain, unsigned long iova,
-		     phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+		     phys_addr_t paddr, size_t pgsize, size_t pgcount,
+		     int prot, gfp_t gfp, size_t *mapped)
 {
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 
-	if (!domain)
-		return -ENODEV;
-
-	return domain->iop->map(domain->iop, iova, paddr, size, prot, gfp);
+	return domain->iop->map_pages(domain->iop, iova, paddr, pgsize, pgcount,
+				      prot, gfp, mapped);
 }
 
 static size_t ipmmu_unmap(struct iommu_domain *io_domain, unsigned long iova,
-			  size_t size, struct iommu_iotlb_gather *gather)
+			  size_t pgsize, size_t pgcount,
+			  struct iommu_iotlb_gather *gather)
 {
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 
-	return domain->iop->unmap(domain->iop, iova, size, gather);
+	return domain->iop->unmap_pages(domain->iop, iova, pgsize, pgcount, gather);
 }
 
 static void ipmmu_flush_iotlb_all(struct iommu_domain *io_domain)
@@ -878,9 +849,8 @@ static const struct iommu_ops ipmmu_ops = {
 	.of_xlate = ipmmu_of_xlate,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= ipmmu_attach_device,
-		.detach_dev	= ipmmu_detach_device,
-		.map		= ipmmu_map,
-		.unmap		= ipmmu_unmap,
+		.map_pages	= ipmmu_map,
+		.unmap_pages	= ipmmu_unmap,
 		.flush_iotlb_all = ipmmu_flush_iotlb_all,
 		.iotlb_sync	= ipmmu_iotlb_sync,
 		.iova_to_phys	= ipmmu_iova_to_phys,

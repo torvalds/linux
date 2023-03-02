@@ -87,7 +87,7 @@ enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw)
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_get_role);
 
-static void *usb_role_switch_match(struct fwnode_handle *fwnode, const char *id,
+static void *usb_role_switch_match(const struct fwnode_handle *fwnode, const char *id,
 				   void *data)
 {
 	struct device *dev;
@@ -106,10 +106,13 @@ usb_role_switch_is_parent(struct fwnode_handle *fwnode)
 	struct fwnode_handle *parent = fwnode_get_parent(fwnode);
 	struct device *dev;
 
-	if (!parent || !fwnode_property_present(parent, "usb-role-switch"))
+	if (!fwnode_property_present(parent, "usb-role-switch")) {
+		fwnode_handle_put(parent);
 		return NULL;
+	}
 
 	dev = class_find_device_by_fwnode(role_class, parent);
+	fwnode_handle_put(parent);
 	return dev ? to_role_switch(dev) : ERR_PTR(-EPROBE_DEFER);
 }
 
@@ -271,8 +274,7 @@ static const struct attribute_group *usb_role_switch_groups[] = {
 	NULL,
 };
 
-static int
-usb_role_switch_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int usb_role_switch_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int ret;
 

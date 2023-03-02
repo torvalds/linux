@@ -7,13 +7,15 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/platform_device.h>
-#include <linux/regmap.h>
-#include <linux/slab.h>
-#include <linux/types.h>
 
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
@@ -925,7 +927,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	girq->chip = &state->irq;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = of_node_to_fwnode(state->dev->of_node);
+	girq->fwnode = dev_fwnode(state->dev);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = pmic_mpp_child_to_parent_hwirq;
 	girq->populate_parent_alloc_arg = gpiochip_populate_parent_fwspec_fourcell;

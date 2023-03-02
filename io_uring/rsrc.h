@@ -53,6 +53,7 @@ struct io_mapped_ubuf {
 	struct bio_vec	bvec[];
 };
 
+void io_rsrc_put_tw(struct callback_head *cb);
 void io_rsrc_put_work(struct work_struct *work);
 void io_rsrc_refs_refill(struct io_ring_ctx *ctx);
 void io_wait_rsrc_data(struct io_rsrc_data *data);

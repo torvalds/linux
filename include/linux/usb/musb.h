@@ -143,8 +143,6 @@ extern int __init tusb6010_setup_interface(
 		unsigned async_cs, unsigned sync_cs,
 		unsigned irq, unsigned dmachan);
 
-extern int tusb6010_platform_retime(unsigned is_refclk);
-
 #endif	/* OMAP2 */
 
 #endif /* __LINUX_USB_MUSB_H */

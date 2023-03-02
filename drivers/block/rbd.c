@@ -3068,13 +3068,12 @@ static int setup_copyup_bvecs(struct rbd_obj_request *obj_req, u64 obj_overlap)
 
 	for (i = 0; i < obj_req->copyup_bvec_count; i++) {
 		unsigned int len = min(obj_overlap, (u64)PAGE_SIZE);
+		struct page *page = alloc_page(GFP_NOIO);
 
-		obj_req->copyup_bvecs[i].bv_page = alloc_page(GFP_NOIO);
-		if (!obj_req->copyup_bvecs[i].bv_page)
+		if (!page)
 			return -ENOMEM;
 
-		obj_req->copyup_bvecs[i].bv_offset = 0;
-		obj_req->copyup_bvecs[i].bv_len = len;
+		bvec_set_page(&obj_req->copyup_bvecs[i], page, len, 0);
 		obj_overlap -= len;
 	}
 
@@ -7222,8 +7221,10 @@ static int __init rbd_sysfs_init(void)
 	int ret;
 
 	ret = device_register(&rbd_root_dev);
-	if (ret < 0)
+	if (ret < 0) {
+		put_device(&rbd_root_dev);
 		return ret;
+	}
 
 	ret = bus_register(&rbd_bus_type);
 	if (ret < 0)

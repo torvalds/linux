@@ -664,6 +664,9 @@ static int sd_sec_submit(void *data, u16 spsp, u8 secp, void *buffer,
 	struct scsi_disk *sdkp = data;
 	struct scsi_device *sdev = sdkp->device;
 	u8 cdb[12] = { 0, };
+	const struct scsi_exec_args exec_args = {
+		.req_flags = BLK_MQ_REQ_PM,
+	};
 	int ret;
 
 	cdb[0] = send ? SECURITY_PROTOCOL_OUT : SECURITY_PROTOCOL_IN;
@@ -671,9 +674,9 @@ static int sd_sec_submit(void *data, u16 spsp, u8 secp, void *buffer,
 	put_unaligned_be16(spsp, &cdb[2]);
 	put_unaligned_be32(len, &cdb[6]);
 
-	ret = scsi_execute(sdev, cdb, send ? DMA_TO_DEVICE : DMA_FROM_DEVICE,
-		buffer, len, NULL, NULL, SD_TIMEOUT, sdkp->max_retries, 0,
-		RQF_PM, NULL);
+	ret = scsi_execute_cmd(sdev, cdb, send ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
+			       buffer, len, SD_TIMEOUT, sdkp->max_retries,
+			       &exec_args);
 	return ret <= 0 ? ret : -EIO;
 }
 #endif /* CONFIG_BLK_SED_OPAL */
@@ -831,6 +834,19 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	blk_queue_max_discard_sectors(q, max_blocks * (logical_block_size >> 9));
 }
 
+static void *sd_set_special_bvec(struct request *rq, unsigned int data_len)
+{
+	struct page *page;
+
+	page = mempool_alloc(sd_page_pool, GFP_ATOMIC);
+	if (!page)
+		return NULL;
+	clear_highpage(page);
+	bvec_set_page(&rq->special_vec, page, data_len, 0);
+	rq->rq_flags |= RQF_SPECIAL_PAYLOAD;
+	return bvec_virt(&rq->special_vec);
+}
+
 static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdp = cmd->device;
@@ -841,19 +857,14 @@ static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
 	unsigned int data_len = 24;
 	char *buf;
 
-	rq->special_vec.bv_page = mempool_alloc(sd_page_pool, GFP_ATOMIC);
-	if (!rq->special_vec.bv_page)
+	buf = sd_set_special_bvec(rq, data_len);
+	if (!buf)
 		return BLK_STS_RESOURCE;
-	clear_highpage(rq->special_vec.bv_page);
-	rq->special_vec.bv_offset = 0;
-	rq->special_vec.bv_len = data_len;
-	rq->rq_flags |= RQF_SPECIAL_PAYLOAD;
 
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = UNMAP;
 	cmd->cmnd[8] = 24;
 
-	buf = bvec_virt(&rq->special_vec);
 	put_unaligned_be16(6 + 16, &buf[0]);
 	put_unaligned_be16(16, &buf[2]);
 	put_unaligned_be64(lba, &buf[8]);
@@ -876,13 +887,8 @@ static blk_status_t sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd,
 	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	u32 data_len = sdp->sector_size;
 
-	rq->special_vec.bv_page = mempool_alloc(sd_page_pool, GFP_ATOMIC);
-	if (!rq->special_vec.bv_page)
+	if (!sd_set_special_bvec(rq, data_len))
 		return BLK_STS_RESOURCE;
-	clear_highpage(rq->special_vec.bv_page);
-	rq->special_vec.bv_offset = 0;
-	rq->special_vec.bv_len = data_len;
-	rq->rq_flags |= RQF_SPECIAL_PAYLOAD;
 
 	cmd->cmd_len = 16;
 	cmd->cmnd[0] = WRITE_SAME_16;
@@ -908,13 +914,8 @@ static blk_status_t sd_setup_write_same10_cmnd(struct scsi_cmnd *cmd,
 	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	u32 data_len = sdp->sector_size;
 
-	rq->special_vec.bv_page = mempool_alloc(sd_page_pool, GFP_ATOMIC);
-	if (!rq->special_vec.bv_page)
+	if (!sd_set_special_bvec(rq, data_len))
 		return BLK_STS_RESOURCE;
-	clear_highpage(rq->special_vec.bv_page);
-	rq->special_vec.bv_offset = 0;
-	rq->special_vec.bv_len = data_len;
-	rq->rq_flags |= RQF_SPECIAL_PAYLOAD;
 
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = WRITE_SAME;
@@ -1026,8 +1027,13 @@ static blk_status_t sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
 	/* flush requests don't perform I/O, zero the S/G table */
 	memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 
-	cmd->cmnd[0] = SYNCHRONIZE_CACHE;
-	cmd->cmd_len = 10;
+	if (cmd->device->use_16_for_sync) {
+		cmd->cmnd[0] = SYNCHRONIZE_CACHE_16;
+		cmd->cmd_len = 16;
+	} else {
+		cmd->cmnd[0] = SYNCHRONIZE_CACHE;
+		cmd->cmd_len = 10;
+	}
 	cmd->transfersize = 0;
 	cmd->allowed = sdkp->max_retries;
 
@@ -1578,24 +1584,30 @@ static int sd_sync_cache(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr)
 	const int timeout = sdp->request_queue->rq_timeout
 		* SD_FLUSH_TIMEOUT_MULTIPLIER;
 	struct scsi_sense_hdr my_sshdr;
+	const struct scsi_exec_args exec_args = {
+		.req_flags = BLK_MQ_REQ_PM,
+		/* caller might not be interested in sense, but we need it */
+		.sshdr = sshdr ? : &my_sshdr,
+	};
 
 	if (!scsi_device_online(sdp))
 		return -ENODEV;
 
-	/* caller might not be interested in sense, but we need it */
-	if (!sshdr)
-		sshdr = &my_sshdr;
+	sshdr = exec_args.sshdr;
 
 	for (retries = 3; retries > 0; --retries) {
-		unsigned char cmd[10] = { 0 };
+		unsigned char cmd[16] = { 0 };
 
-		cmd[0] = SYNCHRONIZE_CACHE;
+		if (sdp->use_16_for_sync)
+			cmd[0] = SYNCHRONIZE_CACHE_16;
+		else
+			cmd[0] = SYNCHRONIZE_CACHE;
 		/*
 		 * Leave the rest of the command zero to indicate
 		 * flush everything.
 		 */
-		res = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, sshdr,
-				timeout, sdkp->max_retries, 0, RQF_PM, NULL);
+		res = scsi_execute_cmd(sdp, cmd, REQ_OP_DRV_IN, NULL, 0,
+				       timeout, sdkp->max_retries, &exec_args);
 		if (res == 0)
 			break;
 	}
@@ -1701,12 +1713,45 @@ static char sd_pr_type(enum pr_type type)
 	}
 };
 
+static int sd_scsi_to_pr_err(struct scsi_sense_hdr *sshdr, int result)
+{
+	switch (host_byte(result)) {
+	case DID_TRANSPORT_MARGINAL:
+	case DID_TRANSPORT_DISRUPTED:
+	case DID_BUS_BUSY:
+		return PR_STS_RETRY_PATH_FAILURE;
+	case DID_NO_CONNECT:
+		return PR_STS_PATH_FAILED;
+	case DID_TRANSPORT_FAILFAST:
+		return PR_STS_PATH_FAST_FAILED;
+	}
+
+	switch (status_byte(result)) {
+	case SAM_STAT_RESERVATION_CONFLICT:
+		return PR_STS_RESERVATION_CONFLICT;
+	case SAM_STAT_CHECK_CONDITION:
+		if (!scsi_sense_valid(sshdr))
+			return PR_STS_IOERR;
+
+		if (sshdr->sense_key == ILLEGAL_REQUEST &&
+		    (sshdr->asc == 0x26 || sshdr->asc == 0x24))
+			return -EINVAL;
+
+		fallthrough;
+	default:
+		return PR_STS_IOERR;
+	}
+}
+
 static int sd_pr_command(struct block_device *bdev, u8 sa,
 		u64 key, u64 sa_key, u8 type, u8 flags)
 {
 	struct scsi_disk *sdkp = scsi_disk(bdev->bd_disk);
 	struct scsi_device *sdev = sdkp->device;
 	struct scsi_sense_hdr sshdr;
+	const struct scsi_exec_args exec_args = {
+		.sshdr = &sshdr,
+	};
 	int result;
 	u8 cmd[16] = { 0, };
 	u8 data[24] = { 0, };
@@ -1720,8 +1765,9 @@ static int sd_pr_command(struct block_device *bdev, u8 sa,
 	put_unaligned_be64(sa_key, &data[8]);
 	data[20] = flags;
 
-	result = scsi_execute_req(sdev, cmd, DMA_TO_DEVICE, &data, sizeof(data),
-			&sshdr, SD_TIMEOUT, sdkp->max_retries, NULL);
+	result = scsi_execute_cmd(sdev, cmd, REQ_OP_DRV_OUT, &data,
+				  sizeof(data), SD_TIMEOUT, sdkp->max_retries,
+				  &exec_args);
 
 	if (scsi_status_is_check_condition(result) &&
 	    scsi_sense_valid(&sshdr)) {
@@ -1729,7 +1775,10 @@ static int sd_pr_command(struct block_device *bdev, u8 sa,
 		scsi_print_sense_hdr(sdev, NULL, &sshdr);
 	}
 
-	return result;
+	if (result <= 0)
+		return result;
+
+	return sd_scsi_to_pr_err(&sshdr, result);
 }
 
 static int sd_pr_register(struct block_device *bdev, u64 old_key, u64 new_key,
@@ -2047,6 +2096,9 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 	int retries, spintime;
 	unsigned int the_result;
 	struct scsi_sense_hdr sshdr;
+	const struct scsi_exec_args exec_args = {
+		.sshdr = &sshdr,
+	};
 	int sense_valid = 0;
 
 	spintime = 0;
@@ -2062,10 +2114,11 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			cmd[0] = TEST_UNIT_READY;
 			memset((void *) &cmd[1], 0, 9);
 
-			the_result = scsi_execute_req(sdkp->device, cmd,
-						      DMA_NONE, NULL, 0,
-						      &sshdr, SD_TIMEOUT,
-						      sdkp->max_retries, NULL);
+			the_result = scsi_execute_cmd(sdkp->device, cmd,
+						      REQ_OP_DRV_IN, NULL, 0,
+						      SD_TIMEOUT,
+						      sdkp->max_retries,
+						      &exec_args);
 
 			/*
 			 * If the drive has indicated to us that it
@@ -2122,10 +2175,10 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 				cmd[4] = 1;	/* Start spin cycle */
 				if (sdkp->device->start_stop_pwr_cond)
 					cmd[4] |= 1 << 4;
-				scsi_execute_req(sdkp->device, cmd, DMA_NONE,
-						 NULL, 0, &sshdr,
+				scsi_execute_cmd(sdkp->device, cmd,
+						 REQ_OP_DRV_IN, NULL, 0,
 						 SD_TIMEOUT, sdkp->max_retries,
-						 NULL);
+						 &exec_args);
 				spintime_expire = jiffies + 100 * HZ;
 				spintime = 1;
 			}
@@ -2255,6 +2308,9 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 {
 	unsigned char cmd[16];
 	struct scsi_sense_hdr sshdr;
+	const struct scsi_exec_args exec_args = {
+		.sshdr = &sshdr,
+	};
 	int sense_valid = 0;
 	int the_result;
 	int retries = 3, reset_retries = READ_CAPACITY_RETRIES_ON_RESET;
@@ -2272,9 +2328,9 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		cmd[13] = RC16_LEN;
 		memset(buffer, 0, RC16_LEN);
 
-		the_result = scsi_execute_req(sdp, cmd, DMA_FROM_DEVICE,
-					buffer, RC16_LEN, &sshdr,
-					SD_TIMEOUT, sdkp->max_retries, NULL);
+		the_result = scsi_execute_cmd(sdp, cmd, REQ_OP_DRV_IN,
+					      buffer, RC16_LEN, SD_TIMEOUT,
+					      sdkp->max_retries, &exec_args);
 
 		if (media_not_present(sdkp, &sshdr))
 			return -ENODEV;
@@ -2346,6 +2402,9 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 {
 	unsigned char cmd[16];
 	struct scsi_sense_hdr sshdr;
+	const struct scsi_exec_args exec_args = {
+		.sshdr = &sshdr,
+	};
 	int sense_valid = 0;
 	int the_result;
 	int retries = 3, reset_retries = READ_CAPACITY_RETRIES_ON_RESET;
@@ -2357,9 +2416,9 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		memset(&cmd[1], 0, 9);
 		memset(buffer, 0, 8);
 
-		the_result = scsi_execute_req(sdp, cmd, DMA_FROM_DEVICE,
-					buffer, 8, &sshdr,
-					SD_TIMEOUT, sdkp->max_retries, NULL);
+		the_result = scsi_execute_cmd(sdp, cmd, REQ_OP_DRV_IN, buffer,
+					      8, SD_TIMEOUT, sdkp->max_retries,
+					      &exec_args);
 
 		if (media_not_present(sdkp, &sshdr))
 			return -ENODEV;
@@ -3596,6 +3655,10 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 {
 	unsigned char cmd[6] = { START_STOP };	/* START_VALID */
 	struct scsi_sense_hdr sshdr;
+	const struct scsi_exec_args exec_args = {
+		.sshdr = &sshdr,
+		.req_flags = BLK_MQ_REQ_PM,
+	};
 	struct scsi_device *sdp = sdkp->device;
 	int res;
 
@@ -3608,8 +3671,8 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 	if (!scsi_device_online(sdp))
 		return -ENODEV;
 
-	res = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
-			SD_TIMEOUT, sdkp->max_retries, 0, RQF_PM, NULL);
+	res = scsi_execute_cmd(sdp, cmd, REQ_OP_DRV_IN, NULL, 0, SD_TIMEOUT,
+			       sdkp->max_retries, &exec_args);
 	if (res) {
 		sd_print_result(sdkp, "Start/Stop Unit failed", res);
 		if (res > 0 && scsi_sense_valid(&sshdr)) {
@@ -3749,10 +3812,13 @@ static int sd_resume_runtime(struct device *dev)
 	if (sdp->ignore_media_change) {
 		/* clear the device's sense data */
 		static const u8 cmd[10] = { REQUEST_SENSE };
+		const struct scsi_exec_args exec_args = {
+			.req_flags = BLK_MQ_REQ_PM,
+		};
 
-		if (scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL,
-				 NULL, sdp->request_queue->rq_timeout, 1, 0,
-				 RQF_PM, NULL))
+		if (scsi_execute_cmd(sdp, cmd, REQ_OP_DRV_IN, NULL, 0,
+				     sdp->request_queue->rq_timeout, 1,
+				     &exec_args))
 			sd_printk(KERN_NOTICE, sdkp,
 				  "Failed to clear sense data\n");
 	}

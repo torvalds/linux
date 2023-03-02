@@ -31,6 +31,7 @@
 #include <linux/cma.h>
 #include <linux/gfp.h>
 #include <linux/dma-direct.h>
+#include <linux/percpu.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/pgalloc.h>
@@ -51,9 +52,9 @@
 #include <linux/virtio_config.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(".bss..swapper_pg_dir");
-static pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
+pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
 
-unsigned long s390_invalid_asce;
+unsigned long __bootdata_preserved(s390_invalid_asce);
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
@@ -92,37 +93,8 @@ static void __init setup_zero_pages(void)
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	unsigned long pgd_type, asce_bits;
-	psw_t psw;
 
-	s390_invalid_asce  = (unsigned long)invalid_pg_dir;
-	s390_invalid_asce |= _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
-	crst_table_init((unsigned long *)invalid_pg_dir, _REGION3_ENTRY_EMPTY);
-	init_mm.pgd = swapper_pg_dir;
-	if (VMALLOC_END > _REGION2_SIZE) {
-		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
-		pgd_type = _REGION2_ENTRY_EMPTY;
-	} else {
-		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
-		pgd_type = _REGION3_ENTRY_EMPTY;
-	}
-	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
-	S390_lowcore.kernel_asce = init_mm.context.asce;
-	S390_lowcore.user_asce = s390_invalid_asce;
-	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
-	kasan_copy_shadow_mapping();
-
-	/* enable virtual mapping in kernel mode */
-	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	__ctl_load(S390_lowcore.user_asce, 7, 7);
-	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	psw.mask = __extract_psw();
-	psw_bits(psw).dat = 1;
-	psw_bits(psw).as = PSW_BITS_AS_HOME;
-	__load_psw_mask(psw.mask);
-	kasan_free_early_identity();
-
 	sparse_init();
 	zone_dma_bits = 31;
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
@@ -140,25 +112,25 @@ void mark_rodata_ro(void)
 	debug_checkwx();
 }
 
-int set_memory_encrypted(unsigned long addr, int numpages)
+int set_memory_encrypted(unsigned long vaddr, int numpages)
 {
 	int i;
 
 	/* make specified pages unshared, (swiotlb, dma_free) */
 	for (i = 0; i < numpages; ++i) {
-		uv_remove_shared(addr);
-		addr += PAGE_SIZE;
+		uv_remove_shared(virt_to_phys((void *)vaddr));
+		vaddr += PAGE_SIZE;
 	}
 	return 0;
 }
 
-int set_memory_decrypted(unsigned long addr, int numpages)
+int set_memory_decrypted(unsigned long vaddr, int numpages)
 {
 	int i;
 	/* make specified pages shared (swiotlb, dma_alloca) */
 	for (i = 0; i < numpages; ++i) {
-		uv_set_shared(addr);
-		addr += PAGE_SIZE;
+		uv_set_shared(virt_to_phys((void *)vaddr));
+		vaddr += PAGE_SIZE;
 	}
 	return 0;
 }
@@ -207,9 +179,6 @@ void free_initmem(void)
 	__set_memory((unsigned long)_sinittext,
 		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RW | SET_MEMORY_NX);
-	free_reserved_area(sclp_early_sccb,
-			   sclp_early_sccb + EXT_SCCB_READ_SCP,
-			   POISON_FREE_INITMEM, "unused early sccb");
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 
@@ -220,6 +189,41 @@ unsigned long memory_block_size_bytes(void)
 	 * or equal than the memory increment size.
 	 */
 	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
+}
+
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(__per_cpu_offset);
+
+static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
+{
+	return LOCAL_DISTANCE;
+}
+
+static int __init pcpu_cpu_to_node(int cpu)
+{
+	return 0;
+}
+
+void __init setup_per_cpu_areas(void)
+{
+	unsigned long delta;
+	unsigned int cpu;
+	int rc;
+
+	/*
+	 * Always reserve area for module percpu variables.  That's
+	 * what the legacy allocator did.
+	 */
+	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
+				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE,
+				    pcpu_cpu_distance,
+				    pcpu_cpu_to_node);
+	if (rc < 0)
+		panic("Failed to initialize percpu areas.");
+
+	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
+	for_each_possible_cpu(cpu)
+		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

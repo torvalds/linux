@@ -293,19 +293,11 @@ setup-vm() {
 	elif [[ -n $vtype && $vtype == "vnifilterg" ]]; then
 	   # Add per vni group config with 'bridge vni' api
 	   if [ -n "$group" ]; then
-	      if [ "$family" == "v4" ]; then
-		 if [ $mcast -eq 1 ]; then
-		    bridge -netns hv-$hvid vni add dev $vxlandev vni $tid group $group
-		 else
-		    bridge -netns hv-$hvid vni add dev $vxlandev vni $tid remote $group
-		 fi
-	      else
-		 if [ $mcast -eq 1 ]; then
-		    bridge -netns hv-$hvid vni add dev $vxlandev vni $tid group6 $group
-		 else
-		    bridge -netns hv-$hvid vni add dev $vxlandev vni $tid remote6 $group
-		 fi
-	      fi
+		if [ $mcast -eq 1 ]; then
+			bridge -netns hv-$hvid vni add dev $vxlandev vni $tid group $group
+		else
+			bridge -netns hv-$hvid vni add dev $vxlandev vni $tid remote $group
+		fi
 	   fi
 	fi
 	done

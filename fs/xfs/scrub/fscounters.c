@@ -14,6 +14,8 @@
 #include "xfs_health.h"
 #include "xfs_btree.h"
 #include "xfs_ag.h"
+#include "xfs_rtalloc.h"
+#include "xfs_inode.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -42,6 +44,16 @@
  * after this operation and use the difference in counter values to guess at
  * our tolerance for mismatch between expected and actual counter values.
  */
+
+struct xchk_fscounters {
+	struct xfs_scrub	*sc;
+	uint64_t		icount;
+	uint64_t		ifree;
+	uint64_t		fdblocks;
+	uint64_t		frextents;
+	unsigned long long	icount_min;
+	unsigned long long	icount_max;
+};
 
 /*
  * Since the expected value computation is lockless but only browses incore
@@ -74,7 +86,8 @@ xchk_fscount_warmup(
 	for_each_perag(mp, agno, pag) {
 		if (xchk_should_terminate(sc, &error))
 			break;
-		if (pag->pagi_init && pag->pagf_init)
+		if (xfs_perag_initialised_agi(pag) &&
+		    xfs_perag_initialised_agf(pag))
 			continue;
 
 		/* Lock both AG headers. */
@@ -89,7 +102,8 @@ xchk_fscount_warmup(
 		 * These are supposed to be initialized by the header read
 		 * function.
 		 */
-		if (!pag->pagi_init || !pag->pagf_init) {
+		if (!xfs_perag_initialised_agi(pag) ||
+		    !xfs_perag_initialised_agf(pag)) {
 			error = -EFSCORRUPTED;
 			break;
 		}
@@ -105,7 +119,7 @@ xchk_fscount_warmup(
 	if (agi_bp)
 		xfs_buf_relse(agi_bp);
 	if (pag)
-		xfs_perag_put(pag);
+		xfs_perag_rele(pag);
 	return error;
 }
 
@@ -116,10 +130,11 @@ xchk_setup_fscounters(
 	struct xchk_fscounters	*fsc;
 	int			error;
 
-	sc->buf = kmem_zalloc(sizeof(struct xchk_fscounters), 0);
+	sc->buf = kzalloc(sizeof(struct xchk_fscounters), XCHK_GFP_FLAGS);
 	if (!sc->buf)
 		return -ENOMEM;
 	fsc = sc->buf;
+	fsc->sc = sc;
 
 	xfs_icount_range(sc->mp, &fsc->icount_min, &fsc->icount_max);
 
@@ -137,6 +152,18 @@ xchk_setup_fscounters(
 
 	return xchk_trans_alloc(sc, 0);
 }
+
+/*
+ * Part 1: Collecting filesystem summary counts.  For each AG, we add its
+ * summary counts (total inodes, free inodes, free data blocks) to an incore
+ * copy of the overall filesystem summary counts.
+ *
+ * To avoid false corruption reports in part 2, any failure in this part must
+ * set the INCOMPLETE flag even when a negative errno is returned.  This care
+ * must be taken with certain errno values (i.e. EFSBADCRC, EFSCORRUPTED,
+ * ECANCELED) that are absorbed into a scrub state flag update by
+ * xchk_*_process_error.
+ */
 
 /* Count free space btree blocks manually for pre-lazysbcount filesystems. */
 static int
@@ -195,7 +222,8 @@ retry:
 			break;
 
 		/* This somehow got unset since the warmup? */
-		if (!pag->pagi_init || !pag->pagf_init) {
+		if (!xfs_perag_initialised_agi(pag) ||
+		    !xfs_perag_initialised_agf(pag)) {
 			error = -EFSCORRUPTED;
 			break;
 		}
@@ -224,9 +252,11 @@ retry:
 
 	}
 	if (pag)
-		xfs_perag_put(pag);
-	if (error)
+		xfs_perag_rele(pag);
+	if (error) {
+		xchk_set_incomplete(sc);
 		return error;
+	}
 
 	/*
 	 * The global incore space reservation is taken from the incore
@@ -266,6 +296,64 @@ retry:
 
 	return 0;
 }
+
+#ifdef CONFIG_XFS_RT
+STATIC int
+xchk_fscount_add_frextent(
+	struct xfs_mount		*mp,
+	struct xfs_trans		*tp,
+	const struct xfs_rtalloc_rec	*rec,
+	void				*priv)
+{
+	struct xchk_fscounters		*fsc = priv;
+	int				error = 0;
+
+	fsc->frextents += rec->ar_extcount;
+
+	xchk_should_terminate(fsc->sc, &error);
+	return error;
+}
+
+/* Calculate the number of free realtime extents from the realtime bitmap. */
+STATIC int
+xchk_fscount_count_frextents(
+	struct xfs_scrub	*sc,
+	struct xchk_fscounters	*fsc)
+{
+	struct xfs_mount	*mp = sc->mp;
+	int			error;
+
+	fsc->frextents = 0;
+	if (!xfs_has_realtime(mp))
+		return 0;
+
+	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	error = xfs_rtalloc_query_all(sc->mp, sc->tp,
+			xchk_fscount_add_frextent, fsc);
+	if (error) {
+		xchk_set_incomplete(sc);
+		goto out_unlock;
+	}
+
+out_unlock:
+	xfs_iunlock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	return error;
+}
+#else
+STATIC int
+xchk_fscount_count_frextents(
+	struct xfs_scrub	*sc,
+	struct xchk_fscounters	*fsc)
+{
+	fsc->frextents = 0;
+	return 0;
+}
+#endif /* CONFIG_XFS_RT */
+
+/*
+ * Part 2: Comparing filesystem summary counters.  All we have to do here is
+ * sum the percpu counters and compare them to what we've observed.
+ */
 
 /*
  * Is the @counter reasonably close to the @expected value?
@@ -333,16 +421,17 @@ xchk_fscounters(
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xchk_fscounters	*fsc = sc->buf;
-	int64_t			icount, ifree, fdblocks;
+	int64_t			icount, ifree, fdblocks, frextents;
 	int			error;
 
 	/* Snapshot the percpu counters. */
 	icount = percpu_counter_sum(&mp->m_icount);
 	ifree = percpu_counter_sum(&mp->m_ifree);
 	fdblocks = percpu_counter_sum(&mp->m_fdblocks);
+	frextents = percpu_counter_sum(&mp->m_frextents);
 
 	/* No negative values, please! */
-	if (icount < 0 || ifree < 0 || fdblocks < 0)
+	if (icount < 0 || ifree < 0 || fdblocks < 0 || frextents < 0)
 		xchk_set_corrupt(sc);
 
 	/* See if icount is obviously wrong. */
@@ -351,6 +440,10 @@ xchk_fscounters(
 
 	/* See if fdblocks is obviously wrong. */
 	if (fdblocks > mp->m_sb.sb_dblocks)
+		xchk_set_corrupt(sc);
+
+	/* See if frextents is obviously wrong. */
+	if (frextents > mp->m_sb.sb_rextents)
 		xchk_set_corrupt(sc);
 
 	/*
@@ -367,6 +460,13 @@ xchk_fscounters(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE)
 		return 0;
 
+	/* Count the free extents counter for rt volumes. */
+	error = xchk_fscount_count_frextents(sc, fsc);
+	if (!xchk_process_error(sc, 0, XFS_SB_BLOCK(mp), &error))
+		return error;
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE)
+		return 0;
+
 	/* Compare the in-core counters with whatever we counted. */
 	if (!xchk_fscount_within_range(sc, icount, &mp->m_icount, fsc->icount))
 		xchk_set_corrupt(sc);
@@ -376,6 +476,10 @@ xchk_fscounters(
 
 	if (!xchk_fscount_within_range(sc, fdblocks, &mp->m_fdblocks,
 			fsc->fdblocks))
+		xchk_set_corrupt(sc);
+
+	if (!xchk_fscount_within_range(sc, frextents, &mp->m_frextents,
+			fsc->frextents))
 		xchk_set_corrupt(sc);
 
 	return 0;

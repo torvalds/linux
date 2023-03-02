@@ -36,6 +36,9 @@
 #include "i915_reg.h"
 #include "gvt.h"
 
+#include "display/intel_display.h"
+#include "display/intel_dpio_phy.h"
+
 static int get_edp_pipe(struct intel_vgpu *vgpu)
 {
 	u32 data = vgpu_vreg(vgpu, _TRANS_DDI_FUNC_CTL_EDP);

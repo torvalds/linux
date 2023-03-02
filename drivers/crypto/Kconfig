@@ -390,16 +390,6 @@ if CRYPTO_DEV_NX
 	source "drivers/crypto/nx/Kconfig"
 endif
 
-config CRYPTO_DEV_UX500
-	tristate "Driver for ST-Ericsson UX500 crypto hardware acceleration"
-	depends on ARCH_U8500
-	help
-	  Driver for ST-Ericsson UX500 crypto engine.
-
-if CRYPTO_DEV_UX500
-	source "drivers/crypto/ux500/Kconfig"
-endif # if CRYPTO_DEV_UX500
-
 config CRYPTO_DEV_ATMEL_AUTHENC
 	bool "Support for Atmel IPSEC/SSL hw accelerator"
 	depends on ARCH_AT91 || COMPILE_TEST
@@ -669,7 +659,12 @@ config CRYPTO_DEV_IMGTEC_HASH
 config CRYPTO_DEV_ROCKCHIP
 	tristate "Rockchip's Cryptographic Engine driver"
 	depends on OF && ARCH_ROCKCHIP
+	depends on PM
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_DES
 	select CRYPTO_AES
+	select CRYPTO_ENGINE
 	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
@@ -680,6 +675,16 @@ config CRYPTO_DEV_ROCKCHIP
 	help
 	  This driver interfaces with the hardware crypto accelerator.
 	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
+
+config CRYPTO_DEV_ROCKCHIP_DEBUG
+	bool "Enable Rockchip crypto stats"
+	depends on CRYPTO_DEV_ROCKCHIP
+	depends on DEBUG_FS
+	help
+	  Say y to enable Rockchip crypto debug stats.
+	  This will create /sys/kernel/debug/rk3288_crypto/stats for displaying
+	  the number of requests per algorithm and other internal stats.
+
 
 config CRYPTO_DEV_ZYNQMP_AES
 	tristate "Support for Xilinx ZynqMP AES hw accelerator"
@@ -785,8 +790,8 @@ config CRYPTO_DEV_CCREE
 	select CRYPTO_ECB
 	select CRYPTO_CTR
 	select CRYPTO_XTS
-	select CRYPTO_SM4
-	select CRYPTO_SM3
+	select CRYPTO_SM4_GENERIC
+	select CRYPTO_SM3_GENERIC
 	help
 	  Say 'Y' to enable a driver for the REE interface of the Arm
 	  TrustZone CryptoCell family of processors. Currently the

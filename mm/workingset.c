@@ -223,7 +223,7 @@ static void *lru_gen_eviction(struct folio *folio)
 	unsigned long token;
 	unsigned long min_seq;
 	struct lruvec *lruvec;
-	struct lru_gen_struct *lrugen;
+	struct lru_gen_folio *lrugen;
 	int type = folio_is_file_lru(folio);
 	int delta = folio_nr_pages(folio);
 	int refs = folio_lru_refs(folio);
@@ -252,7 +252,7 @@ static void lru_gen_refault(struct folio *folio, void *shadow)
 	unsigned long token;
 	unsigned long min_seq;
 	struct lruvec *lruvec;
-	struct lru_gen_struct *lrugen;
+	struct lru_gen_folio *lrugen;
 	struct mem_cgroup *memcg;
 	struct pglist_data *pgdat;
 	int type = folio_is_file_lru(folio);
@@ -457,6 +457,7 @@ void workingset_refault(struct folio *folio, void *shadow)
 	 */
 	nr = folio_nr_pages(folio);
 	memcg = folio_memcg(folio);
+	pgdat = folio_pgdat(folio);
 	lruvec = mem_cgroup_lruvec(memcg, pgdat);
 
 	mod_lruvec_state(lruvec, WORKINGSET_REFAULT_BASE + file, nr);
@@ -474,7 +475,7 @@ void workingset_refault(struct folio *folio, void *shadow)
 		workingset_size += lruvec_page_state(eviction_lruvec,
 						     NR_INACTIVE_FILE);
 	}
-	if (mem_cgroup_get_nr_swap_pages(memcg) > 0) {
+	if (mem_cgroup_get_nr_swap_pages(eviction_memcg) > 0) {
 		workingset_size += lruvec_page_state(eviction_lruvec,
 						     NR_ACTIVE_ANON);
 		if (file) {
@@ -492,8 +493,11 @@ void workingset_refault(struct folio *folio, void *shadow)
 	/* Folio was active prior to eviction */
 	if (workingset) {
 		folio_set_workingset(folio);
-		/* XXX: Move to lru_cache_add() when it supports new vs putback */
-		lru_note_cost_folio(folio);
+		/*
+		 * XXX: Move to folio_add_lru() when it supports new vs
+		 * putback
+		 */
+		lru_note_cost_refault(folio);
 		mod_lruvec_state(lruvec, WORKINGSET_RESTORE_BASE + file, nr);
 	}
 out:
@@ -653,11 +657,14 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 		goto out;
 	}
 
-	if (!spin_trylock(&mapping->host->i_lock)) {
-		xa_unlock(&mapping->i_pages);
-		spin_unlock_irq(lru_lock);
-		ret = LRU_RETRY;
-		goto out;
+	/* For page cache we need to hold i_lock */
+	if (mapping->host != NULL) {
+		if (!spin_trylock(&mapping->host->i_lock)) {
+			xa_unlock(&mapping->i_pages);
+			spin_unlock_irq(lru_lock);
+			ret = LRU_RETRY;
+			goto out;
+		}
 	}
 
 	list_lru_isolate(lru, item);
@@ -679,9 +686,11 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 
 out_invalid:
 	xa_unlock_irq(&mapping->i_pages);
-	if (mapping_shrinkable(mapping))
-		inode_add_lru(mapping->host);
-	spin_unlock(&mapping->host->i_lock);
+	if (mapping->host != NULL) {
+		if (mapping_shrinkable(mapping))
+			inode_add_lru(mapping->host);
+		spin_unlock(&mapping->host->i_lock);
+	}
 	ret = LRU_REMOVED_RETRY;
 out:
 	cond_resched();

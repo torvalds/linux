@@ -1958,6 +1958,7 @@ static int rsi_mac80211_resume(struct ieee80211_hw *hw)
 
 static const struct ieee80211_ops mac80211_ops = {
 	.tx = rsi_mac80211_tx,
+	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = rsi_mac80211_start,
 	.stop = rsi_mac80211_stop,
 	.add_interface = rsi_mac80211_add_interface,

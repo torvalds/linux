@@ -46,6 +46,7 @@
 #include <linux/cred.h>
 #include <linux/dax.h>
 #include <linux/uaccess.h>
+#include <linux/rseq.h>
 #include <asm/param.h>
 #include <asm/page.h>
 
@@ -248,7 +249,7 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	} while (0)
 
 #ifdef ARCH_DLINFO
-	/* 
+	/*
 	 * ARCH_DLINFO must come first so PPC can do its special alignment of
 	 * AUXV.
 	 * update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT() in
@@ -288,6 +289,10 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	if (bprm->have_execfd) {
 		NEW_AUX_ENT(AT_EXECFD, bprm->execfd);
 	}
+#ifdef CONFIG_RSEQ
+	NEW_AUX_ENT(AT_RSEQ_FEATURE_SIZE, offsetof(struct rseq, end));
+	NEW_AUX_ENT(AT_RSEQ_ALIGN, __alignof__(struct rseq));
+#endif
 #undef NEW_AUX_ENT
 	/* AT_NULL is zero; clear the rest too */
 	memset(elf_info, 0, (char *)mm->saved_auxv +
@@ -456,13 +461,13 @@ static unsigned long maximum_alignment(struct elf_phdr *cmds, int nr)
  *
  * Loads ELF program headers from the binary file elf_file, which has the ELF
  * header pointed to by elf_ex, into a newly allocated array. The caller is
- * responsible for freeing the allocated data. Returns an ERR_PTR upon failure.
+ * responsible for freeing the allocated data. Returns NULL upon failure.
  */
 static struct elf_phdr *load_elf_phdrs(const struct elfhdr *elf_ex,
 				       struct file *elf_file)
 {
 	struct elf_phdr *elf_phdata = NULL;
-	int retval, err = -1;
+	int retval = -1;
 	unsigned int size;
 
 	/*
@@ -484,15 +489,9 @@ static struct elf_phdr *load_elf_phdrs(const struct elfhdr *elf_ex,
 
 	/* Read in the program headers */
 	retval = elf_read(elf_file, elf_phdata, size, elf_ex->e_phoff);
-	if (retval < 0) {
-		err = retval;
-		goto out;
-	}
 
-	/* Success! */
-	err = 0;
 out:
-	if (err) {
+	if (retval) {
 		kfree(elf_phdata);
 		elf_phdata = NULL;
 	}
@@ -1020,7 +1019,7 @@ out_free_interp:
 				 executable_stack);
 	if (retval < 0)
 		goto out_free_dentry;
-	
+
 	elf_bss = 0;
 	elf_brk = 0;
 
@@ -1043,7 +1042,7 @@ out_free_interp:
 
 		if (unlikely (elf_brk > elf_bss)) {
 			unsigned long nbyte;
-	            
+
 			/* There was a PT_LOAD segment with p_memsz > p_filesz
 			   before this one. Map anonymous pages, if needed,
 			   and clear the area.  */
@@ -1166,7 +1165,7 @@ out_free_interp:
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
 				elf_prot, elf_flags, total_size);
 		if (BAD_ADDR(error)) {
-			retval = IS_ERR((void *)error) ?
+			retval = IS_ERR_VALUE(error) ?
 				PTR_ERR((void*)error) : -EINVAL;
 			goto out_free_dentry;
 		}
@@ -1251,7 +1250,7 @@ out_free_interp:
 					    interpreter,
 					    load_bias, interp_elf_phdata,
 					    &arch_state);
-		if (!IS_ERR((void *)elf_entry)) {
+		if (!IS_ERR_VALUE(elf_entry)) {
 			/*
 			 * load_elf_interp() returns relocation
 			 * adjustment
@@ -1260,7 +1259,7 @@ out_free_interp:
 			elf_entry += interp_elf_ex->e_entry;
 		}
 		if (BAD_ADDR(elf_entry)) {
-			retval = IS_ERR((void *)elf_entry) ?
+			retval = IS_ERR_VALUE(elf_entry) ?
 					(int)elf_entry : -EINVAL;
 			goto out_free_dentry;
 		}
@@ -1521,7 +1520,7 @@ static void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, loff_t offset)
 	phdr->p_align = 0;
 }
 
-static void fill_note(struct memelfnote *note, const char *name, int type, 
+static void fill_note(struct memelfnote *note, const char *name, int type,
 		unsigned int sz, void *data)
 {
 	note->name = name;
@@ -1724,7 +1723,6 @@ static int fill_files_note(struct memelfnote *note, struct coredump_params *cprm
 	return 0;
 }
 
-#ifdef CORE_DUMP_USE_REGSET
 #include <linux/regset.h>
 
 struct elf_thread_core_info {
@@ -1745,6 +1743,7 @@ struct elf_note_info {
 	int thread_notes;
 };
 
+#ifdef CORE_DUMP_USE_REGSET
 /*
  * When a regset has a writeback hook, we call it on each thread before
  * dumping user memory.  On register window machines, this makes sure the
@@ -1824,34 +1823,58 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 
 	return 1;
 }
+#else
+static int fill_thread_core_info(struct elf_thread_core_info *t,
+				 const struct user_regset_view *view,
+				 long signr, struct elf_note_info *info)
+{
+	struct task_struct *p = t->task;
+	elf_fpregset_t *fpu;
+
+	fill_prstatus(&t->prstatus.common, p, signr);
+	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);
+
+	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
+		  &(t->prstatus));
+	info->size += notesize(&t->notes[0]);
+
+	fpu = kzalloc(sizeof(elf_fpregset_t), GFP_KERNEL);
+	if (!fpu || !elf_core_copy_task_fpregs(p, fpu)) {
+		kfree(fpu);
+		return 1;
+	}
+
+	t->prstatus.pr_fpvalid = 1;
+	fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(*fpu), fpu);
+	info->size += notesize(&t->notes[1]);
+
+	return 1;
+}
+#endif
 
 static int fill_note_info(struct elfhdr *elf, int phdrs,
 			  struct elf_note_info *info,
 			  struct coredump_params *cprm)
 {
 	struct task_struct *dump_task = current;
-	const struct user_regset_view *view = task_user_regset_view(dump_task);
+	const struct user_regset_view *view;
 	struct elf_thread_core_info *t;
 	struct elf_prpsinfo *psinfo;
 	struct core_thread *ct;
-	unsigned int i;
-
-	info->size = 0;
-	info->thread = NULL;
 
 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
-	if (psinfo == NULL) {
-		info->psinfo.data = NULL; /* So we don't free this wrongly */
+	if (!psinfo)
 		return 0;
-	}
-
 	fill_note(&info->psinfo, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
+
+#ifdef CORE_DUMP_USE_REGSET
+	view = task_user_regset_view(dump_task);
 
 	/*
 	 * Figure out how many notes we're going to need for each thread.
 	 */
 	info->thread_notes = 0;
-	for (i = 0; i < view->n; ++i)
+	for (int i = 0; i < view->n; ++i)
 		if (view->regsets[i].core_note_type != 0)
 			++info->thread_notes;
 
@@ -1870,11 +1893,23 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	 */
 	fill_elf_header(elf, phdrs,
 			view->e_machine, view->e_flags);
+#else
+	view = NULL;
+	info->thread_notes = 2;
+	fill_elf_header(elf, phdrs, ELF_ARCH, ELF_CORE_EFLAGS);
+#endif
 
 	/*
 	 * Allocate a structure for each thread.
 	 */
-	for (ct = &dump_task->signal->core_state->dumper; ct; ct = ct->next) {
+	info->thread = kzalloc(offsetof(struct elf_thread_core_info,
+				     notes[info->thread_notes]),
+			    GFP_KERNEL);
+	if (unlikely(!info->thread))
+		return 0;
+
+	info->thread->task = dump_task;
+	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
 		t = kzalloc(offsetof(struct elf_thread_core_info,
 				     notes[info->thread_notes]),
 			    GFP_KERNEL);
@@ -1882,17 +1917,8 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 			return 0;
 
 		t->task = ct->task;
-		if (ct->task == dump_task || !info->thread) {
-			t->next = info->thread;
-			info->thread = t;
-		} else {
-			/*
-			 * Make sure to keep the original task at
-			 * the head of the list.
-			 */
-			t->next = info->thread->next;
-			info->thread->next = t;
-		}
+		t->next = info->thread->next;
+		info->thread->next = t;
 	}
 
 	/*
@@ -1918,11 +1944,6 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 		info->size += notesize(&info->files);
 
 	return 1;
-}
-
-static size_t get_note_info_size(struct elf_note_info *info)
-{
-	return info->size;
 }
 
 /*
@@ -1979,197 +2000,6 @@ static void free_note_info(struct elf_note_info *info)
 	kvfree(info->files.data);
 }
 
-#else
-
-/* Here is the structure in which status of each thread is captured. */
-struct elf_thread_status
-{
-	struct list_head list;
-	struct elf_prstatus prstatus;	/* NT_PRSTATUS */
-	elf_fpregset_t fpu;		/* NT_PRFPREG */
-	struct task_struct *thread;
-	struct memelfnote notes[3];
-	int num_notes;
-};
-
-/*
- * In order to add the specific thread information for the elf file format,
- * we need to keep a linked list of every threads pr_status and then create
- * a single section for them in the final core file.
- */
-static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
-{
-	int sz = 0;
-	struct task_struct *p = t->thread;
-	t->num_notes = 0;
-
-	fill_prstatus(&t->prstatus.common, p, signr);
-	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);	
-	
-	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
-		  &(t->prstatus));
-	t->num_notes++;
-	sz += notesize(&t->notes[0]);
-
-	if ((t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, NULL,
-								&t->fpu))) {
-		fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
-			  &(t->fpu));
-		t->num_notes++;
-		sz += notesize(&t->notes[1]);
-	}
-	return sz;
-}
-
-struct elf_note_info {
-	struct memelfnote *notes;
-	struct memelfnote *notes_files;
-	struct elf_prstatus *prstatus;	/* NT_PRSTATUS */
-	struct elf_prpsinfo *psinfo;	/* NT_PRPSINFO */
-	struct list_head thread_list;
-	elf_fpregset_t *fpu;
-	user_siginfo_t csigdata;
-	int thread_status_size;
-	int numnote;
-};
-
-static int elf_note_info_init(struct elf_note_info *info)
-{
-	memset(info, 0, sizeof(*info));
-	INIT_LIST_HEAD(&info->thread_list);
-
-	/* Allocate space for ELF notes */
-	info->notes = kmalloc_array(8, sizeof(struct memelfnote), GFP_KERNEL);
-	if (!info->notes)
-		return 0;
-	info->psinfo = kmalloc(sizeof(*info->psinfo), GFP_KERNEL);
-	if (!info->psinfo)
-		return 0;
-	info->prstatus = kmalloc(sizeof(*info->prstatus), GFP_KERNEL);
-	if (!info->prstatus)
-		return 0;
-	info->fpu = kmalloc(sizeof(*info->fpu), GFP_KERNEL);
-	if (!info->fpu)
-		return 0;
-	return 1;
-}
-
-static int fill_note_info(struct elfhdr *elf, int phdrs,
-			  struct elf_note_info *info,
-			  struct coredump_params *cprm)
-{
-	struct core_thread *ct;
-	struct elf_thread_status *ets;
-
-	if (!elf_note_info_init(info))
-		return 0;
-
-	for (ct = current->signal->core_state->dumper.next;
-					ct; ct = ct->next) {
-		ets = kzalloc(sizeof(*ets), GFP_KERNEL);
-		if (!ets)
-			return 0;
-
-		ets->thread = ct->task;
-		list_add(&ets->list, &info->thread_list);
-	}
-
-	list_for_each_entry(ets, &info->thread_list, list) {
-		int sz;
-
-		sz = elf_dump_thread_status(cprm->siginfo->si_signo, ets);
-		info->thread_status_size += sz;
-	}
-	/* now collect the dump for the current */
-	memset(info->prstatus, 0, sizeof(*info->prstatus));
-	fill_prstatus(&info->prstatus->common, current, cprm->siginfo->si_signo);
-	elf_core_copy_regs(&info->prstatus->pr_reg, cprm->regs);
-
-	/* Set up header */
-	fill_elf_header(elf, phdrs, ELF_ARCH, ELF_CORE_EFLAGS);
-
-	/*
-	 * Set up the notes in similar form to SVR4 core dumps made
-	 * with info from their /proc.
-	 */
-
-	fill_note(info->notes + 0, "CORE", NT_PRSTATUS,
-		  sizeof(*info->prstatus), info->prstatus);
-	fill_psinfo(info->psinfo, current->group_leader, current->mm);
-	fill_note(info->notes + 1, "CORE", NT_PRPSINFO,
-		  sizeof(*info->psinfo), info->psinfo);
-
-	fill_siginfo_note(info->notes + 2, &info->csigdata, cprm->siginfo);
-	fill_auxv_note(info->notes + 3, current->mm);
-	info->numnote = 4;
-
-	if (fill_files_note(info->notes + info->numnote, cprm) == 0) {
-		info->notes_files = info->notes + info->numnote;
-		info->numnote++;
-	}
-
-	/* Try to dump the FPU. */
-	info->prstatus->pr_fpvalid =
-		elf_core_copy_task_fpregs(current, cprm->regs, info->fpu);
-	if (info->prstatus->pr_fpvalid)
-		fill_note(info->notes + info->numnote++,
-			  "CORE", NT_PRFPREG, sizeof(*info->fpu), info->fpu);
-	return 1;
-}
-
-static size_t get_note_info_size(struct elf_note_info *info)
-{
-	int sz = 0;
-	int i;
-
-	for (i = 0; i < info->numnote; i++)
-		sz += notesize(info->notes + i);
-
-	sz += info->thread_status_size;
-
-	return sz;
-}
-
-static int write_note_info(struct elf_note_info *info,
-			   struct coredump_params *cprm)
-{
-	struct elf_thread_status *ets;
-	int i;
-
-	for (i = 0; i < info->numnote; i++)
-		if (!writenote(info->notes + i, cprm))
-			return 0;
-
-	/* write out the thread status notes section */
-	list_for_each_entry(ets, &info->thread_list, list) {
-		for (i = 0; i < ets->num_notes; i++)
-			if (!writenote(&ets->notes[i], cprm))
-				return 0;
-	}
-
-	return 1;
-}
-
-static void free_note_info(struct elf_note_info *info)
-{
-	while (!list_empty(&info->thread_list)) {
-		struct list_head *tmp = info->thread_list.next;
-		list_del(tmp);
-		kfree(list_entry(tmp, struct elf_thread_status, list));
-	}
-
-	/* Free data possibly allocated by fill_files_note(): */
-	if (info->notes_files)
-		kvfree(info->notes_files->data);
-
-	kfree(info->prstatus);
-	kfree(info->psinfo);
-	kfree(info->notes);
-	kfree(info->fpu);
-}
-
-#endif
-
 static void fill_extnum_info(struct elfhdr *elf, struct elf_shdr *shdr4extnum,
 			     elf_addr_t e_shoff, int segs)
 {
@@ -2209,7 +2039,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * The number of segs are recored into ELF header as 16bit value.
 	 * Please check DEFAULT_MAX_MAP_COUNT definition when you modify here.
 	 */
-	segs = cprm->vma_count + elf_core_extra_phdrs();
+	segs = cprm->vma_count + elf_core_extra_phdrs(cprm);
 
 	/* for notes section */
 	segs++;
@@ -2233,7 +2063,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	/* Write notes phdr entry */
 	{
-		size_t sz = get_note_info_size(&info);
+		size_t sz = info.size;
 
 		/* For cell spufs */
 		sz += elf_coredump_extra_notes_size();
@@ -2249,7 +2079,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
 	offset += cprm->vma_data_size;
-	offset += elf_core_extra_data_size();
+	offset += elf_core_extra_data_size(cprm);
 	e_shoff = offset;
 
 	if (e_phnum == PN_XNUM) {
@@ -2295,7 +2125,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	if (!elf_core_write_extra_phdrs(cprm, offset))
 		goto end_coredump;
 
- 	/* write out the notes section */
+	/* write out the notes section */
 	if (!write_note_info(&info, cprm))
 		goto end_coredump;
 

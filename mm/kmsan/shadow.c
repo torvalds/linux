@@ -167,6 +167,7 @@ void kmsan_copy_page_meta(struct page *dst, struct page *src)
 	__memcpy(origin_ptr_for(dst), origin_ptr_for(src), PAGE_SIZE);
 	kmsan_leave_runtime();
 }
+EXPORT_SYMBOL(kmsan_copy_page_meta);
 
 void kmsan_alloc_page(struct page *page, unsigned int order, gfp_t flags)
 {

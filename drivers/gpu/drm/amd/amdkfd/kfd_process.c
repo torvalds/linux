@@ -689,13 +689,13 @@ void kfd_process_destroy_wq(void)
 }
 
 static void kfd_process_free_gpuvm(struct kgd_mem *mem,
-			struct kfd_process_device *pdd, void *kptr)
+			struct kfd_process_device *pdd, void **kptr)
 {
 	struct kfd_dev *dev = pdd->dev;
 
-	if (kptr) {
+	if (kptr && *kptr) {
 		amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(mem);
-		kptr = NULL;
+		*kptr = NULL;
 	}
 
 	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(dev->adev, mem, pdd->drm_priv);
@@ -795,7 +795,7 @@ static void kfd_process_device_destroy_ib_mem(struct kfd_process_device *pdd)
 	if (!qpd->ib_kaddr || !qpd->ib_base)
 		return;
 
-	kfd_process_free_gpuvm(qpd->ib_mem, pdd, qpd->ib_kaddr);
+	kfd_process_free_gpuvm(qpd->ib_mem, pdd, &qpd->ib_kaddr);
 }
 
 struct kfd_process *kfd_create_process(struct file *filep)
@@ -1050,8 +1050,8 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		 * for auto suspend
 		 */
 		if (pdd->runtime_inuse) {
-			pm_runtime_mark_last_busy(pdd->dev->ddev->dev);
-			pm_runtime_put_autosuspend(pdd->dev->ddev->dev);
+			pm_runtime_mark_last_busy(adev_to_drm(pdd->dev->adev)->dev);
+			pm_runtime_put_autosuspend(adev_to_drm(pdd->dev->adev)->dev);
 			pdd->runtime_inuse = false;
 		}
 
@@ -1277,7 +1277,7 @@ static void kfd_process_device_destroy_cwsr_dgpu(struct kfd_process_device *pdd)
 	if (!dev->cwsr_enabled || !qpd->cwsr_kaddr || !qpd->cwsr_base)
 		return;
 
-	kfd_process_free_gpuvm(qpd->cwsr_mem, pdd, qpd->cwsr_kaddr);
+	kfd_process_free_gpuvm(qpd->cwsr_mem, pdd, &qpd->cwsr_kaddr);
 }
 
 void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
@@ -1330,7 +1330,7 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * per-process XNACK mode selection. But let the dev->noretry
 		 * setting still influence the default XNACK mode.
 		 */
-		if (supported && KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2))
+		if (supported && KFD_SUPPORT_XNACK_PER_PROCESS(dev))
 			continue;
 
 		/* GFXv10 and later GPUs do not support shader preemption
@@ -1563,6 +1563,8 @@ err_free_pdd:
 int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 			       struct file *drm_file)
 {
+	struct amdgpu_fpriv *drv_priv;
+	struct amdgpu_vm *avm;
 	struct kfd_process *p;
 	struct kfd_dev *dev;
 	int ret;
@@ -1573,12 +1575,17 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	if (pdd->drm_priv)
 		return -EBUSY;
 
+	ret = amdgpu_file_to_fpriv(drm_file, &drv_priv);
+	if (ret)
+		return ret;
+	avm = &drv_priv->vm;
+
 	p = pdd->process;
 	dev = pdd->dev;
 
-	ret = amdgpu_amdkfd_gpuvm_acquire_process_vm(
-		dev->adev, drm_file, p->pasid,
-		&p->kgd_process_info, &p->ef);
+	ret = amdgpu_amdkfd_gpuvm_acquire_process_vm(dev->adev, avm,
+						     &p->kgd_process_info,
+						     &p->ef);
 	if (ret) {
 		pr_err("Failed to create process VM object\n");
 		return ret;
@@ -1593,14 +1600,21 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	if (ret)
 		goto err_init_cwsr;
 
+	ret = amdgpu_amdkfd_gpuvm_set_vm_pasid(dev->adev, avm, p->pasid);
+	if (ret)
+		goto err_set_pasid;
+
 	pdd->drm_file = drm_file;
 
 	return 0;
 
+err_set_pasid:
+	kfd_process_device_destroy_cwsr_dgpu(pdd);
 err_init_cwsr:
+	kfd_process_device_destroy_ib_mem(pdd);
 err_reserve_ib_mem:
-	kfd_process_device_free_bos(pdd);
 	pdd->drm_priv = NULL;
+	amdgpu_amdkfd_gpuvm_destroy_cb(dev->adev, avm);
 
 	return ret;
 }
@@ -1633,9 +1647,9 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 	 * pdd is destroyed.
 	 */
 	if (!pdd->runtime_inuse) {
-		err = pm_runtime_get_sync(dev->ddev->dev);
+		err = pm_runtime_get_sync(adev_to_drm(dev->adev)->dev);
 		if (err < 0) {
-			pm_runtime_put_autosuspend(dev->ddev->dev);
+			pm_runtime_put_autosuspend(adev_to_drm(dev->adev)->dev);
 			return ERR_PTR(err);
 		}
 	}
@@ -1655,8 +1669,8 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 out:
 	/* balance runpm reference count and exit with error */
 	if (!pdd->runtime_inuse) {
-		pm_runtime_mark_last_busy(dev->ddev->dev);
-		pm_runtime_put_autosuspend(dev->ddev->dev);
+		pm_runtime_mark_last_busy(adev_to_drm(dev->adev)->dev);
+		pm_runtime_put_autosuspend(adev_to_drm(dev->adev)->dev);
 	}
 
 	return ERR_PTR(err);
@@ -1972,8 +1986,8 @@ int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 		return -ENOMEM;
 	}
 
-	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND
-		| VM_NORESERVE | VM_DONTDUMP | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND
+		| VM_NORESERVE | VM_DONTDUMP | VM_PFNMAP);
 	/* Mapping pages to user process */
 	return remap_pfn_range(vma, vma->vm_start,
 			       PFN_DOWN(__pa(qpd->cwsr_kaddr)),

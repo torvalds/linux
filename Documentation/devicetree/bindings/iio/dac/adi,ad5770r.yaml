@@ -147,49 +147,49 @@ unevaluatedProperties: false
 
 examples:
   - |
-        spi {
-                #address-cells = <1>;
-                #size-cells = <0>;
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-                ad5770r@0 {
-                        compatible = "adi,ad5770r";
-                        reg = <0>;
-                        spi-max-frequency = <1000000>;
-                        vref-supply = <&vref>;
-                        adi,external-resistor;
-                        reset-gpios = <&gpio 22 0>;
-                        #address-cells = <1>;
-                        #size-cells = <0>;
+        ad5770r@0 {
+            compatible = "adi,ad5770r";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            vref-supply = <&vref>;
+            adi,external-resistor;
+            reset-gpios = <&gpio 22 0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                        channel@0 {
-                                reg = <0>;
-                                adi,range-microamp = <0 300000>;
-                        };
+            channel@0 {
+                reg = <0>;
+                adi,range-microamp = <0 300000>;
+            };
 
-                        channel@1 {
-                                reg = <1>;
-                                adi,range-microamp = <0 140000>;
-                        };
+            channel@1 {
+                reg = <1>;
+                adi,range-microamp = <0 140000>;
+            };
 
-                        channel@2 {
-                                reg = <2>;
-                                adi,range-microamp = <0 55000>;
-                        };
+            channel@2 {
+                reg = <2>;
+                adi,range-microamp = <0 55000>;
+            };
 
-                        channel@3 {
-                                reg = <3>;
-                                adi,range-microamp = <0 45000>;
-                        };
+            channel@3 {
+                reg = <3>;
+                adi,range-microamp = <0 45000>;
+            };
 
-                        channel@4 {
-                                reg = <4>;
-                                adi,range-microamp = <0 45000>;
-                        };
+            channel@4 {
+                reg = <4>;
+                adi,range-microamp = <0 45000>;
+            };
 
-                        channel@5 {
-                                reg = <5>;
-                                adi,range-microamp = <0 45000>;
-                        };
-                };
+            channel@5 {
+                reg = <5>;
+                adi,range-microamp = <0 45000>;
+            };
         };
+    };
 ...

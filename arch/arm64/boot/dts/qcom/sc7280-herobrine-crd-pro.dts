@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * sc7280 CRD 3+ Pro board device tree source
+ *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+#include "sc7280-herobrine-crd.dts"
+#include "sc7280-herobrine-pro-sku.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. sc7280 CRD Pro platform (rev5+)";
+	compatible = "google,zoglin-sku1536", "google,hoglin-sku1536", "qcom,sc7280";
+};

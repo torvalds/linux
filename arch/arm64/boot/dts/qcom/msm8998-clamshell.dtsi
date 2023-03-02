@@ -35,7 +35,7 @@
 };
 
 &blsp1_uart3_on {
-	rx {
+	rx-pins {
 		/delete-property/ bias-disable;
 		/*
 		 * Configure a pull-up on 45 (RX). This is needed to
@@ -46,7 +46,7 @@
 		bias-pull-up;
 	};
 
-	cts {
+	cts-pins {
 		/delete-property/ bias-disable;
 		/*
 		 * Configure a pull-down on 47 (CTS) to match the pull
@@ -137,7 +137,7 @@
 };
 
 &rpm_requests {
-	pm8998-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8998-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -357,8 +357,9 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
-	touchpad: touchpad-pin {
+	touchpad: touchpad-pin-state {
 		pins = "gpio123";
+		function = "gpio";
 		bias-pull-up;
 	};
 };

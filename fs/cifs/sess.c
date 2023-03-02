@@ -292,9 +292,10 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 			continue;
 		}
 		kref_get(&iface->refcount);
+		break;
 	}
 
-	if (!list_entry_is_head(iface, &ses->iface_list, iface_head)) {
+	if (list_entry_is_head(iface, &ses->iface_list, iface_head)) {
 		rc = 1;
 		iface = NULL;
 		cifs_dbg(FYI, "unable to find a suitable iface\n");
@@ -302,14 +303,14 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 
 	/* now drop the ref to the current iface */
 	if (old_iface && iface) {
-		kref_put(&old_iface->refcount, release_iface);
 		cifs_dbg(FYI, "replacing iface: %pIS with %pIS\n",
 			 &old_iface->sockaddr,
 			 &iface->sockaddr);
-	} else if (old_iface) {
 		kref_put(&old_iface->refcount, release_iface);
+	} else if (old_iface) {
 		cifs_dbg(FYI, "releasing ref to iface: %pIS\n",
 			 &old_iface->sockaddr);
+		kref_put(&old_iface->refcount, release_iface);
 	} else {
 		WARN_ON(!iface);
 		cifs_dbg(FYI, "adding new iface: %pIS\n", &iface->sockaddr);
@@ -479,7 +480,6 @@ out:
 		 * remove this channel
 		 */
 		cancel_delayed_work_sync(&chan->server->echo);
-		cancel_delayed_work_sync(&chan->server->resolve);
 		cancel_delayed_work_sync(&chan->server->reconnect);
 
 		spin_lock(&ses->chan_lock);
@@ -814,6 +814,7 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 	if (tilen) {
+		kfree_sensitive(ses->auth_key.response);
 		ses->auth_key.response = kmemdup(bcc_ptr + tioffset, tilen,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
@@ -1427,6 +1428,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 		goto out_put_spnego_key;
 	}
 
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
 					 GFP_KERNEL);
 	if (!ses->auth_key.response) {

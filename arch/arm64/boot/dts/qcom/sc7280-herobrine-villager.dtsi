@@ -55,6 +55,7 @@ ts_i2c: &i2c13 {
 		reset-gpios = <&tlmm 54 GPIO_ACTIVE_LOW>;
 
 		vcc33-supply = <&ts_avdd>;
+		vccio-supply = <&ts_avccio>;
 	};
 };
 
@@ -75,16 +76,6 @@ ts_i2c: &i2c13 {
 };
 
 &mdss_edp_phy {
-	status = "okay";
-};
-
-/* For nvme */
-&pcie1 {
-	status = "okay";
-};
-
-/* For nvme */
-&pcie1_phy {
 	status = "okay";
 };
 
@@ -320,7 +311,6 @@ ts_i2c: &i2c13 {
 			  "",				/* 170 */
 			  "MOS_BLE_UART_TX",
 			  "MOS_BLE_UART_RX",
-			  "",
 			  "",
 			  "";
 };

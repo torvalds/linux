@@ -586,6 +586,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_CPC_FLEXIBLE_ADR_SPACE		0x00004000
 #define OSC_SB_NATIVE_USB4_SUPPORT		0x00040000
 #define OSC_SB_PRM_SUPPORT			0x00200000
+#define OSC_SB_FFH_OPR_SUPPORT			0x00400000
 
 extern bool osc_sb_apei_support_acked;
 extern bool osc_pc_lpi_support_confirmed;
@@ -722,7 +723,7 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 const void *acpi_device_get_match_data(const struct device *dev);
 extern bool acpi_driver_match_device(struct device *dev,
 				     const struct device_driver *drv);
-int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
+int acpi_device_uevent_modalias(const struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
 
 struct platform_device *acpi_create_platform_device(struct acpi_device *,
@@ -949,6 +950,12 @@ static inline bool acpi_driver_match_device(struct device *dev,
 	return false;
 }
 
+static inline bool acpi_check_dsm(acpi_handle handle, const guid_t *guid,
+				  u64 rev, u64 funcs)
+{
+	return false;
+}
+
 static inline union acpi_object *acpi_evaluate_dsm(acpi_handle handle,
 						   const guid_t *guid,
 						   u64 rev, u64 func,
@@ -957,7 +964,16 @@ static inline union acpi_object *acpi_evaluate_dsm(acpi_handle handle,
 	return NULL;
 }
 
-static inline int acpi_device_uevent_modalias(struct device *dev,
+static inline union acpi_object *acpi_evaluate_dsm_typed(acpi_handle handle,
+							 const guid_t *guid,
+							 u64 rev, u64 func,
+							 union acpi_object *argv4,
+							 acpi_object_type type)
+{
+	return NULL;
+}
+
+static inline int acpi_device_uevent_modalias(const struct device *dev,
 				struct kobj_uevent_env *env)
 {
 	return -ENODEV;
@@ -1136,6 +1152,7 @@ int acpi_subsys_freeze(struct device *dev);
 int acpi_subsys_poweroff(struct device *dev);
 void acpi_ec_mark_gpe_for_wake(void);
 void acpi_ec_set_gpe_wake_mask(u8 action);
+int acpi_subsys_restore_early(struct device *dev);
 #else
 static inline int acpi_subsys_prepare(struct device *dev) { return 0; }
 static inline void acpi_subsys_complete(struct device *dev) {}
@@ -1144,6 +1161,7 @@ static inline int acpi_subsys_suspend_noirq(struct device *dev) { return 0; }
 static inline int acpi_subsys_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_freeze(struct device *dev) { return 0; }
 static inline int acpi_subsys_poweroff(struct device *dev) { return 0; }
+static inline int acpi_subsys_restore_early(struct device *dev) { return 0; }
 static inline void acpi_ec_mark_gpe_for_wake(void) {}
 static inline void acpi_ec_set_gpe_wake_mask(u8 action) {}
 #endif
@@ -1486,6 +1504,16 @@ static inline int find_acpi_cpu_topology_hetero_id(unsigned int cpu)
 void acpi_init_pcc(void);
 #else
 static inline void acpi_init_pcc(void) { }
+#endif
+
+#ifdef CONFIG_ACPI_FFH
+void acpi_init_ffh(void);
+extern int acpi_ffh_address_space_arch_setup(void *handler_ctxt,
+					     void **region_ctxt);
+extern int acpi_ffh_address_space_arch_handler(acpi_integer *value,
+					       void *region_context);
+#else
+static inline void acpi_init_ffh(void) { }
 #endif
 
 #ifdef CONFIG_ACPI

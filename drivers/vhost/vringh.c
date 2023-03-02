@@ -1102,7 +1102,7 @@ static int iotlb_translate(const struct vringh *vrh,
 	struct vhost_iotlb_map *map;
 	struct vhost_iotlb *iotlb = vrh->iotlb;
 	int ret = 0;
-	u64 s = 0;
+	u64 s = 0, last = addr + len - 1;
 
 	spin_lock(vrh->iotlb_lock);
 
@@ -1114,8 +1114,7 @@ static int iotlb_translate(const struct vringh *vrh,
 			break;
 		}
 
-		map = vhost_iotlb_itree_first(iotlb, addr,
-					      addr + len - 1);
+		map = vhost_iotlb_itree_first(iotlb, addr, last);
 		if (!map || map->start > addr) {
 			ret = -EINVAL;
 			break;
@@ -1127,9 +1126,8 @@ static int iotlb_translate(const struct vringh *vrh,
 		size = map->size - addr + map->start;
 		pa = map->addr + addr - map->start;
 		pfn = pa >> PAGE_SHIFT;
-		iov[ret].bv_page = pfn_to_page(pfn);
-		iov[ret].bv_len = min(len - s, size);
-		iov[ret].bv_offset = pa & (PAGE_SIZE - 1);
+		bvec_set_page(&iov[ret], pfn_to_page(pfn), min(len - s, size),
+			      pa & (PAGE_SIZE - 1));
 		s += size;
 		addr += size;
 		++ret;
@@ -1162,7 +1160,7 @@ static inline int copy_from_iotlb(const struct vringh *vrh, void *dst,
 		else if (ret < 0)
 			return ret;
 
-		iov_iter_bvec(&iter, READ, iov, ret, translated);
+		iov_iter_bvec(&iter, ITER_SOURCE, iov, ret, translated);
 
 		ret = copy_from_iter(dst, translated, &iter);
 		if (ret < 0)
@@ -1195,7 +1193,7 @@ static inline int copy_to_iotlb(const struct vringh *vrh, void *dst,
 		else if (ret < 0)
 			return ret;
 
-		iov_iter_bvec(&iter, WRITE, iov, ret, translated);
+		iov_iter_bvec(&iter, ITER_DEST, iov, ret, translated);
 
 		ret = copy_to_iter(src, translated, &iter);
 		if (ret < 0)

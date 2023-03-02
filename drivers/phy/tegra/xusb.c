@@ -72,6 +72,12 @@ static const struct of_device_id tegra_xusb_padctl_of_match[] = {
 		.data = &tegra194_xusb_padctl_soc,
 	},
 #endif
+#if defined(CONFIG_ARCH_TEGRA_234_SOC)
+	{
+		.compatible = "nvidia,tegra234-xusb-padctl",
+		.data = &tegra234_xusb_padctl_soc,
+	},
+#endif
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_xusb_padctl_of_match);
@@ -712,6 +718,22 @@ static int tegra_xusb_setup_usb_role_switch(struct tegra_xusb_port *port)
 	return err;
 }
 
+static void tegra_xusb_parse_usb_role_default_mode(struct tegra_xusb_port *port)
+{
+	enum usb_role role = USB_ROLE_NONE;
+	enum usb_dr_mode mode = usb_get_role_switch_default_mode(&port->dev);
+
+	if (mode == USB_DR_MODE_HOST)
+		role = USB_ROLE_HOST;
+	else if (mode == USB_DR_MODE_PERIPHERAL)
+		role = USB_ROLE_DEVICE;
+
+	if (role != USB_ROLE_NONE) {
+		usb_role_switch_set_role(port->usb_role_sw, role);
+		dev_dbg(&port->dev, "usb role default mode is %s", modes[mode]);
+	}
+}
+
 static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 {
 	struct tegra_xusb_port *port = &usb2->base;
@@ -741,6 +763,7 @@ static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 			err = tegra_xusb_setup_usb_role_switch(port);
 			if (err < 0)
 				return err;
+			tegra_xusb_parse_usb_role_default_mode(port);
 		} else {
 			dev_err(&port->dev, "usb-role-switch not found for %s mode",
 				modes[usb2->mode]);
@@ -954,8 +977,7 @@ static int tegra_xusb_usb3_port_parse_dt(struct tegra_xusb_usb3_port *usb3)
 			return -EINVAL;
 	}
 
-	usb3->supply = regulator_get(&port->dev, "vbus");
-	return PTR_ERR_OR_ZERO(usb3->supply);
+	return 0;
 }
 
 static int tegra_xusb_add_usb3_port(struct tegra_xusb_padctl *padctl,
@@ -1010,13 +1032,6 @@ void tegra_xusb_usb3_port_release(struct tegra_xusb_port *port)
 	struct tegra_xusb_usb3_port *usb3 = to_usb3_port(port);
 
 	kfree(usb3);
-}
-
-void tegra_xusb_usb3_port_remove(struct tegra_xusb_port *port)
-{
-	struct tegra_xusb_usb3_port *usb3 = to_usb3_port(port);
-
-	regulator_put(usb3->supply);
 }
 
 static void __tegra_xusb_remove_ports(struct tegra_xusb_padctl *padctl)
@@ -1461,8 +1476,14 @@ EXPORT_SYMBOL_GPL(tegra_phy_xusb_utmi_port_reset);
 
 void tegra_phy_xusb_utmi_pad_power_on(struct phy *phy)
 {
-	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
-	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
+	struct tegra_xusb_lane *lane;
+	struct tegra_xusb_padctl *padctl;
+
+	if (!phy)
+		return;
+
+	lane = phy_get_drvdata(phy);
+	padctl = lane->pad->padctl;
 
 	if (padctl->soc->ops->utmi_pad_power_on)
 		padctl->soc->ops->utmi_pad_power_on(phy);
@@ -1471,8 +1492,14 @@ EXPORT_SYMBOL_GPL(tegra_phy_xusb_utmi_pad_power_on);
 
 void tegra_phy_xusb_utmi_pad_power_down(struct phy *phy)
 {
-	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
-	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
+	struct tegra_xusb_lane *lane;
+	struct tegra_xusb_padctl *padctl;
+
+	if (!phy)
+		return;
+
+	lane = phy_get_drvdata(phy);
+	padctl = lane->pad->padctl;
 
 	if (padctl->soc->ops->utmi_pad_power_down)
 		padctl->soc->ops->utmi_pad_power_down(phy);

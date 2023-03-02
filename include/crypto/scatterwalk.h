@@ -53,7 +53,7 @@ static inline struct page *scatterwalk_page(struct scatter_walk *walk)
 
 static inline void scatterwalk_unmap(void *vaddr)
 {
-	kunmap_atomic(vaddr);
+	kunmap_local(vaddr);
 }
 
 static inline void scatterwalk_start(struct scatter_walk *walk,
@@ -65,7 +65,7 @@ static inline void scatterwalk_start(struct scatter_walk *walk,
 
 static inline void *scatterwalk_map(struct scatter_walk *walk)
 {
-	return kmap_atomic(scatterwalk_page(walk)) +
+	return kmap_local_page(scatterwalk_page(walk)) +
 	       offset_in_page(walk->offset);
 }
 
@@ -93,7 +93,6 @@ static inline void scatterwalk_done(struct scatter_walk *walk, int out,
 
 void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 			    size_t nbytes, int out);
-void *scatterwalk_map(struct scatter_walk *walk);
 
 void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 			      unsigned int start, unsigned int nbytes, int out);

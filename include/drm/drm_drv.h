@@ -30,6 +30,8 @@
 #include <linux/list.h>
 #include <linux/irqreturn.h>
 
+#include <video/nomodeset.h>
+
 #include <drm/drm_device.h>
 
 struct drm_file;
@@ -94,6 +96,14 @@ enum drm_driver_feature {
 	 * synchronization of command submission.
 	 */
 	DRIVER_SYNCOBJ_TIMELINE         = BIT(6),
+	/**
+	 * @DRIVER_COMPUTE_ACCEL:
+	 *
+	 * Driver supports compute acceleration devices. This flag is mutually exclusive with
+	 * @DRIVER_RENDER and @DRIVER_MODESET. Devices that support both graphics and compute
+	 * acceleration should be handled by two drivers that are connected using auxiliary bus.
+	 */
+	DRIVER_COMPUTE_ACCEL            = BIT(7),
 
 	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
 
@@ -139,13 +149,6 @@ enum drm_driver_feature {
 	 * Legacy irq support. Only for legacy drivers. Do not use.
 	 */
 	DRIVER_HAVE_IRQ			= BIT(30),
-	/**
-	 * @DRIVER_KMS_LEGACY_CONTEXT:
-	 *
-	 * Used only by nouveau for backwards compatibility with existing
-	 * userspace.  Do not use.
-	 */
-	DRIVER_KMS_LEGACY_CONTEXT	= BIT(31),
 };
 
 /**
@@ -602,6 +605,10 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 
 int drm_dev_set_unique(struct drm_device *dev, const char *name);
 
-extern bool drm_firmware_drivers_only(void);
+/* TODO: Inline drm_firmware_drivers_only() in all its callers. */
+static inline bool drm_firmware_drivers_only(void)
+{
+	return video_firmware_drivers_only();
+}
 
 #endif

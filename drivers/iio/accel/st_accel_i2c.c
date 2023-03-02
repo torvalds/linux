@@ -112,6 +112,10 @@ static const struct of_device_id st_accel_of_match[] = {
 		.data = LIS302DL_ACCEL_DEV_NAME,
 	},
 	{
+		.compatible = "st,lsm303c-accel",
+		.data = LSM303C_ACCEL_DEV_NAME,
+	},
+	{
 		.compatible = "silan,sc7a20",
 		.data = SC7A20_ACCEL_DEV_NAME,
 	},
@@ -151,6 +155,7 @@ static const struct i2c_device_id st_accel_id_table[] = {
 	{ LIS2DE12_ACCEL_DEV_NAME },
 	{ LIS2HH12_ACCEL_DEV_NAME },
 	{ LIS302DL_ACCEL_DEV_NAME },
+	{ LSM303C_ACCEL_DEV_NAME },
 	{ SC7A20_ACCEL_DEV_NAME },
 	{},
 };

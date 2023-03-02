@@ -447,13 +447,10 @@ static void pseries_msi_ops_msi_free(struct irq_domain *domain,
  * RTAS can not disable one MSI at a time. It's all or nothing. Do it
  * at the end after all IRQs have been freed.
  */
-static void pseries_msi_domain_free_irqs(struct irq_domain *domain,
-					 struct device *dev)
+static void pseries_msi_post_free(struct irq_domain *domain, struct device *dev)
 {
 	if (WARN_ON_ONCE(!dev_is_pci(dev)))
 		return;
-
-	__msi_domain_free_irqs(domain, dev);
 
 	rtas_disable_msi(to_pci_dev(dev));
 }
@@ -461,7 +458,7 @@ static void pseries_msi_domain_free_irqs(struct irq_domain *domain,
 static struct msi_domain_ops pseries_pci_msi_domain_ops = {
 	.msi_prepare	= pseries_msi_ops_prepare,
 	.msi_free	= pseries_msi_ops_msi_free,
-	.domain_free_irqs = pseries_msi_domain_free_irqs,
+	.msi_post_free	= pseries_msi_post_free,
 };
 
 static void pseries_msi_shutdown(struct irq_data *d)
@@ -682,8 +679,8 @@ static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 
 static int rtas_msi_init(void)
 {
-	query_token  = rtas_token("ibm,query-interrupt-source-number");
-	change_token = rtas_token("ibm,change-msi");
+	query_token  = rtas_function_token(RTAS_FN_IBM_QUERY_INTERRUPT_SOURCE_NUMBER);
+	change_token = rtas_function_token(RTAS_FN_IBM_CHANGE_MSI);
 
 	if ((query_token == RTAS_UNKNOWN_SERVICE) ||
 			(change_token == RTAS_UNKNOWN_SERVICE)) {

@@ -10,7 +10,8 @@ maintainers:
   - Fugang Duan <fugang.duan@nxp.com>
 
 allOf:
-  - $ref: "rs485.yaml"
+  - $ref: rs485.yaml#
+  - $ref: serial.yaml#
 
 properties:
   compatible:
@@ -32,6 +33,9 @@ properties:
               - fsl,imx8qm-lpuart
               - fsl,imx8dxl-lpuart
           - const: fsl,imx8qxp-lpuart
+      - items:
+          - const: fsl,imxrt1050-lpuart
+          - const: fsl,imxrt1170-lpuart
 
   reg:
     maxItems: 1
@@ -60,9 +64,6 @@ properties:
     items:
       - const: rx
       - const: tx
-
-  rs485-rts-active-low: true
-  linux,rs485-enabled-at-boot-time: true
 
 required:
   - compatible

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/dma/st,stm32-dma.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 DMA Controller bindings
+title: STMicroelectronics STM32 DMA Controller
 
 description: |
   The STM32 DMA is a general-purpose direct memory access controller capable of
@@ -53,7 +53,7 @@ maintainers:
   - Amelie Delaunay <amelie.delaunay@foss.st.com>
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   "#dma-cells":

@@ -96,7 +96,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < nr_cpu_ids ? cpu_data + *pos : NULL;
+	return *pos < nr_cpu_ids ? &boot_cpu_data + *pos : NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
@@ -441,6 +441,11 @@ void apply_retpolines(s32 *start, s32 *end)
 }
 
 void apply_returns(s32 *start, s32 *end)
+{
+}
+
+void apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
+		   s32 *start_cfi, s32 *end_cfi)
 {
 }
 

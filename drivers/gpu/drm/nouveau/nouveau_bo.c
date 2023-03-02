@@ -28,6 +28,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_chan.h"
@@ -532,7 +533,7 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.resource->num_pages, &nvbo->kmap);
+	ret = ttm_bo_kmap(&nvbo->bo, 0, PFN_UP(nvbo->bo.base.size), &nvbo->kmap);
 
 	ttm_bo_unreserve(&nvbo->bo);
 	return ret;
@@ -856,6 +857,9 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
 		{  "COPY", 4, 0xc7b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc7b5, nve0_bo_move_copy, nvc0_bo_move_init },
+		{  "COPY", 4, 0xc6b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc6b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xc5b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xc5b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xc3b5, nve0_bo_move_copy, nve0_bo_move_init },
@@ -918,6 +922,7 @@ static void nouveau_bo_move_ntfy(struct ttm_buffer_object *bo,
 	struct nouveau_mem *mem = new_reg ? nouveau_mem(new_reg) : NULL;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_vma *vma;
+	long ret;
 
 	/* ttm can now (stupidly) pass the driver bos it didn't create... */
 	if (bo->destroy != nouveau_bo_del_ttm)
@@ -932,7 +937,10 @@ static void nouveau_bo_move_ntfy(struct ttm_buffer_object *bo,
 		}
 	} else {
 		list_for_each_entry(vma, &nvbo->vma_list, head) {
-			WARN_ON(ttm_bo_wait(bo, false, false));
+			ret = dma_resv_wait_timeout(bo->base.resv,
+						    DMA_RESV_USAGE_BOOKKEEP,
+						    false, 15 * HZ);
+			WARN_ON(ret <= 0);
 			nouveau_vma_unmap(vma);
 		}
 	}
@@ -1236,7 +1244,7 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	} else {
 		/* make sure bo is in mappable vram */
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
-		    bo->resource->start + bo->resource->num_pages < mappable)
+		    bo->resource->start + PFN_UP(bo->resource->size) < mappable)
 			return 0;
 
 		for (i = 0; i < nvbo->placement.num_placement; ++i) {

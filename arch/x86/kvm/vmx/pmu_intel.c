@@ -8,6 +8,8 @@
  *   Avi Kivity   <avi@redhat.com>
  *   Gleb Natapov <gleb@redhat.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 #include <linux/perf_event.h>
@@ -20,16 +22,19 @@
 
 #define MSR_PMC_FULL_WIDTH_BIT      (MSR_IA32_PMC0 - MSR_IA32_PERFCTR0)
 
-static struct kvm_event_hw_type_mapping intel_arch_events[] = {
-	[0] = { 0x3c, 0x00, PERF_COUNT_HW_CPU_CYCLES },
-	[1] = { 0xc0, 0x00, PERF_COUNT_HW_INSTRUCTIONS },
-	[2] = { 0x3c, 0x01, PERF_COUNT_HW_BUS_CYCLES  },
-	[3] = { 0x2e, 0x4f, PERF_COUNT_HW_CACHE_REFERENCES },
-	[4] = { 0x2e, 0x41, PERF_COUNT_HW_CACHE_MISSES },
-	[5] = { 0xc4, 0x00, PERF_COUNT_HW_BRANCH_INSTRUCTIONS },
-	[6] = { 0xc5, 0x00, PERF_COUNT_HW_BRANCH_MISSES },
+static struct {
+	u8 eventsel;
+	u8 unit_mask;
+} const intel_arch_events[] = {
+	[0] = { 0x3c, 0x00 },
+	[1] = { 0xc0, 0x00 },
+	[2] = { 0x3c, 0x01 },
+	[3] = { 0x2e, 0x4f },
+	[4] = { 0x2e, 0x41 },
+	[5] = { 0xc4, 0x00 },
+	[6] = { 0xc5, 0x00 },
 	/* The above index must match CPUID 0x0A.EBX bit vector */
-	[7] = { 0x00, 0x03, PERF_COUNT_HW_REF_CPU_CYCLES },
+	[7] = { 0x00, 0x03 },
 };
 
 /* mapping between fixed pmc index and intel_arch_events array */
@@ -52,7 +57,7 @@ static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 		pmc = get_fixed_pmc(pmu, MSR_CORE_PERF_FIXED_CTR0 + i);
 
 		__set_bit(INTEL_PMC_IDX_FIXED + i, pmu->pmc_in_use);
-		reprogram_counter(pmc);
+		kvm_pmu_request_counter_reprogam(pmc);
 	}
 }
 
@@ -76,7 +81,7 @@ static void reprogram_counters(struct kvm_pmu *pmu, u64 diff)
 	for_each_set_bit(bit, (unsigned long *)&diff, X86_PMC_IDX_MAX) {
 		pmc = intel_pmc_idx_to_pmc(pmu, bit);
 		if (pmc)
-			reprogram_counter(pmc);
+			kvm_pmu_request_counter_reprogam(pmc);
 	}
 }
 
@@ -477,7 +482,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				reserved_bits ^= HSW_IN_TX_CHECKPOINTED;
 			if (!(data & reserved_bits)) {
 				pmc->eventsel = data;
-				reprogram_counter(pmc);
+				kvm_pmu_request_counter_reprogam(pmc);
 				return 0;
 			}
 		} else if (intel_pmu_handle_lbr_msrs_access(vcpu, msr_info, false))
@@ -617,7 +622,7 @@ static void intel_pmu_init(struct kvm_vcpu *vcpu)
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct lbr_desc *lbr_desc = vcpu_to_lbr_desc(vcpu);
 
-	for (i = 0; i < INTEL_PMC_MAX_GENERIC; i++) {
+	for (i = 0; i < KVM_INTEL_PMC_MAX_GENERIC; i++) {
 		pmu->gp_counters[i].type = KVM_PMC_GP;
 		pmu->gp_counters[i].vcpu = vcpu;
 		pmu->gp_counters[i].idx = i;
@@ -631,7 +636,6 @@ static void intel_pmu_init(struct kvm_vcpu *vcpu)
 		pmu->fixed_counters[i].current_config = 0;
 	}
 
-	vcpu->arch.perf_capabilities = vmx_get_perf_capabilities();
 	lbr_desc->records.nr = 0;
 	lbr_desc->event = NULL;
 	lbr_desc->msr_passthrough = false;
@@ -643,18 +647,18 @@ static void intel_pmu_reset(struct kvm_vcpu *vcpu)
 	struct kvm_pmc *pmc = NULL;
 	int i;
 
-	for (i = 0; i < INTEL_PMC_MAX_GENERIC; i++) {
+	for (i = 0; i < KVM_INTEL_PMC_MAX_GENERIC; i++) {
 		pmc = &pmu->gp_counters[i];
 
 		pmc_stop_counter(pmc);
-		pmc->counter = pmc->eventsel = 0;
+		pmc->counter = pmc->prev_counter = pmc->eventsel = 0;
 	}
 
 	for (i = 0; i < KVM_PMC_MAX_FIXED; i++) {
 		pmc = &pmu->fixed_counters[i];
 
 		pmc_stop_counter(pmc);
-		pmc->counter = 0;
+		pmc->counter = pmc->prev_counter = 0;
 	}
 
 	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status = 0;
@@ -763,8 +767,7 @@ void vmx_passthrough_lbr_msrs(struct kvm_vcpu *vcpu)
 	return;
 
 warn:
-	pr_warn_ratelimited("kvm: vcpu-%d: fail to passthrough LBR.\n",
-		vcpu->vcpu_id);
+	pr_warn_ratelimited("vcpu-%d: fail to passthrough LBR.\n", vcpu->vcpu_id);
 }
 
 static void intel_pmu_cleanup(struct kvm_vcpu *vcpu)
@@ -811,4 +814,6 @@ struct kvm_pmu_ops intel_pmu_ops __initdata = {
 	.reset = intel_pmu_reset,
 	.deliver_pmi = intel_pmu_deliver_pmi,
 	.cleanup = intel_pmu_cleanup,
+	.EVENTSEL_EVENT = ARCH_PERFMON_EVENTSEL_EVENT,
+	.MAX_NR_GP_COUNTERS = KVM_INTEL_PMC_MAX_GENERIC,
 };

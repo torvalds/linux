@@ -47,13 +47,12 @@ config USB_XHCI_PCI_RENESAS
 	tristate "Support for additional Renesas xHCI controller with firmware"
 	help
 	  Say 'Y' to enable the support for the Renesas xHCI controller with
-	  firmware. Make sure you have the firwmare for the device and
+	  firmware. Make sure you have the firmware for the device and
 	  installed on your system for this device to work.
 	  If unsure, say 'N'.
 
 config USB_XHCI_PLATFORM
 	tristate "Generic xHCI driver for a platform device"
-	select USB_XHCI_RCAR if ARCH_RENESAS
 	help
 	  Adds an xHCI host driver for a generic platform device, which
 	  provides a memory space and an irq.
@@ -91,9 +90,19 @@ config USB_XHCI_RCAR
 	tristate "xHCI support for Renesas R-Car SoCs"
 	depends on USB_XHCI_PLATFORM
 	depends on ARCH_RENESAS || COMPILE_TEST
+	default ARCH_RENESAS
 	help
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Renesas R-Car ARM SoCs.
+
+config USB_XHCI_RZV2M
+	bool "xHCI support for Renesas RZ/V2M SoC"
+	depends on USB_XHCI_RCAR
+	depends on ARCH_R9A09G011 || COMPILE_TEST
+	depends on USB_RZV2M_USB3DRD=y || (USB_RZV2M_USB3DRD=USB_XHCI_RCAR)
+	help
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Renesas RZ/V2M SoC.
 
 config USB_XHCI_TEGRA
 	tristate "xHCI support for NVIDIA Tegra SoCs"
@@ -316,18 +325,6 @@ config USB_OCTEON_HCD
 	  To compile this driver as a module, choose M here. The module
 	  will be called octeon-hcd.
 
-config USB_CNS3XXX_EHCI
-	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"
-	depends on ARCH_CNS3XXX || COMPILE_TEST
-	select USB_EHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_EHCI_HCD_PLATFORM instead.
-
-	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
-	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
-	  support.
-
 config USB_EHCI_HCD_PLATFORM
 	tristate "Generic EHCI driver for a platform device"
 	help
@@ -389,17 +386,6 @@ config USB_ISP1362_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1362-hcd.
 
-config USB_FOTG210_HCD
-	tristate "FOTG210 HCD support"
-	depends on USB && HAS_DMA && HAS_IOMEM
-	help
-	  Faraday FOTG210 is an OTG controller which can be configured as
-	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification
-	  with minor modification.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called fotg210-hcd.
-
 config USB_MAX3421_HCD
 	tristate "MAX3421 HCD (USB-over-SPI) support"
 	depends on USB && SPI
@@ -432,7 +418,6 @@ if USB_OHCI_HCD
 config USB_OHCI_HCD_OMAP1
 	tristate "OHCI support for OMAP1/2 chips"
 	depends on ARCH_OMAP1
-	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	default y
 	help
 	  Enables support for the OHCI controller on OMAP1/2 chips.
@@ -455,12 +440,12 @@ config USB_OHCI_HCD_STI
 	  STMicroelectronics consumer electronics SoC's.
 
 config USB_OHCI_HCD_S3C2410
-	tristate "OHCI support for Samsung S3C24xx/S3C64xx SoC series"
-	depends on USB_OHCI_HCD && (ARCH_S3C24XX || ARCH_S3C64XX || COMPILE_TEST)
-	default y if (ARCH_S3C24XX || ARCH_S3C64XX)
+	tristate "OHCI support for Samsung S3C64xx SoC series"
+	depends on USB_OHCI_HCD && (ARCH_S3C64XX || COMPILE_TEST)
+	default ARCH_S3C64XX
 	help
 	  Enables support for the on-chip OHCI controller on
-	  S3C24xx/S3C64xx chips.
+	  S3C64xx chips.
 
 config USB_OHCI_HCD_LPC32XX
 	tristate "Support for LPC on-chip OHCI USB controller"
@@ -559,34 +544,12 @@ config USB_OHCI_HCD_SSB
 
 	  If unsure, say N.
 
-config USB_OHCI_SH
-	bool "OHCI support for SuperH USB controller (DEPRECATED)"
-	depends on SUPERH || COMPILE_TEST
-	select USB_OHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_OHCI_HCD_PLATFORM instead.
-
-	  Enables support for the on-chip OHCI controller on the SuperH.
-	  If you use the PCI OHCI controller, this option is not necessary.
-
 config USB_OHCI_EXYNOS
 	tristate "OHCI support for Samsung S5P/Exynos SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
 	  Enable support for the Samsung S5Pv210 and Exynos SOC's on-chip OHCI
 	  controller.
-
-config USB_CNS3XXX_OHCI
-	bool "Cavium CNS3XXX OHCI Module (DEPRECATED)"
-	depends on ARCH_CNS3XXX || COMPILE_TEST
-	select USB_OHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_OHCI_HCD_PLATFORM instead.
-
-	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
-	  It is needed for low-speed USB 1.0 device support.
 
 config USB_OHCI_HCD_PLATFORM
 	tristate "Generic OHCI driver for a platform device"

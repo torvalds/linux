@@ -59,6 +59,7 @@
 
 		A35_L2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -133,6 +134,12 @@
 			clock-names = "xtal_32KHz", "xtal_24Mhz";
 		};
 
+		scu_gpio: gpio {
+			compatible = "fsl,imx8qxp-sc-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
 		iomuxc: pinctrl {
 			compatible = "fsl,imx8dxl-iomuxc";
 		};
@@ -157,7 +164,7 @@
 
 		sc_pwrkey: keys {
 			compatible = "fsl,imx8qxp-sc-key", "fsl,imx-sc-key";
-			linux,keycode = <KEY_POWER>;
+			linux,keycodes = <KEY_POWER>;
 			wakeup-source;
 		};
 

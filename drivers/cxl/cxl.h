@@ -33,6 +33,7 @@
 #define   CXL_CM_CAP_HDR_ARRAY_SIZE_MASK GENMASK(31, 24)
 #define CXL_CM_CAP_PTR_MASK GENMASK(31, 20)
 
+#define   CXL_CM_CAP_CAP_ID_RAS 0x2
 #define   CXL_CM_CAP_CAP_ID_HDM 0x5
 #define   CXL_CM_CAP_CAP_HDM_VERSION 1
 
@@ -61,6 +62,10 @@
 #define CXL_HDM_DECODER0_SKIP_LOW(i) CXL_HDM_DECODER0_TL_LOW(i)
 #define CXL_HDM_DECODER0_SKIP_HIGH(i) CXL_HDM_DECODER0_TL_HIGH(i)
 
+/* HDM decoder control register constants CXL 3.0 8.2.5.19.7 */
+#define CXL_DECODER_MIN_GRANULARITY 256
+#define CXL_DECODER_MAX_ENCODED_IG 6
+
 static inline int cxl_hdm_decoder_count(u32 cap_hdr)
 {
 	int val = FIELD_GET(CXL_HDM_DECODER_COUNT_MASK, cap_hdr);
@@ -69,23 +74,23 @@ static inline int cxl_hdm_decoder_count(u32 cap_hdr)
 }
 
 /* Encode defined in CXL 2.0 8.2.5.12.7 HDM Decoder Control Register */
-static inline int cxl_to_granularity(u16 ig, unsigned int *val)
+static inline int eig_to_granularity(u16 eig, unsigned int *granularity)
 {
-	if (ig > 6)
+	if (eig > CXL_DECODER_MAX_ENCODED_IG)
 		return -EINVAL;
-	*val = 256 << ig;
+	*granularity = CXL_DECODER_MIN_GRANULARITY << eig;
 	return 0;
 }
 
 /* Encode defined in CXL ECN "3, 6, 12 and 16-way memory Interleaving" */
-static inline int cxl_to_ways(u8 eniw, unsigned int *val)
+static inline int eiw_to_ways(u8 eiw, unsigned int *ways)
 {
-	switch (eniw) {
+	switch (eiw) {
 	case 0 ... 4:
-		*val = 1 << eniw;
+		*ways = 1 << eiw;
 		break;
 	case 8 ... 10:
-		*val = 3 << (eniw - 8);
+		*ways = 3 << (eiw - 8);
 		break;
 	default:
 		return -EINVAL;
@@ -94,20 +99,21 @@ static inline int cxl_to_ways(u8 eniw, unsigned int *val)
 	return 0;
 }
 
-static inline int granularity_to_cxl(int g, u16 *ig)
+static inline int granularity_to_eig(int granularity, u16 *eig)
 {
-	if (g > SZ_16K || g < 256 || !is_power_of_2(g))
+	if (granularity > SZ_16K || granularity < CXL_DECODER_MIN_GRANULARITY ||
+	    !is_power_of_2(granularity))
 		return -EINVAL;
-	*ig = ilog2(g) - 8;
+	*eig = ilog2(granularity) - 8;
 	return 0;
 }
 
-static inline int ways_to_cxl(unsigned int ways, u8 *iw)
+static inline int ways_to_eiw(unsigned int ways, u8 *eiw)
 {
 	if (ways > 16)
 		return -EINVAL;
 	if (is_power_of_2(ways)) {
-		*iw = ilog2(ways);
+		*eiw = ilog2(ways);
 		return 0;
 	}
 	if (ways % 3)
@@ -115,9 +121,28 @@ static inline int ways_to_cxl(unsigned int ways, u8 *iw)
 	ways /= 3;
 	if (!is_power_of_2(ways))
 		return -EINVAL;
-	*iw = ilog2(ways) + 8;
+	*eiw = ilog2(ways) + 8;
 	return 0;
 }
+
+/* RAS Registers CXL 2.0 8.2.5.9 CXL RAS Capability Structure */
+#define CXL_RAS_UNCORRECTABLE_STATUS_OFFSET 0x0
+#define   CXL_RAS_UNCORRECTABLE_STATUS_MASK (GENMASK(16, 14) | GENMASK(11, 0))
+#define CXL_RAS_UNCORRECTABLE_MASK_OFFSET 0x4
+#define   CXL_RAS_UNCORRECTABLE_MASK_MASK (GENMASK(16, 14) | GENMASK(11, 0))
+#define   CXL_RAS_UNCORRECTABLE_MASK_F256B_MASK BIT(8)
+#define CXL_RAS_UNCORRECTABLE_SEVERITY_OFFSET 0x8
+#define   CXL_RAS_UNCORRECTABLE_SEVERITY_MASK (GENMASK(16, 14) | GENMASK(11, 0))
+#define CXL_RAS_CORRECTABLE_STATUS_OFFSET 0xC
+#define   CXL_RAS_CORRECTABLE_STATUS_MASK GENMASK(6, 0)
+#define CXL_RAS_CORRECTABLE_MASK_OFFSET 0x10
+#define   CXL_RAS_CORRECTABLE_MASK_MASK GENMASK(6, 0)
+#define CXL_RAS_CAP_CONTROL_OFFSET 0x14
+#define CXL_RAS_CAP_CONTROL_FE_MASK GENMASK(5, 0)
+#define CXL_RAS_HEADER_LOG_OFFSET 0x18
+#define CXL_RAS_CAPABILITY_LENGTH 0x58
+#define CXL_HEADERLOG_SIZE SZ_512
+#define CXL_HEADERLOG_SIZE_U32 SZ_512 / sizeof(u32)
 
 /* CXL 2.0 8.2.8.1 Device Capabilities Array Register */
 #define CXLDEV_CAP_ARRAY_OFFSET 0x0
@@ -131,6 +156,22 @@ static inline int ways_to_cxl(unsigned int ways, u8 *iw)
 #define CXLDEV_CAP_CAP_ID_PRIMARY_MAILBOX 0x2
 #define CXLDEV_CAP_CAP_ID_SECONDARY_MAILBOX 0x3
 #define CXLDEV_CAP_CAP_ID_MEMDEV 0x4000
+
+/* CXL 3.0 8.2.8.3.1 Event Status Register */
+#define CXLDEV_DEV_EVENT_STATUS_OFFSET		0x00
+#define CXLDEV_EVENT_STATUS_INFO		BIT(0)
+#define CXLDEV_EVENT_STATUS_WARN		BIT(1)
+#define CXLDEV_EVENT_STATUS_FAIL		BIT(2)
+#define CXLDEV_EVENT_STATUS_FATAL		BIT(3)
+
+#define CXLDEV_EVENT_STATUS_ALL (CXLDEV_EVENT_STATUS_INFO |	\
+				 CXLDEV_EVENT_STATUS_WARN |	\
+				 CXLDEV_EVENT_STATUS_FAIL |	\
+				 CXLDEV_EVENT_STATUS_FATAL)
+
+/* CXL rev 3.0 section 8.2.9.2.4; Table 8-52 */
+#define CXLDEV_EVENT_INT_MODE_MASK	GENMASK(1, 0)
+#define CXLDEV_EVENT_INT_MSGNUM_MASK	GENMASK(7, 4)
 
 /* CXL 2.0 8.2.8.4 Mailbox Registers */
 #define CXLDEV_MBOX_CAPS_OFFSET 0x00
@@ -153,9 +194,11 @@ struct cxl_regs {
 	/*
 	 * Common set of CXL Component register block base pointers
 	 * @hdm_decoder: CXL 2.0 8.2.5.12 CXL HDM Decoder Capability Structure
+	 * @ras: CXL 2.0 8.2.5.9 CXL RAS Capability Structure
 	 */
 	struct_group_tagged(cxl_component_regs, component,
 		void __iomem *hdm_decoder;
+		void __iomem *ras;
 	);
 	/*
 	 * Common set of CXL Device register block base pointers
@@ -170,12 +213,14 @@ struct cxl_regs {
 
 struct cxl_reg_map {
 	bool valid;
+	int id;
 	unsigned long offset;
 	unsigned long size;
 };
 
 struct cxl_component_reg_map {
 	struct cxl_reg_map hdm_decoder;
+	struct cxl_reg_map ras;
 };
 
 struct cxl_device_reg_map {
@@ -187,17 +232,17 @@ struct cxl_device_reg_map {
 /**
  * struct cxl_register_map - DVSEC harvested register block mapping parameters
  * @base: virtual base of the register-block-BAR + @block_offset
- * @block_offset: offset to start of register block in @barno
+ * @resource: physical resource base of the register block
+ * @max_size: maximum mapping size to perform register search
  * @reg_type: see enum cxl_regloc_type
- * @barno: PCI BAR number containing the register block
  * @component_map: cxl_reg_map for component registers
  * @device_map: cxl_reg_maps for device registers
  */
 struct cxl_register_map {
 	void __iomem *base;
-	u64 block_offset;
+	resource_size_t resource;
+	resource_size_t max_size;
 	u8 reg_type;
-	u8 barno;
 	union {
 		struct cxl_component_reg_map component_map;
 		struct cxl_device_reg_map device_map;
@@ -208,18 +253,23 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 			      struct cxl_component_reg_map *map);
 void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 			   struct cxl_device_reg_map *map);
-int cxl_map_component_regs(struct pci_dev *pdev,
-			   struct cxl_component_regs *regs,
-			   struct cxl_register_map *map);
-int cxl_map_device_regs(struct pci_dev *pdev,
-			struct cxl_device_regs *regs,
+int cxl_map_component_regs(struct device *dev, struct cxl_component_regs *regs,
+			   struct cxl_register_map *map,
+			   unsigned long map_mask);
+int cxl_map_device_regs(struct device *dev, struct cxl_device_regs *regs,
 			struct cxl_register_map *map);
 
 enum cxl_regloc_type;
 int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 		      struct cxl_register_map *map);
-void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
-				   resource_size_t length);
+
+enum cxl_rcrb {
+	CXL_RCRB_DOWNSTREAM,
+	CXL_RCRB_UPSTREAM,
+};
+resource_size_t cxl_rcrb_to_component(struct device *dev,
+				      resource_size_t rcrb,
+				      enum cxl_rcrb which);
 
 #define CXL_RESOURCE_NONE ((resource_size_t) -1)
 #define CXL_TARGET_STRLEN 20
@@ -228,6 +278,8 @@ void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
  * cxl_decoder flags that define the type of memory / devices this
  * decoder supports as well as configuration lock status See "CXL 2.0
  * 8.2.5.12.7 CXL HDM Decoder 0 Control Register" for details.
+ * Additionally indicate whether decoder settings were autodetected,
+ * user customized.
  */
 #define CXL_DECODER_F_RAM   BIT(0)
 #define CXL_DECODER_F_PMEM  BIT(1)
@@ -248,7 +300,6 @@ enum cxl_decoder_type {
  */
 #define CXL_DECODER_MAX_INTERLEAVE 16
 
-#define CXL_DECODER_MIN_GRANULARITY 256
 
 /**
  * struct cxl_decoder - Common CXL HDM Decoder Attributes
@@ -288,12 +339,36 @@ enum cxl_decoder_mode {
 	CXL_DECODER_DEAD,
 };
 
+static inline const char *cxl_decoder_mode_name(enum cxl_decoder_mode mode)
+{
+	static const char * const names[] = {
+		[CXL_DECODER_NONE] = "none",
+		[CXL_DECODER_RAM] = "ram",
+		[CXL_DECODER_PMEM] = "pmem",
+		[CXL_DECODER_MIXED] = "mixed",
+	};
+
+	if (mode >= CXL_DECODER_NONE && mode <= CXL_DECODER_MIXED)
+		return names[mode];
+	return "mixed";
+}
+
+/*
+ * Track whether this decoder is reserved for region autodiscovery, or
+ * free for userspace provisioning.
+ */
+enum cxl_decoder_state {
+	CXL_DECODER_STATE_MANUAL,
+	CXL_DECODER_STATE_AUTO,
+};
+
 /**
  * struct cxl_endpoint_decoder - Endpoint  / SPA to DPA decoder
  * @cxld: base cxl_decoder_object
  * @dpa_res: actively claimed DPA span of this decoder
  * @skip: offset into @dpa_res where @cxld.hpa_range maps
  * @mode: which memory type / access-mode-partition this decoder targets
+ * @state: autodiscovery state
  * @pos: interleave position in @cxld.region
  */
 struct cxl_endpoint_decoder {
@@ -301,6 +376,7 @@ struct cxl_endpoint_decoder {
 	struct resource *dpa_res;
 	resource_size_t skip;
 	enum cxl_decoder_mode mode;
+	enum cxl_decoder_state state;
 	int pos;
 };
 
@@ -324,18 +400,25 @@ struct cxl_switch_decoder {
 	struct cxl_dport *target[];
 };
 
+struct cxl_root_decoder;
+typedef struct cxl_dport *(*cxl_calc_hb_fn)(struct cxl_root_decoder *cxlrd,
+					    int pos);
 
 /**
  * struct cxl_root_decoder - Static platform CXL address decoder
  * @res: host / parent resource for region allocations
  * @region_id: region id for next region provisioning event
  * @calc_hb: which host bridge covers the n'th position by granularity
+ * @platform_data: platform specific configuration data
+ * @range_lock: sync region autodiscovery by address range
  * @cxlsd: base cxl switch decoder
  */
 struct cxl_root_decoder {
 	struct resource *res;
 	atomic_t region_id;
-	struct cxl_dport *(*calc_hb)(struct cxl_root_decoder *cxlrd, int pos);
+	cxl_calc_hb_fn calc_hb;
+	void *platform_data;
+	struct mutex range_lock;
 	struct cxl_switch_decoder cxlsd;
 };
 
@@ -379,12 +462,28 @@ struct cxl_region_params {
 	int nr_targets;
 };
 
+/*
+ * Flag whether this region needs to have its HPA span synchronized with
+ * CPU cache state at region activation time.
+ */
+#define CXL_REGION_F_INCOHERENT 0
+
+/*
+ * Indicate whether this region has been assembled by autodetection or
+ * userspace assembly. Prevent endpoint decoders outside of automatic
+ * detection from being added to the region.
+ */
+#define CXL_REGION_F_AUTO 1
+
 /**
  * struct cxl_region - CXL region
  * @dev: This region's device
  * @id: This region's id. Id is globally unique across all regions
  * @mode: Endpoint decoder allocation / access mode
  * @type: Endpoint decoder target type
+ * @cxl_nvb: nvdimm bridge for coordinating @cxlr_pmem setup / shutdown
+ * @cxlr_pmem: (for pmem regions) cached copy of the nvdimm bridge
+ * @flags: Region state flags
  * @params: active + config params for the region
  */
 struct cxl_region {
@@ -392,21 +491,10 @@ struct cxl_region {
 	int id;
 	enum cxl_decoder_mode mode;
 	enum cxl_decoder_type type;
+	struct cxl_nvdimm_bridge *cxl_nvb;
+	struct cxl_pmem_region *cxlr_pmem;
+	unsigned long flags;
 	struct cxl_region_params params;
-};
-
-/**
- * enum cxl_nvdimm_brige_state - state machine for managing bus rescans
- * @CXL_NVB_NEW: Set at bridge create and after cxl_pmem_wq is destroyed
- * @CXL_NVB_DEAD: Set at brige unregistration to preclude async probing
- * @CXL_NVB_ONLINE: Target state after successful ->probe()
- * @CXL_NVB_OFFLINE: Target state after ->remove() or failed ->probe()
- */
-enum cxl_nvdimm_brige_state {
-	CXL_NVB_NEW,
-	CXL_NVB_DEAD,
-	CXL_NVB_ONLINE,
-	CXL_NVB_OFFLINE,
 };
 
 struct cxl_nvdimm_bridge {
@@ -415,15 +503,14 @@ struct cxl_nvdimm_bridge {
 	struct cxl_port *port;
 	struct nvdimm_bus *nvdimm_bus;
 	struct nvdimm_bus_descriptor nd_desc;
-	struct work_struct state_work;
-	enum cxl_nvdimm_brige_state state;
 };
+
+#define CXL_DEV_ID_LEN 19
 
 struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
-	struct cxl_nvdimm_bridge *bridge;
-	struct cxl_pmem_region *region;
+	u8 dev_id[CXL_DEV_ID_LEN]; /* for nvdimm, string of 'serial' */
 };
 
 struct cxl_pmem_region_mapping {
@@ -438,10 +525,15 @@ struct cxl_pmem_region {
 	struct device dev;
 	struct cxl_region *cxlr;
 	struct nd_region *nd_region;
-	struct cxl_nvdimm_bridge *bridge;
 	struct range hpa_range;
 	int nr_mappings;
 	struct cxl_pmem_region_mapping mapping[];
+};
+
+struct cxl_dax_region {
+	struct device dev;
+	struct cxl_region *cxlr;
+	struct range hpa_range;
 };
 
 /**
@@ -457,6 +549,7 @@ struct cxl_pmem_region {
  * @regions: cxl_region_ref instances, regions mapped by this port
  * @parent_dport: dport that points to this port in the parent
  * @decoder_ida: allocator for decoder ids
+ * @nr_dports: number of entries in @dports
  * @hdm_end: track last allocated HDM decoder instance for allocation ordering
  * @commit_end: cursor to track highest committed decoder for commit ordering
  * @component_reg_phys: component register capability base address (optional)
@@ -475,6 +568,7 @@ struct cxl_port {
 	struct xarray regions;
 	struct cxl_dport *parent_dport;
 	struct ida decoder_ida;
+	int nr_dports;
 	int hdm_end;
 	int commit_end;
 	resource_size_t component_reg_phys;
@@ -498,12 +592,16 @@ cxl_find_dport_by_dev(struct cxl_port *port, const struct device *dport_dev)
  * @dport: PCI bridge or firmware device representing the downstream link
  * @port_id: unique hardware identifier for dport in decoder target list
  * @component_reg_phys: downstream port component registers
+ * @rcrb: base address for the Root Complex Register Block
+ * @rch: Indicate whether this dport was enumerated in RCH or VH mode
  * @port: reference to cxl_port that contains this downstream port
  */
 struct cxl_dport {
 	struct device *dport;
 	int port_id;
 	resource_size_t component_reg_phys;
+	resource_size_t rcrb;
+	bool rch;
 	struct cxl_port *port;
 };
 
@@ -551,8 +649,8 @@ static inline bool is_cxl_root(struct cxl_port *port)
 	return port->uport == port->dev.parent;
 }
 
-bool is_cxl_port(struct device *dev);
-struct cxl_port *to_cxl_port(struct device *dev);
+bool is_cxl_port(const struct device *dev);
+struct cxl_port *to_cxl_port(const struct device *dev);
 struct pci_bus;
 int devm_cxl_register_pci_bus(struct device *host, struct device *uport,
 			      struct pci_bus *bus);
@@ -560,11 +658,10 @@ struct pci_bus *cxl_port_to_pci_bus(struct cxl_port *port);
 struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
 				   struct cxl_dport *parent_dport);
-int devm_cxl_add_endpoint(struct cxl_memdev *cxlmd,
-			  struct cxl_dport *parent_dport);
 struct cxl_port *find_cxl_root(struct device *dev);
 int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd);
-int cxl_bus_rescan(void);
+void cxl_bus_rescan(void);
+void cxl_bus_drain(void);
 struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd,
 				   struct cxl_dport **dport);
 bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd);
@@ -572,14 +669,22 @@ bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd);
 struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 				     struct device *dport, int port_id,
 				     resource_size_t component_reg_phys);
+struct cxl_dport *devm_cxl_add_rch_dport(struct cxl_port *port,
+					 struct device *dport_dev, int port_id,
+					 resource_size_t component_reg_phys,
+					 resource_size_t rcrb);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 struct cxl_root_decoder *to_cxl_root_decoder(struct device *dev);
+struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev);
 struct cxl_endpoint_decoder *to_cxl_endpoint_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
+bool is_switch_decoder(struct device *dev);
 bool is_endpoint_decoder(struct device *dev);
 struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
-						unsigned int nr_targets);
+						unsigned int nr_targets,
+						cxl_calc_hb_fn calc_hb);
+struct cxl_dport *cxl_hb_modulo(struct cxl_root_decoder *cxlrd, int pos);
 struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 						    unsigned int nr_targets);
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
@@ -588,10 +693,26 @@ int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
 int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint);
 
+/**
+ * struct cxl_endpoint_dvsec_info - Cached DVSEC info
+ * @mem_enabled: cached value of mem_enabled in the DVSEC, PCIE_DEVICE
+ * @ranges: Number of active HDM ranges this device uses.
+ * @dvsec_range: cached attributes of the ranges in the DVSEC, PCIE_DEVICE
+ */
+struct cxl_endpoint_dvsec_info {
+	bool mem_enabled;
+	int ranges;
+	struct range dvsec_range[2];
+};
+
 struct cxl_hdm;
-struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port);
-int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm);
+struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
+				   struct cxl_endpoint_dvsec_info *info);
+int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
+				struct cxl_endpoint_dvsec_info *info);
 int devm_cxl_add_passthrough_decoder(struct cxl_port *port);
+int cxl_dvsec_rr_decode(struct device *dev, int dvsec,
+			struct cxl_endpoint_dvsec_info *info);
 
 bool is_cxl_region(struct device *dev);
 
@@ -625,6 +746,7 @@ void cxl_driver_unregister(struct cxl_driver *cxl_drv);
 #define CXL_DEVICE_MEMORY_EXPANDER	5
 #define CXL_DEVICE_REGION		6
 #define CXL_DEVICE_PMEM_REGION		7
+#define CXL_DEVICE_DAX_REGION		8
 
 #define MODULE_ALIAS_CXL(type) MODULE_ALIAS("cxl:t" __stringify(type) "*")
 #define CXL_MODALIAS_FMT "cxl:t%d"
@@ -635,18 +757,30 @@ struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
 struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm_bridge(struct device *dev);
-int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd);
+int devm_cxl_add_nvdimm(struct cxl_memdev *cxlmd);
 struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct device *dev);
 
 #ifdef CONFIG_CXL_REGION
 bool is_cxl_pmem_region(struct device *dev);
 struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev);
+int cxl_add_to_region(struct cxl_port *root,
+		      struct cxl_endpoint_decoder *cxled);
+struct cxl_dax_region *to_cxl_dax_region(struct device *dev);
 #else
 static inline bool is_cxl_pmem_region(struct device *dev)
 {
 	return false;
 }
 static inline struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev)
+{
+	return NULL;
+}
+static inline int cxl_add_to_region(struct cxl_port *root,
+				    struct cxl_endpoint_decoder *cxled)
+{
+	return 0;
+}
+static inline struct cxl_dax_region *to_cxl_dax_region(struct device *dev)
 {
 	return NULL;
 }

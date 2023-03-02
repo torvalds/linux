@@ -13,13 +13,12 @@
 #define SFDP_JESD216A_MINOR	5
 #define SFDP_JESD216B_MINOR	6
 
+/* SFDP DWORDS are indexed from 1 but C arrays are indexed from 0. */
+#define SFDP_DWORD(i)		((i) - 1)
+
 /* Basic Flash Parameter Table */
 
-/*
- * JESD216 rev D defines a Basic Flash Parameter Table of 20 DWORDs.
- * They are indexed from 1 but C arrays are indexed from 0.
- */
-#define BFPT_DWORD(i)		((i) - 1)
+/* JESD216 rev D defines a Basic Flash Parameter Table of 20 DWORDs. */
 #define BFPT_DWORD_MAX		20
 
 struct sfdp_bfpt {
@@ -106,7 +105,5 @@ struct sfdp_parameter_header {
 	u8		parameter_table_pointer[3]; /* byte address */
 	u8		id_msb;
 };
-
-int spi_nor_parse_sfdp(struct spi_nor *nor);
 
 #endif /* __LINUX_MTD_SFDP_H */

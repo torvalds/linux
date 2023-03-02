@@ -86,15 +86,15 @@ config GENERIC_IRQ_IPI
 	depends on SMP
 	select IRQ_DOMAIN_HIERARCHY
 
-# Generic MSI interrupt support
-config GENERIC_MSI_IRQ
+# Generic IRQ IPI Mux support
+config GENERIC_IRQ_IPI_MUX
 	bool
+	depends on SMP
 
 # Generic MSI hierarchical interrupt domain support
-config GENERIC_MSI_IRQ_DOMAIN
+config GENERIC_MSI_IRQ
 	bool
 	select IRQ_DOMAIN_HIERARCHY
-	select GENERIC_MSI_IRQ
 
 config IRQ_MSI_IOMMU
 	bool

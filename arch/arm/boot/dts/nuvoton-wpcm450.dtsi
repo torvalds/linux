@@ -37,6 +37,14 @@
 		#clock-cells = <0>;
 	};
 
+	refclk: clock-48mhz {
+		/* 48 MHz reference oscillator */
+		compatible = "fixed-clock";
+		clock-output-names = "ref";
+		clock-frequency = <48000000>;
+		#clock-cells = <0>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -47,6 +55,15 @@
 		gcr: syscon@b0000000 {
 			compatible = "nuvoton,wpcm450-gcr", "syscon", "simple-mfd";
 			reg = <0xb0000000 0x200>;
+		};
+
+		clk: clock-controller@b0000200 {
+			compatible = "nuvoton,wpcm450-clk";
+			reg = <0xb0000200 0x100>;
+			clocks = <&refclk>;
+			clock-names = "ref";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		serial0: serial@b8000000 {
@@ -81,7 +98,6 @@
 			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0xb800101c 0x4>;
 			clocks = <&clk24m>;
-			status = "disabled";
 		};
 
 		aic: interrupt-controller@b8002000 {
@@ -455,6 +471,23 @@
 				groups = "hg7";
 				function = "hg7";
 			};
+		};
+
+		fiu: spi-controller@c8000000 {
+			compatible = "nuvoton,wpcm450-fiu";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xc8000000 0x1000>, <0xc0000000 0x4000000>;
+			reg-names = "control", "memory";
+			clocks = <&clk 0>;
+			nuvoton,shm = <&shm>;
+			status = "disabled";
+		};
+
+		shm: syscon@c8001000 {
+			compatible = "nuvoton,wpcm450-shm", "syscon";
+			reg = <0xc8001000 0x1000>;
+			reg-io-width = <1>;
 		};
 	};
 };

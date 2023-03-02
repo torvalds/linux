@@ -47,7 +47,6 @@ config LED_TRIGGER_PHY
 
 config FIXED_PHY
 	tristate "MDIO Bus/PHY emulation with fixed speed/link PHYs"
-	depends on PHYLIB
 	select SWPHY
 	help
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
@@ -112,7 +111,6 @@ config BROADCOM_PHY
 
 config BCM54140_PHY
 	tristate "Broadcom BCM54140 PHY"
-	depends on PHYLIB
 	depends on HWMON || HWMON=n
 	select BCM_NET_PHYLIB
 	help
@@ -137,7 +135,6 @@ config BCM7XXX_PHY
 
 config BCM84881_PHY
 	tristate "Broadcom BCM84881 PHY"
-	depends on PHYLIB
 	help
 	  Support the Broadcom BCM84881 PHY.
 
@@ -260,7 +257,7 @@ config MOTORCOMM_PHY
 	tristate "Motorcomm PHYs"
 	help
 	  Enables support for Motorcomm network PHYs.
-	  Currently supports the YT8511 gigabit PHY.
+	  Currently supports YT85xx Gigabit Ethernet PHYs.
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
@@ -279,6 +276,13 @@ config NXP_TJA11XX_PHY
 	depends on HWMON
 	help
 	  Currently supports the NXP TJA1100 and TJA1101 PHY.
+
+config NCN26000_PHY
+	tristate "Onsemi 10BASE-T1S Ethernet PHY"
+	help
+	  Adds support for the onsemi 10BASE-T1S Ethernet PHY.
+	  Currently supports the NCN26000 10BASE-T1S Industrial PHY
+	  with MII interface.
 
 config AT803X_PHY
 	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"

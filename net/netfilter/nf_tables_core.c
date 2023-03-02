@@ -21,6 +21,26 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nft_meta.h>
 
+#if defined(CONFIG_RETPOLINE) && defined(CONFIG_X86)
+
+static struct static_key_false nf_tables_skip_direct_calls;
+
+static bool nf_skip_indirect_calls(void)
+{
+	return static_branch_likely(&nf_tables_skip_direct_calls);
+}
+
+static void __init nf_skip_indirect_calls_enable(void)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_RETPOLINE))
+		static_branch_enable(&nf_tables_skip_direct_calls);
+}
+#else
+static inline bool nf_skip_indirect_calls(void) { return false; }
+
+static inline void nf_skip_indirect_calls_enable(void) { }
+#endif
+
 static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 					const struct nft_chain *chain,
 					enum nft_trace_types type)
@@ -193,7 +213,12 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 			       struct nft_pktinfo *pkt)
 {
 #ifdef CONFIG_RETPOLINE
-	unsigned long e = (unsigned long)expr->ops->eval;
+	unsigned long e;
+
+	if (nf_skip_indirect_calls())
+		goto indirect_call;
+
+	e = (unsigned long)expr->ops->eval;
 #define X(e, fun) \
 	do { if ((e) == (unsigned long)(fun)) \
 		return fun(expr, regs, pkt); } while (0)
@@ -203,13 +228,19 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 	X(e, nft_counter_eval);
 	X(e, nft_meta_get_eval);
 	X(e, nft_lookup_eval);
+#if IS_ENABLED(CONFIG_NFT_CT)
+	X(e, nft_ct_get_fast_eval);
+#endif
 	X(e, nft_range_eval);
 	X(e, nft_immediate_eval);
 	X(e, nft_byteorder_eval);
 	X(e, nft_dynset_eval);
 	X(e, nft_rt_get_eval);
 	X(e, nft_bitwise_eval);
+	X(e, nft_objref_eval);
+	X(e, nft_objref_map_eval);
 #undef  X
+indirect_call:
 #endif /* CONFIG_RETPOLINE */
 	expr->ops->eval(expr, regs, pkt);
 }
@@ -340,6 +371,8 @@ static struct nft_expr_type *nft_basic_types[] = {
 	&nft_exthdr_type,
 	&nft_last_type,
 	&nft_counter_type,
+	&nft_objref_type,
+	&nft_inner_type,
 };
 
 static struct nft_object_type *nft_basic_objects[] = {
@@ -366,6 +399,8 @@ int __init nf_tables_core_module_init(void)
 		if (err)
 			goto err;
 	}
+
+	nf_skip_indirect_calls_enable();
 
 	return 0;
 

@@ -32,6 +32,7 @@ struct amd_input_data {
 struct amdtp_cl_data {
 	u8 init_done;
 	u32 cur_hid_dev;
+	bool is_any_sensor_enabled;
 	u32 hid_dev_count;
 	u32 num_hid_devices;
 	struct device_info *hid_devices;

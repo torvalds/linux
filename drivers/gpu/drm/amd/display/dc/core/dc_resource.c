@@ -40,11 +40,11 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 #include "link_enc_cfg.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "virtual/virtual_link_hwss.h"
-#include "link/link_hwss_dio.h"
-#include "link/link_hwss_dpia.h"
-#include "link/link_hwss_hpo_dp.h"
+#include "link/hwss/link_hwss_dio.h"
+#include "link/hwss/link_hwss_dpia.h"
+#include "link/hwss/link_hwss_hpo_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -1768,6 +1768,17 @@ bool dc_remove_plane_from_context(
 	return true;
 }
 
+/**
+ * dc_rem_all_planes_for_stream - Remove planes attached to the target stream.
+ *
+ * @dc: Current dc state.
+ * @stream: Target stream, which we want to remove the attached plans.
+ * @context: New context.
+ *
+ * Return:
+ * Return true if DC was able to remove all planes from the target
+ * stream, otherwise, return false.
+ */
 bool dc_rem_all_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
@@ -2202,7 +2213,7 @@ enum dc_status dc_remove_stream_from_ctx(
 			del_pipe->stream_res.stream_enc,
 			false);
 
-	if (is_dp_128b_132b_signal(del_pipe)) {
+	if (link_is_dp_128b_132b_signal(del_pipe)) {
 		update_hpo_dp_stream_engine_usage(
 			&new_ctx->res_ctx, dc->res_pool,
 			del_pipe->stream_res.hpo_dp_stream_enc,
@@ -2502,9 +2513,9 @@ enum dc_status resource_map_pool_resources(
 	 * and link settings
 	 */
 	if (dc_is_dp_signal(stream->signal)) {
-		if (!decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
+		if (!link_decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
 			return DC_FAIL_DP_LINK_BANDWIDTH;
-		if (dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
+		if (link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
 			pipe_ctx->stream_res.hpo_dp_stream_enc =
 					find_first_free_match_hpo_dp_stream_enc_for_link(
 							&context->res_ctx, pool, stream);
@@ -2562,9 +2573,12 @@ enum dc_status resource_map_pool_resources(
 
 /**
  * dc_resource_state_copy_construct_current() - Creates a new dc_state from existing state
- * Is a shallow copy.  Increments refcounts on existing streams and planes.
+ *
  * @dc: copy out of dc->current_state
  * @dst_ctx: copy into this
+ *
+ * This function makes a shallow copy of the current DC state and increments
+ * refcounts on existing streams and planes.
  */
 void dc_resource_state_copy_construct_current(
 		const struct dc *dc,
@@ -2593,15 +2607,241 @@ bool dc_resource_is_dsc_encoding_supported(const struct dc *dc)
 	return dc->res_pool->res_cap->num_dsc > 0;
 }
 
+static bool planes_changed_for_existing_stream(struct dc_state *context,
+					       struct dc_stream_state *stream,
+					       const struct dc_validation_set set[],
+					       int set_count)
+{
+	int i, j;
+	struct dc_stream_status *stream_status = NULL;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i] == stream) {
+			stream_status = &context->stream_status[i];
+			break;
+		}
+	}
+
+	if (!stream_status)
+		ASSERT(0);
+
+	for (i = 0; i < set_count; i++)
+		if (set[i].stream == stream)
+			break;
+
+	if (i == set_count)
+		ASSERT(0);
+
+	if (set[i].plane_count != stream_status->plane_count)
+		return true;
+
+	for (j = 0; j < set[i].plane_count; j++)
+		if (set[i].plane_states[j] != stream_status->plane_states[j])
+			return true;
+
+	return false;
+}
 
 /**
- * dc_validate_global_state() - Determine if HW can support a given state
- * Checks HW resource availability and bandwidth requirement.
+ * dc_validate_with_context - Validate and update the potential new stream in the context object
+ *
+ * @dc: Used to get the current state status
+ * @set: An array of dc_validation_set with all the current streams reference
+ * @set_count: Total of streams
+ * @context: New context
+ * @fast_validate: Enable or disable fast validation
+ *
+ * This function updates the potential new stream in the context object. It
+ * creates multiple lists for the add, remove, and unchanged streams. In
+ * particular, if the unchanged streams have a plane that changed, it is
+ * necessary to remove all planes from the unchanged streams. In summary, this
+ * function is responsible for validating the new context.
+ *
+ * Return:
+ * In case of success, return DC_OK (1), otherwise, return a DC error.
+ */
+enum dc_status dc_validate_with_context(struct dc *dc,
+					const struct dc_validation_set set[],
+					int set_count,
+					struct dc_state *context,
+					bool fast_validate)
+{
+	struct dc_stream_state *unchanged_streams[MAX_PIPES] = { 0 };
+	struct dc_stream_state *del_streams[MAX_PIPES] = { 0 };
+	struct dc_stream_state *add_streams[MAX_PIPES] = { 0 };
+	int old_stream_count = context->stream_count;
+	enum dc_status res = DC_ERROR_UNEXPECTED;
+	int unchanged_streams_count = 0;
+	int del_streams_count = 0;
+	int add_streams_count = 0;
+	bool found = false;
+	int i, j, k;
+
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	/* First build a list of streams to be remove from current context */
+	for (i = 0; i < old_stream_count; i++) {
+		struct dc_stream_state *stream = context->streams[i];
+
+		for (j = 0; j < set_count; j++) {
+			if (stream == set[j].stream) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			del_streams[del_streams_count++] = stream;
+
+		found = false;
+	}
+
+	/* Second, build a list of new streams */
+	for (i = 0; i < set_count; i++) {
+		struct dc_stream_state *stream = set[i].stream;
+
+		for (j = 0; j < old_stream_count; j++) {
+			if (stream == context->streams[j]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			add_streams[add_streams_count++] = stream;
+
+		found = false;
+	}
+
+	/* Build a list of unchanged streams which is necessary for handling
+	 * planes change such as added, removed, and updated.
+	 */
+	for (i = 0; i < set_count; i++) {
+		/* Check if stream is part of the delete list */
+		for (j = 0; j < del_streams_count; j++) {
+			if (set[i].stream == del_streams[j]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			/* Check if stream is part of the add list */
+			for (j = 0; j < add_streams_count; j++) {
+				if (set[i].stream == add_streams[j]) {
+					found = true;
+					break;
+				}
+			}
+		}
+
+		if (!found)
+			unchanged_streams[unchanged_streams_count++] = set[i].stream;
+
+		found = false;
+	}
+
+	/* Remove all planes for unchanged streams if planes changed */
+	for (i = 0; i < unchanged_streams_count; i++) {
+		if (planes_changed_for_existing_stream(context,
+						       unchanged_streams[i],
+						       set,
+						       set_count)) {
+			if (!dc_rem_all_planes_for_stream(dc,
+							  unchanged_streams[i],
+							  context)) {
+				res = DC_FAIL_DETACH_SURFACES;
+				goto fail;
+			}
+		}
+	}
+
+	/* Remove all planes for removed streams and then remove the streams */
+	for (i = 0; i < del_streams_count; i++) {
+		/* Need to cpy the dwb data from the old stream in order to efc to work */
+		if (del_streams[i]->num_wb_info > 0) {
+			for (j = 0; j < add_streams_count; j++) {
+				if (del_streams[i]->sink == add_streams[j]->sink) {
+					add_streams[j]->num_wb_info = del_streams[i]->num_wb_info;
+					for (k = 0; k < del_streams[i]->num_wb_info; k++)
+						add_streams[j]->writeback_info[k] = del_streams[i]->writeback_info[k];
+				}
+			}
+		}
+
+		if (!dc_rem_all_planes_for_stream(dc, del_streams[i], context)) {
+			res = DC_FAIL_DETACH_SURFACES;
+			goto fail;
+		}
+
+		res = dc_remove_stream_from_ctx(dc, context, del_streams[i]);
+		if (res != DC_OK)
+			goto fail;
+	}
+
+	/* Swap seamless boot stream to pipe 0 (if needed) to ensure pipe_ctx
+	 * matches. This may change in the future if seamless_boot_stream can be
+	 * multiple.
+	 */
+	for (i = 0; i < add_streams_count; i++) {
+		mark_seamless_boot_stream(dc, add_streams[i]);
+		if (add_streams[i]->apply_seamless_boot_optimization && i != 0) {
+			struct dc_stream_state *temp = add_streams[0];
+
+			add_streams[0] = add_streams[i];
+			add_streams[i] = temp;
+			break;
+		}
+	}
+
+	/* Add new streams and then add all planes for the new stream */
+	for (i = 0; i < add_streams_count; i++) {
+		calculate_phy_pix_clks(add_streams[i]);
+		res = dc_add_stream_to_ctx(dc, context, add_streams[i]);
+		if (res != DC_OK)
+			goto fail;
+
+		if (!add_all_planes_for_stream(dc, add_streams[i], set, set_count, context)) {
+			res = DC_FAIL_ATTACH_SURFACES;
+			goto fail;
+		}
+	}
+
+	/* Add all planes for unchanged streams if planes changed */
+	for (i = 0; i < unchanged_streams_count; i++) {
+		if (planes_changed_for_existing_stream(context,
+						       unchanged_streams[i],
+						       set,
+						       set_count)) {
+			if (!add_all_planes_for_stream(dc, unchanged_streams[i], set, set_count, context)) {
+				res = DC_FAIL_ATTACH_SURFACES;
+				goto fail;
+			}
+		}
+	}
+
+	res = dc_validate_global_state(dc, context, fast_validate);
+
+fail:
+	if (res != DC_OK)
+		DC_LOG_WARNING("%s:resource validation failed, dc_status:%d\n",
+			       __func__,
+			       res);
+
+	return res;
+}
+
+/**
+ * dc_validate_global_state() - Determine if hardware can support a given state
+ *
  * @dc: dc struct for this driver
  * @new_ctx: state to be validated
  * @fast_validate: set to true if only yes/no to support matters
  *
- * Return: DC_OK if the result can be programmed.  Otherwise, an error code.
+ * Checks hardware resource availability and bandwidth requirement.
+ *
+ * Return:
+ * DC_OK if the result can be programmed. Otherwise, an error code.
  */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
@@ -2787,6 +3027,12 @@ static void set_avi_info_frame(
 	} else if (color_space == COLOR_SPACE_ADOBERGB) {
 		hdmi_info.bits.EC0_EC2 = COLORIMETRYEX_ADOBERGB;
 		hdmi_info.bits.C0_C1   = COLORIMETRY_EXTENDED;
+	}
+
+	if (pixel_encoding && color_space == COLOR_SPACE_2020_YCBCR &&
+			stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
+		hdmi_info.bits.EC0_EC2 = 0;
+		hdmi_info.bits.C0_C1 = COLORIMETRY_ITU709;
 	}
 
 	/* TODO: un-hardcode aspect ratio */
@@ -3023,6 +3269,50 @@ static void set_hfvs_info_packet(
 	*info_packet = stream->hfvsif_infopacket;
 }
 
+static void adaptive_sync_override_dp_info_packets_sdp_line_num(
+		const struct dc_crtc_timing *timing,
+		struct enc_sdp_line_num *sdp_line_num,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+{
+	uint32_t asic_blank_start = 0;
+	uint32_t asic_blank_end   = 0;
+	uint32_t v_update = 0;
+
+	const struct dc_crtc_timing *tg = timing;
+
+	/* blank_start = frame end - front porch */
+	asic_blank_start = tg->v_total - tg->v_front_porch;
+
+	/* blank_end = blank_start - active */
+	asic_blank_end = (asic_blank_start - tg->v_border_bottom -
+						tg->v_addressable - tg->v_border_top);
+
+	if (pipe_dlg_param->vstartup_start > asic_blank_end) {
+		v_update = (tg->v_total - (pipe_dlg_param->vstartup_start - asic_blank_end));
+		sdp_line_num->adaptive_sync_line_num_valid = true;
+		sdp_line_num->adaptive_sync_line_num = (tg->v_total - v_update - 1);
+	} else {
+		sdp_line_num->adaptive_sync_line_num_valid = false;
+		sdp_line_num->adaptive_sync_line_num = 0;
+	}
+}
+
+static void set_adaptive_sync_info_packet(
+		struct dc_info_packet *info_packet,
+		const struct dc_stream_state *stream,
+		struct encoder_info_frame *info_frame,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+{
+	if (!stream->adaptive_sync_infopacket.valid)
+		return;
+
+	adaptive_sync_override_dp_info_packets_sdp_line_num(
+			&stream->timing,
+			&info_frame->sdp_line_num,
+			pipe_dlg_param);
+
+	*info_packet = stream->adaptive_sync_infopacket;
+}
 
 static void set_vtem_info_packet(
 		struct dc_info_packet *info_packet,
@@ -3115,6 +3405,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->vsc.valid = false;
 	info->hfvsif.valid = false;
 	info->vtem.valid = false;
+	info->adaptive_sync.valid = false;
 	signal = pipe_ctx->stream->signal;
 
 	/* HDMi and DP have different info packets*/
@@ -3135,6 +3426,10 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
 		set_hdr_static_info_packet(&info->hdrsmd, pipe_ctx->stream);
+		set_adaptive_sync_info_packet(&info->adaptive_sync,
+										pipe_ctx->stream,
+										info,
+										&pipe_ctx->pipe_dlg_param);
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);
@@ -3390,7 +3685,7 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 	/* TODO: validate audio ASIC caps, encoder */
 
 	if (res == DC_OK)
-		res = dc_link_validate_mode_timing(stream,
+		res = link_validate_mode_timing(stream,
 		      link,
 		      &stream->timing);
 
@@ -3517,7 +3812,7 @@ bool get_temp_dp_link_res(struct dc_link *link,
 
 	memset(link_res, 0, sizeof(*link_res));
 
-	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+	if (link_dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
 		link_res->hpo_dp_link_enc = get_temp_hpo_dp_link_enc(res_ctx,
 				dc->res_pool, link);
 		if (!link_res->hpo_dp_link_enc)
@@ -3574,9 +3869,20 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 		pipe_ctx_check = &context->res_ctx.pipe_ctx[i];
 
 		if ((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_check) == disabled_master_pipe_idx) &&
-			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx))
+		    IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx)) {
+			struct pipe_ctx *first_pipe = pipe_ctx_check;
+
+			while (first_pipe->prev_odm_pipe)
+				first_pipe = first_pipe->prev_odm_pipe;
+			/* When ODM combine is enabled, this case is expected. If the disabled pipe
+			 * is part of the ODM tree, then we should not print an error.
+			 * */
+			if (first_pipe->pipe_idx == disabled_master_pipe_idx)
+				continue;
+
 			DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
-				i, disabled_master_pipe_idx);
+				   i, disabled_master_pipe_idx);
+		}
 	}
 }
 
@@ -3735,3 +4041,42 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
 
 	return true;
 }
+
+enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx)
+{
+	if (link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc == NULL) {
+			pipe_ctx->stream_res.hpo_dp_stream_enc =
+					find_first_free_match_hpo_dp_stream_enc_for_link(
+							&context->res_ctx, dc->res_pool, pipe_ctx->stream);
+
+			if (!pipe_ctx->stream_res.hpo_dp_stream_enc)
+				return DC_NO_STREAM_ENC_RESOURCE;
+
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					true);
+		}
+
+		if (pipe_ctx->link_res.hpo_dp_link_enc == NULL) {
+			if (!add_hpo_dp_link_enc_to_ctx(&context->res_ctx, dc->res_pool, pipe_ctx, pipe_ctx->stream))
+				return DC_NO_LINK_ENC_RESOURCE;
+		}
+	} else {
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc) {
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					false);
+			pipe_ctx->stream_res.hpo_dp_stream_enc = NULL;
+		}
+		if (pipe_ctx->link_res.hpo_dp_link_enc)
+			remove_hpo_dp_link_enc_from_ctx(&context->res_ctx, pipe_ctx, pipe_ctx->stream);
+	}
+
+	return DC_OK;
+}
+

@@ -18,7 +18,7 @@ maintainers:
   - Martin Povišer <povik+lin@cutebit.org>
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   compatible:
@@ -54,6 +54,9 @@ properties:
     maxItems: 2
 
   power-domains:
+    maxItems: 1
+
+  resets:
     maxItems: 1
 
 required:

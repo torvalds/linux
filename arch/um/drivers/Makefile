@@ -72,4 +72,4 @@ CFLAGS_null.o = -DDEV_NULL=$(DEV_NULL_PATH)
 
 CFLAGS_xterm.o += '-DCONFIG_XTERM_CHAN_DEFAULT_EMULATOR="$(CONFIG_XTERM_CHAN_DEFAULT_EMULATOR)"'
 
-include arch/um/scripts/Makefile.rules
+include $(srctree)/arch/um/scripts/Makefile.rules

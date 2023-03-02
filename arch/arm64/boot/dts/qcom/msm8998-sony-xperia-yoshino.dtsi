@@ -25,7 +25,7 @@
 			pinctrl-names = "default";
 			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
 			#clock-cells = <0>;
-			enable-gpios = <&pm8998_gpio 13 GPIO_ACTIVE_HIGH>;
+			enable-gpios = <&pm8998_gpios 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -65,7 +65,7 @@
 		regulator-name = "cam_vio_vreg";
 		startup-delay-us = <0>;
 		enable-active-high;
-		gpio = <&pmi8998_gpio 1 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmi8998_gpios 1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_vio_default>;
 		vin-supply = <&vreg_lvs1a_1p8>;
@@ -103,7 +103,7 @@
 			    <&cam_snapshot_pin_a>;
 		button-vol-down {
 			label = "Volume Down";
-			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpio-key,wakeup;
@@ -112,7 +112,7 @@
 
 		button-camera-snapshot {
 			label = "Camera Snapshot";
-			gpios = <&pm8998_gpio 7 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA>;
 			debounce-interval = <15>;
@@ -120,7 +120,7 @@
 
 		button-camera-focus {
 			label = "Camera Focus";
-			gpios = <&pm8998_gpio 8 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 8 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA_FOCUS>;
 			debounce-interval = <15>;
@@ -187,7 +187,7 @@
 
 	vibrator {
 		compatible = "gpio-vibrator";
-		enable-gpios = <&pmi8998_gpio 5 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&pmi8998_gpios 5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vib_default>;
 	};
@@ -303,7 +303,7 @@
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	vol_down_pin_a: vol-down-active-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -335,7 +335,7 @@
 	};
 };
 
-&pmi8998_gpio {
+&pmi8998_gpios {
 	cam_vio_default: cam-vio-active-state {
 		pins = "gpio1";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -357,14 +357,9 @@
 	};
 };
 
-&pm8998_pon {
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <GIC_SPI 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEUP>;
-	};
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEUP>;
+	status = "okay";
 };
 
 &qusb2phy {
@@ -375,7 +370,7 @@
 };
 
 &rpm_requests {
-	pm8998-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8998-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -410,135 +405,166 @@
 			regulator-min-microvolt = <1352000>;
 			regulator-max-microvolt = <1352000>;
 		};
+
 		vreg_s4a_1p8: s4 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-system-load = <100000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_s5a_2p04: s5 {
 			regulator-min-microvolt = <1904000>;
 			regulator-max-microvolt = <2032000>;
 		};
+
 		vreg_s7a_1p025: s7 {
 			regulator-min-microvolt = <900000>;
 			regulator-max-microvolt = <1028000>;
 		};
+
 		vreg_l1a_0p875: l1 {
 			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <880000>;
 			regulator-system-load = <73400>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l2a_1p2: l2 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-system-load = <12560>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l3a_1p0: l3 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 		};
+
 		vreg_l5a_0p8: l5 {
 			regulator-min-microvolt = <800000>;
 			regulator-max-microvolt = <800000>;
 		};
+
 		vreg_l6a_1p8: l6 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l7a_1p8: l7 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l8a_1p2: l8 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 		};
+
 		vreg_l9a_1p8: l9 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l10a_1p8: l10 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l11a_1p0: l11 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 		};
+
 		vreg_l12a_1p8: l12 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l13a_2p95: l13 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l14a_1p85: l14 {
 			regulator-min-microvolt = <1848000>;
 			regulator-max-microvolt = <1856000>;
 			regulator-system-load = <32000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l15a_1p8: l15 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l16a_2p7: l16 {
 			regulator-min-microvolt = <2704000>;
 			regulator-max-microvolt = <2704000>;
 		};
+
 		vreg_l17a_1p3: l17 {
 			regulator-min-microvolt = <1304000>;
 			regulator-max-microvolt = <1304000>;
 		};
-		vreg_l18a_2p85: l18 {};
+
+		vreg_l18a_2p85: l18 { };
+
 		vreg_l19a_2p7: l19 {
 			regulator-min-microvolt = <2696000>;
 			regulator-max-microvolt = <2704000>;
 		};
+
 		vreg_l20a_2p95: l20 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-system-load = <10000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l21a_2p95: l21 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-system-load = <800000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l22a_2p85: l22 { };
+
 		vreg_l23a_3p3: l23 {
 			regulator-min-microvolt = <3312000>;
 			regulator-max-microvolt = <3312000>;
 		};
+
 		vreg_l24a_3p075: l24 {
 			regulator-min-microvolt = <3088000>;
 			regulator-max-microvolt = <3088000>;
 		};
+
 		vreg_l25a_3p3: l25 {
 			regulator-min-microvolt = <3104000>;
 			regulator-max-microvolt = <3312000>;
 		};
+
 		vreg_l26a_1p2: l26 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l28_3p0: l28 {
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 		};
+
 		vreg_lvs1a_1p8: lvs1 { };
+
 		vreg_lvs2a_1p8: lvs2 { };
 	};
 
-	pmi8998-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pmi8998-regulators";
 
 		vdd_bob-supply = <&vph_pwr>;
@@ -565,14 +591,14 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
-	mdp_vsync_n: mdp-vsync-n {
+	mdp_vsync_n: mdp-vsync-n-state {
 		pins = "gpio10";
 		function = "mdp_vsync_a";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	nfc_ven: nfc-ven {
+	nfc_ven: nfc-ven-state {
 		pins = "gpio12";
 		function = "gpio";
 		bias-disable;
@@ -580,42 +606,42 @@
 		output-low;
 	};
 
-	msm_mclk0_default: msm-mclk0-active {
+	msm_mclk0_default: msm-mclk0-active-state {
 		pins = "gpio13";
 		function = "cam_mclk";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	msm_mclk1_default: msm-mclk1-active {
+	msm_mclk1_default: msm-mclk1-active-state {
 		pins = "gpio14";
 		function = "cam_mclk";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	cci0_default: cci0-default {
+	cci0_default: cci0-default-state {
 		pins = "gpio18", "gpio19";
 		function = "cci_i2c";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	cci1_default: cci1-default {
+	cci1_default: cci1-default-state {
 		pins = "gpio19", "gpio20";
 		function = "cci_i2c";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	cam0_vdig_default: cam0-vdig-default {
+	cam0_vdig_default: cam0-vdig-default-state {
 		pins = "gpio21";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	tof_int: tof-int {
+	tof_int: tof-int-state {
 		pins = "gpio22";
 		function = "gpio";
 		bias-pull-up;
@@ -623,28 +649,28 @@
 		input-enable;
 	};
 
-	cam1_vdig_default: cam1-vdig-default {
+	cam1_vdig_default: cam1-vdig-default-state {
 		pins = "gpio25";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	usb_extcon_active: usb-extcon-active {
+	usb_extcon_active: usb-extcon-active-state {
 		pins = "gpio38";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <16>;
 	};
 
-	tof_reset: tof-reset {
+	tof_reset: tof-reset-state {
 		pins = "gpio27";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	hall_sensor0_default: acc-cover-open {
+	hall_sensor0_default: acc-cover-open-state {
 		pins = "gpio124";
 		function = "gpio";
 		bias-disable;
@@ -652,14 +678,14 @@
 		input-enable;
 	};
 
-	ts_int_n: ts-int-n {
+	ts_int_n: ts-int-n-state {
 		pins = "gpio125";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
 	};
 
-	usb_vbus_active: usb-vbus-active {
+	usb_vbus_active: usb-vbus-active-state {
 		pins = "gpio128";
 		function = "gpio";
 		bias-disable;
@@ -667,7 +693,7 @@
 		output-low;
 	};
 
-	ts_vddio_en: ts-vddio-en-default {
+	ts_vddio_en: ts-vddio-en-default-state {
 		pins = "gpio133";
 		function = "gpio";
 		bias-disable;

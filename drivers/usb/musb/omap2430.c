@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
@@ -310,6 +311,7 @@ static int omap2430_probe(struct platform_device *pdev)
 	struct device_node		*control_node;
 	struct platform_device		*control_pdev;
 	int				ret = -ENOMEM, val;
+	bool				populate_irqs = false;
 
 	if (!np)
 		return -ENODEV;
@@ -327,6 +329,18 @@ static int omap2430_probe(struct platform_device *pdev)
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
+
+	/*
+	 * Legacy SoCs using omap_device get confused if node is moved
+	 * because of interconnect properties mixed into the node.
+	 */
+	if (of_get_property(np, "ti,hwmods", NULL)) {
+		dev_warn(&pdev->dev, "please update to probe with ti-sysc\n");
+		populate_irqs = true;
+	} else {
+		device_set_of_node_from_dev(&musb->dev, &pdev->dev);
+	}
+	of_node_put(np);
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
@@ -387,6 +401,48 @@ static int omap2430_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
 		goto err2;
+	}
+
+	if (populate_irqs) {
+		struct resource musb_res[3];
+		struct resource *res;
+		int i = 0;
+
+		memset(musb_res, 0, sizeof(*musb_res) * ARRAY_SIZE(musb_res));
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res) {
+			ret = -EINVAL;
+			goto err2;
+		}
+
+		musb_res[i].start = res->start;
+		musb_res[i].end = res->end;
+		musb_res[i].flags = res->flags;
+		musb_res[i].name = res->name;
+		i++;
+
+		ret = of_irq_get_byname(np, "mc");
+		if (ret > 0) {
+			musb_res[i].start = ret;
+			musb_res[i].flags = IORESOURCE_IRQ;
+			musb_res[i].name = "mc";
+			i++;
+		}
+
+		ret = of_irq_get_byname(np, "dma");
+		if (ret > 0) {
+			musb_res[i].start = ret;
+			musb_res[i].flags = IORESOURCE_IRQ;
+			musb_res[i].name = "dma";
+			i++;
+		}
+
+		ret = platform_device_add_resources(musb, musb_res, i);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add IRQ resources\n");
+			goto err2;
+		}
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));

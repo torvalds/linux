@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/usb/nvidia,tegra-xudc.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Device tree binding for NVIDIA Tegra XUSB device mode controller (XUDC)
+title: NVIDIA Tegra XUSB device mode controller (XUDC)
 
 description:
   The Tegra XUDC controller supports both USB 2.0 HighSpeed/FullSpeed and
@@ -22,6 +22,7 @@ properties:
           - nvidia,tegra210-xudc # For Tegra210
           - nvidia,tegra186-xudc # For Tegra186
           - nvidia,tegra194-xudc # For Tegra194
+          - nvidia,tegra234-xudc # For Tegra234
 
   reg:
     minItems: 2
@@ -112,6 +113,8 @@ properties:
   hvdd-usb-supply:
     description: USB controller power supply. Must supply 3.3 V.
 
+  dma-coherent: true
+
 required:
   - compatible
   - reg
@@ -153,6 +156,7 @@ allOf:
             enum:
               - nvidia,tegra186-xudc
               - nvidia,tegra194-xudc
+              - nvidia,tegra234-xudc
     then:
       properties:
         reg:
@@ -163,6 +167,17 @@ allOf:
           maxItems: 4
         clock-names:
           maxItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra194-xudc
+              - nvidia,tegra234-xudc
+    then:
+      required:
+        - dma-coherent
 
 additionalProperties: false
 

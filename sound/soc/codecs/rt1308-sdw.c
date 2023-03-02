@@ -17,6 +17,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/sdw.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
@@ -195,6 +196,17 @@ static void rt1308_apply_calib_params(struct rt1308_sdw_priv *rt1308)
 		efuse_m_btl_l, efuse_m_btl_r);
 	dev_dbg(&rt1308->sdw_slave->dev, "%s c_btl_l=0x%x, c_btl_r=0x%x\n", __func__,
 		efuse_c_btl_l, efuse_c_btl_r);
+}
+
+static void rt1308_apply_bq_params(struct rt1308_sdw_priv *rt1308)
+{
+	unsigned int i, reg, data;
+
+	for (i = 0; i < rt1308->bq_params_cnt; i += 3) {
+		reg = rt1308->bq_params[i] | (rt1308->bq_params[i + 1] << 8);
+		data = rt1308->bq_params[i + 2];
+		regmap_write(rt1308->regmap, reg, data);
+	}
 }
 
 static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
@@ -496,10 +508,7 @@ static int rt1308_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 	stream->sdw_stream = sdw_stream;
 
 	/* Use tx_mask or rx_mask to configure stream tag and set dma_data */
-	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
-		dai->playback_dma_data = stream;
-	else
-		dai->capture_dma_data = stream;
+	snd_soc_dai_dma_data_set(dai, direction, stream);
 
 	return 0;
 }
@@ -542,11 +551,10 @@ static int rt1308_sdw_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct rt1308_sdw_priv *rt1308 =
 		snd_soc_component_get_drvdata(component);
-	struct sdw_stream_config stream_config;
-	struct sdw_port_config port_config;
-	enum sdw_data_direction direction;
+	struct sdw_stream_config stream_config = {0};
+	struct sdw_port_config port_config = {0};
 	struct sdw_stream_data *stream;
-	int retval, port, num_channels, ch_mask;
+	int retval;
 
 	dev_dbg(dai->dev, "%s %s", __func__, dai->name);
 	stream = snd_soc_dai_get_dma_data(dai, substream);
@@ -558,29 +566,18 @@ static int rt1308_sdw_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	/* SoundWire specific configuration */
+	snd_sdw_params_to_config(substream, params, &stream_config, &port_config);
+
 	/* port 1 for playback */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		direction = SDW_DATA_DIR_RX;
-		port = 1;
-	} else {
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		port_config.num = 1;
+	else
 		return -EINVAL;
-	}
 
 	if (rt1308->slots) {
-		num_channels = rt1308->slots;
-		ch_mask = rt1308->rx_mask;
-	} else {
-		num_channels = params_channels(params);
-		ch_mask = (1 << num_channels) - 1;
+		stream_config.ch_count = rt1308->slots;
+		port_config.ch_mask = rt1308->rx_mask;
 	}
-
-	stream_config.frame_rate = params_rate(params);
-	stream_config.ch_count = num_channels;
-	stream_config.bps = snd_pcm_format_width(params_format(params));
-	stream_config.direction = direction;
-
-	port_config.ch_mask = ch_mask;
-	port_config.num = port;
 
 	retval = sdw_stream_add_slave(rt1308->sdw_slave, &stream_config,
 				&port_config, 1, stream->sdw_stream);
@@ -619,13 +616,41 @@ static const struct sdw_slave_ops rt1308_slave_ops = {
 	.bus_config = rt1308_bus_config,
 };
 
+static int rt1308_sdw_parse_dt(struct rt1308_sdw_priv *rt1308, struct device *dev)
+{
+	int ret = 0;
+
+	device_property_read_u32(dev, "realtek,bq-params-cnt", &rt1308->bq_params_cnt);
+	if (rt1308->bq_params_cnt) {
+		rt1308->bq_params = devm_kzalloc(dev, rt1308->bq_params_cnt, GFP_KERNEL);
+		if (!rt1308->bq_params) {
+			dev_err(dev, "Could not allocate bq_params memory\n");
+			ret = -ENOMEM;
+		} else {
+			ret = device_property_read_u8_array(dev, "realtek,bq-params", rt1308->bq_params, rt1308->bq_params_cnt);
+			if (ret < 0)
+				dev_err(dev, "Could not read list of realtek,bq-params\n");
+		}
+	}
+
+	dev_dbg(dev, "bq_params_cnt=%d\n", rt1308->bq_params_cnt);
+	return ret;
+}
+
 static int rt1308_sdw_component_probe(struct snd_soc_component *component)
 {
+	struct rt1308_sdw_priv *rt1308 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	rt1308->component = component;
+	rt1308_sdw_parse_dt(rt1308, &rt1308->sdw_slave->dev);
 
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
+
+	/* apply BQ params */
+	rt1308_apply_bq_params(rt1308);
 
 	return 0;
 }

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,lpass-wsa-macro.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: LPASS(Low Power Audio Subsystem) VA Macro audio codec DT bindings
+title: LPASS(Low Power Audio Subsystem) VA Macro audio codec
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -27,19 +27,15 @@ properties:
     const: 0
 
   clocks:
-    maxItems: 5
+    minItems: 5
+    maxItems: 6
 
   clock-names:
-    items:
-      - const: mclk
-      - const: npl
-      - const: macro
-      - const: dcodec
-      - const: fsgen
+    minItems: 5
+    maxItems: 6
 
   clock-output-names:
-    items:
-      - const: mclk
+    maxItems: 1
 
   qcom,dmic-sample-rate:
     description: dmic sample rate
@@ -53,10 +49,51 @@ required:
   - reg
   - "#sound-dai-cells"
 
-additionalProperties: false
+allOf:
+  - $ref: dai-common.yaml#
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sc7280-lpass-wsa-macro
+            - qcom,sm8450-lpass-wsa-macro
+            - qcom,sc8280xp-lpass-wsa-macro
+    then:
+      properties:
+        clocks:
+          maxItems: 5
+        clock-names:
+          items:
+            - const: mclk
+            - const: npl
+            - const: macro
+            - const: dcodec
+            - const: fsgen
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sm8250-lpass-wsa-macro
+    then:
+      properties:
+        clocks:
+          minItems: 6
+        clock-names:
+          items:
+            - const: mclk
+            - const: npl
+            - const: macro
+            - const: dcodec
+            - const: va
+            - const: fsgen
+
+unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/qcom,sm8250-lpass-aoncc.h>
     #include <dt-bindings/sound/qcom,q6afe.h>
     codec@3240000 {
       compatible = "qcom,sm8250-lpass-wsa-macro";
@@ -67,7 +104,8 @@ examples:
                <&audiocc 0>,
                <&q6afecc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
                <&q6afecc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+               <&aoncc LPASS_CDC_VA_MCLK>,
                <&vamacro>;
-      clock-names = "mclk", "npl", "macro", "dcodec", "fsgen";
+      clock-names = "mclk", "npl", "macro", "dcodec", "va", "fsgen";
       clock-output-names = "mclk";
     };

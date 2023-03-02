@@ -31,9 +31,6 @@ properties:
       - const: core
       - const: aon
 
-  "#address-cells": true
-  "#size-cells": true
-
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
@@ -139,85 +136,85 @@ examples:
   - |
     #include <dt-bindings/clock/qcom,gcc-ipq806x.h>
     nand-controller@1ac00000 {
-      compatible = "qcom,ipq806x-nand";
-      reg = <0x1ac00000 0x800>;
+        compatible = "qcom,ipq806x-nand";
+        reg = <0x1ac00000 0x800>;
 
-      clocks = <&gcc EBI2_CLK>,
-               <&gcc EBI2_AON_CLK>;
-      clock-names = "core", "aon";
+        clocks = <&gcc EBI2_CLK>,
+                 <&gcc EBI2_AON_CLK>;
+        clock-names = "core", "aon";
 
-      dmas = <&adm_dma 3>;
-      dma-names = "rxtx";
-      qcom,cmd-crci = <15>;
-      qcom,data-crci = <3>;
+        dmas = <&adm_dma 3>;
+        dma-names = "rxtx";
+        qcom,cmd-crci = <15>;
+        qcom,data-crci = <3>;
 
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      nand@0 {
-        reg = <0>;
+        nand@0 {
+            reg = <0>;
 
-        nand-ecc-strength = <4>;
-        nand-bus-width = <8>;
+            nand-ecc-strength = <4>;
+            nand-bus-width = <8>;
 
-        qcom,boot-partitions = <0x0 0x58a0000>;
+            qcom,boot-partitions = <0x0 0x58a0000>;
 
-        partitions {
-          compatible = "fixed-partitions";
-          #address-cells = <1>;
-          #size-cells = <1>;
+            partitions {
+                compatible = "fixed-partitions";
+                #address-cells = <1>;
+                #size-cells = <1>;
 
-          partition@0 {
-            label = "boot-nand";
-            reg = <0 0x58a0000>;
-          };
+                partition@0 {
+                    label = "boot-nand";
+                    reg = <0 0x58a0000>;
+                };
 
-          partition@58a0000 {
-            label = "fs-nand";
-            reg = <0x58a0000 0x4000000>;
-          };
+                partition@58a0000 {
+                    label = "fs-nand";
+                    reg = <0x58a0000 0x4000000>;
+                };
+            };
         };
-      };
     };
 
     #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
     nand-controller@79b0000 {
-      compatible = "qcom,ipq4019-nand";
-      reg = <0x79b0000 0x1000>;
+        compatible = "qcom,ipq4019-nand";
+        reg = <0x79b0000 0x1000>;
 
-      clocks = <&gcc GCC_QPIC_CLK>,
-               <&gcc GCC_QPIC_AHB_CLK>;
-      clock-names = "core", "aon";
+        clocks = <&gcc GCC_QPIC_CLK>,
+                 <&gcc GCC_QPIC_AHB_CLK>;
+        clock-names = "core", "aon";
 
-      dmas = <&qpicbam 0>,
-             <&qpicbam 1>,
-             <&qpicbam 2>;
-      dma-names = "tx", "rx", "cmd";
+        dmas = <&qpicbam 0>,
+               <&qpicbam 1>,
+               <&qpicbam 2>;
+        dma-names = "tx", "rx", "cmd";
 
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      nand@0 {
-        reg = <0>;
-        nand-ecc-strength = <4>;
-        nand-bus-width = <8>;
+        nand@0 {
+            reg = <0>;
+            nand-ecc-strength = <4>;
+            nand-bus-width = <8>;
 
-        partitions {
-          compatible = "fixed-partitions";
-          #address-cells = <1>;
-          #size-cells = <1>;
+            partitions {
+                compatible = "fixed-partitions";
+                #address-cells = <1>;
+                #size-cells = <1>;
 
-          partition@0 {
-            label = "boot-nand";
-            reg = <0 0x58a0000>;
-          };
+                partition@0 {
+                    label = "boot-nand";
+                    reg = <0 0x58a0000>;
+                };
 
-          partition@58a0000 {
-            label = "fs-nand";
-            reg = <0x58a0000 0x4000000>;
-          };
+                partition@58a0000 {
+                    label = "fs-nand";
+                    reg = <0x58a0000 0x4000000>;
+                };
+            };
         };
-      };
     };
 
 ...

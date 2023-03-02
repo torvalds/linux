@@ -88,8 +88,8 @@ int subsys_virtual_register(struct bus_type *subsys,
 struct device_type {
 	const char *name;
 	const struct attribute_group **groups;
-	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, umode_t *mode,
+	int (*uevent)(const struct device *dev, struct kobj_uevent_env *env);
+	char *(*devnode)(const struct device *dev, umode_t *mode,
 			 kuid_t *uid, kgid_t *gid);
 	void (*release)(struct device *dev);
 
@@ -197,9 +197,9 @@ void devres_remove_group(struct device *dev, void *id);
 int devres_release_group(struct device *dev, void *id);
 
 /* managed devm_k.alloc/kfree for device drivers */
-void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp) __malloc;
+void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp) __alloc_size(2);
 void *devm_krealloc(struct device *dev, void *ptr, size_t size,
-		    gfp_t gfp) __must_check;
+		    gfp_t gfp) __must_check __realloc_size(3);
 __printf(3, 0) char *devm_kvasprintf(struct device *dev, gfp_t gfp,
 				     const char *fmt, va_list ap) __malloc;
 __printf(3, 4) char *devm_kasprintf(struct device *dev, gfp_t gfp,
@@ -226,7 +226,8 @@ static inline void *devm_kcalloc(struct device *dev,
 void devm_kfree(struct device *dev, const void *p);
 char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
 const char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp);
-void *devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp);
+void *devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp)
+	__realloc_size(3);
 
 unsigned long devm_get_free_pages(struct device *dev,
 				  gfp_t gfp_mask, unsigned int order);
@@ -327,6 +328,7 @@ enum device_link_state {
 #define DL_FLAG_MANAGED			BIT(6)
 #define DL_FLAG_SYNC_STATE_ONLY		BIT(7)
 #define DL_FLAG_INFERRED		BIT(8)
+#define DL_FLAG_CYCLE			BIT(9)
 
 /**
  * enum dl_dev_state - Device driver presence tracking information.
@@ -378,10 +380,8 @@ struct dev_links_info {
  * @data:	Pointer to MSI device data
  */
 struct dev_msi_info {
-#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
-	struct irq_domain	*domain;
-#endif
 #ifdef CONFIG_GENERIC_MSI_IRQ
+	struct irq_domain	*domain;
 	struct msi_device_data	*data;
 #endif
 };
@@ -680,10 +680,7 @@ struct device_link {
 	bool supplier_preactivated; /* Owned by consumer probe. */
 };
 
-static inline struct device *kobj_to_dev(struct kobject *kobj)
-{
-	return container_of(kobj, struct device, kobj);
-}
+#define kobj_to_dev(__kobj)	container_of_const(__kobj, struct device, kobj)
 
 /**
  * device_iommu_mapped - Returns true when the device DMA is translated
@@ -742,7 +739,7 @@ static inline void set_dev_node(struct device *dev, int node)
 
 static inline struct irq_domain *dev_get_msi_domain(const struct device *dev)
 {
-#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+#ifdef CONFIG_GENERIC_MSI_IRQ
 	return dev->msi.domain;
 #else
 	return NULL;
@@ -751,7 +748,7 @@ static inline struct irq_domain *dev_get_msi_domain(const struct device *dev)
 
 static inline void dev_set_msi_domain(struct device *dev, struct irq_domain *d)
 {
-#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+#ifdef CONFIG_GENERIC_MSI_IRQ
 	dev->msi.domain = d;
 #endif
 }
@@ -911,8 +908,6 @@ int device_rename(struct device *dev, const char *new_name);
 int device_move(struct device *dev, struct device *new_parent,
 		enum dpm_order dpm_order);
 int device_change_owner(struct device *dev, kuid_t kuid, kgid_t kgid);
-const char *device_get_devnode(struct device *dev, umode_t *mode, kuid_t *uid,
-			       kgid_t *gid, const char **tmp);
 int device_is_dependent(struct device *dev, void *target);
 
 static inline bool device_supports_offline(struct device *dev)
@@ -1046,12 +1041,8 @@ static inline void device_remove_group(struct device *dev,
 
 int __must_check devm_device_add_groups(struct device *dev,
 					const struct attribute_group **groups);
-void devm_device_remove_groups(struct device *dev,
-			       const struct attribute_group **groups);
 int __must_check devm_device_add_group(struct device *dev,
 				       const struct attribute_group *grp);
-void devm_device_remove_group(struct device *dev,
-			      const struct attribute_group *grp);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say

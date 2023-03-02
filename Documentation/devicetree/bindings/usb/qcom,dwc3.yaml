@@ -39,6 +39,7 @@ properties:
           - qcom,sm8250-dwc3
           - qcom,sm8350-dwc3
           - qcom,sm8450-dwc3
+          - qcom,sm8550-dwc3
       - const: qcom,dwc3
 
   reg:
@@ -55,6 +56,9 @@ properties:
 
   power-domains:
     description: specifies a phandle to PM domain provider node
+    maxItems: 1
+
+  required-opps:
     maxItems: 1
 
   clocks:
@@ -301,6 +305,7 @@ allOf:
               - qcom,sm8150-dwc3
               - qcom,sm8250-dwc3
               - qcom,sm8450-dwc3
+              - qcom,sm8550-dwc3
     then:
       properties:
         clocks:
@@ -358,6 +363,7 @@ allOf:
               - qcom,sm8250-dwc3
               - qcom,sm8350-dwc3
               - qcom,sm8450-dwc3
+              - qcom,sm8550-dwc3
     then:
       properties:
         interrupts:

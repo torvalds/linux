@@ -25,9 +25,11 @@
 
 #include <media/v4l2-event.h>
 #include <media/v4l2-mediabus.h>
+#include <media/videobuf2-vmalloc.h>
 #include "atomisp_cmd.h"
 #include "atomisp_common.h"
 #include "atomisp_compat.h"
+#include "atomisp_fops.h"
 #include "atomisp_internal.h"
 
 const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[] = {
@@ -574,40 +576,6 @@ static int isp_subdev_set_selection(struct v4l2_subdev *sd,
 					    sel->target, sel->flags, &sel->r);
 }
 
-static int atomisp_get_sensor_bin_factor(struct atomisp_sub_device *asd)
-{
-	struct v4l2_control ctrl = {0};
-	struct atomisp_device *isp = asd->isp;
-	int hbin, vbin;
-	int ret;
-
-	if (isp->inputs[asd->input_curr].type == FILE_INPUT ||
-	    isp->inputs[asd->input_curr].type == TEST_PATTERN)
-		return 0;
-
-	ctrl.id = V4L2_CID_BIN_FACTOR_HORZ;
-	ret =
-	    v4l2_g_ctrl(isp->inputs[asd->input_curr].camera->ctrl_handler,
-			&ctrl);
-	hbin = ctrl.value;
-	ctrl.id = V4L2_CID_BIN_FACTOR_VERT;
-	ret |=
-	    v4l2_g_ctrl(isp->inputs[asd->input_curr].camera->ctrl_handler,
-			&ctrl);
-	vbin = ctrl.value;
-
-	/*
-	 * ISP needs to know binning factor from sensor.
-	 * In case horizontal and vertical sensor's binning factors
-	 * are different or sensor does not support binning factor CID,
-	 * ISP will apply default 0 value.
-	 */
-	if (ret || hbin != vbin)
-		hbin = 0;
-
-	return hbin;
-}
-
 void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state,
 			     uint32_t which,
@@ -645,7 +613,7 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 							 ATOMISP_INPUT_STREAM_GENERAL, ffmt);
 			atomisp_css_input_set_binning_factor(isp_sd,
 							     ATOMISP_INPUT_STREAM_GENERAL,
-							     atomisp_get_sensor_bin_factor(isp_sd));
+							     0);
 			atomisp_css_input_set_bayer_order(isp_sd, ATOMISP_INPUT_STREAM_GENERAL,
 							  fc->bayer_order);
 			atomisp_css_input_set_format(isp_sd, ATOMISP_INPUT_STREAM_GENERAL,
@@ -746,85 +714,8 @@ static void isp_subdev_init_params(struct atomisp_sub_device *asd)
 	}
 }
 
-/*
-* isp_subdev_link_setup - Setup isp subdev connections
-* @entity: ispsubdev media entity
-* @local: Pad at the local end of the link
-* @remote: Pad at the remote end of the link
-* @flags: Link flags
-*
-* return -EINVAL or zero on success
-*/
-static int isp_subdev_link_setup(struct media_entity *entity,
-				 const struct media_pad *local,
-				 const struct media_pad *remote, u32 flags)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
-	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
-	struct atomisp_device *isp = isp_sd->isp;
-	unsigned int i;
-
-	switch (local->index | is_media_entity_v4l2_subdev(remote->entity)) {
-	case ATOMISP_SUBDEV_PAD_SINK | MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN:
-		/* Read from the sensor CSI2-ports. */
-		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
-			isp_sd->input = ATOMISP_SUBDEV_INPUT_NONE;
-			break;
-		}
-
-		if (isp_sd->input != ATOMISP_SUBDEV_INPUT_NONE)
-			return -EBUSY;
-
-		for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
-			if (remote->entity != &isp->csi2_port[i].subdev.entity)
-				continue;
-
-			isp_sd->input = ATOMISP_SUBDEV_INPUT_CSI2_PORT1 + i;
-			return 0;
-		}
-
-		return -EINVAL;
-
-	case ATOMISP_SUBDEV_PAD_SINK | MEDIA_ENT_F_OLD_BASE:
-		/* read from memory */
-		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (isp_sd->input >= ATOMISP_SUBDEV_INPUT_CSI2_PORT1 &&
-			    isp_sd->input < (ATOMISP_SUBDEV_INPUT_CSI2_PORT1
-					     + ATOMISP_CAMERA_NR_PORTS))
-				return -EBUSY;
-			isp_sd->input = ATOMISP_SUBDEV_INPUT_MEMORY;
-		} else {
-			if (isp_sd->input == ATOMISP_SUBDEV_INPUT_MEMORY)
-				isp_sd->input = ATOMISP_SUBDEV_INPUT_NONE;
-		}
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_VF | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO | MEDIA_ENT_F_OLD_BASE:
-		/* always write to memory */
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* media operations */
 static const struct media_entity_operations isp_subdev_media_ops = {
-	.link_setup = isp_subdev_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
 	/*	 .set_power = v4l2_subdev_set_power,	*/
 };
@@ -1057,21 +948,37 @@ static const struct v4l2_ctrl_config ctrl_depth_mode = {
 	.def = 0,
 };
 
-static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
-				     struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
+static int atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
+				    struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
 {
+	int ret;
+
 	pipe->type = buf_type;
 	pipe->asd = asd;
 	pipe->isp = asd->isp;
 	spin_lock_init(&pipe->irq_lock);
+	mutex_init(&pipe->vb_queue_mutex);
+
+	/* Init videobuf2 queue structure */
+	pipe->vb_queue.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	pipe->vb_queue.io_modes = VB2_MMAP | VB2_USERPTR;
+	pipe->vb_queue.buf_struct_size = sizeof(struct ia_css_frame);
+	pipe->vb_queue.ops = &atomisp_vb2_ops;
+	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;
+	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	ret = vb2_queue_init(&pipe->vb_queue);
+	if (ret)
+		return ret;
+
+	pipe->vdev.queue = &pipe->vb_queue;
+	pipe->vdev.queue->lock = &pipe->vb_queue_mutex;
+
+	INIT_LIST_HEAD(&pipe->buffers_in_css);
 	INIT_LIST_HEAD(&pipe->activeq);
 	INIT_LIST_HEAD(&pipe->buffers_waiting_for_param);
 	INIT_LIST_HEAD(&pipe->per_frame_params);
-	memset(pipe->frame_request_config_id,
-	       0, VIDEO_MAX_FRAME * sizeof(unsigned int));
-	memset(pipe->frame_params,
-	       0, VIDEO_MAX_FRAME *
-	       sizeof(struct atomisp_css_params_with_list *));
+
+	return 0;
 }
 
 /*
@@ -1086,8 +993,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	struct media_pad *pads = asd->pads;
 	struct media_entity *me = &sd->entity;
 	int ret;
-
-	asd->input = ATOMISP_SUBDEV_INPUT_NONE;
 
 	v4l2_subdev_init(sd, &isp_subdev_v4l2_ops);
 	sprintf(sd->name, "ATOMISP_SUBDEV_%d", asd->index);
@@ -1112,22 +1017,30 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	    MEDIA_BUS_FMT_SBGGR10_1X10;
 
 	me->ops = &isp_subdev_media_ops;
-	me->function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
+	me->function = MEDIA_ENT_F_PROC_VIDEO_ISP;
 	ret = media_entity_pads_init(me, ATOMISP_SUBDEV_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_preview,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_preview,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_vf,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_vf,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_capture,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_capture,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_out_video_capture,
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	ret = atomisp_init_subdev_pipe(asd, &asd->video_out_video_capture,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (ret)
+		return ret;
 
 	ret = atomisp_video_init(&asd->video_out_capture, "CAPTURE",
 				 ATOMISP_RUN_MODE_STILL_CAPTURE);

@@ -140,7 +140,6 @@ enum WIFI_REG_DOMAIN {
 #define _PWRMGT_	BIT(12)
 #define _MORE_DATA_	BIT(13)
 #define _PRIVACY_	BIT(14)
-#define _ORDER_		BIT(15)
 
 #define SetToDs(pbuf)	\
 	*(__le16 *)(pbuf) |= cpu_to_le16(_TO_DS_)
@@ -171,9 +170,6 @@ enum WIFI_REG_DOMAIN {
 #define SetPrivacy(pbuf)	\
 	*(__le16 *)(pbuf) |= cpu_to_le16(_PRIVACY_)
 
-#define GetPrivacy(pbuf)					\
-	(((*(__le16 *)(pbuf)) & cpu_to_le16(_PRIVACY_)) != 0)
-
 #define GetFrameType(pbuf)				\
 	(le16_to_cpu(*(__le16 *)(pbuf)) & (BIT(3) | BIT(2)))
 
@@ -185,17 +181,6 @@ enum WIFI_REG_DOMAIN {
 		*(__le16 *)(pbuf) &= cpu_to_le16(~(BIT(7) | BIT(6) |	\
 		 BIT(5) | BIT(4) | BIT(3) | BIT(2))); \
 		*(__le16 *)(pbuf) |= cpu_to_le16(type); \
-	} while (0)
-
-#define GetTupleCache(pbuf)			\
-	(cpu_to_le16(*(unsigned short *)((size_t)(pbuf) + 22)))
-
-#define SetFragNum(pbuf, num) \
-	do {    \
-		*(unsigned short *)((size_t)(pbuf) + 22) = \
-			((*(unsigned short *)((size_t)(pbuf) + 22)) &	\
-			le16_to_cpu(~(0x000f))) | \
-			cpu_to_le16(0x0f & (num));     \
 	} while (0)
 
 #define SetSeqNum(pbuf, num) \
@@ -221,13 +206,6 @@ enum WIFI_REG_DOMAIN {
 
 #define GetAMsdu(pbuf) (((le16_to_cpu(*(__le16 *)pbuf)) >> 7) & 0x1)
 
-#define SetAMsdu(pbuf, amsdu)	\
-	*(__le16 *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7)
-
-#define GetTid(pbuf)	(le16_to_cpu(*(__le16 *)((size_t)(pbuf) +	\
-			(((GetToDs(pbuf)<<1) | GetFrDs(pbuf)) == 3 ?	\
-			30 : 24))) & 0x000f)
-
 #define GetAddr1Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 4))
 
 #define GetAddr2Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 10))
@@ -235,33 +213,6 @@ enum WIFI_REG_DOMAIN {
 #define GetAddr3Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 16))
 
 #define GetAddr4Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 24))
-
-static inline bool IS_MCAST(unsigned char *da)
-{
-	return (*da) & 0x01;
-}
-
-static inline unsigned char *get_da(unsigned char *pframe)
-{
-	unsigned char	*da;
-	unsigned int to_fr_ds = (GetToDs(pframe) << 1) | GetFrDs(pframe);
-
-	switch (to_fr_ds) {
-	case 0x00:	/*  ToDs=0, FromDs=0 */
-		da = GetAddr1Ptr(pframe);
-		break;
-	case 0x01:	/*  ToDs=0, FromDs=1 */
-		da = GetAddr1Ptr(pframe);
-		break;
-	case 0x02:	/*  ToDs=1, FromDs=0 */
-		da = GetAddr3Ptr(pframe);
-		break;
-	default:	/*  ToDs=1, FromDs=1 */
-		da = GetAddr3Ptr(pframe);
-		break;
-	}
-	return da;
-}
 
 static inline unsigned char *get_sa(unsigned char *pframe)
 {
@@ -415,14 +366,6 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
 
-#define SetOrderBit(pbuf)	\
-	do	{	\
-		*(unsigned short *)(pbuf) |= cpu_to_le16(_ORDER_); \
-	} while (0)
-
-#define GetOrderBit(pbuf)			\
-	(((*(unsigned short *)(pbuf)) & le16_to_cpu(_ORDER_)) != 0)
-
 /**
  * struct rtw_ieee80211_bar - HT Block Ack Request
  *
@@ -482,14 +425,6 @@ struct WMM_para_element {
 	unsigned char		QoS_info;
 	unsigned char		reserved;
 	struct AC_param	ac_param[4];
-} __packed;
-
-struct ADDBA_request {
-	unsigned char	action_code;
-	unsigned char	dialog_token;
-	__le16	BA_para_set;
-	__le16	BA_timeout_value;
-	__le16	BA_starting_seqctrl;
 } __packed;
 
 #define MAX_AMPDU_FACTOR_64K	3
@@ -701,7 +636,7 @@ struct ADDBA_request {
 
 #define	P2P_WILDCARD_SSID_LEN			7
 
-/* default value, used when: (1)p2p disabed or (2)p2p enabled
+/* default value, used when: (1)p2p disabled or (2)p2p enabled
  * but only do 1 scan phase */
 #define	P2P_FINDPHASE_EX_NONE		0
 /*  used when p2p enabled and want to do 1 scan phase and
@@ -766,11 +701,11 @@ enum P2P_STATE {
 	P2P_STATE_TX_PROVISION_DIS_REQ = 6,
 	P2P_STATE_RX_PROVISION_DIS_RSP = 7,
 	P2P_STATE_RX_PROVISION_DIS_REQ = 8,
-	/* Doing the group owner negoitation handshake */
+	/* Doing the group owner negotiation handshake */
 	P2P_STATE_GONEGO_ING = 9,
-	/* finish the group negoitation handshake with success */
+	/* finish the group negotiation handshake with success */
 	P2P_STATE_GONEGO_OK = 10,
-	/* finish the group negoitation handshake with failure */
+	/* finish the group negotiation handshake with failure */
 	P2P_STATE_GONEGO_FAIL = 11,
 	/* receiving the P2P Inviation request and match with the profile. */
 	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,
@@ -790,9 +725,9 @@ enum P2P_STATE {
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,
 	/* recveing the P2P Inviation response with failure */
 	P2P_STATE_RX_INVITE_RESP_FAIL = 20,
-	/* receiving p2p negoitation response with information is not available */
+	/* receiving p2p negotiation response with information is not available */
 	P2P_STATE_RX_INFOR_NOREADY = 21,
-	/* sending p2p negoitation response with information is not available */
+	/* sending p2p negotiation response with information is not available */
 	P2P_STATE_TX_INFOR_NOREADY = 22,
 };
 

@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -345,7 +346,7 @@ static long cifs_fallocate(struct file *file, int mode, loff_t off, loff_t len)
 	return -EOPNOTSUPP;
 }
 
-static int cifs_permission(struct user_namespace *mnt_userns,
+static int cifs_permission(struct mnt_idmap *idmap,
 			   struct inode *inode, int mask)
 {
 	struct cifs_sb_info *cifs_sb;
@@ -361,7 +362,7 @@ static int cifs_permission(struct user_namespace *mnt_userns,
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
-		return generic_permission(&init_user_ns, inode, mask);
+		return generic_permission(&nop_mnt_idmap, inode, mask);
 }
 
 static struct kmem_cache *cifs_inode_cachep;
@@ -678,9 +679,15 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	seq_printf(s, ",echo_interval=%lu",
 			tcon->ses->server->echo_interval / HZ);
 
-	/* Only display max_credits if it was overridden on mount */
+	/* Only display the following if overridden on mount */
 	if (tcon->ses->server->max_credits != SMB2_MAX_CREDITS_AVAILABLE)
 		seq_printf(s, ",max_credits=%u", tcon->ses->server->max_credits);
+	if (tcon->ses->server->tcp_nodelay)
+		seq_puts(s, ",tcpnodelay");
+	if (tcon->ses->server->noautotune)
+		seq_puts(s, ",noautotune");
+	if (tcon->ses->server->noblocksnd)
+		seq_puts(s, ",noblocksend");
 
 	if (tcon->snapshot_time)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
@@ -885,12 +892,6 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 	rc = smb3_fs_context_dup(cifs_sb->ctx, old_ctx);
-	if (rc) {
-		root = ERR_PTR(rc);
-		goto out;
-	}
-
-	rc = cifs_setup_volume_info(cifs_sb->ctx, NULL, NULL);
 	if (rc) {
 		root = ERR_PTR(rc);
 		goto out;
@@ -1133,6 +1134,8 @@ const struct inode_operations cifs_dir_inode_ops = {
 	.symlink = cifs_symlink,
 	.mknod   = cifs_mknod,
 	.listxattr = cifs_listxattr,
+	.get_acl = cifs_get_acl,
+	.set_acl = cifs_set_acl,
 };
 
 const struct inode_operations cifs_file_inode_ops = {
@@ -1141,10 +1144,36 @@ const struct inode_operations cifs_file_inode_ops = {
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
 	.fiemap = cifs_fiemap,
+	.get_acl = cifs_get_acl,
+	.set_acl = cifs_set_acl,
 };
 
+const char *cifs_get_link(struct dentry *dentry, struct inode *inode,
+			    struct delayed_call *done)
+{
+	char *target_path;
+
+	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!target_path)
+		return ERR_PTR(-ENOMEM);
+
+	spin_lock(&inode->i_lock);
+	if (likely(CIFS_I(inode)->symlink_target)) {
+		strscpy(target_path, CIFS_I(inode)->symlink_target, PATH_MAX);
+	} else {
+		kfree(target_path);
+		target_path = ERR_PTR(-EOPNOTSUPP);
+	}
+	spin_unlock(&inode->i_lock);
+
+	if (!IS_ERR(target_path))
+		set_delayed_call(done, kfree_link, target_path);
+
+	return target_path;
+}
+
 const struct inode_operations cifs_symlink_inode_ops = {
-	.get_link = simple_get_link,
+	.get_link = cifs_get_link,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
 };
@@ -1257,7 +1286,7 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	rc = filemap_write_and_wait_range(src_inode->i_mapping, off,
 					  off + len - 1);
 	if (rc)
-		goto out;
+		goto unlock;
 
 	/* should we flush first and last page first */
 	truncate_inode_pages(&target_inode->i_data, 0);
@@ -1273,6 +1302,8 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	 * that target is updated on the server
 	 */
 	CIFS_I(target_inode)->time = 0;
+
+unlock:
 	/* although unlocking in the reverse order from locking is not
 	 * strictly necessary here it is a little cleaner to be consistent
 	 */
@@ -1328,7 +1359,7 @@ const struct file_operations cifs_file_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = cifs_splice_read,
 	.splice_write = iter_file_splice_write,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
@@ -1348,7 +1379,7 @@ const struct file_operations cifs_file_strict_ops = {
 	.fsync = cifs_strict_fsync,
 	.flush = cifs_flush,
 	.mmap = cifs_file_strict_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = cifs_splice_read,
 	.splice_write = iter_file_splice_write,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
@@ -1368,7 +1399,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap = cifs_file_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = direct_splice_read,
 	.splice_write = iter_file_splice_write,
 	.unlocked_ioctl  = cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
@@ -1386,7 +1417,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = cifs_splice_read,
 	.splice_write = iter_file_splice_write,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
@@ -1404,7 +1435,7 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 	.fsync = cifs_strict_fsync,
 	.flush = cifs_flush,
 	.mmap = cifs_file_strict_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = cifs_splice_read,
 	.splice_write = iter_file_splice_write,
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
@@ -1422,7 +1453,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap = cifs_file_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = direct_splice_read,
 	.splice_write = iter_file_splice_write,
 	.unlocked_ioctl  = cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,

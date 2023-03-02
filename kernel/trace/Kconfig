@@ -42,14 +42,17 @@ config HAVE_DYNAMIC_FTRACE_WITH_REGS
 config HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	bool
 
+config HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS
+	bool
+
 config HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	bool
 	help
 	 If this is set, then arguments and stack can be found from
-	 the pt_regs passed into the function callback regs parameter
+	 the ftrace_regs passed into the function callback regs parameter
 	 by default, even without setting the REGS flag in the ftrace_ops.
-	 This allows for use of regs_get_kernel_argument() and
-	 kernel_stack_pointer().
+	 This allows for use of ftrace_regs_get_argument() and
+	 ftrace_regs_get_stack_pointer().
 
 config HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
 	bool
@@ -81,6 +84,13 @@ config HAVE_OBJTOOL_MCOUNT
 	bool
 	help
 	  Arch supports objtool --mcount
+
+config HAVE_OBJTOOL_NOP_MCOUNT
+	bool
+	help
+	  Arch supports the objtool options --mcount with --mnop.
+	  An architecture can select this if it wants to enable nop'ing
+	  of ftrace locations.
 
 config HAVE_C_RECORDMCOUNT
 	bool
@@ -232,7 +242,7 @@ config DYNAMIC_FTRACE
 	  enabled, and the functions not enabled will not affect
 	  performance of the system.
 
-	  See the files in /sys/kernel/debug/tracing:
+	  See the files in /sys/kernel/tracing:
 	    available_filter_functions
 	    set_ftrace_filter
 	    set_ftrace_notrace
@@ -249,6 +259,10 @@ config DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	def_bool y
 	depends on DYNAMIC_FTRACE_WITH_REGS
 	depends on HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+
+config DYNAMIC_FTRACE_WITH_CALL_OPS
+	def_bool y
+	depends on HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS
 
 config DYNAMIC_FTRACE_WITH_ARGS
 	def_bool y
@@ -292,7 +306,7 @@ config STACK_TRACER
 	select KALLSYMS
 	help
 	  This special tracer records the maximum stack footprint of the
-	  kernel and displays it in /sys/kernel/debug/tracing/stack_trace.
+	  kernel and displays it in /sys/kernel/tracing/stack_trace.
 
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and
@@ -332,7 +346,7 @@ config IRQSOFF_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increase with this option
 	  enabled. This option and the preempt-off timing option can be
@@ -356,7 +370,7 @@ config PREEMPT_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increase with this option
 	  enabled. This option and the irqs-off timing option can be
@@ -375,6 +389,7 @@ config SCHED_TRACER
 config HWLAT_TRACER
 	bool "Tracer to detect hardware latencies (like SMIs)"
 	select GENERIC_TRACER
+	select TRACER_MAX_TRACE
 	help
 	 This tracer, when enabled will create one or more kernel threads,
 	 depending on what the cpumask file is set to, which each thread
@@ -410,6 +425,7 @@ config HWLAT_TRACER
 config OSNOISE_TRACER
 	bool "OS Noise tracer"
 	select GENERIC_TRACER
+	select TRACER_MAX_TRACE
 	help
 	  In the context of high-performance computing (HPC), the Operating
 	  System Noise (osnoise) refers to the interference experienced by an
@@ -506,7 +522,7 @@ config TRACER_SNAPSHOT
 	  Allow tracing users to take snapshot of the current buffer using the
 	  ftrace interface, e.g.:
 
-	      echo 1 > /sys/kernel/debug/tracing/snapshot
+	      echo 1 > /sys/kernel/tracing/snapshot
 	      cat snapshot
 
 config TRACER_SNAPSHOT_PER_CPU_SWAP
@@ -518,7 +534,7 @@ config TRACER_SNAPSHOT_PER_CPU_SWAP
 	  full swap (all buffers). If this is set, then the following is
 	  allowed:
 
-	      echo 1 > /sys/kernel/debug/tracing/per_cpu/cpu2/snapshot
+	      echo 1 > /sys/kernel/tracing/per_cpu/cpu2/snapshot
 
 	  After which, only the tracing buffer for CPU 2 was swapped with
 	  the main tracing buffer, and the other CPU buffers remain the same.
@@ -565,7 +581,7 @@ config PROFILE_ANNOTATED_BRANCHES
 	  This tracer profiles all likely and unlikely macros
 	  in the kernel. It will display the results in:
 
-	  /sys/kernel/debug/tracing/trace_stat/branch_annotated
+	  /sys/kernel/tracing/trace_stat/branch_annotated
 
 	  Note: this will add a significant overhead; only turn this
 	  on if you need to profile the system's use of these macros.
@@ -578,7 +594,7 @@ config PROFILE_ALL_BRANCHES
 	  taken in the kernel is recorded whether it hit or miss.
 	  The results will be displayed in:
 
-	  /sys/kernel/debug/tracing/trace_stat/branch_all
+	  /sys/kernel/tracing/trace_stat/branch_all
 
 	  This option also enables the likely/unlikely profiler.
 
@@ -629,8 +645,8 @@ config BLK_DEV_IO_TRACE
 	  Tracing also is possible using the ftrace interface, e.g.:
 
 	    echo 1 > /sys/block/sda/sda1/trace/enable
-	    echo blk > /sys/kernel/debug/tracing/current_tracer
-	    cat /sys/kernel/debug/tracing/trace_pipe
+	    echo blk > /sys/kernel/tracing/current_tracer
+	    cat /sys/kernel/tracing/trace_pipe
 
 	  If unsure, say N.
 
@@ -924,8 +940,8 @@ config RING_BUFFER_RECORD_RECURSION
 	default y
 	help
 	  The ring buffer has its own internal recursion. Although when
-	  recursion happens it wont cause harm because of the protection,
-	  but it does cause an unwanted overhead. Enabling this option will
+	  recursion happens it won't cause harm because of the protection,
+	  but it does cause unwanted overhead. Enabling this option will
 	  place where recursion was detected into the ftrace "recursed_functions"
 	  file.
 
@@ -1008,8 +1024,8 @@ config RING_BUFFER_STARTUP_TEST
 	 The test runs for 10 seconds. This will slow your boot time
 	 by at least 10 more seconds.
 
-	 At the end of the test, statics and more checks are done.
-	 It will output the stats of each per cpu buffer. What
+	 At the end of the test, statistics and more checks are done.
+	 It will output the stats of each per cpu buffer: What
 	 was written, the sizes, what was read, what was lost, and
 	 other similar details.
 

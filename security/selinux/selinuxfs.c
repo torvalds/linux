@@ -262,7 +262,7 @@ static int sel_mmap_handle_status(struct file *filp,
 	if (vma->vm_flags & VM_WRITE)
 		return -EPERM;
 	/* disallow mprotect() turns it into writable */
-	vma->vm_flags &= ~VM_MAYWRITE;
+	vm_flags_clear(vma, VM_MAYWRITE);
 
 	return remap_pfn_range(vma, vma->vm_start,
 			       page_to_pfn(status),
@@ -294,7 +294,7 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	 */
 	pr_err("SELinux:  Runtime disable is deprecated, use selinux=0 on the kernel cmdline.\n");
 	pr_err("SELinux:  https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-runtime-disable\n");
-	ssleep(5);
+	ssleep(15);
 
 	if (count >= PAGE_SIZE)
 		return -ENOMEM;
@@ -506,13 +506,13 @@ static int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & VM_SHARED) {
 		/* do not allow mprotect to make mapping writable */
-		vma->vm_flags &= ~VM_MAYWRITE;
+		vm_flags_clear(vma, VM_MAYWRITE);
 
 		if (vma->vm_flags & VM_WRITE)
 			return -EACCES;
 	}
 
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &sel_mmap_policy_ops;
 
 	return 0;
@@ -763,7 +763,7 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 
 	checkreqprot_set(fsi->state, (new_value ? 1 : 0));
 	if (new_value)
-		ssleep(5);
+		ssleep(15);
 	length = count;
 
 	selinux_ima_measure_state(fsi->state);

@@ -11,6 +11,7 @@
 #include <linux/kprobes.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/mm.h>
+#include <linux/idr.h>
 
 #include "trace_output.h"
 
@@ -20,8 +21,6 @@
 DECLARE_RWSEM(trace_event_sem);
 
 static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
-
-static int next_event_type = __TRACE_LAST_TYPE;
 
 enum print_line_t trace_print_bputs_msg_only(struct trace_iterator *iter)
 {
@@ -323,8 +322,9 @@ void trace_event_printf(struct trace_iterator *iter, const char *fmt, ...)
 }
 EXPORT_SYMBOL(trace_event_printf);
 
-static int trace_output_raw(struct trace_iterator *iter, char *name,
-			    char *fmt, va_list ap)
+static __printf(3, 0)
+int trace_output_raw(struct trace_iterator *iter, char *name,
+		     char *fmt, va_list ap)
 {
 	struct trace_seq *s = &iter->seq;
 
@@ -688,38 +688,23 @@ struct trace_event *ftrace_find_event(int type)
 	return NULL;
 }
 
-static LIST_HEAD(ftrace_event_list);
+static DEFINE_IDA(trace_event_ida);
 
-static int trace_search_list(struct list_head **list)
+static void free_trace_event_type(int type)
 {
-	struct trace_event *e = NULL, *iter;
-	int next = __TRACE_LAST_TYPE;
+	if (type >= __TRACE_LAST_TYPE)
+		ida_free(&trace_event_ida, type);
+}
 
-	if (list_empty(&ftrace_event_list)) {
-		*list = &ftrace_event_list;
-		return next;
-	}
+static int alloc_trace_event_type(void)
+{
+	int next;
 
-	/*
-	 * We used up all possible max events,
-	 * lets see if somebody freed one.
-	 */
-	list_for_each_entry(iter, &ftrace_event_list, list) {
-		if (iter->type != next) {
-			e = iter;
-			break;
-		}
-		next++;
-	}
-
-	/* Did we used up all 65 thousand events??? */
-	if (next > TRACE_EVENT_TYPE_MAX)
+	/* Skip static defined type numbers */
+	next = ida_alloc_range(&trace_event_ida, __TRACE_LAST_TYPE,
+			       TRACE_EVENT_TYPE_MAX, GFP_KERNEL);
+	if (next < 0)
 		return 0;
-
-	if (e)
-		*list = &e->list;
-	else
-		*list = &ftrace_event_list;
 	return next;
 }
 
@@ -761,28 +746,10 @@ int register_trace_event(struct trace_event *event)
 	if (WARN_ON(!event->funcs))
 		goto out;
 
-	INIT_LIST_HEAD(&event->list);
-
 	if (!event->type) {
-		struct list_head *list = NULL;
-
-		if (next_event_type > TRACE_EVENT_TYPE_MAX) {
-
-			event->type = trace_search_list(&list);
-			if (!event->type)
-				goto out;
-
-		} else {
-
-			event->type = next_event_type++;
-			list = &ftrace_event_list;
-		}
-
-		if (WARN_ON(ftrace_find_event(event->type)))
+		event->type = alloc_trace_event_type();
+		if (!event->type)
 			goto out;
-
-		list_add_tail(&event->list, list);
-
 	} else if (WARN(event->type > __TRACE_LAST_TYPE,
 			"Need to add type to trace.h")) {
 		goto out;
@@ -819,7 +786,7 @@ EXPORT_SYMBOL_GPL(register_trace_event);
 int __unregister_trace_event(struct trace_event *event)
 {
 	hlist_del(&event->node);
-	list_del(&event->list);
+	free_trace_event_type(event->type);
 	return 0;
 }
 
@@ -1568,7 +1535,7 @@ static struct trace_event *events[] __initdata = {
 	NULL
 };
 
-__init static int init_events(void)
+__init int init_events(void)
 {
 	struct trace_event *event;
 	int i, ret;
@@ -1581,4 +1548,3 @@ __init static int init_events(void)
 
 	return 0;
 }
-early_initcall(init_events);

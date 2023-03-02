@@ -118,7 +118,6 @@ extern int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr,
 extern int kvmppc_core_vcpu_create(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu);
-extern int kvmppc_core_check_processor_compat(void);
 extern int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
                                       struct kvm_translation *tr);
 
@@ -1013,6 +1012,18 @@ static inline void kvmppc_fix_ee_before_entry(void)
 	irq_soft_mask_set(IRQS_ENABLED);
 #endif
 }
+
+static inline void kvmppc_fix_ee_after_exit(void)
+{
+#ifdef CONFIG_PPC64
+	/* Only need to enable IRQs by hard enabling them after this */
+	local_paca->irq_happened = PACA_IRQ_HARD_DIS;
+	irq_soft_mask_set(IRQS_ALL_DISABLED);
+#endif
+
+	trace_hardirqs_off();
+}
+
 
 static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
 {

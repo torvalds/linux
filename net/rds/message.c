@@ -104,9 +104,9 @@ static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 	spin_lock_irqsave(&q->lock, flags);
 	head = &q->zcookie_head;
 	if (!list_empty(head)) {
-		info = list_entry(head, struct rds_msg_zcopy_info,
-				  rs_zcookie_next);
-		if (info && rds_zcookie_add(info, cookie)) {
+		info = list_first_entry(head, struct rds_msg_zcopy_info,
+					rs_zcookie_next);
+		if (rds_zcookie_add(info, cookie)) {
 			spin_unlock_irqrestore(&q->lock, flags);
 			kfree(rds_info_from_znotifier(znotif));
 			/* caller invokes rds_wake_sk_sleep() */
@@ -118,7 +118,7 @@ static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 	ck = &info->zcookies;
 	memset(ck, 0, sizeof(*ck));
 	WARN_ON(!rds_zcookie_add(info, cookie));
-	list_add_tail(&q->zcookie_head, &info->rs_zcookie_next);
+	list_add_tail(&info->rs_zcookie_next, &q->zcookie_head);
 
 	spin_unlock_irqrestore(&q->lock, flags);
 	/* caller invokes rds_wake_sk_sleep() */
@@ -366,7 +366,6 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 	struct scatterlist *sg;
 	int ret = 0;
 	int length = iov_iter_count(from);
-	int total_copied = 0;
 	struct rds_msg_zcopy_info *info;
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
@@ -404,7 +403,6 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 			ret = -EFAULT;
 			goto err;
 		}
-		total_copied += copied;
 		length -= copied;
 		sg_set_page(sg, pages, copied, start);
 		rm->data.op_nents++;

@@ -79,7 +79,7 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
 		size_t n = min_t(size_t, count,
 				 PAGE_SIZE - offset_in_page(pos));
 		struct page *page;
-		void *fsdata;
+		void *fsdata = NULL;
 		int res;
 
 		res = aops->write_begin(NULL, mapping, pos, n, &page, &fsdata);
@@ -381,11 +381,11 @@ static struct page *ext4_read_merkle_tree_page(struct inode *inode,
 }
 
 static int ext4_write_merkle_tree_block(struct inode *inode, const void *buf,
-					u64 index, int log_blocksize)
+					u64 pos, unsigned int size)
 {
-	loff_t pos = ext4_verity_metadata_pos(inode) + (index << log_blocksize);
+	pos += ext4_verity_metadata_pos(inode);
 
-	return pagecache_write(inode, buf, 1 << log_blocksize, pos);
+	return pagecache_write(inode, buf, size, pos);
 }
 
 const struct fsverity_operations ext4_verityops = {

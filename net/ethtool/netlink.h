@@ -138,6 +138,32 @@ static inline void ethnl_update_bool32(u32 *dst, const struct nlattr *attr,
 }
 
 /**
+ * ethnl_update_bool() - updateb bool used as bool from NLA_U8 attribute
+ * @dst:  value to update
+ * @attr: netlink attribute with new value or null
+ * @mod:  pointer to bool for modification tracking
+ *
+ * Use the bool value from NLA_U8 netlink attribute @attr to set bool variable
+ * pointed to by @dst to 0 (if zero) or 1 (if not); do nothing if @attr is
+ * null. Bool pointed to by @mod is set to true if this function changed the
+ * logical value of *dst, otherwise it is left as is.
+ */
+static inline void ethnl_update_bool(bool *dst, const struct nlattr *attr,
+				     bool *mod)
+{
+	u8 val;
+
+	if (!attr)
+		return;
+	val = !!nla_get_u8(attr);
+	if (!!*dst == val)
+		return;
+
+	*dst = val;
+	*mod = true;
+}
+
+/**
  * ethnl_update_binary() - update binary data from NLA_BINARY attribute
  * @dst:  value to update
  * @len:  destination buffer length
@@ -258,13 +284,14 @@ int ethnl_ops_begin(struct net_device *dev);
 void ethnl_ops_complete(struct net_device *dev);
 
 /**
- * struct ethnl_request_ops - unified handling of GET requests
+ * struct ethnl_request_ops - unified handling of GET and SET requests
  * @request_cmd:      command id for request (GET)
  * @reply_cmd:        command id for reply (GET_REPLY)
  * @hdr_attr:         attribute type for request header
  * @req_info_size:    size of request info
  * @reply_data_size:  size of reply data
  * @allow_nodev_do:   allow non-dump request with no device identification
+ * @set_ntf_cmd:      notification to generate on changes (SET)
  * @parse_request:
  *	Parse request except common header (struct ethnl_req_info). Common
  *	header is already filled on entry, the rest up to @repdata_offset
@@ -293,6 +320,18 @@ void ethnl_ops_complete(struct net_device *dev);
  *	used e.g. to free any additional data structures outside the main
  *	structure which were allocated by ->prepare_data(). When processing
  *	dump requests, ->cleanup() is called for each message.
+ * @set_validate:
+ *	Check if set operation is supported for a given device, and perform
+ *	extra input checks. Expected return values:
+ *	 - 0 if the operation is a noop for the device (rare)
+ *	 - 1 if operation should proceed to calling @set
+ *	 - negative errno on errors
+ *	Called without any locks, just a reference on the netdev.
+ * @set:
+ *	Execute the set operation. The implementation should return
+ *	 - 0 if no configuration has changed
+ *	 - 1 if configuration changed and notification should be generated
+ *	 - negative errno on errors
  *
  * Description of variable parts of GET request handling when using the
  * unified infrastructure. When used, a pointer to an instance of this
@@ -309,6 +348,7 @@ struct ethnl_request_ops {
 	unsigned int		req_info_size;
 	unsigned int		reply_data_size;
 	bool			allow_nodev_do;
+	u8			set_ntf_cmd;
 
 	int (*parse_request)(struct ethnl_req_info *req_info,
 			     struct nlattr **tb,
@@ -322,6 +362,11 @@ struct ethnl_request_ops {
 			  const struct ethnl_req_info *req_info,
 			  const struct ethnl_reply_data *reply_data);
 	void (*cleanup_data)(struct ethnl_reply_data *reply_data);
+
+	int (*set_validate)(struct ethnl_req_info *req_info,
+			    struct genl_info *info);
+	int (*set)(struct ethnl_req_info *req_info,
+		   struct genl_info *info);
 };
 
 /* request handlers */
@@ -346,6 +391,10 @@ extern const struct ethnl_request_ops ethnl_stats_request_ops;
 extern const struct ethnl_request_ops ethnl_phc_vclocks_request_ops;
 extern const struct ethnl_request_ops ethnl_module_request_ops;
 extern const struct ethnl_request_ops ethnl_pse_request_ops;
+extern const struct ethnl_request_ops ethnl_rss_request_ops;
+extern const struct ethnl_request_ops ethnl_plca_cfg_request_ops;
+extern const struct ethnl_request_ops ethnl_plca_status_request_ops;
+extern const struct ethnl_request_ops ethnl_mm_request_ops;
 
 extern const struct nla_policy ethnl_header_policy[ETHTOOL_A_HEADER_FLAGS + 1];
 extern const struct nla_policy ethnl_header_policy_stats[ETHTOOL_A_HEADER_FLAGS + 1];
@@ -364,12 +413,12 @@ extern const struct nla_policy ethnl_features_set_policy[ETHTOOL_A_FEATURES_WANT
 extern const struct nla_policy ethnl_privflags_get_policy[ETHTOOL_A_PRIVFLAGS_HEADER + 1];
 extern const struct nla_policy ethnl_privflags_set_policy[ETHTOOL_A_PRIVFLAGS_FLAGS + 1];
 extern const struct nla_policy ethnl_rings_get_policy[ETHTOOL_A_RINGS_HEADER + 1];
-extern const struct nla_policy ethnl_rings_set_policy[ETHTOOL_A_RINGS_TX_PUSH + 1];
+extern const struct nla_policy ethnl_rings_set_policy[ETHTOOL_A_RINGS_RX_PUSH + 1];
 extern const struct nla_policy ethnl_channels_get_policy[ETHTOOL_A_CHANNELS_HEADER + 1];
 extern const struct nla_policy ethnl_channels_set_policy[ETHTOOL_A_CHANNELS_COMBINED_COUNT + 1];
 extern const struct nla_policy ethnl_coalesce_get_policy[ETHTOOL_A_COALESCE_HEADER + 1];
 extern const struct nla_policy ethnl_coalesce_set_policy[ETHTOOL_A_COALESCE_MAX + 1];
-extern const struct nla_policy ethnl_pause_get_policy[ETHTOOL_A_PAUSE_HEADER + 1];
+extern const struct nla_policy ethnl_pause_get_policy[ETHTOOL_A_PAUSE_STATS_SRC + 1];
 extern const struct nla_policy ethnl_pause_set_policy[ETHTOOL_A_PAUSE_TX + 1];
 extern const struct nla_policy ethnl_eee_get_policy[ETHTOOL_A_EEE_HEADER + 1];
 extern const struct nla_policy ethnl_eee_set_policy[ETHTOOL_A_EEE_TX_LPI_TIMER + 1];
@@ -380,32 +429,25 @@ extern const struct nla_policy ethnl_tunnel_info_get_policy[ETHTOOL_A_TUNNEL_INF
 extern const struct nla_policy ethnl_fec_get_policy[ETHTOOL_A_FEC_HEADER + 1];
 extern const struct nla_policy ethnl_fec_set_policy[ETHTOOL_A_FEC_AUTO + 1];
 extern const struct nla_policy ethnl_module_eeprom_get_policy[ETHTOOL_A_MODULE_EEPROM_I2C_ADDRESS + 1];
-extern const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_GROUPS + 1];
+extern const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_SRC + 1];
 extern const struct nla_policy ethnl_phc_vclocks_get_policy[ETHTOOL_A_PHC_VCLOCKS_HEADER + 1];
 extern const struct nla_policy ethnl_module_get_policy[ETHTOOL_A_MODULE_HEADER + 1];
 extern const struct nla_policy ethnl_module_set_policy[ETHTOOL_A_MODULE_POWER_MODE_POLICY + 1];
 extern const struct nla_policy ethnl_pse_get_policy[ETHTOOL_A_PSE_HEADER + 1];
 extern const struct nla_policy ethnl_pse_set_policy[ETHTOOL_A_PSE_MAX + 1];
+extern const struct nla_policy ethnl_rss_get_policy[ETHTOOL_A_RSS_CONTEXT + 1];
+extern const struct nla_policy ethnl_plca_get_cfg_policy[ETHTOOL_A_PLCA_HEADER + 1];
+extern const struct nla_policy ethnl_plca_set_cfg_policy[ETHTOOL_A_PLCA_MAX + 1];
+extern const struct nla_policy ethnl_plca_get_status_policy[ETHTOOL_A_PLCA_HEADER + 1];
+extern const struct nla_policy ethnl_mm_get_policy[ETHTOOL_A_MM_HEADER + 1];
+extern const struct nla_policy ethnl_mm_set_policy[ETHTOOL_A_MM_MAX + 1];
 
-int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_wol(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_features(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_privflags(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_coalesce(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info);
 int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info);
 int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info);
 int ethnl_tunnel_info_doit(struct sk_buff *skb, struct genl_info *info);
 int ethnl_tunnel_info_start(struct netlink_callback *cb);
 int ethnl_tunnel_info_dumpit(struct sk_buff *skb, struct netlink_callback *cb);
-int ethnl_set_fec(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_module(struct sk_buff *skb, struct genl_info *info);
-int ethnl_set_pse(struct sk_buff *skb, struct genl_info *info);
 
 extern const char stats_std_names[__ETHTOOL_STATS_CNT][ETH_GSTRING_LEN];
 extern const char stats_eth_phy_names[__ETHTOOL_A_STATS_ETH_PHY_CNT][ETH_GSTRING_LEN];

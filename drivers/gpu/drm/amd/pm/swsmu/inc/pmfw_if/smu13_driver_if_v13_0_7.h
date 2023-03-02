@@ -25,10 +25,10 @@
 
 // *** IMPORTANT ***
 // PMFW TEAM: Always increment the interface version on any change to this file
-#define SMU13_DRIVER_IF_VERSION  0x2C
+#define SMU13_DRIVER_IF_VERSION  0x35
 
 //Increment this version if SkuTable_t or BoardTable_t change
-#define PPTABLE_VERSION 0x20
+#define PPTABLE_VERSION 0x27
 
 #define NUM_GFXCLK_DPM_LEVELS    16
 #define NUM_SOCCLK_DPM_LEVELS    8
@@ -96,7 +96,7 @@
 #define FEATURE_MEM_TEMP_READ_BIT             47
 #define FEATURE_ATHUB_MMHUB_PG_BIT            48
 #define FEATURE_SOC_PCC_BIT                   49
-#define FEATURE_SPARE_50_BIT                  50
+#define FEATURE_EDC_PWRBRK_BIT                50
 #define FEATURE_SPARE_51_BIT                  51
 #define FEATURE_SPARE_52_BIT                  52
 #define FEATURE_SPARE_53_BIT                  53
@@ -113,20 +113,21 @@
 #define NUM_FEATURES                          64
 
 #define ALLOWED_FEATURE_CTRL_DEFAULT 0xFFFFFFFFFFFFFFFFULL
-#define ALLOWED_FEATURE_CTRL_SCPM        (1 << FEATURE_DPM_GFXCLK_BIT) | \
-                                         (1 << FEATURE_DPM_GFX_POWER_OPTIMIZER_BIT) | \
-                                         (1 << FEATURE_DPM_UCLK_BIT) | \
-                                         (1 << FEATURE_DPM_FCLK_BIT) | \
-                                         (1 << FEATURE_DPM_SOCCLK_BIT) | \
-                                         (1 << FEATURE_DPM_MP0CLK_BIT) | \
-                                         (1 << FEATURE_DPM_LINK_BIT) | \
-                                         (1 << FEATURE_DPM_DCN_BIT) | \
-                                         (1 << FEATURE_DS_GFXCLK_BIT) | \
-                                         (1 << FEATURE_DS_SOCCLK_BIT) | \
-                                         (1 << FEATURE_DS_FCLK_BIT) | \
-                                         (1 << FEATURE_DS_LCLK_BIT) | \
-                                         (1 << FEATURE_DS_DCFCLK_BIT) | \
-                                         (1 << FEATURE_DS_UCLK_BIT)
+#define ALLOWED_FEATURE_CTRL_SCPM	((1 << FEATURE_DPM_GFXCLK_BIT) | \
+					(1 << FEATURE_DPM_GFX_POWER_OPTIMIZER_BIT) | \
+					(1 << FEATURE_DPM_UCLK_BIT) | \
+					(1 << FEATURE_DPM_FCLK_BIT) | \
+					(1 << FEATURE_DPM_SOCCLK_BIT) | \
+					(1 << FEATURE_DPM_MP0CLK_BIT) | \
+					(1 << FEATURE_DPM_LINK_BIT) | \
+					(1 << FEATURE_DPM_DCN_BIT) | \
+					(1 << FEATURE_DS_GFXCLK_BIT) | \
+					(1 << FEATURE_DS_SOCCLK_BIT) | \
+					(1 << FEATURE_DS_FCLK_BIT) | \
+					(1 << FEATURE_DS_LCLK_BIT) | \
+					(1 << FEATURE_DS_DCFCLK_BIT) | \
+					(1 << FEATURE_DS_UCLK_BIT) | \
+					(1ULL << FEATURE_DS_VCN_BIT))
 
 //For use with feature control messages
 typedef enum {
@@ -282,15 +283,15 @@ typedef enum {
 } I2cControllerPort_e;
 
 typedef enum {
-  I2C_CONTROLLER_NAME_VR_GFX = 0,
-  I2C_CONTROLLER_NAME_VR_SOC,
-  I2C_CONTROLLER_NAME_VR_VMEMP,
-  I2C_CONTROLLER_NAME_VR_VDDIO,
-  I2C_CONTROLLER_NAME_LIQUID0,
-  I2C_CONTROLLER_NAME_LIQUID1,
-  I2C_CONTROLLER_NAME_PLX,
-  I2C_CONTROLLER_NAME_OTHER,
-  I2C_CONTROLLER_NAME_COUNT,
+	I2C_CONTROLLER_NAME_VR_GFX = 0,
+	I2C_CONTROLLER_NAME_VR_SOC,
+	I2C_CONTROLLER_NAME_VR_VMEMP,
+	I2C_CONTROLLER_NAME_VR_VDDIO,
+	I2C_CONTROLLER_NAME_LIQUID0,
+	I2C_CONTROLLER_NAME_LIQUID1,
+	I2C_CONTROLLER_NAME_PLX,
+	I2C_CONTROLLER_NAME_FAN_INTAKE,
+	I2C_CONTROLLER_NAME_COUNT,
 } I2cControllerName_e;
 
 typedef enum {
@@ -302,6 +303,7 @@ typedef enum {
   I2C_CONTROLLER_THROTTLER_LIQUID0,
   I2C_CONTROLLER_THROTTLER_LIQUID1,
   I2C_CONTROLLER_THROTTLER_PLX,
+  I2C_CONTROLLER_THROTTLER_FAN_INTAKE,
   I2C_CONTROLLER_THROTTLER_INA3221,
   I2C_CONTROLLER_THROTTLER_COUNT,
 } I2cControllerThrottler_e;
@@ -309,8 +311,9 @@ typedef enum {
 typedef enum {
   I2C_CONTROLLER_PROTOCOL_VR_XPDE132G5,
   I2C_CONTROLLER_PROTOCOL_VR_IR35217,
-  I2C_CONTROLLER_PROTOCOL_TMP_TMP102A,
+  I2C_CONTROLLER_PROTOCOL_TMP_MAX31875,
   I2C_CONTROLLER_PROTOCOL_INA3221,
+  I2C_CONTROLLER_PROTOCOL_TMP_MAX6604,
   I2C_CONTROLLER_PROTOCOL_COUNT,
 } I2cControllerProtocol_e;
 
@@ -690,12 +693,20 @@ typedef struct {
 #define PP_OD_FEATURE_UCLK_BIT      8
 #define PP_OD_FEATURE_ZERO_FAN_BIT      9
 #define PP_OD_FEATURE_TEMPERATURE_BIT 10
+#define PP_OD_FEATURE_POWER_FEATURE_CTRL_BIT 11
+#define PP_OD_FEATURE_ASIC_TDC_BIT 12
+#define PP_OD_FEATURE_COUNT 13
 
 typedef enum {
   PP_OD_POWER_FEATURE_ALWAYS_ENABLED,
   PP_OD_POWER_FEATURE_DISABLED_WHILE_GAMING,
   PP_OD_POWER_FEATURE_ALWAYS_DISABLED,
 } PP_OD_POWER_FEATURE_e;
+
+typedef enum {
+  FAN_MODE_AUTO = 0,
+  FAN_MODE_MANUAL_LINEAR,
+} FanMode_e;
 
 typedef struct {
   uint32_t FeatureCtrlMask;
@@ -708,8 +719,8 @@ typedef struct {
   uint8_t                RuntimePwrSavingFeaturesCtrl;
 
   //Frequency changes
-  int16_t               GfxclkFmin;           // MHz
-  int16_t               GfxclkFmax;           // MHz
+  int16_t                GfxclkFmin;           // MHz
+  int16_t                GfxclkFmax;           // MHz
   uint16_t               UclkFmin;             // MHz
   uint16_t               UclkFmax;             // MHz
 
@@ -730,7 +741,12 @@ typedef struct {
   uint8_t                MaxOpTemp;
   uint8_t                Padding[4];
 
-  uint32_t               Spare[12];
+  uint16_t               GfxVoltageFullCtrlMode;
+  uint16_t               GfxclkFullCtrlMode;
+  uint16_t               UclkFullCtrlMode;
+  int16_t                AsicTdc;
+
+  uint32_t               Spare[10];
   uint32_t               MmHubPadding[8]; // SMU internal use. Adding here instead of external as a workaround
 } OverDriveTable_t;
 
@@ -748,8 +764,8 @@ typedef struct {
   uint8_t                IdlePwrSavingFeaturesCtrl;
   uint8_t                RuntimePwrSavingFeaturesCtrl;
 
-  uint16_t               GfxclkFmin;           // MHz
-  uint16_t               GfxclkFmax;           // MHz
+  int16_t                GfxclkFmin;           // MHz
+  int16_t                GfxclkFmax;           // MHz
   uint16_t               UclkFmin;             // MHz
   uint16_t               UclkFmax;             // MHz
 
@@ -769,7 +785,12 @@ typedef struct {
   uint8_t                MaxOpTemp;
   uint8_t                Padding[4];
 
-  uint32_t               Spare[12];
+  uint16_t               GfxVoltageFullCtrlMode;
+  uint16_t               GfxclkFullCtrlMode;
+  uint16_t               UclkFullCtrlMode;
+  int16_t                AsicTdc;
+
+  uint32_t               Spare[10];
 
 } OverDriveLimits_t;
 
@@ -903,7 +924,8 @@ typedef struct {
   uint16_t  FanStartTempMin;
   uint16_t  FanStartTempMax;
 
-  uint32_t Spare[12];
+  uint16_t  PowerMinPpt0[POWER_SOURCE_COUNT];
+  uint32_t  Spare[11];
 
 } MsgLimits_t;
 
@@ -1086,11 +1108,13 @@ typedef struct {
   uint32_t        GfxoffSpare[15];
 
   // GFX GPO
-  float           DfllBtcMasterScalerM;
+  uint32_t        DfllBtcMasterScalerM;
   int32_t         DfllBtcMasterScalerB;
-  float           DfllBtcSlaveScalerM;
+  uint32_t        DfllBtcSlaveScalerM;
   int32_t         DfllBtcSlaveScalerB;
-  uint32_t        GfxGpoSpare[12];
+  uint32_t        DfllPccAsWaitCtrl; //GDFLL_AS_WAIT_CTRL_PCC register value to be passed to RLC msg
+  uint32_t        DfllPccAsStepCtrl; //GDFLL_AS_STEP_CTRL_PCC register value to be passed to RLC msg
+  uint32_t        GfxGpoSpare[10];
 
   // GFX DCS
 
@@ -1106,7 +1130,10 @@ typedef struct {
   uint16_t        DcsTimeout;           //This is the amount of time SMU FW waits for RLC to put GFX into GFXOFF before reverting to the fallback mechanism of throttling GFXCLK to Fmin.
 
 
-  uint32_t        DcsSpare[16];
+  uint32_t        DcsSpare[14];
+
+  // UCLK section
+  uint16_t     ShadowFreqTableUclk[NUM_UCLK_DPM_LEVELS];     // In MHz
 
   // UCLK section
   uint8_t      UseStrobeModeOptimizations; //Set to indicate that FW should use strobe mode optimizations
@@ -1163,13 +1190,14 @@ typedef struct {
   uint16_t IntakeTempHighIntakeAcousticLimit;
   uint16_t IntakeTempAcouticLimitReleaseRate;
 
-  uint16_t FanStalledTempLimitOffset;
+  int16_t FanAbnormalTempLimitOffset;
   uint16_t FanStalledTriggerRpm;
-  uint16_t FanAbnormalTriggerRpm;
-  uint16_t FanPadding;
+  uint16_t FanAbnormalTriggerRpmCoeff;
+  uint16_t FanAbnormalDetectionEnable;
 
-  uint32_t     FanSpare[14];
-
+  uint8_t      FanIntakeSensorSupport;
+  uint8_t      FanIntakePadding[3];
+  uint32_t     FanSpare[13];
   // SECTION: VDD_GFX AVFS
 
   uint8_t      OverrideGfxAvfsFuses;
@@ -1193,7 +1221,6 @@ typedef struct {
   uint32_t   dGbV_dT_vmin;
   uint32_t   dGbV_dT_vmax;
 
-  //Unused: PMFW-9370
   uint32_t   V2F_vmin_range_low;
   uint32_t   V2F_vmin_range_high;
   uint32_t   V2F_vmax_range_low;
@@ -1238,8 +1265,21 @@ typedef struct {
   // SECTION: Advanced Options
   uint32_t          DebugOverrides;
 
+  // Section: Total Board Power idle vs active coefficients
+  uint8_t     TotalBoardPowerSupport;
+  uint8_t     TotalBoardPowerPadding[3];
+
+  int16_t     TotalIdleBoardPowerM;
+  int16_t     TotalIdleBoardPowerB;
+  int16_t     TotalBoardPowerM;
+  int16_t     TotalBoardPowerB;
+
+  QuadraticInt_t qFeffCoeffGameClock[POWER_SOURCE_COUNT];
+  QuadraticInt_t qFeffCoeffBaseClock[POWER_SOURCE_COUNT];
+  QuadraticInt_t qFeffCoeffBoostClock[POWER_SOURCE_COUNT];
+
   // SECTION: Sku Reserved
-  uint32_t         Spare[64];
+  uint32_t         Spare[43];
 
   // Padding for MMHUB - do not modify this
   uint32_t     MmHubPadding[8];
@@ -1304,7 +1344,8 @@ typedef struct {
   // SECTION: Clock Spread Spectrum
 
   // UCLK Spread Spectrum
-  uint16_t     UclkSpreadPadding;
+  uint8_t      UclkTrainingModeSpreadPercent; // Q4.4
+  uint8_t      UclkSpreadPadding;
   uint16_t     UclkSpreadFreq;      // kHz
 
   // UCLK Spread Spectrum
@@ -1317,11 +1358,7 @@ typedef struct {
 
   // Section: Memory Config
   uint8_t      DramWidth; // Width of interface to the channel for each DRAM module. See DRAM_BIT_WIDTH_TYPE_e
-  uint8_t      PaddingMem1[3];
-
-  // Section: Total Board Power
-  uint16_t     TotalBoardPower;     //Only needed for TCP Estimated case, where TCP = TGP+Total Board Power
-  uint16_t     BoardPowerPadding;
+  uint8_t      PaddingMem1[7];
 
   // SECTION: UMC feature flags
   uint8_t      HsrEnabled;
@@ -1343,10 +1380,12 @@ typedef struct {
   uint32_t     MmHubPadding[8];
 } BoardTable_t;
 
+#pragma pack(push, 1)
 typedef struct {
   SkuTable_t SkuTable;
   BoardTable_t BoardTable;
 } PPTable_t;
+#pragma pack(pop)
 
 typedef struct {
   // Time constant parameters for clock averages in ms
@@ -1423,8 +1462,11 @@ typedef struct {
   uint16_t Vcn1ActivityPercentage  ;
 
   uint32_t EnergyAccumulator;
-  uint16_t AverageSocketPower    ;
+  uint16_t AverageSocketPower;
+  uint16_t AverageTotalBoardPower;
+
   uint16_t AvgTemperature[TEMP_COUNT];
+  uint16_t AvgTemperatureFanIntake;
 
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;
@@ -1592,5 +1634,7 @@ typedef struct {
 #define IH_INTERRUPT_CONTEXT_ID_AUDIO_D0            0x5
 #define IH_INTERRUPT_CONTEXT_ID_AUDIO_D3            0x6
 #define IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
+#define IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL        0x8
+#define IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY        0x9
 
 #endif

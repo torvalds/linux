@@ -31,13 +31,29 @@ properties:
               - mediatek,mt8173-mmsys
               - mediatek,mt8183-mmsys
               - mediatek,mt8186-mmsys
+              - mediatek,mt8188-vdosys0
               - mediatek,mt8192-mmsys
-              - mediatek,mt8195-mmsys
+              - mediatek,mt8195-vdosys1
+              - mediatek,mt8195-vppsys0
+              - mediatek,mt8195-vppsys1
               - mediatek,mt8365-mmsys
           - const: syscon
+
+      - description: vdosys0 and vdosys1 are 2 display HW pipelines,
+                     so mt8195 binding should be deprecated.
+        deprecated: true
+        items:
+          - const: mediatek,mt8195-mmsys
+          - const: syscon
+
       - items:
           - const: mediatek,mt7623-mmsys
           - const: mediatek,mt2701-mmsys
+          - const: syscon
+
+      - items:
+          - const: mediatek,mt8195-vdosys0
+          - const: mediatek,mt8195-mmsys
           - const: syscon
 
   reg:

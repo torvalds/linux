@@ -6,25 +6,22 @@
 #ifndef __INTEL_BACKLIGHT_REGS_H__
 #define __INTEL_BACKLIGHT_REGS_H__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
-#define _VLV_BLC_PWM_CTL2_A (DISPLAY_MMIO_BASE(dev_priv) + 0x61250)
-#define _VLV_BLC_PWM_CTL2_B (DISPLAY_MMIO_BASE(dev_priv) + 0x61350)
-#define VLV_BLC_PWM_CTL2(pipe) _MMIO_PIPE(pipe, _VLV_BLC_PWM_CTL2_A, \
-					 _VLV_BLC_PWM_CTL2_B)
+#define _VLV_BLC_PWM_CTL2_A		(VLV_DISPLAY_BASE + 0x61250)
+#define _VLV_BLC_PWM_CTL2_B		(VLV_DISPLAY_BASE + 0x61350)
+#define VLV_BLC_PWM_CTL2(pipe) _MMIO_PIPE(pipe, _VLV_BLC_PWM_CTL2_A, _VLV_BLC_PWM_CTL2_B)
 
-#define _VLV_BLC_PWM_CTL_A (DISPLAY_MMIO_BASE(dev_priv) + 0x61254)
-#define _VLV_BLC_PWM_CTL_B (DISPLAY_MMIO_BASE(dev_priv) + 0x61354)
-#define VLV_BLC_PWM_CTL(pipe) _MMIO_PIPE(pipe, _VLV_BLC_PWM_CTL_A, \
-					_VLV_BLC_PWM_CTL_B)
+#define _VLV_BLC_PWM_CTL_A		(VLV_DISPLAY_BASE + 0x61254)
+#define _VLV_BLC_PWM_CTL_B		(VLV_DISPLAY_BASE + 0x61354)
+#define VLV_BLC_PWM_CTL(pipe) _MMIO_PIPE(pipe, _VLV_BLC_PWM_CTL_A, _VLV_BLC_PWM_CTL_B)
 
-#define _VLV_BLC_HIST_CTL_A (DISPLAY_MMIO_BASE(dev_priv) + 0x61260)
-#define _VLV_BLC_HIST_CTL_B (DISPLAY_MMIO_BASE(dev_priv) + 0x61360)
-#define VLV_BLC_HIST_CTL(pipe) _MMIO_PIPE(pipe, _VLV_BLC_HIST_CTL_A, \
-					 _VLV_BLC_HIST_CTL_B)
+#define _VLV_BLC_HIST_CTL_A		(VLV_DISPLAY_BASE + 0x61260)
+#define _VLV_BLC_HIST_CTL_B		(VLV_DISPLAY_BASE + 0x61360)
+#define VLV_BLC_HIST_CTL(pipe) _MMIO_PIPE(pipe, _VLV_BLC_HIST_CTL_A, _VLV_BLC_HIST_CTL_B)
 
 /* Backlight control */
-#define BLC_PWM_CTL2	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61250) /* 965+ only */
+#define BLC_PWM_CTL2	_MMIO(0x61250) /* 965+ only */
 #define   BLM_PWM_ENABLE		(1 << 31)
 #define   BLM_COMBINATION_MODE		(1 << 30) /* gen4 only */
 #define   BLM_PIPE_SELECT		(1 << 29)
@@ -47,7 +44,7 @@
 #define   BLM_PHASE_IN_COUNT_MASK	(0xff << 8)
 #define   BLM_PHASE_IN_INCR_SHIFT	(0)
 #define   BLM_PHASE_IN_INCR_MASK	(0xff << 0)
-#define BLC_PWM_CTL	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61254)
+#define BLC_PWM_CTL	_MMIO(0x61254)
 /*
  * This is the most significant 15 bits of the number of backlight cycles in a
  * complete cycle of the modulated backlight control.
@@ -69,7 +66,7 @@
 #define   BACKLIGHT_DUTY_CYCLE_MASK_PNV		(0xfffe)
 #define   BLM_POLARITY_PNV			(1 << 0) /* pnv only */
 
-#define BLC_HIST_CTL	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61260)
+#define BLC_HIST_CTL	_MMIO(0x61260)
 #define  BLM_HISTOGRAM_ENABLE			(1 << 31)
 
 /* New registers for PCH-split platforms. Safe where new bits show up, the

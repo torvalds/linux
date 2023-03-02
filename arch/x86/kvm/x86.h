@@ -27,6 +27,7 @@ struct kvm_caps {
 	u64 supported_mce_cap;
 	u64 supported_xcr0;
 	u64 supported_xss;
+	u64 supported_perf_cap;
 };
 
 void kvm_spurious_fault(void);
@@ -330,6 +331,18 @@ extern bool report_ignored_msrs;
 
 extern bool eager_page_split;
 
+static inline void kvm_pr_unimpl_wrmsr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
+	if (report_ignored_msrs)
+		vcpu_unimpl(vcpu, "Unhandled WRMSR(0x%x) = 0x%llx\n", msr, data);
+}
+
+static inline void kvm_pr_unimpl_rdmsr(struct kvm_vcpu *vcpu, u32 msr)
+{
+	if (report_ignored_msrs)
+		vcpu_unimpl(vcpu, "Unhandled RDMSR(0x%x)\n", msr);
+}
+
 static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 {
 	return pvclock_scale_delta(nsec, vcpu->arch.virtual_tsc_mult,
@@ -381,13 +394,13 @@ enum kvm_intr_type {
 	KVM_HANDLING_NMI,
 };
 
-static inline void kvm_before_interrupt(struct kvm_vcpu *vcpu,
-					enum kvm_intr_type intr)
+static __always_inline void kvm_before_interrupt(struct kvm_vcpu *vcpu,
+						 enum kvm_intr_type intr)
 {
 	WRITE_ONCE(vcpu->arch.handling_intr_from_guest, (u8)intr);
 }
 
-static inline void kvm_after_interrupt(struct kvm_vcpu *vcpu)
+static __always_inline void kvm_after_interrupt(struct kvm_vcpu *vcpu)
 {
 	WRITE_ONCE(vcpu->arch.handling_intr_from_guest, 0);
 }

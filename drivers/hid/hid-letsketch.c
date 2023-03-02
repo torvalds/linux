@@ -238,7 +238,7 @@ static int letsketch_probe(struct hid_device *hdev, const struct hid_device_id *
 	char buf[256];
 	int i, ret;
 
-	if (!hid_is_using_ll_driver(hdev, &usb_hid_driver))
+	if (!hid_is_usb(hdev))
 		return -ENODEV;
 
 	intf = to_usb_interface(hdev->dev.parent);

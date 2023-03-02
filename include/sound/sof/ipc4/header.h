@@ -185,6 +185,13 @@ enum sof_ipc4_pipeline_state {
 #define SOF_IPC4_GLB_PIPE_STATE_MASK		GENMASK(15, 0)
 #define SOF_IPC4_GLB_PIPE_STATE(x)		((x) << SOF_IPC4_GLB_PIPE_STATE_SHIFT)
 
+/* pipeline set state IPC msg extension */
+#define SOF_IPC4_GLB_PIPE_STATE_EXT_MULTI	BIT(0)
+
+/* load library ipc msg */
+#define SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID_SHIFT	16
+#define SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID(x)	((x) << SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID_SHIFT)
+
 enum sof_ipc4_channel_config {
 	/* one channel only. */
 	SOF_IPC4_CHANNEL_CONFIG_MONO,

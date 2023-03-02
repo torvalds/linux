@@ -442,11 +442,70 @@
 			reg = <0x0005c000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			tsens_caldata: caldata@d0 {
-				reg = <0xd0 0x8>;
+
+			tsens_base1: base1@d0 {
+				reg = <0xd0 0x1>;
+				bits = <0 7>;
 			};
-			tsens_calsel: calsel@ec {
-				reg = <0xec 0x4>;
+
+			tsens_s0_p1: s0-p1@d0 {
+				reg = <0xd0 0x2>;
+				bits = <7 5>;
+			};
+
+			tsens_s0_p2: s0-p2@d1 {
+				reg = <0xd1 0x2>;
+				bits = <4 5>;
+			};
+
+			tsens_s1_p1: s1-p1@d2 {
+				reg = <0xd2 0x1>;
+				bits = <1 5>;
+			};
+			tsens_s1_p2: s1-p2@d2 {
+				reg = <0xd2 0x2>;
+				bits = <6 5>;
+			};
+			tsens_s2_p1: s2-p1@d3 {
+				reg = <0xd3 0x1>;
+				bits = <3 5>;
+			};
+
+			tsens_s2_p2: s2-p2@d4 {
+				reg = <0xd4 0x1>;
+				bits = <0 5>;
+			};
+
+			// no tsens with hw_id 3
+
+			tsens_s4_p1: s4-p1@d4 {
+				reg = <0xd4 0x2>;
+				bits = <5 5>;
+			};
+
+			tsens_s4_p2: s4-p2@d5 {
+				reg = <0xd5 0x1>;
+				bits = <2 5>;
+			};
+
+			tsens_s5_p1: s5-p1@d5 {
+				reg = <0xd5 0x2>;
+				bits = <7 5>;
+			};
+
+			tsens_s5_p2: s5-p2@d6 {
+				reg = <0xd6 0x2>;
+				bits = <4 5>;
+			};
+
+			tsens_base2: base2@d7 {
+				reg = <0xd7 0x1>;
+				bits = <1 7>;
+			};
+
+			tsens_mode: mode@ec {
+				reg = <0xef 0x1>;
+				bits = <5 3>;
 			};
 		};
 
@@ -473,8 +532,22 @@
 			compatible = "qcom,msm8916-tsens", "qcom,tsens-v0_1";
 			reg = <0x004a9000 0x1000>, /* TM */
 			      <0x004a8000 0x1000>; /* SROT */
-			nvmem-cells = <&tsens_caldata>, <&tsens_calsel>;
-			nvmem-cell-names = "calib", "calib_sel";
+
+			// no hw_id 3
+			nvmem-cells = <&tsens_mode>,
+				      <&tsens_base1>, <&tsens_base2>,
+				      <&tsens_s0_p1>, <&tsens_s0_p2>,
+				      <&tsens_s1_p1>, <&tsens_s1_p2>,
+				      <&tsens_s2_p1>, <&tsens_s2_p2>,
+				      <&tsens_s4_p1>, <&tsens_s4_p2>,
+				      <&tsens_s5_p1>, <&tsens_s5_p2>;
+			nvmem-cell-names = "mode",
+					   "base1", "base2",
+					   "s0_p1", "s0_p2",
+					   "s1_p1", "s1_p2",
+					   "s2_p1", "s2_p2",
+					   "s4_p1", "s4_p2",
+					   "s5_p1", "s5_p2";
 			#qcom,sensors = <5>;
 			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "uplow";
@@ -963,7 +1036,7 @@
 			reg = <0x01937000 0x30000>;
 		};
 
-		mdss: mdss@1a00000 {
+		mdss: display-subsystem@1a00000 {
 			status = "disabled";
 			compatible = "qcom,mdss";
 			reg = <0x01a00000 0x1000>,
@@ -988,8 +1061,8 @@
 			#size-cells = <1>;
 			ranges;
 
-			mdp: mdp@1a01000 {
-				compatible = "qcom,mdp5";
+			mdp: display-controller@1a01000 {
+				compatible = "qcom,msm8916-mdp5", "qcom,mdp5";
 				reg = <0x01a01000 0x89000>;
 				reg-names = "mdp_phys";
 
@@ -1021,7 +1094,8 @@
 			};
 
 			dsi0: dsi@1a98000 {
-				compatible = "qcom,mdss-dsi-ctrl";
+				compatible = "qcom,msm8916-dsi-ctrl",
+					     "qcom,mdss-dsi-ctrl";
 				reg = <0x01a98000 0x25c>;
 				reg-names = "dsi_ctrl";
 
@@ -1046,7 +1120,6 @@
 					      "pixel",
 					      "core";
 				phys = <&dsi_phy0>;
-				phy-names = "dsi-phy";
 
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1070,7 +1143,7 @@
 				};
 			};
 
-			dsi_phy0: dsi-phy@1a98300 {
+			dsi_phy0: phy@1a98300 {
 				compatible = "qcom,dsi-phy-28nm-lp";
 				reg = <0x01a98300 0xd4>,
 				      <0x01a98500 0x280>,
@@ -1168,7 +1241,7 @@
 		};
 
 		cci: cci@1b0c000 {
-			compatible = "qcom,msm8916-cci";
+			compatible = "qcom,msm8916-cci", "qcom,msm8226-cci";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x01b0c000 0x1000>;
@@ -1264,21 +1337,21 @@
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <17>;
 
-			// vfe:
+			/* VFE */
 			iommu-ctx@3000 {
 				compatible = "qcom,msm-iommu-v1-sec";
 				reg = <0x3000 0x1000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// mdp_0:
+			/* MDP_0 */
 			iommu-ctx@4000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x4000 0x1000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// venus_ns:
+			/* VENUS_NS */
 			iommu-ctx@5000 {
 				compatible = "qcom,msm-iommu-v1-sec";
 				reg = <0x5000 0x1000>;
@@ -1297,14 +1370,14 @@
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <18>;
 
-			// gfx3d_user:
+			/* GFX3D_USER */
 			iommu-ctx@1000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x1000 0x1000>;
 				interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// gfx3d_priv:
+			/* GFX3D_PRIV */
 			iommu-ctx@2000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x2000 0x1000>;
@@ -1345,7 +1418,7 @@
 		};
 
 		mpss: remoteproc@4080000 {
-			compatible = "qcom,msm8916-mss-pil", "qcom,q6v5-pil";
+			compatible = "qcom,msm8916-mss-pil";
 			reg = <0x04080000 0x100>,
 			      <0x04020000 0x040>;
 
@@ -1438,7 +1511,7 @@
 
 		lpass: audio-controller@7708000 {
 			status = "disabled";
-			compatible = "qcom,lpass-cpu-apq8016";
+			compatible = "qcom,apq8016-lpass-cpu";
 
 			/*
 			 * Note: Unlike the name would suggest, the SEC_I2S_CLK
@@ -1522,7 +1595,6 @@
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <0>;
-			status = "disabled";
 		};
 
 		blsp1_uart1: serial@78af000 {
@@ -1560,6 +1632,8 @@
 			clocks = <&gcc GCC_BLSP1_QUP1_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 4>, <&blsp_dma 5>;
+			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c1_default>;
 			pinctrl-1 = <&i2c1_sleep>;
@@ -1592,6 +1666,8 @@
 			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 6>, <&blsp_dma 7>;
+			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c2_default>;
 			pinctrl-1 = <&i2c2_sleep>;
@@ -1624,6 +1700,8 @@
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 8>, <&blsp_dma 9>;
+			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c3_default>;
 			pinctrl-1 = <&i2c3_sleep>;
@@ -1656,6 +1734,8 @@
 			clocks = <&gcc GCC_BLSP1_QUP4_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 10>, <&blsp_dma 11>;
+			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c4_default>;
 			pinctrl-1 = <&i2c4_sleep>;
@@ -1688,6 +1768,8 @@
 			clocks = <&gcc GCC_BLSP1_QUP5_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
+			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c5_default>;
 			pinctrl-1 = <&i2c5_sleep>;
@@ -1720,6 +1802,8 @@
 			clocks = <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
+			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c6_default>;
 			pinctrl-1 = <&i2c6_sleep>;
@@ -1999,7 +2083,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu0_1_crit: cpu_crit {
+				cpu0_1_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -2029,7 +2113,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu2_3_crit: cpu_crit {
+				cpu2_3_crit: cpu-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -2059,7 +2143,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				gpu_crit: gpu_crit {
+				gpu_crit: gpu-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";

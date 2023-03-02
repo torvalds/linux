@@ -74,8 +74,8 @@
 static DEFINE_SPINLOCK(pdc_lock);
 #endif
 
-extern unsigned long pdc_result[NUM_PDC_RESULT];
-extern unsigned long pdc_result2[NUM_PDC_RESULT];
+unsigned long pdc_result[NUM_PDC_RESULT]  __aligned(8);
+unsigned long pdc_result2[NUM_PDC_RESULT] __aligned(8);
 
 #ifdef CONFIG_64BIT
 #define WIDE_FIRMWARE 0x1
@@ -527,14 +527,14 @@ int pdc_model_info(struct pdc_model *model)
  * Using OS_ID_HPUX will return the equivalent of the 'modelname' command
  * on HP/UX.
  */
-int pdc_model_sysmodel(char *name)
+int pdc_model_sysmodel(unsigned int os_id, char *name)
 {
         int retval;
 	unsigned long flags;
 
         spin_lock_irqsave(&pdc_lock, flags);
         retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_SYSMODEL, __pa(pdc_result),
-                              OS_ID_HPUX, __pa(name));
+                              os_id, __pa(name));
         convert_to_wide(pdc_result);
 
         if (retval == PDC_OK) {
@@ -1288,9 +1288,8 @@ void pdc_io_reset_devices(void)
 
 #endif /* defined(BOOTLOADER) */
 
-/* locked by pdc_console_lock */
-static int __attribute__((aligned(8)))   iodc_retbuf[32];
-static char __attribute__((aligned(64))) iodc_dbuf[4096];
+/* locked by pdc_lock */
+static char iodc_dbuf[4096] __page_aligned_bss;
 
 /**
  * pdc_iodc_print - Console print using IODC.
@@ -1304,15 +1303,19 @@ static char __attribute__((aligned(64))) iodc_dbuf[4096];
  */
 int pdc_iodc_print(const unsigned char *str, unsigned count)
 {
-	unsigned int i;
+	unsigned int i, found = 0;
 	unsigned long flags;
 
+	count = min_t(unsigned int, count, sizeof(iodc_dbuf));
+
+	spin_lock_irqsave(&pdc_lock, flags);
 	for (i = 0; i < count;) {
 		switch(str[i]) {
 		case '\n':
 			iodc_dbuf[i+0] = '\r';
 			iodc_dbuf[i+1] = '\n';
 			i += 2;
+			found = 1;
 			goto print;
 		default:
 			iodc_dbuf[i] = str[i];
@@ -1322,14 +1325,13 @@ int pdc_iodc_print(const unsigned char *str, unsigned count)
 	}
 
 print:
-        spin_lock_irqsave(&pdc_lock, flags);
-        real32_call(PAGE0->mem_cons.iodc_io,
-                    (unsigned long)PAGE0->mem_cons.hpa, ENTRY_IO_COUT,
-                    PAGE0->mem_cons.spa, __pa(PAGE0->mem_cons.dp.layers),
-                    __pa(iodc_retbuf), 0, __pa(iodc_dbuf), i, 0);
-        spin_unlock_irqrestore(&pdc_lock, flags);
+	real32_call(PAGE0->mem_cons.iodc_io,
+		(unsigned long)PAGE0->mem_cons.hpa, ENTRY_IO_COUT,
+		PAGE0->mem_cons.spa, __pa(PAGE0->mem_cons.dp.layers),
+		__pa(pdc_result), 0, __pa(iodc_dbuf), i, 0);
+	spin_unlock_irqrestore(&pdc_lock, flags);
 
-	return i;
+	return i - found;
 }
 
 #if !defined(BOOTLOADER)
@@ -1354,10 +1356,11 @@ int pdc_iodc_getc(void)
 	real32_call(PAGE0->mem_kbd.iodc_io,
 		    (unsigned long)PAGE0->mem_kbd.hpa, ENTRY_IO_CIN,
 		    PAGE0->mem_kbd.spa, __pa(PAGE0->mem_kbd.dp.layers), 
-		    __pa(iodc_retbuf), 0, __pa(iodc_dbuf), 1, 0);
+		    __pa(pdc_result), 0, __pa(iodc_dbuf), 1, 0);
 
 	ch = *iodc_dbuf;
-	status = *iodc_retbuf;
+	/* like convert_to_wide() but for first return value only: */
+	status = *(int *)&pdc_result;
 	spin_unlock_irqrestore(&pdc_lock, flags);
 
 	if (status == 0)

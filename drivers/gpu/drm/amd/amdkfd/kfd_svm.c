@@ -23,10 +23,11 @@
 
 #include <linux/types.h>
 #include <linux/sched/task.h>
+#include <drm/ttm/ttm_tt.h>
 #include "amdgpu_sync.h"
 #include "amdgpu_object.h"
 #include "amdgpu_vm.h"
-#include "amdgpu_mn.h"
+#include "amdgpu_hmm.h"
 #include "amdgpu.h"
 #include "amdgpu_xgmi.h"
 #include "kfd_priv.h"
@@ -259,7 +260,7 @@ void svm_range_free_dma_mappings(struct svm_range *prange)
 			pr_debug("failed to find device idx %d\n", gpuidx);
 			continue;
 		}
-		dev = &pdd->dev->pdev->dev;
+		dev = &pdd->dev->adev->pdev->dev;
 		svm_range_dma_unmap(dev, dma_addr, 0, prange->npages);
 		kvfree(dma_addr);
 		prange->dma_addr[gpuidx] = NULL;
@@ -568,6 +569,15 @@ svm_range_vram_node_new(struct amdgpu_device *adev, struct svm_range *prange,
 	if (r) {
 		pr_debug("failed %d to reserve bo\n", r);
 		goto reserve_bo_failed;
+	}
+
+	if (clear) {
+		r = amdgpu_bo_sync_wait(bo, AMDGPU_FENCE_OWNER_KFD, false);
+		if (r) {
+			pr_debug("failed %d to sync bo\n", r);
+			amdgpu_bo_unreserve(bo);
+			goto reserve_bo_failed;
+		}
 	}
 
 	r = dma_resv_reserve_fences(bo->tbo.base.resv, 1);
@@ -1586,8 +1596,8 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		unsigned long npages;
 		bool readonly;
 
-		vma = find_vma(mm, addr);
-		if (!vma || addr < vma->vm_start) {
+		vma = vma_lookup(mm, addr);
+		if (!vma) {
 			r = -EFAULT;
 			goto unreserve_out;
 		}
@@ -1596,9 +1606,9 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		next = min(vma->vm_end, end);
 		npages = (next - addr) >> PAGE_SHIFT;
 		WRITE_ONCE(p->svms.faulting_task, current);
-		r = amdgpu_hmm_range_get_pages(&prange->notifier, mm, NULL,
-					       addr, npages, &hmm_range,
-					       readonly, true, owner);
+		r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
+					       readonly, owner, NULL,
+					       &hmm_range);
 		WRITE_ONCE(p->svms.faulting_task, NULL);
 		if (r) {
 			pr_debug("failed %d to get svm range pages\n", r);
@@ -2542,8 +2552,8 @@ svm_range_get_range_boundaries(struct kfd_process *p, int64_t addr,
 	struct interval_tree_node *node;
 	unsigned long start_limit, end_limit;
 
-	vma = find_vma(p->mm, addr << PAGE_SHIFT);
-	if (!vma || (addr << PAGE_SHIFT) < vma->vm_start) {
+	vma = vma_lookup(p->mm, addr << PAGE_SHIFT);
+	if (!vma) {
 		pr_debug("VMA does not exist in address [0x%llx]\n", addr);
 		return -EFAULT;
 	}
@@ -2871,8 +2881,8 @@ retry_write_locked:
 	/* __do_munmap removed VMA, return success as we are handling stale
 	 * retry fault.
 	 */
-	vma = find_vma(mm, addr << PAGE_SHIFT);
-	if (!vma || (addr << PAGE_SHIFT) < vma->vm_start) {
+	vma = vma_lookup(mm, addr << PAGE_SHIFT);
+	if (!vma) {
 		pr_debug("address 0x%llx VMA is removed\n", addr);
 		r = 0;
 		goto out_unlock_range;
@@ -3152,9 +3162,8 @@ svm_range_is_valid(struct kfd_process *p, uint64_t start, uint64_t size)
 	start <<= PAGE_SHIFT;
 	end = start + (size << PAGE_SHIFT);
 	do {
-		vma = find_vma(p->mm, start);
-		if (!vma || start < vma->vm_start ||
-		    (vma->vm_flags & device_vma))
+		vma = vma_lookup(p->mm, start);
+		if (!vma || (vma->vm_flags & device_vma))
 			return -EFAULT;
 		start = min(end, vma->vm_end);
 	} while (start < end);

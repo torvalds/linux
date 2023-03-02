@@ -399,7 +399,7 @@ A partial list of the supported mount options follows:
   sep
 		if first mount option (after the -o), overrides
 		the comma as the separator between the mount
-		parms. e.g.::
+		parameters. e.g.::
 
 			-o user=myname,password=mypassword,domain=mydom
 
@@ -765,7 +765,7 @@ cifsFYI			If set to non-zero value, additional debug information
 			Some debugging statements are not compiled into the
 			cifs kernel unless CONFIG_CIFS_DEBUG2 is enabled in the
 			kernel configuration. cifsFYI may be set to one or
-			nore of the following flags (7 sets them all)::
+			more of the following flags (7 sets them all)::
 
 			  +-----------------------------------------------+------+
 			  | log cifs informational messages		  | 0x01 |
@@ -858,7 +858,7 @@ CIFS kernel module parameters
 These module parameters can be specified or modified either during the time of
 module loading or during the runtime by using the interface::
 
-	/proc/module/cifs/parameters/<param>
+	/sys/module/cifs/parameters/<param>
 
 i.e.::
 

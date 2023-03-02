@@ -62,11 +62,11 @@
 };
 
 &gpio_leds {
-	power {
+	led-power {
 		label = "shelby:white:power";
 	};
 
-	sata {
+	led-sata {
 		label = "shelby:white:sata";
 	};
 };

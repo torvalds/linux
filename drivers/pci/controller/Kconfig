@@ -9,6 +9,7 @@ config PCI_MVEBU
 	depends on MVEBU_MBUS
 	depends on ARM
 	depends on OF
+	depends on BROKEN
 	select PCI_BRIDGE_EMUL
 	help
 	 Add support for Marvell EBU PCIe controller. This PCIe controller
@@ -19,7 +20,7 @@ config PCI_AARDVARK
 	tristate "Aardvark PCIe controller"
 	depends on (ARCH_MVEBU && ARM64) || COMPILE_TEST
 	depends on OF
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	select PCI_BRIDGE_EMUL
 	help
 	 Add support for Aardvark 64bit PCIe Host Controller. This
@@ -29,7 +30,7 @@ config PCI_AARDVARK
 config PCIE_XILINX_NWL
 	bool "NWL PCIe Core"
 	depends on ARCH_ZYNQMP || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	help
 	 Say 'Y' here if you want kernel support for Xilinx
 	 NWL PCIe controller. The controller can act as Root Port
@@ -53,7 +54,7 @@ config PCI_IXP4XX
 config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
 	depends on ARCH_TEGRA || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	help
 	  Say Y here if you want support for the PCIe host controller found
 	  on NVIDIA Tegra SoCs.
@@ -70,7 +71,7 @@ config PCI_RCAR_GEN2
 config PCIE_RCAR_HOST
 	bool "Renesas R-Car PCIe host controller"
 	depends on ARCH_RENESAS || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	help
 	  Say Y here if you want PCIe controller support on R-Car SoCs in host
 	  mode.
@@ -99,7 +100,7 @@ config PCI_HOST_GENERIC
 config PCIE_XILINX
 	bool "Xilinx AXI PCIe host bridge support"
 	depends on OF || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	help
 	  Say 'Y' here if you want kernel to support the Xilinx AXI PCIe
 	  Host Bridge driver.
@@ -124,7 +125,7 @@ config PCI_XGENE
 config PCI_XGENE_MSI
 	bool "X-Gene v1 PCIe MSI feature"
 	depends on PCI_XGENE
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	default y
 	help
 	  Say Y here if you want PCIe MSI support for the APM X-Gene v1 SoC.
@@ -170,7 +171,7 @@ config PCIE_IPROC_BCMA
 config PCIE_IPROC_MSI
 	bool "Broadcom iProc PCIe MSI support"
 	depends on PCIE_IPROC_PLATFORM || PCIE_IPROC_BCMA
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	default ARCH_BCM_IPROC
 	help
 	  Say Y here if you want to enable MSI support for Broadcom's iProc
@@ -186,7 +187,7 @@ config PCIE_ALTERA
 config PCIE_ALTERA_MSI
 	tristate "Altera PCIe MSI feature"
 	depends on PCIE_ALTERA
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	help
 	  Say Y here if you want PCIe MSI support for the Altera FPGA.
 	  This MSI driver supports Altera MSI to GIC controller IP.
@@ -215,7 +216,7 @@ config PCIE_ROCKCHIP_HOST
 	tristate "Rockchip PCIe host controller"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on OF
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	select MFD_SYSCON
 	select PCIE_ROCKCHIP
 	help
@@ -239,7 +240,7 @@ config PCIE_MEDIATEK
 	tristate "MediaTek PCIe controller"
 	depends on ARCH_AIROHA || ARCH_MEDIATEK || COMPILE_TEST
 	depends on OF
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	help
 	  Say Y here if you want to enable PCIe controller support on
 	  MediaTek SoCs.
@@ -247,7 +248,7 @@ config PCIE_MEDIATEK
 config PCIE_MEDIATEK_GEN3
 	tristate "MediaTek Gen3 PCIe controller"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	help
 	  Adds support for PCIe Gen3 MAC controller for MediaTek SoCs.
 	  This PCIe controller is compatible with Gen3, Gen2 and Gen1 speed,
@@ -258,7 +259,7 @@ config PCIE_MEDIATEK_GEN3
 	  MediaTek SoCs.
 
 config VMD
-	depends on PCI_MSI && X86_64 && SRCU && !UML
+	depends on PCI_MSI && X86_64 && !UML
 	tristate "Intel Volume Management Device Driver"
 	help
 	  Adds support for the Intel Volume Management Device (VMD). VMD is a
@@ -277,7 +278,7 @@ config PCIE_BRCMSTB
 	depends on ARCH_BRCMSTB || ARCH_BCM2835 || ARCH_BCMBCA || \
 		   BMIPS_GENERIC || COMPILE_TEST
 	depends on OF
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  Say Y here to enable PCIe host controller support for
@@ -285,7 +286,7 @@ config PCIE_BRCMSTB
 
 config PCI_HYPERV_INTERFACE
 	tristate "Hyper-V PCI Interface"
-	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN
+	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI
 	help
 	  The Hyper-V PCI Interface is a helper driver allows other drivers to
 	  have a common interface with the Hyper-V PCI frontend driver.
@@ -303,8 +304,6 @@ config PCI_LOONGSON
 config PCIE_MICROCHIP_HOST
 	bool "Microchip AXI PCIe host bridge support"
 	depends on PCI_MSI && OF
-	select PCI_MSI_IRQ_DOMAIN
-	select GENERIC_MSI_IRQ_DOMAIN
 	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want kernel to support the Microchip AXI PCIe
@@ -326,7 +325,7 @@ config PCIE_APPLE
 	tristate "Apple PCIe controller"
 	depends on ARCH_APPLE || COMPILE_TEST
 	depends on OF
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI_MSI
 	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want to enable PCIe controller support on Apple

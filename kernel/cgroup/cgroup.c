@@ -248,6 +248,12 @@ static int cgroup_addrm_files(struct cgroup_subsys_state *css,
 			      struct cgroup *cgrp, struct cftype cfts[],
 			      bool is_add);
 
+#ifdef CONFIG_DEBUG_CGROUP_REF
+#define CGROUP_REF_FN_ATTRS	noinline
+#define CGROUP_REF_EXPORT(fn)	EXPORT_SYMBOL_GPL(fn);
+#include <linux/cgroup_refcnt.h>
+#endif
+
 /**
  * cgroup_ssid_enabled - cgroup subsys enabled test by subsys ID
  * @ssid: subsys ID of interest
@@ -2860,14 +2866,12 @@ int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 	 * take an rcu_read_lock.
 	 */
 	spin_lock_irq(&css_set_lock);
-	rcu_read_lock();
 	task = leader;
 	do {
 		cgroup_migrate_add_task(task, mgctx);
 		if (!threadgroup)
 			break;
 	} while_each_thread(leader, task);
-	rcu_read_unlock();
 	spin_unlock_irq(&css_set_lock);
 
 	return cgroup_migrate_execute(mgctx);
@@ -5061,7 +5065,7 @@ static int cgroup_may_write(const struct cgroup *cgrp, struct super_block *sb)
 	if (!inode)
 		return -ENOMEM;
 
-	ret = inode_permission(&init_user_ns, inode, MAY_WRITE);
+	ret = inode_permission(&nop_mnt_idmap, inode, MAY_WRITE);
 	iput(inode);
 	return ret;
 }
@@ -5349,6 +5353,7 @@ static void css_free_rwork_fn(struct work_struct *work)
 		atomic_dec(&cgrp->root->nr_cgrps);
 		cgroup1_pidlist_destroy_all(cgrp);
 		cancel_work_sync(&cgrp->release_agent_work);
+		bpf_cgrp_storage_free(cgrp);
 
 		if (cgroup_parent(cgrp)) {
 			/*

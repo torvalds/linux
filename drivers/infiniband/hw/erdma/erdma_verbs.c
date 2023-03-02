@@ -118,8 +118,7 @@ static int regmr_cmd(struct erdma_dev *dev, struct erdma_mr *mr)
 		   FIELD_PREP(ERDMA_CMD_MR_MPT_IDX_MASK, mr->ibmr.lkey >> 8);
 	req.cfg1 = FIELD_PREP(ERDMA_CMD_REGMR_PD_MASK, pd->pdn) |
 		   FIELD_PREP(ERDMA_CMD_REGMR_TYPE_MASK, mr->type) |
-		   FIELD_PREP(ERDMA_CMD_REGMR_RIGHT_MASK, mr->access) |
-		   FIELD_PREP(ERDMA_CMD_REGMR_ACC_MODE_MASK, 0);
+		   FIELD_PREP(ERDMA_CMD_REGMR_RIGHT_MASK, mr->access);
 	req.cfg2 = FIELD_PREP(ERDMA_CMD_REGMR_PAGESIZE_MASK,
 			      ilog2(mr->mem.page_size)) |
 		   FIELD_PREP(ERDMA_CMD_REGMR_MTT_TYPE_MASK, mr->mem.mtt_type) |
@@ -289,6 +288,10 @@ int erdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->max_mw = dev->attrs.max_mw;
 	attr->max_fast_reg_page_list_len = ERDMA_MAX_FRMR_PA;
 	attr->page_size_cap = ERDMA_PAGE_SIZE_SUPPORT;
+
+	if (dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_ATOMIC)
+		attr->atomic_cap = IB_ATOMIC_GLOB;
+
 	attr->fw_ver = dev->attrs.fw_version;
 
 	if (dev->netdev)
@@ -374,6 +377,21 @@ int erdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	erdma_free_idx(&dev->res_cb[ERDMA_RES_TYPE_PD], pd->pdn);
 
 	return 0;
+}
+
+static void erdma_flush_worker(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct erdma_qp *qp =
+		container_of(dwork, struct erdma_qp, reflush_dwork);
+	struct erdma_cmdq_reflush_req req;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
+				CMDQ_OPCODE_REFLUSH);
+	req.qpn = QP_ID(qp);
+	req.sq_pi = qp->kern_qp.sq_pi;
+	req.rq_pi = qp->kern_qp.rq_pi;
+	erdma_post_cmd_wait(&qp->dev->cmdq, &req, sizeof(req), NULL, NULL);
 }
 
 static int erdma_qp_validate_cap(struct erdma_dev *dev,
@@ -732,6 +750,7 @@ int erdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	qp->attrs.max_send_sge = attrs->cap.max_send_sge;
 	qp->attrs.max_recv_sge = attrs->cap.max_recv_sge;
 	qp->attrs.state = ERDMA_QP_STATE_IDLE;
+	INIT_DELAYED_WORK(&qp->reflush_dwork, erdma_flush_worker);
 
 	ret = create_qp_cmd(dev, qp);
 	if (ret)
@@ -1025,6 +1044,8 @@ int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	erdma_modify_qp_internal(qp, &qp_attrs, ERDMA_QP_ATTR_STATE);
 	up_write(&qp->state_lock);
 
+	cancel_delayed_work_sync(&qp->reflush_dwork);
+
 	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
 				CMDQ_OPCODE_DESTROY_QP);
 	req.qpn = QP_ID(qp);
@@ -1089,12 +1110,14 @@ int erdma_mmap(struct ib_ucontext *ctx, struct vm_area_struct *vma)
 		prot = pgprot_device(vma->vm_page_prot);
 		break;
 	default:
-		return -EINVAL;
+		err = -EINVAL;
+		goto put_entry;
 	}
 
 	err = rdma_user_mmap_io(ctx, vma, PFN_DOWN(entry->address), PAGE_SIZE,
 				prot, rdma_entry);
 
+put_entry:
 	rdma_user_mmap_entry_put(rdma_entry);
 	return err;
 }

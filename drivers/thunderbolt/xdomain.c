@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/prandom.h>
+#include <linux/string_helpers.h>
 #include <linux/utsname.h>
 #include <linux/uuid.h>
 #include <linux/workqueue.h>
@@ -341,7 +342,6 @@ static int tb_xdp_properties_request(struct tb_ctl *ctl, u64 route,
 	memcpy(&req.src_uuid, src_uuid, sizeof(*src_uuid));
 	memcpy(&req.dst_uuid, dst_uuid, sizeof(*dst_uuid));
 
-	len = 0;
 	data_len = 0;
 
 	do {
@@ -881,7 +881,7 @@ static ssize_t key_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(key);
 
-static int get_modalias(struct tb_service *svc, char *buf, size_t size)
+static int get_modalias(const struct tb_service *svc, char *buf, size_t size)
 {
 	return snprintf(buf, size, "tbsvc:k%sp%08Xv%08Xr%08X", svc->key,
 			svc->prtcid, svc->prtcvers, svc->prtcrevs);
@@ -953,9 +953,9 @@ static const struct attribute_group *tb_service_attr_groups[] = {
 	NULL,
 };
 
-static int tb_service_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int tb_service_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct tb_service *svc = container_of(dev, struct tb_service, dev);
+	const struct tb_service *svc = container_of_const(dev, struct tb_service, dev);
 	char modalias[64];
 
 	get_modalias(svc, modalias, sizeof(modalias));
@@ -1344,7 +1344,7 @@ static int tb_xdomain_bond_lanes_uuid_high(struct tb_xdomain *xd)
 	tb_port_update_credits(port);
 	tb_xdomain_update_link_attributes(xd);
 
-	dev_dbg(&xd->dev, "lane bonding %sabled\n", width == 2 ? "en" : "dis");
+	dev_dbg(&xd->dev, "lane bonding %s\n", str_enabled_disabled(width == 2));
 	return 0;
 }
 
@@ -1419,12 +1419,19 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 	 * registered, we notify the userspace that it has changed.
 	 */
 	if (!update) {
-		struct tb_port *port;
+		/*
+		 * Now disable lane 1 if bonding was not enabled. Do
+		 * this only if bonding was possible at the beginning
+		 * (that is we are the connection manager and there are
+		 * two lanes).
+		 */
+		if (xd->bonding_possible) {
+			struct tb_port *port;
 
-		/* Now disable lane 1 if bonding was not enabled */
-		port = tb_port_at(xd->route, tb_xdomain_parent(xd));
-		if (!port->bonded)
-			tb_port_disable(port->dual_link_port);
+			port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+			if (!port->bonded)
+				tb_port_disable(port->dual_link_port);
+		}
 
 		if (device_add(&xd->dev)) {
 			dev_err(&xd->dev, "failed to add XDomain device\n");

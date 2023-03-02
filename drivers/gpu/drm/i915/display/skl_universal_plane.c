@@ -9,6 +9,8 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_atomic_plane.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -244,6 +246,11 @@ bool icl_is_nv12_y_plane(struct drm_i915_private *dev_priv,
 {
 	return DISPLAY_VER(dev_priv) >= 11 &&
 		icl_nv12_y_plane_mask(dev_priv) & BIT(plane_id);
+}
+
+u8 icl_hdr_plane_mask(void)
+{
+	return BIT(PLANE_PRIMARY) | BIT(PLANE_SPRITE0) | BIT(PLANE_SPRITE1);
 }
 
 bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id)
@@ -1620,7 +1627,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	u32 offset;
 	int ret;
 
-	if (w > max_width || w < min_width || h > max_height) {
+	if (w > max_width || w < min_width || h > max_height || h < 1) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "requested Y/RGB source size %dx%d outside limits (min: %dx1 max: %dx%d)\n",
 			    w, h, min_width, max_width, max_height);
@@ -1841,7 +1848,7 @@ static bool bo_has_valid_encryption(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	return intel_pxp_key_check(&to_gt(i915)->pxp, obj, false) == 0;
+	return intel_pxp_key_check(i915->pxp, obj, false) == 0;
 }
 
 static bool pxp_is_borked(struct drm_i915_gem_object *obj)

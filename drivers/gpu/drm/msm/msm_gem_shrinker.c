@@ -15,7 +15,7 @@
 /* Default disabled for now until it has some more testing on the different
  * iommu combinations that can be paired with the driver:
  */
-static bool enable_eviction = false;
+static bool enable_eviction = true;
 MODULE_PARM_DESC(enable_eviction, "Enable swappable GEM buffers");
 module_param(enable_eviction, bool, 0600);
 

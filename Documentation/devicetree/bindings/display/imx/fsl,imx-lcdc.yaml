@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/imx/fsl,imx-lcdc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX LCD Controller, found on i.MX1, i.MX21, i.MX25 and i.MX27
+
+maintainers:
+  - Sascha Hauer <s.hauer@pengutronix.de>
+  - Pengutronix Kernel Team <kernel@pengutronix.de>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx1-fb
+          - fsl,imx21-fb
+      - items:
+          - enum:
+              - fsl,imx25-fb
+              - fsl,imx27-fb
+          - const: fsl,imx21-fb
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: ahb
+      - const: per
+
+  display:
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  interrupts:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  lcd-supply:
+    description:
+      Regulator for LCD supply voltage.
+
+  fsl,dmacr:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Override value for DMA Control Register
+
+  fsl,lpccr:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Contrast Control Register value.
+
+  fsl,lscr1:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      LCDC Sharp Configuration Register value.
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - display
+  - interrupts
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    imxfb: fb@10021000 {
+        compatible = "fsl,imx21-fb";
+        interrupts = <61>;
+        reg = <0x10021000 0x1000>;
+        display = <&display0>;
+        clocks = <&clks 103>, <&clks 49>, <&clks 66>;
+        clock-names = "ipg", "ahb", "per";
+    };
+
+    display0: display0 {
+        model = "Primeview-PD050VL1";
+        bits-per-pixel = <16>;
+        fsl,pcr = <0xf0c88080>; /* non-standard but required */
+
+        display-timings {
+            native-mode = <&timing_disp0>;
+            timing_disp0: timing0 {
+                hactive = <640>;
+                vactive = <480>;
+                hback-porch = <112>;
+                hfront-porch = <36>;
+                hsync-len = <32>;
+                vback-porch = <33>;
+                vfront-porch = <33>;
+                vsync-len = <2>;
+                clock-frequency = <25000000>;
+            };
+        };
+    };

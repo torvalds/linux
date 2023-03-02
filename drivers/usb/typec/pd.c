@@ -49,6 +49,13 @@ usb_suspend_supported_show(struct device *dev, struct device_attribute *attr, ch
 static DEVICE_ATTR_RO(usb_suspend_supported);
 
 static ssize_t
+higher_capability_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%u\n", !!(to_pdo(dev)->pdo & PDO_FIXED_HIGHER_CAP));
+}
+static DEVICE_ATTR_RO(higher_capability);
+
+static ssize_t
 unconstrained_power_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%u\n", !!(to_pdo(dev)->pdo & PDO_FIXED_EXTPOWER));
@@ -161,7 +168,7 @@ static struct device_type source_fixed_supply_type = {
 
 static struct attribute *sink_fixed_supply_attrs[] = {
 	&dev_attr_dual_role_power.attr,
-	&dev_attr_usb_suspend_supported.attr,
+	&dev_attr_higher_capability.attr,
 	&dev_attr_unconstrained_power.attr,
 	&dev_attr_usb_communication_capable.attr,
 	&dev_attr_dual_role_data.attr,

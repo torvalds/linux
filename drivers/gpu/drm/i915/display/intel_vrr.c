@@ -5,6 +5,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_vrr.h"
@@ -77,10 +78,10 @@ static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_stat
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	/* The hw imposes the extra scanline before frame start */
 	if (DISPLAY_VER(i915) >= 13)
-		return crtc_state->vrr.guardband + crtc_state->framestart_delay + 1;
+		return crtc_state->vrr.guardband;
 	else
+		/* The hw imposes the extra scanline before frame start */
 		return crtc_state->vrr.pipeline_full + crtc_state->framestart_delay + 1;
 }
 
@@ -150,23 +151,27 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 		 * number of scan lines. Assuming 0 for no DSB.
 		 */
 		crtc_state->vrr.guardband =
-			crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay;
+			crtc_state->vrr.vmin + 1 - adjusted_mode->crtc_vdisplay;
 	} else {
-		/*
-		 * FIXME: s/4/framestart_delay/ to get consistent
-		 * earliest/latest points for register latching regardless
-		 * of the framestart_delay used?
-		 *
-		 * FIXME: this really needs the extra scanline to provide consistent
-		 * behaviour for all framestart_delay values. Otherwise with
-		 * framestart_delay==4 we will end up extending the min vblank by
-		 * one extra line.
-		 */
 		crtc_state->vrr.pipeline_full =
-			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay - 4 - 1);
+			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay -
+			    crtc_state->framestart_delay - 1);
 	}
 
 	crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
+}
+
+static u32 trans_vrr_ctl(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (DISPLAY_VER(i915) >= 13)
+		return VRR_CTL_IGN_MAX_SHIFT | VRR_CTL_FLIP_LINE_EN |
+			XELPD_VRR_CTL_VRR_GUARDBAND(crtc_state->vrr.guardband);
+	else
+		return VRR_CTL_IGN_MAX_SHIFT | VRR_CTL_FLIP_LINE_EN |
+			VRR_CTL_PIPELINE_FULL(crtc_state->vrr.pipeline_full) |
+			VRR_CTL_PIPELINE_FULL_OVERRIDE;
 }
 
 void intel_vrr_enable(struct intel_encoder *encoder,
@@ -174,26 +179,18 @@ void intel_vrr_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 trans_vrr_ctl;
 
 	if (!crtc_state->vrr.enable)
 		return;
 
-	if (DISPLAY_VER(dev_priv) >= 13)
-		trans_vrr_ctl = VRR_CTL_VRR_ENABLE |
-			VRR_CTL_IGN_MAX_SHIFT | VRR_CTL_FLIP_LINE_EN |
-			XELPD_VRR_CTL_VRR_GUARDBAND(crtc_state->vrr.guardband);
-	else
-		trans_vrr_ctl = VRR_CTL_VRR_ENABLE |
-			VRR_CTL_IGN_MAX_SHIFT | VRR_CTL_FLIP_LINE_EN |
-			VRR_CTL_PIPELINE_FULL(crtc_state->vrr.pipeline_full) |
-			VRR_CTL_PIPELINE_FULL_OVERRIDE;
-
 	intel_de_write(dev_priv, TRANS_VRR_VMIN(cpu_transcoder), crtc_state->vrr.vmin - 1);
 	intel_de_write(dev_priv, TRANS_VRR_VMAX(cpu_transcoder), crtc_state->vrr.vmax - 1);
-	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder), trans_vrr_ctl);
+	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder), trans_vrr_ctl(crtc_state));
 	intel_de_write(dev_priv, TRANS_VRR_FLIPLINE(cpu_transcoder), crtc_state->vrr.flipline - 1);
 	intel_de_write(dev_priv, TRANS_PUSH(cpu_transcoder), TRANS_PUSH_EN);
+
+	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder),
+		       VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state));
 }
 
 void intel_vrr_send_push(const struct intel_crtc_state *crtc_state)
@@ -230,8 +227,13 @@ void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
 	if (!old_crtc_state->vrr.enable)
 		return;
 
-	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder), 0);
+	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder),
+		       trans_vrr_ctl(old_crtc_state));
+	intel_de_wait_for_clear(dev_priv, TRANS_VRR_STATUS(cpu_transcoder),
+				VRR_STATUS_VRR_EN_LIVE, 1000);
+
 	intel_de_write(dev_priv, TRANS_PUSH(cpu_transcoder), 0);
+	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder), 0);
 }
 
 void intel_vrr_get_config(struct intel_crtc *crtc,

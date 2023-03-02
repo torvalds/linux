@@ -27,9 +27,9 @@
  *   of the 16 available.  Bit 24-26 of the TLB are cleared in the TLB
  *   miss handler.  Bit 27 is PAGE_USER, thus selecting the correct
  *   zone.
- * - PRESENT *must* be in the bottom two bits because swap cache
- *   entries use the top 30 bits.  Because 40x doesn't support SMP
- *   anyway, M is irrelevant so we borrow it for PAGE_PRESENT.  Bit 30
+ * - PRESENT *must* be in the bottom two bits because swap PTEs
+ *   use the top 30 bits.  Because 40x doesn't support SMP anyway, M is
+ *   irrelevant so we borrow it for PAGE_PRESENT.  Bit 30
  *   is cleared in the TLB miss handler before the TLB entry is loaded.
  * - All other bits of the PTE are loaded into TLBLO without
  *   modification, leaving us only the bits 20, 21, 24, 25, 26, 30 for

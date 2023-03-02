@@ -2400,6 +2400,8 @@ static void pkt_submit_bio(struct bio *bio)
 	struct bio *split;
 
 	bio = bio_split_to_limits(bio);
+	if (!bio)
+		return;
 
 	pkt_dbg(2, pd, "start = %6llx stop = %6llx\n",
 		(unsigned long long)bio->bi_iter.bi_sector,

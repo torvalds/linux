@@ -192,6 +192,102 @@
 		pinctrl-single,function-mask = <0xffffffff>;
 	};
 
+	main_timer0: timer@2400000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2400000 0x00 0x400>;
+		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 36 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 36 2>;
+		assigned-clock-parents = <&k3_clks 36 3>;
+		power-domains = <&k3_pds 36 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
+	main_timer1: timer@2410000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2410000 0x00 0x400>;
+		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 37 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 37 2>;
+		assigned-clock-parents = <&k3_clks 37 3>;
+		power-domains = <&k3_pds 37 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
+	main_timer2: timer@2420000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2420000 0x00 0x400>;
+		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 38 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 38 2>;
+		assigned-clock-parents = <&k3_clks 38 3>;
+		power-domains = <&k3_pds 38 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
+	main_timer3: timer@2430000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2430000 0x00 0x400>;
+		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 39 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 39 2>;
+		assigned-clock-parents = <&k3_clks 39 3>;
+		power-domains = <&k3_pds 39 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
+	main_timer4: timer@2440000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2440000 0x00 0x400>;
+		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 40 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 40 2>;
+		assigned-clock-parents = <&k3_clks 40 3>;
+		power-domains = <&k3_pds 40 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
+	main_timer5: timer@2450000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2450000 0x00 0x400>;
+		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 41 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 41 2>;
+		assigned-clock-parents = <&k3_clks 41 3>;
+		power-domains = <&k3_pds 41 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
+	main_timer6: timer@2460000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2460000 0x00 0x400>;
+		interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 42 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 42 2>;
+		assigned-clock-parents = <&k3_clks 42 3>;
+		power-domains = <&k3_pds 42 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
+	main_timer7: timer@2470000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2470000 0x00 0x400>;
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 43 2>;
+		clock-names = "fck";
+		assigned-clocks = <&k3_clks 43 2>;
+		assigned-clock-parents = <&k3_clks 43 3>;
+		power-domains = <&k3_pds 43 TI_SCI_PD_EXCLUSIVE>;
+		ti,timer-pwm;
+	};
+
 	main_uart0: serial@2800000 {
 		compatible = "ti,am64-uart", "ti,am654-uart";
 		reg = <0x00 0x02800000 0x00 0x100>;
@@ -199,6 +295,7 @@
 		power-domains = <&k3_pds 146 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 146 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	main_uart1: serial@2810000 {
@@ -208,6 +305,7 @@
 		power-domains = <&k3_pds 152 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 152 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	main_uart2: serial@2820000 {
@@ -217,6 +315,7 @@
 		power-domains = <&k3_pds 153 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 153 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	main_uart3: serial@2830000 {
@@ -226,6 +325,7 @@
 		power-domains = <&k3_pds 154 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 154 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	main_uart4: serial@2840000 {
@@ -235,6 +335,7 @@
 		power-domains = <&k3_pds 155 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 155 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	main_uart5: serial@2850000 {
@@ -244,6 +345,7 @@
 		power-domains = <&k3_pds 156 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 156 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	main_uart6: serial@2860000 {
@@ -253,6 +355,7 @@
 		power-domains = <&k3_pds 158 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 158 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	main_i2c0: i2c@20000000 {
@@ -264,6 +367,7 @@
 		power-domains = <&k3_pds 102 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 102 2>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	main_i2c1: i2c@20010000 {
@@ -275,6 +379,7 @@
 		power-domains = <&k3_pds 103 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 103 2>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	main_i2c2: i2c@20020000 {
@@ -286,6 +391,7 @@
 		power-domains = <&k3_pds 104 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 104 2>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	main_i2c3: i2c@20030000 {
@@ -297,6 +403,7 @@
 		power-domains = <&k3_pds 105 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 105 2>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	main_spi0: spi@20100000 {
@@ -306,7 +413,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		power-domains = <&k3_pds 141 TI_SCI_PD_EXCLUSIVE>;
-		clocks = <&k3_clks 172 0>;
+		clocks = <&k3_clks 141 0>;
+		status = "disabled";
 	};
 
 	main_spi1: spi@20110000 {
@@ -316,7 +424,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		power-domains = <&k3_pds 142 TI_SCI_PD_EXCLUSIVE>;
-		clocks = <&k3_clks 173 0>;
+		clocks = <&k3_clks 142 0>;
+		status = "disabled";
 	};
 
 	main_spi2: spi@20120000 {
@@ -326,7 +435,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		power-domains = <&k3_pds 143 TI_SCI_PD_EXCLUSIVE>;
-		clocks = <&k3_clks 174 0>;
+		clocks = <&k3_clks 143 0>;
+		status = "disabled";
 	};
 
 	main_gpio_intr: interrupt-controller@a00000 {
@@ -391,8 +501,11 @@
 		ti,clkbuf-sel = <0x7>;
 		ti,otap-del-sel-legacy = <0x0>;
 		ti,otap-del-sel-mmc-hs = <0x0>;
-		ti,otap-del-sel-ddr52 = <0x9>;
-		ti,otap-del-sel-hs200 = <0x6>;
+		ti,otap-del-sel-ddr52 = <0x5>;
+		ti,otap-del-sel-hs200 = <0x5>;
+		ti,itap-del-sel-legacy = <0xa>;
+		ti,itap-del-sel-mmc-hs = <0x1>;
+		status = "disabled";
 	};
 
 	sdhci1: mmc@fa00000 {
@@ -403,19 +516,20 @@
 		clocks = <&k3_clks 58 5>, <&k3_clks 58 6>;
 		clock-names = "clk_ahb", "clk_xin";
 		ti,trm-icp = <0x2>;
-		ti,otap-del-sel-legacy = <0x0>;
+		ti,otap-del-sel-legacy = <0x8>;
 		ti,otap-del-sel-sd-hs = <0x0>;
-		ti,otap-del-sel-sdr12 = <0xf>;
-		ti,otap-del-sel-sdr25 = <0xf>;
-		ti,otap-del-sel-sdr50 = <0xc>;
-		ti,otap-del-sel-sdr104 = <0x6>;
-		ti,otap-del-sel-ddr50 = <0x9>;
-		ti,itap-del-sel-legacy = <0x0>;
-		ti,itap-del-sel-sd-hs = <0x0>;
-		ti,itap-del-sel-sdr12 = <0x0>;
-		ti,itap-del-sel-sdr25 = <0x0>;
+		ti,otap-del-sel-sdr12 = <0x0>;
+		ti,otap-del-sel-sdr25 = <0x0>;
+		ti,otap-del-sel-sdr50 = <0x8>;
+		ti,otap-del-sel-sdr104 = <0x7>;
+		ti,otap-del-sel-ddr50 = <0x4>;
+		ti,itap-del-sel-legacy = <0xa>;
+		ti,itap-del-sel-sd-hs = <0x1>;
+		ti,itap-del-sel-sdr12 = <0xa>;
+		ti,itap-del-sel-sdr25 = <0x1>;
 		ti,clkbuf-sel = <0x7>;
 		bus-width = <4>;
+		status = "disabled";
 	};
 
 	sdhci2: mmc@fa20000 {
@@ -426,18 +540,65 @@
 		clocks = <&k3_clks 184 5>, <&k3_clks 184 6>;
 		clock-names = "clk_ahb", "clk_xin";
 		ti,trm-icp = <0x2>;
-		ti,otap-del-sel-legacy = <0x0>;
+		ti,otap-del-sel-legacy = <0x8>;
 		ti,otap-del-sel-sd-hs = <0x0>;
-		ti,otap-del-sel-sdr12 = <0xf>;
-		ti,otap-del-sel-sdr25 = <0xf>;
-		ti,otap-del-sel-sdr50 = <0xc>;
-		ti,otap-del-sel-sdr104 = <0x6>;
-		ti,otap-del-sel-ddr50 = <0x9>;
-		ti,itap-del-sel-legacy = <0x0>;
-		ti,itap-del-sel-sd-hs = <0x0>;
-		ti,itap-del-sel-sdr12 = <0x0>;
-		ti,itap-del-sel-sdr25 = <0x0>;
+		ti,otap-del-sel-sdr12 = <0x0>;
+		ti,otap-del-sel-sdr25 = <0x0>;
+		ti,otap-del-sel-sdr50 = <0x8>;
+		ti,otap-del-sel-sdr104 = <0x7>;
+		ti,otap-del-sel-ddr50 = <0x8>;
+		ti,itap-del-sel-legacy = <0xa>;
+		ti,itap-del-sel-sd-hs = <0xa>;
+		ti,itap-del-sel-sdr12 = <0xa>;
+		ti,itap-del-sel-sdr25 = <0x1>;
 		ti,clkbuf-sel = <0x7>;
+		status = "disabled";
+	};
+
+	usbss0: dwc3-usb@f900000 {
+		compatible = "ti,am62-usb";
+		reg = <0x00 0x0f900000 0x00 0x800>;
+		clocks = <&k3_clks 161 3>;
+		clock-names = "ref";
+		ti,syscon-phy-pll-refclk = <&wkup_conf 0x4008>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		power-domains = <&k3_pds 178 TI_SCI_PD_EXCLUSIVE>;
+		ranges;
+		status = "disabled";
+
+		usb0: usb@31000000 {
+			compatible = "snps,dwc3";
+			reg =<0x00 0x31000000 0x00 0x50000>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>, /* irq.0 */
+				     <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>; /* irq.0 */
+			interrupt-names = "host", "peripheral";
+			maximum-speed = "high-speed";
+			dr_mode = "otg";
+		};
+	};
+
+	usbss1: dwc3-usb@f910000 {
+		compatible = "ti,am62-usb";
+		reg = <0x00 0x0f910000 0x00 0x800>;
+		clocks = <&k3_clks 162 3>;
+		clock-names = "ref";
+		ti,syscon-phy-pll-refclk = <&wkup_conf 0x4018>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		power-domains = <&k3_pds 179 TI_SCI_PD_EXCLUSIVE>;
+		ranges;
+		status = "disabled";
+
+		usb1: usb@31100000 {
+			compatible = "snps,dwc3";
+			reg =<0x00 0x31100000 0x00 0x50000>;
+			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>, /* irq.0 */
+				     <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>; /* irq.0 */
+			interrupt-names = "host", "peripheral";
+			maximum-speed = "high-speed";
+			dr_mode = "otg";
+		};
 	};
 
 	fss: bus@fc00000 {
@@ -462,6 +623,7 @@
 			power-domains = <&k3_pds 75 TI_SCI_PD_EXCLUSIVE>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
 		};
 	};
 
@@ -520,6 +682,7 @@
 			clocks = <&k3_clks 13 0>;
 			clock-names = "fck";
 			bus_freq = <1000000>;
+			status = "disabled";
 		};
 
 		cpts@3d000 {
@@ -557,6 +720,7 @@
 		power-domains = <&k3_pds 51 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 51 0>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	ecap1: pwm@23110000 {
@@ -566,6 +730,7 @@
 		power-domains = <&k3_pds 52 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 52 0>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	ecap2: pwm@23120000 {
@@ -575,6 +740,7 @@
 		power-domains = <&k3_pds 53 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 53 0>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	main_mcan0: can@20701000 {
@@ -589,6 +755,7 @@
 			     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "int0", "int1";
 		bosch,mram-cfg = <0x0 128 64 64 64 64 32 32>;
+		status = "disabled";
 	};
 
 	epwm0: pwm@23000000 {
@@ -598,6 +765,7 @@
 		power-domains = <&k3_pds 86 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&epwm_tbclk 0>, <&k3_clks 86 0>;
 		clock-names = "tbclk", "fck";
+		status = "disabled";
 	};
 
 	epwm1: pwm@23010000 {
@@ -607,6 +775,7 @@
 		power-domains = <&k3_pds 87 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&epwm_tbclk 1>, <&k3_clks 87 0>;
 		clock-names = "tbclk", "fck";
+		status = "disabled";
 	};
 
 	epwm2: pwm@23020000 {
@@ -616,5 +785,6 @@
 		power-domains = <&k3_pds 88 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&epwm_tbclk 2>, <&k3_clks 88 0>;
 		clock-names = "tbclk", "fck";
+		status = "disabled";
 	};
 };

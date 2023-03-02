@@ -404,6 +404,22 @@ static void enc3_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
+void enc3_stream_encoder_update_dp_info_packets_sdp_line_num(
+		struct stream_encoder *enc,
+		struct encoder_info_frame *info_frame)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	if (info_frame->adaptive_sync.valid == true &&
+		info_frame->sdp_line_num.adaptive_sync_line_num_valid == true) {
+		//00: REFER_TO_DP_SOF, 01: REFER_TO_OTG_SOF
+		REG_UPDATE(DP_SEC_CNTL1, DP_SEC_GSP5_LINE_REFERENCE, 1);
+
+		REG_UPDATE(DP_SEC_CNTL5, DP_SEC_GSP5_LINE_NUM,
+					info_frame->sdp_line_num.adaptive_sync_line_num);
+	}
+}
+
 void enc3_stream_encoder_update_dp_info_packets(
 	struct stream_encoder *enc,
 	const struct encoder_info_frame *info_frame)
@@ -452,12 +468,20 @@ void enc3_stream_encoder_update_dp_info_packets(
 	 * use other packetIndex (such as 5,6) for other info packet
 	 */
 
+	if (info_frame->adaptive_sync.valid)
+		enc->vpg->funcs->update_generic_info_packet(
+				enc->vpg,
+				5,  /* packetIndex */
+				&info_frame->adaptive_sync,
+				true);
+
 	/* enable/disable transmission of packet(s).
 	 * If enabled, packet transmission begins on the next frame
 	 */
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP0_ENABLE, info_frame->vsc.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP2_ENABLE, info_frame->spd.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP3_ENABLE, info_frame->hdrsmd.valid);
+	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP5_ENABLE, info_frame->adaptive_sync.valid);
 
 	/* This bit is the master enable bit.
 	 * When enabling secondary stream engine,
@@ -803,6 +827,8 @@ static const struct stream_encoder_funcs dcn30_str_enc_funcs = {
 		enc3_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =
 		enc3_stream_encoder_stop_hdmi_info_packets,
+	.update_dp_info_packets_sdp_line_num =
+		enc3_stream_encoder_update_dp_info_packets_sdp_line_num,
 	.update_dp_info_packets =
 		enc3_stream_encoder_update_dp_info_packets,
 	.stop_dp_info_packets =

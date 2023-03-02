@@ -69,6 +69,7 @@ config X86
 	select ARCH_ENABLE_THP_MIGRATION if X86_64 && TRANSPARENT_HUGEPAGE
 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
 	select ARCH_HAS_CACHE_LINE_SIZE
+	select ARCH_HAS_CPU_CACHE_INVALIDATE_MEMREGION
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEBUG_VM_PGTABLE	if !X86_PAE
@@ -81,6 +82,7 @@ config X86
 	select ARCH_HAS_KCOV			if X86_64
 	select ARCH_HAS_MEM_ENCRYPT
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
+	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_PTE_DEVMAP		if X86_64
@@ -157,7 +159,7 @@ config X86
 	select GENERIC_TIME_VSYSCALL
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_VDSO_TIME_NS
-	select GUP_GET_PTE_LOW_HIGH		if X86_PAE
+	select GUP_GET_PXX_LOW_HIGH		if X86_PAE
 	select HARDIRQS_SW_RESEND
 	select HARDLOCKUP_CHECK_TIMESTAMP	if X86_64
 	select HAVE_ACPI_APEI			if ACPI
@@ -195,6 +197,7 @@ config X86
 	select HAVE_CONTEXT_TRACKING_USER_OFFSTACK	if HAVE_CONTEXT_TRACKING_USER
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_OBJTOOL_MCOUNT		if HAVE_OBJTOOL
+	select HAVE_OBJTOOL_NOP_MCOUNT		if HAVE_OBJTOOL_MCOUNT
 	select HAVE_BUILDTIME_MCOUNT_SORT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
@@ -290,6 +293,8 @@ config X86
 	select X86_FEATURE_NAMES		if PROC_FS
 	select PROC_PID_ARCH_STATUS		if PROC_FS
 	select HAVE_ARCH_NODE_DEV_GROUP		if X86_SGX
+	select FUNCTION_ALIGNMENT_16B		if X86_64 || X86_ALIGNMENT_16
+	select FUNCTION_ALIGNMENT_4B
 	imply IMA_SECURE_AND_OR_TRUSTED_BOOT    if EFI
 	select HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
 
@@ -356,11 +361,6 @@ config ARCH_HAS_CPU_RELAX
 
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
-
-config ARCH_NR_GPIO
-	int
-	default 1024 if X86_64
-	default 512
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
@@ -462,8 +462,8 @@ config X86_X2APIC
 
 	  Some Intel systems circa 2022 and later are locked into x2APIC mode
 	  and can not fall back to the legacy APIC modes if SGX or TDX are
-	  enabled in the BIOS.  They will be unable to boot without enabling
-	  this option.
+	  enabled in the BIOS. They will boot with very reduced functionality
+	  without enabling this option.
 
 	  If you don't know what to do here, say N.
 
@@ -1109,7 +1109,6 @@ config X86_LOCAL_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC || PCI_MSI
 	select IRQ_DOMAIN_HIERARCHY
-	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
 
 config X86_IO_APIC
 	def_bool y
@@ -1503,7 +1502,7 @@ config X86_5LEVEL
 	depends on X86_64
 	help
 	  5-level paging enables access to larger address space:
-	  upto 128 PiB of virtual address space and 4 PiB of
+	  up to 128 PiB of virtual address space and 4 PiB of
 	  physical address space.
 
 	  It will be supported by future Intel CPUs.
@@ -1854,7 +1853,7 @@ config CC_HAS_IBT
 
 config X86_KERNEL_IBT
 	prompt "Indirect Branch Tracking"
-	bool
+	def_bool y
 	depends on X86_64 && CC_HAS_IBT && HAVE_OBJTOOL
 	# https://github.com/llvm/llvm-project/commit/9d7001eba9c4cb311e03cd8cdc231f9e579f2d0f
 	depends on !LD_IS_LLD || LLD_VERSION >= 140000
@@ -1980,6 +1979,23 @@ config EFI_STUB
 
 	  See Documentation/admin-guide/efi-stub.rst for more information.
 
+config EFI_HANDOVER_PROTOCOL
+	bool "EFI handover protocol (DEPRECATED)"
+	depends on EFI_STUB
+	default y
+	help
+	  Select this in order to include support for the deprecated EFI
+	  handover protocol, which defines alternative entry points into the
+	  EFI stub.  This is a practice that has no basis in the UEFI
+	  specification, and requires a priori knowledge on the part of the
+	  bootloader about Linux/x86 specific ways of passing the command line
+	  and initrd, and where in memory those assets may be loaded.
+
+	  If in doubt, say Y. Even though the corresponding support is not
+	  present in upstream GRUB or other bootloaders, most distros build
+	  GRUB with numerous downstream patches applied, and may rely on the
+	  handover protocol as as result.
+
 config EFI_MIXED
 	bool "EFI mixed-mode support"
 	depends on EFI_STUB && X86_64
@@ -1993,6 +2009,37 @@ config EFI_MIXED
 	  the EFI handover protocol must be used.
 
 	  If unsure, say N.
+
+config EFI_FAKE_MEMMAP
+	bool "Enable EFI fake memory map"
+	depends on EFI
+	help
+	  Saying Y here will enable "efi_fake_mem" boot option.  By specifying
+	  this parameter, you can add arbitrary attribute to specific memory
+	  range by updating original (firmware provided) EFI memmap.  This is
+	  useful for debugging of EFI memmap related feature, e.g., Address
+	  Range Mirroring feature.
+
+config EFI_MAX_FAKE_MEM
+	int "maximum allowable number of ranges in efi_fake_mem boot option"
+	depends on EFI_FAKE_MEMMAP
+	range 1 128
+	default 8
+	help
+	  Maximum allowable number of ranges in efi_fake_mem boot option.
+	  Ranges can be set up to this value using comma-separated list.
+	  The default value is 8.
+
+config EFI_RUNTIME_MAP
+	bool "Export EFI runtime maps to sysfs" if EXPERT
+	depends on EFI
+	default KEXEC_CORE
+	help
+	  Export EFI runtime memory regions to /sys/firmware/efi/runtime-map.
+	  That memory map is required by the 2nd kernel to set up EFI virtual
+	  mappings after kexec, but can also be used for debugging purposes.
+
+	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
 
 source "kernel/Kconfig.hz"
 
@@ -2443,6 +2490,46 @@ config CC_HAS_SLS
 config CC_HAS_RETURN_THUNK
 	def_bool $(cc-option,-mfunction-return=thunk-extern)
 
+config CC_HAS_ENTRY_PADDING
+	def_bool $(cc-option,-fpatchable-function-entry=16,16)
+
+config FUNCTION_PADDING_CFI
+	int
+	default 59 if FUNCTION_ALIGNMENT_64B
+	default 27 if FUNCTION_ALIGNMENT_32B
+	default 11 if FUNCTION_ALIGNMENT_16B
+	default  3 if FUNCTION_ALIGNMENT_8B
+	default  0
+
+# Basically: FUNCTION_ALIGNMENT - 5*CFI_CLANG
+# except Kconfig can't do arithmetic :/
+config FUNCTION_PADDING_BYTES
+	int
+	default FUNCTION_PADDING_CFI if CFI_CLANG
+	default FUNCTION_ALIGNMENT
+
+config CALL_PADDING
+	def_bool n
+	depends on CC_HAS_ENTRY_PADDING && OBJTOOL
+	select FUNCTION_ALIGNMENT_16B
+
+config FINEIBT
+	def_bool y
+	depends on X86_KERNEL_IBT && CFI_CLANG && RETPOLINE
+	select CALL_PADDING
+
+config HAVE_CALL_THUNKS
+	def_bool y
+	depends on CC_HAS_ENTRY_PADDING && RETHUNK && OBJTOOL
+
+config CALL_THUNKS
+	def_bool n
+	select CALL_PADDING
+
+config PREFIX_SYMBOLS
+	def_bool y
+	depends on CALL_PADDING && !CFI_CLANG
+
 menuconfig SPECULATION_MITIGATIONS
 	bool "Mitigations for speculative execution vulnerabilities"
 	default y
@@ -2493,6 +2580,37 @@ config CPU_UNRET_ENTRY
 	default y
 	help
 	  Compile the kernel with support for the retbleed=unret mitigation.
+
+config CALL_DEPTH_TRACKING
+	bool "Mitigate RSB underflow with call depth tracking"
+	depends on CPU_SUP_INTEL && HAVE_CALL_THUNKS
+	select HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
+	select CALL_THUNKS
+	default y
+	help
+	  Compile the kernel with call depth tracking to mitigate the Intel
+	  SKL Return-Speculation-Buffer (RSB) underflow issue. The
+	  mitigation is off by default and needs to be enabled on the
+	  kernel command line via the retbleed=stuff option. For
+	  non-affected systems the overhead of this option is marginal as
+	  the call depth tracking is using run-time generated call thunks
+	  in a compiler generated padding area and call patching. This
+	  increases text size by ~5%. For non affected systems this space
+	  is unused. On affected SKL systems this results in a significant
+	  performance gain over the IBRS mitigation.
+
+config CALL_THUNKS_DEBUG
+	bool "Enable call thunks and call depth tracking debugging"
+	depends on CALL_DEPTH_TRACKING
+	select FUNCTION_ALIGNMENT_32B
+	default n
+	help
+	  Enable call/ret counters for imbalance detection and build in
+	  a noisy dmesg about callthunks generation and call patching for
+	  trouble shooting. The debug prints need to be enabled on the
+	  kernel command line with 'debug-callthunks'.
+	  Only enable this when you are debugging call thunks as this
+	  creates a noticeable runtime overhead. If unsure say N.
 
 config CPU_IBPB_ENTRY
 	bool "Enable IBPB on kernel entry"

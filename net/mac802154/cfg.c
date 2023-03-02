@@ -46,7 +46,7 @@ static int ieee802154_suspend(struct wpan_phy *wpan_phy)
 	if (!local->open_count)
 		goto suspend;
 
-	ieee802154_stop_queue(&local->hw);
+	ieee802154_sync_and_hold_queue(local);
 	synchronize_net();
 
 	/* stop hardware - this must stop RX */
@@ -67,12 +67,12 @@ static int ieee802154_resume(struct wpan_phy *wpan_phy)
 		goto wake_up;
 
 	/* restart hardware */
-	ret = drv_start(local);
+	ret = drv_start(local, local->phy->filtering, &local->addr_filt);
 	if (ret)
 		return ret;
 
 wake_up:
-	ieee802154_wake_queue(&local->hw);
+	ieee802154_release_queue(local);
 	local->suspended = false;
 	return 0;
 }
@@ -114,11 +114,15 @@ ieee802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 	    wpan_phy->current_channel == channel)
 		return 0;
 
+	/* Refuse to change channels during scanning or beaconing */
+	if (mac802154_is_scanning(local) || mac802154_is_beaconing(local))
+		return -EBUSY;
+
 	ret = drv_set_channel(local, page, channel);
 	if (!ret) {
 		wpan_phy->current_page = page;
 		wpan_phy->current_channel = channel;
-		ieee802154_configure_durations(wpan_phy);
+		ieee802154_configure_durations(wpan_phy, page, channel);
 	}
 
 	return ret;
@@ -259,6 +263,56 @@ ieee802154_set_ackreq_default(struct wpan_phy *wpan_phy,
 
 	wpan_dev->ackreq = ackreq;
 	return 0;
+}
+
+static int mac802154_trigger_scan(struct wpan_phy *wpan_phy,
+				  struct cfg802154_scan_request *request)
+{
+	struct ieee802154_sub_if_data *sdata;
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(request->wpan_dev);
+
+	ASSERT_RTNL();
+
+	return mac802154_trigger_scan_locked(sdata, request);
+}
+
+static int mac802154_abort_scan(struct wpan_phy *wpan_phy,
+				struct wpan_dev *wpan_dev)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	struct ieee802154_sub_if_data *sdata;
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(wpan_dev);
+
+	ASSERT_RTNL();
+
+	return mac802154_abort_scan_locked(local, sdata);
+}
+
+static int mac802154_send_beacons(struct wpan_phy *wpan_phy,
+				  struct cfg802154_beacon_request *request)
+{
+	struct ieee802154_sub_if_data *sdata;
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(request->wpan_dev);
+
+	ASSERT_RTNL();
+
+	return mac802154_send_beacons_locked(sdata, request);
+}
+
+static int mac802154_stop_beacons(struct wpan_phy *wpan_phy,
+				  struct wpan_dev *wpan_dev)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	struct ieee802154_sub_if_data *sdata;
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(wpan_dev);
+
+	ASSERT_RTNL();
+
+	return mac802154_stop_beacons_locked(local, sdata);
 }
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
@@ -468,6 +522,10 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_lbt_mode = ieee802154_set_lbt_mode,
 	.set_ackreq_default = ieee802154_set_ackreq_default,
+	.trigger_scan = mac802154_trigger_scan,
+	.abort_scan = mac802154_abort_scan,
+	.send_beacons = mac802154_send_beacons,
+	.stop_beacons = mac802154_stop_beacons,
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	.get_llsec_table = ieee802154_get_llsec_table,
 	.lock_llsec_table = ieee802154_lock_llsec_table,

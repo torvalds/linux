@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/firmware/arm,scmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: System Control and Management Interface (SCMI) Message Protocol bindings
+title: System Control and Management Interface (SCMI) Message Protocol
 
 maintainers:
   - Sudeep Holla <sudeep.holla@arm.com>
@@ -100,7 +100,9 @@ properties:
       Channel specifier required when using OP-TEE transport.
 
   protocol@11:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x11
@@ -112,7 +114,9 @@ properties:
       - '#power-domain-cells'
 
   protocol@13:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x13
@@ -124,7 +128,9 @@ properties:
       - '#clock-cells'
 
   protocol@14:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x14
@@ -136,7 +142,9 @@ properties:
       - '#clock-cells'
 
   protocol@15:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x15
@@ -148,7 +156,9 @@ properties:
       - '#thermal-sensor-cells'
 
   protocol@16:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x16
@@ -160,20 +170,31 @@ properties:
       - '#reset-cells'
 
   protocol@17:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x17
 
       regulators:
         type: object
+        additionalProperties: false
         description:
           The list of all regulators provided by this SCMI controller.
 
+        properties:
+          '#address-cells':
+            const: 1
+
+          '#size-cells':
+            const: 0
+
         patternProperties:
-          '^regulators@[0-9a-f]+$':
+          '^regulator@[0-9a-f]+$':
             type: object
             $ref: "../regulator/regulator.yaml#"
+            unevaluatedProperties: false
 
             properties:
               reg:
@@ -184,15 +205,17 @@ properties:
               - reg
 
   protocol@18:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x18
 
 additionalProperties: false
 
-patternProperties:
-  '^protocol@[0-9a-f]+$':
+$defs:
+  protocol-node:
     type: object
     description:
       Each sub-node represents a protocol supported. If the platform

@@ -18,12 +18,12 @@
 #include <linux/regmap.h>
 #include <linux/types.h>
 
-#define DW_IC_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
-					I2C_FUNC_SMBUS_BYTE |		\
-					I2C_FUNC_SMBUS_BYTE_DATA |	\
-					I2C_FUNC_SMBUS_WORD_DATA |	\
-					I2C_FUNC_SMBUS_BLOCK_DATA |	\
-					I2C_FUNC_SMBUS_I2C_BLOCK)
+#define DW_IC_DEFAULT_FUNCTIONALITY		(I2C_FUNC_I2C | \
+						 I2C_FUNC_SMBUS_BYTE | \
+						 I2C_FUNC_SMBUS_BYTE_DATA | \
+						 I2C_FUNC_SMBUS_WORD_DATA | \
+						 I2C_FUNC_SMBUS_BLOCK_DATA | \
+						 I2C_FUNC_SMBUS_I2C_BLOCK)
 
 #define DW_IC_CON_MASTER			BIT(0)
 #define DW_IC_CON_SPEED_STD			(1 << 1)
@@ -37,104 +37,105 @@
 #define DW_IC_CON_STOP_DET_IFADDRESSED		BIT(7)
 #define DW_IC_CON_TX_EMPTY_CTRL			BIT(8)
 #define DW_IC_CON_RX_FIFO_FULL_HLD_CTRL		BIT(9)
+#define DW_IC_CON_BUS_CLEAR_CTRL		BIT(11)
 
 #define DW_IC_DATA_CMD_DAT			GENMASK(7, 0)
 
 /*
  * Registers offset
  */
-#define DW_IC_CON		0x00
-#define DW_IC_TAR		0x04
-#define DW_IC_SAR		0x08
-#define DW_IC_DATA_CMD		0x10
-#define DW_IC_SS_SCL_HCNT	0x14
-#define DW_IC_SS_SCL_LCNT	0x18
-#define DW_IC_FS_SCL_HCNT	0x1c
-#define DW_IC_FS_SCL_LCNT	0x20
-#define DW_IC_HS_SCL_HCNT	0x24
-#define DW_IC_HS_SCL_LCNT	0x28
-#define DW_IC_INTR_STAT		0x2c
-#define DW_IC_INTR_MASK		0x30
-#define DW_IC_RAW_INTR_STAT	0x34
-#define DW_IC_RX_TL		0x38
-#define DW_IC_TX_TL		0x3c
-#define DW_IC_CLR_INTR		0x40
-#define DW_IC_CLR_RX_UNDER	0x44
-#define DW_IC_CLR_RX_OVER	0x48
-#define DW_IC_CLR_TX_OVER	0x4c
-#define DW_IC_CLR_RD_REQ	0x50
-#define DW_IC_CLR_TX_ABRT	0x54
-#define DW_IC_CLR_RX_DONE	0x58
-#define DW_IC_CLR_ACTIVITY	0x5c
-#define DW_IC_CLR_STOP_DET	0x60
-#define DW_IC_CLR_START_DET	0x64
-#define DW_IC_CLR_GEN_CALL	0x68
-#define DW_IC_ENABLE		0x6c
-#define DW_IC_STATUS		0x70
-#define DW_IC_TXFLR		0x74
-#define DW_IC_RXFLR		0x78
-#define DW_IC_SDA_HOLD		0x7c
-#define DW_IC_TX_ABRT_SOURCE	0x80
-#define DW_IC_ENABLE_STATUS	0x9c
-#define DW_IC_CLR_RESTART_DET	0xa8
-#define DW_IC_COMP_PARAM_1	0xf4
-#define DW_IC_COMP_VERSION	0xf8
-#define DW_IC_SDA_HOLD_MIN_VERS	0x3131312A
-#define DW_IC_COMP_TYPE		0xfc
-#define DW_IC_COMP_TYPE_VALUE	0x44570140
+#define DW_IC_CON				0x00
+#define DW_IC_TAR				0x04
+#define DW_IC_SAR				0x08
+#define DW_IC_DATA_CMD				0x10
+#define DW_IC_SS_SCL_HCNT			0x14
+#define DW_IC_SS_SCL_LCNT			0x18
+#define DW_IC_FS_SCL_HCNT			0x1c
+#define DW_IC_FS_SCL_LCNT			0x20
+#define DW_IC_HS_SCL_HCNT			0x24
+#define DW_IC_HS_SCL_LCNT			0x28
+#define DW_IC_INTR_STAT				0x2c
+#define DW_IC_INTR_MASK				0x30
+#define DW_IC_RAW_INTR_STAT			0x34
+#define DW_IC_RX_TL				0x38
+#define DW_IC_TX_TL				0x3c
+#define DW_IC_CLR_INTR				0x40
+#define DW_IC_CLR_RX_UNDER			0x44
+#define DW_IC_CLR_RX_OVER			0x48
+#define DW_IC_CLR_TX_OVER			0x4c
+#define DW_IC_CLR_RD_REQ			0x50
+#define DW_IC_CLR_TX_ABRT			0x54
+#define DW_IC_CLR_RX_DONE			0x58
+#define DW_IC_CLR_ACTIVITY			0x5c
+#define DW_IC_CLR_STOP_DET			0x60
+#define DW_IC_CLR_START_DET			0x64
+#define DW_IC_CLR_GEN_CALL			0x68
+#define DW_IC_ENABLE				0x6c
+#define DW_IC_STATUS				0x70
+#define DW_IC_TXFLR				0x74
+#define DW_IC_RXFLR				0x78
+#define DW_IC_SDA_HOLD				0x7c
+#define DW_IC_TX_ABRT_SOURCE			0x80
+#define DW_IC_ENABLE_STATUS			0x9c
+#define DW_IC_CLR_RESTART_DET			0xa8
+#define DW_IC_COMP_PARAM_1			0xf4
+#define DW_IC_COMP_VERSION			0xf8
+#define DW_IC_SDA_HOLD_MIN_VERS			0x3131312A /* "111*" == v1.11* */
+#define DW_IC_COMP_TYPE				0xfc
+#define DW_IC_COMP_TYPE_VALUE			0x44570140 /* "DW" + 0x0140 */
 
-#define DW_IC_INTR_RX_UNDER	BIT(0)
-#define DW_IC_INTR_RX_OVER	BIT(1)
-#define DW_IC_INTR_RX_FULL	BIT(2)
-#define DW_IC_INTR_TX_OVER	BIT(3)
-#define DW_IC_INTR_TX_EMPTY	BIT(4)
-#define DW_IC_INTR_RD_REQ	BIT(5)
-#define DW_IC_INTR_TX_ABRT	BIT(6)
-#define DW_IC_INTR_RX_DONE	BIT(7)
-#define DW_IC_INTR_ACTIVITY	BIT(8)
-#define DW_IC_INTR_STOP_DET	BIT(9)
-#define DW_IC_INTR_START_DET	BIT(10)
-#define DW_IC_INTR_GEN_CALL	BIT(11)
-#define DW_IC_INTR_RESTART_DET	BIT(12)
+#define DW_IC_INTR_RX_UNDER			BIT(0)
+#define DW_IC_INTR_RX_OVER			BIT(1)
+#define DW_IC_INTR_RX_FULL			BIT(2)
+#define DW_IC_INTR_TX_OVER			BIT(3)
+#define DW_IC_INTR_TX_EMPTY			BIT(4)
+#define DW_IC_INTR_RD_REQ			BIT(5)
+#define DW_IC_INTR_TX_ABRT			BIT(6)
+#define DW_IC_INTR_RX_DONE			BIT(7)
+#define DW_IC_INTR_ACTIVITY			BIT(8)
+#define DW_IC_INTR_STOP_DET			BIT(9)
+#define DW_IC_INTR_START_DET			BIT(10)
+#define DW_IC_INTR_GEN_CALL			BIT(11)
+#define DW_IC_INTR_RESTART_DET			BIT(12)
 
-#define DW_IC_INTR_DEFAULT_MASK		(DW_IC_INTR_RX_FULL | \
-					 DW_IC_INTR_TX_ABRT | \
-					 DW_IC_INTR_STOP_DET)
-#define DW_IC_INTR_MASTER_MASK		(DW_IC_INTR_DEFAULT_MASK | \
-					 DW_IC_INTR_TX_EMPTY)
-#define DW_IC_INTR_SLAVE_MASK		(DW_IC_INTR_DEFAULT_MASK | \
-					 DW_IC_INTR_RX_DONE | \
-					 DW_IC_INTR_RX_UNDER | \
-					 DW_IC_INTR_RD_REQ)
+#define DW_IC_INTR_DEFAULT_MASK			(DW_IC_INTR_RX_FULL | \
+						 DW_IC_INTR_TX_ABRT | \
+						 DW_IC_INTR_STOP_DET)
+#define DW_IC_INTR_MASTER_MASK			(DW_IC_INTR_DEFAULT_MASK | \
+						 DW_IC_INTR_TX_EMPTY)
+#define DW_IC_INTR_SLAVE_MASK			(DW_IC_INTR_DEFAULT_MASK | \
+						 DW_IC_INTR_RX_UNDER | \
+						 DW_IC_INTR_RD_REQ)
 
-#define DW_IC_STATUS_ACTIVITY		BIT(0)
-#define DW_IC_STATUS_TFE		BIT(2)
-#define DW_IC_STATUS_MASTER_ACTIVITY	BIT(5)
-#define DW_IC_STATUS_SLAVE_ACTIVITY	BIT(6)
+#define DW_IC_STATUS_ACTIVITY			BIT(0)
+#define DW_IC_STATUS_TFE			BIT(2)
+#define DW_IC_STATUS_RFNE			BIT(3)
+#define DW_IC_STATUS_MASTER_ACTIVITY		BIT(5)
+#define DW_IC_STATUS_SLAVE_ACTIVITY		BIT(6)
 
-#define DW_IC_SDA_HOLD_RX_SHIFT		16
-#define DW_IC_SDA_HOLD_RX_MASK		GENMASK(23, 16)
+#define DW_IC_SDA_HOLD_RX_SHIFT			16
+#define DW_IC_SDA_HOLD_RX_MASK			GENMASK(23, 16)
 
-#define DW_IC_ERR_TX_ABRT	0x1
+#define DW_IC_ERR_TX_ABRT			0x1
 
-#define DW_IC_TAR_10BITADDR_MASTER	BIT(12)
+#define DW_IC_TAR_10BITADDR_MASTER		BIT(12)
 
 #define DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH	(BIT(2) | BIT(3))
 #define DW_IC_COMP_PARAM_1_SPEED_MODE_MASK	GENMASK(3, 2)
 
 /*
- * status codes
+ * Sofware status flags
  */
-#define STATUS_IDLE			0x0
-#define STATUS_ACTIVE			0x1
-#define STATUS_WRITE_IN_PROGRESS	0x2
-#define STATUS_READ_IN_PROGRESS		0x4
+#define STATUS_ACTIVE				BIT(0)
+#define STATUS_WRITE_IN_PROGRESS		BIT(1)
+#define STATUS_READ_IN_PROGRESS			BIT(2)
+#define STATUS_MASK				GENMASK(2, 0)
 
 /*
  * operation modes
  */
-#define DW_IC_MASTER		0
-#define DW_IC_SLAVE		1
+#define DW_IC_MASTER				0
+#define DW_IC_SLAVE				1
 
 /*
  * Hardware abort codes from the DW_IC_TX_ABRT_SOURCE register
@@ -142,20 +143,20 @@
  * Only expected abort codes are listed here
  * refer to the datasheet for the full list
  */
-#define ABRT_7B_ADDR_NOACK	0
-#define ABRT_10ADDR1_NOACK	1
-#define ABRT_10ADDR2_NOACK	2
-#define ABRT_TXDATA_NOACK	3
-#define ABRT_GCALL_NOACK	4
-#define ABRT_GCALL_READ		5
-#define ABRT_SBYTE_ACKDET	7
-#define ABRT_SBYTE_NORSTRT	9
-#define ABRT_10B_RD_NORSTRT	10
-#define ABRT_MASTER_DIS		11
-#define ARB_LOST		12
-#define ABRT_SLAVE_FLUSH_TXFIFO	13
-#define ABRT_SLAVE_ARBLOST	14
-#define ABRT_SLAVE_RD_INTX	15
+#define ABRT_7B_ADDR_NOACK			0
+#define ABRT_10ADDR1_NOACK			1
+#define ABRT_10ADDR2_NOACK			2
+#define ABRT_TXDATA_NOACK			3
+#define ABRT_GCALL_NOACK			4
+#define ABRT_GCALL_READ				5
+#define ABRT_SBYTE_ACKDET			7
+#define ABRT_SBYTE_NORSTRT			9
+#define ABRT_10B_RD_NORSTRT			10
+#define ABRT_MASTER_DIS				11
+#define ARB_LOST				12
+#define ABRT_SLAVE_FLUSH_TXFIFO			13
+#define ABRT_SLAVE_ARBLOST			14
+#define ABRT_SLAVE_RD_INTX			15
 
 #define DW_IC_TX_ABRT_7B_ADDR_NOACK		BIT(ABRT_7B_ADDR_NOACK)
 #define DW_IC_TX_ABRT_10ADDR1_NOACK		BIT(ABRT_10ADDR1_NOACK)
@@ -172,11 +173,11 @@
 #define DW_IC_RX_ABRT_SLAVE_ARBLOST		BIT(ABRT_SLAVE_ARBLOST)
 #define DW_IC_RX_ABRT_SLAVE_FLUSH_TXFIFO	BIT(ABRT_SLAVE_FLUSH_TXFIFO)
 
-#define DW_IC_TX_ABRT_NOACK		(DW_IC_TX_ABRT_7B_ADDR_NOACK | \
-					 DW_IC_TX_ABRT_10ADDR1_NOACK | \
-					 DW_IC_TX_ABRT_10ADDR2_NOACK | \
-					 DW_IC_TX_ABRT_TXDATA_NOACK | \
-					 DW_IC_TX_ABRT_GCALL_NOACK)
+#define DW_IC_TX_ABRT_NOACK			(DW_IC_TX_ABRT_7B_ADDR_NOACK | \
+						 DW_IC_TX_ABRT_10ADDR1_NOACK | \
+						 DW_IC_TX_ABRT_10ADDR2_NOACK | \
+						 DW_IC_TX_ABRT_TXDATA_NOACK | \
+						 DW_IC_TX_ABRT_GCALL_NOACK)
 
 struct clk;
 struct device;
@@ -232,7 +233,6 @@ struct reset_control;
  *	-1 if there is no semaphore.
  * @shared_with_punit: true if this bus is shared with the SoCs PUNIT
  * @disable: function to disable the controller
- * @disable_int: function to disable all interrupts
  * @init: function to initialize the I2C hardware
  * @set_sda_hold_time: callback to retrieve IP specific SDA hold timing
  * @mode: operation mode - DW_IC_MASTER or DW_IC_SLAVE
@@ -265,7 +265,7 @@ struct dw_i2c_dev {
 	u8			*rx_buf;
 	int			msg_err;
 	unsigned int		status;
-	u32			abort_source;
+	unsigned int		abort_source;
 	int			irq;
 	u32			flags;
 	struct i2c_adapter	adapter;
@@ -290,28 +290,27 @@ struct dw_i2c_dev {
 	int			semaphore_idx;
 	bool			shared_with_punit;
 	void			(*disable)(struct dw_i2c_dev *dev);
-	void			(*disable_int)(struct dw_i2c_dev *dev);
 	int			(*init)(struct dw_i2c_dev *dev);
 	int			(*set_sda_hold_time)(struct dw_i2c_dev *dev);
 	int			mode;
 	struct i2c_bus_recovery_info rinfo;
 };
 
-#define ACCESS_INTR_MASK	BIT(0)
-#define ACCESS_NO_IRQ_SUSPEND	BIT(1)
-#define ARBITRATION_SEMAPHORE	BIT(2)
+#define ACCESS_INTR_MASK			BIT(0)
+#define ACCESS_NO_IRQ_SUSPEND			BIT(1)
+#define ARBITRATION_SEMAPHORE			BIT(2)
 
-#define MODEL_MSCC_OCELOT	BIT(8)
-#define MODEL_BAIKAL_BT1	BIT(9)
-#define MODEL_AMD_NAVI_GPU	BIT(10)
-#define MODEL_MASK		GENMASK(11, 8)
+#define MODEL_MSCC_OCELOT			BIT(8)
+#define MODEL_BAIKAL_BT1			BIT(9)
+#define MODEL_AMD_NAVI_GPU			BIT(10)
+#define MODEL_MASK				GENMASK(11, 8)
 
 /*
  * Enable UCSI interrupt by writing 0xd at register
  * offset 0x474 specified in hardware specification.
  */
-#define AMD_UCSI_INTR_REG	0x474
-#define AMD_UCSI_INTR_EN	0xd
+#define AMD_UCSI_INTR_REG			0x474
+#define AMD_UCSI_INTR_EN			0xd
 
 struct i2c_dw_semaphore_callbacks {
 	int	(*probe)(struct dw_i2c_dev *dev);
@@ -322,7 +321,7 @@ int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset);
 u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset);
 int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev);
-unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev);
+u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev);
 int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare);
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev);
 void i2c_dw_release_lock(struct dw_i2c_dev *dev);
@@ -331,7 +330,6 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev);
 int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev);
 u32 i2c_dw_func(struct i2c_adapter *adap);
 void i2c_dw_disable(struct dw_i2c_dev *dev);
-void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 
 static inline void __i2c_dw_enable(struct dw_i2c_dev *dev)
 {

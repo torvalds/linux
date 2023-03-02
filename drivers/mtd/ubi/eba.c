@@ -61,7 +61,7 @@ struct ubi_eba_table {
 };
 
 /**
- * next_sqnum - get next sequence number.
+ * ubi_next_sqnum - get next sequence number.
  * @ubi: UBI device description object
  *
  * This function returns next sequence number to use, which is just the current

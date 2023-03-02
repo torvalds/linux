@@ -19,6 +19,7 @@ description: |
 
 allOf:
   - $ref: ethernet-controller.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml
 
 properties:
   compatible:
@@ -39,8 +40,8 @@ properties:
       it should be marked GPIO_ACTIVE_LOW.
     maxItems: 1
 
+  controller-data: true
   local-mac-address: true
-
   mac-address: true
 
 required:

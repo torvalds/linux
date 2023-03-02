@@ -1,0 +1,166 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,msm8960-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm MSM8960 TLMM pin controller
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description:
+  Top Level Mode Multiplexer pin controller in Qualcomm MSM8960 SoC.
+
+properties:
+  compatible:
+    const: qcom,msm8960-pinctrl
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+  "#interrupt-cells": true
+  gpio-controller: true
+  "#gpio-cells": true
+  gpio-ranges: true
+  wakeup-parent: true
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 76
+
+  gpio-line-names:
+    maxItems: 152
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-msm8960-tlmm-state"
+      - patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-msm8960-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-msm8960-tlmm-state:
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this
+          subnode.
+        items:
+          oneOf:
+            - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-4][0-9]|15[0-1])$"
+            - enum: [ sdc1_clk, sdc1_cmd, sdc1_data, sdc3_clk, sdc3_cmd,
+                      sdc3_data ]
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+
+        enum: [ gpio, audio_pcm, bt, cam_mclk0, cam_mclk1, cam_mclk2,
+                codec_mic_i2s, codec_spkr_i2s, ext_gps, fm, gps_blanking,
+                gps_pps_in, gps_pps_out, gp_clk_0a, gp_clk_0b, gp_clk_1a,
+                gp_clk_1b, gp_clk_2a, gp_clk_2b, gp_mn, gp_pdm_0a, gp_pdm_0b,
+                gp_pdm_1a, gp_pdm_1b, gp_pdm_2a, gp_pdm_2b, gsbi1,
+                gsbi1_spi_cs1_n, gsbi1_spi_cs2a_n, gsbi1_spi_cs2b_n,
+                gsbi1_spi_cs3_n, gsbi2, gsbi2_spi_cs1_n, gsbi2_spi_cs2_n,
+                gsbi2_spi_cs3_n, gsbi3, gsbi4, gsbi4_3d_cam_i2c_l,
+                gsbi4_3d_cam_i2c_r, gsbi5, gsbi5_3d_cam_i2c_l,
+                gsbi5_3d_cam_i2c_r, gsbi6, gsbi7, gsbi8, gsbi9, gsbi10, gsbi11,
+                gsbi11_spi_cs1a_n, gsbi11_spi_cs1b_n, gsbi11_spi_cs2a_n,
+                gsbi11_spi_cs2b_n, gsbi11_spi_cs3_n, gsbi12, hdmi_cec,
+                hdmi_ddc_clock, hdmi_ddc_data, hdmi_hot_plug_detect, hsic,
+                mdp_vsync, mi2s, mic_i2s, pmb_clk, pmb_ext_ctrl, ps_hold,
+                rpm_wdog, sdc2, sdc4, sdc5, slimbus1, slimbus2, spkr_i2s,
+                ssbi1, ssbi2, ssbi_ext_gps, ssbi_pmic2, ssbi_qpa1, ssbi_ts,
+                tsif1, tsif2, ts_eoc, usb_fs1, usb_fs1_oe, usb_fs1_oe_n,
+                usb_fs2, usb_fs2_oe, usb_fs2_oe_n, vfe_camif_timer1_a,
+                vfe_camif_timer1_b, vfe_camif_timer2, vfe_camif_timer3_a,
+                vfe_camif_timer3_b, vfe_camif_timer4_a, vfe_camif_timer4_b,
+                vfe_camif_timer4_c, vfe_camif_timer5_a, vfe_camif_timer5_b,
+                vfe_camif_timer6_a, vfe_camif_timer6_b, vfe_camif_timer6_c,
+                vfe_camif_timer7_a, vfe_camif_timer7_b, vfe_camif_timer7_c,
+                wlan ]
+
+      bias-pull-down: true
+      bias-pull-up: true
+      bias-disable: true
+      drive-strength: true
+      input-enable: true
+      output-high: true
+      output-low: true
+
+    required:
+      - pins
+
+    additionalProperties: false
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    msmgpio: pinctrl@800000 {
+        compatible = "qcom,msm8960-pinctrl";
+        reg = <0x800000 0x4000>;
+        #gpio-cells = <2>;
+        gpio-controller;
+        gpio-ranges = <&msmgpio 0 0 152>;
+        interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+
+        spi1-default-state {
+            mosi-pins {
+                pins = "gpio6";
+                function = "gsbi1";
+                drive-strength = <12>;
+                bias-disable;
+            };
+
+            miso-pins {
+                pins = "gpio7";
+                function = "gsbi1";
+                drive-strength = <12>;
+                bias-disable;
+            };
+
+            cs-pins {
+                pins = "gpio8";
+                function = "gpio";
+                drive-strength = <12>;
+                bias-disable;
+                output-low;
+            };
+
+            clk-pins {
+                pins = "gpio9";
+                function = "gsbi1";
+                drive-strength = <12>;
+                bias-disable;
+            };
+        };
+    };

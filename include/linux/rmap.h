@@ -194,6 +194,8 @@ void page_add_anon_rmap(struct page *, struct vm_area_struct *,
 		unsigned long address, rmap_t flags);
 void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
 		unsigned long address);
+void folio_add_new_anon_rmap(struct folio *, struct vm_area_struct *,
+		unsigned long address);
 void page_add_file_rmap(struct page *, struct vm_area_struct *,
 		bool compound);
 void page_remove_rmap(struct page *, struct vm_area_struct *,
@@ -201,12 +203,19 @@ void page_remove_rmap(struct page *, struct vm_area_struct *,
 
 void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
 		unsigned long address, rmap_t flags);
-void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+void hugepage_add_new_anon_rmap(struct folio *, struct vm_area_struct *,
 		unsigned long address);
 
 static inline void __page_dup_rmap(struct page *page, bool compound)
 {
-	atomic_inc(compound ? compound_mapcount_ptr(page) : &page->_mapcount);
+	if (compound) {
+		struct folio *folio = (struct folio *)page;
+
+		VM_BUG_ON_PAGE(compound && !PageHead(page), page);
+		atomic_inc(&folio->_entire_mapcount);
+	} else {
+		atomic_inc(&page->_mapcount);
+	}
 }
 
 static inline void page_dup_file_rmap(struct page *page, bool compound)

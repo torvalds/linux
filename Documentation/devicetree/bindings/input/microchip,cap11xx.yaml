@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/input/microchip,cap11xx.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Device tree bindings for Microchip CAP11xx based capacitive touch sensors
+title: Microchip CAP11xx based capacitive touch sensors
 
 description: |
   The Microchip CAP1xxx Family of RightTouchTM multiple-channel capacitive
@@ -19,7 +19,10 @@ properties:
       - microchip,cap1106
       - microchip,cap1126
       - microchip,cap1188
+      - microchip,cap1203
       - microchip,cap1206
+      - microchip,cap1293
+      - microchip,cap1298
 
   reg:
     maxItems: 1

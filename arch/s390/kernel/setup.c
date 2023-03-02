@@ -52,6 +52,7 @@
 #include <linux/hugetlb.h>
 #include <linux/kmemleak.h>
 
+#include <asm/archrandom.h>
 #include <asm/boot_data.h>
 #include <asm/ipl.h>
 #include <asm/facility.h>
@@ -148,6 +149,9 @@ int __bootdata(noexec_disabled);
 unsigned long __bootdata(ident_map_size);
 struct mem_detect_info __bootdata(mem_detect);
 struct initrd_data __bootdata(initrd_data);
+unsigned long __bootdata(pgalloc_pos);
+unsigned long __bootdata(pgalloc_end);
+unsigned long __bootdata(pgalloc_low);
 
 unsigned long __bootdata_preserved(__kaslr_offset);
 unsigned long __bootdata(__amode31_base);
@@ -410,15 +414,10 @@ void __init arch_call_rest_init(void)
 	call_on_stack_noreturn(rest_init, stack);
 }
 
-static void __init setup_lowcore_dat_off(void)
+static void __init setup_lowcore(void)
 {
-	unsigned long int_psw_mask = PSW_KERNEL_BITS;
-	struct lowcore *abs_lc, *lc;
+	struct lowcore *lc, *abs_lc;
 	unsigned long mcck_stack;
-	unsigned long flags;
-
-	if (IS_ENABLED(CONFIG_KASAN))
-		int_psw_mask |= PSW_MASK_DAT;
 
 	/*
 	 * Setup lowcore for boot cpu
@@ -429,17 +428,17 @@ static void __init setup_lowcore_dat_off(void)
 		panic("%s: Failed to allocate %zu bytes align=%zx\n",
 		      __func__, sizeof(*lc), sizeof(*lc));
 
-	lc->restart_psw.mask = PSW_KERNEL_BITS;
-	lc->restart_psw.addr = (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
+	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
+	lc->restart_psw.addr = __pa(restart_int_handler);
+	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
+	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->nodat_stack = ((unsigned long) &init_thread_union)
@@ -476,15 +475,7 @@ static void __init setup_lowcore_dat_off(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
-
-	abs_lc = get_abs_lowcore(&flags);
-	abs_lc->restart_stack = lc->restart_stack;
-	abs_lc->restart_fn = lc->restart_fn;
-	abs_lc->restart_data = lc->restart_data;
-	abs_lc->restart_source = lc->restart_source;
-	abs_lc->restart_psw = lc->restart_psw;
-	abs_lc->mcesad = lc->mcesad;
-	put_abs_lowcore(abs_lc, flags);
+	__ctl_store(lc->cregs_save_area, 0, 15);
 
 	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 	if (!mcck_stack)
@@ -498,32 +489,25 @@ static void __init setup_lowcore_dat_off(void)
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
+	lc->kernel_asce = S390_lowcore.kernel_asce;
+	lc->user_asce = S390_lowcore.user_asce;
+
+	abs_lc = get_abs_lowcore();
+	abs_lc->restart_stack = lc->restart_stack;
+	abs_lc->restart_fn = lc->restart_fn;
+	abs_lc->restart_data = lc->restart_data;
+	abs_lc->restart_source = lc->restart_source;
+	abs_lc->restart_psw = lc->restart_psw;
+	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
+	memcpy(abs_lc->cregs_save_area, lc->cregs_save_area, sizeof(abs_lc->cregs_save_area));
+	abs_lc->program_new_psw = lc->program_new_psw;
+	abs_lc->mcesad = lc->mcesad;
+	put_abs_lowcore(abs_lc);
 
 	set_prefix(__pa(lc));
 	lowcore_ptr[0] = lc;
-}
-
-static void __init setup_lowcore_dat_on(void)
-{
-	struct lowcore *abs_lc;
-	unsigned long flags;
-
-	__ctl_clear_bit(0, 28);
-	S390_lowcore.external_new_psw.mask |= PSW_MASK_DAT;
-	S390_lowcore.svc_new_psw.mask |= PSW_MASK_DAT;
-	S390_lowcore.program_new_psw.mask |= PSW_MASK_DAT;
-	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
-	__ctl_set_bit(0, 28);
-	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
-	if (abs_lowcore_map(0, lowcore_ptr[0], true))
+	if (abs_lowcore_map(0, lowcore_ptr[0], false))
 		panic("Couldn't setup absolute lowcore");
-	abs_lowcore_mapped = true;
-	abs_lc = get_abs_lowcore(&flags);
-	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
-	abs_lc->program_new_psw = S390_lowcore.program_new_psw;
-	memcpy(abs_lc->cregs_save_area, S390_lowcore.cregs_save_area,
-	       sizeof(abs_lc->cregs_save_area));
-	put_abs_lowcore(abs_lc, flags);
 }
 
 static struct resource code_resource = {
@@ -616,7 +600,6 @@ static void __init setup_resources(void)
 
 static void __init setup_memory_end(void)
 {
-	memblock_remove(ident_map_size, PHYS_ADDR_MAX - ident_map_size);
 	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
@@ -646,6 +629,14 @@ static struct notifier_block kdump_mem_nb = {
 };
 
 #endif
+
+/*
+ * Reserve page tables created by decompressor
+ */
+static void __init reserve_pgtables(void)
+{
+	memblock_reserve(pgalloc_pos, pgalloc_end - pgalloc_pos);
+}
 
 /*
  * Reserve memory for kdump kernel to be loaded with kexec
@@ -781,10 +772,10 @@ static void __init memblock_add_mem_detect_info(void)
 		 get_mem_info_source(), mem_detect.info_source);
 	/* keep memblock lists close to the kernel */
 	memblock_set_bottom_up(true);
-	for_each_mem_detect_block(i, &start, &end) {
+	for_each_mem_detect_usable_block(i, &start, &end)
 		memblock_add(start, end - start);
+	for_each_mem_detect_block(i, &start, &end)
 		memblock_physmem_add(start, end - start);
-	}
 	memblock_set_bottom_up(false);
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
 }
@@ -1002,6 +993,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
+	reserve_pgtables();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
@@ -1036,7 +1028,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	setup_resources();
-	setup_lowcore_dat_off();
+	setup_lowcore();
 	smp_fill_possible_mask();
 	cpu_detect_mhz_feature();
         cpu_init();
@@ -1048,15 +1040,14 @@ void __init setup_arch(char **cmdline_p)
 		static_branch_enable(&cpu_has_bear);
 
 	/*
-	 * Create kernel page tables and switch to virtual addressing.
+	 * Create kernel page tables.
 	 */
         paging_init();
-	memcpy_real_init();
+
 	/*
 	 * After paging_init created the kernel page table, the new PSWs
 	 * in lowcore can now run with DAT enabled.
 	 */
-	setup_lowcore_dat_on();
 #ifdef CONFIG_CRASH_DUMP
 	smp_save_dump_ipl_cpu();
 #endif

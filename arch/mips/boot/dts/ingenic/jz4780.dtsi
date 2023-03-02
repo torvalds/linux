@@ -155,6 +155,8 @@
 
 		clocks = <&cgu JZ4780_CLK_RTCLK>;
 		clock-names = "rtc";
+
+		#clock-cells = <0>;
 	};
 
 	pinctrl: pin-controller@10010000 {

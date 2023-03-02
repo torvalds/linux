@@ -13,6 +13,11 @@
 #include <linux/mei.h>
 #include <linux/mei_cl_bus.h>
 
+static inline int uuid_le_cmp(const uuid_le u1, const uuid_le u2)
+{
+	return memcmp(&u1, &u2, sizeof(uuid_le));
+}
+
 #include "hw.h"
 #include "hbm.h"
 
@@ -116,12 +121,16 @@ enum mei_cb_file_ops {
  * @MEI_CL_IO_TX_INTERNAL: internal communication between driver and FW
  *
  * @MEI_CL_IO_RX_NONBLOCK: recv is non-blocking
+ *
+ * @MEI_CL_IO_SGL: send command with sgl list.
  */
 enum mei_cl_io_mode {
 	MEI_CL_IO_TX_BLOCKING = BIT(0),
 	MEI_CL_IO_TX_INTERNAL = BIT(1),
 
 	MEI_CL_IO_RX_NONBLOCK = BIT(2),
+
+	MEI_CL_IO_SGL         = BIT(3),
 };
 
 /*
@@ -206,6 +215,7 @@ struct mei_cl;
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
  * @blocking: transmission blocking mode
+ * @ext_hdr: extended header
  */
 struct mei_cl_cb {
 	struct list_head list;
@@ -218,6 +228,7 @@ struct mei_cl_cb {
 	int status;
 	u32 internal:1;
 	u32 blocking:1;
+	struct mei_ext_hdr *ext_hdr;
 };
 
 /**
@@ -373,6 +384,8 @@ void mei_cl_bus_rescan_work(struct work_struct *work);
 void mei_cl_bus_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, const u8 *buf, size_t length, u8 vtag,
 		      unsigned int mode);
+ssize_t __mei_cl_send_timeout(struct mei_cl *cl, const u8 *buf, size_t length, u8 vtag,
+			      unsigned int mode, unsigned long timeout);
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length, u8 *vtag,
 		      unsigned int mode, unsigned long timeout);
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
@@ -494,6 +507,7 @@ struct mei_dev_timeouts {
  * @hbm_f_vt_supported  : hbm feature vtag supported
  * @hbm_f_cap_supported : hbm feature capabilities message supported
  * @hbm_f_cd_supported  : hbm feature client dma supported
+ * @hbm_f_gsc_supported : hbm feature gsc supported
  *
  * @fw_ver : FW versions
  *
@@ -585,6 +599,7 @@ struct mei_device {
 	unsigned int hbm_f_vt_supported:1;
 	unsigned int hbm_f_cap_supported:1;
 	unsigned int hbm_f_cd_supported:1;
+	unsigned int hbm_f_gsc_supported:1;
 
 	struct mei_fw_version fw_ver[MEI_MAX_FW_VER_BLOCKS];
 

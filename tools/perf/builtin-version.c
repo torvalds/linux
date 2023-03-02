@@ -82,6 +82,7 @@ static void library_status(void)
 	STATUS(HAVE_AIO_SUPPORT, aio);
 	STATUS(HAVE_ZSTD_SUPPORT, zstd);
 	STATUS(HAVE_LIBPFM, libpfm4);
+	STATUS(HAVE_LIBTRACEEVENT, libtraceevent);
 }
 
 int cmd_version(int argc, const char **argv)

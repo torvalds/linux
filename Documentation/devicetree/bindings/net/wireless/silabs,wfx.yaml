@@ -2,11 +2,10 @@
 # Copyright (c) 2020, Silicon Laboratories, Inc.
 %YAML 1.2
 ---
-
 $id: http://devicetree.org/schemas/net/wireless/silabs,wfx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Silicon Labs WFxxx devicetree bindings
+title: Silicon Labs WFxxx
 
 maintainers:
   - Jérôme Pouiller <jerome.pouiller@silabs.com>

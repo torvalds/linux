@@ -252,7 +252,6 @@ struct gfs2_lkstats {
 
 enum {
 	/* States */
-	HIF_MAY_DEMOTE		= 1,
 	HIF_HOLDER		= 6,  /* Set for gh that "holds" the glock */
 	HIF_WAIT		= 10,
 };
@@ -330,8 +329,9 @@ enum {
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
-	GLF_PENDING_DELETE		= 17,
-	GLF_FREEING			= 18, /* Wait for glock to be freed */
+	GLF_FREEING			= 16, /* Wait for glock to be freed */
+	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
+	GLF_VERIFY_EVICT		= 18, /* iopen glocks only */
 };
 
 struct gfs2_glock {
@@ -606,6 +606,8 @@ enum {
 	SDF_REMOTE_WITHDRAW	= 13, /* Performing remote recovery */
 	SDF_WITHDRAW_RECOVERY	= 14, /* Wait for journal recovery when we are
 					 withdrawing */
+	SDF_DEACTIVATING	= 15,
+	SDF_EVICTING		= 16,
 };
 
 enum gfs2_freeze_state {
@@ -771,6 +773,10 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_qc_gh;
 
 	struct completion sd_journal_ready;
+
+	/* Workqueue stuff */
+
+	struct workqueue_struct *sd_delete_wq;
 
 	/* Daemon stuff */
 

@@ -14,7 +14,6 @@
 #include <linux/string.h>
 #include <linux/inet.h>
 #include <linux/pagemap.h>
-#include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/swap.h>
 #include <linux/uio.h>
@@ -40,7 +39,7 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 	size_t len = subreq->len   - subreq->transferred;
 	int total, err;
 
-	iov_iter_xarray(&to, READ, &rreq->mapping->i_pages, pos, len);
+	iov_iter_xarray(&to, ITER_DEST, &rreq->mapping->i_pages, pos, len);
 
 	total = p9_client_read(fid, pos, &to, &err);
 
@@ -172,7 +171,7 @@ static int v9fs_vfs_write_folio_locked(struct folio *folio)
 
 	len = min_t(loff_t, i_size - start, len);
 
-	iov_iter_xarray(&from, WRITE, &folio_mapping(folio)->i_pages, start, len);
+	iov_iter_xarray(&from, ITER_SOURCE, &folio_mapping(folio)->i_pages, start, len);
 
 	/* We should have writeback_fid always set */
 	BUG_ON(!v9inode->writeback_fid);
@@ -279,8 +278,6 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	struct v9fs_inode *v9inode = V9FS_I(mapping->host);
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
-
-	BUG_ON(!v9inode->writeback_fid);
 
 	/* Prefetch area to be written into the cache if we're caching this
 	 * file.  We need to do this before we get a lock on the page in case

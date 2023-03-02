@@ -133,7 +133,7 @@ static phys_addr_t __init early_pgtable_alloc(int shift)
 	return phys;
 }
 
-static bool pgattr_change_is_safe(u64 old, u64 new)
+bool pgattr_change_is_safe(u64 old, u64 new)
 {
 	/*
 	 * The following mapping attributes may be updated in live
@@ -142,8 +142,12 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG;
 
 	/* creating or taking down mappings is always safe */
-	if (old == 0 || new == 0)
+	if (!pte_valid(__pte(old)) || !pte_valid(__pte(new)))
 		return true;
+
+	/* A live entry's pfn should not change */
+	if (pte_pfn(__pte(old)) != pte_pfn(__pte(new)))
+		return false;
 
 	/* live contiguous mappings may not be manipulated at all */
 	if ((old | new) & PTE_CONT)
@@ -814,53 +818,6 @@ void __init paging_init(void)
 	create_idmap();
 }
 
-/*
- * Check whether a kernel address is valid (derived from arch/x86/).
- */
-int kern_addr_valid(unsigned long addr)
-{
-	pgd_t *pgdp;
-	p4d_t *p4dp;
-	pud_t *pudp, pud;
-	pmd_t *pmdp, pmd;
-	pte_t *ptep, pte;
-
-	addr = arch_kasan_reset_tag(addr);
-	if ((((long)addr) >> VA_BITS) != -1UL)
-		return 0;
-
-	pgdp = pgd_offset_k(addr);
-	if (pgd_none(READ_ONCE(*pgdp)))
-		return 0;
-
-	p4dp = p4d_offset(pgdp, addr);
-	if (p4d_none(READ_ONCE(*p4dp)))
-		return 0;
-
-	pudp = pud_offset(p4dp, addr);
-	pud = READ_ONCE(*pudp);
-	if (pud_none(pud))
-		return 0;
-
-	if (pud_sect(pud))
-		return pfn_valid(pud_pfn(pud));
-
-	pmdp = pmd_offset(pudp, addr);
-	pmd = READ_ONCE(*pmdp);
-	if (pmd_none(pmd))
-		return 0;
-
-	if (pmd_sect(pmd))
-		return pfn_valid(pmd_pfn(pmd));
-
-	ptep = pte_offset_kernel(pmdp, addr);
-	pte = READ_ONCE(*ptep);
-	if (pte_none(pte))
-		return 0;
-
-	return pfn_valid(pte_pfn(pte));
-}
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 static void free_hotplug_page_range(struct page *page, size_t size,
 				    struct vmem_altmap *altmap)
@@ -1184,53 +1141,28 @@ static void free_empty_tables(unsigned long addr, unsigned long end,
 }
 #endif
 
+void __meminit vmemmap_set_pmd(pmd_t *pmdp, void *p, int node,
+			       unsigned long addr, unsigned long next)
+{
+	pmd_set_huge(pmdp, __pa(p), __pgprot(PROT_SECT_NORMAL));
+}
+
+int __meminit vmemmap_check_pmd(pmd_t *pmdp, int node,
+				unsigned long addr, unsigned long next)
+{
+	vmemmap_verify((pte_t *)pmdp, node, addr, next);
+	return 1;
+}
+
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		struct vmem_altmap *altmap)
 {
-	unsigned long addr = start;
-	unsigned long next;
-	pgd_t *pgdp;
-	p4d_t *p4dp;
-	pud_t *pudp;
-	pmd_t *pmdp;
-
 	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
 
-	if (!ARM64_KERNEL_USES_PMD_MAPS)
+	if (!IS_ENABLED(CONFIG_ARM64_4K_PAGES))
 		return vmemmap_populate_basepages(start, end, node, altmap);
-
-	do {
-		next = pmd_addr_end(addr, end);
-
-		pgdp = vmemmap_pgd_populate(addr, node);
-		if (!pgdp)
-			return -ENOMEM;
-
-		p4dp = vmemmap_p4d_populate(pgdp, addr, node);
-		if (!p4dp)
-			return -ENOMEM;
-
-		pudp = vmemmap_pud_populate(p4dp, addr, node);
-		if (!pudp)
-			return -ENOMEM;
-
-		pmdp = pmd_offset(pudp, addr);
-		if (pmd_none(READ_ONCE(*pmdp))) {
-			void *p = NULL;
-
-			p = vmemmap_alloc_block_buf(PMD_SIZE, node, altmap);
-			if (!p) {
-				if (vmemmap_populate_basepages(addr, next, node, altmap))
-					return -ENOMEM;
-				continue;
-			}
-
-			pmd_set_huge(pmdp, __pa(p), __pgprot(PROT_SECT_NORMAL));
-		} else
-			vmemmap_verify((pte_t *)pmdp, node, addr, next);
-	} while (addr = next, addr != end);
-
-	return 0;
+	else
+		return vmemmap_populate_hugepages(start, end, node, altmap);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -1702,3 +1634,24 @@ static int __init prevent_bootmem_remove_init(void)
 }
 early_initcall(prevent_bootmem_remove_init);
 #endif
+
+pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+{
+	if (IS_ENABLED(CONFIG_ARM64_ERRATUM_2645198) &&
+	    cpus_have_const_cap(ARM64_WORKAROUND_2645198)) {
+		/*
+		 * Break-before-make (BBM) is required for all user space mappings
+		 * when the permission changes from executable to non-executable
+		 * in cases where cpu is affected with errata #2645198.
+		 */
+		if (pte_user_exec(READ_ONCE(*ptep)))
+			return ptep_clear_flush(vma, addr, ptep);
+	}
+	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+}
+
+void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep,
+			     pte_t old_pte, pte_t pte)
+{
+	set_pte_at(vma->vm_mm, addr, ptep, pte);
+}

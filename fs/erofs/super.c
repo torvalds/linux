@@ -5,7 +5,6 @@
  * Copyright (C) 2021, Alibaba Cloud
  */
 #include <linux/module.h>
-#include <linux/buffer_head.h>
 #include <linux/statfs.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
@@ -245,7 +244,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 	}
 
 	if (erofs_is_fscache_mode(sb)) {
-		fscache = erofs_fscache_register_cookie(sb, dif->path, false);
+		fscache = erofs_fscache_register_cookie(sb, dif->path, 0);
 		if (IS_ERR(fscache))
 			return PTR_ERR(fscache);
 		dif->fscache = fscache;
@@ -577,26 +576,25 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		}
 		++ctx->devs->extra_devices;
 		break;
-	case Opt_fsid:
 #ifdef CONFIG_EROFS_FS_ONDEMAND
-		kfree(ctx->opt.fsid);
-		ctx->opt.fsid = kstrdup(param->string, GFP_KERNEL);
-		if (!ctx->opt.fsid)
+	case Opt_fsid:
+		kfree(ctx->fsid);
+		ctx->fsid = kstrdup(param->string, GFP_KERNEL);
+		if (!ctx->fsid)
 			return -ENOMEM;
-#else
-		errorfc(fc, "fsid option not supported");
-#endif
 		break;
 	case Opt_domain_id:
-#ifdef CONFIG_EROFS_FS_ONDEMAND
-		kfree(ctx->opt.domain_id);
-		ctx->opt.domain_id = kstrdup(param->string, GFP_KERNEL);
-		if (!ctx->opt.domain_id)
+		kfree(ctx->domain_id);
+		ctx->domain_id = kstrdup(param->string, GFP_KERNEL);
+		if (!ctx->domain_id)
 			return -ENOMEM;
-#else
-		errorfc(fc, "domain_id option not supported");
-#endif
 		break;
+#else
+	case Opt_fsid:
+	case Opt_domain_id:
+		errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
+		break;
+#endif
 	default:
 		return -ENOPARAM;
 	}
@@ -728,10 +726,12 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_fs_info = sbi;
 	sbi->opt = ctx->opt;
-	ctx->opt.fsid = NULL;
-	ctx->opt.domain_id = NULL;
 	sbi->devs = ctx->devs;
 	ctx->devs = NULL;
+	sbi->fsid = ctx->fsid;
+	ctx->fsid = NULL;
+	sbi->domain_id = ctx->domain_id;
+	ctx->domain_id = NULL;
 
 	if (erofs_is_fscache_mode(sb)) {
 		sb->s_blocksize = EROFS_BLKSIZ;
@@ -820,7 +820,7 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 {
 	struct erofs_fs_context *ctx = fc->fs_private;
 
-	if (IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) && ctx->opt.fsid)
+	if (IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) && ctx->fsid)
 		return get_tree_nodev(fc, erofs_fc_fill_super);
 
 	return get_tree_bdev(fc, erofs_fc_fill_super);
@@ -833,6 +833,9 @@ static int erofs_fc_reconfigure(struct fs_context *fc)
 	struct erofs_fs_context *ctx = fc->fs_private;
 
 	DBG_BUGON(!sb_rdonly(sb));
+
+	if (ctx->fsid || ctx->domain_id)
+		erofs_info(sb, "ignoring reconfiguration for fsid|domain_id.");
 
 	if (test_opt(&ctx->opt, POSIX_ACL))
 		fc->sb_flags |= SB_POSIXACL;
@@ -873,8 +876,8 @@ static void erofs_fc_free(struct fs_context *fc)
 	struct erofs_fs_context *ctx = fc->fs_private;
 
 	erofs_free_dev_context(ctx->devs);
-	kfree(ctx->opt.fsid);
-	kfree(ctx->opt.domain_id);
+	kfree(ctx->fsid);
+	kfree(ctx->domain_id);
 	kfree(ctx);
 }
 
@@ -944,8 +947,8 @@ static void erofs_kill_sb(struct super_block *sb)
 	erofs_free_dev_context(sbi->devs);
 	fs_put_dax(sbi->dax_dev, NULL);
 	erofs_fscache_unregister_fs(sb);
-	kfree(sbi->opt.fsid);
-	kfree(sbi->opt.domain_id);
+	kfree(sbi->fsid);
+	kfree(sbi->domain_id);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 }
@@ -965,6 +968,8 @@ static void erofs_put_super(struct super_block *sb)
 	iput(sbi->packed_inode);
 	sbi->packed_inode = NULL;
 #endif
+	erofs_free_dev_context(sbi->devs);
+	sbi->devs = NULL;
 	erofs_fscache_unregister_fs(sb);
 }
 
@@ -1098,10 +1103,10 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	if (test_opt(opt, DAX_NEVER))
 		seq_puts(seq, ",dax=never");
 #ifdef CONFIG_EROFS_FS_ONDEMAND
-	if (opt->fsid)
-		seq_printf(seq, ",fsid=%s", opt->fsid);
-	if (opt->domain_id)
-		seq_printf(seq, ",domain_id=%s", opt->domain_id);
+	if (sbi->fsid)
+		seq_printf(seq, ",fsid=%s", sbi->fsid);
+	if (sbi->domain_id)
+		seq_printf(seq, ",domain_id=%s", sbi->domain_id);
 #endif
 	return 0;
 }

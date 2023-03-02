@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
@@ -499,18 +500,20 @@ EXPORT_SYMBOL_GPL(rtas_cancel_event_scan);
 
 static int __init rtas_event_scan_init(void)
 {
+	int err;
+
 	if (!machine_is(pseries) && !machine_is(chrp))
 		return 0;
 
 	/* No RTAS */
-	event_scan = rtas_token("event-scan");
+	event_scan = rtas_function_token(RTAS_FN_EVENT_SCAN);
 	if (event_scan == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_INFO "rtasd: No event-scan on system\n");
 		return -ENODEV;
 	}
 
-	rtas_event_scan_rate = rtas_token("rtas-event-scan-rate");
-	if (rtas_event_scan_rate == RTAS_UNKNOWN_SERVICE) {
+	err = of_property_read_u32(rtas.dev, "rtas-event-scan-rate", &rtas_event_scan_rate);
+	if (err) {
 		printk(KERN_ERR "rtasd: no rtas-event-scan-rate on system\n");
 		return -ENODEV;
 	}

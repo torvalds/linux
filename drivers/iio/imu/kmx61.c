@@ -649,7 +649,7 @@ static int kmx61_chip_update_thresholds(struct kmx61_data *data)
 					KMX61_REG_WUF_TIMER,
 					data->wake_duration);
 	if (ret < 0) {
-		dev_err(&data->client->dev, "Errow writing reg_wuf_timer\n");
+		dev_err(&data->client->dev, "Error writing reg_wuf_timer\n");
 		return ret;
 	}
 
@@ -1276,9 +1276,9 @@ static struct iio_trigger *kmx61_trigger_setup(struct kmx61_data *data,
 	return trig;
 }
 
-static int kmx61_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int kmx61_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct kmx61_data *data;
 	const char *name = NULL;
@@ -1517,7 +1517,7 @@ static struct i2c_driver kmx61_driver = {
 		.acpi_match_table = ACPI_PTR(kmx61_acpi_match),
 		.pm = pm_ptr(&kmx61_pm_ops),
 	},
-	.probe		= kmx61_probe,
+	.probe_new	= kmx61_probe,
 	.remove		= kmx61_remove,
 	.id_table	= kmx61_id,
 };

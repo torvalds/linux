@@ -30,7 +30,7 @@ do
 			resdir=`echo $i | sed -e 's,/$,,' -e 's,/[^/]*$,,'`
 			head -1 $resdir/log
 		fi
-		TORTURE_SUITE="`cat $i/../torture_suite`"
+		TORTURE_SUITE="`cat $i/../torture_suite`" ; export TORTURE_SUITE
 		configfile=`echo $i | sed -e 's,^.*/,,'`
 		rm -f $i/console.log.*.diags
 		case "${TORTURE_SUITE}" in

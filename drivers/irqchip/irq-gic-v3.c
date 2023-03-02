@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
+#include <linux/kstrtox.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -87,15 +88,6 @@ static DEFINE_STATIC_KEY_TRUE(supports_deactivate_key);
  *   interrupt.
  */
 static DEFINE_STATIC_KEY_FALSE(supports_pseudo_nmis);
-
-/*
- * Global static key controlling whether an update to PMR allowing more
- * interrupts requires to be propagated to the redistributor (DSB SY).
- * And this needs to be exported for modules to be able to enable
- * interrupts...
- */
-DEFINE_STATIC_KEY_FALSE(gic_pmr_sync);
-EXPORT_SYMBOL(gic_pmr_sync);
 
 DEFINE_STATIC_KEY_FALSE(gic_nonsecure_priorities);
 EXPORT_SYMBOL(gic_nonsecure_priorities);
@@ -1171,7 +1163,7 @@ static bool gicv3_nolpi;
 
 static int __init gicv3_nolpi_cfg(char *buf)
 {
-	return strtobool(buf, &gicv3_nolpi);
+	return kstrtobool(buf, &gicv3_nolpi);
 }
 early_param("irqchip.gicv3_nolpi", gicv3_nolpi_cfg);
 
@@ -1309,9 +1301,7 @@ static void __init gic_smp_init(void)
 				  gic_starting_cpu, NULL);
 
 	/* Register all 8 non-secure SGIs */
-	base_sgi = __irq_domain_alloc_irqs(gic_data.domain, -1, 8,
-					   NUMA_NO_NODE, &sgi_fwspec,
-					   false, NULL);
+	base_sgi = irq_domain_alloc_irqs(gic_data.domain, 8, NUMA_NO_NODE, &sgi_fwspec);
 	if (WARN_ON(base_sgi <= 0))
 		return;
 
@@ -1767,16 +1757,8 @@ static void gic_enable_nmi_support(void)
 	for (i = 0; i < gic_data.ppi_nr; i++)
 		refcount_set(&ppi_nmi_refs[i], 0);
 
-	/*
-	 * Linux itself doesn't use 1:N distribution, so has no need to
-	 * set PMHE. The only reason to have it set is if EL3 requires it
-	 * (and we can't change it).
-	 */
-	if (gic_read_ctlr() & ICC_CTLR_EL1_PMHE_MASK)
-		static_branch_enable(&gic_pmr_sync);
-
 	pr_info("Pseudo-NMIs enabled using %s ICC_PMR_EL1 synchronisation\n",
-		static_branch_unlikely(&gic_pmr_sync) ? "forced" : "relaxed");
+		gic_has_relaxed_pmr_sync() ? "relaxed" : "forced");
 
 	/*
 	 * How priority values are used by the GIC depends on two things:

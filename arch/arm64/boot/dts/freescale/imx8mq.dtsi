@@ -179,6 +179,7 @@
 		A53_L2: l2-cache0 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 			cache-size = <0x100000>;
 			cache-line-size = <64>;
 			cache-sets = <1024>;
@@ -574,8 +575,7 @@
 			};
 
 			iomuxc_gpr: syscon@30340000 {
-				compatible = "fsl,imx8mq-iomuxc-gpr", "fsl,imx6q-iomuxc-gpr",
-					     "syscon", "simple-mfd";
+				compatible = "fsl,imx8mq-iomuxc-gpr", "syscon", "simple-mfd";
 				reg = <0x30340000 0x10000>;
 
 				mux: mux-controller {
@@ -592,23 +592,37 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 
-				imx8mq_uid: soc-uid@410 {
+				/*
+				 * The register address below maps to the MX8M
+				 * Fusemap Description Table entries this way.
+				 * Assuming
+				 *   reg = <ADDR SIZE>;
+				 * then
+				 *   Fuse Address = (ADDR * 4) + 0x400
+				 * Note that if SIZE is greater than 4, then
+				 * each subsequent fuse is located at offset
+				 * +0x10 in Fusemap Description Table (e.g.
+				 * reg = <0x4 0x8> describes fuses 0x410 and
+				 * 0x420).
+				 */
+				imx8mq_uid: soc-uid@4 { /* 0x410-0x420 */
 					reg = <0x4 0x8>;
 				};
 
-				cpu_speed_grade: speed-grade@10 {
+				cpu_speed_grade: speed-grade@10 { /* 0x440 */
 					reg = <0x10 4>;
 				};
 
-				fec_mac_address: mac-address@90 {
+				fec_mac_address: mac-address@90 { /* 0x640 */
 					reg = <0x90 6>;
 				};
 			};
 
-			anatop: syscon@30360000 {
-				compatible = "fsl,imx8mq-anatop", "syscon";
+			anatop: clock-controller@30360000 {
+				compatible = "fsl,imx8mq-anatop";
 				reg = <0x30360000 0x10000>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+				#clock-cells = <1>;
 			};
 
 			snvs: snvs@30370000 {
@@ -1184,7 +1198,7 @@
 			};
 
 			csi1: csi@30a90000 {
-				compatible = "fsl,imx8mq-csi", "fsl,imx7-csi";
+				compatible = "fsl,imx8mq-csi";
 				reg = <0x30a90000 0x10000>;
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_CSI1_ROOT>;
@@ -1236,7 +1250,7 @@
 			};
 
 			csi2: csi@30b80000 {
-				compatible = "fsl,imx8mq-csi", "fsl,imx7-csi";
+				compatible = "fsl,imx8mq-csi";
 				reg = <0x30b80000 0x10000>;
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_CSI2_ROOT>;
@@ -1356,15 +1370,15 @@
 			noc_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
-				opp-133M {
+				opp-133000000 {
 					opp-hz = /bits/ 64 <133333333>;
 				};
 
-				opp-400M {
+				opp-400000000 {
 					opp-hz = /bits/ 64 <400000000>;
 				};
 
-				opp-800M {
+				opp-800000000 {
 					opp-hz = /bits/ 64 <800000000>;
 				};
 			};
@@ -1528,6 +1542,11 @@
 			                <0 0 0 4 &gic GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,max-link-speed = <2>;
 			linux,pci-domain = <0>;
+			clocks = <&clk IMX8MQ_CLK_PCIE1_ROOT>,
+				 <&clk IMX8MQ_CLK_PCIE1_PHY>,
+				 <&clk IMX8MQ_CLK_PCIE1_PHY>,
+				 <&clk IMX8MQ_CLK_PCIE1_AUX>;
+			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux";
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY>,
 			         <&src IMX8MQ_RESET_PCIE_CTRL_APPS_EN>,
@@ -1565,6 +1584,11 @@
 					<0 0 0 4 &gic GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,max-link-speed = <2>;
 			linux,pci-domain = <1>;
+			clocks = <&clk IMX8MQ_CLK_PCIE2_ROOT>,
+				 <&clk IMX8MQ_CLK_PCIE2_PHY>,
+				 <&clk IMX8MQ_CLK_PCIE2_PHY>,
+				 <&clk IMX8MQ_CLK_PCIE2_AUX>;
+			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux";
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY2>,
 			         <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_EN>,

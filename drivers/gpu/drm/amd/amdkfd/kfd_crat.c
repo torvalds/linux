@@ -50,16 +50,6 @@ static inline unsigned int get_and_inc_gpu_processor_id(
 	return current_id;
 }
 
-/* Static table to describe GPU Cache information */
-struct kfd_gpu_cache_info {
-	uint32_t	cache_size;
-	uint32_t	cache_level;
-	uint32_t	flags;
-	/* Indicates how many Compute Units share this cache
-	 * within a SA. Value = 1 indicates the cache is not shared
-	 */
-	uint32_t	num_cu_shared;
-};
 
 static struct kfd_gpu_cache_info kaveri_cache_info[] = {
 	{
@@ -891,6 +881,54 @@ static struct kfd_gpu_cache_info gc_10_3_6_cache_info[] = {
 	},
 };
 
+static struct kfd_gpu_cache_info dummy_cache_info[] = {
+	{
+		/* TCP L1 Cache per CU */
+		.cache_size = 16,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 1,
+	},
+	{
+		/* Scalar L1 Instruction Cache per SQC */
+		.cache_size = 32,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_INST_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 2,
+	},
+	{
+		/* Scalar L1 Data Cache per SQC */
+		.cache_size = 16,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 2,
+	},
+	{
+		/* GL1 Data Cache per SA */
+		.cache_size = 128,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 6,
+	},
+	{
+		/* L2 Data Cache per GPU (Total Tex Cache) */
+		.cache_size = 2048,
+		.cache_level = 2,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 6,
+	},
+};
+
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
 {
@@ -1071,8 +1109,12 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 			props->cachelines_per_tag = cache->lines_per_tag;
 			props->cache_assoc = cache->associativity;
 			props->cache_latency = cache->cache_latency;
+
 			memcpy(props->sibling_map, cache->sibling_map,
-					sizeof(props->sibling_map));
+					CRAT_SIBLINGMAP_SIZE);
+
+			/* set the sibling_map_size as 32 for CRAT from ACPI */
+			props->sibling_map_size = CRAT_SIBLINGMAP_SIZE;
 
 			if (cache->flags & CRAT_CACHE_FLAGS_DATA_CACHE)
 				props->cache_type |= HSA_CACHE_TYPE_DATA;
@@ -1083,7 +1125,6 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 			if (cache->flags & CRAT_CACHE_FLAGS_SIMD_CACHE)
 				props->cache_type |= HSA_CACHE_TYPE_HSACU;
 
-			dev->cache_count++;
 			dev->node_props.caches_count++;
 			list_add_tail(&props->list, &dev->cache_props);
 
@@ -1291,125 +1332,6 @@ err:
 	return ret;
 }
 
-/* Helper function. See kfd_fill_gpu_cache_info for parameter description */
-static int fill_in_l1_pcache(struct crat_subtype_cache *pcache,
-				struct kfd_gpu_cache_info *pcache_info,
-				struct kfd_cu_info *cu_info,
-				int mem_available,
-				int cu_bitmask,
-				int cache_type, unsigned int cu_processor_id,
-				int cu_block)
-{
-	unsigned int cu_sibling_map_mask;
-	int first_active_cu;
-
-	/* First check if enough memory is available */
-	if (sizeof(struct crat_subtype_cache) > mem_available)
-		return -ENOMEM;
-
-	cu_sibling_map_mask = cu_bitmask;
-	cu_sibling_map_mask >>= cu_block;
-	cu_sibling_map_mask &=
-		((1 << pcache_info[cache_type].num_cu_shared) - 1);
-	first_active_cu = ffs(cu_sibling_map_mask);
-
-	/* CU could be inactive. In case of shared cache find the first active
-	 * CU. and incase of non-shared cache check if the CU is inactive. If
-	 * inactive active skip it
-	 */
-	if (first_active_cu) {
-		memset(pcache, 0, sizeof(struct crat_subtype_cache));
-		pcache->type = CRAT_SUBTYPE_CACHE_AFFINITY;
-		pcache->length = sizeof(struct crat_subtype_cache);
-		pcache->flags = pcache_info[cache_type].flags;
-		pcache->processor_id_low = cu_processor_id
-					 + (first_active_cu - 1);
-		pcache->cache_level = pcache_info[cache_type].cache_level;
-		pcache->cache_size = pcache_info[cache_type].cache_size;
-
-		/* Sibling map is w.r.t processor_id_low, so shift out
-		 * inactive CU
-		 */
-		cu_sibling_map_mask =
-			cu_sibling_map_mask >> (first_active_cu - 1);
-
-		pcache->sibling_map[0] = (uint8_t)(cu_sibling_map_mask & 0xFF);
-		pcache->sibling_map[1] =
-				(uint8_t)((cu_sibling_map_mask >> 8) & 0xFF);
-		pcache->sibling_map[2] =
-				(uint8_t)((cu_sibling_map_mask >> 16) & 0xFF);
-		pcache->sibling_map[3] =
-				(uint8_t)((cu_sibling_map_mask >> 24) & 0xFF);
-		return 0;
-	}
-	return 1;
-}
-
-/* Helper function. See kfd_fill_gpu_cache_info for parameter description */
-static int fill_in_l2_l3_pcache(struct crat_subtype_cache *pcache,
-				struct kfd_gpu_cache_info *pcache_info,
-				struct kfd_cu_info *cu_info,
-				int mem_available,
-				int cache_type, unsigned int cu_processor_id)
-{
-	unsigned int cu_sibling_map_mask;
-	int first_active_cu;
-	int i, j, k;
-
-	/* First check if enough memory is available */
-	if (sizeof(struct crat_subtype_cache) > mem_available)
-		return -ENOMEM;
-
-	cu_sibling_map_mask = cu_info->cu_bitmap[0][0];
-	cu_sibling_map_mask &=
-		((1 << pcache_info[cache_type].num_cu_shared) - 1);
-	first_active_cu = ffs(cu_sibling_map_mask);
-
-	/* CU could be inactive. In case of shared cache find the first active
-	 * CU. and incase of non-shared cache check if the CU is inactive. If
-	 * inactive active skip it
-	 */
-	if (first_active_cu) {
-		memset(pcache, 0, sizeof(struct crat_subtype_cache));
-		pcache->type = CRAT_SUBTYPE_CACHE_AFFINITY;
-		pcache->length = sizeof(struct crat_subtype_cache);
-		pcache->flags = pcache_info[cache_type].flags;
-		pcache->processor_id_low = cu_processor_id
-					 + (first_active_cu - 1);
-		pcache->cache_level = pcache_info[cache_type].cache_level;
-		pcache->cache_size = pcache_info[cache_type].cache_size;
-
-		/* Sibling map is w.r.t processor_id_low, so shift out
-		 * inactive CU
-		 */
-		cu_sibling_map_mask =
-			cu_sibling_map_mask >> (first_active_cu - 1);
-		k = 0;
-		for (i = 0; i < cu_info->num_shader_engines; i++) {
-			for (j = 0; j < cu_info->num_shader_arrays_per_engine;
-				j++) {
-				pcache->sibling_map[k] =
-				 (uint8_t)(cu_sibling_map_mask & 0xFF);
-				pcache->sibling_map[k+1] =
-				 (uint8_t)((cu_sibling_map_mask >> 8) & 0xFF);
-				pcache->sibling_map[k+2] =
-				 (uint8_t)((cu_sibling_map_mask >> 16) & 0xFF);
-				pcache->sibling_map[k+3] =
-				 (uint8_t)((cu_sibling_map_mask >> 24) & 0xFF);
-				k += 4;
-				cu_sibling_map_mask =
-					cu_info->cu_bitmap[i % 4][j + i / 4];
-				cu_sibling_map_mask &= (
-				 (1 << pcache_info[cache_type].num_cu_shared)
-				 - 1);
-			}
-		}
-		return 0;
-	}
-	return 1;
-}
-
-#define KFD_MAX_CACHE_TYPES 6
 
 static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 						   struct kfd_gpu_cache_info *pcache_info)
@@ -1483,228 +1405,134 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 	return i;
 }
 
-/* kfd_fill_gpu_cache_info - Fill GPU cache info using kfd_gpu_cache_info
- * tables
- *
- *	@kdev - [IN] GPU device
- *	@gpu_processor_id - [IN] GPU processor ID to which these caches
- *			    associate
- *	@available_size - [IN] Amount of memory available in pcache
- *	@cu_info - [IN] Compute Unit info obtained from KGD
- *	@pcache - [OUT] memory into which cache data is to be filled in.
- *	@size_filled - [OUT] amount of data used up in pcache.
- *	@num_of_entries - [OUT] number of caches added
- */
-static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
-			int gpu_processor_id,
-			int available_size,
-			struct kfd_cu_info *cu_info,
-			struct crat_subtype_cache *pcache,
-			int *size_filled,
-			int *num_of_entries)
+int kfd_get_gpu_cache_info(struct kfd_dev *kdev, struct kfd_gpu_cache_info **pcache_info)
 {
-	struct kfd_gpu_cache_info *pcache_info;
-	struct kfd_gpu_cache_info cache_info[KFD_MAX_CACHE_TYPES];
 	int num_of_cache_types = 0;
-	int i, j, k;
-	int ct = 0;
-	int mem_available = available_size;
-	unsigned int cu_processor_id;
-	int ret;
-	unsigned int num_cu_shared;
 
 	switch (kdev->adev->asic_type) {
 	case CHIP_KAVERI:
-		pcache_info = kaveri_cache_info;
+		*pcache_info = kaveri_cache_info;
 		num_of_cache_types = ARRAY_SIZE(kaveri_cache_info);
 		break;
 	case CHIP_HAWAII:
-		pcache_info = hawaii_cache_info;
+		*pcache_info = hawaii_cache_info;
 		num_of_cache_types = ARRAY_SIZE(hawaii_cache_info);
 		break;
 	case CHIP_CARRIZO:
-		pcache_info = carrizo_cache_info;
+		*pcache_info = carrizo_cache_info;
 		num_of_cache_types = ARRAY_SIZE(carrizo_cache_info);
 		break;
 	case CHIP_TONGA:
-		pcache_info = tonga_cache_info;
+		*pcache_info = tonga_cache_info;
 		num_of_cache_types = ARRAY_SIZE(tonga_cache_info);
 		break;
 	case CHIP_FIJI:
-		pcache_info = fiji_cache_info;
+		*pcache_info = fiji_cache_info;
 		num_of_cache_types = ARRAY_SIZE(fiji_cache_info);
 		break;
 	case CHIP_POLARIS10:
-		pcache_info = polaris10_cache_info;
+		*pcache_info = polaris10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris10_cache_info);
 		break;
 	case CHIP_POLARIS11:
-		pcache_info = polaris11_cache_info;
+		*pcache_info = polaris11_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris11_cache_info);
 		break;
 	case CHIP_POLARIS12:
-		pcache_info = polaris12_cache_info;
+		*pcache_info = polaris12_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris12_cache_info);
 		break;
 	case CHIP_VEGAM:
-		pcache_info = vegam_cache_info;
+		*pcache_info = vegam_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vegam_cache_info);
 		break;
 	default:
 		switch (KFD_GC_VERSION(kdev)) {
 		case IP_VERSION(9, 0, 1):
-			pcache_info = vega10_cache_info;
+			*pcache_info = vega10_cache_info;
 			num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
 			break;
 		case IP_VERSION(9, 2, 1):
-			pcache_info = vega12_cache_info;
+			*pcache_info = vega12_cache_info;
 			num_of_cache_types = ARRAY_SIZE(vega12_cache_info);
 			break;
 		case IP_VERSION(9, 4, 0):
 		case IP_VERSION(9, 4, 1):
-			pcache_info = vega20_cache_info;
+			*pcache_info = vega20_cache_info;
 			num_of_cache_types = ARRAY_SIZE(vega20_cache_info);
 			break;
 		case IP_VERSION(9, 4, 2):
-			pcache_info = aldebaran_cache_info;
+			*pcache_info = aldebaran_cache_info;
 			num_of_cache_types = ARRAY_SIZE(aldebaran_cache_info);
 			break;
 		case IP_VERSION(9, 1, 0):
 		case IP_VERSION(9, 2, 2):
-			pcache_info = raven_cache_info;
+			*pcache_info = raven_cache_info;
 			num_of_cache_types = ARRAY_SIZE(raven_cache_info);
 			break;
 		case IP_VERSION(9, 3, 0):
-			pcache_info = renoir_cache_info;
+			*pcache_info = renoir_cache_info;
 			num_of_cache_types = ARRAY_SIZE(renoir_cache_info);
 			break;
 		case IP_VERSION(10, 1, 10):
 		case IP_VERSION(10, 1, 2):
 		case IP_VERSION(10, 1, 3):
 		case IP_VERSION(10, 1, 4):
-			pcache_info = navi10_cache_info;
+			*pcache_info = navi10_cache_info;
 			num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
 			break;
 		case IP_VERSION(10, 1, 1):
-			pcache_info = navi14_cache_info;
+			*pcache_info = navi14_cache_info;
 			num_of_cache_types = ARRAY_SIZE(navi14_cache_info);
 			break;
 		case IP_VERSION(10, 3, 0):
-			pcache_info = sienna_cichlid_cache_info;
+			*pcache_info = sienna_cichlid_cache_info;
 			num_of_cache_types = ARRAY_SIZE(sienna_cichlid_cache_info);
 			break;
 		case IP_VERSION(10, 3, 2):
-			pcache_info = navy_flounder_cache_info;
+			*pcache_info = navy_flounder_cache_info;
 			num_of_cache_types = ARRAY_SIZE(navy_flounder_cache_info);
 			break;
 		case IP_VERSION(10, 3, 4):
-			pcache_info = dimgrey_cavefish_cache_info;
+			*pcache_info = dimgrey_cavefish_cache_info;
 			num_of_cache_types = ARRAY_SIZE(dimgrey_cavefish_cache_info);
 			break;
 		case IP_VERSION(10, 3, 1):
-			pcache_info = vangogh_cache_info;
+			*pcache_info = vangogh_cache_info;
 			num_of_cache_types = ARRAY_SIZE(vangogh_cache_info);
 			break;
 		case IP_VERSION(10, 3, 5):
-			pcache_info = beige_goby_cache_info;
+			*pcache_info = beige_goby_cache_info;
 			num_of_cache_types = ARRAY_SIZE(beige_goby_cache_info);
 			break;
 		case IP_VERSION(10, 3, 3):
-			pcache_info = yellow_carp_cache_info;
+			*pcache_info = yellow_carp_cache_info;
 			num_of_cache_types = ARRAY_SIZE(yellow_carp_cache_info);
 			break;
 		case IP_VERSION(10, 3, 6):
-			pcache_info = gc_10_3_6_cache_info;
+			*pcache_info = gc_10_3_6_cache_info;
 			num_of_cache_types = ARRAY_SIZE(gc_10_3_6_cache_info);
 			break;
 		case IP_VERSION(10, 3, 7):
-			pcache_info = gfx1037_cache_info;
+			*pcache_info = gfx1037_cache_info;
 			num_of_cache_types = ARRAY_SIZE(gfx1037_cache_info);
 			break;
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 2):
 		case IP_VERSION(11, 0, 3):
-			pcache_info = cache_info;
+		case IP_VERSION(11, 0, 4):
 			num_of_cache_types =
-				kfd_fill_gpu_cache_info_from_gfx_config(kdev, pcache_info);
+				kfd_fill_gpu_cache_info_from_gfx_config(kdev, *pcache_info);
 			break;
 		default:
-			return -EINVAL;
-		}
-	}
-
-	*size_filled = 0;
-	*num_of_entries = 0;
-
-	/* For each type of cache listed in the kfd_gpu_cache_info table,
-	 * go through all available Compute Units.
-	 * The [i,j,k] loop will
-	 *		if kfd_gpu_cache_info.num_cu_shared = 1
-	 *			will parse through all available CU
-	 *		If (kfd_gpu_cache_info.num_cu_shared != 1)
-	 *			then it will consider only one CU from
-	 *			the shared unit
-	 */
-
-	for (ct = 0; ct < num_of_cache_types; ct++) {
-	  cu_processor_id = gpu_processor_id;
-	  if (pcache_info[ct].cache_level == 1) {
-	    for (i = 0; i < cu_info->num_shader_engines; i++) {
-	      for (j = 0; j < cu_info->num_shader_arrays_per_engine; j++) {
-	        for (k = 0; k < cu_info->num_cu_per_sh;
-		  k += pcache_info[ct].num_cu_shared) {
-		  ret = fill_in_l1_pcache(pcache,
-					pcache_info,
-					cu_info,
-					mem_available,
-					cu_info->cu_bitmap[i % 4][j + i / 4],
-					ct,
-					cu_processor_id,
-					k);
-
-		  if (ret < 0)
+			*pcache_info = dummy_cache_info;
+			num_of_cache_types = ARRAY_SIZE(dummy_cache_info);
+			pr_warn("dummy cache info is used temporarily and real cache info need update later.\n");
 			break;
-
-		  if (!ret) {
-				pcache++;
-				(*num_of_entries)++;
-				mem_available -= sizeof(*pcache);
-				(*size_filled) += sizeof(*pcache);
-		  }
-
-		  /* Move to next CU block */
-		  num_cu_shared = ((k + pcache_info[ct].num_cu_shared) <=
-					cu_info->num_cu_per_sh) ?
-					pcache_info[ct].num_cu_shared :
-					(cu_info->num_cu_per_sh - k);
-		  cu_processor_id += num_cu_shared;
 		}
-	      }
-	    }
-	  } else {
-			ret = fill_in_l2_l3_pcache(pcache,
-				pcache_info,
-				cu_info,
-				mem_available,
-				ct,
-				cu_processor_id);
-
-			if (ret < 0)
-				break;
-
-			if (!ret) {
-				pcache++;
-				(*num_of_entries)++;
-				mem_available -= sizeof(*pcache);
-				(*size_filled) += sizeof(*pcache);
-			}
-	  }
 	}
-
-	pr_debug("Added [%d] GPU cache entries\n", *num_of_entries);
-
-	return 0;
+	return num_of_cache_types;
 }
 
 static bool kfd_ignore_crat(void)
@@ -2063,8 +1891,8 @@ static void kfd_find_numa_node_in_srat(struct kfd_dev *kdev)
 	struct acpi_table_header *table_header = NULL;
 	struct acpi_subtable_header *sub_header = NULL;
 	unsigned long table_end, subtable_len;
-	u32 pci_id = pci_domain_nr(kdev->pdev->bus) << 16 |
-			pci_dev_id(kdev->pdev);
+	u32 pci_id = pci_domain_nr(kdev->adev->pdev->bus) << 16 |
+			pci_dev_id(kdev->adev->pdev);
 	u32 bdf;
 	acpi_status status;
 	struct acpi_srat_cpu_affinity *cpu;
@@ -2139,7 +1967,7 @@ static void kfd_find_numa_node_in_srat(struct kfd_dev *kdev)
 		numa_node = 0;
 
 	if (numa_node != NUMA_NO_NODE)
-		set_dev_node(&kdev->pdev->dev, numa_node);
+		set_dev_node(&kdev->adev->pdev->dev, numa_node);
 }
 #endif
 
@@ -2200,14 +2028,14 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	sub_type_hdr->proximity_domain_from = proximity_domain;
 
 #ifdef CONFIG_ACPI_NUMA
-	if (kdev->pdev->dev.numa_node == NUMA_NO_NODE)
+	if (kdev->adev->pdev->dev.numa_node == NUMA_NO_NODE)
 		kfd_find_numa_node_in_srat(kdev);
 #endif
 #ifdef CONFIG_NUMA
-	if (kdev->pdev->dev.numa_node == NUMA_NO_NODE)
+	if (kdev->adev->pdev->dev.numa_node == NUMA_NO_NODE)
 		sub_type_hdr->proximity_domain_to = 0;
 	else
-		sub_type_hdr->proximity_domain_to = kdev->pdev->dev.numa_node;
+		sub_type_hdr->proximity_domain_to = kdev->adev->pdev->dev.numa_node;
 #else
 	sub_type_hdr->proximity_domain_to = 0;
 #endif
@@ -2263,8 +2091,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	struct kfd_cu_info cu_info;
 	int avail_size = *size;
 	uint32_t total_num_of_cu;
-	int num_of_cache_entries = 0;
-	int cache_mem_filled = 0;
 	uint32_t nid = 0;
 	int ret = 0;
 
@@ -2365,31 +2191,12 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	crat_table->length += sizeof(struct crat_subtype_memory);
 	crat_table->total_entries++;
 
-	/* TODO: Fill in cache information. This information is NOT readily
-	 * available in KGD
-	 */
-	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
-		sub_type_hdr->length);
-	ret = kfd_fill_gpu_cache_info(kdev, cu->processor_id_low,
-				avail_size,
-				&cu_info,
-				(struct crat_subtype_cache *)sub_type_hdr,
-				&cache_mem_filled,
-				&num_of_cache_entries);
-
-	if (ret < 0)
-		return ret;
-
-	crat_table->length += cache_mem_filled;
-	crat_table->total_entries += num_of_cache_entries;
-	avail_size -= cache_mem_filled;
-
 	/* Fill in Subtype: IO_LINKS
 	 *  Only direct links are added here which is Link from GPU to
 	 *  its NUMA node. Indirect links are added by userspace.
 	 */
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
-		cache_mem_filled);
+		sub_type_hdr->length);
 	ret = kfd_fill_gpu_direct_io_link_to_cpu(&avail_size, kdev,
 		(struct crat_subtype_iolink *)sub_type_hdr, proximity_domain);
 

@@ -254,8 +254,13 @@ objtool := $(objtree)/tools/objtool/objtool
 
 objtool-args-$(CONFIG_HAVE_JUMP_LABEL_HACK)		+= --hacks=jump_label
 objtool-args-$(CONFIG_HAVE_NOINSTR_HACK)		+= --hacks=noinstr
+objtool-args-$(CONFIG_CALL_DEPTH_TRACKING)		+= --hacks=skylake
 objtool-args-$(CONFIG_X86_KERNEL_IBT)			+= --ibt
+objtool-args-$(CONFIG_FINEIBT)				+= --cfi
 objtool-args-$(CONFIG_FTRACE_MCOUNT_USE_OBJTOOL)	+= --mcount
+ifdef CONFIG_FTRACE_MCOUNT_USE_OBJTOOL
+objtool-args-$(CONFIG_HAVE_OBJTOOL_NOP_MCOUNT)		+= --mnop
+endif
 objtool-args-$(CONFIG_UNWINDER_ORC)			+= --orc
 objtool-args-$(CONFIG_RETPOLINE)			+= --retpoline
 objtool-args-$(CONFIG_RETHUNK)				+= --rethunk
@@ -264,6 +269,7 @@ objtool-args-$(CONFIG_STACK_VALIDATION)			+= --stackval
 objtool-args-$(CONFIG_HAVE_STATIC_CALL_INLINE)		+= --static-call
 objtool-args-$(CONFIG_HAVE_UACCESS_VALIDATION)		+= --uaccess
 objtool-args-$(CONFIG_GCOV_KERNEL)			+= --no-unreachable
+objtool-args-$(CONFIG_PREFIX_SYMBOLS)			+= --prefix=$(CONFIG_FUNCTION_PADDING_BYTES)
 
 objtool-args = $(objtool-args-y)					\
 	$(if $(delay-objtool), --link)					\
@@ -334,7 +340,8 @@ quiet_cmd_gzip = GZIP    $@
 # DTC
 # ---------------------------------------------------------------------------
 DTC ?= $(objtree)/scripts/dtc/dtc
-DTC_FLAGS += -Wno-interrupt_provider
+DTC_FLAGS += -Wno-interrupt_provider \
+	-Wno-unique_unit_address
 
 # Disable noisy checks by default
 ifeq ($(findstring 1,$(KBUILD_EXTRA_WARN)),)
@@ -342,14 +349,17 @@ DTC_FLAGS += -Wno-unit_address_vs_reg \
 	-Wno-avoid_unnecessary_addr_size \
 	-Wno-alias_paths \
 	-Wno-graph_child_address \
-	-Wno-simple_bus_reg \
-	-Wno-unique_unit_address
+	-Wno-simple_bus_reg
+else
+DTC_FLAGS += \
+        -Wunique_unit_address_if_enabled
 endif
 
 ifneq ($(findstring 2,$(KBUILD_EXTRA_WARN)),)
 DTC_FLAGS += -Wnode_name_chars_strict \
 	-Wproperty_name_chars_strict \
-	-Winterrupt_provider
+	-Winterrupt_provider \
+	-Wunique_unit_address
 endif
 
 DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
@@ -358,22 +368,25 @@ DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
 DTC_FLAGS += $(if $(filter $(patsubst $(obj)/%,%,$@), $(base-dtb-y)), -@)
 
 # Generate an assembly file to wrap the output of the device tree compiler
-quiet_cmd_dt_S_dtb= DTB     $@
-cmd_dt_S_dtb=						\
-{							\
-	echo '\#include <asm-generic/vmlinux.lds.h>'; 	\
-	echo '.section .dtb.init.rodata,"a"';		\
-	echo '.balign STRUCT_ALIGNMENT';		\
-	echo '.global __dtb_$(subst -,_,$(*F))_begin';	\
-	echo '__dtb_$(subst -,_,$(*F))_begin:';		\
-	echo '.incbin "$<" ';				\
-	echo '__dtb_$(subst -,_,$(*F))_end:';		\
-	echo '.global __dtb_$(subst -,_,$(*F))_end';	\
-	echo '.balign STRUCT_ALIGNMENT'; 		\
-} > $@
+quiet_cmd_wrap_S_dtb = WRAP    $@
+      cmd_wrap_S_dtb = {								\
+		symbase=__$(patsubst .%,%,$(suffix $<))_$(subst -,_,$(notdir $*));	\
+		echo '\#include <asm-generic/vmlinux.lds.h>';				\
+		echo '.section .dtb.init.rodata,"a"';					\
+		echo '.balign STRUCT_ALIGNMENT';					\
+		echo ".global $${symbase}_begin";					\
+		echo "$${symbase}_begin:";						\
+		echo '.incbin "$<" ';							\
+		echo ".global $${symbase}_end";						\
+		echo "$${symbase}_end:";						\
+		echo '.balign STRUCT_ALIGNMENT';					\
+	} > $@
 
 $(obj)/%.dtb.S: $(obj)/%.dtb FORCE
-	$(call if_changed,dt_S_dtb)
+	$(call if_changed,wrap_S_dtb)
+
+$(obj)/%.dtbo.S: $(obj)/%.dtbo FORCE
+	$(call if_changed,wrap_S_dtb)
 
 quiet_cmd_dtc = DTC     $@
 cmd_dtc = $(HOSTCC) -E $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
@@ -406,6 +419,9 @@ $(obj)/%.dtb: $(src)/%.dts $(DTC) $(DT_TMP_SCHEMA) FORCE
 	$(call if_changed_dep,dtb)
 
 $(obj)/%.dtbo: $(src)/%.dts $(DTC) FORCE
+	$(call if_changed_dep,dtc)
+
+$(obj)/%.dtbo: $(src)/%.dtso $(DTC) FORCE
 	$(call if_changed_dep,dtc)
 
 dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)

@@ -377,7 +377,7 @@ config REGULATOR_FAN53555
 
 config REGULATOR_FAN53880
 	tristate "Fairchild FAN53880 Regulator"
-	depends on I2C && (OF || COMPILE_TEST)
+	depends on I2C && OF
 	select REGMAP_I2C
 	help
 	  This driver supports Fairchild (ON Semiconductor) FAN53880
@@ -655,6 +655,14 @@ config REGULATOR_MAX20086
 	  protectorvia I2C bus. The regulator has 2 or 4 outputs depending on
 	  the device model. This driver is only capable to turn on/off them.
 
+config REGULATOR_MAX20411
+	tristate "Maxim MAX20411 High-Efficiency Single Step-Down Converter"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls the Maxim MAX20411 family of high-efficiency,
+	  syncrhonous step-down converters.
+
 config REGULATOR_MAX77686
 	tristate "Maxim 77686 regulator"
 	depends on MFD_MAX77686 || COMPILE_TEST
@@ -743,7 +751,7 @@ config REGULATOR_MP8859
 
 config REGULATOR_MP886X
 	tristate "MPS MP8869 regulator driver"
-	depends on I2C && (OF || COMPILE_TEST)
+	depends on I2C && OF
 	select REGMAP_I2C
 	help
 	  This driver supports the MP8869 voltage regulator.
@@ -804,6 +812,15 @@ config REGULATOR_MT6332
 	  MediaTek MT6332 PMIC.
 	  This driver supports the control of different power rails of device
 	  through regulator interface
+
+config REGULATOR_MT6357
+	tristate "MediaTek MT6357 PMIC"
+	depends on MFD_MT6397
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6357 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
 
 config REGULATOR_MT6358
 	tristate "MediaTek MT6358 PMIC"
@@ -1124,6 +1141,17 @@ config REGULATOR_RT6160
 	  The wide output range is from 2025mV to 5200mV and can be used on most
 	  common application scenario.
 
+config REGULATOR_RT6190
+	tristate "Richtek RT6190 4-Switch BuckBoost controller"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  The RT6190 is a 4-Switch BuckBoost controller designed for converting
+	  input voltage to output voltage that can be equal to, higher or lower
+	  than input voltage. It operates with wide input voltage range from
+	  4.5V to 36V, and the output voltage can be set from 3V to 36V by
+	  external FB pin.
+
 config REGULATOR_RT6245
 	tristate "Richtek RT6245 voltage regulator"
 	depends on I2C
@@ -1288,21 +1316,21 @@ config REGULATOR_SY7636A
 
 config REGULATOR_SY8106A
 	tristate "Silergy SY8106A regulator"
-	depends on I2C && (OF || COMPILE_TEST)
+	depends on I2C && OF
 	select REGMAP_I2C
 	help
 	  This driver supports SY8106A single output regulator.
 
 config REGULATOR_SY8824X
 	tristate "Silergy SY8824C/SY8824E regulator"
-	depends on I2C && (OF || COMPILE_TEST)
+	depends on I2C && OF
 	select REGMAP_I2C
 	help
 	  This driver supports SY8824C single output regulator.
 
 config REGULATOR_SY8827N
 	tristate "Silergy SY8827N regulator"
-	depends on I2C && (OF || COMPILE_TEST)
+	depends on I2C && OF
 	select REGMAP_I2C
 	help
 	  This driver supports SY8827N single output regulator.

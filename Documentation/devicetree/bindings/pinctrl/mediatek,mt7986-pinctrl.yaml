@@ -87,6 +87,8 @@ patternProperties:
           "wifi_led"        "led"       1, 2
           "i2c"             "i2c"       3, 4
           "uart1_0"         "uart"      7, 8, 9, 10
+          "uart1_rx_tx"     "uart"      42, 43
+          "uart1_cts_rts"   "uart"      44, 45
           "pcie_clk"        "pcie"      9
           "pcie_wake"       "pcie"      10
           "spi1_0"          "spi"       11, 12, 13, 14
@@ -98,9 +100,11 @@ patternProperties:
           "emmc_45"         "emmc"      22, 23, 24, 25, 26, 27, 28, 29, 30,
                                         31, 32
           "spi1_1"          "spi"       23, 24, 25, 26
-          "uart1_2"         "uart"      29, 30, 31, 32
+          "uart1_2_rx_tx"   "uart"      29, 30
+          "uart1_2_cts_rts" "uart"      31, 32
           "uart1_1"         "uart"      23, 24, 25, 26
-          "uart2_0"         "uart"      29, 30, 31, 32
+          "uart2_0_rx_tx"   "uart"      29, 30
+          "uart2_0_cts_rts" "uart"      31, 32
           "spi0"            "spi"       33, 34, 35, 36
           "spi0_wp_hold"    "spi"       37, 38
           "uart1_3_rx_tx"   "uart"      35, 36
@@ -157,7 +161,7 @@ patternProperties:
             then:
               properties:
                 groups:
-                  enum: [emmc, emmc_rst]
+                  enum: [emmc_45, emmc_51]
           - if:
               properties:
                 function:
@@ -197,7 +201,9 @@ patternProperties:
             then:
               properties:
                 groups:
-                  enum: [pcie_clk, pcie_wake, pcie_pereset]
+                  items:
+                    enum: [pcie_clk, pcie_wake, pcie_pereset]
+                  maxItems: 3
           - if:
               properties:
                 function:
@@ -205,7 +211,9 @@ patternProperties:
             then:
               properties:
                 groups:
-                  enum: [pwm0, pwm1_0, pwm1_1]
+                  items:
+                    enum: [pwm0, pwm1_0, pwm1_1]
+                  maxItems: 2
           - if:
               properties:
                 function:
@@ -213,7 +221,9 @@ patternProperties:
             then:
               properties:
                 groups:
-                  enum: [spi0, spi0_wp_hold, spi1_0, spi1_1, spi1_2, spi1_3]
+                  items:
+                    enum: [spi0, spi0_wp_hold, spi1_0, spi1_1, spi1_2, spi1_3]
+                  maxItems: 2
           - if:
               properties:
                 function:
@@ -221,8 +231,12 @@ patternProperties:
             then:
               properties:
                 groups:
-                  enum: [uart1_0, uart1_1, uart1_2, uart1_3_rx_tx,
-                         uart1_3_cts_rts, uart2_0, uart2_1, uart0, uart1, uart2]
+                  items:
+                    enum: [uart1_0, uart1_rx_tx, uart1_cts_rts, uart1_1,
+                           uart1_2_rx_tx, uart1_2_cts_rts, uart1_3_rx_tx,
+                           uart1_3_cts_rts, uart2_0_rx_tx, uart2_0_cts_rts,
+                           uart2_1, uart0, uart1, uart2]
+                  maxItems: 2
           - if:
               properties:
                 function:
@@ -278,9 +292,23 @@ patternProperties:
 
           bias-disable: true
 
-          bias-pull-up: true
+          bias-pull-up:
+            oneOf:
+              - type: boolean
+                description: normal pull up.
+              - enum: [100, 101, 102, 103]
+                description: |
+                  PUPD/R1/R0 pull down type. See MTK_PUPD_SET_R1R0 defines in
+                  dt-bindings/pinctrl/mt65xx.h.
 
-          bias-pull-down: true
+          bias-pull-down:
+            oneOf:
+              - type: boolean
+                description: normal pull down.
+              - enum: [100, 101, 102, 103]
+                description: |
+                  PUPD/R1/R0 pull down type. See MTK_PUPD_SET_R1R0 defines in
+                  dt-bindings/pinctrl/mt65xx.h.
 
           input-enable: true
 
@@ -332,6 +360,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/mt65xx.h>
 
     soc {
       #address-cells = <2>;
@@ -356,6 +385,27 @@ examples:
         interrupt-parent = <&gic>;
         #interrupt-cells = <2>;
 
+        pcie_pins: pcie-pins {
+          mux {
+            function = "pcie";
+            groups = "pcie_clk", "pcie_wake", "pcie_pereset";
+          };
+        };
+
+        pwm_pins: pwm-pins {
+          mux {
+            function = "pwm";
+            groups = "pwm0", "pwm1_0";
+          };
+        };
+
+        spi0_pins: spi0-pins {
+          mux {
+            function = "spi";
+            groups = "spi0", "spi0_wp_hold";
+          };
+        };
+
         uart1_pins: uart1-pins {
           mux {
             function = "uart";
@@ -363,10 +413,46 @@ examples:
           };
         };
 
+        uart1_3_pins: uart1-3-pins {
+          mux {
+            function = "uart";
+            groups = "uart1_3_rx_tx", "uart1_3_cts_rts";
+          };
+        };
+
         uart2_pins: uart2-pins {
           mux {
             function = "uart";
             groups = "uart2";
+          };
+        };
+
+        mmc0_pins_default: mmc0-pins {
+          mux {
+            function = "emmc";
+            groups = "emmc_51";
+          };
+          conf-cmd-dat {
+            pins = "EMMC_DATA_0", "EMMC_DATA_1", "EMMC_DATA_2",
+                   "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
+                   "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
+            input-enable;
+            drive-strength = <4>;
+            bias-pull-up = <MTK_PUPD_SET_R1R0_01>; /* pull-up 10K */
+          };
+          conf-clk {
+            pins = "EMMC_CK";
+            drive-strength = <6>;
+            bias-pull-down = <MTK_PUPD_SET_R1R0_10>; /* pull-down 50K */
+          };
+          conf-ds {
+            pins = "EMMC_DSL";
+            bias-pull-down = <MTK_PUPD_SET_R1R0_10>; /* pull-down 50K */
+          };
+          conf-rst {
+            pins = "EMMC_RSTB";
+            drive-strength = <4>;
+            bias-pull-up = <MTK_PUPD_SET_R1R0_01>; /* pull-up 10K */
           };
         };
 

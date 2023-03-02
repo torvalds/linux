@@ -3853,8 +3853,8 @@ ath11k_wmi_obss_color_collision_event(struct ath11k_base *ab, struct sk_buff *sk
 
 	switch (ev->evt_type) {
 	case WMI_BSS_COLOR_COLLISION_DETECTION:
-		ieeee80211_obss_color_collision_notify(arvif->vif, ev->obss_color_bitmap,
-						       GFP_KERNEL);
+		ieee80211_obss_color_collision_notify(arvif->vif, ev->obss_color_bitmap,
+						      GFP_KERNEL);
 		ath11k_dbg(ab, ATH11K_DBG_WMI,
 			   "OBSS color collision detected vdev:%d, event:%d, bitmap:%08llx\n",
 			   ev->vdev_id, ev->evt_type, ev->obss_color_bitmap);
@@ -6829,7 +6829,7 @@ static void ath11k_wmi_event_peer_sta_ps_state_chg(struct ath11k_base *ab,
 	}
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
-		   "peer sta ps chnange ev addr %pM state %u sup_bitmap %x ps_valid %u ts %u\n",
+		   "peer sta ps change ev addr %pM state %u sup_bitmap %x ps_valid %u ts %u\n",
 		   ev->peer_macaddr.addr, ev->peer_ps_state,
 		   ev->ps_supported_bitmap, ev->peer_ps_valid,
 		   ev->peer_ps_timestamp);

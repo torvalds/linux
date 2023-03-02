@@ -18,6 +18,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/sdw.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
@@ -294,7 +295,7 @@ static void rt711_sdca_jack_detect_handler(struct work_struct *work)
 	if (!rt711->hs_jack)
 		return;
 
-	if (!rt711->component->card || !rt711->component->card->instantiated)
+	if (!snd_soc_card_is_instantiated(rt711->component->card))
 		return;
 
 	/* SDW_SCP_SDCA_INT_SDCA_0 is used for jack detection */
@@ -461,6 +462,21 @@ static void rt711_sdca_jack_init(struct rt711_sdca_priv *rt711)
 				RT711_CC_DET1,
 				RT711_HP_JD_FINAL_RESULT_CTL_JD12,
 				RT711_HP_JD_FINAL_RESULT_CTL_JD12);
+			break;
+		case RT711_JD2_100K:
+			rt711_sdca_index_write(rt711, RT711_VENDOR_REG,
+				RT711_COMBO_JACK_AUTO_CTL3, 0xa47e);
+			rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG,
+				RT711_JD_CTL1, RT711_JD2_DIGITAL_MODE_SEL,
+				RT711_JD2_DIGITAL_MODE_SEL);
+			rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG,
+				RT711_JD_CTL2, RT711_JD2_2PORT_200K_DECODE_HP |
+				RT711_JD2_2PORT_100K_DECODE_MASK | RT711_HP_JD_SEL_JD2,
+				RT711_JD2_2PORT_100K_DECODE_HP | RT711_HP_JD_SEL_JD2);
+			rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG,
+				RT711_CC_DET1,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12 | RT711_POW_CC1_AGPI,
+				RT711_HP_JD_FINAL_RESULT_CTL_JD12 | RT711_POW_CC1_AGPI_OFF);
 			break;
 		default:
 			dev_warn(rt711->component->dev, "Wrong JD source\n");
@@ -1233,10 +1249,7 @@ static int rt711_sdca_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 	stream->sdw_stream = sdw_stream;
 
 	/* Use tx_mask or rx_mask to configure stream tag and set dma_data */
-	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
-		dai->playback_dma_data = stream;
-	else
-		dai->capture_dma_data = stream;
+	snd_soc_dai_dma_data_set(dai, direction, stream);
 
 	return 0;
 }
@@ -1257,11 +1270,10 @@ static int rt711_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
-	struct sdw_stream_config stream_config;
-	struct sdw_port_config port_config;
-	enum sdw_data_direction direction;
+	struct sdw_stream_config stream_config = {0};
+	struct sdw_port_config port_config = {0};
 	struct sdw_stream_data *stream;
-	int retval, port, num_channels;
+	int retval;
 	unsigned int sampling_rate;
 
 	dev_dbg(dai->dev, "%s %s", __func__, dai->name);
@@ -1274,27 +1286,18 @@ static int rt711_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	/* SoundWire specific configuration */
+	snd_sdw_params_to_config(substream, params, &stream_config, &port_config);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		direction = SDW_DATA_DIR_RX;
-		port = 3;
+		port_config.num = 3;
 	} else {
-		direction = SDW_DATA_DIR_TX;
 		if (dai->id == RT711_AIF1)
-			port = 2;
+			port_config.num = 2;
 		else if (dai->id == RT711_AIF2)
-			port = 4;
+			port_config.num = 4;
 		else
 			return -EINVAL;
 	}
-
-	stream_config.frame_rate = params_rate(params);
-	stream_config.ch_count = params_channels(params);
-	stream_config.bps = snd_pcm_format_width(params_format(params));
-	stream_config.direction = direction;
-
-	num_channels = params_channels(params);
-	port_config.ch_mask = GENMASK(num_channels - 1, 0);
-	port_config.num = port;
 
 	retval = sdw_stream_add_slave(rt711->slave, &stream_config,
 					&port_config, 1, stream->sdw_stream);

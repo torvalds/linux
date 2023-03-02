@@ -931,7 +931,7 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 	} else {
 		/* If it is not an EDT M06/M12 touchscreen, then the model
 		 * detection is a bit hairy. The different ft5x06
-		 * firmares around don't reliably implement the
+		 * firmwares around don't reliably implement the
 		 * identification registers. Well, we'll take a shot.
 		 *
 		 * The main difference between generic focaltec based
@@ -1131,9 +1131,9 @@ static void edt_ft5x06_disable_regulators(void *arg)
 	regulator_disable(data->iovcc);
 }
 
-static int edt_ft5x06_ts_probe(struct i2c_client *client,
-					 const struct i2c_device_id *id)
+static int edt_ft5x06_ts_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct edt_i2c_chip_data *chip_data;
 	struct edt_ft5x06_ts_data *tsdata;
 	u8 buf[2] = { 0xfc, 0x00 };
@@ -1353,7 +1353,7 @@ static void edt_ft5x06_ts_remove(struct i2c_client *client)
 	edt_ft5x06_ts_teardown_debugfs(tsdata);
 }
 
-static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
+static int edt_ft5x06_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
@@ -1396,7 +1396,7 @@ static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
+static int edt_ft5x06_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
@@ -1459,8 +1459,8 @@ static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(edt_ft5x06_ts_pm_ops,
-			 edt_ft5x06_ts_suspend, edt_ft5x06_ts_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(edt_ft5x06_ts_pm_ops,
+				edt_ft5x06_ts_suspend, edt_ft5x06_ts_resume);
 
 static const struct edt_i2c_chip_data edt_ft5x06_data = {
 	.max_support_points = 5,
@@ -1500,11 +1500,11 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 	.driver = {
 		.name = "edt_ft5x06",
 		.of_match_table = edt_ft5x06_of_match,
-		.pm = &edt_ft5x06_ts_pm_ops,
+		.pm = pm_sleep_ptr(&edt_ft5x06_ts_pm_ops),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = edt_ft5x06_ts_id,
-	.probe    = edt_ft5x06_ts_probe,
+	.probe_new = edt_ft5x06_ts_probe,
 	.remove   = edt_ft5x06_ts_remove,
 };
 

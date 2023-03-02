@@ -9,15 +9,12 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
-#include <asm/csr.h>
 #include <asm/sbi.h>
 #include <asm/kvm_vcpu_timer.h>
 #include <asm/kvm_vcpu_sbi.h>
 
 static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
-				      unsigned long *out_val,
-				      struct kvm_cpu_trap *utrap,
-				      bool *exit)
+				   struct kvm_vcpu_sbi_return *retdata)
 {
 	ulong hmask;
 	int i, ret = 0;
@@ -25,6 +22,7 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	struct kvm_vcpu *rvcpu;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_cpu_context *cp = &vcpu->arch.guest_context;
+	struct kvm_cpu_trap *utrap = retdata->utrap;
 
 	switch (cp->a7) {
 	case SBI_EXT_0_1_CONSOLE_GETCHAR:
@@ -34,7 +32,7 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 * handled in kernel so we forward these to user-space
 		 */
 		kvm_riscv_vcpu_sbi_forward(vcpu, run);
-		*exit = true;
+		retdata->uexit = true;
 		break;
 	case SBI_EXT_0_1_SET_TIMER:
 #if __riscv_xlen == 32
@@ -49,8 +47,7 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		break;
 	case SBI_EXT_0_1_SEND_IPI:
 		if (cp->a0)
-			hmask = kvm_riscv_vcpu_unpriv_read(vcpu, false, cp->a0,
-							   utrap);
+			hmask = kvm_riscv_vcpu_unpriv_read(vcpu, false, cp->a0, utrap);
 		else
 			hmask = (1UL << atomic_read(&kvm->online_vcpus)) - 1;
 		if (utrap->scause)
@@ -66,14 +63,13 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case SBI_EXT_0_1_SHUTDOWN:
 		kvm_riscv_vcpu_sbi_system_reset(vcpu, run,
 						KVM_SYSTEM_EVENT_SHUTDOWN, 0);
-		*exit = true;
+		retdata->uexit = true;
 		break;
 	case SBI_EXT_0_1_REMOTE_FENCE_I:
 	case SBI_EXT_0_1_REMOTE_SFENCE_VMA:
 	case SBI_EXT_0_1_REMOTE_SFENCE_VMA_ASID:
 		if (cp->a0)
-			hmask = kvm_riscv_vcpu_unpriv_read(vcpu, false, cp->a0,
-							   utrap);
+			hmask = kvm_riscv_vcpu_unpriv_read(vcpu, false, cp->a0, utrap);
 		else
 			hmask = (1UL << atomic_read(&kvm->online_vcpus)) - 1;
 		if (utrap->scause)
@@ -104,7 +100,7 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		}
 		break;
 	default:
-		ret = -EINVAL;
+		retdata->err_val = SBI_ERR_NOT_SUPPORTED;
 		break;
 	}
 

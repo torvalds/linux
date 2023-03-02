@@ -90,16 +90,22 @@ properties:
           - heartbeat
             # LED indicates disk activity
           - disk-activity
-            # LED indicates IDE disk activity (deprecated), in new implementations
-            # use "disk-activity"
-          - ide-disk
+          - disk-read
+          - disk-write
             # LED flashes at a fixed, configurable rate
           - timer
             # LED alters the brightness for the specified duration with one software
             # timer (requires "led-pattern" property)
           - pattern
-        # LED is triggered by SD/MMC activity
+          - usb-gadget
+          - usb-host
+      - pattern: "^cpu[0-9]*$"
+      - pattern: "^hci[0-9]+-power$"
+        # LED is triggered by Bluetooth activity
       - pattern: "^mmc[0-9]+$"
+        # LED is triggered by SD/MMC activity
+      - pattern: "^phy[0-9]+tx$"
+        # LED is triggered by WLAN activity
 
   led-pattern:
     description: |

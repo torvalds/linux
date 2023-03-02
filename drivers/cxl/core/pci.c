@@ -9,6 +9,7 @@
 #include <cxlmem.h>
 #include <cxl.h>
 #include "core.h"
+#include "trace.h"
 
 /**
  * DOC: cxl core pci
@@ -54,15 +55,12 @@ static int match_add_dports(struct pci_dev *pdev, void *data)
 		dev_dbg(&port->dev, "failed to find component registers\n");
 
 	port_num = FIELD_GET(PCI_EXP_LNKCAP_PN, lnkcap);
-	dport = devm_cxl_add_dport(port, &pdev->dev, port_num,
-				   cxl_regmap_to_base(pdev, &map));
+	dport = devm_cxl_add_dport(port, &pdev->dev, port_num, map.resource);
 	if (IS_ERR(dport)) {
 		ctx->error = PTR_ERR(dport);
 		return PTR_ERR(dport);
 	}
 	ctx->count++;
-
-	dev_dbg(&port->dev, "add dport%d: %s\n", port_num, dev_name(&pdev->dev));
 
 	return 0;
 }
@@ -144,11 +142,10 @@ int cxl_await_media_ready(struct cxl_dev_state *cxlds)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_await_media_ready, CXL);
 
-static int wait_for_valid(struct cxl_dev_state *cxlds)
+static int wait_for_valid(struct pci_dev *pdev, int d)
 {
-	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
-	int d = cxlds->cxl_dvsec, rc;
 	u32 val;
+	int rc;
 
 	/*
 	 * Memory_Info_Valid: When set, indicates that the CXL Range 1 Size high
@@ -216,11 +213,6 @@ static int devm_cxl_enable_mem(struct device *host, struct cxl_dev_state *cxlds)
 	return devm_add_action_or_reset(host, clear_mem_enable, cxlds);
 }
 
-static bool range_contains(struct range *r1, struct range *r2)
-{
-	return r1->start <= r2->start && r1->end >= r2->end;
-}
-
 /* require dvsec ranges to be covered by a locked platform window */
 static int dvsec_range_allowed(struct device *dev, void *arg)
 {
@@ -232,8 +224,6 @@ static int dvsec_range_allowed(struct device *dev, void *arg)
 
 	cxld = to_cxl_decoder(dev);
 
-	if (!(cxld->flags & CXL_DECODER_F_LOCK))
-		return 0;
 	if (!(cxld->flags & CXL_DECODER_F_RAM))
 		return 0;
 
@@ -263,36 +253,145 @@ static int devm_cxl_enable_hdm(struct device *host, struct cxl_hdm *cxlhdm)
 	return devm_add_action_or_reset(host, disable_hdm, cxlhdm);
 }
 
-static bool __cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
-				  struct cxl_hdm *cxlhdm,
-				  struct cxl_endpoint_dvsec_info *info)
+int cxl_dvsec_rr_decode(struct device *dev, int d,
+			struct cxl_endpoint_dvsec_info *info)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int hdm_count, rc, i, ranges = 0;
+	u16 cap, ctrl;
+
+	if (!d) {
+		dev_dbg(dev, "No DVSEC Capability\n");
+		return -ENXIO;
+	}
+
+	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CAP_OFFSET, &cap);
+	if (rc)
+		return rc;
+
+	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CTRL_OFFSET, &ctrl);
+	if (rc)
+		return rc;
+
+	if (!(cap & CXL_DVSEC_MEM_CAPABLE)) {
+		dev_dbg(dev, "Not MEM Capable\n");
+		return -ENXIO;
+	}
+
+	/*
+	 * It is not allowed by spec for MEM.capable to be set and have 0 legacy
+	 * HDM decoders (values > 2 are also undefined as of CXL 2.0). As this
+	 * driver is for a spec defined class code which must be CXL.mem
+	 * capable, there is no point in continuing to enable CXL.mem.
+	 */
+	hdm_count = FIELD_GET(CXL_DVSEC_HDM_COUNT_MASK, cap);
+	if (!hdm_count || hdm_count > 2)
+		return -EINVAL;
+
+	rc = wait_for_valid(pdev, d);
+	if (rc) {
+		dev_dbg(dev, "Failure awaiting MEM_INFO_VALID (%d)\n", rc);
+		return rc;
+	}
+
+	/*
+	 * The current DVSEC values are moot if the memory capability is
+	 * disabled, and they will remain moot after the HDM Decoder
+	 * capability is enabled.
+	 */
+	info->mem_enabled = FIELD_GET(CXL_DVSEC_MEM_ENABLE, ctrl);
+	if (!info->mem_enabled)
+		return 0;
+
+	for (i = 0; i < hdm_count; i++) {
+		u64 base, size;
+		u32 temp;
+
+		rc = pci_read_config_dword(
+			pdev, d + CXL_DVSEC_RANGE_SIZE_HIGH(i), &temp);
+		if (rc)
+			return rc;
+
+		size = (u64)temp << 32;
+
+		rc = pci_read_config_dword(
+			pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(i), &temp);
+		if (rc)
+			return rc;
+
+		size |= temp & CXL_DVSEC_MEM_SIZE_LOW_MASK;
+		if (!size) {
+			info->dvsec_range[i] = (struct range) {
+				.start = 0,
+				.end = CXL_RESOURCE_NONE,
+			};
+			continue;
+		}
+
+		rc = pci_read_config_dword(
+			pdev, d + CXL_DVSEC_RANGE_BASE_HIGH(i), &temp);
+		if (rc)
+			return rc;
+
+		base = (u64)temp << 32;
+
+		rc = pci_read_config_dword(
+			pdev, d + CXL_DVSEC_RANGE_BASE_LOW(i), &temp);
+		if (rc)
+			return rc;
+
+		base |= temp & CXL_DVSEC_MEM_BASE_LOW_MASK;
+
+		info->dvsec_range[i] = (struct range) {
+			.start = base,
+			.end = base + size - 1
+		};
+
+		ranges++;
+	}
+
+	info->ranges = ranges;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_dvsec_rr_decode, CXL);
+
+/**
+ * cxl_hdm_decode_init() - Setup HDM decoding for the endpoint
+ * @cxlds: Device state
+ * @cxlhdm: Mapped HDM decoder Capability
+ * @info: Cached DVSEC range registers info
+ *
+ * Try to enable the endpoint's HDM Decoder Capability
+ */
+int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
+			struct cxl_endpoint_dvsec_info *info)
 {
 	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
 	struct cxl_port *port = cxlhdm->port;
 	struct device *dev = cxlds->dev;
 	struct cxl_port *root;
 	int i, rc, allowed;
-	u32 global_ctrl;
+	u32 global_ctrl = 0;
 
-	global_ctrl = readl(hdm + CXL_HDM_DECODER_CTRL_OFFSET);
+	if (hdm)
+		global_ctrl = readl(hdm + CXL_HDM_DECODER_CTRL_OFFSET);
 
 	/*
 	 * If the HDM Decoder Capability is already enabled then assume
 	 * that some other agent like platform firmware set it up.
 	 */
-	if (global_ctrl & CXL_HDM_DECODER_ENABLE) {
-		rc = devm_cxl_enable_mem(&port->dev, cxlds);
-		if (rc)
-			return false;
-		return true;
-	}
+	if (global_ctrl & CXL_HDM_DECODER_ENABLE || (!hdm && info->mem_enabled))
+		return devm_cxl_enable_mem(&port->dev, cxlds);
+	else if (!hdm)
+		return -ENODEV;
 
 	root = to_cxl_port(port->dev.parent);
 	while (!is_cxl_root(root) && is_cxl_port(root->dev.parent))
 		root = to_cxl_port(root->dev.parent);
 	if (!is_cxl_root(root)) {
 		dev_err(dev, "Failed to acquire root port for HDM enable\n");
-		return false;
+		return -ENODEV;
 	}
 
 	for (i = 0, allowed = 0; info->mem_enabled && i < info->ranges; i++) {
@@ -324,133 +423,13 @@ static bool __cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 	 * Decoder Capability Enable.
 	 */
 	if (info->mem_enabled)
-		return false;
+		return 0;
 
 	rc = devm_cxl_enable_hdm(&port->dev, cxlhdm);
 	if (rc)
-		return false;
-
-	rc = devm_cxl_enable_mem(&port->dev, cxlds);
-	if (rc)
-		return false;
-
-	return true;
-}
-
-/**
- * cxl_hdm_decode_init() - Setup HDM decoding for the endpoint
- * @cxlds: Device state
- * @cxlhdm: Mapped HDM decoder Capability
- *
- * Try to enable the endpoint's HDM Decoder Capability
- */
-int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm)
-{
-	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
-	struct cxl_endpoint_dvsec_info info = { 0 };
-	int hdm_count, rc, i, ranges = 0;
-	struct device *dev = &pdev->dev;
-	int d = cxlds->cxl_dvsec;
-	u16 cap, ctrl;
-
-	if (!d) {
-		dev_dbg(dev, "No DVSEC Capability\n");
-		return -ENXIO;
-	}
-
-	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CAP_OFFSET, &cap);
-	if (rc)
 		return rc;
 
-	rc = pci_read_config_word(pdev, d + CXL_DVSEC_CTRL_OFFSET, &ctrl);
-	if (rc)
-		return rc;
-
-	if (!(cap & CXL_DVSEC_MEM_CAPABLE)) {
-		dev_dbg(dev, "Not MEM Capable\n");
-		return -ENXIO;
-	}
-
-	/*
-	 * It is not allowed by spec for MEM.capable to be set and have 0 legacy
-	 * HDM decoders (values > 2 are also undefined as of CXL 2.0). As this
-	 * driver is for a spec defined class code which must be CXL.mem
-	 * capable, there is no point in continuing to enable CXL.mem.
-	 */
-	hdm_count = FIELD_GET(CXL_DVSEC_HDM_COUNT_MASK, cap);
-	if (!hdm_count || hdm_count > 2)
-		return -EINVAL;
-
-	rc = wait_for_valid(cxlds);
-	if (rc) {
-		dev_dbg(dev, "Failure awaiting MEM_INFO_VALID (%d)\n", rc);
-		return rc;
-	}
-
-	/*
-	 * The current DVSEC values are moot if the memory capability is
-	 * disabled, and they will remain moot after the HDM Decoder
-	 * capability is enabled.
-	 */
-	info.mem_enabled = FIELD_GET(CXL_DVSEC_MEM_ENABLE, ctrl);
-	if (!info.mem_enabled)
-		goto hdm_init;
-
-	for (i = 0; i < hdm_count; i++) {
-		u64 base, size;
-		u32 temp;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_SIZE_HIGH(i), &temp);
-		if (rc)
-			return rc;
-
-		size = (u64)temp << 32;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(i), &temp);
-		if (rc)
-			return rc;
-
-		size |= temp & CXL_DVSEC_MEM_SIZE_LOW_MASK;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_BASE_HIGH(i), &temp);
-		if (rc)
-			return rc;
-
-		base = (u64)temp << 32;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_BASE_LOW(i), &temp);
-		if (rc)
-			return rc;
-
-		base |= temp & CXL_DVSEC_MEM_BASE_LOW_MASK;
-
-		info.dvsec_range[i] = (struct range) {
-			.start = base,
-			.end = base + size - 1
-		};
-
-		if (size)
-			ranges++;
-	}
-
-	info.ranges = ranges;
-
-	/*
-	 * If DVSEC ranges are being used instead of HDM decoder registers there
-	 * is no use in trying to manage those.
-	 */
-hdm_init:
-	if (!__cxl_hdm_decode_init(cxlds, cxlhdm, &info)) {
-		dev_err(dev,
-			"Legacy range registers configuration prevents HDM operation.\n");
-		return -EBUSY;
-	}
-
-	return 0;
+	return devm_cxl_enable_mem(&port->dev, cxlds);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_hdm_decode_init, CXL);
 
@@ -625,3 +604,113 @@ void read_cdat_data(struct cxl_port *port)
 	}
 }
 EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);
+
+void cxl_cor_error_detected(struct pci_dev *pdev)
+{
+	struct cxl_dev_state *cxlds = pci_get_drvdata(pdev);
+	void __iomem *addr;
+	u32 status;
+
+	if (!cxlds->regs.ras)
+		return;
+
+	addr = cxlds->regs.ras + CXL_RAS_CORRECTABLE_STATUS_OFFSET;
+	status = readl(addr);
+	if (status & CXL_RAS_CORRECTABLE_STATUS_MASK) {
+		writel(status & CXL_RAS_CORRECTABLE_STATUS_MASK, addr);
+		trace_cxl_aer_correctable_error(cxlds->cxlmd, status);
+	}
+}
+EXPORT_SYMBOL_NS_GPL(cxl_cor_error_detected, CXL);
+
+/* CXL spec rev3.0 8.2.4.16.1 */
+static void header_log_copy(struct cxl_dev_state *cxlds, u32 *log)
+{
+	void __iomem *addr;
+	u32 *log_addr;
+	int i, log_u32_size = CXL_HEADERLOG_SIZE / sizeof(u32);
+
+	addr = cxlds->regs.ras + CXL_RAS_HEADER_LOG_OFFSET;
+	log_addr = log;
+
+	for (i = 0; i < log_u32_size; i++) {
+		*log_addr = readl(addr);
+		log_addr++;
+		addr += sizeof(u32);
+	}
+}
+
+/*
+ * Log the state of the RAS status registers and prepare them to log the
+ * next error status. Return 1 if reset needed.
+ */
+static bool cxl_report_and_clear(struct cxl_dev_state *cxlds)
+{
+	u32 hl[CXL_HEADERLOG_SIZE_U32];
+	void __iomem *addr;
+	u32 status;
+	u32 fe;
+
+	if (!cxlds->regs.ras)
+		return false;
+
+	addr = cxlds->regs.ras + CXL_RAS_UNCORRECTABLE_STATUS_OFFSET;
+	status = readl(addr);
+	if (!(status & CXL_RAS_UNCORRECTABLE_STATUS_MASK))
+		return false;
+
+	/* If multiple errors, log header points to first error from ctrl reg */
+	if (hweight32(status) > 1) {
+		void __iomem *rcc_addr =
+			cxlds->regs.ras + CXL_RAS_CAP_CONTROL_OFFSET;
+
+		fe = BIT(FIELD_GET(CXL_RAS_CAP_CONTROL_FE_MASK,
+				   readl(rcc_addr)));
+	} else {
+		fe = status;
+	}
+
+	header_log_copy(cxlds, hl);
+	trace_cxl_aer_uncorrectable_error(cxlds->cxlmd, status, fe, hl);
+	writel(status & CXL_RAS_UNCORRECTABLE_STATUS_MASK, addr);
+
+	return true;
+}
+
+pci_ers_result_t cxl_error_detected(struct pci_dev *pdev,
+				    pci_channel_state_t state)
+{
+	struct cxl_dev_state *cxlds = pci_get_drvdata(pdev);
+	struct cxl_memdev *cxlmd = cxlds->cxlmd;
+	struct device *dev = &cxlmd->dev;
+	bool ue;
+
+	/*
+	 * A frozen channel indicates an impending reset which is fatal to
+	 * CXL.mem operation, and will likely crash the system. On the off
+	 * chance the situation is recoverable dump the status of the RAS
+	 * capability registers and bounce the active state of the memdev.
+	 */
+	ue = cxl_report_and_clear(cxlds);
+
+	switch (state) {
+	case pci_channel_io_normal:
+		if (ue) {
+			device_release_driver(dev);
+			return PCI_ERS_RESULT_NEED_RESET;
+		}
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		dev_warn(&pdev->dev,
+			 "%s: frozen state error detected, disable CXL.mem\n",
+			 dev_name(dev));
+		device_release_driver(dev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		dev_warn(&pdev->dev,
+			 "failure state error detected, request disconnect\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_error_detected, CXL);

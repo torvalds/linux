@@ -10,11 +10,13 @@ maintainers:
   - Michal Simek <michal.simek@xilinx.com>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:
-    const: xlnx,zynqmp-qspi-1.0
+    enum:
+      - xlnx,versal-qspi-1.0
+      - xlnx,zynqmp-qspi-1.0
 
   reg:
     maxItems: 2

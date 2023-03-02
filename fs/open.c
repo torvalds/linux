@@ -33,10 +33,11 @@
 #include <linux/dnotify.h>
 #include <linux/compat.h>
 #include <linux/mnt_idmapping.h>
+#include <linux/filelock.h>
 
 #include "internal.h"
 
-int do_truncate(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 		loff_t length, unsigned int time_attrs, struct file *filp)
 {
 	int ret;
@@ -54,7 +55,7 @@ int do_truncate(struct user_namespace *mnt_userns, struct dentry *dentry,
 	}
 
 	/* Remove suid, sgid, and file capabilities on truncate too */
-	ret = dentry_needs_remove_privs(dentry);
+	ret = dentry_needs_remove_privs(idmap, dentry);
 	if (ret < 0)
 		return ret;
 	if (ret)
@@ -62,14 +63,14 @@ int do_truncate(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 	inode_lock(dentry->d_inode);
 	/* Note any delegations or leases have already been broken: */
-	ret = notify_change(mnt_userns, dentry, &newattrs, NULL);
+	ret = notify_change(idmap, dentry, &newattrs, NULL);
 	inode_unlock(dentry->d_inode);
 	return ret;
 }
 
 long vfs_truncate(const struct path *path, loff_t length)
 {
-	struct user_namespace *mnt_userns;
+	struct mnt_idmap *idmap;
 	struct inode *inode;
 	long error;
 
@@ -85,8 +86,8 @@ long vfs_truncate(const struct path *path, loff_t length)
 	if (error)
 		goto out;
 
-	mnt_userns = mnt_user_ns(path->mnt);
-	error = inode_permission(mnt_userns, inode, MAY_WRITE);
+	idmap = mnt_idmap(path->mnt);
+	error = inode_permission(idmap, inode, MAY_WRITE);
 	if (error)
 		goto mnt_drop_write_and_out;
 
@@ -108,7 +109,7 @@ long vfs_truncate(const struct path *path, loff_t length)
 
 	error = security_path_truncate(path);
 	if (!error)
-		error = do_truncate(mnt_userns, path->dentry, length, 0, NULL);
+		error = do_truncate(idmap, path->dentry, length, 0, NULL);
 
 put_write_and_out:
 	put_write_access(inode);
@@ -188,9 +189,9 @@ long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 	if (IS_APPEND(file_inode(f.file)))
 		goto out_putf;
 	sb_start_write(inode->i_sb);
-	error = security_path_truncate(&f.file->f_path);
+	error = security_file_truncate(f.file);
 	if (!error)
-		error = do_truncate(file_mnt_user_ns(f.file), dentry, length,
+		error = do_truncate(file_mnt_idmap(f.file), dentry, length,
 				    ATTR_MTIME | ATTR_CTIME, f.file);
 	sb_end_write(inode->i_sb);
 out_putf:
@@ -367,7 +368,37 @@ COMPAT_SYSCALL_DEFINE6(fallocate, int, fd, int, mode, compat_arg_u64_dual(offset
  * access() needs to use the real uid/gid, not the effective uid/gid.
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
+ *
+ * Creating new credentials is expensive, so we try to skip doing it,
+ * which we can if the result would match what we already got.
  */
+static bool access_need_override_creds(int flags)
+{
+	const struct cred *cred;
+
+	if (flags & AT_EACCESS)
+		return false;
+
+	cred = current_cred();
+	if (!uid_eq(cred->fsuid, cred->uid) ||
+	    !gid_eq(cred->fsgid, cred->gid))
+		return true;
+
+	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
+		kuid_t root_uid = make_kuid(cred->user_ns, 0);
+		if (!uid_eq(cred->uid, root_uid)) {
+			if (!cap_isclear(cred->cap_effective))
+				return true;
+		} else {
+			if (!cap_isidentical(cred->cap_effective,
+			    cred->cap_permitted))
+				return true;
+		}
+	}
+
+	return false;
+}
+
 static const struct cred *access_override_creds(void)
 {
 	const struct cred *old_cred;
@@ -376,6 +407,12 @@ static const struct cred *access_override_creds(void)
 	override_cred = prepare_creds();
 	if (!override_cred)
 		return NULL;
+
+	/*
+	 * XXX access_need_override_creds performs checks in hopes of skipping
+	 * this work. Make sure it stays in sync if making any changes in this
+	 * routine.
+	 */
 
 	override_cred->fsuid = override_cred->uid;
 	override_cred->fsgid = override_cred->gid;
@@ -436,7 +473,7 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
 	if (flags & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
 
-	if (!(flags & AT_EACCESS)) {
+	if (access_need_override_creds(flags)) {
 		old_cred = access_override_creds();
 		if (!old_cred)
 			return -ENOMEM;
@@ -459,7 +496,7 @@ retry:
 			goto out_path_release;
 	}
 
-	res = inode_permission(mnt_user_ns(path.mnt), inode, mode | MAY_ACCESS);
+	res = inode_permission(mnt_idmap(path.mnt), inode, mode | MAY_ACCESS);
 	/* SuS v2 requires we report a read only fs too */
 	if (res || !(mode & S_IWOTH) || special_file(inode->i_mode))
 		goto out_path_release;
@@ -603,7 +640,7 @@ retry_deleg:
 		goto out_unlock;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-	error = notify_change(mnt_user_ns(path->mnt), path->dentry,
+	error = notify_change(mnt_idmap(path->mnt), path->dentry,
 			      &newattrs, &delegated_inode);
 out_unlock:
 	inode_unlock(inode);
@@ -701,7 +738,8 @@ static inline bool setattr_vfsgid(struct iattr *attr, kgid_t kgid)
 
 int chown_common(const struct path *path, uid_t user, gid_t group)
 {
-	struct user_namespace *mnt_userns, *fs_userns;
+	struct mnt_idmap *idmap;
+	struct user_namespace *fs_userns;
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
 	int error;
@@ -712,7 +750,7 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 	uid = make_kuid(current_user_ns(), user);
 	gid = make_kgid(current_user_ns(), group);
 
-	mnt_userns = mnt_user_ns(path->mnt);
+	idmap = mnt_idmap(path->mnt);
 	fs_userns = i_user_ns(inode);
 
 retry_deleg:
@@ -723,17 +761,17 @@ retry_deleg:
 		return -EINVAL;
 	if ((group != (gid_t)-1) && !setattr_vfsgid(&newattrs, gid))
 		return -EINVAL;
-	if (!S_ISDIR(inode->i_mode))
-		newattrs.ia_valid |=
-			ATTR_KILL_SUID | ATTR_KILL_SGID | ATTR_KILL_PRIV;
 	inode_lock(inode);
+	if (!S_ISDIR(inode->i_mode))
+		newattrs.ia_valid |= ATTR_KILL_SUID | ATTR_KILL_PRIV |
+				     setattr_should_drop_sgid(idmap, inode);
 	/* Continue to send actual fs values, not the mount values. */
 	error = security_path_chown(
 		path,
-		from_vfsuid(mnt_userns, fs_userns, newattrs.ia_vfsuid),
-		from_vfsgid(mnt_userns, fs_userns, newattrs.ia_vfsgid));
+		from_vfsuid(idmap, fs_userns, newattrs.ia_vfsuid),
+		from_vfsgid(idmap, fs_userns, newattrs.ia_vfsgid));
 	if (!error)
-		error = notify_change(mnt_userns, path->dentry, &newattrs,
+		error = notify_change(idmap, path->dentry, &newattrs,
 				      &delegated_inode);
 	inode_unlock(inode);
 	if (delegated_inode) {
@@ -870,7 +908,7 @@ static int do_dentry_open(struct file *f,
 	if (error)
 		goto cleanup_all;
 
-	error = break_lease(locks_inode(f), f->f_flags);
+	error = break_lease(file_inode(f), f->f_flags);
 	if (error)
 		goto cleanup_all;
 
@@ -1064,7 +1102,7 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 	if (IS_ERR(f))
 		return f;
 
-	error = vfs_create(mnt_user_ns(path->mnt),
+	error = vfs_create(mnt_idmap(path->mnt),
 			   d_inode(path->dentry->d_parent),
 			   path->dentry, mode, true);
 	if (!error)
@@ -1411,8 +1449,9 @@ int filp_close(struct file *filp, fl_owner_t id)
 {
 	int retval = 0;
 
-	if (!file_count(filp)) {
-		printk(KERN_ERR "VFS: Close: file count is 0\n");
+	if (CHECK_DATA_CORRUPTION(file_count(filp) == 0,
+			"VFS: Close: file count is 0 (f_op=%ps)",
+			filp->f_op)) {
 		return 0;
 	}
 

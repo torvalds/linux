@@ -10,10 +10,13 @@
 /* Even with __builtin_ the compiler may decide to use the out of line
    function. */
 
+#if defined(__SANITIZE_MEMORY__) && defined(__NO_FORTIFY)
+#include <linux/kmsan_string.h>
+#endif
+
 #define __HAVE_ARCH_MEMCPY 1
-#if defined(__SANITIZE_MEMORY__)
+#if defined(__SANITIZE_MEMORY__) && defined(__NO_FORTIFY)
 #undef memcpy
-void *__msan_memcpy(void *dst, const void *src, size_t size);
 #define memcpy __msan_memcpy
 #else
 extern void *memcpy(void *to, const void *from, size_t len);
@@ -21,7 +24,7 @@ extern void *memcpy(void *to, const void *from, size_t len);
 extern void *__memcpy(void *to, const void *from, size_t len);
 
 #define __HAVE_ARCH_MEMSET
-#if defined(__SANITIZE_MEMORY__)
+#if defined(__SANITIZE_MEMORY__) && defined(__NO_FORTIFY)
 extern void *__msan_memset(void *s, int c, size_t n);
 #undef memset
 #define memset __msan_memset
@@ -67,7 +70,7 @@ static inline void *memset64(uint64_t *s, uint64_t v, size_t n)
 }
 
 #define __HAVE_ARCH_MEMMOVE
-#if defined(__SANITIZE_MEMORY__)
+#if defined(__SANITIZE_MEMORY__) && defined(__NO_FORTIFY)
 #undef memmove
 void *__msan_memmove(void *dest, const void *src, size_t len);
 #define memmove __msan_memmove

@@ -141,19 +141,20 @@ extern struct inode *sysv_iget(struct super_block *, unsigned int);
 extern int sysv_write_inode(struct inode *, struct writeback_control *wbc);
 extern int sysv_sync_inode(struct inode *);
 extern void sysv_set_inode(struct inode *, dev_t);
-extern int sysv_getattr(struct user_namespace *, const struct path *,
+extern int sysv_getattr(struct mnt_idmap *, const struct path *,
 			struct kstat *, u32, unsigned int);
 extern int sysv_init_icache(void);
 extern void sysv_destroy_icache(void);
 
 
 /* dir.c */
+extern void dir_put_page(struct page *page, void *vaddr);
 extern struct sysv_dir_entry *sysv_find_entry(struct dentry *, struct page **);
 extern int sysv_add_link(struct dentry *, struct inode *);
 extern int sysv_delete_entry(struct sysv_dir_entry *, struct page *);
 extern int sysv_make_empty(struct inode *, struct inode *);
 extern int sysv_empty_dir(struct inode *);
-extern void sysv_set_link(struct sysv_dir_entry *, struct page *,
+extern int sysv_set_link(struct sysv_dir_entry *, struct page *,
 			struct inode *);
 extern struct sysv_dir_entry *sysv_dotdot(struct inode *, struct page **);
 extern ino_t sysv_inode_by_name(struct dentry *);

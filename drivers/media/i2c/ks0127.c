@@ -650,7 +650,7 @@ static const struct v4l2_subdev_ops ks0127_ops = {
 /* ----------------------------------------------------------------------- */
 
 
-static int ks0127_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ks0127_probe(struct i2c_client *client)
 {
 	struct ks0127 *ks;
 	struct v4l2_subdev *sd;
@@ -696,7 +696,7 @@ static struct i2c_driver ks0127_driver = {
 	.driver = {
 		.name	= "ks0127",
 	},
-	.probe		= ks0127_probe,
+	.probe_new	= ks0127_probe,
 	.remove		= ks0127_remove,
 	.id_table	= ks0127_id,
 };

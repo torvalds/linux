@@ -133,7 +133,7 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 
 static int
 xfs_xattr_set(const struct xattr_handler *handler,
-	      struct user_namespace *mnt_userns, struct dentry *unused,
+	      struct mnt_idmap *idmap, struct dentry *unused,
 	      struct inode *inode, const char *name, const void *value,
 	      size_t size, int flags)
 {
@@ -210,7 +210,7 @@ __xfs_xattr_put_listent(
 		return;
 	}
 	offset = context->buffer + context->count;
-	strncpy(offset, prefix, prefix_len);
+	memcpy(offset, prefix, prefix_len);
 	offset += prefix_len;
 	strncpy(offset, (char *)name, namelen);			/* real name */
 	offset += namelen;

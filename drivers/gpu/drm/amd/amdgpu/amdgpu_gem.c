@@ -34,10 +34,12 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_ttm_helper.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "amdgpu.h"
 #include "amdgpu_display.h"
 #include "amdgpu_dma_buf.h"
+#include "amdgpu_hmm.h"
 #include "amdgpu_xgmi.h"
 
 static const struct drm_gem_object_funcs amdgpu_gem_object_funcs;
@@ -60,10 +62,10 @@ static vm_fault_t amdgpu_gem_fault(struct vm_fault *vmf)
 			goto unlock;
 		}
 
-		 ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
-						TTM_BO_VM_NUM_PREFAULT);
+		ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
+					       TTM_BO_VM_NUM_PREFAULT);
 
-		 drm_dev_exit(idx);
+		drm_dev_exit(idx);
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
 	}
@@ -87,7 +89,7 @@ static void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 	struct amdgpu_bo *robj = gem_to_amdgpu_bo(gobj);
 
 	if (robj) {
-		amdgpu_mn_unregister(robj);
+		amdgpu_hmm_unregister(robj);
 		amdgpu_bo_unref(&robj);
 	}
 }
@@ -255,8 +257,8 @@ static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_str
 	 * becoming writable and makes is_cow_mapping(vm_flags) false.
 	 */
 	if (is_cow_mapping(vma->vm_flags) &&
-	    !(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
-		vma->vm_flags &= ~VM_MAYWRITE;
+	    !(vma->vm_flags & VM_ACCESS_FLAGS))
+		vm_flags_clear(vma, VM_MAYWRITE);
 
 	return drm_gem_ttm_mmap(obj, vma);
 }
@@ -378,6 +380,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_amdgpu_gem_userptr *args = data;
 	struct drm_gem_object *gobj;
+	struct hmm_range *range;
 	struct amdgpu_bo *bo;
 	uint32_t handle;
 	int r;
@@ -413,14 +416,13 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	if (r)
 		goto release_object;
 
-	if (args->flags & AMDGPU_GEM_USERPTR_REGISTER) {
-		r = amdgpu_mn_register(bo, args->addr);
-		if (r)
-			goto release_object;
-	}
+	r = amdgpu_hmm_register(bo, args->addr);
+	if (r)
+		goto release_object;
 
 	if (args->flags & AMDGPU_GEM_USERPTR_VALIDATE) {
-		r = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages);
+		r = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages,
+						 &range);
 		if (r)
 			goto release_object;
 
@@ -443,7 +445,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 user_pages_done:
 	if (args->flags & AMDGPU_GEM_USERPTR_VALIDATE)
-		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm, range);
 
 release_object:
 	drm_gem_object_put(gobj);

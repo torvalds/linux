@@ -87,8 +87,8 @@ struct opal_dev {
 	u64 lowest_lba;
 
 	size_t pos;
-	u8 cmd[IO_BUFFER_LENGTH];
-	u8 resp[IO_BUFFER_LENGTH];
+	u8 *cmd;
+	u8 *resp;
 
 	struct parsed_resp parsed;
 	size_t prev_d_len;
@@ -2175,6 +2175,8 @@ void free_opal_dev(struct opal_dev *dev)
 		return;
 
 	clean_opal_dev(dev);
+	kfree(dev->resp);
+	kfree(dev->cmd);
 	kfree(dev);
 }
 EXPORT_SYMBOL(free_opal_dev);
@@ -2187,6 +2189,18 @@ struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv)
 	if (!dev)
 		return NULL;
 
+	/*
+	 * Presumably DMA-able buffers must be cache-aligned. Kmalloc makes
+	 * sure the allocated buffer is DMA-safe in that regard.
+	 */
+	dev->cmd = kmalloc(IO_BUFFER_LENGTH, GFP_KERNEL);
+	if (!dev->cmd)
+		goto err_free_dev;
+
+	dev->resp = kmalloc(IO_BUFFER_LENGTH, GFP_KERNEL);
+	if (!dev->resp)
+		goto err_free_cmd;
+
 	INIT_LIST_HEAD(&dev->unlk_lst);
 	mutex_init(&dev->dev_lock);
 	dev->flags = 0;
@@ -2194,11 +2208,21 @@ struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv)
 	dev->send_recv = send_recv;
 	if (check_opal_support(dev) != 0) {
 		pr_debug("Opal is not supported on this device\n");
-		kfree(dev);
-		return NULL;
+		goto err_free_resp;
 	}
 
 	return dev;
+
+err_free_resp:
+	kfree(dev->resp);
+
+err_free_cmd:
+	kfree(dev->cmd);
+
+err_free_dev:
+	kfree(dev);
+
+	return NULL;
 }
 EXPORT_SYMBOL(init_opal_dev);
 
@@ -2437,6 +2461,44 @@ static int __opal_set_mbr_done(struct opal_dev *dev, struct opal_key *key)
 	return execute_steps(dev, mbrdone_step, ARRAY_SIZE(mbrdone_step));
 }
 
+static void opal_lock_check_for_saved_key(struct opal_dev *dev,
+			    struct opal_lock_unlock *lk_unlk)
+{
+	struct opal_suspend_data *iter;
+
+	if (lk_unlk->l_state != OPAL_LK ||
+			lk_unlk->session.opal_key.key_len > 0)
+		return;
+
+	/*
+	 * Usually when closing a crypto device (eg: dm-crypt with LUKS) the
+	 * volume key is not required, as it requires root privileges anyway,
+	 * and root can deny access to a disk in many ways regardless.
+	 * Requiring the volume key to lock the device is a peculiarity of the
+	 * OPAL specification. Given we might already have saved the key if
+	 * the user requested it via the 'IOC_OPAL_SAVE' ioctl, we can use
+	 * that key to lock the device if no key was provided here, the
+	 * locking range matches and the appropriate flag was passed with
+	 * 'IOC_OPAL_SAVE'.
+	 * This allows integrating OPAL with tools and libraries that are used
+	 * to the common behaviour and do not ask for the volume key when
+	 * closing a device.
+	 */
+	setup_opal_dev(dev);
+	list_for_each_entry(iter, &dev->unlk_lst, node) {
+		if ((iter->unlk.flags & OPAL_SAVE_FOR_LOCK) &&
+				iter->lr == lk_unlk->session.opal_key.lr &&
+				iter->unlk.session.opal_key.key_len > 0) {
+			lk_unlk->session.opal_key.key_len =
+				iter->unlk.session.opal_key.key_len;
+			memcpy(lk_unlk->session.opal_key.key,
+				iter->unlk.session.opal_key.key,
+				iter->unlk.session.opal_key.key_len);
+			break;
+		}
+	}
+}
+
 static int opal_lock_unlock(struct opal_dev *dev,
 			    struct opal_lock_unlock *lk_unlk)
 {
@@ -2446,6 +2508,7 @@ static int opal_lock_unlock(struct opal_dev *dev,
 		return -EINVAL;
 
 	mutex_lock(&dev->dev_lock);
+	opal_lock_check_for_saved_key(dev, lk_unlk);
 	ret = __opal_lock_unlock(dev, lk_unlk);
 	mutex_unlock(&dev->dev_lock);
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -291,8 +291,9 @@ struct lpfc_sli4_link {
 	uint8_t type;
 	uint8_t number;
 	uint8_t fault;
-	uint32_t logical_speed;
+	uint8_t link_status;
 	uint16_t topology;
+	uint32_t logical_speed;
 };
 
 struct lpfc_fcf_rec {
@@ -556,6 +557,7 @@ struct lpfc_pc_sli4_params {
 #define LPFC_MIB3_SUPPORT	3
 	uint16_t mi_value;
 #define LPFC_DFLT_MIB_VAL	2
+	uint8_t mi_cap;
 	uint8_t mib_bde_cnt;
 	uint8_t cmf;
 	uint8_t cqv;

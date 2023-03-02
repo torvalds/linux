@@ -239,7 +239,14 @@ static SUNXI_CCU_MUX_WITH_GATE(i2s_clk, "i2s", i2s_spdif_parents,
 static SUNXI_CCU_MUX_WITH_GATE(spdif_clk, "spdif", i2s_spdif_parents,
 			       0x0b4, 16, 2, BIT(31), 0);
 
-/* The BSP header file has a CIR_CFG, but no mod clock uses this definition */
+static const char * const ir_parents[] = { "osc32k", "osc24M" };
+static SUNXI_CCU_MP_WITH_MUX_GATE(ir_clk, "ir",
+				  ir_parents, 0x0b8,
+				  0, 4,		/* M */
+				  16, 2,	/* P */
+				  24, 2,        /* mux */
+				  BIT(31),      /* gate */
+				  0);
 
 static SUNXI_CCU_GATE(usb_phy0_clk,	"usb-phy0",	"osc24M",
 		      0x0cc, BIT(1), 0);
@@ -355,6 +362,7 @@ static struct ccu_common *suniv_ccu_clks[] = {
 	&mmc1_output_clk.common,
 	&i2s_clk.common,
 	&spdif_clk.common,
+	&ir_clk.common,
 	&usb_phy0_clk.common,
 	&dram_ve_clk.common,
 	&dram_csi_clk.common,
@@ -446,6 +454,7 @@ static struct clk_hw_onecell_data suniv_hw_clks = {
 		[CLK_MMC1_OUTPUT]	= &mmc1_output_clk.common.hw,
 		[CLK_I2S]		= &i2s_clk.common.hw,
 		[CLK_SPDIF]		= &spdif_clk.common.hw,
+		[CLK_IR]		= &ir_clk.common.hw,
 		[CLK_USB_PHY0]		= &usb_phy0_clk.common.hw,
 		[CLK_DRAM_VE]		= &dram_ve_clk.common.hw,
 		[CLK_DRAM_CSI]		= &dram_csi_clk.common.hw,

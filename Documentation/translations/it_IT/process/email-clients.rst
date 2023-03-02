@@ -106,7 +106,7 @@ Funziona. Alcune persone riescono ad usarlo con successo per inviare le patch.
 Per inserire una patch usate :menuselection:`Messaggio-->Inserisci file`
 (:kbd:`CTRL-I`) oppure un editor esterno.
 
-Se la patch che avete inserito dev'essere modificata usato la finestra di
+Se la patch che avete inserito dev'essere modificata usando la finestra di
 scrittura di Claws, allora assicuratevi che l'"auto-interruzione" sia
 disabilitata :menuselection:`Configurazione-->Preferenze-->Composizione-->Interruzione riga`.
 
@@ -288,37 +288,62 @@ Thunderbird (GUI)
 Thunderbird è un clone di Outlook a cui piace maciullare il testo, ma esistono
 modi per impedirglielo.
 
-- permettere l'uso di editor esterni:
-  La cosa più semplice da fare con Thunderbird e le patch è quello di usare
-  l'estensione "external editor" e di usare il vostro ``$EDITOR`` preferito per
-  leggere/includere patch nel vostro messaggio.  Per farlo, scaricate ed
-  installate l'estensione e aggiungete un bottone per chiamarla rapidamente
-  usando :menuselection:`Visualizza-->Barra degli strumenti-->Personalizza...`;
-  una volta fatto potrete richiamarlo premendo sul bottone mentre siete nella
-  finestra :menuselection:`Scrivi`
+Dopo la configurazione, inclusa l'installazione delle estenzioni, dovrete
+riavviare Thunderbird.
 
-  Tenete presente che "external editor" richiede che il vostro editor non
-  faccia alcun fork, in altre parole, l'editor non deve ritornare prima di
-  essere stato chiuso.  Potreste dover passare dei parametri aggiuntivi al
-  vostro editor oppure cambiargli la configurazione.  Per esempio, usando
-  gvim dovrete aggiungere l'opzione -f ``/usr/bin/gvim -f`` (Se il binario
-  si trova in ``/usr/bin``) nell'apposito campo nell'interfaccia di
-  configurazione di  :menuselection:`external editor`.  Se usate altri editor
-  consultate il loro  manuale per sapere come configurarli.
+- permettere l'uso di editor esterni:
+
+  La cosa più semplice da fare con Thunderbird e le patch è quello di usare
+  estensioni che permettano di aprire il vostro editor preferito.
+
+  Di seguito alcune estensioni che possono essere utili al caso.
+
+  - "External Editor Revived"
+
+    https://github.com/Frederick888/external-editor-revived
+
+    https://addons.thunderbird.net/en-GB/thunderbird/addon/external-editor-revived/
+
+    L'estensione richiede l'installazione di "native messaging host". Date
+    un'occhiata alla seguente wiki:
+    https://github.com/Frederick888/external-editor-revived/wiki
+
+  - "External Editor"
+
+    https://github.com/exteditor/exteditor
+
+    Per usarlo, scaricate ed installate l'applicazione. Poi aprite la finestra
+    :menuselection:`Scrivi` e a seguire aggiungete un bottone per eseguirlo
+    `Visualizza-->Barra degli strumenti-->Personalizza...`. Infine, premente
+    questo nuovo bottone tutte le volte che volete usare l'editor esterno.
+
+    Tenete presente che "external editor" richiede che il vostro editor non
+    faccia alcun fork, in altre parole, l'editor non deve ritornare prima di
+    essere stato chiuso.  Potreste dover passare dei parametri aggiuntivi al
+    vostro editor oppure cambiargli la configurazione.  Per esempio, usando
+    gvim dovrete aggiungere l'opzione -f ``/usr/bin/gvim -f`` (Se il binario
+    si trova in ``/usr/bin``) nell'apposito campo nell'interfaccia di
+    configurazione di  :menuselection:`external editor`.  Se usate altri editor
+    consultate il loro  manuale per sapere come configurarli.``)``
 
 Per rendere l'editor interno un po' più sensato, fate così:
 
-- Modificate le impostazioni di Thunderbird per far si che non usi
-  ``format=flowed``. Andate in :menuselection:`Modifica-->Preferenze-->Avanzate-->Editor di configurazione`
+- Modificate le impostazioni di Thunderbird per far si che non usi ``format=flowed``!
+  Andate sulla finestra principale e cercate il bottone per il menu a tendina principale.
+  Poi :menuselection:`Modifica-->Preferenze-->Avanzate-->Editor di configurazione`
   per invocare il registro delle impostazioni.
 
-- impostate ``mailnews.send_plaintext_flowed`` a ``false``
+  - impostate ``mailnews.send_plaintext_flowed`` a ``false``
 
-- impostate ``mailnews.wraplength`` da ``72`` a ``0``
+  - impostate ``mailnews.wraplength`` da ``72`` a ``0``
 
-- :menuselection:`Visualizza-->Corpo del messaggio come-->Testo semplice`
+- Non scrivete messaggi HTML! Andate sulla finestra principale ed aprite la
+  schermata :menuselection:`Menu principale-->Impostazioni account-->nome@unserver.ovunque-->Composizioni e indirizzi`.
+  Qui potrete disabilitare l'opzione "Componi i messaggi in HTML"
 
-- :menuselection:`Visualizza-->Codifica del testo-->Unicode`
+- Aprite i messaggi solo in formato testo! Andate sulla finestra principale e
+  selezionate
+  :menuselection:`Menu principale-->Visualizza-->Copro del messaggio come-->Testo semplice`
 
 
 TkRat (GUI)

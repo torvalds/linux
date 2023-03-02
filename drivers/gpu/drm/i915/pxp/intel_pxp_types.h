@@ -12,12 +12,20 @@
 #include <linux/workqueue.h>
 
 struct intel_context;
+struct intel_gt;
 struct i915_pxp_component;
+struct drm_i915_private;
 
 /**
  * struct intel_pxp - pxp state
  */
 struct intel_pxp {
+	/**
+	 * @ctrl_gt: poiner to the tile that owns the controls for PXP subsystem assets that
+	 * the VDBOX, the KCR engine (and GSC CS depending on the platform)
+	 */
+	struct intel_gt *ctrl_gt;
+
 	/**
 	 * @pxp_component: i915_pxp_component struct of the bound mei_pxp
 	 * module. Only set and cleared inside component bind/unbind functions,
@@ -52,6 +60,12 @@ struct intel_pxp {
 
 	/** @tee_mutex: protects the tee channel binding and messaging. */
 	struct mutex tee_mutex;
+
+	/** @stream_cmd: LMEM obj used to send stream PXP commands to the GSC */
+	struct {
+		struct drm_i915_gem_object *obj; /* contains PXP command memory */
+		void *vaddr; /* virtual memory for PXP command */
+	} stream_cmd;
 
 	/**
 	 * @hw_state_invalidated: if the HW perceives an attack on the integrity

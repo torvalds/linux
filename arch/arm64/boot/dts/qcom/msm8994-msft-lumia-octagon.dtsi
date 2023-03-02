@@ -127,98 +127,98 @@
 		 */
 
 		uefi_mem: memory@200000 {
-			reg = <0 0x200000 0 0x100000>;
+			reg = <0 0x00200000 0 0x100000>;
 			no-map;
 		};
 
 		mppark_mem: memory@300000 {
-			reg = <0 0x300000 0 0x80000>;
+			reg = <0 0x00300000 0 0x80000>;
 			no-map;
 		};
 
 		fbpt_mem: memory@380000 {
-			reg = <0 0x380000 0 0x1000>;
+			reg = <0 0x00380000 0 0x1000>;
 			no-map;
 		};
 
 		dbg2_mem: memory@381000 {
-			reg = <0 0x381000 0 0x4000>;
+			reg = <0 0x00381000 0 0x4000>;
 			no-map;
 		};
 
 		capsule_mem: memory@385000 {
-			reg = <0 0x385000 0 0x1000>;
+			reg = <0 0x00385000 0 0x1000>;
 			no-map;
 		};
 
 		tpmctrl_mem: memory@386000 {
-			reg = <0 0x386000 0 0x3000>;
+			reg = <0 0x00386000 0 0x3000>;
 			no-map;
 		};
 
 		uefiinfo_mem: memory@389000 {
-			reg = <0 0x389000 0 0x1000>;
+			reg = <0 0x00389000 0 0x1000>;
 			no-map;
 		};
 
 		reset_mem: memory@389000 {
-			reg = <0 0x389000 0 0x1000>;
+			reg = <0 0x00389000 0 0x1000>;
 			no-map;
 		};
 
 		resuncached_mem: memory@38e000 {
-			reg = <0 0x38e000 0 0x72000>;
+			reg = <0 0x0038e000 0 0x72000>;
 			no-map;
 		};
 
 		disp_mem: memory@400000 {
-			reg = <0 0x400000 0 0x800000>;
+			reg = <0 0x00400000 0 0x800000>;
 			no-map;
 		};
 
 		uefistack_mem: memory@c00000 {
-			reg = <0 0xc00000 0 0x40000>;
+			reg = <0 0x00c00000 0 0x40000>;
 			no-map;
 		};
 
 		cpuvect_mem: memory@c40000 {
-			reg = <0 0xc40000 0 0x10000>;
+			reg = <0 0x00c40000 0 0x10000>;
 			no-map;
 		};
 
 		rescached_mem: memory@400000 {
-			reg = <0 0xc50000 0 0xb0000>;
+			reg = <0 0x00c50000 0 0xb0000>;
 			no-map;
 		};
 
 		tzapps_mem: memory@6500000 {
-			reg = <0 0x6500000 0 0x500000>;
+			reg = <0 0x06500000 0 0x500000>;
 			no-map;
 		};
 
 		smem_mem: memory@6a00000 {
-			reg = <0 0x6a00000 0 0x200000>;
+			reg = <0 0x06a00000 0 0x200000>;
 			no-map;
 		};
 
 		hyp_mem: memory@6c00000 {
-			reg = <0 0x6c00000 0 0x100000>;
+			reg = <0 0x06c00000 0 0x100000>;
 			no-map;
 		};
 
 		tz_mem: memory@6d00000 {
-			reg = <0 0x6d00000 0 0x160000>;
+			reg = <0 0x06d00000 0 0x160000>;
 			no-map;
 		};
 
 		rfsa_adsp_mem: memory@6e60000 {
-			reg = <0 0x6e60000 0 0x10000>;
+			reg = <0 0x06e60000 0 0x10000>;
 			no-map;
 		};
 
 		rfsa_mpss_mem: memory@6e70000 {
 			compatible = "qcom,rmtfs-mem";
-			reg = <0 0x6e70000 0 0x10000>;
+			reg = <0 0x06e70000 0 0x10000>;
 			no-map;
 
 			qcom,client-id = <1>;
@@ -229,7 +229,7 @@
 		 * MPSS_EFS / SBL
 		 */
 		mba_mem: memory@6e80000 {
-			reg = <0 0x6e80000 0 0x180000>;
+			reg = <0 0x06e80000 0 0x180000>;
 			no-map;
 		};
 
@@ -239,33 +239,33 @@
 		 */
 
 		mpss_mem: memory@7000000 {
-			reg = <0 0x7000000 0 0x5a00000>;
+			reg = <0 0x07000000 0 0x5a00000>;
 			no-map;
 		};
 
 		adsp_mem: memory@ca00000 {
-			reg = <0 0xca00000 0 0x1800000>;
+			reg = <0 0x0ca00000 0 0x1800000>;
 			no-map;
 		};
 
 		venus_mem: memory@e200000 {
-			reg = <0 0xe200000 0 0x500000>;
+			reg = <0 0x0e200000 0 0x500000>;
 			no-map;
 		};
 
 		pil_metadata_mem: memory@e700000 {
-			reg = <0 0xe700000 0 0x4000>;
+			reg = <0 0x0e700000 0 0x4000>;
 			no-map;
 		};
 
 		memory@e704000 {
-			reg = <0 0xe704000 0 0x7fc000>;
+			reg = <0 0x0e704000 0 0x7fc000>;
 			no-map;
 		};
 		/* Peripheral Image loader region end */
 
 		cnss_mem: memory@ef00000 {
-			reg = <0 0xef00000 0 0x300000>;
+			reg = <0 0x0ef00000 0 0x300000>;
 			no-map;
 		};
 	};
@@ -551,7 +551,7 @@
 
 &rpm_requests {
 	/* These values were taken from the original firmware ACPI tables */
-	pm8994_regulators: pm8994-regulators {
+	pm8994_regulators: regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -835,7 +835,7 @@
 		vreg_lvs2a_1p8: lvs2 { };
 	};
 
-	pmi8994_regulators: pmi8994-regulators {
+	pmi8994_regulators: regulators-1 {
 		compatible = "qcom,rpm-pmi8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -881,28 +881,28 @@
 };
 
 &tlmm {
-	grip_default: grip-default {
+	grip_default: grip-default-state {
 		pins = "gpio39";
 		function = "gpio";
 		drive-strength = <6>;
 		bias-pull-down;
 	};
 
-	grip_sleep: grip-sleep {
+	grip_sleep: grip-sleep-state {
 		pins = "gpio39";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	hall_front_default: hall-front-default {
+	hall_front_default: hall-front-default-state {
 		pins = "gpio42";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	hall_back_default: hall-back-default {
+	hall_back_default: hall-back-default-state {
 		pins = "gpio75";
 		function = "gpio";
 		drive-strength = <2>;

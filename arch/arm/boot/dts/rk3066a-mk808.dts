@@ -32,7 +32,7 @@
 		keyup-threshold-microvolt = <2500000>;
 		poll-interval = <100>;
 
-		recovery {
+		button-recovery {
 			label = "recovery";
 			linux,code = <KEY_VENDOR>;
 			press-threshold-microvolt = <0>;
@@ -157,7 +157,14 @@
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_wifi>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
+
+	brcmf: wifi@1 {
+		compatible = "brcm,bcm4329-fmac";
+		reg = <1>;
+	};
 };
 
 &nfc {

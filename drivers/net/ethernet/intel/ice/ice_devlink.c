@@ -8,6 +8,7 @@
 #include "ice_devlink.h"
 #include "ice_eswitch.h"
 #include "ice_fw_update.h"
+#include "ice_dcb_lib.h"
 
 static int ice_active_port_option = -1;
 
@@ -310,12 +311,6 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		}
 	}
 
-	err = devlink_info_driver_name_put(req, KBUILD_MODNAME);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Unable to set driver name");
-		goto out_free_ctx;
-	}
-
 	ice_info_get_dsn(pf, ctx);
 
 	err = devlink_info_serial_number_put(req, ctx->buf);
@@ -376,10 +371,7 @@ out_free_ctx:
 
 /**
  * ice_devlink_reload_empr_start - Start EMP reset to activate new firmware
- * @devlink: pointer to the devlink instance to reload
- * @netns_change: if true, the network namespace is changing
- * @action: the action to perform. Must be DEVLINK_RELOAD_ACTION_FW_ACTIVATE
- * @limit: limits on what reload should do, such as not resetting
+ * @pf: pointer to the pf instance
  * @extack: netlink extended ACK structure
  *
  * Allow user to activate new Embedded Management Processor firmware by
@@ -392,12 +384,9 @@ out_free_ctx:
  * any source.
  */
 static int
-ice_devlink_reload_empr_start(struct devlink *devlink, bool netns_change,
-			      enum devlink_reload_action action,
-			      enum devlink_reload_limit limit,
+ice_devlink_reload_empr_start(struct ice_pf *pf,
 			      struct netlink_ext_ack *extack)
 {
-	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
 	u8 pending;
@@ -436,11 +425,51 @@ ice_devlink_reload_empr_start(struct devlink *devlink, bool netns_change,
 }
 
 /**
+ * ice_devlink_reload_down - prepare for reload
+ * @devlink: pointer to the devlink instance to reload
+ * @netns_change: if true, the network namespace is changing
+ * @action: the action to perform
+ * @limit: limits on what reload should do, such as not resetting
+ * @extack: netlink extended ACK structure
+ */
+static int
+ice_devlink_reload_down(struct devlink *devlink, bool netns_change,
+			enum devlink_reload_action action,
+			enum devlink_reload_limit limit,
+			struct netlink_ext_ack *extack)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+
+	switch (action) {
+	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
+		if (ice_is_eswitch_mode_switchdev(pf)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Go to legacy mode before doing reinit\n");
+			return -EOPNOTSUPP;
+		}
+		if (ice_is_adq_active(pf)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Turn off ADQ before doing reinit\n");
+			return -EOPNOTSUPP;
+		}
+		if (ice_has_vfs(pf)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Remove all VFs before doing reinit\n");
+			return -EOPNOTSUPP;
+		}
+		ice_unload(pf);
+		return 0;
+	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
+		return ice_devlink_reload_empr_start(pf, extack);
+	default:
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+}
+
+/**
  * ice_devlink_reload_empr_finish - Wait for EMP reset to finish
- * @devlink: pointer to the devlink instance reloading
- * @action: the action requested
- * @limit: limits imposed by userspace, such as not resetting
- * @actions_performed: on return, indicate what actions actually performed
+ * @pf: pointer to the pf instance
  * @extack: netlink extended ACK structure
  *
  * Wait for driver to finish rebuilding after EMP reset is completed. This
@@ -448,16 +477,10 @@ ice_devlink_reload_empr_start(struct devlink *devlink, bool netns_change,
  * for the driver's rebuild to complete.
  */
 static int
-ice_devlink_reload_empr_finish(struct devlink *devlink,
-			       enum devlink_reload_action action,
-			       enum devlink_reload_limit limit,
-			       u32 *actions_performed,
+ice_devlink_reload_empr_finish(struct ice_pf *pf,
 			       struct netlink_ext_ack *extack)
 {
-	struct ice_pf *pf = devlink_priv(devlink);
 	int err;
-
-	*actions_performed = BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE);
 
 	err = ice_wait_for_reset(pf, 60 * HZ);
 	if (err) {
@@ -713,18 +736,549 @@ ice_devlink_port_unsplit(struct devlink *devlink, struct devlink_port *port,
 	return ice_devlink_port_split(devlink, port, 1, extack);
 }
 
+/**
+ * ice_tear_down_devlink_rate_tree - removes devlink-rate exported tree
+ * @pf: pf struct
+ *
+ * This function tears down tree exported during VF's creation.
+ */
+void ice_tear_down_devlink_rate_tree(struct ice_pf *pf)
+{
+	struct devlink *devlink;
+	struct ice_vf *vf;
+	unsigned int bkt;
+
+	devlink = priv_to_devlink(pf);
+
+	devl_lock(devlink);
+	mutex_lock(&pf->vfs.table_lock);
+	ice_for_each_vf(pf, bkt, vf) {
+		if (vf->devlink_port.devlink_rate)
+			devl_rate_leaf_destroy(&vf->devlink_port);
+	}
+	mutex_unlock(&pf->vfs.table_lock);
+
+	devl_rate_nodes_destroy(devlink);
+	devl_unlock(devlink);
+}
+
+/**
+ * ice_enable_custom_tx - try to enable custom Tx feature
+ * @pf: pf struct
+ *
+ * This function tries to enable custom Tx feature,
+ * it's not possible to enable it, if DCB or ADQ is active.
+ */
+static bool ice_enable_custom_tx(struct ice_pf *pf)
+{
+	struct ice_port_info *pi = ice_get_main_vsi(pf)->port_info;
+	struct device *dev = ice_pf_to_dev(pf);
+
+	if (pi->is_custom_tx_enabled)
+		/* already enabled, return true */
+		return true;
+
+	if (ice_is_adq_active(pf)) {
+		dev_err(dev, "ADQ active, can't modify Tx scheduler tree\n");
+		return false;
+	}
+
+	if (ice_is_dcb_active(pf)) {
+		dev_err(dev, "DCB active, can't modify Tx scheduler tree\n");
+		return false;
+	}
+
+	pi->is_custom_tx_enabled = true;
+
+	return true;
+}
+
+/**
+ * ice_traverse_tx_tree - traverse Tx scheduler tree
+ * @devlink: devlink struct
+ * @node: current node, used for recursion
+ * @tc_node: tc_node struct, that is treated as a root
+ * @pf: pf struct
+ *
+ * This function traverses Tx scheduler tree and exports
+ * entire structure to the devlink-rate.
+ */
+static void ice_traverse_tx_tree(struct devlink *devlink, struct ice_sched_node *node,
+				 struct ice_sched_node *tc_node, struct ice_pf *pf)
+{
+	struct devlink_rate *rate_node = NULL;
+	struct ice_vf *vf;
+	int i;
+
+	if (node->parent == tc_node) {
+		/* create root node */
+		rate_node = devl_rate_node_create(devlink, node, node->name, NULL);
+	} else if (node->vsi_handle &&
+		   pf->vsi[node->vsi_handle]->vf) {
+		vf = pf->vsi[node->vsi_handle]->vf;
+		if (!vf->devlink_port.devlink_rate)
+			/* leaf nodes doesn't have children
+			 * so we don't set rate_node
+			 */
+			devl_rate_leaf_create(&vf->devlink_port, node,
+					      node->parent->rate_node);
+	} else if (node->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF &&
+		   node->parent->rate_node) {
+		rate_node = devl_rate_node_create(devlink, node, node->name,
+						  node->parent->rate_node);
+	}
+
+	if (rate_node && !IS_ERR(rate_node))
+		node->rate_node = rate_node;
+
+	for (i = 0; i < node->num_children; i++)
+		ice_traverse_tx_tree(devlink, node->children[i], tc_node, pf);
+}
+
+/**
+ * ice_devlink_rate_init_tx_topology - export Tx scheduler tree to devlink rate
+ * @devlink: devlink struct
+ * @vsi: main vsi struct
+ *
+ * This function finds a root node, then calls ice_traverse_tx tree, which
+ * traverses the tree and exports it's contents to devlink rate.
+ */
+int ice_devlink_rate_init_tx_topology(struct devlink *devlink, struct ice_vsi *vsi)
+{
+	struct ice_port_info *pi = vsi->port_info;
+	struct ice_sched_node *tc_node;
+	struct ice_pf *pf = vsi->back;
+	int i;
+
+	tc_node = pi->root->children[0];
+	mutex_lock(&pi->sched_lock);
+	devl_lock(devlink);
+	for (i = 0; i < tc_node->num_children; i++)
+		ice_traverse_tx_tree(devlink, tc_node->children[i], tc_node, pf);
+	devl_unlock(devlink);
+	mutex_unlock(&pi->sched_lock);
+
+	return 0;
+}
+
+/**
+ * ice_set_object_tx_share - sets node scheduling parameter
+ * @pi: devlink struct instance
+ * @node: node struct instance
+ * @bw: bandwidth in bytes per second
+ * @extack: extended netdev ack structure
+ *
+ * This function sets ICE_MIN_BW scheduling BW limit.
+ */
+static int ice_set_object_tx_share(struct ice_port_info *pi, struct ice_sched_node *node,
+				   u64 bw, struct netlink_ext_ack *extack)
+{
+	int status;
+
+	mutex_lock(&pi->sched_lock);
+	/* converts bytes per second to kilo bits per second */
+	node->tx_share = div_u64(bw, 125);
+	status = ice_sched_set_node_bw_lmt(pi, node, ICE_MIN_BW, node->tx_share);
+	mutex_unlock(&pi->sched_lock);
+
+	if (status)
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_share");
+
+	return status;
+}
+
+/**
+ * ice_set_object_tx_max - sets node scheduling parameter
+ * @pi: devlink struct instance
+ * @node: node struct instance
+ * @bw: bandwidth in bytes per second
+ * @extack: extended netdev ack structure
+ *
+ * This function sets ICE_MAX_BW scheduling BW limit.
+ */
+static int ice_set_object_tx_max(struct ice_port_info *pi, struct ice_sched_node *node,
+				 u64 bw, struct netlink_ext_ack *extack)
+{
+	int status;
+
+	mutex_lock(&pi->sched_lock);
+	/* converts bytes per second value to kilo bits per second */
+	node->tx_max = div_u64(bw, 125);
+	status = ice_sched_set_node_bw_lmt(pi, node, ICE_MAX_BW, node->tx_max);
+	mutex_unlock(&pi->sched_lock);
+
+	if (status)
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_max");
+
+	return status;
+}
+
+/**
+ * ice_set_object_tx_priority - sets node scheduling parameter
+ * @pi: devlink struct instance
+ * @node: node struct instance
+ * @priority: value representing priority for strict priority arbitration
+ * @extack: extended netdev ack structure
+ *
+ * This function sets priority of node among siblings.
+ */
+static int ice_set_object_tx_priority(struct ice_port_info *pi, struct ice_sched_node *node,
+				      u32 priority, struct netlink_ext_ack *extack)
+{
+	int status;
+
+	if (priority >= 8) {
+		NL_SET_ERR_MSG_MOD(extack, "Priority should be less than 8");
+		return -EINVAL;
+	}
+
+	mutex_lock(&pi->sched_lock);
+	node->tx_priority = priority;
+	status = ice_sched_set_node_priority(pi, node, node->tx_priority);
+	mutex_unlock(&pi->sched_lock);
+
+	if (status)
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_priority");
+
+	return status;
+}
+
+/**
+ * ice_set_object_tx_weight - sets node scheduling parameter
+ * @pi: devlink struct instance
+ * @node: node struct instance
+ * @weight: value represeting relative weight for WFQ arbitration
+ * @extack: extended netdev ack structure
+ *
+ * This function sets node weight for WFQ algorithm.
+ */
+static int ice_set_object_tx_weight(struct ice_port_info *pi, struct ice_sched_node *node,
+				    u32 weight, struct netlink_ext_ack *extack)
+{
+	int status;
+
+	if (weight > 200 || weight < 1) {
+		NL_SET_ERR_MSG_MOD(extack, "Weight must be between 1 and 200");
+		return -EINVAL;
+	}
+
+	mutex_lock(&pi->sched_lock);
+	node->tx_weight = weight;
+	status = ice_sched_set_node_weight(pi, node, node->tx_weight);
+	mutex_unlock(&pi->sched_lock);
+
+	if (status)
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_weight");
+
+	return status;
+}
+
+/**
+ * ice_get_pi_from_dev_rate - get port info from devlink_rate
+ * @rate_node: devlink struct instance
+ *
+ * This function returns corresponding port_info struct of devlink_rate
+ */
+static struct ice_port_info *ice_get_pi_from_dev_rate(struct devlink_rate *rate_node)
+{
+	struct ice_pf *pf = devlink_priv(rate_node->devlink);
+
+	return ice_get_main_vsi(pf)->port_info;
+}
+
+static int ice_devlink_rate_node_new(struct devlink_rate *rate_node, void **priv,
+				     struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node;
+	struct ice_port_info *pi;
+
+	pi = ice_get_pi_from_dev_rate(rate_node);
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
+	/* preallocate memory for ice_sched_node */
+	node = devm_kzalloc(ice_hw_to_dev(pi->hw), sizeof(*node), GFP_KERNEL);
+	*priv = node;
+
+	return 0;
+}
+
+static int ice_devlink_rate_node_del(struct devlink_rate *rate_node, void *priv,
+				     struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node, *tc_node;
+	struct ice_port_info *pi;
+
+	pi = ice_get_pi_from_dev_rate(rate_node);
+	tc_node = pi->root->children[0];
+	node = priv;
+
+	if (!rate_node->parent || !node || tc_node == node || !extack)
+		return 0;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
+	/* can't allow to delete a node with children */
+	if (node->num_children)
+		return -EINVAL;
+
+	mutex_lock(&pi->sched_lock);
+	ice_free_sched_node(pi, node);
+	mutex_unlock(&pi->sched_lock);
+
+	return 0;
+}
+
+static int ice_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *priv,
+					    u64 tx_max, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_max(ice_get_pi_from_dev_rate(rate_leaf),
+				     node, tx_max, extack);
+}
+
+static int ice_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, void *priv,
+					      u64 tx_share, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_share(ice_get_pi_from_dev_rate(rate_leaf), node,
+				       tx_share, extack);
+}
+
+static int ice_devlink_rate_leaf_tx_priority_set(struct devlink_rate *rate_leaf, void *priv,
+						 u32 tx_priority, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_priority(ice_get_pi_from_dev_rate(rate_leaf), node,
+					  tx_priority, extack);
+}
+
+static int ice_devlink_rate_leaf_tx_weight_set(struct devlink_rate *rate_leaf, void *priv,
+					       u32 tx_weight, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_weight(ice_get_pi_from_dev_rate(rate_leaf), node,
+					tx_weight, extack);
+}
+
+static int ice_devlink_rate_node_tx_max_set(struct devlink_rate *rate_node, void *priv,
+					    u64 tx_max, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_max(ice_get_pi_from_dev_rate(rate_node),
+				     node, tx_max, extack);
+}
+
+static int ice_devlink_rate_node_tx_share_set(struct devlink_rate *rate_node, void *priv,
+					      u64 tx_share, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_share(ice_get_pi_from_dev_rate(rate_node),
+				       node, tx_share, extack);
+}
+
+static int ice_devlink_rate_node_tx_priority_set(struct devlink_rate *rate_node, void *priv,
+						 u32 tx_priority, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_priority(ice_get_pi_from_dev_rate(rate_node),
+					  node, tx_priority, extack);
+}
+
+static int ice_devlink_rate_node_tx_weight_set(struct devlink_rate *rate_node, void *priv,
+					       u32 tx_weight, struct netlink_ext_ack *extack)
+{
+	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
+	if (!node)
+		return 0;
+
+	return ice_set_object_tx_weight(ice_get_pi_from_dev_rate(rate_node),
+					node, tx_weight, extack);
+}
+
+static int ice_devlink_set_parent(struct devlink_rate *devlink_rate,
+				  struct devlink_rate *parent,
+				  void *priv, void *parent_priv,
+				  struct netlink_ext_ack *extack)
+{
+	struct ice_port_info *pi = ice_get_pi_from_dev_rate(devlink_rate);
+	struct ice_sched_node *tc_node, *node, *parent_node;
+	u16 num_nodes_added;
+	u32 first_node_teid;
+	u32 node_teid;
+	int status;
+
+	tc_node = pi->root->children[0];
+	node = priv;
+
+	if (!extack)
+		return 0;
+
+	if (!ice_enable_custom_tx(devlink_priv(devlink_rate->devlink)))
+		return -EBUSY;
+
+	if (!parent) {
+		if (!node || tc_node == node || node->num_children)
+			return -EINVAL;
+
+		mutex_lock(&pi->sched_lock);
+		ice_free_sched_node(pi, node);
+		mutex_unlock(&pi->sched_lock);
+
+		return 0;
+	}
+
+	parent_node = parent_priv;
+
+	/* if the node doesn't exist, create it */
+	if (!node->parent) {
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_add_elems(pi, tc_node, parent_node,
+					     parent_node->tx_sched_layer + 1,
+					     1, &num_nodes_added, &first_node_teid,
+					     &node);
+		mutex_unlock(&pi->sched_lock);
+
+		if (status) {
+			NL_SET_ERR_MSG_MOD(extack, "Can't add a new node");
+			return status;
+		}
+
+		if (devlink_rate->tx_share)
+			ice_set_object_tx_share(pi, node, devlink_rate->tx_share, extack);
+		if (devlink_rate->tx_max)
+			ice_set_object_tx_max(pi, node, devlink_rate->tx_max, extack);
+		if (devlink_rate->tx_priority)
+			ice_set_object_tx_priority(pi, node, devlink_rate->tx_priority, extack);
+		if (devlink_rate->tx_weight)
+			ice_set_object_tx_weight(pi, node, devlink_rate->tx_weight, extack);
+	} else {
+		node_teid = le32_to_cpu(node->info.node_teid);
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_move_nodes(pi, parent_node, 1, &node_teid);
+		mutex_unlock(&pi->sched_lock);
+
+		if (status)
+			NL_SET_ERR_MSG_MOD(extack, "Can't move existing node to a new parent");
+	}
+
+	return status;
+}
+
+/**
+ * ice_devlink_reload_up - do reload up after reinit
+ * @devlink: pointer to the devlink instance reloading
+ * @action: the action requested
+ * @limit: limits imposed by userspace, such as not resetting
+ * @actions_performed: on return, indicate what actions actually performed
+ * @extack: netlink extended ACK structure
+ */
+static int
+ice_devlink_reload_up(struct devlink *devlink,
+		      enum devlink_reload_action action,
+		      enum devlink_reload_limit limit,
+		      u32 *actions_performed,
+		      struct netlink_ext_ack *extack)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+
+	switch (action) {
+	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
+		*actions_performed = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
+		return ice_load(pf);
+	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
+		*actions_performed = BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE);
+		return ice_devlink_reload_empr_finish(pf, extack);
+	default:
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct devlink_ops ice_devlink_ops = {
 	.supported_flash_update_params = DEVLINK_SUPPORT_FLASH_UPDATE_OVERWRITE_MASK,
-	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
+	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
+			  BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
 	/* The ice driver currently does not support driver reinit */
-	.reload_down = ice_devlink_reload_empr_start,
-	.reload_up = ice_devlink_reload_empr_finish,
+	.reload_down = ice_devlink_reload_down,
+	.reload_up = ice_devlink_reload_up,
 	.port_split = ice_devlink_port_split,
 	.port_unsplit = ice_devlink_port_unsplit,
 	.eswitch_mode_get = ice_eswitch_mode_get,
 	.eswitch_mode_set = ice_eswitch_mode_set,
 	.info_get = ice_devlink_info_get,
 	.flash_update = ice_devlink_flash_update,
+
+	.rate_node_new = ice_devlink_rate_node_new,
+	.rate_node_del = ice_devlink_rate_node_del,
+
+	.rate_leaf_tx_max_set = ice_devlink_rate_leaf_tx_max_set,
+	.rate_leaf_tx_share_set = ice_devlink_rate_leaf_tx_share_set,
+	.rate_leaf_tx_priority_set = ice_devlink_rate_leaf_tx_priority_set,
+	.rate_leaf_tx_weight_set = ice_devlink_rate_leaf_tx_weight_set,
+
+	.rate_node_tx_max_set = ice_devlink_rate_node_tx_max_set,
+	.rate_node_tx_share_set = ice_devlink_rate_node_tx_share_set,
+	.rate_node_tx_priority_set = ice_devlink_rate_node_tx_priority_set,
+	.rate_node_tx_weight_set = ice_devlink_rate_node_tx_weight_set,
+
+	.rate_leaf_parent_set = ice_devlink_set_parent,
+	.rate_node_parent_set = ice_devlink_set_parent,
 };
 
 static int
@@ -881,7 +1435,6 @@ void ice_devlink_register(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
 
-	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 	devlink_register(devlink);
 }
 
@@ -916,25 +1469,9 @@ ice_devlink_set_switch_id(struct ice_pf *pf, struct netdev_phys_item_id *ppid)
 int ice_devlink_register_params(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
-	union devlink_param_value value;
-	int err;
 
-	err = devlink_params_register(devlink, ice_devlink_params,
-				      ARRAY_SIZE(ice_devlink_params));
-	if (err)
-		return err;
-
-	value.vbool = false;
-	devlink_param_driverinit_value_set(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_ENABLE_IWARP,
-					   value);
-
-	value.vbool = test_bit(ICE_FLAG_RDMA_ENA, pf->flags) ? true : false;
-	devlink_param_driverinit_value_set(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
-					   value);
-
-	return 0;
+	return devlink_params_register(devlink, ice_devlink_params,
+				       ARRAY_SIZE(ice_devlink_params));
 }
 
 void ice_devlink_unregister_params(struct ice_pf *pf)
@@ -1033,12 +1570,7 @@ int ice_devlink_create_pf_port(struct ice_pf *pf)
  */
 void ice_devlink_destroy_pf_port(struct ice_pf *pf)
 {
-	struct devlink_port *devlink_port;
-
-	devlink_port = &pf->devlink_port;
-
-	devlink_port_type_clear(devlink_port);
-	devlink_port_unregister(devlink_port);
+	devlink_port_unregister(&pf->devlink_port);
 }
 
 /**
@@ -1094,31 +1626,28 @@ int ice_devlink_create_vf_port(struct ice_vf *vf)
  */
 void ice_devlink_destroy_vf_port(struct ice_vf *vf)
 {
-	struct devlink_port *devlink_port;
-
-	devlink_port = &vf->devlink_port;
-
-	devlink_port_type_clear(devlink_port);
-	devlink_port_unregister(devlink_port);
+	devl_rate_leaf_destroy(&vf->devlink_port);
+	devlink_port_unregister(&vf->devlink_port);
 }
 
 #define ICE_DEVLINK_READ_BLK_SIZE (1024 * 1024)
 
+static const struct devlink_region_ops ice_nvm_region_ops;
+static const struct devlink_region_ops ice_sram_region_ops;
+
 /**
  * ice_devlink_nvm_snapshot - Capture a snapshot of the NVM flash contents
  * @devlink: the devlink instance
- * @ops: the devlink region being snapshotted
+ * @ops: the devlink region to snapshot
  * @extack: extended ACK response structure
  * @data: on exit points to snapshot data buffer
  *
- * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
- * the nvm-flash devlink region. It captures a snapshot of the full NVM flash
- * contents, including both banks of flash. This snapshot can later be viewed
- * via the devlink-region interface.
+ * This function is called in response to a DEVLINK_CMD_REGION_NEW for either
+ * the nvm-flash or shadow-ram region.
  *
- * It captures the flash using the FLASH_ONLY bit set when reading via
- * firmware, so it does not read the current Shadow RAM contents. For that,
- * use the shadow-ram region.
+ * It captures a snapshot of the NVM or Shadow RAM flash contents. This
+ * snapshot can then later be viewed via the DEVLINK_CMD_REGION_READ netlink
+ * interface.
  *
  * @returns zero on success, and updates the data pointer. Returns a non-zero
  * error code on failure.
@@ -1130,16 +1659,26 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
+	bool read_shadow_ram;
 	u8 *nvm_data, *tmp, i;
 	u32 nvm_size, left;
 	s8 num_blks;
 	int status;
 
-	nvm_size = hw->flash.flash_size;
+	if (ops == &ice_nvm_region_ops) {
+		read_shadow_ram = false;
+		nvm_size = hw->flash.flash_size;
+	} else if (ops == &ice_sram_region_ops) {
+		read_shadow_ram = true;
+		nvm_size = hw->flash.sr_words * 2u;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unexpected region in snapshot function");
+		return -EOPNOTSUPP;
+	}
+
 	nvm_data = vzalloc(nvm_size);
 	if (!nvm_data)
 		return -ENOMEM;
-
 
 	num_blks = DIV_ROUND_UP(nvm_size, ICE_DEVLINK_READ_BLK_SIZE);
 	tmp = nvm_data;
@@ -1164,7 +1703,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 		}
 
 		status = ice_read_flat_nvm(hw, i * ICE_DEVLINK_READ_BLK_SIZE,
-					   &read_sz, tmp, false);
+					   &read_sz, tmp, read_shadow_ram);
 		if (status) {
 			dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
 				read_sz, status, hw->adminq.sq_last_status);
@@ -1185,61 +1724,68 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 }
 
 /**
- * ice_devlink_sram_snapshot - Capture a snapshot of the Shadow RAM contents
+ * ice_devlink_nvm_read - Read a portion of NVM flash contents
  * @devlink: the devlink instance
- * @ops: the devlink region being snapshotted
+ * @ops: the devlink region to snapshot
  * @extack: extended ACK response structure
- * @data: on exit points to snapshot data buffer
+ * @offset: the offset to start at
+ * @size: the amount to read
+ * @data: the data buffer to read into
  *
- * This function is called in response to the DEVLINK_CMD_REGION_TRIGGER for
- * the shadow-ram devlink region. It captures a snapshot of the shadow ram
- * contents. This snapshot can later be viewed via the devlink-region
- * interface.
+ * This function is called in response to DEVLINK_CMD_REGION_READ to directly
+ * read a section of the NVM contents.
+ *
+ * It reads from either the nvm-flash or shadow-ram region contents.
  *
  * @returns zero on success, and updates the data pointer. Returns a non-zero
  * error code on failure.
  */
-static int
-ice_devlink_sram_snapshot(struct devlink *devlink,
-			  const struct devlink_region_ops __always_unused *ops,
-			  struct netlink_ext_ack *extack, u8 **data)
+static int ice_devlink_nvm_read(struct devlink *devlink,
+				const struct devlink_region_ops *ops,
+				struct netlink_ext_ack *extack,
+				u64 offset, u32 size, u8 *data)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	u8 *sram_data;
-	u32 sram_size;
-	int err;
+	bool read_shadow_ram;
+	u64 nvm_size;
+	int status;
 
-	sram_size = hw->flash.sr_words * 2u;
-	sram_data = vzalloc(sram_size);
-	if (!sram_data)
-		return -ENOMEM;
+	if (ops == &ice_nvm_region_ops) {
+		read_shadow_ram = false;
+		nvm_size = hw->flash.flash_size;
+	} else if (ops == &ice_sram_region_ops) {
+		read_shadow_ram = true;
+		nvm_size = hw->flash.sr_words * 2u;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unexpected region in snapshot function");
+		return -EOPNOTSUPP;
+	}
 
-	err = ice_acquire_nvm(hw, ICE_RES_READ);
-	if (err) {
+	if (offset + size >= nvm_size) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot read beyond the region size");
+		return -ERANGE;
+	}
+
+	status = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (status) {
 		dev_dbg(dev, "ice_acquire_nvm failed, err %d aq_err %d\n",
-			err, hw->adminq.sq_last_status);
+			status, hw->adminq.sq_last_status);
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
-		vfree(sram_data);
-		return err;
+		return -EIO;
 	}
 
-	/* Read from the Shadow RAM, rather than directly from NVM */
-	err = ice_read_flat_nvm(hw, 0, &sram_size, sram_data, true);
-	if (err) {
+	status = ice_read_flat_nvm(hw, (u32)offset, &size, data,
+				   read_shadow_ram);
+	if (status) {
 		dev_dbg(dev, "ice_read_flat_nvm failed after reading %u bytes, err %d aq_err %d\n",
-			sram_size, err, hw->adminq.sq_last_status);
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Failed to read Shadow RAM contents");
+			size, status, hw->adminq.sq_last_status);
+		NL_SET_ERR_MSG_MOD(extack, "Failed to read NVM contents");
 		ice_release_nvm(hw);
-		vfree(sram_data);
-		return err;
+		return -EIO;
 	}
-
 	ice_release_nvm(hw);
-
-	*data = sram_data;
 
 	return 0;
 }
@@ -1292,12 +1838,14 @@ static const struct devlink_region_ops ice_nvm_region_ops = {
 	.name = "nvm-flash",
 	.destructor = vfree,
 	.snapshot = ice_devlink_nvm_snapshot,
+	.read = ice_devlink_nvm_read,
 };
 
 static const struct devlink_region_ops ice_sram_region_ops = {
 	.name = "shadow-ram",
 	.destructor = vfree,
-	.snapshot = ice_devlink_sram_snapshot,
+	.snapshot = ice_devlink_nvm_snapshot,
+	.read = ice_devlink_nvm_read,
 };
 
 static const struct devlink_region_ops ice_devcaps_region_ops = {

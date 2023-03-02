@@ -250,13 +250,22 @@ void panfrost_mmu_reset(struct panfrost_device *pfdev)
 
 static size_t get_pgsize(u64 addr, size_t size, size_t *count)
 {
+	/*
+	 * io-pgtable only operates on multiple pages within a single table
+	 * entry, so we need to split at boundaries of the table size, i.e.
+	 * the next block size up. The distance from address A to the next
+	 * boundary of block size B is logically B - A % B, but in unsigned
+	 * two's complement where B is a power of two we get the equivalence
+	 * B - A % B == (B - A) % B == (n * B - A) % B, and choose n = 0 :)
+	 */
 	size_t blk_offset = -addr % SZ_2M;
 
 	if (blk_offset || size < SZ_2M) {
 		*count = min_not_zero(blk_offset, size) / SZ_4K;
 		return SZ_4K;
 	}
-	*count = size / SZ_2M;
+	blk_offset = -addr % SZ_1G ?: SZ_1G;
+	*count = min(blk_offset, size) / SZ_2M;
 	return SZ_2M;
 }
 

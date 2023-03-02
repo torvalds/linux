@@ -75,7 +75,9 @@
 #define RTW89_TXWD_INFO0_DATA_BW GENMASK(29, 28)
 #define RTW89_TXWD_INFO0_GI_LTF GENMASK(27, 25)
 #define RTW89_TXWD_INFO0_DATA_RATE GENMASK(24, 16)
+#define RTW89_TXWD_INFO0_DATA_ER BIT(15)
 #define RTW89_TXWD_INFO0_DISDATAFB BIT(10)
+#define RTW89_TXWD_INFO0_DATA_BW_ER BIT(8)
 #define RTW89_TXWD_INFO0_MULTIPORT_ID GENMASK(6, 4)
 
 /* TX WD INFO DWORD 1 */
@@ -298,7 +300,9 @@
 	le32_get_bits(*((const __le32 *)ie), GENMASK(11, 5))
 #define RTW89_GET_PHY_STS_IE01_CH_IDX(ie) \
 	le32_get_bits(*((const __le32 *)ie), GENMASK(23, 16))
-#define RTW89_GET_PHY_STS_IE01_CFO(ie) \
+#define RTW89_GET_PHY_STS_IE01_FD_CFO(ie) \
+	le32_get_bits(*((const __le32 *)(ie) + 1), GENMASK(19, 8))
+#define RTW89_GET_PHY_STS_IE01_PREMB_CFO(ie) \
 	le32_get_bits(*((const __le32 *)(ie) + 1), GENMASK(31, 20))
 
 enum rtw89_tx_channel {

@@ -19,6 +19,7 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #include <drm/ttm/ttm_range_manager.h>
+#include <drm/ttm/ttm_tt.h>
 
 static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
 
@@ -433,25 +434,19 @@ int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct iosys_map *map)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
-	if (ret)
-		return ret;
+	dma_resv_assert_held(gbo->bo.base.resv);
 
 	ret = drm_gem_vram_pin_locked(gbo, 0);
 	if (ret)
-		goto err_ttm_bo_unreserve;
+		return ret;
 	ret = drm_gem_vram_kmap_locked(gbo, map);
 	if (ret)
 		goto err_drm_gem_vram_unpin_locked;
-
-	ttm_bo_unreserve(&gbo->bo);
 
 	return 0;
 
 err_drm_gem_vram_unpin_locked:
 	drm_gem_vram_unpin_locked(gbo);
-err_ttm_bo_unreserve:
-	ttm_bo_unreserve(&gbo->bo);
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_vmap);
@@ -467,16 +462,10 @@ EXPORT_SYMBOL(drm_gem_vram_vmap);
 void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo,
 			 struct iosys_map *map)
 {
-	int ret;
-
-	ret = ttm_bo_reserve(&gbo->bo, false, false, NULL);
-	if (WARN_ONCE(ret, "ttm_bo_reserve_failed(): ret=%d\n", ret))
-		return;
+	dma_resv_assert_held(gbo->bo.base.resv);
 
 	drm_gem_vram_kunmap_locked(gbo, map);
 	drm_gem_vram_unpin_locked(gbo);
-
-	ttm_bo_unreserve(&gbo->bo);
 }
 EXPORT_SYMBOL(drm_gem_vram_vunmap);
 
@@ -968,8 +957,8 @@ static struct ttm_device_funcs bo_driver = {
 
 static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_vram_mm *vmm = node->minor->dev->vram_mm;
+	struct drm_debugfs_entry *entry = m->private;
+	struct drm_vram_mm *vmm = entry->dev->vram_mm;
 	struct ttm_resource_manager *man = ttm_manager_type(&vmm->bdev, TTM_PL_VRAM);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -977,7 +966,7 @@ static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list drm_vram_mm_debugfs_list[] = {
+static const struct drm_debugfs_info drm_vram_mm_debugfs_list[] = {
 	{ "vram-mm", drm_vram_mm_debugfs, 0, NULL },
 };
 
@@ -989,9 +978,8 @@ static const struct drm_info_list drm_vram_mm_debugfs_list[] = {
  */
 void drm_vram_mm_debugfs_init(struct drm_minor *minor)
 {
-	drm_debugfs_create_files(drm_vram_mm_debugfs_list,
-				 ARRAY_SIZE(drm_vram_mm_debugfs_list),
-				 minor->debugfs_root, minor);
+	drm_debugfs_add_files(minor->dev, drm_vram_mm_debugfs_list,
+			      ARRAY_SIZE(drm_vram_mm_debugfs_list));
 }
 EXPORT_SYMBOL(drm_vram_mm_debugfs_init);
 

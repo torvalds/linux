@@ -173,31 +173,19 @@ done:
 static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 				  struct xvip_dma *start)
 {
-	struct media_graph graph;
-	struct media_entity *entity = &start->video.entity;
-	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_pipeline_pad_iter iter;
 	unsigned int num_inputs = 0;
 	unsigned int num_outputs = 0;
-	int ret;
+	struct media_pad *pad;
 
-	mutex_lock(&mdev->graph_mutex);
-
-	/* Walk the graph to locate the video nodes. */
-	ret = media_graph_walk_init(&graph, mdev);
-	if (ret) {
-		mutex_unlock(&mdev->graph_mutex);
-		return ret;
-	}
-
-	media_graph_walk_start(&graph, entity);
-
-	while ((entity = media_graph_walk_next(&graph))) {
+	/* Locate the video nodes in the pipeline. */
+	media_pipeline_for_each_pad(&pipe->pipe, &iter, pad) {
 		struct xvip_dma *dma;
 
-		if (entity->function != MEDIA_ENT_F_IO_V4L)
+		if (pad->entity->function != MEDIA_ENT_F_IO_V4L)
 			continue;
 
-		dma = to_xvip_dma(media_entity_to_video_device(entity));
+		dma = to_xvip_dma(media_entity_to_video_device(pad->entity));
 
 		if (dma->pad.flags & MEDIA_PAD_FL_SINK) {
 			pipe->output = dma;
@@ -206,10 +194,6 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 			num_inputs++;
 		}
 	}
-
-	mutex_unlock(&mdev->graph_mutex);
-
-	media_graph_walk_cleanup(&graph);
 
 	/* We need exactly one output and zero or one input. */
 	if (num_outputs != 1 || num_inputs > 1)

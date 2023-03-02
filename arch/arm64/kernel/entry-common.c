@@ -30,7 +30,7 @@
 /*
  * Handle IRQ/context state management when entering from kernel mode.
  * Before this function is called it is not safe to call regular kernel code,
- * intrumentable code, or any code which may trigger an exception.
+ * instrumentable code, or any code which may trigger an exception.
  *
  * This is intended to match the logic in irqentry_enter(), handling the kernel
  * mode transitions only.
@@ -63,7 +63,7 @@ static void noinstr enter_from_kernel_mode(struct pt_regs *regs)
 /*
  * Handle IRQ/context state management when exiting to kernel mode.
  * After this function returns it is not safe to call regular kernel code,
- * intrumentable code, or any code which may trigger an exception.
+ * instrumentable code, or any code which may trigger an exception.
  *
  * This is intended to match the logic in irqentry_exit(), handling the kernel
  * mode transitions only, and with preemption handled elsewhere.
@@ -97,7 +97,7 @@ static void noinstr exit_to_kernel_mode(struct pt_regs *regs)
 /*
  * Handle IRQ/context state management when entering from user mode.
  * Before this function is called it is not safe to call regular kernel code,
- * intrumentable code, or any code which may trigger an exception.
+ * instrumentable code, or any code which may trigger an exception.
  */
 static __always_inline void __enter_from_user_mode(void)
 {
@@ -116,7 +116,7 @@ static __always_inline void enter_from_user_mode(struct pt_regs *regs)
 /*
  * Handle IRQ/context state management when exiting to user mode.
  * After this function returns it is not safe to call regular kernel code,
- * intrumentable code, or any code which may trigger an exception.
+ * instrumentable code, or any code which may trigger an exception.
  */
 static __always_inline void __exit_to_user_mode(void)
 {
@@ -152,7 +152,7 @@ asmlinkage void noinstr asm_exit_to_user_mode(struct pt_regs *regs)
 /*
  * Handle IRQ/context state management when entering an NMI from user/kernel
  * mode. Before this function is called it is not safe to call regular kernel
- * code, intrumentable code, or any code which may trigger an exception.
+ * code, instrumentable code, or any code which may trigger an exception.
  */
 static void noinstr arm64_enter_nmi(struct pt_regs *regs)
 {
@@ -170,7 +170,7 @@ static void noinstr arm64_enter_nmi(struct pt_regs *regs)
 /*
  * Handle IRQ/context state management when exiting an NMI from user/kernel
  * mode. After this function returns it is not safe to call regular kernel
- * code, intrumentable code, or any code which may trigger an exception.
+ * code, instrumentable code, or any code which may trigger an exception.
  */
 static void noinstr arm64_exit_nmi(struct pt_regs *regs)
 {
@@ -192,7 +192,7 @@ static void noinstr arm64_exit_nmi(struct pt_regs *regs)
 /*
  * Handle IRQ/context state management when entering a debug exception from
  * kernel mode. Before this function is called it is not safe to call regular
- * kernel code, intrumentable code, or any code which may trigger an exception.
+ * kernel code, instrumentable code, or any code which may trigger an exception.
  */
 static void noinstr arm64_enter_el1_dbg(struct pt_regs *regs)
 {
@@ -207,7 +207,7 @@ static void noinstr arm64_enter_el1_dbg(struct pt_regs *regs)
 /*
  * Handle IRQ/context state management when exiting a debug exception from
  * kernel mode. After this function returns it is not safe to call regular
- * kernel code, intrumentable code, or any code which may trigger an exception.
+ * kernel code, instrumentable code, or any code which may trigger an exception.
  */
 static void noinstr arm64_exit_el1_dbg(struct pt_regs *regs)
 {
@@ -329,7 +329,8 @@ static void cortex_a76_erratum_1463225_svc_handler(void)
 	__this_cpu_write(__in_cortex_a76_erratum_1463225_wa, 0);
 }
 
-static bool cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
+static __always_inline bool
+cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
 {
 	if (!__this_cpu_read(__in_cortex_a76_erratum_1463225_wa))
 		return false;
@@ -383,7 +384,7 @@ static void noinstr el1_undef(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
-	do_undefinstr(regs, esr);
+	do_el1_undef(regs, esr);
 	local_daif_mask();
 	exit_to_kernel_mode(regs);
 }
@@ -569,7 +570,7 @@ static void noinstr el0_sys(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
-	do_sysinstr(esr, regs);
+	do_el0_sys(esr, regs);
 	exit_to_user_mode(regs);
 }
 
@@ -598,7 +599,7 @@ static void noinstr el0_undef(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
-	do_undefinstr(regs, esr);
+	do_el0_undef(regs, esr);
 	exit_to_user_mode(regs);
 }
 
@@ -761,7 +762,7 @@ static void noinstr el0_cp15(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
-	do_cp15instr(esr, regs);
+	do_el0_cp15(esr, regs);
 	exit_to_user_mode(regs);
 }
 

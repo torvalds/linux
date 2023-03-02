@@ -195,7 +195,7 @@ static int update_dt_node(struct device_node *dn, s32 scope)
 	u32 nprops;
 	u32 vd;
 
-	update_properties_token = rtas_token("ibm,update-properties");
+	update_properties_token = rtas_function_token(RTAS_FN_IBM_UPDATE_PROPERTIES);
 	if (update_properties_token == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
@@ -306,7 +306,7 @@ static int pseries_devicetree_update(s32 scope)
 	int update_nodes_token;
 	int rc;
 
-	update_nodes_token = rtas_token("ibm,update-nodes");
+	update_nodes_token = rtas_function_token(RTAS_FN_IBM_UPDATE_NODES);
 	if (update_nodes_token == RTAS_UNKNOWN_SERVICE)
 		return 0;
 
@@ -635,10 +635,13 @@ retry:
 		prod_others();
 	}
 	/*
-	 * Execution may have been suspended for several seconds, so
-	 * reset the watchdog.
+	 * Execution may have been suspended for several seconds, so reset
+	 * the watchdogs. touch_nmi_watchdog() also touches the soft lockup
+	 * watchdog.
 	 */
+	rcu_cpu_stall_reset();
 	touch_nmi_watchdog();
+
 	return ret;
 }
 

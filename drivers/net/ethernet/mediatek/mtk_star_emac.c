@@ -1026,6 +1026,8 @@ static int mtk_star_enable(struct net_device *ndev)
 	return 0;
 
 err_free_irq:
+	napi_disable(&priv->rx_napi);
+	napi_disable(&priv->tx_napi);
 	free_irq(ndev->irq, ndev);
 err_free_skbs:
 	mtk_star_free_rx_skbs(priv);
@@ -1376,9 +1378,6 @@ static int mtk_star_mdio_read(struct mii_bus *mii, int phy_id, int regnum)
 	unsigned int val, data;
 	int ret;
 
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	mtk_star_mdio_rwok_clear(priv);
 
 	val = (regnum << MTK_STAR_OFF_PHY_CTRL0_PREG);
@@ -1404,9 +1403,6 @@ static int mtk_star_mdio_write(struct mii_bus *mii, int phy_id,
 {
 	struct mtk_star_priv *priv = mii->priv;
 	unsigned int val;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	mtk_star_mdio_rwok_clear(priv);
 

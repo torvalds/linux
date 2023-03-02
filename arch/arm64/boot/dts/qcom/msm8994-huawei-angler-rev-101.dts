@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015, Huawei Inc. All rights reserved.
+/*
+ * Copyright (c) 2015, Huawei Inc. All rights reserved.
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2022, Petr Vorel <petr.vorel@gmail.com>
  */
@@ -7,9 +8,6 @@
 /dts-v1/;
 
 #include "msm8994.dtsi"
-
-/* Angler's firmware does not report where the memory is allocated */
-/delete-node/ &cont_splash_mem;
 
 / {
 	model = "Huawei Nexus 6P";
@@ -26,6 +24,22 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		tzapp_mem: tzapp@4800000 {
+			reg = <0 0x04800000 0 0x1900000>;
+			no-map;
+		};
+
+		removed_region: reserved@6300000 {
+			reg = <0 0x06300000 0 0xD00000>;
+			no-map;
+		};
 	};
 };
 

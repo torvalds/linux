@@ -38,6 +38,8 @@ struct of_pci_range {
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
 				    const __be32 *in_addr);
+extern const __be32 *of_translate_dma_region(struct device_node *dev, const __be32 *addr,
+					     phys_addr_t *start, size_t *length);
 
 #ifdef CONFIG_OF_ADDRESS
 extern u64 of_translate_address(struct device_node *np, const __be32 *addr);
@@ -152,6 +154,17 @@ static inline const __be32 *of_get_pci_address(struct device_node *dev, int bar_
 					       u64 *size, unsigned int *flags)
 {
 	return __of_get_address(dev, -1, bar_no, size, flags);
+}
+
+static inline int of_address_count(struct device_node *np)
+{
+	struct resource res;
+	int count = 0;
+
+	while (of_address_to_resource(np, count, &res) == 0)
+		count++;
+
+	return count;
 }
 
 #endif /* __OF_ADDRESS_H */

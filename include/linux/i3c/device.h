@@ -18,17 +18,18 @@
 /**
  * enum i3c_error_code - I3C error codes
  *
+ * @I3C_ERROR_UNKNOWN: unknown error, usually means the error is not I3C
+ *		       related
+ * @I3C_ERROR_M0: M0 error
+ * @I3C_ERROR_M1: M1 error
+ * @I3C_ERROR_M2: M2 error
+ *
  * These are the standard error codes as defined by the I3C specification.
  * When -EIO is returned by the i3c_device_do_priv_xfers() or
  * i3c_device_send_hdr_cmds() one can check the error code in
  * &struct_i3c_priv_xfer.err or &struct i3c_hdr_cmd.err to get a better idea of
  * what went wrong.
  *
- * @I3C_ERROR_UNKNOWN: unknown error, usually means the error is not I3C
- *		       related
- * @I3C_ERROR_M0: M0 error
- * @I3C_ERROR_M1: M1 error
- * @I3C_ERROR_M2: M2 error
  */
 enum i3c_error_code {
 	I3C_ERROR_UNKNOWN = 0,
@@ -186,7 +187,14 @@ static inline struct i3c_driver *drv_to_i3cdrv(struct device_driver *drv)
 }
 
 struct device *i3cdev_to_dev(struct i3c_device *i3cdev);
-struct i3c_device *dev_to_i3cdev(struct device *dev);
+
+/**
+ * dev_to_i3cdev() - Returns the I3C device containing @dev
+ * @__dev: device object
+ *
+ * Return: a pointer to an I3C device object.
+ */
+#define dev_to_i3cdev(__dev)	container_of_const(__dev, struct i3c_device, dev)
 
 const struct i3c_device_id *
 i3c_device_match_id(struct i3c_device *i3cdev,
@@ -287,13 +295,16 @@ static inline void i3c_i2c_driver_unregister(struct i3c_driver *i3cdrv,
 #define module_i3c_i2c_driver(__i3cdrv, __i2cdrv)	\
 	module_driver(__i3cdrv,				\
 		      i3c_i2c_driver_register,		\
-		      i3c_i2c_driver_unregister)
+		      i3c_i2c_driver_unregister,	\
+		      __i2cdrv)
 
 int i3c_device_do_priv_xfers(struct i3c_device *dev,
 			     struct i3c_priv_xfer *xfers,
 			     int nxfers);
 
-void i3c_device_get_info(struct i3c_device *dev, struct i3c_device_info *info);
+int i3c_device_do_setdasa(struct i3c_device *dev);
+
+void i3c_device_get_info(const struct i3c_device *dev, struct i3c_device_info *info);
 
 struct i3c_ibi_payload {
 	unsigned int len;

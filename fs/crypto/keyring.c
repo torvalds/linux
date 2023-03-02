@@ -79,10 +79,9 @@ void fscrypt_put_master_key(struct fscrypt_master_key *mk)
 	call_rcu(&mk->mk_rcu_head, fscrypt_free_master_key);
 }
 
-void fscrypt_put_master_key_activeref(struct fscrypt_master_key *mk)
+void fscrypt_put_master_key_activeref(struct super_block *sb,
+				      struct fscrypt_master_key *mk)
 {
-	struct super_block *sb = mk->mk_sb;
-	struct fscrypt_keyring *keyring = sb->s_master_keys;
 	size_t i;
 
 	if (!refcount_dec_and_test(&mk->mk_active_refs))
@@ -93,9 +92,9 @@ void fscrypt_put_master_key_activeref(struct fscrypt_master_key *mk)
 	 * destroying any subkeys embedded in it.
 	 */
 
-	spin_lock(&keyring->lock);
+	spin_lock(&sb->s_master_keys->lock);
 	hlist_del_rcu(&mk->mk_node);
-	spin_unlock(&keyring->lock);
+	spin_unlock(&sb->s_master_keys->lock);
 
 	/*
 	 * ->mk_active_refs == 0 implies that ->mk_secret is not present and
@@ -212,10 +211,6 @@ static int allocate_filesystem_keyring(struct super_block *sb)
  * are still available at this time; this is important because after user file
  * accesses have been allowed, this function may need to evict keys from the
  * keyslots of an inline crypto engine, which requires the block device(s).
- *
- * This is also called when the super_block is being freed.  This is needed to
- * avoid a memory leak if mounting fails after the "test_dummy_encryption"
- * option was processed, as in that case the unmount-time call isn't made.
  */
 void fscrypt_destroy_keyring(struct super_block *sb)
 {
@@ -243,7 +238,7 @@ void fscrypt_destroy_keyring(struct super_block *sb)
 			WARN_ON(refcount_read(&mk->mk_struct_refs) != 1);
 			WARN_ON(!is_master_key_secret_present(&mk->mk_secret));
 			wipe_master_key_secret(&mk->mk_secret);
-			fscrypt_put_master_key_activeref(mk);
+			fscrypt_put_master_key_activeref(sb, mk);
 		}
 	}
 	kfree_sensitive(keyring);
@@ -424,7 +419,6 @@ static int add_new_master_key(struct super_block *sb,
 	if (!mk)
 		return -ENOMEM;
 
-	mk->mk_sb = sb;
 	init_rwsem(&mk->mk_sem);
 	refcount_set(&mk->mk_struct_refs, 1);
 	mk->mk_spec = *mk_spec;
@@ -780,34 +774,26 @@ out:
 /**
  * fscrypt_add_test_dummy_key() - add the test dummy encryption key
  * @sb: the filesystem instance to add the key to
- * @dummy_policy: the encryption policy for test_dummy_encryption
+ * @key_spec: the key specifier of the test dummy encryption key
  *
- * If needed, add the key for the test_dummy_encryption mount option to the
- * filesystem.  To prevent misuse of this mount option, a per-boot random key is
- * used instead of a hardcoded one.  This makes it so that any encrypted files
- * created using this option won't be accessible after a reboot.
+ * Add the key for the test_dummy_encryption mount option to the filesystem.  To
+ * prevent misuse of this mount option, a per-boot random key is used instead of
+ * a hardcoded one.  This makes it so that any encrypted files created using
+ * this option won't be accessible after a reboot.
  *
  * Return: 0 on success, -errno on failure
  */
 int fscrypt_add_test_dummy_key(struct super_block *sb,
-			       const struct fscrypt_dummy_policy *dummy_policy)
+			       struct fscrypt_key_specifier *key_spec)
 {
-	const union fscrypt_policy *policy = dummy_policy->policy;
-	struct fscrypt_key_specifier key_spec;
 	struct fscrypt_master_key_secret secret;
 	int err;
 
-	if (!policy)
-		return 0;
-	err = fscrypt_policy_to_key_spec(policy, &key_spec);
-	if (err)
-		return err;
 	fscrypt_get_test_dummy_secret(&secret);
-	err = add_master_key(sb, &secret, &key_spec);
+	err = add_master_key(sb, &secret, key_spec);
 	wipe_master_key_secret(&secret);
 	return err;
 }
-EXPORT_SYMBOL_GPL(fscrypt_add_test_dummy_key);
 
 /*
  * Verify that the current user has added a master key with the given identifier
@@ -1068,7 +1054,7 @@ static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 	err = -ENOKEY;
 	if (is_master_key_secret_present(&mk->mk_secret)) {
 		wipe_master_key_secret(&mk->mk_secret);
-		fscrypt_put_master_key_activeref(mk);
+		fscrypt_put_master_key_activeref(sb, mk);
 		err = 0;
 	}
 	inodes_remain = refcount_read(&mk->mk_active_refs) > 0;

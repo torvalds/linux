@@ -46,7 +46,7 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 #include "link_hwss.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dccg.h"
 #include "clock_source.h"
 #include "clk_mgr.h"
@@ -54,7 +54,6 @@
 #include "audio.h"
 #include "reg_helper.h"
 #include "panel_cntl.h"
-#include "inc/link_dpcd.h"
 #include "dpcd_defs.h"
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"
@@ -65,7 +64,6 @@
 
 #include "dcn10/dcn10_hw_sequencer.h"
 
-#include "link/link_dp_trace.h"
 #include "dce110_hw_sequencer.h"
 
 #define GAMMA_HW_POINTS_NUM 256
@@ -653,10 +651,16 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
-	else
+	else {
+		if (pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num)
+			pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num(
+				pipe_ctx->stream_res.stream_enc,
+				&pipe_ctx->stream_res.encoder_info_frame);
+
 		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
+	}
 }
 
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
@@ -688,16 +692,6 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 		early_control = lane_count;
 
 	tg->funcs->set_early_control(tg, early_control);
-
-	/* enable audio only within mode set */
-	if (pipe_ctx->stream_res.audio != NULL) {
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
-	}
-
-
-
-
 }
 
 static enum bp_result link_transmitter_control(
@@ -747,7 +741,7 @@ void dce110_edp_wait_for_hpd_ready(
 
 	/* obtain HPD */
 	/* TODO what to do with this? */
-	hpd = get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
+	hpd = link_get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
 
 	if (!hpd) {
 		BREAK_TO_DEBUGGER();
@@ -817,19 +811,19 @@ void dce110_edp_power_control(
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
+						link_dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 		unsigned long long time_since_edp_poweron_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						dp_trace_get_edp_poweron_timestamp(link)), 1000000);
+						link_dp_trace_get_edp_poweron_timestamp(link)), 1000000);
 		DC_LOG_HW_RESUME_S3(
 				"%s: transition: power_up=%d current_ts=%llu edp_poweroff=%llu edp_poweron=%llu time_since_edp_poweroff_ms=%llu time_since_edp_poweron_ms=%llu",
 				__func__,
 				power_up,
 				current_ts,
-				dp_trace_get_edp_poweroff_timestamp(link),
-				dp_trace_get_edp_poweron_timestamp(link),
+				link_dp_trace_get_edp_poweroff_timestamp(link),
+				link_dp_trace_get_edp_poweron_timestamp(link),
 				time_since_edp_poweroff_ms,
 				time_since_edp_poweron_ms);
 
@@ -844,7 +838,7 @@ void dce110_edp_power_control(
 					link->panel_config.pps.extra_t12_ms;
 
 			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
-			if (dp_trace_get_edp_poweroff_timestamp(link) != 0) {
+			if (link_dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 				if (time_since_edp_poweroff_ms < remaining_min_edp_poweroff_time_ms)
 					remaining_min_edp_poweroff_time_ms =
 						remaining_min_edp_poweroff_time_ms - time_since_edp_poweroff_ms;
@@ -885,14 +879,16 @@ void dce110_edp_power_control(
 
 		if (ctx->dc->ctx->dmub_srv &&
 				ctx->dc->debug.dmub_command_table) {
-			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
+
+			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON) {
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 						LVTMA_CONTROL_POWER_ON,
-						panel_instance);
-			else
+						panel_instance, link->link_powered_externally);
+			} else {
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 						LVTMA_CONTROL_POWER_OFF,
-						panel_instance);
+						panel_instance, link->link_powered_externally);
+			}
 		}
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
@@ -902,13 +898,13 @@ void dce110_edp_power_control(
 				__func__, (power_up ? "On":"Off"),
 				bp_result);
 
-		dp_trace_set_edp_power_timestamp(link, power_up);
+		link_dp_trace_set_edp_power_timestamp(link, power_up);
 
 		DC_LOG_HW_RESUME_S3(
 				"%s: updated values: edp_poweroff=%llu edp_poweron=%llu\n",
 				__func__,
-				dp_trace_get_edp_poweroff_timestamp(link),
-				dp_trace_get_edp_poweron_timestamp(link));
+				link_dp_trace_get_edp_poweroff_timestamp(link),
+				link_dp_trace_get_edp_poweron_timestamp(link));
 
 		if (bp_result != BP_RESULT_OK)
 			DC_LOG_ERROR(
@@ -936,14 +932,14 @@ void dce110_edp_wait_for_T12(
 		return;
 
 	if (!link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl) &&
-			dp_trace_get_edp_poweroff_timestamp(link) != 0) {
+			link_dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 		unsigned int t12_duration = 500; // Default T12 as per spec
 		unsigned long long current_ts = dm_get_timestamp(ctx);
 		unsigned long long time_since_edp_poweroff_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
+						link_dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 
 		t12_duration += link->panel_config.pps.extra_t12_ms; // Add extra T12
 
@@ -951,7 +947,6 @@ void dce110_edp_wait_for_T12(
 			msleep(t12_duration - time_since_edp_poweroff_ms);
 	}
 }
-
 /*todo: cloned in stream enc, fix*/
 /*
  * @brief
@@ -1025,21 +1020,25 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T7-ready.
 		 */
-			edp_receiver_ready_T7(link);
+			link_edp_receiver_ready_T7(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
 	}
 
+	/* Setting link_powered_externally will bypass delays in the backlight
+	 * as they are not required if the link is being powered by a different
+	 * source.
+	 */
 	if (ctx->dc->ctx->dmub_srv &&
 			ctx->dc->debug.dmub_command_table) {
 		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLON,
-					panel_instance);
+					panel_instance, link->link_powered_externally);
 		else
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
 					LVTMA_CONTROL_LCD_BLOFF,
-					panel_instance);
+					panel_instance, link->link_powered_externally);
 	}
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
@@ -1052,7 +1051,7 @@ void dce110_edp_backlight_control(
 	if (link->dpcd_sink_ext_caps.bits.oled ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1)
-		dc_link_backlight_enable_aux(link, enable);
+		link_backlight_enable_aux(link, enable);
 
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
@@ -1064,7 +1063,7 @@ void dce110_edp_backlight_control(
 		 * we shouldn't be doing power-sequencing, hence we can skip
 		 * waiting for T9-ready.
 		 */
-			edp_add_delay_for_T9(link);
+			link_edp_add_delay_for_T9(link);
 		else
 			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
 	}
@@ -1081,12 +1080,14 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 	struct dc *dc;
 	struct clk_mgr *clk_mgr;
 	unsigned int i, num_audio = 1;
+	const struct link_hwss *link_hwss;
 
 	if (!pipe_ctx->stream)
 		return;
 
 	dc = pipe_ctx->stream->ctx->dc;
 	clk_mgr = dc->clk_mgr;
+	link_hwss = get_link_hwss(pipe_ctx->stream->link, &pipe_ctx->link_res);
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
 		return;
@@ -1103,55 +1104,34 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 		if (num_audio >= 1 && clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
 			clk_mgr->funcs->enable_pme_wa(clk_mgr);
-		/* un-mute audio */
-		/* TODO: audio should be per stream rather than per link */
-		if (is_dp_128b_132b_signal(pipe_ctx))
-			pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->audio_mute_control(
-					pipe_ctx->stream_res.hpo_dp_stream_enc, false);
-		else
-			pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-					pipe_ctx->stream_res.stream_enc, false);
+
+		link_hwss->enable_audio_packet(pipe_ctx);
+
 		if (pipe_ctx->stream_res.audio)
 			pipe_ctx->stream_res.audio->enabled = true;
 	}
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(pipe_ctx->stream->link, DPCD_SOURCE_SEQ_AFTER_ENABLE_AUDIO_STREAM);
 }
 
 void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc *dc;
 	struct clk_mgr *clk_mgr;
+	const struct link_hwss *link_hwss;
 
 	if (!pipe_ctx || !pipe_ctx->stream)
 		return;
 
 	dc = pipe_ctx->stream->ctx->dc;
 	clk_mgr = dc->clk_mgr;
+	link_hwss = get_link_hwss(pipe_ctx->stream->link, &pipe_ctx->link_res);
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
 		return;
 
-	if (is_dp_128b_132b_signal(pipe_ctx))
-		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->audio_mute_control(
-				pipe_ctx->stream_res.hpo_dp_stream_enc, true);
-	else
-		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-				pipe_ctx->stream_res.stream_enc, true);
+	link_hwss->disable_audio_packet(pipe_ctx);
+
 	if (pipe_ctx->stream_res.audio) {
 		pipe_ctx->stream_res.audio->enabled = false;
-
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			if (is_dp_128b_132b_signal(pipe_ctx))
-				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_disable(
-						pipe_ctx->stream_res.hpo_dp_stream_enc);
-			else
-				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
-						pipe_ctx->stream_res.stream_enc);
-		else
-			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
-					pipe_ctx->stream_res.stream_enc);
 
 		if (clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
@@ -1163,9 +1143,6 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 		 * stream->stream_engine_id);
 		 */
 	}
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(pipe_ctx->stream->link, DPCD_SOURCE_SEQ_AFTER_DISABLE_AUDIO_STREAM);
 }
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
@@ -1174,6 +1151,10 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+	struct dccg *dccg = dc->res_pool->dccg;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct dtbclk_dto_params dto_params = {0};
+	int dp_hpo_inst;
 
 	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
@@ -1182,7 +1163,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc);
 	}
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->stop_dp_info_packets(
 					pipe_ctx->stream_res.hpo_dp_stream_enc);
 	} else if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1193,7 +1174,16 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 
 	link_hwss->reset_stream_encoder(pipe_ctx);
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+		dto_params.otg_inst = tg->inst;
+		dto_params.timing = &pipe_ctx->stream->timing;
+		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
+		dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+		dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
+		dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
+	}
+
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		/* TODO: This looks like a bug to me as we are disabling HPO IO when
 		 * we are just disabling a single HPO stream. Shouldn't we disable HPO
 		 * HW control only when HPOs for all streams are disabled?
@@ -1235,7 +1225,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link_is_dp_128b_132b_signal(pipe_ctx)) {
 		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_blank(
 				pipe_ctx->stream_res.hpo_dp_stream_enc);
@@ -1257,7 +1247,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 				 * we shouldn't be doing power-sequencing, hence we can skip
 				 * waiting for T9-ready.
 				 */
-				edp_receiver_ready_T9(link);
+				link_edp_receiver_ready_T9(link);
 			}
 		}
 	}
@@ -1440,7 +1430,7 @@ static enum dc_status dce110_enable_stream_timing(
 		if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 				pipe_ctx->clock_source,
 				&pipe_ctx->stream_res.pix_clk_params,
-				dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+				link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 				&pipe_ctx->pll_settings)) {
 			BREAK_TO_DEBUGGER();
 			return DC_ERROR_UNEXPECTED;
@@ -1487,6 +1477,9 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	unsigned int event_triggers = 0;
 	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 	struct dce_hwseq *hws = dc->hwseq;
+	const struct link_hwss *link_hwss = get_link_hwss(
+			link, &pipe_ctx->link_res);
+
 
 	if (hws->funcs.disable_stream_gating) {
 		hws->funcs.disable_stream_gating(dc, pipe_ctx);
@@ -1497,23 +1490,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 		build_audio_output(context, pipe_ctx, &audio_output);
 
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			if (is_dp_128b_132b_signal(pipe_ctx))
-				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_res.hpo_dp_stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info);
-			else
-				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info);
-		else
-			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
-					pipe_ctx->stream_res.stream_enc,
-					pipe_ctx->stream_res.audio->inst,
-					&pipe_ctx->stream->audio_info,
-					&audio_output.crtc_info);
+		link_hwss->setup_audio_output(pipe_ctx, &audio_output,
+				pipe_ctx->stream_res.audio->inst);
 
 		pipe_ctx->stream_res.audio->funcs->az_configure(
 				pipe_ctx->stream_res.audio,
@@ -1556,7 +1534,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
 	 * function core_link_enable_stream
 	 */
-	if (!(hws->wa.dp_hpo_and_otg_sequence && is_dp_128b_132b_signal(pipe_ctx)))
+	if (!(hws->wa.dp_hpo_and_otg_sequence && link_is_dp_128b_132b_signal(pipe_ctx)))
 		/*  */
 		/* Do not touch stream timing on seamless boot optimization. */
 		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
@@ -1588,25 +1566,30 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream_res.tg->inst);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
+		link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
 
 	if (!stream->dpms_off)
-		core_link_enable_stream(context, pipe_ctx);
+		link_set_dpms_on(context, pipe_ctx);
 
 	/* DCN3.1 FPGA Workaround
 	 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
 	 * To do so, move calling function enable_stream_timing to only be done AFTER calling
 	 * function core_link_enable_stream
 	 */
-	if (hws->wa.dp_hpo_and_otg_sequence && is_dp_128b_132b_signal(pipe_ctx)) {
+	if (hws->wa.dp_hpo_and_otg_sequence && link_is_dp_128b_132b_signal(pipe_ctx)) {
 		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
 			hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
 	}
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != NULL;
 
-	pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
-
+	/* Phantom and main stream share the same link (because the stream
+	 * is constructed with the same sink). Make sure not to override
+	 * and link programming on the main.
+	 */
+	if (pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+		pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
+	}
 	return DC_OK;
 }
 
@@ -1619,7 +1602,7 @@ static void power_down_encoders(struct dc *dc)
 	for (i = 0; i < dc->link_count; i++) {
 		enum signal_type signal = dc->links[i]->connector_signal;
 
-		dc_link_blank_dp_stream(dc->links[i], false);
+		link_blank_dp_stream(dc->links[i], false);
 
 		if (signal != SIGNAL_TYPE_EDP)
 			signal = SIGNAL_TYPE_NONE;
@@ -2102,7 +2085,7 @@ static void dce110_reset_hw_ctx_wrap(
 			 * disabled already, no need to disable again.
 			 */
 			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off) {
-				core_link_disable_stream(pipe_ctx_old);
+				link_set_dpms_off(pipe_ctx_old);
 
 				/* free acquired resources*/
 				if (pipe_ctx_old->stream_res.audio) {
@@ -3073,13 +3056,13 @@ void dce110_enable_dp_link_output(
 				pipes[i].clock_source->funcs->program_pix_clk(
 						pipes[i].clock_source,
 						&pipes[i].stream_res.pix_clk_params,
-						dp_get_link_encoding_format(link_settings),
+						link_dp_get_encoding_format(link_settings),
 						&pipes[i].pll_settings);
 			}
 		}
 	}
 
-	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
 		if (dc->clk_mgr->funcs->notify_link_rate_change)
 			dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
 	}
@@ -3096,7 +3079,7 @@ void dce110_enable_dp_link_output(
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
+	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
 }
 
 void dce110_disable_link_output(struct dc_link *link,
@@ -3121,7 +3104,7 @@ void dce110_disable_link_output(struct dc_link *link,
 		link->dc->hwss.edp_power_control(link, false);
 	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
+	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }
 
 static const struct hw_sequencer_funcs dce110_funcs = {

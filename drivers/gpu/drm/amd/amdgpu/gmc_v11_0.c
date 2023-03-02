@@ -64,13 +64,25 @@ gmc_v11_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		/* MM HUB */
 		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, false);
 		/* GFX HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, false);
+		/* This works because this interrupt is only
+		 * enabled at init/resume and disabled in
+		 * fini/suspend, so the overall state doesn't
+		 * change over the course of suspend/resume.
+		 */
+		if (!adev->in_s0ix)
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, false);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* MM HUB */
 		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, true);
 		/* GFX HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, true);
+		/* This works because this interrupt is only
+		 * enabled at init/resume and disabled in
+		 * fini/suspend, so the overall state doesn't
+		 * change over the course of suspend/resume.
+		 */
+		if (!adev->in_s0ix)
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, true);
 		break;
 	default:
 		break;
@@ -503,6 +515,8 @@ static void gmc_v11_0_get_vm_pte(struct amdgpu_device *adev,
 				 struct amdgpu_bo_va_mapping *mapping,
 				 uint64_t *flags)
 {
+	struct amdgpu_bo *bo = mapping->bo_va->base.bo;
+
 	*flags &= ~AMDGPU_PTE_EXECUTABLE;
 	*flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
 
@@ -519,6 +533,11 @@ static void gmc_v11_0_get_vm_pte(struct amdgpu_device *adev,
 		*flags |= AMDGPU_PTE_SYSTEM;
 		*flags &= ~AMDGPU_PTE_VALID;
 	}
+
+	if (bo && bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
+			       AMDGPU_GEM_CREATE_UNCACHED))
+		*flags = (*flags & ~AMDGPU_PTE_MTYPE_NV10_MASK) |
+			 AMDGPU_PTE_MTYPE_NV10(MTYPE_UC);
 }
 
 static unsigned gmc_v11_0_get_vbios_fb_size(struct amdgpu_device *adev)
@@ -551,7 +570,10 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.node_inst_num = adev->gmc.num_umc;
 		adev->umc.max_ras_err_cnt_per_query = UMC_V8_10_TOTAL_CHANNEL_NUM(adev);
 		adev->umc.channel_offs = UMC_V8_10_PER_CHANNEL_OFFSET;
-		adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl[0][0][0];
+		if (adev->umc.node_inst_num == 4)
+			adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl_ext0[0][0][0];
+		else
+			adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl[0][0][0];
 		adev->umc.ras = &umc_v8_10_ras;
 		break;
 	case IP_VERSION(8, 11, 0):
@@ -651,6 +673,7 @@ static void gmc_v11_0_vram_gtt_location(struct amdgpu_device *adev,
 
 	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
 	amdgpu_gmc_gart_location(adev, mc);
+	amdgpu_gmc_agp_location(adev, mc);
 
 	/* base offset of vram pages */
 	if (amdgpu_sriov_vf(adev))
@@ -749,6 +772,7 @@ static int gmc_v11_0_sw_init(void *handle)
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(11, 0, 4):
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,

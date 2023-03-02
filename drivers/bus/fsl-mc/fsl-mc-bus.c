@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/limits.h>
 #include <linux/bitops.h>
-#include <linux/msi.h>
 #include <linux/dma-mapping.h>
 #include <linux/acpi.h>
 #include <linux/iommu.h>
@@ -125,9 +124,9 @@ out:
 /*
  * fsl_mc_bus_uevent - callback invoked when a device is added
  */
-static int fsl_mc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int fsl_mc_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+	const struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 
 	if (add_uevent_var(env, "MODALIAS=fsl-mc:v%08Xd%s",
 			   mc_dev->obj_desc.vendor,

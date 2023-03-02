@@ -562,17 +562,6 @@ or looking up of superblocks.
 
 The following helpers all wrap sget_fc():
 
-   * ::
-
-       int vfs_get_super(struct fs_context *fc,
-		         enum vfs_get_super_keying keying,
-		         int (*fill_super)(struct super_block *sb,
-					   struct fs_context *fc))
-
-     This creates/looks up a deviceless superblock.  The keying indicates how
-     many superblocks of this type may exist and in what manner they may be
-     shared:
-
 	(1) vfs_get_single_super
 
 	    Only one such superblock may exist in the system.  Any further
@@ -814,6 +803,7 @@ process the parameters it is given.
        int fs_lookup_param(struct fs_context *fc,
 			   struct fs_parameter *value,
 			   bool want_bdev,
+			   unsigned int flags,
 			   struct path *_path);
 
      This takes a parameter that carries a string or filename type and attempts

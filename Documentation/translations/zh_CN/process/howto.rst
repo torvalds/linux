@@ -45,7 +45,7 @@ Linux内核大部分是由C语言写成的，一些体系结构相关的代码�
  - "C:  A Reference Manual" by Harbison and Steele [Prentice Hall]
    《C语言参考手册（原书第5版）》（邱仲潘 等译）[机械工业出版社]
 
-Linux内核使用GNU C和GNU工具链开发。虽然它遵循ISO C89标准，但也用到了一些
+Linux内核使用GNU C和GNU工具链开发。虽然它遵循ISO C11标准，但也用到了一些
 标准中没有定义的扩展。内核是自给自足的C环境，不依赖于标准C库的支持，所以
 并不支持C标准中的部分定义。比如long long类型的大数除法和浮点运算就不允许
 使用。有时候确实很难弄清楚内核对工具链的要求和它所使用的扩展，不幸的是目
@@ -254,7 +254,7 @@ Linux-next 集成测试树
         https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 通过这种方式，Linux-next 对下一个合并阶段将进入主线内核的内容给出了一个概要
-展望。非常欢冒险的测试者运行测试Linux-next。
+展望。非常欢迎冒险的测试者运行测试Linux-next。
 
 多个主要版本的稳定版内核树
 -----------------------------------

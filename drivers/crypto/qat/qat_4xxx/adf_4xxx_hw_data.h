@@ -70,6 +70,6 @@ enum icp_qat_4xxx_slice_mask {
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_4xxx(struct adf_hw_device_data *hw_data);
-int adf_crypto_dev_config(struct adf_accel_dev *accel_dev);
+int adf_gen4_dev_config(struct adf_accel_dev *accel_dev);
 
 #endif

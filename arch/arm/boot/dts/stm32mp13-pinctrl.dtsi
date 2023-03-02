@@ -6,6 +6,13 @@
 #include <dt-bindings/pinctrl/stm32-pinfunc.h>
 
 &pinctrl {
+	adc1_usb_cc_pins_a: adc1-usb-cc-pins-0 {
+		pins {
+			pinmux = <STM32_PINMUX('F', 12, ANALOG)>, /* ADC1 in6 */
+				 <STM32_PINMUX('A', 3, ANALOG)>; /* ADC1 in12 */
+		};
+	};
+
 	i2c1_pins_a: i2c1-0 {
 		pins {
 			pinmux = <STM32_PINMUX('D', 12, AF5)>, /* I2C1_SCL */
@@ -37,6 +44,73 @@
 		pins {
 			pinmux = <STM32_PINMUX('D', 1, ANALOG)>, /* I2C5_SCL */
 				 <STM32_PINMUX('H', 6, ANALOG)>; /* I2C5_SDA */
+		};
+	};
+
+	mcp23017_pins_a: mcp23017-0 {
+		pins {
+			pinmux = <STM32_PINMUX('G', 12, GPIO)>;
+			bias-pull-up;
+		};
+	};
+
+	pwm3_pins_a: pwm3-0 {
+		pins {
+			pinmux = <STM32_PINMUX('B', 1, AF2)>; /* TIM3_CH4 */
+			bias-pull-down;
+			drive-push-pull;
+			slew-rate = <0>;
+		};
+	};
+
+	pwm3_sleep_pins_a: pwm3-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('B', 1, ANALOG)>; /* TIM3_CH4 */
+		};
+	};
+
+	pwm4_pins_a: pwm4-0 {
+		pins {
+			pinmux = <STM32_PINMUX('D', 13, AF2)>; /* TIM4_CH2 */
+			bias-pull-down;
+			drive-push-pull;
+			slew-rate = <0>;
+		};
+	};
+
+	pwm4_sleep_pins_a: pwm4-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('D', 13, ANALOG)>; /* TIM4_CH2 */
+		};
+	};
+
+	pwm8_pins_a: pwm8-0 {
+		pins {
+			pinmux = <STM32_PINMUX('E', 5, AF3)>; /* TIM8_CH3 */
+			bias-pull-down;
+			drive-push-pull;
+			slew-rate = <0>;
+		};
+	};
+
+	pwm8_sleep_pins_a: pwm8-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('E', 5, ANALOG)>; /* TIM8_CH3 */
+		};
+	};
+
+	pwm14_pins_a: pwm14-0 {
+		pins {
+			pinmux = <STM32_PINMUX('F', 9, AF9)>; /* TIM14_CH1 */
+			bias-pull-down;
+			drive-push-pull;
+			slew-rate = <0>;
+		};
+	};
+
+	pwm14_sleep_pins_a: pwm14-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('F', 9, ANALOG)>; /* TIM14_CH1 */
 		};
 	};
 
@@ -162,6 +236,13 @@
 			pinmux = <STM32_PINMUX('H', 7, ANALOG)>, /* SPI5_SCK */
 				 <STM32_PINMUX('A', 8, ANALOG)>, /* SPI5_MISO */
 				 <STM32_PINMUX('H', 3, ANALOG)>; /* SPI5_MOSI */
+		};
+	};
+
+	stm32g0_intn_pins_a: stm32g0-intn-0 {
+		pins {
+			pinmux = <STM32_PINMUX('I', 2, GPIO)>;
+			bias-pull-up;
 		};
 	};
 

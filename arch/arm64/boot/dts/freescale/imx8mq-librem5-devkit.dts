@@ -7,6 +7,7 @@
 
 #include "dt-bindings/input/input.h"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
 #include "dt-bindings/pwm/pwm.h"
 #include "dt-bindings/usb/pd.h"
 #include "imx8mq.dtsi"
@@ -61,14 +62,13 @@
 	};
 
 	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpio_leds>;
+		compatible = "pwm-leds";
 
-		led1 {
-			label = "LED 1";
-			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
+		led-1 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			max-brightness = <248>;
+			pwms = <&pwm2 0 50000 0>;
 		};
 	};
 
@@ -615,9 +615,9 @@
 		>;
 	};
 
-	pinctrl_gpio_leds: gpioledgrp {
+	pinctrl_pwm_led: pwmledgrp {
 		fsl,pins = <
-			MX8MQ_IOMUXC_GPIO1_IO13_GPIO1_IO13	0x16
+			MX8MQ_IOMUXC_GPIO1_IO13_PWM2_OUT	0x16
 		>;
 	};
 
@@ -917,6 +917,12 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_bl>;
+	status = "okay";
+};
+
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm_led>;
 	status = "okay";
 };
 

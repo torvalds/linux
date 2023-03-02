@@ -13,6 +13,8 @@ struct sof_ipc_cmd_hdr;
 struct snd_sof_dev;
 struct dentry;
 
+struct sof_ipc4_fw_module;
+
 /**
  * struct sof_client_dev - SOF client device
  * @auxdev:	auxiliary device
@@ -37,6 +39,10 @@ struct sof_client_dev {
 
 int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 			      void *reply_data, size_t reply_bytes);
+int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
+				bool set);
+
+struct sof_ipc4_fw_module *sof_client_ipc4_find_module(struct sof_client_dev *c, const guid_t *u);
 
 struct dentry *sof_client_get_debugfs_root(struct sof_client_dev *cdev);
 struct device *sof_client_get_dma_dev(struct sof_client_dev *cdev);

@@ -29,6 +29,38 @@ properties:
   interrupts:
     maxItems: 1
 
+  memory-region:
+    items:
+      - description: firmware EMI region
+      - description: firmware ILM region
+      - description: firmware DLM region
+      - description: firmware CPU DATA region
+      - description: firmware BOOT region
+
+  memory-region-names:
+    items:
+      - const: wo-emi
+      - const: wo-ilm
+      - const: wo-dlm
+      - const: wo-data
+      - const: wo-boot
+
+  mediatek,wo-ccif:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: mediatek wed-wo controller interface.
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7622-wed
+    then:
+      properties:
+        memory-region-names: false
+        memory-region: false
+        mediatek,wo-ccif: false
+
 required:
   - compatible
   - reg
@@ -47,5 +79,25 @@ examples:
         compatible = "mediatek,mt7622-wed","syscon";
         reg = <0 0x1020a000 0 0x1000>;
         interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_LOW>;
+      };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      wed@15010000 {
+        compatible = "mediatek,mt7986-wed", "syscon";
+        reg = <0 0x15010000 0 0x1000>;
+        interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
+
+        memory-region = <&wo_emi>, <&wo_ilm>, <&wo_dlm>,
+                        <&wo_data>, <&wo_boot>;
+        memory-region-names = "wo-emi", "wo-ilm", "wo-dlm",
+                              "wo-data", "wo-boot";
+        mediatek,wo-ccif = <&wo_ccif0>;
       };
     };

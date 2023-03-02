@@ -27,7 +27,7 @@ static void cxl_memdev_release(struct device *dev)
 	kfree(cxlmd);
 }
 
-static char *cxl_memdev_devnode(struct device *dev, umode_t *mode, kuid_t *uid,
+static char *cxl_memdev_devnode(const struct device *dev, umode_t *mode, kuid_t *uid,
 				kgid_t *gid)
 {
 	return kasprintf(GFP_KERNEL, "cxl/%s", dev_name(dev));
@@ -162,7 +162,7 @@ static const struct device_type cxl_memdev_type = {
 	.groups = cxl_memdev_attribute_groups,
 };
 
-bool is_cxl_memdev(struct device *dev)
+bool is_cxl_memdev(const struct device *dev)
 {
 	return dev->type == &cxl_memdev_type;
 }
@@ -242,10 +242,11 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 	if (!cxlmd)
 		return ERR_PTR(-ENOMEM);
 
-	rc = ida_alloc_range(&cxl_memdev_ida, 0, CXL_MEM_MAX_DEVS, GFP_KERNEL);
+	rc = ida_alloc_max(&cxl_memdev_ida, CXL_MEM_MAX_DEVS - 1, GFP_KERNEL);
 	if (rc < 0)
 		goto err;
 	cxlmd->id = rc;
+	cxlmd->depth = -1;
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
@@ -344,6 +345,7 @@ struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds)
 	 * needed as this is ordered with cdev_add() publishing the device.
 	 */
 	cxlmd->cxlds = cxlds;
+	cxlds->cxlmd = cxlmd;
 
 	cdev = &cxlmd->cdev;
 	rc = cdev_device_add(cdev, dev);

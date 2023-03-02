@@ -13,12 +13,16 @@
 #include <linux/iversion.h>
 #include <linux/sched/mm.h>
 #include "ctree.h"
+#include "fs.h"
+#include "messages.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
 #include "xattr.h"
 #include "disk-io.h"
 #include "props.h"
 #include "locking.h"
+#include "accessors.h"
+#include "dir-item.h"
 
 int btrfs_getxattr(struct inode *inode, const char *name,
 				void *buffer, size_t size)
@@ -366,7 +370,7 @@ static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
-				   struct user_namespace *mnt_userns,
+				   struct mnt_idmap *idmap,
 				   struct dentry *unused, struct inode *inode,
 				   const char *name, const void *buffer,
 				   size_t size, int flags)
@@ -379,7 +383,7 @@ static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
-					struct user_namespace *mnt_userns,
+					struct mnt_idmap *idmap,
 					struct dentry *unused, struct inode *inode,
 					const char *name, const void *value,
 					size_t size, int flags)

@@ -5,6 +5,7 @@
 
 /dts-v1/;
 
+#include "msm8996.dtsi"
 #include "msm8996-xiaomi-common.dtsi"
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
@@ -53,7 +54,7 @@
 		reg = <0x30>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-gpio = <&pm8994_gpios 7 1>;
+		enable-gpios = <&pm8994_gpios 7 1>;
 		clock-mode = /bits/8 <2>;
 		label = "button-backlight";
 
@@ -61,14 +62,14 @@
 			reg = <0>;
 			chan-name = "button-backlight";
 			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0xC8>;
+			max-cur = /bits/ 8 <0xc8>;
 		};
 
 		led@1 {
 			reg = <0>;
 			chan-name = "button-backlight1";
 			led-cur = /bits/ 8 <0x32>;
-			max-cur = /bits/ 8 <0xC8>;
+			max-cur = /bits/ 8 <0xc8>;
 		};
 	};
 };
@@ -219,7 +220,7 @@
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		vreg_l17a_2p8: l17 {
 			regulator-name = "vreg_l17a_2p8";
 			regulator-min-microvolt = <2500000>;
@@ -445,28 +446,28 @@
 		"RFFE1_DATA",		/* GPIO_148 */
 		"RFFE1_CLK";		/* GPIO_149 */
 
-	touchscreen_default: touchscreen_default {
+	touchscreen_default: touchscreen-default-state {
 		pins = "gpio89", "gpio125";
 		function = "gpio";
 		drive-strength = <10>;
 		bias-pull-up;
 	};
 
-	touchscreen_sleep: touchscreen_sleep {
+	touchscreen_sleep: touchscreen-sleep-state {
 		pins = "gpio89", "gpio125";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	vibrator_default: vibrator_default {
+	vibrator_default: vibrator-default-state {
 		pins = "gpio93";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
 	};
 
-	vibrator_sleep: vibrator_sleep {
+	vibrator_sleep: vibrator-sleep-state {
 		pins = "gpio93";
 		function = "gpio";
 		drive-strength = <2>;

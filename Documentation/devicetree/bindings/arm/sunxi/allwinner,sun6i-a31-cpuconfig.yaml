@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/sunxi/allwinner,sun6i-a31-cpuconfig.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner CPU Configuration Controller Device Tree Bindings
+title: Allwinner CPU Configuration Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

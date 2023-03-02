@@ -29,6 +29,7 @@
 #include <net/tc_act/tc_ife.h>
 #include <linux/etherdevice.h>
 #include <net/ife.h>
+#include <net/tc_wrapper.h>
 
 static int max_metacnt = IFE_META_MAX + 1;
 static struct tc_action_ops act_ife_ops;
@@ -861,8 +862,9 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	return action;
 }
 
-static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
-		       struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_ife_act(struct sk_buff *skb,
+				  const struct tc_action *a,
+				  struct tcf_result *res)
 {
 	struct tcf_ife_info *ife = to_ife(a);
 	struct tcf_ife_params *p;

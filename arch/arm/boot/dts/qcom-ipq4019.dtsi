@@ -106,7 +106,7 @@
 		};
 	};
 
-	cpu0_opp_table: opp_table0 {
+	cpu0_opp_table: opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -348,7 +348,7 @@
 		saw0: regulator@b089000 {
 			compatible = "qcom,saw2";
 			reg = <0x0b089000 0x1000>, <0x0b009000 0x1000>;
-                        regulator;
+			regulator;
 		};
 
 		saw1: regulator@b099000 {
@@ -400,7 +400,7 @@
 		};
 
 		watchdog: watchdog@b017000 {
-			compatible = "qcom,kpss-wdt", "qcom,kpss-wdt-ipq4019";
+			compatible = "qcom,kpss-wdt-ipq4019", "qcom,kpss-wdt";
 			reg = <0xb017000 0x40>;
 			clocks = <&sleep_clk>;
 			timeout-sec = <10>;

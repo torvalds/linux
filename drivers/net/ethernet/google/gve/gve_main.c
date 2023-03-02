@@ -12,6 +12,8 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/utsname.h>
+#include <linux/version.h>
 #include <net/sch_generic.h>
 #include "gve.h"
 #include "gve_dqo.h"
@@ -29,6 +31,49 @@
 
 const char gve_version_str[] = GVE_VERSION;
 static const char gve_version_prefix[] = GVE_VERSION_PREFIX;
+
+static int gve_verify_driver_compatibility(struct gve_priv *priv)
+{
+	int err;
+	struct gve_driver_info *driver_info;
+	dma_addr_t driver_info_bus;
+
+	driver_info = dma_alloc_coherent(&priv->pdev->dev,
+					 sizeof(struct gve_driver_info),
+					 &driver_info_bus, GFP_KERNEL);
+	if (!driver_info)
+		return -ENOMEM;
+
+	*driver_info = (struct gve_driver_info) {
+		.os_type = 1, /* Linux */
+		.os_version_major = cpu_to_be32(LINUX_VERSION_MAJOR),
+		.os_version_minor = cpu_to_be32(LINUX_VERSION_SUBLEVEL),
+		.os_version_sub = cpu_to_be32(LINUX_VERSION_PATCHLEVEL),
+		.driver_capability_flags = {
+			cpu_to_be64(GVE_DRIVER_CAPABILITY_FLAGS1),
+			cpu_to_be64(GVE_DRIVER_CAPABILITY_FLAGS2),
+			cpu_to_be64(GVE_DRIVER_CAPABILITY_FLAGS3),
+			cpu_to_be64(GVE_DRIVER_CAPABILITY_FLAGS4),
+		},
+	};
+	strscpy(driver_info->os_version_str1, utsname()->release,
+		sizeof(driver_info->os_version_str1));
+	strscpy(driver_info->os_version_str2, utsname()->version,
+		sizeof(driver_info->os_version_str2));
+
+	err = gve_adminq_verify_driver_compatibility(priv,
+						     sizeof(struct gve_driver_info),
+						     driver_info_bus);
+
+	/* It's ok if the device doesn't support this */
+	if (err == -EOPNOTSUPP)
+		err = 0;
+
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(struct gve_driver_info),
+			  driver_info, driver_info_bus);
+	return err;
+}
 
 static netdev_tx_t gve_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -51,10 +96,10 @@ static void gve_get_stats(struct net_device *dev, struct rtnl_link_stats64 *s)
 		for (ring = 0; ring < priv->rx_cfg.num_queues; ring++) {
 			do {
 				start =
-				  u64_stats_fetch_begin_irq(&priv->rx[ring].statss);
+				  u64_stats_fetch_begin(&priv->rx[ring].statss);
 				packets = priv->rx[ring].rpackets;
 				bytes = priv->rx[ring].rbytes;
-			} while (u64_stats_fetch_retry_irq(&priv->rx[ring].statss,
+			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
 						       start));
 			s->rx_packets += packets;
 			s->rx_bytes += bytes;
@@ -64,10 +109,10 @@ static void gve_get_stats(struct net_device *dev, struct rtnl_link_stats64 *s)
 		for (ring = 0; ring < priv->tx_cfg.num_queues; ring++) {
 			do {
 				start =
-				  u64_stats_fetch_begin_irq(&priv->tx[ring].statss);
+				  u64_stats_fetch_begin(&priv->tx[ring].statss);
 				packets = priv->tx[ring].pkt_done;
 				bytes = priv->tx[ring].bytes_done;
-			} while (u64_stats_fetch_retry_irq(&priv->tx[ring].statss,
+			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
 						       start));
 			s->tx_packets += packets;
 			s->tx_bytes += bytes;
@@ -282,7 +327,6 @@ static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 static int gve_alloc_notify_blocks(struct gve_priv *priv)
 {
 	int num_vecs_requested = priv->num_ntfy_blks + 1;
-	char *name = priv->dev->name;
 	unsigned int active_cpus;
 	int vecs_enabled;
 	int i, j;
@@ -326,8 +370,8 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	active_cpus = min_t(int, priv->num_ntfy_blks / 2, num_online_cpus());
 
 	/* Setup Management Vector  - the last vector */
-	snprintf(priv->mgmt_msix_name, sizeof(priv->mgmt_msix_name), "%s-mgmnt",
-		 name);
+	snprintf(priv->mgmt_msix_name, sizeof(priv->mgmt_msix_name), "gve-mgmnt@pci:%s",
+		 pci_name(priv->pdev));
 	err = request_irq(priv->msix_vectors[priv->mgmt_msix_idx].vector,
 			  gve_mgmnt_intr, 0, priv->mgmt_msix_name, priv);
 	if (err) {
@@ -356,8 +400,8 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 		struct gve_notify_block *block = &priv->ntfy_blocks[i];
 		int msix_idx = i;
 
-		snprintf(block->name, sizeof(block->name), "%s-ntfy-block.%d",
-			 name, i);
+		snprintf(block->name, sizeof(block->name), "gve-ntfy-blk%d@pci:%s",
+			 i, pci_name(priv->pdev));
 		block->priv = priv;
 		err = request_irq(priv->msix_vectors[msix_idx].vector,
 				  gve_is_gqi(priv) ? gve_intr : gve_intr_dqo,
@@ -1273,9 +1317,9 @@ void gve_handle_report_stats(struct gve_priv *priv)
 			}
 
 			do {
-				start = u64_stats_fetch_begin_irq(&priv->tx[idx].statss);
+				start = u64_stats_fetch_begin(&priv->tx[idx].statss);
 				tx_bytes = priv->tx[idx].bytes_done;
-			} while (u64_stats_fetch_retry_irq(&priv->tx[idx].statss, start));
+			} while (u64_stats_fetch_retry(&priv->tx[idx].statss, start));
 			stats[stats_idx++] = (struct stats) {
 				.stat_name = cpu_to_be32(TX_WAKE_CNT),
 				.value = cpu_to_be64(priv->tx[idx].wake_queue),
@@ -1366,6 +1410,13 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		dev_err(&priv->pdev->dev,
 			"Failed to alloc admin queue: err=%d\n", err);
 		return err;
+	}
+
+	err = gve_verify_driver_compatibility(priv);
+	if (err) {
+		dev_err(&priv->pdev->dev,
+			"Could not verify driver compatibility: err=%d\n", err);
+		goto err;
 	}
 
 	if (skip_describe_device)

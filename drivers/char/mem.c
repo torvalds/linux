@@ -343,7 +343,7 @@ static unsigned zero_mmap_capabilities(struct file *file)
 /* can't do an in-place private mapping if there's no MMU */
 static inline int private_mapping_ok(struct vm_area_struct *vma)
 {
-	return vma->vm_flags & VM_MAYSHARE;
+	return is_nommu_shared_mapping(vma->vm_flags);
 }
 #else
 
@@ -746,7 +746,7 @@ static const struct file_operations memory_fops = {
 	.llseek = noop_llseek,
 };
 
-static char *mem_devnode(struct device *dev, umode_t *mode)
+static char *mem_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode && devlist[MINOR(dev->devt)].mode)
 		*mode = devlist[MINOR(dev->devt)].mode;

@@ -13,6 +13,6 @@ Example:
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <9 2>;
-		wakeup-gpios = <&gpio1 9 0>;
+		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 	};

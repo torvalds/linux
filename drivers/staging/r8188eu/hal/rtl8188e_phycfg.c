@@ -23,7 +23,7 @@ static u32 phy_calculate_bit_shift(u32 bitmask)
 /**
 * Function:	PHY_QueryBBReg
 *
-* OverView:	Read "sepcific bits" from BB register
+* Overview:	Read "sepcific bits" from BB register
 *
 * Input:
 *			struct adapter *Adapter,
@@ -56,7 +56,7 @@ rtl8188e_PHY_QueryBBReg(
 /**
 * Function:	PHY_SetBBReg
 *
-* OverView:	Write "Specific bits" to BB register (page 8~)
+* Overview:	Write "Specific bits" to BB register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -94,7 +94,7 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u3
 /**
 * Function:	phy_RFSerialRead
 *
-* OverView:	Read regster from RF chips
+* Overview:	Read register from RF chips
 *
 * Input:
 *			struct adapter *Adapter,
@@ -160,7 +160,7 @@ phy_RFSerialRead(
 /**
 * Function:	phy_RFSerialWrite
 *
-* OverView:	Write data to RF register (page 8~)
+* Overview:	Write data to RF register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -235,7 +235,7 @@ phy_RFSerialWrite(
 /**
 * Function:	PHY_QueryRFReg
 *
-* OverView:	Query "Specific bits" to RF register (page 8~)
+* Overview:	Query "Specific bits" to RF register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -261,7 +261,7 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 /**
 * Function:	PHY_SetRFReg
 *
-* OverView:	Write "Specific bits" to RF register (page 8~)
+* Overview:	Write "Specific bits" to RF register (page 8~)
 *
 * Input:
 *			struct adapter *Adapter,
@@ -315,27 +315,26 @@ rtl8188e_PHY_SetRFReg(
  *  08/12/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-s32 PHY_MACConfig8188E(struct adapter *Adapter)
+int PHY_MACConfig8188E(struct adapter *Adapter)
 {
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	int rtStatus = _SUCCESS;
+	int err;
 
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (ODM_ReadAndConfig_MAC_REG_8188E(&pHalData->odmpriv))
-		rtStatus = _FAIL;
+	err = ODM_ReadAndConfig_MAC_REG_8188E(&pHalData->odmpriv);
 
 	/*  2010.07.13 AMPDU aggregation number B */
 	rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM);
 
-	return rtStatus;
+	return err;
 }
 
 /**
 * Function:	phy_InitBBRFRegisterDefinition
 *
-* OverView:	Initialize Register definition offset for Radio Path A/B/C/D
+* Overview:	Initialize Register definition offset for Radio Path A/B/C/D
 *
 * Input:
 *			struct adapter *Adapter,
@@ -363,7 +362,7 @@ phy_InitBBRFRegisterDefinition(
 	/*  RF Interface (Output and)  Enable */
 	pHalData->PHYRegDef.rfintfe = rFPGA0_XA_RFInterfaceOE; /*  16 MSBs if read 32-bit from 0x860 (16-bit for 0x862) */
 
-	/* Addr of LSSI. Wirte RF register by driver */
+	/* Addr of LSSI. Write RF register by driver */
 	pHalData->PHYRegDef.rf3wireOffset = rFPGA0_XA_LSSIParameter; /* LSSI Parameter */
 
 	/*  RF parameter */
@@ -450,13 +449,15 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 {
 	struct eeprom_priv *pEEPROM = &Adapter->eeprompriv;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
+	int err;
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will separate as 88C / 92C according to chip version */
 	/*  */
-	if (ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv))
-		return _FAIL;
+	err = ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv);
+	if (err)
+		return err;
 
 	/*  2. If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
 	if (!pEEPROM->bautoload_fail_flag) {
@@ -465,10 +466,11 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 	}
 
 	/*  3. BB AGC table Initialization */
-	if (ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
-		return _FAIL;
+	err = ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv);
+	if (err)
+		return err;
 
-	return _SUCCESS;
+	return 0;
 }
 
 int
@@ -476,18 +478,17 @@ PHY_BBConfig8188E(
 		struct adapter *Adapter
 	)
 {
-	int	rtStatus = _SUCCESS;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u16 RegVal;
 	u8 CrystalCap;
-	int res;
+	int err;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
 	/*  Enable BB and RF */
-	res = rtw_read16(Adapter, REG_SYS_FUNC_EN, &RegVal);
-	if (res)
-		return _FAIL;
+	err = rtw_read16(Adapter, REG_SYS_FUNC_EN, &RegVal);
+	if (err)
+		return err;
 
 	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal | BIT(13) | BIT(0) | BIT(1)));
 
@@ -498,13 +499,13 @@ PHY_BBConfig8188E(
 	rtw_write8(Adapter, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
 
 	/*  Config BB and AGC */
-	rtStatus = phy_BB8188E_Config_ParaFile(Adapter);
+	err = phy_BB8188E_Config_ParaFile(Adapter);
 
 	/*  write 0x24[16:11] = 0x24[22:17] = CrystalCap */
 	CrystalCap = pHalData->CrystalCap & 0x3F;
 	rtl8188e_PHY_SetBBReg(Adapter, REG_AFE_XTAL_CTRL, 0x7ff800, (CrystalCap | (CrystalCap << 6)));
 
-	return rtStatus;
+	return err;
 }
 
 static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,

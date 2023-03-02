@@ -63,12 +63,6 @@ uint32_t __attribute__((weak)) __div64_32(uint64_t *n, uint32_t base)
 EXPORT_SYMBOL(__div64_32);
 #endif
 
-/**
- * div_s64_rem - signed 64bit divide with 64bit divisor and remainder
- * @dividend:	64bit dividend
- * @divisor:	64bit divisor
- * @remainder:  64bit remainder
- */
 #ifndef div_s64_rem
 s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder)
 {
@@ -89,7 +83,7 @@ s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder)
 EXPORT_SYMBOL(div_s64_rem);
 #endif
 
-/**
+/*
  * div64_u64_rem - unsigned 64bit divide with 64bit divisor and remainder
  * @dividend:	64bit dividend
  * @divisor:	64bit divisor
@@ -129,7 +123,7 @@ u64 div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder)
 EXPORT_SYMBOL(div64_u64_rem);
 #endif
 
-/**
+/*
  * div64_u64 - unsigned 64bit divide with 64bit divisor
  * @dividend:	64bit dividend
  * @divisor:	64bit divisor
@@ -163,11 +157,6 @@ u64 div64_u64(u64 dividend, u64 divisor)
 EXPORT_SYMBOL(div64_u64);
 #endif
 
-/**
- * div64_s64 - signed 64bit divide with 64bit divisor
- * @dividend:	64bit dividend
- * @divisor:	64bit divisor
- */
 #ifndef div64_s64
 s64 div64_s64(s64 dividend, s64 divisor)
 {

@@ -32,8 +32,8 @@ static int switch_fwnode_match(struct device *dev, const void *fwnode)
 	return device_match_fwnode(dev, fwnode);
 }
 
-static void *typec_switch_match(struct fwnode_handle *fwnode, const char *id,
-				void *data)
+static void *typec_switch_match(const struct fwnode_handle *fwnode,
+				const char *id, void *data)
 {
 	struct device *dev;
 
@@ -262,8 +262,8 @@ static int mux_fwnode_match(struct device *dev, const void *fwnode)
 	return device_match_fwnode(dev, fwnode);
 }
 
-static void *typec_mux_match(struct fwnode_handle *fwnode, const char *id,
-			     void *data)
+static void *typec_mux_match(const struct fwnode_handle *fwnode,
+			     const char *id, void *data)
 {
 	const struct typec_altmode_desc *desc = data;
 	struct device *dev;

@@ -1903,7 +1903,7 @@ btc8723b1ant_action_wifi_not_conn_scan(struct btc_coexist *btcoexist)
 						true, 32);
 			halbtc8723b1ant_coex_table_with_type(btcoexist,
 							     NORMAL_EXEC, 4);
-		} else if (bt_link_info->a2dp_exist) {
+		} else if (bt_link_info->pan_exist) {
 			halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC,
 						true, 22);
 			halbtc8723b1ant_coex_table_with_type(btcoexist,
@@ -1964,8 +1964,7 @@ static void btc8723b1ant_action_wifi_conn_scan(struct btc_coexist *btcoexist)
 						true, 32);
 			halbtc8723b1ant_coex_table_with_type(btcoexist,
 							     NORMAL_EXEC, 4);
-		} else if (bt_link_info->a2dp_exist &&
-			   bt_link_info->pan_exist) {
+		} else if (bt_link_info->pan_exist) {
 			halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC,
 						true, 22);
 			halbtc8723b1ant_coex_table_with_type(btcoexist,

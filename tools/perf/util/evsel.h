@@ -10,8 +10,6 @@
 #include <internal/evsel.h>
 #include <perf/evsel.h>
 #include "symbol_conf.h"
-#include <internal/cpumap.h>
-#include <perf/cpumap.h>
 
 struct bpf_object;
 struct cgroup;
@@ -74,7 +72,9 @@ struct evsel {
 		char			*name;
 		char			*group_name;
 		const char		*pmu_name;
+#ifdef HAVE_LIBTRACEEVENT
 		struct tep_event	*tp_format;
+#endif
 		char			*filter;
 		unsigned long		max_events;
 		double			scale;
@@ -105,8 +105,6 @@ struct evsel {
 	 * metric fields are similar, but needs more care as they can have
 	 * references to other metric (evsel).
 	 */
-	const char *		metric_expr;
-	const char *		metric_name;
 	struct evsel		**metric_events;
 	struct evsel		*metric_leader;
 
@@ -225,10 +223,13 @@ static inline struct evsel *evsel__new(struct perf_event_attr *attr)
 }
 
 struct evsel *evsel__clone(struct evsel *orig);
-struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
 int copy_config_terms(struct list_head *dst, struct list_head *src);
 void free_config_terms(struct list_head *config_terms);
+
+
+#ifdef HAVE_LIBTRACEEVENT
+struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
@@ -237,10 +238,13 @@ static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 {
 	return evsel__newtp_idx(sys, name, 0);
 }
+#endif
 
 struct evsel *evsel__new_cycles(bool precise, __u32 type, __u64 config);
 
+#ifdef HAVE_LIBTRACEEVENT
 struct tep_event *event_format__new(const char *sys, const char *name);
+#endif
 
 void evsel__init(struct evsel *evsel, struct perf_event_attr *attr, int idx);
 void evsel__exit(struct evsel *evsel);
@@ -325,6 +329,7 @@ bool evsel__precise_ip_fallback(struct evsel *evsel);
 
 struct perf_sample;
 
+#ifdef HAVE_LIBTRACEEVENT
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name);
 u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name);
 
@@ -332,6 +337,7 @@ static inline char *evsel__strval(struct evsel *evsel, struct perf_sample *sampl
 {
 	return evsel__rawptr(evsel, sample, name);
 }
+#endif
 
 struct tep_format_field;
 
@@ -498,7 +504,7 @@ struct perf_env *evsel__env(struct evsel *evsel);
 int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 
 void evsel__zero_per_pkg(struct evsel *evsel);
-bool evsel__is_hybrid(struct evsel *evsel);
+bool evsel__is_hybrid(const struct evsel *evsel);
 struct evsel *evsel__leader(struct evsel *evsel);
 bool evsel__has_leader(struct evsel *evsel, struct evsel *leader);
 bool evsel__is_leader(struct evsel *evsel);

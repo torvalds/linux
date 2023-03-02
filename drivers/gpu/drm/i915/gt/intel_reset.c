@@ -35,16 +35,6 @@
 /* XXX How to handle concurrent GGTT updates using tiling registers? */
 #define RESET_UNDER_STOP_MACHINE 0
 
-static void rmw_set_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
-{
-	intel_uncore_rmw_fw(uncore, reg, 0, set);
-}
-
-static void rmw_clear_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 clr)
-{
-	intel_uncore_rmw_fw(uncore, reg, clr, 0);
-}
-
 static void client_mark_guilty(struct i915_gem_context *ctx, bool banned)
 {
 	struct drm_i915_file_private *file_priv = ctx->file_priv;
@@ -212,7 +202,7 @@ static int g4x_do_reset(struct intel_gt *gt,
 	int ret;
 
 	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
-	rmw_set_fw(uncore, VDECCLK_GATE_D, VCP_UNIT_CLOCK_GATE_DISABLE);
+	intel_uncore_rmw_fw(uncore, VDECCLK_GATE_D, 0, VCP_UNIT_CLOCK_GATE_DISABLE);
 	intel_uncore_posting_read_fw(uncore, VDECCLK_GATE_D);
 
 	pci_write_config_byte(pdev, I915_GDRST,
@@ -234,7 +224,7 @@ static int g4x_do_reset(struct intel_gt *gt,
 out:
 	pci_write_config_byte(pdev, I915_GDRST, 0);
 
-	rmw_clear_fw(uncore, VDECCLK_GATE_D, VCP_UNIT_CLOCK_GATE_DISABLE);
+	intel_uncore_rmw_fw(uncore, VDECCLK_GATE_D, VCP_UNIT_CLOCK_GATE_DISABLE, 0);
 	intel_uncore_posting_read_fw(uncore, VDECCLK_GATE_D);
 
 	return ret;
@@ -278,6 +268,7 @@ out:
 static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 {
 	struct intel_uncore *uncore = gt->uncore;
+	int loops = 2;
 	int err;
 
 	/*
@@ -285,17 +276,38 @@ static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 	 * for fifo space for the write or forcewake the chip for
 	 * the read
 	 */
-	intel_uncore_write_fw(uncore, GEN6_GDRST, hw_domain_mask);
+	do {
+		intel_uncore_write_fw(uncore, GEN6_GDRST, hw_domain_mask);
 
-	/* Wait for the device to ack the reset requests */
-	err = __intel_wait_for_register_fw(uncore,
-					   GEN6_GDRST, hw_domain_mask, 0,
-					   500, 0,
-					   NULL);
+		/*
+		 * Wait for the device to ack the reset requests.
+		 *
+		 * On some platforms, e.g. Jasperlake, we see that the
+		 * engine register state is not cleared until shortly after
+		 * GDRST reports completion, causing a failure as we try
+		 * to immediately resume while the internal state is still
+		 * in flux. If we immediately repeat the reset, the second
+		 * reset appears to serialise with the first, and since
+		 * it is a no-op, the registers should retain their reset
+		 * value. However, there is still a concern that upon
+		 * leaving the second reset, the internal engine state
+		 * is still in flux and not ready for resuming.
+		 */
+		err = __intel_wait_for_register_fw(uncore, GEN6_GDRST,
+						   hw_domain_mask, 0,
+						   2000, 0,
+						   NULL);
+	} while (err == 0 && --loops);
 	if (err)
 		GT_TRACE(gt,
 			 "Wait for 0x%08x engines reset failed\n",
 			 hw_domain_mask);
+
+	/*
+	 * As we have observed that the engine state is still volatile
+	 * after GDRST is acked, impose a small delay to let everything settle.
+	 */
+	udelay(50);
 
 	return err;
 }
@@ -448,7 +460,7 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine,
 	 * to reset it as well (we will unlock it once the reset sequence is
 	 * completed).
 	 */
-	rmw_set_fw(uncore, sfc_lock.lock_reg, sfc_lock.lock_bit);
+	intel_uncore_rmw_fw(uncore, sfc_lock.lock_reg, 0, sfc_lock.lock_bit);
 
 	ret = __intel_wait_for_register_fw(uncore,
 					   sfc_lock.ack_reg,
@@ -498,7 +510,7 @@ static void gen11_unlock_sfc(struct intel_engine_cs *engine)
 
 	get_sfc_forced_lock_data(engine, &sfc_lock);
 
-	rmw_clear_fw(uncore, sfc_lock.lock_reg, sfc_lock.lock_bit);
+	intel_uncore_rmw_fw(uncore, sfc_lock.lock_reg, sfc_lock.lock_bit, 0);
 }
 
 static int __gen11_reset_engines(struct intel_gt *gt,
@@ -1278,7 +1290,7 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
 	/* Use a watchdog to ensure that our reset completes */
-	intel_wedge_on_timeout(&w, gt, 5 * HZ) {
+	intel_wedge_on_timeout(&w, gt, 60 * HZ) {
 		intel_display_prepare_reset(gt->i915);
 
 		intel_gt_reset(gt, engine_mask, reason);
@@ -1407,14 +1419,18 @@ out:
 	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
 
-int intel_gt_reset_trylock(struct intel_gt *gt, int *srcu)
+static int _intel_gt_reset_lock(struct intel_gt *gt, int *srcu, bool retry)
 {
 	might_lock(&gt->reset.backoff_srcu);
-	might_sleep();
+	if (retry)
+		might_sleep();
 
 	rcu_read_lock();
 	while (test_bit(I915_RESET_BACKOFF, &gt->reset.flags)) {
 		rcu_read_unlock();
+
+		if (!retry)
+			return -EBUSY;
 
 		if (wait_event_interruptible(gt->reset.queue,
 					     !test_bit(I915_RESET_BACKOFF,
@@ -1427,6 +1443,16 @@ int intel_gt_reset_trylock(struct intel_gt *gt, int *srcu)
 	rcu_read_unlock();
 
 	return 0;
+}
+
+int intel_gt_reset_trylock(struct intel_gt *gt, int *srcu)
+{
+	return _intel_gt_reset_lock(gt, srcu, false);
+}
+
+int intel_gt_reset_lock_interruptible(struct intel_gt *gt, int *srcu)
+{
+	return _intel_gt_reset_lock(gt, srcu, true);
 }
 
 void intel_gt_reset_unlock(struct intel_gt *gt, int tag)

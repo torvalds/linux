@@ -10,8 +10,9 @@
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
@@ -20,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 
 #include <video/omapfb_dss.h>
 #include <video/mipi_display.h>
@@ -53,8 +53,8 @@ struct panel_drv_data {
 	unsigned long	hw_guard_wait;	/* max guard time in jiffies */
 
 	/* panel HW configuration from DT or platform data */
-	int reset_gpio;
-	int ext_te_gpio;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *ext_te_gpio;
 
 	bool use_dsi_backlight;
 
@@ -250,8 +250,8 @@ static int dsicm_enter_ulps(struct panel_drv_data *ddata)
 	if (r)
 		goto err;
 
-	if (gpio_is_valid(ddata->ext_te_gpio))
-		disable_irq(gpio_to_irq(ddata->ext_te_gpio));
+	if (ddata->ext_te_gpio)
+		disable_irq(gpiod_to_irq(ddata->ext_te_gpio));
 
 	in->ops.dsi->disable(in, false, true);
 
@@ -292,8 +292,8 @@ static int dsicm_exit_ulps(struct panel_drv_data *ddata)
 		goto err2;
 	}
 
-	if (gpio_is_valid(ddata->ext_te_gpio))
-		enable_irq(gpio_to_irq(ddata->ext_te_gpio));
+	if (ddata->ext_te_gpio)
+		enable_irq(gpiod_to_irq(ddata->ext_te_gpio));
 
 	dsicm_queue_ulps_work(ddata);
 
@@ -306,8 +306,8 @@ err2:
 
 	r = dsicm_panel_reset(ddata);
 	if (!r) {
-		if (gpio_is_valid(ddata->ext_te_gpio))
-			enable_irq(gpio_to_irq(ddata->ext_te_gpio));
+		if (ddata->ext_te_gpio)
+			enable_irq(gpiod_to_irq(ddata->ext_te_gpio));
 		ddata->ulps_enabled = false;
 	}
 err1:
@@ -331,13 +331,7 @@ static int dsicm_bl_update_status(struct backlight_device *dev)
 	struct panel_drv_data *ddata = dev_get_drvdata(&dev->dev);
 	struct omap_dss_device *in = ddata->in;
 	int r;
-	int level;
-
-	if (dev->props.fb_blank == FB_BLANK_UNBLANK &&
-			dev->props.power == FB_BLANK_UNBLANK)
-		level = dev->props.brightness;
-	else
-		level = 0;
+	int level = backlight_get_brightness(dev);
 
 	dev_dbg(&ddata->pdev->dev, "update brightness to %d\n", level);
 
@@ -556,16 +550,19 @@ static const struct attribute_group dsicm_attr_group = {
 
 static void dsicm_hw_reset(struct panel_drv_data *ddata)
 {
-	if (!gpio_is_valid(ddata->reset_gpio))
-		return;
-
-	gpio_set_value(ddata->reset_gpio, 1);
+	/*
+	 * Note that we appear to activate the reset line here. However
+	 * existing DTSes specified incorrect polarity for it (active high),
+	 * so in fact this deasserts the reset line.
+	 */
+	gpiod_set_value_cansleep(ddata->reset_gpio, 1);
 	udelay(10);
 	/* reset the panel */
-	gpio_set_value(ddata->reset_gpio, 0);
-	/* assert reset */
+	gpiod_set_value_cansleep(ddata->reset_gpio, 0);
+	/* keep reset asserted */
 	udelay(10);
-	gpio_set_value(ddata->reset_gpio, 1);
+	/* release reset line */
+	gpiod_set_value_cansleep(ddata->reset_gpio, 1);
 	/* wait after releasing reset */
 	usleep_range(5000, 10000);
 }
@@ -886,7 +883,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	if (r)
 		goto err;
 
-	if (ddata->te_enabled && gpio_is_valid(ddata->ext_te_gpio)) {
+	if (ddata->te_enabled && ddata->ext_te_gpio) {
 		schedule_delayed_work(&ddata->te_timeout_work,
 				msecs_to_jiffies(250));
 		atomic_set(&ddata->do_update, 1);
@@ -933,7 +930,7 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 	else
 		r = dsicm_dcs_write_0(ddata, MIPI_DCS_SET_TEAR_OFF);
 
-	if (!gpio_is_valid(ddata->ext_te_gpio))
+	if (!ddata->ext_te_gpio)
 		in->ops.dsi->enable_te(in, enable);
 
 	/* possible panel bug */
@@ -1115,41 +1112,6 @@ static struct omap_dss_driver dsicm_ops = {
 	.memory_read	= dsicm_memory_read,
 };
 
-static int dsicm_probe_of(struct platform_device *pdev)
-{
-	struct device_node *node = pdev->dev.of_node;
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *in;
-	int gpio;
-
-	gpio = of_get_named_gpio(node, "reset-gpios", 0);
-	if (!gpio_is_valid(gpio)) {
-		dev_err(&pdev->dev, "failed to parse reset gpio\n");
-		return gpio;
-	}
-	ddata->reset_gpio = gpio;
-
-	gpio = of_get_named_gpio(node, "te-gpios", 0);
-	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
-		ddata->ext_te_gpio = gpio;
-	} else {
-		dev_err(&pdev->dev, "failed to parse TE gpio\n");
-		return gpio;
-	}
-
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
-	/* TODO: ulps, backlight */
-
-	return 0;
-}
-
 static int dsicm_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
@@ -1171,9 +1133,12 @@ static int dsicm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 	ddata->pdev = pdev;
 
-	r = dsicm_probe_of(pdev);
-	if (r)
+	ddata->in = omapdss_of_find_source_for_first_ep(pdev->dev.of_node);
+	r = PTR_ERR_OR_ZERO(ddata->in);
+	if (r) {
+		dev_err(&pdev->dev, "failed to find video source: %d\n", r);
 		return r;
+	}
 
 	ddata->timings.x_res = 864;
 	ddata->timings.y_res = 480;
@@ -1200,24 +1165,27 @@ static int dsicm_probe(struct platform_device *pdev)
 
 	atomic_set(&ddata->do_update, 0);
 
-	if (gpio_is_valid(ddata->reset_gpio)) {
-		r = devm_gpio_request_one(dev, ddata->reset_gpio,
-				GPIOF_OUT_INIT_LOW, "taal rst");
-		if (r) {
-			dev_err(dev, "failed to request reset gpio\n");
-			return r;
-		}
+	ddata->reset_gpio = devm_gpiod_get(&pdev->dev, "reset", GPIOD_OUT_LOW);
+	r = PTR_ERR_OR_ZERO(ddata->reset_gpio);
+	if (r) {
+		dev_err(&pdev->dev, "Failed to request reset gpio: %d\n", r);
+		return r;
 	}
 
-	if (gpio_is_valid(ddata->ext_te_gpio)) {
-		r = devm_gpio_request_one(dev, ddata->ext_te_gpio,
-				GPIOF_IN, "taal irq");
-		if (r) {
-			dev_err(dev, "GPIO request failed\n");
-			return r;
-		}
+	gpiod_set_consumer_name(ddata->reset_gpio, "taal rst");
 
-		r = devm_request_irq(dev, gpio_to_irq(ddata->ext_te_gpio),
+	ddata->ext_te_gpio = devm_gpiod_get_optional(&pdev->dev, "te",
+						     GPIOD_IN);
+	r = PTR_ERR_OR_ZERO(ddata->ext_te_gpio);
+	if (r) {
+		dev_err(&pdev->dev, "Failed to request TE gpio: %d\n", r);
+		return r;
+	}
+
+	if (ddata->ext_te_gpio) {
+		gpiod_set_consumer_name(ddata->ext_te_gpio, "taal irq");
+
+		r = devm_request_irq(dev, gpiod_to_irq(ddata->ext_te_gpio),
 				dsicm_te_isr,
 				IRQF_TRIGGER_RISING,
 				"taal vsync", ddata);

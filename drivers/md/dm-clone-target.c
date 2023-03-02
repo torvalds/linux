@@ -580,7 +580,7 @@ static int hash_table_init(struct clone *clone)
 
 	sz = 1 << HASH_TABLE_BITS;
 
-	clone->ht = kvmalloc(sz * sizeof(struct hash_table_bucket), GFP_KERNEL);
+	clone->ht = kvmalloc_array(sz, sizeof(struct hash_table_bucket), GFP_KERNEL);
 	if (!clone->ht)
 		return -ENOMEM;
 
@@ -1958,6 +1958,7 @@ static void clone_dtr(struct dm_target *ti)
 
 	mempool_exit(&clone->hydration_pool);
 	dm_kcopyd_client_destroy(clone->kcopyd_client);
+	cancel_delayed_work_sync(&clone->waker);
 	destroy_workqueue(clone->wq);
 	hash_table_exit(clone);
 	dm_clone_metadata_close(clone->cmd);

@@ -131,21 +131,13 @@ additionalProperties: false
 
 examples:
   - |
-    usb-glue@65b00000 {
-        compatible = "socionext,uniphier-ld20-dwc3-glue",
-                     "simple-mfd";
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges = <0 0x65b00000 0x400>;
-
-        usb_ssphy0: ss-phy@300 {
-            compatible = "socionext,uniphier-ld20-usb3-ssphy";
-            reg = <0x300 0x10>;
-            #phy-cells = <0>;
-            clock-names = "link", "phy";
-            clocks = <&sys_clk 14>, <&sys_clk 16>;
-            reset-names = "link", "phy";
-            resets = <&sys_rst 14>, <&sys_rst 16>;
-            vbus-supply = <&usb_vbus0>;
-        };
+    usb_ssphy0: phy@300 {
+        compatible = "socionext,uniphier-ld20-usb3-ssphy";
+        reg = <0x300 0x10>;
+        #phy-cells = <0>;
+        clock-names = "link", "phy";
+        clocks = <&sys_clk 14>, <&sys_clk 16>;
+        reset-names = "link", "phy";
+        resets = <&sys_rst 14>, <&sys_rst 16>;
+        vbus-supply = <&usb_vbus0>;
     };

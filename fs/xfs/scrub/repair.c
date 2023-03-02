@@ -61,7 +61,6 @@ xrep_attempt(
 		sc->flags |= XREP_ALREADY_FIXED;
 		return -EAGAIN;
 	case -EDEADLOCK:
-	case -EAGAIN:
 		/* Tell the caller to try again having grabbed all the locks. */
 		if (!(sc->flags & XCHK_TRY_HARDER)) {
 			sc->flags |= XCHK_TRY_HARDER;
@@ -70,10 +69,15 @@ xrep_attempt(
 		/*
 		 * We tried harder but still couldn't grab all the resources
 		 * we needed to fix it.  The corruption has not been fixed,
-		 * so report back to userspace.
+		 * so exit to userspace with the scan's output flags unchanged.
 		 */
-		return -EFSCORRUPTED;
+		return 0;
 	default:
+		/*
+		 * EAGAIN tells the caller to re-scrub, so we cannot return
+		 * that here.
+		 */
+		ASSERT(error != -EAGAIN);
 		return error;
 	}
 }
@@ -121,32 +125,40 @@ xrep_roll_ag_trans(
 {
 	int			error;
 
-	/* Keep the AG header buffers locked so we can keep going. */
-	if (sc->sa.agi_bp)
+	/*
+	 * Keep the AG header buffers locked while we roll the transaction.
+	 * Ensure that both AG buffers are dirty and held when we roll the
+	 * transaction so that they move forward in the log without losing the
+	 * bli (and hence the bli type) when the transaction commits.
+	 *
+	 * Normal code would never hold clean buffers across a roll, but repair
+	 * needs both buffers to maintain a total lock on the AG.
+	 */
+	if (sc->sa.agi_bp) {
+		xfs_ialloc_log_agi(sc->tp, sc->sa.agi_bp, XFS_AGI_MAGICNUM);
 		xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
-	if (sc->sa.agf_bp)
+	}
+
+	if (sc->sa.agf_bp) {
+		xfs_alloc_log_agf(sc->tp, sc->sa.agf_bp, XFS_AGF_MAGICNUM);
 		xfs_trans_bhold(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bhold(sc->tp, sc->sa.agfl_bp);
+	}
 
 	/*
-	 * Roll the transaction.  We still own the buffer and the buffer lock
-	 * regardless of whether or not the roll succeeds.  If the roll fails,
-	 * the buffers will be released during teardown on our way out of the
-	 * kernel.  If it succeeds, we join them to the new transaction and
-	 * move on.
+	 * Roll the transaction.  We still hold the AG header buffers locked
+	 * regardless of whether or not that succeeds.  On failure, the buffers
+	 * will be released during teardown on our way out of the kernel.  If
+	 * successful, join the buffers to the new transaction and move on.
 	 */
 	error = xfs_trans_roll(&sc->tp);
 	if (error)
 		return error;
 
-	/* Join AG headers to the new transaction. */
+	/* Join the AG headers to the new transaction. */
 	if (sc->sa.agi_bp)
 		xfs_trans_bjoin(sc->tp, sc->sa.agi_bp);
 	if (sc->sa.agf_bp)
 		xfs_trans_bjoin(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bjoin(sc->tp, sc->sa.agfl_bp);
 
 	return 0;
 }
@@ -194,7 +206,7 @@ xrep_calc_ag_resblks(
 		return 0;
 
 	pag = xfs_perag_get(mp, sm->sm_agno);
-	if (pag->pagi_init) {
+	if (xfs_perag_initialised_agi(pag)) {
 		/* Use in-core icount if possible. */
 		icount = pag->pagi_count;
 	} else {
@@ -314,15 +326,14 @@ xrep_alloc_ag_block(
 
 	args.tp = sc->tp;
 	args.mp = sc->mp;
+	args.pag = sc->sa.pag;
 	args.oinfo = *oinfo;
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, sc->sa.pag->pag_agno, 0);
 	args.minlen = 1;
 	args.maxlen = 1;
 	args.prod = 1;
-	args.type = XFS_ALLOCTYPE_THIS_AG;
 	args.resv = resv;
 
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_this_ag(&args, sc->sa.pag->pag_agno);
 	if (error)
 		return error;
 	if (args.fsbno == NULLFSBLOCK)
@@ -498,6 +509,7 @@ xrep_put_freelist(
 	struct xfs_scrub	*sc,
 	xfs_agblock_t		agbno)
 {
+	struct xfs_buf		*agfl_bp;
 	int			error;
 
 	/* Make sure there's space on the freelist. */
@@ -516,8 +528,12 @@ xrep_put_freelist(
 		return error;
 
 	/* Put the block on the AGFL. */
+	error = xfs_alloc_read_agfl(sc->sa.pag, sc->tp, &agfl_bp);
+	if (error)
+		return error;
+
 	error = xfs_alloc_put_freelist(sc->sa.pag, sc->tp, sc->sa.agf_bp,
-			sc->sa.agfl_bp, agbno, 0);
+			agfl_bp, agbno, 0);
 	if (error)
 		return error;
 	xfs_extent_busy_insert(sc->tp, sc->sa.pag, agbno, 1,

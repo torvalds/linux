@@ -418,7 +418,7 @@ int mlx5r_umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 }
 
 #define MLX5_MAX_UMR_CHUNK                                                     \
-	((1 << (MLX5_MAX_UMR_SHIFT + 4)) - MLX5_UMR_MTT_ALIGNMENT)
+	((1 << (MLX5_MAX_UMR_SHIFT + 4)) - MLX5_UMR_FLEX_ALIGNMENT)
 #define MLX5_SPARE_UMR_CHUNK 0x10000
 
 /*
@@ -428,11 +428,11 @@ int mlx5r_umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
  */
 static void *mlx5r_umr_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 {
-	const size_t xlt_chunk_align = MLX5_UMR_MTT_ALIGNMENT / ent_size;
+	const size_t xlt_chunk_align = MLX5_UMR_FLEX_ALIGNMENT / ent_size;
 	size_t size;
 	void *res = NULL;
 
-	static_assert(PAGE_SIZE % MLX5_UMR_MTT_ALIGNMENT == 0);
+	static_assert(PAGE_SIZE % MLX5_UMR_FLEX_ALIGNMENT == 0);
 
 	/*
 	 * MLX5_IB_UPD_XLT_ATOMIC doesn't signal an atomic context just that the
@@ -636,9 +636,7 @@ int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 	mlx5r_umr_set_update_xlt_data_seg(&wqe.data_seg, &sg);
 
 	cur_mtt = mtt;
-	rdma_for_each_block(mr->umem->sgt_append.sgt.sgl, &biter,
-			    mr->umem->sgt_append.sgt.nents,
-			    BIT(mr->page_shift)) {
+	rdma_umem_for_each_dma_block(mr->umem, &biter, BIT(mr->page_shift)) {
 		if (cur_mtt == (void *)mtt + sg.length) {
 			dma_sync_single_for_device(ddev, sg.addr, sg.length,
 						   DMA_TO_DEVICE);
@@ -666,7 +664,7 @@ int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 	}
 
 	final_size = (void *)cur_mtt - (void *)mtt;
-	sg.length = ALIGN(final_size, MLX5_UMR_MTT_ALIGNMENT);
+	sg.length = ALIGN(final_size, MLX5_UMR_FLEX_ALIGNMENT);
 	memset(cur_mtt, 0, sg.length - final_size);
 	mlx5r_umr_final_update_xlt(dev, &wqe, mr, &sg, flags);
 
@@ -690,7 +688,7 @@ int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	int desc_size = (flags & MLX5_IB_UPD_XLT_INDIRECT)
 			       ? sizeof(struct mlx5_klm)
 			       : sizeof(struct mlx5_mtt);
-	const int page_align = MLX5_UMR_MTT_ALIGNMENT / desc_size;
+	const int page_align = MLX5_UMR_FLEX_ALIGNMENT / desc_size;
 	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
 	struct device *ddev = &dev->mdev->pdev->dev;
 	const int page_mask = page_align - 1;
@@ -711,7 +709,7 @@ int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	if (WARN_ON(!mr->umem->is_odp))
 		return -EINVAL;
 
-	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes,
+	/* UMR copies MTTs in units of MLX5_UMR_FLEX_ALIGNMENT bytes,
 	 * so we need to align the offset and length accordingly
 	 */
 	if (idx & page_mask) {
@@ -748,7 +746,7 @@ int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		mlx5_odp_populate_xlt(xlt, idx, npages, mr, flags);
 		dma_sync_single_for_device(ddev, sg.addr, sg.length,
 					   DMA_TO_DEVICE);
-		sg.length = ALIGN(size_to_map, MLX5_UMR_MTT_ALIGNMENT);
+		sg.length = ALIGN(size_to_map, MLX5_UMR_FLEX_ALIGNMENT);
 
 		if (pages_mapped + pages_iter >= pages_to_map)
 			mlx5r_umr_final_update_xlt(dev, &wqe, mr, &sg, flags);

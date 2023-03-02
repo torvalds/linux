@@ -50,6 +50,7 @@
 #include <sound/intel-dsp-config.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/apple-gmux.h>
 #include <linux/firmware.h>
 #include <sound/hda_codec.h>
 #include "hda_controller.h"
@@ -119,6 +120,7 @@ static bool beep_mode[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] =
 					CONFIG_SND_HDA_INPUT_BEEP_MODE};
 #endif
 static bool dmic_detect = 1;
+static bool ctl_dev_id = IS_ENABLED(CONFIG_SND_HDA_CTL_DEV_ID) ? 1 : 0;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -157,6 +159,8 @@ module_param(dmic_detect, bool, 0444);
 MODULE_PARM_DESC(dmic_detect, "Allow DSP driver selection (bypass this driver) "
 			     "(0=off, 1=on) (default=1); "
 		 "deprecated, use snd-intel-dspcfg.dsp_driver option instead");
+module_param(ctl_dev_id, bool, 0444);
+MODULE_PARM_DESC(ctl_dev_id, "Use control device identifier (based on codec address).");
 
 #ifdef CONFIG_PM
 static int param_set_xint(const char *val, const struct kernel_param *kp);
@@ -485,8 +489,8 @@ static int intel_ml_lctl_set_power(struct azx *chip, int state)
 	int timeout;
 
 	/*
-	 * the codecs are sharing the first link setting by default
-	 * If other links are enabled for stream, they need similar fix
+	 * Changes to LCTL.SCF are only needed for the first multi-link dealing
+	 * with external codecs
 	 */
 	val = readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
 	val &= ~AZX_ML_LCTL_SPA;
@@ -513,7 +517,7 @@ static void intel_init_lctl(struct azx *chip)
 
 	/* 0. check lctl register value is correct or not */
 	val = readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
-	/* if SCF is already set, let's use it */
+	/* only perform additional configurations if the SCF is initially based on 6MHz */
 	if ((val & AZX_ML_LCTL_SCF) != 0)
 		return;
 
@@ -531,7 +535,7 @@ static void intel_init_lctl(struct azx *chip)
 	if (ret)
 		goto set_spa;
 
-	/* 2. update SCF to select a properly audio clock*/
+	/* 2. update SCF to select an audio clock different from 6MHz */
 	val &= ~AZX_ML_LCTL_SCF;
 	val |= intel_get_lctl_scf(chip);
 	writel(val, bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
@@ -1463,7 +1467,7 @@ static struct pci_dev *get_bound_vga(struct pci_dev *pci)
 				 * vgaswitcheroo.
 				 */
 				if (((p->class >> 16) == PCI_BASE_CLASS_DISPLAY) &&
-				    atpx_present())
+				    (atpx_present() || apple_gmux_detect(NULL, NULL)))
 					return p;
 				pci_dev_put(p);
 			}
@@ -2278,6 +2282,8 @@ static int azx_probe_continue(struct azx *chip)
 	chip->beep_mode = beep_mode[dev];
 #endif
 
+	chip->ctl_dev_id = ctl_dev_id;
+
 	/* create codec instances */
 	if (bus->codec_mask) {
 		err = azx_probe_codecs(chip, azx_max_codecs[chip->driver_type]);
@@ -2709,6 +2715,9 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
 	  AZX_DCAPS_PM_RUNTIME },
 	{ PCI_DEVICE(0x1002, 0xab28),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
+	  AZX_DCAPS_PM_RUNTIME },
+	{ PCI_DEVICE(0x1002, 0xab30),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
 	  AZX_DCAPS_PM_RUNTIME },
 	{ PCI_DEVICE(0x1002, 0xab38),

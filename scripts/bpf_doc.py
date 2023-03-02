@@ -97,6 +97,7 @@ class HeaderParser(object):
         self.desc_unique_helpers = set()
         self.define_unique_helpers = []
         self.helper_enum_vals = {}
+        self.helper_enum_pos = {}
         self.desc_syscalls = []
         self.enum_syscalls = []
 
@@ -253,54 +254,71 @@ class HeaderParser(object):
                 break
 
     def parse_define_helpers(self):
-        # Parse FN(...) in #define __BPF_FUNC_MAPPER to compare later with the
+        # Parse FN(...) in #define ___BPF_FUNC_MAPPER to compare later with the
         # number of unique function names present in description and use the
         # correct enumeration value.
         # Note: seek_to(..) discards the first line below the target search text,
-        # resulting in FN(unspec) being skipped and not added to self.define_unique_helpers.
-        self.seek_to('#define __BPF_FUNC_MAPPER(FN)',
+        # resulting in FN(unspec, 0, ##ctx) being skipped and not added to
+        # self.define_unique_helpers.
+        self.seek_to('#define ___BPF_FUNC_MAPPER(FN, ctx...)',
                      'Could not find start of eBPF helper definition list')
         # Searches for one FN(\w+) define or a backslash for newline
-        p = re.compile('\s*FN\((\w+)\)|\\\\')
+        p = re.compile('\s*FN\((\w+), (\d+), ##ctx\)|\\\\')
         fn_defines_str = ''
-        i = 1  # 'unspec' is skipped as mentioned above
+        i = 0
         while True:
             capture = p.match(self.line)
             if capture:
                 fn_defines_str += self.line
-                self.helper_enum_vals[capture.expand(r'bpf_\1')] = i
+                helper_name = capture.expand(r'bpf_\1')
+                self.helper_enum_vals[helper_name] = int(capture.group(2))
+                self.helper_enum_pos[helper_name] = i
                 i += 1
             else:
                 break
             self.line = self.reader.readline()
         # Find the number of occurences of FN(\w+)
-        self.define_unique_helpers = re.findall('FN\(\w+\)', fn_defines_str)
+        self.define_unique_helpers = re.findall('FN\(\w+, \d+, ##ctx\)', fn_defines_str)
 
-    def assign_helper_values(self):
+    def validate_helpers(self):
+        last_helper = ''
         seen_helpers = set()
+        seen_enum_vals = set()
+        i = 0
         for helper in self.helpers:
             proto = helper.proto_break_down()
             name = proto['name']
             try:
                 enum_val = self.helper_enum_vals[name]
+                enum_pos = self.helper_enum_pos[name]
             except KeyError:
                 raise Exception("Helper %s is missing from enum bpf_func_id" % name)
 
+            if name in seen_helpers:
+                if last_helper != name:
+                    raise Exception("Helper %s has multiple descriptions which are not grouped together" % name)
+                continue
+
             # Enforce current practice of having the descriptions ordered
             # by enum value.
+            if enum_pos != i:
+                raise Exception("Helper %s (ID %d) comment order (#%d) must be aligned with its position (#%d) in enum bpf_func_id" % (name, enum_val, i + 1, enum_pos + 1))
+            if enum_val in seen_enum_vals:
+                raise Exception("Helper %s has duplicated value %d" % (name, enum_val))
+
             seen_helpers.add(name)
-            desc_val = len(seen_helpers)
-            if desc_val != enum_val:
-                raise Exception("Helper %s comment order (#%d) must be aligned with its position (#%d) in enum bpf_func_id" % (name, desc_val, enum_val))
+            last_helper = name
+            seen_enum_vals.add(enum_val)
 
             helper.enum_val = enum_val
+            i += 1
 
     def run(self):
         self.parse_desc_syscall()
         self.parse_enum_syscall()
         self.parse_desc_helpers()
         self.parse_define_helpers()
-        self.assign_helper_values()
+        self.validate_helpers()
         self.reader.close()
 
 ###############################################################################
@@ -423,7 +441,7 @@ class PrinterHelpersRST(PrinterRST):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
-        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '__BPF_FUNC_MAPPER')
+        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '___BPF_FUNC_MAPPER')
 
     def print_header(self):
         header = '''\
@@ -636,7 +654,7 @@ class PrinterHelpers(Printer):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
-        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '__BPF_FUNC_MAPPER')
+        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '___BPF_FUNC_MAPPER')
 
     type_fwds = [
             'struct bpf_fib_lookup',
@@ -667,6 +685,7 @@ class PrinterHelpers(Printer):
             'struct udp6_sock',
             'struct unix_sock',
             'struct task_struct',
+            'struct cgroup',
 
             'struct __sk_buff',
             'struct sk_msg_md',
@@ -724,6 +743,7 @@ class PrinterHelpers(Printer):
             'struct udp6_sock',
             'struct unix_sock',
             'struct task_struct',
+            'struct cgroup',
             'struct path',
             'struct btf_ptr',
             'struct inode',
@@ -732,6 +752,7 @@ class PrinterHelpers(Printer):
             'struct bpf_timer',
             'struct mptcp_sock',
             'struct bpf_dynptr',
+            'const struct bpf_dynptr',
             'struct iphdr',
             'struct ipv6hdr',
     }

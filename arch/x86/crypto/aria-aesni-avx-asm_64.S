@@ -7,12 +7,9 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
+#include <asm/asm-offsets.h>
 #include <asm/frame.h>
-
-/* struct aria_ctx: */
-#define enc_key 0
-#define dec_key 272
-#define rounds 544
 
 /* register macros */
 #define CTX %rdi
@@ -270,34 +267,44 @@
 
 #define aria_ark_8way(x0, x1, x2, x3,			\
 		      x4, x5, x6, x7,			\
-		      t0, rk, idx, round)		\
+		      t0, t1, t2, rk,			\
+		      idx, round)			\
 	/* AddRoundKey */                               \
-	vpbroadcastb ((round * 16) + idx + 3)(rk), t0;	\
-	vpxor t0, x0, x0;				\
-	vpbroadcastb ((round * 16) + idx + 2)(rk), t0;	\
-	vpxor t0, x1, x1;				\
-	vpbroadcastb ((round * 16) + idx + 1)(rk), t0;	\
-	vpxor t0, x2, x2;				\
-	vpbroadcastb ((round * 16) + idx + 0)(rk), t0;	\
-	vpxor t0, x3, x3;				\
-	vpbroadcastb ((round * 16) + idx + 7)(rk), t0;	\
-	vpxor t0, x4, x4;				\
-	vpbroadcastb ((round * 16) + idx + 6)(rk), t0;	\
-	vpxor t0, x5, x5;				\
-	vpbroadcastb ((round * 16) + idx + 5)(rk), t0;	\
-	vpxor t0, x6, x6;				\
-	vpbroadcastb ((round * 16) + idx + 4)(rk), t0;	\
-	vpxor t0, x7, x7;
+	vbroadcastss ((round * 16) + idx + 0)(rk), t0;	\
+	vpsrld $24, t0, t2;				\
+	vpshufb t1, t2, t2;				\
+	vpxor t2, x0, x0;				\
+	vpsrld $16, t0, t2;				\
+	vpshufb t1, t2, t2;				\
+	vpxor t2, x1, x1;				\
+	vpsrld $8, t0, t2;				\
+	vpshufb t1, t2, t2;				\
+	vpxor t2, x2, x2;				\
+	vpshufb t1, t0, t2;				\
+	vpxor t2, x3, x3;				\
+	vbroadcastss ((round * 16) + idx + 4)(rk), t0;	\
+	vpsrld $24, t0, t2;				\
+	vpshufb t1, t2, t2;				\
+	vpxor t2, x4, x4;				\
+	vpsrld $16, t0, t2;				\
+	vpshufb t1, t2, t2;				\
+	vpxor t2, x5, x5;				\
+	vpsrld $8, t0, t2;				\
+	vpshufb t1, t2, t2;				\
+	vpxor t2, x6, x6;				\
+	vpshufb t1, t0, t2;				\
+	vpxor t2, x7, x7;
 
+#ifdef CONFIG_AS_GFNI
 #define aria_sbox_8way_gfni(x0, x1, x2, x3,		\
 			    x4, x5, x6, x7,		\
 			    t0, t1, t2, t3,		\
 			    t4, t5, t6, t7)		\
-	vpbroadcastq .Ltf_s2_bitmatrix, t0;		\
-	vpbroadcastq .Ltf_inv_bitmatrix, t1;		\
-	vpbroadcastq .Ltf_id_bitmatrix, t2;		\
-	vpbroadcastq .Ltf_aff_bitmatrix, t3;		\
-	vpbroadcastq .Ltf_x2_bitmatrix, t4;		\
+	vmovdqa .Ltf_s2_bitmatrix, t0;			\
+	vmovdqa .Ltf_inv_bitmatrix, t1;			\
+	vmovdqa .Ltf_id_bitmatrix, t2;			\
+	vmovdqa .Ltf_aff_bitmatrix, t3;			\
+	vmovdqa .Ltf_x2_bitmatrix, t4;			\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x1, x1;	\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x5, x5;	\
 	vgf2p8affineqb $(tf_inv_const), t1, x2, x2;	\
@@ -311,14 +318,15 @@
 	vgf2p8affineinvqb $0, t2, x3, x3;		\
 	vgf2p8affineinvqb $0, t2, x7, x7
 
+#endif /* CONFIG_AS_GFNI */
+
 #define aria_sbox_8way(x0, x1, x2, x3,            	\
 		       x4, x5, x6, x7,			\
 		       t0, t1, t2, t3,			\
 		       t4, t5, t6, t7)			\
-	vpxor t7, t7, t7;				\
 	vmovdqa .Linv_shift_row, t0;			\
 	vmovdqa .Lshift_row, t1;			\
-	vpbroadcastd .L0f0f0f0f, t6;			\
+	vbroadcastss .L0f0f0f0f, t6;			\
 	vmovdqa .Ltf_lo__inv_aff__and__s2, t2;		\
 	vmovdqa .Ltf_hi__inv_aff__and__s2, t3;		\
 	vmovdqa .Ltf_lo__x2__and__fwd_aff, t4;		\
@@ -413,8 +421,9 @@
 		y0, y1, y2, y3,				\
 		y4, y5, y6, y7,				\
 		mem_tmp, rk, round)			\
+	vpxor y7, y7, y7;				\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, round);		\
+		      y0, y7, y2, rk, 8, round);	\
 							\
 	aria_sbox_8way(x2, x3, x0, x1, x6, x7, x4, x5,	\
 		       y0, y1, y2, y3, y4, y5, y6, y7);	\
@@ -429,7 +438,7 @@
 			     x4, x5, x6, x7,		\
 			     mem_tmp, 0);		\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, round);		\
+		      y0, y7, y2, rk, 0, round);	\
 							\
 	aria_sbox_8way(x2, x3, x0, x1, x6, x7, x4, x5,	\
 		       y0, y1, y2, y3, y4, y5, y6, y7);	\
@@ -467,8 +476,9 @@
 		y0, y1, y2, y3,				\
 		y4, y5, y6, y7,				\
 		mem_tmp, rk, round)			\
+	vpxor y7, y7, y7;				\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, round);		\
+		      y0, y7, y2, rk, 8, round);	\
 							\
 	aria_sbox_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
 		       y0, y1, y2, y3, y4, y5, y6, y7);	\
@@ -483,7 +493,7 @@
 			     x4, x5, x6, x7,		\
 			     mem_tmp, 0);		\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, round);		\
+		      y0, y7, y2, rk, 0, round);	\
 							\
 	aria_sbox_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
 		       y0, y1, y2, y3, y4, y5, y6, y7);	\
@@ -521,14 +531,15 @@
 		y0, y1, y2, y3,				\
 		y4, y5, y6, y7,				\
 		mem_tmp, rk, round, last_round)		\
+	vpxor y7, y7, y7;				\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, round);		\
+		      y0, y7, y2, rk, 8, round);	\
 							\
 	aria_sbox_8way(x2, x3, x0, x1, x6, x7, x4, x5,	\
 		       y0, y1, y2, y3, y4, y5, y6, y7);	\
 							\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, last_round);		\
+		      y0, y7, y2, rk, 8, last_round);	\
 							\
 	aria_store_state_8way(x0, x1, x2, x3,		\
 			      x4, x5, x6, x7,		\
@@ -538,25 +549,27 @@
 			     x4, x5, x6, x7,		\
 			     mem_tmp, 0);		\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, round);		\
+		      y0, y7, y2, rk, 0, round);	\
 							\
 	aria_sbox_8way(x2, x3, x0, x1, x6, x7, x4, x5,	\
 		       y0, y1, y2, y3, y4, y5, y6, y7);	\
 							\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, last_round);		\
+		      y0, y7, y2, rk, 0, last_round);	\
 							\
 	aria_load_state_8way(y0, y1, y2, y3,		\
 			     y4, y5, y6, y7,		\
 			     mem_tmp, 8);
 
+#ifdef CONFIG_AS_GFNI
 #define aria_fe_gfni(x0, x1, x2, x3,			\
 		     x4, x5, x6, x7,			\
 		     y0, y1, y2, y3,			\
 		     y4, y5, y6, y7,			\
 		     mem_tmp, rk, round)		\
+	vpxor y7, y7, y7;				\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, round);		\
+		      y0, y7, y2, rk, 8, round);	\
 							\
 	aria_sbox_8way_gfni(x2, x3, x0, x1, 		\
 			    x6, x7, x4, x5,		\
@@ -573,7 +586,7 @@
 			     x4, x5, x6, x7,		\
 			     mem_tmp, 0);		\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, round);		\
+		      y0, y7, y2, rk, 0, round);	\
 							\
 	aria_sbox_8way_gfni(x2, x3, x0, x1, 		\
 			    x6, x7, x4, x5,		\
@@ -613,8 +626,9 @@
 		     y0, y1, y2, y3,			\
 		     y4, y5, y6, y7,			\
 		     mem_tmp, rk, round)		\
+	vpxor y7, y7, y7;				\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, round);		\
+		      y0, y7, y2, rk, 8, round);	\
 							\
 	aria_sbox_8way_gfni(x0, x1, x2, x3, 		\
 			    x4, x5, x6, x7,		\
@@ -631,7 +645,7 @@
 			     x4, x5, x6, x7,		\
 			     mem_tmp, 0);		\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, round);		\
+		      y0, y7, y2, rk, 0, round);	\
 							\
 	aria_sbox_8way_gfni(x0, x1, x2, x3, 		\
 			    x4, x5, x6, x7,		\
@@ -671,8 +685,9 @@
 		y0, y1, y2, y3,				\
 		y4, y5, y6, y7,				\
 		mem_tmp, rk, round, last_round)		\
+	vpxor y7, y7, y7;				\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, round);		\
+		      y0, y7, y2, rk, 8, round);	\
 							\
 	aria_sbox_8way_gfni(x2, x3, x0, x1, 		\
 			    x6, x7, x4, x5,		\
@@ -680,7 +695,7 @@
 			    y4, y5, y6, y7);		\
 							\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 8, last_round);		\
+		      y0, y7, y2, rk, 8, last_round);	\
 							\
 	aria_store_state_8way(x0, x1, x2, x3,		\
 			      x4, x5, x6, x7,		\
@@ -690,7 +705,7 @@
 			     x4, x5, x6, x7,		\
 			     mem_tmp, 0);		\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, round);		\
+		      y0, y7, y2, rk, 0, round);	\
 							\
 	aria_sbox_8way_gfni(x2, x3, x0, x1, 		\
 			    x6, x7, x4, x5,		\
@@ -698,11 +713,13 @@
 			    y4, y5, y6, y7);		\
 							\
 	aria_ark_8way(x0, x1, x2, x3, x4, x5, x6, x7,	\
-		      y0, rk, 0, last_round);		\
+		      y0, y7, y2, rk, 0, last_round);	\
 							\
 	aria_load_state_8way(y0, y1, y2, y3,		\
 			     y4, y5, y6, y7,		\
 			     mem_tmp, 8);
+
+#endif /* CONFIG_AS_GFNI */
 
 /* NB: section is mergeable, all elements must be aligned 16-byte blocks */
 .section	.rodata.cst16, "aM", @progbits, 16
@@ -755,11 +772,20 @@
 .Ltf_hi__x2__and__fwd_aff:
 	.octa 0x3F893781E95FE1576CDA64D2BA0CB204
 
+#ifdef CONFIG_AS_GFNI
 .section	.rodata.cst8, "aM", @progbits, 8
 .align 8
 /* AES affine: */
 #define tf_aff_const BV8(1, 1, 0, 0, 0, 1, 1, 0)
 .Ltf_aff_bitmatrix:
+	.quad BM8X8(BV8(1, 0, 0, 0, 1, 1, 1, 1),
+		    BV8(1, 1, 0, 0, 0, 1, 1, 1),
+		    BV8(1, 1, 1, 0, 0, 0, 1, 1),
+		    BV8(1, 1, 1, 1, 0, 0, 0, 1),
+		    BV8(1, 1, 1, 1, 1, 0, 0, 0),
+		    BV8(0, 1, 1, 1, 1, 1, 0, 0),
+		    BV8(0, 0, 1, 1, 1, 1, 1, 0),
+		    BV8(0, 0, 0, 1, 1, 1, 1, 1))
 	.quad BM8X8(BV8(1, 0, 0, 0, 1, 1, 1, 1),
 		    BV8(1, 1, 0, 0, 0, 1, 1, 1),
 		    BV8(1, 1, 1, 0, 0, 0, 1, 1),
@@ -780,10 +806,26 @@
 		    BV8(0, 0, 1, 0, 1, 0, 0, 1),
 		    BV8(1, 0, 0, 1, 0, 1, 0, 0),
 		    BV8(0, 1, 0, 0, 1, 0, 1, 0))
+	.quad BM8X8(BV8(0, 0, 1, 0, 0, 1, 0, 1),
+		    BV8(1, 0, 0, 1, 0, 0, 1, 0),
+		    BV8(0, 1, 0, 0, 1, 0, 0, 1),
+		    BV8(1, 0, 1, 0, 0, 1, 0, 0),
+		    BV8(0, 1, 0, 1, 0, 0, 1, 0),
+		    BV8(0, 0, 1, 0, 1, 0, 0, 1),
+		    BV8(1, 0, 0, 1, 0, 1, 0, 0),
+		    BV8(0, 1, 0, 0, 1, 0, 1, 0))
 
 /* S2: */
 #define tf_s2_const BV8(0, 1, 0, 0, 0, 1, 1, 1)
 .Ltf_s2_bitmatrix:
+	.quad BM8X8(BV8(0, 1, 0, 1, 0, 1, 1, 1),
+		    BV8(0, 0, 1, 1, 1, 1, 1, 1),
+		    BV8(1, 1, 1, 0, 1, 1, 0, 1),
+		    BV8(1, 1, 0, 0, 0, 0, 1, 1),
+		    BV8(0, 1, 0, 0, 0, 0, 1, 1),
+		    BV8(1, 1, 0, 0, 1, 1, 1, 0),
+		    BV8(0, 1, 1, 0, 0, 0, 1, 1),
+		    BV8(1, 1, 1, 1, 0, 1, 1, 0))
 	.quad BM8X8(BV8(0, 1, 0, 1, 0, 1, 1, 1),
 		    BV8(0, 0, 1, 1, 1, 1, 1, 1),
 		    BV8(1, 1, 1, 0, 1, 1, 0, 1),
@@ -804,6 +846,14 @@
 		    BV8(0, 1, 1, 0, 1, 0, 1, 1),
 		    BV8(1, 0, 1, 1, 1, 1, 0, 1),
 		    BV8(1, 0, 0, 1, 0, 0, 1, 1))
+	.quad BM8X8(BV8(0, 0, 0, 1, 1, 0, 0, 0),
+		    BV8(0, 0, 1, 0, 0, 1, 1, 0),
+		    BV8(0, 0, 0, 0, 1, 0, 1, 0),
+		    BV8(1, 1, 1, 0, 0, 0, 1, 1),
+		    BV8(1, 1, 1, 0, 1, 1, 0, 0),
+		    BV8(0, 1, 1, 0, 1, 0, 1, 1),
+		    BV8(1, 0, 1, 1, 1, 1, 0, 1),
+		    BV8(1, 0, 0, 1, 0, 0, 1, 1))
 
 /* Identity matrix: */
 .Ltf_id_bitmatrix:
@@ -815,6 +865,15 @@
 		    BV8(0, 0, 0, 0, 0, 1, 0, 0),
 		    BV8(0, 0, 0, 0, 0, 0, 1, 0),
 		    BV8(0, 0, 0, 0, 0, 0, 0, 1))
+	.quad BM8X8(BV8(1, 0, 0, 0, 0, 0, 0, 0),
+		    BV8(0, 1, 0, 0, 0, 0, 0, 0),
+		    BV8(0, 0, 1, 0, 0, 0, 0, 0),
+		    BV8(0, 0, 0, 1, 0, 0, 0, 0),
+		    BV8(0, 0, 0, 0, 1, 0, 0, 0),
+		    BV8(0, 0, 0, 0, 0, 1, 0, 0),
+		    BV8(0, 0, 0, 0, 0, 0, 1, 0),
+		    BV8(0, 0, 0, 0, 0, 0, 0, 1))
+#endif /* CONFIG_AS_GFNI */
 
 /* 4-bit mask */
 .section	.rodata.cst4.L0f0f0f0f, "aM", @progbits, 4
@@ -873,7 +932,7 @@ SYM_FUNC_START_LOCAL(__aria_aesni_avx_crypt_16way)
 	aria_fo(%xmm9, %xmm8, %xmm11, %xmm10, %xmm12, %xmm13, %xmm14, %xmm15,
 		%xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7,
 		%rax, %r9, 10);
-	cmpl $12, rounds(CTX);
+	cmpl $12, ARIA_CTX_rounds(CTX);
 	jne .Laria_192;
 	aria_ff(%xmm1, %xmm0, %xmm3, %xmm2, %xmm4, %xmm5, %xmm6, %xmm7,
 		%xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14,
@@ -886,7 +945,7 @@ SYM_FUNC_START_LOCAL(__aria_aesni_avx_crypt_16way)
 	aria_fo(%xmm9, %xmm8, %xmm11, %xmm10, %xmm12, %xmm13, %xmm14, %xmm15,
 		%xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7,
 		%rax, %r9, 12);
-	cmpl $14, rounds(CTX);
+	cmpl $14, ARIA_CTX_rounds(CTX);
 	jne .Laria_256;
 	aria_ff(%xmm1, %xmm0, %xmm3, %xmm2, %xmm4, %xmm5, %xmm6, %xmm7,
 		%xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14,
@@ -913,7 +972,7 @@ SYM_FUNC_START_LOCAL(__aria_aesni_avx_crypt_16way)
 	RET;
 SYM_FUNC_END(__aria_aesni_avx_crypt_16way)
 
-SYM_FUNC_START(aria_aesni_avx_encrypt_16way)
+SYM_TYPED_FUNC_START(aria_aesni_avx_encrypt_16way)
 	/* input:
 	*      %rdi: ctx, CTX
 	*      %rsi: dst
@@ -922,7 +981,7 @@ SYM_FUNC_START(aria_aesni_avx_encrypt_16way)
 
 	FRAME_BEGIN
 
-	leaq enc_key(CTX), %r9;
+	leaq ARIA_CTX_enc_key(CTX), %r9;
 
 	inpack16_pre(%xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7,
 		     %xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14,
@@ -938,7 +997,7 @@ SYM_FUNC_START(aria_aesni_avx_encrypt_16way)
 	RET;
 SYM_FUNC_END(aria_aesni_avx_encrypt_16way)
 
-SYM_FUNC_START(aria_aesni_avx_decrypt_16way)
+SYM_TYPED_FUNC_START(aria_aesni_avx_decrypt_16way)
 	/* input:
 	*      %rdi: ctx, CTX
 	*      %rsi: dst
@@ -947,7 +1006,7 @@ SYM_FUNC_START(aria_aesni_avx_decrypt_16way)
 
 	FRAME_BEGIN
 
-	leaq dec_key(CTX), %r9;
+	leaq ARIA_CTX_dec_key(CTX), %r9;
 
 	inpack16_pre(%xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7,
 		     %xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14,
@@ -1039,7 +1098,7 @@ SYM_FUNC_START_LOCAL(__aria_aesni_avx_ctr_gen_keystream_16way)
 	RET;
 SYM_FUNC_END(__aria_aesni_avx_ctr_gen_keystream_16way)
 
-SYM_FUNC_START(aria_aesni_avx_ctr_crypt_16way)
+SYM_TYPED_FUNC_START(aria_aesni_avx_ctr_crypt_16way)
 	/* input:
 	*      %rdi: ctx
 	*      %rsi: dst
@@ -1055,7 +1114,7 @@ SYM_FUNC_START(aria_aesni_avx_ctr_crypt_16way)
 	leaq (%rdx), %r11;
 	leaq (%rcx), %rsi;
 	leaq (%rcx), %rdx;
-	leaq enc_key(CTX), %r9;
+	leaq ARIA_CTX_enc_key(CTX), %r9;
 
 	call __aria_aesni_avx_crypt_16way;
 
@@ -1083,6 +1142,7 @@ SYM_FUNC_START(aria_aesni_avx_ctr_crypt_16way)
 	RET;
 SYM_FUNC_END(aria_aesni_avx_ctr_crypt_16way)
 
+#ifdef CONFIG_AS_GFNI
 SYM_FUNC_START_LOCAL(__aria_aesni_avx_gfni_crypt_16way)
 	/* input:
 	*      %r9: rk
@@ -1156,7 +1216,7 @@ SYM_FUNC_START_LOCAL(__aria_aesni_avx_gfni_crypt_16way)
 		     %xmm0, %xmm1, %xmm2, %xmm3,
 		     %xmm4, %xmm5, %xmm6, %xmm7,
 		     %rax, %r9, 10);
-	cmpl $12, rounds(CTX);
+	cmpl $12, ARIA_CTX_rounds(CTX);
 	jne .Laria_gfni_192;
 	aria_ff_gfni(%xmm1, %xmm0, %xmm3, %xmm2, %xmm4, %xmm5, %xmm6, %xmm7,
 		%xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14,
@@ -1173,7 +1233,7 @@ SYM_FUNC_START_LOCAL(__aria_aesni_avx_gfni_crypt_16way)
 		     %xmm0, %xmm1, %xmm2, %xmm3,
 		     %xmm4, %xmm5, %xmm6, %xmm7,
 		     %rax, %r9, 12);
-	cmpl $14, rounds(CTX);
+	cmpl $14, ARIA_CTX_rounds(CTX);
 	jne .Laria_gfni_256;
 	aria_ff_gfni(%xmm1, %xmm0, %xmm3, %xmm2,
 		     %xmm4, %xmm5, %xmm6, %xmm7,
@@ -1208,7 +1268,7 @@ SYM_FUNC_START_LOCAL(__aria_aesni_avx_gfni_crypt_16way)
 	RET;
 SYM_FUNC_END(__aria_aesni_avx_gfni_crypt_16way)
 
-SYM_FUNC_START(aria_aesni_avx_gfni_encrypt_16way)
+SYM_TYPED_FUNC_START(aria_aesni_avx_gfni_encrypt_16way)
 	/* input:
 	*      %rdi: ctx, CTX
 	*      %rsi: dst
@@ -1217,7 +1277,7 @@ SYM_FUNC_START(aria_aesni_avx_gfni_encrypt_16way)
 
 	FRAME_BEGIN
 
-	leaq enc_key(CTX), %r9;
+	leaq ARIA_CTX_enc_key(CTX), %r9;
 
 	inpack16_pre(%xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7,
 		     %xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14,
@@ -1233,7 +1293,7 @@ SYM_FUNC_START(aria_aesni_avx_gfni_encrypt_16way)
 	RET;
 SYM_FUNC_END(aria_aesni_avx_gfni_encrypt_16way)
 
-SYM_FUNC_START(aria_aesni_avx_gfni_decrypt_16way)
+SYM_TYPED_FUNC_START(aria_aesni_avx_gfni_decrypt_16way)
 	/* input:
 	*      %rdi: ctx, CTX
 	*      %rsi: dst
@@ -1242,7 +1302,7 @@ SYM_FUNC_START(aria_aesni_avx_gfni_decrypt_16way)
 
 	FRAME_BEGIN
 
-	leaq dec_key(CTX), %r9;
+	leaq ARIA_CTX_dec_key(CTX), %r9;
 
 	inpack16_pre(%xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7,
 		     %xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14,
@@ -1258,7 +1318,7 @@ SYM_FUNC_START(aria_aesni_avx_gfni_decrypt_16way)
 	RET;
 SYM_FUNC_END(aria_aesni_avx_gfni_decrypt_16way)
 
-SYM_FUNC_START(aria_aesni_avx_gfni_ctr_crypt_16way)
+SYM_TYPED_FUNC_START(aria_aesni_avx_gfni_ctr_crypt_16way)
 	/* input:
 	*      %rdi: ctx
 	*      %rsi: dst
@@ -1274,7 +1334,7 @@ SYM_FUNC_START(aria_aesni_avx_gfni_ctr_crypt_16way)
 	leaq (%rdx), %r11;
 	leaq (%rcx), %rsi;
 	leaq (%rcx), %rdx;
-	leaq enc_key(CTX), %r9;
+	leaq ARIA_CTX_enc_key(CTX), %r9;
 
 	call __aria_aesni_avx_gfni_crypt_16way;
 
@@ -1301,3 +1361,4 @@ SYM_FUNC_START(aria_aesni_avx_gfni_ctr_crypt_16way)
 	FRAME_END
 	RET;
 SYM_FUNC_END(aria_aesni_avx_gfni_ctr_crypt_16way)
+#endif /* CONFIG_AS_GFNI */

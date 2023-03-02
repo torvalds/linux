@@ -130,6 +130,9 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 
 		ipc4_data->mtrace_type = SOF_IPC4_MTRACE_INTEL_CAVS_2;
 
+		/* External library loading support */
+		ipc4_data->load_library = hda_dsp_ipc4_load_library;
+
 		/* doorbell */
 		sof_icl_ops.irq_thread	= cnl_ipc4_irq_thread;
 
@@ -177,6 +180,9 @@ const struct sof_intel_dsp_desc icl_chip_info = {
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 	.sdw_shim_base = SDW_SHIM_BASE,
 	.sdw_alh_base = SDW_ALH_BASE,
+	.d0i3_offset = SOF_HDA_VS_D0I3C,
+	.read_sdw_lcount =  hda_sdw_check_lcount_common,
+	.enable_sdw_irq	= hda_common_enable_sdw_irq,
 	.check_sdw_irq	= hda_common_check_sdw_irq,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
 	.cl_init = cl_dsp_init,

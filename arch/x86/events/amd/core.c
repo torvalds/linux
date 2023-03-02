@@ -861,8 +861,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs)
 	pmu_enabled = cpuc->enabled;
 	cpuc->enabled = 0;
 
-	/* stop everything (includes BRS) */
-	amd_pmu_disable_all();
+	amd_brs_disable_all();
 
 	/* Drain BRS is in use (could be inactive) */
 	if (cpuc->lbr_users)
@@ -873,7 +872,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs)
 
 	cpuc->enabled = pmu_enabled;
 	if (pmu_enabled)
-		amd_pmu_enable_all(0);
+		amd_brs_enable_all();
 
 	return amd_pmu_adjust_nmi_window(handled);
 }
@@ -929,10 +928,8 @@ static int amd_pmu_v2_handle_irq(struct pt_regs *regs)
 		if (!x86_perf_event_set_period(event))
 			continue;
 
-		if (has_branch_stack(event)) {
-			data.br_stack = &cpuc->lbr_stack;
-			data.sample_flags |= PERF_SAMPLE_BRANCH_STACK;
-		}
+		if (has_branch_stack(event))
+			perf_sample_save_brstack(&data, event, &cpuc->lbr_stack);
 
 		if (perf_event_overflow(event, &data, regs))
 			x86_pmu_stop(event, 0);
@@ -1388,7 +1385,7 @@ static int __init amd_core_pmu_init(void)
 		 * numbered counter following it.
 		 */
 		for (i = 0; i < x86_pmu.num_counters - 1; i += 2)
-			even_ctr_mask |= 1 << i;
+			even_ctr_mask |= BIT_ULL(i);
 
 		pair_constraint = (struct event_constraint)
 				    __EVENT_CONSTRAINT(0, even_ctr_mask, 0,

@@ -50,8 +50,7 @@
 #include "dpcd_defs.h"
 #include "../dcn20/dcn20_hwseq.h"
 #include "dcn30_resource.h"
-#include "inc/dc_link_dp.h"
-#include "inc/link_dpcd.h"
+#include "link.h"
 
 
 
@@ -91,8 +90,8 @@ bool dcn30_set_blend_lut(
 	return result;
 }
 
-static bool dcn30_set_mpc_shaper_3dlut(
-	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)
+static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
+				       const struct dc_stream_state *stream)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
@@ -104,19 +103,18 @@ static bool dcn30_set_mpc_shaper_3dlut(
 	const struct pwl_params *shaper_lut = NULL;
 	//get the shaper lut params
 	if (stream->func_shaper) {
-		if (stream->func_shaper->type == TF_TYPE_HWPWL)
+		if (stream->func_shaper->type == TF_TYPE_HWPWL) {
 			shaper_lut = &stream->func_shaper->pwl;
-		else if (stream->func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(
-					stream->func_shaper,
-					&dpp_base->shaper_params, true);
+		} else if (stream->func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
+			cm_helper_translate_curve_to_hw_format(stream->func_shaper,
+							       &dpp_base->shaper_params, true);
 			shaper_lut = &dpp_base->shaper_params;
 		}
 	}
 
 	if (stream->lut3d_func &&
-		stream->lut3d_func->state.bits.initialized == 1 &&
-		stream->lut3d_func->state.bits.rmu_idx_valid == 1) {
+	    stream->lut3d_func->state.bits.initialized == 1 &&
+	    stream->lut3d_func->state.bits.rmu_idx_valid == 1) {
 		if (stream->lut3d_func->state.bits.rmu_mux_num == 0)
 			mpcc_id_projected = stream->lut3d_func->state.bits.mpc_rmu0_mux;
 		else if (stream->lut3d_func->state.bits.rmu_mux_num == 1)
@@ -125,20 +123,22 @@ static bool dcn30_set_mpc_shaper_3dlut(
 			mpcc_id_projected = stream->lut3d_func->state.bits.mpc_rmu2_mux;
 		if (mpcc_id_projected != mpcc_id)
 			BREAK_TO_DEBUGGER();
-		/*find the reason why logical layer assigned a differant mpcc_id into acquire_post_bldn_3dlut*/
+		/* find the reason why logical layer assigned a different
+		 * mpcc_id into acquire_post_bldn_3dlut
+		 */
 		acquired_rmu = mpc->funcs->acquire_rmu(mpc, mpcc_id,
-				stream->lut3d_func->state.bits.rmu_mux_num);
+						       stream->lut3d_func->state.bits.rmu_mux_num);
 		if (acquired_rmu != stream->lut3d_func->state.bits.rmu_mux_num)
 			BREAK_TO_DEBUGGER();
-		result = mpc->funcs->program_3dlut(mpc,
-								&stream->lut3d_func->lut_3d,
-								stream->lut3d_func->state.bits.rmu_mux_num);
-		result = mpc->funcs->program_shaper(mpc, shaper_lut,
-				stream->lut3d_func->state.bits.rmu_mux_num);
-	} else
-		/*loop through the available mux and release the requested mpcc_id*/
-		mpc->funcs->release_rmu(mpc, mpcc_id);
 
+		result = mpc->funcs->program_3dlut(mpc, &stream->lut3d_func->lut_3d,
+						   stream->lut3d_func->state.bits.rmu_mux_num);
+		result = mpc->funcs->program_shaper(mpc, shaper_lut,
+						    stream->lut3d_func->state.bits.rmu_mux_num);
+	} else {
+		// loop through the available mux and release the requested mpcc_id
+		mpc->funcs->release_rmu(mpc, mpcc_id);
+	}
 
 	return result;
 }
@@ -540,7 +540,7 @@ void dcn30_init_hw(struct dc *dc)
 			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
 
 	/* we want to turn off all dp displays before doing detection */
-	dc_link_blank_all_dp_displays(dc);
+	link_blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -675,10 +675,16 @@ void dcn30_update_info_frame(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
-	else
+	else {
+		if (pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num)
+			pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num(
+				pipe_ctx->stream_res.stream_enc,
+				&pipe_ctx->stream_res.encoder_info_frame);
+
 		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
+	}
 }
 
 void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
@@ -992,8 +998,5 @@ void dcn30_prepare_bandwidth(struct dc *dc,
 			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
 
 	dcn20_prepare_bandwidth(dc, context);
-
-	dc_dmub_srv_p_state_delegate(dc,
-		context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching, context);
 }
 

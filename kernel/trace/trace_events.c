@@ -114,7 +114,7 @@ trace_find_event_field(struct trace_event_call *call, char *name)
 
 static int __trace_define_field(struct list_head *head, const char *type,
 				const char *name, int offset, int size,
-				int is_signed, int filter_type)
+				int is_signed, int filter_type, int len)
 {
 	struct ftrace_event_field *field;
 
@@ -133,6 +133,7 @@ static int __trace_define_field(struct list_head *head, const char *type,
 	field->offset = offset;
 	field->size = size;
 	field->is_signed = is_signed;
+	field->len = len;
 
 	list_add(&field->link, head);
 
@@ -150,14 +151,28 @@ int trace_define_field(struct trace_event_call *call, const char *type,
 
 	head = trace_get_fields(call);
 	return __trace_define_field(head, type, name, offset, size,
-				    is_signed, filter_type);
+				    is_signed, filter_type, 0);
 }
 EXPORT_SYMBOL_GPL(trace_define_field);
+
+static int trace_define_field_ext(struct trace_event_call *call, const char *type,
+		       const char *name, int offset, int size, int is_signed,
+		       int filter_type, int len)
+{
+	struct list_head *head;
+
+	if (WARN_ON(!call->class))
+		return 0;
+
+	head = trace_get_fields(call);
+	return __trace_define_field(head, type, name, offset, size,
+				    is_signed, filter_type, len);
+}
 
 #define __generic_field(type, item, filter_type)			\
 	ret = __trace_define_field(&ftrace_generic_fields, #type,	\
 				   #item, 0, 0, is_signed_type(type),	\
-				   filter_type);			\
+				   filter_type, 0);			\
 	if (ret)							\
 		return ret;
 
@@ -166,7 +181,7 @@ EXPORT_SYMBOL_GPL(trace_define_field);
 				   "common_" #item,			\
 				   offsetof(typeof(ent), item),		\
 				   sizeof(ent.item),			\
-				   is_signed_type(type), FILTER_OTHER);	\
+				   is_signed_type(type), FILTER_OTHER, 0);	\
 	if (ret)							\
 		return ret;
 
@@ -1588,12 +1603,17 @@ static int f_show(struct seq_file *m, void *v)
 		seq_printf(m, "\tfield:%s %s;\toffset:%u;\tsize:%u;\tsigned:%d;\n",
 			   field->type, field->name, field->offset,
 			   field->size, !!field->is_signed);
-	else
-		seq_printf(m, "\tfield:%.*s %s%s;\toffset:%u;\tsize:%u;\tsigned:%d;\n",
+	else if (field->len)
+		seq_printf(m, "\tfield:%.*s %s[%d];\toffset:%u;\tsize:%u;\tsigned:%d;\n",
 			   (int)(array_descriptor - field->type),
 			   field->type, field->name,
-			   array_descriptor, field->offset,
+			   field->len, field->offset,
 			   field->size, !!field->is_signed);
+	else
+		seq_printf(m, "\tfield:%.*s %s[];\toffset:%u;\tsize:%u;\tsigned:%d;\n",
+				(int)(array_descriptor - field->type),
+				field->type, field->name,
+				field->offset, field->size, !!field->is_signed);
 
 	return 0;
 }
@@ -2261,8 +2281,6 @@ create_new_subsystem(const char *name)
 	if (!system->name)
 		goto out_free;
 
-	system->filter = NULL;
-
 	system->filter = kzalloc(sizeof(struct event_filter), GFP_KERNEL);
 	if (!system->filter)
 		goto out_free;
@@ -2379,9 +2397,10 @@ event_define_fields(struct trace_event_call *call)
 			}
 
 			offset = ALIGN(offset, field->align);
-			ret = trace_define_field(call, field->type, field->name,
+			ret = trace_define_field_ext(call, field->type, field->name,
 						 offset, field->size,
-						 field->is_signed, field->filter_type);
+						 field->is_signed, field->filter_type,
+						 field->len);
 			if (WARN_ON_ONCE(ret)) {
 				pr_err("error code is %d\n", ret);
 				break;
@@ -2796,6 +2815,42 @@ trace_create_new_event(struct trace_event_call *call,
 	return file;
 }
 
+#define MAX_BOOT_TRIGGERS 32
+
+static struct boot_triggers {
+	const char		*event;
+	char			*trigger;
+} bootup_triggers[MAX_BOOT_TRIGGERS];
+
+static char bootup_trigger_buf[COMMAND_LINE_SIZE];
+static int nr_boot_triggers;
+
+static __init int setup_trace_triggers(char *str)
+{
+	char *trigger;
+	char *buf;
+	int i;
+
+	strlcpy(bootup_trigger_buf, str, COMMAND_LINE_SIZE);
+	ring_buffer_expanded = true;
+	disable_tracing_selftest("running event triggers");
+
+	buf = bootup_trigger_buf;
+	for (i = 0; i < MAX_BOOT_TRIGGERS; i++) {
+		trigger = strsep(&buf, ",");
+		if (!trigger)
+			break;
+		bootup_triggers[i].event = strsep(&trigger, ".");
+		bootup_triggers[i].trigger = trigger;
+		if (!bootup_triggers[i].trigger)
+			break;
+	}
+
+	nr_boot_triggers = i;
+	return 1;
+}
+__setup("trace_trigger=", setup_trace_triggers);
+
 /* Add an event to a trace directory */
 static int
 __trace_add_new_event(struct trace_event_call *call, struct trace_array *tr)
@@ -2812,6 +2867,24 @@ __trace_add_new_event(struct trace_event_call *call, struct trace_array *tr)
 		return event_define_fields(call);
 }
 
+static void trace_early_triggers(struct trace_event_file *file, const char *name)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < nr_boot_triggers; i++) {
+		if (strcmp(name, bootup_triggers[i].event))
+			continue;
+		mutex_lock(&event_mutex);
+		ret = trigger_process_regex(file, bootup_triggers[i].trigger);
+		mutex_unlock(&event_mutex);
+		if (ret)
+			pr_err("Failed to register trigger '%s' on event %s\n",
+			       bootup_triggers[i].trigger,
+			       bootup_triggers[i].event);
+	}
+}
+
 /*
  * Just create a descriptor for early init. A descriptor is required
  * for enabling events at boot. We want to enable events before
@@ -2822,12 +2895,19 @@ __trace_early_add_new_event(struct trace_event_call *call,
 			    struct trace_array *tr)
 {
 	struct trace_event_file *file;
+	int ret;
 
 	file = trace_create_new_event(call, tr);
 	if (!file)
 		return -ENOMEM;
 
-	return event_define_fields(call);
+	ret = event_define_fields(call);
+	if (ret)
+		return ret;
+
+	trace_early_triggers(file, trace_event_name(call));
+
+	return 0;
 }
 
 struct ftrace_module_file_ops;
@@ -2880,7 +2960,10 @@ static int probe_remove_event_call(struct trace_event_call *call)
 		 * TRACE_REG_UNREGISTER.
 		 */
 		if (file->flags & EVENT_FILE_FL_ENABLED)
-			return -EBUSY;
+			goto busy;
+
+		if (file->flags & EVENT_FILE_FL_WAS_ENABLED)
+			tr->clear_trace = true;
 		/*
 		 * The do_for_each_event_file_safe() is
 		 * a double loop. After finding the call for this
@@ -2893,6 +2976,12 @@ static int probe_remove_event_call(struct trace_event_call *call)
 	__trace_remove_event_call(call);
 
 	return 0;
+ busy:
+	/* No need to clear the trace now */
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		tr->clear_trace = false;
+	}
+	return -EBUSY;
 }
 
 /* Remove an event_call */
@@ -2972,7 +3061,7 @@ static void trace_module_remove_events(struct module *mod)
 	 * over from this module may be passed to the new module events and
 	 * unexpected results may occur.
 	 */
-	tracing_reset_all_online_cpus();
+	tracing_reset_all_online_cpus_unlocked();
 }
 
 static int trace_module_notify(struct notifier_block *self,
@@ -3680,10 +3769,9 @@ static __init int event_trace_memsetup(void)
 	return 0;
 }
 
-static __init void
-early_enable_events(struct trace_array *tr, bool disable_first)
+__init void
+early_enable_events(struct trace_array *tr, char *buf, bool disable_first)
 {
-	char *buf = bootup_event_buf;
 	char *token;
 	int ret;
 
@@ -3726,6 +3814,8 @@ static __init int event_trace_enable(void)
 			list_add(&call->list, &ftrace_events);
 	}
 
+	register_trigger_cmds();
+
 	/*
 	 * We need the top trace array to have a working set of trace
 	 * points at early init, before the debug files and directories
@@ -3734,13 +3824,12 @@ static __init int event_trace_enable(void)
 	 */
 	__trace_early_add_events(tr);
 
-	early_enable_events(tr, false);
+	early_enable_events(tr, bootup_event_buf, false);
 
 	trace_printk_start_comm();
 
 	register_event_cmds();
 
-	register_trigger_cmds();
 
 	return 0;
 }
@@ -3763,7 +3852,7 @@ static __init int event_trace_enable_again(void)
 	if (!tr)
 		return -ENODEV;
 
-	early_enable_events(tr, true);
+	early_enable_events(tr, bootup_event_buf, true);
 
 	return 0;
 }

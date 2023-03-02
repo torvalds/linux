@@ -6,6 +6,7 @@
  *
  * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
@@ -196,7 +197,7 @@ static void sev_asid_free(struct kvm_sev_info *sev)
 	__set_bit(sev->asid, sev_reclaim_asid_bitmap);
 
 	for_each_possible_cpu(cpu) {
-		sd = per_cpu(svm_data, cpu);
+		sd = per_cpu_ptr(&svm_data, cpu);
 		sd->sev_vmcbs[sev->asid] = NULL;
 	}
 
@@ -465,9 +466,9 @@ static void sev_clflush_pages(struct page *pages[], unsigned long npages)
 		return;
 
 	for (i = 0; i < npages; i++) {
-		page_virtual = kmap_atomic(pages[i]);
+		page_virtual = kmap_local_page(pages[i]);
 		clflush_cache_range(page_virtual, PAGE_SIZE);
-		kunmap_atomic(page_virtual);
+		kunmap_local(page_virtual);
 		cond_resched();
 	}
 }
@@ -605,7 +606,7 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 	save->dr6  = svm->vcpu.arch.dr6;
 
 	pr_debug("Virtual Machine Save Area (VMSA):\n");
-	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 1, save, sizeof(*save), false);
+	print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1, save, sizeof(*save), false);
 
 	return 0;
 }
@@ -812,7 +813,7 @@ static int __sev_dbg_decrypt_user(struct kvm *kvm, unsigned long paddr,
 	if (!IS_ALIGNED(dst_paddr, 16) ||
 	    !IS_ALIGNED(paddr,     16) ||
 	    !IS_ALIGNED(size,      16)) {
-		tpage = (void *)alloc_page(GFP_KERNEL | __GFP_ZERO);
+		tpage = (void *)alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 		if (!tpage)
 			return -ENOMEM;
 
@@ -1293,7 +1294,7 @@ static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	/* Check if we are crossing the page boundary */
 	offset = params.guest_uaddr & (PAGE_SIZE - 1);
-	if ((params.guest_len + offset > PAGE_SIZE))
+	if (params.guest_len > PAGE_SIZE || (params.guest_len + offset) > PAGE_SIZE)
 		return -EINVAL;
 
 	/* Pin guest memory */
@@ -1473,7 +1474,7 @@ static int sev_receive_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	/* Check if we are crossing the page boundary */
 	offset = params.guest_uaddr & (PAGE_SIZE - 1);
-	if ((params.guest_len + offset > PAGE_SIZE))
+	if (params.guest_len > PAGE_SIZE || (params.guest_len + offset) > PAGE_SIZE)
 		return -EINVAL;
 
 	hdr = psp_copy_user_blob(params.hdr_uaddr, params.hdr_len);
@@ -2600,7 +2601,7 @@ void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 
 void pre_sev_run(struct vcpu_svm *svm, int cpu)
 {
-	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
 	int asid = sev_get_asid(svm->vcpu.kvm);
 
 	/* Assign the asid allocated with this SEV guest */
@@ -2648,7 +2649,7 @@ static int setup_vmgexit_scratch(struct vcpu_svm *svm, bool sync, u64 len)
 		ghcb_scratch_beg = control->ghcb_gpa +
 				   offsetof(struct ghcb, shared_buffer);
 		ghcb_scratch_end = control->ghcb_gpa +
-				   offsetof(struct ghcb, reserved_1);
+				   offsetof(struct ghcb, reserved_0xff0);
 
 		/*
 		 * If the scratch area begins within the GHCB, it must be

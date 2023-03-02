@@ -72,13 +72,18 @@ enum iwl_data_path_subcmd_ids {
 	SCD_QUEUE_CONFIG_CMD = 0x17,
 
 	/**
+	 * @SEC_KEY_CMD: security key command, uses &struct iwl_sec_key_cmd
+	 */
+	SEC_KEY_CMD = 0x18,
+
+	/**
 	 * @MONITOR_NOTIF: Datapath monitoring notification, using
 	 *	&struct iwl_datapath_monitor_notif
 	 */
 	MONITOR_NOTIF = 0xF4,
 
 	/**
-	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data
+	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data or &struct iwl_rx_no_data_ver_3
 	 */
 	RX_NO_DATA_NOTIF = 0xF5,
 
@@ -377,9 +382,11 @@ enum iwl_scd_queue_cfg_operation {
  * @u.add.cb_size: size code
  * @u.add.bc_dram_addr: byte-count table IOVA
  * @u.add.tfdq_dram_addr: TFD queue IOVA
- * @u.remove.queue: queue ID for removal
- * @u.modify.sta_mask: new station mask for modify
- * @u.modify.queue: queue ID to modify
+ * @u.remove.sta_mask: station mask of queue to remove
+ * @u.remove.tid: TID of queue to remove
+ * @u.modify.old_sta_mask: old station mask for modify
+ * @u.modify.tid: TID of queue to modify
+ * @u.modify.new_sta_mask: new station mask for modify
  */
 struct iwl_scd_queue_cfg_cmd {
 	__le32 operation;
@@ -394,13 +401,89 @@ struct iwl_scd_queue_cfg_cmd {
 			__le64 tfdq_dram_addr;
 		} __packed add; /* TX_QUEUE_CFG_CMD_ADD_API_S_VER_1 */
 		struct {
-			__le32 queue;
+			__le32 sta_mask;
+			__le32 tid;
 		} __packed remove; /* TX_QUEUE_CFG_CMD_REMOVE_API_S_VER_1 */
 		struct {
-			__le32 sta_mask;
-			__le32 queue;
+			__le32 old_sta_mask;
+			__le32 tid;
+			__le32 new_sta_mask;
 		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1 */
 	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1 */
 } __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3 */
+
+/**
+ * enum iwl_sec_key_flags - security key command key flags
+ * @IWL_SEC_KEY_FLAG_CIPHER_MASK: cipher mask
+ * @IWL_SEC_KEY_FLAG_CIPHER_WEP: WEP cipher
+ * @IWL_SEC_KEY_FLAG_CIPHER_CCMP: CCMP/CMAC cipher
+ * @IWL_SEC_KEY_FLAG_CIPHER_TKIP: TKIP cipher
+ * @IWL_SEC_KEY_FLAG_CIPHER_GCMP: GCMP/GMAC cipher
+ * @IWL_SEC_KEY_FLAG_NO_TX: don't install for TX
+ * @IWL_SEC_KEY_FLAG_KEY_SIZE: large key size (WEP-104, GCMP-256, GMAC-256)
+ * @IWL_SEC_KEY_FLAG_MFP: MFP is in used for this key
+ * @IWL_SEC_KEY_FLAG_MCAST_KEY: this is a multicast key
+ * @IWL_SEC_KEY_FLAG_SPP_AMSDU: SPP A-MSDU should be used
+ */
+enum iwl_sec_key_flags {
+	IWL_SEC_KEY_FLAG_CIPHER_MASK	= 0x07,
+	IWL_SEC_KEY_FLAG_CIPHER_WEP	= 0x01,
+	IWL_SEC_KEY_FLAG_CIPHER_CCMP	= 0x02,
+	IWL_SEC_KEY_FLAG_CIPHER_TKIP	= 0x03,
+	IWL_SEC_KEY_FLAG_CIPHER_GCMP	= 0x05,
+	IWL_SEC_KEY_FLAG_NO_TX		= 0x08,
+	IWL_SEC_KEY_FLAG_KEY_SIZE	= 0x10,
+	IWL_SEC_KEY_FLAG_MFP		= 0x20,
+	IWL_SEC_KEY_FLAG_MCAST_KEY	= 0x40,
+	IWL_SEC_KEY_FLAG_SPP_AMSDU	= 0x80,
+};
+
+#define IWL_SEC_WEP_KEY_OFFSET	3
+
+/**
+ * struct iwl_sec_key_cmd - security key command
+ * @action: action from &enum iwl_ctxt_action
+ * @u.add.sta_mask: station mask for the new key
+ * @u.add.key_id: key ID (0-7) for the new key
+ * @u.add.key_flags: key flags per &enum iwl_sec_key_flags
+ * @u.add.key: key material. WEP keys should start from &IWL_SEC_WEP_KEY_OFFSET.
+ * @u.add.tkip_mic_rx_key: TKIP MIC RX key
+ * @u.add.tkip_mic_tx_key: TKIP MIC TX key
+ * @u.add.rx_seq: RX sequence counter value
+ * @u.add.tx_seq: TX sequence counter value
+ * @u.modify.old_sta_mask: old station mask
+ * @u.modify.new_sta_mask: new station mask
+ * @u.modify.key_id: key ID
+ * @u.modify.key_flags: new key flags
+ * @u.remove.sta_mask: station mask
+ * @u.remove.key_id: key ID
+ * @u.remove.key_flags: key flags
+ */
+struct iwl_sec_key_cmd {
+	__le32 action;
+	union {
+		struct {
+			__le32 sta_mask;
+			__le32 key_id;
+			__le32 key_flags;
+			u8 key[32];
+			u8 tkip_mic_rx_key[8];
+			u8 tkip_mic_tx_key[8];
+			__le64 rx_seq;
+			__le64 tx_seq;
+		} __packed add; /* SEC_KEY_ADD_CMD_API_S_VER_1 */
+		struct {
+			__le32 old_sta_mask;
+			__le32 new_sta_mask;
+			__le32 key_id;
+			__le32 key_flags;
+		} __packed modify; /* SEC_KEY_MODIFY_CMD_API_S_VER_1 */
+		struct {
+			__le32 sta_mask;
+			__le32 key_id;
+			__le32 key_flags;
+		} __packed remove; /* SEC_KEY_REMOVE_CMD_API_S_VER_1 */
+	} __packed u; /* SEC_KEY_OPERATION_API_U_VER_1 */
+} __packed; /* SEC_KEY_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_datapath_h__ */

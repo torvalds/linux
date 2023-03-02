@@ -9,6 +9,7 @@
 #include <linux/bitmap.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/moduleparam.h>
 
 #include "internal.h"
@@ -197,7 +198,7 @@ static int param_set_trace_method_name(const char *val,
 
 static int param_get_trace_method_name(char *buffer, const struct kernel_param *kp)
 {
-	return scnprintf(buffer, PAGE_SIZE, "%s\n", acpi_gbl_trace_method_name);
+	return sysfs_emit(buffer, "%s\n", acpi_gbl_trace_method_name);
 }
 
 static const struct kernel_param_ops param_ops_trace_method = {
@@ -952,7 +953,7 @@ static struct attribute *hotplug_profile_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hotplug_profile);
 
-static struct kobj_type acpi_hotplug_profile_ktype = {
+static const struct kobj_type acpi_hotplug_profile_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = hotplug_profile_groups,
 };
@@ -992,7 +993,7 @@ static ssize_t force_remove_store(struct kobject *kobj,
 	bool val;
 	int ret;
 
-	ret = strtobool(buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret < 0)
 		return ret;
 

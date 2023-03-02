@@ -1,28 +1,28 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright(c) 2020 Intel Corporation.
- * Zhu YiXin <yixin.zhu@intel.com>
- * Rahul Tanwar <rahul.tanwar@intel.com>
+ * Copyright (C) 2020-2022 MaxLinear, Inc.
+ * Copyright (C) 2020 Intel Corporation.
+ * Zhu Yixin <yzhu@maxlinear.com>
+ * Rahul Tanwar <rtanwar@maxlinear.com>
  */
 
 #ifndef __CLK_CGU_H
 #define __CLK_CGU_H
 
-#include <linux/io.h>
+#include <linux/regmap.h>
 
 struct lgm_clk_mux {
 	struct clk_hw hw;
-	void __iomem *membase;
+	struct regmap *membase;
 	unsigned int reg;
 	u8 shift;
 	u8 width;
 	unsigned long flags;
-	spinlock_t lock;
 };
 
 struct lgm_clk_divider {
 	struct clk_hw hw;
-	void __iomem *membase;
+	struct regmap *membase;
 	unsigned int reg;
 	u8 shift;
 	u8 width;
@@ -30,12 +30,11 @@ struct lgm_clk_divider {
 	u8 width_gate;
 	unsigned long flags;
 	const struct clk_div_table *table;
-	spinlock_t lock;
 };
 
 struct lgm_clk_ddiv {
 	struct clk_hw hw;
-	void __iomem *membase;
+	struct regmap *membase;
 	unsigned int reg;
 	u8 shift0;
 	u8 width0;
@@ -48,16 +47,14 @@ struct lgm_clk_ddiv {
 	unsigned int mult;
 	unsigned int div;
 	unsigned long flags;
-	spinlock_t lock;
 };
 
 struct lgm_clk_gate {
 	struct clk_hw hw;
-	void __iomem *membase;
+	struct regmap *membase;
 	unsigned int reg;
 	u8 shift;
 	unsigned long flags;
-	spinlock_t lock;
 };
 
 enum lgm_clk_type {
@@ -77,11 +74,10 @@ enum lgm_clk_type {
  * @clk_data: array of hw clocks and clk number.
  */
 struct lgm_clk_provider {
-	void __iomem *membase;
+	struct regmap *membase;
 	struct device_node *np;
 	struct device *dev;
 	struct clk_hw_onecell_data clk_data;
-	spinlock_t lock;
 };
 
 enum pll_type {
@@ -92,11 +88,10 @@ enum pll_type {
 
 struct lgm_clk_pll {
 	struct clk_hw hw;
-	void __iomem *membase;
+	struct regmap *membase;
 	unsigned int reg;
 	unsigned long flags;
 	enum pll_type type;
-	spinlock_t lock;
 };
 
 /**
@@ -202,6 +197,8 @@ struct lgm_clk_branch {
 /* clock flags definition */
 #define CLOCK_FLAG_VAL_INIT	BIT(16)
 #define MUX_CLK_SW		BIT(17)
+#define GATE_CLK_HW		BIT(18)
+#define DIV_CLK_NO_MASK		BIT(19)
 
 #define LGM_MUX(_id, _name, _pdata, _f, _reg,		\
 		_shift, _width, _cf, _v)		\
@@ -300,28 +297,31 @@ struct lgm_clk_branch {
 		.div = _d,					\
 	}
 
-static inline void lgm_set_clk_val(void __iomem *membase, u32 reg,
+static inline void lgm_set_clk_val(struct regmap *membase, u32 reg,
 				   u8 shift, u8 width, u32 set_val)
 {
 	u32 mask = (GENMASK(width - 1, 0) << shift);
-	u32 regval;
 
-	regval = readl(membase + reg);
-	regval = (regval & ~mask) | ((set_val << shift) & mask);
-	writel(regval, membase + reg);
+	regmap_update_bits(membase, reg, mask, set_val << shift);
 }
 
-static inline u32 lgm_get_clk_val(void __iomem *membase, u32 reg,
+static inline u32 lgm_get_clk_val(struct regmap *membase, u32 reg,
 				  u8 shift, u8 width)
 {
 	u32 mask = (GENMASK(width - 1, 0) << shift);
 	u32 val;
 
-	val = readl(membase + reg);
+	if (regmap_read(membase, reg, &val)) {
+		WARN_ONCE(1, "Failed to read clk reg: 0x%x\n", reg);
+		return 0;
+	}
+
 	val = (val & mask) >> shift;
 
 	return val;
 }
+
+
 
 int lgm_clk_register_branches(struct lgm_clk_provider *ctx,
 			      const struct lgm_clk_branch *list,

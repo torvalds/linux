@@ -139,8 +139,8 @@
 		ranges = <0 0 0 0xffffffff>;
 
 		base_fpga_region {
-			#address-cells = <0x1>;
-			#size-cells = <0x1>;
+			#address-cells = <0x2>;
+			#size-cells = <0x2>;
 			compatible = "fpga-region";
 			fpga-mgr = <&fpga_mgr>;
 		};
@@ -313,6 +313,7 @@
 				 <&clkmgr AGILEX_SDMMC_CLK>;
 			clock-names = "biu", "ciu";
 			iommus = <&smmu 5>;
+			altr,sysmgr-syscon = <&sysmgr 0x28 4>;
 			status = "disabled";
 		};
 
@@ -354,6 +355,21 @@
 			reset-names = "dma", "dma-ocp";
 			clocks = <&clkmgr AGILEX_L4_MAIN_CLK>;
 			clock-names = "apb_pclk";
+		};
+
+		pinctrl0: pinctrl@ffd13000 {
+			compatible = "pinctrl-single";
+			#pinctrl-cells = <1>;
+			reg = <0xffd13000 0xa0>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0x0000000f>;
+		};
+
+		pinctrl1: pinconf@ffd13100 {
+			compatible = "pinctrl-single";
+			#pinctrl-cells = <1>;
+			reg = <0xffd13100 0x20>;
+			pinctrl-single,register-width = <32>;
 		};
 
 		rst: rstmgr@ffd11000 {

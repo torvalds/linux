@@ -17,14 +17,6 @@ struct ndis_802_11_ssid {
 	u8  Ssid[32];
 };
 
-enum NDIS_802_11_NETWORK_TYPE {
-	Ndis802_11FH,
-	Ndis802_11DS,
-	Ndis802_11OFDM5,
-	Ndis802_11OFDM24,
-	Ndis802_11NetworkTypeMax    /*  dummy upper bound */
-};
-
 struct ndis_802_11_config_fh {
 	u32           Length;		/*  Length of structure */
 	u32           HopPattern;	/*  As defined by 802.11, MSB set */
@@ -185,20 +177,6 @@ struct ndis_802_11_status_ind {
 /*  MIC check time, 60 seconds. */
 #define MIC_CHECK_TIME	60000000
 
-struct ndis_802_11_auth_evt {
-	struct ndis_802_11_status_ind       Status;
-	struct ndis_802_11_auth_req  Request[1];
-};
-
-struct ndis_802_11_test {
-	u32 Length;
-	u32 Type;
-	union {
-		struct ndis_802_11_auth_evt AuthenticationEvent;
-		NDIS_802_11_RSSI RssiTrigger;
-	} tt;
-};
-
 #ifndef Ndis802_11APMode
 #define Ndis802_11APMode (Ndis802_11InfrastructureMax+1)
 #endif
@@ -233,7 +211,6 @@ struct wlan_bssid_ex {
 	struct ndis_802_11_ssid  Ssid;
 	u32  Privacy;
 	NDIS_802_11_RSSI  Rssi;/* in dBM,raw data ,get from PHY) */
-	enum  NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
 	struct ndis_802_11_config  Configuration;
 	enum ndis_802_11_network_infra  InfrastructureMode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
@@ -287,34 +264,6 @@ enum UAPSD_MAX_SP {
 
 #define NUM_PRE_AUTH_KEY 16
 #define NUM_PMKID_CACHE NUM_PRE_AUTH_KEY
-
-/*
-*	WPA2
-*/
-
-struct pmkid_candidate {
-	unsigned char BSSID[ETH_ALEN];
-	u32 Flags;
-};
-
-struct ndis_802_11_pmkid_list {
-	u32 Version;       /*  Version of the structure */
-	u32 NumCandidates; /*  No. of pmkid candidates */
-	struct pmkid_candidate CandidateList[1];
-};
-
-struct ndis_802_11_auth_encrypt {
-	enum ndis_802_11_auth_mode AuthModeSupported;
-	enum ndis_802_11_wep_status EncryptStatusSupported;
-};
-
-struct ndis_802_11_cap {
-	u32  Length;
-	u32  Version;
-	u32  NoOfPMKIDs;
-	u32  NoOfAuthEncryptPairsSupported;
-	struct ndis_802_11_auth_encrypt AuthenticationEncryptionSupported[1];
-};
 
 u8 key_2char2num(u8 hch, u8 lch);
 u8 key_char2num(u8 ch);

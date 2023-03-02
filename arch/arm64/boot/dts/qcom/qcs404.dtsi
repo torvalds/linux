@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018, Linaro Limited
+/*
+ * Copyright (c) 2018, Linaro Limited
+ */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-qcs404.h>
@@ -221,13 +223,15 @@
 		qcom,rpm-msg-ram = <&rpm_msg_ram>;
 		mboxes = <&apcs_glb 0>;
 
-		rpm_requests: glink-channel {
+		rpm_requests: rpm-requests {
 			compatible = "qcom,rpm-qcs404";
 			qcom,glink-channels = "rpm_requests";
 
 			rpmcc: clock-controller {
 				compatible = "qcom,rpmcc-qcs404", "qcom,rpmcc";
 				#clock-cells = <1>;
+				clocks = <&xo_board>;
+				clock-names = "xo";
 			};
 
 			rpmpd: power-controller {
@@ -364,13 +368,126 @@
 			reg = <0x000a4000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			tsens_caldata: caldata@d0 {
-				reg = <0x1f8 0x14>;
-			};
 			cpr_efuse_speedbin: speedbin@13c {
 				reg = <0x13c 0x4>;
 				bits = <2 3>;
 			};
+
+			tsens_s0_p1: s0-p1@1f8 {
+				reg = <0x1f8 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s0_p2: s0-p2@1f8 {
+				reg = <0x1f8 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s1_p1: s1-p1@1f9 {
+				reg = <0x1f9 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s1_p2: s1-p2@1fa {
+				reg = <0x1fa 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s2_p1: s2-p1@1fb {
+				reg = <0x1fb 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s2_p2: s2-p2@1fb {
+				reg = <0x1fb 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s3_p1: s3-p1@1fc {
+				reg = <0x1fc 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s3_p2: s3-p2@1fd {
+				reg = <0x1fd 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s4_p1: s4-p1@1fe {
+				reg = <0x1fe 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s4_p2: s4-p2@1fe {
+				reg = <0x1fe 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s5_p1: s5-p1@200 {
+				reg = <0x200 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s5_p2: s5-p2@200 {
+				reg = <0x200 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s6_p1: s6-p1@201 {
+				reg = <0x201 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s6_p2: s6-p2@202 {
+				reg = <0x202 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s7_p1: s7-p1@203 {
+				reg = <0x203 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s7_p2: s7-p2@203 {
+				reg = <0x203 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_s8_p1: s8-p1@204 {
+				reg = <0x204 0x2>;
+				bits = <4 6>;
+			};
+
+			tsens_s8_p2: s8-p2@205 {
+				reg = <0x205 0x1>;
+				bits = <2 6>;
+			};
+
+			tsens_s9_p1: s9-p1@206 {
+				reg = <0x206 0x1>;
+				bits = <0 6>;
+			};
+
+			tsens_s9_p2: s9-p2@206 {
+				reg = <0x206 0x2>;
+				bits = <6 6>;
+			};
+
+			tsens_mode: mode@208 {
+				reg = <0x208 1>;
+				bits = <0 3>;
+			};
+
+			tsens_base1: base1@208 {
+				reg = <0x208 2>;
+				bits = <3 8>;
+			};
+
+			tsens_base2: base2@208 {
+				reg = <0x209 2>;
+				bits = <3 8>;
+			};
+
 			cpr_efuse_quot_offset1: qoffset1@231 {
 				reg = <0x231 0x4>;
 				bits = <4 7>;
@@ -445,8 +562,30 @@
 			compatible = "qcom,qcs404-tsens", "qcom,tsens-v1";
 			reg = <0x004a9000 0x1000>, /* TM */
 			      <0x004a8000 0x1000>; /* SROT */
-			nvmem-cells = <&tsens_caldata>;
-			nvmem-cell-names = "calib";
+			nvmem-cells = <&tsens_mode>,
+				      <&tsens_base1>, <&tsens_base2>,
+				      <&tsens_s0_p1>, <&tsens_s0_p2>,
+				      <&tsens_s1_p1>, <&tsens_s1_p2>,
+				      <&tsens_s2_p1>, <&tsens_s2_p2>,
+				      <&tsens_s3_p1>, <&tsens_s3_p2>,
+				      <&tsens_s4_p1>, <&tsens_s4_p2>,
+				      <&tsens_s5_p1>, <&tsens_s5_p2>,
+				      <&tsens_s6_p1>, <&tsens_s6_p2>,
+				      <&tsens_s7_p1>, <&tsens_s7_p2>,
+				      <&tsens_s8_p1>, <&tsens_s8_p2>,
+				      <&tsens_s9_p1>, <&tsens_s9_p2>;
+			nvmem-cell-names = "mode",
+					   "base1", "base2",
+					   "s0_p1", "s0_p2",
+					   "s1_p1", "s1_p2",
+					   "s2_p1", "s2_p2",
+					   "s3_p1", "s3_p2",
+					   "s4_p1", "s4_p2",
+					   "s5_p1", "s5_p2",
+					   "s6_p1", "s6_p2",
+					   "s7_p1", "s7_p2",
+					   "s8_p1", "s8_p2",
+					   "s9_p1", "s9_p2";
 			#qcom,sensors = <10>;
 			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "uplow";
@@ -483,27 +622,31 @@
 			interrupt-names = "wdog", "fatal", "ready",
 					  "handover", "stop-ack";
 
-			clocks = <&xo_board>,
-				 <&gcc GCC_CDSP_CFG_AHB_CLK>,
-				 <&gcc GCC_CDSP_TBU_CLK>,
-				 <&gcc GCC_BIMC_CDSP_CLK>,
-				 <&turingcc TURING_WRAPPER_AON_CLK>,
-				 <&turingcc TURING_Q6SS_AHBS_AON_CLK>,
-				 <&turingcc TURING_Q6SS_AHBM_AON_CLK>,
-				 <&turingcc TURING_Q6SS_Q6_AXIM_CLK>;
-			clock-names = "xo",
-				      "sway",
-				      "tbu",
-				      "bimc",
-				      "ahb_aon",
-				      "q6ss_slave",
-				      "q6ss_master",
-				      "q6_axim";
+			clocks = <&xo_board>;
+			clock-names = "xo";
 
-			resets = <&gcc GCC_CDSP_RESTART>;
-			reset-names = "restart";
-
-			qcom,halt-regs = <&tcsr 0x19004>;
+			/*
+			 * If the node was using the PIL binding, then include properties:
+			 * clocks = <&xo_board>,
+			 *          <&gcc GCC_CDSP_CFG_AHB_CLK>,
+			 *          <&gcc GCC_CDSP_TBU_CLK>,
+			 *          <&gcc GCC_BIMC_CDSP_CLK>,
+			 *          <&turingcc TURING_WRAPPER_AON_CLK>,
+			 *          <&turingcc TURING_Q6SS_AHBS_AON_CLK>,
+			 *          <&turingcc TURING_Q6SS_AHBM_AON_CLK>,
+			 *          <&turingcc TURING_Q6SS_Q6_AXIM_CLK>;
+			 * clock-names = "xo",
+			 *               "sway",
+			 *               "tbu",
+			 *               "bimc",
+			 *               "ahb_aon",
+			 *               "q6ss_slave",
+			 *               "q6ss_master",
+			 *               "q6_axim";
+			 * resets = <&gcc GCC_CDSP_RESTART>;
+			 * reset-names = "restart";
+			 * qcom,halt-regs = <&tcsr 0x19004>;
+			 */
 
 			memory-region = <&cdsp_fw_mem>;
 
@@ -593,118 +736,130 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			blsp1_i2c0_default: blsp1-i2c0-default {
+			blsp1_i2c0_default: blsp1-i2c0-default-state {
 				pins = "gpio32", "gpio33";
 				function = "blsp_i2c0";
 			};
 
-			blsp1_i2c1_default: blsp1-i2c1-default {
+			blsp1_i2c1_default: blsp1-i2c1-default-state {
 				pins = "gpio24", "gpio25";
 				function = "blsp_i2c1";
 			};
 
-			blsp1_i2c2_default: blsp1-i2c2-default {
-				sda {
+			blsp1_i2c2_default: blsp1-i2c2-default-state {
+				sda-pins {
 					pins = "gpio19";
 					function = "blsp_i2c_sda_a2";
 				};
 
-				scl {
+				scl-pins {
 					pins = "gpio20";
 					function = "blsp_i2c_scl_a2";
 				};
 			};
 
-			blsp1_i2c3_default: blsp1-i2c3-default {
+			blsp1_i2c3_default: blsp1-i2c3-default-state {
 				pins = "gpio84", "gpio85";
 				function = "blsp_i2c3";
 			};
 
-			blsp1_i2c4_default: blsp1-i2c4-default {
+			blsp1_i2c4_default: blsp1-i2c4-default-state {
 				pins = "gpio117", "gpio118";
 				function = "blsp_i2c4";
 			};
 
-			blsp1_uart0_default: blsp1-uart0-default {
+			blsp1_uart0_default: blsp1-uart0-default-state {
 				pins = "gpio30", "gpio31", "gpio32", "gpio33";
 				function = "blsp_uart0";
 			};
 
-			blsp1_uart1_default: blsp1-uart1-default {
+			blsp1_uart1_default: blsp1-uart1-default-state {
 				pins = "gpio22", "gpio23";
 				function = "blsp_uart1";
 			};
 
-			blsp1_uart2_default: blsp1-uart2-default {
-				rx {
+			blsp1_uart2_default: blsp1-uart2-default-state {
+				rx-pins {
 					pins = "gpio18";
 					function = "blsp_uart_rx_a2";
 				};
 
-				tx {
+				tx-pins {
 					pins = "gpio17";
 					function = "blsp_uart_tx_a2";
 				};
 			};
 
-			blsp1_uart3_default: blsp1-uart3-default {
-				pins = "gpio82", "gpio83", "gpio84", "gpio85";
-				function = "blsp_uart3";
+			blsp1_uart3_default: blsp1-uart3-default-state {
+				cts-pins {
+					pins = "gpio84";
+					function = "blsp_uart3";
+				};
+
+				rts-tx-pins {
+					pins = "gpio85", "gpio82";
+					function = "blsp_uart3";
+				};
+
+				rx-pins {
+					pins = "gpio83";
+					function = "blsp_uart3";
+				};
 			};
 
-			blsp2_i2c0_default: blsp2-i2c0-default {
+			blsp2_i2c0_default: blsp2-i2c0-default-state {
 				pins = "gpio28", "gpio29";
 				function = "blsp_i2c5";
 			};
 
-			blsp1_spi0_default: blsp1-spi0-default {
+			blsp1_spi0_default: blsp1-spi0-default-state {
 				pins = "gpio30", "gpio31", "gpio32", "gpio33";
 				function = "blsp_spi0";
 			};
 
-			blsp1_spi1_default: blsp1-spi1-default {
-				mosi {
+			blsp1_spi1_default: blsp1-spi1-default-state {
+				mosi-pins {
 					pins = "gpio22";
 					function = "blsp_spi_mosi_a1";
 				};
 
-				miso {
+				miso-pins {
 					pins = "gpio23";
 					function = "blsp_spi_miso_a1";
 				};
 
-				cs_n {
+				cs-n-pins {
 					pins = "gpio24";
 					function = "blsp_spi_cs_n_a1";
 				};
 
-				clk {
+				clk-pins {
 					pins = "gpio25";
 					function = "blsp_spi_clk_a1";
 				};
 			};
 
-			blsp1_spi2_default: blsp1-spi2-default {
+			blsp1_spi2_default: blsp1-spi2-default-state {
 				pins = "gpio17", "gpio18", "gpio19", "gpio20";
 				function = "blsp_spi2";
 			};
 
-			blsp1_spi3_default: blsp1-spi3-default {
+			blsp1_spi3_default: blsp1-spi3-default-state {
 				pins = "gpio82", "gpio83", "gpio84", "gpio85";
 				function = "blsp_spi3";
 			};
 
-			blsp1_spi4_default: blsp1-spi4-default {
+			blsp1_spi4_default: blsp1-spi4-default-state {
 				pins = "gpio37", "gpio38", "gpio117", "gpio118";
 				function = "blsp_spi4";
 			};
 
-			blsp2_spi0_default: blsp2-spi0-default {
+			blsp2_spi0_default: blsp2-spi0-default-state {
 				pins = "gpio26", "gpio27", "gpio28", "gpio29";
 				function = "blsp_spi5";
 			};
 
-			blsp2_uart0_default: blsp2-uart0-default {
+			blsp2_uart0_default: blsp2-uart0-default-state {
 				pins = "gpio26", "gpio27", "gpio28", "gpio29";
 				function = "blsp_uart5";
 			};
@@ -715,6 +870,14 @@
 			reg = <0x01800000 0x80000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+
+			clocks = <&xo_board>,
+				 <&sleep_clk>,
+				 <&pcie_phy>,
+				 <0>,
+				 <0>,
+				 <0>;
 
 			assigned-clocks = <&gcc GCC_APSS_AHB_CLK_SRC>;
 			assigned-clock-rates = <19200000>;
@@ -792,10 +955,11 @@
 
 			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 			resets = <&gcc GCC_PCIEPHY_0_PHY_BCR>,
-				 <&gcc 21>;
+				 <&gcc GCC_PCIE_0_PIPE_ARES>;
 			reset-names = "phy", "pipe";
 
 			clock-output-names = "pcie_0_pipe_clk";
+			#clock-cells = <0>;
 			#phy-cells = <0>;
 
 			status = "disabled";
@@ -1322,12 +1486,12 @@
 				 <&gcc GCC_PCIE_0_SLV_AXI_CLK>;
 			clock-names = "iface", "aux", "master_bus", "slave_bus";
 
-			resets = <&gcc 18>,
-				 <&gcc 17>,
-				 <&gcc 15>,
-				 <&gcc 19>,
+			resets = <&gcc GCC_PCIE_0_AXI_MASTER_ARES>,
+				 <&gcc GCC_PCIE_0_AXI_SLAVE_ARES>,
+				 <&gcc GCC_PCIE_0_AXI_MASTER_STICKY_ARES>,
+				 <&gcc GCC_PCIE_0_CORE_STICKY_ARES>,
 				 <&gcc GCC_PCIE_0_BCR>,
-				 <&gcc 16>;
+				 <&gcc GCC_PCIE_0_AHB_ARES>;
 			reset-names = "axi_m",
 				      "axi_s",
 				      "axi_m_sticky",
@@ -1488,7 +1652,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cluster_crit: cluster_crit {
+				cluster_crit: cluster-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1522,7 +1686,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu0_crit: cpu_crit {
+				cpu0_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1556,7 +1720,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu1_crit: cpu_crit {
+				cpu1_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1590,7 +1754,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu2_crit: cpu_crit {
+				cpu2_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -1624,7 +1788,7 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu3_crit: cpu_crit {
+				cpu3_crit: cpu-crit {
 					temperature = <120000>;
 					hysteresis = <2000>;
 					type = "critical";

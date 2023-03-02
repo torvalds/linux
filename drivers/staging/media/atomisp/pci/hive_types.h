@@ -42,7 +42,7 @@ typedef unsigned int hive_bool;
 #define hive_false 0
 #define hive_true  1
 
-typedef char                 hive_int8;
+typedef signed char          hive_int8;
 typedef short                hive_int16;
 typedef int                  hive_int32;
 typedef long long            hive_int64;

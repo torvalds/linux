@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/ti/k3.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments K3 Multicore SoC architecture device tree bindings
+title: Texas Instruments K3 Multicore SoC architecture
 
 maintainers:
   - Nishanth Menon <nm@ti.com>
@@ -38,10 +38,17 @@ properties:
               - ti,am642-sk
           - const: ti,am642
 
+      - description: K3 AM642 SoC PHYTEC phyBOARD-Electra
+        items:
+          - const: phytec,am642-phyboard-electra-rdk
+          - const: phytec,am64-phycore-som
+          - const: ti,am642
+
       - description: K3 AM654 SoC
         items:
           - enum:
               - siemens,iot2050-advanced
+              - siemens,iot2050-advanced-m2
               - siemens,iot2050-advanced-pg2
               - siemens,iot2050-basic
               - siemens,iot2050-basic-pg2
@@ -61,6 +68,7 @@ properties:
           - const: ti,j721e
           - items:
               - enum:
+                  - beagle,j721e-beagleboneai64
                   - ti,j721e-evm
                   - ti,j721e-sk
               - const: ti,j721e
@@ -68,8 +76,16 @@ properties:
       - description: K3 J721s2 SoC
         items:
           - enum:
+              - ti,am68-sk
               - ti,j721s2-evm
           - const: ti,j721s2
+
+      - description: K3 J784s4 SoC
+        items:
+          - enum:
+              - ti,am69-sk
+              - ti,j784s4-evm
+          - const: ti,j784s4
 
 additionalProperties: true
 

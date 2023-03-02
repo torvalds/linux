@@ -5,6 +5,7 @@
  */
 #include <linux/export.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/mm.h>
 #include <linux/backing-dev.h>
 #include <linux/hash.h>
@@ -1893,7 +1894,7 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 	/* Atime updates will likely cause i_uid and i_gid to be written
 	 * back improprely if their true value is unknown to the vfs.
 	 */
-	if (HAS_UNMAPPED_ID(mnt_user_ns(mnt), inode))
+	if (HAS_UNMAPPED_ID(mnt_idmap(mnt), inode))
 		return false;
 
 	if (IS_NOATIME(inode))
@@ -1949,40 +1950,12 @@ skip_update:
 EXPORT_SYMBOL(touch_atime);
 
 /*
- * The logic we want is
- *
- *	if suid or (sgid and xgrp)
- *		remove privs
- */
-int should_remove_suid(struct dentry *dentry)
-{
-	umode_t mode = d_inode(dentry)->i_mode;
-	int kill = 0;
-
-	/* suid always must be killed */
-	if (unlikely(mode & S_ISUID))
-		kill = ATTR_KILL_SUID;
-
-	/*
-	 * sgid without any exec bits is just a mandatory locking mark; leave
-	 * it alone.  If some exec bits are set, it's a real sgid; kill it.
-	 */
-	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
-		kill |= ATTR_KILL_SGID;
-
-	if (unlikely(kill && !capable(CAP_FSETID) && S_ISREG(mode)))
-		return kill;
-
-	return 0;
-}
-EXPORT_SYMBOL(should_remove_suid);
-
-/*
  * Return mask of changes for notify_change() that need to be done as a
  * response to write or truncate. Return 0 if nothing has to be changed.
  * Negative value on error (change should be denied).
  */
-int dentry_needs_remove_privs(struct dentry *dentry)
+int dentry_needs_remove_privs(struct mnt_idmap *idmap,
+			      struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 	int mask = 0;
@@ -1991,7 +1964,7 @@ int dentry_needs_remove_privs(struct dentry *dentry)
 	if (IS_NOSEC(inode))
 		return 0;
 
-	mask = should_remove_suid(dentry);
+	mask = setattr_should_drop_suidgid(idmap, inode);
 	ret = security_inode_need_killpriv(dentry);
 	if (ret < 0)
 		return ret;
@@ -2000,7 +1973,7 @@ int dentry_needs_remove_privs(struct dentry *dentry)
 	return mask;
 }
 
-static int __remove_privs(struct user_namespace *mnt_userns,
+static int __remove_privs(struct mnt_idmap *idmap,
 			  struct dentry *dentry, int kill)
 {
 	struct iattr newattrs;
@@ -2010,7 +1983,7 @@ static int __remove_privs(struct user_namespace *mnt_userns,
 	 * Note we call this on write, so notify_change will not
 	 * encounter any conflicting delegations:
 	 */
-	return notify_change(mnt_userns, dentry, &newattrs, NULL);
+	return notify_change(idmap, dentry, &newattrs, NULL);
 }
 
 static int __file_remove_privs(struct file *file, unsigned int flags)
@@ -2023,7 +1996,7 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
 	if (IS_NOSEC(inode) || !S_ISREG(inode->i_mode))
 		return 0;
 
-	kill = dentry_needs_remove_privs(dentry);
+	kill = dentry_needs_remove_privs(file_mnt_idmap(file), dentry);
 	if (kill < 0)
 		return kill;
 
@@ -2031,7 +2004,7 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
 		if (flags & IOCB_NOWAIT)
 			return -EAGAIN;
 
-		error = __remove_privs(file_mnt_user_ns(file), dentry, kill);
+		error = __remove_privs(file_mnt_idmap(file), dentry, kill);
 	}
 
 	if (!error)
@@ -2070,9 +2043,6 @@ static int inode_needs_update_time(struct inode *inode, struct timespec64 *now)
 
 	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
 		sync_it |= S_VERSION;
-
-	if (!sync_it)
-		return 0;
 
 	return sync_it;
 }
@@ -2310,21 +2280,21 @@ EXPORT_SYMBOL(init_special_inode);
 
 /**
  * inode_init_owner - Init uid,gid,mode for new inode according to posix standards
- * @mnt_userns:	User namespace of the mount the inode was created from
+ * @idmap: idmap of the mount the inode was created from
  * @inode: New inode
  * @dir: Directory inode
  * @mode: mode of the new inode
  *
- * If the inode has been created through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then take
- * care to map the inode according to @mnt_userns before checking permissions
+ * If the inode has been created through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then take
+ * care to map the inode according to @idmap before checking permissions
  * and initializing i_uid and i_gid. On non-idmapped mounts or if permission
- * checking is to be performed on the raw inode simply passs init_user_ns.
+ * checking is to be performed on the raw inode simply pass @nop_mnt_idmap.
  */
-void inode_init_owner(struct user_namespace *mnt_userns, struct inode *inode,
+void inode_init_owner(struct mnt_idmap *idmap, struct inode *inode,
 		      const struct inode *dir, umode_t mode)
 {
-	inode_fsuid_set(inode, mnt_userns);
+	inode_fsuid_set(inode, idmap);
 	if (dir && dir->i_mode & S_ISGID) {
 		inode->i_gid = dir->i_gid;
 
@@ -2332,37 +2302,37 @@ void inode_init_owner(struct user_namespace *mnt_userns, struct inode *inode,
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 	} else
-		inode_fsgid_set(inode, mnt_userns);
+		inode_fsgid_set(inode, idmap);
 	inode->i_mode = mode;
 }
 EXPORT_SYMBOL(inode_init_owner);
 
 /**
  * inode_owner_or_capable - check current task permissions to inode
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @inode: inode being checked
  *
  * Return true if current either has CAP_FOWNER in a namespace with the
  * inode owner uid mapped, or owns the file.
  *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then take
- * care to map the inode according to @mnt_userns before checking permissions.
+ * If the inode has been found through an idmapped mount the idmap of
+ * the vfsmount must be passed through @idmap. This function will then take
+ * care to map the inode according to @idmap before checking permissions.
  * On non-idmapped mounts or if permission checking is to be performed on the
- * raw inode simply passs init_user_ns.
+ * raw inode simply passs @nop_mnt_idmap.
  */
-bool inode_owner_or_capable(struct user_namespace *mnt_userns,
+bool inode_owner_or_capable(struct mnt_idmap *idmap,
 			    const struct inode *inode)
 {
-	kuid_t i_uid;
+	vfsuid_t vfsuid;
 	struct user_namespace *ns;
 
-	i_uid = i_uid_into_mnt(mnt_userns, inode);
-	if (uid_eq(current_fsuid(), i_uid))
+	vfsuid = i_uid_into_vfsuid(idmap, inode);
+	if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
 		return true;
 
 	ns = current_user_ns();
-	if (kuid_has_mapping(ns, i_uid) && ns_capable(ns, CAP_FOWNER))
+	if (vfsuid_has_mapping(ns, vfsuid) && ns_capable(ns, CAP_FOWNER))
 		return true;
 	return false;
 }
@@ -2488,8 +2458,30 @@ struct timespec64 current_time(struct inode *inode)
 EXPORT_SYMBOL(current_time);
 
 /**
+ * in_group_or_capable - check whether caller is CAP_FSETID privileged
+ * @idmap:	idmap of the mount @inode was found from
+ * @inode:	inode to check
+ * @vfsgid:	the new/current vfsgid of @inode
+ *
+ * Check wether @vfsgid is in the caller's group list or if the caller is
+ * privileged with CAP_FSETID over @inode. This can be used to determine
+ * whether the setgid bit can be kept or must be dropped.
+ *
+ * Return: true if the caller is sufficiently privileged, false if not.
+ */
+bool in_group_or_capable(struct mnt_idmap *idmap,
+			 const struct inode *inode, vfsgid_t vfsgid)
+{
+	if (vfsgid_in_group_p(vfsgid))
+		return true;
+	if (capable_wrt_inode_uidgid(idmap, inode, CAP_FSETID))
+		return true;
+	return false;
+}
+
+/**
  * mode_strip_sgid - handle the sgid bit for non-directories
- * @mnt_userns: User namespace of the mount the inode was created from
+ * @idmap: idmap of the mount the inode was created from
  * @dir: parent directory inode
  * @mode: mode of the file to be created in @dir
  *
@@ -2501,18 +2493,15 @@ EXPORT_SYMBOL(current_time);
  *
  * Return: the new mode to use for the file
  */
-umode_t mode_strip_sgid(struct user_namespace *mnt_userns,
+umode_t mode_strip_sgid(struct mnt_idmap *idmap,
 			const struct inode *dir, umode_t mode)
 {
 	if ((mode & (S_ISGID | S_IXGRP)) != (S_ISGID | S_IXGRP))
 		return mode;
 	if (S_ISDIR(mode) || !dir || !(dir->i_mode & S_ISGID))
 		return mode;
-	if (in_group_p(i_gid_into_mnt(mnt_userns, dir)))
+	if (in_group_or_capable(idmap, dir, i_gid_into_vfsgid(idmap, dir)))
 		return mode;
-	if (capable_wrt_inode_uidgid(mnt_userns, dir, CAP_FSETID))
-		return mode;
-
 	return mode & ~S_ISGID;
 }
 EXPORT_SYMBOL(mode_strip_sgid);

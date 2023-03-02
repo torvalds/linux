@@ -10,7 +10,11 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#include "dsa_priv.h"
+#include "tag.h"
+
+#define BRCM_NAME		"brcm"
+#define BRCM_LEGACY_NAME	"brcm-legacy"
+#define BRCM_PREPEND_NAME	"brcm-prepend"
 
 /* Legacy Broadcom tag (6 bytes) */
 #define BRCM_LEG_TAG_LEN	6
@@ -196,7 +200,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev)
 }
 
 static const struct dsa_device_ops brcm_netdev_ops = {
-	.name	= "brcm",
+	.name	= BRCM_NAME,
 	.proto	= DSA_TAG_PROTO_BRCM,
 	.xmit	= brcm_tag_xmit,
 	.rcv	= brcm_tag_rcv,
@@ -204,7 +208,7 @@ static const struct dsa_device_ops brcm_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(brcm_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM, BRCM_NAME);
 #endif
 
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_LEGACY)
@@ -273,7 +277,7 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops brcm_legacy_netdev_ops = {
-	.name = "brcm-legacy",
+	.name = BRCM_LEGACY_NAME,
 	.proto = DSA_TAG_PROTO_BRCM_LEGACY,
 	.xmit = brcm_leg_tag_xmit,
 	.rcv = brcm_leg_tag_rcv,
@@ -281,7 +285,7 @@ static const struct dsa_device_ops brcm_legacy_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(brcm_legacy_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_LEGACY);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_LEGACY, BRCM_LEGACY_NAME);
 #endif /* CONFIG_NET_DSA_TAG_BRCM_LEGACY */
 
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
@@ -300,7 +304,7 @@ static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops brcm_prepend_netdev_ops = {
-	.name	= "brcm-prepend",
+	.name	= BRCM_PREPEND_NAME,
 	.proto	= DSA_TAG_PROTO_BRCM_PREPEND,
 	.xmit	= brcm_tag_xmit_prepend,
 	.rcv	= brcm_tag_rcv_prepend,
@@ -308,7 +312,7 @@ static const struct dsa_device_ops brcm_prepend_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(brcm_prepend_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND, BRCM_PREPEND_NAME);
 #endif
 
 static struct dsa_tag_driver *dsa_tag_driver_array[] =	{

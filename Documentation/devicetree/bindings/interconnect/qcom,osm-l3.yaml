@@ -16,13 +16,22 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,sc7180-osm-l3
-      - qcom,sc7280-epss-l3
-      - qcom,sc8180x-osm-l3
-      - qcom,sdm845-osm-l3
-      - qcom,sm8150-osm-l3
-      - qcom,sm8250-epss-l3
+    oneOf:
+      - items:
+          - enum:
+              - qcom,sc7180-osm-l3
+              - qcom,sc8180x-osm-l3
+              - qcom,sdm845-osm-l3
+              - qcom,sm6350-osm-l3
+              - qcom,sm8150-osm-l3
+          - const: qcom,osm-l3
+      - items:
+          - enum:
+              - qcom,sc7280-epss-l3
+              - qcom,sc8280xp-epss-l3
+              - qcom,sm8250-epss-l3
+              - qcom,sm8350-epss-l3
+          - const: qcom,epss-l3
 
   reg:
     maxItems: 1
@@ -56,7 +65,7 @@ examples:
     #define RPMH_CXO_CLK        0
 
     osm_l3: interconnect@17d41000 {
-      compatible = "qcom,sdm845-osm-l3";
+      compatible = "qcom,sdm845-osm-l3", "qcom,osm-l3";
       reg = <0x17d41000 0x1400>;
 
       clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GPLL0>;

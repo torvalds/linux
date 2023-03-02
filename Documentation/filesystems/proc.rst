@@ -47,6 +47,7 @@ fixes/update part 1.1  Stefani Seibold <stefani@seibold.net>    June 9 2009
   3.10  /proc/<pid>/timerslack_ns - Task timerslack value
   3.11	/proc/<pid>/patch_state - Livepatch patch operation state
   3.12	/proc/<pid>/arch_status - Task architecture specific information
+  3.13  /proc/<pid>/fd - List of symlinks to open files
 
   4	Configuring procfs
   4.1	Mount options
@@ -245,7 +246,8 @@ It's slow but very precise.
  Ngid                        NUMA group ID (0 if none)
  Pid                         process id
  PPid                        process id of the parent process
- TracerPid                   PID of process tracing this process (0 if not)
+ TracerPid                   PID of process tracing this process (0 if not, or
+                             the tracer is outside of the current pid namespace)
  Uid                         Real, effective, saved set, and  file system UIDs
  Gid                         Real, effective, saved set, and  file system GIDs
  FDSize                      number of file descriptor slots currently allocated
@@ -426,14 +428,16 @@ with the memory region, as the case would be with BSS (uninitialized data).
 The "pathname" shows the name associated file for this mapping.  If the mapping
 is not associated with a file:
 
- =============              ====================================
+ ===================        ===========================================
  [heap]                     the heap of the program
  [stack]                    the stack of the main process
  [vdso]                     the "virtual dynamic shared object",
                             the kernel system call handler
- [anon:<name>]              an anonymous mapping that has been
+ [anon:<name>]              a private anonymous mapping that has been
                             named by userspace
- =============              ====================================
+ [anon_shmem:<name>]        an anonymous shared memory mapping that has
+                            been named by userspace
+ ===================        ===========================================
 
  or if empty, the mapping is anonymous.
 
@@ -1280,6 +1284,7 @@ support this. Table 1-9 lists the files and their meaning.
  rt_cache      Routing cache
  snmp          SNMP data
  sockstat      Socket statistics
+ softnet_stat  Per-CPU incoming packets queues statistics of online CPUs
  tcp           TCP  sockets
  udp           UDP sockets
  unix          UNIX domain sockets
@@ -2148,6 +2153,22 @@ AVX512_elapsed_ms
   A special value of '-1' indicates that no AVX512 usage was recorded, thus
   the task is unlikely an AVX512 user, but depends on the workload and the
   scheduling scenario, it also could be a false negative mentioned above.
+
+3.13 /proc/<pid>/fd - List of symlinks to open files
+-------------------------------------------------------
+This directory contains symbolic links which represent open files
+the process is maintaining.  Example output::
+
+  lr-x------ 1 root root 64 Sep 20 17:53 0 -> /dev/null
+  l-wx------ 1 root root 64 Sep 20 17:53 1 -> /dev/null
+  lrwx------ 1 root root 64 Sep 20 17:53 10 -> 'socket:[12539]'
+  lrwx------ 1 root root 64 Sep 20 17:53 11 -> 'socket:[12540]'
+  lrwx------ 1 root root 64 Sep 20 17:53 12 -> 'socket:[12542]'
+
+The number of open files for the process is stored in 'size' member
+of stat() output for /proc/<pid>/fd for fast access.
+-------------------------------------------------------
+
 
 Chapter 4: Configuring procfs
 =============================

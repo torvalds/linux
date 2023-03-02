@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -426,10 +426,6 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	name = (uint8_t *)&ndlp->nlp_portname;
 	phba = vport->phba;
 
-	spin_lock_irqsave(&ndlp->lock, iflags);
-	ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
-	spin_unlock_irqrestore(&ndlp->lock, iflags);
-
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		fcf_inuse = lpfc_fcf_inuse(phba);
 
@@ -451,22 +447,36 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 *name, *(name+1), *(name+2), *(name+3),
 				 *(name+4), *(name+5), *(name+6), *(name+7),
 				 ndlp->nlp_DID);
+
+		spin_lock_irqsave(&ndlp->lock, iflags);
+		ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
 		return fcf_inuse;
 	}
 
 	/* Fabric nodes are done. */
 	if (ndlp->nlp_type & NLP_FABRIC) {
 		spin_lock_irqsave(&ndlp->lock, iflags);
-		/* In massive vport configuration settings, it's possible
-		 * dev_loss_tmo fired during node recovery.  So, check if
-		 * fabric nodes are in discovery states outstanding.
+
+		/* In massive vport configuration settings or when the FLOGI
+		 * completes with a sequence timeout, it's possible
+		 * dev_loss_tmo fired during node recovery.  The driver has to
+		 * account for this race to allow for recovery and keep
+		 * the reference counting correct.
 		 */
 		switch (ndlp->nlp_DID) {
 		case Fabric_DID:
 			fc_vport = vport->fc_vport;
-			if (fc_vport &&
-			    fc_vport->vport_state == FC_VPORT_INITIALIZING)
-				recovering = true;
+			if (fc_vport) {
+				/* NPIV path. */
+				if (fc_vport->vport_state ==
+				    FC_VPORT_INITIALIZING)
+					recovering = true;
+			} else {
+				/* Physical port path. */
+				if (phba->hba_flag & HBA_FLOGI_OUTSTANDING)
+					recovering = true;
+			}
 			break;
 		case Fabric_Cntl_DID:
 			if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
@@ -514,6 +524,9 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 			return fcf_inuse;
 		}
 
+		spin_lock_irqsave(&ndlp->lock, iflags);
+		ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
 		lpfc_nlp_put(ndlp);
 		return fcf_inuse;
 	}
@@ -552,6 +565,9 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		return fcf_inuse;
 	}
 
+	spin_lock_irqsave(&ndlp->lock, iflags);
+	ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
 	if (!(ndlp->fc4_xpt_flags & NVME_XPT_REGD))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 
@@ -1113,21 +1129,6 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
-			/* It's possible the FLOGI to the fabric node never
-			 * successfully completed and never registered with the
-			 * transport.  In this case there is no way to clean up
-			 * the node.
-			 */
-			if (ndlp->nlp_DID == Fabric_DID) {
-				if (ndlp->nlp_prev_state ==
-				    NLP_STE_UNUSED_NODE &&
-				    !ndlp->fc4_xpt_flags)
-					lpfc_nlp_put(ndlp);
-			}
-			continue;
-		}
-
 		if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) ||
 		    ((vport->port_type == LPFC_NPIV_PORT) &&
 		     ((ndlp->nlp_DID == NameServer_DID) ||

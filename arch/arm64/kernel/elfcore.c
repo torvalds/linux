@@ -8,28 +8,27 @@
 #include <asm/cpufeature.h>
 #include <asm/mte.h>
 
-#define for_each_mte_vma(vmi, vma)					\
+#define for_each_mte_vma(cprm, i, m)					\
 	if (system_supports_mte())					\
-		for_each_vma(vmi, vma)					\
-			if (vma->vm_flags & VM_MTE)
+		for (i = 0, m = cprm->vma_meta;				\
+		     i < cprm->vma_count;				\
+		     i++, m = cprm->vma_meta + i)			\
+			if (m->flags & VM_MTE)
 
-static unsigned long mte_vma_tag_dump_size(struct vm_area_struct *vma)
+static unsigned long mte_vma_tag_dump_size(struct core_vma_metadata *m)
 {
-	if (vma->vm_flags & VM_DONTDUMP)
-		return 0;
-
-	return vma_pages(vma) * MTE_PAGE_TAG_STORAGE;
+	return (m->dump_size >> PAGE_SHIFT) * MTE_PAGE_TAG_STORAGE;
 }
 
 /* Derived from dump_user_range(); start/end must be page-aligned */
 static int mte_dump_tag_range(struct coredump_params *cprm,
-			      unsigned long start, unsigned long end)
+			      unsigned long start, unsigned long len)
 {
 	int ret = 1;
 	unsigned long addr;
 	void *tags = NULL;
 
-	for (addr = start; addr < end; addr += PAGE_SIZE) {
+	for (addr = start; addr < start + len; addr += PAGE_SIZE) {
 		struct page *page = get_dump_page(addr);
 
 		/*
@@ -47,7 +46,7 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 		 * Pages mapped in user space as !pte_access_permitted() (e.g.
 		 * PROT_EXEC only) may not have the PG_mte_tagged flag set.
 		 */
-		if (!test_bit(PG_mte_tagged, &page->flags)) {
+		if (!page_mte_tagged(page)) {
 			put_page(page);
 			dump_skip(cprm, MTE_PAGE_TAG_STORAGE);
 			continue;
@@ -65,7 +64,6 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 		mte_save_page_tags(page_address(page), tags);
 		put_page(page);
 		if (!dump_emit(cprm, tags, MTE_PAGE_TAG_STORAGE)) {
-			mte_free_tag_storage(tags);
 			ret = 0;
 			break;
 		}
@@ -77,13 +75,13 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 	return ret;
 }
 
-Elf_Half elf_core_extra_phdrs(void)
+Elf_Half elf_core_extra_phdrs(struct coredump_params *cprm)
 {
-	struct vm_area_struct *vma;
+	int i;
+	struct core_vma_metadata *m;
 	int vma_count = 0;
-	VMA_ITERATOR(vmi, current->mm, 0);
 
-	for_each_mte_vma(vmi, vma)
+	for_each_mte_vma(cprm, i, m)
 		vma_count++;
 
 	return vma_count;
@@ -91,18 +89,18 @@ Elf_Half elf_core_extra_phdrs(void)
 
 int elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset)
 {
-	struct vm_area_struct *vma;
-	VMA_ITERATOR(vmi, current->mm, 0);
+	int i;
+	struct core_vma_metadata *m;
 
-	for_each_mte_vma(vmi, vma) {
+	for_each_mte_vma(cprm, i, m) {
 		struct elf_phdr phdr;
 
 		phdr.p_type = PT_AARCH64_MEMTAG_MTE;
 		phdr.p_offset = offset;
-		phdr.p_vaddr = vma->vm_start;
+		phdr.p_vaddr = m->start;
 		phdr.p_paddr = 0;
-		phdr.p_filesz = mte_vma_tag_dump_size(vma);
-		phdr.p_memsz = vma->vm_end - vma->vm_start;
+		phdr.p_filesz = mte_vma_tag_dump_size(m);
+		phdr.p_memsz = m->end - m->start;
 		offset += phdr.p_filesz;
 		phdr.p_flags = 0;
 		phdr.p_align = 0;
@@ -114,28 +112,25 @@ int elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset)
 	return 1;
 }
 
-size_t elf_core_extra_data_size(void)
+size_t elf_core_extra_data_size(struct coredump_params *cprm)
 {
-	struct vm_area_struct *vma;
+	int i;
+	struct core_vma_metadata *m;
 	size_t data_size = 0;
-	VMA_ITERATOR(vmi, current->mm, 0);
 
-	for_each_mte_vma(vmi, vma)
-		data_size += mte_vma_tag_dump_size(vma);
+	for_each_mte_vma(cprm, i, m)
+		data_size += mte_vma_tag_dump_size(m);
 
 	return data_size;
 }
 
 int elf_core_write_extra_data(struct coredump_params *cprm)
 {
-	struct vm_area_struct *vma;
-	VMA_ITERATOR(vmi, current->mm, 0);
+	int i;
+	struct core_vma_metadata *m;
 
-	for_each_mte_vma(vmi, vma) {
-		if (vma->vm_flags & VM_DONTDUMP)
-			continue;
-
-		if (!mte_dump_tag_range(cprm, vma->vm_start, vma->vm_end))
+	for_each_mte_vma(cprm, i, m) {
+		if (!mte_dump_tag_range(cprm, m->start, m->dump_size))
 			return 0;
 	}
 

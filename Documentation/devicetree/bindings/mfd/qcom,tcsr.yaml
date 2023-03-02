@@ -17,18 +17,22 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,msm8976-tcsr
           - qcom,msm8998-tcsr
           - qcom,qcs404-tcsr
           - qcom,sc7180-tcsr
           - qcom,sc7280-tcsr
+          - qcom,sc8280xp-tcsr
           - qcom,sdm630-tcsr
           - qcom,sdm845-tcsr
           - qcom,sm8150-tcsr
           - qcom,tcsr-apq8064
           - qcom,tcsr-apq8084
+          - qcom,tcsr-ipq5332
           - qcom,tcsr-ipq6018
           - qcom,tcsr-ipq8064
           - qcom,tcsr-mdm9615
+          - qcom,tcsr-msm8226
           - qcom,tcsr-msm8660
           - qcom,tcsr-msm8916
           - qcom,tcsr-msm8953

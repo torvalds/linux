@@ -187,6 +187,7 @@ enum da7219_aad_event_regs {
 struct da7219_aad_priv {
 	struct snd_soc_component *component;
 	int irq;
+	int gnd_switch_delay;
 
 	u8 micbias_pulse_lvl;
 	u32 micbias_pulse_time;

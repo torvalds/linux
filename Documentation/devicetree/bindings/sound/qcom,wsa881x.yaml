@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,wsa881x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for Qualcomm WSA8810/WSA8815 Class-D Smart Speaker Amplifier
+title: Qualcomm WSA8810/WSA8815 Class-D Smart Speaker Amplifier
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -14,6 +14,9 @@ description: |
   is a high-output power class-D smart speaker amplifier.
   Their primary operating mode uses a SoundWire digital audio
   interface. This binding is for SoundWire interface.
+
+allOf:
+  - $ref: dai-common.yaml#
 
 properties:
   compatible:
@@ -39,7 +42,7 @@ required:
   - "#thermal-sensor-cells"
   - "#sound-dai-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

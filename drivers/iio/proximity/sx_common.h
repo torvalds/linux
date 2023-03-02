@@ -102,7 +102,6 @@ struct sx_common_chip_info {
  * @trig:		IIO trigger object.
  * @regmap:		Register map.
  * @num_default_regs:	Number of default registers to set at init.
- * @supplies:		Power supplies object.
  * @chan_prox_stat:	Last reading of the proximity status for each channel.
  *			We only send an event to user space when this changes.
  * @trigger_enabled:	True when the device trigger is enabled.
@@ -120,7 +119,6 @@ struct sx_common_data {
 	struct iio_trigger *trig;
 	struct regmap *regmap;
 
-	struct regulator_bulk_data supplies[2];
 	unsigned long chan_prox_stat;
 	bool trigger_enabled;
 

@@ -87,7 +87,7 @@ config CC_HAS_ASM_GOTO_OUTPUT
 config CC_HAS_ASM_GOTO_TIED_OUTPUT
 	depends on CC_HAS_ASM_GOTO_OUTPUT
 	# Detect buggy gcc and clang, fixed in gcc-11 clang-14.
-	def_bool $(success,echo 'int foo(int *x) { asm goto (".long (%l[bar]) - .\n": "+m"(*x) ::: bar); return *x; bar: return 0; }' | $CC -x c - -c -o /dev/null)
+	def_bool $(success,echo 'int foo(int *x) { asm goto (".long (%l[bar]) - .": "+m"(*x) ::: bar); return *x; bar: return 0; }' | $CC -x c - -c -o /dev/null)
 
 config TOOLS_SUPPORT_RELR
 	def_bool $(success,env "CC=$(CC)" "LD=$(LD)" "NM=$(NM)" "OBJCOPY=$(OBJCOPY)" $(srctree)/scripts/tools-support-relr.sh)
@@ -159,10 +159,12 @@ config WERROR
 	help
 	  A kernel build should not cause any compiler warnings, and this
 	  enables the '-Werror' (for C) and '-Dwarnings' (for Rust) flags
-	  to enforce that rule by default.
+	  to enforce that rule by default. Certain warnings from other tools
+	  such as the linker may be upgraded to errors with this option as
+	  well.
 
-	  However, if you have a new (or very old) compiler with odd and
-	  unusual warnings, or you have some architecture with problems,
+	  However, if you have a new (or very old) compiler or linker with odd
+	  and unusual warnings, or you have some architecture with problems,
 	  you may need to disable this config option in order to
 	  successfully build the kernel.
 
@@ -202,7 +204,7 @@ config LOCALVERSION_AUTO
 	  appended after any matching localversion* files, and after the value
 	  set in CONFIG_LOCALVERSION.
 
-	  (The actual string used here is the first eight characters produced
+	  (The actual string used here is the first 12 characters produced
 	  by running the command:
 
 	    $ git rev-parse --verify HEAD
@@ -680,10 +682,6 @@ config CPU_ISOLATION
 
 source "kernel/rcu/Kconfig"
 
-config BUILD_BIN2C
-	bool
-	default n
-
 config IKCONFIG
 	tristate "Kernel .config support"
 	help
@@ -774,7 +772,7 @@ config PRINTK_SAFE_LOG_BUF_SHIFT
 	depends on PRINTK
 	help
 	  Select the size of an alternate printk per-CPU buffer where messages
-	  printed from usafe contexts are temporary stored. One example would
+	  printed from unsafe contexts are temporary stored. One example would
 	  be NMI messages, another one - printk recursion. The messages are
 	  copied to the main log buffer in a safe context to avoid a deadlock.
 	  The value defines the size as a power of 2.
@@ -892,13 +890,17 @@ config CC_IMPLICIT_FALLTHROUGH
 	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
 	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
 
-# Currently, disable gcc-12 array-bounds globally.
+# Currently, disable gcc-11,12 array-bounds globally.
 # We may want to target only particular configurations some day.
+config GCC11_NO_ARRAY_BOUNDS
+	def_bool y
+
 config GCC12_NO_ARRAY_BOUNDS
 	def_bool y
 
 config CC_NO_ARRAY_BOUNDS
 	bool
+	default y if CC_IS_GCC && GCC_VERSION >= 110000 && GCC_VERSION < 120000 && GCC11_NO_ARRAY_BOUNDS
 	default y if CC_IS_GCC && GCC_VERSION >= 120000 && GCC_VERSION < 130000 && GCC12_NO_ARRAY_BOUNDS
 
 #
@@ -1038,6 +1040,10 @@ config RT_GROUP_SCHED
 	  See Documentation/scheduler/sched-rt-group.rst for more information.
 
 endif #CGROUP_SCHED
+
+config SCHED_MM_CID
+	def_bool y
+	depends on SMP && RSEQ
 
 config UCLAMP_TASK_GROUP
 	bool "Utilization clamping per group of tasks"
@@ -1374,6 +1380,19 @@ config BOOT_CONFIG
 
 	  If unsure, say Y.
 
+config BOOT_CONFIG_FORCE
+	bool "Force unconditional bootconfig processing"
+	depends on BOOT_CONFIG
+	default y if BOOT_CONFIG_EMBED
+	help
+	  With this Kconfig option set, BOOT_CONFIG processing is carried
+	  out even when the "bootconfig" kernel-boot parameter is omitted.
+	  In fact, with this Kconfig option set, there is no way to
+	  make the kernel ignore the BOOT_CONFIG-supplied kernel-boot
+	  parameters.
+
+	  If unsure, say N.
+
 config BOOT_CONFIG_EMBED
 	bool "Embed bootconfig file in the kernel"
 	depends on BOOT_CONFIG
@@ -1454,6 +1473,13 @@ config LD_ORPHAN_WARN
 	def_bool y
 	depends on ARCH_WANT_LD_ORPHAN_WARN
 	depends on $(ld-option,--orphan-handling=warn)
+	depends on $(ld-option,--orphan-handling=error)
+
+config LD_ORPHAN_WARN_LEVEL
+        string
+        depends on LD_ORPHAN_WARN
+        default "error" if WERROR
+        default "warn"
 
 config SYSCTL
 	bool
@@ -1723,6 +1749,19 @@ config KALLSYMS
 	  symbolic stack backtraces. This increases the size of the kernel
 	  somewhat, as all symbols have to be loaded into the kernel image.
 
+config KALLSYMS_SELFTEST
+	bool "Test the basic functions and performance of kallsyms"
+	depends on KALLSYMS
+	default n
+	help
+	  Test the basic functions and performance of some interfaces, such as
+	  kallsyms_lookup_name. It also calculates the compression rate of the
+	  kallsyms compression algorithm for the current symbol set.
+
+	  Start self-test automatically after system startup. Suggest executing
+	  "dmesg | grep kallsyms_selftest" to collect test results. "finish" is
+	  displayed in the last line, indicating that the test is complete.
+
 config KALLSYMS_ALL
 	bool "Include all symbols in kallsyms"
 	depends on DEBUG_KERNEL && KALLSYMS
@@ -1843,7 +1882,6 @@ config PERF_EVENTS
 	default y if PROFILING
 	depends on HAVE_PERF_EVENTS
 	select IRQ_WORK
-	select SRCU
 	help
 	  Enable kernel support for various performance events provided
 	  by software and hardware.
@@ -1913,7 +1951,7 @@ config RUST
 	depends on !MODVERSIONS
 	depends on !GCC_PLUGINS
 	depends on !RANDSTRUCT
-	depends on !DEBUG_INFO_BTF
+	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
 	select CONSTRUCTORS
 	help
 	  Enables Rust support in the kernel.

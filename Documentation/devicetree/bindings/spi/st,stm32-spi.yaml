@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/st,stm32-spi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 SPI Controller bindings
+title: STMicroelectronics STM32 SPI Controller
 
 description: |
   The STM32 SPI controller is used to communicate with external devices using
@@ -17,7 +17,7 @@ maintainers:
   - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
   - if:
       properties:
         compatible:
@@ -84,18 +84,17 @@ examples:
     #include <dt-bindings/clock/stm32mp1-clks.h>
     #include <dt-bindings/reset/stm32mp1-resets.h>
     spi@4000b000 {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      compatible = "st,stm32h7-spi";
-      reg = <0x4000b000 0x400>;
-      interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-      clocks = <&rcc SPI2_K>;
-      resets = <&rcc SPI2_R>;
-      dmas = <&dmamux1 0 39 0x400 0x05>,
-             <&dmamux1 1 40 0x400 0x05>;
-      dma-names = "rx", "tx";
-      cs-gpios = <&gpioa 11 0>;
-
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "st,stm32h7-spi";
+        reg = <0x4000b000 0x400>;
+        interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&rcc SPI2_K>;
+        resets = <&rcc SPI2_R>;
+        dmas = <&dmamux1 0 39 0x400 0x05>,
+               <&dmamux1 1 40 0x400 0x05>;
+        dma-names = "rx", "tx";
+        cs-gpios = <&gpioa 11 0>;
     };
 
 ...

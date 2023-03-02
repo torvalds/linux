@@ -28,7 +28,7 @@ static DEFINE_MUTEX(bcma_buses_mutex);
 static int bcma_bus_match(struct device *dev, struct device_driver *drv);
 static int bcma_device_probe(struct device *dev);
 static void bcma_device_remove(struct device *dev);
-static int bcma_device_uevent(struct device *dev, struct kobj_uevent_env *env);
+static int bcma_device_uevent(const struct device *dev, struct kobj_uevent_env *env);
 
 static ssize_t manuf_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -344,8 +344,10 @@ static int bcma_register_devices(struct bcma_bus *bus)
 	err = bcma_gpio_init(&bus->drv_cc);
 	if (err == -ENOTSUPP)
 		bcma_debug(bus, "GPIO driver not activated\n");
-	else if (err)
+	else if (err) {
 		bcma_err(bus, "Error registering GPIO driver: %i\n", err);
+		return err;
+	}
 
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
 		err = bcma_chipco_watchdog_register(&bus->drv_cc);
@@ -625,9 +627,9 @@ static void bcma_device_remove(struct device *dev)
 	put_device(dev);
 }
 
-static int bcma_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int bcma_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
+	const struct bcma_device *core = container_of_const(dev, struct bcma_device, dev);
 
 	return add_uevent_var(env,
 			      "MODALIAS=bcma:m%04Xid%04Xrev%02Xcl%02X",

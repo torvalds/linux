@@ -3,6 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_panel.h"
@@ -466,24 +467,24 @@ static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 	 * clock hierarchy. That would also allow us to do
 	 * clock bending finally.
 	 */
-	dev_priv->pch_ssc_use = 0;
+	dev_priv->display.dpll.pch_ssc_use = 0;
 
 	if (spll_uses_pch_ssc(dev_priv)) {
 		drm_dbg_kms(&dev_priv->drm, "SPLL using PCH SSC\n");
-		dev_priv->pch_ssc_use |= BIT(DPLL_ID_SPLL);
+		dev_priv->display.dpll.pch_ssc_use |= BIT(DPLL_ID_SPLL);
 	}
 
 	if (wrpll_uses_pch_ssc(dev_priv, DPLL_ID_WRPLL1)) {
 		drm_dbg_kms(&dev_priv->drm, "WRPLL1 using PCH SSC\n");
-		dev_priv->pch_ssc_use |= BIT(DPLL_ID_WRPLL1);
+		dev_priv->display.dpll.pch_ssc_use |= BIT(DPLL_ID_WRPLL1);
 	}
 
 	if (wrpll_uses_pch_ssc(dev_priv, DPLL_ID_WRPLL2)) {
 		drm_dbg_kms(&dev_priv->drm, "WRPLL2 using PCH SSC\n");
-		dev_priv->pch_ssc_use |= BIT(DPLL_ID_WRPLL2);
+		dev_priv->display.dpll.pch_ssc_use |= BIT(DPLL_ID_WRPLL2);
 	}
 
-	if (dev_priv->pch_ssc_use)
+	if (dev_priv->display.dpll.pch_ssc_use)
 		return;
 
 	if (has_fdi) {

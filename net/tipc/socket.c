@@ -37,6 +37,7 @@
 
 #include <linux/rhashtable.h>
 #include <linux/sched/signal.h>
+#include <trace/events/sock.h>
 
 #include "core.h"
 #include "name_table.h"
@@ -2130,6 +2131,8 @@ static void tipc_data_ready(struct sock *sk)
 {
 	struct socket_wq *wq;
 
+	trace_sk_data_ready(sk);
+
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
@@ -2614,6 +2617,7 @@ static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 		/* Send a 'SYN-' to destination */
 		m.msg_name = dest;
 		m.msg_namelen = destlen;
+		iov_iter_kvec(&m.msg_iter, ITER_SOURCE, NULL, 0, 0);
 
 		/* If connect is in non-blocking case, set MSG_DONTWAIT to
 		 * indicate send_msg() is never blocked.
@@ -2776,6 +2780,7 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
 		__skb_queue_head(&new_sk->sk_receive_queue, buf);
 		skb_set_owner_r(buf, new_sk);
 	}
+	iov_iter_kvec(&m.msg_iter, ITER_SOURCE, NULL, 0, 0);
 	__tipc_sendstream(new_sock, &m, 0);
 	release_sock(new_sk);
 exit:
@@ -3010,7 +3015,7 @@ static int tipc_sk_insert(struct tipc_sock *tsk)
 	struct net *net = sock_net(sk);
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	u32 remaining = (TIPC_MAX_PORT - TIPC_MIN_PORT) + 1;
-	u32 portid = prandom_u32_max(remaining) + TIPC_MIN_PORT;
+	u32 portid = get_random_u32_below(remaining) + TIPC_MIN_PORT;
 
 	while (remaining--) {
 		portid++;

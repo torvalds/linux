@@ -71,7 +71,6 @@ struct pwrctrl_priv {
 	int		pwr_state_check_interval;
 
 	enum rt_rf_power_state	rf_pwrstate;/* cur power state */
-	enum rt_rf_power_state	change_rfpwrstate;
 
 	u8		bkeepfwalive;
 };
@@ -99,8 +98,6 @@ void rtw_set_firmware_ps_mode(struct adapter *adapter, u8 mode);
 void rtw_set_ps_mode(struct adapter *adapter, u8 ps_mode, u8 smart_ps,
 		     u8 bcn_ant_mode);
 void LeaveAllPowerSaveMode(struct adapter *adapter);
-void ips_enter(struct adapter *padapter);
-int ips_leave(struct adapter *padapter);
 
 void rtw_ps_processor(struct adapter *padapter);
 

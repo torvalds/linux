@@ -233,8 +233,11 @@ static void __init ap_init_qci_info(void)
 	if (!ap_qci_info)
 		return;
 	ap_qci_info_old = kzalloc(sizeof(*ap_qci_info_old), GFP_KERNEL);
-	if (!ap_qci_info_old)
+	if (!ap_qci_info_old) {
+		kfree(ap_qci_info);
+		ap_qci_info = NULL;
 		return;
+	}
 	if (ap_fetch_qci_info(ap_qci_info) != 0) {
 		kfree(ap_qci_info);
 		kfree(ap_qci_info_old);
@@ -610,10 +613,10 @@ static int ap_bus_match(struct device *dev, struct device_driver *drv)
  * It sets up a single environment variable DEV_TYPE which contains the
  * hardware device type.
  */
-static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int ap_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int rc = 0;
-	struct ap_device *ap_dev = to_ap_dev(dev);
+	const struct ap_device *ap_dev = to_ap_dev(dev);
 
 	/* Uevents from ap bus core don't need extensions to the env */
 	if (dev == ap_root_device)

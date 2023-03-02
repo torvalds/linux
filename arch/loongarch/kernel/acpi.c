@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <asm/io.h>
 #include <asm/numa.h>
@@ -54,23 +55,6 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 		return ioremap(phys, size);
 	else
 		return ioremap_cache(phys, size);
-}
-
-void __init acpi_boot_table_init(void)
-{
-	/*
-	 * If acpi_disabled, bail out
-	 */
-	if (acpi_disabled)
-		return;
-
-	/*
-	 * Initialize the ACPI boot-time table parser.
-	 */
-	if (acpi_table_init()) {
-		disable_acpi();
-		return;
-	}
 }
 
 #ifdef CONFIG_SMP
@@ -156,13 +140,27 @@ static void __init acpi_process_madt(void)
 	loongson_sysconf.nr_cpus = num_processors;
 }
 
-int __init acpi_boot_init(void)
+#ifndef CONFIG_SUSPEND
+int (*acpi_suspend_lowlevel)(void);
+#else
+int (*acpi_suspend_lowlevel)(void) = loongarch_acpi_suspend;
+#endif
+
+void __init acpi_boot_table_init(void)
 {
 	/*
 	 * If acpi_disabled, bail out
 	 */
 	if (acpi_disabled)
-		return -1;
+		goto fdt_earlycon;
+
+	/*
+	 * Initialize the ACPI boot-time table parser.
+	 */
+	if (acpi_table_init()) {
+		disable_acpi();
+		goto fdt_earlycon;
+	}
 
 	loongson_sysconf.boot_cpu_id = read_csr_cpuid();
 
@@ -174,7 +172,11 @@ int __init acpi_boot_init(void)
 	/* Do not enable ACPI SPCR console by default */
 	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
 
-	return 0;
+	return;
+
+fdt_earlycon:
+	if (earlycon_acpi_spcr_enable)
+		early_init_dt_scan_chosen_stdout();
 }
 
 #ifdef CONFIG_ACPI_NUMA

@@ -701,8 +701,7 @@ static const struct v4l2_subdev_ops mt9m032_ops = {
  * Driver initialization and probing
  */
 
-static int mt9m032_probe(struct i2c_client *client,
-			 const struct i2c_device_id *devid)
+static int mt9m032_probe(struct i2c_client *client)
 {
 	struct mt9m032_platform_data *pdata = client->dev.platform_data;
 	struct i2c_adapter *adapter = client->adapter;
@@ -880,7 +879,7 @@ static struct i2c_driver mt9m032_i2c_driver = {
 	.driver = {
 		.name = MT9M032_NAME,
 	},
-	.probe = mt9m032_probe,
+	.probe_new = mt9m032_probe,
 	.remove = mt9m032_remove,
 	.id_table = mt9m032_id_table,
 };

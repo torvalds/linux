@@ -22,7 +22,6 @@
  */
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
 
 #include "vega12/smu9_driver_if.h"
 #include "vega12_processpptables.h"

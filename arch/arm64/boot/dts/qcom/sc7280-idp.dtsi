@@ -13,11 +13,13 @@
 #include "pmk8350.dtsi"
 
 #include "sc7280-chrome-common.dtsi"
+#include "sc7280-herobrine-lte-sku.dtsi"
 
 / {
 	aliases {
 		bluetooth0 = &bluetooth;
 		serial1 = &uart7;
+		wifi0 = &wifi;
 	};
 
 	max98360a: audio-codec-0 {
@@ -34,7 +36,7 @@
 		pinctrl-0 = <&wcd_reset_n>;
 		pinctrl-1 = <&wcd_reset_n_sleep>;
 
-		reset-gpios = <&tlmm 83 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 83 GPIO_ACTIVE_LOW>;
 
 		qcom,rx-device = <&wcd_rx>;
 		qcom,tx-device = <&wcd_tx>;
@@ -111,12 +113,8 @@
 			"TX SWR_DMIC6", "DMIC7_OUTPUT",
 			"TX SWR_DMIC7", "DMIC8_OUTPUT";
 
-		qcom,msm-mbhc-hphl-swh = <1>;
-		qcom,msm-mbhc-gnd-swh = <1>;
-
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#sound-dai-cells = <0>;
 
 		dai-link@0 {
 			link-name = "MAX98360A";
@@ -375,11 +373,6 @@
 	status = "okay";
 };
 
-&ipa {
-	status = "okay";
-	modem-init;
-};
-
 &lpass_cpu {
 	status = "okay";
 
@@ -522,6 +515,12 @@
 	vdda-pll-supply = <&vreg_l10c_0p8>;
 	vdda33-supply = <&vreg_l2b_3p0>;
 	vdda18-supply = <&vreg_l1c_1p8>;
+	qcom,hs-rise-fall-time-bp = <0>;
+	qcom,squelch-detector-bp = <(-2090)>;
+	qcom,hs-disconnect-bp = <1743>;
+	qcom,hs-amplitude-bp = <1780>;
+	qcom,hs-crossover-voltage-microvolt = <(-31000)>;
+	qcom,hs-output-impedance-micro-ohms = <2600000>;
 };
 
 &usb_1_qmpphy {
@@ -569,10 +568,6 @@
 	bias-disable;
 };
 
-&lpass_dmic01_clk_sleep {
-	drive-strength = <2>;
-};
-
 &lpass_dmic01_data {
 	bias-pull-down;
 };
@@ -580,10 +575,6 @@
 &lpass_dmic23_clk {
 	drive-strength = <8>;
 	bias-disable;
-};
-
-&lpass_dmic23_clk_sleep {
-	drive-strength = <2>;
 };
 
 &lpass_dmic23_data {
@@ -596,28 +587,16 @@
 	bias-disable;
 };
 
-&lpass_rx_swr_clk_sleep {
-	bias-pull-down;
-};
-
 &lpass_rx_swr_data {
 	drive-strength = <2>;
 	slew-rate = <1>;
 	bias-bus-hold;
 };
 
-&lpass_rx_swr_data_sleep {
-	bias-pull-down;
-};
-
 &lpass_tx_swr_clk {
 	drive-strength = <2>;
 	slew-rate = <1>;
 	bias-disable;
-};
-
-&lpass_tx_swr_clk_sleep {
-	bias-pull-down;
 };
 
 &lpass_tx_swr_data {
@@ -747,24 +726,25 @@
 };
 
 &tlmm {
-	amp_en: amp-en {
+	amp_en: amp-en-state {
 		pins = "gpio63";
+		function = "gpio";
 		bias-pull-down;
 		drive-strength = <2>;
 	};
 
-	bt_en: bt-en-pins {
+	bt_en: bt-en-state {
 		pins = "gpio85";
 		function = "gpio";
 		output-low;
 		bias-disable;
 	};
 
-	nvme_pwren: nvme-pwren-pins {
+	nvme_pwren: nvme-pwren-state {
 		function = "gpio";
 	};
 
-	pcie1_reset_n: pcie1-reset-n-pins {
+	pcie1_reset_n: pcie1-reset-n-state {
 		pins = "gpio2";
 		function = "gpio";
 
@@ -773,7 +753,7 @@
 		bias-disable;
 	};
 
-	pcie1_wake_n: pcie1-wake-n-pins {
+	pcie1_wake_n: pcie1-wake-n-state {
 		pins = "gpio3";
 		function = "gpio";
 
@@ -781,7 +761,7 @@
 		bias-pull-up;
 	};
 
-	qup_uart7_sleep_cts: qup-uart7-sleep-cts-pins {
+	qup_uart7_sleep_cts: qup-uart7-sleep-cts-state {
 		pins = "gpio28";
 		function = "gpio";
 		/*
@@ -794,7 +774,7 @@
 		bias-bus-hold;
 	};
 
-	qup_uart7_sleep_rts: qup-uart7-sleep-rts-pins {
+	qup_uart7_sleep_rts: qup-uart7-sleep-rts-state {
 		pins = "gpio29";
 		function = "gpio";
 		/*
@@ -806,7 +786,7 @@
 		bias-pull-down;
 	};
 
-	qup_uart7_sleep_tx: qup-uart7-sleep-tx-pins {
+	qup_uart7_sleep_tx: qup-uart7-sleep-tx-state {
 		pins = "gpio30";
 		function = "gpio";
 		/*
@@ -816,7 +796,7 @@
 		bias-pull-up;
 	};
 
-	qup_uart7_sleep_rx: qup-uart7-sleep-rx-pins {
+	qup_uart7_sleep_rx: qup-uart7-sleep-rx-state {
 		pins = "gpio31";
 		function = "gpio";
 		/*
@@ -827,25 +807,25 @@
 		bias-pull-up;
 	};
 
-	sd_cd: sd-cd-pins {
+	sd_cd: sd-cd-state {
 		pins = "gpio91";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	sw_ctrl: sw-ctrl-pins {
+	sw_ctrl: sw-ctrl-state {
 		pins = "gpio86";
 		function = "gpio";
 		bias-pull-down;
 	};
 
-	wcd_reset_n: wcd-reset-n {
+	wcd_reset_n: wcd-reset-n-state {
 		pins = "gpio83";
 		function = "gpio";
 		drive-strength = <8>;
 	};
 
-	wcd_reset_n_sleep: wcd-reset-n-sleep {
+	wcd_reset_n_sleep: wcd-reset-n-sleep-state {
 		pins = "gpio83";
 		function = "gpio";
 		drive-strength = <8>;

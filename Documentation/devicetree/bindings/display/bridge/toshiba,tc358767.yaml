@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/bridge/toshiba,tc358767.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Toshiba TC358767 eDP bridge bindings
+title: Toshiba TC358767 eDP bridge
 
 maintainers:
   - Andrey Gusakov <andrey.gusakov@cogentembedded.com>

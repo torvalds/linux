@@ -25,13 +25,12 @@ xhci-plat-hcd-y := xhci-plat.o
 ifneq ($(CONFIG_USB_XHCI_MVEBU), )
 	xhci-plat-hcd-y		+= xhci-mvebu.o
 endif
-ifneq ($(CONFIG_USB_XHCI_RCAR), )
-	xhci-plat-hcd-y		+= xhci-rcar.o
-endif
-
 ifneq ($(CONFIG_DEBUG_FS),)
 	xhci-hcd-y		+= xhci-debugfs.o
 endif
+
+xhci-rcar-hcd-y				+= xhci-rcar.o
+xhci-rcar-hcd-$(CONFIG_USB_XHCI_RZV2M)	+= xhci-rzv2m.o
 
 obj-$(CONFIG_USB_PCI)	+= pci-quirks.o
 
@@ -72,6 +71,7 @@ obj-$(CONFIG_USB_XHCI_PCI)	+= xhci-pci.o
 obj-$(CONFIG_USB_XHCI_PCI_RENESAS)	+= xhci-pci-renesas.o
 obj-$(CONFIG_USB_XHCI_PLATFORM) += xhci-plat-hcd.o
 obj-$(CONFIG_USB_XHCI_HISTB)	+= xhci-histb.o
+obj-$(CONFIG_USB_XHCI_RCAR)	+= xhci-rcar-hcd.o
 obj-$(CONFIG_USB_XHCI_MTK)	+= xhci-mtk-hcd.o
 obj-$(CONFIG_USB_XHCI_TEGRA)	+= xhci-tegra.o
 obj-$(CONFIG_USB_SL811_HCD)	+= sl811-hcd.o
@@ -84,6 +84,5 @@ obj-$(CONFIG_USB_EHCI_FSL)	+= ehci-fsl.o
 obj-$(CONFIG_USB_EHCI_MV)	+= ehci-mv.o
 obj-$(CONFIG_USB_HCD_BCMA)	+= bcma-hcd.o
 obj-$(CONFIG_USB_HCD_SSB)	+= ssb-hcd.o
-obj-$(CONFIG_USB_FOTG210_HCD)	+= fotg210-hcd.o
 obj-$(CONFIG_USB_MAX3421_HCD)	+= max3421-hcd.o
 obj-$(CONFIG_USB_XEN_HCD)	+= xen-hcd.o

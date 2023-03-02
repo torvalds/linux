@@ -7,22 +7,24 @@
 
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/gpio/driver.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
+#include <linux/pm.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
+/* Since we request GPIOs from ourself */
+#include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-/* Since we request GPIOs from ourself */
-#include <linux/pinctrl/consumer.h>
-#include <linux/pm.h>
 
 #include "pinctrl-at91.h"
 #include "core.h"
@@ -1292,7 +1294,7 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 				 struct at91_pinctrl *info)
 {
 	int ret = 0;
-	int i, j;
+	int i, j, ngpio_chips_enabled = 0;
 	uint32_t *tmp;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *child;
@@ -1305,10 +1307,17 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 		of_match_device(at91_pinctrl_of_match, &pdev->dev)->data;
 	at91_pinctrl_child_count(info, np);
 
-	if (gpio_banks < 1) {
-		dev_err(&pdev->dev, "you need to specify at least one gpio-controller\n");
-		return -EINVAL;
-	}
+	/*
+	 * We need all the GPIO drivers to probe FIRST, or we will not be able
+	 * to obtain references to the struct gpio_chip * for them, and we
+	 * need this to proceed.
+	 */
+	for (i = 0; i < MAX_GPIO_BANKS; i++)
+		if (gpio_chips[i])
+			ngpio_chips_enabled++;
+
+	if (ngpio_chips_enabled < info->nactive_banks)
+		return -EPROBE_DEFER;
 
 	ret = at91_pinctrl_mux_mask(info, np);
 	if (ret)
@@ -1364,7 +1373,7 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 {
 	struct at91_pinctrl *info;
 	struct pinctrl_pin_desc *pdesc;
-	int ret, i, j, k, ngpio_chips_enabled = 0;
+	int ret, i, j, k;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1373,23 +1382,6 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 	ret = at91_pinctrl_probe_dt(pdev, info);
 	if (ret)
 		return ret;
-
-	/*
-	 * We need all the GPIO drivers to probe FIRST, or we will not be able
-	 * to obtain references to the struct gpio_chip * for them, and we
-	 * need this to proceed.
-	 */
-	for (i = 0; i < gpio_banks; i++)
-		if (gpio_chips[i])
-			ngpio_chips_enabled++;
-
-	if (ngpio_chips_enabled < info->nactive_banks) {
-		dev_warn(&pdev->dev,
-			 "All GPIO chips are not registered yet (%d/%d)\n",
-			 ngpio_chips_enabled, info->nactive_banks);
-		devm_kfree(&pdev->dev, info);
-		return -EPROBE_DEFER;
-	}
 
 	at91_pinctrl_desc.name = dev_name(&pdev->dev);
 	at91_pinctrl_desc.npins = gpio_banks * MAX_NB_GPIO_PER_BANK;
@@ -1647,7 +1639,7 @@ static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 	return 0;
 }
 
-static int at91_gpio_suspend(struct device *dev)
+static int __maybe_unused at91_gpio_suspend(struct device *dev)
 {
 	struct at91_gpio_chip *at91_chip = dev_get_drvdata(dev);
 	void __iomem *pio = at91_chip->regbase;
@@ -1665,7 +1657,7 @@ static int at91_gpio_suspend(struct device *dev)
 	return 0;
 }
 
-static int at91_gpio_resume(struct device *dev)
+static int __maybe_unused at91_gpio_resume(struct device *dev)
 {
 	struct at91_gpio_chip *at91_chip = dev_get_drvdata(dev);
 	void __iomem *pio = at91_chip->regbase;
@@ -1883,7 +1875,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < chip->ngpio; i++)
-		names[i] = kasprintf(GFP_KERNEL, "pio%c%d", alias_idx + 'A', i);
+		names[i] = devm_kasprintf(&pdev->dev, GFP_KERNEL, "pio%c%d", alias_idx + 'A', i);
 
 	chip->names = (const char *const *)names;
 
@@ -1921,7 +1913,7 @@ err:
 }
 
 static const struct dev_pm_ops at91_gpio_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(at91_gpio_suspend, at91_gpio_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(at91_gpio_suspend, at91_gpio_resume)
 };
 
 static struct platform_driver at91_gpio_driver = {

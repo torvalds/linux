@@ -57,7 +57,7 @@ static inline void *u64_to_ptr(__u64 ptr)
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG | name PROG_NAME }"
 #define HELP_SPEC_OPTIONS						\
-	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-d|--debug} | {-l|--legacy}"
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-d|--debug}"
 #define HELP_SPEC_MAP							\
 	"MAP := { id MAP_ID | pinned FILE | name MAP_NAME }"
 #define HELP_SPEC_LINK							\
@@ -82,7 +82,6 @@ extern bool block_mount;
 extern bool verifier_logs;
 extern bool relaxed_maps;
 extern bool use_loader;
-extern bool legacy_libbpf;
 extern struct btf *base_btf;
 extern struct hashmap *refs_table;
 
@@ -169,30 +168,32 @@ int prog_parse_fd(int *argc, char ***argv);
 int prog_parse_fds(int *argc, char ***argv, int **fds);
 int map_parse_fd(int *argc, char ***argv);
 int map_parse_fds(int *argc, char ***argv, int **fds);
-int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
+int map_parse_fd_and_info(int *argc, char ***argv, struct bpf_map_info *info,
+			  __u32 *info_len);
 
 struct bpf_prog_linfo;
-#ifdef HAVE_LIBBFD_SUPPORT
-void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		       const char *arch, const char *disassembler_options,
-		       const struct btf *btf,
-		       const struct bpf_prog_linfo *prog_linfo,
-		       __u64 func_ksym, unsigned int func_idx,
-		       bool linum);
+#if defined(HAVE_LLVM_SUPPORT) || defined(HAVE_LIBBFD_SUPPORT)
+int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
+		      const char *arch, const char *disassembler_options,
+		      const struct btf *btf,
+		      const struct bpf_prog_linfo *prog_linfo,
+		      __u64 func_ksym, unsigned int func_idx,
+		      bool linum);
 int disasm_init(void);
 #else
 static inline
-void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		       const char *arch, const char *disassembler_options,
-		       const struct btf *btf,
-		       const struct bpf_prog_linfo *prog_linfo,
-		       __u64 func_ksym, unsigned int func_idx,
-		       bool linum)
+int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
+		      const char *arch, const char *disassembler_options,
+		      const struct btf *btf,
+		      const struct bpf_prog_linfo *prog_linfo,
+		      __u64 func_ksym, unsigned int func_idx,
+		      bool linum)
 {
+	return 0;
 }
 static inline int disasm_init(void)
 {
-	p_err("No libbfd support");
+	p_err("No JIT disassembly support");
 	return -1;
 }
 #endif
@@ -202,8 +203,7 @@ void print_hex_data_json(uint8_t *data, size_t len);
 unsigned int get_page_size(void);
 unsigned int get_possible_cpus(void);
 const char *
-ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
-		      const char **opt);
+ifindex_to_arch(__u32 ifindex, __u64 ns_dev, __u64 ns_ino, const char **opt);
 
 struct btf_dumper {
 	const struct btf *btf;
@@ -240,8 +240,8 @@ int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
 int print_all_levels(__maybe_unused enum libbpf_print_level level,
 		     const char *format, va_list args);
 
-size_t hash_fn_for_key_as_id(const void *key, void *ctx);
-bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx);
+size_t hash_fn_for_key_as_id(long key, void *ctx);
+bool equal_fn_for_key_as_id(long k1, long k2, void *ctx);
 
 /* bpf_attach_type_input_str - convert the provided attach type value into a
  * textual representation that we accept for input purposes.
@@ -256,16 +256,6 @@ bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx);
  * returned for unknown bpf_attach_type values.
  */
 const char *bpf_attach_type_input_str(enum bpf_attach_type t);
-
-static inline void *u32_as_hash_field(__u32 x)
-{
-	return (void *)(uintptr_t)x;
-}
-
-static inline __u32 hash_field_as_u32(const void *x)
-{
-	return (__u32)(uintptr_t)x;
-}
 
 static inline bool hashmap__empty(struct hashmap *map)
 {

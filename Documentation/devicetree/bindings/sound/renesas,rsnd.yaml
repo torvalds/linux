@@ -18,8 +18,7 @@ properties:
           - enum:
               - renesas,rcar_sound-r8a7778   # R-Car M1A
               - renesas,rcar_sound-r8a7779   # R-Car H1
-          - enum:
-              - renesas,rcar_sound-gen1
+          - const: renesas,rcar_sound-gen1
       # for Gen2 SoC
       - items:
           - enum:
@@ -32,8 +31,7 @@ properties:
               - renesas,rcar_sound-r8a7791   # R-Car M2-W
               - renesas,rcar_sound-r8a7793   # R-Car M2-N
               - renesas,rcar_sound-r8a7794   # R-Car E2
-          - enum:
-              - renesas,rcar_sound-gen2
+          - const: renesas,rcar_sound-gen2
       # for Gen3 SoC
       - items:
           - enum:
@@ -47,14 +45,16 @@ properties:
               - renesas,rcar_sound-r8a77965  # R-Car M3-N
               - renesas,rcar_sound-r8a77990  # R-Car E3
               - renesas,rcar_sound-r8a77995  # R-Car D3
-          - enum:
-              - renesas,rcar_sound-gen3
-      # for Generic
+          - const: renesas,rcar_sound-gen3
+      # for Gen4 SoC
       - items:
-          - enum:
-              - renesas,rcar_sound-gen1
-              - renesas,rcar_sound-gen2
-              - renesas,rcar_sound-gen3
+          - const: renesas,rcar_sound-r8a779g0  # R-Car V4H
+          - const: renesas,rcar_sound-gen4
+      # for Generic
+      - enum:
+          - renesas,rcar_sound-gen1
+          - renesas,rcar_sound-gen2
+          - renesas,rcar_sound-gen3
 
   reg:
     minItems: 1
@@ -68,6 +68,7 @@ properties:
     description: |
       it must be 0 if your system is using single DAI
       it must be 1 if your system is using multi  DAIs
+      This is used on simple-audio-card
     enum: [0, 1]
 
   "#clock-cells":
@@ -113,15 +114,34 @@ properties:
         - pattern: '^clk_(a|b|c|i)$'
 
   ports:
-    $ref: /schemas/graph.yaml#/properties/ports
+    $ref: audio-graph-port.yaml#/definitions/port-base
+    unevaluatedProperties: false
     patternProperties:
-      port(@[0-9a-f]+)?:
-        $ref: audio-graph-port.yaml#
+      '^port(@[0-9a-f]+)?$':
+        $ref: audio-graph-port.yaml#/definitions/port-base
         unevaluatedProperties: false
+        patternProperties:
+          "^endpoint(@[0-9a-f]+)?":
+            $ref: audio-graph-port.yaml#/definitions/endpoint-base
+            properties:
+              playback:
+                $ref: /schemas/types.yaml#/definitions/phandle-array
+              capture:
+                $ref: /schemas/types.yaml#/definitions/phandle-array
+            unevaluatedProperties: false
 
   port:
-    $ref: audio-graph-port.yaml#
+    $ref: audio-graph-port.yaml#/definitions/port-base
     unevaluatedProperties: false
+    patternProperties:
+      "^endpoint(@[0-9a-f]+)?":
+        $ref: audio-graph-port.yaml#/definitions/endpoint-base
+        properties:
+          playback:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+          capture:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+        unevaluatedProperties: false
 
   rcar_sound,dvc:
     description: DVC subnode.
@@ -178,10 +198,6 @@ properties:
                   enum:
                     - tx
                     - rx
-        required:
-          - interrupts
-          - dmas
-          - dma-names
     additionalProperties: false
 
   rcar_sound,ssiu:
@@ -240,8 +256,6 @@ properties:
             $ref: /schemas/types.yaml#/definitions/flag
         required:
           - interrupts
-          - dmas
-          - dma-names
     additionalProperties: false
 
   # For DAI base
@@ -271,9 +285,9 @@ required:
   - reg-names
   - clocks
   - clock-names
-  - "#sound-dai-cells"
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -284,7 +298,6 @@ allOf:
         reg:
           maxItems: 3
         reg-names:
-          maxItems: 3
           items:
             enum:
               - scu
@@ -293,9 +306,8 @@ allOf:
     else:
       properties:
         reg:
-          maxItems: 5
+          minItems: 5
         reg-names:
-          maxItems: 5
           items:
             enum:
               - scu
@@ -304,7 +316,7 @@ allOf:
               - ssi
               - audmapp
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

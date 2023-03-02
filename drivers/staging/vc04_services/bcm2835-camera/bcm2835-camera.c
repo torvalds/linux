@@ -26,11 +26,11 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 
-#include "mmal-common.h"
-#include "mmal-encodings.h"
-#include "mmal-vchiq.h"
-#include "mmal-msg.h"
-#include "mmal-parameters.h"
+#include "../vchiq-mmal/mmal-common.h"
+#include "../vchiq-mmal/mmal-encodings.h"
+#include "../vchiq-mmal/mmal-vchiq.h"
+#include "../vchiq-mmal/mmal-msg.h"
+#include "../vchiq-mmal/mmal-parameters.h"
 #include "bcm2835-camera.h"
 
 #define MIN_WIDTH 32
@@ -87,21 +87,21 @@ static struct mmal_fmt formats[] = {
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
-		.remove_padding = 1,
+		.remove_padding = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.mmal = MMAL_ENCODING_YUYV,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_RGB24,
 		.mmal = MMAL_ENCODING_RGB24,
 		.depth = 24,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 3,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_JPEG,
 		.flags = V4L2_FMT_FLAG_COMPRESSED,
@@ -109,7 +109,7 @@ static struct mmal_fmt formats[] = {
 		.depth = 8,
 		.mmal_component = COMP_IMAGE_ENCODE,
 		.ybbp = 0,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_H264,
 		.flags = V4L2_FMT_FLAG_COMPRESSED,
@@ -117,7 +117,7 @@ static struct mmal_fmt formats[] = {
 		.depth = 8,
 		.mmal_component = COMP_VIDEO_ENCODE,
 		.ybbp = 0,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_MJPEG,
 		.flags = V4L2_FMT_FLAG_COMPRESSED,
@@ -125,63 +125,63 @@ static struct mmal_fmt formats[] = {
 		.depth = 8,
 		.mmal_component = COMP_VIDEO_ENCODE,
 		.ybbp = 0,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YVYU,
 		.mmal = MMAL_ENCODING_YVYU,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_VYUY,
 		.mmal = MMAL_ENCODING_VYUY,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.mmal = MMAL_ENCODING_UYVY,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV12,
 		.mmal = MMAL_ENCODING_NV12,
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
-		.remove_padding = 1,
+		.remove_padding = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_BGR24,
 		.mmal = MMAL_ENCODING_BGR24,
 		.depth = 24,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 3,
-		.remove_padding = 0,
+		.remove_padding = false,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YVU420,
 		.mmal = MMAL_ENCODING_YV12,
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
-		.remove_padding = 1,
+		.remove_padding = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV21,
 		.mmal = MMAL_ENCODING_NV21,
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
-		.remove_padding = 1,
+		.remove_padding = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_BGR32,
 		.mmal = MMAL_ENCODING_BGRA,
 		.depth = 32,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 4,
-		.remove_padding = 0,
+		.remove_padding = false,
 	},
 };
 
@@ -1147,7 +1147,7 @@ static int mmal_setup_components(struct bcm2835_mmal_dev *dev,
 	struct vchiq_mmal_port *port = NULL, *camera_port = NULL;
 	struct vchiq_mmal_component *encode_component = NULL;
 	struct mmal_fmt *mfmt = get_format(f);
-	u32 remove_padding;
+	bool remove_padding;
 
 	if (!mfmt)
 		return -EINVAL;

@@ -5,6 +5,7 @@
 # with dst port = 9000 down to 5MBps. Then it measures actual
 # throughput of the flow.
 
+BPF_FILE="test_tc_edt.bpf.o"
 if [[ $EUID -ne 0 ]]; then
 	echo "This script must be run as root"
 	echo "FAIL"
@@ -54,7 +55,7 @@ ip -netns ${NS_DST} route add ${IP_SRC}/32  dev veth_dst
 ip netns exec ${NS_SRC} tc qdisc add dev veth_src root fq
 ip netns exec ${NS_SRC} tc qdisc add dev veth_src clsact
 ip netns exec ${NS_SRC} tc filter add dev veth_src egress \
-	bpf da obj test_tc_edt.o sec cls_test
+	bpf da obj ${BPF_FILE} sec cls_test
 
 
 # start the listener

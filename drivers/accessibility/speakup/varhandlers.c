@@ -48,6 +48,7 @@ static struct st_var_header var_headers[] = {
 	{ "chartab", CHARTAB, VAR_PROC, NULL, NULL },
 	{ "direct", DIRECT, VAR_NUM, NULL, NULL },
 	{ "pause", PAUSE, VAR_STRING, spk_str_pause, NULL },
+	{ "cur_phonetic", CUR_PHONETIC, VAR_NUM, &spk_cur_phonetic, NULL },
 };
 
 static struct st_var_header *var_ptrs[MAXVARS] = { NULL, NULL, NULL };

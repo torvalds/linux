@@ -15,7 +15,6 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -1841,16 +1840,16 @@ static int ov7670_parse_dt(struct device *dev,
 
 	if (bus_cfg.bus_type != V4L2_MBUS_PARALLEL) {
 		dev_err(dev, "Unsupported media bus type\n");
-		return ret;
+		return -EINVAL;
 	}
 	info->mbus_config = bus_cfg.bus.parallel.flags;
 
 	return 0;
 }
 
-static int ov7670_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov7670_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct v4l2_fract tpf;
 	struct v4l2_subdev *sd;
 	struct ov7670_info *info;
@@ -2039,7 +2038,7 @@ static struct i2c_driver ov7670_driver = {
 		.name	= "ov7670",
 		.of_match_table = of_match_ptr(ov7670_of_match),
 	},
-	.probe		= ov7670_probe,
+	.probe_new	= ov7670_probe,
 	.remove		= ov7670_remove,
 	.id_table	= ov7670_id,
 };

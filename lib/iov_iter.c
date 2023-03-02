@@ -186,12 +186,6 @@ static int copyin(void *to, const void __user *from, size_t n)
 	return res;
 }
 
-static inline struct pipe_buffer *pipe_buf(const struct pipe_inode_info *pipe,
-					   unsigned int slot)
-{
-	return &pipe->bufs[slot & (pipe->ring_size - 1)];
-}
-
 #ifdef PIPE_PARANOIA
 static bool sanity(const struct iov_iter *i)
 {
@@ -520,6 +514,8 @@ static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
 
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
+	if (WARN_ON_ONCE(i->data_source))
+		return 0;
 	if (unlikely(iov_iter_is_pipe(i)))
 		return copy_pipe_to_iter(addr, bytes, i);
 	if (user_backed_iter(i))
@@ -606,6 +602,8 @@ static size_t copy_mc_pipe_to_iter(const void *addr, size_t bytes,
  */
 size_t _copy_mc_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
+	if (WARN_ON_ONCE(i->data_source))
+		return 0;
 	if (unlikely(iov_iter_is_pipe(i)))
 		return copy_mc_pipe_to_iter(addr, bytes, i);
 	if (user_backed_iter(i))
@@ -622,10 +620,9 @@ EXPORT_SYMBOL_GPL(_copy_mc_to_iter);
 
 size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(iov_iter_is_pipe(i))) {
-		WARN_ON(1);
+	if (WARN_ON_ONCE(!i->data_source))
 		return 0;
-	}
+
 	if (user_backed_iter(i))
 		might_fault();
 	iterate_and_advance(i, bytes, base, len, off,
@@ -639,10 +636,9 @@ EXPORT_SYMBOL(_copy_from_iter);
 
 size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(iov_iter_is_pipe(i))) {
-		WARN_ON(1);
+	if (WARN_ON_ONCE(!i->data_source))
 		return 0;
-	}
+
 	iterate_and_advance(i, bytes, base, len, off,
 		__copy_from_user_inatomic_nocache(addr + off, base, len),
 		memcpy(addr + off, base, len)
@@ -671,10 +667,9 @@ EXPORT_SYMBOL(_copy_from_iter_nocache);
  */
 size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(iov_iter_is_pipe(i))) {
-		WARN_ON(1);
+	if (WARN_ON_ONCE(!i->data_source))
 		return 0;
-	}
+
 	iterate_and_advance(i, bytes, base, len, off,
 		__copy_from_user_flushcache(addr + off, base, len),
 		memcpy_flushcache(addr + off, base, len)
@@ -703,17 +698,18 @@ static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
 	head = compound_head(page);
 	v += (page - head) << PAGE_SHIFT;
 
-	if (likely(n <= v && v <= (page_size(head))))
-		return true;
-	WARN_ON(1);
-	return false;
+	if (WARN_ON(n > v || v > page_size(head)))
+		return false;
+	return true;
 }
 
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
 	size_t res = 0;
-	if (unlikely(!page_copy_sane(page, offset, bytes)))
+	if (!page_copy_sane(page, offset, bytes))
+		return 0;
+	if (WARN_ON_ONCE(i->data_source))
 		return 0;
 	if (unlikely(iov_iter_is_pipe(i)))
 		return copy_page_to_iter_pipe(page, offset, bytes, i);
@@ -808,13 +804,12 @@ size_t copy_page_from_iter_atomic(struct page *page, unsigned offset, size_t byt
 				  struct iov_iter *i)
 {
 	char *kaddr = kmap_atomic(page), *p = kaddr + offset;
-	if (unlikely(!page_copy_sane(page, offset, bytes))) {
+	if (!page_copy_sane(page, offset, bytes)) {
 		kunmap_atomic(kaddr);
 		return 0;
 	}
-	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
+	if (WARN_ON_ONCE(!i->data_source)) {
 		kunmap_atomic(kaddr);
-		WARN_ON(1);
 		return 0;
 	}
 	iterate_and_advance(i, bytes, base, len, off,
@@ -1430,9 +1425,10 @@ static struct page *first_bvec_segment(const struct iov_iter *i,
 
 static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		   struct page ***pages, size_t maxsize,
-		   unsigned int maxpages, size_t *start)
+		   unsigned int maxpages, size_t *start,
+		   iov_iter_extraction_t extraction_flags)
 {
-	unsigned int n;
+	unsigned int n, gup_flags = 0;
 
 	if (maxsize > i->count)
 		maxsize = i->count;
@@ -1440,9 +1436,10 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		return 0;
 	if (maxsize > MAX_RW_COUNT)
 		maxsize = MAX_RW_COUNT;
+	if (extraction_flags & ITER_ALLOW_P2PDMA)
+		gup_flags |= FOLL_PCI_P2PDMA;
 
 	if (likely(user_backed_iter(i))) {
-		unsigned int gup_flags = 0;
 		unsigned long addr;
 		int res;
 
@@ -1492,32 +1489,48 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 	return -EFAULT;
 }
 
-ssize_t iov_iter_get_pages2(struct iov_iter *i,
+ssize_t iov_iter_get_pages(struct iov_iter *i,
 		   struct page **pages, size_t maxsize, unsigned maxpages,
-		   size_t *start)
+		   size_t *start, iov_iter_extraction_t extraction_flags)
 {
 	if (!maxpages)
 		return 0;
 	BUG_ON(!pages);
 
-	return __iov_iter_get_pages_alloc(i, &pages, maxsize, maxpages, start);
+	return __iov_iter_get_pages_alloc(i, &pages, maxsize, maxpages,
+					  start, extraction_flags);
+}
+EXPORT_SYMBOL_GPL(iov_iter_get_pages);
+
+ssize_t iov_iter_get_pages2(struct iov_iter *i, struct page **pages,
+		size_t maxsize, unsigned maxpages, size_t *start)
+{
+	return iov_iter_get_pages(i, pages, maxsize, maxpages, start, 0);
 }
 EXPORT_SYMBOL(iov_iter_get_pages2);
 
-ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i,
+ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 		   struct page ***pages, size_t maxsize,
-		   size_t *start)
+		   size_t *start, iov_iter_extraction_t extraction_flags)
 {
 	ssize_t len;
 
 	*pages = NULL;
 
-	len = __iov_iter_get_pages_alloc(i, pages, maxsize, ~0U, start);
+	len = __iov_iter_get_pages_alloc(i, pages, maxsize, ~0U, start,
+					 extraction_flags);
 	if (len <= 0) {
 		kvfree(*pages);
 		*pages = NULL;
 	}
 	return len;
+}
+EXPORT_SYMBOL_GPL(iov_iter_get_pages_alloc);
+
+ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i,
+		struct page ***pages, size_t maxsize, size_t *start)
+{
+	return iov_iter_get_pages_alloc(i, pages, maxsize, start, 0);
 }
 EXPORT_SYMBOL(iov_iter_get_pages_alloc2);
 
@@ -1526,10 +1539,9 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 {
 	__wsum sum, next;
 	sum = *csum;
-	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
-		WARN_ON(1);
+	if (WARN_ON_ONCE(!i->data_source))
 		return 0;
-	}
+
 	iterate_and_advance(i, bytes, base, len, off, ({
 		next = csum_and_copy_from_user(base, addr + off, len);
 		sum = csum_block_add(sum, next, off);
@@ -1549,9 +1561,15 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 	struct csum_state *csstate = _csstate;
 	__wsum sum, next;
 
-	if (unlikely(iov_iter_is_discard(i))) {
-		WARN_ON(1);	/* for now */
+	if (WARN_ON_ONCE(i->data_source))
 		return 0;
+	if (unlikely(iov_iter_is_discard(i))) {
+		// can't use csum_memcpy() for that one - data is not copied
+		csstate->csum = csum_block_add(csstate->csum,
+					       csum_partial(addr, bytes, 0),
+					       csstate->off);
+		csstate->off += bytes;
+		return bytes;
 	}
 
 	sum = csum_shift(csstate->csum, csstate->off);
@@ -1855,6 +1873,17 @@ int import_single_range(int rw, void __user *buf, size_t len,
 }
 EXPORT_SYMBOL(import_single_range);
 
+int import_ubuf(int rw, void __user *buf, size_t len, struct iov_iter *i)
+{
+	if (len > MAX_RW_COUNT)
+		len = MAX_RW_COUNT;
+	if (unlikely(!access_ok(buf, len)))
+		return -EFAULT;
+
+	iov_iter_ubuf(i, rw, buf, len);
+	return 0;
+}
+
 /**
  * iov_iter_restore() - Restore a &struct iov_iter to the same state as when
  *     iov_iter_save_state() was called.
@@ -1869,8 +1898,8 @@ EXPORT_SYMBOL(import_single_range);
  */
 void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state)
 {
-	if (WARN_ON_ONCE(!iov_iter_is_bvec(i) && !iter_is_iovec(i)) &&
-			 !iov_iter_is_kvec(i) && !iter_is_ubuf(i))
+	if (WARN_ON_ONCE(!iov_iter_is_bvec(i) && !iter_is_iovec(i) &&
+			 !iter_is_ubuf(i)) && !iov_iter_is_kvec(i))
 		return;
 	i->iov_offset = state->iov_offset;
 	i->count = state->count;
@@ -1892,3 +1921,267 @@ void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state)
 		i->iov -= state->nr_segs - i->nr_segs;
 	i->nr_segs = state->nr_segs;
 }
+
+/*
+ * Extract a list of contiguous pages from an ITER_XARRAY iterator.  This does not
+ * get references on the pages, nor does it get a pin on them.
+ */
+static ssize_t iov_iter_extract_xarray_pages(struct iov_iter *i,
+					     struct page ***pages, size_t maxsize,
+					     unsigned int maxpages,
+					     iov_iter_extraction_t extraction_flags,
+					     size_t *offset0)
+{
+	struct page *page, **p;
+	unsigned int nr = 0, offset;
+	loff_t pos = i->xarray_start + i->iov_offset;
+	pgoff_t index = pos >> PAGE_SHIFT;
+	XA_STATE(xas, i->xarray, index);
+
+	offset = pos & ~PAGE_MASK;
+	*offset0 = offset;
+
+	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
+	if (!maxpages)
+		return -ENOMEM;
+	p = *pages;
+
+	rcu_read_lock();
+	for (page = xas_load(&xas); page; page = xas_next(&xas)) {
+		if (xas_retry(&xas, page))
+			continue;
+
+		/* Has the page moved or been split? */
+		if (unlikely(page != xas_reload(&xas))) {
+			xas_reset(&xas);
+			continue;
+		}
+
+		p[nr++] = find_subpage(page, xas.xa_index);
+		if (nr == maxpages)
+			break;
+	}
+	rcu_read_unlock();
+
+	maxsize = min_t(size_t, nr * PAGE_SIZE - offset, maxsize);
+	iov_iter_advance(i, maxsize);
+	return maxsize;
+}
+
+/*
+ * Extract a list of contiguous pages from an ITER_BVEC iterator.  This does
+ * not get references on the pages, nor does it get a pin on them.
+ */
+static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
+					   struct page ***pages, size_t maxsize,
+					   unsigned int maxpages,
+					   iov_iter_extraction_t extraction_flags,
+					   size_t *offset0)
+{
+	struct page **p, *page;
+	size_t skip = i->iov_offset, offset;
+	int k;
+
+	for (;;) {
+		if (i->nr_segs == 0)
+			return 0;
+		maxsize = min(maxsize, i->bvec->bv_len - skip);
+		if (maxsize)
+			break;
+		i->iov_offset = 0;
+		i->nr_segs--;
+		i->bvec++;
+		skip = 0;
+	}
+
+	skip += i->bvec->bv_offset;
+	page = i->bvec->bv_page + skip / PAGE_SIZE;
+	offset = skip % PAGE_SIZE;
+	*offset0 = offset;
+
+	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
+	if (!maxpages)
+		return -ENOMEM;
+	p = *pages;
+	for (k = 0; k < maxpages; k++)
+		p[k] = page + k;
+
+	maxsize = min_t(size_t, maxsize, maxpages * PAGE_SIZE - offset);
+	iov_iter_advance(i, maxsize);
+	return maxsize;
+}
+
+/*
+ * Extract a list of virtually contiguous pages from an ITER_KVEC iterator.
+ * This does not get references on the pages, nor does it get a pin on them.
+ */
+static ssize_t iov_iter_extract_kvec_pages(struct iov_iter *i,
+					   struct page ***pages, size_t maxsize,
+					   unsigned int maxpages,
+					   iov_iter_extraction_t extraction_flags,
+					   size_t *offset0)
+{
+	struct page **p, *page;
+	const void *kaddr;
+	size_t skip = i->iov_offset, offset, len;
+	int k;
+
+	for (;;) {
+		if (i->nr_segs == 0)
+			return 0;
+		maxsize = min(maxsize, i->kvec->iov_len - skip);
+		if (maxsize)
+			break;
+		i->iov_offset = 0;
+		i->nr_segs--;
+		i->kvec++;
+		skip = 0;
+	}
+
+	kaddr = i->kvec->iov_base + skip;
+	offset = (unsigned long)kaddr & ~PAGE_MASK;
+	*offset0 = offset;
+
+	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
+	if (!maxpages)
+		return -ENOMEM;
+	p = *pages;
+
+	kaddr -= offset;
+	len = offset + maxsize;
+	for (k = 0; k < maxpages; k++) {
+		size_t seg = min_t(size_t, len, PAGE_SIZE);
+
+		if (is_vmalloc_or_module_addr(kaddr))
+			page = vmalloc_to_page(kaddr);
+		else
+			page = virt_to_page(kaddr);
+
+		p[k] = page;
+		len -= seg;
+		kaddr += PAGE_SIZE;
+	}
+
+	maxsize = min_t(size_t, maxsize, maxpages * PAGE_SIZE - offset);
+	iov_iter_advance(i, maxsize);
+	return maxsize;
+}
+
+/*
+ * Extract a list of contiguous pages from a user iterator and get a pin on
+ * each of them.  This should only be used if the iterator is user-backed
+ * (IOBUF/UBUF).
+ *
+ * It does not get refs on the pages, but the pages must be unpinned by the
+ * caller once the transfer is complete.
+ *
+ * This is safe to be used where background IO/DMA *is* going to be modifying
+ * the buffer; using a pin rather than a ref makes forces fork() to give the
+ * child a copy of the page.
+ */
+static ssize_t iov_iter_extract_user_pages(struct iov_iter *i,
+					   struct page ***pages,
+					   size_t maxsize,
+					   unsigned int maxpages,
+					   iov_iter_extraction_t extraction_flags,
+					   size_t *offset0)
+{
+	unsigned long addr;
+	unsigned int gup_flags = 0;
+	size_t offset;
+	int res;
+
+	if (i->data_source == ITER_DEST)
+		gup_flags |= FOLL_WRITE;
+	if (extraction_flags & ITER_ALLOW_P2PDMA)
+		gup_flags |= FOLL_PCI_P2PDMA;
+	if (i->nofault)
+		gup_flags |= FOLL_NOFAULT;
+
+	addr = first_iovec_segment(i, &maxsize);
+	*offset0 = offset = addr % PAGE_SIZE;
+	addr &= PAGE_MASK;
+	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
+	if (!maxpages)
+		return -ENOMEM;
+	res = pin_user_pages_fast(addr, maxpages, gup_flags, *pages);
+	if (unlikely(res <= 0))
+		return res;
+	maxsize = min_t(size_t, maxsize, res * PAGE_SIZE - offset);
+	iov_iter_advance(i, maxsize);
+	return maxsize;
+}
+
+/**
+ * iov_iter_extract_pages - Extract a list of contiguous pages from an iterator
+ * @i: The iterator to extract from
+ * @pages: Where to return the list of pages
+ * @maxsize: The maximum amount of iterator to extract
+ * @maxpages: The maximum size of the list of pages
+ * @extraction_flags: Flags to qualify request
+ * @offset0: Where to return the starting offset into (*@pages)[0]
+ *
+ * Extract a list of contiguous pages from the current point of the iterator,
+ * advancing the iterator.  The maximum number of pages and the maximum amount
+ * of page contents can be set.
+ *
+ * If *@pages is NULL, a page list will be allocated to the required size and
+ * *@pages will be set to its base.  If *@pages is not NULL, it will be assumed
+ * that the caller allocated a page list at least @maxpages in size and this
+ * will be filled in.
+ *
+ * @extraction_flags can have ITER_ALLOW_P2PDMA set to request peer-to-peer DMA
+ * be allowed on the pages extracted.
+ *
+ * The iov_iter_extract_will_pin() function can be used to query how cleanup
+ * should be performed.
+ *
+ * Extra refs or pins on the pages may be obtained as follows:
+ *
+ *  (*) If the iterator is user-backed (ITER_IOVEC/ITER_UBUF), pins will be
+ *      added to the pages, but refs will not be taken.
+ *      iov_iter_extract_will_pin() will return true.
+ *
+ *  (*) If the iterator is ITER_KVEC, ITER_BVEC or ITER_XARRAY, the pages are
+ *      merely listed; no extra refs or pins are obtained.
+ *      iov_iter_extract_will_pin() will return 0.
+ *
+ * Note also:
+ *
+ *  (*) Use with ITER_DISCARD is not supported as that has no content.
+ *
+ * On success, the function sets *@pages to the new pagelist, if allocated, and
+ * sets *offset0 to the offset into the first page.
+ *
+ * It may also return -ENOMEM and -EFAULT.
+ */
+ssize_t iov_iter_extract_pages(struct iov_iter *i,
+			       struct page ***pages,
+			       size_t maxsize,
+			       unsigned int maxpages,
+			       iov_iter_extraction_t extraction_flags,
+			       size_t *offset0)
+{
+	maxsize = min_t(size_t, min_t(size_t, maxsize, i->count), MAX_RW_COUNT);
+	if (!maxsize)
+		return 0;
+
+	if (likely(user_backed_iter(i)))
+		return iov_iter_extract_user_pages(i, pages, maxsize,
+						   maxpages, extraction_flags,
+						   offset0);
+	if (iov_iter_is_kvec(i))
+		return iov_iter_extract_kvec_pages(i, pages, maxsize,
+						   maxpages, extraction_flags,
+						   offset0);
+	if (iov_iter_is_bvec(i))
+		return iov_iter_extract_bvec_pages(i, pages, maxsize,
+						   maxpages, extraction_flags,
+						   offset0);
+	if (iov_iter_is_xarray(i))
+		return iov_iter_extract_xarray_pages(i, pages, maxsize,
+						     maxpages, extraction_flags,
+						     offset0);
+	return -EFAULT;
+}
+EXPORT_SYMBOL_GPL(iov_iter_extract_pages);

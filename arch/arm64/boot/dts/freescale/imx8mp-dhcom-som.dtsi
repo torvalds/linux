@@ -239,7 +239,6 @@
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-		sd-vsel-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 
 		/*
 		 * i.MX 8M Plus Data Sheet for Consumer Products
@@ -248,7 +247,6 @@
 		 */
 		regulators {
 			buck1: BUCK1 {	/* VDD_SOC (dual-phase with BUCK3) */
-				regulator-compatible = "BUCK1";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -257,7 +255,6 @@
 			};
 
 			buck2: BUCK2 {	/* VDD_ARM */
-				regulator-compatible = "BUCK2";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -266,7 +263,6 @@
 			};
 
 			buck4: BUCK4 {	/* VDD_3V3 */
-				regulator-compatible = "BUCK4";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
@@ -274,7 +270,6 @@
 			};
 
 			buck5: BUCK5 {	/* VDD_1V8 */
-				regulator-compatible = "BUCK5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -282,7 +277,6 @@
 			};
 
 			buck6: BUCK6 {	/* NVCC_DRAM_1V1 */
-				regulator-compatible = "BUCK6";
 				regulator-min-microvolt = <1100000>;
 				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
@@ -290,7 +284,6 @@
 			};
 
 			ldo1: LDO1 {	/* NVCC_SNVS_1V8 */
-				regulator-compatible = "LDO1";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -298,7 +291,6 @@
 			};
 
 			ldo3: LDO3 {	/* VDDA_1V8 */
-				regulator-compatible = "LDO3";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -306,13 +298,11 @@
 			};
 
 			ldo4: LDO4 {	/* PMIC_LDO4 */
-				regulator-compatible = "LDO4";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo5: LDO5 {	/* NVCC_SD2 */
-				regulator-compatible = "LDO5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
@@ -427,6 +417,25 @@
 	pinctrl-0 = <&pinctrl_uart2>;
 	uart-has-rtscts;
 	status = "okay";
+
+	/*
+	 * PLL1 at 80 MHz supplies UART2 root with 80 MHz clock,
+	 * which with 16x oversampling yields 5 Mbdps baud base,
+	 * which can be well divided by 5/4 to achieve 4 Mbdps,
+	 * which is exactly the maximum rate supported by muRata
+	 * 2AE bluetooth UART.
+	 */
+	assigned-clocks = <&clk IMX8MP_CLK_UART2>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_80M>;
+	assigned-clock-rates = <80000000>;
+
+	bluetooth {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_uart2_bt>;
+		compatible = "cypress,cyw4373a0-bt";
+		shutdown-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		max-speed = <4000000>;
+	};
 };
 
 &uart3 {
@@ -849,6 +858,13 @@
 		>;
 	};
 
+	pinctrl_uart2_bt: dhcom-uart2-bt-grp {
+		fsl,pins = <
+			/* BT_REG_EN */
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
+		>;
+	};
+
 	pinctrl_uart3: dhcom-uart3-grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_ECSPI1_SCLK__UART3_DCE_RX		0x49
@@ -886,8 +902,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d0
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d0
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d0
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
@@ -901,8 +915,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d4
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d4
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d4
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
@@ -916,8 +928,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d6
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d6
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d6
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;

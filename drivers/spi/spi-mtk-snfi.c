@@ -126,7 +126,8 @@
 #define STR_DATA BIT(0)
 
 #define NFI_STA 0x060
-#define NFI_NAND_FSM GENMASK(28, 24)
+#define NFI_NAND_FSM_7622 GENMASK(28, 24)
+#define NFI_NAND_FSM_7986 GENMASK(29, 23)
 #define NFI_FSM GENMASK(19, 16)
 #define READ_EMPTY BIT(12)
 
@@ -158,6 +159,7 @@
 #define MAS_WR GENMASK(5, 3)
 #define MAS_RDDLY GENMASK(2, 0)
 #define NFI_MASTERSTA_MASK_7622 (MAS_ADDR | MAS_RD | MAS_WR | MAS_RDDLY)
+#define NFI_MASTERSTA_MASK_7986 3
 
 // SNFI registers
 #define SNF_MAC_CTL 0x500
@@ -193,6 +195,8 @@
 #define DATA_READ_MODE_X4 2
 #define DATA_READ_MODE_DUAL 5
 #define DATA_READ_MODE_QUAD 6
+#define DATA_READ_LATCH_LAT GENMASK(9, 8)
+#define DATA_READ_LATCH_LAT_S 8
 #define PG_LOAD_CUSTOM_EN BIT(7)
 #define DATARD_CUSTOM_EN BIT(6)
 #define CS_DESELECT_CYC_S 0
@@ -203,6 +207,9 @@
 
 #define SNF_DLY_CTL3 0x548
 #define SFCK_SAM_DLY_S 0
+#define SFCK_SAM_DLY GENMASK(5, 0)
+#define SFCK_SAM_DLY_TOTAL 9
+#define SFCK_SAM_DLY_RANGE 47
 
 #define SNF_STA_CTL1 0x550
 #define CUS_PG_DONE BIT(28)
@@ -220,6 +227,11 @@
 
 static const u8 mt7622_spare_sizes[] = { 16, 26, 27, 28 };
 
+static const u8 mt7986_spare_sizes[] = {
+	16, 26, 27, 28, 32, 36, 40, 44, 48, 49, 50, 51, 52, 62, 61, 63, 64, 67,
+	74
+};
+
 struct mtk_snand_caps {
 	u16 sector_size;
 	u16 max_sectors;
@@ -230,6 +242,7 @@ struct mtk_snand_caps {
 	bool bbm_swap;
 	bool empty_page_check;
 	u32 mastersta_mask;
+	u32 nandfsm_mask;
 
 	const u8 *spare_sizes;
 	u32 num_spare_size;
@@ -244,6 +257,7 @@ static const struct mtk_snand_caps mt7622_snand_caps = {
 	.bbm_swap = false,
 	.empty_page_check = false,
 	.mastersta_mask = NFI_MASTERSTA_MASK_7622,
+	.nandfsm_mask = NFI_NAND_FSM_7622,
 	.spare_sizes = mt7622_spare_sizes,
 	.num_spare_size = ARRAY_SIZE(mt7622_spare_sizes)
 };
@@ -257,8 +271,23 @@ static const struct mtk_snand_caps mt7629_snand_caps = {
 	.bbm_swap = true,
 	.empty_page_check = false,
 	.mastersta_mask = NFI_MASTERSTA_MASK_7622,
+	.nandfsm_mask = NFI_NAND_FSM_7622,
 	.spare_sizes = mt7622_spare_sizes,
 	.num_spare_size = ARRAY_SIZE(mt7622_spare_sizes)
+};
+
+static const struct mtk_snand_caps mt7986_snand_caps = {
+	.sector_size = 1024,
+	.max_sectors = 8,
+	.fdm_size = 8,
+	.fdm_ecc_size = 1,
+	.fifo_size = 64,
+	.bbm_swap = true,
+	.empty_page_check = true,
+	.mastersta_mask = NFI_MASTERSTA_MASK_7986,
+	.nandfsm_mask = NFI_NAND_FSM_7986,
+	.spare_sizes = mt7986_spare_sizes,
+	.num_spare_size = ARRAY_SIZE(mt7986_spare_sizes)
 };
 
 struct mtk_snand_conf {
@@ -273,6 +302,7 @@ struct mtk_snand {
 	struct device *dev;
 	struct clk *nfi_clk;
 	struct clk *pad_clk;
+	struct clk *nfi_hclk;
 	void __iomem *nfi_base;
 	int irq;
 	struct completion op_done;
@@ -360,7 +390,7 @@ static int mtk_nfi_reset(struct mtk_snand *snf)
 	}
 
 	ret = readl_poll_timeout(snf->nfi_base + NFI_STA, val,
-				 !(val & (NFI_FSM | NFI_NAND_FSM)), 0,
+				 !(val & (NFI_FSM | snf->caps->nandfsm_mask)), 0,
 				 SNFI_POLL_INTERVAL);
 	if (ret) {
 		dev_err(snf->dev, "Failed to reset NFI\n");
@@ -1295,6 +1325,7 @@ static irqreturn_t mtk_snand_irq(int irq, void *id)
 static const struct of_device_id mtk_snand_ids[] = {
 	{ .compatible = "mediatek,mt7622-snand", .data = &mt7622_snand_caps },
 	{ .compatible = "mediatek,mt7629-snand", .data = &mt7629_snand_caps },
+	{ .compatible = "mediatek,mt7986-snand", .data = &mt7986_snand_caps },
 	{},
 };
 
@@ -1314,7 +1345,16 @@ static int mtk_snand_enable_clk(struct mtk_snand *ms)
 		dev_err(ms->dev, "unable to enable pad clk\n");
 		goto err1;
 	}
+	ret = clk_prepare_enable(ms->nfi_hclk);
+	if (ret) {
+		dev_err(ms->dev, "unable to enable nfi hclk\n");
+		goto err2;
+	}
+
 	return 0;
+
+err2:
+	clk_disable_unprepare(ms->pad_clk);
 err1:
 	clk_disable_unprepare(ms->nfi_clk);
 	return ret;
@@ -1322,6 +1362,7 @@ err1:
 
 static void mtk_snand_disable_clk(struct mtk_snand *ms)
 {
+	clk_disable_unprepare(ms->nfi_hclk);
 	clk_disable_unprepare(ms->pad_clk);
 	clk_disable_unprepare(ms->nfi_clk);
 }
@@ -1332,6 +1373,8 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	const struct of_device_id *dev_id;
 	struct spi_controller *ctlr;
 	struct mtk_snand *ms;
+	unsigned long spi_freq;
+	u32 val = 0;
 	int ret;
 
 	dev_id = of_match_node(mtk_snand_ids, np);
@@ -1376,6 +1419,13 @@ static int mtk_snand_probe(struct platform_device *pdev)
 		goto release_ecc;
 	}
 
+	ms->nfi_hclk = devm_clk_get_optional(&pdev->dev, "nfi_hclk");
+	if (IS_ERR(ms->nfi_hclk)) {
+		ret = PTR_ERR(ms->nfi_hclk);
+		dev_err(&pdev->dev, "unable to get nfi_hclk, err = %d\n", ret);
+		goto release_ecc;
+	}
+
 	ret = mtk_snand_enable_clk(ms);
 	if (ret)
 		goto release_ecc;
@@ -1403,10 +1453,22 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	// switch to SNFI mode
 	nfi_write32(ms, SNF_CFG, SPI_MODE);
 
+	ret = of_property_read_u32(np, "rx-sample-delay-ns", &val);
+	if (!ret)
+		nfi_rmw32(ms, SNF_DLY_CTL3, SFCK_SAM_DLY,
+			  val * SFCK_SAM_DLY_RANGE / SFCK_SAM_DLY_TOTAL);
+
+	ret = of_property_read_u32(np, "mediatek,rx-latch-latency-ns", &val);
+	if (!ret) {
+		spi_freq = clk_get_rate(ms->pad_clk);
+		val = DIV_ROUND_CLOSEST(val, NSEC_PER_SEC / spi_freq);
+		nfi_rmw32(ms, SNF_MISC_CTL, DATA_READ_LATCH_LAT,
+			  val << DATA_READ_LATCH_LAT_S);
+	}
+
 	// setup an initial page format for ops matching page_cache_op template
 	// before ECC is called.
-	ret = mtk_snand_setup_pagefmt(ms, ms->caps->sector_size,
-				      ms->caps->spare_sizes[0]);
+	ret = mtk_snand_setup_pagefmt(ms, SZ_2K, SZ_64);
 	if (ret) {
 		dev_err(ms->dev, "failed to set initial page format\n");
 		goto disable_clk;

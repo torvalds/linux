@@ -82,6 +82,7 @@ struct mount_kattr {
 	unsigned int lookup_flags;
 	bool recurse;
 	struct user_namespace *mnt_userns;
+	struct mnt_idmap *mnt_idmap;
 };
 
 /* /sys/fs */
@@ -232,7 +233,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		INIT_HLIST_NODE(&mnt->mnt_mp_list);
 		INIT_LIST_HEAD(&mnt->mnt_umounting);
 		INIT_HLIST_HEAD(&mnt->mnt_stuck_children);
-		mnt->mnt.mnt_userns = &init_user_ns;
+		mnt->mnt.mnt_idmap = &nop_mnt_idmap;
 	}
 	return mnt;
 
@@ -602,11 +603,7 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 
 static void free_vfsmnt(struct mount *mnt)
 {
-	struct user_namespace *mnt_userns;
-
-	mnt_userns = mnt_user_ns(&mnt->mnt);
-	if (!initial_idmapping(mnt_userns))
-		put_user_ns(mnt_userns);
+	mnt_idmap_put(mnt_idmap(&mnt->mnt));
 	kfree_const(mnt->mnt_devname);
 #ifdef CONFIG_SMP
 	free_percpu(mnt->mnt_pcp);
@@ -1009,7 +1006,6 @@ static struct mount *skip_mnt_tree(struct mount *p)
 struct vfsmount *vfs_create_mount(struct fs_context *fc)
 {
 	struct mount *mnt;
-	struct user_namespace *fs_userns;
 
 	if (!fc->root)
 		return ERR_PTR(-EINVAL);
@@ -1026,10 +1022,6 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
 	mnt->mnt.mnt_root	= dget(fc->root);
 	mnt->mnt_mountpoint	= mnt->mnt.mnt_root;
 	mnt->mnt_parent		= mnt;
-
-	fs_userns = mnt->mnt.mnt_sb->s_user_ns;
-	if (!initial_idmapping(fs_userns))
-		mnt->mnt.mnt_userns = get_user_ns(fs_userns);
 
 	lock_mount_hash();
 	list_add_tail(&mnt->mnt_instance, &mnt->mnt.mnt_sb->s_mounts);
@@ -1120,9 +1112,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL);
 
 	atomic_inc(&sb->s_active);
-	mnt->mnt.mnt_userns = mnt_user_ns(&old->mnt);
-	if (!initial_idmapping(mnt->mnt.mnt_userns))
-		mnt->mnt.mnt_userns = get_user_ns(mnt->mnt.mnt_userns);
+	mnt->mnt.mnt_idmap = mnt_idmap_get(mnt_idmap(&old->mnt));
+
 	mnt->mnt.mnt_sb = sb;
 	mnt->mnt.mnt_root = dget(root);
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
@@ -1291,6 +1282,17 @@ struct vfsmount *mntget(struct vfsmount *mnt)
 	return mnt;
 }
 EXPORT_SYMBOL(mntget);
+
+/*
+ * Make a mount point inaccessible to new lookups.
+ * Because there may still be current users, the caller MUST WAIT
+ * for an RCU grace period before destroying the mount point.
+ */
+void mnt_make_shortterm(struct vfsmount *mnt)
+{
+	if (mnt)
+		real_mount(mnt)->mnt_ns = NULL;
+}
 
 /**
  * path_is_mountpoint() - Check if path is a mount in the current namespace.
@@ -3515,8 +3517,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 		q = next_mnt(q, new);
 		if (!q)
 			break;
+		// an mntns binding we'd skipped?
 		while (p->mnt.mnt_root != q->mnt.mnt_root)
-			p = next_mnt(p, old);
+			p = next_mnt(skip_mnt_tree(p), old);
 	}
 	namespace_unlock();
 
@@ -3981,14 +3984,14 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 	struct vfsmount *m = &mnt->mnt;
 	struct user_namespace *fs_userns = m->mnt_sb->s_user_ns;
 
-	if (!kattr->mnt_userns)
+	if (!kattr->mnt_idmap)
 		return 0;
 
 	/*
 	 * Creating an idmapped mount with the filesystem wide idmapping
 	 * doesn't make sense so block that. We don't allow mushy semantics.
 	 */
-	if (kattr->mnt_userns == fs_userns)
+	if (!check_fsmapping(kattr->mnt_idmap, m->mnt_sb))
 		return -EINVAL;
 
 	/*
@@ -4028,7 +4031,7 @@ static inline bool mnt_allow_writers(const struct mount_kattr *kattr,
 {
 	return (!(kattr->attr_set & MNT_READONLY) ||
 		(mnt->mnt.mnt_flags & MNT_READONLY)) &&
-	       !kattr->mnt_userns;
+	       !kattr->mnt_idmap;
 }
 
 static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
@@ -4082,27 +4085,18 @@ static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
 
 static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 {
-	struct user_namespace *mnt_userns, *old_mnt_userns;
-
-	if (!kattr->mnt_userns)
+	if (!kattr->mnt_idmap)
 		return;
 
 	/*
-	 * We're the only ones able to change the mount's idmapping. So
-	 * mnt->mnt.mnt_userns is stable and we can retrieve it directly.
+	 * Pairs with smp_load_acquire() in mnt_idmap().
+	 *
+	 * Since we only allow a mount to change the idmapping once and
+	 * verified this in can_idmap_mount() we know that the mount has
+	 * @nop_mnt_idmap attached to it. So there's no need to drop any
+	 * references.
 	 */
-	old_mnt_userns = mnt->mnt.mnt_userns;
-
-	mnt_userns = get_user_ns(kattr->mnt_userns);
-	/* Pairs with smp_load_acquire() in mnt_user_ns(). */
-	smp_store_release(&mnt->mnt.mnt_userns, mnt_userns);
-
-	/*
-	 * If this is an idmapped filesystem drop the reference we've taken
-	 * in vfs_create_mount() before.
-	 */
-	if (!initial_idmapping(old_mnt_userns))
-		put_user_ns(old_mnt_userns);
+	smp_store_release(&mnt->mnt.mnt_idmap, mnt_idmap_get(kattr->mnt_idmap));
 }
 
 static void mount_setattr_commit(struct mount_kattr *kattr, struct mount *mnt)
@@ -4135,6 +4129,15 @@ static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
 
 	if (path->dentry != mnt->mnt.mnt_root)
 		return -EINVAL;
+
+	if (kattr->mnt_userns) {
+		struct mnt_idmap *mnt_idmap;
+
+		mnt_idmap = alloc_mnt_idmap(kattr->mnt_userns);
+		if (IS_ERR(mnt_idmap))
+			return PTR_ERR(mnt_idmap);
+		kattr->mnt_idmap = mnt_idmap;
+	}
 
 	if (kattr->propagation) {
 		/*
@@ -4234,7 +4237,7 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 	 * result.
 	 */
 	mnt_userns = container_of(ns, struct user_namespace, ns);
-	if (initial_idmapping(mnt_userns)) {
+	if (mnt_userns == &init_user_ns) {
 		err = -EPERM;
 		goto out_fput;
 	}
@@ -4323,6 +4326,9 @@ static void finish_mount_kattr(struct mount_kattr *kattr)
 {
 	put_user_ns(kattr->mnt_userns);
 	kattr->mnt_userns = NULL;
+
+	if (kattr->mnt_idmap)
+		mnt_idmap_put(kattr->mnt_idmap);
 }
 
 SYSCALL_DEFINE5(mount_setattr, int, dfd, const char __user *, path,
@@ -4464,8 +4470,8 @@ EXPORT_SYMBOL_GPL(kern_mount);
 void kern_unmount(struct vfsmount *mnt)
 {
 	/* release long term mount so mount point can be released */
-	if (!IS_ERR_OR_NULL(mnt)) {
-		real_mount(mnt)->mnt_ns = NULL;
+	if (!IS_ERR(mnt)) {
+		mnt_make_shortterm(mnt);
 		synchronize_rcu();	/* yecchhh... */
 		mntput(mnt);
 	}
@@ -4477,8 +4483,7 @@ void kern_unmount_array(struct vfsmount *mnt[], unsigned int num)
 	unsigned int i;
 
 	for (i = 0; i < num; i++)
-		if (mnt[i])
-			real_mount(mnt[i])->mnt_ns = NULL;
+		mnt_make_shortterm(mnt[i]);
 	synchronize_rcu_expedited();
 	for (i = 0; i < num; i++)
 		mntput(mnt[i]);

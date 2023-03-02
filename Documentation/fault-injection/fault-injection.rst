@@ -83,9 +83,7 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail*/times:
 
 	specifies how many times failures may happen at most. A value of -1
-	means "no limit". Note, though, that this file only accepts unsigned
-	values. So, if you want to specify -1, you better use 'printf' instead
-	of 'echo', e.g.: $ printf %#x -1 > times
+	means "no limit".
 
 - /sys/kernel/debug/fail*/space:
 
@@ -233,6 +231,71 @@ proc entries
 	This feature is intended for systematic testing of faults in a single
 	system call. See an example below.
 
+
+Error Injectable Functions
+--------------------------
+
+This part is for the kenrel developers considering to add a function to
+ALLOW_ERROR_INJECTION() macro.
+
+Requirements for the Error Injectable Functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since the function-level error injection forcibly changes the code path
+and returns an error even if the input and conditions are proper, this can
+cause unexpected kernel crash if you allow error injection on the function
+which is NOT error injectable. Thus, you (and reviewers) must ensure;
+
+- The function returns an error code if it fails, and the callers must check
+  it correctly (need to recover from it).
+
+- The function does not execute any code which can change any state before
+  the first error return. The state includes global or local, or input
+  variable. For example, clear output address storage (e.g. `*ret = NULL`),
+  increments/decrements counter, set a flag, preempt/irq disable or get
+  a lock (if those are recovered before returning error, that will be OK.)
+
+The first requirement is important, and it will result in that the release
+(free objects) functions are usually harder to inject errors than allocate
+functions. If errors of such release functions are not correctly handled
+it will cause a memory leak easily (the caller will confuse that the object
+has been released or corrupted.)
+
+The second one is for the caller which expects the function should always
+does something. Thus if the function error injection skips whole of the
+function, the expectation is betrayed and causes an unexpected error.
+
+Type of the Error Injectable Functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each error injectable functions will have the error type specified by the
+ALLOW_ERROR_INJECTION() macro. You have to choose it carefully if you add
+a new error injectable function. If the wrong error type is chosen, the
+kernel may crash because it may not be able to handle the error.
+There are 4 types of errors defined in include/asm-generic/error-injection.h
+
+EI_ETYPE_NULL
+  This function will return `NULL` if it fails. e.g. return an allocateed
+  object address.
+
+EI_ETYPE_ERRNO
+  This function will return an `-errno` error code if it fails. e.g. return
+  -EINVAL if the input is wrong. This will include the functions which will
+  return an address which encodes `-errno` by ERR_PTR() macro.
+
+EI_ETYPE_ERRNO_NULL
+  This function will return an `-errno` or `NULL` if it fails. If the caller
+  of this function checks the return value with IS_ERR_OR_NULL() macro, this
+  type will be appropriate.
+
+EI_ETYPE_TRUE
+  This function will return `true` (non-zero positive value) if it fails.
+
+If you specifies a wrong type, for example, EI_TYPE_ERRNO for the function
+which returns an allocated object, it may cause a problem because the returned
+value is not an object address and the caller can not access to the address.
+
+
 How to add new fault injection capability
 -----------------------------------------
 
@@ -284,7 +347,7 @@ Application Examples
     echo Y > /sys/kernel/debug/$FAILTYPE/task-filter
     echo 10 > /sys/kernel/debug/$FAILTYPE/probability
     echo 100 > /sys/kernel/debug/$FAILTYPE/interval
-    printf %#x -1 > /sys/kernel/debug/$FAILTYPE/times
+    echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
     echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
@@ -338,7 +401,7 @@ Application Examples
     echo N > /sys/kernel/debug/$FAILTYPE/task-filter
     echo 10 > /sys/kernel/debug/$FAILTYPE/probability
     echo 100 > /sys/kernel/debug/$FAILTYPE/interval
-    printf %#x -1 > /sys/kernel/debug/$FAILTYPE/times
+    echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
     echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
@@ -369,7 +432,7 @@ Application Examples
     echo N > /sys/kernel/debug/$FAILTYPE/task-filter
     echo 100 > /sys/kernel/debug/$FAILTYPE/probability
     echo 0 > /sys/kernel/debug/$FAILTYPE/interval
-    printf %#x -1 > /sys/kernel/debug/$FAILTYPE/times
+    echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 1 > /sys/kernel/debug/$FAILTYPE/verbose
 

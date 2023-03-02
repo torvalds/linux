@@ -399,7 +399,7 @@
 			};
 		};
 
-		state_i2cmux_ddc: pinmux_i2cmux_ddc {
+		state_i2cmux_ddc: pinmux-i2cmux-ddc {
 			ddc {
 				nvidia,pins = "ddc";
 				nvidia,function = "i2c2";
@@ -411,7 +411,19 @@
 			};
 		};
 
-		state_i2cmux_pta: pinmux_i2cmux_pta {
+		state_i2cmux_idle: pinmux-i2cmux-idle {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_pta: pinmux-i2cmux-pta {
 			ddc {
 				nvidia,pins = "ddc";
 				nvidia,function = "rsvd4";
@@ -420,18 +432,6 @@
 			pta {
 				nvidia,pins = "pta";
 				nvidia,function = "i2c2";
-			};
-		};
-
-		state_i2cmux_idle: pinmux_i2cmux_idle {
-			ddc {
-				nvidia,pins = "ddc";
-				nvidia,function = "rsvd4";
-			};
-
-			pta {
-				nvidia,pins = "pta";
-				nvidia,function = "rsvd4";
 			};
 		};
 	};
@@ -764,13 +764,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			lpddr2 {
-				compatible = "elpida,B8132B2PB-6D-F", "jedec,lpddr2-s4";
-				revision-id = <1 0>;
-				density = <2048>;
-				io-width = <16>;
-			};
-
 			emc-table@25000 {
 				reg = <25000>;
 				compatible = "nvidia,tegra20-emc-table";
@@ -859,6 +852,13 @@
 					0x00000000 0x00000000 0x00000282 0xe059048b
 					0x007e0010 0x00000000 0x00000000 0x0000001b
 					0x00000000 0x00000000 0x00000000 0x00000000>;
+			};
+
+			lpddr2 {
+				compatible = "elpida,B8132B2PB-6D-F", "jedec,lpddr2-s4";
+				revision-id = <1 0>;
+				density = <2048>;
+				io-width = <16>;
 			};
 		};
 	};
@@ -977,49 +977,8 @@
 		};
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		switch-dock-hall-sensor {
-			label = "Lid";
-			gpios = <&gpio TEGRA_GPIO(S, 4) GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			debounce-interval = <500>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
-		key-power {
-			label = "Power";
-			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_POWER>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
-		key-volume-up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(Q, 5) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
-		key-volume-down {
-			label = "Volume Down";
-			gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEDOWN>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-	};
-
 	display-panel {
-		compatible = "panel-lvds";
+		compatible = "auo,b101ew05", "panel-lvds";
 
 		/* AUO B101EW05 using custom timings */
 
@@ -1048,6 +1007,47 @@
 			panel_input: endpoint {
 				remote-endpoint = <&lvds_encoder_output>;
 			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(Q, 5) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		switch-dock-hall-sensor {
+			label = "Lid";
+			gpios = <&gpio TEGRA_GPIO(S, 4) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			debounce-interval = <500>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
 		};
 	};
 
@@ -1110,6 +1110,11 @@
 				};
 			};
 		};
+	};
+
+	opp-table-emc {
+		/delete-node/ opp-666000000;
+		/delete-node/ opp-760000000;
 	};
 
 	vdd_5v0_sys: regulator-5v0 {
@@ -1282,9 +1287,4 @@
 		post-power-on-delay-ms = <200>;
 		power-off-delay-us = <200>;
 	};
-};
-
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-666000000;
-	/delete-node/ opp-760000000;
 };

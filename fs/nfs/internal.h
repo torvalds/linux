@@ -69,7 +69,7 @@ static inline fmode_t flags_to_mode(int flags)
 struct nfs_client_initdata {
 	unsigned long init_flags;
 	const char *hostname;			/* Hostname of the server */
-	const struct sockaddr *addr;		/* Address of the server */
+	const struct sockaddr_storage *addr;	/* Address of the server */
 	const char *nodename;			/* Hostname of the client */
 	const char *ip_addr;			/* IP address of the client */
 	size_t addrlen;
@@ -180,7 +180,7 @@ static inline struct nfs_fs_context *nfs_fc2context(const struct fs_context *fc)
 
 /* mount_clnt.c */
 struct nfs_mount_request {
-	struct sockaddr		*sap;
+	struct sockaddr_storage	*sap;
 	size_t			salen;
 	char			*hostname;
 	char			*dirpath;
@@ -223,7 +223,7 @@ extern void nfs4_server_set_init_caps(struct nfs_server *);
 extern struct nfs_server *nfs4_create_server(struct fs_context *);
 extern struct nfs_server *nfs4_create_referral_server(struct fs_context *);
 extern int nfs4_update_server(struct nfs_server *server, const char *hostname,
-					struct sockaddr *sap, size_t salen,
+					struct sockaddr_storage *sap, size_t salen,
 					struct net *net);
 extern void nfs_free_server(struct nfs_server *server);
 extern struct nfs_server *nfs_clone_server(struct nfs_server *,
@@ -235,7 +235,7 @@ extern int nfs_client_init_status(const struct nfs_client *clp);
 extern int nfs_wait_client_init_complete(const struct nfs_client *clp);
 extern void nfs_mark_client_ready(struct nfs_client *clp, int state);
 extern struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
-					     const struct sockaddr *ds_addr,
+					     const struct sockaddr_storage *ds_addr,
 					     int ds_addrlen, int ds_proto,
 					     unsigned int ds_timeo,
 					     unsigned int ds_retrans,
@@ -243,7 +243,7 @@ extern struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 extern struct rpc_clnt *nfs4_find_or_create_ds_client(struct nfs_client *,
 						struct inode *);
 extern struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
-			const struct sockaddr *ds_addr, int ds_addrlen,
+			const struct sockaddr_storage *ds_addr, int ds_addrlen,
 			int ds_proto, unsigned int ds_timeo,
 			unsigned int ds_retrans);
 #ifdef CONFIG_PROC_FS
@@ -384,18 +384,18 @@ extern unsigned long nfs_access_cache_scan(struct shrinker *shrink,
 					   struct shrink_control *sc);
 struct dentry *nfs_lookup(struct inode *, struct dentry *, unsigned int);
 void nfs_d_prune_case_insensitive_aliases(struct inode *inode);
-int nfs_create(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_create(struct mnt_idmap *, struct inode *, struct dentry *,
 	       umode_t, bool);
-int nfs_mkdir(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_mkdir(struct mnt_idmap *, struct inode *, struct dentry *,
 	      umode_t);
 int nfs_rmdir(struct inode *, struct dentry *);
 int nfs_unlink(struct inode *, struct dentry *);
-int nfs_symlink(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_symlink(struct mnt_idmap *, struct inode *, struct dentry *,
 		const char *);
 int nfs_link(struct dentry *, struct inode *, struct dentry *);
-int nfs_mknod(struct user_namespace *, struct inode *, struct dentry *, umode_t,
+int nfs_mknod(struct mnt_idmap *, struct inode *, struct dentry *, umode_t,
 	      dev_t);
-int nfs_rename(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_rename(struct mnt_idmap *, struct inode *, struct dentry *,
 	       struct inode *, struct dentry *, unsigned int);
 
 #ifdef CONFIG_NFS_V4_2
@@ -739,12 +739,10 @@ unsigned long nfs_io_size(unsigned long iosize, enum xprt_transports proto)
 		iosize = NFS_DEF_FILE_IO_SIZE;
 	else if (iosize >= NFS_MAX_FILE_IO_SIZE)
 		iosize = NFS_MAX_FILE_IO_SIZE;
-	else
-		iosize = iosize & PAGE_MASK;
 
-	if (proto == XPRT_TRANSPORT_UDP)
+	if (proto == XPRT_TRANSPORT_UDP || iosize < PAGE_SIZE)
 		return nfs_block_bits(iosize, NULL);
-	return iosize;
+	return iosize & PAGE_MASK;
 }
 
 /*
@@ -762,17 +760,18 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
  * Record the page as unstable (an extra writeback period) and mark its
  * inode as dirty.
  */
-static inline
-void nfs_mark_page_unstable(struct page *page, struct nfs_commit_info *cinfo)
+static inline void nfs_folio_mark_unstable(struct folio *folio,
+					   struct nfs_commit_info *cinfo)
 {
-	if (!cinfo->dreq) {
-		struct inode *inode = page_file_mapping(page)->host;
+	if (folio && !cinfo->dreq) {
+		struct inode *inode = folio_file_mapping(folio)->host;
+		long nr = folio_nr_pages(folio);
 
 		/* This page is really still in write-back - just that the
 		 * writeback is happening on the server now.
 		 */
-		inc_node_page_state(page, NR_WRITEBACK);
-		inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
+		node_stat_mod_folio(folio, NR_WRITEBACK, nr);
+		wb_stat_mod(&inode_to_bdi(inode)->wb, WB_WRITEBACK, nr);
 		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	}
 }
@@ -797,6 +796,24 @@ unsigned int nfs_page_length(struct page *page)
 }
 
 /*
+ * Determine the number of bytes of data the page contains
+ */
+static inline size_t nfs_folio_length(struct folio *folio)
+{
+	loff_t i_size = i_size_read(folio_file_mapping(folio)->host);
+
+	if (i_size > 0) {
+		pgoff_t index = folio_index(folio) >> folio_order(folio);
+		pgoff_t end_index = (i_size - 1) >> folio_shift(folio);
+		if (index < end_index)
+			return folio_size(folio);
+		if (index == end_index)
+			return offset_in_folio(folio, i_size - 1) + 1;
+	}
+	return 0;
+}
+
+/*
  * Convert a umode to a dirent->d_type
  */
 static inline
@@ -809,11 +826,10 @@ unsigned char nfs_umode_to_dtype(umode_t mode)
  * Determine the number of pages in an array of length 'len' and
  * with a base offset of 'base'
  */
-static inline
-unsigned int nfs_page_array_len(unsigned int base, size_t len)
+static inline unsigned int nfs_page_array_len(unsigned int base, size_t len)
 {
-	return ((unsigned long)len + (unsigned long)base +
-		PAGE_SIZE - 1) >> PAGE_SHIFT;
+	return ((unsigned long)len + (unsigned long)base + PAGE_SIZE - 1) >>
+	       PAGE_SHIFT;
 }
 
 /*
@@ -894,13 +910,13 @@ static inline bool nfs_error_is_fatal_on_server(int err)
  * Select between a default port value and a user-specified port value.
  * If a zero value is set, then autobind will be used.
  */
-static inline void nfs_set_port(struct sockaddr *sap, int *port,
+static inline void nfs_set_port(struct sockaddr_storage *sap, int *port,
 				const unsigned short default_port)
 {
 	if (*port == NFS_UNSPEC_PORT)
 		*port = default_port;
 
-	rpc_set_port(sap, *port);
+	rpc_set_port((struct sockaddr *)sap, *port);
 }
 
 struct nfs_direct_req {
