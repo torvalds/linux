@@ -51,7 +51,7 @@ static struct saa7146_format formats[] = {
 		.pixelformat	= V4L2_PIX_FMT_YUV422P,
 		.trans		= YUV422_DECOMPOSED,
 		.depth		= 16,
-		.flags		= FORMAT_BYTE_SWAP|FORMAT_IS_PLANAR,
+		.flags		= FORMAT_IS_PLANAR,
 	}, {
 		.pixelformat	= V4L2_PIX_FMT_YVU420,
 		.trans		= YUV420_DECOMPOSED,
