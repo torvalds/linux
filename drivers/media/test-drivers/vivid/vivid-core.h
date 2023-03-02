@@ -345,17 +345,6 @@ struct vivid_dev {
 
 	u32				power_present;
 
-	/* Capture Overlay */
-	struct v4l2_framebuffer		fb_cap;
-	struct v4l2_fh			*overlay_cap_owner;
-	void				*fb_vbase_cap;
-	int				overlay_cap_top, overlay_cap_left;
-	enum v4l2_field			overlay_cap_field;
-	void				*bitmap_cap;
-	struct v4l2_clip		clips_cap[MAX_CLIPS];
-	struct v4l2_clip		try_clips_cap[MAX_CLIPS];
-	unsigned			clipcount_cap;
-
 	/* Output */
 	unsigned			output;
 	v4l2_std_id			std_out;
@@ -612,7 +601,5 @@ static inline bool vivid_is_hdmi_out(const struct vivid_dev *dev)
 {
 	return dev->output_type[dev->output] == HDMI;
 }
-
-bool vivid_validate_fb(const struct v4l2_framebuffer *a);
 
 #endif
