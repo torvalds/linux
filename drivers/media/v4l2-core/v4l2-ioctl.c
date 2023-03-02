@@ -310,14 +310,10 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		win = &p->fmt.win;
-		/* Note: we can't print the clip list here since the clips
-		 * pointer is a userspace pointer, not a kernelspace
-		 * pointer. */
-		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, chromakey=0x%08x, clipcount=%u, clips=%p, bitmap=%p, global_alpha=0x%02x\n",
+		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, chromakey=0x%08x, global_alpha=0x%02x\n",
 			win->w.width, win->w.height, win->w.left, win->w.top,
 			prt_names(win->field, v4l2_field_names),
-			win->chromakey, win->clipcount, win->clips,
-			win->bitmap, win->global_alpha);
+			win->chromakey, win->global_alpha);
 		break;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
@@ -1618,29 +1614,7 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 	if (ret)
 		return ret;
 
-	/*
-	 * fmt can't be cleared for these overlay types due to the 'clips'
-	 * 'clipcount' and 'bitmap' pointers in struct v4l2_window.
-	 * Those are provided by the user. So handle these two overlay types
-	 * first, and then just do a simple memset for the other types.
-	 */
-	switch (p->type) {
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY: {
-		struct v4l2_clip *clips = p->fmt.win.clips;
-		u32 clipcount = p->fmt.win.clipcount;
-		void __user *bitmap = p->fmt.win.bitmap;
-
-		memset(&p->fmt, 0, sizeof(p->fmt));
-		p->fmt.win.clips = clips;
-		p->fmt.win.clipcount = clipcount;
-		p->fmt.win.bitmap = bitmap;
-		break;
-	}
-	default:
-		memset(&p->fmt, 0, sizeof(p->fmt));
-		break;
-	}
+	memset(&p->fmt, 0, sizeof(p->fmt));
 
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -1728,6 +1702,9 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_s_fmt_vid_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_s_fmt_vid_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		if (unlikely(!ops->vidioc_s_fmt_vbi_cap))
@@ -1759,6 +1736,9 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_s_fmt_vid_out_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_s_fmt_vid_out_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 		if (unlikely(!ops->vidioc_s_fmt_vbi_out))
@@ -1830,6 +1810,9 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_try_fmt_vid_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_try_fmt_vid_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		if (unlikely(!ops->vidioc_try_fmt_vbi_cap))
@@ -1861,6 +1844,9 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_try_fmt_vid_out_overlay))
 			break;
 		memset_after(p, 0, fmt.win);
+		p->fmt.win.clips = NULL;
+		p->fmt.win.clipcount = 0;
+		p->fmt.win.bitmap = NULL;
 		return ops->vidioc_try_fmt_vid_out_overlay(file, fh, arg);
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 		if (unlikely(!ops->vidioc_try_fmt_vbi_out))
@@ -3132,27 +3118,6 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 				    * ctrls->count;
 			ret = 1;
 		}
-		break;
-	}
-	case VIDIOC_G_FMT:
-	case VIDIOC_S_FMT:
-	case VIDIOC_TRY_FMT: {
-		struct v4l2_format *fmt = parg;
-
-		if (fmt->type != V4L2_BUF_TYPE_VIDEO_OVERLAY &&
-		    fmt->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY)
-			break;
-		if (fmt->fmt.win.clipcount > 2048)
-			return -EINVAL;
-		if (!fmt->fmt.win.clipcount)
-			break;
-
-		*user_ptr = (void __user *)fmt->fmt.win.clips;
-		*kernel_ptr = (void **)&fmt->fmt.win.clips;
-		*array_size = sizeof(struct v4l2_clip)
-				* fmt->fmt.win.clipcount;
-
-		ret = 1;
 		break;
 	}
 
