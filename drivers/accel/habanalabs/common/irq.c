@@ -204,8 +204,10 @@ static void hl_ts_free_objects(struct work_struct *work)
 {
 	struct timestamp_reg_work_obj *job =
 			container_of(work, struct timestamp_reg_work_obj, free_obj);
+	struct list_head *dynamic_alloc_free_list_head = job->dynamic_alloc_free_obj_head;
 	struct timestamp_reg_free_node *free_obj, *temp_free_obj;
 	struct list_head *free_list_head = job->free_obj_head;
+
 	struct hl_device *hdev = job->hdev;
 
 	list_for_each_entry_safe(free_obj, temp_free_obj, free_list_head, free_objects_node) {
@@ -215,10 +217,28 @@ static void hl_ts_free_objects(struct work_struct *work)
 
 		hl_mmap_mem_buf_put(free_obj->buf);
 		hl_cb_put(free_obj->cq_cb);
-		kfree(free_obj);
+		atomic_set(&free_obj->in_use, 0);
 	}
 
 	kfree(free_list_head);
+
+	if (dynamic_alloc_free_list_head) {
+		list_for_each_entry_safe(free_obj, temp_free_obj, dynamic_alloc_free_list_head,
+								free_objects_node) {
+			dev_dbg(hdev->dev,
+				"Dynamic_Alloc list: About to put refcount to buf (%p) cq_cb(%p)\n",
+						free_obj->buf,
+						free_obj->cq_cb);
+
+			hl_mmap_mem_buf_put(free_obj->buf);
+			hl_cb_put(free_obj->cq_cb);
+			list_del(&free_obj->free_objects_node);
+			kfree(free_obj);
+		}
+
+		kfree(dynamic_alloc_free_list_head);
+	}
+
 	kfree(job);
 }
 
@@ -233,11 +253,17 @@ static void hl_ts_free_objects(struct work_struct *work)
  * list to a dedicated workqueue to do the actual put.
  */
 static int handle_registration_node(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
-						struct list_head **free_list, ktime_t now,
-						u32 interrupt_id)
+						struct list_head **free_list,
+						struct list_head **dynamic_alloc_list,
+						struct hl_user_interrupt *intr)
 {
+	struct hl_ts_free_jobs *ts_free_jobs_data;
 	struct timestamp_reg_free_node *free_node;
+	u32 free_node_index;
 	u64 timestamp;
+
+	ts_free_jobs_data = &intr->ts_free_jobs_data;
+	free_node_index = ts_free_jobs_data->next_avail_free_node_idx;
 
 	if (!(*free_list)) {
 		/* Alloc/Init the timestamp registration free objects list */
@@ -248,16 +274,35 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 		INIT_LIST_HEAD(*free_list);
 	}
 
-	free_node = kmalloc(sizeof(*free_node), GFP_ATOMIC);
-	if (!free_node)
-		return -ENOMEM;
+	free_node = &ts_free_jobs_data->free_nodes_pool[free_node_index];
+	if (atomic_cmpxchg(&free_node->in_use, 0, 1)) {
+		dev_dbg(hdev->dev,
+			"Timestamp free node pool is full, buff: %p, record: %p, irq: %u\n",
+				pend->ts_reg_info.buf,
+				pend,
+				intr->interrupt_id);
 
-	timestamp = ktime_to_ns(now);
+		if (!(*dynamic_alloc_list)) {
+			*dynamic_alloc_list = kmalloc(sizeof(struct list_head), GFP_ATOMIC);
+			if (!(*dynamic_alloc_list))
+				return -ENOMEM;
+
+			INIT_LIST_HEAD(*dynamic_alloc_list);
+		}
+
+		free_node = kmalloc(sizeof(struct timestamp_reg_free_node), GFP_ATOMIC);
+		if (!free_node)
+			return -ENOMEM;
+
+		free_node->dynamic_alloc = 1;
+	}
+
+	timestamp = ktime_to_ns(intr->timestamp);
 
 	*pend->ts_reg_info.timestamp_kernel_addr = timestamp;
 
 	dev_dbg(hdev->dev, "Irq handle: Timestamp record (%p) ts cb address (%p), interrupt_id: %u\n",
-			pend, pend->ts_reg_info.timestamp_kernel_addr, interrupt_id);
+			pend, pend->ts_reg_info.timestamp_kernel_addr, intr->interrupt_id);
 
 	list_del(&pend->wait_list_node);
 
@@ -266,7 +311,14 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	 */
 	free_node->buf = pend->ts_reg_info.buf;
 	free_node->cq_cb = pend->ts_reg_info.cq_cb;
-	list_add(&free_node->free_objects_node, *free_list);
+
+	if (free_node->dynamic_alloc) {
+		list_add(&free_node->free_objects_node, *dynamic_alloc_list);
+	} else {
+		ts_free_jobs_data->next_avail_free_node_idx =
+				(++free_node_index) % ts_free_jobs_data->free_nodes_length;
+		list_add(&free_node->free_objects_node, *free_list);
+	}
 
 	/* Mark TS record as free */
 	pend->ts_reg_info.in_use = false;
@@ -276,8 +328,8 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 
 static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interrupt *intr)
 {
+	struct list_head *ts_reg_free_list_head = NULL, *dynamic_alloc_list_head = NULL;
 	struct hl_user_pending_interrupt *pend, *temp_pend;
-	struct list_head *ts_reg_free_list_head = NULL;
 	struct timestamp_reg_work_obj *job;
 	bool reg_node_handle_fail = false;
 	int rc;
@@ -303,8 +355,8 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 			if (pend->ts_reg_info.buf) {
 				if (!reg_node_handle_fail) {
 					rc = handle_registration_node(hdev, pend,
-							&ts_reg_free_list_head, intr->timestamp,
-							intr->interrupt_id);
+							&ts_reg_free_list_head,
+							&dynamic_alloc_list_head, intr);
 					if (rc)
 						reg_node_handle_fail = true;
 				}
@@ -320,6 +372,7 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 	if (ts_reg_free_list_head) {
 		INIT_WORK(&job->free_obj, hl_ts_free_objects);
 		job->free_obj_head = ts_reg_free_list_head;
+		job->dynamic_alloc_free_obj_head = dynamic_alloc_list_head;
 		job->hdev = hdev;
 		queue_work(hdev->ts_free_obj_wq, &job->free_obj);
 	} else {

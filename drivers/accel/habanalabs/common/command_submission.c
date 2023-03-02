@@ -3246,60 +3246,29 @@ static int validate_and_get_ts_record(struct device *dev,
 	return 0;
 }
 
-static int unregister_timestamp_node(struct hl_device *hdev, struct hl_ctx *ctx,
-			struct hl_mem_mgr *mmg, u64 ts_handle, u64 ts_offset,
-			struct hl_user_interrupt *interrupt)
+static void unregister_timestamp_node(struct hl_device *hdev,
+			struct hl_user_pending_interrupt *record, bool need_lock)
 {
-	struct hl_user_pending_interrupt *req_event_record, *pend, *temp_pend;
-	struct hl_mmap_mem_buf *buff;
-	struct hl_ts_buff *ts_buff;
+	struct hl_user_interrupt *interrupt = record->ts_reg_info.interrupt;
 	bool ts_rec_found = false;
-	int rc;
 
-	buff = hl_mmap_mem_buf_get(mmg, ts_handle);
-	if (!buff) {
-		dev_err(hdev->dev, "invalid TS buff handle!\n");
-		return -EINVAL;
+	if (need_lock)
+		spin_lock(&interrupt->wait_list_lock);
+
+	if (record->ts_reg_info.in_use) {
+		record->ts_reg_info.in_use = false;
+		list_del(&record->wait_list_node);
+		ts_rec_found = true;
 	}
 
-	ts_buff = buff->private;
-
-	rc = validate_and_get_ts_record(hdev->dev, ts_buff, ts_offset, &req_event_record);
-	if (rc)
-		goto put_buf;
-
-	/*
-	 * Note: we don't use the ts in_use field here, but we rather scan the list
-	 * because we cannot rely on the user to keep the order of register/unregister calls
-	 * and since we might have races here all the time between the irq and register/unregister
-	 * calls so it safer to lock the list and scan it to find the node.
-	 * If the node found on the list we mark it as not in use and delete it from the list,
-	 * if it's not here then the node was handled already in the irq before we get into
-	 * this ioctl.
-	 */
-	spin_lock(&interrupt->wait_list_lock);
-
-	list_for_each_entry_safe(pend, temp_pend, &interrupt->wait_list_head, wait_list_node) {
-		if (pend == req_event_record) {
-			pend->ts_reg_info.in_use = false;
-			list_del(&pend->wait_list_node);
-			ts_rec_found = true;
-			break;
-		}
-	}
-
-	spin_unlock(&interrupt->wait_list_lock);
+	if (need_lock)
+		spin_unlock(&interrupt->wait_list_lock);
 
 	/* Put refcounts that were taken when we registered the event */
 	if (ts_rec_found) {
-		hl_mmap_mem_buf_put(pend->ts_reg_info.buf);
-		hl_cb_put(pend->ts_reg_info.cq_cb);
+		hl_mmap_mem_buf_put(record->ts_reg_info.buf);
+		hl_cb_put(record->ts_reg_info.cq_cb);
 	}
-
-put_buf:
-	hl_mmap_mem_buf_put(buff);
-
-	return rc;
 }
 
 static int ts_get_and_handle_kernel_record(struct hl_device *hdev, struct hl_ctx *ctx,
@@ -3308,6 +3277,7 @@ static int ts_get_and_handle_kernel_record(struct hl_device *hdev, struct hl_ctx
 {
 	struct hl_user_pending_interrupt *req_offset_record;
 	struct hl_ts_buff *ts_buff = data->buf->private;
+	bool need_lock = false;
 	int rc;
 
 	rc = validate_and_get_ts_record(data->buf->mmg->dev, ts_buff, data->ts_offset,
@@ -3315,21 +3285,30 @@ static int ts_get_and_handle_kernel_record(struct hl_device *hdev, struct hl_ctx
 	if (rc)
 		return rc;
 
-	/* In case the node already registered, need to unregister first then re-use*/
+	/* In case the node already registered, need to unregister first then re-use */
 	if (req_offset_record->ts_reg_info.in_use) {
 		dev_dbg(data->buf->mmg->dev,
-				"Requested ts offset(%llx) is in use, unregister first\n",
-							data->ts_offset);
+				"Requested record %p is in use on irq: %u ts addr: %p, unregister first then put on irq: %u\n",
+				req_offset_record,
+				req_offset_record->ts_reg_info.interrupt->interrupt_id,
+				req_offset_record->ts_reg_info.timestamp_kernel_addr,
+				data->interrupt->interrupt_id);
 		/*
 		 * Since interrupt here can be different than the one the node currently registered
-		 * on, and we don't wan't to lock two lists while we're doing unregister, so
+		 * on, and we don't want to lock two lists while we're doing unregister, so
 		 * unlock the new interrupt wait list here and acquire the lock again after you done
 		 */
-		spin_unlock_irqrestore(&data->interrupt->wait_list_lock, data->flags);
+		if (data->interrupt->interrupt_id !=
+				req_offset_record->ts_reg_info.interrupt->interrupt_id) {
 
-		unregister_timestamp_node(hdev, ctx, data->mmg, data->ts_handle,
-				data->ts_offset, req_offset_record->ts_reg_info.interrupt);
-		spin_lock_irqsave(&data->interrupt->wait_list_lock, data->flags);
+			need_lock = true;
+			spin_unlock(&data->interrupt->wait_list_lock);
+		}
+
+		unregister_timestamp_node(hdev, req_offset_record, need_lock);
+
+		if (need_lock)
+			spin_lock(&data->interrupt->wait_list_lock);
 	}
 
 	/* Fill up the new registration node info and add it to the list */
