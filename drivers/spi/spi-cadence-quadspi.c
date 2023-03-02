@@ -1615,7 +1615,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 static int cqspi_probe(struct platform_device *pdev)
 {
 	const struct cqspi_driver_platdata *ddata;
-	struct reset_control *rstc, *rstc_ocp;
+	struct reset_control *rstc, *rstc_ocp, *rstc_ref;
 	struct device *dev = &pdev->dev;
 	struct spi_master *master;
 	struct resource *res_ahb;
@@ -1703,6 +1703,17 @@ static int cqspi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rstc_ocp);
 		dev_err(dev, "Cannot get QSPI OCP reset.\n");
 		goto probe_reset_failed;
+	}
+
+	if (of_device_is_compatible(pdev->dev.of_node, "starfive,jh7110-qspi")) {
+		rstc_ref = devm_reset_control_get_optional_exclusive(dev, "rstc_ref");
+		if (IS_ERR(rstc_ref)) {
+			ret = PTR_ERR(rstc_ref);
+			dev_err(dev, "Cannot get QSPI REF reset.\n");
+			goto probe_reset_failed;
+		}
+		reset_control_assert(rstc_ref);
+		reset_control_deassert(rstc_ref);
 	}
 
 	reset_control_assert(rstc);
@@ -1859,6 +1870,10 @@ static const struct cqspi_driver_platdata versal_ospi = {
 	.get_dma_status = cqspi_get_versal_dma_status,
 };
 
+static const struct cqspi_driver_platdata jh7110_qspi = {
+	.quirks = CQSPI_DISABLE_DAC_MODE,
+};
+
 static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "cdns,qspi-nor",
@@ -1883,6 +1898,10 @@ static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "intel,socfpga-qspi",
 		.data = &socfpga_qspi,
+	},
+	{
+		.compatible = "starfive,jh7110-qspi",
+		.data = &jh7110_qspi,
 	},
 	{ /* end of table */ }
 };
