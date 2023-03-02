@@ -37,10 +37,10 @@
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_DATA_OUT(ndata, buf, 0))
 
-#define CYPRESS_NOR_RD_ANY_REG_OP(naddr, addr, buf)			\
+#define CYPRESS_NOR_RD_ANY_REG_OP(naddr, addr, ndummy, buf)		\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RD_ANY_REG, 0),		\
 		   SPI_MEM_OP_ADDR(naddr, addr, 0),			\
-		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_DUMMY(ndummy, 0),				\
 		   SPI_MEM_OP_DATA_IN(1, buf, 0))
 
 #define SPANSION_CLSR_OP						\
@@ -148,7 +148,7 @@ static int cypress_nor_quad_enable_volatile(struct spi_nor *nor)
 
 	op = (struct spi_mem_op)
 		CYPRESS_NOR_RD_ANY_REG_OP(addr_mode_nbytes,
-					  SPINOR_REG_CYPRESS_CFR1V,
+					  SPINOR_REG_CYPRESS_CFR1V, 0,
 					  nor->bouncebuf);
 
 	ret = spi_nor_read_any_reg(nor, &op, nor->reg_proto);
@@ -173,7 +173,7 @@ static int cypress_nor_quad_enable_volatile(struct spi_nor *nor)
 	/* Read back and check it. */
 	op = (struct spi_mem_op)
 		CYPRESS_NOR_RD_ANY_REG_OP(addr_mode_nbytes,
-					  SPINOR_REG_CYPRESS_CFR1V,
+					  SPINOR_REG_CYPRESS_CFR1V, 0,
 					  nor->bouncebuf);
 	ret = spi_nor_read_any_reg(nor, &op, nor->reg_proto);
 	if (ret)
@@ -202,7 +202,7 @@ static int cypress_nor_set_page_size(struct spi_nor *nor)
 {
 	struct spi_mem_op op =
 		CYPRESS_NOR_RD_ANY_REG_OP(nor->params->addr_mode_nbytes,
-					  SPINOR_REG_CYPRESS_CFR3V,
+					  SPINOR_REG_CYPRESS_CFR3V, 0,
 					  nor->bouncebuf);
 	int ret;
 
