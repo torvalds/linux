@@ -2,7 +2,7 @@
 
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -223,15 +223,15 @@ static int __init hung_task_enh_init(void)
 
 	hung_task_enh.max_iowait_task_cnt = DEFAULT_MAX_IOWAIT_TASK;
 
-	ret = register_trace_android_vh_check_uninterruptible_tasks(
+	ret = register_trace_android_vh_check_uninterrupt_tasks(
 						qcom_before_check_tasks, NULL);
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_vh_check_uninterruptible_tasks_dn(
+	ret = register_trace_android_vh_check_uninterrupt_tasks_done(
 						qcom_check_tasks_done, NULL);
 	if (ret) {
-		unregister_trace_android_vh_check_uninterruptible_tasks(
+		unregister_trace_android_vh_check_uninterrupt_tasks(
 						qcom_before_check_tasks, NULL);
 		return ret;
 	}
@@ -239,9 +239,9 @@ static int __init hung_task_enh_init(void)
 	hung_task_enh.ctl_table_hdr = register_sysctl_table(
 						hung_task_base_table);
 	if (!hung_task_enh.ctl_table_hdr) {
-		unregister_trace_android_vh_check_uninterruptible_tasks(
+		unregister_trace_android_vh_check_uninterrupt_tasks(
 						qcom_before_check_tasks, NULL);
-		unregister_trace_android_vh_check_uninterruptible_tasks_dn(
+		unregister_trace_android_vh_check_uninterrupt_tasks_done(
 						qcom_check_tasks_done, NULL);
 		return -ENOMEM;
 	}
@@ -253,9 +253,9 @@ late_initcall(hung_task_enh_init);
 static void __exit hung_task_enh_exit(void)
 {
 	unregister_sysctl_table(hung_task_enh.ctl_table_hdr);
-	unregister_trace_android_vh_check_uninterruptible_tasks(
+	unregister_trace_android_vh_check_uninterrupt_tasks(
 						qcom_before_check_tasks, NULL);
-	unregister_trace_android_vh_check_uninterruptible_tasks_dn(
+	unregister_trace_android_vh_check_uninterrupt_tasks_done(
 						qcom_check_tasks_done, NULL);
 }
 module_exit(hung_task_enh_exit);
