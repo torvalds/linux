@@ -1156,15 +1156,14 @@ out:
 	return ret;
 }
 
-static int telemetry_pltdrv_remove(struct platform_device *pdev)
+static void telemetry_pltdrv_remove(struct platform_device *pdev)
 {
 	telemetry_clear_pltdata();
-	return 0;
 }
 
 static struct platform_driver telemetry_soc_driver = {
 	.probe		= telemetry_pltdrv_probe,
-	.remove		= telemetry_pltdrv_remove,
+	.remove_new	= telemetry_pltdrv_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},
