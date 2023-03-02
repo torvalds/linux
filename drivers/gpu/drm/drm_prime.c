@@ -544,7 +544,8 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  * Optional pinning of buffers is handled at dma-buf attach and detach time in
  * drm_gem_map_attach() and drm_gem_map_detach(). Backing storage itself is
  * handled by drm_gem_map_dma_buf() and drm_gem_unmap_dma_buf(), which relies on
- * &drm_gem_object_funcs.get_sg_table.
+ * &drm_gem_object_funcs.get_sg_table. If &drm_gem_object_funcs.get_sg_table is
+ * unimplemented, exports into another device are rejected.
  *
  * For kernel-internal access there's drm_gem_dmabuf_vmap() and
  * drm_gem_dmabuf_vunmap(). Userspace mmap support is provided by
@@ -582,6 +583,9 @@ int drm_gem_map_attach(struct dma_buf *dma_buf,
 		       struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
+
+	if (!obj->funcs->get_sg_table)
+		return -ENOSYS;
 
 	return drm_gem_pin(obj);
 }
