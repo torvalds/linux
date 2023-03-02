@@ -890,7 +890,7 @@ static void __guc_engine_fini_async(struct work_struct *w)
 	trace_xe_engine_destroy(e);
 
 	if (e->flags & ENGINE_FLAG_PERSISTENT)
-		xe_device_remove_persitent_engines(gt_to_xe(e->gt), e);
+		xe_device_remove_persistent_engines(gt_to_xe(e->gt), e);
 	release_guc_id(guc, e);
 	xe_sched_entity_fini(&ge->entity);
 	xe_sched_fini(&ge->sched);

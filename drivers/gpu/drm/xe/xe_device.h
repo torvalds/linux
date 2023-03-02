@@ -37,9 +37,9 @@ int xe_device_probe(struct xe_device *xe);
 void xe_device_remove(struct xe_device *xe);
 void xe_device_shutdown(struct xe_device *xe);
 
-void xe_device_add_persitent_engines(struct xe_device *xe, struct xe_engine *e);
-void xe_device_remove_persitent_engines(struct xe_device *xe,
-					struct xe_engine *e);
+void xe_device_add_persistent_engines(struct xe_device *xe, struct xe_engine *e);
+void xe_device_remove_persistent_engines(struct xe_device *xe,
+					 struct xe_engine *e);
 
 void xe_device_wmb(struct xe_device *xe);
 

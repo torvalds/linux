@@ -400,7 +400,7 @@ static void execlist_engine_fini_async(struct work_struct *w)
 	spin_unlock_irqrestore(&exl->port->lock, flags);
 
 	if (e->flags & ENGINE_FLAG_PERSISTENT)
-		xe_device_remove_persitent_engines(gt_to_xe(e->gt), e);
+		xe_device_remove_persistent_engines(gt_to_xe(e->gt), e);
 	drm_sched_entity_fini(&exl->entity);
 	drm_sched_fini(&exl->sched);
 	kfree(exl);

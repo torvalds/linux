@@ -94,14 +94,14 @@ struct xe_engine {
 	};
 
 	/**
-	 * @persitent: persitent engine state
+	 * @persistent: persistent engine state
 	 */
 	struct {
 		/** @xef: file which this engine belongs to */
 		struct xe_file *xef;
-		/** @link: link in list of persitent engines */
+		/** @link: link in list of persistent engines */
 		struct list_head link;
-	} persitent;
+	} persistent;
 
 	union {
 		/**

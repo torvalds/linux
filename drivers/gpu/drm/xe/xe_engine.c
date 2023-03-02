@@ -47,7 +47,7 @@ static struct xe_engine *__xe_engine_create(struct xe_device *xe,
 	e->fence_irq = &gt->fence_irq[hwe->class];
 	e->ring_ops = gt->ring_ops[hwe->class];
 	e->ops = gt->engine_ops;
-	INIT_LIST_HEAD(&e->persitent.link);
+	INIT_LIST_HEAD(&e->persistent.link);
 	INIT_LIST_HEAD(&e->compute.link);
 	INIT_LIST_HEAD(&e->multi_gt_link);
 
@@ -620,7 +620,7 @@ int xe_engine_create_ioctl(struct drm_device *dev, void *data,
 		goto put_engine;
 	}
 
-	e->persitent.xef = xef;
+	e->persistent.xef = xef;
 
 	mutex_lock(&xef->engine.lock);
 	err = xa_alloc(&xef->engine.xa, &id, e, xa_limit_32b, GFP_KERNEL);
@@ -716,7 +716,7 @@ int xe_engine_destroy_ioctl(struct drm_device *dev, void *data,
 	if (!(e->flags & ENGINE_FLAG_PERSISTENT))
 		xe_engine_kill(e);
 	else
-		xe_device_add_persitent_engines(xe, e);
+		xe_device_add_persistent_engines(xe, e);
 
 	trace_xe_engine_close(e);
 	xe_engine_put(e);
