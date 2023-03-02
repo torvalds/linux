@@ -1098,7 +1098,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(atmel_pioctrl->reg_base))
 		return PTR_ERR(atmel_pioctrl->reg_base);
 
-	atmel_pioctrl->clk = devm_clk_get(dev, NULL);
+	atmel_pioctrl->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(atmel_pioctrl->clk)) {
 		dev_err(dev, "failed to get clock\n");
 		return PTR_ERR(atmel_pioctrl->clk);
@@ -1219,25 +1219,19 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 			i, irq);
 	}
 
-	ret = clk_prepare_enable(atmel_pioctrl->clk);
-	if (ret) {
-		dev_err(dev, "failed to prepare and enable clock\n");
-		goto clk_prepare_enable_error;
-	}
-
 	atmel_pioctrl->pinctrl_dev = devm_pinctrl_register(&pdev->dev,
 							   &atmel_pinctrl_desc,
 							   atmel_pioctrl);
 	if (IS_ERR(atmel_pioctrl->pinctrl_dev)) {
 		ret = PTR_ERR(atmel_pioctrl->pinctrl_dev);
 		dev_err(dev, "pinctrl registration failed\n");
-		goto clk_unprep;
+		goto irq_domain_remove_error;
 	}
 
 	ret = gpiochip_add_data(atmel_pioctrl->gpio_chip, atmel_pioctrl);
 	if (ret) {
 		dev_err(dev, "failed to add gpiochip\n");
-		goto clk_unprep;
+		goto irq_domain_remove_error;
 	}
 
 	ret = gpiochip_add_pin_range(atmel_pioctrl->gpio_chip, dev_name(dev),
@@ -1254,10 +1248,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 gpiochip_add_pin_range_error:
 	gpiochip_remove(atmel_pioctrl->gpio_chip);
 
-clk_unprep:
-	clk_disable_unprepare(atmel_pioctrl->clk);
-
-clk_prepare_enable_error:
+irq_domain_remove_error:
 	irq_domain_remove(atmel_pioctrl->irq_domain);
 
 	return ret;
