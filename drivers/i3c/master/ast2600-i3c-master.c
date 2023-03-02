@@ -280,18 +280,20 @@
 #define SLAVE_CONFIG			0xec
 
 #define DEV_ADDR_TABLE_LEGACY_I2C_DEV	BIT(31)
-#define DEV_ADDR_TABLE_DEV_NACK_RETRY(x) (((x) << 29) & GENMASK(30, 29))
+#define DEV_ADDR_TABLE_DEV_NACK_RETRY	GENMASK(30, 29)
 #define DEV_ADDR_TABLE_IBI_ADDR_MASK	GENMASK(25, 24)
-#define IBI_ADDR_MASK_LAST_3BITS	((1 << 24) & GENMASK(25, 24))
-#define IBI_ADDR_MASK_LAST_4BITS	((2 << 24) & GENMASK(25, 24))
+#define   IBI_ADDR_MASK_OFF		0b00
+#define   IBI_ADDR_MASK_LAST_3BITS	0b01
+#define   IBI_ADDR_MASK_LAST_4BITS	0b10
+#define DEV_ADDR_TABLE_DA_PARITY	BIT(23)
+#define DEV_ADDR_TABLE_DYNAMIC_ADDR	GENMASK(22, 16)
 #define DEV_ADDR_TABLE_MR_REJECT	BIT(14)
 #define DEV_ADDR_TABLE_SIR_REJECT	BIT(13)
 #define DEV_ADDR_TABLE_IBI_WITH_DATA	BIT(12)
 #define DEV_ADDR_TABLE_IBI_PEC_EN	BIT(11)
-#define DEV_ADDR_TABLE_DYNAMIC_ADDR(x)	(((x) << 16) & GENMASK(23, 16))
-#define DEV_ADDR_TABLE_STATIC_ADDR(x)	((x) & GENMASK(6, 0))
+#define DEV_ADDR_TABLE_STATIC_ADDR	GENMASK(6, 0)
+
 #define DEV_ADDR_TABLE_LOC(start, idx)	((start) + ((idx) << 2))
-#define GET_DYNAMIC_ADDR_FROM_DAT(x)	(((x)&GENMASK(22, 16)) >> 16)
 #define GET_DAT_FROM_POS(_master, _pos)                                        \
 	(readl(_master->regs + DEV_ADDR_TABLE_LOC(_master->datstartaddr, _pos)))
 
@@ -540,7 +542,8 @@ static void aspeed_i3c_master_init_group_dat(struct aspeed_i3c_master *master)
 
 	/* For now don't support Hot-Join */
 	def_set = DEV_ADDR_TABLE_MR_REJECT | DEV_ADDR_TABLE_SIR_REJECT |
-		  IBI_ADDR_MASK_LAST_3BITS;
+		  FIELD_PREP(DEV_ADDR_TABLE_IBI_ADDR_MASK,
+			     IBI_ADDR_MASK_LAST_3BITS);
 
 	for (i = 0; i < MAX_GROUPS; i++) {
 		dev_grp = &master->dev_group[i];
@@ -1425,7 +1428,7 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	struct aspeed_i3c_xfer *xfer;
 	struct aspeed_i3c_cmd *cmd;
-	u32 olddevs, newdevs;
+	u32 olddevs, newdevs, dat;
 	u8 p, last_addr = 0;
 	int ret, pos, ndevs;
 
@@ -1446,11 +1449,11 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 		master->addrs[pos] = ret;
 		p = even_parity(ret);
 		last_addr = ret;
-		ret |= (p << 7);
 
-		writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(ret),
+		writel(FIELD_PREP(DEV_ADDR_TABLE_DYNAMIC_ADDR, ret) |
+			       FIELD_PREP(DEV_ADDR_TABLE_DA_PARITY, p),
 		       master->regs +
-		       DEV_ADDR_TABLE_LOC(master->datstartaddr, pos));
+			       DEV_ADDR_TABLE_LOC(master->datstartaddr, pos));
 	}
 
 	if (!ndevs)
@@ -1481,8 +1484,10 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 	newdevs = GENMASK(ndevs - cmd->rx_len - 1, 0) << pos;
 	for (pos = 0; pos < master->maxdevs; pos++) {
 		if (newdevs & BIT(pos)) {
-			u32 dat = GET_DAT_FROM_POS(master, pos);
-			u32 addr = GET_DYNAMIC_ADDR_FROM_DAT(dat);
+			u32 addr;
+
+			dat = GET_DAT_FROM_POS(master, pos);
+			addr = FIELD_GET(DEV_ADDR_TABLE_DYNAMIC_ADDR, dat);
 
 			aspeed_i3c_master_set_group_dat(master, addr, dat);
 			i3c_master_add_i3c_dev_locked(m, addr);
@@ -1778,7 +1783,7 @@ static int aspeed_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 
 	aspeed_i3c_master_set_group_dat(
 		master, dev->info.dyn_addr,
-		DEV_ADDR_TABLE_DYNAMIC_ADDR(dev->info.dyn_addr));
+		FIELD_PREP(DEV_ADDR_TABLE_DYNAMIC_ADDR, dev->info.dyn_addr));
 
 	master->addrs[data->index] = dev->info.dyn_addr;
 
@@ -1793,8 +1798,8 @@ static int aspeed_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	int pos;
 	u8 addr = dev->info.dyn_addr ? : dev->info.static_addr;
 
-	pos = aspeed_i3c_master_set_group_dat(master, addr,
-					  DEV_ADDR_TABLE_DYNAMIC_ADDR(addr));
+	pos = aspeed_i3c_master_set_group_dat(
+		master, addr, FIELD_PREP(DEV_ADDR_TABLE_DYNAMIC_ADDR, addr));
 	if (pos < 0)
 		return pos;
 
@@ -1909,7 +1914,8 @@ static int aspeed_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	pos = aspeed_i3c_master_set_group_dat(
 		master, dev->addr,
 		DEV_ADDR_TABLE_LEGACY_I2C_DEV |
-			DEV_ADDR_TABLE_STATIC_ADDR(dev->addr));
+			FIELD_PREP(DEV_ADDR_TABLE_STATIC_ADDR, dev->addr));
+
 	if (pos < 0)
 		return pos;
 
@@ -2569,8 +2575,9 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	master->free_pos &= ~BIT(master->maxdevs - 1);
 	ret = (even_parity(I3C_BROADCAST_ADDR) << 7) | I3C_BROADCAST_ADDR;
 	master->addrs[master->maxdevs - 1] = ret;
-	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(ret),
-	       master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr, master->maxdevs - 1));
+	writel(FIELD_PREP(DEV_ADDR_TABLE_DYNAMIC_ADDR, ret),
+	       master->regs + DEV_ADDR_TABLE_LOC(master->datstartaddr,
+						 master->maxdevs - 1));
 #endif
 	master->dev = &pdev->dev;
 	master->base.pec_supported = true;
