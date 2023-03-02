@@ -578,6 +578,12 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 
 	mpp = mpp_get_task_used_device(task, session);
 
+	/* disable core irq */
+	disable_irq(mpp->irq);
+	/* disable mmu irq */
+	if (mpp->iommu_info && mpp->iommu_info->got_irq)
+		disable_irq(mpp->iommu_info->irq);
+
 	/* hardware maybe dead, reset it */
 	mpp_reset_up_read(mpp->reset_group);
 	mpp_dev_reset(mpp);
@@ -590,6 +596,13 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 
 	/* remove task from taskqueue running list */
 	mpp_taskqueue_pop_running(mpp->queue, task);
+
+	/* enable core irq */
+	enable_irq(mpp->irq);
+	/* enable mmu irq */
+	if (mpp->iommu_info && mpp->iommu_info->got_irq)
+		enable_irq(mpp->iommu_info->irq);
+
 	mpp_taskqueue_trigger_work(mpp);
 }
 
