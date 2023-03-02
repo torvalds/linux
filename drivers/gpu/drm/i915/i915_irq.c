@@ -197,6 +197,8 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 		hpd->hpd = hpd_gen11;
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		hpd->hpd = hpd_bxt;
+	else if (DISPLAY_VER(dev_priv) == 9)
+		hpd->hpd = NULL; /* no north HPD on SKL */
 	else if (DISPLAY_VER(dev_priv) >= 8)
 		hpd->hpd = hpd_bdw;
 	else if (DISPLAY_VER(dev_priv) >= 7)

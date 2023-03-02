@@ -4510,13 +4510,16 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			dig_port->connected = intel_tc_port_connected;
 		else
 			dig_port->connected = lpt_digital_port_connected;
-	} else if (DISPLAY_VER(dev_priv) >= 8) {
-		if (port == PORT_A || IS_GEMINILAKE(dev_priv) ||
-		    IS_BROXTON(dev_priv))
+	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
+		dig_port->connected = bdw_digital_port_connected;
+	} else if (DISPLAY_VER(dev_priv) == 9) {
+		dig_port->connected = lpt_digital_port_connected;
+	} else if (IS_BROADWELL(dev_priv)) {
+		if (port == PORT_A)
 			dig_port->connected = bdw_digital_port_connected;
 		else
 			dig_port->connected = lpt_digital_port_connected;
-	} else {
+	} else if (IS_HASWELL(dev_priv)) {
 		if (port == PORT_A)
 			dig_port->connected = hsw_digital_port_connected;
 		else
