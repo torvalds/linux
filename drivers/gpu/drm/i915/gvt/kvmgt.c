@@ -699,7 +699,7 @@ static void intel_vgpu_close_device(struct vfio_device *vfio_dev)
 
 	clear_bit(INTEL_VGPU_STATUS_ATTACHED, vgpu->status);
 
-	debugfs_remove(debugfs_lookup(KVMGT_DEBUGFS_FILENAME, vgpu->debugfs));
+	debugfs_lookup_and_remove(KVMGT_DEBUGFS_FILENAME, vgpu->debugfs);
 
 	kvm_page_track_unregister_notifier(vgpu->vfio_device.kvm,
 					   &vgpu->track_node);
