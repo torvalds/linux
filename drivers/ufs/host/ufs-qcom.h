@@ -746,11 +746,4 @@ static inline void ufs_qcom_ice_debug(struct ufs_qcom_host *host)
 #define ufs_qcom_ice_program_key NULL
 #endif /* !CONFIG_SCSI_UFS_CRYPTO */
 
-static inline void *ipc_log_context_create(int max_num_pages,
-	const char *modname, uint32_t feature_version)
-{ return NULL; }
-
-static inline int ipc_log_string(void *ilctxt, const char *fmt, ...)
-{ return -EINVAL; }
-
 #endif /* UFS_QCOM_H_ */

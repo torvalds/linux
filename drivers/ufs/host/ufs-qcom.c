@@ -26,6 +26,7 @@
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
 #include <trace/hooks/ufshcd.h>
+#include <linux/ipc_logging.h>
 #include <soc/qcom/minidump.h>
 
 #include <ufs/ufshcd.h>
