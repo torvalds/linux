@@ -2557,6 +2557,9 @@ dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 			     const struct drm_display_info *info,
 			     const struct drm_display_mode *mode)
 {
+	if (mode->clock <= 25000)
+		return MODE_CLOCK_RANGE;
+
 	return MODE_OK;
 }
 
