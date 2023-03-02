@@ -3839,7 +3839,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 			lru_add_drain();
 	}
 
-	cgroup_throttle_swaprate(page, GFP_KERNEL);
+	folio_throttle_swaprate(folio, GFP_KERNEL);
 
 	/*
 	 * Back out if somebody else already faulted in this pte.
