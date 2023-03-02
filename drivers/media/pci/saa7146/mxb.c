@@ -706,6 +706,17 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.vid_ops.vidioc_g_register = vidioc_g_register;
 	vv_data.vid_ops.vidioc_s_register = vidioc_s_register;
 #endif
+	vv_data.vbi_ops.vidioc_enum_input = vidioc_enum_input;
+	vv_data.vbi_ops.vidioc_g_input = vidioc_g_input;
+	vv_data.vbi_ops.vidioc_s_input = vidioc_s_input;
+	vv_data.vbi_ops.vidioc_querystd = vidioc_querystd;
+	vv_data.vbi_ops.vidioc_g_tuner = vidioc_g_tuner;
+	vv_data.vbi_ops.vidioc_s_tuner = vidioc_s_tuner;
+	vv_data.vbi_ops.vidioc_g_frequency = vidioc_g_frequency;
+	vv_data.vbi_ops.vidioc_s_frequency = vidioc_s_frequency;
+	vv_data.vbi_ops.vidioc_enumaudio = vidioc_enumaudio;
+	vv_data.vbi_ops.vidioc_g_audio = vidioc_g_audio;
+	vv_data.vbi_ops.vidioc_s_audio = vidioc_s_audio;
 	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_VIDEO)) {
 		ERR("cannot register capture v4l2 device. skipping.\n");
 		saa7146_vv_release(dev);
