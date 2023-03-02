@@ -989,12 +989,9 @@ EXPORT_SYMBOL(__kmalloc_node_track_caller);
 
 /**
  * kfree - free previously allocated memory
- * @object: pointer returned by kmalloc.
+ * @object: pointer returned by kmalloc() or kmem_cache_alloc()
  *
  * If @object is NULL, no operation is performed.
- *
- * Don't free memory not originally allocated by kmalloc()
- * or you will run into trouble.
  */
 void kfree(const void *object)
 {
