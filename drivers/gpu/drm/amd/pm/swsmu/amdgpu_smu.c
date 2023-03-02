@@ -1202,10 +1202,17 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 
-	ret = smu_setup_pptable(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to setup pptable!\n");
-		return ret;
+	/*
+	 * It is assumed the pptable used before runpm is same as
+	 * the one used afterwards. Thus, we can reuse the stored
+	 * copy and do not need to resetup the pptable again.
+	 */
+	if (!adev->in_runpm) {
+		ret = smu_setup_pptable(smu);
+		if (ret) {
+			dev_err(adev->dev, "Failed to setup pptable!\n");
+			return ret;
+		}
 	}
 
 	/* smu_dump_pptable(smu); */
