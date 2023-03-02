@@ -31,7 +31,7 @@ enum xe_gt_type {
 #define XE_MAX_EU_FUSE_REGS	1
 
 typedef unsigned long xe_dss_mask_t[BITS_TO_LONGS(32 * XE_MAX_DSS_FUSE_REGS)];
-typedef unsigned long xe_eu_mask_t[BITS_TO_LONGS(32 * XE_MAX_DSS_FUSE_REGS)];
+typedef unsigned long xe_eu_mask_t[BITS_TO_LONGS(32 * XE_MAX_EU_FUSE_REGS)];
 
 struct xe_mmio_range {
 	u32 start;
