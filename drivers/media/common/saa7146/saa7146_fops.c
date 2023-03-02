@@ -68,7 +68,8 @@ int saa7146_buffer_queue(struct saa7146_dev *dev,
 	assert_spin_locked(&dev->slock);
 	DEB_EE("dev:%p, dmaq:%p, buf:%p\n", dev, q, buf);
 
-	BUG_ON(!q);
+	if (WARN_ON(!q))
+		return -EIO;
 
 	if (NULL == q->curr) {
 		q->curr = buf;
@@ -109,7 +110,8 @@ void saa7146_buffer_next(struct saa7146_dev *dev,
 {
 	struct saa7146_buf *buf,*next = NULL;
 
-	BUG_ON(!q);
+	if (WARN_ON(!q))
+		return;
 
 	DEB_INT("dev:%p, dmaq:%p, vbi:%d\n", dev, q, vbi);
 

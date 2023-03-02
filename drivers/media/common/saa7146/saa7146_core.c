@@ -37,7 +37,8 @@ void saa7146_setgpio(struct saa7146_dev *dev, int port, u32 data)
 {
 	u32 value = 0;
 
-	BUG_ON(port > 3);
+	if (WARN_ON(port > 3))
+		return;
 
 	value = saa7146_read(dev, GPIO_CTRL);
 	value &= ~(0xff << (8*port));
@@ -148,7 +149,8 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
 			goto err;
-		BUG_ON(PageHighMem(pg));
+		if (WARN_ON(PageHighMem(pg)))
+			return NULL;
 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
 	}
 	return sglist;
@@ -239,8 +241,9 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 	int nr_pages = 0;
 	int i,p;
 
-	BUG_ON(0 == sglen);
-	BUG_ON(list->offset > PAGE_SIZE);
+	if (WARN_ON(!sglen) ||
+	    WARN_ON(list->offset > PAGE_SIZE))
+		return -EIO;
 
 	/* if we have a user buffer, the first page may not be
 	   aligned to a page boundary. */
