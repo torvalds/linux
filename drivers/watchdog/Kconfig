@@ -1871,7 +1871,9 @@ config GXP_WATCHDOG
 config MT7621_WDT
 	tristate "Mediatek SoC watchdog"
 	select WATCHDOG_CORE
-	depends on SOC_MT7620 || SOC_MT7621
+	select REGMAP_MMIO
+	select MFD_SYSCON
+	depends on SOC_MT7620 || SOC_MT7621 || COMPILE_TEST
 	help
 	  Hardware driver for the Mediatek/Ralink MT7621/8 SoC Watchdog Timer.
 
