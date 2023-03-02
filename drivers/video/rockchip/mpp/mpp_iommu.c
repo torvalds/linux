@@ -382,21 +382,21 @@ mpp_dma_session_create(struct device *dev, u32 max_buffers)
 void mpp_dma_buf_sync(struct mpp_dma_buffer *buffer, u32 offset, u32 length,
 		      enum dma_data_direction dir, bool for_cpu)
 {
-	struct scatterlist *sg;
-	unsigned int len = 0;
-	dma_addr_t sg_dma_addr;
-	int i;
-	struct sg_table *sgt = buffer->sgt;
 	struct device *dev = buffer->dma->dev;
+	struct sg_table *sgt = buffer->sgt;
+	struct scatterlist *sg = sgt->sgl;
+	dma_addr_t sg_dma_addr = sg_dma_address(sg);
+	unsigned int len = 0;
+	int i;
 
 	for_each_sgtable_sg(sgt, sg, i) {
 		unsigned int sg_offset, sg_left, size = 0;
 
-		sg_dma_addr = sg_dma_address(sg);
-
 		len += sg->length;
-		if (len <= offset)
+		if (len <= offset) {
+			sg_dma_addr += sg->length;
 			continue;
+		}
 
 		sg_left = len - offset;
 		sg_offset = sg->length - sg_left;
@@ -412,6 +412,7 @@ void mpp_dma_buf_sync(struct mpp_dma_buffer *buffer, u32 offset, u32 length,
 
 		offset += size;
 		length -= size;
+		sg_dma_addr += sg->length;
 
 		if (length == 0)
 			break;
