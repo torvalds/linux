@@ -1764,11 +1764,6 @@ static int apparmor_dointvec(struct ctl_table *table, int write,
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 
-static struct ctl_path apparmor_sysctl_path[] = {
-	{ .procname = "kernel", },
-	{ }
-};
-
 static struct ctl_table apparmor_sysctl_table[] = {
 	{
 		.procname       = "unprivileged_userns_apparmor_policy",
@@ -1790,8 +1785,7 @@ static struct ctl_table apparmor_sysctl_table[] = {
 
 static int __init apparmor_init_sysctl(void)
 {
-	return register_sysctl_paths(apparmor_sysctl_path,
-				     apparmor_sysctl_table) ? 0 : -ENOMEM;
+	return register_sysctl("kernel", apparmor_sysctl_table) ? 0 : -ENOMEM;
 }
 #else
 static inline int apparmor_init_sysctl(void)
