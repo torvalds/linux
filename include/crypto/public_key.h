@@ -28,6 +28,8 @@ struct public_key {
 	bool key_is_private;
 	const char *id_type;
 	const char *pkey_algo;
+	unsigned long key_eflags;	/* key extension flags */
+#define KEY_EFLAG_CA		0	/* set if the CA basic constraints is set */
 };
 
 extern void public_key_free(struct public_key *key);
