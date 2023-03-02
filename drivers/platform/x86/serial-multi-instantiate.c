@@ -265,13 +265,11 @@ static int smi_probe(struct platform_device *pdev)
 	}
 }
 
-static int smi_remove(struct platform_device *pdev)
+static void smi_remove(struct platform_device *pdev)
 {
 	struct smi *smi = platform_get_drvdata(pdev);
 
 	smi_devs_unregister(smi);
-
-	return 0;
 }
 
 static const struct smi_node bsg1160_data = {
@@ -339,7 +337,7 @@ static struct platform_driver smi_driver = {
 		.acpi_match_table = smi_acpi_ids,
 	},
 	.probe = smi_probe,
-	.remove = smi_remove,
+	.remove_new = smi_remove,
 };
 module_platform_driver(smi_driver);
 
