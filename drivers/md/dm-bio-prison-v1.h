@@ -35,6 +35,16 @@ struct dm_cell_key {
 };
 
 /*
+ * The range of a key (block_end - block_begin) must not
+ * exceed BIO_PRISON_MAX_RANGE.  Also the range must not
+ * cross a similarly sized boundary.
+ *
+ * Must be a power of 2.
+ */
+#define BIO_PRISON_MAX_RANGE 1024
+#define BIO_PRISON_MAX_RANGE_SHIFT 10
+
+/*
  * Treat this as opaque, only in header so callers can manage allocation
  * themselves.
  */
