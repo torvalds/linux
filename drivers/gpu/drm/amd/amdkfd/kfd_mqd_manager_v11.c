@@ -308,11 +308,16 @@ static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 		struct queue_properties *q)
 {
 	struct v11_sdma_mqd *m;
+	int size;
 
 	m = (struct v11_sdma_mqd *) mqd_mem_obj->cpu_ptr;
 
-	memset(m, 0, sizeof(struct v11_sdma_mqd));
+	if (mm->dev->shared_resources.enable_mes)
+		size = PAGE_SIZE;
+	else
+		size = sizeof(struct v11_sdma_mqd);
 
+	memset(m, 0, size);
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = mqd_mem_obj->gpu_addr;
@@ -443,6 +448,14 @@ struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
 #endif
+		/*
+		 * To allocate SDMA MQDs by generic functions
+		 * when MES is enabled.
+		 */
+		if (dev->shared_resources.enable_mes) {
+			mqd->allocate_mqd = allocate_mqd;
+			mqd->free_mqd = kfd_free_mqd_cp;
+		}
 		pr_debug("%s@%i\n", __func__, __LINE__);
 		break;
 	default:
