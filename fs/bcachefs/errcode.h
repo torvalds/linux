@@ -93,6 +93,7 @@
 	x(BCH_ERR_operation_blocked,	journal_res_get_blocked)		\
 	x(BCH_ERR_operation_blocked,	journal_preres_get_blocked)		\
 	x(BCH_ERR_operation_blocked,	bucket_alloc_blocked)			\
+	x(BCH_ERR_operation_blocked,	stripe_alloc_blocked)			\
 	x(BCH_ERR_invalid,		invalid_sb)				\
 	x(BCH_ERR_invalid_sb,		invalid_sb_magic)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_version)			\

@@ -157,6 +157,9 @@ static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum alloc_reser
 	switch (reserve) {
 	case RESERVE_NR:
 		unreachable();
+	case RESERVE_stripe:
+		reserved += ca->mi.nbuckets >> 6;
+		fallthrough;
 	case RESERVE_none:
 		reserved += ca->mi.nbuckets >> 6;
 		fallthrough;

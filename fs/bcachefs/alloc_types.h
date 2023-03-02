@@ -22,7 +22,8 @@ struct ec_bucket_buf;
 	x(btree_movinggc)		\
 	x(btree)			\
 	x(movinggc)			\
-	x(none)
+	x(none)				\
+	x(stripe)
 
 enum alloc_reserve {
 #define x(name)	RESERVE_##name,

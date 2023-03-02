@@ -1569,6 +1569,17 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 	BUG_ON(h->s->existing_stripe.size != h->blocksize);
 	BUG_ON(h->s->existing_stripe.size != h->s->existing_stripe.key.v.sectors);
 
+	/*
+	 * Free buckets we initially allocated - they might conflict with
+	 * blocks from the stripe we're reusing:
+	 */
+	for_each_set_bit(i, h->s->blocks_gotten, h->s->new_stripe.key.v.nr_blocks) {
+		bch2_open_bucket_put(c, c->open_buckets + h->s->blocks[i]);
+		h->s->blocks[i] = 0;
+	}
+	memset(h->s->blocks_gotten, 0, sizeof(h->s->blocks_gotten));
+	memset(h->s->blocks_allocated, 0, sizeof(h->s->blocks_allocated));
+
 	for (i = 0; i < h->s->existing_stripe.key.v.nr_blocks; i++) {
 		if (stripe_blockcount_get(&h->s->existing_stripe.key.v, i)) {
 			__set_bit(i, h->s->blocks_gotten);
@@ -1649,8 +1660,8 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct ec_stripe_head *h;
+	bool waiting = false;
 	int ret;
-	bool needs_stripe_new;
 
 	h = __bch2_ec_stripe_head_get(trans, target, algo, redundancy, reserve);
 	if (!h)
@@ -1658,8 +1669,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 	if (IS_ERR_OR_NULL(h))
 		return h;
 
-	needs_stripe_new = !h->s;
-	if (needs_stripe_new) {
+	if (!h->s) {
 		if (ec_new_stripe_alloc(c, h)) {
 			ret = -ENOMEM;
 			bch_err(c, "failed to allocate new stripe");
@@ -1670,29 +1680,52 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 			BUG();
 	}
 
+	if (h->s->allocated)
+		goto allocated;
+
+	if (h->s->have_existing_stripe)
+		goto alloc_existing;
+
+	/* First, try to allocate a full stripe: */
+	ret =   new_stripe_alloc_buckets(trans, h, RESERVE_stripe, NULL) ?:
+		__bch2_ec_stripe_head_reserve(trans, h);
+	if (!ret)
+		goto allocated;
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
+	    bch2_err_matches(ret, ENOMEM))
+		goto err;
+
 	/*
-	 * Try reserve a new stripe before reusing an
-	 * existing stripe. This will prevent unnecessary
-	 * read amplification during write oriented workloads.
+	 * Not enough buckets available for a full stripe: we must reuse an
+	 * existing stripe:
 	 */
-	ret = 0;
-	if (!h->s->allocated && !h->s->res.sectors && !h->s->have_existing_stripe)
-		ret = __bch2_ec_stripe_head_reserve(trans, h);
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto err;
-
-	if (ret && needs_stripe_new)
+	while (1) {
 		ret = __bch2_ec_stripe_head_reuse(trans, h);
-	if (ret)
-		goto err;
-
-	if (!h->s->allocated) {
-		ret = new_stripe_alloc_buckets(trans, h, reserve, cl);
-		if (ret)
+		if (!ret)
+			break;
+		if (ret == -BCH_ERR_ENOSPC_stripe_reuse && cl)
+			ret = -BCH_ERR_stripe_alloc_blocked;
+		if (waiting || !cl || ret != -BCH_ERR_stripe_alloc_blocked)
 			goto err;
 
-		h->s->allocated = true;
+		/* XXX freelist_wait? */
+		closure_wait(&c->freelist_wait, cl);
+		waiting = true;
 	}
+
+	if (waiting)
+		closure_wake_up(&c->freelist_wait);
+alloc_existing:
+	/*
+	 * Retry allocating buckets, with the reserve watermark for this
+	 * particular write:
+	 */
+	ret = new_stripe_alloc_buckets(trans, h, reserve, cl);
+	if (ret)
+		goto err;
+allocated:
+	h->s->allocated = true;
+	BUG_ON(!h->s->idx);
 
 	BUG_ON(trans->restarted);
 	return h;
