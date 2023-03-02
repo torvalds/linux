@@ -1808,9 +1808,7 @@ imx_uart_set_termios(struct uart_port *port, struct ktermios *termios,
 
 static const char *imx_uart_type(struct uart_port *port)
 {
-	struct imx_port *sport = (struct imx_port *)port;
-
-	return sport->port.type == PORT_IMX ? "IMX" : NULL;
+	return port->type == PORT_IMX ? "IMX" : NULL;
 }
 
 /*
@@ -1818,10 +1816,8 @@ static const char *imx_uart_type(struct uart_port *port)
  */
 static void imx_uart_config_port(struct uart_port *port, int flags)
 {
-	struct imx_port *sport = (struct imx_port *)port;
-
 	if (flags & UART_CONFIG_TYPE)
-		sport->port.type = PORT_IMX;
+		port->type = PORT_IMX;
 }
 
 /*
@@ -1832,20 +1828,19 @@ static void imx_uart_config_port(struct uart_port *port, int flags)
 static int
 imx_uart_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	struct imx_port *sport = (struct imx_port *)port;
 	int ret = 0;
 
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_IMX)
 		ret = -EINVAL;
-	if (sport->port.irq != ser->irq)
+	if (port->irq != ser->irq)
 		ret = -EINVAL;
 	if (ser->io_type != UPIO_MEM)
 		ret = -EINVAL;
-	if (sport->port.uartclk / 16 != ser->baud_base)
+	if (port->uartclk / 16 != ser->baud_base)
 		ret = -EINVAL;
-	if (sport->port.mapbase != (unsigned long)ser->iomem_base)
+	if (port->mapbase != (unsigned long)ser->iomem_base)
 		ret = -EINVAL;
-	if (sport->port.iobase != ser->port)
+	if (port->iobase != ser->port)
 		ret = -EINVAL;
 	if (ser->hub6 != 0)
 		ret = -EINVAL;
