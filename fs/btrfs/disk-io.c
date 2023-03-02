@@ -3689,7 +3689,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	    fs_info->fs_devices->discardable) {
 		btrfs_set_and_info(fs_info, DISCARD_ASYNC,
 				   "auto enabling async discard");
-		btrfs_clear_opt(fs_info->mount_opt, NODISCARD);
 	}
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
