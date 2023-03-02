@@ -236,7 +236,7 @@ do {									\
 #define prt_tab_rjust(_out)		bch2_prt_tab_rjust(_out)
 
 #define prt_bytes_indented(...)		bch2_prt_bytes_indented(__VA_ARGS__)
-#define prt_u64(_out, _v)		prt_printf(_out, "%llu", _v)
+#define prt_u64(_out, _v)		prt_printf(_out, "%llu", (u64) (_v))
 #define prt_human_readable_u64(...)	bch2_prt_human_readable_u64(__VA_ARGS__)
 #define prt_human_readable_s64(...)	bch2_prt_human_readable_s64(__VA_ARGS__)
 #define prt_units_u64(...)		bch2_prt_units_u64(__VA_ARGS__)

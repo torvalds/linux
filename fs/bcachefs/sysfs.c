@@ -821,38 +821,100 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	for (i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
-	prt_printf(out,
-	       "\t\t\t buckets\t sectors      fragmented\n"
-	       "capacity\t%16llu\n",
-	       ca->mi.nbuckets - ca->mi.first_bucket);
+	printbuf_tabstop_push(out, 8);
+	printbuf_tabstop_push(out, 16);
+	printbuf_tabstop_push(out, 16);
+	printbuf_tabstop_push(out, 16);
+	printbuf_tabstop_push(out, 16);
 
-	for (i = 0; i < BCH_DATA_NR; i++)
-		prt_printf(out, "%-16s%16llu%16llu%16llu\n",
-		       bch2_data_types[i], stats.d[i].buckets,
-		       stats.d[i].sectors, stats.d[i].fragmented);
+	prt_tab(out);
+	prt_str(out, "buckets");
+	prt_tab_rjust(out);
+	prt_str(out, "sectors");
+	prt_tab_rjust(out);
+	prt_str(out, "fragmented");
+	prt_tab_rjust(out);
+	prt_newline(out);
 
-	prt_printf(out,
-	       "ec\t\t%16llu\n"
-	       "\n"
-	       "freelist_wait\t\t%s\n"
-	       "open buckets allocated\t%u\n"
-	       "open buckets this dev\t%u\n"
-	       "open buckets total\t%u\n"
-	       "open_buckets_wait\t%s\n"
-	       "open_buckets_btree\t%u\n"
-	       "open_buckets_user\t%u\n"
-	       "buckets_to_invalidate\t%llu\n"
-	       "btree reserve cache\t%u\n",
-	       stats.buckets_ec,
-	       c->freelist_wait.list.first		? "waiting" : "empty",
-	       OPEN_BUCKETS_COUNT - c->open_buckets_nr_free,
-	       ca->nr_open_buckets,
-	       OPEN_BUCKETS_COUNT,
-	       c->open_buckets_wait.list.first		? "waiting" : "empty",
-	       nr[BCH_DATA_btree],
-	       nr[BCH_DATA_user],
-	       should_invalidate_buckets(ca, stats),
-	       c->btree_reserve_cache_nr);
+	for (i = 0; i < BCH_DATA_NR; i++) {
+		prt_str(out, bch2_data_types[i]);
+		prt_tab(out);
+		prt_u64(out, stats.d[i].buckets);
+		prt_tab_rjust(out);
+		prt_u64(out, stats.d[i].sectors);
+		prt_tab_rjust(out);
+		prt_u64(out, stats.d[i].fragmented);
+		prt_tab_rjust(out);
+		prt_newline(out);
+	}
+
+	prt_str(out, "ec");
+	prt_tab(out);
+	prt_u64(out, stats.buckets_ec);
+	prt_tab_rjust(out);
+	prt_newline(out);
+
+	prt_newline(out);
+
+	prt_printf(out, "reserves:");
+	prt_newline(out);
+	for (i = 0; i < RESERVE_NR; i++) {
+		prt_str(out, bch2_alloc_reserves[i]);
+		prt_tab(out);
+		prt_u64(out, bch2_dev_buckets_reserved(ca, i));
+		prt_tab_rjust(out);
+		prt_newline(out);
+	}
+
+	prt_newline(out);
+
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, 24);
+
+	prt_str(out, "freelist_wait");
+	prt_tab(out);
+	prt_str(out, c->freelist_wait.list.first ? "waiting" : "empty");
+	prt_newline(out);
+
+	prt_str(out, "open buckets allocated");
+	prt_tab(out);
+	prt_u64(out, OPEN_BUCKETS_COUNT - c->open_buckets_nr_free);
+	prt_newline(out);
+
+	prt_str(out, "open buckets this dev");
+	prt_tab(out);
+	prt_u64(out, ca->nr_open_buckets);
+	prt_newline(out);
+
+	prt_str(out, "open buckets total");
+	prt_tab(out);
+	prt_u64(out, OPEN_BUCKETS_COUNT);
+	prt_newline(out);
+
+	prt_str(out, "open_buckets_wait");
+	prt_tab(out);
+	prt_str(out, c->open_buckets_wait.list.first ? "waiting" : "empty");
+	prt_newline(out);
+
+	prt_str(out, "open_buckets_btree");
+	prt_tab(out);
+	prt_u64(out, nr[BCH_DATA_btree]);
+	prt_newline(out);
+
+	prt_str(out, "open_buckets_user");
+	prt_tab(out);
+	prt_u64(out, nr[BCH_DATA_user]);
+	prt_newline(out);
+
+	prt_str(out, "buckets_to_invalidate");
+	prt_tab(out);
+	prt_u64(out, should_invalidate_buckets(ca, stats));
+	prt_newline(out);
+
+	prt_str(out, "btree reserve cache");
+	prt_tab(out);
+	prt_u64(out, c->btree_reserve_cache_nr);
+	prt_newline(out);
 }
 
 static const char * const bch2_rw[] = {

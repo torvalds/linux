@@ -28,6 +28,7 @@ enum alloc_reserve {
 #define x(name)	RESERVE_##name,
 	BCH_ALLOC_RESERVES()
 #undef x
+	RESERVE_NR,
 };
 
 #define OPEN_BUCKETS_COUNT	1024

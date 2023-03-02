@@ -71,7 +71,7 @@ enum printbuf_si {
 	PRINTBUF_UNITS_10,	/* use powers of 10^3 (standard SI) */
 };
 
-#define PRINTBUF_INLINE_TABSTOPS	4
+#define PRINTBUF_INLINE_TABSTOPS	6
 
 struct printbuf {
 	char			*buf;
