@@ -52,7 +52,8 @@ static int vcn_v4_0_3_pause_dpg_mode(struct amdgpu_device *adev,
 		int inst_idx, struct dpg_pause_state *new_state);
 static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring);
 static void vcn_v4_0_3_set_ras_funcs(struct amdgpu_device *adev);
-
+static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
+				  int inst_idx, bool indirect);
 /**
  * vcn_v4_0_3_early_init - set function pointers
  *
@@ -768,6 +769,8 @@ static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, b
 	tmp = 0x1f << UVD_LMI_CTRL2__RE_OFLD_MIF_WR_REQ_NUM__SHIFT;
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 		VCN, 0, regUVD_LMI_CTRL2), tmp, 0, indirect);
+
+	vcn_v4_0_3_enable_ras(adev, inst_idx, indirect);
 
 	/* enable master interrupt */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
@@ -1513,4 +1516,26 @@ static struct amdgpu_vcn_ras vcn_v4_0_3_ras = {
 static void vcn_v4_0_3_set_ras_funcs(struct amdgpu_device *adev)
 {
 	adev->vcn.ras = &vcn_v4_0_3_ras;
+}
+
+static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
+				  int inst_idx, bool indirect)
+{
+	uint32_t tmp;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN))
+		return;
+
+	tmp = VCN_RAS_CNTL__VCPU_VCODEC_REARM_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_IH_EN_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_PMI_EN_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_STALL_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, regVCN_RAS_CNTL),
+			      tmp, 0, indirect);
+
+	tmp = UVD_SYS_INT_EN__RASCNTL_VCPU_VCODEC_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, regUVD_SYS_INT_EN),
+			      tmp, 0, indirect);
 }
