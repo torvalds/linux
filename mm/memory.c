@@ -3092,7 +3092,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 
 	if (mem_cgroup_charge(new_folio, mm, GFP_KERNEL))
 		goto oom_free_new;
-	cgroup_throttle_swaprate(&new_folio->page, GFP_KERNEL);
+	folio_throttle_swaprate(new_folio, GFP_KERNEL);
 
 	__folio_mark_uptodate(new_folio);
 
