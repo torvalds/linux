@@ -22,8 +22,6 @@
 #define dprintk(dev, level, fmt, arg...) \
 	v4l2_dbg(level, vivid_debug, &dev->v4l2_dev, fmt, ## arg)
 
-/* The maximum number of clip rectangles */
-#define MAX_CLIPS  16
 /* The maximum number of inputs */
 #define MAX_INPUTS 16
 /* The maximum number of outputs */
@@ -372,10 +370,6 @@ struct vivid_dev {
 	void				*fb_vbase_out;
 	bool				overlay_out_enabled;
 	int				overlay_out_top, overlay_out_left;
-	void				*bitmap_out;
-	struct v4l2_clip		clips_out[MAX_CLIPS];
-	struct v4l2_clip		try_clips_out[MAX_CLIPS];
-	unsigned			clipcount_out;
 	unsigned			fbuf_out_flags;
 	u32				chromakey_out;
 	u8				global_alpha_out;

@@ -53,31 +53,10 @@ static void copy_pix(struct vivid_dev *dev, int win_y, int win_x,
 			u16 *cap, const u16 *osd)
 {
 	u16 out;
-	int left = dev->overlay_out_left;
-	int top = dev->overlay_out_top;
-	int fb_x = win_x + left;
-	int fb_y = win_y + top;
-	int i;
 
 	out = *cap;
 	*cap = *osd;
-	if (dev->bitmap_out) {
-		const u8 *p = dev->bitmap_out;
-		unsigned stride = (dev->compose_out.width + 7) / 8;
 
-		win_x -= dev->compose_out.left;
-		win_y -= dev->compose_out.top;
-		if (!(p[stride * win_y + win_x / 8] & (1 << (win_x & 7))))
-			return;
-	}
-
-	for (i = 0; i < dev->clipcount_out; i++) {
-		struct v4l2_rect *r = &dev->clips_out[i].c;
-
-		if (fb_y >= r->top && fb_y < r->top + r->height &&
-		    fb_x >= r->left && fb_x < r->left + r->width)
-			return;
-	}
 	if ((dev->fbuf_out_flags & V4L2_FBUF_FLAG_CHROMAKEY) &&
 	    *osd != dev->chromakey_out)
 		return;
@@ -251,7 +230,7 @@ static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned 
 	u8 *voutbuf;
 	u8 *vosdbuf = NULL;
 	unsigned y;
-	bool blend = dev->bitmap_out || dev->clipcount_out || dev->fbuf_out_flags;
+	bool blend = dev->fbuf_out_flags;
 	/* Coarse scaling with Bresenham */
 	unsigned vid_out_int_part;
 	unsigned vid_out_fract_part;
