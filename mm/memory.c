@@ -970,7 +970,7 @@ static inline struct folio *page_copy_prealloc(struct mm_struct *src_mm,
 		folio_put(new_folio);
 		return NULL;
 	}
-	cgroup_throttle_swaprate(&new_folio->page, GFP_KERNEL);
+	folio_throttle_swaprate(new_folio, GFP_KERNEL);
 
 	return new_folio;
 }
