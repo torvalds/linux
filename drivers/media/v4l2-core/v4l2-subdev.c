@@ -1708,7 +1708,8 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 	unsigned int i, j;
 	int ret = -EINVAL;
 
-	if (disallow & V4L2_SUBDEV_ROUTING_NO_STREAM_MIX) {
+	if (disallow & (V4L2_SUBDEV_ROUTING_NO_STREAM_MIX |
+			V4L2_SUBDEV_ROUTING_NO_MULTIPLEXING)) {
 		remote_pads = kcalloc(sd->entity.num_pads, sizeof(*remote_pads),
 				      GFP_KERNEL);
 		if (!remote_pads)
@@ -1748,8 +1749,6 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 					i, "sink");
 				goto out;
 			}
-
-			remote_pads[route->sink_pad] = route->source_pad;
 		}
 
 		/*
@@ -1764,7 +1763,38 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 					i, "source");
 				goto out;
 			}
+		}
 
+		/*
+		 * V4L2_SUBDEV_ROUTING_NO_SINK_MULTIPLEXING: Pads on the sink
+		 * side can not do stream multiplexing, i.e. there can be only
+		 * a single stream in a sink pad.
+		 */
+		if (disallow & V4L2_SUBDEV_ROUTING_NO_SINK_MULTIPLEXING) {
+			if (remote_pads[route->sink_pad] != U32_MAX) {
+				dev_dbg(sd->dev,
+					"route %u attempts to multiplex on %s pad %u\n",
+					i, "sink", route->sink_pad);
+				goto out;
+			}
+		}
+
+		/*
+		 * V4L2_SUBDEV_ROUTING_NO_SOURCE_MULTIPLEXING: Pads on the
+		 * source side can not do stream multiplexing, i.e. there can
+		 * be only a single stream in a source pad.
+		 */
+		if (disallow & V4L2_SUBDEV_ROUTING_NO_SOURCE_MULTIPLEXING) {
+			if (remote_pads[route->source_pad] != U32_MAX) {
+				dev_dbg(sd->dev,
+					"route %u attempts to multiplex on %s pad %u\n",
+					i, "source", route->source_pad);
+				goto out;
+			}
+		}
+
+		if (remote_pads) {
+			remote_pads[route->sink_pad] = route->source_pad;
 			remote_pads[route->source_pad] = route->sink_pad;
 		}
 
