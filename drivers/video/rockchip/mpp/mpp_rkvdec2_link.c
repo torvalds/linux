@@ -753,7 +753,6 @@ done:
 
 static int rkvdec2_link_reset(struct mpp_dev *mpp)
 {
-	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 	dev_info(mpp->dev, "resetting...\n");
 
@@ -764,11 +763,8 @@ static int rkvdec2_link_reset(struct mpp_dev *mpp)
 
 	rockchip_save_qos(mpp->dev);
 
-	mutex_lock(&dec->sip_reset_lock);
-	rockchip_dmcfreq_lock();
-	sip_smc_vpu_reset(0, 0, 0);
-	rockchip_dmcfreq_unlock();
-	mutex_unlock(&dec->sip_reset_lock);
+	if (mpp->hw_ops->reset)
+		mpp->hw_ops->reset(mpp);
 
 	rockchip_restore_qos(mpp->dev);
 
