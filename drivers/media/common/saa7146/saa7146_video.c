@@ -463,14 +463,19 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id id)
 
 	DEB_EE("VIDIOC_S_STD\n");
 
+	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
+		if (id & dev->ext_vv_data->stds[i].id)
+			break;
+
+	if (i != dev->ext_vv_data->num_stds &&
+	    vv->standard == &dev->ext_vv_data->stds[i])
+		return 0;
+
 	if (vb2_is_busy(&vv->video_dmaq.q) || vb2_is_busy(&vv->vbi_dmaq.q)) {
 		DEB_D("cannot change video standard while streaming capture is active\n");
 		return -EBUSY;
 	}
 
-	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
-		if (id & dev->ext_vv_data->stds[i].id)
-			break;
 	if (i != dev->ext_vv_data->num_stds) {
 		vv->standard = &dev->ext_vv_data->stds[i];
 		if (NULL != dev->ext_vv_data->std_callback)
