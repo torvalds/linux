@@ -1037,6 +1037,23 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
 	pm_runtime_enable(&pdev->dev);
 
+#ifdef CONFIG_DRM_I2C_NXP_TDA998X
+	hdmi->hdmi_data.vic = 0x10;
+	u8 val;
+
+	val = readl_relaxed(hdmi->regs + (0x1b0) * 0x04);
+	val |= 0x4;
+	hdmi_writeb(hdmi, 0x1b0, val);
+	hdmi_writeb(hdmi, 0x1cc, 0xf);
+	//hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
+
+	hdmi->tmds_rate = 148500 * 1000;
+	inno_hdmi_phy_clk_set_rate(hdmi,hdmi->tmds_rate);
+
+	while (!(hdmi_readb(hdmi, 0x1a9) & 0x1));
+	while (!(hdmi_readb(hdmi, 0x1af) & 0x1));
+#endif
+
 	inno_hdmi_disable_clk_assert_rst(dev, hdmi);
 
 	dev_info(dev, "inno hdmi bind end\n");
