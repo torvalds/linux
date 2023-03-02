@@ -1067,7 +1067,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc	*pin_desc;
 	const char **group_names;
-	const struct of_device_id *match;
 	int i, ret;
 	struct atmel_pioctrl *atmel_pioctrl;
 	const struct atmel_pioctrl_data *atmel_pioctrl_data;
@@ -1079,12 +1078,11 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->node = dev->of_node;
 	platform_set_drvdata(pdev, atmel_pioctrl);
 
-	match = of_match_node(atmel_pctrl_of_match, dev->of_node);
-	if (!match) {
-		dev_err(dev, "unknown compatible string\n");
+	atmel_pioctrl_data = device_get_match_data(dev);
+	if (!atmel_pioctrl_data) {
+		dev_err(dev, "Invalid device data\n");
 		return -ENODEV;
 	}
-	atmel_pioctrl_data = match->data;
 	atmel_pioctrl->nbanks = atmel_pioctrl_data->nbanks;
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
 	/* if last bank has limited number of pins, adjust accordingly */
