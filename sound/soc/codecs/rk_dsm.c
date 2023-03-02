@@ -385,6 +385,17 @@ static int rk_dsm_pcm_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static void rk_dsm_reset(struct rk_dsm_priv *rd)
+{
+	if (IS_ERR(rd->rc))
+		return;
+
+	reset_control_assert(rd->rc);
+	udelay(5);
+	reset_control_deassert(rd->rc);
+	udelay(5);
+}
+
 static void rk_dsm_pcm_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
@@ -411,6 +422,8 @@ static void rk_dsm_pcm_shutdown(struct snd_pcm_substream *substream,
 				   DSM_DACDIGEN_DAC_GLBEN_DIS |
 				   DSM_DACDIGEN_DACEN_L0R1_DIS);
 	}
+
+	rk_dsm_reset(rd);
 }
 
 static const struct snd_soc_dai_ops rd_dai_ops = {
