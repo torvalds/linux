@@ -4969,6 +4969,12 @@ union bpf_attr {
  *		different maps if key/value layout matches across maps.
  *		Every bpf_timer_set_callback() can have different callback_fn.
  *
+ *		*flags* can be one of:
+ *
+ *		**BPF_F_TIMER_ABS**
+ *			Start the timer in absolute expire value instead of the
+ *			default relative one.
+ *
  *	Return
  *		0 on success.
  *		**-EINVAL** if *timer* was not initialized with bpf_timer_init() earlier
@@ -7095,6 +7101,15 @@ struct bpf_core_relo {
 	__u32 type_id;
 	__u32 access_str_off;
 	enum bpf_core_relo_kind kind;
+};
+
+/*
+ * Flags to control bpf_timer_start() behaviour.
+ *     - BPF_F_TIMER_ABS: Timeout passed is absolute time, by default it is
+ *       relative to current time.
+ */
+enum {
+	BPF_F_TIMER_ABS = (1ULL << 0),
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */

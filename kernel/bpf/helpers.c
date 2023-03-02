@@ -1264,10 +1264,11 @@ BPF_CALL_3(bpf_timer_start, struct bpf_timer_kern *, timer, u64, nsecs, u64, fla
 {
 	struct bpf_hrtimer *t;
 	int ret = 0;
+	enum hrtimer_mode mode;
 
 	if (in_nmi())
 		return -EOPNOTSUPP;
-	if (flags)
+	if (flags > BPF_F_TIMER_ABS)
 		return -EINVAL;
 	__bpf_spin_lock_irqsave(&timer->lock);
 	t = timer->timer;
@@ -1275,7 +1276,13 @@ BPF_CALL_3(bpf_timer_start, struct bpf_timer_kern *, timer, u64, nsecs, u64, fla
 		ret = -EINVAL;
 		goto out;
 	}
-	hrtimer_start(&t->timer, ns_to_ktime(nsecs), HRTIMER_MODE_REL_SOFT);
+
+	if (flags & BPF_F_TIMER_ABS)
+		mode = HRTIMER_MODE_ABS_SOFT;
+	else
+		mode = HRTIMER_MODE_REL_SOFT;
+
+	hrtimer_start(&t->timer, ns_to_ktime(nsecs), mode);
 out:
 	__bpf_spin_unlock_irqrestore(&timer->lock);
 	return ret;
