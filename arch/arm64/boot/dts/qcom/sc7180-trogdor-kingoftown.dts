@@ -5,9 +5,17 @@
  * Copyright 2021 Google LLC.
  */
 
-/* This file must be included after sc7180-trogdor.dtsi */
+/dts-v1/;
+
+#include "sc7180-trogdor.dtsi"
+#include "sc7180-trogdor-parade-ps8640.dtsi"
 #include <arm/cros-ec-keyboard.dtsi>
 #include "sc7180-trogdor-lte-sku.dtsi"
+
+/ {
+	model = "Google Kingoftown";
+	compatible = "google,kingoftown", "qcom,sc7180";
+};
 
 &alc5682 {
 	compatible = "realtek,rt5682s";
