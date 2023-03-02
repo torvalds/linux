@@ -2379,18 +2379,7 @@
 #define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
 
 #define PORT_HOTPLUG_STAT	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61114)
-/*
- * HDMI/DP bits are g4x+
- *
- * WARNING: Bspec for hpd status bits on gen4 seems to be completely confused.
- * Please check the detailed lore in the commit message for for experimental
- * evidence.
- */
-/* Bspec says GM45 should match G4X/VLV/CHV, but reality disagrees */
-#define   PORTD_HOTPLUG_LIVE_STATUS_GM45	(1 << 29)
-#define   PORTC_HOTPLUG_LIVE_STATUS_GM45	(1 << 28)
-#define   PORTB_HOTPLUG_LIVE_STATUS_GM45	(1 << 27)
-/* G4X/VLV/CHV DP/HDMI bits again match Bspec */
+/* HDMI/DP bits are g4x+ */
 #define   PORTD_HOTPLUG_LIVE_STATUS_G4X		(1 << 27)
 #define   PORTC_HOTPLUG_LIVE_STATUS_G4X		(1 << 28)
 #define   PORTB_HOTPLUG_LIVE_STATUS_G4X		(1 << 29)

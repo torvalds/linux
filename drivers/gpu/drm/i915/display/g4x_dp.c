@@ -1197,29 +1197,6 @@ static bool g4x_digital_port_connected(struct intel_encoder *encoder)
 	return intel_de_read(dev_priv, PORT_HOTPLUG_STAT) & bit;
 }
 
-static bool gm45_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit;
-
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_B:
-		bit = PORTB_HOTPLUG_LIVE_STATUS_GM45;
-		break;
-	case HPD_PORT_C:
-		bit = PORTC_HOTPLUG_LIVE_STATUS_GM45;
-		break;
-	case HPD_PORT_D:
-		bit = PORTD_HOTPLUG_LIVE_STATUS_GM45;
-		break;
-	default:
-		MISSING_CASE(encoder->hpd_pin);
-		return false;
-	}
-
-	return intel_de_read(dev_priv, PORT_HOTPLUG_STAT) & bit;
-}
-
 static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -1384,10 +1361,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	dig_port->hpd_pulse = intel_dp_hpd_pulse;
 
 	if (HAS_GMCH(dev_priv)) {
-		if (IS_GM45(dev_priv))
-			dig_port->connected = gm45_digital_port_connected;
-		else
-			dig_port->connected = g4x_digital_port_connected;
+		dig_port->connected = g4x_digital_port_connected;
 	} else {
 		if (port == PORT_A)
 			dig_port->connected = ilk_digital_port_connected;
