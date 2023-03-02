@@ -10337,6 +10337,14 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			}
 		} else if (!__btf_type_is_struct(ptr_type)) {
 			if (!meta.r0_size) {
+				__u32 sz;
+
+				if (!IS_ERR(btf_resolve_size(desc_btf, ptr_type, &sz))) {
+					meta.r0_size = sz;
+					meta.r0_rdonly = true;
+				}
+			}
+			if (!meta.r0_size) {
 				ptr_type_name = btf_name_by_offset(desc_btf,
 								   ptr_type->name_off);
 				verbose(env,
