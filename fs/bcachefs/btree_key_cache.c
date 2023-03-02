@@ -769,11 +769,11 @@ int bch2_btree_key_cache_flush(struct btree_trans *trans,
 
 bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 				  unsigned flags,
-				  struct btree_path *path,
-				  struct bkey_i *insert)
+				  struct btree_insert_entry *insert_entry)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_cached *ck = (void *) path->l[0].b;
+	struct bkey_cached *ck = (void *) insert_entry->path->l[0].b;
+	struct bkey_i *insert = insert_entry->k;
 	bool kick_reclaim = false;
 
 	BUG_ON(insert->k.u64s > ck->u64s);
@@ -801,9 +801,24 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 			kick_reclaim = true;
 	}
 
+	/*
+	 * To minimize lock contention, we only add the journal pin here and
+	 * defer pin updates to the flush callback via ->seq. Be careful not to
+	 * update ->seq on nojournal commits because we don't want to update the
+	 * pin to a seq that doesn't include journal updates on disk. Otherwise
+	 * we risk losing the update after a crash.
+	 *
+	 * The only exception is if the pin is not active in the first place. We
+	 * have to add the pin because journal reclaim drives key cache
+	 * flushing. The flush callback will not proceed unless ->seq matches
+	 * the latest pin, so make sure it starts with a consistent value.
+	 */
+	if (!(insert_entry->flags & BTREE_UPDATE_NOJOURNAL) ||
+	    !journal_pin_active(&ck->journal)) {
+		ck->seq = trans->journal_res.seq;
+	}
 	bch2_journal_pin_add(&c->journal, trans->journal_res.seq,
 			     &ck->journal, bch2_btree_key_cache_journal_flush);
-	ck->seq = trans->journal_res.seq;
 
 	if (kick_reclaim)
 		journal_reclaim_kick(&c->journal);
