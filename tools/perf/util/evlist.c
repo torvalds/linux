@@ -2262,8 +2262,8 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 	if (unset)
 		return 0;
 
-	opts->initial_delay = str_to_delay(str);
-	if (opts->initial_delay)
+	opts->target.initial_delay = str_to_delay(str);
+	if (opts->target.initial_delay)
 		return 0;
 
 	ret = parse_event_enable_times(str, NULL);
@@ -2306,7 +2306,7 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 
 	eet->evlist = evlist;
 	evlist->eet = eet;
-	opts->initial_delay = eet->times[0].start;
+	opts->target.initial_delay = eet->times[0].start;
 
 	return 0;
 

@@ -1292,7 +1292,7 @@ static int record__open(struct record *rec)
 	 * dummy event so that we can track PERF_RECORD_MMAP to cover the delay
 	 * of waiting or event synthesis.
 	 */
-	if (opts->initial_delay || target__has_cpu(&opts->target) ||
+	if (opts->target.initial_delay || target__has_cpu(&opts->target) ||
 	    perf_pmu__has_hybrid()) {
 		pos = evlist__get_tracking_event(evlist);
 		if (!evsel__is_dummy_event(pos)) {
@@ -1307,7 +1307,7 @@ static int record__open(struct record *rec)
 		 * Enable the dummy event when the process is forked for
 		 * initial_delay, immediately for system wide.
 		 */
-		if (opts->initial_delay && !pos->immediate &&
+		if (opts->target.initial_delay && !pos->immediate &&
 		    !target__has_cpu(&opts->target))
 			pos->core.attr.enable_on_exec = 1;
 		else
@@ -2522,7 +2522,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * (apart from group members) have enable_on_exec=1 set,
 	 * so don't spoil it by prematurely enabling them.
 	 */
-	if (!target__none(&opts->target) && !opts->initial_delay)
+	if (!target__none(&opts->target) && !opts->target.initial_delay)
 		evlist__enable(rec->evlist);
 
 	/*
@@ -2574,10 +2574,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		evlist__start_workload(rec->evlist);
 	}
 
-	if (opts->initial_delay) {
+	if (opts->target.initial_delay) {
 		pr_info(EVLIST_DISABLED_MSG);
-		if (opts->initial_delay > 0) {
-			usleep(opts->initial_delay * USEC_PER_MSEC);
+		if (opts->target.initial_delay > 0) {
+			usleep(opts->target.initial_delay * USEC_PER_MSEC);
 			evlist__enable(rec->evlist);
 			pr_info(EVLIST_ENABLED_MSG);
 		}

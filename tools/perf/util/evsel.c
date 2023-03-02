@@ -1334,7 +1334,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	 * group leaders for traced executed by perf.
 	 */
 	if (target__none(&opts->target) && evsel__is_group_leader(evsel) &&
-	    !opts->initial_delay)
+	    !opts->target.initial_delay)
 		attr->enable_on_exec = 1;
 
 	if (evsel->immediate) {
