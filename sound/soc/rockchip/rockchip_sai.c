@@ -419,6 +419,7 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		val = SAI_XCR_VDW(24);
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
+	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
 		val = SAI_XCR_VDW(32);
 		break;
 	default:
@@ -732,7 +733,8 @@ static int rockchip_sai_init_dai(struct rk_sai_dev *sai, struct resource *res,
 		dai->playback.formats = SNDRV_PCM_FMTBIT_S8 |
 					SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S24_LE |
-					SNDRV_PCM_FMTBIT_S32_LE;
+					SNDRV_PCM_FMTBIT_S32_LE |
+					SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE;
 
 		sai->playback_dma_data.addr = res->start + SAI_TXDR;
 		sai->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -747,7 +749,8 @@ static int rockchip_sai_init_dai(struct rk_sai_dev *sai, struct resource *res,
 		dai->capture.formats = SNDRV_PCM_FMTBIT_S8 |
 				       SNDRV_PCM_FMTBIT_S16_LE |
 				       SNDRV_PCM_FMTBIT_S24_LE |
-				       SNDRV_PCM_FMTBIT_S32_LE;
+				       SNDRV_PCM_FMTBIT_S32_LE |
+				       SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE;
 
 		sai->capture_dma_data.addr = res->start + SAI_RXDR;
 		sai->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
