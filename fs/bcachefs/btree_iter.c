@@ -815,7 +815,7 @@ static int btree_path_prefetch(struct btree_trans *trans, struct btree_path *pat
 			break;
 
 		bch2_bkey_buf_unpack(&tmp, c, l->b, k);
-		ret = bch2_btree_node_prefetch(c, trans, path, tmp.k, path->btree_id,
+		ret = bch2_btree_node_prefetch(trans, path, tmp.k, path->btree_id,
 					       path->level - 1);
 	}
 
@@ -850,7 +850,7 @@ static int btree_path_prefetch_j(struct btree_trans *trans, struct btree_path *p
 			break;
 
 		bch2_bkey_buf_reassemble(&tmp, c, k);
-		ret = bch2_btree_node_prefetch(c, trans, path, tmp.k, path->btree_id,
+		ret = bch2_btree_node_prefetch(trans, path, tmp.k, path->btree_id,
 					       path->level - 1);
 	}
 
