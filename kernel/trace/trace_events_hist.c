@@ -4193,6 +4193,15 @@ static int __create_val_field(struct hist_trigger_data *hist_data,
 		goto out;
 	}
 
+	/* Some types cannot be a value */
+	if (hist_field->flags & (HIST_FIELD_FL_GRAPH | HIST_FIELD_FL_PERCENT |
+				 HIST_FIELD_FL_BUCKET | HIST_FIELD_FL_LOG2 |
+				 HIST_FIELD_FL_SYM | HIST_FIELD_FL_SYM_OFFSET |
+				 HIST_FIELD_FL_SYSCALL | HIST_FIELD_FL_STACKTRACE)) {
+		hist_err(file->tr, HIST_ERR_BAD_FIELD_MODIFIER, errpos(field_str));
+		ret = -EINVAL;
+	}
+
 	hist_data->fields[val_idx] = hist_field;
 
 	++hist_data->n_vals;
