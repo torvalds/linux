@@ -2060,6 +2060,15 @@ static int v4l_s_hw_freq_seek(const struct v4l2_ioctl_ops *ops,
 	return ops->vidioc_s_hw_freq_seek(file, fh, p);
 }
 
+static int v4l_s_fbuf(const struct v4l2_ioctl_ops *ops,
+		      struct file *file, void *fh, void *arg)
+{
+	struct v4l2_framebuffer *p = arg;
+
+	p->base = NULL;
+	return ops->vidioc_s_fbuf(file, fh, p);
+}
+
 static int v4l_overlay(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
@@ -2779,7 +2788,6 @@ struct v4l2_ioctl_info {
 	}
 
 DEFINE_V4L_STUB_FUNC(g_fbuf)
-DEFINE_V4L_STUB_FUNC(s_fbuf)
 DEFINE_V4L_STUB_FUNC(expbuf)
 DEFINE_V4L_STUB_FUNC(g_std)
 DEFINE_V4L_STUB_FUNC(g_audio)
@@ -2813,7 +2821,7 @@ static const struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_REQBUFS, v4l_reqbufs, v4l_print_requestbuffers, INFO_FL_PRIO | INFO_FL_QUEUE),
 	IOCTL_INFO(VIDIOC_QUERYBUF, v4l_querybuf, v4l_print_buffer, INFO_FL_QUEUE | INFO_FL_CLEAR(v4l2_buffer, length)),
 	IOCTL_INFO(VIDIOC_G_FBUF, v4l_stub_g_fbuf, v4l_print_framebuffer, 0),
-	IOCTL_INFO(VIDIOC_S_FBUF, v4l_stub_s_fbuf, v4l_print_framebuffer, INFO_FL_PRIO),
+	IOCTL_INFO(VIDIOC_S_FBUF, v4l_s_fbuf, v4l_print_framebuffer, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_OVERLAY, v4l_overlay, v4l_print_u32, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_QBUF, v4l_qbuf, v4l_print_buffer, INFO_FL_QUEUE),
 	IOCTL_INFO(VIDIOC_EXPBUF, v4l_stub_expbuf, v4l_print_exportbuffer, INFO_FL_QUEUE | INFO_FL_CLEAR(v4l2_exportbuffer, flags)),

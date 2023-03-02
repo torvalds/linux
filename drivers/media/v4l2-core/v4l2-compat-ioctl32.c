@@ -587,14 +587,11 @@ struct v4l2_framebuffer32 {
 static int get_v4l2_framebuffer32(struct v4l2_framebuffer *p64,
 				  struct v4l2_framebuffer32 __user *p32)
 {
-	compat_caddr_t tmp;
-
-	if (get_user(tmp, &p32->base) ||
-	    get_user(p64->capability, &p32->capability) ||
+	if (get_user(p64->capability, &p32->capability) ||
 	    get_user(p64->flags, &p32->flags) ||
 	    copy_from_user(&p64->fmt, &p32->fmt, sizeof(p64->fmt)))
 		return -EFAULT;
-	p64->base = (void __force *)compat_ptr(tmp);
+	p64->base = NULL;
 
 	return 0;
 }
