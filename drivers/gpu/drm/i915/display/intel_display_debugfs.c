@@ -8,6 +8,7 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_fourcc.h>
 
+#include "hsw_ips.h"
 #include "i915_debugfs.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -44,33 +45,6 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 
 	seq_printf(m, "FB tracking flip bits: 0x%08x\n",
 		   dev_priv->display.fb_tracking.flip_bits);
-
-	return 0;
-}
-
-static int i915_ips_status(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	intel_wakeref_t wakeref;
-
-	if (!HAS_IPS(dev_priv))
-		return -ENODEV;
-
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	seq_printf(m, "Enabled by kernel parameter: %s\n",
-		   str_yes_no(dev_priv->params.enable_ips));
-
-	if (DISPLAY_VER(dev_priv) >= 8) {
-		seq_puts(m, "Currently: unknown\n");
-	} else {
-		if (intel_de_read(dev_priv, IPS_CTL) & IPS_ENABLE)
-			seq_puts(m, "Currently: enabled\n");
-		else
-			seq_puts(m, "Currently: disabled\n");
-	}
-
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -1342,7 +1316,6 @@ static const struct file_operations i915_fifo_underrun_reset_ops = {
 
 static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_frontbuffer_tracking", i915_frontbuffer_tracking, 0},
-	{"i915_ips_status", i915_ips_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_vbt", i915_vbt, 0},
@@ -1384,6 +1357,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 				 ARRAY_SIZE(intel_display_debugfs_list),
 				 minor->debugfs_root, minor);
 
+	hsw_ips_debugfs_register(i915);
 	intel_dmc_debugfs_register(i915);
 	intel_fbc_debugfs_register(i915);
 	intel_hpd_debugfs_register(i915);
