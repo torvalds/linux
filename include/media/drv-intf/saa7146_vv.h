@@ -76,13 +76,6 @@ struct saa7146_dmaqueue {
 	struct timer_list	timeout;
 };
 
-struct saa7146_overlay {
-	struct saa7146_fh	*fh;
-	struct v4l2_window	win;
-	struct v4l2_clip	clips[16];
-	int			nclips;
-};
-
 /* per open data */
 struct saa7146_fh {
 	/* Must be the first field! */
@@ -98,7 +91,6 @@ struct saa7146_fh {
 	unsigned int resources;	/* resource management for device open */
 };
 
-#define STATUS_OVERLAY	0x01
 #define STATUS_CAPTURE	0x02
 
 struct saa7146_vv
@@ -115,12 +107,6 @@ struct saa7146_vv
 
 	int				video_status;
 	struct saa7146_fh		*video_fh;
-
-	/* video overlay */
-	struct saa7146_overlay		ov;
-	struct v4l2_framebuffer		ov_fb;
-	struct saa7146_format		*ov_fmt;
-	struct saa7146_fh		*ov_suspend;
 
 	/* video capture */
 	struct saa7146_dmaqueue		video_dmaq;
@@ -139,8 +125,6 @@ struct saa7146_vv
 	int	hflip;
 	int	current_hps_source;
 	int	current_hps_sync;
-
-	struct saa7146_dma	d_clipping;	/* pointer to clipping memory */
 
 	unsigned int resources;	/* resource management for device */
 };
@@ -192,9 +176,6 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv);
 int saa7146_vv_release(struct saa7146_dev* dev);
 
 /* from saa7146_hlp.c */
-int saa7146_enable_overlay(struct saa7146_fh *fh);
-void saa7146_disable_overlay(struct saa7146_fh *fh);
-
 void saa7146_set_capture(struct saa7146_dev *dev, struct saa7146_buf *buf, struct saa7146_buf *next);
 void saa7146_write_out_dma(struct saa7146_dev* dev, int which, struct saa7146_video_dma* vdma) ;
 void saa7146_set_hps_source_and_sync(struct saa7146_dev *saa, int source, int sync);
@@ -204,8 +185,6 @@ void saa7146_set_gpio(struct saa7146_dev *saa, u8 pin, u8 data);
 extern const struct v4l2_ioctl_ops saa7146_video_ioctl_ops;
 extern const struct v4l2_ioctl_ops saa7146_vbi_ioctl_ops;
 extern const struct saa7146_use_ops saa7146_video_uops;
-int saa7146_start_preview(struct saa7146_fh *fh);
-int saa7146_stop_preview(struct saa7146_fh *fh);
 long saa7146_video_do_ioctl(struct file *file, unsigned int cmd, void *arg);
 int saa7146_s_ctrl(struct v4l2_ctrl *ctrl);
 

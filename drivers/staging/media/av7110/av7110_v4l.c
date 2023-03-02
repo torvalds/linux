@@ -216,21 +216,11 @@ static const struct v4l2_audio msp3400_v4l2_audio = {
 static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 {
 	struct saa7146_dev *dev = fh->dev;
-	struct saa7146_vv *vv = dev->vv_data;
 	struct av7110 *av7110 = (struct av7110*)dev->ext_priv;
 	u16 adswitch;
-	int source, sync, err;
+	int source, sync;
 
 	dprintk(4, "%p\n", av7110);
-
-	if ((vv->video_status & STATUS_OVERLAY) != 0) {
-		vv->ov_suspend = vv->video_fh;
-		err = saa7146_stop_preview(vv->video_fh); /* side effect: video_status is now 0, video_fh is NULL */
-		if (err != 0) {
-			dprintk(2, "suspending video failed\n");
-			vv->ov_suspend = NULL;
-		}
-	}
 
 	if (0 != av7110->current_input) {
 		dprintk(1, "switching to analog TV:\n");
@@ -299,11 +289,6 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 		dprintk(1, "ADSwitch error\n");
 
 	saa7146_set_hps_source_and_sync(dev, source, sync);
-
-	if (vv->ov_suspend != NULL) {
-		saa7146_start_preview(vv->ov_suspend);
-		vv->ov_suspend = NULL;
-	}
 
 	return 0;
 }

@@ -516,27 +516,9 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	   configuration data) */
 	dev->ext_vv_data = ext_vv;
 
-	vv->d_clipping.cpu_addr =
-		dma_alloc_coherent(&dev->pci->dev, SAA7146_CLIPPING_MEM,
-				   &vv->d_clipping.dma_handle, GFP_KERNEL);
-	if( NULL == vv->d_clipping.cpu_addr ) {
-		ERR("out of memory. aborting.\n");
-		kfree(vv);
-		v4l2_ctrl_handler_free(hdl);
-		v4l2_device_unregister(&dev->v4l2_dev);
-		return -ENOMEM;
-	}
-
 	saa7146_video_uops.init(dev,vv);
 	if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
 		saa7146_vbi_uops.init(dev,vv);
-
-	vv->ov_fb.fmt.width = vv->standard->h_max_out;
-	vv->ov_fb.fmt.height = vv->standard->v_max_out;
-	vv->ov_fb.fmt.pixelformat = V4L2_PIX_FMT_RGB565;
-	vv->ov_fb.fmt.bytesperline = 2 * vv->ov_fb.fmt.width;
-	vv->ov_fb.fmt.sizeimage = vv->ov_fb.fmt.bytesperline * vv->ov_fb.fmt.height;
-	vv->ov_fb.fmt.colorspace = V4L2_COLORSPACE_SRGB;
 
 	fmt = &vv->video_fmt;
 	fmt->width = 384;
@@ -561,8 +543,6 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 
 	timer_setup(&vv->vbi_read_timeout, NULL, 0);
 
-	vv->ov_fb.capability = V4L2_FBUF_CAP_LIST_CLIPPING;
-	vv->ov_fb.flags = V4L2_FBUF_FLAG_PRIMARY;
 	dev->vv_data = vv;
 	dev->vv_callback = &vv_callback;
 
@@ -577,8 +557,6 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 	DEB_EE("dev:%p\n", dev);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
-	dma_free_coherent(&dev->pci->dev, SAA7146_CLIPPING_MEM,
-			  vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	kfree(vv);
 	dev->vv_data = NULL;
@@ -608,7 +586,7 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
 	strscpy(vfd->name, name, sizeof(vfd->name));
-	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
+	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 			   V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 	vfd->device_caps |= dev->ext_vv_data->capabilities;
 	if (type == VFL_TYPE_VIDEO)
@@ -616,7 +594,7 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 			~(V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT);
 	else
 		vfd->device_caps &=
-			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_AUDIO);
+			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO);
 	video_set_drvdata(vfd, dev);
 
 	err = video_register_device(vfd, type, -1);
