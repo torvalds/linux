@@ -381,6 +381,7 @@ static int sram_probe(struct platform_device *pdev)
 	struct sram_dev *sram;
 	int ret;
 	struct resource *res;
+	struct clk *clk;
 
 	config = of_device_get_match_data(&pdev->dev);
 
@@ -409,16 +410,14 @@ static int sram_probe(struct platform_device *pdev)
 			return PTR_ERR(sram->pool);
 	}
 
-	sram->clk = devm_clk_get(sram->dev, NULL);
-	if (IS_ERR(sram->clk))
-		sram->clk = NULL;
-	else
-		clk_prepare_enable(sram->clk);
+	clk = devm_clk_get_optional_enabled(sram->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	ret = sram_reserve_regions(sram,
 			platform_get_resource(pdev, IORESOURCE_MEM, 0));
 	if (ret)
-		goto err_disable_clk;
+		return ret;
 
 	platform_set_drvdata(pdev, sram);
 
@@ -436,9 +435,6 @@ static int sram_probe(struct platform_device *pdev)
 
 err_free_partitions:
 	sram_free_partitions(sram);
-err_disable_clk:
-	if (sram->clk)
-		clk_disable_unprepare(sram->clk);
 
 	return ret;
 }
@@ -451,9 +447,6 @@ static int sram_remove(struct platform_device *pdev)
 
 	if (sram->pool && gen_pool_avail(sram->pool) < gen_pool_size(sram->pool))
 		dev_err(sram->dev, "removed while SRAM allocated\n");
-
-	if (sram->clk)
-		clk_disable_unprepare(sram->clk);
 
 	return 0;
 }
