@@ -2519,6 +2519,10 @@ static void intel_ddi_pre_enable_dp(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
+	if (HAS_DP20(dev_priv))
+		intel_dp_128b132b_sdp_crc16(enc_to_intel_dp(encoder),
+					    crtc_state);
+
 	if (DISPLAY_VER(dev_priv) >= 12)
 		tgl_ddi_pre_enable_dp(state, encoder, crtc_state, conn_state);
 	else

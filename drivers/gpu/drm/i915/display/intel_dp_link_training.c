@@ -1474,3 +1474,23 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 	if (!passed)
 		intel_dp_schedule_fallback_link_training(intel_dp, crtc_state);
 }
+
+void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	/*
+	 * VIDEO_DIP_CTL register bit 31 should be set to '0' to not
+	 * disable SDP CRC. This is applicable for Display version 13.
+	 * Default value of bit 31 is '0' hence discarding the write
+	 * TODO: Corrective actions on SDP corruption yet to be defined
+	 */
+	if (intel_dp_is_uhbr(crtc_state))
+		/* DP v2.0 SCR on SDP CRC16 for 128b/132b Link Layer */
+		drm_dp_dpcd_writeb(&intel_dp->aux,
+				   DP_SDP_ERROR_DETECTION_CONFIGURATION,
+				   DP_SDP_CRC16_128B132B_EN);
+
+	drm_dbg_kms(&i915->drm, "DP2.0 SDP CRC16 for 128b/132b enabled\n");
+}
