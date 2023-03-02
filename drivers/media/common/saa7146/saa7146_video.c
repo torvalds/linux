@@ -93,11 +93,13 @@ struct saa7146_format* saa7146_format_by_fourcc(struct saa7146_dev *dev, int fou
 
 static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *buf)
 {
+	struct saa7146_vv *vv = dev->vv_data;
 	struct pci_dev *pci = dev->pci;
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	struct scatterlist *list = dma->sglist;
 	int length = dma->sglen;
-	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
+	struct v4l2_pix_format *pix = &vv->video_fmt;
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev, pix->pixelformat);
 
 	DEB_EE("dev:%p, buf:%p, sg_len:%d\n", dev, buf, length);
 
@@ -108,7 +110,7 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 		__le32  *ptr1, *ptr2, *ptr3;
 		__le32 fill;
 
-		int size = buf->fmt->width*buf->fmt->height;
+		int size = pix->width * pix->height;
 		int i,p,m1,m2,m3,o1,o2;
 
 		switch( sfmt->depth ) {
@@ -757,8 +759,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 	    buf->vb.height != vv->video_fmt.height ||
 	    buf->vb.size   != size ||
 	    buf->vb.field  != field      ||
-	    buf->vb.field  != vv->video_fmt.field  ||
-	    buf->fmt       != &vv->video_fmt) {
+	    buf->vb.field  != vv->video_fmt.field) {
 		saa7146_dma_free(dev,q,buf);
 	}
 
@@ -770,10 +771,9 @@ static int buffer_prepare(struct videobuf_queue *q,
 		buf->vb.height = vv->video_fmt.height;
 		buf->vb.size   = size;
 		buf->vb.field  = field;
-		buf->fmt       = &vv->video_fmt;
 		buf->vb.field  = vv->video_fmt.field;
 
-		sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
+		sfmt = saa7146_format_by_fourcc(dev, vv->video_fmt.pixelformat);
 
 		release_all_pagetables(dev, buf);
 		if( 0 != IS_PLANAR(sfmt->trans)) {

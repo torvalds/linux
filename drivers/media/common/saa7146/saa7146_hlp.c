@@ -407,14 +407,14 @@ void saa7146_write_out_dma(struct saa7146_dev* dev, int which, struct saa7146_vi
 static int calculate_video_dma_grab_packed(struct saa7146_dev* dev, struct saa7146_buf *buf)
 {
 	struct saa7146_vv *vv = dev->vv_data;
+	struct v4l2_pix_format *pix = &vv->video_fmt;
 	struct saa7146_video_dma vdma1;
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev, pix->pixelformat);
 
-	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
-
-	int width = buf->fmt->width;
-	int height = buf->fmt->height;
-	int bytesperline = buf->fmt->bytesperline;
-	enum v4l2_field field = buf->fmt->field;
+	int width = pix->width;
+	int height = pix->height;
+	int bytesperline = pix->bytesperline;
+	enum v4l2_field field = pix->field;
 
 	int depth = sfmt->depth;
 
@@ -469,8 +469,9 @@ static int calculate_video_dma_grab_packed(struct saa7146_dev* dev, struct saa71
 
 static int calc_planar_422(struct saa7146_vv *vv, struct saa7146_buf *buf, struct saa7146_video_dma *vdma2, struct saa7146_video_dma *vdma3)
 {
-	int height = buf->fmt->height;
-	int width = buf->fmt->width;
+	struct v4l2_pix_format *pix = &vv->video_fmt;
+	int height = pix->height;
+	int width = pix->width;
 
 	vdma2->pitch	= width;
 	vdma3->pitch	= width;
@@ -500,8 +501,9 @@ static int calc_planar_422(struct saa7146_vv *vv, struct saa7146_buf *buf, struc
 
 static int calc_planar_420(struct saa7146_vv *vv, struct saa7146_buf *buf, struct saa7146_video_dma *vdma2, struct saa7146_video_dma *vdma3)
 {
-	int height = buf->fmt->height;
-	int width = buf->fmt->width;
+	struct v4l2_pix_format *pix = &vv->video_fmt;
+	int height = pix->height;
+	int width = pix->width;
 
 	vdma2->pitch	= width/2;
 	vdma3->pitch	= width/2;
@@ -530,15 +532,15 @@ static int calc_planar_420(struct saa7146_vv *vv, struct saa7146_buf *buf, struc
 static int calculate_video_dma_grab_planar(struct saa7146_dev* dev, struct saa7146_buf *buf)
 {
 	struct saa7146_vv *vv = dev->vv_data;
+	struct v4l2_pix_format *pix = &vv->video_fmt;
 	struct saa7146_video_dma vdma1;
 	struct saa7146_video_dma vdma2;
 	struct saa7146_video_dma vdma3;
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev, pix->pixelformat);
 
-	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
-
-	int width = buf->fmt->width;
-	int height = buf->fmt->height;
-	enum v4l2_field field = buf->fmt->field;
+	int width = pix->width;
+	int height = pix->height;
+	enum v4l2_field field = pix->field;
 
 	BUG_ON(0 == buf->pt[0].dma);
 	BUG_ON(0 == buf->pt[1].dma);
@@ -717,8 +719,9 @@ static void saa7146_disable_clipping(struct saa7146_dev *dev)
 
 void saa7146_set_capture(struct saa7146_dev *dev, struct saa7146_buf *buf, struct saa7146_buf *next)
 {
-	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
 	struct saa7146_vv *vv = dev->vv_data;
+	struct v4l2_pix_format *pix = &vv->video_fmt;
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev, pix->pixelformat);
 	u32 vdma1_prot_addr;
 
 	DEB_CAP("buf:%p, next:%p\n", buf, next);
@@ -730,7 +733,7 @@ void saa7146_set_capture(struct saa7146_dev *dev, struct saa7146_buf *buf, struc
 		saa7146_write(dev, MC2, MASK_27 );
 	}
 
-	saa7146_set_window(dev, buf->fmt->width, buf->fmt->height, buf->fmt->field);
+	saa7146_set_window(dev, pix->width, pix->height, pix->field);
 	saa7146_set_output_format(dev, sfmt->trans);
 	saa7146_disable_clipping(dev);
 

@@ -60,7 +60,6 @@ struct saa7146_buf {
 	struct videobuf_buffer vb;
 
 	/* saa7146 specific */
-	struct v4l2_pix_format  *fmt;
 	int (*activate)(struct saa7146_dev *dev,
 			struct saa7146_buf *buf,
 			struct saa7146_buf *next);
