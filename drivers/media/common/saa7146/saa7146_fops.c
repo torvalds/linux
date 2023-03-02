@@ -298,7 +298,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	fmt->width = 384;
 	fmt->height = 288;
 	fmt->pixelformat = V4L2_PIX_FMT_BGR24;
-	fmt->field = V4L2_FIELD_ANY;
+	fmt->field = V4L2_FIELD_INTERLACED;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	fmt->bytesperline = 3 * fmt->width;
 	fmt->sizeimage = fmt->bytesperline * fmt->height;

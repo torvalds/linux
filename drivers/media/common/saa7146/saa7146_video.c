@@ -381,20 +381,13 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_forma
 	}
 	switch (field) {
 	case V4L2_FIELD_ALTERNATE:
-		vv->last_field = V4L2_FIELD_TOP;
-		maxh = maxh / 2;
-		break;
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
-		vv->last_field = V4L2_FIELD_INTERLACED;
 		maxh = maxh / 2;
 		break;
-	case V4L2_FIELD_INTERLACED:
-		vv->last_field = V4L2_FIELD_INTERLACED;
-		break;
 	default:
-		DEB_D("no known field mode '%d'\n", field);
-		return -EINVAL;
+		field = V4L2_FIELD_INTERLACED;
+		break;
 	}
 
 	f->fmt.pix.field = field;
@@ -434,6 +427,14 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	err = vidioc_try_fmt_vid_cap(file, fh, f);
 	if (0 != err)
 		return err;
+	switch (f->fmt.pix.field) {
+	case V4L2_FIELD_ALTERNATE:
+		vv->last_field = V4L2_FIELD_TOP;
+		break;
+	default:
+		vv->last_field = V4L2_FIELD_INTERLACED;
+		break;
+	}
 	vv->video_fmt = f->fmt.pix;
 	DEB_EE("set to pixelformat '%4.4s'\n",
 	       (char *)&vv->video_fmt.pixelformat);
