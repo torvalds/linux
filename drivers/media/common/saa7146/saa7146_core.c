@@ -235,11 +235,12 @@ int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)
 }
 
 int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt,
-	struct scatterlist *list, int sglen  )
+				 struct scatterlist *list, int sglen)
 {
+	struct sg_dma_page_iter dma_iter;
 	__le32 *ptr, fill;
 	int nr_pages = 0;
-	int i,p;
+	int i;
 
 	if (WARN_ON(!sglen) ||
 	    WARN_ON(list->offset > PAGE_SIZE))
@@ -250,32 +251,16 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 	pt->offset = list->offset;
 
 	ptr = pt->cpu;
-	for (i = 0; i < sglen; i++, list++) {
-/*
-		pr_debug("i:%d, adr:0x%08x, len:%d, offset:%d\n",
-			 i, sg_dma_address(list), sg_dma_len(list),
-			 list->offset);
-*/
-		for (p = 0; p * 4096 < sg_dma_len(list); p++, ptr++) {
-			*ptr = cpu_to_le32(sg_dma_address(list) + p * 4096);
-			nr_pages++;
-		}
+	for_each_sg_dma_page(list, &dma_iter, sglen, 0) {
+		*ptr++ = cpu_to_le32(sg_page_iter_dma_address(&dma_iter));
+		nr_pages++;
 	}
 
 
 	/* safety; fill the page table up with the last valid page */
 	fill = *(ptr-1);
-	for(i=nr_pages;i<1024;i++) {
+	for (i = nr_pages; i < 1024; i++)
 		*ptr++ = fill;
-	}
-
-/*
-	ptr = pt->cpu;
-	pr_debug("offset: %d\n", pt->offset);
-	for(i=0;i<5;i++) {
-		pr_debug("ptr1 %d: 0x%08x\n", i, ptr[i]);
-	}
-*/
 	return 0;
 }
 

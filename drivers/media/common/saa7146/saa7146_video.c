@@ -107,31 +107,32 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 		struct saa7146_pgtable *pt1 = &buf->pt[0];
 		struct saa7146_pgtable *pt2 = &buf->pt[1];
 		struct saa7146_pgtable *pt3 = &buf->pt[2];
+		struct sg_dma_page_iter dma_iter;
 		__le32  *ptr1, *ptr2, *ptr3;
 		__le32 fill;
 
 		int size = pix->width * pix->height;
-		int i,p,m1,m2,m3,o1,o2;
+		int i, m1, m2, m3, o1, o2;
 
 		switch( sfmt->depth ) {
 			case 12: {
 				/* create some offsets inside the page table */
-				m1 = ((size+PAGE_SIZE)/PAGE_SIZE)-1;
-				m2 = ((size+(size/4)+PAGE_SIZE)/PAGE_SIZE)-1;
-				m3 = ((size+(size/2)+PAGE_SIZE)/PAGE_SIZE)-1;
-				o1 = size%PAGE_SIZE;
-				o2 = (size+(size/4))%PAGE_SIZE;
+				m1 = ((size + PAGE_SIZE) / PAGE_SIZE) - 1;
+				m2 = ((size + (size / 4) + PAGE_SIZE) / PAGE_SIZE) - 1;
+				m3 = ((size + (size / 2) + PAGE_SIZE) / PAGE_SIZE) - 1;
+				o1 = size % PAGE_SIZE;
+				o2 = (size + (size / 4)) % PAGE_SIZE;
 				DEB_CAP("size:%d, m1:%d, m2:%d, m3:%d, o1:%d, o2:%d\n",
 					size, m1, m2, m3, o1, o2);
 				break;
 			}
 			case 16: {
 				/* create some offsets inside the page table */
-				m1 = ((size+PAGE_SIZE)/PAGE_SIZE)-1;
-				m2 = ((size+(size/2)+PAGE_SIZE)/PAGE_SIZE)-1;
-				m3 = ((2*size+PAGE_SIZE)/PAGE_SIZE)-1;
-				o1 = size%PAGE_SIZE;
-				o2 = (size+(size/2))%PAGE_SIZE;
+				m1 = ((size + PAGE_SIZE) / PAGE_SIZE) - 1;
+				m2 = ((size + (size / 2) + PAGE_SIZE) / PAGE_SIZE) - 1;
+				m3 = ((2 * size + PAGE_SIZE) / PAGE_SIZE) - 1;
+				o1 = size % PAGE_SIZE;
+				o2 = (size + (size / 2)) % PAGE_SIZE;
 				DEB_CAP("size:%d, m1:%d, m2:%d, m3:%d, o1:%d, o2:%d\n",
 					size, m1, m2, m3, o1, o2);
 				break;
@@ -145,64 +146,37 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 		ptr2 = pt2->cpu;
 		ptr3 = pt3->cpu;
 
-		/* walk all pages, copy all page addresses to ptr1 */
-		for (i = 0; i < length; i++, list++) {
-			for (p = 0; p * 4096 < sg_dma_len(list); p++, ptr1++)
-				*ptr1 = cpu_to_le32(sg_dma_address(list) - list->offset);
-		}
-/*
-		ptr1 = pt1->cpu;
-		for(j=0;j<40;j++) {
-			printk("ptr1 %d: 0x%08x\n",j,ptr1[j]);
-		}
-*/
+		for_each_sg_dma_page(list, &dma_iter, length, 0)
+			*ptr1++ = cpu_to_le32(sg_page_iter_dma_address(&dma_iter) - list->offset);
 
 		/* if we have a user buffer, the first page may not be
 		   aligned to a page boundary. */
 		pt1->offset = dma->sglist->offset;
-		pt2->offset = pt1->offset+o1;
-		pt3->offset = pt1->offset+o2;
+		pt2->offset = pt1->offset + o1;
+		pt3->offset = pt1->offset + o2;
 
 		/* create video-dma2 page table */
 		ptr1 = pt1->cpu;
-		for(i = m1; i <= m2 ; i++, ptr2++) {
+		for (i = m1; i <= m2; i++, ptr2++)
 			*ptr2 = ptr1[i];
-		}
-		fill = *(ptr2-1);
-		for(;i<1024;i++,ptr2++) {
+		fill = *(ptr2 - 1);
+		for (; i < 1024; i++, ptr2++)
 			*ptr2 = fill;
-		}
 		/* create video-dma3 page table */
 		ptr1 = pt1->cpu;
-		for(i = m2; i <= m3; i++,ptr3++) {
+		for (i = m2; i <= m3; i++, ptr3++)
 			*ptr3 = ptr1[i];
-		}
-		fill = *(ptr3-1);
-		for(;i<1024;i++,ptr3++) {
+		fill = *(ptr3 - 1);
+		for (; i < 1024; i++, ptr3++)
 			*ptr3 = fill;
-		}
 		/* finally: finish up video-dma1 page table */
-		ptr1 = pt1->cpu+m1;
+		ptr1 = pt1->cpu + m1;
 		fill = pt1->cpu[m1];
-		for(i=m1;i<1024;i++,ptr1++) {
+		for (i = m1; i < 1024; i++, ptr1++)
 			*ptr1 = fill;
-		}
-/*
-		ptr1 = pt1->cpu;
-		ptr2 = pt2->cpu;
-		ptr3 = pt3->cpu;
-		for(j=0;j<40;j++) {
-			printk("ptr1 %d: 0x%08x\n",j,ptr1[j]);
-		}
-		for(j=0;j<40;j++) {
-			printk("ptr2 %d: 0x%08x\n",j,ptr2[j]);
-		}
-		for(j=0;j<40;j++) {
-			printk("ptr3 %d: 0x%08x\n",j,ptr3[j]);
-		}
-*/
 	} else {
 		struct saa7146_pgtable *pt = &buf->pt[0];
+
 		return saa7146_pgtable_build_single(pci, pt, list, length);
 	}
 
