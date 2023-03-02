@@ -1404,7 +1404,7 @@ static int hidpp20_map_battery_capacity(struct hid_device *hid_dev, int voltage)
 	 * there are a few devices that use different battery technology.
 	 */
 
-	static const int voltages[] = {
+	static const int voltages[100] = {
 		4186, 4156, 4143, 4133, 4122, 4113, 4103, 4094, 4086, 4075,
 		4067, 4059, 4051, 4043, 4035, 4027, 4019, 4011, 4003, 3997,
 		3989, 3983, 3976, 3969, 3961, 3955, 3949, 3942, 3935, 3929,
@@ -1418,8 +1418,6 @@ static int hidpp20_map_battery_capacity(struct hid_device *hid_dev, int voltage)
 	};
 
 	int i;
-
-	BUILD_BUG_ON(ARRAY_SIZE(voltages) != 100);
 
 	if (unlikely(voltage < 3500 || voltage >= 5000))
 		hid_warn_once(hid_dev,
