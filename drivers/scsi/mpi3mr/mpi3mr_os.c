@@ -5128,6 +5128,12 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 	}
 	spin_unlock_irqrestore(&mrioc->sas_node_lock, flags);
 
+	if (mrioc->sas_hba.num_phys) {
+		kfree(mrioc->sas_hba.phy);
+		mrioc->sas_hba.phy = NULL;
+		mrioc->sas_hba.num_phys = 0;
+	}
+
 	spin_lock(&mrioc_list_lock);
 	list_del(&mrioc->list);
 	spin_unlock(&mrioc_list_lock);
