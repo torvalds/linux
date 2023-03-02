@@ -1022,7 +1022,7 @@ err_pci_dev_put:
 	return err;
 }
 
-static int amd_pmc_remove(struct platform_device *pdev)
+static void amd_pmc_remove(struct platform_device *pdev)
 {
 	struct amd_pmc_dev *dev = platform_get_drvdata(pdev);
 
@@ -1031,7 +1031,6 @@ static int amd_pmc_remove(struct platform_device *pdev)
 	amd_pmc_dbgfs_unregister(dev);
 	pci_dev_put(dev->rdev);
 	mutex_destroy(&dev->lock);
-	return 0;
 }
 
 static const struct acpi_device_id amd_pmc_acpi_ids[] = {
@@ -1054,7 +1053,7 @@ static struct platform_driver amd_pmc_driver = {
 		.pm = pm_sleep_ptr(&amd_pmc_pm),
 	},
 	.probe = amd_pmc_probe,
-	.remove = amd_pmc_remove,
+	.remove_new = amd_pmc_remove,
 };
 module_platform_driver(amd_pmc_driver);
 
