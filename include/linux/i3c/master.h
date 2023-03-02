@@ -22,9 +22,10 @@
 #define I3C_BROADCAST_ADDR		0x7e
 #define I3C_MAX_ADDR			GENMASK(6, 0)
 
+struct i2c_client;
+
 struct i3c_master_controller;
 struct i3c_bus;
-struct i2c_device;
 struct i3c_device;
 
 /**
