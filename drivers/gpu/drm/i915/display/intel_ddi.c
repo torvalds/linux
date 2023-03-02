@@ -4505,23 +4505,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	drm_WARN_ON(&dev_priv->drm, port > PORT_I);
 	dig_port->ddi_io_power_domain = intel_display_power_ddi_io_domain(dev_priv, port);
 
-	if (init_dp) {
-		if (!intel_ddi_init_dp_connector(dig_port))
-			goto err;
-
-		dig_port->hpd_pulse = intel_dp_hpd_pulse;
-
-		if (dig_port->dp.mso_link_count)
-			encoder->pipe_mask = intel_ddi_splitter_pipe_mask(dev_priv);
-	}
-
-	/* In theory we don't need the encoder->type check, but leave it just in
-	 * case we have some really bad VBTs... */
-	if (encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
-		if (!intel_ddi_init_hdmi_connector(dig_port))
-			goto err;
-	}
-
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		if (intel_phy_is_tc(dev_priv, phy))
 			dig_port->connected = intel_tc_port_connected;
@@ -4541,6 +4524,25 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	intel_infoframe_init(dig_port);
+
+	if (init_dp) {
+		if (!intel_ddi_init_dp_connector(dig_port))
+			goto err;
+
+		dig_port->hpd_pulse = intel_dp_hpd_pulse;
+
+		if (dig_port->dp.mso_link_count)
+			encoder->pipe_mask = intel_ddi_splitter_pipe_mask(dev_priv);
+	}
+
+	/*
+	 * In theory we don't need the encoder->type check,
+	 * but leave it just in case we have some really bad VBTs...
+	 */
+	if (encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
+		if (!intel_ddi_init_hdmi_connector(dig_port))
+			goto err;
+	}
 
 	return;
 
