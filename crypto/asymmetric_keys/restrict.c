@@ -140,6 +140,8 @@ int restrict_link_by_ca(struct key *dest_keyring,
 		return -ENOKEY;
 	if (!test_bit(KEY_EFLAG_KEYCERTSIGN, &pkey->key_eflags))
 		return -ENOKEY;
+	if (!IS_ENABLED(CONFIG_INTEGRITY_CA_MACHINE_KEYRING_MAX))
+		return 0;
 	if (test_bit(KEY_EFLAG_DIGITALSIG, &pkey->key_eflags))
 		return -ENOKEY;
 
