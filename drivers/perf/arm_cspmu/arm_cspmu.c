@@ -1078,12 +1078,14 @@ static int arm_cspmu_request_irq(struct arm_cspmu *cspmu)
 static inline int arm_cspmu_find_cpu_container(int cpu, u32 container_uid)
 {
 	u32 acpi_uid;
-	struct device *cpu_dev = get_cpu_device(cpu);
-	struct acpi_device *acpi_dev = ACPI_COMPANION(cpu_dev);
+	struct device *cpu_dev;
+	struct acpi_device *acpi_dev;
 
+	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev)
 		return -ENODEV;
 
+	acpi_dev = ACPI_COMPANION(cpu_dev);
 	while (acpi_dev) {
 		if (!strcmp(acpi_device_hid(acpi_dev),
 			    ACPI_PROCESSOR_CONTAINER_HID) &&
