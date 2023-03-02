@@ -1024,3 +1024,25 @@ static void jpeg_v4_0_3_query_ras_error_count(struct amdgpu_device *adev,
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++)
 		jpeg_v4_0_3_inst_query_ras_error_count(adev, i, ras_err_status);
 }
+
+static void jpeg_v4_0_3_inst_reset_ras_error_count(struct amdgpu_device *adev,
+						   uint32_t jpeg_inst)
+{
+	amdgpu_ras_inst_reset_ras_error_count(adev,
+			jpeg_v4_0_3_ue_reg_list,
+			ARRAY_SIZE(jpeg_v4_0_3_ue_reg_list),
+			GET_INST(VCN, jpeg_inst));
+}
+
+static void jpeg_v4_0_3_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	uint32_t i;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__JPEG)) {
+		dev_warn(adev->dev, "JPEG RAS is not supported\n");
+		return;
+	}
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++)
+		jpeg_v4_0_3_inst_reset_ras_error_count(adev, i);
+}
