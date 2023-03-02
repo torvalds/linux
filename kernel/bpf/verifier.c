@@ -705,6 +705,25 @@ static const char *kernel_type_name(const struct btf* btf, u32 id)
 	return btf_name_by_offset(btf, btf_type_by_id(btf, id)->name_off);
 }
 
+static const char *dynptr_type_str(enum bpf_dynptr_type type)
+{
+	switch (type) {
+	case BPF_DYNPTR_TYPE_LOCAL:
+		return "local";
+	case BPF_DYNPTR_TYPE_RINGBUF:
+		return "ringbuf";
+	case BPF_DYNPTR_TYPE_SKB:
+		return "skb";
+	case BPF_DYNPTR_TYPE_XDP:
+		return "xdp";
+	case BPF_DYNPTR_TYPE_INVALID:
+		return "<invalid>";
+	default:
+		WARN_ONCE(1, "unknown dynptr type %d\n", type);
+		return "<unknown>";
+	}
+}
+
 static void mark_reg_scratched(struct bpf_verifier_env *env, u32 regno)
 {
 	env->scratched_regs |= 1U << regno;
@@ -1176,26 +1195,49 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 		for (j = 0; j < BPF_REG_SIZE; j++) {
 			if (state->stack[i].slot_type[j] != STACK_INVALID)
 				valid = true;
-			types_buf[j] = slot_type_char[
-					state->stack[i].slot_type[j]];
+			types_buf[j] = slot_type_char[state->stack[i].slot_type[j]];
 		}
 		types_buf[BPF_REG_SIZE] = 0;
 		if (!valid)
 			continue;
 		if (!print_all && !stack_slot_scratched(env, i))
 			continue;
-		verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
-		print_liveness(env, state->stack[i].spilled_ptr.live);
-		if (is_spilled_reg(&state->stack[i])) {
+		switch (state->stack[i].slot_type[BPF_REG_SIZE - 1]) {
+		case STACK_SPILL:
 			reg = &state->stack[i].spilled_ptr;
 			t = reg->type;
+
+			verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
+			print_liveness(env, reg->live);
 			verbose(env, "=%s", t == SCALAR_VALUE ? "" : reg_type_str(env, t));
 			if (t == SCALAR_VALUE && reg->precise)
 				verbose(env, "P");
 			if (t == SCALAR_VALUE && tnum_is_const(reg->var_off))
 				verbose(env, "%lld", reg->var_off.value + reg->off);
-		} else {
+			break;
+		case STACK_DYNPTR:
+			i += BPF_DYNPTR_NR_SLOTS - 1;
+			reg = &state->stack[i].spilled_ptr;
+
+			verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
+			print_liveness(env, reg->live);
+			verbose(env, "=dynptr_%s", dynptr_type_str(reg->dynptr.type));
+			if (reg->ref_obj_id)
+				verbose(env, "(ref_id=%d)", reg->ref_obj_id);
+			break;
+		case STACK_MISC:
+		case STACK_ZERO:
+		default:
+			reg = &state->stack[i].spilled_ptr;
+
+			for (j = 0; j < BPF_REG_SIZE; j++)
+				types_buf[j] = slot_type_char[state->stack[i].slot_type[j]];
+			types_buf[BPF_REG_SIZE] = 0;
+
+			verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
+			print_liveness(env, reg->live);
 			verbose(env, "=%s", types_buf);
+			break;
 		}
 	}
 	if (state->acquired_refs && state->refs[0].id) {
@@ -6411,28 +6453,9 @@ static int process_dynptr_func(struct bpf_verifier_env *env, int regno, int insn
 
 		/* Fold modifiers (in this case, MEM_RDONLY) when checking expected type */
 		if (!is_dynptr_type_expected(env, reg, arg_type & ~MEM_RDONLY)) {
-			const char *err_extra = "";
-
-			switch (arg_type & DYNPTR_TYPE_FLAG_MASK) {
-			case DYNPTR_TYPE_LOCAL:
-				err_extra = "local";
-				break;
-			case DYNPTR_TYPE_RINGBUF:
-				err_extra = "ringbuf";
-				break;
-			case DYNPTR_TYPE_SKB:
-				err_extra = "skb ";
-				break;
-			case DYNPTR_TYPE_XDP:
-				err_extra = "xdp ";
-				break;
-			default:
-				err_extra = "<unknown>";
-				break;
-			}
 			verbose(env,
 				"Expected a dynptr of type %s as arg #%d\n",
-				err_extra, regno);
+				dynptr_type_str(arg_to_dynptr_type(arg_type)), regno);
 			return -EINVAL;
 		}
 
