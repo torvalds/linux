@@ -39,6 +39,10 @@ struct pkvm_module_ops {
 	int (*register_hyp_panic_notifier)(void (*cb)(struct kvm_cpu_context *host_ctxt));
 	int (*host_donate_hyp)(u64 pfn, u64 nr_pages);
 	int (*hyp_donate_host)(u64 pfn, u64 nr_pages);
+	int (*host_share_hyp)(u64 pfn);
+	int (*host_unshare_hyp)(u64 pfn);
+	int (*pin_shared_mem)(void *from, void *to);
+	void (*unpin_shared_mem)(void *from, void *to);
 	void* (*memcpy)(void *to, const void *from, size_t count);
 	void* (*memset)(void *dst, int c, size_t count);
 	phys_addr_t (*hyp_pa)(void *x);
