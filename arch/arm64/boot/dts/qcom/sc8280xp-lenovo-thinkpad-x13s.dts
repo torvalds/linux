@@ -1075,7 +1075,7 @@
 
 	vdd-micb-supply = <&vreg_s10b>;
 
-	qcom,dmic-sample-rate = <600000>;
+	qcom,dmic-sample-rate = <4800000>;
 
 	status = "okay";
 };
