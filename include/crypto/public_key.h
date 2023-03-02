@@ -30,6 +30,8 @@ struct public_key {
 	const char *pkey_algo;
 	unsigned long key_eflags;	/* key extension flags */
 #define KEY_EFLAG_CA		0	/* set if the CA basic constraints is set */
+#define KEY_EFLAG_DIGITALSIG	1	/* set if the digitalSignature usage is set */
+#define KEY_EFLAG_KEYCERTSIGN	2	/* set if the keyCertSign usage is set */
 };
 
 extern void public_key_free(struct public_key *key);
