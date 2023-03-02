@@ -1466,3 +1466,25 @@ static void vcn_v4_0_3_query_ras_error_count(struct amdgpu_device *adev,
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
 		vcn_v4_0_3_inst_query_ras_error_count(adev, i, ras_err_status);
 }
+
+static void vcn_v4_0_3_inst_reset_ras_error_count(struct amdgpu_device *adev,
+						  uint32_t vcn_inst)
+{
+	amdgpu_ras_inst_reset_ras_error_count(adev,
+					vcn_v4_0_3_ue_reg_list,
+					ARRAY_SIZE(vcn_v4_0_3_ue_reg_list),
+					GET_INST(VCN, vcn_inst));
+}
+
+static void vcn_v4_0_3_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	uint32_t i;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN)) {
+		dev_warn(adev->dev, "VCN RAS is not supported\n");
+		return;
+	}
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
+		vcn_v4_0_3_inst_reset_ras_error_count(adev, i);
+}
