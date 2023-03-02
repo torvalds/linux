@@ -1858,9 +1858,9 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			 * (2) PD_ESMART will be closed at esmart layers attathed on VPs
 			 *     config done + FS, but different VP FS time is different, this
 			 *     maybe lead to PD_ESMART closed at wrong time and display error.
-			 *
+			 * (3) PD_ESMART power up maybe have 4 us delay, this will lead to POST_BUF_EMPTY.
 			 */
-			if (win->pd->data->id == VOP2_PD_ESMART && hweight8(vop2->active_vp_mask) > 1)
+			if (win->pd->data->id == VOP2_PD_ESMART)
 				return;
 
 			vop2_power_domain_put(win->pd);
@@ -3837,6 +3837,12 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 */
 		VOP_CTRL_SET(vop2, if_ctrl_cfg_done_imd, 1);
 
+		/* Close dynamic turn on/off rk3588 PD_ESMART and keep esmart pd on when enable */
+		if (vop2->version == VOP_VERSION_RK3588) {
+			struct vop2_power_domain *esmart_pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
+
+			vop2_power_domain_get(esmart_pd);
+		}
 		vop2_layer_map_initial(vop2, current_vp_id);
 		vop2_axi_irqs_enable(vop2);
 		vop2->is_enabled = true;
