@@ -434,7 +434,8 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 	if (bch2_bkey_ops[old.k->type].atomic_trigger ==
 	    bch2_bkey_ops[i->k->k.type].atomic_trigger &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
-		ret   = bch2_mark_key(trans, old, bkey_i_to_s_c(new),
+		ret   = bch2_mark_key(trans, i->btree_id, i->level,
+				old, bkey_i_to_s_c(new),
 				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
 	} else {
 		struct bkey		_deleted = KEY(0, 0, 0);
@@ -442,9 +443,11 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 
 		_deleted.p = i->path->pos;
 
-		ret   = bch2_mark_key(trans, deleted, bkey_i_to_s_c(new),
+		ret   = bch2_mark_key(trans, i->btree_id, i->level,
+				deleted, bkey_i_to_s_c(new),
 				BTREE_TRIGGER_INSERT|flags) ?:
-			bch2_mark_key(trans, old, deleted,
+			bch2_mark_key(trans, i->btree_id, i->level,
+				old, deleted,
 				BTREE_TRIGGER_OVERWRITE|flags);
 	}
 

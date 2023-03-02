@@ -486,6 +486,7 @@ static inline void update_cached_sectors_list(struct btree_trans *trans,
 }
 
 int bch2_mark_alloc(struct btree_trans *trans,
+		    enum btree_id btree, unsigned level,
 		    struct bkey_s_c old, struct bkey_s_c new,
 		    unsigned flags)
 {
@@ -929,6 +930,7 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 }
 
 int bch2_mark_extent(struct btree_trans *trans,
+		     enum btree_id btree_id, unsigned level,
 		     struct bkey_s_c old, struct bkey_s_c new,
 		     unsigned flags)
 {
@@ -1012,6 +1014,7 @@ int bch2_mark_extent(struct btree_trans *trans,
 }
 
 int bch2_mark_stripe(struct btree_trans *trans,
+		     enum btree_id btree_id, unsigned level,
 		     struct bkey_s_c old, struct bkey_s_c new,
 		     unsigned flags)
 {
@@ -1117,6 +1120,7 @@ int bch2_mark_stripe(struct btree_trans *trans,
 }
 
 int bch2_mark_inode(struct btree_trans *trans,
+		    enum btree_id btree_id, unsigned level,
 		    struct bkey_s_c old, struct bkey_s_c new,
 		    unsigned flags)
 {
@@ -1148,6 +1152,7 @@ int bch2_mark_inode(struct btree_trans *trans,
 }
 
 int bch2_mark_reservation(struct btree_trans *trans,
+			  enum btree_id btree_id, unsigned level,
 			  struct bkey_s_c old, struct bkey_s_c new,
 			  unsigned flags)
 {
@@ -1234,6 +1239,7 @@ fsck_err:
 }
 
 int bch2_mark_reflink_p(struct btree_trans *trans,
+			enum btree_id btree_id, unsigned level,
 			struct bkey_s_c old, struct bkey_s_c new,
 			unsigned flags)
 {

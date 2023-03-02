@@ -808,7 +808,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	}
 
 	ret = commit_do(trans, NULL, NULL, 0,
-			bch2_mark_key(trans, old, *k, flags));
+			bch2_mark_key(trans, btree_id, level, old, *k, flags));
 fsck_err:
 err:
 	if (ret)
@@ -887,7 +887,7 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree_id,
 	if (!btree_node_fake(b)) {
 		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
 
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level,
+		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1,
 				       true, &k, initial);
 	}
 	gc_pos_set(c, gc_pos_btree_root(b->c.btree_id));
@@ -1040,7 +1040,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	if (!ret) {
 		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
 
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level, true,
+		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1, true,
 				       &k, true);
 	}
 fsck_err:

@@ -8,8 +8,8 @@
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_invalid(const struct bch_fs *, struct bkey_s_c,
 			  unsigned, struct printbuf *);
-int bch2_mark_snapshot(struct btree_trans *, struct bkey_s_c,
-		       struct bkey_s_c, unsigned);
+int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
+		       struct bkey_s_c, struct bkey_s_c, unsigned);
 
 #define bch2_bkey_ops_snapshot ((struct bkey_ops) {		\
 	.key_invalid	= bch2_snapshot_invalid,		\

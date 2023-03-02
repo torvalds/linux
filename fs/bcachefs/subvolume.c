@@ -76,6 +76,7 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 }
 
 int bch2_mark_snapshot(struct btree_trans *trans,
+		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s_c new,
 		       unsigned flags)
 {
@@ -361,7 +362,7 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 
 	for_each_btree_key2(&trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k,
-		bch2_mark_snapshot(&trans, bkey_s_c_null, k, 0) ?:
+		bch2_mark_snapshot(&trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
 		bch2_snapshot_set_equiv(&trans, k));
 
 	bch2_trans_exit(&trans);

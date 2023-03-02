@@ -235,12 +235,18 @@ int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			      size_t, enum bch_data_type, unsigned,
 			      struct gc_pos, unsigned);
 
-int bch2_mark_alloc(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_extent(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_stripe(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_inode(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_reservation(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_reflink_p(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
+int bch2_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
+		    struct bkey_s_c, struct bkey_s_c, unsigned);
+int bch2_mark_extent(struct btree_trans *, enum btree_id, unsigned,
+		     struct bkey_s_c, struct bkey_s_c, unsigned);
+int bch2_mark_stripe(struct btree_trans *, enum btree_id, unsigned,
+		     struct bkey_s_c, struct bkey_s_c, unsigned);
+int bch2_mark_inode(struct btree_trans *, enum btree_id, unsigned,
+		    struct bkey_s_c, struct bkey_s_c, unsigned);
+int bch2_mark_reservation(struct btree_trans *, enum btree_id, unsigned,
+			  struct bkey_s_c, struct bkey_s_c, unsigned);
+int bch2_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned,
+			struct bkey_s_c, struct bkey_s_c, unsigned);
 
 int bch2_trans_mark_extent(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
