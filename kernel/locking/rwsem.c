@@ -31,6 +31,7 @@
 
 #ifndef CONFIG_PREEMPT_RT
 #include "lock_events.h"
+#include <trace/hooks/dtask.h>
 #include <trace/hooks/rwsem.h>
 
 /*
@@ -1086,6 +1087,7 @@ queue:
 	trace_contention_begin(sem, LCB_F_READ);
 
 	/* wait to be given the lock */
+	trace_android_vh_rwsem_read_wait_start(sem);
 	for (;;) {
 		set_current_state(state);
 		if (!smp_load_acquire(&waiter.task)) {
@@ -1105,6 +1107,7 @@ queue:
 	}
 
 	__set_current_state(TASK_RUNNING);
+	trace_android_vh_rwsem_read_wait_finish(sem);
 	lockevent_inc(rwsem_rlock);
 	trace_contention_end(sem, 0);
 	return sem;
@@ -1112,6 +1115,7 @@ queue:
 out_nolock:
 	rwsem_del_wake_waiter(sem, &waiter, &wake_q);
 	__set_current_state(TASK_RUNNING);
+	trace_android_vh_rwsem_read_wait_finish(sem);
 	lockevent_inc(rwsem_rlock_fail);
 	trace_contention_end(sem, -EINTR);
 	return ERR_PTR(-EINTR);
@@ -1168,6 +1172,7 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 
 	trace_android_vh_rwsem_wake(sem);
 	/* wait until we successfully acquire the lock */
+	trace_android_vh_rwsem_write_wait_start(sem);
 	set_current_state(state);
 	trace_contention_begin(sem, LCB_F_WRITE);
 
@@ -1208,6 +1213,7 @@ trylock_again:
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
 	__set_current_state(TASK_RUNNING);
+	trace_android_vh_rwsem_write_wait_finish(sem);
 	raw_spin_unlock_irq(&sem->wait_lock);
 	lockevent_inc(rwsem_wlock);
 	trace_contention_end(sem, 0);
@@ -1215,6 +1221,7 @@ trylock_again:
 
 out_nolock:
 	__set_current_state(TASK_RUNNING);
+	trace_android_vh_rwsem_write_wait_finish(sem);
 	raw_spin_lock_irq(&sem->wait_lock);
 	rwsem_del_wake_waiter(sem, &waiter, &wake_q);
 	lockevent_inc(rwsem_wlock_fail);
