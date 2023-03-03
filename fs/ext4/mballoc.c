@@ -4671,8 +4671,8 @@ ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 		 pa->pa_len, pa->pa_lstart);
 	trace_ext4_mb_new_inode_pa(ac, pa);
 
-	ext4_mb_use_inode_pa(ac, pa);
 	atomic_add(pa->pa_free, &sbi->s_mb_preallocated);
+	ext4_mb_use_inode_pa(ac, pa);
 
 	ei = EXT4_I(ac->ac_inode);
 	grp = ext4_get_group_info(sb, ac->ac_b_ex.fe_group);
