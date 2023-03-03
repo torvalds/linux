@@ -1630,7 +1630,7 @@ exit_pm_disable:
 	return ret;
 }
 
-static int tegra_qspi_remove(struct platform_device *pdev)
+static void tegra_qspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct tegra_qspi *tqspi = spi_master_get_devdata(master);
@@ -1639,8 +1639,6 @@ static int tegra_qspi_remove(struct platform_device *pdev)
 	free_irq(tqspi->irq, tqspi);
 	pm_runtime_force_suspend(&pdev->dev);
 	tegra_qspi_deinit_dma(tqspi);
-
-	return 0;
 }
 
 static int __maybe_unused tegra_qspi_suspend(struct device *dev)
@@ -1714,7 +1712,7 @@ static struct platform_driver tegra_qspi_driver = {
 		.acpi_match_table = ACPI_PTR(tegra_qspi_acpi_match),
 	},
 	.probe =	tegra_qspi_probe,
-	.remove =	tegra_qspi_remove,
+	.remove_new =	tegra_qspi_remove,
 };
 module_platform_driver(tegra_qspi_driver);
 
