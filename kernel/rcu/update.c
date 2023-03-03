@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/irq_work.h>
 #include <linux/rcupdate_trace.h>
+#include <linux/jiffies.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -224,19 +225,89 @@ void rcu_unexpedite_gp(void)
 }
 EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
 
+/*
+ * Minimum time in milliseconds from the start boot until RCU can consider
+ * in-kernel boot as completed.  This can also be tuned at runtime to end the
+ * boot earlier, by userspace init code writing the time in milliseconds (even
+ * 0) to: /sys/module/rcupdate/parameters/rcu_boot_end_delay. The sysfs node
+ * can also be used to extend the delay to be larger than the default, assuming
+ * the marking of boot complete has not yet occurred.
+ */
+static int rcu_boot_end_delay = CONFIG_RCU_BOOT_END_DELAY;
+
 static bool rcu_boot_ended __read_mostly;
+static bool rcu_boot_end_called __read_mostly;
+static DEFINE_MUTEX(rcu_boot_end_lock);
 
 /*
- * Inform RCU of the end of the in-kernel boot sequence.
+ * Inform RCU of the end of the in-kernel boot sequence. The boot sequence will
+ * not be marked ended until at least rcu_boot_end_delay milliseconds have passed.
  */
-void rcu_end_inkernel_boot(void)
+void rcu_end_inkernel_boot(void);
+static void rcu_boot_end_work_fn(struct work_struct *work)
 {
+	rcu_end_inkernel_boot();
+}
+static DECLARE_DELAYED_WORK(rcu_boot_end_work, rcu_boot_end_work_fn);
+
+/* Must be called with rcu_boot_end_lock held. */
+static void rcu_end_inkernel_boot_locked(void)
+{
+	rcu_boot_end_called = true;
+
+	if (rcu_boot_ended)
+		return;
+
+	if (rcu_boot_end_delay) {
+		u64 boot_ms = div_u64(ktime_get_boot_fast_ns(), 1000000UL);
+
+		if (boot_ms < rcu_boot_end_delay) {
+			schedule_delayed_work(&rcu_boot_end_work,
+					msecs_to_jiffies(rcu_boot_end_delay - boot_ms));
+			return;
+		}
+	}
+
+	cancel_delayed_work(&rcu_boot_end_work);
 	rcu_unexpedite_gp();
 	rcu_async_relax();
 	if (rcu_normal_after_boot)
 		WRITE_ONCE(rcu_normal, 1);
 	rcu_boot_ended = true;
 }
+
+void rcu_end_inkernel_boot(void)
+{
+	mutex_lock(&rcu_boot_end_lock);
+	rcu_end_inkernel_boot_locked();
+	mutex_unlock(&rcu_boot_end_lock);
+}
+
+static int param_set_rcu_boot_end(const char *val, const struct kernel_param *kp)
+{
+	uint end_ms;
+	int ret = kstrtouint(val, 0, &end_ms);
+
+	if (ret)
+		return ret;
+	/*
+	 * rcu_end_inkernel_boot() should be called at least once during init
+	 * before we can allow param changes to end the boot.
+	 */
+	mutex_lock(&rcu_boot_end_lock);
+	rcu_boot_end_delay = end_ms;
+	if (!rcu_boot_ended && rcu_boot_end_called) {
+		rcu_end_inkernel_boot_locked();
+	}
+	mutex_unlock(&rcu_boot_end_lock);
+	return ret;
+}
+
+static const struct kernel_param_ops rcu_boot_end_ops = {
+	.set = param_set_rcu_boot_end,
+	.get = param_get_uint,
+};
+module_param_cb(rcu_boot_end_delay, &rcu_boot_end_ops, &rcu_boot_end_delay, 0644);
 
 /*
  * Let rcutorture know when it is OK to turn it up to eleven.

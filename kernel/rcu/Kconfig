@@ -319,4 +319,25 @@ config RCU_LAZY
 	  To save power, batch RCU callbacks and flush after delay, memory
 	  pressure, or callback list growing too big.
 
+config RCU_BOOT_END_DELAY
+	int "Minimum time before RCU may consider in-kernel boot as completed"
+	range 0 120000
+	default 20000
+	help
+	  Default value of the minimum time in milliseconds from the start of boot
+	  that must elapse before the boot sequence can be marked complete from RCU's
+	  perspective, after which RCU's behavior becomes more relaxed.
+	  Userspace can also mark the boot as completed sooner than this default
+	  by writing the time in milliseconds, say once userspace considers
+	  the system as booted, to: /sys/module/rcupdate/parameters/rcu_boot_end_delay.
+	  Or even just writing a value of 0 to this sysfs node. The sysfs node can
+	  also be used to extend the delay to be larger than the default, assuming
+	  the marking of boot completion has not yet occurred.
+
+	  The actual delay for RCU's view of the system to be marked as booted can be
+	  higher than this value if the kernel takes a long time to initialize but it
+	  will never be smaller than this value.
+
+	  Accept the default if unsure.
+
 endmenu # "RCU Subsystem"
