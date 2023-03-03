@@ -1546,7 +1546,7 @@ free_master:
 	return status;
 }
 
-static int omap2_mcspi_remove(struct platform_device *pdev)
+static void omap2_mcspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
@@ -1556,8 +1556,6 @@ static int omap2_mcspi_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(mcspi->dev);
 	pm_runtime_put_sync(mcspi->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -1610,7 +1608,7 @@ static struct platform_driver omap2_mcspi_driver = {
 		.of_match_table = omap_mcspi_of_match,
 	},
 	.probe =	omap2_mcspi_probe,
-	.remove =	omap2_mcspi_remove,
+	.remove_new =	omap2_mcspi_remove,
 };
 
 module_platform_driver(omap2_mcspi_driver);
