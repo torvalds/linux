@@ -130,9 +130,6 @@ struct ddebug_class_param {
 
 #if defined(CONFIG_DYNAMIC_DEBUG_CORE)
 
-int ddebug_add_module(struct _ddebug_info *dyndbg, const char *modname);
-
-extern int ddebug_remove_module(const char *mod_name);
 extern __printf(2, 3)
 void __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...);
 
@@ -303,16 +300,6 @@ int param_get_dyndbg_classes(char *buffer, const struct kernel_param *kp);
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/printk.h>
-
-static inline int ddebug_add_module(struct _ddebug_info *dinfo, const char *modname)
-{
-	return 0;
-}
-
-static inline int ddebug_remove_module(const char *mod)
-{
-	return 0;
-}
 
 static inline int ddebug_dyndbg_module_param_cb(char *param, char *val,
 						const char *modname)

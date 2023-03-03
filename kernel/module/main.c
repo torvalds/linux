@@ -1216,9 +1216,6 @@ static void free_module(struct module *mod)
 	mod->state = MODULE_STATE_UNFORMED;
 	mutex_unlock(&module_mutex);
 
-	/* Remove dynamic debug info */
-	ddebug_remove_module(mod->name);
-
 	/* Arch-specific cleanup. */
 	module_arch_cleanup(mod);
 
@@ -1617,19 +1614,6 @@ static void free_modinfo(struct module *mod)
 		if (attr->free)
 			attr->free(mod);
 	}
-}
-
-static void dynamic_debug_setup(struct module *mod, struct _ddebug_info *dyndbg)
-{
-	if (!dyndbg->num_descs)
-		return;
-	ddebug_add_module(dyndbg, mod->name);
-}
-
-static void dynamic_debug_remove(struct module *mod, struct _ddebug_info *dyndbg)
-{
-	if (dyndbg->num_descs)
-		ddebug_remove_module(mod->name);
 }
 
 void * __weak module_alloc(unsigned long size)
@@ -2137,10 +2121,14 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	if (section_addr(info, "__obsparm"))
 		pr_warn("%s: Ignoring obsolete parameters\n", mod->name);
 
-	info->dyndbg.descs = section_objs(info, "__dyndbg",
-					sizeof(*info->dyndbg.descs), &info->dyndbg.num_descs);
-	info->dyndbg.classes = section_objs(info, "__dyndbg_classes",
-					sizeof(*info->dyndbg.classes), &info->dyndbg.num_classes);
+#ifdef CONFIG_DYNAMIC_DEBUG_CORE
+	mod->dyndbg_info.descs = section_objs(info, "__dyndbg",
+					      sizeof(*mod->dyndbg_info.descs),
+					      &mod->dyndbg_info.num_descs);
+	mod->dyndbg_info.classes = section_objs(info, "__dyndbg_classes",
+						sizeof(*mod->dyndbg_info.classes),
+						&mod->dyndbg_info.num_classes);
+#endif
 
 	return 0;
 }
@@ -2824,7 +2812,6 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	}
 
 	init_build_id(mod, info);
-	dynamic_debug_setup(mod, &info->dyndbg);
 
 	/* Ftrace init must be called in the MODULE_STATE_UNFORMED state */
 	ftrace_module_init(mod);
@@ -2888,7 +2875,6 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
  ddebug_cleanup:
 	ftrace_release_mod(mod);
-	dynamic_debug_remove(mod, &info->dyndbg);
 	synchronize_rcu();
 	kfree(mod->args);
  free_arch_cleanup:
