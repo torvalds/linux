@@ -440,6 +440,13 @@ static const struct dmi_system_id asus_laptop[] = {
 		},
 	},
 	{
+		.ident = "Asus ExpertBook B2402FBA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "B2402FBA"),
+		},
+	},
+	{
 		.ident = "Asus ExpertBook B2502",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
