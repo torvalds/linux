@@ -657,6 +657,9 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 
 	codecs = devm_kcalloc(&pdev->dev, idx,
 			      sizeof(*codecs), GFP_KERNEL);
+	if (!codecs)
+		return -ENOMEM;
+
 	link->codecs = codecs;
 	link->num_codecs = idx;
 	idx = 0;
