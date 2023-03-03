@@ -434,7 +434,7 @@ fail0:
 	return status;
 }
 
-static int mcfqspi_remove(struct platform_device *pdev)
+static void mcfqspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
@@ -445,8 +445,6 @@ static int mcfqspi_remove(struct platform_device *pdev)
 
 	mcfqspi_cs_teardown(mcfqspi);
 	clk_disable_unprepare(mcfqspi->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -509,7 +507,7 @@ static struct platform_driver mcfqspi_driver = {
 	.driver.owner	= THIS_MODULE,
 	.driver.pm	= &mcfqspi_pm,
 	.probe		= mcfqspi_probe,
-	.remove		= mcfqspi_remove,
+	.remove_new	= mcfqspi_remove,
 };
 module_platform_driver(mcfqspi_driver);
 
