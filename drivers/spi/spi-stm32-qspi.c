@@ -888,7 +888,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int stm32_qspi_remove(struct platform_device *pdev)
+static void stm32_qspi_remove(struct platform_device *pdev)
 {
 	struct stm32_qspi *qspi = platform_get_drvdata(pdev);
 
@@ -903,8 +903,6 @@ static int stm32_qspi_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(qspi->dev);
 	pm_runtime_dont_use_autosuspend(qspi->dev);
 	clk_disable_unprepare(qspi->clk);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_qspi_runtime_suspend(struct device *dev)
@@ -968,7 +966,7 @@ MODULE_DEVICE_TABLE(of, stm32_qspi_match);
 
 static struct platform_driver stm32_qspi_driver = {
 	.probe	= stm32_qspi_probe,
-	.remove	= stm32_qspi_remove,
+	.remove_new = stm32_qspi_remove,
 	.driver	= {
 		.name = "stm32-qspi",
 		.of_match_table = stm32_qspi_match,
