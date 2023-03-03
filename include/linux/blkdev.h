@@ -1283,12 +1283,7 @@ static inline bool bdev_nowait(struct block_device *bdev)
 
 static inline enum blk_zoned_model bdev_zoned_model(struct block_device *bdev)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (q)
-		return blk_queue_zoned_model(q);
-
-	return BLK_ZONED_NONE;
+	return blk_queue_zoned_model(bdev_get_queue(bdev));
 }
 
 static inline bool bdev_is_zoned(struct block_device *bdev)

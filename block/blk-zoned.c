@@ -334,16 +334,11 @@ int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	void __user *argp = (void __user *)arg;
 	struct zone_report_args args;
-	struct request_queue *q;
 	struct blk_zone_report rep;
 	int ret;
 
 	if (!argp)
 		return -EINVAL;
-
-	q = bdev_get_queue(bdev);
-	if (!q)
-		return -ENXIO;
 
 	if (!bdev_is_zoned(bdev))
 		return -ENOTTY;
@@ -391,17 +386,12 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 			   unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	struct request_queue *q;
 	struct blk_zone_range zrange;
 	enum req_op op;
 	int ret;
 
 	if (!argp)
 		return -EINVAL;
-
-	q = bdev_get_queue(bdev);
-	if (!q)
-		return -ENXIO;
 
 	if (!bdev_is_zoned(bdev))
 		return -ENOTTY;
