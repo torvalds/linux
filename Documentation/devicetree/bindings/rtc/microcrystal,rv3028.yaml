@@ -1,23 +1,20 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/rtc/nxp,pcf2127.yaml#
+$id: http://devicetree.org/schemas/rtc/microcrystal,rv3028.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP PCF2127 Real Time Clock
+title: Microchip RV-3028 RTC
 
 allOf:
-  - $ref: "rtc.yaml#"
+  - $ref: rtc.yaml#
 
 maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
 
 properties:
   compatible:
-    enum:
-      - nxp,pca2129
-      - nxp,pcf2127
-      - nxp,pcf2129
+    const: microcrystal,rv3028
 
   reg:
     maxItems: 1
@@ -25,15 +22,18 @@ properties:
   interrupts:
     maxItems: 1
 
-  start-year: true
-
-  reset-source: true
+  trickle-resistor-ohms:
+    enum:
+      - 3000
+      - 5000
+      - 9000
+      - 15000
 
 required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -43,11 +43,11 @@ examples:
         #size-cells = <0>;
 
         rtc@51 {
-            compatible = "nxp,pcf2127";
+            compatible = "microcrystal,rv3028";
             reg = <0x51>;
             pinctrl-0 = <&rtc_nint_pins>;
             interrupts-extended = <&gpio1 16 IRQ_TYPE_LEVEL_HIGH>;
-            reset-source;
+            trickle-resistor-ohms = <3000>;
         };
     };
 

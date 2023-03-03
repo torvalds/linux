@@ -413,9 +413,14 @@ static int pcf2123_probe(struct spi_device *spi)
 
 	/* Register alarm irq */
 	if (spi->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&spi->dev))
+			irqflags = 0;
+
 		ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
 				pcf2123_rtc_irq,
-				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				irqflags | IRQF_ONESHOT,
 				pcf2123_driver.driver.name, &spi->dev);
 		if (!ret)
 			device_init_wakeup(&spi->dev, true);
