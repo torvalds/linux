@@ -29,18 +29,6 @@ static int			reclaimer(void *ptr);
  * client perspective.
  */
 
-/*
- * This is the representation of a blocked client lock.
- */
-struct nlm_wait {
-	struct list_head	b_list;		/* linked list */
-	wait_queue_head_t	b_wait;		/* where to wait on */
-	struct nlm_host *	b_host;
-	struct file_lock *	b_lock;		/* local file lock */
-	unsigned short		b_reclaim;	/* got to reclaim lock */
-	__be32			b_status;	/* grant callback status */
-};
-
 static LIST_HEAD(nlm_blocked);
 static DEFINE_SPINLOCK(nlm_blocked_lock);
 

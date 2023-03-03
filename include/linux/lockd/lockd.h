@@ -121,7 +121,16 @@ struct nlm_lockowner {
 	uint32_t pid;
 };
 
-struct nlm_wait;
+/*
+ * This is the representation of a blocked client lock.
+ */
+struct nlm_wait {
+	struct list_head	b_list;		/* linked list */
+	wait_queue_head_t	b_wait;		/* where to wait on */
+	struct nlm_host		*b_host;
+	struct file_lock	*b_lock;	/* local file lock */
+	__be32			b_status;	/* grant callback status */
+};
 
 /*
  * Memory chunk for NLM client RPC request.
