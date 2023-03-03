@@ -5046,6 +5046,11 @@ static int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val)
 
 BTF_TYPE_SAFE_NESTED(struct task_struct) {
 	const cpumask_t *cpus_ptr;
+	struct css_set __rcu *cgroups;
+};
+
+BTF_TYPE_SAFE_NESTED(struct css_set) {
+	struct cgroup *dfl_cgrp;
 };
 
 static bool nested_ptr_is_trusted(struct bpf_verifier_env *env,
@@ -5057,6 +5062,7 @@ static bool nested_ptr_is_trusted(struct bpf_verifier_env *env,
 		return false;
 
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_NESTED(struct task_struct));
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_NESTED(struct css_set));
 
 	return btf_nested_type_is_trusted(&env->log, reg, off);
 }
