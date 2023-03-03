@@ -428,6 +428,10 @@ static void make_send_cqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 				uwc->wc_flags = IB_WC_WITH_IMM;
 			uwc->byte_len = wqe->dma.length;
 		}
+	} else {
+		if (wqe->status != IB_WC_WR_FLUSH_ERR)
+			rxe_err_qp(qp, "non-flush error status = %d",
+				wqe->status);
 	}
 }
 

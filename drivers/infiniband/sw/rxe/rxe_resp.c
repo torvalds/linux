@@ -1151,6 +1151,10 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 
 			wc->port_num		= qp->attr.port_num;
 		}
+	} else {
+		if (wc->status != IB_WC_WR_FLUSH_ERR)
+			rxe_err_qp(qp, "non-flush error status = %d",
+				wc->status);
 	}
 
 	/* have copy for srq and reference for !srq */
