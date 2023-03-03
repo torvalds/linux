@@ -1409,6 +1409,13 @@ static int ufshcd_devfreq_target(struct device *dev,
 	struct ufs_clk_info *clki;
 	unsigned long irq_flags;
 
+	/*
+	 * Skip devfreq if UFS initialization is not finished.
+	 * Otherwise ufs could be in a inconsistent state.
+	 */
+	if (!smp_load_acquire(&hba->logical_unit_scan_finished))
+		return 0;
+
 	if (!ufshcd_is_clkscaling_supported(hba))
 		return -EINVAL;
 
@@ -8392,22 +8399,6 @@ static int ufshcd_add_lus(struct ufs_hba *hba)
 	if (ret)
 		goto out;
 
-	/* Initialize devfreq after UFS device is detected */
-	if (ufshcd_is_clkscaling_supported(hba)) {
-		memcpy(&hba->clk_scaling.saved_pwr_info.info,
-			&hba->pwr_info,
-			sizeof(struct ufs_pa_layer_attr));
-		hba->clk_scaling.saved_pwr_info.is_valid = true;
-		hba->clk_scaling.is_allowed = true;
-
-		ret = ufshcd_devfreq_init(hba);
-		if (ret)
-			goto out;
-
-		hba->clk_scaling.is_enabled = true;
-		ufshcd_init_clk_scaling_sysfs(hba);
-	}
-
 	ufs_bsg_probe(hba);
 	ufshpb_init(hba);
 	scsi_scan_host(hba->host);
@@ -8538,7 +8529,9 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 			return ret;
 		if (is_mcq_supported(hba) && !hba->scsi_host_added) {
 			ret = ufshcd_alloc_mcq(hba);
-			if (ret) {
+			if (!ret) {
+				ufshcd_config_mcq(hba);
+			} else {
 				/* Continue with SDB mode */
 				use_mcq_mode = false;
 				dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
@@ -8550,10 +8543,10 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 				return ret;
 			}
 			hba->scsi_host_added = true;
-		}
-		/* MCQ may be disabled if ufshcd_alloc_mcq() fails */
-		if (is_mcq_supported(hba) && use_mcq_mode)
+		} else if (is_mcq_supported(hba)) {
+			/* UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH is set */
 			ufshcd_config_mcq(hba);
+		}
 	}
 
 	ufshcd_tune_unipro_params(hba);
@@ -8677,6 +8670,12 @@ out:
 	if (ret) {
 		pm_runtime_put_sync(hba->dev);
 		ufshcd_hba_exit(hba);
+	} else {
+		/*
+		 * Make sure that when reader code sees UFS initialization has finished,
+		 * all initialization steps have really been executed.
+		 */
+		smp_store_release(&hba->logical_unit_scan_finished, true);
 	}
 }
 
@@ -9143,34 +9142,15 @@ static int ufshcd_execute_start_stop(struct scsi_device *sdev,
 				     enum ufs_dev_pwr_mode pwr_mode,
 				     struct scsi_sense_hdr *sshdr)
 {
-	unsigned char cdb[6] = { START_STOP, 0, 0, 0, pwr_mode << 4, 0 };
-	struct request *req;
-	struct scsi_cmnd *scmd;
-	int ret;
+	const unsigned char cdb[6] = { START_STOP, 0, 0, 0, pwr_mode << 4, 0 };
+	const struct scsi_exec_args args = {
+		.sshdr = sshdr,
+		.req_flags = BLK_MQ_REQ_PM,
+		.scmd_flags = SCMD_FAIL_IF_RECOVERING,
+	};
 
-	req = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
-				 BLK_MQ_REQ_PM);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
-	scmd = blk_mq_rq_to_pdu(req);
-	scmd->cmd_len = COMMAND_SIZE(cdb[0]);
-	memcpy(scmd->cmnd, cdb, scmd->cmd_len);
-	scmd->allowed = 0/*retries*/;
-	scmd->flags |= SCMD_FAIL_IF_RECOVERING;
-	req->timeout = 1 * HZ;
-	req->rq_flags |= RQF_PM | RQF_QUIET;
-
-	blk_execute_rq(req, /*at_head=*/true);
-
-	if (sshdr)
-		scsi_normalize_sense(scmd->sense_buffer, scmd->sense_len,
-				     sshdr);
-	ret = scmd->result;
-
-	blk_mq_free_request(req);
-
-	return ret;
+	return scsi_execute_cmd(sdev, cdb, REQ_OP_DRV_IN, /*buffer=*/NULL,
+			/*bufflen=*/0, /*timeout=*/HZ, /*retries=*/0, &args);
 }
 
 /**
@@ -10336,12 +10316,30 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	 */
 	ufshcd_set_ufs_dev_active(hba);
 
+	/* Initialize devfreq */
+	if (ufshcd_is_clkscaling_supported(hba)) {
+		memcpy(&hba->clk_scaling.saved_pwr_info.info,
+			&hba->pwr_info,
+			sizeof(struct ufs_pa_layer_attr));
+		hba->clk_scaling.saved_pwr_info.is_valid = true;
+		hba->clk_scaling.is_allowed = true;
+
+		err = ufshcd_devfreq_init(hba);
+		if (err)
+			goto rpm_put_sync;
+
+		hba->clk_scaling.is_enabled = true;
+		ufshcd_init_clk_scaling_sysfs(hba);
+	}
+
 	async_schedule(ufshcd_async_scan, hba);
 	ufs_sysfs_add_nodes(hba->dev);
 
 	device_enable_async_suspend(dev);
 	return 0;
 
+rpm_put_sync:
+	pm_runtime_put_sync(dev);
 free_tmf_queue:
 	blk_mq_destroy_queue(hba->tmf_queue);
 	blk_put_queue(hba->tmf_queue);
