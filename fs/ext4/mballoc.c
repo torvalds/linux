@@ -4323,7 +4323,7 @@ static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 	 * Other CPUs are prevented from allocating from this pa by lg_mutex
 	 */
 	mb_debug(ac->ac_sb, "use %u/%u from group pa %p\n",
-		 pa->pa_lstart-len, len, pa);
+		 pa->pa_lstart, len, pa);
 }
 
 /*
