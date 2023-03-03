@@ -282,8 +282,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		return NULL;
 init:
 	INIT_LIST_HEAD(&ck->list);
-	__six_lock_init(&ck->c.lock, "b->c.lock", &bch2_btree_node_lock_key);
-	lockdep_set_novalidate_class(&ck->c.lock);
+	bch2_btree_lock_init(&ck->c);
 	if (pcpu_readers)
 		six_lock_pcpu_alloc(&ck->c.lock);
 

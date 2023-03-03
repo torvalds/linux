@@ -119,8 +119,7 @@ static struct btree *__btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
 		return NULL;
 
 	bkey_btree_ptr_init(&b->key);
-	six_lock_init(&b->c.lock);
-	lockdep_set_novalidate_class(&b->c.lock);
+	bch2_btree_lock_init(&b->c);
 	INIT_LIST_HEAD(&b->list);
 	INIT_LIST_HEAD(&b->write_blocked);
 	b->byte_order = ilog2(btree_bytes(c));
