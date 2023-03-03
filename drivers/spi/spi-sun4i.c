@@ -516,11 +516,9 @@ err_free_master:
 	return ret;
 }
 
-static int sun4i_spi_remove(struct platform_device *pdev)
+static void sun4i_spi_remove(struct platform_device *pdev)
 {
 	pm_runtime_force_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id sun4i_spi_match[] = {
@@ -536,7 +534,7 @@ static const struct dev_pm_ops sun4i_spi_pm_ops = {
 
 static struct platform_driver sun4i_spi_driver = {
 	.probe	= sun4i_spi_probe,
-	.remove	= sun4i_spi_remove,
+	.remove_new = sun4i_spi_remove,
 	.driver	= {
 		.name		= "sun4i-spi",
 		.of_match_table	= sun4i_spi_match,
