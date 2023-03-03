@@ -180,6 +180,7 @@ struct dsa_hw_desc {
 		uint64_t	rdback_addr;
 		uint64_t	pattern;
 		uint64_t	desc_list_addr;
+		uint64_t	pattern_lower;
 	};
 	union {
 		uint64_t	dst_addr;
@@ -243,6 +244,9 @@ struct dsa_hw_desc {
 			uint16_t	dest_app_tag_mask;
 			uint16_t	dest_app_tag_seed;
 		};
+
+		/* Fill */
+		uint64_t	pattern_upper;
 
 		uint8_t		op_specific[24];
 	};
