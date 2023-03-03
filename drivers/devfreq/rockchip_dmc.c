@@ -3362,10 +3362,12 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = devfreq_suspend_device(dmcfreq->info.devfreq);
-	if (ret < 0) {
-		dev_err(dev, "failed to suspend the devfreq devices\n");
-		return ret;
+	if (dmcfreq->info.devfreq) {
+		ret = devfreq_suspend_device(dmcfreq->info.devfreq);
+		if (ret < 0) {
+			dev_err(dev, "failed to suspend the devfreq devices\n");
+			return ret;
+		}
 	}
 
 	/* set voltage to sleep_volt if need */
@@ -3425,11 +3427,14 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = devfreq_resume_device(dmcfreq->info.devfreq);
-	if (ret < 0) {
-		dev_err(dev, "failed to resume the devfreq devices\n");
-		return ret;
+	if (dmcfreq->info.devfreq) {
+		ret = devfreq_resume_device(dmcfreq->info.devfreq);
+		if (ret < 0) {
+			dev_err(dev, "failed to resume the devfreq devices\n");
+			return ret;
+		}
 	}
+
 	return ret;
 }
 
