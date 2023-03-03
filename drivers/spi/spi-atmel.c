@@ -1596,7 +1596,7 @@ out_unmap_regs:
 	return ret;
 }
 
-static int atmel_spi_remove(struct platform_device *pdev)
+static void atmel_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller	*host = platform_get_drvdata(pdev);
 	struct atmel_spi	*as = spi_controller_get_devdata(host);
@@ -1627,8 +1627,6 @@ static int atmel_spi_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int atmel_spi_runtime_suspend(struct device *dev)
@@ -1712,7 +1710,7 @@ static struct platform_driver atmel_spi_driver = {
 		.of_match_table	= atmel_spi_dt_ids,
 	},
 	.probe		= atmel_spi_probe,
-	.remove		= atmel_spi_remove,
+	.remove_new	= atmel_spi_remove,
 };
 module_platform_driver(atmel_spi_driver);
 
