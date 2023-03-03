@@ -414,7 +414,7 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 }
 
 
-static bool dcn32_set_mpc_shaper_3dlut(
+bool dcn32_set_mpc_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
