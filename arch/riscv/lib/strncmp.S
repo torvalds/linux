@@ -70,7 +70,7 @@ strncmp_zbb:
 	li	t5, -1
 	and	t2, t2, SZREG-1
 	add	t4, a0, a2
-	bnez	t2, 4f
+	bnez	t2, 3f
 
 	/* Adjust limit for fast-path.  */
 	andi	t6, t4, -SZREG
@@ -78,10 +78,12 @@ strncmp_zbb:
 	/* Main loop for aligned string.  */
 	.p2align 3
 1:
-	bgt	a0, t6, 3f
+	bge	a0, t6, 3f
 	REG_L	t0, 0(a0)
 	REG_L	t1, 0(a1)
 	orc.b	t3, t0
+	bne	t3, t5, 2f
+	orc.b	t3, t1
 	bne	t3, t5, 2f
 	addi	a0, a0, SZREG
 	addi	a1, a1, SZREG
@@ -114,23 +116,21 @@ strncmp_zbb:
 	ret
 
 	/* Simple loop for misaligned strings.  */
-3:
-	/* Restore limit for slow-path.  */
 	.p2align 3
-4:
-	bge	a0, t4, 6f
+3:
+	bge	a0, t4, 5f
 	lbu	t0, 0(a0)
 	lbu	t1, 0(a1)
 	addi	a0, a0, 1
 	addi	a1, a1, 1
-	bne	t0, t1, 5f
-	bnez	t0, 4b
+	bne	t0, t1, 4f
+	bnez	t0, 3b
 
-5:
+4:
 	sub	a0, t0, t1
 	ret
 
-6:
+5:
 	li	a0, 0
 	ret
 

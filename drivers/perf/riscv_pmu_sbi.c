@@ -436,11 +436,8 @@ static int pmu_sbi_event_map(struct perf_event *event, u64 *econfig)
 		bSoftware = config >> 63;
 		raw_config_val = config & RISCV_PMU_RAW_EVENT_MASK;
 		if (bSoftware) {
-			if (raw_config_val < SBI_PMU_FW_MAX)
-				ret = (raw_config_val & 0xFFFF) |
-				      (SBI_PMU_EVENT_TYPE_FW << 16);
-			else
-				return -EINVAL;
+			ret = (raw_config_val & 0xFFFF) |
+				(SBI_PMU_EVENT_TYPE_FW << 16);
 		} else {
 			ret = RISCV_PMU_RAW_EVENT_IDX;
 			*econfig = raw_config_val;
