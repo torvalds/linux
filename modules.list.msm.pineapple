@@ -4,6 +4,7 @@ qcom_cpu_vendor_hooks.ko
 cmd-db.ko
 qcom_rpmh.ko
 qcom-pdc.ko
+thermal_minidump.ko
 qcom_tsens.ko
 qcom_iommu_util.ko
 iommu-logger.ko
