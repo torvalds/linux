@@ -232,8 +232,11 @@ long rbtree_api_first_release_unlock_escape(void *ctx)
 
 	bpf_spin_lock(&glock);
 	res = bpf_rbtree_first(&groot);
-	if (res)
-		n = container_of(res, struct node_data, node);
+	if (!res) {
+		bpf_spin_unlock(&glock);
+		return 1;
+	}
+	n = container_of(res, struct node_data, node);
 	bpf_spin_unlock(&glock);
 
 	bpf_spin_lock(&glock);
