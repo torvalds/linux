@@ -47,7 +47,7 @@ void z_erofs_lzma_exit(void)
 	}
 }
 
-int z_erofs_lzma_init(void)
+int __init z_erofs_lzma_init(void)
 {
 	unsigned int i;
 
