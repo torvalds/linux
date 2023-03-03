@@ -227,6 +227,9 @@ static int rk_hdmi_probe(struct platform_device *pdev)
 
 	codecs = devm_kcalloc(&pdev->dev, idx,
 			      sizeof(*codecs), GFP_KERNEL);
+	if (!codecs)
+		return -ENOMEM;
+
 	rk_data->dai.codecs = codecs;
 	rk_data->dai.num_codecs = idx;
 	idx = 0;
