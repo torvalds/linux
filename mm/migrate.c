@@ -1616,9 +1616,10 @@ static int migrate_hugetlbs(struct list_head *from, new_page_t get_new_page,
 static int migrate_pages_batch(struct list_head *from, new_page_t get_new_page,
 		free_page_t put_new_page, unsigned long private,
 		enum migrate_mode mode, int reason, struct list_head *ret_folios,
-		struct migrate_pages_stats *stats)
+		struct list_head *split_folios, struct migrate_pages_stats *stats,
+		int nr_pass)
 {
-	int retry;
+	int retry = 1;
 	int large_retry = 1;
 	int thp_retry = 1;
 	int nr_failed = 0;
@@ -1628,21 +1629,15 @@ static int migrate_pages_batch(struct list_head *from, new_page_t get_new_page,
 	bool is_large = false;
 	bool is_thp = false;
 	struct folio *folio, *folio2, *dst = NULL, *dst2;
-	int rc, rc_saved, nr_pages;
-	LIST_HEAD(split_folios);
+	int rc, rc_saved = 0, nr_pages;
 	LIST_HEAD(unmap_folios);
 	LIST_HEAD(dst_folios);
 	bool nosplit = (reason == MR_NUMA_MISPLACED);
-	bool no_split_folio_counting = false;
 
 	VM_WARN_ON_ONCE(mode != MIGRATE_ASYNC &&
 			!list_empty(from) && !list_is_singular(from));
-retry:
-	rc_saved = 0;
-	retry = 1;
-	for (pass = 0;
-	     pass < NR_MAX_MIGRATE_PAGES_RETRY && (retry || large_retry);
-	     pass++) {
+
+	for (pass = 0; pass < nr_pass && (retry || large_retry); pass++) {
 		retry = 0;
 		large_retry = 0;
 		thp_retry = 0;
@@ -1673,7 +1668,7 @@ retry:
 			if (!thp_migration_supported() && is_thp) {
 				nr_large_failed++;
 				stats->nr_thp_failed++;
-				if (!try_split_folio(folio, &split_folios)) {
+				if (!try_split_folio(folio, split_folios)) {
 					stats->nr_thp_split++;
 					continue;
 				}
@@ -1705,7 +1700,7 @@ retry:
 					stats->nr_thp_failed += is_thp;
 					/* Large folio NUMA faulting doesn't split to retry. */
 					if (!nosplit) {
-						int ret = try_split_folio(folio, &split_folios);
+						int ret = try_split_folio(folio, split_folios);
 
 						if (!ret) {
 							stats->nr_thp_split += is_thp;
@@ -1722,18 +1717,11 @@ retry:
 							break;
 						}
 					}
-				} else if (!no_split_folio_counting) {
+				} else {
 					nr_failed++;
 				}
 
 				stats->nr_failed_pages += nr_pages + nr_retry_pages;
-				/*
-				 * There might be some split folios of fail-to-migrate large
-				 * folios left in split_folios list. Move them to ret_folios
-				 * list so that they could be put back to the right list by
-				 * the caller otherwise the folio refcnt will be leaked.
-				 */
-				list_splice_init(&split_folios, ret_folios);
 				/* nr_failed isn't updated for not used */
 				nr_large_failed += large_retry;
 				stats->nr_thp_failed += thp_retry;
@@ -1746,7 +1734,7 @@ retry:
 				if (is_large) {
 					large_retry++;
 					thp_retry += is_thp;
-				} else if (!no_split_folio_counting) {
+				} else {
 					retry++;
 				}
 				nr_retry_pages += nr_pages;
@@ -1769,7 +1757,7 @@ retry:
 				if (is_large) {
 					nr_large_failed++;
 					stats->nr_thp_failed += is_thp;
-				} else if (!no_split_folio_counting) {
+				} else {
 					nr_failed++;
 				}
 
@@ -1787,9 +1775,7 @@ move:
 	try_to_unmap_flush();
 
 	retry = 1;
-	for (pass = 0;
-	     pass < NR_MAX_MIGRATE_PAGES_RETRY && (retry || large_retry);
-	     pass++) {
+	for (pass = 0; pass < nr_pass && (retry || large_retry); pass++) {
 		retry = 0;
 		large_retry = 0;
 		thp_retry = 0;
@@ -1818,7 +1804,7 @@ move:
 				if (is_large) {
 					large_retry++;
 					thp_retry += is_thp;
-				} else if (!no_split_folio_counting) {
+				} else {
 					retry++;
 				}
 				nr_retry_pages += nr_pages;
@@ -1831,7 +1817,7 @@ move:
 				if (is_large) {
 					nr_large_failed++;
 					stats->nr_thp_failed += is_thp;
-				} else if (!no_split_folio_counting) {
+				} else {
 					nr_failed++;
 				}
 
@@ -1866,27 +1852,6 @@ out:
 		migrate_folio_undo_dst(dst, true, put_new_page, private);
 		dst = dst2;
 		dst2 = list_next_entry(dst, lru);
-	}
-
-	/*
-	 * Try to migrate split folios of fail-to-migrate large folios, no
-	 * nr_failed counting in this round, since all split folios of a
-	 * large folio is counted as 1 failure in the first round.
-	 */
-	if (rc >= 0 && !list_empty(&split_folios)) {
-		/*
-		 * Move non-migrated folios (after NR_MAX_MIGRATE_PAGES_RETRY
-		 * retries) to ret_folios to avoid migrating them again.
-		 */
-		list_splice_init(from, ret_folios);
-		list_splice_init(&split_folios, from);
-		/*
-		 * Force async mode to avoid to wait lock or bit when we have
-		 * locked more than one folios.
-		 */
-		mode = MIGRATE_ASYNC;
-		no_split_folio_counting = true;
-		goto retry;
 	}
 
 	return rc;
@@ -1927,6 +1892,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 	struct folio *folio, *folio2;
 	LIST_HEAD(folios);
 	LIST_HEAD(ret_folios);
+	LIST_HEAD(split_folios);
 	struct migrate_pages_stats stats;
 
 	trace_mm_migrate_pages_start(mode, reason);
@@ -1960,11 +1926,23 @@ again:
 	else
 		list_splice_init(from, &folios);
 	rc = migrate_pages_batch(&folios, get_new_page, put_new_page, private,
-				 mode, reason, &ret_folios, &stats);
+				 mode, reason, &ret_folios, &split_folios, &stats,
+				 NR_MAX_MIGRATE_PAGES_RETRY);
 	list_splice_tail_init(&folios, &ret_folios);
 	if (rc < 0) {
 		rc_gather = rc;
+		list_splice_tail(&split_folios, &ret_folios);
 		goto out;
+	}
+	if (!list_empty(&split_folios)) {
+		/*
+		 * Failure isn't counted since all split folios of a large folio
+		 * is counted as 1 failure already.  And, we only try to migrate
+		 * with minimal effort, force MIGRATE_ASYNC mode and retry once.
+		 */
+		migrate_pages_batch(&split_folios, get_new_page, put_new_page, private,
+				    MIGRATE_ASYNC, reason, &ret_folios, NULL, &stats, 1);
+		list_splice_tail_init(&split_folios, &ret_folios);
 	}
 	rc_gather += rc;
 	if (!list_empty(from))
