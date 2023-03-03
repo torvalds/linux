@@ -323,7 +323,7 @@ static int incfs_build_merkle_tree(struct file *f, struct data_file *df,
 
 			if (lvl == 0)
 				result = incfs_read_data_file_block(partial_buf,
-						f, i, tmp, NULL);
+						f, i, tmp, NULL, NULL);
 			else {
 				hash_level_offset = hash_offset +
 				       hash_tree->hash_level_suboffset[lvl - 1];
