@@ -1080,8 +1080,7 @@ void amdgpu_bo_fini(struct amdgpu_device *adev)
 	amdgpu_ttm_fini(adev);
 
 	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
-
-		if (!adev->gmc.xgmi.connected_to_cpu) {
+		if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu) {
 			arch_phys_wc_del(adev->gmc.vram_mtrr);
 			arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
 		}

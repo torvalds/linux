@@ -4121,7 +4121,7 @@ static void amdgpu_device_unmap_mmio(struct amdgpu_device *adev)
 	adev->mman.aper_base_kaddr = NULL;
 
 	/* Memory manager related */
-	if (!adev->gmc.xgmi.connected_to_cpu) {
+	if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu) {
 		arch_phys_wc_del(adev->gmc.vram_mtrr);
 		arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
 	}

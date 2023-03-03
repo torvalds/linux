@@ -1844,12 +1844,13 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		adev->mman.aper_base_kaddr = ioremap_cache(adev->gmc.aper_base,
 				adev->gmc.visible_vram_size);
 
-	else if (!adev->gmc.is_app_apu)
+	else if (adev->gmc.is_app_apu)
+		DRM_DEBUG_DRIVER(
+			"No need to ioremap when real vram size is 0\n");
+	else
 #endif
 		adev->mman.aper_base_kaddr = ioremap_wc(adev->gmc.aper_base,
 				adev->gmc.visible_vram_size);
-	else
-		DRM_DEBUG_DRIVER("No need to ioremap when real vram size is 0\n");
 #endif
 
 	/*
