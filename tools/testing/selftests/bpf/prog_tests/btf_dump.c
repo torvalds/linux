@@ -801,7 +801,7 @@ static void test_btf_dump_struct_data(struct btf *btf, struct btf_dump *d,
 static void test_btf_dump_var_data(struct btf *btf, struct btf_dump *d,
 				   char *str)
 {
-#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+#if 0
 	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "cpu_number", int, BTF_F_COMPACT,
 			  "int cpu_number = (int)100", 100);
 #endif

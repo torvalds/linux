@@ -124,18 +124,12 @@ static int e750_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int e750_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver e750_driver = {
 	.driver		= {
 		.name	= "e750-audio",
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= e750_probe,
-	.remove		= e750_remove,
 };
 
 module_platform_driver(e750_driver);

@@ -14,6 +14,8 @@ include/
 arch/$SRCARCH/include/
 "
 
+type cpio > /dev/null
+
 # Support incremental builds by skipping archive generation
 # if timestamps of files being archived are not changed.
 

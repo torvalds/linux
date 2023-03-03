@@ -23,16 +23,16 @@ static const struct rxe_type_info {
 		.size		= sizeof(struct rxe_ucontext),
 		.elem_offset	= offsetof(struct rxe_ucontext, elem),
 		.min_index	= 1,
-		.max_index	= UINT_MAX,
-		.max_elem	= UINT_MAX,
+		.max_index	= RXE_MAX_UCONTEXT,
+		.max_elem	= RXE_MAX_UCONTEXT,
 	},
 	[RXE_TYPE_PD] = {
 		.name		= "pd",
 		.size		= sizeof(struct rxe_pd),
 		.elem_offset	= offsetof(struct rxe_pd, elem),
 		.min_index	= 1,
-		.max_index	= UINT_MAX,
-		.max_elem	= UINT_MAX,
+		.max_index	= RXE_MAX_PD,
+		.max_elem	= RXE_MAX_PD,
 	},
 	[RXE_TYPE_AH] = {
 		.name		= "ah",
@@ -40,7 +40,7 @@ static const struct rxe_type_info {
 		.elem_offset	= offsetof(struct rxe_ah, elem),
 		.min_index	= RXE_MIN_AH_INDEX,
 		.max_index	= RXE_MAX_AH_INDEX,
-		.max_elem	= RXE_MAX_AH_INDEX - RXE_MIN_AH_INDEX + 1,
+		.max_elem	= RXE_MAX_AH,
 	},
 	[RXE_TYPE_SRQ] = {
 		.name		= "srq",
@@ -49,7 +49,7 @@ static const struct rxe_type_info {
 		.cleanup	= rxe_srq_cleanup,
 		.min_index	= RXE_MIN_SRQ_INDEX,
 		.max_index	= RXE_MAX_SRQ_INDEX,
-		.max_elem	= RXE_MAX_SRQ_INDEX - RXE_MIN_SRQ_INDEX + 1,
+		.max_elem	= RXE_MAX_SRQ,
 	},
 	[RXE_TYPE_QP] = {
 		.name		= "qp",
@@ -58,7 +58,7 @@ static const struct rxe_type_info {
 		.cleanup	= rxe_qp_cleanup,
 		.min_index	= RXE_MIN_QP_INDEX,
 		.max_index	= RXE_MAX_QP_INDEX,
-		.max_elem	= RXE_MAX_QP_INDEX - RXE_MIN_QP_INDEX + 1,
+		.max_elem	= RXE_MAX_QP,
 	},
 	[RXE_TYPE_CQ] = {
 		.name		= "cq",
@@ -66,8 +66,8 @@ static const struct rxe_type_info {
 		.elem_offset	= offsetof(struct rxe_cq, elem),
 		.cleanup	= rxe_cq_cleanup,
 		.min_index	= 1,
-		.max_index	= UINT_MAX,
-		.max_elem	= UINT_MAX,
+		.max_index	= RXE_MAX_CQ,
+		.max_elem	= RXE_MAX_CQ,
 	},
 	[RXE_TYPE_MR] = {
 		.name		= "mr",
@@ -76,7 +76,7 @@ static const struct rxe_type_info {
 		.cleanup	= rxe_mr_cleanup,
 		.min_index	= RXE_MIN_MR_INDEX,
 		.max_index	= RXE_MAX_MR_INDEX,
-		.max_elem	= RXE_MAX_MR_INDEX - RXE_MIN_MR_INDEX + 1,
+		.max_elem	= RXE_MAX_MR,
 	},
 	[RXE_TYPE_MW] = {
 		.name		= "mw",
@@ -85,7 +85,7 @@ static const struct rxe_type_info {
 		.cleanup	= rxe_mw_cleanup,
 		.min_index	= RXE_MIN_MW_INDEX,
 		.max_index	= RXE_MAX_MW_INDEX,
-		.max_elem	= RXE_MAX_MW_INDEX - RXE_MIN_MW_INDEX + 1,
+		.max_elem	= RXE_MAX_MW,
 	},
 };
 

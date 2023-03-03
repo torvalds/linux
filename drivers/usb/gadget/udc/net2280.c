@@ -2423,7 +2423,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 		dev->ep[i].irqs = 0;
 
 	/* hook up the driver ... */
-	driver->driver.bus = NULL;
 	dev->driver = driver;
 
 	retval = device_create_file(&dev->pdev->dev, &dev_attr_function);

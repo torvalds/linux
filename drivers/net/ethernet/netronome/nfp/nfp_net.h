@@ -617,6 +617,9 @@ struct nfp_net_dp {
  * @vnic_no_name:	For non-port PF vNIC make ndo_get_phys_port_name return
  *			-EOPNOTSUPP to keep backwards compatibility (set by app)
  * @port:		Pointer to nfp_port structure if vNIC is a port
+ * @mc_lock:		Protect mc_addrs list
+ * @mc_addrs:		List of mc addrs to add/del to HW
+ * @mc_work:		Work to update mc addrs
  * @app_priv:		APP private data for this vNIC
  */
 struct nfp_net {
@@ -717,6 +720,10 @@ struct nfp_net {
 	bool vnic_no_name;
 
 	struct nfp_port *port;
+
+	spinlock_t mc_lock;
+	struct list_head mc_addrs;
+	struct work_struct mc_work;
 
 	void *app_priv;
 };

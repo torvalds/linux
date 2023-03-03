@@ -3,6 +3,7 @@
  * Copyright (c) 2015, LGE Inc. All rights reserved.
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  * Copyright (c) 2021, Petr Vorel <petr.vorel@gmail.com>
+ * Copyright (c) 2022, Dominik Kobinski <dominikkobinski314@gmail.com>
  */
 
 /dts-v1/;
@@ -49,6 +50,11 @@
 
 		cont_splash_mem: memory@3400000 {
 			reg = <0 0x03400000 0 0x1200000>;
+			no-map;
+		};
+
+		removed_region: reserved@5000000 {
+			reg = <0 0x05000000 0 0x2200000>;
 			no-map;
 		};
 	};

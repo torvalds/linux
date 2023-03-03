@@ -16,20 +16,30 @@ The acquisition orders for mutexes are as follows:
 - kvm->slots_lock is taken outside kvm->irq_lock, though acquiring
   them together is quite rare.
 
-- Unlike kvm->slots_lock, kvm->slots_arch_lock is released before
-  synchronize_srcu(&kvm->srcu).  Therefore kvm->slots_arch_lock
-  can be taken inside a kvm->srcu read-side critical section,
-  while kvm->slots_lock cannot.
-
 - kvm->mn_active_invalidate_count ensures that pairs of
   invalidate_range_start() and invalidate_range_end() callbacks
   use the same memslots array.  kvm->slots_lock and kvm->slots_arch_lock
   are taken on the waiting side in install_new_memslots, so MMU notifiers
   must not take either kvm->slots_lock or kvm->slots_arch_lock.
 
+For SRCU:
+
+- ``synchronize_srcu(&kvm->srcu)`` is called inside critical sections
+  for kvm->lock, vcpu->mutex and kvm->slots_lock.  These locks _cannot_
+  be taken inside a kvm->srcu read-side critical section; that is, the
+  following is broken::
+
+      srcu_read_lock(&kvm->srcu);
+      mutex_lock(&kvm->slots_lock);
+
+- kvm->slots_arch_lock instead is released before the call to
+  ``synchronize_srcu()``.  It _can_ therefore be taken inside a
+  kvm->srcu read-side critical section, for example while processing
+  a vmexit.
+
 On x86:
 
-- vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock
+- vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock and kvm->arch.xen.xen_lock
 
 - kvm->arch.mmu_lock is an rwlock.  kvm->arch.tdp_mmu_pages_lock and
   kvm->arch.mmu_unsync_pages_lock are taken inside kvm->arch.mmu_lock, and

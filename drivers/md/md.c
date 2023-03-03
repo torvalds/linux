@@ -455,6 +455,8 @@ static void md_submit_bio(struct bio *bio)
 	}
 
 	bio = bio_split_to_limits(bio);
+	if (!bio)
+		return;
 
 	if (mddev->ro == MD_RDONLY && unlikely(rw == WRITE)) {
 		if (bio_sectors(bio) != 0)
@@ -3642,7 +3644,7 @@ EXPORT_SYMBOL_GPL(md_rdev_init);
  */
 static struct md_rdev *md_import_device(dev_t newdev, int super_format, int super_minor)
 {
-	static struct md_rdev *claim_rdev; /* just for claiming the bdev */
+	static struct md_rdev claim_rdev; /* just for claiming the bdev */
 	struct md_rdev *rdev;
 	sector_t size;
 	int err;
@@ -3660,7 +3662,7 @@ static struct md_rdev *md_import_device(dev_t newdev, int super_format, int supe
 
 	rdev->bdev = blkdev_get_by_dev(newdev,
 			FMODE_READ | FMODE_WRITE | FMODE_EXCL,
-			super_format == -2 ? claim_rdev : rdev);
+			super_format == -2 ? &claim_rdev : rdev);
 	if (IS_ERR(rdev->bdev)) {
 		pr_warn("md: could not open device unknown-block(%u,%u).\n",
 			MAJOR(newdev), MINOR(newdev));

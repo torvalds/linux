@@ -25,4 +25,7 @@ time_t time(time_t *tptr)
 	return tv.tv_sec;
 }
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #endif /* _NOLIBC_TIME_H */

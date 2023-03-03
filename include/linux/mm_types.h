@@ -581,7 +581,7 @@ struct vm_area_struct {
 	/*
 	 * For private and shared anonymous mappings, a pointer to a null
 	 * terminated string containing the name given to the vma, or NULL if
-	 * unnamed. Serialized by mmap_sem. Use anon_vma_name to access.
+	 * unnamed. Serialized by mmap_lock. Use anon_vma_name to access.
 	 */
 	struct anon_vma_name *anon_name;
 #endif

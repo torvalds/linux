@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 2
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc8
 NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*
@@ -297,7 +297,7 @@ no-compiler-targets := $(no-dot-config-targets) install dtbs_install \
 			headers_install modules_install kernelrelease image_name
 no-sync-config-targets := $(no-dot-config-targets) %install kernelrelease \
 			  image_name
-single-targets := %.a %.i %.rsi %.ko %.lds %.ll %.lst %.mod %.o %.s %.symtypes %/
+single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.rsi %.s %.symtypes %/
 
 config-build	:=
 mixed-build	:=
@@ -549,7 +549,7 @@ LDFLAGS_MODULE  =
 CFLAGS_KERNEL	=
 RUSTFLAGS_KERNEL =
 AFLAGS_KERNEL	=
-export LDFLAGS_vmlinux =
+LDFLAGS_vmlinux =
 
 # Use USERINCLUDE when you must reference the UAPI directories only.
 USERINCLUDE    := \
@@ -1248,6 +1248,18 @@ vmlinux.o modules.builtin.modinfo modules.builtin: vmlinux_o
 	@:
 
 PHONY += vmlinux
+# LDFLAGS_vmlinux in the top Makefile defines linker flags for the top vmlinux,
+# not for decompressors. LDFLAGS_vmlinux in arch/*/boot/compressed/Makefile is
+# unrelated; the decompressors just happen to have the same base name,
+# arch/*/boot/compressed/vmlinux.
+# Export LDFLAGS_vmlinux only to scripts/Makefile.vmlinux.
+#
+# _LDFLAGS_vmlinux is a workaround for the 'private export' bug:
+#   https://savannah.gnu.org/bugs/?61463
+# For Make > 4.4, the following simple code will work:
+#  vmlinux: private export LDFLAGS_vmlinux := $(LDFLAGS_vmlinux)
+vmlinux: private _LDFLAGS_vmlinux := $(LDFLAGS_vmlinux)
+vmlinux: export LDFLAGS_vmlinux = $(_LDFLAGS_vmlinux)
 vmlinux: vmlinux.o $(KBUILD_LDS) modpost
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.vmlinux
 
@@ -1533,6 +1545,7 @@ endif
 # *.ko are usually independent of vmlinux, but CONFIG_DEBUG_INFOBTF_MODULES
 # is an exception.
 ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+KBUILD_BUILTIN := 1
 modules: vmlinux
 endif
 
@@ -1986,7 +1999,7 @@ $(single-no-ko): $(build-dir)
 # Remove MODORDER when done because it is not the real one.
 PHONY += single_modules
 single_modules: $(single-no-ko) modules_prepare
-	$(Q){ $(foreach m, $(single-ko), echo $(extmod_prefix)$m;) } > $(MODORDER)
+	$(Q){ $(foreach m, $(single-ko), echo $(extmod_prefix)$(m:%.ko=%.o);) } > $(MODORDER)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 ifneq ($(KBUILD_MODPOST_NOFINAL),1)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modfinal

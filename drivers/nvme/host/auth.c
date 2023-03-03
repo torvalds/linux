@@ -45,6 +45,8 @@ struct nvme_dhchap_queue_context {
 	int sess_key_len;
 };
 
+static struct workqueue_struct *nvme_auth_wq;
+
 #define nvme_auth_flags_from_qid(qid) \
 	(qid == 0) ? 0 : BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED
 #define nvme_auth_queue_from_qid(ctrl, qid) \
@@ -866,7 +868,7 @@ int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)
 
 	chap = &ctrl->dhchap_ctxs[qid];
 	cancel_work_sync(&chap->auth_work);
-	queue_work(nvme_wq, &chap->auth_work);
+	queue_work(nvme_auth_wq, &chap->auth_work);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvme_auth_negotiate);
@@ -953,7 +955,7 @@ int nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
 		goto err_free_dhchap_secret;
 
 	if (!ctrl->opts->dhchap_secret && !ctrl->opts->dhchap_ctrl_secret)
-		return ret;
+		return 0;
 
 	ctrl->dhchap_ctxs = kvcalloc(ctrl_max_dhchaps(ctrl),
 				sizeof(*chap), GFP_KERNEL);
@@ -1008,10 +1010,15 @@ EXPORT_SYMBOL_GPL(nvme_auth_free);
 
 int __init nvme_init_auth(void)
 {
+	nvme_auth_wq = alloc_workqueue("nvme-auth-wq",
+			       WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
+	if (!nvme_auth_wq)
+		return -ENOMEM;
+
 	nvme_chap_buf_cache = kmem_cache_create("nvme-chap-buf-cache",
 				CHAP_BUF_SIZE, 0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!nvme_chap_buf_cache)
-		return -ENOMEM;
+		goto err_destroy_workqueue;
 
 	nvme_chap_buf_pool = mempool_create(16, mempool_alloc_slab,
 			mempool_free_slab, nvme_chap_buf_cache);
@@ -1021,6 +1028,8 @@ int __init nvme_init_auth(void)
 	return 0;
 err_destroy_chap_buf_cache:
 	kmem_cache_destroy(nvme_chap_buf_cache);
+err_destroy_workqueue:
+	destroy_workqueue(nvme_auth_wq);
 	return -ENOMEM;
 }
 
@@ -1028,4 +1037,5 @@ void __exit nvme_exit_auth(void)
 {
 	mempool_destroy(nvme_chap_buf_pool);
 	kmem_cache_destroy(nvme_chap_buf_cache);
+	destroy_workqueue(nvme_auth_wq);
 }

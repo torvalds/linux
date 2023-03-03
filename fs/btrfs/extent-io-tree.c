@@ -1551,7 +1551,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 	u64 last = 0;
 	int found = 0;
 
-	if (WARN_ON(search_end <= cur_start))
+	if (WARN_ON(search_end < cur_start))
 		return 0;
 
 	spin_lock(&tree->lock);

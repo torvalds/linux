@@ -54,6 +54,17 @@ properties:
       - const: xo
       - const: alternate
 
+  interrupts:
+    minItems: 1
+    maxItems: 3
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: dcvsh-irq-0
+      - const: dcvsh-irq-1
+      - const: dcvsh-irq-2
+
   '#freq-domain-cells':
     const: 1
 

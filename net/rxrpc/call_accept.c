@@ -99,7 +99,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	if (!call)
 		return -ENOMEM;
 	call->flags |= (1 << RXRPC_CALL_IS_SERVICE);
-	call->state = RXRPC_CALL_SERVER_PREALLOC;
+	rxrpc_set_call_state(call, RXRPC_CALL_SERVER_PREALLOC);
 	__set_bit(RXRPC_CALL_EV_INITIAL_PING, &call->events);
 
 	trace_rxrpc_call(call->debug_id, refcount_read(&call->ref),
@@ -280,7 +280,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 					  (peer_tail + 1) &
 					  (RXRPC_BACKLOG_MAX - 1));
 
-			rxrpc_new_incoming_peer(rx, local, peer);
+			rxrpc_new_incoming_peer(local, peer);
 		}
 
 		/* Now allocate and set up the connection */
@@ -326,11 +326,11 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  * If we want to report an error, we mark the skb with the packet type and
  * abort code and return false.
  */
-int rxrpc_new_incoming_call(struct rxrpc_local *local,
-			    struct rxrpc_peer *peer,
-			    struct rxrpc_connection *conn,
-			    struct sockaddr_rxrpc *peer_srx,
-			    struct sk_buff *skb)
+bool rxrpc_new_incoming_call(struct rxrpc_local *local,
+			     struct rxrpc_peer *peer,
+			     struct rxrpc_connection *conn,
+			     struct sockaddr_rxrpc *peer_srx,
+			     struct sk_buff *skb)
 {
 	const struct rxrpc_security *sec = NULL;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -339,18 +339,17 @@ int rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 	_enter("");
 
-	/* Don't set up a call for anything other than the first DATA packet. */
-	if (sp->hdr.seq != 1 ||
-	    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
-		return 0; /* Just discard */
+	/* Don't set up a call for anything other than a DATA packet. */
+	if (sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
+		return rxrpc_protocol_error(skb, rxrpc_eproto_no_service_call);
 
-	rcu_read_lock();
+	read_lock(&local->services_lock);
 
 	/* Weed out packets to services we're not offering.  Packets that would
 	 * begin a call are explicitly rejected and the rest are just
 	 * discarded.
 	 */
-	rx = rcu_dereference(local->service);
+	rx = local->service;
 	if (!rx || (sp->hdr.serviceId != rx->srx.srx_service &&
 		    sp->hdr.serviceId != rx->second_service)
 	    ) {
@@ -363,16 +362,14 @@ int rxrpc_new_incoming_call(struct rxrpc_local *local,
 	if (!conn) {
 		sec = rxrpc_get_incoming_security(rx, skb);
 		if (!sec)
-			goto reject;
+			goto unsupported_security;
 	}
 
 	spin_lock(&rx->incoming_lock);
 	if (rx->sk.sk_state == RXRPC_SERVER_LISTEN_DISABLED ||
 	    rx->sk.sk_state == RXRPC_CLOSE) {
-		trace_rxrpc_abort(0, "CLS", sp->hdr.cid, sp->hdr.callNumber,
-				  sp->hdr.seq, RX_INVALID_OPERATION, ESHUTDOWN);
-		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
-		skb->priority = RX_INVALID_OPERATION;
+		rxrpc_direct_abort(skb, rxrpc_abort_shut_down,
+				   RX_INVALID_OPERATION, -ESHUTDOWN);
 		goto no_call;
 	}
 
@@ -402,7 +399,7 @@ int rxrpc_new_incoming_call(struct rxrpc_local *local,
 	spin_unlock(&conn->state_lock);
 
 	spin_unlock(&rx->incoming_lock);
-	rcu_read_unlock();
+	read_unlock(&local->services_lock);
 
 	if (hlist_unhashed(&call->error_link)) {
 		spin_lock(&call->peer->lock);
@@ -413,22 +410,24 @@ int rxrpc_new_incoming_call(struct rxrpc_local *local,
 	_leave(" = %p{%d}", call, call->debug_id);
 	rxrpc_input_call_event(call, skb);
 	rxrpc_put_call(call, rxrpc_call_put_input);
-	return 0;
+	return true;
 
 unsupported_service:
-	trace_rxrpc_abort(0, "INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-			  RX_INVALID_OPERATION, EOPNOTSUPP);
-	skb->priority = RX_INVALID_OPERATION;
-	goto reject;
+	read_unlock(&local->services_lock);
+	return rxrpc_direct_abort(skb, rxrpc_abort_service_not_offered,
+				  RX_INVALID_OPERATION, -EOPNOTSUPP);
+unsupported_security:
+	read_unlock(&local->services_lock);
+	return rxrpc_direct_abort(skb, rxrpc_abort_service_not_offered,
+				  RX_INVALID_OPERATION, -EKEYREJECTED);
 no_call:
 	spin_unlock(&rx->incoming_lock);
-reject:
-	rcu_read_unlock();
+	read_unlock(&local->services_lock);
 	_leave(" = f [%u]", skb->mark);
-	return -EPROTO;
+	return false;
 discard:
-	rcu_read_unlock();
-	return 0;
+	read_unlock(&local->services_lock);
+	return true;
 }
 
 /*

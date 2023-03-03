@@ -79,6 +79,19 @@ bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
 
+#define io_lockdep_assert_cq_locked(ctx)				\
+	do {								\
+		if (ctx->flags & IORING_SETUP_IOPOLL) {			\
+			lockdep_assert_held(&ctx->uring_lock);		\
+		} else if (!ctx->task_complete) {			\
+			lockdep_assert_held(&ctx->completion_lock);	\
+		} else if (ctx->submitter_task->flags & PF_EXITING) {	\
+			lockdep_assert(current_work());			\
+		} else {						\
+			lockdep_assert(current == ctx->submitter_task);	\
+		}							\
+	} while (0)
+
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
 	__io_req_task_work_add(req, true);
@@ -92,6 +105,8 @@ void io_cq_unlock_post(struct io_ring_ctx *ctx);
 static inline struct io_uring_cqe *io_get_cqe_overflow(struct io_ring_ctx *ctx,
 						       bool overflow)
 {
+	io_lockdep_assert_cq_locked(ctx);
+
 	if (likely(ctx->cqe_cached < ctx->cqe_sentinel)) {
 		struct io_uring_cqe *cqe = ctx->cqe_cached;
 

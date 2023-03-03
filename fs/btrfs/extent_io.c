@@ -104,6 +104,15 @@ struct btrfs_bio_ctrl {
 	btrfs_bio_end_io_t end_io_func;
 
 	/*
+	 * This is for metadata read, to provide the extra needed verification
+	 * info.  This has to be provided for submit_one_bio(), as
+	 * submit_one_bio() can submit a bio if it ends at stripe boundary.  If
+	 * no such parent_check is provided, the metadata can hit false alert at
+	 * endio time.
+	 */
+	struct btrfs_tree_parent_check *parent_check;
+
+	/*
 	 * Tell writepage not to lock the state bits for this range, it still
 	 * does the unlocking.
 	 */
@@ -133,13 +142,24 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 
 	btrfs_bio(bio)->file_offset = page_offset(bv->bv_page) + bv->bv_offset;
 
-	if (!is_data_inode(&inode->vfs_inode))
+	if (!is_data_inode(&inode->vfs_inode)) {
+		if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
+			/*
+			 * For metadata read, we should have the parent_check,
+			 * and copy it to bbio for metadata verification.
+			 */
+			ASSERT(bio_ctrl->parent_check);
+			memcpy(&btrfs_bio(bio)->parent_check,
+			       bio_ctrl->parent_check,
+			       sizeof(struct btrfs_tree_parent_check));
+		}
 		btrfs_submit_metadata_bio(inode, bio, mirror_num);
-	else if (btrfs_op(bio) == BTRFS_MAP_WRITE)
+	} else if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
 		btrfs_submit_data_write_bio(inode, bio, mirror_num);
-	else
+	} else {
 		btrfs_submit_data_read_bio(inode, bio, mirror_num,
 					   bio_ctrl->compress_type);
+	}
 
 	/* The bio is owned by the end_io handler now */
 	bio_ctrl->bio = NULL;
@@ -3806,6 +3826,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	lockend = round_up(start + len, inode->root->fs_info->sectorsize);
 	prev_extent_end = lockstart;
 
+	btrfs_inode_lock(inode, BTRFS_ILOCK_SHARED);
 	lock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 
 	ret = fiemap_find_last_extent_offset(inode, path, &last_extent_end);
@@ -3999,6 +4020,7 @@ check_eof_delalloc:
 
 out_unlock:
 	unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 out:
 	free_extent_state(delalloc_cached_state);
 	btrfs_free_backref_share_ctx(backref_ctx);
@@ -4829,6 +4851,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	struct extent_state *cached_state = NULL;
 	struct btrfs_bio_ctrl bio_ctrl = {
 		.mirror_num = mirror_num,
+		.parent_check = check,
 	};
 	int ret = 0;
 
@@ -4878,7 +4901,6 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 		 */
 		atomic_dec(&eb->io_pages);
 	}
-	memcpy(&btrfs_bio(bio_ctrl.bio)->parent_check, check, sizeof(*check));
 	submit_one_bio(&bio_ctrl);
 	if (ret || wait != WAIT_COMPLETE) {
 		free_extent_state(cached_state);
@@ -4905,6 +4927,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 	unsigned long num_reads = 0;
 	struct btrfs_bio_ctrl bio_ctrl = {
 		.mirror_num = mirror_num,
+		.parent_check = check,
 	};
 
 	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
@@ -4996,7 +5019,6 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 		}
 	}
 
-	memcpy(&btrfs_bio(bio_ctrl.bio)->parent_check, check, sizeof(*check));
 	submit_one_bio(&bio_ctrl);
 
 	if (ret || wait != WAIT_COMPLETE)

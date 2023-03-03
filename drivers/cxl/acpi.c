@@ -736,4 +736,3 @@ module_exit(cxl_acpi_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CXL);
 MODULE_IMPORT_NS(ACPI);
-MODULE_SOFTDEP("pre: cxl_pmem");

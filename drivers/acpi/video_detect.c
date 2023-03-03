@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_data/x86/nvidia-wmi-ec-backlight.h>
+#include <linux/pnp.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <acpi/video.h>
@@ -49,6 +50,10 @@ static void acpi_video_parse_cmdline(void)
 		acpi_backlight_cmdline = acpi_backlight_video;
 	if (!strcmp("native", acpi_video_backlight_string))
 		acpi_backlight_cmdline = acpi_backlight_native;
+	if (!strcmp("nvidia_wmi_ec", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_nvidia_wmi_ec;
+	if (!strcmp("apple_gmux", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_apple_gmux;
 	if (!strcmp("none", acpi_video_backlight_string))
 		acpi_backlight_cmdline = acpi_backlight_none;
 }
@@ -492,6 +497,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	 .callback = video_detect_force_native,
+	 /* Acer Aspire 4810T */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 4810T"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
 	 /* Acer Aspire 5738z */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -579,10 +592,35 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	 .callback = video_detect_force_native,
+	 /* Asus U46E */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "U46E"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
 	 /* Asus UX303UB */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "UX303UB"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 /* HP EliteBook 8460p */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP EliteBook 8460p"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 /* HP Pavilion g6-1d80nr / B4U19UA */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion g6 Notebook PC"),
+		DMI_MATCH(DMI_PRODUCT_SKU, "B4U19UA"),
 		},
 	},
 	{
@@ -733,6 +771,7 @@ static enum acpi_backlight_type __acpi_video_get_backlight_type(bool native)
 {
 	static DEFINE_MUTEX(init_mutex);
 	static bool nvidia_wmi_ec_present;
+	static bool apple_gmux_present;
 	static bool native_available;
 	static bool init_done;
 	static long video_caps;
@@ -746,6 +785,7 @@ static enum acpi_backlight_type __acpi_video_get_backlight_type(bool native)
 				    ACPI_UINT32_MAX, find_video, NULL,
 				    &video_caps, NULL);
 		nvidia_wmi_ec_present = nvidia_wmi_ec_supported();
+		apple_gmux_present = apple_gmux_detect(NULL, NULL);
 		init_done = true;
 	}
 	if (native)
@@ -767,7 +807,7 @@ static enum acpi_backlight_type __acpi_video_get_backlight_type(bool native)
 	if (nvidia_wmi_ec_present)
 		return acpi_backlight_nvidia_wmi_ec;
 
-	if (apple_gmux_present())
+	if (apple_gmux_present)
 		return acpi_backlight_apple_gmux;
 
 	/* Use ACPI video if available, except when native should be preferred. */

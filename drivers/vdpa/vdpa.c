@@ -855,7 +855,7 @@ static int vdpa_dev_net_config_fill(struct vdpa_device *vdev, struct sk_buff *ms
 
 	features_device = vdev->config->get_device_features(vdev);
 
-	if (nla_put_u64_64bit(msg, VDPA_ATTR_VDPA_DEV_SUPPORTED_FEATURES, features_device,
+	if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_FEATURES, features_device,
 			      VDPA_ATTR_PAD))
 		return -EMSGSIZE;
 
@@ -935,7 +935,6 @@ static int vdpa_fill_stats_rec(struct vdpa_device *vdev, struct sk_buff *msg,
 {
 	struct virtio_net_config config = {};
 	u64 features;
-	u16 max_vqp;
 	u8 status;
 	int err;
 
@@ -946,14 +945,14 @@ static int vdpa_fill_stats_rec(struct vdpa_device *vdev, struct sk_buff *msg,
 	}
 	vdpa_get_config_unlocked(vdev, 0, &config, sizeof(config));
 
-	max_vqp = __virtio16_to_cpu(true, config.max_virtqueue_pairs);
-	if (nla_put_u16(msg, VDPA_ATTR_DEV_NET_CFG_MAX_VQP, max_vqp))
-		return -EMSGSIZE;
-
 	features = vdev->config->get_driver_features(vdev);
 	if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_NEGOTIATED_FEATURES,
 			      features, VDPA_ATTR_PAD))
 		return -EMSGSIZE;
+
+	err = vdpa_dev_net_mq_config_fill(msg, features, &config);
+	if (err)
+		return err;
 
 	if (nla_put_u32(msg, VDPA_ATTR_DEV_QUEUE_INDEX, index))
 		return -EMSGSIZE;

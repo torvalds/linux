@@ -488,6 +488,10 @@ again:
 		/* reset fops->func and fops->trampoline for re-register */
 		tr->fops->func = NULL;
 		tr->fops->trampoline = 0;
+
+		/* reset im->image memory attr for arch_prepare_bpf_trampoline */
+		set_memory_nx((long)im->image, 1);
+		set_memory_rw((long)im->image, 1);
 		goto again;
 	}
 #endif

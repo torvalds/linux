@@ -662,6 +662,39 @@ static struct shrinker	nfsd_file_shrinker = {
 };
 
 /**
+ * nfsd_file_cond_queue - conditionally unhash and queue a nfsd_file
+ * @nf: nfsd_file to attempt to queue
+ * @dispose: private list to queue successfully-put objects
+ *
+ * Unhash an nfsd_file, try to get a reference to it, and then put that
+ * reference. If it's the last reference, queue it to the dispose list.
+ */
+static void
+nfsd_file_cond_queue(struct nfsd_file *nf, struct list_head *dispose)
+	__must_hold(RCU)
+{
+	int decrement = 1;
+
+	/* If we raced with someone else unhashing, ignore it */
+	if (!nfsd_file_unhash(nf))
+		return;
+
+	/* If we can't get a reference, ignore it */
+	if (!nfsd_file_get(nf))
+		return;
+
+	/* Extra decrement if we remove from the LRU */
+	if (nfsd_file_lru_remove(nf))
+		++decrement;
+
+	/* If refcount goes to 0, then put on the dispose list */
+	if (refcount_sub_and_test(decrement, &nf->nf_ref)) {
+		list_add(&nf->nf_lru, dispose);
+		trace_nfsd_file_closing(nf);
+	}
+}
+
+/**
  * nfsd_file_queue_for_close: try to close out any open nfsd_files for an inode
  * @inode:   inode on which to close out nfsd_files
  * @dispose: list on which to gather nfsd_files to close out
@@ -688,30 +721,11 @@ nfsd_file_queue_for_close(struct inode *inode, struct list_head *dispose)
 
 	rcu_read_lock();
 	do {
-		int decrement = 1;
-
 		nf = rhashtable_lookup(&nfsd_file_rhash_tbl, &key,
 				       nfsd_file_rhash_params);
 		if (!nf)
 			break;
-
-		/* If we raced with someone else unhashing, ignore it */
-		if (!nfsd_file_unhash(nf))
-			continue;
-
-		/* If we can't get a reference, ignore it */
-		if (!nfsd_file_get(nf))
-			continue;
-
-		/* Extra decrement if we remove from the LRU */
-		if (nfsd_file_lru_remove(nf))
-			++decrement;
-
-		/* If refcount goes to 0, then put on the dispose list */
-		if (refcount_sub_and_test(decrement, &nf->nf_ref)) {
-			list_add(&nf->nf_lru, dispose);
-			trace_nfsd_file_closing(nf);
-		}
+		nfsd_file_cond_queue(nf, dispose);
 	} while (1);
 	rcu_read_unlock();
 }
@@ -928,11 +942,8 @@ __nfsd_file_cache_purge(struct net *net)
 
 		nf = rhashtable_walk_next(&iter);
 		while (!IS_ERR_OR_NULL(nf)) {
-			if (!net || nf->nf_net == net) {
-				nfsd_file_unhash(nf);
-				nfsd_file_lru_remove(nf);
-				list_add(&nf->nf_lru, &dispose);
-			}
+			if (!net || nf->nf_net == net)
+				nfsd_file_cond_queue(nf, &dispose);
 			nf = rhashtable_walk_next(&iter);
 		}
 
@@ -1071,8 +1082,8 @@ nfsd_file_is_cached(struct inode *inode)
 
 static __be32
 nfsd_file_do_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		     unsigned int may_flags, struct nfsd_file **pnf,
-		     bool open, bool want_gc)
+		     unsigned int may_flags, struct file *file,
+		     struct nfsd_file **pnf, bool want_gc)
 {
 	struct nfsd_file_lookup_key key = {
 		.type	= NFSD_FILE_KEY_FULL,
@@ -1147,8 +1158,7 @@ wait_for_construction:
 	status = nfserrno(nfsd_open_break_lease(file_inode(nf->nf_file), may_flags));
 out:
 	if (status == nfs_ok) {
-		if (open)
-			this_cpu_inc(nfsd_file_acquisitions);
+		this_cpu_inc(nfsd_file_acquisitions);
 		*pnf = nf;
 	} else {
 		if (refcount_dec_and_test(&nf->nf_ref))
@@ -1158,20 +1168,23 @@ out:
 
 out_status:
 	put_cred(key.cred);
-	if (open)
-		trace_nfsd_file_acquire(rqstp, key.inode, may_flags, nf, status);
+	trace_nfsd_file_acquire(rqstp, key.inode, may_flags, nf, status);
 	return status;
 
 open_file:
 	trace_nfsd_file_alloc(nf);
 	nf->nf_mark = nfsd_file_mark_find_or_create(nf, key.inode);
 	if (nf->nf_mark) {
-		if (open) {
+		if (file) {
+			get_file(file);
+			nf->nf_file = file;
+			status = nfs_ok;
+			trace_nfsd_file_opened(nf, status);
+		} else {
 			status = nfsd_open_verified(rqstp, fhp, may_flags,
 						    &nf->nf_file);
 			trace_nfsd_file_open(nf, status);
-		} else
-			status = nfs_ok;
+		}
 	} else
 		status = nfserr_jukebox;
 	/*
@@ -1207,7 +1220,7 @@ __be32
 nfsd_file_acquire_gc(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		     unsigned int may_flags, struct nfsd_file **pnf)
 {
-	return nfsd_file_do_acquire(rqstp, fhp, may_flags, pnf, true, true);
+	return nfsd_file_do_acquire(rqstp, fhp, may_flags, NULL, pnf, true);
 }
 
 /**
@@ -1228,28 +1241,30 @@ __be32
 nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		  unsigned int may_flags, struct nfsd_file **pnf)
 {
-	return nfsd_file_do_acquire(rqstp, fhp, may_flags, pnf, true, false);
+	return nfsd_file_do_acquire(rqstp, fhp, may_flags, NULL, pnf, false);
 }
 
 /**
- * nfsd_file_create - Get a struct nfsd_file, do not open
+ * nfsd_file_acquire_opened - Get a struct nfsd_file using existing open file
  * @rqstp: the RPC transaction being executed
  * @fhp: the NFS filehandle of the file just created
  * @may_flags: NFSD_MAY_ settings for the file
+ * @file: cached, already-open file (may be NULL)
  * @pnf: OUT: new or found "struct nfsd_file" object
  *
- * The nfsd_file_object returned by this API is reference-counted
- * but not garbage-collected. The object is released immediately
- * one RCU grace period after the final nfsd_file_put().
+ * Acquire a nfsd_file object that is not GC'ed. If one doesn't already exist,
+ * and @file is non-NULL, use it to instantiate a new nfsd_file instead of
+ * opening a new one.
  *
  * Returns nfs_ok and sets @pnf on success; otherwise an nfsstat in
  * network byte order is returned.
  */
 __be32
-nfsd_file_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		 unsigned int may_flags, struct nfsd_file **pnf)
+nfsd_file_acquire_opened(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			 unsigned int may_flags, struct file *file,
+			 struct nfsd_file **pnf)
 {
-	return nfsd_file_do_acquire(rqstp, fhp, may_flags, pnf, false, false);
+	return nfsd_file_do_acquire(rqstp, fhp, may_flags, file, pnf, false);
 }
 
 /*

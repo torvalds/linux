@@ -215,11 +215,6 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 
 	adsp->pa_sram = (phys_addr_t)mmio->start;
 	adsp->sramsize = resource_size(mmio);
-	if (adsp->sramsize < TOTAL_SIZE_SHARED_SRAM_FROM_TAIL) {
-		dev_err(dev, "adsp SRAM(%#x) is not enough for share\n",
-			adsp->sramsize);
-		return -EINVAL;
-	}
 
 	dev_dbg(dev, "sram pbase=%pa,%#x\n", &adsp->pa_sram, adsp->sramsize);
 
@@ -525,7 +520,7 @@ static snd_pcm_uframes_t mt8195_pcm_pointer(struct snd_sof_dev *sdev,
 	}
 
 	stream = &spcm->stream[substream->stream];
-	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	ret = snd_sof_ipc_msg_data(sdev, stream, &posn, sizeof(posn));
 	if (ret < 0) {
 		dev_warn(sdev->dev, "failed to read stream position: %d\n", ret);
 		return 0;
@@ -642,6 +637,7 @@ static struct snd_sof_dsp_ops sof_mt8195_ops = {
 
 	/* Debug information */
 	.dbg_dump = mt8195_adsp_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* DAI drivers */
 	.drv = mt8195_dai,

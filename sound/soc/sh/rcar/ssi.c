@@ -303,15 +303,14 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 		return 0;
 	}
 
+	ret = -EIO;
 	main_rate = rsnd_ssi_clk_query(rdai, rate, chan, &idx);
-	if (!main_rate) {
-		dev_err(dev, "unsupported clock rate\n");
-		return -EIO;
-	}
+	if (!main_rate)
+		goto rate_err;
 
 	ret = rsnd_adg_ssi_clk_try_start(mod, main_rate);
 	if (ret < 0)
-		return ret;
+		goto rate_err;
 
 	/*
 	 * SSI clock will be output contiguously
@@ -333,6 +332,10 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 		rsnd_mod_name(mod), chan, rate);
 
 	return 0;
+
+rate_err:
+	dev_err(dev, "unsupported clock rate\n");
+	return ret;
 }
 
 static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,

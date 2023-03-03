@@ -292,22 +292,12 @@ static void wake_tx_push_queue(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata,
 			       struct ieee80211_txq *queue)
 {
-	int q = sdata->vif.hw_queue[queue->ac];
 	struct ieee80211_tx_control control = {
 		.sta = queue->sta,
 	};
 	struct sk_buff *skb;
-	unsigned long flags;
-	bool q_stopped;
 
 	while (1) {
-		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-		q_stopped = local->queue_stop_reasons[q];
-		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
-
-		if (q_stopped)
-			break;
-
 		skb = ieee80211_tx_dequeue(&local->hw, queue);
 		if (!skb)
 			break;
@@ -347,8 +337,6 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 	local_bh_disable();
 	spin_lock(&fq->lock);
 
-	sdata->vif.txqs_stopped[ac] = false;
-
 	if (!test_bit(SDATA_STATE_RUNNING, &sdata->state))
 		goto out;
 
@@ -370,7 +358,7 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 			if (ac != txq->ac)
 				continue;
 
-			if (!test_and_clear_bit(IEEE80211_TXQ_STOP_NETIF_TX,
+			if (!test_and_clear_bit(IEEE80211_TXQ_DIRTY,
 						&txqi->flags))
 				continue;
 
@@ -385,7 +373,7 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 
 	txqi = to_txq_info(vif->txq);
 
-	if (!test_and_clear_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txqi->flags) ||
+	if (!test_and_clear_bit(IEEE80211_TXQ_DIRTY, &txqi->flags) ||
 	    (ps && atomic_read(&ps->num_sta_ps)) || ac != vif->txq->ac)
 		goto out;
 
@@ -517,8 +505,6 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 				   bool refcounted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata;
-	int n_acs = IEEE80211_NUM_ACS;
 
 	trace_stop_queue(local, queue, reason);
 
@@ -530,29 +516,7 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 	else
 		local->q_stop_reasons[queue][reason]++;
 
-	if (__test_and_set_bit(reason, &local->queue_stop_reasons[queue]))
-		return;
-
-	if (local->hw.queues < IEEE80211_NUM_ACS)
-		n_acs = 1;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		int ac;
-
-		if (!sdata->dev)
-			continue;
-
-		for (ac = 0; ac < n_acs; ac++) {
-			if (sdata->vif.hw_queue[ac] == queue ||
-			    sdata->vif.cab_queue == queue) {
-				spin_lock(&local->fq.lock);
-				sdata->vif.txqs_stopped[ac] = true;
-				spin_unlock(&local->fq.lock);
-			}
-		}
-	}
-	rcu_read_unlock();
+	set_bit(reason, &local->queue_stop_reasons[queue]);
 }
 
 void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,

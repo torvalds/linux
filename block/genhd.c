@@ -1201,10 +1201,21 @@ struct class block_class = {
 	.dev_uevent	= block_uevent,
 };
 
+static char *block_devnode(struct device *dev, umode_t *mode,
+			   kuid_t *uid, kgid_t *gid)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	if (disk->fops->devnode)
+		return disk->fops->devnode(disk, mode);
+	return NULL;
+}
+
 const struct device_type disk_type = {
 	.name		= "disk",
 	.groups		= disk_attr_groups,
 	.release	= disk_release,
+	.devnode	= block_devnode,
 };
 
 #ifdef CONFIG_PROC_FS

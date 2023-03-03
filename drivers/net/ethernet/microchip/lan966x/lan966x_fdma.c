@@ -608,11 +608,11 @@ allocate_new:
 		lan966x_fdma_rx_reload(rx);
 	}
 
-	if (counter < weight && napi_complete_done(napi, counter))
-		lan_wr(0xff, lan966x, FDMA_INTR_DB_ENA);
-
 	if (redirect)
 		xdp_do_flush();
+
+	if (counter < weight && napi_complete_done(napi, counter))
+		lan_wr(0xff, lan966x, FDMA_INTR_DB_ENA);
 
 	return counter;
 }

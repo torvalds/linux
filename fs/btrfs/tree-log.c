@@ -2980,7 +2980,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		ret = 0;
 	if (ret) {
 		blk_finish_plug(&plug);
-		btrfs_abort_transaction(trans, ret);
 		btrfs_set_log_full_commit(trans);
 		mutex_unlock(&root->log_mutex);
 		goto out;
@@ -3045,15 +3044,12 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 		blk_finish_plug(&plug);
 		btrfs_set_log_full_commit(trans);
-
-		if (ret != -ENOSPC) {
-			btrfs_abort_transaction(trans, ret);
-			mutex_unlock(&log_root_tree->log_mutex);
-			goto out;
-		}
+		if (ret != -ENOSPC)
+			btrfs_err(fs_info,
+				  "failed to update log for root %llu ret %d",
+				  root->root_key.objectid, ret);
 		btrfs_wait_tree_log_extents(log, mark);
 		mutex_unlock(&log_root_tree->log_mutex);
-		ret = BTRFS_LOG_FORCE_COMMIT;
 		goto out;
 	}
 
@@ -3112,7 +3108,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out_wake_log_root;
 	} else if (ret) {
 		btrfs_set_log_full_commit(trans);
-		btrfs_abort_transaction(trans, ret);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out_wake_log_root;
 	}
@@ -3581,17 +3576,19 @@ static noinline int insert_dir_log_key(struct btrfs_trans_handle *trans,
 }
 
 static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *log,
+				 struct btrfs_inode *inode,
 				 struct extent_buffer *src,
 				 struct btrfs_path *dst_path,
 				 int start_slot,
 				 int count)
 {
+	struct btrfs_root *log = inode->root->log_root;
 	char *ins_data = NULL;
 	struct btrfs_item_batch batch;
 	struct extent_buffer *dst;
 	unsigned long src_offset;
 	unsigned long dst_offset;
+	u64 last_index;
 	struct btrfs_key key;
 	u32 item_size;
 	int ret;
@@ -3649,6 +3646,19 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 	src_offset = btrfs_item_ptr_offset(src, start_slot + count - 1);
 	copy_extent_buffer(dst, src, dst_offset, src_offset, batch.total_data_size);
 	btrfs_release_path(dst_path);
+
+	last_index = batch.keys[count - 1].offset;
+	ASSERT(last_index > inode->last_dir_index_offset);
+
+	/*
+	 * If for some unexpected reason the last item's index is not greater
+	 * than the last index we logged, warn and return an error to fallback
+	 * to a transaction commit.
+	 */
+	if (WARN_ON(last_index <= inode->last_dir_index_offset))
+		ret = -EUCLEAN;
+	else
+		inode->last_dir_index_offset = last_index;
 out:
 	kfree(ins_data);
 
@@ -3698,7 +3708,6 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 		}
 
 		di = btrfs_item_ptr(src, i, struct btrfs_dir_item);
-		ctx->last_dir_item_offset = key.offset;
 
 		/*
 		 * Skip ranges of items that consist only of dir item keys created
@@ -3761,7 +3770,7 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 	if (batch_size > 0) {
 		int ret;
 
-		ret = flush_dir_items_batch(trans, log, src, dst_path,
+		ret = flush_dir_items_batch(trans, inode, src, dst_path,
 					    batch_start, batch_size);
 		if (ret < 0)
 			return ret;
@@ -3826,7 +3835,10 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 					      path->slots[0]);
 			if (tmp.type == BTRFS_DIR_INDEX_KEY)
 				last_old_dentry_offset = tmp.offset;
+		} else if (ret < 0) {
+			err = ret;
 		}
+
 		goto done;
 	}
 
@@ -3846,19 +3858,34 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 		 */
 		if (tmp.type == BTRFS_DIR_INDEX_KEY)
 			last_old_dentry_offset = tmp.offset;
+	} else if (ret < 0) {
+		err = ret;
+		goto done;
 	}
+
 	btrfs_release_path(path);
 
 	/*
-	 * Find the first key from this transaction again.  See the note for
-	 * log_new_dir_dentries, if we're logging a directory recursively we
-	 * won't be holding its i_mutex, which means we can modify the directory
-	 * while we're logging it.  If we remove an entry between our first
-	 * search and this search we'll not find the key again and can just
-	 * bail.
+	 * Find the first key from this transaction again or the one we were at
+	 * in the loop below in case we had to reschedule. We may be logging the
+	 * directory without holding its VFS lock, which happen when logging new
+	 * dentries (through log_new_dir_dentries()) or in some cases when we
+	 * need to log the parent directory of an inode. This means a dir index
+	 * key might be deleted from the inode's root, and therefore we may not
+	 * find it anymore. If we can't find it, just move to the next key. We
+	 * can not bail out and ignore, because if we do that we will simply
+	 * not log dir index keys that come after the one that was just deleted
+	 * and we can end up logging a dir index range that ends at (u64)-1
+	 * (@last_offset is initialized to that), resulting in removing dir
+	 * entries we should not remove at log replay time.
 	 */
 search:
 	ret = btrfs_search_slot(NULL, root, &min_key, path, 0, 0);
+	if (ret > 0)
+		ret = btrfs_next_item(root, path);
+	if (ret < 0)
+		err = ret;
+	/* If ret is 1, there are no more keys in the inode's root. */
 	if (ret != 0)
 		goto done;
 
@@ -4031,7 +4058,6 @@ static noinline int log_directory_changes(struct btrfs_trans_handle *trans,
 
 	min_key = BTRFS_DIR_START_INDEX;
 	max_key = 0;
-	ctx->last_dir_item_offset = inode->last_dir_index_offset;
 
 	while (1) {
 		ret = log_dir_items(trans, inode, path, dst_path,
@@ -4042,8 +4068,6 @@ static noinline int log_directory_changes(struct btrfs_trans_handle *trans,
 			break;
 		min_key = max_key + 1;
 	}
-
-	inode->last_dir_index_offset = ctx->last_dir_item_offset;
 
 	return 0;
 }
@@ -5580,8 +5604,10 @@ static int add_conflicting_inode(struct btrfs_trans_handle *trans,
 	 * LOG_INODE_EXISTS mode) and slow down other fsyncs or transaction
 	 * commits.
 	 */
-	if (ctx->num_conflict_inodes >= MAX_CONFLICT_INODES)
+	if (ctx->num_conflict_inodes >= MAX_CONFLICT_INODES) {
+		btrfs_set_log_full_commit(trans);
 		return BTRFS_LOG_FORCE_COMMIT;
+	}
 
 	inode = btrfs_iget(root->fs_info->sb, ino, root);
 	/*
@@ -7459,8 +7485,11 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		 * not fail, but if it does, it's not serious, just bail out and
 		 * mark the log for a full commit.
 		 */
-		if (WARN_ON_ONCE(ret < 0))
+		if (WARN_ON_ONCE(ret < 0)) {
+			fscrypt_free_filename(&fname);
 			goto out;
+		}
+
 		log_pinned = true;
 
 		path = btrfs_alloc_path();

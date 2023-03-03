@@ -16,7 +16,107 @@
 /*
  * Declare tracing information enums and their string mappings for display.
  */
+#define rxrpc_abort_reasons \
+	/* AFS errors */						\
+	EM(afs_abort_general_error,		"afs-error")		\
+	EM(afs_abort_interrupted,		"afs-intr")		\
+	EM(afs_abort_oom,			"afs-oom")		\
+	EM(afs_abort_op_not_supported,		"afs-op-notsupp")	\
+	EM(afs_abort_probeuuid_negative,	"afs-probeuuid-neg")	\
+	EM(afs_abort_send_data_error,		"afs-send-data")	\
+	EM(afs_abort_unmarshal_error,		"afs-unmarshal")	\
+	/* rxperf errors */						\
+	EM(rxperf_abort_general_error,		"rxperf-error")		\
+	EM(rxperf_abort_oom,			"rxperf-oom")		\
+	EM(rxperf_abort_op_not_supported,	"rxperf-op-notsupp")	\
+	EM(rxperf_abort_unmarshal_error,	"rxperf-unmarshal")	\
+	/* RxKAD security errors */					\
+	EM(rxkad_abort_1_short_check,		"rxkad1-short-check")	\
+	EM(rxkad_abort_1_short_data,		"rxkad1-short-data")	\
+	EM(rxkad_abort_1_short_encdata,		"rxkad1-short-encdata")	\
+	EM(rxkad_abort_1_short_header,		"rxkad1-short-hdr")	\
+	EM(rxkad_abort_2_short_check,		"rxkad2-short-check")	\
+	EM(rxkad_abort_2_short_data,		"rxkad2-short-data")	\
+	EM(rxkad_abort_2_short_header,		"rxkad2-short-hdr")	\
+	EM(rxkad_abort_2_short_len,		"rxkad2-short-len")	\
+	EM(rxkad_abort_bad_checksum,		"rxkad2-bad-cksum")	\
+	EM(rxkad_abort_chall_key_expired,	"rxkad-chall-key-exp")	\
+	EM(rxkad_abort_chall_level,		"rxkad-chall-level")	\
+	EM(rxkad_abort_chall_no_key,		"rxkad-chall-nokey")	\
+	EM(rxkad_abort_chall_short,		"rxkad-chall-short")	\
+	EM(rxkad_abort_chall_version,		"rxkad-chall-version")	\
+	EM(rxkad_abort_resp_bad_callid,		"rxkad-resp-bad-callid") \
+	EM(rxkad_abort_resp_bad_checksum,	"rxkad-resp-bad-cksum")	\
+	EM(rxkad_abort_resp_bad_param,		"rxkad-resp-bad-param")	\
+	EM(rxkad_abort_resp_call_ctr,		"rxkad-resp-call-ctr") \
+	EM(rxkad_abort_resp_call_state,		"rxkad-resp-call-state") \
+	EM(rxkad_abort_resp_key_expired,	"rxkad-resp-key-exp")	\
+	EM(rxkad_abort_resp_key_rejected,	"rxkad-resp-key-rej")	\
+	EM(rxkad_abort_resp_level,		"rxkad-resp-level")	\
+	EM(rxkad_abort_resp_nokey,		"rxkad-resp-nokey")	\
+	EM(rxkad_abort_resp_ooseq,		"rxkad-resp-ooseq")	\
+	EM(rxkad_abort_resp_short,		"rxkad-resp-short")	\
+	EM(rxkad_abort_resp_short_tkt,		"rxkad-resp-short-tkt")	\
+	EM(rxkad_abort_resp_tkt_aname,		"rxkad-resp-tk-aname")	\
+	EM(rxkad_abort_resp_tkt_expired,	"rxkad-resp-tk-exp")	\
+	EM(rxkad_abort_resp_tkt_future,		"rxkad-resp-tk-future")	\
+	EM(rxkad_abort_resp_tkt_inst,		"rxkad-resp-tk-inst")	\
+	EM(rxkad_abort_resp_tkt_len,		"rxkad-resp-tk-len")	\
+	EM(rxkad_abort_resp_tkt_realm,		"rxkad-resp-tk-realm")	\
+	EM(rxkad_abort_resp_tkt_short,		"rxkad-resp-tk-short")	\
+	EM(rxkad_abort_resp_tkt_sinst,		"rxkad-resp-tk-sinst")	\
+	EM(rxkad_abort_resp_tkt_sname,		"rxkad-resp-tk-sname")	\
+	EM(rxkad_abort_resp_unknown_tkt,	"rxkad-resp-unknown-tkt") \
+	EM(rxkad_abort_resp_version,		"rxkad-resp-version")	\
+	/* rxrpc errors */						\
+	EM(rxrpc_abort_call_improper_term,	"call-improper-term")	\
+	EM(rxrpc_abort_call_reset,		"call-reset")		\
+	EM(rxrpc_abort_call_sendmsg,		"call-sendmsg")		\
+	EM(rxrpc_abort_call_sock_release,	"call-sock-rel")	\
+	EM(rxrpc_abort_call_sock_release_tba,	"call-sock-rel-tba")	\
+	EM(rxrpc_abort_call_timeout,		"call-timeout")		\
+	EM(rxrpc_abort_no_service_key,		"no-serv-key")		\
+	EM(rxrpc_abort_nomem,			"nomem")		\
+	EM(rxrpc_abort_service_not_offered,	"serv-not-offered")	\
+	EM(rxrpc_abort_shut_down,		"shut-down")		\
+	EM(rxrpc_abort_unsupported_security,	"unsup-sec")		\
+	EM(rxrpc_badmsg_bad_abort,		"bad-abort")		\
+	EM(rxrpc_badmsg_bad_jumbo,		"bad-jumbo")		\
+	EM(rxrpc_badmsg_short_ack,		"short-ack")		\
+	EM(rxrpc_badmsg_short_ack_info,		"short-ack-info")	\
+	EM(rxrpc_badmsg_short_hdr,		"short-hdr")		\
+	EM(rxrpc_badmsg_unsupported_packet,	"unsup-pkt")		\
+	EM(rxrpc_badmsg_zero_call,		"zero-call")		\
+	EM(rxrpc_badmsg_zero_seq,		"zero-seq")		\
+	EM(rxrpc_badmsg_zero_service,		"zero-service")		\
+	EM(rxrpc_eproto_ackr_outside_window,	"ackr-out-win")		\
+	EM(rxrpc_eproto_ackr_sack_overflow,	"ackr-sack-over")	\
+	EM(rxrpc_eproto_ackr_short_sack,	"ackr-short-sack")	\
+	EM(rxrpc_eproto_ackr_zero,		"ackr-zero")		\
+	EM(rxrpc_eproto_bad_upgrade,		"bad-upgrade")		\
+	EM(rxrpc_eproto_data_after_last,	"data-after-last")	\
+	EM(rxrpc_eproto_different_last,		"diff-last")		\
+	EM(rxrpc_eproto_early_reply,		"early-reply")		\
+	EM(rxrpc_eproto_improper_term,		"improper-term")	\
+	EM(rxrpc_eproto_no_client_call,		"no-cl-call")		\
+	EM(rxrpc_eproto_no_client_conn,		"no-cl-conn")		\
+	EM(rxrpc_eproto_no_service_call,	"no-sv-call")		\
+	EM(rxrpc_eproto_reupgrade,		"re-upgrade")		\
+	EM(rxrpc_eproto_rxnull_challenge,	"rxnull-chall")		\
+	EM(rxrpc_eproto_rxnull_response,	"rxnull-resp")		\
+	EM(rxrpc_eproto_tx_rot_last,		"tx-rot-last")		\
+	EM(rxrpc_eproto_unexpected_ack,		"unex-ack")		\
+	EM(rxrpc_eproto_unexpected_ackall,	"unex-ackall")		\
+	EM(rxrpc_eproto_unexpected_implicit_end, "unex-impl-end")	\
+	EM(rxrpc_eproto_unexpected_reply,	"unex-reply")		\
+	EM(rxrpc_eproto_wrong_security,		"wrong-sec")		\
+	EM(rxrpc_recvmsg_excess_data,		"recvmsg-excess")	\
+	EM(rxrpc_recvmsg_short_data,		"recvmsg-short")	\
+	E_(rxrpc_sendmsg_late_send,		"sendmsg-late")
+
 #define rxrpc_call_poke_traces \
+	EM(rxrpc_call_poke_abort,		"Abort")	\
+	EM(rxrpc_call_poke_complete,		"Compl")	\
 	EM(rxrpc_call_poke_error,		"Error")	\
 	EM(rxrpc_call_poke_idle,		"Idle")		\
 	EM(rxrpc_call_poke_start,		"Start")	\
@@ -26,6 +126,7 @@
 #define rxrpc_skb_traces \
 	EM(rxrpc_skb_eaten_by_unshare,		"ETN unshare  ") \
 	EM(rxrpc_skb_eaten_by_unshare_nomem,	"ETN unshar-nm") \
+	EM(rxrpc_skb_get_conn_secured,		"GET conn-secd") \
 	EM(rxrpc_skb_get_conn_work,		"GET conn-work") \
 	EM(rxrpc_skb_get_local_work,		"GET locl-work") \
 	EM(rxrpc_skb_get_reject_work,		"GET rej-work ") \
@@ -35,6 +136,7 @@
 	EM(rxrpc_skb_new_error_report,		"NEW error-rpt") \
 	EM(rxrpc_skb_new_jumbo_subpacket,	"NEW jumbo-sub") \
 	EM(rxrpc_skb_new_unshared,		"NEW unshared ") \
+	EM(rxrpc_skb_put_conn_secured,		"PUT conn-secd") \
 	EM(rxrpc_skb_put_conn_work,		"PUT conn-work") \
 	EM(rxrpc_skb_put_error_report,		"PUT error-rep") \
 	EM(rxrpc_skb_put_input,			"PUT input    ") \
@@ -76,7 +178,6 @@
 #define rxrpc_peer_traces \
 	EM(rxrpc_peer_free,			"FREE        ") \
 	EM(rxrpc_peer_get_accept,		"GET accept  ") \
-	EM(rxrpc_peer_get_activate_call,	"GET act-call") \
 	EM(rxrpc_peer_get_bundle,		"GET bundle  ") \
 	EM(rxrpc_peer_get_client_conn,		"GET cln-conn") \
 	EM(rxrpc_peer_get_input,		"GET input   ") \
@@ -89,7 +190,6 @@
 	EM(rxrpc_peer_put_bundle,		"PUT bundle  ") \
 	EM(rxrpc_peer_put_call,			"PUT call    ") \
 	EM(rxrpc_peer_put_conn,			"PUT conn    ") \
-	EM(rxrpc_peer_put_discard_tmp,		"PUT disc-tmp") \
 	EM(rxrpc_peer_put_input,		"PUT input   ") \
 	EM(rxrpc_peer_put_input_error,		"PUT inpt-err") \
 	E_(rxrpc_peer_put_keepalive,		"PUT keepaliv")
@@ -99,6 +199,7 @@
 	EM(rxrpc_bundle_get_client_call,	"GET clt-call") \
 	EM(rxrpc_bundle_get_client_conn,	"GET clt-conn") \
 	EM(rxrpc_bundle_get_service_conn,	"GET svc-conn") \
+	EM(rxrpc_bundle_put_call,		"PUT call    ") \
 	EM(rxrpc_bundle_put_conn,		"PUT conn    ") \
 	EM(rxrpc_bundle_put_discard,		"PUT discard ") \
 	E_(rxrpc_bundle_new,			"NEW         ")
@@ -109,14 +210,14 @@
 	EM(rxrpc_conn_get_call_input,		"GET inp-call") \
 	EM(rxrpc_conn_get_conn_input,		"GET inp-conn") \
 	EM(rxrpc_conn_get_idle,			"GET idle    ") \
-	EM(rxrpc_conn_get_poke,			"GET poke    ") \
+	EM(rxrpc_conn_get_poke_abort,		"GET pk-abort") \
+	EM(rxrpc_conn_get_poke_timer,		"GET poke    ") \
 	EM(rxrpc_conn_get_service_conn,		"GET svc-conn") \
 	EM(rxrpc_conn_new_client,		"NEW client  ") \
 	EM(rxrpc_conn_new_service,		"NEW service ") \
 	EM(rxrpc_conn_put_call,			"PUT call    ") \
 	EM(rxrpc_conn_put_call_input,		"PUT inp-call") \
 	EM(rxrpc_conn_put_conn_input,		"PUT inp-conn") \
-	EM(rxrpc_conn_put_discard,		"PUT discard ") \
 	EM(rxrpc_conn_put_discard_idle,		"PUT disc-idl") \
 	EM(rxrpc_conn_put_local_dead,		"PUT loc-dead") \
 	EM(rxrpc_conn_put_noreuse,		"PUT noreuse ") \
@@ -124,10 +225,10 @@
 	EM(rxrpc_conn_put_service_reaped,	"PUT svc-reap") \
 	EM(rxrpc_conn_put_unbundle,		"PUT unbundle") \
 	EM(rxrpc_conn_put_unidle,		"PUT unidle  ") \
+	EM(rxrpc_conn_put_work,			"PUT work    ") \
 	EM(rxrpc_conn_queue_challenge,		"QUE chall   ") \
 	EM(rxrpc_conn_queue_retry_work,		"QUE retry-wk") \
 	EM(rxrpc_conn_queue_rx_work,		"QUE rx-work ") \
-	EM(rxrpc_conn_queue_timer,		"QUE timer   ") \
 	EM(rxrpc_conn_see_new_service_conn,	"SEE new-svc ") \
 	EM(rxrpc_conn_see_reap_service,		"SEE reap-svc") \
 	E_(rxrpc_conn_see_work,			"SEE work    ")
@@ -138,16 +239,16 @@
 	EM(rxrpc_client_chan_activate,		"ChActv") \
 	EM(rxrpc_client_chan_disconnect,	"ChDisc") \
 	EM(rxrpc_client_chan_pass,		"ChPass") \
-	EM(rxrpc_client_chan_wait_failed,	"ChWtFl") \
 	EM(rxrpc_client_cleanup,		"Clean ") \
 	EM(rxrpc_client_discard,		"Discar") \
-	EM(rxrpc_client_duplicate,		"Duplic") \
 	EM(rxrpc_client_exposed,		"Expose") \
 	EM(rxrpc_client_replace,		"Replac") \
+	EM(rxrpc_client_queue_new_call,		"Q-Call") \
 	EM(rxrpc_client_to_active,		"->Actv") \
 	E_(rxrpc_client_to_idle,		"->Idle")
 
 #define rxrpc_call_traces \
+	EM(rxrpc_call_get_io_thread,		"GET iothread") \
 	EM(rxrpc_call_get_input,		"GET input   ") \
 	EM(rxrpc_call_get_kernel_service,	"GET krnl-srv") \
 	EM(rxrpc_call_get_notify_socket,	"GET notify  ") \
@@ -160,6 +261,7 @@
 	EM(rxrpc_call_new_prealloc_service,	"NEW prealloc") \
 	EM(rxrpc_call_put_discard_prealloc,	"PUT disc-pre") \
 	EM(rxrpc_call_put_discard_error,	"PUT disc-err") \
+	EM(rxrpc_call_put_io_thread,		"PUT iothread") \
 	EM(rxrpc_call_put_input,		"PUT input   ") \
 	EM(rxrpc_call_put_kernel,		"PUT kernel  ") \
 	EM(rxrpc_call_put_poke,			"PUT poke    ") \
@@ -169,10 +271,12 @@
 	EM(rxrpc_call_put_sendmsg,		"PUT sendmsg ") \
 	EM(rxrpc_call_put_unnotify,		"PUT unnotify") \
 	EM(rxrpc_call_put_userid_exists,	"PUT u-exists") \
+	EM(rxrpc_call_put_userid,		"PUT user-id ") \
 	EM(rxrpc_call_see_accept,		"SEE accept  ") \
 	EM(rxrpc_call_see_activate_client,	"SEE act-clnt") \
 	EM(rxrpc_call_see_connect_failed,	"SEE con-fail") \
 	EM(rxrpc_call_see_connected,		"SEE connect ") \
+	EM(rxrpc_call_see_disconnected,		"SEE disconn ") \
 	EM(rxrpc_call_see_distribute_error,	"SEE dist-err") \
 	EM(rxrpc_call_see_input,		"SEE input   ") \
 	EM(rxrpc_call_see_release,		"SEE release ") \
@@ -376,6 +480,7 @@
 #define EM(a, b) a,
 #define E_(a, b) a
 
+enum rxrpc_abort_reason		{ rxrpc_abort_reasons } __mode(byte);
 enum rxrpc_bundle_trace		{ rxrpc_bundle_traces } __mode(byte);
 enum rxrpc_call_poke_trace	{ rxrpc_call_poke_traces } __mode(byte);
 enum rxrpc_call_trace		{ rxrpc_call_traces } __mode(byte);
@@ -404,9 +509,13 @@ enum rxrpc_txqueue_trace	{ rxrpc_txqueue_traces } __mode(byte);
  */
 #undef EM
 #undef E_
+
+#ifndef RXRPC_TRACE_ONLY_DEFINE_ENUMS
+
 #define EM(a, b) TRACE_DEFINE_ENUM(a);
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
+rxrpc_abort_reasons;
 rxrpc_bundle_traces;
 rxrpc_call_poke_traces;
 rxrpc_call_traces;
@@ -657,14 +766,14 @@ TRACE_EVENT(rxrpc_rx_done,
 	    );
 
 TRACE_EVENT(rxrpc_abort,
-	    TP_PROTO(unsigned int call_nr, const char *why, u32 cid, u32 call_id,
-		     rxrpc_seq_t seq, int abort_code, int error),
+	    TP_PROTO(unsigned int call_nr, enum rxrpc_abort_reason why,
+		     u32 cid, u32 call_id, rxrpc_seq_t seq, int abort_code, int error),
 
 	    TP_ARGS(call_nr, why, cid, call_id, seq, abort_code, error),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call_nr		)
-		    __array(char,			why, 4		)
+		    __field(enum rxrpc_abort_reason,	why		)
 		    __field(u32,			cid		)
 		    __field(u32,			call_id		)
 		    __field(rxrpc_seq_t,		seq		)
@@ -673,8 +782,8 @@ TRACE_EVENT(rxrpc_abort,
 			     ),
 
 	    TP_fast_assign(
-		    memcpy(__entry->why, why, 4);
 		    __entry->call_nr = call_nr;
+		    __entry->why = why;
 		    __entry->cid = cid;
 		    __entry->call_id = call_id;
 		    __entry->abort_code = abort_code;
@@ -685,7 +794,8 @@ TRACE_EVENT(rxrpc_abort,
 	    TP_printk("c=%08x %08x:%08x s=%u a=%d e=%d %s",
 		      __entry->call_nr,
 		      __entry->cid, __entry->call_id, __entry->seq,
-		      __entry->abort_code, __entry->error, __entry->why)
+		      __entry->abort_code, __entry->error,
+		      __print_symbolic(__entry->why, rxrpc_abort_reasons))
 	    );
 
 TRACE_EVENT(rxrpc_call_complete,
@@ -1062,10 +1172,10 @@ TRACE_EVENT(rxrpc_receive,
 	    );
 
 TRACE_EVENT(rxrpc_recvmsg,
-	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_recvmsg_trace why,
+	    TP_PROTO(unsigned int call_debug_id, enum rxrpc_recvmsg_trace why,
 		     int ret),
 
-	    TP_ARGS(call, why, ret),
+	    TP_ARGS(call_debug_id, why, ret),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
@@ -1074,7 +1184,7 @@ TRACE_EVENT(rxrpc_recvmsg,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call ? call->debug_id : 0;
+		    __entry->call = call_debug_id;
 		    __entry->why = why;
 		    __entry->ret = ret;
 			   ),
@@ -1521,30 +1631,6 @@ TRACE_EVENT(rxrpc_improper_term,
 		      __entry->abort_code)
 	    );
 
-TRACE_EVENT(rxrpc_rx_eproto,
-	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
-		     const char *why),
-
-	    TP_ARGS(call, serial, why),
-
-	    TP_STRUCT__entry(
-		    __field(unsigned int,		call		)
-		    __field(rxrpc_serial_t,		serial		)
-		    __field(const char *,		why		)
-			     ),
-
-	    TP_fast_assign(
-		    __entry->call = call ? call->debug_id : 0;
-		    __entry->serial = serial;
-		    __entry->why = why;
-			   ),
-
-	    TP_printk("c=%08x EPROTO %08x %s",
-		      __entry->call,
-		      __entry->serial,
-		      __entry->why)
-	    );
-
 TRACE_EVENT(rxrpc_connect_call,
 	    TP_PROTO(struct rxrpc_call *call),
 
@@ -1842,6 +1928,8 @@ TRACE_EVENT(rxrpc_call_poked,
 
 #undef EM
 #undef E_
+
+#endif /* RXRPC_TRACE_ONLY_DEFINE_ENUMS */
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

@@ -347,6 +347,7 @@ lookup_protocol:
 	sk->sk_destruct	   = inet_sock_destruct;
 	sk->sk_protocol	   = protocol;
 	sk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
+	sk->sk_txrehash = READ_ONCE(net->core.sysctl_txrehash);
 
 	inet->uc_ttl	= -1;
 	inet->mc_loop	= 1;
@@ -1665,6 +1666,7 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 	if (rc == 0) {
 		*sk = sock->sk;
 		(*sk)->sk_allocation = GFP_ATOMIC;
+		(*sk)->sk_use_task_frag = false;
 		/*
 		 * Unhash it so that IP input processing does not even see it,
 		 * we do not wish this socket to see incoming packets.

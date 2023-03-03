@@ -3354,7 +3354,7 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 	bool search_io_tree = true;
 	bool ret = false;
 
-	while (cur_offset < end) {
+	while (cur_offset <= end) {
 		u64 delalloc_start;
 		u64 delalloc_end;
 		bool delalloc;
@@ -3541,6 +3541,7 @@ static loff_t find_desired_extent(struct file *file, loff_t offset, int whence)
 		struct extent_buffer *leaf = path->nodes[0];
 		struct btrfs_file_extent_item *extent;
 		u64 extent_end;
+		u8 type;
 
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
@@ -3596,10 +3597,16 @@ static loff_t find_desired_extent(struct file *file, loff_t offset, int whence)
 
 		extent = btrfs_item_ptr(leaf, path->slots[0],
 					struct btrfs_file_extent_item);
+		type = btrfs_file_extent_type(leaf, extent);
 
-		if (btrfs_file_extent_disk_bytenr(leaf, extent) == 0 ||
-		    btrfs_file_extent_type(leaf, extent) ==
-		    BTRFS_FILE_EXTENT_PREALLOC) {
+		/*
+		 * Can't access the extent's disk_bytenr field if this is an
+		 * inline extent, since at that offset, it's where the extent
+		 * data starts.
+		 */
+		if (type == BTRFS_FILE_EXTENT_PREALLOC ||
+		    (type == BTRFS_FILE_EXTENT_REG &&
+		     btrfs_file_extent_disk_bytenr(leaf, extent) == 0)) {
 			/*
 			 * Explicit hole or prealloc extent, search for delalloc.
 			 * A prealloc extent is treated like a hole.

@@ -144,10 +144,7 @@ static struct platform_driver fotg210_driver = {
 
 static int __init fotg210_init(void)
 {
-	if (usb_disabled())
-		return -ENODEV;
-
-	if (IS_ENABLED(CONFIG_USB_FOTG210_HCD))
+	if (IS_ENABLED(CONFIG_USB_FOTG210_HCD) && !usb_disabled())
 		fotg210_hcd_init();
 	return platform_driver_register(&fotg210_driver);
 }

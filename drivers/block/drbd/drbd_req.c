@@ -1607,6 +1607,8 @@ void drbd_submit_bio(struct bio *bio)
 	struct drbd_device *device = bio->bi_bdev->bd_disk->private_data;
 
 	bio = bio_split_to_limits(bio);
+	if (!bio)
+		return;
 
 	/*
 	 * what we "blindly" assume:

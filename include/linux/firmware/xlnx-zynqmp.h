@@ -545,8 +545,8 @@ int zynqmp_pm_request_wake(const u32 node,
 			   const u64 address,
 			   const enum zynqmp_pm_request_ack ack);
 int zynqmp_pm_get_rpu_mode(u32 node_id, enum rpu_oper_mode *rpu_mode);
-int zynqmp_pm_set_rpu_mode(u32 node_id, u32 arg1);
-int zynqmp_pm_set_tcm_config(u32 node_id, u32 arg1);
+int zynqmp_pm_set_rpu_mode(u32 node_id, enum rpu_oper_mode rpu_mode);
+int zynqmp_pm_set_tcm_config(u32 node_id, enum rpu_tcm_comb tcm_mode);
 int zynqmp_pm_set_sd_config(u32 node, enum pm_sd_config_type config, u32 value);
 int zynqmp_pm_set_gem_config(u32 node, enum pm_gem_config_type config,
 			     u32 value);
@@ -845,12 +845,12 @@ static inline int zynqmp_pm_get_rpu_mode(u32 node_id, enum rpu_oper_mode *rpu_mo
 	return -ENODEV;
 }
 
-static inline int zynqmp_pm_set_rpu_mode(u32 node_id, u32 arg1)
+static inline int zynqmp_pm_set_rpu_mode(u32 node_id, enum rpu_oper_mode rpu_mode)
 {
 	return -ENODEV;
 }
 
-static inline int zynqmp_pm_set_tcm_config(u32 node_id, u32 arg1)
+static inline int zynqmp_pm_set_tcm_config(u32 node_id, enum rpu_tcm_comb tcm_mode)
 {
 	return -ENODEV;
 }
