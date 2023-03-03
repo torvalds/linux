@@ -35,9 +35,13 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
 required:
   - compatible
   - reg
+  - clocks
 
 additionalProperties: false
 
@@ -50,6 +54,13 @@ examples:
             compatible = "maxim,max9867";
             #sound-dai-cells = <0>;
             reg = <0x18>;
+            clocks = <&codec_clk>;
         };
+    };
+
+    codec_clk: clock {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <12288000>;
     };
 ...
