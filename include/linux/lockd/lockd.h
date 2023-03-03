@@ -99,19 +99,9 @@ struct nsm_handle {
 /*
  * Rigorous type checking on sockaddr type conversions
  */
-static inline struct sockaddr_in *nlm_addr_in(const struct nlm_host *host)
-{
-	return (struct sockaddr_in *)&host->h_addr;
-}
-
 static inline struct sockaddr *nlm_addr(const struct nlm_host *host)
 {
 	return (struct sockaddr *)&host->h_addr;
-}
-
-static inline struct sockaddr_in *nlm_srcaddr_in(const struct nlm_host *host)
-{
-	return (struct sockaddr_in *)&host->h_srcaddr;
 }
 
 static inline struct sockaddr *nlm_srcaddr(const struct nlm_host *host)
