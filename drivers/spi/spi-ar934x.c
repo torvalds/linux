@@ -220,7 +220,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int ar934x_spi_remove(struct platform_device *pdev)
+static void ar934x_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
 	struct ar934x_spi *sp;
@@ -230,8 +230,6 @@ static int ar934x_spi_remove(struct platform_device *pdev)
 
 	spi_unregister_controller(ctlr);
 	clk_disable_unprepare(sp->clk);
-
-	return 0;
 }
 
 static struct platform_driver ar934x_spi_driver = {
@@ -240,7 +238,7 @@ static struct platform_driver ar934x_spi_driver = {
 		.of_match_table = ar934x_spi_match,
 	},
 	.probe = ar934x_spi_probe,
-	.remove = ar934x_spi_remove,
+	.remove_new = ar934x_spi_remove,
 };
 
 module_platform_driver(ar934x_spi_driver);
