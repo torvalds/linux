@@ -183,6 +183,7 @@ struct geni_i2c_dev {
 	bool is_i2c_rtl_based; /* doing pending cancel only for rtl based SE's */
 	bool skip_bw_vote; /* Used for PMIC over i2c use case to skip the BW vote */
 	atomic_t is_xfer_in_progress; /* Used to maintain xfer inprogress status */
+	bool bus_recovery_enable; /* To be enabled by client if needed */
 };
 
 static struct geni_i2c_dev *gi2c_dev_dbg[MAX_SE];
@@ -397,6 +398,124 @@ static void do_reg68_war_for_rtl_se(struct geni_i2c_dev *gi2c)
 		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "%s: After WAR REG68:0x%x\n", __func__, status);
 	}
+}
+
+/**
+ * geni_i2c_stop_with_cancel(): stops GENI SE with cancel command.
+ * @gi2c:	I2C dev handle
+ *
+ * This is a generic function to stop serial engine, to be called as required.
+ *
+ * Return: 0 if Success, non zero value if failed.
+ */
+static int geni_i2c_stop_with_cancel(struct geni_i2c_dev *gi2c)
+{
+	int timeout = 0;
+
+	reinit_completion(&gi2c->xfer);
+	geni_se_cancel_m_cmd(&gi2c->i2c_rsc);
+	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
+	if (!timeout) {
+		I2C_LOG_DBG(gi2c->ipcl, true, gi2c->dev,
+			    "%s:Cancel failed\n", __func__);
+		reinit_completion(&gi2c->xfer);
+		geni_se_abort_m_cmd(&gi2c->i2c_rsc);
+		timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
+		if (!timeout) {
+			I2C_LOG_DBG(gi2c->ipcl, true, gi2c->dev,
+				    "%s:Abort failed\n", __func__);
+			return !timeout;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * geni_i2c_is_bus_recovery_required: Checks if Bus recovery enabled/required ?
+ * @gi2c: Handle of the I2C device
+ *
+ * Return: TRUE if SDA is stuck LOW due to some issue else false.
+ *
+ */
+static bool geni_i2c_is_bus_recovery_required(struct geni_i2c_dev *gi2c)
+{
+	u32 geni_ios = readl_relaxed(gi2c->base + SE_GENI_IOS);
+
+	/*
+	 * SE_GENI_IOS will show I2C CLK/SDA line status, BIT 0 is SDA and
+	 * BIT 1 is clk status. SE_GENI_IOS register set when CLK/SDA line
+	 * is pulled high.
+	 */
+	return (((geni_ios & 1) == 0) && (gi2c->err == -EPROTO ||
+					  gi2c->err == -EBUSY ||
+					  gi2c->err == -ETIMEDOUT));
+}
+
+/**
+ * geni_i2c_bus_recovery(): Function to recover i2c bus when required
+ * @gi2c:	I2C device handle
+ *
+ * Use this function only when bus is bad for some reason and need to
+ * reset the slave to bring slave into proper state. This should put
+ * bus into proper state once executed successfully.
+ *
+ * Return: Success OR Respective error code/value.
+ */
+static int geni_i2c_bus_recovery(struct geni_i2c_dev *gi2c)
+{
+	int timeout = 0, ret = 0;
+	u32 m_param = 0, m_cmd = 0;
+
+	/* Must be enabled by client "only" if required. */
+	if (gi2c->bus_recovery_enable &&
+	    geni_i2c_is_bus_recovery_required(gi2c)) {
+		GENI_SE_ERR(gi2c->ipcl, false, gi2c->dev,
+			    "%d:SDA Line stuck\n", gi2c->err);
+	} else {
+		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
+			    "Bus Recovery not required/enabled\n");
+		return 0;
+	}
+
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s: start recovery\n",
+		    __func__);
+	/* BUS_CLEAR */
+	reinit_completion(&gi2c->xfer);
+	m_cmd = I2C_BUS_CLEAR;
+	geni_se_setup_m_cmd(&gi2c->i2c_rsc, m_cmd, m_param);
+	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
+	if (!timeout) {
+		geni_i2c_err(gi2c, GENI_TIMEOUT);
+		gi2c->cur = NULL;
+		ret = geni_i2c_stop_with_cancel(gi2c);
+		if (ret) {
+			I2C_LOG_DBG(gi2c->ipcl, true, gi2c->dev,
+				    "%s: Bus clear Failed\n", __func__);
+			return ret;
+		}
+	}
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+		    "%s: BUS_CLEAR success\n", __func__);
+
+	/* BUS_STOP */
+	reinit_completion(&gi2c->xfer);
+	m_cmd = I2C_STOP_ON_BUS;
+	geni_se_setup_m_cmd(&gi2c->i2c_rsc, m_cmd, m_param);
+	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
+	if (!timeout) {
+		geni_i2c_err(gi2c, GENI_TIMEOUT);
+		gi2c->cur = NULL;
+		ret = geni_i2c_stop_with_cancel(gi2c);
+		if (ret) {
+			I2C_LOG_DBG(gi2c->ipcl, true, gi2c->dev,
+				    "%s:Bus Stop Failed\n", __func__);
+			return ret;
+		}
+	}
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+		    "%s: success\n", __func__);
+	return 0;
 }
 
 static int do_pending_cancel(struct geni_i2c_dev *gi2c)
@@ -1482,6 +1601,9 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 		if (gi2c->err) {
 			I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
 				    "i2c error :%d\n", gi2c->err);
+			if (geni_i2c_bus_recovery(gi2c))
+				GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+					    "%s:Bus Recovery failed\n", __func__);
 			break;
 		}
 	}
@@ -1676,6 +1798,12 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "qcom,shared")) {
 		gi2c->is_shared = true;
 		dev_info(&pdev->dev, "Multi-EE usecase\n");
+	}
+
+	//Strictly only for debug, it's client/slave device decision for an SE.
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,bus-recovery")) {
+		gi2c->bus_recovery_enable  = true;
+		dev_dbg(&pdev->dev, "%s:I2C Bus recovery enabled\n", __func__);
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
