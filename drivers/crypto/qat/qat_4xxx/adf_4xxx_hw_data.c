@@ -28,6 +28,18 @@ static struct adf_fw_config adf_4xxx_fw_dc_config[] = {
 	{0x100, ADF_4XXX_ADMIN_OBJ},
 };
 
+static struct adf_fw_config adf_402xx_fw_cy_config[] = {
+	{0xF0, ADF_402XX_SYM_OBJ},
+	{0xF, ADF_402XX_ASYM_OBJ},
+	{0x100, ADF_402XX_ADMIN_OBJ},
+};
+
+static struct adf_fw_config adf_402xx_fw_dc_config[] = {
+	{0xF0, ADF_402XX_DC_OBJ},
+	{0xF, ADF_402XX_DC_OBJ},
+	{0x100, ADF_402XX_ADMIN_OBJ},
+};
+
 /* Worker thread to service arbiter mappings */
 static const u32 thrd_to_arb_map[ADF_4XXX_MAX_ACCELENGINES] = {
 	0x5555555, 0x5555555, 0x5555555, 0x5555555,
@@ -286,13 +298,25 @@ static u32 uof_get_num_objs(void)
 	return ARRAY_SIZE(adf_4xxx_fw_cy_config);
 }
 
-static char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num)
+static char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
 		return adf_4xxx_fw_cy_config[obj_num].obj_name;
 	case SVC_DC:
 		return adf_4xxx_fw_dc_config[obj_num].obj_name;
+	}
+
+	return NULL;
+}
+
+static char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
+{
+	switch (get_service_enabled(accel_dev)) {
+	case SVC_CY:
+		return adf_402xx_fw_cy_config[obj_num].obj_name;
+	case SVC_DC:
+		return adf_402xx_fw_dc_config[obj_num].obj_name;
 	}
 
 	return NULL;
@@ -310,7 +334,7 @@ static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 	return 0;
 }
 
-void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
+void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 {
 	hw_data->dev_class = &adf_4xxx_class;
 	hw_data->instance_id = adf_4xxx_class.instances++;
@@ -337,8 +361,6 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->get_admin_info = get_admin_info;
 	hw_data->get_accel_cap = get_accel_cap;
 	hw_data->get_sku = get_sku;
-	hw_data->fw_name = ADF_4XXX_FW;
-	hw_data->fw_mmp_name = ADF_4XXX_MMP;
 	hw_data->init_admin_comms = adf_init_admin_comms;
 	hw_data->exit_admin_comms = adf_exit_admin_comms;
 	hw_data->send_admin_init = adf_send_admin_init;
@@ -349,8 +371,19 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->init_device = adf_init_device;
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->admin_ae_mask = ADF_4XXX_ADMIN_AE_MASK;
+	switch (dev_id) {
+	case ADF_402XX_PCI_DEVICE_ID:
+		hw_data->fw_name = ADF_402XX_FW;
+		hw_data->fw_mmp_name = ADF_402XX_MMP;
+		hw_data->uof_get_name = uof_get_name_402xx;
+		break;
+
+	default:
+		hw_data->fw_name = ADF_4XXX_FW;
+		hw_data->fw_mmp_name = ADF_4XXX_MMP;
+		hw_data->uof_get_name = uof_get_name_4xxx;
+	}
 	hw_data->uof_get_num_objs = uof_get_num_objs;
-	hw_data->uof_get_name = uof_get_name;
 	hw_data->uof_get_ae_mask = uof_get_ae_mask;
 	hw_data->set_msix_rttable = set_msix_default_rttable;
 	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;

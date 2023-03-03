@@ -16,6 +16,7 @@
 static const struct pci_device_id adf_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ADF_4XXX_PCI_DEVICE_ID), },
 	{ PCI_VDEVICE(INTEL, ADF_401XX_PCI_DEVICE_ID), },
+	{ PCI_VDEVICE(INTEL, ADF_402XX_PCI_DEVICE_ID), },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
@@ -330,7 +331,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	accel_dev->hw_device = hw_data;
-	adf_init_hw_data_4xxx(accel_dev->hw_device);
+	adf_init_hw_data_4xxx(accel_dev->hw_device, ent->device);
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
 	pci_read_config_dword(pdev, ADF_4XXX_FUSECTL4_OFFSET, &hw_data->fuses);
