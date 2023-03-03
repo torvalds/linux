@@ -908,14 +908,12 @@ out:
 	return ret;
 }
 
-static int a3700_spi_remove(struct platform_device *pdev)
+static void a3700_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct a3700_spi *spi = spi_controller_get_devdata(host);
 
 	clk_unprepare(spi->clk);
-
-	return 0;
 }
 
 static struct platform_driver a3700_spi_driver = {
@@ -924,7 +922,7 @@ static struct platform_driver a3700_spi_driver = {
 		.of_match_table = of_match_ptr(a3700_spi_dt_ids),
 	},
 	.probe		= a3700_spi_probe,
-	.remove		= a3700_spi_remove,
+	.remove_new	= a3700_spi_remove,
 };
 
 module_platform_driver(a3700_spi_driver);
