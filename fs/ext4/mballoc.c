@@ -4926,7 +4926,6 @@ void ext4_discard_preallocations(struct inode *inode, unsigned int needed)
 	int err;
 
 	if (!S_ISREG(inode->i_mode)) {
-		/*BUG_ON(!list_empty(&ei->i_prealloc_list));*/
 		return;
 	}
 
