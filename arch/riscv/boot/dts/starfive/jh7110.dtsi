@@ -344,7 +344,6 @@
 			resets = <&rstgen RSTN_U0_CDNS_QSPI_APB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_AHB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_REF>;
-			resets-names = "rst_apb", "rst_ahb", "rst_ref";
 			cdns,fifo-depth = <256>;
 			cdns,fifo-width = <4>;
 			cdns,trigger-address = <0x0>;
