@@ -794,6 +794,7 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 			 unsigned nr_replicas,
 			 unsigned *nr_effective,
 			 bool *have_cache,
+			 enum alloc_reserve reserve,
 			 unsigned flags,
 			 struct closure *cl)
 {
@@ -813,9 +814,7 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 	if (ec_open_bucket(c, ptrs))
 		return 0;
 
-	h = bch2_ec_stripe_head_get(trans, target, 0, nr_replicas - 1,
-				    wp == &c->copygc_write_point,
-				    cl);
+	h = bch2_ec_stripe_head_get(trans, target, 0, nr_replicas - 1, reserve, cl);
 	if (IS_ERR(h))
 		return PTR_ERR(h);
 	if (!h)
@@ -926,7 +925,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 			ret = bucket_alloc_from_stripe(trans, ptrs, wp, &devs,
 						 target, erasure_code,
 						 nr_replicas, nr_effective,
-						 have_cache, flags, _cl);
+						 have_cache, reserve, flags, _cl);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
 			    bch2_err_matches(ret, BCH_ERR_freelist_empty) ||
 			    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))

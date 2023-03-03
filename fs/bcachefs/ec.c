@@ -1336,7 +1336,7 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 static struct ec_stripe_head *
 ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 			 unsigned algo, unsigned redundancy,
-			 bool copygc)
+			 enum alloc_reserve reserve)
 {
 	struct ec_stripe_head *h;
 	struct bch_dev *ca;
@@ -1352,7 +1352,7 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 	h->target	= target;
 	h->algo		= algo;
 	h->redundancy	= redundancy;
-	h->copygc	= copygc;
+	h->reserve	= reserve;
 
 	rcu_read_lock();
 	h->devs = target_rw_devs(c, BCH_DATA_user, target);
@@ -1387,7 +1387,7 @@ struct ec_stripe_head *__bch2_ec_stripe_head_get(struct btree_trans *trans,
 						 unsigned target,
 						 unsigned algo,
 						 unsigned redundancy,
-						 bool copygc)
+						 enum alloc_reserve reserve)
 {
 	struct bch_fs *c = trans->c;
 	struct ec_stripe_head *h;
@@ -1404,21 +1404,21 @@ struct ec_stripe_head *__bch2_ec_stripe_head_get(struct btree_trans *trans,
 		if (h->target		== target &&
 		    h->algo		== algo &&
 		    h->redundancy	== redundancy &&
-		    h->copygc		== copygc) {
+		    h->reserve		== reserve) {
 			ret = bch2_trans_mutex_lock(trans, &h->lock);
 			if (ret)
 				h = ERR_PTR(ret);
 			goto found;
 		}
 
-	h = ec_new_stripe_head_alloc(c, target, algo, redundancy, copygc);
+	h = ec_new_stripe_head_alloc(c, target, algo, redundancy, reserve);
 found:
 	mutex_unlock(&c->ec_stripe_head_lock);
 	return h;
 }
 
 static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_head *h,
-				    struct closure *cl)
+				    enum alloc_reserve reserve, struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_devs_mask devs = h->devs;
@@ -1428,14 +1428,12 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 	bool have_cache = true;
 	int ret = 0;
 
-	for (i = 0; i < h->s->new_stripe.key.v.nr_blocks; i++) {
-		if (test_bit(i, h->s->blocks_gotten)) {
-			__clear_bit(h->s->new_stripe.key.v.ptrs[i].dev, devs.d);
-			if (i < h->s->nr_data)
-				nr_have_data++;
-			else
-				nr_have_parity++;
-		}
+	for_each_set_bit(i, h->s->blocks_gotten, h->s->new_stripe.key.v.nr_blocks) {
+		__clear_bit(h->s->new_stripe.key.v.ptrs[i].dev, devs.d);
+		if (i < h->s->nr_data)
+			nr_have_data++;
+		else
+			nr_have_parity++;
 	}
 
 	BUG_ON(nr_have_data	> h->s->nr_data);
@@ -1449,9 +1447,7 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 					    h->s->nr_parity,
 					    &nr_have_parity,
 					    &have_cache,
-					    h->copygc
-					    ? RESERVE_movinggc
-					    : RESERVE_none,
+					    reserve,
 					    0,
 					    cl);
 
@@ -1478,9 +1474,7 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 					    h->s->nr_data,
 					    &nr_have_data,
 					    &have_cache,
-					    h->copygc
-					    ? RESERVE_movinggc
-					    : RESERVE_none,
+					    reserve,
 					    0,
 					    cl);
 
@@ -1640,7 +1634,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 					       unsigned target,
 					       unsigned algo,
 					       unsigned redundancy,
-					       bool copygc,
+					       enum alloc_reserve reserve,
 					       struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -1648,7 +1642,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 	int ret;
 	bool needs_stripe_new;
 
-	h = __bch2_ec_stripe_head_get(trans, target, algo, redundancy, copygc);
+	h = __bch2_ec_stripe_head_get(trans, target, algo, redundancy, reserve);
 	if (!h)
 		bch_err(c, "no stripe head");
 	if (IS_ERR_OR_NULL(h))
@@ -1685,7 +1679,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 	}
 
 	if (!h->s->allocated) {
-		ret = new_stripe_alloc_buckets(trans, h, cl);
+		ret = new_stripe_alloc_buckets(trans, h, reserve, cl);
 		if (ret)
 			goto err;
 
