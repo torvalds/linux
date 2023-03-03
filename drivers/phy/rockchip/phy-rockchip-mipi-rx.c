@@ -750,6 +750,9 @@ static int mipidphy_get_sensor_data_rate(struct v4l2_subdev *sd)
 	struct v4l2_querymenu qm = { .id = V4L2_CID_LINK_FREQ, };
 	int ret;
 
+	if (!sensor_sd)
+		return -ENODEV;
+
 	link_freq = v4l2_ctrl_find(sensor_sd->ctrl_handler, V4L2_CID_LINK_FREQ);
 	if (!link_freq) {
 		v4l2_warn(sd, "No pixel rate control in subdev\n");
@@ -777,10 +780,15 @@ static int mipidphy_update_sensor_mbus(struct v4l2_subdev *sd)
 {
 	struct mipidphy_priv *priv = to_dphy_priv(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	struct mipidphy_sensor *sensor;
 	struct v4l2_mbus_config mbus;
 	int ret;
 
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(priv, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 	ret = v4l2_subdev_call(sensor_sd, pad, get_mbus_config, 0, &mbus);
 	if (ret)
 		return ret;
@@ -909,6 +917,8 @@ static int mipidphy_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 	if (!sensor_sd)
 		return -ENODEV;
 	sensor = sd_to_sensor(priv, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 	mipidphy_update_sensor_mbus(sd);
 	*config = sensor->mbus;
 
@@ -970,13 +980,16 @@ static int mipidphy_get_set_fmt(struct v4l2_subdev *sd,
 {
 	struct mipidphy_priv *priv = to_dphy_priv(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	struct mipidphy_sensor *sensor;
 	int ret;
 	/*
 	 * Do not allow format changes and just relay whatever
 	 * set currently in the sensor.
 	 */
 	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(priv, sensor_sd);
+	if (!sensor)
 		return -ENODEV;
 	ret = v4l2_subdev_call(sensor_sd, pad, get_fmt, NULL, fmt);
 	if (!ret && fmt->pad == 0)
@@ -1146,11 +1159,17 @@ static int mipidphy_rx_stream_on(struct mipidphy_priv *priv,
 				 struct v4l2_subdev *sd)
 {
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	struct mipidphy_sensor *sensor;
 	const struct dphy_drv_data *drv_data = priv->drv_data;
 	const struct hsfreq_range *hsfreq_ranges = drv_data->hsfreq_ranges;
 	int num_hsfreq_ranges = drv_data->num_hsfreq_ranges;
 	int i, hsfreq = 0;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(priv, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 
 	for (i = 0; i < num_hsfreq_ranges; i++) {
 		if (hsfreq_ranges[i].range_h >= priv->data_rate_mbps) {
@@ -1237,11 +1256,17 @@ static int mipidphy_txrx_stream_on(struct mipidphy_priv *priv,
 				   struct v4l2_subdev *sd)
 {
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	struct mipidphy_sensor *sensor;
 	const struct dphy_drv_data *drv_data = priv->drv_data;
 	const struct hsfreq_range *hsfreq_ranges = drv_data->hsfreq_ranges;
 	int num_hsfreq_ranges = drv_data->num_hsfreq_ranges;
 	int i, hsfreq = 0;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(priv, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 
 	for (i = 0; i < num_hsfreq_ranges; i++) {
 		if (hsfreq_ranges[i].range_h >= priv->data_rate_mbps) {
@@ -1356,13 +1381,19 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 				  struct v4l2_subdev *sd)
 {
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	struct mipidphy_sensor *sensor;
 	const struct dphy_drv_data *drv_data = priv->drv_data;
 	const struct hsfreq_range *hsfreq_ranges = drv_data->hsfreq_ranges;
 	int num_hsfreq_ranges = drv_data->num_hsfreq_ranges;
 	int i, hsfreq = 0;
 	u32 val = 0;
 	u32 clk_mode = 0x03;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(priv, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 
 	write_grf_reg(priv, GRF_DVP_V18SEL, 0x1);
 
@@ -1652,7 +1683,8 @@ rockchip_mipidphy_notifier_unbind(struct v4l2_async_notifier *notifier,
 						  notifier);
 	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sd);
 
-	sensor->sd = NULL;
+	if (sensor)
+		sensor->sd = NULL;
 }
 
 static const struct

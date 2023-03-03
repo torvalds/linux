@@ -681,7 +681,7 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 					struct v4l2_subdev *sd)
 {
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
+	struct csi2_sensor *sensor;
 	struct csi2_dphy_hw *hw = dphy->dphy_hw;
 	const struct dphy_hw_drv_data *drv_data = hw->drv_data;
 	const struct hsfreq_range *hsfreq_ranges = drv_data->hsfreq_ranges;
@@ -689,6 +689,12 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 	int i, hsfreq = 0;
 	u32 val = 0, pre_val;
 	u8 lvds_width = 0;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 
 	mutex_lock(&hw->mutex);
 

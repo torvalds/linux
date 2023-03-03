@@ -2174,9 +2174,15 @@ static int samsung_dcphy_rx_stream_on(struct csi2_dphy *dphy,
 					struct v4l2_subdev *sd)
 {
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
+	struct csi2_sensor *sensor;
 	struct samsung_mipi_dcphy *samsung = dphy->samsung_phy;
 	int ret = 0;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 
 	mutex_lock(&samsung->mutex);
 	if (sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)
@@ -2216,7 +2222,13 @@ static int samsung_dcphy_rx_stream_off(struct csi2_dphy *dphy,
 {
 	struct samsung_mipi_dcphy *samsung = dphy->samsung_phy;
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
+	struct csi2_sensor *sensor;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 
 	if (atomic_dec_return(&samsung->stream_cnt))
 		return 0;

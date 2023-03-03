@@ -74,6 +74,9 @@ static int csi2_dphy_get_sensor_data_rate(struct v4l2_subdev *sd)
 	struct v4l2_querymenu qm = { .id = V4L2_CID_LINK_FREQ, };
 	int ret;
 
+	if (!sensor_sd)
+		return -ENODEV;
+
 	link_freq = v4l2_ctrl_find(sensor_sd->ctrl_handler, V4L2_CID_LINK_FREQ);
 	if (!link_freq) {
 		v4l2_warn(sd, "No pixel rate control in subdev\n");
@@ -102,10 +105,16 @@ static int csi2_dphy_update_sensor_mbus(struct v4l2_subdev *sd)
 {
 	struct csi2_dphy *dphy = to_csi2_dphy(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
+	struct csi2_sensor *sensor;
 	struct v4l2_mbus_config mbus;
 	struct rkmodule_bus_config bus_config;
 	int ret;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 
 	ret = v4l2_subdev_call(sensor_sd, pad, get_mbus_config, 0, &mbus);
 	if (ret)
@@ -280,6 +289,8 @@ static int csi2_dphy_g_mbus_config(struct v4l2_subdev *sd,
 	if (!sensor_sd)
 		return -ENODEV;
 	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 	csi2_dphy_update_sensor_mbus(sd);
 	*config = sensor->mbus;
 
@@ -347,13 +358,16 @@ static int csi2_dphy_get_set_fmt(struct v4l2_subdev *sd,
 {
 	struct csi2_dphy *dphy = to_csi2_dphy(sd);
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
-	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
+	struct csi2_sensor *sensor;
 	int ret;
 	/*
 	 * Do not allow format changes and just relay whatever
 	 * set currently in the sensor.
 	 */
 	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
 		return -ENODEV;
 	ret = v4l2_subdev_call(sensor_sd, pad, get_fmt, NULL, fmt);
 	if (!ret && fmt->pad == 0 && fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -454,7 +468,8 @@ rockchip_csi2_dphy_notifier_unbind(struct v4l2_async_notifier *notifier,
 						  notifier);
 	struct csi2_sensor *sensor = sd_to_sensor(dphy, sd);
 
-	sensor->sd = NULL;
+	if (sensor)
+		sensor->sd = NULL;
 }
 
 static const struct
