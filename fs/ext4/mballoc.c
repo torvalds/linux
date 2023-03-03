@@ -3069,7 +3069,7 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 		if (meta_group_info == NULL) {
 			ext4_msg(sb, KERN_ERR, "can't allocate mem "
 				 "for a buddy group");
-			goto exit_meta_group_info;
+			return -ENOMEM;
 		}
 		rcu_read_lock();
 		rcu_dereference(sbi->s_group_info)[idx] = meta_group_info;
@@ -3123,7 +3123,6 @@ exit_group_info:
 		group_info[idx] = NULL;
 		rcu_read_unlock();
 	}
-exit_meta_group_info:
 	return -ENOMEM;
 } /* ext4_mb_add_groupinfo */
 
