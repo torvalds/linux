@@ -26,6 +26,7 @@ attribute-sets:
       -
         name: unspec
         type: unused
+        value: 0
       -
         name: port
         type: u16
@@ -71,6 +72,7 @@ operations:
     -
       name: unspec
       doc: unused
+      value: 0
 
     -
       name: add

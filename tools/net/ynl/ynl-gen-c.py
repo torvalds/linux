@@ -2044,14 +2044,17 @@ def render_uapi(family, cw):
     max_value = f"({cnt_name} - 1)"
 
     uapi_enum_start(family, cw, family['operations'], 'enum-name')
+    val = 0
     for op in family.msgs.values():
         if separate_ntf and ('notify' in op or 'event' in op):
             continue
 
         suffix = ','
-        if 'value' in op:
-            suffix = f" = {op['value']},"
+        if op.value != val:
+            suffix = f" = {op.value},"
+            val = op.value
         cw.p(op.enum_name + suffix)
+        val += 1
     cw.nl()
     cw.p(cnt_name + ('' if max_by_define else ','))
     if not max_by_define:
