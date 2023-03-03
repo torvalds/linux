@@ -1702,11 +1702,12 @@ static int bch2_gc_write_stripes_key(struct btree_trans *trans,
 	return 0;
 inconsistent:
 	if (fsck_err_on(true, c,
-			"stripe has wrong block sector count %u:\n"
+			"stripe block %u has wrong sector count:\n"
 			"  %s\n"
-			"  should be %u", i,
+			"  got %u, should be %u", i,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf),
+			stripe_blockcount_get(s, i),
 			m ? m->block_sectors[i] : 0)) {
 		struct bkey_i_stripe *new;
 

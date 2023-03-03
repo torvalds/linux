@@ -866,8 +866,16 @@ static int ec_stripe_key_update(struct btree_trans *trans,
 			goto err;
 		}
 
-		for (i = 0; i < new->v.nr_blocks; i++)
-			stripe_blockcount_set(&new->v, i, stripe_blockcount_get(old, i));
+		for (i = 0; i < new->v.nr_blocks; i++) {
+			unsigned v = stripe_blockcount_get(old, i);
+
+			BUG_ON(v &&
+			       (old->ptrs[i].dev != new->v.ptrs[i].dev ||
+				old->ptrs[i].gen != new->v.ptrs[i].gen ||
+				old->ptrs[i].offset != new->v.ptrs[i].offset));
+
+			stripe_blockcount_set(&new->v, i, v);
+		}
 	}
 
 	ret = bch2_trans_update(trans, &iter, &new->k_i, 0);
@@ -1542,10 +1550,11 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 	if (idx < 0)
 		return -BCH_ERR_ENOSPC_stripe_reuse;
 
-	h->s->have_existing_stripe = true;
 	ret = get_stripe_key_trans(trans, idx, &h->s->existing_stripe);
 	if (ret) {
-		bch2_fs_fatal_error(c, "error reading stripe key: %i", ret);
+		bch2_stripe_close(c, h->s);
+		if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			bch2_fs_fatal_error(c, "error reading stripe key: %s", bch2_err_str(ret));
 		return ret;
 	}
 
@@ -1569,8 +1578,8 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 		ec_block_io(c, &h->s->existing_stripe, READ, i, &h->s->iodone);
 	}
 
-	bkey_copy(&h->s->new_stripe.key.k_i,
-		  &h->s->existing_stripe.key.k_i);
+	bkey_copy(&h->s->new_stripe.key.k_i, &h->s->existing_stripe.key.k_i);
+	h->s->have_existing_stripe = true;
 
 	return 0;
 }
@@ -1584,13 +1593,14 @@ static int __bch2_ec_stripe_head_reserve(struct btree_trans *trans, struct ec_st
 	struct bpos start_pos = bpos_max(min_pos, POS(0, c->ec_stripe_hint));
 	int ret;
 
-	BUG_ON(h->s->res.sectors);
-
-	ret = bch2_disk_reservation_get(c, &h->s->res,
+	if (!h->s->res.sectors) {
+		ret = bch2_disk_reservation_get(c, &h->s->res,
 					h->blocksize,
-					h->s->nr_parity, 0);
-	if (ret)
-		return ret;
+					h->s->nr_parity,
+					BCH_DISK_RESERVATION_NOFAIL);
+		if (ret)
+			return ret;
+	}
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_stripes, start_pos,
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
@@ -1673,10 +1683,8 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 
 	if (ret && needs_stripe_new)
 		ret = __bch2_ec_stripe_head_reuse(trans, h);
-	if (ret) {
-		bch_err_ratelimited(c, "failed to get stripe: %s", bch2_err_str(ret));
+	if (ret)
 		goto err;
-	}
 
 	if (!h->s->allocated) {
 		ret = new_stripe_alloc_buckets(trans, h, reserve, cl);
