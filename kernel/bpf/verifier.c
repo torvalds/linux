@@ -4218,7 +4218,7 @@ static int map_kptr_match_type(struct bpf_verifier_env *env,
 			       struct bpf_reg_state *reg, u32 regno)
 {
 	const char *targ_name = kernel_type_name(kptr_field->kptr.btf, kptr_field->kptr.btf_id);
-	int perm_flags = PTR_MAYBE_NULL | PTR_TRUSTED;
+	int perm_flags = PTR_MAYBE_NULL | PTR_TRUSTED | MEM_RCU;
 	const char *reg_name = "";
 
 	/* Only unreferenced case accepts untrusted pointers */
@@ -4285,6 +4285,34 @@ bad_type:
 	return -EINVAL;
 }
 
+/* The non-sleepable programs and sleepable programs with explicit bpf_rcu_read_lock()
+ * can dereference RCU protected pointers and result is PTR_TRUSTED.
+ */
+static bool in_rcu_cs(struct bpf_verifier_env *env)
+{
+	return env->cur_state->active_rcu_lock || !env->prog->aux->sleepable;
+}
+
+/* Once GCC supports btf_type_tag the following mechanism will be replaced with tag check */
+BTF_SET_START(rcu_protected_types)
+BTF_ID(struct, prog_test_ref_kfunc)
+BTF_ID(struct, cgroup)
+BTF_SET_END(rcu_protected_types)
+
+static bool rcu_protected_object(const struct btf *btf, u32 btf_id)
+{
+	if (!btf_is_kernel(btf))
+		return false;
+	return btf_id_set_contains(&rcu_protected_types, btf_id);
+}
+
+static bool rcu_safe_kptr(const struct btf_field *field)
+{
+	const struct btf_field_kptr *kptr = &field->kptr;
+
+	return field->type == BPF_KPTR_REF && rcu_protected_object(kptr->btf, kptr->btf_id);
+}
+
 static int check_map_kptr_access(struct bpf_verifier_env *env, u32 regno,
 				 int value_regno, int insn_idx,
 				 struct btf_field *kptr_field)
@@ -4319,7 +4347,10 @@ static int check_map_kptr_access(struct bpf_verifier_env *env, u32 regno,
 		 * value from map as PTR_TO_BTF_ID, with the correct type.
 		 */
 		mark_btf_ld_reg(env, cur_regs(env), value_regno, PTR_TO_BTF_ID, kptr_field->kptr.btf,
-				kptr_field->kptr.btf_id, PTR_MAYBE_NULL | PTR_UNTRUSTED);
+				kptr_field->kptr.btf_id,
+				rcu_safe_kptr(kptr_field) && in_rcu_cs(env) ?
+				PTR_MAYBE_NULL | MEM_RCU :
+				PTR_MAYBE_NULL | PTR_UNTRUSTED);
 		/* For mark_ptr_or_null_reg */
 		val_reg->id = ++env->id_gen;
 	} else if (class == BPF_STX) {
@@ -5163,10 +5194,17 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 	 * An RCU-protected pointer can also be deemed trusted if we are in an
 	 * RCU read region. This case is handled below.
 	 */
-	if (nested_ptr_is_trusted(env, reg, off))
+	if (nested_ptr_is_trusted(env, reg, off)) {
 		flag |= PTR_TRUSTED;
-	else
+		/*
+		 * task->cgroups is trusted. It provides a stronger guarantee
+		 * than __rcu tag on 'cgroups' field in 'struct task_struct'.
+		 * Clear MEM_RCU in such case.
+		 */
+		flag &= ~MEM_RCU;
+	} else {
 		flag &= ~PTR_TRUSTED;
+	}
 
 	if (flag & MEM_RCU) {
 		/* Mark value register as MEM_RCU only if it is protected by
@@ -5175,11 +5213,10 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 		 * read lock region. Also mark rcu pointer as PTR_MAYBE_NULL since
 		 * it could be null in some cases.
 		 */
-		if (!env->cur_state->active_rcu_lock ||
-		    !(is_trusted_reg(reg) || is_rcu_reg(reg)))
-			flag &= ~MEM_RCU;
-		else
+		if (in_rcu_cs(env) && (is_trusted_reg(reg) || is_rcu_reg(reg)))
 			flag |= PTR_MAYBE_NULL;
+		else
+			flag &= ~MEM_RCU;
 	} else if (reg->type & MEM_RCU) {
 		/* ptr (reg) is marked as MEM_RCU, but the struct field is not tagged
 		 * with __rcu. Mark the flag as PTR_UNTRUSTED conservatively.
@@ -9676,7 +9713,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 			return -EINVAL;
 		}
 
-		if (is_kfunc_trusted_args(meta) &&
+		if ((is_kfunc_trusted_args(meta) || is_kfunc_rcu(meta)) &&
 		    (register_is_null(reg) || type_may_be_null(reg->type))) {
 			verbose(env, "Possibly NULL pointer passed to trusted arg%d\n", i);
 			return -EACCES;

@@ -249,11 +249,13 @@ added later.
 2.4.8 KF_RCU flag
 -----------------
 
-The KF_RCU flag is used for kfuncs which have a rcu ptr as its argument.
-When used together with KF_ACQUIRE, it indicates the kfunc should have a
-single argument which must be a trusted argument or a MEM_RCU pointer.
-The argument may have reference count of 0 and the kfunc must take this
-into consideration.
+The KF_RCU flag is a weaker version of KF_TRUSTED_ARGS. The kfuncs marked with
+KF_RCU expect either PTR_TRUSTED or MEM_RCU arguments. The verifier guarantees
+that the objects are valid and there is no use-after-free. The pointers are not
+NULL, but the object's refcount could have reached zero. The kfuncs need to
+consider doing refcnt != 0 check, especially when returning a KF_ACQUIRE
+pointer. Note as well that a KF_ACQUIRE kfunc that is KF_RCU should very likely
+also be KF_RET_NULL.
 
 .. _KF_deprecated_flag:
 
