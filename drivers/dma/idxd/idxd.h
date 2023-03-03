@@ -598,6 +598,7 @@ int idxd_register_driver(void);
 void idxd_unregister_driver(void);
 void idxd_wqs_quiesce(struct idxd_device *idxd);
 bool idxd_queue_int_handle_resubmit(struct idxd_desc *desc);
+void multi_u64_to_bmap(unsigned long *bmap, u64 *val, int count);
 
 /* device interrupt control */
 irqreturn_t idxd_misc_thread(int vec, void *data);

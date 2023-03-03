@@ -1452,15 +1452,13 @@ static ssize_t errors_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
-	int i, out = 0;
+	DECLARE_BITMAP(swerr_bmap, 256);
 
+	bitmap_zero(swerr_bmap, 256);
 	spin_lock(&idxd->dev_lock);
-	for (i = 0; i < 4; i++)
-		out += sysfs_emit_at(buf, out, "%#018llx ", idxd->sw_err.bits[i]);
+	multi_u64_to_bmap(swerr_bmap, &idxd->sw_err.bits[0], 4);
 	spin_unlock(&idxd->dev_lock);
-	out--;
-	out += sysfs_emit_at(buf, out, "\n");
-	return out;
+	return sysfs_emit(buf, "%*pb\n", 256, swerr_bmap);
 }
 static DEVICE_ATTR_RO(errors);
 
