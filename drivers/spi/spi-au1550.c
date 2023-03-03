@@ -923,7 +923,7 @@ err_nomem:
 	return err;
 }
 
-static int au1550_spi_remove(struct platform_device *pdev)
+static void au1550_spi_remove(struct platform_device *pdev)
 {
 	struct au1550_spi *hw = platform_get_drvdata(pdev);
 
@@ -942,7 +942,6 @@ static int au1550_spi_remove(struct platform_device *pdev)
 	}
 
 	spi_master_put(hw->master);
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -950,7 +949,7 @@ MODULE_ALIAS("platform:au1550-spi");
 
 static struct platform_driver au1550_spi_drv = {
 	.probe = au1550_spi_probe,
-	.remove = au1550_spi_remove,
+	.remove_new = au1550_spi_remove,
 	.driver = {
 		.name = "au1550-spi",
 	},
