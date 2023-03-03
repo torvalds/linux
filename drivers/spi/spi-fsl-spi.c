@@ -716,13 +716,12 @@ unmap_out:
 	return ret;
 }
 
-static int of_fsl_spi_remove(struct platform_device *ofdev)
+static void of_fsl_spi_remove(struct platform_device *ofdev)
 {
 	struct spi_master *master = platform_get_drvdata(ofdev);
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
 
 	fsl_spi_cpm_free(mpc8xxx_spi);
-	return 0;
 }
 
 static struct platform_driver of_fsl_spi_driver = {
@@ -731,7 +730,7 @@ static struct platform_driver of_fsl_spi_driver = {
 		.of_match_table = of_fsl_spi_match,
 	},
 	.probe		= of_fsl_spi_probe,
-	.remove		= of_fsl_spi_remove,
+	.remove_new	= of_fsl_spi_remove,
 };
 
 #ifdef CONFIG_MPC832x_RDB
@@ -763,20 +762,18 @@ static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(master);
 }
 
-static int plat_mpc8xxx_spi_remove(struct platform_device *pdev)
+static void plat_mpc8xxx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
 
 	fsl_spi_cpm_free(mpc8xxx_spi);
-
-	return 0;
 }
 
 MODULE_ALIAS("platform:mpc8xxx_spi");
 static struct platform_driver mpc8xxx_spi_driver = {
 	.probe = plat_mpc8xxx_spi_probe,
-	.remove = plat_mpc8xxx_spi_remove,
+	.remove_new = plat_mpc8xxx_spi_remove,
 	.driver = {
 		.name = "mpc8xxx_spi",
 	},
