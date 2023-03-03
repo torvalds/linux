@@ -1718,7 +1718,8 @@ static void mb_buddy_mark_free(struct ext4_buddy *e4b, int first, int last)
 			break;
 		order++;
 
-		if (first == last || !(buddy2 = mb_find_buddy(e4b, order, &max))) {
+		buddy2 = mb_find_buddy(e4b, order, &max);
+		if (!buddy2) {
 			mb_clear_bits(buddy, first, last - first + 1);
 			e4b->bd_info->bb_counters[order - 1] += last - first + 1;
 			break;
