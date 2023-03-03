@@ -41,7 +41,7 @@ properties:
       Phandle to the system controller node
     $ref: /schemas/types.yaml#/definitions/phandle
 
-#Required child nodes:
+# Required child nodes:
 
 patternProperties:
   "^usb-phy@[0|1]$":

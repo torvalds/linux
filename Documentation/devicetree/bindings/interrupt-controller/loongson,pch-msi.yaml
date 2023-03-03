@@ -46,7 +46,7 @@ required:
   - loongson,msi-base-vec
   - loongson,msi-num-vecs
 
-additionalProperties: true #fixme
+additionalProperties: true # fixme
 
 examples:
   - |
