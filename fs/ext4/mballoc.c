@@ -3739,9 +3739,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 
 	bitmap_bh = ext4_read_block_bitmap(sb, ac->ac_b_ex.fe_group);
 	if (IS_ERR(bitmap_bh)) {
-		err = PTR_ERR(bitmap_bh);
-		bitmap_bh = NULL;
-		goto out_err;
+		return PTR_ERR(bitmap_bh);
 	}
 
 	BUFFER_TRACE(bitmap_bh, "getting write access");
