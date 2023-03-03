@@ -162,7 +162,7 @@ bool qcom_va_md_enabled(void)
 }
 EXPORT_SYMBOL(qcom_va_md_enabled);
 
-int qcom_va_md_register(char *name, struct notifier_block *nb)
+int qcom_va_md_register(const char *name, struct notifier_block *nb)
 {
 	int ret = 0;
 	struct va_md_s_data *va_md_s_data;
@@ -236,6 +236,56 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(qcom_va_md_register);
+
+int qcom_va_md_unregister(const char *name, struct notifier_block *nb)
+{
+	struct va_md_s_data *va_md_s_data;
+	struct notifier_block_list *nbl, *tmpnbl;
+	struct kobject *kobj;
+	int ret = 0;
+	bool found = false;
+
+	if (!qcom_va_md_enabled()) {
+		pr_err("qcom va minidump driver is not initialized\n");
+		return -ENODEV;
+	}
+
+	mutex_lock(&va_md_lock);
+	kobj = kset_find_obj(va_md_data.va_md_kset, name);
+	if (!kobj) {
+		pr_warn("subsystem: %s is not registered\n", name);
+		mutex_unlock(&va_md_lock);
+		return -EINVAL;
+	}
+	va_md_s_data = to_va_md_s_data(kobj);
+	kobject_put(kobj);
+
+	list_for_each_entry_safe(nbl, tmpnbl, &va_md_s_data->va_md_s_nb_list, nb_list) {
+		if (nbl->nb.notifier_call == nb->notifier_call) {
+			atomic_notifier_chain_unregister(&va_md_s_data->va_md_s_notif_list,
+							&nbl->nb);
+			list_del(&nbl->nb_list);
+			kfree(nbl);
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		pr_warn("subsystem:%s callback is not registered\n", name);
+		ret = -EINVAL;
+	} else if (list_empty(&va_md_s_data->va_md_s_nb_list)) {
+		list_del(&va_md_s_data->va_md_s_nb_list);
+		sysfs_remove_group(&va_md_s_data->s_kobj, &va_md_s_attr_group);
+		kobject_put(&va_md_s_data->s_kobj);
+		list_del(&va_md_s_data->va_md_s_list);
+		kfree(va_md_s_data);
+	}
+
+	mutex_unlock(&va_md_lock);
+	return ret;
+}
+EXPORT_SYMBOL(qcom_va_md_unregister);
 
 static void va_md_add_entry(struct va_md_entry *entry)
 {
