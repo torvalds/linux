@@ -1064,8 +1064,10 @@ static void starfive_jh7110_sys_parse_pin_config(
 	if (pin_data->pin < PAD_GMAC1_MDC) {
 		pin_reg->io_conf_reg = (pin_data->pin * GPO_PDA_CFG_OFFSET)
 			+ SYS_GPO_PDA_0_74_CFG_BASE_REG;
-	} else if (pin_data->pin > PAD_GMAC1_TXC) {
-		pin_reg->io_conf_reg = (pin_data->pin * GPO_PDA_CFG_OFFSET)
+	} else if (pin_data->pin >= PAD_QSPI_SCLK &&
+		   pin_data->pin <= PAD_QSPI_DATA3) {
+		pin_reg->io_conf_reg =
+			((pin_data->pin - PAD_QSPI_SCLK) * GPO_PDA_CFG_OFFSET)
 			+ SYS_GPO_PDA_89_94_CFG_BASE_REG;
 	}
 
