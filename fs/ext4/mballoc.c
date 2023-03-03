@@ -2019,8 +2019,6 @@ static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	struct ext4_free_extent *bex = &ac->ac_b_ex;
 	struct ext4_free_extent *gex = &ac->ac_g_ex;
-	struct ext4_free_extent ex;
-	int max;
 
 	if (ac->ac_status == AC_STATUS_FOUND)
 		return;
@@ -2039,16 +2037,8 @@ static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
 	if (bex->fe_len < gex->fe_len)
 		return;
 
-	if (finish_group && bex->fe_group == e4b->bd_group) {
-		/* recheck chunk's availability - we don't know
-		 * when it was found (within this lock-unlock
-		 * period or not) */
-		max = mb_find_extent(e4b, bex->fe_start, gex->fe_len, &ex);
-		if (max >= gex->fe_len) {
-			ext4_mb_use_best_found(ac, e4b);
-			return;
-		}
-	}
+	if (finish_group)
+		ext4_mb_use_best_found(ac, e4b);
 }
 
 /*
