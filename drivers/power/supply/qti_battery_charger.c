@@ -19,6 +19,7 @@
 #include <linux/pm_wakeup.h>
 #include <linux/power_supply.h>
 #include <linux/reboot.h>
+#include <linux/thermal.h>
 #include <linux/soc/qcom/pmic_glink.h>
 #include <linux/soc/qcom/battery_charger.h>
 #include <linux/soc/qcom/panel_event_notifier.h>
@@ -2337,11 +2338,50 @@ static int battery_chg_register_panel_notifier(struct battery_chg_dev *bcdev)
 	return 0;
 }
 
+static int
+battery_chg_get_max_charge_cntl_limit(struct thermal_cooling_device *tcd,
+					unsigned long *state)
+{
+	struct battery_chg_dev *bcdev = tcd->devdata;
+
+	*state = bcdev->num_thermal_levels;
+
+	return 0;
+}
+
+static int
+battery_chg_get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
+					unsigned long *state)
+{
+	struct battery_chg_dev *bcdev = tcd->devdata;
+
+	*state = bcdev->curr_thermal_level;
+
+	return 0;
+}
+
+static int
+battery_chg_set_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
+					unsigned long state)
+{
+	struct battery_chg_dev *bcdev = tcd->devdata;
+
+	return battery_psy_set_charge_current(bcdev, (int)state);
+}
+
+static const struct thermal_cooling_device_ops battery_tcd_ops = {
+	.get_max_state = battery_chg_get_max_charge_cntl_limit,
+	.get_cur_state = battery_chg_get_cur_charge_cntl_limit,
+	.set_cur_state = battery_chg_set_cur_charge_cntl_limit,
+};
+
 static int battery_chg_probe(struct platform_device *pdev)
 {
 	struct battery_chg_dev *bcdev;
 	struct device *dev = &pdev->dev;
 	struct pmic_glink_client_data client_data = { };
+	struct thermal_cooling_device *tcd;
+	struct psy_state *pst;
 	int rc, i;
 
 	bcdev = devm_kzalloc(&pdev->dev, sizeof(*bcdev), GFP_KERNEL);
@@ -2435,6 +2475,17 @@ static int battery_chg_probe(struct platform_device *pdev)
 	rc = class_register(&bcdev->battery_class);
 	if (rc < 0) {
 		dev_err(dev, "Failed to create battery_class rc=%d\n", rc);
+		goto error;
+	}
+
+	pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	tcd = devm_thermal_of_cooling_device_register(dev, dev->of_node,
+			(char *)pst->psy->desc->name, bcdev, &battery_tcd_ops);
+	if (IS_ERR_OR_NULL(tcd)) {
+		rc = PTR_ERR_OR_ZERO(tcd);
+		dev_err(dev, "Failed to register thermal cooling device rc=%d\n",
+			rc);
+		class_unregister(&bcdev->battery_class);
 		goto error;
 	}
 
