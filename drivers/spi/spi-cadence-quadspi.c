@@ -1784,7 +1784,7 @@ probe_pm_failed:
 	return ret;
 }
 
-static int cqspi_remove(struct platform_device *pdev)
+static void cqspi_remove(struct platform_device *pdev)
 {
 	struct cqspi_st *cqspi = platform_get_drvdata(pdev);
 
@@ -1798,8 +1798,6 @@ static int cqspi_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1891,7 +1889,7 @@ MODULE_DEVICE_TABLE(of, cqspi_dt_ids);
 
 static struct platform_driver cqspi_platform_driver = {
 	.probe = cqspi_probe,
-	.remove = cqspi_remove,
+	.remove_new = cqspi_remove,
 	.driver = {
 		.name = CQSPI_NAME,
 		.pm = CQSPI_DEV_PM_OPS,
