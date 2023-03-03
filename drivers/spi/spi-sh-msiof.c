@@ -1375,13 +1375,12 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sh_msiof_spi_remove(struct platform_device *pdev)
+static void sh_msiof_spi_remove(struct platform_device *pdev)
 {
 	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
 
 	sh_msiof_release_dma(p);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static const struct platform_device_id spi_driver_ids[] = {
@@ -1414,7 +1413,7 @@ static SIMPLE_DEV_PM_OPS(sh_msiof_spi_pm_ops, sh_msiof_spi_suspend,
 
 static struct platform_driver sh_msiof_spi_drv = {
 	.probe		= sh_msiof_spi_probe,
-	.remove		= sh_msiof_spi_remove,
+	.remove_new	= sh_msiof_spi_remove,
 	.id_table	= spi_driver_ids,
 	.driver		= {
 		.name		= "spi_sh_msiof",
