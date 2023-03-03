@@ -322,7 +322,7 @@ void dcn32_determine_det_override(struct dc *dc,
 
 	/* Check for special case with two displays, one with much higher pixel rate */
 	if (stream_count == 2) {
-		ASSERT(!phy_pix_clk[0] || !phy_pix_clk[1]);
+		ASSERT((phy_pix_clk[0] > 0) && (phy_pix_clk[1] > 0));
 		if (phy_pix_clk[0] < phy_pix_clk[1]) {
 			lower_mode_stream_index = 0;
 			phy_pix_clk_mult = phy_pix_clk[1] / phy_pix_clk[0];
