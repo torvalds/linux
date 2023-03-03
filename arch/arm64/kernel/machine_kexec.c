@@ -102,7 +102,7 @@ static void kexec_segment_flush(const struct kimage *kimage)
 /* Allocates pages for kexec page table */
 static void *kexec_page_alloc(void *arg)
 {
-	struct kimage *kimage = (struct kimage *)arg;
+	struct kimage *kimage = arg;
 	struct page *page = kimage_alloc_control_pages(kimage, 0);
 	void *vaddr = NULL;
 
