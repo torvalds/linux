@@ -937,7 +937,7 @@ out_controller_put:
 	return ret;
 }
 
-static int fsl_lpspi_remove(struct platform_device *pdev)
+static void fsl_lpspi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *controller = platform_get_drvdata(pdev);
 	struct fsl_lpspi_data *fsl_lpspi =
@@ -946,7 +946,6 @@ static int fsl_lpspi_remove(struct platform_device *pdev)
 	fsl_lpspi_dma_exit(controller);
 
 	pm_runtime_disable(fsl_lpspi->dev);
-	return 0;
 }
 
 static int __maybe_unused fsl_lpspi_suspend(struct device *dev)
@@ -983,7 +982,7 @@ static struct platform_driver fsl_lpspi_driver = {
 		.pm = &fsl_lpspi_pm_ops,
 	},
 	.probe = fsl_lpspi_probe,
-	.remove = fsl_lpspi_remove,
+	.remove_new = fsl_lpspi_remove,
 };
 module_platform_driver(fsl_lpspi_driver);
 
