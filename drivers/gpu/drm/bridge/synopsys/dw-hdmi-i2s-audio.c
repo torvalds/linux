@@ -42,6 +42,7 @@ static int dw_hdmi_i2s_hw_params(struct device *dev, void *data,
 	struct dw_hdmi *hdmi = audio->hdmi;
 	u8 conf0 = 0;
 	u8 conf1 = 0;
+	u8 conf2 = 0;
 	u8 inputclkfs = 0;
 
 	/* it cares I2S only */
@@ -101,6 +102,23 @@ static int dw_hdmi_i2s_hw_params(struct device *dev, void *data,
 		return -EINVAL;
 	}
 
+	switch (fmt->bit_fmt) {
+	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
+		conf1 = HDMI_AUD_CONF1_WIDTH_21;
+		conf2 = (hparms->channels == 8) ? HDMI_AUD_CONF2_HBR : HDMI_AUD_CONF2_NLPCM;
+		break;
+	default:
+		/*
+		 * dw-hdmi introduced insert_pcuv bit in version 2.10a.
+		 * When set (1'b1), this bit enables the insertion of the PCUV
+		 * (Parity, Channel Status, User bit and Validity) bits on the
+		 * incoming audio stream (support limited to Linear PCM audio)
+		 */
+		if (hdmi_read(audio, HDMI_DESIGN_ID) >= 0x21)
+			conf2 = HDMI_AUD_CONF2_INSERT_PCUV;
+		break;
+	}
+
 	dw_hdmi_set_sample_rate(hdmi, hparms->sample_rate);
 	dw_hdmi_set_channel_status(hdmi, hparms->iec.status);
 	dw_hdmi_set_channel_count(hdmi, hparms->channels);
@@ -109,6 +127,7 @@ static int dw_hdmi_i2s_hw_params(struct device *dev, void *data,
 	hdmi_write(audio, inputclkfs, HDMI_AUD_INPUTCLKFS);
 	hdmi_write(audio, conf0, HDMI_AUD_CONF0);
 	hdmi_write(audio, conf1, HDMI_AUD_CONF1);
+	hdmi_write(audio, conf2, HDMI_AUD_CONF2);
 
 	return 0;
 }
