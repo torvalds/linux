@@ -3590,7 +3590,7 @@ static void ext4_free_data_in_buddy(struct super_block *sb,
 {
 	struct ext4_buddy e4b;
 	struct ext4_group_info *db;
-	int err, count = 0, count2 = 0;
+	int err, count = 0;
 
 	mb_debug(sb, "gonna free %u blocks in group %u (0x%p):",
 		 entry->efd_count, entry->efd_group, entry);
@@ -3606,7 +3606,6 @@ static void ext4_free_data_in_buddy(struct super_block *sb,
 	db = e4b.bd_info;
 	/* there are blocks to put in buddy to make them really free */
 	count += entry->efd_count;
-	count2++;
 	ext4_lock_group(sb, entry->efd_group);
 	/* Take it out of per group rb tree */
 	rb_erase(&entry->efd_node, &(db->bb_free_root));
@@ -3631,8 +3630,7 @@ static void ext4_free_data_in_buddy(struct super_block *sb,
 	ext4_unlock_group(sb, entry->efd_group);
 	ext4_mb_unload_buddy(&e4b);
 
-	mb_debug(sb, "freed %d blocks in %d structures\n", count,
-		 count2);
+	mb_debug(sb, "freed %d blocks in 1 structures\n", count);
 }
 
 /*
