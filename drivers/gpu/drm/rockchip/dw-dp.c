@@ -511,7 +511,7 @@ static int dw_dp_hdcp_init_keys(struct dw_dp *dp)
 	if (!base)
 		return -ENOMEM;
 
-	memcpy(base, hdcp_vendor_data, size);
+	memcpy_toio(base, hdcp_vendor_data, size);
 
 	res = sip_hdcp_config(HDCP_FUNC_KEY_LOAD, dp->id ? DP_TX1 : DP_TX0, 0);
 	if (IS_SIP_ERROR(res.a0)) {
