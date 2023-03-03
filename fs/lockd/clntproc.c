@@ -20,6 +20,8 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 
+#include "trace.h"
+
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 #define NLMCLNT_GRACE_WAIT	(5*HZ)
 #define NLMCLNT_POLL_TIMEOUT	(30*HZ)
@@ -451,6 +453,9 @@ nlmclnt_test(struct nlm_rqst *req, struct file_lock *fl)
 			status = nlm_stat_to_errno(req->a_res.status);
 	}
 out:
+	trace_nlmclnt_test(&req->a_args.lock,
+			   (const struct sockaddr *)&req->a_host->h_addr,
+			   req->a_host->h_addrlen, req->a_res.status);
 	nlmclnt_release_call(req);
 	return status;
 }
@@ -605,10 +610,16 @@ again:
 	else
 		status = nlm_stat_to_errno(resp->status);
 out:
+	trace_nlmclnt_lock(&req->a_args.lock,
+			   (const struct sockaddr *)&req->a_host->h_addr,
+			   req->a_host->h_addrlen, req->a_res.status);
 	nlmclnt_release_call(req);
 	return status;
 out_unlock:
 	/* Fatal error: ensure that we remove the lock altogether */
+	trace_nlmclnt_lock(&req->a_args.lock,
+			   (const struct sockaddr *)&req->a_host->h_addr,
+			   req->a_host->h_addrlen, req->a_res.status);
 	dprintk("lockd: lock attempt ended in fatal error.\n"
 		"       Attempting to unlock.\n");
 	fl_type = fl->fl_type;
@@ -704,6 +715,9 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	/* What to do now? I'm out of my depth... */
 	status = -ENOLCK;
 out:
+	trace_nlmclnt_unlock(&req->a_args.lock,
+			     (const struct sockaddr *)&req->a_host->h_addr,
+			     req->a_host->h_addrlen, req->a_res.status);
 	nlmclnt_release_call(req);
 	return status;
 }

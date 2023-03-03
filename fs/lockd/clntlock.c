@@ -14,8 +14,11 @@
 #include <linux/nfs_fs.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include <linux/lockd/lockd.h>
 #include <linux/kthread.h>
+
+#include "trace.h"
 
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 
@@ -186,6 +189,7 @@ __be32 nlmclnt_grant(const struct sockaddr *addr, const struct nlm_lock *lock)
 		res = nlm_granted;
 	}
 	spin_unlock(&nlm_blocked_lock);
+	trace_nlmclnt_grant(lock, addr, svc_addr_len(addr), res);
 	return res;
 }
 
