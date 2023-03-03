@@ -638,6 +638,7 @@ static int nb7vpq904m_host_powercycle(struct usb_redriver *r)
 }
 
 static const struct regmap_config redriver_regmap = {
+	.name = "nb7vpq904m",
 	.max_register = REDRIVER_REG_MAX,
 	.reg_bits = 8,
 	.val_bits = 8,
