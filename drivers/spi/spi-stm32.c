@@ -1922,7 +1922,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int stm32_spi_remove(struct platform_device *pdev)
+static void stm32_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct stm32_spi *spi = spi_master_get_devdata(master);
@@ -1946,8 +1946,6 @@ static int stm32_spi_remove(struct platform_device *pdev)
 
 
 	pinctrl_pm_select_sleep_state(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_spi_runtime_suspend(struct device *dev)
@@ -2023,7 +2021,7 @@ static const struct dev_pm_ops stm32_spi_pm_ops = {
 
 static struct platform_driver stm32_spi_driver = {
 	.probe = stm32_spi_probe,
-	.remove = stm32_spi_remove,
+	.remove_new = stm32_spi_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.pm = &stm32_spi_pm_ops,
