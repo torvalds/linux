@@ -1168,10 +1168,8 @@ static int ext4_mb_init_cache(struct page *page, char *incore, gfp_t gfp)
 	if (groups_per_page > 1) {
 		i = sizeof(struct buffer_head *) * groups_per_page;
 		bh = kzalloc(i, gfp);
-		if (bh == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
+		if (bh == NULL)
+			return -ENOMEM;
 	} else
 		bh = &bhs;
 
