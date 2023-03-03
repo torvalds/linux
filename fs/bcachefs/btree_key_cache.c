@@ -947,6 +947,7 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	struct bucket_table *tbl;
 	struct bkey_cached *ck, *n;
 	struct rhash_head *pos;
+	LIST_HEAD(items);
 	unsigned i;
 #ifdef __KERNEL__
 	int cpu;
@@ -967,7 +968,7 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 			for (i = 0; i < tbl->size; i++)
 				rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
 					bkey_cached_evict(bc, ck);
-					list_add(&ck->list, &bc->freed_nonpcpu);
+					list_add(&ck->list, &items);
 				}
 		rcu_read_unlock();
 	}
@@ -979,14 +980,17 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 
 		for (i = 0; i < f->nr; i++) {
 			ck = f->objs[i];
-			list_add(&ck->list, &bc->freed_nonpcpu);
+			list_add(&ck->list, &items);
 		}
 	}
 #endif
 
-	list_splice(&bc->freed_pcpu, &bc->freed_nonpcpu);
+	list_splice(&bc->freed_pcpu,	&items);
+	list_splice(&bc->freed_nonpcpu,	&items);
 
-	list_for_each_entry_safe(ck, n, &bc->freed_nonpcpu, list) {
+	mutex_unlock(&bc->lock);
+
+	list_for_each_entry_safe(ck, n, &items, list) {
 		cond_resched();
 
 		bch2_journal_pin_drop(&c->journal, &ck->journal);
@@ -1007,8 +1011,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	if (atomic_long_read(&bc->nr_keys))
 		panic("btree key cache shutdown error: nr_keys nonzero (%li)\n",
 		      atomic_long_read(&bc->nr_keys));
-
-	mutex_unlock(&bc->lock);
 
 	if (bc->table_init_done)
 		rhashtable_destroy(&bc->table);
