@@ -1078,144 +1078,144 @@
 		rgb-1-pins {
 			starfive,pins = <PAD_GPIO37>;
 			starfive,pinmux = <PAD_GPIO37_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 		rgb-2-pins {
 			starfive,pins = <PAD_GPIO38>;
 			starfive,pinmux = <PAD_GPIO38_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 		rgb-3-pins {
 			starfive,pins = <PAD_GPIO39>;
 			starfive,pinmux = <PAD_GPIO39_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-4-pins {
 			starfive,pins = <PAD_GPIO40>;
 			starfive,pinmux = <PAD_GPIO40_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-5-pins {
 			starfive,pins = <PAD_GPIO41>;
 			starfive,pinmux = <PAD_GPIO41_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-6-pins {
 			starfive,pins = <PAD_GPIO42>;
 			starfive,pinmux = <PAD_GPIO42_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-7-pins {
 			starfive,pins = <PAD_GPIO43>;
 			starfive,pinmux = <PAD_GPIO43_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 		rgb-8-pins {
 			starfive,pins = <PAD_GPIO44>;
 			starfive,pinmux = <PAD_GPIO44_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 		rgb-9-pins {
 			starfive,pins = <PAD_GPIO45>;
 			starfive,pinmux = <PAD_GPIO45_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-10-pins {
 			starfive,pins = <PAD_GPIO46>;
 			starfive,pinmux = <PAD_GPIO46_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-11-pins {
 			starfive,pins = <PAD_GPIO47>;
 			starfive,pinmux = <PAD_GPIO47_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-12-pins {
 			starfive,pins = <PAD_GPIO48>;
 			starfive,pinmux = <PAD_GPIO48_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-13-pins {
 			starfive,pins = <PAD_GPIO49>;
 			starfive,pinmux = <PAD_GPIO49_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-14-pins {
 			starfive,pins = <PAD_GPIO50>;
 			starfive,pinmux = <PAD_GPIO50_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-15-pins {
 			starfive,pins = <PAD_GPIO51>;
 			starfive,pinmux = <PAD_GPIO51_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-16-pins {
 			starfive,pins = <PAD_GPIO52>;
 			starfive,pinmux = <PAD_GPIO52_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-17-pins {
 			starfive,pins = <PAD_GPIO53>;
 			starfive,pinmux = <PAD_GPIO53_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-18-pins {
 			starfive,pins = <PAD_GPIO54>;
 			starfive,pinmux = <PAD_GPIO54_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-19-pins {
 			starfive,pins = <PAD_GPIO55>;
 			starfive,pinmux = <PAD_GPIO55_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-20-pins {
 			starfive,pins = <PAD_GPIO56>;
 			starfive,pinmux = <PAD_GPIO56_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 		rgb-21-pins {
 			starfive,pins = <PAD_GPIO57>;
 			starfive,pinmux = <PAD_GPIO57_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-22-pins {
 			starfive,pins = <PAD_GPIO58>;
 			starfive,pinmux = <PAD_GPIO58_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 		rgb-23-pins {
 			starfive,pins = <PAD_GPIO59>;
 			starfive,pinmux = <PAD_GPIO59_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-24-pins {
 			starfive,pins = <PAD_GPIO60>;
 			starfive,pinmux = <PAD_GPIO60_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-25-pins {
 			starfive,pins = <PAD_GPIO61>;
 			starfive,pinmux = <PAD_GPIO61_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 		rgb-26-pins {
 			starfive,pins = <PAD_GPIO62>;
 			starfive,pinmux = <PAD_GPIO62_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 		rgb-27-pins {
 			starfive,pins = <PAD_GPIO63>;
 			starfive,pinmux = <PAD_GPIO63_FUNC_SEL 1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(0))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_DS(3))>;
 		};
 
 	};

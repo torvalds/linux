@@ -32,6 +32,7 @@
 			opp-750000000 {
 					opp-hz = /bits/ 64 <750000000>;
 					opp-microvolt = <800000>;
+					opp-suspend;
 			};
 			opp-1500000000 {
 					opp-hz = /bits/ 64 <1500000000>;
@@ -344,7 +345,6 @@
 			resets = <&rstgen RSTN_U0_CDNS_QSPI_APB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_AHB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_REF>;
-			resets-names = "rst_apb", "rst_ahb", "rst_ref";
 			cdns,fifo-depth = <256>;
 			cdns,fifo-width = <4>;
 			cdns,trigger-address = <0x0>;
