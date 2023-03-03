@@ -200,3 +200,9 @@
 	pinctrl-0 = <&mclk_ext_pins>;
 	status = "okay";
 };
+
+&cpu1 {
+	cpu-supply = <&cpu_vdd>;
+	clocks = <&clkgen JH7110_CPU_CORE>;
+	clock-names = "cpu";
+};
