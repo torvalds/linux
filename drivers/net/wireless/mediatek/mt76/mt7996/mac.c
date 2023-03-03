@@ -572,11 +572,12 @@ mt7996_mac_fill_rx_rate(struct mt7996_dev *dev,
 	case MT_PHY_TYPE_EHT_SU:
 	case MT_PHY_TYPE_EHT_TRIG:
 	case MT_PHY_TYPE_EHT_MU:
-		/* TODO: currently report rx rate with HE rate */
 		status->nss = nss;
-		status->encoding = RX_ENC_HE;
-		bw = min_t(int, bw, IEEE80211_STA_RX_BW_160);
-		i = min_t(int, i & 0xf, 11);
+		status->encoding = RX_ENC_EHT;
+		i &= GENMASK(3, 0);
+
+		if (gi <= NL80211_RATE_INFO_EHT_GI_3_2)
+			status->eht.gi = gi;
 		break;
 	default:
 		return -EINVAL;
