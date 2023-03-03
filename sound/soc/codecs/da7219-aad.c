@@ -339,10 +339,38 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 				    SND_JACK_HEADSET | SND_JACK_LINEOUT);
 }
 
+static void da7219_aad_jack_det_work(struct work_struct *work)
+{
+	struct da7219_aad_priv *da7219_aad =
+		container_of(work, struct da7219_aad_priv, jack_det_work);
+	struct snd_soc_component *component = da7219_aad->component;
+	u8 srm_st;
+
+	mutex_lock(&da7219_aad->jack_det_mutex);
+
+	srm_st = snd_soc_component_read(component, DA7219_PLL_SRM_STS) & DA7219_PLL_SRM_STS_MCLK;
+	msleep(da7219_aad->gnd_switch_delay * ((srm_st == 0x0) ? 2 : 1) - 4);
+	/* Enable ground switch */
+	snd_soc_component_update_bits(component, 0xFB, 0x01, 0x01);
+
+	mutex_unlock(&da7219_aad->jack_det_mutex);
+}
+
 
 /*
  * IRQ
  */
+
+static irqreturn_t da7219_aad_pre_irq_thread(int irq, void *data)
+{
+
+	struct da7219_aad_priv *da7219_aad = data;
+
+	if (!da7219_aad->jack_inserted)
+		schedule_work(&da7219_aad->jack_det_work);
+
+	return IRQ_WAKE_THREAD;
+}
 
 static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 {
@@ -351,13 +379,8 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 	u8 events[DA7219_AAD_IRQ_REG_MAX];
-	u8 statusa, srm_st;
+	u8 statusa;
 	int i, report = 0, mask = 0;
-
-	srm_st = snd_soc_component_read(component, DA7219_PLL_SRM_STS) & DA7219_PLL_SRM_STS_MCLK;
-	msleep(da7219_aad->gnd_switch_delay * ((srm_st == 0x0) ? 2 : 1) - 4);
-	/* Enable ground switch */
-	snd_soc_component_update_bits(component, 0xFB, 0x01, 0x01);
 
 	/* Read current IRQ events */
 	regmap_bulk_read(da7219->regmap, DA7219_ACCDET_IRQ_EVENT_A,
@@ -376,6 +399,9 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 	dev_dbg(component->dev, "IRQ events = 0x%x|0x%x, status = 0x%x\n",
 		events[DA7219_AAD_IRQ_REG_A], events[DA7219_AAD_IRQ_REG_B],
 		statusa);
+
+	if (!da7219_aad->jack_inserted)
+		cancel_work_sync(&da7219_aad->jack_det_work);
 
 	if (statusa & DA7219_JACK_INSERTION_STS_MASK) {
 		/* Jack Insertion */
@@ -940,8 +966,9 @@ int da7219_aad_init(struct snd_soc_component *component)
 
 	INIT_WORK(&da7219_aad->btn_det_work, da7219_aad_btn_det_work);
 	INIT_WORK(&da7219_aad->hptest_work, da7219_aad_hptest_work);
+	INIT_WORK(&da7219_aad->jack_det_work, da7219_aad_jack_det_work);
 
-	ret = request_threaded_irq(da7219_aad->irq, NULL,
+	ret = request_threaded_irq(da7219_aad->irq, da7219_aad_pre_irq_thread,
 				   da7219_aad_irq_thread,
 				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				   "da7219-aad", da7219_aad);
