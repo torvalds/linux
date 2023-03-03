@@ -329,14 +329,12 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int cros_ec_pwm_remove(struct platform_device *dev)
+static void cros_ec_pwm_remove(struct platform_device *dev)
 {
 	struct cros_ec_pwm_device *ec_pwm = platform_get_drvdata(dev);
 	struct pwm_chip *chip = &ec_pwm->chip;
 
 	pwmchip_remove(chip);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -350,7 +348,7 @@ MODULE_DEVICE_TABLE(of, cros_ec_pwm_of_match);
 
 static struct platform_driver cros_ec_pwm_driver = {
 	.probe = cros_ec_pwm_probe,
-	.remove = cros_ec_pwm_remove,
+	.remove_new = cros_ec_pwm_remove,
 	.driver = {
 		.name = "cros-ec-pwm",
 		.of_match_table = of_match_ptr(cros_ec_pwm_of_match),
