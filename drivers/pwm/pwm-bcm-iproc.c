@@ -239,15 +239,13 @@ static int iproc_pwmc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int iproc_pwmc_remove(struct platform_device *pdev)
+static void iproc_pwmc_remove(struct platform_device *pdev)
 {
 	struct iproc_pwmc *ip = platform_get_drvdata(pdev);
 
 	pwmchip_remove(&ip->chip);
 
 	clk_disable_unprepare(ip->clk);
-
-	return 0;
 }
 
 static const struct of_device_id bcm_iproc_pwmc_dt[] = {
@@ -262,7 +260,7 @@ static struct platform_driver iproc_pwmc_driver = {
 		.of_match_table = bcm_iproc_pwmc_dt,
 	},
 	.probe = iproc_pwmc_probe,
-	.remove = iproc_pwmc_remove,
+	.remove_new = iproc_pwmc_remove,
 };
 module_platform_driver(iproc_pwmc_driver);
 
