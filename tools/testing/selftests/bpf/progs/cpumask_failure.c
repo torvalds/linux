@@ -44,7 +44,7 @@ int BPF_PROG(test_alloc_double_release, struct task_struct *task, u64 clone_flag
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("bpf_cpumask_acquire args#0 expected pointer to STRUCT bpf_cpumask")
+__failure __msg("must be referenced")
 int BPF_PROG(test_acquire_wrong_cpumask, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *cpumask;

@@ -3288,9 +3288,9 @@ static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 	/* Reject extra tags */
 	if (btf_type_is_type_tag(btf_type_by_id(btf, t->type)))
 		return -EINVAL;
-	if (!strcmp("kptr", __btf_name_by_offset(btf, t->name_off)))
+	if (!strcmp("kptr_untrusted", __btf_name_by_offset(btf, t->name_off)))
 		type = BPF_KPTR_UNREF;
-	else if (!strcmp("kptr_ref", __btf_name_by_offset(btf, t->name_off)))
+	else if (!strcmp("kptr", __btf_name_by_offset(btf, t->name_off)))
 		type = BPF_KPTR_REF;
 	else
 		return -EINVAL;
@@ -6163,6 +6163,7 @@ static int btf_struct_walk(struct bpf_verifier_log *log, const struct btf *btf,
 	const char *tname, *mname, *tag_value;
 	u32 vlen, elem_id, mid;
 
+	*flag = 0;
 again:
 	tname = __btf_name_by_offset(btf, t->name_off);
 	if (!btf_type_is_struct(t)) {
@@ -6329,6 +6330,15 @@ error:
 		 * of this field or inside of this struct
 		 */
 		if (btf_type_is_struct(mtype)) {
+			if (BTF_INFO_KIND(mtype->info) == BTF_KIND_UNION &&
+			    btf_type_vlen(mtype) != 1)
+				/*
+				 * walking unions yields untrusted pointers
+				 * with exception of __bpf_md_ptr and other
+				 * unions with a single member
+				 */
+				*flag |= PTR_UNTRUSTED;
+
 			/* our field must be inside that union or struct */
 			t = mtype;
 
@@ -6373,7 +6383,7 @@ error:
 			stype = btf_type_skip_modifiers(btf, mtype->type, &id);
 			if (btf_type_is_struct(stype)) {
 				*next_btf_id = id;
-				*flag = tmp_flag;
+				*flag |= tmp_flag;
 				return WALK_PTR;
 			}
 		}
@@ -8357,7 +8367,7 @@ out:
 
 bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 				const struct bpf_reg_state *reg,
-				int off)
+				int off, const char *suffix)
 {
 	struct btf *btf = reg->btf;
 	const struct btf_type *walk_type, *safe_type;
@@ -8374,7 +8384,7 @@ bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 
 	tname = btf_name_by_offset(btf, walk_type->name_off);
 
-	ret = snprintf(safe_tname, sizeof(safe_tname), "%s__safe_fields", tname);
+	ret = snprintf(safe_tname, sizeof(safe_tname), "%s%s", tname, suffix);
 	if (ret < 0)
 		return false;
 
