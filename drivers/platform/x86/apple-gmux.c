@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/debugfs.h>
 #include <asm/io.h>
 
 /**
@@ -73,6 +74,10 @@ struct apple_gmux_data {
 	enum vga_switcheroo_client_id switch_state_external;
 	enum vga_switcheroo_state power_state;
 	struct completion powerchange_done;
+
+	/* debugfs data */
+	u8 selected_port;
+	struct dentry *debug_dentry;
 };
 
 static struct apple_gmux_data *apple_gmux_data;
@@ -670,6 +675,81 @@ static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
 		complete(&gmux_data->powerchange_done);
 }
 
+/**
+ * DOC: Debugfs Interface
+ *
+ * gmux ports can be accessed from userspace as a debugfs interface. For example:
+ *
+ * # echo 4 > /sys/kernel/debug/apple_gmux/selected_port
+ * # cat /sys/kernel/debug/apple_gmux/selected_port_data | xxd -p
+ * 00000005
+ *
+ * Reads 4 bytes from port 4 (GMUX_PORT_VERSION_MAJOR).
+ *
+ * 1 and 4 byte writes are also allowed.
+ */
+
+static ssize_t gmux_selected_port_data_write(struct file *file,
+		const char __user *userbuf, size_t count, loff_t *ppos)
+{
+	struct apple_gmux_data *gmux_data = file->private_data;
+	int ret;
+
+	if (*ppos)
+		return -EINVAL;
+
+	if (count == 1) {
+		u8 data;
+
+		ret = copy_from_user(&data, userbuf, 1);
+		if (ret)
+			return ret;
+		gmux_write8(gmux_data, gmux_data->selected_port, data);
+	} else if (count == 4) {
+		u32 data;
+
+		ret = copy_from_user(&data, userbuf, 4);
+		if (ret)
+			return ret;
+		gmux_write32(gmux_data, gmux_data->selected_port, data);
+	} else
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t gmux_selected_port_data_read(struct file *file,
+		char __user *userbuf, size_t count, loff_t *ppos)
+{
+	struct apple_gmux_data *gmux_data = file->private_data;
+	u32 data;
+
+	data = gmux_read32(gmux_data, gmux_data->selected_port);
+
+	return simple_read_from_buffer(userbuf, count, ppos, &data, sizeof(data));
+}
+
+static const struct file_operations gmux_port_data_ops = {
+	.open = simple_open,
+	.write = gmux_selected_port_data_write,
+	.read = gmux_selected_port_data_read
+};
+
+static void gmux_init_debugfs(struct apple_gmux_data *gmux_data)
+{
+	gmux_data->debug_dentry = debugfs_create_dir(KBUILD_MODNAME, NULL);
+
+	debugfs_create_u8("selected_port", 0644, gmux_data->debug_dentry,
+			&gmux_data->selected_port);
+	debugfs_create_file("selected_port_data", 0644, gmux_data->debug_dentry,
+			gmux_data, &gmux_port_data_ops);
+}
+
+static void gmux_fini_debugfs(struct apple_gmux_data *gmux_data)
+{
+	debugfs_remove_recursive(gmux_data->debug_dentry);
+}
+
 static int gmux_suspend(struct device *dev)
 {
 	struct pnp_dev *pnp = to_pnp_dev(dev);
@@ -870,6 +950,7 @@ get_version:
 		goto err_register_handler;
 	}
 
+	gmux_init_debugfs(gmux_data);
 	return 0;
 
 err_register_handler:
@@ -901,6 +982,7 @@ static void gmux_remove(struct pnp_dev *pnp)
 {
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
 
+	gmux_fini_debugfs(gmux_data);
 	vga_switcheroo_unregister_handler();
 	gmux_disable_interrupts(gmux_data);
 	if (gmux_data->gpe >= 0) {
