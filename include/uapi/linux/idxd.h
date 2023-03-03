@@ -72,6 +72,7 @@ enum dsa_opcode {
 	DSA_OPCODE_CR_DELTA,
 	DSA_OPCODE_AP_DELTA,
 	DSA_OPCODE_DUALCAST,
+	DSA_OPCODE_TRANSL_FETCH,
 	DSA_OPCODE_CRCGEN = 0x10,
 	DSA_OPCODE_COPY_CRC,
 	DSA_OPCODE_DIF_CHECK,
@@ -182,6 +183,7 @@ struct dsa_hw_desc {
 		uint64_t	pattern;
 		uint64_t	desc_list_addr;
 		uint64_t	pattern_lower;
+		uint64_t	transl_fetch_addr;
 	};
 	union {
 		uint64_t	dst_addr;
@@ -192,6 +194,7 @@ struct dsa_hw_desc {
 	union {
 		uint32_t	xfer_size;
 		uint32_t	desc_count;
+		uint32_t	region_size;
 	};
 	uint16_t	int_handle;
 	uint16_t	rsvd1;
@@ -248,6 +251,12 @@ struct dsa_hw_desc {
 
 		/* Fill */
 		uint64_t	pattern_upper;
+
+		/* Translation fetch */
+		struct {
+			uint64_t	transl_fetch_res;
+			uint32_t	region_stride;
+		};
 
 		/* DIX generate */
 		struct {
