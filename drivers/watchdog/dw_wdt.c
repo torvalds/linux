@@ -681,7 +681,7 @@ out_disable_clk:
 	return ret;
 }
 
-static int dw_wdt_drv_remove(struct platform_device *pdev)
+static void dw_wdt_drv_remove(struct platform_device *pdev)
 {
 	struct dw_wdt *dw_wdt = platform_get_drvdata(pdev);
 
@@ -691,8 +691,6 @@ static int dw_wdt_drv_remove(struct platform_device *pdev)
 	reset_control_assert(dw_wdt->rst);
 	clk_disable_unprepare(dw_wdt->pclk);
 	clk_disable_unprepare(dw_wdt->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -705,7 +703,7 @@ MODULE_DEVICE_TABLE(of, dw_wdt_of_match);
 
 static struct platform_driver dw_wdt_driver = {
 	.probe		= dw_wdt_drv_probe,
-	.remove		= dw_wdt_drv_remove,
+	.remove_new	= dw_wdt_drv_remove,
 	.driver		= {
 		.name	= "dw_wdt",
 		.of_match_table = of_match_ptr(dw_wdt_of_match),
