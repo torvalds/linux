@@ -805,7 +805,7 @@ out:
 }
 
 
-static int orion_spi_remove(struct platform_device *pdev)
+static void orion_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct orion_spi *spi = spi_master_get_devdata(master);
@@ -816,8 +816,6 @@ static int orion_spi_remove(struct platform_device *pdev)
 
 	spi_unregister_master(master);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
@@ -857,7 +855,7 @@ static struct platform_driver orion_spi_driver = {
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
 	.probe		= orion_spi_probe,
-	.remove		= orion_spi_remove,
+	.remove_new	= orion_spi_remove,
 };
 
 module_platform_driver(orion_spi_driver);
