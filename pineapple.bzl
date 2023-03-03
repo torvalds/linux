@@ -156,6 +156,8 @@ def define_pineapple():
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_msgq.ko",
         "drivers/soc/qcom/memory_dump_v2.ko",
+        "drivers/soc/qcom/memshare/msm_memshare.ko",
+        "drivers/soc/qcom/memshare/heap_mem_ext_v01.ko",
         "drivers/soc/qcom/minidump.ko",
         "drivers/soc/qcom/msm_performance.ko",
         "drivers/soc/qcom/panel_event_notifier.ko",
