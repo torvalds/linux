@@ -74,12 +74,6 @@ struct bpf_local_storage_elem {
 	struct hlist_node snode;	/* Linked to bpf_local_storage */
 	struct bpf_local_storage __rcu *local_storage;
 	struct rcu_head rcu;
-	bool can_use_smap; /* Is it safe to access smap in bpf_selem_free_* RCU
-			    * callbacks? bpf_local_storage_map_free only
-			    * executes rcu_barrier when there are special
-			    * fields, this field remembers that to ensure we
-			    * don't access already freed smap in sdata.
-			    */
 	/* 8 bytes hole */
 	/* The data is stored in another cacheline to minimize
 	 * the number of cachelines access during a cache hit.
