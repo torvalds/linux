@@ -567,7 +567,7 @@ out_clk_disable:
 	return err;
 }
 
-static int bcm2835aux_spi_remove(struct platform_device *pdev)
+static void bcm2835aux_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
@@ -580,8 +580,6 @@ static int bcm2835aux_spi_remove(struct platform_device *pdev)
 
 	/* disable the HW block by releasing the clock */
 	clk_disable_unprepare(bs->clk);
-
-	return 0;
 }
 
 static const struct of_device_id bcm2835aux_spi_match[] = {
@@ -596,7 +594,7 @@ static struct platform_driver bcm2835aux_spi_driver = {
 		.of_match_table	= bcm2835aux_spi_match,
 	},
 	.probe		= bcm2835aux_spi_probe,
-	.remove		= bcm2835aux_spi_remove,
+	.remove_new	= bcm2835aux_spi_remove,
 };
 module_platform_driver(bcm2835aux_spi_driver);
 
