@@ -1001,16 +1001,6 @@ int st_asm330lhhx_get_odr_val(enum st_asm330lhhx_sensor_id id, int odr,
 	int sensor_odr;
 	int i;
 
-	if (required_odr == 0) {
-		*val = 0;
-		if (podr && puodr) {
-			*podr = 0;
-			*puodr = 0;
-		}
-
-		return 0;
-	}
-
 	for (i = 0; i < st_asm330lhhx_odr_table[id].size; i++) {
 		sensor_odr = ST_ASM330LHHX_ODR_EXPAND(
 				st_asm330lhhx_odr_table[id].odr_avl[i].hz,
@@ -1428,7 +1418,7 @@ static int st_asm330lhhx_write_raw(struct iio_dev *iio_dev,
 		err = st_asm330lhhx_get_odr_val(s->id, val, val2,
 						 &todr, &tuodr, &data);
 		if (!err) {
-			s->odr = val;
+			s->odr = todr;
 			s->uodr = tuodr;
 
 			/*
