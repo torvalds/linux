@@ -276,6 +276,27 @@ union sw_err_reg {
 	u64 bits[4];
 } __packed;
 
+union iaa_cap_reg {
+	struct {
+		u64 dec_aecs_format_ver:1;
+		u64 drop_init_bits:1;
+		u64 chaining:1;
+		u64 force_array_output_mod:1;
+		u64 load_part_aecs:1;
+		u64 comp_early_abort:1;
+		u64 nested_comp:1;
+		u64 diction_comp:1;
+		u64 header_gen:1;
+		u64 crypto_gcm:1;
+		u64 crypto_cfb:1;
+		u64 crypto_xts:1;
+		u64 rsvd:52;
+	};
+	u64 bits;
+} __packed;
+
+#define IDXD_IAACAP_OFFSET	0x180
+
 union msix_perm {
 	struct {
 		u32 rsvd:2;

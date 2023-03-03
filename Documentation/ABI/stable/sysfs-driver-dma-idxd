@@ -136,6 +136,14 @@ Description:	The last executed device administrative command's status/error.
 		Also last configuration error overloaded.
 		Writing to it will clear the status.
 
+What:		/sys/bus/dsa/devices/dsa<m>/iaa_cap
+Date:		Sept 14, 2022
+KernelVersion: 6.0.0
+Contact:	dmaengine@vger.kernel.org
+Description:	IAA (IAX) capability mask. Exported to user space for application
+		consumption. This attribute should only be visible on IAA devices
+		that are version 2 or later.
+
 What:		/sys/bus/dsa/devices/wq<m>.<n>/block_on_fault
 Date:		Oct 27, 2020
 KernelVersion:	5.11.0
