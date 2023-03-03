@@ -4632,8 +4632,6 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 				ufshcd_readl(hba,
 					REG_UTP_TRANSFER_REQ_DOOR_BELL),
 				sz);
-		if (atomic_read(&host->hi_pri_en) && rq)
-			rq->cmd_flags |= REQ_POLLED;
 	}
 }
 
