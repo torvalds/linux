@@ -82,41 +82,42 @@ void nlmclnt_done(struct nlm_host *host)
 }
 EXPORT_SYMBOL_GPL(nlmclnt_done);
 
+void nlmclnt_prepare_block(struct nlm_wait *block, struct nlm_host *host, struct file_lock *fl)
+{
+	block->b_host = host;
+	block->b_lock = fl;
+	init_waitqueue_head(&block->b_wait);
+	block->b_status = nlm_lck_blocked;
+}
+
 /*
  * Queue up a lock for blocking so that the GRANTED request can see it
  */
-struct nlm_wait *nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl)
+void nlmclnt_queue_block(struct nlm_wait *block)
 {
-	struct nlm_wait *block;
-
-	block = kmalloc(sizeof(*block), GFP_KERNEL);
-	if (block != NULL) {
-		block->b_host = host;
-		block->b_lock = fl;
-		init_waitqueue_head(&block->b_wait);
-		block->b_status = nlm_lck_blocked;
-
-		spin_lock(&nlm_blocked_lock);
-		list_add(&block->b_list, &nlm_blocked);
-		spin_unlock(&nlm_blocked_lock);
-	}
-	return block;
+	spin_lock(&nlm_blocked_lock);
+	list_add(&block->b_list, &nlm_blocked);
+	spin_unlock(&nlm_blocked_lock);
 }
 
-void nlmclnt_finish_block(struct nlm_wait *block)
+/*
+ * Dequeue the block and return its final status
+ */
+__be32 nlmclnt_dequeue_block(struct nlm_wait *block)
 {
-	if (block == NULL)
-		return;
+	__be32 status;
+
 	spin_lock(&nlm_blocked_lock);
 	list_del(&block->b_list);
+	status = block->b_status;
 	spin_unlock(&nlm_blocked_lock);
-	kfree(block);
+	return status;
 }
 
 /*
  * Block on a lock
  */
-int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
+int nlmclnt_wait(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 {
 	long ret;
 
@@ -142,7 +143,6 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 	/* Reset the lock status after a server reboot so we resend */
 	if (block->b_status == nlm_lck_denied_grace_period)
 		block->b_status = nlm_lck_blocked;
-	req->a_res.status = block->b_status;
 	return 0;
 }
 
