@@ -670,15 +670,13 @@ err_put_ctlr:
 	return ret;
 }
 
-static int f_ospi_remove(struct platform_device *pdev)
+static void f_ospi_remove(struct platform_device *pdev)
 {
 	struct f_ospi *ospi = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(ospi->clk);
 
 	mutex_destroy(&ospi->mlock);
-
-	return 0;
 }
 
 static const struct of_device_id f_ospi_dt_ids[] = {
@@ -693,7 +691,7 @@ static struct platform_driver f_ospi_driver = {
 		.of_match_table = f_ospi_dt_ids,
 	},
 	.probe = f_ospi_probe,
-	.remove = f_ospi_remove,
+	.remove_new = f_ospi_remove,
 };
 module_platform_driver(f_ospi_driver);
 
