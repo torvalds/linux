@@ -1355,8 +1355,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		num_sdb++;
 
 		/* Reset trailer (using compare-double-and-swap) */
-		/* READ_ONCE() 16 byte header */
-		prev.val = __cdsg(&te->header.val, 0, 0);
+		prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 		do {
 			old.val = prev.val;
 			new.val = prev.val;
@@ -1558,8 +1557,7 @@ static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 	struct hws_trailer_entry *te;
 
 	te = aux_sdb_trailer(aux, alert_index);
-	/* READ_ONCE() 16 byte header */
-	prev.val = __cdsg(&te->header.val, 0, 0);
+	prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 	do {
 		old.val = prev.val;
 		new.val = prev.val;
@@ -1637,8 +1635,7 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 	idx_old = idx = aux->empty_mark + 1;
 	for (i = 0; i < range_scan; i++, idx++) {
 		te = aux_sdb_trailer(aux, idx);
-		/* READ_ONCE() 16 byte header */
-		prev.val = __cdsg(&te->header.val, 0, 0);
+		prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 		do {
 			old.val = prev.val;
 			new.val = prev.val;
