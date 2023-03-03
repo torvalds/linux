@@ -656,7 +656,7 @@ err_hclk:
 	return ret;
 }
 
-static int rockchip_sfc_remove(struct platform_device *pdev)
+static void rockchip_sfc_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct rockchip_sfc *sfc = platform_get_drvdata(pdev);
@@ -665,8 +665,6 @@ static int rockchip_sfc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(sfc->clk);
 	clk_disable_unprepare(sfc->hclk);
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_sfc_dt_ids[] = {
@@ -681,7 +679,7 @@ static struct platform_driver rockchip_sfc_driver = {
 		.of_match_table = rockchip_sfc_dt_ids,
 	},
 	.probe	= rockchip_sfc_probe,
-	.remove	= rockchip_sfc_remove,
+	.remove_new = rockchip_sfc_remove,
 };
 module_platform_driver(rockchip_sfc_driver);
 
