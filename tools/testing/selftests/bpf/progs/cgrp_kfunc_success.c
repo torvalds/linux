@@ -61,7 +61,7 @@ int BPF_PROG(test_cgrp_acquire_leave_in_map, struct cgroup *cgrp, const char *pa
 SEC("tp_btf/cgroup_mkdir")
 int BPF_PROG(test_cgrp_xchg_release, struct cgroup *cgrp, const char *path)
 {
-	struct cgroup *kptr;
+	struct cgroup *kptr, *cg;
 	struct __cgrps_kfunc_map_value *v;
 	long status;
 
@@ -79,6 +79,16 @@ int BPF_PROG(test_cgrp_xchg_release, struct cgroup *cgrp, const char *path)
 		err = 2;
 		return 0;
 	}
+
+	kptr = v->cgrp;
+	if (!kptr) {
+		err = 4;
+		return 0;
+	}
+
+	cg = bpf_cgroup_ancestor(kptr, 1);
+	if (cg)	/* verifier only check */
+		bpf_cgroup_release(cg);
 
 	kptr = bpf_kptr_xchg(&v->cgrp, NULL);
 	if (!kptr) {
