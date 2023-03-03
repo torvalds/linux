@@ -638,7 +638,8 @@
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vcc_3v3";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
@@ -649,7 +650,7 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcca1v8_pmu";
 				regulator-state-mem {
-				regulator-on-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
 			};
@@ -672,7 +673,7 @@
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vdda0v9_pmu";
 				regulator-state-mem {
-				regulator-on-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <900000>;
 				};
 			};
