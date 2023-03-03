@@ -947,7 +947,7 @@ err_put_ctlr:
 	return ret;
 }
 
-static int rockchip_spi_remove(struct platform_device *pdev)
+static void rockchip_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr = spi_controller_get(platform_get_drvdata(pdev));
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
@@ -967,8 +967,6 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 		dma_release_channel(ctlr->dma_rx);
 
 	spi_controller_put(ctlr);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1076,7 +1074,7 @@ static struct platform_driver rockchip_spi_driver = {
 		.of_match_table = of_match_ptr(rockchip_spi_dt_match),
 	},
 	.probe = rockchip_spi_probe,
-	.remove = rockchip_spi_remove,
+	.remove_new = rockchip_spi_remove,
 };
 
 module_platform_driver(rockchip_spi_driver);
