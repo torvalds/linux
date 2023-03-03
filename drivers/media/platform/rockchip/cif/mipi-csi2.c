@@ -717,8 +717,8 @@ static void csi2_notifier_unbind(struct v4l2_async_notifier *notifier,
 						  notifier);
 	struct csi2_sensor_info *sensor = sd_to_sensor(csi2, sd);
 
-	sensor->sd = NULL;
-
+	if (sensor)
+		sensor->sd = NULL;
 }
 
 static const struct

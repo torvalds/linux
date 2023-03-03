@@ -357,6 +357,8 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 		return -ENODEV;
 
 	sensor = sd_to_sensor(dev, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 	ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config,
 			       0, &sensor->mbus);
 	if (ret && ret != -ENOIOCTLCMD)
