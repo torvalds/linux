@@ -878,7 +878,7 @@ out_disable_clk:
 }
 
 
-static int bcm63xx_hsspi_remove(struct platform_device *pdev)
+static void bcm63xx_hsspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm63xx_hsspi *bs = spi_master_get_devdata(master);
@@ -888,8 +888,6 @@ static int bcm63xx_hsspi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(bs->pll_clk);
 	clk_disable_unprepare(bs->clk);
 	sysfs_remove_group(&pdev->dev.kobj, &bcm63xx_hsspi_group);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -946,7 +944,7 @@ static struct platform_driver bcm63xx_hsspi_driver = {
 		.of_match_table = bcm63xx_hsspi_of_match,
 	},
 	.probe		= bcm63xx_hsspi_probe,
-	.remove		= bcm63xx_hsspi_remove,
+	.remove_new	= bcm63xx_hsspi_remove,
 };
 
 module_platform_driver(bcm63xx_hsspi_driver);
