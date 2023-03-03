@@ -24,7 +24,7 @@ QEMU_OPTS = -kernel $(ZIMAGE) \
 	-drive file=$(YOCTO_IMAGE),if=virtio,format=raw \
 	-drive file=disk1.img,if=virtio,format=raw \
 	-drive file=disk2.img,if=virtio,format=raw \
-	--append "root=/dev/vda loglevel=15 console=hvc0" \
+	--append "root=/dev/vda loglevel=15 console=hvc0 pci=noacpi" \
 	--display $(QEMU_DISPLAY) -s -m 256
 
 ifdef ENABLE_KVM
