@@ -1069,32 +1069,45 @@ EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate_default);
 
 static int
 v4l2_subdev_link_validate_get_format(struct media_pad *pad, u32 stream,
-				     struct v4l2_subdev_format *fmt)
+				     struct v4l2_subdev_format *fmt,
+				     bool states_locked)
 {
-	if (is_media_entity_v4l2_subdev(pad->entity)) {
-		struct v4l2_subdev *sd =
-			media_entity_to_v4l2_subdev(pad->entity);
+	struct v4l2_subdev_state *state;
+	struct v4l2_subdev *sd;
+	int ret;
 
-		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		fmt->pad = pad->index;
-		fmt->stream = stream;
+	if (!is_media_entity_v4l2_subdev(pad->entity)) {
+		WARN(pad->entity->function != MEDIA_ENT_F_IO_V4L,
+		     "Driver bug! Wrong media entity type 0x%08x, entity %s\n",
+		     pad->entity->function, pad->entity->name);
 
-		return v4l2_subdev_call(sd, pad, get_fmt,
-					v4l2_subdev_get_locked_active_state(sd),
-					fmt);
+		return -EINVAL;
 	}
 
-	WARN(pad->entity->function != MEDIA_ENT_F_IO_V4L,
-	     "Driver bug! Wrong media entity type 0x%08x, entity %s\n",
-	     pad->entity->function, pad->entity->name);
+	sd = media_entity_to_v4l2_subdev(pad->entity);
 
-	return -EINVAL;
+	fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt->pad = pad->index;
+	fmt->stream = stream;
+
+	if (states_locked)
+		state = v4l2_subdev_get_locked_active_state(sd);
+	else
+		state = v4l2_subdev_lock_and_get_active_state(sd);
+
+	ret = v4l2_subdev_call(sd, pad, get_fmt, state, fmt);
+
+	if (!states_locked && state)
+		v4l2_subdev_unlock_state(state);
+
+	return ret;
 }
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 
 static void __v4l2_link_validate_get_streams(struct media_pad *pad,
-					     u64 *streams_mask)
+					     u64 *streams_mask,
+					     bool states_locked)
 {
 	struct v4l2_subdev_route *route;
 	struct v4l2_subdev_state *state;
@@ -1104,7 +1117,11 @@ static void __v4l2_link_validate_get_streams(struct media_pad *pad,
 
 	*streams_mask = 0;
 
-	state = v4l2_subdev_get_locked_active_state(subdev);
+	if (states_locked)
+		state = v4l2_subdev_get_locked_active_state(subdev);
+	else
+		state = v4l2_subdev_lock_and_get_active_state(subdev);
+
 	if (WARN_ON(!state))
 		return;
 
@@ -1125,12 +1142,16 @@ static void __v4l2_link_validate_get_streams(struct media_pad *pad,
 
 		*streams_mask |= BIT_ULL(route_stream);
 	}
+
+	if (!states_locked)
+		v4l2_subdev_unlock_state(state);
 }
 
 #endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 static void v4l2_link_validate_get_streams(struct media_pad *pad,
-					   u64 *streams_mask)
+					   u64 *streams_mask,
+					   bool states_locked)
 {
 	struct v4l2_subdev *subdev = media_entity_to_v4l2_subdev(pad->entity);
 
@@ -1141,14 +1162,14 @@ static void v4l2_link_validate_get_streams(struct media_pad *pad,
 	}
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	__v4l2_link_validate_get_streams(pad, streams_mask);
+	__v4l2_link_validate_get_streams(pad, streams_mask, states_locked);
 #else
 	/* This shouldn't happen */
 	*streams_mask = 0;
 #endif
 }
 
-static int v4l2_subdev_link_validate_locked(struct media_link *link)
+static int v4l2_subdev_link_validate_locked(struct media_link *link, bool states_locked)
 {
 	struct v4l2_subdev *sink_subdev =
 		media_entity_to_v4l2_subdev(link->sink->entity);
@@ -1163,8 +1184,8 @@ static int v4l2_subdev_link_validate_locked(struct media_link *link)
 		link->source->entity->name, link->source->index,
 		link->sink->entity->name, link->sink->index);
 
-	v4l2_link_validate_get_streams(link->source, &source_streams_mask);
-	v4l2_link_validate_get_streams(link->sink, &sink_streams_mask);
+	v4l2_link_validate_get_streams(link->source, &source_streams_mask, states_locked);
+	v4l2_link_validate_get_streams(link->sink, &sink_streams_mask, states_locked);
 
 	/*
 	 * It is ok to have more source streams than sink streams as extra
@@ -1192,7 +1213,7 @@ static int v4l2_subdev_link_validate_locked(struct media_link *link)
 			link->sink->entity->name, link->sink->index, stream);
 
 		ret = v4l2_subdev_link_validate_get_format(link->source, stream,
-							   &source_fmt);
+							   &source_fmt, states_locked);
 		if (ret < 0) {
 			dev_dbg(dev,
 				"Failed to get format for \"%s\":%u:%u (but that's ok)\n",
@@ -1202,7 +1223,7 @@ static int v4l2_subdev_link_validate_locked(struct media_link *link)
 		}
 
 		ret = v4l2_subdev_link_validate_get_format(link->sink, stream,
-							   &sink_fmt);
+							   &sink_fmt, states_locked);
 		if (ret < 0) {
 			dev_dbg(dev,
 				"Failed to get format for \"%s\":%u:%u (but that's ok)\n",
@@ -1234,6 +1255,7 @@ int v4l2_subdev_link_validate(struct media_link *link)
 {
 	struct v4l2_subdev *source_sd, *sink_sd;
 	struct v4l2_subdev_state *source_state, *sink_state;
+	bool states_locked;
 	int ret;
 
 	sink_sd = media_entity_to_v4l2_subdev(link->sink->entity);
@@ -1242,19 +1264,19 @@ int v4l2_subdev_link_validate(struct media_link *link)
 	sink_state = v4l2_subdev_get_unlocked_active_state(sink_sd);
 	source_state = v4l2_subdev_get_unlocked_active_state(source_sd);
 
-	if (sink_state)
+	states_locked = sink_state && source_state;
+
+	if (states_locked) {
 		v4l2_subdev_lock_state(sink_state);
-
-	if (source_state)
 		v4l2_subdev_lock_state(source_state);
+	}
 
-	ret = v4l2_subdev_link_validate_locked(link);
+	ret = v4l2_subdev_link_validate_locked(link, states_locked);
 
-	if (sink_state)
+	if (states_locked) {
 		v4l2_subdev_unlock_state(sink_state);
-
-	if (source_state)
 		v4l2_subdev_unlock_state(source_state);
+	}
 
 	return ret;
 }
