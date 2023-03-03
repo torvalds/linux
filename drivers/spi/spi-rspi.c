@@ -1172,14 +1172,12 @@ static void rspi_release_dma(struct spi_controller *ctlr)
 		dma_release_channel(ctlr->dma_rx);
 }
 
-static int rspi_remove(struct platform_device *pdev)
+static void rspi_remove(struct platform_device *pdev)
 {
 	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
 	rspi_release_dma(rspi->ctlr);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct spi_ops rspi_ops = {
@@ -1440,7 +1438,7 @@ static SIMPLE_DEV_PM_OPS(rspi_pm_ops, rspi_suspend, rspi_resume);
 
 static struct platform_driver rspi_driver = {
 	.probe =	rspi_probe,
-	.remove =	rspi_remove,
+	.remove_new =	rspi_remove,
 	.id_table =	spi_driver_ids,
 	.driver		= {
 		.name = "renesas_spi",
