@@ -416,7 +416,6 @@ int mt7996_mcu_set_pulse_th(struct mt7996_dev *dev,
 int mt7996_mcu_set_radar_th(struct mt7996_dev *dev, int index,
 			    const struct mt7996_dfs_pattern *pattern);
 int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable);
-void mt7996_mcu_set_pm(void *priv, u8 *mac, struct ieee80211_vif *vif);
 int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val);
 int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch);
 int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,

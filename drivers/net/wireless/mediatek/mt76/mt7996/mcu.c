@@ -3478,32 +3478,6 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 				 &req, sizeof(req), true);
 }
 
-void mt7996_mcu_set_pm(void *priv, u8 *mac, struct ieee80211_vif *vif)
-{
-#define EXIT_PM_STATE	0
-#define ENTER_PM_STATE	1
-	struct ieee80211_hw *hw = priv;
-	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct bss_power_save *ps;
-	struct sk_buff *skb;
-	struct tlv *tlv;
-	bool running = test_bit(MT76_STATE_RUNNING, &phy->mt76->state);
-
-	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->mt76,
-					 MT7996_BSS_UPDATE_MAX_SIZE);
-	if (IS_ERR(skb))
-		return;
-
-	tlv = mt7996_mcu_add_uni_tlv(skb, UNI_BSS_INFO_PS, sizeof(*ps));
-	ps = (struct bss_power_save *)tlv;
-	ps->profile = running ? EXIT_PM_STATE : ENTER_PM_STATE;
-
-	mt76_mcu_skb_send_msg(&dev->mt76, skb,
-			      MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
-}
-
 int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val)
 {
 	struct {

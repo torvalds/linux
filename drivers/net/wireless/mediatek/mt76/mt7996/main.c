@@ -52,10 +52,6 @@ static int mt7996_start(struct ieee80211_hw *hw)
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
-	ieee80211_iterate_interfaces(dev->mt76.hw,
-				     IEEE80211_IFACE_ITER_RESUME_ALL,
-				     mt7996_mcu_set_pm, dev->mt76.hw);
-
 	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 				     MT7996_WATCHDOG_TIME);
 
@@ -78,10 +74,6 @@ static void mt7996_stop(struct ieee80211_hw *hw)
 	mutex_lock(&dev->mt76.mutex);
 
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
-
-	ieee80211_iterate_interfaces(dev->mt76.hw,
-				     IEEE80211_IFACE_ITER_RESUME_ALL,
-				     mt7996_mcu_set_pm, dev->mt76.hw);
 
 	mutex_unlock(&dev->mt76.mutex);
 }
