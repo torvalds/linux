@@ -6,8 +6,6 @@
  */
 #include "table.h"
 
-u32 Rtl8192PciEPHY_REGArray[PHY_REGArrayLengthPciE] = {0x0,};
-
 u32 Rtl8192PciEPHY_REG_1T2RArray[PHY_REG_1T2RArrayLengthPciE] = {
 	0x800, 0x00000000,
 	0x804, 0x00000001,
