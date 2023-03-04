@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/power/supply/richtek,rt9467-charger.yaml#
+$id: http://devicetree.org/schemas/power/supply/richtek,rt9467.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Richtek RT9467 Switching Battery Charger with Power Path Management
@@ -25,7 +25,7 @@ description: |
 
 properties:
   compatible:
-    const: richtek,rt9467-charger
+    const: richtek,rt9467
 
   reg:
     maxItems: 1
@@ -65,7 +65,7 @@ examples:
       #size-cells = <0>;
 
       charger@5b {
-        compatible = "richtek,rt9467-charger";
+        compatible = "richtek,rt9467";
         reg = <0x5b>;
         wakeup-source;
         interrupts-extended = <&gpio_intc 32 IRQ_TYPE_LEVEL_LOW>;
