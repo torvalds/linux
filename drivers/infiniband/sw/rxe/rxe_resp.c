@@ -42,7 +42,6 @@ static char *resp_state_name[] = {
 	[RESPST_ERR_LENGTH]			= "ERR_LENGTH",
 	[RESPST_ERR_CQ_OVERFLOW]		= "ERR_CQ_OVERFLOW",
 	[RESPST_ERROR]				= "ERROR",
-	[RESPST_RESET]				= "RESET",
 	[RESPST_DONE]				= "DONE",
 	[RESPST_EXIT]				= "EXIT",
 };
@@ -68,17 +67,6 @@ static inline enum resp_states get_req(struct rxe_qp *qp,
 				       struct rxe_pkt_info **pkt_p)
 {
 	struct sk_buff *skb;
-
-	if (qp->resp.state == QP_STATE_ERROR) {
-		while ((skb = skb_dequeue(&qp->req_pkts))) {
-			rxe_put(qp);
-			kfree_skb(skb);
-			ib_device_put(qp->ibqp.device);
-		}
-
-		/* go drain recv wr queue */
-		return RESPST_CHK_RESOURCE;
-	}
 
 	skb = skb_peek(&qp->req_pkts);
 	if (!skb)
@@ -333,24 +321,6 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 				       struct rxe_pkt_info *pkt)
 {
 	struct rxe_srq *srq = qp->srq;
-
-	if (qp->resp.state == QP_STATE_ERROR) {
-		if (qp->resp.wqe) {
-			qp->resp.status = IB_WC_WR_FLUSH_ERR;
-			return RESPST_COMPLETE;
-		} else if (!srq) {
-			qp->resp.wqe = queue_head(qp->rq.queue,
-					QUEUE_TYPE_FROM_CLIENT);
-			if (qp->resp.wqe) {
-				qp->resp.status = IB_WC_WR_FLUSH_ERR;
-				return RESPST_COMPLETE;
-			} else {
-				return RESPST_EXIT;
-			}
-		} else {
-			return RESPST_EXIT;
-		}
-	}
 
 	if (pkt->mask & (RXE_READ_OR_ATOMIC_MASK | RXE_ATOMIC_WRITE_MASK)) {
 		/* it is the requesters job to not send
@@ -1425,22 +1395,66 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	}
 }
 
-static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
+/* drain incoming request packet queue */
+static void rxe_drain_req_pkts(struct rxe_qp *qp)
 {
 	struct sk_buff *skb;
-	struct rxe_queue *q = qp->rq.queue;
 
 	while ((skb = skb_dequeue(&qp->req_pkts))) {
 		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
+}
 
-	if (notify)
+/* complete receive wqe with flush error */
+static int complete_flush(struct rxe_qp *qp, struct rxe_recv_wqe *wqe)
+{
+	struct rxe_cqe cqe = {};
+	struct ib_wc *wc = &cqe.ibwc;
+	struct ib_uverbs_wc *uwc = &cqe.uibwc;
+
+	if (qp->rcq->is_user) {
+		uwc->status = IB_WC_WR_FLUSH_ERR;
+		uwc->qp_num = qp_num(qp);
+		uwc->wr_id = wqe->wr_id;
+	} else {
+		wc->status = IB_WC_WR_FLUSH_ERR;
+		wc->qp = &qp->ibqp;
+		wc->wr_id = wqe->wr_id;
+	}
+
+	if (rxe_cq_post(qp->rcq, &cqe, 0))
+		return -ENOMEM;
+
+	return 0;
+}
+
+/* drain and optionally complete the recive queue
+ * if unable to complete a wqe stop completing and
+ * just flush the remaining wqes
+ */
+static void rxe_drain_recv_queue(struct rxe_qp *qp, bool notify)
+{
+	struct rxe_queue *q = qp->rq.queue;
+	struct rxe_recv_wqe *wqe;
+	int err;
+
+	if (qp->srq)
 		return;
 
-	while (!qp->srq && q && queue_head(q, q->type))
+	while ((wqe = queue_head(q, q->type))) {
+		if (notify) {
+			err = complete_flush(qp, wqe);
+			if (err) {
+				rxe_dbg_qp(qp, "complete failed for recv wqe");
+				notify = 0;
+			}
+		}
 		queue_advance_consumer(q, q->type);
+	}
+
+	qp->resp.wqe = NULL;
 }
 
 int rxe_responder(struct rxe_qp *qp)
@@ -1453,20 +1467,18 @@ int rxe_responder(struct rxe_qp *qp)
 	if (!rxe_get(qp))
 		return -EAGAIN;
 
+	if (!qp->valid || qp->resp.state == QP_STATE_ERROR ||
+	    qp->resp.state == QP_STATE_RESET) {
+		bool notify = qp->valid &&
+				(qp->resp.state == QP_STATE_ERROR);
+		rxe_drain_req_pkts(qp);
+		rxe_drain_recv_queue(qp, notify);
+		goto exit;
+	}
+
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
-	if (!qp->valid)
-		goto exit;
-
-	switch (qp->resp.state) {
-	case QP_STATE_RESET:
-		state = RESPST_RESET;
-		break;
-
-	default:
-		state = RESPST_GET_REQ;
-		break;
-	}
+	state = RESPST_GET_REQ;
 
 	while (1) {
 		rxe_dbg_qp(qp, "state = %s\n", resp_state_name[state]);
@@ -1623,11 +1635,6 @@ int rxe_responder(struct rxe_qp *qp)
 				break;
 			}
 
-			goto exit;
-
-		case RESPST_RESET:
-			rxe_drain_req_pkts(qp, false);
-			qp->resp.wqe = NULL;
 			goto exit;
 
 		case RESPST_ERROR:
