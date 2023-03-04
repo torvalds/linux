@@ -623,6 +623,11 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 	return variant;
 }
 
+static void s3c2410wdt_wdt_disable_action(void *data)
+{
+	s3c2410wdt_enable(data, false);
+}
+
 static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -724,13 +729,17 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		s3c2410wdt_stop(&wdt->wdt_device);
 	}
 
-	ret = watchdog_register_device(&wdt->wdt_device);
+	ret = devm_watchdog_register_device(dev, &wdt->wdt_device);
 	if (ret)
 		return ret;
 
 	ret = s3c2410wdt_enable(wdt, true);
 	if (ret < 0)
-		goto err_unregister;
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, s3c2410wdt_wdt_disable_action, wdt);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -742,25 +751,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
 		 (wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",
 		 (wtcon & S3C2410_WTCON_INTEN) ? "en" : "dis");
-
-	return 0;
-
- err_unregister:
-	watchdog_unregister_device(&wdt->wdt_device);
-
-	return ret;
-}
-
-static int s3c2410wdt_remove(struct platform_device *dev)
-{
-	int ret;
-	struct s3c2410_wdt *wdt = platform_get_drvdata(dev);
-
-	ret = s3c2410wdt_enable(wdt, false);
-	if (ret < 0)
-		return ret;
-
-	watchdog_unregister_device(&wdt->wdt_device);
 
 	return 0;
 }
@@ -817,7 +807,6 @@ static DEFINE_SIMPLE_DEV_PM_OPS(s3c2410wdt_pm_ops,
 
 static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
-	.remove		= s3c2410wdt_remove,
 	.shutdown	= s3c2410wdt_shutdown,
 	.id_table	= s3c2410_wdt_ids,
 	.driver		= {
