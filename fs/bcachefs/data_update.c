@@ -91,18 +91,6 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 	return ret;
 }
 
-static void bch2_bkey_mark_dev_cached(struct bkey_s k, unsigned dev)
-{
-	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
-	struct bch_extent_ptr *ptr;
-
-	bkey_for_each_ptr(ptrs, ptr)
-		if (ptr->dev == dev) {
-			bch2_extent_ptr_set_cached(k, ptr);
-			return;
-		}
-}
-
 static int __bch2_data_update_index_update(struct btree_trans *trans,
 					   struct bch_write_op *op)
 {
@@ -125,15 +113,17 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 	while (1) {
 		struct bkey_s_c k;
 		struct bkey_s_c old = bkey_i_to_s_c(m->k.k);
-		struct bkey_i *insert;
+		struct bkey_i *insert = NULL;
 		struct bkey_i_extent *new;
-		const union bch_extent_entry *entry;
+		const union bch_extent_entry *entry_c;
+		union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
+		struct bch_extent_ptr *ptr;
+		const struct bch_extent_ptr *ptr_c;
 		struct bpos next_pos;
-		bool did_work = false;
 		bool should_check_enospc;
 		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
-		unsigned i;
+		unsigned rewrites_found = 0, durability, i;
 
 		bch2_trans_begin(trans);
 
@@ -145,7 +135,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		new = bkey_i_to_extent(bch2_keylist_front(keys));
 
 		if (!bch2_extents_match(k, old))
-			goto nomatch;
+			goto nowork;
 
 		bkey_reassemble(_insert.k, k);
 		insert = _insert.k;
@@ -168,50 +158,60 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		 * Fist, drop rewrite_ptrs from @new:
 		 */
 		i = 0;
-		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry) {
+		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry_c) {
 			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
-			    bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) {
-				/*
-				 * If we're going to be adding a pointer to the
-				 * same device, we have to drop the old one -
-				 * otherwise, we can just mark it cached:
-				 */
-				if (bch2_bkey_has_device_c(bkey_i_to_s_c(&new->k_i), p.ptr.dev))
-					bch2_bkey_drop_device_noerror(bkey_i_to_s(insert), p.ptr.dev);
-				else
-					bch2_bkey_mark_dev_cached(bkey_i_to_s(insert), p.ptr.dev);
+			    (ptr = bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) &&
+			    !ptr->cached) {
+				bch2_extent_ptr_set_cached(bkey_i_to_s(insert), ptr);
+				rewrites_found |= 1U << i;
 			}
 			i++;
 		}
 
+		if (m->data_opts.rewrite_ptrs &&
+		    !rewrites_found &&
+		    bch2_bkey_durability(c, k) >= m->op.opts.data_replicas)
+			goto nowork;
 
-		/* Add new ptrs: */
-		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
-			const struct bch_extent_ptr *existing_ptr =
-				bch2_bkey_has_device_c(bkey_i_to_s_c(insert), p.ptr.dev);
-
-			if (existing_ptr && existing_ptr->cached) {
-				/*
-				 * We're replacing a cached pointer with a non
-				 * cached pointer:
-				 */
-				bch2_bkey_drop_device_noerror(bkey_i_to_s(insert),
-							      existing_ptr->dev);
-			} else if (existing_ptr) {
-				/*
-				 * raced with another move op? extent already
-				 * has a pointer to the device we just wrote
-				 * data to
-				 */
-				continue;
+		/*
+		 * A replica that we just wrote might conflict with a replica
+		 * that we want to keep, due to racing with another move:
+		 */
+restart_drop_conflicting_replicas:
+		extent_for_each_ptr(extent_i_to_s(new), ptr)
+			if ((ptr_c = bch2_bkey_has_device_c(bkey_i_to_s_c(insert), ptr->dev)) &&
+			    !ptr_c->cached) {
+				bch2_bkey_drop_ptr_noerror(bkey_i_to_s(&new->k_i), ptr);
+				goto restart_drop_conflicting_replicas;
 			}
 
-			bch2_extent_ptr_decoded_append(insert, &p);
-			did_work = true;
+		if (!bkey_val_u64s(&new->k))
+			goto nowork;
+
+		/* Now, drop pointers that conflict with what we just wrote: */
+		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry)
+			if ((ptr = bch2_bkey_has_device(bkey_i_to_s(insert), p.ptr.dev)))
+				bch2_bkey_drop_ptr_noerror(bkey_i_to_s(insert), ptr);
+
+		durability = bch2_bkey_durability(c, bkey_i_to_s_c(insert)) +
+			bch2_bkey_durability(c, bkey_i_to_s_c(&new->k_i));
+
+		/* Now, drop excess replicas: */
+restart_drop_extra_replicas:
+		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs(bkey_i_to_s(insert)), p, entry) {
+			unsigned ptr_durability = bch2_extent_ptr_durability(c, &p);
+
+			if (!p.ptr.cached &&
+			    durability - ptr_durability >= m->op.opts.data_replicas) {
+				durability -= ptr_durability;
+				bch2_extent_ptr_set_cached(bkey_i_to_s(insert), &entry->ptr);
+				goto restart_drop_extra_replicas;
+			}
 		}
 
-		if (!did_work)
-			goto nomatch;
+		/* Finally, add the pointers we just wrote: */
+		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry)
+			bch2_extent_ptr_decoded_append(insert, &p);
 
 		bch2_bkey_narrow_crcs(insert, (struct bch_extent_crc_unpacked) { 0 });
 		bch2_extent_normalize(c, bkey_i_to_s(insert));
@@ -272,7 +272,7 @@ next:
 				goto out;
 		}
 		continue;
-nomatch:
+nowork:
 		if (m->ctxt && m->ctxt->stats) {
 			BUG_ON(k.k->p.offset <= iter.pos.offset);
 			atomic64_inc(&m->ctxt->stats->keys_raced);
