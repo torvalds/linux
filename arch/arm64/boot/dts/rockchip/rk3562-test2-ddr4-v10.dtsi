@@ -59,6 +59,18 @@
 	};
 };
 
+&dsi {
+	status = "okay";
+};
+
+&dsi_in_vp0 {
+	status = "okay";
+};
+
+&dsi_in_vp1 {
+	status = "disabled";
+};
+
 &gmac0 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rmii";
@@ -113,3 +125,6 @@
 	snps,usb2-lpm-disable;
 };
 
+&video_phy {
+	status = "okay";
+};
