@@ -653,9 +653,6 @@ int rxe_requester(struct rxe_qp *qp)
 	struct rxe_ah *ah;
 	struct rxe_av *av;
 
-	if (!rxe_get(qp))
-		return -EAGAIN;
-
 	if (unlikely(!qp->valid))
 		goto exit;
 
@@ -844,7 +841,5 @@ err:
 exit:
 	ret = -EAGAIN;
 out:
-	rxe_put(qp);
-
 	return ret;
 }

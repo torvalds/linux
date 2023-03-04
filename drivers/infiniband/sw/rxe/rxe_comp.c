@@ -619,9 +619,6 @@ int rxe_completer(struct rxe_qp *qp)
 	enum comp_state state;
 	int ret;
 
-	if (!rxe_get(qp))
-		return -EAGAIN;
-
 	if (!qp->valid || qp->comp.state == QP_STATE_ERROR ||
 	    qp->comp.state == QP_STATE_RESET) {
 		bool notify = qp->valid &&
@@ -824,7 +821,5 @@ exit:
 out:
 	if (pkt)
 		free_pkt(pkt);
-	rxe_put(qp);
-
 	return ret;
 }

@@ -1464,9 +1464,6 @@ int rxe_responder(struct rxe_qp *qp)
 	struct rxe_pkt_info *pkt = NULL;
 	int ret;
 
-	if (!rxe_get(qp))
-		return -EAGAIN;
-
 	if (!qp->valid || qp->resp.state == QP_STATE_ERROR ||
 	    qp->resp.state == QP_STATE_RESET) {
 		bool notify = qp->valid &&
@@ -1658,6 +1655,5 @@ done:
 exit:
 	ret = -EAGAIN;
 out:
-	rxe_put(qp);
 	return ret;
 }
