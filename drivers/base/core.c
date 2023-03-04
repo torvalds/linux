@@ -1160,10 +1160,7 @@ static void device_links_flush_sync_list(struct list_head *list,
 		if (dev != dont_lock_dev)
 			device_lock(dev);
 
-		if (dev->bus->sync_state)
-			dev->bus->sync_state(dev);
-		else if (dev->driver && dev->driver->sync_state)
-			dev->driver->sync_state(dev);
+		dev_sync_state(dev);
 
 		if (dev != dont_lock_dev)
 			device_unlock(dev);

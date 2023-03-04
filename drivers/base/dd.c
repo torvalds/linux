@@ -510,6 +510,27 @@ EXPORT_SYMBOL_GPL(device_bind_driver);
 static atomic_t probe_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(probe_waitqueue);
 
+static ssize_t state_synced_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	int ret = 0;
+
+	if (strcmp("1", buf))
+		return -EINVAL;
+
+	device_lock(dev);
+	if (!dev->state_synced) {
+		dev->state_synced = true;
+		dev_sync_state(dev);
+	} else {
+		ret = -EINVAL;
+	}
+	device_unlock(dev);
+
+	return ret ? ret : count;
+}
+
 static ssize_t state_synced_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -521,7 +542,7 @@ static ssize_t state_synced_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", val);
 }
-static DEVICE_ATTR_RO(state_synced);
+static DEVICE_ATTR_RW(state_synced);
 
 static void device_unbind_cleanup(struct device *dev)
 {
