@@ -325,7 +325,16 @@ MODULE_PARM_DESC(tablet_mode_in_slate_state, "Enable tablet mode in slate device
 #define SSAM_POS_MAX_SOURCES			4
 
 enum ssam_pos_source_id {
+	SSAM_POS_SOURCE_COVER = 0x00,
 	SSAM_POS_SOURCE_SLS   = 0x03,
+};
+
+enum ssam_pos_state_cover {
+	SSAM_POS_COVER_DISCONNECTED  = 0x01,
+	SSAM_POS_COVER_CLOSED        = 0x02,
+	SSAM_POS_COVER_LAPTOP        = 0x03,
+	SSAM_POS_COVER_FOLDED_CANVAS = 0x04,
+	SSAM_POS_COVER_FOLDED_BACK   = 0x05,
 };
 
 enum ssam_pos_state_sls {
@@ -339,6 +348,30 @@ struct ssam_sources_list {
 	__le32 count;
 	__le32 id[SSAM_POS_MAX_SOURCES];
 } __packed;
+
+static const char *ssam_pos_state_name_cover(struct ssam_tablet_sw *sw, u32 state)
+{
+	switch (state) {
+	case SSAM_POS_COVER_DISCONNECTED:
+		return "disconnected";
+
+	case SSAM_POS_COVER_CLOSED:
+		return "closed";
+
+	case SSAM_POS_COVER_LAPTOP:
+		return "laptop";
+
+	case SSAM_POS_COVER_FOLDED_CANVAS:
+		return "folded-canvas";
+
+	case SSAM_POS_COVER_FOLDED_BACK:
+		return "folded-back";
+
+	default:
+		dev_warn(&sw->sdev->dev, "unknown device posture for type-cover: %u\n", state);
+		return "<unknown>";
+	}
+}
 
 static const char *ssam_pos_state_name_sls(struct ssam_tablet_sw *sw, u32 state)
 {
@@ -365,12 +398,33 @@ static const char *ssam_pos_state_name(struct ssam_tablet_sw *sw,
 				       const struct ssam_tablet_sw_state *state)
 {
 	switch (state->source) {
+	case SSAM_POS_SOURCE_COVER:
+		return ssam_pos_state_name_cover(sw, state->state);
+
 	case SSAM_POS_SOURCE_SLS:
 		return ssam_pos_state_name_sls(sw, state->state);
 
 	default:
 		dev_warn(&sw->sdev->dev, "unknown device posture source: %u\n", state->source);
 		return "<unknown>";
+	}
+}
+
+static bool ssam_pos_state_is_tablet_mode_cover(struct ssam_tablet_sw *sw, u32 state)
+{
+	switch (state) {
+	case SSAM_POS_COVER_DISCONNECTED:
+	case SSAM_POS_COVER_FOLDED_CANVAS:
+	case SSAM_POS_COVER_FOLDED_BACK:
+		return true;
+
+	case SSAM_POS_COVER_CLOSED:
+	case SSAM_POS_COVER_LAPTOP:
+		return false;
+
+	default:
+		dev_warn(&sw->sdev->dev, "unknown device posture for type-cover: %u\n", state);
+		return true;
 	}
 }
 
@@ -397,6 +451,9 @@ static bool ssam_pos_state_is_tablet_mode(struct ssam_tablet_sw *sw,
 					  const struct ssam_tablet_sw_state *state)
 {
 	switch (state->source) {
+	case SSAM_POS_SOURCE_COVER:
+		return ssam_pos_state_is_tablet_mode_cover(sw, state->state);
+
 	case SSAM_POS_SOURCE_SLS:
 		return ssam_pos_state_is_tablet_mode_sls(sw, state->state);
 
