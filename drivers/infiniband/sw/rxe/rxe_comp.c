@@ -542,25 +542,60 @@ static inline enum comp_state complete_wqe(struct rxe_qp *qp,
 	return COMPST_GET_WQE;
 }
 
-static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
+/* drain incoming response packet queue */
+static void drain_resp_pkts(struct rxe_qp *qp)
 {
 	struct sk_buff *skb;
-	struct rxe_send_wqe *wqe;
-	struct rxe_queue *q = qp->sq.queue;
 
 	while ((skb = skb_dequeue(&qp->resp_pkts))) {
 		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
+}
+
+/* complete send wqe with flush error */
+static int flush_send_wqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+{
+	struct rxe_cqe cqe = {};
+	struct ib_wc *wc = &cqe.ibwc;
+	struct ib_uverbs_wc *uwc = &cqe.uibwc;
+	int err;
+
+	if (qp->is_user) {
+		uwc->wr_id = wqe->wr.wr_id;
+		uwc->status = IB_WC_WR_FLUSH_ERR;
+		uwc->qp_num = qp->ibqp.qp_num;
+	} else {
+		wc->wr_id = wqe->wr.wr_id;
+		wc->status = IB_WC_WR_FLUSH_ERR;
+		wc->qp = &qp->ibqp;
+	}
+
+	err = rxe_cq_post(qp->scq, &cqe, 0);
+	if (err)
+		rxe_dbg_cq(qp->scq, "post cq failed, err = %d", err);
+
+	return err;
+}
+
+/* drain and optionally complete the send queue
+ * if unable to complete a wqe, i.e. cq is full, stop
+ * completing and flush the remaining wqes
+ */
+static void flush_send_queue(struct rxe_qp *qp, bool notify)
+{
+	struct rxe_send_wqe *wqe;
+	struct rxe_queue *q = qp->sq.queue;
+	int err;
 
 	while ((wqe = queue_head(q, q->type))) {
 		if (notify) {
-			wqe->status = IB_WC_WR_FLUSH_ERR;
-			do_complete(qp, wqe);
-		} else {
-			queue_advance_consumer(q, q->type);
+			err = flush_send_wqe(qp, wqe);
+			if (err)
+				notify = 0;
 		}
+		queue_advance_consumer(q, q->type);
 	}
 }
 
@@ -589,8 +624,10 @@ int rxe_completer(struct rxe_qp *qp)
 
 	if (!qp->valid || qp->comp.state == QP_STATE_ERROR ||
 	    qp->comp.state == QP_STATE_RESET) {
-		rxe_drain_resp_pkts(qp, qp->valid &&
-				    qp->comp.state == QP_STATE_ERROR);
+		bool notify = qp->valid &&
+				(qp->comp.state == QP_STATE_ERROR);
+		drain_resp_pkts(qp);
+		flush_send_queue(qp, notify);
 		goto exit;
 	}
 

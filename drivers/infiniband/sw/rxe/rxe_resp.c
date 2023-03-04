@@ -1396,7 +1396,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 }
 
 /* drain incoming request packet queue */
-static void rxe_drain_req_pkts(struct rxe_qp *qp)
+static void drain_req_pkts(struct rxe_qp *qp)
 {
 	struct sk_buff *skb;
 
@@ -1408,33 +1408,35 @@ static void rxe_drain_req_pkts(struct rxe_qp *qp)
 }
 
 /* complete receive wqe with flush error */
-static int complete_flush(struct rxe_qp *qp, struct rxe_recv_wqe *wqe)
+static int flush_recv_wqe(struct rxe_qp *qp, struct rxe_recv_wqe *wqe)
 {
 	struct rxe_cqe cqe = {};
 	struct ib_wc *wc = &cqe.ibwc;
 	struct ib_uverbs_wc *uwc = &cqe.uibwc;
+	int err;
 
 	if (qp->rcq->is_user) {
+		uwc->wr_id = wqe->wr_id;
 		uwc->status = IB_WC_WR_FLUSH_ERR;
 		uwc->qp_num = qp_num(qp);
-		uwc->wr_id = wqe->wr_id;
 	} else {
+		wc->wr_id = wqe->wr_id;
 		wc->status = IB_WC_WR_FLUSH_ERR;
 		wc->qp = &qp->ibqp;
-		wc->wr_id = wqe->wr_id;
 	}
 
-	if (rxe_cq_post(qp->rcq, &cqe, 0))
-		return -ENOMEM;
+	err = rxe_cq_post(qp->rcq, &cqe, 0);
+	if (err)
+		rxe_dbg_cq(qp->rcq, "post cq failed err = %d", err);
 
-	return 0;
+	return err;
 }
 
 /* drain and optionally complete the recive queue
  * if unable to complete a wqe stop completing and
  * just flush the remaining wqes
  */
-static void rxe_drain_recv_queue(struct rxe_qp *qp, bool notify)
+static void flush_recv_queue(struct rxe_qp *qp, bool notify)
 {
 	struct rxe_queue *q = qp->rq.queue;
 	struct rxe_recv_wqe *wqe;
@@ -1445,11 +1447,9 @@ static void rxe_drain_recv_queue(struct rxe_qp *qp, bool notify)
 
 	while ((wqe = queue_head(q, q->type))) {
 		if (notify) {
-			err = complete_flush(qp, wqe);
-			if (err) {
-				rxe_dbg_qp(qp, "complete failed for recv wqe");
+			err = flush_recv_wqe(qp, wqe);
+			if (err)
 				notify = 0;
-			}
 		}
 		queue_advance_consumer(q, q->type);
 	}
@@ -1471,8 +1471,8 @@ int rxe_responder(struct rxe_qp *qp)
 	    qp->resp.state == QP_STATE_RESET) {
 		bool notify = qp->valid &&
 				(qp->resp.state == QP_STATE_ERROR);
-		rxe_drain_req_pkts(qp);
-		rxe_drain_recv_queue(qp, notify);
+		drain_req_pkts(qp);
+		flush_recv_queue(qp, notify);
 		goto exit;
 	}
 
