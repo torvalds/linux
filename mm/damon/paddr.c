@@ -280,8 +280,8 @@ static inline unsigned long damon_pa_mark_accessed_or_deactivate(
 			folio_mark_accessed(folio);
 		else
 			folio_deactivate(folio);
-		folio_put(folio);
 		applied += folio_nr_pages(folio);
+		folio_put(folio);
 	}
 	return applied * PAGE_SIZE;
 }
