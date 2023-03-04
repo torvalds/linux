@@ -353,8 +353,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 			if (tempval&0x80)
 				priv->rf_type = RF_1T2R;
-			else
-				priv->rf_type = RF_2T4R;
+
 		} else {
 			priv->eeprom_legacy_ht_tx_pwr_diff = 0x04;
 		}

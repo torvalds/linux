@@ -451,7 +451,6 @@ enum led_ctl_mode {
 
 enum rt_rf_type_def {
 	RF_1T2R = 0,
-	RF_2T4R,
 };
 
 enum wireless_mode {
