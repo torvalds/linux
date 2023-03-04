@@ -3076,9 +3076,6 @@ int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 	if (!adev || !ras_block_obj)
 		return -EINVAL;
 
-	if (!amdgpu_ras_asic_supported(adev))
-		return 0;
-
 	ras_node = kzalloc(sizeof(*ras_node), GFP_KERNEL);
 	if (!ras_node)
 		return -ENOMEM;
