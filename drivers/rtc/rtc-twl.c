@@ -586,7 +586,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
  * Disable all TWL RTC module interrupts.
  * Sets status flag to free.
  */
-static int twl_rtc_remove(struct platform_device *pdev)
+static void twl_rtc_remove(struct platform_device *pdev)
 {
 	struct twl_rtc *twl_rtc = platform_get_drvdata(pdev);
 
@@ -599,8 +599,6 @@ static int twl_rtc_remove(struct platform_device *pdev)
 		twl6030_interrupt_mask(TWL6030_RTC_INT_MASK,
 			REG_INT_MSK_STS_A);
 	}
-
-	return 0;
 }
 
 static void twl_rtc_shutdown(struct platform_device *pdev)
@@ -642,7 +640,7 @@ MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove		= twl_rtc_remove,
+	.remove_new	= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.driver		= {
 		.name		= "twl_rtc",
