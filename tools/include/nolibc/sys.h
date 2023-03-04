@@ -411,6 +411,27 @@ int getdents64(int fd, struct linux_dirent64 *dirp, int count)
 
 
 /*
+ * uid_t geteuid(void);
+ */
+
+static __attribute__((unused))
+uid_t sys_geteuid(void)
+{
+#ifdef __NR_geteuid32
+	return my_syscall0(__NR_geteuid32);
+#else
+	return my_syscall0(__NR_geteuid);
+#endif
+}
+
+static __attribute__((unused))
+uid_t geteuid(void)
+{
+	return sys_geteuid();
+}
+
+
+/*
  * pid_t getpgid(pid_t pid);
  */
 
@@ -541,6 +562,27 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 		ret = -1;
 	}
 	return ret;
+}
+
+
+/*
+ * uid_t getuid(void);
+ */
+
+static __attribute__((unused))
+uid_t sys_getuid(void)
+{
+#ifdef __NR_getuid32
+	return my_syscall0(__NR_getuid32);
+#else
+	return my_syscall0(__NR_getuid);
+#endif
+}
+
+static __attribute__((unused))
+uid_t getuid(void)
+{
+	return sys_getuid();
 }
 
 
