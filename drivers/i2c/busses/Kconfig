@@ -914,6 +914,7 @@ config I2C_PASEMI
 
 config I2C_APPLE
 	tristate "Apple SMBus platform driver"
+	depends on !I2C_PASEMI
 	depends on ARCH_APPLE || COMPILE_TEST
 	default ARCH_APPLE
 	help
