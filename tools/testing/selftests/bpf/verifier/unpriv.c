@@ -240,6 +240,29 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
+	/* Same as above, but use BPF_ST_MEM to save 42
+	 * instead of BPF_STX_MEM.
+	 */
+	"unpriv: spill/fill of different pointers st",
+	.insns = {
+	BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 3),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -16),
+	BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_2, 0),
+	BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 1),
+	BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0),
+	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
+	BPF_ST_MEM(BPF_W, BPF_REG_1, offsetof(struct __sk_buff, mark), 42),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.errstr = "same insn cannot be used with different pointers",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
 	"unpriv: spill/fill of different pointers stx - ctx and sock",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_8, BPF_REG_1),
