@@ -273,7 +273,7 @@ next:
 		}
 		continue;
 nomatch:
-		if (m->ctxt) {
+		if (m->ctxt && m->ctxt->stats) {
 			BUG_ON(k.k->p.offset <= iter.pos.offset);
 			atomic64_inc(&m->ctxt->stats->keys_raced);
 			atomic64_add(k.k->p.offset - iter.pos.offset,

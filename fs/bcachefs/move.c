@@ -303,12 +303,6 @@ static int bch2_move_extent(struct btree_trans *trans,
 	if (ret && ret != -BCH_ERR_unwritten_extent_update)
 		goto err_free_pages;
 
-	io->write.ctxt = ctxt;
-	io->write.op.end_io = move_write_done;
-
-	atomic64_inc(&ctxt->stats->keys_moved);
-	atomic64_add(k.k->size, &ctxt->stats->sectors_moved);
-
 	if (ret == -BCH_ERR_unwritten_extent_update) {
 		bch2_update_unwritten_extent(trans, &io->write);
 		move_free(io);
@@ -316,6 +310,14 @@ static int bch2_move_extent(struct btree_trans *trans,
 	}
 
 	BUG_ON(ret);
+
+	io->write.ctxt = ctxt;
+	io->write.op.end_io = move_write_done;
+
+	if (ctxt->stats) {
+		atomic64_inc(&ctxt->stats->keys_moved);
+		atomic64_add(k.k->size, &ctxt->stats->sectors_moved);
+	}
 
 	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
 	this_cpu_add(c->counters[BCH_COUNTER_move_extent_read], k.k->size);
@@ -468,9 +470,11 @@ static int __bch2_move_data(struct moving_context *ctxt,
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	ctxt->stats->data_type	= BCH_DATA_user;
-	ctxt->stats->btree_id	= btree_id;
-	ctxt->stats->pos	= start;
+	if (ctxt->stats) {
+		ctxt->stats->data_type	= BCH_DATA_user;
+		ctxt->stats->btree_id	= btree_id;
+		ctxt->stats->pos	= start;
+	}
 
 	bch2_trans_iter_init(&trans, &iter, btree_id, start,
 			     BTREE_ITER_PREFETCH|
@@ -495,7 +499,8 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		if (bkey_ge(bkey_start_pos(k.k), end))
 			break;
 
-		ctxt->stats->pos = iter.pos;
+		if (ctxt->stats)
+			ctxt->stats->pos = iter.pos;
 
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
@@ -535,7 +540,8 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		if (ctxt->rate)
 			bch2_ratelimit_increment(ctxt->rate, k.k->size);
 next:
-		atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
+		if (ctxt->stats)
+			atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
 next_nondata:
 		bch2_btree_iter_advance(&iter);
 	}
@@ -759,7 +765,8 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 
 			if (ctxt->rate)
 				bch2_ratelimit_increment(ctxt->rate, k.k->size);
-			atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
+			if (ctxt->stats)
+				atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
 		} else {
 			struct btree *b;
 
@@ -786,8 +793,10 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 			if (ctxt->rate)
 				bch2_ratelimit_increment(ctxt->rate,
 							 c->opts.btree_node_size >> 9);
-			atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_seen);
-			atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_moved);
+			if (ctxt->stats) {
+				atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_seen);
+				atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_moved);
+			}
 		}
 next:
 		bp_offset++;
