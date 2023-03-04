@@ -237,7 +237,6 @@ static void ubwcp_release(struct dma_buf *dmabuf)
 
 	msm_dma_buf_freed(dmabuf->priv);
 	qcom_system_heap_free(&buffer->qcom_sg_buf);
-	kfree(buffer);
 }
 
 struct mem_buf_dma_buf_ops ubwcp_ops = {
@@ -350,6 +349,7 @@ free_vmperm:
 	mem_buf_vmperm_release(buffer->qcom_sg_buf.vmperm);
 free_sys_heap_mem:
 	qcom_system_heap_free(&buffer->qcom_sg_buf);
+	return ERR_PTR(ret);
 free_buf_struct:
 	kfree(buffer);
 

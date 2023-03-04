@@ -8,7 +8,7 @@
  *	Andrew F. Davis <afd@ti.com>
  *
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _QCOM_SG_OPS_H
@@ -18,6 +18,7 @@
 #include <linux/dma-heap.h>
 #include <linux/device.h>
 #include <linux/mem-buf-exporter.h>
+#include "deferred-free-helper.h"
 
 struct qcom_sg_buffer {
 	struct dma_heap *heap;
@@ -29,6 +30,7 @@ struct qcom_sg_buffer {
 	void *vaddr;
 	bool uncached;
 	struct mem_buf_vmperm *vmperm;
+	struct deferred_freelist_item deferred_free;
 	void (*free)(struct qcom_sg_buffer *buffer);
 };
 
