@@ -14813,6 +14813,44 @@ static bool reg_type_mismatch(enum bpf_reg_type src, enum bpf_reg_type prev)
 			       !reg_type_mismatch_ok(prev));
 }
 
+static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type type,
+			     bool allow_trust_missmatch)
+{
+	enum bpf_reg_type *prev_type = &env->insn_aux_data[env->insn_idx].ptr_type;
+
+	if (*prev_type == NOT_INIT) {
+		/* Saw a valid insn
+		 * dst_reg = *(u32 *)(src_reg + off)
+		 * save type to validate intersecting paths
+		 */
+		*prev_type = type;
+	} else if (reg_type_mismatch(type, *prev_type)) {
+		/* Abuser program is trying to use the same insn
+		 * dst_reg = *(u32*) (src_reg + off)
+		 * with different pointer types:
+		 * src_reg == ctx in one branch and
+		 * src_reg == stack|map in some other branch.
+		 * Reject it.
+		 */
+		if (allow_trust_missmatch &&
+		    base_type(type) == PTR_TO_BTF_ID &&
+		    base_type(*prev_type) == PTR_TO_BTF_ID) {
+			/*
+			 * Have to support a use case when one path through
+			 * the program yields TRUSTED pointer while another
+			 * is UNTRUSTED. Fallback to UNTRUSTED to generate
+			 * BPF_PROBE_MEM.
+			 */
+			*prev_type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
+		} else {
+			verbose(env, "same insn cannot be used with different pointers\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int do_check(struct bpf_verifier_env *env)
 {
 	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
@@ -14922,7 +14960,7 @@ static int do_check(struct bpf_verifier_env *env)
 				return err;
 
 		} else if (class == BPF_LDX) {
-			enum bpf_reg_type *prev_src_type, src_reg_type;
+			enum bpf_reg_type src_reg_type;
 
 			/* check for reserved fields is already done */
 
@@ -14946,43 +14984,11 @@ static int do_check(struct bpf_verifier_env *env)
 			if (err)
 				return err;
 
-			prev_src_type = &env->insn_aux_data[env->insn_idx].ptr_type;
-
-			if (*prev_src_type == NOT_INIT) {
-				/* saw a valid insn
-				 * dst_reg = *(u32 *)(src_reg + off)
-				 * save type to validate intersecting paths
-				 */
-				*prev_src_type = src_reg_type;
-
-			} else if (reg_type_mismatch(src_reg_type, *prev_src_type)) {
-				/* ABuser program is trying to use the same insn
-				 * dst_reg = *(u32*) (src_reg + off)
-				 * with different pointer types:
-				 * src_reg == ctx in one branch and
-				 * src_reg == stack|map in some other branch.
-				 * Reject it.
-				 */
-				if (base_type(src_reg_type) == PTR_TO_BTF_ID &&
-				    base_type(*prev_src_type) == PTR_TO_BTF_ID) {
-					/*
-					 * Have to support a use case when one path through
-					 * the program yields TRUSTED pointer while another
-					 * is UNTRUSTED. Fallback to UNTRUSTED to generate
-					 * BPF_PROBE_MEM.
-					 */
-					*prev_src_type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
-				} else {
-					verbose(env,
-						"The same insn cannot be used with different pointers: %s",
-						reg_type_str(env, src_reg_type));
-					verbose(env, " != %s\n", reg_type_str(env, *prev_src_type));
-					return -EINVAL;
-				}
-			}
-
+			err = save_aux_ptr_type(env, src_reg_type, true);
+			if (err)
+				return err;
 		} else if (class == BPF_STX) {
-			enum bpf_reg_type *prev_dst_type, dst_reg_type;
+			enum bpf_reg_type dst_reg_type;
 
 			if (BPF_MODE(insn->code) == BPF_ATOMIC) {
 				err = check_atomic(env, env->insn_idx, insn);
@@ -15015,16 +15021,12 @@ static int do_check(struct bpf_verifier_env *env)
 			if (err)
 				return err;
 
-			prev_dst_type = &env->insn_aux_data[env->insn_idx].ptr_type;
-
-			if (*prev_dst_type == NOT_INIT) {
-				*prev_dst_type = dst_reg_type;
-			} else if (reg_type_mismatch(dst_reg_type, *prev_dst_type)) {
-				verbose(env, "same insn cannot be used with different pointers\n");
-				return -EINVAL;
-			}
-
+			err = save_aux_ptr_type(env, dst_reg_type, false);
+			if (err)
+				return err;
 		} else if (class == BPF_ST) {
+			enum bpf_reg_type dst_reg_type;
+
 			if (BPF_MODE(insn->code) != BPF_MEM ||
 			    insn->src_reg != BPF_REG_0) {
 				verbose(env, "BPF_ST uses reserved fields\n");
@@ -15035,12 +15037,7 @@ static int do_check(struct bpf_verifier_env *env)
 			if (err)
 				return err;
 
-			if (is_ctx_reg(env, insn->dst_reg)) {
-				verbose(env, "BPF_ST stores into R%d %s is not allowed\n",
-					insn->dst_reg,
-					reg_type_str(env, reg_state(env, insn->dst_reg)->type));
-				return -EACCES;
-			}
+			dst_reg_type = regs[insn->dst_reg].type;
 
 			/* check that memory (dst_reg + off) is writeable */
 			err = check_mem_access(env, env->insn_idx, insn->dst_reg,
@@ -15049,6 +15046,9 @@ static int do_check(struct bpf_verifier_env *env)
 			if (err)
 				return err;
 
+			err = save_aux_ptr_type(env, dst_reg_type, false);
+			if (err)
+				return err;
 		} else if (class == BPF_JMP || class == BPF_JMP32) {
 			u8 opcode = BPF_OP(insn->code);
 
@@ -16157,14 +16157,12 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		bpf_convert_ctx_access_t convert_ctx_access;
-		bool ctx_access;
 
 		if (insn->code == (BPF_LDX | BPF_MEM | BPF_B) ||
 		    insn->code == (BPF_LDX | BPF_MEM | BPF_H) ||
 		    insn->code == (BPF_LDX | BPF_MEM | BPF_W) ||
 		    insn->code == (BPF_LDX | BPF_MEM | BPF_DW)) {
 			type = BPF_READ;
-			ctx_access = true;
 		} else if (insn->code == (BPF_STX | BPF_MEM | BPF_B) ||
 			   insn->code == (BPF_STX | BPF_MEM | BPF_H) ||
 			   insn->code == (BPF_STX | BPF_MEM | BPF_W) ||
@@ -16174,7 +16172,6 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 			   insn->code == (BPF_ST | BPF_MEM | BPF_W) ||
 			   insn->code == (BPF_ST | BPF_MEM | BPF_DW)) {
 			type = BPF_WRITE;
-			ctx_access = BPF_CLASS(insn->code) == BPF_STX;
 		} else {
 			continue;
 		}
@@ -16196,9 +16193,6 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 			insn      = new_prog->insnsi + i + delta;
 			continue;
 		}
-
-		if (!ctx_access)
-			continue;
 
 		switch ((int)env->insn_aux_data[i + delta].ptr_type) {
 		case PTR_TO_CTX:
