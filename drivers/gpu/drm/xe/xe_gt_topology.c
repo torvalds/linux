@@ -123,7 +123,7 @@ xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
  * groupsize and groupnum are non-zero.
  */
 unsigned int
-xe_dss_mask_group_ffs(xe_dss_mask_t mask, int groupsize, int groupnum)
+xe_dss_mask_group_ffs(const xe_dss_mask_t mask, int groupsize, int groupnum)
 {
 	return find_next_bit(mask, XE_MAX_DSS_FUSE_BITS, groupnum * groupsize);
 }
