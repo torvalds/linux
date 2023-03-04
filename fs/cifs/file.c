@@ -52,6 +52,8 @@ static void cifs_undirty_folios(struct inode *inode, loff_t start, unsigned int 
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each_marked(&xas, folio, end, PAGECACHE_TAG_DIRTY) {
+		if (xas_retry(&xas, folio))
+			continue;
 		xas_pause(&xas);
 		rcu_read_unlock();
 		folio_lock(folio);
@@ -81,6 +83,8 @@ void cifs_pages_written_back(struct inode *inode, loff_t start, unsigned int len
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each(&xas, folio, end) {
+		if (xas_retry(&xas, folio))
+			continue;
 		if (!folio_test_writeback(folio)) {
 			WARN_ONCE(1, "bad %x @%llx page %lx %lx\n",
 				  len, start, folio_index(folio), end);
@@ -112,6 +116,8 @@ void cifs_pages_write_failed(struct inode *inode, loff_t start, unsigned int len
 
 	end = (start + len - 1) / PAGE_SIZE;
 	xas_for_each(&xas, folio, end) {
+		if (xas_retry(&xas, folio))
+			continue;
 		if (!folio_test_writeback(folio)) {
 			WARN_ONCE(1, "bad %x @%llx page %lx %lx\n",
 				  len, start, folio_index(folio), end);
@@ -2839,6 +2845,7 @@ err_xid:
 	free_xid(xid);
 	if (rc == 0) {
 		wbc->nr_to_write = count;
+		rc = len;
 	} else if (is_retryable_error(rc)) {
 		cifs_pages_write_redirty(inode, start, len);
 	} else {
@@ -3605,7 +3612,7 @@ static ssize_t __cifs_writev(
 
 		ctx->nr_pinned_pages = rc;
 		ctx->bv = (void *)ctx->iter.bvec;
-		ctx->bv_need_unpin = iov_iter_extract_will_pin(&ctx->iter);
+		ctx->bv_need_unpin = iov_iter_extract_will_pin(from);
 	} else if ((iov_iter_is_bvec(from) || iov_iter_is_kvec(from)) &&
 		   !is_sync_kiocb(iocb)) {
 		/*
@@ -4141,7 +4148,7 @@ static ssize_t __cifs_readv(
 
 		ctx->nr_pinned_pages = rc;
 		ctx->bv = (void *)ctx->iter.bvec;
-		ctx->bv_need_unpin = iov_iter_extract_will_pin(&ctx->iter);
+		ctx->bv_need_unpin = iov_iter_extract_will_pin(to);
 		ctx->should_dirty = true;
 	} else if ((iov_iter_is_bvec(to) || iov_iter_is_kvec(to)) &&
 		   !is_sync_kiocb(iocb)) {
