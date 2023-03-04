@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/genalloc.h>
+#include <linux/mailbox_client.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 #include <linux/skbuff.h>
@@ -11,6 +13,7 @@
 #include "qrtr.h"
 
 #define MAX_PKT_SZ		SZ_64K
+#define LABEL_SIZE		32
 
 #define FIFO_FULL_RESERVE	8
 #define FIFO_SIZE		0x4000
@@ -34,6 +37,9 @@
 #define FIFO_1_TAIL		0x24
 #define FIFO_1_HEAD		0x28
 #define FIFO_1_NOTIFY		0x2c
+
+#define IRQ_SETUP_IDX		0
+#define IRQ_XFER_IDX		1
 
 struct qrtr_genpool_hdr {
 	__le16 len;
@@ -59,16 +65,24 @@ struct qrtr_genpool_pipe {
  * qrtr_genpool_dev - qrtr genpool fifo transport structure
  * @ep: qrtr endpoint specific info.
  * @dev: device from platform_device.
+ * @label: label of the edge on the other side.
  * @ring: buf for reading from fifo.
  * @rx_pipe: RX genpool fifo specific info.
  * @tx_pipe: TX genpool fifo specific info.
  * @tx_avail_notify: wait queue for available tx.
  * @base: base of the shared fifo.
  * @size: fifo size.
+ * @mbox_client: mailbox client signaling.
+ * @mbox_setup_chan: mailbox channel for setup.
+ * @mbox_xfer_chan: mailbox channel for transfers.
+ * @irq_setup: IRQ for signaling completion of fifo setup.
+ * @irq_xfer: IRQ for incoming transfers.
+ * @xfer_lock: spinlock for incoming transfers.
  */
 struct qrtr_genpool_dev {
 	struct qrtr_endpoint ep;
 	struct device *dev;
+	const char *label;
 	struct qrtr_genpool_ring ring;
 	struct qrtr_genpool_pipe rx_pipe;
 	struct qrtr_genpool_pipe tx_pipe;
@@ -78,12 +92,35 @@ struct qrtr_genpool_dev {
 	dma_addr_t dma_addr;
 	void *base;
 	size_t size;
+
+	struct mbox_client mbox_client;
+	struct mbox_chan *mbox_setup_chan;
+	struct mbox_chan *mbox_xfer_chan;
+
+	int irq_setup;
+	char irq_setup_label[LABEL_SIZE];
+
+	int irq_xfer;
+	char irq_xfer_label[LABEL_SIZE];
+	spinlock_t xfer_lock; /* lock to protect incoming transfers */
 };
 
-static void qrtr_genpool_signal(struct qrtr_genpool_dev *qdev)
+static void qrtr_genpool_signal(struct qrtr_genpool_dev *qdev,
+				struct mbox_chan *mbox_chan)
 {
-	/* operation not supported */
-};
+	mbox_send_message(mbox_chan, NULL);
+	mbox_client_txdone(mbox_chan, 0);
+}
+
+static void qrtr_genpool_signal_setup(struct qrtr_genpool_dev *qdev)
+{
+	qrtr_genpool_signal(qdev, qdev->mbox_setup_chan);
+}
+
+static void qrtr_genpool_signal_xfer(struct qrtr_genpool_dev *qdev)
+{
+	qrtr_genpool_signal(qdev, qdev->mbox_xfer_chan);
+}
 
 static void qrtr_genpool_tx_write(struct qrtr_genpool_pipe *pipe, const void *data,
 				  size_t count)
@@ -202,7 +239,7 @@ static int qrtr_genpool_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 		offset += chunk_size;
 		left_size -= chunk_size;
 
-		qrtr_genpool_signal(qdev);
+		qrtr_genpool_signal_xfer(qdev);
 	}
 	qrtr_genpool_clr_tx_notify(qdev);
 	kfree_skb(skb);
@@ -328,6 +365,9 @@ static void qrtr_genpool_read_frag(struct qrtr_genpool_dev *qdev)
 
 static void qrtr_genpool_read(struct qrtr_genpool_dev *qdev)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&qdev->xfer_lock, flags);
 	wake_up_all(&qdev->tx_avail_notify);
 
 	while (qrtr_genpool_rx_avail(&qdev->rx_pipe)) {
@@ -337,8 +377,89 @@ static void qrtr_genpool_read(struct qrtr_genpool_dev *qdev)
 			qrtr_genpool_read_new(qdev);
 
 		if (qrtr_genpool_get_read_notify(qdev))
-			qrtr_genpool_signal(qdev);
+			qrtr_genpool_signal_xfer(qdev);
 	}
+	spin_unlock_irqrestore(&qdev->xfer_lock, flags);
+}
+
+static irqreturn_t qrtr_genpool_setup_intr(int irq, void *data)
+{
+	struct qrtr_genpool_dev *qdev = data;
+
+	qrtr_genpool_signal_setup(qdev);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t qrtr_genpool_xfer_intr(int irq, void *data)
+{
+	struct qrtr_genpool_dev *qdev = data;
+
+	qrtr_genpool_read(qdev);
+
+	return IRQ_HANDLED;
+}
+
+static int qrtr_genpool_irq_init(struct qrtr_genpool_dev *qdev)
+{
+	struct device *dev = qdev->dev;
+	int irq, rc;
+
+	irq = of_irq_get(dev->of_node, IRQ_SETUP_IDX);
+	if (irq < 0)
+		return irq;
+
+	qdev->irq_setup = irq;
+	snprintf(qdev->irq_setup_label, LABEL_SIZE, "%s-setup", qdev->label);
+	rc = devm_request_irq(dev, qdev->irq_setup, qrtr_genpool_setup_intr, 0,
+			      qdev->irq_setup_label, qdev);
+	if (rc) {
+		dev_err(dev, "failed to request setup IRQ: %d\n", rc);
+		return rc;
+	}
+	enable_irq_wake(qdev->irq_setup);
+
+	irq = of_irq_get(dev->of_node, IRQ_XFER_IDX);
+	if (irq < 0)
+		return irq;
+
+	qdev->irq_xfer = irq;
+	snprintf(qdev->irq_xfer_label, LABEL_SIZE, "%s-xfer", qdev->label);
+	rc = devm_request_irq(dev, qdev->irq_xfer, qrtr_genpool_xfer_intr, IRQF_NO_AUTOEN,
+			      qdev->irq_xfer_label, qdev);
+	if (rc) {
+		dev_err(dev, "failed to request xfer IRQ: %d\n", rc);
+		return rc;
+	}
+	enable_irq_wake(qdev->irq_xfer);
+
+	return 0;
+}
+
+static int qrtr_genpool_mbox_init(struct qrtr_genpool_dev *qdev)
+{
+	struct device *dev = qdev->dev;
+	int rc;
+
+	qdev->mbox_client.dev = dev;
+	qdev->mbox_client.knows_txdone = true;
+	qdev->mbox_setup_chan = mbox_request_channel(&qdev->mbox_client, IRQ_SETUP_IDX);
+	if (IS_ERR(qdev->mbox_setup_chan)) {
+		rc = PTR_ERR(qdev->mbox_setup_chan);
+		if (rc != -EPROBE_DEFER)
+			dev_err(dev, "failed to acquire IPC setup channel %d\n", rc);
+		return rc;
+	}
+
+	qdev->mbox_xfer_chan = mbox_request_channel(&qdev->mbox_client, IRQ_XFER_IDX);
+	if (IS_ERR(qdev->mbox_xfer_chan)) {
+		rc = PTR_ERR(qdev->mbox_xfer_chan);
+		if (rc != -EPROBE_DEFER)
+			dev_err(dev, "failed to acquire IPC xfer channel %d\n", rc);
+		return rc;
+	}
+
+	return 0;
 }
 
 /**
@@ -423,17 +544,22 @@ static int qrtr_genpool_memory_init(struct qrtr_genpool_dev *qdev)
  */
 static int qrtr_genpool_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct qrtr_genpool_dev *qdev;
 	int rc;
 
-	qdev = devm_kzalloc(&pdev->dev, sizeof(*qdev), GFP_KERNEL);
+	qdev = devm_kzalloc(dev, sizeof(*qdev), GFP_KERNEL);
 	if (!qdev)
 		return -ENOMEM;
 
-	qdev->dev = &pdev->dev;
-	dev_set_drvdata(qdev->dev, qdev);
+	qdev->dev = dev;
+	dev_set_drvdata(dev, qdev);
 
-	qdev->ring.buf = devm_kzalloc(qdev->dev, MAX_PKT_SZ, GFP_KERNEL);
+	rc = of_property_read_string(dev->of_node, "label", &qdev->label);
+	if (rc < 0)
+		qdev->label = dev->of_node->name;
+
+	qdev->ring.buf = devm_kzalloc(dev, MAX_PKT_SZ, GFP_KERNEL);
 	if (!qdev->ring.buf)
 		return -ENOMEM;
 
@@ -443,12 +569,25 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 
 	qrtr_genpool_fifo_init(qdev);
 	init_waitqueue_head(&qdev->tx_avail_notify);
+	spin_lock_init(&qdev->xfer_lock);
+
+	rc = qrtr_genpool_mbox_init(qdev);
+	if (rc)
+		return rc;
+
+	rc = qrtr_genpool_irq_init(qdev);
+	if (rc)
+		return rc;
+
+	qrtr_genpool_signal_setup(qdev);
 
 	qdev->ep.xmit = qrtr_genpool_send;
 	rc = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NET_ID_AUTO, false,
 				    NULL);
 	if (rc)
 		goto fail;
+
+	enable_irq(qdev->irq_xfer);
 
 	if (qrtr_genpool_rx_avail(&qdev->rx_pipe))
 		qrtr_genpool_read(qdev);
