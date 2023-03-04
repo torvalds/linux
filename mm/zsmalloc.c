@@ -1782,15 +1782,14 @@ struct zs_compact_control {
 	int obj_idx;
 };
 
-static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
-				struct zs_compact_control *cc)
+static void migrate_zspage(struct zs_pool *pool, struct size_class *class,
+			   struct zs_compact_control *cc)
 {
 	unsigned long used_obj, free_obj;
 	unsigned long handle;
 	struct page *s_page = cc->s_page;
 	struct page *d_page = cc->d_page;
 	int obj_idx = cc->obj_idx;
-	int ret = 0;
 
 	while (1) {
 		handle = find_alloced_obj(class, s_page, &obj_idx);
@@ -1803,10 +1802,8 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
 		}
 
 		/* Stop if there is no more space */
-		if (zspage_full(class, get_zspage(d_page))) {
-			ret = -ENOMEM;
+		if (zspage_full(class, get_zspage(d_page)))
 			break;
-		}
 
 		used_obj = handle_to_obj(handle);
 		free_obj = obj_malloc(pool, get_zspage(d_page), handle);
@@ -1819,8 +1816,6 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
 	/* Remember last position in this iteration */
 	cc->s_page = s_page;
 	cc->obj_idx = obj_idx;
-
-	return ret;
 }
 
 static struct zspage *isolate_src_zspage(struct size_class *class)
@@ -2216,7 +2211,7 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 				  struct size_class *class)
 {
 	struct zs_compact_control cc;
-	struct zspage *src_zspage;
+	struct zspage *src_zspage = NULL;
 	struct zspage *dst_zspage = NULL;
 	unsigned long pages_freed = 0;
 
@@ -2225,50 +2220,45 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 	 * as well as zpage allocation/free
 	 */
 	spin_lock(&pool->lock);
-	while ((src_zspage = isolate_src_zspage(class))) {
-		/* protect someone accessing the zspage(i.e., zs_map_object) */
-		migrate_write_lock(src_zspage);
+	while (zs_can_compact(class)) {
+		int fg;
 
-		if (!zs_can_compact(class))
+		if (!dst_zspage) {
+			dst_zspage = isolate_dst_zspage(class);
+			if (!dst_zspage)
+				break;
+			migrate_write_lock(dst_zspage);
+			cc.d_page = get_first_page(dst_zspage);
+		}
+
+		src_zspage = isolate_src_zspage(class);
+		if (!src_zspage)
 			break;
+
+		migrate_write_lock_nested(src_zspage);
 
 		cc.obj_idx = 0;
 		cc.s_page = get_first_page(src_zspage);
+		migrate_zspage(pool, class, &cc);
+		fg = putback_zspage(class, src_zspage);
+		migrate_write_unlock(src_zspage);
 
-		while ((dst_zspage = isolate_dst_zspage(class))) {
-			migrate_write_lock_nested(dst_zspage);
+		if (fg == ZS_INUSE_RATIO_0) {
+			free_zspage(pool, class, src_zspage);
+			pages_freed += class->pages_per_zspage;
+			src_zspage = NULL;
+		}
 
-			cc.d_page = get_first_page(dst_zspage);
-			/*
-			 * If there is no more space in dst_page, resched
-			 * and see if anyone had allocated another zspage.
-			 */
-			if (!migrate_zspage(pool, class, &cc))
-				break;
-
+		if (get_fullness_group(class, dst_zspage) == ZS_INUSE_RATIO_100
+		    || spin_is_contended(&pool->lock)) {
 			putback_zspage(class, dst_zspage);
 			migrate_write_unlock(dst_zspage);
 			dst_zspage = NULL;
-			if (spin_is_contended(&pool->lock))
-				break;
+
+			spin_unlock(&pool->lock);
+			cond_resched();
+			spin_lock(&pool->lock);
 		}
-
-		/* Stop if we couldn't find slot */
-		if (dst_zspage == NULL)
-			break;
-
-		putback_zspage(class, dst_zspage);
-		migrate_write_unlock(dst_zspage);
-
-		if (putback_zspage(class, src_zspage) == ZS_INUSE_RATIO_0) {
-			migrate_write_unlock(src_zspage);
-			free_zspage(pool, class, src_zspage);
-			pages_freed += class->pages_per_zspage;
-		} else
-			migrate_write_unlock(src_zspage);
-		spin_unlock(&pool->lock);
-		cond_resched();
-		spin_lock(&pool->lock);
 	}
 
 	if (src_zspage) {
@@ -2276,6 +2266,10 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 		migrate_write_unlock(src_zspage);
 	}
 
+	if (dst_zspage) {
+		putback_zspage(class, dst_zspage);
+		migrate_write_unlock(dst_zspage);
+	}
 	spin_unlock(&pool->lock);
 
 	return pages_freed;
