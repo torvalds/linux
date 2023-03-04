@@ -1381,6 +1381,12 @@ static void gmc_v9_0_set_mca_ras_funcs(struct amdgpu_device *adev)
 	}
 }
 
+static void gmc_v9_0_set_xgmi_ras_funcs(struct amdgpu_device *adev)
+{
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		adev->gmc.xgmi.ras = &xgmi_ras;
+}
+
 static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1404,6 +1410,7 @@ static int gmc_v9_0_early_init(void *handle)
 	gmc_v9_0_set_gfxhub_funcs(adev);
 	gmc_v9_0_set_hdp_ras_funcs(adev);
 	gmc_v9_0_set_mca_ras_funcs(adev);
+	gmc_v9_0_set_xgmi_ras_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
