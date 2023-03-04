@@ -661,35 +661,17 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->reg_base))
 		return PTR_ERR(wdt->reg_base);
 
-	wdt->bus_clk = devm_clk_get(dev, "watchdog");
-	if (IS_ERR(wdt->bus_clk)) {
-		dev_err(dev, "failed to find bus clock\n");
-		return PTR_ERR(wdt->bus_clk);
-	}
-
-	ret = clk_prepare_enable(wdt->bus_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable bus clock\n");
-		return ret;
-	}
+	wdt->bus_clk = devm_clk_get_enabled(dev, "watchdog");
+	if (IS_ERR(wdt->bus_clk))
+		return dev_err_probe(dev, PTR_ERR(wdt->bus_clk), "failed to get bus clock\n");
 
 	/*
 	 * "watchdog_src" clock is optional; if it's not present -- just skip it
 	 * and use "watchdog" clock as both bus and source clock.
 	 */
-	wdt->src_clk = devm_clk_get_optional(dev, "watchdog_src");
-	if (IS_ERR(wdt->src_clk)) {
-		dev_err_probe(dev, PTR_ERR(wdt->src_clk),
-			      "failed to get source clock\n");
-		ret = PTR_ERR(wdt->src_clk);
-		goto err_bus_clk;
-	}
-
-	ret = clk_prepare_enable(wdt->src_clk);
-	if (ret) {
-		dev_err(dev, "failed to enable source clock\n");
-		goto err_bus_clk;
-	}
+	wdt->src_clk = devm_clk_get_optional_enabled(dev, "watchdog_src");
+	if (IS_ERR(wdt->src_clk))
+		return dev_err_probe(dev, PTR_ERR(wdt->src_clk), "failed to get source clock\n");
 
 	wdt->wdt_device.min_timeout = 1;
 	wdt->wdt_device.max_timeout = s3c2410wdt_max_timeout(wdt);
@@ -710,7 +692,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 				 S3C2410_WATCHDOG_DEFAULT_TIME);
 		} else {
 			dev_err(dev, "failed to use default timeout\n");
-			goto err_src_clk;
+			return ret;
 		}
 	}
 
@@ -718,7 +700,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 			       pdev->name, pdev);
 	if (ret != 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
-		goto err_src_clk;
+		return ret;
 	}
 
 	watchdog_set_nowayout(&wdt->wdt_device, nowayout);
@@ -744,7 +726,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	ret = watchdog_register_device(&wdt->wdt_device);
 	if (ret)
-		goto err_src_clk;
+		return ret;
 
 	ret = s3c2410wdt_enable(wdt, true);
 	if (ret < 0)
@@ -766,12 +748,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
  err_unregister:
 	watchdog_unregister_device(&wdt->wdt_device);
 
- err_src_clk:
-	clk_disable_unprepare(wdt->src_clk);
-
- err_bus_clk:
-	clk_disable_unprepare(wdt->bus_clk);
-
 	return ret;
 }
 
@@ -785,9 +761,6 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 		return ret;
 
 	watchdog_unregister_device(&wdt->wdt_device);
-
-	clk_disable_unprepare(wdt->src_clk);
-	clk_disable_unprepare(wdt->bus_clk);
 
 	return 0;
 }
