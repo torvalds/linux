@@ -70,6 +70,10 @@ properties:
 
   dma-coherent: true
 
+  extcon:
+    maxItems: 1
+    deprecated: true
+
   iommus:
     maxItems: 1
 
