@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,28 +20,29 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __AMDGPU_HDP_H__
-#define __AMDGPU_HDP_H__
+#include "amdgpu.h"
 #include "amdgpu_ras.h"
 
-struct amdgpu_hdp_ras {
-	struct amdgpu_ras_block_object ras_block;
-};
+int amdgpu_hdp_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_hdp_ras *ras;
 
-struct amdgpu_hdp_funcs {
-	void (*flush_hdp)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
-	void (*invalidate_hdp)(struct amdgpu_device *adev,
-			       struct amdgpu_ring *ring);
-	void (*update_clock_gating)(struct amdgpu_device *adev, bool enable);
-	void (*get_clock_gating_state)(struct amdgpu_device *adev, u64 *flags);
-	void (*init_registers)(struct amdgpu_device *adev);
-};
+	if (!adev->hdp.ras)
+		return 0;
 
-struct amdgpu_hdp {
-	struct ras_common_if			*ras_if;
-	const struct amdgpu_hdp_funcs		*funcs;
-	struct amdgpu_hdp_ras	*ras;
-};
+	ras = adev->hdp.ras;
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register hdp ras block!\n");
+		return err;
+	}
 
-int amdgpu_hdp_ras_sw_init(struct amdgpu_device *adev);
-#endif /* __AMDGPU_HDP_H__ */
+	strcpy(ras->ras_block.ras_comm.name, "hdp");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__HDP;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->hdp.ras_if = &ras->ras_block.ras_comm;
+
+	/* hdp ras follows amdgpu_ras_block_late_init_default for late init */
+	return 0;
+}
