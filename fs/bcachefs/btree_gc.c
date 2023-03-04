@@ -1687,6 +1687,7 @@ static int bch2_gc_write_stripes_key(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	const struct bch_stripe *s;
 	struct gc_stripe *m;
+	bool bad = false;
 	unsigned i;
 	int ret = 0;
 
@@ -1696,19 +1697,21 @@ static int bch2_gc_write_stripes_key(struct btree_trans *trans,
 	s = bkey_s_c_to_stripe(k).v;
 	m = genradix_ptr(&c->gc_stripes, k.k->p.offset);
 
-	for (i = 0; i < s->nr_blocks; i++)
-		if (stripe_blockcount_get(s, i) != (m ? m->block_sectors[i] : 0))
-			goto inconsistent;
-	return 0;
-inconsistent:
-	if (fsck_err_on(true, c,
-			"stripe block %u has wrong sector count:\n"
-			"  %s\n"
-			"  got %u, should be %u", i,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf),
-			stripe_blockcount_get(s, i),
-			m ? m->block_sectors[i] : 0)) {
+	for (i = 0; i < s->nr_blocks; i++) {
+		u32 old = stripe_blockcount_get(s, i);
+		u32 new = (m ? m->block_sectors[i] : 0);
+
+		if (old != new) {
+			prt_printf(&buf, "stripe block %u has wrong sector count: got %u, should be %u\n",
+				   i, old, new);
+			bad = true;
+		}
+	}
+
+	if (bad)
+		bch2_bkey_val_to_text(&buf, c, k);
+
+	if (fsck_err_on(bad, c, "%s", buf.buf)) {
 		struct bkey_i_stripe *new;
 
 		new = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
