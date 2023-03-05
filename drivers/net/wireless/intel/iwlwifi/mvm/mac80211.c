@@ -5058,9 +5058,10 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 			if (iwl_mvm_flush_sta(mvm, mvmsta, false))
 				IWL_ERR(mvm, "flush request fail\n");
 		} else {
-			msk |= mvmsta->tfd_queue_msk;
 			if (iwl_mvm_has_new_tx_api(mvm))
 				iwl_mvm_wait_sta_queues_empty(mvm, mvmsta);
+			else /* only used for !iwl_mvm_has_new_tx_api() below */
+				msk |= mvmsta->tfd_queue_msk;
 		}
 	}
 
