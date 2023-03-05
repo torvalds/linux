@@ -337,9 +337,13 @@ static void rs_fw_eht_set_enabled_rates(const struct ieee80211_sta *sta,
 		const struct ieee80211_eht_mcs_nss_supp_bw *mcs_tx =
 			rs_fw_rs_mcs2eht_mcs(bw, eht_tx_mcs);
 
-		/* got unsuppored index for bw */
+		/* got unsupported index for bw */
 		if (!mcs_rx || !mcs_tx)
 			continue;
+
+		/* break out if we don't support the bandwidth */
+		if (cmd->max_ch_width < (bw + IWL_TLC_MNG_CH_WIDTH_80MHZ))
+			break;
 
 		rs_fw_set_eht_mcs_nss(cmd->ht_rates, bw,
 				      MAX_NSS_MCS(9, mcs_rx, mcs_tx), GENMASK(9, 0));
@@ -550,7 +554,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_tlc_config_cmd_v4 cfg_cmd = {
 		.sta_id = mvmsta->sta_id,
 		.max_ch_width = update ?
-			rs_fw_bw_from_sta_bw(sta) : RATE_MCS_CHAN_WIDTH_20,
+			rs_fw_bw_from_sta_bw(sta) : IWL_TLC_MNG_CH_WIDTH_20MHZ,
 		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, sta, sband)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
 		.sgi_ch_width_supp = rs_fw_sgi_cw_support(sta),
