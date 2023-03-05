@@ -834,6 +834,10 @@ static void bch2_write_index(struct closure *cl)
 	struct write_point *wp = op->wp;
 	struct workqueue_struct *wq = index_update_wq(op);
 
+	if ((op->flags & BCH_WRITE_DONE) &&
+	    (op->flags & BCH_WRITE_MOVE))
+		bch2_bio_free_pages_pool(op->c, &op->wbio.bio);
+
 	barrier();
 
 	/*
