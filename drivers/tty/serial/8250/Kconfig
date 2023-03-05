@@ -300,7 +300,6 @@ config SERIAL_8250_PCI1XXXX
 	tristate "Microchip 8250 based serial port"
 	depends on SERIAL_8250 && PCI
 	select SERIAL_8250_PCILIB
-	default SERIAL_8250
 	help
 	 Select this option if you have a setup with Microchip PCIe
 	 Switch with serial port enabled and wish to enable 8250
