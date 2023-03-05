@@ -674,22 +674,31 @@ struct iwl_rx_mpdu_desc {
 	 * @mac_phy_idx: MAC/PHY index
 	 */
 	u8 mac_phy_idx;
-	/* DW4 - carries csum data only when rpa_en == 1 */
-	/**
-	 * @raw_csum: raw checksum (alledgedly unreliable)
-	 */
-	__le16 raw_csum;
-
+	/* DW4 */
 	union {
-		/**
-		 * @l3l4_flags: &enum iwl_rx_l3l4_flags
-		 */
-		__le16 l3l4_flags;
+		struct {
+			/* carries csum data only when rpa_en == 1 */
+			/**
+			 * @raw_csum: raw checksum (alledgedly unreliable)
+			 */
+			__le16 raw_csum;
 
+			union {
+				/**
+				 * @l3l4_flags: &enum iwl_rx_l3l4_flags
+				 */
+				__le16 l3l4_flags;
+
+				/**
+				 * @phy_data4: depends on info type, see phy_data1
+				 */
+				__le16 phy_data4;
+			};
+		};
 		/**
-		 * @phy_data4: depends on info type, see phy_data1
+		 * @phy_eht_data4: depends on info type, see phy_data1
 		 */
-		__le16 phy_data4;
+		__le32 phy_eht_data4;
 	};
 	/* DW5 */
 	/**
@@ -744,6 +753,35 @@ struct iwl_rx_mpdu_desc {
 #define RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
 #define RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK	0x00f00000
 
+/* content of OFDM_RX_VECTOR_USIG_A1_OUT */
+enum iwl_rx_usig_a1 {
+	IWL_RX_USIG_A1_ENHANCED_WIFI_VER_ID	= 0x00000007,
+	IWL_RX_USIG_A1_BANDWIDTH		= 0x00000038,
+	IWL_RX_USIG_A1_UL_FLAG			= 0x00000040,
+	IWL_RX_USIG_A1_BSS_COLOR		= 0x00001f80,
+	IWL_RX_USIG_A1_TXOP_DURATION		= 0x000fe000,
+	IWL_RX_USIG_A1_DISREGARD		= 0x01f00000,
+	IWL_RX_USIG_A1_VALIDATE			= 0x02000000,
+	IWL_RX_USIG_A1_EHT_BW320_SLOT		= 0x04000000,
+	IWL_RX_USIG_A1_EHT_TYPE			= 0x18000000,
+	IWL_RX_USIG_A1_RDY			= 0x80000000,
+};
+
+/* content of OFDM_RX_VECTOR_USIG_A2_EHT_OUT */
+enum iwl_rx_usig_a2_eht {
+	IWL_RX_USIG_A2_EHT_PPDU_TYPE		= 0x00000003,
+	IWL_RX_USIG_A2_EHT_USIG2_VALIDATE_B2	= 0x00000004,
+	IWL_RX_USIG_A2_EHT_PUNC_CHANNEL		= 0x000000f8,
+	IWL_RX_USIG_A2_EHT_USIG2_VALIDATE_B8	= 0x00000100,
+	IWL_RX_USIG_A2_EHT_SIG_MCS		= 0x00000600,
+	IWL_RX_USIG_A2_EHT_SIG_SYM_NUM		= 0x0000f800,
+	IWL_RX_USIG_A2_EHT_TRIG_SPATIAL_REUSE_1 = 0x000f0000,
+	IWL_RX_USIG_A2_EHT_TRIG_SPATIAL_REUSE_2 = 0x00f00000,
+	IWL_RX_USIG_A2_EHT_TRIG_USIG2_DISREGARD	= 0x1f000000,
+	IWL_RX_USIG_A2_EHT_CRC_OK		= 0x40000000,
+	IWL_RX_USIG_A2_EHT_RDY			= 0x80000000,
+};
+
 /**
  * struct iwl_rx_no_data - RX no data descriptor
  * @info: 7:0 frame type, 15:8 RX error type
@@ -781,7 +819,7 @@ struct iwl_rx_no_data {
  * @rx_vec: DW-12:9 raw RX vectors from DSP according to modulation type.
  *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
  *	for HE: OFDM_RX_VECTOR_HE_SIGA1_OUT, OFDM_RX_VECTOR_HE_SIGA2_OUT
- *	for EHT: OFDM_RX_VECTOR_USIG_A1_OUT, OFDM_RX_VECTOR_USIG_A2_OUT,
+ *	for EHT: OFDM_RX_VECTOR_USIG_A1_OUT, OFDM_RX_VECTOR_USIG_A2_EHT_OUT,
  *	OFDM_RX_VECTOR_EHT_OUT, OFDM_RX_VECTOR_EHT_USER_FIELD_OUT
  */
 struct iwl_rx_no_data_ver_3 {
