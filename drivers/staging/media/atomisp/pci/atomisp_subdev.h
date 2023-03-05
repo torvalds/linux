@@ -315,11 +315,6 @@ struct atomisp_sub_device {
 	unsigned int streaming;
 	bool stream_prepared; /* whether css stream is created */
 
-	/* subdev index: will be used to show which subdev is holding the
-	 * resource, like which camera is used by which subdev
-	 */
-	unsigned int index;
-
 	unsigned int latest_preview_exp_id; /* CSS ZSL/SDV raw buffer id */
 
 	unsigned int mipi_frame_size;

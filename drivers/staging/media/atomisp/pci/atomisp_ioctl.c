@@ -671,18 +671,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		return -EINVAL;
 	}
 
-	/*
-	 * check whether the request camera:
-	 * 1: already in use
-	 * 2: if in use, whether it is used by other streams
-	 */
-	if (isp->inputs[input].asd && isp->inputs[input].asd != asd) {
-		dev_err(isp->dev,
-			"%s, camera is already used by stream: %d\n", __func__,
-			isp->inputs[input].asd->index);
-		return -EBUSY;
-	}
-
 	camera = isp->inputs[input].camera;
 	if (!camera) {
 		dev_err(isp->dev, "%s, no camera\n", __func__);
@@ -1106,9 +1094,8 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	buf->reserved2 = pipe->frame_config_id[buf->index];
 
 	dev_dbg(isp->dev,
-		"dqbuf buffer %d (%s) for asd%d with exp_id %d, isp_config_id %d\n",
-		buf->index, vdev->name, asd->index, buf->reserved >> 16,
-		buf->reserved2);
+		"dqbuf buffer %d (%s) with exp_id %d, isp_config_id %d\n",
+		buf->index, vdev->name, buf->reserved >> 16, buf->reserved2);
 	return 0;
 }
 
@@ -1186,8 +1173,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	mutex_lock(&isp->mutex);
 
-	dev_dbg(isp->dev, "Start stream on pad %d for asd%d\n",
-		atomisp_subdev_source_pad(vdev), asd->index);
+	dev_dbg(isp->dev, "Start stream on pad %d\n", atomisp_subdev_source_pad(vdev));
 
 	ret = atomisp_pipe_check(pipe, false);
 	if (ret)
@@ -1320,8 +1306,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 
 	mutex_lock(&isp->mutex);
 
-	dev_dbg(isp->dev, "Stop stream on pad %d for asd%d\n",
-		atomisp_subdev_source_pad(vdev), asd->index);
+	dev_dbg(isp->dev, "Stop stream on pad %d\n", atomisp_subdev_source_pad(vdev));
 
 	/*
 	 * There is no guarantee that the buffers queued to / owned by the ISP

@@ -918,7 +918,7 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	int ret;
 
 	v4l2_subdev_init(sd, &isp_subdev_v4l2_ops);
-	sprintf(sd->name, "ATOMISP_SUBDEV_%d", asd->index);
+	sprintf(sd->name, "ATOMISP_SUBDEV");
 	v4l2_set_subdevdata(sd, asd);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
 
@@ -1161,7 +1161,6 @@ int atomisp_subdev_init(struct atomisp_device *isp)
 {
 	int ret;
 
-	isp->asd.index = 0;
 	isp->asd.isp = isp;
 	isp_subdev_init_params(&isp->asd);
 	ret = isp_subdev_init_entities(&isp->asd);

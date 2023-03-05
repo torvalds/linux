@@ -522,10 +522,8 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	if (irq_infos & IA_CSS_IRQ_INFO_ISYS_EVENTS_READY) {
 		while (ia_css_dequeue_isys_event(&eof_event.event) == 0) {
 			atomisp_eof_event(&isp->asd, eof_event.event.exp_id);
-			dev_dbg_ratelimited(isp->dev,
-					    "%s ISYS event: EOF exp_id %d, asd %d\n",
-					    __func__, eof_event.event.exp_id,
-					    isp->asd.index);
+			dev_dbg_ratelimited(isp->dev, "ISYS event: EOF exp_id %d\n",
+					    eof_event.event.exp_id);
 		}
 
 		irq_infos &= ~IA_CSS_IRQ_INFO_ISYS_EVENTS_READY;
@@ -3298,10 +3296,8 @@ int atomisp_set_parameters(struct video_device *vdev,
 		return -EINVAL;
 	}
 
-	dev_dbg(asd->isp->dev,
-		"%s: set parameter(per_frame_setting %d) for asd%d with isp_config_id %d of %s\n",
-		__func__, arg->per_frame_setting, asd->index,
-		arg->isp_config_id, vdev->name);
+	dev_dbg(asd->isp->dev, "set parameter(per_frame_setting %d) isp_config_id %d of %s\n",
+		arg->per_frame_setting, arg->isp_config_id, vdev->name);
 
 	if (IS_ISP2401) {
 		if (atomisp_is_vf_pipe(pipe) && arg->per_frame_setting) {
@@ -4512,9 +4508,8 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		return -EINVAL;
 
 	dev_dbg(isp->dev,
-		"setting resolution %ux%u on pad %u for asd%d, bytesperline %u\n",
-		f->fmt.pix.width, f->fmt.pix.height, source_pad,
-		asd->index, f->fmt.pix.bytesperline);
+		"setting resolution %ux%u on pad %u bytesperline %u\n",
+		f->fmt.pix.width, f->fmt.pix.height, source_pad, f->fmt.pix.bytesperline);
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
