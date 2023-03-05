@@ -1459,6 +1459,75 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 #define LE32_DEC_ENC(value, dec_bits, enc_bits) \
 	le32_encode_bits(le32_get_bits(value, dec_bits), enc_bits)
 
+static void iwl_mvm_decode_eht_ru(struct iwl_mvm *mvm,
+				  struct ieee80211_rx_status *rx_status,
+				  struct ieee80211_radiotap_eht *eht)
+{
+	u32 ru = le32_get_bits(eht->data[8],
+			       IEEE80211_RADIOTAP_EHT_DATA8_RU_ALLOC_TB_FMT_B7_B1);
+	enum nl80211_eht_ru_alloc nl_ru;
+
+	/* Using D1.5 Table 9-53a - Encoding of PS160 and RU Allocation subfields
+	 * in an EHT variant User Info field
+	 */
+
+	switch (ru) {
+	case 0 ... 36:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_26;
+		break;
+	case 37 ... 52:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_52;
+		break;
+	case 53 ... 60:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_106;
+		break;
+	case 61 ... 64:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_242;
+		break;
+	case 65 ... 66:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_484;
+		break;
+	case 67:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_996;
+		break;
+	case 68:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_2x996;
+		break;
+	case 69:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_4x996;
+		break;
+	case 70 ... 81:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_52P26;
+		break;
+	case 82 ... 89:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_106P26;
+		break;
+	case 90 ... 93:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_484P242;
+		break;
+	case 94 ... 95:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_996P484;
+		break;
+	case 96 ... 99:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_996P484P242;
+		break;
+	case 100 ... 103:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_2x996P484;
+		break;
+	case 104:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_3x996;
+		break;
+	case 105 ... 106:
+		nl_ru = NL80211_RATE_INFO_EHT_RU_ALLOC_3x996P484;
+		break;
+	default:
+		return;
+	}
+
+	rx_status->bw = RATE_INFO_BW_EHT_RU;
+	rx_status->eht.ru = nl_ru;
+}
+
 static void iwl_mvm_decode_eht_phy_data(struct iwl_mvm *mvm,
 					struct iwl_mvm_rx_phy_data *phy_data,
 					struct ieee80211_rx_status *rx_status,
@@ -1498,6 +1567,8 @@ static void iwl_mvm_decode_eht_phy_data(struct iwl_mvm *mvm,
 				     IEEE80211_RADIOTAP_EHT_DATA8_RU_ALLOC_TB_FMT_B0);
 	eht->data[8] |= LE32_DEC_ENC(data1, IWL_RX_PHY_DATA1_EHT_RU_B1_B7_ALLOC,
 				     IEEE80211_RADIOTAP_EHT_DATA8_RU_ALLOC_TB_FMT_B7_B1);
+
+	iwl_mvm_decode_eht_ru(mvm, rx_status, eht);
 
 	usig->common |= cpu_to_le32(IEEE80211_RADIOTAP_EHT_USIG_COMMON_TXOP_KNOWN);
 	usig->common |= LE32_DEC_ENC(data0, IWL_RX_PHY_DATA0_EHT_TXOP_DUR_MASK,
