@@ -1594,6 +1594,10 @@ static void iwl_mvm_decode_lsig(struct sk_buff *skb,
 	case IWL_RX_PHY_INFO_TYPE_HE_MU:
 	case IWL_RX_PHY_INFO_TYPE_HE_MU_EXT:
 	case IWL_RX_PHY_INFO_TYPE_HE_TB:
+	case IWL_RX_PHY_INFO_TYPE_EHT_MU:
+	case IWL_RX_PHY_INFO_TYPE_EHT_TB:
+	case IWL_RX_PHY_INFO_TYPE_EHT_MU_EXT:
+	case IWL_RX_PHY_INFO_TYPE_EHT_TB_EXT:
 		lsig = skb_put(skb, sizeof(*lsig));
 		lsig->data1 = cpu_to_le16(IEEE80211_RADIOTAP_LSIG_DATA1_LENGTH_KNOWN);
 		lsig->data2 = le16_encode_bits(le32_get_bits(phy_data->d1,
