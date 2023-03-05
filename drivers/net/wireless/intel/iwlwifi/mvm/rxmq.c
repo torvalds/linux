@@ -1845,6 +1845,7 @@ static void iwl_mvm_rx_eht(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	struct ieee80211_radiotap_eht *eht;
 	struct ieee80211_radiotap_eht_usig *usig;
+	size_t eht_len = sizeof(*eht);
 
 	u32 rate_n_flags = phy_data->rate_n_flags;
 	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
@@ -1854,8 +1855,10 @@ static void iwl_mvm_rx_eht(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u32 bw;
 
 	/* u32 for 1 user_info */
-	eht = iwl_mvm_radiotap_put_tlv(skb, IEEE80211_RADIOTAP_EHT,
-				       sizeof(*eht) + sizeof(u32));
+	if (phy_data->with_data)
+		eht_len += sizeof(u32);
+
+	eht = iwl_mvm_radiotap_put_tlv(skb, IEEE80211_RADIOTAP_EHT, eht_len);
 
 	usig = iwl_mvm_radiotap_put_tlv(skb, IEEE80211_RADIOTAP_EHT_USIG,
 					sizeof(*usig));
@@ -1946,27 +1949,40 @@ static void iwl_mvm_rx_eht(struct iwl_mvm *mvm, struct sk_buff *skb,
 				    rx_status->eht.gi));
 	}
 
-	eht->user_info[0] |= cpu_to_le32
-		(IEEE80211_RADIOTAP_EHT_USER_INFO_MCS_KNOWN |
-		 IEEE80211_RADIOTAP_EHT_USER_INFO_CODING_KNOWN |
-		 IEEE80211_RADIOTAP_EHT_USER_INFO_NSS_KNOWN_O |
-		 IEEE80211_RADIOTAP_EHT_USER_INFO_BEAMFORMING_KNOWN_O |
-		 IEEE80211_RADIOTAP_EHT_USER_INFO_DATA_FOR_USER);
 
-	if (rate_n_flags & RATE_MCS_BF_MSK)
+	if (!phy_data->with_data) {
+		eht->known |= cpu_to_le32(IEEE80211_RADIOTAP_EHT_KNOWN_NSS_S |
+					  IEEE80211_RADIOTAP_EHT_KNOWN_BEAMFORMED_S);
+		eht->data[7] |=
+			le32_encode_bits(le32_get_bits(phy_data->rx_vec[2],
+						       RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK),
+					 IEEE80211_RADIOTAP_EHT_DATA7_NSS_S);
+		if (rate_n_flags & RATE_MCS_BF_MSK)
+			eht->data[7] |=
+				cpu_to_le32(IEEE80211_RADIOTAP_EHT_DATA7_BEAMFORMED_S);
+	} else {
 		eht->user_info[0] |=
-			cpu_to_le32(IEEE80211_RADIOTAP_EHT_USER_INFO_BEAMFORMING_O);
+			cpu_to_le32(IEEE80211_RADIOTAP_EHT_USER_INFO_MCS_KNOWN |
+				    IEEE80211_RADIOTAP_EHT_USER_INFO_CODING_KNOWN |
+				    IEEE80211_RADIOTAP_EHT_USER_INFO_NSS_KNOWN_O |
+				    IEEE80211_RADIOTAP_EHT_USER_INFO_BEAMFORMING_KNOWN_O |
+				    IEEE80211_RADIOTAP_EHT_USER_INFO_DATA_FOR_USER);
 
-	if (rate_n_flags & RATE_MCS_LDPC_MSK)
-		eht->user_info[0] |=
-			cpu_to_le32(IEEE80211_RADIOTAP_EHT_USER_INFO_CODING);
+		if (rate_n_flags & RATE_MCS_BF_MSK)
+			eht->user_info[0] |=
+				cpu_to_le32(IEEE80211_RADIOTAP_EHT_USER_INFO_BEAMFORMING_O);
 
-	eht->user_info[0] |= cpu_to_le32
-		(FIELD_PREP(IEEE80211_RADIOTAP_EHT_USER_INFO_MCS,
-			    FIELD_GET(RATE_VHT_MCS_RATE_CODE_MSK,
-				      rate_n_flags)) |
-		 FIELD_PREP(IEEE80211_RADIOTAP_EHT_USER_INFO_NSS_O,
-			    FIELD_GET(RATE_MCS_NSS_MSK, rate_n_flags)));
+		if (rate_n_flags & RATE_MCS_LDPC_MSK)
+			eht->user_info[0] |=
+				cpu_to_le32(IEEE80211_RADIOTAP_EHT_USER_INFO_CODING);
+
+		eht->user_info[0] |= cpu_to_le32
+			(FIELD_PREP(IEEE80211_RADIOTAP_EHT_USER_INFO_MCS,
+				    FIELD_GET(RATE_VHT_MCS_RATE_CODE_MSK,
+					      rate_n_flags)) |
+			 FIELD_PREP(IEEE80211_RADIOTAP_EHT_USER_INFO_NSS_O,
+				    FIELD_GET(RATE_MCS_NSS_MSK, rate_n_flags)));
+	}
 }
 
 static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
