@@ -205,36 +205,45 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	return 0;
 }
 
+/* put a TLV on the skb and return data pointer
+ *
+ * Also pad to 4 the len and zero out all data part
+ */
+static void *
+iwl_mvm_radiotap_put_tlv(struct sk_buff *skb, u16 type, u16 len)
+{
+	struct ieee80211_radiotap_tlv *tlv;
+
+	tlv = skb_put(skb, sizeof(*tlv));
+	tlv->type = cpu_to_le16(type);
+	tlv->len = cpu_to_le16(len);
+	return skb_put_zero(skb, ALIGN(len, 4));
+}
+
 static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 					    struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_radiotap_vendor_tlv *radiotap;
+	struct ieee80211_radiotap_vendor_content *radiotap;
 	const u16 vendor_data_len = sizeof(mvm->cur_aid);
-	const u16 padding = ALIGN(vendor_data_len, 4) - vendor_data_len;
 
 	if (!mvm->cur_aid)
 		return;
 
-	radiotap = skb_put(skb, sizeof(*radiotap) + vendor_data_len + padding);
-	radiotap->type = cpu_to_le16(IEEE80211_RADIOTAP_VENDOR_NAMESPACE);
-	radiotap->len = cpu_to_le16(sizeof(*radiotap) -
-				    sizeof(struct ieee80211_radiotap_tlv) +
-				    vendor_data_len);
+	radiotap = iwl_mvm_radiotap_put_tlv(skb,
+					    IEEE80211_RADIOTAP_VENDOR_NAMESPACE,
+					    sizeof(*radiotap) + vendor_data_len);
 
 	/* Intel OUI */
-	radiotap->content.oui[0] = 0xf6;
-	radiotap->content.oui[1] = 0x54;
-	radiotap->content.oui[2] = 0x25;
+	radiotap->oui[0] = 0xf6;
+	radiotap->oui[1] = 0x54;
+	radiotap->oui[2] = 0x25;
 	/* radiotap sniffer config sub-namespace */
-	radiotap->content.oui_subtype = 1;
-	radiotap->content.vendor_type = 0;
-	/* clear reserved field */
-	radiotap->content.reserved = 0;
+	radiotap->oui_subtype = 1;
+	radiotap->vendor_type = 0;
+
 	/* fill the data now */
-	memcpy(radiotap->content.data, &mvm->cur_aid, sizeof(mvm->cur_aid));
-	/* and clear the padding */
-	memset(radiotap->content.data + vendor_data_len, 0, padding);
+	memcpy(radiotap->data, &mvm->cur_aid, sizeof(mvm->cur_aid));
 
 	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 }
