@@ -1556,14 +1556,14 @@ static void mac80211_hwsim_add_vendor_rtap(struct sk_buff *skb)
 				sizeof(vendor_data));
 	rtap->type = cpu_to_le16(IEEE80211_RADIOTAP_VENDOR_NAMESPACE);
 
-	rtap->oui[0] = HWSIM_RADIOTAP_OUI[0];
-	rtap->oui[1] = HWSIM_RADIOTAP_OUI[1];
-	rtap->oui[2] = HWSIM_RADIOTAP_OUI[2];
-	rtap->oui_subtype = 127;
+	rtap->content.oui[0] = HWSIM_RADIOTAP_OUI[0];
+	rtap->content.oui[1] = HWSIM_RADIOTAP_OUI[1];
+	rtap->content.oui[2] = HWSIM_RADIOTAP_OUI[2];
+	rtap->content.oui_subtype = 127;
 	/* clear reserved field */
-	rtap->reserved = 0;
-	rtap->vendor_type = 0;
-	memcpy(rtap->data, vendor_data, sizeof(vendor_data));
+	rtap->content.reserved = 0;
+	rtap->content.vendor_type = 0;
+	memcpy(rtap->content.data, vendor_data, sizeof(vendor_data));
 
 	IEEE80211_SKB_RXCB(skb)->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 #endif

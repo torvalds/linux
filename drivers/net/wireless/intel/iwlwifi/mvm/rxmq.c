@@ -223,18 +223,18 @@ static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 				    vendor_data_len);
 
 	/* Intel OUI */
-	radiotap->oui[0] = 0xf6;
-	radiotap->oui[1] = 0x54;
-	radiotap->oui[2] = 0x25;
+	radiotap->content.oui[0] = 0xf6;
+	radiotap->content.oui[1] = 0x54;
+	radiotap->content.oui[2] = 0x25;
 	/* radiotap sniffer config sub-namespace */
-	radiotap->oui_subtype = 1;
-	radiotap->vendor_type = 0;
+	radiotap->content.oui_subtype = 1;
+	radiotap->content.vendor_type = 0;
 	/* clear reserved field */
-	radiotap->reserved = 0;
+	radiotap->content.reserved = 0;
 	/* fill the data now */
-	memcpy(radiotap->data, &mvm->cur_aid, sizeof(mvm->cur_aid));
+	memcpy(radiotap->content.data, &mvm->cur_aid, sizeof(mvm->cur_aid));
 	/* and clear the padding */
-	memset(radiotap->data + vendor_data_len, 0, padding);
+	memset(radiotap->content.data + vendor_data_len, 0, padding);
 
 	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 }
