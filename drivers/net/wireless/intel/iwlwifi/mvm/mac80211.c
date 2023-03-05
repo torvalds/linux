@@ -1362,6 +1362,28 @@ static void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk)
 	ieee80211_chswitch_done(vif, false);
 }
 
+static u8
+iwl_mvm_chandef_get_primary_80(struct cfg80211_chan_def *chandef)
+{
+	int data_start;
+	int control_start;
+	int bw;
+
+	if (chandef->width == NL80211_CHAN_WIDTH_320)
+		bw = 320;
+	else if (chandef->width == NL80211_CHAN_WIDTH_160)
+		bw = 160;
+	else
+		return 0;
+
+	/* data is bw wide so the start is half the width */
+	data_start = chandef->center_freq1 - bw / 2;
+	/* control is 20Mhz width */
+	control_start = chandef->chan->center_freq - 10;
+
+	return (control_start - data_start) / 80;
+}
+
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
@@ -1478,8 +1500,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	INIT_DELAYED_WORK(&mvmvif->csa_work,
 			  iwl_mvm_channel_switch_disconnect_wk);
 
-	if (vif->type == NL80211_IFTYPE_MONITOR)
+	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		mvm->monitor_on = true;
+		mvm->monitor_p80 =
+			iwl_mvm_chandef_get_primary_80(&vif->bss_conf.chandef);
+	}
 
 	iwl_mvm_vif_dbgfs_register(mvm, vif);
 
