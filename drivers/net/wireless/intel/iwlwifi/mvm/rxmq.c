@@ -2147,11 +2147,8 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	 *
 	 * We mark it as mac header, for upper layers to know where
 	 * all radio tap header ends.
-	 *
-	 * Since data doesn't move data while putting data on skb and that is
-	 * the only way we use, data + len is the next place that hdr would be put
 	 */
-	skb_set_mac_header(skb, skb->len);
+	skb_reset_mac_header(skb);
 
 	/*
 	 * Override the nss from the rx_vec since the rate_n_flags has
