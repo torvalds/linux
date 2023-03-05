@@ -4630,88 +4630,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	snr_fmt = f->fmt.pix;
 	backup_fmt = snr_fmt;
 
-	/**********************************************************************/
-
-	if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VF ||
-	    (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW
-	     && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)) {
-		if (asd->fmt_auto->val) {
-			struct v4l2_rect *capture_comp;
-			struct v4l2_rect r = {0};
-
-			r.width = f->fmt.pix.width;
-			r.height = f->fmt.pix.height;
-
-			if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW)
-				capture_comp = atomisp_subdev_get_rect(
-						   &asd->subdev, NULL,
-						   V4L2_SUBDEV_FORMAT_ACTIVE,
-						   ATOMISP_SUBDEV_PAD_SOURCE_VIDEO,
-						   V4L2_SEL_TGT_COMPOSE);
-			else
-				capture_comp = atomisp_subdev_get_rect(
-						   &asd->subdev, NULL,
-						   V4L2_SUBDEV_FORMAT_ACTIVE,
-						   ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE,
-						   V4L2_SEL_TGT_COMPOSE);
-
-			if (capture_comp->width < r.width
-			    || capture_comp->height < r.height) {
-				r.width = capture_comp->width;
-				r.height = capture_comp->height;
-			}
-
-			atomisp_subdev_set_selection(
-			    &asd->subdev, fh.state,
-			    V4L2_SUBDEV_FORMAT_ACTIVE, source_pad,
-			    V4L2_SEL_TGT_COMPOSE, 0, &r);
-
-			f->fmt.pix.width = r.width;
-			f->fmt.pix.height = r.height;
-		}
-
-		if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW) {
-			atomisp_css_video_configure_viewfinder(asd,
-							       f->fmt.pix.width, f->fmt.pix.height,
-							       format_bridge->planar ? f->fmt.pix.bytesperline
-							       : f->fmt.pix.bytesperline * 8
-							       / format_bridge->depth,	format_bridge->sh_fmt);
-			atomisp_css_video_get_viewfinder_frame_info(asd,
-				&output_info);
-			asd->copy_mode = false;
-		} else {
-			atomisp_css_capture_configure_viewfinder(asd,
-				f->fmt.pix.width, f->fmt.pix.height,
-				format_bridge->planar ? f->fmt.pix.bytesperline
-				: f->fmt.pix.bytesperline * 8
-				/ format_bridge->depth,	format_bridge->sh_fmt);
-			atomisp_css_capture_get_viewfinder_frame_info(asd,
-				&output_info);
-			asd->copy_mode = false;
-		}
-
-		goto done;
-	}
-	/*
-	 * Check whether main resolution configured smaller
-	 * than snapshot resolution. If so, force main resolution
-	 * to be the same as snapshot resolution
-	 */
-	if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE) {
-		struct v4l2_rect *r;
-
-		r = atomisp_subdev_get_rect(
-			&asd->subdev, NULL,
-			V4L2_SUBDEV_FORMAT_ACTIVE,
-			ATOMISP_SUBDEV_PAD_SOURCE_VF, V4L2_SEL_TGT_COMPOSE);
-
-		if (r->width && r->height
-		    && (r->width > f->fmt.pix.width
-			|| r->height > f->fmt.pix.height))
-			dev_warn(isp->dev,
-				 "Main Resolution config smaller then Vf Resolution. Force to be equal with Vf Resolution.");
-	}
-
 	/* Pipeline configuration done through subdevs. Bail out now. */
 	if (!asd->fmt_auto->val)
 		goto set_fmt_to_isp;
@@ -4882,7 +4800,7 @@ set_fmt_to_isp:
 		dev_warn(isp->dev, "Can't set format on ISP. Error %d\n", ret);
 		return -EINVAL;
 	}
-done:
+
 	pipe->pix.width = f->fmt.pix.width;
 	pipe->pix.height = f->fmt.pix.height;
 	pipe->pix.pixelformat = f->fmt.pix.pixelformat;
