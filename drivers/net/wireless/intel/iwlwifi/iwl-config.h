@@ -659,6 +659,7 @@ extern const struct iwl_cfg iwl_cfg_bnj_a0_gf_a0;
 extern const struct iwl_cfg iwl_cfg_bnj_a0_gf4_a0;
 extern const struct iwl_cfg iwl_cfg_bnj_a0_hr_b0;
 extern const struct iwl_cfg iwl_cfg_bnj_b0_fm_b0;
+extern const struct iwl_cfg iwl_cfg_bnj_b0_fm4_b0;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */
