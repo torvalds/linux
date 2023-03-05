@@ -1765,6 +1765,13 @@
 		status = "disabled";
 	};
 
+	gmac_uio1: uio@fe010000 {
+		compatible = "rockchip,uio-gmac";
+		reg = <0x0 0xfe010000 0x0 0x10000>;
+		rockchip,ethernet = <&gmac1>;
+		status = "disabled";
+	};
+
 	gmac1: ethernet@fe010000 {
 		compatible = "rockchip,rk3568-gmac", "snps,dwmac-4.20a";
 		reg = <0x0 0xfe010000 0x0 0x10000>;
@@ -2508,6 +2515,13 @@
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 162 IRQ_TYPE_EDGE_RISING>;
 		};
+	};
+
+	gmac_uio0: uio@fe2a0000 {
+		compatible = "rockchip,uio-gmac";
+		reg = <0x0 0xfe2a0000 0x0 0x10000>;
+		rockchip,ethernet = <&gmac0>;
+		status = "disabled";
 	};
 
 	gmac0: ethernet@fe2a0000 {
