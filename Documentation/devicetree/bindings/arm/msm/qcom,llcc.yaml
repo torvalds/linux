@@ -26,6 +26,7 @@ properties:
       - qcom,sc8280xp-llcc
       - qcom,sdm845-llcc
       - qcom,sm6350-llcc
+      - qcom,sm7150-llcc
       - qcom,sm8150-llcc
       - qcom,sm8250-llcc
       - qcom,sm8350-llcc
