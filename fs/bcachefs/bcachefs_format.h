@@ -294,16 +294,8 @@ enum bch_bkey_fields {
 struct bkey_i {
 	__u64			_data[0];
 
-	union {
-	struct {
-		/* Size of combined key and value, in u64s */
-		__u8		u64s;
-	};
-	struct {
-		struct bkey	k;
-		struct bch_val	v;
-	};
-	};
+	struct bkey	k;
+	struct bch_val	v;
 };
 
 #define KEY(_inode, _offset, _size)					\

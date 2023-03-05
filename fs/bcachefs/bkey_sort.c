@@ -46,7 +46,7 @@ static inline void sort_iter_advance(struct sort_iter *iter, sort_cmp_fn cmp)
 
 	BUG_ON(!iter->used);
 
-	i->k = bkey_next(i->k);
+	i->k = bkey_p_next(i->k);
 
 	BUG_ON(i->k > i->end);
 
@@ -108,7 +108,7 @@ bch2_key_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 		    !should_drop_next_key(iter)) {
 			bkey_copy(out, k);
 			btree_keys_account_key_add(&nr, 0, out);
-			out = bkey_next(out);
+			out = bkey_p_next(out);
 		}
 
 		sort_iter_advance(iter, key_sort_fix_overlapping_cmp);
@@ -147,7 +147,7 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 		out->needs_whiteout = false;
 
 		btree_keys_account_key_add(&nr, 0, out);
-		out = bkey_next(out);
+		out = bkey_p_next(out);
 	}
 
 	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
@@ -194,7 +194,7 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 			bkey_copy(out, in);
 		}
 		out->needs_whiteout |= needs_whiteout;
-		out = bkey_next(out);
+		out = bkey_p_next(out);
 	}
 
 	return (u64 *) out - (u64 *) dst;

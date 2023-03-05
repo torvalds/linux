@@ -776,14 +776,14 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	struct bkey_cached *ck = (void *) path->l[0].b;
 	bool kick_reclaim = false;
 
-	BUG_ON(insert->u64s > ck->u64s);
+	BUG_ON(insert->k.u64s > ck->u64s);
 
 	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY))) {
 		int difference;
 
-		BUG_ON(jset_u64s(insert->u64s) > trans->journal_preres.u64s);
+		BUG_ON(jset_u64s(insert->k.u64s) > trans->journal_preres.u64s);
 
-		difference = jset_u64s(insert->u64s) - ck->res.u64s;
+		difference = jset_u64s(insert->k.u64s) - ck->res.u64s;
 		if (difference > 0) {
 			trans->journal_preres.u64s	-= difference;
 			ck->res.u64s			+= difference;

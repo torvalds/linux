@@ -77,9 +77,9 @@ static void verify_no_dups(struct btree *b,
 	if (start == end)
 		return;
 
-	for (p = start, k = bkey_next(start);
+	for (p = start, k = bkey_p_next(start);
 	     k != end;
-	     p = k, k = bkey_next(k)) {
+	     p = k, k = bkey_p_next(k)) {
 		struct bkey l = bkey_unpack_key(b, p);
 		struct bkey r = bkey_unpack_key(b, k);
 
@@ -92,7 +92,7 @@ static void set_needs_whiteout(struct bset *i, int v)
 {
 	struct bkey_packed *k;
 
-	for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
+	for (k = i->start; k != vstruct_last(i); k = bkey_p_next(k))
 		k->needs_whiteout = v;
 }
 
@@ -175,7 +175,7 @@ static void bch2_sort_whiteouts(struct bch_fs *c, struct btree *b)
 
 	for (k = unwritten_whiteouts_start(c, b);
 	     k != unwritten_whiteouts_end(c, b);
-	     k = bkey_next(k))
+	     k = bkey_p_next(k))
 		*--ptrs = k;
 
 	sort_bkey_ptrs(b, ptrs, ptrs_end - ptrs);
@@ -184,7 +184,7 @@ static void bch2_sort_whiteouts(struct bch_fs *c, struct btree *b)
 
 	while (ptrs != ptrs_end) {
 		bkey_copy(k, *ptrs);
-		k = bkey_next(k);
+		k = bkey_p_next(k);
 		ptrs++;
 	}
 
@@ -256,11 +256,11 @@ static bool bch2_drop_whiteouts(struct btree *b, enum compact_mode mode)
 		out = i->start;
 
 		for (k = start; k != end; k = n) {
-			n = bkey_next(k);
+			n = bkey_p_next(k);
 
 			if (!bkey_deleted(k)) {
 				bkey_copy(out, k);
-				out = bkey_next(out);
+				out = bkey_p_next(out);
 			} else {
 				BUG_ON(k->needs_whiteout);
 			}
@@ -652,7 +652,7 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 		struct bset *i = bset(b, t);
 		struct bkey_packed *k;
 
-		for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
+		for (k = i->start; k != vstruct_last(i); k = bkey_p_next(k))
 			if (bkey_cmp_left_packed(b, k, &b->data->min_key) >= 0)
 				break;
 
@@ -665,7 +665,7 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 			set_btree_bset_end(b, t);
 		}
 
-		for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
+		for (k = i->start; k != vstruct_last(i); k = bkey_p_next(k))
 			if (bkey_cmp_left_packed(b, k, &b->data->max_key) > 0)
 				break;
 
@@ -843,7 +843,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		struct bkey_s u;
 		struct bkey tmp;
 
-		if (btree_err_on(bkey_next(k) > vstruct_last(i),
+		if (btree_err_on(bkey_p_next(k) > vstruct_last(i),
 				 BTREE_ERR_FIXABLE, c, NULL, b, i,
 				 "key extends past end of bset")) {
 			i->u64s = cpu_to_le16((u64 *) k - i->_data);
@@ -854,7 +854,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				 BTREE_ERR_FIXABLE, c, NULL, b, i,
 				 "invalid bkey format %u", k->format)) {
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
-			memmove_u64s_down(k, bkey_next(k),
+			memmove_u64s_down(k, bkey_p_next(k),
 					  (u64 *) vstruct_end(i) - (u64 *) k);
 			continue;
 		}
@@ -878,7 +878,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
 
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
-			memmove_u64s_down(k, bkey_next(k),
+			memmove_u64s_down(k, bkey_p_next(k),
 					  (u64 *) vstruct_end(i) - (u64 *) k);
 			continue;
 		}
@@ -901,14 +901,14 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 
 			if (btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf)) {
 				i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
-				memmove_u64s_down(k, bkey_next(k),
+				memmove_u64s_down(k, bkey_p_next(k),
 						  (u64 *) vstruct_end(i) - (u64 *) k);
 				continue;
 			}
 		}
 
 		prev = k;
-		k = bkey_next(k);
+		k = bkey_p_next(k);
 	}
 fsck_err:
 	printbuf_exit(&buf);
@@ -1139,7 +1139,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			btree_keys_account_key_drop(&b->nr, 0, k);
 
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
-			memmove_u64s_down(k, bkey_next(k),
+			memmove_u64s_down(k, bkey_p_next(k),
 					  (u64 *) vstruct_end(i) - (u64 *) k);
 			set_btree_bset_end(b, b->set);
 			continue;
@@ -1151,7 +1151,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			bp.v->mem_ptr = 0;
 		}
 
-		k = bkey_next(k);
+		k = bkey_p_next(k);
 	}
 
 	bch2_bset_build_aux_tree(b, b->set, false);

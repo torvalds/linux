@@ -233,7 +233,13 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	orig->k.type = KEY_TYPE_reflink_p;
 	r_p = bkey_i_to_reflink_p(orig);
 	set_bkey_val_bytes(&r_p->k, sizeof(r_p->v));
+
+	/* FORTIFY_SOURCE is broken here, and doesn't provide unsafe_memset() */
+#if !defined(__NO_FORTIFY) && defined(__OPTIMIZE__) && defined(CONFIG_FORTIFY_SOURCE)
+	__underlying_memset(&r_p->v, 0, sizeof(r_p->v));
+#else
 	memset(&r_p->v, 0, sizeof(r_p->v));
+#endif
 
 	r_p->v.idx = cpu_to_le64(bkey_start_offset(&r_v->k));
 

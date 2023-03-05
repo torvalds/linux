@@ -733,7 +733,7 @@ static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 		}
 
 		if (dst != src)
-			memmove_u64s_down(dst, src, src->u64s);
+			memmove_u64s_down(dst, src, src->k.u64s);
 		dst = bkey_next(dst);
 	}
 

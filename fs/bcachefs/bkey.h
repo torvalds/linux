@@ -42,7 +42,12 @@ struct bkey_s {
 	};
 };
 
-#define bkey_next(_k)		vstruct_next(_k)
+#define bkey_p_next(_k)		vstruct_next(_k)
+
+static inline struct bkey_i *bkey_next(struct bkey_i *k)
+{
+	return (struct bkey_i *) (k->_data + k->k.u64s);
+}
 
 #define bkey_val_u64s(_k)	((_k)->u64s - BKEY_U64s)
 

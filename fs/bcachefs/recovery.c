@@ -481,7 +481,7 @@ static int journal_keys_sort(struct bch_fs *c)
 	struct genradix_iter iter;
 	struct journal_replay *i, **_i;
 	struct jset_entry *entry;
-	struct bkey_i *k, *_n;
+	struct bkey_i *k;
 	struct journal_keys *keys = &c->journal_keys;
 	struct journal_key *src, *dst;
 	size_t nr_keys = 0;
@@ -492,7 +492,7 @@ static int journal_keys_sort(struct bch_fs *c)
 		if (!i || i->ignore)
 			continue;
 
-		for_each_jset_key(k, _n, entry, &i->j)
+		for_each_jset_key(k, entry, &i->j)
 			nr_keys++;
 	}
 
@@ -511,7 +511,7 @@ static int journal_keys_sort(struct bch_fs *c)
 		if (!i || i->ignore)
 			continue;
 
-		for_each_jset_key(k, _n, entry, &i->j)
+		for_each_jset_key(k, entry, &i->j)
 			keys->d[keys->nr++] = (struct journal_key) {
 				.btree_id	= entry->btree_id,
 				.level		= entry->level,
@@ -871,7 +871,7 @@ static int verify_superblock_clean(struct bch_fs *c,
 				    IS_ERR(k1) ||
 				    IS_ERR(k2) ||
 				    k1->k.u64s != k2->k.u64s ||
-				    memcmp(k1, k2, bkey_bytes(k1)) ||
+				    memcmp(k1, k2, bkey_bytes(&k1->k)) ||
 				    l1 != l2, c,
 			"superblock btree root %u doesn't match journal after clean shutdown\n"
 			"sb:      l=%u %s\n"

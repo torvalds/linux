@@ -356,7 +356,7 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 	struct bkey_i *k;
 	bool first = true;
 
-	vstruct_for_each(entry, k) {
+	jset_entry_for_each_key(entry, k) {
 		if (!first) {
 			prt_newline(out);
 			prt_printf(out, "%s: ", bch2_jset_entry_types[entry->type]);
