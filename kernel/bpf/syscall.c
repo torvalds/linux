@@ -129,6 +129,8 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	}
 	if (attr->map_ifindex)
 		ops = &bpf_map_offload_ops;
+	if (!ops->map_mem_usage)
+		return ERR_PTR(-EINVAL);
 	map = ops->map_alloc(attr);
 	if (IS_ERR(map))
 		return map;
@@ -775,13 +777,7 @@ static fmode_t map_get_sys_perms(struct bpf_map *map, struct fd f)
 /* Show the memory usage of a bpf map */
 static u64 bpf_map_memory_usage(const struct bpf_map *map)
 {
-	unsigned long size;
-
-	if (map->ops->map_mem_usage)
-		return map->ops->map_mem_usage(map);
-
-	size = round_up(map->key_size + bpf_map_value_size(map), 8);
-	return round_up(map->max_entries * size, PAGE_SIZE);
+	return map->ops->map_mem_usage(map);
 }
 
 static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
