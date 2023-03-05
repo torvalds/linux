@@ -242,7 +242,7 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct write_point *wp;
 	struct btree *b;
-	__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
+	BKEY_PADDED_ONSTACK(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
 	struct open_buckets ob = { .nr = 0 };
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	unsigned nr_reserve;

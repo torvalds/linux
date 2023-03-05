@@ -1123,4 +1123,7 @@ static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
 	return dev < c->sb.nr_devices && c->devs[dev];
 }
 
+#define BKEY_PADDED_ONSTACK(key, pad)				\
+	struct { struct bkey_i key; __u64 key ## _pad[pad]; }
+
 #endif /* _BCACHEFS_H */

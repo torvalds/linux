@@ -322,7 +322,7 @@ static inline void bkey_init(struct bkey *k)
 #define bkey_bytes(_k)		((_k)->u64s * sizeof(__u64))
 
 #define __BKEY_PADDED(key, pad)					\
-	struct { struct bkey_i key; __u64 key ## _pad[pad]; }
+	struct bkey_i key; __u64 key ## _pad[pad]
 
 /*
  * - DELETED keys are used internally to mark keys that should be ignored but
