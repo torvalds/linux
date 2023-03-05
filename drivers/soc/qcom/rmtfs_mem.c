@@ -229,7 +229,10 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 	}
 
 	num_vmids = of_property_count_u32_elems(node, "qcom,vmid");
-	if (num_vmids < 0) {
+	if (num_vmids == -EINVAL) {
+		/* qcom,vmid is optional */
+		num_vmids = 0;
+	} else if (num_vmids < 0) {
 		dev_err(&pdev->dev, "failed to count qcom,vmid elements: %d\n", num_vmids);
 		goto remove_cdev;
 	} else if (num_vmids > NUM_MAX_VMIDS) {
