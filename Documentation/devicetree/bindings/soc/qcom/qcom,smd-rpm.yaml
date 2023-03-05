@@ -41,6 +41,7 @@ properties:
       - qcom,rpm-msm8953
       - qcom,rpm-msm8974
       - qcom,rpm-msm8976
+      - qcom,rpm-msm8994
       - qcom,rpm-msm8996
       - qcom,rpm-msm8998
       - qcom,rpm-sdm660
@@ -85,6 +86,7 @@ if:
           - qcom,rpm-msm8974
           - qcom,rpm-msm8976
           - qcom,rpm-msm8953
+          - qcom,rpm-msm8994
 then:
   properties:
     qcom,glink-channels: false
