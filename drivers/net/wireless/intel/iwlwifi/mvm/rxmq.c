@@ -2341,7 +2341,7 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 			IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;
 		break;
 	case RX_NO_DATA_INFO_TYPE_MU_UNMATCHED:
-	case RX_NO_DATA_INFO_TYPE_HE_TB_UNMATCHED:
+	case RX_NO_DATA_INFO_TYPE_TB_UNMATCHED:
 		rx_status->zero_length_psdu_type =
 			IEEE80211_RADIOTAP_ZERO_LEN_PSDU_NOT_CAPTURED;
 		break;
