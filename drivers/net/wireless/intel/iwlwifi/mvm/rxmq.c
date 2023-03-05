@@ -1180,6 +1180,7 @@ struct iwl_mvm_rx_phy_data {
 	__le32 d0, d1, d2, d3, eht_d4, d5;
 	__le16 d4;
 	bool with_data;
+	bool first_subframe;
 	__le32 rx_vec[4];
 
 	u32 rate_n_flags;
@@ -1885,15 +1886,10 @@ static void iwl_mvm_rx_eht(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* update aggregation data for monitor sake on default queue */
 	if (!queue && (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD) &&
-	    (phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
-		bool toggle_bit = phy_info & IWL_RX_MPDU_PHY_AMPDU_TOGGLE;
-
-		/* toggle is switched whenever new aggregation starts */
-		if (toggle_bit != mvm->ampdu_toggle) {
-			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
-			if (phy_data->d0 & cpu_to_le32(IWL_RX_PHY_DATA0_EHT_DELIM_EOF))
-				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
-		}
+	    (phy_info & IWL_RX_MPDU_PHY_AMPDU) && phy_data->first_subframe) {
+		rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
+		if (phy_data->d0 & cpu_to_le32(IWL_RX_PHY_DATA0_EHT_DELIM_EOF))
+			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
 	}
 
 	if (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD)
@@ -2036,15 +2032,10 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* update aggregation data for monitor sake on default queue */
 	if (!queue && (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD) &&
-	    (phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
-		bool toggle_bit = phy_info & IWL_RX_MPDU_PHY_AMPDU_TOGGLE;
-
-		/* toggle is switched whenever new aggregation starts */
-		if (toggle_bit != mvm->ampdu_toggle) {
-			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
-			if (phy_data->d0 & cpu_to_le32(IWL_RX_PHY_DATA0_HE_DELIM_EOF))
-				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
-		}
+	    (phy_info & IWL_RX_MPDU_PHY_AMPDU) && phy_data->first_subframe) {
+		rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
+		if (phy_data->d0 & cpu_to_le32(IWL_RX_PHY_DATA0_EHT_DELIM_EOF))
+			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
 	}
 
 	if (he_type == RATE_MCS_HE_TYPE_EXT_SU &&
@@ -2447,6 +2438,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			if (mvm->ampdu_ref == 0)
 				mvm->ampdu_ref++;
 			mvm->ampdu_toggle = toggle_bit;
+			phy_data.first_subframe = true;
 		}
 		rx_status->ampdu_reference = mvm->ampdu_ref;
 	}
