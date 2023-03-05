@@ -711,7 +711,7 @@ static int atomisp_release(struct file *file)
 	 * The sink pad setting can only be cleared when all device nodes
 	 * get released.
 	 */
-	if (asd->fmt_auto->val) {
+	{
 		struct v4l2_mbus_framefmt isp_sink_fmt = { 0 };
 
 		atomisp_subdev_set_ffmt(&asd->subdev, fh.state,

@@ -4280,8 +4280,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	 * Configure viewfinder also when vfpp is disabled: the
 	 * CSS still requires viewfinder configuration.
 	 */
-	if (asd->fmt_auto->val ||
-	    asd->vfpp->val != ATOMISP_VFPP_ENABLE) {
+	{
 		struct v4l2_rect vf_size = {0};
 		struct v4l2_mbus_framefmt vf_ffmt = {0};
 
@@ -4630,10 +4629,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	snr_fmt = f->fmt.pix;
 	backup_fmt = snr_fmt;
 
-	/* Pipeline configuration done through subdevs. Bail out now. */
-	if (!asd->fmt_auto->val)
-		goto set_fmt_to_isp;
-
 	/* get sensor resolution and format */
 	ret = atomisp_try_fmt(vdev, &snr_fmt, &res_overflow);
 	if (ret) {
@@ -4794,7 +4789,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 					     &main_compose);
 	}
 
-set_fmt_to_isp:
 	ret = atomisp_set_fmt_to_isp(vdev, &output_info, &f->fmt.pix, source_pad);
 	if (ret) {
 		dev_warn(isp->dev, "Can't set format on ISP. Error %d\n", ret);

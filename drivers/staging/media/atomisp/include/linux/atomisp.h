@@ -1056,8 +1056,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define V4L2_2A_STATUS_AE_READY            BIT(0)
 #define V4L2_2A_STATUS_AWB_READY           BIT(1)
 
-#define V4L2_CID_FMT_AUTO			(V4L2_CID_CAMERA_LASTP1 + 19)
-
 #define V4L2_CID_RUN_MODE			(V4L2_CID_CAMERA_LASTP1 + 20)
 #define ATOMISP_RUN_MODE_VIDEO			1
 #define ATOMISP_RUN_MODE_STILL_CAPTURE		2

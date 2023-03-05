@@ -754,17 +754,6 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.s_ctrl = &s_ctrl,
 };
 
-static const struct v4l2_ctrl_config ctrl_fmt_auto = {
-	.ops = &ctrl_ops,
-	.id = V4L2_CID_FMT_AUTO,
-	.name = "Automatic format guessing",
-	.type = V4L2_CTRL_TYPE_BOOLEAN,
-	.min = 0,
-	.max = 1,
-	.step = 1,
-	.def = 1,
-};
-
 static const char *const ctrl_run_mode_menu[] = {
 	NULL,
 	"Video",
@@ -1000,8 +989,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	if (ret)
 		return ret;
 
-	asd->fmt_auto = v4l2_ctrl_new_custom(&asd->ctrl_handler,
-					     &ctrl_fmt_auto, NULL);
 	asd->run_mode = v4l2_ctrl_new_custom(&asd->ctrl_handler,
 					     &ctrl_run_mode, NULL);
 	asd->vfpp = v4l2_ctrl_new_custom(&asd->ctrl_handler,
