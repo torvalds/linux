@@ -1171,7 +1171,9 @@ static void handle___pkvm_iommu_pm_notify(struct kvm_cpu_context *host_ctxt)
 
 static void handle___pkvm_iommu_finalize(struct kvm_cpu_context *host_ctxt)
 {
-	cpu_reg(host_ctxt, 1) = __pkvm_iommu_finalize();
+	DECLARE_REG(int, err, host_ctxt, 1);
+
+	cpu_reg(host_ctxt, 1) = __pkvm_iommu_finalize(err);
 }
 
 static void handle___pkvm_alloc_module_va(struct kvm_cpu_context *host_ctxt)

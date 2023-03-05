@@ -12,42 +12,48 @@ package(
     ],
 )
 
+_aarch64_additional_kmi_symbol_lists = [
+    # keep sorted
+    "android/abi_gki_aarch64_db845c",
+    "android/abi_gki_aarch64_pixel",
+    "android/abi_gki_aarch64_qcom",
+    "android/abi_gki_aarch64_virtual_device",
+]
+
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        # TODO(b/269346251): re-enable strict mode
         "kmi_symbol_list_strict_mode": False,
-        "trim_nonlisted_kmi": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "kmi_symbol_list": "android/abi_gki_aarch64",
+        "additional_kmi_symbol_lists": _aarch64_additional_kmi_symbol_lists,
+        "protected_exports_list": "android/abi_gki_protected_exports",
+        "protected_modules_list": "android/gki_protected_modules",
     },
     "kernel_aarch64_16k": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
         "kmi_symbol_list_strict_mode": False,
-        "trim_nonlisted_kmi": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_aarch64_debug": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
+        # TODO(b/269346251): re-enable strict mode
         "kmi_symbol_list_strict_mode": False,
-        "trim_nonlisted_kmi": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
+        "kmi_symbol_list": "android/abi_gki_aarch64",
+        "additional_kmi_symbol_lists": _aarch64_additional_kmi_symbol_lists,
+        "protected_exports_list": "android/abi_gki_protected_exports",
+        "protected_modules_list": "android/gki_protected_modules",
     },
     "kernel_riscv64": {
-        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
         "kmi_symbol_list_strict_mode": False,
-        "trim_nonlisted_kmi": False,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
-        "trim_nonlisted_kmi": False,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
-        "additional_kmi_symbol_lists": [],  # Temporarily disable vendor symbol lists. This will be reverted before freezing the KMI.
-        "trim_nonlisted_kmi": False,
     },
 })
 
@@ -58,6 +64,8 @@ define_db845c(
         "arch/arm64/boot/dts/qcom/sdm845-db845c.dtb",
         "arch/arm64/boot/dts/qcom/sm8450-qrd.dtb",
     ],
+    define_abi_targets = True,
+    kmi_symbol_list = "//common:android/abi_gki_aarch64_db845c",
     module_outs = [
         # keep sorted
         "crypto/michael_mic.ko",
