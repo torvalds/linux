@@ -4431,7 +4431,7 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 }
 
 static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
-				    int source_pad, struct v4l2_pix_format *f)
+				    int source_pad, const struct v4l2_pix_format *f)
 {
 	struct v4l2_mbus_framefmt *sink, *src;
 
@@ -4454,8 +4454,7 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 	dev_dbg(asd->isp->dev, "copy_mode: %d\n", asd->copy_mode);
 }
 
-static int atomisp_set_fmt_to_snr(struct video_device *vdev,
-				  struct v4l2_pix_format *f, unsigned int pixelformat,
+static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_pix_format *f,
 				  unsigned int padding_w, unsigned int padding_h,
 				  unsigned int dvs_env_w, unsigned int dvs_env_h)
 {
@@ -4488,7 +4487,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
-	format = atomisp_get_format_bridge(pixelformat);
+	format = atomisp_get_format_bridge(f->pixelformat);
 	if (!format)
 		return -EINVAL;
 
@@ -4564,8 +4563,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	const struct atomisp_format_bridge *format_bridge;
 	const struct atomisp_format_bridge *snr_format_bridge;
 	struct ia_css_frame_info output_info;
-	struct v4l2_pix_format snr_fmt;
-	struct v4l2_pix_format backup_fmt, s_fmt;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
 	unsigned int padding_w = pad_w, padding_h = pad_h;
 	struct v4l2_mbus_framefmt isp_source_fmt = {0};
@@ -4574,7 +4571,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	};
 	struct v4l2_rect isp_sink_crop;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
-	bool res_overflow = false;
 	struct v4l2_subdev_fh fh;
 	int ret;
 
@@ -4623,19 +4619,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	f->fmt.pix.width = vformat.format.width - padding_w;
 	f->fmt.pix.height = vformat.format.height - padding_h;
 
-	snr_fmt = f->fmt.pix;
-	backup_fmt = snr_fmt;
-
-	/* get sensor resolution and format */
-	ret = atomisp_try_fmt(vdev, &snr_fmt, &res_overflow);
-	if (ret) {
-		dev_warn(isp->dev, "Try format failed with error %d\n", ret);
-		return ret;
-	}
-	f->fmt.pix.width = snr_fmt.width;
-	f->fmt.pix.height = snr_fmt.height;
-
-	snr_format_bridge = atomisp_get_format_bridge(snr_fmt.pixelformat);
+	snr_format_bridge = atomisp_get_format_bridge_from_mbus(vformat.format.code);
 	if (!snr_format_bridge) {
 		dev_warn(isp->dev, "Can't find bridge format\n");
 		return -EINVAL;
@@ -4656,40 +4640,12 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		padding_h = 0;
 	}
 
-	/* construct resolution supported by isp */
-	if (res_overflow) {
-		f->fmt.pix.width = rounddown(
-				       clamp_t(u32, f->fmt.pix.width - padding_w,
-					       ATOM_ISP_MIN_WIDTH,
-					       ATOM_ISP_MAX_WIDTH), ATOM_ISP_STEP_WIDTH);
-		f->fmt.pix.height = rounddown(
-					clamp_t(u32, f->fmt.pix.height - padding_h,
-						ATOM_ISP_MIN_HEIGHT,
-						ATOM_ISP_MAX_HEIGHT), ATOM_ISP_STEP_HEIGHT);
-	}
-
 	atomisp_get_dis_envelop(asd, f->fmt.pix.width, f->fmt.pix.height,
 				&dvs_env_w, &dvs_env_h);
 
 	asd->capture_pad = source_pad;
 
-	/*
-	 * For jpeg or custom raw format the sensor will return constant
-	 * width and height. Because we already had quried try_mbus_fmt,
-	 * f->fmt.pix.width and f->fmt.pix.height has been changed to
-	 * this fixed width and height. So we cannot select the correct
-	 * resolution with that information. So use the original width
-	 * and height while set_mbus_fmt() so actual resolutions are
-	 * being used in while set media bus format.
-	 */
-	s_fmt = f->fmt.pix;
-	if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_JPEG ||
-	    f->fmt.pix.pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW) {
-		s_fmt.width = backup_fmt.width;
-		s_fmt.height = backup_fmt.height;
-	}
-
-	ret = atomisp_set_fmt_to_snr(vdev, &s_fmt, f->fmt.pix.pixelformat,
+	ret = atomisp_set_fmt_to_snr(vdev, &f->fmt.pix,
 				     padding_w, padding_h, dvs_env_w, dvs_env_h);
 	if (ret) {
 		dev_warn(isp->dev,
@@ -4699,7 +4655,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 
 	atomisp_csi_lane_config(isp);
 
-	atomisp_check_copy_mode(asd, source_pad, &backup_fmt);
+	atomisp_check_copy_mode(asd, source_pad, &f->fmt.pix);
 
 	isp_sink_crop = *atomisp_subdev_get_rect(&asd->subdev, NULL,
 			V4L2_SUBDEV_FORMAT_ACTIVE,
