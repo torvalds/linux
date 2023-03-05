@@ -594,12 +594,7 @@ static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
 
 unsigned int atomisp_dev_users(struct atomisp_device *isp)
 {
-	unsigned int i, sum;
-
-	for (i = 0, sum = 0; i < isp->num_of_streams; i++)
-		sum += atomisp_subdev_users(&isp->asd[i]);
-
-	return sum;
+	return atomisp_subdev_users(&isp->asd);
 }
 
 static int atomisp_open(struct file *file)

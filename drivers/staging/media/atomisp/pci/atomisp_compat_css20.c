@@ -3393,41 +3393,33 @@ void atomisp_css_morph_table_free(struct ia_css_morph_table *table)
 	ia_css_morph_table_free(table);
 }
 
-static struct atomisp_sub_device *__get_atomisp_subdev(
-    struct ia_css_pipe *css_pipe,
-    struct atomisp_device *isp,
-    enum atomisp_input_stream_id *stream_id)
+static bool atomisp_css_isr_get_stream_id(struct ia_css_pipe *css_pipe,
+					  struct atomisp_device *isp,
+					  enum atomisp_input_stream_id *stream_id)
 {
-	int i, j, k;
-	struct atomisp_sub_device *asd;
 	struct atomisp_stream_env *stream_env;
+	int i, j;
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-		if (asd->streaming == ATOMISP_DEVICE_STREAMING_DISABLED)
-			continue;
-		for (j = 0; j < ATOMISP_INPUT_STREAM_NUM; j++) {
-			stream_env = &asd->stream_env[j];
-			for (k = 0; k < IA_CSS_PIPE_ID_NUM; k++) {
-				if (stream_env->pipes[k] &&
-				    stream_env->pipes[k] == css_pipe) {
-					*stream_id = j;
-					return asd;
-				}
+	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_DISABLED)
+		return false;
+
+	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
+		stream_env = &isp->asd.stream_env[i];
+		for (j = 0; j < IA_CSS_PIPE_ID_NUM; j++) {
+			if (stream_env->pipes[j] && stream_env->pipes[j] == css_pipe) {
+				*stream_id = i;
+				return true;
 			}
 		}
 	}
 
-	return NULL;
+	return false;
 }
 
-int atomisp_css_isr_thread(struct atomisp_device *isp,
-			   bool *frame_done_found,
-			   bool *css_pipe_done)
+int atomisp_css_isr_thread(struct atomisp_device *isp)
 {
 	enum atomisp_input_stream_id stream_id = 0;
 	struct atomisp_css_event current_event;
-	struct atomisp_sub_device *asd;
 
 	lockdep_assert_held(&isp->mutex);
 
@@ -3453,9 +3445,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			continue;
 		}
 
-		asd = __get_atomisp_subdev(current_event.event.pipe,
-					   isp, &stream_id);
-		if (!asd) {
+		if (!atomisp_css_isr_get_stream_id(current_event.event.pipe, isp, &stream_id)) {
 			if (current_event.event.type == IA_CSS_EVENT_TYPE_TIMER)
 				dev_dbg(isp->dev,
 					"event: Timer event.");
@@ -3466,56 +3456,53 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			continue;
 		}
 
-		atomisp_css_temp_pipe_to_pipe_id(asd, &current_event);
+		atomisp_css_temp_pipe_to_pipe_id(&isp->asd, &current_event);
 		switch (current_event.event.type) {
 		case IA_CSS_EVENT_TYPE_OUTPUT_FRAME_DONE:
 			dev_dbg(isp->dev, "event: Output frame done");
-			frame_done_found[asd->index] = true;
-			atomisp_buf_done(asd, 0, IA_CSS_BUFFER_TYPE_OUTPUT_FRAME,
+			atomisp_buf_done(&isp->asd, 0, IA_CSS_BUFFER_TYPE_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
 			break;
 		case IA_CSS_EVENT_TYPE_SECOND_OUTPUT_FRAME_DONE:
 			dev_dbg(isp->dev, "event: Second output frame done");
-			frame_done_found[asd->index] = true;
-			atomisp_buf_done(asd, 0, IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME,
+			atomisp_buf_done(&isp->asd, 0, IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
 			break;
 		case IA_CSS_EVENT_TYPE_3A_STATISTICS_DONE:
 			dev_dbg(isp->dev, "event: 3A stats frame done");
-			atomisp_buf_done(asd, 0,
+			atomisp_buf_done(&isp->asd, 0,
 					 IA_CSS_BUFFER_TYPE_3A_STATISTICS,
 					 current_event.pipe,
 					 false, stream_id);
 			break;
 		case IA_CSS_EVENT_TYPE_METADATA_DONE:
 			dev_dbg(isp->dev, "event: metadata frame done");
-			atomisp_buf_done(asd, 0,
+			atomisp_buf_done(&isp->asd, 0,
 					 IA_CSS_BUFFER_TYPE_METADATA,
 					 current_event.pipe,
 					 false, stream_id);
 			break;
 		case IA_CSS_EVENT_TYPE_VF_OUTPUT_FRAME_DONE:
 			dev_dbg(isp->dev, "event: VF output frame done");
-			atomisp_buf_done(asd, 0,
+			atomisp_buf_done(&isp->asd, 0,
 					 IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
 			break;
 		case IA_CSS_EVENT_TYPE_SECOND_VF_OUTPUT_FRAME_DONE:
 			dev_dbg(isp->dev, "event: second VF output frame done");
-			atomisp_buf_done(asd, 0,
+			atomisp_buf_done(&isp->asd, 0,
 					 IA_CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
 			break;
 		case IA_CSS_EVENT_TYPE_DIS_STATISTICS_DONE:
 			dev_dbg(isp->dev, "event: dis stats frame done");
-			atomisp_buf_done(asd, 0,
+			atomisp_buf_done(&isp->asd, 0,
 					 IA_CSS_BUFFER_TYPE_DIS_STATISTICS,
 					 current_event.pipe,
 					 false, stream_id);
 			break;
 		case IA_CSS_EVENT_TYPE_PIPELINE_DONE:
 			dev_dbg(isp->dev, "event: pipeline done");
-			css_pipe_done[asd->index] = true;
 			break;
 		case IA_CSS_EVENT_TYPE_ACC_STAGE_COMPLETE:
 			dev_warn(isp->dev, "unexpected event: acc stage done");
@@ -3532,23 +3519,17 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 
 bool atomisp_css_valid_sof(struct atomisp_device *isp)
 {
-	unsigned int i, j;
+	unsigned int i;
 
-	/* Loop for each css stream */
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-		/* Loop for each css vc stream */
-		for (j = 0; j < ATOMISP_INPUT_STREAM_NUM; j++) {
-			if (!asd->stream_env[j].stream)
-				continue;
+	/* Loop for each css vc stream */
+	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
+		if (!isp->asd.stream_env[i].stream)
+			continue;
 
-			dev_dbg(isp->dev,
-				"stream #%d: mode: %d\n", j,
-				asd->stream_env[j].stream_config.mode);
-			if (asd->stream_env[j].stream_config.mode ==
-			    IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
-				return false;
-		}
+		dev_dbg(isp->dev, "stream #%d: mode: %d\n",
+			i, isp->asd.stream_env[i].stream_config.mode);
+		if (isp->asd.stream_env[i].stream_config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
+			return false;
 	}
 
 	return true;

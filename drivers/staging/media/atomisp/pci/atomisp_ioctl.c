@@ -626,13 +626,7 @@ atomisp_subdev_streaming_count(struct atomisp_sub_device *asd)
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp)
 {
-	unsigned int i, sum;
-
-	for (i = 0, sum = 0; i < isp->num_of_streams; i++)
-		sum += isp->asd[i].streaming ==
-		       ATOMISP_DEVICE_STREAMING_ENABLED;
-
-	return sum;
+	return isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED;
 }
 
 /*
@@ -1318,11 +1312,11 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	struct video_device *vdev = &pipe->vdev;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	bool recreate_streams[MAX_STREAM_NUM] = {0};
 	enum ia_css_pipe_id css_pipe_id;
+	bool recreate_stream = false;
 	bool first_streamoff = false;
 	unsigned long flags;
-	int i, ret;
+	int ret;
 
 	mutex_lock(&isp->mutex);
 
@@ -1409,11 +1403,9 @@ stopsensor:
 	 *
 	 * So force stream destroy here.
 	 */
-	for (i = 0; i < isp->num_of_streams; i++) {
-		if (isp->asd[i].stream_prepared) {
-			atomisp_destroy_pipes_stream_force(&isp->asd[i]);
-			recreate_streams[i] = true;
-		}
+	if (isp->asd.stream_prepared) {
+		atomisp_destroy_pipes_stream_force(&isp->asd);
+		recreate_stream = true;
 	}
 
 	/* disable  PUNIT/ISP acknowlede/handshake - SRSE=3 */
@@ -1421,19 +1413,18 @@ stopsensor:
 			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
 	dev_err(isp->dev, "atomisp_reset");
 	atomisp_reset(isp);
-	for (i = 0; i < isp->num_of_streams; i++) {
-		if (recreate_streams[i]) {
-			int ret2;
 
-			ret2 = atomisp_create_pipes_stream(&isp->asd[i]);
-			if (ret2) {
-				dev_err(isp->dev, "%s error re-creating streams: %d\n",
-					__func__, ret2);
-				if (!ret)
-					ret = ret2;
-			}
+	if (recreate_stream) {
+		int ret2;
+
+		ret2 = atomisp_create_pipes_stream(&isp->asd);
+		if (ret2) {
+			dev_err(isp->dev, "%s error re-creating streams: %d\n", __func__, ret2);
+			if (!ret)
+				ret = ret2;
 		}
 	}
+
 	isp->isp_timeout = false;
 out_unlock:
 	mutex_unlock(&isp->mutex);

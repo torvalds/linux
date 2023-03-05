@@ -196,8 +196,6 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 			 enum atomisp_dfs_mode mode,
 			 bool force)
 {
-	/* FIXME! Only use subdev[0] status yet */
-	struct atomisp_sub_device *asd = &isp->asd[0];
 	const struct atomisp_dfs_config *dfs;
 	unsigned int new_freq;
 	struct atomisp_freq_scaling_rule curr_rules;
@@ -223,7 +221,7 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 		goto done;
 	}
 
-	fps = atomisp_get_sensor_fps(asd);
+	fps = atomisp_get_sensor_fps(&isp->asd);
 	if (fps == 0) {
 		dev_info(isp->dev,
 			 "Sensor didn't report FPS. Using DFS max mode.\n");
@@ -231,10 +229,10 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 		goto done;
 	}
 
-	curr_rules.width = asd->fmt[asd->capture_pad].fmt.width;
-	curr_rules.height = asd->fmt[asd->capture_pad].fmt.height;
+	curr_rules.width = isp->asd.fmt[isp->asd.capture_pad].fmt.width;
+	curr_rules.height = isp->asd.fmt[isp->asd.capture_pad].fmt.height;
 	curr_rules.fps = fps;
-	curr_rules.run_mode = asd->run_mode->val;
+	curr_rules.run_mode = isp->asd.run_mode->val;
 
 	/* search for the target frequency by looping freq rules*/
 	for (i = 0; i < dfs->dfs_table_size; i++) {
@@ -451,37 +449,13 @@ static void clear_irq_reg(struct atomisp_device *isp)
 	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, msg_ret);
 }
 
-static struct atomisp_sub_device *
-__get_asd_from_port(struct atomisp_device *isp, enum mipi_port_id port)
-{
-	int i;
-
-	/* Check which isp subdev to send eof */
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-		struct camera_mipi_info *mipi_info;
-
-		mipi_info = atomisp_to_sensor_mipi_info(
-				isp->inputs[asd->input_curr].camera);
-
-		if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED &&
-		    __get_mipi_port(isp, mipi_info->port) == port) {
-			return asd;
-		}
-	}
-
-	return NULL;
-}
-
 /* interrupt handling function*/
 irqreturn_t atomisp_isr(int irq, void *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)dev;
-	struct atomisp_sub_device *asd;
 	struct atomisp_css_event eof_event;
 	unsigned int irq_infos = 0;
 	unsigned long flags;
-	unsigned int i;
 	int err;
 
 	spin_lock_irqsave(&isp->lock, flags);
@@ -501,18 +475,10 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	if (!atomisp_streaming_count(isp))
 		goto out_nowake;
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-
-		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
-			continue;
-		/*
-		 * Current SOF only support one stream, so the SOF only valid
-		 * either solely one stream is running
-		 */
+	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
 		if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
-			atomic_inc(&asd->sof_count);
-			atomisp_sof_event(asd);
+			atomic_inc(&isp->asd.sof_count);
+			atomisp_sof_event(&isp->asd);
 
 			/* If sequence_temp and sequence are the same
 			 * there where no frames lost so we can increase
@@ -522,14 +488,14 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 			 * NOTE: There is assumption here that ISP will not
 			 * start processing next frame from sensor before old
 			 * one is completely done. */
-			if (atomic_read(&asd->sequence) == atomic_read(
-				&asd->sequence_temp))
-				atomic_set(&asd->sequence_temp,
-					   atomic_read(&asd->sof_count));
+			if (atomic_read(&isp->asd.sequence) ==
+			    atomic_read(&isp->asd.sequence_temp))
+				atomic_set(&isp->asd.sequence_temp,
+					   atomic_read(&isp->asd.sof_count));
 		}
 		if (irq_infos & IA_CSS_IRQ_INFO_EVENTS_READY)
-			atomic_set(&asd->sequence,
-				   atomic_read(&asd->sequence_temp));
+			atomic_set(&isp->asd.sequence,
+				   atomic_read(&isp->asd.sequence_temp));
 	}
 
 	if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
@@ -554,21 +520,12 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	}
 
 	if (irq_infos & IA_CSS_IRQ_INFO_ISYS_EVENTS_READY) {
-		while (ia_css_dequeue_isys_event(&eof_event.event) ==
-		       0) {
-			/* EOF Event does not have the css_pipe returned */
-			asd = __get_asd_from_port(isp, eof_event.event.port);
-			if (!asd) {
-				dev_err(isp->dev, "%s: ISYS event, but no subdev.event:%d",
-					__func__, eof_event.event.type);
-				continue;
-			}
-
-			atomisp_eof_event(asd, eof_event.event.exp_id);
+		while (ia_css_dequeue_isys_event(&eof_event.event) == 0) {
+			atomisp_eof_event(&isp->asd, eof_event.event.exp_id);
 			dev_dbg_ratelimited(isp->dev,
 					    "%s ISYS event: EOF exp_id %d, asd %d\n",
 					    __func__, eof_event.event.exp_id,
-					    asd->index);
+					    isp->asd.index);
 		}
 
 		irq_infos &= ~IA_CSS_IRQ_INFO_ISYS_EVENTS_READY;
@@ -993,9 +950,9 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 {
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
-	bool stream_restart[MAX_STREAM_NUM] = {0};
+	bool stream_restart = false;
 	unsigned long flags;
-	int i, ret;
+	int ret;
 
 	lockdep_assert_held(&isp->mutex);
 
@@ -1004,44 +961,37 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
-	BUG_ON(isp->num_of_streams > MAX_STREAM_NUM);
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED &&
-		    !asd->stream_prepared)
-			continue;
-
-		stream_restart[asd->index] = true;
+	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED ||
+	    isp->asd.stream_prepared) {
+		stream_restart = true;
 
 		spin_lock_irqsave(&isp->lock, flags);
-		asd->streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
+		isp->asd.streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
 		spin_unlock_irqrestore(&isp->lock, flags);
 
 		/* stream off sensor */
 		ret = v4l2_subdev_call(
-			  isp->inputs[asd->input_curr].
+			  isp->inputs[isp->asd.input_curr].
 			  camera, video, s_stream, 0);
 		if (ret)
 			dev_warn(isp->dev,
 				 "can't stop streaming on sensor!\n");
 
-		atomisp_clear_css_buffer_counters(asd);
+		atomisp_clear_css_buffer_counters(&isp->asd);
 
-		css_pipe_id = atomisp_get_css_pipe_id(asd);
-		atomisp_css_stop(asd, css_pipe_id, true);
+		css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
+		atomisp_css_stop(&isp->asd, css_pipe_id, true);
 
 		spin_lock_irqsave(&isp->lock, flags);
-		asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
+		isp->asd.streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
 		spin_unlock_irqrestore(&isp->lock, flags);
 
-		asd->preview_exp_id = 1;
-		asd->postview_exp_id = 1;
+		isp->asd.preview_exp_id = 1;
+		isp->asd.postview_exp_id = 1;
 		/* notify HAL the CSS reset */
 		dev_dbg(isp->dev,
-			"send reset event to %s\n", asd->subdev.devnode->name);
-		atomisp_reset_event(asd);
+			"send reset event to %s\n", isp->asd.subdev.devnode->name);
+		atomisp_reset_event(&isp->asd);
 	}
 
 	/* clear irq */
@@ -1057,25 +1007,20 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	atomisp_reset(isp);
 	isp->isp_timeout = false;
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
+	if (stream_restart) {
+		atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
 
-		if (!stream_restart[i])
-			continue;
-
-		atomisp_css_input_set_mode(asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
-
-		css_pipe_id = atomisp_get_css_pipe_id(asd);
-		if (atomisp_css_start(asd, css_pipe_id, true)) {
+		css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
+		if (atomisp_css_start(&isp->asd, css_pipe_id, true)) {
 			dev_warn(isp->dev,
 				 "start SP failed, so do not set streaming to be enable!\n");
 		} else {
 			spin_lock_irqsave(&isp->lock, flags);
-			asd->streaming = ATOMISP_DEVICE_STREAMING_ENABLED;
+			isp->asd.streaming = ATOMISP_DEVICE_STREAMING_ENABLED;
 			spin_unlock_irqrestore(&isp->lock, flags);
 		}
 
-		atomisp_csi2_configure(asd);
+		atomisp_csi2_configure(&isp->asd);
 	}
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
@@ -1084,27 +1029,20 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, true) < 0)
 		dev_dbg(isp->dev, "DFS auto failed while recovering!\n");
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd;
-
-		asd = &isp->asd[i];
-
-		if (!stream_restart[i])
-			continue;
-
+	if (stream_restart) {
 		/*
 		 * dequeueing buffers is not needed. CSS will recycle
 		 * buffers that it has.
 		 */
-		atomisp_flush_bufs_and_wakeup(asd);
+		atomisp_flush_bufs_and_wakeup(&isp->asd);
 
 		/* Requeue unprocessed per-frame parameters. */
-		atomisp_recover_params_queue(&asd->video_out_capture);
-		atomisp_recover_params_queue(&asd->video_out_preview);
-		atomisp_recover_params_queue(&asd->video_out_video_capture);
+		atomisp_recover_params_queue(&isp->asd.video_out_capture);
+		atomisp_recover_params_queue(&isp->asd.video_out_preview);
+		atomisp_recover_params_queue(&isp->asd.video_out_video_capture);
 
 		ret = v4l2_subdev_call(
-			  isp->inputs[asd->input_curr].camera, video,
+			  isp->inputs[isp->asd.input_curr].camera, video,
 			  s_stream, 1);
 		if (ret)
 			dev_warn(isp->dev,
@@ -1164,10 +1102,6 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 {
 	struct atomisp_device *isp = isp_ptr;
 	unsigned long flags;
-	bool frame_done_found[MAX_STREAM_NUM] = {0};
-	bool css_pipe_done[MAX_STREAM_NUM] = {0};
-	unsigned int i;
-	struct atomisp_sub_device *asd;
 
 	dev_dbg(isp->dev, ">%s\n", __func__);
 
@@ -1206,15 +1140,11 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	 * time, instead, dequue one and process one, then another
 	 */
 	mutex_lock(&isp->mutex);
-	if (atomisp_css_isr_thread(isp, frame_done_found, css_pipe_done))
+	if (atomisp_css_isr_thread(isp))
 		goto out;
 
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
-			continue;
-		atomisp_setup_flash(asd);
-	}
+	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
+		atomisp_setup_flash(&isp->asd);
 out:
 	mutex_unlock(&isp->mutex);
 	dev_dbg(isp->dev, "<%s\n", __func__);

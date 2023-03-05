@@ -1018,21 +1018,16 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 
 int atomisp_create_pads_links(struct atomisp_device *isp)
 {
-	struct atomisp_sub_device *asd;
-	int i, j, ret = 0;
+	int i, ret;
 
-	isp->num_of_streams = 2;
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
-		for (j = 0; j < isp->num_of_streams; j++) {
-			ret =
-			    media_create_pad_link(&isp->csi2_port[i].subdev.
-						  entity, CSI2_PAD_SOURCE,
-						  &isp->asd[j].subdev.entity,
-						  ATOMISP_SUBDEV_PAD_SINK, 0);
-			if (ret < 0)
-				return ret;
-		}
+		ret = media_create_pad_link(&isp->csi2_port[i].subdev.entity,
+					    CSI2_PAD_SOURCE, &isp->asd.subdev.entity,
+					    ATOMISP_SUBDEV_PAD_SINK, 0);
+		if (ret < 0)
+			return ret;
 	}
+
 	for (i = 0; i < isp->input_cnt; i++) {
 		/* Don't create links for the test-pattern-generator */
 		if (isp->inputs[i].type == TEST_PATTERN)
@@ -1047,33 +1042,28 @@ int atomisp_create_pads_links(struct atomisp_device *isp)
 		if (ret < 0)
 			return ret;
 	}
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-		ret = media_create_pad_link(&asd->subdev.entity,
-					    ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW,
-					    &asd->video_out_preview.vdev.entity,
-					    0, 0);
-		if (ret < 0)
-			return ret;
-		ret = media_create_pad_link(&asd->subdev.entity,
-					    ATOMISP_SUBDEV_PAD_SOURCE_VF,
-					    &asd->video_out_vf.vdev.entity, 0,
-					    0);
-		if (ret < 0)
-			return ret;
-		ret = media_create_pad_link(&asd->subdev.entity,
-					    ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE,
-					    &asd->video_out_capture.vdev.entity,
-					    0, 0);
-		if (ret < 0)
-			return ret;
-		ret = media_create_pad_link(&asd->subdev.entity,
-					    ATOMISP_SUBDEV_PAD_SOURCE_VIDEO,
-					    &asd->video_out_video_capture.vdev.
-					    entity, 0, 0);
-		if (ret < 0)
-			return ret;
-	}
+
+	ret = media_create_pad_link(&isp->asd.subdev.entity,
+				    ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW,
+				    &isp->asd.video_out_preview.vdev.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+	ret = media_create_pad_link(&isp->asd.subdev.entity,
+				    ATOMISP_SUBDEV_PAD_SOURCE_VF,
+				    &isp->asd.video_out_vf.vdev.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+	ret = media_create_pad_link(&isp->asd.subdev.entity,
+				    ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE,
+				    &isp->asd.video_out_capture.vdev.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+	ret = media_create_pad_link(&isp->asd.subdev.entity,
+				    ATOMISP_SUBDEV_PAD_SOURCE_VIDEO,
+				    &isp->asd.video_out_video_capture.vdev.entity, 0, 0);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -1169,29 +1159,14 @@ error:
  */
 int atomisp_subdev_init(struct atomisp_device *isp)
 {
-	struct atomisp_sub_device *asd;
-	int i, ret = 0;
+	int ret;
 
-	/*
-	 * CSS2.0 running ISP2400 support
-	 * multiple streams
-	 */
-	isp->num_of_streams = 2;
-	isp->asd = devm_kzalloc(isp->dev, sizeof(struct atomisp_sub_device) *
-				isp->num_of_streams, GFP_KERNEL);
-	if (!isp->asd)
-		return -ENOMEM;
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-		asd->isp = isp;
-		isp_subdev_init_params(asd);
-		asd->index = i;
-		ret = isp_subdev_init_entities(asd);
-		if (ret < 0) {
-			atomisp_subdev_cleanup_entities(asd);
-			break;
-		}
-	}
+	isp->asd.index = 0;
+	isp->asd.isp = isp;
+	isp_subdev_init_params(&isp->asd);
+	ret = isp_subdev_init_entities(&isp->asd);
+	if (ret < 0)
+		atomisp_subdev_cleanup_entities(&isp->asd);
 
 	return ret;
 }

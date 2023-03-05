@@ -48,8 +48,6 @@
 	(((isp)->media_dev.hw_revision & ATOMISP_HW_REVISION_MASK) == \
 	 ((rev) << ATOMISP_HW_REVISION_SHIFT))
 
-#define MAX_STREAM_NUM	2
-
 #define ATOMISP_PCI_DEVICE_SOC_MASK	0xfff8
 /* MRFLD with 0x1178: ISP freq can burst to 457MHz */
 #define ATOMISP_PCI_DEVICE_SOC_MRFLD	0x1178
@@ -181,6 +179,7 @@ struct atomisp_device {
 	struct device *dev;
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
+	struct atomisp_sub_device asd;
 	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
 	void __iomem *base;
@@ -189,18 +188,6 @@ struct atomisp_device {
 	struct dev_pm_domain pm_domain;
 	struct pm_qos_request pm_qos;
 	s32 max_isr_latency;
-
-	/*
-	 * ISP modules
-	 * Multiple streams are represents by multiple
-	 * atomisp_sub_device instances
-	 */
-	struct atomisp_sub_device *asd;
-	/*
-	 * this will be assigned dyanamically.
-	 * For Merr/BTY(ISP2400), 2 streams are supported.
-	 */
-	unsigned int num_of_streams;
 
 	struct atomisp_mipi_csi2_device csi2_port[ATOMISP_CAMERA_NR_PORTS];
 	struct atomisp_tpg_device tpg;
@@ -222,7 +209,7 @@ struct atomisp_device {
 	bool isp_fatal_error;
 	struct work_struct assert_recovery_work;
 
-	spinlock_t lock; /* Protects asd[i].streaming */
+	spinlock_t lock; /* Protects asd.streaming */
 
 	bool need_gfx_throttle;
 
