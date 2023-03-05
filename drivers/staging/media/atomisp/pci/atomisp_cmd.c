@@ -3967,11 +3967,7 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
-
-	struct v4l2_mbus_framefmt *snr_mbus_fmt = &format.format;
 	const struct atomisp_format_bridge *fmt;
-	struct atomisp_input_stream_info *stream_info =
-	    (struct atomisp_input_stream_info *)snr_mbus_fmt->reserved;
 	int ret;
 
 	if (!asd) {
@@ -3992,14 +3988,15 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	if (f->width <= 0 || f->height <= 0)
 		return -EINVAL;
 
-	snr_mbus_fmt->code = fmt->mbus_code;
-	snr_mbus_fmt->width = f->width;
-	snr_mbus_fmt->height = f->height;
+	format.format.code = fmt->mbus_code;
+	format.format.width = f->width;
+	format.format.height = f->height;
 
-	__atomisp_init_stream_info(ATOMISP_INPUT_STREAM_GENERAL, stream_info);
+	__atomisp_init_stream_info(ATOMISP_INPUT_STREAM_GENERAL,
+				   (struct atomisp_input_stream_info *)format.format.reserved);
 
 	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
-		snr_mbus_fmt->width, snr_mbus_fmt->height);
+		format.format.width, format.format.height);
 
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 			       pad, set_fmt, &pad_state, &format);
@@ -4007,12 +4004,12 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 		return ret;
 
 	dev_dbg(isp->dev, "try_mbus_fmt: got %ux%u\n",
-		snr_mbus_fmt->width, snr_mbus_fmt->height);
+		format.format.width, format.format.height);
 
-	fmt = atomisp_get_format_bridge_from_mbus(snr_mbus_fmt->code);
+	fmt = atomisp_get_format_bridge_from_mbus(format.format.code);
 	if (!fmt) {
 		dev_err(isp->dev, "unknown sensor format 0x%8.8x\n",
-			snr_mbus_fmt->code);
+			format.format.code);
 		return -EINVAL;
 	}
 
@@ -4026,15 +4023,15 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	 */
 	if (f->pixelformat == V4L2_PIX_FMT_JPEG ||
 	    f->pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW) {
-		f->width = snr_mbus_fmt->width;
-		f->height = snr_mbus_fmt->height;
+		f->width = format.format.width;
+		f->height = format.format.height;
 		return 0;
 	}
 
-	if (!res_overflow || (snr_mbus_fmt->width < f->width &&
-			      snr_mbus_fmt->height < f->height)) {
-		f->width = snr_mbus_fmt->width;
-		f->height = snr_mbus_fmt->height;
+	if (!res_overflow || (format.format.width < f->width &&
+			      format.format.height < f->height)) {
+		f->width = format.format.width;
+		f->height = format.format.height;
 		/* Set the flag when resolution requested is
 		 * beyond the max value supported by sensor
 		 */
