@@ -3,11 +3,11 @@
 #define _BCACHEFS_ERRCODE_H
 
 #define BCH_ERRCODES()								\
+	x(ENOMEM,			ENOMEM_stripe_buf)			\
 	x(ENOSPC,			ENOSPC_disk_reservation)		\
 	x(ENOSPC,			ENOSPC_bucket_alloc)			\
 	x(ENOSPC,			ENOSPC_disk_label_add)			\
 	x(ENOSPC,			ENOSPC_stripe_create)			\
-	x(ENOSPC,			ENOSPC_stripe_reuse)			\
 	x(ENOSPC,			ENOSPC_inode_create)			\
 	x(ENOSPC,			ENOSPC_str_hash_create)			\
 	x(ENOSPC,			ENOSPC_snapshot_create)			\

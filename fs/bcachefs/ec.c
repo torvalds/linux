@@ -213,8 +213,9 @@ static void ec_stripe_buf_exit(struct ec_stripe_buf *buf)
 	}
 }
 
+/* XXX: this is a non-mempoolified memory allocation: */
 static int ec_stripe_buf_init(struct ec_stripe_buf *buf,
-			       unsigned offset, unsigned size)
+			      unsigned offset, unsigned size)
 {
 	struct bch_stripe *v = &buf->key.v;
 	unsigned csum_granularity = 1U << v->csum_granularity_bits;
@@ -241,7 +242,7 @@ static int ec_stripe_buf_init(struct ec_stripe_buf *buf,
 	return 0;
 err:
 	ec_stripe_buf_exit(buf);
-	return -ENOMEM;
+	return -BCH_ERR_ENOMEM_stripe_buf;
 }
 
 /* Checksumming: */
@@ -1099,6 +1100,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	}
 
 	BUG_ON(!s->allocated);
+	BUG_ON(!s->idx);
 
 	ec_generate_ec(&s->new_stripe);
 
@@ -1143,7 +1145,8 @@ err:
 			}
 		}
 
-	bch2_stripe_close(c, s);
+	if (s->idx)
+		bch2_stripe_close(c, s);
 
 	ec_stripe_buf_exit(&s->existing_stripe);
 	ec_stripe_buf_exit(&s->new_stripe);
@@ -1191,6 +1194,7 @@ void bch2_ec_do_stripe_creates(struct bch_fs *c)
 static void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s)
 {
 	BUG_ON(atomic_read(&s->pin) <= 0);
+	BUG_ON(!s->err && !s->idx);
 
 	if (atomic_dec_and_test(&s->pin))
 		bch2_ec_do_stripe_creates(c);
@@ -1235,6 +1239,8 @@ void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)
 
 	if (!ob)
 		return NULL;
+
+	BUG_ON(!ob->ec->new_stripe.data[ob->ec_idx]);
 
 	ca	= bch_dev_bkey_exists(c, ob->dev);
 	offset	= ca->mi.bucket_size - ob->sectors_free;
@@ -1436,6 +1442,9 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 	bool have_cache = true;
 	int ret = 0;
 
+	BUG_ON(h->s->new_stripe.key.v.nr_blocks		!= h->s->nr_data + h->s->nr_parity);
+	BUG_ON(h->s->new_stripe.key.v.nr_redundant	!= h->s->nr_parity);
+
 	for_each_set_bit(i, h->s->blocks_gotten, h->s->new_stripe.key.v.nr_blocks) {
 		__clear_bit(h->s->new_stripe.key.v.ptrs[i].dev, devs.d);
 		if (i < h->s->nr_data)
@@ -1546,9 +1555,13 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 	s64 idx;
 	int ret;
 
+	/*
+	 * If we can't allocate a new stripe, and there's no stripes with empty
+	 * blocks for us to reuse, that means we have to wait on copygc:
+	 */
 	idx = get_existing_stripe(c, h);
 	if (idx < 0)
-		return -BCH_ERR_ENOSPC_stripe_reuse;
+		return -BCH_ERR_stripe_alloc_blocked;
 
 	ret = get_stripe_key_trans(trans, idx, &h->s->existing_stripe);
 	if (ret) {
@@ -1558,12 +1571,14 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 		return ret;
 	}
 
-	if (ec_stripe_buf_init(&h->s->existing_stripe, 0, h->blocksize)) {
-		/*
-		 * this is a problem: we have deleted from the
-		 * stripes heap already
-		 */
-		BUG();
+	BUG_ON(h->s->existing_stripe.key.v.nr_redundant != h->s->nr_parity);
+	h->s->nr_data = h->s->existing_stripe.key.v.nr_blocks -
+		h->s->existing_stripe.key.v.nr_redundant;
+
+	ret = ec_stripe_buf_init(&h->s->existing_stripe, 0, h->blocksize);
+	if (ret) {
+		bch2_stripe_close(c, h->s);
+		return ret;
 	}
 
 	BUG_ON(h->s->existing_stripe.size != h->blocksize);
@@ -1675,9 +1690,6 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 			bch_err(c, "failed to allocate new stripe");
 			goto err;
 		}
-
-		if (ec_stripe_buf_init(&h->s->new_stripe, 0, h->blocksize))
-			BUG();
 	}
 
 	if (h->s->allocated)
@@ -1690,7 +1702,7 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 	ret =   new_stripe_alloc_buckets(trans, h, RESERVE_stripe, NULL) ?:
 		__bch2_ec_stripe_head_reserve(trans, h);
 	if (!ret)
-		goto allocated;
+		goto allocate_buf;
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
 	    bch2_err_matches(ret, ENOMEM))
 		goto err;
@@ -1703,8 +1715,6 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		ret = __bch2_ec_stripe_head_reuse(trans, h);
 		if (!ret)
 			break;
-		if (ret == -BCH_ERR_ENOSPC_stripe_reuse && cl)
-			ret = -BCH_ERR_stripe_alloc_blocked;
 		if (waiting || !cl || ret != -BCH_ERR_stripe_alloc_blocked)
 			goto err;
 
@@ -1723,10 +1733,16 @@ alloc_existing:
 	ret = new_stripe_alloc_buckets(trans, h, reserve, cl);
 	if (ret)
 		goto err;
-allocated:
-	h->s->allocated = true;
-	BUG_ON(!h->s->idx);
 
+allocate_buf:
+	ret = ec_stripe_buf_init(&h->s->new_stripe, 0, h->blocksize);
+	if (ret)
+		goto err;
+
+	h->s->allocated = true;
+allocated:
+	BUG_ON(!h->s->idx);
+	BUG_ON(!h->s->new_stripe.data[0]);
 	BUG_ON(trans->restarted);
 	return h;
 err:
