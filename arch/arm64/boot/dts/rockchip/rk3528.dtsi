@@ -352,8 +352,8 @@
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&log_leakage>;
-		nvmem-cell-names = "leakage";
+		nvmem-cells = <&log_leakage>, <&dmc_opp_info>;
+		nvmem-cell-names = "leakage", "opp-info";
 
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
