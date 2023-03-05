@@ -53,7 +53,4 @@ unsigned int atomisp_streaming_count(struct atomisp_device *isp);
 long atomisp_compat_ioctl32(struct file *file,
 			    unsigned int cmd, unsigned long arg);
 
-int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count);
-void atomisp_stop_streaming(struct vb2_queue *vq);
-
 #endif /* __ATOMISP_IOCTL_H__ */
