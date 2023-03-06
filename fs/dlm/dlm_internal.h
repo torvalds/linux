@@ -194,17 +194,18 @@ struct dlm_args {
 #define DLM_LKSTS_GRANTED	2
 #define DLM_LKSTS_CONVERT	3
 
-/* lkb_flags */
+/* lkb_iflags */
 
-#define DLM_IFL_MSTCPY		0x00010000
-#define DLM_IFL_RESEND		0x00020000
-#define DLM_IFL_DEAD		0x00040000
-#define DLM_IFL_OVERLAP_UNLOCK  0x00080000
-#define DLM_IFL_OVERLAP_CANCEL  0x00100000
-#define DLM_IFL_ENDOFLIFE	0x00200000
-#define DLM_IFL_DEADLOCK_CANCEL	0x01000000
-
-#define DLM_IFL_CB_PENDING_BIT	0
+#define DLM_IFL_MSTCPY_BIT	16
+#define __DLM_IFL_MIN_BIT	DLM_IFL_MSTCPY_BIT
+#define DLM_IFL_RESEND_BIT	17
+#define DLM_IFL_DEAD_BIT	18
+#define DLM_IFL_OVERLAP_UNLOCK_BIT 19
+#define DLM_IFL_OVERLAP_CANCEL_BIT 20
+#define DLM_IFL_ENDOFLIFE_BIT	21
+#define DLM_IFL_DEADLOCK_CANCEL_BIT 24
+#define DLM_IFL_CB_PENDING_BIT	25
+#define __DLM_IFL_MAX_BIT	DLM_IFL_CB_PENDING_BIT
 
 /* lkb_dflags */
 
@@ -235,7 +236,6 @@ struct dlm_lkb {
 	uint32_t		lkb_remid;	/* lock ID on remote partner */
 	uint32_t		lkb_exflags;	/* external flags from caller */
 	uint32_t		lkb_sbflags;	/* lksb flags */
-	uint32_t		lkb_flags;	/* internal flags */
 	unsigned long		lkb_dflags;	/* distributed flags */
 	unsigned long		lkb_iflags;	/* internal flags */
 	uint32_t		lkb_lvbseq;	/* lvb sequence number */
@@ -746,6 +746,12 @@ static inline uint32_t dlm_flags_val(const unsigned long *addr,
 	}
 
 	return val;
+}
+
+static inline uint32_t dlm_iflags_val(const struct dlm_lkb *lkb)
+{
+	return dlm_flags_val(&lkb->lkb_iflags, __DLM_IFL_MIN_BIT,
+			     __DLM_IFL_MAX_BIT);
 }
 
 static inline uint32_t dlm_dflags_val(const struct dlm_lkb *lkb)

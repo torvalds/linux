@@ -184,7 +184,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	int rv;
 
 	if (test_bit(DLM_DFL_ORPHAN_BIT, &lkb->lkb_dflags) ||
-	    lkb->lkb_flags & DLM_IFL_DEAD)
+	    test_bit(DLM_IFL_DEAD_BIT, &lkb->lkb_iflags))
 		return;
 
 	ls = lkb->lkb_resource->res_ls;
@@ -197,7 +197,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	   began before clear_proc_locks did its cancel/unlock. */
 
 	if (test_bit(DLM_DFL_ORPHAN_BIT, &lkb->lkb_dflags) ||
-	    lkb->lkb_flags & DLM_IFL_DEAD)
+	    test_bit(DLM_IFL_DEAD_BIT, &lkb->lkb_iflags))
 		goto out;
 
 	DLM_ASSERT(lkb->lkb_ua, dlm_print_lkb(lkb););
@@ -208,7 +208,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		goto out;
 
 	if ((flags & DLM_CB_CAST) && lkb_is_endoflife(mode, status))
-		lkb->lkb_flags |= DLM_IFL_ENDOFLIFE;
+		set_bit(DLM_IFL_ENDOFLIFE_BIT, &lkb->lkb_iflags);
 
 	spin_lock(&proc->asts_spin);
 
@@ -231,7 +231,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	}
 	spin_unlock(&proc->asts_spin);
 
-	if (lkb->lkb_flags & DLM_IFL_ENDOFLIFE) {
+	if (test_bit(DLM_IFL_ENDOFLIFE_BIT, &lkb->lkb_iflags)) {
 		/* N.B. spin_lock locks_spin, not asts_spin */
 		spin_lock(&proc->locks_spin);
 		if (!list_empty(&lkb->lkb_ownqueue)) {
