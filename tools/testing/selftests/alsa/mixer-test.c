@@ -422,6 +422,9 @@ static void test_ctl_name(struct ctl_data *ctl)
 	bool name_ok = true;
 	bool check;
 
+	ksft_print_msg("%d.%d %s\n", ctl->card->card, ctl->elem,
+		       ctl->name);
+
 	/* Only boolean controls should end in Switch */
 	if (strend(ctl->name, " Switch")) {
 		if (snd_ctl_elem_info_get_type(ctl->info) != SND_CTL_ELEM_TYPE_BOOLEAN) {
