@@ -104,6 +104,8 @@ struct amdgpu_vmhub {
 	uint32_t	vm_cntx_cntl_vm_fault;
 	uint32_t	vm_l2_bank_select_reserved_cid2;
 
+	uint32_t	vm_contexts_disable;
+
 	const struct amdgpu_vmhub_funcs *vmhub_funcs;
 };
 

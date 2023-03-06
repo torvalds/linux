@@ -862,6 +862,12 @@ static int gmc_v11_0_sw_fini(void *handle)
 
 static void gmc_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev)) {
+		struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB_0];
+
+		WREG32(hub->vm_contexts_disable, 0);
+		return;
+	}
 }
 
 /**
