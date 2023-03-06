@@ -2822,7 +2822,7 @@ parse_general_definitions(struct drm_i915_private *i915)
 		expected_size = 37;
 	} else if (i915->display.vbt.version <= 215) {
 		expected_size = 38;
-	} else if (i915->display.vbt.version <= 237) {
+	} else if (i915->display.vbt.version <= 250) {
 		expected_size = 39;
 	} else {
 		expected_size = sizeof(*child);
