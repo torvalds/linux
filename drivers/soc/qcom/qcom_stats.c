@@ -117,6 +117,7 @@ struct stats_config {
 	bool dynamic_offset;
 	bool subsystem_stats_in_smem;
 	bool read_ddr_votes;
+	bool ddr_freq_update;
 };
 
 struct stats_data {
@@ -233,6 +234,14 @@ static inline void qcom_stats_copy(struct sleep_stats *src, struct sleep_stats *
 	dst->accumulated = src->accumulated;
 }
 
+static bool ddr_stats_is_freq_overtime(struct sleep_stats *data)
+{
+	if ((data->count == 0) && (drv->config->ddr_freq_update))
+		return true;
+
+	return false;
+}
+
 static u64 qcom_stats_fill_ddr_stats(void __iomem *reg, struct sleep_stats *data, u32 *entry_count)
 {
 	u64 accumulated_duration = 0;
@@ -247,8 +256,13 @@ static u64 qcom_stats_fill_ddr_stats(void __iomem *reg, struct sleep_stats *data
 	reg += DDR_STATS_ENTRY_ADDR;
 
 	for (i = 0; i < *entry_count; i++) {
-		data[i].stat_type = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
 		data[i].count = readl_relaxed(reg + DDR_STATS_COUNT_ADDR);
+		if ((i >= 0x4) && (ddr_stats_is_freq_overtime(&data[i]))) {
+			pr_err("ddr_stats: Freq update failed\n");
+			return 0;
+		}
+
+		data[i].stat_type = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
 		data[i].last_entered_at = 0xDEADDEAD;
 		data[i].last_exited_at = 0xDEADDEAD;
 		data[i].accumulated = readq_relaxed(reg + DDR_STATS_DURATION_ADDR);
@@ -736,14 +750,24 @@ static int ddr_stats_show(struct seq_file *s, void *d)
 	struct sleep_stats data[DDR_STATS_MAX_NUM_MODES];
 	void __iomem *reg = s->private;
 	u32 entry_count;
-	u64 accumulated_duration = 0;
+	u64 accumulated_duration = 0, accumulated_duration_ddr_mode = 0;
 	int i, lpm_count = 0;
 
 	accumulated_duration = qcom_stats_fill_ddr_stats(reg, data, &entry_count);
-	if (!accumulated_duration)
-		return 0;
 
-	for (i = 0; i < entry_count; i++)
+	for (i = 0; i < DDR_STATS_NUM_MODES_ADDR; i++)
+		accumulated_duration_ddr_mode += data[i].accumulated;
+
+	for (i = 0; i < DDR_STATS_NUM_MODES_ADDR; i++)
+		print_ddr_stats(s, &lpm_count, &data[i], accumulated_duration_ddr_mode);
+
+	if (!accumulated_duration) {
+		seq_puts(s, "ddr_stats: Freq update failed.\n");
+		return 0;
+	}
+
+	accumulated_duration -= accumulated_duration_ddr_mode;
+	for (i = DDR_STATS_NUM_MODES_ADDR; i < entry_count; i++)
 		print_ddr_stats(s, &lpm_count, &data[i], accumulated_duration);
 
 	return 0;
@@ -1095,6 +1119,18 @@ static const struct stats_config rpmh_v2_data = {
 	.read_ddr_votes = true,
 };
 
+static const struct stats_config rpmh_v3_data = {
+	.stats_offset = 0x48,
+	.ddr_stats_offset = 0xb8,
+	.cx_vote_offset = 0xb8,
+	.num_records = 3,
+	.appended_stats_avail = false,
+	.dynamic_offset = false,
+	.subsystem_stats_in_smem = true,
+	.read_ddr_votes = true,
+	.ddr_freq_update = true,
+};
+
 static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,apq8084-rpm-stats", .data = &rpm_data_dba0 },
 	{ .compatible = "qcom,msm8226-rpm-stats", .data = &rpm_data_dba0 },
@@ -1103,6 +1139,7 @@ static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,rpm-stats", .data = &rpm_data },
 	{ .compatible = "qcom,rpmh-stats", .data = &rpmh_data },
 	{ .compatible = "qcom,rpmh-stats-v2", .data = &rpmh_v2_data },
+	{ .compatible = "qcom,rpmh-stats-v3", .data = &rpmh_v3_data },
 	{ .compatible = "qcom,sdm845-rpmh-stats", .data = &rpmh_data_sdm845 },
 	{ }
 };
