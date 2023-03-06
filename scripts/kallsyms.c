@@ -525,7 +525,8 @@ static void write_src(void)
 					table[i]->addr);
 				exit(EXIT_FAILURE);
 			}
-			printf("\t.long\t%#x\n", (int)offset);
+			expand_symbol(table[i]->sym, table[i]->len, buf);
+			printf("\t.long\t%#x	/* %s */\n", (int)offset, buf);
 		} else if (!symbol_absolute(table[i])) {
 			output_address(table[i]->addr);
 		} else {
