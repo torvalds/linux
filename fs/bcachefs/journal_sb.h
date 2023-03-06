@@ -21,4 +21,4 @@ static inline unsigned bch2_sb_field_journal_v2_nr_entries(struct bch_sb_field_j
 extern const struct bch_sb_field_ops bch_sb_field_ops_journal;
 extern const struct bch_sb_field_ops bch_sb_field_ops_journal_v2;
 
-int bch2_journal_buckets_to_sb(struct bch_fs *, struct bch_dev *);
+int bch2_journal_buckets_to_sb(struct bch_fs *, struct bch_dev *, u64 *, unsigned);
