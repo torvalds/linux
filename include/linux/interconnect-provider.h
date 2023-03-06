@@ -125,8 +125,6 @@ int icc_nodes_remove(struct icc_provider *provider);
 void icc_provider_init(struct icc_provider *provider);
 int icc_provider_register(struct icc_provider *provider);
 void icc_provider_deregister(struct icc_provider *provider);
-int icc_provider_add(struct icc_provider *provider);
-void icc_provider_del(struct icc_provider *provider);
 struct icc_node_data *of_icc_get_from_provider(struct of_phandle_args *spec);
 void icc_sync_state(struct device *dev);
 
@@ -178,15 +176,6 @@ static inline int icc_provider_register(struct icc_provider *provider)
 }
 
 static inline void icc_provider_deregister(struct icc_provider *provider) { }
-
-static inline int icc_provider_add(struct icc_provider *provider)
-{
-	return -ENOTSUPP;
-}
-
-static inline void icc_provider_del(struct icc_provider *provider)
-{
-}
 
 static inline struct icc_node_data *of_icc_get_from_provider(struct of_phandle_args *spec)
 {

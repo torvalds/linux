@@ -1084,22 +1084,6 @@ void icc_provider_deregister(struct icc_provider *provider)
 }
 EXPORT_SYMBOL_GPL(icc_provider_deregister);
 
-int icc_provider_add(struct icc_provider *provider)
-{
-	icc_provider_init(provider);
-
-	return icc_provider_register(provider);
-}
-EXPORT_SYMBOL_GPL(icc_provider_add);
-
-void icc_provider_del(struct icc_provider *provider)
-{
-	WARN_ON(!list_empty(&provider->nodes));
-
-	icc_provider_deregister(provider);
-}
-EXPORT_SYMBOL_GPL(icc_provider_del);
-
 static const struct of_device_id __maybe_unused ignore_list[] = {
 	{ .compatible = "qcom,sc7180-ipa-virt" },
 	{ .compatible = "qcom,sc8180x-ipa-virt" },
