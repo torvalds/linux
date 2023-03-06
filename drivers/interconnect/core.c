@@ -911,52 +911,6 @@ out:
 EXPORT_SYMBOL_GPL(icc_link_create);
 
 /**
- * icc_link_destroy() - destroy a link between two nodes
- * @src: pointer to source node
- * @dst: pointer to destination node
- *
- * Return: 0 on success, or an error code otherwise
- */
-int icc_link_destroy(struct icc_node *src, struct icc_node *dst)
-{
-	struct icc_node **new;
-	size_t slot;
-	int ret = 0;
-
-	if (IS_ERR_OR_NULL(src))
-		return -EINVAL;
-
-	if (IS_ERR_OR_NULL(dst))
-		return -EINVAL;
-
-	mutex_lock(&icc_lock);
-
-	for (slot = 0; slot < src->num_links; slot++)
-		if (src->links[slot] == dst)
-			break;
-
-	if (WARN_ON(slot == src->num_links)) {
-		ret = -ENXIO;
-		goto out;
-	}
-
-	src->links[slot] = src->links[--src->num_links];
-
-	new = krealloc(src->links, src->num_links * sizeof(*src->links),
-		       GFP_KERNEL);
-	if (new)
-		src->links = new;
-	else
-		ret = -ENOMEM;
-
-out:
-	mutex_unlock(&icc_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(icc_link_destroy);
-
-/**
  * icc_node_add() - add interconnect node to interconnect provider
  * @node: pointer to the interconnect node
  * @provider: pointer to the interconnect provider
