@@ -124,6 +124,7 @@ static const struct of_device_id of_match_clk_mt2701_aud[] = {
 	{ .compatible = "mediatek,mt2701-audsys", .data = &audio_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt2701_aud);
 
 static int clk_mt2701_aud_probe(struct platform_device *pdev)
 {

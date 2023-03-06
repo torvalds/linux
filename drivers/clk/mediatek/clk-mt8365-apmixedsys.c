@@ -153,6 +153,7 @@ static const struct of_device_id of_match_clk_mt8365_apmixed[] = {
 	{ .compatible = "mediatek,mt8365-apmixedsys" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8365_apmixed);
 
 static struct platform_driver clk_mt8365_apmixed_drv = {
 	.probe = clk_mt8365_apmixed_probe,

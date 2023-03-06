@@ -304,6 +304,7 @@ static const struct of_device_id of_match_clk_mt7986_topckgen[] = {
 	{ .compatible = "mediatek,mt7986-topckgen", .data = &topck_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7986_topckgen);
 
 static struct platform_driver clk_mt7986_topckgen_drv = {
 	.probe = mtk_clk_simple_probe,

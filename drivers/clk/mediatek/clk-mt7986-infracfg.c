@@ -171,6 +171,7 @@ static const struct of_device_id of_match_clk_mt7986_infracfg[] = {
 	{ .compatible = "mediatek,mt7986-infracfg", .data = &infra_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7986_infracfg);
 
 static struct platform_driver clk_mt7986_infracfg_drv = {
 	.driver = {

@@ -86,6 +86,7 @@ static const struct of_device_id of_match_clk_mt7986_eth[] = {
 	{ .compatible = "mediatek,mt7986-sgmiisys_1", .data = &sgmii1_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7986_eth);
 
 static struct platform_driver clk_mt7986_eth_drv = {
 	.driver = {

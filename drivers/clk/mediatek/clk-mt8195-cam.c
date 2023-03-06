@@ -131,6 +131,7 @@ static const struct of_device_id of_match_clk_mt8195_cam[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_cam);
 
 static struct platform_driver clk_mt8195_cam_drv = {
 	.probe = mtk_clk_simple_probe,

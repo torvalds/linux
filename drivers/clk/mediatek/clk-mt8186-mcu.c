@@ -52,6 +52,7 @@ static const struct of_device_id of_match_clk_mt8186_mcu[] = {
 	{ .compatible = "mediatek,mt8186-mcusys", .data = &mcu_desc },
 	{ /* sentinel */}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8186_mcu);
 
 static struct platform_driver clk_mt8186_mcu_drv = {
 	.driver = {

@@ -39,6 +39,7 @@ static const struct of_device_id of_match_clk_mt8186_venc[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8186_venc);
 
 static struct platform_driver clk_mt8186_venc_drv = {
 	.probe = mtk_clk_simple_probe,

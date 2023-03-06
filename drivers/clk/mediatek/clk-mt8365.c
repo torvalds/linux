@@ -791,6 +791,7 @@ static const struct of_device_id of_match_clk_mt8365[] = {
 	{ .compatible = "mediatek,mt8365-mcucfg", .data = &mcu_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8365);
 
 static struct platform_driver clk_mt8365_drv = {
 	.driver = {

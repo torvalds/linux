@@ -55,6 +55,7 @@ static const struct of_device_id of_match_clk_mt7622_infracfg[] = {
 	{ .compatible = "mediatek,mt7622-infracfg" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7622_infracfg);
 
 static int clk_mt7622_infracfg_probe(struct platform_device *pdev)
 {

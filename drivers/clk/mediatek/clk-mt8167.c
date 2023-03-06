@@ -883,6 +883,7 @@ static const struct of_device_id of_match_clk_mt8167[] = {
 	{ .compatible = "mediatek,mt8167-infracfg", .data = &infra_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8167);
 
 static struct platform_driver clk_mt8167_drv = {
 	.probe = mtk_clk_simple_probe,

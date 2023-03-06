@@ -518,6 +518,7 @@ static const struct of_device_id of_match_clk_mt7622[] = {
 	{ .compatible = "mediatek,mt7622-pericfg", .data = &peri_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7622);
 
 static struct platform_driver clk_mt7622_drv = {
 	.driver = {

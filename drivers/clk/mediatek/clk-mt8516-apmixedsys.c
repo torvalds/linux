@@ -107,6 +107,7 @@ static const struct of_device_id of_match_clk_mt8516_apmixed[] = {
 	{ .compatible = "mediatek,mt8516-apmixedsys" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8516_apmixed);
 
 static struct platform_driver clk_mt8516_apmixed_drv = {
 	.probe = clk_mt8516_apmixed_probe,

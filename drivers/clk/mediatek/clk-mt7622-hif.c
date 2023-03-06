@@ -89,6 +89,7 @@ static const struct of_device_id of_match_clk_mt7622_hif[] = {
 	{ .compatible = "mediatek,mt7622-ssusbsys", .data = &ssusb_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7622_hif);
 
 static struct platform_driver clk_mt7622_hif_drv = {
 	.probe = mtk_clk_simple_probe,

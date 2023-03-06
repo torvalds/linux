@@ -131,6 +131,7 @@ static const struct of_device_id of_match_clk_mt6795_apmixed[] = {
 	{ .compatible = "mediatek,mt6795-apmixedsys" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6795_apmixed);
 
 static int clk_mt6795_apmixed_probe(struct platform_device *pdev)
 {

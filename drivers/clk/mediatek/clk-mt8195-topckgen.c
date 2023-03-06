@@ -1219,6 +1219,7 @@ static const struct of_device_id of_match_clk_mt8195_topck[] = {
 	{ .compatible = "mediatek,mt8195-topckgen", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_topck);
 
 /* Register mux notifier for MFG mux */
 static int clk_mt8195_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)

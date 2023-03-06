@@ -166,6 +166,7 @@ static const struct of_device_id of_match_clk_mt8195_apmixed[] = {
 	{ .compatible = "mediatek,mt8195-apmixedsys", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_apmixed);
 
 static int clk_mt8195_apmixed_probe(struct platform_device *pdev)
 {

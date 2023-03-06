@@ -1019,6 +1019,7 @@ static const struct of_device_id of_match_clk_mt8192[] = {
 	{ .compatible = "mediatek,mt8192-topckgen", .data = &topck_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8192);
 
 static struct platform_driver clk_mt8192_drv = {
 	.driver = {
