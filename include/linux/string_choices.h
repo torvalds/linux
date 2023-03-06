@@ -14,6 +14,18 @@ static inline const char *str_enabled_disabled(bool v)
 	return v ? "enabled" : "disabled";
 }
 
+static inline const char *str_hi_lo(bool v)
+{
+	return v ? "hi" : "lo";
+}
+#define str_lo_hi(v)		str_hi_lo(!(v))
+
+static inline const char *str_high_low(bool v)
+{
+	return v ? "high" : "low";
+}
+#define str_low_high(v)		str_high_low(!(v))
+
 static inline const char *str_read_write(bool v)
 {
 	return v ? "read" : "write";
