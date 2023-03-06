@@ -48,3 +48,4 @@ static struct platform_driver clk_mt8192_scp_adsp_drv = {
 	},
 };
 module_platform_driver(clk_mt8192_scp_adsp_drv);
+MODULE_LICENSE("GPL");

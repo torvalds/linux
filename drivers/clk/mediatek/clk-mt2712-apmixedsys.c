@@ -164,3 +164,4 @@ static struct platform_driver clk_mt2712_apmixed_drv = {
 	},
 };
 module_platform_driver(clk_mt2712_apmixed_drv)
+MODULE_LICENSE("GPL");

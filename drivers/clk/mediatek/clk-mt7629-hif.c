@@ -94,3 +94,4 @@ static struct platform_driver clk_mt7629_hif_drv = {
 	},
 };
 module_platform_driver(clk_mt7629_hif_drv);
+MODULE_LICENSE("GPL");

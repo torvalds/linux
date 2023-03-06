@@ -155,3 +155,4 @@ static struct platform_driver clk_mt7622_aud_drv = {
 	},
 };
 module_platform_driver(clk_mt7622_aud_drv);
+MODULE_LICENSE("GPL");

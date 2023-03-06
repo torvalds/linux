@@ -51,3 +51,4 @@ static struct platform_driver clk_mt6765_vcodec_drv = {
 	},
 };
 module_platform_driver(clk_mt6765_vcodec_drv);
+MODULE_LICENSE("GPL");

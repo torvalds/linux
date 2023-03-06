@@ -117,3 +117,4 @@ static struct platform_driver clk_mt8192_imp_iic_wrap_drv = {
 	},
 };
 module_platform_driver(clk_mt8192_imp_iic_wrap_drv);
+MODULE_LICENSE("GPL");

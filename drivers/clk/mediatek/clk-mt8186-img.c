@@ -66,3 +66,4 @@ static struct platform_driver clk_mt8186_img_drv = {
 	},
 };
 module_platform_driver(clk_mt8186_img_drv);
+MODULE_LICENSE("GPL");

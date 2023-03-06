@@ -1001,3 +1001,4 @@ static struct platform_driver clk_mt2712_drv = {
 	},
 };
 module_platform_driver(clk_mt2712_drv);
+MODULE_LICENSE("GPL");

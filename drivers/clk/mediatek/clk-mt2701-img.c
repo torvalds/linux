@@ -53,3 +53,4 @@ static struct platform_driver clk_mt2701_img_drv = {
 	},
 };
 module_platform_driver(clk_mt2701_img_drv);
+MODULE_LICENSE("GPL");

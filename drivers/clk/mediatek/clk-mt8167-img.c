@@ -54,3 +54,4 @@ static struct platform_driver clk_mt8167_imgsys_drv = {
 	},
 };
 module_platform_driver(clk_mt8167_imgsys_drv);
+MODULE_LICENSE("GPL");

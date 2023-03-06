@@ -50,3 +50,4 @@ static struct platform_driver clk_mt8183_ipu_core0_drv = {
 	},
 };
 module_platform_driver(clk_mt8183_ipu_core0_drv);
+MODULE_LICENSE("GPL");

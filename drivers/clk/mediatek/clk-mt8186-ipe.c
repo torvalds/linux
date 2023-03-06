@@ -53,3 +53,4 @@ static struct platform_driver clk_mt8186_ipe_drv = {
 	},
 };
 module_platform_driver(clk_mt8186_ipe_drv);
+MODULE_LICENSE("GPL");

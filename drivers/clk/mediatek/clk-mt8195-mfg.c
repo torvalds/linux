@@ -48,3 +48,4 @@ static struct platform_driver clk_mt8195_mfg_drv = {
 	},
 };
 module_platform_driver(clk_mt8195_mfg_drv);
+MODULE_LICENSE("GPL");

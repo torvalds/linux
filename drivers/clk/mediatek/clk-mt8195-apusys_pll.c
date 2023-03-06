@@ -111,3 +111,4 @@ static struct platform_driver clk_mt8195_apusys_pll_drv = {
 	},
 };
 module_platform_driver(clk_mt8195_apusys_pll_drv);
+MODULE_LICENSE("GPL");

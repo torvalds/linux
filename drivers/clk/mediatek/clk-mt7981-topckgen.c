@@ -420,3 +420,4 @@ static struct platform_driver clk_mt7981_topckgen_drv = {
 	},
 };
 module_platform_driver(clk_mt7981_topckgen_drv);
+MODULE_LICENSE("GPL");

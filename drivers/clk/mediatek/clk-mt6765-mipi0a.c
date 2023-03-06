@@ -49,3 +49,4 @@ static struct platform_driver clk_mt6765_mipi0a_drv = {
 	},
 };
 module_platform_driver(clk_mt6765_mipi0a_drv);
+MODULE_LICENSE("GPL");

@@ -49,3 +49,4 @@ static struct platform_driver clk_mt6797_img_drv = {
 	},
 };
 module_platform_driver(clk_mt6797_img_drv);
+MODULE_LICENSE("GPL");

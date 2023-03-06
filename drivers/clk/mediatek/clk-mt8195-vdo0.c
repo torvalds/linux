@@ -113,3 +113,4 @@ static struct platform_driver clk_mt8195_vdo0_drv = {
 	.id_table = clk_mt8195_vdo0_id_table,
 };
 module_platform_driver(clk_mt8195_vdo0_drv);
+MODULE_LICENSE("GPL");

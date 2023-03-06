@@ -49,3 +49,4 @@ static struct platform_driver clk_mt2712_jpgdec_drv = {
 	},
 };
 module_platform_driver(clk_mt2712_jpgdec_drv);
+MODULE_LICENSE("GPL");

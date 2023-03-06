@@ -76,3 +76,4 @@ static struct platform_driver clk_mt8186_mm_drv = {
 	.id_table = clk_mt8186_mm_id_table,
 };
 module_platform_driver(clk_mt8186_mm_drv);
+MODULE_LICENSE("GPL");

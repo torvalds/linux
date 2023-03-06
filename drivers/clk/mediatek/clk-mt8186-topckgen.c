@@ -731,3 +731,4 @@ static struct platform_driver clk_mt8186_topck_drv = {
 	},
 };
 module_platform_driver(clk_mt8186_topck_drv);
+MODULE_LICENSE("GPL");

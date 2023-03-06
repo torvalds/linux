@@ -115,4 +115,4 @@ static struct platform_driver clk_mt7981_eth_drv = {
 	},
 };
 module_platform_driver(clk_mt7981_eth_drv);
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
