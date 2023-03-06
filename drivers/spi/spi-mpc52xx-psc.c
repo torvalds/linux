@@ -328,6 +328,9 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	mps->fifo = ((void __iomem *)mps->psc) + sizeof(struct mpc52xx_psc);
 
 	mps->irq = platform_get_irq(pdev, 0);
+	if (mps->irq < 0)
+		return mps->irq;
+
 	ret = devm_request_irq(dev, mps->irq, mpc52xx_psc_spi_isr, 0,
 			       "mpc52xx-psc-spi", mps);
 	if (ret)
