@@ -861,11 +861,9 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	strscpy(isp_dev->media_dev.driver_name, isp_dev->name,
 		sizeof(isp_dev->media_dev.driver_name));
 
-	if (isp_dev->hw_dev->is_thunderboot) {
-		ret = rkisp_get_reserved_mem(isp_dev);
-		if (ret)
-			return ret;
-	}
+	ret = rkisp_get_reserved_mem(isp_dev);
+	if (ret)
+		return ret;
 
 	mutex_init(&isp_dev->apilock);
 	mutex_init(&isp_dev->iqlock);

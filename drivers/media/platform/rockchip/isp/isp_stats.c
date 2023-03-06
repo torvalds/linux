@@ -158,6 +158,9 @@ static void rkisp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 		struct rkisp32_isp_stat_buffer *buf = stats_dev->stats_buf[0].vaddr;
 
 		if (buf && !buf->frame_id && buf->meas_type && stats_buf->vaddr[0]) {
+			dev_info(stats_dev->dev->dev,
+				 "tb stat seq:%d meas_type:0x%x\n",
+				 buf->frame_id, buf->meas_type);
 			memcpy(stats_buf->vaddr[0], buf, sizeof(struct rkisp32_isp_stat_buffer));
 			buf->meas_type = 0;
 			vb2_set_plane_payload(vb, 0, sizeof(struct rkisp32_isp_stat_buffer));

@@ -471,6 +471,9 @@ static int dmarx_frame_end(struct rkisp_stream *stream)
 						     true, dev->hw_dev->is_unite);
 				rkisp_unite_clear_bits(dev, CIF_ISP_IMSC, CIF_ISP_FRAME_IN,
 						       true, dev->hw_dev->is_unite);
+				dev_info(dev->dev,
+					 "switch online seq:%d mode:0x%x\n",
+					 rx_buf->sequence, dev->rd_mode);
 			}
 			rx_buf->runtime_us = dev->isp_sdev.dbg.interval / 1000;
 			v4l2_subdev_call(sd, video, s_rx_buffer, rx_buf, NULL);

@@ -1467,7 +1467,7 @@ struct rkisp32_isp_stat_buffer {
 struct rkisp32_thunderboot_resmem_head {
 	struct rkisp_thunderboot_resmem_head head;
 	struct isp32_isp_params_cfg cfg;
-};
+} __attribute__ ((packed));
 
 /****************isp32 lite********************/
 

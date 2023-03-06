@@ -1977,7 +1977,8 @@ struct rkisp_thunderboot_resmem_head {
 	u16 hdr_mode;
 	u16 width;
 	u16 height;
-	u32 bus_fmt;
+	u16 camera_num;
+	u16 camera_index;
 
 	u32 exp_time[3];
 	u32 exp_gain[3];

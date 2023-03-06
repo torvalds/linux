@@ -722,7 +722,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	params_vdev->rdbk_times = dma2frm + 1;
 
 run_next:
-	if (hw->is_multi_overflow) {
+	if (hw->is_multi_overflow && !dev->is_first_double) {
 		stats_vdev->rdbk_drop = false;
 		if (dev->sw_rd_cnt) {
 			rkisp_multi_overflow_hdl(dev, false);
@@ -908,6 +908,7 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 		if (isp->is_pre_on && t.frame_id == 0) {
 			isp->is_first_double = true;
 			isp->skip_frame = 1;
+			isp->sw_rd_cnt = 0;
 			rkisp_fast_switch_rx_buf(isp, false);
 		}
 	}
@@ -969,7 +970,8 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 
 	if (dev->hw_dev->is_multi_overflow &&
 	    dev->sw_rd_cnt &&
-	    irq & ISP_FRAME_END)
+	    irq & ISP_FRAME_END &&
+	    !dev->is_first_double)
 		goto end;
 
 	dev->irq_ends |= (irq & dev->irq_ends_mask);
@@ -2961,10 +2963,9 @@ static int rkisp_rx_qbuf(struct rkisp_device *dev,
 	}
 
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-		 "%s rd_mode:%d dma:0x%x vaddr:%p",
-		 __func__, dev->rd_mode,
-		 pool->buf.buff_addr[RKISP_PLANE_Y],
-		 pool->buf.vaddr[RKISP_PLANE_Y]);
+		 "%s rd_mode:%d seq:%d dma:0x%x\n",
+		 __func__, dev->rd_mode, dbufs->sequence,
+		 pool->buf.buff_addr[RKISP_PLANE_Y]);
 
 	if (!IS_HDR_RDBK(dev->rd_mode)) {
 		rkisp_rx_qbuf_online(stream, pool);
@@ -3768,94 +3769,86 @@ void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev)
 #ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
 void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 {
+	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
 	struct rkisp_thunderboot_resmem_head *head;
 	enum rkisp_tb_state tb_state;
 	void *resmem_va;
 
-	if (!isp_dev->hw_dev->is_thunderboot)
+	if (!isp_dev->is_thunderboot)
 		return;
-
-	if (!isp_dev->is_thunderboot) {
-		v4l2_info(&isp_dev->v4l2_dev,
-			  "no reserved memory for thunderboot\n");
-		if (isp_dev->hw_dev->is_thunderboot) {
-			rkisp_tb_set_state(RKISP_TB_NG);
-			rkisp_tb_unprotect_clk();
-			rkisp_register_irq(isp_dev->hw_dev);
-			isp_dev->hw_dev->is_thunderboot = false;
-		}
-		return;
-	}
 
 	resmem_va = phys_to_virt(isp_dev->resmem_pa);
 	head = (struct rkisp_thunderboot_resmem_head *)resmem_va;
-	if (isp_dev->is_thunderboot) {
-		dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr,
-					sizeof(struct rkisp_thunderboot_resmem_head),
-					DMA_FROM_DEVICE);
-		if (head->enable && !head->complete) {
-			/* notify rtt to stop */
-			head->enable = 0;
-			dma_sync_single_for_device(isp_dev->dev, isp_dev->resmem_addr,
-						   sizeof(struct rkisp_thunderboot_resmem_head),
-						   DMA_TO_DEVICE);
-		}
-		shm_head_poll_timeout(isp_dev, !!head->complete, 5000, 400 * USEC_PER_MSEC);
-		if (head->complete != RKISP_TB_OK) {
-			v4l2_err(&isp_dev->v4l2_dev, "wait thunderboot over timeout\n");
-		} else {
-			struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
-			void *param = NULL;
-			u32 size = 0;
+	dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr,
+				sizeof(struct rkisp_thunderboot_resmem_head),
+				DMA_FROM_DEVICE);
 
-			switch (isp_dev->hw_dev->isp_ver) {
-			case ISP_V32:
-				size = sizeof(struct rkisp32_thunderboot_resmem_head);
-				break;
-			default:
-				break;
+	shm_head_poll_timeout(isp_dev, !!head->complete, 5000, 200 * USEC_PER_MSEC);
+	if (head->complete != RKISP_TB_OK) {
+		v4l2_err(&isp_dev->v4l2_dev, "wait thunderboot over timeout\n");
+	} else {
+		struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
+		void *param = NULL;
+		u32 size = 0, offset = 0;
+
+		switch (isp_dev->isp_ver) {
+		case ISP_V32:
+			size = sizeof(struct rkisp32_thunderboot_resmem_head);
+			offset = size * isp_dev->dev_id;
+			break;
+		default:
+			break;
+		}
+
+		if (size && size < isp_dev->resmem_size) {
+			dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr + offset,
+						size, DMA_FROM_DEVICE);
+			params_vdev->is_first_cfg = true;
+			if (isp_dev->isp_ver == ISP_V32) {
+				struct rkisp32_thunderboot_resmem_head *tmp = resmem_va + offset;
+
+				param = &tmp->cfg;
+				head = &tmp->head;
+				v4l2_info(&isp_dev->v4l2_dev,
+					  "tb param module en:0x%llx upd:0x%llx cfg upd:0x%llx\n",
+					  tmp->cfg.module_en_update,
+					  tmp->cfg.module_ens,
+					  tmp->cfg.module_cfg_update);
 			}
-			if (size && size < isp_dev->resmem_size) {
-				dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr,
-							size, DMA_FROM_DEVICE);
-				params_vdev->is_first_cfg = true;
-				if (isp_dev->hw_dev->isp_ver == ISP_V32) {
-					struct rkisp32_thunderboot_resmem_head *tmp = resmem_va;
-
-					param = &tmp->cfg;
-				}
-				if (param)
-					params_vdev->ops->save_first_param(params_vdev, param);
-			} else if (size > isp_dev->resmem_size) {
-				v4l2_err(&isp_dev->v4l2_dev,
-					 "resmem size:%zu no enough for head:%d\n",
-					 isp_dev->resmem_size, size);
-				head->complete = RKISP_TB_NG;
-			}
+			if (param)
+				params_vdev->ops->save_first_param(params_vdev, param);
+		} else if (size > isp_dev->resmem_size) {
+			v4l2_err(&isp_dev->v4l2_dev,
+				 "resmem size:%zu no enough for head:%d\n",
+				 isp_dev->resmem_size, size);
+			head->complete = RKISP_TB_NG;
 		}
-		memcpy(&isp_dev->tb_head, head, sizeof(*head));
-		v4l2_info(&isp_dev->v4l2_dev,
-			  "thunderboot info: %d, %d, %d, %d, %d, %d %d\n",
-			  head->enable,
-			  head->complete,
-			  head->frm_total,
-			  head->hdr_mode,
-			  head->width,
-			  head->height,
-			  head->bus_fmt);
+	}
+	memcpy(&isp_dev->tb_head, head, sizeof(*head));
+	v4l2_info(&isp_dev->v4l2_dev,
+		  "thunderboot info: %d, %d, %d, %d, %d, %d | %d %d\n",
+		  head->enable,
+		  head->complete,
+		  head->frm_total,
+		  head->hdr_mode,
+		  head->width,
+		  head->height,
+		  head->camera_num,
+		  head->camera_index);
 
-		tb_state = RKISP_TB_OK;
-		if (head->complete != RKISP_TB_OK) {
-			head->frm_total = 0;
-			tb_state = RKISP_TB_NG;
-		}
+	tb_state = RKISP_TB_OK;
+	if (head->complete != RKISP_TB_OK) {
+		head->frm_total = 0;
+		tb_state = RKISP_TB_NG;
+	}
 
+	if (hw->is_thunderboot) {
+		rkisp_register_irq(hw);
 		rkisp_tb_set_state(tb_state);
 		rkisp_tb_unprotect_clk();
-		rkisp_register_irq(isp_dev->hw_dev);
-		isp_dev->hw_dev->is_thunderboot = false;
-		isp_dev->is_thunderboot = false;
+		hw->is_thunderboot = false;
 	}
+	isp_dev->is_thunderboot = false;
 }
 #endif
 
