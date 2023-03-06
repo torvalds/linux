@@ -178,18 +178,15 @@ static int lan87xx_config_aneg(struct phy_device *phydev)
 
 static int lan95xx_config_aneg_ext(struct phy_device *phydev)
 {
-	int rc;
+	if (phydev->phy_id == 0x0007c0f0) { /* LAN9500A or LAN9505A */
+		/* Extend Manual AutoMDIX timer */
+		int rc = phy_set_bits(phydev, PHY_EDPD_CONFIG,
+				      PHY_EDPD_CONFIG_EXT_CROSSOVER_);
 
-	if (phydev->phy_id != 0x0007c0f0) /* not (LAN9500A or LAN9505A) */
-		return lan87xx_config_aneg(phydev);
+		if (rc < 0)
+			return rc;
+	}
 
-	/* Extend Manual AutoMDIX timer */
-	rc = phy_read(phydev, PHY_EDPD_CONFIG);
-	if (rc < 0)
-		return rc;
-
-	rc |= PHY_EDPD_CONFIG_EXT_CROSSOVER_;
-	phy_write(phydev, PHY_EDPD_CONFIG, rc);
 	return lan87xx_config_aneg(phydev);
 }
 
