@@ -9800,6 +9800,13 @@ static struct drm_crtc_state *vop2_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	vcstate->vp_id = vp->id;
+	if (vcstate->hdr_ext_data)
+		drm_property_blob_get(vcstate->hdr_ext_data);
+	if (vcstate->acm_lut_data)
+		drm_property_blob_get(vcstate->acm_lut_data);
+	if (vcstate->post_csc_data)
+		drm_property_blob_get(vcstate->post_csc_data);
+
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vcstate->base);
 	return &vcstate->base;
 }
@@ -9810,6 +9817,9 @@ static void vop2_crtc_destroy_state(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(state);
 
 	__drm_atomic_helper_crtc_destroy_state(&vcstate->base);
+	drm_property_blob_put(vcstate->hdr_ext_data);
+	drm_property_blob_put(vcstate->acm_lut_data);
+	drm_property_blob_put(vcstate->post_csc_data);
 	kfree(vcstate);
 }
 
