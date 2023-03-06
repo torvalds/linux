@@ -1306,6 +1306,37 @@ static const u16 vc5_hdmi_csc_full_rgb_to_yuv_bt709[2][3][4] = {
 	},
 };
 
+/*
+ * Conversion between Full Range RGB and YUV using the BT.2020 Colorspace
+ *
+ * Matrices are signed 2p13 fixed point, with signed 9p6 offsets
+ */
+static const u16 vc5_hdmi_csc_full_rgb_to_yuv_bt2020[2][3][4] = {
+	{
+		/*
+		 * Full Range
+		 *
+		 * [  0.262700  0.678000  0.059300  0   ]
+		 * [ -0.139630 -0.360370  0.500000  128 ]
+		 * [  0.500000 -0.459786 -0.040214  128 ]
+		 */
+		{ 0x0868, 0x15b2, 0x01e6, 0x0000 },
+		{ 0xfb89, 0xf479, 0x1000, 0x2000 },
+		{ 0x1000, 0xf14a, 0xfeb8, 0x2000 },
+	},
+	{
+		/* Limited Range
+		 *
+		 * [  0.224732  0.580008  0.050729  16  ]
+		 * [ -0.122176 -0.315324  0.437500  128 ]
+		 * [  0.437500 -0.402312 -0.035188  128 ]
+		 */
+		{ 0x082f, 0x1012, 0x031f, 0x0400 },
+		{ 0xfb48, 0xf6ba, 0x0e00, 0x2000 },
+		{ 0x0e00, 0xf448, 0xfdba, 0x2000 },
+	},
+};
+
 static void vc5_hdmi_set_csc_coeffs(struct vc4_hdmi *vc4_hdmi,
 				    const u16 coeffs[3][4])
 {
@@ -1351,6 +1382,13 @@ static const u16
 	case DRM_MODE_COLORIMETRY_RGB_WIDE_FIXED:
 	case DRM_MODE_COLORIMETRY_RGB_WIDE_FLOAT:
 		return vc5_hdmi_csc_full_rgb_to_yuv_bt709[limited];
+
+	case DRM_MODE_COLORIMETRY_BT2020_CYCC:
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65:
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER:
+		return vc5_hdmi_csc_full_rgb_to_yuv_bt2020[limited];
 	}
 }
 
