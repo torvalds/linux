@@ -213,7 +213,7 @@ static inline size_t btree_aux_data_u64s(const struct btree *b)
 	     _k != btree_bkey_last(_b, _t);				\
 	     _k = bkey_p_next(_k))
 
-static inline bool bset_has_ro_aux_tree(struct bset_tree *t)
+static inline bool bset_has_ro_aux_tree(const struct bset_tree *t)
 {
 	return bset_aux_tree_type(t) == BSET_RO_AUX_TREE;
 }
@@ -504,7 +504,7 @@ struct bset_stats {
 	size_t failed;
 };
 
-void bch2_btree_keys_stats(struct btree *, struct bset_stats *);
+void bch2_btree_keys_stats(const struct btree *, struct bset_stats *);
 void bch2_bfloat_to_text(struct printbuf *, struct btree *,
 			 struct bkey_packed *);
 

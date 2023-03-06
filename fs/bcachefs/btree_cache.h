@@ -100,7 +100,7 @@ static inline unsigned btree_blocks(struct bch_fs *c)
 #define btree_node_root(_c, _b)	((_c)->btree_roots[(_b)->c.btree_id].b)
 
 void bch2_btree_node_to_text(struct printbuf *, struct bch_fs *,
-			     struct btree *);
-void bch2_btree_cache_to_text(struct printbuf *, struct bch_fs *);
+			     const struct btree *);
+void bch2_btree_cache_to_text(struct printbuf *, const struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_CACHE_H */

@@ -1533,9 +1533,9 @@ struct bkey_s_c bch2_btree_node_iter_peek_unpack(struct btree_node_iter *iter,
 
 /* Mergesort */
 
-void bch2_btree_keys_stats(struct btree *b, struct bset_stats *stats)
+void bch2_btree_keys_stats(const struct btree *b, struct bset_stats *stats)
 {
-	struct bset_tree *t;
+	const struct bset_tree *t;
 
 	for_each_bset(b, t) {
 		enum bset_aux_tree_type type = bset_aux_tree_type(t);
