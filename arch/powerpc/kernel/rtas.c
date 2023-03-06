@@ -1016,6 +1016,23 @@ va_rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret,
 	do_enter_rtas(args);
 }
 
+/**
+ * rtas_call_unlocked() - Invoke an RTAS firmware function without synchronization.
+ * @args: RTAS parameter block to be used for the call, must obey RTAS addressing
+ *        constraints.
+ * @token: Identifies the function being invoked.
+ * @nargs: Number of input parameters. Does not include token.
+ * @nret: Number of output parameters, including the call status.
+ * @....: List of @nargs input parameters.
+ *
+ * Invokes the RTAS function indicated by @token, which the caller
+ * should obtain via rtas_function_token().
+ *
+ * This function is similar to rtas_call(), but must be used with a
+ * limited set of RTAS calls specifically exempted from the general
+ * requirement that only one RTAS call may be in progress at any
+ * time. Examples include stop-self and ibm,nmi-interlock.
+ */
 void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, ...)
 {
 	va_list list;
