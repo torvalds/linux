@@ -39,6 +39,7 @@ struct ad74413r_chip_info {
 
 struct ad74413r_channel_config {
 	u32		func;
+	u32		drive_strength;
 	bool		gpo_comparator;
 	bool		initialized;
 };
@@ -111,6 +112,7 @@ struct ad74413r_state {
 #define AD74413R_REG_DIN_CONFIG_X(x)	(0x09 + (x))
 #define AD74413R_DIN_DEBOUNCE_MASK	GENMASK(4, 0)
 #define AD74413R_DIN_DEBOUNCE_LEN	BIT(5)
+#define AD74413R_DIN_SINK_MASK		GENMASK(9, 6)
 
 #define AD74413R_REG_DAC_CODE_X(x)	(0x16 + (x))
 #define AD74413R_DAC_CODE_MAX		GENMASK(12, 0)
@@ -260,6 +262,18 @@ static int ad74413r_set_comp_debounce(struct ad74413r_state *st,
 				  AD74413R_DIN_DEBOUNCE_MASK,
 				  val);
 }
+
+static int ad74413r_set_comp_drive_strength(struct ad74413r_state *st,
+					    unsigned int offset,
+					    unsigned int strength)
+{
+	strength = min(strength, 1800U);
+
+	return regmap_update_bits(st->regmap, AD74413R_REG_DIN_CONFIG_X(offset),
+				  AD74413R_DIN_SINK_MASK,
+				  FIELD_PREP(AD74413R_DIN_SINK_MASK, strength / 120));
+}
+
 
 static void ad74413r_gpio_set(struct gpio_chip *chip,
 			      unsigned int offset, int val)
@@ -1190,6 +1204,9 @@ static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
 	config->gpo_comparator = fwnode_property_read_bool(channel_node,
 		"adi,gpo-comparator");
 
+	fwnode_property_read_u32(channel_node, "drive-strength-microamp",
+				 &config->drive_strength);
+
 	if (!config->gpo_comparator)
 		st->num_gpo_gpios++;
 
@@ -1269,6 +1286,7 @@ static int ad74413r_setup_gpios(struct ad74413r_state *st)
 	unsigned int gpo_gpio_i = 0;
 	unsigned int i;
 	u8 gpo_config;
+	u32 strength;
 	int ret;
 
 	for (i = 0; i < AD74413R_CHANNEL_MAX; i++) {
@@ -1284,6 +1302,11 @@ static int ad74413r_setup_gpios(struct ad74413r_state *st)
 		if (config->func == CH_FUNC_DIGITAL_INPUT_LOGIC ||
 		    config->func == CH_FUNC_DIGITAL_INPUT_LOOP_POWER)
 			st->comp_gpio_offsets[comp_gpio_i++] = i;
+
+		strength = config->drive_strength;
+		ret = ad74413r_set_comp_drive_strength(st, i, strength);
+		if (ret)
+			return ret;
 
 		ret = ad74413r_set_gpo_config(st, i, gpo_config);
 		if (ret)
