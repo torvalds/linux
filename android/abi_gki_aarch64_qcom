@@ -661,6 +661,7 @@
   device_wakeup_enable
   _dev_info
   __dev_kfree_skb_any
+  __dev_kfree_skb_irq
   dev_load
   devm_add_action
   devm_alloc_etherdev_mqs
@@ -1285,6 +1286,7 @@
   get_random_bytes
   get_random_u16
   get_random_u32
+  __get_random_u32_below
   get_sg_io_hdr
   get_state_synchronize_rcu
   get_state_synchronize_srcu
@@ -1485,6 +1487,7 @@
   idr_find
   idr_for_each
   idr_get_next
+  idr_get_next_ul
   idr_preload
   idr_remove
   idr_replace
