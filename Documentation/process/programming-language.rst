@@ -31,6 +31,20 @@ in order to feature detect which ones can be used and/or to shorten the code.
 
 Please refer to ``include/linux/compiler_attributes.h`` for more information.
 
+Rust
+----
+
+The kernel has experimental support for the Rust programming language
+[rust-language]_ under ``CONFIG_RUST``. It is compiled with ``rustc`` [rustc]_
+under ``--edition=2021`` [rust-editions]_. Editions are a way to introduce
+small changes to the language that are not backwards compatible.
+
+On top of that, some unstable features [rust-unstable-features]_ are used in
+the kernel. Unstable features may change in the future, thus it is an important
+goal to reach a point where only stable features are used.
+
+Please refer to Documentation/rust/index.rst for more information.
+
 .. [c-language] http://www.open-std.org/jtc1/sc22/wg14/www/standards
 .. [gcc] https://gcc.gnu.org
 .. [clang] https://clang.llvm.org
@@ -38,4 +52,7 @@ Please refer to ``include/linux/compiler_attributes.h`` for more information.
 .. [gnu-extensions] https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html
 .. [gcc-attribute-syntax] https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html
 .. [n2049] http://www.open-std.org/jtc1/sc22/wg14/www/docs/n2049.pdf
-
+.. [rust-language] https://www.rust-lang.org
+.. [rustc] https://doc.rust-lang.org/rustc/
+.. [rust-editions] https://doc.rust-lang.org/edition-guide/editions/
+.. [rust-unstable-features] https://github.com/Rust-for-Linux/linux/issues/2
