@@ -40,6 +40,7 @@ static void jpeg_v4_0_3_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void jpeg_v4_0_3_set_irq_funcs(struct amdgpu_device *adev);
 static int jpeg_v4_0_3_set_powergating_state(void *handle,
 				enum amd_powergating_state state);
+static void jpeg_v4_0_3_set_ras_funcs(struct amdgpu_device *adev);
 
 static int amdgpu_ih_srcid_jpeg[] = {
 	VCN_4_0__SRCID__JPEG_DECODE,
@@ -67,6 +68,7 @@ static int jpeg_v4_0_3_early_init(void *handle)
 
 	jpeg_v4_0_3_set_dec_ring_funcs(adev);
 	jpeg_v4_0_3_set_irq_funcs(adev);
+	jpeg_v4_0_3_set_ras_funcs(adev);
 
 	return 0;
 }
@@ -123,6 +125,14 @@ static int jpeg_v4_0_3_sw_init(void *handle)
 					JPEG, jpeg_inst,
 					regUVD_JRBC0_UVD_JRBC_SCRATCH0,
 					(j ? (0x40 * j - 0xc80) : 0));
+		}
+	}
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__JPEG)) {
+		r = amdgpu_jpeg_ras_sw_init(adev);
+		if (r) {
+			dev_err(adev->dev, "Failed to initialize jpeg ras block!\n");
+			return r;
 		}
 	}
 
@@ -1045,4 +1055,20 @@ static void jpeg_v4_0_3_reset_ras_error_count(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++)
 		jpeg_v4_0_3_inst_reset_ras_error_count(adev, i);
+}
+
+static const struct amdgpu_ras_block_hw_ops jpeg_v4_0_3_ras_hw_ops = {
+	.query_ras_error_count = jpeg_v4_0_3_query_ras_error_count,
+	.reset_ras_error_count = jpeg_v4_0_3_reset_ras_error_count,
+};
+
+static struct amdgpu_jpeg_ras jpeg_v4_0_3_ras = {
+	.ras_block = {
+		.hw_ops = &jpeg_v4_0_3_ras_hw_ops,
+	},
+};
+
+static void jpeg_v4_0_3_set_ras_funcs(struct amdgpu_device *adev)
+{
+	adev->jpeg.ras = &jpeg_v4_0_3_ras;
 }
