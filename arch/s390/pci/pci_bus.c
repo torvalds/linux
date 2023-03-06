@@ -212,7 +212,6 @@ static int zpci_bus_create_pci_bus(struct zpci_bus *zbus, struct zpci_dev *fr, s
 	}
 
 	zbus->bus = bus;
-	pci_bus_add_devices(bus);
 
 	return 0;
 }
