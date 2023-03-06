@@ -6,44 +6,53 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw.h>
+#include <linux/types.h>
 #include "internal.h"
 
-static int regmap_sdw_write(void *context, unsigned int reg, unsigned int val)
+static int regmap_sdw_write(void *context, const void *val_buf, size_t val_size)
 {
 	struct device *dev = context;
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+	/* First word of buffer contains the destination address */
+	u32 addr = le32_to_cpu(*(const __le32 *)val_buf);
+	const u8 *val = val_buf;
 
-	return sdw_write_no_pm(slave, reg, val);
+	return sdw_nwrite_no_pm(slave, addr, val_size - sizeof(addr), val + sizeof(addr));
 }
 
-static int regmap_sdw_read(void *context, unsigned int reg, unsigned int *val)
+static int regmap_sdw_gather_write(void *context,
+				   const void *reg_buf, size_t reg_size,
+				   const void *val_buf, size_t val_size)
 {
 	struct device *dev = context;
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
-	int read;
+	u32 addr = le32_to_cpu(*(const __le32 *)reg_buf);
 
-	read = sdw_read_no_pm(slave, reg);
-	if (read < 0)
-		return read;
+	return sdw_nwrite_no_pm(slave, addr, val_size, val_buf);
+}
 
-	*val = read;
-	return 0;
+static int regmap_sdw_read(void *context,
+			   const void *reg_buf, size_t reg_size,
+			   void *val_buf, size_t val_size)
+{
+	struct device *dev = context;
+	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+	u32 addr = le32_to_cpu(*(const __le32 *)reg_buf);
+
+	return sdw_nread_no_pm(slave, addr, val_size, val_buf);
 }
 
 static const struct regmap_bus regmap_sdw = {
-	.reg_read = regmap_sdw_read,
-	.reg_write = regmap_sdw_write,
+	.write = regmap_sdw_write,
+	.gather_write = regmap_sdw_gather_write,
+	.read = regmap_sdw_read,
 	.reg_format_endian_default = REGMAP_ENDIAN_LITTLE,
 	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
 };
 
 static int regmap_sdw_config_check(const struct regmap_config *config)
 {
-	/* All register are 8-bits wide as per MIPI Soundwire 1.0 Spec */
-	if (config->val_bits != 8)
-		return -ENOTSUPP;
-
-	/* Registers are 32 bits wide */
+	/* Register addresses are 32 bits wide */
 	if (config->reg_bits != 32)
 		return -ENOTSUPP;
 
