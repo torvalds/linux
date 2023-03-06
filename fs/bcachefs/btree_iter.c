@@ -1723,6 +1723,17 @@ err:
 	goto out;
 }
 
+struct btree *bch2_btree_iter_peek_node_and_restart(struct btree_iter *iter)
+{
+	struct btree *b;
+
+	while (b = bch2_btree_iter_peek_node(iter),
+	       bch2_err_matches(PTR_ERR_OR_ZERO(b), BCH_ERR_transaction_restart))
+		bch2_trans_begin(iter->trans);
+
+	return b;
+}
+
 struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 {
 	struct btree_trans *trans = iter->trans;

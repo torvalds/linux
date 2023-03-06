@@ -294,6 +294,7 @@ int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter);
 int __must_check bch2_btree_iter_traverse(struct btree_iter *);
 
 struct btree *bch2_btree_iter_peek_node(struct btree_iter *);
+struct btree *bch2_btree_iter_peek_node_and_restart(struct btree_iter *);
 struct btree *bch2_btree_iter_next_node(struct btree_iter *);
 
 struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *, struct bpos);
@@ -520,18 +521,6 @@ static inline struct bkey_i *bch2_bkey_get_mut(struct btree_trans *trans,
 
 u32 bch2_trans_begin(struct btree_trans *);
 
-static inline struct btree *
-__btree_iter_peek_node_and_restart(struct btree_trans *trans, struct btree_iter *iter)
-{
-	struct btree *b;
-
-	while (b = bch2_btree_iter_peek_node(iter),
-	       bch2_err_matches(PTR_ERR_OR_ZERO(b), BCH_ERR_transaction_restart))
-		bch2_trans_begin(trans);
-
-	return b;
-}
-
 /*
  * XXX
  * this does not handle transaction restarts from bch2_btree_iter_next_node()
@@ -541,7 +530,7 @@ __btree_iter_peek_node_and_restart(struct btree_trans *trans, struct btree_iter 
 			      _locks_want, _depth, _flags, _b, _ret)	\
 	for (bch2_trans_node_iter_init((_trans), &(_iter), (_btree_id),	\
 				_start, _locks_want, _depth, _flags);	\
-	     (_b) = __btree_iter_peek_node_and_restart((_trans), &(_iter)),\
+	     (_b) = bch2_btree_iter_peek_node_and_restart(&(_iter)),	\
 	     !((_ret) = PTR_ERR_OR_ZERO(_b)) && (_b);			\
 	     (_b) = bch2_btree_iter_next_node(&(_iter)))
 
