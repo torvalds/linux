@@ -13618,9 +13618,13 @@ F:	Documentation/devicetree/bindings/serial/atmel,at91-usart.yaml
 F:	drivers/spi/spi-at91-usart.c
 
 MICROCHIP AUDIO ASOC DRIVERS
-M:	Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
+M:	Claudiu Beznea <claudiu.beznea@microchip.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
+F:	Documentation/devicetree/bindings/sound/atmel*
+F:	Documentation/devicetree/bindings/sound/axentia,tse850-pcm5142.txt
+F:	Documentation/devicetree/bindings/sound/microchip,sama7g5-*
+F:	Documentation/devicetree/bindings/sound/mikroe,mikroe-proto.txt
 F:	sound/soc/atmel
 
 MICROCHIP CSI2DC DRIVER
@@ -13793,9 +13797,10 @@ S:	Supported
 F:	drivers/spi/spi-atmel.*
 
 MICROCHIP SSC DRIVER
-M:	Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
+M:	Claudiu Beznea <claudiu.beznea@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
+F:	Documentation/devicetree/bindings/misc/atmel-ssc.txt
 F:	drivers/misc/atmel-ssc.c
 F:	include/linux/atmel-ssc.h
 
