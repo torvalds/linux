@@ -1139,7 +1139,7 @@ static void toss_rsb(struct kref *kref)
 	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[r->res_bucket].keep);
 	rsb_insert(r, &ls->ls_rsbtbl[r->res_bucket].toss);
 	r->res_toss_time = jiffies;
-	ls->ls_rsbtbl[r->res_bucket].flags |= DLM_RTF_SHRINK;
+	set_bit(DLM_RTF_SHRINK_BIT, &ls->ls_rsbtbl[r->res_bucket].flags);
 	if (r->res_lvbptr) {
 		dlm_free_lvb(r->res_lvbptr);
 		r->res_lvbptr = NULL;
@@ -1588,7 +1588,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 
 	spin_lock(&ls->ls_rsbtbl[b].lock);
 
-	if (!(ls->ls_rsbtbl[b].flags & DLM_RTF_SHRINK)) {
+	if (!test_bit(DLM_RTF_SHRINK_BIT, &ls->ls_rsbtbl[b].flags)) {
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 		return;
 	}
@@ -1643,9 +1643,9 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 	}
 
 	if (need_shrink)
-		ls->ls_rsbtbl[b].flags |= DLM_RTF_SHRINK;
+		set_bit(DLM_RTF_SHRINK_BIT, &ls->ls_rsbtbl[b].flags);
 	else
-		ls->ls_rsbtbl[b].flags &= ~DLM_RTF_SHRINK;
+		clear_bit(DLM_RTF_SHRINK_BIT, &ls->ls_rsbtbl[b].flags);
 	spin_unlock(&ls->ls_rsbtbl[b].lock);
 
 	/*

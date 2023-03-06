@@ -99,13 +99,13 @@ do { \
 }
 
 
-#define DLM_RTF_SHRINK		0x00000001
+#define DLM_RTF_SHRINK_BIT	0
 
 struct dlm_rsbtable {
 	struct rb_root		keep;
 	struct rb_root		toss;
 	spinlock_t		lock;
-	uint32_t		flags;
+	unsigned long		flags;
 };
 
 
