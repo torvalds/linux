@@ -321,8 +321,9 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	master->dev.of_node = dev->of_node;
 
 	mps->psc = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (!mps->psc)
-		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
+	if (IS_ERR(mps->psc))
+		return dev_err_probe(dev, PTR_ERR(mps->psc), "could not ioremap I/O port range\n");
+
 	/* On the 5200, fifo regs are immediately ajacent to the psc regs */
 	mps->fifo = ((void __iomem *)mps->psc) + sizeof(struct mpc52xx_psc);
 

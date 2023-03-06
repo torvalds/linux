@@ -483,8 +483,8 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 	master->dev.of_node = dev->of_node;
 
 	tempp = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (!tempp)
-		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
+	if (IS_ERR(tempp))
+		return dev_err_probe(dev, PTR_ERR(tempp), "could not ioremap I/O port range\n");
 	mps->psc = tempp;
 	mps->fifo =
 		(struct mpc512x_psc_fifo *)(tempp + sizeof(struct mpc52xx_psc));
