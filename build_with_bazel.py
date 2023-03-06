@@ -200,7 +200,7 @@ class BazelBuilder:
 
     def clean_legacy_generated_files(self):
         """Clean generated files from legacy build to avoid conflicts with Bazel"""
-        for f in glob.glob("{}/msm-kernel/arch/arm64/configs/vendor/*-*_defconfig".format(self.workspace)):
+        for f in glob.glob("{}/msm-kernel/arch/arm64/configs/vendor/*_defconfig".format(self.workspace)):
             os.remove(f)
 
         f = os.path.join(self.workspace, "bootable", "bootloader", "edk2", "Conf", ".AutoGenIdFile.txt")
