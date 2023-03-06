@@ -807,10 +807,10 @@ static __u64 base_regs[] = {
 	ARM64_SYS_REG(3, 0, 0, 3, 7),
 	ARM64_SYS_REG(3, 0, 0, 4, 0),	/* ID_AA64PFR0_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 4, 1),	/* ID_AA64PFR1_EL1 */
-	ARM64_SYS_REG(3, 0, 0, 4, 2),
+	ARM64_SYS_REG(3, 0, 0, 4, 2),	/* ID_AA64PFR2_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 4, 3),
 	ARM64_SYS_REG(3, 0, 0, 4, 4),	/* ID_AA64ZFR0_EL1 */
-	ARM64_SYS_REG(3, 0, 0, 4, 5),
+	ARM64_SYS_REG(3, 0, 0, 4, 5),	/* ID_AA64SMFR0_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 4, 6),
 	ARM64_SYS_REG(3, 0, 0, 4, 7),
 	ARM64_SYS_REG(3, 0, 0, 5, 0),	/* ID_AA64DFR0_EL1 */
@@ -823,7 +823,7 @@ static __u64 base_regs[] = {
 	ARM64_SYS_REG(3, 0, 0, 5, 7),
 	ARM64_SYS_REG(3, 0, 0, 6, 0),	/* ID_AA64ISAR0_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 6, 1),	/* ID_AA64ISAR1_EL1 */
-	ARM64_SYS_REG(3, 0, 0, 6, 2),
+	ARM64_SYS_REG(3, 0, 0, 6, 2),	/* ID_AA64ISAR2_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 6, 3),
 	ARM64_SYS_REG(3, 0, 0, 6, 4),
 	ARM64_SYS_REG(3, 0, 0, 6, 5),
@@ -832,8 +832,8 @@ static __u64 base_regs[] = {
 	ARM64_SYS_REG(3, 0, 0, 7, 0),	/* ID_AA64MMFR0_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 7, 1),	/* ID_AA64MMFR1_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 7, 2),	/* ID_AA64MMFR2_EL1 */
-	ARM64_SYS_REG(3, 0, 0, 7, 3),
-	ARM64_SYS_REG(3, 0, 0, 7, 4),
+	ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
+	ARM64_SYS_REG(3, 0, 0, 7, 4),	/* ID_AA64MMFR4_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 7, 5),
 	ARM64_SYS_REG(3, 0, 0, 7, 6),
 	ARM64_SYS_REG(3, 0, 0, 7, 7),
