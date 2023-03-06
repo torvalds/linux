@@ -581,6 +581,7 @@ enum mlx5_func_type {
 	MLX5_VF,
 	MLX5_SF,
 	MLX5_HOST_PF,
+	MLX5_EC_VF,
 	MLX5_FUNC_TYPE_NUM,
 };
 
