@@ -9,6 +9,8 @@ struct btree;
 struct bch_fs;
 
 void __bch2_btree_verify(struct bch_fs *, struct btree *);
+void bch2_btree_node_ondisk_to_text(struct printbuf *, struct bch_fs *,
+				    const struct btree *);
 
 static inline void bch2_btree_verify(struct bch_fs *c, struct btree *b)
 {

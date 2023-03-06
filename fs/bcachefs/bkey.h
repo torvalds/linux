@@ -505,7 +505,7 @@ static inline struct bpos bkey_unpack_pos(const struct btree *b,
 
 /* Disassembled bkeys */
 
-static inline struct bkey_s_c bkey_disassemble(struct btree *b,
+static inline struct bkey_s_c bkey_disassemble(const struct btree *b,
 					       const struct bkey_packed *k,
 					       struct bkey *u)
 {
@@ -515,7 +515,7 @@ static inline struct bkey_s_c bkey_disassemble(struct btree *b,
 }
 
 /* non const version: */
-static inline struct bkey_s __bkey_disassemble(struct btree *b,
+static inline struct bkey_s __bkey_disassemble(const struct btree *b,
 					       struct bkey_packed *k,
 					       struct bkey *u)
 {

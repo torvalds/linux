@@ -181,6 +181,125 @@ out:
 	bch2_btree_node_io_unlock(b);
 }
 
+void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
+				    const struct btree *b)
+{
+	struct btree_node *n_ondisk = NULL;
+	struct extent_ptr_decoded pick;
+	struct bch_dev *ca;
+	struct bio *bio = NULL;
+	unsigned offset = 0;
+	int ret;
+
+	if (bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key), NULL, &pick) <= 0) {
+		prt_printf(out, "error getting device to read from: invalid device\n");
+		return;
+	}
+
+	ca = bch_dev_bkey_exists(c, pick.ptr.dev);
+	if (!bch2_dev_get_ioref(ca, READ)) {
+		prt_printf(out, "error getting device to read from: not online\n");
+		return;
+	}
+
+	n_ondisk = kvpmalloc(btree_bytes(c), GFP_KERNEL);
+	if (!n_ondisk) {
+		prt_printf(out, "memory allocation failure\n");
+		goto out;
+	}
+
+	bio = bio_alloc_bioset(ca->disk_sb.bdev,
+			       buf_pages(n_ondisk, btree_bytes(c)),
+			       REQ_OP_READ|REQ_META,
+			       GFP_NOIO,
+			       &c->btree_bio);
+	bio->bi_iter.bi_sector	= pick.ptr.offset;
+	bch2_bio_map(bio, n_ondisk, btree_bytes(c));
+
+	ret = submit_bio_wait(bio);
+	if (ret) {
+		prt_printf(out, "IO error reading btree node: %s\n", bch2_err_str(ret));
+		goto out;
+	}
+
+	while (offset < btree_sectors(c)) {
+		struct bset *i;
+		struct nonce nonce;
+		struct bch_csum csum;
+		struct bkey_packed *k;
+		unsigned sectors;
+
+		if (!offset) {
+			i = &n_ondisk->keys;
+
+			if (!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i))) {
+				prt_printf(out, "unknown checksum type at offset %u: %llu\n",
+					   offset, BSET_CSUM_TYPE(i));
+				goto out;
+			}
+
+			nonce = btree_nonce(i, offset << 9);
+			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, n_ondisk);
+
+			if (bch2_crc_cmp(csum, n_ondisk->csum)) {
+				prt_printf(out, "invalid checksum\n");
+				goto out;
+			}
+
+			bset_encrypt(c, i, offset << 9);
+
+			sectors = vstruct_sectors(n_ondisk, c->block_bits);
+		} else {
+			struct btree_node_entry *bne = (void *) n_ondisk + (offset << 9);
+
+			i = &bne->keys;
+
+			if (i->seq != n_ondisk->keys.seq)
+				break;
+
+			if (!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i))) {
+				prt_printf(out, "unknown checksum type at offset %u: %llu\n",
+					   offset, BSET_CSUM_TYPE(i));
+				goto out;
+			}
+
+			nonce = btree_nonce(i, offset << 9);
+			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
+
+			if (bch2_crc_cmp(csum, bne->csum)) {
+				prt_printf(out, "invalid checksum");
+				goto out;
+			}
+
+			bset_encrypt(c, i, offset << 9);
+
+			sectors = vstruct_sectors(bne, c->block_bits);
+		}
+
+		prt_printf(out, "  offset %u version %u, journal seq %llu\n",
+			   offset,
+			   le16_to_cpu(i->version),
+			   le64_to_cpu(i->journal_seq));
+		offset += sectors;
+
+		printbuf_indent_add(out, 4);
+
+		for (k = i->start; k != vstruct_last(i); k = bkey_p_next(k)) {
+			struct bkey u;
+
+			bch2_bkey_val_to_text(out, c, bkey_disassemble(b, k, &u));
+			prt_newline(out);
+		}
+
+		printbuf_indent_sub(out, 4);
+	}
+out:
+	if (bio)
+		bio_put(bio);
+	kvpfree(n_ondisk, btree_bytes(c));
+	percpu_ref_put(&ca->io_ref);
+}
+
 #ifdef CONFIG_DEBUG_FS
 
 /* XXX: bch_fs refcounting */
