@@ -49,6 +49,20 @@
 #define SYS_GPO_PDA_89_94_CFG_BASE_REG			0x284
 #define SYS_GPO_PDA_89_94_CFG_END_REG			0x298
 
+//sys_iomux ioconfig reg bit
+#define JH7110_PADCFG_POS	BIT(7)
+#define JH7110_PADCFG_SMT	BIT(6)
+#define JH7110_PADCFG_SLEW	BIT(5)
+#define JH7110_PADCFG_PD	BIT(4)
+#define JH7110_PADCFG_PU	BIT(3)
+#define JH7110_PADCFG_BIAS	(JH7110_PADCFG_PD | JH7110_PADCFG_PU)
+#define JH7110_PADCFG_DS_MASK	GENMASK(2, 1)
+#define JH7110_PADCFG_DS_2MA	(0U << 1)
+#define JH7110_PADCFG_DS_4MA	BIT(1)
+#define JH7110_PADCFG_DS_8MA	(2U << 1)
+#define JH7110_PADCFG_DS_12MA	(3U << 1)
+#define JH7110_PADCFG_IE	BIT(0)
+
 //sys_iomux GPIO CTRL
 #define GPIO_EN						0xdc
 #define GPIO_IS_LOW					0xe0
@@ -547,6 +561,16 @@ static struct starfive_pinctrl *starfive_from_irq_data(struct irq_data *d)
 	return container_of(gc, struct starfive_pinctrl, gc);
 }
 
+static int starfive_jh7110_gpio_request(struct gpio_chip *gc, unsigned int gpio)
+{
+	return pinctrl_gpio_request(gc->base + gpio);
+}
+
+static void starfive_jh7110_gpio_free(struct gpio_chip *gc, unsigned int gpio)
+{
+	pinctrl_gpio_free(gc->base + gpio);
+}
+
 static int starfive_jh7110_sys_direction_input(struct gpio_chip *gc,
 							unsigned int offset)
 {
@@ -651,6 +675,63 @@ static void starfive_jh7110_sys_set_value(struct gpio_chip *gc,
 	writel_relaxed(v, chip->padctl_base + GPIO_DOUT_X_REG +
 			(offset & ~0x3));
 	raw_spin_unlock_irqrestore(&chip->lock, flags);
+}
+
+static int starfive_jh7110_sys_set_config(struct gpio_chip *gc,
+					  unsigned int gpio,
+					  unsigned long config)
+{
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	u32 arg = pinconf_to_config_argument(config);
+	unsigned long flags;
+	int padcfg_base;
+	u32 value;
+	u32 mask;
+
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_BIAS_DISABLE:
+		mask  = JH7110_PADCFG_BIAS;
+		value = 0;
+		break;
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		if (arg == 0)
+			return -ENOTSUPP;
+		mask  = JH7110_PADCFG_BIAS;
+		value = JH7110_PADCFG_PD;
+		break;
+	case PIN_CONFIG_BIAS_PULL_UP:
+		if (arg == 0)
+			return -ENOTSUPP;
+		mask  = JH7110_PADCFG_BIAS;
+		value = JH7110_PADCFG_PU;
+		break;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		return 0;
+	case PIN_CONFIG_INPUT_ENABLE:
+		mask  = JH7110_PADCFG_IE;
+		value = arg ? JH7110_PADCFG_IE : 0;
+		break;
+	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
+		mask  = JH7110_PADCFG_SMT;
+		value = arg ? JH7110_PADCFG_SMT : 0;
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	if (gpio < PAD_GMAC1_MDC)
+		padcfg_base = SYS_GPO_PDA_0_74_CFG_BASE_REG;
+	else if (gpio >= PAD_QSPI_SCLK && gpio <= PAD_QSPI_DATA3)
+		padcfg_base = SYS_GPO_PDA_89_94_CFG_BASE_REG;
+	else
+		return 0;
+
+	raw_spin_lock_irqsave(&chip->lock, flags);
+	pinctrl_write_reg(chip->padctl_base + padcfg_base + 4 * gpio,
+			  mask, value);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
+
+	return 0;
 }
 
 static int starfive_jh7110_sys_irq_set_type(struct irq_data *d,
@@ -867,11 +948,14 @@ static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
 
 	ngpio = SYS_GPIO_NUM;
 
+	pctl->gc.request = starfive_jh7110_gpio_request;
+	pctl->gc.free = starfive_jh7110_gpio_free;
 	pctl->gc.direction_input = starfive_jh7110_sys_direction_input;
 	pctl->gc.direction_output = starfive_jh7110_sys_direction_output;
 	pctl->gc.get_direction = starfive_jh7110_sys_get_direction;
 	pctl->gc.get = starfive_jh7110_sys_get_value;
 	pctl->gc.set = starfive_jh7110_sys_set_value;
+	pctl->gc.set_config = starfive_jh7110_sys_set_config;
 	pctl->gc.add_pin_ranges = starfive_sys_add_pin_ranges;
 	pctl->gc.base = 0;
 	pctl->gc.ngpio = ngpio;
