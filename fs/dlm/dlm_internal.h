@@ -203,7 +203,6 @@ struct dlm_args {
 #define DLM_IFL_OVERLAP_CANCEL  0x00100000
 #define DLM_IFL_ENDOFLIFE	0x00200000
 #define DLM_IFL_DEADLOCK_CANCEL	0x01000000
-#define DLM_IFL_LOCAL_MS	0x02000000 /* magic number for m_flags */
 
 #define DLM_IFL_CB_PENDING_BIT	0
 
