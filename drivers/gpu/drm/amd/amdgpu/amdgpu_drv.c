@@ -826,7 +826,7 @@ module_param_named(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm
  * DOC: mtype_local (int)
  */
 int amdgpu_mtype_local;
-MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (0 = MTYPE_CC (default), 1 = MTYPE_NC, 2 = MTYPE_RW)");
+MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (0 = MTYPE_RW (default), 1 = MTYPE_NC, 2 = MTYPE_CC)");
 module_param_named(mtype_local, amdgpu_mtype_local, int, 0444);
 
 /**
