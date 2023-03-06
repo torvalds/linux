@@ -17,7 +17,7 @@
 #include "hyp_constants.h"
 #include "hyp_trace.h"
 
-#define RB_POLL_MS 1000
+#define RB_POLL_MS 100
 
 #define TRACEFS_DIR "hyp"
 #define TRACEFS_MODE_WRITE 0640
