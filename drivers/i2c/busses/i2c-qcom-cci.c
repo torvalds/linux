@@ -581,8 +581,7 @@ static int cci_probe(struct platform_device *pdev)
 
 	/* Memory */
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cci->base = devm_ioremap_resource(dev, r);
+	cci->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(cci->base))
 		return PTR_ERR(cci->base);
 
