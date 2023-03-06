@@ -320,6 +320,40 @@ int __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree_path *p
 	return ret;
 }
 
+void bch2_btree_node_lock_write_nofail(struct btree_trans *trans,
+				       struct btree_path *path,
+				       struct btree_bkey_cached_common *b)
+{
+	struct btree_path *linked;
+	unsigned i;
+	int ret;
+
+	/*
+	 * XXX BIG FAT NOTICE
+	 *
+	 * Drop all read locks before taking a write lock:
+	 *
+	 * This is a hack, because bch2_btree_node_lock_write_nofail() is a
+	 * hack - but by dropping read locks first, this should never fail, and
+	 * we only use this in code paths where whatever read locks we've
+	 * already taken are no longer needed:
+	 */
+
+	trans_for_each_path(trans, linked) {
+		if (!linked->nodes_locked)
+			continue;
+
+		for (i = 0; i < BTREE_MAX_DEPTH; i++)
+			if (btree_node_read_locked(linked, i)) {
+				btree_node_unlock(trans, linked, i);
+				btree_path_set_dirty(linked, BTREE_ITER_NEED_RELOCK);
+			}
+	}
+
+	ret = __btree_node_lock_write(trans, path, b, true);
+	BUG_ON(ret);
+}
+
 /* relock */
 
 static inline bool btree_path_get_locks(struct btree_trans *trans,

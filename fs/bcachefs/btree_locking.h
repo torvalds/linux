@@ -290,14 +290,6 @@ static inline int __btree_node_lock_write(struct btree_trans *trans,
 		: __bch2_btree_node_lock_write(trans, path, b, lock_may_not_fail);
 }
 
-static inline void bch2_btree_node_lock_write_nofail(struct btree_trans *trans,
-					      struct btree_path *path,
-					      struct btree_bkey_cached_common *b)
-{
-	int ret = __btree_node_lock_write(trans, path, b, true);
-	BUG_ON(ret);
-}
-
 static inline int __must_check
 bch2_btree_node_lock_write(struct btree_trans *trans,
 			   struct btree_path *path,
@@ -305,6 +297,10 @@ bch2_btree_node_lock_write(struct btree_trans *trans,
 {
 	return __btree_node_lock_write(trans, path, b, false);
 }
+
+void bch2_btree_node_lock_write_nofail(struct btree_trans *,
+				       struct btree_path *,
+				       struct btree_bkey_cached_common *);
 
 /* relock: */
 
