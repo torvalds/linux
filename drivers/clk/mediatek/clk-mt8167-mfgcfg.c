@@ -32,7 +32,7 @@ static const struct mtk_gate_regs mfg_cg_regs = {
 		.ops = &mtk_clk_gate_ops_setclr,	\
 	}
 
-static const struct mtk_gate mfg_clks[] __initconst = {
+static const struct mtk_gate mfg_clks[] = {
 	GATE_MFG(CLK_MFG_BAXI, "mfg_baxi", "ahb_infra_sel", 0),
 	GATE_MFG(CLK_MFG_BMEM, "mfg_bmem", "gfmux_emi1x_sel", 1),
 	GATE_MFG(CLK_MFG_BG3D, "mfg_bg3d", "mfg_mm", 2),

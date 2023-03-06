@@ -47,7 +47,7 @@ static const struct mtk_gate_regs vdec1_cg_regs = {
 		.ops = &mtk_clk_gate_ops_setclr_inv,	\
 	}
 
-static const struct mtk_gate vdec_clks[] __initconst = {
+static const struct mtk_gate vdec_clks[] = {
 	/* VDEC0 */
 	GATE_VDEC0_I(CLK_VDEC_CKEN, "vdec_cken", "rg_vdec", 0),
 	/* VDEC1 */
