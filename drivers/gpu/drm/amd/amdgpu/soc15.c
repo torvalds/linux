@@ -654,11 +654,6 @@ const struct amdgpu_ip_block_version vega10_common_ip_block =
 	.funcs = &soc15_common_ip_funcs,
 };
 
-static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
-{
-	return adev->nbio.funcs->get_rev_id(adev);
-}
-
 static void soc15_reg_base_init(struct amdgpu_device *adev)
 {
 	/* Set IP register base before any HW register access */
@@ -908,7 +903,7 @@ static int soc15_common_early_init(void *handle)
 	adev->se_cac_rreg = &soc15_se_cac_rreg;
 	adev->se_cac_wreg = &soc15_se_cac_wreg;
 
-	adev->rev_id = soc15_get_rev_id(adev);
+	adev->rev_id = amdgpu_device_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
 	/* TODO: split the GC and PG flags based on the relevant IP version for which
 	 * they are relevant.

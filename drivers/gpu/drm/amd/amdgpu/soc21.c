@@ -481,11 +481,6 @@ const struct amdgpu_ip_block_version soc21_common_ip_block =
 	.funcs = &soc21_common_ip_funcs,
 };
 
-static uint32_t soc21_get_rev_id(struct amdgpu_device *adev)
-{
-	return adev->nbio.funcs->get_rev_id(adev);
-}
-
 static bool soc21_need_full_reset(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[GC_HWIP][0]) {
@@ -626,7 +621,7 @@ static int soc21_common_early_init(void *handle)
 
 	adev->asic_funcs = &soc21_asic_funcs;
 
-	adev->rev_id = soc21_get_rev_id(adev);
+	adev->rev_id = amdgpu_device_get_rev_id(adev);
 	adev->external_rev_id = 0xff;
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):

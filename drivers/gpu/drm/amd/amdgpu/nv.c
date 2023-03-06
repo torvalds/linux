@@ -567,11 +567,6 @@ void nv_set_virt_ops(struct amdgpu_device *adev)
 	adev->virt.ops = &xgpu_nv_virt_ops;
 }
 
-static uint32_t nv_get_rev_id(struct amdgpu_device *adev)
-{
-	return adev->nbio.funcs->get_rev_id(adev);
-}
-
 static bool nv_need_full_reset(struct amdgpu_device *adev)
 {
 	return true;
@@ -713,7 +708,7 @@ static int nv_common_early_init(void *handle)
 
 	adev->asic_funcs = &nv_asic_funcs;
 
-	adev->rev_id = nv_get_rev_id(adev);
+	adev->rev_id = amdgpu_device_get_rev_id(adev);
 	adev->external_rev_id = 0xff;
 	/* TODO: split the GC and PG flags based on the relevant IP version for which
 	 * they are relevant.

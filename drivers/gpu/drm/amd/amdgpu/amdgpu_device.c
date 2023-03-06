@@ -808,6 +808,18 @@ void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_device_get_rev_id - query device rev_id
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Return device rev_id
+ */
+u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev)
+{
+	return adev->nbio.funcs->get_rev_id(adev);
+}
+
+/**
  * amdgpu_invalid_rreg - dummy reg read function
  *
  * @adev: amdgpu_device pointer
