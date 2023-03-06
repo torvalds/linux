@@ -3269,8 +3269,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	nandc->base = devm_ioremap_resource(dev, res);
+	nandc->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(nandc->base))
 		return PTR_ERR(nandc->base);
 
