@@ -21,7 +21,7 @@
  * table BOs for updates, and identity map the entire device's VRAM with 1 GB
  * pages.
  *
- * Currently the page structure consists of 48 phyiscal pages with 16 being
+ * Currently the page structure consists of 32 physical pages with 16 being
  * reserved for BO mapping during copies and clear, 1 reserved for kernel binds,
  * several pages are needed to setup the identity mappings (exact number based
  * on how many bits of address space the device has), and the rest are reserved
