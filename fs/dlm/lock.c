@@ -228,12 +228,12 @@ static inline int force_blocking_asts(struct dlm_lkb *lkb)
 
 static inline int is_demoted(struct dlm_lkb *lkb)
 {
-	return (lkb->lkb_sbflags & DLM_SBF_DEMOTED);
+	return test_bit(DLM_SBF_DEMOTED_BIT, &lkb->lkb_sbflags);
 }
 
 static inline int is_altmode(struct dlm_lkb *lkb)
 {
-	return (lkb->lkb_sbflags & DLM_SBF_ALTMODE);
+	return test_bit(DLM_SBF_ALTMODE_BIT, &lkb->lkb_sbflags);
 }
 
 static inline int is_granted(struct dlm_lkb *lkb)
@@ -298,7 +298,7 @@ static void queue_cast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 	    test_and_clear_bit(DLM_IFL_DEADLOCK_CANCEL_BIT, &lkb->lkb_iflags))
 		rv = -EDEADLK;
 
-	dlm_add_cb(lkb, DLM_CB_CAST, lkb->lkb_grmode, rv, lkb->lkb_sbflags);
+	dlm_add_cb(lkb, DLM_CB_CAST, lkb->lkb_grmode, rv, dlm_sbflags_val(lkb));
 }
 
 static inline void queue_cast_overlap(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -1770,7 +1770,7 @@ static void set_lvb_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	}
 
 	if (rsb_flag(r, RSB_VALNOTVALID))
-		lkb->lkb_sbflags |= DLM_SBF_VALNOTVALID;
+		set_bit(DLM_SBF_VALNOTVALID_BIT, &lkb->lkb_sbflags);
 }
 
 static void set_lvb_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -2242,7 +2242,7 @@ static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	    conversion_deadlock_detect(r, lkb)) {
 		if (lkb->lkb_exflags & DLM_LKF_CONVDEADLK) {
 			lkb->lkb_grmode = DLM_LOCK_NL;
-			lkb->lkb_sbflags |= DLM_SBF_DEMOTED;
+			set_bit(DLM_SBF_DEMOTED_BIT, &lkb->lkb_sbflags);
 		} else if (err) {
 			*err = -EDEADLK;
 		} else {
@@ -2269,7 +2269,7 @@ static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 		lkb->lkb_rqmode = alt;
 		rv = _can_be_granted(r, lkb, now, 0);
 		if (rv)
-			lkb->lkb_sbflags |= DLM_SBF_ALTMODE;
+			set_bit(DLM_SBF_ALTMODE_BIT, &lkb->lkb_sbflags);
 		else
 			lkb->lkb_rqmode = rqmode;
 	}
@@ -2685,7 +2685,7 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	}
 
 	lkb->lkb_exflags = args->flags;
-	lkb->lkb_sbflags = 0;
+	dlm_set_sbflags_val(lkb, 0);
 	lkb->lkb_astfn = args->astfn;
 	lkb->lkb_astparam = args->astparam;
 	lkb->lkb_bastfn = args->bastfn;
@@ -2836,7 +2836,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
  out_ok:
 	/* an overlapping op shouldn't blow away exflags from other op */
 	lkb->lkb_exflags |= args->flags;
-	lkb->lkb_sbflags = 0;
+	dlm_set_sbflags_val(lkb, 0);
 	lkb->lkb_astparam = args->astparam;
 	rv = 0;
  out:
@@ -3408,7 +3408,7 @@ static void send_args(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	ms->m_lkid     = cpu_to_le32(lkb->lkb_id);
 	ms->m_remid    = cpu_to_le32(lkb->lkb_remid);
 	ms->m_exflags  = cpu_to_le32(lkb->lkb_exflags);
-	ms->m_sbflags  = cpu_to_le32(lkb->lkb_sbflags);
+	ms->m_sbflags  = cpu_to_le32(dlm_sbflags_val(lkb));
 	ms->m_flags    = cpu_to_le32(dlm_dflags_val(lkb));
 	ms->m_lvbseq   = cpu_to_le32(lkb->lkb_lvbseq);
 	ms->m_status   = cpu_to_le32(lkb->lkb_status);
@@ -3673,7 +3673,7 @@ static int send_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms_in,
 static void receive_flags(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
 	lkb->lkb_exflags = le32_to_cpu(ms->m_exflags);
-	lkb->lkb_sbflags = le32_to_cpu(ms->m_sbflags);
+	dlm_set_sbflags_val(lkb, le32_to_cpu(ms->m_sbflags));
 	dlm_set_dflags_val(lkb, le32_to_cpu(ms->m_flags));
 }
 
@@ -3683,7 +3683,7 @@ static void receive_flags_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
 	if (local)
 		return;
 
-	lkb->lkb_sbflags = le32_to_cpu(ms->m_sbflags);
+	dlm_set_sbflags_val(lkb, le32_to_cpu(ms->m_sbflags));
 	dlm_set_dflags_val(lkb, le32_to_cpu(ms->m_flags));
 }
 

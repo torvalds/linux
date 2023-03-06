@@ -235,7 +235,7 @@ struct dlm_lkb {
 	uint32_t		lkb_id;		/* our lock ID */
 	uint32_t		lkb_remid;	/* lock ID on remote partner */
 	uint32_t		lkb_exflags;	/* external flags from caller */
-	uint32_t		lkb_sbflags;	/* lksb flags */
+	unsigned long		lkb_sbflags;	/* lksb flags */
 	unsigned long		lkb_dflags;	/* distributed flags */
 	unsigned long		lkb_iflags;	/* internal flags */
 	uint32_t		lkb_lvbseq;	/* lvb sequence number */
@@ -760,6 +760,26 @@ static inline uint32_t dlm_dflags_val(const struct dlm_lkb *lkb)
 			     __DLM_DFL_MAX_BIT);
 }
 
+/* coming from UAPI header
+ *
+ * TODO:
+ * Move this to UAPI header and let other values point to them and use BIT()
+ */
+#define DLM_SBF_DEMOTED_BIT	0
+#define __DLM_SBF_MIN_BIT	DLM_SBF_DEMOTED_BIT
+#define DLM_SBF_VALNOTVALID_BIT	1
+#define DLM_SBF_ALTMODE_BIT	2
+#define __DLM_SBF_MAX_BIT	DLM_SBF_ALTMODE_BIT
+
+static inline uint32_t dlm_sbflags_val(const struct dlm_lkb *lkb)
+{
+	/* be sure the next person updates this */
+	BUILD_BUG_ON(BIT(__DLM_SBF_MAX_BIT) != DLM_SBF_ALTMODE);
+
+	return dlm_flags_val(&lkb->lkb_sbflags, __DLM_SBF_MIN_BIT,
+			     __DLM_SBF_MAX_BIT);
+}
+
 static inline void dlm_set_flags_val(unsigned long *addr, uint32_t val,
 				     uint32_t min, uint32_t max)
 {
@@ -777,6 +797,12 @@ static inline void dlm_set_dflags_val(struct dlm_lkb *lkb, uint32_t val)
 {
 	dlm_set_flags_val(&lkb->lkb_dflags, val, __DLM_DFL_MIN_BIT,
 			  __DLM_DFL_MAX_BIT);
+}
+
+static inline void dlm_set_sbflags_val(struct dlm_lkb *lkb, uint32_t val)
+{
+	dlm_set_flags_val(&lkb->lkb_sbflags, val, __DLM_SBF_MIN_BIT,
+			  __DLM_SBF_MAX_BIT);
 }
 
 int dlm_plock_init(void);
