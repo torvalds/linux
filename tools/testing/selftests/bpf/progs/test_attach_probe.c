@@ -7,12 +7,8 @@
 #include <bpf/bpf_core_read.h>
 #include "bpf_misc.h"
 
-int kprobe_res = 0;
 int kprobe2_res = 0;
-int kretprobe_res = 0;
 int kretprobe2_res = 0;
-int uprobe_res = 0;
-int uretprobe_res = 0;
 int uprobe_byname_res = 0;
 int uretprobe_byname_res = 0;
 int uprobe_byname2_res = 0;
@@ -23,24 +19,10 @@ int uretprobe_byname3_sleepable_res = 0;
 int uretprobe_byname3_res = 0;
 void *user_ptr = 0;
 
-SEC("kprobe")
-int handle_kprobe(struct pt_regs *ctx)
-{
-	kprobe_res = 1;
-	return 0;
-}
-
 SEC("ksyscall/nanosleep")
 int BPF_KSYSCALL(handle_kprobe_auto, struct __kernel_timespec *req, struct __kernel_timespec *rem)
 {
 	kprobe2_res = 11;
-	return 0;
-}
-
-SEC("kretprobe")
-int handle_kretprobe(struct pt_regs *ctx)
-{
-	kretprobe_res = 2;
 	return 0;
 }
 
@@ -49,20 +31,6 @@ int BPF_KRETPROBE(handle_kretprobe_auto, int ret)
 {
 	kretprobe2_res = 22;
 	return ret;
-}
-
-SEC("uprobe")
-int handle_uprobe(struct pt_regs *ctx)
-{
-	uprobe_res = 3;
-	return 0;
-}
-
-SEC("uretprobe")
-int handle_uretprobe(struct pt_regs *ctx)
-{
-	uretprobe_res = 4;
-	return 0;
 }
 
 SEC("uprobe")
