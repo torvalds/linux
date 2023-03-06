@@ -168,6 +168,7 @@ allOf:
           compatible:
             contains:
               enum:
+                - qcom,scm-qdu1000
                 - qcom,scm-sm8450
                 - qcom,scm-sm8550
     then:
