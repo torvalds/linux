@@ -280,6 +280,9 @@ static int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	}
 
 	hda_sdw_int_enable(sdev, true);
+
+	/* enable DMI L1 */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, MTL_EM2, MTL_EM2_L1SEN, MTL_EM2_L1SEN);
 	return 0;
 }
 

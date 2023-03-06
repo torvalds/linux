@@ -182,6 +182,8 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 struct hdac_ext_stream *
 hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 {
+	const struct sof_intel_dsp_desc *chip_info =  get_chip_info(sdev->pdata);
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_stream *hext_stream = NULL;
@@ -220,12 +222,15 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 	/*
 	 * Prevent DMI Link L1 entry for streams that don't support it.
 	 * Workaround to address a known issue with host DMA that results
-	 * in xruns during pause/release in capture scenarios.
+	 * in xruns during pause/release in capture scenarios. This is not needed for the ACE IP.
 	 */
-	if (!(flags & SOF_HDA_STREAM_DMI_L1_COMPATIBLE))
+	if (chip_info->hw_ip_version < SOF_INTEL_ACE_1_0 &&
+	    !(flags & SOF_HDA_STREAM_DMI_L1_COMPATIBLE)) {
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 					HDA_VS_INTEL_EM2,
 					HDA_VS_INTEL_EM2_L1SEN, 0);
+		hda->l1_disabled = true;
+	}
 
 	return hext_stream;
 }
@@ -233,6 +238,8 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 /* free a stream */
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 {
+	const struct sof_intel_dsp_desc *chip_info =  get_chip_info(sdev->pdata);
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_stream *hext_stream;
@@ -264,9 +271,11 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 	spin_unlock_irq(&bus->reg_lock);
 
 	/* Enable DMI L1 if permitted */
-	if (dmi_l1_enable)
+	if (chip_info->hw_ip_version < SOF_INTEL_ACE_1_0 && dmi_l1_enable) {
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, HDA_VS_INTEL_EM2,
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
+		hda->l1_disabled = false;
+	}
 
 	if (!found) {
 		dev_err(sdev->dev, "%s: stream_tag %d not opened!\n",
