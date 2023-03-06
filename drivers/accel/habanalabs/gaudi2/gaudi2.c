@@ -4545,36 +4545,9 @@ static int gaudi2_set_engine_modes(struct hl_device *hdev,
 	return 0;
 }
 
-static int gaudi2_verify_engine_modes(struct hl_device *hdev, u32 *engine_ids,
-		u32 num_engines, u32 engine_command)
-{
-	bool is_engine_idle = true;
-	u64 mask_arr = 0;
-	int i;
-
-	gaudi2_get_tpc_idle_status(hdev, &mask_arr, 8 * sizeof(mask_arr), NULL);
-	gaudi2_get_mme_idle_status(hdev, &mask_arr, 8 * sizeof(mask_arr), NULL);
-	gaudi2_get_edma_idle_status(hdev, &mask_arr, 8 * sizeof(mask_arr), NULL);
-
-	for (i = 0 ; i < num_engines ; ++i) {
-		is_engine_idle = !(mask_arr & BIT_ULL(engine_ids[i]));
-		if ((engine_command == HL_ENGINE_RESUME) && !is_engine_idle) {
-			dev_err(hdev->dev, "Engine ID %u remained NOT idle!\n", engine_ids[i]);
-			return -EBUSY;
-		} else if ((engine_command == HL_ENGINE_STALL) && is_engine_idle) {
-			dev_err(hdev->dev, "Engine ID %u remained idle!\n", engine_ids[i]);
-			return -EBUSY;
-		}
-	}
-
-	return 0;
-}
-
 static int gaudi2_set_engines(struct hl_device *hdev, u32 *engine_ids,
 					u32 num_engines, u32 engine_command)
 {
-	int rc;
-
 	switch (engine_command) {
 	case HL_ENGINE_CORE_HALT:
 	case HL_ENGINE_CORE_RUN:
@@ -4582,18 +4555,12 @@ static int gaudi2_set_engines(struct hl_device *hdev, u32 *engine_ids,
 
 	case HL_ENGINE_STALL:
 	case HL_ENGINE_RESUME:
-		rc = gaudi2_set_engine_modes(hdev, engine_ids, num_engines, engine_command);
-		if (rc)
-			return rc;
-
-		return gaudi2_verify_engine_modes(hdev, engine_ids, num_engines, engine_command);
+		return gaudi2_set_engine_modes(hdev, engine_ids, num_engines, engine_command);
 
 	default:
 		dev_err(hdev->dev, "failed to execute command id %u\n", engine_command);
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static void gaudi2_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw_reset)
