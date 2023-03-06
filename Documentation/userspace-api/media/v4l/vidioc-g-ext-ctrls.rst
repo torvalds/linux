@@ -279,6 +279,22 @@ still cause this situation.
       - ``p_hevc_decode_params``
       - A pointer to a struct :c:type:`v4l2_ctrl_hevc_decode_params`. Valid if this
         control is of type ``V4L2_CTRL_TYPE_HEVC_DECODE_PARAMS``.
+    * - struct :c:type:`v4l2_ctrl_av1_sequence` *
+      - ``p_av1_sequence``
+      - A pointer to a struct :c:type:`v4l2_ctrl_av1_sequence`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_AV1_SEQUENCE``.
+    * - struct :c:type:`v4l2_ctrl_av1_tile_group_entry` *
+      - ``p_av1_tile_group_entry``
+      - A pointer to a struct :c:type:`v4l2_ctrl_av1_tile_group_entry`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_AV1_TILE_GROUP_ENTRY``.
+    * - struct :c:type:`v4l2_ctrl_av1_frame` *
+      - ``p_av1_frame``
+      - A pointer to a struct :c:type:`v4l2_ctrl_av1_frame`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_AV1_FRAME``.
+    * - struct :c:type:`v4l2_ctrl_av1_film_grain` *
+      - ``p_av1_film_grain``
+      - A pointer to a struct :c:type:`v4l2_ctrl_av1_film_grain`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_AV1_FILM_GRAIN``.
     * - void *
       - ``ptr``
       - A pointer to a compound type which can be an N-dimensional array
