@@ -131,11 +131,8 @@ void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error)
  * @zbus: the zbus to be scanned
  *
  * Enables and scans all PCI functions on the bus making them available to the
- * common PCI code. If there is no function 0 on the zbus nothing is scanned. If
- * a function does not have a slot yet because it was added to the zbus before
- * function 0 the slot is created. If a PCI function fails to be initialized
- * an error will be returned but attempts will still be made for all other
- * functions on the bus.
+ * common PCI code. If a PCI function fails to be initialized an error will be
+ * returned but attempts will still be made for all other functions on the bus.
  *
  * Return: 0 on success, an error value otherwise
  */
