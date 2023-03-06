@@ -1135,10 +1135,6 @@
 	bias-disable;
 };
 
-&pm8998_gpios {
-
-};
-
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 &qup_spi0_default {
 	drive-strength = <6>;
