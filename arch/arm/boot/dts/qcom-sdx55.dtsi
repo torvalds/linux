@@ -518,7 +518,7 @@
 		};
 
 		tcsr: syscon@1fcb000 {
-			compatible = "syscon";
+			compatible = "qcom,sdx55-tcsr", "syscon";
 			reg = <0x01fc0000 0x1000>;
 		};
 
