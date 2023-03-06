@@ -104,5 +104,5 @@ static struct platform_driver clk_mt2701_bdp_drv = {
 		.of_match_table = of_match_clk_mt2701_bdp,
 	},
 };
-
-builtin_platform_driver(clk_mt2701_bdp_drv);
+module_platform_driver(clk_mt2701_bdp_drv);
+MODULE_LICENSE("GPL");
