@@ -17,6 +17,7 @@
 #include <linux/completion.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
@@ -478,7 +479,8 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = mpc512x_psc_spi_unprep_xfer_hw;
 	master->use_gpio_descriptors = true;
 	master->cleanup = mpc512x_psc_spi_cleanup;
-	master->dev.of_node = dev->of_node;
+
+	device_set_node(&master->dev, dev_fwnode(dev));
 
 	tempp = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(tempp))
