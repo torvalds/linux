@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fault-inject.h>
 #include <linux/kthread.h>
+#include <linux/of_address.h>
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/sched/types.h>
@@ -274,8 +275,6 @@ static int msm_drm_uninit(struct device *dev)
 
 	return 0;
 }
-
-#include <linux/of_address.h>
 
 struct msm_gem_address_space *msm_kms_init_aspace(struct drm_device *dev)
 {
