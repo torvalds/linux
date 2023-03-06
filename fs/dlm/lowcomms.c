@@ -1717,8 +1717,8 @@ static void work_stop(void)
 
 static int work_start(void)
 {
-	io_workqueue = alloc_workqueue("dlm_io", WQ_HIGHPRI | WQ_MEM_RECLAIM,
-				       0);
+	io_workqueue = alloc_workqueue("dlm_io", WQ_HIGHPRI | WQ_MEM_RECLAIM |
+				       WQ_UNBOUND, 0);
 	if (!io_workqueue) {
 		log_print("can't start dlm_io");
 		return -ENOMEM;
