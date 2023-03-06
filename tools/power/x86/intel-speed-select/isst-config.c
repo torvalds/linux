@@ -669,6 +669,46 @@ int get_cpu_count(struct isst_id *id)
 	return cpu_cnt[id->pkg][id->die][id->punit];
 }
 
+static void update_punit_cpu_info(__u32 physical_cpu, struct _cpu_map *cpu_map)
+{
+	if (api_version() > 1) {
+		/*
+		 * MSR 0x54 format
+		 *	[15:11] PM_DOMAIN_ID
+		 *	[10:3] MODULE_ID (aka IDI_AGENT_ID)
+		 *	[2:0] LP_ID (We don't care about these bits we only
+		 *		care die and core id
+		 *	For Atom:
+		 *	[2] Always 0
+		 *	[1:0] core ID within module
+		 *	For Core
+		 *	[2:1] Always 0
+		 *	[0] thread ID
+		 */
+		cpu_map->punit_id = (physical_cpu >> 11) & 0x1f;
+		cpu_map->punit_cpu_core = (physical_cpu >> 3) & 0xff;
+		cpu_map->punit_cpu = physical_cpu & 0x7ff;
+	} else {
+		int punit_id;
+
+		/*
+		 * MSR 0x53 format
+		 * Format
+		 *      Bit 0 – thread ID
+		 *      Bit 8:1 – core ID
+		 *      Bit 13:9 – punit ID
+		 */
+		cpu_map->punit_cpu = physical_cpu & 0x1ff;
+		cpu_map->punit_cpu_core = (cpu_map->punit_cpu >> 1); // shift to get core id
+		punit_id = (physical_cpu >> 9) & 0x1f;
+
+		if (punit_id >= MAX_PUNIT_PER_DIE)
+			punit_id = 0;
+
+		cpu_map->punit_id = punit_id;
+	}
+}
+
 static void create_cpu_map(void)
 {
 	const char *pathname = "/dev/isst_interface";
@@ -727,24 +767,9 @@ static void create_cpu_map(void)
 				fprintf(outf, "Error: map logical_cpu:%d\n",
 					map.cpu_map[0].logical_cpu);
 			} else {
-				/*
-				 * Format
-				 *      Bit 0 – thread ID
-				 *      Bit 8:1 – core ID
-				 *      Bit 13:9 – punit ID
-				 */
-				cpu_map[i].punit_cpu = map.cpu_map[0].physical_cpu & 0x1ff;
-				cpu_map[i].punit_cpu_core = (cpu_map[i].punit_cpu >>
-							     1); // shift to get core id
-				punit_id = (map.cpu_map[0].physical_cpu >> 9) & 0x1f;
-
-				if (punit_id >= MAX_PUNIT_PER_DIE)
-					punit_id = 0;
-
-				cpu_map[i].punit_id = punit_id;
+				update_punit_cpu_info(map.cpu_map[0].physical_cpu, &cpu_map[i]);
 			}
 		}
-
 		cpu_map[i].initialized = 1;
 
 		cpu_cnt[pkg_id][die_id][punit_id]++;
