@@ -29,11 +29,6 @@ ifeq ($(ARCH),sparc64)
        SRCARCH := sparc
 endif
 
-# Additional ARCH settings for sh
-ifeq ($(ARCH),sh64)
-       SRCARCH := sh
-endif
-
 # Additional ARCH settings for loongarch
 ifeq ($(ARCH),loongarch32)
        SRCARCH := loongarch
