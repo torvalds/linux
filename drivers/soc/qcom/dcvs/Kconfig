@@ -96,3 +96,15 @@ config QTI_C1DCVS_SCMI_V2
 
 	  This driver is used to expose sysfs  interface to communicate
 	  with cpucp for C1 DCVS based on SCMI consolidation.
+
+config QTI_MPAM
+	tristate "Qualcomm Technologies Inc. MPAM Interface Driver"
+	depends on QTI_SCMI_VENDOR_PROTOCOL
+	default n
+	help
+	  Driver to expose MPAM sysfs nodes to user space.
+
+	  This driver gathers MPAM configuration parameters from sysfs
+	  userspace and relays them to CPUCP via SCMI communication.
+	  It is intended to be used by clients familiar with modifying
+	  the ARM MPAM configuration settings.
