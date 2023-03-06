@@ -120,5 +120,5 @@ obj-$(CONFIG_COMMON_CLK_MT8365_MFG) += clk-mt8365-mfg.o
 obj-$(CONFIG_COMMON_CLK_MT8365_MMSYS) += clk-mt8365-mm.o
 obj-$(CONFIG_COMMON_CLK_MT8365_VDEC) += clk-mt8365-vdec.o
 obj-$(CONFIG_COMMON_CLK_MT8365_VENC) += clk-mt8365-venc.o
-obj-$(CONFIG_COMMON_CLK_MT8516) += clk-mt8516.o
+obj-$(CONFIG_COMMON_CLK_MT8516) += clk-mt8516-apmixedsys.o clk-mt8516.o
 obj-$(CONFIG_COMMON_CLK_MT8516_AUDSYS) += clk-mt8516-aud.o
