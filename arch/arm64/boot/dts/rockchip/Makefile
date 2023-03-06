@@ -82,6 +82,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb1-lp4x-v10-rgb2lvds.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb1-lp4x-v10-rgb-FX070-DHM11BOE-A.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb1-lp4x-v10-spdif.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-dual-camera.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-pdm-mic-array.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-sii9022-bt1120-to-hdmi.dtb
