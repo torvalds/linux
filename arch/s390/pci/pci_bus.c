@@ -87,9 +87,8 @@ int zpci_bus_scan_device(struct zpci_dev *zdev)
 	if (!pdev)
 		return -ENODEV;
 
-	pci_bus_add_device(pdev);
 	pci_lock_rescan_remove();
-	pci_bus_add_devices(zdev->zbus->bus);
+	pci_bus_add_device(pdev);
 	pci_unlock_rescan_remove();
 
 	return 0;
