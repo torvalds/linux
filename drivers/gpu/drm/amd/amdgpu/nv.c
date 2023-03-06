@@ -520,21 +520,6 @@ static int nv_set_vce_clocks(struct amdgpu_device *adev, u32 evclk, u32 ecclk)
 	return 0;
 }
 
-static void nv_pcie_gen3_enable(struct amdgpu_device *adev)
-{
-	if (pci_is_root_bus(adev->pdev->bus))
-		return;
-
-	if (amdgpu_pcie_gen2 == 0)
-		return;
-
-	if (!(adev->pm.pcie_gen_mask & (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 |
-					CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)))
-		return;
-
-	/* todo */
-}
-
 static void nv_program_aspm(struct amdgpu_device *adev)
 {
 	if (!amdgpu_device_should_use_aspm(adev))
@@ -1042,8 +1027,6 @@ static int nv_common_hw_init(void *handle)
 	if (adev->nbio.funcs->apply_l1_link_width_reconfig_wa)
 		adev->nbio.funcs->apply_l1_link_width_reconfig_wa(adev);
 
-	/* enable pcie gen2/3 link */
-	nv_pcie_gen3_enable(adev);
 	/* enable aspm */
 	nv_program_aspm(adev);
 	/* setup nbio registers */
