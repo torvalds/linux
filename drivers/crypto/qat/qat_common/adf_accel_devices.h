@@ -190,7 +190,7 @@ struct adf_hw_device_data {
 	int (*send_admin_init)(struct adf_accel_dev *accel_dev);
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
-	const u32 *(*get_arb_mapping)(void);
+	const u32 *(*get_arb_mapping)(struct adf_accel_dev *accel_dev);
 	int (*init_device)(struct adf_accel_dev *accel_dev);
 	int (*enable_pm)(struct adf_accel_dev *accel_dev);
 	bool (*handle_pm_interrupt)(struct adf_accel_dev *accel_dev);

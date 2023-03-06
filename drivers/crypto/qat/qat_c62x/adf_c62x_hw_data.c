@@ -77,7 +77,7 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	return DEV_SKU_UNKNOWN;
 }
 
-static const u32 *adf_get_arbiter_mapping(void)
+static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 {
 	return thrd_to_arb_map;
 }

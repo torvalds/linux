@@ -41,9 +41,15 @@ static struct adf_fw_config adf_402xx_fw_dc_config[] = {
 };
 
 /* Worker thread to service arbiter mappings */
-static const u32 thrd_to_arb_map[ADF_4XXX_MAX_ACCELENGINES] = {
+static const u32 thrd_to_arb_map_cy[ADF_4XXX_MAX_ACCELENGINES] = {
 	0x5555555, 0x5555555, 0x5555555, 0x5555555,
 	0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA,
+	0x0
+};
+
+static const u32 thrd_to_arb_map_dc[ADF_4XXX_MAX_ACCELENGINES] = {
+	0x000000FF, 0x000000FF, 0x000000FF, 0x000000FF,
+	0x000000FF, 0x000000FF, 0x000000FF, 0x000000FF,
 	0x0
 };
 
@@ -218,9 +224,16 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	return DEV_SKU_1;
 }
 
-static const u32 *adf_get_arbiter_mapping(void)
+static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 {
-	return thrd_to_arb_map;
+	switch (get_service_enabled(accel_dev)) {
+	case SVC_CY:
+		return thrd_to_arb_map_cy;
+	case SVC_DC:
+		return thrd_to_arb_map_dc;
+	}
+
+	return NULL;
 }
 
 static void get_arb_info(struct arb_info *arb_info)
