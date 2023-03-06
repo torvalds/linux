@@ -149,8 +149,7 @@ static int minix_unlink(struct inode * dir, struct dentry *dentry)
 	if (!de)
 		return -ENOENT;
 	err = minix_delete_entry(de, page);
-	kunmap(page);
-	put_page(page);
+	dir_put_page(page);
 
 	if (err)
 		return err;
@@ -242,13 +241,10 @@ static int minix_rename(struct mnt_idmap *idmap,
 			inode_dec_link_count(old_dir);
 	}
 out_dir:
-	if (dir_de) {
-		kunmap(dir_page);
-		put_page(dir_page);
-	}
+	if (dir_de)
+		dir_put_page(dir_page);
 out_old:
-	kunmap(old_page);
-	put_page(old_page);
+	dir_put_page(old_page);
 out:
 	return err;
 }
