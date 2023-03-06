@@ -1729,3 +1729,27 @@ static int __init tce_iommu_bus_notifier_init(void)
 	return 0;
 }
 machine_subsys_initcall_sync(pseries, tce_iommu_bus_notifier_init);
+
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+struct iommu_group *pSeries_pci_device_group(struct pci_controller *hose,
+					     struct pci_dev *pdev)
+{
+	struct device_node *pdn, *dn = pdev->dev.of_node;
+	struct iommu_group *grp;
+	struct pci_dn *pci;
+
+	pdn = pci_dma_find(dn, NULL);
+	if (!pdn || !PCI_DN(pdn))
+		return ERR_PTR(-ENODEV);
+
+	pci = PCI_DN(pdn);
+	if (!pci->table_group)
+		return ERR_PTR(-ENODEV);
+
+	grp = pci->table_group->group;
+	if (!grp)
+		return ERR_PTR(-ENODEV);
+
+	return iommu_group_ref_get(grp);
+}
+#endif

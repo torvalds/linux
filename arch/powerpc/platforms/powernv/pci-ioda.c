@@ -1899,6 +1899,13 @@ static long pnv_ioda2_take_ownership(struct iommu_table_group *table_group)
 	/* Store @tbl as pnv_pci_ioda2_unset_window() resets it */
 	struct iommu_table *tbl = pe->table_group.tables[0];
 
+	/*
+	 * iommu_ops transfers the ownership per a device and we mode
+	 * the group ownership with the first device in the group.
+	 */
+	if (!tbl)
+		return 0;
+
 	pnv_pci_ioda2_set_bypass(pe, false);
 	pnv_pci_ioda2_unset_window(&pe->table_group, 0);
 	if (pe->pbus)
@@ -1915,6 +1922,9 @@ static void pnv_ioda2_release_ownership(struct iommu_table_group *table_group)
 	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
 						table_group);
 
+	/* See the comment about iommu_ops above */
+	if (pe->table_group.tables[0])
+		return;
 	pnv_pci_ioda2_setup_default_config(pe);
 	if (pe->pbus)
 		pnv_ioda_setup_bus_dma(pe, pe->pbus);
@@ -2921,6 +2931,27 @@ static void pnv_pci_ioda_dma_bus_setup(struct pci_bus *bus)
 	}
 }
 
+#ifdef CONFIG_IOMMU_API
+static struct iommu_group *pnv_pci_device_group(struct pci_controller *hose,
+						struct pci_dev *pdev)
+{
+	struct pnv_phb *phb = hose->private_data;
+	struct pnv_ioda_pe *pe;
+
+	if (WARN_ON(!phb))
+		return ERR_PTR(-ENODEV);
+
+	pe = pnv_pci_bdfn_to_pe(phb, pdev->devfn | (pdev->bus->number << 8));
+	if (!pe)
+		return ERR_PTR(-ENODEV);
+
+	if (!pe->table_group.group)
+		return ERR_PTR(-ENODEV);
+
+	return iommu_group_ref_get(pe->table_group.group);
+}
+#endif
+
 static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
 	.dma_dev_setup		= pnv_pci_ioda_dma_dev_setup,
 	.dma_bus_setup		= pnv_pci_ioda_dma_bus_setup,
@@ -2931,6 +2962,9 @@ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
 	.setup_bridge		= pnv_pci_fixup_bridge_resources,
 	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
 	.shutdown		= pnv_pci_ioda_shutdown,
+#ifdef CONFIG_IOMMU_API
+	.device_group		= pnv_pci_device_group,
+#endif
 };
 
 static const struct pci_controller_ops pnv_npu_ocapi_ioda_controller_ops = {

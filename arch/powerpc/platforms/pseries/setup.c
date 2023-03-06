@@ -1118,6 +1118,9 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 
 struct pci_controller_ops pseries_pci_controller_ops = {
 	.probe_mode		= pSeries_pci_probe_mode,
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	.device_group		= pSeries_pci_device_group,
+#endif
 };
 
 define_machine(pseries) {

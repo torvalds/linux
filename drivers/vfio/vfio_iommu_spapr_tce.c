@@ -1200,18 +1200,12 @@ static void tce_iommu_release_ownership(struct tce_container *container,
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i)
 		if (container->tables[i])
 			table_group->ops->unset_window(table_group, i);
-
-	table_group->ops->release_ownership(table_group);
 }
 
 static long tce_iommu_take_ownership(struct tce_container *container,
 		struct iommu_table_group *table_group)
 {
 	long i, ret = 0;
-
-	ret = table_group->ops->take_ownership(table_group);
-	if (ret)
-		return ret;
 
 	/* Set all windows to the new group */
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
@@ -1230,8 +1224,6 @@ static long tce_iommu_take_ownership(struct tce_container *container,
 release_exit:
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i)
 		table_group->ops->unset_window(table_group, i);
-
-	table_group->ops->release_ownership(table_group);
 
 	return ret;
 }
