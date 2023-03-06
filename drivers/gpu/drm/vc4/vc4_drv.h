@@ -232,11 +232,8 @@ struct vc4_dev {
 	struct kref bin_bo_kref;
 };
 
-static inline struct vc4_dev *
-to_vc4_dev(const struct drm_device *dev)
-{
-	return container_of(dev, struct vc4_dev, base);
-}
+#define to_vc4_dev(_dev)			\
+	container_of_const(_dev, struct vc4_dev, base)
 
 struct vc4_bo {
 	struct drm_gem_dma_object base;
@@ -285,11 +282,8 @@ struct vc4_bo {
 	struct mutex madv_lock;
 };
 
-static inline struct vc4_bo *
-to_vc4_bo(const struct drm_gem_object *bo)
-{
-	return container_of(to_drm_gem_dma_obj(bo), struct vc4_bo, base);
-}
+#define to_vc4_bo(_bo)							\
+	container_of_const(to_drm_gem_dma_obj(_bo), struct vc4_bo, base)
 
 struct vc4_fence {
 	struct dma_fence base;
@@ -298,11 +292,8 @@ struct vc4_fence {
 	uint64_t seqno;
 };
 
-static inline struct vc4_fence *
-to_vc4_fence(const struct dma_fence *fence)
-{
-	return container_of(fence, struct vc4_fence, base);
-}
+#define to_vc4_fence(_fence)					\
+	container_of_const(_fence, struct vc4_fence, base)
 
 struct vc4_seqno_cb {
 	struct work_struct work;
@@ -368,11 +359,8 @@ struct vc4_hvs_state {
 	} fifo_state[HVS_NUM_CHANNELS];
 };
 
-static inline struct vc4_hvs_state *
-to_vc4_hvs_state(const struct drm_private_state *priv)
-{
-	return container_of(priv, struct vc4_hvs_state, base);
-}
+#define to_vc4_hvs_state(_state)				\
+	container_of_const(_state, struct vc4_hvs_state, base)
 
 struct vc4_hvs_state *vc4_hvs_get_global_state(struct drm_atomic_state *state);
 struct vc4_hvs_state *vc4_hvs_get_old_global_state(const struct drm_atomic_state *state);
@@ -382,11 +370,8 @@ struct vc4_plane {
 	struct drm_plane base;
 };
 
-static inline struct vc4_plane *
-to_vc4_plane(const struct drm_plane *plane)
-{
-	return container_of(plane, struct vc4_plane, base);
-}
+#define to_vc4_plane(_plane)					\
+	container_of_const(_plane, struct vc4_plane, base)
 
 enum vc4_scaling_mode {
 	VC4_SCALING_NONE,
@@ -458,11 +443,8 @@ struct vc4_plane_state {
 	u64 membus_load;
 };
 
-static inline struct vc4_plane_state *
-to_vc4_plane_state(const struct drm_plane_state *state)
-{
-	return container_of(state, struct vc4_plane_state, base);
-}
+#define to_vc4_plane_state(_state)				\
+	container_of_const(_state, struct vc4_plane_state, base)
 
 enum vc4_encoder_type {
 	VC4_ENCODER_TYPE_NONE,
@@ -489,11 +471,8 @@ struct vc4_encoder {
 	void (*post_crtc_powerdown)(struct drm_encoder *encoder, struct drm_atomic_state *state);
 };
 
-static inline struct vc4_encoder *
-to_vc4_encoder(const struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct vc4_encoder, base);
-}
+#define to_vc4_encoder(_encoder)				\
+	container_of_const(_encoder, struct vc4_encoder, base)
 
 static inline
 struct drm_encoder *vc4_find_encoder_by_type(struct drm_device *drm,
@@ -591,11 +570,8 @@ struct vc4_crtc {
 	unsigned int current_hvs_channel;
 };
 
-static inline struct vc4_crtc *
-to_vc4_crtc(const struct drm_crtc *crtc)
-{
-	return container_of(crtc, struct vc4_crtc, base);
-}
+#define to_vc4_crtc(_crtc)					\
+	container_of_const(_crtc, struct vc4_crtc, base)
 
 static inline const struct vc4_crtc_data *
 vc4_crtc_to_vc4_crtc_data(const struct vc4_crtc *crtc)
@@ -608,7 +584,7 @@ vc4_crtc_to_vc4_pv_data(const struct vc4_crtc *crtc)
 {
 	const struct vc4_crtc_data *data = vc4_crtc_to_vc4_crtc_data(crtc);
 
-	return container_of(data, struct vc4_pv_data, base);
+	return container_of_const(data, struct vc4_pv_data, base);
 }
 
 struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc,
@@ -636,11 +612,8 @@ struct vc4_crtc_state {
 
 #define VC4_HVS_CHANNEL_DISABLED ((unsigned int)-1)
 
-static inline struct vc4_crtc_state *
-to_vc4_crtc_state(const struct drm_crtc_state *crtc_state)
-{
-	return container_of(crtc_state, struct vc4_crtc_state, base);
-}
+#define to_vc4_crtc_state(_state)				\
+	container_of_const(_state, struct vc4_crtc_state, base)
 
 #define V3D_READ(offset)								\
 	({										\
