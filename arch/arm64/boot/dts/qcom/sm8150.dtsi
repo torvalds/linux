@@ -92,7 +92,6 @@
 				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
-
 		};
 
 		CPU2: cpu@200 {

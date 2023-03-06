@@ -2781,7 +2781,6 @@
 					drive-strength = <2>;
 					slew-rate = <1>;
 					bias-bus-hold;
-
 				};
 			};
 
@@ -4413,7 +4412,6 @@
 						required-opps = <&rpmhpd_opp_nom>;
 					};
 				};
-
 			};
 
 			mdss1_dp1: displayport-controller@22098000 {

@@ -155,7 +155,6 @@
 			      cache-level = <2>;
 			      next-level-cache = <&L3_0>;
 			};
-
 		};
 
 		CPU6: cpu@600 {

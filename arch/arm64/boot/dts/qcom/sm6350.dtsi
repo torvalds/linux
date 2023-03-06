@@ -176,7 +176,6 @@
 				cache-level = <2>;
 				next-level-cache = <&L3_0>;
 			};
-
 		};
 
 		CPU6: cpu@600 {
@@ -888,7 +887,6 @@
 				interconnect-names = "qup-core", "qup-config", "qup-memory";
 				status = "disabled";
 			};
-
 		};
 
 		config_noc: interconnect@1500000 {

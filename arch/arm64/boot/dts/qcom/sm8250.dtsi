@@ -247,7 +247,6 @@
 				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
-
 		};
 
 		CPU6: cpu@600 {
@@ -2428,7 +2427,6 @@
 					drive-strength = <2>;
 					slew-rate = <1>;
 					bias-bus-hold;
-
 				};
 			};
 
@@ -2447,7 +2445,6 @@
 					drive-strength = <2>;
 					input-enable;
 					bias-pull-down;
-
 				};
 			};
 
@@ -3022,7 +3019,6 @@
 					};
 				};
 			};
-
 		};
 
 		etf@6b05000 {

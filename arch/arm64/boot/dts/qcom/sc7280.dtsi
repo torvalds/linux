@@ -943,7 +943,6 @@
 					opp-avg-kBps = <390000 0>;
 				};
 			};
-
 		};
 
 		gpi_dma0: dma-controller@900000 {
@@ -3298,7 +3297,6 @@
 					opp-avg-kBps = <200000 0>;
 				};
 			};
-
 		};
 
 		usb_1_hsphy: phy@88e3000 {
@@ -3767,7 +3765,6 @@
 					required-opps = <&rpmhpd_opp_turbo>;
 				};
 			};
-
 		};
 
 		videocc: clock-controller@aaf0000 {

@@ -154,7 +154,6 @@
 			      cache-level = <2>;
 			      next-level-cache = <&L3_0>;
 			};
-
 		};
 
 		CPU6: cpu@600 {
@@ -2762,7 +2761,6 @@
 							remote-endpoint = <&mdss_dsi1_in>;
 						};
 					};
-
 				};
 
 				mdp_opp_table: opp-table {
@@ -3569,7 +3567,6 @@
 				pins = "gpio76", "gpio77", "gpio78", "gpio79";
 				function = "qup20";
 			};
-
 		};
 
 		lpass_tlmm: pinctrl@3440000 {

@@ -678,7 +678,6 @@
 			bias-pull-up;
 		};
 	};
-
 };
 
 &uart2 {

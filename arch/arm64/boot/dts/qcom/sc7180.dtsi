@@ -3027,7 +3027,6 @@
 						required-opps = <&rpmhpd_opp_nom>;
 					};
 				};
-
 			};
 
 			dsi0: dsi@ae94000 {
