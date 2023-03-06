@@ -8672,6 +8672,7 @@ GENERIC STRING LIBRARY
 R:	Andy Shevchenko <andy@kernel.org>
 S:	Maintained
 F:	include/linux/string.h
+F:	include/linux/string_choices.h
 F:	include/linux/string_helpers.h
 F:	lib/string.c
 F:	lib/string_helpers.c
