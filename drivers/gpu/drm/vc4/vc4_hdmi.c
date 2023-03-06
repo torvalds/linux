@@ -1244,6 +1244,37 @@ static const u16 vc5_hdmi_csc_full_rgb_to_rgb[2][3][4] = {
 };
 
 /*
+ * Conversion between Full Range RGB and YUV using the BT.601 Colorspace
+ *
+ * Matrices are signed 2p13 fixed point, with signed 9p6 offsets
+ */
+static const u16 vc5_hdmi_csc_full_rgb_to_yuv_bt601[2][3][4] = {
+	{
+		/*
+		 * Full Range
+		 *
+		 * [  0.299000  0.587000  0.114000  0   ]
+		 * [ -0.168736 -0.331264  0.500000  128 ]
+		 * [  0.500000 -0.418688 -0.081312  128 ]
+		 */
+		{ 0x0991, 0x12c9, 0x03a6, 0x0000 },
+		{ 0xfa9b, 0xf567, 0x1000, 0x2000 },
+		{ 0x1000, 0xf29b, 0xfd67, 0x2000 },
+	},
+	{
+		/* Limited Range
+		 *
+		 * [  0.255785  0.502160  0.097523  16  ]
+		 * [ -0.147644 -0.289856  0.437500  128 ]
+		 * [  0.437500 -0.366352 -0.071148  128 ]
+		 */
+		{ 0x082f, 0x1012, 0x031f, 0x0400 },
+		{ 0xfb48, 0xf6ba, 0x0e00, 0x2000 },
+		{ 0x0e00, 0xf448, 0xfdba, 0x2000 },
+	},
+};
+
+/*
  * Conversion between Full Range RGB and YUV using the BT.709 Colorspace
  *
  * Matrices are signed 2p13 fixed point, with signed 9p6 offsets
@@ -1306,6 +1337,13 @@ static const u16
 (*vc5_hdmi_find_yuv_csc_coeffs(struct vc4_hdmi *vc4_hdmi, u32 colorspace, bool limited))[4]
 {
 	switch (colorspace) {
+	case DRM_MODE_COLORIMETRY_SMPTE_170M_YCC:
+	case DRM_MODE_COLORIMETRY_XVYCC_601:
+	case DRM_MODE_COLORIMETRY_SYCC_601:
+	case DRM_MODE_COLORIMETRY_OPYCC_601:
+	case DRM_MODE_COLORIMETRY_BT601_YCC:
+		return vc5_hdmi_csc_full_rgb_to_yuv_bt601[limited];
+
 	default:
 	case DRM_MODE_COLORIMETRY_NO_DATA:
 	case DRM_MODE_COLORIMETRY_BT709_YCC:
