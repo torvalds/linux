@@ -423,7 +423,7 @@ config COMMON_CLK_MT7986_ETHSYS
 	  required on MediaTek MT7986 SoC.
 
 config COMMON_CLK_MT8135
-	bool "Clock driver for MediaTek MT8135"
+	tristate "Clock driver for MediaTek MT8135"
 	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST
 	select COMMON_CLK_MEDIATEK
 	default ARCH_MEDIATEK && ARM
