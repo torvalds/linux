@@ -48,19 +48,22 @@ static const struct mtk_gate aud_clks[] = {
 	GATE_AUD(CLK_AUD_TML, "aud_tml", "aud_afe", 27),
 };
 
-static void __init mtk_audsys_init(struct device_node *node)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
+static const struct mtk_clk_desc aud_desc = {
+	.clks = aud_clks,
+	.num_clks = ARRAY_SIZE(aud_clks),
+};
 
-	clk_data = mtk_alloc_clk_data(CLK_AUD_NR_CLK);
+static const struct of_device_id of_match_clk_mt8167_audsys[] = {
+	{ .compatible = "mediatek,mt8167-audsys", .data = &aud_desc },
+	{ /* sentinel */ }
+};
 
-	mtk_clk_register_gates(NULL, node, aud_clks, ARRAY_SIZE(aud_clks), clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
-			__func__, r);
-
-}
-CLK_OF_DECLARE(mtk_audsys, "mediatek,mt8167-audsys", mtk_audsys_init);
+static struct platform_driver clk_mt8167_audsys_drv = {
+	.probe = mtk_clk_simple_probe,
+	.remove = mtk_clk_simple_remove,
+	.driver = {
+		.name = "clk-mt8167-audsys",
+		.of_match_table = of_match_clk_mt8167_audsys,
+	},
+};
+module_platform_driver(clk_mt8167_audsys_drv);

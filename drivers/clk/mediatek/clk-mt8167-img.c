@@ -41,20 +41,22 @@ static const struct mtk_gate img_clks[] = {
 	GATE_IMG(CLK_IMG_VENC, "img_venc", "smi_mm", 9),
 };
 
-static void __init mtk_imgsys_init(struct device_node *node)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
+static const struct mtk_clk_desc img_desc = {
+	.clks = img_clks,
+	.num_clks = ARRAY_SIZE(img_clks),
+};
 
-	clk_data = mtk_alloc_clk_data(CLK_IMG_NR_CLK);
+static const struct of_device_id of_match_clk_mt8167_imgsys[] = {
+	{ .compatible = "mediatek,mt8167-imgsys", .data = &img_desc },
+	{ /* sentinel */ }
+};
 
-	mtk_clk_register_gates(NULL, node, img_clks, ARRAY_SIZE(img_clks), clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-
-	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
-			__func__, r);
-
-}
-CLK_OF_DECLARE(mtk_imgsys, "mediatek,mt8167-imgsys", mtk_imgsys_init);
+static struct platform_driver clk_mt8167_imgsys_drv = {
+	.probe = mtk_clk_simple_probe,
+	.remove = mtk_clk_simple_remove,
+	.driver = {
+		.name = "clk-mt8167-imgsys",
+		.of_match_table = of_match_clk_mt8167_imgsys,
+	},
+};
+module_platform_driver(clk_mt8167_imgsys_drv);
