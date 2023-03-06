@@ -24,11 +24,12 @@ static const struct xe_rtp_entry gt_tunings[] = {
 };
 
 static const struct xe_rtp_entry lrc_tunings[] = {
-	{ XE_RTP_NAME("1604555607"),
-	  XE_RTP_RULES(GRAPHICS_VERSION(1200)),
-	  XE_RTP_ACTIONS(FIELD_SET_NO_READ_MASK(XEHP_FF_MODE2,
-						FF_MODE2_TDS_TIMER_MASK,
-						FF_MODE2_TDS_TIMER_128))
+	{ XE_RTP_NAME("Tuning: ganged timer, also known as 16011163337"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210)),
+	  /* read verification is ignored due to 1608008084. */
+	  XE_RTP_ACTIONS(FIELD_SET_NO_READ_MASK(GEN12_FF_MODE2,
+						FF_MODE2_GS_TIMER_MASK,
+						FF_MODE2_GS_TIMER_224))
 	},
 	{}
 };
