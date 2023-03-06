@@ -535,6 +535,32 @@ static int vc4_hdmi_connector_atomic_check(struct drm_connector *connector,
 	if (!crtc)
 		return 0;
 
+	if (old_state->tv.margins.left != new_state->tv.margins.left ||
+	    old_state->tv.margins.right != new_state->tv.margins.right ||
+	    old_state->tv.margins.top != new_state->tv.margins.top ||
+	    old_state->tv.margins.bottom != new_state->tv.margins.bottom) {
+		struct drm_crtc_state *crtc_state;
+		int ret;
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		/*
+		 * Strictly speaking, we should be calling
+		 * drm_atomic_helper_check_planes() after our call to
+		 * drm_atomic_add_affected_planes(). However, the
+		 * connector atomic_check is called as part of
+		 * drm_atomic_helper_check_modeset() that already
+		 * happens before a call to
+		 * drm_atomic_helper_check_planes() in
+		 * drm_atomic_helper_check().
+		 */
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			return ret;
+	}
+
 	if (old_state->colorspace != new_state->colorspace ||
 	    !drm_connector_atomic_hdr_metadata_equal(old_state, new_state)) {
 		struct drm_crtc_state *crtc_state;
