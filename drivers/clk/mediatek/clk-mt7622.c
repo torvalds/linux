@@ -18,9 +18,6 @@
 #include <dt-bindings/clock/mt7622-clk.h>
 #include <linux/clk.h> /* for consumer */
 
-#define GATE_INFRA(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &infra_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
-
 #define GATE_TOP0(_id, _name, _parent, _shift)				\
 	GATE_MTK(_id, _name, _parent, &top0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
 
@@ -38,13 +35,6 @@
 	GATE_MTK(_id, _name, _parent, &peri1_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 static DEFINE_SPINLOCK(mt7622_clk_lock);
-
-static const char * const infra_mux1_parents[] = {
-	"clkxtal",
-	"armpll",
-	"main_core_en",
-	"armpll"
-};
 
 static const char * const axi_parents[] = {
 	"clkxtal",
@@ -225,12 +215,6 @@ static const char * const peribus_ck_parents[] = {
 	"syspll1_d4"
 };
 
-static const struct mtk_gate_regs infra_cg_regs = {
-	.set_ofs = 0x40,
-	.clr_ofs = 0x44,
-	.sta_ofs = 0x48,
-};
-
 static const struct mtk_gate_regs top0_cg_regs = {
 	.set_ofs = 0x120,
 	.clr_ofs = 0x120,
@@ -253,15 +237,6 @@ static const struct mtk_gate_regs peri1_cg_regs = {
 	.set_ofs = 0xC,
 	.clr_ofs = 0x14,
 	.sta_ofs = 0x1C,
-};
-
-static const struct mtk_gate infra_clks[] = {
-	GATE_INFRA(CLK_INFRA_DBGCLK_PD, "infra_dbgclk_pd", "axi_sel", 0),
-	GATE_INFRA(CLK_INFRA_TRNG, "trng_ck", "axi_sel", 2),
-	GATE_INFRA(CLK_INFRA_AUDIO_PD, "infra_audio_pd", "aud_intbus_sel", 5),
-	GATE_INFRA(CLK_INFRA_IRRX_PD, "infra_irrx_pd", "irrx_sel", 16),
-	GATE_INFRA(CLK_INFRA_APXGPT_PD, "infra_apxgpt_pd", "f10m_ref_sel", 18),
-	GATE_INFRA(CLK_INFRA_PMIC_PD, "infra_pmic_pd", "pmicspi_sel", 22),
 };
 
 static const struct mtk_fixed_clk top_fixed_clks[] = {
@@ -408,11 +383,6 @@ static const struct mtk_gate peri_clks[] = {
 	GATE_PERI1(CLK_PERI_IRTX_PD, "peri_irtx_pd", "irtx_sel", 2),
 };
 
-static struct mtk_composite infra_muxes[] = {
-	MUX(CLK_INFRA_MUX1_SEL, "infra_mux1_sel", infra_mux1_parents,
-	    0x000, 2, 2),
-};
-
 static struct mtk_composite top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_FLAGS(CLK_TOP_AXI_SEL, "axi_sel", axi_parents,
@@ -512,22 +482,12 @@ static struct mtk_composite peri_muxes[] = {
 	MUX(CLK_PERIBUS_SEL, "peribus_ck_sel", peribus_ck_parents, 0x05C, 0, 1),
 };
 
-static u16 infrasys_rst_ofs[] = { 0x30, };
 static u16 pericfg_rst_ofs[] = { 0x0, 0x4, };
 
-static const struct mtk_clk_rst_desc clk_rst_desc[] = {
-	/* infrasys */
-	{
-		.version = MTK_RST_SIMPLE,
-		.rst_bank_ofs = infrasys_rst_ofs,
-		.rst_bank_nr = ARRAY_SIZE(infrasys_rst_ofs),
-	},
-	/* pericfg */
-	{
-		.version = MTK_RST_SIMPLE,
-		.rst_bank_ofs = pericfg_rst_ofs,
-		.rst_bank_nr = ARRAY_SIZE(pericfg_rst_ofs),
-	},
+static const struct mtk_clk_rst_desc clk_rst_desc = {
+	.version = MTK_RST_SIMPLE,
+	.rst_bank_ofs = pericfg_rst_ofs,
+	.rst_bank_nr = ARRAY_SIZE(pericfg_rst_ofs),
 };
 
 static int mtk_topckgen_init(struct platform_device *pdev)
@@ -561,31 +521,6 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
 
-static int mtk_infrasys_init(struct platform_device *pdev)
-{
-	struct device_node *node = pdev->dev.of_node;
-	struct clk_hw_onecell_data *clk_data;
-	int r;
-
-	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
-
-	mtk_clk_register_gates(&pdev->dev, node, infra_clks,
-			       ARRAY_SIZE(infra_clks), clk_data);
-
-	mtk_clk_register_cpumuxes(&pdev->dev, node, infra_muxes,
-				  ARRAY_SIZE(infra_muxes), clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
-				   clk_data);
-	if (r)
-		return r;
-
-	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc[0]);
-
-	return 0;
-}
-
-
 static int mtk_pericfg_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
@@ -610,16 +545,13 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc[1]);
+	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
 
 	return 0;
 }
 
 static const struct of_device_id of_match_clk_mt7622[] = {
 	{
-		.compatible = "mediatek,mt7622-infracfg",
-		.data = mtk_infrasys_init,
-	}, {
 		.compatible = "mediatek,mt7622-topckgen",
 		.data = mtk_topckgen_init,
 	}, {
