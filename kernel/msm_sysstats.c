@@ -20,6 +20,8 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-resv.h>
 
+#include <linux/qcom_dma_heap.h>
+
 struct tgid_iter {
 	unsigned int tgid;
 	struct task_struct *task;
@@ -168,9 +170,7 @@ static int get_dma_info(const void *data, struct file *file, unsigned int n)
 	struct dma_buf *dmabuf;
 	unsigned long *size = (unsigned long *)data;
 
-#ifndef CONFIG_MSM_SYSSTATS_STUB_NONEXPORTED_SYMBOLS
-	if (!is_dma_buf_file(file))
-#endif
+	if (!qcom_is_dma_buf_file(file))
 		return 0;
 
 	dmabuf = (struct dma_buf *)file->private_data;
