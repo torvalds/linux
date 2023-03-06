@@ -63,6 +63,7 @@ static void find_controls(void)
 	struct card_data *card_data;
 	struct ctl_data *ctl_data;
 	snd_config_t *config;
+	char *card_name, *card_longname;
 
 	card = -1;
 	if (snd_card_next(&card) < 0 || card < 0)
@@ -83,6 +84,15 @@ static void find_controls(void)
 				       card, snd_strerror(err));
 			goto next_card;
 		}
+
+		err = snd_card_get_name(card, &card_name);
+		if (err != 0)
+			card_name = "Unknown";
+		err = snd_card_get_longname(card, &card_longname);
+		if (err != 0)
+			card_longname = "Unknown";
+		ksft_print_msg("Card %d - %s (%s)\n", card,
+			       card_name, card_longname);
 
 		/* Count controls */
 		snd_ctl_elem_list_malloc(&card_data->ctls);
