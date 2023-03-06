@@ -93,55 +93,22 @@ static const struct mtk_gate vdo0_clks[] = {
 			  "top_edp", 16, CLK_SET_RATE_PARENT),
 };
 
-static int clk_mt8195_vdo0_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
-	struct clk_hw_onecell_data *clk_data;
-	int r;
+static const struct mtk_clk_desc vdo0_desc = {
+	.clks = vdo0_clks,
+	.num_clks = ARRAY_SIZE(vdo0_clks),
+};
 
-	clk_data = mtk_alloc_clk_data(CLK_VDO0_NR_CLK);
-	if (!clk_data)
-		return -ENOMEM;
-
-	r = mtk_clk_register_gates(&pdev->dev, node, vdo0_clks,
-				   ARRAY_SIZE(vdo0_clks), clk_data);
-	if (r)
-		goto free_vdo0_data;
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		goto unregister_gates;
-
-	platform_set_drvdata(pdev, clk_data);
-
-	return r;
-
-unregister_gates:
-	mtk_clk_unregister_gates(vdo0_clks, ARRAY_SIZE(vdo0_clks), clk_data);
-free_vdo0_data:
-	mtk_free_clk_data(clk_data);
-	return r;
-}
-
-static int clk_mt8195_vdo0_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
-	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
-
-	of_clk_del_provider(node);
-	mtk_clk_unregister_gates(vdo0_clks, ARRAY_SIZE(vdo0_clks), clk_data);
-	mtk_free_clk_data(clk_data);
-
-	return 0;
-}
+static const struct platform_device_id clk_mt8195_vdo0_id_table[] = {
+	{ .name = "clk-mt8195-vdo0", .driver_data = (kernel_ulong_t)&vdo0_desc },
+	{ /* sentinel */ }
+};
 
 static struct platform_driver clk_mt8195_vdo0_drv = {
-	.probe = clk_mt8195_vdo0_probe,
-	.remove = clk_mt8195_vdo0_remove,
+	.probe = mtk_clk_pdev_probe,
+	.remove = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt8195-vdo0",
 	},
+	.id_table = clk_mt8195_vdo0_id_table,
 };
 builtin_platform_driver(clk_mt8195_vdo0_drv);
