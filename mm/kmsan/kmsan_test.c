@@ -551,6 +551,36 @@ static void test_long_origin_chain(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
 
+/*
+ * Test case: ensure that saving/restoring/printing stacks to/from stackdepot
+ * does not trigger errors.
+ *
+ * KMSAN uses stackdepot to store origin stack traces, that's why we do not
+ * instrument lib/stackdepot.c. Yet it must properly mark its outputs as
+ * initialized because other kernel features (e.g. netdev tracker) may also
+ * access stackdepot from instrumented code.
+ */
+static void test_stackdepot_roundtrip(struct kunit *test)
+{
+	unsigned long src_entries[16], *dst_entries;
+	unsigned int src_nentries, dst_nentries;
+	EXPECTATION_NO_REPORT(expect);
+	depot_stack_handle_t handle;
+
+	kunit_info(test, "testing stackdepot roundtrip (no reports)\n");
+
+	src_nentries =
+		stack_trace_save(src_entries, ARRAY_SIZE(src_entries), 1);
+	handle = stack_depot_save(src_entries, src_nentries, GFP_KERNEL);
+	stack_depot_print(handle);
+	dst_nentries = stack_depot_fetch(handle, &dst_entries);
+	KUNIT_EXPECT_TRUE(test, src_nentries == dst_nentries);
+
+	kmsan_check_memory((void *)dst_entries,
+			   sizeof(*dst_entries) * dst_nentries);
+	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
+}
+
 static struct kunit_case kmsan_test_cases[] = {
 	KUNIT_CASE(test_uninit_kmalloc),
 	KUNIT_CASE(test_init_kmalloc),
@@ -573,6 +603,7 @@ static struct kunit_case kmsan_test_cases[] = {
 	KUNIT_CASE(test_memset32),
 	KUNIT_CASE(test_memset64),
 	KUNIT_CASE(test_long_origin_chain),
+	KUNIT_CASE(test_stackdepot_roundtrip),
 	{},
 };
 
