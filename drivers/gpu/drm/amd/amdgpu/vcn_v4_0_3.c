@@ -51,6 +51,7 @@ static int vcn_v4_0_3_set_powergating_state(void *handle,
 static int vcn_v4_0_3_pause_dpg_mode(struct amdgpu_device *adev,
 		int inst_idx, struct dpg_pause_state *new_state);
 static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring);
+static void vcn_v4_0_3_set_ras_funcs(struct amdgpu_device *adev);
 
 /**
  * vcn_v4_0_3_early_init - set function pointers
@@ -68,6 +69,7 @@ static int vcn_v4_0_3_early_init(void *handle)
 
 	vcn_v4_0_3_set_unified_ring_funcs(adev);
 	vcn_v4_0_3_set_irq_funcs(adev);
+	vcn_v4_0_3_set_ras_funcs(adev);
 
 	return amdgpu_vcn_early_init(adev);
 }
@@ -129,6 +131,14 @@ static int vcn_v4_0_3_sw_init(void *handle)
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
 		adev->vcn.pause_dpg_mode = vcn_v4_0_3_pause_dpg_mode;
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN)) {
+		r = amdgpu_vcn_ras_sw_init(adev);
+		if (r) {
+			dev_err(adev->dev, "Failed to initialize vcn ras block!\n");
+			return r;
+		}
+	}
 
 	return 0;
 }
@@ -1487,4 +1497,20 @@ static void vcn_v4_0_3_reset_ras_error_count(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
 		vcn_v4_0_3_inst_reset_ras_error_count(adev, i);
+}
+
+static const struct amdgpu_ras_block_hw_ops vcn_v4_0_3_ras_hw_ops = {
+	.query_ras_error_count = vcn_v4_0_3_query_ras_error_count,
+	.reset_ras_error_count = vcn_v4_0_3_reset_ras_error_count,
+};
+
+static struct amdgpu_vcn_ras vcn_v4_0_3_ras = {
+	.ras_block = {
+		.hw_ops = &vcn_v4_0_3_ras_hw_ops,
+	},
+};
+
+static void vcn_v4_0_3_set_ras_funcs(struct amdgpu_device *adev)
+{
+	adev->vcn.ras = &vcn_v4_0_3_ras;
 }
