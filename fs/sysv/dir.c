@@ -30,7 +30,7 @@ const struct file_operations sysv_dir_operations = {
 
 inline void dir_put_page(struct page *page, void *page_addr)
 {
-	kunmap_local((void *)((unsigned long)page_addr & PAGE_MASK));
+	kunmap_local(page_addr);
 	put_page(page);
 }
 
