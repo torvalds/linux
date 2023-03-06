@@ -1193,15 +1193,6 @@ void bch2_ec_do_stripe_creates(struct bch_fs *c)
 		bch2_write_ref_put(c, BCH_WRITE_REF_stripe_create);
 }
 
-static void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s)
-{
-	BUG_ON(atomic_read(&s->pin) <= 0);
-	BUG_ON(!s->err && !s->idx);
-
-	if (atomic_dec_and_test(&s->pin))
-		bch2_ec_do_stripe_creates(c);
-}
-
 static void ec_stripe_set_pending(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	struct ec_stripe_new *s = h->s;
@@ -1214,14 +1205,6 @@ static void ec_stripe_set_pending(struct bch_fs *c, struct ec_stripe_head *h)
 	mutex_lock(&c->ec_stripe_new_lock);
 	list_add(&s->list, &c->ec_stripe_new_list);
 	mutex_unlock(&c->ec_stripe_new_lock);
-
-	ec_stripe_new_put(c, s);
-}
-
-/* have a full bucket - hand it off to be erasure coded: */
-void bch2_ec_bucket_written(struct bch_fs *c, struct open_bucket *ob)
-{
-	struct ec_stripe_new *s = ob->ec;
 
 	ec_stripe_new_put(c, s);
 }

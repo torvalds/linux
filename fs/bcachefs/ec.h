@@ -198,7 +198,6 @@ int bch2_ec_read_extent(struct bch_fs *, struct bch_read_bio *);
 
 void *bch2_writepoint_ec_buf(struct bch_fs *, struct write_point *);
 
-void bch2_ec_bucket_written(struct bch_fs *, struct open_bucket *);
 void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *);
 
 int bch2_ec_stripe_new_alloc(struct bch_fs *, struct ec_stripe_head *);
@@ -213,6 +212,21 @@ void bch2_stripes_heap_del(struct bch_fs *, struct stripe *, size_t);
 void bch2_stripes_heap_insert(struct bch_fs *, struct stripe *, size_t);
 
 void bch2_do_stripe_deletes(struct bch_fs *);
+void bch2_ec_do_stripe_creates(struct bch_fs *);
+
+static inline void ec_stripe_new_get(struct ec_stripe_new *s)
+{
+	atomic_inc(&s->pin);
+}
+
+static inline void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s)
+{
+	BUG_ON(atomic_read(&s->pin) <= 0);
+	BUG_ON(!s->err && !s->idx);
+
+	if (atomic_dec_and_test(&s->pin))
+		bch2_ec_do_stripe_creates(c);
+}
 
 void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);
 
