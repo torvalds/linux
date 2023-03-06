@@ -208,8 +208,10 @@ struct dlm_args {
 
 /* lkb_dflags */
 
-#define DLM_DFL_USER		0x00000001
-#define DLM_DFL_ORPHAN		0x00000002
+#define DLM_DFL_USER_BIT	0
+#define __DLM_DFL_MIN_BIT	DLM_DFL_USER_BIT
+#define DLM_DFL_ORPHAN_BIT	1
+#define __DLM_DFL_MAX_BIT	DLM_DFL_ORPHAN_BIT
 
 #define DLM_CB_CAST		0x00000001
 #define DLM_CB_BAST		0x00000002
@@ -234,7 +236,7 @@ struct dlm_lkb {
 	uint32_t		lkb_exflags;	/* external flags from caller */
 	uint32_t		lkb_sbflags;	/* lksb flags */
 	uint32_t		lkb_flags;	/* internal flags */
-	uint32_t		lkb_dflags;	/* distributed flags */
+	unsigned long		lkb_dflags;	/* distributed flags */
 	unsigned long		lkb_iflags;	/* internal flags */
 	uint32_t		lkb_lvbseq;	/* lvb sequence number */
 
@@ -731,6 +733,44 @@ static inline int dlm_recovery_stopped(struct dlm_ls *ls)
 static inline int dlm_no_directory(struct dlm_ls *ls)
 {
 	return test_bit(LSFL_NODIR, &ls->ls_flags);
+}
+
+/* takes a snapshot from dlm atomic flags */
+static inline uint32_t dlm_flags_val(const unsigned long *addr,
+				     uint32_t min, uint32_t max)
+{
+	uint32_t bit = min, val = 0;
+
+	for_each_set_bit_from(bit, addr, max + 1) {
+		val |= BIT(bit);
+	}
+
+	return val;
+}
+
+static inline uint32_t dlm_dflags_val(const struct dlm_lkb *lkb)
+{
+	return dlm_flags_val(&lkb->lkb_dflags, __DLM_DFL_MIN_BIT,
+			     __DLM_DFL_MAX_BIT);
+}
+
+static inline void dlm_set_flags_val(unsigned long *addr, uint32_t val,
+				     uint32_t min, uint32_t max)
+{
+	uint32_t bit;
+
+	for (bit = min; bit < (max + 1); bit++) {
+		if (val & BIT(bit))
+			set_bit(bit, addr);
+		else
+			clear_bit(bit, addr);
+	}
+}
+
+static inline void dlm_set_dflags_val(struct dlm_lkb *lkb, uint32_t val)
+{
+	dlm_set_flags_val(&lkb->lkb_dflags, val, __DLM_DFL_MIN_BIT,
+			  __DLM_DFL_MAX_BIT);
 }
 
 int dlm_plock_init(void);

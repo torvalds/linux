@@ -170,7 +170,7 @@ static void print_format2_lock(struct seq_file *s, struct dlm_lkb *lkb,
 	u64 xid = 0;
 	u64 us;
 
-	if (lkb->lkb_dflags & DLM_DFL_USER) {
+	if (test_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags)) {
 		if (lkb->lkb_ua)
 			xid = lkb->lkb_ua->xid;
 	}
@@ -230,7 +230,7 @@ static void print_format3_lock(struct seq_file *s, struct dlm_lkb *lkb,
 {
 	u64 xid = 0;
 
-	if (lkb->lkb_dflags & DLM_DFL_USER) {
+	if (test_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags)) {
 		if (lkb->lkb_ua)
 			xid = lkb->lkb_ua->xid;
 	}

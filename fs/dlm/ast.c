@@ -139,7 +139,7 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int rv;
 
-	if (lkb->lkb_dflags & DLM_DFL_USER) {
+	if (test_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags)) {
 		dlm_user_add_ast(lkb, flags, mode, status, sbflags);
 		return;
 	}

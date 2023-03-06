@@ -47,8 +47,8 @@
 	{ DLM_SBF_ALTMODE,	"ALTMODE" })
 
 #define show_lkb_flags(flags) __print_flags(flags, "|",		\
-	{ DLM_DFL_USER,		"USER" },			\
-	{ DLM_DFL_ORPHAN,	"ORPHAN" })
+	{ BIT(DLM_DFL_USER_BIT), "USER" },			\
+	{ BIT(DLM_DFL_ORPHAN_BIT), "ORPHAN" })
 
 #define show_header_cmd(cmd) __print_symbolic(cmd,		\
 	{ DLM_MSG,		"MSG"},				\

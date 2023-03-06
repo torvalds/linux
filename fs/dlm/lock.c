@@ -3410,7 +3410,7 @@ static void send_args(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	ms->m_remid    = cpu_to_le32(lkb->lkb_remid);
 	ms->m_exflags  = cpu_to_le32(lkb->lkb_exflags);
 	ms->m_sbflags  = cpu_to_le32(lkb->lkb_sbflags);
-	ms->m_flags    = cpu_to_le32(lkb->lkb_flags);
+	ms->m_flags    = cpu_to_le32(dlm_dflags_val(lkb));
 	ms->m_lvbseq   = cpu_to_le32(lkb->lkb_lvbseq);
 	ms->m_status   = cpu_to_le32(lkb->lkb_status);
 	ms->m_grmode   = cpu_to_le32(lkb->lkb_grmode);
@@ -3675,7 +3675,7 @@ static void receive_flags(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
 	lkb->lkb_exflags = le32_to_cpu(ms->m_exflags);
 	lkb->lkb_sbflags = le32_to_cpu(ms->m_sbflags);
-	lkb->lkb_dflags = le32_to_cpu(ms->m_flags);
+	dlm_set_dflags_val(lkb, le32_to_cpu(ms->m_flags));
 }
 
 static void receive_flags_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
@@ -3685,7 +3685,7 @@ static void receive_flags_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
 		return;
 
 	lkb->lkb_sbflags = le32_to_cpu(ms->m_sbflags);
-	lkb->lkb_dflags = le32_to_cpu(ms->m_flags);
+	dlm_set_dflags_val(lkb, le32_to_cpu(ms->m_flags));
 }
 
 static int receive_extralen(struct dlm_message *ms)
@@ -3786,8 +3786,8 @@ static int validate_message(struct dlm_lkb *lkb, struct dlm_message *ms)
 	int error = 0;
 
 	/* currently mixing of user/kernel locks are not supported */
-	if (ms->m_flags & cpu_to_le32(DLM_DFL_USER) &&
-	    ~lkb->lkb_dflags & DLM_DFL_USER) {
+	if (ms->m_flags & cpu_to_le32(BIT(DLM_DFL_USER_BIT)) &&
+	    !test_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags)) {
 		log_error(lkb->lkb_resource->res_ls,
 			  "got user dlm message for a kernel lock");
 		error = -EINVAL;
@@ -5345,7 +5345,7 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_ownpid = le32_to_cpu(rl->rl_ownpid);
 	lkb->lkb_remid = le32_to_cpu(rl->rl_lkid);
 	lkb->lkb_exflags = le32_to_cpu(rl->rl_exflags);
-	lkb->lkb_dflags = le32_to_cpu(rl->rl_flags);
+	dlm_set_dflags_val(lkb, le32_to_cpu(rl->rl_flags));
 	lkb->lkb_flags |= DLM_IFL_MSTCPY;
 	lkb->lkb_lvbseq = le32_to_cpu(rl->rl_lvbseq);
 	lkb->lkb_rqmode = rl->rl_rqmode;
@@ -5571,9 +5571,9 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	}
 
 	/* After ua is attached to lkb it will be freed by dlm_free_lkb().
-	   When DLM_DFL_USER is set, the dlm knows that this is a userspace
+	   When DLM_DFL_USER_BIT is set, the dlm knows that this is a userspace
 	   lock and that lkb_astparam is the dlm_user_args structure. */
-	lkb->lkb_dflags |= DLM_DFL_USER;
+	set_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags);
 	error = request_lock(ls, lkb, name, namelen, &args);
 
 	switch (error) {
@@ -5688,7 +5688,7 @@ int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 
 		lkb = iter;
 		list_del_init(&iter->lkb_ownqueue);
-		iter->lkb_dflags &= ~DLM_DFL_ORPHAN;
+		clear_bit(DLM_DFL_ORPHAN_BIT, &iter->lkb_dflags);
 		*lkid = iter->lkb_id;
 		break;
 	}
@@ -5932,7 +5932,7 @@ static struct dlm_lkb *del_proc_lock(struct dlm_ls *ls,
 	list_del_init(&lkb->lkb_ownqueue);
 
 	if (lkb->lkb_exflags & DLM_LKF_PERSISTENT)
-		lkb->lkb_dflags |= DLM_DFL_ORPHAN;
+		set_bit(DLM_DFL_ORPHAN_BIT, &lkb->lkb_dflags);
 	else
 		lkb->lkb_flags |= DLM_IFL_DEAD;
  out:
@@ -6091,7 +6091,7 @@ int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
 	int error;
 
 	/* we currently can't set a valid user lock */
-	if (lkb_dflags & DLM_DFL_USER)
+	if (lkb_dflags & BIT(DLM_DFL_USER_BIT))
 		return -EOPNOTSUPP;
 
 	lksb = kzalloc(sizeof(*lksb), GFP_NOFS);
@@ -6104,11 +6104,11 @@ int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
 		return error;
 	}
 
-	lkb->lkb_dflags = lkb_dflags;
+	dlm_set_dflags_val(lkb, lkb_dflags);
 	lkb->lkb_nodeid = lkb_nodeid;
 	lkb->lkb_lksb = lksb;
 	/* user specific pointer, just don't have it NULL for kernel locks */
-	if (~lkb_dflags & DLM_DFL_USER)
+	if (~lkb_dflags & BIT(DLM_DFL_USER_BIT))
 		lkb->lkb_astparam = (void *)0xDEADBEEF;
 
 	error = find_rsb(ls, name, len, 0, R_REQUEST, &r);
