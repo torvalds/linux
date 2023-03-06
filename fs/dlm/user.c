@@ -183,7 +183,8 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	struct dlm_user_proc *proc;
 	int rv;
 
-	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD))
+	if (lkb->lkb_dflags & DLM_DFL_ORPHAN ||
+	    lkb->lkb_flags & DLM_IFL_DEAD)
 		return;
 
 	ls = lkb->lkb_resource->res_ls;
@@ -195,7 +196,8 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	   for cases where a completion ast is received for an operation that
 	   began before clear_proc_locks did its cancel/unlock. */
 
-	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD))
+	if (lkb->lkb_dflags & DLM_DFL_ORPHAN ||
+	    lkb->lkb_flags & DLM_IFL_DEAD)
 		goto out;
 
 	DLM_ASSERT(lkb->lkb_ua, dlm_print_lkb(lkb););

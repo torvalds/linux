@@ -206,16 +206,10 @@ struct dlm_args {
 
 #define DLM_IFL_CB_PENDING_BIT	0
 
-/* least significant 2 bytes are message changed, they are full transmitted
- * but at receive side only the 2 bytes LSB will be set.
- *
- * Even wireshark dlm dissector does only evaluate the lower bytes and note
- * that they may not be used on transceiver side, we assume the higher bytes
- * are for internal use or reserved so long they are not parsed on receiver
- * side.
- */
-#define DLM_IFL_USER		0x00000001
-#define DLM_IFL_ORPHAN		0x00000002
+/* lkb_dflags */
+
+#define DLM_DFL_USER		0x00000001
+#define DLM_DFL_ORPHAN		0x00000002
 
 #define DLM_CB_CAST		0x00000001
 #define DLM_CB_BAST		0x00000002
@@ -240,6 +234,7 @@ struct dlm_lkb {
 	uint32_t		lkb_exflags;	/* external flags from caller */
 	uint32_t		lkb_sbflags;	/* lksb flags */
 	uint32_t		lkb_flags;	/* internal flags */
+	uint32_t		lkb_dflags;	/* distributed flags */
 	unsigned long		lkb_iflags;	/* internal flags */
 	uint32_t		lkb_lvbseq;	/* lvb sequence number */
 
