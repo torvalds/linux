@@ -481,7 +481,7 @@ static const struct qcom_cpufreq_soc_data qcom_soc_data = {
 	.reg_perf_state = 0x920,
 	.reg_cycle_cntr = 0x9c0,
 	.lut_row_size = 32,
-	.accumulative_counter = true,
+	.accumulative_counter = false,
 };
 
 static const struct qcom_cpufreq_soc_data epss_soc_data = {
@@ -494,7 +494,7 @@ static const struct qcom_cpufreq_soc_data epss_soc_data = {
 	.reg_perf_state = 0x320,
 	.reg_cycle_cntr = 0x3c4,
 	.lut_row_size = 4,
-	.accumulative_counter = false,
+	.accumulative_counter = true,
 };
 
 static const struct of_device_id qcom_cpufreq_hw_match[] = {
