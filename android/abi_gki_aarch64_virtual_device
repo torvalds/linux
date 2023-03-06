@@ -211,8 +211,12 @@
   kstrndup
   kstrtobool
   kstrtoint
+  kstrtoll
   kstrtouint
   kstrtoull
+  kthread_create_on_node
+  kthread_should_stop
+  kthread_stop
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_raw_ts64
@@ -307,6 +311,10 @@
   __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
+  platform_device_add
+  platform_device_alloc
+  platform_device_del
+  platform_device_put
   platform_device_register_full
   platform_device_unregister
   __platform_driver_register
@@ -350,7 +358,6 @@
   __rcu_read_unlock
   refcount_warn_saturate
   register_blkdev
-  register_netdev
   register_netdevice
   register_netdevice_notifier
   register_pernet_device
@@ -448,12 +455,14 @@
   sscanf
   __stack_chk_fail
   __stack_chk_guard
+  strchr
   strcmp
   strcpy
   strlcpy
   strlen
   strncmp
   strncpy
+  strscpy
   strsep
   submit_bio
   __sw_hweight16
@@ -465,7 +474,6 @@
   synchronize_rcu
   sysfs_create_group
   sysfs_create_link
-  __sysfs_match_string
   sysfs_remove_group
   sysfs_remove_link
   system_freezable_wq
@@ -514,8 +522,11 @@
   usleep_range
   vabits_actual
   vfree
+  virtio_break_device
   virtio_check_driver_offered_feature
   virtio_config_changed
+  virtio_device_freeze
+  virtio_device_restore
   virtqueue_add_inbuf
   virtqueue_add_outbuf
   virtqueue_add_sgs
@@ -531,12 +542,14 @@
   virtqueue_kick
   virtqueue_kick_prepare
   virtqueue_notify
+  vmalloc_to_page
   vring_create_virtqueue
   vring_del_virtqueue
   vring_interrupt
   vring_transport_features
   wait_for_completion
   __wake_up
+  wake_up_process
   __warn_printk
 
 # required by ambakmi.ko
@@ -711,7 +724,6 @@
   set_page_dirty
 
 # required by goldfish_sync.ko
-  __close_fd
   dma_fence_default_wait
   dma_fence_free
 
@@ -821,7 +833,6 @@
   simple_attr_open
   simple_attr_release
   __skb_ext_put
-  skb_unlink
 
 # required by md-mod.ko
   ack_all_badblocks
@@ -867,22 +878,12 @@
   kernfs_put
   kobject_del
   kobject_get
-  kstrtoll
-  kthread_create_on_node
   kthread_parkme
   kthread_should_park
-  kthread_should_stop
-  kthread_stop
-  mempool_alloc
   mempool_create
   mempool_destroy
-  mempool_exit
-  mempool_free
-  mempool_init
   mempool_kfree
   mempool_kmalloc
-  part_end_io_acct
-  part_start_io_acct
   percpu_ref_exit
   percpu_ref_init
   percpu_ref_is_zero
@@ -902,7 +903,6 @@
   unregister_reboot_notifier
   unregister_sysctl_table
   vfs_fsync
-  wake_up_process
 
 # required by nd_virtio.ko
   bio_chain
@@ -923,6 +923,7 @@
   netdev_lower_state_changed
   netdev_pick_tx
   pci_bus_type
+  register_netdev
 
 # required by psmouse.ko
   bus_register_notifier
@@ -969,16 +970,11 @@
   cec_s_phys_addr
   cec_transmit_attempt_done_ts
   cec_unregister_adapter
-  strscpy
   wait_for_completion_timeout
 
 # required by rtc-test.ko
   add_timer
   devm_rtc_allocate_device
-  platform_device_add
-  platform_device_alloc
-  platform_device_del
-  platform_device_put
   __rtc_register_device
   rtc_time64_to_tm
   rtc_tm_to_time64
@@ -1002,9 +998,9 @@
   strcat
 
 # required by snd-hda-codec-generic.ko
-  devm_led_classdev_register_ext
+  led_classdev_register_ext
+  led_classdev_unregister
   snd_ctl_boolean_stereo_info
-  strchr
   strlcat
 
 # required by snd-hda-codec.ko
@@ -1106,6 +1102,9 @@
   compat_ptr_ioctl
 
 # required by usbip-core.ko
+  iov_iter_kvec
+  param_ops_ulong
+  print_hex_dump
   sock_recvmsg
 
 # required by vcan.ko
@@ -1128,9 +1127,27 @@
   devm_mfd_add_devices
 
 # required by vhci-hcd.ko
+  kernel_sendmsg
   kernel_sock_shutdown
   platform_bus
+  platform_device_add_data
   sockfd_lookup
+  usb_add_hcd
+  usb_create_hcd
+  usb_create_shared_hcd
+  usb_disabled
+  usb_get_dev
+  usb_hcd_check_unlink_urb
+  usb_hcd_giveback_urb
+  usb_hcd_is_primary_hcd
+  usb_hcd_link_urb_to_ep
+  usb_hcd_poll_rh_status
+  usb_hcd_resume_root_hub
+  usb_hcd_unlink_urb_from_ep
+  usb_put_dev
+  usb_put_hcd
+  usb_remove_hcd
+  usb_speed_string
 
 # required by virt_wifi.ko
   __module_get
@@ -1259,7 +1276,6 @@
   __traceiter_gpu_mem_total
   __tracepoint_dma_fence_emit
   __tracepoint_gpu_mem_total
-  vmalloc_to_page
   vmemdup_user
   vm_get_page_prot
   ww_mutex_lock_interruptible
@@ -1309,6 +1325,7 @@
   __blk_rq_map_sg
   set_capacity_revalidate_and_notify
   string_get_size
+  __sysfs_match_string
   virtio_max_dma_size
 
 # required by virtio_console.ko
@@ -1412,9 +1429,6 @@
   pci_request_selected_regions
   pci_vfs_assigned
   synchronize_irq
-  virtio_break_device
-  virtio_device_freeze
-  virtio_device_restore
 
 # required by virtio_pmem.ko
   nvdimm_bus_register
@@ -1422,14 +1436,8 @@
   nvdimm_pmem_region_create
 
 # required by virtio_snd.ko
-  snd_ctl_notify
   snd_pcm_format_physical_width
-  snd_pcm_lib_free_pages
   snd_pcm_lib_ioctl
-  snd_pcm_lib_malloc_pages
-  snd_pcm_lib_preallocate_pages
-  _snd_pcm_stream_lock_irqsave
-  snd_pcm_stream_unlock_irqrestore
   wait_for_completion_interruptible_timeout
 
 # required by vmw_vsock_virtio_transport.ko
@@ -1489,9 +1497,27 @@
 # required by zsmalloc.ko
   dec_zone_page_state
   inc_zone_page_state
-  __lock_page
   page_mapping
   _raw_read_lock
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
+  wait_on_page_bit
+
+# preserved by --additions-only
+  __close_fd
+  devm_led_classdev_register_ext
+  __lock_page
+  mempool_alloc
+  mempool_exit
+  mempool_free
+  mempool_init
+  part_end_io_acct
+  part_start_io_acct
+  skb_unlink
+  snd_ctl_notify
+  snd_pcm_lib_free_pages
+  snd_pcm_lib_malloc_pages
+  snd_pcm_lib_preallocate_pages
+  _snd_pcm_stream_lock_irqsave
+  snd_pcm_stream_unlock_irqrestore
