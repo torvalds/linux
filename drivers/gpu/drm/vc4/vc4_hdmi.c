@@ -1239,7 +1239,7 @@ static const u16 vc5_hdmi_csc_full_rgb_to_limited_rgb[3][4] = {
 };
 
 /*
- * Conversion between Full Range RGB and Full Range YUV422 using the
+ * Conversion between Full Range RGB and Limited Range YUV using the
  * BT.709 Colorspace
  *
  *
@@ -1249,26 +1249,10 @@ static const u16 vc5_hdmi_csc_full_rgb_to_limited_rgb[3][4] = {
  *
  * Matrix is signed 2p13 fixed point, with signed 9p6 offsets
  */
-static const u16 vc5_hdmi_csc_full_rgb_to_limited_yuv422_bt709[3][4] = {
+static const u16 vc5_hdmi_csc_full_rgb_to_limited_bt709[3][4] = {
 	{ 0x05d2, 0x1394, 0x01fa, 0x0400 },
 	{ 0xfccc, 0xf536, 0x0e00, 0x2000 },
 	{ 0x0e00, 0xf34a, 0xfeb8, 0x2000 },
-};
-
-/*
- * Conversion between Full Range RGB and Full Range YUV444 using the
- * BT.709 Colorspace
- *
- * [ -0.100268 -0.337232  0.437500  128 ]
- * [  0.437500 -0.397386 -0.040114  128 ]
- * [  0.181906  0.611804  0.061758  16  ]
- *
- * Matrix is signed 2p13 fixed point, with signed 9p6 offsets
- */
-static const u16 vc5_hdmi_csc_full_rgb_to_limited_yuv444_bt709[3][4] = {
-	{ 0xfccc, 0xf536, 0x0e00, 0x2000 },
-	{ 0x0e00, 0xf34a, 0xfeb8, 0x2000 },
-	{ 0x05d2, 0x1394, 0x01fa, 0x0400 },
 };
 
 static void vc5_hdmi_set_csc_coeffs(struct vc4_hdmi *vc4_hdmi,
@@ -1282,6 +1266,20 @@ static void vc5_hdmi_set_csc_coeffs(struct vc4_hdmi *vc4_hdmi,
 	HDMI_WRITE(HDMI_CSC_24_23, (coeffs[1][3] << 16) | coeffs[1][2]);
 	HDMI_WRITE(HDMI_CSC_32_31, (coeffs[2][1] << 16) | coeffs[2][0]);
 	HDMI_WRITE(HDMI_CSC_34_33, (coeffs[2][3] << 16) | coeffs[2][2]);
+}
+
+static void vc5_hdmi_set_csc_coeffs_swap(struct vc4_hdmi *vc4_hdmi,
+					 const u16 coeffs[3][4])
+{
+	lockdep_assert_held(&vc4_hdmi->hw_lock);
+
+	/* YUV444 needs the CSC matrices using the channels in a different order */
+	HDMI_WRITE(HDMI_CSC_12_11, (coeffs[1][1] << 16) | coeffs[1][0]);
+	HDMI_WRITE(HDMI_CSC_14_13, (coeffs[1][3] << 16) | coeffs[1][2]);
+	HDMI_WRITE(HDMI_CSC_22_21, (coeffs[2][1] << 16) | coeffs[2][0]);
+	HDMI_WRITE(HDMI_CSC_24_23, (coeffs[2][3] << 16) | coeffs[2][2]);
+	HDMI_WRITE(HDMI_CSC_32_31, (coeffs[0][1] << 16) | coeffs[0][0]);
+	HDMI_WRITE(HDMI_CSC_34_33, (coeffs[0][3] << 16) | coeffs[0][2]);
 }
 
 static void vc5_hdmi_csc_setup(struct vc4_hdmi *vc4_hdmi,
@@ -1306,7 +1304,8 @@ static void vc5_hdmi_csc_setup(struct vc4_hdmi *vc4_hdmi,
 
 	switch (vc4_state->output_format) {
 	case VC4_HDMI_OUTPUT_YUV444:
-		vc5_hdmi_set_csc_coeffs(vc4_hdmi, vc5_hdmi_csc_full_rgb_to_limited_yuv444_bt709);
+		vc5_hdmi_set_csc_coeffs_swap(vc4_hdmi,
+					     vc5_hdmi_csc_full_rgb_to_limited_bt709);
 		break;
 
 	case VC4_HDMI_OUTPUT_YUV422:
@@ -1321,7 +1320,7 @@ static void vc5_hdmi_csc_setup(struct vc4_hdmi *vc4_hdmi,
 		if_cfg |= VC4_SET_FIELD(VC5_DVP_HT_VEC_INTERFACE_CFG_SEL_422_FORMAT_422_LEGACY,
 					VC5_DVP_HT_VEC_INTERFACE_CFG_SEL_422);
 
-		vc5_hdmi_set_csc_coeffs(vc4_hdmi, vc5_hdmi_csc_full_rgb_to_limited_yuv422_bt709);
+		vc5_hdmi_set_csc_coeffs(vc4_hdmi, vc5_hdmi_csc_full_rgb_to_limited_bt709);
 		break;
 
 	case VC4_HDMI_OUTPUT_RGB:
