@@ -93,5 +93,4 @@ static struct platform_driver clk_mt7629_hif_drv = {
 		.of_match_table = of_match_clk_mt7629_hif,
 	},
 };
-
-builtin_platform_driver(clk_mt7629_hif_drv);
+module_platform_driver(clk_mt7629_hif_drv);

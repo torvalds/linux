@@ -104,4 +104,4 @@ static struct platform_driver clk_mt8195_vpp0_drv = {
 	},
 	.id_table = clk_mt8195_vpp0_id_table,
 };
-builtin_platform_driver(clk_mt8195_vpp0_drv);
+module_platform_driver(clk_mt8195_vpp0_drv);

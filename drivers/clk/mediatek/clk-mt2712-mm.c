@@ -126,5 +126,4 @@ static struct platform_driver clk_mt2712_mm_drv = {
 	},
 	.id_table = clk_mt2712_mm_id_table,
 };
-
-builtin_platform_driver(clk_mt2712_mm_drv);
+module_platform_driver(clk_mt2712_mm_drv);

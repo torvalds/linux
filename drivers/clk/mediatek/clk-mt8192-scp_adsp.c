@@ -47,5 +47,4 @@ static struct platform_driver clk_mt8192_scp_adsp_drv = {
 		.of_match_table = of_match_clk_mt8192_scp_adsp,
 	},
 };
-
-builtin_platform_driver(clk_mt8192_scp_adsp_drv);
+module_platform_driver(clk_mt8192_scp_adsp_drv);

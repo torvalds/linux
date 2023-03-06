@@ -86,5 +86,4 @@ static struct platform_driver clk_mt7622_eth_drv = {
 		.of_match_table = of_match_clk_mt7622_eth,
 	},
 };
-
-builtin_platform_driver(clk_mt7622_eth_drv);
+module_platform_driver(clk_mt7622_eth_drv);

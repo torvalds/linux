@@ -48,5 +48,4 @@ static struct platform_driver clk_mt6765_mipi0a_drv = {
 		.of_match_table = of_match_clk_mt6765_mipi0a,
 	},
 };
-
-builtin_platform_driver(clk_mt6765_mipi0a_drv);
+module_platform_driver(clk_mt6765_mipi0a_drv);

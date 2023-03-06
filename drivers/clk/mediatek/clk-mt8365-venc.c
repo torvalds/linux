@@ -48,5 +48,5 @@ static struct platform_driver clk_mt8365_venc_drv = {
 		.of_match_table = of_match_clk_mt8365_venc,
 	},
 };
-builtin_platform_driver(clk_mt8365_venc_drv);
+module_platform_driver(clk_mt8365_venc_drv);
 MODULE_LICENSE("GPL");

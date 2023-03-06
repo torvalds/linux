@@ -107,8 +107,7 @@ static struct platform_driver clk_mt8173_mm_drv = {
 	.probe = mtk_clk_pdev_probe,
 	.remove = mtk_clk_pdev_remove,
 };
-
-builtin_platform_driver(clk_mt8173_mm_drv);
+module_platform_driver(clk_mt8173_mm_drv);
 
 MODULE_DESCRIPTION("MediaTek MT8173 MultiMedia clocks driver");
 MODULE_LICENSE("GPL");

@@ -60,7 +60,7 @@ static struct platform_driver clk_mt8516_aud_drv = {
 		.of_match_table = of_match_clk_mt8516_aud,
 	},
 };
-builtin_platform_driver(clk_mt8516_aud_drv);
+module_platform_driver(clk_mt8516_aud_drv);
 
 MODULE_DESCRIPTION("MediaTek MT8516 audiosys clocks driver");
 MODULE_LICENSE("GPL");

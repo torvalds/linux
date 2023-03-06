@@ -59,5 +59,5 @@ static struct platform_driver clk_mt8365_vdec_drv = {
 		.of_match_table = of_match_clk_mt8365_vdec,
 	},
 };
-builtin_platform_driver(clk_mt8365_vdec_drv);
+module_platform_driver(clk_mt8365_vdec_drv);
 MODULE_LICENSE("GPL");
