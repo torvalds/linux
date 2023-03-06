@@ -323,7 +323,7 @@ struct mlx4_en_tx_ring {
 
 struct mlx4_en_rx_desc {
 	/* actual number of entries depends on rx ring stride */
-	struct mlx4_wqe_data_seg data[0];
+	DECLARE_FLEX_ARRAY(struct mlx4_wqe_data_seg, data);
 };
 
 struct mlx4_en_rx_ring {
