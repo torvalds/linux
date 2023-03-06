@@ -480,10 +480,12 @@ static int iommufd_test_md_check_pa(struct iommufd_ucmd *ucmd,
 {
 	struct iommufd_hw_pagetable *hwpt;
 	struct mock_iommu_domain *mock;
+	uintptr_t end;
 	int rc;
 
 	if (iova % MOCK_IO_PAGE_SIZE || length % MOCK_IO_PAGE_SIZE ||
-	    (uintptr_t)uptr % MOCK_IO_PAGE_SIZE)
+	    (uintptr_t)uptr % MOCK_IO_PAGE_SIZE ||
+	    check_add_overflow((uintptr_t)uptr, (uintptr_t)length, &end))
 		return -EINVAL;
 
 	hwpt = get_md_pagetable(ucmd, mockpt_id, &mock);
@@ -531,7 +533,10 @@ static int iommufd_test_md_check_refs(struct iommufd_ucmd *ucmd,
 				      void __user *uptr, size_t length,
 				      unsigned int refs)
 {
-	if (length % PAGE_SIZE || (uintptr_t)uptr % PAGE_SIZE)
+	uintptr_t end;
+
+	if (length % PAGE_SIZE || (uintptr_t)uptr % PAGE_SIZE ||
+	    check_add_overflow((uintptr_t)uptr, (uintptr_t)length, &end))
 		return -EINVAL;
 
 	for (; length; length -= PAGE_SIZE) {
