@@ -1272,7 +1272,8 @@ unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans);
       DCCG_SRII(PHASE, DTBCLK_DTO, 0), DCCG_SRII(PHASE, DTBCLK_DTO, 1),        \
       DCCG_SRII(PHASE, DTBCLK_DTO, 2), DCCG_SRII(PHASE, DTBCLK_DTO, 3),        \
       SR(DCCG_AUDIO_DTBCLK_DTO_MODULO), SR(DCCG_AUDIO_DTBCLK_DTO_PHASE),       \
-      SR(OTG_PIXEL_RATE_DIV), SR(DTBCLK_P_CNTL), SR(DCCG_AUDIO_DTO_SOURCE)     \
+      SR(OTG_PIXEL_RATE_DIV), SR(DTBCLK_P_CNTL),                               \
+      SR(DCCG_AUDIO_DTO_SOURCE), SR(DENTIST_DISPCLK_CNTL)                      \
   )
 
 /* VMID */
