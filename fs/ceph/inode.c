@@ -764,7 +764,7 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			ceph_fscache_update(inode);
 		ci->i_reported_size = size;
 		if (truncate_seq != ci->i_truncate_seq) {
-			dout("truncate_seq %u -> %u\n",
+			dout("%s truncate_seq %u -> %u\n", __func__,
 			     ci->i_truncate_seq, truncate_seq);
 			ci->i_truncate_seq = truncate_seq;
 
@@ -788,15 +788,26 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			}
 		}
 	}
-	if (ceph_seq_cmp(truncate_seq, ci->i_truncate_seq) >= 0 &&
-	    ci->i_truncate_size != truncate_size) {
-		dout("truncate_size %lld -> %llu\n", ci->i_truncate_size,
-		     truncate_size);
+
+	/*
+	 * It's possible that the new sizes of the two consecutive
+	 * size truncations will be in the same fscrypt last block,
+	 * and we need to truncate the corresponding page caches
+	 * anyway.
+	 */
+	if (ceph_seq_cmp(truncate_seq, ci->i_truncate_seq) >= 0) {
+		dout("%s truncate_size %lld -> %llu, encrypted %d\n", __func__,
+		     ci->i_truncate_size, truncate_size, !!IS_ENCRYPTED(inode));
+
 		ci->i_truncate_size = truncate_size;
-		if (IS_ENCRYPTED(inode))
+
+		if (IS_ENCRYPTED(inode)) {
+			dout("%s truncate_pagecache_size %lld -> %llu\n",
+			     __func__, ci->i_truncate_pagecache_size, size);
 			ci->i_truncate_pagecache_size = size;
-		else
+		} else {
 			ci->i_truncate_pagecache_size = truncate_size;
+		}
 	}
 	return queue_trunc;
 }
@@ -2155,7 +2166,7 @@ void __ceph_do_pending_vmtruncate(struct inode *inode)
 retry:
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_truncate_pending == 0) {
-		dout("__do_pending_vmtruncate %p none pending\n", inode);
+		dout("%s %p none pending\n", __func__, inode);
 		spin_unlock(&ci->i_ceph_lock);
 		mutex_unlock(&ci->i_truncate_mutex);
 		return;
@@ -2167,8 +2178,7 @@ retry:
 	 */
 	if (ci->i_wrbuffer_ref_head < ci->i_wrbuffer_ref) {
 		spin_unlock(&ci->i_ceph_lock);
-		dout("__do_pending_vmtruncate %p flushing snaps first\n",
-		     inode);
+		dout("%s %p flushing snaps first\n", __func__, inode);
 		filemap_write_and_wait_range(&inode->i_data, 0,
 					     inode->i_sb->s_maxbytes);
 		goto retry;
@@ -2179,7 +2189,7 @@ retry:
 
 	to = ci->i_truncate_pagecache_size;
 	wrbuffer_refs = ci->i_wrbuffer_ref;
-	dout("__do_pending_vmtruncate %p (%d) to %lld\n", inode,
+	dout("%s %p (%d) to %lld\n", __func__, inode,
 	     ci->i_truncate_pending, to);
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -2370,6 +2380,9 @@ static int fill_fscrypt_truncate(struct inode *inode,
 	} else {
 		header.data_len = cpu_to_le32(8 + 8 + 4 + CEPH_FSCRYPT_BLOCK_SIZE);
 		header.file_offset = cpu_to_le64(orig_pos);
+
+		dout("%s encrypt block boff/bsize %d/%lu\n", __func__,
+		     boff, CEPH_FSCRYPT_BLOCK_SIZE);
 
 		/* truncate and zero out the extra contents for the last block */
 		memset(iov.iov_base + boff, 0, PAGE_SIZE - boff);
