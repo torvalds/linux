@@ -203,7 +203,7 @@ struct dlm_args {
 #define DLM_IFL_OVERLAP_CANCEL  0x00100000
 #define DLM_IFL_ENDOFLIFE	0x00200000
 #define DLM_IFL_DEADLOCK_CANCEL	0x01000000
-#define DLM_IFL_STUB_MS		0x02000000 /* magic number for m_flags */
+#define DLM_IFL_LOCAL_MS	0x02000000 /* magic number for m_flags */
 
 #define DLM_IFL_CB_PENDING_BIT	0
 
@@ -593,9 +593,9 @@ struct dlm_ls {
 	int			ls_slots_size;
 	struct dlm_slot		*ls_slots;
 
-	struct dlm_rsb		ls_stub_rsb;	/* for returning errors */
-	struct dlm_lkb		ls_stub_lkb;	/* for returning errors */
-	struct dlm_message	ls_stub_ms;	/* for faking a reply */
+	struct dlm_rsb		ls_local_rsb;	/* for returning errors */
+	struct dlm_lkb		ls_local_lkb;	/* for returning errors */
+	struct dlm_message	ls_local_ms;	/* for faking a reply */
 
 	struct dentry		*ls_debug_rsb_dentry; /* debugfs */
 	struct dentry		*ls_debug_waiters_dentry; /* debugfs */

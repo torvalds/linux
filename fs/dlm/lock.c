@@ -1558,7 +1558,7 @@ static int remove_from_waiters(struct dlm_lkb *lkb, int mstype)
 	return error;
 }
 
-/* Handles situations where we might be processing a "fake" or "stub" reply in
+/* Handles situations where we might be processing a "fake" or "local" reply in
    which we can't try to take waiters_mutex again. */
 
 static int remove_from_waiters_ms(struct dlm_lkb *lkb, struct dlm_message *ms)
@@ -1566,10 +1566,10 @@ static int remove_from_waiters_ms(struct dlm_lkb *lkb, struct dlm_message *ms)
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int error;
 
-	if (ms->m_flags != cpu_to_le32(DLM_IFL_STUB_MS))
+	if (ms->m_flags != cpu_to_le32(DLM_IFL_LOCAL_MS))
 		mutex_lock(&ls->ls_waiters_mutex);
 	error = _remove_from_waiters(lkb, le32_to_cpu(ms->m_type), ms);
-	if (ms->m_flags != cpu_to_le32(DLM_IFL_STUB_MS))
+	if (ms->m_flags != cpu_to_le32(DLM_IFL_LOCAL_MS))
 		mutex_unlock(&ls->ls_waiters_mutex);
 	return error;
 }
@@ -3486,10 +3486,10 @@ static int send_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	/* down conversions go without a reply from the master */
 	if (!error && down_conversion(lkb)) {
 		remove_from_waiters(lkb, DLM_MSG_CONVERT_REPLY);
-		r->res_ls->ls_stub_ms.m_flags = cpu_to_le32(DLM_IFL_STUB_MS);
-		r->res_ls->ls_stub_ms.m_type = cpu_to_le32(DLM_MSG_CONVERT_REPLY);
-		r->res_ls->ls_stub_ms.m_result = 0;
-		__receive_convert_reply(r, lkb, &r->res_ls->ls_stub_ms);
+		r->res_ls->ls_local_ms.m_flags = cpu_to_le32(DLM_IFL_LOCAL_MS);
+		r->res_ls->ls_local_ms.m_type = cpu_to_le32(DLM_MSG_CONVERT_REPLY);
+		r->res_ls->ls_local_ms.m_result = 0;
+		__receive_convert_reply(r, lkb, &r->res_ls->ls_local_ms);
 	}
 
 	return error;
@@ -3648,7 +3648,7 @@ static int send_cancel_reply(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 static int send_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms_in,
 			     int ret_nodeid, int rv)
 {
-	struct dlm_rsb *r = &ls->ls_stub_rsb;
+	struct dlm_rsb *r = &ls->ls_local_rsb;
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
 	int error, nodeid = le32_to_cpu(ms_in->m_header.h_nodeid);
@@ -3681,7 +3681,7 @@ static void receive_flags(struct dlm_lkb *lkb, struct dlm_message *ms)
 
 static void receive_flags_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
-	if (ms->m_flags == cpu_to_le32(DLM_IFL_STUB_MS))
+	if (ms->m_flags == cpu_to_le32(DLM_IFL_LOCAL_MS))
 		return;
 
 	lkb->lkb_sbflags = le32_to_cpu(ms->m_sbflags);
@@ -3768,12 +3768,12 @@ static int receive_unlock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	return 0;
 }
 
-/* We fill in the stub-lkb fields with the info that send_xxxx_reply()
+/* We fill in the local-lkb fields with the info that send_xxxx_reply()
    uses to send a reply and that the remote end uses to process the reply. */
 
-static void setup_stub_lkb(struct dlm_ls *ls, struct dlm_message *ms)
+static void setup_local_lkb(struct dlm_ls *ls, struct dlm_message *ms)
 {
-	struct dlm_lkb *lkb = &ls->ls_stub_lkb;
+	struct dlm_lkb *lkb = &ls->ls_local_lkb;
 	lkb->lkb_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 	lkb->lkb_remid = le32_to_cpu(ms->m_lkid);
 }
@@ -3906,8 +3906,8 @@ static int receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 			  le32_to_cpu(ms->m_lkid), from_nodeid, error);
 	}
 
-	setup_stub_lkb(ls, ms);
-	send_request_reply(&ls->ls_stub_rsb, &ls->ls_stub_lkb, error);
+	setup_local_lkb(ls, ms);
+	send_request_reply(&ls->ls_local_rsb, &ls->ls_local_lkb, error);
 	return error;
 }
 
@@ -3962,8 +3962,8 @@ static int receive_convert(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 
  fail:
-	setup_stub_lkb(ls, ms);
-	send_convert_reply(&ls->ls_stub_rsb, &ls->ls_stub_lkb, error);
+	setup_local_lkb(ls, ms);
+	send_convert_reply(&ls->ls_local_rsb, &ls->ls_local_lkb, error);
 	return error;
 }
 
@@ -4014,8 +4014,8 @@ static int receive_unlock(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 
  fail:
-	setup_stub_lkb(ls, ms);
-	send_unlock_reply(&ls->ls_stub_rsb, &ls->ls_stub_lkb, error);
+	setup_local_lkb(ls, ms);
+	send_unlock_reply(&ls->ls_local_rsb, &ls->ls_local_lkb, error);
 	return error;
 }
 
@@ -4050,8 +4050,8 @@ static int receive_cancel(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 
  fail:
-	setup_stub_lkb(ls, ms);
-	send_cancel_reply(&ls->ls_stub_rsb, &ls->ls_stub_lkb, error);
+	setup_local_lkb(ls, ms);
+	send_cancel_reply(&ls->ls_local_rsb, &ls->ls_local_lkb, error);
 	return error;
 }
 
@@ -4403,7 +4403,7 @@ static void _receive_convert_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 	if (error)
 		goto out;
 
-	/* stub reply can happen with waiters_mutex held */
+	/* local reply can happen with waiters_mutex held */
 	error = remove_from_waiters_ms(lkb, ms);
 	if (error)
 		goto out;
@@ -4440,7 +4440,7 @@ static void _receive_unlock_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 	if (error)
 		goto out;
 
-	/* stub reply can happen with waiters_mutex held */
+	/* local reply can happen with waiters_mutex held */
 	error = remove_from_waiters_ms(lkb, ms);
 	if (error)
 		goto out;
@@ -4490,7 +4490,7 @@ static void _receive_cancel_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 	if (error)
 		goto out;
 
-	/* stub reply can happen with waiters_mutex held */
+	/* local reply can happen with waiters_mutex held */
 	error = remove_from_waiters_ms(lkb, ms);
 	if (error)
 		goto out;
@@ -4834,16 +4834,16 @@ void dlm_receive_buffer(union dlm_packet *p, int nodeid)
 }
 
 static void recover_convert_waiter(struct dlm_ls *ls, struct dlm_lkb *lkb,
-				   struct dlm_message *ms_stub)
+				   struct dlm_message *ms_local)
 {
 	if (middle_conversion(lkb)) {
 		hold_lkb(lkb);
-		memset(ms_stub, 0, sizeof(struct dlm_message));
-		ms_stub->m_flags = cpu_to_le32(DLM_IFL_STUB_MS);
-		ms_stub->m_type = cpu_to_le32(DLM_MSG_CONVERT_REPLY);
-		ms_stub->m_result = cpu_to_le32(to_dlm_errno(-EINPROGRESS));
-		ms_stub->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
-		_receive_convert_reply(lkb, ms_stub);
+		memset(ms_local, 0, sizeof(struct dlm_message));
+		ms_local->m_flags = cpu_to_le32(DLM_IFL_LOCAL_MS);
+		ms_local->m_type = cpu_to_le32(DLM_MSG_CONVERT_REPLY);
+		ms_local->m_result = cpu_to_le32(to_dlm_errno(-EINPROGRESS));
+		ms_local->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
+		_receive_convert_reply(lkb, ms_local);
 
 		/* Same special case as in receive_rcom_lock_args() */
 		lkb->lkb_grmode = DLM_LOCK_IV;
@@ -4882,12 +4882,12 @@ static int waiter_needs_recovery(struct dlm_ls *ls, struct dlm_lkb *lkb,
 void dlm_recover_waiters_pre(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb, *safe;
-	struct dlm_message *ms_stub;
-	int wait_type, stub_unlock_result, stub_cancel_result;
+	struct dlm_message *ms_local;
+	int wait_type, local_unlock_result, local_cancel_result;
 	int dir_nodeid;
 
-	ms_stub = kmalloc(sizeof(*ms_stub), GFP_KERNEL);
-	if (!ms_stub)
+	ms_local = kmalloc(sizeof(*ms_local), GFP_KERNEL);
+	if (!ms_local)
 		return;
 
 	mutex_lock(&ls->ls_waiters_mutex);
@@ -4923,8 +4923,8 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			continue;
 
 		wait_type = lkb->lkb_wait_type;
-		stub_unlock_result = -DLM_EUNLOCK;
-		stub_cancel_result = -DLM_ECANCEL;
+		local_unlock_result = -DLM_EUNLOCK;
+		local_cancel_result = -DLM_ECANCEL;
 
 		/* Main reply may have been received leaving a zero wait_type,
 		   but a reply for the overlapping op may not have been
@@ -4935,17 +4935,17 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			if (is_overlap_cancel(lkb)) {
 				wait_type = DLM_MSG_CANCEL;
 				if (lkb->lkb_grmode == DLM_LOCK_IV)
-					stub_cancel_result = 0;
+					local_cancel_result = 0;
 			}
 			if (is_overlap_unlock(lkb)) {
 				wait_type = DLM_MSG_UNLOCK;
 				if (lkb->lkb_grmode == DLM_LOCK_IV)
-					stub_unlock_result = -ENOENT;
+					local_unlock_result = -ENOENT;
 			}
 
 			log_debug(ls, "rwpre overlap %x %x %d %d %d",
 				  lkb->lkb_id, lkb->lkb_flags, wait_type,
-				  stub_cancel_result, stub_unlock_result);
+				  local_cancel_result, local_unlock_result);
 		}
 
 		switch (wait_type) {
@@ -4955,28 +4955,28 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			break;
 
 		case DLM_MSG_CONVERT:
-			recover_convert_waiter(ls, lkb, ms_stub);
+			recover_convert_waiter(ls, lkb, ms_local);
 			break;
 
 		case DLM_MSG_UNLOCK:
 			hold_lkb(lkb);
-			memset(ms_stub, 0, sizeof(struct dlm_message));
-			ms_stub->m_flags = cpu_to_le32(DLM_IFL_STUB_MS);
-			ms_stub->m_type = cpu_to_le32(DLM_MSG_UNLOCK_REPLY);
-			ms_stub->m_result = cpu_to_le32(to_dlm_errno(stub_unlock_result));
-			ms_stub->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
-			_receive_unlock_reply(lkb, ms_stub);
+			memset(ms_local, 0, sizeof(struct dlm_message));
+			ms_local->m_flags = cpu_to_le32(DLM_IFL_LOCAL_MS);
+			ms_local->m_type = cpu_to_le32(DLM_MSG_UNLOCK_REPLY);
+			ms_local->m_result = cpu_to_le32(to_dlm_errno(local_unlock_result));
+			ms_local->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
+			_receive_unlock_reply(lkb, ms_local);
 			dlm_put_lkb(lkb);
 			break;
 
 		case DLM_MSG_CANCEL:
 			hold_lkb(lkb);
-			memset(ms_stub, 0, sizeof(struct dlm_message));
-			ms_stub->m_flags = cpu_to_le32(DLM_IFL_STUB_MS);
-			ms_stub->m_type = cpu_to_le32(DLM_MSG_CANCEL_REPLY);
-			ms_stub->m_result = cpu_to_le32(to_dlm_errno(stub_cancel_result));
-			ms_stub->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
-			_receive_cancel_reply(lkb, ms_stub);
+			memset(ms_local, 0, sizeof(struct dlm_message));
+			ms_local->m_flags = cpu_to_le32(DLM_IFL_LOCAL_MS);
+			ms_local->m_type = cpu_to_le32(DLM_MSG_CANCEL_REPLY);
+			ms_local->m_result = cpu_to_le32(to_dlm_errno(local_cancel_result));
+			ms_local->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
+			_receive_cancel_reply(lkb, ms_local);
 			dlm_put_lkb(lkb);
 			break;
 
@@ -4987,7 +4987,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 		schedule();
 	}
 	mutex_unlock(&ls->ls_waiters_mutex);
-	kfree(ms_stub);
+	kfree(ms_local);
 }
 
 static struct dlm_lkb *find_resend_waiter(struct dlm_ls *ls)
