@@ -2112,6 +2112,8 @@ static u16 printk_sprint(char *text, u16 size, int facility,
 	return text_len;
 }
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(console);
+
 __printf(4, 0)
 int vprintk_store(int facility, int level,
 		  const struct dev_printk_info *dev_info,

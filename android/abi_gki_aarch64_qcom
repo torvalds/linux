@@ -341,6 +341,7 @@
   cgroup_taskset_first
   cgroup_taskset_next
   __check_object_size
+  check_move_unevictable_pages
   check_preempt_curr
   check_zeroed_user
   __class_create
@@ -2356,6 +2357,7 @@
   page_pool_destroy
   page_pool_put_defragged_page
   page_pool_release_page
+  __pagevec_release
   panic
   panic_notifier_list
   panic_timeout
@@ -2726,6 +2728,7 @@
   rcuwait_wake_up
   rdev_get_drvdata
   reboot_mode
+  reclaim_shmem_address_space
   rebuild_sched_domains
   refcount_dec_and_lock
   refcount_dec_and_mutex_lock
@@ -3458,6 +3461,8 @@
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
   __traceiter_android_vh_build_sched_domains
+  __traceiter_android_vh_check_uninterrupt_tasks
+  __traceiter_android_vh_check_uninterrupt_tasks_done
   __traceiter_android_vh_cpufreq_fast_switch
   __traceiter_android_vh_cpufreq_resolve_freq
   __traceiter_android_vh_cpufreq_target
@@ -3578,6 +3583,8 @@
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
   __tracepoint_android_vh_build_sched_domains
+  __tracepoint_android_vh_check_uninterrupt_tasks
+  __tracepoint_android_vh_check_uninterrupt_tasks_done
   __tracepoint_android_vh_cpufreq_fast_switch
   __tracepoint_android_vh_cpufreq_resolve_freq
   __tracepoint_android_vh_cpufreq_target
