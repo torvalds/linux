@@ -309,7 +309,7 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 
-	ret = of_property_read_u32(dev->of_node, "cell-index", &bus_num);
+	ret = device_property_read_u32(dev, "cell-index", &bus_num);
 	if (ret || bus_num > 5)
 		return dev_err_probe(dev, ret ? : -EINVAL, "Invalid cell-index property\n");
 	master->bus_num = bus_num + 1;
