@@ -12,10 +12,6 @@ under ``-std=gnu11`` [gcc-c-dialect-options]_: the GNU dialect of ISO C11.
 This dialect contains many extensions to the language [gnu-extensions]_,
 and many of them are used within the kernel as a matter of course.
 
-There is some support for compiling the kernel with ``icc`` [icc]_ for several
-of the architectures, although at the time of writing it is not completed,
-requiring third-party patches.
-
 Attributes
 ----------
 
@@ -38,7 +34,6 @@ Please refer to ``include/linux/compiler_attributes.h`` for more information.
 .. [c-language] http://www.open-std.org/jtc1/sc22/wg14/www/standards
 .. [gcc] https://gcc.gnu.org
 .. [clang] https://clang.llvm.org
-.. [icc] https://software.intel.com/en-us/c-compilers
 .. [gcc-c-dialect-options] https://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html
 .. [gnu-extensions] https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html
 .. [gcc-attribute-syntax] https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html
