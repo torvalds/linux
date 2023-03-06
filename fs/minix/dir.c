@@ -70,9 +70,8 @@ static void *dir_get_page(struct inode *dir, unsigned long n, struct page **p)
 	struct page *page = read_mapping_page(mapping, n, NULL);
 	if (IS_ERR(page))
 		return ERR_CAST(page);
-	kmap(page);
 	*p = page;
-	return page_address(page);
+	return kmap_local_page(page);
 }
 
 static inline void *minix_next_entry(void *de, struct minix_sb_info *sbi)
@@ -123,13 +122,13 @@ static int minix_readdir(struct file *file, struct dir_context *ctx)
 				unsigned l = strnlen(name, sbi->s_namelen);
 				if (!dir_emit(ctx, name, l,
 					      inumber, DT_UNKNOWN)) {
-					dir_put_page(page);
+					unmap_and_put_page(page, p);
 					return 0;
 				}
 			}
 			ctx->pos += chunk_size;
 		}
-		dir_put_page(page);
+		unmap_and_put_page(page, kaddr);
 	}
 	return 0;
 }
@@ -189,7 +188,7 @@ minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
 			if (namecompare(namelen, sbi->s_namelen, name, namx))
 				goto found;
 		}
-		dir_put_page(page);
+		unmap_and_put_page(page, kaddr);
 	}
 	return NULL;
 
@@ -255,7 +254,7 @@ int minix_add_link(struct dentry *dentry, struct inode *inode)
 				goto out_unlock;
 		}
 		unlock_page(page);
-		dir_put_page(page);
+		unmap_and_put_page(page, kaddr);
 	}
 	BUG();
 	return -EINVAL;
@@ -278,7 +277,7 @@ got_it:
 	mark_inode_dirty(dir);
 	err = minix_handle_dirsync(dir);
 out_put:
-	dir_put_page(page);
+	unmap_and_put_page(page, kaddr);
 	return err;
 out_unlock:
 	unlock_page(page);
@@ -324,7 +323,7 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 		goto fail;
 	}
 
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_page(page);
 	memset(kaddr, 0, PAGE_SIZE);
 
 	if (sbi->s_version == MINIX_V3) {
@@ -344,7 +343,7 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 		de->inode = dir->i_ino;
 		strcpy(de->name, "..");
 	}
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 
 	dir_commit_chunk(page, 0, 2 * sbi->s_dirsize);
 	err = minix_handle_dirsync(inode);
@@ -361,11 +360,11 @@ int minix_empty_dir(struct inode * inode)
 	struct page *page = NULL;
 	unsigned long i, npages = dir_pages(inode);
 	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
-	char *name;
+	char *name, *kaddr;
 	__u32 inumber;
 
 	for (i = 0; i < npages; i++) {
-		char *p, *kaddr, *limit;
+		char *p, *limit;
 
 		kaddr = dir_get_page(inode, i, &page);
 		if (IS_ERR(kaddr))
@@ -396,12 +395,12 @@ int minix_empty_dir(struct inode * inode)
 					goto not_empty;
 			}
 		}
-		dir_put_page(page);
+		unmap_and_put_page(page, kaddr);
 	}
 	return 1;
 
 not_empty:
-	dir_put_page(page);
+	unmap_and_put_page(page, kaddr);
 	return 0;
 }
 
@@ -455,7 +454,7 @@ ino_t minix_inode_by_name(struct dentry *dentry)
 			res = ((minix3_dirent *) de)->inode;
 		else
 			res = de->inode;
-		dir_put_page(page);
+		unmap_and_put_page(page, de);
 	}
 	return res;
 }
