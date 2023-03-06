@@ -149,6 +149,9 @@ static int exynos_generic_icc_probe(struct platform_device *pdev)
 				 &priv->bus_clk_ratio))
 		priv->bus_clk_ratio = EXYNOS_ICC_DEFAULT_BUS_CLK_RATIO;
 
+	icc_node->data = priv;
+	icc_node_add(icc_node, provider);
+
 	/*
 	 * Register a PM QoS request for the parent (devfreq) device.
 	 */
@@ -156,9 +159,6 @@ static int exynos_generic_icc_probe(struct platform_device *pdev)
 				     DEV_PM_QOS_MIN_FREQUENCY, 0);
 	if (ret < 0)
 		goto err_node_del;
-
-	icc_node->data = priv;
-	icc_node_add(icc_node, provider);
 
 	icc_parent_node = exynos_icc_get_parent(bus_dev->of_node);
 	if (IS_ERR(icc_parent_node)) {
