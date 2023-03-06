@@ -37,17 +37,6 @@ int BPF_KSYSCALL(handle_kprobe_auto, struct __kernel_timespec *req, struct __ker
 	return 0;
 }
 
-/**
- * This program will be manually made sleepable on the userspace side
- * and should thus be unattachable.
- */
-SEC("kprobe/" SYS_PREFIX "sys_nanosleep")
-int handle_kprobe_sleepable(struct pt_regs *ctx)
-{
-	kprobe_res = 2;
-	return 0;
-}
-
 SEC("kretprobe")
 int handle_kretprobe(struct pt_regs *ctx)
 {
@@ -73,6 +62,18 @@ SEC("uretprobe")
 int handle_uretprobe(struct pt_regs *ctx)
 {
 	uretprobe_res = 4;
+	return 0;
+}
+
+SEC("uprobe")
+int handle_uprobe_ref_ctr(struct pt_regs *ctx)
+{
+	return 0;
+}
+
+SEC("uretprobe")
+int handle_uretprobe_ref_ctr(struct pt_regs *ctx)
+{
 	return 0;
 }
 
