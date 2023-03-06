@@ -107,5 +107,5 @@ static struct platform_driver clk_mt6797_mm_drv = {
 		.name = "clk-mt6797-mm",
 	},
 };
-
-builtin_platform_driver(clk_mt6797_mm_drv);
+module_platform_driver(clk_mt6797_mm_drv);
+MODULE_LICENSE("GPL");

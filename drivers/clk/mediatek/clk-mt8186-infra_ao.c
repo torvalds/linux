@@ -236,4 +236,5 @@ static struct platform_driver clk_mt8186_infra_ao_drv = {
 		.of_match_table = of_match_clk_mt8186_infra_ao,
 	},
 };
-builtin_platform_driver(clk_mt8186_infra_ao_drv);
+module_platform_driver(clk_mt8186_infra_ao_drv);
+MODULE_LICENSE("GPL");

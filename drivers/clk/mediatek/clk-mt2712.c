@@ -1453,10 +1453,5 @@ static struct platform_driver clk_mt2712_drv = {
 		.of_match_table = of_match_clk_mt2712,
 	},
 };
-
-static int __init clk_mt2712_init(void)
-{
-	return platform_driver_register(&clk_mt2712_drv);
-}
-
-arch_initcall(clk_mt2712_init);
+module_platform_driver(clk_mt2712_drv);
+MODULE_LICENSE("GPL");
