@@ -196,46 +196,6 @@ static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 		return -EINVAL;
 	}
 }
-/*
- * Indirect registers accessor
- */
-static u32 soc21_pcie_rreg(struct amdgpu_device *adev, u32 reg)
-{
-	unsigned long address, data;
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	return amdgpu_device_indirect_rreg(adev, address, data, reg);
-}
-
-static void soc21_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
-{
-	unsigned long address, data;
-
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	amdgpu_device_indirect_wreg(adev, address, data, reg, v);
-}
-
-static u64 soc21_pcie_rreg64(struct amdgpu_device *adev, u32 reg)
-{
-	unsigned long address, data;
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	return amdgpu_device_indirect_rreg64(adev, address, data, reg);
-}
-
-static void soc21_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
-{
-	unsigned long address, data;
-
-	address = adev->nbio.funcs->get_pcie_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_data_offset(adev);
-
-	amdgpu_device_indirect_wreg64(adev, address, data, reg, v);
-}
 
 static u32 soc21_didt_rreg(struct amdgpu_device *adev, u32 reg)
 {
@@ -650,10 +610,10 @@ static int soc21_common_early_init(void *handle)
 	adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
 	adev->smc_rreg = NULL;
 	adev->smc_wreg = NULL;
-	adev->pcie_rreg = &soc21_pcie_rreg;
-	adev->pcie_wreg = &soc21_pcie_wreg;
-	adev->pcie_rreg64 = &soc21_pcie_rreg64;
-	adev->pcie_wreg64 = &soc21_pcie_wreg64;
+	adev->pcie_rreg = &amdgpu_device_indirect_rreg;
+	adev->pcie_wreg = &amdgpu_device_indirect_wreg;
+	adev->pcie_rreg64 = &amdgpu_device_indirect_rreg64;
+	adev->pcie_wreg64 = &amdgpu_device_indirect_wreg64;
 	adev->pciep_rreg = amdgpu_device_pcie_port_rreg;
 	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
 
