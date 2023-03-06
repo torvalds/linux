@@ -108,3 +108,14 @@ config QTI_MPAM
 	  userspace and relays them to CPUCP via SCMI communication.
 	  It is intended to be used by clients familiar with modifying
 	  the ARM MPAM configuration settings.
+
+config QTI_CPUFREQ_STATS_SCMI_V2
+	tristate "Qualcomm Technologies Inc. SCMI client driver for CPU and L3 cpu freq stats"
+	depends on QTI_SCMI_VENDOR_PROTOCOL
+	default n
+	help
+	  Driver to expose CPU freq stats debugfs nodes to user space.
+
+	  This driver is used to expose debugfs interface to communicate
+	  with cpucp for CPU freq stats based on SCMI consolidation protocol.
+	  It is intended to be used by clients to get CPU and L3 residency data.
