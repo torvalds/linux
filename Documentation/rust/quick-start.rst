@@ -38,9 +38,9 @@ and run::
 
 	rustup override set $(scripts/min-tool-version.sh rustc)
 
-Otherwise, fetch a standalone installer or install ``rustup`` from:
+Otherwise, fetch a standalone installer from:
 
-	https://www.rust-lang.org
+	https://forge.rust-lang.org/infra/other-installation-methods.html#standalone
 
 
 Rust standard library source
