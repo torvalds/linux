@@ -68,7 +68,7 @@ struct rtas_filter {
  *                            functions are believed to have no users on
  *                            ppc64le, and we want to keep it that way. It does
  *                            not make sense for this to be set when @filter
- *                            is false.
+ *                            is NULL.
  */
 struct rtas_function {
 	s32 token;
