@@ -210,27 +210,12 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	u8 features;
 	int ret;
 
-	features = mt7921_check_offload_capability(&usb_intf->dev, (const char *)
-						   id->driver_info);
-	ops = devm_kmemdup(&usb_intf->dev, &mt7921_ops, sizeof(mt7921_ops),
-			   GFP_KERNEL);
+	ops = mt7921_get_mac80211_ops(&usb_intf->dev, (void *)id->driver_info,
+				      &features);
 	if (!ops)
 		return -ENOMEM;
 
-	if (!(features & MT7921_FW_CAP_CNM)) {
-		ops->remain_on_channel = NULL;
-		ops->cancel_remain_on_channel = NULL;
-		ops->add_chanctx = NULL;
-		ops->remove_chanctx = NULL;
-		ops->change_chanctx = NULL;
-		ops->assign_vif_chanctx = NULL;
-		ops->unassign_vif_chanctx = NULL;
-		ops->mgd_prepare_tx = NULL;
-		ops->mgd_complete_tx = NULL;
-	}
-
 	ops->stop = mt7921u_stop;
-
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
 		return -ENOMEM;

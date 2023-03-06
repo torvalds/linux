@@ -169,7 +169,8 @@ mt7921_mac_init_band(struct mt7921_dev *dev, u8 band)
 	mt76_rmw(dev, MT_WTBLOFF_TOP_RSCR(band), mask, set);
 }
 
-u8 mt7921_check_offload_capability(struct device *dev, const char *fw_wm)
+static u8
+mt7921_get_offload_capability(struct device *dev, const char *fw_wm)
 {
 	struct mt7921_fw_features *features = NULL;
 	const struct mt76_connac2_fw_trailer *hdr;
@@ -220,7 +221,31 @@ out:
 
 	return features ? features->data : 0;
 }
-EXPORT_SYMBOL_GPL(mt7921_check_offload_capability);
+
+struct ieee80211_ops *
+mt7921_get_mac80211_ops(struct device *dev, void *drv_data, u8 *fw_features)
+{
+	struct ieee80211_ops *ops;
+
+	ops = devm_kmemdup(dev, &mt7921_ops, sizeof(mt7921_ops), GFP_KERNEL);
+	if (!ops)
+		return NULL;
+
+	*fw_features = mt7921_get_offload_capability(dev, drv_data);
+	if (!(*fw_features & MT7921_FW_CAP_CNM)) {
+		ops->remain_on_channel = NULL;
+		ops->cancel_remain_on_channel = NULL;
+		ops->add_chanctx = NULL;
+		ops->remove_chanctx = NULL;
+		ops->change_chanctx = NULL;
+		ops->assign_vif_chanctx = NULL;
+		ops->unassign_vif_chanctx = NULL;
+		ops->mgd_prepare_tx = NULL;
+		ops->mgd_complete_tx = NULL;
+	}
+	return ops;
+}
+EXPORT_SYMBOL_GPL(mt7921_get_mac80211_ops);
 
 int mt7921_mac_init(struct mt7921_dev *dev)
 {

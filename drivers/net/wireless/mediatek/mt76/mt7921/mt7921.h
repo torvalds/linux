@@ -593,5 +593,6 @@ int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 		       enum mt7921_roc_req type, u8 token_id);
 int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 			 u8 token_id);
-u8 mt7921_check_offload_capability(struct device *dev, const char *fw_wm);
+struct ieee80211_ops *mt7921_get_mac80211_ops(struct device *dev,
+					      void *drv_data, u8 *fw_features);
 #endif

@@ -256,7 +256,6 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.drv_own = mt7921e_mcu_drv_pmctrl,
 		.fw_own = mt7921e_mcu_fw_pmctrl,
 	};
-
 	struct ieee80211_ops *ops;
 	struct mt76_bus_ops *bus_ops;
 	struct mt7921_dev *dev;
@@ -285,25 +284,11 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	if (mt7921_disable_aspm)
 		mt76_pci_disable_aspm(pdev);
 
-	features = mt7921_check_offload_capability(&pdev->dev, (const char *)
-						   id->driver_data);
-	ops = devm_kmemdup(&pdev->dev, &mt7921_ops, sizeof(mt7921_ops),
-			   GFP_KERNEL);
+	ops = mt7921_get_mac80211_ops(&pdev->dev, (void *)id->driver_data,
+				      &features);
 	if (!ops) {
 		ret = -ENOMEM;
 		goto err_free_pci_vec;
-	}
-
-	if (!(features & MT7921_FW_CAP_CNM)) {
-		ops->remain_on_channel = NULL;
-		ops->cancel_remain_on_channel = NULL;
-		ops->add_chanctx = NULL;
-		ops->remove_chanctx = NULL;
-		ops->change_chanctx = NULL;
-		ops->assign_vif_chanctx = NULL;
-		ops->unassign_vif_chanctx = NULL;
-		ops->mgd_prepare_tx = NULL;
-		ops->mgd_complete_tx = NULL;
 	}
 
 	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), ops, &drv_ops);
