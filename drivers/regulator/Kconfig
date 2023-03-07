@@ -1121,7 +1121,7 @@ config REGULATOR_RT5190A
 	  I2C control interface.
 
 config REGULATOR_RT5739
-	tristate "Rcihtek RT5739 Regulator"
+	tristate "Richtek RT5739 Regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help
