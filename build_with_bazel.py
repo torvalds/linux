@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # SPDX-License-Identifier: GPL-2.0-only
-# Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+# Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
 
 import argparse
 import errno
@@ -223,13 +223,13 @@ class BazelBuilder:
     ):
         """Execute a bazel command"""
         cmdline = [self.bazel_bin, bazel_subcommand]
+        if extra_options:
+            cmdline.extend(extra_options)
         if us_cross_toolchain:
             cmdline.extend(self.get_cross_cli_opts(us_cross_toolchain))
         cmdline.extend(targets)
         if self.out_dir and bazel_subcommand == "run":
             cmdline.extend(["--", "--dist_dir", os.path.join(self.out_dir, out_subdir)])
-        if extra_options:
-            cmdline.extend(extra_options)
 
         cmdline_str = " ".join(cmdline)
         try:
@@ -259,12 +259,6 @@ class BazelBuilder:
         """Run "bazel run" on all targets in serial (since bazel run cannot have multiple targets)"""
         for target in targets:
             self.bazel("run", [target], out_subdir, user_opts, us_cross_toolchain)
-
-    def run_menuconfig(self):
-        """Run menuconfig on all target-variant combos class is initialized with"""
-        for t, v in self.target_list:
-            self.bazel("run", ["//{}:{}_{}_config".format(self.kernel_dir, t, v)],
-                    out_subdir=None, extra_options= ["--", "menuconfig"])
 
     def build(self):
         """Determine which targets to build, then build them"""
@@ -345,12 +339,6 @@ def main():
         choices=["debug", "info", "warning", "error"],
         help="Log level (debug, info, warning, error)",
     )
-    parser.add_argument(
-        "-c",
-        "--menuconfig",
-        action="store_true",
-        help="Run menuconfig for <target>-<variant> and exit without building",
-    )
 
     args, user_opts = parser.parse_known_args(sys.argv[1:])
 
@@ -363,10 +351,7 @@ def main():
 
     builder = BazelBuilder(args.target, args.skip, args.out_dir, user_opts)
     try:
-        if args.menuconfig:
-            builder.run_menuconfig()
-        else:
-            builder.build()
+        builder.build()
     except KeyboardInterrupt:
         logging.info("Received keyboard interrupt... exiting")
         del builder
