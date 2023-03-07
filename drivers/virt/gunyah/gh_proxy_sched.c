@@ -14,7 +14,7 @@
  * This driver is based on idea from Hafnium Hypervisor Linux Driver,
  * but modified to work with Gunyah Hypervisor as needed.
  *
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"gh_proxy_sched: " fmt
@@ -66,6 +66,7 @@ struct gh_proxy_vcpu {
 	gh_capid_t cap_id;
 	gh_label_t idx;
 	bool abort_sleep;
+	bool wdog_frozen;
 	struct task_struct *task;
 	int virq;
 	char irq_name[32];
@@ -179,6 +180,7 @@ static inline void gh_reset_vm(struct gh_proxy_vm *vm)
 		vm->vcpu[j].idx = U32_MAX;
 		vm->vcpu[j].vm = NULL;
 		vm->vcpu[j].abort_sleep = false;
+		vm->vcpu[j].wdog_frozen = false;
 		vm->vcpu[j].ws = NULL;
 		strscpy(vm->vcpu[vm->vcpu_count].irq_name, "",
 				sizeof(vm->vcpu[vm->vcpu_count].irq_name));
@@ -308,6 +310,8 @@ static int gh_populate_vm_vcpu_info(gh_vmid_t vmid, gh_label_t cpu_idx,
 			pr_err("%s: IRQ registration failed ret=%d\n", __func__, ret);
 			goto err_irq;
 		}
+
+		irq_set_irq_wake(virq_num, 1);
 
 		strscpy(vm->vcpu[vm->vcpu_count].ws_name, "gh_vcpu_ws",
 				sizeof(vm->vcpu[vm->vcpu_count].ws_name));
@@ -591,18 +595,23 @@ int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 		 * We're about to run the vcpu, so we can reset the abort-sleep flag.
 		 */
 		vcpu->abort_sleep = false;
-		gh_hcall_wdog_manage(vm->wdog_cap_id, WATCHDOG_MANAGE_OP_UNFREEZE);
 		__pm_stay_awake(vcpu->ws);
 
 		start_ts = ktime_get();
 		/* Call into Gunyah to run vcpu. */
 		preempt_disable();
+		if (vcpu->wdog_frozen) {
+			gh_hcall_wdog_manage(vm->wdog_cap_id, WATCHDOG_MANAGE_OP_UNFREEZE);
+			vcpu->wdog_frozen = false;
+		}
 		ret = gh_hcall_vcpu_run(vcpu->cap_id, resume_data_0,
 					resume_data_1, resume_data_2, resp);
 		if (ret == GH_ERROR_OK && resp->vcpu_state == GH_VCPU_STATE_READY) {
-			if (need_resched())
+			if (need_resched()) {
 				gh_hcall_wdog_manage(vm->wdog_cap_id,
 						WATCHDOG_MANAGE_OP_FREEZE);
+				vcpu->wdog_frozen = true;
+			}
 		}
 		preempt_enable();
 		yield_ts = ktime_get() - start_ts;
@@ -611,23 +620,45 @@ int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 
 		if (ret == GH_ERROR_OK) {
 			switch (resp->vcpu_state) {
-			/* VCPU is preempted by PVM interrupt. */
+			/*
+			 * The caller's hypervisor timeslice ended, or the caller received an interrupt.
+			 * The caller should retry after handling any pending interrupts.
+			 */
 			case GH_VCPU_STATE_READY:
-				if (need_resched()) {
+				if (need_resched())
 					schedule();
-					gh_hcall_wdog_manage(vm->wdog_cap_id,
-						WATCHDOG_MANAGE_OP_UNFREEZE);
-				}
 				break;
 
-			/* VCPU in WFI or suspended/powered down. */
+			/*
+			 * The VCPU is waiting to receive an interrupt; for example, it may have executed a WFI instruction,
+			 * or made a firmware call requesting entry into a low-power state.
+			 */
 			case GH_VCPU_STATE_EXPECTS_WAKEUP:
+				/*
+				 * VCPU requested a firmware call requesting
+				 * entry into a low-power state.
+				 * Release wake lock for non C1 states
+				 */
+				if (resp->vcpu_suspend_state)
+					__pm_relax(vcpu->ws);
+				gh_vcpu_sleep(vcpu);
+				break;
+
+			/*
+			 * The VCPU has not yet been started by calling vcpu_poweron, or has stopped itself by calling vcpu_poweroff,
+			 * or has been terminated due to a reset request from another VM.
+			 */
 			case GH_VCPU_STATE_POWERED_OFF:
 				__pm_relax(vcpu->ws);
 				gh_vcpu_sleep(vcpu);
 				break;
 
-			/* VCPU is blocked in EL2 for an unspecified reason */
+			/*
+			 * The VCPU is temporarily unable to run due to a hypervisor operation.
+			 * This may include a hypercall made by the VCPU that transiently blocks it,
+			 * or by an incomplete migration from another physical CPU. The caller should
+			 * retry after yielding to the calling VM's scheduler.
+			 */
 			case GH_VCPU_STATE_BLOCKED:
 				schedule();
 				break;
@@ -645,8 +676,11 @@ int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 		}
 
 		if (signal_pending(current)) {
-			gh_hcall_wdog_manage(vm->wdog_cap_id,
+			if (!vcpu->wdog_frozen) {
+				gh_hcall_wdog_manage(vm->wdog_cap_id,
 						WATCHDOG_MANAGE_OP_FREEZE);
+				vcpu->wdog_frozen = true;
+			}
 			ret = -ERESTARTSYS;
 			break;
 		}
