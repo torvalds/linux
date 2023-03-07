@@ -463,8 +463,6 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		case PHY_INTERFACE_MODE_RGMII_ID:
 		case PHY_INTERFACE_MODE_RGMII:
 		case PHY_INTERFACE_MODE_MII:
-		case PHY_INTERFACE_MODE_REVMII:
-		case PHY_INTERFACE_MODE_RMII:
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_RGMII)) {
 				err = mtk_gmac_rgmii_path_setup(eth, mac->id);
 				if (err)
@@ -524,21 +522,13 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			}
 		}
 
-		ge_mode = 0;
 		switch (state->interface) {
 		case PHY_INTERFACE_MODE_MII:
 		case PHY_INTERFACE_MODE_GMII:
 			ge_mode = 1;
 			break;
-		case PHY_INTERFACE_MODE_REVMII:
-			ge_mode = 2;
-			break;
-		case PHY_INTERFACE_MODE_RMII:
-			if (mac->id)
-				goto err_phy;
-			ge_mode = 3;
-			break;
 		default:
+			ge_mode = 0;
 			break;
 		}
 
