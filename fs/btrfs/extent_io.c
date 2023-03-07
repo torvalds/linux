@@ -97,7 +97,7 @@ void btrfs_extent_buffer_leak_debug_check(struct btrfs_fs_info *fs_info)
  * how many bytes are there before stripe/ordered extent boundary.
  */
 struct btrfs_bio_ctrl {
-	struct bio *bio;
+	struct btrfs_bio *bbio;
 	int mirror_num;
 	enum btrfs_compression_type compress_type;
 	u32 len_to_oe_boundary;
@@ -123,37 +123,37 @@ struct btrfs_bio_ctrl {
 
 static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 {
-	struct bio *bio = bio_ctrl->bio;
+	struct btrfs_bio *bbio = bio_ctrl->bbio;
 	int mirror_num = bio_ctrl->mirror_num;
 
-	if (!bio)
+	if (!bbio)
 		return;
 
 	/* Caller should ensure the bio has at least some range added */
-	ASSERT(bio->bi_iter.bi_size);
+	ASSERT(bbio->bio.bi_iter.bi_size);
 
-	if (!is_data_inode(&btrfs_bio(bio)->inode->vfs_inode)) {
-		if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
+	if (!is_data_inode(&bbio->inode->vfs_inode)) {
+		if (btrfs_op(&bbio->bio) != BTRFS_MAP_WRITE) {
 			/*
 			 * For metadata read, we should have the parent_check,
 			 * and copy it to bbio for metadata verification.
 			 */
 			ASSERT(bio_ctrl->parent_check);
-			memcpy(&btrfs_bio(bio)->parent_check,
+			memcpy(&bbio->parent_check,
 			       bio_ctrl->parent_check,
 			       sizeof(struct btrfs_tree_parent_check));
 		}
-		bio->bi_opf |= REQ_META;
+		bbio->bio.bi_opf |= REQ_META;
 	}
 
-	if (btrfs_op(bio) == BTRFS_MAP_READ &&
+	if (btrfs_op(&bbio->bio) == BTRFS_MAP_READ &&
 	    bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
-		btrfs_submit_compressed_read(btrfs_bio(bio), mirror_num);
+		btrfs_submit_compressed_read(bbio, mirror_num);
 	else
-		btrfs_submit_bio(btrfs_bio(bio), mirror_num);
+		btrfs_submit_bio(bbio, mirror_num);
 
-	/* The bio is owned by the end_io handler now */
-	bio_ctrl->bio = NULL;
+	/* The bbio is owned by the end_io handler now */
+	bio_ctrl->bbio = NULL;
 }
 
 /*
@@ -161,16 +161,16 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
  */
 static void submit_write_bio(struct btrfs_bio_ctrl *bio_ctrl, int ret)
 {
-	struct bio *bio = bio_ctrl->bio;
+	struct btrfs_bio *bbio = bio_ctrl->bbio;
 
-	if (!bio)
+	if (!bbio)
 		return;
 
 	if (ret) {
 		ASSERT(ret < 0);
-		btrfs_bio_end_io(btrfs_bio(bio), errno_to_blk_status(ret));
+		btrfs_bio_end_io(bbio, errno_to_blk_status(ret));
 		/* The bio is owned by the end_io handler now */
-		bio_ctrl->bio = NULL;
+		bio_ctrl->bbio = NULL;
 	} else {
 		submit_one_bio(bio_ctrl);
 	}
@@ -863,7 +863,7 @@ static bool btrfs_bio_is_contig(struct btrfs_bio_ctrl *bio_ctrl,
 				struct page *page, u64 disk_bytenr,
 				unsigned int pg_offset)
 {
-	struct bio *bio = bio_ctrl->bio;
+	struct bio *bio = &bio_ctrl->bbio->bio;
 	struct bio_vec *bvec = bio_last_bvec_all(bio);
 	const sector_t sector = disk_bytenr >> SECTOR_SHIFT;
 
@@ -902,7 +902,7 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 			      bio_ctrl->end_io_func, NULL);
 	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	btrfs_bio(bio)->file_offset = file_offset;
-	bio_ctrl->bio = bio;
+	bio_ctrl->bbio = btrfs_bio(bio);
 	bio_ctrl->len_to_oe_boundary = U32_MAX;
 
 	/*
@@ -942,8 +942,8 @@ static void alloc_new_bio(struct btrfs_inode *inode,
  * @pg_offset:	offset of the new bio or to check whether we are adding
  *              a contiguous page to the previous one
  *
- * The will either add the page into the existing @bio_ctrl->bio, or allocate a
- * new one in @bio_ctrl->bio.
+ * The will either add the page into the existing @bio_ctrl->bbio, or allocate a
+ * new one in @bio_ctrl->bbio.
  * The mirror number for this IO should already be initizlied in
  * @bio_ctrl->mirror_num.
  */
@@ -956,7 +956,7 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 	ASSERT(pg_offset + size <= PAGE_SIZE);
 	ASSERT(bio_ctrl->end_io_func);
 
-	if (bio_ctrl->bio &&
+	if (bio_ctrl->bbio &&
 	    !btrfs_bio_is_contig(bio_ctrl, page, disk_bytenr, pg_offset))
 		submit_one_bio(bio_ctrl);
 
@@ -964,7 +964,7 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 		u32 len = size;
 
 		/* Allocate new bio if needed */
-		if (!bio_ctrl->bio) {
+		if (!bio_ctrl->bbio) {
 			alloc_new_bio(inode, bio_ctrl, disk_bytenr,
 				      page_offset(page) + pg_offset);
 		}
@@ -976,7 +976,7 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 			len = bio_ctrl->len_to_oe_boundary;
 		}
 
-		if (bio_add_page(bio_ctrl->bio, page, len, pg_offset) != len) {
+		if (bio_add_page(&bio_ctrl->bbio->bio, page, len, pg_offset) != len) {
 			/* bio full: move on to a new one */
 			submit_one_bio(bio_ctrl);
 			continue;
