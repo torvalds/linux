@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DMESG_DUMPER_PRIVATE_H
@@ -8,6 +8,7 @@
 
 #include <linux/dev_printk.h>
 #include <linux/kmsg_dump.h>
+#include <soc/qcom/minidump.h>
 
 #define LOG_LINE_MAX				1024
 #define IV_LEN						12
@@ -64,6 +65,7 @@ struct ddump_shm_hdr {
  * @ddump_completion: The completion for synchronization when dump
  *                    alive log
  * @wakeup_source : Avoid system enter suspend when dump alive log
+ * @md_entry : minidump entry
  */
 struct qcom_dmesg_dumper {
 	struct device *dev;
@@ -79,8 +81,9 @@ struct qcom_dmesg_dumper {
 	void *rx_dbl;
 	struct completion ddump_completion;
 	struct wakeup_source *wakeup_source;
+	struct notifier_block gh_panic_nb;
+	struct md_region md_entry;
 };
-
 
 #if IS_ENABLED(CONFIG_QCOM_VM_ALIVE_LOG_ENCRYPT)
 #define DDUMP_GET_USER_HDR	(sizeof(struct encrypt_data) + TAG_LEN + ALIGN_LEN)

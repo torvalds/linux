@@ -13,9 +13,10 @@
 #include <linux/suspend.h>
 #include <linux/types.h>
 #include <linux/gunyah/gh_dbl.h>
+#include <linux/gunyah/gh_panic_notifier.h>
 #include <linux/gunyah/gh_rm_drv.h>
-#include <soc/qcom/secure_buffer.h>
 #include <linux/qcom_scm.h>
+#include <soc/qcom/secure_buffer.h>
 
 #include "dmesg_dumper_private.h"
 
@@ -35,8 +36,19 @@ static void qcom_ddump_to_shm(struct kmsg_dumper *dumper,
 	dev_warn(qdd->dev, "reason = %d\n", reason);
 	kmsg_dump_rewind(&qdd->iter);
 	memset(qdd->base, 0, qdd->size);
-	kmsg_dump_get_buffer(&qdd->iter, true, qdd->base, qdd->size, &len);
+	kmsg_dump_get_buffer(&qdd->iter, false, qdd->base, qdd->size, &len);
 	dev_warn(qdd->dev, "size of dmesg logbuf logged = %lld\n", len);
+}
+
+static int qcom_ddump_gh_panic_handler(struct notifier_block *nb,
+				 unsigned long cmd, void *data)
+{
+	struct qcom_dmesg_dumper *qdd;
+
+	qdd = container_of(nb, struct qcom_dmesg_dumper, gh_panic_nb);
+	qcom_ddump_to_shm(&qdd->dump, KMSG_DUMP_PANIC);
+
+	return NOTIFY_DONE;
 }
 
 static struct device_node *qcom_ddump_svm_of_parse(struct qcom_dmesg_dumper *qdd)
@@ -184,6 +196,7 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 	struct qcom_dmesg_dumper *qdd;
 	gh_vmid_t peer_vmid;
 	gh_vmid_t self_vmid;
+	int ret;
 
 	qdd = container_of(nb, struct qcom_dmesg_dumper, rm_nb);
 
@@ -210,8 +223,15 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 
 		qdd->res.start = virt_to_phys(qdd->base);
 		qdd->res.end = qdd->res.start + qdd->size - 1;
+		strscpy(qdd->md_entry.name, "VM_LOG", sizeof(qdd->md_entry.name));
+		qdd->md_entry.virt_addr = (uintptr_t)qdd->base;
+		qdd->md_entry.phys_addr = qdd->res.start;
+		qdd->md_entry.size = qdd->size;
+		ret = msm_minidump_add_region(&qdd->md_entry);
+		if (ret < 0)
+			dev_err(qdd->dev, "Failed to add vm log entry in minidump table %d\n", ret);
+
 		if (qcom_ddump_share_mem(qdd, self_vmid, peer_vmid)) {
-			kfree(qdd->base);
 			dev_err(qdd->dev, "Failed to share memory\n");
 			return NOTIFY_DONE;
 		}
@@ -376,9 +396,16 @@ static int qcom_ddump_alive_log_probe(struct qcom_dmesg_dumper *qdd)
 		ret = qcom_ddump_encrypt_init(node);
 		if (ret)
 			goto err_unregister_wakeup_source;
+
+		qdd->gh_panic_nb.notifier_call = qcom_ddump_gh_panic_handler;
+		qdd->gh_panic_nb.priority = INT_MAX;
+		ret = gh_panic_notifier_register(&qdd->gh_panic_nb);
+		if (ret)
+			goto err_unregister_wakeup_source;
 	}
 
 	return 0;
+
 err_unregister_wakeup_source:
 	wakeup_source_unregister(qdd->wakeup_source);
 err_unregister_rx_dbl:
@@ -470,6 +497,7 @@ static int qcom_ddump_remove(struct platform_device *pdev)
 		if (qdd->primary_vm) {
 			remove_proc_entry(DDUMP_PROFS_NAME, NULL);
 		} else {
+			gh_panic_notifier_unregister(&qdd->gh_panic_nb);
 			wakeup_source_unregister(qdd->wakeup_source);
 			qcom_ddump_encrypt_exit();
 		}
