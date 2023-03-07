@@ -72,7 +72,6 @@ static void ppc6_deselect(struct pi_adapter *pi);
 static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
 static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
-static void ppc6_rd_data_blk(struct pi_adapter *pi, u8 *data, long count);
 static void ppc6_wait_for_fifo(struct pi_adapter *pi);
 static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count);
 static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata);
@@ -280,96 +279,6 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi)
 	}
 
 	return(data);
-}
-
-//***************************************************************************
-
-static void ppc6_rd_data_blk(struct pi_adapter *pi, u8 *data, long count)
-{
-	switch (mode_map[pi->mode])
-	{
-		case PPCMODE_UNI_SW :
-		case PPCMODE_UNI_FW :
-		{
-			while(count)
-			{
-				u8 d;
-
-				parport_frob_control(pi->pardev->port,
-					PARPORT_CONTROL_STROBE, PARPORT_CONTROL_INIT);
-
-				// DELAY
-
-				d = parport_read_status(pi->pardev->port);
-
-				d = ((d & 0x80) >> 1) | ((d & 0x38) >> 3);
-
-				parport_frob_control(pi->pardev->port,
-					PARPORT_CONTROL_STROBE, PARPORT_CONTROL_STROBE);
-
-				// DELAY
-
-				d |= parport_read_status(pi->pardev->port) & 0xB8;
-
-				*data++ = d;
-				count--;
-			}
-
-			break;
-		}
-
-		case PPCMODE_BI_SW :
-		case PPCMODE_BI_FW :
-		{
-			parport_data_reverse(pi->pardev->port);
-
-			while(count)
-			{
-				parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
-					PARPORT_CONTROL_STROBE | PARPORT_CONTROL_INIT);
-
-				*data++ = parport_read_data(pi->pardev->port);
-				count--;
-			}
-
-			parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE, 0);
-
-			parport_data_forward(pi->pardev->port);
-
-			break;
-		}
-
-		case PPCMODE_EPP_BYTE :
-		{
-			// DELAY
-
-			pi->pardev->port->ops->epp_read_data(pi->pardev->port,
-					data, count, PARPORT_EPP_FAST_8);
-
-			break;
-		}
-
-		case PPCMODE_EPP_WORD :
-		{
-			// DELAY
-
-			pi->pardev->port->ops->epp_read_data(pi->pardev->port,
-					data, count, PARPORT_EPP_FAST_16);
-
-			break;
-		}
-
-		case PPCMODE_EPP_DWORD :
-		{
-			// DELAY
-
-			pi->pardev->port->ops->epp_read_data(pi->pardev->port,
-					data, count, PARPORT_EPP_FAST_32);
-
-			break;
-		}
-	}
-
 }
 
 //***************************************************************************

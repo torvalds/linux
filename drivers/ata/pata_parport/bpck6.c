@@ -57,7 +57,54 @@ static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 
 	ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
 	ppc6_send_cmd(pi, ATA_REG_DATA | ACCESS_PORT | ACCESS_READ);
-	ppc6_rd_data_blk(pi, buf, len);
+
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_UNI_FW:
+		while (len) {
+			u8 d;
+
+			parport_frob_control(pi->pardev->port,
+					PARPORT_CONTROL_STROBE,
+					PARPORT_CONTROL_INIT); /* DATA STROBE */
+			d = parport_read_status(pi->pardev->port);
+			d = ((d & 0x80) >> 1) | ((d & 0x38) >> 3);
+			parport_frob_control(pi->pardev->port,
+					PARPORT_CONTROL_STROBE,
+					PARPORT_CONTROL_STROBE);
+			d |= parport_read_status(pi->pardev->port) & 0xB8;
+			*buf++ = d;
+			len--;
+		}
+		break;
+	case PPCMODE_BI_SW:
+	case PPCMODE_BI_FW:
+		parport_data_reverse(pi->pardev->port);
+		while (len) {
+			parport_frob_control(pi->pardev->port,
+				PARPORT_CONTROL_STROBE,
+				PARPORT_CONTROL_STROBE | PARPORT_CONTROL_INIT);
+			*buf++ = parport_read_data(pi->pardev->port);
+			len--;
+		}
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+					0);
+		parport_data_forward(pi->pardev->port);
+		break;
+	case PPCMODE_EPP_BYTE:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, buf, len,
+						PARPORT_EPP_FAST_8);
+		break;
+	case PPCMODE_EPP_WORD:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, buf, len,
+						PARPORT_EPP_FAST_16);
+		break;
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, buf, len,
+						PARPORT_EPP_FAST_32);
+		break;
+	}
+
 	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
