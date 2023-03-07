@@ -127,7 +127,7 @@ struct cxl_mbox_cmd {
 };
 
 /*
- * Per CXL 2.0 Section 8.2.8.4.5.1
+ * Per CXL 3.0 Section 8.2.8.4.5.1
  */
 #define CMD_CMD_RC_TABLE							\
 	C(SUCCESS, 0, NULL),							\
@@ -152,7 +152,15 @@ struct cxl_mbox_cmd {
 	C(SECURITY, -ENXIO, "not valid in the current security state"),         \
 	C(PASSPHRASE, -ENXIO, "phrase doesn't match current set passphrase"),   \
 	C(MBUNSUPPORTED, -ENXIO, "unsupported on the mailbox it was issued on"),\
-	C(PAYLOADLEN, -ENXIO, "invalid payload length")
+	C(PAYLOADLEN, -ENXIO, "invalid payload length"),			\
+	C(LOG, -ENXIO, "invalid or unsupported log page"),			\
+	C(INTERRUPTED, -ENXIO, "asynchronous event occured"),			\
+	C(FEATUREVERSION, -ENXIO, "unsupported feature version"),		\
+	C(FEATURESELVALUE, -ENXIO, "unsupported feature selection value"),	\
+	C(FEATURETRANSFERIP, -ENXIO, "feature transfer in progress"),		\
+	C(FEATURETRANSFEROOO, -ENXIO, "feature transfer out of order"),		\
+	C(RESOURCEEXHAUSTED, -ENXIO, "resources are exhausted"),		\
+	C(EXTLIST, -ENXIO, "invalid Extent List"),				\
 
 #undef C
 #define C(a, b, c) CXL_MBOX_CMD_RC_##a
