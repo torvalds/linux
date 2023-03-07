@@ -1959,8 +1959,13 @@ static struct worker *create_worker(struct worker_pool *pool)
 	worker->task = kthread_create_on_node(worker_thread, worker, pool->node,
 					      "kworker/%s", id_buf);
 	if (IS_ERR(worker->task)) {
-		pr_err_once("workqueue: Failed to create a worker thread: %pe",
-			    worker->task);
+		if (PTR_ERR(worker->task) == -EINTR) {
+			pr_err("workqueue: Interrupted when creating a worker thread \"kworker/%s\"\n",
+			       id_buf);
+		} else {
+			pr_err_once("workqueue: Failed to create a worker thread: %pe",
+				    worker->task);
+		}
 		goto fail;
 	}
 
