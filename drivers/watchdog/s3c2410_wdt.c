@@ -601,10 +601,8 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev, struct s3c2410_wdt *wdt)
 
 		err = of_property_read_u32(dev->of_node,
 					   "samsung,cluster-index", &index);
-		if (err) {
-			dev_err(dev, "failed to get cluster index\n");
-			return -EINVAL;
-		}
+		if (err)
+			return dev_err_probe(dev, -EINVAL, "failed to get cluster index\n");
 
 		switch (index) {
 		case 0:
@@ -615,8 +613,7 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev, struct s3c2410_wdt *wdt)
 				&drv_data_exynosautov9_cl1;
 			break;
 		default:
-			dev_err(dev, "wrong cluster index: %u\n", index);
-			return -EINVAL;
+			return dev_err_probe(dev, -EINVAL, "wrong cluster index: %u\n", index);
 		}
 	}
 #endif
@@ -653,10 +650,9 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
 		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
 						"samsung,syscon-phandle");
-		if (IS_ERR(wdt->pmureg)) {
-			dev_err(dev, "syscon regmap lookup failed.\n");
-			return PTR_ERR(wdt->pmureg);
-		}
+		if (IS_ERR(wdt->pmureg))
+			return dev_err_probe(dev, PTR_ERR(wdt->pmureg),
+					     "syscon regmap lookup failed.\n");
 	}
 
 	wdt_irq = platform_get_irq(pdev, 0);
@@ -694,21 +690,17 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (ret) {
 		ret = s3c2410wdt_set_heartbeat(&wdt->wdt_device,
 					       S3C2410_WATCHDOG_DEFAULT_TIME);
-		if (ret == 0) {
+		if (ret == 0)
 			dev_warn(dev, "tmr_margin value out of range, default %d used\n",
 				 S3C2410_WATCHDOG_DEFAULT_TIME);
-		} else {
-			dev_err(dev, "failed to use default timeout\n");
-			return ret;
-		}
+		else
+			return dev_err_probe(dev, ret, "failed to use default timeout\n");
 	}
 
 	ret = devm_request_irq(dev, wdt_irq, s3c2410wdt_irq, 0,
 			       pdev->name, pdev);
-	if (ret != 0) {
-		dev_err(dev, "failed to install irq (%d)\n", ret);
-		return ret;
-	}
+	if (ret != 0)
+		return dev_err_probe(dev, ret, "failed to install irq (%d)\n", ret);
 
 	watchdog_set_nowayout(&wdt->wdt_device, nowayout);
 	watchdog_set_restart_priority(&wdt->wdt_device, 128);
