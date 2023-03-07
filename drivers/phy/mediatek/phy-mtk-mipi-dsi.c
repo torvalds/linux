@@ -180,10 +180,9 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 				   mipi_tx->pll);
 }
 
-static int mtk_mipi_tx_remove(struct platform_device *pdev)
+static void mtk_mipi_tx_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-	return 0;
 }
 
 static const struct of_device_id mtk_mipi_tx_match[] = {
@@ -199,7 +198,7 @@ MODULE_DEVICE_TABLE(of, mtk_mipi_tx_match);
 
 static struct platform_driver mtk_mipi_tx_driver = {
 	.probe = mtk_mipi_tx_probe,
-	.remove = mtk_mipi_tx_remove,
+	.remove_new = mtk_mipi_tx_remove,
 	.driver = {
 		.name = "mediatek-mipi-tx",
 		.of_match_table = mtk_mipi_tx_match,
