@@ -1636,7 +1636,7 @@ err_addr_to_resource:
 	return ret;
 }
 
-static int wiz_remove(struct platform_device *pdev)
+static void wiz_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
@@ -1650,13 +1650,11 @@ static int wiz_remove(struct platform_device *pdev)
 	wiz_clock_cleanup(wiz, node);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static struct platform_driver wiz_driver = {
 	.probe		= wiz_probe,
-	.remove		= wiz_remove,
+	.remove_new	= wiz_remove,
 	.driver		= {
 		.name	= "wiz",
 		.of_match_table = wiz_id_table,
