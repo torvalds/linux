@@ -2657,6 +2657,7 @@ static int disable_host_v3_hw(struct hisi_hba *hisi_hba)
 	int rc;
 
 	interrupt_disable_v3_hw(hisi_hba);
+	hisi_sas_sync_poll_cqs(hisi_hba);
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
 
 	hisi_sas_stop_phys(hisi_hba);
@@ -3069,7 +3070,7 @@ static void debugfs_snapshot_prepare_v3_hw(struct hisi_hba *hisi_hba)
 
 	wait_cmds_complete_timeout_v3_hw(hisi_hba, 100, 5000);
 
-	hisi_sas_sync_irqs(hisi_hba);
+	hisi_sas_sync_cqs(hisi_hba);
 }
 
 static void debugfs_snapshot_restore_v3_hw(struct hisi_hba *hisi_hba)
