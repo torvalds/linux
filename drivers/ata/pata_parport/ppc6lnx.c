@@ -65,7 +65,6 @@
 //***************************************************************************
 
 struct ppc_storage {
-	u8	ppc_id;
 	u8	mode;						// operating mode
 					// 0 = PPC Uni SW
 					// 1 = PPC Uni FW
@@ -143,8 +142,8 @@ static int ppc6_select(struct pi_adapter *pi)
 
 	outb('b', pi->port);
 	outb('p', pi->port);
-	outb(ppc->ppc_id, pi->port);
-	outb(~ppc->ppc_id, pi->port);
+	outb(pi->unit, pi->port);
+	outb(~pi->unit, pi->port);
 
 	ppc->cur_ctrl &= ~port_sel;
 
