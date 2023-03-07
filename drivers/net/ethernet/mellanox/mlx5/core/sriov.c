@@ -123,9 +123,11 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 }
 
 static void
-mlx5_device_disable_sriov(struct mlx5_core_dev *dev, int num_vfs, bool clear_vf)
+mlx5_device_disable_sriov(struct mlx5_core_dev *dev, int num_vfs, bool clear_vf, bool num_vf_change)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
+	bool wait_for_ec_vf_pages = true;
+	bool wait_for_vf_pages = true;
 	int err;
 	int vf;
 
@@ -147,11 +149,30 @@ mlx5_device_disable_sriov(struct mlx5_core_dev *dev, int num_vfs, bool clear_vf)
 
 	mlx5_eswitch_disable_sriov(dev->priv.eswitch, clear_vf);
 
+	/* There are a number of scenarios when SRIOV is being disabled:
+	 *     1. VFs or ECVFs had been created, and now set back to 0 (num_vf_change == true).
+	 *		- If EC SRIOV is enabled then this flow is happening on the
+	 *		  embedded platform, wait for only EC VF pages.
+	 *		- If EC SRIOV is not enabled this flow is happening on non-embedded
+	 *		  platform, wait for the VF pages.
+	 *
+	 *     2. The driver is being unloaded. In this case wait for all pages.
+	 */
+	if (num_vf_change) {
+		if (mlx5_core_ec_sriov_enabled(dev))
+			wait_for_vf_pages = false;
+		else
+			wait_for_ec_vf_pages = false;
+	}
+
+	if (wait_for_ec_vf_pages && mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_EC_VF]))
+		mlx5_core_warn(dev, "timeout reclaiming EC VFs pages\n");
+
 	/* For ECPFs, skip waiting for host VF pages until ECPF is destroyed */
 	if (mlx5_core_is_ecpf(dev))
 		return;
 
-	if (mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_VF]))
+	if (wait_for_vf_pages && mlx5_wait_for_pages(dev, &dev->priv.page_counters[MLX5_VF]))
 		mlx5_core_warn(dev, "timeout reclaiming VFs pages\n");
 }
 
@@ -172,12 +193,12 @@ static int mlx5_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	err = pci_enable_sriov(pdev, num_vfs);
 	if (err) {
 		mlx5_core_warn(dev, "pci_enable_sriov failed : %d\n", err);
-		mlx5_device_disable_sriov(dev, num_vfs, true);
+		mlx5_device_disable_sriov(dev, num_vfs, true, true);
 	}
 	return err;
 }
 
-void mlx5_sriov_disable(struct pci_dev *pdev)
+void mlx5_sriov_disable(struct pci_dev *pdev, bool num_vf_change)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct devlink *devlink = priv_to_devlink(dev);
@@ -185,7 +206,7 @@ void mlx5_sriov_disable(struct pci_dev *pdev)
 
 	pci_disable_sriov(pdev);
 	devl_lock(devlink);
-	mlx5_device_disable_sriov(dev, num_vfs, true);
+	mlx5_device_disable_sriov(dev, num_vfs, true, num_vf_change);
 	devl_unlock(devlink);
 }
 
@@ -200,7 +221,7 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	if (num_vfs)
 		err = mlx5_sriov_enable(pdev, num_vfs);
 	else
-		mlx5_sriov_disable(pdev);
+		mlx5_sriov_disable(pdev, true);
 
 	if (!err)
 		sriov->num_vfs = num_vfs;
@@ -245,7 +266,7 @@ void mlx5_sriov_detach(struct mlx5_core_dev *dev)
 	if (!mlx5_core_is_pf(dev))
 		return;
 
-	mlx5_device_disable_sriov(dev, pci_num_vf(dev->pdev), false);
+	mlx5_device_disable_sriov(dev, pci_num_vf(dev->pdev), false, false);
 }
 
 static u16 mlx5_get_max_vfs(struct mlx5_core_dev *dev)

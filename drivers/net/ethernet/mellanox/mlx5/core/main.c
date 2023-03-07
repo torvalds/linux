@@ -1809,7 +1809,7 @@ static void remove_one(struct pci_dev *pdev)
 	mlx5_drain_fw_reset(dev);
 	mlx5_drain_health_wq(dev);
 	devlink_unregister(devlink);
-	mlx5_sriov_disable(pdev);
+	mlx5_sriov_disable(pdev, false);
 	mlx5_thermal_uninit(dev);
 	mlx5_crdump_disable(dev);
 	mlx5_uninit_one(dev);
