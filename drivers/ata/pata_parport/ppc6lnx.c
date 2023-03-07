@@ -72,7 +72,6 @@ static void ppc6_deselect(struct pi_adapter *pi);
 static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
 static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
-static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata);
 static int ppc6_open(struct pi_adapter *pi);
 
 //***************************************************************************
@@ -277,15 +276,6 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi)
 	}
 
 	return(data);
-}
-
-//***************************************************************************
-
-static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata)
-{
-	ppc6_send_cmd(pi, REG_VERSION | ACCESS_REG | ACCESS_WRITE);
-
-	ppc6_wr_data_byte(pi, (u8)((regdata & 0x03) << 6));
 }
 
 //***************************************************************************

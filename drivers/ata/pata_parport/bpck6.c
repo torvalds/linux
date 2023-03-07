@@ -174,18 +174,24 @@ static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
+static void bpck6_wr_extout(struct pi_adapter *pi, u8 regdata)
+{
+	ppc6_send_cmd(pi, REG_VERSION | ACCESS_REG | ACCESS_WRITE);
+	ppc6_wr_data_byte(pi, (u8)((regdata & 0x03) << 6));
+}
+
 static void bpck6_connect(struct pi_adapter *pi)
 {
 	dev_dbg(&pi->dev, "connect\n");
 
 	ppc6_open(pi);
-	ppc6_wr_extout(pi, 0x3);
+	bpck6_wr_extout(pi, 0x3);
 }
 
 static void bpck6_disconnect(struct pi_adapter *pi)
 {
 	dev_dbg(&pi->dev, "disconnect\n");
-	ppc6_wr_extout(pi, 0x0);
+	bpck6_wr_extout(pi, 0x0);
 	ppc6_deselect(pi);
 }
 
