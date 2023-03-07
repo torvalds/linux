@@ -1211,7 +1211,8 @@ enum sctp_sched_type {
 	SCTP_SS_DEFAULT = SCTP_SS_FCFS,
 	SCTP_SS_PRIO,
 	SCTP_SS_RR,
-	SCTP_SS_MAX = SCTP_SS_RR
+	SCTP_SS_FC,
+	SCTP_SS_MAX = SCTP_SS_FC
 };
 
 /* Probe Interval socket option */
