@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 #include <asm/io.h>
 #include <linux/parport.h>
@@ -107,24 +106,6 @@ static void bpck6_log_adapter(struct pi_adapter *pi)
 		pi->unit, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
-static int bpck6_init_proto(struct pi_adapter *pi)
-{
-	struct ppc_storage *p = kzalloc(sizeof(struct ppc_storage), GFP_KERNEL);
-
-	if (p) {
-		pi->private = (unsigned long)p;
-		return 0;
-	}
-
-	dev_err(&pi->dev, "ERROR COULDN'T ALLOCATE MEMORY\n");
-	return -1;
-}
-
-static void bpck6_release_proto(struct pi_adapter *pi)
-{
-	kfree((void *)(pi->private)); 
-}
-
 static struct pi_protocol bpck6 = {
 	.owner		= THIS_MODULE,
 	.name		= "bpck6",
@@ -140,8 +121,6 @@ static struct pi_protocol bpck6 = {
 	.test_port	= bpck6_test_port,
 	.probe_unit	= bpck6_probe_unit,
 	.log_adapter	= bpck6_log_adapter,
-	.init_proto	= bpck6_init_proto,
-	.release_proto	= bpck6_release_proto,
 };
 
 MODULE_LICENSE("GPL");
