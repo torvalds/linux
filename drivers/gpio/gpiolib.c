@@ -588,14 +588,15 @@ static void gpiodevice_release(struct device *dev)
 
 static int gpiochip_setup_dev(struct gpio_device *gdev)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(&gdev->dev);
 	int ret;
 
 	/*
 	 * If fwnode doesn't belong to another device, it's safe to clear its
 	 * initialized flag.
 	 */
-	if (gdev->dev.fwnode && !gdev->dev.fwnode->dev)
-		fwnode_dev_initialized(gdev->dev.fwnode, false);
+	if (fwnode && !fwnode->dev)
+		fwnode_dev_initialized(fwnode, false);
 
 	ret = gcdev_register(gdev, gpio_devt);
 	if (ret)
