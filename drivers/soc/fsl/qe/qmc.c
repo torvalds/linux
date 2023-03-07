@@ -754,6 +754,11 @@ static int qmc_check_chans(struct qmc *qmc)
 	if (ret)
 		return ret;
 
+	if ((info.nb_tx_ts > 64) || (info.nb_rx_ts > 64)) {
+		dev_err(qmc->dev, "Number of TSA Tx/Rx TS assigned not supported\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * If more than 32 TS are assigned to this serial, one common table is
 	 * used for Tx and Rx and so masks must be equal for all channels.
@@ -766,9 +771,8 @@ static int qmc_check_chans(struct qmc *qmc)
 		is_one_table = true;
 	}
 
-
-	tx_ts_assigned_mask = (((u64)1) << info.nb_tx_ts) - 1;
-	rx_ts_assigned_mask = (((u64)1) << info.nb_rx_ts) - 1;
+	tx_ts_assigned_mask = info.nb_tx_ts == 64 ? U64_MAX : (((u64)1) << info.nb_tx_ts) - 1;
+	rx_ts_assigned_mask = info.nb_rx_ts == 64 ? U64_MAX : (((u64)1) << info.nb_rx_ts) - 1;
 
 	list_for_each_entry(chan, &qmc->chan_head, list) {
 		if (chan->tx_ts_mask > tx_ts_assigned_mask) {
