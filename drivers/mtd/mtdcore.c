@@ -519,7 +519,7 @@ static int mtd_nvmem_add(struct mtd_info *mtd)
 	struct device_node *node = mtd_get_of_node(mtd);
 	struct nvmem_config config = {};
 
-	config.id = -1;
+	config.id = NVMEM_DEVID_NONE;
 	config.dev = &mtd->dev;
 	config.name = dev_name(&mtd->dev);
 	config.owner = THIS_MODULE;
