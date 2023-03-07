@@ -400,6 +400,12 @@ static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 	return is_fixed_event_allowed(filter, pmc->idx);
 }
 
+static bool pmc_event_is_allowed(struct kvm_pmc *pmc)
+{
+	return pmc_is_globally_enabled(pmc) && pmc_speculative_in_use(pmc) &&
+	       check_pmu_event_filter(pmc);
+}
+
 static void reprogram_counter(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -409,10 +415,7 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 
 	pmc_pause_counter(pmc);
 
-	if (!pmc_speculative_in_use(pmc) || !pmc_is_globally_enabled(pmc))
-		goto reprogram_complete;
-
-	if (!check_pmu_event_filter(pmc))
+	if (!pmc_event_is_allowed(pmc))
 		goto reprogram_complete;
 
 	if (pmc->counter < pmc->prev_counter)
@@ -688,7 +691,7 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
 	for_each_set_bit(i, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX) {
 		pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, i);
 
-		if (!pmc || !pmc_is_globally_enabled(pmc) || !pmc_speculative_in_use(pmc))
+		if (!pmc || !pmc_event_is_allowed(pmc))
 			continue;
 
 		/* Ignore checks for edge detect, pin control, invert and CMASK bits */
