@@ -25,24 +25,12 @@
 
 static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
-	unsigned int out;
-
-	/* check for bad settings */
-	if (reg<0 || reg>7 || cont<0 || cont>2)
-	{
-		return(-1);
-	}
-	out=ppc6_rd_port(PPCSTRUCT(pi),cont?reg|8:reg);
-	return(out);
+	return ppc6_rd_port(PPCSTRUCT(pi), cont?reg|8:reg);
 }
 
 static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 {
-	/* check for bad settings */
-	if (reg>=0 && reg<=7 && cont>=0 && cont<=1)
-	{
-		ppc6_wr_port(PPCSTRUCT(pi),cont?reg|8:reg,(u8)val);
-	}
+	ppc6_wr_port(PPCSTRUCT(pi), cont?reg|8:reg, val);
 }
 
 static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
