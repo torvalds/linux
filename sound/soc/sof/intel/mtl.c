@@ -256,7 +256,7 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "failed to power up gated DSP domain\n");
 
 	/* make sure SoundWire is not power-gated */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, MTL_HFPWRCTL,
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFPWRCTL,
 				MTL_HfPWRCTL_WPIOXPG(1), MTL_HfPWRCTL_WPIOXPG(1));
 	return ret;
 }
