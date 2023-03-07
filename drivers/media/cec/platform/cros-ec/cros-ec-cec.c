@@ -227,6 +227,10 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	{ "Google", "Kuldax", "0000:00:02.0", "Port B" },
 	/* Google Aurash */
 	{ "Google", "Aurash", "0000:00:02.0", "Port B" },
+	/* Google Gladios */
+	{ "Google", "Gladios", "0000:00:02.0", "Port B" },
+	/* Google Lisbon */
+	{ "Google", "Lisbon", "0000:00:02.0", "Port B" },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
