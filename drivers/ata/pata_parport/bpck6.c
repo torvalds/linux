@@ -42,7 +42,15 @@ static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 
 static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 {
-	ppc6_rd_port16_blk(pi, ATA_REG_DATA, buf, (u32)len>>1);
+	ppc6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
+	ppc6_wr_data_byte(pi, (u8)len);
+	ppc6_wr_data_byte(pi, (u8)(len >> 8));
+	ppc6_wr_data_byte(pi, 0);
+
+	ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
+	ppc6_send_cmd(pi, ATA_REG_DATA | ACCESS_PORT | ACCESS_READ);
+	ppc6_rd_data_blk(pi, buf, len);
+	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
 static void bpck6_connect(struct pi_adapter *pi)
