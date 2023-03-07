@@ -81,7 +81,6 @@ static void ppc6_rd_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long le
 static void ppc6_wr_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long length);
 static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata);
 static int ppc6_open(struct pi_adapter *pi);
-static void ppc6_close(struct pi_adapter *pi);
 
 //***************************************************************************
 
@@ -569,13 +568,6 @@ static int ppc6_open(struct pi_adapter *pi)
 		pi->private |= fifo_wait;
 
 	return(ret);
-}
-
-//***************************************************************************
-
-static void ppc6_close(struct pi_adapter *pi)
-{
-	ppc6_deselect(pi);
 }
 
 //***************************************************************************

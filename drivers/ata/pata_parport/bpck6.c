@@ -51,7 +51,7 @@ static void bpck6_disconnect(struct pi_adapter *pi)
 {
 	dev_dbg(&pi->dev, "disconnect\n");
 	ppc6_wr_extout(pi, 0x0);
-	ppc6_close(pi);
+	ppc6_deselect(pi);
 }
 
 static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
@@ -83,7 +83,7 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
 
   	if(out)
  	{
-		ppc6_close(pi);
+		ppc6_deselect(pi);
 		dev_dbg(&pi->dev, "leaving probe\n");
 		pi->mode = saved_mode;
                return(1);
