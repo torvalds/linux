@@ -47,6 +47,12 @@ static const struct xe_mmio_range xelp_l3bank_steering_table[] = {
 	{},
 };
 
+static const struct xe_mmio_range xehp_l3bank_steering_table[] = {
+	{ 0x008C80, 0x008CFF },
+	{ 0x00B100, 0x00B3FF },
+	{},
+};
+
 /*
  * Although the bspec lists more "MSLICE" ranges than shown here, some of those
  * are of a "GAM" subclass that has special rules and doesn't need to be
@@ -180,6 +186,18 @@ static void init_steering_l3bank(struct xe_gt *gt)
 		gt->steering[L3BANK].group_target = __ffs(mslice_mask);
 		gt->steering[L3BANK].instance_target =
 			bank_mask & BIT(0) ? 0 : 2;
+	} else if (gt_to_xe(gt)->info.platform == XE_DG2) {
+		u32 mslice_mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK,
+						xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg));
+		u32 bank = __ffs(mslice_mask) * 8;
+
+		/*
+		 * Like mslice registers, look for a valid mslice and steer to
+		 * the first L3BANK of that quad. Access to the Nth L3 bank is
+		 * split between the first bits of group and instance
+		 */
+		gt->steering[L3BANK].group_target = (bank >> 2) & 0x7;
+		gt->steering[L3BANK].instance_target = bank & 0x3;
 	} else {
 		u32 fuse = REG_FIELD_GET(GEN10_L3BANK_MASK,
 					 ~xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg));
@@ -277,6 +295,7 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 		gt->steering[INSTANCE0].ranges = xehpc_instance0_steering_table;
 		gt->steering[DSS].ranges = xehpc_dss_steering_table;
 	} else if (xe->info.platform == XE_DG2) {
+		gt->steering[L3BANK].ranges = xehp_l3bank_steering_table;
 		gt->steering[MSLICE].ranges = xehp_mslice_steering_table;
 		gt->steering[LNCF].ranges = xehp_lncf_steering_table;
 		gt->steering[DSS].ranges = xehp_dss_steering_table;
