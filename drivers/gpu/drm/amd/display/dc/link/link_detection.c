@@ -1227,6 +1227,11 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 		/* TODO: need to do the actual detection */
 	} else {
 		*type = dc_connection_none;
+		if (link->connector_signal == SIGNAL_TYPE_EDP) {
+			/* eDP is not connected, power down it */
+			if (!link->dc->config.edp_no_power_sequencing)
+				link->dc->hwss.edp_power_control(link, false);
+		}
 	}
 
 	return true;
