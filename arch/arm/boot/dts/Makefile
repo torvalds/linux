@@ -1006,8 +1006,12 @@ dtb-$(CONFIG_SOC_DRA7XX) += \
 	am57xx-cl-som-am57x.dtb \
 	am57xx-sbc-am57x.dtb \
 	am572x-idk.dtb \
+	am572x-idk-touchscreen.dtbo \
 	am571x-idk.dtb \
+	am571x-idk-touchscreen.dtbo \
 	am574x-idk.dtb \
+	am57xx-idk-lcd-osd101t2045.dtbo \
+	am57xx-idk-lcd-osd101t2587.dtbo \
 	dra7-evm.dtb \
 	dra72-evm.dtb \
 	dra72-evm-revc.dtb \
