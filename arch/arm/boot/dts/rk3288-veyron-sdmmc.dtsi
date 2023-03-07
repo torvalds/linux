@@ -5,6 +5,12 @@
  * Copyright 2015 Google, Inc
  */
 
+/ {
+	aliases {
+		mmc1 = &sdmmc;
+	};
+};
+
 &io_domains {
 	sdcard-supply = <&vccio_sd>;
 };
