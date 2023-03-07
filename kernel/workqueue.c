@@ -4391,13 +4391,18 @@ static int init_rescuer(struct workqueue_struct *wq)
 		return 0;
 
 	rescuer = alloc_worker(NUMA_NO_NODE);
-	if (!rescuer)
+	if (!rescuer) {
+		pr_err("workqueue: Failed to allocate a rescuer for wq \"%s\"\n",
+		       wq->name);
 		return -ENOMEM;
+	}
 
 	rescuer->rescue_wq = wq;
 	rescuer->task = kthread_create(rescuer_thread, rescuer, "%s", wq->name);
 	if (IS_ERR(rescuer->task)) {
 		ret = PTR_ERR(rescuer->task);
+		pr_err("workqueue: Failed to create a rescuer kthread for wq \"%s\": %pe",
+		       wq->name, ERR_PTR(ret));
 		kfree(rescuer);
 		return ret;
 	}
