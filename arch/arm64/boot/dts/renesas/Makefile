@@ -28,10 +28,6 @@ dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex.dtb
 dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex-idk-1110wr.dtb
 dtb-$(CONFIG_ARCH_R8A774E1) += r8a774e1-hihope-rzg2h-ex-mipi-2.1.dtb
 
-dtb-$(CONFIG_ARCH_R8A77950) += r8a77950-salvator-x.dtb
-dtb-$(CONFIG_ARCH_R8A77950) += r8a77950-ulcb.dtb
-dtb-$(CONFIG_ARCH_R8A77950) += r8a77950-ulcb-kf.dtb
-
 dtb-$(CONFIG_ARCH_R8A77951) += r8a77951-salvator-x.dtb
 dtb-$(CONFIG_ARCH_R8A77951) += r8a77951-salvator-xs.dtb
 dtb-$(CONFIG_ARCH_R8A77951) += r8a77951-ulcb.dtb
