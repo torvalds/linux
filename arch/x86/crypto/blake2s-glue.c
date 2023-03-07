@@ -74,4 +74,3 @@ static int __init blake2s_mod_init(void)
 
 module_init(blake2s_mod_init);
 
-MODULE_LICENSE("GPL v2");
