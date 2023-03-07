@@ -259,7 +259,7 @@ config MTK_CMDQ_MBOX
 	  during the vblank.
 
 config ZYNQMP_IPI_MBOX
-	bool "Xilinx ZynqMP IPI Mailbox"
+	tristate "Xilinx ZynqMP IPI Mailbox"
 	depends on ARCH_ZYNQMP && OF
 	help
 	  Say yes here to add support for Xilinx IPI mailbox driver.
