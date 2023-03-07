@@ -55,13 +55,6 @@
 #define mlx5_esw_for_each_rep(esw, i, rep) \
 	xa_for_each(&((esw)->offloads.vport_reps), i, rep)
 
-#define mlx5_esw_for_each_sf_rep(esw, i, rep) \
-	xa_for_each_marked(&((esw)->offloads.vport_reps), i, rep, MLX5_ESW_VPT_SF)
-
-#define mlx5_esw_for_each_vf_rep(esw, index, rep)	\
-	mlx5_esw_for_each_entry_marked(&((esw)->offloads.vport_reps), index, \
-				       rep, (esw)->esw_funcs.num_vfs, MLX5_ESW_VPT_VF)
-
 /* There are two match-all miss flows, one for unicast dst mac and
  * one for multicast.
  */
@@ -2191,18 +2184,6 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 	return 0;
 }
 
-static void mlx5_esw_offloads_rep_mark_set(struct mlx5_eswitch *esw,
-					   struct mlx5_eswitch_rep *rep,
-					   xa_mark_t mark)
-{
-	bool mark_set;
-
-	/* Copy the mark from vport to its rep */
-	mark_set = xa_get_mark(&esw->vports, rep->vport, mark);
-	if (mark_set)
-		xa_set_mark(&esw->offloads.vport_reps, rep->vport, mark);
-}
-
 static int mlx5_esw_offloads_rep_init(struct mlx5_eswitch *esw, const struct mlx5_vport *vport)
 {
 	struct mlx5_eswitch_rep *rep;
@@ -2222,9 +2203,6 @@ static int mlx5_esw_offloads_rep_init(struct mlx5_eswitch *esw, const struct mlx
 	if (err)
 		goto insert_err;
 
-	mlx5_esw_offloads_rep_mark_set(esw, rep, MLX5_ESW_VPT_HOST_FN);
-	mlx5_esw_offloads_rep_mark_set(esw, rep, MLX5_ESW_VPT_VF);
-	mlx5_esw_offloads_rep_mark_set(esw, rep, MLX5_ESW_VPT_SF);
 	return 0;
 
 insert_err:
@@ -2365,37 +2343,13 @@ static void __esw_offloads_unload_rep(struct mlx5_eswitch *esw,
 		esw->offloads.rep_ops[rep_type]->unload(rep);
 }
 
-static void __unload_reps_sf_vport(struct mlx5_eswitch *esw, u8 rep_type)
-{
-	struct mlx5_eswitch_rep *rep;
-	unsigned long i;
-
-	mlx5_esw_for_each_sf_rep(esw, i, rep)
-		__esw_offloads_unload_rep(esw, rep, rep_type);
-}
-
 static void __unload_reps_all_vport(struct mlx5_eswitch *esw, u8 rep_type)
 {
 	struct mlx5_eswitch_rep *rep;
 	unsigned long i;
 
-	__unload_reps_sf_vport(esw, rep_type);
-
-	mlx5_esw_for_each_vf_rep(esw, i, rep)
+	mlx5_esw_for_each_rep(esw, i, rep)
 		__esw_offloads_unload_rep(esw, rep, rep_type);
-
-	if (mlx5_ecpf_vport_exists(esw->dev)) {
-		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_ECPF);
-		__esw_offloads_unload_rep(esw, rep, rep_type);
-	}
-
-	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_PF);
-		__esw_offloads_unload_rep(esw, rep, rep_type);
-	}
-
-	rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_UPLINK);
-	__esw_offloads_unload_rep(esw, rep, rep_type);
 }
 
 int mlx5_esw_offloads_rep_load(struct mlx5_eswitch *esw, u16 vport_num)
