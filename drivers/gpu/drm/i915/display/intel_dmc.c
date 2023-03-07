@@ -89,9 +89,12 @@ static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 	__stringify(major) "_"			\
 	__stringify(minor) ".bin"
 
+#define XELPDP_DMC_MAX_FW_SIZE		0x7000
 #define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
-
 #define DISPLAY_VER12_DMC_MAX_FW_SIZE	ICL_DMC_MAX_FW_SIZE
+
+#define MTL_DMC_PATH			DMC_PATH(mtl)
+MODULE_FIRMWARE(MTL_DMC_PATH);
 
 #define DG2_DMC_PATH			DMC_LEGACY_PATH(dg2, 2, 08)
 MODULE_FIRMWARE(DG2_DMC_PATH);
@@ -995,7 +998,10 @@ void intel_dmc_init(struct drm_i915_private *i915)
 
 	INIT_WORK(&dmc->work, dmc_load_work_fn);
 
-	if (IS_DG2(i915)) {
+	if (IS_METEORLAKE(i915)) {
+		dmc->fw_path = MTL_DMC_PATH;
+		dmc->max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
+	} else if (IS_DG2(i915)) {
 		dmc->fw_path = DG2_DMC_PATH;
 		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
 	} else if (IS_ALDERLAKE_P(i915)) {
