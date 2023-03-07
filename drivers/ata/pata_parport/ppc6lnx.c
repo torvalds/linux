@@ -49,10 +49,6 @@
 
 //***************************************************************************
 
-#define PPC_FLAGS	(((u8 *)&pi->private)[1])
-
-//***************************************************************************
-
 // ppc_flags
 
 #define fifo_wait					0x10
@@ -405,7 +401,7 @@ static void ppc6_wait_for_fifo(struct pi_adapter *pi)
 {
 	int i;
 
-	if (PPC_FLAGS & fifo_wait)
+	if (pi->private & fifo_wait)
 	{
 		for(i=0; i<20; i++)
 			parport_read_status(pi->pardev->port);
@@ -562,7 +558,7 @@ static int ppc6_open(struct pi_adapter *pi)
 	if (ret == 0)
 		return(ret);
 
-	PPC_FLAGS &= ~fifo_wait;
+	pi->private = 0;
 
 	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
 	ppc6_wr_data_byte(pi, RAMSIZE_128K);
@@ -570,7 +566,7 @@ static int ppc6_open(struct pi_adapter *pi)
 	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
 
 	if ((ppc6_rd_data_byte(pi) & 0x3F) == 0x0C)
-		PPC_FLAGS |= fifo_wait;
+		pi->private |= fifo_wait;
 
 	return(ret);
 }
