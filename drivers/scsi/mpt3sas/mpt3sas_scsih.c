@@ -52,7 +52,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/aer.h>
 #include <linux/raid_class.h>
 #include <linux/blk-mq-pci.h>
 #include <asm/unaligned.h>
