@@ -43,9 +43,15 @@ struct journal_buf {
  * flushed:
  */
 
+enum journal_pin_type {
+	JOURNAL_PIN_btree,
+	JOURNAL_PIN_key_cache,
+	JOURNAL_PIN_other,
+	JOURNAL_PIN_NR,
+};
+
 struct journal_entry_pin_list {
-	struct list_head		list;
-	struct list_head		key_cache_list;
+	struct list_head		list[JOURNAL_PIN_NR];
 	struct list_head		flushed;
 	atomic_t			count;
 	struct bch_devs_list		devs;

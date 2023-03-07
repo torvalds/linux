@@ -67,8 +67,9 @@ journal_seq_to_buf(struct journal *j, u64 seq)
 
 static void journal_pin_list_init(struct journal_entry_pin_list *p, int count)
 {
-	INIT_LIST_HEAD(&p->list);
-	INIT_LIST_HEAD(&p->key_cache_list);
+	unsigned i;
+	for (i = 0; i < ARRAY_SIZE(p->list); i++)
+		INIT_LIST_HEAD(&p->list[i]);
 	INIT_LIST_HEAD(&p->flushed);
 	atomic_set(&p->count, count);
 	p->devs.nr = 0;
@@ -1347,6 +1348,7 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 {
 	struct journal_entry_pin_list *pin_list;
 	struct journal_entry_pin *pin;
+	unsigned i;
 
 	spin_lock(&j->lock);
 	*seq = max(*seq, j->pin.front);
@@ -1364,15 +1366,11 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	list_for_each_entry(pin, &pin_list->list, list) {
-		prt_printf(out, "\t%px %ps", pin, pin->flush);
-		prt_newline(out);
-	}
-
-	list_for_each_entry(pin, &pin_list->key_cache_list, list) {
-		prt_printf(out, "\t%px %ps", pin, pin->flush);
-		prt_newline(out);
-	}
+	for (i = 0; i < ARRAY_SIZE(pin_list->list); i++)
+		list_for_each_entry(pin, &pin_list->list[i], list) {
+			prt_printf(out, "\t%px %ps", pin, pin->flush);
+			prt_newline(out);
+		}
 
 	if (!list_empty(&pin_list->flushed)) {
 		prt_printf(out, "flushed:");

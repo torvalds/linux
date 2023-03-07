@@ -209,7 +209,8 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch2_copygc_stop(c);
 	bch2_gc_thread_stop(c);
 
-	bch_verbose(c, "flushing journal and stopping allocators");
+	bch_verbose(c, "flushing journal and stopping allocators, journal seq %llu",
+		    journal_cur_seq(&c->journal));
 
 	do {
 		clean_passes++;
@@ -223,7 +224,8 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		}
 	} while (clean_passes < 2);
 
-	bch_verbose(c, "flushing journal and stopping allocators complete");
+	bch_verbose(c, "flushing journal and stopping allocators complete, journal seq %llu",
+		    journal_cur_seq(&c->journal));
 
 	if (test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags) &&
 	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
