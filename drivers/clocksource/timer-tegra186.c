@@ -511,4 +511,3 @@ module_platform_driver(tegra186_wdt_driver);
 
 MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
 MODULE_DESCRIPTION("NVIDIA Tegra186 timers driver");
-MODULE_LICENSE("GPL v2");
