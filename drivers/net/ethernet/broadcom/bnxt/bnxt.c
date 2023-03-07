@@ -48,7 +48,6 @@
 #include <linux/prefetch.h>
 #include <linux/cache.h>
 #include <linux/log2.h>
-#include <linux/aer.h>
 #include <linux/bitmap.h>
 #include <linux/cpu_rmap.h>
 #include <linux/cpumask.h>
@@ -12706,8 +12705,6 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 		goto init_err_release;
 	}
 
-	pci_enable_pcie_error_reporting(pdev);
-
 	INIT_WORK(&bp->sp_task, bnxt_sp_task);
 	INIT_DELAYED_WORK(&bp->fw_reset_task, bnxt_fw_reset_task);
 
@@ -13187,7 +13184,6 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_rdma_aux_device_uninit(bp);
 
 	bnxt_ptp_clear(bp);
-	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	/* Flush any pending tasks */
