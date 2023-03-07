@@ -135,7 +135,8 @@ static int be_mcc_notify(struct be_adapter *adapter)
 
 /* To check if valid bit is set, check the entire word as we don't know
  * the endianness of the data (old entry is host endian while a new entry is
- * little endian) */
+ * little endian)
+ */
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
 {
 	u32 flags;
@@ -248,7 +249,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	u8 opcode = 0, subsystem = 0;
 
 	/* Just swap the status to host endian; mcc tag is opaquely copied
-	 * from mcc_wrb */
+	 * from mcc_wrb
+	 */
 	be_dws_le_to_cpu(compl, 4);
 
 	base_status = base_status(compl->status);
@@ -657,8 +659,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 	return 0;
 }
 
-/*
- * Insert the mailbox address into the doorbell in two steps
+/* Insert the mailbox address into the doorbell in two steps
  * Polls on the mbox doorbell till a command completion (or a timeout) occurs
  */
 static int be_mbox_notify_wait(struct be_adapter *adapter)
@@ -802,7 +803,7 @@ static void be_wrb_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 	req_hdr->subsystem = subsystem;
 	req_hdr->request_length = cpu_to_le32(cmd_len - sizeof(*req_hdr));
 	req_hdr->version = 0;
-	fill_wrb_tags(wrb, (ulong) req_hdr);
+	fill_wrb_tags(wrb, (ulong)req_hdr);
 	wrb->payload_length = cmd_len;
 	if (mem) {
 		wrb->embedded |= (1 & MCC_WRB_SGE_CNT_MASK) <<
@@ -832,8 +833,8 @@ static void be_cmd_page_addrs_prepare(struct phys_addr *pages, u32 max_pages,
 static inline struct be_mcc_wrb *wrb_from_mbox(struct be_adapter *adapter)
 {
 	struct be_dma_mem *mbox_mem = &adapter->mbox_mem;
-	struct be_mcc_wrb *wrb
-		= &((struct be_mcc_mailbox *)(mbox_mem->va))->wrb;
+	struct be_mcc_wrb *wrb = &((struct be_mcc_mailbox *)(mbox_mem->va))->wrb;
+
 	memset(wrb, 0, sizeof(*wrb));
 	return wrb;
 }
@@ -896,7 +897,7 @@ static struct be_mcc_wrb *be_cmd_copy(struct be_adapter *adapter,
 
 	memcpy(dest_wrb, wrb, sizeof(*wrb));
 	if (wrb->embedded & cpu_to_le32(MCC_WRB_EMBEDDED_MASK))
-		fill_wrb_tags(dest_wrb, (ulong) embedded_payload(wrb));
+		fill_wrb_tags(dest_wrb, (ulong)embedded_payload(wrb));
 
 	return dest_wrb;
 }
@@ -1114,7 +1115,7 @@ int be_cmd_pmac_add(struct be_adapter *adapter, const u8 *mac_addr,
 err:
 	mutex_unlock(&adapter->mcc_lock);
 
-	 if (base_status(status) == MCC_STATUS_UNAUTHORIZED_REQUEST)
+	if (base_status(status) == MCC_STATUS_UNAUTHORIZED_REQUEST)
 		status = -EPERM;
 
 	return status;
@@ -1803,7 +1804,7 @@ int be_cmd_get_fat_dump(struct be_adapter *adapter, u32 buf_len, void *buf)
 
 	total_size = buf_len;
 
-	get_fat_cmd.size = sizeof(struct be_cmd_req_get_fat) + 60*1024;
+	get_fat_cmd.size = sizeof(struct be_cmd_req_get_fat) + 60 * 1024;
 	get_fat_cmd.va = dma_alloc_coherent(&adapter->pdev->dev,
 					    get_fat_cmd.size,
 					    &get_fat_cmd.dma, GFP_ATOMIC);
@@ -1813,7 +1814,7 @@ int be_cmd_get_fat_dump(struct be_adapter *adapter, u32 buf_len, void *buf)
 	mutex_lock(&adapter->mcc_lock);
 
 	while (total_size) {
-		buf_size = min(total_size, (u32)60*1024);
+		buf_size = min(total_size, (u32)60 * 1024);
 		total_size -= buf_size;
 
 		wrb = wrb_from_mccq(adapter);
@@ -3362,7 +3363,7 @@ int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 	req->pattern = cpu_to_le64(pattern);
 	req->byte_count = cpu_to_le32(byte_cnt);
 	for (i = 0; i < byte_cnt; i++) {
-		req->snd_buff[i] = (u8)(pattern >> (j*8));
+		req->snd_buff[i] = (u8)(pattern >> (j * 8));
 		j++;
 		if (j > 7)
 			j = 0;
@@ -3846,7 +3847,7 @@ int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 	req->hdr.domain = domain;
 	req->mac_count = mac_count;
 	if (mac_count)
-		memcpy(req->mac, mac_array, ETH_ALEN*mac_count);
+		memcpy(req->mac, mac_array, ETH_ALEN * mac_count);
 
 	status = be_mcc_notify_wait(adapter);
 
