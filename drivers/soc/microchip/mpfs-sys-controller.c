@@ -18,7 +18,11 @@
 #include <linux/platform_device.h>
 #include <soc/microchip/mpfs.h>
 
-#define MPFS_SYS_CTRL_TIMEOUT_MS 100
+/*
+ * This timeout must be long, as some services (example: image authentication)
+ * take significant time to complete
+ */
+#define MPFS_SYS_CTRL_TIMEOUT_MS 30000
 
 static DEFINE_MUTEX(transaction_lock);
 
@@ -41,14 +45,26 @@ int mpfs_blocking_transaction(struct mpfs_sys_controller *sys_controller, struct
 	reinit_completion(&sys_controller->c);
 
 	ret = mbox_send_message(sys_controller->chan, msg);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_warn(sys_controller->client.dev, "MPFS sys controller service timeout\n");
 		goto out;
+	}
 
+	/*
+	 * Unfortunately, the system controller will only deliver an interrupt
+	 * if a service succeeds. mbox_send_message() will block until the busy
+	 * flag is gone. If the busy flag is gone but no interrupt has arrived
+	 * to trigger the rx callback then the service can be deemed to have
+	 * failed.
+	 * The caller can then interrogate msg::response::resp_status to
+	 * determine the cause of the failure.
+	 * mbox_send_message() returns positive integers in the success path, so
+	 * ret needs to be cleared if we do get an interrupt.
+	 */
 	if (!wait_for_completion_timeout(&sys_controller->c, timeout)) {
-		ret = -ETIMEDOUT;
-		dev_warn(sys_controller->client.dev, "MPFS sys controller transaction timeout\n");
+		ret = -EBADMSG;
+		dev_warn(sys_controller->client.dev, "MPFS sys controller service failed\n");
 	} else {
-		/* mbox_send_message() returns positive integers on success */
 		ret = 0;
 	}
 
@@ -107,6 +123,7 @@ static int mpfs_sys_controller_probe(struct platform_device *pdev)
 	sys_controller->client.dev = dev;
 	sys_controller->client.rx_callback = rx_callback;
 	sys_controller->client.tx_block = 1U;
+	sys_controller->client.tx_tout = msecs_to_jiffies(MPFS_SYS_CTRL_TIMEOUT_MS);
 
 	sys_controller->chan = mbox_request_channel(&sys_controller->client, 0);
 	if (IS_ERR(sys_controller->chan)) {
