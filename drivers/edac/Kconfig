@@ -504,6 +504,36 @@ config EDAC_TI
 	help
 	  Support for error detection and correction on the TI SoCs.
 
+config EDAC_KRYO_ARM64
+	depends on ARM64
+	tristate "ARM KRYO Gold and Silver L1/L2/L3/SCU Caches"
+	help
+	  Support for error detection and correction on the
+	  Kryo3xx Gold and Silver CPUs. Reports errors caught by Kryo3xx
+	  ECC mechanism.
+	  For debugging issues having to do with stability and overall system
+	  health, you should probably say 'Y' here.
+
+config EDAC_KRYO_ARM64_PANIC_ON_CE
+	depends on EDAC_KRYO_ARM64
+	bool "Panic on correctable errors - Kryo"
+	help
+	  Forcibly cause a kernel panic on kryo if an correctable error (CE) is
+	  detected, even though the error is (by definition) correctable and
+	  would otherwise result in no adverse system effects. This can reduce
+	  debugging times on hardware which may be operating at voltages or
+	  frequencies outside normal specification.
+	  For production builds, you should definitely say 'N' here.
+
+config EDAC_KRYO_ARM64_PANIC_ON_UE
+	depends on EDAC_KRYO_ARM64
+	bool "Panic on uncorrectable errors - kryo"
+	help
+	  Forcibly cause a kernel panic if an uncorrectable error (UE) is
+	  detected. This can reduce debugging times on hardware which may be
+	  operating at voltages or frequencies outside normal specification.
+	  For production builds, you should probably say 'N' here.
+
 config EDAC_QCOM
 	tristate "QCOM EDAC Controller"
 	depends on ARCH_QCOM && QCOM_LLCC
