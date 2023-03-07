@@ -5,14 +5,34 @@
 #include "vcap_api_client.h"
 #include "vcap_tc.h"
 
-static bool lan966x_tc_is_known_etype(u16 etype)
+static bool lan966x_tc_is_known_etype(struct vcap_tc_flower_parse_usage *st,
+				      u16 etype)
 {
-	switch (etype) {
-	case ETH_P_ALL:
-	case ETH_P_ARP:
-	case ETH_P_IP:
-	case ETH_P_IPV6:
-		return true;
+	switch (st->admin->vtype) {
+	case VCAP_TYPE_IS1:
+		switch (etype) {
+		case ETH_P_ALL:
+		case ETH_P_ARP:
+		case ETH_P_IP:
+		case ETH_P_IPV6:
+			return true;
+		}
+		break;
+	case VCAP_TYPE_IS2:
+		switch (etype) {
+		case ETH_P_ALL:
+		case ETH_P_ARP:
+		case ETH_P_IP:
+		case ETH_P_IPV6:
+		case ETH_P_SNAP:
+		case ETH_P_802_2:
+			return true;
+		}
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
+				   "VCAP type not supported");
+		return false;
 	}
 
 	return false;
@@ -69,7 +89,7 @@ lan966x_tc_flower_handler_basic_usage(struct vcap_tc_flower_parse_usage *st)
 	flow_rule_match_basic(st->frule, &match);
 	if (match.mask->n_proto) {
 		st->l3_proto = be16_to_cpu(match.key->n_proto);
-		if (!lan966x_tc_is_known_etype(st->l3_proto)) {
+		if (!lan966x_tc_is_known_etype(st, st->l3_proto)) {
 			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
 						    st->l3_proto, ~0);
 			if (err)
