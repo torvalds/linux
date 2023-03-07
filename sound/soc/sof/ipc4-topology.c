@@ -102,6 +102,8 @@ static const struct sof_topology_token dai_tokens[] = {
 static const struct sof_topology_token comp_ext_tokens[] = {
 	{SOF_TKN_COMP_UUID, SND_SOC_TPLG_TUPLE_TYPE_UUID, get_token_uuid,
 		offsetof(struct snd_sof_widget, uuid)},
+	{SOF_TKN_COMP_CORE_ID, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct snd_sof_widget, core)},
 };
 
 static const struct sof_topology_token gain_tokens[] = {
