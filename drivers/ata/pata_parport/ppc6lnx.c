@@ -72,7 +72,6 @@ static void ppc6_deselect(struct pi_adapter *pi);
 static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
 static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
-static int ppc6_open(struct pi_adapter *pi);
 
 //***************************************************************************
 
@@ -277,30 +276,3 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi)
 
 	return(data);
 }
-
-//***************************************************************************
-
-static int ppc6_open(struct pi_adapter *pi)
-{
-	int ret;
-
-	ret = ppc6_select(pi);
-
-	if (ret == 0)
-		return(ret);
-
-	pi->private = 0;
-
-	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
-	ppc6_wr_data_byte(pi, RAMSIZE_128K);
-
-	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
-
-	if ((ppc6_rd_data_byte(pi) & 0x3F) == 0x0C)
-		pi->private |= fifo_wait;
-
-	return(ret);
-}
-
-//***************************************************************************
-

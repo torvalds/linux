@@ -174,6 +174,25 @@ static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
+static int bpck6_open(struct pi_adapter *pi)
+{
+	int ret = ppc6_select(pi);
+
+	if (ret == 0)
+		return ret;
+
+	pi->private = 0;
+
+	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
+	ppc6_wr_data_byte(pi, RAMSIZE_128K);
+
+	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
+	if ((ppc6_rd_data_byte(pi) & 0x3F) == 0x0C)
+		pi->private |= fifo_wait;
+
+	return ret;
+}
+
 static void bpck6_wr_extout(struct pi_adapter *pi, u8 regdata)
 {
 	ppc6_send_cmd(pi, REG_VERSION | ACCESS_REG | ACCESS_WRITE);
@@ -184,7 +203,7 @@ static void bpck6_connect(struct pi_adapter *pi)
 {
 	dev_dbg(&pi->dev, "connect\n");
 
-	ppc6_open(pi);
+	bpck6_open(pi);
 	bpck6_wr_extout(pi, 0x3);
 }
 
@@ -218,7 +237,7 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
 	/*LOWER DOWN TO UNIDIRECTIONAL*/
 	pi->mode = 0;
 
-	out = ppc6_open(pi);
+	out = bpck6_open(pi);
 
 	dev_dbg(&pi->dev, "ppc_open returned %2x\n", out);
 
