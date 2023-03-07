@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <asm/io.h>
 #include <linux/parport.h>
 #include "pata_parport.h"
 #include "ppc6lnx.c"
