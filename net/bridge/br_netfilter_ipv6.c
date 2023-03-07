@@ -50,54 +50,49 @@ static int br_nf_check_hbh_len(struct sk_buff *skb)
 	u32 pkt_len;
 
 	if (!pskb_may_pull(skb, off + 8))
-		goto bad;
+		return -1;
 	nh = (unsigned char *)(ipv6_hdr(skb) + 1);
 	len = (nh[1] + 1) << 3;
 
 	if (!pskb_may_pull(skb, off + len))
-		goto bad;
+		return -1;
 	nh = skb_network_header(skb);
 
 	off += 2;
 	len -= 2;
-
 	while (len > 0) {
-		int optlen = nh[off + 1] + 2;
+		int optlen;
 
-		switch (nh[off]) {
-		case IPV6_TLV_PAD1:
-			optlen = 1;
-			break;
+		if (nh[off] == IPV6_TLV_PAD1) {
+			off++;
+			len--;
+			continue;
+		}
+		if (len < 2)
+			return -1;
+		optlen = nh[off + 1] + 2;
+		if (optlen > len)
+			return -1;
 
-		case IPV6_TLV_PADN:
-			break;
-
-		case IPV6_TLV_JUMBO:
+		if (nh[off] == IPV6_TLV_JUMBO) {
 			if (nh[off + 1] != 4 || (off & 3) != 2)
-				goto bad;
+				return -1;
 			pkt_len = ntohl(*(__be32 *)(nh + off + 2));
 			if (pkt_len <= IPV6_MAXPLEN ||
 			    ipv6_hdr(skb)->payload_len)
-				goto bad;
+				return -1;
 			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
-				goto bad;
+				return -1;
 			if (pskb_trim_rcsum(skb,
 					    pkt_len + sizeof(struct ipv6hdr)))
-				goto bad;
+				return -1;
 			nh = skb_network_header(skb);
-			break;
-		default:
-			if (optlen > len)
-				goto bad;
-			break;
 		}
 		off += optlen;
 		len -= optlen;
 	}
-	if (len == 0)
-		return 0;
-bad:
-	return -1;
+
+	return len ? -1 : 0;
 }
 
 int br_validate_ipv6(struct net *net, struct sk_buff *skb)
