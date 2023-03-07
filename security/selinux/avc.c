@@ -988,25 +988,26 @@ int avc_ss_reset(struct selinux_avc *avc, u32 seqno)
 	return rc;
 }
 
-/*
- * Slow-path helper function for avc_has_perm_noaudit,
- * when the avc_node lookup fails. We get called with
- * the RCU read lock held, and need to return with it
- * still held, but drop if for the security compute.
+/**
+ * avc_compute_av - Add an entry to the AVC based on the security policy
+ * @state: SELinux state pointer
+ * @ssid: subject
+ * @tsid: object/target
+ * @tclass: object class
+ * @avd: access vector decision
+ * @xp_node: AVC extended permissions node
  *
- * Don't inline this, since it's the slow-path and just
- * results in a bigger stack frame.
+ * Slow-path helper function for avc_has_perm_noaudit, when the avc_node lookup
+ * fails.  Don't inline this, since it's the slow-path and just results in a
+ * bigger stack frame.
  */
-static noinline
-struct avc_node *avc_compute_av(struct selinux_state *state,
-				u32 ssid, u32 tsid,
-				u16 tclass, struct av_decision *avd,
-				struct avc_xperms_node *xp_node)
+static noinline struct avc_node *avc_compute_av(struct selinux_state *state,
+						u32 ssid, u32 tsid, u16 tclass,
+						struct av_decision *avd,
+						struct avc_xperms_node *xp_node)
 {
-	rcu_read_unlock();
 	INIT_LIST_HEAD(&xp_node->xpd_head);
 	security_compute_av(state, ssid, tsid, tclass, avd, &xp_node->xp);
-	rcu_read_lock();
 	return avc_insert(state->avc, ssid, tsid, tclass, avd, xp_node);
 }
 
@@ -1113,6 +1114,36 @@ decision:
 }
 
 /**
+ * avc_perm_nonode - Add an entry to the AVC
+ * @state: SELinux state pointer
+ * @ssid: subject
+ * @tsid: object/target
+ * @tclass: object class
+ * @requested: requested permissions
+ * @flags: AVC flags
+ * @avd: access vector decision
+ *
+ * This is the "we have no node" part of avc_has_perm_noaudit(), which is
+ * unlikely and needs extra stack space for the new node that we generate, so
+ * don't inline it.
+ */
+static noinline int avc_perm_nonode(struct selinux_state *state,
+				    u32 ssid, u32 tsid, u16 tclass,
+				    u32 requested, unsigned int flags,
+				    struct av_decision *avd)
+{
+	u32 denied;
+	struct avc_xperms_node xp_node;
+
+	avc_compute_av(state, ssid, tsid, tclass, avd, &xp_node);
+	denied = requested & ~(avd->allowed);
+	if (unlikely(denied))
+		return avc_denied(state, ssid, tsid, tclass, requested, 0, 0,
+				  flags, avd);
+	return 0;
+}
+
+/**
  * avc_has_perm_noaudit - Check permissions but perform no auditing.
  * @state: SELinux state
  * @ssid: source security identifier
@@ -1139,29 +1170,27 @@ inline int avc_has_perm_noaudit(struct selinux_state *state,
 				unsigned int flags,
 				struct av_decision *avd)
 {
-	struct avc_node *node;
-	struct avc_xperms_node xp_node;
-	int rc = 0;
 	u32 denied;
+	struct avc_node *node;
 
 	if (WARN_ON(!requested))
 		return -EACCES;
 
 	rcu_read_lock();
-
 	node = avc_lookup(state->avc, ssid, tsid, tclass);
-	if (unlikely(!node))
-		avc_compute_av(state, ssid, tsid, tclass, avd, &xp_node);
-	else
-		memcpy(avd, &node->ae.avd, sizeof(*avd));
-
-	denied = requested & ~(avd->allowed);
-	if (unlikely(denied))
-		rc = avc_denied(state, ssid, tsid, tclass, requested, 0, 0,
-				flags, avd);
-
+	if (unlikely(!node)) {
+		rcu_read_unlock();
+		return avc_perm_nonode(state, ssid, tsid, tclass, requested,
+				       flags, avd);
+	}
+	denied = requested & ~node->ae.avd.allowed;
+	memcpy(avd, &node->ae.avd, sizeof(*avd));
 	rcu_read_unlock();
-	return rc;
+
+	if (unlikely(denied))
+		return avc_denied(state, ssid, tsid, tclass, requested, 0, 0,
+				  flags, avd);
+	return 0;
 }
 
 /**
