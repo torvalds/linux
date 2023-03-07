@@ -92,6 +92,12 @@ enum opt_type {
 #define RATELIMIT_ERRORS_DEFAULT false
 #endif
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+#define BCACHEFS_VERBOSE_DEFAULT	true
+#else
+#define BCACHEFS_VERBOSE_DEFAULT	false
+#endif
+
 #define BCH_OPTS()							\
 	x(block_size,			u16,				\
 	  OPT_FS|OPT_FORMAT|						\
@@ -276,7 +282,7 @@ enum opt_type {
 	x(verbose,			u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		false,				\
+	  BCH2_NO_SB_OPT,		BCACHEFS_VERBOSE_DEFAULT,	\
 	  NULL,		"Extra debugging information during mount/recovery")\
 	x(journal_flush_delay,		u32,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
