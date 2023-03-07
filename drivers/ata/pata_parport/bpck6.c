@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/parport.h>
 #include "pata_parport.h"
-#include "ppc6lnx.c"
 
 /* 60772 Commands */
 #define ACCESS_REG		0x00
