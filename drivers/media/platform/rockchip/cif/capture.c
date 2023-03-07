@@ -5063,6 +5063,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	struct rkcif_dvp_sof_subdev *sof_sd = &dev->dvp_sof_subdev;
 	const struct cif_output_fmt *fmt;
 	unsigned int dma_en = 0;
+	unsigned int dma_state = 0;
 	int i = 0;
 	u32 sav_detect = BT656_DETECT_SAV;
 	u32 reserved = 0;
@@ -5079,8 +5080,16 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	sensor_info = dev->active_sensor;
 	mbus = &sensor_info->mbus;
 
+	dma_state = stream->dma_en;
 	if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE)
-		stream->dma_en = RKCIF_DMAEN_BY_VICAP;
+		stream->dma_en |= RKCIF_DMAEN_BY_VICAP;
+	else if ((mode & RKCIF_STREAM_MODE_TOISP_RDBK) == RKCIF_STREAM_MODE_TOISP_RDBK)
+		stream->dma_en |= RKCIF_DMAEN_BY_ISP;
+	else if ((mode & RKCIF_STREAM_MODE_ROCKIT) == RKCIF_STREAM_MODE_ROCKIT)
+		stream->dma_en |= RKCIF_DMAEN_BY_ROCKIT;
+
+	if (dma_state)
+		return 0;
 
 	mbus_flags = mbus->flags;
 	if ((mbus_flags & CIF_DVP_PCLK_DUAL_EDGE) == CIF_DVP_PCLK_DUAL_EDGE) {
@@ -5299,7 +5308,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	}
 
 	if (dev->chip_id == CHIP_RK3588_CIF) {
-		dma_en = DVP_DMA_EN;
+		if (stream->dma_en)
+			dma_en = DVP_DMA_EN;
 		if (stream->lack_buf_cnt == 2)
 			dma_en = 0;
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
@@ -5312,7 +5322,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			     | DVP_SW_HURRY_VALUE(3)
 			     | ENABLE_CAPTURE);
 	} else if (dev->chip_id == CHIP_RV1106_CIF) {
-		dma_en = DVP_SW_DMA_EN(stream->id);
+		if (stream->dma_en)
+			dma_en = DVP_SW_DMA_EN(stream->id);
 		if (stream->lack_buf_cnt == 2)
 			dma_en = 0;
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
