@@ -134,7 +134,11 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 
 		if (adev->gmc.mem_partitions && abo->mem_id >= 0) {
 			places[c].fpfn = adev->gmc.mem_partitions[abo->mem_id].range.fpfn;
-			places[c].lpfn = adev->gmc.mem_partitions[abo->mem_id].range.lpfn;
+			/*
+			 * memory partition range lpfn is inclusive start + size - 1
+			 * TTM place lpfn is exclusive start + size
+			 */
+			places[c].lpfn = adev->gmc.mem_partitions[abo->mem_id].range.lpfn + 1;
 		} else {
 			places[c].fpfn = 0;
 			places[c].lpfn = 0;
