@@ -19,6 +19,12 @@ description: |
   - MacBook Air (M1, 2020)
   - iMac (24-inch, M1, 2021)
 
+  Devices based on the "M2" SoC:
+
+  - MacBook Air (M2, 2022)
+  - MacBook Pro (13-inch, M2, 2022)
+  - Mac mini (M2, 2023)
+
   And devices based on the "M1 Pro", "M1 Max" and "M1 Ultra" SoCs:
 
   - MacBook Pro (14-inch, M1 Pro, 2021)
@@ -68,6 +74,15 @@ properties:
               - apple,j456 # iMac (24-inch, 4x USB-C, M1, 2021)
               - apple,j457 # iMac (24-inch, 2x USB-C, M1, 2021)
           - const: apple,t8103
+          - const: apple,arm-platform
+
+      - description: Apple M2 SoC based platforms
+        items:
+          - enum:
+              - apple,j413 # MacBook Air (M2, 2022)
+              - apple,j473 # Mac mini (M2, 2023)
+              - apple,j493 # MacBook Pro (13-inch, M2, 2022)
+          - const: apple,t8112
           - const: apple,arm-platform
 
       - description: Apple M1 Pro SoC based platforms
