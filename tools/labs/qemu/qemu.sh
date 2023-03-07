@@ -6,6 +6,8 @@
 # avoid visual inspection of the qemu output when connecting to the
 # serial console.
 
+SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
+
 case $ARCH in
     x86)
 	qemu=qemu-system-i386
@@ -19,3 +21,4 @@ echo info chardev | nc -U -l qemu.mon | egrep --line-buffered -o "/dev/pts/[0-9]
 $qemu "$@" -monitor unix:qemu.mon
 rm qemu.mon 
 rm serial.pts
+$SCRIPT_DIR/cleanup-net.sh
