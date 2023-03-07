@@ -13,7 +13,6 @@
 #include <linux/ipv6.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/skbuff.h>
 #include <linux/sctp.h>
 #include <net/gre.h>
