@@ -389,8 +389,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 			 */
 			btrfs_err(fs_info, "unexpectedly large lzo segment len %u",
 					seg_len);
-			ret = -EIO;
-			goto out;
+			return -EIO;
 		}
 
 		/* Copy the compressed segment payload into workspace */
@@ -401,8 +400,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 					    workspace->buf, &out_len);
 		if (ret != LZO_E_OK) {
 			btrfs_err(fs_info, "failed to decompress");
-			ret = -EIO;
-			goto out;
+			return -EIO;
 		}
 
 		/* Copy the data into inode pages */
@@ -411,7 +409,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 		/* All data read, exit */
 		if (ret == 0)
-			goto out;
+			return 0;
 		ret = 0;
 
 		/* Check if the sector has enough space for a segment header */
@@ -422,10 +420,8 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		/* Skip the padding zeros */
 		cur_in += sector_bytes_left;
 	}
-out:
-	if (!ret)
-		zero_fill_bio(cb->orig_bio);
-	return ret;
+
+	return 0;
 }
 
 int lzo_decompress(struct list_head *ws, const u8 *data_in,

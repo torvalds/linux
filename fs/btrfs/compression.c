@@ -965,6 +965,8 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	ret = compression_decompress_bio(workspace, cb);
 	put_workspace(type, workspace);
 
+	if (!ret)
+		zero_fill_bio(cb->orig_bio);
 	return ret;
 }
 
