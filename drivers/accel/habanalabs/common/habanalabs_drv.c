@@ -12,7 +12,6 @@
 #include "../include/hw_ip/pci/pci_general.h"
 
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/module.h>
 
 #define CREATE_TRACE_POINTS
@@ -549,8 +548,6 @@ static int hl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, hdev);
 
-	pci_enable_pcie_error_reporting(pdev);
-
 	rc = hl_device_init(hdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Fatal error during habanalabs device init\n");
@@ -561,7 +558,6 @@ static int hl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 disable_device:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_set_drvdata(pdev, NULL);
 	destroy_hdev(hdev);
 
@@ -584,7 +580,6 @@ static void hl_pci_remove(struct pci_dev *pdev)
 		return;
 
 	hl_device_fini(hdev);
-	pci_disable_pcie_error_reporting(pdev);
 	pci_set_drvdata(pdev, NULL);
 	destroy_hdev(hdev);
 }
