@@ -18,67 +18,67 @@
 #include <linux/types.h>
 #include <asm/io.h>
 #include <linux/parport.h>
-#include "ppc6lnx.c"
 #include "pata_parport.h"
-
-#define PPCSTRUCT(pi) ((Interface *)(pi->private))
+#include "ppc6lnx.c"
 
 static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
-	return ppc6_rd_port(PPCSTRUCT(pi), cont?reg|8:reg);
+	return ppc6_rd_port(pi, cont?reg|8:reg);
 }
 
 static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 {
-	ppc6_wr_port(PPCSTRUCT(pi), cont?reg|8:reg, val);
+	ppc6_wr_port(pi, cont?reg|8:reg, val);
 }
 
 static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 {
-	ppc6_wr_port16_blk(PPCSTRUCT(pi), ATA_REG_DATA, buf, (u32)len>>1);
+	ppc6_wr_port16_blk(pi, ATA_REG_DATA, buf, (u32)len>>1);
 }
 
 static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 {
-	ppc6_rd_port16_blk(PPCSTRUCT(pi), ATA_REG_DATA, buf, (u32)len>>1);
+	ppc6_rd_port16_blk(pi, ATA_REG_DATA, buf, (u32)len>>1);
 }
 
 static void bpck6_connect(struct pi_adapter *pi)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	dev_dbg(&pi->dev, "connect\n");
 
 	if(pi->mode >=2)
   	{
-		PPCSTRUCT(pi)->mode=4+pi->mode-2;	
+		ppc->mode = 4+pi->mode-2;
 	}
 	else if(pi->mode==1)
 	{
-		PPCSTRUCT(pi)->mode=3;	
+		ppc->mode = 3;
 	}
 	else
 	{
-		PPCSTRUCT(pi)->mode=1;		
+		ppc->mode = 1;
 	}
 
-	ppc6_open(PPCSTRUCT(pi));  
-	ppc6_wr_extout(PPCSTRUCT(pi),0x3);
+	ppc6_open(pi);
+	ppc6_wr_extout(pi, 0x3);
 }
 
 static void bpck6_disconnect(struct pi_adapter *pi)
 {
 	dev_dbg(&pi->dev, "disconnect\n");
-	ppc6_wr_extout(PPCSTRUCT(pi),0x0);
-	ppc6_close(PPCSTRUCT(pi));
+	ppc6_wr_extout(pi, 0x0);
+	ppc6_close(pi);
 }
 
 static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	dev_dbg(&pi->dev, "PARPORT indicates modes=%x for lp=0x%lx\n",
 		pi->pardev->port->modes, pi->pardev->port->base);
 
 	/*copy over duplicate stuff.. initialize state info*/
-	PPCSTRUCT(pi)->ppc_id=pi->unit;
-	PPCSTRUCT(pi)->lpt_addr=pi->port;
+	ppc->ppc_id = pi->unit;
+	ppc->lpt_addr = pi->port;
 
 	/* look at the parport device to see what modes we can use */
 	if (pi->pardev->port->modes & PARPORT_MODE_EPP)
@@ -90,23 +90,24 @@ static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
 
 static int bpck6_probe_unit(struct pi_adapter *pi)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	int out;
 
 	dev_dbg(&pi->dev, "PROBE UNIT %x on port:%x\n", pi->unit, pi->port);
 
 	/*SET PPC UNIT NUMBER*/
-	PPCSTRUCT(pi)->ppc_id=pi->unit;
+	ppc->ppc_id = pi->unit;
 
 	/*LOWER DOWN TO UNIDIRECTIONAL*/
-	PPCSTRUCT(pi)->mode=1;		
+	ppc->mode = 1;
 
-	out=ppc6_open(PPCSTRUCT(pi));
+	out = ppc6_open(pi);
 
 	dev_dbg(&pi->dev, "ppc_open returned %2x\n", out);
 
   	if(out)
  	{
-		ppc6_close(PPCSTRUCT(pi));
+		ppc6_close(pi);
 		dev_dbg(&pi->dev, "leaving probe\n");
                return(1);
 	}
@@ -128,7 +129,7 @@ static void bpck6_log_adapter(struct pi_adapter *pi)
 
 static int bpck6_init_proto(struct pi_adapter *pi)
 {
-	Interface *p = kzalloc(sizeof(Interface), GFP_KERNEL);
+	struct ppc_storage *p = kzalloc(sizeof(struct ppc_storage), GFP_KERNEL);
 
 	if (p) {
 		pi->private = (unsigned long)p;

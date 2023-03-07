@@ -64,7 +64,7 @@
 
 //***************************************************************************
 
-typedef struct ppc_storage {
+struct ppc_storage {
 	u16	lpt_addr;				// LPT base address
 	u8	ppc_id;
 	u8	mode;						// operating mode
@@ -79,7 +79,7 @@ typedef struct ppc_storage {
 	u8	org_data;				// original LPT data port contents
 	u8	org_ctrl;				// original LPT control port contents
 	u8	cur_ctrl;				// current control port contents
-} Interface;
+};
 
 //***************************************************************************
 
@@ -101,26 +101,27 @@ typedef struct ppc_storage {
 
 //***************************************************************************
 
-static int ppc6_select(Interface *ppc);
-static void ppc6_deselect(Interface *ppc);
-static void ppc6_send_cmd(Interface *ppc, u8 cmd);
-static void ppc6_wr_data_byte(Interface *ppc, u8 data);
-static u8 ppc6_rd_data_byte(Interface *ppc);
-static u8 ppc6_rd_port(Interface *ppc, u8 port);
-static void ppc6_wr_port(Interface *ppc, u8 port, u8 data);
-static void ppc6_rd_data_blk(Interface *ppc, u8 *data, long count);
-static void ppc6_wait_for_fifo(Interface *ppc);
-static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count);
-static void ppc6_rd_port16_blk(Interface *ppc, u8 port, u8 *data, long length);
-static void ppc6_wr_port16_blk(Interface *ppc, u8 port, u8 *data, long length);
-static void ppc6_wr_extout(Interface *ppc, u8 regdata);
-static int ppc6_open(Interface *ppc);
-static void ppc6_close(Interface *ppc);
+static int ppc6_select(struct pi_adapter *pi);
+static void ppc6_deselect(struct pi_adapter *pi);
+static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
+static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
+static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
+static u8 ppc6_rd_port(struct pi_adapter *pi, u8 port);
+static void ppc6_wr_port(struct pi_adapter *pi, u8 port, u8 data);
+static void ppc6_rd_data_blk(struct pi_adapter *pi, u8 *data, long count);
+static void ppc6_wait_for_fifo(struct pi_adapter *pi);
+static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count);
+static void ppc6_rd_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long length);
+static void ppc6_wr_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long length);
+static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata);
+static int ppc6_open(struct pi_adapter *pi);
+static void ppc6_close(struct pi_adapter *pi);
 
 //***************************************************************************
 
-static int ppc6_select(Interface *ppc)
+static int ppc6_select(struct pi_adapter *pi)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	u8 i, j, k;
 
 	i = inb(ppc->lpt_addr + 1);
@@ -205,8 +206,9 @@ static int ppc6_select(Interface *ppc)
 
 //***************************************************************************
 
-static void ppc6_deselect(Interface *ppc)
+static void ppc6_deselect(struct pi_adapter *pi)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	if (ppc->mode & 4)	// EPP
 		ppc->cur_ctrl |= port_init;
 	else								// PPC/ECP
@@ -223,8 +225,9 @@ static void ppc6_deselect(Interface *ppc)
 
 //***************************************************************************
 
-static void ppc6_send_cmd(Interface *ppc, u8 cmd)
+static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	switch(ppc->mode)
 	{
 		case PPCMODE_UNI_SW :
@@ -254,8 +257,9 @@ static void ppc6_send_cmd(Interface *ppc, u8 cmd)
 
 //***************************************************************************
 
-static void ppc6_wr_data_byte(Interface *ppc, u8 data)
+static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	switch(ppc->mode)
 	{
 		case PPCMODE_UNI_SW :
@@ -285,8 +289,9 @@ static void ppc6_wr_data_byte(Interface *ppc, u8 data)
 
 //***************************************************************************
 
-static u8 ppc6_rd_data_byte(Interface *ppc)
+static u8 ppc6_rd_data_byte(struct pi_adapter *pi)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	u8 data = 0;
 
 	switch(ppc->mode)
@@ -358,26 +363,27 @@ static u8 ppc6_rd_data_byte(Interface *ppc)
 
 //***************************************************************************
 
-static u8 ppc6_rd_port(Interface *ppc, u8 port)
+static u8 ppc6_rd_port(struct pi_adapter *pi, u8 port)
 {
-	ppc6_send_cmd(ppc,(u8)(port | ACCESS_PORT | ACCESS_READ));
+	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_READ);
 
-	return(ppc6_rd_data_byte(ppc));
+	return ppc6_rd_data_byte(pi);
 }
 
 //***************************************************************************
 
-static void ppc6_wr_port(Interface *ppc, u8 port, u8 data)
+static void ppc6_wr_port(struct pi_adapter *pi, u8 port, u8 data)
 {
-	ppc6_send_cmd(ppc,(u8)(port | ACCESS_PORT | ACCESS_WRITE));
+	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_WRITE);
 
-	ppc6_wr_data_byte(ppc, data);
+	ppc6_wr_data_byte(pi, data);
 }
 
 //***************************************************************************
 
-static void ppc6_rd_data_blk(Interface *ppc, u8 *data, long count)
+static void ppc6_rd_data_blk(struct pi_adapter *pi, u8 *data, long count)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	switch(ppc->mode)
 	{
 		case PPCMODE_UNI_SW :
@@ -512,8 +518,9 @@ static void ppc6_rd_data_blk(Interface *ppc, u8 *data, long count)
 
 //***************************************************************************
 
-static void ppc6_wait_for_fifo(Interface *ppc)
+static void ppc6_wait_for_fifo(struct pi_adapter *pi)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	int i;
 
 	if (ppc->ppc_flags & fifo_wait)
@@ -525,8 +532,9 @@ static void ppc6_wait_for_fifo(Interface *ppc)
 
 //***************************************************************************
 
-static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count)
+static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	switch(ppc->mode)
 	{
 		case PPCMODE_UNI_SW :
@@ -549,7 +557,7 @@ static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count)
 		{
 			u8 this, last;
 
-			ppc6_send_cmd(ppc,(CMD_PREFIX_SET | PREFIX_FASTWR));
+			ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_FASTWR);
 
 			ppc->cur_ctrl |= port_stb;
 
@@ -582,7 +590,7 @@ static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count)
 
 			outb(ppc->cur_ctrl, ppc->lpt_addr + 2);
 
-			ppc6_send_cmd(ppc,(CMD_PREFIX_RESET | PREFIX_FASTWR));
+			ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_FASTWR);
 
 			break;
 		}
@@ -595,7 +603,7 @@ static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count)
 				count--;
 			}
 
-			ppc6_wait_for_fifo(ppc);
+			ppc6_wait_for_fifo(pi);
 
 			break;
 		}
@@ -615,7 +623,7 @@ static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count)
 				count--;
 			}
 
-			ppc6_wait_for_fifo(ppc);
+			ppc6_wait_for_fifo(pi);
 
 			break;
 		}
@@ -635,7 +643,7 @@ static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count)
 				count--;
 			}
 
-			ppc6_wait_for_fifo(ppc);
+			ppc6_wait_for_fifo(pi);
 
 			break;
 		}
@@ -644,72 +652,73 @@ static void ppc6_wr_data_blk(Interface *ppc, u8 *data, long count)
 
 //***************************************************************************
 
-static void ppc6_rd_port16_blk(Interface *ppc, u8 port, u8 *data, long length)
+static void ppc6_rd_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long length)
 {
 	length = length << 1;
 
-	ppc6_send_cmd(ppc, (REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE));
-	ppc6_wr_data_byte(ppc,(u8)length);
-	ppc6_wr_data_byte(ppc,(u8)(length >> 8));
-	ppc6_wr_data_byte(ppc,0);
+	ppc6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
+	ppc6_wr_data_byte(pi, (u8)length);
+	ppc6_wr_data_byte(pi, (u8)(length >> 8));
+	ppc6_wr_data_byte(pi, 0);
 
-	ppc6_send_cmd(ppc, (CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK));
+	ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
 
-	ppc6_send_cmd(ppc, (u8)(port | ACCESS_PORT | ACCESS_READ));
+	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_READ);
 
-	ppc6_rd_data_blk(ppc, data, length);
+	ppc6_rd_data_blk(pi, data, length);
 
-	ppc6_send_cmd(ppc, (CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK));
+	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
 //***************************************************************************
 
-static void ppc6_wr_port16_blk(Interface *ppc, u8 port, u8 *data, long length)
+static void ppc6_wr_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long length)
 {
 	length = length << 1;
 
-	ppc6_send_cmd(ppc, (REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE));
-	ppc6_wr_data_byte(ppc,(u8)length);
-	ppc6_wr_data_byte(ppc,(u8)(length >> 8));
-	ppc6_wr_data_byte(ppc,0);
+	ppc6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
+	ppc6_wr_data_byte(pi, (u8)length);
+	ppc6_wr_data_byte(pi, (u8)(length >> 8));
+	ppc6_wr_data_byte(pi, 0);
 
-	ppc6_send_cmd(ppc, (CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK));
+	ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
 
-	ppc6_send_cmd(ppc, (u8)(port | ACCESS_PORT | ACCESS_WRITE));
+	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_WRITE);
 
-	ppc6_wr_data_blk(ppc, data, length);
+	ppc6_wr_data_blk(pi, data, length);
 
-	ppc6_send_cmd(ppc, (CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK));
+	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
 //***************************************************************************
 
-static void ppc6_wr_extout(Interface *ppc, u8 regdata)
+static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata)
 {
-	ppc6_send_cmd(ppc,(REG_VERSION | ACCESS_REG | ACCESS_WRITE));
+	ppc6_send_cmd(pi, REG_VERSION | ACCESS_REG | ACCESS_WRITE);
 
-	ppc6_wr_data_byte(ppc, (u8)((regdata & 0x03) << 6));
+	ppc6_wr_data_byte(pi, (u8)((regdata & 0x03) << 6));
 }
 
 //***************************************************************************
 
-static int ppc6_open(Interface *ppc)
+static int ppc6_open(struct pi_adapter *pi)
 {
+	struct ppc_storage *ppc = (void *)(pi->private);
 	int ret;
 
-	ret = ppc6_select(ppc);
+	ret = ppc6_select(pi);
 
 	if (ret == 0)
 		return(ret);
 
 	ppc->ppc_flags &= ~fifo_wait;
 
-	ppc6_send_cmd(ppc, (ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE));
-	ppc6_wr_data_byte(ppc, RAMSIZE_128K);
+	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
+	ppc6_wr_data_byte(pi, RAMSIZE_128K);
 
-	ppc6_send_cmd(ppc, (ACCESS_REG | ACCESS_READ | REG_VERSION));
+	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
 
-	if ((ppc6_rd_data_byte(ppc) & 0x3F) == 0x0C)
+	if ((ppc6_rd_data_byte(pi) & 0x3F) == 0x0C)
 		ppc->ppc_flags |= fifo_wait;
 
 	return(ret);
@@ -717,9 +726,9 @@ static int ppc6_open(Interface *ppc)
 
 //***************************************************************************
 
-static void ppc6_close(Interface *ppc)
+static void ppc6_close(struct pi_adapter *pi)
 {
-	ppc6_deselect(ppc);
+	ppc6_deselect(pi);
 }
 
 //***************************************************************************
