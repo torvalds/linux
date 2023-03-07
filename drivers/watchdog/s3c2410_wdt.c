@@ -579,8 +579,8 @@ static inline unsigned int s3c2410wdt_get_bootstatus(struct s3c2410_wdt *wdt)
 	return 0;
 }
 
-static inline const struct s3c2410_wdt_variant *
-s3c2410_get_wdt_drv_data(struct platform_device *pdev)
+static inline int
+s3c2410_get_wdt_drv_data(struct platform_device *pdev, struct s3c2410_wdt *wdt)
 {
 	const struct s3c2410_wdt_variant *variant;
 	struct device *dev = &pdev->dev;
@@ -603,24 +603,26 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 					   "samsung,cluster-index", &index);
 		if (err) {
 			dev_err(dev, "failed to get cluster index\n");
-			return NULL;
+			return -EINVAL;
 		}
 
 		switch (index) {
 		case 0:
-			return variant;
+			break;
 		case 1:
-			return (variant == &drv_data_exynos850_cl0) ?
+			variant = (variant == &drv_data_exynos850_cl0) ?
 				&drv_data_exynos850_cl1 :
 				&drv_data_exynosautov9_cl1;
+			break;
 		default:
 			dev_err(dev, "wrong cluster index: %u\n", index);
-			return NULL;
+			return -EINVAL;
 		}
 	}
 #endif
 
-	return variant;
+	wdt->drv_data = variant;
+	return 0;
 }
 
 static void s3c2410wdt_wdt_disable_action(void *data)
@@ -644,9 +646,9 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	spin_lock_init(&wdt->lock);
 	wdt->wdt_device = s3c2410_wdd;
 
-	wdt->drv_data = s3c2410_get_wdt_drv_data(pdev);
-	if (!wdt->drv_data)
-		return -EINVAL;
+	ret = s3c2410_get_wdt_drv_data(pdev, wdt);
+	if (ret)
+		return ret;
 
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
 		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
