@@ -49,6 +49,7 @@
 #include <linux/moduleparam.h>
 #include <linux/uaccess.h>
 #include <linux/sched/isolation.h>
+#include <linux/sched/debug.h>
 #include <linux/nmi.h>
 #include <linux/kvm_para.h>
 
@@ -141,6 +142,8 @@ enum {
  * WR: wq->mutex protected for writes.  RCU protected for reads.
  *
  * MD: wq_mayday_lock protected.
+ *
+ * WD: Used internally by the watchdog.
  */
 
 /* struct worker is defined in workqueue_internal.h */
@@ -153,6 +156,7 @@ struct worker_pool {
 	unsigned int		flags;		/* X: flags */
 
 	unsigned long		watchdog_ts;	/* L: watchdog timestamp */
+	bool			cpu_stall;	/* WD: stalled cpu bound pool */
 
 	/*
 	 * The counter is incremented in a process context on the associated CPU
@@ -5976,6 +5980,57 @@ static struct timer_list wq_watchdog_timer;
 static unsigned long wq_watchdog_touched = INITIAL_JIFFIES;
 static DEFINE_PER_CPU(unsigned long, wq_watchdog_touched_cpu) = INITIAL_JIFFIES;
 
+/*
+ * Show workers that might prevent the processing of pending work items.
+ * The only candidates are CPU-bound workers in the running state.
+ * Pending work items should be handled by another idle worker
+ * in all other situations.
+ */
+static void show_cpu_pool_hog(struct worker_pool *pool)
+{
+	struct worker *worker;
+	unsigned long flags;
+	int bkt;
+
+	raw_spin_lock_irqsave(&pool->lock, flags);
+
+	hash_for_each(pool->busy_hash, bkt, worker, hentry) {
+		if (task_is_running(worker->task)) {
+			/*
+			 * Defer printing to avoid deadlocks in console
+			 * drivers that queue work while holding locks
+			 * also taken in their write paths.
+			 */
+			printk_deferred_enter();
+
+			pr_info("pool %d:\n", pool->id);
+			sched_show_task(worker->task);
+
+			printk_deferred_exit();
+		}
+	}
+
+	raw_spin_unlock_irqrestore(&pool->lock, flags);
+}
+
+static void show_cpu_pools_hogs(void)
+{
+	struct worker_pool *pool;
+	int pi;
+
+	pr_info("Showing backtraces of running workers in stalled CPU-bound worker pools:\n");
+
+	rcu_read_lock();
+
+	for_each_pool(pool, pi) {
+		if (pool->cpu_stall)
+			show_cpu_pool_hog(pool);
+
+	}
+
+	rcu_read_unlock();
+}
+
 static void wq_watchdog_reset_touched(void)
 {
 	int cpu;
@@ -5989,6 +6044,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 {
 	unsigned long thresh = READ_ONCE(wq_watchdog_thresh) * HZ;
 	bool lockup_detected = false;
+	bool cpu_pool_stall = false;
 	unsigned long now = jiffies;
 	struct worker_pool *pool;
 	int pi;
@@ -6001,6 +6057,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 	for_each_pool(pool, pi) {
 		unsigned long pool_ts, touched, ts;
 
+		pool->cpu_stall = false;
 		if (list_empty(&pool->worklist))
 			continue;
 
@@ -6025,17 +6082,26 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 		/* did we stall? */
 		if (time_after(now, ts + thresh)) {
 			lockup_detected = true;
+			if (pool->cpu >= 0) {
+				pool->cpu_stall = true;
+				cpu_pool_stall = true;
+			}
 			pr_emerg("BUG: workqueue lockup - pool");
 			pr_cont_pool_info(pool);
 			pr_cont(" stuck for %us!\n",
 				jiffies_to_msecs(now - pool_ts) / 1000);
 		}
+
+
 	}
 
 	rcu_read_unlock();
 
 	if (lockup_detected)
 		show_all_workqueues();
+
+	if (cpu_pool_stall)
+		show_cpu_pools_hogs();
 
 	wq_watchdog_reset_touched();
 	mod_timer(&wq_watchdog_timer, jiffies + thresh);
