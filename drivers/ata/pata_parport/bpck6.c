@@ -23,23 +23,6 @@
 
 #define PPCSTRUCT(pi) ((Interface *)(pi->private))
 
-/****************************************************************/
-/*
- ATAPI CDROM DRIVE REGISTERS
-*/
-#define ATAPI_DATA       0      /* data port                  */
-#define ATAPI_ERROR      1      /* error register (read)      */
-#define ATAPI_FEATURES   1      /* feature register (write)   */
-#define ATAPI_INT_REASON 2      /* interrupt reason register  */
-#define ATAPI_COUNT_LOW  4      /* byte count register (low)  */
-#define ATAPI_COUNT_HIGH 5      /* byte count register (high) */
-#define ATAPI_DRIVE_SEL  6      /* drive select register      */
-#define ATAPI_STATUS     7      /* status port (read)         */
-#define ATAPI_COMMAND    7      /* command port (write)       */
-#define ATAPI_ALT_STATUS 0x0e /* alternate status reg (read) */
-#define ATAPI_DEVICE_CONTROL 0x0e /* device control (write)   */
-/****************************************************************/
-
 static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
 	unsigned int out;
@@ -64,12 +47,12 @@ static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 
 static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 {
-	ppc6_wr_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1); 
+	ppc6_wr_port16_blk(PPCSTRUCT(pi), ATA_REG_DATA, buf, (u32)len>>1);
 }
 
 static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 {
-	ppc6_rd_port16_blk(PPCSTRUCT(pi),ATAPI_DATA,buf,(u32)len>>1);
+	ppc6_rd_port16_blk(PPCSTRUCT(pi), ATA_REG_DATA, buf, (u32)len>>1);
 }
 
 static void bpck6_connect(struct pi_adapter *pi)
