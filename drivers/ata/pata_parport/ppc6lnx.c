@@ -72,7 +72,6 @@ static void ppc6_deselect(struct pi_adapter *pi);
 static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
 static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
-static void ppc6_wr_port(struct pi_adapter *pi, u8 port, u8 data);
 static void ppc6_rd_data_blk(struct pi_adapter *pi, u8 *data, long count);
 static void ppc6_wait_for_fifo(struct pi_adapter *pi);
 static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count);
@@ -283,15 +282,6 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi)
 	}
 
 	return(data);
-}
-
-//***************************************************************************
-
-static void ppc6_wr_port(struct pi_adapter *pi, u8 port, u8 data)
-{
-	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_WRITE);
-
-	ppc6_wr_data_byte(pi, data);
 }
 
 //***************************************************************************

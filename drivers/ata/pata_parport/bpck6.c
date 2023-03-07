@@ -29,7 +29,10 @@ static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 
 static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 {
-	ppc6_wr_port(pi, cont?reg|8:reg, val);
+	u8 port = cont ? reg | 8 : reg;
+
+	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_WRITE);
+	ppc6_wr_data_byte(pi, val);
 }
 
 static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
