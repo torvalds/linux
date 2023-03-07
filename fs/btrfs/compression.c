@@ -177,7 +177,7 @@ static void end_compressed_bio_read(struct btrfs_bio *bbio)
 		status = errno_to_blk_status(btrfs_decompress_bio(cb));
 
 	btrfs_free_compressed_pages(cb);
-	btrfs_bio_end_io(btrfs_bio(cb->orig_bio), status);
+	btrfs_bio_end_io(cb->orig_bbio, status);
 	bio_put(&bbio->bio);
 }
 
@@ -357,7 +357,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	unsigned long end_index;
-	u64 cur = btrfs_bio(cb->orig_bio)->file_offset + cb->orig_bio->bi_iter.bi_size;
+	struct bio *orig_bio = &cb->orig_bbio->bio;
+	u64 cur = cb->orig_bbio->file_offset + orig_bio->bi_iter.bi_size;
 	u64 isize = i_size_read(inode);
 	int ret;
 	struct page *page;
@@ -447,7 +448,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 */
 		if (!em || cur < em->start ||
 		    (cur + fs_info->sectorsize > extent_map_end(em)) ||
-		    (em->block_start >> 9) != cb->orig_bio->bi_iter.bi_sector) {
+		    (em->block_start >> 9) != orig_bio->bi_iter.bi_sector) {
 			free_extent_map(em);
 			unlock_extent(tree, cur, page_end, NULL);
 			unlock_page(page);
@@ -467,7 +468,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		}
 
 		add_size = min(em->start + em->len, page_end + 1) - cur;
-		ret = bio_add_page(cb->orig_bio, page, add_size, offset_in_page(cur));
+		ret = bio_add_page(orig_bio, page, add_size, offset_in_page(cur));
 		if (ret != add_size) {
 			unlock_extent(tree, cur, page_end, NULL);
 			unlock_page(page);
@@ -537,7 +538,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio, int mirror_num)
 	cb->len = bbio->bio.bi_iter.bi_size;
 	cb->compressed_len = compressed_len;
 	cb->compress_type = em->compress_type;
-	cb->orig_bio = &bbio->bio;
+	cb->orig_bbio = bbio;
 
 	free_extent_map(em);
 
@@ -966,7 +967,7 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	put_workspace(type, workspace);
 
 	if (!ret)
-		zero_fill_bio(cb->orig_bio);
+		zero_fill_bio(&cb->orig_bbio->bio);
 	return ret;
 }
 
@@ -1044,7 +1045,7 @@ void __cold btrfs_exit_compress(void)
 int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 			      struct compressed_bio *cb, u32 decompressed)
 {
-	struct bio *orig_bio = cb->orig_bio;
+	struct bio *orig_bio = &cb->orig_bbio->bio;
 	/* Offset inside the full decompressed extent */
 	u32 cur_offset;
 

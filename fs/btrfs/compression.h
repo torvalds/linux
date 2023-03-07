@@ -55,7 +55,7 @@ struct compressed_bio {
 
 	union {
 		/* For reads, this is the bio we are copying the data into */
-		struct bio *orig_bio;
+		struct btrfs_bio *orig_bbio;
 		struct work_struct write_end_work;
 	};
 
