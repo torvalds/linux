@@ -241,11 +241,17 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 	struct cpufreq_policy *policy = wg_policy->policy;
 	unsigned int freq, raw_freq, final_freq;
 	struct waltgov_cpu *wg_driv_cpu = &per_cpu(waltgov_cpu, wg_policy->driving_cpu);
+	struct walt_sched_cluster *cluster;
+	bool skip = false;
 
 	raw_freq = walt_map_util_freq(util, wg_policy, max, wg_driv_cpu->cpu);
 	freq = raw_freq;
 
-	if (wg_policy->tunables->adaptive_high_freq) {
+	cluster = cpu_cluster(policy->cpu);
+	if (cpumask_intersects(&cluster->cpus, cpu_partial_halt_mask))
+		skip = true;
+
+	if (wg_policy->tunables->adaptive_high_freq && !skip) {
 		if (raw_freq < get_adaptive_low_freq(wg_policy)) {
 			freq = get_adaptive_low_freq(wg_policy);
 			wg_driv_cpu->reasons = CPUFREQ_REASON_ADAPTIVE_LOW;
