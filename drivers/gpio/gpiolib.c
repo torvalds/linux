@@ -572,7 +572,7 @@ bool gpiochip_line_is_valid(const struct gpio_chip *gc,
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_valid);
 
-static void gpiodevice_release(struct device *dev)
+static void gpiodev_release(struct device *dev)
 {
 	struct gpio_device *gdev = to_gpio_device(dev);
 	unsigned long flags;
@@ -616,7 +616,7 @@ static int gpiochip_setup_dev(struct gpio_device *gdev)
 		return ret;
 
 	/* From this point, the .release() function cleans up gpio_device */
-	gdev->dev.release = gpiodevice_release;
+	gdev->dev.release = gpiodev_release;
 
 	ret = gpiochip_sysfs_register(gdev);
 	if (ret)
