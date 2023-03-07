@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt)	"qti-flash: %s: " fmt, __func__
 
@@ -1873,8 +1873,6 @@ static int qti_flash_led_remove(struct platform_device *pdev)
 		for (j = 0; j < ARRAY_SIZE(qti_flash_led_attrs); j++)
 			sysfs_remove_file(&led->snode[i].cdev.dev->kobj,
 				&qti_flash_led_attrs[j].attr);
-
-		led_classdev_unregister(&led->snode[i].cdev);
 	}
 
 	for (i = 0; (i < led->num_fnodes); i++)
