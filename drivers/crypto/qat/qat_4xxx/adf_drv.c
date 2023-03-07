@@ -404,12 +404,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	adf_enable_aer(accel_dev);
-
 	if (pci_save_state(pdev)) {
 		dev_err(&pdev->dev, "Failed to save pci state.\n");
 		ret = -ENOMEM;
-		goto out_err_disable_aer;
+		goto out_err;
 	}
 
 	ret = adf_dev_up(accel_dev, true);
@@ -424,8 +422,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 out_err_dev_stop:
 	adf_dev_down(accel_dev, false);
-out_err_disable_aer:
-	adf_disable_aer(accel_dev);
 out_err:
 	adf_cleanup_accel(accel_dev);
 	return ret;
@@ -440,7 +436,6 @@ static void adf_remove(struct pci_dev *pdev)
 		return;
 	}
 	adf_dev_down(accel_dev, false);
-	adf_disable_aer(accel_dev);
 	adf_cleanup_accel(accel_dev);
 }
 

@@ -2,7 +2,6 @@
 /* Copyright(c) 2014 - 2020 Intel Corporation */
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
@@ -170,40 +169,6 @@ const struct pci_error_handlers adf_err_handler = {
 	.resume = adf_resume,
 };
 EXPORT_SYMBOL_GPL(adf_err_handler);
-
-/**
- * adf_enable_aer() - Enable Advance Error Reporting for acceleration device
- * @accel_dev:  Pointer to acceleration device.
- *
- * Function enables PCI Advance Error Reporting for the
- * QAT acceleration device accel_dev.
- * To be used by QAT device specific drivers.
- */
-void adf_enable_aer(struct adf_accel_dev *accel_dev)
-{
-	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
-
-	pci_enable_pcie_error_reporting(pdev);
-}
-EXPORT_SYMBOL_GPL(adf_enable_aer);
-
-/**
- * adf_disable_aer() - Disable Advance Error Reporting for acceleration device
- * @accel_dev:  Pointer to acceleration device.
- *
- * Function disables PCI Advance Error Reporting for the
- * QAT acceleration device accel_dev.
- * To be used by QAT device specific drivers.
- *
- * Return: void
- */
-void adf_disable_aer(struct adf_accel_dev *accel_dev)
-{
-	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
-
-	pci_disable_pcie_error_reporting(pdev);
-}
-EXPORT_SYMBOL_GPL(adf_disable_aer);
 
 int adf_init_aer(void)
 {
