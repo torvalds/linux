@@ -75,7 +75,6 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
 static void ppc6_rd_data_blk(struct pi_adapter *pi, u8 *data, long count);
 static void ppc6_wait_for_fifo(struct pi_adapter *pi);
 static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count);
-static void ppc6_wr_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long length);
 static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata);
 static int ppc6_open(struct pi_adapter *pi);
 
@@ -474,26 +473,6 @@ static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count)
 			break;
 		}
 	}
-}
-
-//***************************************************************************
-
-static void ppc6_wr_port16_blk(struct pi_adapter *pi, u8 port, u8 *data, long length)
-{
-	length = length << 1;
-
-	ppc6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
-	ppc6_wr_data_byte(pi, (u8)length);
-	ppc6_wr_data_byte(pi, (u8)(length >> 8));
-	ppc6_wr_data_byte(pi, 0);
-
-	ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
-
-	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_WRITE);
-
-	ppc6_wr_data_blk(pi, data, length);
-
-	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 
 //***************************************************************************
