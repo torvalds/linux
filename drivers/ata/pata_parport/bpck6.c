@@ -71,6 +71,24 @@ static u8 bpck6_rd_data_byte(struct pi_adapter *pi)
 	return data;
 }
 
+static void bpck6_wr_data_byte(struct pi_adapter *pi, u8 data)
+{
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_UNI_FW:
+	case PPCMODE_BI_SW:
+	case PPCMODE_BI_FW:
+		parport_write_data(pi->pardev->port, data);
+		parport_frob_control(pi->pardev->port, 0, PARPORT_CONTROL_INIT);
+		break;
+	case PPCMODE_EPP_BYTE:
+	case PPCMODE_EPP_WORD:
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, &data, 1, 0);
+		break;
+	}
+}
+
 static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
 	u8 port = cont ? reg | 8 : reg;
@@ -84,7 +102,7 @@ static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 	u8 port = cont ? reg | 8 : reg;
 
 	bpck6_send_cmd(pi, port | ACCESS_PORT | ACCESS_WRITE);
-	ppc6_wr_data_byte(pi, val);
+	bpck6_wr_data_byte(pi, val);
 }
 
 static void bpck6_wait_for_fifo(struct pi_adapter *pi)
@@ -102,9 +120,9 @@ static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 	u8 this, last;
 
 	bpck6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
-	ppc6_wr_data_byte(pi, (u8)len);
-	ppc6_wr_data_byte(pi, (u8)(len >> 8));
-	ppc6_wr_data_byte(pi, 0);
+	bpck6_wr_data_byte(pi, (u8)len);
+	bpck6_wr_data_byte(pi, (u8)(len >> 8));
+	bpck6_wr_data_byte(pi, 0);
 
 	bpck6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
 	bpck6_send_cmd(pi, ATA_REG_DATA | ACCESS_PORT | ACCESS_WRITE);
@@ -169,9 +187,9 @@ static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 {
 	bpck6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
-	ppc6_wr_data_byte(pi, (u8)len);
-	ppc6_wr_data_byte(pi, (u8)(len >> 8));
-	ppc6_wr_data_byte(pi, 0);
+	bpck6_wr_data_byte(pi, (u8)len);
+	bpck6_wr_data_byte(pi, (u8)(len >> 8));
+	bpck6_wr_data_byte(pi, 0);
 
 	bpck6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
 	bpck6_send_cmd(pi, ATA_REG_DATA | ACCESS_PORT | ACCESS_READ);
@@ -271,7 +289,7 @@ static int bpck6_open(struct pi_adapter *pi)
 			pi->private = 0;
 
 			bpck6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
-			ppc6_wr_data_byte(pi, RAMSIZE_128K);
+			bpck6_wr_data_byte(pi, RAMSIZE_128K);
 
 			bpck6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
 			if ((bpck6_rd_data_byte(pi) & 0x3F) == 0x0C)
@@ -305,7 +323,7 @@ static void bpck6_deselect(struct pi_adapter *pi)
 static void bpck6_wr_extout(struct pi_adapter *pi, u8 regdata)
 {
 	bpck6_send_cmd(pi, REG_VERSION | ACCESS_REG | ACCESS_WRITE);
-	ppc6_wr_data_byte(pi, (u8)((regdata & 0x03) << 6));
+	bpck6_wr_data_byte(pi, (u8)((regdata & 0x03) << 6));
 }
 
 static void bpck6_connect(struct pi_adapter *pi)

@@ -67,37 +67,5 @@
 
 //***************************************************************************
 
-static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
-
-//***************************************************************************
-
 int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
 		   PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
-
-//***************************************************************************
-
-static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data)
-{
-	switch (mode_map[pi->mode])
-	{
-		case PPCMODE_UNI_SW :
-		case PPCMODE_UNI_FW :
-		case PPCMODE_BI_SW :
-		case PPCMODE_BI_FW :
-		{
-			parport_write_data(pi->pardev->port, data);
-			parport_frob_control(pi->pardev->port, 0, PARPORT_CONTROL_INIT);
-
-			break;
-		}
-
-		case PPCMODE_EPP_BYTE :
-		case PPCMODE_EPP_WORD :
-		case PPCMODE_EPP_DWORD :
-		{
-			pi->pardev->port->ops->epp_write_data(pi->pardev->port, &data, 1, 0);
-
-			break;
-		}
-	}
-}
