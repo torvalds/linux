@@ -634,10 +634,6 @@ static void qcom_geni_serial_start_tx_dma(struct uart_port *uport)
 	if (uart_circ_empty(xmit))
 		return;
 
-	xmit_size = uart_circ_chars_pending(xmit);
-	if (xmit_size < WAKEUP_CHARS)
-		uart_write_wakeup(uport);
-
 	xmit_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
 	qcom_geni_serial_setup_tx(uport, xmit_size);
