@@ -37,7 +37,7 @@
 #include "mlx5_irq.h"
 #include "eswitch.h"
 
-static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf)
+static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf, u16 func_id)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
 	struct mlx5_hca_vport_context *in;
@@ -59,7 +59,7 @@ static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf)
 			!!(in->node_guid) * MLX5_HCA_VPORT_SEL_NODE_GUID |
 			!!(in->policy) * MLX5_HCA_VPORT_SEL_STATE_POLICY;
 
-		err = mlx5_core_modify_hca_vport_context(dev, 1, 1, vf + 1, in);
+		err = mlx5_core_modify_hca_vport_context(dev, 1, 1, func_id, in);
 		if (err)
 			mlx5_core_warn(dev, "modify vport context failed, unable to restore VF %d settings\n", vf);
 
@@ -73,6 +73,7 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
 	int err, vf, num_msix_count;
+	int vport_num;
 
 	err = mlx5_eswitch_enable(dev->priv.eswitch, num_vfs);
 	if (err) {
@@ -104,7 +105,10 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 
 		sriov->vfs_ctx[vf].enabled = 1;
 		if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_IB) {
-			err = sriov_restore_guids(dev, vf);
+			vport_num = mlx5_core_ec_sriov_enabled(dev) ?
+					mlx5_core_ec_vf_vport_base(dev) + vf
+					: vf + 1;
+			err = sriov_restore_guids(dev, vf, vport_num);
 			if (err) {
 				mlx5_core_warn(dev,
 					       "failed to restore VF %d settings, err %d\n",
