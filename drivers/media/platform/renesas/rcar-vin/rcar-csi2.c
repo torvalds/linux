@@ -345,7 +345,7 @@ static const struct rcsi2_mbps_reg hsfreqrange_h3_v3h_m3n[] = {
 	{ /* sentinel */ },
 };
 
-static const struct rcsi2_mbps_reg hsfreqrange_m3w_h3es1[] = {
+static const struct rcsi2_mbps_reg hsfreqrange_m3w[] = {
 	{ .mbps =   80,	.reg = 0x00 },
 	{ .mbps =   90,	.reg = 0x10 },
 	{ .mbps =  100,	.reg = 0x20 },
@@ -1369,11 +1369,6 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
 	.clear_ulps = true,
 };
 
-static const struct rcar_csi2_info rcar_csi2_info_r8a7795es1 = {
-	.hsfreqrange = hsfreqrange_m3w_h3es1,
-	.num_channels = 4,
-};
-
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
 	.init_phtw = rcsi2_init_phtw_h3es2,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
@@ -1383,12 +1378,12 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7796 = {
-	.hsfreqrange = hsfreqrange_m3w_h3es1,
+	.hsfreqrange = hsfreqrange_m3w,
 	.num_channels = 4,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77961 = {
-	.hsfreqrange = hsfreqrange_m3w_h3es1,
+	.hsfreqrange = hsfreqrange_m3w,
 	.num_channels = 4,
 };
 
@@ -1481,10 +1476,6 @@ static const struct of_device_id rcar_csi2_of_table[] = {
 MODULE_DEVICE_TABLE(of, rcar_csi2_of_table);
 
 static const struct soc_device_attribute r8a7795[] = {
-	{
-		.soc_id = "r8a7795", .revision = "ES1.*",
-		.data = &rcar_csi2_info_r8a7795es1,
-	},
 	{
 		.soc_id = "r8a7795", .revision = "ES2.*",
 		.data = &rcar_csi2_info_r8a7795es2,
