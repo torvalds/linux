@@ -994,7 +994,7 @@ void rockchip_pvtpll_add_length(struct rockchip_opp_info *info)
 	u32 opp_flag = 0;
 	int ret;
 
-	if (!info || !info->grf)
+	if (!info)
 		return;
 
 	np = of_parse_phandle(info->dev->of_node, "operating-points-v2", 0);
