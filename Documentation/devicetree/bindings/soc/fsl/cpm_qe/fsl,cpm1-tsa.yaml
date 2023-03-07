@@ -38,14 +38,6 @@ properties:
   '#size-cells':
     const: 0
 
-  '#fsl,serial-cells':
-    $ref: /schemas/types.yaml#/definitions/uint32
-    const: 1
-    description:
-      TSA consumers that use a phandle to TSA need to pass the serial identifier
-      with this phandle (defined in dt-bindings/soc/fsl,tsa.h).
-      For instance "fsl,tsa-serial = <&tsa FSL_CPM_TSA_SCC4>;".
-
 patternProperties:
   '^tdm@[0-1]$':
     description:
@@ -174,7 +166,6 @@ required:
   - reg-names
   - '#address-cells'
   - '#size-cells'
-  - '#fsl,serial-cells'
 
 additionalProperties: false
 
@@ -190,7 +181,6 @@ examples:
 
         #address-cells = <1>;
         #size-cells = <0>;
-        #fsl,serial-cells = <1>;
 
         tdm@0 {
             /* TDMa */
