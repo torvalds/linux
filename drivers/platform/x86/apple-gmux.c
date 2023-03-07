@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/debugfs.h>
+#include <acpi/video.h>
 #include <asm/io.h>
 
 /**
@@ -781,8 +782,9 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	struct apple_gmux_data *gmux_data;
 	struct resource *res;
 	struct backlight_properties props;
-	struct backlight_device *bdev;
+	struct backlight_device *bdev = NULL;
 	u8 ver_major, ver_minor, ver_release;
+	bool register_bdev = true;
 	int ret = -ENXIO;
 	acpi_status status;
 	unsigned long long gpe;
@@ -859,33 +861,38 @@ get_version:
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = gmux_read32(gmux_data, GMUX_PORT_MAX_BRIGHTNESS);
 
-	/*
-	 * Currently it's assumed that the maximum brightness is less than
-	 * 2^24 for compatibility with old gmux versions. Cap the max
-	 * brightness at this value, but print a warning if the hardware
-	 * reports something higher so that it can be fixed.
-	 */
-	if (WARN_ON(props.max_brightness > GMUX_MAX_BRIGHTNESS))
-		props.max_brightness = GMUX_MAX_BRIGHTNESS;
+#if IS_REACHABLE(CONFIG_ACPI_VIDEO)
+	register_bdev = acpi_video_get_backlight_type() == acpi_backlight_apple_gmux;
+#endif
+	if (register_bdev) {
+		/*
+		 * Currently it's assumed that the maximum brightness is less than
+		 * 2^24 for compatibility with old gmux versions. Cap the max
+		 * brightness at this value, but print a warning if the hardware
+		 * reports something higher so that it can be fixed.
+		 */
+		if (WARN_ON(props.max_brightness > GMUX_MAX_BRIGHTNESS))
+			props.max_brightness = GMUX_MAX_BRIGHTNESS;
 
-	bdev = backlight_device_register("gmux_backlight", &pnp->dev,
-					 gmux_data, &gmux_bl_ops, &props);
-	if (IS_ERR(bdev)) {
-		ret = PTR_ERR(bdev);
-		goto err_unmap;
+		bdev = backlight_device_register("gmux_backlight", &pnp->dev,
+						 gmux_data, &gmux_bl_ops, &props);
+		if (IS_ERR(bdev)) {
+			ret = PTR_ERR(bdev);
+			goto err_unmap;
+		}
+
+		gmux_data->bdev = bdev;
+		bdev->props.brightness = gmux_get_brightness(bdev);
+		backlight_update_status(bdev);
+
+		/*
+		 * The backlight situation on Macs is complicated. If the gmux is
+		 * present it's the best choice, because it always works for
+		 * backlight control and supports more levels than other options.
+		 * Disable the other backlight choices.
+		 */
+		apple_bl_unregister();
 	}
-
-	gmux_data->bdev = bdev;
-	bdev->props.brightness = gmux_get_brightness(bdev);
-	backlight_update_status(bdev);
-
-	/*
-	 * The backlight situation on Macs is complicated. If the gmux is
-	 * present it's the best choice, because it always works for
-	 * backlight control and supports more levels than other options.
-	 * Disable the other backlight choices.
-	 */
-	apple_bl_unregister();
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
 
