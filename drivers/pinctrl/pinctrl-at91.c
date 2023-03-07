@@ -42,7 +42,6 @@ struct at91_pinctrl_mux_ops;
  * @next: bank sharing same clock
  * @pioc_hwirq: PIO bank interrupt identifier on AIC
  * @pioc_virq: PIO bank Linux virtual interrupt
- * @pioc_idx: PIO bank index
  * @regbase: PIO bank virtual address
  * @clock: associated clock
  * @ops: at91 pinctrl mux ops
@@ -56,7 +55,6 @@ struct at91_gpio_chip {
 	struct at91_gpio_chip	*next;
 	int			pioc_hwirq;
 	int			pioc_virq;
-	int			pioc_idx;
 	void __iomem		*regbase;
 	struct clk		*clock;
 	const struct at91_pinctrl_mux_ops *ops;
@@ -1849,7 +1847,6 @@ static int at91_gpio_probe(struct platform_device *pdev)
 
 	at91_chip->ops = of_device_get_match_data(dev);
 	at91_chip->pioc_virq = irq;
-	at91_chip->pioc_idx = alias_idx;
 
 	at91_chip->clock = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(at91_chip->clock))
