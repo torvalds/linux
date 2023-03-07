@@ -5940,11 +5940,6 @@ F:	drivers/devfreq/event/
 F:	include/dt-bindings/pmu/exynos_ppmu.h
 F:	include/linux/devfreq-event.h
 
-DEVICE NUMBER REGISTRY
-M:	Torben Mathiasen <device@lanana.org>
-S:	Maintained
-W:	http://lanana.org/docs/device-list/index.html
-
 DEVICE RESOURCE MANAGEMENT HELPERS
 M:	Hans de Goede <hdegoede@redhat.com>
 R:	Matti Vaittinen <mazziesaccount@gmail.com>
