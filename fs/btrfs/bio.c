@@ -164,7 +164,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 			goto done;
 		}
 
-		btrfs_submit_bio(&repair_bbio->bio, mirror);
+		btrfs_submit_bio(repair_bbio, mirror);
 		return;
 	}
 
@@ -232,7 +232,7 @@ static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 
 	mirror = next_repair_mirror(fbio, failed_bbio->mirror_num);
 	btrfs_debug(fs_info, "submitting repair read to mirror %d", mirror);
-	btrfs_submit_bio(repair_bio, mirror);
+	btrfs_submit_bio(repair_bbio, mirror);
 	return fbio;
 }
 
@@ -603,12 +603,12 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 	return true;
 }
 
-static bool btrfs_submit_chunk(struct bio *bio, int mirror_num)
+static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 {
-	struct btrfs_bio *bbio = btrfs_bio(bio);
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_bio *orig_bbio = bbio;
+	struct bio *bio = &bbio->bio;
 	u64 logical = bio->bi_iter.bi_sector << 9;
 	u64 length = bio->bi_iter.bi_size;
 	u64 map_length = length;
@@ -650,7 +650,7 @@ static bool btrfs_submit_chunk(struct bio *bio, int mirror_num)
 		if (use_append) {
 			bio->bi_opf &= ~REQ_OP_WRITE;
 			bio->bi_opf |= REQ_OP_ZONE_APPEND;
-			ret = btrfs_extract_ordered_extent(btrfs_bio(bio));
+			ret = btrfs_extract_ordered_extent(bbio);
 			if (ret)
 				goto fail_put_bio;
 		}
@@ -686,9 +686,9 @@ fail:
 	return true;
 }
 
-void btrfs_submit_bio(struct bio *bio, int mirror_num)
+void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num)
 {
-	while (!btrfs_submit_chunk(bio, mirror_num))
+	while (!btrfs_submit_chunk(bbio, mirror_num))
 		;
 }
 

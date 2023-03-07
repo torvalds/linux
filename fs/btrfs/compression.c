@@ -333,7 +333,7 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	cb->nr_pages = nr_pages;
 
 	btrfs_add_compressed_bio_pages(cb, disk_start);
-	btrfs_submit_bio(&cb->bbio.bio, 0);
+	btrfs_submit_bio(&cb->bbio, 0);
 
 	if (blkcg_css)
 		kthread_associate_blkcg(NULL);
@@ -565,7 +565,7 @@ void btrfs_submit_compressed_read(struct bio *bio, int mirror_num)
 	if (memstall)
 		psi_memstall_leave(&pflags);
 
-	btrfs_submit_bio(&cb->bbio.bio, mirror_num);
+	btrfs_submit_bio(&cb->bbio, mirror_num);
 	return;
 
 out_free_compressed_pages:

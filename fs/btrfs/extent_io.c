@@ -157,7 +157,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 	    bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
 		btrfs_submit_compressed_read(bio, mirror_num);
 	else
-		btrfs_submit_bio(bio, mirror_num);
+		btrfs_submit_bio(btrfs_bio(bio), mirror_num);
 
 	/* The bio is owned by the end_io handler now */
 	bio_ctrl->bio = NULL;
