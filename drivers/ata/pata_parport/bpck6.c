@@ -37,6 +37,8 @@ static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 
 static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 {
+	u8 this, last;
+
 	ppc6_send_cmd(pi, REG_BLKSIZE | ACCESS_REG | ACCESS_WRITE);
 	ppc6_wr_data_byte(pi, (u8)len);
 	ppc6_wr_data_byte(pi, (u8)(len >> 8));
@@ -44,7 +46,61 @@ static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 
 	ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_IO16 | PREFIX_BLK);
 	ppc6_send_cmd(pi, ATA_REG_DATA | ACCESS_PORT | ACCESS_WRITE);
-	ppc6_wr_data_blk(pi, buf, len);
+
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_BI_SW:
+		while (len--) {
+			parport_write_data(pi->pardev->port, *buf++);
+			parport_frob_control(pi->pardev->port, 0,
+							PARPORT_CONTROL_INIT);
+		}
+		break;
+	case PPCMODE_UNI_FW:
+	case PPCMODE_BI_FW:
+		ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_FASTWR);
+
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							PARPORT_CONTROL_STROBE);
+
+		last = *buf;
+
+		parport_write_data(pi->pardev->port, last);
+
+		while (len) {
+			this = *buf++;
+			len--;
+
+			if (this == last) {
+				parport_frob_control(pi->pardev->port, 0,
+							PARPORT_CONTROL_INIT);
+			} else {
+				parport_write_data(pi->pardev->port, this);
+				last = this;
+			}
+		}
+
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							0);
+		ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_FASTWR);
+		break;
+	case PPCMODE_EPP_BYTE:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
+						len, PARPORT_EPP_FAST_8);
+		ppc6_wait_for_fifo(pi);
+		break;
+	case PPCMODE_EPP_WORD:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
+						len, PARPORT_EPP_FAST_16);
+		ppc6_wait_for_fifo(pi);
+		break;
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
+						len, PARPORT_EPP_FAST_32);
+		ppc6_wait_for_fifo(pi);
+		break;
+	}
+
 	ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_IO16 | PREFIX_BLK);
 }
 

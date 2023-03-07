@@ -73,7 +73,6 @@ static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
 static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
 static void ppc6_wait_for_fifo(struct pi_adapter *pi);
-static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count);
 static void ppc6_wr_extout(struct pi_adapter *pi, u8 regdata);
 static int ppc6_open(struct pi_adapter *pi);
 
@@ -291,96 +290,6 @@ static void ppc6_wait_for_fifo(struct pi_adapter *pi)
 	{
 		for(i=0; i<20; i++)
 			parport_read_status(pi->pardev->port);
-	}
-}
-
-//***************************************************************************
-
-static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count)
-{
-	switch (mode_map[pi->mode])
-	{
-		case PPCMODE_UNI_SW :
-		case PPCMODE_BI_SW :
-		{
-			while(count--)
-			{
-				parport_write_data(pi->pardev->port, *data++);
-
-				parport_frob_control(pi->pardev->port, 0, PARPORT_CONTROL_INIT);
-			}
-
-			break;
-		}
-
-		case PPCMODE_UNI_FW :
-		case PPCMODE_BI_FW :
-		{
-			u8 this, last;
-
-			ppc6_send_cmd(pi, CMD_PREFIX_SET | PREFIX_FASTWR);
-
-			parport_frob_control(pi->pardev->port,
-				PARPORT_CONTROL_STROBE, PARPORT_CONTROL_STROBE);
-
-			last = *data;
-
-			parport_write_data(pi->pardev->port, last);
-
-			while(count)
-			{
-				this = *data++;
-				count--;
-
-				if (this == last)
-				{
-					parport_frob_control(pi->pardev->port,
-						0, PARPORT_CONTROL_INIT);
-				}
-				else
-				{
-					parport_write_data(pi->pardev->port, this);
-
-					last = this;
-				}
-			}
-
-			parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE, 0);
-
-			ppc6_send_cmd(pi, CMD_PREFIX_RESET | PREFIX_FASTWR);
-
-			break;
-		}
-
-		case PPCMODE_EPP_BYTE :
-		{
-			pi->pardev->port->ops->epp_write_data(pi->pardev->port,
-					data, count, PARPORT_EPP_FAST_8);
-
-			ppc6_wait_for_fifo(pi);
-
-			break;
-		}
-
-		case PPCMODE_EPP_WORD :
-		{
-			pi->pardev->port->ops->epp_write_data(pi->pardev->port,
-					data, count, PARPORT_EPP_FAST_16);
-
-			ppc6_wait_for_fifo(pi);
-
-			break;
-		}
-
-		case PPCMODE_EPP_DWORD :
-		{
-			pi->pardev->port->ops->epp_write_data(pi->pardev->port,
-					data, count, PARPORT_EPP_FAST_32);
-
-			ppc6_wait_for_fifo(pi);
-
-			break;
-		}
 	}
 }
 
