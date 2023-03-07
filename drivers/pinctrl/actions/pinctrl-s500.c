@@ -1724,4 +1724,3 @@ module_exit(s500_pinctrl_exit);
 MODULE_AUTHOR("Actions Semi Inc.");
 MODULE_AUTHOR("Cristian Ciocaltea <cristian.ciocaltea@gmail.com>");
 MODULE_DESCRIPTION("Actions Semi S500 SoC Pinctrl Driver");
-MODULE_LICENSE("GPL");
