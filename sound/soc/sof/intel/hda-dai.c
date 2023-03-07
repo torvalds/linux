@@ -27,10 +27,8 @@ static bool hda_use_tplg_nhlt;
 module_param_named(sof_use_tplg_nhlt, hda_use_tplg_nhlt, bool, 0444);
 MODULE_PARM_DESC(sof_use_tplg_nhlt, "SOF topology nhlt override");
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
-
-static int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
-			  struct snd_sof_dai_config_data *data)
+int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
+		   struct snd_sof_dai_config_data *data)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
 	struct snd_soc_component *component = swidget->scomp;
@@ -49,6 +47,8 @@ static int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 
 static const struct hda_dai_widget_dma_ops *
 hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai)
@@ -181,44 +181,6 @@ static int hda_link_dma_prepare(struct snd_pcm_substream *substream, struct snd_
 	return hda_link_dma_hw_params(substream, &rtd->dpcm[stream].hw_params, cpu_dai);
 }
 
-static int hda_link_dma_trigger(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai,
-				int cmd)
-{
-	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, cpu_dai);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(cpu_dai->component);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	struct hdac_ext_stream *hext_stream;
-	int ret;
-
-	hext_stream = ops->get_hext_stream(sdev, cpu_dai, substream);
-
-	if (!hext_stream)
-		return 0;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_stream_start(hext_stream);
-		break;
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_STOP:
-		snd_hdac_ext_stream_clear(hext_stream);
-		ret = hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai);
-		if (ret < 0)
-			return ret;
-
-		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		snd_hdac_ext_stream_clear(hext_stream);
-
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int hda_link_dma_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(cpu_dai->component);
@@ -237,20 +199,6 @@ static int hda_link_dma_hw_free(struct snd_pcm_substream *substream, struct snd_
 		return 0;
 
 	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai);
-}
-
-static int hda_dai_widget_update(struct snd_soc_dapm_widget *w,
-				 int channel, bool widget_setup)
-{
-	struct snd_sof_dai_config_data data;
-
-	data.dai_data = channel;
-
-	/* set up/free DAI widget and send DAI_CONFIG IPC */
-	if (widget_setup)
-		return hda_ctrl_dai_widget_setup(w, SOF_DAI_CONFIG_FLAGS_2_STEP_STOP, &data);
-
-	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE, &data);
 }
 
 static int hda_dai_hw_params(struct snd_pcm_substream *substream,
@@ -314,61 +262,11 @@ static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 	return hda_dai_config(w, flags, &data);
 }
 
-static int hda_dai_hw_free_ipc(int stream, /* direction */
-			       struct snd_soc_dai *dai)
-{
-	struct snd_soc_dapm_widget *w;
-
-	w = snd_soc_dai_get_widget(dai, stream);
-
-	/* free the link DMA channel in the FW and the DAI widget */
-	return hda_dai_widget_update(w, DMA_CHAN_INVALID, false);
-}
-
-static int ipc3_hda_dai_trigger(struct snd_pcm_substream *substream,
-				int cmd, struct snd_soc_dai *dai)
-{
-	struct snd_soc_dapm_widget *w;
-	int ret;
-
-	dev_dbg(dai->dev, "cmd=%d dai %s direction %d\n", cmd,
-		dai->name, substream->stream);
-
-	ret = hda_link_dma_trigger(substream, dai, cmd);
-	if (ret < 0)
-		return ret;
-
-	w = snd_soc_dai_get_widget(dai, substream->stream);
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_STOP:
-		/*
-		 * free DAI widget during stop/suspend to keep widget use_count's balanced.
-		 */
-		ret = hda_dai_hw_free_ipc(substream->stream, dai);
-		if (ret < 0)
-			return ret;
-
-		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_PAUSE, NULL);
-		if (ret < 0)
-			return ret;
-		break;
-
-	default:
-		break;
-	}
-	return 0;
-}
-
 /*
  * In contrast to IPC3, the dai trigger in IPC4 mixes pipeline state changes
  * (over IPC channel) and DMA state change (direct host register changes).
  */
-static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
-				int cmd, struct snd_soc_dai *dai)
+static int hda_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, dai);
@@ -437,10 +335,10 @@ static int hda_dai_hw_free(struct snd_pcm_substream *substream,
 	return hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_HW_FREE, &data);
 }
 
-static const struct snd_soc_dai_ops ipc3_hda_dai_ops = {
+static const struct snd_soc_dai_ops hda_dai_ops = {
 	.hw_params = hda_dai_hw_params,
 	.hw_free = hda_dai_hw_free,
-	.trigger = ipc3_hda_dai_trigger,
+	.trigger = hda_dai_trigger,
 	.prepare = hda_dai_prepare,
 };
 
@@ -463,12 +361,22 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 		 * explicitly during suspend.
 		 */
 		if (hext_stream->link_substream) {
-			struct snd_soc_dai *cpu_dai;
+			const struct hda_dai_widget_dma_ops *ops;
+			struct snd_sof_widget *swidget;
+			struct snd_soc_dapm_widget *w;
 			struct snd_soc_dai *codec_dai;
+			struct snd_soc_dai *cpu_dai;
+			struct snd_sof_dev *sdev;
+			struct snd_sof_dai *sdai;
 
 			rtd = asoc_substream_to_rtd(hext_stream->link_substream);
 			cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 			codec_dai = asoc_rtd_to_codec(rtd, 0);
+			w = snd_soc_dai_get_widget(cpu_dai, hdac_stream(hext_stream)->direction);
+			swidget = w->dobj.private;
+			sdev = snd_soc_component_get_drvdata(swidget->scomp);
+			sdai = swidget->private;
+			ops = sdai->platform_private;
 
 			ret = hda_link_dma_cleanup(hext_stream->link_substream,
 						   hext_stream,
@@ -476,22 +384,19 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 			if (ret < 0)
 				return ret;
 
-			/* for consistency with TRIGGER_SUSPEND we free DAI resources */
-			ret = hda_dai_hw_free_ipc(hdac_stream(hext_stream)->direction, cpu_dai);
-			if (ret < 0)
-				return ret;
+			/* for consistency with TRIGGER_SUSPEND  */
+			if (ops->post_trigger) {
+				ret = ops->post_trigger(sdev, cpu_dai,
+							hext_stream->link_substream,
+							SNDRV_PCM_TRIGGER_SUSPEND);
+				if (ret < 0)
+					return ret;
+			}
 		}
 	}
 
 	return 0;
 }
-
-static const struct snd_soc_dai_ops ipc4_hda_dai_ops = {
-	.hw_params = hda_dai_hw_params,
-	.hw_free = hda_dai_hw_free,
-	.trigger = ipc4_hda_dai_trigger,
-	.prepare = hda_dai_prepare,
-};
 
 #endif
 
@@ -499,37 +404,19 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 {
 	int i;
 
-	switch (sdev->pdata->ipc_type) {
-	case SOF_IPC:
-		for (i = 0; i < ops->num_drv; i++) {
+	for (i = 0; i < ops->num_drv; i++) {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
-			if (strstr(ops->drv[i].name, "iDisp") ||
-			    strstr(ops->drv[i].name, "Analog") ||
-			    strstr(ops->drv[i].name, "Digital"))
-				ops->drv[i].ops = &ipc3_hda_dai_ops;
+		if (strstr(ops->drv[i].name, "iDisp") ||
+		    strstr(ops->drv[i].name, "Analog") ||
+		    strstr(ops->drv[i].name, "Digital"))
+			ops->drv[i].ops = &hda_dai_ops;
 #endif
-		}
-		break;
-	case SOF_INTEL_IPC4:
-	{
+	}
+
+	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4 && !hda_use_tplg_nhlt) {
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 
-		for (i = 0; i < ops->num_drv; i++) {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
-			if (strstr(ops->drv[i].name, "iDisp") ||
-			    strstr(ops->drv[i].name, "Analog") ||
-			    strstr(ops->drv[i].name, "Digital"))
-				ops->drv[i].ops = &ipc4_hda_dai_ops;
-#endif
-		}
-
-		if (!hda_use_tplg_nhlt)
-			ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
-
-		break;
-	}
-	default:
-		break;
+		ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
 	}
 }
 
