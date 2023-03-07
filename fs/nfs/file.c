@@ -336,8 +336,8 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 
 start:
 	folio = nfs_folio_grab_cache_write_begin(mapping, pos >> PAGE_SHIFT);
-	if (!folio)
-		return -ENOMEM;
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 	*pagep = &folio->page;
 
 	ret = nfs_flush_incompatible(file, folio);
