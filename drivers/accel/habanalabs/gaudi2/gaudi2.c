@@ -10239,15 +10239,22 @@ static int gaudi2_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size, v
 
 	/* Create mapping on asic side */
 	mutex_lock(&hdev->mmu_lock);
+
 	rc = hl_mmu_map_contiguous(ctx, reserved_va_base, host_mem_dma_addr, SZ_2M);
-	hl_mmu_invalidate_cache_range(hdev, false,
-				      MMU_OP_USERPTR | MMU_OP_SKIP_LOW_CACHE_INV,
-				      ctx->asid, reserved_va_base, SZ_2M);
-	mutex_unlock(&hdev->mmu_lock);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to create mapping on asic mmu\n");
 		goto unreserve_va;
 	}
+
+	rc = hl_mmu_invalidate_cache_range(hdev, false,
+				      MMU_OP_USERPTR | MMU_OP_SKIP_LOW_CACHE_INV,
+				      ctx->asid, reserved_va_base, SZ_2M);
+	if (rc) {
+		hl_mmu_unmap_contiguous(ctx, reserved_va_base, SZ_2M);
+		goto unreserve_va;
+	}
+
+	mutex_unlock(&hdev->mmu_lock);
 
 	/* Enable MMU on KDMA */
 	gaudi2_kdma_set_mmbp_asid(hdev, false, ctx->asid);
@@ -10277,11 +10284,16 @@ static int gaudi2_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size, v
 	gaudi2_kdma_set_mmbp_asid(hdev, true, HL_KERNEL_ASID_ID);
 
 	mutex_lock(&hdev->mmu_lock);
-	hl_mmu_unmap_contiguous(ctx, reserved_va_base, SZ_2M);
-	hl_mmu_invalidate_cache_range(hdev, false, MMU_OP_USERPTR,
+
+	rc = hl_mmu_unmap_contiguous(ctx, reserved_va_base, SZ_2M);
+	if (rc)
+		goto unreserve_va;
+
+	rc = hl_mmu_invalidate_cache_range(hdev, false, MMU_OP_USERPTR,
 				      ctx->asid, reserved_va_base, SZ_2M);
-	mutex_unlock(&hdev->mmu_lock);
+
 unreserve_va:
+	mutex_unlock(&hdev->mmu_lock);
 	hl_unreserve_va_block(hdev, ctx, reserved_va_base, SZ_2M);
 free_data_buffer:
 	hl_asic_dma_free_coherent(hdev, SZ_2M, host_mem_virtual_addr, host_mem_dma_addr);
@@ -10334,17 +10346,24 @@ static int gaudi2_internal_cb_pool_init(struct hl_device *hdev, struct hl_ctx *c
 	}
 
 	mutex_lock(&hdev->mmu_lock);
+
 	rc = hl_mmu_map_contiguous(ctx, hdev->internal_cb_va_base, hdev->internal_cb_pool_dma_addr,
 					HOST_SPACE_INTERNAL_CB_SZ);
-	hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
-	mutex_unlock(&hdev->mmu_lock);
-
 	if (rc)
 		goto unreserve_internal_cb_pool;
 
+	rc = hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
+	if (rc)
+		goto unmap_internal_cb_pool;
+
+	mutex_unlock(&hdev->mmu_lock);
+
 	return 0;
 
+unmap_internal_cb_pool:
+	hl_mmu_unmap_contiguous(ctx, hdev->internal_cb_va_base, HOST_SPACE_INTERNAL_CB_SZ);
 unreserve_internal_cb_pool:
+	mutex_unlock(&hdev->mmu_lock);
 	hl_unreserve_va_block(hdev, ctx, hdev->internal_cb_va_base, HOST_SPACE_INTERNAL_CB_SZ);
 destroy_internal_cb_pool:
 	gen_pool_destroy(hdev->internal_cb_pool);
