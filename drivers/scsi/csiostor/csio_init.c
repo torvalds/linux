@@ -38,7 +38,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/mm.h>
 #include <linux/notifier.h>
 #include <linux/kdebug.h>
