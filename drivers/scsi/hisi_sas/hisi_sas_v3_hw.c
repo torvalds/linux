@@ -2391,15 +2391,14 @@ out:
 		task->task_done(task);
 }
 
-static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
+static void complete_v3_hw(struct hisi_sas_cq *cq)
 {
-	struct hisi_sas_cq *cq = p;
-	struct hisi_hba *hisi_hba = cq->hisi_hba;
-	struct hisi_sas_slot *slot;
 	struct hisi_sas_complete_v3_hdr *complete_queue;
-	u32 rd_point = cq->rd_point, wr_point;
+	struct hisi_hba *hisi_hba = cq->hisi_hba;
+	u32 rd_point, wr_point;
 	int queue = cq->id;
 
+	rd_point = cq->rd_point;
 	complete_queue = hisi_hba->complete_hdr[queue];
 
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
@@ -2408,6 +2407,7 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v3_hdr *complete_hdr;
 		struct device *dev = hisi_hba->dev;
+		struct hisi_sas_slot *slot;
 		u32 dw0, dw1, dw3;
 		int iptt;
 
@@ -2450,6 +2450,13 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+}
+
+static irqreturn_t cq_thread_v3_hw(int irq_no, void *p)
+{
+	struct hisi_sas_cq *cq = p;
+
+	complete_v3_hw(cq);
 
 	return IRQ_HANDLED;
 }
