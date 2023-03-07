@@ -29,14 +29,6 @@ MODULE_PARM_DESC(sof_use_tplg_nhlt, "SOF topology nhlt override");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 
-struct hda_pipe_params {
-	u32 ch;
-	u32 s_freq;
-	snd_pcm_format_t format;
-	int link_index;
-	unsigned int link_bps;
-};
-
 /*
  * This function checks if the host dma channel corresponding
  * to the link DMA stream_tag argument is assigned to one
@@ -174,13 +166,13 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	struct hda_pipe_params p_params = {0};
 	struct hdac_ext_stream *hext_stream;
 	struct hdac_stream *hstream;
 	struct hdac_ext_link *hlink;
 	struct snd_sof_dev *sdev;
 	struct hdac_bus *bus;
 	unsigned int format_val;
+	unsigned int link_bps;
 	unsigned char stream_tag;
 
 	sdev = snd_soc_component_get_drvdata(cpu_dai->component);
@@ -202,37 +194,26 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	hstream = &hext_stream->hstream;
 	stream_tag = hstream->stream_tag;
 
+	if (hext_stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK)
+		snd_hdac_ext_bus_link_set_stream_id(hlink, stream_tag);
+
 	/* set the hdac_stream in the codec dai */
 	snd_soc_dai_set_stream(codec_dai, hdac_stream(hext_stream), substream->stream);
 
-	p_params.ch = params_channels(params);
-	p_params.s_freq = params_rate(params);
-	p_params.link_index = hlink->index;
-	p_params.format = params_format(params);
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		p_params.link_bps = codec_dai->driver->playback.sig_bits;
+		link_bps = codec_dai->driver->playback.sig_bits;
 	else
-		p_params.link_bps = codec_dai->driver->capture.sig_bits;
+		link_bps = codec_dai->driver->capture.sig_bits;
 
 	snd_hdac_ext_stream_reset(hext_stream);
 
-	format_val = snd_hdac_calc_stream_format(p_params.s_freq, p_params.ch,
-						 p_params.format,
-						 p_params.link_bps, 0);
+	format_val = snd_hdac_calc_stream_format(params_rate(params), params_channels(params),
+						 params_format(params), link_bps, 0);
 
 	dev_dbg(bus->dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
-		format_val, p_params.s_freq, p_params.ch, p_params.format);
+		format_val, params_rate(params), params_channels(params), params_format(params));
 
 	snd_hdac_ext_stream_setup(hext_stream, format_val);
-
-	if (hext_stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		list_for_each_entry(hlink, &bus->hlink_list, list) {
-			if (hlink->index == p_params.link_index)
-				snd_hdac_ext_bus_link_set_stream_id(hlink,
-								    stream_tag);
-		}
-	}
 
 	hext_stream->link_prepared = 1;
 
