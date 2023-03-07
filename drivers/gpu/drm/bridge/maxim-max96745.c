@@ -51,6 +51,9 @@ static bool max96745_bridge_link_locked(struct max96745_bridge *ser)
 {
 	u32 val;
 
+	if (ser->lock.gpio)
+		return gpiod_get_value_cansleep(ser->lock.gpio);
+
 	if (regmap_read(ser->regmap, 0x002a, &val))
 		return false;
 
@@ -238,7 +241,7 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 	if (!ser->regmap)
 		return dev_err_probe(dev, -ENODEV, "failed to get regmap\n");
 
-	ser->lock.gpio = devm_gpiod_get(dev, "lock", GPIOD_IN);
+	ser->lock.gpio = devm_gpiod_get_optional(dev, "lock", GPIOD_IN);
 	if (IS_ERR(ser->lock.gpio))
 		return dev_err_probe(dev, PTR_ERR(ser->lock.gpio),
 				     "failed to get lock GPIO\n");
@@ -253,16 +256,18 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret,
 				     "failed to register extcon device\n");
 
-	ser->lock.irq = gpiod_to_irq(ser->lock.gpio);
-	if (ser->lock.irq < 0)
-		return ser->lock.irq;
+	if (ser->lock.gpio) {
+		ser->lock.irq = gpiod_to_irq(ser->lock.gpio);
+		if (ser->lock.irq < 0)
+			return ser->lock.irq;
 
-	ret = devm_request_threaded_irq(dev, ser->lock.irq, NULL,
-					max96745_bridge_lock_irq_handler,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					dev_name(dev), ser);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to request lock IRQ\n");
+		ret = devm_request_threaded_irq(dev, ser->lock.irq, NULL,
+						max96745_bridge_lock_irq_handler,
+						IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+						dev_name(dev), ser);
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to request lock IRQ\n");
+	}
 
 	ser->bridge.funcs = &max96745_bridge_funcs;
 	ser->bridge.of_node = dev->of_node;
