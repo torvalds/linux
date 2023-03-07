@@ -35,6 +35,16 @@ static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
 	ppc6_wr_data_byte(pi, val);
 }
 
+static void bpck6_wait_for_fifo(struct pi_adapter *pi)
+{
+	int i;
+
+	if (pi->private & fifo_wait) {
+		for (i = 0; i < 20; i++)
+			parport_read_status(pi->pardev->port);
+	}
+}
+
 static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 {
 	u8 this, last;
@@ -87,17 +97,17 @@ static void bpck6_write_block(struct pi_adapter *pi, char *buf, int len)
 	case PPCMODE_EPP_BYTE:
 		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
 						len, PARPORT_EPP_FAST_8);
-		ppc6_wait_for_fifo(pi);
+		bpck6_wait_for_fifo(pi);
 		break;
 	case PPCMODE_EPP_WORD:
 		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
 						len, PARPORT_EPP_FAST_16);
-		ppc6_wait_for_fifo(pi);
+		bpck6_wait_for_fifo(pi);
 		break;
 	case PPCMODE_EPP_DWORD:
 		pi->pardev->port->ops->epp_write_data(pi->pardev->port, buf,
 						len, PARPORT_EPP_FAST_32);
-		ppc6_wait_for_fifo(pi);
+		bpck6_wait_for_fifo(pi);
 		break;
 	}
 
