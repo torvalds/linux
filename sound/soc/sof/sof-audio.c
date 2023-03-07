@@ -610,8 +610,8 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 	ret = sof_walk_widgets_in_order(sdev, spcm, fe_params, platform_params,
 					dir, SOF_WIDGET_SETUP);
 	if (ret < 0) {
-		ret = sof_walk_widgets_in_order(sdev, spcm, fe_params, platform_params,
-						dir, SOF_WIDGET_UNPREPARE);
+		sof_walk_widgets_in_order(sdev, spcm, fe_params, platform_params,
+					  dir, SOF_WIDGET_UNPREPARE);
 		return ret;
 	}
 
