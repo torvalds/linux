@@ -896,13 +896,13 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 			  u64 disk_bytenr, u64 file_offset)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct bio *bio;
+	struct btrfs_bio *bbio;
 
-	bio = btrfs_bio_alloc(BIO_MAX_VECS, bio_ctrl->opf, inode,
-			      bio_ctrl->end_io_func, NULL);
-	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
-	btrfs_bio(bio)->file_offset = file_offset;
-	bio_ctrl->bbio = btrfs_bio(bio);
+	bbio = btrfs_bio_alloc(BIO_MAX_VECS, bio_ctrl->opf, inode,
+			       bio_ctrl->end_io_func, NULL);
+	bbio->bio.bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
+	bbio->file_offset = file_offset;
+	bio_ctrl->bbio = bbio;
 	bio_ctrl->len_to_oe_boundary = U32_MAX;
 
 	/*
@@ -911,7 +911,7 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 	 * them.
 	 */
 	if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE &&
-	    btrfs_use_zone_append(btrfs_bio(bio))) {
+	    btrfs_use_zone_append(bbio)) {
 		struct btrfs_ordered_extent *ordered;
 
 		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
@@ -930,8 +930,8 @@ static void alloc_new_bio(struct btrfs_inode *inode,
 		 * to always be set on the last added/replaced device.
 		 * This is a bit odd but has been like that for a long time.
 		 */
-		bio_set_dev(bio, fs_info->fs_devices->latest_dev->bdev);
-		wbc_init_bio(bio_ctrl->wbc, bio);
+		bio_set_dev(&bbio->bio, fs_info->fs_devices->latest_dev->bdev);
+		wbc_init_bio(bio_ctrl->wbc, &bbio->bio);
 	}
 }
 

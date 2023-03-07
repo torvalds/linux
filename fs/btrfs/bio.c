@@ -48,15 +48,17 @@ void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_inode *inode,
  * Just like the underlying bio_alloc_bioset it will not fail as it is backed by
  * a mempool.
  */
-struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
-			    struct btrfs_inode *inode,
-			    btrfs_bio_end_io_t end_io, void *private)
+struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
+				  struct btrfs_inode *inode,
+				  btrfs_bio_end_io_t end_io, void *private)
 {
+	struct btrfs_bio *bbio;
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(NULL, nr_vecs, opf, GFP_NOFS, &btrfs_bioset);
-	btrfs_bio_init(btrfs_bio(bio), inode, end_io, private);
-	return bio;
+	bbio = btrfs_bio(bio);
+	btrfs_bio_init(bbio, inode, end_io, private);
+	return bbio;
 }
 
 static struct bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,

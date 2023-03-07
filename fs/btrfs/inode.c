@@ -9928,24 +9928,24 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 		.pending = ATOMIC_INIT(1),
 	};
 	unsigned long i = 0;
-	struct bio *bio;
+	struct btrfs_bio *bbio;
 
 	init_waitqueue_head(&priv.wait);
 
-	bio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, inode,
+	bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, inode,
 			      btrfs_encoded_read_endio, &priv);
-	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
+	bbio->bio.bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 
 	do {
 		size_t bytes = min_t(u64, disk_io_size, PAGE_SIZE);
 
-		if (bio_add_page(bio, pages[i], bytes, 0) < bytes) {
+		if (bio_add_page(&bbio->bio, pages[i], bytes, 0) < bytes) {
 			atomic_inc(&priv.pending);
-			btrfs_submit_bio(btrfs_bio(bio), 0);
+			btrfs_submit_bio(bbio, 0);
 
-			bio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, inode,
-					      btrfs_encoded_read_endio, &priv);
-			bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
+			bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, inode,
+					       btrfs_encoded_read_endio, &priv);
+			bbio->bio.bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 			continue;
 		}
 
@@ -9955,7 +9955,7 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 	} while (disk_io_size);
 
 	atomic_inc(&priv.pending);
-	btrfs_submit_bio(btrfs_bio(bio), 0);
+	btrfs_submit_bio(bbio, 0);
 
 	if (atomic_dec_return(&priv.pending))
 		io_wait_event(priv.wait, !atomic_read(&priv.pending));

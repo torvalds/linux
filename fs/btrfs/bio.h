@@ -75,9 +75,9 @@ void __cold btrfs_bioset_exit(void);
 
 void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_inode *inode,
 		    btrfs_bio_end_io_t end_io, void *private);
-struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
-			    struct btrfs_inode *inode,
-			    btrfs_bio_end_io_t end_io, void *private);
+struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
+				  struct btrfs_inode *inode,
+				  btrfs_bio_end_io_t end_io, void *private);
 
 static inline void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 {
