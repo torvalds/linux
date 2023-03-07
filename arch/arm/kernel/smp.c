@@ -48,7 +48,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mpu.h>
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
 
 /*
