@@ -65,14 +65,6 @@
 //***************************************************************************
 
 struct ppc_storage {
-	u8	mode;						// operating mode
-					// 0 = PPC Uni SW
-					// 1 = PPC Uni FW
-					// 2 = PPC Bi SW
-					// 3 = PPC Bi FW
-					// 4 = EPP Byte
-					// 5 = EPP Word
-					// 6 = EPP Dword
 	u8	ppc_flags;
 	u8	cur_ctrl;				// current control port contents
 };
@@ -115,6 +107,9 @@ static void ppc6_close(struct pi_adapter *pi);
 
 //***************************************************************************
 
+int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
+		   PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
+
 static int ppc6_select(struct pi_adapter *pi)
 {
 	struct ppc_storage *ppc = (void *)(pi->private);
@@ -151,10 +146,10 @@ static int ppc6_select(struct pi_adapter *pi)
 
 	outb(ppc->cur_ctrl, pi->port + 2);
 
-	i = ppc->mode & 0x0C;
+	i = mode_map[pi->mode] & 0x0C;
 
 	if (i == 0)
-		i = (ppc->mode & 2) | 1;
+		i = (mode_map[pi->mode] & 2) | 1;
 
 	outb(i, pi->port);
 
@@ -205,7 +200,7 @@ static int ppc6_select(struct pi_adapter *pi)
 static void ppc6_deselect(struct pi_adapter *pi)
 {
 	struct ppc_storage *ppc = (void *)(pi->private);
-	if (ppc->mode & 4)	// EPP
+	if (mode_map[pi->mode] & 4)	// EPP
 		ppc->cur_ctrl |= port_init;
 	else								// PPC/ECP
 		ppc->cur_ctrl |= port_sel;
@@ -224,7 +219,7 @@ static void ppc6_deselect(struct pi_adapter *pi)
 static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd)
 {
 	struct ppc_storage *ppc = (void *)(pi->private);
-	switch(ppc->mode)
+	switch (mode_map[pi->mode])
 	{
 		case PPCMODE_UNI_SW :
 		case PPCMODE_UNI_FW :
@@ -256,7 +251,7 @@ static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd)
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data)
 {
 	struct ppc_storage *ppc = (void *)(pi->private);
-	switch(ppc->mode)
+	switch (mode_map[pi->mode])
 	{
 		case PPCMODE_UNI_SW :
 		case PPCMODE_UNI_FW :
@@ -290,7 +285,7 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi)
 	struct ppc_storage *ppc = (void *)(pi->private);
 	u8 data = 0;
 
-	switch(ppc->mode)
+	switch (mode_map[pi->mode])
 	{
 		case PPCMODE_UNI_SW :
 		case PPCMODE_UNI_FW :
@@ -380,7 +375,7 @@ static void ppc6_wr_port(struct pi_adapter *pi, u8 port, u8 data)
 static void ppc6_rd_data_blk(struct pi_adapter *pi, u8 *data, long count)
 {
 	struct ppc_storage *ppc = (void *)(pi->private);
-	switch(ppc->mode)
+	switch (mode_map[pi->mode])
 	{
 		case PPCMODE_UNI_SW :
 		case PPCMODE_UNI_FW :
@@ -531,7 +526,7 @@ static void ppc6_wait_for_fifo(struct pi_adapter *pi)
 static void ppc6_wr_data_blk(struct pi_adapter *pi, u8 *data, long count)
 {
 	struct ppc_storage *ppc = (void *)(pi->private);
-	switch(ppc->mode)
+	switch (mode_map[pi->mode])
 	{
 		case PPCMODE_UNI_SW :
 		case PPCMODE_BI_SW :

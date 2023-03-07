@@ -43,21 +43,7 @@ static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 
 static void bpck6_connect(struct pi_adapter *pi)
 {
-	struct ppc_storage *ppc = (void *)(pi->private);
 	dev_dbg(&pi->dev, "connect\n");
-
-	if(pi->mode >=2)
-  	{
-		ppc->mode = 4+pi->mode-2;
-	}
-	else if(pi->mode==1)
-	{
-		ppc->mode = 3;
-	}
-	else
-	{
-		ppc->mode = 1;
-	}
 
 	ppc6_open(pi);
 	ppc6_wr_extout(pi, 0x3);
@@ -85,13 +71,13 @@ static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
 
 static int bpck6_probe_unit(struct pi_adapter *pi)
 {
-	struct ppc_storage *ppc = (void *)(pi->private);
-	int out;
+	int out, saved_mode;
 
 	dev_dbg(&pi->dev, "PROBE UNIT %x on port:%x\n", pi->unit, pi->port);
 
+	saved_mode = pi->mode;
 	/*LOWER DOWN TO UNIDIRECTIONAL*/
-	ppc->mode = 1;
+	pi->mode = 0;
 
 	out = ppc6_open(pi);
 
@@ -101,11 +87,13 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
  	{
 		ppc6_close(pi);
 		dev_dbg(&pi->dev, "leaving probe\n");
+		pi->mode = saved_mode;
                return(1);
 	}
   	else
   	{
 		dev_dbg(&pi->dev, "Failed open\n");
+		pi->mode = saved_mode;
     		return(0);
   	}
 }
