@@ -193,6 +193,17 @@ static int bloom_map_check_btf(const struct bpf_map *map,
 	return btf_type_is_void(key_type) ? 0 : -EINVAL;
 }
 
+static u64 bloom_map_mem_usage(const struct bpf_map *map)
+{
+	struct bpf_bloom_filter *bloom;
+	u64 bitset_bytes;
+
+	bloom = container_of(map, struct bpf_bloom_filter, map);
+	bitset_bytes = BITS_TO_BYTES((u64)bloom->bitset_mask + 1);
+	bitset_bytes = roundup(bitset_bytes, sizeof(unsigned long));
+	return sizeof(*bloom) + bitset_bytes;
+}
+
 BTF_ID_LIST_SINGLE(bpf_bloom_map_btf_ids, struct, bpf_bloom_filter)
 const struct bpf_map_ops bloom_filter_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
@@ -206,5 +217,6 @@ const struct bpf_map_ops bloom_filter_map_ops = {
 	.map_update_elem = bloom_map_update_elem,
 	.map_delete_elem = bloom_map_delete_elem,
 	.map_check_btf = bloom_map_check_btf,
+	.map_mem_usage = bloom_map_mem_usage,
 	.map_btf_id = &bpf_bloom_map_btf_ids[0],
 };

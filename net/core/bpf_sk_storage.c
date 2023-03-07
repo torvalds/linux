@@ -324,6 +324,7 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_local_storage_charge = bpf_sk_storage_charge,
 	.map_local_storage_uncharge = bpf_sk_storage_uncharge,
 	.map_owner_storage_ptr = bpf_sk_storage_ptr,
+	.map_mem_usage = bpf_local_storage_map_mem_usage,
 };
 
 const struct bpf_func_proto bpf_sk_storage_get_proto = {

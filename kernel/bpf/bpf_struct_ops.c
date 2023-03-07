@@ -641,6 +641,21 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	return map;
 }
 
+static u64 bpf_struct_ops_map_mem_usage(const struct bpf_map *map)
+{
+	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
+	const struct bpf_struct_ops *st_ops = st_map->st_ops;
+	const struct btf_type *vt = st_ops->value_type;
+	u64 usage;
+
+	usage = sizeof(*st_map) +
+			vt->size - sizeof(struct bpf_struct_ops_value);
+	usage += vt->size;
+	usage += btf_type_vlen(vt) * sizeof(struct bpf_links *);
+	usage += PAGE_SIZE;
+	return usage;
+}
+
 BTF_ID_LIST_SINGLE(bpf_struct_ops_map_btf_ids, struct, bpf_struct_ops_map)
 const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_alloc_check = bpf_struct_ops_map_alloc_check,
@@ -651,6 +666,7 @@ const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_delete_elem = bpf_struct_ops_map_delete_elem,
 	.map_update_elem = bpf_struct_ops_map_update_elem,
 	.map_seq_show_elem = bpf_struct_ops_map_seq_show_elem,
+	.map_mem_usage = bpf_struct_ops_map_mem_usage,
 	.map_btf_id = &bpf_struct_ops_map_btf_ids[0],
 };
 

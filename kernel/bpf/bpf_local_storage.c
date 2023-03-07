@@ -685,6 +685,16 @@ bool bpf_local_storage_unlink_nolock(struct bpf_local_storage *local_storage)
 	return free_storage;
 }
 
+u64 bpf_local_storage_map_mem_usage(const struct bpf_map *map)
+{
+	struct bpf_local_storage_map *smap = (struct bpf_local_storage_map *)map;
+	u64 usage = sizeof(*smap);
+
+	/* The dynamically callocated selems are not counted currently. */
+	usage += sizeof(*smap->buckets) * (1ULL << smap->bucket_log);
+	return usage;
+}
+
 struct bpf_map *
 bpf_local_storage_map_alloc(union bpf_attr *attr,
 			    struct bpf_local_storage_cache *cache)
