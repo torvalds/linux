@@ -2185,6 +2185,7 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	return rk_pcie_really_probe(pdev);
 }
 
+#ifdef CONFIG_PCIEASPM
 static void rk_pcie_downstream_dev_to_d0(struct rk_pcie *rk_pcie, bool enable)
 {
 	struct pcie_port *pp = &rk_pcie->pci->pp;
@@ -2248,6 +2249,7 @@ static void rk_pcie_downstream_dev_to_d0(struct rk_pcie *rk_pcie, bool enable)
 		}
 	}
 }
+#endif
 
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 {
@@ -2431,6 +2433,7 @@ err:
 	return ret;
 }
 
+#ifdef CONFIG_PCIEASPM
 static int rockchip_dw_pcie_prepare(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
@@ -2450,10 +2453,13 @@ static void rockchip_dw_pcie_complete(struct device *dev)
 	rk_pcie_downstream_dev_to_d0(rk_pcie, true);
 	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
 }
+#endif
 
 static const struct dev_pm_ops rockchip_dw_pcie_pm_ops = {
+#ifdef CONFIG_PCIEASPM
 	.prepare = rockchip_dw_pcie_prepare,
 	.complete = rockchip_dw_pcie_complete,
+#endif
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_dw_pcie_suspend,
 				      rockchip_dw_pcie_resume)
 };
