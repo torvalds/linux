@@ -168,39 +168,6 @@ static int hda_link_dma_cleanup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int hda_link_dma_params(struct hdac_ext_stream *hext_stream,
-			       struct hda_pipe_params *params)
-{
-	struct hdac_stream *hstream = &hext_stream->hstream;
-	unsigned char stream_tag = hstream->stream_tag;
-	struct hdac_bus *bus = hstream->bus;
-	struct hdac_ext_link *hlink;
-	unsigned int format_val;
-
-	snd_hdac_ext_stream_reset(hext_stream);
-
-	format_val = snd_hdac_calc_stream_format(params->s_freq, params->ch,
-						 params->format,
-						 params->link_bps, 0);
-
-	dev_dbg(bus->dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
-		format_val, params->s_freq, params->ch, params->format);
-
-	snd_hdac_ext_stream_setup(hext_stream, format_val);
-
-	if (hext_stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		list_for_each_entry(hlink, &bus->hlink_list, list) {
-			if (hlink->index == params->link_index)
-				snd_hdac_ext_bus_link_set_stream_id(hlink,
-								    stream_tag);
-		}
-	}
-
-	hext_stream->link_prepared = 1;
-
-	return 0;
-}
-
 static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
@@ -209,9 +176,12 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct hda_pipe_params p_params = {0};
 	struct hdac_ext_stream *hext_stream;
+	struct hdac_stream *hstream;
 	struct hdac_ext_link *hlink;
 	struct snd_sof_dev *sdev;
 	struct hdac_bus *bus;
+	unsigned int format_val;
+	unsigned char stream_tag;
 
 	sdev = snd_soc_component_get_drvdata(cpu_dai->component);
 	bus = sof_to_bus(sdev);
@@ -229,6 +199,9 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)hext_stream);
 	}
 
+	hstream = &hext_stream->hstream;
+	stream_tag = hstream->stream_tag;
+
 	/* set the hdac_stream in the codec dai */
 	snd_soc_dai_set_stream(codec_dai, hdac_stream(hext_stream), substream->stream);
 
@@ -242,7 +215,28 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	else
 		p_params.link_bps = codec_dai->driver->capture.sig_bits;
 
-	return hda_link_dma_params(hext_stream, &p_params);
+	snd_hdac_ext_stream_reset(hext_stream);
+
+	format_val = snd_hdac_calc_stream_format(p_params.s_freq, p_params.ch,
+						 p_params.format,
+						 p_params.link_bps, 0);
+
+	dev_dbg(bus->dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
+		format_val, p_params.s_freq, p_params.ch, p_params.format);
+
+	snd_hdac_ext_stream_setup(hext_stream, format_val);
+
+	if (hext_stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK) {
+		list_for_each_entry(hlink, &bus->hlink_list, list) {
+			if (hlink->index == p_params.link_index)
+				snd_hdac_ext_bus_link_set_stream_id(hlink,
+								    stream_tag);
+		}
+	}
+
+	hext_stream->link_prepared = 1;
+
+	return 0;
 }
 
 static int hda_link_dma_prepare(struct snd_pcm_substream *substream)
