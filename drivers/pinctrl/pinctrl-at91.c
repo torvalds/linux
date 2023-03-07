@@ -1526,6 +1526,20 @@ static void at91_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define at91_gpio_dbg_show	NULL
 #endif
 
+static int gpio_irq_request_resources(struct irq_data *d)
+{
+	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
+
+	return gpiochip_lock_as_irq(&at91_gpio->chip, irqd_to_hwirq(d));
+}
+
+static void gpio_irq_release_resources(struct irq_data *d)
+{
+	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
+
+	gpiochip_unlock_as_irq(&at91_gpio->chip, irqd_to_hwirq(d));
+}
+
 /* Several AIC controller irqs are dispatched through this GPIO handler.
  * To use any AT91_PIN_* as an externally triggered IRQ, first call
  * at91_set_gpio_input() then maybe enable its glitch filter.
@@ -1545,6 +1559,9 @@ static void gpio_irq_mask(struct irq_data *d)
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
 	void __iomem	*pio = at91_gpio->regbase;
 	unsigned	mask = 1 << d->hwirq;
+	unsigned        gpio = irqd_to_hwirq(d);
+
+	gpiochip_disable_irq(&at91_gpio->chip, gpio);
 
 	if (pio)
 		writel_relaxed(mask, pio + PIO_IDR);
@@ -1555,6 +1572,9 @@ static void gpio_irq_unmask(struct irq_data *d)
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
 	void __iomem	*pio = at91_gpio->regbase;
 	unsigned	mask = 1 << d->hwirq;
+	unsigned        gpio = irqd_to_hwirq(d);
+
+	gpiochip_enable_irq(&at91_gpio->chip, gpio);
 
 	if (pio)
 		writel_relaxed(mask, pio + PIO_IER);
@@ -1721,12 +1741,15 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 	at91_gpio->pioc_hwirq = irqd_to_hwirq(d);
 
 	gpio_irqchip->name = "GPIO";
+	gpio_irqchip->irq_request_resources = gpio_irq_request_resources;
+	gpio_irqchip->irq_release_resources = gpio_irq_release_resources;
 	gpio_irqchip->irq_ack = gpio_irq_ack;
 	gpio_irqchip->irq_disable = gpio_irq_mask;
 	gpio_irqchip->irq_mask = gpio_irq_mask;
 	gpio_irqchip->irq_unmask = gpio_irq_unmask;
 	gpio_irqchip->irq_set_wake = pm_ptr(gpio_irq_set_wake);
 	gpio_irqchip->irq_set_type = at91_gpio->ops->irq_type;
+	gpio_irqchip->flags = IRQCHIP_IMMUTABLE;
 
 	/* Disable irqs of this PIO controller */
 	writel_relaxed(~0, at91_gpio->regbase + PIO_IDR);
@@ -1737,7 +1760,7 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 	 * interrupt.
 	 */
 	girq = &at91_gpio->chip.irq;
-	girq->chip = gpio_irqchip;
+	gpio_irq_chip_set_chip(girq, gpio_irqchip);
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_edge_irq;
 
