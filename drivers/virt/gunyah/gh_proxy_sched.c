@@ -127,8 +127,8 @@ static inline bool is_vm_supports_proxy(gh_vmid_t gh_vmid)
 {
 	gh_vmid_t vmid;
 
-	if ((!gh_rm_get_vmid(GH_TRUSTED_VM, &vmid) && vmid == gh_vmid) ||
-			(!gh_rm_get_vmid(GH_OEM_VM, &vmid) && vmid == gh_vmid))
+	if ((!ghd_rm_get_vmid(GH_TRUSTED_VM, &vmid) && vmid == gh_vmid) ||
+			(!ghd_rm_get_vmid(GH_OEM_VM, &vmid) && vmid == gh_vmid))
 		return true;
 
 	return false;

@@ -1271,7 +1271,7 @@ static void gh_rm_get_svm_res_work_fn(struct work_struct *work)
 	gh_vmid_t vmid;
 	int ret;
 
-	ret = gh_rm_get_vmid(GH_PRIMARY_VM, &vmid);
+	ret = ghd_rm_get_vmid(GH_PRIMARY_VM, &vmid);
 	if (ret)
 		pr_err("%s: Unable to get VMID for VM label %d\n",
 						__func__, GH_PRIMARY_VM);

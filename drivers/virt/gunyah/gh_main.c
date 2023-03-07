@@ -34,7 +34,7 @@ SRCU_NOTIFIER_HEAD_STATIC(gh_vm_notifier);
 static int gh_##name(struct gh_vm *vm, int vm_status)			 \
 {									 \
 	int ret = 0;							 \
-	ret = gh_rm_##name(vm->vmid);					 \
+	ret = ghd_rm_##name(vm->vmid);					 \
 	if (!ret)							 \
 		vm->status.vm_status = vm_status;			 \
 	return ret;							 \
@@ -140,7 +140,7 @@ static void gh_vm_cleanup(struct gh_vm *vm)
 		fallthrough;
 	case GH_RM_VM_STATUS_INIT:
 	case GH_RM_VM_STATUS_AUTH:
-		ret = gh_rm_vm_reset(vmid);
+		ret = ghd_rm_vm_reset(vmid);
 		if (!ret) {
 			ret = gh_wait_for_vm_status(vm, GH_RM_VM_STATUS_RESET);
 			if (ret < 0)
@@ -179,7 +179,7 @@ static int gh_exit_vm(struct gh_vm *vm, u32 stop_reason, u8 stop_flags)
 		return -ENODEV;
 	}
 
-	ret = gh_rm_vm_stop(vmid, stop_reason, stop_flags);
+	ret = ghd_rm_vm_stop(vmid, stop_reason, stop_flags);
 	if (ret) {
 		pr_err("Failed to stop the VM:%d ret %d\n", vmid, ret);
 		mutex_unlock(&vm->vm_lock);
@@ -447,7 +447,7 @@ int gh_reclaim_mem(struct gh_vm *vm, phys_addr_t phys,
 	int ret = 0;
 
 	if (!is_system_vm) {
-		ret = gh_rm_mem_reclaim(vm->mem_handle, 0);
+		ret = ghd_rm_mem_reclaim(vm->mem_handle, 0);
 
 		if (ret)
 			pr_err("Failed to reclaim memory for %d, %d\n",
@@ -515,7 +515,7 @@ int gh_provide_mem(struct gh_vm *vm, phys_addr_t phys,
 		ret = gh_rm_mem_donate(GH_RM_MEM_TYPE_NORMAL, 0, 0,
 			acl_desc, sgl_desc, NULL, &vm->mem_handle);
 	else
-		ret = gh_rm_mem_lend(GH_RM_MEM_TYPE_NORMAL, 0, 0, acl_desc,
+		ret = ghd_rm_mem_lend(GH_RM_MEM_TYPE_NORMAL, 0, 0, acl_desc,
 				sgl_desc, NULL, &vm->mem_handle);
 
 	if (ret) {
@@ -572,7 +572,7 @@ long gh_vm_configure(u16 auth_mech, u64 image_offset,
 		return ret;
 	}
 
-	ret = gh_rm_vm_init(vm->vmid);
+	ret = ghd_rm_vm_init(vm->vmid);
 	if (ret) {
 		pr_err("VM_INIT_IMAGE failed for VM:%d %d\n",
 						vm->vmid, ret);

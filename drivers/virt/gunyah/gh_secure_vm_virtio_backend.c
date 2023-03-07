@@ -1072,7 +1072,7 @@ unshare_a_vm_buffer(gh_vmid_t self, gh_vmid_t peer, struct resource *r,
 				PERM_READ | PERM_WRITE | PERM_EXEC}};
 	int ret;
 
-	ret = gh_rm_mem_reclaim(shmem->shm_memparcel, 0);
+	ret = ghd_rm_mem_reclaim(shmem->shm_memparcel, 0);
 	if (ret) {
 		pr_err("%s: gh_rm_mem_reclaim failed for handle %x addr=%llx size=%lld err=%d\n",
 			VIRTIO_PRINT_MARKER, shmem->shm_memparcel, r->start,
@@ -1097,7 +1097,7 @@ static int unshare_vm_buffers(struct virt_machine *vm, gh_vmid_t peer)
 	if (!vm->hyp_assign_done)
 		return 0;
 
-	ret = gh_rm_get_vmid(GH_PRIMARY_VM, &self_vmid);
+	ret = ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid);
 	if (ret)
 		return ret;
 
@@ -1154,7 +1154,7 @@ static int share_a_vm_buffer(gh_vmid_t self, gh_vmid_t peer, int gunyah_label,
 	sgl->sgl_entries[0].ipa_base = r->start;
 	sgl->sgl_entries[0].size = resource_size(r);
 
-	ret = gh_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, gunyah_label,
+	ret = ghd_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, gunyah_label,
 					acl, sgl, NULL, shm_memparcel);
 	if (ret) {
 		pr_err("%s: Sharing memory failed %d\n", VIRTIO_PRINT_MARKER, ret);
@@ -1176,7 +1176,7 @@ static int share_vm_buffers(struct virt_machine *vm, gh_vmid_t peer)
 	int i, ret;
 	gh_vmid_t self_vmid;
 
-	ret = gh_rm_get_vmid(GH_PRIMARY_VM, &self_vmid);
+	ret = ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid);
 	if (ret)
 		return ret;
 

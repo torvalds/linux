@@ -482,8 +482,8 @@ static int qrtr_gunyah_share_mem(struct qrtr_gunyah_dev *qdev, gh_vmid_t self,
 	sgl->sgl_entries[0].ipa_base = qdev->res.start;
 	sgl->sgl_entries[0].size = resource_size(&qdev->res);
 
-	ret = gh_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, qdev->label,
-			      acl, sgl, NULL, &qdev->memparcel);
+	ret = ghd_rm_mem_share(GH_RM_MEM_TYPE_NORMAL, 0, qdev->label,
+			       acl, sgl, NULL, &qdev->memparcel);
 	if (ret) {
 		pr_err("%s: gh_rm_mem_share failed addr=%x size=%u err=%d\n",
 		       __func__, qdev->res.start, qdev->size, ret);
@@ -507,7 +507,7 @@ static void qrtr_gunyah_unshare_mem(struct qrtr_gunyah_dev *qdev,
 	struct qcom_scm_vmperm dst_vmlist[1] = {{self, PERM_READ | PERM_WRITE | PERM_EXEC}};
 	int ret;
 
-	ret = gh_rm_mem_reclaim(qdev->memparcel, 0);
+	ret = ghd_rm_mem_reclaim(qdev->memparcel, 0);
 	if (ret)
 		pr_err("%s: Gunyah reclaim failed\n", __func__);
 
@@ -535,9 +535,9 @@ static int qrtr_gunyah_rm_cb(struct notifier_block *nb, unsigned long cmd,
 	if (vm_status_payload->vm_status != GH_RM_VM_STATUS_READY &&
 	    vm_status_payload->vm_status != GH_RM_VM_STATUS_RESET)
 		return NOTIFY_DONE;
-	if (gh_rm_get_vmid(qdev->peer_name, &peer_vmid))
+	if (ghd_rm_get_vmid(qdev->peer_name, &peer_vmid))
 		return NOTIFY_DONE;
-	if (gh_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
+	if (ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
 		return NOTIFY_DONE;
 	if (peer_vmid != vm_status_payload->vmid)
 		return NOTIFY_DONE;
@@ -803,9 +803,9 @@ static int qrtr_gunyah_remove(struct platform_device *pdev)
 	if (!qdev->master)
 		return 0;
 
-	if (gh_rm_get_vmid(qdev->peer_name, &peer_vmid))
+	if (ghd_rm_get_vmid(qdev->peer_name, &peer_vmid))
 		return 0;
-	if (gh_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
+	if (ghd_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
 		return 0;
 	qrtr_gunyah_unshare_mem(qdev, self_vmid, peer_vmid);
 

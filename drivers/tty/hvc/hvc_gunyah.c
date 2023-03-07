@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "hvc_gunyah: " fmt
@@ -98,7 +99,7 @@ static void gh_hvc_put_work_fn(struct work_struct *ws)
 	int count, ret;
 	struct gh_hvc_prv *prv = container_of(ws, struct gh_hvc_prv, put_work);
 
-	ret = gh_rm_get_vmid(prv->vm_name, &vmid);
+	ret = ghd_rm_get_vmid(prv->vm_name, &vmid);
 	if (ret) {
 		pr_warn_once("%s: gh_rm_get_vmid failed for %d: %d\n",
 			     __func__, prv->vm_name, ret);
@@ -158,7 +159,7 @@ static int gh_hvc_flush(uint32_t vtermno, bool wait)
 	if (vm_name < 0 || vm_name >= GH_VM_MAX)
 		return -EINVAL;
 
-	ret = gh_rm_get_vmid(vm_name, &vmid);
+	ret = ghd_rm_get_vmid(vm_name, &vmid);
 	if (ret)
 		return ret;
 
@@ -181,7 +182,7 @@ static int gh_hvc_notify_add(struct hvc_struct *hp, int vm_name)
 		return 0;
 #endif /* CONFIG_HVC_GUNYAH_CONSOLE */
 
-	ret = gh_rm_get_vmid(vm_name, &vmid);
+	ret = ghd_rm_get_vmid(vm_name, &vmid);
 	if (ret) {
 		pr_err("%s: gh_rm_get_vmid failed for %d: %d\n", __func__,
 			vm_name, ret);
@@ -210,7 +211,7 @@ static void gh_hvc_notify_del(struct hvc_struct *hp, int vm_name)
 		gh_hvc_put_work_fn(&gh_hvc_data[vm_name].put_work);
 	}
 
-	ret = gh_rm_get_vmid(vm_name, &vmid);
+	ret = ghd_rm_get_vmid(vm_name, &vmid);
 	if (ret)
 		return;
 
