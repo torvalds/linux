@@ -1246,11 +1246,9 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static int inno_hdmi_phy_remove(struct platform_device *pdev)
+static void inno_hdmi_phy_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-
-	return 0;
 }
 
 static const struct of_device_id inno_hdmi_phy_of_match[] = {
@@ -1266,7 +1264,7 @@ MODULE_DEVICE_TABLE(of, inno_hdmi_phy_of_match);
 
 static struct platform_driver inno_hdmi_phy_driver = {
 	.probe  = inno_hdmi_phy_probe,
-	.remove = inno_hdmi_phy_remove,
+	.remove_new = inno_hdmi_phy_remove,
 	.driver = {
 		.name = "inno-hdmi-phy",
 		.of_match_table = inno_hdmi_phy_of_match,
