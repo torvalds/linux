@@ -318,30 +318,32 @@ static int bpck6_open(struct pi_adapter *pi)
 
 	j = ((i & 0x08) << 4) | ((i & 0x07) << 3);
 	k = parport_read_status(pi->pardev->port) & 0xB8;
-	if (j == k) {
-		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD, 0);
-		k = (parport_read_status(pi->pardev->port) & 0xB8) ^ 0xB8;
-		if (j == k) {
-			if (i & 4)	// EPP
-				parport_frob_control(pi->pardev->port,
-					PARPORT_CONTROL_SELECT | PARPORT_CONTROL_INIT, 0);
-			else				// PPC/ECP
-				parport_frob_control(pi->pardev->port,
-					PARPORT_CONTROL_SELECT, 0);
+	if (j != k)
+		goto fail;
 
-			pi->private = 0;
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD, 0);
+	k = (parport_read_status(pi->pardev->port) & 0xB8) ^ 0xB8;
+	if (j != k)
+		goto fail;
 
-			bpck6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
-			bpck6_wr_data_byte(pi, RAMSIZE_128K);
+	if (i & 4)	// EPP
+		parport_frob_control(pi->pardev->port,
+			PARPORT_CONTROL_SELECT | PARPORT_CONTROL_INIT, 0);
+	else				// PPC/ECP
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, 0);
 
-			bpck6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
-			if ((bpck6_rd_data_byte(pi) & 0x3F) == 0x0C)
-				pi->private |= fifo_wait;
+	pi->private = 0;
 
-			return 1;
-		}
-	}
+	bpck6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
+	bpck6_wr_data_byte(pi, RAMSIZE_128K);
 
+	bpck6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
+	if ((bpck6_rd_data_byte(pi) & 0x3F) == 0x0C)
+		pi->private |= fifo_wait;
+
+	return 1;
+
+fail:
 	parport_write_control(pi->pardev->port, pi->saved_r2);
 	parport_write_data(pi->pardev->port, pi->saved_r0);
 
