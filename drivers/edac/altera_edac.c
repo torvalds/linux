@@ -2226,6 +2226,5 @@ static struct platform_driver altr_edac_a10_driver = {
 };
 module_platform_driver(altr_edac_a10_driver);
 
-MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Thor Thayer");
 MODULE_DESCRIPTION("EDAC Driver for Altera Memories");
