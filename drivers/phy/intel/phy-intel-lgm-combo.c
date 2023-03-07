@@ -616,4 +616,3 @@ static struct platform_driver intel_cbphy_driver = {
 module_platform_driver(intel_cbphy_driver);
 
 MODULE_DESCRIPTION("Intel Combo-phy driver");
-MODULE_LICENSE("GPL v2");
