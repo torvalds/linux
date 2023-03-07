@@ -498,15 +498,15 @@ static noinline int add_ra_bio_pages(struct inode *inode,
  * After the compressed pages are read, we copy the bytes into the
  * bio we were passed and then call the bio end_io calls
  */
-void btrfs_submit_compressed_read(struct bio *bio, int mirror_num)
+void btrfs_submit_compressed_read(struct btrfs_bio *bbio, int mirror_num)
 {
-	struct btrfs_inode *inode = btrfs_bio(bio)->inode;
+	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct compressed_bio *cb;
 	unsigned int compressed_len;
-	const u64 disk_bytenr = bio->bi_iter.bi_sector << SECTOR_SHIFT;
-	u64 file_offset = btrfs_bio(bio)->file_offset;
+	const u64 disk_bytenr = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
+	u64 file_offset = bbio->file_offset;
 	u64 em_len;
 	u64 em_start;
 	struct extent_map *em;
@@ -534,10 +534,10 @@ void btrfs_submit_compressed_read(struct bio *bio, int mirror_num)
 	em_len = em->len;
 	em_start = em->start;
 
-	cb->len = bio->bi_iter.bi_size;
+	cb->len = bbio->bio.bi_iter.bi_size;
 	cb->compressed_len = compressed_len;
 	cb->compress_type = em->compress_type;
-	cb->orig_bio = bio;
+	cb->orig_bio = &bbio->bio;
 
 	free_extent_map(em);
 
@@ -558,7 +558,7 @@ void btrfs_submit_compressed_read(struct bio *bio, int mirror_num)
 			 &pflags);
 
 	/* include any pages we added in add_ra-bio_pages */
-	cb->len = bio->bi_iter.bi_size;
+	cb->len = bbio->bio.bi_iter.bi_size;
 
 	btrfs_add_compressed_bio_pages(cb, disk_bytenr);
 
@@ -573,7 +573,7 @@ out_free_compressed_pages:
 out_free_bio:
 	bio_put(&cb->bbio.bio);
 out:
-	btrfs_bio_end_io(btrfs_bio(bio), ret);
+	btrfs_bio_end_io(bbio, ret);
 }
 
 /*
