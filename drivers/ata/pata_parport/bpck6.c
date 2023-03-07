@@ -21,7 +21,10 @@
 
 static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
-	return ppc6_rd_port(pi, cont?reg|8:reg);
+	u8 port = cont ? reg | 8 : reg;
+
+	ppc6_send_cmd(pi, port | ACCESS_PORT | ACCESS_READ);
+	return ppc6_rd_data_byte(pi);
 }
 
 static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
