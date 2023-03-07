@@ -18,7 +18,6 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
-#include <linux/aer.h>
 #include <linux/interrupt.h>
 #include "net_driver.h"
 #include <net/gre.h>
@@ -874,8 +873,6 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	efx_siena_fini_struct(efx);
 	free_netdev(efx->net_dev);
-
-	pci_disable_pcie_error_reporting(pci_dev);
 };
 
 /* NIC VPD information
@@ -1093,8 +1090,6 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	if (rc && rc != -EPERM)
 		netif_warn(efx, probe, efx->net_dev,
 			   "failed to create MTDs (%d)\n", rc);
-
-	(void)pci_enable_pcie_error_reporting(pci_dev);
 
 	if (efx->type->udp_tnl_push_ports)
 		efx->type->udp_tnl_push_ports(efx);
