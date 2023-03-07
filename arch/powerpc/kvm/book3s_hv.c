@@ -43,6 +43,7 @@
 #include <linux/compiler.h>
 #include <linux/of.h>
 #include <linux/irqdomain.h>
+#include <linux/smp.h>
 
 #include <asm/ftrace.h>
 #include <asm/reg.h>
@@ -79,6 +80,8 @@
 #include <asm/ultravisor.h>
 #include <asm/dtl.h>
 #include <asm/plpar_wrappers.h>
+
+#include <trace/events/ipi.h>
 
 #include "book3s.h"
 #include "book3s_hv.h"

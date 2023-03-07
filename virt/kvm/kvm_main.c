@@ -62,10 +62,13 @@
 #include "kvm_mm.h"
 #include "vfio.h"
 
+#include <trace/events/ipi.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/kvm.h>
 
 #include <linux/kvm_dirty_ring.h>
+
 
 /* Worst case buffer size needed for holding an integer. */
 #define ITOA_MAX_LEN 12

@@ -20,6 +20,8 @@
 #include <asm/opal.h>
 #include <asm/smp.h>
 
+#include <trace/events/ipi.h>
+
 #include "subcore.h"
 #include "powernv.h"
 

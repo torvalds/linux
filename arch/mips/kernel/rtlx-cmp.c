@@ -17,6 +17,8 @@
 #include <asm/vpe.h>
 #include <asm/rtlx.h>
 
+#include <trace/events/ipi.h>
+
 static int major;
 
 static void rtlx_interrupt(void)
