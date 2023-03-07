@@ -959,4 +959,8 @@ struct hda_dai_widget_dma_ops {
 	int (*post_trigger)(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 			    struct snd_pcm_substream *substream, int cmd);
 };
+
+const struct hda_dai_widget_dma_ops *
+hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+
 #endif
