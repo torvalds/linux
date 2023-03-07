@@ -168,9 +168,8 @@ static int try_parse_end_of_cd(struct zip_archive *archive, __u32 offset)
 
 static int find_cd(struct zip_archive *archive)
 {
+	int64_t limit, offset;
 	int rc = -EINVAL;
-	int64_t limit;
-	__u32 offset;
 
 	if (archive->size <= sizeof(struct end_of_cd_record))
 		return -EINVAL;
