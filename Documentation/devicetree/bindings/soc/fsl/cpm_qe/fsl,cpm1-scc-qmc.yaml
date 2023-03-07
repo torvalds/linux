@@ -59,14 +59,6 @@ properties:
   '#size-cells':
     const: 0
 
-  '#fsl,chan-cells':
-    $ref: /schemas/types.yaml#/definitions/uint32
-    const: 1
-    description:
-      QMC consumers that use a phandle to QMC need to pass the channel number
-      with this phandle.
-      For instance "fsl,qmc-chan = <&qmc 16>;".
-
 patternProperties:
   '^channel@([0-9]|[1-5][0-9]|6[0-3])$':
     description:
@@ -121,7 +113,6 @@ required:
   - fsl,tsa-serial
   - '#address-cells'
   - '#size-cells'
-  - '#fsl,chan-cells'
 
 additionalProperties: false
 
@@ -140,7 +131,6 @@ examples:
 
         #address-cells = <1>;
         #size-cells = <0>;
-        #fsl,chan-cells = <1>;
 
         fsl,tsa-serial = <&tsa FSL_CPM_TSA_SCC4>;
 
