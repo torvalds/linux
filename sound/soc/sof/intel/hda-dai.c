@@ -135,7 +135,8 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	else
 		link_bps = codec_dai->driver->capture.sig_bits;
 
-	snd_hdac_ext_stream_reset(hext_stream);
+	if (ops->reset_hext_stream)
+		ops->reset_hext_stream(sdev, hext_stream);
 
 	format_val = snd_hdac_calc_stream_format(params_rate(params), params_channels(params),
 						 params_format(params), link_bps, 0);
@@ -143,7 +144,8 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(bus->dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
 		format_val, params_rate(params), params_channels(params), params_format(params));
 
-	snd_hdac_ext_stream_setup(hext_stream, format_val);
+	if (ops->setup_hext_stream)
+		ops->setup_hext_stream(sdev, hext_stream, format_val);
 
 	hext_stream->link_prepared = 1;
 

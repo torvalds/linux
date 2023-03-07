@@ -144,10 +144,23 @@ static void hda_release_hext_stream(struct snd_sof_dev *sdev, struct snd_soc_dai
 	snd_hdac_ext_stream_release(hext_stream, HDAC_EXT_STREAM_TYPE_LINK);
 }
 
+static void hda_setup_hext_stream(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream,
+				  unsigned int format_val)
+{
+	snd_hdac_ext_stream_setup(hext_stream, format_val);
+}
+
+static void hda_reset_hext_stream(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream)
+{
+	snd_hdac_ext_stream_reset(hext_stream);
+}
+
 static const struct hda_dai_widget_dma_ops hda_dma_ops = {
 	.get_hext_stream = hda_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
 	.release_hext_stream = hda_release_hext_stream,
+	.setup_hext_stream = hda_setup_hext_stream,
+	.reset_hext_stream = hda_reset_hext_stream,
 };
 
 #endif
