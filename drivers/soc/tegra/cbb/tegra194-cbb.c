@@ -2359,4 +2359,3 @@ module_exit(tegra194_cbb_exit);
 
 MODULE_AUTHOR("Sumit Gupta <sumitg@nvidia.com>");
 MODULE_DESCRIPTION("Control Backbone error handling driver for Tegra194");
-MODULE_LICENSE("GPL");
