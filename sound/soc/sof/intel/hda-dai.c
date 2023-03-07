@@ -129,8 +129,7 @@ hda_link_stream_assign(struct hdac_bus *bus,
 static int hda_link_dma_cleanup(struct snd_pcm_substream *substream,
 				struct hdac_ext_stream *hext_stream,
 				struct snd_soc_dai *cpu_dai,
-				struct snd_soc_dai *codec_dai,
-				bool trigger_suspend_stop)
+				struct snd_soc_dai *codec_dai)
 {
 	struct hdac_stream *hstream = &hext_stream->hstream;
 	struct hdac_bus *bus = hstream->bus;
@@ -141,9 +140,6 @@ static int hda_link_dma_cleanup(struct snd_pcm_substream *substream,
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(bus, codec_dai->component->name);
 	if (!hlink)
 		return -EINVAL;
-
-	if (trigger_suspend_stop)
-		snd_hdac_ext_stream_clear(hext_stream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		stream_tag = hdac_stream(hext_stream)->stream_tag;
@@ -246,7 +242,8 @@ static int hda_link_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-		ret = hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai, true);
+		snd_hdac_ext_stream_clear(hext_stream);
+		ret = hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai);
 		if (ret < 0)
 			return ret;
 
@@ -272,7 +269,7 @@ static int hda_link_dma_hw_free(struct snd_pcm_substream *substream)
 	if (!hext_stream)
 		return 0;
 
-	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai, false);
+	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai);
 }
 
 static int hda_dai_widget_update(struct snd_soc_dapm_widget *w,
@@ -483,7 +480,7 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 
 		pipeline->state = SOF_IPC4_PIPE_RESET;
 
-		ret = hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai, false);
+		ret = hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai);
 		if (ret < 0) {
 			dev_err(sdev->dev, "%s: failed to clean up link DMA\n", __func__);
 			return ret;
@@ -557,7 +554,7 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 
 			ret = hda_link_dma_cleanup(hext_stream->link_substream,
 						   hext_stream,
-						   cpu_dai, codec_dai, false);
+						   cpu_dai, codec_dai);
 			if (ret < 0)
 				return ret;
 
