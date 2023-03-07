@@ -5,7 +5,7 @@
  * Copyright (C) 2016 Linaro Ltd
  * Copyright (C) 2014 Sony Mobile Communications AB
  * Copyright (c) 2012-2013, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -33,6 +33,7 @@
 
 #include <trace/events/rproc_qcom.h>
 #include <soc/qcom/qcom_ramdump.h>
+#include <trace/hooks/remoteproc.h>
 
 #include "qcom_common.h"
 #include "qcom_pil_info.h"
@@ -51,6 +52,7 @@ static int scm_pas_bw_count;
 static DEFINE_MUTEX(scm_pas_bw_mutex);
 bool timeout_disabled;
 static bool mpss_dsm_mem_setup;
+static bool recovery_set_cb;
 
 struct adsp_data {
 	int crash_reason_smem;
@@ -133,6 +135,7 @@ struct qcom_adsp {
 	struct qcom_rproc_ssr ssr_subdev;
 	struct qcom_sysmon *sysmon;
 	const struct firmware *dtb_firmware;
+	bool subsys_recovery_disabled;
 };
 
 static ssize_t txn_id_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1012,6 +1015,36 @@ static int setup_mpss_dsm_mem(struct platform_device *pdev)
 	return 0;
 }
 
+static void android_vh_rproc_recovery_set(void *data, struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+
+	adsp->subsys_recovery_disabled = rproc->recovery_disabled;
+}
+
+void qcom_rproc_update_recovery_status(struct rproc *rproc, bool enable)
+{
+	struct qcom_adsp *adsp;
+
+	if (!rproc)
+		return;
+
+	adsp = (struct qcom_adsp *)rproc->priv;
+	mutex_lock(&rproc->lock);
+	if (enable) {
+		/* Save recovery flag */
+		adsp->subsys_recovery_disabled = rproc->recovery_disabled;
+		rproc->recovery_disabled = !enable;
+		pr_info("qcom rproc: %s: recovery enabled by kernel client\n", rproc->name);
+	} else {
+		/* Restore recovery flag */
+		rproc->recovery_disabled = adsp->subsys_recovery_disabled;
+		pr_info("qcom rproc: %s: recovery disabled by kernel client\n", rproc->name);
+	}
+	mutex_unlock(&rproc->lock);
+}
+EXPORT_SYMBOL(qcom_rproc_update_recovery_status);
+
 static int adsp_probe(struct platform_device *pdev)
 {
 	const struct adsp_data *desc;
@@ -1075,6 +1108,7 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->qmp_name = desc->qmp_name;
 	adsp->dma_phys_below_32b = desc->dma_phys_below_32b;
 	adsp->both_dumps = desc->both_dumps;
+	adsp->subsys_recovery_disabled = true;
 
 	if (desc->free_after_auth_reset) {
 		adsp->mdata = devm_kzalloc(adsp->dev, sizeof(struct qcom_mdt_metadata), GFP_KERNEL);
@@ -1163,8 +1197,20 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret)
 		goto destroy_minidump_dev;
 
+	if (!recovery_set_cb) {
+		ret = register_trace_android_vh_rproc_recovery_set(android_vh_rproc_recovery_set,
+											NULL);
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to register with rproc_recovery_set trace hook\n");
+			goto remove_rproc;
+		}
+		recovery_set_cb = true;
+	}
+
 	return 0;
 
+remove_rproc:
+	rproc_del(rproc);
 destroy_minidump_dev:
 	if (adsp->minidump_dev)
 		qcom_destroy_ramdump_device(adsp->minidump_dev);
@@ -1189,6 +1235,7 @@ static int adsp_remove(struct platform_device *pdev)
 {
 	struct qcom_adsp *adsp = platform_get_drvdata(pdev);
 
+	unregister_trace_android_vh_rproc_recovery_set(android_vh_rproc_recovery_set, NULL);
 	rproc_del(adsp->rproc);
 	if (adsp->minidump_dev)
 		qcom_destroy_ramdump_device(adsp->minidump_dev);
