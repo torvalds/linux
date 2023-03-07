@@ -37,12 +37,46 @@ static void bpck6_send_cmd(struct pi_adapter *pi, u8 cmd)
 	}
 }
 
+static u8 bpck6_rd_data_byte(struct pi_adapter *pi)
+{
+	u8 data = 0;
+
+	switch (mode_map[pi->mode]) {
+	case PPCMODE_UNI_SW:
+	case PPCMODE_UNI_FW:
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							PARPORT_CONTROL_INIT);
+		data = parport_read_status(pi->pardev->port);
+		data = ((data & 0x80) >> 1) | ((data & 0x38) >> 3);
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+							PARPORT_CONTROL_STROBE);
+		data |= parport_read_status(pi->pardev->port) & 0xB8;
+		break;
+	case PPCMODE_BI_SW:
+	case PPCMODE_BI_FW:
+		parport_data_reverse(pi->pardev->port);
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
+				PARPORT_CONTROL_STROBE | PARPORT_CONTROL_INIT);
+		data = parport_read_data(pi->pardev->port);
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE, 0);
+		parport_data_forward(pi->pardev->port);
+		break;
+	case PPCMODE_EPP_BYTE:
+	case PPCMODE_EPP_WORD:
+	case PPCMODE_EPP_DWORD:
+		pi->pardev->port->ops->epp_read_data(pi->pardev->port, &data, 1, 0);
+		break;
+	}
+
+	return data;
+}
+
 static int bpck6_read_regr(struct pi_adapter *pi, int cont, int reg)
 {
 	u8 port = cont ? reg | 8 : reg;
 
 	bpck6_send_cmd(pi, port | ACCESS_PORT | ACCESS_READ);
-	return ppc6_rd_data_byte(pi);
+	return bpck6_rd_data_byte(pi);
 }
 
 static void bpck6_write_regr(struct pi_adapter *pi, int cont, int reg, int val)
@@ -240,7 +274,7 @@ static int bpck6_open(struct pi_adapter *pi)
 			ppc6_wr_data_byte(pi, RAMSIZE_128K);
 
 			bpck6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
-			if ((ppc6_rd_data_byte(pi) & 0x3F) == 0x0C)
+			if ((bpck6_rd_data_byte(pi) & 0x3F) == 0x0C)
 				pi->private |= fifo_wait;
 
 			return 1;

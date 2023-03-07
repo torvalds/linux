@@ -68,7 +68,6 @@
 //***************************************************************************
 
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
-static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
 
 //***************************************************************************
 
@@ -101,64 +100,4 @@ static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data)
 			break;
 		}
 	}
-}
-
-//***************************************************************************
-
-static u8 ppc6_rd_data_byte(struct pi_adapter *pi)
-{
-	u8 data = 0;
-
-	switch (mode_map[pi->mode])
-	{
-		case PPCMODE_UNI_SW :
-		case PPCMODE_UNI_FW :
-		{
-			parport_frob_control(pi->pardev->port,
-				PARPORT_CONTROL_STROBE, PARPORT_CONTROL_INIT);
-
-			// DELAY
-
-			data = parport_read_status(pi->pardev->port);
-
-			data = ((data & 0x80) >> 1) | ((data & 0x38) >> 3);
-
-			parport_frob_control(pi->pardev->port,
-				PARPORT_CONTROL_STROBE, PARPORT_CONTROL_STROBE);
-
-			// DELAY
-
-			data |= parport_read_status(pi->pardev->port) & 0xB8;
-
-			break;
-		}
-
-		case PPCMODE_BI_SW :
-		case PPCMODE_BI_FW :
-		{
-			parport_data_reverse(pi->pardev->port);
-
-			parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE,
-				PARPORT_CONTROL_STROBE | PARPORT_CONTROL_INIT);
-
-			data = parport_read_data(pi->pardev->port);
-
-			parport_frob_control(pi->pardev->port, PARPORT_CONTROL_STROBE, 0);
-
-			parport_data_forward(pi->pardev->port);
-
-			break;
-		}
-
-		case PPCMODE_EPP_BYTE :
-		case PPCMODE_EPP_WORD :
-		case PPCMODE_EPP_DWORD :
-		{
-			pi->pardev->port->ops->epp_read_data(pi->pardev->port, &data, 1, 0);
-
-			break;
-		}
-	}
-
-	return(data);
 }
