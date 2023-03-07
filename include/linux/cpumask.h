@@ -518,14 +518,14 @@ static __always_inline bool cpumask_test_and_clear_cpu(int cpu, struct cpumask *
 /**
  * cpumask_setall - set all cpus (< nr_cpu_ids) in a cpumask
  * @dstp: the cpumask pointer
- *
- * Note: since we set bits, we should use the tighter 'bitmap_set()' with
- * the eact number of bits, not 'bitmap_fill()' that will fill past the
- * end.
  */
 static inline void cpumask_setall(struct cpumask *dstp)
 {
-	bitmap_set(cpumask_bits(dstp), 0, nr_cpumask_bits);
+	if (small_const_nbits(small_cpumask_bits)) {
+		cpumask_bits(dstp)[0] = BITMAP_LAST_WORD_MASK(nr_cpumask_bits);
+		return;
+	}
+	bitmap_fill(cpumask_bits(dstp), nr_cpumask_bits);
 }
 
 /**
