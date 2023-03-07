@@ -74,30 +74,18 @@ static void bpck6_disconnect(struct pi_adapter *pi)
 static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
 {
 	dev_dbg(&pi->dev, "PARPORT indicates modes=%x for lp=0x%lx\n",
-		((struct pardevice *)(pi->pardev))->port->modes,
-		((struct pardevice *)(pi->pardev))->port->base);
+		pi->pardev->port->modes, pi->pardev->port->base);
 
 	/*copy over duplicate stuff.. initialize state info*/
 	PPCSTRUCT(pi)->ppc_id=pi->unit;
 	PPCSTRUCT(pi)->lpt_addr=pi->port;
 
-	/* look at the parport device to see if what modes we can use */
-	if(((struct pardevice *)(pi->pardev))->port->modes & 
-		(PARPORT_MODE_EPP)
-          )
-	{
-		return 5; /* Can do EPP*/
-	}
-	else if(((struct pardevice *)(pi->pardev))->port->modes & 
-			(PARPORT_MODE_TRISTATE)
-               )
-	{
+	/* look at the parport device to see what modes we can use */
+	if (pi->pardev->port->modes & PARPORT_MODE_EPP)
+		return 5; /* Can do EPP */
+	if (pi->pardev->port->modes & PARPORT_MODE_TRISTATE)
 		return 2;
-	}
-	else /*Just flat SPP*/
-	{
-		return 1;
-	}
+	return 1; /* Just flat SPP */
 }
 
 static int bpck6_probe_unit(struct pi_adapter *pi)
