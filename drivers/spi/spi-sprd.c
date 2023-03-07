@@ -1008,17 +1008,17 @@ static int sprd_spi_remove(struct platform_device *pdev)
 	struct sprd_spi *ss = spi_controller_get_devdata(sctlr);
 	int ret;
 
-	ret = pm_runtime_resume_and_get(ss->dev);
-	if (ret < 0) {
+	ret = pm_runtime_get_sync(ss->dev);
+	if (ret < 0)
 		dev_err(ss->dev, "failed to resume SPI controller\n");
-		return ret;
-	}
 
 	spi_controller_suspend(sctlr);
 
-	if (ss->dma.enable)
-		sprd_spi_dma_release(ss);
-	clk_disable_unprepare(ss->clk);
+	if (ret >= 0) {
+		if (ss->dma.enable)
+			sprd_spi_dma_release(ss);
+		clk_disable_unprepare(ss->clk);
+	}
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
