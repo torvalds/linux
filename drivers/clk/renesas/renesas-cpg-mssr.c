@@ -1127,4 +1127,3 @@ void __init mssr_mod_nullify(struct mssr_mod_clk *mod_clks,
 }
 
 MODULE_DESCRIPTION("Renesas CPG/MSSR Driver");
-MODULE_LICENSE("GPL v2");
