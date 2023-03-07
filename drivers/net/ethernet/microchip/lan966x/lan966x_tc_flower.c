@@ -79,18 +79,61 @@ lan966x_tc_flower_handler_basic_usage(struct vcap_tc_flower_parse_usage *st)
 						    VCAP_BIT_1);
 			if (err)
 				goto out;
+		} else if (st->l3_proto == ETH_P_IPV6 &&
+			   st->admin->vtype == VCAP_TYPE_IS1) {
+			/* Don't set any keys in this case */
+		} else if (st->l3_proto == ETH_P_SNAP &&
+			   st->admin->vtype == VCAP_TYPE_IS1) {
+			err = vcap_rule_add_key_bit(st->vrule,
+						    VCAP_KF_ETYPE_LEN_IS,
+						    VCAP_BIT_0);
+			if (err)
+				goto out;
+
+			err = vcap_rule_add_key_bit(st->vrule,
+						    VCAP_KF_IP_SNAP_IS,
+						    VCAP_BIT_1);
+			if (err)
+				goto out;
+		} else if (st->admin->vtype == VCAP_TYPE_IS1) {
+			err = vcap_rule_add_key_bit(st->vrule,
+						    VCAP_KF_ETYPE_LEN_IS,
+						    VCAP_BIT_1);
+			if (err)
+				goto out;
+
+			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
+						    st->l3_proto, ~0);
+			if (err)
+				goto out;
 		}
 	}
 	if (match.mask->ip_proto) {
 		st->l4_proto = match.key->ip_proto;
 
 		if (st->l4_proto == IPPROTO_TCP) {
+			if (st->admin->vtype == VCAP_TYPE_IS1) {
+				err = vcap_rule_add_key_bit(st->vrule,
+							    VCAP_KF_TCP_UDP_IS,
+							    VCAP_BIT_1);
+				if (err)
+					goto out;
+			}
+
 			err = vcap_rule_add_key_bit(st->vrule,
 						    VCAP_KF_TCP_IS,
 						    VCAP_BIT_1);
 			if (err)
 				goto out;
 		} else if (st->l4_proto == IPPROTO_UDP) {
+			if (st->admin->vtype == VCAP_TYPE_IS1) {
+				err = vcap_rule_add_key_bit(st->vrule,
+							    VCAP_KF_TCP_UDP_IS,
+							    VCAP_BIT_1);
+				if (err)
+					goto out;
+			}
+
 			err = vcap_rule_add_key_bit(st->vrule,
 						    VCAP_KF_TCP_IS,
 						    VCAP_BIT_0);
@@ -113,11 +156,29 @@ out:
 }
 
 static int
+lan966x_tc_flower_handler_cvlan_usage(struct vcap_tc_flower_parse_usage *st)
+{
+	if (st->admin->vtype != VCAP_TYPE_IS1) {
+		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
+				   "cvlan not supported in this VCAP");
+		return -EINVAL;
+	}
+
+	return vcap_tc_flower_handler_cvlan_usage(st);
+}
+
+static int
 lan966x_tc_flower_handler_vlan_usage(struct vcap_tc_flower_parse_usage *st)
 {
-	return vcap_tc_flower_handler_vlan_usage(st,
-						 VCAP_KF_8021Q_VID_CLS,
-						 VCAP_KF_8021Q_PCP_CLS);
+	enum vcap_key_field vid_key = VCAP_KF_8021Q_VID_CLS;
+	enum vcap_key_field pcp_key = VCAP_KF_8021Q_PCP_CLS;
+
+	if (st->admin->vtype == VCAP_TYPE_IS1) {
+		vid_key = VCAP_KF_8021Q_VID0;
+		pcp_key = VCAP_KF_8021Q_PCP0;
+	}
+
+	return vcap_tc_flower_handler_vlan_usage(st, vid_key, pcp_key);
 }
 
 static int
@@ -128,6 +189,7 @@ static int
 	[FLOW_DISSECTOR_KEY_CONTROL] = lan966x_tc_flower_handler_control_usage,
 	[FLOW_DISSECTOR_KEY_PORTS] = vcap_tc_flower_handler_portnum_usage,
 	[FLOW_DISSECTOR_KEY_BASIC] = lan966x_tc_flower_handler_basic_usage,
+	[FLOW_DISSECTOR_KEY_CVLAN] = lan966x_tc_flower_handler_cvlan_usage,
 	[FLOW_DISSECTOR_KEY_VLAN] = lan966x_tc_flower_handler_vlan_usage,
 	[FLOW_DISSECTOR_KEY_TCP] = vcap_tc_flower_handler_tcp_usage,
 	[FLOW_DISSECTOR_KEY_ARP] = vcap_tc_flower_handler_arp_usage,
@@ -143,6 +205,7 @@ static int lan966x_tc_flower_use_dissectors(struct flow_cls_offload *f,
 		.fco = f,
 		.vrule = vrule,
 		.l3_proto = ETH_P_ALL,
+		.admin = admin,
 	};
 	int err = 0;
 
@@ -221,6 +284,31 @@ static int lan966x_tc_flower_action_check(struct vcap_control *vctrl,
 	return 0;
 }
 
+/* Add the actionset that is the default for the VCAP type */
+static int lan966x_tc_set_actionset(struct vcap_admin *admin,
+				    struct vcap_rule *vrule)
+{
+	enum vcap_actionfield_set aset;
+	int err = 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS1:
+		aset = VCAP_AFS_S1;
+		break;
+	case VCAP_TYPE_IS2:
+		aset = VCAP_AFS_BASE_TYPE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Do not overwrite any current actionset */
+	if (vrule->actionset == VCAP_AFS_NO_VALUE)
+		err = vcap_set_rule_set_actionset(vrule, aset);
+
+	return err;
+}
+
 static int lan966x_tc_flower_add(struct lan966x_port *port,
 				 struct flow_cls_offload *f,
 				 struct vcap_admin *admin,
@@ -253,6 +341,13 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 	flow_action_for_each(idx, act, &frule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_TRAP:
+			if (admin->vtype != VCAP_TYPE_IS2) {
+				NL_SET_ERR_MSG_MOD(f->common.extack,
+						   "Trap action not supported in this VCAP");
+				err = -EOPNOTSUPP;
+				goto out;
+			}
+
 			err = vcap_rule_add_action_bit(vrule,
 						       VCAP_AF_CPU_COPY_ENA,
 						       VCAP_BIT_1);
@@ -266,6 +361,10 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 
 			break;
 		case FLOW_ACTION_GOTO:
+			err = lan966x_tc_set_actionset(admin, vrule);
+			if (err)
+				goto out;
+
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(f->common.extack,
