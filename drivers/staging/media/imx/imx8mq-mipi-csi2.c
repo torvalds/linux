@@ -119,9 +119,8 @@ struct csi_state {
 
 	struct v4l2_mbus_config_mipi_csi2 bus;
 
-	struct mutex lock; /* Protect state and hs_settle */
+	struct mutex lock; /* Protect state */
 	u32 state;
-	u32 hs_settle;
 
 	struct regmap *phy_gpr;
 	u8 phy_gpr_reg;
@@ -246,23 +245,6 @@ static int imx8mq_mipi_csi_sw_reset(struct csi_state *state)
 	return 0;
 }
 
-static void imx8mq_mipi_csi_system_enable(struct csi_state *state, int on)
-{
-	if (!on) {
-		imx8mq_mipi_csi_write(state, CSI2RX_CFG_DISABLE_DATA_LANES, 0xf);
-		return;
-	}
-
-	regmap_update_bits(state->phy_gpr,
-			   state->phy_gpr_reg,
-			   0x3fff,
-			   GPR_CSI2_1_RX_ENABLE |
-			   GPR_CSI2_1_VID_INTFC_ENB |
-			   GPR_CSI2_1_HSEL |
-			   GPR_CSI2_1_CONT_CLK_MODE |
-			   GPR_CSI2_1_S_PRG_RXHS_SETTLE(state->hs_settle));
-}
-
 static void imx8mq_mipi_csi_set_params(struct csi_state *state)
 {
 	int lanes = state->bus.num_data_lanes;
@@ -303,7 +285,8 @@ static int imx8mq_mipi_csi_clk_get(struct csi_state *state)
 }
 
 static int imx8mq_mipi_csi_calc_hs_settle(struct csi_state *state,
-					  struct v4l2_subdev_state *sd_state)
+					  struct v4l2_subdev_state *sd_state,
+					  u32 *hs_settle)
 {
 	s64 link_freq;
 	u32 lane_rate;
@@ -359,10 +342,10 @@ static int imx8mq_mipi_csi_calc_hs_settle(struct csi_state *state,
 	max_ths_settle = 140 + 10 * 1000000 / (lane_rate / 1000);
 	ths_settle_ns = (min_ths_settle + max_ths_settle) / 2;
 
-	state->hs_settle = ths_settle_ns / esc_clk_period_ns - 1;
+	*hs_settle = ths_settle_ns / esc_clk_period_ns - 1;
 
 	dev_dbg(state->dev, "lane rate %u Ths_settle %u hs_settle %u\n",
-		lane_rate, ths_settle_ns, state->hs_settle);
+		lane_rate, ths_settle_ns, *hs_settle);
 
 	return 0;
 }
@@ -371,24 +354,32 @@ static int imx8mq_mipi_csi_start_stream(struct csi_state *state,
 					struct v4l2_subdev_state *sd_state)
 {
 	int ret;
+	u32 hs_settle;
 
 	ret = imx8mq_mipi_csi_sw_reset(state);
 	if (ret)
 		return ret;
 
 	imx8mq_mipi_csi_set_params(state);
-	ret = imx8mq_mipi_csi_calc_hs_settle(state, sd_state);
+	ret = imx8mq_mipi_csi_calc_hs_settle(state, sd_state, &hs_settle);
 	if (ret)
 		return ret;
 
-	imx8mq_mipi_csi_system_enable(state, true);
+	regmap_update_bits(state->phy_gpr,
+			   state->phy_gpr_reg,
+			   0x3fff,
+			   GPR_CSI2_1_RX_ENABLE |
+			   GPR_CSI2_1_VID_INTFC_ENB |
+			   GPR_CSI2_1_HSEL |
+			   GPR_CSI2_1_CONT_CLK_MODE |
+			   GPR_CSI2_1_S_PRG_RXHS_SETTLE(hs_settle));
 
 	return 0;
 }
 
 static void imx8mq_mipi_csi_stop_stream(struct csi_state *state)
 {
-	imx8mq_mipi_csi_system_enable(state, false);
+	imx8mq_mipi_csi_write(state, CSI2RX_CFG_DISABLE_DATA_LANES, 0xf);
 }
 
 /* -----------------------------------------------------------------------------
