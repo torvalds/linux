@@ -141,9 +141,9 @@ struct ar0230 {
 static const struct regval ar0230_regs[] = {
 #ifdef USE_HDR_MODE
 	{0x301A, 0x0001},
-	{REG_DELAY, 2000},
+	{REG_DELAY, 20000},
 	{0x301A, 0x10D8},
-	{REG_DELAY, 2000},
+	{REG_DELAY, 20000},
 	{0x3088, 0x8000},
 	{0x3086, 0x4558},
 	{0x3086, 0x729B},
