@@ -517,7 +517,23 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	{
 		struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 		struct sof_ipc4_alh_configuration_blob *blob;
+		struct snd_soc_dapm_path *p;
 		struct snd_sof_widget *w;
+		int src_num = 0;
+
+		snd_soc_dapm_widget_for_each_source_path(swidget->widget, p)
+			src_num++;
+
+		if (swidget->id == snd_soc_dapm_dai_in && src_num == 0) {
+			/*
+			 * The blob will not be used if the ALH copier is playback direction
+			 * and doesn't connect to any source.
+			 * It is fine to call kfree(ipc4_copier->copier_config) since
+			 * ipc4_copier->copier_config is null.
+			 */
+			ret = 0;
+			break;
+		}
 
 		blob = kzalloc(sizeof(*blob), GFP_KERNEL);
 		if (!blob) {
