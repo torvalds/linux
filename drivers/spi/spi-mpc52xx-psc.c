@@ -11,8 +11,8 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/io.h>
@@ -309,7 +309,7 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 
-	ret = of_property_read_u32(dev->of_node, "cell-index", &bus_num);
+	ret = device_property_read_u32(dev, "cell-index", &bus_num);
 	if (ret || bus_num > 5)
 		return dev_err_probe(dev, ret ? : -EINVAL, "Invalid cell-index property\n");
 	master->bus_num = bus_num + 1;
@@ -318,15 +318,20 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	master->setup = mpc52xx_psc_spi_setup;
 	master->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
 	master->cleanup = mpc52xx_psc_spi_cleanup;
-	master->dev.of_node = dev->of_node;
+
+	device_set_node(&master->dev, dev_fwnode(dev));
 
 	mps->psc = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (!mps->psc)
-		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
+	if (IS_ERR(mps->psc))
+		return dev_err_probe(dev, PTR_ERR(mps->psc), "could not ioremap I/O port range\n");
+
 	/* On the 5200, fifo regs are immediately ajacent to the psc regs */
 	mps->fifo = ((void __iomem *)mps->psc) + sizeof(struct mpc52xx_psc);
 
 	mps->irq = platform_get_irq(pdev, 0);
+	if (mps->irq < 0)
+		return mps->irq;
+
 	ret = devm_request_irq(dev, mps->irq, mpc52xx_psc_spi_isr, 0,
 			       "mpc52xx-psc-spi", mps);
 	if (ret)

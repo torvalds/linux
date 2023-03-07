@@ -17,6 +17,7 @@
 #include <linux/completion.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
@@ -54,8 +55,6 @@ struct mpc512x_psc_spi {
 	struct mpc512x_psc_fifo __iomem *fifo;
 	unsigned int irq;
 	u8 bits_per_word;
-	struct clk *clk_mclk;
-	struct clk *clk_ipg;
 	u32 mclk_rate;
 
 	struct completion txisrdone;
@@ -480,41 +479,35 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = mpc512x_psc_spi_unprep_xfer_hw;
 	master->use_gpio_descriptors = true;
 	master->cleanup = mpc512x_psc_spi_cleanup;
-	master->dev.of_node = dev->of_node;
+
+	device_set_node(&master->dev, dev_fwnode(dev));
 
 	tempp = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (!tempp)
-		return dev_err_probe(dev, -EFAULT, "could not ioremap I/O port range\n");
+	if (IS_ERR(tempp))
+		return dev_err_probe(dev, PTR_ERR(tempp), "could not ioremap I/O port range\n");
 	mps->psc = tempp;
 	mps->fifo =
 		(struct mpc512x_psc_fifo *)(tempp + sizeof(struct mpc52xx_psc));
 
 	mps->irq = platform_get_irq(pdev, 0);
+	if (mps->irq < 0)
+		return mps->irq;
+
 	ret = devm_request_irq(dev, mps->irq, mpc512x_psc_spi_isr, IRQF_SHARED,
 				"mpc512x-psc-spi", mps);
 	if (ret)
 		return ret;
 	init_completion(&mps->txisrdone);
 
-	clk = devm_clk_get(dev, "mclk");
+	clk = devm_clk_get_enabled(dev, "mclk");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	ret = clk_prepare_enable(clk);
-	if (ret)
-		return ret;
-	mps->clk_mclk = clk;
 	mps->mclk_rate = clk_get_rate(clk);
 
-	clk = devm_clk_get(dev, "ipg");
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto free_mclk_clock;
-	}
-	ret = clk_prepare_enable(clk);
-	if (ret)
-		goto free_mclk_clock;
-	mps->clk_ipg = clk;
+	clk = devm_clk_get_enabled(dev, "ipg");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	ret = mpc512x_psc_spi_port_config(master, mps);
 	if (ret < 0)
@@ -525,24 +518,6 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 		goto free_ipg_clock;
 
 	return ret;
-
-free_ipg_clock:
-	clk_disable_unprepare(mps->clk_ipg);
-free_mclk_clock:
-	clk_disable_unprepare(mps->clk_mclk);
-
-	return ret;
-}
-
-static int mpc512x_psc_spi_of_remove(struct platform_device *pdev)
-{
-	struct spi_master *master = dev_get_drvdata(&pdev->dev);
-	struct mpc512x_psc_spi *mps = spi_master_get_devdata(master);
-
-	clk_disable_unprepare(mps->clk_mclk);
-	clk_disable_unprepare(mps->clk_ipg);
-
-	return 0;
 }
 
 static const struct of_device_id mpc512x_psc_spi_of_match[] = {
@@ -555,7 +530,6 @@ MODULE_DEVICE_TABLE(of, mpc512x_psc_spi_of_match);
 
 static struct platform_driver mpc512x_psc_spi_of_driver = {
 	.probe = mpc512x_psc_spi_of_probe,
-	.remove = mpc512x_psc_spi_of_remove,
 	.driver = {
 		.name = "mpc512x-psc-spi",
 		.of_match_table = mpc512x_psc_spi_of_match,
