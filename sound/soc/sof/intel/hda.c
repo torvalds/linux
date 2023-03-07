@@ -69,24 +69,8 @@ static int sdw_params_stream(struct device *dev,
 	return hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_HW_PARAMS, &data);
 }
 
-static int sdw_free_stream(struct device *dev,
-			   struct sdw_intel_stream_free_data *free_data)
-{
-	struct snd_soc_dai *d = free_data->dai;
-	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(d, free_data->stream);
-	struct snd_sof_dai_config_data data = { 0 };
-
-	data.dai_index = (free_data->link_id << 8) | d->id;
-
-	/* send invalid stream_id */
-	data.dai_data = 0xFFFF;
-
-	return hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_HW_FREE, &data);
-}
-
 struct sdw_intel_ops sdw_callback = {
 	.params_stream = sdw_params_stream,
-	.free_stream = sdw_free_stream,
 };
 
 void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)

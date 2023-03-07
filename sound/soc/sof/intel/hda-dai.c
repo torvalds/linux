@@ -181,7 +181,7 @@ static int hda_link_dma_prepare(struct snd_pcm_substream *substream, struct snd_
 	return hda_link_dma_hw_params(substream, &rtd->dpcm[stream].hw_params, cpu_dai);
 }
 
-static int hda_link_dma_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai)
+static int hda_dai_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(cpu_dai->component);
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, cpu_dai);
@@ -317,22 +317,6 @@ static int hda_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 	}
 
 	return 0;
-}
-
-static int hda_dai_hw_free(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
-{
-	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
-	struct snd_sof_dai_config_data data = { 0 };
-	int ret;
-
-	ret = hda_link_dma_hw_free(substream, dai);
-	if (ret < 0)
-		return ret;
-
-	data.dai_data = DMA_CHAN_INVALID;
-
-	return hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_HW_FREE, &data);
 }
 
 static const struct snd_soc_dai_ops hda_dai_ops = {
