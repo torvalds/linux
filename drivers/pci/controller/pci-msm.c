@@ -416,6 +416,7 @@ enum msm_pcie_gpio {
 	MSM_PCIE_GPIO_PERST,
 	MSM_PCIE_GPIO_WAKE,
 	MSM_PCIE_GPIO_EP,
+	MSM_PCIE_GPIO_CARD_PRESENCE_PIN,
 	MSM_PCIE_MAX_GPIO
 };
 
@@ -1321,7 +1322,8 @@ static struct msm_pcie_vreg_info_t msm_pcie_vreg_info[MSM_PCIE_MAX_VREG] = {
 static struct msm_pcie_gpio_info_t msm_pcie_gpio_info[MSM_PCIE_MAX_GPIO] = {
 	{"perst-gpio", 0, 1, 0, 0, 1},
 	{"wake-gpio", 0, 0, 0, 0, 0},
-	{"qcom,ep-gpio", 0, 1, 1, 0, 0}
+	{"qcom,ep-gpio", 0, 1, 1, 0, 0},
+	{"card-presence-pin", 0, 0, 0, 0, 0}
 };
 
 /* resets */
@@ -7414,6 +7416,13 @@ static void msm_pcie_handle_linkdown(struct msm_pcie_dev_t *dev)
 		return;
 
 	dev->link_status = MSM_PCIE_LINK_DOWN;
+
+	/* Linkdown is expected. As it must be due to card removal action. So return */
+	if ((dev->gpio[MSM_PCIE_GPIO_CARD_PRESENCE_PIN].num) &&
+		(gpio_get_value(dev->gpio[MSM_PCIE_GPIO_CARD_PRESENCE_PIN].num))) {
+		PCIE_DUMP(dev, "Linkdown due to card removal\n");
+		return;
+	}
 
 	if (!dev->suspending) {
 		/* PCIe registers dump on link down */
