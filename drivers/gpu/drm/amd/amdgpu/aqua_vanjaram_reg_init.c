@@ -328,10 +328,14 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	adev = xcp_mgr->adev;
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	if (mode == AMDGPU_AUTO_COMPUTE_PARTITION_MODE)
+	if (mode == AMDGPU_AUTO_COMPUTE_PARTITION_MODE) {
 		mode = __aqua_vanjaram_get_auto_mode(xcp_mgr);
-	else if (!__aqua_vanjaram_is_valid_mode(xcp_mgr, mode))
+	} else if (!__aqua_vanjaram_is_valid_mode(xcp_mgr, mode)) {
+		dev_err(adev->dev,
+			"Invalid compute partition mode requested, requested: %s, available memory partitions: %d",
+			amdgpu_gfx_compute_mode_desc(mode), adev->gmc.num_mem_partitions);
 		return -EINVAL;
+	}
 
 	if (adev->kfd.init_complete)
 		flags |= AMDGPU_XCP_OPS_KFD;

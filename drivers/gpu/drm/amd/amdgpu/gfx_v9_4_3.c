@@ -1933,7 +1933,11 @@ static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 	if (amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
 					    AMDGPU_XCP_FL_NONE) ==
 	    AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
-		amdgpu_xcp_switch_partition_mode(adev->xcp_mgr, amdgpu_user_partt_mode);
+		r = amdgpu_xcp_switch_partition_mode(adev->xcp_mgr,
+						     amdgpu_user_partt_mode);
+
+	if (r)
+		return r;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
