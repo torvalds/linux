@@ -19,6 +19,50 @@
 #include "pata_parport.h"
 #include "ppc6lnx.c"
 
+/* 60772 Commands */
+#define ACCESS_REG		0x00
+#define ACCESS_PORT		0x40
+
+#define ACCESS_READ		0x00
+#define ACCESS_WRITE		0x20
+
+/* 60772 Command Prefix */
+#define CMD_PREFIX_SET		0xe0	// Special command that modifies next command's operation
+#define CMD_PREFIX_RESET	0xc0	// Resets current cmd modifier reg bits
+ #define PREFIX_IO16		0x01	// perform 16-bit wide I/O
+ #define PREFIX_FASTWR		0x04	// enable PPC mode fast-write
+ #define PREFIX_BLK		0x08	// enable block transfer mode
+
+/* 60772 Registers */
+#define REG_STATUS		0x00	// status register
+ #define STATUS_IRQA		0x01	// Peripheral IRQA line
+ #define STATUS_EEPROM_DO	0x40	// Serial EEPROM data bit
+#define REG_VERSION		0x01	// PPC version register (read)
+#define REG_HWCFG		0x02	// Hardware Config register
+#define REG_RAMSIZE		0x03	// Size of RAM Buffer
+ #define RAMSIZE_128K		0x02
+#define REG_EEPROM		0x06	// EEPROM control register
+ #define EEPROM_SK		0x01	// eeprom SK bit
+ #define EEPROM_DI		0x02	// eeprom DI bit
+ #define EEPROM_CS		0x04	// eeprom CS bit
+ #define EEPROM_EN		0x08	// eeprom output enable
+#define REG_BLKSIZE		0x08	// Block transfer len (24 bit)
+
+/* flags */
+#define fifo_wait		0x10
+
+/* DONT CHANGE THESE LEST YOU BREAK EVERYTHING - BIT FIELD DEPENDENCIES */
+#define PPCMODE_UNI_SW		0
+#define PPCMODE_UNI_FW		1
+#define PPCMODE_BI_SW		2
+#define PPCMODE_BI_FW		3
+#define PPCMODE_EPP_BYTE	4
+#define PPCMODE_EPP_WORD	5
+#define PPCMODE_EPP_DWORD	6
+
+int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
+		   PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
+
 static void bpck6_send_cmd(struct pi_adapter *pi, u8 cmd)
 {
 	switch (mode_map[pi->mode]) {
