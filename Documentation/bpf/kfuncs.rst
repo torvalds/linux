@@ -100,6 +100,23 @@ Hence, whenever a constant scalar argument is accepted by a kfunc which is not a
 size parameter, and the value of the constant matters for program safety, __k
 suffix should be used.
 
+2.2.2 __uninit Annotation
+-------------------------
+
+This annotation is used to indicate that the argument will be treated as
+uninitialized.
+
+An example is given below::
+
+        __bpf_kfunc int bpf_dynptr_from_skb(..., struct bpf_dynptr_kern *ptr__uninit)
+        {
+        ...
+        }
+
+Here, the dynptr will be treated as an uninitialized dynptr. Without this
+annotation, the verifier will reject the program if the dynptr passed in is
+not initialized.
+
 .. _BPF_kfunc_nodef:
 
 2.3 Using an existing kernel function
@@ -232,11 +249,13 @@ added later.
 2.4.8 KF_RCU flag
 -----------------
 
-The KF_RCU flag is used for kfuncs which have a rcu ptr as its argument.
-When used together with KF_ACQUIRE, it indicates the kfunc should have a
-single argument which must be a trusted argument or a MEM_RCU pointer.
-The argument may have reference count of 0 and the kfunc must take this
-into consideration.
+The KF_RCU flag is a weaker version of KF_TRUSTED_ARGS. The kfuncs marked with
+KF_RCU expect either PTR_TRUSTED or MEM_RCU arguments. The verifier guarantees
+that the objects are valid and there is no use-after-free. The pointers are not
+NULL, but the object's refcount could have reached zero. The kfuncs need to
+consider doing refcnt != 0 check, especially when returning a KF_ACQUIRE
+pointer. Note as well that a KF_ACQUIRE kfunc that is KF_RCU should very likely
+also be KF_RET_NULL.
 
 .. _KF_deprecated_flag:
 
@@ -527,7 +546,7 @@ Here's an example of how it can be used:
 
 	/* struct containing the struct task_struct kptr which is actually stored in the map. */
 	struct __cgroups_kfunc_map_value {
-		struct cgroup __kptr_ref * cgroup;
+		struct cgroup __kptr * cgroup;
 	};
 
 	/* The map containing struct __cgroups_kfunc_map_value entries. */
@@ -583,12 +602,16 @@ Here's an example of how it can be used:
 
 ----
 
-Another kfunc available for interacting with ``struct cgroup *`` objects is
-bpf_cgroup_ancestor(). This allows callers to access the ancestor of a cgroup,
-and return it as a cgroup kptr.
+Other kfuncs available for interacting with ``struct cgroup *`` objects are
+bpf_cgroup_ancestor() and bpf_cgroup_from_id(), allowing callers to access
+the ancestor of a cgroup and find a cgroup by its ID, respectively. Both
+return a cgroup kptr.
 
 .. kernel-doc:: kernel/bpf/helpers.c
    :identifiers: bpf_cgroup_ancestor
+
+.. kernel-doc:: kernel/bpf/helpers.c
+   :identifiers: bpf_cgroup_from_id
 
 Eventually, BPF should be updated to allow this to happen with a normal memory
 load in the program itself. This is currently not possible without more work in

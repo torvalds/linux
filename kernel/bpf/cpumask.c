@@ -55,7 +55,7 @@ __bpf_kfunc struct bpf_cpumask *bpf_cpumask_create(void)
 	/* cpumask must be the first element so struct bpf_cpumask be cast to struct cpumask. */
 	BUILD_BUG_ON(offsetof(struct bpf_cpumask, cpumask) != 0);
 
-	cpumask = bpf_mem_alloc(&bpf_cpumask_ma, sizeof(*cpumask));
+	cpumask = bpf_mem_cache_alloc(&bpf_cpumask_ma);
 	if (!cpumask)
 		return NULL;
 
@@ -123,7 +123,7 @@ __bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 
 	if (refcount_dec_and_test(&cpumask->usage)) {
 		migrate_disable();
-		bpf_mem_free(&bpf_cpumask_ma, cpumask);
+		bpf_mem_cache_free(&bpf_cpumask_ma, cpumask);
 		migrate_enable();
 	}
 }
@@ -427,26 +427,26 @@ BTF_ID_FLAGS(func, bpf_cpumask_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cpumask_release, KF_RELEASE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_cpumask_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_cpumask_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_cpumask_first, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_first_zero, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_set_cpu, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_clear_cpu, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_test_cpu, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_test_and_set_cpu, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_test_and_clear_cpu, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_setall, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_clear, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_and, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_or, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_xor, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_equal, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_intersects, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_subset, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_empty, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_full, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_copy, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_any, KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_any_and, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_cpumask_first, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_first_zero, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_set_cpu, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_clear_cpu, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_test_cpu, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_test_and_set_cpu, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_test_and_clear_cpu, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_setall, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_clear, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_and, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_or, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_xor, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_equal, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_intersects, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_subset, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_empty, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_full, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_copy, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_any, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_any_and, KF_RCU)
 BTF_SET8_END(cpumask_kfunc_btf_ids)
 
 static const struct btf_kfunc_id_set cpumask_kfunc_set = {
@@ -468,7 +468,7 @@ static int __init cpumask_kfunc_init(void)
 		},
 	};
 
-	ret = bpf_mem_alloc_init(&bpf_cpumask_ma, 0, false);
+	ret = bpf_mem_alloc_init(&bpf_cpumask_ma, sizeof(struct bpf_cpumask), false);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &cpumask_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &cpumask_kfunc_set);
 	return  ret ?: register_btf_id_dtor_kfuncs(cpumask_dtors,

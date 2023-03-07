@@ -75,7 +75,7 @@ SEC("tc")
 long rbtree_add_and_remove(void *ctx)
 {
 	struct bpf_rb_node *res = NULL;
-	struct node_data *n, *m;
+	struct node_data *n, *m = NULL;
 
 	n = bpf_obj_new(typeof(*n));
 	if (!n)

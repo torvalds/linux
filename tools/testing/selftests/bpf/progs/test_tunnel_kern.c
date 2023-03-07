@@ -324,11 +324,11 @@ int ip4ip6erspan_get_tunnel(struct __sk_buff *skb)
 SEC("tc")
 int vxlan_set_tunnel_dst(struct __sk_buff *skb)
 {
-	int ret;
 	struct bpf_tunnel_key key;
 	struct vxlan_metadata md;
 	__u32 index = 0;
 	__u32 *local_ip = NULL;
+	int ret = 0;
 
 	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
 	if (!local_ip) {
@@ -363,11 +363,11 @@ int vxlan_set_tunnel_dst(struct __sk_buff *skb)
 SEC("tc")
 int vxlan_set_tunnel_src(struct __sk_buff *skb)
 {
-	int ret;
 	struct bpf_tunnel_key key;
 	struct vxlan_metadata md;
 	__u32 index = 0;
 	__u32 *local_ip = NULL;
+	int ret = 0;
 
 	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
 	if (!local_ip) {
@@ -494,9 +494,9 @@ SEC("tc")
 int ip6vxlan_set_tunnel_dst(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
-	int ret;
 	__u32 index = 0;
 	__u32 *local_ip;
+	int ret = 0;
 
 	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
 	if (!local_ip) {
@@ -525,9 +525,9 @@ SEC("tc")
 int ip6vxlan_set_tunnel_src(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
-	int ret;
 	__u32 index = 0;
 	__u32 *local_ip;
+	int ret = 0;
 
 	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
 	if (!local_ip) {
@@ -556,9 +556,9 @@ SEC("tc")
 int ip6vxlan_get_tunnel_src(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
-	int ret;
 	__u32 index = 0;
 	__u32 *local_ip;
+	int ret = 0;
 
 	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
 	if (!local_ip) {

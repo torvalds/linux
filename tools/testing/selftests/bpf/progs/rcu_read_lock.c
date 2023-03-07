@@ -81,7 +81,7 @@ int no_lock(void *ctx)
 {
 	struct task_struct *task, *real_parent;
 
-	/* no bpf_rcu_read_lock(), old code still works */
+	/* old style ptr_to_btf_id is not allowed in sleepable */
 	task = bpf_get_current_task_btf();
 	real_parent = task->real_parent;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
@@ -286,13 +286,13 @@ out:
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-int task_untrusted_non_rcuptr(void *ctx)
+int task_trusted_non_rcuptr(void *ctx)
 {
 	struct task_struct *task, *group_leader;
 
 	task = bpf_get_current_task_btf();
 	bpf_rcu_read_lock();
-	/* the pointer group_leader marked as untrusted */
+	/* the pointer group_leader is explicitly marked as trusted */
 	group_leader = task->real_parent->group_leader;
 	(void)bpf_task_storage_get(&map_a, group_leader, 0, 0);
 	bpf_rcu_read_unlock();

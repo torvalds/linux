@@ -38,14 +38,11 @@ eBPF has two instruction encodings:
 * the wide instruction encoding, which appends a second 64-bit immediate (i.e.,
   constant) value after the basic instruction for a total of 128 bits.
 
-The basic instruction encoding is as follows, where MSB and LSB mean the most significant
-bits and least significant bits, respectively:
+The fields conforming an encoded basic instruction are stored in the
+following order::
 
-=============  =======  =======  =======  ============
-32 bits (MSB)  16 bits  4 bits   4 bits   8 bits (LSB)
-=============  =======  =======  =======  ============
-imm            offset   src_reg  dst_reg  opcode
-=============  =======  =======  =======  ============
+  opcode:8 src_reg:4 dst_reg:4 offset:16 imm:32 // In little-endian BPF.
+  opcode:8 dst_reg:4 src_reg:4 offset:16 imm:32 // In big-endian BPF.
 
 **imm**
   signed integer immediate value
@@ -63,6 +60,18 @@ imm            offset   src_reg  dst_reg  opcode
 **opcode**
   operation to perform
 
+Note that the contents of multi-byte fields ('imm' and 'offset') are
+stored using big-endian byte ordering in big-endian BPF and
+little-endian byte ordering in little-endian BPF.
+
+For example::
+
+  opcode                  offset imm          assembly
+         src_reg dst_reg
+  07     0       1        00 00  44 33 22 11  r1 += 0x11223344 // little
+         dst_reg src_reg
+  07     1       0        00 00  11 22 33 44  r1 += 0x11223344 // big
+
 Note that most instructions do not use all of the fields.
 Unused fields shall be cleared to zero.
 
@@ -72,18 +81,23 @@ The 64 bits following the basic instruction contain a pseudo instruction
 using the same format but with opcode, dst_reg, src_reg, and offset all set to zero,
 and imm containing the high 32 bits of the immediate value.
 
-=================  ==================
-64 bits (MSB)      64 bits (LSB)
-=================  ==================
-basic instruction  pseudo instruction
-=================  ==================
+This is depicted in the following figure::
+
+        basic_instruction
+  .-----------------------------.
+  |                             |
+  code:8 regs:8 offset:16 imm:32 unused:32 imm:32
+                                 |              |
+                                 '--------------'
+                                pseudo instruction
 
 Thus the 64-bit immediate value is constructed as follows:
 
   imm64 = (next_imm << 32) | imm
 
 where 'next_imm' refers to the imm value of the pseudo instruction
-following the basic instruction.
+following the basic instruction.  The unused bytes in the pseudo
+instruction are reserved and shall be cleared to zero.
 
 Instruction classes
 -------------------
