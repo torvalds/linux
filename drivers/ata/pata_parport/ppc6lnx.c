@@ -74,8 +74,6 @@ struct ppc_storage {
 					// 5 = EPP Word
 					// 6 = EPP Dword
 	u8	ppc_flags;
-	u8	org_data;				// original LPT data port contents
-	u8	org_ctrl;				// original LPT control port contents
 	u8	cur_ctrl;				// current control port contents
 };
 
@@ -127,17 +125,17 @@ static int ppc6_select(struct pi_adapter *pi)
 	if (i & 1)
 		outb(i, pi->port + 1);
 
-	ppc->org_data = inb(pi->port);
+	pi->saved_r0 = inb(pi->port);
 
-	ppc->org_ctrl = inb(pi->port + 2) & 0x5F; // readback ctrl
+	pi->saved_r2 = inb(pi->port + 2) & 0x5F; // readback ctrl
 
-	ppc->cur_ctrl = ppc->org_ctrl;
+	ppc->cur_ctrl = pi->saved_r2;
 
 	ppc->cur_ctrl |= port_sel;
 
 	outb(ppc->cur_ctrl, pi->port + 2);
 
-	if (ppc->org_data == 'b')
+	if (pi->saved_r0 == 'b')
 		outb('x', pi->port);
 
 	outb('b', pi->port);
@@ -195,9 +193,9 @@ static int ppc6_select(struct pi_adapter *pi)
 		}
 	}
 
-	outb(ppc->org_ctrl, pi->port + 2);
+	outb(pi->saved_r2, pi->port + 2);
 
-	outb(ppc->org_data, pi->port);
+	outb(pi->saved_r0, pi->port);
 
 	return(0); // FAIL
 }
@@ -214,11 +212,11 @@ static void ppc6_deselect(struct pi_adapter *pi)
 
 	outb(ppc->cur_ctrl, pi->port + 2);
 
-	outb(ppc->org_data, pi->port);
+	outb(pi->saved_r0, pi->port);
 
-	outb((ppc->org_ctrl | port_sel), pi->port + 2);
+	outb((pi->saved_r2 | port_sel), pi->port + 2);
 
-	outb(ppc->org_ctrl, pi->port + 2);
+	outb(pi->saved_r2, pi->port + 2);
 }
 
 //***************************************************************************
