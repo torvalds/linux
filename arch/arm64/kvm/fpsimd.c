@@ -81,6 +81,11 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 
 	fpsimd_kvm_prepare();
 
+	/*
+	 * We will check TIF_FOREIGN_FPSTATE just before entering the
+	 * guest in kvm_arch_vcpu_ctxflush_fp() and override this to
+	 * FP_STATE_FREE if the flag set.
+	 */
 	vcpu->arch.fp_state = FP_STATE_HOST_OWNED;
 
 	vcpu_clear_flag(vcpu, HOST_SVE_ENABLED);
