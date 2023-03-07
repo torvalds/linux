@@ -474,6 +474,7 @@ struct mlx5_core_sriov {
 	struct mlx5_vf_context	*vfs_ctx;
 	int			num_vfs;
 	u16			max_vfs;
+	u16			max_ec_vfs;
 };
 
 struct mlx5_fc_pool {
@@ -1242,6 +1243,11 @@ static inline bool mlx5_ecpf_vport_exists(const struct mlx5_core_dev *dev)
 static inline u16 mlx5_core_max_vfs(const struct mlx5_core_dev *dev)
 {
 	return dev->priv.sriov.max_vfs;
+}
+
+static inline u16 mlx5_core_max_ec_vfs(const struct mlx5_core_dev *dev)
+{
+	return dev->priv.sriov.max_ec_vfs;
 }
 
 static inline int mlx5_get_gid_table_len(u16 param)

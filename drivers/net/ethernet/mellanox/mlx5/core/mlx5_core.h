@@ -343,4 +343,24 @@ bool mlx5_rdma_supported(struct mlx5_core_dev *dev);
 bool mlx5_vnet_supported(struct mlx5_core_dev *dev);
 bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev);
 
+static inline u16 mlx5_core_ec_vf_vport_base(const struct mlx5_core_dev *dev)
+{
+	return MLX5_CAP_GEN_2(dev, ec_vf_vport_base);
+}
+
+static inline u16 mlx5_core_ec_sriov_enabled(const struct mlx5_core_dev *dev)
+{
+	return mlx5_core_is_ecpf(dev) && mlx5_core_ec_vf_vport_base(dev);
+}
+
+static inline bool mlx5_core_is_ec_vf_vport(const struct mlx5_core_dev *dev, u16 vport_num)
+{
+	int base_vport = mlx5_core_ec_vf_vport_base(dev);
+	int max_vport = base_vport + mlx5_core_max_ec_vfs(dev);
+
+	if (!mlx5_core_ec_sriov_enabled(dev))
+		return false;
+
+	return (vport_num >= base_vport && vport_num < max_vport);
+}
 #endif /* __MLX5_CORE_H__ */
