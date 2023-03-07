@@ -67,7 +67,6 @@
 
 //***************************************************************************
 
-static void ppc6_deselect(struct pi_adapter *pi);
 static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
 static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
@@ -76,24 +75,6 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
 
 int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
 		   PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
-
-//***************************************************************************
-
-static void ppc6_deselect(struct pi_adapter *pi)
-{
-	if (mode_map[pi->mode] & 4)	// EPP
-		parport_frob_control(pi->pardev->port,
-			PARPORT_CONTROL_INIT, PARPORT_CONTROL_INIT);
-	else								// PPC/ECP
-		parport_frob_control(pi->pardev->port,
-			PARPORT_CONTROL_SELECT, PARPORT_CONTROL_SELECT);
-
-	parport_write_data(pi->pardev->port, pi->saved_r0);
-
-	parport_write_control(pi->pardev->port, (pi->saved_r2 | PARPORT_CONTROL_SELECT));
-
-	parport_write_control(pi->pardev->port, pi->saved_r2);
-}
 
 //***************************************************************************
 

@@ -235,6 +235,21 @@ static int bpck6_open(struct pi_adapter *pi)
 	return 0; // FAIL
 }
 
+static void bpck6_deselect(struct pi_adapter *pi)
+{
+	if (mode_map[pi->mode] & 4)	// EPP
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_INIT,
+							PARPORT_CONTROL_INIT);
+	else								// PPC/ECP
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT,
+							PARPORT_CONTROL_SELECT);
+
+	parport_write_data(pi->pardev->port, pi->saved_r0);
+	parport_write_control(pi->pardev->port,
+			pi->saved_r2 | PARPORT_CONTROL_SELECT);
+	parport_write_control(pi->pardev->port, pi->saved_r2);
+}
+
 static void bpck6_wr_extout(struct pi_adapter *pi, u8 regdata)
 {
 	ppc6_send_cmd(pi, REG_VERSION | ACCESS_REG | ACCESS_WRITE);
@@ -253,7 +268,7 @@ static void bpck6_disconnect(struct pi_adapter *pi)
 {
 	dev_dbg(&pi->dev, "disconnect\n");
 	bpck6_wr_extout(pi, 0x0);
-	ppc6_deselect(pi);
+	bpck6_deselect(pi);
 }
 
 static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
@@ -285,7 +300,7 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
 
   	if(out)
  	{
-		ppc6_deselect(pi);
+		bpck6_deselect(pi);
 		dev_dbg(&pi->dev, "leaving probe\n");
 		pi->mode = saved_mode;
                return(1);
