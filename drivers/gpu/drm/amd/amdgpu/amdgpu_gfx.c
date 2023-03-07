@@ -1175,33 +1175,11 @@ static ssize_t amdgpu_gfx_get_current_compute_partition(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	int mode;
-	char *partition_mode;
 
 	mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
 					       AMDGPU_XCP_FL_NONE);
 
-	switch (mode) {
-	case AMDGPU_SPX_PARTITION_MODE:
-		partition_mode = "SPX";
-		break;
-	case AMDGPU_DPX_PARTITION_MODE:
-		partition_mode = "DPX";
-		break;
-	case AMDGPU_TPX_PARTITION_MODE:
-		partition_mode = "TPX";
-		break;
-	case AMDGPU_QPX_PARTITION_MODE:
-		partition_mode = "QPX";
-		break;
-	case AMDGPU_CPX_PARTITION_MODE:
-		partition_mode = "CPX";
-		break;
-	default:
-		partition_mode = "UNKNOWN";
-		break;
-	}
-
-	return sysfs_emit(buf, "%s\n", partition_mode);
+	return sysfs_emit(buf, "%s\n", amdgpu_gfx_compute_mode_desc(mode));
 }
 
 static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,

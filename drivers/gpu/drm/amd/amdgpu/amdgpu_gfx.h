@@ -494,4 +494,25 @@ int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
 bool amdgpu_gfx_is_master_xcc(struct amdgpu_device *adev, int xcc_id);
 int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev);
+
+static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
+{
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		return "SPX";
+	case AMDGPU_DPX_PARTITION_MODE:
+		return "DPX";
+	case AMDGPU_TPX_PARTITION_MODE:
+		return "TPX";
+	case AMDGPU_QPX_PARTITION_MODE:
+		return "QPX";
+	case AMDGPU_CPX_PARTITION_MODE:
+		return "CPX";
+	default:
+		return "UNKNOWN";
+	}
+
+	return "UNKNOWN";
+}
+
 #endif
