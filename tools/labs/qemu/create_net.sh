@@ -2,7 +2,7 @@
 
 if test $# -ne 1; then
     echo "Usage: $0 <device>" 1>&2
-    echo " <device> must be tap0 or tap1"
+    echo " <device> must be lkt-tap0 or lkt-tap1"
     exit 1
 fi
 
@@ -11,10 +11,10 @@ device=$1
 USER=$(whoami)
 
 case "$device" in
-    "tap0")
+    "lkt-tap0")
         subnet=172.213.0
         ;;
-    "tap1")
+    "lkt-tap1")
         subnet=172.30.0
         ;;
     *)

@@ -19,8 +19,8 @@ QEMU_OPTS = -kernel $(ZIMAGE) \
 	-device virtio-serial \
 	-chardev pty,id=virtiocon0 -device virtconsole,chardev=virtiocon0 \
 	-serial pipe:pipe1 -serial pipe:pipe2 \
-	-netdev tap,id=tap0,ifname=tap0,script=no,downscript=no -net nic,netdev=tap0,model=virtio \
-	-netdev tap,id=tap1,ifname=tap1,script=no,downscript=no -net nic,netdev=tap1,model=i82559er \
+	-netdev tap,id=lkt-tap0,ifname=lkt-tap0,script=no,downscript=no -net nic,netdev=lkt-tap0,model=virtio \
+	-netdev tap,id=lkt-tap1,ifname=lkt-tap1,script=no,downscript=no -net nic,netdev=lkt-tap1,model=i82559er \
 	-drive file=$(YOCTO_IMAGE),if=virtio,format=raw \
 	-drive file=disk1.img,if=virtio,format=raw \
 	-drive file=disk2.img,if=virtio,format=raw \
@@ -32,7 +32,7 @@ QEMU_OPTS += -enable-kvm -cpu host
 ENABLE_KVM_SUDO = sudo
 endif
 
-boot: .modinst tap0 tap1 pipe1.in pipe1.out pipe2.in pipe2.out disk1.img disk2.img nttcp-run
+boot: .modinst lkt-tap0 lkt-tap1 pipe1.in pipe1.out pipe2.in pipe2.out disk1.img disk2.img nttcp-run
 	$(ENABLE_KVM_SUDO) ARCH=$(ARCH) qemu/qemu.sh $(QEMU_OPTS)
 
 TEMPDIR := $(shell mktemp -u)
@@ -63,13 +63,13 @@ $(YOCTO_IMAGE):
 	wget $(YOCTO_URL)/$(YOCTO_IMAGE)
 	sudo ARCH=$(ARCH) qemu/prepare-image.sh $(YOCTO_IMAGE)
 
-tap0:
+lkt-tap0:
 	qemu/create_net.sh $@
 
-tap1:
+lkt-tap1:
 	qemu/create_net.sh $@
 
-nttcp-run: $(NTTCP) tap1
+nttcp-run: $(NTTCP) lkt-tap1
 	$(NTTCP) -v -i &
 
 pipe1.in:
@@ -132,4 +132,4 @@ $(YOCTO_ROOTFS):
 
 
 
-.PHONY: console gui boot gdb clean tap0 tap1
+.PHONY: console gui boot gdb clean lkt-tap0 lkt-tap1
