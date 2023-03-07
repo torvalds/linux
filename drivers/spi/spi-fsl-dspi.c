@@ -1425,7 +1425,7 @@ out_ctlr_put:
 	return ret;
 }
 
-static int dspi_remove(struct platform_device *pdev)
+static void dspi_remove(struct platform_device *pdev)
 {
 	struct fsl_dspi *dspi = platform_get_drvdata(pdev);
 
@@ -1444,8 +1444,6 @@ static int dspi_remove(struct platform_device *pdev)
 	if (dspi->irq)
 		free_irq(dspi->irq, dspi);
 	clk_disable_unprepare(dspi->clk);
-
-	return 0;
 }
 
 static void dspi_shutdown(struct platform_device *pdev)
@@ -1459,7 +1457,7 @@ static struct platform_driver fsl_dspi_driver = {
 	.driver.owner		= THIS_MODULE,
 	.driver.pm		= &dspi_pm,
 	.probe			= dspi_probe,
-	.remove			= dspi_remove,
+	.remove_new		= dspi_remove,
 	.shutdown		= dspi_shutdown,
 };
 module_platform_driver(fsl_dspi_driver);

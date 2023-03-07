@@ -678,7 +678,7 @@ err_free_master:
 	return ret;
 }
 
-static int pic32_sqi_remove(struct platform_device *pdev)
+static void pic32_sqi_remove(struct platform_device *pdev)
 {
 	struct pic32_sqi *sqi = platform_get_drvdata(pdev);
 
@@ -689,8 +689,6 @@ static int pic32_sqi_remove(struct platform_device *pdev)
 	/* disable clk */
 	clk_disable_unprepare(sqi->base_clk);
 	clk_disable_unprepare(sqi->sys_clk);
-
-	return 0;
 }
 
 static const struct of_device_id pic32_sqi_of_ids[] = {
@@ -705,7 +703,7 @@ static struct platform_driver pic32_sqi_driver = {
 		.of_match_table = of_match_ptr(pic32_sqi_of_ids),
 	},
 	.probe = pic32_sqi_probe,
-	.remove = pic32_sqi_remove,
+	.remove_new = pic32_sqi_remove,
 };
 
 module_platform_driver(pic32_sqi_driver);

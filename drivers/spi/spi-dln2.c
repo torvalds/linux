@@ -781,7 +781,7 @@ exit_free_master:
 	return ret;
 }
 
-static int dln2_spi_remove(struct platform_device *pdev)
+static void dln2_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct dln2_spi *dln2 = spi_master_get_devdata(master);
@@ -790,8 +790,6 @@ static int dln2_spi_remove(struct platform_device *pdev)
 
 	if (dln2_spi_enable(dln2, false) < 0)
 		dev_err(&pdev->dev, "Failed to disable SPI module\n");
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -873,7 +871,7 @@ static struct platform_driver spi_dln2_driver = {
 		.pm	= &dln2_spi_pm,
 	},
 	.probe		= dln2_spi_probe,
-	.remove		= dln2_spi_remove,
+	.remove_new	= dln2_spi_remove,
 };
 module_platform_driver(spi_dln2_driver);
 

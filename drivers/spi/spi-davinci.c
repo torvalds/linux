@@ -1018,7 +1018,7 @@ err:
  * It will also call spi_bitbang_stop to destroy the work queue which was
  * created by spi_bitbang_start.
  */
-static int davinci_spi_remove(struct platform_device *pdev)
+static void davinci_spi_remove(struct platform_device *pdev)
 {
 	struct davinci_spi *dspi;
 	struct spi_master *master;
@@ -1036,7 +1036,6 @@ static int davinci_spi_remove(struct platform_device *pdev)
 	}
 
 	spi_master_put(master);
-	return 0;
 }
 
 static struct platform_driver davinci_spi_driver = {
@@ -1045,7 +1044,7 @@ static struct platform_driver davinci_spi_driver = {
 		.of_match_table = of_match_ptr(davinci_spi_of_match),
 	},
 	.probe = davinci_spi_probe,
-	.remove = davinci_spi_remove,
+	.remove_new = davinci_spi_remove,
 };
 module_platform_driver(davinci_spi_driver);
 

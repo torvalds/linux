@@ -1195,7 +1195,7 @@ err_put_ctrl:
 	return ret;
 }
 
-static int nxp_fspi_remove(struct platform_device *pdev)
+static void nxp_fspi_remove(struct platform_device *pdev)
 {
 	struct nxp_fspi *f = platform_get_drvdata(pdev);
 
@@ -1208,8 +1208,6 @@ static int nxp_fspi_remove(struct platform_device *pdev)
 
 	if (f->ahb_addr)
 		iounmap(f->ahb_addr);
-
-	return 0;
 }
 
 static int nxp_fspi_suspend(struct device *dev)
@@ -1257,7 +1255,7 @@ static struct platform_driver nxp_fspi_driver = {
 		.pm =   &nxp_fspi_pm_ops,
 	},
 	.probe          = nxp_fspi_probe,
-	.remove		= nxp_fspi_remove,
+	.remove_new	= nxp_fspi_remove,
 };
 module_platform_driver(nxp_fspi_driver);
 

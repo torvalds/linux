@@ -1286,7 +1286,7 @@ err_deref_master:
 	return ret;
 }
 
-static int s3c64xx_spi_remove(struct platform_device *pdev)
+static void s3c64xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
@@ -1309,8 +1309,6 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1531,7 +1529,7 @@ static struct platform_driver s3c64xx_spi_driver = {
 		.of_match_table = of_match_ptr(s3c64xx_spi_dt_match),
 	},
 	.probe = s3c64xx_spi_probe,
-	.remove = s3c64xx_spi_remove,
+	.remove_new = s3c64xx_spi_remove,
 	.id_table = s3c64xx_spi_driver_ids,
 };
 MODULE_ALIAS("platform:s3c64xx-spi");

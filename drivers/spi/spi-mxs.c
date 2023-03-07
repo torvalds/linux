@@ -638,7 +638,7 @@ out_master_free:
 	return ret;
 }
 
-static int mxs_spi_remove(struct platform_device *pdev)
+static void mxs_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct mxs_spi *spi;
@@ -653,13 +653,11 @@ static int mxs_spi_remove(struct platform_device *pdev)
 		mxs_spi_runtime_suspend(&pdev->dev);
 
 	dma_release_channel(ssp->dmach);
-
-	return 0;
 }
 
 static struct platform_driver mxs_spi_driver = {
 	.probe	= mxs_spi_probe,
-	.remove	= mxs_spi_remove,
+	.remove_new = mxs_spi_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.of_match_table = mxs_spi_dt_ids,

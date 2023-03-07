@@ -1440,7 +1440,7 @@ exit_free_master:
 	return ret;
 }
 
-static int tegra_spi_remove(struct platform_device *pdev)
+static void tegra_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct tegra_spi_data	*tspi = spi_master_get_devdata(master);
@@ -1456,8 +1456,6 @@ static int tegra_spi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra_spi_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1526,7 +1524,7 @@ static struct platform_driver tegra_spi_driver = {
 		.of_match_table	= tegra_spi_of_match,
 	},
 	.probe =	tegra_spi_probe,
-	.remove =	tegra_spi_remove,
+	.remove_new =	tegra_spi_remove,
 };
 module_platform_driver(tegra_spi_driver);
 

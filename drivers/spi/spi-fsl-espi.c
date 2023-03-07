@@ -783,11 +783,9 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 	return fsl_espi_probe(dev, &mem, irq, num_cs);
 }
 
-static int of_fsl_espi_remove(struct platform_device *dev)
+static void of_fsl_espi_remove(struct platform_device *dev)
 {
 	pm_runtime_disable(&dev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -837,7 +835,7 @@ static struct platform_driver fsl_espi_driver = {
 		.pm = &espi_pm,
 	},
 	.probe		= of_fsl_espi_probe,
-	.remove		= of_fsl_espi_remove,
+	.remove_new	= of_fsl_espi_remove,
 };
 module_platform_driver(fsl_espi_driver);
 

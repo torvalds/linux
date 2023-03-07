@@ -605,7 +605,7 @@ out_err:
 	return ret;
 }
 
-static int bcm63xx_spi_remove(struct platform_device *pdev)
+static void bcm63xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
@@ -615,8 +615,6 @@ static int bcm63xx_spi_remove(struct platform_device *pdev)
 
 	/* HW shutdown */
 	clk_disable_unprepare(bs->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -660,7 +658,7 @@ static struct platform_driver bcm63xx_spi_driver = {
 	},
 	.id_table	= bcm63xx_spi_dev_match,
 	.probe		= bcm63xx_spi_probe,
-	.remove		= bcm63xx_spi_remove,
+	.remove_new	= bcm63xx_spi_remove,
 };
 
 module_platform_driver(bcm63xx_spi_driver);

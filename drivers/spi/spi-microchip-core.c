@@ -566,7 +566,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mchp_corespi_remove(struct platform_device *pdev)
+static void mchp_corespi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master  = platform_get_drvdata(pdev);
 	struct mchp_corespi *spi = spi_master_get_devdata(master);
@@ -574,8 +574,6 @@ static int mchp_corespi_remove(struct platform_device *pdev)
 	mchp_corespi_disable_ints(spi);
 	clk_disable_unprepare(spi->clk);
 	mchp_corespi_disable(spi);
-
-	return 0;
 }
 
 #define MICROCHIP_SPI_PM_OPS (NULL)
@@ -599,7 +597,7 @@ static struct platform_driver mchp_corespi_driver = {
 		.pm = MICROCHIP_SPI_PM_OPS,
 		.of_match_table = of_match_ptr(mchp_corespi_dt_ids),
 	},
-	.remove = mchp_corespi_remove,
+	.remove_new = mchp_corespi_remove,
 };
 module_platform_driver(mchp_corespi_driver);
 MODULE_DESCRIPTION("Microchip coreSPI SPI controller driver");

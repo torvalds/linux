@@ -505,7 +505,7 @@ static int uwire_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int uwire_remove(struct platform_device *pdev)
+static void uwire_remove(struct platform_device *pdev)
 {
 	struct uwire_spi	*uwire = platform_get_drvdata(pdev);
 
@@ -513,7 +513,6 @@ static int uwire_remove(struct platform_device *pdev)
 
 	spi_bitbang_stop(&uwire->bitbang);
 	uwire_off(uwire);
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -524,7 +523,7 @@ static struct platform_driver uwire_driver = {
 		.name		= "omap_uwire",
 	},
 	.probe = uwire_probe,
-	.remove = uwire_remove,
+	.remove_new = uwire_remove,
 	// suspend ... unuse ck
 	// resume ... use ck
 };

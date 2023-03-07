@@ -762,12 +762,11 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int npcm_fiu_remove(struct platform_device *pdev)
+static void npcm_fiu_remove(struct platform_device *pdev)
 {
 	struct npcm_fiu_spi *fiu = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(fiu->clk);
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, npcm_fiu_dt_ids);
@@ -779,7 +778,7 @@ static struct platform_driver npcm_fiu_driver = {
 		.of_match_table = npcm_fiu_dt_ids,
 	},
 	.probe      = npcm_fiu_probe,
-	.remove	    = npcm_fiu_remove,
+	.remove_new	    = npcm_fiu_remove,
 };
 module_platform_driver(npcm_fiu_driver);
 

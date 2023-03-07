@@ -1659,7 +1659,7 @@ out_error_controller_alloc:
 	return status;
 }
 
-static int pxa2xx_spi_remove(struct platform_device *pdev)
+static void pxa2xx_spi_remove(struct platform_device *pdev)
 {
 	struct driver_data *drv_data = platform_get_drvdata(pdev);
 	struct ssp_device *ssp = drv_data->ssp;
@@ -1684,8 +1684,6 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 
 	/* Release SSP */
 	pxa_ssp_free(ssp);
-
-	return 0;
 }
 
 static int pxa2xx_spi_suspend(struct device *dev)
@@ -1770,7 +1768,7 @@ static struct platform_driver driver = {
 		.of_match_table = of_match_ptr(pxa2xx_spi_of_match),
 	},
 	.probe = pxa2xx_spi_probe,
-	.remove = pxa2xx_spi_remove,
+	.remove_new = pxa2xx_spi_remove,
 };
 
 static int __init pxa2xx_spi_init(void)

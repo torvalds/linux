@@ -328,7 +328,7 @@ out_clk:
 	return ret;
 }
 
-static int dw_spi_mmio_remove(struct platform_device *pdev)
+static void dw_spi_mmio_remove(struct platform_device *pdev)
 {
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 
@@ -337,8 +337,6 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	clk_disable_unprepare(dwsmmio->pclk);
 	clk_disable_unprepare(dwsmmio->clk);
 	reset_control_assert(dwsmmio->rstc);
-
-	return 0;
 }
 
 static const struct of_device_id dw_spi_mmio_of_match[] = {
@@ -366,7 +364,7 @@ MODULE_DEVICE_TABLE(acpi, dw_spi_mmio_acpi_match);
 
 static struct platform_driver dw_spi_mmio_driver = {
 	.probe		= dw_spi_mmio_probe,
-	.remove		= dw_spi_mmio_remove,
+	.remove_new	= dw_spi_mmio_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = dw_spi_mmio_of_match,

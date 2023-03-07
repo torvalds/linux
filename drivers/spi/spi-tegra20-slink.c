@@ -1134,7 +1134,7 @@ exit_free_master:
 	return ret;
 }
 
-static int tegra_slink_remove(struct platform_device *pdev)
+static void tegra_slink_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct tegra_slink_data	*tspi = spi_master_get_devdata(master);
@@ -1152,7 +1152,6 @@ static int tegra_slink_remove(struct platform_device *pdev)
 		tegra_slink_deinit_dma_param(tspi, true);
 
 	spi_master_put(master);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1220,7 +1219,7 @@ static struct platform_driver tegra_slink_driver = {
 		.of_match_table	= tegra_slink_of_match,
 	},
 	.probe =	tegra_slink_probe,
-	.remove =	tegra_slink_remove,
+	.remove_new =	tegra_slink_remove,
 };
 module_platform_driver(tegra_slink_driver);
 

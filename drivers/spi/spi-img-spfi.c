@@ -665,7 +665,7 @@ put_spi:
 	return ret;
 }
 
-static int img_spfi_remove(struct platform_device *pdev)
+static void img_spfi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct img_spfi *spfi = spi_master_get_devdata(master);
@@ -680,8 +680,6 @@ static int img_spfi_remove(struct platform_device *pdev)
 		clk_disable_unprepare(spfi->spfi_clk);
 		clk_disable_unprepare(spfi->sys_clk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -758,7 +756,7 @@ static struct platform_driver img_spfi_driver = {
 		.of_match_table = of_match_ptr(img_spfi_of_match),
 	},
 	.probe = img_spfi_probe,
-	.remove = img_spfi_remove,
+	.remove_new = img_spfi_remove,
 };
 module_platform_driver(img_spfi_driver);
 

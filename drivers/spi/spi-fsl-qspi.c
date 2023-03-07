@@ -948,7 +948,7 @@ err_put_ctrl:
 	return ret;
 }
 
-static int fsl_qspi_remove(struct platform_device *pdev)
+static void fsl_qspi_remove(struct platform_device *pdev)
 {
 	struct fsl_qspi *q = platform_get_drvdata(pdev);
 
@@ -959,8 +959,6 @@ static int fsl_qspi_remove(struct platform_device *pdev)
 	fsl_qspi_clk_disable_unprep(q);
 
 	mutex_destroy(&q->lock);
-
-	return 0;
 }
 
 static int fsl_qspi_suspend(struct device *dev)
@@ -1000,7 +998,7 @@ static struct platform_driver fsl_qspi_driver = {
 		.pm =   &fsl_qspi_pm_ops,
 	},
 	.probe          = fsl_qspi_probe,
-	.remove		= fsl_qspi_remove,
+	.remove_new	= fsl_qspi_remove,
 };
 module_platform_driver(fsl_qspi_driver);
 
