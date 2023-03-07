@@ -325,10 +325,10 @@ void mlx5_unload_one_devl_locked(struct mlx5_core_dev *dev, bool suspend);
 int mlx5_load_one(struct mlx5_core_dev *dev, bool recovery);
 int mlx5_load_one_devl_locked(struct mlx5_core_dev *dev, bool recovery);
 
-int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap, u16 function_id,
+int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap, u16 vport,
 				  u16 opmod);
-#define mlx5_vport_get_other_func_general_cap(dev, fid, out)		\
-	mlx5_vport_get_other_func_cap(dev, fid, out, MLX5_CAP_GENERAL)
+#define mlx5_vport_get_other_func_general_cap(dev, vport, out)		\
+	mlx5_vport_get_other_func_cap(dev, vport, out, MLX5_CAP_GENERAL)
 
 void mlx5_events_work_enqueue(struct mlx5_core_dev *dev, struct work_struct *work);
 static inline u32 mlx5_sriov_get_vf_total_msix(struct pci_dev *pdev)
