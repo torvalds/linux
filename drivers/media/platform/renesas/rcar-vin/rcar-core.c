@@ -17,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/sys_soc.h>
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
@@ -1183,24 +1182,6 @@ static const struct rvin_info rcar_info_r8a7795 = {
 	.scaler = rvin_scaler_gen3,
 };
 
-static const struct rvin_group_route rcar_info_r8a7795es1_routes[] = {
-	{ .master = 0, .csi = RVIN_CSI20, .chsel = 0x04 },
-	{ .master = 0, .csi = RVIN_CSI21, .chsel = 0x05 },
-	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
-	{ .master = 4, .csi = RVIN_CSI20, .chsel = 0x04 },
-	{ .master = 4, .csi = RVIN_CSI21, .chsel = 0x05 },
-	{ .master = 4, .csi = RVIN_CSI41, .chsel = 0x03 },
-	{ /* Sentinel */ }
-};
-
-static const struct rvin_info rcar_info_r8a7795es1 = {
-	.model = RCAR_GEN3,
-	.use_mc = true,
-	.max_width = 4096,
-	.max_height = 4096,
-	.routes = rcar_info_r8a7795es1_routes,
-};
-
 static const struct rvin_group_route rcar_info_r8a7796_routes[] = {
 	{ .master = 0, .csi = RVIN_CSI20, .chsel = 0x04 },
 	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
@@ -1372,17 +1353,8 @@ static const struct of_device_id rvin_of_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, rvin_of_id_table);
 
-static const struct soc_device_attribute r8a7795es1[] = {
-	{
-		.soc_id = "r8a7795", .revision = "ES1.*",
-		.data = &rcar_info_r8a7795es1,
-	},
-	{ /* Sentinel */ }
-};
-
 static int rcar_vin_probe(struct platform_device *pdev)
 {
-	const struct soc_device_attribute *attr;
 	struct rvin_dev *vin;
 	int irq, ret;
 
@@ -1393,14 +1365,6 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	vin->dev = &pdev->dev;
 	vin->info = of_device_get_match_data(&pdev->dev);
 	vin->alpha = 0xff;
-
-	/*
-	 * Special care is needed on r8a7795 ES1.x since it
-	 * uses different routing than r8a7795 ES2.0.
-	 */
-	attr = soc_device_match(r8a7795es1);
-	if (attr)
-		vin->info = attr->data;
 
 	vin->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vin->base))
