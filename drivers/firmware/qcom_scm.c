@@ -1543,6 +1543,7 @@ static const struct of_device_id qcom_scm_dt_match[] = {
 	},
 	{ .compatible = "qcom,scm-msm8994" },
 	{ .compatible = "qcom,scm-msm8996" },
+	{ .compatible = "qcom,scm-sm6375", .data = (void *)SCM_HAS_CORE_CLK },
 	{ .compatible = "qcom,scm" },
 	{}
 };
