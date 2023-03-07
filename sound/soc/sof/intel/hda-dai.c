@@ -29,6 +29,27 @@ MODULE_PARM_DESC(sof_use_tplg_nhlt, "SOF topology nhlt override");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 
+static int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
+			  struct snd_sof_dai_config_data *data)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_soc_component *component = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
+	int ret;
+
+	if (tplg_ops && tplg_ops->dai_config) {
+		ret = tplg_ops->dai_config(sdev, swidget, flags, data);
+		if (ret < 0) {
+			dev_err(sdev->dev, "DAI config with flags %x failed for widget %s\n",
+				flags, w->name);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct hda_dai_widget_dma_ops *
 hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai)
 {
@@ -232,33 +253,16 @@ static int hda_dai_widget_update(struct snd_soc_dapm_widget *w,
 	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE, &data);
 }
 
-static int hda_dai_hw_params_update(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *params,
-				    struct snd_soc_dai *dai)
-{
-	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
-	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, dai);
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
-	struct hdac_ext_stream *hext_stream;
-	int stream_tag;
-
-	hext_stream = ops->get_hext_stream(sdev, dai, substream);
-	if (!hext_stream)
-		return -EINVAL;
-
-	stream_tag = hdac_stream(hext_stream)->stream_tag;
-
-	/* set up the DAI widget and send the DAI_CONFIG with the new tag */
-	return hda_dai_widget_update(w, stream_tag - 1, true);
-}
-
 static int hda_dai_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
+	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, dai);
 	struct hdac_ext_stream *hext_stream;
+	struct snd_sof_dai_config_data data = { 0 };
+	unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
 	int ret;
 
 	if (!ops) {
@@ -274,35 +278,22 @@ static int hda_dai_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	return hda_dai_hw_params_update(substream, params, dai);
-}
+	hext_stream = ops->get_hext_stream(sdev, dai, substream);
 
+	flags |= SOF_DAI_CONFIG_FLAGS_2_STEP_STOP << SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT;
+	data.dai_data = hdac_stream(hext_stream)->stream_tag - 1;
 
-static int hda_dai_config_pause_push_ipc(struct snd_soc_dapm_widget *w)
-{
-	struct snd_sof_widget *swidget = w->dobj.private;
-	struct snd_soc_component *component = swidget->scomp;
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
-	int ret = 0;
-
-	if (tplg_ops->dai_config) {
-		ret = tplg_ops->dai_config(sdev, swidget, SOF_DAI_CONFIG_FLAGS_PAUSE, NULL);
-		if (ret < 0)
-			dev_err(sdev->dev, "%s: DAI config failed for widget %s\n", __func__,
-				w->name);
-	}
-
-	return ret;
+	return hda_dai_config(w, flags, &data);
 }
 
 static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
+	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, dai);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct hdac_ext_stream *hext_stream;
-	int stream = substream->stream;
+	struct snd_sof_dai_config_data data = { 0 };
+	unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
 	int ret;
 
 	hext_stream = ops->get_hext_stream(sdev, dai, substream);
@@ -315,7 +306,12 @@ static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 	if (ret < 0)
 		return ret;
 
-	return hda_dai_hw_params_update(substream, &rtd->dpcm[stream].hw_params, dai);
+	hext_stream = ops->get_hext_stream(sdev, dai, substream);
+
+	flags |= SOF_DAI_CONFIG_FLAGS_2_STEP_STOP << SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT;
+	data.dai_data = hdac_stream(hext_stream)->stream_tag - 1;
+
+	return hda_dai_config(w, flags, &data);
 }
 
 static int hda_dai_hw_free_ipc(int stream, /* direction */
@@ -356,7 +352,7 @@ static int ipc3_hda_dai_trigger(struct snd_pcm_substream *substream,
 
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = hda_dai_config_pause_push_ipc(w);
+		ret = hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_PAUSE, NULL);
 		if (ret < 0)
 			return ret;
 		break;
@@ -462,13 +458,17 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 static int hda_dai_hw_free(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
+	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
+	struct snd_sof_dai_config_data data = { 0 };
 	int ret;
 
 	ret = hda_link_dma_hw_free(substream, dai);
 	if (ret < 0)
 		return ret;
 
-	return hda_dai_hw_free_ipc(substream->stream, dai);
+	data.dai_data = DMA_CHAN_INVALID;
+
+	return hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_HW_FREE, &data);
 }
 
 static const struct snd_soc_dai_ops ipc3_hda_dai_ops = {
