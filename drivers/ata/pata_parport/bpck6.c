@@ -78,7 +78,6 @@ static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
 
 	/*copy over duplicate stuff.. initialize state info*/
 	ppc->ppc_id = pi->unit;
-	ppc->lpt_addr = pi->port;
 
 	/* look at the parport device to see what modes we can use */
 	if (pi->pardev->port->modes & PARPORT_MODE_EPP)
