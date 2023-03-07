@@ -16,7 +16,6 @@
 #include <linux/backlight.h>
 #include <linux/acpi.h>
 #include <linux/pnp.h>
-#include <linux/apple_bl.h>
 #include <linux/apple-gmux.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -883,14 +882,6 @@ get_version:
 		gmux_data->bdev = bdev;
 		bdev->props.brightness = gmux_get_brightness(bdev);
 		backlight_update_status(bdev);
-
-		/*
-		 * The backlight situation on Macs is complicated. If the gmux is
-		 * present it's the best choice, because it always works for
-		 * backlight control and supports more levels than other options.
-		 * Disable the other backlight choices.
-		 */
-		apple_bl_unregister();
 	}
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
@@ -1007,8 +998,6 @@ static void gmux_remove(struct pnp_dev *pnp)
 		release_region(gmux_data->iostart, gmux_data->iolen);
 	apple_gmux_data = NULL;
 	kfree(gmux_data);
-
-	apple_bl_register();
 }
 
 static const struct pnp_device_id gmux_device_ids[] = {
