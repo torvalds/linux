@@ -370,13 +370,9 @@ static int ipc3_hda_dai_trigger(struct snd_pcm_substream *substream,
 static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
-	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(dai->component);
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, dai);
-	struct snd_sof_widget *swidget = w->dobj.private;
 	struct hdac_ext_stream *hext_stream;
-	struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
-	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai *codec_dai;
 	int ret;
@@ -391,65 +387,35 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 	rtd = asoc_substream_to_rtd(substream);
 	codec_dai = asoc_rtd_to_codec(rtd, 0);
 
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_stream_start(hext_stream);
-		if (pipeline->state != SOF_IPC4_PIPE_PAUSED) {
-			ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
-							  SOF_IPC4_PIPE_PAUSED);
-			if (ret < 0)
-				return ret;
-			pipeline->state = SOF_IPC4_PIPE_PAUSED;
-		}
-
-		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
-						  SOF_IPC4_PIPE_RUNNING);
+	if (ops->pre_trigger) {
+		ret = ops->pre_trigger(sdev, dai, substream, cmd);
 		if (ret < 0)
 			return ret;
-		pipeline->state = SOF_IPC4_PIPE_RUNNING;
-		break;
+	}
+
+	if (ops->trigger) {
+		ret = ops->trigger(sdev, dai, substream, cmd);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (ops->post_trigger) {
+		ret = ops->post_trigger(sdev, dai, substream, cmd);
+		if (ret < 0)
+			return ret;
+	}
+
+	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-	{
-		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
-						  SOF_IPC4_PIPE_PAUSED);
-		if (ret < 0)
-			return ret;
-
-		pipeline->state = SOF_IPC4_PIPE_PAUSED;
-
-		snd_hdac_ext_stream_clear(hext_stream);
-
-		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
-						  SOF_IPC4_PIPE_RESET);
-		if (ret < 0)
-			return ret;
-
-		pipeline->state = SOF_IPC4_PIPE_RESET;
-
 		ret = hda_link_dma_cleanup(substream, hext_stream, dai, codec_dai);
 		if (ret < 0) {
 			dev_err(sdev->dev, "%s: failed to clean up link DMA\n", __func__);
 			return ret;
 		}
 		break;
-	}
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-	{
-		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
-						  SOF_IPC4_PIPE_PAUSED);
-		if (ret < 0)
-			return ret;
-
-		pipeline->state = SOF_IPC4_PIPE_PAUSED;
-
-		snd_hdac_ext_stream_clear(hext_stream);
-		break;
-	}
 	default:
-		dev_err(sdev->dev, "%s: unknown trigger command %d\n", __func__, cmd);
-		return -EINVAL;
+		break;
 	}
 
 	return 0;

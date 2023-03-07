@@ -155,7 +155,129 @@ static void hda_reset_hext_stream(struct snd_sof_dev *sdev, struct hdac_ext_stre
 	snd_hdac_ext_stream_reset(hext_stream);
 }
 
-static const struct hda_dai_widget_dma_ops hda_dma_ops = {
+static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
+				struct snd_pcm_substream *substream, int cmd)
+{
+	struct snd_sof_widget *pipe_widget;
+	struct sof_ipc4_pipeline *pipeline;
+	struct snd_sof_widget *swidget;
+	struct snd_soc_dapm_widget *w;
+	int ret;
+
+	w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
+	swidget = w->dobj.private;
+	pipe_widget = swidget->spipe->pipe_widget;
+	pipeline = pipe_widget->private;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_STOP:
+		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
+						  SOF_IPC4_PIPE_PAUSED);
+		if (ret < 0)
+			return ret;
+
+		pipeline->state = SOF_IPC4_PIPE_PAUSED;
+		break;
+	default:
+		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hda_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
+		       struct snd_pcm_substream *substream, int cmd)
+{
+	struct hdac_ext_stream *hext_stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		snd_hdac_ext_stream_start(hext_stream);
+		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		snd_hdac_ext_stream_clear(hext_stream);
+		break;
+	default:
+		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hda_ipc4_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
+				 struct snd_pcm_substream *substream, int cmd)
+{
+	struct snd_sof_widget *pipe_widget;
+	struct sof_ipc4_pipeline *pipeline;
+	struct snd_sof_widget *swidget;
+	struct snd_soc_dapm_widget *w;
+	int ret;
+
+	w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
+	swidget = w->dobj.private;
+	pipe_widget = swidget->spipe->pipe_widget;
+	pipeline = pipe_widget->private;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (pipeline->state != SOF_IPC4_PIPE_PAUSED) {
+			ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
+							  SOF_IPC4_PIPE_PAUSED);
+			if (ret < 0)
+				return ret;
+			pipeline->state = SOF_IPC4_PIPE_PAUSED;
+		}
+
+		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
+						  SOF_IPC4_PIPE_RUNNING);
+		if (ret < 0)
+			return ret;
+		pipeline->state = SOF_IPC4_PIPE_RUNNING;
+		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_STOP:
+	{
+		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
+						  SOF_IPC4_PIPE_RESET);
+		if (ret < 0)
+			return ret;
+
+		pipeline->state = SOF_IPC4_PIPE_RESET;
+		break;
+	}
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		break;
+	default:
+		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct hda_dai_widget_dma_ops hda_ipc4_dma_ops = {
+	.get_hext_stream = hda_get_hext_stream,
+	.assign_hext_stream = hda_assign_hext_stream,
+	.release_hext_stream = hda_release_hext_stream,
+	.setup_hext_stream = hda_setup_hext_stream,
+	.reset_hext_stream = hda_reset_hext_stream,
+	.pre_trigger = hda_ipc4_pre_trigger,
+	.trigger = hda_trigger,
+	.post_trigger = hda_ipc4_post_trigger
+};
+
+static const struct hda_dai_widget_dma_ops hda_ipc3_dma_ops = {
 	.get_hext_stream = hda_get_hext_stream,
 	.assign_hext_stream = hda_assign_hext_stream,
 	.release_hext_stream = hda_release_hext_stream,
@@ -177,7 +299,7 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 		struct sof_dai_private_data *private = sdai->private;
 
 		if (private->dai_config->type == SOF_DAI_INTEL_HDA)
-			return &hda_dma_ops;
+			return &hda_ipc3_dma_ops;
 		break;
 	}
 	case SOF_INTEL_IPC4:
@@ -185,7 +307,7 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 		struct sof_ipc4_copier *ipc4_copier = sdai->private;
 
 		if (ipc4_copier->dai_type == SOF_DAI_INTEL_HDA)
-			return &hda_dma_ops;
+			return &hda_ipc4_dma_ops;
 		break;
 	}
 	default:
