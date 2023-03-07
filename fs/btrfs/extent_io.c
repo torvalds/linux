@@ -123,23 +123,16 @@ struct btrfs_bio_ctrl {
 
 static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 {
-	struct bio *bio;
-	struct bio_vec *bv;
-	struct inode *inode;
-	int mirror_num;
+	struct bio *bio = bio_ctrl->bio;
+	int mirror_num = bio_ctrl->mirror_num;
 
-	if (!bio_ctrl->bio)
+	if (!bio)
 		return;
-
-	bio = bio_ctrl->bio;
-	bv = bio_first_bvec_all(bio);
-	inode = bv->bv_page->mapping->host;
-	mirror_num = bio_ctrl->mirror_num;
 
 	/* Caller should ensure the bio has at least some range added */
 	ASSERT(bio->bi_iter.bi_size);
 
-	if (!is_data_inode(inode)) {
+	if (!is_data_inode(&btrfs_bio(bio)->inode->vfs_inode)) {
 		if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
 			/*
 			 * For metadata read, we should have the parent_check,
