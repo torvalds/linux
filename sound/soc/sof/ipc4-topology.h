@@ -117,6 +117,7 @@ struct sof_ipc4_copier_config_set_sink_format {
  * @priority: Priority of this pipeline
  * @lp_mode: Low power mode
  * @mem_usage: Memory usage
+ * @core_id: Target core for the pipeline
  * @state: Pipeline state
  * @msg: message structure for pipeline
  * @skip_during_fe_trigger: skip triggering this pipeline during the FE DAI trigger
@@ -125,6 +126,7 @@ struct sof_ipc4_pipeline {
 	uint32_t priority;
 	uint32_t lp_mode;
 	uint32_t mem_usage;
+	uint32_t core_id;
 	int state;
 	struct sof_ipc4_msg msg;
 	bool skip_during_fe_trigger;

@@ -24,7 +24,9 @@ static DEFINE_IDA(pipeline_ida);
 
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc4_pipeline, lp_mode)}
+		offsetof(struct sof_ipc4_pipeline, lp_mode)},
+	{SOF_TKN_SCHED_CORE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc4_pipeline, core_id)},
 };
 
 static const struct sof_topology_token pipeline_tokens[] = {
@@ -629,6 +631,8 @@ static int sof_ipc4_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 		goto err;
 	}
 
+	swidget->core = pipeline->core_id;
+
 	/* parse one set of pipeline tokens */
 	ret = sof_update_ipc_object(scomp, swidget, SOF_PIPELINE_TOKENS, swidget->tuples,
 				    swidget->num_tuples, sizeof(*swidget), 1);
@@ -640,9 +644,9 @@ static int sof_ipc4_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 	/* TODO: Get priority from topology */
 	pipeline->priority = 0;
 
-	dev_dbg(scomp->dev, "pipeline '%s': id %d pri %d lp mode %d\n",
+	dev_dbg(scomp->dev, "pipeline '%s': id %d, pri %d, core_id %u, lp mode %d\n",
 		swidget->widget->name, swidget->pipeline_id,
-		pipeline->priority, pipeline->lp_mode);
+		pipeline->priority, pipeline->core_id, pipeline->lp_mode);
 
 	swidget->private = pipeline;
 
@@ -652,6 +656,7 @@ static int sof_ipc4_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 	pipeline->msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
 
 	pipeline->msg.extension = pipeline->lp_mode;
+	pipeline->msg.extension |= SOF_IPC4_GLB_PIPE_EXT_CORE_ID(pipeline->core_id);
 	pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
 
 	return 0;
