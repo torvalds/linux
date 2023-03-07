@@ -43,11 +43,10 @@
 /* We only check the length. A bridge shouldn't do any hop-by-hop stuff
  * anyway
  */
-static int br_nf_check_hbh_len(struct sk_buff *skb)
+static int br_nf_check_hbh_len(struct sk_buff *skb, u32 *plen)
 {
 	int len, off = sizeof(struct ipv6hdr);
 	unsigned char *nh;
-	u32 pkt_len;
 
 	if (!pskb_may_pull(skb, off + 8))
 		return -1;
@@ -75,6 +74,8 @@ static int br_nf_check_hbh_len(struct sk_buff *skb)
 			return -1;
 
 		if (nh[off] == IPV6_TLV_JUMBO) {
+			u32 pkt_len;
+
 			if (nh[off + 1] != 4 || (off & 3) != 2)
 				return -1;
 			pkt_len = ntohl(*(__be32 *)(nh + off + 2));
@@ -83,10 +84,7 @@ static int br_nf_check_hbh_len(struct sk_buff *skb)
 				return -1;
 			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
 				return -1;
-			if (pskb_trim_rcsum(skb,
-					    pkt_len + sizeof(struct ipv6hdr)))
-				return -1;
-			nh = skb_network_header(skb);
+			*plen = pkt_len;
 		}
 		off += optlen;
 		len -= optlen;
@@ -114,22 +112,19 @@ int br_validate_ipv6(struct net *net, struct sk_buff *skb)
 		goto inhdr_error;
 
 	pkt_len = ntohs(hdr->payload_len);
-
-	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
-		if (pkt_len + ip6h_len > skb->len) {
-			__IP6_INC_STATS(net, idev,
-					IPSTATS_MIB_INTRUNCATEDPKTS);
-			goto drop;
-		}
-		if (pskb_trim_rcsum(skb, pkt_len + ip6h_len)) {
-			__IP6_INC_STATS(net, idev,
-					IPSTATS_MIB_INDISCARDS);
-			goto drop;
-		}
-		hdr = ipv6_hdr(skb);
-	}
-	if (hdr->nexthdr == NEXTHDR_HOP && br_nf_check_hbh_len(skb))
+	if (hdr->nexthdr == NEXTHDR_HOP && br_nf_check_hbh_len(skb, &pkt_len))
 		goto drop;
+
+	if (pkt_len + ip6h_len > skb->len) {
+		__IP6_INC_STATS(net, idev,
+				IPSTATS_MIB_INTRUNCATEDPKTS);
+		goto drop;
+	}
+	if (pskb_trim_rcsum(skb, pkt_len + ip6h_len)) {
+		__IP6_INC_STATS(net, idev,
+				IPSTATS_MIB_INDISCARDS);
+		goto drop;
+	}
 
 	memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
 	/* No IP options in IPv6 header; however it should be
