@@ -529,10 +529,21 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 			dq = &hisi_hba->dq[dq_index];
 		} else {
-			struct Scsi_Host *shost = hisi_hba->shost;
-			struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-			int queue = qmap->mq_map[raw_smp_processor_id()];
+			int queue;
 
+			if (hisi_hba->iopoll_q_cnt) {
+				/*
+				 * Use interrupt queue (queue 0) to deliver and complete
+				 * internal IOs of libsas or libata when there is at least
+				 * one iopoll queue
+				 */
+				queue = 0;
+			} else {
+				struct Scsi_Host *shost = hisi_hba->shost;
+				struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+
+				queue = qmap->mq_map[raw_smp_processor_id()];
+			}
 			dq = &hisi_hba->dq[queue];
 		}
 		break;
@@ -2101,6 +2112,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 		/* Completion queue structure */
 		cq->id = i;
 		cq->hisi_hba = hisi_hba;
+		spin_lock_init(&cq->poll_lock);
 
 		/* Delivery queue structure */
 		spin_lock_init(&dq->lock);
