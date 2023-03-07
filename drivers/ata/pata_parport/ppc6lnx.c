@@ -67,7 +67,6 @@
 
 //***************************************************************************
 
-static int ppc6_select(struct pi_adapter *pi);
 static void ppc6_deselect(struct pi_adapter *pi);
 static void ppc6_send_cmd(struct pi_adapter *pi, u8 cmd);
 static void ppc6_wr_data_byte(struct pi_adapter *pi, u8 data);
@@ -77,71 +76,6 @@ static u8 ppc6_rd_data_byte(struct pi_adapter *pi);
 
 int mode_map[] = { PPCMODE_UNI_FW, PPCMODE_BI_FW, PPCMODE_EPP_BYTE,
 		   PPCMODE_EPP_WORD, PPCMODE_EPP_DWORD };
-
-static int ppc6_select(struct pi_adapter *pi)
-{
-	u8 i, j, k;
-
-	pi->saved_r0 = parport_read_data(pi->pardev->port);
-
-	pi->saved_r2 = parport_read_control(pi->pardev->port) & 0x5F; // readback ctrl
-
-	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, PARPORT_CONTROL_SELECT);
-
-	if (pi->saved_r0 == 'b')
-		parport_write_data(pi->pardev->port, 'x');
-
-	parport_write_data(pi->pardev->port, 'b');
-	parport_write_data(pi->pardev->port, 'p');
-	parport_write_data(pi->pardev->port, pi->unit);
-	parport_write_data(pi->pardev->port, ~pi->unit);
-
-	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, 0);
-
-	parport_write_control(pi->pardev->port, PARPORT_CONTROL_INIT);
-
-	i = mode_map[pi->mode] & 0x0C;
-
-	if (i == 0)
-		i = (mode_map[pi->mode] & 2) | 1;
-
-	parport_write_data(pi->pardev->port, i);
-
-	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, PARPORT_CONTROL_SELECT);
-
-	// DELAY
-
-	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD, PARPORT_CONTROL_AUTOFD);
-
-	j = ((i & 0x08) << 4) | ((i & 0x07) << 3);
-
-	k = parport_read_status(pi->pardev->port) & 0xB8;
-
-	if (j == k)
-	{
-		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD, 0);
-
-		k = (parport_read_status(pi->pardev->port) & 0xB8) ^ 0xB8;
-
-		if (j == k)
-		{
-			if (i & 4)	// EPP
-				parport_frob_control(pi->pardev->port,
-					PARPORT_CONTROL_SELECT | PARPORT_CONTROL_INIT, 0);
-			else				// PPC/ECP
-				parport_frob_control(pi->pardev->port,
-					PARPORT_CONTROL_SELECT, 0);
-
-			return(1);
-		}
-	}
-
-	parport_write_control(pi->pardev->port, pi->saved_r2);
-
-	parport_write_data(pi->pardev->port, pi->saved_r0);
-
-	return(0); // FAIL
-}
 
 //***************************************************************************
 

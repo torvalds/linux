@@ -176,21 +176,63 @@ static void bpck6_read_block(struct pi_adapter *pi, char *buf, int len)
 
 static int bpck6_open(struct pi_adapter *pi)
 {
-	int ret = ppc6_select(pi);
+	u8 i, j, k;
 
-	if (ret == 0)
-		return ret;
+	pi->saved_r0 = parport_read_data(pi->pardev->port);
+	pi->saved_r2 = parport_read_control(pi->pardev->port) & 0x5F;
 
-	pi->private = 0;
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT,
+						PARPORT_CONTROL_SELECT);
+	if (pi->saved_r0 == 'b')
+		parport_write_data(pi->pardev->port, 'x');
+	parport_write_data(pi->pardev->port, 'b');
+	parport_write_data(pi->pardev->port, 'p');
+	parport_write_data(pi->pardev->port, pi->unit);
+	parport_write_data(pi->pardev->port, ~pi->unit);
 
-	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
-	ppc6_wr_data_byte(pi, RAMSIZE_128K);
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, 0);
+	parport_write_control(pi->pardev->port, PARPORT_CONTROL_INIT);
 
-	ppc6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
-	if ((ppc6_rd_data_byte(pi) & 0x3F) == 0x0C)
-		pi->private |= fifo_wait;
+	i = mode_map[pi->mode] & 0x0C;
+	if (i == 0)
+		i = (mode_map[pi->mode] & 2) | 1;
+	parport_write_data(pi->pardev->port, i);
 
-	return ret;
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT,
+						PARPORT_CONTROL_SELECT);
+	parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD,
+						PARPORT_CONTROL_AUTOFD);
+
+	j = ((i & 0x08) << 4) | ((i & 0x07) << 3);
+	k = parport_read_status(pi->pardev->port) & 0xB8;
+	if (j == k) {
+		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_AUTOFD, 0);
+		k = (parport_read_status(pi->pardev->port) & 0xB8) ^ 0xB8;
+		if (j == k) {
+			if (i & 4)	// EPP
+				parport_frob_control(pi->pardev->port,
+					PARPORT_CONTROL_SELECT | PARPORT_CONTROL_INIT, 0);
+			else				// PPC/ECP
+				parport_frob_control(pi->pardev->port,
+					PARPORT_CONTROL_SELECT, 0);
+
+			pi->private = 0;
+
+			ppc6_send_cmd(pi, ACCESS_REG | ACCESS_WRITE | REG_RAMSIZE);
+			ppc6_wr_data_byte(pi, RAMSIZE_128K);
+
+			ppc6_send_cmd(pi, ACCESS_REG | ACCESS_READ | REG_VERSION);
+			if ((ppc6_rd_data_byte(pi) & 0x3F) == 0x0C)
+				pi->private |= fifo_wait;
+
+			return 1;
+		}
+	}
+
+	parport_write_control(pi->pardev->port, pi->saved_r2);
+	parport_write_data(pi->pardev->port, pi->saved_r0);
+
+	return 0; // FAIL
 }
 
 static void bpck6_wr_extout(struct pi_adapter *pi, u8 regdata)
