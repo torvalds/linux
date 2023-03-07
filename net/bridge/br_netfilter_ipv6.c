@@ -45,14 +45,18 @@
  */
 static int br_nf_check_hbh_len(struct sk_buff *skb)
 {
-	unsigned char *raw = (u8 *)(ipv6_hdr(skb) + 1);
+	int len, off = sizeof(struct ipv6hdr);
+	unsigned char *nh;
 	u32 pkt_len;
-	const unsigned char *nh = skb_network_header(skb);
-	int off = raw - nh;
-	int len = (raw[1] + 1) << 3;
 
-	if ((raw + len) - skb->data > skb_headlen(skb))
+	if (!pskb_may_pull(skb, off + 8))
 		goto bad;
+	nh = (unsigned char *)(ipv6_hdr(skb) + 1);
+	len = (nh[1] + 1) << 3;
+
+	if (!pskb_may_pull(skb, off + len))
+		goto bad;
+	nh = skb_network_header(skb);
 
 	off += 2;
 	len -= 2;
