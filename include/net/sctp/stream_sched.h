@@ -59,5 +59,6 @@ void sctp_sched_ops_register(enum sctp_sched_type sched,
 void sctp_sched_ops_prio_init(void);
 void sctp_sched_ops_rr_init(void);
 void sctp_sched_ops_fc_init(void);
+void sctp_sched_ops_wfq_init(void);
 
 #endif /* __sctp_stream_sched_h__ */

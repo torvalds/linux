@@ -1432,6 +1432,7 @@ struct sctp_stream_out_ext {
 		struct {
 			struct list_head fc_list;
 			__u32 fc_length;
+			__u16 fc_weight;
 		};
 	};
 };
