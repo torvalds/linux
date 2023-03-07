@@ -1267,7 +1267,7 @@ remove:
 	return err;
 }
 
-static int tegra_xusb_padctl_remove(struct platform_device *pdev)
+static void tegra_xusb_padctl_remove(struct platform_device *pdev)
 {
 	struct tegra_xusb_padctl *padctl = platform_get_drvdata(pdev);
 	int err;
@@ -1285,8 +1285,6 @@ static int tegra_xusb_padctl_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to assert reset: %d\n", err);
 
 	padctl->soc->ops->remove(padctl);
-
-	return 0;
 }
 
 static __maybe_unused int tegra_xusb_padctl_suspend_noirq(struct device *dev)
@@ -1321,7 +1319,7 @@ static struct platform_driver tegra_xusb_padctl_driver = {
 		.pm = &tegra_xusb_padctl_pm_ops,
 	},
 	.probe = tegra_xusb_padctl_probe,
-	.remove = tegra_xusb_padctl_remove,
+	.remove_new = tegra_xusb_padctl_remove,
 };
 module_platform_driver(tegra_xusb_padctl_driver);
 
