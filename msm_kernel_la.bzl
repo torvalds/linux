@@ -9,6 +9,7 @@ load(
     "kernel_compile_commands",
     "kernel_images",
     "kernel_modules_install",
+    "kernel_uapi_headers_cc_library",
     "merged_kernel_uapi_headers",
 )
 load(
@@ -25,7 +26,6 @@ load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_li
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":msm_abl.bzl", "define_abl_dist")
 load(":super_image.bzl", "super_image")
-load(":uapi_library.bzl", "define_uapi_library")
 load(":image_opts.bzl", "boot_image_opts")
 load(":target_variants.bzl", "la_variants")
 load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
@@ -334,6 +334,17 @@ def _define_kernel_dist(target, msm_target, variant, base_kernel):
         dist_dir = dist_dir,
     )
 
+def _define_uapi_library(target):
+    """Define a cc_library for userspace programs to use
+
+    Args:
+      target: kernel_build target name (e.g. "kalama_gki")
+    """
+    kernel_uapi_headers_cc_library(
+        name = "{}_uapi_header_library".format(target),
+        kernel_build = ":{}".format(target),
+    )
+
 def define_msm_la(
         msm_target,
         variant,
@@ -414,10 +425,10 @@ def define_msm_la(
 
     _define_kernel_dist(target, msm_target, variant, base_kernel)
 
+    _define_uapi_library(target)
+
     define_abl_dist(target, msm_target, variant)
 
     define_dtc_dist(target, msm_target, variant)
-
-    define_uapi_library(target)
 
     define_extras(target)
