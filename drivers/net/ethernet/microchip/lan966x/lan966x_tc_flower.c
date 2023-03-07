@@ -309,6 +309,75 @@ static int lan966x_tc_set_actionset(struct vcap_admin *admin,
 	return err;
 }
 
+static int lan966x_tc_add_rule_link_target(struct vcap_admin *admin,
+					   struct vcap_rule *vrule,
+					   int target_cid)
+{
+	int link_val = target_cid % VCAP_CID_LOOKUP_SIZE;
+	int err;
+
+	if (!link_val)
+		return 0;
+
+	switch (admin->vtype) {
+	case VCAP_TYPE_IS1:
+		/* Choose IS1 specific NXT_IDX key (for chaining rules from IS1) */
+		err = vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_GEN_IDX_SEL,
+					    1, ~0);
+		if (err)
+			return err;
+
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_GEN_IDX,
+					     link_val, ~0);
+	case VCAP_TYPE_IS2:
+		/* Add IS2 specific PAG key (for chaining rules from IS1) */
+		return vcap_rule_add_key_u32(vrule, VCAP_KF_LOOKUP_PAG,
+					     link_val, ~0);
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int lan966x_tc_add_rule_link(struct vcap_control *vctrl,
+				    struct vcap_admin *admin,
+				    struct vcap_rule *vrule,
+				    struct flow_cls_offload *f,
+				    int to_cid)
+{
+	struct vcap_admin *to_admin = vcap_find_admin(vctrl, to_cid);
+	int diff, err = 0;
+
+	if (!to_admin) {
+		NL_SET_ERR_MSG_MOD(f->common.extack,
+				   "Unknown destination chain");
+		return -EINVAL;
+	}
+
+	diff = vcap_chain_offset(vctrl, f->common.chain_index, to_cid);
+	if (!diff)
+		return 0;
+
+	/* Between IS1 and IS2 the PAG value is used */
+	if (admin->vtype == VCAP_TYPE_IS1 && to_admin->vtype == VCAP_TYPE_IS2) {
+		/* This works for IS1->IS2 */
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_PAG_VAL, diff);
+		if (err)
+			return err;
+
+		err = vcap_rule_add_action_u32(vrule, VCAP_AF_PAG_OVERRIDE_MASK,
+					       0xff);
+		if (err)
+			return err;
+	} else {
+		NL_SET_ERR_MSG_MOD(f->common.extack,
+				   "Unsupported chain destination");
+		return -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
 static int lan966x_tc_flower_add(struct lan966x_port *port,
 				 struct flow_cls_offload *f,
 				 struct vcap_admin *admin,
@@ -333,6 +402,11 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 
 	vrule->cookie = f->cookie;
 	err = lan966x_tc_flower_use_dissectors(f, admin, vrule, &l3_proto);
+	if (err)
+		goto out;
+
+	err = lan966x_tc_add_rule_link_target(admin, vrule,
+					      f->common.chain_index);
 	if (err)
 		goto out;
 
@@ -362,6 +436,12 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 			break;
 		case FLOW_ACTION_GOTO:
 			err = lan966x_tc_set_actionset(admin, vrule);
+			if (err)
+				goto out;
+
+			err = lan966x_tc_add_rule_link(port->lan966x->vcap_ctrl,
+						       admin, vrule,
+						       f, act->chain_index);
 			if (err)
 				goto out;
 
