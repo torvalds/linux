@@ -1117,9 +1117,8 @@ out_batch:
 
 static struct i915_vma *recursive_batch(struct intel_gt *gt)
 {
-	struct drm_i915_private *i915 = gt->i915;
 	struct drm_i915_gem_object *obj;
-	const int ver = GRAPHICS_VER(i915);
+	const int ver = GRAPHICS_VER(gt->i915);
 	struct i915_vma *vma;
 	u32 *cmd;
 	int err;
