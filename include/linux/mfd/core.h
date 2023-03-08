@@ -68,9 +68,6 @@ struct mfd_cell {
 	int			id;
 	int			level;
 
-	int			(*enable)(struct platform_device *dev);
-	int			(*disable)(struct platform_device *dev);
-
 	int			(*suspend)(struct platform_device *dev);
 	int			(*resume)(struct platform_device *dev);
 
@@ -122,15 +119,6 @@ struct mfd_cell {
 	int			num_parent_supplies;
 	const char * const	*parent_supplies;
 };
-
-/*
- * Convenience functions for clients using shared cells.  Refcounting
- * happens automatically, with the cell's enable/disable callbacks
- * being called only when a device is first being enabled or no other
- * clients are making use of it.
- */
-extern int mfd_cell_enable(struct platform_device *pdev);
-extern int mfd_cell_disable(struct platform_device *pdev);
 
 /*
  * Given a platform device that's been created by mfd_add_devices(), fetch
