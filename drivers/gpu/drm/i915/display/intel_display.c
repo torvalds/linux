@@ -8883,13 +8883,13 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return;
 
-	intel_display_debugfs_register(i915);
-
 	/* Must be done after probing outputs */
 	intel_opregion_register(i915);
 	intel_acpi_video_register(i915);
 
 	intel_audio_init(i915);
+
+	intel_display_debugfs_register(i915);
 
 	/*
 	 * Some ports require correctly set-up hpd registers for
