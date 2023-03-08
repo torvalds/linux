@@ -1362,12 +1362,12 @@ struct clk_hw_onecell_data {
 };
 
 #define CLK_OF_DECLARE(name, compat, fn) \
-	static void __init name##_of_clk_init_declare(struct device_node *np) \
+	static void __init __##name##_of_clk_init_declare(struct device_node *np) \
 	{								\
 		fn(np);							\
 		fwnode_dev_initialized(of_fwnode_handle(np), true);	\
 	}								\
-	OF_DECLARE_1(clk, name, compat, name##_of_clk_init_declare)
+	OF_DECLARE_1(clk, name, compat, __##name##_of_clk_init_declare)
 
 /*
  * Use this macro when you have a driver that requires two initialization
