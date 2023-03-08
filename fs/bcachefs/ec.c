@@ -1145,6 +1145,10 @@ err:
 			}
 		}
 
+	mutex_lock(&c->ec_stripe_new_lock);
+	list_del(&s->list);
+	mutex_unlock(&c->ec_stripe_new_lock);
+
 	if (s->idx)
 		bch2_stripe_close(c, s);
 
@@ -1160,10 +1164,8 @@ static struct ec_stripe_new *get_pending_stripe(struct bch_fs *c)
 
 	mutex_lock(&c->ec_stripe_new_lock);
 	list_for_each_entry(s, &c->ec_stripe_new_list, list)
-		if (!atomic_read(&s->pin)) {
-			list_del(&s->list);
+		if (!atomic_read(&s->pin))
 			goto out;
-		}
 	s = NULL;
 out:
 	mutex_unlock(&c->ec_stripe_new_lock);
@@ -1855,8 +1857,8 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 		       h->target, h->algo, h->redundancy);
 
 		if (h->s)
-			prt_printf(out, "\tpending: blocks %u+%u allocated %u\n",
-			       h->s->nr_data, h->s->nr_parity,
+			prt_printf(out, "\tpending: idx %llu blocks %u+%u allocated %u\n",
+			       h->s->idx, h->s->nr_data, h->s->nr_parity,
 			       bitmap_weight(h->s->blocks_allocated,
 					     h->s->nr_data));
 	}
@@ -1864,9 +1866,9 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->ec_stripe_new_lock);
 	list_for_each_entry(s, &c->ec_stripe_new_list, list) {
-		prt_printf(out, "\tin flight: blocks %u+%u pin %u\n",
-		       s->nr_data, s->nr_parity,
-		       atomic_read(&s->pin));
+		prt_printf(out, "\tin flight: idx %llu blocks %u+%u pin %u\n",
+			   s->idx, s->nr_data, s->nr_parity,
+			   atomic_read(&s->pin));
 	}
 	mutex_unlock(&c->ec_stripe_new_lock);
 }
