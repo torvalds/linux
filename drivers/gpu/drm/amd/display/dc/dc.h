@@ -2028,6 +2028,19 @@ void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
 int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
 		struct dc_link *link, int peak_bw);
 
+/*
+ * Validate the BW of all the valid DPIA links to make sure it doesn't exceed
+ * available BW for each host router
+ *
+ * @dc: pointer to dc struct
+ * @stream: pointer to all possible streams
+ * @num_streams: number of valid DPIA streams
+ *
+ * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
+ */
+bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams,
+		const unsigned int count);
+
 /* Sink Interfaces - A sink corresponds to a display output device */
 
 struct dc_container_id {

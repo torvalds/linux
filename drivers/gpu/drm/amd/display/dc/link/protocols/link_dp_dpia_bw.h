@@ -28,6 +28,11 @@
 
 #include "link.h"
 
+/* Number of Host Routers per motherboard is 2 */
+#define MAX_HR_NUM			2
+/* Number of DPIA per host router is 2 */
+#define MAX_DPIA_NUM		(MAX_HR_NUM * 2)
+
 /*
  * Host Router BW type
  */
@@ -92,6 +97,6 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
  *
  * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
  */
-bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, uint8_t num_dpias);
+bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned int num_dpias);
 
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */
