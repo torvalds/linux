@@ -37,14 +37,14 @@ properties:
           - const: qcom,cpufreq-epss
 
   reg:
-    minItems: 2
+    minItems: 1
     items:
       - description: Frequency domain 0 register region
       - description: Frequency domain 1 register region
       - description: Frequency domain 2 register region
 
   reg-names:
-    minItems: 2
+    minItems: 1
     items:
       - const: freq-domain0
       - const: freq-domain1
