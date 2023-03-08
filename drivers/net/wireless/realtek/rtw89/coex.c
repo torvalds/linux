@@ -734,6 +734,7 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 
 #define BTC_RPT_HDR_SIZE 3
 #define BTC_CHK_WLSLOT_DRIFT_MAX 15
+#define BTC_CHK_BTSLOT_DRIFT_MAX 15
 #define BTC_CHK_HANG_MAX 3
 
 static void _chk_btc_err(struct rtw89_dev *rtwdev, u8 type, u32 cnt)
@@ -748,61 +749,75 @@ static void _chk_btc_err(struct rtw89_dev *rtwdev, u8 type, u32 cnt)
 		    __func__, type, cnt);
 
 	switch (type) {
-	case BTC_DCNT_RPT_FREEZE:
+	case BTC_DCNT_RPT_HANG:
 		if (dm->cnt_dm[BTC_DCNT_RPT] == cnt && btc->fwinfo.rpt_en_map)
-			dm->cnt_dm[BTC_DCNT_RPT_FREEZE]++;
+			dm->cnt_dm[BTC_DCNT_RPT_HANG]++;
 		else
-			dm->cnt_dm[BTC_DCNT_RPT_FREEZE] = 0;
+			dm->cnt_dm[BTC_DCNT_RPT_HANG] = 0;
 
-		if (dm->cnt_dm[BTC_DCNT_RPT_FREEZE] >= BTC_CHK_HANG_MAX)
+		if (dm->cnt_dm[BTC_DCNT_RPT_HANG] >= BTC_CHK_HANG_MAX)
 			dm->error.map.wl_fw_hang = true;
 		else
 			dm->error.map.wl_fw_hang = false;
 
 		dm->cnt_dm[BTC_DCNT_RPT] = cnt;
 		break;
-	case BTC_DCNT_CYCLE_FREEZE:
+	case BTC_DCNT_CYCLE_HANG:
 		if (dm->cnt_dm[BTC_DCNT_CYCLE] == cnt &&
 		    (dm->tdma_now.type != CXTDMA_OFF ||
 		     dm->tdma_now.ext_ctrl == CXECTL_EXT))
-			dm->cnt_dm[BTC_DCNT_CYCLE_FREEZE]++;
+			dm->cnt_dm[BTC_DCNT_CYCLE_HANG]++;
 		else
-			dm->cnt_dm[BTC_DCNT_CYCLE_FREEZE] = 0;
+			dm->cnt_dm[BTC_DCNT_CYCLE_HANG] = 0;
 
-		if (dm->cnt_dm[BTC_DCNT_CYCLE_FREEZE] >= BTC_CHK_HANG_MAX)
+		if (dm->cnt_dm[BTC_DCNT_CYCLE_HANG] >= BTC_CHK_HANG_MAX)
 			dm->error.map.cycle_hang = true;
 		else
 			dm->error.map.cycle_hang = false;
 
 		dm->cnt_dm[BTC_DCNT_CYCLE] = cnt;
 		break;
-	case BTC_DCNT_W1_FREEZE:
+	case BTC_DCNT_W1_HANG:
 		if (dm->cnt_dm[BTC_DCNT_W1] == cnt &&
 		    dm->tdma_now.type != CXTDMA_OFF)
-			dm->cnt_dm[BTC_DCNT_W1_FREEZE]++;
+			dm->cnt_dm[BTC_DCNT_W1_HANG]++;
 		else
-			dm->cnt_dm[BTC_DCNT_W1_FREEZE] = 0;
+			dm->cnt_dm[BTC_DCNT_W1_HANG] = 0;
 
-		if (dm->cnt_dm[BTC_DCNT_W1_FREEZE] >= BTC_CHK_HANG_MAX)
+		if (dm->cnt_dm[BTC_DCNT_W1_HANG] >= BTC_CHK_HANG_MAX)
 			dm->error.map.w1_hang = true;
 		else
 			dm->error.map.w1_hang = false;
 
 		dm->cnt_dm[BTC_DCNT_W1] = cnt;
 		break;
-	case BTC_DCNT_B1_FREEZE:
+	case BTC_DCNT_B1_HANG:
 		if (dm->cnt_dm[BTC_DCNT_B1] == cnt &&
 		    dm->tdma_now.type != CXTDMA_OFF)
-			dm->cnt_dm[BTC_DCNT_B1_FREEZE]++;
+			dm->cnt_dm[BTC_DCNT_B1_HANG]++;
 		else
-			dm->cnt_dm[BTC_DCNT_B1_FREEZE] = 0;
+			dm->cnt_dm[BTC_DCNT_B1_HANG] = 0;
 
-		if (dm->cnt_dm[BTC_DCNT_B1_FREEZE] >= BTC_CHK_HANG_MAX)
+		if (dm->cnt_dm[BTC_DCNT_B1_HANG] >= BTC_CHK_HANG_MAX)
 			dm->error.map.b1_hang = true;
 		else
 			dm->error.map.b1_hang = false;
 
 		dm->cnt_dm[BTC_DCNT_B1] = cnt;
+		break;
+	case BTC_DCNT_E2G_HANG:
+		if (dm->cnt_dm[BTC_DCNT_E2G] == cnt &&
+		    dm->tdma_now.ext_ctrl == CXECTL_EXT)
+			dm->cnt_dm[BTC_DCNT_E2G_HANG]++;
+		else
+			dm->cnt_dm[BTC_DCNT_E2G_HANG] = 0;
+
+		if (dm->cnt_dm[BTC_DCNT_E2G_HANG] >= BTC_CHK_HANG_MAX)
+			dm->error.map.wl_e2g_hang = true;
+		else
+			dm->error.map.wl_e2g_hang = false;
+
+		dm->cnt_dm[BTC_DCNT_E2G] = cnt;
 		break;
 	case BTC_DCNT_TDMA_NONSYNC:
 		if (cnt != 0) /* if tdma not sync between drv/fw  */
@@ -822,23 +837,23 @@ static void _chk_btc_err(struct rtw89_dev *rtwdev, u8 type, u32 cnt)
 			dm->cnt_dm[BTC_DCNT_SLOT_NONSYNC] = 0;
 
 		if (dm->cnt_dm[BTC_DCNT_SLOT_NONSYNC] >= BTC_CHK_HANG_MAX)
-			dm->error.map.tdma_no_sync = true;
+			dm->error.map.slot_no_sync = true;
 		else
-			dm->error.map.tdma_no_sync = false;
+			dm->error.map.slot_no_sync = false;
 		break;
-	case BTC_DCNT_BTCNT_FREEZE:
+	case BTC_DCNT_BTCNT_HANG:
 		cnt = cx->cnt_bt[BTC_BCNT_HIPRI_RX] +
 		      cx->cnt_bt[BTC_BCNT_HIPRI_TX] +
 		      cx->cnt_bt[BTC_BCNT_LOPRI_RX] +
 		      cx->cnt_bt[BTC_BCNT_LOPRI_TX];
 
 		if (cnt == 0)
-			dm->cnt_dm[BTC_DCNT_BTCNT_FREEZE]++;
+			dm->cnt_dm[BTC_DCNT_BTCNT_HANG]++;
 		else
-			dm->cnt_dm[BTC_DCNT_BTCNT_FREEZE] = 0;
+			dm->cnt_dm[BTC_DCNT_BTCNT_HANG] = 0;
 
-		if ((dm->cnt_dm[BTC_DCNT_BTCNT_FREEZE] >= BTC_CHK_HANG_MAX &&
-		     bt->enable.now) || (!dm->cnt_dm[BTC_DCNT_BTCNT_FREEZE] &&
+		if ((dm->cnt_dm[BTC_DCNT_BTCNT_HANG] >= BTC_CHK_HANG_MAX &&
+		     bt->enable.now) || (!dm->cnt_dm[BTC_DCNT_BTCNT_HANG] &&
 		     !bt->enable.now))
 			_update_bt_scbd(rtwdev, false);
 		break;
@@ -852,6 +867,18 @@ static void _chk_btc_err(struct rtw89_dev *rtwdev, u8 type, u32 cnt)
 			dm->error.map.wl_slot_drift = true;
 		else
 			dm->error.map.wl_slot_drift = false;
+		break;
+	case BTC_DCNT_BT_SLOT_DRIFT:
+		if (cnt >= BTC_CHK_BTSLOT_DRIFT_MAX)
+			dm->cnt_dm[BTC_DCNT_BT_SLOT_DRIFT]++;
+		else
+			dm->cnt_dm[BTC_DCNT_BT_SLOT_DRIFT] = 0;
+
+		if (dm->cnt_dm[BTC_DCNT_BT_SLOT_DRIFT] >= BTC_CHK_HANG_MAX)
+			dm->error.map.bt_slot_drift = true;
+		else
+			dm->error.map.bt_slot_drift = false;
+
 		break;
 	}
 }
@@ -1129,14 +1156,14 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			wl->ver_info.fw = prpt->v1.wl_fw_ver;
 			dm->wl_fw_cx_offload = !!prpt->v1.wl_fw_cx_offload;
 
-			_chk_btc_err(rtwdev, BTC_DCNT_RPT_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_RPT_HANG,
 				     pfwinfo->event[BTF_EVNT_RPT]);
 
 			/* To avoid I/O if WL LPS or power-off */
 			if (wl->status.map.lps != BTC_LPS_RF_OFF &&
 			    !wl->status.map.rf_off) {
 				rtwdev->chip->ops->btc_update_bt_cnt(rtwdev);
-				_chk_btc_err(rtwdev, BTC_DCNT_BTCNT_FREEZE, 0);
+				_chk_btc_err(rtwdev, BTC_DCNT_BTCNT_HANG, 0);
 
 				btc->cx.cnt_bt[BTC_BCNT_POLUT] =
 					rtw89_mac_get_plt_cnt(rtwdev,
@@ -1164,8 +1191,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			btc->cx.cnt_bt[BTC_BCNT_POLUT] =
 				le32_to_cpu(prpt->v4.bt_cnt[BTC_BCNT_POLLUTED]);
 
-			_chk_btc_err(rtwdev, BTC_DCNT_BTCNT_FREEZE, 0);
-			_chk_btc_err(rtwdev, BTC_DCNT_RPT_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_BTCNT_HANG, 0);
+			_chk_btc_err(rtwdev, BTC_DCNT_RPT_HANG,
 				     pfwinfo->event[BTF_EVNT_RPT]);
 
 			if (le32_to_cpu(prpt->v4.bt_cnt[BTC_BCNT_RFK_TIMEOUT]) > 0)
@@ -1196,8 +1223,8 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			btc->cx.cnt_bt[BTC_BCNT_POLUT] =
 				le16_to_cpu(prpt->v5.bt_cnt[BTC_BCNT_POLLUTED]);
 
-			_chk_btc_err(rtwdev, BTC_DCNT_BTCNT_FREEZE, 0);
-			_chk_btc_err(rtwdev, BTC_DCNT_RPT_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_BTCNT_HANG, 0);
+			_chk_btc_err(rtwdev, BTC_DCNT_RPT_HANG,
 				     pfwinfo->event[BTF_EVNT_RPT]);
 
 			dm->error.map.bt_rfk_timeout = bt->rfk_info.map.timeout;
@@ -1258,11 +1285,11 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 					     BTC_DCNT_WL_SLOT_DRIFT, diff_t);
 			}
 
-			_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_W1_HANG,
 				     le32_to_cpu(pcysta->v2.slot_cnt[CXST_W1]));
-			_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_W1_HANG,
 				     le32_to_cpu(pcysta->v2.slot_cnt[CXST_B1]));
-			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_HANG,
 				     le16_to_cpu(pcysta->v2.cycles));
 		} else if (ver->fcxcysta == 3) {
 			if (le16_to_cpu(pcysta->v3.cycles) < BTC_CYSTA_CHK_PERIOD)
@@ -1299,11 +1326,11 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 				}
 			}
 
-			_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_W1_HANG,
 				     le32_to_cpu(pcysta->v3.slot_cnt[CXST_W1]));
-			_chk_btc_err(rtwdev, BTC_DCNT_B1_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_B1_HANG,
 				     le32_to_cpu(pcysta->v3.slot_cnt[CXST_B1]));
-			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_HANG,
 				     le16_to_cpu(pcysta->v3.cycles));
 		} else if (ver->fcxcysta == 4) {
 			if (le16_to_cpu(pcysta->v4.cycles) < BTC_CYSTA_CHK_PERIOD)
@@ -1341,11 +1368,11 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 				}
 			}
 
-			_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_W1_HANG,
 				     le16_to_cpu(pcysta->v4.slot_cnt[CXST_W1]));
-			_chk_btc_err(rtwdev, BTC_DCNT_B1_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_B1_HANG,
 				     le16_to_cpu(pcysta->v4.slot_cnt[CXST_B1]));
-			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_FREEZE,
+			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_HANG,
 				     le16_to_cpu(pcysta->v4.cycles));
 		} else {
 			goto err;
@@ -4578,7 +4605,7 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, bool only_update)
 	}
 
 	if (!(val & BTC_BSCB_ON) ||
-	    btc->dm.cnt_dm[BTC_DCNT_BTCNT_FREEZE] >= BTC_CHK_HANG_MAX)
+	    btc->dm.cnt_dm[BTC_DCNT_BTCNT_HANG] >= BTC_CHK_HANG_MAX)
 		bt->enable.now = 0;
 	else
 		bt->enable.now = 1;
@@ -5349,7 +5376,7 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 			_write_scbd(rtwdev, BTC_WSCB_ALL, false);
 	}
 
-	btc->dm.cnt_dm[BTC_DCNT_BTCNT_FREEZE] = 0;
+	btc->dm.cnt_dm[BTC_DCNT_BTCNT_HANG] = 0;
 	if (wl->status.map.lps_pre == BTC_LPS_OFF &&
 	    wl->status.map.lps_pre != wl->status.map.lps)
 		btc->dm.tdma_instant_excute = 1;
@@ -5699,11 +5726,6 @@ static void _show_cx_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	id_branch = FIELD_GET(GENMASK(7, 0), RTW89_COEX_VERSION);
 	seq_printf(m, " %-15s : Coex:%d.%d.%d(branch:%d), ",
 		   "[coex_version]", ver_main, ver_sub, ver_hotfix, id_branch);
-
-	if (dm->wl_fw_cx_offload != BTC_CX_FW_OFFLOAD)
-		dm->error.map.offload_mismatch = true;
-	else
-		dm->error.map.offload_mismatch = false;
 
 	ver_main = FIELD_GET(GENMASK(31, 24), wl->ver_info.fw_coex);
 	ver_sub = FIELD_GET(GENMASK(23, 16), wl->ver_info.fw_coex);

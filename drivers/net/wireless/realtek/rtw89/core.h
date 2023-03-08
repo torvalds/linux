@@ -883,20 +883,24 @@ enum rtw89_btc_dcnt {
 	BTC_DCNT_RUN = 0x0,
 	BTC_DCNT_CX_RUNINFO,
 	BTC_DCNT_RPT,
-	BTC_DCNT_RPT_FREEZE,
+	BTC_DCNT_RPT_HANG,
 	BTC_DCNT_CYCLE,
-	BTC_DCNT_CYCLE_FREEZE,
+	BTC_DCNT_CYCLE_HANG,
 	BTC_DCNT_W1,
-	BTC_DCNT_W1_FREEZE,
+	BTC_DCNT_W1_HANG,
 	BTC_DCNT_B1,
-	BTC_DCNT_B1_FREEZE,
+	BTC_DCNT_B1_HANG,
 	BTC_DCNT_TDMA_NONSYNC,
 	BTC_DCNT_SLOT_NONSYNC,
-	BTC_DCNT_BTCNT_FREEZE,
+	BTC_DCNT_BTCNT_HANG,
 	BTC_DCNT_WL_SLOT_DRIFT,
-	BTC_DCNT_BT_SLOT_DRIFT,
 	BTC_DCNT_WL_STA_LAST,
-	BTC_DCNT_NUM,
+	BTC_DCNT_BT_SLOT_DRIFT,
+	BTC_DCNT_BT_SLOT_FLOOD,
+	BTC_DCNT_FDDT_TRIG,
+	BTC_DCNT_E2G,
+	BTC_DCNT_E2G_HANG,
+	BTC_DCNT_NUM
 };
 
 enum rtw89_btc_wl_state_cnt {
@@ -1302,15 +1306,22 @@ struct rtw89_btc_dm_emap {
 	u32 pta_owner: 1;
 	u32 wl_rfk_timeout: 1;
 	u32 bt_rfk_timeout: 1;
-
 	u32 wl_fw_hang: 1;
-	u32 offload_mismatch: 1;
 	u32 cycle_hang: 1;
 	u32 w1_hang: 1;
-
 	u32 b1_hang: 1;
 	u32 tdma_no_sync: 1;
+	u32 slot_no_sync: 1;
 	u32 wl_slot_drift: 1;
+	u32 bt_slot_drift: 1;
+	u32 role_num_mismatch: 1;
+	u32 null1_tx_late: 1;
+	u32 bt_afh_conflict: 1;
+	u32 bt_leafh_conflict: 1;
+	u32 bt_slot_flood: 1;
+	u32 wl_e2g_hang: 1;
+	u32 wl_ver_mismatch: 1;
+	u32 bt_ver_mismatch: 1;
 };
 
 union rtw89_btc_dm_error_map {
