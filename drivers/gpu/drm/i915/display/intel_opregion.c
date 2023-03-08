@@ -1237,6 +1237,14 @@ void intel_opregion_unregister(struct drm_i915_private *i915)
 		unregister_acpi_notifier(&opregion->acpi_notifier);
 		opregion->acpi_notifier.notifier_call = NULL;
 	}
+}
+
+void intel_opregion_cleanup(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->display.opregion;
+
+	if (!opregion->header)
+		return;
 
 	/* just clear all opregion memory pointers now */
 	memunmap(opregion->header);
