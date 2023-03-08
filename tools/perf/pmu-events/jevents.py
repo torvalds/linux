@@ -260,6 +260,7 @@ class JsonEvent:
           'CPU-M-CF': 'cpum_cf',
           'CPU-M-SF': 'cpum_sf',
           'PAI-CRYPTO' : 'pai_crypto',
+          'PAI-EXT' : 'pai_ext',
           'UPI LL': 'uncore_upi',
           'hisi_sicl,cpa': 'hisi_sicl,cpa',
           'hisi_sccl,ddrc': 'hisi_sccl,ddrc',
