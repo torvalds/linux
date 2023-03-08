@@ -482,8 +482,6 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 		}
 	}
 
-	XE_BUG_ON(ads->regset_size < (count * sizeof(struct guc_mmio_reg)));
-
 	return count;
 }
 
@@ -496,6 +494,7 @@ static void guc_mmio_reg_state_init(struct xe_guc_ads *ads)
 	u32 addr = xe_bo_ggtt_addr(ads->bo) + regset_offset;
 	struct iosys_map regset_map = IOSYS_MAP_INIT_OFFSET(ads_to_map(ads),
 							    regset_offset);
+	unsigned int regset_used = 0;
 
 	for_each_hw_engine(hwe, gt, id) {
 		unsigned int count;
@@ -521,7 +520,11 @@ static void guc_mmio_reg_state_init(struct xe_guc_ads *ads)
 
 		addr += count * sizeof(struct guc_mmio_reg);
 		iosys_map_incr(&regset_map, count * sizeof(struct guc_mmio_reg));
+
+		regset_used += count * sizeof(struct guc_mmio_reg);
 	}
+
+	XE_BUG_ON(regset_used > ads->regset_size);
 }
 
 static void guc_um_init_params(struct xe_guc_ads *ads)
