@@ -99,14 +99,19 @@ static void bpf_local_storage_free_rcu(struct rcu_head *rcu)
 {
 	struct bpf_local_storage *local_storage;
 
+	local_storage = container_of(rcu, struct bpf_local_storage, rcu);
+	kfree(local_storage);
+}
+
+static void bpf_local_storage_free_trace_rcu(struct rcu_head *rcu)
+{
 	/* If RCU Tasks Trace grace period implies RCU grace period, do
 	 * kfree(), else do kfree_rcu().
 	 */
-	local_storage = container_of(rcu, struct bpf_local_storage, rcu);
 	if (rcu_trace_implies_rcu_gp())
-		kfree(local_storage);
+		bpf_local_storage_free_rcu(rcu);
 	else
-		kfree_rcu(local_storage, rcu);
+		call_rcu(rcu, bpf_local_storage_free_rcu);
 }
 
 static void bpf_selem_free_rcu(struct rcu_head *rcu)
@@ -216,9 +221,9 @@ static void bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem,
 	if (free_local_storage) {
 		if (!reuse_now)
 			call_rcu_tasks_trace(&local_storage->rcu,
-				     bpf_local_storage_free_rcu);
+				     bpf_local_storage_free_trace_rcu);
 		else
-			kfree_rcu(local_storage, rcu);
+			call_rcu(&local_storage->rcu, bpf_local_storage_free_rcu);
 	}
 }
 
@@ -631,7 +636,7 @@ void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 
 	if (free_storage)
-		kfree_rcu(local_storage, rcu);
+		call_rcu(&local_storage->rcu, bpf_local_storage_free_rcu);
 }
 
 u64 bpf_local_storage_map_mem_usage(const struct bpf_map *map)
