@@ -42,6 +42,9 @@ struct wcd_usbss_ctxt {
 	struct task_struct *surge_thread;
 	unsigned int surge_timer_period_ms;
 	unsigned int cached_audio_pwr_mode;
+	bool standby_enable;
+	bool is_in_standby;
+	struct mutex standby_lock;
 };
 
 extern struct regmap *wcd_usbss_regmap_init(struct device *dev,
