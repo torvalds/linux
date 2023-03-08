@@ -269,7 +269,6 @@ static void smsc_get_stats(struct phy_device *phydev,
 static int smsc_phy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
 	struct smsc_phy_priv *priv;
 	struct clk *refclk;
 
@@ -279,7 +278,7 @@ static int smsc_phy_probe(struct phy_device *phydev)
 
 	priv->energy_enable = true;
 
-	if (of_property_read_bool(of_node, "smsc,disable-energy-detect"))
+	if (device_property_present(dev, "smsc,disable-energy-detect"))
 		priv->energy_enable = false;
 
 	phydev->priv = priv;
