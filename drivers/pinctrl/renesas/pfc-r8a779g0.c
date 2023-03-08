@@ -49,6 +49,12 @@
 	PORT_GP_CFG_21(7,	fn, sfx, CFG_FLAGS),					\
 	PORT_GP_CFG_14(8,	fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE_18_33)
 
+#define CPU_ALL_NOGP(fn)								\
+	PIN_NOGP_CFG(VDDQ_AVB0, "VDDQ_AVB0", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_18_25),	\
+	PIN_NOGP_CFG(VDDQ_AVB1, "VDDQ_AVB1", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_18_25),	\
+	PIN_NOGP_CFG(VDDQ_AVB2, "VDDQ_AVB2", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_18_25),	\
+	PIN_NOGP_CFG(VDDQ_TSN0, "VDDQ_TSN0", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_18_25)
+
 /* GPSR0 */
 #define GPSR0_18	F_(MSIOF2_RXD,		IP2SR0_11_8)
 #define GPSR0_17	F_(MSIOF2_SCK,		IP2SR0_7_4)
@@ -1221,10 +1227,12 @@ static const u16 pinmux_data[] = {
  */
 enum {
 	GP_ASSIGN_LAST(),
+	NOGP_ALL(),
 };
 
 static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
+	PINMUX_NOGP_ALL(),
 };
 
 /* - AUDIO CLOCK ----------------------------------------- */
@@ -3973,23 +3981,42 @@ static int r8a779g0_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)
 {
 	int bit = pin & 0x1f;
 
-	*pocctrl = pinmux_ioctrl_regs[POC0].reg;
-	if (pin >= RCAR_GP_PIN(0, 0) && pin <= RCAR_GP_PIN(0, 18))
+	switch (pin) {
+	case RCAR_GP_PIN(0, 0) ... RCAR_GP_PIN(0, 18):
+		*pocctrl = pinmux_ioctrl_regs[POC0].reg;
 		return bit;
 
-	*pocctrl = pinmux_ioctrl_regs[POC1].reg;
-	if (pin >= RCAR_GP_PIN(1, 0) && pin <= RCAR_GP_PIN(1, 22))
+	case RCAR_GP_PIN(1, 0) ... RCAR_GP_PIN(1, 22):
+		*pocctrl = pinmux_ioctrl_regs[POC1].reg;
 		return bit;
 
-	*pocctrl = pinmux_ioctrl_regs[POC3].reg;
-	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 12))
+	case RCAR_GP_PIN(3, 0) ... RCAR_GP_PIN(3, 12):
+		*pocctrl = pinmux_ioctrl_regs[POC3].reg;
 		return bit;
 
-	*pocctrl = pinmux_ioctrl_regs[POC8].reg;
-	if (pin >= RCAR_GP_PIN(8, 0) && pin <= RCAR_GP_PIN(8, 13))
+	case PIN_VDDQ_TSN0:
+		*pocctrl = pinmux_ioctrl_regs[POC4].reg;
+		return 0;
+
+	case PIN_VDDQ_AVB2:
+		*pocctrl = pinmux_ioctrl_regs[POC5].reg;
+		return 0;
+
+	case PIN_VDDQ_AVB1:
+		*pocctrl = pinmux_ioctrl_regs[POC6].reg;
+		return 0;
+
+	case PIN_VDDQ_AVB0:
+		*pocctrl = pinmux_ioctrl_regs[POC7].reg;
+		return 0;
+
+	case RCAR_GP_PIN(8, 0) ... RCAR_GP_PIN(8, 13):
+		*pocctrl = pinmux_ioctrl_regs[POC8].reg;
 		return bit;
 
-	return -EINVAL;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct pinmux_bias_reg pinmux_bias_regs[] = {
