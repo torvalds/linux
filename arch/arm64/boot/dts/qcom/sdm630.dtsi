@@ -1189,7 +1189,6 @@
 			#size-cells = <0>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
-			cell-index = <0>;
 		};
 
 		usb3: usb@a8f8800 {
