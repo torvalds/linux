@@ -59,6 +59,8 @@ struct bpf_active_lock {
 	u32 id;
 };
 
+#define ITER_PREFIX "bpf_iter_"
+
 struct bpf_reg_state {
 	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
