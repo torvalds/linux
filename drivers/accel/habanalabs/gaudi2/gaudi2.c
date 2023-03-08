@@ -7276,7 +7276,7 @@ static bool gaudi2_get_rotator_idle_status(struct hl_device *hdev, u64 *mask_arr
 	return is_idle;
 }
 
-bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
 					struct engines_data *e)
 {
 	bool is_idle = true;
