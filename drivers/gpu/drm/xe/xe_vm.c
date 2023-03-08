@@ -2835,7 +2835,8 @@ static struct xe_vma *vm_bind_ioctl_lookup_vma(struct xe_vm *vm,
 
 		err = xe_vma_userptr_pin_pages(vma);
 		if (err) {
-			xe_vma_destroy(vma, NULL);
+			prep_vma_destroy(vm, vma);
+			xe_vma_destroy_unlocked(vma);
 
 			return ERR_PTR(err);
 		} else {
