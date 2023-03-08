@@ -6293,6 +6293,17 @@ static int ext4_freeze(struct super_block *sb)
 		if (error < 0)
 			goto out;
 
+		/*
+		 * Do another sync. We really should not have any dirty data
+		 * anymore but our checkpointing code does not clear page dirty
+		 * bits due to locking constraints so writeback still can get
+		 * started for inodes with journalled data which triggers
+		 * annoying warnings.
+		 */
+		error = sync_filesystem(sb);
+		if (error < 0)
+			goto out;
+
 		/* Journal blocked and flushed, clear needs_recovery flag. */
 		ext4_clear_feature_journal_needs_recovery(sb);
 		if (ext4_orphan_file_empty(sb))

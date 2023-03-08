@@ -2410,6 +2410,7 @@ static int mpage_journal_page_buffers(handle_t *handle,
 static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 {
 	struct address_space *mapping = mpd->inode->i_mapping;
+	struct super_block *sb = mpd->inode->i_sb;
 	struct folio_batch fbatch;
 	unsigned int nr_folios;
 	pgoff_t index = mpd->first_page;
@@ -2427,15 +2428,23 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 	else
 		tag = PAGECACHE_TAG_DIRTY;
 
-	if (ext4_should_journal_data(mpd->inode)) {
+	mpd->map.m_len = 0;
+	mpd->next_page = index;
+	/*
+	 * Start a transaction for writeback of journalled data. We don't start
+	 * start the transaction if the filesystem is frozen. In that case we
+	 * should not have any dirty data to write anymore but possibly there
+	 * are stray page dirty bits left by the checkpointing code so this
+	 * loop clears them.
+	 */
+	if (ext4_should_journal_data(mpd->inode) &&
+	    sb->s_writers.frozen < SB_FREEZE_FS) {
 		handle = ext4_journal_start(mpd->inode, EXT4_HT_WRITE_PAGE,
 					    bpp);
 		if (IS_ERR(handle))
 			return PTR_ERR(handle);
 	}
 	folio_batch_init(&fbatch);
-	mpd->map.m_len = 0;
-	mpd->next_page = index;
 	while (index <= end) {
 		nr_folios = filemap_get_folios_tag(mapping, &index, end,
 				tag, &fbatch);
@@ -2520,12 +2529,16 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 */
 			if (!mpd->can_map) {
 				if (ext4_page_nomap_can_writeout(&folio->page)) {
+					WARN_ON_ONCE(sb->s_writers.frozen ==
+						     SB_FREEZE_COMPLETE);
 					err = mpage_submit_page(mpd, &folio->page);
 					if (err < 0)
 						goto out;
 				}
 				/* Pending dirtying of journalled data? */
 				if (PageChecked(&folio->page)) {
+					WARN_ON_ONCE(sb->s_writers.frozen >=
+						     SB_FREEZE_FS);
 					err = mpage_journal_page_buffers(handle,
 						mpd, &folio->page);
 					if (err < 0)
