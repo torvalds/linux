@@ -247,6 +247,8 @@ class BazelBuilder:
         if self.skip_list:
             self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
 
+        self.user_opts.extend(["--config=stamp"])
+
         self.user_opts.append("--config=android_arm64")
 
         logging.info("Building device targets...")
