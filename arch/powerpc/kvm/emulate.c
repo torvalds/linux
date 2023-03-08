@@ -301,6 +301,10 @@ int kvmppc_emulate_instruction(struct kvm_vcpu *vcpu)
 	trace_kvm_ppc_instr(inst, kvmppc_get_pc(vcpu), emulated);
 
 	/* Advance past emulated instruction. */
+	/*
+	 * If this ever handles prefixed instructions, the 4
+	 * will need to become ppc_inst_len(pinst) instead.
+	 */
 	if (advance)
 		kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
 

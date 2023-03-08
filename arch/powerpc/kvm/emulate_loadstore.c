@@ -360,7 +360,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 	/* Advance past emulated instruction. */
 	if (emulated != EMULATE_FAIL)
-		kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
+		kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + ppc_inst_len(inst));
 
 	return emulated;
 }
