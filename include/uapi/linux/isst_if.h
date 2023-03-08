@@ -164,6 +164,82 @@ struct isst_if_msr_cmds {
 };
 
 /**
+ * struct isst_core_power - Structure to get/set core_power feature
+ * @get_set:	0: Get, 1: Set
+ * @socket_id:	Socket/package id
+ * @power_domain: Power Domain id
+ * @enable:	Feature enable status
+ * @priority_type: Priority type for the feature (ordered/proportional)
+ *
+ * Structure to get/set core_power feature state using IOCTL
+ * ISST_IF_CORE_POWER_STATE.
+ */
+struct isst_core_power {
+	__u8 get_set;
+	__u8 socket_id;
+	__u8 power_domain_id;
+	__u8 enable;
+	__u8 supported;
+	__u8 priority_type;
+};
+
+/**
+ * struct isst_clos_param - Structure to get/set clos praram
+ * @get_set:	0: Get, 1: Set
+ * @socket_id:	Socket/package id
+ * @power_domain:	Power Domain id
+ * clos:	Clos ID for the parameters
+ * min_freq_mhz: Minimum frequency in MHz
+ * max_freq_mhz: Maximum frequency in MHz
+ * prop_prio:	Proportional priority from 0-15
+ *
+ * Structure to get/set per clos property using IOCTL
+ * ISST_IF_CLOS_PARAM.
+ */
+struct isst_clos_param {
+	__u8 get_set;
+	__u8 socket_id;
+	__u8 power_domain_id;
+	__u8 clos;
+	__u16 min_freq_mhz;
+	__u16 max_freq_mhz;
+	__u8 prop_prio;
+};
+
+/**
+ * struct isst_if_clos_assoc - Structure to assign clos to a CPU
+ * @socket_id:	Socket/package id
+ * @power_domain:	Power Domain id
+ * @logical_cpu: CPU number
+ * @clos:	Clos ID to assign to the logical CPU
+ *
+ * Structure to get/set core_power feature.
+ */
+struct isst_if_clos_assoc {
+	__u8 socket_id;
+	__u8 power_domain_id;
+	__u16 logical_cpu;
+	__u16 clos;
+};
+
+/**
+ * struct isst_if_clos_assoc_cmds - Structure to assign clos to CPUs
+ * @cmd_count:	Number of cmds (cpus) in this request
+ * @get_set:	Request is for get or set
+ * @punit_cpu_map: Set to 1 if the CPU number is punit numbering not
+ *		   Linux CPU number
+ *
+ * Structure used to get/set associate CPUs to clos using IOCTL
+ * ISST_IF_CLOS_ASSOC.
+ */
+struct isst_if_clos_assoc_cmds {
+	__u16 cmd_count;
+	__u16 get_set;
+	__u16 punit_cpu_map;
+	struct isst_if_clos_assoc assoc_info[1];
+};
+
+/**
  * struct isst_tpmi_instance_count - Get number of TPMI instances per socket
  * @socket_id:	Socket/package id
  * @count:	Number of instances
@@ -186,5 +262,8 @@ struct isst_tpmi_instance_count {
 #define ISST_IF_MSR_COMMAND	_IOWR(ISST_IF_MAGIC, 4, struct isst_if_msr_cmds *)
 
 #define ISST_IF_COUNT_TPMI_INSTANCES	_IOR(ISST_IF_MAGIC, 5, struct isst_tpmi_instance_count *)
+#define ISST_IF_CORE_POWER_STATE _IOWR(ISST_IF_MAGIC, 6, struct isst_core_power *)
+#define ISST_IF_CLOS_PARAM	_IOWR(ISST_IF_MAGIC, 7, struct isst_clos_param *)
+#define ISST_IF_CLOS_ASSOC	_IOWR(ISST_IF_MAGIC, 8, struct isst_if_clos_assoc_cmds *)
 
 #endif
