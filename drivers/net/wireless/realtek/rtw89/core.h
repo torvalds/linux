@@ -1894,6 +1894,11 @@ struct rtw89_btc_fbtc_cycle_time_info {
 	__le16 tmaxdiff[CXT_MAX]; /* max wl-wl bt-bt cycle diff time */
 } __packed;
 
+struct rtw89_btc_fbtc_cycle_time_info_v5 {
+	__le16 tavg[CXT_MAX]; /* avg wl/bt cycle time */
+	__le16 tmax[CXT_MAX]; /* max wl/bt cycle time */
+} __packed;
+
 struct rtw89_btc_fbtc_a2dp_trx_stat {
 	u8 empty_cnt;
 	u8 retry_cnt;
@@ -1950,11 +1955,32 @@ struct rtw89_btc_fbtc_cycle_fddt_info {
 #define RTW89_BTC_FDDT_CELL_TRAIN_STATE GENMASK(3, 0)
 #define RTW89_BTC_FDDT_CELL_TRAIN_PHASE GENMASK(7, 4)
 
+struct rtw89_btc_fbtc_cycle_fddt_info_v5 {
+	__le16 train_cycle;
+	__le16 tp;
+
+	s8 tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
+	s8 bt_tx_power; /* decrease Tx power (dB) */
+	s8 bt_rx_gain;  /* LNA constrain level */
+	u8 no_empty_cnt;
+
+	u8 rssi; /* [7:4] -> bt_rssi_level, [3:0]-> wl_rssi_level */
+	u8 cn; /* condition_num */
+	u8 train_status; /* [7:4]-> train-state, [3:0]-> train-phase */
+	u8 train_result; /* refer to enum btc_fddt_check_map */
+} __packed;
+
 struct rtw89_btc_fbtc_fddt_cell_status {
 	s8 wl_tx_pwr;
 	s8 bt_tx_pwr;
 	s8 bt_rx_gain;
 	u8 state_phase; /* [0:3] train state, [4:7] train phase */
+} __packed;
+
+struct rtw89_btc_fbtc_fddt_cell_status_v5 {
+	s8 wl_tx_pwr;
+	s8 bt_tx_pwr;
+	s8 bt_rx_gain;
 } __packed;
 
 struct rtw89_btc_fbtc_cysta_v3 { /* statistics for cycles */
@@ -2002,10 +2028,35 @@ struct rtw89_btc_fbtc_cysta_v4 { /* statistics for cycles */
 	__le32 except_map;
 } __packed;
 
+struct rtw89_btc_fbtc_cysta_v5 { /* statistics for cycles */
+	u8 fver;
+	u8 rsvd;
+	u8 collision_cnt; /* counter for event/timer occur at the same time */
+	u8 except_cnt;
+	u8 wl_rx_err_ratio[BTC_CYCLE_SLOT_MAX];
+
+	__le16 skip_cnt;
+	__le16 cycles; /* total cycle number */
+
+	__le16 slot_step_time[BTC_CYCLE_SLOT_MAX]; /* record the wl/bt slot time */
+	__le16 slot_cnt[CXST_MAX]; /* slot count */
+	__le16 bcn_cnt[CXBCN_MAX];
+	struct rtw89_btc_fbtc_cycle_time_info_v5 cycle_time;
+	struct rtw89_btc_fbtc_cycle_leak_info leak_slot;
+	struct rtw89_btc_fbtc_cycle_a2dp_empty_info a2dp_ept;
+	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 a2dp_trx[BTC_CYCLE_SLOT_MAX];
+	struct rtw89_btc_fbtc_cycle_fddt_info_v5 fddt_trx[BTC_CYCLE_SLOT_MAX];
+	struct rtw89_btc_fbtc_fddt_cell_status_v5 fddt_cells[FDD_TRAIN_WL_DIRECTION]
+							    [FDD_TRAIN_WL_RSSI_LEVEL]
+							    [FDD_TRAIN_BT_RSSI_LEVEL];
+	__le32 except_map;
+} __packed;
+
 union rtw89_btc_fbtc_cysta_info {
 	struct rtw89_btc_fbtc_cysta_v2 v2;
 	struct rtw89_btc_fbtc_cysta_v3 v3;
 	struct rtw89_btc_fbtc_cysta_v4 v4;
+	struct rtw89_btc_fbtc_cysta_v5 v5;
 };
 
 struct rtw89_btc_fbtc_cynullsta_v1 { /* cycle null statistics */
@@ -2123,6 +2174,7 @@ struct rtw89_btc_dm {
 	u32 wl_only: 1;
 	u32 wl_fw_cx_offload: 1;
 	u32 freerun: 1;
+	u32 fddt_train: 1;
 	u32 wl_ps_ctrl: 2;
 	u32 wl_mimo_ps: 1;
 	u32 leak_ap: 1;
