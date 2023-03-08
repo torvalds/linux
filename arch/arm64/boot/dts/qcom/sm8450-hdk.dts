@@ -797,7 +797,7 @@
 	spkr_1_sd_n_active: spkr-1-sd-n-active-state {
 		pins = "gpio1";
 		function = "gpio";
-		drive-strength = <4>;
+		drive-strength = <16>;
 		bias-disable;
 		output-low;
 	};
@@ -805,7 +805,7 @@
 	spkr_2_sd_n_active: spkr-2-sd-n-active-state {
 		pins = "gpio89";
 		function = "gpio";
-		drive-strength = <4>;
+		drive-strength = <16>;
 		bias-disable;
 		output-low;
 	};
