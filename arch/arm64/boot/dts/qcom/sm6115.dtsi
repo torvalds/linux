@@ -2282,7 +2282,7 @@
 		};
 
 		cpufreq_hw: cpufreq@f521000 {
-			compatible = "qcom,cpufreq-hw";
+			compatible = "qcom,sm6115-cpufreq-hw", "qcom,cpufreq-hw";
 			reg = <0x0 0x0f521000 0x0 0x1000>,
 			      <0x0 0x0f523000 0x0 0x1000>;
 
