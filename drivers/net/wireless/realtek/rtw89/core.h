@@ -1180,6 +1180,22 @@ struct rtw89_btc_wl_active_role_v1 {
 	u32 noa_duration; /* ms */
 };
 
+struct rtw89_btc_wl_active_role_v2 {
+	u8 connected: 1;
+	u8 pid: 3;
+	u8 phy: 1;
+	u8 noa: 1;
+	u8 band: 2;
+
+	u8 client_ps: 1;
+	u8 bw: 7;
+
+	u8 role;
+	u8 ch;
+
+	u32 noa_duration; /* ms */
+};
+
 struct rtw89_btc_wl_role_info_bpos {
 	u16 none: 1;
 	u16 station: 1;
@@ -1218,6 +1234,21 @@ struct rtw89_btc_wl_role_info_v1 { /* struct size must be n*4 bytes */
 	u8 link_mode;
 	union rtw89_btc_wl_role_info_map role_map;
 	struct rtw89_btc_wl_active_role_v1 active_role_v1[RTW89_PORT_NUM];
+	u32 mrole_type; /* btc_wl_mrole_type */
+	u32 mrole_noa_duration; /* ms */
+
+	u32 dbcc_en: 1;
+	u32 dbcc_chg: 1;
+	u32 dbcc_2g_phy: 2; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
+	u32 link_mode_chg: 1;
+	u32 rsvd: 27;
+};
+
+struct rtw89_btc_wl_role_info_v2 { /* struct size must be n*4 bytes */
+	u8 connect_cnt;
+	u8 link_mode;
+	union rtw89_btc_wl_role_info_map role_map;
+	struct rtw89_btc_wl_active_role_v2 active_role_v2[RTW89_PORT_NUM];
 	u32 mrole_type; /* btc_wl_mrole_type */
 	u32 mrole_noa_duration; /* ms */
 
@@ -1343,6 +1374,7 @@ struct rtw89_btc_wl_info {
 	struct rtw89_btc_wl_afh_info afh_info;
 	struct rtw89_btc_wl_role_info role_info;
 	struct rtw89_btc_wl_role_info_v1 role_info_v1;
+	struct rtw89_btc_wl_role_info_v2 role_info_v2;
 	struct rtw89_btc_wl_scan_info scan_info;
 	struct rtw89_btc_wl_dbcc_info dbcc_info;
 	struct rtw89_btc_rf_para rf_para;
