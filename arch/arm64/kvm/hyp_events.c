@@ -333,6 +333,12 @@ void kvm_hyp_init_events_tracefs(struct dentry *parent)
 	if (!d)
 		pr_err("Failed to create events/header_page\n");
 
+	parent = tracefs_create_dir("hyp", parent);
+	if (!parent) {
+		pr_err("Failed to create tracefs folder for hyp events\n");
+		return;
+	}
+
 	for (; (unsigned long)event < (unsigned long)__hyp_events_end; event++) {
 		event_dir = tracefs_create_dir(event->name, parent);
 		if (!event_dir) {
