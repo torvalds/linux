@@ -37,6 +37,28 @@ ${NM} -n ${1} | sed >${2} -e "
 # local labels, .LBB, .Ltmpxxx, .L__unnamed_xx, .LASANPC, etc.
 / \.L/d
 
+# arm64 EFI stub namespace
+/ __efistub_/d
+
+# arm64 local symbols in non-VHE KVM namespace
+/ __kvm_nvhe_\$/d
+/ __kvm_nvhe_\.L/d
+
+# arm64 lld
+/ __AArch64ADRPThunk_/d
+
+# arm lld
+/ __ARMV5PILongThunk_/d
+/ __ARMV7PILongThunk_/d
+/ __ThumbV7PILongThunk_/d
+
+# mips lld
+/ __LA25Thunk_/d
+/ __microLA25Thunk_/d
+
+# CFI type identifiers
+/ __kcfi_typeid_/d
+
 # CRC from modversions
 / __crc_/d
 
@@ -47,11 +69,32 @@ ${NM} -n ${1} | sed >${2} -e "
 / __kstrtabns_/d
 
 # ---------------------------------------------------------------------------
+# Ignored suffixes
+#  (do not forget '$' after each pattern)
+
+# arm
+/_from_arm$/d
+/_from_thumb$/d
+/_veneer$/d
+
+# ---------------------------------------------------------------------------
 # Ignored symbols (exact match)
 #  (do not forget a space before and '$' after each pattern)
 
 # for LoongArch?
 / L0$/d
+
+# ppc
+/ _SDA_BASE_$/d
+/ _SDA2_BASE_$/d
+
+# ---------------------------------------------------------------------------
+# Ignored patterns
+#  (symbols that contain the pattern are ignored)
+
+# ppc stub
+/\.long_branch\./d
+/\.plt_branch\./d
 
 # ---------------------------------------------------------------------------
 # Ignored kallsyms symbols

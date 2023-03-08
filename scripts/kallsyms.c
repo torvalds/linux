@@ -102,66 +102,6 @@ static char *sym_name(const struct sym_entry *s)
 
 static bool is_ignored_symbol(const char *name, char type)
 {
-	/* Symbol names that exactly match to the following are ignored.*/
-	static const char * const ignored_symbols[] = {
-		/* Exclude linker generated symbols which vary between passes */
-		"_SDA_BASE_",		/* ppc */
-		"_SDA2_BASE_",		/* ppc */
-		NULL
-	};
-
-	/* Symbol names that begin with the following are ignored.*/
-	static const char * const ignored_prefixes[] = {
-		"__efistub_",		/* arm64 EFI stub namespace */
-		"__kvm_nvhe_$",		/* arm64 local symbols in non-VHE KVM namespace */
-		"__kvm_nvhe_.L",	/* arm64 local symbols in non-VHE KVM namespace */
-		"__AArch64ADRPThunk_",	/* arm64 lld */
-		"__ARMV5PILongThunk_",	/* arm lld */
-		"__ARMV7PILongThunk_",
-		"__ThumbV7PILongThunk_",
-		"__LA25Thunk_",		/* mips lld */
-		"__microLA25Thunk_",
-		"__kcfi_typeid_",	/* CFI type identifiers */
-		NULL
-	};
-
-	/* Symbol names that end with the following are ignored.*/
-	static const char * const ignored_suffixes[] = {
-		"_from_arm",		/* arm */
-		"_from_thumb",		/* arm */
-		"_veneer",		/* arm */
-		NULL
-	};
-
-	/* Symbol names that contain the following are ignored.*/
-	static const char * const ignored_matches[] = {
-		".long_branch.",	/* ppc stub */
-		".plt_branch.",		/* ppc stub */
-		NULL
-	};
-
-	const char * const *p;
-
-	for (p = ignored_symbols; *p; p++)
-		if (!strcmp(name, *p))
-			return true;
-
-	for (p = ignored_prefixes; *p; p++)
-		if (!strncmp(name, *p, strlen(*p)))
-			return true;
-
-	for (p = ignored_suffixes; *p; p++) {
-		int l = strlen(name) - strlen(*p);
-
-		if (l >= 0 && !strcmp(name + l, *p))
-			return true;
-	}
-
-	for (p = ignored_matches; *p; p++) {
-		if (strstr(name, *p))
-			return true;
-	}
-
 	if (type == 'u' || type == 'n')
 		return true;
 
