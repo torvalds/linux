@@ -238,8 +238,6 @@ setup or driver probe/teardown code, so this is an easy constraint.)::
         ## 	gpio_free_array()
 
                 gpio_free()
-                gpio_set_debounce()
-
 
 
 Claiming and Releasing GPIOs
@@ -714,27 +712,6 @@ a daughtercard might be different depending on the base board being used,
 or other cards in the stack.  In such cases, you may need to use the
 gpiochip nodes (possibly in conjunction with schematics) to determine
 the correct GPIO number to use for a given signal.
-
-
-Exporting from Kernel code
---------------------------
-Kernel code can explicitly manage exports of GPIOs which have already been
-requested using gpio_request()::
-
-	/* export the GPIO to userspace */
-	int gpio_export(unsigned gpio, bool direction_may_change);
-
-	/* reverse gpio_export() */
-	void gpio_unexport();
-
-After a kernel driver requests a GPIO, it may only be made available in
-the sysfs interface by gpio_export().  The driver can control whether the
-signal direction may change.  This helps drivers prevent userspace code
-from accidentally clobbering important system state.
-
-This explicit exporting can help with debugging (by making some kinds
-of experiments easier), or can provide an always-there interface that's
-suitable for documenting as part of a board support package.
 
 
 API Reference

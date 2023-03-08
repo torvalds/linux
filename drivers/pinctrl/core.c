@@ -30,7 +30,6 @@
 
 #ifdef CONFIG_GPIOLIB
 #include "../gpio/gpiolib.h"
-#include <asm-generic/gpio.h>
 #endif
 
 #include "core.h"

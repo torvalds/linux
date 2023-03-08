@@ -7,16 +7,18 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/mutex.h>
+#include <linux/pinctrl/pinctrl.h>
+
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
-#include <linux/export.h>
-#include <linux/acpi.h>
-#include <linux/interrupt.h>
-#include <linux/mutex.h>
-#include <linux/pinctrl/pinctrl.h>
 
 #include "gpiolib.h"
 #include "gpiolib-acpi.h"

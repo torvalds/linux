@@ -1,17 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/idr.h>
-#include <linux/mutex.h>
+
+#include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/sysfs.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/driver.h>
+#include <linux/idr.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
+#include <linux/kstrtox.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/ctype.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
+
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 
 #include "gpiolib.h"
 #include "gpiolib-sysfs.h"
+
+struct kernfs_node;
 
 #define GPIO_IRQF_TRIGGER_NONE		0
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
@@ -491,7 +502,7 @@ static ssize_t unexport_store(struct class *class,
 		goto done;
 
 	desc = gpio_to_desc(gpio);
-	/* reject bogus commands (gpio_unexport ignores them) */
+	/* reject bogus commands (gpiod_unexport() ignores them) */
 	if (!desc) {
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
 		return -EINVAL;
@@ -790,7 +801,7 @@ static int __init gpiolib_sysfs_init(void)
 	 * early (e.g. before the class_register above was called).
 	 *
 	 * We run before arch_initcall() so chip->dev nodes can have
-	 * registered, and so arch_initcall() can always gpio_export().
+	 * registered, and so arch_initcall() can always gpiod_export().
 	 */
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_for_each_entry(gdev, &gpio_devices, list) {
