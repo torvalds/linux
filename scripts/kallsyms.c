@@ -178,10 +178,7 @@ static bool is_ignored_symbol(const char *name, char type)
 			return true;
 	}
 
-	if (type == 'U' || type == 'u')
-		return true;
-	/* exclude debugging symbols */
-	if (type == 'N' || type == 'n')
+	if (type == 'u' || type == 'n')
 		return true;
 
 	if (toupper(type) == 'A') {
