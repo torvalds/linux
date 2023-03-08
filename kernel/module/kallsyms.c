@@ -503,8 +503,7 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 }
 
 int module_kallsyms_on_each_symbol(const char *modname,
-				   int (*fn)(void *, const char *,
-					     struct module *, unsigned long),
+				   int (*fn)(void *, const char *, unsigned long),
 				   void *data)
 {
 	struct module *mod;
@@ -533,7 +532,7 @@ int module_kallsyms_on_each_symbol(const char *modname,
 				continue;
 
 			ret = fn(data, kallsyms_symbol_name(kallsyms, i),
-				 mod, kallsyms_symbol_value(sym));
+				 kallsyms_symbol_value(sym));
 			if (ret != 0)
 				goto out;
 		}
