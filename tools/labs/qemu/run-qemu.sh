@@ -33,7 +33,9 @@ esac
 smbd=${SMBD:-"smbd"}
 
 qemu=${QEMU:-"qemu-system-$qemu_arch"}
-qemu_kvm=${QEMU_KVM:-"-enable-kvm -cpu host"}
+if kvm-ok; then
+	qemu_kvm=${QEMU_KVM:-"-enable-kvm -cpu host"}
+fi
 qemu_cpus=${QEMU_CPUS:-"1"}
 qemu_mem=${QEMU_MEM:-"512"}
 qemu_display=${QEMU_DISPLAY:-"$qemu_display"}

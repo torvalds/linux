@@ -30,6 +30,8 @@ RUN apt-get install -y libssl-dev
 RUN apt-get install -y git ninja-build pkg-config libglib2.0-dev libpixman-1-dev
 RUN apt-get install -y lzop
 
+RUN apt-get install -y samba # for the new make console command
+
 RUN apt-get -y clean
 
 RUN rm -rf /var/lib/apt/lists/*
