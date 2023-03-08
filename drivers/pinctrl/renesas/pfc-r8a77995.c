@@ -2855,11 +2855,23 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+enum ioctrl_regs {
+	POCCTRL0,
+	TDSELCTRL,
+};
+
+static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
+	[POCCTRL0] = { 0xe6060380, },
+	[TDSELCTRL] = { 0xe60603c0, },
+	{ /* sentinel */ },
+};
+
+
 static int r8a77995_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)
 {
 	int bit = -EINVAL;
 
-	*pocctrl = 0xe6060380;
+	*pocctrl = pinmux_ioctrl_regs[POCCTRL0].reg;
 
 	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 9))
 		bit = 29 - (pin - RCAR_GP_PIN(3, 0));
@@ -3073,15 +3085,6 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[31] = RCAR_GP_PIN(6, 11),	/* QSPI1_SSL */
 	} },
 	{ /* sentinel */ }
-};
-
-enum ioctrl_regs {
-	TDSELCTRL,
-};
-
-static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
-	[TDSELCTRL] = { 0xe60603c0, },
-	{ /* sentinel */ },
 };
 
 static const struct pinmux_bias_reg *
