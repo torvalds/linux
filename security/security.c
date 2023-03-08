@@ -4981,20 +4981,20 @@ int security_key_permission(key_ref_t key_ref, const struct cred *cred,
 /**
  * security_key_getsecurity() - Get the key's security label
  * @key: key
- * @_buffer: security label buffer
+ * @buffer: security label buffer
  *
  * Get a textual representation of the security context attached to a key for
  * the purposes of honouring KEYCTL_GETSECURITY.  This function allocates the
  * storage for the NUL-terminated string and the caller should free it.
  *
- * Return: Returns the length of @_buffer (including terminating NUL) or -ve if
+ * Return: Returns the length of @buffer (including terminating NUL) or -ve if
  *         an error occurs.  May also return 0 (and a NULL buffer pointer) if
  *         there is no security label assigned to the key.
  */
-int security_key_getsecurity(struct key *key, char **_buffer)
+int security_key_getsecurity(struct key *key, char **buffer)
 {
-	*_buffer = NULL;
-	return call_int_hook(key_getsecurity, 0, key, _buffer);
+	*buffer = NULL;
+	return call_int_hook(key_getsecurity, 0, key, buffer);
 }
 #endif	/* CONFIG_KEYS */
 
