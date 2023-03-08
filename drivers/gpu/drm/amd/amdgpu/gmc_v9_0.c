@@ -1248,7 +1248,7 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 		is_local = (!is_vram && (adev->flags & AMD_IS_APU) &&
 			    num_possible_nodes() <= 1) ||
 			   (is_vram && adev == bo_adev &&
-			    bo->mem_id == vm->mem_id);
+			    KFD_XCP_MEM_ID(adev, bo->xcp_id) == vm->mem_id);
 		snoop = true;
 		if (uncached) {
 			mtype = MTYPE_UC;

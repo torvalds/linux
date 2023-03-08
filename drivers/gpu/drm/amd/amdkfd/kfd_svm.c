@@ -556,7 +556,7 @@ svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
 	bp.type = ttm_bo_type_device;
 	bp.resv = NULL;
 	if (node->xcp)
-		bp.mem_id_plus1 = node->xcp->mem_id + 1;
+		bp.xcp_id_plus1 = node->xcp->id + 1;
 
 	r = amdgpu_bo_create_user(node->adev, &bp, &ubo);
 	if (r) {
@@ -567,7 +567,7 @@ svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
 
 	pr_debug("alloc bo at offset 0x%lx size 0x%lx on partition %d\n",
 		 bo->tbo.resource->start << PAGE_SHIFT, bp.size,
-		 bp.mem_id_plus1 - 1);
+		 bp.xcp_id_plus1 - 1);
 
 	r = amdgpu_bo_reserve(bo, true);
 	if (r) {

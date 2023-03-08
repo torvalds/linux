@@ -1051,6 +1051,7 @@ static void amdgpu_ttm_backend_destroy(struct ttm_device *bdev,
 static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 					   uint32_t page_flags)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 	struct amdgpu_ttm_tt *gtt;
 	enum ttm_caching caching;
@@ -1060,7 +1061,10 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 		return NULL;
 	}
 	gtt->gobj = &bo->base;
-	gtt->pool_id = abo->mem_id;
+	if (adev->gmc.mem_partitions && abo->xcp_id >= 0)
+		gtt->pool_id = KFD_XCP_MEM_ID(adev, abo->xcp_id);
+	else
+		gtt->pool_id = abo->xcp_id;
 
 	if (abo->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
 		caching = ttm_write_combined;
