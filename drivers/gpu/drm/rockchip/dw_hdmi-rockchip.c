@@ -241,6 +241,9 @@ struct rockchip_hdmi {
 	struct delayed_work work;
 	struct workqueue_struct *workqueue;
 	struct gpio_desc *hpd_gpiod;
+	struct pinctrl *p;
+	struct pinctrl_state *idle_state;
+	struct pinctrl_state *default_state;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -1516,6 +1519,24 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 			enable_irq_wake(hdmi->hpd_irq);
 	}
 
+	hdmi->p = devm_pinctrl_get(hdmi->dev);
+	if (IS_ERR(hdmi->p)) {
+		dev_err(hdmi->dev, "could not get pinctrl\n");
+		return PTR_ERR(hdmi->p);
+	}
+
+	hdmi->idle_state = pinctrl_lookup_state(hdmi->p, "idle");
+	if (IS_ERR(hdmi->idle_state)) {
+		dev_dbg(hdmi->dev, "idle state is not defined\n");
+		return 0;
+	}
+
+	hdmi->default_state = pinctrl_lookup_state(hdmi->p, "default");
+	if (IS_ERR(hdmi->default_state)) {
+		dev_err(hdmi->dev, "could not find default state\n");
+		return PTR_ERR(hdmi->default_state);
+	}
+
 	return 0;
 }
 
@@ -2450,6 +2471,22 @@ static void dw_hdmi_rockchip_set_prev_bus_format(void *data, unsigned long bus_f
 	hdmi->prev_bus_format = bus_format;
 }
 
+static void dw_hdmi_rockchip_set_ddc_io(void *data, bool enable)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	if (!hdmi->p || !hdmi->idle_state || !hdmi->default_state)
+		return;
+
+	if (!enable) {
+		if (pinctrl_select_state(hdmi->p, hdmi->idle_state))
+			dev_err(hdmi->dev, "could not select idle state\n");
+	} else {
+		if (pinctrl_select_state(hdmi->p, hdmi->default_state))
+			dev_err(hdmi->dev, "could not select default state\n");
+	}
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -3364,6 +3401,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_check_hdr_color_change;
 	plat_data->set_prev_bus_format =
 		dw_hdmi_rockchip_set_prev_bus_format;
+	plat_data->set_ddc_io =
+		dw_hdmi_rockchip_set_ddc_io;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);

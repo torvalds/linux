@@ -420,13 +420,18 @@ static void repo_hpd_event(struct work_struct *p_work)
 
 	if (hdmi->bridge.dev) {
 		bool change;
+		void *data = hdmi->plat_data->phy_data;
 
 		change = drm_helper_hpd_irq_event(hdmi->bridge.dev);
-		if (change && hdmi->cec_adap &&
-		    hdmi->cec_adap->devnode.registered)
-			cec_queue_pin_hpd_event(hdmi->cec_adap,
-						hdmi->hpd_state,
-						ktime_get());
+
+		if (change) {
+			if (hdmi->plat_data->set_ddc_io)
+				hdmi->plat_data->set_ddc_io(data, hdmi->hpd_state);
+			if (hdmi->cec_adap->devnode.registered)
+				cec_queue_pin_hpd_event(hdmi->cec_adap,
+							hdmi->hpd_state,
+							ktime_get());
+		}
 		drm_bridge_hpd_notify(&hdmi->bridge, status);
 	}
 }
@@ -4795,8 +4800,12 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->bridge_is_on = true;
 		hdmi->phy.enabled = true;
 		hdmi->initialized = true;
+		if (hdmi->plat_data->set_ddc_io)
+			hdmi->plat_data->set_ddc_io(hdmi->plat_data->phy_data, true);
 	} else if (ret & HDMI_PHY_TX_PHY_LOCK) {
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
+		if (hdmi->plat_data->set_ddc_io)
+			hdmi->plat_data->set_ddc_io(hdmi->plat_data->phy_data, false);
 	}
 
 	init_hpd_work(hdmi);
