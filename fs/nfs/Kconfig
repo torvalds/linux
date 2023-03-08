@@ -75,7 +75,7 @@ config NFS_V3_ACL
 config NFS_V4
 	tristate "NFS client support for NFS version 4"
 	depends on NFS_FS
-	select SUNRPC_GSS
+	select RPCSEC_GSS_KRB5
 	select KEYS
 	help
 	  This option enables support for version 4 of the NFS protocol

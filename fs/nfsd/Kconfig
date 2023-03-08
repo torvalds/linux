@@ -73,7 +73,7 @@ config NFSD_V4
 	bool "NFS server support for NFS version 4"
 	depends on NFSD && PROC_FS
 	select FS_POSIX_ACL
-	select SUNRPC_GSS
+	select RPCSEC_GSS_KRB5
 	select CRYPTO
 	select CRYPTO_MD5
 	select CRYPTO_SHA256
