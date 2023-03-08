@@ -12,6 +12,14 @@ Byte swap instructions
 
 ``BPF_FROM_LE`` and ``BPF_FROM_BE`` exist as aliases for ``BPF_TO_LE`` and ``BPF_TO_BE`` respectively.
 
+Jump instructions
+=================
+
+``BPF_CALL | BPF_X | BPF_JMP`` (0x8d), where the helper function
+integer would be read from a specified register, is not currently supported
+by the verifier.  Any programs with this instruction will fail to load
+until such support is added.
+
 Legacy BPF Packet access instructions
 =====================================
 
