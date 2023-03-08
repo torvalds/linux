@@ -340,6 +340,11 @@ static void handle_tpc_interrupt(struct hl_device *hdev)
 	hl_device_cond_reset(hdev, flags, event_mask);
 }
 
+static void handle_unexpected_user_interrupt(struct hl_device *hdev)
+{
+	dev_err_ratelimited(hdev->dev, "Received unexpected user error interrupt\n");
+}
+
 /**
  * hl_irq_handler_user_interrupt - irq handler for user interrupts
  *
@@ -384,6 +389,9 @@ irqreturn_t hl_irq_user_interrupt_thread_handler(int irq, void *arg)
 		break;
 	case HL_USR_INTERRUPT_TPC:
 		handle_tpc_interrupt(hdev);
+		break;
+	case HL_USR_INTERRUPT_UNEXPECTED:
+		handle_unexpected_user_interrupt(hdev);
 		break;
 	default:
 		break;
