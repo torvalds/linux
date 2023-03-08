@@ -1228,7 +1228,7 @@ void security_sb_free(struct super_block *sb)
 
 /**
  * security_free_mnt_opts() - Free memory associated with mount options
- * @mnt_ops: LSM processed mount options
+ * @mnt_opts: LSM processed mount options
  *
  * Free memory associated with @mnt_ops.
  */
@@ -1244,7 +1244,7 @@ EXPORT_SYMBOL(security_free_mnt_opts);
 /**
  * security_sb_eat_lsm_opts() - Consume LSM mount options
  * @options: mount options
- * @mnt_ops: LSM processed mount options
+ * @mnt_opts: LSM processed mount options
  *
  * Eat (scan @options) and save them in @mnt_opts.
  *
@@ -1407,8 +1407,8 @@ EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
 /**
  * security_sb_clone_mnt_opts() - Duplicate superblock mount options
- * @olddb: source superblock
- * @newdb: destination superblock
+ * @oldsb: source superblock
+ * @newsb: destination superblock
  * @kern_flags: kernel flags (in)
  * @set_kern_flags: kernel flags (out)
  *
@@ -1916,7 +1916,7 @@ int security_inode_unlink(struct inode *dir, struct dentry *dentry)
 }
 
 /**
- * security_inode_symlink() Check if creating a symbolic link is allowed
+ * security_inode_symlink() - Check if creating a symbolic link is allowed
  * @dir: parent directory
  * @dentry: symbolic link
  * @old_name: existing filename
@@ -2125,6 +2125,7 @@ int security_inode_getattr(const struct path *path)
  * @dentry: file
  * @name: xattr name
  * @value: xattr value
+ * @size: size of xattr value
  * @flags: flags
  *
  * Check permission before setting the extended attributes.
@@ -2686,7 +2687,7 @@ int security_mmap_addr(unsigned long addr)
  * security_file_mprotect() - Check if changing memory protections is allowed
  * @vma: memory region
  * @reqprot: application requested protection
- * @prog: protection applied by the kernel
+ * @prot: protection applied by the kernel
  *
  * Check permissions before changing memory access permissions.
  *
@@ -3421,7 +3422,7 @@ int security_create_user_ns(const struct cred *cred)
 /**
  * security_ipc_permission() - Check if sysv ipc access is allowed
  * @ipcp: ipc permission structure
- * @flags: requested permissions
+ * @flag: requested permissions
  *
  * Check permissions for access to IPC.
  *
@@ -3718,7 +3719,7 @@ int security_sem_associate(struct kern_ipc_perm *sma, int semflg)
 }
 
 /**
- * security_sem_ctl() - Check if a sysv semaphore operation is allowed
+ * security_sem_semctl() - Check if a sysv semaphore operation is allowed
  * @sma: sysv ipc permission structure
  * @cmd: operation
  *
@@ -4088,7 +4089,7 @@ int security_socket_create(int family, int type, int protocol, int kern)
 }
 
 /**
- * security_socket_create() - Initialize a newly created socket
+ * security_socket_post_create() - Initialize a newly created socket
  * @sock: socket
  * @family: protocol family
  * @type: communications type
@@ -4364,7 +4365,7 @@ EXPORT_SYMBOL(security_socket_getpeersec_dgram);
  * security_sk_alloc() - Allocate and initialize a sock's LSM blob
  * @sk: sock
  * @family: protocol family
- * @priotity: gfp flags
+ * @priority: gfp flags
  *
  * Allocate and attach a security structure to the sk->sk_security field, which
  * is used to copy security attributes between local stream sockets.
@@ -4423,10 +4424,10 @@ EXPORT_SYMBOL(security_req_classify_flow);
 /**
  * security_sock_graft() - Reconcile LSM state when grafting a sock on a socket
  * @sk: sock being grafted
- * @sock: target socket
+ * @parent: target parent socket
  *
- * Sets @sock's inode secid to @sk's secid and update @sk with any necessary
- * LSM state from @sock.
+ * Sets @parent's inode secid to @sk's secid and update @sk with any necessary
+ * LSM state from @parent.
  */
 void security_sock_graft(struct sock *sk, struct socket *parent)
 {
@@ -4877,7 +4878,7 @@ int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid)
 /**
  * security_xfrm_state_pol_flow_match() - Check for a xfrm match
  * @x: xfrm state to match
- * @xp xfrm policy to check for a match
+ * @xp: xfrm policy to check for a match
  * @flic: flow to check for a match.
  *
  * Check @xp and @flic for a match with @x.
@@ -4980,13 +4981,13 @@ int security_key_permission(key_ref_t key_ref, const struct cred *cred,
 /**
  * security_key_getsecurity() - Get the key's security label
  * @key: key
- * @buffer: security label buffer
+ * @_buffer: security label buffer
  *
  * Get a textual representation of the security context attached to a key for
  * the purposes of honouring KEYCTL_GETSECURITY.  This function allocates the
  * storage for the NUL-terminated string and the caller should free it.
  *
- * Return: Returns the length of @buffer (including terminating NUL) or -ve if
+ * Return: Returns the length of @_buffer (including terminating NUL) or -ve if
  *         an error occurs.  May also return 0 (and a NULL buffer pointer) if
  *         there is no security label assigned to the key.
  */
