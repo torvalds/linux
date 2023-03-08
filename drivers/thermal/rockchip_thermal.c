@@ -40,15 +40,6 @@ enum tshut_polarity {
 };
 
 /*
- * The system has two Temperature Sensors.
- * sensor0 is for CPU, and sensor1 is for GPU.
- */
-enum sensor_id {
-	SENSOR_CPU = 0,
-	SENSOR_GPU,
-};
-
-/*
  * The conversion table has the adc value and temperature.
  * ADC_DECREMENT: the adc value is of diminishing.(e.g. rk3288_code_table)
  * ADC_INCREMENT: the adc value is incremental.(e.g. rk3368_code_table)
@@ -82,7 +73,7 @@ struct chip_tsadc_table {
 
 /**
  * struct rockchip_tsadc_chip - hold the private data of tsadc chip
- * @chn_id: array of sensor ids of chip corresponding to the channel
+ * @chn_offset: the channel offset of the first channel
  * @chn_num: the channel number of tsadc chip
  * @tshut_temp: the hardware-controlled shutdown temperature value
  * @tshut_mode: the hardware-controlled shutdown mode (0:CRU 1:GPIO)
@@ -98,7 +89,7 @@ struct chip_tsadc_table {
  */
 struct rockchip_tsadc_chip {
 	/* The sensor id of chip correspond to the ADC channel */
-	int chn_id[SOC_MAX_SENSORS];
+	int chn_offset;
 	int chn_num;
 
 	/* The hardware-controlled tshut property */
@@ -925,8 +916,8 @@ static void rk_tsadcv2_tshut_mode(int chn, void __iomem *regs,
 }
 
 static const struct rockchip_tsadc_chip px30_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
-	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
+	/* cpu, gpu */
+	.chn_offset = 0,
 	.chn_num = 2, /* 2 channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
@@ -949,7 +940,8 @@ static const struct rockchip_tsadc_chip px30_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rv1108_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	/* cpu */
+	.chn_offset = 0,
 	.chn_num = 1, /* one channel for tsadc */
 
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
@@ -973,7 +965,8 @@ static const struct rockchip_tsadc_chip rv1108_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3228_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	/* cpu */
+	.chn_offset = 0,
 	.chn_num = 1, /* one channel for tsadc */
 
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
@@ -997,8 +990,8 @@ static const struct rockchip_tsadc_chip rk3228_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3288_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 1, /* cpu sensor is channel 1 */
-	.chn_id[SENSOR_GPU] = 2, /* gpu sensor is channel 2 */
+	/* cpu, gpu */
+	.chn_offset = 1,
 	.chn_num = 2, /* two channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
@@ -1022,7 +1015,8 @@ static const struct rockchip_tsadc_chip rk3288_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3328_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	/* cpu */
+	.chn_offset = 0,
 	.chn_num = 1, /* one channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
@@ -1045,8 +1039,8 @@ static const struct rockchip_tsadc_chip rk3328_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3366_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
-	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
+	/* cpu, gpu */
+	.chn_offset = 0,
 	.chn_num = 2, /* two channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
@@ -1070,8 +1064,8 @@ static const struct rockchip_tsadc_chip rk3366_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3368_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
-	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
+	/* cpu, gpu */
+	.chn_offset = 0,
 	.chn_num = 2, /* two channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
@@ -1095,8 +1089,8 @@ static const struct rockchip_tsadc_chip rk3368_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3399_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
-	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
+	/* cpu, gpu */
+	.chn_offset = 0,
 	.chn_num = 2, /* two channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
@@ -1120,8 +1114,8 @@ static const struct rockchip_tsadc_chip rk3399_tsadc_data = {
 };
 
 static const struct rockchip_tsadc_chip rk3568_tsadc_data = {
-	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
-	.chn_id[SENSOR_GPU] = 1, /* gpu sensor is channel 1 */
+	/* cpu, gpu */
+	.chn_offset = 0,
 	.chn_num = 2, /* two channels for tsadc */
 
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
@@ -1401,7 +1395,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	for (i = 0; i < thermal->chip->chn_num; i++) {
 		error = rockchip_thermal_register_sensor(pdev, thermal,
 						&thermal->sensors[i],
-						thermal->chip->chn_id[i]);
+						thermal->chip->chn_offset + i);
 		if (error)
 			return dev_err_probe(&pdev->dev, error,
 				"failed to register sensor[%d].\n", i);
