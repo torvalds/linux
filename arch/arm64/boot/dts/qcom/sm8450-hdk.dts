@@ -810,9 +810,11 @@
 		output-low;
 	};
 
-	wcd_default: wcd-default-state {
+	wcd_default: wcd-reset-n-active-state {
 		pins = "gpio43";
 		function = "gpio";
+		drive-strength = <16>;
 		bias-disable;
+		output-low;
 	};
 };
