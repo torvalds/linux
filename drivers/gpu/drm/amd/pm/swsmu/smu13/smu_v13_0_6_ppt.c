@@ -82,12 +82,6 @@
 
 #define smnPCIE_ESM_CTRL 0x111003D0
 
-static const struct smu_temperature_range smu_v13_0_6_thermal_policy[] = {
-	{ -273150, 99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000 },
-	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000,
-	  120000 },
-};
-
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
@@ -701,9 +695,6 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_SOCKETPOWER:
 		*value = SMUQ10_TO_UINT(metrics->SocketPower) << 8;
 		break;
-	case METRICS_TEMPERATURE_EDGE:
-		*value = 0;
-		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
 		*value = SMUQ10_TO_UINT(metrics->MaxSocketTemperature);
 		break;
@@ -1127,33 +1118,6 @@ static int smu_v13_0_6_force_clk_levels(struct smu_context *smu,
 	return ret;
 }
 
-static int
-smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
-					  struct smu_temperature_range *range)
-{
-	uint8_t software_shutdown_temp;
-	uint8_t hotspotlimit;
-	uint8_t memlimit;
-
-	if (!range)
-		return -EINVAL;
-
-	/* TODO: Find a way to get temperature limits */
-	memcpy(range, &smu_v13_0_6_thermal_policy[0],
-	       sizeof(struct smu_temperature_range));
-
-	range->hotspot_crit_max =
-		hotspotlimit * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->hotspot_emergency_max = (hotspotlimit + CTF_OFFSET_HOTSPOT) *
-				       SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->mem_crit_max = memlimit * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->mem_emergency_max = (memlimit + CTF_OFFSET_MEM) *
-				   SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->software_shutdown_temp = software_shutdown_temp;
-
-	return 0;
-}
-
 static int smu_v13_0_6_get_current_activity_percent(struct smu_context *smu,
 						    enum amd_pp_sensors sensor,
 						    uint32_t *value)
@@ -1204,10 +1168,6 @@ static int smu_v13_0_6_thermal_get_temperature(struct smu_context *smu,
 		ret = smu_v13_0_6_get_smu_metrics_data(
 			smu, METRICS_TEMPERATURE_HOTSPOT, value);
 		break;
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		ret = smu_v13_0_6_get_smu_metrics_data(
-			smu, METRICS_TEMPERATURE_EDGE, value);
-		break;
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
 		ret = smu_v13_0_6_get_smu_metrics_data(
 			smu, METRICS_TEMPERATURE_MEM, value);
@@ -1244,7 +1204,6 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
 		ret = smu_v13_0_6_thermal_get_temperature(smu, sensor,
 							  (uint32_t *)data);
@@ -2048,8 +2007,6 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	/* dpm/clk tables */
 	.set_default_dpm_table = smu_v13_0_6_set_default_dpm_table,
 	.populate_umd_state_clk = smu_v13_0_6_populate_umd_state_clk,
-	.get_thermal_temperature_range =
-		smu_v13_0_6_get_thermal_temperature_range,
 	.print_clk_levels = smu_v13_0_6_print_clk_levels,
 	.force_clk_levels = smu_v13_0_6_force_clk_levels,
 	.read_sensor = smu_v13_0_6_read_sensor,
