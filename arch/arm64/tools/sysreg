@@ -879,7 +879,30 @@ EndEnum
 EndSysreg
 
 Sysreg	ID_AA64PFR1_EL1	3	0	0	4	1
-Res0	63:40
+UnsignedEnum	63:60	PFAR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	DF2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	55:52	MTEX
+	0b0000	MTE
+	0b0001	MTE4
+EndEnum
+UnsignedEnum	51:48	THE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	47:44	GCS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	43:40	MTE_frac
+	0b0000	ASYNC
+	0b1111	NI
+EndEnum
 UnsignedEnum	39:36	NMI
 	0b0000	NI
 	0b0001	IMP
