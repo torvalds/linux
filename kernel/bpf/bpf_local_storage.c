@@ -213,6 +213,9 @@ static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_stor
 			kfree_rcu(selem, rcu);
 	}
 
+	if (rcu_access_pointer(local_storage->smap) == smap)
+		RCU_INIT_POINTER(local_storage->smap, NULL);
+
 	return free_local_storage;
 }
 
@@ -368,6 +371,7 @@ int bpf_local_storage_alloc(void *owner,
 		goto uncharge;
 	}
 
+	RCU_INIT_POINTER(storage->smap, smap);
 	INIT_HLIST_HEAD(&storage->list);
 	raw_spin_lock_init(&storage->lock);
 	storage->owner = owner;
