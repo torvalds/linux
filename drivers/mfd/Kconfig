@@ -363,9 +363,6 @@ config MFD_DA9055
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
 
-	  This driver can be built as a module. If built as a module it will be
-	  called "da9055"
-
 config MFD_DA9062
 	tristate "Dialog Semiconductor DA9062/61 PMIC Support"
 	select MFD_CORE
