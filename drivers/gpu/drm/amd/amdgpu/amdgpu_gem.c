@@ -683,7 +683,7 @@ uint64_t amdgpu_gem_va_map_flags(struct amdgpu_device *adev, uint32_t flags)
 	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
 		pte_flag |= AMDGPU_PTE_WRITEABLE;
 	if (flags & AMDGPU_VM_PAGE_PRT)
-		pte_flag |= AMDGPU_PTE_PRT;
+		pte_flag |= AMDGPU_PTE_PRT_FLAG(adev);
 	if (flags & AMDGPU_VM_PAGE_NOALLOC)
 		pte_flag |= AMDGPU_PTE_NOALLOC;
 

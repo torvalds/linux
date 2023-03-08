@@ -1055,7 +1055,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 				params.pages_addr = NULL;
 			}
 
-		} else if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT)) {
+		} else if (flags & (AMDGPU_PTE_VALID | AMDGPU_PTE_PRT_FLAG(adev))) {
 			addr = vram_base + cursor.start;
 		} else {
 			addr = 0;
@@ -1369,7 +1369,7 @@ static void amdgpu_vm_free_mapping(struct amdgpu_device *adev,
 				   struct amdgpu_bo_va_mapping *mapping,
 				   struct dma_fence *fence)
 {
-	if (mapping->flags & AMDGPU_PTE_PRT)
+	if (mapping->flags & AMDGPU_PTE_PRT_FLAG(adev))
 		amdgpu_vm_add_prt_cb(adev, fence);
 	kfree(mapping);
 }
@@ -1637,7 +1637,7 @@ static void amdgpu_vm_bo_insert_map(struct amdgpu_device *adev,
 	list_add(&mapping->list, &bo_va->invalids);
 	amdgpu_vm_it_insert(mapping, &vm->va);
 
-	if (mapping->flags & AMDGPU_PTE_PRT)
+	if (mapping->flags & AMDGPU_PTE_PRT_FLAG(adev))
 		amdgpu_vm_prt_get(adev);
 
 	if (bo && bo->tbo.base.resv == vm->root.bo->tbo.base.resv &&
@@ -1939,7 +1939,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 		struct amdgpu_bo *bo = before->bo_va->base.bo;
 
 		amdgpu_vm_it_insert(before, &vm->va);
-		if (before->flags & AMDGPU_PTE_PRT)
+		if (before->flags & AMDGPU_PTE_PRT_FLAG(adev))
 			amdgpu_vm_prt_get(adev);
 
 		if (bo && bo->tbo.base.resv == vm->root.bo->tbo.base.resv &&
@@ -1954,7 +1954,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 		struct amdgpu_bo *bo = after->bo_va->base.bo;
 
 		amdgpu_vm_it_insert(after, &vm->va);
-		if (after->flags & AMDGPU_PTE_PRT)
+		if (after->flags & AMDGPU_PTE_PRT_FLAG(adev))
 			amdgpu_vm_prt_get(adev);
 
 		if (bo && bo->tbo.base.resv == vm->root.bo->tbo.base.resv &&
@@ -2605,7 +2605,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	dma_fence_put(vm->last_tlb_flush);
 
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
-		if (mapping->flags & AMDGPU_PTE_PRT && prt_fini_needed) {
+		if (mapping->flags & AMDGPU_PTE_PRT_FLAG(adev) && prt_fini_needed) {
 			amdgpu_vm_prt_fini(adev, vm);
 			prt_fini_needed = false;
 		}

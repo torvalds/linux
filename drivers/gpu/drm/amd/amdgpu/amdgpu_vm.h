@@ -113,6 +113,8 @@ struct amdgpu_mem_stats;
 
 /* gfx12 */
 #define AMDGPU_PTE_PRT_GFX12		(1ULL << 56)
+#define AMDGPU_PTE_PRT_FLAG(adev)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PTE_PRT_GFX12 : AMDGPU_PTE_PRT)
 
 #define AMDGPU_PTE_MTYPE_GFX12(a)	((uint64_t)(a) << 54)
 #define AMDGPU_PTE_MTYPE_GFX12_MASK	AMDGPU_PTE_MTYPE_GFX12(3ULL)
@@ -121,8 +123,12 @@ struct amdgpu_mem_stats;
 
 /* PDE Block Fragment Size for gfx v12 */
 #define AMDGPU_PDE_BFS_GFX12(a)		((uint64_t)((a) & 0x1fULL) << 58)
+#define AMDGPU_PDE_BFS_FLAG(adev, a)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PDE_BFS_GFX12(a) : AMDGPU_PDE_BFS(a))
 /* PDE is handled as PTE for gfx v12 */
 #define AMDGPU_PDE_PTE_GFX12		(1ULL << 63)
+#define AMDGPU_PDE_PTE_FLAG(adev)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PDE_PTE_GFX12 : AMDGPU_PDE_PTE)
 
 /* How to program VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
