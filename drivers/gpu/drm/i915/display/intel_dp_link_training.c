@@ -1379,10 +1379,6 @@ intel_dp_128b132b_lane_cds(struct intel_dp *intel_dp,
 		}
 	}
 
-	/* FIXME: Should DP_TRAINING_PATTERN_DISABLE be written first? */
-	if (intel_dp->set_idle_link_train)
-		intel_dp->set_idle_link_train(intel_dp, crtc_state);
-
 	return true;
 }
 
