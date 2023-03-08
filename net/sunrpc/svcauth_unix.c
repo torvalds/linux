@@ -225,9 +225,9 @@ static int ip_map_parse(struct cache_detail *cd,
 		return -EINVAL;
 	}
 
-	expiry = get_expiry(&mesg);
-	if (expiry ==0)
-		return -EINVAL;
+	err = get_expiry(&mesg, &expiry);
+	if (err)
+		return err;
 
 	/* domainname, or empty for NEGATIVE */
 	len = qword_get(&mesg, buf, mlen);
@@ -506,9 +506,9 @@ static int unix_gid_parse(struct cache_detail *cd,
 	uid = make_kuid(current_user_ns(), id);
 	ug.uid = uid;
 
-	expiry = get_expiry(&mesg);
-	if (expiry == 0)
-		return -EINVAL;
+	err = get_expiry(&mesg, &expiry);
+	if (err)
+		return err;
 
 	rv = get_int(&mesg, &gids);
 	if (rv || gids < 0 || gids > 8192)
