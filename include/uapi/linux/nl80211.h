@@ -6544,7 +6544,9 @@ enum nl80211_timeout_reason {
  *	channels on which APs are expected to be found. Note that when not set,
  *	the scan logic would scan all 6GHz channels, but since transmission of
  *	probe requests on non PSC channels is limited, it is highly likely that
- *	these channels would passively be scanned.
+ *	these channels would passively be scanned. Also note that when the flag
+ *	is set, in addition to the colocated APs, PSC channels would also be
+ *	scanned if the user space has asked for it.
  */
 enum nl80211_scan_flags {
 	NL80211_SCAN_FLAG_LOW_PRIORITY				= 1<<0,
