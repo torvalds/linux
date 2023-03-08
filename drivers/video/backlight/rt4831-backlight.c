@@ -203,15 +203,13 @@ static int rt4831_bl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rt4831_bl_remove(struct platform_device *pdev)
+static void rt4831_bl_remove(struct platform_device *pdev)
 {
 	struct rt4831_priv *priv = platform_get_drvdata(pdev);
 	struct backlight_device *bl_dev = priv->bl;
 
 	bl_dev->props.brightness = 0;
 	backlight_update_status(priv->bl);
-
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused rt4831_bl_of_match[] = {
@@ -226,7 +224,7 @@ static struct platform_driver rt4831_bl_driver = {
 		.of_match_table = rt4831_bl_of_match,
 	},
 	.probe = rt4831_bl_probe,
-	.remove = rt4831_bl_remove,
+	.remove_new = rt4831_bl_remove,
 };
 module_platform_driver(rt4831_bl_driver);
 
