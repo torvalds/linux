@@ -1445,14 +1445,6 @@ struct rtw89_btc_wl_tx_limit_para {
 	u16 tx_retry;
 };
 
-struct rtw89_btc_bt_scan_info {
-	u16 win;
-	u16 intvl;
-	u32 enable: 1;
-	u32 interlace: 1;
-	u32 rsvd: 30;
-};
-
 enum rtw89_btc_bt_scan_type {
 	BTC_SCAN_INQ	= 0,
 	BTC_SCAN_PAGE,
@@ -1463,9 +1455,50 @@ enum rtw89_btc_bt_scan_type {
 	BTC_SCAN_MAX1,
 };
 
+enum rtw89_btc_ble_scan_type {
+	CXSCAN_BG = 0,
+	CXSCAN_INIT,
+	CXSCAN_LE,
+	CXSCAN_MAX
+};
+
+#define RTW89_BTC_BTC_SCAN_V1_FLAG_ENABLE BIT(0)
+#define RTW89_BTC_BTC_SCAN_V1_FLAG_INTERLACE BIT(1)
+
+struct rtw89_btc_bt_scan_info_v1 {
+	__le16 win;
+	__le16 intvl;
+	__le32 flags;
+} __packed;
+
+struct rtw89_btc_bt_scan_info_v2 {
+	__le16 win;
+	__le16 intvl;
+} __packed;
+
+struct rtw89_btc_fbtc_btscan_v1 {
+	u8 fver; /* btc_ver::fcxbtscan */
+	u8 rsvd;
+	__le16 rsvd2;
+	struct rtw89_btc_bt_scan_info_v1 scan[BTC_SCAN_MAX1];
+} __packed;
+
+struct rtw89_btc_fbtc_btscan_v2 {
+	u8 fver; /* btc_ver::fcxbtscan */
+	u8 type;
+	__le16 rsvd2;
+	struct rtw89_btc_bt_scan_info_v2 para[CXSCAN_MAX];
+} __packed;
+
+union rtw89_btc_fbtc_btscan {
+	struct rtw89_btc_fbtc_btscan_v1 v1;
+	struct rtw89_btc_fbtc_btscan_v2 v2;
+};
+
 struct rtw89_btc_bt_info {
 	struct rtw89_btc_bt_link_info link_info;
-	struct rtw89_btc_bt_scan_info scan_info[BTC_SCAN_MAX1];
+	struct rtw89_btc_bt_scan_info_v1 scan_info_v1[BTC_SCAN_MAX1];
+	struct rtw89_btc_bt_scan_info_v2 scan_info_v2[CXSCAN_MAX];
 	struct rtw89_btc_bt_ver_info ver_info;
 	struct rtw89_btc_bool_sta_chg enable;
 	struct rtw89_btc_bool_sta_chg inq_pag;
@@ -1488,7 +1521,8 @@ struct rtw89_btc_bt_info {
 	u32 run_patch_code: 1;
 	u32 hi_lna_rx: 1;
 	u32 scan_rx_low_pri: 1;
-	u32 rsvd: 21;
+	u32 scan_info_update: 1;
+	u32 rsvd: 20;
 };
 
 struct rtw89_btc_cx {
@@ -2006,13 +2040,6 @@ struct rtw89_btc_fbtc_btver {
 	__le32 feature;
 } __packed;
 
-struct rtw89_btc_fbtc_btscan {
-	u8 fver; /* btc_ver::fcxbtscan */
-	u8 rsvd;
-	__le16 rsvd2;
-	u8 scan[6];
-} __packed;
-
 struct rtw89_btc_fbtc_btafh {
 	u8 fver; /* btc_ver::fcxbtafh */
 	u8 rsvd;
@@ -2231,7 +2258,7 @@ struct rtw89_btc_rpt_fbtc_btver {
 
 struct rtw89_btc_rpt_fbtc_btscan {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_btscan finfo; /* info from fw */
+	union rtw89_btc_fbtc_btscan finfo; /* info from fw */
 };
 
 struct rtw89_btc_rpt_fbtc_btafh {

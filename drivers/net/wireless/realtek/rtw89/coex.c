@@ -890,13 +890,15 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_bt_a2dp_desc *a2dp = &bt_linfo->a2dp_desc;
 	struct rtw89_btc_fbtc_btver *pver = NULL;
-	struct rtw89_btc_fbtc_btscan *pscan = NULL;
+	struct rtw89_btc_fbtc_btscan_v1 *pscan_v1;
+	struct rtw89_btc_fbtc_btscan_v2 *pscan_v2;
 	struct rtw89_btc_fbtc_btafh *pafh_v1 = NULL;
 	struct rtw89_btc_fbtc_btafh_v2 *pafh_v2 = NULL;
 	struct rtw89_btc_fbtc_btdevinfo *pdev = NULL;
+	bool scan_update = true;
+	int i;
 
 	pver = (struct rtw89_btc_fbtc_btver *)pfinfo;
-	pscan = (struct rtw89_btc_fbtc_btscan *)pfinfo;
 	pdev = (struct rtw89_btc_fbtc_btdevinfo *)pfinfo;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -910,7 +912,26 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 		bt->feature = le32_to_cpu(pver->feature);
 		break;
 	case BTC_RPT_TYPE_BT_SCAN:
-		memcpy(bt->scan_info, pscan->scan, BTC_SCAN_MAX1);
+		if (ver->fcxbtscan == 1) {
+			pscan_v1 = (struct rtw89_btc_fbtc_btscan_v1 *)pfinfo;
+			for (i = 0; i < BTC_SCAN_MAX1; i++) {
+				bt->scan_info_v1[i] = pscan_v1->scan[i];
+				if (bt->scan_info_v1[i].win == 0 &&
+				    bt->scan_info_v1[i].intvl == 0)
+					scan_update = false;
+			}
+		} else if (ver->fcxbtscan == 2) {
+			pscan_v2 = (struct rtw89_btc_fbtc_btscan_v2 *)pfinfo;
+			for (i = 0; i < CXSCAN_MAX; i++) {
+				bt->scan_info_v2[i] = pscan_v2->para[i];
+				if ((pscan_v2->type & BIT(i)) &&
+				    pscan_v2->para[i].win == 0 &&
+				    pscan_v2->para[i].intvl == 0)
+					scan_update = false;
+			}
+		}
+		if (scan_update)
+			bt->scan_info_update = 1;
 		break;
 	case BTC_RPT_TYPE_BT_AFH:
 		if (ver->fcxbtafh == 2) {
@@ -1102,8 +1123,13 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		break;
 	case BTC_RPT_TYPE_BT_SCAN:
 		pcinfo = &pfwinfo->rpt_fbtc_btscan.cinfo;
-		pfinfo = &pfwinfo->rpt_fbtc_btscan.finfo;
-		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo);
+		if (ver->fcxbtscan == 1) {
+			pfinfo = &pfwinfo->rpt_fbtc_btscan.finfo.v1;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo.v1);
+		} else if (ver->fcxbtscan == 2) {
+			pfinfo = &pfwinfo->rpt_fbtc_btscan.finfo.v2;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo.v2);
+		}
 		pcinfo->req_fver = ver->fcxbtscan;
 		break;
 	case BTC_RPT_TYPE_BT_AFH:
@@ -6346,10 +6372,39 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   cx->cnt_bt[BTC_BCNT_INFOSAME]);
 
 	seq_printf(m,
-		   " %-15s : Hi-rx = %d, Hi-tx = %d, Lo-rx = %d, Lo-tx = %d (bt_polut_wl_tx = %d)\n",
+		   " %-15s : Hi-rx = %d, Hi-tx = %d, Lo-rx = %d, Lo-tx = %d (bt_polut_wl_tx = %d)",
 		   "[trx_req_cnt]", cx->cnt_bt[BTC_BCNT_HIPRI_RX],
 		   cx->cnt_bt[BTC_BCNT_HIPRI_TX], cx->cnt_bt[BTC_BCNT_LOPRI_RX],
 		   cx->cnt_bt[BTC_BCNT_LOPRI_TX], cx->cnt_bt[BTC_BCNT_POLUT]);
+
+	if (!bt->scan_info_update) {
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_SCAN_INFO, true);
+		seq_puts(m, "\n");
+	} else {
+		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_SCAN_INFO, false);
+		if (ver->fcxbtscan == 1) {
+			seq_printf(m,
+				   "(INQ:%d-%d/PAGE:%d-%d/LE:%d-%d/INIT:%d-%d)",
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_INQ].win),
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_INQ].intvl),
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_PAGE].win),
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_PAGE].intvl),
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_BLE].win),
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_BLE].intvl),
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_INIT].win),
+				   le16_to_cpu(bt->scan_info_v1[BTC_SCAN_INIT].intvl));
+		} else if (ver->fcxbtscan == 2) {
+			seq_printf(m,
+				   "(BG:%d-%d/INIT:%d-%d/LE:%d-%d)",
+				   le16_to_cpu(bt->scan_info_v2[CXSCAN_BG].win),
+				   le16_to_cpu(bt->scan_info_v2[CXSCAN_BG].intvl),
+				   le16_to_cpu(bt->scan_info_v2[CXSCAN_INIT].win),
+				   le16_to_cpu(bt->scan_info_v2[CXSCAN_INIT].intvl),
+				   le16_to_cpu(bt->scan_info_v2[CXSCAN_LE].win),
+				   le16_to_cpu(bt->scan_info_v2[CXSCAN_LE].intvl));
+		}
+		seq_puts(m, "\n");
+	}
 
 	if (bt->enable.now && bt->ver_info.fw == 0)
 		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_BT_VER_INFO, true);
