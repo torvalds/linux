@@ -1114,9 +1114,9 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			}
 		}
 
-		if (pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE) {
+		if (pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE_MASK) {
 			if (!info->ops || !info->ops->pin_to_pocctrl)
-				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE flag set but .pin_to_pocctrl() not implemented\n");
+				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE set but .pin_to_pocctrl() not implemented\n");
 			else if (info->ops->pin_to_pocctrl(pin->pin, &x) < 0)
 				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE set but invalid pin_to_pocctrl()\n",
 					   pin->name);
