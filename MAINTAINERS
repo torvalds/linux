@@ -19863,13 +19863,6 @@ S:	Maintained
 W:	http://wiki.laptop.org/go/DCON
 F:	drivers/staging/olpc_dcon/
 
-STAGING - REALTEK RTL8188EU DRIVERS
-M:	Larry Finger <Larry.Finger@lwfinger.net>
-M:	Phillip Potter <phil@philpotter.co.uk>
-R:	Pavel Skripkin <paskripkin@gmail.com>
-S:	Supported
-F:	drivers/staging/r8188eu/
-
 STAGING - REALTEK RTL8712U DRIVERS
 M:	Larry Finger <Larry.Finger@lwfinger.net>
 M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
