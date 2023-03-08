@@ -420,7 +420,6 @@
 			no-map;
 		};
 
-
 		hyp_tags_reserved_mem: hyp-tags-reserved-region@811d0000 {
 			reg = <0 0x811d0000 0 0x30000>;
 			no-map;
@@ -2202,7 +2201,8 @@
 
 				assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>,
 						  <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
-				assigned-clock-parents = <&mdss_dsi0_phy 0>, <&mdss_dsi0_phy 1>;
+				assigned-clock-parents = <&mdss_dsi0_phy 0>,
+							 <&mdss_dsi0_phy 1>;
 
 				operating-points-v2 = <&mdss_dsi_opp_table>;
 
@@ -2294,8 +2294,10 @@
 
 				power-domains = <&rpmhpd SM8550_MMCX>;
 
-				assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE1_CLK_SRC>, <&dispcc DISP_CC_MDSS_PCLK1_CLK_SRC>;
-				assigned-clock-parents = <&mdss_dsi1_phy 0>, <&mdss_dsi1_phy 1>;
+				assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE1_CLK_SRC>,
+						  <&dispcc DISP_CC_MDSS_PCLK1_CLK_SRC>;
+				assigned-clock-parents = <&mdss_dsi1_phy 0>,
+							 <&mdss_dsi1_phy 1>;
 
 				operating-points-v2 = <&mdss_dsi_opp_table>;
 
@@ -3163,7 +3165,7 @@
 
 		intc: interrupt-controller@17100000 {
 			compatible = "arm,gic-v3";
-			reg = <0 0x17100000 0 0x10000>,	/* GICD */
+			reg = <0 0x17100000 0 0x10000>,		/* GICD */
 			      <0 0x17180000 0 0x200000>;	/* GICR * 8 */
 			ranges;
 			#interrupt-cells = <3>;
