@@ -108,18 +108,17 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
 	struct local_storage *storage;
-	int err;
 
 	if (pid != monitored_pid)
 		return 0;
 
-	storage = bpf_sk_storage_get(&sk_storage_map, sock->sk, 0,
-				     BPF_LOCAL_STORAGE_GET_F_CREATE);
+	storage = bpf_sk_storage_get(&sk_storage_map, sock->sk, 0, 0);
 	if (!storage)
 		return 0;
 
+	sk_storage_result = -1;
 	if (storage->value != DUMMY_STORAGE_VALUE)
-		sk_storage_result = -1;
+		return 0;
 
 	/* This tests that we can associate multiple elements
 	 * with the local storage.
@@ -129,14 +128,26 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 	if (!storage)
 		return 0;
 
-	err = bpf_sk_storage_delete(&sk_storage_map, sock->sk);
-	if (err)
+	if (bpf_sk_storage_delete(&sk_storage_map2, sock->sk))
 		return 0;
 
-	err = bpf_sk_storage_delete(&sk_storage_map2, sock->sk);
-	if (!err)
-		sk_storage_result = err;
+	storage = bpf_sk_storage_get(&sk_storage_map2, sock->sk, 0,
+				     BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (!storage)
+		return 0;
 
+	if (bpf_sk_storage_delete(&sk_storage_map, sock->sk))
+		return 0;
+
+	/* Ensure that the sk_storage_map is disconnected from the storage.
+	 * The storage memory should not be freed back to the
+	 * bpf_mem_alloc of the sk_bpf_storage_map because
+	 * sk_bpf_storage_map may have been gone.
+	 */
+	if (!sock->sk->sk_bpf_storage || sock->sk->sk_bpf_storage->smap)
+		return 0;
+
+	sk_storage_result = 0;
 	return 0;
 }
 
