@@ -280,4 +280,3 @@ module_platform_driver(tegra186_emc_driver);
 
 MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
 MODULE_DESCRIPTION("NVIDIA Tegra186 External Memory Controller driver");
-MODULE_LICENSE("GPL v2");
