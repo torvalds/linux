@@ -235,11 +235,11 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
 
-		if (adev->vcn.indirect_sram) {
-			amdgpu_bo_free_kernel(&adev->vcn.inst[j].dpg_sram_bo,
-						  &adev->vcn.inst[j].dpg_sram_gpu_addr,
-						  (void **)&adev->vcn.inst[j].dpg_sram_cpu_addr);
-		}
+		amdgpu_bo_free_kernel(
+			&adev->vcn.inst[j].dpg_sram_bo,
+			&adev->vcn.inst[j].dpg_sram_gpu_addr,
+			(void **)&adev->vcn.inst[j].dpg_sram_cpu_addr);
+
 		kvfree(adev->vcn.inst[j].saved_bo);
 
 		amdgpu_bo_free_kernel(&adev->vcn.inst[j].vcpu_bo,
