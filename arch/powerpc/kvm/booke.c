@@ -1015,6 +1015,7 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 	int s;
 	int idx;
 	u32 last_inst = KVM_INST_FETCH_FAILED;
+	ppc_inst_t pinst;
 	enum emulation_result emulated = EMULATE_DONE;
 
 	/* Fix irq state (pairs with kvmppc_fix_ee_before_entry()) */
@@ -1034,12 +1035,15 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 	case BOOKE_INTERRUPT_DTLB_MISS:
 	case BOOKE_INTERRUPT_HV_PRIV:
-		emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
+		emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &pinst);
+		last_inst = ppc_inst_val(pinst);
 		break;
 	case BOOKE_INTERRUPT_PROGRAM:
 		/* SW breakpoints arrive as illegal instructions on HV */
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
-			emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP) {
+			emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &pinst);
+			last_inst = ppc_inst_val(pinst);
+		}
 		break;
 	default:
 		break;

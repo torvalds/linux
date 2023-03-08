@@ -28,6 +28,7 @@
 #include <asm/xive.h>
 #include <asm/cpu_has_feature.h>
 #endif
+#include <asm/inst.h>
 
 /*
  * KVMPPC_INST_SW_BREAKPOINT is debug Instruction
@@ -324,7 +325,7 @@ extern struct kvmppc_ops *kvmppc_hv_ops;
 extern struct kvmppc_ops *kvmppc_pr_ops;
 
 static inline int kvmppc_get_last_inst(struct kvm_vcpu *vcpu,
-				enum instruction_fetch_type type, u32 *inst)
+				enum instruction_fetch_type type, ppc_inst_t *inst)
 {
 	int ret = EMULATE_DONE;
 	u32 fetched_inst;
@@ -342,7 +343,7 @@ static inline int kvmppc_get_last_inst(struct kvm_vcpu *vcpu,
 	else
 		fetched_inst = vcpu->arch.last_inst;
 
-	*inst = fetched_inst;
+	*inst = ppc_inst(fetched_inst);
 	return ret;
 }
 
