@@ -1524,6 +1524,7 @@ union rtw89_btc_fbtc_tdma_le32 {
 };
 
 #define CXMREG_MAX 30
+#define CXMREG_MAX_V2 20
 #define FCXMAX_STEP 255 /*STEP trace record cnt, Max:65535, default:255*/
 #define BTC_CYCLE_SLOT_MAX 48 /* must be even number, non-zero */
 
@@ -1750,12 +1751,24 @@ struct rtw89_btc_fbtc_gpio_dbg {
 	u8 gpio_map[BTC_DBG_MAX1]; /*the debug signals to GPIO-Position */
 } __packed;
 
-struct rtw89_btc_fbtc_mreg_val {
+struct rtw89_btc_fbtc_mreg_val_v1 {
 	u8 fver; /* btc_ver::fcxmreg */
 	u8 reg_num;
 	__le16 rsvd;
 	__le32 mreg_val[CXMREG_MAX];
 } __packed;
+
+struct rtw89_btc_fbtc_mreg_val_v2 {
+	u8 fver; /* btc_ver::fcxmreg */
+	u8 reg_num;
+	__le16 rsvd;
+	__le32 mreg_val[CXMREG_MAX_V2];
+} __packed;
+
+union rtw89_btc_fbtc_mreg_val {
+	struct rtw89_btc_fbtc_mreg_val_v1 v1;
+	struct rtw89_btc_fbtc_mreg_val_v2 v2;
+};
 
 #define RTW89_DEF_FBTC_MREG(__type, __bytes, __offset) \
 	{ .type = cpu_to_le16(__type), .bytes = cpu_to_le16(__bytes), \
@@ -2203,7 +2216,7 @@ struct rtw89_btc_rpt_fbtc_nullsta {
 
 struct rtw89_btc_rpt_fbtc_mreg {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_mreg_val finfo; /* info from fw */
+	union rtw89_btc_fbtc_mreg_val finfo; /* info from fw */
 };
 
 struct rtw89_btc_rpt_fbtc_gpio_dbg {

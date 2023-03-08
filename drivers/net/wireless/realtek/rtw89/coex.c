@@ -226,7 +226,6 @@ struct rtw89_btc_btf_set_slot_table {
 	u8 buf[];
 } __packed;
 
-#define BTF_SET_MON_REG_VER 1
 struct rtw89_btc_btf_set_mon_reg {
 	u8 fver;
 	u8 reg_num;
@@ -1078,8 +1077,15 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		break;
 	case BTC_RPT_TYPE_MREG:
 		pcinfo = &pfwinfo->rpt_fbtc_mregval.cinfo;
-		pfinfo = &pfwinfo->rpt_fbtc_mregval.finfo;
-		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_mregval.finfo);
+		if (ver->fcxmreg == 1) {
+			pfinfo = &pfwinfo->rpt_fbtc_mregval.finfo.v1;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_mregval.finfo.v1);
+		} else if (ver->fcxmreg == 2) {
+			pfinfo = &pfwinfo->rpt_fbtc_mregval.finfo.v2;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_mregval.finfo.v2);
+		} else {
+			goto err;
+		}
 		pcinfo->req_fver = ver->fcxmreg;
 		break;
 	case BTC_RPT_TYPE_GPIO_DBG:
@@ -1709,18 +1715,26 @@ static void rtw89_btc_fw_set_slots(struct rtw89_dev *rtwdev, u8 num,
 static void btc_fw_set_monreg(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
 	struct rtw89_btc_btf_set_mon_reg *monreg = NULL;
-	u8 n, *ptr = NULL, ulen;
+	u8 n, *ptr = NULL, ulen, cxmreg_max;
 	u16 sz = 0;
 
 	n = chip->mon_reg_num;
-
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): mon_reg_num=%d\n", __func__, n);
-	if (n > CXMREG_MAX) {
+
+	if (ver->fcxmreg == 1)
+		cxmreg_max = CXMREG_MAX;
+	else if (ver->fcxmreg == 2)
+		cxmreg_max = CXMREG_MAX_V2;
+	else
+		return;
+
+	if (n > cxmreg_max) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): mon reg count %d > %d\n",
-			    __func__, n, CXMREG_MAX);
+			    __func__, n, cxmreg_max);
 		return;
 	}
 
@@ -1730,7 +1744,7 @@ static void btc_fw_set_monreg(struct rtw89_dev *rtwdev)
 	if (!monreg)
 		return;
 
-	monreg->fver = BTF_SET_MON_REG_VER;
+	monreg->fver = ver->fcxmreg;
 	monreg->reg_num = n;
 	ptr = &monreg->buf[0];
 	memcpy(ptr, chip->mon_reg, n * ulen);
@@ -7401,13 +7415,13 @@ static void _get_gnt(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_coex_gnt *gnt
 	}
 }
 
-static void _show_mreg(struct rtw89_dev *rtwdev, struct seq_file *m)
+static void _show_mreg_v1(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
-	struct rtw89_btc_fbtc_mreg_val *pmreg = NULL;
+	struct rtw89_btc_fbtc_mreg_val_v1 *pmreg = NULL;
 	struct rtw89_btc_fbtc_gpio_dbg *gdbg = NULL;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
@@ -7457,7 +7471,7 @@ static void _show_mreg(struct rtw89_dev *rtwdev, struct seq_file *m)
 		return;
 	}
 
-	pmreg = &pfwinfo->rpt_fbtc_mregval.finfo;
+	pmreg = &pfwinfo->rpt_fbtc_mregval.finfo.v1;
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): rpt_fbtc_mregval reg_num = %d\n",
 		    __func__, pmreg->reg_num);
@@ -7486,6 +7500,111 @@ static void _show_mreg(struct rtw89_dev *rtwdev, struct seq_file *m)
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): stop due rpt_fbtc_gpio_dbg.cinfo\n",
 			    __func__);
+		seq_puts(m, "\n");
+		return;
+	}
+
+	gdbg = &pfwinfo->rpt_fbtc_gpio_dbg.finfo;
+	if (!gdbg->en_map)
+		return;
+
+	seq_printf(m, " %-15s : enable_map:0x%08x",
+		   "[gpio_dbg]", gdbg->en_map);
+
+	for (i = 0; i < BTC_DBG_MAX1; i++) {
+		if (!(gdbg->en_map & BIT(i)))
+			continue;
+		seq_printf(m, ", %d->GPIO%d", (u32)i, gdbg->gpio_map[i]);
+	}
+	seq_puts(m, "\n");
+}
+
+static void _show_mreg_v2(struct rtw89_dev *rtwdev, struct seq_file *m)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
+	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
+	struct rtw89_btc_fbtc_mreg_val_v2 *pmreg = NULL;
+	struct rtw89_btc_fbtc_gpio_dbg *gdbg = NULL;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_mac_ax_coex_gnt gnt_cfg = {};
+	struct rtw89_mac_ax_gnt gnt;
+	u8 i = 0, type = 0, cnt = 0;
+	u32 val, offset;
+
+	if (!(btc->dm.coex_info_map & BTC_COEX_INFO_MREG))
+		return;
+
+	seq_puts(m, "========== [HW Status] ==========\n");
+
+	seq_printf(m,
+		   " %-15s : WL->BT:0x%08x(cnt:%d), BT->WL:0x%08x(total:%d, bt_update:%d)\n",
+		   "[scoreboard]", wl->scbd, cx->cnt_wl[BTC_WCNT_SCBDUPDATE],
+		   bt->scbd, cx->cnt_bt[BTC_BCNT_SCBDREAD],
+		   cx->cnt_bt[BTC_BCNT_SCBDUPDATE]);
+
+	/* To avoid I/O if WL LPS or power-off  */
+	if (!wl->status.map.lps && !wl->status.map.rf_off) {
+		btc->dm.pta_owner = rtw89_mac_get_ctrl_path(rtwdev);
+
+		_get_gnt(rtwdev, &gnt_cfg);
+		gnt = gnt_cfg.band[0];
+		seq_printf(m,
+			   " %-15s : pta_owner:%s, phy-0[gnt_wl:%s-%d/gnt_bt:%s-%d], ",
+			   "[gnt_status]",
+			   chip->chip_id == RTL8852C ? "HW" :
+			   btc->dm.pta_owner == BTC_CTRL_BY_WL ? "WL" : "BT",
+			   gnt.gnt_wl_sw_en ? "SW" : "HW", gnt.gnt_wl,
+			   gnt.gnt_bt_sw_en ? "SW" : "HW", gnt.gnt_bt);
+
+		gnt = gnt_cfg.band[1];
+		seq_printf(m, "phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]\n",
+			   gnt.gnt_wl_sw_en ? "SW" : "HW",
+			   gnt.gnt_wl,
+			   gnt.gnt_bt_sw_en ? "SW" : "HW",
+			   gnt.gnt_bt);
+	}
+	pcinfo = &pfwinfo->rpt_fbtc_mregval.cinfo;
+	if (!pcinfo->valid) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): stop due rpt_fbtc_mregval.cinfo\n",
+			    __func__);
+		return;
+	}
+
+	pmreg = &pfwinfo->rpt_fbtc_mregval.finfo.v2;
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC], %s(): rpt_fbtc_mregval reg_num = %d\n",
+		    __func__, pmreg->reg_num);
+
+	for (i = 0; i < pmreg->reg_num; i++) {
+		type = (u8)le16_to_cpu(chip->mon_reg[i].type);
+		offset = le32_to_cpu(chip->mon_reg[i].offset);
+		val = le32_to_cpu(pmreg->mreg_val[i]);
+
+		if (cnt % 6 == 0)
+			seq_printf(m, " %-15s : %d_0x%04x=0x%08x",
+				   "[reg]", (u32)type, offset, val);
+		else
+			seq_printf(m, ", %d_0x%04x=0x%08x", (u32)type,
+				   offset, val);
+		if (cnt % 6 == 5)
+			seq_puts(m, "\n");
+		cnt++;
+
+		if (i >= pmreg->reg_num)
+			seq_puts(m, "\n");
+	}
+
+	pcinfo = &pfwinfo->rpt_fbtc_gpio_dbg.cinfo;
+	if (!pcinfo->valid) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): stop due rpt_fbtc_gpio_dbg.cinfo\n",
+			    __func__);
+		seq_puts(m, "\n");
 		return;
 	}
 
@@ -7868,7 +7987,12 @@ void rtw89_btc_dump_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	_show_bt_info(rtwdev, m);
 	_show_dm_info(rtwdev, m);
 	_show_fw_dm_msg(rtwdev, m);
-	_show_mreg(rtwdev, m);
+
+	if (ver->fcxmreg == 1)
+		_show_mreg_v1(rtwdev, m);
+	else if (ver->fcxmreg == 2)
+		_show_mreg_v2(rtwdev, m);
+
 	if (ver->fcxbtcrpt == 1)
 		_show_summary_v1(rtwdev, m);
 	else if (ver->fcxbtcrpt == 4)
