@@ -107,7 +107,7 @@ static struct zone_device *pkg_temp_thermal_get_dev(unsigned int cpu)
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct zone_device *zonedev = tzd->devdata;
+	struct zone_device *zonedev = thermal_zone_device_priv(tzd);
 	int val;
 
 	val = intel_tcc_get_temp(zonedev->cpu, true);
@@ -122,7 +122,7 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 static int
 sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 {
-	struct zone_device *zonedev = tzd->devdata;
+	struct zone_device *zonedev = thermal_zone_device_priv(tzd);
 	u32 l, h, mask, shift, intr;
 	int tj_max, ret;
 

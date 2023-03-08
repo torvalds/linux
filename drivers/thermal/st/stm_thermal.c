@@ -303,7 +303,7 @@ static int stm_disable_irq(struct stm_thermal_sensor *sensor)
 
 static int stm_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct stm_thermal_sensor *sensor = tz->devdata;
+	struct stm_thermal_sensor *sensor = thermal_zone_device_priv(tz);
 	u32 itr1, th;
 	int ret;
 
@@ -351,7 +351,7 @@ static int stm_thermal_set_trips(struct thermal_zone_device *tz, int low, int hi
 /* Callback to get temperature from HW */
 static int stm_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct stm_thermal_sensor *sensor = tz->devdata;
+	struct stm_thermal_sensor *sensor = thermal_zone_device_priv(tz);
 	u32 periods;
 	int freqM, ret;
 
