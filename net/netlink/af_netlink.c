@@ -2097,8 +2097,6 @@ __netlink_kernel_create(struct net *net, int unit, struct module *module,
 			nl_table[unit].bind = cfg->bind;
 			nl_table[unit].unbind = cfg->unbind;
 			nl_table[unit].flags = cfg->flags;
-			if (cfg->compare)
-				nl_table[unit].compare = cfg->compare;
 		}
 		nl_table[unit].registered = 1;
 	} else {
