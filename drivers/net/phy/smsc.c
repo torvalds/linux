@@ -99,20 +99,13 @@ static irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 static int smsc_phy_config_init(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
-	int rc;
 
 	if (!priv->energy_enable || phydev->irq != PHY_POLL)
 		return 0;
 
-	rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
-
-	if (rc < 0)
-		return rc;
-
-	/* Enable energy detect mode for this SMSC Transceivers */
-	rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS,
-		       rc | MII_LAN83C185_EDPWRDOWN);
-	return rc;
+	/* Enable energy detect power down mode */
+	return phy_set_bits(phydev, MII_LAN83C185_CTRL_STATUS,
+			    MII_LAN83C185_EDPWRDOWN);
 }
 
 static int smsc_phy_reset(struct phy_device *phydev)
