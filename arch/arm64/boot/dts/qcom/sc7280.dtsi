@@ -2140,8 +2140,6 @@
 
 			dma-coherent;
 
-			iommus = <&apps_smmu 0x1c80 0x1>;
-
 			iommu-map = <0x0 &apps_smmu 0x1c80 0x1>,
 				    <0x100 &apps_smmu 0x1c81 0x1>;
 

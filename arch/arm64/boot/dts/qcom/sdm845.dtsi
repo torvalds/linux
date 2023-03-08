@@ -2329,7 +2329,6 @@
 				      "slave_q2a",
 				      "tbu";
 
-			iommus = <&apps_smmu 0x1c10 0xf>;
 			iommu-map = <0x0   &apps_smmu 0x1c10 0x1>,
 				    <0x100 &apps_smmu 0x1c11 0x1>,
 				    <0x200 &apps_smmu 0x1c12 0x1>,
@@ -2440,7 +2439,6 @@
 			assigned-clocks = <&gcc GCC_PCIE_1_AUX_CLK>;
 			assigned-clock-rates = <19200000>;
 
-			iommus = <&apps_smmu 0x1c00 0xf>;
 			iommu-map = <0x0   &apps_smmu 0x1c00 0x1>,
 				    <0x100 &apps_smmu 0x1c01 0x1>,
 				    <0x200 &apps_smmu 0x1c02 0x1>,
