@@ -426,6 +426,31 @@ struct isst_base_freq_info {
 	__u16 thermal_design_power_w;
 };
 
+/**
+ * struct isst_turbo_freq_info - Structure to get SST-TF frequencies
+ * @socket_id:	Socket/package id
+ * @power_domain:	Power Domain id
+ * @level:	SST-PP level for which caller wants to get information
+ * @max_clip_freqs: Maximum number of low priority core clipping frequencies
+ * @lp_clip_freq_mhz: Clip frequencies per trl level
+ * @bucket_core_counts: Maximum number of cores for a bucket
+ * @trl_freq_mhz: Frequencies per trl level for each bucket
+ *
+ * Structure used to get SST-TF information using
+ * IOCTL ISST_IF_GET_TURBO_FREQ_INFO.
+ */
+struct isst_turbo_freq_info {
+	__u8 socket_id;
+	__u8 power_domain_id;
+	__u16 level;
+	__u16 max_clip_freqs;
+	__u16 max_buckets;
+	__u16 max_trl_levels;
+	__u16 lp_clip_freq_mhz[TRL_MAX_LEVELS];
+	__u16 bucket_core_counts[TRL_MAX_BUCKETS];
+	__u16 trl_freq_mhz[TRL_MAX_LEVELS][TRL_MAX_BUCKETS];
+};
+
 #define ISST_IF_MAGIC			0xFE
 #define ISST_IF_GET_PLATFORM_INFO	_IOR(ISST_IF_MAGIC, 0, struct isst_if_platform_info *)
 #define ISST_IF_GET_PHY_ID		_IOWR(ISST_IF_MAGIC, 1, struct isst_if_cpu_map *)
@@ -445,5 +470,6 @@ struct isst_base_freq_info {
 #define ISST_IF_GET_PERF_LEVEL_CPU_MASK	_IOR(ISST_IF_MAGIC, 13, struct isst_perf_level_cpu_mask *)
 #define ISST_IF_GET_BASE_FREQ_INFO	_IOR(ISST_IF_MAGIC, 14, struct isst_base_freq_info *)
 #define ISST_IF_GET_BASE_FREQ_CPU_MASK	_IOR(ISST_IF_MAGIC, 15, struct isst_perf_level_cpu_mask *)
+#define ISST_IF_GET_TURBO_FREQ_INFO	_IOR(ISST_IF_MAGIC, 16, struct isst_turbo_freq_info *)
 
 #endif
