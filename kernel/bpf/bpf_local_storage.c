@@ -109,27 +109,6 @@ static void bpf_local_storage_free_rcu(struct rcu_head *rcu)
 		kfree_rcu(local_storage, rcu);
 }
 
-static void bpf_selem_free_fields_rcu(struct rcu_head *rcu)
-{
-	struct bpf_local_storage_elem *selem;
-	struct bpf_local_storage_map *smap;
-
-	selem = container_of(rcu, struct bpf_local_storage_elem, rcu);
-	/* protected by the rcu_barrier*() */
-	smap = rcu_dereference_protected(SDATA(selem)->smap, true);
-	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
-	kfree(selem);
-}
-
-static void bpf_selem_free_fields_trace_rcu(struct rcu_head *rcu)
-{
-	/* Free directly if Tasks Trace RCU GP also implies RCU GP */
-	if (rcu_trace_implies_rcu_gp())
-		bpf_selem_free_fields_rcu(rcu);
-	else
-		call_rcu(rcu, bpf_selem_free_fields_rcu);
-}
-
 static void bpf_selem_free_trace_rcu(struct rcu_head *rcu)
 {
 	struct bpf_local_storage_elem *selem;
@@ -151,7 +130,6 @@ static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_stor
 {
 	struct bpf_local_storage_map *smap;
 	bool free_local_storage;
-	struct btf_record *rec;
 	void *owner;
 
 	smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
@@ -192,26 +170,11 @@ static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_stor
 	    SDATA(selem))
 		RCU_INIT_POINTER(local_storage->cache[smap->cache_idx], NULL);
 
-	/* A different RCU callback is chosen whenever we need to free
-	 * additional fields in selem data before freeing selem.
-	 * bpf_local_storage_map_free only executes rcu_barrier to wait for RCU
-	 * callbacks when it has special fields, hence we can only conditionally
-	 * dereference smap, as by this time the map might have already been
-	 * freed without waiting for our call_rcu callback if it did not have
-	 * any special fields.
-	 */
-	rec = smap->map.record;
-	if (!reuse_now) {
-		if (!IS_ERR_OR_NULL(rec))
-			call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_fields_trace_rcu);
-		else
-			call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_trace_rcu);
-	} else {
-		if (!IS_ERR_OR_NULL(rec))
-			call_rcu(&selem->rcu, bpf_selem_free_fields_rcu);
-		else
-			kfree_rcu(selem, rcu);
-	}
+	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
+	if (!reuse_now)
+		call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_trace_rcu);
+	else
+		kfree_rcu(selem, rcu);
 
 	if (rcu_access_pointer(local_storage->smap) == smap)
 		RCU_INIT_POINTER(local_storage->smap, NULL);
@@ -769,26 +732,6 @@ void bpf_local_storage_map_free(struct bpf_map *map,
 	 */
 	synchronize_rcu();
 
-	/* Only delay freeing of smap, buckets are not needed anymore */
 	kvfree(smap->buckets);
-
-	/* When local storage has special fields, callbacks for
-	 * bpf_selem_free_fields_rcu and bpf_selem_free_fields_trace_rcu will
-	 * keep using the map BTF record, we need to execute an RCU barrier to
-	 * wait for them as the record will be freed right after our map_free
-	 * callback.
-	 */
-	if (!IS_ERR_OR_NULL(smap->map.record)) {
-		rcu_barrier_tasks_trace();
-		/* We cannot skip rcu_barrier() when rcu_trace_implies_rcu_gp()
-		 * is true, because while call_rcu invocation is skipped in that
-		 * case in bpf_selem_free_fields_trace_rcu (and all local
-		 * storage maps pass reuse_now = false), there can be
-		 * call_rcu callbacks based on reuse_now = true in the
-		 * while ((selem = ...)) loop above or when owner's free path
-		 * calls bpf_local_storage_unlink_nolock.
-		 */
-		rcu_barrier();
-	}
 	bpf_map_area_free(smap);
 }
