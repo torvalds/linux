@@ -61,6 +61,12 @@ struct bpf_active_lock {
 
 #define ITER_PREFIX "bpf_iter_"
 
+enum bpf_iter_state {
+	BPF_ITER_STATE_INVALID, /* for non-first slot */
+	BPF_ITER_STATE_ACTIVE,
+	BPF_ITER_STATE_DRAINED,
+};
+
 struct bpf_reg_state {
 	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
@@ -105,6 +111,18 @@ struct bpf_reg_state {
 			bool first_slot;
 		} dynptr;
 
+		/* For bpf_iter stack slots */
+		struct {
+			/* BTF container and BTF type ID describing
+			 * struct bpf_iter_<type> of an iterator state
+			 */
+			struct btf *btf;
+			u32 btf_id;
+			/* packing following two fields to fit iter state into 16 bytes */
+			enum bpf_iter_state state:2;
+			int depth:30;
+		} iter;
+
 		/* Max size from any of the above. */
 		struct {
 			unsigned long raw1;
@@ -143,6 +161,8 @@ struct bpf_reg_state {
 	 * same reference to the socket, to determine proper reference freeing.
 	 * For stack slots that are dynptrs, this is used to track references to
 	 * the dynptr to determine proper reference freeing.
+	 * Similarly to dynptrs, we use ID to track "belonging" of a reference
+	 * to a specific instance of bpf_iter.
 	 */
 	u32 id;
 	/* PTR_TO_SOCKET and PTR_TO_TCP_SOCK could be a ptr returned
@@ -213,9 +233,11 @@ enum bpf_stack_slot_type {
 	 * is stored in bpf_stack_state->spilled_ptr.dynptr.type
 	 */
 	STACK_DYNPTR,
+	STACK_ITER,
 };
 
 #define BPF_REG_SIZE 8	/* size of eBPF register in bytes */
+
 #define BPF_DYNPTR_SIZE		sizeof(struct bpf_dynptr_kern)
 #define BPF_DYNPTR_NR_SLOTS		(BPF_DYNPTR_SIZE / BPF_REG_SIZE)
 
@@ -450,6 +472,7 @@ struct bpf_insn_aux_data {
 	bool sanitize_stack_spill; /* subject to Spectre v4 sanitation */
 	bool zext_dst; /* this insn zero extends dst reg */
 	bool storage_get_func_atomic; /* bpf_*_storage_get() with atomic memory alloc */
+	bool is_iter_next; /* bpf_iter_<type>_next() kfunc call */
 	u8 alu_state; /* used in combination with alu_limit */
 
 	/* below fields are initialized once */
