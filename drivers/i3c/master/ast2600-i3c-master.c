@@ -858,6 +858,11 @@ static void aspeed_i3c_master_dequeue_xfer(struct aspeed_i3c_master *master,
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
+static u8 mdb_table[] = {
+	0xbf, /* Aspeed BIC */
+	0,
+};
+
 static void aspeed_i3c_master_sir_handler(struct aspeed_i3c_master *master,
 				      u32 ibi_status)
 {
@@ -868,6 +873,7 @@ static void aspeed_i3c_master_sir_handler(struct aspeed_i3c_master *master,
 	u8 length = IBI_QUEUE_STATUS_DATA_LEN(ibi_status);
 	u8 *buf;
 	bool data_consumed = false;
+	const u8 *mdb;
 
 	dev = master->ibi.slots[addr];
 	if (!dev) {
@@ -898,6 +904,13 @@ static void aspeed_i3c_master_sir_handler(struct aspeed_i3c_master *master,
 	buf += sizeof(ibi_status);
 
 	aspeed_i3c_master_read_ibi_fifo(master, buf, length);
+	if (ibi_status & IBI_QUEUE_STATUS_PEC_ERR) {
+		for (mdb = mdb_table; *mdb != 0; mdb++)
+			if (buf[0] == *mdb)
+				break;
+		if (!(*mdb))
+			pr_warn("ibi crc/pec error: mdb = %x", buf[0]);
+	}
 	slot->len = length + sizeof(ibi_status);
 	i3c_master_queue_ibi(dev, slot);
 	data_consumed = true;
@@ -939,9 +952,6 @@ static void aspeed_i3c_master_demux_ibis(struct aspeed_i3c_master *master)
 		if (status & IBI_QUEUE_STATUS_RSP_NACK)
 			pr_warn_once("ibi from unrecognized slave %02x\n",
 				     addr);
-
-		if (status & IBI_QUEUE_STATUS_PEC_ERR)
-			pr_warn("ibi crc/pec error\n");
 
 		if (IBI_TYPE_SIR(status))
 			aspeed_i3c_master_sir_handler(master, status);
