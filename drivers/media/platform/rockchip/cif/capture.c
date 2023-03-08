@@ -7699,13 +7699,10 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 			    dev->stream[RKCIF_STREAM_MIPI_ID2].tools_vdev->state == RKCIF_STATE_STREAMING) {
 				for (i = 0; i < 3; i++) {
 					spin_lock_irqsave(&dev->stream[i].tools_vdev->vbq_lock, flags);
-					dev->stream[i].tools_vdev->tools_work.active_buf = dev->rdbk_buf[i];
-					dev->stream[i].tools_vdev->tools_work.frame_idx = dev->rdbk_buf[i]->vb.sequence;
-					dev->stream[i].tools_vdev->tools_work.timestamp = dev->rdbk_buf[i]->vb.vb2_buf.timestamp;
-					if (!work_busy(&dev->stream[i].tools_vdev->tools_work.work))
-						schedule_work(&dev->stream[i].tools_vdev->tools_work.work);
-					else
-						rkcif_vb_done_tasklet(&dev->stream[i], dev->rdbk_buf[i]);
+					list_add_tail(&dev->rdbk_buf[i]->queue,
+						      &dev->stream[i].tools_vdev->buf_done_head);
+					if (!work_busy(&dev->stream[i].tools_vdev->work))
+						schedule_work(&dev->stream[i].tools_vdev->work);
 					spin_unlock_irqrestore(&dev->stream[i].tools_vdev->vbq_lock, flags);
 				}
 			} else {
@@ -7759,13 +7756,10 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 			    dev->stream[RKCIF_STREAM_MIPI_ID1].tools_vdev->state == RKCIF_STATE_STREAMING) {
 				for (i = 0; i < 2; i++) {
 					spin_lock_irqsave(&dev->stream[i].tools_vdev->vbq_lock, flags);
-					dev->stream[i].tools_vdev->tools_work.active_buf = dev->rdbk_buf[i];
-					dev->stream[i].tools_vdev->tools_work.frame_idx = dev->rdbk_buf[i]->vb.sequence;
-					dev->stream[i].tools_vdev->tools_work.timestamp = dev->rdbk_buf[i]->vb.vb2_buf.timestamp;
-					if (!work_busy(&dev->stream[i].tools_vdev->tools_work.work))
-						schedule_work(&dev->stream[i].tools_vdev->tools_work.work);
-					else
-						rkcif_vb_done_tasklet(&dev->stream[i], dev->rdbk_buf[i]);
+					list_add_tail(&dev->rdbk_buf[i]->queue,
+						      &dev->stream[i].tools_vdev->buf_done_head);
+					if (!work_busy(&dev->stream[i].tools_vdev->work))
+						schedule_work(&dev->stream[i].tools_vdev->work);
 					spin_unlock_irqrestore(&dev->stream[i].tools_vdev->vbq_lock, flags);
 				}
 			} else {
@@ -7805,6 +7799,22 @@ RDBK_FRM_UNMATCH:
 	dev->rdbk_buf[RDBK_S] = NULL;
 }
 
+static void rkcif_buf_done_with_tools(struct rkcif_stream *stream,
+				      struct rkcif_buffer *active_buf)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
+	if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
+		list_add_tail(&active_buf->queue, &stream->tools_vdev->buf_done_head);
+		if (!work_busy(&stream->tools_vdev->work))
+			schedule_work(&stream->tools_vdev->work);
+	} else {
+		rkcif_vb_done_tasklet(stream, active_buf);
+	}
+	spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+}
+
 static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 				   struct rkcif_buffer *active_buf,
 				   int mipi_id,
@@ -7834,37 +7844,17 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) {
 		if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
 			if (stream->frame_phase == CIF_CSI_FRAME1_READY && active_buf) {
-				if (stream->tools_vdev &&
-				    stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
-					spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-					stream->tools_vdev->tools_work.active_buf = active_buf;
-					stream->tools_vdev->tools_work.frame_idx = active_buf->vb.sequence;
-					stream->tools_vdev->tools_work.timestamp = active_buf->vb.vb2_buf.timestamp;
-					if (!work_busy(&stream->tools_vdev->tools_work.work))
-						schedule_work(&stream->tools_vdev->tools_work.work);
-					else
-						rkcif_vb_done_tasklet(stream, active_buf);
-					spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
-				} else {
+				if (stream->tools_vdev)
+					rkcif_buf_done_with_tools(stream, active_buf);
+				else
 					rkcif_vb_done_tasklet(stream, active_buf);
-				}
 			}
 		} else {
 			if (active_buf) {
-				if (stream->tools_vdev &&
-				    stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
-					spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-					stream->tools_vdev->tools_work.active_buf = active_buf;
-					stream->tools_vdev->tools_work.frame_idx = active_buf->vb.sequence;
-					stream->tools_vdev->tools_work.timestamp = active_buf->vb.vb2_buf.timestamp;
-					if (!work_busy(&stream->tools_vdev->tools_work.work))
-						schedule_work(&stream->tools_vdev->tools_work.work);
-					else
-						rkcif_vb_done_tasklet(stream, active_buf);
-					spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
-				} else {
+				if (stream->tools_vdev)
+					rkcif_buf_done_with_tools(stream, active_buf);
+				else
 					rkcif_vb_done_tasklet(stream, active_buf);
-				}
 			}
 		}
 	} else {

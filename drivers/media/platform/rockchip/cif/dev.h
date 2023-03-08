@@ -193,6 +193,8 @@ struct rkcif_buffer {
 struct rkcif_tools_buffer {
 	struct vb2_v4l2_buffer *vb;
 	struct list_head list;
+	u32 frame_idx;
+	u64 timestamp;
 	int use_cnt;
 };
 
@@ -707,13 +709,6 @@ void rkcif_unregister_scale_vdevs(struct rkcif_device *cif_dev,
 #define CIF_TOOLS_CH1_VDEV_NAME CIF_DRIVER_NAME	"_tools_id1"
 #define CIF_TOOLS_CH2_VDEV_NAME CIF_DRIVER_NAME	"_tools_id2"
 
-struct rkcif_tools_work_struct {
-	struct work_struct	work;
-	struct rkcif_buffer *active_buf;
-	unsigned int frame_idx;
-	unsigned long timestamp;
-};
-
 /*
  * struct rkcif_tools_vdev - CIF Capture device
  *
@@ -727,13 +722,14 @@ struct rkcif_tools_vdev {
 	struct rkcif_vdev_node vnode;
 	struct rkcif_stream *stream;
 	struct list_head buf_head;
+	struct list_head buf_done_head;
 	struct list_head src_buf_head;
 	spinlock_t vbq_lock; /* vfd lock */
 	wait_queue_head_t wq_stopped;
 	struct v4l2_pix_format_mplane	pixm;
 	const struct cif_output_fmt *tools_out_fmt;
 	struct rkcif_buffer *curr_buf;
-	struct rkcif_tools_work_struct tools_work;
+	struct work_struct work;
 	enum rkcif_state state;
 	int frame_phase;
 	unsigned int frame_idx;

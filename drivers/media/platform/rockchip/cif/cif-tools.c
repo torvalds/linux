@@ -591,22 +591,34 @@ static int rkcif_tools_init_vb2_queue(struct vb2_queue *q,
 
 static void rkcif_tools_work(struct work_struct *work)
 {
-	struct rkcif_tools_work_struct *tools_work = container_of(work,
-							    struct rkcif_tools_work_struct,
-							    work);
-	struct rkcif_tools_vdev *tools_vdev = container_of(tools_work,
+	struct rkcif_tools_vdev *tools_vdev = container_of(work,
 						struct rkcif_tools_vdev,
-						tools_work);
+						work);
 	struct rkcif_stream *stream = tools_vdev->stream;
 	struct rkcif_tools_buffer *tools_buf;
 	const struct cif_output_fmt *fmt = tools_vdev->tools_out_fmt;
+	struct rkcif_buffer *buf = NULL;
 	int i = 0;
-	int wait_cnt = 0;
 	bool is_find_tools_buf = false;
+	unsigned long flags;
 
+retry_done_buf:
+	spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
+	if (!list_empty(&tools_vdev->buf_done_head)) {
+		buf = list_first_entry(&tools_vdev->buf_done_head,
+				       struct rkcif_buffer, queue);
+		if (buf)
+			list_del(&buf->queue);
+	}
+	spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
+	if (!buf) {
+		v4l2_err(&stream->cifdev->v4l2_dev, "stream[%d] tools fail to get buf form list\n",
+			 stream->id);
+		return;
+	}
 	if (!list_empty(&tools_vdev->src_buf_head)) {
 		list_for_each_entry(tools_buf, &tools_vdev->src_buf_head, list) {
-			if (tools_buf->vb == &tools_work->active_buf->vb) {
+			if (tools_buf->vb == &buf->vb) {
 				is_find_tools_buf = true;
 				break;
 			}
@@ -614,29 +626,43 @@ static void rkcif_tools_work(struct work_struct *work)
 	}
 	if (!is_find_tools_buf) {
 		tools_buf = kzalloc(sizeof(struct rkcif_tools_buffer), GFP_KERNEL);
-		tools_buf->vb = &tools_work->active_buf->vb;
+		tools_buf->vb = &buf->vb;
 		list_add_tail(&tools_buf->list, &tools_vdev->src_buf_head);
 	}
 	tools_buf->use_cnt = 2;
-	rkcif_vb_done_tasklet(stream, tools_work->active_buf);
+	tools_buf->frame_idx = buf->vb.sequence;
+	tools_buf->timestamp = buf->vb.vb2_buf.timestamp;
 
 	if (tools_vdev->stopping) {
-		rkcif_buf_queue(&tools_work->active_buf->vb.vb2_buf);
-		while (tools_buf->use_cnt && wait_cnt < 20) {
-			usleep_range(5000, 6000);
-			wait_cnt++;
-		}
 		rkcif_tools_stop(tools_vdev);
 		tools_vdev->stopping = false;
+		rkcif_vb_done_tasklet(stream, buf);
+		spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
+		while (!list_empty(&tools_vdev->buf_done_head)) {
+			buf = list_first_entry(&tools_vdev->buf_done_head,
+					       struct rkcif_buffer, queue);
+			if (buf) {
+				list_del(&buf->queue);
+				rkcif_vb_done_tasklet(stream, buf);
+			}
+		}
+		spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
 		wake_up(&tools_vdev->wq_stopped);
 		return;
 	}
+	rkcif_vb_done_tasklet(stream, buf);
 
 	if (!list_empty(&tools_vdev->buf_head)) {
 		tools_vdev->curr_buf = list_first_entry(&tools_vdev->buf_head,
 						    struct rkcif_buffer, queue);
 		if (!tools_vdev->curr_buf || tools_vdev->state != RKCIF_STATE_STREAMING) {
-			rkcif_buf_queue(&tools_work->active_buf->vb.vb2_buf);
+			rkcif_buf_queue(&tools_buf->vb->vb2_buf);
+			spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
+			if (!list_empty(&tools_vdev->buf_done_head)) {
+				spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+				goto retry_done_buf;
+			}
+			spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
 			return;
 		}
 		list_del(&tools_vdev->curr_buf->queue);
@@ -644,7 +670,7 @@ static void rkcif_tools_work(struct work_struct *work)
 		/* Dequeue a filled buffer */
 		for (i = 0; i < fmt->mplanes; i++) {
 			u32 payload_size = tools_vdev->pixm.plane_fmt[i].sizeimage;
-			void *src = vb2_plane_vaddr(&tools_work->active_buf->vb.vb2_buf, i);
+			void *src = vb2_plane_vaddr(&buf->vb.vb2_buf, i);
 			void *dst = vb2_plane_vaddr(&tools_vdev->curr_buf->vb.vb2_buf, i);
 
 			if (!src || !dst)
@@ -653,15 +679,21 @@ static void rkcif_tools_work(struct work_struct *work)
 					      payload_size);
 			memcpy(dst, src, payload_size);
 		}
-		rkcif_buf_queue(&tools_work->active_buf->vb.vb2_buf);
-		tools_vdev->curr_buf->vb.sequence = tools_work->frame_idx;
-		tools_vdev->curr_buf->vb.vb2_buf.timestamp = tools_work->timestamp;
+		rkcif_buf_queue(&tools_buf->vb->vb2_buf);
+		tools_vdev->curr_buf->vb.sequence = tools_buf->frame_idx;
+		tools_vdev->curr_buf->vb.vb2_buf.timestamp = tools_buf->frame_idx;
 		vb2_buffer_done(&tools_vdev->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		tools_vdev->curr_buf = NULL;
 	} else {
-		rkcif_buf_queue(&tools_work->active_buf->vb.vb2_buf);
+		rkcif_buf_queue(&tools_buf->vb->vb2_buf);
 	}
 
+	spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
+	if (!list_empty(&tools_vdev->buf_done_head)) {
+		spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+		goto retry_done_buf;
+	}
+	spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
 }
 
 void rkcif_init_tools_vdev(struct rkcif_device *cif_dev, u32 ch)
@@ -682,11 +714,12 @@ void rkcif_init_tools_vdev(struct rkcif_device *cif_dev, u32 ch)
 	pixm.height = RKCIF_DEFAULT_HEIGHT;
 	tools_vdev->state = RKCIF_STATE_READY;
 	INIT_LIST_HEAD(&tools_vdev->buf_head);
+	INIT_LIST_HEAD(&tools_vdev->buf_done_head);
 	INIT_LIST_HEAD(&tools_vdev->src_buf_head);
 	spin_lock_init(&tools_vdev->vbq_lock);
 	rkcif_tools_set_fmt(tools_vdev, &pixm, false);
 	init_waitqueue_head(&tools_vdev->wq_stopped);
-	INIT_WORK(&tools_vdev->tools_work.work, rkcif_tools_work);
+	INIT_WORK(&tools_vdev->work, rkcif_tools_work);
 }
 
 static int rkcif_register_tools_vdev(struct rkcif_tools_vdev *tools_vdev, bool is_multi_input)
