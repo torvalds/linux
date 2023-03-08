@@ -2618,8 +2618,7 @@ static void intel_disable_ddi_buf(struct intel_encoder *encoder,
 
 	if (intel_crtc_has_dp_encoder(crtc_state))
 		intel_de_rmw(dev_priv, dp_tp_ctl_reg(encoder, crtc_state),
-			     DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK,
-			     DP_TP_CTL_LINK_TRAIN_PAT1);
+			     DP_TP_CTL_ENABLE, 0);
 
 	/* Disable FEC in DP Sink */
 	intel_ddi_disable_fec_state(encoder, crtc_state);
@@ -3140,8 +3139,7 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 			wait = true;
 		}
 
-		dp_tp_ctl &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
-		dp_tp_ctl |= DP_TP_CTL_LINK_TRAIN_PAT1;
+		dp_tp_ctl &= ~DP_TP_CTL_ENABLE;
 		intel_de_write(dev_priv, dp_tp_ctl_reg(encoder, crtc_state), dp_tp_ctl);
 		intel_de_posting_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
 

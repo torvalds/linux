@@ -845,9 +845,7 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		intel_de_posting_read(dev_priv, DDI_BUF_CTL(PORT_E));
 
 		/* Disable DP_TP_CTL and FDI_RX_CTL and retry */
-		intel_de_rmw(dev_priv, DP_TP_CTL(PORT_E),
-			     DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK,
-			     DP_TP_CTL_LINK_TRAIN_PAT1);
+		intel_de_rmw(dev_priv, DP_TP_CTL(PORT_E), DP_TP_CTL_ENABLE, 0);
 		intel_de_posting_read(dev_priv, DP_TP_CTL(PORT_E));
 
 		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
