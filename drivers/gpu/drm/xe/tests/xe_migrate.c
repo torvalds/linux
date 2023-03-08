@@ -129,7 +129,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 	}
 	dma_fence_put(fence);
 
-	/* Try to copy 0xc0 from sysmem to lmem with 2MB or 64KiB/4KiB pages */
+	/* Try to copy 0xc0 from sysmem to vram with 2MB or 64KiB/4KiB pages */
 	xe_map_memset(xe, &sysmem->vmap, 0, 0xc0, sysmem->size);
 	xe_map_memset(xe, &bo->vmap, 0, 0xd0, bo->size);
 

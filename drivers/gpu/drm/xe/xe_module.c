@@ -18,9 +18,9 @@ bool enable_guc = true;
 module_param_named_unsafe(enable_guc, enable_guc, bool, 0444);
 MODULE_PARM_DESC(enable_guc, "Enable GuC submission");
 
-u32 xe_force_lmem_bar_size;
-module_param_named(lmem_bar_size, xe_force_lmem_bar_size, uint, 0600);
-MODULE_PARM_DESC(lmem_bar_size, "Set the lmem bar size(in MiB)");
+u32 xe_force_vram_bar_size;
+module_param_named(vram_bar_size, xe_force_vram_bar_size, uint, 0600);
+MODULE_PARM_DESC(vram_bar_size, "Set the vram bar size(in MiB)");
 
 int xe_guc_log_level = 5;
 module_param_named(guc_log_level, xe_guc_log_level, int, 0600);

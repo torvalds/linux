@@ -68,7 +68,7 @@ _resize_bar(struct xe_device *xe, int resno, resource_size_t size)
 	return 1;
 }
 
-static int xe_resize_lmem_bar(struct xe_device *xe, resource_size_t lmem_size)
+static int xe_resize_vram_bar(struct xe_device *xe, resource_size_t vram_size)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct pci_bus *root = pdev->bus;
@@ -78,31 +78,31 @@ static int xe_resize_lmem_bar(struct xe_device *xe, resource_size_t lmem_size)
 	u32 pci_cmd;
 	int i;
 	int ret;
-	u64 force_lmem_bar_size = xe_force_lmem_bar_size;
+	u64 force_vram_bar_size = xe_force_vram_bar_size;
 
 	current_size = roundup_pow_of_two(pci_resource_len(pdev, GEN12_LMEM_BAR));
 
-	if (force_lmem_bar_size) {
+	if (force_vram_bar_size) {
 		u32 bar_sizes;
 
-		rebar_size = force_lmem_bar_size * (resource_size_t)SZ_1M;
+		rebar_size = force_vram_bar_size * (resource_size_t)SZ_1M;
 		bar_sizes = pci_rebar_get_possible_sizes(pdev, GEN12_LMEM_BAR);
 
 		if (rebar_size == current_size)
 			return 0;
 
 		if (!(bar_sizes & BIT(pci_rebar_bytes_to_size(rebar_size))) ||
-		    rebar_size >= roundup_pow_of_two(lmem_size)) {
-			rebar_size = lmem_size;
+		    rebar_size >= roundup_pow_of_two(vram_size)) {
+			rebar_size = vram_size;
 			drm_info(&xe->drm,
 				 "Given bar size is not within supported size, setting it to default: %llu\n",
-				 (u64)lmem_size >> 20);
+				 (u64)vram_size >> 20);
 		}
 	} else {
 		rebar_size = current_size;
 
-		if (rebar_size != roundup_pow_of_two(lmem_size))
-			rebar_size = lmem_size;
+		if (rebar_size != roundup_pow_of_two(vram_size))
+			rebar_size = vram_size;
 		else
 			return 0;
 	}
@@ -117,7 +117,7 @@ static int xe_resize_lmem_bar(struct xe_device *xe, resource_size_t lmem_size)
 	}
 
 	if (!root_res) {
-		drm_info(&xe->drm, "Can't resize LMEM BAR - platform support is missing\n");
+		drm_info(&xe->drm, "Can't resize VRAM BAR - platform support is missing\n");
 		return -1;
 	}
 
@@ -168,7 +168,7 @@ int xe_mmio_total_vram_size(struct xe_device *xe, u64 *vram_size, u64 *usable_si
 	if (usable_size) {
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
 		*usable_size = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
-		drm_info(&xe->drm, "lmem_size: 0x%llx usable_size: 0x%llx\n",
+		drm_info(&xe->drm, "vram_size: 0x%llx usable_size: 0x%llx\n",
 			 *vram_size, *usable_size);
 	}
 
@@ -180,7 +180,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct xe_gt *gt;
 	u8 id;
-	u64 lmem_size;
+	u64 vram_size;
 	u64 original_size;
 	u64 current_size;
 	u64 usable_size;
@@ -207,29 +207,29 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	gt = xe_device_get_gt(xe, 0);
 	original_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 
-	err = xe_mmio_total_vram_size(xe, &lmem_size, &usable_size);
+	err = xe_mmio_total_vram_size(xe, &vram_size, &usable_size);
 	if (err)
 		return err;
 
-	resize_result = xe_resize_lmem_bar(xe, lmem_size);
+	resize_result = xe_resize_vram_bar(xe, vram_size);
 	current_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 	xe->mem.vram.io_start = pci_resource_start(pdev, GEN12_LMEM_BAR);
 
-	xe->mem.vram.size = min(current_size, lmem_size);
+	xe->mem.vram.size = min(current_size, vram_size);
 
 	if (!xe->mem.vram.size)
 		return -EIO;
 
 	if (resize_result > 0)
-		drm_info(&xe->drm, "Successfully resize LMEM from %lluMiB to %lluMiB\n",
+		drm_info(&xe->drm, "Successfully resize VRAM from %lluMiB to %lluMiB\n",
 			 (u64)original_size >> 20,
 			 (u64)current_size >> 20);
-	else if (xe->mem.vram.size < lmem_size && !xe_force_lmem_bar_size)
+	else if (xe->mem.vram.size < vram_size && !xe_force_vram_bar_size)
 		drm_info(&xe->drm, "Using a reduced BAR size of %lluMiB. Consider enabling 'Resizable BAR' support in your BIOS.\n",
 			 (u64)xe->mem.vram.size >> 20);
-	if (xe->mem.vram.size < lmem_size)
+	if (xe->mem.vram.size < vram_size)
 		drm_warn(&xe->drm, "Restricting VRAM size to PCI resource size (0x%llx->0x%llx)\n",
-			 lmem_size, (u64)xe->mem.vram.size);
+			 vram_size, (u64)xe->mem.vram.size);
 
 	xe->mem.vram.mapping = ioremap_wc(xe->mem.vram.io_start, xe->mem.vram.size);
 	xe->mem.vram.size = min_t(u64, xe->mem.vram.size, usable_size);
@@ -360,7 +360,7 @@ int xe_mmio_init(struct xe_device *xe)
 	 * and we should not continue with driver initialization.
 	 */
 	if (IS_DGFX(xe) && !(xe_mmio_read32(gt, GU_CNTL.reg) & LMEM_INIT)) {
-		drm_err(&xe->drm, "LMEM not initialized by firmware\n");
+		drm_err(&xe->drm, "VRAM not initialized by firmware\n");
 		return -ENODEV;
 	}
 

@@ -3379,7 +3379,7 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 {
 	struct rb_node *node;
-	bool is_lmem;
+	bool is_vram;
 	uint64_t addr;
 
 	if (!down_read_trylock(&vm->lock)) {
@@ -3387,8 +3387,8 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 		return 0;
 	}
 	if (vm->pt_root[gt_id]) {
-		addr = xe_bo_addr(vm->pt_root[gt_id]->bo, 0, GEN8_PAGE_SIZE, &is_lmem);
-		drm_printf(p, " VM root: A:0x%llx %s\n", addr, is_lmem ? "LMEM" : "SYS");
+		addr = xe_bo_addr(vm->pt_root[gt_id]->bo, 0, GEN8_PAGE_SIZE, &is_vram);
+		drm_printf(p, " VM root: A:0x%llx %s\n", addr, is_vram ? "VRAM" : "SYS");
 	}
 
 	for (node = rb_first(&vm->vmas); node; node = rb_next(node)) {
@@ -3401,11 +3401,11 @@ int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id)
 			xe_res_first_sg(vma->userptr.sg, 0, GEN8_PAGE_SIZE, &cur);
 			addr = xe_res_dma(&cur);
 		} else {
-			addr = xe_bo_addr(vma->bo, 0, GEN8_PAGE_SIZE, &is_lmem);
+			addr = xe_bo_addr(vma->bo, 0, GEN8_PAGE_SIZE, &is_vram);
 		}
 		drm_printf(p, " [%016llx-%016llx] S:0x%016llx A:%016llx %s\n",
 			   vma->start, vma->end, vma->end - vma->start + 1ull,
-			   addr, is_userptr ? "USR" : is_lmem ? "VRAM" : "SYS");
+			   addr, is_userptr ? "USR" : is_vram ? "VRAM" : "SYS");
 	}
 	up_read(&vm->lock);
 

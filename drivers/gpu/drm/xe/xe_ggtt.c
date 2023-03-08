@@ -28,12 +28,12 @@ u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	u64 pte;
-	bool is_lmem;
+	bool is_vram;
 
-	pte = xe_bo_addr(bo, bo_offset, GEN8_PAGE_SIZE, &is_lmem);
+	pte = xe_bo_addr(bo, bo_offset, GEN8_PAGE_SIZE, &is_vram);
 	pte |= GEN8_PAGE_PRESENT;
 
-	if (is_lmem)
+	if (is_vram)
 		pte |= GEN12_GGTT_PTE_LM;
 
 	/* FIXME: vfunc + pass in caching rules */

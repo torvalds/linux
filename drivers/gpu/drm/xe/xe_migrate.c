@@ -222,15 +222,15 @@ static int xe_migrate_prepare_vm(struct xe_gt *gt, struct xe_migrate *m,
 			level++;
 		}
 	} else {
-		bool is_lmem;
-		u64 batch_addr = xe_bo_addr(batch, 0, GEN8_PAGE_SIZE, &is_lmem);
+		bool is_vram;
+		u64 batch_addr = xe_bo_addr(batch, 0, GEN8_PAGE_SIZE, &is_vram);
 
 		m->batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 
 		if (xe->info.supports_usm) {
 			batch = gt->usm.bb_pool.bo;
 			batch_addr = xe_bo_addr(batch, 0, GEN8_PAGE_SIZE,
-						&is_lmem);
+						&is_vram);
 			m->usm_batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
 		}
 	}
@@ -933,12 +933,12 @@ static void write_pgtable(struct xe_gt *gt, struct xe_bb *bb, u64 ppgtt_ofs,
 	 */
 	XE_BUG_ON(update->qwords > 0x1ff);
 	if (!ppgtt_ofs) {
-		bool is_lmem;
+		bool is_vram;
 
 		ppgtt_ofs = xe_migrate_vram_ofs(xe_bo_addr(update->pt_bo, 0,
 							   GEN8_PAGE_SIZE,
-							   &is_lmem));
-		XE_BUG_ON(!is_lmem);
+							   &is_vram));
+		XE_BUG_ON(!is_vram);
 	}
 
 	do {

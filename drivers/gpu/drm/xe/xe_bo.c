@@ -1299,12 +1299,12 @@ int xe_bo_pin(struct xe_bo *bo)
 	if (IS_DGFX(xe) && !(IS_ENABLED(CONFIG_DRM_XE_DEBUG) &&
 	    bo->flags & XE_BO_INTERNAL_TEST)) {
 		struct ttm_place *place = &(bo->placements[0]);
-		bool lmem;
+		bool vram;
 
 		if (mem_type_is_vram(place->mem_type)) {
 			XE_BUG_ON(!(place->flags & TTM_PL_FLAG_CONTIGUOUS));
 
-			place->fpfn = (xe_bo_addr(bo, 0, PAGE_SIZE, &lmem) -
+			place->fpfn = (xe_bo_addr(bo, 0, PAGE_SIZE, &vram) -
 				       vram_region_io_offset(bo)) >> PAGE_SHIFT;
 			place->lpfn = place->fpfn + (bo->size >> PAGE_SHIFT);
 
@@ -1424,7 +1424,7 @@ bool xe_bo_is_xe_bo(struct ttm_buffer_object *bo)
 }
 
 dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
-		      size_t page_size, bool *is_lmem)
+		      size_t page_size, bool *is_vram)
 {
 	struct xe_res_cursor cur;
 	u64 page;
@@ -1436,9 +1436,9 @@ dma_addr_t xe_bo_addr(struct xe_bo *bo, u64 offset,
 	page = offset >> PAGE_SHIFT;
 	offset &= (PAGE_SIZE - 1);
 
-	*is_lmem = xe_bo_is_vram(bo);
+	*is_vram = xe_bo_is_vram(bo);
 
-	if (!*is_lmem && !xe_bo_is_stolen(bo)) {
+	if (!*is_vram && !xe_bo_is_stolen(bo)) {
 		XE_BUG_ON(!bo->ttm.ttm);
 
 		xe_res_first_sg(xe_bo_get_sg(bo), page << PAGE_SHIFT,

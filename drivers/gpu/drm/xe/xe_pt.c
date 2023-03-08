@@ -61,12 +61,12 @@ u64 gen8_pde_encode(struct xe_bo *bo, u64 bo_offset,
 		    const enum xe_cache_level level)
 {
 	u64 pde;
-	bool is_lmem;
+	bool is_vram;
 
-	pde = xe_bo_addr(bo, bo_offset, GEN8_PAGE_SIZE, &is_lmem);
+	pde = xe_bo_addr(bo, bo_offset, GEN8_PAGE_SIZE, &is_vram);
 	pde |= GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
 
-	XE_WARN_ON(IS_DGFX(xe_bo_device(bo)) && !is_lmem);
+	XE_WARN_ON(IS_DGFX(xe_bo_device(bo)) && !is_vram);
 
 	/* FIXME: I don't think the PPAT handling is correct for MTL */
 
@@ -79,13 +79,13 @@ u64 gen8_pde_encode(struct xe_bo *bo, u64 bo_offset,
 }
 
 static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
-			   size_t page_size, bool *is_lmem)
+			   size_t page_size, bool *is_vram)
 {
 	if (xe_vma_is_userptr(vma)) {
 		struct xe_res_cursor cur;
 		u64 page;
 
-		*is_lmem = false;
+		*is_vram = false;
 		page = offset >> PAGE_SHIFT;
 		offset &= (PAGE_SIZE - 1);
 
@@ -93,7 +93,7 @@ static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
 				&cur);
 		return xe_res_dma(&cur) + offset;
 	} else {
-		return xe_bo_addr(vma->bo, offset, page_size, is_lmem);
+		return xe_bo_addr(vma->bo, offset, page_size, is_vram);
 	}
 }
 

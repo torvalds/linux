@@ -41,7 +41,7 @@ config DRM_XE_DEBUG_VM
 	  If in doubt, say "N".
 
 config DRM_XE_DEBUG_MEM
-	bool "Enable passing SYS/LMEM addresses to user space"
+	bool "Enable passing SYS/VRAM addresses to user space"
 	default n
 	help
 	  Pass object location trough uapi. Intended for extended
