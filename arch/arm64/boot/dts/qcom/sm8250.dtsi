@@ -2808,11 +2808,7 @@
 			clock-names = "apb_pclk";
 
 			out-ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+				port {
 					funnel_in1_out_funnel_merg: endpoint {
 						remote-endpoint = <&funnel_merg_in_funnel_in1>;
 					};
@@ -2913,7 +2909,6 @@
 			arm,primecell-periphid = <0x000bb908>;
 
 			reg = <0 0x06b04000 0 0x1000>;
-			reg-names = "funnel-base";
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -3229,9 +3224,6 @@
 			clock-names = "apb_pclk";
 
 			out-ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
 				port {
 					funnel_apss_merg_out_funnel_in1: endpoint {
 					remote-endpoint = <&funnel_in1_in_funnel_apss_merg>;
