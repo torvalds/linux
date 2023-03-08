@@ -9,25 +9,7 @@
 
 #####
 # Generate System.map (actual filename passed as second argument)
-
-# $NM produces the following output:
-# f0081e80 T alloc_vfsmnt
-
-#   The second row specify the type of the symbol:
-#   A = Absolute
-#   B = Uninitialised data (.bss)
-#   C = Common symbol
-#   D = Initialised data
-#   G = Initialised data for small objects
-#   I = Indirect reference to another symbol
-#   N = Debugging symbol
-#   R = Read only
-#   S = Uninitialised data for small objects
-#   T = Text code symbol
-#   U = Undefined symbol
-#   V = Weak symbol
-#   W = Weak symbol
-#   Corresponding small letters are local symbols
+# The following refers to the symbol type as per nm(1).
 
 # For System.map filter away:
 #   a - local absolute symbols
