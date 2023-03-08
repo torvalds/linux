@@ -104,8 +104,9 @@ class SpecEnumSet(SpecElement):
     as declared in the "definitions" section of the spec.
 
     Attributes:
-        type          enum or flags
-        entries       entries by name
+        type            enum or flags
+        entries         entries by name
+        entries_by_val  entries by value
     Methods:
         get_mask      for flags compute the mask of all defined values
     """
@@ -117,9 +118,11 @@ class SpecEnumSet(SpecElement):
         prev_entry = None
         value_start = self.yaml.get('value-start', 0)
         self.entries = dict()
+        self.entries_by_val = dict()
         for entry in self.yaml['entries']:
             e = self.new_entry(entry, prev_entry, value_start)
             self.entries[e.name] = e
+            self.entries_by_val[e.raw_value()] = e
             prev_entry = e
 
     def new_entry(self, entry, prev_entry, value_start):
