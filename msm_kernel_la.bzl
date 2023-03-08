@@ -117,7 +117,6 @@ def _define_kernel_build(
         dtbo_list,
         dtstree,
         define_abi_targets,
-        define_compile_commands,
         kmi_enforced):
     """Creates a `kernel_build` and other associated definitions
 
@@ -131,7 +130,6 @@ def _define_kernel_build(
       dtb_list: device tree blobs expected to be built
       dtbo_list: device tree overlay blobs expected to be built
       define_abi_targets: boolean determining if ABI targets should be defined
-      define_compile_commands: boolean determining if `compile_commands.json` should be generated
       kmi_enforced: boolean determining if the KMI contract should be enforced
     """
     out_list = [".config", "Module.symvers"]
@@ -152,7 +150,6 @@ def _define_kernel_build(
         kmi_symbol_list = "//msm-kernel:android/abi_gki_aarch64_qcom" if define_abi_targets else None,
         additional_kmi_symbol_lists = ["{}_all_kmi_symbol_lists".format(base_kernel)] if define_abi_targets else None,
         collect_unstripped_modules = define_abi_targets,
-        enable_interceptor = define_compile_commands,
         visibility = ["//visibility:public"],
     )
 
@@ -178,11 +175,10 @@ def _define_kernel_build(
         kernel_build = ":{}".format(target),
     )
 
-    if define_compile_commands:
-        kernel_compile_commands(
-            name = "{}_compile_commands".format(target),
-            kernel_build = ":{}".format(target),
-        )
+    kernel_compile_commands(
+        name = "{}_compile_commands".format(target),
+        kernel_build = ":{}".format(target),
+    )
 
 def _define_image_build(
         target,
@@ -338,7 +334,6 @@ def define_msm_la(
         msm_target,
         variant,
         in_tree_module_list,
-        define_compile_commands = False,
         kmi_enforced = True,
         boot_image_opts = boot_image_opts()):
     """Top-level kernel build definition macro for an MSM platform
@@ -347,7 +342,6 @@ def define_msm_la(
       msm_target: name of target platform (e.g. "kalama")
       variant: variant of kernel to build (e.g. "gki")
       in_tree_module_list: list of in-tree modules
-      define_compile_commands: boolean determining if `compile_commands.json` should be generated
       kmi_enforced: boolean determining if the KMI contract should be enforced
       boot_image_header_version: boot image header version (for `boot.img`)
       base_address: edk2 base address
@@ -393,7 +387,6 @@ def define_msm_la(
         dtbo_list,
         dtstree,
         define_abi_targets,
-        define_compile_commands,
         kmi_enforced,
     )
 

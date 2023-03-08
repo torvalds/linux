@@ -127,8 +127,7 @@ def _define_kernel_build(
         target,
         dtb_list,
         dtbo_list,
-        dtstree,
-        define_compile_commands):
+        dtstree):
     """Creates a `kernel_build` and other associated definitions
 
     This is where the main kernel build target is created (e.g. `//msm-kernel:kalama_gki`).
@@ -138,7 +137,6 @@ def _define_kernel_build(
       target: name of main Bazel target (e.g. `kalama_gki`)
       dtb_list: device tree blobs expected to be built
       dtbo_list: device tree overlay blobs expected to be built
-      define_compile_commands: boolean determining if `compile_commands.json` should be generated
     """
     out_list = [".config", "Module.symvers"]
 
@@ -172,7 +170,6 @@ def _define_kernel_build(
         additional_kmi_symbol_lists = None,
         abi_definition = None,
         strip_modules = True,
-        enable_interceptor = define_compile_commands,
         visibility = ["//visibility:public"],
     )
 
@@ -189,11 +186,10 @@ def _define_kernel_build(
         kernel_build = ":{}".format(target),
     )
 
-    if define_compile_commands:
-        kernel_compile_commands(
-            name = "{}_compile_commands".format(target),
-            kernel_build = ":{}".format(target),
-        )
+    kernel_compile_commands(
+        name = "{}_compile_commands".format(target),
+        kernel_build = ":{}".format(target),
+    )
 
 def _define_kernel_dist(target, msm_target, variant):
     """Creates distribution targets for kernel builds
@@ -252,14 +248,12 @@ def define_msm_vm(
         msm_target,
         variant,
         defconfig = None,
-        define_compile_commands = False,
         vm_image_opts = vm_image_opts()):
     """Top-level kernel build definition macro for a VM MSM platform
 
     Args:
       msm_target: name of target platform (e.g. "kalama")
       variant: variant of kernel to build (e.g. "gki")
-      define_compile_commands: boolean determining if `compile_commands.json` should be generated
       vm_image_opts: vm_image_opts structure containing boot image options
     """
 
@@ -289,7 +283,6 @@ def define_msm_vm(
         dtb_list,
         dtbo_list,
         dtstree,
-        define_compile_commands,
     )
 
     _define_kernel_dist(target, msm_target, variant)
