@@ -623,7 +623,7 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	spin_unlock_irqrestore(&vcpu->arch.wdt_lock, flags);
 }
 
-void kvmppc_watchdog_func(struct timer_list *t)
+static void kvmppc_watchdog_func(struct timer_list *t)
 {
 	struct kvm_vcpu *vcpu = from_timer(vcpu, t, arch.wdt_timer);
 	u32 tsr, new_tsr;
@@ -1946,7 +1946,8 @@ static int kvmppc_booke_add_watchpoint(struct debug_reg *dbg_reg, uint64_t addr,
 	dbg_reg->dbcr0 |= DBCR0_IDM;
 	return 0;
 }
-void kvm_guest_protect_msr(struct kvm_vcpu *vcpu, ulong prot_bitmap, bool set)
+static void kvm_guest_protect_msr(struct kvm_vcpu *vcpu, ulong prot_bitmap,
+				  bool set)
 {
 	/* XXX: Add similar MSR protection for BookE-PR */
 #ifdef CONFIG_KVM_BOOKE_HV
