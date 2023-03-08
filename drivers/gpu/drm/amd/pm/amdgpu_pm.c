@@ -3449,10 +3449,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
 	    (gc_ver != IP_VERSION(9, 4, 3)) &&
 	    (attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr))
 		return 0;
 
-	/* Only hotspot temperature for gc 9,4,3*/
+	/* hotspot temperature for gc 9,4,3*/
 	if ((gc_ver == IP_VERSION(9, 4, 3)) &&
 	    (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_label.dev_attr.attr))
@@ -3467,9 +3469,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_temp3_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr))
 		return 0;
 
 	/* only Vangogh has fast PPT limit and power labels */
