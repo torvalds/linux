@@ -125,6 +125,17 @@ static void bpf_selem_free_trace_rcu(struct rcu_head *rcu)
 		call_rcu(rcu, bpf_selem_free_rcu);
 }
 
+void bpf_selem_free(struct bpf_local_storage_elem *selem,
+		    struct bpf_local_storage_map *smap,
+		    bool reuse_now)
+{
+	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
+	if (!reuse_now)
+		call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_trace_rcu);
+	else
+		call_rcu(&selem->rcu, bpf_selem_free_rcu);
+}
+
 /* local_storage->lock must be held and selem->local_storage == local_storage.
  * The caller must ensure selem->smap is still valid to be
  * dereferenced for its smap->elem_size and smap->cache_idx.
@@ -175,11 +186,7 @@ static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_stor
 	    SDATA(selem))
 		RCU_INIT_POINTER(local_storage->cache[smap->cache_idx], NULL);
 
-	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
-	if (!reuse_now)
-		call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_trace_rcu);
-	else
-		call_rcu(&selem->rcu, bpf_selem_free_rcu);
+	bpf_selem_free(selem, smap, reuse_now);
 
 	if (rcu_access_pointer(local_storage->smap) == smap)
 		RCU_INIT_POINTER(local_storage->smap, NULL);
@@ -423,7 +430,7 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 
 		err = bpf_local_storage_alloc(owner, smap, selem, gfp_flags);
 		if (err) {
-			kfree(selem);
+			bpf_selem_free(selem, smap, true);
 			mem_uncharge(smap, owner, smap->elem_size);
 			return ERR_PTR(err);
 		}
@@ -517,7 +524,7 @@ unlock_err:
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 	if (selem) {
 		mem_uncharge(smap, owner, smap->elem_size);
-		kfree(selem);
+		bpf_selem_free(selem, smap, true);
 	}
 	return ERR_PTR(err);
 }
