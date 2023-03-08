@@ -18,6 +18,7 @@
  */
 
 #include <linux/auxiliary_bus.h>
+#include <linux/delay.h>
 #include <linux/intel_tpmi.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -325,7 +326,7 @@ static int sst_add_perf_profiles(struct auxiliary_device *auxdev,
 	for (i = 0; i < levels; ++i) {
 		u64 offset;
 
-		offset = perf_level_offsets & (0xff << (i * SST_PP_OFFSET_SIZE));
+		offset = perf_level_offsets & (0xffULL << (i * SST_PP_OFFSET_SIZE));
 		offset >>= (i * 8);
 		offset &= 0xff;
 		offset *= 8; /* Convert to byte from QWORD offset */
@@ -614,6 +615,405 @@ static long isst_if_clos_assoc(void __user *argp)
 	return 0;
 }
 
+#define _read_pp_info(name_str, name, offset, start, width, mult_factor)\
+{\
+	u64 val, _mask;\
+	\
+	val = readq(power_domain_info->sst_base + power_domain_info->sst_header.pp_offset +\
+		    (offset));\
+	_mask = GENMASK_ULL((start + width - 1), start);\
+	val &= _mask;\
+	val >>= start;\
+	name = (val * mult_factor);\
+}
+
+#define _write_pp_info(name_str, name, offset, start, width, div_factor)\
+{\
+	u64 val, _mask;\
+	\
+	val = readq(power_domain_info->sst_base + power_domain_info->sst_header.pp_offset +\
+		    (offset));\
+	_mask = GENMASK((start + width - 1), start);\
+	val &= ~_mask;\
+	val |= (name / div_factor) << start;\
+	writeq(val, power_domain_info->sst_base + power_domain_info->sst_header.pp_offset +\
+	      (offset));\
+}
+
+#define _read_bf_level_info(name_str, name, level, offset, start, width, mult_factor)\
+{\
+	u64 val, _mask;\
+	\
+	val = readq(power_domain_info->sst_base +\
+		    power_domain_info->perf_levels[level].mmio_offset +\
+		(power_domain_info->feature_offsets.bf_offset * 8) + (offset));\
+	_mask = GENMASK_ULL((start + width - 1), start);\
+	val &= _mask; \
+	val >>= start;\
+	name = (val * mult_factor);\
+}
+
+#define _read_tf_level_info(name_str, name, level, offset, start, width, mult_factor)\
+{\
+	u64 val, _mask;\
+	\
+	val = readq(power_domain_info->sst_base +\
+		    power_domain_info->perf_levels[level].mmio_offset +\
+		(power_domain_info->feature_offsets.tf_offset * 8) + (offset));\
+	_mask = GENMASK_ULL((start + width - 1), start);\
+	val &= _mask; \
+	val >>= start;\
+	name = (val * mult_factor);\
+}
+
+#define SST_PP_STATUS_OFFSET	32
+
+#define SST_PP_LEVEL_START	0
+#define SST_PP_LEVEL_WIDTH	3
+
+#define SST_PP_LOCK_START	3
+#define SST_PP_LOCK_WIDTH	1
+
+#define SST_PP_FEATURE_STATE_START	8
+#define SST_PP_FEATURE_STATE_WIDTH	8
+
+#define SST_BF_FEATURE_SUPPORTED_START	12
+#define SST_BF_FEATURE_SUPPORTED_WIDTH	1
+
+#define SST_TF_FEATURE_SUPPORTED_START	12
+#define SST_TF_FEATURE_SUPPORTED_WIDTH	1
+
+static int isst_if_get_perf_level(void __user *argp)
+{
+	struct isst_perf_level_info perf_level;
+	struct tpmi_per_power_domain_info *power_domain_info;
+
+	if (copy_from_user(&perf_level, argp, sizeof(perf_level)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(perf_level.socket_id, perf_level.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	perf_level.max_level = power_domain_info->max_level;
+	perf_level.level_mask = power_domain_info->pp_header.allowed_level_mask;
+	perf_level.feature_rev = power_domain_info->pp_header.feature_rev;
+	_read_pp_info("current_level", perf_level.current_level, SST_PP_STATUS_OFFSET,
+		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+	_read_pp_info("locked", perf_level.locked, SST_PP_STATUS_OFFSET,
+		      SST_PP_LOCK_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+	_read_pp_info("feature_state", perf_level.feature_state, SST_PP_STATUS_OFFSET,
+		      SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH, SST_MUL_FACTOR_NONE)
+	perf_level.enabled = !!(power_domain_info->sst_header.cap_mask & BIT(1));
+
+	_read_bf_level_info("bf_support", perf_level.sst_bf_support, 0, 0,
+			    SST_BF_FEATURE_SUPPORTED_START, SST_BF_FEATURE_SUPPORTED_WIDTH,
+			    SST_MUL_FACTOR_NONE);
+	_read_tf_level_info("tf_support", perf_level.sst_tf_support, 0, 0,
+			    SST_TF_FEATURE_SUPPORTED_START, SST_TF_FEATURE_SUPPORTED_WIDTH,
+			    SST_MUL_FACTOR_NONE);
+
+	if (copy_to_user(argp, &perf_level, sizeof(perf_level)))
+		return -EFAULT;
+
+	return 0;
+}
+
+#define SST_PP_CONTROL_OFFSET		24
+#define SST_PP_LEVEL_CHANGE_TIME_MS	5
+#define SST_PP_LEVEL_CHANGE_RETRY_COUNT	3
+
+static int isst_if_set_perf_level(void __user *argp)
+{
+	struct isst_perf_level_control perf_level;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	int level, retry = 0;
+
+	if (disable_dynamic_sst_features())
+		return -EFAULT;
+
+	if (copy_from_user(&perf_level, argp, sizeof(perf_level)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(perf_level.socket_id, perf_level.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	if (!(power_domain_info->pp_header.allowed_level_mask & BIT(perf_level.level)))
+		return -EINVAL;
+
+	_read_pp_info("current_level", level, SST_PP_STATUS_OFFSET,
+		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+
+	/* If the requested new level is same as the current level, reject */
+	if (perf_level.level == level)
+		return -EINVAL;
+
+	_write_pp_info("perf_level", perf_level.level, SST_PP_CONTROL_OFFSET,
+		       SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+
+	/* It is possible that firmware is busy (although unlikely), so retry */
+	do {
+		/* Give time to FW to process */
+		msleep(SST_PP_LEVEL_CHANGE_TIME_MS);
+
+		_read_pp_info("current_level", level, SST_PP_STATUS_OFFSET,
+			      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
+
+		/* Check if the new level is active */
+		if (perf_level.level == level)
+			break;
+
+	} while (retry++ < SST_PP_LEVEL_CHANGE_RETRY_COUNT);
+
+	/* If the level change didn't happen, return fault */
+	if (perf_level.level != level)
+		return -EFAULT;
+
+	/* Reset the feature state on level change */
+	_write_pp_info("perf_feature", 0, SST_PP_CONTROL_OFFSET,
+		       SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH,
+		       SST_MUL_FACTOR_NONE)
+
+	/* Give time to FW to process */
+	msleep(SST_PP_LEVEL_CHANGE_TIME_MS);
+
+	return 0;
+}
+
+static int isst_if_set_perf_feature(void __user *argp)
+{
+	struct isst_perf_feature_control perf_feature;
+	struct tpmi_per_power_domain_info *power_domain_info;
+
+	if (disable_dynamic_sst_features())
+		return -EFAULT;
+
+	if (copy_from_user(&perf_feature, argp, sizeof(perf_feature)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(perf_feature.socket_id, perf_feature.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	_write_pp_info("perf_feature", perf_feature.feature, SST_PP_CONTROL_OFFSET,
+		       SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH,
+		       SST_MUL_FACTOR_NONE)
+
+	return 0;
+}
+
+#define _read_pp_level_info(name_str, name, level, offset, start, width, mult_factor)\
+{\
+	u64 val, _mask;\
+	\
+	val = readq(power_domain_info->sst_base +\
+		    power_domain_info->perf_levels[level].mmio_offset +\
+		(power_domain_info->feature_offsets.pp_offset * 8) + (offset));\
+	_mask = GENMASK_ULL((start + width - 1), start);\
+	val &= _mask; \
+	val >>= start;\
+	name = (val * mult_factor);\
+}
+
+#define SST_PP_INFO_0_OFFSET	0
+#define SST_PP_INFO_1_OFFSET	8
+#define SST_PP_INFO_2_OFFSET	16
+#define SST_PP_INFO_3_OFFSET	24
+
+/* SST_PP_INFO_4_OFFSET to SST_PP_INFO_9_OFFSET are trl levels */
+#define SST_PP_INFO_4_OFFSET	32
+
+#define SST_PP_INFO_10_OFFSET	80
+#define SST_PP_INFO_11_OFFSET	88
+
+#define SST_PP_P1_SSE_START	0
+#define SST_PP_P1_SSE_WIDTH	8
+
+#define SST_PP_P1_AVX2_START	8
+#define SST_PP_P1_AVX2_WIDTH	8
+
+#define SST_PP_P1_AVX512_START	16
+#define SST_PP_P1_AVX512_WIDTH	8
+
+#define SST_PP_P1_AMX_START	24
+#define SST_PP_P1_AMX_WIDTH	8
+
+#define SST_PP_TDP_START	32
+#define SST_PP_TDP_WIDTH	15
+
+#define SST_PP_T_PROCHOT_START	47
+#define SST_PP_T_PROCHOT_WIDTH	8
+
+#define SST_PP_MAX_MEMORY_FREQ_START	55
+#define SST_PP_MAX_MEMORY_FREQ_WIDTH	7
+
+#define SST_PP_COOLING_TYPE_START	62
+#define SST_PP_COOLING_TYPE_WIDTH	2
+
+#define SST_PP_TRL_0_RATIO_0_START	0
+#define SST_PP_TRL_0_RATIO_0_WIDTH	8
+
+#define SST_PP_TRL_CORES_BUCKET_0_START	0
+#define SST_PP_TRL_CORES_BUCKET_0_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P0_START	0
+#define SST_PP_CORE_RATIO_P0_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P1_START	8
+#define SST_PP_CORE_RATIO_P1_WIDTH	8
+
+#define SST_PP_CORE_RATIO_PN_START	16
+#define SST_PP_CORE_RATIO_PN_WIDTH	8
+
+#define SST_PP_CORE_RATIO_PM_START	24
+#define SST_PP_CORE_RATIO_PM_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P0_FABRIC_START	32
+#define SST_PP_CORE_RATIO_P0_FABRIC_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P1_FABRIC_START	40
+#define SST_PP_CORE_RATIO_P1_FABRIC_WIDTH	8
+
+#define SST_PP_CORE_RATIO_PM_FABRIC_START	48
+#define SST_PP_CORE_RATIO_PM_FABRIC_WIDTH	8
+
+static int isst_if_get_perf_level_info(void __user *argp)
+{
+	struct isst_perf_level_data_info perf_level;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	int i, j;
+
+	if (copy_from_user(&perf_level, argp, sizeof(perf_level)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(perf_level.socket_id, perf_level.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	if (perf_level.level > power_domain_info->max_level)
+		return -EINVAL;
+
+	if (!(power_domain_info->pp_header.level_en_mask & BIT(perf_level.level)))
+		return -EINVAL;
+
+	_read_pp_level_info("tdp_ratio", perf_level.tdp_ratio, perf_level.level,
+			    SST_PP_INFO_0_OFFSET, SST_PP_P1_SSE_START, SST_PP_P1_SSE_WIDTH,
+			    SST_MUL_FACTOR_NONE)
+	_read_pp_level_info("base_freq_mhz", perf_level.base_freq_mhz, perf_level.level,
+			    SST_PP_INFO_0_OFFSET, SST_PP_P1_SSE_START, SST_PP_P1_SSE_WIDTH,
+			    SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("base_freq_avx2_mhz", perf_level.base_freq_avx2_mhz, perf_level.level,
+			    SST_PP_INFO_0_OFFSET, SST_PP_P1_AVX2_START, SST_PP_P1_AVX2_WIDTH,
+			    SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("base_freq_avx512_mhz", perf_level.base_freq_avx512_mhz,
+			    perf_level.level, SST_PP_INFO_0_OFFSET, SST_PP_P1_AVX512_START,
+			    SST_PP_P1_AVX512_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("base_freq_amx_mhz", perf_level.base_freq_amx_mhz, perf_level.level,
+			    SST_PP_INFO_0_OFFSET, SST_PP_P1_AMX_START, SST_PP_P1_AMX_WIDTH,
+			    SST_MUL_FACTOR_FREQ)
+
+	_read_pp_level_info("thermal_design_power_w", perf_level.thermal_design_power_w,
+			    perf_level.level, SST_PP_INFO_1_OFFSET, SST_PP_TDP_START,
+			    SST_PP_TDP_WIDTH, SST_MUL_FACTOR_NONE)
+	perf_level.thermal_design_power_w /= 8; /* units are in 1/8th watt */
+	_read_pp_level_info("tjunction_max_c", perf_level.tjunction_max_c, perf_level.level,
+			    SST_PP_INFO_1_OFFSET, SST_PP_T_PROCHOT_START, SST_PP_T_PROCHOT_WIDTH,
+			    SST_MUL_FACTOR_NONE)
+	_read_pp_level_info("max_memory_freq_mhz", perf_level.max_memory_freq_mhz,
+			    perf_level.level, SST_PP_INFO_1_OFFSET, SST_PP_MAX_MEMORY_FREQ_START,
+			    SST_PP_MAX_MEMORY_FREQ_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("cooling_type", perf_level.cooling_type, perf_level.level,
+			    SST_PP_INFO_1_OFFSET, SST_PP_COOLING_TYPE_START,
+			    SST_PP_COOLING_TYPE_WIDTH, SST_MUL_FACTOR_NONE)
+
+	for (i = 0; i < TRL_MAX_LEVELS; ++i) {
+		for (j = 0; j < TRL_MAX_BUCKETS; ++j)
+			_read_pp_level_info("trl*_bucket*_freq_mhz",
+					    perf_level.trl_freq_mhz[i][j], perf_level.level,
+					    SST_PP_INFO_4_OFFSET + (i * SST_PP_TRL_0_RATIO_0_WIDTH),
+					    j * SST_PP_TRL_0_RATIO_0_WIDTH,
+					    SST_PP_TRL_0_RATIO_0_WIDTH,
+					    SST_MUL_FACTOR_FREQ);
+	}
+
+	for (i = 0; i < TRL_MAX_BUCKETS; ++i)
+		_read_pp_level_info("bucket*_core_count", perf_level.bucket_core_counts[i],
+				    perf_level.level, SST_PP_INFO_10_OFFSET,
+				    SST_PP_TRL_CORES_BUCKET_0_WIDTH * i,
+				    SST_PP_TRL_CORES_BUCKET_0_WIDTH, SST_MUL_FACTOR_NONE)
+
+	perf_level.max_buckets = TRL_MAX_BUCKETS;
+	perf_level.max_trl_levels = TRL_MAX_LEVELS;
+
+	_read_pp_level_info("p0_freq_mhz", perf_level.p0_freq_mhz, perf_level.level,
+			    SST_PP_INFO_11_OFFSET, SST_PP_CORE_RATIO_P0_START,
+			    SST_PP_CORE_RATIO_P0_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("p1_freq_mhz", perf_level.p1_freq_mhz, perf_level.level,
+			    SST_PP_INFO_11_OFFSET, SST_PP_CORE_RATIO_P1_START,
+			    SST_PP_CORE_RATIO_P1_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("pn_freq_mhz", perf_level.pn_freq_mhz, perf_level.level,
+			    SST_PP_INFO_11_OFFSET, SST_PP_CORE_RATIO_PN_START,
+			    SST_PP_CORE_RATIO_PN_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("pm_freq_mhz", perf_level.pm_freq_mhz, perf_level.level,
+			    SST_PP_INFO_11_OFFSET, SST_PP_CORE_RATIO_PM_START,
+			    SST_PP_CORE_RATIO_PM_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("p0_fabric_freq_mhz", perf_level.p0_fabric_freq_mhz,
+			    perf_level.level, SST_PP_INFO_11_OFFSET,
+			    SST_PP_CORE_RATIO_P0_FABRIC_START,
+			    SST_PP_CORE_RATIO_P0_FABRIC_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("p1_fabric_freq_mhz", perf_level.p1_fabric_freq_mhz,
+			    perf_level.level, SST_PP_INFO_11_OFFSET,
+			    SST_PP_CORE_RATIO_P1_FABRIC_START,
+			    SST_PP_CORE_RATIO_P1_FABRIC_WIDTH, SST_MUL_FACTOR_FREQ)
+	_read_pp_level_info("pm_fabric_freq_mhz", perf_level.pm_fabric_freq_mhz,
+			    perf_level.level, SST_PP_INFO_11_OFFSET,
+			    SST_PP_CORE_RATIO_PM_FABRIC_START,
+			    SST_PP_CORE_RATIO_PM_FABRIC_WIDTH, SST_MUL_FACTOR_FREQ)
+
+	if (copy_to_user(argp, &perf_level, sizeof(perf_level)))
+		return -EFAULT;
+
+	return 0;
+}
+
+#define SST_PP_FUSED_CORE_COUNT_START	0
+#define SST_PP_FUSED_CORE_COUNT_WIDTH	8
+
+#define SST_PP_RSLVD_CORE_COUNT_START	8
+#define SST_PP_RSLVD_CORE_COUNT_WIDTH	8
+
+#define SST_PP_RSLVD_CORE_MASK_START	0
+#define SST_PP_RSLVD_CORE_MASK_WIDTH	64
+
+static int isst_if_get_perf_level_mask(void __user *argp)
+{
+	static struct isst_perf_level_cpu_mask cpumask;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	u64 mask;
+
+	if (copy_from_user(&cpumask, argp, sizeof(cpumask)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(cpumask.socket_id, cpumask.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	_read_pp_level_info("mask", mask, cpumask.level, SST_PP_INFO_2_OFFSET,
+			    SST_PP_RSLVD_CORE_MASK_START, SST_PP_RSLVD_CORE_MASK_WIDTH,
+			    SST_MUL_FACTOR_NONE)
+
+	cpumask.mask = mask;
+
+	if (!cpumask.punit_cpu_map)
+		return -EOPNOTSUPP;
+
+	if (copy_to_user(argp, &cpumask, sizeof(cpumask)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int isst_if_get_tpmi_instance_count(void __user *argp)
 {
 	struct isst_tpmi_instance_count tpmi_inst;
@@ -663,6 +1063,21 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case ISST_IF_CLOS_ASSOC:
 		ret = isst_if_clos_assoc(argp);
+		break;
+	case ISST_IF_PERF_LEVELS:
+		ret = isst_if_get_perf_level(argp);
+		break;
+	case ISST_IF_PERF_SET_LEVEL:
+		ret = isst_if_set_perf_level(argp);
+		break;
+	case ISST_IF_PERF_SET_FEATURE:
+		ret = isst_if_set_perf_feature(argp);
+		break;
+	case ISST_IF_GET_PERF_LEVEL_INFO:
+		ret = isst_if_get_perf_level_info(argp);
+		break;
+	case ISST_IF_GET_PERF_LEVEL_CPU_MASK:
+		ret = isst_if_get_perf_level_mask(argp);
 		break;
 	default:
 		break;
