@@ -1809,6 +1809,9 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_rf_trx_para rf_para = dm->rf_trx_para;
 
 	switch (type) {
 	case CXDRVINFO_INIT:
@@ -1824,6 +1827,19 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 type)
 		break;
 	case CXDRVINFO_CTRL:
 		rtw89_fw_h2c_cxdrv_ctrl(rtwdev);
+		break;
+	case CXDRVINFO_TRX:
+		dm->trx_info.tx_power = u32_get_bits(rf_para.wl_tx_power,
+						     RTW89_BTC_WL_DEF_TX_PWR);
+		dm->trx_info.rx_gain = u32_get_bits(rf_para.wl_rx_gain,
+						    RTW89_BTC_WL_DEF_TX_PWR);
+		dm->trx_info.bt_tx_power = u32_get_bits(rf_para.bt_tx_power,
+							RTW89_BTC_WL_DEF_TX_PWR);
+		dm->trx_info.bt_rx_gain = u32_get_bits(rf_para.bt_rx_gain,
+						       RTW89_BTC_WL_DEF_TX_PWR);
+		dm->trx_info.cn = wl->cn_report;
+		dm->trx_info.nhm = wl->nhm.pwr;
+		rtw89_fw_h2c_cxdrv_trx(rtwdev);
 		break;
 	case CXDRVINFO_RFK:
 		rtw89_fw_h2c_cxdrv_rfk(rtwdev);
@@ -5361,6 +5377,8 @@ void rtw89_btc_ntfy_icmp_packet_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
+#define BT_PROFILE_PROTOCOL_MASK GENMASK(7, 4)
+
 static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -5417,6 +5435,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	a2dp->exist = btinfo.lb2.a2dp;
 	b->profile_cnt.now += (u8)a2dp->exist;
 	pan->active = btinfo.lb2.pan;
+	btc->dm.trx_info.bt_profile = u32_get_bits(btinfo.val, BT_PROFILE_PROTOCOL_MASK);
 
 	/* parse raw info low-Byte3 */
 	btinfo.val = bt->raw_info[BTC_BTINFO_L3];
@@ -5433,6 +5452,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	btinfo.val = bt->raw_info[BTC_BTINFO_H0];
 	/* raw val is dBm unit, translate from -100~ 0dBm to 0~100%*/
 	b->rssi = chip->ops->btc_get_bt_rssi(rtwdev, btinfo.hb0.rssi);
+	btc->dm.trx_info.bt_rssi = b->rssi;
 
 	/* parse raw info high-Byte1 */
 	btinfo.val = bt->raw_info[BTC_BTINFO_H1];
@@ -5766,6 +5786,8 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 				(struct rtw89_btc_wl_sta_iter_data *)data;
 	struct rtw89_dev *rtwdev = iter_data->rtwdev;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_link_info *link_info = NULL;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
@@ -5773,6 +5795,8 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
 	struct rtw89_traffic_stats *stats = &rtwvif->stats;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_btc_wl_role_info *r;
+	struct rtw89_btc_wl_role_info_v1 *r1;
 	u32 last_tx_rate, last_rx_rate;
 	u16 last_tx_lvl, last_rx_lvl;
 	u8 port = rtwvif->port;
@@ -5849,10 +5873,33 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 	link_info_t->tx_rate = rtwsta->ra_report.hw_rate;
 	link_info_t->rx_rate = rtwsta->rx_hw_rate;
 
-	wl->role_info.active_role[port].tx_lvl = (u16)stats->tx_tfc_lv;
-	wl->role_info.active_role[port].rx_lvl = (u16)stats->rx_tfc_lv;
-	wl->role_info.active_role[port].tx_rate = rtwsta->ra_report.hw_rate;
-	wl->role_info.active_role[port].rx_rate = rtwsta->rx_hw_rate;
+	if (link_info->role == RTW89_WIFI_ROLE_STATION ||
+	    link_info->role == RTW89_WIFI_ROLE_P2P_CLIENT) {
+		dm->trx_info.tx_rate = link_info_t->tx_rate;
+		dm->trx_info.rx_rate = link_info_t->rx_rate;
+	}
+
+	if (ver->fwlrole == 0) {
+		r = &wl->role_info;
+		r->active_role[port].tx_lvl = stats->tx_tfc_lv;
+		r->active_role[port].rx_lvl = stats->rx_tfc_lv;
+		r->active_role[port].tx_rate = rtwsta->ra_report.hw_rate;
+		r->active_role[port].rx_rate = rtwsta->rx_hw_rate;
+	} else if (ver->fwlrole == 1) {
+		r1 = &wl->role_info_v1;
+		r1->active_role_v1[port].tx_lvl = stats->tx_tfc_lv;
+		r1->active_role_v1[port].rx_lvl = stats->rx_tfc_lv;
+		r1->active_role_v1[port].tx_rate = rtwsta->ra_report.hw_rate;
+		r1->active_role_v1[port].rx_rate = rtwsta->rx_hw_rate;
+	} else if (ver->fwlrole == 2) {
+		dm->trx_info.tx_lvl = stats->tx_tfc_lv;
+		dm->trx_info.rx_lvl = stats->rx_tfc_lv;
+		dm->trx_info.tx_rate = rtwsta->ra_report.hw_rate;
+		dm->trx_info.rx_rate = rtwsta->rx_hw_rate;
+	}
+
+	dm->trx_info.tx_tp = link_info_t->tx_throughput;
+	dm->trx_info.rx_tp = link_info_t->rx_throughput;
 
 	if (is_sta_change)
 		iter_data->is_sta_change = true;
@@ -5866,6 +5913,7 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 void rtw89_btc_ntfy_wl_sta(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_sta_iter_data data = {.rtwdev = rtwdev};
 	u8 i;
@@ -5883,6 +5931,9 @@ void rtw89_btc_ntfy_wl_sta(struct rtw89_dev *rtwdev)
 			break;
 		}
 	}
+
+	if (dm->trx_info.wl_rssi != wl->rssi_level)
+		dm->trx_info.wl_rssi = wl->rssi_level;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): busy=%d\n",
 		    __func__, !!wl->status.map.busy);

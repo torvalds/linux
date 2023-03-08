@@ -1367,6 +1367,22 @@ struct rtw89_btc_rf_para {
 	u32 rx_gain_perpkt;
 };
 
+struct rtw89_btc_wl_nhm {
+	u8 instant_wl_nhm_dbm;
+	u8 instant_wl_nhm_per_mhz;
+	u16 valid_record_times;
+	s8 record_pwr[16];
+	u8 record_ratio[16];
+	s8 pwr; /* dbm_per_MHz  */
+	u8 ratio;
+	u8 current_status;
+	u8 refresh;
+	bool start_flag;
+	u8 last_ccx_rpt_stamp;
+	s8 pwr_max;
+	s8 pwr_min;
+};
+
 struct rtw89_btc_wl_info {
 	struct rtw89_btc_wl_link_info link_info[RTW89_PORT_NUM];
 	struct rtw89_btc_wl_rfk_info rfk_info;
@@ -1378,10 +1394,12 @@ struct rtw89_btc_wl_info {
 	struct rtw89_btc_wl_scan_info scan_info;
 	struct rtw89_btc_wl_dbcc_info dbcc_info;
 	struct rtw89_btc_rf_para rf_para;
+	struct rtw89_btc_wl_nhm nhm;
 	union rtw89_btc_wl_state_map status;
 
 	u8 port_id[RTW89_WIFI_ROLE_MLME_MAX];
 	u8 rssi_level;
+	u8 cn_report;
 
 	bool scbd_change;
 	u32 scbd;
@@ -2019,6 +2037,30 @@ struct rtw89_btc_rf_trx_para {
 	u8 bt_rx_gain;  /* LNA constrain level */
 };
 
+struct rtw89_btc_trx_info {
+	u8 tx_lvl;
+	u8 rx_lvl;
+	u8 wl_rssi;
+	u8 bt_rssi;
+
+	s8 tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
+	s8 rx_gain;  /* rx gain table index (TBD.) */
+	s8 bt_tx_power; /* decrease Tx power (dB) */
+	s8 bt_rx_gain;  /* LNA constrain level */
+
+	u8 cn; /* condition_num */
+	s8 nhm;
+	u8 bt_profile;
+	u8 rsvd2;
+
+	u16 tx_rate;
+	u16 rx_rate;
+
+	u32 tx_tp;
+	u32 rx_tp;
+	u32 rx_err_ratio;
+};
+
 struct rtw89_btc_dm {
 	struct rtw89_btc_fbtc_slot slot[CXST_MAX];
 	struct rtw89_btc_fbtc_slot slot_now[CXST_MAX];
@@ -2030,6 +2072,7 @@ struct rtw89_btc_dm {
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;
 	struct rtw89_btc_dm_step dm_step;
 	struct rtw89_btc_wl_scc_ctrl wl_scc;
+	struct rtw89_btc_trx_info trx_info;
 	union rtw89_btc_dm_error_map error;
 	u32 cnt_dm[BTC_DCNT_NUM];
 	u32 cnt_notify[BTC_NCNT_NUM];
