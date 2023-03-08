@@ -46,8 +46,6 @@ static struct bpf_local_storage __rcu **cgroup_storage_ptr(void *owner)
 void bpf_cgrp_storage_free(struct cgroup *cgroup)
 {
 	struct bpf_local_storage *local_storage;
-	bool free_cgroup_storage = false;
-	unsigned long flags;
 
 	rcu_read_lock();
 	local_storage = rcu_dereference(cgroup->bpf_cgrp_storage);
@@ -57,14 +55,9 @@ void bpf_cgrp_storage_free(struct cgroup *cgroup)
 	}
 
 	bpf_cgrp_storage_lock();
-	raw_spin_lock_irqsave(&local_storage->lock, flags);
-	free_cgroup_storage = bpf_local_storage_unlink_nolock(local_storage);
-	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
+	bpf_local_storage_destroy(local_storage);
 	bpf_cgrp_storage_unlock();
 	rcu_read_unlock();
-
-	if (free_cgroup_storage)
-		kfree_rcu(local_storage, rcu);
 }
 
 static struct bpf_local_storage_data *

@@ -72,8 +72,6 @@ task_storage_lookup(struct task_struct *task, struct bpf_map *map,
 void bpf_task_storage_free(struct task_struct *task)
 {
 	struct bpf_local_storage *local_storage;
-	bool free_task_storage = false;
-	unsigned long flags;
 
 	rcu_read_lock();
 
@@ -84,14 +82,9 @@ void bpf_task_storage_free(struct task_struct *task)
 	}
 
 	bpf_task_storage_lock();
-	raw_spin_lock_irqsave(&local_storage->lock, flags);
-	free_task_storage = bpf_local_storage_unlink_nolock(local_storage);
-	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
+	bpf_local_storage_destroy(local_storage);
 	bpf_task_storage_unlock();
 	rcu_read_unlock();
-
-	if (free_task_storage)
-		kfree_rcu(local_storage, rcu);
 }
 
 static void *bpf_pid_task_storage_lookup_elem(struct bpf_map *map, void *key)

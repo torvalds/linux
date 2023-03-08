@@ -49,7 +49,6 @@ static int bpf_sk_storage_del(struct sock *sk, struct bpf_map *map)
 void bpf_sk_storage_free(struct sock *sk)
 {
 	struct bpf_local_storage *sk_storage;
-	bool free_sk_storage = false;
 
 	rcu_read_lock();
 	sk_storage = rcu_dereference(sk->sk_bpf_storage);
@@ -58,13 +57,8 @@ void bpf_sk_storage_free(struct sock *sk)
 		return;
 	}
 
-	raw_spin_lock_bh(&sk_storage->lock);
-	free_sk_storage = bpf_local_storage_unlink_nolock(sk_storage);
-	raw_spin_unlock_bh(&sk_storage->lock);
+	bpf_local_storage_destroy(sk_storage);
 	rcu_read_unlock();
-
-	if (free_sk_storage)
-		kfree_rcu(sk_storage, rcu);
 }
 
 static void bpf_sk_storage_map_free(struct bpf_map *map)

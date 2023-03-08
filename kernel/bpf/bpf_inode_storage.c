@@ -57,7 +57,6 @@ static struct bpf_local_storage_data *inode_storage_lookup(struct inode *inode,
 void bpf_inode_storage_free(struct inode *inode)
 {
 	struct bpf_local_storage *local_storage;
-	bool free_inode_storage = false;
 	struct bpf_storage_blob *bsb;
 
 	bsb = bpf_inode(inode);
@@ -72,13 +71,8 @@ void bpf_inode_storage_free(struct inode *inode)
 		return;
 	}
 
-	raw_spin_lock_bh(&local_storage->lock);
-	free_inode_storage = bpf_local_storage_unlink_nolock(local_storage);
-	raw_spin_unlock_bh(&local_storage->lock);
+	bpf_local_storage_destroy(local_storage);
 	rcu_read_unlock();
-
-	if (free_inode_storage)
-		kfree_rcu(local_storage, rcu);
 }
 
 static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)

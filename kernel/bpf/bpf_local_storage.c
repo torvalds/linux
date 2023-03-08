@@ -652,11 +652,12 @@ int bpf_local_storage_map_check_btf(const struct bpf_map *map,
 	return 0;
 }
 
-bool bpf_local_storage_unlink_nolock(struct bpf_local_storage *local_storage)
+void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 {
 	struct bpf_local_storage_elem *selem;
 	bool free_storage = false;
 	struct hlist_node *n;
+	unsigned long flags;
 
 	/* Neither the bpf_prog nor the bpf_map's syscall
 	 * could be modifying the local_storage->list now.
@@ -667,6 +668,7 @@ bool bpf_local_storage_unlink_nolock(struct bpf_local_storage *local_storage)
 	 * when unlinking elem from the local_storage->list and
 	 * the map's bucket->list.
 	 */
+	raw_spin_lock_irqsave(&local_storage->lock, flags);
 	hlist_for_each_entry_safe(selem, n, &local_storage->list, snode) {
 		/* Always unlink from map before unlinking from
 		 * local_storage.
@@ -681,8 +683,10 @@ bool bpf_local_storage_unlink_nolock(struct bpf_local_storage *local_storage)
 		free_storage = bpf_selem_unlink_storage_nolock(
 			local_storage, selem, false, false);
 	}
+	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 
-	return free_storage;
+	if (free_storage)
+		kfree_rcu(local_storage, rcu);
 }
 
 u64 bpf_local_storage_map_mem_usage(const struct bpf_map *map)
