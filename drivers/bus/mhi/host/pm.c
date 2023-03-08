@@ -960,8 +960,11 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state))
 		return -EIO;
 
-	if (mhi_get_mhi_state(mhi_cntrl) != MHI_STATE_M3)
-		panic("mhi_pm_state != M3");
+	if (mhi_get_mhi_state(mhi_cntrl) != MHI_STATE_M3) {
+		dev_warn(dev, "Resuming from non M3 state (%s)\n",
+				mhi_state_str(mhi_get_mhi_state(mhi_cntrl)));
+		return -EINVAL;
+	}
 
 	if (mhi_in_rddm(mhi_cntrl))
 		return 0;
