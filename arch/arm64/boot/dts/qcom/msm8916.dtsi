@@ -503,7 +503,7 @@
 				bits = <1 7>;
 			};
 
-			tsens_mode: mode@ec {
+			tsens_mode: mode@ef {
 				reg = <0xef 0x1>;
 				bits = <5 3>;
 			};
