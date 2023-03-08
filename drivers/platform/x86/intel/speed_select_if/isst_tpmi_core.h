@@ -13,4 +13,6 @@ int tpmi_sst_init(void);
 void tpmi_sst_exit(void);
 int tpmi_sst_dev_add(struct auxiliary_device *auxdev);
 void tpmi_sst_dev_remove(struct auxiliary_device *auxdev);
+void tpmi_sst_dev_suspend(struct auxiliary_device *auxdev);
+void tpmi_sst_dev_resume(struct auxiliary_device *auxdev);
 #endif

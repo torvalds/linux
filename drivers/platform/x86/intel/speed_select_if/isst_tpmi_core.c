@@ -229,6 +229,10 @@ struct perf_level {
  * @status_offset:	Store the status offset for each PP-level
  * @sst_base:		Mapped SST base IO memory
  * @auxdev:		Auxiliary device instance enumerated this instance
+ * @saved_sst_cp_control: Save SST-CP control configuration to store restore for suspend/resume
+ * @saved_clos_configs:	Save SST-CP CLOS configuration to store restore for suspend/resume
+ * @saved_clos_assocs:	Save SST-CP CLOS association to store restore for suspend/resume
+ * @saved_pp_control:	Save SST-PP control information to store restore for suspend/resume
  *
  * This structure is used store complete SST information for a power_domain. This information
  * is used to read/write request for any SST IOCTL. Each physical CPU package can have multiple
@@ -250,6 +254,10 @@ struct tpmi_per_power_domain_info {
 	struct pp_status_offset status_offset;
 	void __iomem *sst_base;
 	struct auxiliary_device *auxdev;
+	u64 saved_sst_cp_control;
+	u64 saved_clos_configs[4];
+	u64 saved_clos_assocs[4];
+	u64 saved_pp_control;
 };
 
 /**
@@ -1332,6 +1340,47 @@ void tpmi_sst_dev_remove(struct auxiliary_device *auxdev)
 	mutex_unlock(&isst_tpmi_dev_lock);
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_remove, INTEL_TPMI_SST);
+
+void tpmi_sst_dev_suspend(struct auxiliary_device *auxdev)
+{
+	struct tpmi_sst_struct *tpmi_sst = auxiliary_get_drvdata(auxdev);
+	struct tpmi_per_power_domain_info *power_domain_info = tpmi_sst->power_domain_info;
+	void __iomem *cp_base;
+
+	cp_base = power_domain_info->sst_base + power_domain_info->sst_header.cp_offset;
+	power_domain_info->saved_sst_cp_control = readq(cp_base + SST_CP_CONTROL_OFFSET);
+
+	memcpy_fromio(power_domain_info->saved_clos_configs, cp_base + SST_CLOS_CONFIG_0_OFFSET,
+		      sizeof(power_domain_info->saved_clos_configs));
+
+	memcpy_fromio(power_domain_info->saved_clos_assocs, cp_base + SST_CLOS_ASSOC_0_OFFSET,
+		      sizeof(power_domain_info->saved_clos_assocs));
+
+	power_domain_info->saved_pp_control = readq(power_domain_info->sst_base +
+						    power_domain_info->sst_header.pp_offset +
+						    SST_PP_CONTROL_OFFSET);
+}
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_suspend, INTEL_TPMI_SST);
+
+void tpmi_sst_dev_resume(struct auxiliary_device *auxdev)
+{
+	struct tpmi_sst_struct *tpmi_sst = auxiliary_get_drvdata(auxdev);
+	struct tpmi_per_power_domain_info *power_domain_info = tpmi_sst->power_domain_info;
+	void __iomem *cp_base;
+
+	cp_base = power_domain_info->sst_base + power_domain_info->sst_header.cp_offset;
+	writeq(power_domain_info->saved_sst_cp_control, cp_base + SST_CP_CONTROL_OFFSET);
+
+	memcpy_toio(cp_base + SST_CLOS_CONFIG_0_OFFSET, power_domain_info->saved_clos_configs,
+		    sizeof(power_domain_info->saved_clos_configs));
+
+	memcpy_toio(cp_base + SST_CLOS_ASSOC_0_OFFSET, power_domain_info->saved_clos_assocs,
+		    sizeof(power_domain_info->saved_clos_assocs));
+
+	writeq(power_domain_info->saved_pp_control, power_domain_info->sst_base +
+				power_domain_info->sst_header.pp_offset + SST_PP_CONTROL_OFFSET);
+}
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_resume, INTEL_TPMI_SST);
 
 #define ISST_TPMI_API_VERSION	0x02
 
