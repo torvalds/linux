@@ -740,7 +740,7 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	spin_lock_bh(&arfs->arfs_lock);
 	arfs_rule = arfs_find_rule(arfs_t, &fk);
 	if (arfs_rule) {
-		if (arfs_rule->rxq == rxq_index) {
+		if (arfs_rule->rxq == rxq_index || work_busy(&arfs_rule->arfs_work)) {
 			spin_unlock_bh(&arfs->arfs_lock);
 			return arfs_rule->filter_id;
 		}
