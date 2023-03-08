@@ -515,6 +515,7 @@ extern const struct bench bench_local_storage_cache_interleaved_get;
 extern const struct bench bench_local_storage_cache_hashmap_control;
 extern const struct bench bench_local_storage_tasks_trace;
 extern const struct bench bench_bpf_hashmap_lookup;
+extern const struct bench bench_local_storage_create;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -555,6 +556,7 @@ static const struct bench *benchs[] = {
 	&bench_local_storage_cache_hashmap_control,
 	&bench_local_storage_tasks_trace,
 	&bench_bpf_hashmap_lookup,
+	&bench_local_storage_create,
 };
 
 static void find_benchmark(void)
