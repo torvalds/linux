@@ -88,7 +88,13 @@ static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 	if (mgr->stolen_base + stolen_size <= pci_resource_len(pdev, 2))
 		mgr->io_base = pci_resource_start(pdev, 2) + mgr->stolen_base;
 
-	return stolen_size;
+	/*
+	 * There may be few KB of platform dependent reserved memory at the end
+	 * of lmem which is not part of the DSM. Such reserved memory portion is
+	 * always less then DSM granularity so align down the stolen_size to DSM
+	 * granularity to accommodate such reserve lmem portion.
+	 */
+	return ALIGN_DOWN(stolen_size, SZ_1M);
 }
 
 static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
