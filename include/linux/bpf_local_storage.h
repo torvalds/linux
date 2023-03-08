@@ -164,5 +164,6 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 			 void *value, u64 map_flags, gfp_t gfp_flags);
 
 void bpf_local_storage_free_rcu(struct rcu_head *rcu);
+u64 bpf_local_storage_map_mem_usage(const struct bpf_map *map);
 
 #endif /* _BPF_LOCAL_STORAGE_H */
