@@ -460,7 +460,8 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 
 		if (err >= 0)
 			break;
-		if (err == -ENOTSUPP &&
+		if ((err == -ENOTSUPP ||
+				err == -NFS4ERR_OFFLOAD_DENIED) &&
 				nfs42_files_from_same_server(src, dst)) {
 			err = -EOPNOTSUPP;
 			break;

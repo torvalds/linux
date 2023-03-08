@@ -116,54 +116,11 @@ void rxe_pool_cleanup(struct rxe_pool *pool)
 	WARN_ON(!xa_empty(&pool->xa));
 }
 
-void *rxe_alloc(struct rxe_pool *pool)
-{
-	struct rxe_pool_elem *elem;
-	void *obj;
-	int err;
-
-	if (WARN_ON(!(pool->type == RXE_TYPE_MR)))
-		return NULL;
-
-	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
-		goto err_cnt;
-
-	obj = kzalloc(pool->elem_size, GFP_KERNEL);
-	if (!obj)
-		goto err_cnt;
-
-	elem = (struct rxe_pool_elem *)((u8 *)obj + pool->elem_offset);
-
-	elem->pool = pool;
-	elem->obj = obj;
-	kref_init(&elem->ref_cnt);
-	init_completion(&elem->complete);
-
-	/* allocate index in array but leave pointer as NULL so it
-	 * can't be looked up until rxe_finalize() is called
-	 */
-	err = xa_alloc_cyclic(&pool->xa, &elem->index, NULL, pool->limit,
-			      &pool->next, GFP_KERNEL);
-	if (err < 0)
-		goto err_free;
-
-	return obj;
-
-err_free:
-	kfree(obj);
-err_cnt:
-	atomic_dec(&pool->num_elem);
-	return NULL;
-}
-
 int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem,
 				bool sleepable)
 {
 	int err;
 	gfp_t gfp_flags;
-
-	if (WARN_ON(pool->type == RXE_TYPE_MR))
-		return -EINVAL;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto err_cnt;
@@ -274,9 +231,6 @@ int __rxe_cleanup(struct rxe_pool_elem *elem, bool sleepable)
 
 	if (pool->cleanup)
 		pool->cleanup(elem);
-
-	if (pool->type == RXE_TYPE_MR)
-		kfree_rcu(elem->obj);
 
 	atomic_dec(&pool->num_elem);
 

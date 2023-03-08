@@ -18,7 +18,7 @@ The ST VGXY61 driver implements the following controls:
     * - HDR linearize
       - The merger outputs a long exposure capture as long as it is not
         saturated.
-    * - HDR substraction
+    * - HDR subtraction
       - This involves subtracting the short exposure frame from the long
         exposure frame.
     * - No HDR

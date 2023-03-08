@@ -22,6 +22,7 @@
 #include <asm/irq.h>
 #include <asm/debug.h>
 #include <asm/timex.h>
+#include <asm-generic/io.h>
 
 /* Minimum number of sample-data-block-tables:
  * At least one table is required for the sampling buffer structure.
@@ -99,6 +100,57 @@ static DEFINE_PER_CPU(struct cpu_hw_sf, cpu_hw_sf);
 /* Debug feature */
 static debug_info_t *sfdbg;
 
+/* Sampling control helper functions */
+static inline unsigned long freq_to_sample_rate(struct hws_qsi_info_block *qsi,
+						unsigned long freq)
+{
+	return (USEC_PER_SEC / freq) * qsi->cpu_speed;
+}
+
+static inline unsigned long sample_rate_to_freq(struct hws_qsi_info_block *qsi,
+						unsigned long rate)
+{
+	return USEC_PER_SEC * qsi->cpu_speed / rate;
+}
+
+/* Return TOD timestamp contained in an trailer entry */
+static inline unsigned long long trailer_timestamp(struct hws_trailer_entry *te)
+{
+	/* TOD in STCKE format */
+	if (te->header.t)
+		return *((unsigned long long *)&te->timestamp[1]);
+
+	/* TOD in STCK format */
+	return *((unsigned long long *)&te->timestamp[0]);
+}
+
+/* Return pointer to trailer entry of an sample data block */
+static inline struct hws_trailer_entry *trailer_entry_ptr(unsigned long v)
+{
+	void *ret;
+
+	ret = (void *)v;
+	ret += PAGE_SIZE;
+	ret -= sizeof(struct hws_trailer_entry);
+
+	return ret;
+}
+
+/*
+ * Return true if the entry in the sample data block table (sdbt)
+ * is a link to the next sdbt
+ */
+static inline int is_link_entry(unsigned long *s)
+{
+	return *s & 0x1UL ? 1 : 0;
+}
+
+/* Return pointer to the linked sdbt */
+static inline unsigned long *get_next_sdbt(unsigned long *s)
+{
+	return phys_to_virt(*s & ~0x1UL);
+}
+
 /*
  * sf_disable() - Switch off sampling facility
  */
@@ -150,7 +202,7 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
 		} else {
 			/* Process SDB pointer */
 			if (*curr) {
-				free_page(*curr);
+				free_page((unsigned long)phys_to_virt(*curr));
 				curr++;
 			}
 		}
@@ -170,11 +222,11 @@ static int alloc_sample_data_block(unsigned long *sdbt, gfp_t gfp_flags)
 	sdb = get_zeroed_page(gfp_flags);
 	if (!sdb)
 		return -ENOMEM;
-	te = (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+	te = trailer_entry_ptr(sdb);
 	te->header.a = 1;
 
 	/* Link SDB into the sample-data-block-table */
-	*sdbt = sdb;
+	*sdbt = virt_to_phys((void *)sdb);
 
 	return 0;
 }
@@ -233,7 +285,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 			}
 			sfb->num_sdbt++;
 			/* Link current page to tail of chain */
-			*tail = (unsigned long)(void *) new + 1;
+			*tail = virt_to_phys((void *)new) + 1;
 			tail_prev = tail;
 			tail = new;
 		}
@@ -263,7 +315,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 	}
 
 	/* Link sampling buffer to its origin */
-	*tail = (unsigned long) sfb->sdbt + 1;
+	*tail = virt_to_phys(sfb->sdbt) + 1;
 	sfb->tail = tail;
 
 	debug_sprintf_event(sfdbg, 4, "%s: new buffer"
@@ -301,7 +353,7 @@ static int alloc_sampling_buffer(struct sf_buffer *sfb, unsigned long num_sdb)
 	 * realloc_sampling_buffer() invocation.
 	 */
 	sfb->tail = sfb->sdbt;
-	*sfb->tail = (unsigned long)(void *) sfb->sdbt + 1;
+	*sfb->tail = virt_to_phys((void *)sfb->sdbt) + 1;
 
 	/* Allocate requested number of sample-data-blocks */
 	rc = realloc_sampling_buffer(sfb, num_sdb, GFP_KERNEL);
@@ -557,9 +609,6 @@ static void setup_pmc_cpu(void *flags)
 		if (err)
 			pr_err("Switching off the sampling facility failed "
 			       "with rc %i\n", err);
-		debug_sprintf_event(sfdbg, 5,
-				    "%s: initialized: cpuhw %p\n", __func__,
-				    cpusf);
 		break;
 	case PMC_RELEASE:
 		cpusf->flags &= ~PMU_F_RESERVED;
@@ -569,9 +618,6 @@ static void setup_pmc_cpu(void *flags)
 			       "with rc %i\n", err);
 		} else
 			deallocate_buffers(cpusf);
-		debug_sprintf_event(sfdbg, 5,
-				    "%s: released: cpuhw %p\n", __func__,
-				    cpusf);
 		break;
 	}
 	if (err)
@@ -672,7 +718,8 @@ static void cpumsf_output_event_pid(struct perf_event *event,
 	/* Protect callchain buffers, tasks */
 	rcu_read_lock();
 
-	perf_prepare_sample(&header, data, event, regs);
+	perf_prepare_sample(data, event, regs);
+	perf_prepare_header(&header, data, event, regs);
 	if (perf_output_begin(&handle, data, event, header.size))
 		goto out;
 
@@ -1176,8 +1223,8 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 	struct hws_trailer_entry *te;
 	struct hws_basic_entry *sample;
 
-	te = (struct hws_trailer_entry *) trailer_entry_ptr(*sdbt);
-	sample = (struct hws_basic_entry *) *sdbt;
+	te = trailer_entry_ptr((unsigned long)sdbt);
+	sample = (struct hws_basic_entry *)sdbt;
 	while ((unsigned long *) sample < (unsigned long *) te) {
 		/* Check for an empty sample */
 		if (!sample->def || sample->LS)
@@ -1258,7 +1305,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	union hws_trailer_header old, prev, new;
 	struct hw_perf_event *hwc = &event->hw;
 	struct hws_trailer_entry *te;
-	unsigned long *sdbt;
+	unsigned long *sdbt, sdb;
 	int done;
 
 	/*
@@ -1275,7 +1322,8 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	done = event_overflow = sampl_overflow = num_sdb = 0;
 	while (!done) {
 		/* Get the trailer entry of the sample-data-block */
-		te = (struct hws_trailer_entry *) trailer_entry_ptr(*sdbt);
+		sdb = (unsigned long)phys_to_virt(*sdbt);
+		te = trailer_entry_ptr(sdb);
 
 		/* Leave loop if no more work to do (block full indicator) */
 		if (!te->header.f) {
@@ -1293,21 +1341,21 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 			sampl_overflow += te->header.overflow;
 
 		/* Timestamps are valid for full sample-data-blocks only */
-		debug_sprintf_event(sfdbg, 6, "%s: sdbt %#lx "
+		debug_sprintf_event(sfdbg, 6, "%s: sdbt %#lx/%#lx "
 				    "overflow %llu timestamp %#llx\n",
-				    __func__, (unsigned long)sdbt, te->header.overflow,
+				    __func__, sdb, (unsigned long)sdbt,
+				    te->header.overflow,
 				    (te->header.f) ? trailer_timestamp(te) : 0ULL);
 
 		/* Collect all samples from a single sample-data-block and
 		 * flag if an (perf) event overflow happened.  If so, the PMU
 		 * is stopped and remaining samples will be discarded.
 		 */
-		hw_collect_samples(event, sdbt, &event_overflow);
+		hw_collect_samples(event, (unsigned long *)sdb, &event_overflow);
 		num_sdb++;
 
 		/* Reset trailer (using compare-double-and-swap) */
-		/* READ_ONCE() 16 byte header */
-		prev.val = __cdsg(&te->header.val, 0, 0);
+		prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 		do {
 			old.val = prev.val;
 			new.val = prev.val;
@@ -1360,10 +1408,26 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 				    OVERFLOW_REG(hwc), num_sdb);
 }
 
-#define AUX_SDB_INDEX(aux, i) ((i) % aux->sfb.num_sdb)
-#define AUX_SDB_NUM(aux, start, end) (end >= start ? end - start + 1 : 0)
-#define AUX_SDB_NUM_ALERT(aux) AUX_SDB_NUM(aux, aux->head, aux->alert_mark)
-#define AUX_SDB_NUM_EMPTY(aux) AUX_SDB_NUM(aux, aux->head, aux->empty_mark)
+static inline unsigned long aux_sdb_index(struct aux_buffer *aux,
+					  unsigned long i)
+{
+	return i % aux->sfb.num_sdb;
+}
+
+static inline unsigned long aux_sdb_num(unsigned long start, unsigned long end)
+{
+	return end >= start ? end - start + 1 : 0;
+}
+
+static inline unsigned long aux_sdb_num_alert(struct aux_buffer *aux)
+{
+	return aux_sdb_num(aux->head, aux->alert_mark);
+}
+
+static inline unsigned long aux_sdb_num_empty(struct aux_buffer *aux)
+{
+	return aux_sdb_num(aux->head, aux->empty_mark);
+}
 
 /*
  * Get trailer entry by index of SDB.
@@ -1373,9 +1437,9 @@ static struct hws_trailer_entry *aux_sdb_trailer(struct aux_buffer *aux,
 {
 	unsigned long sdb;
 
-	index = AUX_SDB_INDEX(aux, index);
+	index = aux_sdb_index(aux, index);
 	sdb = aux->sdb_index[index];
-	return (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+	return trailer_entry_ptr(sdb);
 }
 
 /*
@@ -1397,7 +1461,7 @@ static void aux_output_end(struct perf_output_handle *handle)
 	if (!aux)
 		return;
 
-	range_scan = AUX_SDB_NUM_ALERT(aux);
+	range_scan = aux_sdb_num_alert(aux);
 	for (i = 0, idx = aux->head; i < range_scan; i++, idx++) {
 		te = aux_sdb_trailer(aux, idx);
 		if (!te->header.f)
@@ -1427,9 +1491,7 @@ static int aux_output_begin(struct perf_output_handle *handle,
 			    struct aux_buffer *aux,
 			    struct cpu_hw_sf *cpuhw)
 {
-	unsigned long range;
-	unsigned long i, range_scan, idx;
-	unsigned long head, base, offset;
+	unsigned long range, i, range_scan, idx, head, base, offset;
 	struct hws_trailer_entry *te;
 
 	if (WARN_ON_ONCE(handle->head & ~PAGE_MASK))
@@ -1448,8 +1510,8 @@ static int aux_output_begin(struct perf_output_handle *handle,
 			    "%s: range %ld head %ld alert %ld empty %ld\n",
 			    __func__, range, aux->head, aux->alert_mark,
 			    aux->empty_mark);
-	if (range > AUX_SDB_NUM_EMPTY(aux)) {
-		range_scan = range - AUX_SDB_NUM_EMPTY(aux);
+	if (range > aux_sdb_num_empty(aux)) {
+		range_scan = range - aux_sdb_num_empty(aux);
 		idx = aux->empty_mark + 1;
 		for (i = 0; i < range_scan; i++, idx++) {
 			te = aux_sdb_trailer(aux, idx);
@@ -1467,11 +1529,11 @@ static int aux_output_begin(struct perf_output_handle *handle,
 	te->header.a = 1;
 
 	/* Reset hardware buffer head */
-	head = AUX_SDB_INDEX(aux, aux->head);
+	head = aux_sdb_index(aux, aux->head);
 	base = aux->sdbt_index[head / CPUM_SF_SDB_PER_TABLE];
 	offset = head % CPUM_SF_SDB_PER_TABLE;
-	cpuhw->lsctl.tear = base + offset * sizeof(unsigned long);
-	cpuhw->lsctl.dear = aux->sdb_index[head];
+	cpuhw->lsctl.tear = virt_to_phys((void *)base) + offset * sizeof(unsigned long);
+	cpuhw->lsctl.dear = virt_to_phys((void *)aux->sdb_index[head]);
 
 	debug_sprintf_event(sfdbg, 6, "%s: head %ld alert %ld empty %ld "
 			    "index %ld tear %#lx dear %#lx\n", __func__,
@@ -1495,8 +1557,7 @@ static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 	struct hws_trailer_entry *te;
 
 	te = aux_sdb_trailer(aux, alert_index);
-	/* READ_ONCE() 16 byte header */
-	prev.val = __cdsg(&te->header.val, 0, 0);
+	prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 	do {
 		old.val = prev.val;
 		new.val = prev.val;
@@ -1549,7 +1610,7 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 	debug_sprintf_event(sfdbg, 6, "%s: range %ld head %ld alert %ld "
 			    "empty %ld\n", __func__, range, aux->head,
 			    aux->alert_mark, aux->empty_mark);
-	if (range <= AUX_SDB_NUM_EMPTY(aux))
+	if (range <= aux_sdb_num_empty(aux))
 		/*
 		 * No need to scan. All SDBs in range are marked as empty.
 		 * Just set alert indicator. Should check race with hardware
@@ -1570,12 +1631,11 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 	 * Start scanning from one SDB behind empty_mark. If the new alert
 	 * indicator fall into this range, set it.
 	 */
-	range_scan = range - AUX_SDB_NUM_EMPTY(aux);
+	range_scan = range - aux_sdb_num_empty(aux);
 	idx_old = idx = aux->empty_mark + 1;
 	for (i = 0; i < range_scan; i++, idx++) {
 		te = aux_sdb_trailer(aux, idx);
-		/* READ_ONCE() 16 byte header */
-		prev.val = __cdsg(&te->header.val, 0, 0);
+		prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 		do {
 			old.val = prev.val;
 			new.val = prev.val;
@@ -1617,7 +1677,7 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 		return;
 
 	/* Inform user space new data arrived */
-	size = AUX_SDB_NUM_ALERT(aux) << PAGE_SHIFT;
+	size = aux_sdb_num_alert(aux) << PAGE_SHIFT;
 	debug_sprintf_event(sfdbg, 6, "%s: #alert %ld\n", __func__,
 			    size >> PAGE_SHIFT);
 	perf_aux_output_end(handle, size);
@@ -1659,7 +1719,7 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 					    "overflow %lld\n", __func__,
 					    aux->head, range, overflow);
 		} else {
-			size = AUX_SDB_NUM_ALERT(aux) << PAGE_SHIFT;
+			size = aux_sdb_num_alert(aux) << PAGE_SHIFT;
 			perf_aux_output_end(&cpuhw->handle, size);
 			debug_sprintf_event(sfdbg, 6, "%s: head %ld alert %ld "
 					    "already full, try another\n",
@@ -1701,7 +1761,7 @@ static void aux_sdb_init(unsigned long sdb)
 {
 	struct hws_trailer_entry *te;
 
-	te = (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+	te = trailer_entry_ptr(sdb);
 
 	/* Save clock base */
 	te->clock_base = 1;
@@ -1781,18 +1841,18 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 				goto no_sdbt;
 			aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)new;
 			/* Link current page to tail of chain */
-			*tail = (unsigned long)(void *) new + 1;
+			*tail = virt_to_phys(new) + 1;
 			tail = new;
 		}
 		/* Tail is the entry in a SDBT */
-		*tail = (unsigned long)pages[i];
+		*tail = virt_to_phys(pages[i]);
 		aux->sdb_index[i] = (unsigned long)pages[i];
 		aux_sdb_init((unsigned long)pages[i]);
 	}
 	sfb->num_sdb = nr_pages;
 
 	/* Link the last entry in the SDBT to the first SDBT */
-	*tail = (unsigned long) sfb->sdbt + 1;
+	*tail = virt_to_phys(sfb->sdbt) + 1;
 	sfb->tail = tail;
 
 	/*
@@ -1932,7 +1992,7 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	cpuhw->lsctl.h = 1;
 	cpuhw->lsctl.interval = SAMPL_RATE(&event->hw);
 	if (!SAMPL_DIAG_MODE(&event->hw)) {
-		cpuhw->lsctl.tear = (unsigned long) cpuhw->sfb.sdbt;
+		cpuhw->lsctl.tear = virt_to_phys(cpuhw->sfb.sdbt);
 		cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
 		TEAR_REG(&event->hw) = (unsigned long) cpuhw->sfb.sdbt;
 	}

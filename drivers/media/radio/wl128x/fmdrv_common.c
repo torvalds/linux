@@ -1442,7 +1442,7 @@ static long fm_st_receive(void *arg, struct sk_buff *skb)
 {
 	struct fmdev *fmdev;
 
-	fmdev = (struct fmdev *)arg;
+	fmdev = arg;
 
 	if (skb == NULL) {
 		fmerr("Invalid SKB received from ST\n");

@@ -30,6 +30,15 @@
 #endif
 #endif
 
+/*
+ * Assume a maximum of 0.1ns elapsed per instruction. This would be the
+ * case with a theoretical 10GHz core executing 1 instruction per cycle.
+ * Used to estimate the sample time for synthesized instructions because
+ * Coresight only emits a timestamp for a range of instructions rather
+ * than per instruction.
+ */
+const u32 INSTR_PER_NS = 10;
+
 struct cs_etm_decoder {
 	void *data;
 	void (*packet_printer)(const char *msg);
@@ -110,6 +119,20 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 	packet_queue->packet_count--;
 
 	return 1;
+}
+
+/*
+ * Calculate the number of nanoseconds elapsed.
+ *
+ * instr_count is updated in place with the remainder of the instructions
+ * which didn't make up a whole nanosecond.
+ */
+static u32 cs_etm_decoder__dec_instr_count_to_ns(u32 *instr_count)
+{
+	const u32 instr_copy = *instr_count;
+
+	*instr_count %= INSTR_PER_NS;
+	return instr_copy / INSTR_PER_NS;
 }
 
 static int cs_etm_decoder__gen_etmv3_config(struct cs_etm_trace_params *params,
@@ -260,15 +283,17 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  struct cs_etm_packet_queue *packet_queue,
 				  const uint8_t trace_chan_id)
 {
+	u64 estimated_ts;
+
 	/* No timestamp packet has been received, nothing to do */
-	if (!packet_queue->cs_timestamp)
+	if (!packet_queue->next_cs_timestamp)
 		return OCSD_RESP_CONT;
 
-	packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
+	estimated_ts = packet_queue->cs_timestamp +
+			cs_etm_decoder__dec_instr_count_to_ns(&packet_queue->instr_count);
 
-	/* Estimate the timestamp for the next range packet */
-	packet_queue->next_cs_timestamp += packet_queue->instr_count;
-	packet_queue->instr_count = 0;
+	/* Estimated TS can never be higher than the next real one in the trace */
+	packet_queue->cs_timestamp = min(packet_queue->next_cs_timestamp, estimated_ts);
 
 	/* Tell the front end which traceid_queue needs attention */
 	cs_etm__etmq_set_traceid_queue_timestamp(etmq, trace_chan_id);
@@ -283,6 +308,8 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 				  const ocsd_trc_index_t indx)
 {
 	struct cs_etm_packet_queue *packet_queue;
+	u64 converted_timestamp;
+	u64 estimated_first_ts;
 
 	/* First get the packet queue for this traceID */
 	packet_queue = cs_etm__etmq_get_packet_queue(etmq, trace_chan_id);
@@ -290,17 +317,28 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 		return OCSD_RESP_FATAL_SYS_ERR;
 
 	/*
+	 * Coresight timestamps are raw timer values which need to be scaled to ns. Assume
+	 * 0 is a bad value so don't try to convert it.
+	 */
+	converted_timestamp = elem->timestamp ?
+				cs_etm__convert_sample_time(etmq, elem->timestamp) : 0;
+
+	/*
 	 * We've seen a timestamp packet before - simply record the new value.
 	 * Function do_soft_timestamp() will report the value to the front end,
 	 * hence asking the decoder to keep decoding rather than stopping.
 	 */
-	if (packet_queue->cs_timestamp) {
-		packet_queue->next_cs_timestamp = elem->timestamp;
+	if (packet_queue->next_cs_timestamp) {
+		/*
+		 * What was next is now where new ranges start from, overwriting
+		 * any previous estimate in cs_timestamp
+		 */
+		packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
+		packet_queue->next_cs_timestamp = converted_timestamp;
 		return OCSD_RESP_CONT;
 	}
 
-
-	if (!elem->timestamp) {
+	if (!converted_timestamp) {
 		/*
 		 * Zero timestamps can be seen due to misconfiguration or hardware bugs.
 		 * Warn once, and don't try to subtract instr_count as it would result in an
@@ -312,7 +350,7 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 					". Decoding may be improved by prepending 'Z' to your current --itrace arguments.\n",
 					indx);
 
-	} else if (packet_queue->instr_count > elem->timestamp) {
+	} else if (packet_queue->instr_count / INSTR_PER_NS > converted_timestamp) {
 		/*
 		 * Sanity check that the elem->timestamp - packet_queue->instr_count would not
 		 * result in an underflow. Warn and clamp at 0 if it would.
@@ -325,11 +363,14 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 		 * or a discontinuity.  Since timestamps packets are generated *after*
 		 * range packets have been generated, we need to estimate the time at
 		 * which instructions started by subtracting the number of instructions
-		 * executed to the timestamp.
+		 * executed to the timestamp. Don't estimate earlier than the last used
+		 * timestamp though.
 		 */
-		packet_queue->cs_timestamp = elem->timestamp - packet_queue->instr_count;
+		estimated_first_ts = converted_timestamp -
+					(packet_queue->instr_count / INSTR_PER_NS);
+		packet_queue->cs_timestamp = max(packet_queue->cs_timestamp, estimated_first_ts);
 	}
-	packet_queue->next_cs_timestamp = elem->timestamp;
+	packet_queue->next_cs_timestamp = converted_timestamp;
 	packet_queue->instr_count = 0;
 
 	/* Tell the front end which traceid_queue needs attention */
@@ -342,7 +383,6 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 static void
 cs_etm_decoder__reset_timestamp(struct cs_etm_packet_queue *packet_queue)
 {
-	packet_queue->cs_timestamp = 0;
 	packet_queue->next_cs_timestamp = 0;
 	packet_queue->instr_count = 0;
 }
@@ -604,6 +644,9 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 	case OCSD_GEN_TRC_ELEM_CUSTOM:
 	case OCSD_GEN_TRC_ELEM_SYNC_MARKER:
 	case OCSD_GEN_TRC_ELEM_MEMTRANS:
+#if (OCSD_VER_NUM >= 0x010400)
+	case OCSD_GEN_TRC_ELEM_INSTRUMENTATION:
+#endif
 	default:
 		break;
 	}

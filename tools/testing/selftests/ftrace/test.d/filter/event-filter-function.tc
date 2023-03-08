@@ -1,0 +1,58 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: event filter function - test event filtering on functions
+# requires: set_event events/kmem/kmem_cache_free/filter
+# flags: instance
+
+fail() { #msg
+    echo $1
+    exit_fail
+}
+
+echo "Test event filter function name"
+echo 0 > tracing_on
+echo 0 > events/enable
+echo > trace
+echo 'call_site.function == exit_mmap' > events/kmem/kmem_cache_free/filter
+echo 1 > events/kmem/kmem_cache_free/enable
+echo 1 > tracing_on
+ls > /dev/null
+echo 0 > events/kmem/kmem_cache_free/enable
+
+hitcnt=`grep kmem_cache_free trace| grep exit_mmap | wc -l`
+misscnt=`grep kmem_cache_free trace| grep -v exit_mmap | wc -l`
+
+if [ $hitcnt -eq 0 ]; then
+	exit_fail
+fi
+
+if [ $misscnt -gt 0 ]; then
+	exit_fail
+fi
+
+address=`grep ' exit_mmap$' /proc/kallsyms | cut -d' ' -f1`
+
+echo "Test event filter function address"
+echo 0 > tracing_on
+echo 0 > events/enable
+echo > trace
+echo "call_site.function == 0x$address" > events/kmem/kmem_cache_free/filter
+echo 1 > events/kmem/kmem_cache_free/enable
+echo 1 > tracing_on
+sleep 1
+echo 0 > events/kmem/kmem_cache_free/enable
+
+hitcnt=`grep kmem_cache_free trace| grep exit_mmap | wc -l`
+misscnt=`grep kmem_cache_free trace| grep -v exit_mmap | wc -l`
+
+if [ $hitcnt -eq 0 ]; then
+	exit_fail
+fi
+
+if [ $misscnt -gt 0 ]; then
+	exit_fail
+fi
+
+reset_events_filter
+
+exit 0

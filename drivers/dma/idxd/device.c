@@ -699,9 +699,13 @@ static void idxd_groups_clear_state(struct idxd_device *idxd)
 		group->num_engines = 0;
 		group->num_wqs = 0;
 		group->use_rdbuf_limit = false;
-		group->rdbufs_allowed = 0;
+		/*
+		 * The default value is the same as the value of
+		 * total read buffers in GRPCAP.
+		 */
+		group->rdbufs_allowed = idxd->max_rdbufs;
 		group->rdbufs_reserved = 0;
-		if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override) {
+		if (idxd->hw.version <= DEVICE_VERSION_2 && !tc_override) {
 			group->tc_a = 1;
 			group->tc_b = 1;
 		} else {
@@ -934,11 +938,7 @@ static void idxd_group_flags_setup(struct idxd_device *idxd)
 			group->grpcfg.flags.tc_b = group->tc_b;
 		group->grpcfg.flags.use_rdbuf_limit = group->use_rdbuf_limit;
 		group->grpcfg.flags.rdbufs_reserved = group->rdbufs_reserved;
-		if (group->rdbufs_allowed)
-			group->grpcfg.flags.rdbufs_allowed = group->rdbufs_allowed;
-		else
-			group->grpcfg.flags.rdbufs_allowed = idxd->max_rdbufs;
-
+		group->grpcfg.flags.rdbufs_allowed = group->rdbufs_allowed;
 		group->grpcfg.flags.desc_progress_limit = group->desc_progress_limit;
 		group->grpcfg.flags.batch_progress_limit = group->batch_progress_limit;
 	}

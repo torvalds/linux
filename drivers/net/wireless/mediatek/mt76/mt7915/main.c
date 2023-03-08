@@ -57,6 +57,17 @@ int mt7915_run(struct ieee80211_hw *hw)
 		mt7915_mac_enable_nf(dev, phy->mt76->band_idx);
 	}
 
+	ret = mt7915_mcu_set_thermal_throttling(phy,
+						MT7915_THERMAL_THROTTLE_MAX);
+
+	if (ret)
+		goto out;
+
+	ret = mt7915_mcu_set_thermal_protect(phy);
+
+	if (ret)
+		goto out;
+
 	ret = mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b,
 					     phy->mt76->band_idx);
 	if (ret)
@@ -1280,19 +1291,22 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   u32 sset, u8 *data)
 {
-	if (sset == ETH_SS_STATS)
-		memcpy(data, *mt7915_gstrings_stats,
-		       sizeof(mt7915_gstrings_stats));
+	if (sset != ETH_SS_STATS)
+		return;
+
+	memcpy(data, *mt7915_gstrings_stats, sizeof(mt7915_gstrings_stats));
+	data += sizeof(mt7915_gstrings_stats);
+	page_pool_ethtool_stats_get_strings(data);
 }
 
 static
 int mt7915_get_et_sset_count(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif, int sset)
 {
-	if (sset == ETH_SS_STATS)
-		return MT7915_SSTATS_LEN;
+	if (sset != ETH_SS_STATS)
+		return 0;
 
-	return 0;
+	return MT7915_SSTATS_LEN + page_pool_ethtool_stats_get_count();
 }
 
 static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
@@ -1303,7 +1317,7 @@ static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 	if (msta->vif->mt76.idx != wi->idx)
 		return;
 
-	mt76_ethtool_worker(wi, &msta->wcid.stats);
+	mt76_ethtool_worker(wi, &msta->wcid.stats, false);
 }
 
 static
@@ -1320,7 +1334,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	};
 	struct mib_stats *mib = &phy->mib;
 	/* See mt7915_ampdu_stat_read_phy, etc */
-	int i, ei = 0;
+	int i, ei = 0, stats_size;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -1401,9 +1415,12 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 		return;
 
 	ei += wi.worker_stat_count;
-	if (ei != MT7915_SSTATS_LEN)
-		dev_err(dev->mt76.dev, "ei: %d  MT7915_SSTATS_LEN: %d",
-			ei, (int)MT7915_SSTATS_LEN);
+
+	mt76_ethtool_page_pool_stats(&dev->mt76, &data[ei], &ei);
+
+	stats_size = MT7915_SSTATS_LEN + page_pool_ethtool_stats_get_count();
+	if (ei != stats_size)
+		dev_err(dev->mt76.dev, "ei: %d size: %d", ei, stats_size);
 }
 
 static void

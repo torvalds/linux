@@ -28,6 +28,8 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#include "v4l2-subdev-priv.h"
+
 static const struct v4l2_fwnode_bus_conv {
 	enum v4l2_fwnode_bus_type fwnode_bus_type;
 	enum v4l2_mbus_type mbus_type;
@@ -1302,6 +1304,10 @@ int v4l2_async_register_subdev_sensor(struct v4l2_subdev *sd)
 
 	v4l2_async_nf_init(notifier);
 
+	ret = v4l2_subdev_get_privacy_led(sd);
+	if (ret < 0)
+		goto out_cleanup;
+
 	ret = v4l2_async_nf_parse_fwnode_sensor(sd->dev, notifier);
 	if (ret < 0)
 		goto out_cleanup;
@@ -1322,6 +1328,7 @@ out_unregister:
 	v4l2_async_nf_unregister(notifier);
 
 out_cleanup:
+	v4l2_subdev_put_privacy_led(sd);
 	v4l2_async_nf_cleanup(notifier);
 	kfree(notifier);
 

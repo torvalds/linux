@@ -12,8 +12,6 @@ get_c_compiler_info()
 	cat <<- EOF | "$@" -E -P -x c - 2>/dev/null
 	#if defined(__clang__)
 	Clang	__clang_major__  __clang_minor__  __clang_patchlevel__
-	#elif defined(__INTEL_COMPILER)
-	ICC	__INTEL_COMPILER  __INTEL_COMPILER_UPDATE
 	#elif defined(__GNUC__)
 	GCC	__GNUC__  __GNUC_MINOR__  __GNUC_PATCHLEVEL__
 	#else

@@ -26,8 +26,9 @@
 #include <linux/io-mapping.h>
 #include <linux/scatterlist.h>
 
+#include <drm/ttm/ttm_bo.h>
+#include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_resource.h>
-#include <drm/ttm/ttm_bo_driver.h>
 
 /**
  * ttm_lru_bulk_move_init - initialize a bulk move structure

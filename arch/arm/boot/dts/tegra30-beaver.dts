@@ -1974,6 +1974,28 @@
 		#clock-cells = <0>;
 	};
 
+	cpus {
+		cpu0: cpu@0 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+
+		cpu@1 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+
+		cpu@2 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+
+		cpu@3 {
+			cpu-supply = <&vddctrl_reg>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
 	gpio-leds {
 		compatible = "gpio-leds";
 
@@ -2112,27 +2134,5 @@
 
 		assigned-clock-parents = <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
 					 <&tegra_car TEGRA30_CLK_EXTERN1>;
-	};
-
-	cpus {
-		cpu0: cpu@0 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
-
-		cpu@1 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
-
-		cpu@2 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
-
-		cpu@3 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
 	};
 };

@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/kernel_read_file.h>
+#include <linux/kstrtox.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/elf.h>
@@ -2675,7 +2676,7 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	int ret;
 
 	if (strcmp(param, "async_probe") == 0) {
-		if (strtobool(val, &mod->async_probe_requested))
+		if (kstrtobool(val, &mod->async_probe_requested))
 			mod->async_probe_requested = true;
 		return 0;
 	}

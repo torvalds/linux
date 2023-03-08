@@ -494,7 +494,7 @@ static int kxtj9_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused kxtj9_suspend(struct device *dev)
+static int kxtj9_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
@@ -509,7 +509,7 @@ static int __maybe_unused kxtj9_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused kxtj9_resume(struct device *dev)
+static int kxtj9_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
@@ -524,7 +524,7 @@ static int __maybe_unused kxtj9_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(kxtj9_pm_ops, kxtj9_suspend, kxtj9_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(kxtj9_pm_ops, kxtj9_suspend, kxtj9_resume);
 
 static const struct i2c_device_id kxtj9_id[] = {
 	{ NAME, 0 },
@@ -536,7 +536,7 @@ MODULE_DEVICE_TABLE(i2c, kxtj9_id);
 static struct i2c_driver kxtj9_driver = {
 	.driver = {
 		.name	= NAME,
-		.pm	= &kxtj9_pm_ops,
+		.pm	= pm_sleep_ptr(&kxtj9_pm_ops),
 	},
 	.probe_new	= kxtj9_probe,
 	.id_table	= kxtj9_id,

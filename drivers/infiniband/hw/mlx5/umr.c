@@ -636,9 +636,7 @@ int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 	mlx5r_umr_set_update_xlt_data_seg(&wqe.data_seg, &sg);
 
 	cur_mtt = mtt;
-	rdma_for_each_block(mr->umem->sgt_append.sgt.sgl, &biter,
-			    mr->umem->sgt_append.sgt.nents,
-			    BIT(mr->page_shift)) {
+	rdma_umem_for_each_dma_block(mr->umem, &biter, BIT(mr->page_shift)) {
 		if (cur_mtt == (void *)mtt + sg.length) {
 			dma_sync_single_for_device(ddev, sg.addr, sg.length,
 						   DMA_TO_DEVICE);

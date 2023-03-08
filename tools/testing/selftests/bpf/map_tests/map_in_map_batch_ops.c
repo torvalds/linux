@@ -18,7 +18,7 @@ static __u32 get_map_id_from_fd(int map_fd)
 	uint32_t info_len = sizeof(map_info);
 	int ret;
 
-	ret = bpf_obj_get_info_by_fd(map_fd, &map_info, &info_len);
+	ret = bpf_map_get_info_by_fd(map_fd, &map_info, &info_len);
 	CHECK(ret < 0, "Finding map info failed", "error:%s\n",
 	      strerror(errno));
 

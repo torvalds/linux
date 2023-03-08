@@ -10,9 +10,9 @@
 int v9fs_get_acl(struct inode *inode, struct p9_fid *fid);
 struct posix_acl *v9fs_iop_get_inode_acl(struct inode *inode, int type,
 				   bool rcu);
-struct posix_acl *v9fs_iop_get_acl(struct user_namespace *mnt_userns,
+struct posix_acl *v9fs_iop_get_acl(struct mnt_idmap *idmap,
 					  struct dentry *dentry, int type);
-int v9fs_iop_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int v9fs_iop_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct posix_acl *acl, int type);
 int v9fs_acl_chmod(struct inode *inode, struct p9_fid *fid);
 int v9fs_set_create_acl(struct inode *inode, struct p9_fid *fid,

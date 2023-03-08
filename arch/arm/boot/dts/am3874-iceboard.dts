@@ -106,7 +106,7 @@
 	 * "i2c-mux-idle-disconnect" is important.
 	 */
 
-	pca9548@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -256,7 +256,7 @@
 };
 
 &i2c2 {
-	pca9548@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		reg = <0x71>;
 		#address-cells = <1>;

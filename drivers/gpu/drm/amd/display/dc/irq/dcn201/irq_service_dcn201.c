@@ -37,7 +37,7 @@
 #include "soc15_hw_ip.h"
 #include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
 
-enum dc_irq_source to_dal_irq_source_dcn201(
+static enum dc_irq_source to_dal_irq_source_dcn201(
 		struct irq_service *irq_service,
 		uint32_t src_id,
 		uint32_t ext_id)
@@ -132,11 +132,6 @@ static const struct irq_source_info_funcs vline0_irq_info_funcs = {
 	.ack = NULL
 };
 static const struct irq_source_info_funcs vupdate_no_lock_irq_info_funcs = {
-	.set = NULL,
-	.ack = NULL
-};
-
-static const struct irq_source_info_funcs dmub_outbox_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };

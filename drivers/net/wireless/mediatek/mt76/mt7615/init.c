@@ -443,6 +443,85 @@ mt7615_cap_dbdc_disable(struct mt7615_dev *dev)
 	mt76_set_stream_caps(&dev->mphy, true);
 }
 
+u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr)
+{
+	u32 base, offset;
+
+	if (is_mt7663(&dev->mt76)) {
+		base = addr & MT7663_MCU_PCIE_REMAP_2_BASE;
+		offset = addr & MT7663_MCU_PCIE_REMAP_2_OFFSET;
+	} else {
+		base = addr & MT_MCU_PCIE_REMAP_2_BASE;
+		offset = addr & MT_MCU_PCIE_REMAP_2_OFFSET;
+	}
+	mt76_wr(dev, MT_MCU_PCIE_REMAP_2, base);
+
+	return MT_PCIE_REMAP_BASE_2 + offset;
+}
+EXPORT_SYMBOL_GPL(mt7615_reg_map);
+
+static void
+mt7615_led_set_config(struct led_classdev *led_cdev,
+		      u8 delay_on, u8 delay_off)
+{
+	struct mt7615_dev *dev;
+	struct mt76_phy *mphy;
+	u32 val, addr;
+	u8 index;
+
+	mphy = container_of(led_cdev, struct mt76_phy, leds.cdev);
+	dev = container_of(mphy->dev, struct mt7615_dev, mt76);
+
+	if (!mt76_connac_pm_ref(mphy, &dev->pm))
+		return;
+
+	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xffff) |
+	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
+	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
+
+	index = dev->dbdc_support ? mphy->band_idx : mphy->leds.pin;
+	addr = mt7615_reg_map(dev, MT_LED_STATUS_0(index));
+	mt76_wr(dev, addr, val);
+	addr = mt7615_reg_map(dev, MT_LED_STATUS_1(index));
+	mt76_wr(dev, addr, val);
+
+	val = MT_LED_CTRL_REPLAY(index) | MT_LED_CTRL_KICK(index);
+	if (dev->mphy.leds.al)
+		val |= MT_LED_CTRL_POLARITY(index);
+	if (mphy->band_idx)
+		val |= MT_LED_CTRL_BAND(index);
+
+	addr = mt7615_reg_map(dev, MT_LED_CTRL);
+	mt76_wr(dev, addr, val);
+
+	mt76_connac_pm_unref(mphy, &dev->pm);
+}
+
+int mt7615_led_set_blink(struct led_classdev *led_cdev,
+			 unsigned long *delay_on,
+			 unsigned long *delay_off)
+{
+	u8 delta_on, delta_off;
+
+	delta_off = max_t(u8, *delay_off / 10, 1);
+	delta_on = max_t(u8, *delay_on / 10, 1);
+
+	mt7615_led_set_config(led_cdev, delta_on, delta_off);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt7615_led_set_blink);
+
+void mt7615_led_set_brightness(struct led_classdev *led_cdev,
+			       enum led_brightness brightness)
+{
+	if (!brightness)
+		mt7615_led_set_config(led_cdev, 0, 0xff);
+	else
+		mt7615_led_set_config(led_cdev, 0xff, 0);
+}
+EXPORT_SYMBOL_GPL(mt7615_led_set_brightness);
+
 int mt7615_register_ext_phy(struct mt7615_dev *dev)
 {
 	struct mt7615_phy *phy = mt7615_ext_phy(dev);
@@ -496,6 +575,12 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	/* mt7615 second phy shares the same hw queues with the primary one */
 	for (i = 0; i <= MT_TXQ_PSD ; i++)
 		mphy->q_tx[i] = dev->mphy.q_tx[i];
+
+	/* init led callbacks */
+	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
+		mphy->leds.cdev.brightness_set = mt7615_led_set_brightness;
+		mphy->leds.cdev.blink_set = mt7615_led_set_blink;
+	}
 
 	ret = mt76_register_phy(mphy, true, mt76_rates,
 				ARRAY_SIZE(mt76_rates));

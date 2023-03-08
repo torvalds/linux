@@ -25,6 +25,7 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
  */
 int rxrpc_encap_rcv(struct sock *udp_sk, struct sk_buff *skb)
 {
+	struct sk_buff_head *rx_queue;
 	struct rxrpc_local *local = rcu_dereference_sk_user_data(udp_sk);
 
 	if (unlikely(!local)) {
@@ -36,7 +37,16 @@ int rxrpc_encap_rcv(struct sock *udp_sk, struct sk_buff *skb)
 
 	skb->mark = RXRPC_SKB_MARK_PACKET;
 	rxrpc_new_skb(skb, rxrpc_skb_new_encap_rcv);
-	skb_queue_tail(&local->rx_queue, skb);
+	rx_queue = &local->rx_queue;
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+	if (rxrpc_inject_rx_delay ||
+	    !skb_queue_empty(&local->rx_delay_queue)) {
+		skb->tstamp = ktime_add_ms(skb->tstamp, rxrpc_inject_rx_delay);
+		rx_queue = &local->rx_delay_queue;
+	}
+#endif
+
+	skb_queue_tail(rx_queue, skb);
 	rxrpc_wake_up_io_thread(local);
 	return 0;
 }
@@ -407,6 +417,9 @@ int rxrpc_io_thread(void *data)
 	struct rxrpc_local *local = data;
 	struct rxrpc_call *call;
 	struct sk_buff *skb;
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+	ktime_t now;
+#endif
 	bool should_stop;
 
 	complete(&local->io_thread_ready);
@@ -481,6 +494,17 @@ int rxrpc_io_thread(void *data)
 			continue;
 		}
 
+		/* Inject a delay into packets if requested. */
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+		now = ktime_get_real();
+		while ((skb = skb_peek(&local->rx_delay_queue))) {
+			if (ktime_before(now, skb->tstamp))
+				break;
+			skb = skb_dequeue(&local->rx_delay_queue);
+			skb_queue_tail(&local->rx_queue, skb);
+		}
+#endif
+
 		if (!skb_queue_empty(&local->rx_queue)) {
 			spin_lock_irq(&local->rx_queue.lock);
 			skb_queue_splice_tail_init(&local->rx_queue, &rx_queue);
@@ -502,6 +526,28 @@ int rxrpc_io_thread(void *data)
 
 		if (should_stop)
 			break;
+
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+		skb = skb_peek(&local->rx_delay_queue);
+		if (skb) {
+			unsigned long timeout;
+			ktime_t tstamp = skb->tstamp;
+			ktime_t now = ktime_get_real();
+			s64 delay_ns = ktime_to_ns(ktime_sub(tstamp, now));
+
+			if (delay_ns <= 0) {
+				__set_current_state(TASK_RUNNING);
+				continue;
+			}
+
+			timeout = nsecs_to_jiffies(delay_ns);
+			timeout = max(timeout, 1UL);
+			schedule_timeout(timeout);
+			__set_current_state(TASK_RUNNING);
+			continue;
+		}
+#endif
+
 		schedule();
 	}
 

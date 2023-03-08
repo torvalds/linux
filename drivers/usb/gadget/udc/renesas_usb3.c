@@ -7,6 +7,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/extcon-provider.h>
@@ -27,6 +28,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/of.h>
 #include <linux/usb/role.h>
+#include <linux/usb/rzv2m_usb3drd.h>
 
 /* register definitions */
 #define USB3_AXI_INT_STA	0x008
@@ -334,7 +336,7 @@ struct renesas_usb3_priv {
 
 struct renesas_usb3 {
 	void __iomem *reg;
-	struct reset_control *drd_rstc;
+	void __iomem *drd_reg;
 	struct reset_control *usbp_rstc;
 
 	struct usb_gadget gadget;
@@ -426,6 +428,46 @@ static void usb3_clear_bit(struct renesas_usb3 *usb3, u32 bits, u32 offs)
 	usb3_write(usb3, val, offs);
 }
 
+static void usb3_drd_write(struct renesas_usb3 *usb3, u32 data, u32 offs)
+{
+	void __iomem *reg;
+
+	if (usb3->is_rzv2m)
+		reg = usb3->drd_reg + offs - USB3_DRD_CON(usb3);
+	else
+		reg = usb3->reg + offs;
+
+	iowrite32(data, reg);
+}
+
+static u32 usb3_drd_read(struct renesas_usb3 *usb3, u32 offs)
+{
+	void __iomem *reg;
+
+	if (usb3->is_rzv2m)
+		reg = usb3->drd_reg + offs - USB3_DRD_CON(usb3);
+	else
+		reg = usb3->reg + offs;
+
+	return ioread32(reg);
+}
+
+static void usb3_drd_set_bit(struct renesas_usb3 *usb3, u32 bits, u32 offs)
+{
+	u32 val = usb3_drd_read(usb3, offs);
+
+	val |= bits;
+	usb3_drd_write(usb3, val, offs);
+}
+
+static void usb3_drd_clear_bit(struct renesas_usb3 *usb3, u32 bits, u32 offs)
+{
+	u32 val = usb3_drd_read(usb3, offs);
+
+	val &= ~bits;
+	usb3_drd_write(usb3, val, offs);
+}
+
 static int usb3_wait(struct renesas_usb3 *usb3, u32 reg, u32 mask,
 		     u32 expected)
 {
@@ -474,7 +516,7 @@ static void usb3_disable_pipe_irq(struct renesas_usb3 *usb3, int num)
 
 static bool usb3_is_host(struct renesas_usb3 *usb3)
 {
-	return !(usb3_read(usb3, USB3_DRD_CON(usb3)) & DRD_CON_PERI_CON);
+	return !(usb3_drd_read(usb3, USB3_DRD_CON(usb3)) & DRD_CON_PERI_CON);
 }
 
 static void usb3_init_axi_bridge(struct renesas_usb3 *usb3)
@@ -683,18 +725,18 @@ static void usb3_set_mode(struct renesas_usb3 *usb3, bool host)
 {
 	if (usb3->is_rzv2m) {
 		if (host) {
-			usb3_set_bit(usb3, DRD_CON_PERI_RST, USB3_DRD_CON(usb3));
-			usb3_clear_bit(usb3, DRD_CON_HOST_RST, USB3_DRD_CON(usb3));
+			usb3_drd_set_bit(usb3, DRD_CON_PERI_RST, USB3_DRD_CON(usb3));
+			usb3_drd_clear_bit(usb3, DRD_CON_HOST_RST, USB3_DRD_CON(usb3));
 		} else {
-			usb3_set_bit(usb3, DRD_CON_HOST_RST, USB3_DRD_CON(usb3));
-			usb3_clear_bit(usb3, DRD_CON_PERI_RST, USB3_DRD_CON(usb3));
+			usb3_drd_set_bit(usb3, DRD_CON_HOST_RST, USB3_DRD_CON(usb3));
+			usb3_drd_clear_bit(usb3, DRD_CON_PERI_RST, USB3_DRD_CON(usb3));
 		}
 	}
 
 	if (host)
-		usb3_clear_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON(usb3));
+		usb3_drd_clear_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON(usb3));
 	else
-		usb3_set_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON(usb3));
+		usb3_drd_set_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON(usb3));
 }
 
 static void usb3_set_mode_by_role_sw(struct renesas_usb3 *usb3, bool host)
@@ -710,9 +752,9 @@ static void usb3_set_mode_by_role_sw(struct renesas_usb3 *usb3, bool host)
 static void usb3_vbus_out(struct renesas_usb3 *usb3, bool enable)
 {
 	if (enable)
-		usb3_set_bit(usb3, DRD_CON_VBOUT, USB3_DRD_CON(usb3));
+		usb3_drd_set_bit(usb3, DRD_CON_VBOUT, USB3_DRD_CON(usb3));
 	else
-		usb3_clear_bit(usb3, DRD_CON_VBOUT, USB3_DRD_CON(usb3));
+		usb3_drd_clear_bit(usb3, DRD_CON_VBOUT, USB3_DRD_CON(usb3));
 }
 
 static void usb3_mode_config(struct renesas_usb3 *usb3, bool host, bool a_dev)
@@ -733,7 +775,7 @@ static void usb3_mode_config(struct renesas_usb3 *usb3, bool host, bool a_dev)
 
 static bool usb3_is_a_device(struct renesas_usb3 *usb3)
 {
-	return !(usb3_read(usb3, USB3_USB_OTG_STA(usb3)) & USB_OTG_IDMON(usb3));
+	return !(usb3_drd_read(usb3, USB3_USB_OTG_STA(usb3)) & USB_OTG_IDMON(usb3));
 }
 
 static void usb3_check_id(struct renesas_usb3 *usb3)
@@ -756,8 +798,8 @@ static void renesas_usb3_init_controller(struct renesas_usb3 *usb3)
 	usb3_set_bit(usb3, USB_COM_CON_PN_WDATAIF_NL |
 		     USB_COM_CON_PN_RDATAIF_NL | USB_COM_CON_PN_LSTTR_PP,
 		     USB3_USB_COM_CON);
-	usb3_write(usb3, USB_OTG_IDMON(usb3), USB3_USB_OTG_INT_STA(usb3));
-	usb3_write(usb3, USB_OTG_IDMON(usb3), USB3_USB_OTG_INT_ENA(usb3));
+	usb3_drd_write(usb3, USB_OTG_IDMON(usb3), USB3_USB_OTG_INT_STA(usb3));
+	usb3_drd_write(usb3, USB_OTG_IDMON(usb3), USB3_USB_OTG_INT_ENA(usb3));
 
 	usb3_check_id(usb3);
 	usb3_check_vbus(usb3);
@@ -767,7 +809,7 @@ static void renesas_usb3_stop_controller(struct renesas_usb3 *usb3)
 {
 	usb3_disconnect(usb3);
 	usb3_write(usb3, 0, USB3_P0_INT_ENA);
-	usb3_write(usb3, 0, USB3_USB_OTG_INT_ENA(usb3));
+	usb3_drd_write(usb3, 0, USB3_USB_OTG_INT_ENA(usb3));
 	usb3_write(usb3, 0, USB3_USB_INT_ENA_1);
 	usb3_write(usb3, 0, USB3_USB_INT_ENA_2);
 	usb3_write(usb3, 0, USB3_AXI_INT_ENA);
@@ -2024,11 +2066,11 @@ static void usb3_irq_idmon_change(struct renesas_usb3 *usb3)
 
 static void usb3_irq_otg_int(struct renesas_usb3 *usb3)
 {
-	u32 otg_int_sta = usb3_read(usb3, USB3_USB_OTG_INT_STA(usb3));
+	u32 otg_int_sta = usb3_drd_read(usb3, USB3_USB_OTG_INT_STA(usb3));
 
-	otg_int_sta &= usb3_read(usb3, USB3_USB_OTG_INT_ENA(usb3));
+	otg_int_sta &= usb3_drd_read(usb3, USB3_USB_OTG_INT_ENA(usb3));
 	if (otg_int_sta)
-		usb3_write(usb3, otg_int_sta, USB3_USB_OTG_INT_STA(usb3));
+		usb3_drd_write(usb3, otg_int_sta, USB3_USB_OTG_INT_STA(usb3));
 
 	if (otg_int_sta & USB_OTG_IDMON(usb3))
 		usb3_irq_idmon_change(usb3);
@@ -2325,6 +2367,9 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 
 	usb3 = gadget_to_renesas_usb3(gadget);
 
+	if (usb3->is_rzv2m && usb3_is_a_device(usb3))
+		return -EBUSY;
+
 	/* hook up the driver */
 	usb3->driver = driver;
 
@@ -2332,6 +2377,10 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 		phy_init(usb3->phy);
 
 	pm_runtime_get_sync(usb3_to_dev(usb3));
+
+	/* Peripheral Reset */
+	if (usb3->is_rzv2m)
+		rzv2m_usb3drd_reset(usb3_to_dev(usb3)->parent, false);
 
 	renesas_usb3_init_controller(usb3);
 
@@ -2345,8 +2394,10 @@ static int renesas_usb3_stop(struct usb_gadget *gadget)
 	usb3->softconnect = false;
 	usb3->gadget.speed = USB_SPEED_UNKNOWN;
 	usb3->driver = NULL;
-	renesas_usb3_stop_controller(usb3);
+	if (usb3->is_rzv2m)
+		rzv2m_usb3drd_reset(usb3_to_dev(usb3)->parent, false);
 
+	renesas_usb3_stop_controller(usb3);
 	if (usb3->phy)
 		phy_exit(usb3->phy);
 
@@ -2406,18 +2457,29 @@ static void handle_ext_role_switch_states(struct device *dev,
 	switch (role) {
 	case USB_ROLE_NONE:
 		usb3->connection_state = USB_ROLE_NONE;
-		if (cur_role == USB_ROLE_HOST)
+		if (!usb3->is_rzv2m && cur_role == USB_ROLE_HOST)
 			device_release_driver(host);
-		if (usb3->driver)
+		if (usb3->driver) {
+			if (usb3->is_rzv2m)
+				rzv2m_usb3drd_reset(dev->parent, false);
 			usb3_disconnect(usb3);
+		}
 		usb3_vbus_out(usb3, false);
+
+		if (usb3->is_rzv2m) {
+			rzv2m_usb3drd_reset(dev->parent, true);
+			device_release_driver(host);
+		}
 		break;
 	case USB_ROLE_DEVICE:
 		if (usb3->connection_state == USB_ROLE_NONE) {
 			usb3->connection_state = USB_ROLE_DEVICE;
 			usb3_set_mode(usb3, false);
-			if (usb3->driver)
+			if (usb3->driver) {
+				if (usb3->is_rzv2m)
+					renesas_usb3_init_controller(usb3);
 				usb3_connect(usb3);
+			}
 		} else if (cur_role == USB_ROLE_HOST)  {
 			device_release_driver(host);
 			usb3_set_mode(usb3, false);
@@ -2428,8 +2490,11 @@ static void handle_ext_role_switch_states(struct device *dev,
 		break;
 	case USB_ROLE_HOST:
 		if (usb3->connection_state == USB_ROLE_NONE) {
-			if (usb3->driver)
+			if (usb3->driver) {
+				if (usb3->is_rzv2m)
+					rzv2m_usb3drd_reset(dev->parent, false);
 				usb3_disconnect(usb3);
+			}
 
 			usb3->connection_state = USB_ROLE_HOST;
 			usb3_set_mode(usb3, true);
@@ -2600,7 +2665,6 @@ static int renesas_usb3_remove(struct platform_device *pdev)
 
 	usb_del_gadget_udc(&usb3->gadget);
 	reset_control_assert(usb3->usbp_rstc);
-	reset_control_assert(usb3->drd_rstc);
 	renesas_usb3_dma_free_prd(usb3, &pdev->dev);
 
 	__renesas_usb3_ep_free_request(usb3->ep0_req);
@@ -2788,7 +2852,7 @@ static struct usb_role_switch_desc renesas_usb3_role_switch_desc = {
 static int renesas_usb3_probe(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3;
-	int irq, drd_irq, ret;
+	int irq, ret;
 	const struct renesas_usb3_priv *priv;
 	const struct soc_device_attribute *attr;
 
@@ -2801,12 +2865,6 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
-
-	if (priv->is_rzv2m) {
-		drd_irq = platform_get_irq_byname(pdev, "drd");
-		if (drd_irq < 0)
-			return drd_irq;
-	}
 
 	usb3 = devm_kzalloc(&pdev->dev, sizeof(*usb3), GFP_KERNEL);
 	if (!usb3)
@@ -2836,9 +2894,12 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		return ret;
 
 	if (usb3->is_rzv2m) {
-		ret = devm_request_irq(&pdev->dev, drd_irq,
+		struct rzv2m_usb3drd *ddata = dev_get_drvdata(pdev->dev.parent);
+
+		usb3->drd_reg = ddata->reg;
+		ret = devm_request_irq(ddata->dev, ddata->drd_irq,
 				       renesas_usb3_otg_irq, 0,
-				       dev_name(&pdev->dev), usb3);
+				       dev_name(ddata->dev), usb3);
 		if (ret < 0)
 			return ret;
 	}
@@ -2873,21 +2934,13 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		goto err_add_udc;
 	}
 
-	usb3->drd_rstc = devm_reset_control_get_optional_shared(&pdev->dev,
-								"drd_reset");
-	if (IS_ERR(usb3->drd_rstc)) {
-		ret = PTR_ERR(usb3->drd_rstc);
-		goto err_add_udc;
-	}
-
 	usb3->usbp_rstc = devm_reset_control_get_optional_shared(&pdev->dev,
-								 "aresetn_p");
+								 NULL);
 	if (IS_ERR(usb3->usbp_rstc)) {
 		ret = PTR_ERR(usb3->usbp_rstc);
 		goto err_add_udc;
 	}
 
-	reset_control_deassert(usb3->drd_rstc);
 	reset_control_deassert(usb3->usbp_rstc);
 
 	pm_runtime_enable(&pdev->dev);
@@ -2933,7 +2986,6 @@ err_dev_create:
 
 err_reset:
 	reset_control_assert(usb3->usbp_rstc);
-	reset_control_assert(usb3->drd_rstc);
 
 err_add_udc:
 	renesas_usb3_dma_free_prd(usb3, &pdev->dev);

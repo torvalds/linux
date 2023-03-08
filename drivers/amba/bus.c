@@ -235,9 +235,9 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
 }
 
-static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int amba_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct amba_device *pcdev = to_amba_device(dev);
+	const struct amba_device *pcdev = to_amba_device(dev);
 	int retval = 0;
 
 	retval = add_uevent_var(env, "AMBA_ID=%08x", pcdev->periphid);

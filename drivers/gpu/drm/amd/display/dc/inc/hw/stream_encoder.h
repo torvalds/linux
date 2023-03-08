@@ -72,6 +72,12 @@ enum dynamic_metadata_mode {
 	dmdata_dolby_vision
 };
 
+struct enc_sdp_line_num {
+	/* Adaptive Sync SDP */
+	bool adaptive_sync_line_num_valid;
+	uint32_t adaptive_sync_line_num;
+};
+
 struct encoder_info_frame {
 	/* auxiliary video information */
 	struct dc_info_packet avi;
@@ -85,6 +91,9 @@ struct encoder_info_frame {
 	struct dc_info_packet vsc;
 	/* HDR Static MetaData */
 	struct dc_info_packet hdrsmd;
+	/* Adaptive Sync SDP*/
+	struct dc_info_packet adaptive_sync;
+	struct enc_sdp_line_num sdp_line_num;
 };
 
 struct encoder_unblank_param {
@@ -153,6 +162,10 @@ struct stream_encoder_funcs {
 
 	void (*stop_hdmi_info_packets)(
 		struct stream_encoder *enc);
+
+	void (*update_dp_info_packets_sdp_line_num)(
+		struct stream_encoder *enc,
+		struct encoder_info_frame *info_frame);
 
 	void (*update_dp_info_packets)(
 		struct stream_encoder *enc,
@@ -301,6 +314,10 @@ struct hpo_dp_stream_encoder_funcs {
 		bool use_vsc_sdp_for_colorimetry,
 		bool compressed_format,
 		bool double_buffer_en);
+
+	void (*update_dp_info_packets_sdp_line_num)(
+		struct hpo_dp_stream_encoder *enc,
+		struct encoder_info_frame *info_frame);
 
 	void (*update_dp_info_packets)(
 		struct hpo_dp_stream_encoder *enc,

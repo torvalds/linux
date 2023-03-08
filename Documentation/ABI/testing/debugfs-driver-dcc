@@ -1,0 +1,127 @@
+What:           /sys/kernel/debug/dcc/.../ready
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This file is used to check the status of the dcc
+		hardware if it's ready to receive user configurations.
+		A 'Y' here indicates dcc is ready.
+
+What:           /sys/kernel/debug/dcc/.../trigger
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This is the debugfs interface for manual software
+		triggers. The trigger can be invoked by writing '1'
+		to the file.
+
+What:           /sys/kernel/debug/dcc/.../config_reset
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This file is used to reset the configuration of
+		a dcc driver to the default configuration. When '1'
+		is written to the file, all the previous addresses
+		stored in the driver gets removed and users need to
+		reconfigure addresses again.
+
+What:           /sys/kernel/debug/dcc/.../[list-number]/config
+Date:		 December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This stores the addresses of the registers which
+		can be read in case of a hardware crash or manual
+		software triggers. The input addresses type
+		can be one of following dcc instructions: read,
+		write, read-write, and loop type. The lists need to
+		be configured sequentially and not in a overlapping
+		manner; e.g. users can jump to list x only after
+		list y is configured and enabled. The input format for
+		each type is as follows:
+
+	        i) Read instruction
+
+		   ::
+
+		     echo R <addr> <n> <bus> >/sys/kernel/debug/dcc/../[list-number]/config
+
+		   where:
+
+		   <addr>
+			The address to be read.
+
+		   <n>
+			The addresses word count, starting from address <1>.
+			Each word is 32 bits (4 bytes). If omitted, defaulted
+			to 1.
+
+		   <bus type>
+			The bus type, which can be either 'apb' or 'ahb'.
+			The default is 'ahb' if leaved out.
+
+		ii) Write instruction
+
+		    ::
+
+		      echo W <addr> <n> <bus type> > /sys/kernel/debug/dcc/../[list-number]/config
+
+		    where:
+
+		    <addr>
+			The address to be written.
+
+		    <n>
+			The value to be written at <addr>.
+
+		    <bus type>
+			The bus type, which can be either 'apb' or 'ahb'.
+
+	        iii) Read-write instruction
+
+		     ::
+
+		       echo RW <addr> <n> <mask> > /sys/kernel/debug/dcc/../[list-number]/config
+
+		     where:
+
+		     <addr>
+			The address to be read and written.
+
+		     <n>
+		        The value to be written at <addr>.
+
+		     <mask>
+			The value mask.
+
+		iv) Loop instruction
+
+		    ::
+
+		      echo L <loop count> <address count> <address>... > /sys/kernel/debug/dcc/../[list-number]/config
+
+		    where:
+
+		    <loop count>
+			Number of iterations
+
+		    <address count>
+			total number of addresses to be written
+
+		    <address>
+			Space-separated list of addresses.
+
+What:           /sys/kernel/debug/dcc/.../[list-number]/enable
+Date:           December 2022
+Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+Description:
+		This debugfs interface is used for enabling the
+		the dcc hardware. A file named "enable" is in the
+		directory list number where users can enable/disable
+		the specific list by writing boolean (1 or 0) to the
+		file.
+
+		On enabling the dcc, all the addresses specified
+		by the user for the corresponding list is written
+		into dcc sram which is read by the dcc hardware
+		on manual or crash induced triggers. Lists must
+		be configured and enabled sequentially, e.g. list
+		2 can only be enabled when list 1 have so.

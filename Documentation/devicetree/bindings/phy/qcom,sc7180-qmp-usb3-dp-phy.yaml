@@ -19,12 +19,17 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - qcom,sc7180-qmp-usb3-dp-phy
-      - qcom,sc7280-qmp-usb3-dp-phy
-      - qcom,sc8180x-qmp-usb3-dp-phy
-      - qcom,sdm845-qmp-usb3-dp-phy
-      - qcom,sm8250-qmp-usb3-dp-phy
+    oneOf:
+      - enum:
+          - qcom,sc7180-qmp-usb3-dp-phy
+          - qcom,sc8180x-qmp-usb3-dp-phy
+          - qcom,sdm845-qmp-usb3-dp-phy
+          - qcom,sm8250-qmp-usb3-dp-phy
+      - items:
+          - enum:
+              - qcom,sc7280-qmp-usb3-dp-phy
+          - const: qcom,sm8250-qmp-usb3-dp-phy
+
   reg:
     items:
       - description: Address and length of PHY's USB serdes block.
@@ -46,18 +51,12 @@ properties:
   ranges: true
 
   clocks:
-    items:
-      - description: Phy aux clock.
-      - description: Phy config clock.
-      - description: 19.2 MHz ref clk.
-      - description: Phy common block aux clock.
+    minItems: 3
+    maxItems: 4
 
   clock-names:
-    items:
-      - const: aux
-      - const: cfg_ahb
-      - const: ref
-      - const: com_aux
+    minItems: 3
+    maxItems: 4
 
   power-domains:
     maxItems: 1
@@ -165,6 +164,64 @@ required:
   - reset-names
   - vdda-phy-supply
   - vdda-pll-supply
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sc7180-qmp-usb3-dp-phy
+            - qcom,sdm845-qmp-usb3-dp-phy
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Phy aux clock
+            - description: Phy config clock
+            - description: 19.2 MHz ref clk
+            - description: Phy common block aux clock
+        clock-names:
+          items:
+            - const: aux
+            - const: cfg_ahb
+            - const: ref
+            - const: com_aux
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sc8180x-qmp-usb3-dp-phy
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Phy aux clock
+            - description: 19.2 MHz ref clk
+            - description: Phy common block aux clock
+        clock-names:
+          items:
+            - const: aux
+            - const: ref
+            - const: com_aux
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sm8250-qmp-usb3-dp-phy
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Phy aux clock
+            - description: Board XO source
+            - description: Phy common block aux clock
+        clock-names:
+          items:
+            - const: aux
+            - const: ref_clk_src
+            - const: com_aux
 
 additionalProperties: false
 

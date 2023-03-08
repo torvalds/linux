@@ -53,10 +53,8 @@
 #define MESON_G12A_MDIO_INTERNAL_ID 1
 
 struct g12a_mdio_mux {
-	bool pll_is_enabled;
 	void __iomem *regs;
 	void *mux_handle;
-	struct clk *pclk;
 	struct clk *pll;
 };
 
@@ -155,13 +153,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	int ret;
 
 	/* Enable the phy clock */
-	if (!priv->pll_is_enabled) {
+	if (!__clk_is_enabled(priv->pll)) {
 		ret = clk_prepare_enable(priv->pll);
 		if (ret)
 			return ret;
 	}
-
-	priv->pll_is_enabled = true;
 
 	/* Initialize ephy control */
 	writel(EPHY_G12A_ID, priv->regs + ETH_PHY_CNTL0);
@@ -193,10 +189,8 @@ static int g12a_enable_external_mdio(struct g12a_mdio_mux *priv)
 	writel_relaxed(0x0, priv->regs + ETH_PHY_CNTL2);
 
 	/* Disable the phy clock if enabled */
-	if (priv->pll_is_enabled) {
+	if (__clk_is_enabled(priv->pll))
 		clk_disable_unprepare(priv->pll);
-		priv->pll_is_enabled = false;
-	}
 
 	return 0;
 }
@@ -311,6 +305,7 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct g12a_mdio_mux *priv;
+	struct clk *pclk;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -323,34 +318,21 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 
-	priv->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(priv->pclk))
-		return dev_err_probe(dev, PTR_ERR(priv->pclk),
+	pclk = devm_clk_get_enabled(dev, "pclk");
+	if (IS_ERR(pclk))
+		return dev_err_probe(dev, PTR_ERR(pclk),
 				     "failed to get peripheral clock\n");
-
-	/* Make sure the device registers are clocked */
-	ret = clk_prepare_enable(priv->pclk);
-	if (ret) {
-		dev_err(dev, "failed to enable peripheral clock");
-		return ret;
-	}
 
 	/* Register PLL in CCF */
 	ret = g12a_ephy_glue_clk_register(dev);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = mdio_mux_init(dev, dev->of_node, g12a_mdio_switch_fn,
 			    &priv->mux_handle, dev, NULL);
-	if (ret) {
+	if (ret)
 		dev_err_probe(dev, ret, "mdio multiplexer init failed\n");
-		goto err;
-	}
 
-	return 0;
-
-err:
-	clk_disable_unprepare(priv->pclk);
 	return ret;
 }
 
@@ -360,10 +342,8 @@ static int g12a_mdio_mux_remove(struct platform_device *pdev)
 
 	mdio_mux_uninit(priv->mux_handle);
 
-	if (priv->pll_is_enabled)
+	if (__clk_is_enabled(priv->pll))
 		clk_disable_unprepare(priv->pll);
-
-	clk_disable_unprepare(priv->pclk);
 
 	return 0;
 }

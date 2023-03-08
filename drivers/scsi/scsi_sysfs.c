@@ -536,9 +536,9 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
 }
 
-static int scsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int scsi_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct scsi_device *sdev;
+	const struct scsi_device *sdev;
 
 	if (dev->type != &scsi_dev_type)
 		return 0;

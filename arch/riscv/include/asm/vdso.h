@@ -28,7 +28,11 @@
 #define COMPAT_VDSO_SYMBOL(base, name)						\
 	(void __user *)((unsigned long)(base) + compat__vdso_##name##_offset)
 
+extern char compat_vdso_start[], compat_vdso_end[];
+
 #endif /* CONFIG_COMPAT */
+
+extern char vdso_start[], vdso_end[];
 
 #endif /* !__ASSEMBLY__ */
 

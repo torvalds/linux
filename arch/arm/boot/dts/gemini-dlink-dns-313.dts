@@ -80,6 +80,15 @@
 		#cooling-cells = <2>;
 	};
 
+	/*
+	 * This is the type B USB connector on the device,
+	 * a GPIO-controlled USB VBUS detect
+	 */
+	usb1_phy: phy {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		#phy-cells = <0>;
+		vbus-gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+	};
 
 	/* Global Mixed-Mode Technology G751 mounted on GPIO I2C */
 	i2c {
@@ -164,6 +173,8 @@
 			compatible = "cortina,gemini-flash", "jedec-flash";
 			status = "okay";
 			reg = <0x30000000 0x00080000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 
 			/*
 			 * This "RedBoot" is the Storlink derivative.
@@ -299,6 +310,14 @@
 
 		ide@63000000 {
 			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
+			dr_mode = "peripheral";
+			usb-phy = <&usb1_phy>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb_default_pins>;
 		};
 	};
 };

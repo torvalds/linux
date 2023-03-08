@@ -277,10 +277,6 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_info(info, &rfbdev->helper, sizes);
 
-	/* setup aperture base/size for vesafb takeover */
-	info->apertures->ranges[0].base = rdev->mc.aper_base;
-	info->apertures->ranges[0].size = rdev->mc.aper_size;
-
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	if (info->screen_base == NULL) {
@@ -352,7 +348,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	rfbdev->rdev = rdev;
 	rdev->mode_info.rfbdev = rfbdev;
 
-	drm_fb_helper_prepare(rdev->ddev, &rfbdev->helper,
+	drm_fb_helper_prepare(rdev->ddev, &rfbdev->helper, bpp_sel,
 			      &radeon_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper);
@@ -362,7 +358,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(rdev->ddev);
 
-	ret = drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
+	ret = drm_fb_helper_initial_config(&rfbdev->helper);
 	if (ret)
 		goto fini;
 
@@ -371,6 +367,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 fini:
 	drm_fb_helper_fini(&rfbdev->helper);
 free:
+	drm_fb_helper_unprepare(&rfbdev->helper);
 	kfree(rfbdev);
 	return ret;
 }
@@ -381,6 +378,7 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 		return;
 
 	radeon_fbdev_destroy(rdev->ddev, rdev->mode_info.rfbdev);
+	drm_fb_helper_unprepare(&rdev->mode_info.rfbdev->helper);
 	kfree(rdev->mode_info.rfbdev);
 	rdev->mode_info.rfbdev = NULL;
 }

@@ -577,7 +577,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
 
   * Linux driver development
   * continuous integration platform architect and GHDL updates
-  * theses `Open-source and Open-hardware CAN FD Protocol Support <https://dspace.cvut.cz/bitstream/handle/10467/80366/F3-DP-2019-Jerabek-Martin-Jerabek-thesis-2019-canfd.pdf>`_
+  * thesis `Open-source and Open-hardware CAN FD Protocol Support <https://dspace.cvut.cz/bitstream/handle/10467/80366/F3-DP-2019-Jerabek-Martin-Jerabek-thesis-2019-canfd.pdf>`_
 
 * Jiri Novak <jnovak@fel.cvut.cz>
 
@@ -603,7 +603,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
 * Jan Charvat
 
  * implemented CTU CAN FD functional model for QEMU which has been integrated into QEMU mainline (`docs/system/devices/can.rst <https://www.qemu.org/docs/master/system/devices/can.html>`_)
- * Bachelor theses Model of CAN FD Communication Controller for QEMU Emulator
+ * Bachelor thesis Model of CAN FD Communication Controller for QEMU Emulator
 
 Notes
 -----

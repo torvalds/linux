@@ -821,22 +821,10 @@ static void fill_recv_sge_to_wqe(const struct ib_recv_wr *wr, void *wqe,
 static void fill_rq_wqe(struct hns_roce_qp *hr_qp, const struct ib_recv_wr *wr,
 			u32 wqe_idx, u32 max_sge)
 {
-	struct hns_roce_rinl_sge *sge_list;
 	void *wqe = NULL;
-	u32 i;
 
 	wqe = hns_roce_get_recv_wqe(hr_qp, wqe_idx);
 	fill_recv_sge_to_wqe(wr, wqe, max_sge, hr_qp->rq.rsv_sge);
-
-	/* rq support inline data */
-	if (hr_qp->rq_inl_buf.wqe_cnt) {
-		sge_list = hr_qp->rq_inl_buf.wqe_list[wqe_idx].sg_list;
-		hr_qp->rq_inl_buf.wqe_list[wqe_idx].sge_cnt = (u32)wr->num_sge;
-		for (i = 0; i < wr->num_sge; i++) {
-			sge_list[i].addr = (void *)(u64)wr->sg_list[i].addr;
-			sge_list[i].len = wr->sg_list[i].length;
-		}
-	}
 }
 
 static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
@@ -2849,7 +2837,7 @@ static int free_mr_modify_rsv_qp(struct hns_roce_dev *hr_dev,
 	attr->port_num = 1;
 	attr->qp_access_flags = IB_ACCESS_REMOTE_WRITE;
 	ret = hr_dev->hw->modify_qp(&hr_qp->ibqp, attr, mask, IB_QPS_INIT,
-				    IB_QPS_INIT);
+				    IB_QPS_INIT, NULL);
 	if (ret) {
 		ibdev_err(ibdev, "failed to modify qp to init, ret = %d.\n",
 			  ret);
@@ -2871,7 +2859,7 @@ static int free_mr_modify_rsv_qp(struct hns_roce_dev *hr_dev,
 	rdma_ah_set_sl(&attr->ah_attr, (u8)sl_num);
 
 	ret = hr_dev->hw->modify_qp(&hr_qp->ibqp, attr, mask, IB_QPS_INIT,
-				    IB_QPS_RTR);
+				    IB_QPS_RTR, NULL);
 	hr_dev->loop_idc = loopback;
 	if (ret) {
 		ibdev_err(ibdev, "failed to modify qp to rtr, ret = %d.\n",
@@ -2886,7 +2874,7 @@ static int free_mr_modify_rsv_qp(struct hns_roce_dev *hr_dev,
 	attr->retry_cnt = HNS_ROCE_FREE_MR_USED_QP_RETRY_CNT;
 	attr->timeout = HNS_ROCE_FREE_MR_USED_QP_TIMEOUT;
 	ret = hr_dev->hw->modify_qp(&hr_qp->ibqp, attr, mask, IB_QPS_RTR,
-				    IB_QPS_RTS);
+				    IB_QPS_RTS, NULL);
 	if (ret)
 		ibdev_err(ibdev, "failed to modify qp to rts, ret = %d.\n",
 			  ret);
@@ -3730,39 +3718,6 @@ static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 	return 0;
 }
 
-static int hns_roce_handle_recv_inl_wqe(struct hns_roce_v2_cqe *cqe,
-					struct hns_roce_qp *qp,
-					struct ib_wc *wc)
-{
-	struct hns_roce_rinl_sge *sge_list;
-	u32 wr_num, wr_cnt, sge_num;
-	u32 sge_cnt, data_len, size;
-	void *wqe_buf;
-
-	wr_num = hr_reg_read(cqe, CQE_WQE_IDX);
-	wr_cnt = wr_num & (qp->rq.wqe_cnt - 1);
-
-	sge_list = qp->rq_inl_buf.wqe_list[wr_cnt].sg_list;
-	sge_num = qp->rq_inl_buf.wqe_list[wr_cnt].sge_cnt;
-	wqe_buf = hns_roce_get_recv_wqe(qp, wr_cnt);
-	data_len = wc->byte_len;
-
-	for (sge_cnt = 0; (sge_cnt < sge_num) && (data_len); sge_cnt++) {
-		size = min(sge_list[sge_cnt].len, data_len);
-		memcpy((void *)sge_list[sge_cnt].addr, wqe_buf, size);
-
-		data_len -= size;
-		wqe_buf += size;
-	}
-
-	if (unlikely(data_len)) {
-		wc->status = IB_WC_LOC_LEN_ERR;
-		return -EAGAIN;
-	}
-
-	return 0;
-}
-
 static int sw_comp(struct hns_roce_qp *hr_qp, struct hns_roce_wq *wq,
 		   int num_entries, struct ib_wc *wc)
 {
@@ -3974,22 +3929,10 @@ static void fill_send_wc(struct ib_wc *wc, struct hns_roce_v2_cqe *cqe)
 		wc->opcode = ib_opcode;
 }
 
-static inline bool is_rq_inl_enabled(struct ib_wc *wc, u32 hr_opcode,
-				     struct hns_roce_v2_cqe *cqe)
-{
-	return wc->qp->qp_type != IB_QPT_UD && wc->qp->qp_type != IB_QPT_GSI &&
-	       (hr_opcode == HNS_ROCE_V2_OPCODE_SEND ||
-		hr_opcode == HNS_ROCE_V2_OPCODE_SEND_WITH_IMM ||
-		hr_opcode == HNS_ROCE_V2_OPCODE_SEND_WITH_INV) &&
-	       hr_reg_read(cqe, CQE_RQ_INLINE);
-}
-
 static int fill_recv_wc(struct ib_wc *wc, struct hns_roce_v2_cqe *cqe)
 {
-	struct hns_roce_qp *qp = to_hr_qp(wc->qp);
 	u32 hr_opcode;
 	int ib_opcode;
-	int ret;
 
 	wc->byte_len = le32_to_cpu(cqe->byte_cnt);
 
@@ -4013,12 +3956,6 @@ static int fill_recv_wc(struct ib_wc *wc, struct hns_roce_v2_cqe *cqe)
 		wc->status = IB_WC_GENERAL_ERR;
 	else
 		wc->opcode = ib_opcode;
-
-	if (is_rq_inl_enabled(wc, hr_opcode, cqe)) {
-		ret = hns_roce_handle_recv_inl_wqe(cqe, qp, wc);
-		if (unlikely(ret))
-			return ret;
-	}
 
 	wc->sl = hr_reg_read(cqe, CQE_SL);
 	wc->src_qp = hr_reg_read(cqe, CQE_RMT_QPN);
@@ -4445,10 +4382,6 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	hr_reg_write(context, QPC_RQ_DB_RECORD_ADDR_H,
 		     upper_32_bits(hr_qp->rdb.dma));
 
-	if (ibqp->qp_type != IB_QPT_UD && ibqp->qp_type != IB_QPT_GSI)
-		hr_reg_write_bool(context, QPC_RQIE,
-			     hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE);
-
 	hr_reg_write(context, QPC_RX_CQN, get_cqn(ibqp->recv_cq));
 
 	if (ibqp->srq) {
@@ -4639,8 +4572,11 @@ static inline enum ib_mtu get_mtu(struct ib_qp *ibqp,
 static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 				 const struct ib_qp_attr *attr, int attr_mask,
 				 struct hns_roce_v2_qp_context *context,
-				 struct hns_roce_v2_qp_context *qpc_mask)
+				 struct hns_roce_v2_qp_context *qpc_mask,
+				 struct ib_udata *udata)
 {
+	struct hns_roce_ucontext *uctx = rdma_udata_to_drv_context(udata,
+					  struct hns_roce_ucontext, ibucontext);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	struct ib_device *ibdev = &hr_dev->ib_dev;
@@ -4759,6 +4695,26 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	/* rocee send 2^lp_sgen_ini segs every time */
 	hr_reg_write(context, QPC_LP_SGEN_INI, 3);
 	hr_reg_clear(qpc_mask, QPC_LP_SGEN_INI);
+
+	if (udata && ibqp->qp_type == IB_QPT_RC &&
+	    (uctx->config & HNS_ROCE_RQ_INLINE_FLAGS)) {
+		hr_reg_write_bool(context, QPC_RQIE,
+				  hr_dev->caps.flags &
+				  HNS_ROCE_CAP_FLAG_RQ_INLINE);
+		hr_reg_clear(qpc_mask, QPC_RQIE);
+	}
+
+	if (udata &&
+	    (ibqp->qp_type == IB_QPT_RC || ibqp->qp_type == IB_QPT_XRC_TGT) &&
+	    (uctx->config & HNS_ROCE_CQE_INLINE_FLAGS)) {
+		hr_reg_write_bool(context, QPC_CQEIE,
+				  hr_dev->caps.flags &
+				  HNS_ROCE_CAP_FLAG_CQE_INLINE);
+		hr_reg_clear(qpc_mask, QPC_CQEIE);
+
+		hr_reg_write(context, QPC_CQEIS, 0);
+		hr_reg_clear(qpc_mask, QPC_CQEIS);
+	}
 
 	return 0;
 }
@@ -5107,7 +5063,8 @@ static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 				      enum ib_qp_state cur_state,
 				      enum ib_qp_state new_state,
 				      struct hns_roce_v2_qp_context *context,
-				      struct hns_roce_v2_qp_context *qpc_mask)
+				      struct hns_roce_v2_qp_context *qpc_mask,
+				      struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	int ret = 0;
@@ -5124,7 +5081,7 @@ static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 		modify_qp_init_to_init(ibqp, attr, context, qpc_mask);
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
 		ret = modify_qp_init_to_rtr(ibqp, attr, attr_mask, context,
-					    qpc_mask);
+					    qpc_mask, udata);
 	} else if (cur_state == IB_QPS_RTR && new_state == IB_QPS_RTS) {
 		ret = modify_qp_rtr_to_rts(ibqp, attr, attr_mask, context,
 					   qpc_mask);
@@ -5329,7 +5286,7 @@ static void v2_set_flushed_fields(struct ib_qp *ibqp,
 static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 				 const struct ib_qp_attr *attr,
 				 int attr_mask, enum ib_qp_state cur_state,
-				 enum ib_qp_state new_state)
+				 enum ib_qp_state new_state, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
@@ -5352,7 +5309,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	memset(qpc_mask, 0xff, hr_dev->caps.qpc_sz);
 
 	ret = hns_roce_v2_set_abs_fields(ibqp, attr, attr_mask, cur_state,
-					 new_state, context, qpc_mask);
+					 new_state, context, qpc_mask, udata);
 	if (ret)
 		goto out;
 
@@ -5555,7 +5512,7 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	if (modify_qp_is_ok(hr_qp)) {
 		/* Modify qp to reset before destroying qp */
 		ret = hns_roce_v2_modify_qp(&hr_qp->ibqp, NULL, 0,
-					    hr_qp->state, IB_QPS_RESET);
+					    hr_qp->state, IB_QPS_RESET, udata);
 		if (ret)
 			ibdev_err(ibdev,
 				  "failed to modify QP to RST, ret = %d.\n",

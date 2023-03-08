@@ -323,7 +323,7 @@ If the lowest bit of showcapimsgs is set, kernelcapi logs controller and
 application up and down events.
 
 In addition, every registered CAPI controller has an associated traceflag
-parameter controlling how CAPI messages sent from and to tha controller are
+parameter controlling how CAPI messages sent from and to the controller are
 logged. The traceflag parameter is initialized with the value of the
 showcapimsgs parameter when the controller is registered, but can later be
 changed via the MANUFACTURER_REQ command KCAPI_CMD_TRACE.

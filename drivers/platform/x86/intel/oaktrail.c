@@ -266,17 +266,11 @@ static int oaktrail_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int oaktrail_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver oaktrail_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 	},
 	.probe	= oaktrail_probe,
-	.remove	= oaktrail_remove,
 };
 
 static int dmi_check_cb(const struct dmi_system_id *id)

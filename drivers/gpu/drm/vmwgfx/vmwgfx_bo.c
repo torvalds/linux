@@ -462,6 +462,9 @@ int vmw_bo_create(struct vmw_private *vmw,
 		return -ENOMEM;
 	}
 
+	/*
+	 * vmw_bo_init will delete the *p_bo object if it fails
+	 */
 	ret = vmw_bo_init(vmw, *p_bo, size,
 			  placement, interruptible, pin,
 			  bo_free);
@@ -470,7 +473,6 @@ int vmw_bo_create(struct vmw_private *vmw,
 
 	return ret;
 out_error:
-	kfree(*p_bo);
 	*p_bo = NULL;
 	return ret;
 }
@@ -596,6 +598,7 @@ static int vmw_user_bo_synccpu_release(struct drm_file *filp,
 		ttm_bo_put(&vmw_bo->base);
 	}
 
+	drm_gem_object_put(&vmw_bo->base.base);
 	return ret;
 }
 
@@ -636,6 +639,7 @@ int vmw_user_bo_synccpu_ioctl(struct drm_device *dev, void *data,
 
 		ret = vmw_user_bo_synccpu_grab(vbo, arg->flags);
 		vmw_bo_unreference(&vbo);
+		drm_gem_object_put(&vbo->base.base);
 		if (unlikely(ret != 0)) {
 			if (ret == -ERESTARTSYS || ret == -EBUSY)
 				return -EBUSY;
@@ -693,7 +697,7 @@ int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
  * struct vmw_buffer_object should be placed.
  * Return: Zero on success, Negative error code on error.
  *
- * The vmw buffer object pointer will be refcounted.
+ * The vmw buffer object pointer will be refcounted (both ttm and gem)
  */
 int vmw_user_bo_lookup(struct drm_file *filp,
 		       uint32_t handle,
@@ -710,7 +714,6 @@ int vmw_user_bo_lookup(struct drm_file *filp,
 
 	*out = gem_to_vmw_bo(gobj);
 	ttm_bo_get(&(*out)->base);
-	drm_gem_object_put(gobj);
 
 	return 0;
 }
@@ -791,7 +794,8 @@ int vmw_dumb_create(struct drm_file *file_priv,
 	ret = vmw_gem_object_create_with_handle(dev_priv, file_priv,
 						args->size, &args->handle,
 						&vbo);
-
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_put(&vbo->base.base);
 	return ret;
 }
 

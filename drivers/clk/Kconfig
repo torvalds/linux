@@ -23,7 +23,6 @@ menuconfig COMMON_CLK
 	depends on !HAVE_LEGACY_CLK
 	select HAVE_CLK_PREPARE
 	select HAVE_CLK
-	select SRCU
 	select RATIONAL
 	help
 	  The common clock framework is a single definition of struct

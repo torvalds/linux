@@ -4,7 +4,7 @@
 
 .. _it_readme:
 
-Rilascio del kernel Linux  5.x <http://kernel.org/>
+Rilascio del kernel Linux  6.x <http://kernel.org/>
 ===================================================
 
 .. warning::

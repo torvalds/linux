@@ -74,7 +74,7 @@ patternProperties:
     oneOf:
       - $ref: "#/$defs/qcom-pmic-mpp-state"
       - patternProperties:
-          "mpp":
+          '-pins$':
             $ref: "#/$defs/qcom-pmic-mpp-state"
         additionalProperties: false
 
@@ -179,7 +179,7 @@ examples:
       };
 
       default-state {
-        gpio-mpp {
+        gpio-pins {
           pins = "mpp1", "mpp2", "mpp3", "mpp4";
           function = "digital";
           input-enable;

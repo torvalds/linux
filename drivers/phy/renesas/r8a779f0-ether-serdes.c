@@ -18,7 +18,6 @@
 #define R8A779F0_ETH_SERDES_BANK_SELECT		0x03fc
 #define R8A779F0_ETH_SERDES_TIMEOUT_US		100000
 #define R8A779F0_ETH_SERDES_NUM_RETRY_LINKUP	3
-#define R8A779F0_ETH_SERDES_NUM_RETRY_INIT	3
 
 struct r8a779f0_eth_serdes_drv_data;
 struct r8a779f0_eth_serdes_channel {
@@ -242,51 +241,46 @@ static int r8a779f0_eth_serdes_hw_init(struct r8a779f0_eth_serdes_channel *chann
 	if (ret)
 		return ret;
 
-	ret = r8a779f0_eth_serdes_reg_wait(&dd->channel[0], 0x0000, 0x380, BIT(15), 0);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < R8A779F0_ETH_SERDES_NUM; i++) {
-		ret = r8a779f0_eth_serdes_chan_setting(&dd->channel[i]);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; i < R8A779F0_ETH_SERDES_NUM; i++) {
-		ret = r8a779f0_eth_serdes_chan_speed(&dd->channel[i]);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; i < R8A779F0_ETH_SERDES_NUM; i++)
-		r8a779f0_eth_serdes_write32(dd->channel[i].addr, 0x03c0, 0x380, 0x0000);
-	for (i = 0; i < R8A779F0_ETH_SERDES_NUM; i++)
-		r8a779f0_eth_serdes_write32(dd->channel[i].addr, 0x03d0, 0x380, 0x0000);
-
-	for (i = 0; i < R8A779F0_ETH_SERDES_NUM; i++) {
-		ret = r8a779f0_eth_serdes_monitor_linkup(&dd->channel[i]);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return r8a779f0_eth_serdes_reg_wait(&dd->channel[0], 0x0000, 0x380, BIT(15), 0);
 }
 
 static int r8a779f0_eth_serdes_init(struct phy *p)
 {
 	struct r8a779f0_eth_serdes_channel *channel = phy_get_drvdata(p);
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < R8A779F0_ETH_SERDES_NUM_RETRY_INIT; i++) {
-		ret = r8a779f0_eth_serdes_hw_init(channel);
-		if (!ret) {
-			channel->dd->initialized = true;
-			break;
-		}
-		usleep_range(1000, 2000);
-	}
+	ret = r8a779f0_eth_serdes_hw_init(channel);
+	if (!ret)
+		channel->dd->initialized = true;
 
 	return ret;
+}
+
+static int r8a779f0_eth_serdes_hw_init_late(struct r8a779f0_eth_serdes_channel
+*channel)
+{
+	int ret;
+
+	ret = r8a779f0_eth_serdes_chan_setting(channel);
+	if (ret)
+		return ret;
+
+	ret = r8a779f0_eth_serdes_chan_speed(channel);
+	if (ret)
+		return ret;
+
+	r8a779f0_eth_serdes_write32(channel->addr, 0x03c0, 0x380, 0x0000);
+
+	r8a779f0_eth_serdes_write32(channel->addr, 0x03d0, 0x380, 0x0000);
+
+	return r8a779f0_eth_serdes_monitor_linkup(channel);
+}
+
+static int r8a779f0_eth_serdes_power_on(struct phy *p)
+{
+	struct r8a779f0_eth_serdes_channel *channel = phy_get_drvdata(p);
+
+	return r8a779f0_eth_serdes_hw_init_late(channel);
 }
 
 static int r8a779f0_eth_serdes_set_mode(struct phy *p, enum phy_mode mode,
@@ -319,6 +313,7 @@ static int r8a779f0_eth_serdes_set_speed(struct phy *p, int speed)
 
 static const struct phy_ops r8a779f0_eth_serdes_ops = {
 	.init		= r8a779f0_eth_serdes_init,
+	.power_on	= r8a779f0_eth_serdes_power_on,
 	.set_mode	= r8a779f0_eth_serdes_set_mode,
 	.set_speed	= r8a779f0_eth_serdes_set_speed,
 };

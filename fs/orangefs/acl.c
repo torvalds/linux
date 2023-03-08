@@ -118,7 +118,7 @@ out:
 	return error;
 }
 
-int orangefs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int orangefs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct posix_acl *acl, int type)
 {
 	int error;
@@ -136,7 +136,7 @@ int orangefs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 * and "mode" to the new desired value. It is up to
 		 * us to propagate the new mode back to the server...
 		 */
-		error = posix_acl_update_mode(&init_user_ns, inode,
+		error = posix_acl_update_mode(&nop_mnt_idmap, inode,
 					      &iattr.ia_mode, &acl);
 		if (error) {
 			gossip_err("%s: posix_acl_update_mode err: %d\n",

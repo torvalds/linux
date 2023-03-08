@@ -80,8 +80,6 @@ typedef struct page *pgtable_t;
 
 #define page_to_phys(page)      ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
-#define pfn_valid(pfn)          ((pfn) < max_mapnr)
-
 #define virt_addr_valid(kaddr)	(pfn_valid(virt_to_pfn(kaddr)))
 
 #endif /* __ASSEMBLY__ */

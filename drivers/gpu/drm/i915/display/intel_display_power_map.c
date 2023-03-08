@@ -10,6 +10,7 @@
 
 #include "intel_display_power_map.h"
 #include "intel_display_power_well.h"
+#include "intel_display_types.h"
 
 #define __LIST_INLINE_ELEMS(__elem_type, ...) \
 	((__elem_type[]) { __VA_ARGS__ })

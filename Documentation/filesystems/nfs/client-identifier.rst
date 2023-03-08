@@ -152,7 +152,7 @@ string:
       via the kernel command line, or when the "nfs" module is
       loaded.
 
-    /sys/fs/nfs/client/net/identifier
+    /sys/fs/nfs/net/nfs_client/identifier
       This virtual file, available since Linux 5.3, is local to the
       network namespace in which it is accessed and so can provide
       distinction between network namespaces (containers) when the
@@ -164,7 +164,7 @@ then that uniquifier can be used. For example, a uniquifier might
 be formed at boot using the container's internal identifier:
 
     sha256sum /etc/machine-id | awk '{print $1}' \\
-        > /sys/fs/nfs/client/net/identifier
+        > /sys/fs/nfs/net/nfs_client/identifier
 
 Security considerations
 -----------------------

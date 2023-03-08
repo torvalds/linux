@@ -391,7 +391,7 @@ u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset)
 
 int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 {
-	u32 reg;
+	unsigned int reg;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);
@@ -442,7 +442,7 @@ err_release_lock:
 void __i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	int timeout = 100;
-	u32 status;
+	unsigned int status;
 
 	do {
 		__i2c_dw_disable_nowait(dev);
@@ -465,7 +465,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 	dev_warn(dev->dev, "timeout in disabling adapter\n");
 }
 
-unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
+u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 {
 	/*
 	 * Clock is not necessary if we got LCNT/HCNT values directly from
@@ -527,7 +527,7 @@ void i2c_dw_release_lock(struct dw_i2c_dev *dev)
  */
 int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 {
-	u32 status;
+	unsigned int status;
 	int ret;
 
 	ret = regmap_read_poll_timeout(dev->map, DW_IC_STATUS, status,
@@ -571,7 +571,8 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 
 int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
 {
-	u32 param, tx_fifo_depth, rx_fifo_depth;
+	u32 tx_fifo_depth, rx_fifo_depth;
+	unsigned int param;
 	int ret;
 
 	/*
@@ -611,7 +612,7 @@ u32 i2c_dw_func(struct i2c_adapter *adap)
 
 void i2c_dw_disable(struct dw_i2c_dev *dev)
 {
-	u32 dummy;
+	unsigned int dummy;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);

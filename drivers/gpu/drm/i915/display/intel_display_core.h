@@ -17,7 +17,7 @@
 #include <drm/drm_modeset_lock.h>
 
 #include "intel_cdclk.h"
-#include "intel_display.h"
+#include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dmc.h"
 #include "intel_dpll_mgr.h"
@@ -87,6 +87,11 @@ struct intel_wm_funcs {
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
 };
 
+struct intel_audio_state {
+	struct intel_encoder *encoder;
+	u8 eld[MAX_ELD_BYTES];
+};
+
 struct intel_audio {
 	/* hda/i915 audio component */
 	struct i915_audio_component *component;
@@ -96,8 +101,8 @@ struct intel_audio {
 	int power_refcount;
 	u32 freq_cntrl;
 
-	/* Used to save the pipe-to-encoder mapping for audio */
-	struct intel_encoder *encoder_map[I915_MAX_PIPES];
+	/* current audio state for the audio component hooks */
+	struct intel_audio_state state[I915_MAX_PIPES];
 
 	/* necessary resource sharing with HDMI LPE audio driver. */
 	struct {
@@ -122,6 +127,11 @@ struct intel_dpll {
 		int nssc;
 		int ssc;
 	} ref_clks;
+
+	/*
+	 * Bitmask of PLLs using the PCH SSC, indexed using enum intel_dpll_id.
+	 */
+	u8 pch_ssc_use;
 };
 
 struct intel_frontbuffer_tracking {
@@ -427,6 +437,24 @@ struct intel_display {
 
 		u32 block_time_us;
 	} sagv;
+
+	struct {
+		/*
+		 * DG2: Mask of PHYs that were not calibrated by the firmware
+		 * and should not be used.
+		 */
+		u8 phy_failed_calibration;
+	} snps;
+
+	struct {
+		/*
+		 * Shadows for CHV DPLL_MD regs to keep the state
+		 * checker somewhat working in the presence hardware
+		 * crappiness (can't read out DPLL_MD for pipes B & C).
+		 */
+		u32 chv_dpll_md[I915_MAX_PIPES];
+		u32 bxt_phy_grc;
+	} state;
 
 	struct {
 		/* ordered wq for modesets */

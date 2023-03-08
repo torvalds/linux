@@ -200,10 +200,10 @@ static struct ics ics_rtas = {
 
 __init int ics_rtas_init(void)
 {
-	ibm_get_xive = rtas_token("ibm,get-xive");
-	ibm_set_xive = rtas_token("ibm,set-xive");
-	ibm_int_on  = rtas_token("ibm,int-on");
-	ibm_int_off = rtas_token("ibm,int-off");
+	ibm_get_xive = rtas_function_token(RTAS_FN_IBM_GET_XIVE);
+	ibm_set_xive = rtas_function_token(RTAS_FN_IBM_SET_XIVE);
+	ibm_int_on  = rtas_function_token(RTAS_FN_IBM_INT_ON);
+	ibm_int_off = rtas_function_token(RTAS_FN_IBM_INT_OFF);
 
 	/* We enable the RTAS "ICS" if RTAS is present with the
 	 * appropriate tokens

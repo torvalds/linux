@@ -16,7 +16,7 @@
 
 struct socket_cookie {
 	__u64 cookie_key;
-	__u32 cookie_value;
+	__u64 cookie_value;
 };
 
 static void test_tp_btf(int cgroup_fd)

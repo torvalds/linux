@@ -516,7 +516,7 @@ static int host1x_probe(struct platform_device *pdev)
 			return PTR_ERR(host->regs);
 	}
 
-	syncpt_irq = platform_get_irq(pdev, 0);
+	host->syncpt_irq = platform_get_irq(pdev, 0);
 	if (syncpt_irq < 0)
 		return syncpt_irq;
 
@@ -578,7 +578,7 @@ static int host1x_probe(struct platform_device *pdev)
 		goto free_contexts;
 	}
 
-	err = host1x_intr_init(host, syncpt_irq);
+	err = host1x_intr_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize interrupts\n");
 		goto deinit_syncpt;

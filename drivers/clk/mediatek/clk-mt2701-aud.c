@@ -76,6 +76,7 @@ static const struct mtk_gate_regs audio3_cg_regs = {
 };
 
 static const struct mtk_gate audio_clks[] = {
+	GATE_DUMMY(CLK_DUMMY, "aud_dummy"),
 	/* AUDIO0 */
 	GATE_AUDIO0(CLK_AUD_AFE, "audio_afe", "aud_intbus_sel", 2),
 	GATE_AUDIO0(CLK_AUD_HDMI, "audio_hdmi", "audpll_sel", 20),
@@ -138,29 +139,27 @@ static const struct mtk_gate audio_clks[] = {
 	GATE_AUDIO3(CLK_AUD_MEM_ASRC5, "audio_mem_asrc5", "asm_h_sel", 14),
 };
 
+static const struct mtk_clk_desc audio_desc = {
+	.clks = audio_clks,
+	.num_clks = ARRAY_SIZE(audio_clks),
+};
+
 static const struct of_device_id of_match_clk_mt2701_aud[] = {
-	{ .compatible = "mediatek,mt2701-audsys", },
-	{}
+	{ .compatible = "mediatek,mt2701-audsys", .data = &audio_desc },
+	{ /* sentinel */ }
 };
 
 static int clk_mt2701_aud_probe(struct platform_device *pdev)
 {
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
 	int r;
 
-	clk_data = mtk_alloc_clk_data(CLK_AUD_NR);
-
-	mtk_clk_register_gates(node, audio_clks, ARRAY_SIZE(audio_clks),
-			       clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = mtk_clk_simple_probe(pdev);
 	if (r) {
 		dev_err(&pdev->dev,
 			"could not register clock provider: %s: %d\n",
 			pdev->name, r);
 
-		goto err_clk_provider;
+		return r;
 	}
 
 	r = devm_of_platform_populate(&pdev->dev);
@@ -170,13 +169,19 @@ static int clk_mt2701_aud_probe(struct platform_device *pdev)
 	return 0;
 
 err_plat_populate:
-	of_clk_del_provider(node);
-err_clk_provider:
+	mtk_clk_simple_remove(pdev);
 	return r;
+}
+
+static int clk_mt2701_aud_remove(struct platform_device *pdev)
+{
+	of_platform_depopulate(&pdev->dev);
+	return mtk_clk_simple_remove(pdev);
 }
 
 static struct platform_driver clk_mt2701_aud_drv = {
 	.probe = clk_mt2701_aud_probe,
+	.remove = clk_mt2701_aud_remove,
 	.driver = {
 		.name = "clk-mt2701-aud",
 		.of_match_table = of_match_clk_mt2701_aud,

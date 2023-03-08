@@ -6,7 +6,7 @@
 #include <linux/capability.h>
 
 struct kernel_cap_struct {
-	__u32 cap[_LINUX_CAPABILITY_U32S_3];
+	__u64 val;
 } __attribute__((preserve_access_index));
 
 struct cred {
@@ -19,14 +19,13 @@ SEC("lsm.s/userns_create")
 int BPF_PROG(test_userns_create, const struct cred *cred, int ret)
 {
 	struct kernel_cap_struct caps = cred->cap_effective;
-	int cap_index = CAP_TO_INDEX(CAP_SYS_ADMIN);
-	__u32 cap_mask = CAP_TO_MASK(CAP_SYS_ADMIN);
+	__u64 cap_mask = BIT_LL(CAP_SYS_ADMIN);
 
 	if (ret)
 		return 0;
 
 	ret = -EPERM;
-	if (caps.cap[cap_index] & cap_mask)
+	if (caps.val & cap_mask)
 		return 0;
 
 	return -EPERM;

@@ -26,9 +26,11 @@
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
 #include <linux/iopoll.h>
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 
-#define TSNEP_SKB_PAD (NET_SKB_PAD + NET_IP_ALIGN)
-#define TSNEP_HEADROOM ALIGN(TSNEP_SKB_PAD, 4)
+#define TSNEP_RX_OFFSET (max(NET_SKB_PAD, XDP_PACKET_HEADROOM) + NET_IP_ALIGN)
+#define TSNEP_HEADROOM ALIGN(TSNEP_RX_OFFSET, 4)
 #define TSNEP_MAX_RX_BUF_SIZE (PAGE_SIZE - TSNEP_HEADROOM - \
 			       SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
@@ -42,6 +44,14 @@
 #define TSNEP_COALESCE_USECS_DEFAULT 64
 #define TSNEP_COALESCE_USECS_MAX     ((ECM_INT_DELAY_MASK >> ECM_INT_DELAY_SHIFT) * \
 				      ECM_INT_DELAY_BASE_US + ECM_INT_DELAY_BASE_US - 1)
+
+#define TSNEP_TX_TYPE_SKB	BIT(0)
+#define TSNEP_TX_TYPE_SKB_FRAG	BIT(1)
+#define TSNEP_TX_TYPE_XDP_TX	BIT(2)
+#define TSNEP_TX_TYPE_XDP_NDO	BIT(3)
+
+#define TSNEP_XDP_TX		BIT(0)
+#define TSNEP_XDP_REDIRECT	BIT(1)
 
 static void tsnep_enable_irq(struct tsnep_adapter *adapter, u32 mask)
 {
@@ -120,9 +130,6 @@ static int tsnep_mdiobus_read(struct mii_bus *bus, int addr, int regnum)
 	u32 md;
 	int retval;
 
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	md = ECM_MD_READ;
 	if (!adapter->suppress_preamble)
 		md |= ECM_MD_PREAMBLE;
@@ -143,9 +150,6 @@ static int tsnep_mdiobus_write(struct mii_bus *bus, int addr, int regnum,
 	struct tsnep_adapter *adapter = bus->priv;
 	u32 md;
 	int retval;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	md = ECM_MD_WRITE;
 	if (!adapter->suppress_preamble)
@@ -306,10 +310,12 @@ static void tsnep_tx_activate(struct tsnep_tx *tx, int index, int length,
 	struct tsnep_tx_entry *entry = &tx->entry[index];
 
 	entry->properties = 0;
+	/* xdpf is union with skb */
 	if (entry->skb) {
 		entry->properties = length & TSNEP_DESC_LENGTH_MASK;
 		entry->properties |= TSNEP_DESC_INTERRUPT_FLAG;
-		if (skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS)
+		if ((entry->type & TSNEP_TX_TYPE_SKB) &&
+		    (skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS))
 			entry->properties |= TSNEP_DESC_EXTENDED_WRITEBACK_FLAG;
 
 		/* toggle user flag to prevent false acknowledge
@@ -378,15 +384,19 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 	for (i = 0; i < count; i++) {
 		entry = &tx->entry[(tx->write + i) % TSNEP_RING_SIZE];
 
-		if (i == 0) {
+		if (!i) {
 			len = skb_headlen(skb);
 			dma = dma_map_single(dmadev, skb->data, len,
 					     DMA_TO_DEVICE);
+
+			entry->type = TSNEP_TX_TYPE_SKB;
 		} else {
 			len = skb_frag_size(&skb_shinfo(skb)->frags[i - 1]);
 			dma = skb_frag_dma_map(dmadev,
 					       &skb_shinfo(skb)->frags[i - 1],
 					       0, len, DMA_TO_DEVICE);
+
+			entry->type = TSNEP_TX_TYPE_SKB_FRAG;
 		}
 		if (dma_mapping_error(dmadev, dma))
 			return -ENOMEM;
@@ -413,12 +423,13 @@ static int tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 		entry = &tx->entry[(index + i) % TSNEP_RING_SIZE];
 
 		if (entry->len) {
-			if (i == 0)
+			if (entry->type & TSNEP_TX_TYPE_SKB)
 				dma_unmap_single(dmadev,
 						 dma_unmap_addr(entry, dma),
 						 dma_unmap_len(entry, len),
 						 DMA_TO_DEVICE);
-			else
+			else if (entry->type &
+				 (TSNEP_TX_TYPE_SKB_FRAG | TSNEP_TX_TYPE_XDP_NDO))
 				dma_unmap_page(dmadev,
 					       dma_unmap_addr(entry, dma),
 					       dma_unmap_len(entry, len),
@@ -434,7 +445,6 @@ static int tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 					 struct tsnep_tx *tx)
 {
-	unsigned long flags;
 	int count = 1;
 	struct tsnep_tx_entry *entry;
 	int length;
@@ -444,15 +454,11 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 	if (skb_shinfo(skb)->nr_frags > 0)
 		count += skb_shinfo(skb)->nr_frags;
 
-	spin_lock_irqsave(&tx->lock, flags);
-
 	if (tsnep_tx_desc_available(tx) < count) {
 		/* ring full, shall not happen because queue is stopped if full
 		 * below
 		 */
 		netif_stop_subqueue(tx->adapter->netdev, tx->queue_index);
-
-		spin_unlock_irqrestore(&tx->lock, flags);
 
 		return NETDEV_TX_BUSY;
 	}
@@ -468,10 +474,6 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 		tx->dropped++;
 
-		spin_unlock_irqrestore(&tx->lock, flags);
-
-		netdev_err(tx->adapter->netdev, "TX DMA map failed\n");
-
 		return NETDEV_TX_OK;
 	}
 	length = retval;
@@ -481,7 +483,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 	for (i = 0; i < count; i++)
 		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
-				  i == (count - 1));
+				  i == count - 1);
 	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
 
 	skb_tx_timestamp(skb);
@@ -496,23 +498,146 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		netif_stop_subqueue(tx->adapter->netdev, tx->queue_index);
 	}
 
-	spin_unlock_irqrestore(&tx->lock, flags);
-
 	return NETDEV_TX_OK;
+}
+
+static int tsnep_xdp_tx_map(struct xdp_frame *xdpf, struct tsnep_tx *tx,
+			    struct skb_shared_info *shinfo, int count, u32 type)
+{
+	struct device *dmadev = tx->adapter->dmadev;
+	struct tsnep_tx_entry *entry;
+	struct page *page;
+	skb_frag_t *frag;
+	unsigned int len;
+	int map_len = 0;
+	dma_addr_t dma;
+	void *data;
+	int i;
+
+	frag = NULL;
+	len = xdpf->len;
+	for (i = 0; i < count; i++) {
+		entry = &tx->entry[(tx->write + i) % TSNEP_RING_SIZE];
+		if (type & TSNEP_TX_TYPE_XDP_NDO) {
+			data = unlikely(frag) ? skb_frag_address(frag) :
+						xdpf->data;
+			dma = dma_map_single(dmadev, data, len, DMA_TO_DEVICE);
+			if (dma_mapping_error(dmadev, dma))
+				return -ENOMEM;
+
+			entry->type = TSNEP_TX_TYPE_XDP_NDO;
+		} else {
+			page = unlikely(frag) ? skb_frag_page(frag) :
+						virt_to_page(xdpf->data);
+			dma = page_pool_get_dma_addr(page);
+			if (unlikely(frag))
+				dma += skb_frag_off(frag);
+			else
+				dma += sizeof(*xdpf) + xdpf->headroom;
+			dma_sync_single_for_device(dmadev, dma, len,
+						   DMA_BIDIRECTIONAL);
+
+			entry->type = TSNEP_TX_TYPE_XDP_TX;
+		}
+
+		entry->len = len;
+		dma_unmap_addr_set(entry, dma, dma);
+
+		entry->desc->tx = __cpu_to_le64(dma);
+
+		map_len += len;
+
+		if (i + 1 < count) {
+			frag = &shinfo->frags[i];
+			len = skb_frag_size(frag);
+		}
+	}
+
+	return map_len;
+}
+
+/* This function requires __netif_tx_lock is held by the caller. */
+static bool tsnep_xdp_xmit_frame_ring(struct xdp_frame *xdpf,
+				      struct tsnep_tx *tx, u32 type)
+{
+	struct skb_shared_info *shinfo = xdp_get_shared_info_from_frame(xdpf);
+	struct tsnep_tx_entry *entry;
+	int count, length, retval, i;
+
+	count = 1;
+	if (unlikely(xdp_frame_has_frags(xdpf)))
+		count += shinfo->nr_frags;
+
+	/* ensure that TX ring is not filled up by XDP, always MAX_SKB_FRAGS
+	 * will be available for normal TX path and queue is stopped there if
+	 * necessary
+	 */
+	if (tsnep_tx_desc_available(tx) < (MAX_SKB_FRAGS + 1 + count))
+		return false;
+
+	entry = &tx->entry[tx->write];
+	entry->xdpf = xdpf;
+
+	retval = tsnep_xdp_tx_map(xdpf, tx, shinfo, count, type);
+	if (retval < 0) {
+		tsnep_tx_unmap(tx, tx->write, count);
+		entry->xdpf = NULL;
+
+		tx->dropped++;
+
+		return false;
+	}
+	length = retval;
+
+	for (i = 0; i < count; i++)
+		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
+				  i == count - 1);
+	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
+
+	/* descriptor properties shall be valid before hardware is notified */
+	dma_wmb();
+
+	return true;
+}
+
+static void tsnep_xdp_xmit_flush(struct tsnep_tx *tx)
+{
+	iowrite32(TSNEP_CONTROL_TX_ENABLE, tx->addr + TSNEP_CONTROL);
+}
+
+static bool tsnep_xdp_xmit_back(struct tsnep_adapter *adapter,
+				struct xdp_buff *xdp,
+				struct netdev_queue *tx_nq, struct tsnep_tx *tx)
+{
+	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
+	bool xmit;
+
+	if (unlikely(!xdpf))
+		return false;
+
+	__netif_tx_lock(tx_nq, smp_processor_id());
+
+	xmit = tsnep_xdp_xmit_frame_ring(xdpf, tx, TSNEP_TX_TYPE_XDP_TX);
+
+	/* Avoid transmit queue timeout since we share it with the slow path */
+	if (xmit)
+		txq_trans_cond_update(tx_nq);
+
+	__netif_tx_unlock(tx_nq);
+
+	return xmit;
 }
 
 static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 {
 	struct tsnep_tx_entry *entry;
 	struct netdev_queue *nq;
-	unsigned long flags;
 	int budget = 128;
 	int length;
 	int count;
 
 	nq = netdev_get_tx_queue(tx->adapter->netdev, tx->queue_index);
-
-	spin_lock_irqsave(&tx->lock, flags);
+	__netif_tx_lock(nq, smp_processor_id());
 
 	do {
 		if (tx->read == tx->write)
@@ -530,12 +655,17 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		dma_rmb();
 
 		count = 1;
-		if (skb_shinfo(entry->skb)->nr_frags > 0)
+		if ((entry->type & TSNEP_TX_TYPE_SKB) &&
+		    skb_shinfo(entry->skb)->nr_frags > 0)
 			count += skb_shinfo(entry->skb)->nr_frags;
+		else if (!(entry->type & TSNEP_TX_TYPE_SKB) &&
+			 xdp_frame_has_frags(entry->xdpf))
+			count += xdp_get_shared_info_from_frame(entry->xdpf)->nr_frags;
 
 		length = tsnep_tx_unmap(tx, tx->read, count);
 
-		if ((skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS) &&
+		if ((entry->type & TSNEP_TX_TYPE_SKB) &&
+		    (skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS) &&
 		    (__le32_to_cpu(entry->desc_wb->properties) &
 		     TSNEP_DESC_EXTENDED_WRITEBACK_FLAG)) {
 			struct skb_shared_hwtstamps hwtstamps;
@@ -555,7 +685,11 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 			skb_tstamp_tx(entry->skb, &hwtstamps);
 		}
 
-		napi_consume_skb(entry->skb, budget);
+		if (entry->type & TSNEP_TX_TYPE_SKB)
+			napi_consume_skb(entry->skb, napi_budget);
+		else
+			xdp_return_frame_rx_napi(entry->xdpf);
+		/* xdpf is union with skb */
 		entry->skb = NULL;
 
 		tx->read = (tx->read + count) % TSNEP_RING_SIZE;
@@ -571,18 +705,19 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		netif_tx_wake_queue(nq);
 	}
 
-	spin_unlock_irqrestore(&tx->lock, flags);
+	__netif_tx_unlock(nq);
 
-	return (budget != 0);
+	return budget != 0;
 }
 
 static bool tsnep_tx_pending(struct tsnep_tx *tx)
 {
-	unsigned long flags;
 	struct tsnep_tx_entry *entry;
+	struct netdev_queue *nq;
 	bool pending = false;
 
-	spin_lock_irqsave(&tx->lock, flags);
+	nq = netdev_get_tx_queue(tx->adapter->netdev, tx->queue_index);
+	__netif_tx_lock(nq, smp_processor_id());
 
 	if (tx->read != tx->write) {
 		entry = &tx->entry[tx->read];
@@ -592,7 +727,7 @@ static bool tsnep_tx_pending(struct tsnep_tx *tx)
 			pending = true;
 	}
 
-	spin_unlock_irqrestore(&tx->lock, flags);
+	__netif_tx_unlock(nq);
 
 	return pending;
 }
@@ -617,8 +752,6 @@ static int tsnep_tx_open(struct tsnep_adapter *adapter, void __iomem *addr,
 	iowrite32(DMA_ADDR_HIGH(dma), tx->addr + TSNEP_TX_DESC_ADDR_HIGH);
 	tx->owner_counter = 1;
 	tx->increment_owner_counter = TSNEP_RING_SIZE - 1;
-
-	spin_lock_init(&tx->lock);
 
 	return 0;
 }
@@ -695,9 +828,9 @@ static int tsnep_rx_ring_init(struct tsnep_rx *rx)
 	pp_params.pool_size = TSNEP_RING_SIZE;
 	pp_params.nid = dev_to_node(dmadev);
 	pp_params.dev = dmadev;
-	pp_params.dma_dir = DMA_FROM_DEVICE;
+	pp_params.dma_dir = DMA_BIDIRECTIONAL;
 	pp_params.max_len = TSNEP_MAX_RX_BUF_SIZE;
-	pp_params.offset = TSNEP_SKB_PAD;
+	pp_params.offset = TSNEP_RX_OFFSET;
 	rx->page_pool = page_pool_create(&pp_params);
 	if (IS_ERR(rx->page_pool)) {
 		retval = PTR_ERR(rx->page_pool);
@@ -732,7 +865,7 @@ static void tsnep_rx_set_page(struct tsnep_rx *rx, struct tsnep_rx_entry *entry,
 	entry->page = page;
 	entry->len = TSNEP_MAX_RX_BUF_SIZE;
 	entry->dma = page_pool_get_dma_addr(entry->page);
-	entry->desc->rx = __cpu_to_le64(entry->dma + TSNEP_SKB_PAD);
+	entry->desc->rx = __cpu_to_le64(entry->dma + TSNEP_RX_OFFSET);
 }
 
 static int tsnep_rx_alloc_buffer(struct tsnep_rx *rx, int index)
@@ -826,6 +959,62 @@ static int tsnep_rx_refill(struct tsnep_rx *rx, int count, bool reuse)
 	return i;
 }
 
+static bool tsnep_xdp_run_prog(struct tsnep_rx *rx, struct bpf_prog *prog,
+			       struct xdp_buff *xdp, int *status,
+			       struct netdev_queue *tx_nq, struct tsnep_tx *tx)
+{
+	unsigned int length;
+	unsigned int sync;
+	u32 act;
+
+	length = xdp->data_end - xdp->data_hard_start - XDP_PACKET_HEADROOM;
+
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	/* Due xdp_adjust_tail: DMA sync for_device cover max len CPU touch */
+	sync = xdp->data_end - xdp->data_hard_start - XDP_PACKET_HEADROOM;
+	sync = max(sync, length);
+
+	switch (act) {
+	case XDP_PASS:
+		return false;
+	case XDP_TX:
+		if (!tsnep_xdp_xmit_back(rx->adapter, xdp, tx_nq, tx))
+			goto out_failure;
+		*status |= TSNEP_XDP_TX;
+		return true;
+	case XDP_REDIRECT:
+		if (xdp_do_redirect(rx->adapter->netdev, xdp, prog) < 0)
+			goto out_failure;
+		*status |= TSNEP_XDP_REDIRECT;
+		return true;
+	default:
+		bpf_warn_invalid_xdp_action(rx->adapter->netdev, prog, act);
+		fallthrough;
+	case XDP_ABORTED:
+out_failure:
+		trace_xdp_exception(rx->adapter->netdev, prog, act);
+		fallthrough;
+	case XDP_DROP:
+		page_pool_put_page(rx->page_pool, virt_to_head_page(xdp->data),
+				   sync, true);
+		return true;
+	}
+}
+
+static void tsnep_finalize_xdp(struct tsnep_adapter *adapter, int status,
+			       struct netdev_queue *tx_nq, struct tsnep_tx *tx)
+{
+	if (status & TSNEP_XDP_TX) {
+		__netif_tx_lock(tx_nq, smp_processor_id());
+		tsnep_xdp_xmit_flush(tx);
+		__netif_tx_unlock(tx_nq);
+	}
+
+	if (status & TSNEP_XDP_REDIRECT)
+		xdp_do_flush();
+}
+
 static struct sk_buff *tsnep_build_skb(struct tsnep_rx *rx, struct page *page,
 				       int length)
 {
@@ -836,14 +1025,14 @@ static struct sk_buff *tsnep_build_skb(struct tsnep_rx *rx, struct page *page,
 		return NULL;
 
 	/* update pointers within the skb to store the data */
-	skb_reserve(skb, TSNEP_SKB_PAD + TSNEP_RX_INLINE_METADATA_SIZE);
-	__skb_put(skb, length - TSNEP_RX_INLINE_METADATA_SIZE - ETH_FCS_LEN);
+	skb_reserve(skb, TSNEP_RX_OFFSET + TSNEP_RX_INLINE_METADATA_SIZE);
+	__skb_put(skb, length - ETH_FCS_LEN);
 
 	if (rx->adapter->hwtstamp_config.rx_filter == HWTSTAMP_FILTER_ALL) {
 		struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);
 		struct tsnep_rx_inline *rx_inline =
 			(struct tsnep_rx_inline *)(page_address(page) +
-						   TSNEP_SKB_PAD);
+						   TSNEP_RX_OFFSET);
 
 		skb_shinfo(skb)->tx_flags |=
 			SKBTX_HW_TSTAMP_NETDEV;
@@ -861,15 +1050,28 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 			 int budget)
 {
 	struct device *dmadev = rx->adapter->dmadev;
-	int desc_available;
-	int done = 0;
 	enum dma_data_direction dma_dir;
 	struct tsnep_rx_entry *entry;
+	struct netdev_queue *tx_nq;
+	struct bpf_prog *prog;
+	struct xdp_buff xdp;
 	struct sk_buff *skb;
+	struct tsnep_tx *tx;
+	int desc_available;
+	int xdp_status = 0;
+	int done = 0;
 	int length;
 
 	desc_available = tsnep_rx_desc_available(rx);
 	dma_dir = page_pool_get_dma_dir(rx->page_pool);
+	prog = READ_ONCE(rx->adapter->xdp_prog);
+	if (prog) {
+		tx_nq = netdev_get_tx_queue(rx->adapter->netdev,
+					    rx->tx_queue_index);
+		tx = &rx->adapter->tx[rx->tx_queue_index];
+
+		xdp_init_buff(&xdp, PAGE_SIZE, &rx->xdp_rxq);
+	}
 
 	while (likely(done < budget) && (rx->read != rx->write)) {
 		entry = &rx->entry[rx->read];
@@ -903,21 +1105,47 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		 */
 		dma_rmb();
 
-		prefetch(page_address(entry->page) + TSNEP_SKB_PAD);
+		prefetch(page_address(entry->page) + TSNEP_RX_OFFSET);
 		length = __le32_to_cpu(entry->desc_wb->properties) &
 			 TSNEP_DESC_LENGTH_MASK;
-		dma_sync_single_range_for_cpu(dmadev, entry->dma, TSNEP_SKB_PAD,
-					      length, dma_dir);
+		dma_sync_single_range_for_cpu(dmadev, entry->dma,
+					      TSNEP_RX_OFFSET, length, dma_dir);
+
+		/* RX metadata with timestamps is in front of actual data,
+		 * subtract metadata size to get length of actual data and
+		 * consider metadata size as offset of actual data during RX
+		 * processing
+		 */
+		length -= TSNEP_RX_INLINE_METADATA_SIZE;
 
 		rx->read = (rx->read + 1) % TSNEP_RING_SIZE;
 		desc_available++;
+
+		if (prog) {
+			bool consume;
+
+			xdp_prepare_buff(&xdp, page_address(entry->page),
+					 XDP_PACKET_HEADROOM + TSNEP_RX_INLINE_METADATA_SIZE,
+					 length, false);
+
+			consume = tsnep_xdp_run_prog(rx, prog, &xdp,
+						     &xdp_status, tx_nq, tx);
+			if (consume) {
+				rx->packets++;
+				rx->bytes += length;
+
+				entry->page = NULL;
+
+				continue;
+			}
+		}
 
 		skb = tsnep_build_skb(rx, entry->page, length);
 		if (skb) {
 			page_pool_release_page(rx->page_pool, entry->page);
 
 			rx->packets++;
-			rx->bytes += length - TSNEP_RX_INLINE_METADATA_SIZE;
+			rx->bytes += length;
 			if (skb->pkt_type == PACKET_MULTICAST)
 				rx->multicast++;
 
@@ -929,6 +1157,9 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 		}
 		entry->page = NULL;
 	}
+
+	if (xdp_status)
+		tsnep_finalize_xdp(rx->adapter, xdp_status, tx_nq, tx);
 
 	if (desc_available)
 		tsnep_rx_refill(rx, desc_available, false);
@@ -1086,17 +1317,73 @@ static void tsnep_free_irq(struct tsnep_queue *queue, bool first)
 	memset(queue->name, 0, sizeof(queue->name));
 }
 
+static void tsnep_queue_close(struct tsnep_queue *queue, bool first)
+{
+	struct tsnep_rx *rx = queue->rx;
+
+	tsnep_free_irq(queue, first);
+
+	if (rx && xdp_rxq_info_is_reg(&rx->xdp_rxq))
+		xdp_rxq_info_unreg(&rx->xdp_rxq);
+
+	netif_napi_del(&queue->napi);
+}
+
+static int tsnep_queue_open(struct tsnep_adapter *adapter,
+			    struct tsnep_queue *queue, bool first)
+{
+	struct tsnep_rx *rx = queue->rx;
+	struct tsnep_tx *tx = queue->tx;
+	int retval;
+
+	queue->adapter = adapter;
+
+	netif_napi_add(adapter->netdev, &queue->napi, tsnep_poll);
+
+	if (rx) {
+		/* choose TX queue for XDP_TX */
+		if (tx)
+			rx->tx_queue_index = tx->queue_index;
+		else if (rx->queue_index < adapter->num_tx_queues)
+			rx->tx_queue_index = rx->queue_index;
+		else
+			rx->tx_queue_index = 0;
+
+		retval = xdp_rxq_info_reg(&rx->xdp_rxq, adapter->netdev,
+					  rx->queue_index, queue->napi.napi_id);
+		if (retval)
+			goto failed;
+		retval = xdp_rxq_info_reg_mem_model(&rx->xdp_rxq,
+						    MEM_TYPE_PAGE_POOL,
+						    rx->page_pool);
+		if (retval)
+			goto failed;
+	}
+
+	retval = tsnep_request_irq(queue, first);
+	if (retval) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "can't get assigned irq %d.\n", queue->irq);
+		goto failed;
+	}
+
+	return 0;
+
+failed:
+	tsnep_queue_close(queue, first);
+
+	return retval;
+}
+
 static int tsnep_netdev_open(struct net_device *netdev)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
-	int i;
-	void __iomem *addr;
 	int tx_queue_index = 0;
 	int rx_queue_index = 0;
-	int retval;
+	void __iomem *addr;
+	int i, retval;
 
 	for (i = 0; i < adapter->num_queues; i++) {
-		adapter->queue[i].adapter = adapter;
 		if (adapter->queue[i].tx) {
 			addr = adapter->addr + TSNEP_QUEUE(tx_queue_index);
 			retval = tsnep_tx_open(adapter, addr, tx_queue_index,
@@ -1107,21 +1394,16 @@ static int tsnep_netdev_open(struct net_device *netdev)
 		}
 		if (adapter->queue[i].rx) {
 			addr = adapter->addr + TSNEP_QUEUE(rx_queue_index);
-			retval = tsnep_rx_open(adapter, addr,
-					       rx_queue_index,
+			retval = tsnep_rx_open(adapter, addr, rx_queue_index,
 					       adapter->queue[i].rx);
 			if (retval)
 				goto failed;
 			rx_queue_index++;
 		}
 
-		retval = tsnep_request_irq(&adapter->queue[i], i == 0);
-		if (retval) {
-			netif_err(adapter, drv, adapter->netdev,
-				  "can't get assigned irq %d.\n",
-				  adapter->queue[i].irq);
+		retval = tsnep_queue_open(adapter, &adapter->queue[i], i == 0);
+		if (retval)
 			goto failed;
-		}
 	}
 
 	retval = netif_set_real_num_tx_queues(adapter->netdev,
@@ -1139,8 +1421,6 @@ static int tsnep_netdev_open(struct net_device *netdev)
 		goto phy_failed;
 
 	for (i = 0; i < adapter->num_queues; i++) {
-		netif_napi_add(adapter->netdev, &adapter->queue[i].napi,
-			       tsnep_poll);
 		napi_enable(&adapter->queue[i].napi);
 
 		tsnep_enable_irq(adapter, adapter->queue[i].irq_mask);
@@ -1150,10 +1430,9 @@ static int tsnep_netdev_open(struct net_device *netdev)
 
 phy_failed:
 	tsnep_disable_irq(adapter, ECM_INT_LINK);
-	tsnep_phy_close(adapter);
 failed:
 	for (i = 0; i < adapter->num_queues; i++) {
-		tsnep_free_irq(&adapter->queue[i], i == 0);
+		tsnep_queue_close(&adapter->queue[i], i == 0);
 
 		if (adapter->queue[i].rx)
 			tsnep_rx_close(adapter->queue[i].rx);
@@ -1175,9 +1454,8 @@ static int tsnep_netdev_close(struct net_device *netdev)
 		tsnep_disable_irq(adapter, adapter->queue[i].irq_mask);
 
 		napi_disable(&adapter->queue[i].napi);
-		netif_napi_del(&adapter->queue[i].napi);
 
-		tsnep_free_irq(&adapter->queue[i], i == 0);
+		tsnep_queue_close(&adapter->queue[i], i == 0);
 
 		if (adapter->queue[i].rx)
 			tsnep_rx_close(adapter->queue[i].rx);
@@ -1330,6 +1608,67 @@ static ktime_t tsnep_netdev_get_tstamp(struct net_device *netdev,
 	return ns_to_ktime(timestamp);
 }
 
+static int tsnep_netdev_bpf(struct net_device *dev, struct netdev_bpf *bpf)
+{
+	struct tsnep_adapter *adapter = netdev_priv(dev);
+
+	switch (bpf->command) {
+	case XDP_SETUP_PROG:
+		return tsnep_xdp_setup_prog(adapter, bpf->prog, bpf->extack);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static struct tsnep_tx *tsnep_xdp_get_tx(struct tsnep_adapter *adapter, u32 cpu)
+{
+	if (cpu >= TSNEP_MAX_QUEUES)
+		cpu &= TSNEP_MAX_QUEUES - 1;
+
+	while (cpu >= adapter->num_tx_queues)
+		cpu -= adapter->num_tx_queues;
+
+	return &adapter->tx[cpu];
+}
+
+static int tsnep_netdev_xdp_xmit(struct net_device *dev, int n,
+				 struct xdp_frame **xdp, u32 flags)
+{
+	struct tsnep_adapter *adapter = netdev_priv(dev);
+	u32 cpu = smp_processor_id();
+	struct netdev_queue *nq;
+	struct tsnep_tx *tx;
+	int nxmit;
+	bool xmit;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	tx = tsnep_xdp_get_tx(adapter, cpu);
+	nq = netdev_get_tx_queue(adapter->netdev, tx->queue_index);
+
+	__netif_tx_lock(nq, cpu);
+
+	for (nxmit = 0; nxmit < n; nxmit++) {
+		xmit = tsnep_xdp_xmit_frame_ring(xdp[nxmit], tx,
+						 TSNEP_TX_TYPE_XDP_NDO);
+		if (!xmit)
+			break;
+
+		/* avoid transmit queue timeout since we share it with the slow
+		 * path
+		 */
+		txq_trans_cond_update(nq);
+	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		tsnep_xdp_xmit_flush(tx);
+
+	__netif_tx_unlock(nq);
+
+	return nxmit;
+}
+
 static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_open = tsnep_netdev_open,
 	.ndo_stop = tsnep_netdev_close,
@@ -1341,6 +1680,8 @@ static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_set_features = tsnep_netdev_set_features,
 	.ndo_get_tstamp = tsnep_netdev_get_tstamp,
 	.ndo_setup_tc = tsnep_tc_setup,
+	.ndo_bpf = tsnep_netdev_bpf,
+	.ndo_xdp_xmit = tsnep_netdev_xdp_xmit,
 };
 
 static int tsnep_mac_init(struct tsnep_adapter *adapter)
@@ -1584,6 +1925,10 @@ static int tsnep_probe(struct platform_device *pdev)
 	netdev->ethtool_ops = &tsnep_ethtool_ops;
 	netdev->features = NETIF_F_SG;
 	netdev->hw_features = netdev->features | NETIF_F_LOOPBACK;
+
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+			       NETDEV_XDP_ACT_NDO_XMIT |
+			       NETDEV_XDP_ACT_NDO_XMIT_SG;
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);

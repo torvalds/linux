@@ -24,7 +24,7 @@ console support.
 Console Support
 ---------------
 
-The serial core provides a few helper functions.  This includes identifing
+The serial core provides a few helper functions.  This includes identifying
 the correct port structure (via uart_get_console()) and decoding command line
 arguments (uart_parse_options()).
 

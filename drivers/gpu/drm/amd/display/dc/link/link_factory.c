@@ -1,0 +1,577 @@
+/*
+ * Copyright 2023 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: AMD
+ *
+ */
+
+/* FILE POLICY AND INTENDED USAGE:
+ * This file owns the creation/destruction of link structure.
+ */
+#include "link_factory.h"
+#include "protocols/link_ddc.h"
+#include "protocols/link_edp_panel_control.h"
+#include "protocols/link_hpd.h"
+#include "gpio_service_interface.h"
+#include "atomfirmware.h"
+
+#define DC_LOGGER_INIT(logger)
+
+#define LINK_INFO(...) \
+	DC_LOG_HW_HOTPLUG(  \
+		__VA_ARGS__)
+
+static enum transmitter translate_encoder_to_transmitter(struct graphics_object_id encoder)
+{
+	switch (encoder.id) {
+	case ENCODER_ID_INTERNAL_UNIPHY:
+		switch (encoder.enum_id) {
+		case ENUM_ID_1:
+			return TRANSMITTER_UNIPHY_A;
+		case ENUM_ID_2:
+			return TRANSMITTER_UNIPHY_B;
+		default:
+			return TRANSMITTER_UNKNOWN;
+		}
+	break;
+	case ENCODER_ID_INTERNAL_UNIPHY1:
+		switch (encoder.enum_id) {
+		case ENUM_ID_1:
+			return TRANSMITTER_UNIPHY_C;
+		case ENUM_ID_2:
+			return TRANSMITTER_UNIPHY_D;
+		default:
+			return TRANSMITTER_UNKNOWN;
+		}
+	break;
+	case ENCODER_ID_INTERNAL_UNIPHY2:
+		switch (encoder.enum_id) {
+		case ENUM_ID_1:
+			return TRANSMITTER_UNIPHY_E;
+		case ENUM_ID_2:
+			return TRANSMITTER_UNIPHY_F;
+		default:
+			return TRANSMITTER_UNKNOWN;
+		}
+	break;
+	case ENCODER_ID_INTERNAL_UNIPHY3:
+		switch (encoder.enum_id) {
+		case ENUM_ID_1:
+			return TRANSMITTER_UNIPHY_G;
+		default:
+			return TRANSMITTER_UNKNOWN;
+		}
+	break;
+	case ENCODER_ID_EXTERNAL_NUTMEG:
+		switch (encoder.enum_id) {
+		case ENUM_ID_1:
+			return TRANSMITTER_NUTMEG_CRT;
+		default:
+			return TRANSMITTER_UNKNOWN;
+		}
+	break;
+	case ENCODER_ID_EXTERNAL_TRAVIS:
+		switch (encoder.enum_id) {
+		case ENUM_ID_1:
+			return TRANSMITTER_TRAVIS_CRT;
+		case ENUM_ID_2:
+			return TRANSMITTER_TRAVIS_LCD;
+		default:
+			return TRANSMITTER_UNKNOWN;
+		}
+	break;
+	default:
+		return TRANSMITTER_UNKNOWN;
+	}
+}
+
+static void link_destruct(struct dc_link *link)
+{
+	int i;
+
+	if (link->hpd_gpio) {
+		dal_gpio_destroy_irq(&link->hpd_gpio);
+		link->hpd_gpio = NULL;
+	}
+
+	if (link->ddc)
+		link_destroy_ddc_service(&link->ddc);
+
+	if (link->panel_cntl)
+		link->panel_cntl->funcs->destroy(&link->panel_cntl);
+
+	if (link->link_enc) {
+		/* Update link encoder resource tracking variables. These are used for
+		 * the dynamic assignment of link encoders to streams. Virtual links
+		 * are not assigned encoder resources on creation.
+		 */
+		if (link->link_id.id != CONNECTOR_ID_VIRTUAL) {
+			link->dc->res_pool->link_encoders[link->eng_id - ENGINE_ID_DIGA] = NULL;
+			link->dc->res_pool->dig_link_enc_count--;
+		}
+		link->link_enc->funcs->destroy(&link->link_enc);
+	}
+
+	if (link->local_sink)
+		dc_sink_release(link->local_sink);
+
+	for (i = 0; i < link->sink_count; ++i)
+		dc_sink_release(link->remote_sinks[i]);
+}
+
+static enum channel_id get_ddc_line(struct dc_link *link)
+{
+	struct ddc *ddc;
+	enum channel_id channel;
+
+	channel = CHANNEL_ID_UNKNOWN;
+
+	ddc = get_ddc_pin(link->ddc);
+
+	if (ddc) {
+		switch (dal_ddc_get_line(ddc)) {
+		case GPIO_DDC_LINE_DDC1:
+			channel = CHANNEL_ID_DDC1;
+			break;
+		case GPIO_DDC_LINE_DDC2:
+			channel = CHANNEL_ID_DDC2;
+			break;
+		case GPIO_DDC_LINE_DDC3:
+			channel = CHANNEL_ID_DDC3;
+			break;
+		case GPIO_DDC_LINE_DDC4:
+			channel = CHANNEL_ID_DDC4;
+			break;
+		case GPIO_DDC_LINE_DDC5:
+			channel = CHANNEL_ID_DDC5;
+			break;
+		case GPIO_DDC_LINE_DDC6:
+			channel = CHANNEL_ID_DDC6;
+			break;
+		case GPIO_DDC_LINE_DDC_VGA:
+			channel = CHANNEL_ID_DDC_VGA;
+			break;
+		case GPIO_DDC_LINE_I2C_PAD:
+			channel = CHANNEL_ID_I2C_PAD;
+			break;
+		default:
+			BREAK_TO_DEBUGGER();
+			break;
+		}
+	}
+
+	return channel;
+}
+
+static bool dc_link_construct_phy(struct dc_link *link,
+			      const struct link_init_data *init_params)
+{
+	uint8_t i;
+	struct ddc_service_init_data ddc_service_init_data = { 0 };
+	struct dc_context *dc_ctx = init_params->ctx;
+	struct encoder_init_data enc_init_data = { 0 };
+	struct panel_cntl_init_data panel_cntl_init_data = { 0 };
+	struct integrated_info info = { 0 };
+	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
+	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
+	struct bp_disp_connector_caps_info disp_connect_caps_info = { 0 };
+
+	DC_LOGGER_INIT(dc_ctx->logger);
+
+	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
+	link->link_status.dpcd_caps = &link->dpcd_caps;
+
+	link->dc = init_params->dc;
+	link->ctx = dc_ctx;
+	link->link_index = init_params->link_index;
+
+	memset(&link->preferred_training_settings, 0,
+	       sizeof(struct dc_link_training_overrides));
+	memset(&link->preferred_link_setting, 0,
+	       sizeof(struct dc_link_settings));
+
+	link->link_id =
+		bios->funcs->get_connector_id(bios, init_params->connector_index);
+
+	link->ep_type = DISPLAY_ENDPOINT_PHY;
+
+	DC_LOG_DC("BIOS object table - link_id: %d", link->link_id.id);
+
+	if (bios->funcs->get_disp_connector_caps_info) {
+		bios->funcs->get_disp_connector_caps_info(bios, link->link_id, &disp_connect_caps_info);
+		link->is_internal_display = disp_connect_caps_info.INTERNAL_DISPLAY;
+		DC_LOG_DC("BIOS object table - is_internal_display: %d", link->is_internal_display);
+	}
+
+	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
+		dm_output_to_console("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d! type %d expected %d\n",
+				     __func__, init_params->connector_index,
+				     link->link_id.type, OBJECT_TYPE_CONNECTOR);
+		goto create_fail;
+	}
+
+	if (link->dc->res_pool->funcs->link_init)
+		link->dc->res_pool->funcs->link_init(link);
+
+	link->hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+				      link->ctx->gpio_service);
+
+	if (link->hpd_gpio) {
+		dal_gpio_open(link->hpd_gpio, GPIO_MODE_INTERRUPT);
+		dal_gpio_unlock_pin(link->hpd_gpio);
+		link->irq_source_hpd = dal_irq_get_source(link->hpd_gpio);
+
+		DC_LOG_DC("BIOS object table - hpd_gpio id: %d", link->hpd_gpio->id);
+		DC_LOG_DC("BIOS object table - hpd_gpio en: %d", link->hpd_gpio->en);
+	}
+
+	switch (link->link_id.id) {
+	case CONNECTOR_ID_HDMI_TYPE_A:
+		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
+
+		break;
+	case CONNECTOR_ID_SINGLE_LINK_DVID:
+	case CONNECTOR_ID_SINGLE_LINK_DVII:
+		link->connector_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		break;
+	case CONNECTOR_ID_DUAL_LINK_DVID:
+	case CONNECTOR_ID_DUAL_LINK_DVII:
+		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+		break;
+	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_USBC:
+		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+		if (link->hpd_gpio)
+			link->irq_source_hpd_rx =
+					dal_irq_get_rx_source(link->hpd_gpio);
+
+		break;
+	case CONNECTOR_ID_EDP:
+		link->connector_signal = SIGNAL_TYPE_EDP;
+
+		if (link->hpd_gpio) {
+			if (!link->dc->config.allow_edp_hotplug_detection)
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+
+			switch (link->dc->config.allow_edp_hotplug_detection) {
+			case 1: // only the 1st eDP handles hotplug
+				if (link->link_index == 0)
+					link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->hpd_gpio);
+				else
+					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+				break;
+			case 2: // only the 2nd eDP handles hotplug
+				if (link->link_index == 1)
+					link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->hpd_gpio);
+				else
+					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+				break;
+			default:
+				break;
+			}
+		}
+
+		break;
+	case CONNECTOR_ID_LVDS:
+		link->connector_signal = SIGNAL_TYPE_LVDS;
+		break;
+	default:
+		DC_LOG_WARNING("Unsupported Connector type:%d!\n",
+			       link->link_id.id);
+		goto create_fail;
+	}
+
+	/* TODO: #DAL3 Implement id to str function.*/
+	LINK_INFO("Connector[%d] description:"
+		  "signal %d\n",
+		  init_params->connector_index,
+		  link->connector_signal);
+
+	ddc_service_init_data.ctx = link->ctx;
+	ddc_service_init_data.id = link->link_id;
+	ddc_service_init_data.link = link;
+	link->ddc = link_create_ddc_service(&ddc_service_init_data);
+
+	if (!link->ddc) {
+		DC_ERROR("Failed to create ddc_service!\n");
+		goto ddc_create_fail;
+	}
+
+	if (!link->ddc->ddc_pin) {
+		DC_ERROR("Failed to get I2C info for connector!\n");
+		goto ddc_create_fail;
+	}
+
+	link->ddc_hw_inst =
+		dal_ddc_get_line(get_ddc_pin(link->ddc));
+
+
+	if (link->dc->res_pool->funcs->panel_cntl_create &&
+		(link->link_id.id == CONNECTOR_ID_EDP ||
+			link->link_id.id == CONNECTOR_ID_LVDS)) {
+		panel_cntl_init_data.ctx = dc_ctx;
+		panel_cntl_init_data.inst =
+			panel_cntl_init_data.ctx->dc_edp_id_count;
+		link->panel_cntl =
+			link->dc->res_pool->funcs->panel_cntl_create(
+								&panel_cntl_init_data);
+		panel_cntl_init_data.ctx->dc_edp_id_count++;
+
+		if (link->panel_cntl == NULL) {
+			DC_ERROR("Failed to create link panel_cntl!\n");
+			goto panel_cntl_create_fail;
+		}
+	}
+
+	enc_init_data.ctx = dc_ctx;
+	bp_funcs->get_src_obj(dc_ctx->dc_bios, link->link_id, 0,
+			      &enc_init_data.encoder);
+	enc_init_data.connector = link->link_id;
+	enc_init_data.channel = get_ddc_line(link);
+	enc_init_data.hpd_source = get_hpd_line(link);
+
+	link->hpd_src = enc_init_data.hpd_source;
+
+	enc_init_data.transmitter =
+		translate_encoder_to_transmitter(enc_init_data.encoder);
+	link->link_enc =
+		link->dc->res_pool->funcs->link_enc_create(dc_ctx, &enc_init_data);
+
+	DC_LOG_DC("BIOS object table - DP_IS_USB_C: %d", link->link_enc->features.flags.bits.DP_IS_USB_C);
+	DC_LOG_DC("BIOS object table - IS_DP2_CAPABLE: %d", link->link_enc->features.flags.bits.IS_DP2_CAPABLE);
+
+	if (!link->link_enc) {
+		DC_ERROR("Failed to create link encoder!\n");
+		goto link_enc_create_fail;
+	}
+
+	/* Update link encoder tracking variables. These are used for the dynamic
+	 * assignment of link encoders to streams.
+	 */
+	link->eng_id = link->link_enc->preferred_engine;
+	link->dc->res_pool->link_encoders[link->eng_id - ENGINE_ID_DIGA] = link->link_enc;
+	link->dc->res_pool->dig_link_enc_count++;
+
+	link->link_enc_hw_inst = link->link_enc->transmitter;
+	for (i = 0; i < 4; i++) {
+		if (bp_funcs->get_device_tag(dc_ctx->dc_bios,
+					     link->link_id, i,
+					     &link->device_tag) != BP_RESULT_OK) {
+			DC_ERROR("Failed to find device tag!\n");
+			goto device_tag_fail;
+		}
+
+		/* Look for device tag that matches connector signal,
+		 * CRT for rgb, LCD for other supported signal tyes
+		 */
+		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios,
+						      link->device_tag.dev_id))
+			continue;
+		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_CRT &&
+		    link->connector_signal != SIGNAL_TYPE_RGB)
+			continue;
+		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_LCD &&
+		    link->connector_signal == SIGNAL_TYPE_RGB)
+			continue;
+
+		DC_LOG_DC("BIOS object table - device_tag.acpi_device: %d", link->device_tag.acpi_device);
+		DC_LOG_DC("BIOS object table - device_tag.dev_id.device_type: %d", link->device_tag.dev_id.device_type);
+		DC_LOG_DC("BIOS object table - device_tag.dev_id.enum_id: %d", link->device_tag.dev_id.enum_id);
+		break;
+	}
+
+	if (bios->integrated_info)
+		info = *bios->integrated_info;
+
+	/* Look for channel mapping corresponding to connector and device tag */
+	for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; i++) {
+		struct external_display_path *path =
+			&info.ext_disp_conn_info.path[i];
+
+		if (path->device_connector_id.enum_id == link->link_id.enum_id &&
+		    path->device_connector_id.id == link->link_id.id &&
+		    path->device_connector_id.type == link->link_id.type) {
+			if (link->device_tag.acpi_device != 0 &&
+			    path->device_acpi_enum == link->device_tag.acpi_device) {
+				link->ddi_channel_mapping = path->channel_mapping;
+				link->chip_caps = path->caps;
+				DC_LOG_DC("BIOS object table - ddi_channel_mapping: 0x%04X", link->ddi_channel_mapping.raw);
+				DC_LOG_DC("BIOS object table - chip_caps: %d", link->chip_caps);
+			} else if (path->device_tag ==
+				   link->device_tag.dev_id.raw_device_tag) {
+				link->ddi_channel_mapping = path->channel_mapping;
+				link->chip_caps = path->caps;
+				DC_LOG_DC("BIOS object table - ddi_channel_mapping: 0x%04X", link->ddi_channel_mapping.raw);
+				DC_LOG_DC("BIOS object table - chip_caps: %d", link->chip_caps);
+			}
+
+			if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
+				link->bios_forced_drive_settings.VOLTAGE_SWING =
+						(info.ext_disp_conn_info.fixdpvoltageswing & 0x3);
+				link->bios_forced_drive_settings.PRE_EMPHASIS =
+						((info.ext_disp_conn_info.fixdpvoltageswing >> 2) & 0x3);
+			}
+
+			break;
+		}
+	}
+
+	if (bios->funcs->get_atom_dc_golden_table)
+		bios->funcs->get_atom_dc_golden_table(bios);
+
+	/*
+	 * TODO check if GPIO programmed correctly
+	 *
+	 * If GPIO isn't programmed correctly HPD might not rise or drain
+	 * fast enough, leading to bounces.
+	 */
+	program_hpd_filter(link);
+
+	link->psr_settings.psr_vtotal_control_support = false;
+	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
+
+	DC_LOG_DC("BIOS object table - %s finished successfully.\n", __func__);
+	return true;
+device_tag_fail:
+	link->link_enc->funcs->destroy(&link->link_enc);
+link_enc_create_fail:
+	if (link->panel_cntl != NULL)
+		link->panel_cntl->funcs->destroy(&link->panel_cntl);
+panel_cntl_create_fail:
+	link_destroy_ddc_service(&link->ddc);
+ddc_create_fail:
+create_fail:
+
+	if (link->hpd_gpio) {
+		dal_gpio_destroy_irq(&link->hpd_gpio);
+		link->hpd_gpio = NULL;
+	}
+
+	DC_LOG_DC("BIOS object table - %s failed.\n", __func__);
+	return false;
+}
+
+static bool dc_link_construct_dpia(struct dc_link *link,
+			      const struct link_init_data *init_params)
+{
+	struct ddc_service_init_data ddc_service_init_data = { 0 };
+	struct dc_context *dc_ctx = init_params->ctx;
+
+	DC_LOGGER_INIT(dc_ctx->logger);
+
+	/* Initialized irq source for hpd and hpd rx */
+	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
+	link->link_status.dpcd_caps = &link->dpcd_caps;
+
+	link->dc = init_params->dc;
+	link->ctx = dc_ctx;
+	link->link_index = init_params->link_index;
+
+	memset(&link->preferred_training_settings, 0,
+	       sizeof(struct dc_link_training_overrides));
+	memset(&link->preferred_link_setting, 0,
+	       sizeof(struct dc_link_settings));
+
+	/* Dummy Init for linkid */
+	link->link_id.type = OBJECT_TYPE_CONNECTOR;
+	link->link_id.id = CONNECTOR_ID_DISPLAY_PORT;
+	link->link_id.enum_id = ENUM_ID_1 + init_params->connector_index;
+	link->is_internal_display = false;
+	link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+	LINK_INFO("Connector[%d] description:signal %d\n",
+		  init_params->connector_index,
+		  link->connector_signal);
+
+	link->ep_type = DISPLAY_ENDPOINT_USB4_DPIA;
+	link->is_dig_mapping_flexible = true;
+
+	/* TODO: Initialize link : funcs->link_init */
+
+	ddc_service_init_data.ctx = link->ctx;
+	ddc_service_init_data.id = link->link_id;
+	ddc_service_init_data.link = link;
+	/* Set indicator for dpia link so that ddc wont be created */
+	ddc_service_init_data.is_dpia_link = true;
+
+	link->ddc = link_create_ddc_service(&ddc_service_init_data);
+	if (!link->ddc) {
+		DC_ERROR("Failed to create ddc_service!\n");
+		goto ddc_create_fail;
+	}
+
+	/* Set dpia port index : 0 to number of dpia ports */
+	link->ddc_hw_inst = init_params->connector_index;
+
+	/* TODO: Create link encoder */
+
+	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
+
+	/* Some docks seem to NAK I2C writes to segment pointer with mot=0. */
+	link->wa_flags.dp_mot_reset_segment = true;
+
+	return true;
+
+ddc_create_fail:
+	return false;
+}
+
+static bool link_construct(struct dc_link *link,
+			      const struct link_init_data *init_params)
+{
+	/* Handle dpia case */
+	if (init_params->is_dpia_link == true)
+		return dc_link_construct_dpia(link, init_params);
+	else
+		return dc_link_construct_phy(link, init_params);
+}
+
+struct dc_link *link_create(const struct link_init_data *init_params)
+{
+	struct dc_link *link =
+			kzalloc(sizeof(*link), GFP_KERNEL);
+
+	if (NULL == link)
+		goto alloc_fail;
+
+	if (false == link_construct(link, init_params))
+		goto construct_fail;
+
+	return link;
+
+construct_fail:
+	kfree(link);
+
+alloc_fail:
+	return NULL;
+}
+
+void link_destroy(struct dc_link **link)
+{
+	link_destruct(*link);
+	kfree(*link);
+	*link = NULL;
+}
+

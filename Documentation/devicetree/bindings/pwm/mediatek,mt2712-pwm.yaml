@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/mediatek,mt2712-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek PWM Controller
+
+maintainers:
+  - John Crispin <john@phrozen.org>
+
+allOf:
+  - $ref: pwm.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - mediatek,mt2712-pwm
+          - mediatek,mt6795-pwm
+          - mediatek,mt7622-pwm
+          - mediatek,mt7623-pwm
+          - mediatek,mt7628-pwm
+          - mediatek,mt7629-pwm
+          - mediatek,mt8183-pwm
+          - mediatek,mt8365-pwm
+          - mediatek,mt8516-pwm
+      - items:
+          - enum:
+              - mediatek,mt8195-pwm
+          - const: mediatek,mt8183-pwm
+
+  reg:
+    maxItems: 1
+
+  "#pwm-cells":
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 10
+
+  clock-names:
+    description:
+      This controller needs two input clocks for its core and one
+      clock for each PWM output.
+    minItems: 2
+    items:
+      - const: top
+      - const: main
+      - const: pwm1
+      - const: pwm2
+      - const: pwm3
+      - const: pwm4
+      - const: pwm5
+      - const: pwm6
+      - const: pwm7
+      - const: pwm8
+
+required:
+  - compatible
+  - reg
+  - "#pwm-cells"
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt2712-clk.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    pwm0: pwm@11006000 {
+        compatible = "mediatek,mt2712-pwm";
+        reg = <0x11006000 0x1000>;
+        #pwm-cells = <2>;
+        interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&topckgen CLK_TOP_PWM_SEL>, <&pericfg CLK_PERI_PWM>,
+                 <&pericfg CLK_PERI_PWM0>, <&pericfg CLK_PERI_PWM1>,
+                 <&pericfg CLK_PERI_PWM2>, <&pericfg CLK_PERI_PWM3>,
+                 <&pericfg CLK_PERI_PWM4>, <&pericfg CLK_PERI_PWM5>,
+                 <&pericfg CLK_PERI_PWM6>, <&pericfg CLK_PERI_PWM7>;
+        clock-names = "top", "main",
+                      "pwm1", "pwm2",
+                      "pwm3", "pwm4",
+                      "pwm5", "pwm6",
+                      "pwm7", "pwm8";
+    };

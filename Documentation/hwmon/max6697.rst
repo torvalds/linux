@@ -73,7 +73,7 @@ Description
 This driver implements support for several MAX6697 compatible temperature sensor
 chips. The chips support one local temperature sensor plus four, six, or seven
 remote temperature sensors. Remote temperature sensors are diode-connected
-thermal transitors, except for MAX6698 which supports three diode-connected
+thermal transistors, except for MAX6698 which supports three diode-connected
 thermal transistors plus three thermistors in addition to the local temperature
 sensor.
 

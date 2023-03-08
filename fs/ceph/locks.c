@@ -7,6 +7,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include <linux/filelock.h>
 #include <linux/ceph/pagelist.h>
 
 static u64 lock_secret;

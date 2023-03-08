@@ -31,7 +31,6 @@
 #include "dcn321_dio_link_encoder.h"
 #include "dcn31/dcn31_dio_link_encoder.h"
 #include "stream_encoder.h"
-#include "i2caux_interface.h"
 #include "dc_bios_types.h"
 
 #include "gpio_service_interface.h"

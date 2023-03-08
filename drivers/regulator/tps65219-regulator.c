@@ -173,24 +173,6 @@ static unsigned int tps65219_get_mode(struct regulator_dev *dev)
 		return REGULATOR_MODE_NORMAL;
 }
 
-/*
- * generic regulator_set_bypass_regmap does not fully match requirements
- * TPS65219 Requires explicitly that regulator is disabled before switch
- */
-static int tps65219_set_bypass(struct regulator_dev *dev, bool enable)
-{
-	struct tps65219 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
-
-	if (dev->desc->ops->is_enabled(dev)) {
-		dev_err(tps->dev,
-			"%s LDO%d enabled, must be shut down to set bypass ",
-			__func__, rid);
-		return -EBUSY;
-	}
-	return regulator_set_bypass_regmap(dev, enable);
-}
-
 /* Operations permitted on BUCK1/2/3 */
 static const struct regulator_ops tps65219_bucks_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -217,7 +199,7 @@ static const struct regulator_ops tps65219_ldos_1_2_ops = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
-	.set_bypass		= tps65219_set_bypass,
+	.set_bypass		= regulator_set_bypass_regmap,
 	.get_bypass		= regulator_get_bypass_regmap,
 };
 
@@ -342,7 +324,7 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps->dev, "failed to register %s regulator\n",
-				pdev->name);
+				regulators[i].name);
 			return PTR_ERR(rdev);
 		}
 		rdevtbl[i] = rdev;
@@ -367,7 +349,7 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 		irq_data[i].type = irq_type;
 
 		tps65219_get_rdev_by_name(irq_type->regulator_name, rdevtbl, rdev);
-		if (rdev < 0) {
+		if (IS_ERR(rdev)) {
 			dev_err(tps->dev, "Failed to get rdev for %s\n",
 				irq_type->regulator_name);
 			return -EINVAL;

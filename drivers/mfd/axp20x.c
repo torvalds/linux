@@ -23,7 +23,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/pm_runtime.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -825,17 +825,16 @@ static const struct mfd_cell axp813_cells[] = {
 	},
 };
 
-static struct axp20x_dev *axp20x_pm_power_off;
-static void axp20x_power_off(void)
+static int axp20x_power_off(struct sys_off_data *data)
 {
-	if (axp20x_pm_power_off->variant == AXP288_ID)
-		return;
+	struct axp20x_dev *axp20x = data->cb_data;
 
-	regmap_write(axp20x_pm_power_off->regmap, AXP20X_OFF_CTRL,
-		     AXP20X_OFF);
+	regmap_write(axp20x->regmap, AXP20X_OFF_CTRL, AXP20X_OFF);
 
 	/* Give capacitors etc. time to drain to avoid kernel panic msg. */
 	mdelay(500);
+
+	return NOTIFY_DONE;
 }
 
 int axp20x_match_device(struct axp20x_dev *axp20x)
@@ -1002,10 +1001,11 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
 		return ret;
 	}
 
-	if (!pm_power_off) {
-		axp20x_pm_power_off = axp20x;
-		pm_power_off = axp20x_power_off;
-	}
+	if (axp20x->variant != AXP288_ID)
+		devm_register_sys_off_handler(axp20x->dev,
+					      SYS_OFF_MODE_POWER_OFF,
+					      SYS_OFF_PRIO_DEFAULT,
+					      axp20x_power_off, axp20x);
 
 	dev_info(axp20x->dev, "AXP20X driver loaded\n");
 
@@ -1015,11 +1015,6 @@ EXPORT_SYMBOL(axp20x_device_probe);
 
 void axp20x_device_remove(struct axp20x_dev *axp20x)
 {
-	if (axp20x == axp20x_pm_power_off) {
-		axp20x_pm_power_off = NULL;
-		pm_power_off = NULL;
-	}
-
 	mfd_remove_devices(axp20x->dev);
 	regmap_del_irq_chip(axp20x->irq, axp20x->regmap_irqc);
 }

@@ -109,7 +109,7 @@
  * This is a variable-specific variant of more global barrier().
  */
 #ifndef barrier_var
-#define barrier_var(var) asm volatile("" : "=r"(var) : "0"(var))
+#define barrier_var(var) asm volatile("" : "+r"(var))
 #endif
 
 /*

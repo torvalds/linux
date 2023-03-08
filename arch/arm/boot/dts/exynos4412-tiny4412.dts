@@ -79,12 +79,20 @@
 
 	panel {
 		compatible = "innolux,at070tn92";
+		power-supply = <&vddq_lcd>;
 
 		port {
 			panel_input: endpoint {
 				remote-endpoint = <&lcdc_output>;
 			};
 		};
+	};
+
+	vddq_lcd: regulator-vddq-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "vddq-lcd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 	};
 };
 

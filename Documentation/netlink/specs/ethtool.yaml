@@ -1,0 +1,397 @@
+name: ethtool
+
+protocol: genetlink-legacy
+
+doc: Partial family for Ethtool Netlink.
+
+attribute-sets:
+  -
+    name: header
+    attributes:
+      -
+        name: dev-index
+        type: u32
+        value: 1
+      -
+        name: dev-name
+        type: string
+      -
+        name: flags
+        type: u32
+
+  -
+    name: bitset-bit
+    attributes:
+      -
+        name: index
+        type: u32
+        value: 1
+      -
+        name: name
+        type: string
+      -
+        name: value
+        type: flag
+  -
+    name: bitset-bits
+    attributes:
+      -
+        name: bit
+        type: nest
+        nested-attributes: bitset-bit
+        value: 1
+  -
+    name: bitset
+    attributes:
+      -
+        name: nomask
+        type: flag
+        value: 1
+      -
+        name: size
+        type: u32
+      -
+        name: bits
+        type: nest
+        nested-attributes: bitset-bits
+
+  -
+    name: string
+    attributes:
+      -
+        name: index
+        type: u32
+        value: 1
+      -
+        name: value
+        type: string
+  -
+    name: strings
+    attributes:
+      -
+        name: string
+        type: nest
+        value: 1
+        multi-attr: true
+        nested-attributes: string
+  -
+    name: stringset
+    attributes:
+      -
+        name: id
+        type: u32
+        value: 1
+      -
+        name: count
+        type: u32
+      -
+        name: strings
+        type: nest
+        multi-attr: true
+        nested-attributes: strings
+  -
+    name: stringsets
+    attributes:
+      -
+        name: stringset
+        type: nest
+        multi-attr: true
+        value: 1
+        nested-attributes: stringset
+  -
+    name: strset
+    attributes:
+      -
+        name: header
+        value: 1
+        type: nest
+        nested-attributes: header
+      -
+        name: stringsets
+        type: nest
+        nested-attributes: stringsets
+      -
+        name: counts-only
+        type: flag
+
+  -
+    name: privflags
+    attributes:
+      -
+        name: header
+        value: 1
+        type: nest
+        nested-attributes: header
+      -
+        name: flags
+        type: nest
+        nested-attributes: bitset
+
+  -
+    name: rings
+    attributes:
+      -
+        name: header
+        value: 1
+        type: nest
+        nested-attributes: header
+      -
+        name: rx-max
+        type: u32
+      -
+        name: rx-mini-max
+        type: u32
+      -
+        name: rx-jumbo-max
+        type: u32
+      -
+        name: tx-max
+        type: u32
+      -
+        name: rx
+        type: u32
+      -
+        name: rx-mini
+        type: u32
+      -
+        name: rx-jumbo
+        type: u32
+      -
+        name: tx
+        type: u32
+      -
+        name: rx-buf-len
+        type: u32
+      -
+        name: tcp-data-split
+        type: u8
+      -
+        name: cqe-size
+        type: u32
+      -
+        name: tx-push
+        type: u8
+      -
+        name: rx-push
+        type: u8
+
+  -
+    name: mm-stat
+    attributes:
+      -
+        name: pad
+        value: 1
+        type: pad
+      -
+        name: reassembly-errors
+        type: u64
+      -
+        name: smd-errors
+        type: u64
+      -
+        name: reassembly-ok
+        type: u64
+      -
+        name: rx-frag-count
+        type: u64
+      -
+        name: tx-frag-count
+        type: u64
+      -
+        name: hold-count
+        type: u64
+  -
+    name: mm
+    attributes:
+      -
+        name: header
+        value: 1
+        type: nest
+        nested-attributes: header
+      -
+        name: pmac-enabled
+        type: u8
+      -
+        name: tx-enabled
+        type: u8
+      -
+        name: tx-active
+        type: u8
+      -
+        name: tx-min-frag-size
+        type: u32
+      -
+        name: tx-min-frag-size
+        type: u32
+      -
+        name: verify-enabled
+        type: u8
+      -
+        name: verify-status
+        type: u8
+      -
+        name: verify-time
+        type: u32
+      -
+        name: max-verify-time
+        type: u32
+      -
+        name: stats
+        type: nest
+        nested-attributes: mm-stat
+
+operations:
+  enum-model: directional
+  list:
+    -
+      name: strset-get
+      doc: Get string set from the kernel.
+
+      attribute-set: strset
+
+      do: &strset-get-op
+        request:
+          value: 1
+          attributes:
+            - header
+            - stringsets
+            - counts-only
+        reply:
+          value: 1
+          attributes:
+            - header
+            - stringsets
+      dump: *strset-get-op
+
+    # TODO: fill in the requests in between
+
+    -
+      name: privflags-get
+      doc: Get device private flags.
+
+      attribute-set: privflags
+
+      do: &privflag-get-op
+        request:
+          value: 13
+          attributes:
+            - header
+        reply:
+          value: 14
+          attributes:
+            - header
+            - flags
+      dump: *privflag-get-op
+    -
+      name: privflags-set
+      doc: Set device private flags.
+
+      attribute-set: privflags
+
+      do:
+        request:
+          attributes:
+            - header
+            - flags
+    -
+      name: privflags-ntf
+      doc: Notification for change in device private flags.
+      notify: privflags-get
+
+    -
+      name: rings-get
+      doc: Get ring params.
+
+      attribute-set: rings
+
+      do: &ring-get-op
+        request:
+          attributes:
+            - header
+        reply:
+          attributes:
+            - header
+            - rx-max
+            - rx-mini-max
+            - rx-jumbo-max
+            - tx-max
+            - rx
+            - rx-mini
+            - rx-jumbo
+            - tx
+            - rx-buf-len
+            - tcp-data-split
+            - cqe-size
+            - tx-push
+            - rx-push
+      dump: *ring-get-op
+    -
+      name: rings-set
+      doc: Set ring params.
+
+      attribute-set: rings
+
+      do:
+        request:
+          attributes:
+            - header
+            - rx
+            - rx-mini
+            - rx-jumbo
+            - tx
+            - rx-buf-len
+            - tcp-data-split
+            - cqe-size
+            - tx-push
+            - rx-push
+    -
+      name: rings-ntf
+      doc: Notification for change in ring params.
+      notify: rings-get
+
+    # TODO: fill in the requests in between
+
+    -
+      name: mm-get
+      doc: Get MAC Merge configuration and state
+
+      attribute-set: mm
+
+      do: &mm-get-op
+        request:
+          value: 42
+          attributes:
+            - header
+        reply:
+          value: 42
+          attributes:
+            - header
+            - pmac-enabled
+            - tx-enabled
+            - tx-active
+            - tx-min-frag-size
+            - rx-min-frag-size
+            - verify-enabled
+            - verify-time
+            - max-verify-time
+            - stats
+      dump: *mm-get-op
+    -
+      name: mm-set
+      doc: Set MAC Merge configuration
+
+      attribute-set: mm
+
+      do:
+        request:
+          attributes:
+            - header
+            - verify-enabled
+            - verify-time
+            - tx-enabled
+            - pmac-enabled
+            - tx-min-frag-size
+    -
+      name: mm-ntf
+      doc: Notification for change in MAC Merge configuration.
+      notify: mm-get

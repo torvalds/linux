@@ -8,6 +8,8 @@
 static bool nohmem;
 module_param_named(disable, nohmem, bool, 0444);
 
+static bool platform_initialized;
+static DEFINE_MUTEX(hmem_resource_lock);
 static struct resource hmem_active = {
 	.name = "HMEM devices",
 	.start = 0,
@@ -15,80 +17,66 @@ static struct resource hmem_active = {
 	.flags = IORESOURCE_MEM,
 };
 
-void hmem_register_device(int target_nid, struct resource *r)
+int walk_hmem_resources(struct device *host, walk_hmem_fn fn)
 {
-	/* define a clean / non-busy resource for the platform device */
-	struct resource res = {
-		.start = r->start,
-		.end = r->end,
-		.flags = IORESOURCE_MEM,
-		.desc = IORES_DESC_SOFT_RESERVED,
-	};
+	struct resource *res;
+	int rc = 0;
+
+	mutex_lock(&hmem_resource_lock);
+	for (res = hmem_active.child; res; res = res->sibling) {
+		rc = fn(host, (int) res->desc, res);
+		if (rc)
+			break;
+	}
+	mutex_unlock(&hmem_resource_lock);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(walk_hmem_resources);
+
+static void __hmem_register_resource(int target_nid, struct resource *res)
+{
 	struct platform_device *pdev;
-	struct memregion_info info;
-	int rc, id;
+	struct resource *new;
+	int rc;
 
-	if (nohmem)
-		return;
-
-	rc = region_intersects(res.start, resource_size(&res), IORESOURCE_MEM,
-			IORES_DESC_SOFT_RESERVED);
-	if (rc != REGION_INTERSECTS)
-		return;
-
-	id = memregion_alloc(GFP_KERNEL);
-	if (id < 0) {
-		pr_err("memregion allocation failure for %pr\n", &res);
+	new = __request_region(&hmem_active, res->start, resource_size(res), "",
+			       0);
+	if (!new) {
+		pr_debug("hmem range %pr already active\n", res);
 		return;
 	}
 
-	pdev = platform_device_alloc("hmem", id);
+	new->desc = target_nid;
+
+	if (platform_initialized)
+		return;
+
+	pdev = platform_device_alloc("hmem_platform", 0);
 	if (!pdev) {
-		pr_err("hmem device allocation failure for %pr\n", &res);
-		goto out_pdev;
-	}
-
-	if (!__request_region(&hmem_active, res.start, resource_size(&res),
-			      dev_name(&pdev->dev), 0)) {
-		dev_dbg(&pdev->dev, "hmem range %pr already active\n", &res);
-		goto out_active;
-	}
-
-	pdev->dev.numa_node = numa_map_to_online_node(target_nid);
-	info = (struct memregion_info) {
-		.target_node = target_nid,
-	};
-	rc = platform_device_add_data(pdev, &info, sizeof(info));
-	if (rc < 0) {
-		pr_err("hmem memregion_info allocation failure for %pr\n", &res);
-		goto out_resource;
-	}
-
-	rc = platform_device_add_resources(pdev, &res, 1);
-	if (rc < 0) {
-		pr_err("hmem resource allocation failure for %pr\n", &res);
-		goto out_resource;
+		pr_err_once("failed to register device-dax hmem_platform device\n");
+		return;
 	}
 
 	rc = platform_device_add(pdev);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "device add failed for %pr\n", &res);
-		goto out_resource;
-	}
+	if (rc)
+		platform_device_put(pdev);
+	else
+		platform_initialized = true;
+}
 
-	return;
+void hmem_register_resource(int target_nid, struct resource *res)
+{
+	if (nohmem)
+		return;
 
-out_resource:
-	__release_region(&hmem_active, res.start, resource_size(&res));
-out_active:
-	platform_device_put(pdev);
-out_pdev:
-	memregion_free(id);
+	mutex_lock(&hmem_resource_lock);
+	__hmem_register_resource(target_nid, res);
+	mutex_unlock(&hmem_resource_lock);
 }
 
 static __init int hmem_register_one(struct resource *res, void *data)
 {
-	hmem_register_device(phys_to_target_node(res->start), res);
+	hmem_register_resource(phys_to_target_node(res->start), res);
 
 	return 0;
 }
@@ -104,4 +92,4 @@ static __init int hmem_init(void)
  * As this is a fallback for address ranges unclaimed by the ACPI HMAT
  * parsing it must be at an initcall level greater than hmat_init().
  */
-late_initcall(hmem_init);
+device_initcall(hmem_init);

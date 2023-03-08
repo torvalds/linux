@@ -8,7 +8,7 @@
 #include "../include/osdep_intf.h"
 #include "../include/linux/usb.h"
 
-void ips_enter(struct adapter *padapter)
+static void ips_enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct xmit_priv *pxmit_priv = &padapter->xmitpriv;
@@ -25,21 +25,20 @@ void ips_enter(struct adapter *padapter)
 	pwrpriv->ips_mode = pwrpriv->ips_mode_req;
 
 	pwrpriv->ips_enter_cnts++;
-	if (rf_off == pwrpriv->change_rfpwrstate) {
-		pwrpriv->bpower_saving = true;
+	pwrpriv->bpower_saving = true;
 
-		if (pwrpriv->ips_mode == IPS_LEVEL_2)
-			pwrpriv->bkeepfwalive = true;
+	if (pwrpriv->ips_mode == IPS_LEVEL_2)
+		pwrpriv->bkeepfwalive = true;
 
-		rtw_ips_pwr_down(padapter);
-		pwrpriv->rf_pwrstate = rf_off;
-	}
+	rtw_ips_pwr_down(padapter);
+	pwrpriv->rf_pwrstate = rf_off;
+
 	pwrpriv->bips_processing = false;
 
 	mutex_unlock(&pwrpriv->lock);
 }
 
-int ips_leave(struct adapter *padapter)
+static int ips_leave(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -51,7 +50,6 @@ int ips_leave(struct adapter *padapter)
 
 	if ((pwrpriv->rf_pwrstate == rf_off) && (!pwrpriv->bips_processing)) {
 		pwrpriv->bips_processing = true;
-		pwrpriv->change_rfpwrstate = rf_on;
 		pwrpriv->ips_leave_cnts++;
 
 		result = rtw_ips_pwr_up(padapter);
@@ -133,10 +131,9 @@ void rtw_ps_processor(struct adapter *padapter)
 	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
-	if (pwrpriv->rf_pwrstate == rf_on) {
-		pwrpriv->change_rfpwrstate = rf_off;
+	if (pwrpriv->rf_pwrstate == rf_on)
 		ips_enter(padapter);
-	}
+
 exit:
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	pwrpriv->ps_processing = false;

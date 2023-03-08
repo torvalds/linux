@@ -5,6 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
 
+#include "bpf_misc.h"
 #include "cgrp_kfunc_common.h"
 
 char _license[] SEC("license") = "GPL";
@@ -28,6 +29,7 @@ static struct __cgrps_kfunc_map_value *insert_lookup_cgrp(struct cgroup *cgrp)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(cgrp_kfunc_acquire_untrusted, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired;
@@ -45,6 +47,7 @@ int BPF_PROG(cgrp_kfunc_acquire_untrusted, struct cgroup *cgrp, const char *path
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("arg#0 pointer type STRUCT cgroup must point")
 int BPF_PROG(cgrp_kfunc_acquire_fp, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired, *stack_cgrp = (struct cgroup *)&path;
@@ -57,6 +60,7 @@ int BPF_PROG(cgrp_kfunc_acquire_fp, struct cgroup *cgrp, const char *path)
 }
 
 SEC("kretprobe/cgroup_destroy_locked")
+__failure __msg("reg type unsupported for arg#0 function")
 int BPF_PROG(cgrp_kfunc_acquire_unsafe_kretprobe, struct cgroup *cgrp)
 {
 	struct cgroup *acquired;
@@ -69,6 +73,7 @@ int BPF_PROG(cgrp_kfunc_acquire_unsafe_kretprobe, struct cgroup *cgrp)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("cgrp_kfunc_acquire_trusted_walked")
 int BPF_PROG(cgrp_kfunc_acquire_trusted_walked, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired;
@@ -80,8 +85,8 @@ int BPF_PROG(cgrp_kfunc_acquire_trusted_walked, struct cgroup *cgrp, const char 
 	return 0;
 }
 
-
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int BPF_PROG(cgrp_kfunc_acquire_null, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired;
@@ -96,6 +101,7 @@ int BPF_PROG(cgrp_kfunc_acquire_null, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("Unreleased reference")
 int BPF_PROG(cgrp_kfunc_acquire_unreleased, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired;
@@ -108,6 +114,7 @@ int BPF_PROG(cgrp_kfunc_acquire_unreleased, struct cgroup *cgrp, const char *pat
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("arg#0 expected pointer to map value")
 int BPF_PROG(cgrp_kfunc_get_non_kptr_param, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *kptr;
@@ -123,6 +130,7 @@ int BPF_PROG(cgrp_kfunc_get_non_kptr_param, struct cgroup *cgrp, const char *pat
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("arg#0 expected pointer to map value")
 int BPF_PROG(cgrp_kfunc_get_non_kptr_acquired, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *kptr, *acquired;
@@ -141,6 +149,7 @@ int BPF_PROG(cgrp_kfunc_get_non_kptr_acquired, struct cgroup *cgrp, const char *
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("arg#0 expected pointer to map value")
 int BPF_PROG(cgrp_kfunc_get_null, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *kptr;
@@ -156,6 +165,7 @@ int BPF_PROG(cgrp_kfunc_get_null, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("Unreleased reference")
 int BPF_PROG(cgrp_kfunc_xchg_unreleased, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *kptr;
@@ -175,6 +185,7 @@ int BPF_PROG(cgrp_kfunc_xchg_unreleased, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("Unreleased reference")
 int BPF_PROG(cgrp_kfunc_get_unreleased, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *kptr;
@@ -194,6 +205,7 @@ int BPF_PROG(cgrp_kfunc_get_unreleased, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("arg#0 is untrusted_ptr_or_null_ expected ptr_ or socket")
 int BPF_PROG(cgrp_kfunc_release_untrusted, struct cgroup *cgrp, const char *path)
 {
 	struct __cgrps_kfunc_map_value *v;
@@ -209,6 +221,7 @@ int BPF_PROG(cgrp_kfunc_release_untrusted, struct cgroup *cgrp, const char *path
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("arg#0 pointer type STRUCT cgroup must point")
 int BPF_PROG(cgrp_kfunc_release_fp, struct cgroup *cgrp, const char *path)
 {
 	struct cgroup *acquired = (struct cgroup *)&path;
@@ -220,6 +233,7 @@ int BPF_PROG(cgrp_kfunc_release_fp, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("arg#0 is ptr_or_null_ expected ptr_ or socket")
 int BPF_PROG(cgrp_kfunc_release_null, struct cgroup *cgrp, const char *path)
 {
 	struct __cgrps_kfunc_map_value local, *v;
@@ -251,6 +265,7 @@ int BPF_PROG(cgrp_kfunc_release_null, struct cgroup *cgrp, const char *path)
 }
 
 SEC("tp_btf/cgroup_mkdir")
+__failure __msg("release kernel function bpf_cgroup_release expects")
 int BPF_PROG(cgrp_kfunc_release_unacquired, struct cgroup *cgrp, const char *path)
 {
 	/* Cannot release trusted cgroup pointer which was not acquired. */

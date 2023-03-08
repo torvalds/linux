@@ -47,7 +47,7 @@ Codec API was released.
 1998-11-08: Many minor changes. Most symbols have been renamed. Some
 material changes to struct v4l2_capability.
 
-1998-11-12: The read/write directon of some ioctls was misdefined.
+1998-11-12: The read/write direction of some ioctls was misdefined.
 
 1998-11-14: ``V4L2_PIX_FMT_RGB24`` changed to ``V4L2_PIX_FMT_BGR24``,
 and ``V4L2_PIX_FMT_RGB32`` changed to ``V4L2_PIX_FMT_BGR32``. Audio
@@ -145,7 +145,7 @@ common Linux driver API conventions.
    ``VIDIOC_G_INFMT``, ``VIDIOC_S_OUTFMT``, ``VIDIOC_G_OUTFMT``,
    ``VIDIOC_S_VBIFMT`` and ``VIDIOC_G_VBIFMT``. The image format
    struct v4l2_format was renamed to struct v4l2_pix_format, while
-   struct v4l2_format is now the envelopping structure
+   struct v4l2_format is now the enveloping structure
    for all format negotiations.
 
 5. Similar to the changes above, the ``VIDIOC_G_PARM`` and

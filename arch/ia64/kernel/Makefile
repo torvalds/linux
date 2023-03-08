@@ -43,4 +43,4 @@ obj-$(CONFIG_ELF_CORE)		+= elfcore.o
 CFLAGS_traps.o  += -mfixed-range=f2-f5,f16-f31
 
 # The gate DSO image is built using a special linker script.
-include $(src)/Makefile.gate
+include $(srctree)/$(src)/Makefile.gate

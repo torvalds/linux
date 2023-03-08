@@ -17,7 +17,9 @@ description: |
 
 properties:
   compatible:
-    const: ite,it66121
+    enum:
+      - ite,it66121
+      - ite,it6610
 
   reg:
     maxItems: 1
