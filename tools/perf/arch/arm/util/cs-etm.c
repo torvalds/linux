@@ -694,8 +694,8 @@ static void cs_etm_save_etmv4_header(__u64 data[], struct auxtrace_record *itr, 
 		data[CS_ETMV4_TS_SOURCE] = (__u64) cs_etm_get_ro_signed(cs_etm_pmu, cpu,
 				metadata_etmv4_ro[CS_ETMV4_TS_SOURCE]);
 	else {
-		pr_warning("[%03d] pmu file 'ts_source' not found. Fallback to safe value (-1)\n",
-			   cpu);
+		pr_debug3("[%03d] pmu file 'ts_source' not found. Fallback to safe value (-1)\n",
+			  cpu);
 		data[CS_ETMV4_TS_SOURCE] = (__u64) -1;
 	}
 }
@@ -729,8 +729,8 @@ static void cs_etm_save_ete_header(__u64 data[], struct auxtrace_record *itr, in
 		data[CS_ETE_TS_SOURCE] = (__u64) cs_etm_get_ro_signed(cs_etm_pmu, cpu,
 				metadata_ete_ro[CS_ETE_TS_SOURCE]);
 	else {
-		pr_warning("[%03d] pmu file 'ts_source' not found. Fallback to safe value (-1)\n",
-			   cpu);
+		pr_debug3("[%03d] pmu file 'ts_source' not found. Fallback to safe value (-1)\n",
+			  cpu);
 		data[CS_ETE_TS_SOURCE] = (__u64) -1;
 	}
 }
