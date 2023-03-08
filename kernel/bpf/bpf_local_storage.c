@@ -114,6 +114,16 @@ static void bpf_local_storage_free_trace_rcu(struct rcu_head *rcu)
 		call_rcu(rcu, bpf_local_storage_free_rcu);
 }
 
+static void bpf_local_storage_free(struct bpf_local_storage *local_storage,
+				   bool reuse_now)
+{
+	if (!reuse_now)
+		call_rcu_tasks_trace(&local_storage->rcu,
+				     bpf_local_storage_free_trace_rcu);
+	else
+		call_rcu(&local_storage->rcu, bpf_local_storage_free_rcu);
+}
+
 static void bpf_selem_free_rcu(struct rcu_head *rcu)
 {
 	struct bpf_local_storage_elem *selem;
@@ -218,13 +228,8 @@ static void bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem,
 			local_storage, selem, true, reuse_now);
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 
-	if (free_local_storage) {
-		if (!reuse_now)
-			call_rcu_tasks_trace(&local_storage->rcu,
-				     bpf_local_storage_free_trace_rcu);
-		else
-			call_rcu(&local_storage->rcu, bpf_local_storage_free_rcu);
-	}
+	if (free_local_storage)
+		bpf_local_storage_free(local_storage, reuse_now);
 }
 
 void bpf_selem_link_storage_nolock(struct bpf_local_storage *local_storage,
@@ -391,7 +396,7 @@ int bpf_local_storage_alloc(void *owner,
 	return 0;
 
 uncharge:
-	kfree(storage);
+	bpf_local_storage_free(storage, true);
 	mem_uncharge(smap, owner, sizeof(*storage));
 	return err;
 }
@@ -636,7 +641,7 @@ void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 
 	if (free_storage)
-		call_rcu(&local_storage->rcu, bpf_local_storage_free_rcu);
+		bpf_local_storage_free(local_storage, true);
 }
 
 u64 bpf_local_storage_map_mem_usage(const struct bpf_map *map)
