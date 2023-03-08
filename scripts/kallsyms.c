@@ -104,22 +104,6 @@ static bool is_ignored_symbol(const char *name, char type)
 {
 	/* Symbol names that exactly match to the following are ignored.*/
 	static const char * const ignored_symbols[] = {
-		/*
-		 * Symbols which vary between passes. Passes 1 and 2 must have
-		 * identical symbol lists. The kallsyms_* symbols below are
-		 * only added after pass 1, they would be included in pass 2
-		 * when --all-symbols is specified so exclude them to get a
-		 * stable symbol list.
-		 */
-		"kallsyms_addresses",
-		"kallsyms_offsets",
-		"kallsyms_relative_base",
-		"kallsyms_num_syms",
-		"kallsyms_names",
-		"kallsyms_markers",
-		"kallsyms_token_table",
-		"kallsyms_token_index",
-		"kallsyms_seqs_of_names",
 		/* Exclude linker generated symbols which vary between passes */
 		"_SDA_BASE_",		/* ppc */
 		"_SDA2_BASE_",		/* ppc */

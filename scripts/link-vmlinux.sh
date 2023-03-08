@@ -174,7 +174,7 @@ kallsyms_step()
 	kallsyms_S=${kallsyms_vmlinux}.S
 
 	vmlinux_link ${kallsyms_vmlinux} "${kallsymso_prev}" ${btf_vmlinux_bin_o}
-	mksysmap ${kallsyms_vmlinux} ${kallsyms_vmlinux}.syms
+	mksysmap ${kallsyms_vmlinux} ${kallsyms_vmlinux}.syms ${kallsymso_prev}
 	kallsyms ${kallsyms_vmlinux}.syms ${kallsyms_S}
 
 	info AS ${kallsyms_S}
@@ -188,7 +188,7 @@ kallsyms_step()
 mksysmap()
 {
 	info NM ${2}
-	${CONFIG_SHELL} "${srctree}/scripts/mksysmap" ${1} ${2}
+	${CONFIG_SHELL} "${srctree}/scripts/mksysmap" ${1} ${2} ${3}
 }
 
 sorttable()
@@ -277,7 +277,7 @@ if is_enabled CONFIG_DEBUG_INFO_BTF && is_enabled CONFIG_BPF; then
 	${RESOLVE_BTFIDS} vmlinux
 fi
 
-mksysmap vmlinux System.map
+mksysmap vmlinux System.map ${kallsymso}
 
 if is_enabled CONFIG_BUILDTIME_TABLE_SORT; then
 	info SORTTAB vmlinux
