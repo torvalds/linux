@@ -56,7 +56,8 @@
 	PIN_NOGP_CFG(TCK, "TCK", fn, SH_PFC_PIN_CFG_PULL_UP),		\
 	PIN_NOGP_CFG(TDI, "TDI", fn, SH_PFC_PIN_CFG_PULL_UP),		\
 	PIN_NOGP_CFG(TMS, "TMS", fn, SH_PFC_PIN_CFG_PULL_UP),		\
-	PIN_NOGP_CFG(TRST_N, "TRST_N", fn, SH_PFC_PIN_CFG_PULL_UP)
+	PIN_NOGP_CFG(TRST_N, "TRST_N", fn, SH_PFC_PIN_CFG_PULL_UP),	\
+	PIN_NOGP_CFG(VDDQ_AVB0, "VDDQ_AVB0", fn, SH_PFC_PIN_CFG_IO_VOLTAGE_25_33)
 
 /*
  * F_() : just information
@@ -507,7 +508,8 @@ MOD_SEL0_1_0
 	FM(AVB_TD3) \
 	FM(PRESETOUT_N) FM(FSCLKST_N) FM(TRST_N) FM(TCK) FM(TMS) FM(TDI) \
 	FM(ASEBRK) \
-	FM(MLB_REF)
+	FM(MLB_REF) \
+	FM(VDDQ_AVB0)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -5040,28 +5042,35 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 
 enum ioctrl_regs {
 	POCCTRL0,
+	POCCTRL2,
 	TDSELCTRL,
 };
 
 static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
 	[POCCTRL0] = { 0xe6060380, },
+	[POCCTRL2] = { 0xe6060388, },
 	[TDSELCTRL] = { 0xe60603c0, },
 	{ /* sentinel */ },
 };
 
 static int r8a77990_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)
 {
-	int bit = -EINVAL;
+	switch (pin) {
+	case RCAR_GP_PIN(3, 0) ... RCAR_GP_PIN(3, 11):
+		*pocctrl = pinmux_ioctrl_regs[POCCTRL0].reg;
+		return pin & 0x1f;
 
-	*pocctrl = pinmux_ioctrl_regs[POCCTRL0].reg;
+	case RCAR_GP_PIN(4, 0) ... RCAR_GP_PIN(4, 10):
+		*pocctrl = pinmux_ioctrl_regs[POCCTRL0].reg;
+		return (pin & 0x1f) + 19;
 
-	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 11))
-		bit = pin & 0x1f;
+	case PIN_VDDQ_AVB0:
+		*pocctrl = pinmux_ioctrl_regs[POCCTRL2].reg;
+		return 0;
 
-	if (pin >= RCAR_GP_PIN(4, 0) && pin <= RCAR_GP_PIN(4, 10))
-		bit = (pin & 0x1f) + 19;
-
-	return bit;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct pinmux_bias_reg pinmux_bias_regs[] = {
