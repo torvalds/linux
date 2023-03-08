@@ -268,16 +268,15 @@ static inline unsigned long damon_pa_mark_accessed_or_deactivate(
 		if (!folio)
 			continue;
 
-		if (damos_pa_filter_out(s, folio)) {
-			folio_put(folio);
-			continue;
-		}
+		if (damos_pa_filter_out(s, folio))
+			goto put_folio;
 
 		if (mark_accessed)
 			folio_mark_accessed(folio);
 		else
 			folio_deactivate(folio);
 		applied += folio_nr_pages(folio);
+put_folio:
 		folio_put(folio);
 	}
 	return applied * PAGE_SIZE;
