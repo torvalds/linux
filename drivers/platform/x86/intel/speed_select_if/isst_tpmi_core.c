@@ -1014,6 +1014,87 @@ static int isst_if_get_perf_level_mask(void __user *argp)
 	return 0;
 }
 
+#define SST_BF_INFO_0_OFFSET	0
+#define SST_BF_INFO_1_OFFSET	8
+
+#define SST_BF_P1_HIGH_START	13
+#define SST_BF_P1_HIGH_WIDTH	8
+
+#define SST_BF_P1_LOW_START	21
+#define SST_BF_P1_LOW_WIDTH	8
+
+#define SST_BF_T_PROHOT_START	38
+#define SST_BF_T_PROHOT_WIDTH	8
+
+#define SST_BF_TDP_START	46
+#define SST_BF_TDP_WIDTH	15
+
+static int isst_if_get_base_freq_info(void __user *argp)
+{
+	static struct isst_base_freq_info base_freq;
+	struct tpmi_per_power_domain_info *power_domain_info;
+
+	if (copy_from_user(&base_freq, argp, sizeof(base_freq)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(base_freq.socket_id, base_freq.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	if (base_freq.level > power_domain_info->max_level)
+		return -EINVAL;
+
+	_read_bf_level_info("p1_high", base_freq.high_base_freq_mhz, base_freq.level,
+			    SST_BF_INFO_0_OFFSET, SST_BF_P1_HIGH_START, SST_BF_P1_HIGH_WIDTH,
+			    SST_MUL_FACTOR_FREQ)
+	_read_bf_level_info("p1_low", base_freq.low_base_freq_mhz, base_freq.level,
+			    SST_BF_INFO_0_OFFSET, SST_BF_P1_LOW_START, SST_BF_P1_LOW_WIDTH,
+			    SST_MUL_FACTOR_FREQ)
+	_read_bf_level_info("BF-TJ", base_freq.tjunction_max_c, base_freq.level,
+			    SST_BF_INFO_0_OFFSET, SST_BF_T_PROHOT_START, SST_BF_T_PROHOT_WIDTH,
+			    SST_MUL_FACTOR_NONE)
+	_read_bf_level_info("BF-tdp", base_freq.thermal_design_power_w, base_freq.level,
+			    SST_BF_INFO_0_OFFSET, SST_BF_TDP_START, SST_BF_TDP_WIDTH,
+			    SST_MUL_FACTOR_NONE)
+	base_freq.thermal_design_power_w /= 8; /*unit = 1/8th watt*/
+
+	if (copy_to_user(argp, &base_freq, sizeof(base_freq)))
+		return -EFAULT;
+
+	return 0;
+}
+
+#define P1_HI_CORE_MASK_START	0
+#define P1_HI_CORE_MASK_WIDTH	64
+
+static int isst_if_get_base_freq_mask(void __user *argp)
+{
+	static struct isst_perf_level_cpu_mask cpumask;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	u64 mask;
+
+	if (copy_from_user(&cpumask, argp, sizeof(cpumask)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(cpumask.socket_id, cpumask.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	_read_bf_level_info("BF-cpumask", mask, cpumask.level, SST_BF_INFO_1_OFFSET,
+			    P1_HI_CORE_MASK_START, P1_HI_CORE_MASK_WIDTH,
+			    SST_MUL_FACTOR_NONE)
+
+	cpumask.mask = mask;
+
+	if (!cpumask.punit_cpu_map)
+		return -EOPNOTSUPP;
+
+	if (copy_to_user(argp, &cpumask, sizeof(cpumask)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int isst_if_get_tpmi_instance_count(void __user *argp)
 {
 	struct isst_tpmi_instance_count tpmi_inst;
@@ -1078,6 +1159,12 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case ISST_IF_GET_PERF_LEVEL_CPU_MASK:
 		ret = isst_if_get_perf_level_mask(argp);
+		break;
+	case ISST_IF_GET_BASE_FREQ_INFO:
+		ret = isst_if_get_base_freq_info(argp);
+		break;
+	case ISST_IF_GET_BASE_FREQ_CPU_MASK:
+		ret = isst_if_get_base_freq_mask(argp);
 		break;
 	default:
 		break;
