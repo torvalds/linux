@@ -190,6 +190,17 @@
 				/* hdmi_tx_sda */
 				<0 RK_PA5 1 &pcfg_pull_none>;
 		};
+
+		/omit-if-no-ref/
+		hdmi_pins_idle: hdmi-pins-idle {
+			rockchip,pins =
+				/* hdmi_tx_cec */
+				<0 RK_PA3 1 &pcfg_pull_none>,
+				/* hdmi_tx_scl */
+				<0 RK_PA4 0 &pcfg_output_low_pull_down>,
+				/* hdmi_tx_sda */
+				<0 RK_PA5 0 &pcfg_output_low_pull_down>;
+		};
 	};
 
 	hsm {

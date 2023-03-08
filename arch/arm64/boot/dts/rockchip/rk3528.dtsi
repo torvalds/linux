@@ -1339,8 +1339,9 @@
 		clock-names = "iahb", "isfr", "cec";
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "idle";
 		pinctrl-0 = <&hdmi_pins>;
+		pinctrl-1 = <&hdmi_pins_idle>;
 		phys = <&hdmiphy>;
 		phy-names = "hdmi";
 		#sound-dai-cells = <0>;
