@@ -201,6 +201,11 @@ properties:
               - friendlyarm,nanopi-r4s-enterprise
           - const: rockchip,rk3399
 
+      - description: FriendlyElec NanoPi R5S board
+        items:
+          - const: friendlyarm,nanopi-r5s
+          - const: rockchip,rk3568
+
       - description: GeekBuying GeekBox
         items:
           - const: geekbuying,geekbox
