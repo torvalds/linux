@@ -3252,7 +3252,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* SEL_SSI0 [2] */
 		FN_SEL_SSI0_0, FN_SEL_SSI0_1, 0, 0, ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static int r8a77470_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)

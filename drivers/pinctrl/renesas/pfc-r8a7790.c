@@ -5824,7 +5824,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* SEL_I2C1 [2] */
 		FN_SEL_I2C1_0, FN_SEL_I2C1_1, FN_SEL_I2C1_2, 0, ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static int r8a7790_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)

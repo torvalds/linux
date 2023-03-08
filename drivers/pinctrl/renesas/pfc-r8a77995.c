@@ -2853,7 +2853,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL1_26
 		/* RESERVED 25-0 */ ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 enum ioctrl_regs {
@@ -2866,7 +2866,7 @@ static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
 	[POCCTRL0] = { 0xe6060380, },
 	[POCCTRL2] = { 0xe6060388, },
 	[TDSELCTRL] = { 0xe60603c0, },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 

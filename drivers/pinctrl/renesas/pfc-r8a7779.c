@@ -3919,7 +3919,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	    /* SEL_I2C1 [2] */
 	    FN_SEL_I2C1_0, FN_SEL_I2C1_1, FN_SEL_I2C1_2, FN_SEL_I2C1_3 ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 const struct sh_pfc_soc_info r8a7779_pinmux_info = {

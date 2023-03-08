@@ -645,7 +645,7 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &sh73a0_pinmux_info,
 	},
 #endif
-	{ },
+	{ /* sentinel */ }
 };
 #endif
 
@@ -1411,7 +1411,7 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SHX3
 	{ "pfc-shx3", (kernel_ulong_t)&shx3_pinmux_info },
 #endif
-	{ },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver sh_pfc_driver = {

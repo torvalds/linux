@@ -5004,7 +5004,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL1_4
 		/* RESERVED 3, 2, 1, 0  */ ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_drive_reg pinmux_drive_regs[] = {
@@ -5037,7 +5037,7 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 		{ RCAR_GP_PIN(4,  9), 17, 2 },	/* SD3_DAT7 */
 		{ RCAR_GP_PIN(4, 10), 14, 2 },	/* SD3_DS */
 	} },
-	{ },
+	{ /* sentinel */ }
 };
 
 enum ioctrl_regs {
@@ -5050,7 +5050,7 @@ static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
 	[POCCTRL0] = { 0xe6060380, },
 	[POCCTRL2] = { 0xe6060388, },
 	[TDSELCTRL] = { 0xe60603c0, },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static int r8a77990_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)
@@ -5278,7 +5278,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = RCAR_GP_PIN(6,  9),	/* USB30_OVC */
 		[31] = RCAR_GP_PIN(6, 17),	/* USB30_PWEN */
 	} },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static const struct sh_pfc_soc_operations r8a77990_pfc_ops = {
