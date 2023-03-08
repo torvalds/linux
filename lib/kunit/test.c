@@ -108,6 +108,22 @@ static void kunit_print_test_stats(struct kunit *test,
 		  stats.total);
 }
 
+/**
+ * kunit_log_newline() - Add newline to the end of log if one is not
+ * already present.
+ * @log: The log to add the newline to.
+ */
+static void kunit_log_newline(char *log)
+{
+	int log_len, len_left;
+
+	log_len = strlen(log);
+	len_left = KUNIT_LOG_SIZE - log_len - 1;
+
+	if (log_len > 0 && log[log_len - 1] != '\n')
+		strncat(log, "\n", len_left);
+}
+
 /*
  * Append formatted message to log, size of which is limited to
  * KUNIT_LOG_SIZE bytes (including null terminating byte).
@@ -135,6 +151,8 @@ void kunit_log_append(char *log, const char *fmt, ...)
 	vsnprintf(log + log_len, min(len, len_left), fmt, args);
 	va_end(args);
 
+	/* Add newline to end of log if not already present. */
+	kunit_log_newline(log);
 }
 EXPORT_SYMBOL_GPL(kunit_log_append);
 

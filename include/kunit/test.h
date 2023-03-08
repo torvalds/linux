@@ -420,7 +420,7 @@ void __printf(2, 3) kunit_log_append(char *log, const char *fmt, ...);
 #define kunit_log(lvl, test_or_suite, fmt, ...)				\
 	do {								\
 		printk(lvl fmt, ##__VA_ARGS__);				\
-		kunit_log_append((test_or_suite)->log,	fmt "\n",	\
+		kunit_log_append((test_or_suite)->log,	fmt,		\
 				 ##__VA_ARGS__);			\
 	} while (0)
 
