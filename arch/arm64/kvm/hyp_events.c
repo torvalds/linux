@@ -128,7 +128,7 @@ hyp_event_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *
 	int ret;
 	char c;
 
-	if (cnt != 2)
+	if (!cnt || cnt > 2)
 		return -EINVAL;
 
 	if (get_user(c, ubuf))

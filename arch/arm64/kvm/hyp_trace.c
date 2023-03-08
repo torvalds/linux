@@ -306,7 +306,7 @@ hyp_tracing_on(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *p
 	int err = 0;
 	char c;
 
-	if (cnt != 2)
+	if (!cnt || cnt > 2)
 		return -EINVAL;
 
 	if (get_user(c, ubuf))
