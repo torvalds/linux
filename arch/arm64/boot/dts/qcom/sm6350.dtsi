@@ -2001,7 +2001,7 @@
 		};
 
 		cpufreq_hw: cpufreq@18323000 {
-			compatible = "qcom,cpufreq-hw";
+			compatible = "qcom,sm6350-cpufreq-hw", "qcom,cpufreq-hw";
 			reg = <0 0x18323000 0 0x1000>, <0 0x18325800 0 0x1000>;
 			reg-names = "freq-domain0", "freq-domain1";
 			clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GPLL0>;
