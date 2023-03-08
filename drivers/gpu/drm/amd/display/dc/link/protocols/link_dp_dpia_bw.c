@@ -294,7 +294,6 @@ out:
 void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result)
 {
 	int bw_needed = 0;
-	int available = 0;
 	int estimated = 0;
 	int host_router_total_estimated_bw = 0;
 
@@ -373,20 +372,13 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
 
 		// 1. If due to unplug of other sink
 		if (estimated == host_router_total_estimated_bw) {
-
 			// First update the estimated & max_bw fields
 			if (link->dpia_bw_alloc_config.estimated_bw < estimated) {
-				available = estimated - link->dpia_bw_alloc_config.estimated_bw;
 				link->dpia_bw_alloc_config.estimated_bw = estimated;
 			}
 		}
 		// 2. If due to realloc bw btw 2 dpia due to plug OR realloc unused Bw
 		else {
-
-			// We took from another unplugged/problematic sink to give to us
-			if (link->dpia_bw_alloc_config.estimated_bw < estimated)
-				available = estimated - link->dpia_bw_alloc_config.estimated_bw;
-
 			// We lost estimated bw usually due to plug event of other dpia
 			link->dpia_bw_alloc_config.estimated_bw = estimated;
 		}
