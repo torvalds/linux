@@ -65,7 +65,7 @@
 		};
 
 		cpu0: cpu@0 {
-			compatible = "sifive,u74-mc", "riscv";
+			compatible = "sifive,s7", "riscv";
 			reg = <0>;
 			d-cache-block-size = <64>;
 			d-cache-sets = <64>;
@@ -80,7 +80,7 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			riscv,isa = "rv64imac";
+			riscv,isa = "rv64imac_zba_zbb";
 			tlb-split;
 			#cooling-cells = <2>;
 			status = "disabled";
@@ -108,7 +108,7 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_zba_zbb";
 			tlb-split;
 			#cooling-cells = <2>;
 			status = "okay";
@@ -137,7 +137,7 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_zba_zbb";
 			tlb-split;
 			#cooling-cells = <2>;
 			status = "okay";
@@ -166,7 +166,7 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_zba_zbb";
 			tlb-split;
 			#cooling-cells = <2>;
 			status = "okay";
@@ -195,7 +195,7 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_zba_zbb";
 			tlb-split;
 			#cooling-cells = <2>;
 			status = "okay";
