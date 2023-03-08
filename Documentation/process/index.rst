@@ -50,6 +50,7 @@ Other guides to the community that are of interest to most developers are:
    embargoed-hardware-issues
    maintainers
    researcher-guidelines
+   contribution-maturity-model
 
 These are some overall technical guides that have been put here for now for
 lack of a better place.

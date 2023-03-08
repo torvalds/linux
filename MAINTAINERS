@@ -21244,6 +21244,14 @@ S:	Maintained
 F:	Documentation/tools/rtla/
 F:	tools/tracing/rtla/
 
+TECHNICAL ADVISORY BOARD PROCESS DOCS
+M:	"Theodore Ts'o" <tytso@mit.edu>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+L:	tech-board-discuss@lists.linux-foundation.org
+S:	Maintained
+F:	Documentation/process/researcher-guidelines.rst
+F:	Documentation/process/contribution-maturity-model.rst
+
 TRADITIONAL CHINESE DOCUMENTATION
 M:	Hu Haowen <src.res@email.cn>
 L:	linux-doc-tw-discuss@lists.sourceforge.net (moderated for non-subscribers)
