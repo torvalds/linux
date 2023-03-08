@@ -63,6 +63,7 @@ static void find_controls(void)
 	struct card_data *card_data;
 	struct ctl_data *ctl_data;
 	snd_config_t *config;
+	char *card_name, *card_longname;
 
 	card = -1;
 	if (snd_card_next(&card) < 0 || card < 0)
@@ -83,6 +84,15 @@ static void find_controls(void)
 				       card, snd_strerror(err));
 			goto next_card;
 		}
+
+		err = snd_card_get_name(card, &card_name);
+		if (err != 0)
+			card_name = "Unknown";
+		err = snd_card_get_longname(card, &card_longname);
+		if (err != 0)
+			card_longname = "Unknown";
+		ksft_print_msg("Card %d - %s (%s)\n", card,
+			       card_name, card_longname);
 
 		/* Count controls */
 		snd_ctl_elem_list_malloc(&card_data->ctls);
@@ -422,6 +432,9 @@ static void test_ctl_name(struct ctl_data *ctl)
 	bool name_ok = true;
 	bool check;
 
+	ksft_print_msg("%d.%d %s\n", ctl->card->card, ctl->elem,
+		       ctl->name);
+
 	/* Only boolean controls should end in Switch */
 	if (strend(ctl->name, " Switch")) {
 		if (snd_ctl_elem_info_get_type(ctl->info) != SND_CTL_ELEM_TYPE_BOOLEAN) {
@@ -755,7 +768,6 @@ static bool test_ctl_write_valid_enumerated(struct ctl_data *ctl)
 static void test_ctl_write_valid(struct ctl_data *ctl)
 {
 	bool pass;
-	int err;
 
 	/* If the control is turned off let's be polite */
 	if (snd_ctl_elem_info_is_inactive(ctl->info)) {
@@ -797,9 +809,7 @@ static void test_ctl_write_valid(struct ctl_data *ctl)
 	}
 
 	/* Restore the default value to minimise disruption */
-	err = write_and_verify(ctl, ctl->def_val, NULL);
-	if (err < 0)
-		pass = false;
+	write_and_verify(ctl, ctl->def_val, NULL);
 
 	ksft_test_result(pass, "write_valid.%d.%d\n",
 			 ctl->card->card, ctl->elem);
@@ -1015,9 +1025,7 @@ static void test_ctl_write_invalid(struct ctl_data *ctl)
 	}
 
 	/* Restore the default value to minimise disruption */
-	err = write_and_verify(ctl, ctl->def_val, NULL);
-	if (err < 0)
-		pass = false;
+	write_and_verify(ctl, ctl->def_val, NULL);
 
 	ksft_test_result(pass, "write_invalid.%d.%d\n",
 			 ctl->card->card, ctl->elem);

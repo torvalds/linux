@@ -149,6 +149,7 @@ static void missing_devices(int card, snd_config_t *card_config)
 static void find_pcms(void)
 {
 	char name[32], key[64];
+	char *card_name, *card_longname;
 	int card, dev, subdev, count, direction, err;
 	snd_pcm_stream_t stream;
 	struct pcm_data *pcm_data;
@@ -174,6 +175,15 @@ static void find_pcms(void)
 				       card, snd_strerror(err));
 			goto next_card;
 		}
+
+		err = snd_card_get_name(card, &card_name);
+		if (err != 0)
+			card_name = "Unknown";
+		err = snd_card_get_longname(card, &card_longname);
+		if (err != 0)
+			card_longname = "Unknown";
+		ksft_print_msg("Card %d - %s (%s)\n", card,
+			       card_name, card_longname);
 
 		card_config = conf_by_card(card);
 
