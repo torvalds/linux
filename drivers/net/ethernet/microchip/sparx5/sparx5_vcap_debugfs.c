@@ -198,7 +198,7 @@ static void sparx5_vcap_is2_port_keys(struct sparx5 *sparx5,
 			out->prf(out->dst, "ip6_std");
 			break;
 		case VCAP_IS2_PS_IPV6_MC_IP4_TCP_UDP_OTHER:
-			out->prf(out->dst, "ip4_tcp_udp ipv4_other");
+			out->prf(out->dst, "ip4_tcp_udp ip4_other");
 			break;
 		}
 		out->prf(out->dst, "\n      ipv6_uc: ");
