@@ -1044,6 +1044,8 @@ void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr)
 {
 	if (fscr & FSCR_SCV)
 		fscr &= ~FSCR_SCV; /* SCV must not be enabled */
+	/* Prohibit prefixed instructions for now */
+	fscr &= ~FSCR_PREFIX;
 	if ((vcpu->arch.fscr & FSCR_TAR) && !(fscr & FSCR_TAR)) {
 		/* TAR got dropped, drop it in shadow too */
 		kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);

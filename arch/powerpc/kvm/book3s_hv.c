@@ -2930,13 +2930,18 @@ static int kvmppc_core_vcpu_create_hv(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Set the default HFSCR for the guest from the host value.
-	 * This value is only used on POWER9.
-	 * On POWER9, we want to virtualize the doorbell facility, so we
+	 * This value is only used on POWER9 and later.
+	 * On >= POWER9, we want to virtualize the doorbell facility, so we
 	 * don't set the HFSCR_MSGP bit, and that causes those instructions
 	 * to trap and then we emulate them.
 	 */
 	vcpu->arch.hfscr = HFSCR_TAR | HFSCR_EBB | HFSCR_PM | HFSCR_BHRB |
 		HFSCR_DSCR | HFSCR_VECVSX | HFSCR_FP;
+
+	/* On POWER10 and later, allow prefixed instructions */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		vcpu->arch.hfscr |= HFSCR_PREFIX;
+
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		vcpu->arch.hfscr &= mfspr(SPRN_HFSCR);
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
