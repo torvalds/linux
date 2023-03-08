@@ -144,7 +144,8 @@ amdgpu-y += \
 	psp_v11_0_8.o \
 	psp_v12_0.o \
 	psp_v13_0.o \
-	psp_v13_0_4.o
+	psp_v13_0_4.o \
+	psp_v14_0.o
 
 # add DCE block
 amdgpu-y += \
