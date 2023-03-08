@@ -4416,6 +4416,7 @@ static const struct soc_device_attribute k3_soc_devices[] = {
 	{ .family = "J721S2", .data = &j721e_soc_data},
 	{ .family = "AM62X", .data = &am64_soc_data },
 	{ .family = "AM62AX", .data = &am64_soc_data },
+	{ .family = "J784S4", .data = &j721e_soc_data },
 	{ /* sentinel */ }
 };
 
