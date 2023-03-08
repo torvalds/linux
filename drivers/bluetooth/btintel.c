@@ -2326,6 +2326,7 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 	struct btintel_ppag ppag;
 	struct sk_buff *skb;
 	struct btintel_loc_aware_reg ppag_cmd;
+	acpi_handle handle;
 
 	/* PPAG is not supported if CRF is HrP2, Jfp2, JfP1 */
 	switch (ver->cnvr_top & 0xFFF) {
@@ -2335,12 +2336,18 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 		return;
 	}
 
+	handle = ACPI_HANDLE(GET_HCIDEV_DEV(hdev));
+	if (!handle) {
+		bt_dev_info(hdev, "No support for BT device in ACPI firmware");
+		return;
+	}
+
 	memset(&ppag, 0, sizeof(ppag));
 
 	ppag.hdev = hdev;
 	ppag.status = AE_NOT_FOUND;
-	acpi_walk_namespace(ACPI_TYPE_PACKAGE, ACPI_HANDLE(GET_HCIDEV_DEV(hdev)),
-			    1, NULL, btintel_ppag_callback, &ppag, NULL);
+	acpi_walk_namespace(ACPI_TYPE_PACKAGE, handle, 1, NULL,
+			    btintel_ppag_callback, &ppag, NULL);
 
 	if (ACPI_FAILURE(ppag.status)) {
 		if (ppag.status == AE_NOT_FOUND) {
