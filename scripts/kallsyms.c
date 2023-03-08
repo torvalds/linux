@@ -335,18 +335,9 @@ static int symbol_absolute(const struct sym_entry *s)
 	return s->percpu_absolute;
 }
 
-static char * s_name(char *buf)
-{
-	/* Skip the symbol type */
-	return buf + 1;
-}
-
 static void cleanup_symbol_name(char *s)
 {
 	char *p;
-
-	if (!lto_clang)
-		return;
 
 	/*
 	 * ASCII[.]   = 2e
@@ -366,16 +357,10 @@ static void cleanup_symbol_name(char *s)
 static int compare_names(const void *a, const void *b)
 {
 	int ret;
-	char sa_namebuf[KSYM_NAME_LEN];
-	char sb_namebuf[KSYM_NAME_LEN];
 	const struct sym_entry *sa = *(const struct sym_entry **)a;
 	const struct sym_entry *sb = *(const struct sym_entry **)b;
 
-	expand_symbol(sa->sym, sa->len, sa_namebuf);
-	expand_symbol(sb->sym, sb->len, sb_namebuf);
-	cleanup_symbol_name(s_name(sa_namebuf));
-	cleanup_symbol_name(s_name(sb_namebuf));
-	ret = strcmp(s_name(sa_namebuf), s_name(sb_namebuf));
+	ret = strcmp(sym_name(sa), sym_name(sb));
 	if (!ret) {
 		if (sa->addr > sb->addr)
 			return 1;
@@ -464,6 +449,15 @@ static void write_src(void)
 	}
 	printf("\n");
 
+	/*
+	 * Now that we wrote out the compressed symbol names, restore the
+	 * original names, which are needed in some of the later steps.
+	 */
+	for (i = 0; i < table_cnt; i++) {
+		expand_symbol(table[i]->sym, table[i]->len, buf);
+		strcpy((char *)table[i]->sym, buf);
+	}
+
 	output_label("kallsyms_markers");
 	for (i = 0; i < ((table_cnt + 255) >> 8); i++)
 		printf("\t.long\t%u\n", markers[i]);
@@ -520,8 +514,7 @@ static void write_src(void)
 					table[i]->addr);
 				exit(EXIT_FAILURE);
 			}
-			expand_symbol(table[i]->sym, table[i]->len, buf);
-			printf("\t.long\t%#x	/* %s */\n", (int)offset, buf);
+			printf("\t.long\t%#x	/* %s */\n", (int)offset, table[i]->sym);
 		} else if (!symbol_absolute(table[i])) {
 			output_address(table[i]->addr);
 		} else {
@@ -535,6 +528,10 @@ static void write_src(void)
 		output_address(relative_base);
 		printf("\n");
 	}
+
+	if (lto_clang)
+		for (i = 0; i < table_cnt; i++)
+			cleanup_symbol_name((char *)table[i]->sym);
 
 	sort_symbols_by_name();
 	output_label("kallsyms_seqs_of_names");
