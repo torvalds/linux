@@ -1925,7 +1925,7 @@ void bpf_prog_free_id(struct bpf_prog *prog);
 void bpf_map_free_id(struct bpf_map *map);
 
 struct btf_field *btf_record_find(const struct btf_record *rec,
-				  u32 offset, enum btf_field_type type);
+				  u32 offset, u32 field_mask);
 void btf_record_free(struct btf_record *rec);
 void bpf_map_free_record(struct bpf_map *map);
 struct btf_record *btf_record_dup(const struct btf_record *rec);

@@ -520,14 +520,14 @@ static int btf_field_cmp(const void *a, const void *b)
 }
 
 struct btf_field *btf_record_find(const struct btf_record *rec, u32 offset,
-				  enum btf_field_type type)
+				  u32 field_mask)
 {
 	struct btf_field *field;
 
-	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & type))
+	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & field_mask))
 		return NULL;
 	field = bsearch(&offset, rec->fields, rec->cnt, sizeof(rec->fields[0]), btf_field_cmp);
-	if (!field || !(field->type & type))
+	if (!field || !(field->type & field_mask))
 		return NULL;
 	return field;
 }
