@@ -21,6 +21,9 @@ def define_top_level_rules():
             flag_values = {":skip_{}".format(skippable): "0"}
         )
 
+def define_combined_vm_image(target, variant, vm_size_ext4):
+    return
+
 def define_extras(target, flavor = None):
     return
 
