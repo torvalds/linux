@@ -1055,8 +1055,8 @@ static int nv_common_late_init(void *handle)
 			amdgpu_virt_update_sriov_video_codec(adev,
 							     sriov_sc_video_codecs_encode_array,
 							     ARRAY_SIZE(sriov_sc_video_codecs_encode_array),
-							     sriov_sc_video_codecs_decode_array_vcn1,
-							     ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn1));
+							     sriov_sc_video_codecs_decode_array_vcn0,
+							     ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn0));
 		}
 	}
 
