@@ -508,6 +508,14 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	pwm_init_state(ctx->pwm, &ctx->pwm_state);
 
 	/*
+	 * PWM fans are controlled solely by the duty cycle of the PWM signal,
+	 * they do not care about the exact timing. Thus set usage_power to true
+	 * to allow less flexible hardware to work as a PWM source for fan
+	 * control.
+	 */
+	ctx->pwm_state.usage_power = true;
+
+	/*
 	 * set_pwm assumes that MAX_PWM * (period - 1) fits into an unsigned
 	 * long. Check this here to prevent the fan running at a too low
 	 * frequency.
