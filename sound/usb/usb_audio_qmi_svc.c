@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -1232,7 +1232,7 @@ static int configure_endpoints(struct snd_usb_audio *chip,
 	int err;
 
 	if (subs->data_endpoint->need_setup) {
-		err = snd_usb_endpoint_configure(chip, subs->data_endpoint);
+		err = snd_usb_endpoint_prepare(chip, subs->data_endpoint);
 		if (err < 0) {
 			uaudio_err("failed to configure data endpoint\n");
 			return err;
@@ -1240,7 +1240,7 @@ static int configure_endpoints(struct snd_usb_audio *chip,
 	}
 
 	if (subs->sync_endpoint) {
-		err = snd_usb_endpoint_configure(chip, subs->sync_endpoint);
+		err = snd_usb_endpoint_prepare(chip, subs->sync_endpoint);
 		if (err < 0) {
 			uaudio_err("failed to configure endpoint\n");
 			return err;
@@ -1314,6 +1314,34 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 	return changed;
 }
 
+bool snd_usb_pcm_has_fixed_rate(struct snd_usb_substream *subs)
+{
+	const struct audioformat *fp;
+	struct snd_usb_audio *chip;
+	int rate = -1;
+
+	if (!subs)
+		return false;
+	chip = subs->stream->chip;
+	if (!(chip->quirk_flags & QUIRK_FLAG_FIXED_RATE))
+		return false;
+	list_for_each_entry(fp, &subs->fmt_list, list) {
+		if (fp->rates & SNDRV_PCM_RATE_CONTINUOUS)
+			return false;
+		if (fp->nr_rates < 1)
+			continue;
+		if (fp->nr_rates > 1)
+			return false;
+		if (rate < 0) {
+			rate = fp->rate_table[0];
+			continue;
+		}
+		if (rate != fp->rate_table[0])
+			return false;
+	}
+	return true;
+}
+
 static void disable_audio_stream(struct snd_usb_substream *subs)
 {
 	struct snd_usb_audio *chip = subs->stream->chip;
@@ -1338,6 +1366,7 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 	struct snd_pcm_hw_params params;
 	const struct audioformat *fmt;
 	int ret;
+	bool fixed_rate;
 
 	_snd_pcm_hw_params_any(&params);
 	_snd_pcm_hw_param_set(&params, SNDRV_PCM_HW_PARAM_FORMAT,
@@ -1364,8 +1393,9 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 		if (subs->data_endpoint)
 			close_endpoints(chip, subs);
 
+		fixed_rate = snd_usb_pcm_has_fixed_rate(subs);
 		subs->data_endpoint = snd_usb_endpoint_open(chip, fmt,
-				&params, false);
+				&params, false, fixed_rate);
 		if (!subs->data_endpoint) {
 			uaudio_err("failed to open data endpoint\n");
 			return -EINVAL;
@@ -1373,7 +1403,7 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 
 		if (fmt->sync_ep) {
 			subs->sync_endpoint = snd_usb_endpoint_open(chip,
-					fmt, &params, false);
+					fmt, &params, false, fixed_rate);
 			if (!subs->sync_endpoint) {
 				uaudio_err("failed to open sync endpoint\n");
 				return -EINVAL;
