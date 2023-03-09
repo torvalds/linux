@@ -3231,12 +3231,6 @@ static void btf_struct_log(struct btf_verifier_env *env,
 	btf_verifier_log(env, "size=%u vlen=%u", t->size, btf_type_vlen(t));
 }
 
-enum btf_field_info_type {
-	BTF_FIELD_SPIN_LOCK,
-	BTF_FIELD_TIMER,
-	BTF_FIELD_KPTR,
-};
-
 enum {
 	BTF_FIELD_IGNORE = 0,
 	BTF_FIELD_FOUND  = 1,
