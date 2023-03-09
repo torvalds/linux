@@ -373,7 +373,7 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 }
 
 /*
- * devprop_gpiochip_set_names - Set GPIO line names using device properties
+ * gpiochip_set_names - Set GPIO line names using device properties
  * @chip: GPIO chip whose lines should be named, if possible
  *
  * Looks for device property "gpio-line-names" and if it exists assigns
@@ -381,7 +381,7 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
  * names belong to the underlying firmware node and should not be released
  * by the caller.
  */
-static int devprop_gpiochip_set_names(struct gpio_chip *chip)
+static int gpiochip_set_names(struct gpio_chip *chip)
 {
 	struct gpio_device *gdev = chip->gpiodev;
 	struct device *dev = &gdev->dev;
@@ -833,7 +833,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		if (ret)
 			goto err_remove_from_list;
 	}
-	ret = devprop_gpiochip_set_names(gc);
+	ret = gpiochip_set_names(gc);
 	if (ret)
 		goto err_remove_from_list;
 
