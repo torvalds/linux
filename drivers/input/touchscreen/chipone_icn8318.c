@@ -176,8 +176,7 @@ static int icn8318_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(icn8318_pm_ops, icn8318_suspend, icn8318_resume);
 
-static int icn8318_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int icn8318_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct icn8318_data *data;
@@ -267,7 +266,7 @@ static struct i2c_driver icn8318_driver = {
 		.pm	= &icn8318_pm_ops,
 		.of_match_table = icn8318_of_match,
 	},
-	.probe = icn8318_probe,
+	.probe_new = icn8318_probe,
 	.id_table = icn8318_i2c_id,
 };
 

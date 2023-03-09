@@ -20,11 +20,12 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_dma_helper.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_rect.h>
@@ -76,9 +77,9 @@ static inline int ili9225_command(struct mipi_dbi *dbi, u8 cmd, u16 data)
 	return mipi_dbi_command_buf(dbi, cmd, par, 2);
 }
 
-static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
+static void ili9225_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
+			     struct drm_rect *rect)
 {
-	struct drm_gem_dma_object *dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
@@ -86,12 +87,9 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	bool swap = dbi->swap_bytes;
 	u16 x_start, y_start;
 	u16 x1, x2, y1, y2;
-	int idx, ret = 0;
+	int ret = 0;
 	bool full;
 	void *tr;
-
-	if (!drm_dev_enter(fb->dev, &idx))
-		return;
 
 	full = width == fb->width && height == fb->height;
 
@@ -100,11 +98,11 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	if (!dbi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = dbidev->tx_buf;
-		ret = mipi_dbi_buf_copy(dbidev->tx_buf, fb, rect, swap);
+		ret = mipi_dbi_buf_copy(tr, src, fb, rect, swap);
 		if (ret)
 			goto err_msg;
 	} else {
-		tr = dma_obj->vaddr;
+		tr = src->vaddr; /* TODO: Use mapping abstraction properly */
 	}
 
 	switch (dbidev->rotation) {
@@ -155,21 +153,27 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 err_msg:
 	if (ret)
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
-
-	drm_dev_exit(idx);
 }
 
 static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
 				struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
+	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect rect;
+	int idx;
 
 	if (!pipe->crtc.state->active)
 		return;
 
+	if (!drm_dev_enter(fb->dev, &idx))
+		return;
+
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		ili9225_fb_dirty(state->fb, &rect);
+		ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+
+	drm_dev_exit(idx);
 }
 
 static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
@@ -177,6 +181,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 				struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct device *dev = pipe->crtc.dev->dev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
@@ -276,7 +281,8 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	ili9225_fb_dirty(fb, &rect);
+	ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+
 out_exit:
 	drm_dev_exit(idx);
 }
@@ -326,9 +332,15 @@ static int ili9225_dbi_command(struct mipi_dbi *dbi, u8 *cmd, u8 *par,
 }
 
 static const struct drm_simple_display_pipe_funcs ili9225_pipe_funcs = {
+	.mode_valid	= mipi_dbi_pipe_mode_valid,
 	.enable		= ili9225_pipe_enable,
 	.disable	= ili9225_pipe_disable,
 	.update		= ili9225_pipe_update,
+	.begin_fb_access = mipi_dbi_pipe_begin_fb_access,
+	.end_fb_access	= mipi_dbi_pipe_end_fb_access,
+	.reset_plane	= mipi_dbi_pipe_reset_plane,
+	.duplicate_plane_state = mipi_dbi_pipe_duplicate_plane_state,
+	.destroy_plane_state = mipi_dbi_pipe_destroy_plane_state,
 };
 
 static const struct drm_display_mode ili9225_mode = {

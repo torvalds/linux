@@ -35,12 +35,15 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *st;
 	struct scatterlist *sg;
-	unsigned int sg_page_sizes;
-	unsigned int npages;
+	unsigned int npages; /* restricted by sg_alloc_table */
 	int max_order = MAX_ORDER;
 	unsigned int max_segment;
 	gfp_t gfp;
 
+	if (overflows_type(obj->base.size >> PAGE_SHIFT, npages))
+		return -E2BIG;
+
+	npages = obj->base.size >> PAGE_SHIFT;
 	max_segment = i915_sg_segment_size(i915->drm.dev) >> PAGE_SHIFT;
 	max_order = min(max_order, get_order(max_segment));
 
@@ -56,7 +59,6 @@ create_st:
 	if (!st)
 		return -ENOMEM;
 
-	npages = obj->base.size / PAGE_SIZE;
 	if (sg_alloc_table(st, npages, GFP_KERNEL)) {
 		kfree(st);
 		return -ENOMEM;
@@ -64,7 +66,6 @@ create_st:
 
 	sg = st->sgl;
 	st->nents = 0;
-	sg_page_sizes = 0;
 
 	do {
 		int order = min(fls(npages) - 1, max_order);
@@ -83,7 +84,6 @@ create_st:
 		} while (1);
 
 		sg_set_page(sg, page, PAGE_SIZE << order, 0);
-		sg_page_sizes |= PAGE_SIZE << order;
 		st->nents++;
 
 		npages -= 1 << order;
@@ -105,7 +105,7 @@ create_st:
 		goto err;
 	}
 
-	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
+	__i915_gem_object_set_pages(obj, st);
 
 	return 0;
 

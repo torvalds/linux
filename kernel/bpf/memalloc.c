@@ -71,7 +71,7 @@ static int bpf_mem_cache_idx(size_t size)
 	if (size <= 192)
 		return size_index[(size - 1) / 8] - 1;
 
-	return fls(size - 1) - 1;
+	return fls(size - 1) - 2;
 }
 
 #define NUM_CACHES 11
@@ -143,7 +143,7 @@ static void *__alloc(struct bpf_mem_cache *c, int node)
 		return obj;
 	}
 
-	return kmalloc_node(c->unit_size, flags, node);
+	return kmalloc_node(c->unit_size, flags | __GFP_ZERO, node);
 }
 
 static struct mem_cgroup *get_memcg(const struct bpf_mem_cache *c)
@@ -171,9 +171,24 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node)
 	memcg = get_memcg(c);
 	old_memcg = set_active_memcg(memcg);
 	for (i = 0; i < cnt; i++) {
-		obj = __alloc(c, node);
-		if (!obj)
-			break;
+		/*
+		 * free_by_rcu is only manipulated by irq work refill_work().
+		 * IRQ works on the same CPU are called sequentially, so it is
+		 * safe to use __llist_del_first() here. If alloc_bulk() is
+		 * invoked by the initial prefill, there will be no running
+		 * refill_work(), so __llist_del_first() is fine as well.
+		 *
+		 * In most cases, objects on free_by_rcu are from the same CPU.
+		 * If some objects come from other CPUs, it doesn't incur any
+		 * harm because NUMA_NO_NODE means the preference for current
+		 * numa node and it is not a guarantee.
+		 */
+		obj = __llist_del_first(&c->free_by_rcu);
+		if (!obj) {
+			obj = __alloc(c, node);
+			if (!obj)
+				break;
+		}
 		if (IS_ENABLED(CONFIG_PREEMPT_RT))
 			/* In RT irq_work runs in per-cpu kthread, so disable
 			 * interrupts to avoid preemption and interrupts and
@@ -222,9 +237,13 @@ static void __free_rcu(struct rcu_head *head)
 
 static void __free_rcu_tasks_trace(struct rcu_head *head)
 {
-	struct bpf_mem_cache *c = container_of(head, struct bpf_mem_cache, rcu);
-
-	call_rcu(&c->rcu, __free_rcu);
+	/* If RCU Tasks Trace grace period implies RCU grace period,
+	 * there is no need to invoke call_rcu().
+	 */
+	if (rcu_trace_implies_rcu_gp())
+		__free_rcu(head);
+	else
+		call_rcu(head, __free_rcu);
 }
 
 static void enque_to_free(struct bpf_mem_cache *c, void *obj)
@@ -253,8 +272,9 @@ static void do_call_rcu(struct bpf_mem_cache *c)
 		 */
 		__llist_add(llnode, &c->waiting_for_gp);
 	/* Use call_rcu_tasks_trace() to wait for sleepable progs to finish.
-	 * Then use call_rcu() to wait for normal progs to finish
-	 * and finally do free_one() on each element.
+	 * If RCU Tasks Trace grace period implies RCU grace period, free
+	 * these elements directly, else use call_rcu() to wait for normal
+	 * progs to finish and finally do free_one() on each element.
 	 */
 	call_rcu_tasks_trace(&c->rcu, __free_rcu_tasks_trace);
 }
@@ -375,7 +395,8 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 		unit_size = size;
 
 #ifdef CONFIG_MEMCG_KMEM
-		objcg = get_obj_cgroup_from_current();
+		if (memcg_bpf_enabled())
+			objcg = get_obj_cgroup_from_current();
 #endif
 		for_each_possible_cpu(cpu) {
 			c = per_cpu_ptr(pc, cpu);
@@ -444,9 +465,17 @@ static void free_mem_alloc(struct bpf_mem_alloc *ma)
 {
 	/* waiting_for_gp lists was drained, but __free_rcu might
 	 * still execute. Wait for it now before we freeing percpu caches.
+	 *
+	 * rcu_barrier_tasks_trace() doesn't imply synchronize_rcu_tasks_trace(),
+	 * but rcu_barrier_tasks_trace() and rcu_barrier() below are only used
+	 * to wait for the pending __free_rcu_tasks_trace() and __free_rcu(),
+	 * so if call_rcu(head, __free_rcu) is skipped due to
+	 * rcu_trace_implies_rcu_gp(), it will be OK to skip rcu_barrier() by
+	 * using rcu_trace_implies_rcu_gp() as well.
 	 */
 	rcu_barrier_tasks_trace();
-	rcu_barrier();
+	if (!rcu_trace_implies_rcu_gp())
+		rcu_barrier();
 	free_mem_alloc_no_barrier(ma);
 }
 

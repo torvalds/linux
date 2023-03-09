@@ -9,6 +9,7 @@
  */
 
 #include <linux/ioctl.h>
+#include <linux/leds.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -22,6 +23,8 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
+
+#include "v4l2-subdev-priv.h"
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
@@ -318,6 +321,29 @@ static int call_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	       sd->ops->pad->get_mbus_config(sd, pad, config);
 }
 
+static int call_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	int ret;
+
+#if IS_REACHABLE(CONFIG_LEDS_CLASS)
+	if (!IS_ERR_OR_NULL(sd->privacy_led)) {
+		if (enable)
+			led_set_brightness(sd->privacy_led,
+					   sd->privacy_led->max_brightness);
+		else
+			led_set_brightness(sd->privacy_led, 0);
+	}
+#endif
+	ret = sd->ops->video->s_stream(sd, enable);
+
+	if (!enable && ret < 0) {
+		dev_warn(sd->dev, "disabling streaming failed (%d)\n", ret);
+		return 0;
+	}
+
+	return ret;
+}
+
 #ifdef CONFIG_MEDIA_CONTROLLER
 /*
  * Create state-management wrapper for pad ops dealing with subdev state. The
@@ -377,6 +403,7 @@ static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
 static const struct v4l2_subdev_video_ops v4l2_subdev_call_video_wrappers = {
 	.g_frame_interval	= call_g_frame_interval,
 	.s_frame_interval	= call_s_frame_interval,
+	.s_stream		= call_s_stream,
 };
 
 const struct v4l2_subdev_ops v4l2_subdev_call_wrappers = {
@@ -845,7 +872,7 @@ int v4l2_subdev_get_fwnode_pad_1_to_1(struct media_entity *entity,
 	fwnode = fwnode_graph_get_port_parent(endpoint->local_fwnode);
 	fwnode_handle_put(fwnode);
 
-	if (dev_fwnode(sd->dev) == fwnode)
+	if (device_match_fwnode(sd->dev, fwnode))
 		return endpoint->port;
 
 	return -ENXIO;
@@ -1075,6 +1102,7 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 	sd->grp_id = 0;
 	sd->dev_priv = NULL;
 	sd->host_priv = NULL;
+	sd->privacy_led = NULL;
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	sd->entity.name = sd->name;
 	sd->entity.obj_type = MEDIA_ENTITY_TYPE_V4L2_SUBDEV;
@@ -1090,3 +1118,36 @@ void v4l2_subdev_notify_event(struct v4l2_subdev *sd,
 	v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT, (void *)ev);
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_notify_event);
+
+int v4l2_subdev_get_privacy_led(struct v4l2_subdev *sd)
+{
+#if IS_REACHABLE(CONFIG_LEDS_CLASS)
+	sd->privacy_led = led_get(sd->dev, "privacy-led");
+	if (IS_ERR(sd->privacy_led) && PTR_ERR(sd->privacy_led) != -ENOENT)
+		return dev_err_probe(sd->dev, PTR_ERR(sd->privacy_led),
+				     "getting privacy LED\n");
+
+	if (!IS_ERR_OR_NULL(sd->privacy_led)) {
+		mutex_lock(&sd->privacy_led->led_access);
+		led_sysfs_disable(sd->privacy_led);
+		led_trigger_remove(sd->privacy_led);
+		led_set_brightness(sd->privacy_led, 0);
+		mutex_unlock(&sd->privacy_led->led_access);
+	}
+#endif
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_get_privacy_led);
+
+void v4l2_subdev_put_privacy_led(struct v4l2_subdev *sd)
+{
+#if IS_REACHABLE(CONFIG_LEDS_CLASS)
+	if (!IS_ERR_OR_NULL(sd->privacy_led)) {
+		mutex_lock(&sd->privacy_led->led_access);
+		led_sysfs_enable(sd->privacy_led);
+		mutex_unlock(&sd->privacy_led->led_access);
+		led_put(sd->privacy_led);
+	}
+#endif
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_put_privacy_led);

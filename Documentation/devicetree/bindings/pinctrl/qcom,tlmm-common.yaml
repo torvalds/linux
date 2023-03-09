@@ -16,8 +16,9 @@ description:
 properties:
   interrupts:
     description:
-      Specifies the TLMM summary IRQ
-    maxItems: 1
+      TLMM summary IRQ and dirconn interrupts.
+    minItems: 1
+    maxItems: 9
 
   interrupt-controller: true
 
@@ -65,10 +66,6 @@ additionalProperties: true
 
 $defs:
   qcom-tlmm-state:
-    allOf:
-      - $ref: pincfg-node.yaml#
-      - $ref: pinmux-node.yaml#
-
     properties:
       drive-strength:
         enum: [2, 4, 6, 8, 10, 12, 14, 16]
@@ -81,6 +78,22 @@ $defs:
       input-enable: true
       output-high: true
       output-low: true
+
+    allOf:
+      - $ref: pincfg-node.yaml#
+      - $ref: pinmux-node.yaml#
+
+      - if:
+          properties:
+            pins:
+              items:
+                pattern: "^gpio"
+        then:
+          required:
+            - function
+        else:
+          properties:
+            function: false
 
     additionalProperties: true
 ...

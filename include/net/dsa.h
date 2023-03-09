@@ -22,6 +22,7 @@
 #include <net/devlink.h>
 #include <net/switchdev.h>
 
+struct dsa_8021q_context;
 struct tc_action;
 struct phy_device;
 struct fixed_phy_status;
@@ -117,10 +118,6 @@ struct dsa_netdevice_ops {
 	int (*ndo_eth_ioctl)(struct net_device *dev, struct ifreq *ifr,
 			     int cmd);
 };
-
-#define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
-#define MODULE_ALIAS_DSA_TAG_DRIVER(__proto)				\
-	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __stringify(__proto##_VALUE))
 
 struct dsa_lag {
 	struct net_device *dev;
@@ -880,9 +877,6 @@ struct dsa_switch_ops {
 	 */
 	void	(*phylink_get_caps)(struct dsa_switch *ds, int port,
 				    struct phylink_config *config);
-	void	(*phylink_validate)(struct dsa_switch *ds, int port,
-				    unsigned long *supported,
-				    struct phylink_link_state *state);
 	struct phylink_pcs *(*phylink_mac_select_pcs)(struct dsa_switch *ds,
 						      int port,
 						      phy_interface_t iface);
@@ -942,6 +936,17 @@ struct dsa_switch_ops {
 	 */
 	int	(*get_ts_info)(struct dsa_switch *ds, int port,
 			       struct ethtool_ts_info *ts);
+
+	/*
+	 * ethtool MAC merge layer
+	 */
+	int	(*get_mm)(struct dsa_switch *ds, int port,
+			  struct ethtool_mm_state *state);
+	int	(*set_mm)(struct dsa_switch *ds, int port,
+			  struct ethtool_mm_cfg *cfg,
+			  struct netlink_ext_ack *extack);
+	void	(*get_mm_stats)(struct dsa_switch *ds, int port,
+				struct ethtool_mm_stats *stats);
 
 	/*
 	 * DCB ops
@@ -1292,8 +1297,6 @@ struct dsa_switch_driver {
 	const struct dsa_switch_ops *ops;
 };
 
-struct net_device *dsa_dev_to_net_device(struct device *dev);
-
 bool dsa_fdb_present_in_other_db(struct dsa_switch *ds, int port,
 				 const unsigned char *addr, u16 vid,
 				 struct dsa_db db);
@@ -1403,70 +1406,4 @@ static inline bool dsa_slave_dev_check(const struct net_device *dev)
 netdev_tx_t dsa_enqueue_skb(struct sk_buff *skb, struct net_device *dev);
 void dsa_port_phylink_mac_change(struct dsa_switch *ds, int port, bool up);
 
-struct dsa_tag_driver {
-	const struct dsa_device_ops *ops;
-	struct list_head list;
-	struct module *owner;
-};
-
-void dsa_tag_drivers_register(struct dsa_tag_driver *dsa_tag_driver_array[],
-			      unsigned int count,
-			      struct module *owner);
-void dsa_tag_drivers_unregister(struct dsa_tag_driver *dsa_tag_driver_array[],
-				unsigned int count);
-
-#define dsa_tag_driver_module_drivers(__dsa_tag_drivers_array, __count)	\
-static int __init dsa_tag_driver_module_init(void)			\
-{									\
-	dsa_tag_drivers_register(__dsa_tag_drivers_array, __count,	\
-				 THIS_MODULE);				\
-	return 0;							\
-}									\
-module_init(dsa_tag_driver_module_init);				\
-									\
-static void __exit dsa_tag_driver_module_exit(void)			\
-{									\
-	dsa_tag_drivers_unregister(__dsa_tag_drivers_array, __count);	\
-}									\
-module_exit(dsa_tag_driver_module_exit)
-
-/**
- * module_dsa_tag_drivers() - Helper macro for registering DSA tag
- * drivers
- * @__ops_array: Array of tag driver structures
- *
- * Helper macro for DSA tag drivers which do not do anything special
- * in module init/exit. Each module may only use this macro once, and
- * calling it replaces module_init() and module_exit().
- */
-#define module_dsa_tag_drivers(__ops_array)				\
-dsa_tag_driver_module_drivers(__ops_array, ARRAY_SIZE(__ops_array))
-
-#define DSA_TAG_DRIVER_NAME(__ops) dsa_tag_driver ## _ ## __ops
-
-/* Create a static structure we can build a linked list of dsa_tag
- * drivers
- */
-#define DSA_TAG_DRIVER(__ops)						\
-static struct dsa_tag_driver DSA_TAG_DRIVER_NAME(__ops) = {		\
-	.ops = &__ops,							\
-}
-
-/**
- * module_dsa_tag_driver() - Helper macro for registering a single DSA tag
- * driver
- * @__ops: Single tag driver structures
- *
- * Helper macro for DSA tag drivers which do not do anything special
- * in module init/exit. Each module may only use this macro once, and
- * calling it replaces module_init() and module_exit().
- */
-#define module_dsa_tag_driver(__ops)					\
-DSA_TAG_DRIVER(__ops);							\
-									\
-static struct dsa_tag_driver *dsa_tag_driver_array[] =	{		\
-	&DSA_TAG_DRIVER_NAME(__ops)					\
-};									\
-module_dsa_tag_drivers(dsa_tag_driver_array)
 #endif
-

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/socionext/uniphier.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Socionext UniPhier platform device tree bindings
+title: Socionext UniPhier platform
 
 maintainers:
   - Masahiro Yamada <yamada.masahiro@socionext.com>

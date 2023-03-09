@@ -165,7 +165,8 @@ static bool msi_ctrl_valid(struct device *dev, struct msi_ctrl *ctrl)
 	unsigned int hwsize;
 
 	if (WARN_ON_ONCE(ctrl->domid >= MSI_MAX_DEVICE_IRQDOMAINS ||
-			 !dev->msi.data->__domains[ctrl->domid].domain))
+			 (dev->msi.domain &&
+			  !dev->msi.data->__domains[ctrl->domid].domain)))
 		return false;
 
 	hwsize = msi_domain_get_hwsize(dev, ctrl->domid);
@@ -609,8 +610,8 @@ static unsigned int msi_domain_get_hwsize(struct device *dev, unsigned int domid
 		info = domain->host_data;
 		return info->hwsize;
 	}
-	/* No domain, no size... */
-	return 0;
+	/* No domain, default to MSI_XA_DOMAIN_SIZE */
+	return MSI_XA_DOMAIN_SIZE;
 }
 
 static inline void irq_chip_write_msi_msg(struct irq_data *data,
@@ -999,7 +1000,7 @@ bool msi_create_device_irq_domain(struct device *dev, unsigned int domid,
 fail:
 	msi_unlock_descs(dev);
 free_fwnode:
-	kfree(fwnode);
+	irq_domain_free_fwnode(fwnode);
 free_bundle:
 	kfree(bundle);
 	return false;
@@ -1012,6 +1013,7 @@ free_bundle:
  */
 void msi_remove_device_irq_domain(struct device *dev, unsigned int domid)
 {
+	struct fwnode_handle *fwnode = NULL;
 	struct msi_domain_info *info;
 	struct irq_domain *domain;
 
@@ -1024,7 +1026,10 @@ void msi_remove_device_irq_domain(struct device *dev, unsigned int domid)
 
 	dev->msi.data->__domains[domid].domain = NULL;
 	info = domain->host_data;
+	if (irq_domain_is_msi_device(domain))
+		fwnode = domain->fwnode;
 	irq_domain_remove(domain);
+	irq_domain_free_fwnode(fwnode);
 	kfree(container_of(info, struct msi_domain_template, info));
 
 unlock:

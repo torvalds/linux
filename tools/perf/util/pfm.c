@@ -12,6 +12,7 @@
 #include "util/parse-events.h"
 #include "util/pmu.h"
 #include "util/pfm.h"
+#include "util/strbuf.h"
 
 #include <string.h>
 #include <linux/kernel.h>
@@ -130,53 +131,36 @@ static const char *srcs[PFM_ATTR_CTRL_MAX] = {
 };
 
 static void
-print_attr_flags(pfm_event_attr_info_t *info)
+print_attr_flags(struct strbuf *buf, const pfm_event_attr_info_t *info)
 {
-	int n = 0;
+	if (info->is_dfl)
+		strbuf_addf(buf, "[default] ");
 
-	if (info->is_dfl) {
-		printf("[default] ");
-		n++;
-	}
-
-	if (info->is_precise) {
-		printf("[precise] ");
-		n++;
-	}
-
-	if (!n)
-		printf("- ");
+	if (info->is_precise)
+		strbuf_addf(buf, "[precise] ");
 }
 
 static void
-print_libpfm_events_detailed(pfm_event_info_t *info, bool long_desc)
+print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
+		const pfm_pmu_info_t *pinfo, const pfm_event_info_t *info,
+		struct strbuf *buf)
 {
-	pfm_event_attr_info_t ainfo;
-	const char *src;
 	int j, ret;
+	char topic[80], name[80];
 
-	ainfo.size = sizeof(ainfo);
+	strbuf_setlen(buf, 0);
+	snprintf(topic, sizeof(topic), "pfm %s", pinfo->name);
 
-	printf("  %s\n", info->name);
-	printf("    [%s]\n", info->desc);
-	if (long_desc) {
-		if (info->equiv)
-			printf("      Equiv: %s\n", info->equiv);
+	snprintf(name, sizeof(name), "%s::%s", pinfo->name, info->name);
+	strbuf_addf(buf, "Code: 0x%"PRIx64"\n", info->code);
 
-		printf("      Code  : 0x%"PRIx64"\n", info->code);
-	}
 	pfm_for_each_event_attr(j, info) {
-		ret = pfm_get_event_attr_info(info->idx, j,
-					      PFM_OS_PERF_EVENT_EXT, &ainfo);
+		pfm_event_attr_info_t ainfo;
+		const char *src;
+
+		ainfo.size = sizeof(ainfo);
+		ret = pfm_get_event_attr_info(info->idx, j, PFM_OS_PERF_EVENT_EXT, &ainfo);
 		if (ret != PFM_SUCCESS)
-			continue;
-
-		if (ainfo.type == PFM_ATTR_UMASK) {
-			printf("      %s:%s\n", info->name, ainfo.name);
-			printf("        [%s]\n", ainfo.desc);
-		}
-
-		if (!long_desc)
 			continue;
 
 		if (ainfo.ctrl >= PFM_ATTR_CTRL_MAX)
@@ -184,64 +168,72 @@ print_libpfm_events_detailed(pfm_event_info_t *info, bool long_desc)
 
 		src = srcs[ainfo.ctrl];
 		switch (ainfo.type) {
-		case PFM_ATTR_UMASK:
-			printf("        Umask : 0x%02"PRIx64" : %s: ",
-				ainfo.code, src);
-			print_attr_flags(&ainfo);
-			putchar('\n');
+		case PFM_ATTR_UMASK: /* Ignore for now */
 			break;
 		case PFM_ATTR_MOD_BOOL:
-			printf("      Modif : %s: [%s] : %s (boolean)\n", src,
-				ainfo.name, ainfo.desc);
+			strbuf_addf(buf, " Modif: %s: [%s] : %s (boolean)\n", src,
+				    ainfo.name, ainfo.desc);
 			break;
 		case PFM_ATTR_MOD_INTEGER:
-			printf("      Modif : %s: [%s] : %s (integer)\n", src,
-				ainfo.name, ainfo.desc);
+			strbuf_addf(buf, " Modif: %s: [%s] : %s (integer)\n", src,
+				    ainfo.name, ainfo.desc);
 			break;
 		case PFM_ATTR_NONE:
 		case PFM_ATTR_RAW_UMASK:
 		case PFM_ATTR_MAX:
 		default:
-			printf("      Attr  : %s: [%s] : %s\n", src,
-				ainfo.name, ainfo.desc);
+			strbuf_addf(buf, " Attr: %s: [%s] : %s\n", src,
+				    ainfo.name, ainfo.desc);
+		}
+	}
+	print_cb->print_event(print_state,
+			pinfo->name,
+			topic,
+			name, info->equiv,
+			/*scale_unit=*/NULL,
+			/*deprecated=*/NULL, "PFM event",
+			info->desc, /*long_desc=*/NULL,
+			/*encoding_desc=*/buf->buf);
+
+	pfm_for_each_event_attr(j, info) {
+		pfm_event_attr_info_t ainfo;
+		const char *src;
+
+		strbuf_setlen(buf, 0);
+
+		ainfo.size = sizeof(ainfo);
+		ret = pfm_get_event_attr_info(info->idx, j, PFM_OS_PERF_EVENT_EXT, &ainfo);
+		if (ret != PFM_SUCCESS)
+			continue;
+
+		if (ainfo.ctrl >= PFM_ATTR_CTRL_MAX)
+			ainfo.ctrl = PFM_ATTR_CTRL_UNKNOWN;
+
+		src = srcs[ainfo.ctrl];
+		if (ainfo.type == PFM_ATTR_UMASK) {
+			strbuf_addf(buf, "Umask: 0x%02"PRIx64" : %s: ",
+				ainfo.code, src);
+			print_attr_flags(buf, &ainfo);
+			snprintf(name, sizeof(name), "%s::%s:%s",
+				 pinfo->name, info->name, ainfo.name);
+			print_cb->print_event(print_state,
+					pinfo->name,
+					topic,
+					name, /*alias=*/NULL,
+					/*scale_unit=*/NULL,
+					/*deprecated=*/NULL, "PFM event",
+					ainfo.desc, /*long_desc=*/NULL,
+					/*encoding_desc=*/buf->buf);
 		}
 	}
 }
 
-/*
- * list all pmu::event:umask, pmu::event
- * printed events may not be all valid combinations of umask for an event
- */
-static void
-print_libpfm_events_raw(pfm_pmu_info_t *pinfo, pfm_event_info_t *info)
-{
-	pfm_event_attr_info_t ainfo;
-	int j, ret;
-	bool has_umask = false;
-
-	ainfo.size = sizeof(ainfo);
-
-	pfm_for_each_event_attr(j, info) {
-		ret = pfm_get_event_attr_info(info->idx, j,
-					      PFM_OS_PERF_EVENT_EXT, &ainfo);
-		if (ret != PFM_SUCCESS)
-			continue;
-
-		if (ainfo.type != PFM_ATTR_UMASK)
-			continue;
-
-		printf("%s::%s:%s\n", pinfo->name, info->name, ainfo.name);
-		has_umask = true;
-	}
-	if (!has_umask)
-		printf("%s::%s\n", pinfo->name, info->name);
-}
-
-void print_libpfm_events(bool name_only, bool long_desc)
+void print_libpfm_events(const struct print_callbacks *print_cb, void *print_state)
 {
 	pfm_event_info_t info;
 	pfm_pmu_info_t pinfo;
-	int i, p, ret;
+	int p, ret;
+	struct strbuf storage;
 
 	libpfm_initialize();
 
@@ -249,12 +241,9 @@ void print_libpfm_events(bool name_only, bool long_desc)
 	info.size  = sizeof(info);
 	pinfo.size = sizeof(pinfo);
 
-	if (!name_only)
-		puts("\nList of pre-defined events (to be used in --pfm-events):\n");
+	strbuf_init(&storage, 2048);
 
 	pfm_for_all_pmus(p) {
-		bool printed_pmu = false;
-
 		ret = pfm_get_pmu_info(p, &pinfo);
 		if (ret != PFM_SUCCESS)
 			continue;
@@ -267,25 +256,14 @@ void print_libpfm_events(bool name_only, bool long_desc)
 		if (pinfo.pmu == PFM_PMU_PERF_EVENT)
 			continue;
 
-		for (i = pinfo.first_event; i != -1;
-		     i = pfm_get_event_next(i)) {
-
+		for (int i = pinfo.first_event; i != -1; i = pfm_get_event_next(i)) {
 			ret = pfm_get_event_info(i, PFM_OS_PERF_EVENT_EXT,
 						&info);
 			if (ret != PFM_SUCCESS)
 				continue;
 
-			if (!name_only && !printed_pmu) {
-				printf("%s:\n", pinfo.name);
-				printed_pmu = true;
-			}
-
-			if (!name_only)
-				print_libpfm_events_detailed(&info, long_desc);
-			else
-				print_libpfm_events_raw(&pinfo, &info);
+			print_libpfm_event(print_cb, print_state, &pinfo, &info, &storage);
 		}
-		if (!name_only && printed_pmu)
-			putchar('\n');
 	}
+	strbuf_release(&storage);
 }

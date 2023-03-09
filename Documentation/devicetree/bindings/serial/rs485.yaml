@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/rs485.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: RS485 serial communications Bindings
+title: RS485 serial communications
 
 description: The RTS signal is capable of automatically controlling line
   direction for the built-in half-duplex mode. The properties described

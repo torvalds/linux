@@ -16,6 +16,7 @@
 #include "ops.h"
 #include "sof-client.h"
 #include "sof-priv.h"
+#include "ipc4-priv.h"
 
 /**
  * struct sof_ipc_event_entry - IPC client event description
@@ -264,6 +265,39 @@ int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, SND_SOC_SOF_CLIENT);
+
+int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
+				bool set)
+{
+	if (cdev->sdev->pdata->ipc_type == SOF_IPC) {
+		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
+
+		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg, hdr->size,
+					    set);
+	} else if (cdev->sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+		struct sof_ipc4_msg *msg = ipc_msg;
+
+		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg,
+					    msg->data_size, set);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_ipc_set_get_data, SND_SOC_SOF_CLIENT);
+
+#ifdef CONFIG_SND_SOC_SOF_INTEL_IPC4
+struct sof_ipc4_fw_module *sof_client_ipc4_find_module(struct sof_client_dev *c, const guid_t *uuid)
+{
+	struct snd_sof_dev *sdev = c->sdev;
+
+	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4)
+		return sof_ipc4_find_module_by_uuid(sdev, uuid);
+	dev_err(sdev->dev, "Only supported with IPC4\n");
+
+	return NULL;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_ipc4_find_module, SND_SOC_SOF_CLIENT);
+#endif
 
 int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
 {

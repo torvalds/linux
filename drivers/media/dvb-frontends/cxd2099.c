@@ -598,8 +598,7 @@ static const struct dvb_ca_en50221 en_templ = {
 	.write_data          = write_data,
 };
 
-static int cxd2099_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int cxd2099_probe(struct i2c_client *client)
 {
 	struct cxd *ci;
 	struct cxd2099_cfg *cfg = client->dev.platform_data;
@@ -682,7 +681,7 @@ static struct i2c_driver cxd2099_driver = {
 	.driver = {
 		.name	= "cxd2099",
 	},
-	.probe		= cxd2099_probe,
+	.probe_new	= cxd2099_probe,
 	.remove		= cxd2099_remove,
 	.id_table	= cxd2099_id,
 };

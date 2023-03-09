@@ -1,5 +1,3 @@
-.. _numaperf:
-
 =============
 NUMA Locality
 =============

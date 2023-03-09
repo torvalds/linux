@@ -63,13 +63,6 @@
 
 extern struct ti_clk_ll_ops omap_clk_ll_ops;
 
-extern u16 cpu_mask;
-
-extern const struct clkops clkops_omap2_dflt_wait;
-extern const struct clkops clkops_omap2_dflt;
-
-extern struct clk_functions omap2_clk_functions;
-
 int __init omap2_clk_setup_ll_ops(void);
 
 void __init ti_clk_init_features(void);

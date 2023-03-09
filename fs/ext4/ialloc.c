@@ -465,7 +465,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 			ext4fs_dirhash(parent, qstr->name, qstr->len, &hinfo);
 			parent_group = hinfo.hash % ngroups;
 		} else
-			parent_group = prandom_u32_max(ngroups);
+			parent_group = get_random_u32_below(ngroups);
 		for (i = 0; i < ngroups; i++) {
 			g = (parent_group + i) % ngroups;
 			get_orlov_stats(sb, g, flex_size, &stats);
@@ -870,7 +870,7 @@ static int ext4_xattr_credits_for_new_inode(struct inode *dir, mode_t mode,
 	struct super_block *sb = dir->i_sb;
 	int nblocks = 0;
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
-	struct posix_acl *p = get_acl(dir, ACL_TYPE_DEFAULT);
+	struct posix_acl *p = get_inode_acl(dir, ACL_TYPE_DEFAULT);
 
 	if (IS_ERR(p))
 		return PTR_ERR(p);
@@ -921,7 +921,7 @@ static int ext4_xattr_credits_for_new_inode(struct inode *dir, mode_t mode,
  * For other inodes, search forward from the parent directory's block
  * group to find a free inode.
  */
-struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
+struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 			       handle_t *handle, struct inode *dir,
 			       umode_t mode, const struct qstr *qstr,
 			       __u32 goal, uid_t *owner, __u32 i_flags,
@@ -972,10 +972,10 @@ struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
 		i_gid_write(inode, owner[1]);
 	} else if (test_opt(sb, GRPID)) {
 		inode->i_mode = mode;
-		inode_fsuid_set(inode, mnt_userns);
+		inode_fsuid_set(inode, idmap);
 		inode->i_gid = dir->i_gid;
 	} else
-		inode_init_owner(mnt_userns, inode, dir, mode);
+		inode_init_owner(idmap, inode, dir, mode);
 
 	if (ext4_has_feature_project(sb) &&
 	    ext4_test_inode_flag(dir, EXT4_INODE_PROJINHERIT))
@@ -1076,8 +1076,8 @@ repeat_in_this_group:
 
 		if ((!(sbi->s_mount_state & EXT4_FC_REPLAY)) && !handle) {
 			BUG_ON(nblocks <= 0);
-			handle = __ext4_journal_start_sb(dir->i_sb, line_no,
-				 handle_type, nblocks, 0,
+			handle = __ext4_journal_start_sb(NULL, dir->i_sb,
+				 line_no, handle_type, nblocks, 0,
 				 ext4_trans_default_revoke_credits(sb));
 			if (IS_ERR(handle)) {
 				err = PTR_ERR(handle);

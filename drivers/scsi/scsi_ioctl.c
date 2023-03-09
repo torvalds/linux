@@ -69,12 +69,15 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 {
 	int result;
 	struct scsi_sense_hdr sshdr;
+	const struct scsi_exec_args exec_args = {
+		.sshdr = &sshdr,
+	};
 
 	SCSI_LOG_IOCTL(1, sdev_printk(KERN_INFO, sdev,
 				      "Trying ioctl with scsi command %d\n", *cmd));
 
-	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0,
-				  &sshdr, timeout, retries, NULL);
+	result = scsi_execute_cmd(sdev, cmd, REQ_OP_DRV_IN, NULL, 0, timeout,
+				  retries, &exec_args);
 
 	SCSI_LOG_IOCTL(2, sdev_printk(KERN_INFO, sdev,
 				      "Ioctl returned  0x%x\n", result));
@@ -376,7 +379,7 @@ static int scsi_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	 * fill in all the output members
 	 */
 	hdr->status = scmd->result & 0xff;
-	hdr->masked_status = status_byte(scmd->result);
+	hdr->masked_status = sg_status_byte(scmd->result);
 	hdr->msg_status = COMMAND_COMPLETE;
 	hdr->host_status = host_byte(scmd->result);
 	hdr->driver_status = 0;
@@ -519,7 +522,7 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		return -EFAULT;
 	if (in_len > PAGE_SIZE || out_len > PAGE_SIZE)
 		return -EINVAL;
-	if (get_user(opcode, sic->data))
+	if (get_user(opcode, &sic->data[0]))
 		return -EFAULT;
 
 	bytes = max(in_len, out_len);

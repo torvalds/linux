@@ -7,11 +7,13 @@
 #include <linux/perf_event.h>
 #include <linux/list.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "parse-events.h"
 #include "pmu-events/pmu-events.h"
 
 struct evsel_config_term;
 struct perf_cpu_map;
+struct print_callbacks;
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
@@ -21,8 +23,6 @@ enum {
 };
 
 #define PERF_PMU_FORMAT_BITS 64
-#define EVENT_SOURCE_DEVICE_PATH "/bus/event_source/devices/"
-#define CPUS_TEMPLATE_CPU	"%s/bus/event_source/devices/%s/cpus"
 #define MAX_PMU_NAME_LEN 128
 
 struct perf_event_attr;
@@ -33,37 +33,105 @@ struct perf_pmu_caps {
 	struct list_head list;
 };
 
+/**
+ * struct perf_pmu - hi
+ */
 struct perf_pmu {
+	/** @name: The name of the PMU such as "cpu". */
 	char *name;
+	/**
+	 * @alias_name: Optional alternate name for the PMU determined in
+	 * architecture specific code.
+	 */
 	char *alias_name;
+	/**
+	 * @id: Optional PMU identifier read from
+	 * <sysfs>/bus/event_source/devices/<name>/identifier.
+	 */
 	char *id;
+	/**
+	 * @type: Perf event attributed type value, read from
+	 * <sysfs>/bus/event_source/devices/<name>/type.
+	 */
 	__u32 type;
+	/**
+	 * @selectable: Can the PMU name be selected as if it were an event?
+	 */
 	bool selectable;
+	/**
+	 * @is_uncore: Is the PMU not within the CPU core? Determined by the
+	 * presence of <sysfs>/bus/event_source/devices/<name>/cpumask.
+	 */
 	bool is_uncore;
-	bool is_hybrid;
+	/**
+	 * @auxtrace: Are events auxiliary events? Determined in architecture
+	 * specific code.
+	 */
 	bool auxtrace;
+	/**
+	 * @max_precise: Number of levels of :ppp precision supported by the
+	 * PMU, read from
+	 * <sysfs>/bus/event_source/devices/<name>/caps/max_precise.
+	 */
 	int max_precise;
+	/**
+	 * @default_config: Optional default perf_event_attr determined in
+	 * architecture specific code.
+	 */
 	struct perf_event_attr *default_config;
+	/**
+	 * @cpus: Empty or the contents of either of:
+	 * <sysfs>/bus/event_source/devices/<name>/cpumask.
+	 * <sysfs>/bus/event_source/devices/<cpu>/cpus.
+	 */
 	struct perf_cpu_map *cpus;
-	struct list_head format;  /* HEAD struct perf_pmu_format -> list */
-	struct list_head aliases; /* HEAD struct perf_pmu_alias -> list */
+	/**
+	 * @format: Holds the contents of files read from
+	 * <sysfs>/bus/event_source/devices/<name>/format/. The contents specify
+	 * which event parameter changes what config, config1 or config2 bits.
+	 */
+	struct list_head format;
+	/**
+	 * @aliases: List of struct perf_pmu_alias. Each alias corresponds to an
+	 * event read from <sysfs>/bus/event_source/devices/<name>/events/ or
+	 * from json events in pmu-events.c.
+	 */
+	struct list_head aliases;
+	/** @caps_initialized: Has the list caps been initialized? */
 	bool caps_initialized;
+	/** @nr_caps: The length of the list caps. */
 	u32 nr_caps;
-	struct list_head caps;    /* HEAD struct perf_pmu_caps -> list */
-	struct list_head list;    /* ELEM */
+	/**
+	 * @caps: Holds the contents of files read from
+	 * <sysfs>/bus/event_source/devices/<name>/caps/.
+	 *
+	 * The contents are pairs of the filename with the value of its
+	 * contents, for example, max_precise (see above) may have a value of 3.
+	 */
+	struct list_head caps;
+	/** @list: Element on pmus list in pmu.c. */
+	struct list_head list;
+	/** @hybrid_list: Element on perf_pmu__hybrid_pmus. */
 	struct list_head hybrid_list;
 
+	/**
+	 * @missing_features: Features to inhibit when events on this PMU are
+	 * opened.
+	 */
 	struct {
+		/**
+		 * @exclude_guest: Disables perf_event_attr exclude_guest and
+		 * exclude_host.
+		 */
 		bool exclude_guest;
 	} missing_features;
 };
 
+/** @perf_pmu__fake: A special global PMU used for testing. */
 extern struct perf_pmu perf_pmu__fake;
 
 struct perf_pmu_info {
 	const char *unit;
-	const char *metric_expr;
-	const char *metric_name;
 	double scale;
 	bool per_pkg;
 	bool snapshot;
@@ -71,21 +139,53 @@ struct perf_pmu_info {
 
 #define UNIT_MAX_LEN	31 /* max length for event unit name */
 
+/**
+ * struct perf_pmu_alias - An event either read from sysfs or builtin in
+ * pmu-events.c, created by parsing the pmu-events json files.
+ */
 struct perf_pmu_alias {
+	/** @name: Name of the event like "mem-loads". */
 	char *name;
+	/** @desc: Optional short description of the event. */
 	char *desc;
+	/** @long_desc: Optional long description. */
 	char *long_desc;
+	/**
+	 * @topic: Optional topic such as cache or pipeline, particularly for
+	 * json events.
+	 */
 	char *topic;
+	/**
+	 * @str: Comma separated parameter list like
+	 * "event=0xcd,umask=0x1,ldlat=0x3".
+	 */
 	char *str;
-	struct list_head terms; /* HEAD struct parse_events_term -> list */
-	struct list_head list;  /* ELEM */
+	/** @terms: Owned list of the original parsed parameters. */
+	struct list_head terms;
+	/** @list: List element of struct perf_pmu aliases. */
+	struct list_head list;
+	/** @unit: Units for the event, such as bytes or cache lines. */
 	char unit[UNIT_MAX_LEN+1];
+	/** @scale: Value to scale read counter values by. */
 	double scale;
+	/**
+	 * @per_pkg: Does the file
+	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.per-pkg or
+	 * equivalent json value exist and have the value 1.
+	 */
 	bool per_pkg;
+	/**
+	 * @snapshot: Does the file
+	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.snapshot
+	 * exist and have the value 1.
+	 */
 	bool snapshot;
+	/**
+	 * @deprecated: Is the event hidden and so not shown in perf list by
+	 * default.
+	 */
 	bool deprecated;
-	char *metric_expr;
-	char *metric_name;
+	/** @pmu_name: The name copied from struct perf_pmu. */
 	char *pmu_name;
 };
 
@@ -116,12 +216,12 @@ void perf_pmu__del_formats(struct list_head *formats);
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
 
 bool is_pmu_core(const char *name);
-void print_pmu_events(const char *event_glob, bool name_only, bool quiet,
-		      bool long_desc, bool details_flag,
-		      bool deprecated, const char *pmu_name);
+void print_pmu_events(const struct print_callbacks *print_cb, void *print_state);
 bool pmu_have_event(const char *pname, const char *name);
 
 int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...) __scanf(3, 4);
+
+bool perf_pmu__file_exists(struct perf_pmu *pmu, const char *name);
 
 int perf_pmu__test(void);
 
@@ -131,6 +231,7 @@ void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
 
 char *perf_pmu__getcpuid(struct perf_pmu *pmu);
 const struct pmu_events_table *pmu_events_table__find(void);
+const struct pmu_metrics_table *pmu_metrics_table__find(void);
 bool pmu_uncore_alias_match(const char *pmu_name, const char *name);
 void perf_pmu_free_alias(struct perf_pmu_alias *alias);
 
@@ -151,4 +252,10 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 
 char *pmu_find_real_name(const char *name);
 char *pmu_find_alias_name(const char *name);
+double perf_pmu__cpu_slots_per_cycle(void);
+int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size);
+int perf_pmu__pathname_scnprintf(char *buf, size_t size,
+				 const char *pmu_name, const char *filename);
+FILE *perf_pmu__open_file(struct perf_pmu *pmu, const char *name);
+
 #endif /* __PMU_H */

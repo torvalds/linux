@@ -9,6 +9,7 @@ config CSKY
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_INLINE_READ_LOCK if !PREEMPTION
 	select ARCH_INLINE_READ_LOCK_BH if !PREEMPTION
 	select ARCH_INLINE_READ_LOCK_IRQ if !PREEMPTION
@@ -93,7 +94,6 @@ config CSKY
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RSEQ
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select MAY_HAVE_SPARSE_IRQ
@@ -269,7 +269,7 @@ menuconfig HAVE_TCM
 	bool "Tightly-Coupled/Sram Memory"
 	depends on !COMPILE_TEST
 	help
-	  The implementation are not only used by TCM (Tightly-Coupled Meory)
+	  The implementation are not only used by TCM (Tightly-Coupled Memory)
 	  but also used by sram on SOC bus. It follow existed linux tcm
 	  software interface, so that old tcm application codes could be
 	  re-used directly.

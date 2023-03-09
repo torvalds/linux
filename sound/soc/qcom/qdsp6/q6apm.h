@@ -58,6 +58,7 @@ struct q6apm {
 	struct mutex lock;
 	uint32_t state;
 
+	struct list_head widget_list;
 	struct idr graph_idr;
 	struct idr graph_info_idr;
 	struct idr sub_graphs_idr;
@@ -141,12 +142,9 @@ int q6apm_send_cmd_sync(struct q6apm *apm, struct gpr_pkt *pkt,
 /* Callback for graph specific */
 struct audioreach_module *q6apm_find_module_by_mid(struct q6apm_graph *graph,
 						    uint32_t mid);
-
 void q6apm_set_fe_dai_ops(struct snd_soc_dai_driver *dai_drv);
-int q6apm_connect_sub_graphs(struct q6apm *apm, u32 src_sgid, u32 dst_sgid,
-			     bool connect);
-bool q6apm_is_sub_graphs_connected(struct q6apm *apm, u32 src_sgid,
-				   u32 dst_sgid);
 int q6apm_graph_get_rx_shmem_module_iid(struct q6apm_graph *graph);
+
+bool q6apm_is_adsp_ready(void);
 
 #endif /* __APM_GRAPH_ */

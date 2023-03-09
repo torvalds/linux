@@ -263,7 +263,7 @@ bool icmp_global_allow(void)
 		/* We want to use a credit of one in average, but need to randomize
 		 * it for security reasons.
 		 */
-		credit = max_t(int, credit - prandom_u32_max(3), 0);
+		credit = max_t(int, credit - get_random_u32_below(3), 0);
 		rc = true;
 	}
 	WRITE_ONCE(icmp_global.credit, credit);
@@ -296,6 +296,7 @@ static bool icmpv4_global_allow(struct net *net, int type, int code)
 	if (icmp_global_allow())
 		return true;
 
+	__ICMP_INC_STATS(net, ICMP_MIB_RATELIMITGLOBAL);
 	return false;
 }
 
@@ -325,6 +326,8 @@ static bool icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 	if (peer)
 		inet_putpeer(peer);
 out:
+	if (!rc)
+		__ICMP_INC_STATS(net, ICMP_MIB_RATELIMITHOST);
 	return rc;
 }
 

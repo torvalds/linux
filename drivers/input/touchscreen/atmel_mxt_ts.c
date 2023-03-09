@@ -3129,7 +3129,7 @@ static const struct dmi_system_id chromebook_T9_suspend_dmi[] = {
 	{ }
 };
 
-static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int mxt_probe(struct i2c_client *client)
 {
 	struct mxt_data *data;
 	int error;
@@ -3377,7 +3377,7 @@ static struct i2c_driver mxt_driver = {
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
 		.pm	= &mxt_pm_ops,
 	},
-	.probe		= mxt_probe,
+	.probe_new	= mxt_probe,
 	.remove		= mxt_remove,
 	.id_table	= mxt_id,
 };

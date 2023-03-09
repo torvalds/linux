@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/opp/opp-v2-qcom-level.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm OPP bindings to describe OPP nodes.
+title: Qualcomm OPP
 
 maintainers:
   - Niklas Cassel <nks@flawful.org>
@@ -30,7 +30,9 @@ patternProperties:
           this OPP node. Sometimes several corners/levels shares a certain fuse
           corner/level. A fuse corner/level contains e.g. ref uV, min uV,
           and max uV.
-        $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 2
 
     required:
       - opp-level

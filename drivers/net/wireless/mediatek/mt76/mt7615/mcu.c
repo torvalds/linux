@@ -1119,7 +1119,7 @@ mt7615_mcu_uni_add_bss(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 
 	return mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.wcid,
-					   enable);
+					   enable, NULL);
 }
 
 static inline int
@@ -1692,7 +1692,6 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 		.headroom = sizeof(struct mt7615_mcu_txd),
 		.mcu_skb_send_msg = mt7615_mcu_send_message,
 		.mcu_parse_response = mt7615_mcu_parse_response,
-		.mcu_restart = mt7615_mcu_restart,
 	};
 	int ret;
 
@@ -1732,7 +1731,7 @@ EXPORT_SYMBOL_GPL(mt7615_mcu_init);
 
 void mt7615_mcu_exit(struct mt7615_dev *dev)
 {
-	__mt76_mcu_restart(&dev->mt76);
+	mt7615_mcu_restart(&dev->mt76);
 	mt7615_mcu_set_fw_ctrl(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 }

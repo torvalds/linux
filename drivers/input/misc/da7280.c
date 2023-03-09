@@ -1140,8 +1140,7 @@ out_err:
 	return error;
 }
 
-static int da7280_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int da7280_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct da7280_haptic *haptics;
@@ -1322,7 +1321,7 @@ static struct i2c_driver da7280_driver = {
 		.of_match_table = of_match_ptr(da7280_of_match),
 		.pm = &da7280_pm_ops,
 	},
-	.probe = da7280_probe,
+	.probe_new = da7280_probe,
 	.id_table = da7280_i2c_id,
 };
 module_i2c_driver(da7280_driver);

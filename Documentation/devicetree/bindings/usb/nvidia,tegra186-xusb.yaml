@@ -166,8 +166,6 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        phys = <&{/padctl@3520000/pads/usb2/lanes/usb2-0}>,
-               <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
-               <&{/padctl@3520000/pads/usb3/lanes/usb3-0}>;
+        phys = <&phy_usb2_0>, <&phy_usb2_1>, <&phy_usb3_0>;
         phy-names = "usb2-0", "usb2-1", "usb3-0";
     };

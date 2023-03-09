@@ -283,8 +283,7 @@ static const struct dvb_tuner_ops mxl301rf_ops = {
 };
 
 
-static int mxl301rf_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int mxl301rf_probe(struct i2c_client *client)
 {
 	struct mxl301rf_state *state;
 	struct mxl301rf_config *cfg;
@@ -327,7 +326,7 @@ static struct i2c_driver mxl301rf_driver = {
 	.driver = {
 		.name	= "mxl301rf",
 	},
-	.probe		= mxl301rf_probe,
+	.probe_new	= mxl301rf_probe,
 	.remove		= mxl301rf_remove,
 	.id_table	= mxl301rf_id,
 };

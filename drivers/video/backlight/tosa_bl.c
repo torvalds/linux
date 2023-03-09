@@ -75,8 +75,7 @@ static const struct backlight_ops bl_ops = {
 	.update_status		= tosa_bl_update_status,
 };
 
-static int tosa_bl_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int tosa_bl_probe(struct i2c_client *client)
 {
 	struct backlight_properties props;
 	struct tosa_bl_data *data;
@@ -160,7 +159,7 @@ static struct i2c_driver tosa_bl_driver = {
 		.name		= "tosa-bl",
 		.pm		= &tosa_bl_pm_ops,
 	},
-	.probe		= tosa_bl_probe,
+	.probe_new	= tosa_bl_probe,
 	.remove		= tosa_bl_remove,
 	.id_table	= tosa_bl_id,
 };

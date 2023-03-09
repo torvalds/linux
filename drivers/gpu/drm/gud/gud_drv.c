@@ -18,7 +18,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -325,8 +325,8 @@ static struct drm_gem_object *gud_gem_prime_import(struct drm_device *drm, struc
 
 static int gud_stats_debugfs(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = m->private;
-	struct gud_device *gdrm = to_gud_device(node->minor->dev);
+	struct drm_debugfs_entry *entry = m->private;
+	struct gud_device *gdrm = to_gud_device(entry->dev);
 	char buf[10];
 
 	string_get_size(gdrm->bulk_len, 1, STRING_UNITS_2, buf, sizeof(buf));
@@ -352,19 +352,10 @@ static int gud_stats_debugfs(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list gud_debugfs_list[] = {
-	{ "stats", gud_stats_debugfs, 0, NULL },
-};
-
-static void gud_debugfs_init(struct drm_minor *minor)
-{
-	drm_debugfs_create_files(gud_debugfs_list, ARRAY_SIZE(gud_debugfs_list),
-				 minor->debugfs_root, minor);
-}
-
 static const struct drm_simple_display_pipe_funcs gud_pipe_funcs = {
 	.check      = gud_pipe_check,
 	.update	    = gud_pipe_update,
+	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS
 };
 
 static const struct drm_mode_config_funcs gud_mode_config_funcs = {
@@ -385,7 +376,6 @@ static const struct drm_driver gud_drm_driver = {
 	.fops			= &gud_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
 	.gem_prime_import	= gud_gem_prime_import,
-	.debugfs_init		= gud_debugfs_init,
 
 	.name			= "gud",
 	.desc			= "Generic USB Display",
@@ -621,6 +611,8 @@ static int gud_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	gdrm->dmadev = usb_intf_get_dma_device(intf);
 	if (!gdrm->dmadev)
 		dev_warn(dev, "buffer sharing not supported");
+
+	drm_debugfs_add_file(drm, "stats", gud_stats_debugfs, NULL);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret) {

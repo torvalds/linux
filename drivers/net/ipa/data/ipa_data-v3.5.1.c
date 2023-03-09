@@ -406,17 +406,18 @@ static const struct ipa_power_data ipa_power_data = {
 
 /* Configuration data for an SoC having IPA v3.5.1 */
 const struct ipa_data ipa_data_v3_5_1 = {
-	.version	= IPA_VERSION_3_5_1,
-	.backward_compat = BIT(BCR_CMDQ_L_LACK_ONE_ENTRY) |
-			   BIT(BCR_TX_NOT_USING_BRESP) |
-			   BIT(BCR_SUSPEND_L2_IRQ) |
-			   BIT(BCR_HOLB_DROP_L2_IRQ) |
-			   BIT(BCR_DUAL_TX),
-	.qsb_count	= ARRAY_SIZE(ipa_qsb_data),
-	.qsb_data	= ipa_qsb_data,
-	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),
-	.endpoint_data	= ipa_gsi_endpoint_data,
-	.resource_data	= &ipa_resource_data,
-	.mem_data	= &ipa_mem_data,
-	.power_data	= &ipa_power_data,
+	.version		= IPA_VERSION_3_5_1,
+	.backward_compat	= BIT(BCR_CMDQ_L_LACK_ONE_ENTRY) |
+				  BIT(BCR_TX_NOT_USING_BRESP) |
+				  BIT(BCR_SUSPEND_L2_IRQ) |
+				  BIT(BCR_HOLB_DROP_L2_IRQ) |
+				  BIT(BCR_DUAL_TX),
+	.qsb_count		= ARRAY_SIZE(ipa_qsb_data),
+	.qsb_data		= ipa_qsb_data,
+	.modem_route_count      = 8,
+	.endpoint_count		= ARRAY_SIZE(ipa_gsi_endpoint_data),
+	.endpoint_data		= ipa_gsi_endpoint_data,
+	.resource_data		= &ipa_resource_data,
+	.mem_data		= &ipa_mem_data,
+	.power_data		= &ipa_power_data,
 };

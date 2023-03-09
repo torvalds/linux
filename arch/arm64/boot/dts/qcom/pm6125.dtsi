@@ -136,11 +136,11 @@
 			status = "disabled";
 		};
 
-		pm6125_gpio: gpio@c000 {
+		pm6125_gpios: gpio@c000 {
 			compatible = "qcom,pm6125-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pm6125_gpio 0 0 9>;
+			gpio-ranges = <&pm6125_gpios 0 0 9>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

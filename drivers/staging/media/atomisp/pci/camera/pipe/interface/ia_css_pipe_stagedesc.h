@@ -38,11 +38,6 @@ void ia_css_pipe_get_firmwares_stage_desc(
     const struct ia_css_fw_info *fw,
     unsigned int mode);
 
-void ia_css_pipe_get_acc_stage_desc(
-    struct ia_css_pipeline_stage_desc *stage_desc,
-    struct ia_css_binary *binary,
-    struct ia_css_fw_info *fw);
-
 void ia_css_pipe_get_sp_func_stage_desc(
     struct ia_css_pipeline_stage_desc *stage_desc,
     struct ia_css_frame *out_frame,

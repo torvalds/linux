@@ -87,7 +87,6 @@ struct tsi148_dma_entry {
  *                                Control and Status Registers
  */
 
-
 /*
  *  Command/Status Registers (CRG + $004)
  */
@@ -342,7 +341,6 @@ static const int TSI148_LCSR_VIACK[8] = { 0, TSI148_LCSR_VIACK1,
 #define TSI148_LCSR_IT7_ITOFL		0x3F4
 #define TSI148_LCSR_IT7_ITAT		0x3F8
 
-
 #define TSI148_LCSR_IT0		0x300
 #define TSI148_LCSR_IT1		0x320
 #define TSI148_LCSR_IT2		0x340
@@ -464,7 +462,6 @@ static const int TSI148_LCSR_IT[8] = { TSI148_LCSR_IT0, TSI148_LCSR_IT1,
 #define TSI148_LCSR_DMA0	0x500
 #define TSI148_LCSR_DMA1	0x580
 
-
 static const int TSI148_LCSR_DMA[TSI148_MAX_DMA] = { TSI148_LCSR_DMA0,
 						TSI148_LCSR_DMA1 };
 
@@ -531,9 +528,6 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_CSRBCR	0xFF4
 #define TSI148_CSRBSR	0xFF8
 #define TSI148_CBAR	0xFFC
-
-
-
 
 	/*
 	 *  TSI148 Register Bit Definitions
@@ -827,7 +821,6 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VEAT_DS0           (1<<14)	/* DS0_ signal state */
 #define TSI148_LCSR_VEAT_AM_M          (0x3F<<8)	/* Address Mode Mask */
 #define TSI148_LCSR_VEAT_XAM_M         (0xFF<<0)	/* Master AMode Mask */
-
 
 /*
  * VMEbus PCI Error Diagnostics PCI/X Attributes Register  CRG + $280

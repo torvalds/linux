@@ -64,6 +64,8 @@ struct symbol {
 	u8		inlined:1;
 	/** Has symbol__annotate2 been performed. */
 	u8		annotate2:1;
+	/** Symbol is an alias of an STT_GNU_IFUNC */
+	u8		ifunc_alias:1;
 	/** Architecture specific. Unused except on PPC where it holds st_other. */
 	u8		arch_sym;
 	/** The name of length namelen associated with the symbol. */
@@ -132,6 +134,8 @@ struct addr_location {
 	s32	      socket;
 };
 
+void addr_location__put(struct addr_location *al);
+
 int dso__load(struct dso *dso, struct map *map);
 int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      const char *vmlinux, bool vmlinux_allocated);
@@ -146,6 +150,7 @@ void dso__delete_symbol(struct dso *dso,
 			struct symbol *sym);
 
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr);
+struct symbol *dso__find_symbol_nocache(struct dso *dso, u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name);
 
 struct symbol *symbol__next_by_name(struct symbol *sym);
@@ -163,6 +168,7 @@ int modules__parse(const char *filename, void *arg,
 					 u64 start, u64 size));
 int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size);
+bool filename__has_section(const char *filename, const char *sec);
 
 struct perf_env;
 int symbol__init(struct perf_env *env);

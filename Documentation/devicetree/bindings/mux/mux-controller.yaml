@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mux/mux-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Common multiplexer controller provider bindings
+title: Common multiplexer controller provider
 
 maintainers:
   - Peter Rosin <peda@axentia.se>

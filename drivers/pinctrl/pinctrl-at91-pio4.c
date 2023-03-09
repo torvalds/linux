@@ -7,18 +7,22 @@
  */
 
 #include <dt-bindings/pinctrl/at91.h>
+
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinconf.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/slab.h>
+
 #include "core.h"
 #include "pinconf.h"
 #include "pinctrl-utils.h"
@@ -775,6 +779,8 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = (res & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET;
 		break;
+	case PIN_CONFIG_PERSIST_STATE:
+		return -ENOTSUPP;
 	default:
 		return -ENOTSUPP;
 	}
@@ -883,6 +889,8 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 				dev_warn(pctldev->dev, "drive strength not updated (incorrect value)\n");
 			}
 			break;
+		case PIN_CONFIG_PERSIST_STATE:
+			return -ENOTSUPP;
 		default:
 			dev_warn(pctldev->dev,
 				 "unsupported configuration parameter: %u\n",
@@ -895,6 +903,25 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 	atmel_pin_config_write(pctldev, pin_id, conf);
 
 	return 0;
+}
+
+static int atmel_conf_pin_config_set(struct pinctrl_dev *pctldev,
+				     unsigned pin,
+				     unsigned long *configs,
+				     unsigned num_configs)
+{
+	struct atmel_group *grp = atmel_pctl_find_group_by_pin(pctldev, pin);
+
+	return atmel_conf_pin_config_group_set(pctldev, grp->pin, configs, num_configs);
+}
+
+static int atmel_conf_pin_config_get(struct pinctrl_dev *pctldev,
+				     unsigned pin,
+				     unsigned long *configs)
+{
+	struct atmel_group *grp = atmel_pctl_find_group_by_pin(pctldev, pin);
+
+	return atmel_conf_pin_config_group_get(pctldev, grp->pin, configs);
 }
 
 static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
@@ -944,6 +971,8 @@ static const struct pinconf_ops atmel_confops = {
 	.pin_config_group_get	= atmel_conf_pin_config_group_get,
 	.pin_config_group_set	= atmel_conf_pin_config_group_set,
 	.pin_config_dbg_show	= atmel_conf_pin_config_dbg_show,
+	.pin_config_set	        = atmel_conf_pin_config_set,
+	.pin_config_get	        = atmel_conf_pin_config_get,
 };
 
 static struct pinctrl_desc atmel_pinctrl_desc = {
@@ -1120,8 +1149,8 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 
 		pin_desc[i].number = i;
 		/* Pin naming convention: P(bank_name)(bank_pin_number). */
-		pin_desc[i].name = kasprintf(GFP_KERNEL, "P%c%d",
-					     bank + 'A', line);
+		pin_desc[i].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "P%c%d",
+						  bank + 'A', line);
 
 		group->name = group_names[i] = pin_desc[i].name;
 		group->pin = pin_desc[i].number;
@@ -1134,6 +1163,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->gpio_chip->label = dev_name(dev);
 	atmel_pioctrl->gpio_chip->parent = dev;
 	atmel_pioctrl->gpio_chip->names = atmel_pioctrl->group_names;
+	atmel_pioctrl->gpio_chip->set_config = gpiochip_generic_config;
 
 	atmel_pioctrl->pm_wakeup_sources = devm_kcalloc(dev,
 			atmel_pioctrl->nbanks,

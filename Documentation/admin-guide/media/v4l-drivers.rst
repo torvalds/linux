@@ -13,7 +13,6 @@ Video4Linux (V4L) driver-specific documentation
 	cafe_ccic
 	cpia2
 	cx88
-	davinci-vpbe
 	fimc
 	imx
 	imx7
@@ -31,4 +30,5 @@ Video4Linux (V4L) driver-specific documentation
 	si4713
 	si476x
 	vimc
+	visl
 	vivid

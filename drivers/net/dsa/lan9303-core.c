@@ -15,6 +15,9 @@
 
 #include "lan9303.h"
 
+/* For the LAN9303 and LAN9354, only port 0 is an XMII port. */
+#define IS_PORT_XMII(port)	((port) == 0)
+
 #define LAN9303_NUM_PORTS 3
 
 /* 13.2 System Control and Status Registers
@@ -50,6 +53,9 @@
 #define LAN9303_MANUAL_FC_1 0x68
 #define LAN9303_MANUAL_FC_2 0x69
 #define LAN9303_MANUAL_FC_0 0x6a
+# define LAN9303_BP_EN BIT(6)
+# define LAN9303_RX_FC_EN BIT(2)
+# define LAN9303_TX_FC_EN BIT(1)
 #define LAN9303_SWITCH_CSR_DATA 0x6b
 #define LAN9303_SWITCH_CSR_CMD 0x6c
 #define LAN9303_SWITCH_CSR_CMD_BUSY BIT(31)
@@ -224,6 +230,13 @@ const struct regmap_access_table lan9303_register_set = {
 	.n_no_ranges = ARRAY_SIZE(lan9303_reserved_ranges),
 };
 EXPORT_SYMBOL(lan9303_register_set);
+
+/* Flow Control registers indexed by port number */
+static unsigned int flow_ctl_reg[] = {
+	LAN9303_MANUAL_FC_0,
+	LAN9303_MANUAL_FC_1,
+	LAN9303_MANUAL_FC_2
+};
 
 static int lan9303_read(struct regmap *regmap, unsigned int offset, u32 *reg)
 {
@@ -902,11 +915,23 @@ static int lan9303_setup(struct dsa_switch *ds)
 {
 	struct lan9303 *chip = ds->priv;
 	int ret;
+	u32 reg;
 
 	/* Make sure that port 0 is the cpu port */
 	if (!dsa_is_cpu_port(ds, 0)) {
 		dev_err(chip->dev, "port 0 is not the CPU port\n");
 		return -EINVAL;
+	}
+
+	/* Virtual Phy: Remove Turbo 200Mbit mode */
+	ret = lan9303_read(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, &reg);
+	if (ret)
+		return (ret);
+
+	/* Clear the TURBO Mode bit if it was set. */
+	if (reg & LAN9303_VIRT_SPECIAL_TURBO) {
+		reg &= ~LAN9303_VIRT_SPECIAL_TURBO;
+		regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, reg);
 	}
 
 	ret = lan9303_setup_tagging(chip);
@@ -1005,9 +1030,11 @@ static void lan9303_get_ethtool_stats(struct dsa_switch *ds, int port,
 		ret = lan9303_read_switch_port(
 			chip, port, lan9303_mib[u].offset, &reg);
 
-		if (ret)
+		if (ret) {
 			dev_warn(chip->dev, "Reading status port %d reg %u failed\n",
 				 port, lan9303_mib[u].offset);
+			reg = 0;
+		}
 		data[u] = reg;
 	}
 }
@@ -1045,42 +1072,6 @@ static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
 		return -ENODEV;
 
 	return chip->ops->phy_write(chip, phy, regnum, val);
-}
-
-static void lan9303_adjust_link(struct dsa_switch *ds, int port,
-				struct phy_device *phydev)
-{
-	struct lan9303 *chip = ds->priv;
-	int ctl;
-
-	if (!phy_is_pseudo_fixed_link(phydev))
-		return;
-
-	ctl = lan9303_phy_read(ds, port, MII_BMCR);
-
-	ctl &= ~BMCR_ANENABLE;
-
-	if (phydev->speed == SPEED_100)
-		ctl |= BMCR_SPEED100;
-	else if (phydev->speed == SPEED_10)
-		ctl &= ~BMCR_SPEED100;
-	else
-		dev_err(ds->dev, "unsupported speed: %d\n", phydev->speed);
-
-	if (phydev->duplex == DUPLEX_FULL)
-		ctl |= BMCR_FULLDPLX;
-	else
-		ctl &= ~BMCR_FULLDPLX;
-
-	lan9303_phy_write(ds, port, MII_BMCR, ctl);
-
-	if (port == chip->phy_addr_base) {
-		/* Virtual Phy: Remove Turbo 200Mbit mode */
-		lan9303_read(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, &ctl);
-
-		ctl &= ~LAN9303_VIRT_SPECIAL_TURBO;
-		regmap_write(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, ctl);
-	}
 }
 
 static int lan9303_port_enable(struct dsa_switch *ds, int port,
@@ -1279,26 +1270,96 @@ static int lan9303_port_mdb_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static void lan9303_phylink_get_caps(struct dsa_switch *ds, int port,
+				     struct phylink_config *config)
+{
+	struct lan9303 *chip = ds->priv;
+
+	dev_dbg(chip->dev, "%s(%d) entered.", __func__, port);
+
+	config->mac_capabilities = MAC_10 | MAC_100 | MAC_ASYM_PAUSE |
+				   MAC_SYM_PAUSE;
+
+	if (port == 0) {
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_MII,
+			  config->supported_interfaces);
+	} else {
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		/* Compatibility for phylib's default interface type when the
+		 * phy-mode property is absent
+		 */
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  config->supported_interfaces);
+	}
+
+	/* This driver does not make use of the speed, duplex, pause or the
+	 * advertisement in its mac_config, so it is safe to mark this driver
+	 * as non-legacy.
+	 */
+	config->legacy_pre_march2020 = false;
+}
+
+static void lan9303_phylink_mac_link_up(struct dsa_switch *ds, int port,
+					unsigned int mode,
+					phy_interface_t interface,
+					struct phy_device *phydev, int speed,
+					int duplex, bool tx_pause,
+					bool rx_pause)
+{
+	struct lan9303 *chip = ds->priv;
+	u32 ctl;
+	u32 reg;
+
+	/* On this device, we are only interested in doing something here if
+	 * this is the xMII port. All other ports are 10/100 phys using MDIO
+	 * to control there link settings.
+	 */
+	if (!IS_PORT_XMII(port))
+		return;
+
+	/* Disable auto-negotiation and force the speed/duplex settings. */
+	ctl = lan9303_phy_read(ds, port, MII_BMCR);
+	ctl &= ~(BMCR_ANENABLE | BMCR_SPEED100 | BMCR_FULLDPLX);
+	if (speed == SPEED_100)
+		ctl |= BMCR_SPEED100;
+	if (duplex == DUPLEX_FULL)
+		ctl |= BMCR_FULLDPLX;
+	lan9303_phy_write(ds, port, MII_BMCR, ctl);
+
+	/* Force the flow control settings. */
+	lan9303_read(chip->regmap, flow_ctl_reg[port], &reg);
+	reg &= ~(LAN9303_BP_EN | LAN9303_RX_FC_EN | LAN9303_TX_FC_EN);
+	if (rx_pause)
+		reg |= (LAN9303_RX_FC_EN | LAN9303_BP_EN);
+	if (tx_pause)
+		reg |= LAN9303_TX_FC_EN;
+	regmap_write(chip->regmap, flow_ctl_reg[port], reg);
+}
+
 static const struct dsa_switch_ops lan9303_switch_ops = {
-	.get_tag_protocol = lan9303_get_tag_protocol,
-	.setup = lan9303_setup,
-	.get_strings = lan9303_get_strings,
-	.phy_read = lan9303_phy_read,
-	.phy_write = lan9303_phy_write,
-	.adjust_link = lan9303_adjust_link,
-	.get_ethtool_stats = lan9303_get_ethtool_stats,
-	.get_sset_count = lan9303_get_sset_count,
-	.port_enable = lan9303_port_enable,
-	.port_disable = lan9303_port_disable,
-	.port_bridge_join       = lan9303_port_bridge_join,
-	.port_bridge_leave      = lan9303_port_bridge_leave,
-	.port_stp_state_set     = lan9303_port_stp_state_set,
-	.port_fast_age          = lan9303_port_fast_age,
-	.port_fdb_add           = lan9303_port_fdb_add,
-	.port_fdb_del           = lan9303_port_fdb_del,
-	.port_fdb_dump          = lan9303_port_fdb_dump,
-	.port_mdb_add           = lan9303_port_mdb_add,
-	.port_mdb_del           = lan9303_port_mdb_del,
+	.get_tag_protocol	= lan9303_get_tag_protocol,
+	.setup			= lan9303_setup,
+	.get_strings		= lan9303_get_strings,
+	.phy_read		= lan9303_phy_read,
+	.phy_write		= lan9303_phy_write,
+	.phylink_get_caps	= lan9303_phylink_get_caps,
+	.phylink_mac_link_up	= lan9303_phylink_mac_link_up,
+	.get_ethtool_stats	= lan9303_get_ethtool_stats,
+	.get_sset_count		= lan9303_get_sset_count,
+	.port_enable		= lan9303_port_enable,
+	.port_disable		= lan9303_port_disable,
+	.port_bridge_join	= lan9303_port_bridge_join,
+	.port_bridge_leave	= lan9303_port_bridge_leave,
+	.port_stp_state_set	= lan9303_port_stp_state_set,
+	.port_fast_age		= lan9303_port_fast_age,
+	.port_fdb_add		= lan9303_port_fdb_add,
+	.port_fdb_del		= lan9303_port_fdb_del,
+	.port_fdb_dump		= lan9303_port_fdb_dump,
+	.port_mdb_add		= lan9303_port_mdb_add,
+	.port_mdb_del		= lan9303_port_mdb_del,
 };
 
 static int lan9303_register_switch(struct lan9303 *chip)

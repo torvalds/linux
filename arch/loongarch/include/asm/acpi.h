@@ -35,4 +35,14 @@ extern struct list_head acpi_wakeup_device_list;
 
 #define ACPI_TABLE_UPGRADE_MAX_PHYS ARCH_LOW_ADDRESS_LIMIT
 
+extern int loongarch_acpi_suspend(void);
+extern int (*acpi_suspend_lowlevel)(void);
+extern void loongarch_suspend_enter(void);
+
+static inline unsigned long acpi_get_wakeup_address(void)
+{
+	extern void loongarch_wakeup_start(void);
+	return (unsigned long)loongarch_wakeup_start;
+}
+
 #endif /* _ASM_LOONGARCH_ACPI_H */

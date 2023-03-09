@@ -265,29 +265,29 @@ static void mlx4_devlink_set_params_init_values(struct devlink *devlink)
 	union devlink_param_value value;
 
 	value.vbool = !!mlx4_internal_err_reset;
-	devlink_param_driverinit_value_set(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+					value);
 
 	value.vu32 = 1UL << log_num_mac;
-	devlink_param_driverinit_value_set(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					value);
 
 	value.vbool = enable_64b_cqe_eqe;
-	devlink_param_driverinit_value_set(devlink,
-					   MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+					value);
 
 	value.vbool = enable_4k_uar;
-	devlink_param_driverinit_value_set(devlink,
-					   MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+					value);
 
 	value.vbool = false;
-	devlink_param_driverinit_value_set(devlink,
-					   DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
-					   value);
+	devl_param_driverinit_value_set(devlink,
+					DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+					value);
 }
 
 static inline void mlx4_set_num_reserved_uars(struct mlx4_dev *dev,
@@ -3043,7 +3043,7 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	 */
 	if (!IS_ENABLED(CONFIG_MLX4_EN) &&
 	    dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
-		devlink_port_type_eth_set(&info->devlink_port, NULL);
+		devlink_port_type_eth_set(&info->devlink_port);
 	else if (!IS_ENABLED(CONFIG_MLX4_INFINIBAND) &&
 		 dev->caps.port_type[port] == MLX4_PORT_TYPE_IB)
 		devlink_port_type_ib_set(&info->devlink_port, NULL);
@@ -3910,37 +3910,37 @@ static void mlx4_devlink_param_load_driverinit_values(struct devlink *devlink)
 	union devlink_param_value saved_value;
 	int err;
 
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
-						 &saved_value);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+					      &saved_value);
 	if (!err && mlx4_internal_err_reset != saved_value.vbool) {
 		mlx4_internal_err_reset = saved_value.vbool;
 		/* Notify on value changed on runtime configuration mode */
-		devlink_param_value_changed(devlink,
-					    DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET);
+		devl_param_value_changed(devlink,
+					 DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET);
 	}
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
-						 &saved_value);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					      &saved_value);
 	if (!err)
 		log_num_mac = order_base_2(saved_value.vu32);
-	err = devlink_param_driverinit_value_get(devlink,
-						 MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
-						 &saved_value);
+	err = devl_param_driverinit_value_get(devlink,
+					      MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+					      &saved_value);
 	if (!err)
 		enable_64b_cqe_eqe = saved_value.vbool;
-	err = devlink_param_driverinit_value_get(devlink,
-						 MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
-						 &saved_value);
+	err = devl_param_driverinit_value_get(devlink,
+					      MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+					      &saved_value);
 	if (!err)
 		enable_4k_uar = saved_value.vbool;
-	err = devlink_param_driverinit_value_get(devlink,
-						 DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
-						 &saved_value);
+	err = devl_param_driverinit_value_get(devlink,
+					      DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+					      &saved_value);
 	if (!err && crdump->snapshot_enable != saved_value.vbool) {
 		crdump->snapshot_enable = saved_value.vbool;
-		devlink_param_value_changed(devlink,
-					    DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT);
+		devl_param_value_changed(devlink,
+					 DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT);
 	}
 }
 
@@ -4021,8 +4021,8 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&dev->persist->interface_state_mutex);
 	mutex_init(&dev->persist->pci_status_mutex);
 
-	ret = devlink_params_register(devlink, mlx4_devlink_params,
-				      ARRAY_SIZE(mlx4_devlink_params));
+	ret = devl_params_register(devlink, mlx4_devlink_params,
+				   ARRAY_SIZE(mlx4_devlink_params));
 	if (ret)
 		goto err_devlink_unregister;
 	mlx4_devlink_set_params_init_values(devlink);
@@ -4031,14 +4031,13 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_params_unregister;
 
 	pci_save_state(pdev);
-	devlink_set_features(devlink, DEVLINK_F_RELOAD);
 	devl_unlock(devlink);
 	devlink_register(devlink);
 	return 0;
 
 err_params_unregister:
-	devlink_params_unregister(devlink, mlx4_devlink_params,
-				  ARRAY_SIZE(mlx4_devlink_params));
+	devl_params_unregister(devlink, mlx4_devlink_params,
+			       ARRAY_SIZE(mlx4_devlink_params));
 err_devlink_unregister:
 	kfree(dev->persist);
 err_devlink_free:
@@ -4181,8 +4180,8 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	mlx4_pci_disable_device(dev);
-	devlink_params_unregister(devlink, mlx4_devlink_params,
-				  ARRAY_SIZE(mlx4_devlink_params));
+	devl_params_unregister(devlink, mlx4_devlink_params,
+			       ARRAY_SIZE(mlx4_devlink_params));
 	kfree(dev->persist);
 	devl_unlock(devlink);
 	devlink_free(devlink);

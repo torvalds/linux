@@ -22,6 +22,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   '#sound-dai-cells':
     description:
       The first cell indicating the audio interface.
@@ -42,7 +45,7 @@ properties:
       Configures the peak current by monitoring the current through the boost FET.
       Range starts at 1600 mA and goes to a maximum of 4500 mA with increments
       of 50 mA. See section 4.3.6 of the datasheet for details.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1600
     maximum: 4500
     default: 4500
@@ -51,7 +54,7 @@ properties:
     description:
       Boost inductor value, expressed in nH. Valid
       values include 1000, 1200, 1500 and 2200.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1000
     maximum: 2200
 
@@ -60,7 +63,7 @@ properties:
       Total equivalent boost capacitance on the VBST
       and VAMP pins, derated at 11 volts DC. The value must be rounded to the
       nearest integer and expressed in uF.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   cirrus,asp-sdout-hiz:
     description:
@@ -70,7 +73,7 @@ properties:
       1 = Hi-Z during unused slots but logic 0 while all transmit channels disabled
       2 = (Default) Logic 0 during unused slots, but Hi-Z while all transmit channels disabled
       3 = Hi-Z during unused slots and while all transmit channels disabled
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
     default: 2
@@ -84,7 +87,7 @@ properties:
       enable boost voltage.
       0 = Internal Boost
       1 = External Boost
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 1
 
@@ -109,7 +112,7 @@ properties:
       1 = GPIO
       2 = Sync
       3 = MCLK input
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
 
@@ -136,7 +139,7 @@ properties:
       3 = MCLK input
       4 = Push-pull INTB (active low)
       5 = Push-pull INT (active high)
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 5
 
@@ -146,6 +149,7 @@ required:
   - "#sound-dai-cells"
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         cirrus,boost-type:
@@ -171,25 +175,27 @@ allOf:
           cirrus,gpio1-src-select:
             enum: [1]
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
+
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
-        cs35l41: cs35l41@2 {
-          #sound-dai-cells = <1>;
-          compatible = "cirrus,cs35l41";
-          reg = <2>;
-          VA-supply = <&dummy_vreg>;
-          VP-supply = <&dummy_vreg>;
-          reset-gpios = <&gpio 110 0>;
+        cs35l41: speaker-amp@2 {
+            #sound-dai-cells = <1>;
+            compatible = "cirrus,cs35l41";
+            reg = <2>;
+            VA-supply = <&dummy_vreg>;
+            VP-supply = <&dummy_vreg>;
+            reset-gpios = <&gpio 110 GPIO_ACTIVE_HIGH>;
 
-          cirrus,boost-type = <0>;
-          cirrus,boost-peak-milliamp = <4500>;
-          cirrus,boost-ind-nanohenry = <1000>;
-          cirrus,boost-cap-microfarad = <15>;
+            cirrus,boost-type = <0>;
+            cirrus,boost-peak-milliamp = <4500>;
+            cirrus,boost-ind-nanohenry = <1000>;
+            cirrus,boost-cap-microfarad = <15>;
         };
     };

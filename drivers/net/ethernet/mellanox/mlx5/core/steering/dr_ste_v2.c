@@ -202,6 +202,7 @@ static struct mlx5dr_ste_ctx ste_ctx_v2 = {
 	.ste_init			= &dr_ste_v1_init,
 	.set_next_lu_type		= &dr_ste_v1_set_next_lu_type,
 	.get_next_lu_type		= &dr_ste_v1_get_next_lu_type,
+	.is_miss_addr_set		= &dr_ste_v1_is_miss_addr_set,
 	.set_miss_addr			= &dr_ste_v1_set_miss_addr,
 	.get_miss_addr			= &dr_ste_v1_get_miss_addr,
 	.set_hit_addr			= &dr_ste_v1_set_hit_addr,

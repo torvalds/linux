@@ -63,7 +63,7 @@ static int debugfs_print_results(struct seq_file *seq, void *v)
 	kunit_suite_for_each_test_case(suite, test_case)
 		debugfs_print_result(seq, suite, test_case);
 
-	seq_printf(seq, "%s %d - %s\n",
+	seq_printf(seq, "%s %d %s\n",
 		   kunit_status_to_ok_not_ok(success), 1, suite->name);
 	return 0;
 }

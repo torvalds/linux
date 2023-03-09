@@ -62,6 +62,7 @@ enum forcewake_domain_id {
 	FW_DOMAIN_ID_MEDIA_VEBOX1,
 	FW_DOMAIN_ID_MEDIA_VEBOX2,
 	FW_DOMAIN_ID_MEDIA_VEBOX3,
+	FW_DOMAIN_ID_GSC,
 
 	FW_DOMAIN_ID_COUNT
 };
@@ -82,6 +83,7 @@ enum forcewake_domains {
 	FORCEWAKE_MEDIA_VEBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX1),
 	FORCEWAKE_MEDIA_VEBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX2),
 	FORCEWAKE_MEDIA_VEBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX3),
+	FORCEWAKE_GSC		= BIT(FW_DOMAIN_ID_GSC),
 
 	FORCEWAKE_ALL = BIT(FW_DOMAIN_ID_COUNT) - 1,
 };
@@ -151,6 +153,7 @@ struct intel_uncore {
 #define UNCORE_HAS_FPGA_DBG_UNCLAIMED	BIT(1)
 #define UNCORE_HAS_DBG_UNCLAIMED	BIT(2)
 #define UNCORE_HAS_FIFO			BIT(3)
+#define UNCORE_NEEDS_FLR_ON_FINI	BIT(4)
 
 	const struct intel_forcewake_range *fw_domains_table;
 	unsigned int fw_domains_table_entries;
@@ -219,6 +222,18 @@ static inline bool
 intel_uncore_has_fifo(const struct intel_uncore *uncore)
 {
 	return uncore->flags & UNCORE_HAS_FIFO;
+}
+
+static inline bool
+intel_uncore_needs_flr_on_fini(const struct intel_uncore *uncore)
+{
+	return uncore->flags & UNCORE_NEEDS_FLR_ON_FINI;
+}
+
+static inline bool
+intel_uncore_set_flr_on_fini(struct intel_uncore *uncore)
+{
+	return uncore->flags |= UNCORE_NEEDS_FLR_ON_FINI;
 }
 
 void intel_uncore_mmio_debug_init_early(struct drm_i915_private *i915);
@@ -380,20 +395,6 @@ __uncore_write(write_notrace, 32, l, false)
  */
 __uncore_read(read64, 64, q, true)
 
-static inline u64
-intel_uncore_read64_2x32(struct intel_uncore *uncore,
-			 i915_reg_t lower_reg, i915_reg_t upper_reg)
-{
-	u32 upper, lower, old_upper, loop = 0;
-	upper = intel_uncore_read(uncore, upper_reg);
-	do {
-		old_upper = upper;
-		lower = intel_uncore_read(uncore, lower_reg);
-		upper = intel_uncore_read(uncore, upper_reg);
-	} while (upper != old_upper && loop++ < 2);
-	return (u64)upper << 32 | lower;
-}
-
 #define intel_uncore_posting_read(...) ((void)intel_uncore_read_notrace(__VA_ARGS__))
 #define intel_uncore_posting_read16(...) ((void)intel_uncore_read16_notrace(__VA_ARGS__))
 
@@ -431,15 +432,15 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
 #define intel_uncore_write64_fw(...) __raw_uncore_write64(__VA_ARGS__)
 #define intel_uncore_posting_read_fw(...) ((void)intel_uncore_read_fw(__VA_ARGS__))
 
-static inline void intel_uncore_rmw(struct intel_uncore *uncore,
-				    i915_reg_t reg, u32 clear, u32 set)
+static inline u32 intel_uncore_rmw(struct intel_uncore *uncore,
+				   i915_reg_t reg, u32 clear, u32 set)
 {
 	u32 old, val;
 
 	old = intel_uncore_read(uncore, reg);
 	val = (old & ~clear) | set;
-	if (val != old)
-		intel_uncore_write(uncore, reg, val);
+	intel_uncore_write(uncore, reg, val);
+	return old;
 }
 
 static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
@@ -451,6 +452,36 @@ static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
 	val = (old & ~clear) | set;
 	if (val != old)
 		intel_uncore_write_fw(uncore, reg, val);
+}
+
+static inline u64
+intel_uncore_read64_2x32(struct intel_uncore *uncore,
+			 i915_reg_t lower_reg, i915_reg_t upper_reg)
+{
+	u32 upper, lower, old_upper, loop = 0;
+	enum forcewake_domains fw_domains;
+	unsigned long flags;
+
+	fw_domains = intel_uncore_forcewake_for_reg(uncore, lower_reg,
+						    FW_REG_READ);
+
+	fw_domains |= intel_uncore_forcewake_for_reg(uncore, upper_reg,
+						    FW_REG_READ);
+
+	spin_lock_irqsave(&uncore->lock, flags);
+	intel_uncore_forcewake_get__locked(uncore, fw_domains);
+
+	upper = intel_uncore_read_fw(uncore, upper_reg);
+	do {
+		old_upper = upper;
+		lower = intel_uncore_read_fw(uncore, lower_reg);
+		upper = intel_uncore_read_fw(uncore, upper_reg);
+	} while (upper != old_upper && loop++ < 2);
+
+	intel_uncore_forcewake_put__locked(uncore, fw_domains);
+	spin_unlock_irqrestore(&uncore->lock, flags);
+
+	return (u64)upper << 32 | lower;
 }
 
 static inline int intel_uncore_write_and_verify(struct intel_uncore *uncore,

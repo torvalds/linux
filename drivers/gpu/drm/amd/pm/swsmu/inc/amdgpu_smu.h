@@ -168,6 +168,7 @@ struct smu_temperature_range {
 	int mem_crit_max;
 	int mem_emergency_max;
 	int software_shutdown_temp;
+	int software_shutdown_temp_offset;
 };
 
 struct smu_state_validation_block {
@@ -568,6 +569,10 @@ struct smu_context
 	u32 param_reg;
 	u32 msg_reg;
 	u32 resp_reg;
+
+	u32 debug_param_reg;
+	u32 debug_msg_reg;
+	u32 debug_resp_reg;
 };
 
 struct i2c_adapter;
@@ -1196,6 +1201,8 @@ struct pptable_funcs {
 	 * IPs reset varies by asic.
 	 */
 	int (*mode2_reset)(struct smu_context *smu);
+	/* for gfx feature enablement after mode2 reset */
+	int (*enable_gfx_features)(struct smu_context *smu);
 
 	/**
 	 * @get_dpm_ultimate_freq: Get the hard frequency range of a clock

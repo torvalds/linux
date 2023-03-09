@@ -29,7 +29,7 @@ endif
 PARALLEL_OPT=
 ifeq ($(SET_PARALLEL),1)
   ifeq ($(JOBS),)
-    cores := $(shell (getconf _NPROCESSORS_ONLN || egrep -c '^processor|^CPU[0-9]' /proc/cpuinfo) 2>/dev/null)
+    cores := $(shell (getconf _NPROCESSORS_ONLN || grep -E -c '^processor|^CPU[0-9]' /proc/cpuinfo) 2>/dev/null)
     ifeq ($(cores),0)
       cores := 1
     endif
@@ -222,19 +222,7 @@ installed_files_bin := bin/perf
 installed_files_bin += etc/bash_completion.d/perf
 installed_files_bin += libexec/perf-core/perf-archive
 
-installed_files_plugins := $(lib)/traceevent/plugins/plugin_cfg80211.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_scsi.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_xen.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_function.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_sched_switch.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_mac80211.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_kvm.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_kmem.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_hrtimer.so
-installed_files_plugins += $(lib)/traceevent/plugins/plugin_jbd2.so
-
 installed_files_all := $(installed_files_bin)
-installed_files_all += $(installed_files_plugins)
 
 test_make_install       := $(call test_dest_files,$(installed_files_all))
 test_make_install_O     := $(call test_dest_files,$(installed_files_all))

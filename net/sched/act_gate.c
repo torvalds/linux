@@ -14,6 +14,7 @@
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gate.h>
+#include <net/tc_wrapper.h>
 
 static struct tc_action_ops act_gate_ops;
 
@@ -113,39 +114,42 @@ static enum hrtimer_restart gate_timer_func(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
-static int tcf_gate_act(struct sk_buff *skb, const struct tc_action *a,
-			struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_gate_act(struct sk_buff *skb,
+				   const struct tc_action *a,
+				   struct tcf_result *res)
 {
 	struct tcf_gate *gact = to_gate(a);
-
-	spin_lock(&gact->tcf_lock);
+	int action = READ_ONCE(gact->tcf_action);
 
 	tcf_lastuse_update(&gact->tcf_tm);
-	bstats_update(&gact->tcf_bstats, skb);
+	tcf_action_update_bstats(&gact->common, skb);
 
+	spin_lock(&gact->tcf_lock);
 	if (unlikely(gact->current_gate_status & GATE_ACT_PENDING)) {
 		spin_unlock(&gact->tcf_lock);
-		return gact->tcf_action;
+		return action;
 	}
 
-	if (!(gact->current_gate_status & GATE_ACT_GATE_OPEN))
+	if (!(gact->current_gate_status & GATE_ACT_GATE_OPEN)) {
+		spin_unlock(&gact->tcf_lock);
 		goto drop;
+	}
 
 	if (gact->current_max_octets >= 0) {
 		gact->current_entry_octets += qdisc_pkt_len(skb);
 		if (gact->current_entry_octets > gact->current_max_octets) {
-			gact->tcf_qstats.overlimits++;
-			goto drop;
+			spin_unlock(&gact->tcf_lock);
+			goto overlimit;
 		}
 	}
-
 	spin_unlock(&gact->tcf_lock);
 
-	return gact->tcf_action;
+	return action;
+
+overlimit:
+	tcf_action_inc_overlimit_qstats(&gact->common);
 drop:
-	gact->tcf_qstats.drops++;
-	spin_unlock(&gact->tcf_lock);
-
+	tcf_action_inc_drop_qstats(&gact->common);
 	return TC_ACT_SHOT;
 }
 
@@ -355,8 +359,8 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!err) {
-		ret = tcf_idr_create(tn, index, est, a,
-				     &act_gate_ops, bind, false, flags);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_gate_ops, bind, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

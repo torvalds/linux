@@ -33,6 +33,7 @@
 
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/debugfs.h>
 #include <linux/highmem.h>
 #include <linux/sched/mm.h>
 
@@ -41,8 +42,8 @@
 #endif
 
 #include <drm/ttm/ttm_pool.h>
-#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_tt.h>
+#include <drm/ttm/ttm_bo.h>
 
 #include "ttm_module.h"
 
@@ -344,6 +345,28 @@ static unsigned int ttm_pool_page_order(struct ttm_pool *pool, struct page *p)
 	return p->private;
 }
 
+/* Called when we got a page, either from a pool or newly allocated */
+static int ttm_pool_page_allocated(struct ttm_pool *pool, unsigned int order,
+				   struct page *p, dma_addr_t **dma_addr,
+				   unsigned long *num_pages,
+				   struct page ***pages)
+{
+	unsigned int i;
+	int r;
+
+	if (*dma_addr) {
+		r = ttm_pool_map(pool, order, p, dma_addr);
+		if (r)
+			return r;
+	}
+
+	*num_pages -= 1 << order;
+	for (i = 1 << order; i; --i, ++(*pages), ++p)
+		**pages = p;
+
+	return 0;
+}
+
 /**
  * ttm_pool_alloc - Fill a ttm_tt object
  *
@@ -385,17 +408,47 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 	for (order = min_t(unsigned int, MAX_ORDER - 1, __fls(num_pages));
 	     num_pages;
 	     order = min_t(unsigned int, order, __fls(num_pages))) {
-		bool apply_caching = false;
 		struct ttm_pool_type *pt;
 
 		pt = ttm_pool_select_type(pool, tt->caching, order);
 		p = pt ? ttm_pool_type_take(pt) : NULL;
 		if (p) {
-			apply_caching = true;
-		} else {
-			p = ttm_pool_alloc_page(pool, gfp_flags, order);
-			if (p && PageHighMem(p))
-				apply_caching = true;
+			r = ttm_pool_apply_caching(caching, pages,
+						   tt->caching);
+			if (r)
+				goto error_free_page;
+
+			do {
+				r = ttm_pool_page_allocated(pool, order, p,
+							    &dma_addr,
+							    &num_pages,
+							    &pages);
+				if (r)
+					goto error_free_page;
+
+				if (num_pages < (1 << order))
+					break;
+
+				p = ttm_pool_type_take(pt);
+			} while (p);
+			caching = pages;
+		}
+
+		while (num_pages >= (1 << order) &&
+		       (p = ttm_pool_alloc_page(pool, gfp_flags, order))) {
+
+			if (PageHighMem(p)) {
+				r = ttm_pool_apply_caching(caching, pages,
+							   tt->caching);
+				if (r)
+					goto error_free_page;
+			}
+			r = ttm_pool_page_allocated(pool, order, p, &dma_addr,
+						    &num_pages, &pages);
+			if (r)
+				goto error_free_page;
+			if (PageHighMem(p))
+				caching = pages;
 		}
 
 		if (!p) {
@@ -406,24 +459,6 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 			r = -ENOMEM;
 			goto error_free_all;
 		}
-
-		if (apply_caching) {
-			r = ttm_pool_apply_caching(caching, pages,
-						   tt->caching);
-			if (r)
-				goto error_free_page;
-			caching = pages + (1 << order);
-		}
-
-		if (dma_addr) {
-			r = ttm_pool_map(pool, order, p, &dma_addr);
-			if (r)
-				goto error_free_page;
-		}
-
-		num_pages -= 1 << order;
-		for (i = 1 << order; i; --i)
-			*(pages++) = p++;
 	}
 
 	r = ttm_pool_apply_caching(caching, pages, tt->caching);

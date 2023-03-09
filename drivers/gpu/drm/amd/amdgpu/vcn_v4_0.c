@@ -31,6 +31,7 @@
 #include "soc15_hw_ip.h"
 #include "vcn_v2_0.h"
 #include "mmsch_v4_0.h"
+#include "vcn_v4_0.h"
 
 #include "vcn/vcn_4_0_0_offset.h"
 #include "vcn/vcn_4_0_0_sh_mask.h"
@@ -64,13 +65,15 @@ static int vcn_v4_0_set_powergating_state(void *handle,
 static int vcn_v4_0_pause_dpg_mode(struct amdgpu_device *adev,
         int inst_idx, struct dpg_pause_state *new_state);
 static void vcn_v4_0_unified_ring_set_wptr(struct amdgpu_ring *ring);
+static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev);
 
 /**
- * vcn_v4_0_early_init - set function pointers
+ * vcn_v4_0_early_init - set function pointers and load microcode
  *
  * @handle: amdgpu_device pointer
  *
  * Set ring and irq function pointers
+ * Load microcode from filesystem
  */
 static int vcn_v4_0_early_init(void *handle)
 {
@@ -84,8 +87,9 @@ static int vcn_v4_0_early_init(void *handle)
 
 	vcn_v4_0_set_unified_ring_funcs(adev);
 	vcn_v4_0_set_irq_funcs(adev);
+	vcn_v4_0_set_ras_funcs(adev);
 
-	return 0;
+	return amdgpu_vcn_early_init(adev);
 }
 
 /**
@@ -122,6 +126,12 @@ static int vcn_v4_0_sw_init(void *handle)
 		/* VCN UNIFIED TRAP */
 		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
 				VCN_4_0__SRCID__UVD_ENC_GENERAL_PURPOSE, &adev->vcn.inst[i].irq);
+		if (r)
+			return r;
+
+		/* VCN POISON TRAP */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
+				VCN_4_0__SRCID_UVD_POISON, &adev->vcn.inst[i].irq);
 		if (r)
 			return r;
 
@@ -289,6 +299,7 @@ static int vcn_v4_0_hw_fini(void *handle)
 			}
 		}
 
+		amdgpu_irq_put(adev, &adev->vcn.inst[i].irq, 0);
 	}
 
 	return 0;
@@ -852,6 +863,28 @@ static void vcn_v4_0_enable_clock_gating(struct amdgpu_device *adev, int inst)
 	return;
 }
 
+static void vcn_v4_0_enable_ras(struct amdgpu_device *adev, int inst_idx,
+				bool indirect)
+{
+	uint32_t tmp;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN))
+		return;
+
+	tmp = VCN_RAS_CNTL__VCPU_VCODEC_REARM_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_IH_EN_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_PMI_EN_MASK |
+	      VCN_RAS_CNTL__VCPU_VCODEC_STALL_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, regVCN_RAS_CNTL),
+			      tmp, 0, indirect);
+
+	tmp = UVD_SYS_INT_EN__RASCNTL_VCPU_VCODEC_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, regUVD_SYS_INT_EN),
+			      tmp, 0, indirect);
+}
+
 /**
  * vcn_v4_0_start_dpg_mode - VCN start with dpg mode
  *
@@ -939,6 +972,8 @@ static int vcn_v4_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 	tmp = 0x1f << UVD_LMI_CTRL2__RE_OFLD_MIF_WR_REQ_NUM__SHIFT;
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 		VCN, inst_idx, regUVD_LMI_CTRL2), tmp, 0, indirect);
+
+	vcn_v4_0_enable_ras(adev, inst_idx, indirect);
 
 	/* enable master interrupt */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
@@ -1597,6 +1632,10 @@ static int vcn_v4_0_limit_sched(struct amdgpu_cs_parser *p,
 	if (atomic_read(&job->base.entity->fence_seq))
 		return -EINVAL;
 
+	/* if VCN0 is harvested, we can't support AV1 */
+	if (p->adev->vcn.harvest_config & AMDGPU_VCN_HARVEST_VCN0)
+		return -EINVAL;
+
 	scheds = p->adev->gpu_sched[AMDGPU_HW_IP_VCN_ENC]
 		[AMDGPU_RING_PRIO_0].sched;
 	drm_sched_entity_modify_sched(job->base.entity, scheds, 1);
@@ -1671,7 +1710,7 @@ static int vcn_v4_0_dec_msg(struct amdgpu_cs_parser *p, struct amdgpu_job *job,
 
 		create = ptr + addr + offset - start;
 
-		/* H246, HEVC and VP9 can run on any instance */
+		/* H264, HEVC and VP9 can run on any instance */
 		if (create[0] == 0x7 || create[0] == 0x10 || create[0] == 0x11)
 			continue;
 
@@ -1685,7 +1724,29 @@ out:
 	return r;
 }
 
-#define RADEON_VCN_ENGINE_TYPE_DECODE                                 (0x00000003)
+#define RADEON_VCN_ENGINE_TYPE_ENCODE			(0x00000002)
+#define RADEON_VCN_ENGINE_TYPE_DECODE			(0x00000003)
+
+#define RADEON_VCN_ENGINE_INFO				(0x30000001)
+#define RADEON_VCN_ENGINE_INFO_MAX_OFFSET		16
+
+#define RENCODE_ENCODE_STANDARD_AV1			2
+#define RENCODE_IB_PARAM_SESSION_INIT			0x00000003
+#define RENCODE_IB_PARAM_SESSION_INIT_MAX_OFFSET	64
+
+/* return the offset in ib if id is found, -1 otherwise
+ * to speed up the searching we only search upto max_offset
+ */
+static int vcn_v4_0_enc_find_ib_param(struct amdgpu_ib *ib, uint32_t id, int max_offset)
+{
+	int i;
+
+	for (i = 0; i < ib->length_dw && i < max_offset && ib->ptr[i] >= 8; i += ib->ptr[i]/4) {
+		if (ib->ptr[i + 1] == id)
+			return i;
+	}
+	return -1;
+}
 
 static int vcn_v4_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 					   struct amdgpu_job *job,
@@ -1695,27 +1756,35 @@ static int vcn_v4_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 	struct amdgpu_vcn_decode_buffer *decode_buffer;
 	uint64_t addr;
 	uint32_t val;
+	int idx;
 
 	/* The first instance can decode anything */
 	if (!ring->me)
 		return 0;
 
-	/* unified queue ib header has 8 double words. */
-	if (ib->length_dw < 8)
+	/* RADEON_VCN_ENGINE_INFO is at the top of ib block */
+	idx = vcn_v4_0_enc_find_ib_param(ib, RADEON_VCN_ENGINE_INFO,
+			RADEON_VCN_ENGINE_INFO_MAX_OFFSET);
+	if (idx < 0) /* engine info is missing */
 		return 0;
 
-	val = amdgpu_ib_get_value(ib, 6); //RADEON_VCN_ENGINE_TYPE
-	if (val != RADEON_VCN_ENGINE_TYPE_DECODE)
-		return 0;
+	val = amdgpu_ib_get_value(ib, idx + 2); /* RADEON_VCN_ENGINE_TYPE */
+	if (val == RADEON_VCN_ENGINE_TYPE_DECODE) {
+		decode_buffer = (struct amdgpu_vcn_decode_buffer *)&ib->ptr[idx + 6];
 
-	decode_buffer = (struct amdgpu_vcn_decode_buffer *)&ib->ptr[10];
+		if (!(decode_buffer->valid_buf_flag  & 0x1))
+			return 0;
 
-	if (!(decode_buffer->valid_buf_flag  & 0x1))
-		return 0;
-
-	addr = ((u64)decode_buffer->msg_buffer_address_hi) << 32 |
-		decode_buffer->msg_buffer_address_lo;
-	return vcn_v4_0_dec_msg(p, job, addr);
+		addr = ((u64)decode_buffer->msg_buffer_address_hi) << 32 |
+			decode_buffer->msg_buffer_address_lo;
+		return vcn_v4_0_dec_msg(p, job, addr);
+	} else if (val == RADEON_VCN_ENGINE_TYPE_ENCODE) {
+		idx = vcn_v4_0_enc_find_ib_param(ib, RENCODE_IB_PARAM_SESSION_INIT,
+			RENCODE_IB_PARAM_SESSION_INIT_MAX_OFFSET);
+		if (idx >= 0 && ib->ptr[idx + 2] == RENCODE_ENCODE_STANDARD_AV1)
+			return vcn_v4_0_limit_sched(p, job);
+	}
+	return 0;
 }
 
 static const struct amdgpu_ring_funcs vcn_v4_0_unified_ring_vm_funcs = {
@@ -1932,6 +2001,9 @@ static int vcn_v4_0_process_interrupt(struct amdgpu_device *adev, struct amdgpu_
 	case VCN_4_0__SRCID__UVD_ENC_GENERAL_PURPOSE:
 		amdgpu_fence_process(&adev->vcn.inst[ip_instance].ring_enc[0]);
 		break;
+	case VCN_4_0__SRCID_UVD_POISON:
+		amdgpu_vcn_process_poison_irq(adev, source, entry);
+		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
 			  entry->src_id, entry->src_data[0]);
@@ -1994,3 +2066,60 @@ const struct amdgpu_ip_block_version vcn_v4_0_ip_block =
 	.rev = 0,
 	.funcs = &vcn_v4_0_ip_funcs,
 };
+
+static uint32_t vcn_v4_0_query_poison_by_instance(struct amdgpu_device *adev,
+			uint32_t instance, uint32_t sub_block)
+{
+	uint32_t poison_stat = 0, reg_value = 0;
+
+	switch (sub_block) {
+	case AMDGPU_VCN_V4_0_VCPU_VCODEC:
+		reg_value = RREG32_SOC15(VCN, instance, regUVD_RAS_VCPU_VCODEC_STATUS);
+		poison_stat = REG_GET_FIELD(reg_value, UVD_RAS_VCPU_VCODEC_STATUS, POISONED_PF);
+		break;
+	default:
+		break;
+	}
+
+	if (poison_stat)
+		dev_info(adev->dev, "Poison detected in VCN%d, sub_block%d\n",
+			instance, sub_block);
+
+	return poison_stat;
+}
+
+static bool vcn_v4_0_query_ras_poison_status(struct amdgpu_device *adev)
+{
+	uint32_t inst, sub;
+	uint32_t poison_stat = 0;
+
+	for (inst = 0; inst < adev->vcn.num_vcn_inst; inst++)
+		for (sub = 0; sub < AMDGPU_VCN_V4_0_MAX_SUB_BLOCK; sub++)
+			poison_stat +=
+				vcn_v4_0_query_poison_by_instance(adev, inst, sub);
+
+	return !!poison_stat;
+}
+
+const struct amdgpu_ras_block_hw_ops vcn_v4_0_ras_hw_ops = {
+	.query_poison_status = vcn_v4_0_query_ras_poison_status,
+};
+
+static struct amdgpu_vcn_ras vcn_v4_0_ras = {
+	.ras_block = {
+		.hw_ops = &vcn_v4_0_ras_hw_ops,
+	},
+};
+
+static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[VCN_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
+		adev->vcn.ras = &vcn_v4_0_ras;
+		break;
+	default:
+		break;
+	}
+
+	amdgpu_vcn_set_ras_funcs(adev);
+}

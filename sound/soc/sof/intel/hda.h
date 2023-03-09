@@ -122,17 +122,17 @@
 #define SOF_HDA_ADSP_DPLBASE_ENABLE		0x01
 
 /* Stream Registers */
-#define SOF_HDA_ADSP_REG_CL_SD_CTL		0x00
-#define SOF_HDA_ADSP_REG_CL_SD_STS		0x03
-#define SOF_HDA_ADSP_REG_CL_SD_LPIB		0x04
-#define SOF_HDA_ADSP_REG_CL_SD_CBL		0x08
-#define SOF_HDA_ADSP_REG_CL_SD_LVI		0x0C
-#define SOF_HDA_ADSP_REG_CL_SD_FIFOW		0x0E
-#define SOF_HDA_ADSP_REG_CL_SD_FIFOSIZE		0x10
-#define SOF_HDA_ADSP_REG_CL_SD_FORMAT		0x12
-#define SOF_HDA_ADSP_REG_CL_SD_FIFOL		0x14
-#define SOF_HDA_ADSP_REG_CL_SD_BDLPL		0x18
-#define SOF_HDA_ADSP_REG_CL_SD_BDLPU		0x1C
+#define SOF_HDA_ADSP_REG_SD_CTL			0x00
+#define SOF_HDA_ADSP_REG_SD_STS			0x03
+#define SOF_HDA_ADSP_REG_SD_LPIB		0x04
+#define SOF_HDA_ADSP_REG_SD_CBL			0x08
+#define SOF_HDA_ADSP_REG_SD_LVI			0x0C
+#define SOF_HDA_ADSP_REG_SD_FIFOW		0x0E
+#define SOF_HDA_ADSP_REG_SD_FIFOSIZE		0x10
+#define SOF_HDA_ADSP_REG_SD_FORMAT		0x12
+#define SOF_HDA_ADSP_REG_SD_FIFOL		0x14
+#define SOF_HDA_ADSP_REG_SD_BDLPL		0x18
+#define SOF_HDA_ADSP_REG_SD_BDLPU		0x1C
 #define SOF_HDA_ADSP_SD_ENTRY_SIZE		0x20
 
 /* CL: Software Position Based FIFO Capability Registers */
@@ -294,6 +294,7 @@
 #define HDA_DSP_REG_ADSPIC2		(HDA_DSP_GEN_BASE + 0x10)
 #define HDA_DSP_REG_ADSPIS2		(HDA_DSP_GEN_BASE + 0x14)
 
+#define HDA_DSP_REG_ADSPIC2_SNDW	BIT(5)
 #define HDA_DSP_REG_ADSPIS2_SNDW	BIT(5)
 
 /* Intel HD Audio Inter-Processor Communication Registers */
@@ -307,6 +308,7 @@
 /* Intel Vendor Specific Registers */
 #define HDA_VS_INTEL_EM2		0x1030
 #define HDA_VS_INTEL_EM2_L1SEN		BIT(13)
+#define HDA_VS_INTEL_LTRP		0x1048
 #define HDA_VS_INTEL_LTRP_GB_MASK	0x3F
 
 /*  HIPCI */
@@ -481,6 +483,7 @@ enum sof_hda_D0_substate {
 struct sof_intel_hda_dev {
 	bool imrboot_supported;
 	bool skip_imr_boot;
+	bool booted_from_imr;
 
 	int boot_iteration;
 
@@ -521,6 +524,14 @@ struct sof_intel_hda_dev {
 
 	/* Intel NHLT information */
 	struct nhlt_acpi_table *nhlt;
+
+	/*
+	 * Pointing to the IPC message if immediate sending was not possible
+	 * because the downlink communication channel was BUSY at the time.
+	 * The message will be re-tried when the channel becomes free (the ACK
+	 * is received from the DSP for the previous message)
+	 */
+	struct snd_sof_ipc_msg *delayed_ipc_tx_msg;
 };
 
 static inline struct hdac_bus *sof_to_bus(struct snd_sof_dev *s)
@@ -581,6 +592,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev);
 int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev);
 int hda_dsp_runtime_resume(struct snd_sof_dev *sdev);
 int hda_dsp_runtime_idle(struct snd_sof_dev *sdev);
+int hda_dsp_shutdown_dma_flush(struct snd_sof_dev *sdev);
 int hda_dsp_shutdown(struct snd_sof_dev *sdev);
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev);
 void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags);
@@ -644,10 +656,10 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 			       int enable, u32 size);
 
 int hda_ipc_msg_data(struct snd_sof_dev *sdev,
-		     struct snd_pcm_substream *substream,
+		     struct snd_sof_pcm_stream *sps,
 		     void *p, size_t sz);
 int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
-			       struct snd_pcm_substream *substream,
+			       struct snd_sof_pcm_stream *sps,
 			       size_t posn_offset);
 
 /*
@@ -693,27 +705,51 @@ void hda_dsp_ctrl_ppcap_int_enable(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_link_reset(struct snd_sof_dev *sdev, bool reset);
 void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable);
-int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset);
+int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev);
 void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev);
 /*
  * HDA bus operations.
  */
-void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev);
+void sof_hda_bus_init(struct snd_sof_dev *sdev, struct device *dev);
+void sof_hda_bus_exit(struct snd_sof_dev *sdev);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 /*
  * HDA Codec operations.
  */
-void hda_codec_probe_bus(struct snd_sof_dev *sdev,
-			 bool hda_codec_use_common_hdmi);
+void hda_codec_probe_bus(struct snd_sof_dev *sdev);
 void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable);
 void hda_codec_jack_check(struct snd_sof_dev *sdev);
+void hda_codec_check_for_state_change(struct snd_sof_dev *sdev);
+void hda_codec_init_cmd_io(struct snd_sof_dev *sdev);
+void hda_codec_resume_cmd_io(struct snd_sof_dev *sdev);
+void hda_codec_stop_cmd_io(struct snd_sof_dev *sdev);
+void hda_codec_suspend_cmd_io(struct snd_sof_dev *sdev);
+void hda_codec_detect_mask(struct snd_sof_dev *sdev);
+void hda_codec_rirb_status_clear(struct snd_sof_dev *sdev);
+bool hda_codec_check_rirb_status(struct snd_sof_dev *sdev);
+void hda_codec_set_codec_wakeup(struct snd_sof_dev *sdev, bool status);
+void hda_codec_device_remove(struct snd_sof_dev *sdev);
 
-#endif /* CONFIG_SND_SOC_SOF_HDA */
+#else
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA) && \
-	(IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI) || \
-	 IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+static inline void hda_codec_probe_bus(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable) { }
+static inline void hda_codec_jack_check(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_check_for_state_change(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_init_cmd_io(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_resume_cmd_io(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_stop_cmd_io(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_suspend_cmd_io(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_detect_mask(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_rirb_status_clear(struct snd_sof_dev *sdev) { }
+static inline bool hda_codec_check_rirb_status(struct snd_sof_dev *sdev) { return false; }
+static inline void hda_codec_set_codec_wakeup(struct snd_sof_dev *sdev, bool status) { }
+static inline void hda_codec_device_remove(struct snd_sof_dev *sdev) { }
+
+#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC) && IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 
 void hda_codec_i915_display_power(struct snd_sof_dev *sdev, bool enable);
 int hda_codec_i915_init(struct snd_sof_dev *sdev);
@@ -721,12 +757,31 @@ int hda_codec_i915_exit(struct snd_sof_dev *sdev);
 
 #else
 
-static inline void hda_codec_i915_display_power(struct snd_sof_dev *sdev,
-						bool enable) { }
+static inline void hda_codec_i915_display_power(struct snd_sof_dev *sdev, bool enable) { }
 static inline int hda_codec_i915_init(struct snd_sof_dev *sdev) { return 0; }
 static inline int hda_codec_i915_exit(struct snd_sof_dev *sdev) { return 0; }
 
 #endif
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+
+void hda_bus_ml_get_capabilities(struct hdac_bus *bus);
+void hda_bus_ml_free(struct hdac_bus *bus);
+void hda_bus_ml_put_all(struct hdac_bus *bus);
+void hda_bus_ml_reset_losidv(struct hdac_bus *bus);
+int hda_bus_ml_resume(struct hdac_bus *bus);
+int hda_bus_ml_suspend(struct hdac_bus *bus);
+
+#else
+
+static inline void hda_bus_ml_get_capabilities(struct hdac_bus *bus) { }
+static inline void hda_bus_ml_free(struct hdac_bus *bus) { }
+static inline void hda_bus_ml_put_all(struct hdac_bus *bus) { }
+static inline void hda_bus_ml_reset_losidv(struct hdac_bus *bus) { }
+static inline int hda_bus_ml_resume(struct hdac_bus *bus) { return 0; }
+static inline int hda_bus_ml_suspend(struct hdac_bus *bus) { return 0; }
+
+#endif /* CONFIG_SND_SOC_SOF_HDA */
 
 /*
  * Trace Control.
@@ -741,16 +796,27 @@ int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd);
  */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
+int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev);
 int hda_sdw_startup(struct snd_sof_dev *sdev);
+void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable);
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable);
 void hda_sdw_process_wakeen(struct snd_sof_dev *sdev);
 bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev);
 
 #else
 
+static inline int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+
 static inline int hda_sdw_startup(struct snd_sof_dev *sdev)
 {
 	return 0;
+}
+
+static inline void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
+{
 }
 
 static inline void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
@@ -852,8 +918,14 @@ int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask);
 irqreturn_t cnl_ipc4_irq_thread(int irq, void *context);
 int cnl_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
 irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context);
+bool hda_ipc4_tx_is_busy(struct snd_sof_dev *sdev);
+void hda_dsp_ipc4_schedule_d0i3_work(struct sof_intel_hda_dev *hdev,
+				     struct snd_sof_ipc_msg *msg);
 int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
 void hda_ipc4_dump(struct snd_sof_dev *sdev);
 extern struct sdw_intel_ops sdw_callback;
 
+struct sof_ipc4_fw_library;
+int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
+			      struct sof_ipc4_fw_library *fw_lib, bool reload);
 #endif

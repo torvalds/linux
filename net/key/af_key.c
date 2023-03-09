@@ -1261,7 +1261,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 		const struct sadb_x_nat_t_type* n_type;
 		struct xfrm_encap_tmpl *natt;
 
-		x->encap = kmalloc(sizeof(*x->encap), GFP_KERNEL);
+		x->encap = kzalloc(sizeof(*x->encap), GFP_KERNEL);
 		if (!x->encap) {
 			err = -ENOMEM;
 			goto out;
@@ -1377,13 +1377,13 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, const struct sadb_
 		max_spi = range->sadb_spirange_max;
 	}
 
-	err = verify_spi_info(x->id.proto, min_spi, max_spi);
+	err = verify_spi_info(x->id.proto, min_spi, max_spi, NULL);
 	if (err) {
 		xfrm_state_put(x);
 		return err;
 	}
 
-	err = xfrm_alloc_spi(x, min_spi, max_spi);
+	err = xfrm_alloc_spi(x, min_spi, max_spi, NULL);
 	resp_skb = err ? ERR_PTR(err) : pfkey_xfrm_state2msg(x);
 
 	if (IS_ERR(resp_skb)) {
@@ -2626,7 +2626,7 @@ static int pfkey_migrate(struct sock *sk, struct sk_buff *skb,
 	}
 
 	return xfrm_migrate(&sel, dir, XFRM_POLICY_TYPE_MAIN, m, i,
-			    kma ? &k : NULL, net, NULL, 0);
+			    kma ? &k : NULL, net, NULL, 0, NULL);
 
  out:
 	return err;

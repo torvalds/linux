@@ -58,14 +58,15 @@ const struct address_space_operations afs_file_aops = {
 	.invalidate_folio = afs_invalidate_folio,
 	.write_begin	= afs_write_begin,
 	.write_end	= afs_write_end,
-	.writepage	= afs_writepage,
 	.writepages	= afs_writepages,
+	.migrate_folio	= filemap_migrate_folio,
 };
 
 const struct address_space_operations afs_symlink_aops = {
 	.read_folio	= afs_symlink_read_folio,
 	.release_folio	= afs_release_folio,
 	.invalidate_folio = afs_invalidate_folio,
+	.migrate_folio	= filemap_migrate_folio,
 };
 
 static const struct vm_operations_struct afs_vm_ops = {
@@ -324,7 +325,7 @@ static void afs_issue_read(struct netfs_io_subrequest *subreq)
 	fsreq->vnode	= vnode;
 	fsreq->iter	= &fsreq->def_iter;
 
-	iov_iter_xarray(&fsreq->def_iter, READ,
+	iov_iter_xarray(&fsreq->def_iter, ITER_DEST,
 			&fsreq->vnode->netfs.inode.i_mapping->i_pages,
 			fsreq->pos, fsreq->len);
 
@@ -346,7 +347,7 @@ static int afs_symlink_read_folio(struct file *file, struct folio *folio)
 	fsreq->len	= folio_size(folio);
 	fsreq->vnode	= vnode;
 	fsreq->iter	= &fsreq->def_iter;
-	iov_iter_xarray(&fsreq->def_iter, READ, &folio->mapping->i_pages,
+	iov_iter_xarray(&fsreq->def_iter, ITER_DEST, &folio->mapping->i_pages,
 			fsreq->pos, fsreq->len);
 
 	ret = afs_fetch_data(fsreq->vnode, fsreq);

@@ -33,6 +33,7 @@
 #include <skas.h>
 #include <registers.h>
 #include <linux/time-internal.h>
+#include <linux/elfcore.h>
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only
@@ -217,7 +218,6 @@ void arch_cpu_idle(void)
 {
 	cpu_tasks[current_thread_info()->cpu].pid = os_getpid();
 	um_idle_sleep();
-	raw_local_irq_enable();
 }
 
 int __cant_sleep(void) {
@@ -356,7 +356,7 @@ int singlestepping(void * t)
 unsigned long arch_align_stack(unsigned long sp)
 {
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
-		sp -= prandom_u32_max(8192);
+		sp -= get_random_u32_below(8192);
 	return sp & ~0xf;
 }
 #endif
@@ -393,7 +393,7 @@ unsigned long __get_wchan(struct task_struct *p)
 	return 0;
 }
 
-int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
 	int cpu = current_thread_info()->cpu;
 

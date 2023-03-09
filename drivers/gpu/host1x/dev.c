@@ -225,6 +225,18 @@ static const struct host1x_sid_entry tegra234_sid_table[] = {
 		.offset = 0x34,
 		.limit = 0x34
 	},
+	{
+		/* NVDEC channel */
+		.base = 0x17c8,
+		.offset = 0x30,
+		.limit = 0x30,
+	},
+	{
+		/* NVDEC MMIO */
+		.base = 0x1698,
+		.offset = 0x34,
+		.limit = 0x34,
+	},
 };
 
 static const struct host1x_info host1x08_info = {
@@ -504,7 +516,7 @@ static int host1x_probe(struct platform_device *pdev)
 			return PTR_ERR(host->regs);
 	}
 
-	syncpt_irq = platform_get_irq(pdev, 0);
+	host->syncpt_irq = platform_get_irq(pdev, 0);
 	if (syncpt_irq < 0)
 		return syncpt_irq;
 
@@ -566,7 +578,7 @@ static int host1x_probe(struct platform_device *pdev)
 		goto free_contexts;
 	}
 
-	err = host1x_intr_init(host, syncpt_irq);
+	err = host1x_intr_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize interrupts\n");
 		goto deinit_syncpt;

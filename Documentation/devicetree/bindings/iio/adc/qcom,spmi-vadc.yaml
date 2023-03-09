@@ -22,13 +22,11 @@ properties:
       - items:
           - const: qcom,pms405-adc
           - const: qcom,spmi-adc-rev2
-
-      - items:
-          - enum:
-              - qcom,spmi-vadc
-              - qcom,spmi-adc5
-              - qcom,spmi-adc-rev2
-              - qcom,spmi-adc7
+      - enum:
+          - qcom,spmi-vadc
+          - qcom,spmi-adc5
+          - qcom,spmi-adc-rev2
+          - qcom,spmi-adc7
 
   reg:
     description: VADC base address in the SPMI PMIC register map

@@ -5,7 +5,6 @@
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_transport.h"
-#include "adf_transport_access_macros.h"
 #include "adf_cfg.h"
 #include "adf_cfg_strings.h"
 #include "adf_gen2_hw_data.h"
@@ -71,7 +70,7 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 	}
 
 	if (!accel_dev) {
-		pr_info("QAT: Could not find a device on node %d\n", node);
+		pr_debug_ratelimited("QAT: Could not find a device on node %d\n", node);
 		/* Get any started device */
 		list_for_each_entry(tmp_dev, adf_devmgr_get_head(), list) {
 			if (adf_dev_started(tmp_dev) &&
@@ -126,125 +125,8 @@ int qat_crypto_vf_dev_config(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
-	return qat_crypto_dev_config(accel_dev);
+	return GET_HW_DATA(accel_dev)->dev_config(accel_dev);
 }
-
-/**
- * qat_crypto_dev_config() - create dev config required to create crypto inst.
- *
- * @accel_dev: Pointer to acceleration device.
- *
- * Function creates device configuration required to create crypto instances
- *
- * Return: 0 on success, error code otherwise.
- */
-int qat_crypto_dev_config(struct adf_accel_dev *accel_dev)
-{
-	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
-	int banks = GET_MAX_BANKS(accel_dev);
-	int cpus = num_online_cpus();
-	unsigned long val;
-	int instances;
-	int ret;
-	int i;
-
-	if (adf_hw_dev_has_crypto(accel_dev))
-		instances = min(cpus, banks);
-	else
-		instances = 0;
-
-	ret = adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC);
-	if (ret)
-		goto err;
-
-	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
-	if (ret)
-		goto err;
-
-	for (i = 0; i < instances; i++) {
-		val = i;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_BANK_NUM, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_BANK_NUM, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_ETRMGR_CORE_AFFINITY,
-			 i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_SIZE, i);
-		val = 128;
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 512;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_SIZE, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 0;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 2;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_TX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 8;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 10;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_RX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = ADF_COALESCING_DEF_TIME;
-		snprintf(key, sizeof(key), ADF_ETRMGR_COALESCE_TIMER_FORMAT, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-	}
-
-	val = i;
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
-					  &val, ADF_DEC);
-	if (ret)
-		goto err;
-
-	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
-	return 0;
-err:
-	dev_err(&GET_DEV(accel_dev), "Failed to start QAT accel dev\n");
-	return ret;
-}
-EXPORT_SYMBOL_GPL(qat_crypto_dev_config);
 
 static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 {

@@ -81,11 +81,10 @@ ext2_last_byte(struct inode *inode, unsigned long page_nr)
 	return last_byte;
 }
 
-static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
+static void ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
 {
 	struct address_space *mapping = page->mapping;
 	struct inode *dir = mapping->host;
-	int err = 0;
 
 	inode_inc_iversion(dir);
 	block_write_end(NULL, mapping, pos, len, len, page, NULL);
@@ -94,16 +93,7 @@ static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
 		i_size_write(dir, pos+len);
 		mark_inode_dirty(dir);
 	}
-
-	if (IS_DIRSYNC(dir)) {
-		err = write_one_page(page);
-		if (!err)
-			err = sync_inode_metadata(dir, 1);
-	} else {
-		unlock_page(page);
-	}
-
-	return err;
+	unlock_page(page);
 }
 
 static bool ext2_check_page(struct page *page, int quiet, char *kaddr)
@@ -413,7 +403,7 @@ found:
 	return de;
 }
 
-/**
+/*
  * Return the '..' directory entry and the page in which the entry was found
  * (as a parameter - p).
  *
@@ -460,9 +450,20 @@ static int ext2_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 	return __block_write_begin(page, pos, len, ext2_get_block);
 }
 
-void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
-		   struct page *page, void *page_addr, struct inode *inode,
-		   int update_times)
+
+static int ext2_handle_dirsync(struct inode *dir)
+{
+	int err;
+
+	err = filemap_write_and_wait(dir->i_mapping);
+	if (!err)
+		err = sync_inode_metadata(dir, 1);
+	return err;
+}
+
+int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
+		struct page *page, void *page_addr, struct inode *inode,
+		bool update_times)
 {
 	loff_t pos = page_offset(page) +
 			(char *) de - (char *) page_addr;
@@ -471,14 +472,18 @@ void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
 
 	lock_page(page);
 	err = ext2_prepare_chunk(page, pos, len);
-	BUG_ON(err);
+	if (err) {
+		unlock_page(page);
+		return err;
+	}
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type(de, inode);
-	err = ext2_commit_chunk(page, pos, len);
+	ext2_commit_chunk(page, pos, len);
 	if (update_times)
 		dir->i_mtime = dir->i_ctime = current_time(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
+	return ext2_handle_dirsync(dir);
 }
 
 /*
@@ -566,10 +571,11 @@ got_it:
 	memcpy(de->name, name, namelen);
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type (de, inode);
-	err = ext2_commit_chunk(page, pos, rec_len);
+	ext2_commit_chunk(page, pos, rec_len);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
+	err = ext2_handle_dirsync(dir);
 	/* OFFSET_CACHE */
 out_put:
 	ext2_put_page(page, page_addr);
@@ -615,10 +621,11 @@ int ext2_delete_entry (struct ext2_dir_entry_2 *dir, struct page *page,
 	if (pde)
 		pde->rec_len = ext2_rec_len_to_disk(to - from);
 	dir->inode = 0;
-	err = ext2_commit_chunk(page, pos, to - from);
+	ext2_commit_chunk(page, pos, to - from);
 	inode->i_ctime = inode->i_mtime = current_time(inode);
 	EXT2_I(inode)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(inode);
+	err = ext2_handle_dirsync(inode);
 out:
 	return err;
 }
@@ -642,7 +649,7 @@ int ext2_make_empty(struct inode *inode, struct inode *parent)
 		unlock_page(page);
 		goto fail;
 	}
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_page(page);
 	memset(kaddr, 0, chunk_size);
 	de = (struct ext2_dir_entry_2 *)kaddr;
 	de->name_len = 1;
@@ -657,8 +664,9 @@ int ext2_make_empty(struct inode *inode, struct inode *parent)
 	de->inode = cpu_to_le32(parent->i_ino);
 	memcpy (de->name, "..\0", 4);
 	ext2_set_de_type (de, inode);
-	kunmap_atomic(kaddr);
-	err = ext2_commit_chunk(page, 0, chunk_size);
+	kunmap_local(kaddr);
+	ext2_commit_chunk(page, 0, chunk_size);
+	err = ext2_handle_dirsync(inode);
 fail:
 	put_page(page);
 	return err;
@@ -679,7 +687,7 @@ int ext2_empty_dir (struct inode * inode)
 		page = ext2_get_page(inode, i, 0, &page_addr);
 
 		if (IS_ERR(page))
-			goto not_empty;
+			return 0;
 
 		kaddr = page_addr;
 		de = (ext2_dirent *)kaddr;

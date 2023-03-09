@@ -858,11 +858,14 @@ static int xiic_i2c_remove(struct platform_device *pdev)
 	/* remove adapter & data */
 	i2c_del_adapter(&i2c->adap);
 
-	ret = pm_runtime_resume_and_get(i2c->dev);
-	if (ret < 0)
-		return ret;
+	ret = pm_runtime_get_sync(i2c->dev);
 
-	xiic_deinit(i2c);
+	if (ret < 0)
+		dev_warn(&pdev->dev, "Failed to activate device for removal (%pe)\n",
+			 ERR_PTR(ret));
+	else
+		xiic_deinit(i2c);
+
 	pm_runtime_put_sync(i2c->dev);
 	clk_disable_unprepare(i2c->clk);
 	pm_runtime_disable(&pdev->dev);

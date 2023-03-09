@@ -18,6 +18,7 @@ config NET_DSA_BCM_SF2
 
 config NET_DSA_LOOP
 	tristate "DSA mock-up Ethernet switch chip support"
+	select NET_DSA_TAG_NONE
 	select FIXED_PHY
 	help
 	  This enables support for a fake mock-up switch chip which
@@ -34,12 +35,13 @@ config NET_DSA_LANTIQ_GSWIP
 	  the xrx200 / VR9 SoC.
 
 config NET_DSA_MT7530
-	tristate "MediaTek MT753x and MT7621 Ethernet switch support"
+	tristate "MediaTek MT7530 and MT7531 Ethernet switch support"
 	select NET_DSA_TAG_MTK
 	select MEDIATEK_GE_PHY
 	help
-	  This enables support for the MediaTek MT7530, MT7531, and MT7621
-	  Ethernet switch chips.
+	  This enables support for the MediaTek MT7530 and MT7531 Ethernet
+	  switch chips. Multi-chip module MT7530 in MT7621AT, MT7621DAT,
+	  MT7621ST and MT7623AI SoCs is supported.
 
 config NET_DSA_MV88E6060
 	tristate "Marvell 88E6060 ethernet switch chip support"
@@ -99,6 +101,7 @@ config NET_DSA_SMSC_LAN9303_MDIO
 
 config NET_DSA_VITESSE_VSC73XX
 	tristate
+	select NET_DSA_TAG_NONE
 	select FIXED_PHY
 	select VITESSE_PHY
 	select GPIOLIB

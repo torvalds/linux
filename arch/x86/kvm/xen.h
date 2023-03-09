@@ -143,11 +143,11 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
 #include <asm/xen/interface.h>
 #include <xen/interface/vcpu.h>
 
-void kvm_xen_update_runstate_guest(struct kvm_vcpu *vcpu, int state);
+void kvm_xen_update_runstate(struct kvm_vcpu *vcpu, int state);
 
 static inline void kvm_xen_runstate_set_running(struct kvm_vcpu *vcpu)
 {
-	kvm_xen_update_runstate_guest(vcpu, RUNSTATE_running);
+	kvm_xen_update_runstate(vcpu, RUNSTATE_running);
 }
 
 static inline void kvm_xen_runstate_set_preempted(struct kvm_vcpu *vcpu)
@@ -162,7 +162,7 @@ static inline void kvm_xen_runstate_set_preempted(struct kvm_vcpu *vcpu)
 	if (WARN_ON_ONCE(!vcpu->preempted))
 		return;
 
-	kvm_xen_update_runstate_guest(vcpu, RUNSTATE_runnable);
+	kvm_xen_update_runstate(vcpu, RUNSTATE_runnable);
 }
 
 /* 32-bit compatibility definitions, also used natively in 32-bit build */
@@ -206,5 +206,12 @@ struct compat_vcpu_runstate_info {
     uint64_t state_entry_time;
     uint64_t time[4];
 } __attribute__((packed));
+
+struct compat_sched_poll {
+	/* This is actually a guest virtual address which points to ports. */
+	uint32_t ports;
+	unsigned int nr_ports;
+	uint64_t timeout;
+};
 
 #endif /* __ARCH_X86_KVM_XEN_H__ */

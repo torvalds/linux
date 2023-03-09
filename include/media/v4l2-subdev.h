@@ -38,6 +38,7 @@ struct v4l2_subdev;
 struct v4l2_subdev_fh;
 struct tuner_setup;
 struct v4l2_mbus_frame_desc;
+struct led_classdev;
 
 /**
  * struct v4l2_decode_vbi_line - used to decode_vbi_line
@@ -176,7 +177,10 @@ struct v4l2_subdev_io_pin_config {
  * @s_register: callback for VIDIOC_DBG_S_REGISTER() ioctl handler code.
  *
  * @s_power: puts subdevice in power saving mode (on == 0) or normal operation
- *	mode (on == 1).
+ *	mode (on == 1). DEPRECATED. See
+ *	Documentation/driver-api/media/camera-sensor.rst . pre_streamon and
+ *	post_streamoff callbacks can be used for e.g. setting the bus to LP-11
+ *	mode before s_stream is called.
  *
  * @interrupt_service_routine: Called by the bridge chip's interrupt service
  *	handler, when an interrupt status has be raised due to this subdev,
@@ -437,8 +441,10 @@ enum v4l2_subdev_pre_streamon_flags {
  * @g_input_status: get input status. Same as the status field in the
  *	&struct v4l2_input
  *
- * @s_stream: used to notify the driver that a video stream will start or has
- *	stopped.
+ * @s_stream: start (enabled == 1) or stop (enabled == 0) streaming on the
+ *	sub-device. Failure on stop will remove any resources acquired in
+ *	streaming start, while the error code is still returned by the driver.
+ *	Also see call_s_stream wrapper in v4l2-subdev.c.
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
@@ -936,6 +942,7 @@ struct v4l2_subdev_platform_data {
  * @state_lock: A pointer to a lock used for all the subdev's states, set by the
  *		driver. This is	optional. If NULL, each state instance will get
  *		a lock of its own.
+ * @privacy_led: Optional pointer to a LED classdev for the privacy LED for sensors.
  * @active_state: Active state for the subdev (NULL for subdevs tracking the
  *		  state internally). Initialized by calling
  *		  v4l2_subdev_init_finalize().
@@ -976,6 +983,8 @@ struct v4l2_subdev {
 	 * The fields below are private, and should only be accessed via
 	 * appropriate functions.
 	 */
+
+	struct led_classdev *privacy_led;
 
 	/*
 	 * TODO: active_state should most likely be changed from a pointer to an

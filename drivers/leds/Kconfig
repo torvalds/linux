@@ -244,14 +244,6 @@ config LEDS_MT6323
 	  This option enables support for on-chip LED drivers found on
 	  Mediatek MT6323 PMIC.
 
-config LEDS_S3C24XX
-	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
-	depends on LEDS_CLASS
-	depends on ARCH_S3C24XX || COMPILE_TEST
-	help
-	  This option enables support for LEDs connected to GPIO lines
-	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
-
 config LEDS_NET48XX
 	tristate "LED Support for Soekris net48xx series Error LED"
 	depends on LEDS_CLASS

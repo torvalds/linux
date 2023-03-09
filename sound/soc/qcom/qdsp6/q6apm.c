@@ -27,6 +27,8 @@ struct apm_graph_mgmt_cmd {
 
 #define APM_GRAPH_MGMT_PSIZE(p, n) ALIGN(struct_size(p, sub_graph_id_list, n), 8)
 
+struct q6apm *g_apm;
+
 int q6apm_send_cmd_sync(struct q6apm *apm, struct gpr_pkt *pkt, uint32_t rsp_opcode)
 {
 	gpr_device_t *gdev = apm->gdev;
@@ -63,7 +65,7 @@ static struct audioreach_graph *q6apm_get_audioreach_graph(struct q6apm *apm, ui
 	graph->info = info;
 	graph->id = graph_id;
 
-	graph->graph = audioreach_alloc_graph_pkt(apm, &info->sg_list, graph_id);
+	graph->graph = audioreach_alloc_graph_pkt(apm, info);
 	if (IS_ERR(graph->graph)) {
 		void *err = graph->graph;
 
@@ -143,6 +145,7 @@ static void q6apm_put_audioreach_graph(struct kref *ref)
 	kfree(graph);
 }
 
+
 static int q6apm_get_apm_state(struct q6apm *apm)
 {
 	struct gpr_pkt *pkt;
@@ -157,6 +160,15 @@ static int q6apm_get_apm_state(struct q6apm *apm)
 
 	return apm->state;
 }
+
+bool q6apm_is_adsp_ready(void)
+{
+	if (g_apm)
+		return q6apm_get_apm_state(g_apm);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(q6apm_is_adsp_ready);
 
 static struct audioreach_module *__q6apm_find_module_by_mid(struct q6apm *apm,
 						    struct audioreach_graph_info *info,
@@ -176,87 +188,6 @@ static struct audioreach_module *__q6apm_find_module_by_mid(struct q6apm *apm,
 	}
 
 	return NULL;
-}
-
-static struct audioreach_module *q6apm_graph_get_last_module(struct q6apm *apm, u32 sgid)
-{
-	struct audioreach_container *container;
-	struct audioreach_module *module;
-	struct audioreach_sub_graph *sg;
-
-	mutex_lock(&apm->lock);
-	sg = idr_find(&apm->sub_graphs_idr, sgid);
-	mutex_unlock(&apm->lock);
-	if (!sg)
-		return NULL;
-
-	container = list_last_entry(&sg->container_list, struct audioreach_container, node);
-	module = audioreach_get_container_last_module(container);
-
-	return module;
-}
-
-static struct audioreach_module *q6apm_graph_get_first_module(struct q6apm *apm, u32 sgid)
-{
-	struct audioreach_container *container;
-	struct audioreach_module *module;
-	struct audioreach_sub_graph *sg;
-
-	mutex_lock(&apm->lock);
-	sg = idr_find(&apm->sub_graphs_idr, sgid);
-	mutex_unlock(&apm->lock);
-	if (!sg)
-		return NULL;
-
-	container = list_first_entry(&sg->container_list, struct audioreach_container, node);
-	module = audioreach_get_container_first_module(container);
-
-	return module;
-}
-
-bool q6apm_is_sub_graphs_connected(struct q6apm *apm, u32 src_sgid, u32 dst_sgid)
-{
-	struct audioreach_module *module;
-	u32 iid;
-
-	module = q6apm_graph_get_last_module(apm, src_sgid);
-	if (!module)
-		return false;
-
-	iid = module->instance_id;
-	module = q6apm_graph_get_first_module(apm, dst_sgid);
-	if (!module)
-		return false;
-
-	if (module->src_mod_inst_id == iid)
-		return true;
-
-	return false;
-}
-
-int q6apm_connect_sub_graphs(struct q6apm *apm, u32 src_sgid, u32 dst_sgid, bool connect)
-{
-	struct audioreach_module *module;
-	u32 iid;
-
-	if (connect) {
-		module = q6apm_graph_get_last_module(apm, src_sgid);
-		if (!module)
-			return -ENODEV;
-
-		iid = module->instance_id;
-	} else {
-		iid = 0;
-	}
-
-	module = q6apm_graph_get_first_module(apm, dst_sgid);
-	if (!module)
-		return -ENODEV;
-
-	/* set src module in dst subgraph first module */
-	module->src_mod_inst_id = iid;
-
-	return 0;
 }
 
 int q6apm_graph_media_format_shmem(struct q6apm_graph *graph,
@@ -731,12 +662,15 @@ static int apm_probe(gpr_device_t *gdev)
 	apm->gdev = gdev;
 	init_waitqueue_head(&apm->wait);
 
+	INIT_LIST_HEAD(&apm->widget_list);
 	idr_init(&apm->graph_idr);
 	idr_init(&apm->graph_info_idr);
 	idr_init(&apm->sub_graphs_idr);
 	idr_init(&apm->containers_idr);
 
 	idr_init(&apm->modules_idr);
+
+	g_apm = apm;
 
 	q6apm_get_apm_state(apm);
 

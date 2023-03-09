@@ -1,5 +1,3 @@
-.. _admin_guide_ksm:
-
 =======================
 Kernel Samepage Merging
 =======================

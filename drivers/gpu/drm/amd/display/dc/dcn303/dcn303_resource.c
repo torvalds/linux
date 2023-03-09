@@ -29,7 +29,7 @@
 
 #include "dcn10/dcn10_resource.h"
 
-#include "dc_link_ddc.h"
+#include "link.h"
 
 #include "dce/dce_abm.h"
 #include "dce/dce_audio.h"
@@ -96,7 +96,13 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.dwb_fi_phase = -1, // -1 = disable
 		.dmub_command_table = true,
 		.enable_tri_buf = true,
-		.disable_psr = true,
+};
+
+static const struct dc_panel_config panel_config_defaults = {
+		.psr = {
+			.disable_psr = false,
+			.disallow_psrsu = false,
+		},
 };
 
 enum dcn303_clk_src_array_id {
@@ -156,7 +162,6 @@ static const struct dc_plane_cap plane_cap = {
 		mm ## reg_name
 
 /* DCN */
-#undef BASE_INNER
 #define BASE_INNER(seg) DCN_BASE__INST0_SEG ## seg
 
 #define BASE(seg) BASE_INNER(seg)
@@ -188,6 +193,9 @@ static const struct dc_plane_cap plane_cap = {
 #define SRII_DWB(reg_name, temp_name, block, id)\
 		.reg_name[id] = BASE(mm ## block ## id ## _ ## temp_name ## _BASE_IDX) + \
 		mm ## block ## id ## _ ## temp_name
+
+#define SF_DWB2(reg_name, block, id, field_name, post_fix)	\
+	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define SRII_MPC_RMU(reg_name, block, id)\
 		.RMU##_##reg_name[id] = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
@@ -425,6 +433,7 @@ static struct clock_source *dcn303_clock_source_create(struct dc_context *ctx, s
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
@@ -1045,7 +1054,7 @@ static void dcn303_resource_destruct(struct resource_pool *pool)
 		dcn_dccg_destroy(&pool->dccg);
 
 	if (pool->oem_device != NULL)
-		dal_ddc_service_destroy(&pool->oem_device);
+		link_destroy_ddc_service(&pool->oem_device);
 }
 
 static void dcn303_destroy_resource_pool(struct resource_pool **pool)
@@ -1055,6 +1064,10 @@ static void dcn303_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
+static void dcn303_get_panel_config_defaults(struct dc_panel_config *panel_config)
+{
+	*panel_config = panel_config_defaults;
+}
 
 void dcn303_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
@@ -1082,6 +1095,7 @@ static struct resource_funcs dcn303_res_pool_funcs = {
 		.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 		.update_bw_bounding_box = dcn303_update_bw_bounding_box,
 		.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+		.get_panel_config_defaults = dcn303_get_panel_config_defaults,
 };
 
 static struct dc_cap_funcs cap_funcs = {
@@ -1197,6 +1211,8 @@ static bool dcn303_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	dc->caps.dp_hdmi21_pcon_support = true;
 
 	/* read VBIOS LTTPR caps */
 	if (ctx->dc_bios->funcs->get_lttpr_caps) {
@@ -1405,7 +1421,7 @@ static bool dcn303_resource_construct(
 		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
 		ddc_init_data.id.enum_id = 0;
 		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
-		pool->oem_device = dal_ddc_service_create(&ddc_init_data);
+		pool->oem_device = link_create_ddc_service(&ddc_init_data);
 	} else {
 		pool->oem_device = NULL;
 	}

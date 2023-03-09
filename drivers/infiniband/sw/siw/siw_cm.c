@@ -16,6 +16,7 @@
 #include <net/tcp.h>
 #include <linux/inet.h>
 #include <linux/tcp.h>
+#include <trace/events/sock.h>
 
 #include <rdma/iw_cm.h>
 #include <rdma/ib_verbs.h>
@@ -108,6 +109,8 @@ static void siw_rtr_data_ready(struct sock *sk)
 	struct siw_cep *cep;
 	struct siw_qp *qp = NULL;
 	read_descriptor_t rd_desc;
+
+	trace_sk_data_ready(sk);
 
 	read_lock(&sk->sk_callback_lock);
 
@@ -1215,6 +1218,8 @@ int siw_cm_queue_work(struct siw_cep *cep, enum siw_work_type type)
 static void siw_cm_llp_data_ready(struct sock *sk)
 {
 	struct siw_cep *cep;
+
+	trace_sk_data_ready(sk);
 
 	read_lock(&sk->sk_callback_lock);
 

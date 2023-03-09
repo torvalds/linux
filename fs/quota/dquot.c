@@ -2085,7 +2085,7 @@ EXPORT_SYMBOL(__dquot_transfer);
 /* Wrapper for transferring ownership of an inode for uid/gid only
  * Called from FSXXX_setattr()
  */
-int dquot_transfer(struct user_namespace *mnt_userns, struct inode *inode,
+int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 		   struct iattr *iattr)
 {
 	struct dquot *transfer_to[MAXQUOTAS] = {};
@@ -2096,8 +2096,8 @@ int dquot_transfer(struct user_namespace *mnt_userns, struct inode *inode,
 	if (!dquot_active(inode))
 		return 0;
 
-	if (i_uid_needs_update(mnt_userns, iattr, inode)) {
-		kuid_t kuid = from_vfsuid(mnt_userns, i_user_ns(inode),
+	if (i_uid_needs_update(idmap, iattr, inode)) {
+		kuid_t kuid = from_vfsuid(idmap, i_user_ns(inode),
 					  iattr->ia_vfsuid);
 
 		dquot = dqget(sb, make_kqid_uid(kuid));
@@ -2110,8 +2110,8 @@ int dquot_transfer(struct user_namespace *mnt_userns, struct inode *inode,
 		}
 		transfer_to[USRQUOTA] = dquot;
 	}
-	if (i_gid_needs_update(mnt_userns, iattr, inode)) {
-		kgid_t kgid = from_vfsgid(mnt_userns, i_user_ns(inode),
+	if (i_gid_needs_update(idmap, iattr, inode)) {
+		kgid_t kgid = from_vfsgid(idmap, i_user_ns(inode),
 					  iattr->ia_vfsgid);
 
 		dquot = dqget(sb, make_kqid_gid(kgid));
@@ -2324,6 +2324,8 @@ static int vfs_setup_quota_inode(struct inode *inode, int type)
 	struct super_block *sb = inode->i_sb;
 	struct quota_info *dqopt = sb_dqopt(sb);
 
+	if (is_bad_inode(inode))
+		return -EUCLEAN;
 	if (!S_ISREG(inode->i_mode))
 		return -EACCES;
 	if (IS_RDONLY(inode))

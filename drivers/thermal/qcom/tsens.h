@@ -6,6 +6,7 @@
 #ifndef __QCOM_TSENS_H__
 #define __QCOM_TSENS_H__
 
+#define NO_PT_CALIB		0x0
 #define ONE_PT_CALIB		0x1
 #define ONE_PT_CALIB2		0x2
 #define TWO_PT_CALIB		0x3
@@ -16,6 +17,8 @@
 #define TIMEOUT_US		100
 #define THRESHOLD_MAX_ADC_CODE	0x3ff
 #define THRESHOLD_MIN_ADC_CODE	0x0
+
+#define MAX_SENSORS 16
 
 #include <linux/interrupt.h>
 #include <linux/thermal.h>
@@ -493,19 +496,25 @@ enum regfield_ids {
  * struct tsens_features - Features supported by the IP
  * @ver_major: Major number of IP version
  * @crit_int: does the IP support critical interrupts?
+ * @combo_int: does the IP use one IRQ for up, low and critical thresholds?
  * @adc:      do the sensors only output adc code (instead of temperature)?
  * @srot_split: does the IP neatly splits the register space into SROT and TM,
  *              with SROT only being available to secure boot firmware?
  * @has_watchdog: does this IP support watchdog functionality?
  * @max_sensors: maximum sensors supported by this version of the IP
+ * @trip_min_temp: minimum trip temperature supported by this version of the IP
+ * @trip_max_temp: maximum trip temperature supported by this version of the IP
  */
 struct tsens_features {
 	unsigned int ver_major;
 	unsigned int crit_int:1;
+	unsigned int combo_int:1;
 	unsigned int adc:1;
 	unsigned int srot_split:1;
 	unsigned int has_watchdog:1;
 	unsigned int max_sensors;
+	int trip_min_temp;
+	int trip_max_temp;
 };
 
 /**
@@ -575,7 +584,48 @@ struct tsens_priv {
 	struct tsens_sensor		sensor[];
 };
 
+/**
+ * struct tsens_single_value - internal representation of a single field inside nvmem calibration data
+ * @idx: index into the u32 data array
+ * @shift: the shift of the first bit in the value
+ * @blob: index of the data blob to use for this cell
+ */
+struct tsens_single_value {
+	u8 idx;
+	u8 shift;
+	u8 blob;
+};
+
+/**
+ * struct tsens_legacy_calibration_format - description of calibration data used when parsing the legacy nvmem blob
+ * @base_len: the length of the base fields inside calibration data
+ * @base_shift: the shift to be applied to base data
+ * @sp_len: the length of the sN_pM fields inside calibration data
+ * @mode: descriptor of the calibration mode field
+ * @invalid: descriptor of the calibration mode invalid field
+ * @base: descriptors of the base0 and base1 fields
+ * @sp: descriptors of the sN_pM fields
+ */
+struct tsens_legacy_calibration_format {
+	unsigned int base_len;
+	unsigned int base_shift;
+	unsigned int sp_len;
+	/* just two bits */
+	struct tsens_single_value mode;
+	/* on all platforms except 8974 invalid is the third bit of what downstream calls 'mode' */
+	struct tsens_single_value invalid;
+	struct tsens_single_value base[2];
+	struct tsens_single_value sp[][2];
+};
+
 char *qfprom_read(struct device *dev, const char *cname);
+int tsens_read_calibration_legacy(struct tsens_priv *priv,
+				  const struct tsens_legacy_calibration_format *format,
+				  u32 *p1, u32 *p2,
+				  u32 *cdata, u32 *csel);
+int tsens_read_calibration(struct tsens_priv *priv, int shift, u32 *p1, u32 *p2, bool backup);
+int tsens_calibrate_nvmem(struct tsens_priv *priv, int shift);
+int tsens_calibrate_common(struct tsens_priv *priv);
 void compute_intercept_slope(struct tsens_priv *priv, u32 *pt1, u32 *pt2, u32 mode);
 int init_common(struct tsens_priv *priv);
 int get_temp_tsens_valid(const struct tsens_sensor *s, int *temp);
@@ -588,9 +638,9 @@ extern struct tsens_plat_data data_8960;
 extern struct tsens_plat_data data_8916, data_8939, data_8974, data_9607;
 
 /* TSENS v1 targets */
-extern struct tsens_plat_data data_tsens_v1, data_8976;
+extern struct tsens_plat_data data_tsens_v1, data_8976, data_8956;
 
 /* TSENS v2 targets */
-extern struct tsens_plat_data data_8996, data_tsens_v2;
+extern struct tsens_plat_data data_8996, data_ipq8074, data_tsens_v2;
 
 #endif /* __QCOM_TSENS_H__ */

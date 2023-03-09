@@ -10,37 +10,11 @@
 #include "mvm.h"
 #include "fw-api.h"
 
-static void *iwl_mvm_skb_get_hdr(struct sk_buff *skb)
-{
-	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	u8 *data = skb->data;
-
-	/* Alignment concerns */
-	BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_he) % 4);
-	BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_he_mu) % 4);
-	BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_lsig) % 4);
-	BUILD_BUG_ON(sizeof(struct ieee80211_vendor_radiotap) % 4);
-
-	if (rx_status->flag & RX_FLAG_RADIOTAP_HE)
-		data += sizeof(struct ieee80211_radiotap_he);
-	if (rx_status->flag & RX_FLAG_RADIOTAP_HE_MU)
-		data += sizeof(struct ieee80211_radiotap_he_mu);
-	if (rx_status->flag & RX_FLAG_RADIOTAP_LSIG)
-		data += sizeof(struct ieee80211_radiotap_lsig);
-	if (rx_status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA) {
-		struct ieee80211_vendor_radiotap *radiotap = (void *)data;
-
-		data += sizeof(*radiotap) + radiotap->len + radiotap->pad;
-	}
-
-	return data;
-}
-
 static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 				   int queue, struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta;
-	struct ieee80211_hdr *hdr = iwl_mvm_skb_get_hdr(skb);
+	struct ieee80211_hdr *hdr = (void *)skb_mac_header(skb);
 	struct ieee80211_rx_status *stats = IEEE80211_SKB_RXCB(skb);
 	struct iwl_mvm_key_pn *ptk_pn;
 	int res;
@@ -179,6 +153,10 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (unlikely(headlen < hdrlen))
 		return -EINVAL;
 
+	/* Since data doesn't move data while putting data on skb and that is
+	 * the only way we use, data + len is the next place that hdr would be put
+	 */
+	skb_set_mac_header(skb, skb->len);
 	skb_put_data(skb, hdr, hdrlen);
 	skb_put_data(skb, (u8 *)hdr + hdrlen + pad_len, headlen - hdrlen);
 
@@ -936,7 +914,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 			    struct iwl_rx_mpdu_desc *desc)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_hdr *hdr = iwl_mvm_skb_get_hdr(skb);
+	struct ieee80211_hdr *hdr = (void *)skb_mac_header(skb);
 	struct iwl_mvm_sta *mvm_sta;
 	struct iwl_mvm_baid_data *baid_data;
 	struct iwl_mvm_reorder_buffer *buffer;
@@ -1346,6 +1324,10 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 	case IWL_RX_PHY_INFO_TYPE_HT:
 	case IWL_RX_PHY_INFO_TYPE_VHT_SU:
 	case IWL_RX_PHY_INFO_TYPE_VHT_MU:
+	case IWL_RX_PHY_INFO_TYPE_EHT_MU:
+	case IWL_RX_PHY_INFO_TYPE_EHT_TB:
+	case IWL_RX_PHY_INFO_TYPE_EHT_MU_EXT:
+	case IWL_RX_PHY_INFO_TYPE_EHT_TB_EXT:
 		return;
 	case IWL_RX_PHY_INFO_TYPE_HE_TB_EXT:
 		he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN |
@@ -1690,6 +1672,9 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 	case RATE_MCS_CHAN_WIDTH_160:
 		rx_status->bw = RATE_INFO_BW_160;
 		break;
+	case RATE_MCS_CHAN_WIDTH_320:
+		rx_status->bw = RATE_INFO_BW_320;
+		break;
 	}
 
 	/* must be before L-SIG data */
@@ -1726,6 +1711,9 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 		rx_status->he_dcm =
 			!!(rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK);
 		break;
+	case RATE_MCS_EHT_MSK:
+		rx_status->encoding = RX_ENC_EHT;
+		break;
 	}
 
 	switch (format) {
@@ -1736,6 +1724,7 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 		break;
 	case RATE_MCS_VHT_MSK:
 	case RATE_MCS_HE_MSK:
+	case RATE_MCS_EHT_MSK:
 		rx_status->nss =
 			u32_get_bits(rate_n_flags, RATE_MCS_NSS_MSK) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
@@ -1747,10 +1736,13 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 
 		rx_status->rate_idx = rate;
 
-		if (WARN_ONCE(rate < 0 || rate > 0xFF,
-			      "Invalid rate flags 0x%x, band %d,\n",
-			      rate_n_flags, rx_status->band))
+		if ((rate < 0 || rate > 0xFF)) {
 			rx_status->rate_idx = 0;
+			if (net_ratelimit())
+				IWL_ERR(mvm, "Invalid rate flags 0x%x, band %d,\n",
+					rate_n_flags, rx_status->band);
+		}
+
 		break;
 		}
 	}
@@ -2063,22 +2055,30 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 {
 	struct ieee80211_rx_status *rx_status;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_rx_no_data *desc = (void *)pkt->data;
-	u32 rssi = le32_to_cpu(desc->rssi);
-	u32 info_type = le32_to_cpu(desc->info) & RX_NO_DATA_INFO_TYPE_MSK;
+	struct iwl_rx_no_data_ver_3 *desc = (void *)pkt->data;
+	u32 rssi;
+	u32 info_type;
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
-	struct iwl_mvm_rx_phy_data phy_data = {
-		.d0 = desc->phy_info[0],
-		.d1 = desc->phy_info[1],
-		.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD,
-		.gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time),
-		.rate_n_flags = le32_to_cpu(desc->rate),
-		.energy_a = u32_get_bits(rssi, RX_NO_DATA_CHAIN_A_MSK),
-		.energy_b = u32_get_bits(rssi, RX_NO_DATA_CHAIN_B_MSK),
-		.channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK),
-	};
+	struct iwl_mvm_rx_phy_data phy_data;
 	u32 format;
+
+	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
+		return;
+
+	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(struct iwl_rx_no_data)))
+		return;
+
+	rssi = le32_to_cpu(desc->rssi);
+	info_type = le32_to_cpu(desc->info) & RX_NO_DATA_INFO_TYPE_MSK;
+	phy_data.d0 = desc->phy_info[0];
+	phy_data.d1 = desc->phy_info[1];
+	phy_data.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
+	phy_data.gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time);
+	phy_data.rate_n_flags = le32_to_cpu(desc->rate);
+	phy_data.energy_a = u32_get_bits(rssi, RX_NO_DATA_CHAIN_A_MSK);
+	phy_data.energy_b = u32_get_bits(rssi, RX_NO_DATA_CHAIN_B_MSK);
+	phy_data.channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK);
 
 	if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
 				    RX_NO_DATA_NOTIF, 0) < 2) {
@@ -2091,11 +2091,17 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	format = phy_data.rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
 
-	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*desc)))
-		return;
-
-	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
-		return;
+	if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
+				    RX_NO_DATA_NOTIF, 0) >= 3) {
+		if (unlikely(iwl_rx_packet_payload_len(pkt) <
+		    sizeof(struct iwl_rx_no_data_ver_3)))
+		/* invalid len for ver 3 */
+			return;
+	} else {
+		if (format == RATE_MCS_EHT_MSK)
+			/* no support for EHT before version 3 API */
+			return;
+	}
 
 	/* Dont use dev_alloc_skb(), we'll have enough headroom once
 	 * ieee80211_hdr pulled.
@@ -2132,6 +2138,16 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	iwl_mvm_rx_fill_status(mvm, skb, &phy_data, queue);
 
+	/* no more radio tap info should be put after this point.
+	 *
+	 * We mark it as mac header, for upper layers to know where
+	 * all radio tap header ends.
+	 *
+	 * Since data doesn't move data while putting data on skb and that is
+	 * the only way we use, data + len is the next place that hdr would be put
+	 */
+	skb_set_mac_header(skb, skb->len);
+
 	/*
 	 * Override the nss from the rx_vec since the rate_n_flags has
 	 * only 2 bits for the nss which gives a max of 4 ss but there
@@ -2148,6 +2164,10 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_HE_NSTS_MSK) + 1;
 		break;
+	case RATE_MCS_EHT_MSK:
+		rx_status->nss =
+			le32_get_bits(desc->rx_vec[2],
+				      RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK) + 1;
 	}
 
 	rcu_read_lock();

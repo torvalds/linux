@@ -50,6 +50,8 @@
 #define ACPI_SIG_S3PT           "S3PT"	/* S3 Performance (sub)Table */
 #define ACPI_SIG_PCCS           "PCC"	/* PCC Shared Memory Region */
 
+#define ACPI_SIG_NBFT		"NBFT"	/* NVMe Boot Firmware Table */
+
 /* Reserved table signatures */
 
 #define ACPI_SIG_MATR           "MATR"	/* Memory Address Translation Table */
@@ -344,7 +346,7 @@ enum acpi_cdat_type {
 
 /* Subtable 0: Device Scoped Memory Affinity Structure (DSMAS) */
 
-struct acpi_cadt_dsmas {
+struct acpi_cdat_dsmas {
 	u8 dsmad_handle;
 	u8 flags;
 	u16 reserved;

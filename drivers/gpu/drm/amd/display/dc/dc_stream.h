@@ -41,6 +41,10 @@ struct timing_sync_info {
 struct dc_stream_status {
 	int primary_otg_inst;
 	int stream_enc_inst;
+
+	/**
+	 * @plane_count: Total of planes attached to a single stream
+	 */
 	int plane_count;
 	int audio_inst;
 	struct timing_sync_info timing_sync_info;
@@ -140,7 +144,7 @@ struct test_pattern {
 	unsigned int cust_pattern_size;
 };
 
-#define SUBVP_DRR_MARGIN_US 500 // 500us for DRR margin (SubVP + DRR)
+#define SUBVP_DRR_MARGIN_US 600 // 600us for DRR margin (SubVP + DRR)
 
 enum mall_stream_type {
 	SUBVP_NONE, // subvp not in use
@@ -154,6 +158,17 @@ struct mall_stream_config {
 	 */
 	enum mall_stream_type type;
 	struct dc_stream_state *paired_stream;	// master / slave stream
+};
+
+/* Temp struct used to save and restore MALL config
+ * during validation.
+ *
+ * TODO: Move MALL config into dc_state instead of stream struct
+ * to avoid needing to save/restore.
+ */
+struct mall_temp_config {
+	struct mall_stream_config mall_stream_config[MAX_PIPES];
+	bool is_phantom_plane[MAX_PIPES];
 };
 
 struct dc_stream_state {
@@ -175,6 +190,7 @@ struct dc_stream_state {
 	struct dc_info_packet vsp_infopacket;
 	struct dc_info_packet hfvsif_infopacket;
 	struct dc_info_packet vtem_infopacket;
+	struct dc_info_packet adaptive_sync_infopacket;
 	uint8_t dsc_packed_pps[128];
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -197,7 +213,18 @@ struct dc_stream_state {
 	bool use_vsc_sdp_for_colorimetry;
 	bool ignore_msa_timing_param;
 
+	/**
+	 * @allow_freesync:
+	 *
+	 * It say if Freesync is enabled or not.
+	 */
 	bool allow_freesync;
+
+	/**
+	 * @vrr_active_variable:
+	 *
+	 * It describes if VRR is in use.
+	 */
 	bool vrr_active_variable;
 	bool freesync_on_desktop;
 
@@ -287,6 +314,7 @@ struct dc_stream_update {
 	struct dc_info_packet *vsp_infopacket;
 	struct dc_info_packet *hfvsif_infopacket;
 	struct dc_info_packet *vtem_infopacket;
+	struct dc_info_packet *adaptive_sync_infopacket;
 	bool *dpms_off;
 	bool integer_scaling_update;
 	bool *allow_freesync;
@@ -517,10 +545,9 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 unsigned int *nom_v_pos);
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-bool dc_stream_forward_dmcu_crc_window(struct dc *dc, struct dc_stream_state *stream,
-			     struct crc_params *crc_window);
-bool dc_stream_stop_dmcu_crc_win_update(struct dc *dc,
-				 struct dc_stream_state *stream);
+bool dc_stream_forward_crc_window(struct dc_stream_state *stream,
+		struct rect *rect,
+		bool is_stop);
 #endif
 
 bool dc_stream_configure_crc(struct dc *dc,

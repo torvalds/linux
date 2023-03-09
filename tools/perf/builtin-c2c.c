@@ -230,7 +230,7 @@ static void c2c_he__set_cpu(struct c2c_hist_entry *c2c_he,
 		      "WARNING: no sample cpu value"))
 		return;
 
-	set_bit(sample->cpu, c2c_he->cpuset);
+	__set_bit(sample->cpu, c2c_he->cpuset);
 }
 
 static void c2c_he__set_node(struct c2c_hist_entry *c2c_he,
@@ -247,7 +247,7 @@ static void c2c_he__set_node(struct c2c_hist_entry *c2c_he,
 	if (WARN_ONCE(node < 0, "WARNING: failed to find node\n"))
 		return;
 
-	set_bit(node, c2c_he->nodeset);
+	__set_bit(node, c2c_he->nodeset);
 
 	if (c2c_he->paddr != sample->phys_addr) {
 		c2c_he->paddr_cnt++;
@@ -524,7 +524,7 @@ static int dcacheline_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	char buf[20];
 
 	if (he->mem_info)
-		addr = cl_address(he->mem_info->daddr.addr);
+		addr = cl_address(he->mem_info->daddr.addr, chk_double_cl);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
 }
@@ -562,7 +562,7 @@ static int offset_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	char buf[20];
 
 	if (he->mem_info)
-		addr = cl_offset(he->mem_info->daddr.al_addr);
+		addr = cl_offset(he->mem_info->daddr.al_addr, chk_double_cl);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
 }
@@ -574,9 +574,10 @@ offset_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	uint64_t l = 0, r = 0;
 
 	if (left->mem_info)
-		l = cl_offset(left->mem_info->daddr.addr);
+		l = cl_offset(left->mem_info->daddr.addr, chk_double_cl);
+
 	if (right->mem_info)
-		r = cl_offset(right->mem_info->daddr.addr);
+		r = cl_offset(right->mem_info->daddr.addr, chk_double_cl);
 
 	return (int64_t)(r - l);
 }
@@ -2318,7 +2319,7 @@ static int setup_nodes(struct perf_session *session)
 			continue;
 
 		perf_cpu_map__for_each_cpu(cpu, idx, map) {
-			set_bit(cpu.cpu, set);
+			__set_bit(cpu.cpu, set);
 
 			if (WARN_ONCE(cpu2node[cpu.cpu] != -1, "node/cpu topology bug"))
 				return -EINVAL;
@@ -2590,7 +2591,7 @@ perf_c2c_cacheline_browser__title(struct hist_browser *browser,
 	he = cl_browser->he;
 
 	if (he->mem_info)
-		addr = cl_address(he->mem_info->daddr.addr);
+		addr = cl_address(he->mem_info->daddr.addr, chk_double_cl);
 
 	scnprintf(bf, size, "Cacheline 0x%lx", addr);
 	return 0;
@@ -2788,15 +2789,16 @@ static int ui_quirks(void)
 	if (!c2c.use_stdio) {
 		dim_offset.width  = 5;
 		dim_offset.header = header_offset_tui;
-		nodestr = "CL";
+		nodestr = chk_double_cl ? "Double-CL" : "CL";
 	}
 
 	dim_percent_costly_snoop.header = percent_costly_snoop_header[c2c.display];
 
 	/* Fix the zero line for dcacheline column. */
-	buf = fill_line("Cacheline", dim_dcacheline.width +
-				     dim_dcacheline_node.width +
-				     dim_dcacheline_count.width + 4);
+	buf = fill_line(chk_double_cl ? "Double-Cacheline" : "Cacheline",
+				dim_dcacheline.width +
+				dim_dcacheline_node.width +
+				dim_dcacheline_count.width + 4);
 	if (!buf)
 		return -ENOMEM;
 
@@ -3037,6 +3039,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_BOOLEAN(0, "stitch-lbr", &c2c.stitch_lbr,
 		    "Enable LBR callgraph stitching approach"),
+	OPT_BOOLEAN(0, "double-cl", &chk_double_cl, "Detect adjacent cacheline false sharing"),
 	OPT_PARENT(c2c_options),
 	OPT_END()
 	};

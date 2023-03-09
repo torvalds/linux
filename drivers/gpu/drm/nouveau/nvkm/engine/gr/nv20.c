@@ -83,7 +83,7 @@ nv20_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		return -ENOMEM;
 	nvkm_object_ctor(&nv20_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
-	chan->chid = fifoch->chid;
+	chan->chid = fifoch->id;
 	*pobject = &chan->object;
 
 	ret = nvkm_memory_new(gr->base.engine.subdev.device,
@@ -182,7 +182,7 @@ nv20_gr_intr(struct nvkm_gr *base)
 	struct nv20_gr *gr = nv20_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
 	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nvkm_rd32(device, NV03_PGRAPH_NSTATUS);
@@ -196,7 +196,7 @@ nv20_gr_intr(struct nvkm_gr *base)
 	char msg[128], src[128], sta[128];
 	unsigned long flags;
 
-	chan = nvkm_fifo_chan_chid(device->fifo, chid, &flags);
+	chan = nvkm_chan_get_chid(&gr->base.engine, chid, &flags);
 
 	nvkm_wr32(device, NV03_PGRAPH_INTR, stat);
 	nvkm_wr32(device, NV04_PGRAPH_FIFO, 0x00000001);
@@ -209,11 +209,11 @@ nv20_gr_intr(struct nvkm_gr *base)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->name : "unknown",
 			   subc, class, mthd, data);
 	}
 
-	nvkm_fifo_chan_put(device->fifo, flags, &chan);
+	nvkm_chan_put(&chan, flags);
 }
 
 int

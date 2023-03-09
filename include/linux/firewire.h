@@ -278,9 +278,8 @@ typedef void (*fw_transaction_callback_t)(struct fw_card *card, int rcode,
  * Otherwise there is a danger of recursion of inbound and outbound
  * transactions from and to the local node.
  *
- * The callback is responsible that either fw_send_response() or kfree()
- * is called on the @request, except for FCP registers for which the core
- * takes care of that.
+ * The callback is responsible that fw_send_response() is called on the @request, except for FCP
+ * registers for which the core takes care of that.
  */
 typedef void (*fw_address_callback_t)(struct fw_card *card,
 				      struct fw_request *request,

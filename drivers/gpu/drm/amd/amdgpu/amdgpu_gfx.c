@@ -156,6 +156,9 @@ static bool amdgpu_gfx_is_compute_multipipe_capable(struct amdgpu_device *adev)
 		return amdgpu_compute_multipipe == 1;
 	}
 
+	if (adev->ip_versions[GC_HWIP][0] > IP_VERSION(9, 0, 0))
+		return true;
+
 	/* FIXME: spreading the queues across pipes causes perf regressions
 	 * on POLARIS11 compute workloads */
 	if (adev->asic_type == CHIP_POLARIS11)
@@ -372,8 +375,11 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		 * KIQ MQD no matter SRIOV or Bare-metal
 		 */
 		r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_VRAM, &ring->mqd_obj,
-					    &ring->mqd_gpu_addr, &ring->mqd_ptr);
+					    AMDGPU_GEM_DOMAIN_VRAM |
+					    AMDGPU_GEM_DOMAIN_GTT,
+					    &ring->mqd_obj,
+					    &ring->mqd_gpu_addr,
+					    &ring->mqd_ptr);
 		if (r) {
 			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
 			return r;
@@ -583,10 +589,14 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 		if (adev->gfx.gfx_off_req_count == 0 &&
 		    !adev->gfx.gfx_off_state) {
 			/* If going to s2idle, no need to wait */
-			if (adev->in_s0ix)
-				delay = GFX_OFF_NO_DELAY;
-			schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
+			if (adev->in_s0ix) {
+				if (!amdgpu_dpm_set_powergating_by_smu(adev,
+						AMD_IP_BLOCK_TYPE_GFX, true))
+					adev->gfx.gfx_off_state = true;
+			} else {
+				schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
 					      delay);
+			}
 		}
 	} else {
 		if (adev->gfx.gfx_off_req_count == 0) {
@@ -687,6 +697,50 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 late_fini:
 	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
+}
+
+int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err = 0;
+	struct amdgpu_gfx_ras *ras = NULL;
+
+	/* adev->gfx.ras is NULL, which means gfx does not
+	 * support ras function, then do nothing here.
+	 */
+	if (!adev->gfx.ras)
+		return 0;
+
+	ras = adev->gfx.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register gfx ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "gfx");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__GFX;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->gfx.ras_if = &ras->ras_block.ras_comm;
+
+	/* If not define special ras_late_init function, use gfx default ras_late_init */
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+
+	/* If not defined special ras_cb function, use default ras_cb */
+	if (!ras->ras_block.ras_cb)
+		ras->ras_block.ras_cb = amdgpu_gfx_process_ras_data_cb;
+
+	return 0;
+}
+
+int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
+						struct amdgpu_iv_entry *entry)
+{
+	if (adev->gfx.ras && adev->gfx.ras->poison_consumption_handler)
+		return adev->gfx.ras->poison_consumption_handler(adev, entry);
+
+	return 0;
 }
 
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,

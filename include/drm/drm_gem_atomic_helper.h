@@ -15,8 +15,6 @@ struct drm_simple_display_pipe;
  */
 
 int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state);
-int drm_gem_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-					   struct drm_plane_state *plane_state);
 
 /*
  * Helpers for planes with shadow buffers
@@ -103,8 +101,8 @@ void drm_gem_destroy_shadow_plane_state(struct drm_plane *plane,
 	.atomic_duplicate_state = drm_gem_duplicate_shadow_plane_state, \
 	.atomic_destroy_state = drm_gem_destroy_shadow_plane_state
 
-int drm_gem_prepare_shadow_fb(struct drm_plane *plane, struct drm_plane_state *plane_state);
-void drm_gem_cleanup_shadow_fb(struct drm_plane *plane, struct drm_plane_state *plane_state);
+int drm_gem_begin_shadow_fb_access(struct drm_plane *plane, struct drm_plane_state *plane_state);
+void drm_gem_end_shadow_fb_access(struct drm_plane *plane, struct drm_plane_state *plane_state);
 
 /**
  * DRM_GEM_SHADOW_PLANE_HELPER_FUNCS -
@@ -115,13 +113,13 @@ void drm_gem_cleanup_shadow_fb(struct drm_plane *plane, struct drm_plane_state *
  * functions.
  */
 #define DRM_GEM_SHADOW_PLANE_HELPER_FUNCS \
-	.prepare_fb = drm_gem_prepare_shadow_fb, \
-	.cleanup_fb = drm_gem_cleanup_shadow_fb
+	.begin_fb_access = drm_gem_begin_shadow_fb_access, \
+	.end_fb_access = drm_gem_end_shadow_fb_access
 
-int drm_gem_simple_kms_prepare_shadow_fb(struct drm_simple_display_pipe *pipe,
-					 struct drm_plane_state *plane_state);
-void drm_gem_simple_kms_cleanup_shadow_fb(struct drm_simple_display_pipe *pipe,
-					  struct drm_plane_state *plane_state);
+int drm_gem_simple_kms_begin_shadow_fb_access(struct drm_simple_display_pipe *pipe,
+					      struct drm_plane_state *plane_state);
+void drm_gem_simple_kms_end_shadow_fb_access(struct drm_simple_display_pipe *pipe,
+					     struct drm_plane_state *plane_state);
 void drm_gem_simple_kms_reset_shadow_plane(struct drm_simple_display_pipe *pipe);
 struct drm_plane_state *
 drm_gem_simple_kms_duplicate_shadow_plane_state(struct drm_simple_display_pipe *pipe);
@@ -137,8 +135,8 @@ void drm_gem_simple_kms_destroy_shadow_plane_state(struct drm_simple_display_pip
  * functions.
  */
 #define DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS \
-	.prepare_fb = drm_gem_simple_kms_prepare_shadow_fb, \
-	.cleanup_fb = drm_gem_simple_kms_cleanup_shadow_fb, \
+	.begin_fb_access = drm_gem_simple_kms_begin_shadow_fb_access, \
+	.end_fb_access = drm_gem_simple_kms_end_shadow_fb_access, \
 	.reset_plane = drm_gem_simple_kms_reset_shadow_plane, \
 	.duplicate_plane_state = drm_gem_simple_kms_duplicate_shadow_plane_state, \
 	.destroy_plane_state = drm_gem_simple_kms_destroy_shadow_plane_state

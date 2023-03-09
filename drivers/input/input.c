@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/kstrtox.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include "input-compat.h"
@@ -1465,7 +1466,7 @@ static ssize_t inhibited_store(struct device *dev,
 	ssize_t rv;
 	bool inhibited;
 
-	if (strtobool(buf, &inhibited))
+	if (kstrtobool(buf, &inhibited))
 		return -EINVAL;
 
 	if (inhibited)
@@ -1913,7 +1914,7 @@ static const struct device_type input_dev_type = {
 #endif
 };
 
-static char *input_devnode(struct device *dev, umode_t *mode)
+static char *input_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "input/%s", dev_name(dev));
 }

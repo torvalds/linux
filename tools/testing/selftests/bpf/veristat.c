@@ -17,6 +17,7 @@
 #include <bpf/libbpf.h>
 #include <libelf.h>
 #include <gelf.h>
+#include <float.h>
 
 enum stat_id {
 	VERDICT,
@@ -34,6 +35,45 @@ enum stat_id {
 	NUM_STATS_CNT = FILE_NAME - VERDICT,
 };
 
+/* In comparison mode each stat can specify up to four different values:
+ *   - A side value;
+ *   - B side value;
+ *   - absolute diff value;
+ *   - relative (percentage) diff value.
+ *
+ * When specifying stat specs in comparison mode, user can use one of the
+ * following variant suffixes to specify which exact variant should be used for
+ * ordering or filtering:
+ *   - `_a` for A side value;
+ *   - `_b` for B side value;
+ *   - `_diff` for absolute diff value;
+ *   - `_pct` for relative (percentage) diff value.
+ *
+ * If no variant suffix is provided, then `_b` (control data) is assumed.
+ *
+ * As an example, let's say instructions stat has the following output:
+ *
+ * Insns (A)  Insns (B)  Insns   (DIFF)
+ * ---------  ---------  --------------
+ * 21547      20920       -627 (-2.91%)
+ *
+ * Then:
+ *   - 21547 is A side value (insns_a);
+ *   - 20920 is B side value (insns_b);
+ *   - -627 is absolute diff value (insns_diff);
+ *   - -2.91% is relative diff value (insns_pct).
+ *
+ * For verdict there is no verdict_pct variant.
+ * For file and program name, _a and _b variants are equivalent and there are
+ * no _diff or _pct variants.
+ */
+enum stat_variant {
+	VARIANT_A,
+	VARIANT_B,
+	VARIANT_DIFF,
+	VARIANT_PCT,
+};
+
 struct verif_stats {
 	char *file_name;
 	char *prog_name;
@@ -41,9 +81,19 @@ struct verif_stats {
 	long stats[NUM_STATS_CNT];
 };
 
+/* joined comparison mode stats */
+struct verif_stats_join {
+	char *file_name;
+	char *prog_name;
+
+	const struct verif_stats *stats_a;
+	const struct verif_stats *stats_b;
+};
+
 struct stat_specs {
 	int spec_cnt;
 	enum stat_id ids[ALL_STATS_CNT];
+	enum stat_variant variants[ALL_STATS_CNT];
 	bool asc[ALL_STATS_CNT];
 	int lens[ALL_STATS_CNT * 3]; /* 3x for comparison mode */
 };
@@ -54,9 +104,31 @@ enum resfmt {
 	RESFMT_CSV,
 };
 
+enum filter_kind {
+	FILTER_NAME,
+	FILTER_STAT,
+};
+
+enum operator_kind {
+	OP_EQ,		/* == or = */
+	OP_NEQ,		/* != or <> */
+	OP_LT,		/* < */
+	OP_LE,		/* <= */
+	OP_GT,		/* > */
+	OP_GE,		/* >= */
+};
+
 struct filter {
+	enum filter_kind kind;
+	/* FILTER_NAME */
+	char *any_glob;
 	char *file_glob;
 	char *prog_glob;
+	/* FILTER_STAT */
+	enum operator_kind op;
+	int stat_id;
+	enum stat_variant stat_var;
+	long value;
 };
 
 static struct env {
@@ -67,13 +139,17 @@ static struct env {
 	int log_level;
 	enum resfmt out_fmt;
 	bool comparison_mode;
+	bool replay_mode;
 
 	struct verif_stats *prog_stats;
 	int prog_stat_cnt;
 
-	/* baseline_stats is allocated and used only in comparsion mode */
+	/* baseline_stats is allocated and used only in comparison mode */
 	struct verif_stats *baseline_stats;
 	int baseline_stat_cnt;
+
+	struct verif_stats_join *join_stats;
+	int join_stat_cnt;
 
 	struct stat_specs output_spec;
 	struct stat_specs sort_spec;
@@ -115,6 +191,7 @@ static const struct argp_option opts[] = {
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
 	{ "output-format", 'o', "FMT", 0, "Result output format (table, csv), default is table." },
 	{ "compare", 'C', NULL, 0, "Comparison mode" },
+	{ "replay", 'R', NULL, 0, "Replay mode" },
 	{ "filter", 'f', "FILTER", 0, "Filter expressions (or @filename for file with expressions)." },
 	{},
 };
@@ -168,6 +245,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'C':
 		env.comparison_mode = true;
+		break;
+	case 'R':
+		env.replay_mode = true;
 		break;
 	case 'f':
 		if (arg[0] == '@')
@@ -226,28 +306,6 @@ static bool glob_matches(const char *str, const char *pat)
 	return !*str && !*pat;
 }
 
-static bool should_process_file(const char *filename)
-{
-	int i;
-
-	if (env.deny_filter_cnt > 0) {
-		for (i = 0; i < env.deny_filter_cnt; i++) {
-			if (glob_matches(filename, env.deny_filters[i].file_glob))
-				return false;
-		}
-	}
-
-	if (env.allow_filter_cnt == 0)
-		return true;
-
-	for (i = 0; i < env.allow_filter_cnt; i++) {
-		if (glob_matches(filename, env.allow_filters[i].file_glob))
-			return true;
-	}
-
-	return false;
-}
-
 static bool is_bpf_obj_file(const char *path) {
 	Elf64_Ehdr *ehdr;
 	int fd, err = -EINVAL;
@@ -280,45 +338,84 @@ cleanup:
 	return err == 0;
 }
 
-static bool should_process_prog(const char *path, const char *prog_name)
+static bool should_process_file_prog(const char *filename, const char *prog_name)
 {
-	const char *filename = basename(path);
-	int i;
+	struct filter *f;
+	int i, allow_cnt = 0;
 
-	if (env.deny_filter_cnt > 0) {
-		for (i = 0; i < env.deny_filter_cnt; i++) {
-			if (glob_matches(filename, env.deny_filters[i].file_glob))
-				return false;
-			if (!env.deny_filters[i].prog_glob)
+	for (i = 0; i < env.deny_filter_cnt; i++) {
+		f = &env.deny_filters[i];
+		if (f->kind != FILTER_NAME)
+			continue;
+
+		if (f->any_glob && glob_matches(filename, f->any_glob))
+			return false;
+		if (f->any_glob && prog_name && glob_matches(prog_name, f->any_glob))
+			return false;
+		if (f->file_glob && glob_matches(filename, f->file_glob))
+			return false;
+		if (f->prog_glob && prog_name && glob_matches(prog_name, f->prog_glob))
+			return false;
+	}
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		f = &env.allow_filters[i];
+		if (f->kind != FILTER_NAME)
+			continue;
+
+		allow_cnt++;
+		if (f->any_glob) {
+			if (glob_matches(filename, f->any_glob))
+				return true;
+			/* If we don't know program name yet, any_glob filter
+			 * has to assume that current BPF object file might be
+			 * relevant; we'll check again later on after opening
+			 * BPF object file, at which point program name will
+			 * be known finally.
+			 */
+			if (!prog_name || glob_matches(prog_name, f->any_glob))
+				return true;
+		} else {
+			if (f->file_glob && !glob_matches(filename, f->file_glob))
 				continue;
-			if (glob_matches(prog_name, env.deny_filters[i].prog_glob))
-				return false;
+			if (f->prog_glob && prog_name && !glob_matches(prog_name, f->prog_glob))
+				continue;
+			return true;
 		}
 	}
 
-	if (env.allow_filter_cnt == 0)
-		return true;
-
-	for (i = 0; i < env.allow_filter_cnt; i++) {
-		if (!glob_matches(filename, env.allow_filters[i].file_glob))
-			continue;
-		/* if filter specifies only filename glob part, it implicitly
-		 * allows all progs within that file
-		 */
-		if (!env.allow_filters[i].prog_glob)
-			return true;
-		if (glob_matches(prog_name, env.allow_filters[i].prog_glob))
-			return true;
-	}
-
-	return false;
+	/* if there are no file/prog name allow filters, allow all progs,
+	 * unless they are denied earlier explicitly
+	 */
+	return allow_cnt == 0;
 }
+
+static struct {
+	enum operator_kind op_kind;
+	const char *op_str;
+} operators[] = {
+	/* Order of these definitions matter to avoid situations like '<'
+	 * matching part of what is actually a '<>' operator. That is,
+	 * substrings should go last.
+	 */
+	{ OP_EQ, "==" },
+	{ OP_NEQ, "!=" },
+	{ OP_NEQ, "<>" },
+	{ OP_LE, "<=" },
+	{ OP_LT, "<" },
+	{ OP_GE, ">=" },
+	{ OP_GT, ">" },
+	{ OP_EQ, "=" },
+};
+
+static bool parse_stat_id_var(const char *name, size_t len, int *id, enum stat_variant *var);
 
 static int append_filter(struct filter **filters, int *cnt, const char *str)
 {
 	struct filter *f;
 	void *tmp;
 	const char *p;
+	int i;
 
 	tmp = realloc(*filters, (*cnt + 1) * sizeof(**filters));
 	if (!tmp)
@@ -326,26 +423,108 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 	*filters = tmp;
 
 	f = &(*filters)[*cnt];
-	f->file_glob = f->prog_glob = NULL;
+	memset(f, 0, sizeof(*f));
 
-	/* filter can be specified either as "<obj-glob>" or "<obj-glob>/<prog-glob>" */
+	/* First, let's check if it's a stats filter of the following form:
+	 * <stat><op><value, where:
+	 *   - <stat> is one of supported numerical stats (verdict is also
+	 *     considered numerical, failure == 0, success == 1);
+	 *   - <op> is comparison operator (see `operators` definitions);
+	 *   - <value> is an integer (or failure/success, or false/true as
+	 *     special aliases for 0 and 1, respectively).
+	 * If the form doesn't match what user provided, we assume file/prog
+	 * glob filter.
+	 */
+	for (i = 0; i < ARRAY_SIZE(operators); i++) {
+		enum stat_variant var;
+		int id;
+		long val;
+		const char *end = str;
+		const char *op_str;
+
+		op_str = operators[i].op_str;
+		p = strstr(str, op_str);
+		if (!p)
+			continue;
+
+		if (!parse_stat_id_var(str, p - str, &id, &var)) {
+			fprintf(stderr, "Unrecognized stat name in '%s'!\n", str);
+			return -EINVAL;
+		}
+		if (id >= FILE_NAME) {
+			fprintf(stderr, "Non-integer stat is specified in '%s'!\n", str);
+			return -EINVAL;
+		}
+
+		p += strlen(op_str);
+
+		if (strcasecmp(p, "true") == 0 ||
+		    strcasecmp(p, "t") == 0 ||
+		    strcasecmp(p, "success") == 0 ||
+		    strcasecmp(p, "succ") == 0 ||
+		    strcasecmp(p, "s") == 0 ||
+		    strcasecmp(p, "match") == 0 ||
+		    strcasecmp(p, "m") == 0) {
+			val = 1;
+		} else if (strcasecmp(p, "false") == 0 ||
+			   strcasecmp(p, "f") == 0 ||
+			   strcasecmp(p, "failure") == 0 ||
+			   strcasecmp(p, "fail") == 0 ||
+			   strcasecmp(p, "mismatch") == 0 ||
+			   strcasecmp(p, "mis") == 0) {
+			val = 0;
+		} else {
+			errno = 0;
+			val = strtol(p, (char **)&end, 10);
+			if (errno || end == p || *end != '\0' ) {
+				fprintf(stderr, "Invalid integer value in '%s'!\n", str);
+				return -EINVAL;
+			}
+		}
+
+		f->kind = FILTER_STAT;
+		f->stat_id = id;
+		f->stat_var = var;
+		f->op = operators[i].op_kind;
+		f->value = val;
+
+		*cnt += 1;
+		return 0;
+	}
+
+	/* File/prog filter can be specified either as '<glob>' or
+	 * '<file-glob>/<prog-glob>'. In the former case <glob> is applied to
+	 * both file and program names. This seems to be way more useful in
+	 * practice. If user needs full control, they can use '/<prog-glob>'
+	 * form to glob just program name, or '<file-glob>/' to glob only file
+	 * name. But usually common <glob> seems to be the most useful and
+	 * ergonomic way.
+	 */
+	f->kind = FILTER_NAME;
 	p = strchr(str, '/');
 	if (!p) {
-		f->file_glob = strdup(str);
-		if (!f->file_glob)
+		f->any_glob = strdup(str);
+		if (!f->any_glob)
 			return -ENOMEM;
 	} else {
-		f->file_glob = strndup(str, p - str);
-		f->prog_glob = strdup(p + 1);
-		if (!f->file_glob || !f->prog_glob) {
-			free(f->file_glob);
-			free(f->prog_glob);
-			f->file_glob = f->prog_glob = NULL;
-			return -ENOMEM;
+		if (str != p) {
+			/* non-empty file glob */
+			f->file_glob = strndup(str, p - str);
+			if (!f->file_glob)
+				return -ENOMEM;
+		}
+		if (strlen(p + 1) > 0) {
+			/* non-empty prog glob */
+			f->prog_glob = strdup(p + 1);
+			if (!f->prog_glob) {
+				free(f->file_glob);
+				f->file_glob = NULL;
+				return -ENOMEM;
+			}
 		}
 	}
 
-	*cnt = *cnt + 1;
+	*cnt += 1;
 	return 0;
 }
 
@@ -388,7 +567,25 @@ static const struct stat_specs default_output_spec = {
 	},
 };
 
+static const struct stat_specs default_csv_output_spec = {
+	.spec_cnt = 9,
+	.ids = {
+		FILE_NAME, PROG_NAME, VERDICT, DURATION,
+		TOTAL_INSNS, TOTAL_STATES, PEAK_STATES,
+		MAX_STATES_PER_INSN, MARK_READ_MAX_LEN,
+	},
+};
+
 static const struct stat_specs default_sort_spec = {
+	.spec_cnt = 2,
+	.ids = {
+		FILE_NAME, PROG_NAME,
+	},
+	.asc = { true, true, },
+};
+
+/* sorting for comparison mode to join two data sets */
+static const struct stat_specs join_sort_spec = {
 	.spec_cnt = 2,
 	.ids = {
 		FILE_NAME, PROG_NAME,
@@ -400,44 +597,110 @@ static struct stat_def {
 	const char *header;
 	const char *names[4];
 	bool asc_by_default;
+	bool left_aligned;
 } stat_defs[] = {
-	[FILE_NAME] = { "File", {"file_name", "filename", "file"}, true /* asc */ },
-	[PROG_NAME] = { "Program", {"prog_name", "progname", "prog"}, true /* asc */ },
-	[VERDICT] = { "Verdict", {"verdict"}, true /* asc: failure, success */ },
+	[FILE_NAME] = { "File", {"file_name", "filename", "file"}, true /* asc */, true /* left */ },
+	[PROG_NAME] = { "Program", {"prog_name", "progname", "prog"}, true /* asc */, true /* left */ },
+	[VERDICT] = { "Verdict", {"verdict"}, true /* asc: failure, success */, true /* left */ },
 	[DURATION] = { "Duration (us)", {"duration", "dur"}, },
-	[TOTAL_INSNS] = { "Total insns", {"total_insns", "insns"}, },
-	[TOTAL_STATES] = { "Total states", {"total_states", "states"}, },
+	[TOTAL_INSNS] = { "Insns", {"total_insns", "insns"}, },
+	[TOTAL_STATES] = { "States", {"total_states", "states"}, },
 	[PEAK_STATES] = { "Peak states", {"peak_states"}, },
 	[MAX_STATES_PER_INSN] = { "Max states per insn", {"max_states_per_insn"}, },
 	[MARK_READ_MAX_LEN] = { "Max mark read length", {"max_mark_read_len", "mark_read"}, },
 };
 
+static bool parse_stat_id_var(const char *name, size_t len, int *id, enum stat_variant *var)
+{
+	static const char *var_sfxs[] = {
+		[VARIANT_A] = "_a",
+		[VARIANT_B] = "_b",
+		[VARIANT_DIFF] = "_diff",
+		[VARIANT_PCT] = "_pct",
+	};
+	int i, j, k;
+
+	for (i = 0; i < ARRAY_SIZE(stat_defs); i++) {
+		struct stat_def *def = &stat_defs[i];
+		size_t alias_len, sfx_len;
+		const char *alias;
+
+		for (j = 0; j < ARRAY_SIZE(stat_defs[i].names); j++) {
+			alias = def->names[j];
+			if (!alias)
+				continue;
+
+			alias_len = strlen(alias);
+			if (strncmp(name, alias, alias_len) != 0)
+				continue;
+
+			if (alias_len == len) {
+				/* If no variant suffix is specified, we
+				 * assume control group (just in case we are
+				 * in comparison mode. Variant is ignored in
+				 * non-comparison mode.
+				 */
+				*var = VARIANT_B;
+				*id = i;
+				return true;
+			}
+
+			for (k = 0; k < ARRAY_SIZE(var_sfxs); k++) {
+				sfx_len = strlen(var_sfxs[k]);
+				if (alias_len + sfx_len != len)
+					continue;
+
+				if (strncmp(name + alias_len, var_sfxs[k], sfx_len) == 0) {
+					*var = (enum stat_variant)k;
+					*id = i;
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+static bool is_asc_sym(char c)
+{
+	return c == '^';
+}
+
+static bool is_desc_sym(char c)
+{
+	return c == 'v' || c == 'V' || c == '.' || c == '!' || c == '_';
+}
+
 static int parse_stat(const char *stat_name, struct stat_specs *specs)
 {
-	int id, i;
+	int id;
+	bool has_order = false, is_asc = false;
+	size_t len = strlen(stat_name);
+	enum stat_variant var;
 
 	if (specs->spec_cnt >= ARRAY_SIZE(specs->ids)) {
 		fprintf(stderr, "Can't specify more than %zd stats\n", ARRAY_SIZE(specs->ids));
 		return -E2BIG;
 	}
 
-	for (id = 0; id < ARRAY_SIZE(stat_defs); id++) {
-		struct stat_def *def = &stat_defs[id];
-
-		for (i = 0; i < ARRAY_SIZE(stat_defs[id].names); i++) {
-			if (!def->names[i] || strcmp(def->names[i], stat_name) != 0)
-				continue;
-
-			specs->ids[specs->spec_cnt] = id;
-			specs->asc[specs->spec_cnt] = def->asc_by_default;
-			specs->spec_cnt++;
-
-			return 0;
-		}
+	if (len > 1 && (is_asc_sym(stat_name[len - 1]) || is_desc_sym(stat_name[len - 1]))) {
+		has_order = true;
+		is_asc = is_asc_sym(stat_name[len - 1]);
+		len -= 1;
 	}
 
-	fprintf(stderr, "Unrecognized stat name '%s'\n", stat_name);
-	return -ESRCH;
+	if (!parse_stat_id_var(stat_name, len, &id, &var)) {
+		fprintf(stderr, "Unrecognized stat name '%s'\n", stat_name);
+		return -ESRCH;
+	}
+
+	specs->ids[specs->spec_cnt] = id;
+	specs->variants[specs->spec_cnt] = var;
+	specs->asc[specs->spec_cnt] = has_order ? is_asc : stat_defs[id].asc_by_default;
+	specs->spec_cnt++;
+
+	return 0;
 }
 
 static int parse_stats(const char *stats_str, struct stat_specs *specs)
@@ -509,6 +772,28 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 	return 0;
 }
 
+static void fixup_obj(struct bpf_object *obj)
+{
+	struct bpf_map *map;
+
+	bpf_object__for_each_map(map, obj) {
+		/* disable pinning */
+		bpf_map__set_pin_path(map, NULL);
+
+		/* fix up map size, if necessary */
+		switch (bpf_map__type(map)) {
+		case BPF_MAP_TYPE_SK_STORAGE:
+		case BPF_MAP_TYPE_TASK_STORAGE:
+		case BPF_MAP_TYPE_INODE_STORAGE:
+		case BPF_MAP_TYPE_CGROUP_STORAGE:
+			break;
+		default:
+			if (bpf_map__max_entries(map) == 0)
+				bpf_map__set_max_entries(map, 1);
+		}
+	}
+}
+
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
 	const char *prog_name = bpf_program__name(prog);
@@ -518,7 +803,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	int err = 0;
 	void *tmp;
 
-	if (!should_process_prog(filename, bpf_program__name(prog))) {
+	if (!should_process_file_prog(basename(filename), bpf_program__name(prog))) {
 		env.progs_skipped++;
 		return 0;
 	}
@@ -542,6 +827,9 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 		bpf_program__set_log_level(prog, 4); /* only verifier stats */
 	}
 	verif_log_buf[0] = '\0';
+
+	/* increase chances of successful BPF object loading */
+	fixup_obj(obj);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;
@@ -571,7 +859,7 @@ static int process_obj(const char *filename)
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	int err = 0, prog_cnt = 0;
 
-	if (!should_process_file(basename(filename))) {
+	if (!should_process_file_prog(basename(filename), NULL)) {
 		if (env.verbose)
 			printf("Skipping '%s' due to filters...\n", filename);
 		env.files_skipped++;
@@ -594,7 +882,7 @@ static int process_obj(const char *filename)
 		 * that BPF object file is incomplete and has to be statically
 		 * linked into a final BPF object file; instead of bailing
 		 * out, report it into stderr, mark it as skipped, and
-		 * proceeed
+		 * proceed
 		 */
 		fprintf(stderr, "Failed to open '%s': %d\n", filename, -errno);
 		env.files_skipped++;
@@ -691,7 +979,106 @@ static int cmp_prog_stats(const void *v1, const void *v2)
 			return cmp;
 	}
 
-	return 0;
+	/* always disambiguate with file+prog, which are unique */
+	cmp = strcmp(s1->file_name, s2->file_name);
+	if (cmp != 0)
+		return cmp;
+	return strcmp(s1->prog_name, s2->prog_name);
+}
+
+static void fetch_join_stat_value(const struct verif_stats_join *s,
+				  enum stat_id id, enum stat_variant var,
+				  const char **str_val,
+				  double *num_val)
+{
+	long v1, v2;
+
+	if (id == FILE_NAME) {
+		*str_val = s->file_name;
+		return;
+	}
+	if (id == PROG_NAME) {
+		*str_val = s->prog_name;
+		return;
+	}
+
+	v1 = s->stats_a ? s->stats_a->stats[id] : 0;
+	v2 = s->stats_b ? s->stats_b->stats[id] : 0;
+
+	switch (var) {
+	case VARIANT_A:
+		if (!s->stats_a)
+			*num_val = -DBL_MAX;
+		else
+			*num_val = s->stats_a->stats[id];
+		return;
+	case VARIANT_B:
+		if (!s->stats_b)
+			*num_val = -DBL_MAX;
+		else
+			*num_val = s->stats_b->stats[id];
+		return;
+	case VARIANT_DIFF:
+		if (!s->stats_a || !s->stats_b)
+			*num_val = -DBL_MAX;
+		else if (id == VERDICT)
+			*num_val = v1 == v2 ? 1.0 /* MATCH */ : 0.0 /* MISMATCH */;
+		else
+			*num_val = (double)(v2 - v1);
+		return;
+	case VARIANT_PCT:
+		if (!s->stats_a || !s->stats_b) {
+			*num_val = -DBL_MAX;
+		} else if (v1 == 0) {
+			if (v1 == v2)
+				*num_val = 0.0;
+			else
+				*num_val = v2 < v1 ? -100.0 : 100.0;
+		} else {
+			 *num_val = (v2 - v1) * 100.0 / v1;
+		}
+		return;
+	}
+}
+
+static int cmp_join_stat(const struct verif_stats_join *s1,
+			 const struct verif_stats_join *s2,
+			 enum stat_id id, enum stat_variant var, bool asc)
+{
+	const char *str1 = NULL, *str2 = NULL;
+	double v1, v2;
+	int cmp = 0;
+
+	fetch_join_stat_value(s1, id, var, &str1, &v1);
+	fetch_join_stat_value(s2, id, var, &str2, &v2);
+
+	if (str1)
+		cmp = strcmp(str1, str2);
+	else if (v1 != v2)
+		cmp = v1 < v2 ? -1 : 1;
+
+	return asc ? cmp : -cmp;
+}
+
+static int cmp_join_stats(const void *v1, const void *v2)
+{
+	const struct verif_stats_join *s1 = v1, *s2 = v2;
+	int i, cmp;
+
+	for (i = 0; i < env.sort_spec.spec_cnt; i++) {
+		cmp = cmp_join_stat(s1, s2,
+				    env.sort_spec.ids[i],
+				    env.sort_spec.variants[i],
+				    env.sort_spec.asc[i]);
+		if (cmp != 0)
+			return cmp;
+	}
+
+	/* always disambiguate with file+prog, which are unique */
+	cmp = strcmp(s1->file_name, s2->file_name);
+	if (cmp != 0)
+		return cmp;
+	return strcmp(s1->prog_name, s2->prog_name);
 }
 
 #define HEADER_CHAR '-'
@@ -713,6 +1100,7 @@ static void output_header_underlines(void)
 
 static void output_headers(enum resfmt fmt)
 {
+	const char *fmt_str;
 	int i, len;
 
 	for (i = 0; i < env.output_spec.spec_cnt; i++) {
@@ -726,7 +1114,8 @@ static void output_headers(enum resfmt fmt)
 				*max_len = len;
 			break;
 		case RESFMT_TABLE:
-			printf("%s%-*s", i == 0 ? "" : COLUMN_SEP,  *max_len, stat_defs[id].header);
+			fmt_str = stat_defs[id].left_aligned ? "%s%-*s" : "%s%*s";
+			printf(fmt_str, i == 0 ? "" : COLUMN_SEP,  *max_len, stat_defs[id].header);
 			if (i == env.output_spec.spec_cnt - 1)
 				printf("\n");
 			break;
@@ -747,13 +1136,16 @@ static void prepare_value(const struct verif_stats *s, enum stat_id id,
 {
 	switch (id) {
 	case FILE_NAME:
-		*str = s->file_name;
+		*str = s ? s->file_name : "N/A";
 		break;
 	case PROG_NAME:
-		*str = s->prog_name;
+		*str = s ? s->prog_name : "N/A";
 		break;
 	case VERDICT:
-		*str = s->stats[VERDICT] ? "success" : "failure";
+		if (!s)
+			*str = "N/A";
+		else
+			*str = s->stats[VERDICT] ? "success" : "failure";
 		break;
 	case DURATION:
 	case TOTAL_INSNS:
@@ -761,7 +1153,7 @@ static void prepare_value(const struct verif_stats *s, enum stat_id id,
 	case PEAK_STATES:
 	case MAX_STATES_PER_INSN:
 	case MARK_READ_MAX_LEN:
-		*val = s->stats[id];
+		*val = s ? s->stats[id] : 0;
 		break;
 	default:
 		fprintf(stderr, "Unrecognized stat #%d\n", id);
@@ -814,42 +1206,6 @@ static void output_stats(const struct verif_stats *s, enum resfmt fmt, bool last
 		printf("Done. Processed %d files, %d programs. Skipped %d files, %d programs.\n",
 		       env.files_processed, env.files_skipped, env.progs_processed, env.progs_skipped);
 	}
-}
-
-static int handle_verif_mode(void)
-{
-	int i, err;
-
-	if (env.filename_cnt == 0) {
-		fprintf(stderr, "Please provide path to BPF object file!\n");
-		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < env.filename_cnt; i++) {
-		err = process_obj(env.filenames[i]);
-		if (err) {
-			fprintf(stderr, "Failed to process '%s': %d\n", env.filenames[i], err);
-			return err;
-		}
-	}
-
-	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
-
-	if (env.out_fmt == RESFMT_TABLE) {
-		/* calculate column widths */
-		output_headers(RESFMT_TABLE_CALCLEN);
-		for (i = 0; i < env.prog_stat_cnt; i++)
-			output_stats(&env.prog_stats[i], RESFMT_TABLE_CALCLEN, false);
-	}
-
-	/* actually output the table */
-	output_headers(env.out_fmt);
-	for (i = 0; i < env.prog_stat_cnt; i++) {
-		output_stats(&env.prog_stats[i], env.out_fmt, i == env.prog_stat_cnt - 1);
-	}
-
-	return 0;
 }
 
 static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats *st)
@@ -983,7 +1339,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 		 * parsed entire line; if row should be ignored we pretend we
 		 * never parsed it
 		 */
-		if (!should_process_prog(st->file_name, st->prog_name)) {
+		if (!should_process_file_prog(st->file_name, st->prog_name)) {
 			free(st->file_name);
 			free(st->prog_name);
 			*stat_cntp -= 1;
@@ -1072,9 +1428,11 @@ static void output_comp_headers(enum resfmt fmt)
 		output_comp_header_underlines();
 }
 
-static void output_comp_stats(const struct verif_stats *base, const struct verif_stats *comp,
+static void output_comp_stats(const struct verif_stats_join *join_stats,
 			      enum resfmt fmt, bool last)
 {
+	const struct verif_stats *base = join_stats->stats_a;
+	const struct verif_stats *comp = join_stats->stats_b;
 	char base_buf[1024] = {}, comp_buf[1024] = {}, diff_buf[1024] = {};
 	int i;
 
@@ -1092,28 +1450,44 @@ static void output_comp_stats(const struct verif_stats *base, const struct verif
 		/* normalize all the outputs to be in string buffers for simplicity */
 		if (is_key_stat(id)) {
 			/* key stats (file and program name) are always strings */
-			if (base != &fallback_stats)
+			if (base)
 				snprintf(base_buf, sizeof(base_buf), "%s", base_str);
 			else
 				snprintf(base_buf, sizeof(base_buf), "%s", comp_str);
 		} else if (base_str) {
 			snprintf(base_buf, sizeof(base_buf), "%s", base_str);
 			snprintf(comp_buf, sizeof(comp_buf), "%s", comp_str);
-			if (strcmp(base_str, comp_str) == 0)
+			if (!base || !comp)
+				snprintf(diff_buf, sizeof(diff_buf), "%s", "N/A");
+			else if (strcmp(base_str, comp_str) == 0)
 				snprintf(diff_buf, sizeof(diff_buf), "%s", "MATCH");
 			else
 				snprintf(diff_buf, sizeof(diff_buf), "%s", "MISMATCH");
 		} else {
-			snprintf(base_buf, sizeof(base_buf), "%ld", base_val);
-			snprintf(comp_buf, sizeof(comp_buf), "%ld", comp_val);
+			double p = 0.0;
+
+			if (base)
+				snprintf(base_buf, sizeof(base_buf), "%ld", base_val);
+			else
+				snprintf(base_buf, sizeof(base_buf), "%s", "N/A");
+			if (comp)
+				snprintf(comp_buf, sizeof(comp_buf), "%ld", comp_val);
+			else
+				snprintf(comp_buf, sizeof(comp_buf), "%s", "N/A");
 
 			diff_val = comp_val - base_val;
-			if (base == &fallback_stats || comp == &fallback_stats || base_val == 0) {
-				snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)",
-					 diff_val, comp_val < base_val ? -100.0 : 100.0);
+			if (!base || !comp) {
+				snprintf(diff_buf, sizeof(diff_buf), "%s", "N/A");
 			} else {
-				snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)",
-					 diff_val, diff_val * 100.0 / base_val);
+				if (base_val == 0) {
+					if (comp_val == base_val)
+						p = 0.0; /* avoid +0 (+100%) case */
+					else
+						p = comp_val < base_val ? -100.0 : 100.0;
+				} else {
+					 p = diff_val * 100.0 / base_val;
+				}
+				snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)", diff_val, p);
 			}
 		}
 
@@ -1170,14 +1544,64 @@ static int cmp_stats_key(const struct verif_stats *base, const struct verif_stat
 	return strcmp(base->prog_name, comp->prog_name);
 }
 
+static bool is_join_stat_filter_matched(struct filter *f, const struct verif_stats_join *stats)
+{
+	static const double eps = 1e-9;
+	const char *str = NULL;
+	double value = 0.0;
+
+	fetch_join_stat_value(stats, f->stat_id, f->stat_var, &str, &value);
+
+	switch (f->op) {
+	case OP_EQ: return value > f->value - eps && value < f->value + eps;
+	case OP_NEQ: return value < f->value - eps || value > f->value + eps;
+	case OP_LT: return value < f->value - eps;
+	case OP_LE: return value <= f->value + eps;
+	case OP_GT: return value > f->value + eps;
+	case OP_GE: return value >= f->value - eps;
+	}
+
+	fprintf(stderr, "BUG: unknown filter op %d!\n", f->op);
+	return false;
+}
+
+static bool should_output_join_stats(const struct verif_stats_join *stats)
+{
+	struct filter *f;
+	int i, allow_cnt = 0;
+
+	for (i = 0; i < env.deny_filter_cnt; i++) {
+		f = &env.deny_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+
+		if (is_join_stat_filter_matched(f, stats))
+			return false;
+	}
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		f = &env.allow_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+		allow_cnt++;
+
+		if (is_join_stat_filter_matched(f, stats))
+			return true;
+	}
+
+	/* if there are no stat allowed filters, pass everything through */
+	return allow_cnt == 0;
+}
+
 static int handle_comparison_mode(void)
 {
 	struct stat_specs base_specs = {}, comp_specs = {};
+	struct stat_specs tmp_sort_spec;
 	enum resfmt cur_fmt;
-	int err, i, j;
+	int err, i, j, last_idx;
 
 	if (env.filename_cnt != 2) {
-		fprintf(stderr, "Comparison mode expects exactly two input CSV files!\n");
+		fprintf(stderr, "Comparison mode expects exactly two input CSV files!\n\n");
 		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
 		return -EINVAL;
 	}
@@ -1215,31 +1639,26 @@ static int handle_comparison_mode(void)
 		}
 	}
 
+	/* Replace user-specified sorting spec with file+prog sorting rule to
+	 * be able to join two datasets correctly. Once we are done, we will
+	 * restore the original sort spec.
+	 */
+	tmp_sort_spec = env.sort_spec;
+	env.sort_spec = join_sort_spec;
 	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
 	qsort(env.baseline_stats, env.baseline_stat_cnt, sizeof(*env.baseline_stats), cmp_prog_stats);
+	env.sort_spec = tmp_sort_spec;
 
-	/* for human-readable table output we need to do extra pass to
-	 * calculate column widths, so we substitute current output format
-	 * with RESFMT_TABLE_CALCLEN and later revert it back to RESFMT_TABLE
-	 * and do everything again.
-	 */
-	if (env.out_fmt == RESFMT_TABLE)
-		cur_fmt = RESFMT_TABLE_CALCLEN;
-	else
-		cur_fmt = env.out_fmt;
-
-one_more_time:
-	output_comp_headers(cur_fmt);
-
-	/* If baseline and comparison datasets have different subset of rows
-	 * (we match by 'object + prog' as a unique key) then assume
-	 * empty/missing/zero value for rows that are missing in the opposite
-	 * data set
+	/* Join two datasets together. If baseline and comparison datasets
+	 * have different subset of rows (we match by 'object + prog' as
+	 * a unique key) then assume empty/missing/zero value for rows that
+	 * are missing in the opposite data set.
 	 */
 	i = j = 0;
 	while (i < env.baseline_stat_cnt || j < env.prog_stat_cnt) {
-		bool last = (i == env.baseline_stat_cnt - 1) || (j == env.prog_stat_cnt - 1);
 		const struct verif_stats *base, *comp;
+		struct verif_stats_join *join;
+		void *tmp;
 		int r;
 
 		base = i < env.baseline_stat_cnt ? &env.baseline_stats[i] : &fallback_stats;
@@ -1256,24 +1675,192 @@ one_more_time:
 			return -EINVAL;
 		}
 
+		tmp = realloc(env.join_stats, (env.join_stat_cnt + 1) * sizeof(*env.join_stats));
+		if (!tmp)
+			return -ENOMEM;
+		env.join_stats = tmp;
+
+		join = &env.join_stats[env.join_stat_cnt];
+		memset(join, 0, sizeof(*join));
+
 		r = cmp_stats_key(base, comp);
 		if (r == 0) {
-			output_comp_stats(base, comp, cur_fmt, last);
+			join->file_name = base->file_name;
+			join->prog_name = base->prog_name;
+			join->stats_a = base;
+			join->stats_b = comp;
 			i++;
 			j++;
 		} else if (comp == &fallback_stats || r < 0) {
-			output_comp_stats(base, &fallback_stats, cur_fmt, last);
+			join->file_name = base->file_name;
+			join->prog_name = base->prog_name;
+			join->stats_a = base;
+			join->stats_b = NULL;
 			i++;
 		} else {
-			output_comp_stats(&fallback_stats, comp, cur_fmt, last);
+			join->file_name = comp->file_name;
+			join->prog_name = comp->prog_name;
+			join->stats_a = NULL;
+			join->stats_b = comp;
 			j++;
 		}
+		env.join_stat_cnt += 1;
+	}
+
+	/* now sort joined results accorsing to sort spec */
+	qsort(env.join_stats, env.join_stat_cnt, sizeof(*env.join_stats), cmp_join_stats);
+
+	/* for human-readable table output we need to do extra pass to
+	 * calculate column widths, so we substitute current output format
+	 * with RESFMT_TABLE_CALCLEN and later revert it back to RESFMT_TABLE
+	 * and do everything again.
+	 */
+	if (env.out_fmt == RESFMT_TABLE)
+		cur_fmt = RESFMT_TABLE_CALCLEN;
+	else
+		cur_fmt = env.out_fmt;
+
+one_more_time:
+	output_comp_headers(cur_fmt);
+
+	for (i = 0; i < env.join_stat_cnt; i++) {
+		const struct verif_stats_join *join = &env.join_stats[i];
+
+		if (!should_output_join_stats(join))
+			continue;
+
+		if (cur_fmt == RESFMT_TABLE_CALCLEN)
+			last_idx = i;
+
+		output_comp_stats(join, cur_fmt, i == last_idx);
 	}
 
 	if (cur_fmt == RESFMT_TABLE_CALCLEN) {
 		cur_fmt = RESFMT_TABLE;
 		goto one_more_time; /* ... this time with feeling */
 	}
+
+	return 0;
+}
+
+static bool is_stat_filter_matched(struct filter *f, const struct verif_stats *stats)
+{
+	long value = stats->stats[f->stat_id];
+
+	switch (f->op) {
+	case OP_EQ: return value == f->value;
+	case OP_NEQ: return value != f->value;
+	case OP_LT: return value < f->value;
+	case OP_LE: return value <= f->value;
+	case OP_GT: return value > f->value;
+	case OP_GE: return value >= f->value;
+	}
+
+	fprintf(stderr, "BUG: unknown filter op %d!\n", f->op);
+	return false;
+}
+
+static bool should_output_stats(const struct verif_stats *stats)
+{
+	struct filter *f;
+	int i, allow_cnt = 0;
+
+	for (i = 0; i < env.deny_filter_cnt; i++) {
+		f = &env.deny_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+
+		if (is_stat_filter_matched(f, stats))
+			return false;
+	}
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		f = &env.allow_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+		allow_cnt++;
+
+		if (is_stat_filter_matched(f, stats))
+			return true;
+	}
+
+	/* if there are no stat allowed filters, pass everything through */
+	return allow_cnt == 0;
+}
+
+static void output_prog_stats(void)
+{
+	const struct verif_stats *stats;
+	int i, last_stat_idx = 0;
+
+	if (env.out_fmt == RESFMT_TABLE) {
+		/* calculate column widths */
+		output_headers(RESFMT_TABLE_CALCLEN);
+		for (i = 0; i < env.prog_stat_cnt; i++) {
+			stats = &env.prog_stats[i];
+			if (!should_output_stats(stats))
+				continue;
+			output_stats(stats, RESFMT_TABLE_CALCLEN, false);
+			last_stat_idx = i;
+		}
+	}
+
+	/* actually output the table */
+	output_headers(env.out_fmt);
+	for (i = 0; i < env.prog_stat_cnt; i++) {
+		stats = &env.prog_stats[i];
+		if (!should_output_stats(stats))
+			continue;
+		output_stats(stats, env.out_fmt, i == last_stat_idx);
+	}
+}
+
+static int handle_verif_mode(void)
+{
+	int i, err;
+
+	if (env.filename_cnt == 0) {
+		fprintf(stderr, "Please provide path to BPF object file!\n\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < env.filename_cnt; i++) {
+		err = process_obj(env.filenames[i]);
+		if (err) {
+			fprintf(stderr, "Failed to process '%s': %d\n", env.filenames[i], err);
+			return err;
+		}
+	}
+
+	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
+
+	output_prog_stats();
+
+	return 0;
+}
+
+static int handle_replay_mode(void)
+{
+	struct stat_specs specs = {};
+	int err;
+
+	if (env.filename_cnt != 1) {
+		fprintf(stderr, "Replay mode expects exactly one input CSV file!\n\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return -EINVAL;
+	}
+
+	err = parse_stats_csv(env.filenames[0], &specs,
+			      &env.prog_stats, &env.prog_stat_cnt);
+	if (err) {
+		fprintf(stderr, "Failed to parse stats from '%s': %d\n", env.filenames[0], err);
+		return err;
+	}
+
+	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
+
+	output_prog_stats();
 
 	return 0;
 }
@@ -1286,34 +1873,49 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (env.verbose && env.quiet) {
-		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n");
+		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n\n");
 		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
 		return 1;
 	}
 	if (env.verbose && env.log_level == 0)
 		env.log_level = 1;
 
-	if (env.output_spec.spec_cnt == 0)
-		env.output_spec = default_output_spec;
+	if (env.output_spec.spec_cnt == 0) {
+		if (env.out_fmt == RESFMT_CSV)
+			env.output_spec = default_csv_output_spec;
+		else
+			env.output_spec = default_output_spec;
+	}
 	if (env.sort_spec.spec_cnt == 0)
 		env.sort_spec = default_sort_spec;
 
+	if (env.comparison_mode && env.replay_mode) {
+		fprintf(stderr, "Can't specify replay and comparison mode at the same time!\n\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return 1;
+	}
+
 	if (env.comparison_mode)
 		err = handle_comparison_mode();
+	else if (env.replay_mode)
+		err = handle_replay_mode();
 	else
 		err = handle_verif_mode();
 
 	free_verif_stats(env.prog_stats, env.prog_stat_cnt);
 	free_verif_stats(env.baseline_stats, env.baseline_stat_cnt);
+	free(env.join_stats);
 	for (i = 0; i < env.filename_cnt; i++)
 		free(env.filenames[i]);
 	free(env.filenames);
 	for (i = 0; i < env.allow_filter_cnt; i++) {
+		free(env.allow_filters[i].any_glob);
 		free(env.allow_filters[i].file_glob);
 		free(env.allow_filters[i].prog_glob);
 	}
 	free(env.allow_filters);
 	for (i = 0; i < env.deny_filter_cnt; i++) {
+		free(env.deny_filters[i].any_glob);
 		free(env.deny_filters[i].file_glob);
 		free(env.deny_filters[i].prog_glob);
 	}

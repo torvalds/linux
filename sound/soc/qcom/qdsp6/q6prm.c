@@ -12,6 +12,7 @@
 #include <linux/soc/qcom/apr.h>
 #include <dt-bindings/soc/qcom,gpr.h>
 #include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
+#include "q6apm.h"
 #include "q6prm.h"
 #include "audioreach.h"
 
@@ -226,6 +227,9 @@ static int prm_probe(gpr_device_t *gdev)
 	init_waitqueue_head(&cc->wait);
 	dev_set_drvdata(dev, cc);
 
+	if (!q6apm_is_adsp_ready())
+		return -EPROBE_DEFER;
+
 	return devm_of_platform_populate(dev);
 }
 
@@ -247,5 +251,5 @@ static gpr_driver_t prm_driver = {
 };
 
 module_gpr_driver(prm_driver);
-MODULE_DESCRIPTION("Audio Process Manager");
+MODULE_DESCRIPTION("Q6 Proxy Resource Manager");
 MODULE_LICENSE("GPL");

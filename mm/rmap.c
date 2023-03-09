@@ -315,8 +315,8 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 
  enomem_failure:
 	/*
-	 * dst->anon_vma is dropped here otherwise its degree can be incorrectly
-	 * decremented in unlink_anon_vmas().
+	 * dst->anon_vma is dropped here otherwise its num_active_vmas can
+	 * be incorrectly decremented in unlink_anon_vmas().
 	 * We can safely do this because callers of anon_vma_clone() don't care
 	 * about dst->anon_vma if anon_vma_clone() failed.
 	 */
@@ -1085,6 +1085,29 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 	return page_vma_mkclean_one(&pvmw);
 }
 
+int total_compound_mapcount(struct page *head)
+{
+	int mapcount = head_compound_mapcount(head);
+	int nr_subpages;
+	int i;
+
+	/* In the common case, avoid the loop when no subpages mapped by PTE */
+	if (head_subpages_mapcount(head) == 0)
+		return mapcount;
+	/*
+	 * Add all the PTE mappings of those subpages mapped by PTE.
+	 * Limit the loop, knowing that only subpages_mapcount are mapped?
+	 * Perhaps: given all the raciness, that may be a good or a bad idea.
+	 */
+	nr_subpages = thp_nr_pages(head);
+	for (i = 0; i < nr_subpages; i++)
+		mapcount += atomic_read(&head[i]._mapcount);
+
+	/* But each of those _mapcounts was based on -1 */
+	mapcount += nr_subpages;
+	return mapcount;
+}
+
 /**
  * page_move_anon_rmap - move a page to our anon_vma
  * @page:	the page to move to our anon_vma
@@ -1194,38 +1217,50 @@ static void __page_check_anon_rmap(struct page *page,
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address, rmap_t flags)
 {
+	atomic_t *mapped;
+	int nr = 0, nr_pmdmapped = 0;
 	bool compound = flags & RMAP_COMPOUND;
-	bool first;
+	bool first = true;
 
 	if (unlikely(PageKsm(page)))
 		lock_page_memcg(page);
-	else
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
 
-	if (compound) {
-		atomic_t *mapcount;
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-		mapcount = compound_mapcount_ptr(page);
-		first = atomic_inc_and_test(mapcount);
-	} else {
+	/* Is page being mapped by PTE? Is this its first map to be added? */
+	if (likely(!compound)) {
 		first = atomic_inc_and_test(&page->_mapcount);
+		nr = first;
+		if (first && PageCompound(page)) {
+			mapped = subpages_mapcount_ptr(compound_head(page));
+			nr = atomic_inc_return_relaxed(mapped);
+			nr = (nr < COMPOUND_MAPPED);
+		}
+	} else if (PageTransHuge(page)) {
+		/* That test is redundant: it's for safety or to optimize out */
+
+		first = atomic_inc_and_test(compound_mapcount_ptr(page));
+		if (first) {
+			mapped = subpages_mapcount_ptr(page);
+			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
+			if (likely(nr < COMPOUND_MAPPED + COMPOUND_MAPPED)) {
+				nr_pmdmapped = thp_nr_pages(page);
+				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				/* Raced ahead of a remove and another add? */
+				if (unlikely(nr < 0))
+					nr = 0;
+			} else {
+				/* Raced ahead of a remove of COMPOUND_MAPPED */
+				nr = 0;
+			}
+		}
 	}
+
 	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
 	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
 
-	if (first) {
-		int nr = compound ? thp_nr_pages(page) : 1;
-		/*
-		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-		 * these counters are not modified in interrupt context, and
-		 * pte lock(a spinlock) is held, which implies preemption
-		 * disabled.
-		 */
-		if (compound)
-			__mod_lruvec_page_state(page, NR_ANON_THPS, nr);
+	if (nr_pmdmapped)
+		__mod_lruvec_page_state(page, NR_ANON_THPS, nr_pmdmapped);
+	if (nr)
 		__mod_lruvec_page_state(page, NR_ANON_MAPPED, nr);
-	}
 
 	if (unlikely(PageKsm(page)))
 		unlock_page_memcg(page);
@@ -1256,22 +1291,24 @@ void page_add_anon_rmap(struct page *page,
 void page_add_new_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
-	const bool compound = PageCompound(page);
-	int nr = compound ? thp_nr_pages(page) : 1;
+	int nr;
 
 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
 	__SetPageSwapBacked(page);
-	if (compound) {
+
+	if (likely(!PageCompound(page))) {
+		/* increment count (starts at -1) */
+		atomic_set(&page->_mapcount, 0);
+		nr = 1;
+	} else {
 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
 		/* increment count (starts at -1) */
 		atomic_set(compound_mapcount_ptr(page), 0);
-		atomic_set(compound_pincount_ptr(page), 0);
-
+		atomic_set(subpages_mapcount_ptr(page), COMPOUND_MAPPED);
+		nr = thp_nr_pages(page);
 		__mod_lruvec_page_state(page, NR_ANON_THPS, nr);
-	} else {
-		/* increment count (starts at -1) */
-		atomic_set(&page->_mapcount, 0);
 	}
+
 	__mod_lruvec_page_state(page, NR_ANON_MAPPED, nr);
 	__page_set_anon_rmap(page, vma, address, 1);
 }
@@ -1287,129 +1324,50 @@ void page_add_new_anon_rmap(struct page *page,
 void page_add_file_rmap(struct page *page,
 	struct vm_area_struct *vma, bool compound)
 {
-	int i, nr = 0;
+	atomic_t *mapped;
+	int nr = 0, nr_pmdmapped = 0;
+	bool first;
 
 	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
 	lock_page_memcg(page);
-	if (compound && PageTransHuge(page)) {
-		int nr_pages = thp_nr_pages(page);
 
-		for (i = 0; i < nr_pages; i++) {
-			if (atomic_inc_and_test(&page[i]._mapcount))
-				nr++;
+	/* Is page being mapped by PTE? Is this its first map to be added? */
+	if (likely(!compound)) {
+		first = atomic_inc_and_test(&page->_mapcount);
+		nr = first;
+		if (first && PageCompound(page)) {
+			mapped = subpages_mapcount_ptr(compound_head(page));
+			nr = atomic_inc_return_relaxed(mapped);
+			nr = (nr < COMPOUND_MAPPED);
 		}
-		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
-			goto out;
+	} else if (PageTransHuge(page)) {
+		/* That test is redundant: it's for safety or to optimize out */
 
-		/*
-		 * It is racy to ClearPageDoubleMap in page_remove_file_rmap();
-		 * but page lock is held by all page_add_file_rmap() compound
-		 * callers, and SetPageDoubleMap below warns if !PageLocked:
-		 * so here is a place that DoubleMap can be safely cleared.
-		 */
-		VM_WARN_ON_ONCE(!PageLocked(page));
-		if (nr == nr_pages && PageDoubleMap(page))
-			ClearPageDoubleMap(page);
-
-		if (PageSwapBacked(page))
-			__mod_lruvec_page_state(page, NR_SHMEM_PMDMAPPED,
-						nr_pages);
-		else
-			__mod_lruvec_page_state(page, NR_FILE_PMDMAPPED,
-						nr_pages);
-	} else {
-		if (PageTransCompound(page) && page_mapping(page)) {
-			VM_WARN_ON_ONCE(!PageLocked(page));
-			SetPageDoubleMap(compound_head(page));
+		first = atomic_inc_and_test(compound_mapcount_ptr(page));
+		if (first) {
+			mapped = subpages_mapcount_ptr(page);
+			nr = atomic_add_return_relaxed(COMPOUND_MAPPED, mapped);
+			if (likely(nr < COMPOUND_MAPPED + COMPOUND_MAPPED)) {
+				nr_pmdmapped = thp_nr_pages(page);
+				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				/* Raced ahead of a remove and another add? */
+				if (unlikely(nr < 0))
+					nr = 0;
+			} else {
+				/* Raced ahead of a remove of COMPOUND_MAPPED */
+				nr = 0;
+			}
 		}
-		if (atomic_inc_and_test(&page->_mapcount))
-			nr++;
 	}
-out:
+
+	if (nr_pmdmapped)
+		__mod_lruvec_page_state(page, PageSwapBacked(page) ?
+			NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED, nr_pmdmapped);
 	if (nr)
 		__mod_lruvec_page_state(page, NR_FILE_MAPPED, nr);
 	unlock_page_memcg(page);
 
 	mlock_vma_page(page, vma, compound);
-}
-
-static void page_remove_file_rmap(struct page *page, bool compound)
-{
-	int i, nr = 0;
-
-	VM_BUG_ON_PAGE(compound && !PageHead(page), page);
-
-	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
-	if (unlikely(PageHuge(page))) {
-		/* hugetlb pages are always mapped with pmds */
-		atomic_dec(compound_mapcount_ptr(page));
-		return;
-	}
-
-	/* page still mapped by someone else? */
-	if (compound && PageTransHuge(page)) {
-		int nr_pages = thp_nr_pages(page);
-
-		for (i = 0; i < nr_pages; i++) {
-			if (atomic_add_negative(-1, &page[i]._mapcount))
-				nr++;
-		}
-		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-			goto out;
-		if (PageSwapBacked(page))
-			__mod_lruvec_page_state(page, NR_SHMEM_PMDMAPPED,
-						-nr_pages);
-		else
-			__mod_lruvec_page_state(page, NR_FILE_PMDMAPPED,
-						-nr_pages);
-	} else {
-		if (atomic_add_negative(-1, &page->_mapcount))
-			nr++;
-	}
-out:
-	if (nr)
-		__mod_lruvec_page_state(page, NR_FILE_MAPPED, -nr);
-}
-
-static void page_remove_anon_compound_rmap(struct page *page)
-{
-	int i, nr;
-
-	if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-		return;
-
-	/* Hugepages are not counted in NR_ANON_PAGES for now. */
-	if (unlikely(PageHuge(page)))
-		return;
-
-	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-		return;
-
-	__mod_lruvec_page_state(page, NR_ANON_THPS, -thp_nr_pages(page));
-
-	if (TestClearPageDoubleMap(page)) {
-		/*
-		 * Subpages can be mapped with PTEs too. Check how many of
-		 * them are still mapped.
-		 */
-		for (i = 0, nr = 0; i < thp_nr_pages(page); i++) {
-			if (atomic_add_negative(-1, &page[i]._mapcount))
-				nr++;
-		}
-
-		/*
-		 * Queue the page for deferred split if at least one small
-		 * page of the compound page is unmapped, but at least one
-		 * small page is still mapped.
-		 */
-		if (nr && nr < thp_nr_pages(page))
-			deferred_split_huge_page(page);
-	} else {
-		nr = thp_nr_pages(page);
-	}
-
-	if (nr)
-		__mod_lruvec_page_state(page, NR_ANON_MAPPED, -nr);
 }
 
 /**
@@ -1423,42 +1381,76 @@ static void page_remove_anon_compound_rmap(struct page *page)
 void page_remove_rmap(struct page *page,
 	struct vm_area_struct *vma, bool compound)
 {
+	atomic_t *mapped;
+	int nr = 0, nr_pmdmapped = 0;
+	bool last;
+
+	VM_BUG_ON_PAGE(compound && !PageHead(page), page);
+
+	/* Hugetlb pages are not counted in NR_*MAPPED */
+	if (unlikely(PageHuge(page))) {
+		/* hugetlb pages are always mapped with pmds */
+		atomic_dec(compound_mapcount_ptr(page));
+		return;
+	}
+
 	lock_page_memcg(page);
 
-	if (!PageAnon(page)) {
-		page_remove_file_rmap(page, compound);
-		goto out;
+	/* Is page being unmapped by PTE? Is this its last map to be removed? */
+	if (likely(!compound)) {
+		last = atomic_add_negative(-1, &page->_mapcount);
+		nr = last;
+		if (last && PageCompound(page)) {
+			mapped = subpages_mapcount_ptr(compound_head(page));
+			nr = atomic_dec_return_relaxed(mapped);
+			nr = (nr < COMPOUND_MAPPED);
+		}
+	} else if (PageTransHuge(page)) {
+		/* That test is redundant: it's for safety or to optimize out */
+
+		last = atomic_add_negative(-1, compound_mapcount_ptr(page));
+		if (last) {
+			mapped = subpages_mapcount_ptr(page);
+			nr = atomic_sub_return_relaxed(COMPOUND_MAPPED, mapped);
+			if (likely(nr < COMPOUND_MAPPED)) {
+				nr_pmdmapped = thp_nr_pages(page);
+				nr = nr_pmdmapped - (nr & SUBPAGES_MAPPED);
+				/* Raced ahead of another remove and an add? */
+				if (unlikely(nr < 0))
+					nr = 0;
+			} else {
+				/* An add of COMPOUND_MAPPED raced ahead */
+				nr = 0;
+			}
+		}
 	}
 
-	if (compound) {
-		page_remove_anon_compound_rmap(page);
-		goto out;
+	if (nr_pmdmapped) {
+		__mod_lruvec_page_state(page, PageAnon(page) ? NR_ANON_THPS :
+				(PageSwapBacked(page) ? NR_SHMEM_PMDMAPPED :
+				NR_FILE_PMDMAPPED), -nr_pmdmapped);
+	}
+	if (nr) {
+		__mod_lruvec_page_state(page, PageAnon(page) ? NR_ANON_MAPPED :
+				NR_FILE_MAPPED, -nr);
+		/*
+		 * Queue anon THP for deferred split if at least one small
+		 * page of the compound page is unmapped, but at least one
+		 * small page is still mapped.
+		 */
+		if (PageTransCompound(page) && PageAnon(page))
+			if (!compound || nr < nr_pmdmapped)
+				deferred_split_huge_page(compound_head(page));
 	}
 
-	/* page still mapped by someone else? */
-	if (!atomic_add_negative(-1, &page->_mapcount))
-		goto out;
-
 	/*
-	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-	 * these counters are not modified in interrupt context, and
-	 * pte lock(a spinlock) is held, which implies preemption disabled.
-	 */
-	__dec_lruvec_page_state(page, NR_ANON_MAPPED);
-
-	if (PageTransCompound(page))
-		deferred_split_huge_page(compound_head(page));
-
-	/*
-	 * It would be tidy to reset the PageAnon mapping here,
+	 * It would be tidy to reset PageAnon mapping when fully unmapped,
 	 * but that might overwrite a racing page_add_anon_rmap
 	 * which increments mapcount after us but sets mapping
-	 * before us: so leave the reset to free_unref_page,
+	 * before us: so leave the reset to free_pages_prepare,
 	 * and remember that it's only reliable while mapped.
-	 * Leaving it set also helps swapoff to reinstate ptes
-	 * faster for those pages still in swapcache.
 	 */
-out:
+
 	unlock_page_memcg(page);
 
 	munlock_vma_page(page, vma, compound);
@@ -1801,7 +1793,7 @@ static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)
 	return vma_is_temporary_stack(vma);
 }
 
-static int page_not_mapped(struct folio *folio)
+static int folio_not_mapped(struct folio *folio)
 {
 	return !folio_mapped(folio);
 }
@@ -1822,7 +1814,7 @@ void try_to_unmap(struct folio *folio, enum ttu_flags flags)
 	struct rmap_walk_control rwc = {
 		.rmap_one = try_to_unmap_one,
 		.arg = (void *)flags,
-		.done = page_not_mapped,
+		.done = folio_not_mapped,
 		.anon_lock = folio_lock_anon_vma_read,
 	};
 
@@ -2150,7 +2142,7 @@ void try_to_migrate(struct folio *folio, enum ttu_flags flags)
 	struct rmap_walk_control rwc = {
 		.rmap_one = try_to_migrate_one,
 		.arg = (void *)flags,
-		.done = page_not_mapped,
+		.done = folio_not_mapped,
 		.anon_lock = folio_lock_anon_vma_read,
 	};
 
@@ -2297,7 +2289,7 @@ static bool folio_make_device_exclusive(struct folio *folio,
 	};
 	struct rmap_walk_control rwc = {
 		.rmap_one = page_make_device_exclusive_one,
-		.done = page_not_mapped,
+		.done = folio_not_mapped,
 		.anon_lock = folio_lock_anon_vma_read,
 		.arg = &args,
 	};
@@ -2569,9 +2561,9 @@ void hugepage_add_new_anon_rmap(struct page *page,
 			struct vm_area_struct *vma, unsigned long address)
 {
 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+	/* increment count (starts at -1) */
 	atomic_set(compound_mapcount_ptr(page), 0);
-	atomic_set(compound_pincount_ptr(page), 0);
-
+	ClearHPageRestoreReserve(page);
 	__page_set_anon_rmap(page, vma, address, 1);
 }
 #endif /* CONFIG_HUGETLB_PAGE */

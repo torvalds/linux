@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 /conf
 /[gmnq]conf
-/[gmnq]conf-cfg
+/[gmnq]conf-bin
+/[gmnq]conf-cflags
+/[gmnq]conf-libs
 /qconf-moc.cc

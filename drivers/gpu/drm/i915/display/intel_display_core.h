@@ -14,9 +14,10 @@
 #include <linux/workqueue.h>
 
 #include <drm/drm_connector.h>
+#include <drm/drm_modeset_lock.h>
 
 #include "intel_cdclk.h"
-#include "intel_display.h"
+#include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dmc.h"
 #include "intel_dpll_mgr.h"
@@ -28,6 +29,7 @@
 
 struct drm_i915_private;
 struct drm_property;
+struct drm_property_blob;
 struct i915_audio_component;
 struct i915_hdcp_comp_master;
 struct intel_atomic_state;
@@ -85,6 +87,11 @@ struct intel_wm_funcs {
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
 };
 
+struct intel_audio_state {
+	struct intel_encoder *encoder;
+	u8 eld[MAX_ELD_BYTES];
+};
+
 struct intel_audio {
 	/* hda/i915 audio component */
 	struct i915_audio_component *component;
@@ -94,8 +101,8 @@ struct intel_audio {
 	int power_refcount;
 	u32 freq_cntrl;
 
-	/* Used to save the pipe-to-encoder mapping for audio */
-	struct intel_encoder *encoder_map[I915_MAX_PIPES];
+	/* current audio state for the audio component hooks */
+	struct intel_audio_state state[I915_MAX_PIPES];
 
 	/* necessary resource sharing with HDMI LPE audio driver. */
 	struct {
@@ -120,6 +127,11 @@ struct intel_dpll {
 		int nssc;
 		int ssc;
 	} ref_clks;
+
+	/*
+	 * Bitmask of PLLs using the PCH SSC, indexed using enum intel_dpll_id.
+	 */
+	u8 pch_ssc_use;
 };
 
 struct intel_frontbuffer_tracking {
@@ -309,6 +321,10 @@ struct intel_display {
 	} cdclk;
 
 	struct {
+		struct drm_property_blob *glk_linear_degamma_lut;
+	} color;
+
+	struct {
 		/* The current hardware dbuf configuration */
 		u8 enabled_slices;
 
@@ -340,6 +356,10 @@ struct intel_display {
 	} fdi;
 
 	struct {
+		struct list_head obj_list;
+	} global;
+
+	struct {
 		/*
 		 * Base address of where the gmbus and gpio blocks are located
 		 * (either on PCH or on SoC for platforms without PCH).
@@ -364,6 +384,16 @@ struct intel_display {
 		/* Mutex to protect the above hdcp component related values. */
 		struct mutex comp_mutex;
 	} hdcp;
+
+	struct {
+		/*
+		 * HTI (aka HDPORT) state read during initial hw readout. Most
+		 * platforms don't have HTI, so this will just stay 0. Those
+		 * that do will use this later to figure out which PLLs and PHYs
+		 * are unavailable for driver usage.
+		 */
+		u32 state;
+	} hti;
 
 	struct {
 		struct i915_power_domains domains;
@@ -392,6 +422,12 @@ struct intel_display {
 	} quirks;
 
 	struct {
+		/* restore state for suspend/resume and display reset */
+		struct drm_atomic_state *modeset_state;
+		struct drm_modeset_acquire_ctx reset_ctx;
+	} restore;
+
+	struct {
 		enum {
 			I915_SAGV_UNKNOWN = 0,
 			I915_SAGV_DISABLED,
@@ -401,6 +437,24 @@ struct intel_display {
 
 		u32 block_time_us;
 	} sagv;
+
+	struct {
+		/*
+		 * DG2: Mask of PHYs that were not calibrated by the firmware
+		 * and should not be used.
+		 */
+		u8 phy_failed_calibration;
+	} snps;
+
+	struct {
+		/*
+		 * Shadows for CHV DPLL_MD regs to keep the state
+		 * checker somewhat working in the presence hardware
+		 * crappiness (can't read out DPLL_MD for pipes B & C).
+		 */
+		u32 chv_dpll_md[I915_MAX_PIPES];
+		u32 bxt_phy_grc;
+	} state;
 
 	struct {
 		/* ordered wq for modesets */

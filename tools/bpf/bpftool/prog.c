@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -196,7 +198,7 @@ static void show_prog_maps(int fd, __u32 num_maps)
 	info.nr_map_ids = num_maps;
 	info.map_ids = ptr_to_u64(map_ids);
 
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_prog_get_info_by_fd(fd, &info, &len);
 	if (err || !info.nr_map_ids)
 		return;
 
@@ -229,7 +231,7 @@ static void *find_metadata(int prog_fd, struct bpf_map_info *map_info)
 
 	memset(&prog_info, 0, sizeof(prog_info));
 	prog_info_len = sizeof(prog_info);
-	ret = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
+	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret)
 		return NULL;
 
@@ -246,7 +248,7 @@ static void *find_metadata(int prog_fd, struct bpf_map_info *map_info)
 	prog_info.map_ids = ptr_to_u64(map_ids);
 	prog_info_len = sizeof(prog_info);
 
-	ret = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
+	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret)
 		goto free_map_ids;
 
@@ -257,7 +259,7 @@ static void *find_metadata(int prog_fd, struct bpf_map_info *map_info)
 
 		memset(map_info, 0, sizeof(*map_info));
 		map_info_len = sizeof(*map_info);
-		ret = bpf_obj_get_info_by_fd(map_fd, map_info, &map_info_len);
+		ret = bpf_map_get_info_by_fd(map_fd, map_info, &map_info_len);
 		if (ret < 0) {
 			close(map_fd);
 			goto free_map_ids;
@@ -320,7 +322,7 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 		return;
 
 	btf = btf__load_from_kernel_by_id(map_info.btf_id);
-	if (libbpf_get_error(btf))
+	if (!btf)
 		goto out_free;
 
 	t_datasec = btf__type_by_id(btf, map_info.btf_value_type_id);
@@ -484,9 +486,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 
 		jsonw_name(json_wtr, "pinned");
 		jsonw_start_array(json_wtr);
-		hashmap__for_each_key_entry(prog_table, entry,
-					    u32_as_hash_field(info->id))
-			jsonw_string(json_wtr, entry->value);
+		hashmap__for_each_key_entry(prog_table, entry, info->id)
+			jsonw_string(json_wtr, entry->pvalue);
 		jsonw_end_array(json_wtr);
 	}
 
@@ -559,9 +560,8 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (!hashmap__empty(prog_table)) {
 		struct hashmap_entry *entry;
 
-		hashmap__for_each_key_entry(prog_table, entry,
-					    u32_as_hash_field(info->id))
-			printf("\n\tpinned %s", (char *)entry->value);
+		hashmap__for_each_key_entry(prog_table, entry, info->id)
+			printf("\n\tpinned %s", (char *)entry->pvalue);
 	}
 
 	if (info->btf_id)
@@ -580,7 +580,7 @@ static int show_prog(int fd)
 	__u32 len = sizeof(info);
 	int err;
 
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_prog_get_info_by_fd(fd, &info, &len);
 	if (err) {
 		p_err("can't get prog info: %s", strerror(errno));
 		return -1;
@@ -726,7 +726,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 
 	if (info->btf_id) {
 		btf = btf__load_from_kernel_by_id(info->btf_id);
-		if (libbpf_get_error(btf)) {
+		if (!btf) {
 			p_err("failed to get btf");
 			return -1;
 		}
@@ -762,10 +762,8 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		const char *name = NULL;
 
 		if (info->ifindex) {
-			name = ifindex_to_bfd_params(info->ifindex,
-						     info->netns_dev,
-						     info->netns_ino,
-						     &disasm_opt);
+			name = ifindex_to_arch(info->ifindex, info->netns_dev,
+					       info->netns_ino, &disasm_opt);
 			if (!name)
 				goto exit_free;
 		}
@@ -820,10 +818,11 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 					printf("%s:\n", sym_name);
 				}
 
-				disasm_print_insn(img, lens[i], opcodes,
-						  name, disasm_opt, btf,
-						  prog_linfo, ksyms[i], i,
-						  linum);
+				if (disasm_print_insn(img, lens[i], opcodes,
+						      name, disasm_opt, btf,
+						      prog_linfo, ksyms[i], i,
+						      linum))
+					goto exit_free;
 
 				img += lens[i];
 
@@ -836,8 +835,10 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 			if (json_output)
 				jsonw_end_array(json_wtr);
 		} else {
-			disasm_print_insn(buf, member_len, opcodes, name,
-					  disasm_opt, btf, NULL, 0, 0, false);
+			if (disasm_print_insn(buf, member_len, opcodes, name,
+					      disasm_opt, btf, NULL, 0, 0,
+					      false))
+				goto exit_free;
 		}
 	} else if (visual) {
 		if (json_output)
@@ -948,7 +949,7 @@ static int do_dump(int argc, char **argv)
 	for (i = 0; i < nb_fds; i++) {
 		memset(&info, 0, sizeof(info));
 
-		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		err = bpf_prog_get_info_by_fd(fds[i], &info, &info_len);
 		if (err) {
 			p_err("can't get prog info: %s", strerror(errno));
 			break;
@@ -960,7 +961,7 @@ static int do_dump(int argc, char **argv)
 			break;
 		}
 
-		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		err = bpf_prog_get_info_by_fd(fds[i], &info, &info_len);
 		if (err) {
 			p_err("can't get prog info: %s", strerror(errno));
 			break;
@@ -1453,6 +1454,67 @@ get_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 	return ret;
 }
 
+static int
+auto_attach_program(struct bpf_program *prog, const char *path)
+{
+	struct bpf_link *link;
+	int err;
+
+	link = bpf_program__attach(prog);
+	if (!link) {
+		p_info("Program %s does not support autoattach, falling back to pinning",
+		       bpf_program__name(prog));
+		return bpf_obj_pin(bpf_program__fd(prog), path);
+	}
+
+	err = bpf_link__pin(link, path);
+	bpf_link__destroy(link);
+	return err;
+}
+
+static int pathname_concat(char *buf, size_t buf_sz, const char *path, const char *name)
+{
+	int len;
+
+	len = snprintf(buf, buf_sz, "%s/%s", path, name);
+	if (len < 0)
+		return -EINVAL;
+	if ((size_t)len >= buf_sz)
+		return -ENAMETOOLONG;
+
+	return 0;
+}
+
+static int
+auto_attach_programs(struct bpf_object *obj, const char *path)
+{
+	struct bpf_program *prog;
+	char buf[PATH_MAX];
+	int err;
+
+	bpf_object__for_each_program(prog, obj) {
+		err = pathname_concat(buf, sizeof(buf), path, bpf_program__name(prog));
+		if (err)
+			goto err_unpin_programs;
+
+		err = auto_attach_program(prog, buf);
+		if (err)
+			goto err_unpin_programs;
+	}
+
+	return 0;
+
+err_unpin_programs:
+	while ((prog = bpf_object__prev_program(obj, prog))) {
+		if (pathname_concat(buf, sizeof(buf), path, bpf_program__name(prog)))
+			continue;
+
+		bpf_program__unpin(prog, buf);
+	}
+
+	return err;
+}
+
 static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
 	enum bpf_prog_type common_prog_type = BPF_PROG_TYPE_UNSPEC;
@@ -1464,6 +1526,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	struct bpf_program *prog = NULL, *pos;
 	unsigned int old_map_fds = 0;
 	const char *pinmaps = NULL;
+	bool auto_attach = false;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	const char *pinfile;
@@ -1583,6 +1646,9 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 				goto err_free_reuse_maps;
 
 			pinmaps = GET_ARG();
+		} else if (is_prefix(*argv, "autoattach")) {
+			auto_attach = true;
+			NEXT_ARG();
 		} else {
 			p_err("expected no more arguments, 'type', 'map' or 'dev', got: '%s'?",
 			      *argv);
@@ -1597,7 +1663,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
-	if (libbpf_get_error(obj)) {
+	if (!obj) {
 		p_err("failed to open object file");
 		goto err_free_reuse_maps;
 	}
@@ -1692,14 +1758,20 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			goto err_close_obj;
 		}
 
-		err = bpf_obj_pin(bpf_program__fd(prog), pinfile);
+		if (auto_attach)
+			err = auto_attach_program(prog, pinfile);
+		else
+			err = bpf_obj_pin(bpf_program__fd(prog), pinfile);
 		if (err) {
 			p_err("failed to pin program %s",
 			      bpf_program__section_name(prog));
 			goto err_close_obj;
 		}
 	} else {
-		err = bpf_object__pin_programs(obj, pinfile);
+		if (auto_attach)
+			err = auto_attach_programs(obj, pinfile);
+		else
+			err = bpf_object__pin_programs(obj, pinfile);
 		if (err) {
 			p_err("failed to pin all programs");
 			goto err_close_obj;
@@ -1730,11 +1802,6 @@ err_unpin:
 	else
 		bpf_object__unpin_programs(obj, pinfile);
 err_close_obj:
-	if (!legacy_libbpf) {
-		p_info("Warning: bpftool is now running in libbpf strict mode and has more stringent requirements about BPF programs.\n"
-		       "If it used to work for this object file but now doesn't, see --legacy option for more details.\n");
-	}
-
 	bpf_object__close(obj);
 err_free_reuse_maps:
 	for (i = 0; i < old_map_fds; i++)
@@ -1815,7 +1882,7 @@ static int do_loader(int argc, char **argv)
 		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
-	if (libbpf_get_error(obj)) {
+	if (!obj) {
 		p_err("failed to open object file");
 		goto err_close_obj;
 	}
@@ -2103,9 +2170,9 @@ static char *profile_target_name(int tgt_fd)
 	char *name = NULL;
 	int err;
 
-	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(tgt_fd, &info, &info_len);
 	if (err) {
-		p_err("failed to bpf_obj_get_info_by_fd for prog FD %d", tgt_fd);
+		p_err("failed to get info for prog FD %d", tgt_fd);
 		goto out;
 	}
 
@@ -2116,7 +2183,7 @@ static char *profile_target_name(int tgt_fd)
 
 	func_info_rec_size = info.func_info_rec_size;
 	if (info.nr_func_info == 0) {
-		p_err("bpf_obj_get_info_by_fd for prog FD %d found 0 func_info", tgt_fd);
+		p_err("found 0 func_info for prog FD %d", tgt_fd);
 		goto out;
 	}
 
@@ -2125,14 +2192,14 @@ static char *profile_target_name(int tgt_fd)
 	info.func_info_rec_size = func_info_rec_size;
 	info.func_info = ptr_to_u64(&func_info);
 
-	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(tgt_fd, &info, &info_len);
 	if (err) {
 		p_err("failed to get func_info for prog FD %d", tgt_fd);
 		goto out;
 	}
 
 	btf = btf__load_from_kernel_by_id(info.btf_id);
-	if (libbpf_get_error(btf)) {
+	if (!btf) {
 		p_err("failed to load btf for prog FD %d", tgt_fd);
 		goto out;
 	}
@@ -2166,10 +2233,38 @@ static void profile_close_perf_events(struct profiler_bpf *obj)
 	profile_perf_event_cnt = 0;
 }
 
+static int profile_open_perf_event(int mid, int cpu, int map_fd)
+{
+	int pmu_fd;
+
+	pmu_fd = syscall(__NR_perf_event_open, &metrics[mid].attr,
+			 -1 /*pid*/, cpu, -1 /*group_fd*/, 0);
+	if (pmu_fd < 0) {
+		if (errno == ENODEV) {
+			p_info("cpu %d may be offline, skip %s profiling.",
+				cpu, metrics[mid].name);
+			profile_perf_event_cnt++;
+			return 0;
+		}
+		return -1;
+	}
+
+	if (bpf_map_update_elem(map_fd,
+				&profile_perf_event_cnt,
+				&pmu_fd, BPF_ANY) ||
+	    ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0)) {
+		close(pmu_fd);
+		return -1;
+	}
+
+	profile_perf_events[profile_perf_event_cnt++] = pmu_fd;
+	return 0;
+}
+
 static int profile_open_perf_events(struct profiler_bpf *obj)
 {
 	unsigned int cpu, m;
-	int map_fd, pmu_fd;
+	int map_fd;
 
 	profile_perf_events = calloc(
 		sizeof(int), obj->rodata->num_cpu * obj->rodata->num_metric);
@@ -2188,17 +2283,11 @@ static int profile_open_perf_events(struct profiler_bpf *obj)
 		if (!metrics[m].selected)
 			continue;
 		for (cpu = 0; cpu < obj->rodata->num_cpu; cpu++) {
-			pmu_fd = syscall(__NR_perf_event_open, &metrics[m].attr,
-					 -1/*pid*/, cpu, -1/*group_fd*/, 0);
-			if (pmu_fd < 0 ||
-			    bpf_map_update_elem(map_fd, &profile_perf_event_cnt,
-						&pmu_fd, BPF_ANY) ||
-			    ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0)) {
+			if (profile_open_perf_event(m, cpu, map_fd)) {
 				p_err("failed to create event %s on cpu %d",
 				      metrics[m].name, cpu);
 				return -1;
 			}
-			profile_perf_events[profile_perf_event_cnt++] = pmu_fd;
 		}
 	}
 	return 0;
@@ -2338,6 +2427,7 @@ static int do_help(int argc, char **argv)
 		"                         [type TYPE] [dev NAME] \\\n"
 		"                         [map { idx IDX | name NAME } MAP]\\\n"
 		"                         [pinmaps MAP_DIR]\n"
+		"                         [autoattach]\n"
 		"       %1$s %2$s attach PROG ATTACH_TYPE [MAP]\n"
 		"       %1$s %2$s detach PROG ATTACH_TYPE [MAP]\n"
 		"       %1$s %2$s run PROG \\\n"

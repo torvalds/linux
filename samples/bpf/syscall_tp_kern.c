@@ -58,6 +58,13 @@ int trace_enter_open_at(struct syscalls_enter_open_args *ctx)
 	return 0;
 }
 
+SEC("tracepoint/syscalls/sys_enter_openat2")
+int trace_enter_open_at2(struct syscalls_enter_open_args *ctx)
+{
+	count(&enter_open_map);
+	return 0;
+}
+
 SEC("tracepoint/syscalls/sys_exit_open")
 int trace_enter_exit(struct syscalls_exit_open_args *ctx)
 {
@@ -67,6 +74,13 @@ int trace_enter_exit(struct syscalls_exit_open_args *ctx)
 
 SEC("tracepoint/syscalls/sys_exit_openat")
 int trace_enter_exit_at(struct syscalls_exit_open_args *ctx)
+{
+	count(&exit_open_map);
+	return 0;
+}
+
+SEC("tracepoint/syscalls/sys_exit_openat2")
+int trace_enter_exit_at2(struct syscalls_exit_open_args *ctx)
 {
 	count(&exit_open_map);
 	return 0;

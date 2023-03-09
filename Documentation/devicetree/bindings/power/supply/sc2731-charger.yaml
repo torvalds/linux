@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/power/supply/sc2731-charger.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Spreadtrum SC2731 PMICs battery charger binding
+title: Spreadtrum SC2731 PMICs battery charger
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>
@@ -28,7 +28,6 @@ properties:
       The charger uses the following battery properties
       - charge-term-current-microamp: current for charge termination phase.
       - constant-charge-voltage-max-microvolt: maximum constant input voltage.
-      See Documentation/devicetree/bindings/power/supply/battery.yaml
 
 additionalProperties: false
 

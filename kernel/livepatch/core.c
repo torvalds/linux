@@ -118,26 +118,15 @@ static struct klp_object *klp_find_object(struct klp_patch *patch,
 }
 
 struct klp_find_arg {
-	const char *objname;
 	const char *name;
 	unsigned long addr;
 	unsigned long count;
 	unsigned long pos;
 };
 
-static int klp_find_callback(void *data, const char *name,
-			     struct module *mod, unsigned long addr)
+static int klp_match_callback(void *data, unsigned long addr)
 {
 	struct klp_find_arg *args = data;
-
-	if ((mod && !args->objname) || (!mod && args->objname))
-		return 0;
-
-	if (strcmp(args->name, name))
-		return 0;
-
-	if (args->objname && strcmp(args->objname, mod->name))
-		return 0;
 
 	args->addr = addr;
 	args->count++;
@@ -153,11 +142,21 @@ static int klp_find_callback(void *data, const char *name,
 	return 0;
 }
 
+static int klp_find_callback(void *data, const char *name,
+			     struct module *mod, unsigned long addr)
+{
+	struct klp_find_arg *args = data;
+
+	if (strcmp(args->name, name))
+		return 0;
+
+	return klp_match_callback(data, addr);
+}
+
 static int klp_find_object_symbol(const char *objname, const char *name,
 				  unsigned long sympos, unsigned long *addr)
 {
 	struct klp_find_arg args = {
-		.objname = objname,
 		.name = name,
 		.addr = 0,
 		.count = 0,
@@ -165,9 +164,9 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 	};
 
 	if (objname)
-		module_kallsyms_on_each_symbol(klp_find_callback, &args);
+		module_kallsyms_on_each_symbol(objname, klp_find_callback, &args);
 	else
-		kallsyms_on_each_symbol(klp_find_callback, &args);
+		kallsyms_on_each_match_symbol(klp_match_callback, name, &args);
 
 	/*
 	 * Ensure an address was found. If sympos is 0, ensure symbol is unique;

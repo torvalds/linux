@@ -38,23 +38,13 @@
 #define DCN3_2_MBLK_HEIGHT_4BPE 128
 #define DCN3_2_MBLK_HEIGHT_8BPE 64
 #define DCN3_2_VMIN_DISPCLK_HZ 717000000
+#define DCN3_2_DCFCLK_DS_INIT_KHZ 10000 // Choose 10Mhz for init DCFCLK DS freq
 
 #define TO_DCN32_RES_POOL(pool)\
 	container_of(pool, struct dcn32_resource_pool, base)
 
 extern struct _vcs_dpi_ip_params_st dcn3_2_ip;
 extern struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc;
-
-/* Temp struct used to save and restore MALL config
- * during validation.
- *
- * TODO: Move MALL config into dc_state instead of stream struct
- * to avoid needing to save/restore.
- */
-struct mall_temp_config {
-	struct mall_stream_config mall_stream_config[MAX_PIPES];
-	bool is_phantom_plane[MAX_PIPES];
-};
 
 struct dcn32_resource_pool {
 	struct resource_pool base;
@@ -81,6 +71,9 @@ bool dcn32_release_post_bldn_3dlut(
 		struct dc_transfer_func **shaper);
 
 bool dcn32_remove_phantom_pipes(struct dc *dc,
+		struct dc_state *context, bool fast_update);
+
+void dcn32_retain_phantom_pipes(struct dc *dc,
 		struct dc_state *context);
 
 void dcn32_add_phantom_pipes(struct dc *dc,
@@ -104,8 +97,17 @@ void dcn32_calculate_wm_and_dlg(
 		int pipe_cnt,
 		int vlevel);
 
-uint32_t dcn32_helper_calculate_num_ways_for_subvp
-		(struct dc *dc,
+uint32_t dcn32_helper_mall_bytes_to_ways(
+		struct dc *dc,
+		uint32_t total_size_in_mall_bytes);
+
+uint32_t dcn32_helper_calculate_mall_bytes_for_cursor(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool ignore_cursor_buf);
+
+uint32_t dcn32_helper_calculate_num_ways_for_subvp(
+		struct dc *dc,
 		struct dc_state *context);
 
 void dcn32_merge_pipes_for_subvp(struct dc *dc,
@@ -120,6 +122,8 @@ bool dcn32_subvp_in_use(struct dc *dc,
 bool dcn32_mpo_in_use(struct dc_state *context);
 
 bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
+bool dcn32_is_center_timing(struct pipe_ctx *pipe);
+bool dcn32_is_psr_capable(struct pipe_ctx *pipe);
 
 struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 		struct dc_state *state,
@@ -141,6 +145,12 @@ void dcn32_save_mall_state(struct dc *dc,
 void dcn32_restore_mall_state(struct dc *dc,
 		struct dc_state *context,
 		struct mall_temp_config *temp_config);
+
+bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
+
+unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans);
+
+double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *context);
 
 /* definitions for run time init of reg offsets */
 
@@ -1244,7 +1254,8 @@ void dcn32_restore_mall_state(struct dc *dc,
       SR(DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_C),                         \
       SR(DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D),                         \
       SR(DCN_VM_FAULT_ADDR_MSB), SR(DCN_VM_FAULT_ADDR_LSB),                    \
-      SR(DCN_VM_FAULT_CNTL), SR(DCN_VM_FAULT_STATUS)                           \
+      SR(DCN_VM_FAULT_CNTL), SR(DCN_VM_FAULT_STATUS),                          \
+      SR(SDPIF_REQUEST_RATE_LIMIT)                                             \
   )
 
 /* DCCG */

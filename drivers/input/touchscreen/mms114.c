@@ -440,8 +440,7 @@ static int mms114_parse_legacy_bindings(struct mms114_data *data)
 	return 0;
 }
 
-static int mms114_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int mms114_probe(struct i2c_client *client)
 {
 	struct mms114_data *data;
 	struct input_dev *input_dev;
@@ -639,7 +638,7 @@ static struct i2c_driver mms114_driver = {
 		.pm	= &mms114_pm_ops,
 		.of_match_table = of_match_ptr(mms114_dt_match),
 	},
-	.probe		= mms114_probe,
+	.probe_new	= mms114_probe,
 	.id_table	= mms114_id,
 };
 

@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/subdev/vfn/base.o
+nvkm-y += nvkm/subdev/vfn/uvfn.o
+nvkm-y += nvkm/subdev/vfn/gv100.o
+nvkm-y += nvkm/subdev/vfn/tu102.o
+nvkm-y += nvkm/subdev/vfn/ga100.o

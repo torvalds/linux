@@ -97,6 +97,7 @@ struct camss {
 	struct csid_device *csid;
 	struct ispif_device *ispif;
 	int vfe_num;
+	int vfe_lite_num;
 	struct vfe_device *vfe;
 	atomic_t ref_count;
 	int genpd_num;

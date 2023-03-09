@@ -200,7 +200,7 @@ static void cpuidle_sysfs_release(struct kobject *kobj)
 	complete(&kdev->kobj_unregister);
 }
 
-static struct kobj_type ktype_cpuidle = {
+static const struct kobj_type ktype_cpuidle = {
 	.sysfs_ops = &cpuidle_sysfs_ops,
 	.release = cpuidle_sysfs_release,
 };
@@ -447,7 +447,7 @@ static void cpuidle_state_sysfs_release(struct kobject *kobj)
 	complete(&state_obj->kobj_unregister);
 }
 
-static struct kobj_type ktype_state_cpuidle = {
+static const struct kobj_type ktype_state_cpuidle = {
 	.sysfs_ops = &cpuidle_state_sysfs_ops,
 	.default_groups = cpuidle_state_default_groups,
 	.release = cpuidle_state_sysfs_release,
@@ -594,7 +594,7 @@ static struct attribute *cpuidle_driver_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(cpuidle_driver_default);
 
-static struct kobj_type ktype_driver_cpuidle = {
+static const struct kobj_type ktype_driver_cpuidle = {
 	.sysfs_ops = &cpuidle_driver_sysfs_ops,
 	.default_groups = cpuidle_driver_default_groups,
 	.release = cpuidle_driver_sysfs_release,

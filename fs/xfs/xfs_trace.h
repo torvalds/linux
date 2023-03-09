@@ -3207,17 +3207,14 @@ DEFINE_REFCOUNT_DEFERRED_EVENT(xfs_refcount_deferred);
 
 TRACE_EVENT(xfs_refcount_finish_one_leftover,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 int type, xfs_agblock_t agbno, xfs_extlen_t len,
-		 xfs_agblock_t new_agbno, xfs_extlen_t new_len),
-	TP_ARGS(mp, agno, type, agbno, len, new_agbno, new_len),
+		 int type, xfs_agblock_t agbno, xfs_extlen_t len),
+	TP_ARGS(mp, agno, type, agbno, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
 		__field(int, type)
 		__field(xfs_agblock_t, agbno)
 		__field(xfs_extlen_t, len)
-		__field(xfs_agblock_t, new_agbno)
-		__field(xfs_extlen_t, new_len)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
@@ -3225,17 +3222,13 @@ TRACE_EVENT(xfs_refcount_finish_one_leftover,
 		__entry->type = type;
 		__entry->agbno = agbno;
 		__entry->len = len;
-		__entry->new_agbno = new_agbno;
-		__entry->new_len = new_len;
 	),
-	TP_printk("dev %d:%d type %d agno 0x%x agbno 0x%x fsbcount 0x%x new_agbno 0x%x new_fsbcount 0x%x",
+	TP_printk("dev %d:%d type %d agno 0x%x agbno 0x%x fsbcount 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->type,
 		  __entry->agno,
 		  __entry->agbno,
-		  __entry->len,
-		  __entry->new_agbno,
-		  __entry->new_len)
+		  __entry->len)
 );
 
 /* simple inode-based error/%ip tracepoint class */
@@ -3351,6 +3344,92 @@ DECLARE_EVENT_CLASS(xfs_inode_irec_class,
 DEFINE_EVENT(xfs_inode_irec_class, name, \
 	TP_PROTO(struct xfs_inode *ip, struct xfs_bmbt_irec *irec), \
 	TP_ARGS(ip, irec))
+
+/* inode iomap invalidation events */
+DECLARE_EVENT_CLASS(xfs_wb_invalid_class,
+	TP_PROTO(struct xfs_inode *ip, const struct iomap *iomap, unsigned int wpcseq, int whichfork),
+	TP_ARGS(ip, iomap, wpcseq, whichfork),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(u64, addr)
+		__field(loff_t, pos)
+		__field(u64, len)
+		__field(u16, type)
+		__field(u16, flags)
+		__field(u32, wpcseq)
+		__field(u32, forkseq)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->addr = iomap->addr;
+		__entry->pos = iomap->offset;
+		__entry->len = iomap->length;
+		__entry->type = iomap->type;
+		__entry->flags = iomap->flags;
+		__entry->wpcseq = wpcseq;
+		__entry->forkseq = READ_ONCE(xfs_ifork_ptr(ip, whichfork)->if_seq);
+	),
+	TP_printk("dev %d:%d ino 0x%llx pos 0x%llx addr 0x%llx bytecount 0x%llx type 0x%x flags 0x%x wpcseq 0x%x forkseq 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->pos,
+		  __entry->addr,
+		  __entry->len,
+		  __entry->type,
+		  __entry->flags,
+		  __entry->wpcseq,
+		  __entry->forkseq)
+);
+#define DEFINE_WB_INVALID_EVENT(name) \
+DEFINE_EVENT(xfs_wb_invalid_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct iomap *iomap, unsigned int wpcseq, int whichfork), \
+	TP_ARGS(ip, iomap, wpcseq, whichfork))
+DEFINE_WB_INVALID_EVENT(xfs_wb_cow_iomap_invalid);
+DEFINE_WB_INVALID_EVENT(xfs_wb_data_iomap_invalid);
+
+DECLARE_EVENT_CLASS(xfs_iomap_invalid_class,
+	TP_PROTO(struct xfs_inode *ip, const struct iomap *iomap),
+	TP_ARGS(ip, iomap),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(u64, addr)
+		__field(loff_t, pos)
+		__field(u64, len)
+		__field(u64, validity_cookie)
+		__field(u64, inodeseq)
+		__field(u16, type)
+		__field(u16, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->addr = iomap->addr;
+		__entry->pos = iomap->offset;
+		__entry->len = iomap->length;
+		__entry->validity_cookie = iomap->validity_cookie;
+		__entry->type = iomap->type;
+		__entry->flags = iomap->flags;
+		__entry->inodeseq = xfs_iomap_inode_sequence(ip, iomap->flags);
+	),
+	TP_printk("dev %d:%d ino 0x%llx pos 0x%llx addr 0x%llx bytecount 0x%llx type 0x%x flags 0x%x validity_cookie 0x%llx inodeseq 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->pos,
+		  __entry->addr,
+		  __entry->len,
+		  __entry->type,
+		  __entry->flags,
+		  __entry->validity_cookie,
+		  __entry->inodeseq)
+);
+#define DEFINE_IOMAP_INVALID_EVENT(name) \
+DEFINE_EVENT(xfs_iomap_invalid_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct iomap *iomap), \
+	TP_ARGS(ip, iomap))
+DEFINE_IOMAP_INVALID_EVENT(xfs_iomap_invalid);
 
 /* refcount/reflink tracepoint definitions */
 

@@ -24,11 +24,13 @@
 #include "../perf.h"
 #include "asm/bug.h"
 #include "bpf-event.h"
+#include "util/event.h"
 #include "util/string2.h"
 #include "util/perf_api_probe.h"
 #include "util/evsel_fprintf.h"
 #include "util/evlist-hybrid.h"
 #include "util/pmu.h"
+#include "util/sample.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
@@ -228,7 +230,7 @@ out:
 	return err;
 }
 
-void evlist__set_leader(struct evlist *evlist)
+static void evlist__set_leader(struct evlist *evlist)
 {
 	perf_evlist__set_leader(&evlist->core);
 }
@@ -288,6 +290,7 @@ struct evsel *evlist__add_aux_dummy(struct evlist *evlist, bool system_wide)
 	return evsel;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 struct evsel *evlist__add_sched_switch(struct evlist *evlist, bool system_wide)
 {
 	struct evsel *evsel = evsel__newtp_idx("sched", "sched_switch", 0);
@@ -303,7 +306,8 @@ struct evsel *evlist__add_sched_switch(struct evlist *evlist, bool system_wide)
 
 	evlist__add(evlist, evsel);
 	return evsel;
-};
+}
+#endif
 
 int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs)
 {
@@ -374,6 +378,7 @@ struct evsel *evlist__find_tracepoint_by_name(struct evlist *evlist, const char 
 	return NULL;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, void *handler)
 {
 	struct evsel *evsel = evsel__newtp(sys, name);
@@ -385,6 +390,7 @@ int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, 
 	evlist__add(evlist, evsel);
 	return 0;
 }
+#endif
 
 struct evlist_cpu_iterator evlist__cpu_begin(struct evlist *evlist, struct affinity *affinity)
 {

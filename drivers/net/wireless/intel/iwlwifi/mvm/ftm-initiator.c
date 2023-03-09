@@ -1010,11 +1010,10 @@ static int iwl_mvm_ftm_range_resp_valid(struct iwl_mvm *mvm, u8 request_id,
 static void iwl_mvm_ftm_rtt_smoothing(struct iwl_mvm *mvm,
 				      struct cfg80211_pmsr_result *res)
 {
-	struct iwl_mvm_smooth_entry *resp;
+	struct iwl_mvm_smooth_entry *resp = NULL, *iter;
 	s64 rtt_avg, rtt = res->ftm.rtt_avg;
 	u32 undershoot, overshoot;
 	u8 alpha;
-	bool found;
 
 	if (!IWL_MVM_FTM_INITIATOR_ENABLE_SMOOTH)
 		return;
@@ -1028,15 +1027,14 @@ static void iwl_mvm_ftm_rtt_smoothing(struct iwl_mvm *mvm,
 		return;
 	}
 
-	found = false;
-	list_for_each_entry(resp, &mvm->ftm_initiator.smooth.resp, list) {
-		if (!memcmp(res->addr, resp->addr, ETH_ALEN)) {
-			found = true;
+	list_for_each_entry(iter, &mvm->ftm_initiator.smooth.resp, list) {
+		if (!memcmp(res->addr, iter->addr, ETH_ALEN)) {
+			resp = iter;
 			break;
 		}
 	}
 
-	if (!found) {
+	if (!resp) {
 		resp = kzalloc(sizeof(*resp), GFP_KERNEL);
 		if (!resp)
 			return;
@@ -1208,7 +1206,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	}
 
 	IWL_DEBUG_INFO(mvm, "Range response received\n");
-	IWL_DEBUG_INFO(mvm, "request id: %lld, num of entries: %hhu\n",
+	IWL_DEBUG_INFO(mvm, "request id: %lld, num of entries: %u\n",
 		       mvm->ftm_initiator.req->cookie, num_of_aps);
 
 	for (i = 0; i < num_of_aps && i < IWL_MVM_TOF_MAX_APS; i++) {
@@ -1300,7 +1298,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 		if (fw_has_api(&mvm->fw->ucode_capa,
 			       IWL_UCODE_TLV_API_FTM_RTT_ACCURACY))
-			IWL_DEBUG_INFO(mvm, "RTT confidence: %hhu\n",
+			IWL_DEBUG_INFO(mvm, "RTT confidence: %u\n",
 				       fw_ap->rttConfidence);
 
 		iwl_mvm_debug_range_resp(mvm, i, &result);

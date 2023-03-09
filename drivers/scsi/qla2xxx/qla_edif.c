@@ -416,7 +416,7 @@ static void __qla2x00_release_all_sadb(struct scsi_qla_host *vha,
 				 */
 				if (edif_entry->delete_sa_index !=
 						INVALID_EDIF_SA_INDEX) {
-					del_timer(&edif_entry->timer);
+					timer_shutdown(&edif_entry->timer);
 
 					/* build and send the aen */
 					fcport->edif.rx_sa_set = 1;
@@ -480,6 +480,49 @@ void qla2x00_release_all_sadb(struct scsi_qla_host *vha, struct fc_port *fcport)
 }
 
 /**
+ * qla_delete_n2n_sess_and_wait: search for N2N session, tear it down and
+ *    wait for tear down to complete.  In N2N topology, there is only one
+ *    session being active in tracking the remote device.
+ * @vha: host adapter pointer
+ * return code:  0 - found the session and completed the tear down.
+ *	1 - timeout occurred.  Caller to use link bounce to reset.
+ */
+static int qla_delete_n2n_sess_and_wait(scsi_qla_host_t *vha)
+{
+	struct fc_port *fcport;
+	int rc = -EIO;
+	ulong expire = jiffies + 23 * HZ;
+
+	if (!N2N_TOPO(vha->hw))
+		return 0;
+
+	fcport = NULL;
+	list_for_each_entry(fcport, &vha->vp_fcports, list) {
+		if (!fcport->n2n_flag)
+			continue;
+
+		ql_dbg(ql_dbg_disc, fcport->vha, 0x2016,
+		       "%s reset sess at app start \n", __func__);
+
+		qla_edif_sa_ctl_init(vha, fcport);
+		qlt_schedule_sess_for_deletion(fcport);
+
+		while (time_before_eq(jiffies, expire)) {
+			if (fcport->disc_state != DSC_DELETE_PEND) {
+				rc = 0;
+				break;
+			}
+			msleep(1);
+		}
+
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+		break;
+	}
+
+	return rc;
+}
+
+/**
  * qla_edif_app_start:  application has announce its present
  * @vha: host adapter pointer
  * @bsg_job: user request
@@ -518,18 +561,17 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			fcport->n2n_link_reset_cnt = 0;
 
 		if (vha->hw->flags.n2n_fw_acc_sec) {
-			list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list)
-				qla_edif_sa_ctl_init(vha, fcport);
-
+			bool link_bounce = false;
 			/*
 			 * While authentication app was not running, remote device
 			 * could still try to login with this local port.  Let's
-			 * clear the state and try again.
+			 * reset the session, reconnect and re-authenticate.
 			 */
-			qla2x00_wait_for_sess_deletion(vha);
+			if (qla_delete_n2n_sess_and_wait(vha))
+				link_bounce = true;
 
-			/* bounce the link to get the other guy to relogin */
-			if (!vha->hw->flags.n2n_bigger) {
+			/* bounce the link to start login */
+			if (!vha->hw->flags.n2n_bigger || link_bounce) {
 				set_bit(N2N_LINK_RESET, &vha->dpc_flags);
 				qla2xxx_wake_dpc(vha);
 			}
@@ -925,7 +967,9 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			if (!(fcport->flags & FCF_FCSP_DEVICE))
 				continue;
 
-			tdid = app_req.remote_pid;
+			tdid.b.domain = app_req.remote_pid.domain;
+			tdid.b.area = app_req.remote_pid.area;
+			tdid.b.al_pa = app_req.remote_pid.al_pa;
 
 			ql_dbg(ql_dbg_edif, vha, 0x2058,
 			    "APP request entry - portid=%06x.\n", tdid.b24);
@@ -2799,7 +2843,7 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 			    "%s: removing edif_entry %p, new sa_index: 0x%x\n",
 			    __func__, edif_entry, pkt->sa_index);
 			qla_edif_list_delete_sa_index(sp->fcport, edif_entry);
-			del_timer(&edif_entry->timer);
+			timer_shutdown(&edif_entry->timer);
 
 			ql_dbg(ql_dbg_edif, vha, 0x5033,
 			    "%s: releasing edif_entry %p, new sa_index: 0x%x\n",
@@ -2989,9 +3033,10 @@ qla28xx_start_scsi_edif(srb_t *sp)
 	tot_dsds = nseg;
 	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 
-	sp->iores.res_type = RESOURCE_INI;
+	sp->iores.res_type = RESOURCE_IOCB | RESOURCE_EXCH;
+	sp->iores.exch_cnt = 1;
 	sp->iores.iocb_cnt = req_cnt;
-	if (qla_get_iocbs(sp->qpair, &sp->iores))
+	if (qla_get_fw_resources(sp->qpair, &sp->iores))
 		goto queuing_error;
 
 	if (req->cnt < (req_cnt + 2)) {
@@ -3006,26 +3051,16 @@ qla28xx_start_scsi_edif(srb_t *sp)
 			goto queuing_error;
 	}
 
-	ctx = sp->u.scmd.ct6_ctx =
-	    mempool_alloc(ha->ctx_mempool, GFP_ATOMIC);
-	if (!ctx) {
-		ql_log(ql_log_fatal, vha, 0x3010,
-		    "Failed to allocate ctx for cmd=%p.\n", cmd);
-		goto queuing_error;
-	}
-
-	memset(ctx, 0, sizeof(struct ct6_dsd));
-	ctx->fcp_cmnd = dma_pool_zalloc(ha->fcp_cmnd_dma_pool,
-	    GFP_ATOMIC, &ctx->fcp_cmnd_dma);
-	if (!ctx->fcp_cmnd) {
+	if (qla_get_buf(vha, sp->qpair, &sp->u.scmd.buf_dsc)) {
 		ql_log(ql_log_fatal, vha, 0x3011,
-		    "Failed to allocate fcp_cmnd for cmd=%p.\n", cmd);
+		    "Failed to allocate buf for fcp_cmnd for cmd=%p.\n", cmd);
 		goto queuing_error;
 	}
 
-	/* Initialize the DSD list and dma handle */
-	INIT_LIST_HEAD(&ctx->dsd_list);
-	ctx->dsd_use_cnt = 0;
+	sp->flags |= SRB_GOT_BUF;
+	ctx = &sp->u.scmd.ct6_ctx;
+	ctx->fcp_cmnd = sp->u.scmd.buf_dsc.buf;
+	ctx->fcp_cmnd_dma = sp->u.scmd.buf_dsc.buf_dma;
 
 	if (cmd->cmd_len > 16) {
 		additional_cdb_len = cmd->cmd_len - 16;
@@ -3144,7 +3179,6 @@ no_dsds:
 	cmd_pkt->fcp_cmnd_dseg_len = cpu_to_le16(ctx->fcp_cmnd_len);
 	put_unaligned_le64(ctx->fcp_cmnd_dma, &cmd_pkt->fcp_cmnd_dseg_address);
 
-	sp->flags |= SRB_FCP_CMND_DMA_VALID;
 	cmd_pkt->byte_count = cpu_to_le32((uint32_t)scsi_bufflen(cmd));
 	/* Set total data segment count. */
 	cmd_pkt->entry_count = (uint8_t)req_cnt;
@@ -3176,16 +3210,12 @@ no_dsds:
 	return QLA_SUCCESS;
 
 queuing_error_fcp_cmnd:
-	dma_pool_free(ha->fcp_cmnd_dma_pool, ctx->fcp_cmnd, ctx->fcp_cmnd_dma);
 queuing_error:
 	if (tot_dsds)
 		scsi_dma_unmap(cmd);
 
-	if (sp->u.scmd.ct6_ctx) {
-		mempool_free(sp->u.scmd.ct6_ctx, ha->ctx_mempool);
-		sp->u.scmd.ct6_ctx = NULL;
-	}
-	qla_put_iocbs(sp->qpair, &sp->iores);
+	qla_put_buf(sp->qpair, &sp->u.scmd.buf_dsc);
+	qla_put_fw_resources(sp->qpair, &sp->iores);
 	spin_unlock_irqrestore(lock, flags);
 
 	return QLA_FUNCTION_FAILED;

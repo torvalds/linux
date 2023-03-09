@@ -135,9 +135,9 @@ SYM_FUNC_END(return_to_handler)
 #endif
 #endif /* CONFIG_FUNCTION_TRACER */
 
-#ifdef CONFIG_KPROBES
+#ifdef CONFIG_RETHOOK
 
-SYM_FUNC_START(__kretprobe_trampoline)
+SYM_FUNC_START(arch_rethook_trampoline)
 
 	stg	%r14,(__SF_GPRS+8*8)(%r15)
 	lay	%r15,-STACK_FRAME_SIZE(%r15)
@@ -152,16 +152,16 @@ SYM_FUNC_START(__kretprobe_trampoline)
 	epsw	%r2,%r3
 	risbg	%r3,%r2,0,31,32
 	stg	%r3,STACK_PTREGS_PSW(%r15)
-	larl	%r1,__kretprobe_trampoline
+	larl	%r1,arch_rethook_trampoline
 	stg	%r1,STACK_PTREGS_PSW+8(%r15)
 
 	lay	%r2,STACK_PTREGS(%r15)
-	brasl	%r14,trampoline_probe_handler
+	brasl	%r14,arch_rethook_trampoline_callback
 
 	mvc	__SF_EMPTY(16,%r7),STACK_PTREGS_PSW(%r15)
 	lmg	%r0,%r15,STACK_PTREGS_GPRS(%r15)
 	lpswe	__SF_EMPTY(%r15)
 
-SYM_FUNC_END(__kretprobe_trampoline)
+SYM_FUNC_END(arch_rethook_trampoline)
 
-#endif /* CONFIG_KPROBES */
+#endif /* CONFIG_RETHOOK */

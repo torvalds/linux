@@ -47,15 +47,15 @@ enum ipa_cmd_opcode {
 };
 
 /**
- * ipa_cmd_table_valid() - Validate a memory region holding a table
+ * ipa_cmd_table_init_valid() - Validate a memory region holding a table
  * @ipa:	- IPA pointer
  * @mem:	- IPA memory region descriptor
  * @route:	- Whether the region holds a route or filter table
  *
  * Return:	true if region is valid, false otherwise
  */
-bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
-			    bool route);
+bool ipa_cmd_table_init_valid(struct ipa *ipa, const struct ipa_mem *mem,
+			      bool route);
 
 /**
  * ipa_cmd_data_valid() - Validate command-realted configuration is valid
@@ -161,5 +161,15 @@ void ipa_cmd_pipeline_clear_wait(struct ipa *ipa);
  *		available transactions are in use
  */
 struct gsi_trans *ipa_cmd_trans_alloc(struct ipa *ipa, u32 tre_count);
+
+/**
+ * ipa_cmd_init() - Initialize IPA immediate commands
+ * @ipa:	- IPA pointer
+ *
+ * Return:	0 if successful, or a negative error code
+ *
+ * There is no need for a matching ipa_cmd_exit() function.
+ */
+int ipa_cmd_init(struct ipa *ipa);
 
 #endif /* _IPA_CMD_H_ */

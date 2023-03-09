@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -253,7 +253,6 @@ int lpfc_read_object(struct lpfc_hba *phba, char *s, uint32_t *datap,
 		     uint32_t len);
 
 void lpfc_sli4_cleanup_poll_list(struct lpfc_hba *phba);
-int lpfc_sli4_poll_eq(struct lpfc_queue *q, uint8_t path);
 void lpfc_sli4_poll_hbtimer(struct timer_list *t);
 void lpfc_sli4_start_polling(struct lpfc_queue *q);
 void lpfc_sli4_stop_polling(struct lpfc_queue *q);
@@ -684,6 +683,10 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 			union lpfc_vmid_io_tag *tag);
 void lpfc_vmid_vport_cleanup(struct lpfc_vport *vport);
 int lpfc_issue_els_qfpa(struct lpfc_vport *vport);
+void lpfc_reinit_vmid(struct lpfc_vport *vport);
 
 void lpfc_sli_rpi_release(struct lpfc_vport *vport,
 			  struct lpfc_nodelist *ndlp);
+
+int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
+			   struct lpfc_rdp_context *rdp_context);

@@ -16,7 +16,15 @@ struct sample {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_USER_RINGBUF);
+	__uint(max_entries, 4096);
 } user_ringbuf SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_RINGBUF);
+	__uint(max_entries, 2);
+} ringbuf SEC(".maps");
+
+static int map_value;
 
 static long
 bad_access1(struct bpf_dynptr *dynptr, void *context)
@@ -32,7 +40,8 @@ bad_access1(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to read before the pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("negative offset dynptr_ptr ptr")
 int user_ringbuf_callback_bad_access1(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, bad_access1, NULL, 0);
@@ -54,7 +63,8 @@ bad_access2(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to read past the end of the pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("dereference of modified dynptr_ptr ptr")
 int user_ringbuf_callback_bad_access2(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, bad_access2, NULL, 0);
@@ -73,7 +83,8 @@ write_forbidden(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to write to that pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("invalid mem access 'dynptr_ptr'")
 int user_ringbuf_callback_write_forbidden(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, write_forbidden, NULL, 0);
@@ -92,7 +103,8 @@ null_context_write(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to write to that pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
 int user_ringbuf_callback_null_context_write(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, null_context_write, NULL, 0);
@@ -113,7 +125,8 @@ null_context_read(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to write to that pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
 int user_ringbuf_callback_null_context_read(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, null_context_read, NULL, 0);
@@ -132,7 +145,8 @@ try_discard_dynptr(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to read past the end of the pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("cannot release unowned const bpf_dynptr")
 int user_ringbuf_callback_discard_dynptr(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, try_discard_dynptr, NULL, 0);
@@ -151,7 +165,8 @@ try_submit_dynptr(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to read past the end of the pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("cannot release unowned const bpf_dynptr")
 int user_ringbuf_callback_submit_dynptr(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, try_submit_dynptr, NULL, 0);
@@ -168,10 +183,41 @@ invalid_drain_callback_return(struct bpf_dynptr *dynptr, void *context)
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
  * not be able to write to that pointer.
  */
-SEC("?raw_tp/sys_nanosleep")
+SEC("?raw_tp")
+__failure __msg("At callback return the register R0 has value")
 int user_ringbuf_callback_invalid_return(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, invalid_drain_callback_return, NULL, 0);
 
+	return 0;
+}
+
+static long
+try_reinit_dynptr_mem(struct bpf_dynptr *dynptr, void *context)
+{
+	bpf_dynptr_from_mem(&map_value, 4, 0, dynptr);
+	return 0;
+}
+
+static long
+try_reinit_dynptr_ringbuf(struct bpf_dynptr *dynptr, void *context)
+{
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 8, 0, dynptr);
+	return 0;
+}
+
+SEC("?raw_tp")
+__failure __msg("Dynptr has to be an uninitialized dynptr")
+int user_ringbuf_callback_reinit_dynptr_mem(void *ctx)
+{
+	bpf_user_ringbuf_drain(&user_ringbuf, try_reinit_dynptr_mem, NULL, 0);
+	return 0;
+}
+
+SEC("?raw_tp")
+__failure __msg("Dynptr has to be an uninitialized dynptr")
+int user_ringbuf_callback_reinit_dynptr_ringbuf(void *ctx)
+{
+	bpf_user_ringbuf_drain(&user_ringbuf, try_reinit_dynptr_ringbuf, NULL, 0);
 	return 0;
 }

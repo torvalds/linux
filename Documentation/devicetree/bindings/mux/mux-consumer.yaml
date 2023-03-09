@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mux/mux-consumer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Common multiplexer controller consumer bindings
+title: Common multiplexer controller consumer
 
 maintainers:
   - Peter Rosin <peda@axentia.se>

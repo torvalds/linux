@@ -5,6 +5,7 @@
 
 #include <linux/highmem.h>
 
+#include "display/intel_display.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_scatterlist.h"
@@ -220,7 +221,8 @@ static int fence_update(struct i915_fence_reg *fence,
 				return ret;
 		}
 
-		fence->start = vma->node.start;
+		GEM_BUG_ON(vma->fence_size > i915_vma_size(vma));
+		fence->start = i915_ggtt_offset(vma);
 		fence->size = vma->fence_size;
 		fence->stride = i915_gem_object_get_stride(vma->obj);
 		fence->tiling = i915_gem_object_get_tiling(vma->obj);
@@ -816,8 +818,8 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 	if (obj->bit_17 == NULL) {
 		obj->bit_17 = bitmap_zalloc(page_count, GFP_KERNEL);
 		if (obj->bit_17 == NULL) {
-			DRM_ERROR("Failed to allocate memory for bit 17 "
-				  "record\n");
+			drm_err(&to_i915(obj->base.dev)->drm,
+				"Failed to allocate memory for bit 17 record\n");
 			return;
 		}
 	}

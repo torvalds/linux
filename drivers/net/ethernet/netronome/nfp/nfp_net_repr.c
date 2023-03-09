@@ -134,13 +134,13 @@ nfp_repr_get_host_stats64(const struct net_device *netdev,
 
 		repr_stats = per_cpu_ptr(repr->stats, i);
 		do {
-			start = u64_stats_fetch_begin_irq(&repr_stats->syncp);
+			start = u64_stats_fetch_begin(&repr_stats->syncp);
 			tbytes = repr_stats->tx_bytes;
 			tpkts = repr_stats->tx_packets;
 			tdrops = repr_stats->tx_drops;
 			rbytes = repr_stats->rx_bytes;
 			rpkts = repr_stats->rx_packets;
-		} while (u64_stats_fetch_retry_irq(&repr_stats->syncp, start));
+		} while (u64_stats_fetch_retry(&repr_stats->syncp, start));
 
 		stats->tx_bytes += tbytes;
 		stats->tx_packets += tpkts;
@@ -275,7 +275,6 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_set_features	= nfp_port_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_get_port_parent_id	= nfp_port_get_port_parent_id,
-	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 
 void

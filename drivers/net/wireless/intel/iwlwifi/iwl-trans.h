@@ -976,6 +976,8 @@ struct iwl_trans_txqs {
  * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
  *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
  * @hw_rf_id a u32 with the device RF ID
+ * @hw_crf_id a u32 with the device CRF ID
+ * @hw_cdb_id a u32 with the device CDB ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
@@ -999,6 +1001,8 @@ struct iwl_trans_txqs {
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
  * @iwl_trans_txqs: transport tx queues data.
+ * @mbx_addr_0_step: step address data 0
+ * @mbx_addr_1_step: step address data 1
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1015,6 +1019,8 @@ struct iwl_trans {
 	u32 hw_rev;
 	u32 hw_rev_step;
 	u32 hw_rf_id;
+	u32 hw_crf_id;
+	u32 hw_cdb_id;
 	u32 hw_id;
 	char hw_id_str[52];
 	u32 sku_id[3];
@@ -1053,6 +1059,8 @@ struct iwl_trans {
 
 	const char *name;
 	struct iwl_trans_txqs txqs;
+	u32 mbx_addr_0_step;
+	u32 mbx_addr_1_step;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1542,5 +1550,6 @@ void iwl_trans_free(struct iwl_trans *trans);
 ******************************************************/
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
+void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan);
 
 #endif /* __iwl_trans_h__ */

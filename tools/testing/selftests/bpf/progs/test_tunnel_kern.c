@@ -82,6 +82,27 @@ int gre_set_tunnel(struct __sk_buff *skb)
 }
 
 SEC("tc")
+int gre_set_tunnel_no_key(struct __sk_buff *skb)
+{
+	int ret;
+	struct bpf_tunnel_key key;
+
+	__builtin_memset(&key, 0x0, sizeof(key));
+	key.remote_ipv4 = 0xac100164; /* 172.16.1.100 */
+	key.tunnel_ttl = 64;
+
+	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
+				     BPF_F_ZERO_CSUM_TX | BPF_F_SEQ_NUMBER |
+				     BPF_F_NO_TUNNEL_KEY);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	return TC_ACT_OK;
+}
+
+SEC("tc")
 int gre_get_tunnel(struct __sk_buff *skb)
 {
 	int ret;

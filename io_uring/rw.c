@@ -286,6 +286,12 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 static void io_req_rw_complete(struct io_kiocb *req, bool *locked)
 {
 	io_req_io_end(req);
+
+	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
+		unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
+
+		req->cqe.flags |= io_put_kbuf(req, issue_flags);
+	}
 	io_req_task_complete(req, locked);
 }
 
@@ -385,7 +391,7 @@ static struct iovec *__io_import_iovec(int ddir, struct io_kiocb *req,
 			rw->len = sqe_len;
 		}
 
-		ret = import_single_range(ddir, buf, sqe_len, s->fast_iov, iter);
+		ret = import_ubuf(ddir, buf, sqe_len, iter);
 		if (ret)
 			return ERR_PTR(ret);
 		return NULL;
@@ -404,7 +410,7 @@ static inline int io_import_iovec(int rw, struct io_kiocb *req,
 				  unsigned int issue_flags)
 {
 	*iovec = __io_import_iovec(rw, req, s, issue_flags);
-	if (unlikely(IS_ERR(*iovec)))
+	if (IS_ERR(*iovec))
 		return PTR_ERR(*iovec);
 
 	iov_iter_save_state(&s->iter, &s->iter_state);
@@ -444,7 +450,10 @@ static ssize_t loop_rw_iter(int ddir, struct io_rw *rw, struct iov_iter *iter)
 		struct iovec iovec;
 		ssize_t nr;
 
-		if (!iov_iter_is_bvec(iter)) {
+		if (iter_is_ubuf(iter)) {
+			iovec.iov_base = iter->ubuf + iter->iov_offset;
+			iovec.iov_len = iov_iter_count(iter);
+		} else if (!iov_iter_is_bvec(iter)) {
 			iovec = iov_iter_iovec(iter);
 		} else {
 			iovec.iov_base = u64_to_user_ptr(rw->addr);
@@ -489,7 +498,7 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	io->free_iovec = iovec;
 	io->bytes_done = 0;
 	/* can only be fixed buffers, no need to do anything */
-	if (iov_iter_is_bvec(iter))
+	if (iov_iter_is_bvec(iter) || iter_is_ubuf(iter))
 		return;
 	if (!iovec) {
 		unsigned iov_off = 0;
@@ -510,7 +519,7 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     struct io_rw_state *s, bool force)
 {
-	if (!force && !io_op_defs[req->opcode].prep_async)
+	if (!force && !io_cold_defs[req->opcode].prep_async)
 		return 0;
 	if (!req_has_async_data(req)) {
 		struct io_async_rw *iorw;
@@ -548,12 +557,12 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 
 int io_readv_prep_async(struct io_kiocb *req)
 {
-	return io_rw_prep_async(req, READ);
+	return io_rw_prep_async(req, ITER_DEST);
 }
 
 int io_writev_prep_async(struct io_kiocb *req)
 {
-	return io_rw_prep_async(req, WRITE);
+	return io_rw_prep_async(req, ITER_SOURCE);
 }
 
 /*
@@ -665,6 +674,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 	ret = kiocb_set_rw_flags(kiocb, rw->flags);
 	if (unlikely(ret))
 		return ret;
+	kiocb->ki_flags |= IOCB_ALLOC_CACHE;
 
 	/*
 	 * If the file is marked O_NONBLOCK, still allow retry for it if it
@@ -680,7 +690,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 			return -EOPNOTSUPP;
 
 		kiocb->private = NULL;
-		kiocb->ki_flags |= IOCB_HIPRI | IOCB_ALLOC_CACHE;
+		kiocb->ki_flags |= IOCB_HIPRI;
 		kiocb->ki_complete = io_complete_rw_iopoll;
 		req->iopoll_completed = 0;
 	} else {
@@ -704,7 +714,7 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 	loff_t *ppos;
 
 	if (!req_has_async_data(req)) {
-		ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
+		ret = io_import_iovec(ITER_DEST, req, &iovec, s, issue_flags);
 		if (unlikely(ret < 0))
 			return ret;
 	} else {
@@ -716,7 +726,7 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		 * buffers, as we dropped the selected one before retry.
 		 */
 		if (io_do_buffer_select(req)) {
-			ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
+			ret = io_import_iovec(ITER_DEST, req, &iovec, s, issue_flags);
 			if (unlikely(ret < 0))
 				return ret;
 		}
@@ -851,7 +861,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	loff_t *ppos;
 
 	if (!req_has_async_data(req)) {
-		ret = io_import_iovec(WRITE, req, &iovec, s, issue_flags);
+		ret = io_import_iovec(ITER_SOURCE, req, &iovec, s, issue_flags);
 		if (unlikely(ret < 0))
 			return ret;
 	} else {
@@ -1055,7 +1065,11 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 			continue;
 
 		req->cqe.flags = io_put_kbuf(req, 0);
-		__io_fill_cqe_req(req->ctx, req);
+		if (unlikely(!__io_fill_cqe_req(ctx, req))) {
+			spin_lock(&ctx->completion_lock);
+			io_req_cqe_overflow(req);
+			spin_unlock(&ctx->completion_lock);
+		}
 	}
 
 	if (unlikely(!nr_events))

@@ -5,24 +5,27 @@
 #include <asm/dwarf2.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
+#include <asm/asm-offsets.h>
 #include <asm/export.h>
 #include <asm/nospec-branch.h>
 #include <asm/unwind_hints.h>
+#include <asm/percpu.h>
 #include <asm/frame.h>
 
 	.section .text.__x86.indirect_thunk
 
-.macro RETPOLINE reg
+
+.macro POLINE reg
 	ANNOTATE_INTRA_FUNCTION_CALL
 	call    .Ldo_rop_\@
-.Lspec_trap_\@:
-	UNWIND_HINT_EMPTY
-	pause
-	lfence
-	jmp .Lspec_trap_\@
+	int3
 .Ldo_rop_\@:
 	mov     %\reg, (%_ASM_SP)
 	UNWIND_HINT_FUNC
+.endm
+
+.macro RETPOLINE reg
+	POLINE \reg
 	RET
 .endm
 
@@ -52,7 +55,6 @@ SYM_INNER_LABEL(__x86_indirect_thunk_\reg, SYM_L_GLOBAL)
  */
 
 #define __EXPORT_THUNK(sym)	_ASM_NOKPROBE(sym); EXPORT_SYMBOL(sym)
-#define EXPORT_THUNK(reg)	__EXPORT_THUNK(__x86_indirect_thunk_ ## reg)
 
 	.align RETPOLINE_THUNK_SIZE
 SYM_CODE_START(__x86_indirect_thunk_array)
@@ -64,10 +66,65 @@ SYM_CODE_START(__x86_indirect_thunk_array)
 	.align RETPOLINE_THUNK_SIZE
 SYM_CODE_END(__x86_indirect_thunk_array)
 
-#define GEN(reg) EXPORT_THUNK(reg)
+#define GEN(reg) __EXPORT_THUNK(__x86_indirect_thunk_ ## reg)
 #include <asm/GEN-for-each-reg.h>
 #undef GEN
 
+#ifdef CONFIG_CALL_DEPTH_TRACKING
+.macro CALL_THUNK reg
+	.align RETPOLINE_THUNK_SIZE
+
+SYM_INNER_LABEL(__x86_indirect_call_thunk_\reg, SYM_L_GLOBAL)
+	UNWIND_HINT_EMPTY
+	ANNOTATE_NOENDBR
+
+	CALL_DEPTH_ACCOUNT
+	POLINE \reg
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
+.endm
+
+	.align RETPOLINE_THUNK_SIZE
+SYM_CODE_START(__x86_indirect_call_thunk_array)
+
+#define GEN(reg) CALL_THUNK reg
+#include <asm/GEN-for-each-reg.h>
+#undef GEN
+
+	.align RETPOLINE_THUNK_SIZE
+SYM_CODE_END(__x86_indirect_call_thunk_array)
+
+#define GEN(reg) __EXPORT_THUNK(__x86_indirect_call_thunk_ ## reg)
+#include <asm/GEN-for-each-reg.h>
+#undef GEN
+
+.macro JUMP_THUNK reg
+	.align RETPOLINE_THUNK_SIZE
+
+SYM_INNER_LABEL(__x86_indirect_jump_thunk_\reg, SYM_L_GLOBAL)
+	UNWIND_HINT_EMPTY
+	ANNOTATE_NOENDBR
+	POLINE \reg
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
+.endm
+
+	.align RETPOLINE_THUNK_SIZE
+SYM_CODE_START(__x86_indirect_jump_thunk_array)
+
+#define GEN(reg) JUMP_THUNK reg
+#include <asm/GEN-for-each-reg.h>
+#undef GEN
+
+	.align RETPOLINE_THUNK_SIZE
+SYM_CODE_END(__x86_indirect_jump_thunk_array)
+
+#define GEN(reg) __EXPORT_THUNK(__x86_indirect_jump_thunk_ ## reg)
+#include <asm/GEN-for-each-reg.h>
+#undef GEN
+#endif
 /*
  * This function name is magical and is used by -mfunction-return=thunk-extern
  * for the compiler to generate JMPs to it.
@@ -140,3 +197,37 @@ __EXPORT_THUNK(zen_untrain_ret)
 EXPORT_SYMBOL(__x86_return_thunk)
 
 #endif /* CONFIG_RETHUNK */
+
+#ifdef CONFIG_CALL_DEPTH_TRACKING
+
+	.align 64
+SYM_FUNC_START(__x86_return_skl)
+	ANNOTATE_NOENDBR
+	/*
+	 * Keep the hotpath in a 16byte I-fetch for the non-debug
+	 * case.
+	 */
+	CALL_THUNKS_DEBUG_INC_RETS
+	shlq	$5, PER_CPU_VAR(pcpu_hot + X86_call_depth)
+	jz	1f
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
+1:
+	CALL_THUNKS_DEBUG_INC_STUFFS
+	.rept	16
+	ANNOTATE_INTRA_FUNCTION_CALL
+	call	2f
+	int3
+2:
+	.endr
+	add	$(8*16), %rsp
+
+	CREDIT_CALL_DEPTH
+
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
+SYM_FUNC_END(__x86_return_skl)
+
+#endif /* CONFIG_CALL_DEPTH_TRACKING */

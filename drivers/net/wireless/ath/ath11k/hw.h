@@ -80,6 +80,8 @@
 #define ATH11K_M3_FILE			"m3.bin"
 #define ATH11K_REGDB_FILE_NAME		"regdb.bin"
 
+#define ATH11K_CE_OFFSET(ab)	(ab->mem_ce - ab->mem)
+
 enum ath11k_hw_rate_cck {
 	ATH11K_HW_RATE_CCK_LP_11M = 0,
 	ATH11K_HW_RATE_CCK_LP_5_5M,
@@ -158,6 +160,8 @@ struct ath11k_hw_params {
 	u32 target_ce_count;
 	const struct service_to_pipe *svc_to_ce_map;
 	u32 svc_to_ce_map_len;
+	const struct ce_ie_addr *ce_ie_addr;
+	const struct ce_remap *ce_remap;
 
 	bool single_pdev_only;
 
@@ -219,6 +223,8 @@ struct ath11k_hw_params {
 	bool tcl_ring_retry;
 	u32 tx_ring_size;
 	bool smp2p_wow_exit;
+	bool support_fw_mac_sequence;
+	bool ftm_responder;
 };
 
 struct ath11k_hw_ops {
@@ -270,11 +276,17 @@ extern const struct ath11k_hw_ops qca6390_ops;
 extern const struct ath11k_hw_ops qcn9074_ops;
 extern const struct ath11k_hw_ops wcn6855_ops;
 extern const struct ath11k_hw_ops wcn6750_ops;
+extern const struct ath11k_hw_ops ipq5018_ops;
 
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qcn9074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_wcn6750;
+
+extern const struct ce_ie_addr ath11k_ce_ie_addr_ipq8074;
+extern const struct ce_ie_addr ath11k_ce_ie_addr_ipq5018;
+
+extern const struct ce_remap ath11k_ce_remap_ipq5018;
 
 extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_ipq8074;
 extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_qca6390;
@@ -405,6 +417,7 @@ extern const struct ath11k_hw_regs qca6390_regs;
 extern const struct ath11k_hw_regs qcn9074_regs;
 extern const struct ath11k_hw_regs wcn6855_regs;
 extern const struct ath11k_hw_regs wcn6750_regs;
+extern const struct ath11k_hw_regs ipq5018_regs;
 
 static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
 {

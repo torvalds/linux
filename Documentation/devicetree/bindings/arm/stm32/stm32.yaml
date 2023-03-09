@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/stm32/stm32.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Platforms Device Tree Bindings
+title: STMicroelectronics STM32 Platforms
 
 maintainers:
   - Alexandre Torgue <alexandre.torgue@foss.st.com>

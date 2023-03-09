@@ -6,7 +6,15 @@
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  */
 
-#include "dsa_priv.h"
+#include <linux/ethtool.h>
+#include <linux/netdevice.h>
+#include <linux/netlink.h>
+#include <net/dsa.h>
+
+#include "dsa.h"
+#include "master.h"
+#include "port.h"
+#include "tag.h"
 
 static int dsa_master_get_regs_len(struct net_device *dev)
 {
@@ -291,7 +299,7 @@ static ssize_t tagging_show(struct device *d, struct device_attribute *attr,
 	struct net_device *dev = to_net_dev(d);
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 
-	return sprintf(buf, "%s\n",
+	return sysfs_emit(buf, "%s\n",
 		       dsa_tag_protocol_to_str(cpu_dp->tag_ops));
 }
 
@@ -299,13 +307,24 @@ static ssize_t tagging_store(struct device *d, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	const struct dsa_device_ops *new_tag_ops, *old_tag_ops;
+	const char *end = strchrnul(buf, '\n'), *name;
 	struct net_device *dev = to_net_dev(d);
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	size_t len = end - buf;
 	int err;
 
+	/* Empty string passed */
+	if (!len)
+		return -ENOPROTOOPT;
+
+	name = kstrndup(buf, len, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
 	old_tag_ops = cpu_dp->tag_ops;
-	new_tag_ops = dsa_find_tagger_by_name(buf);
-	/* Bad tagger name, or module is not loaded? */
+	new_tag_ops = dsa_tag_driver_get_by_name(name);
+	kfree(name);
+	/* Bad tagger name? */
 	if (IS_ERR(new_tag_ops))
 		return PTR_ERR(new_tag_ops);
 
@@ -445,9 +464,7 @@ int dsa_master_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
 
 	err = dsa_port_lag_join(cpu_dp, lag_dev, uinfo, extack);
 	if (err) {
-		if (extack && !extack->_msg)
-			NL_SET_ERR_MSG_MOD(extack,
-					   "CPU port failed to join LAG");
+		NL_SET_ERR_MSG_WEAK_MOD(extack, "CPU port failed to join LAG");
 		goto out_master_teardown;
 	}
 

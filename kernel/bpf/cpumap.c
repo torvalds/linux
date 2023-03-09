@@ -4,13 +4,16 @@
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
  */
 
-/* The 'cpumap' is primarily used as a backend map for XDP BPF helper
+/**
+ * DOC: cpu map
+ * The 'cpumap' is primarily used as a backend map for XDP BPF helper
  * call bpf_redirect_map() and XDP_REDIRECT action, like 'devmap'.
  *
- * Unlike devmap which redirects XDP frames out another NIC device,
+ * Unlike devmap which redirects XDP frames out to another NIC device,
  * this map type redirects raw XDP frames to another CPU.  The remote
  * CPU will do SKB-allocation and call the normal network stack.
- *
+ */
+/*
  * This is a scalability and isolation mechanism, that allow
  * separating the early driver network XDP layer, from the rest of the
  * netstack, and assigning dedicated CPUs for this stage.  This
@@ -85,7 +88,6 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 {
 	u32 value_size = attr->value_size;
 	struct bpf_cpu_map *cmap;
-	int err = -ENOMEM;
 
 	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
@@ -97,29 +99,26 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 	    attr->map_flags & ~BPF_F_NUMA_NODE)
 		return ERR_PTR(-EINVAL);
 
+	/* Pre-limit array size based on NR_CPUS, not final CPU check */
+	if (attr->max_entries > NR_CPUS)
+		return ERR_PTR(-E2BIG);
+
 	cmap = bpf_map_area_alloc(sizeof(*cmap), NUMA_NO_NODE);
 	if (!cmap)
 		return ERR_PTR(-ENOMEM);
 
 	bpf_map_init_from_attr(&cmap->map, attr);
 
-	/* Pre-limit array size based on NR_CPUS, not final CPU check */
-	if (cmap->map.max_entries > NR_CPUS) {
-		err = -E2BIG;
-		goto free_cmap;
-	}
-
 	/* Alloc array for possible remote "destination" CPUs */
 	cmap->cpu_map = bpf_map_area_alloc(cmap->map.max_entries *
 					   sizeof(struct bpf_cpu_map_entry *),
 					   cmap->map.numa_node);
-	if (!cmap->cpu_map)
-		goto free_cmap;
+	if (!cmap->cpu_map) {
+		bpf_map_area_free(cmap);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	return &cmap->map;
-free_cmap:
-	bpf_map_area_free(cmap);
-	return ERR_PTR(err);
 }
 
 static void get_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
@@ -362,7 +361,7 @@ static int cpu_map_kthread_run(void *data)
 		/* Support running another XDP prog on this CPU */
 		nframes = cpu_map_bpf_prog_run(rcpu, frames, xdp_n, &stats, &list);
 		if (nframes) {
-			m = kmem_cache_alloc_bulk(skbuff_head_cache, gfp, nframes, skbs);
+			m = kmem_cache_alloc_bulk(skbuff_cache, gfp, nframes, skbs);
 			if (unlikely(m == 0)) {
 				for (i = 0; i < nframes; i++)
 					skbs[i] = NULL; /* effect: xdp_return_frame */
@@ -668,9 +667,9 @@ static int cpu_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	return 0;
 }
 
-static int cpu_map_redirect(struct bpf_map *map, u32 ifindex, u64 flags)
+static int cpu_map_redirect(struct bpf_map *map, u64 index, u64 flags)
 {
-	return __bpf_xdp_redirect_map(map, ifindex, flags, 0,
+	return __bpf_xdp_redirect_map(map, index, flags, 0,
 				      __cpu_map_lookup_elem);
 }
 

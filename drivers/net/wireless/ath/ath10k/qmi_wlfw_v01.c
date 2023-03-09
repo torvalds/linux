@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include "qmi_wlfw_v01.h"
 
-static struct qmi_elem_info wlfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -56,7 +56,7 @@ static struct qmi_elem_info wlfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_ce_svc_pipe_cfg_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_ce_svc_pipe_cfg_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -87,7 +87,7 @@ static struct qmi_elem_info wlfw_ce_svc_pipe_cfg_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_shadow_reg_cfg_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_shadow_reg_cfg_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_2_BYTE,
 		.elem_len       = 1,
@@ -109,7 +109,7 @@ static struct qmi_elem_info wlfw_shadow_reg_cfg_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_shadow_reg_v2_cfg_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_shadow_reg_v2_cfg_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -122,7 +122,7 @@ static struct qmi_elem_info wlfw_shadow_reg_v2_cfg_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_memory_region_info_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_memory_region_info_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_8_BYTE,
 		.elem_len       = 1,
@@ -153,7 +153,7 @@ static struct qmi_elem_info wlfw_memory_region_info_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_mem_cfg_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_mem_cfg_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_8_BYTE,
 		.elem_len       = 1,
@@ -184,7 +184,7 @@ static struct qmi_elem_info wlfw_mem_cfg_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_mem_seg_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_mem_seg_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -225,7 +225,7 @@ static struct qmi_elem_info wlfw_mem_seg_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_mem_seg_resp_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_mem_seg_resp_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_8_BYTE,
 		.elem_len       = 1,
@@ -256,7 +256,7 @@ static struct qmi_elem_info wlfw_mem_seg_resp_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_rf_chip_info_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_rf_chip_info_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -278,7 +278,7 @@ static struct qmi_elem_info wlfw_rf_chip_info_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_rf_board_info_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_rf_board_info_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -291,7 +291,7 @@ static struct qmi_elem_info wlfw_rf_board_info_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_soc_info_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_soc_info_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -304,7 +304,7 @@ static struct qmi_elem_info wlfw_soc_info_s_v01_ei[] = {
 	{}
 };
 
-static struct qmi_elem_info wlfw_fw_version_info_s_v01_ei[] = {
+static const struct qmi_elem_info wlfw_fw_version_info_s_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -326,7 +326,7 @@ static struct qmi_elem_info wlfw_fw_version_info_s_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_ind_register_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_ind_register_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -528,7 +528,7 @@ struct qmi_elem_info wlfw_ind_register_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_ind_register_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_ind_register_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -560,15 +560,15 @@ struct qmi_elem_info wlfw_ind_register_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_fw_ready_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_fw_ready_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_msa_ready_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_msa_ready_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_pin_connect_result_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_pin_connect_result_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -626,7 +626,7 @@ struct qmi_elem_info wlfw_pin_connect_result_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_wlan_mode_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_wlan_mode_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len       = 1,
@@ -657,7 +657,7 @@ struct qmi_elem_info wlfw_wlan_mode_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_wlan_mode_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_wlan_mode_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -671,7 +671,7 @@ struct qmi_elem_info wlfw_wlan_mode_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_wlan_cfg_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_wlan_cfg_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -805,7 +805,7 @@ struct qmi_elem_info wlfw_wlan_cfg_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_wlan_cfg_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_wlan_cfg_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -819,11 +819,11 @@ struct qmi_elem_info wlfw_wlan_cfg_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cap_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cap_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cap_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cap_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -949,7 +949,7 @@ struct qmi_elem_info wlfw_cap_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_bdf_download_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_bdf_download_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_1_BYTE,
 		.elem_len       = 1,
@@ -1079,7 +1079,7 @@ struct qmi_elem_info wlfw_bdf_download_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_bdf_download_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_bdf_download_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1093,7 +1093,7 @@ struct qmi_elem_info wlfw_bdf_download_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cal_report_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cal_report_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_DATA_LEN,
 		.elem_len       = 1,
@@ -1133,7 +1133,7 @@ struct qmi_elem_info wlfw_cal_report_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cal_report_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cal_report_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1147,7 +1147,7 @@ struct qmi_elem_info wlfw_cal_report_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_initiate_cal_download_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_initiate_cal_download_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len       = 1,
@@ -1160,7 +1160,7 @@ struct qmi_elem_info wlfw_initiate_cal_download_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cal_download_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cal_download_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_1_BYTE,
 		.elem_len       = 1,
@@ -1272,7 +1272,7 @@ struct qmi_elem_info wlfw_cal_download_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cal_download_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cal_download_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1286,7 +1286,7 @@ struct qmi_elem_info wlfw_cal_download_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_initiate_cal_update_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_initiate_cal_update_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len       = 1,
@@ -1308,7 +1308,7 @@ struct qmi_elem_info wlfw_initiate_cal_update_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cal_update_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cal_update_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len       = 1,
@@ -1330,7 +1330,7 @@ struct qmi_elem_info wlfw_cal_update_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_cal_update_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_cal_update_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1443,7 +1443,7 @@ struct qmi_elem_info wlfw_cal_update_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_msa_info_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_msa_info_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_8_BYTE,
 		.elem_len       = 1,
@@ -1465,7 +1465,7 @@ struct qmi_elem_info wlfw_msa_info_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_msa_info_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_msa_info_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1498,11 +1498,11 @@ struct qmi_elem_info wlfw_msa_info_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_msa_ready_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_msa_ready_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_msa_ready_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_msa_ready_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1516,7 +1516,7 @@ struct qmi_elem_info wlfw_msa_ready_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_ini_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_ini_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -1538,7 +1538,7 @@ struct qmi_elem_info wlfw_ini_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_ini_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_ini_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1552,7 +1552,7 @@ struct qmi_elem_info wlfw_ini_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_athdiag_read_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_athdiag_read_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -1583,7 +1583,7 @@ struct qmi_elem_info wlfw_athdiag_read_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_athdiag_read_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_athdiag_read_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1624,7 +1624,7 @@ struct qmi_elem_info wlfw_athdiag_read_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_athdiag_write_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_athdiag_write_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
@@ -1664,7 +1664,7 @@ struct qmi_elem_info wlfw_athdiag_write_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_athdiag_write_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_athdiag_write_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1678,7 +1678,7 @@ struct qmi_elem_info wlfw_athdiag_write_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_vbatt_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_vbatt_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_8_BYTE,
 		.elem_len       = 1,
@@ -1691,7 +1691,7 @@ struct qmi_elem_info wlfw_vbatt_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_vbatt_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_vbatt_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1705,7 +1705,7 @@ struct qmi_elem_info wlfw_vbatt_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_mac_addr_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_mac_addr_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -1727,7 +1727,7 @@ struct qmi_elem_info wlfw_mac_addr_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_mac_addr_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_mac_addr_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -1741,7 +1741,7 @@ struct qmi_elem_info wlfw_mac_addr_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_host_cap_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_host_cap_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -1988,7 +1988,7 @@ struct qmi_elem_info wlfw_host_cap_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_host_cap_8bit_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_host_cap_8bit_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -2010,7 +2010,7 @@ struct qmi_elem_info wlfw_host_cap_8bit_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_host_cap_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_host_cap_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -2024,7 +2024,7 @@ struct qmi_elem_info wlfw_host_cap_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_request_mem_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_request_mem_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_DATA_LEN,
 		.elem_len       = 1,
@@ -2047,7 +2047,7 @@ struct qmi_elem_info wlfw_request_mem_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_respond_mem_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_respond_mem_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_DATA_LEN,
 		.elem_len       = 1,
@@ -2070,7 +2070,7 @@ struct qmi_elem_info wlfw_respond_mem_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_respond_mem_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_respond_mem_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -2084,15 +2084,15 @@ struct qmi_elem_info wlfw_respond_mem_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_mem_ready_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_mem_ready_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_fw_init_done_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_fw_init_done_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_rejuvenate_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_rejuvenate_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -2168,11 +2168,11 @@ struct qmi_elem_info wlfw_rejuvenate_ind_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_rejuvenate_ack_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_rejuvenate_ack_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_rejuvenate_ack_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_rejuvenate_ack_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -2186,7 +2186,7 @@ struct qmi_elem_info wlfw_rejuvenate_ack_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_dynamic_feature_mask_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_dynamic_feature_mask_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
@@ -2208,7 +2208,7 @@ struct qmi_elem_info wlfw_dynamic_feature_mask_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_dynamic_feature_mask_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_dynamic_feature_mask_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -2258,7 +2258,7 @@ struct qmi_elem_info wlfw_dynamic_feature_mask_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_m3_info_req_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_m3_info_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_8_BYTE,
 		.elem_len       = 1,
@@ -2280,7 +2280,7 @@ struct qmi_elem_info wlfw_m3_info_req_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_m3_info_resp_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_m3_info_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_STRUCT,
 		.elem_len       = 1,
@@ -2294,7 +2294,7 @@ struct qmi_elem_info wlfw_m3_info_resp_msg_v01_ei[] = {
 	{}
 };
 
-struct qmi_elem_info wlfw_xo_cal_ind_msg_v01_ei[] = {
+const struct qmi_elem_info wlfw_xo_cal_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_1_BYTE,
 		.elem_len       = 1,

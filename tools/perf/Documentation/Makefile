@@ -267,7 +267,7 @@ $(OUTPUT)%.xml : %.txt
 	$(ASCIIDOC) -b docbook -d manpage \
 		$(ASCIIDOC_EXTRA) -aperf_version=$(PERF_VERSION) \
 		-aperf_date=$(shell git log -1 --pretty="format:%cd" \
-				--date=short $<) \
+				--date=short --no-show-signature $<) \
 		-o $@+ $< && \
 	mv $@+ $@
 

@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,msm8976-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm MSM8976 TLMM pin controller
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description:
+  Top Level Mode Multiplexer pin controller in Qualcomm MSM8976 SoC.
+
+properties:
+  compatible:
+    const: qcom,msm8976-pinctrl
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+  "#interrupt-cells": true
+  gpio-controller: true
+  "#gpio-cells": true
+  gpio-ranges: true
+  wakeup-parent: true
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 73
+
+  gpio-line-names:
+    maxItems: 145
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-msm8976-tlmm-state"
+      - patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-msm8976-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-msm8976-tlmm-state:
+    type: object
+    description:
+      Desired pin configuration for a device or its specific state (like sleep
+      or active).
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this state.
+        items:
+          oneOf:
+            - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-3][0-9]|14[0-4])$"
+            - enum: [ qdsd_clk, qdsd_cmd, qdsd_data0, qdsd_data1, qdsd_data2,
+                      qdsd_data3, sdc1_clk, sdc1_cmd, sdc1_data, sdc1_rclk,
+                      sdc2_clk, sdc2_cmd, sdc2_data ]
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+
+        enum: [ gpio, blsp_uart1, blsp_spi1, smb_int, blsp_i2c1, blsp_spi2,
+                blsp_uart2, blsp_i2c2, gcc_gp1_clk_b, blsp_spi3,
+                qdss_tracedata_b, blsp_i2c3, gcc_gp2_clk_b, gcc_gp3_clk_b,
+                blsp_spi4, cap_int, blsp_i2c4, blsp_spi5, blsp_uart5,
+                qdss_traceclk_a, m_voc, blsp_i2c5, qdss_tracectl_a,
+                qdss_tracedata_a, blsp_spi6, blsp_uart6, qdss_tracectl_b,
+                blsp_i2c6, qdss_traceclk_b, mdp_vsync, pri_mi2s_mclk_a,
+                sec_mi2s_mclk_a, cam_mclk, cci0_i2c, cci1_i2c, blsp1_spi,
+                blsp3_spi, gcc_gp1_clk_a, gcc_gp2_clk_a, gcc_gp3_clk_a,
+                uim_batt, sd_write, uim1_data, uim1_clk, uim1_reset,
+                uim1_present, uim2_data, uim2_clk, uim2_reset, uim2_present,
+                ts_xvdd, mipi_dsi0, us_euro, ts_resout, ts_sample,
+                sec_mi2s_mclk_b, pri_mi2s, codec_reset, cdc_pdm0, us_emitter,
+                pri_mi2s_mclk_b, pri_mi2s_mclk_c, lpass_slimbus,
+                lpass_slimbus0, lpass_slimbus1, codec_int1, codec_int2,
+                wcss_bt, sdc3, wcss_wlan2, wcss_wlan1, wcss_wlan0, wcss_wlan,
+                wcss_fm, key_volp, key_snapshot, key_focus, key_home, pwr_down,
+                dmic0_clk, hdmi_int, dmic0_data, wsa_vi, wsa_en, blsp_spi8,
+                wsa_irq, blsp_i2c8, pa_indicator, modem_tsync, ssbi_wtr1,
+                gsm1_tx, gsm0_tx, sdcard_det, sec_mi2s, ss_switch ]
+
+      bias-pull-down: true
+      bias-pull-up: true
+      bias-disable: true
+      drive-strength: true
+      input-enable: true
+      output-high: true
+      output-low: true
+
+    required:
+      - pins
+
+    additionalProperties: false
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    tlmm: pinctrl@1000000 {
+        compatible = "qcom,msm8976-pinctrl";
+        reg = <0x1000000 0x300000>;
+        #gpio-cells = <2>;
+        gpio-controller;
+        gpio-ranges = <&tlmm 0 0 145>;
+        interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+
+        blsp1-uart2-active-state {
+            pins = "gpio4", "gpio5", "gpio6", "gpio7";
+            function = "blsp_uart2";
+            drive-strength = <2>;
+            bias-disable;
+        };
+    };

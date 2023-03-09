@@ -47,18 +47,15 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.207"
+#define DC_VER "3.2.223"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
-#define MAX_SINKS_PER_LINK 4
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
 
-/*******************************************************************************
- * Display Core Interfaces
- ******************************************************************************/
+/* Display Core Interfaces */
 struct dc_versions {
 	const char *dc_ver;
 	struct dmcu_version dmcu_version;
@@ -263,11 +260,13 @@ struct dc_caps {
 	uint32_t cache_line_size;
 	uint32_t cache_num_ways;
 	uint16_t subvp_fw_processing_delay_us;
+	uint8_t subvp_drr_max_vblank_margin_us;
 	uint16_t subvp_prefetch_end_to_mall_start_us;
 	uint8_t subvp_swath_height_margin_lines; // subvp start line must be aligned to 2 x swath height
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
 	bool seamless_odm;
+	uint8_t subvp_drr_vblank_start_margin_us;
 };
 
 struct dc_bug_wa {
@@ -395,6 +394,7 @@ struct dc_config {
 	bool disable_dmcu;
 	bool enable_4to1MPC;
 	bool enable_windowed_mpo_odm;
+	bool forceHBR2CP2520; // Used for switching between test patterns TPS4 and CP2520
 	uint32_t allow_edp_hotplug_detection;
 	bool clamp_min_dcfclk;
 	uint64_t vblank_alignment_dto_params;
@@ -408,7 +408,8 @@ struct dc_config {
 	bool use_default_clock_table;
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
-
+	int sdpif_request_limit_words_per_umc;
+	bool disable_subvp_drr;
 };
 
 enum visual_confirm {
@@ -457,15 +458,15 @@ enum pipe_split_policy {
 	MPC_SPLIT_DYNAMIC = 0,
 
 	/**
-	 * @MPC_SPLIT_DYNAMIC: Avoid pipe split, which means that DC will not
+	 * @MPC_SPLIT_AVOID: Avoid pipe split, which means that DC will not
 	 * try any sort of split optimization.
 	 */
 	MPC_SPLIT_AVOID = 1,
 
 	/**
-	 * @MPC_SPLIT_DYNAMIC: With this option, DC will only try to optimize
-	 * the pipe utilization when using a single display; if the user
-	 * connects to a second display, DC will avoid pipe split.
+	 * @MPC_SPLIT_AVOID_MULT_DISP: With this option, DC will only try to
+	 * optimize the pipe utilization when using a single display; if the
+	 * user connects to a second display, DC will avoid pipe split.
 	 */
 	MPC_SPLIT_AVOID_MULT_DISP = 2,
 };
@@ -491,12 +492,17 @@ enum dcn_pwr_state {
 enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_UNKNOWN,
 	DCN_ZSTATE_SUPPORT_ALLOW,
+	DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY,
+	DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
-/*
- * For any clocks that may differ per pipe
- * only the max is stored in this structure
+
+/**
+ * struct dc_clocks - DC pipe clocks
+ *
+ * For any clocks that may differ per pipe only the max is stored in this
+ * structure
  */
 struct dc_clocks {
 	int dispclk_khz;
@@ -523,6 +529,16 @@ struct dc_clocks {
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
+
+	/*
+	 * @fw_based_mclk_switching
+	 *
+	 * DC has a mechanism that leverage the variable refresh rate to switch
+	 * memory clock in cases that we have a large latency to achieve the
+	 * memory clock change and a short vblank window. DC has some
+	 * requirements to enable this feature, and this field describes if the
+	 * system support or not such a feature.
+	 */
 	bool fw_based_mclk_switching;
 	bool fw_based_mclk_switching_shut_down;
 	int prev_num_ways;
@@ -764,7 +780,6 @@ struct dc_debug_options {
 	bool disable_mem_low_power;
 	bool pstate_enabled;
 	bool disable_dmcu;
-	bool disable_psr;
 	bool force_abm_enable;
 	bool disable_stereo_support;
 	bool vsr_support;
@@ -828,6 +843,7 @@ struct dc_debug_options {
 	int crb_alloc_policy_min_disp_count;
 	bool disable_z10;
 	bool enable_z9_disable_interface;
+	bool psr_skip_crtc_disable;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
 	bool force_disable_subvp;
@@ -836,6 +852,7 @@ struct dc_debug_options {
 	unsigned int force_subvp_num_ways;
 	unsigned int force_mall_ss_num_ways;
 	bool alloc_extra_way_for_cursor;
+	uint32_t subvp_extra_lines;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
@@ -854,6 +871,9 @@ struct dc_debug_options {
 	enum lttpr_mode lttpr_mode_override;
 	unsigned int dsc_delay_factor_wa_x1000;
 	unsigned int min_prefetch_in_strobe_ns;
+	bool disable_unbounded_requesting;
+	bool dig_fifo_off_in_blank;
+	bool temp_mst_deallocation_sequence;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -990,9 +1010,7 @@ void dc_init_callbacks(struct dc *dc,
 void dc_deinit_callbacks(struct dc *dc);
 void dc_destroy(struct dc **dc);
 
-/*******************************************************************************
- * Surface Interfaces
- ******************************************************************************/
+/* Surface Interfaces */
 
 enum {
 	TRANSFER_FUNC_POINTS = 1025
@@ -1271,12 +1289,23 @@ void dc_post_update_surfaces_to_stream(
 
 #include "dc_stream.h"
 
-/*
- * Structure to store surface/stream associations for validation
+/**
+ * struct dc_validation_set - Struct to store surface/stream associations for validation
  */
 struct dc_validation_set {
+	/**
+	 * @stream: Stream state properties
+	 */
 	struct dc_stream_state *stream;
+
+	/**
+	 * @plane_state: Surface state
+	 */
 	struct dc_plane_state *plane_states[MAX_SURFACES];
+
+	/**
+	 * @plane_count: Total of active planes
+	 */
 	uint8_t plane_count;
 };
 
@@ -1287,6 +1316,12 @@ bool dc_validate_boot_timing(const struct dc *dc,
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
+
+enum dc_status dc_validate_with_context(struct dc *dc,
+					const struct dc_validation_set set[],
+					int set_count,
+					struct dc_state *context,
+					bool fast_validate);
 
 bool dc_set_generic_gpio_for_stereo(bool enable,
 		struct gpio_service *gpio_service);
@@ -1323,15 +1358,12 @@ void dc_resource_state_destruct(struct dc_state *context);
 
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 
-/*
- * TODO update to make it about validation sets
- * Set up streams and links associated to drive sinks
- * The streams parameter is an absolute set of all active streams.
- *
- * After this call:
- *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
- */
+enum dc_status dc_commit_streams(struct dc *dc,
+				 struct dc_stream_state *streams[],
+				 uint8_t stream_count);
+
+/* TODO: When the transition to the new commit sequence is done, remove this
+ * function in favor of dc_commit_streams. */
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
 
 struct dc_state *dc_create_state(struct dc *dc);
@@ -1339,113 +1371,129 @@ struct dc_state *dc_copy_state(struct dc_state *src_ctx);
 void dc_retain_state(struct dc_state *context);
 void dc_release_state(struct dc_state *context);
 
-/*******************************************************************************
- * Link Interfaces
- ******************************************************************************/
+struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
+		struct dc_stream_state *stream,
+		int mpcc_inst);
 
-struct dpcd_caps {
-	union dpcd_rev dpcd_rev;
-	union max_lane_count max_ln_count;
-	union max_down_spread max_down_spread;
-	union dprx_feature dprx_feature;
-
-	/* valid only for eDP v1.4 or higher*/
-	uint8_t edp_supported_link_rates_count;
-	enum dc_link_rate edp_supported_link_rates[8];
-
-	/* dongle type (DP converter, CV smart dongle) */
-	enum display_dongle_type dongle_type;
-	bool is_dongle_type_one;
-	/* branch device or sink device */
-	bool is_branch_dev;
-	/* Dongle's downstream count. */
-	union sink_count sink_count;
-	bool is_mst_capable;
-	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
-	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
-	struct dc_dongle_caps dongle_caps;
-
-	uint32_t sink_dev_id;
-	int8_t sink_dev_id_str[6];
-	int8_t sink_hw_revision;
-	int8_t sink_fw_revision[2];
-
-	uint32_t branch_dev_id;
-	int8_t branch_dev_name[6];
-	int8_t branch_hw_revision;
-	int8_t branch_fw_revision[2];
-
-	bool allow_invalid_MSA_timing_param;
-	bool panel_mode_edp;
-	bool dpcd_display_control_capable;
-	bool ext_receiver_cap_field_present;
-	bool set_power_state_capable_edp;
-	bool dynamic_backlight_capable_edp;
-	union dpcd_fec_capability fec_cap;
-	struct dpcd_dsc_capabilities dsc_caps;
-	struct dc_lttpr_caps lttpr_caps;
-	struct dpcd_usb4_dp_tunneling_info usb4_dp_tun_info;
-
-	union dp_128b_132b_supported_link_rates dp_128b_132b_supported_link_rates;
-	union dp_main_line_channel_coding_cap channel_coding_cap;
-	union dp_sink_video_fallback_formats fallback_formats;
-	union dp_fec_capability1 fec_cap1;
-	union dp_cable_id cable_id;
-	uint8_t edp_rev;
-	union edp_alpm_caps alpm_caps;
-	struct edp_psr_info psr_info;
-};
-
-union dpcd_sink_ext_caps {
-	struct {
-		/* 0 - Sink supports backlight adjust via PWM during SDR/HDR mode
-		 * 1 - Sink supports backlight adjust via AUX during SDR/HDR mode.
-		 */
-		uint8_t sdr_aux_backlight_control : 1;
-		uint8_t hdr_aux_backlight_control : 1;
-		uint8_t reserved_1 : 2;
-		uint8_t oled : 1;
-		uint8_t reserved : 3;
-	} bits;
-	uint8_t raw;
-};
-
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
-union hdcp_rx_caps {
-	struct {
-		uint8_t version;
-		uint8_t reserved;
-		struct {
-			uint8_t repeater	: 1;
-			uint8_t hdcp_capable	: 1;
-			uint8_t reserved	: 6;
-		} byte0;
-	} fields;
-	uint8_t raw[3];
-};
-
-union hdcp_bcaps {
-	struct {
-		uint8_t HDCP_CAPABLE:1;
-		uint8_t REPEATER:1;
-		uint8_t RESERVED:6;
-	} bits;
-	uint8_t raw;
-};
-
-struct hdcp_caps {
-	union hdcp_rx_caps rx_caps;
-	union hdcp_bcaps bcaps;
-};
-#endif
-
-#include "dc_link.h"
 
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
-/*******************************************************************************
- * Sink Interfaces - A sink corresponds to a display output device
- ******************************************************************************/
+/* Link Interfaces */
+/* TODO: remove this after resolving external dependencies */
+#include "dc_link.h"
+
+/* The function initiates detection handshake over the given link. It first
+ * determines if there are display connections over the link. If so it initiates
+ * detection protocols supported by the connected receiver device. The function
+ * contains protocol specific handshake sequences which are sometimes mandatory
+ * to establish a proper connection between TX and RX. So it is always
+ * recommended to call this function as the first link operation upon HPD event
+ * or power up event. Upon completion, the function will update link structure
+ * in place based on latest RX capabilities. The function may also cause dpms
+ * to be reset to off for all currently enabled streams to the link. It is DM's
+ * responsibility to serialize detection and DPMS updates.
+ *
+ * @reason - Indicate which event triggers this detection. dc may customize
+ * detection flow depending on the triggering events.
+ * return false - if detection is not fully completed. This could happen when
+ * there is an unrecoverable error during detection or detection is partially
+ * completed (detection has been delegated to dm mst manager ie.
+ * link->connection_type == dc_connection_mst_branch when returning false).
+ * return true - detection is completed, link has been fully updated with latest
+ * detection result.
+ */
+bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason);
+
+/* determine if there is a sink connected to the link
+ *
+ * @type - dc_connection_single if connected, dc_connection_none otherwise.
+ * return - false if an unexpected error occurs, true otherwise.
+ *
+ * NOTE: This function doesn't detect downstream sink connections i.e
+ * dc_connection_mst_branch, dc_connection_sst_branch. In this case, it will
+ * return dc_connection_single if the branch device is connected despite of
+ * downstream sink's connection status.
+ */
+bool dc_link_detect_connection_type(struct dc_link *link,
+		enum dc_connection_type *type);
+
+/* Getter for cached link status from given link */
+const struct dc_link_status *dc_link_get_status(const struct dc_link *link);
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+/* return true if the connected receiver supports the hdcp version */
+bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal);
+bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
+#endif
+
+/* The function clears recorded DP RX states in the link. DM should call this
+ * function when it is resuming from S3 power state to previously connected links.
+ *
+ * TODO - in the future we should consider to expand link resume interface to
+ * support clearing previous rx states. So we don't have to rely on dm to call
+ * this interface explicitly.
+ */
+void dc_link_clear_dprx_states(struct dc_link *link);
+
+/* Destruct the mst topology of the link and reset the allocated payload table
+ *
+ * NOTE: this should only be called if DM chooses not to call dc_link_detect but
+ * still wants to reset MST topology on an unplug event */
+bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link);
+
+/* The function calculates effective DP link bandwidth when a given link is
+ * using the given link settings.
+ *
+ * return - total effective link bandwidth in kbps.
+ */
+uint32_t dc_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_setting);
+
+/* The function returns minimum bandwidth required to drive a given timing
+ * return - minimum required timing bandwidth in kbps.
+ */
+uint32_t dc_bandwidth_in_kbps_from_timing(
+	const struct dc_crtc_timing *timing);
+
+/* The function takes a snapshot of current link resource allocation state
+ * @dc: pointer to dc of the dm calling this
+ * @map: a dc link resource snapshot defined internally to dc.
+ *
+ * DM needs to capture a snapshot of current link resource allocation mapping
+ * and store it in its persistent storage.
+ *
+ * Some of the link resource is using first come first serve policy.
+ * The allocation mapping depends on original hotplug order. This information
+ * is lost after driver is loaded next time. The snapshot is used in order to
+ * restore link resource to its previous state so user will get consistent
+ * link capability allocation across reboot.
+ *
+ */
+void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
+
+/* This function restores link resource allocation state from a snapshot
+ * @dc: pointer to dc of the dm calling this
+ * @map: a dc link resource snapshot defined internally to dc.
+ *
+ * DM needs to call this function after initial link detection on boot and
+ * before first commit streams to restore link resource allocation state
+ * from previous boot session.
+ *
+ * Some of the link resource is using first come first serve policy.
+ * The allocation mapping depends on original hotplug order. This information
+ * is lost after driver is loaded next time. The snapshot is used in order to
+ * restore link resource to its previous state so user will get consistent
+ * link capability allocation across reboot.
+ *
+ */
+void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
+
+/* TODO: this is not meant to be exposed to DM. Should switch to stream update
+ * interface i.e stream_update->dsc_config
+ */
+bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx);
+/* Sink Interfaces - A sink corresponds to a display output device */
 
 struct dc_container_id {
 	// 128bit GUID in binary form
@@ -1476,6 +1524,11 @@ struct dc_sink_fec_caps {
 	bool is_topology_fec_supported;
 };
 
+struct scdc_caps {
+	union hdmi_scdc_manufacturer_OUI_data manufacturer_OUI;
+	union hdmi_scdc_device_id_data device_id;
+};
+
 /*
  * The sink structure contains EDID and other display device properties
  */
@@ -1489,6 +1542,7 @@ struct dc_sink {
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
 
+	struct scdc_caps scdc_caps;
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
 
@@ -1528,9 +1582,7 @@ struct dc_cursor {
 };
 
 
-/*******************************************************************************
- * Interrupt interfaces
- ******************************************************************************/
+/* Interrupt interfaces */
 enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
@@ -1542,9 +1594,7 @@ enum dc_irq_source dc_get_hpd_irq_source_at_index(
 
 void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable);
 
-/*******************************************************************************
- * Power Interfaces
- ******************************************************************************/
+/* Power Interfaces */
 
 void dc_set_power_state(
 		struct dc *dc,
@@ -1617,14 +1667,10 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
 
-/*******************************************************************************
- * DSC Interfaces
- ******************************************************************************/
+/* DSC Interfaces */
 #include "dc_dsc.h"
 
-/*******************************************************************************
- * Disable acc mode Interfaces
- ******************************************************************************/
+/* Disable acc mode Interfaces */
 void dc_disable_accelerated_mode(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

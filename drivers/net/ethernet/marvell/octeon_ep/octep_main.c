@@ -23,6 +23,7 @@ struct workqueue_struct *octep_wq;
 /* Supported Devices */
 static const struct pci_device_id octep_pci_id_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, OCTEP_PCI_DEVICE_ID_CN93_PF)},
+	{PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, OCTEP_PCI_DEVICE_ID_CNF95N_PF)},
 	{0, },
 };
 MODULE_DEVICE_TABLE(pci, octep_pci_id_tbl);
@@ -905,6 +906,18 @@ static void octep_ctrl_mbox_task(struct work_struct *work)
 	}
 }
 
+static const char *octep_devid_to_str(struct octep_device *oct)
+{
+	switch (oct->chip_id) {
+	case OCTEP_PCI_DEVICE_ID_CN93_PF:
+		return "CN93XX";
+	case OCTEP_PCI_DEVICE_ID_CNF95N_PF:
+		return "CNF95N";
+	default:
+		return "Unsupported";
+	}
+}
+
 /**
  * octep_device_setup() - Setup Octeon Device.
  *
@@ -937,9 +950,10 @@ int octep_device_setup(struct octep_device *oct)
 
 	switch (oct->chip_id) {
 	case OCTEP_PCI_DEVICE_ID_CN93_PF:
-		dev_info(&pdev->dev,
-			 "Setting up OCTEON CN93XX PF PASS%d.%d\n",
-			 OCTEP_MAJOR_REV(oct), OCTEP_MINOR_REV(oct));
+	case OCTEP_PCI_DEVICE_ID_CNF95N_PF:
+		dev_info(&pdev->dev, "Setting up OCTEON %s PF PASS%d.%d\n",
+			 octep_devid_to_str(oct), OCTEP_MAJOR_REV(oct),
+			 OCTEP_MINOR_REV(oct));
 		octep_device_setup_cn93_pf(oct);
 		break;
 	default:

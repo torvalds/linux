@@ -20,7 +20,7 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -78,14 +78,12 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 
 void mxsfb_enable_axi_clk(struct mxsfb_drm_private *mxsfb)
 {
-	if (mxsfb->clk_axi)
-		clk_prepare_enable(mxsfb->clk_axi);
+	clk_prepare_enable(mxsfb->clk_axi);
 }
 
 void mxsfb_disable_axi_clk(struct mxsfb_drm_private *mxsfb)
 {
-	if (mxsfb->clk_axi)
-		clk_disable_unprepare(mxsfb->clk_axi);
+	clk_disable_unprepare(mxsfb->clk_axi);
 }
 
 static struct drm_framebuffer *
@@ -235,9 +233,9 @@ static int mxsfb_load(struct drm_device *drm,
 	if (IS_ERR(mxsfb->clk))
 		return PTR_ERR(mxsfb->clk);
 
-	mxsfb->clk_axi = devm_clk_get(drm->dev, "axi");
+	mxsfb->clk_axi = devm_clk_get_optional(drm->dev, "axi");
 	if (IS_ERR(mxsfb->clk_axi))
-		mxsfb->clk_axi = NULL;
+		return PTR_ERR(mxsfb->clk_axi);
 
 	mxsfb->clk_disp_axi = devm_clk_get(drm->dev, "disp_axi");
 	if (IS_ERR(mxsfb->clk_disp_axi))

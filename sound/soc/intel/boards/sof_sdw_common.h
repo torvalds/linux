@@ -83,6 +83,7 @@ struct mc_private {
 	bool idisp_codec;
 	struct snd_soc_jack sdw_headset;
 	struct device *headset_codec_dev; /* only one headset per card */
+	struct device *amp_dev1, *amp_dev2;
 };
 
 extern unsigned long sof_sdw_quirk;
@@ -124,21 +125,18 @@ int sof_sdw_rt700_init(struct snd_soc_card *card,
 		       struct sof_sdw_codec_info *info,
 		       bool playback);
 
-/* RT1308 support */
+/* RT1308 I2S support */
 extern struct snd_soc_ops sof_sdw_rt1308_i2s_ops;
 
-int sof_sdw_rt1308_init(struct snd_soc_card *card,
+/* generic amp support */
+int sof_sdw_rt_amp_init(struct snd_soc_card *card,
 			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback);
+int sof_sdw_rt_amp_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 
 /* RT1316 support */
-int sof_sdw_rt1316_init(struct snd_soc_card *card,
-			const struct snd_soc_acpi_link_adr *link,
-			struct snd_soc_dai_link *dai_links,
-			struct sof_sdw_codec_info *info,
-			bool playback);
 
 /* RT715 support */
 int sof_sdw_rt715_init(struct snd_soc_card *card,

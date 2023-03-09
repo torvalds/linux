@@ -18,26 +18,16 @@
 
 #include "internal.h"
 
+#define MAX_SHASH_ALIGNMASK 63
+
 static const struct crypto_type crypto_shash_type;
 
-static int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
-			   unsigned int keylen)
+int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
+		    unsigned int keylen)
 {
 	return -ENOSYS;
 }
-
-/*
- * Check whether an shash algorithm has a setkey function.
- *
- * For CFI compatibility, this must not be an inline function.  This is because
- * when CFI is enabled, modules won't get the same address for shash_no_setkey
- * (if it were exported, which inlining would require) as the core kernel will.
- */
-bool crypto_shash_alg_has_setkey(struct shash_alg *alg)
-{
-	return alg->setkey != shash_no_setkey;
-}
-EXPORT_SYMBOL_GPL(crypto_shash_alg_has_setkey);
+EXPORT_SYMBOL_GPL(shash_no_setkey);
 
 static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 				  unsigned int keylen)
@@ -100,7 +90,7 @@ static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
 	 * We cannot count on __aligned() working for large values:
 	 * https://patchwork.kernel.org/patch/9507697/
 	 */
-	u8 ubuf[MAX_ALGAPI_ALIGNMASK * 2];
+	u8 ubuf[MAX_SHASH_ALIGNMASK * 2];
 	u8 *buf = PTR_ALIGN(&ubuf[0], alignmask + 1);
 	int err;
 
@@ -142,7 +132,7 @@ static int shash_final_unaligned(struct shash_desc *desc, u8 *out)
 	 * We cannot count on __aligned() working for large values:
 	 * https://patchwork.kernel.org/patch/9507697/
 	 */
-	u8 ubuf[MAX_ALGAPI_ALIGNMASK + HASH_MAX_DIGESTSIZE];
+	u8 ubuf[MAX_SHASH_ALIGNMASK + HASH_MAX_DIGESTSIZE];
 	u8 *buf = PTR_ALIGN(&ubuf[0], alignmask + 1);
 	int err;
 
@@ -330,10 +320,10 @@ int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc)
 	     nbytes <= min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset))) {
 		void *data;
 
-		data = kmap_atomic(sg_page(sg));
+		data = kmap_local_page(sg_page(sg));
 		err = crypto_shash_digest(desc, data + offset, nbytes,
 					  req->result);
-		kunmap_atomic(data);
+		kunmap_local(data);
 	} else
 		err = crypto_shash_init(desc) ?:
 		      shash_ahash_finup(req, desc);
@@ -534,6 +524,9 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	if (alg->digestsize > HASH_MAX_DIGESTSIZE ||
 	    alg->descsize > HASH_MAX_DESCSIZE ||
 	    alg->statesize > HASH_MAX_STATESIZE)
+		return -EINVAL;
+
+	if (base->cra_alignmask > MAX_SHASH_ALIGNMASK)
 		return -EINVAL;
 
 	if ((alg->export && !alg->import) || (alg->import && !alg->export))

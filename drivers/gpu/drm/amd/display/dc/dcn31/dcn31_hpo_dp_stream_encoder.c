@@ -430,6 +430,22 @@ static void dcn31_hpo_dp_stream_enc_set_stream_attribute(
 			MSA_DATA_LANE_3, 0);
 }
 
+static void dcn31_hpo_dp_stream_enc_update_dp_info_packets_sdp_line_num(
+		struct hpo_dp_stream_encoder *enc,
+		struct encoder_info_frame *info_frame)
+{
+	struct dcn31_hpo_dp_stream_encoder *enc3 = DCN3_1_HPO_DP_STREAM_ENC_FROM_HPO_STREAM_ENC(enc);
+
+	if (info_frame->adaptive_sync.valid == true &&
+		info_frame->sdp_line_num.adaptive_sync_line_num_valid == true) {
+		//00: REFER_TO_DP_SOF, 01: REFER_TO_OTG_SOF
+		REG_UPDATE(DP_SYM32_ENC_SDP_GSP_CONTROL5, GSP_SOF_REFERENCE, 1);
+
+		REG_UPDATE(DP_SYM32_ENC_SDP_GSP_CONTROL5, GSP_TRANSMISSION_LINE_NUMBER,
+					info_frame->sdp_line_num.adaptive_sync_line_num);
+	}
+}
+
 static void dcn31_hpo_dp_stream_enc_update_dp_info_packets(
 		struct hpo_dp_stream_encoder *enc,
 		const struct encoder_info_frame *info_frame)
@@ -458,12 +474,20 @@ static void dcn31_hpo_dp_stream_enc_update_dp_info_packets(
 				&info_frame->hdrsmd,
 				true);
 
+	if (info_frame->adaptive_sync.valid)
+		enc->vpg->funcs->update_generic_info_packet(
+				enc->vpg,
+				5,  /* packetIndex */
+				&info_frame->adaptive_sync,
+				true);
+
 	/* enable/disable transmission of packet(s).
 	 * If enabled, packet transmission begins on the next frame
 	 */
 	REG_UPDATE(DP_SYM32_ENC_SDP_GSP_CONTROL0, GSP_VIDEO_CONTINUOUS_TRANSMISSION_ENABLE, info_frame->vsc.valid);
 	REG_UPDATE(DP_SYM32_ENC_SDP_GSP_CONTROL2, GSP_VIDEO_CONTINUOUS_TRANSMISSION_ENABLE, info_frame->spd.valid);
 	REG_UPDATE(DP_SYM32_ENC_SDP_GSP_CONTROL3, GSP_VIDEO_CONTINUOUS_TRANSMISSION_ENABLE, info_frame->hdrsmd.valid);
+	REG_UPDATE(DP_SYM32_ENC_SDP_GSP_CONTROL5, GSP_VIDEO_CONTINUOUS_TRANSMISSION_ENABLE, info_frame->adaptive_sync.valid);
 
 	/* check if dynamic metadata packet transmission is enabled */
 	REG_GET(DP_SYM32_ENC_SDP_METADATA_PACKET_CONTROL,
@@ -600,14 +624,6 @@ static void dcn31_hpo_dp_stream_enc_map_stream_to_link(
 	}
 }
 
-static void dcn31_hpo_dp_stream_enc_mute_control(
-	struct hpo_dp_stream_encoder *enc,
-	bool mute)
-{
-	ASSERT(enc->apg);
-	enc->apg->funcs->audio_mute_control(enc->apg, mute);
-}
-
 static void dcn31_hpo_dp_stream_enc_audio_setup(
 	struct hpo_dp_stream_encoder *enc,
 	unsigned int az_inst,
@@ -722,11 +738,11 @@ static const struct hpo_dp_stream_encoder_funcs dcn30_str_enc_funcs = {
 	.dp_blank = dcn31_hpo_dp_stream_enc_dp_blank,
 	.disable = dcn31_hpo_dp_stream_enc_disable,
 	.set_stream_attribute = dcn31_hpo_dp_stream_enc_set_stream_attribute,
+	.update_dp_info_packets_sdp_line_num = dcn31_hpo_dp_stream_enc_update_dp_info_packets_sdp_line_num,
 	.update_dp_info_packets = dcn31_hpo_dp_stream_enc_update_dp_info_packets,
 	.stop_dp_info_packets = dcn31_hpo_dp_stream_enc_stop_dp_info_packets,
 	.dp_set_dsc_pps_info_packet = dcn31_hpo_dp_stream_enc_set_dsc_pps_info_packet,
 	.map_stream_to_link = dcn31_hpo_dp_stream_enc_map_stream_to_link,
-	.audio_mute_control = dcn31_hpo_dp_stream_enc_mute_control,
 	.dp_audio_setup = dcn31_hpo_dp_stream_enc_audio_setup,
 	.dp_audio_enable = dcn31_hpo_dp_stream_enc_audio_enable,
 	.dp_audio_disable = dcn31_hpo_dp_stream_enc_audio_disable,

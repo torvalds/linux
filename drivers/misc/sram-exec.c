@@ -10,9 +10,9 @@
 #include <linux/genalloc.h>
 #include <linux/mm.h>
 #include <linux/sram.h>
+#include <linux/set_memory.h>
 
 #include <asm/fncpy.h>
-#include <asm/set_memory.h>
 
 #include "sram.h"
 
@@ -106,10 +106,7 @@ void *sram_exec_copy(struct gen_pool *pool, void *dst, void *src,
 
 	dst_cpy = fncpy(dst, src, size);
 
-	ret = set_memory_ro((unsigned long)base, pages);
-	if (ret)
-		goto error_out;
-	ret = set_memory_x((unsigned long)base, pages);
+	ret = set_memory_rox((unsigned long)base, pages);
 	if (ret)
 		goto error_out;
 

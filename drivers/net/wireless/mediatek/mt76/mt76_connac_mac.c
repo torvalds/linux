@@ -267,9 +267,9 @@ int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_init_tx_queues);
 
-static u16
-mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy, struct ieee80211_vif *vif,
-			     bool beacon, bool mcast)
+u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
+				 struct ieee80211_vif *vif,
+				 bool beacon, bool mcast)
 {
 	u8 mode = 0, band = mphy->chandef.chan->band;
 	int rateidx = 0, mcast_rate;
@@ -319,6 +319,7 @@ out:
 	return FIELD_PREP(MT_TX_RATE_IDX, rateidx) |
 	       FIELD_PREP(MT_TX_RATE_MODE, mode);
 }
+EXPORT_SYMBOL_GPL(mt76_connac2_mac_tx_rate_val);
 
 static void
 mt76_connac2_mac_write_txwi_8023(__le32 *txwi, struct sk_buff *skb,
@@ -417,9 +418,6 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
 	if (ieee80211_is_beacon(fc)) {
 		txwi[3] &= ~cpu_to_le32(MT_TXD3_SW_POWER_MGMT);
 		txwi[3] |= cpu_to_le32(MT_TXD3_REM_TX_COUNT);
-		if (!is_mt7921(dev))
-			txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX,
-							  0x18));
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
@@ -550,6 +548,14 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 		val |= FIELD_PREP(MT_TXD6_TX_RATE, rate);
 		txwi[6] |= cpu_to_le32(val);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
+
+		if (!is_mt7921(dev)) {
+			u8 spe_idx = mt76_connac_spe_idx(mphy->antenna_mask);
+
+			if (!spe_idx)
+				spe_idx = 24 + phy_idx;
+			txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX, spe_idx));
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(mt76_connac2_mac_write_txwi);
@@ -562,7 +568,7 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	struct mt76_phy *mphy;
 	struct rate_info rate = {};
 	bool cck = false;
-	u32 txrate, txs, mode;
+	u32 txrate, txs, mode, stbc;
 
 	txs = le32_to_cpu(txs_data[0]);
 
@@ -582,6 +588,10 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
 
 	rate.mcs = FIELD_GET(MT_TX_RATE_IDX, txrate);
 	rate.nss = FIELD_GET(MT_TX_RATE_NSS, txrate) + 1;
+	stbc = FIELD_GET(MT_TX_RATE_STBC, txrate);
+
+	if (stbc && rate.nss > 1)
+		rate.nss >>= 1;
 
 	if (rate.nss - 1 < ARRAY_SIZE(stats->tx_nss))
 		stats->tx_nss[rate.nss - 1]++;
@@ -921,7 +931,7 @@ int mt76_connac2_reverse_frag0_hdr_trans(struct ieee80211_vif *vif,
 		ether_addr_copy(hdr.addr4, eth_hdr->h_source);
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	skb_pull(skb, hdr_offset + sizeof(struct ethhdr) - 2);

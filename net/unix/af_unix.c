@@ -112,6 +112,7 @@
 #include <linux/mount.h>
 #include <net/checksum.h>
 #include <linux/security.h>
+#include <linux/splice.h>
 #include <linux/freezer.h>
 #include <linux/file.h>
 #include <linux/btf_ids.h>
@@ -807,23 +808,23 @@ static int unix_count_nr_fds(struct sock *sk)
 static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 {
 	struct sock *sk = sock->sk;
+	unsigned char s_state;
 	struct unix_sock *u;
-	int nr_fds;
+	int nr_fds = 0;
 
 	if (sk) {
+		s_state = READ_ONCE(sk->sk_state);
 		u = unix_sk(sk);
-		if (sock->type == SOCK_DGRAM) {
-			nr_fds = atomic_read(&u->scm_stat.nr_fds);
-			goto out_print;
-		}
 
-		unix_state_lock(sk);
-		if (sk->sk_state != TCP_LISTEN)
+		/* SOCK_STREAM and SOCK_SEQPACKET sockets never change their
+		 * sk_state after switching to TCP_ESTABLISHED or TCP_LISTEN.
+		 * SOCK_DGRAM is ordinary. So, no lock is needed.
+		 */
+		if (sock->type == SOCK_DGRAM || s_state == TCP_ESTABLISHED)
 			nr_fds = atomic_read(&u->scm_stat.nr_fds);
-		else
+		else if (s_state == TCP_LISTEN)
 			nr_fds = unix_count_nr_fds(sk);
-		unix_state_unlock(sk);
-out_print:
+
 		seq_printf(m, "scm_fds: %u\n", nr_fds);
 	}
 }
@@ -1190,7 +1191,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	unsigned int new_hash, old_hash = sk->sk_hash;
 	struct unix_sock *u = unix_sk(sk);
 	struct net *net = sock_net(sk);
-	struct user_namespace *ns; // barf...
+	struct mnt_idmap *idmap;
 	struct unix_address *addr;
 	struct dentry *dentry;
 	struct path parent;
@@ -1217,10 +1218,10 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	/*
 	 * All right, let's create it.
 	 */
-	ns = mnt_user_ns(parent.mnt);
+	idmap = mnt_idmap(parent.mnt);
 	err = security_path_mknod(&parent, dentry, mode, 0);
 	if (!err)
-		err = vfs_mknod(ns, d_inode(parent.dentry), dentry, mode, 0);
+		err = vfs_mknod(idmap, d_inode(parent.dentry), dentry, mode, 0);
 	if (err)
 		goto out_path;
 	err = mutex_lock_interruptible(&u->bindlock);
@@ -1245,7 +1246,7 @@ out_unlock:
 	err = -EINVAL;
 out_unlink:
 	/* failed after successful mknod?  unlink what we'd created... */
-	vfs_unlink(ns, d_inode(parent.dentry), dentry, NULL);
+	vfs_unlink(idmap, d_inode(parent.dentry), dentry, NULL);
 out_path:
 	done_path_create(&parent, dentry);
 out:
@@ -1999,13 +2000,20 @@ restart_locked:
 			unix_state_lock(sk);
 
 		err = 0;
-		if (unix_peer(sk) == other) {
+		if (sk->sk_type == SOCK_SEQPACKET) {
+			/* We are here only when racing with unix_release_sock()
+			 * is clearing @other. Never change state to TCP_CLOSE
+			 * unlike SOCK_DGRAM wants.
+			 */
+			unix_state_unlock(sk);
+			err = -EPIPE;
+		} else if (unix_peer(sk) == other) {
 			unix_peer(sk) = NULL;
 			unix_dgram_peer_wake_disconnect_wakeup(sk, other);
 
+			sk->sk_state = TCP_CLOSE;
 			unix_state_unlock(sk);
 
-			sk->sk_state = TCP_CLOSE;
 			unix_dgram_disconnected(sk, other);
 			sock_put(other);
 			err = -ECONNREFUSED;
@@ -3738,6 +3746,7 @@ static int __init af_unix_init(void)
 	rc = proto_register(&unix_stream_proto, 1);
 	if (rc != 0) {
 		pr_crit("%s: Cannot create unix_sock SLAB cache!\n", __func__);
+		proto_unregister(&unix_dgram_proto);
 		goto out;
 	}
 

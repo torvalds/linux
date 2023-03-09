@@ -102,9 +102,18 @@ static const struct abm_parameters abm_settings_config1[abm_defines_max_level] =
 	{0x82,   0x4d,    0x20,       0x00,     0x00,        0xff,     0xb3, 0x70,     0x70,     0xcccc,  0xcccc},
 };
 
+static const struct abm_parameters abm_settings_config2[abm_defines_max_level] = {
+//  min_red  max_red  bright_pos  dark_pos  bright_gain  contrast  dev   min_knee  max_knee  blRed    blStart
+	{0xf0,   0xbf,    0x20,       0x00,     0x88,        0x99,     0xb3, 0x40,     0xe0,    0x0000,  0xcccc},
+	{0xd8,   0x85,    0x20,       0x00,     0x70,        0x90,     0xa8, 0x40,     0xc8,    0x0700,  0xb333},
+	{0xb8,   0x58,    0x20,       0x00,     0x64,        0x88,     0x78, 0x70,     0xa0,    0x7000,  0x9999},
+	{0x82,   0x40,    0x20,       0x00,     0x00,        0xb8,     0xb3, 0x70,     0x70,    0xc333,  0xb333},
+};
+
 static const struct abm_parameters * const abm_settings[] = {
 	abm_settings_config0,
 	abm_settings_config1,
+	abm_settings_config2,
 };
 
 #define NUM_AMBI_LEVEL    5
@@ -906,4 +915,35 @@ void mod_power_calc_psr_configs(struct psr_config *psr_config,
 bool mod_power_only_edp(const struct dc_state *context, const struct dc_stream_state *stream)
 {
 	return context && context->stream_count == 1 && dc_is_embedded_signal(stream->signal);
+}
+
+bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
+			      struct dc_stream_state *stream,
+			      struct psr_config *config)
+{
+	uint16_t pic_height;
+	uint16_t slice_height;
+
+	config->dsc_slice_height = 0;
+	if ((link->connector_signal & SIGNAL_TYPE_EDP) &&
+	    (!dc->caps.edp_dsc_support ||
+	    link->panel_config.dsc.disable_dsc_edp ||
+	    !link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT ||
+	    !stream->timing.dsc_cfg.num_slices_v))
+		return true;
+
+	pic_height = stream->timing.v_addressable +
+		stream->timing.v_border_top + stream->timing.v_border_bottom;
+	slice_height = pic_height / stream->timing.dsc_cfg.num_slices_v;
+	config->dsc_slice_height = slice_height;
+
+	if (slice_height) {
+		if (config->su_y_granularity &&
+		    (slice_height % config->su_y_granularity)) {
+			ASSERT(0);
+			return false;
+		}
+	}
+
+	return true;
 }

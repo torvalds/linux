@@ -20,6 +20,8 @@
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
 
+#ifdef HAVE_LIBTRACEEVENT
+
 #if defined(__s390x__)
 /* Return true if kvm module is available and loaded. Test this
  * and return success when trace point kvm_s390_create_vm
@@ -76,6 +78,7 @@ static int test__checkevent_tracepoint_multi(struct evlist *evlist)
 	}
 	return TEST_OK;
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 static int test__checkevent_raw(struct evlist *evlist)
 {
@@ -222,6 +225,7 @@ static int test__checkevent_breakpoint_rw(struct evlist *evlist)
 	return TEST_OK;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int test__checkevent_tracepoint_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
@@ -252,6 +256,7 @@ test__checkevent_tracepoint_multi_modifier(struct evlist *evlist)
 
 	return test__checkevent_tracepoint_multi(evlist);
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 static int test__checkevent_raw_modifier(struct evlist *evlist)
 {
@@ -453,6 +458,7 @@ static int test__checkevent_pmu(struct evlist *evlist)
 	return TEST_OK;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int test__checkevent_list(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
@@ -491,6 +497,7 @@ static int test__checkevent_list(struct evlist *evlist)
 
 	return TEST_OK;
 }
+#endif
 
 static int test__checkevent_pmu_name(struct evlist *evlist)
 {
@@ -762,6 +769,7 @@ static int test__group2(struct evlist *evlist)
 	return TEST_OK;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int test__group3(struct evlist *evlist __maybe_unused)
 {
 	struct evsel *evsel, *leader;
@@ -853,6 +861,7 @@ static int test__group3(struct evlist *evlist __maybe_unused)
 
 	return TEST_OK;
 }
+#endif
 
 static int test__group4(struct evlist *evlist __maybe_unused)
 {
@@ -1460,6 +1469,7 @@ static int test__sym_event_dc(struct evlist *evlist)
 	return TEST_OK;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int count_tracepoints(void)
 {
 	struct dirent *events_ent;
@@ -1513,6 +1523,7 @@ static int test__all_tracepoints(struct evlist *evlist)
 
 	return test__checkevent_tracepoint_multi(evlist);
 }
+#endif /* HAVE_LIBTRACEVENT */
 
 static int test__hybrid_hw_event_with_pmu(struct evlist *evlist)
 {
@@ -1642,6 +1653,7 @@ struct evlist_test {
 };
 
 static const struct evlist_test test__events[] = {
+#ifdef HAVE_LIBTRACEEVENT
 	{
 		.name  = "syscalls:sys_enter_openat",
 		.check = test__checkevent_tracepoint,
@@ -1652,6 +1664,7 @@ static const struct evlist_test test__events[] = {
 		.check = test__checkevent_tracepoint_multi,
 		/* 1 */
 	},
+#endif
 	{
 		.name  = "r1a",
 		.check = test__checkevent_raw,
@@ -1702,6 +1715,7 @@ static const struct evlist_test test__events[] = {
 		.check = test__checkevent_breakpoint_w,
 		/* 1 */
 	},
+#ifdef HAVE_LIBTRACEEVENT
 	{
 		.name  = "syscalls:sys_enter_openat:k",
 		.check = test__checkevent_tracepoint_modifier,
@@ -1712,6 +1726,7 @@ static const struct evlist_test test__events[] = {
 		.check = test__checkevent_tracepoint_multi_modifier,
 		/* 3 */
 	},
+#endif
 	{
 		.name  = "r1a:kp",
 		.check = test__checkevent_raw_modifier,
@@ -1757,11 +1772,13 @@ static const struct evlist_test test__events[] = {
 		.check = test__checkevent_breakpoint_w_modifier,
 		/* 2 */
 	},
+#ifdef HAVE_LIBTRACEEVENT
 	{
 		.name  = "r1,syscalls:sys_enter_openat:k,1:1:hp",
 		.check = test__checkevent_list,
 		/* 3 */
 	},
+#endif
 	{
 		.name  = "instructions:G",
 		.check = test__checkevent_exclude_host_modifier,
@@ -1792,11 +1809,13 @@ static const struct evlist_test test__events[] = {
 		.check = test__group2,
 		/* 9 */
 	},
+#ifdef HAVE_LIBTRACEEVENT
 	{
 		.name  = "group1{syscalls:sys_enter_openat:H,cycles:kppp},group2{cycles,1:3}:G,instructions:u",
 		.check = test__group3,
 		/* 0 */
 	},
+#endif
 	{
 		.name  = "{cycles:u,instructions:kp}:p",
 		.check = test__group4,
@@ -1807,11 +1826,13 @@ static const struct evlist_test test__events[] = {
 		.check = test__group5,
 		/* 2 */
 	},
+#ifdef HAVE_LIBTRACEEVENT
 	{
 		.name  = "*:*",
 		.check = test__all_tracepoints,
 		/* 3 */
 	},
+#endif
 	{
 		.name  = "{cycles,cache-misses:G}:H",
 		.check = test__group_gh1,
@@ -1867,7 +1888,7 @@ static const struct evlist_test test__events[] = {
 		.check = test__checkevent_breakpoint_len_rw_modifier,
 		/* 4 */
 	},
-#if defined(__s390x__)
+#if defined(__s390x__) && defined(HAVE_LIBTRACEEVENT)
 	{
 		.name  = "kvm-s390:kvm_s390_create_vm",
 		.check = test__checkevent_tracepoint,
@@ -2237,6 +2258,19 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 			pr_debug("Test PMU event failed for '%s'", name);
 			ret = combine_test_results(ret, test_ret);
 		}
+		/*
+		 * Names containing '-' are recognized as prefixes and suffixes
+		 * due to '-' being a legacy PMU separator. This fails when the
+		 * prefix or suffix collides with an existing legacy token. For
+		 * example, branch-brs has a prefix (branch) that collides with
+		 * a PE_NAME_CACHE_TYPE token causing a parse error as a suffix
+		 * isn't expected after this. As event names in the config
+		 * slashes are allowed a '-' in the name we check this works
+		 * above.
+		 */
+		if (strchr(ent->d_name, '-'))
+			continue;
+
 		snprintf(name, sizeof(name), "%s:u,cpu/event=%s/u", ent->d_name, ent->d_name);
 		e.name  = name;
 		e.check = test__checkevent_pmu_events_mix;

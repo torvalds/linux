@@ -21,6 +21,10 @@
 	};
 };
 
+&bluetooth0 {
+	brcm,board-type = "apple,atlantisb";
+};
+
 &wifi0 {
 	brcm,board-type = "apple,atlantisb";
 };

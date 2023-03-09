@@ -508,16 +508,17 @@ Clean up the debugfs support
 
 There's a bunch of issues with it:
 
-- The drm_info_list ->show() function doesn't even bother to cast to the drm
-  structure for you. This is lazy.
+- Convert drivers to support the drm_debugfs_add_files() function instead of
+  the drm_debugfs_create_files() function.
+
+- Improve late-register debugfs by rolling out the same debugfs pre-register
+  infrastructure for connector and crtc too. That way, the drivers won't need to
+  split their setup code into init and register anymore.
 
 - We probably want to have some support for debugfs files on crtc/connectors and
   maybe other kms objects directly in core. There's even drm_print support in
   the funcs for these objects to dump kms state, so it's all there. And then the
   ->show() functions should obviously give you a pointer to the right object.
-
-- The drm_info_list stuff is centered on drm_minor instead of drm_device. For
-  anything we want to print drm_device (or maybe drm_file) is the right thing.
 
 - The drm_driver->debugfs_init hooks we have is just an artifact of the old
   midlayered load sequence. DRM debugfs should work more like sysfs, where you
@@ -526,8 +527,6 @@ There's a bunch of issues with it:
   time. Drivers shouldn't need to worry about these technicalities, and fixing
   this (together with the drm_minor->drm_device move) would allow us to remove
   debugfs_init.
-
-Previous RFC that hasn't landed yet: https://lore.kernel.org/dri-devel/20200513114130.28641-2-wambui.karugax@gmail.com/
 
 Contact: Daniel Vetter
 
@@ -650,17 +649,6 @@ a bunch of progress cleaning it up but there's still plenty of work to be done.
 See drivers/gpu/drm/amd/display/TODO for tasks.
 
 Contact: Harry Wentland, Alex Deucher
-
-vmwgfx: Replace hashtable with Linux' implementation
-----------------------------------------------------
-
-The vmwgfx driver uses its own hashtable implementation. Replace the
-code with Linux' implementation and update the callers. It's mostly a
-refactoring task, but the interfaces are different.
-
-Contact: Zack Rusin, Thomas Zimmermann <tzimmermann@suse.de>
-
-Level: Intermediate
 
 Bootsplash
 ==========

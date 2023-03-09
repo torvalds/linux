@@ -337,7 +337,7 @@ static const char * const gnss_type_names[GNSS_TYPE_COUNT] = {
 	[GNSS_TYPE_MTK]		= "MTK",
 };
 
-static const char *gnss_type_name(struct gnss_device *gdev)
+static const char *gnss_type_name(const struct gnss_device *gdev)
 {
 	const char *name = NULL;
 
@@ -365,9 +365,9 @@ static struct attribute *gnss_attrs[] = {
 };
 ATTRIBUTE_GROUPS(gnss);
 
-static int gnss_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int gnss_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gnss_device *gdev = to_gnss_device(dev);
+	const struct gnss_device *gdev = to_gnss_device(dev);
 	int ret;
 
 	ret = add_uevent_var(env, "GNSS_TYPE=%s", gnss_type_name(gdev));

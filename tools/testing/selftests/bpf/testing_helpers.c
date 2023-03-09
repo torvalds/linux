@@ -164,7 +164,7 @@ __u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)
 	int err;
 
 	memset(info, 0, sizeof(*info));
-	err = bpf_obj_get_info_by_fd(bpf_link__fd(link), info, &info_len);
+	err = bpf_link_get_info_by_fd(bpf_link__fd(link), info, &info_len);
 	if (err) {
 		printf("failed to get link info: %d\n", -errno);
 		return 0;

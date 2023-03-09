@@ -532,6 +532,31 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 			req->features |= BIT_ULL(NPC_IPPROTO_ICMP6);
 	}
 
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match;
+
+		flow_rule_match_control(rule, &match);
+		if (match.mask->flags & FLOW_DIS_FIRST_FRAG) {
+			NL_SET_ERR_MSG_MOD(extack, "HW doesn't support frag first/later");
+			return -EOPNOTSUPP;
+		}
+
+		if (match.mask->flags & FLOW_DIS_IS_FRAGMENT) {
+			if (ntohs(flow_spec->etype) == ETH_P_IP) {
+				flow_spec->ip_flag = IPV4_FLAG_MORE;
+				flow_mask->ip_flag = 0xff;
+				req->features |= BIT_ULL(NPC_IPFRAG_IPV4);
+			} else if (ntohs(flow_spec->etype) == ETH_P_IPV6) {
+				flow_spec->next_header = IPPROTO_FRAGMENT;
+				flow_mask->next_header = 0xff;
+				req->features |= BIT_ULL(NPC_IPFRAG_IPV6);
+			} else {
+				NL_SET_ERR_MSG_MOD(extack, "flow-type should be either IPv4 and IPv6");
+				return -EOPNOTSUPP;
+			}
+		}
+	}
+
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
 

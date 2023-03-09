@@ -14,6 +14,7 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/pagemap.h>
 
 static int flush_racache(struct inode *inode)
@@ -273,7 +274,6 @@ out:
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			"%s(%pU): PUT buffer_index %d\n",
 			__func__, handle, buffer_index);
-		buffer_index = -1;
 	}
 	op_release(new_op);
 	return ret;

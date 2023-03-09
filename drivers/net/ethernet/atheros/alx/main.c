@@ -1905,7 +1905,6 @@ static void alx_remove(struct pci_dev *pdev)
 	free_netdev(alx->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int alx_suspend(struct device *dev)
 {
 	struct alx_priv *alx = dev_get_drvdata(dev);
@@ -1951,12 +1950,7 @@ unlock:
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(alx_pm_ops, alx_suspend, alx_resume);
-#define ALX_PM_OPS      (&alx_pm_ops)
-#else
-#define ALX_PM_OPS      NULL
-#endif
-
+static DEFINE_SIMPLE_DEV_PM_OPS(alx_pm_ops, alx_suspend, alx_resume);
 
 static pci_ers_result_t alx_pci_error_detected(struct pci_dev *pdev,
 					       pci_channel_state_t state)
@@ -2055,7 +2049,7 @@ static struct pci_driver alx_driver = {
 	.probe       = alx_probe,
 	.remove      = alx_remove,
 	.err_handler = &alx_err_handlers,
-	.driver.pm   = ALX_PM_OPS,
+	.driver.pm   = pm_sleep_ptr(&alx_pm_ops),
 };
 
 module_pci_driver(alx_driver);

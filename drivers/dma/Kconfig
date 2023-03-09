@@ -97,6 +97,7 @@ config AT_HDMAC
 	tristate "Atmel AHB DMA support"
 	depends on ARCH_AT91
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support the Atmel AHB DMA controller.
 
@@ -357,14 +358,6 @@ config INTEL_IOATDMA
 
 	  If unsure, say N.
 
-config INTEL_IOP_ADMA
-	tristate "Intel IOP32x ADMA support"
-	depends on ARCH_IOP32X || COMPILE_TEST
-	select DMA_ENGINE
-	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
-	help
-	  Enable support for the Intel(R) IOP Series RAID engines.
-
 config K3_DMA
 	tristate "Hisilicon K3 DMA support"
 	depends on ARCH_HI3xxx || ARCH_HISI || COMPILE_TEST
@@ -616,18 +609,6 @@ config SPRD_DMA
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the on-chip DMA controller on Spreadtrum platform.
-
-config S3C24XX_DMAC
-	bool "Samsung S3C24XX DMA support"
-	depends on ARCH_S3C24XX || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	help
-	  Support for the Samsung S3C24XX DMA controller driver. The
-	  DMA controller is having multiple DMA channels which can be
-	  configured for different peripherals like audio, UART, SPI.
-	  The DMA controller can transfer data from memory to peripheral,
-	  periphal to memory, periphal to periphal and memory to memory.
 
 config TXX9_DMAC
 	tristate "Toshiba TXx9 SoC DMA support"

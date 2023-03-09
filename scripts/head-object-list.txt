@@ -38,15 +38,8 @@ arch/powerpc/kernel/entry_64.o
 arch/powerpc/kernel/fpu.o
 arch/powerpc/kernel/vector.o
 arch/powerpc/kernel/prom_init.o
-arch/riscv/kernel/head.o
 arch/s390/kernel/head64.o
 arch/sh/kernel/head_32.o
 arch/sparc/kernel/head_32.o
 arch/sparc/kernel/head_64.o
-arch/x86/kernel/head_32.o
-arch/x86/kernel/head_64.o
-arch/x86/kernel/head32.o
-arch/x86/kernel/head64.o
-arch/x86/kernel/ebda.o
-arch/x86/kernel/platform-quirks.o
 arch/xtensa/kernel/head.o

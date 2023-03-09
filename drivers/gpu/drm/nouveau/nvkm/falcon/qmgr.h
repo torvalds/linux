@@ -73,7 +73,7 @@ struct nvkm_falcon_cmdq {
 struct nvkm_falcon_msgq {
 	struct nvkm_falcon_qmgr *qmgr;
 	const char *name;
-	struct mutex mutex;
+	spinlock_t lock;
 
 	u32 head_reg;
 	u32 tail_reg;
@@ -82,8 +82,7 @@ struct nvkm_falcon_msgq {
 	u32 position;
 };
 
-#define FLCNQ_PRINTK(t,q,f,a...)                                               \
-       FLCN_PRINTK(t, (q)->qmgr->falcon, "%s: "f, (q)->name, ##a)
-#define FLCNQ_DBG(q,f,a...) FLCNQ_PRINTK(debug, (q), f, ##a)
-#define FLCNQ_ERR(q,f,a...) FLCNQ_PRINTK(error, (q), f, ##a)
+#define FLCNQ_PRINTK(q,l,p,f,a...) FLCN_PRINTK((q)->qmgr->falcon, l, p, "%s: "f, (q)->name, ##a)
+#define FLCNQ_DBG(q,f,a...) FLCNQ_PRINTK((q), DEBUG, info, f, ##a)
+#define FLCNQ_ERR(q,f,a...) FLCNQ_PRINTK((q), ERROR, err, f, ##a)
 #endif

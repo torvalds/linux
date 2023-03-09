@@ -44,6 +44,21 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.security_strength = 16,
 		.ivsize = 16,
 	},
+	[FSCRYPT_MODE_SM4_XTS] = {
+		.friendly_name = "SM4-XTS",
+		.cipher_str = "xts(sm4)",
+		.keysize = 32,
+		.security_strength = 16,
+		.ivsize = 16,
+		.blk_crypto_mode = BLK_ENCRYPTION_MODE_SM4_XTS,
+	},
+	[FSCRYPT_MODE_SM4_CTS] = {
+		.friendly_name = "SM4-CTS-CBC",
+		.cipher_str = "cts(cbc(sm4))",
+		.keysize = 16,
+		.security_strength = 16,
+		.ivsize = 16,
+	},
 	[FSCRYPT_MODE_ADIANTUM] = {
 		.friendly_name = "Adiantum",
 		.cipher_str = "adiantum(xchacha12,aes)",
@@ -423,6 +438,7 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 				     bool need_dirhash_key,
 				     struct fscrypt_master_key **mk_ret)
 {
+	struct super_block *sb = ci->ci_inode->i_sb;
 	struct fscrypt_key_specifier mk_spec;
 	struct fscrypt_master_key *mk;
 	int err;
@@ -435,8 +451,26 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 	if (err)
 		return err;
 
-	mk = fscrypt_find_master_key(ci->ci_inode->i_sb, &mk_spec);
-	if (!mk) {
+	mk = fscrypt_find_master_key(sb, &mk_spec);
+	if (unlikely(!mk)) {
+		const union fscrypt_policy *dummy_policy =
+			fscrypt_get_dummy_policy(sb);
+
+		/*
+		 * Add the test_dummy_encryption key on-demand.  In principle,
+		 * it should be added at mount time.  Do it here instead so that
+		 * the individual filesystems don't need to worry about adding
+		 * this key at mount time and cleaning up on mount failure.
+		 */
+		if (dummy_policy &&
+		    fscrypt_policies_equal(dummy_policy, &ci->ci_policy)) {
+			err = fscrypt_add_test_dummy_key(sb, &mk_spec);
+			if (err)
+				return err;
+			mk = fscrypt_find_master_key(sb, &mk_spec);
+		}
+	}
+	if (unlikely(!mk)) {
 		if (ci->ci_policy.version != FSCRYPT_POLICY_V1)
 			return -ENOKEY;
 
@@ -509,7 +543,7 @@ static void put_crypt_info(struct fscrypt_info *ci)
 		spin_lock(&mk->mk_decrypted_inodes_lock);
 		list_del(&ci->ci_master_key_link);
 		spin_unlock(&mk->mk_decrypted_inodes_lock);
-		fscrypt_put_master_key_activeref(mk);
+		fscrypt_put_master_key_activeref(ci->ci_inode->i_sb, mk);
 	}
 	memzero_explicit(ci, sizeof(*ci));
 	kmem_cache_free(fscrypt_info_cachep, ci);

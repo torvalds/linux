@@ -5065,7 +5065,7 @@ static int cgroup_may_write(const struct cgroup *cgrp, struct super_block *sb)
 	if (!inode)
 		return -ENOMEM;
 
-	ret = inode_permission(&init_user_ns, inode, MAY_WRITE);
+	ret = inode_permission(&nop_mnt_idmap, inode, MAY_WRITE);
 	iput(inode);
 	return ret;
 }
@@ -5353,6 +5353,7 @@ static void css_free_rwork_fn(struct work_struct *work)
 		atomic_dec(&cgrp->root->nr_cgrps);
 		cgroup1_pidlist_destroy_all(cgrp);
 		cancel_work_sync(&cgrp->release_agent_work);
+		bpf_cgrp_storage_free(cgrp);
 
 		if (cgroup_parent(cgrp)) {
 			/*

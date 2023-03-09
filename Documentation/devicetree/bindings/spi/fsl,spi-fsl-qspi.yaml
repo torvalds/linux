@@ -10,7 +10,7 @@ maintainers:
   - Han Xu <han.xu@nxp.com>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:

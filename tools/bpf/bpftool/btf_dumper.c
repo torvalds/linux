@@ -57,7 +57,7 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 	if (prog_fd < 0)
 		goto print;
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err)
 		goto print;
 
@@ -70,12 +70,12 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 	info.func_info_rec_size = finfo_rec_size;
 	info.func_info = ptr_to_u64(&finfo);
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err)
 		goto print;
 
 	prog_btf = btf__load_from_kernel_by_id(info.btf_id);
-	if (libbpf_get_error(prog_btf))
+	if (!prog_btf)
 		goto print;
 	func_type = btf__type_by_id(prog_btf, finfo.type_id);
 	if (!func_type || !btf_is_func(func_type))

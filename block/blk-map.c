@@ -31,7 +31,8 @@ static struct bio_map_data *bio_alloc_map_data(struct iov_iter *data,
 		return NULL;
 	memcpy(bmd->iov, data->iov, sizeof(struct iovec) * data->nr_segs);
 	bmd->iter = *data;
-	bmd->iter.iov = bmd->iov;
+	if (iter_is_iovec(data))
+		bmd->iter.iov = bmd->iov;
 	return bmd;
 }
 
@@ -246,10 +247,8 @@ static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 {
 	struct bio *bio;
 
-	if (rq->cmd_flags & REQ_POLLED) {
-		blk_opf_t opf = rq->cmd_flags | REQ_ALLOC_CACHE;
-
-		bio = bio_alloc_bioset(NULL, nr_vecs, opf, gfp_mask,
+	if (rq->cmd_flags & REQ_ALLOC_CACHE) {
+		bio = bio_alloc_bioset(NULL, nr_vecs, rq->cmd_flags, gfp_mask,
 					&fs_bio_set);
 		if (!bio)
 			return NULL;
@@ -265,6 +264,7 @@ static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 		gfp_t gfp_mask)
 {
+	iov_iter_extraction_t extraction_flags = 0;
 	unsigned int max_sectors = queue_max_hw_sectors(rq->q);
 	unsigned int nr_vecs = iov_iter_npages(iter, BIO_MAX_VECS);
 	struct bio *bio;
@@ -278,6 +278,9 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 	if (bio == NULL)
 		return -ENOMEM;
 
+	if (blk_queue_pci_p2pdma(rq->q))
+		extraction_flags |= ITER_ALLOW_P2PDMA;
+
 	while (iov_iter_count(iter)) {
 		struct page **pages, *stack_pages[UIO_FASTIOV];
 		ssize_t bytes;
@@ -286,11 +289,11 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 
 		if (nr_vecs <= ARRAY_SIZE(stack_pages)) {
 			pages = stack_pages;
-			bytes = iov_iter_get_pages2(iter, pages, LONG_MAX,
-							nr_vecs, &offs);
+			bytes = iov_iter_get_pages(iter, pages, LONG_MAX,
+						   nr_vecs, &offs, extraction_flags);
 		} else {
-			bytes = iov_iter_get_pages_alloc2(iter, &pages,
-							LONG_MAX, &offs);
+			bytes = iov_iter_get_pages_alloc(iter, &pages,
+						LONG_MAX, &offs, extraction_flags);
 		}
 		if (unlikely(bytes <= 0)) {
 			ret = bytes ? bytes : -EFAULT;
@@ -555,7 +558,7 @@ static int blk_rq_map_user_bvec(struct request *rq, const struct iov_iter *iter)
 	size_t nr_iter = iov_iter_count(iter);
 	size_t nr_segs = iter->nr_segs;
 	struct bio_vec *bvecs, *bvprvp = NULL;
-	struct queue_limits *lim = &q->limits;
+	const struct queue_limits *lim = &q->limits;
 	unsigned int nsegs = 0, bytes = 0;
 	struct bio *bio;
 	size_t i;
@@ -637,7 +640,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		copy = true;
 	else if (iov_iter_is_bvec(iter))
 		map_bvec = true;
-	else if (!iter_is_iovec(iter))
+	else if (!user_backed_iter(iter))
 		copy = true;
 	else if (queue_virt_boundary(q))
 		copy = queue_virt_boundary(q) & iov_iter_gap_alignment(iter);
@@ -678,9 +681,8 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 		    struct rq_map_data *map_data, void __user *ubuf,
 		    unsigned long len, gfp_t gfp_mask)
 {
-	struct iovec iov;
 	struct iov_iter i;
-	int ret = import_single_range(rq_data_dir(rq), ubuf, len, &iov, &i);
+	int ret = import_ubuf(rq_data_dir(rq), ubuf, len, &i);
 
 	if (unlikely(ret < 0))
 		return ret;

@@ -8,6 +8,7 @@
 
 #include "pm.h"
 
+	.arch armv7-a
 	.text
 	.align	3
 

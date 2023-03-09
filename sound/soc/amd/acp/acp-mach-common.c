@@ -32,6 +32,20 @@
 #define DUAL_CHANNEL	2
 #define FOUR_CHANNEL	4
 
+#define TDM_MODE_ENABLE 1
+
+const struct dmi_system_id acp_quirk_table[] = {
+	{
+		/* Google skyrim proto-0 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_PRODUCT_FAMILY, "Google_Skyrim"),
+		},
+		.driver_data = (void *)TDM_MODE_ENABLE,
+	},
+	{}
+};
+EXPORT_SYMBOL_GPL(acp_quirk_table);
+
 static struct snd_soc_jack pco_jack;
 
 static const unsigned int channels[] = {
@@ -54,10 +68,11 @@ static const struct snd_pcm_hw_constraint_list constraints_channels = {
 	.mask = 0,
 };
 
-static int acp_clk_enable(struct acp_card_drvdata *drvdata)
+static int acp_clk_enable(struct acp_card_drvdata *drvdata,
+			  unsigned int srate, unsigned int bclk_ratio)
 {
-	clk_set_rate(drvdata->wclk, 48000);
-	clk_set_rate(drvdata->bclk, 48000 * 64);
+	clk_set_rate(drvdata->wclk, srate);
+	clk_set_rate(drvdata->bclk, srate * bclk_ratio);
 
 	return clk_prepare_enable(drvdata->wclk);
 }
@@ -85,34 +100,6 @@ static int acp_card_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 
 	if (drvdata->hs_codec_id != RT5682)
 		return -EINVAL;
-
-	ret =  snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-				   | SND_SOC_DAIFMT_CBP_CFP);
-	if (ret < 0) {
-		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dai_set_pll(codec_dai, RT5682_PLL2, RT5682_PLL2_S_MCLK,
-				  PCO_PLAT_CLK, RT5682_PLL_FREQ);
-	if (ret < 0) {
-		dev_err(rtd->dev, "Failed to set codec PLL: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL2,
-				     RT5682_PLL_FREQ, SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		dev_err(rtd->dev, "Failed to set codec SYSCLK: %d\n", ret);
-		return ret;
-	}
-
-	/* Set tdm/i2s1 master bclk ratio */
-	ret = snd_soc_dai_set_bclk_ratio(codec_dai, 64);
-	if (ret < 0) {
-		dev_err(rtd->dev, "Failed to set rt5682 tdm bclk ratio: %d\n", ret);
-		return ret;
-	}
 
 	drvdata->wclk = clk_get(component->dev, "rt5682-dai-wclk");
 	drvdata->bclk = clk_get(component->dev, "rt5682-dai-bclk");
@@ -151,10 +138,15 @@ static int acp_card_hs_startup(struct snd_pcm_substream *substream)
 	int ret;
 	unsigned int fmt;
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
 	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
 
 	ret =  snd_soc_dai_set_fmt(codec_dai, fmt);
 	if (ret < 0) {
@@ -167,13 +159,6 @@ static int acp_card_hs_startup(struct snd_pcm_substream *substream)
 				      &constraints_channels);
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				      &constraints_rates);
-	if (!drvdata->soc_mclk) {
-		ret = acp_clk_enable(drvdata);
-		if (ret < 0) {
-			dev_err(rtd->card->dev, "Failed to enable HS clk: %d\n", ret);
-			return ret;
-		}
-	}
 
 	return ret;
 }
@@ -188,9 +173,96 @@ static void acp_card_shutdown(struct snd_pcm_substream *substream)
 		clk_disable_unprepare(drvdata->wclk);
 }
 
+static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct acp_card_drvdata *drvdata = card->drvdata;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	int ret;
+	unsigned int fmt, srate, ch, format;
+
+	srate = params_rate(params);
+	ch = params_channels(params);
+	format = params_physical_width(params);
+
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
+	else
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	ret =  snd_soc_dai_set_fmt(codec_dai, fmt);
+	if (ret < 0) {
+		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 0 and slot 1 for playback and capture.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 8, 16);
+		if (ret < 0) {
+			dev_warn(rtd->dev, "set TDM slot err:%d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = snd_soc_dai_set_pll(codec_dai, RT5682_PLL2, RT5682_PLL2_S_MCLK,
+				  PCO_PLAT_CLK, RT5682_PLL_FREQ);
+	if (ret < 0) {
+		dev_err(rtd->dev, "Failed to set codec PLL: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL2,
+				     RT5682_PLL_FREQ, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		dev_err(rtd->dev, "Failed to set codec SYSCLK: %d\n", ret);
+		return ret;
+	}
+
+	/* Set tdm/i2s1 master bclk ratio */
+	ret = snd_soc_dai_set_bclk_ratio(codec_dai, ch * format);
+	if (ret < 0) {
+		dev_err(rtd->dev, "Failed to set rt5682 tdm bclk ratio: %d\n", ret);
+		return ret;
+	}
+
+	if (!drvdata->soc_mclk) {
+		ret = acp_clk_enable(drvdata, srate, ch * format);
+		if (ret < 0) {
+			dev_err(rtd->card->dev, "Failed to enable HS clk: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_ops acp_card_rt5682_ops = {
 	.startup = acp_card_hs_startup,
 	.shutdown = acp_card_shutdown,
+	.hw_params = acp_card_rt5682_hw_params,
 };
 
 /* Define RT5682S CODEC component*/
@@ -209,45 +281,12 @@ static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
-	unsigned int fmt;
 	int ret;
 
 	dev_info(rtd->dev, "codec dai name = %s\n", codec_dai->name);
 
 	if (drvdata->hs_codec_id != RT5682S)
 		return -EINVAL;
-
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
-	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
-
-	ret =  snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0) {
-		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL2, RT5682S_PLL_S_MCLK,
-				  PCO_PLAT_CLK, RT5682_PLL_FREQ);
-	if (ret < 0) {
-		dev_err(rtd->dev, "Failed to set codec PLL: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL2,
-				     RT5682_PLL_FREQ, SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		dev_err(rtd->dev, "Failed to set codec SYSCLK: %d\n", ret);
-		return ret;
-	}
-
-	/* Set tdm/i2s1 master bclk ratio */
-	ret = snd_soc_dai_set_bclk_ratio(codec_dai, 64);
-	if (ret < 0) {
-		dev_err(rtd->dev, "Failed to set rt5682 tdm bclk ratio: %d\n", ret);
-		return ret;
-	}
 
 	if (!drvdata->soc_mclk) {
 		drvdata->wclk = clk_get(component->dev, "rt5682-dai-wclk");
@@ -278,9 +317,90 @@ static int acp_card_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 	return snd_soc_dapm_add_routes(&rtd->card->dapm, rt5682s_map, ARRAY_SIZE(rt5682s_map));
 }
 
+static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct acp_card_drvdata *drvdata = card->drvdata;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	int ret;
+	unsigned int fmt, srate, ch, format;
+
+	srate = params_rate(params);
+	ch = params_channels(params);
+	format = params_physical_width(params);
+
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
+	else
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	ret =  snd_soc_dai_set_fmt(codec_dai, fmt);
+	if (ret < 0) {
+		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 0 and slot 1 for playback and capture.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 8, 16);
+		if (ret < 0) {
+			dev_warn(rtd->dev, "set TDM slot err:%d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL2, RT5682S_PLL_S_MCLK,
+				  PCO_PLAT_CLK, RT5682_PLL_FREQ);
+	if (ret < 0) {
+		dev_err(rtd->dev, "Failed to set codec PLL: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL2,
+				     RT5682_PLL_FREQ, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		dev_err(rtd->dev, "Failed to set codec SYSCLK: %d\n", ret);
+		return ret;
+	}
+
+	/* Set tdm/i2s1 master bclk ratio */
+	ret = snd_soc_dai_set_bclk_ratio(codec_dai, ch * format);
+	if (ret < 0) {
+		dev_err(rtd->dev, "Failed to set rt5682 tdm bclk ratio: %d\n", ret);
+		return ret;
+	}
+
+	clk_set_rate(drvdata->wclk, srate);
+	clk_set_rate(drvdata->bclk, srate * ch * format);
+
+	return 0;
+}
+
 static const struct snd_soc_ops acp_card_rt5682s_ops = {
 	.startup = acp_card_hs_startup,
-	.shutdown = acp_card_shutdown,
+	.hw_params = acp_card_rt5682s_hw_params,
 };
 
 static const unsigned int dmic_channels[] = {
@@ -349,19 +469,55 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_card *card = rtd->card;
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai;
-	int srate, i, ret = 0;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	int i, ret = 0;
+	unsigned int fmt, srate, ch, format;
 
 	srate = params_rate(params);
+	ch = params_channels(params);
+	format = params_physical_width(params);
 
 	if (drvdata->amp_codec_id != RT1019)
 		return -EINVAL;
+
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
+	else
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 2 and slot 3 for playback.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0xC, 0, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+	}
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		if (strcmp(codec_dai->name, "rt1019-aif"))
 			continue;
 
-		ret = snd_soc_dai_set_pll(codec_dai, 0, RT1019_PLL_S_BCLK,
-					  64 * srate, 256 * srate);
+		if (drvdata->tdm_mode)
+			ret = snd_soc_dai_set_pll(codec_dai, 0, RT1019_PLL_S_BCLK,
+						  TDM_CHANNELS * format * srate, 256 * srate);
+		else
+			ret = snd_soc_dai_set_pll(codec_dai, 0, RT1019_PLL_S_BCLK,
+						  ch * format * srate, 256 * srate);
+
 		if (ret < 0)
 			return ret;
 
@@ -369,6 +525,41 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 					     256 * srate, SND_SOC_CLOCK_IN);
 		if (ret < 0)
 			return ret;
+
+		if (drvdata->tdm_mode) {
+			ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A
+							| SND_SOC_DAIFMT_NB_NF);
+			if (ret < 0) {
+				dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
+				return ret;
+			}
+
+			/**
+			 * As codec supports slot 2 for left channel playback.
+			 */
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1019:00")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x4, 0x4, 8, 16);
+				if (ret < 0)
+					break;
+			}
+
+			/**
+			 * As codec supports slot 3 for right channel playback.
+			 */
+			if (!strcmp(codec_dai->component->name, "i2c-10EC1019:01")) {
+				ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x8, 0x8, 8, 16);
+				if (ret < 0)
+					break;
+			}
+		}
+	}
+
+	if (!drvdata->soc_mclk) {
+		ret = acp_clk_enable(drvdata, srate, ch * format);
+		if (ret < 0) {
+			dev_err(rtd->card->dev, "Failed to enable AMP clk: %d\n", ret);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -377,10 +568,6 @@ static int acp_card_rt1019_hw_params(struct snd_pcm_substream *substream,
 static int acp_card_amp_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_card *card = rtd->card;
-	struct acp_card_drvdata *drvdata = card->drvdata;
-	int ret = 0;
 
 	runtime->hw.channels_max = DUAL_CHANNEL;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
@@ -388,14 +575,7 @@ static int acp_card_amp_startup(struct snd_pcm_substream *substream)
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				      &constraints_rates);
 
-	if (!drvdata->soc_mclk) {
-		ret = acp_clk_enable(drvdata);
-		if (ret < 0) {
-			dev_err(rtd->card->dev, "Failed to enable AMP clk: %d\n", ret);
-			return ret;
-		}
-	}
-	return ret;
+	return 0;
 }
 
 static const struct snd_soc_ops acp_card_rt1019_ops = {
@@ -424,9 +604,61 @@ static int acp_card_maxim_init(struct snd_soc_pcm_runtime *rtd)
 				       ARRAY_SIZE(max98360a_map));
 }
 
+static int acp_card_maxim_hw_params(struct snd_pcm_substream *substream,
+				    struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct acp_card_drvdata *drvdata = card->drvdata;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	unsigned int fmt, srate, ch, format;
+	int ret;
+
+	srate = params_rate(params);
+	ch = params_channels(params);
+	format = params_physical_width(params);
+
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
+	else
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 2 and slot 3 for playback.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0xC, 0, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (!drvdata->soc_mclk) {
+		ret = acp_clk_enable(drvdata, srate, ch * format);
+		if (ret < 0) {
+			dev_err(rtd->card->dev, "Failed to enable AMP clk: %d\n", ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
 static const struct snd_soc_ops acp_card_maxim_ops = {
 	.startup = acp_card_amp_startup,
 	.shutdown = acp_card_shutdown,
+	.hw_params = acp_card_maxim_hw_params,
 };
 
 /* Declare nau8825 codec components */
@@ -444,7 +676,6 @@ static int acp_card_nau8825_init(struct snd_soc_pcm_runtime *rtd)
 	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
-	unsigned int fmt;
 	int ret;
 
 	dev_info(rtd->dev, "codec dai name = %s\n", codec_dai->name);
@@ -452,16 +683,6 @@ static int acp_card_nau8825_init(struct snd_soc_pcm_runtime *rtd)
 	if (drvdata->hs_codec_id != NAU8825)
 		return -EINVAL;
 
-	if (drvdata->soc_mclk)
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
-	else
-		fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
-
-	ret =  snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0) {
-		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
-		return ret;
-	}
 	ret = snd_soc_card_jack_new(card, "Headset Jack",
 					 SND_JACK_HEADSET | SND_JACK_LINEOUT |
 					 SND_JACK_BTN_0 | SND_JACK_BTN_1 |
@@ -490,8 +711,12 @@ static int acp_nau8825_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_card *card = rtd->card;
+	struct acp_card_drvdata *drvdata = card->drvdata;
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int ret;
+	unsigned int fmt;
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, NAU8825_CLK_FLL_FS,
 				     (48000 * 256), SND_SOC_CLOCK_IN);
@@ -505,6 +730,44 @@ static int acp_nau8825_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (drvdata->tdm_mode)
+		fmt = SND_SOC_DAIFMT_DSP_A;
+	else
+		fmt = SND_SOC_DAIFMT_I2S;
+
+	if (drvdata->soc_mclk)
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
+	else
+		fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP;
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(rtd->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	ret =  snd_soc_dai_set_fmt(codec_dai, fmt);
+	if (ret < 0) {
+		dev_err(rtd->card->dev, "Failed to set dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	if (drvdata->tdm_mode) {
+		/**
+		 * As codec supports slot 4 and slot 5 for playback and slot 6 for capture.
+		 */
+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x30, 0xC0, 8, 16);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(rtd->dev, "set TDM slot err: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x40, 0x30, 8, 16);
+		if (ret < 0) {
+			dev_warn(rtd->dev, "set TDM slot err:%d\n", ret);
+			return ret;
+		}
+	}
 	return ret;
 }
 
@@ -563,12 +826,60 @@ SND_SOC_DAILINK_DEF(i2s_hs,
 		    DAILINK_COMP_ARRAY(COMP_CPU("acp-i2s-hs")));
 SND_SOC_DAILINK_DEF(sof_sp,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-sp")));
+SND_SOC_DAILINK_DEF(sof_sp_virtual,
+	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-sp-virtual")));
 SND_SOC_DAILINK_DEF(sof_hs,
 		    DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-hs")));
+SND_SOC_DAILINK_DEF(sof_hs_virtual,
+	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-hs-virtual")));
 SND_SOC_DAILINK_DEF(sof_dmic,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-dmic")));
 SND_SOC_DAILINK_DEF(pdm_dmic,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-pdm-dmic")));
+
+static int acp_rtk_set_bias_level(struct snd_soc_card *card,
+				  struct snd_soc_dapm_context *dapm,
+				  enum snd_soc_bias_level level)
+{
+	struct snd_soc_component *component = dapm->component;
+	struct acp_card_drvdata *drvdata = card->drvdata;
+	int ret = 0;
+
+	if (!component)
+		return 0;
+
+	if (strncmp(component->name, "i2c-RTL5682", 11) &&
+	    strncmp(component->name, "i2c-10EC1019", 12))
+		return 0;
+
+	/*
+	 * For Realtek's codec and amplifier components,
+	 * the lrck and bclk must be enabled brfore their all dapms be powered on,
+	 * and must be disabled after their all dapms be powered down
+	 * to avoid any pop.
+	 */
+	switch (level) {
+	case SND_SOC_BIAS_STANDBY:
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
+
+			/* Increase bclk's enable_count */
+			ret = clk_prepare_enable(drvdata->bclk);
+			if (ret < 0)
+				dev_err(component->dev, "Failed to enable bclk %d\n", ret);
+		} else {
+			/*
+			 * Decrease bclk's enable_count.
+			 * While the enable_count is 0, the bclk would be closed.
+			 */
+			clk_disable_unprepare(drvdata->bclk);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
 
 int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 {
@@ -653,8 +964,8 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->amp_cpu_id == I2S_SP) {
 		links[i].name = "acp-amp-codec";
 		links[i].id = AMP_BE_ID;
-		links[i].cpus = sof_sp;
-		links[i].num_cpus = ARRAY_SIZE(sof_sp);
+		links[i].cpus = sof_sp_virtual;
+		links[i].num_cpus = ARRAY_SIZE(sof_sp_virtual);
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
@@ -685,8 +996,8 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->amp_cpu_id == I2S_HS) {
 		links[i].name = "acp-amp-codec";
 		links[i].id = AMP_BE_ID;
-		links[i].cpus = sof_hs;
-		links[i].num_cpus = ARRAY_SIZE(sof_hs);
+		links[i].cpus = sof_hs_virtual;
+		links[i].num_cpus = ARRAY_SIZE(sof_hs_virtual);
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
@@ -730,6 +1041,7 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 
 	card->dai_link = links;
 	card->num_links = num_links;
+	card->set_bias_level = acp_rtk_set_bias_level;
 
 	return 0;
 }
@@ -907,6 +1219,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 
 	card->dai_link = links;
 	card->num_links = num_links;
+	card->set_bias_level = acp_rtk_set_bias_level;
 
 	return 0;
 }

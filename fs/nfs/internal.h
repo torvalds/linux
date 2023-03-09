@@ -384,18 +384,18 @@ extern unsigned long nfs_access_cache_scan(struct shrinker *shrink,
 					   struct shrink_control *sc);
 struct dentry *nfs_lookup(struct inode *, struct dentry *, unsigned int);
 void nfs_d_prune_case_insensitive_aliases(struct inode *inode);
-int nfs_create(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_create(struct mnt_idmap *, struct inode *, struct dentry *,
 	       umode_t, bool);
-int nfs_mkdir(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_mkdir(struct mnt_idmap *, struct inode *, struct dentry *,
 	      umode_t);
 int nfs_rmdir(struct inode *, struct dentry *);
 int nfs_unlink(struct inode *, struct dentry *);
-int nfs_symlink(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_symlink(struct mnt_idmap *, struct inode *, struct dentry *,
 		const char *);
 int nfs_link(struct dentry *, struct inode *, struct dentry *);
-int nfs_mknod(struct user_namespace *, struct inode *, struct dentry *, umode_t,
+int nfs_mknod(struct mnt_idmap *, struct inode *, struct dentry *, umode_t,
 	      dev_t);
-int nfs_rename(struct user_namespace *, struct inode *, struct dentry *,
+int nfs_rename(struct mnt_idmap *, struct inode *, struct dentry *,
 	       struct inode *, struct dentry *, unsigned int);
 
 #ifdef CONFIG_NFS_V4_2
@@ -739,12 +739,10 @@ unsigned long nfs_io_size(unsigned long iosize, enum xprt_transports proto)
 		iosize = NFS_DEF_FILE_IO_SIZE;
 	else if (iosize >= NFS_MAX_FILE_IO_SIZE)
 		iosize = NFS_MAX_FILE_IO_SIZE;
-	else
-		iosize = iosize & PAGE_MASK;
 
-	if (proto == XPRT_TRANSPORT_UDP)
+	if (proto == XPRT_TRANSPORT_UDP || iosize < PAGE_SIZE)
 		return nfs_block_bits(iosize, NULL);
-	return iosize;
+	return iosize & PAGE_MASK;
 }
 
 /*
@@ -762,17 +760,18 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
  * Record the page as unstable (an extra writeback period) and mark its
  * inode as dirty.
  */
-static inline
-void nfs_mark_page_unstable(struct page *page, struct nfs_commit_info *cinfo)
+static inline void nfs_folio_mark_unstable(struct folio *folio,
+					   struct nfs_commit_info *cinfo)
 {
-	if (!cinfo->dreq) {
-		struct inode *inode = page_file_mapping(page)->host;
+	if (folio && !cinfo->dreq) {
+		struct inode *inode = folio_file_mapping(folio)->host;
+		long nr = folio_nr_pages(folio);
 
 		/* This page is really still in write-back - just that the
 		 * writeback is happening on the server now.
 		 */
-		inc_node_page_state(page, NR_WRITEBACK);
-		inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
+		node_stat_mod_folio(folio, NR_WRITEBACK, nr);
+		wb_stat_mod(&inode_to_bdi(inode)->wb, WB_WRITEBACK, nr);
 		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	}
 }
@@ -797,6 +796,24 @@ unsigned int nfs_page_length(struct page *page)
 }
 
 /*
+ * Determine the number of bytes of data the page contains
+ */
+static inline size_t nfs_folio_length(struct folio *folio)
+{
+	loff_t i_size = i_size_read(folio_file_mapping(folio)->host);
+
+	if (i_size > 0) {
+		pgoff_t index = folio_index(folio) >> folio_order(folio);
+		pgoff_t end_index = (i_size - 1) >> folio_shift(folio);
+		if (index < end_index)
+			return folio_size(folio);
+		if (index == end_index)
+			return offset_in_folio(folio, i_size - 1) + 1;
+	}
+	return 0;
+}
+
+/*
  * Convert a umode to a dirent->d_type
  */
 static inline
@@ -809,11 +826,10 @@ unsigned char nfs_umode_to_dtype(umode_t mode)
  * Determine the number of pages in an array of length 'len' and
  * with a base offset of 'base'
  */
-static inline
-unsigned int nfs_page_array_len(unsigned int base, size_t len)
+static inline unsigned int nfs_page_array_len(unsigned int base, size_t len)
 {
-	return ((unsigned long)len + (unsigned long)base +
-		PAGE_SIZE - 1) >> PAGE_SHIFT;
+	return ((unsigned long)len + (unsigned long)base + PAGE_SIZE - 1) >>
+	       PAGE_SHIFT;
 }
 
 /*

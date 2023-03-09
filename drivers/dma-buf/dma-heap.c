@@ -301,7 +301,7 @@ err0:
 	return err_ret;
 }
 
-static char *dma_heap_devnode(struct device *dev, umode_t *mode)
+static char *dma_heap_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dma_heap/%s", dev_name(dev));
 }

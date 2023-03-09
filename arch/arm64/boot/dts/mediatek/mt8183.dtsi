@@ -336,6 +336,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster0_opp>;
 			dynamic-power-coefficient = <84>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -352,6 +359,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster0_opp>;
 			dynamic-power-coefficient = <84>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -368,6 +382,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster0_opp>;
 			dynamic-power-coefficient = <84>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -384,6 +405,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster0_opp>;
 			dynamic-power-coefficient = <84>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -400,6 +428,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster1_opp>;
 			dynamic-power-coefficient = <211>;
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_1>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -416,6 +451,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster1_opp>;
 			dynamic-power-coefficient = <211>;
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_1>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -432,6 +474,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster1_opp>;
 			dynamic-power-coefficient = <211>;
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_1>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -448,6 +497,13 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cluster1_opp>;
 			dynamic-power-coefficient = <211>;
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_1>;
 			#cooling-cells = <2>;
 			mediatek,cci = <&cci>;
 		};
@@ -480,6 +536,24 @@
 				exit-latency-us = <400>;
 				min-residency-us = <1300>;
 			};
+		};
+
+		l2_0: l2-cache0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
+			cache-unified;
+		};
+
+		l2_1: l2-cache1 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
+			cache-unified;
 		};
 	};
 
@@ -583,6 +657,15 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	clk13m: fixed-factor-clock-13m {
+		compatible = "fixed-factor-clock";
+		#clock-cells = <0>;
+		clocks = <&clk26m>;
+		clock-div = <2>;
+		clock-mult = <1>;
+		clock-output-names = "clk13m";
 	};
 
 	clk26m: oscillator {
@@ -968,8 +1051,7 @@
 				     "mediatek,mt6765-timer";
 			reg = <0 0x10017000 0 0x1000>;
 			interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&topckgen CLK_TOP_CLK13M>;
-			clock-names = "clk13m";
+			clocks = <&clk13m>;
 		};
 
 		iommu: iommu@10205000 {
@@ -1678,7 +1760,7 @@
 				<GIC_SPI 278 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-names = "job", "mmu", "gpu";
 
-			clocks = <&topckgen CLK_TOP_MFGPLL_CK>;
+			clocks = <&mfgcfg CLK_MFG_BG3D>;
 
 			power-domains =
 				<&spm MT8183_POWER_DOMAIN_MFG_CORE0>,

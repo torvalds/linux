@@ -221,9 +221,9 @@ void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev)
 
 	guid_parse(ACPI_S0IX_DSM_UUID, &s0ix_dsm_guid);
 
-	out_obj = acpi_evaluate_dsm(adev->handle, &s0ix_dsm_guid, 0,
-				    ACPI_GET_LOW_MODE_REGISTERS, NULL);
-	if (out_obj && out_obj->type == ACPI_TYPE_BUFFER) {
+	out_obj = acpi_evaluate_dsm_typed(adev->handle, &s0ix_dsm_guid, 0,
+					  ACPI_GET_LOW_MODE_REGISTERS, NULL, ACPI_TYPE_BUFFER);
+	if (out_obj) {
 		u32 size = out_obj->buffer.length;
 
 		if (size != lpm_size) {

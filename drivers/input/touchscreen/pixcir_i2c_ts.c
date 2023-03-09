@@ -462,9 +462,9 @@ unlock:
 static SIMPLE_DEV_PM_OPS(pixcir_dev_pm_ops,
 			 pixcir_i2c_ts_suspend, pixcir_i2c_ts_resume);
 
-static int pixcir_i2c_ts_probe(struct i2c_client *client,
-			       const struct i2c_device_id *id)
+static int pixcir_i2c_ts_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct pixcir_i2c_ts_data *tsdata;
 	struct input_dev *input;
@@ -617,7 +617,7 @@ static struct i2c_driver pixcir_i2c_ts_driver = {
 		.pm	= &pixcir_dev_pm_ops,
 		.of_match_table = of_match_ptr(pixcir_of_match),
 	},
-	.probe		= pixcir_i2c_ts_probe,
+	.probe_new	= pixcir_i2c_ts_probe,
 	.id_table	= pixcir_i2c_ts_id,
 };
 

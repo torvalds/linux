@@ -217,10 +217,10 @@ static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
 	cut_mask = cut_version_to_mask(cut);
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
-		intf_mask = BIT(2);
+		intf_mask = RTW_PWR_INTF_PCI_MSK;
 		break;
 	case RTW_HCI_TYPE_USB:
-		intf_mask = BIT(1);
+		intf_mask = RTW_PWR_INTF_USB_MSK;
 		break;
 	default:
 		return -EINVAL;
@@ -272,6 +272,11 @@ static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 	pwr_seq = pwr_on ? chip->pwr_on_seq : chip->pwr_off_seq;
 	if (rtw_pwr_seq_parser(rtwdev, pwr_seq))
 		return -EINVAL;
+
+	if (pwr_on)
+		set_bit(RTW_FLAG_POWERON, rtwdev->flags);
+	else
+		clear_bit(RTW_FLAG_POWERON, rtwdev->flags);
 
 	return 0;
 }
@@ -335,6 +340,11 @@ int rtw_mac_power_on(struct rtw_dev *rtwdev)
 	ret = rtw_mac_power_switch(rtwdev, true);
 	if (ret == -EALREADY) {
 		rtw_mac_power_switch(rtwdev, false);
+
+		ret = rtw_mac_pre_system_cfg(rtwdev);
+		if (ret)
+			goto err;
+
 		ret = rtw_mac_power_switch(rtwdev, true);
 		if (ret)
 			goto err;
@@ -906,12 +916,28 @@ out:
 	return ret;
 }
 
-int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+static
+int _rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 {
 	if (rtw_chip_wcpu_11n(rtwdev))
 		return __rtw_download_firmware_legacy(rtwdev, fw);
 
 	return __rtw_download_firmware(rtwdev, fw);
+}
+
+int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+{
+	int ret;
+
+	ret = _rtw_download_firmware(rtwdev, fw);
+	if (ret)
+		return ret;
+
+	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_PCIE &&
+	    rtwdev->chip->id == RTW_CHIP_TYPE_8821C)
+		rtw_fw_set_recover_bt_device(rtwdev);
+
+	return 0;
 }
 
 static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)
@@ -1031,6 +1057,9 @@ static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 	rtw_write8(rtwdev, REG_CR, MAC_TRX_ENABLE);
 	if (rtw_chip_wcpu_11ac(rtwdev))
 		rtw_write32(rtwdev, REG_H2CQ_CSR, BIT_H2CQ_FULL);
+
+	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_USB)
+		rtw_write8_set(rtwdev, REG_TXDMA_PQ_MAP, BIT_RXDMA_ARBBW_EN);
 
 	return 0;
 }

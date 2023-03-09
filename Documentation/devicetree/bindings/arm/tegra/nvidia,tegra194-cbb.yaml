@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/arm/tegra/nvidia,tegra194-cbb.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: NVIDIA Tegra194 CBB 1.0 bindings
+title: NVIDIA Tegra194 CBB 1.0
 
 maintainers:
   - Sumit Gupta <sumitg@nvidia.com>

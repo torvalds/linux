@@ -90,6 +90,16 @@ static void dr_ste_set_always_miss(struct dr_hw_ste_format *hw_ste)
 	hw_ste->mask[0] = 0;
 }
 
+bool mlx5dr_ste_is_miss_addr_set(struct mlx5dr_ste_ctx *ste_ctx,
+				 u8 *hw_ste_p)
+{
+	if (!ste_ctx->is_miss_addr_set)
+		return false;
+
+	/* check if miss address is already set for this type of STE */
+	return ste_ctx->is_miss_addr_set(hw_ste_p);
+}
+
 void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
 			      u8 *hw_ste_p, u64 miss_addr)
 {
@@ -491,7 +501,7 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	u32 num_entries;
 	int i;
 
-	htbl = kzalloc(sizeof(*htbl), GFP_KERNEL);
+	htbl = mlx5dr_icm_pool_alloc_htbl(pool);
 	if (!htbl)
 		return NULL;
 
@@ -503,6 +513,9 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	htbl->lu_type = lu_type;
 	htbl->byte_mask = byte_mask;
 	htbl->refcount = 0;
+	htbl->pointing_ste = NULL;
+	htbl->ctrl.num_of_valid_entries = 0;
+	htbl->ctrl.num_of_collisions = 0;
 	num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
 
 	for (i = 0; i < num_entries; i++) {
@@ -517,17 +530,20 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	return htbl;
 
 out_free_htbl:
-	kfree(htbl);
+	mlx5dr_icm_pool_free_htbl(pool, htbl);
 	return NULL;
 }
 
 int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl)
 {
+	struct mlx5dr_icm_pool *pool = htbl->chunk->buddy_mem->pool;
+
 	if (htbl->refcount)
 		return -EBUSY;
 
 	mlx5dr_icm_free_chunk(htbl->chunk);
-	kfree(htbl);
+	mlx5dr_icm_pool_free_htbl(pool, htbl);
+
 	return 0;
 }
 

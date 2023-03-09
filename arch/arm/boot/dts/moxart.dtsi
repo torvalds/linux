@@ -138,7 +138,7 @@
 			status = "disabled";
 		};
 
-		uart0: uart@98200000 {
+		uart0: serial@98200000 {
 			compatible = "ns16550a";
 			reg = <0x98200000 0x20>;
 			interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;

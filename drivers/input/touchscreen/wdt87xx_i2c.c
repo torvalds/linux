@@ -1064,8 +1064,7 @@ static int wdt87xx_ts_create_input_device(struct wdt87xx_data *wdt)
 	return 0;
 }
 
-static int wdt87xx_ts_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int wdt87xx_ts_probe(struct i2c_client *client)
 {
 	struct wdt87xx_data *wdt;
 	int error;
@@ -1170,7 +1169,7 @@ static const struct acpi_device_id wdt87xx_acpi_id[] = {
 MODULE_DEVICE_TABLE(acpi, wdt87xx_acpi_id);
 
 static struct i2c_driver wdt87xx_driver = {
-	.probe		= wdt87xx_ts_probe,
+	.probe_new	= wdt87xx_ts_probe,
 	.id_table	= wdt87xx_dev_id,
 	.driver	= {
 		.name	= WDT87XX_NAME,

@@ -13,9 +13,9 @@
 
 #define nft_objref_priv(expr)	*((struct nft_object **)nft_expr_priv(expr))
 
-static void nft_objref_eval(const struct nft_expr *expr,
-			    struct nft_regs *regs,
-			    const struct nft_pktinfo *pkt)
+void nft_objref_eval(const struct nft_expr *expr,
+		     struct nft_regs *regs,
+		     const struct nft_pktinfo *pkt)
 {
 	struct nft_object *obj = nft_objref_priv(expr);
 
@@ -47,7 +47,8 @@ static int nft_objref_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static int nft_objref_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_objref_dump(struct sk_buff *skb,
+			   const struct nft_expr *expr, bool reset)
 {
 	const struct nft_object *obj = nft_objref_priv(expr);
 
@@ -82,7 +83,6 @@ static void nft_objref_activate(const struct nft_ctx *ctx,
 	obj->use++;
 }
 
-static struct nft_expr_type nft_objref_type;
 static const struct nft_expr_ops nft_objref_ops = {
 	.type		= &nft_objref_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_object *)),
@@ -100,9 +100,9 @@ struct nft_objref_map {
 	struct nft_set_binding	binding;
 };
 
-static void nft_objref_map_eval(const struct nft_expr *expr,
-				struct nft_regs *regs,
-				const struct nft_pktinfo *pkt)
+void nft_objref_map_eval(const struct nft_expr *expr,
+			 struct nft_regs *regs,
+			 const struct nft_pktinfo *pkt)
 {
 	struct nft_objref_map *priv = nft_expr_priv(expr);
 	const struct nft_set *set = priv->set;
@@ -156,7 +156,8 @@ static int nft_objref_map_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static int nft_objref_map_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_objref_map_dump(struct sk_buff *skb,
+			       const struct nft_expr *expr, bool reset)
 {
 	const struct nft_objref_map *priv = nft_expr_priv(expr);
 
@@ -195,7 +196,6 @@ static void nft_objref_map_destroy(const struct nft_ctx *ctx,
 	nf_tables_destroy_set(ctx, priv->set);
 }
 
-static struct nft_expr_type nft_objref_type;
 static const struct nft_expr_ops nft_objref_map_ops = {
 	.type		= &nft_objref_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_objref_map)),
@@ -233,28 +233,10 @@ static const struct nla_policy nft_objref_policy[NFTA_OBJREF_MAX + 1] = {
 	[NFTA_OBJREF_SET_ID]	= { .type = NLA_U32 },
 };
 
-static struct nft_expr_type nft_objref_type __read_mostly = {
+struct nft_expr_type nft_objref_type __read_mostly = {
 	.name		= "objref",
 	.select_ops	= nft_objref_select_ops,
 	.policy		= nft_objref_policy,
 	.maxattr	= NFTA_OBJREF_MAX,
 	.owner		= THIS_MODULE,
 };
-
-static int __init nft_objref_module_init(void)
-{
-	return nft_register_expr(&nft_objref_type);
-}
-
-static void __exit nft_objref_module_exit(void)
-{
-	nft_unregister_expr(&nft_objref_type);
-}
-
-module_init(nft_objref_module_init);
-module_exit(nft_objref_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
-MODULE_ALIAS_NFT_EXPR("objref");
-MODULE_DESCRIPTION("nftables stateful object reference module");

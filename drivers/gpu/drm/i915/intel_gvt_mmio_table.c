@@ -5,7 +5,9 @@
 
 #include "display/intel_audio_regs.h"
 #include "display/intel_backlight_regs.h"
+#include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
+#include "display/intel_dpio_phy.h"
 #include "display/vlv_dsi_pll_regs.h"
 #include "gt/intel_gt_regs.h"
 #include "gvt/gvt.h"
@@ -102,7 +104,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(_MMIO(0x2438));
 	MMIO_D(_MMIO(0x243c));
 	MMIO_D(_MMIO(0x7018));
-	MMIO_D(HALF_SLICE_CHICKEN3);
+	MMIO_D(HSW_HALF_SLICE_CHICKEN3);
 	MMIO_D(GEN7_HALF_SLICE_CHICKEN1);
 	/* display */
 	MMIO_F(_MMIO(0x60220), 0x20);

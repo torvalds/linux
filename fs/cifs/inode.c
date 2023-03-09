@@ -508,14 +508,15 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = GENERIC_READ;
-	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
-	oparms.disposition = FILE_OPEN;
-	oparms.path = path;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.desired_access = GENERIC_READ,
+		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.disposition = FILE_OPEN,
+		.path = path,
+		.fid = &fid,
+	};
 
 	if (tcon->ses->server->oplocks)
 		oplock = REQ_OPLOCK;
@@ -632,6 +633,8 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 
 /* Fill a cifs_fattr struct with info from POSIX info struct */
 static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_open_info_data *data,
+				       struct cifs_sid *owner,
+				       struct cifs_sid *group,
 				       struct super_block *sb, bool adjust_tz, bool symlink)
 {
 	struct smb311_posix_qinfo *info = &data->posix_fi;
@@ -680,8 +683,8 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct cifs_ope
 	}
 	/* else if reparse point ... TODO: add support for FIFO and blk dev; special file types */
 
-	fattr->cf_uid = cifs_sb->ctx->linux_uid; /* TODO: map uid and gid from SID */
-	fattr->cf_gid = cifs_sb->ctx->linux_gid;
+	sid_to_id(cifs_sb, owner, fattr, SIDOWNER);
+	sid_to_id(cifs_sb, group, fattr, SIDGROUP);
 
 	cifs_dbg(FYI, "POSIX query info: mode 0x%x uniqueid 0x%llx nlink %d\n",
 		fattr->cf_mode, fattr->cf_uniqueid, fattr->cf_nlink);
@@ -991,12 +994,6 @@ int cifs_get_inode_info(struct inode **inode, const char *full_path,
 		}
 		rc = server->ops->query_path_info(xid, tcon, cifs_sb, full_path, &tmp_data,
 						  &adjust_tz, &is_reparse_point);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-		if (rc == -ENOENT && is_tcon_dfs(tcon))
-			rc = cifs_dfs_query_info_nonascii_quirk(xid, tcon,
-								cifs_sb,
-								full_path);
-#endif
 		data = &tmp_data;
 	}
 
@@ -1175,6 +1172,7 @@ smb311_posix_get_inode_info(struct inode **inode,
 	struct cifs_fattr fattr = {0};
 	bool symlink = false;
 	struct cifs_open_info_data data = {};
+	struct cifs_sid owner, group;
 	int rc = 0;
 	int tmprc = 0;
 
@@ -1192,7 +1190,8 @@ smb311_posix_get_inode_info(struct inode **inode,
 		goto out;
 	}
 
-	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb, full_path, &data, &adjust_tz,
+	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb, full_path, &data,
+					  &owner, &group, &adjust_tz,
 					  &symlink);
 
 	/*
@@ -1201,7 +1200,8 @@ smb311_posix_get_inode_info(struct inode **inode,
 
 	switch (rc) {
 	case 0:
-		smb311_posix_info_to_fattr(&fattr, &data, sb, adjust_tz, symlink);
+		smb311_posix_info_to_fattr(&fattr, &data, &owner, &group,
+					   sb, adjust_tz, symlink);
 		break;
 	case -EREMOTE:
 		/* DFS link, no metadata available on this server */
@@ -1519,14 +1519,15 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 		goto out;
 	}
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = DELETE | FILE_WRITE_ATTRIBUTES;
-	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
-	oparms.disposition = FILE_OPEN;
-	oparms.path = full_path;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.desired_access = DELETE | FILE_WRITE_ATTRIBUTES,
+		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.disposition = FILE_OPEN,
+		.path = full_path,
+		.fid = &fid,
+	};
 
 	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc != 0)
@@ -1911,7 +1912,7 @@ posix_mkdir_get_info:
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
-int cifs_mkdir(struct user_namespace *mnt_userns, struct inode *inode,
+int cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
 	       struct dentry *direntry, umode_t mode)
 {
 	int rc = 0;
@@ -2113,15 +2114,16 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	if (to_dentry->d_parent != from_dentry->d_parent)
 		goto do_rename_exit;
 
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	/* open the file to be renamed -- we need DELETE perms */
-	oparms.desired_access = DELETE;
-	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
-	oparms.disposition = FILE_OPEN;
-	oparms.path = from_path;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		/* open the file to be renamed -- we need DELETE perms */
+		.desired_access = DELETE,
+		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR),
+		.disposition = FILE_OPEN,
+		.path = from_path,
+		.fid = &fid,
+	};
 
 	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc == 0) {
@@ -2139,7 +2141,7 @@ do_rename_exit:
 }
 
 int
-cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
+cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 	     struct dentry *source_dentry, struct inode *target_dir,
 	     struct dentry *target_dentry, unsigned int flags)
 {
@@ -2497,7 +2499,7 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 	return cifs_revalidate_mapping(inode);
 }
 
-int cifs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int cifs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
@@ -2538,7 +2540,7 @@ int cifs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			return rc;
 	}
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	stat->blksize = cifs_sb->ctx->bsize;
 	stat->ino = CIFS_I(inode)->uniqueid;
 
@@ -2753,7 +2755,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(&init_user_ns, direntry, attrs);
+	rc = setattr_prepare(&nop_mnt_idmap, direntry, attrs);
 	if (rc < 0)
 		goto out;
 
@@ -2860,7 +2862,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		fscache_resize_cookie(cifs_inode_cookie(inode), attrs->ia_size);
 	}
 
-	setattr_copy(&init_user_ns, inode, attrs);
+	setattr_copy(&nop_mnt_idmap, inode, attrs);
 	mark_inode_dirty(inode);
 
 	/* force revalidate when any of these times are set since some
@@ -2904,7 +2906,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(&init_user_ns, direntry, attrs);
+	rc = setattr_prepare(&nop_mnt_idmap, direntry, attrs);
 	if (rc < 0)
 		goto cifs_setattr_exit;
 
@@ -3059,7 +3061,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		fscache_resize_cookie(cifs_inode_cookie(inode), attrs->ia_size);
 	}
 
-	setattr_copy(&init_user_ns, inode, attrs);
+	setattr_copy(&nop_mnt_idmap, inode, attrs);
 	mark_inode_dirty(inode);
 
 cifs_setattr_exit:
@@ -3069,7 +3071,7 @@ cifs_setattr_exit:
 }
 
 int
-cifs_setattr(struct user_namespace *mnt_userns, struct dentry *direntry,
+cifs_setattr(struct mnt_idmap *idmap, struct dentry *direntry,
 	     struct iattr *attrs)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);

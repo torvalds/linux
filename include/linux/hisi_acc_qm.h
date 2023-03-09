@@ -122,7 +122,6 @@ enum qp_state {
 };
 
 enum qm_hw_ver {
-	QM_HW_UNKNOWN = -1,
 	QM_HW_V1 = 0x20,
 	QM_HW_V2 = 0x21,
 	QM_HW_V3 = 0x30,
@@ -309,7 +308,8 @@ struct hisi_qm {
 	const struct hisi_qm_err_ini *err_ini;
 	struct hisi_qm_err_info err_info;
 	struct hisi_qm_err_status err_status;
-	unsigned long misc_ctl; /* driver removing and reset sched */
+	/* driver removing and reset sched */
+	unsigned long misc_ctl;
 	/* Device capability bit */
 	unsigned long caps;
 
@@ -332,7 +332,6 @@ struct hisi_qm {
 
 	const char *algs;
 	bool use_sva;
-	bool is_frozen;
 
 	resource_size_t phys_base;
 	resource_size_t db_phys_base;
@@ -384,14 +383,14 @@ struct hisi_qp {
 static inline int q_num_set(const char *val, const struct kernel_param *kp,
 			    unsigned int device)
 {
-	struct pci_dev *pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI,
-					      device, NULL);
+	struct pci_dev *pdev;
 	u32 n, q_num;
 	int ret;
 
 	if (!val)
 		return -EINVAL;
 
+	pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI, device, NULL);
 	if (!pdev) {
 		q_num = min_t(u32, QM_QNUM_V1, QM_QNUM_V2);
 		pr_info("No device found currently, suppose queue number is %u\n",
@@ -401,6 +400,8 @@ static inline int q_num_set(const char *val, const struct kernel_param *kp,
 			q_num = QM_QNUM_V1;
 		else
 			q_num = QM_QNUM_V2;
+
+		pci_dev_put(pdev);
 	}
 
 	ret = kstrtou32(val, 10, &n);
@@ -469,11 +470,11 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen);
 int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void hisi_qm_dev_err_init(struct hisi_qm *qm);
 void hisi_qm_dev_err_uninit(struct hisi_qm *qm);
-int hisi_qm_diff_regs_init(struct hisi_qm *qm,
-		struct dfx_diff_registers *dregs, int reg_len);
-void hisi_qm_diff_regs_uninit(struct hisi_qm *qm, int reg_len);
+int hisi_qm_regs_debugfs_init(struct hisi_qm *qm,
+			  struct dfx_diff_registers *dregs, u32 reg_len);
+void hisi_qm_regs_debugfs_uninit(struct hisi_qm *qm, u32 reg_len);
 void hisi_qm_acc_diff_regs_dump(struct hisi_qm *qm, struct seq_file *s,
-		struct dfx_diff_registers *dregs, int regs_len);
+				struct dfx_diff_registers *dregs, u32 regs_len);
 
 pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 					  pci_channel_state_t state);

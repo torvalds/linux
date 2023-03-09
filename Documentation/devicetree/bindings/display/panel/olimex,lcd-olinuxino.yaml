@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/olimex,lcd-olinuxino.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for Olimex Ltd. LCD-OLinuXino bridge panel.
+title: Olimex Ltd. LCD-OLinuXino bridge panel.
 
 maintainers:
   - Stefan Mavrodiev <stefan@olimex.com>

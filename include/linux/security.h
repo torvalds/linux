@@ -31,6 +31,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/sockptr.h>
 
 struct linux_binprm;
 struct cred;
@@ -152,12 +153,11 @@ extern int cap_capset(struct cred *new, const struct cred *old,
 extern int cap_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file);
 int cap_inode_setxattr(struct dentry *dentry, const char *name,
 		       const void *value, size_t size, int flags);
-int cap_inode_removexattr(struct user_namespace *mnt_userns,
+int cap_inode_removexattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name);
 int cap_inode_need_killpriv(struct dentry *dentry);
-int cap_inode_killpriv(struct user_namespace *mnt_userns,
-		       struct dentry *dentry);
-int cap_inode_getsecurity(struct user_namespace *mnt_userns,
+int cap_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry);
+int cap_inode_getsecurity(struct mnt_idmap *idmap,
 			  struct inode *inode, const char *name, void **buffer,
 			  bool alloc);
 extern int cap_mmap_addr(unsigned long addr);
@@ -355,22 +355,28 @@ int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
 			       bool rcu);
 int security_inode_permission(struct inode *inode, int mask);
-int security_inode_setattr(struct user_namespace *mnt_userns,
+int security_inode_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(const struct path *path);
-int security_inode_setxattr(struct user_namespace *mnt_userns,
+int security_inode_setxattr(struct mnt_idmap *idmap,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags);
+int security_inode_set_acl(struct mnt_idmap *idmap,
+			   struct dentry *dentry, const char *acl_name,
+			   struct posix_acl *kacl);
+int security_inode_get_acl(struct mnt_idmap *idmap,
+			   struct dentry *dentry, const char *acl_name);
+int security_inode_remove_acl(struct mnt_idmap *idmap,
+			      struct dentry *dentry, const char *acl_name);
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags);
 int security_inode_getxattr(struct dentry *dentry, const char *name);
 int security_inode_listxattr(struct dentry *dentry);
-int security_inode_removexattr(struct user_namespace *mnt_userns,
+int security_inode_removexattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, const char *name);
 int security_inode_need_killpriv(struct dentry *dentry);
-int security_inode_killpriv(struct user_namespace *mnt_userns,
-			    struct dentry *dentry);
-int security_inode_getsecurity(struct user_namespace *mnt_userns,
+int security_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry);
+int security_inode_getsecurity(struct mnt_idmap *idmap,
 			       struct inode *inode, const char *name,
 			       void **buffer, bool alloc);
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags);
@@ -396,6 +402,7 @@ int security_file_send_sigiotask(struct task_struct *tsk,
 				 struct fown_struct *fown, int sig);
 int security_file_receive(struct file *file);
 int security_file_open(struct file *file);
+int security_file_truncate(struct file *file);
 int security_task_alloc(struct task_struct *task, unsigned long clone_flags);
 void security_task_free(struct task_struct *task);
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
@@ -853,7 +860,7 @@ static inline int security_inode_permission(struct inode *inode, int mask)
 	return 0;
 }
 
-static inline int security_inode_setattr(struct user_namespace *mnt_userns,
+static inline int security_inode_setattr(struct mnt_idmap *idmap,
 					 struct dentry *dentry,
 					 struct iattr *attr)
 {
@@ -865,11 +872,33 @@ static inline int security_inode_getattr(const struct path *path)
 	return 0;
 }
 
-static inline int security_inode_setxattr(struct user_namespace *mnt_userns,
+static inline int security_inode_setxattr(struct mnt_idmap *idmap,
 		struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags)
 {
 	return cap_inode_setxattr(dentry, name, value, size, flags);
+}
+
+static inline int security_inode_set_acl(struct mnt_idmap *idmap,
+					 struct dentry *dentry,
+					 const char *acl_name,
+					 struct posix_acl *kacl)
+{
+	return 0;
+}
+
+static inline int security_inode_get_acl(struct mnt_idmap *idmap,
+					 struct dentry *dentry,
+					 const char *acl_name)
+{
+	return 0;
+}
+
+static inline int security_inode_remove_acl(struct mnt_idmap *idmap,
+					    struct dentry *dentry,
+					    const char *acl_name)
+{
+	return 0;
 }
 
 static inline void security_inode_post_setxattr(struct dentry *dentry,
@@ -887,11 +916,11 @@ static inline int security_inode_listxattr(struct dentry *dentry)
 	return 0;
 }
 
-static inline int security_inode_removexattr(struct user_namespace *mnt_userns,
+static inline int security_inode_removexattr(struct mnt_idmap *idmap,
 					     struct dentry *dentry,
 					     const char *name)
 {
-	return cap_inode_removexattr(mnt_userns, dentry, name);
+	return cap_inode_removexattr(idmap, dentry, name);
 }
 
 static inline int security_inode_need_killpriv(struct dentry *dentry)
@@ -899,18 +928,18 @@ static inline int security_inode_need_killpriv(struct dentry *dentry)
 	return cap_inode_need_killpriv(dentry);
 }
 
-static inline int security_inode_killpriv(struct user_namespace *mnt_userns,
+static inline int security_inode_killpriv(struct mnt_idmap *idmap,
 					  struct dentry *dentry)
 {
-	return cap_inode_killpriv(mnt_userns, dentry);
+	return cap_inode_killpriv(idmap, dentry);
 }
 
-static inline int security_inode_getsecurity(struct user_namespace *mnt_userns,
+static inline int security_inode_getsecurity(struct mnt_idmap *idmap,
 					     struct inode *inode,
 					     const char *name, void **buffer,
 					     bool alloc)
 {
-	return cap_inode_getsecurity(mnt_userns, inode, name, buffer, alloc);
+	return cap_inode_getsecurity(idmap, inode, name, buffer, alloc);
 }
 
 static inline int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
@@ -1010,6 +1039,11 @@ static inline int security_file_receive(struct file *file)
 }
 
 static inline int security_file_open(struct file *file)
+{
+	return 0;
+}
+
+static inline int security_file_truncate(struct file *file)
 {
 	return 0;
 }
@@ -1411,8 +1445,8 @@ int security_socket_getsockopt(struct socket *sock, int level, int optname);
 int security_socket_setsockopt(struct socket *sock, int level, int optname);
 int security_socket_shutdown(struct socket *sock, int how);
 int security_sock_rcv_skb(struct sock *sk, struct sk_buff *skb);
-int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
-				      int __user *optlen, unsigned len);
+int security_socket_getpeersec_stream(struct socket *sock, sockptr_t optval,
+				      sockptr_t optlen, unsigned int len);
 int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid);
 int security_sk_alloc(struct sock *sk, int family, gfp_t priority);
 void security_sk_free(struct sock *sk);
@@ -1548,8 +1582,10 @@ static inline int security_sock_rcv_skb(struct sock *sk,
 	return 0;
 }
 
-static inline int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
-						    int __user *optlen, unsigned len)
+static inline int security_socket_getpeersec_stream(struct socket *sock,
+						    sockptr_t optval,
+						    sockptr_t optlen,
+						    unsigned int len)
 {
 	return -ENOPROTOOPT;
 }

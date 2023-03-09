@@ -562,7 +562,7 @@ bool __init arch_hugetlb_valid_size(unsigned long size)
 
 pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
-	if (IS_ENABLED(CONFIG_ARM64_WORKAROUND_2645198) &&
+	if (IS_ENABLED(CONFIG_ARM64_ERRATUM_2645198) &&
 	    cpus_have_const_cap(ARM64_WORKAROUND_2645198)) {
 		/*
 		 * Break-before-make (BBM) is required for all user space mappings

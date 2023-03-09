@@ -32,6 +32,8 @@
 #define TTB_FLAGS_SMP	TTB_RGN_WBWA|TTB_S
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
 
+.arch armv6
+
 ENTRY(cpu_v6_proc_init)
 	ret	lr
 

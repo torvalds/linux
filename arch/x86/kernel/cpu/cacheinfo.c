@@ -11,15 +11,19 @@
 #include <linux/slab.h>
 #include <linux/cacheinfo.h>
 #include <linux/cpu.h>
+#include <linux/cpuhotplug.h>
 #include <linux/sched.h>
 #include <linux/capability.h>
 #include <linux/sysfs.h>
 #include <linux/pci.h>
+#include <linux/stop_machine.h>
 
 #include <asm/cpufeature.h>
 #include <asm/cacheinfo.h>
 #include <asm/amd_nb.h>
 #include <asm/smp.h>
+#include <asm/mtrr.h>
+#include <asm/tlbflush.h>
 
 #include "cpu.h"
 
@@ -34,6 +38,9 @@ DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 
 /* Shared L2 cache maps */
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_l2c_shared_map);
+
+/* Kernel controls MTRR and/or PAT MSRs. */
+unsigned int memory_caching_control __ro_after_init;
 
 struct _cache_table {
 	unsigned char descriptor;
@@ -727,7 +734,7 @@ void init_hygon_cacheinfo(struct cpuinfo_x86 *c)
 void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
-	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0;
+	unsigned int l1i = 0, l1d = 0, l2 = 0, l3 = 0;
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
 	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
 	unsigned int l2_id = 0, l3_id = 0, num_threads_sharing, index_msb;
@@ -827,9 +834,6 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 							break;
 						case LVL_3:
 							l3 += cache_table[k].size;
-							break;
-						case LVL_TRACE:
-							trace += cache_table[k].size;
 							break;
 						}
 
@@ -1040,3 +1044,175 @@ int populate_cache_leaves(unsigned int cpu)
 
 	return 0;
 }
+
+/*
+ * Disable and enable caches. Needed for changing MTRRs and the PAT MSR.
+ *
+ * Since we are disabling the cache don't allow any interrupts,
+ * they would run extremely slow and would only increase the pain.
+ *
+ * The caller must ensure that local interrupts are disabled and
+ * are reenabled after cache_enable() has been called.
+ */
+static unsigned long saved_cr4;
+static DEFINE_RAW_SPINLOCK(cache_disable_lock);
+
+void cache_disable(void) __acquires(cache_disable_lock)
+{
+	unsigned long cr0;
+
+	/*
+	 * Note that this is not ideal
+	 * since the cache is only flushed/disabled for this CPU while the
+	 * MTRRs are changed, but changing this requires more invasive
+	 * changes to the way the kernel boots
+	 */
+
+	raw_spin_lock(&cache_disable_lock);
+
+	/* Enter the no-fill (CD=1, NW=0) cache mode and flush caches. */
+	cr0 = read_cr0() | X86_CR0_CD;
+	write_cr0(cr0);
+
+	/*
+	 * Cache flushing is the most time-consuming step when programming
+	 * the MTRRs. Fortunately, as per the Intel Software Development
+	 * Manual, we can skip it if the processor supports cache self-
+	 * snooping.
+	 */
+	if (!static_cpu_has(X86_FEATURE_SELFSNOOP))
+		wbinvd();
+
+	/* Save value of CR4 and clear Page Global Enable (bit 7) */
+	if (cpu_feature_enabled(X86_FEATURE_PGE)) {
+		saved_cr4 = __read_cr4();
+		__write_cr4(saved_cr4 & ~X86_CR4_PGE);
+	}
+
+	/* Flush all TLBs via a mov %cr3, %reg; mov %reg, %cr3 */
+	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+	flush_tlb_local();
+
+	if (cpu_feature_enabled(X86_FEATURE_MTRR))
+		mtrr_disable();
+
+	/* Again, only flush caches if we have to. */
+	if (!static_cpu_has(X86_FEATURE_SELFSNOOP))
+		wbinvd();
+}
+
+void cache_enable(void) __releases(cache_disable_lock)
+{
+	/* Flush TLBs (no need to flush caches - they are disabled) */
+	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+	flush_tlb_local();
+
+	if (cpu_feature_enabled(X86_FEATURE_MTRR))
+		mtrr_enable();
+
+	/* Enable caches */
+	write_cr0(read_cr0() & ~X86_CR0_CD);
+
+	/* Restore value of CR4 */
+	if (cpu_feature_enabled(X86_FEATURE_PGE))
+		__write_cr4(saved_cr4);
+
+	raw_spin_unlock(&cache_disable_lock);
+}
+
+static void cache_cpu_init(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	cache_disable();
+
+	if (memory_caching_control & CACHE_MTRR)
+		mtrr_generic_set_state();
+
+	if (memory_caching_control & CACHE_PAT)
+		pat_cpu_init();
+
+	cache_enable();
+	local_irq_restore(flags);
+}
+
+static bool cache_aps_delayed_init = true;
+
+void set_cache_aps_delayed_init(bool val)
+{
+	cache_aps_delayed_init = val;
+}
+
+bool get_cache_aps_delayed_init(void)
+{
+	return cache_aps_delayed_init;
+}
+
+static int cache_rendezvous_handler(void *unused)
+{
+	if (get_cache_aps_delayed_init() || !cpu_online(smp_processor_id()))
+		cache_cpu_init();
+
+	return 0;
+}
+
+void __init cache_bp_init(void)
+{
+	mtrr_bp_init();
+	pat_bp_init();
+
+	if (memory_caching_control)
+		cache_cpu_init();
+}
+
+void cache_bp_restore(void)
+{
+	if (memory_caching_control)
+		cache_cpu_init();
+}
+
+static int cache_ap_init(unsigned int cpu)
+{
+	if (!memory_caching_control || get_cache_aps_delayed_init())
+		return 0;
+
+	/*
+	 * Ideally we should hold mtrr_mutex here to avoid MTRR entries
+	 * changed, but this routine will be called in CPU boot time,
+	 * holding the lock breaks it.
+	 *
+	 * This routine is called in two cases:
+	 *
+	 *   1. very early time of software resume, when there absolutely
+	 *      isn't MTRR entry changes;
+	 *
+	 *   2. CPU hotadd time. We let mtrr_add/del_page hold cpuhotplug
+	 *      lock to prevent MTRR entry changes
+	 */
+	stop_machine_from_inactive_cpu(cache_rendezvous_handler, NULL,
+				       cpu_callout_mask);
+
+	return 0;
+}
+
+/*
+ * Delayed cache initialization for all AP's
+ */
+void cache_aps_init(void)
+{
+	if (!memory_caching_control || !get_cache_aps_delayed_init())
+		return;
+
+	stop_machine(cache_rendezvous_handler, NULL, cpu_online_mask);
+	set_cache_aps_delayed_init(false);
+}
+
+static int __init cache_ap_register(void)
+{
+	cpuhp_setup_state_nocalls(CPUHP_AP_CACHECTRL_STARTING,
+				  "x86/cachectrl:starting",
+				  cache_ap_init, NULL);
+	return 0;
+}
+core_initcall(cache_ap_register);

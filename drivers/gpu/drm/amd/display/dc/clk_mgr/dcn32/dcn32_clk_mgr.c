@@ -33,7 +33,7 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
-#include "dc_link_dp.h"
+#include "link.h"
 
 #include "atomfirmware.h"
 #include "smu13_driver_if.h"
@@ -233,41 +233,6 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	DC_FP_END();
 }
 
-static void dcn32_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
-			struct dc_state *context,
-			int ref_dtbclk_khz)
-{
-	struct dccg *dccg = clk_mgr->dccg;
-	uint32_t tg_mask = 0;
-	int i;
-
-	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct dtbclk_dto_params dto_params = {0};
-
-		/* use mask to program DTO once per tg */
-		if (pipe_ctx->stream_res.tg &&
-				!(tg_mask & (1 << pipe_ctx->stream_res.tg->inst))) {
-			tg_mask |= (1 << pipe_ctx->stream_res.tg->inst);
-
-			dto_params.otg_inst = pipe_ctx->stream_res.tg->inst;
-			dto_params.ref_dtbclk_khz = ref_dtbclk_khz;
-
-			if (is_dp_128b_132b_signal(pipe_ctx)) {
-				dto_params.pixclk_khz = pipe_ctx->stream->phy_pix_clk;
-
-				if (pipe_ctx->stream_res.audio != NULL)
-					dto_params.req_audio_dtbclk_khz = 24000;
-			}
-			if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-				dto_params.is_hdmi = true;
-
-			dccg->funcs->set_dtbclk_dto(clk_mgr->dccg, &dto_params);
-			//dccg->funcs->set_audio_dtbclk_dto(clk_mgr->dccg, &dto_params);
-		}
-	}
-}
-
 /* Since DPPCLK request to PMFW needs to be exact (due to DPP DTO programming),
  * update DPPCLK to be the exact frequency that will be set after the DPPCLK
  * divider is updated. This will prevent rounding issues that could cause DPP
@@ -290,6 +255,94 @@ static void dcn32_update_dppclk_dispclk_freq(struct clk_mgr_internal *clk_mgr, s
 	}
 }
 
+static void dcn32_update_clocks_update_dentist(
+		struct clk_mgr_internal *clk_mgr,
+		struct dc_state *context,
+		uint32_t old_dispclk_khz)
+{
+	uint32_t new_disp_divider = 0;
+	uint32_t old_disp_divider = 0;
+	uint32_t new_dispclk_wdivider = 0;
+	uint32_t old_dispclk_wdivider = 0;
+	uint32_t i;
+
+	if (old_dispclk_khz == 0 || clk_mgr->base.clks.dispclk_khz == 0)
+		return;
+
+	new_disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz / clk_mgr->base.clks.dispclk_khz;
+	old_disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz / old_dispclk_khz;
+
+	new_dispclk_wdivider = dentist_get_did_from_divider(new_disp_divider);
+	old_dispclk_wdivider = dentist_get_did_from_divider(old_disp_divider);
+
+	/* When changing divider to or from 127, some extra programming is required to prevent corruption */
+	if (old_dispclk_wdivider == 127 && new_dispclk_wdivider != 127) {
+		for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+			uint32_t fifo_level;
+			struct dccg *dccg = clk_mgr->base.ctx->dc->res_pool->dccg;
+			struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
+			int32_t N;
+			int32_t j;
+
+			if (!pipe_ctx->stream)
+				continue;
+			/* Virtual encoders don't have this function */
+			if (!stream_enc->funcs->get_fifo_cal_average_level)
+				continue;
+			fifo_level = stream_enc->funcs->get_fifo_cal_average_level(
+					stream_enc);
+			N = fifo_level / 4;
+			dccg->funcs->set_fifo_errdet_ovr_en(
+					dccg,
+					true);
+			for (j = 0; j < N - 4; j++)
+				dccg->funcs->otg_drop_pixel(
+						dccg,
+						pipe_ctx->stream_res.tg->inst);
+			dccg->funcs->set_fifo_errdet_ovr_en(
+					dccg,
+					false);
+		}
+	} else if (new_dispclk_wdivider == 127 && old_dispclk_wdivider != 127) {
+		/* request clock with 126 divider first */
+		uint32_t temp_disp_divider = dentist_get_divider_from_did(126);
+		uint32_t temp_dispclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / temp_disp_divider;
+
+		if (clk_mgr->smu_present)
+			dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(temp_dispclk_khz));
+
+		for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+			struct dccg *dccg = clk_mgr->base.ctx->dc->res_pool->dccg;
+			struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
+			uint32_t fifo_level;
+			int32_t N;
+			int32_t j;
+
+			if (!pipe_ctx->stream)
+				continue;
+			/* Virtual encoders don't have this function */
+			if (!stream_enc->funcs->get_fifo_cal_average_level)
+				continue;
+			fifo_level = stream_enc->funcs->get_fifo_cal_average_level(
+					stream_enc);
+			N = fifo_level / 4;
+			dccg->funcs->set_fifo_errdet_ovr_en(dccg, true);
+			for (j = 0; j < 12 - N; j++)
+				dccg->funcs->otg_add_pixel(dccg,
+						pipe_ctx->stream_res.tg->inst);
+			dccg->funcs->set_fifo_errdet_ovr_en(dccg, false);
+		}
+	}
+
+	/* do requested DISPCLK updates*/
+	if (clk_mgr->smu_present)
+		dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(clk_mgr->base.clks.dispclk_khz));
+}
+
 static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -308,6 +361,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool p_state_change_support;
 	bool fclk_p_state_change_support;
 	int total_plane_count;
+	int old_dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
@@ -431,14 +485,11 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
 
-		if (clk_mgr->smu_present)
-			dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DISPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dispclk_khz));
-
 		update_dispclk = true;
 	}
 
 	if (!new_clocks->dtbclk_en) {
-		new_clocks->ref_dtbclk_khz = 0;
+		new_clocks->ref_dtbclk_khz = clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
 	}
 
 	/* clock limits are received with MHz precision, divide by 1000 to prevent setting clocks at every call */
@@ -447,21 +498,19 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		/* DCCG requires KHz precision for DTBCLK */
 		clk_mgr_base->clks.ref_dtbclk_khz =
 				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DTBCLK, khz_to_mhz_ceil(new_clocks->ref_dtbclk_khz));
-
-		dcn32_update_clocks_update_dtb_dto(clk_mgr, context, clk_mgr_base->clks.ref_dtbclk_khz);
 	}
 
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
 		if (dpp_clock_lowered) {
 			/* if clock is being lowered, increase DTO before lowering refclk */
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
-			dcn20_update_clocks_update_dentist(clk_mgr, context);
+			dcn32_update_clocks_update_dentist(clk_mgr, context, old_dispclk_khz);
 			if (clk_mgr->smu_present)
 				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DPPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
 		} else {
 			/* if clock is being raised, increase refclk before lowering DTO */
 			if (update_dppclk || update_dispclk)
-				dcn20_update_clocks_update_dentist(clk_mgr, context);
+				dcn32_update_clocks_update_dentist(clk_mgr, context, old_dispclk_khz);
 			/* There is a check inside dcn20_update_clocks_update_dpp_dto which ensures
 			 * that we do not lower dto when it is not safe to lower. We do not need to
 			 * compare the current and new dppclk before calling this function.
@@ -820,8 +869,7 @@ void dcn32_clk_mgr_construct(
 
 void dcn32_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)
 {
-	if (clk_mgr->base.bw_params)
-		kfree(clk_mgr->base.bw_params);
+	kfree(clk_mgr->base.bw_params);
 
 	if (clk_mgr->wm_range_table)
 		dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART,

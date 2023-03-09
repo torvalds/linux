@@ -22,7 +22,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	int ret;
 
 	/* Don't request firmware again if firmware is already requested */
-	if (plat_data->fw)
+	if (sdev->basefw.fw)
 		return 0;
 
 	fw_filename = kasprintf(GFP_KERNEL, "%s/%s",
@@ -31,7 +31,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (!fw_filename)
 		return -ENOMEM;
 
-	ret = request_firmware(&plat_data->fw, fw_filename, sdev->dev);
+	ret = request_firmware(&sdev->basefw.fw, fw_filename, sdev->dev);
 
 	if (ret < 0) {
 		dev_err(sdev->dev,
@@ -48,7 +48,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	ext_man_size = sdev->ipc->ops->fw_loader->parse_ext_manifest(sdev);
 	if (ext_man_size > 0) {
 		/* when no error occurred, drop extended manifest */
-		plat_data->fw_offset = ext_man_size;
+		sdev->basefw.payload_offset = ext_man_size;
 	} else if (!ext_man_size) {
 		/* No extended manifest, so nothing to skip during FW load */
 		dev_dbg(sdev->dev, "firmware doesn't contain extended manifest\n");
@@ -67,7 +67,6 @@ EXPORT_SYMBOL(snd_sof_load_firmware_raw);
 
 int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = sdev->pdata;
 	int ret;
 
 	ret = snd_sof_load_firmware_raw(sdev);
@@ -100,8 +99,8 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 	return 0;
 
 error:
-	release_firmware(plat_data->fw);
-	plat_data->fw = NULL;
+	release_firmware(sdev->basefw.fw);
+	sdev->basefw.fw = NULL;
 	return ret;
 
 }
@@ -165,6 +164,9 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	if (sdev->fw_state == SOF_FW_BOOT_READY_FAILED)
 		return -EIO; /* FW boots but fw_ready op failed */
 
+	dev_dbg(sdev->dev, "firmware boot complete\n");
+	sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
+
 	/* perform post fw run operations */
 	ret = snd_sof_dsp_post_fw_run(sdev);
 	if (ret < 0) {
@@ -172,11 +174,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	dev_dbg(sdev->dev, "firmware boot complete\n");
-	sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
-
-	if (sdev->first_boot && sdev->ipc->ops->fw_loader->query_fw_configuration)
-		return sdev->ipc->ops->fw_loader->query_fw_configuration(sdev);
+	if (sdev->ipc->ops->post_fw_boot)
+		return sdev->ipc->ops->post_fw_boot(sdev);
 
 	return 0;
 }
@@ -185,7 +184,7 @@ EXPORT_SYMBOL(snd_sof_run_firmware);
 void snd_sof_fw_unload(struct snd_sof_dev *sdev)
 {
 	/* TODO: support module unloading at runtime */
-	release_firmware(sdev->pdata->fw);
-	sdev->pdata->fw = NULL;
+	release_firmware(sdev->basefw.fw);
+	sdev->basefw.fw = NULL;
 }
 EXPORT_SYMBOL(snd_sof_fw_unload);

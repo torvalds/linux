@@ -1,0 +1,138 @@
+[
+  {
+    "EventName": "resyncs_or_nc_redirects",
+    "EventCode": "0x96",
+    "BriefDescription": "Pipeline restarts not caused by branch mispredicts."
+  },
+  {
+    "EventName": "de_op_queue_empty",
+    "EventCode": "0xa9",
+    "BriefDescription": "Cycles when the op queue is empty. Such cycles indicate that the front-end is not delivering instructions fast enough."
+  },
+  {
+    "EventName": "de_src_op_disp.decoder",
+    "EventCode": "0xaa",
+    "BriefDescription": "Ops fetched from instruction cache and dispatched.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_src_op_disp.op_cache",
+    "EventCode": "0xaa",
+    "BriefDescription": "Ops fetched from op cache and dispatched.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "de_src_op_disp.loop_buffer",
+    "EventCode": "0xaa",
+    "BriefDescription": "Ops dispatched from loop buffer.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "de_src_op_disp.all",
+    "EventCode": "0xaa",
+    "BriefDescription": "Ops dispatched from any source.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "de_dis_ops_from_decoder.any_fp_dispatch",
+    "EventCode": "0xab",
+    "BriefDescription": "Number of ops dispatched to the floating-point unit.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "de_dis_ops_from_decoder.disp_op_type.any_integer_dispatch",
+    "EventCode": "0xab",
+    "BriefDescription": "Number of ops dispatched to the integer execution unit.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls1.int_phy_reg_file_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Number of cycles dispatch is stalled for integer physical register file tokens.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls1.load_queue_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Number of cycles dispatch is stalled for Load queue token.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls1.store_queue_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Number of cycles dispatch is stalled for store queue tokens.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls1.taken_brnch_buffer_rsrc",
+    "EventCode": "0xae",
+    "BriefDescription": "Number of cycles dispatch is stalled for taken branch buffer tokens.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls1.fp_reg_file_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Number of cycles dispatch is stalled for floating-point register file tokens.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls1.fp_sch_rsrc_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Number of cycles dispatch is stalled for floating-point scheduler tokens.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls1.fp_flush_recovery_stall",
+    "EventCode": "0xae",
+    "BriefDescription": "Number of cycles dispatch is stalled for floating-point flush recovery.",
+    "UMask": "0x80"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls2.int_sch0_token_stall",
+    "EventCode": "0xaf",
+    "BriefDescription": "Number of cycles dispatch is stalled for integer scheduler queue 0 tokens.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls2.int_sch1_token_stall",
+    "EventCode": "0xaf",
+    "BriefDescription": "Number of cycles dispatch is stalled for integer scheduler queue 1 tokens.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls2.int_sch2_token_stall",
+    "EventCode": "0xaf",
+    "BriefDescription": "Number of cycles dispatch is stalled for integer scheduler queue 2 tokens.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls2.int_sch3_token_stall",
+    "EventCode": "0xaf",
+    "BriefDescription": "Number of cycles dispatch is stalled for integer scheduler queue 3 tokens.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "de_dis_dispatch_token_stalls2.retire_token_stall",
+    "EventCode": "0xaf",
+    "BriefDescription": "Number of cycles dispatch is stalled for retire queue tokens.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "de_no_dispatch_per_slot.no_ops_from_frontend",
+    "EventCode": "0x1a0",
+    "BriefDescription": "In each cycle counts dispatch slots left empty because the front-end did not supply ops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "de_no_dispatch_per_slot.backend_stalls",
+    "EventCode": "0x1a0",
+    "BriefDescription": "In each cycle counts ops unable to dispatch because of back-end stalls.",
+    "UMask": "0x1e"
+  },
+  {
+    "EventName": "de_no_dispatch_per_slot.smt_contention",
+    "EventCode": "0x1a0",
+    "BriefDescription": "In each cycle counts ops unable to dispatch because the dispatch cycle was granted to the other SMT thread.",
+    "UMask": "0x60"
+  }
+]

@@ -10,6 +10,7 @@
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm_managed.h>
 #include <drm/drm_syncobj.h>
 #include <uapi/drm/v3d_drm.h>
 
@@ -298,10 +299,6 @@ v3d_lookup_bos(struct drm_device *dev,
 	       u64 bo_handles,
 	       u32 bo_count)
 {
-	u32 *handles;
-	int ret = 0;
-	int i;
-
 	job->bo_count = bo_count;
 
 	if (!job->bo_count) {
@@ -312,48 +309,9 @@ v3d_lookup_bos(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	job->bo = kvmalloc_array(job->bo_count,
-				 sizeof(struct drm_gem_dma_object *),
-				 GFP_KERNEL | __GFP_ZERO);
-	if (!job->bo) {
-		DRM_DEBUG("Failed to allocate validated BO pointers\n");
-		return -ENOMEM;
-	}
-
-	handles = kvmalloc_array(job->bo_count, sizeof(u32), GFP_KERNEL);
-	if (!handles) {
-		ret = -ENOMEM;
-		DRM_DEBUG("Failed to allocate incoming GEM handles\n");
-		goto fail;
-	}
-
-	if (copy_from_user(handles,
-			   (void __user *)(uintptr_t)bo_handles,
-			   job->bo_count * sizeof(u32))) {
-		ret = -EFAULT;
-		DRM_DEBUG("Failed to copy in GEM handles\n");
-		goto fail;
-	}
-
-	spin_lock(&file_priv->table_lock);
-	for (i = 0; i < job->bo_count; i++) {
-		struct drm_gem_object *bo = idr_find(&file_priv->object_idr,
-						     handles[i]);
-		if (!bo) {
-			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
-				  i, handles[i]);
-			ret = -ENOENT;
-			spin_unlock(&file_priv->table_lock);
-			goto fail;
-		}
-		drm_gem_object_get(bo);
-		job->bo[i] = bo;
-	}
-	spin_unlock(&file_priv->table_lock);
-
-fail:
-	kvfree(handles);
-	return ret;
+	return drm_gem_objects_lookup(file_priv,
+				      (void __user *)(uintptr_t)bo_handles,
+				      job->bo_count, &job->bo);
 }
 
 static void
@@ -362,11 +320,11 @@ v3d_job_free(struct kref *ref)
 	struct v3d_job *job = container_of(ref, struct v3d_job, refcount);
 	int i;
 
-	for (i = 0; i < job->bo_count; i++) {
-		if (job->bo[i])
+	if (job->bo) {
+		for (i = 0; i < job->bo_count; i++)
 			drm_gem_object_put(job->bo[i]);
+		kvfree(job->bo);
 	}
-	kvfree(job->bo);
 
 	dma_fence_put(job->irq_fence);
 	dma_fence_put(job->done_fence);
@@ -903,7 +861,6 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	job->args = *args;
 
-	spin_lock(&file_priv->table_lock);
 	for (job->base.bo_count = 0;
 	     job->base.bo_count < ARRAY_SIZE(args->bo_handles);
 	     job->base.bo_count++) {
@@ -912,20 +869,16 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 		if (!args->bo_handles[job->base.bo_count])
 			break;
 
-		bo = idr_find(&file_priv->object_idr,
-			      args->bo_handles[job->base.bo_count]);
+		bo = drm_gem_object_lookup(file_priv, args->bo_handles[job->base.bo_count]);
 		if (!bo) {
 			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
 				  job->base.bo_count,
 				  args->bo_handles[job->base.bo_count]);
 			ret = -ENOENT;
-			spin_unlock(&file_priv->table_lock);
 			goto fail;
 		}
-		drm_gem_object_get(bo);
 		job->base.bo[job->base.bo_count] = bo;
 	}
-	spin_unlock(&file_priv->table_lock);
 
 	ret = v3d_lock_bo_reservations(&job->base, &acquire_ctx);
 	if (ret)
@@ -1075,10 +1028,18 @@ v3d_gem_init(struct drm_device *dev)
 
 	spin_lock_init(&v3d->mm_lock);
 	spin_lock_init(&v3d->job_lock);
-	mutex_init(&v3d->bo_lock);
-	mutex_init(&v3d->reset_lock);
-	mutex_init(&v3d->sched_lock);
-	mutex_init(&v3d->cache_clean_lock);
+	ret = drmm_mutex_init(dev, &v3d->bo_lock);
+	if (ret)
+		return ret;
+	ret = drmm_mutex_init(dev, &v3d->reset_lock);
+	if (ret)
+		return ret;
+	ret = drmm_mutex_init(dev, &v3d->sched_lock);
+	if (ret)
+		return ret;
+	ret = drmm_mutex_init(dev, &v3d->cache_clean_lock);
+	if (ret)
+		return ret;
 
 	/* Note: We don't allocate address 0.  Various bits of HW
 	 * treat 0 as special, such as the occlusion query counters

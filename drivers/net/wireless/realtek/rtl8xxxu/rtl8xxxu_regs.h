@@ -68,6 +68,8 @@
 #define REG_SPS_OCP_CFG			0x0018
 #define REG_8192E_LDOV12_CTRL		0x0014
 #define REG_RSV_CTRL			0x001c
+#define  RSV_CTRL_WLOCK_1C		BIT(5)
+#define  RSV_CTRL_DIS_PRST		BIT(6)
 
 #define REG_RF_CTRL			0x001f
 #define  RF_ENABLE			BIT(0)
@@ -135,6 +137,7 @@
 #define REG_CAL_TIMER			0x003c
 #define REG_ACLK_MON			0x003e
 #define REG_GPIO_MUXCFG			0x0040
+#define  GPIO_MUXCFG_IO_SEL_ENBT	BIT(5)
 #define REG_GPIO_IO_SEL			0x0042
 #define REG_MAC_PINMUX_CFG		0x0043
 #define REG_GPIO_PIN_CTRL		0x0044
@@ -144,7 +147,13 @@
 #define REG_LEDCFG0			0x004c
 #define  LEDCFG0_DPDT_SELECT		BIT(23)
 #define REG_LEDCFG1			0x004d
+#define  LEDCFG1_HW_LED_CONTROL		BIT(1)
+#define  LEDCFG1_LED_DISABLE		BIT(7)
 #define REG_LEDCFG2			0x004e
+#define  LEDCFG2_HW_LED_CONTROL		BIT(1)
+#define  LEDCFG2_HW_LED_ENABLE		BIT(5)
+#define  LEDCFG2_SW_LED_DISABLE		BIT(3)
+#define  LEDCFG2_SW_LED_CONTROL   	BIT(5)
 #define  LEDCFG2_DPDT_SELECT		BIT(7)
 #define REG_LEDCFG3			0x004f
 #define REG_LEDCFG			REG_LEDCFG2
@@ -312,7 +321,6 @@
 #define  SYS_CFG_SPS_SEL		BIT(24) /*  1:LDO regulator mode;
 						    0:Switching regulator mode*/
 #define  SYS_CFG_CHIP_VERSION_MASK	0xf000	/* Bit 12 - 15 */
-#define  SYS_CFG_CHIP_VERSION_SHIFT	12
 
 #define REG_GPIO_OUTSTS			0x00f4	/*  For RTL8723 only. */
 #define  GPIO_EFS_HCI_SEL		(BIT(0) | BIT(1))
@@ -369,6 +377,11 @@
 #define  PBP_PAGE_SIZE_512		0x3
 #define  PBP_PAGE_SIZE_1024		0x4
 
+/* 8188eu IOL magic */
+#define REG_PKT_BUF_ACCESS_CTRL		0x0106
+#define  PKT_BUF_ACCESS_CTRL_TX		0x69
+#define  PKT_BUF_ACCESS_CTRL_RX		0xa5
+
 #define REG_TRXDMA_CTRL			0x010c
 #define  TRXDMA_CTRL_RXDMA_AGG_EN	BIT(2)
 #define  TRXDMA_CTRL_VOQ_SHIFT		4
@@ -391,6 +404,7 @@
 #define REG_CPWM			0x012f
 #define REG_FWIMR			0x0130
 #define REG_FWISR			0x0134
+#define REG_FTIMR			0x0138
 #define REG_PKTBUF_DBG_CTRL		0x0140
 #define REG_PKTBUF_DBG_DATA_L		0x0144
 #define REG_PKTBUF_DBG_DATA_H		0x0148
@@ -404,6 +418,8 @@
 #define REG_MBIST_START			0x0174
 #define REG_MBIST_DONE			0x0178
 #define REG_MBIST_FAIL			0x017c
+/* 8188EU */
+#define REG_32K_CTRL			0x0194
 #define REG_C2HEVT_MSG_NORMAL		0x01a0
 /* 8192EU/8723BU/8812 */
 #define REG_C2HEVT_CMD_ID_8723B		0x01ae
@@ -440,6 +456,9 @@
 
 #define REG_FIFOPAGE			0x0204
 #define REG_TDECTRL			0x0208
+
+#define REG_DWBCN0_CTRL_8188F		REG_TDECTRL
+
 #define REG_TXDMA_OFFSET_CHK		0x020c
 #define  TXDMA_OFFSET_DROP_DATA_EN	BIT(9)
 #define REG_TXDMA_STATUS		0x0210
@@ -467,6 +486,9 @@
 /* Presumably only found on newer chips such as 8723bu */
 #define REG_RX_DMA_CTRL_8723B		0x0286
 #define REG_RXDMA_PRO_8723B		0x0290
+#define  RXDMA_PRO_DMA_MODE		BIT(1)		/* Set to 0x1. */
+#define  RXDMA_PRO_DMA_BURST_CNT	GENMASK(3, 2)	/* Set to 0x3. */
+#define  RXDMA_PRO_DMA_BURST_SIZE	GENMASK(5, 4)	/* Set to 0x1. */
 
 #define REG_RF_BB_CMD_ADDR		0x02c0
 #define REG_RF_BB_CMD_DATA		0x02c4
@@ -572,6 +594,7 @@
 #define REG_STBC_SETTING		0x04c4
 #define REG_QUEUE_CTRL			0x04c6
 #define REG_HT_SINGLE_AMPDU_8723B	0x04c7
+#define  HT_SINGLE_AMPDU_ENABLE		BIT(7)
 #define REG_PROT_MODE_CTRL		0x04c8
 #define REG_MAX_AGGR_NUM		0x04ca
 #define REG_RTS_MAX_AGGR_NUM		0x04cb
@@ -925,26 +948,64 @@
 
 #define REG_FPGA0_XA_LSSI_READBACK	0x08a0	/* Tranceiver LSSI Readback */
 #define REG_FPGA0_XB_LSSI_READBACK	0x08a4
+#define REG_FPGA0_PSD_REPORT		0x08b4
 #define REG_HSPI_XA_READBACK		0x08b8	/* Transceiver A HSPI read */
 #define REG_HSPI_XB_READBACK		0x08bc	/* Transceiver B HSPI read */
 
 #define REG_FPGA1_RF_MODE		0x0900
 
 #define REG_FPGA1_TX_INFO		0x090c
+#define  FPGA1_TX_ANT_MASK		0x0000000f
+#define  FPGA1_TX_ANT_L_MASK		0x000000f0
+#define  FPGA1_TX_ANT_NON_HT_MASK	0x00000f00
+#define  FPGA1_TX_ANT_HT1_MASK		0x0000f000
+#define  FPGA1_TX_ANT_HT2_MASK		0x000f0000
+#define  FPGA1_TX_ANT_HT_S1_MASK	0x00f00000
+#define  FPGA1_TX_ANT_NON_HT_S1_MASK	0x0f000000
+#define  FPGA1_TX_OFDM_TXSC_MASK	0x30000000
+
+#define REG_ANT_MAPPING1		0x0914
 #define REG_DPDT_CTRL			0x092c	/* 8723BU */
 #define REG_RFE_CTRL_ANTA_SRC		0x0930	/* 8723BU */
 #define REG_RFE_PATH_SELECT		0x0940	/* 8723BU */
 #define REG_RFE_BUFFER			0x0944	/* 8723BU */
 #define REG_S0S1_PATH_SWITCH		0x0948	/* 8723BU */
+#define REG_OFDM_RX_DFIR		0x954
 
 #define REG_CCK0_SYSTEM			0x0a00
 #define  CCK0_SIDEBAND			BIT(4)
 
 #define REG_CCK0_AFE_SETTING		0x0a04
 #define  CCK0_AFE_RX_MASK		0x0f000000
-#define  CCK0_AFE_RX_ANT_AB		BIT(24)
+#define  CCK0_AFE_TX_MASK		0xf0000000
 #define  CCK0_AFE_RX_ANT_A		0
-#define  CCK0_AFE_RX_ANT_B		(BIT(24) | BIT(26))
+#define  CCK0_AFE_RX_ANT_B		BIT(26)
+#define  CCK0_AFE_RX_ANT_C		BIT(27)
+#define  CCK0_AFE_RX_ANT_D		(BIT(26) | BIT(27))
+#define  CCK0_AFE_RX_ANT_OPTION_A	0
+#define  CCK0_AFE_RX_ANT_OPTION_B	BIT(24)
+#define  CCK0_AFE_RX_ANT_OPTION_C	BIT(25)
+#define  CCK0_AFE_RX_ANT_OPTION_D	(BIT(24) | BIT(25))
+#define  CCK0_AFE_TX_ANT_A		BIT(31)
+#define  CCK0_AFE_TX_ANT_B		BIT(30)
+
+#define REG_CCK_ANTDIV_PARA2		0x0a04
+#define REG_BB_POWER_SAVE4		0x0a74
+
+/* 8188eu */
+#define REG_LNA_SWITCH			0x0b2c
+#define  LNA_SWITCH_DISABLE_CSCG	BIT(22)
+#define  LNA_SWITCH_OUTPUT_CG		BIT(31)
+
+#define REG_CCK_PD_THRESH			0x0a0a
+#define  CCK_PD_TYPE1_LV0_TH		0x40
+#define  CCK_PD_TYPE1_LV1_TH		0x83
+#define  CCK_PD_TYPE1_LV2_TH		0xcd
+#define  CCK_PD_TYPE1_LV3_TH		0xdd
+#define  CCK_PD_TYPE1_LV4_TH		0xed
+
+#define REG_AGC_RPT			0xa80
+#define  AGC_RPT_CCK			BIT(7)
 
 #define REG_CONFIG_ANT_A		0x0b68
 #define REG_CONFIG_ANT_B		0x0b6c
@@ -965,6 +1026,7 @@
 
 #define REG_OFDM0_FA_RSTC		0x0c0c
 
+#define REG_OFDM0_XA_RX_AFE		0x0c10
 #define REG_OFDM0_XA_RX_IQ_IMBALANCE	0x0c14
 #define REG_OFDM0_XB_RX_IQ_IMBALANCE	0x0c1c
 
@@ -997,6 +1059,9 @@
 
 #define REG_OFDM0_RX_IQ_EXT_ANTA	0x0ca0
 
+/* 8188eu */
+#define REG_ANTDIV_PARA1		0x0ca4
+
 /* 8723bu */
 #define REG_OFDM0_TX_PSDO_NOISE_WEIGHT	0x0ce4
 
@@ -1011,6 +1076,10 @@
 #define  OFDM_LSTF_MASK			0x70000000
 
 #define REG_OFDM1_TRX_PATH_ENABLE	0x0d04
+#define REG_OFDM1_CFO_TRACKING		0x0d2c
+#define  CFO_TRACKING_ATC_STATUS	BIT(11)
+#define REG_OFDM1_CSI_FIX_MASK1		0x0d40
+#define REG_OFDM1_CSI_FIX_MASK2		0x0d44
 
 #define REG_TX_AGC_A_RATE18_06		0x0e00
 #define REG_TX_AGC_A_RATE54_24		0x0e04
@@ -1202,6 +1271,7 @@
 #define RF6052_REG_UNKNOWN_43		0x43
 #define RF6052_REG_UNKNOWN_55		0x55
 #define RF6052_REG_UNKNOWN_56		0x56
+#define RF6052_REG_RXG_MIX_SWBW		0x87
 #define RF6052_REG_S0S1			0xb0
 #define RF6052_REG_UNKNOWN_DF		0xdf
 #define RF6052_REG_UNKNOWN_ED		0xed

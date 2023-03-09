@@ -2498,6 +2498,110 @@ static noinline void check_dup(struct maple_tree *mt)
 	}
 }
 
+static noinline void check_bnode_min_spanning(struct maple_tree *mt)
+{
+	int i = 50;
+	MA_STATE(mas, mt, 0, 0);
+
+	mt_set_non_kernel(9999);
+	mas_lock(&mas);
+	do {
+		mas_set_range(&mas, i*10, i*10+9);
+		mas_store(&mas, check_bnode_min_spanning);
+	} while (i--);
+
+	mas_set_range(&mas, 240, 509);
+	mas_store(&mas, NULL);
+	mas_unlock(&mas);
+	mas_destroy(&mas);
+	mt_set_non_kernel(0);
+}
+
+static noinline void check_empty_area_window(struct maple_tree *mt)
+{
+	unsigned long i, nr_entries = 20;
+	MA_STATE(mas, mt, 0, 0);
+
+	for (i = 1; i <= nr_entries; i++)
+		mtree_store_range(mt, i*10, i*10 + 9,
+				  xa_mk_value(i), GFP_KERNEL);
+
+	/* Create another hole besides the one at 0 */
+	mtree_store_range(mt, 160, 169, NULL, GFP_KERNEL);
+
+	/* Check lower bounds that don't fit */
+	rcu_read_lock();
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 5, 90, 10) != -EBUSY);
+
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 6, 90, 5) != -EBUSY);
+
+	/* Check lower bound that does fit */
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 5, 90, 5) != 0);
+	MT_BUG_ON(mt, mas.index != 5);
+	MT_BUG_ON(mt, mas.last != 9);
+	rcu_read_unlock();
+
+	/* Check one gap that doesn't fit and one that does */
+	rcu_read_lock();
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 5, 217, 9) != 0);
+	MT_BUG_ON(mt, mas.index != 161);
+	MT_BUG_ON(mt, mas.last != 169);
+
+	/* Check one gap that does fit above the min */
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 100, 218, 3) != 0);
+	MT_BUG_ON(mt, mas.index != 216);
+	MT_BUG_ON(mt, mas.last != 218);
+
+	/* Check size that doesn't fit any gap */
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 100, 218, 16) != -EBUSY);
+
+	/*
+	 * Check size that doesn't fit the lower end of the window but
+	 * does fit the gap
+	 */
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 167, 200, 4) != -EBUSY);
+
+	/*
+	 * Check size that doesn't fit the upper end of the window but
+	 * does fit the gap
+	 */
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area_rev(&mas, 100, 162, 4) != -EBUSY);
+
+	/* Check mas_empty_area forward */
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area(&mas, 0, 100, 9) != 0);
+	MT_BUG_ON(mt, mas.index != 0);
+	MT_BUG_ON(mt, mas.last != 8);
+
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area(&mas, 0, 100, 4) != 0);
+	MT_BUG_ON(mt, mas.index != 0);
+	MT_BUG_ON(mt, mas.last != 3);
+
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area(&mas, 0, 100, 11) != -EBUSY);
+
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area(&mas, 5, 100, 6) != -EBUSY);
+
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area(&mas, 0, 8, 10) != -EBUSY);
+
+	mas_reset(&mas);
+	mas_empty_area(&mas, 100, 165, 3);
+
+	mas_reset(&mas);
+	MT_BUG_ON(mt, mas_empty_area(&mas, 100, 163, 6) != -EBUSY);
+	rcu_read_unlock();
+}
+
 static DEFINE_MTREE(tree);
 static int maple_tree_seed(void)
 {
@@ -2740,6 +2844,14 @@ static int maple_tree_seed(void)
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
 	check_dup(&tree);
+	mtree_destroy(&tree);
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
+	check_bnode_min_spanning(&tree);
+	mtree_destroy(&tree);
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
+	check_empty_area_window(&tree);
 	mtree_destroy(&tree);
 
 #if defined(BENCH)

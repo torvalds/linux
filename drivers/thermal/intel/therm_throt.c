@@ -194,7 +194,7 @@ static const struct attribute_group thermal_attr_group = {
 #define THERM_STATUS_PROCHOT_LOG	BIT(1)
 
 #define THERM_STATUS_CLEAR_CORE_MASK (BIT(1) | BIT(3) | BIT(5) | BIT(7) | BIT(9) | BIT(11) | BIT(13) | BIT(15))
-#define THERM_STATUS_CLEAR_PKG_MASK  (BIT(1) | BIT(3) | BIT(5) | BIT(7) | BIT(9) | BIT(11) | BIT(26))
+#define THERM_STATUS_CLEAR_PKG_MASK  (BIT(1) | BIT(3) | BIT(5) | BIT(7) | BIT(9) | BIT(11))
 
 /*
  * Clear the bits in package thermal status register for bit = 1
@@ -211,6 +211,9 @@ void thermal_clear_package_intr_status(int level, u64 bit_mask)
 	} else {
 		msr  = MSR_IA32_PACKAGE_THERM_STATUS;
 		msr_val = THERM_STATUS_CLEAR_PKG_MASK;
+		if (boot_cpu_has(X86_FEATURE_HFI))
+			msr_val |= BIT(26);
+
 	}
 
 	msr_val &= ~bit_mask;

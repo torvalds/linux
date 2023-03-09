@@ -355,11 +355,6 @@ static int prestera_dl_info_get(struct devlink *dl,
 {
 	struct prestera_switch *sw = devlink_priv(dl);
 	char buf[16];
-	int err;
-
-	err = devlink_info_driver_name_put(req, PRESTERA_DRV_NAME);
-	if (err)
-		return err;
 
 	snprintf(buf, sizeof(buf), "%d.%d.%d",
 		 sw->dev->fw_rev.maj,
@@ -443,23 +438,6 @@ int prestera_devlink_port_register(struct prestera_port *port)
 void prestera_devlink_port_unregister(struct prestera_port *port)
 {
 	devlink_port_unregister(&port->dl_port);
-}
-
-void prestera_devlink_port_set(struct prestera_port *port)
-{
-	devlink_port_type_eth_set(&port->dl_port, port->dev);
-}
-
-void prestera_devlink_port_clear(struct prestera_port *port)
-{
-	devlink_port_type_clear(&port->dl_port);
-}
-
-struct devlink_port *prestera_devlink_get_port(struct net_device *dev)
-{
-	struct prestera_port *port = netdev_priv(dev);
-
-	return &port->dl_port;
 }
 
 int prestera_devlink_traps_register(struct prestera_switch *sw)

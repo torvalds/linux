@@ -326,9 +326,7 @@ static void cdns_uart_handle_tx(void *dev_id)
 	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)) {
 
 		writel(xmit->buf[xmit->tail], port->membase + CDNS_UART_FIFO);
-
-		port->icount.tx++;
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		uart_xmit_advance(port, 1);
 		numbytes--;
 	}
 

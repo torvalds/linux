@@ -140,7 +140,8 @@ static inline u64 get_sample_period(struct kvm_pmc *pmc, u64 counter_value)
 
 static inline void pmc_update_sample_period(struct kvm_pmc *pmc)
 {
-	if (!pmc->perf_event || pmc->is_paused)
+	if (!pmc->perf_event || pmc->is_paused ||
+	    !is_sampling_event(pmc->perf_event))
 		return;
 
 	perf_event_period(pmc->perf_event,
@@ -164,14 +165,26 @@ static inline void kvm_init_pmu_capability(void)
 {
 	bool is_intel = boot_cpu_data.x86_vendor == X86_VENDOR_INTEL;
 
-	perf_get_x86_pmu_capability(&kvm_pmu_cap);
-
-	 /*
-	  * For Intel, only support guest architectural pmu
-	  * on a host with architectural pmu.
-	  */
-	if ((is_intel && !kvm_pmu_cap.version) || !kvm_pmu_cap.num_counters_gp)
+	/*
+	 * Hybrid PMUs don't play nice with virtualization without careful
+	 * configuration by userspace, and KVM's APIs for reporting supported
+	 * vPMU features do not account for hybrid PMUs.  Disable vPMU support
+	 * for hybrid PMUs until KVM gains a way to let userspace opt-in.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
 		enable_pmu = false;
+
+	if (enable_pmu) {
+		perf_get_x86_pmu_capability(&kvm_pmu_cap);
+
+		/*
+		 * For Intel, only support guest architectural pmu
+		 * on a host with architectural pmu.
+		 */
+		if ((is_intel && !kvm_pmu_cap.version) ||
+		    !kvm_pmu_cap.num_counters_gp)
+			enable_pmu = false;
+	}
 
 	if (!enable_pmu) {
 		memset(&kvm_pmu_cap, 0, sizeof(kvm_pmu_cap));
@@ -183,7 +196,11 @@ static inline void kvm_init_pmu_capability(void)
 					     KVM_PMC_MAX_FIXED);
 }
 
-void reprogram_counter(struct kvm_pmc *pmc);
+static inline void kvm_pmu_request_counter_reprogam(struct kvm_pmc *pmc)
+{
+	set_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi);
+	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
+}
 
 void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu);
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu);

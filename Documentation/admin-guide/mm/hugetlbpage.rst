@@ -1,5 +1,3 @@
-.. _hugetlbpage:
-
 =============
 HugeTLB Pages
 =============
@@ -86,7 +84,7 @@ by increasing or decreasing the value of ``nr_hugepages``.
 
 Note: When the feature of freeing unused vmemmap pages associated with each
 hugetlb page is enabled, we can fail to free the huge pages triggered by
-the user when ths system is under memory pressure.  Please try again later.
+the user when the system is under memory pressure.  Please try again later.
 
 Pages that are used as huge pages are reserved inside the kernel and cannot
 be used for other purposes.  Huge pages cannot be swapped out under
@@ -313,7 +311,7 @@ memory policy mode--bind, preferred, local or interleave--may be used.  The
 resulting effect on persistent huge page allocation is as follows:
 
 #. Regardless of mempolicy mode [see
-   :ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`],
+   Documentation/admin-guide/mm/numa_memory_policy.rst],
    persistent huge pages will be distributed across the node or nodes
    specified in the mempolicy as if "interleave" had been specified.
    However, if a node in the policy does not contain sufficient contiguous

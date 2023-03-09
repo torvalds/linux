@@ -1,5 +1,5 @@
-Buffer Sharing and Synchronization
-==================================
+Buffer Sharing and Synchronization (dma-buf)
+============================================
 
 The dma-buf subsystem provides the framework for sharing buffers for
 hardware (DMA) access across multiple device drivers and subsystems, and
@@ -118,6 +118,12 @@ DMA Buffer ioctls
 ~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: include/uapi/linux/dma-buf.h
+
+DMA-BUF locking convention
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-buf.c
+   :doc: locking convention
 
 Kernel Functions and Structures Reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -258,7 +264,7 @@ through memory management dependencies which userspace is unaware of, which
 randomly hangs workloads until the timeout kicks in. Workloads, which from
 userspace's perspective, do not contain a deadlock.  In such a mixed fencing
 architecture there is no single entity with knowledge of all dependencies.
-Thefore preventing such deadlocks from within the kernel is not possible.
+Therefore preventing such deadlocks from within the kernel is not possible.
 
 The only solution to avoid dependencies loops is by not allowing indefinite
 fences in the kernel. This means:

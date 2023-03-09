@@ -26,6 +26,7 @@
 #include <drm/drm_drv.h>
 #include <drm/i915_pciids.h>
 
+#include "display/intel_display.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_sa_media.h"
 
@@ -132,9 +133,9 @@
 		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
 	}
 
-#define I9XX_COLORS \
+#define I845_COLORS \
 	.display.color = { .gamma_lut_size = 256 }
-#define I965_COLORS \
+#define I9XX_COLORS \
 	.display.color = { .gamma_lut_size = 129, \
 		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
@@ -210,7 +211,7 @@
 	.dma_mask_size = 32, \
 	I845_PIPE_OFFSETS, \
 	I845_CURSOR_OFFSETS, \
-	I9XX_COLORS, \
+	I845_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
 
@@ -341,7 +342,7 @@ static const struct intel_device_info pnv_m_info = {
 	.dma_mask_size = 36, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
-	I965_COLORS, \
+	I9XX_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
 
@@ -423,7 +424,8 @@ static const struct intel_device_info ilk_m_info = {
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
-	.has_rc6p = 1, \
+	/* snb does support rc6p, but enabling it causes various issues */ \
+	.has_rc6p = 0, \
 	.has_rps = true, \
 	.dma_mask_size = 40, \
 	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING, \
@@ -547,7 +549,7 @@ static const struct intel_device_info vlv_info = {
 	.display.mmio_offset = VLV_DISPLAY_BASE,
 	I9XX_PIPE_OFFSETS,
 	I9XX_CURSOR_OFFSETS,
-	I965_COLORS,
+	I9XX_COLORS,
 	GEN_DEFAULT_PAGE_SIZES,
 	GEN_DEFAULT_REGIONS,
 };
@@ -889,7 +891,7 @@ static const struct intel_device_info jsl_info = {
 	TGL_CURSOR_OFFSETS, \
 	.has_global_mocs = 1, \
 	.has_pxp = 1, \
-	.display.has_dsb = 0 /* FIXME: LUT load is broken with DSB */
+	.display.has_dsb = 1
 
 static const struct intel_device_info tgl_info = {
 	GEN12_FEATURES,
@@ -948,7 +950,7 @@ static const struct intel_device_info adl_s_info = {
 #define XE_LPD_FEATURES \
 	.display.abox_mask = GENMASK(1, 0),					\
 	.display.color = {							\
-		.degamma_lut_size = 128, .gamma_lut_size = 1024,		\
+		.degamma_lut_size = 129, .gamma_lut_size = 1024,		\
 		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
 				     DRM_COLOR_LUT_EQUAL_CHANNELS,		\
 	},									\
@@ -1017,12 +1019,15 @@ static const struct intel_device_info adl_p_info = {
 	.has_3d_pipeline = 1, \
 	.has_64bit_reloc = 1, \
 	.has_flat_ccs = 1, \
+	.has_4tile = 1, \
 	.has_global_mocs = 1, \
 	.has_gt_uc = 1, \
 	.has_llc = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_elsq = 1, \
 	.has_mslice_steering = 1, \
+	.has_oa_bpc_reporting = 1, \
+	.has_oa_slice_contrib_limits = 1, \
 	.has_rc6 = 1, \
 	.has_reset_engine = 1, \
 	.has_rps = 1, \
@@ -1042,7 +1047,6 @@ static const struct intel_device_info xehpsdv_info = {
 	PLATFORM(INTEL_XEHPSDV),
 	NO_DISPLAY,
 	.has_64k_pages = 1,
-	.needs_compact_pt = 1,
 	.has_media_ratio_mode = 1,
 	.__runtime.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) |
@@ -1060,12 +1064,11 @@ static const struct intel_device_info xehpsdv_info = {
 	.__runtime.graphics.ip.rel = 55, \
 	.__runtime.media.ip.rel = 55, \
 	PLATFORM(INTEL_DG2), \
-	.has_4tile = 1, \
 	.has_64k_pages = 1, \
 	.has_guc_deprivilege = 1, \
 	.has_heci_pxp = 1, \
-	.needs_compact_pt = 1, \
 	.has_media_ratio_mode = 1, \
+	.display.has_cdclk_squash = 1, \
 	.__runtime.platform_engine_mask = \
 		BIT(RCS0) | BIT(BCS0) | \
 		BIT(VECS0) | BIT(VECS1) | \
@@ -1077,7 +1080,6 @@ static const struct intel_device_info dg2_info = {
 	XE_LPD_FEATURES,
 	.__runtime.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 			       BIT(TRANSCODER_C) | BIT(TRANSCODER_D),
-	.require_force_probe = 1,
 };
 
 static const struct intel_device_info ats_m_info = {
@@ -1117,6 +1119,7 @@ static const struct intel_device_info pvc_info = {
 	XE_LPD_FEATURES,	\
 	.__runtime.display.ip.ver = 14,	\
 	.display.has_cdclk_crawl = 1, \
+	.display.has_cdclk_squash = 1, \
 	.__runtime.fbc_mask = BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B)
 
 static const struct intel_gt_definition xelpmp_extra_gt[] = {
@@ -1124,12 +1127,11 @@ static const struct intel_gt_definition xelpmp_extra_gt[] = {
 		.type = GT_MEDIA,
 		.name = "Standalone Media GT",
 		.gsi_offset = MTL_MEDIA_GSI_BASE,
-		.engine_mask = BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+		.engine_mask = BIT(VECS0) | BIT(VCS0) | BIT(VCS2) | BIT(GSC0),
 	},
 	{}
 };
 
-__maybe_unused
 static const struct intel_device_info mtl_info = {
 	XE_HP_FEATURES,
 	XE_LPDP_FEATURES,
@@ -1144,6 +1146,9 @@ static const struct intel_device_info mtl_info = {
 	.display.has_modular_fia = 1,
 	.extra_gt_list = xelpmp_extra_gt,
 	.has_flat_ccs = 0,
+	.has_gmd_id = 1,
+	.has_guc_deprivilege = 1,
+	.has_mslice_steering = 0,
 	.has_snoop = 1,
 	.__runtime.memory_regions = REGION_SMEM | REGION_STOLEN_LMEM,
 	.__runtime.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(CCS0),
@@ -1250,7 +1255,7 @@ static void i915_pci_remove(struct pci_dev *pdev)
 }
 
 /* is device_id present in comma separated list of ids */
-static bool force_probe(u16 device_id, const char *devices)
+static bool device_id_in_list(u16 device_id, const char *devices, bool negative)
 {
 	char *s, *p, *tok;
 	bool ret;
@@ -1259,7 +1264,9 @@ static bool force_probe(u16 device_id, const char *devices)
 		return false;
 
 	/* match everything */
-	if (strcmp(devices, "*") == 0)
+	if (negative && strcmp(devices, "!*") == 0)
+		return true;
+	if (!negative && strcmp(devices, "*") == 0)
 		return true;
 
 	s = kstrdup(devices, GFP_KERNEL);
@@ -1268,6 +1275,12 @@ static bool force_probe(u16 device_id, const char *devices)
 
 	for (p = s, ret = false; (tok = strsep(&p, ",")) != NULL; ) {
 		u16 val;
+
+		if (negative && tok[0] == '!')
+			tok++;
+		else if ((negative && tok[0] != '!') ||
+			 (!negative && tok[0] == '!'))
+			continue;
 
 		if (kstrtou16(tok, 16, &val) == 0 && val == device_id) {
 			ret = true;
@@ -1278,6 +1291,16 @@ static bool force_probe(u16 device_id, const char *devices)
 	kfree(s);
 
 	return ret;
+}
+
+static bool id_forced(u16 device_id)
+{
+	return device_id_in_list(device_id, i915_modparams.force_probe, false);
+}
+
+static bool id_blocked(u16 device_id)
+{
+	return device_id_in_list(device_id, i915_modparams.force_probe, true);
 }
 
 bool i915_pci_resource_valid(struct pci_dev *pdev, int bar)
@@ -1296,9 +1319,7 @@ bool i915_pci_resource_valid(struct pci_dev *pdev, int bar)
 
 static bool intel_mmio_bar_valid(struct pci_dev *pdev, struct intel_device_info *intel_info)
 {
-	int gttmmaddr_bar = intel_info->__runtime.graphics.ip.ver == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
-
-	return i915_pci_resource_valid(pdev, gttmmaddr_bar);
+	return i915_pci_resource_valid(pdev, intel_mmio_bar(intel_info->__runtime.graphics.ip.ver));
 }
 
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1307,14 +1328,19 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(struct intel_device_info *) ent->driver_data;
 	int err;
 
-	if (intel_info->require_force_probe &&
-	    !force_probe(pdev->device, i915_modparams.force_probe)) {
+	if (intel_info->require_force_probe && !id_forced(pdev->device)) {
 		dev_info(&pdev->dev,
-			 "Your graphics device %04x is not properly supported by the driver in this\n"
+			 "Your graphics device %04x is not properly supported by i915 in this\n"
 			 "kernel version. To force driver probe anyway, use i915.force_probe=%04x\n"
 			 "module parameter or CONFIG_DRM_I915_FORCE_PROBE=%04x configuration option,\n"
 			 "or (recommended) check for kernel updates.\n",
 			 pdev->device, pdev->device, pdev->device);
+		return -ENODEV;
+	}
+
+	if (id_blocked(pdev->device)) {
+		dev_info(&pdev->dev, "I915 probe blocked for Device ID %04x.\n",
+			 pdev->device);
 		return -ENODEV;
 	}
 

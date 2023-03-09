@@ -438,8 +438,13 @@ static int __init adf_register_ctl_device_driver(void)
 	if (qat_crypto_register())
 		goto err_crypto_register;
 
+	if (qat_compression_register())
+		goto err_compression_register;
+
 	return 0;
 
+err_compression_register:
+	qat_crypto_unregister();
 err_crypto_register:
 	adf_exit_vf_wq();
 err_vf_wq:
@@ -463,6 +468,7 @@ static void __exit adf_unregister_ctl_device_driver(void)
 	adf_exit_vf_wq();
 	adf_exit_pf_wq();
 	qat_crypto_unregister();
+	qat_compression_unregister();
 	adf_clean_vf_map(false);
 	mutex_destroy(&adf_ctl_lock);
 }

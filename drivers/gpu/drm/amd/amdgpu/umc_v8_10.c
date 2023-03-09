@@ -46,6 +46,16 @@ const struct channelnum_map_colbit umc_v8_10_channelnum_map_colbit_table[] = {
 };
 
 const uint32_t
+	umc_v8_10_channel_idx_tbl_ext0[]
+				[UMC_V8_10_UMC_INSTANCE_NUM]
+				[UMC_V8_10_CHANNEL_INSTANCE_NUM] = {
+	   {{1,   5}, {7,  3}},
+	   {{14, 15}, {13, 12}},
+	   {{10, 11}, {9,  8}},
+	   {{6,   2}, {0,  4}}
+	};
+
+const uint32_t
 	umc_v8_10_channel_idx_tbl[]
 				[UMC_V8_10_UMC_INSTANCE_NUM]
 				[UMC_V8_10_CHANNEL_INSTANCE_NUM] = {
@@ -330,29 +340,13 @@ static void umc_v8_10_err_cnt_init(struct amdgpu_device *adev)
 	}
 }
 
-static uint32_t umc_v8_10_query_ras_poison_mode_per_channel(
-						struct amdgpu_device *adev,
-						uint32_t umc_reg_offset)
-{
-	uint32_t ecc_ctrl_addr, ecc_ctrl;
-
-	ecc_ctrl_addr =
-		SOC15_REG_OFFSET(UMC, 0, regUMCCH0_0_GeccCtrl);
-	ecc_ctrl = RREG32_PCIE((ecc_ctrl_addr +
-					umc_reg_offset) * 4);
-
-	return REG_GET_FIELD(ecc_ctrl, UMCCH0_0_GeccCtrl, UCFatalEn);
-}
-
 static bool umc_v8_10_query_ras_poison_mode(struct amdgpu_device *adev)
 {
-	uint32_t umc_reg_offset  = 0;
-
-	/* Enabling fatal error in umc node0 instance0 channel0 will be
-	 * considered as fatal error mode
+	/*
+	 * Force return true, because UMCCH0_0_GeccCtrl
+	 * is not accessible from host side
 	 */
-	umc_reg_offset = get_umc_v8_10_reg_offset(adev, 0, 0, 0);
-	return !umc_v8_10_query_ras_poison_mode_per_channel(adev, umc_reg_offset);
+	return true;
 }
 
 const struct amdgpu_ras_block_hw_ops umc_v8_10_ras_hw_ops = {

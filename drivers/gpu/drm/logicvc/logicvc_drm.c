@@ -17,7 +17,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_print.h>
 
@@ -301,6 +301,7 @@ static int logicvc_drm_probe(struct platform_device *pdev)
 	struct regmap *regmap = NULL;
 	struct resource res;
 	void __iomem *base;
+	unsigned int preferred_bpp;
 	int irq;
 	int ret;
 
@@ -438,7 +439,17 @@ static int logicvc_drm_probe(struct platform_device *pdev)
 		goto error_mode;
 	}
 
-	drm_fbdev_generic_setup(drm_dev, drm_dev->mode_config.preferred_depth);
+	switch (drm_dev->mode_config.preferred_depth) {
+	case 16:
+		preferred_bpp = 16;
+		break;
+	case 24:
+	case 32:
+	default:
+		preferred_bpp = 32;
+		break;
+	}
+	drm_fbdev_generic_setup(drm_dev, preferred_bpp);
 
 	return 0;
 

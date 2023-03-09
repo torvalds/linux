@@ -7,6 +7,7 @@
 #define QUEUE_SIZE 128
 #define SIGNAL_PER_DIV_QUEUE 16
 #define TH_NUMS_TO_DRAIN 2
+#define DR_SEND_INFO_POOL_SIZE 1000
 
 enum { CQ_OK = 0, CQ_EMPTY = -1, CQ_POLL_ERR = -2 };
 
@@ -49,6 +50,136 @@ struct dr_qp_init_attr {
 	u8 isolate_vl_tc:1;
 };
 
+struct mlx5dr_send_info_pool_obj {
+	struct mlx5dr_ste_send_info ste_send_info;
+	struct mlx5dr_send_info_pool *pool;
+	struct list_head list_node;
+};
+
+struct mlx5dr_send_info_pool {
+	struct list_head free_list;
+};
+
+static int dr_send_info_pool_fill(struct mlx5dr_send_info_pool *pool)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj, *tmp_pool_obj;
+	int i;
+
+	for (i = 0; i < DR_SEND_INFO_POOL_SIZE; i++) {
+		pool_obj = kzalloc(sizeof(*pool_obj), GFP_KERNEL);
+		if (!pool_obj)
+			goto clean_pool;
+
+		pool_obj->pool = pool;
+		list_add_tail(&pool_obj->list_node, &pool->free_list);
+	}
+
+	return 0;
+
+clean_pool:
+	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_node) {
+		list_del(&pool_obj->list_node);
+		kfree(pool_obj);
+	}
+
+	return -ENOMEM;
+}
+
+static void dr_send_info_pool_destroy(struct mlx5dr_send_info_pool *pool)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj, *tmp_pool_obj;
+
+	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_node) {
+		list_del(&pool_obj->list_node);
+		kfree(pool_obj);
+	}
+
+	kfree(pool);
+}
+
+void mlx5dr_send_info_pool_destroy(struct mlx5dr_domain *dmn)
+{
+	dr_send_info_pool_destroy(dmn->send_info_pool_tx);
+	dr_send_info_pool_destroy(dmn->send_info_pool_rx);
+}
+
+static struct mlx5dr_send_info_pool *dr_send_info_pool_create(void)
+{
+	struct mlx5dr_send_info_pool *pool;
+	int ret;
+
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return NULL;
+
+	INIT_LIST_HEAD(&pool->free_list);
+
+	ret = dr_send_info_pool_fill(pool);
+	if (ret) {
+		kfree(pool);
+		return NULL;
+	}
+
+	return pool;
+}
+
+int mlx5dr_send_info_pool_create(struct mlx5dr_domain *dmn)
+{
+	dmn->send_info_pool_rx = dr_send_info_pool_create();
+	if (!dmn->send_info_pool_rx)
+		return -ENOMEM;
+
+	dmn->send_info_pool_tx = dr_send_info_pool_create();
+	if (!dmn->send_info_pool_tx) {
+		dr_send_info_pool_destroy(dmn->send_info_pool_rx);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+struct mlx5dr_ste_send_info
+*mlx5dr_send_info_alloc(struct mlx5dr_domain *dmn,
+			enum mlx5dr_domain_nic_type nic_type)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj;
+	struct mlx5dr_send_info_pool *pool;
+	int ret;
+
+	pool = nic_type == DR_DOMAIN_NIC_TYPE_RX ? dmn->send_info_pool_rx :
+						   dmn->send_info_pool_tx;
+
+	if (unlikely(list_empty(&pool->free_list))) {
+		ret = dr_send_info_pool_fill(pool);
+		if (ret)
+			return NULL;
+	}
+
+	pool_obj = list_first_entry_or_null(&pool->free_list,
+					    struct mlx5dr_send_info_pool_obj,
+					    list_node);
+
+	if (likely(pool_obj)) {
+		list_del_init(&pool_obj->list_node);
+	} else {
+		WARN_ONCE(!pool_obj, "Failed getting ste send info obj from pool");
+		return NULL;
+	}
+
+	return &pool_obj->ste_send_info;
+}
+
+void mlx5dr_send_info_free(struct mlx5dr_ste_send_info *ste_send_info)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj;
+
+	pool_obj = container_of(ste_send_info,
+				struct mlx5dr_send_info_pool_obj,
+				ste_send_info);
+
+	list_add(&pool_obj->list_node, &pool_obj->pool->free_list);
+}
+
 static int dr_parse_cqe(struct mlx5dr_cq *dr_cq, struct mlx5_cqe64 *cqe64)
 {
 	unsigned int idx;
@@ -78,8 +209,15 @@ static int dr_cq_poll_one(struct mlx5dr_cq *dr_cq)
 	int err;
 
 	cqe64 = mlx5_cqwq_get_cqe(&dr_cq->wq);
-	if (!cqe64)
+	if (!cqe64) {
+		if (unlikely(dr_cq->mdev->state ==
+			     MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
+			mlx5_core_dbg_once(dr_cq->mdev,
+					   "Polling CQ while device is shutting down\n");
+			return CQ_POLL_ERR;
+		}
 		return CQ_EMPTY;
+	}
 
 	mlx5_cqwq_pop(&dr_cq->wq);
 	err = dr_parse_cqe(dr_cq, cqe64);
@@ -586,7 +724,6 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 				struct mlx5dr_action *action)
 {
 	struct postsend_info send_info = {};
-	int ret;
 
 	send_info.write.addr = (uintptr_t)action->rewrite->data;
 	send_info.write.length = action->rewrite->num_of_actions *
@@ -596,9 +733,7 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 		mlx5dr_icm_pool_get_chunk_mr_addr(action->rewrite->chunk);
 	send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(action->rewrite->chunk);
 
-	ret = dr_postsend_icm_data(dmn, &send_info);
-
-	return ret;
+	return dr_postsend_icm_data(dmn, &send_info);
 }
 
 static int dr_modify_qp_rst2init(struct mlx5_core_dev *mdev,
@@ -833,6 +968,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 
 	cq->mcq.vector = 0;
 	cq->mcq.uar = uar;
+	cq->mdev = mdev;
 
 	return cq;
 

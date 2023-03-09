@@ -27,11 +27,18 @@
  *   - FIFO size: 4KB
  *
  * - LSM6DSO/LSM6DSOX/ASM330LHH/ASM330LHHX/LSM6DSR/ISM330DHCX/LSM6DST/LSM6DSOP/
- *   LSM6DSTX:
+ *   LSM6DSTX/LSM6DSO16IS/ISM330IS:
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 12.5, 26, 52, 104, 208, 416,
  *     833
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
+ *   - FIFO size: 3KB
+ *
+ * - LSM6DSV/LSM6DSV16X:
+ *   - Accelerometer/Gyroscope supported ODR [Hz]: 7.5, 15, 30, 60, 120, 240,
+ *     480, 960
+ *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
+ *   - Gyroscope supported full-scale [dps]: +-125/+-250/+-500/+-1000/+-2000
  *   - FIFO size: 3KB
  *
  * - LSM9DS1/LSM6DS0:
@@ -53,6 +60,8 @@
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/minmax.h>
@@ -1160,6 +1169,342 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.wakeup_src_x_mask = BIT(2),
 		},
 	},
+	{
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
+		.id = {
+			{
+				.hw_id = ST_LSM6DSV_ID,
+				.name = ST_LSM6DSV_DEV_NAME,
+				.wai = 0x70,
+			}, {
+				.hw_id = ST_LSM6DSV16X_ID,
+				.name = ST_LSM6DSV16X_DEV_NAME,
+				.wai = 0x70,
+			},
+		},
+		.channels = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.chan = st_lsm6dsx_acc_channels,
+				.len = ARRAY_SIZE(st_lsm6dsx_acc_channels),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.chan = st_lsm6dsx_gyro_channels,
+				.len = ARRAY_SIZE(st_lsm6dsx_gyro_channels),
+			},
+		},
+		.drdy_mask = {
+			.addr = 0x13,
+			.mask = BIT(3),
+		},
+		.odr_table = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.reg = {
+					.addr = 0x10,
+					.mask = GENMASK(3, 0),
+				},
+				.odr_avl[0] = {   7500, 0x02 },
+				.odr_avl[1] = {  15000, 0x03 },
+				.odr_avl[2] = {  30000, 0x04 },
+				.odr_avl[3] = {  60000, 0x05 },
+				.odr_avl[4] = { 120000, 0x06 },
+				.odr_avl[5] = { 240000, 0x07 },
+				.odr_avl[6] = { 480000, 0x08 },
+				.odr_avl[7] = { 960000, 0x09 },
+				.odr_len = 8,
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.reg = {
+					.addr = 0x11,
+					.mask = GENMASK(3, 0),
+				},
+				.odr_avl[0] = {   7500, 0x02 },
+				.odr_avl[1] = {  15000, 0x03 },
+				.odr_avl[2] = {  30000, 0x04 },
+				.odr_avl[3] = {  60000, 0x05 },
+				.odr_avl[4] = { 120000, 0x06 },
+				.odr_avl[5] = { 240000, 0x07 },
+				.odr_avl[6] = { 480000, 0x08 },
+				.odr_avl[7] = { 960000, 0x09 },
+				.odr_len = 8,
+			},
+		},
+		.fs_table = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.reg = {
+					.addr = 0x17,
+					.mask = GENMASK(1, 0),
+				},
+				.fs_avl[0] = {  IIO_G_TO_M_S_2(61000), 0x0 },
+				.fs_avl[1] = { IIO_G_TO_M_S_2(122000), 0x1 },
+				.fs_avl[2] = { IIO_G_TO_M_S_2(244000), 0x2 },
+				.fs_avl[3] = { IIO_G_TO_M_S_2(488000), 0x3 },
+				.fs_len = 4,
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.reg = {
+					.addr = 0x15,
+					.mask = GENMASK(3, 0),
+				},
+				.fs_avl[0] = {  IIO_DEGREE_TO_RAD(8750000), 0x1 },
+				.fs_avl[1] = { IIO_DEGREE_TO_RAD(17500000), 0x2 },
+				.fs_avl[2] = { IIO_DEGREE_TO_RAD(35000000), 0x3 },
+				.fs_avl[3] = { IIO_DEGREE_TO_RAD(70000000), 0x4 },
+				.fs_len = 4,
+			},
+		},
+		.irq_config = {
+			.irq1 = {
+				.addr = 0x0d,
+				.mask = BIT(3),
+			},
+			.irq2 = {
+				.addr = 0x0e,
+				.mask = BIT(3),
+			},
+			.lir = {
+				.addr = 0x56,
+				.mask = BIT(0),
+			},
+			.irq1_func = {
+				.addr = 0x5e,
+				.mask = BIT(5),
+			},
+			.irq2_func = {
+				.addr = 0x5f,
+				.mask = BIT(5),
+			},
+			.hla = {
+				.addr = 0x03,
+				.mask = BIT(4),
+			},
+			.od = {
+				.addr = 0x03,
+				.mask = BIT(3),
+			},
+		},
+		.batch = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x09,
+				.mask = GENMASK(3, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x09,
+				.mask = GENMASK(7, 4),
+			},
+		},
+		.fifo_ops = {
+			.update_fifo = st_lsm6dsx_update_fifo,
+			.read_fifo = st_lsm6dsx_read_tagged_fifo,
+			.fifo_th = {
+				.addr = 0x07,
+				.mask = GENMASK(7, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x1b,
+				.mask = GENMASK(8, 0),
+			},
+			.max_size = 512,
+			.th_wl = 1,
+		},
+		.ts_settings = {
+			.timer_en = {
+				.addr = 0x50,
+				.mask = BIT(6),
+			},
+			.decimator = {
+				.addr = 0x0a,
+				.mask = GENMASK(7, 6),
+			},
+			.freq_fine = 0x4f,
+		},
+		.shub_settings = {
+			.page_mux = {
+				.addr = 0x01,
+				.mask = BIT(6),
+			},
+			.master_en = {
+				.sec_page = true,
+				.addr = 0x14,
+				.mask = BIT(2),
+			},
+			.pullup_en = {
+				.addr = 0x03,
+				.mask = BIT(6),
+			},
+			.aux_sens = {
+				.addr = 0x14,
+				.mask = GENMASK(1, 0),
+			},
+			.wr_once = {
+				.addr = 0x14,
+				.mask = BIT(6),
+			},
+			.num_ext_dev = 3,
+			.shub_out = {
+				.sec_page = true,
+				.addr = 0x02,
+			},
+			.slv0_addr = 0x15,
+			.dw_slv0_addr = 0x21,
+			.batch_en = BIT(3),
+		},
+		.event_settings = {
+			.enable_reg = {
+				.addr = 0x50,
+				.mask = BIT(7),
+			},
+			.wakeup_reg = {
+				.addr = 0x5b,
+				.mask = GENMASK(5, 0),
+			},
+			.wakeup_src_reg = 0x45,
+			.wakeup_src_status_mask = BIT(3),
+			.wakeup_src_z_mask = BIT(0),
+			.wakeup_src_y_mask = BIT(1),
+			.wakeup_src_x_mask = BIT(2),
+		},
+	},
+	{
+		.reset = {
+			.addr = 0x12,
+			.mask = BIT(0),
+		},
+		.boot = {
+			.addr = 0x12,
+			.mask = BIT(7),
+		},
+		.bdu = {
+			.addr = 0x12,
+			.mask = BIT(6),
+		},
+		.id = {
+			{
+				.hw_id = ST_LSM6DSO16IS_ID,
+				.name = ST_LSM6DSO16IS_DEV_NAME,
+				.wai = 0x22,
+			}, {
+				.hw_id = ST_ISM330IS_ID,
+				.name = ST_ISM330IS_DEV_NAME,
+				.wai = 0x22,
+			}
+		},
+		.channels = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.chan = st_lsm6dsx_acc_channels,
+				.len = ARRAY_SIZE(st_lsm6dsx_acc_channels),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.chan = st_lsm6dsx_gyro_channels,
+				.len = ARRAY_SIZE(st_lsm6dsx_gyro_channels),
+			},
+		},
+		.odr_table = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.reg = {
+					.addr = 0x10,
+					.mask = GENMASK(7, 4),
+				},
+				.odr_avl[0] = {  12500, 0x01 },
+				.odr_avl[1] = {  26000, 0x02 },
+				.odr_avl[2] = {  52000, 0x03 },
+				.odr_avl[3] = { 104000, 0x04 },
+				.odr_avl[4] = { 208000, 0x05 },
+				.odr_avl[5] = { 416000, 0x06 },
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.reg = {
+					.addr = 0x11,
+					.mask = GENMASK(7, 4),
+				},
+				.odr_avl[0] = {  12500, 0x01 },
+				.odr_avl[1] = {  26000, 0x02 },
+				.odr_avl[2] = {  52000, 0x03 },
+				.odr_avl[3] = { 104000, 0x04 },
+				.odr_avl[4] = { 208000, 0x05 },
+				.odr_avl[5] = { 416000, 0x06 },
+				.odr_avl[6] = { 833000, 0x07 },
+				.odr_len = 7,
+			},
+		},
+		.fs_table = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.reg = {
+					.addr = 0x10,
+					.mask = GENMASK(3, 2),
+				},
+				.fs_avl[0] = {  IIO_G_TO_M_S_2(61000), 0x0 },
+				.fs_avl[1] = { IIO_G_TO_M_S_2(122000), 0x2 },
+				.fs_avl[2] = { IIO_G_TO_M_S_2(244000), 0x3 },
+				.fs_avl[3] = { IIO_G_TO_M_S_2(488000), 0x1 },
+				.fs_len = 4,
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.reg = {
+					.addr = 0x11,
+					.mask = GENMASK(3, 2),
+				},
+				.fs_avl[0] = {  IIO_DEGREE_TO_RAD(8750000), 0x0 },
+				.fs_avl[1] = { IIO_DEGREE_TO_RAD(17500000), 0x1 },
+				.fs_avl[2] = { IIO_DEGREE_TO_RAD(35000000), 0x2 },
+				.fs_avl[3] = { IIO_DEGREE_TO_RAD(70000000), 0x3 },
+				.fs_len = 4,
+			},
+		},
+		.irq_config = {
+			.hla = {
+				.addr = 0x12,
+				.mask = BIT(5),
+			},
+			.od = {
+				.addr = 0x12,
+				.mask = BIT(4),
+			},
+		},
+		.shub_settings = {
+			.page_mux = {
+				.addr = 0x01,
+				.mask = BIT(6),
+			},
+			.master_en = {
+				.sec_page = true,
+				.addr = 0x14,
+				.mask = BIT(2),
+			},
+			.pullup_en = {
+				.sec_page = true,
+				.addr = 0x14,
+				.mask = BIT(3),
+			},
+			.aux_sens = {
+				.addr = 0x14,
+				.mask = GENMASK(1, 0),
+			},
+			.wr_once = {
+				.addr = 0x14,
+				.mask = BIT(6),
+			},
+			.num_ext_dev = 3,
+			.shub_out = {
+				.sec_page = true,
+				.addr = 0x02,
+			},
+			.slv0_addr = 0x15,
+			.dw_slv0_addr = 0x21,
+		},
+	},
 };
 
 int st_lsm6dsx_set_page(struct st_lsm6dsx_hw *hw, bool enable)
@@ -2117,6 +2462,32 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 	return fifo_len || event ? IRQ_HANDLED : IRQ_NONE;
 }
 
+static irqreturn_t st_lsm6dsx_sw_trigger_handler_thread(int irq,
+							void *private)
+{
+	struct iio_poll_func *pf = private;
+	struct iio_dev *iio_dev = pf->indio_dev;
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+
+	if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
+	    sensor->id == ST_LSM6DSX_ID_EXT1 ||
+	    sensor->id == ST_LSM6DSX_ID_EXT2)
+		st_lsm6dsx_shub_read_output(hw,
+					    (u8 *)hw->scan[sensor->id].channels,
+					    sizeof(hw->scan[sensor->id].channels));
+	else
+		st_lsm6dsx_read_locked(hw, iio_dev->channels[0].address,
+				       hw->scan[sensor->id].channels,
+				       sizeof(hw->scan[sensor->id].channels));
+
+	iio_push_to_buffers_with_timestamp(iio_dev, &hw->scan[sensor->id],
+					   iio_get_time_ns(iio_dev));
+	iio_trigger_notify_done(iio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 {
 	struct st_sensors_platform_data *pdata;
@@ -2175,36 +2546,60 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 	return 0;
 }
 
-static int st_lsm6dsx_init_regulators(struct device *dev)
+static int st_lsm6dsx_sw_buffer_preenable(struct iio_dev *iio_dev)
 {
-	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
-	int err;
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 
-	/* vdd-vddio power regulators */
-	hw->regulators[0].supply = "vdd";
-	hw->regulators[1].supply = "vddio";
-	err = devm_regulator_bulk_get(dev, ARRAY_SIZE(hw->regulators),
-				      hw->regulators);
-	if (err)
-		return dev_err_probe(dev, err, "failed to get regulators\n");
+	return st_lsm6dsx_device_set_enable(sensor, true);
+}
 
-	err = regulator_bulk_enable(ARRAY_SIZE(hw->regulators),
-				    hw->regulators);
-	if (err) {
-		dev_err(dev, "failed to enable regulators: %d\n", err);
-		return err;
+static int st_lsm6dsx_sw_buffer_postdisable(struct iio_dev *iio_dev)
+{
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+
+	return st_lsm6dsx_device_set_enable(sensor, false);
+}
+
+static const struct iio_buffer_setup_ops st_lsm6dsx_sw_buffer_ops = {
+	.preenable = st_lsm6dsx_sw_buffer_preenable,
+	.postdisable = st_lsm6dsx_sw_buffer_postdisable,
+};
+
+static int st_lsm6dsx_sw_buffers_setup(struct st_lsm6dsx_hw *hw)
+{
+	int i;
+
+	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		int err;
+
+		if (!hw->iio_devs[i])
+			continue;
+
+		err = devm_iio_triggered_buffer_setup(hw->dev,
+					hw->iio_devs[i], NULL,
+					st_lsm6dsx_sw_trigger_handler_thread,
+					&st_lsm6dsx_sw_buffer_ops);
+		if (err)
+			return err;
 	}
-
-	msleep(50);
 
 	return 0;
 }
 
-static void st_lsm6dsx_chip_uninit(void *data)
+static int st_lsm6dsx_init_regulators(struct device *dev)
 {
-	struct st_lsm6dsx_hw *hw = data;
+	/* vdd-vddio power regulators */
+	static const char * const regulators[] = { "vdd", "vddio" };
+	int err;
 
-	regulator_bulk_disable(ARRAY_SIZE(hw->regulators), hw->regulators);
+	err = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(regulators),
+					     regulators);
+	if (err)
+		return dev_err_probe(dev, err, "failed to enable regulators\n");
+
+	msleep(50);
+
+	return 0;
 }
 
 int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
@@ -2227,10 +2622,6 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 	mutex_init(&hw->page_lock);
 
 	err = st_lsm6dsx_init_regulators(dev);
-	if (err)
-		return err;
-
-	err = devm_add_action_or_reset(dev, st_lsm6dsx_chip_uninit, hw);
 	if (err)
 		return err;
 
@@ -2272,6 +2663,16 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 		err = st_lsm6dsx_fifo_setup(hw);
 		if (err < 0)
+			return err;
+	}
+
+	if (!hw->irq || !hw->settings->fifo_ops.read_fifo) {
+		/*
+		 * Rely on sw triggers (e.g. hr-timers) if irq pin is not
+		 * connected of if the device does not support HW FIFO
+		 */
+		err = st_lsm6dsx_sw_buffers_setup(hw);
+		if (err)
 			return err;
 	}
 
@@ -2317,12 +2718,7 @@ static int st_lsm6dsx_suspend(struct device *dev)
 			continue;
 		}
 
-		if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT1 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT2)
-			err = st_lsm6dsx_shub_set_enable(sensor, false);
-		else
-			err = st_lsm6dsx_sensor_set_enable(sensor, false);
+		err = st_lsm6dsx_device_set_enable(sensor, false);
 		if (err < 0)
 			return err;
 
@@ -2353,12 +2749,7 @@ static int st_lsm6dsx_resume(struct device *dev)
 		if (!(hw->suspend_mask & BIT(sensor->id)))
 			continue;
 
-		if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT1 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT2)
-			err = st_lsm6dsx_shub_set_enable(sensor, true);
-		else
-			err = st_lsm6dsx_sensor_set_enable(sensor, true);
+		err = st_lsm6dsx_device_set_enable(sensor, true);
 		if (err < 0)
 			return err;
 

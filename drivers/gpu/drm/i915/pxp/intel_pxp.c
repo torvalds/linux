@@ -3,13 +3,19 @@
  * Copyright(c) 2020 Intel Corporation.
  */
 #include <linux/workqueue.h>
+
+#include "gem/i915_gem_context.h"
+
+#include "gt/intel_context.h"
+#include "gt/intel_gt.h"
+
+#include "i915_drv.h"
+
 #include "intel_pxp.h"
 #include "intel_pxp_irq.h"
 #include "intel_pxp_session.h"
 #include "intel_pxp_tee.h"
-#include "gem/i915_gem_context.h"
-#include "gt/intel_context.h"
-#include "i915_drv.h"
+#include "intel_pxp_types.h"
 
 /**
  * DOC: PXP
@@ -39,19 +45,19 @@
  * performed via the mei_pxp component module.
  */
 
-struct intel_gt *pxp_to_gt(const struct intel_pxp *pxp)
+bool intel_pxp_is_supported(const struct intel_pxp *pxp)
 {
-	return container_of(pxp, struct intel_gt, pxp);
+	return IS_ENABLED(CONFIG_DRM_I915_PXP) && pxp;
 }
 
 bool intel_pxp_is_enabled(const struct intel_pxp *pxp)
 {
-	return pxp->ce;
+	return IS_ENABLED(CONFIG_DRM_I915_PXP) && pxp && pxp->ce;
 }
 
 bool intel_pxp_is_active(const struct intel_pxp *pxp)
 {
-	return pxp->arb_is_valid;
+	return IS_ENABLED(CONFIG_DRM_I915_PXP) && pxp && pxp->arb_is_valid;
 }
 
 /* KCR register definitions */
@@ -74,7 +80,7 @@ static void kcr_pxp_disable(struct intel_gt *gt)
 static int create_vcs_context(struct intel_pxp *pxp)
 {
 	static struct lock_class_key pxp_lock;
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 	struct intel_engine_cs *engine;
 	struct intel_context *ce;
 	int i;
@@ -103,18 +109,14 @@ static int create_vcs_context(struct intel_pxp *pxp)
 
 static void destroy_vcs_context(struct intel_pxp *pxp)
 {
-	intel_engine_destroy_pinned_context(fetch_and_zero(&pxp->ce));
+	if (pxp->ce)
+		intel_engine_destroy_pinned_context(fetch_and_zero(&pxp->ce));
 }
 
-void intel_pxp_init(struct intel_pxp *pxp)
+static void pxp_init_full(struct intel_pxp *pxp)
 {
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 	int ret;
-
-	if (!HAS_PXP(gt->i915))
-		return;
-
-	mutex_init(&pxp->tee_mutex);
 
 	/*
 	 * we'll use the completion to check if there is a termination pending,
@@ -124,8 +126,7 @@ void intel_pxp_init(struct intel_pxp *pxp)
 	init_completion(&pxp->termination);
 	complete_all(&pxp->termination);
 
-	mutex_init(&pxp->arb_mutex);
-	INIT_WORK(&pxp->session_work, intel_pxp_session_work);
+	intel_pxp_session_management_init(pxp);
 
 	ret = create_vcs_context(pxp);
 	if (ret)
@@ -143,16 +144,97 @@ out_context:
 	destroy_vcs_context(pxp);
 }
 
-void intel_pxp_fini(struct intel_pxp *pxp)
+static struct intel_gt *find_gt_for_required_teelink(struct drm_i915_private *i915)
 {
-	if (!intel_pxp_is_enabled(pxp))
+	/*
+	 * NOTE: Only certain platforms require PXP-tee-backend dependencies
+	 * for HuC authentication. For now, its limited to DG2.
+	 */
+	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && IS_ENABLED(CONFIG_INTEL_MEI_GSC) &&
+	    intel_huc_is_loaded_by_gsc(&i915->gt0.uc.huc) && intel_uc_uses_huc(&i915->gt0.uc))
+		return &i915->gt0;
+
+	return NULL;
+}
+
+static struct intel_gt *find_gt_for_required_protected_content(struct drm_i915_private *i915)
+{
+	if (!IS_ENABLED(CONFIG_DRM_I915_PXP) || !INTEL_INFO(i915)->has_pxp)
+		return NULL;
+
+	/*
+	 * For MTL onwards, PXP-controller-GT needs to have a valid GSC engine
+	 * on the media GT. NOTE: if we have a media-tile with a GSC-engine,
+	 * the VDBOX is already present so skip that check
+	 */
+	if (i915->media_gt && HAS_ENGINE(i915->media_gt, GSC0))
+		return i915->media_gt;
+
+	/*
+	 * Else we rely on mei-pxp module but only on legacy platforms
+	 * prior to having separate media GTs and has a valid VDBOX.
+	 */
+	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && !i915->media_gt && VDBOX_MASK(&i915->gt0))
+		return &i915->gt0;
+
+	return NULL;
+}
+
+int intel_pxp_init(struct drm_i915_private *i915)
+{
+	struct intel_gt *gt;
+	bool is_full_feature = false;
+
+	/*
+	 * NOTE: Get the ctrl_gt before checking intel_pxp_is_supported since
+	 * we still need it if PXP's backend tee transport is needed.
+	 */
+	gt = find_gt_for_required_protected_content(i915);
+	if (gt)
+		is_full_feature = true;
+	else
+		gt = find_gt_for_required_teelink(i915);
+
+	if (!gt)
+		return -ENODEV;
+
+	/*
+	 * At this point, we will either enable full featured PXP capabilities
+	 * including session and object management, or we will init the backend tee
+	 * channel for internal users such as HuC loading by GSC
+	 */
+	i915->pxp = kzalloc(sizeof(*i915->pxp), GFP_KERNEL);
+	if (!i915->pxp)
+		return -ENOMEM;
+
+	i915->pxp->ctrl_gt = gt;
+
+	/*
+	 * If full PXP feature is not available but HuC is loaded by GSC on pre-MTL
+	 * such as DG2, we can skip the init of the full PXP session/object management
+	 * and just init the tee channel.
+	 */
+	if (is_full_feature)
+		pxp_init_full(i915->pxp);
+	else
+		intel_pxp_tee_component_init(i915->pxp);
+
+	return 0;
+}
+
+void intel_pxp_fini(struct drm_i915_private *i915)
+{
+	if (!i915->pxp)
 		return;
 
-	pxp->arb_is_valid = false;
+	i915->pxp->arb_is_valid = false;
 
-	intel_pxp_tee_component_fini(pxp);
+	intel_pxp_tee_component_fini(i915->pxp);
 
-	destroy_vcs_context(pxp);
+	destroy_vcs_context(i915->pxp);
+
+	kfree(i915->pxp);
+	i915->pxp = NULL;
 }
 
 void intel_pxp_mark_termination_in_progress(struct intel_pxp *pxp)
@@ -163,7 +245,7 @@ void intel_pxp_mark_termination_in_progress(struct intel_pxp *pxp)
 
 static void pxp_queue_termination(struct intel_pxp *pxp)
 {
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 
 	/*
 	 * We want to get the same effect as if we received a termination
@@ -228,13 +310,13 @@ unlock:
 
 void intel_pxp_init_hw(struct intel_pxp *pxp)
 {
-	kcr_pxp_enable(pxp_to_gt(pxp));
+	kcr_pxp_enable(pxp->ctrl_gt);
 	intel_pxp_irq_enable(pxp);
 }
 
 void intel_pxp_fini_hw(struct intel_pxp *pxp)
 {
-	kcr_pxp_disable(pxp_to_gt(pxp));
+	kcr_pxp_disable(pxp->ctrl_gt);
 
 	intel_pxp_irq_disable(pxp);
 }
@@ -268,7 +350,7 @@ int intel_pxp_key_check(struct intel_pxp *pxp,
 
 void intel_pxp_invalidate(struct intel_pxp *pxp)
 {
-	struct drm_i915_private *i915 = pxp_to_gt(pxp)->i915;
+	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
 	struct i915_gem_context *ctx, *cn;
 
 	/* ban all contexts marked as protected */

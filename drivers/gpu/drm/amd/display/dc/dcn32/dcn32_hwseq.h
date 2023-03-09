@@ -92,6 +92,8 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *phantom_pipe);
 
+void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe);
+
 bool dcn32_dsc_pg_status(
 		struct dce_hwseq *hws,
 		unsigned int dsc_inst);
@@ -99,5 +101,7 @@ bool dcn32_dsc_pg_status(
 void dcn32_update_dsc_pg(struct dc *dc,
 		struct dc_state *context,
 		bool safe_to_disable);
+
+void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context);
 
 #endif /* __DC_HWSS_DCN32_H__ */

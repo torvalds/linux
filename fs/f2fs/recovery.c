@@ -258,15 +258,15 @@ static int recover_quota_data(struct inode *inode, struct page *page)
 	attr.ia_vfsuid = VFSUIDT_INIT(make_kuid(inode->i_sb->s_user_ns, i_uid));
 	attr.ia_vfsgid = VFSGIDT_INIT(make_kgid(inode->i_sb->s_user_ns, i_gid));
 
-	if (!vfsuid_eq(attr.ia_vfsuid, i_uid_into_vfsuid(&init_user_ns, inode)))
+	if (!vfsuid_eq(attr.ia_vfsuid, i_uid_into_vfsuid(&nop_mnt_idmap, inode)))
 		attr.ia_valid |= ATTR_UID;
-	if (!vfsgid_eq(attr.ia_vfsgid, i_gid_into_vfsgid(&init_user_ns, inode)))
+	if (!vfsgid_eq(attr.ia_vfsgid, i_gid_into_vfsgid(&nop_mnt_idmap, inode)))
 		attr.ia_valid |= ATTR_GID;
 
 	if (!attr.ia_valid)
 		return 0;
 
-	err = dquot_transfer(&init_user_ns, inode, &attr);
+	err = dquot_transfer(&nop_mnt_idmap, inode, &attr);
 	if (err)
 		set_sbi_flag(F2FS_I_SB(inode), SBI_QUOTA_NEED_REPAIR);
 	return err;
@@ -923,9 +923,7 @@ int __init f2fs_create_recovery_cache(void)
 {
 	fsync_entry_slab = f2fs_kmem_cache_create("f2fs_fsync_inode_entry",
 					sizeof(struct fsync_inode_entry));
-	if (!fsync_entry_slab)
-		return -ENOMEM;
-	return 0;
+	return fsync_entry_slab ? 0 : -ENOMEM;
 }
 
 void f2fs_destroy_recovery_cache(void)

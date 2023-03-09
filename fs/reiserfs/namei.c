@@ -616,11 +616,11 @@ static int new_inode_init(struct inode *inode, struct inode *dir, umode_t mode)
 	 * the quota init calls have to know who to charge the quota to, so
 	 * we have to set uid and gid here
 	 */
-	inode_init_owner(&init_user_ns, inode, dir, mode);
+	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
 	return dquot_initialize(inode);
 }
 
-static int reiserfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int reiserfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, bool excl)
 {
 	int retval;
@@ -696,10 +696,11 @@ static int reiserfs_create(struct user_namespace *mnt_userns, struct inode *dir,
 
 out_failed:
 	reiserfs_write_unlock(dir->i_sb);
+	reiserfs_security_free(&security);
 	return retval;
 }
 
-static int reiserfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int reiserfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 			  struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	int retval;
@@ -779,10 +780,11 @@ static int reiserfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 
 out_failed:
 	reiserfs_write_unlock(dir->i_sb);
+	reiserfs_security_free(&security);
 	return retval;
 }
 
-static int reiserfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int reiserfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			  struct dentry *dentry, umode_t mode)
 {
 	int retval;
@@ -878,6 +880,7 @@ static int reiserfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 	retval = journal_end(&th);
 out_failed:
 	reiserfs_write_unlock(dir->i_sb);
+	reiserfs_security_free(&security);
 	return retval;
 }
 
@@ -1096,7 +1099,7 @@ out_unlink:
 	return retval;
 }
 
-static int reiserfs_symlink(struct user_namespace *mnt_userns,
+static int reiserfs_symlink(struct mnt_idmap *idmap,
 			    struct inode *parent_dir, struct dentry *dentry,
 			    const char *symname)
 {
@@ -1194,6 +1197,7 @@ static int reiserfs_symlink(struct user_namespace *mnt_userns,
 	retval = journal_end(&th);
 out_failed:
 	reiserfs_write_unlock(parent_dir->i_sb);
+	reiserfs_security_free(&security);
 	return retval;
 }
 
@@ -1307,7 +1311,7 @@ static void set_ino_in_dir_entry(struct reiserfs_dir_entry *de,
  * one path. If it holds 2 or more, it can get into endless waiting in
  * get_empty_nodes or its clones
  */
-static int reiserfs_rename(struct user_namespace *mnt_userns,
+static int reiserfs_rename(struct mnt_idmap *idmap,
 			   struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
@@ -1659,7 +1663,7 @@ const struct inode_operations reiserfs_dir_inode_operations = {
 	.setattr = reiserfs_setattr,
 	.listxattr = reiserfs_listxattr,
 	.permission = reiserfs_permission,
-	.get_acl = reiserfs_get_acl,
+	.get_inode_acl = reiserfs_get_acl,
 	.set_acl = reiserfs_set_acl,
 	.fileattr_get = reiserfs_fileattr_get,
 	.fileattr_set = reiserfs_fileattr_set,
@@ -1683,6 +1687,6 @@ const struct inode_operations reiserfs_special_inode_operations = {
 	.setattr = reiserfs_setattr,
 	.listxattr = reiserfs_listxattr,
 	.permission = reiserfs_permission,
-	.get_acl = reiserfs_get_acl,
+	.get_inode_acl = reiserfs_get_acl,
 	.set_acl = reiserfs_set_acl,
 };

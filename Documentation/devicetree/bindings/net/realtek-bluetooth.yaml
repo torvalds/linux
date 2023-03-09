@@ -20,6 +20,7 @@ properties:
     enum:
       - realtek,rtl8723bs-bt
       - realtek,rtl8723cs-bt
+      - realtek,rtl8723ds-bt
       - realtek,rtl8822cs-bt
 
   device-wake-gpios:

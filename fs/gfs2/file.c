@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/mount.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/falloc.h>
 #include <linux/swap.h>
@@ -235,7 +236,7 @@ static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask)
 		goto out;
 
 	if (!IS_IMMUTABLE(inode)) {
-		error = gfs2_permission(&init_user_ns, inode, MAY_WRITE);
+		error = gfs2_permission(&nop_mnt_idmap, inode, MAY_WRITE);
 		if (error)
 			goto out;
 	}
@@ -273,7 +274,7 @@ out:
 	return error;
 }
 
-int gfs2_fileattr_set(struct user_namespace *mnt_userns,
+int gfs2_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -1445,14 +1446,13 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 static void __flock_holder_uninit(struct file *file, struct gfs2_holder *fl_gh)
 {
-	struct gfs2_glock *gl = fl_gh->gh_gl;
+	struct gfs2_glock *gl = gfs2_glock_hold(fl_gh->gh_gl);
 
 	/*
 	 * Make sure gfs2_glock_put() won't sleep under the file->f_lock
 	 * spinlock.
 	 */
 
-	gfs2_glock_hold(gl);
 	spin_lock(&file->f_lock);
 	gfs2_holder_uninit(fl_gh);
 	spin_unlock(&file->f_lock);

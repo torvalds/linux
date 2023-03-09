@@ -96,23 +96,8 @@ err_ctx:
 static u64 hws_address(const struct i915_vma *hws,
 		       const struct i915_request *rq)
 {
-	return hws->node.start + offset_in_page(sizeof(u32)*rq->fence.context);
-}
-
-static int move_to_active(struct i915_vma *vma,
-			  struct i915_request *rq,
-			  unsigned int flags)
-{
-	int err;
-
-	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj,
-					flags & EXEC_OBJECT_WRITE);
-	if (err == 0)
-		err = i915_vma_move_to_active(vma, rq, flags);
-	i915_vma_unlock(vma);
-
-	return err;
+	return i915_vma_offset(hws) +
+	       offset_in_page(sizeof(u32) * rq->fence.context);
 }
 
 static struct i915_request *
@@ -175,11 +160,11 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 		goto unpin_hws;
 	}
 
-	err = move_to_active(vma, rq, 0);
+	err = igt_vma_move_to_active_unlocked(vma, rq, 0);
 	if (err)
 		goto cancel_rq;
 
-	err = move_to_active(hws, rq, 0);
+	err = igt_vma_move_to_active_unlocked(hws, rq, 0);
 	if (err)
 		goto cancel_rq;
 
@@ -196,8 +181,8 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 
 		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 1 << 8 | 1;
-		*batch++ = lower_32_bits(vma->node.start);
-		*batch++ = upper_32_bits(vma->node.start);
+		*batch++ = lower_32_bits(i915_vma_offset(vma));
+		*batch++ = upper_32_bits(i915_vma_offset(vma));
 	} else if (GRAPHICS_VER(gt->i915) >= 6) {
 		*batch++ = MI_STORE_DWORD_IMM_GEN4;
 		*batch++ = 0;
@@ -210,7 +195,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 
 		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 1 << 8;
-		*batch++ = lower_32_bits(vma->node.start);
+		*batch++ = lower_32_bits(i915_vma_offset(vma));
 	} else if (GRAPHICS_VER(gt->i915) >= 4) {
 		*batch++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*batch++ = 0;
@@ -223,7 +208,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 
 		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
-		*batch++ = lower_32_bits(vma->node.start);
+		*batch++ = lower_32_bits(i915_vma_offset(vma));
 	} else {
 		*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
@@ -235,7 +220,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 
 		*batch++ = MI_NOOP;
 		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
-		*batch++ = lower_32_bits(vma->node.start);
+		*batch++ = lower_32_bits(i915_vma_offset(vma));
 	}
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
 	intel_gt_chipset_flush(engine->gt);
@@ -250,7 +235,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 	if (GRAPHICS_VER(gt->i915) <= 5)
 		flags |= I915_DISPATCH_SECURE;
 
-	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, flags);
+	err = rq->engine->emit_bb_start(rq, i915_vma_offset(vma), PAGE_SIZE, flags);
 
 cancel_rq:
 	if (err) {
@@ -866,10 +851,13 @@ static int igt_reset_active_engine(void *arg)
 }
 
 struct active_engine {
-	struct task_struct *task;
+	struct kthread_worker *worker;
+	struct kthread_work work;
 	struct intel_engine_cs *engine;
 	unsigned long resets;
 	unsigned int flags;
+	bool stop;
+	int result;
 };
 
 #define TEST_ACTIVE	BIT(0)
@@ -900,10 +888,10 @@ static int active_request_put(struct i915_request *rq)
 	return err;
 }
 
-static int active_engine(void *data)
+static void active_engine(struct kthread_work *work)
 {
 	I915_RND_STATE(prng);
-	struct active_engine *arg = data;
+	struct active_engine *arg = container_of(work, typeof(*arg), work);
 	struct intel_engine_cs *engine = arg->engine;
 	struct i915_request *rq[8] = {};
 	struct intel_context *ce[ARRAY_SIZE(rq)];
@@ -913,16 +901,17 @@ static int active_engine(void *data)
 	for (count = 0; count < ARRAY_SIZE(ce); count++) {
 		ce[count] = intel_context_create(engine);
 		if (IS_ERR(ce[count])) {
-			err = PTR_ERR(ce[count]);
-			pr_err("[%s] Create context #%ld failed: %d!\n", engine->name, count, err);
+			arg->result = PTR_ERR(ce[count]);
+			pr_err("[%s] Create context #%ld failed: %d!\n",
+			       engine->name, count, arg->result);
 			while (--count)
 				intel_context_put(ce[count]);
-			return err;
+			return;
 		}
 	}
 
 	count = 0;
-	while (!kthread_should_stop()) {
+	while (!READ_ONCE(arg->stop)) {
 		unsigned int idx = count++ & (ARRAY_SIZE(rq) - 1);
 		struct i915_request *old = rq[idx];
 		struct i915_request *new;
@@ -967,7 +956,7 @@ static int active_engine(void *data)
 		intel_context_put(ce[count]);
 	}
 
-	return err;
+	arg->result = err;
 }
 
 static int __igt_reset_engines(struct intel_gt *gt,
@@ -1022,7 +1011,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 
 		memset(threads, 0, sizeof(*threads) * I915_NUM_ENGINES);
 		for_each_engine(other, gt, tmp) {
-			struct task_struct *tsk;
+			struct kthread_worker *worker;
 
 			threads[tmp].resets =
 				i915_reset_engine_count(global, other);
@@ -1036,19 +1025,21 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			threads[tmp].engine = other;
 			threads[tmp].flags = flags;
 
-			tsk = kthread_run(active_engine, &threads[tmp],
-					  "igt/%s", other->name);
-			if (IS_ERR(tsk)) {
-				err = PTR_ERR(tsk);
-				pr_err("[%s] Thread spawn failed: %d!\n", engine->name, err);
+			worker = kthread_create_worker(0, "igt/%s",
+						       other->name);
+			if (IS_ERR(worker)) {
+				err = PTR_ERR(worker);
+				pr_err("[%s] Worker create failed: %d!\n",
+				       engine->name, err);
 				goto unwind;
 			}
 
-			threads[tmp].task = tsk;
-			get_task_struct(tsk);
-		}
+			threads[tmp].worker = worker;
 
-		yield(); /* start all threads before we begin */
+			kthread_init_work(&threads[tmp].work, active_engine);
+			kthread_queue_work(threads[tmp].worker,
+					   &threads[tmp].work);
+		}
 
 		st_engine_heartbeat_disable_no_pm(engine);
 		GEM_BUG_ON(test_and_set_bit(I915_RESET_ENGINE + id,
@@ -1197,17 +1188,20 @@ unwind:
 		for_each_engine(other, gt, tmp) {
 			int ret;
 
-			if (!threads[tmp].task)
+			if (!threads[tmp].worker)
 				continue;
 
-			ret = kthread_stop(threads[tmp].task);
+			WRITE_ONCE(threads[tmp].stop, true);
+			kthread_flush_work(&threads[tmp].work);
+			ret = READ_ONCE(threads[tmp].result);
 			if (ret) {
 				pr_err("kthread for other engine %s failed, err=%d\n",
 				       other->name, ret);
 				if (!err)
 					err = ret;
 			}
-			put_task_struct(threads[tmp].task);
+
+			kthread_destroy_worker(threads[tmp].worker);
 
 			/* GuC based resets are not logged per engine */
 			if (!using_guc) {
@@ -1510,18 +1504,9 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 		}
 	}
 
-	i915_vma_lock(arg.vma);
-	err = i915_request_await_object(rq, arg.vma->obj,
-					flags & EXEC_OBJECT_WRITE);
-	if (err == 0) {
-		err = i915_vma_move_to_active(arg.vma, rq, flags);
-		if (err)
-			pr_err("[%s] Move to active failed: %d!\n", engine->name, err);
-	} else {
-		pr_err("[%s] Request await failed: %d!\n", engine->name, err);
-	}
-
-	i915_vma_unlock(arg.vma);
+	err = igt_vma_move_to_active_unlocked(arg.vma, rq, flags);
+	if (err)
+		pr_err("[%s] Move to active failed: %d!\n", engine->name, err);
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_vma_unpin_fence(arg.vma);

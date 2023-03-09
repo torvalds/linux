@@ -36,11 +36,10 @@
 
 #include <drm/ttm/ttm_device.h>
 
-#include "display/intel_display.h"
+#include "display/intel_display_limits.h"
 #include "display/intel_display_core.h"
 
 #include "gem/i915_gem_context_types.h"
-#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_shrinker.h"
 #include "gem/i915_gem_stolen.h"
 
@@ -49,6 +48,8 @@
 #include "gt/intel_region_lmem.h"
 #include "gt/intel_workarounds.h"
 #include "gt/uc/intel_uc.h"
+
+#include "soc/intel_pch.h"
 
 #include "i915_drm_client.h"
 #include "i915_gem.h"
@@ -59,35 +60,46 @@
 #include "i915_utils.h"
 #include "intel_device_info.h"
 #include "intel_memory_region.h"
-#include "intel_pch.h"
 #include "intel_runtime_pm.h"
 #include "intel_step.h"
 #include "intel_uncore.h"
-#include "intel_wopcm.h"
 
 struct drm_i915_clock_gating_funcs;
-struct drm_i915_gem_object;
-struct drm_i915_private;
-struct intel_connector;
-struct intel_dp;
-struct intel_encoder;
-struct intel_limit;
-struct intel_overlay_error_state;
 struct vlv_s0ix_state;
-
-/* Threshold == 5 for long IRQs, 50 for short */
-#define HPD_STORM_DEFAULT_THRESHOLD 50
-
-#define I915_GEM_GPU_DOMAINS \
-	(I915_GEM_DOMAIN_RENDER | \
-	 I915_GEM_DOMAIN_SAMPLER | \
-	 I915_GEM_DOMAIN_COMMAND | \
-	 I915_GEM_DOMAIN_INSTRUCTION | \
-	 I915_GEM_DOMAIN_VERTEX)
-
-#define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
+struct intel_pxp;
 
 #define GEM_QUIRK_PIN_SWIZZLED_PAGES	BIT(0)
+
+/* Data Stolen Memory (DSM) aka "i915 stolen memory" */
+struct i915_dsm {
+	/*
+	 * The start and end of DSM which we can optionally use to create GEM
+	 * objects backed by stolen memory.
+	 *
+	 * Note that usable_size tells us exactly how much of this we are
+	 * actually allowed to use, given that some portion of it is in fact
+	 * reserved for use by hardware functions.
+	 */
+	struct resource stolen;
+
+	/*
+	 * Reserved portion of DSM.
+	 */
+	struct resource reserved;
+
+	/*
+	 * Total size minus reserved ranges.
+	 *
+	 * DSM is segmented in hardware with different portions offlimits to
+	 * certain functions.
+	 *
+	 * The drm_mm is initialised to the total accessible range, as found
+	 * from the PCI config. On Broadwell+, this is further restricted to
+	 * avoid the first page! The upper end of DSM is reserved for hardware
+	 * functions and similarly removed from the accessible range.
+	 */
+	resource_size_t usable_size;
+};
 
 struct i915_suspend_saved_registers {
 	u32 saveDSPARB;
@@ -166,19 +178,6 @@ struct i915_gem_mm {
 	u32 shrink_count;
 };
 
-#define I915_IDLE_ENGINES_TIMEOUT (200) /* in ms */
-
-unsigned long i915_fence_context_timeout(const struct drm_i915_private *i915,
-					 u64 context);
-
-static inline unsigned long
-i915_fence_timeout(const struct drm_i915_private *i915)
-{
-	return i915_fence_context_timeout(i915, U64_MAX);
-}
-
-#define HAS_HW_SAGV_WM(i915) (DISPLAY_VER(i915) >= 13 && !IS_DGFX(i915))
-
 struct i915_virtual_gpu {
 	struct mutex lock; /* serialises sending of g2v_notify command pkts */
 	bool active;
@@ -208,29 +207,7 @@ struct drm_i915_private {
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
 	struct intel_driver_caps caps;
 
-	/**
-	 * Data Stolen Memory - aka "i915 stolen memory" gives us the start and
-	 * end of stolen which we can optionally use to create GEM objects
-	 * backed by stolen memory. Note that stolen_usable_size tells us
-	 * exactly how much of this we are actually allowed to use, given that
-	 * some portion of it is in fact reserved for use by hardware functions.
-	 */
-	struct resource dsm;
-	/**
-	 * Reseved portion of Data Stolen Memory
-	 */
-	struct resource dsm_reserved;
-
-	/*
-	 * Stolen memory is segmented in hardware with different portions
-	 * offlimits to certain functions.
-	 *
-	 * The drm_mm is initialised to the total accessible range, as found
-	 * from the PCI config. On Broadwell+, this is further restricted to
-	 * avoid the first page! The upper end of stolen memory is reserved for
-	 * hardware functions and similarly removed from the accessible range.
-	 */
-	resource_size_t stolen_usable_size;	/* Total size minus reserved ranges */
+	struct i915_dsm dsm;
 
 	struct intel_uncore uncore;
 	struct intel_uncore_mmio_debug mmio_debug;
@@ -239,14 +216,14 @@ struct drm_i915_private {
 
 	struct intel_gvt *gvt;
 
-	struct intel_wopcm wopcm;
-
-	struct pci_dev *bridge_dev;
+	struct {
+		struct pci_dev *pdev;
+		struct resource mch_res;
+		bool mchbar_need_disable;
+	} gmch;
 
 	struct rb_root uabi_engines;
 	unsigned int engine_uabi_class_count[I915_LAST_UABI_ENGINE_CLASS + 1];
-
-	struct resource mch_res;
 
 	/* protects the irq masks */
 	spinlock_t irq_lock;
@@ -291,26 +268,9 @@ struct drm_i915_private {
 
 	unsigned long gem_quirks;
 
-	struct drm_atomic_state *modeset_restore_state;
-	struct drm_modeset_acquire_ctx reset_ctx;
-
 	struct i915_gem_mm mm;
 
-	/* Kernel Modesetting */
-
-	struct list_head global_obj_list;
-
-	bool mchbar_need_disable;
-
 	struct intel_l3_parity l3_parity;
-
-	/*
-	 * HTI (aka HDPORT) state read during initial hw readout.  Most
-	 * platforms don't have HTI, so this will just stay 0.  Those that do
-	 * will use this later to figure out which PLLs and PHYs are unavailable
-	 * for driver usage.
-	 */
-	u32 hti_state;
 
 	/*
 	 * edram size in MB.
@@ -319,14 +279,6 @@ struct drm_i915_private {
 	u32 edram_size_mb;
 
 	struct i915_gpu_error gpu_error;
-
-	/*
-	 * Shadows for CHV DPLL_MD regs to keep the state
-	 * checker somewhat working in the presence hardware
-	 * crappiness (can't read out DPLL_MD for pipes B & C).
-	 */
-	u32 chv_dpll_md[I915_MAX_PIPES];
-	u32 bxt_phy_grc;
 
 	u32 suspend_count;
 	struct i915_suspend_saved_registers regfile;
@@ -352,6 +304,8 @@ struct drm_i915_private {
 	struct intel_runtime_pm runtime_pm;
 
 	struct i915_perf perf;
+
+	struct i915_hwmon *hwmon;
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct intel_gt gt0;
@@ -384,18 +338,12 @@ struct drm_i915_private {
 		struct file *mmap_singleton;
 	} gem;
 
-	u8 pch_ssc_use;
+	struct intel_pxp *pxp;
 
 	/* For i915gm/i945gm vblank irq workaround */
 	u8 vblank_enabled;
 
 	bool irq_enabled;
-
-	/*
-	 * DG2: Mask of PHYs that were not calibrated by the firmware
-	 * and should not be used.
-	 */
-	u8 snps_phy_failed_calibration;
 
 	struct i915_pmu pmu;
 
@@ -484,8 +432,6 @@ static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
 	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
 
 #define INTEL_REVID(dev_priv)	(to_pci_dev((dev_priv)->drm.dev)->revision)
-
-#define HAS_DSB(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dsb)
 
 #define INTEL_DISPLAY_STEP(__i915) (RUNTIME_INFO(__i915)->step.display_step)
 #define INTEL_GRAPHICS_STEP(__i915) (RUNTIME_INFO(__i915)->step.graphics_step)
@@ -742,6 +688,18 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_XEHPSDV_GRAPHICS_STEP(__i915, since, until) \
 	(IS_XEHPSDV(__i915) && IS_GRAPHICS_STEP(__i915, since, until))
 
+#define IS_MTL_GRAPHICS_STEP(__i915, variant, since, until) \
+	(IS_SUBPLATFORM(__i915, INTEL_METEORLAKE, INTEL_SUBPLATFORM_##variant) && \
+	 IS_GRAPHICS_STEP(__i915, since, until))
+
+#define IS_MTL_DISPLAY_STEP(__i915, since, until) \
+	(IS_METEORLAKE(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
+
+#define IS_MTL_MEDIA_STEP(__i915, since, until) \
+	(IS_METEORLAKE(__i915) && \
+	 IS_MEDIA_STEP(__i915, since, until))
+
 /*
  * DG2 hardware steppings are a bit unusual.  The hardware design was forked to
  * create three variants (G10, G11, and G12) which each have distinct
@@ -780,12 +738,15 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
 #define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
 
-#define ENGINE_INSTANCES_MASK(gt, first, count) ({		\
+#define __ENGINE_INSTANCES_MASK(mask, first, count) ({			\
 	unsigned int first__ = (first);					\
 	unsigned int count__ = (count);					\
-	((gt)->info.engine_mask &						\
-	 GENMASK(first__ + count__ - 1, first__)) >> first__;		\
+	((mask) & GENMASK(first__ + count__ - 1, first__)) >> first__;	\
 })
+
+#define ENGINE_INSTANCES_MASK(gt, first, count) \
+	__ENGINE_INSTANCES_MASK((gt)->info.engine_mask, first, count)
+
 #define RCS_MASK(gt) \
 	ENGINE_INSTANCES_MASK(gt, RCS0, I915_MAX_RCS)
 #define BCS_MASK(gt) \
@@ -871,6 +832,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_DOUBLE_BUFFERED_M_N(dev_priv)	(DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 
 #define HAS_CDCLK_CRAWL(dev_priv)	 (INTEL_INFO(dev_priv)->display.has_cdclk_crawl)
+#define HAS_CDCLK_SQUASH(dev_priv)	 (INTEL_INFO(dev_priv)->display.has_cdclk_squash)
 #define HAS_DDI(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev_priv) (INTEL_INFO(dev_priv)->display.has_fpga_dbg)
 #define HAS_PSR(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_psr)
@@ -886,6 +848,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_RPS(dev_priv)	(INTEL_INFO(dev_priv)->has_rps)
 
 #define HAS_DMC(dev_priv)	(RUNTIME_INFO(dev_priv)->has_dmc)
+#define HAS_DSB(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dsb)
+#define HAS_DSC(__i915)		(RUNTIME_INFO(__i915)->has_dsc)
+#define HAS_HW_SAGV_WM(i915) (DISPLAY_VER(i915) >= 13 && !IS_DGFX(i915))
 
 #define HAS_HECI_PXP(dev_priv) \
 	(INTEL_INFO(dev_priv)->has_heci_pxp)
@@ -900,18 +865,16 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_RUNTIME_PM(dev_priv) (INTEL_INFO(dev_priv)->has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) (INTEL_INFO(dev_priv)->has_64bit_reloc)
 
+#define HAS_OA_BPC_REPORTING(dev_priv) \
+	(INTEL_INFO(dev_priv)->has_oa_bpc_reporting)
+#define HAS_OA_SLICE_CONTRIB_LIMITS(dev_priv) \
+	(INTEL_INFO(dev_priv)->has_oa_slice_contrib_limits)
+
 /*
  * Set this flag, when platform requires 64K GTT page sizes or larger for
  * device local memory access.
  */
 #define HAS_64K_PAGES(dev_priv) (INTEL_INFO(dev_priv)->has_64k_pages)
-
-/*
- * Set this flag when platform doesn't allow both 64k pages and 4k pages in
- * the same PT. this flag means we need to support compact PT layout for the
- * ppGTT when using the 64K GTT pages.
- */
-#define NEEDS_COMPACT_PT(dev_priv) (INTEL_INFO(dev_priv)->needs_compact_pt)
 
 #define HAS_IPC(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ipc)
 
@@ -932,11 +895,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_GLOBAL_MOCS_REGISTERS(dev_priv)	(INTEL_INFO(dev_priv)->has_global_mocs)
 
-#define HAS_PXP(dev_priv)  ((IS_ENABLED(CONFIG_DRM_I915_PXP) && \
-			    INTEL_INFO(dev_priv)->has_pxp) && \
-			    VDBOX_MASK(to_gt(dev_priv)))
-
 #define HAS_GMCH(dev_priv) (INTEL_INFO(dev_priv)->display.has_gmch)
+
+#define HAS_GMD_ID(i915)	(INTEL_INFO(i915)->has_gmd_id)
 
 #define HAS_LSPCON(dev_priv) (IS_DISPLAY_VER(dev_priv, 9, 10))
 
@@ -946,9 +907,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_L3_DPF(dev_priv) (INTEL_INFO(dev_priv)->has_l3_dpf)
 #define NUM_L3_SLICES(dev_priv) (IS_HSW_GT3(dev_priv) ? \
 				 2 : HAS_L3_DPF(dev_priv))
-
-#define GT_FREQUENCY_MULTIPLIER 50
-#define GEN9_FREQ_SCALER 3
 
 #define INTEL_NUM_PIPES(dev_priv) (hweight8(RUNTIME_INFO(dev_priv)->pipe_mask))
 
@@ -976,23 +934,14 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_ONE_EU_PER_FUSE_BIT(i915)	(INTEL_INFO(i915)->has_one_eu_per_fuse_bit)
 
+#define HAS_LMEMBAR_SMEM_STOLEN(i915) (!HAS_LMEM(i915) && \
+				       GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
+
 /* intel_device_info.c */
 static inline struct intel_device_info *
 mkwrite_device_info(struct drm_i915_private *dev_priv)
 {
 	return (struct intel_device_info *)INTEL_INFO(dev_priv);
-}
-
-static inline enum i915_map_type
-i915_coherent_map_type(struct drm_i915_private *i915,
-		       struct drm_i915_gem_object *obj, bool always_coherent)
-{
-	if (i915_gem_object_is_lmem(obj))
-		return I915_MAP_WC;
-	if (HAS_LLC(i915) || always_coherent)
-		return I915_MAP_WB;
-	else
-		return I915_MAP_WC;
 }
 
 #endif

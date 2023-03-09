@@ -119,7 +119,6 @@ err:
 static s32 tps6507x_adc_standby(struct tps6507x_ts *tsc)
 {
 	s32 ret;
-	s32 loops = 0;
 	u8 val;
 
 	ret = tps6507x_write_u8(tsc,  TPS6507X_REG_ADCONFIG,
@@ -141,7 +140,6 @@ static s32 tps6507x_adc_standby(struct tps6507x_ts *tsc)
 		ret = tps6507x_read_u8(tsc, TPS6507X_REG_INT, &val);
 		if (ret)
 			return ret;
-		loops++;
 	}
 
 	return ret;

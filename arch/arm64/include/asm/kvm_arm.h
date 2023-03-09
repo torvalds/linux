@@ -135,7 +135,7 @@
  * 40 bits wide (T0SZ = 24).  Systems with a PARange smaller than 40 bits are
  * not known to exist and will break with this configuration.
  *
- * The VTCR_EL2 is configured per VM and is initialised in kvm_arm_setup_stage2().
+ * The VTCR_EL2 is configured per VM and is initialised in kvm_init_stage2_mmu.
  *
  * Note that when using 4K pages, we concatenate two first level page tables
  * together. With 16K pages, we concatenate 16 first level page tables.
@@ -319,30 +319,19 @@
 				 BIT(18) |		\
 				 GENMASK(16, 15))
 
-/* For compatibility with fault code shared with 32-bit */
-#define FSC_FAULT	ESR_ELx_FSC_FAULT
-#define FSC_ACCESS	ESR_ELx_FSC_ACCESS
-#define FSC_PERM	ESR_ELx_FSC_PERM
-#define FSC_SEA		ESR_ELx_FSC_EXTABT
-#define FSC_SEA_TTW0	(0x14)
-#define FSC_SEA_TTW1	(0x15)
-#define FSC_SEA_TTW2	(0x16)
-#define FSC_SEA_TTW3	(0x17)
-#define FSC_SECC	(0x18)
-#define FSC_SECC_TTW0	(0x1c)
-#define FSC_SECC_TTW1	(0x1d)
-#define FSC_SECC_TTW2	(0x1e)
-#define FSC_SECC_TTW3	(0x1f)
-
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))
 /*
  * We have
  *	PAR	[PA_Shift - 1	: 12] = PA	[PA_Shift - 1 : 12]
  *	HPFAR	[PA_Shift - 9	: 4]  = FIPA	[PA_Shift - 1 : 12]
+ *
+ * Always assume 52 bit PA since at this point, we don't know how many PA bits
+ * the page table has been set up for. This should be safe since unused address
+ * bits in PAR are res0.
  */
 #define PAR_TO_HPFAR(par)		\
-	(((par) & GENMASK_ULL(PHYS_MASK_SHIFT - 1, 12)) >> 8)
+	(((par) & GENMASK_ULL(52 - 1, 12)) >> 8)
 
 #define ECN(x) { ESR_ELx_EC_##x, #x }
 

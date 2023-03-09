@@ -8,70 +8,90 @@
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
 
+#include <linux/bitfield.h>
+
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "udl_drv.h"
-
-#define UDL_COLOR_DEPTH_16BPP	0
+#include "udl_proto.h"
 
 /*
- * All DisplayLink bulk operations start with 0xAF, followed by specific code
- * All operations are written to buffers which then later get sent to device
+ * All DisplayLink bulk operations start with 0xaf (UDL_MSG_BULK), followed by
+ * a specific command code. All operations are written to a command buffer, which
+ * the driver sends to the device.
  */
 static char *udl_set_register(char *buf, u8 reg, u8 val)
 {
-	*buf++ = 0xAF;
-	*buf++ = 0x20;
+	*buf++ = UDL_MSG_BULK;
+	*buf++ = UDL_CMD_WRITEREG;
 	*buf++ = reg;
 	*buf++ = val;
+
 	return buf;
 }
 
 static char *udl_vidreg_lock(char *buf)
 {
-	return udl_set_register(buf, 0xFF, 0x00);
+	return udl_set_register(buf, UDL_REG_VIDREG, UDL_VIDREG_LOCK);
 }
 
 static char *udl_vidreg_unlock(char *buf)
 {
-	return udl_set_register(buf, 0xFF, 0xFF);
+	return udl_set_register(buf, UDL_REG_VIDREG, UDL_VIDREG_UNLOCK);
 }
 
 static char *udl_set_blank_mode(char *buf, u8 mode)
 {
-	return udl_set_register(buf, UDL_REG_BLANK_MODE, mode);
+	return udl_set_register(buf, UDL_REG_BLANKMODE, mode);
 }
 
 static char *udl_set_color_depth(char *buf, u8 selection)
 {
-	return udl_set_register(buf, 0x00, selection);
+	return udl_set_register(buf, UDL_REG_COLORDEPTH, selection);
 }
 
-static char *udl_set_base16bpp(char *wrptr, u32 base)
+static char *udl_set_base16bpp(char *buf, u32 base)
 {
-	/* the base pointer is 16 bits wide, 0x20 is hi byte. */
-	wrptr = udl_set_register(wrptr, 0x20, base >> 16);
-	wrptr = udl_set_register(wrptr, 0x21, base >> 8);
-	return udl_set_register(wrptr, 0x22, base);
+	/* the base pointer is 24 bits wide, 0x20 is hi byte. */
+	u8 reg20 = FIELD_GET(UDL_BASE_ADDR2_MASK, base);
+	u8 reg21 = FIELD_GET(UDL_BASE_ADDR1_MASK, base);
+	u8 reg22 = FIELD_GET(UDL_BASE_ADDR0_MASK, base);
+
+	buf = udl_set_register(buf, UDL_REG_BASE16BPP_ADDR2, reg20);
+	buf = udl_set_register(buf, UDL_REG_BASE16BPP_ADDR1, reg21);
+	buf = udl_set_register(buf, UDL_REG_BASE16BPP_ADDR0, reg22);
+
+	return buf;
 }
 
 /*
  * DisplayLink HW has separate 16bpp and 8bpp framebuffers.
  * In 24bpp modes, the low 323 RGB bits go in the 8bpp framebuffer
  */
-static char *udl_set_base8bpp(char *wrptr, u32 base)
+static char *udl_set_base8bpp(char *buf, u32 base)
 {
-	wrptr = udl_set_register(wrptr, 0x26, base >> 16);
-	wrptr = udl_set_register(wrptr, 0x27, base >> 8);
-	return udl_set_register(wrptr, 0x28, base);
+	/* the base pointer is 24 bits wide, 0x26 is hi byte. */
+	u8 reg26 = FIELD_GET(UDL_BASE_ADDR2_MASK, base);
+	u8 reg27 = FIELD_GET(UDL_BASE_ADDR1_MASK, base);
+	u8 reg28 = FIELD_GET(UDL_BASE_ADDR0_MASK, base);
+
+	buf = udl_set_register(buf, UDL_REG_BASE8BPP_ADDR2, reg26);
+	buf = udl_set_register(buf, UDL_REG_BASE8BPP_ADDR1, reg27);
+	buf = udl_set_register(buf, UDL_REG_BASE8BPP_ADDR0, reg28);
+
+	return buf;
 }
 
 static char *udl_set_register_16(char *wrptr, u8 reg, u16 value)
@@ -122,84 +142,46 @@ static char *udl_set_register_lfsr16(char *wrptr, u8 reg, u16 value)
 }
 
 /*
- * This takes a standard fbdev screeninfo struct and all of its monitor mode
- * details and converts them into the DisplayLink equivalent register commands.
-  ERR(vreg(dev,               0x00, (color_depth == 16) ? 0 : 1));
-  ERR(vreg_lfsr16(dev,        0x01, xDisplayStart));
-  ERR(vreg_lfsr16(dev,        0x03, xDisplayEnd));
-  ERR(vreg_lfsr16(dev,        0x05, yDisplayStart));
-  ERR(vreg_lfsr16(dev,        0x07, yDisplayEnd));
-  ERR(vreg_lfsr16(dev,        0x09, xEndCount));
-  ERR(vreg_lfsr16(dev,        0x0B, hSyncStart));
-  ERR(vreg_lfsr16(dev,        0x0D, hSyncEnd));
-  ERR(vreg_big_endian(dev,    0x0F, hPixels));
-  ERR(vreg_lfsr16(dev,        0x11, yEndCount));
-  ERR(vreg_lfsr16(dev,        0x13, vSyncStart));
-  ERR(vreg_lfsr16(dev,        0x15, vSyncEnd));
-  ERR(vreg_big_endian(dev,    0x17, vPixels));
-  ERR(vreg_little_endian(dev, 0x1B, pixelClock5KHz));
-
-  ERR(vreg(dev,               0x1F, 0));
-
-  ERR(vbuf(dev, WRITE_VIDREG_UNLOCK, DSIZEOF(WRITE_VIDREG_UNLOCK)));
+ * Takes a DRM display mode and converts it into the DisplayLink
+ * equivalent register commands.
  */
-static char *udl_set_vid_cmds(char *wrptr, struct drm_display_mode *mode)
+static char *udl_set_display_mode(char *buf, struct drm_display_mode *mode)
 {
-	u16 xds, yds;
-	u16 xde, yde;
-	u16 yec;
+	u16 reg01 = mode->crtc_htotal - mode->crtc_hsync_start;
+	u16 reg03 = reg01 + mode->crtc_hdisplay;
+	u16 reg05 = mode->crtc_vtotal - mode->crtc_vsync_start;
+	u16 reg07 = reg05 + mode->crtc_vdisplay;
+	u16 reg09 = mode->crtc_htotal - 1;
+	u16 reg0b = 1; /* libdlo hardcodes hsync start to 1 */
+	u16 reg0d = mode->crtc_hsync_end - mode->crtc_hsync_start + 1;
+	u16 reg0f = mode->hdisplay;
+	u16 reg11 = mode->crtc_vtotal;
+	u16 reg13 = 0; /* libdlo hardcodes vsync start to 0 */
+	u16 reg15 = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	u16 reg17 = mode->crtc_vdisplay;
+	u16 reg1b = mode->clock / 5;
 
-	/* x display start */
-	xds = mode->crtc_htotal - mode->crtc_hsync_start;
-	wrptr = udl_set_register_lfsr16(wrptr, 0x01, xds);
-	/* x display end */
-	xde = xds + mode->crtc_hdisplay;
-	wrptr = udl_set_register_lfsr16(wrptr, 0x03, xde);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_XDISPLAYSTART, reg01);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_XDISPLAYEND, reg03);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_YDISPLAYSTART, reg05);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_YDISPLAYEND, reg07);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_XENDCOUNT, reg09);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_HSYNCSTART, reg0b);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_HSYNCEND, reg0d);
+	buf = udl_set_register_16(buf, UDL_REG_HPIXELS, reg0f);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_YENDCOUNT, reg11);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_VSYNCSTART, reg13);
+	buf = udl_set_register_lfsr16(buf, UDL_REG_VSYNCEND, reg15);
+	buf = udl_set_register_16(buf, UDL_REG_VPIXELS, reg17);
+	buf = udl_set_register_16be(buf, UDL_REG_PIXELCLOCK5KHZ, reg1b);
 
-	/* y display start */
-	yds = mode->crtc_vtotal - mode->crtc_vsync_start;
-	wrptr = udl_set_register_lfsr16(wrptr, 0x05, yds);
-	/* y display end */
-	yde = yds + mode->crtc_vdisplay;
-	wrptr = udl_set_register_lfsr16(wrptr, 0x07, yde);
-
-	/* x end count is active + blanking - 1 */
-	wrptr = udl_set_register_lfsr16(wrptr, 0x09,
-					mode->crtc_htotal - 1);
-
-	/* libdlo hardcodes hsync start to 1 */
-	wrptr = udl_set_register_lfsr16(wrptr, 0x0B, 1);
-
-	/* hsync end is width of sync pulse + 1 */
-	wrptr = udl_set_register_lfsr16(wrptr, 0x0D,
-					mode->crtc_hsync_end - mode->crtc_hsync_start + 1);
-
-	/* hpixels is active pixels */
-	wrptr = udl_set_register_16(wrptr, 0x0F, mode->hdisplay);
-
-	/* yendcount is vertical active + vertical blanking */
-	yec = mode->crtc_vtotal;
-	wrptr = udl_set_register_lfsr16(wrptr, 0x11, yec);
-
-	/* libdlo hardcodes vsync start to 0 */
-	wrptr = udl_set_register_lfsr16(wrptr, 0x13, 0);
-
-	/* vsync end is width of vsync pulse */
-	wrptr = udl_set_register_lfsr16(wrptr, 0x15, mode->crtc_vsync_end - mode->crtc_vsync_start);
-
-	/* vpixels is active pixels */
-	wrptr = udl_set_register_16(wrptr, 0x17, mode->crtc_vdisplay);
-
-	wrptr = udl_set_register_16be(wrptr, 0x1B,
-				      mode->clock / 5);
-
-	return wrptr;
+	return buf;
 }
 
 static char *udl_dummy_render(char *wrptr)
 {
-	*wrptr++ = 0xAF;
-	*wrptr++ = 0x6A; /* copy */
+	*wrptr++ = UDL_MSG_BULK;
+	*wrptr++ = UDL_CMD_WRITECOPY16;
 	*wrptr++ = 0x00; /* from addr */
 	*wrptr++ = 0x00;
 	*wrptr++ = 0x00;
@@ -208,31 +190,6 @@ static char *udl_dummy_render(char *wrptr)
 	*wrptr++ = 0x00;
 	*wrptr++ = 0x00;
 	return wrptr;
-}
-
-static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct udl_device *udl = to_udl(dev);
-	struct urb *urb;
-	char *buf;
-	int retval;
-
-	if (udl->mode_buf_len == 0) {
-		DRM_ERROR("No mode set\n");
-		return -EINVAL;
-	}
-
-	urb = udl_get_urb(dev);
-	if (!urb)
-		return -ENOMEM;
-
-	buf = (char *)urb->transfer_buffer;
-
-	memcpy(buf, udl->mode_buf, udl->mode_buf_len);
-	retval = udl_submit_urb(dev, urb, udl->mode_buf_len);
-	DRM_DEBUG("write mode info %d\n", udl->mode_buf_len);
-	return retval;
 }
 
 static long udl_log_cpp(unsigned int cpp)
@@ -258,15 +215,9 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 		return ret;
 	log_bpp = ret;
 
-	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-	if (ret)
-		return ret;
-
 	urb = udl_get_urb(dev);
-	if (!urb) {
-		ret = -ENOMEM;
-		goto out_drm_gem_fb_end_cpu_access;
-	}
+	if (!urb)
+		return -ENOMEM;
 	cmd = urb->transfer_buffer;
 
 	for (i = clip->y1; i < clip->y2; i++) {
@@ -278,145 +229,339 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 				       &cmd, byte_offset, dev_byte_offset,
 				       byte_width);
 		if (ret)
-			goto out_drm_gem_fb_end_cpu_access;
+			return ret;
 	}
 
 	if (cmd > (char *)urb->transfer_buffer) {
 		/* Send partial buffer remaining before exiting */
 		int len;
 		if (cmd < (char *)urb->transfer_buffer + urb->transfer_buffer_length)
-			*cmd++ = 0xAF;
+			*cmd++ = UDL_MSG_BULK;
 		len = cmd - (char *)urb->transfer_buffer;
 		ret = udl_submit_urb(dev, urb, len);
 	} else {
 		udl_urb_completion(urb);
 	}
 
-	ret = 0;
-
-out_drm_gem_fb_end_cpu_access:
-	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
-	return ret;
+	return 0;
 }
 
 /*
- * Simple display pipeline
+ * Primary plane
  */
 
-static const uint32_t udl_simple_display_pipe_formats[] = {
+static const uint32_t udl_primary_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 };
 
-static enum drm_mode_status
-udl_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
-				   const struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
+static const uint64_t udl_primary_plane_fmtmods[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
 
-static void
-udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
-			       struct drm_crtc_state *crtc_state,
-			       struct drm_plane_state *plane_state)
+static void udl_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						   struct drm_atomic_state *state)
 {
-	struct drm_crtc *crtc = &pipe->crtc;
-	struct drm_device *dev = crtc->dev;
-	struct drm_framebuffer *fb = plane_state->fb;
-	struct udl_device *udl = to_udl(dev);
-	struct drm_display_mode *mode = &crtc_state->mode;
+	struct drm_device *dev = plane->dev;
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_rect clip = DRM_RECT_INIT(0, 0, fb->width, fb->height);
-	char *buf;
-	char *wrptr;
-	int color_depth = UDL_COLOR_DEPTH_16BPP;
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect damage;
+	int ret, idx;
 
-	buf = (char *)udl->mode_buf;
+	if (!fb)
+		return; /* no framebuffer; plane is disabled */
 
-	/* This first section has to do with setting the base address on the
-	 * controller associated with the display. There are 2 base
-	 * pointers, currently, we only use the 16 bpp segment.
-	 */
-	wrptr = udl_vidreg_lock(buf);
-	wrptr = udl_set_color_depth(wrptr, color_depth);
-	/* set base for 16bpp segment to 0 */
-	wrptr = udl_set_base16bpp(wrptr, 0);
-	/* set base for 8bpp segment to end of fb */
-	wrptr = udl_set_base8bpp(wrptr, 2 * mode->vdisplay * mode->hdisplay);
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		return;
 
-	wrptr = udl_set_vid_cmds(wrptr, mode);
-	wrptr = udl_set_blank_mode(wrptr, UDL_BLANK_MODE_ON);
-	wrptr = udl_vidreg_unlock(wrptr);
+	if (!drm_dev_enter(dev, &idx))
+		goto out_drm_gem_fb_end_cpu_access;
 
-	wrptr = udl_dummy_render(wrptr);
+	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
+		udl_handle_damage(fb, &shadow_plane_state->data[0], &damage);
+	}
 
-	udl->mode_buf_len = wrptr - buf;
+	drm_dev_exit(idx);
 
-	udl_handle_damage(fb, &shadow_plane_state->data[0], &clip);
-
-	/* enable display */
-	udl_crtc_write_mode_to_hw(crtc);
+out_drm_gem_fb_end_cpu_access:
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 }
 
-static void
-udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
+static const struct drm_plane_helper_funcs udl_primary_plane_helper_funcs = {
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = drm_plane_helper_atomic_check,
+	.atomic_update = udl_primary_plane_helper_atomic_update,
+};
+
+static const struct drm_plane_funcs udl_primary_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	DRM_GEM_SHADOW_PLANE_FUNCS,
+};
+
+/*
+ * CRTC
+ */
+
+static int udl_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+	if (!new_crtc_state->enable)
+		return 0;
+
+	return drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
+}
+
+static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
 	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_display_mode *mode = &crtc_state->mode;
 	struct urb *urb;
 	char *buf;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
 	urb = udl_get_urb(dev);
 	if (!urb)
-		return;
+		goto out;
 
 	buf = (char *)urb->transfer_buffer;
 	buf = udl_vidreg_lock(buf);
-	buf = udl_set_blank_mode(buf, UDL_BLANK_MODE_POWERDOWN);
+	buf = udl_set_color_depth(buf, UDL_COLORDEPTH_16BPP);
+	/* set base for 16bpp segment to 0 */
+	buf = udl_set_base16bpp(buf, 0);
+	/* set base for 8bpp segment to end of fb */
+	buf = udl_set_base8bpp(buf, 2 * mode->vdisplay * mode->hdisplay);
+	buf = udl_set_display_mode(buf, mode);
+	buf = udl_set_blank_mode(buf, UDL_BLANKMODE_ON);
 	buf = udl_vidreg_unlock(buf);
 	buf = udl_dummy_render(buf);
 
 	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
+
+out:
+	drm_dev_exit(idx);
 }
 
-static void
-udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
-			       struct drm_plane_state *old_plane_state)
+static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_rect rect;
+	struct drm_device *dev = crtc->dev;
+	struct urb *urb;
+	char *buf;
+	int idx;
 
-	if (!fb)
+	if (!drm_dev_enter(dev, &idx))
 		return;
 
-	if (drm_atomic_helper_damage_merged(old_plane_state, state, &rect))
-		udl_handle_damage(fb, &shadow_plane_state->data[0], &rect);
+	urb = udl_get_urb(dev);
+	if (!urb)
+		goto out;
+
+	buf = (char *)urb->transfer_buffer;
+	buf = udl_vidreg_lock(buf);
+	buf = udl_set_blank_mode(buf, UDL_BLANKMODE_POWERDOWN);
+	buf = udl_vidreg_unlock(buf);
+	buf = udl_dummy_render(buf);
+
+	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
+
+out:
+	drm_dev_exit(idx);
 }
 
-static const struct drm_simple_display_pipe_funcs udl_simple_display_pipe_funcs = {
-	.mode_valid = udl_simple_display_pipe_mode_valid,
-	.enable = udl_simple_display_pipe_enable,
-	.disable = udl_simple_display_pipe_disable,
-	.update = udl_simple_display_pipe_update,
-	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
+static const struct drm_crtc_helper_funcs udl_crtc_helper_funcs = {
+	.atomic_check = udl_crtc_helper_atomic_check,
+	.atomic_enable = udl_crtc_helper_atomic_enable,
+	.atomic_disable = udl_crtc_helper_atomic_disable,
 };
+
+static const struct drm_crtc_funcs udl_crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
+/*
+ * Encoder
+ */
+
+static const struct drm_encoder_funcs udl_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+/*
+ * Connector
+ */
+
+static int udl_connector_helper_get_modes(struct drm_connector *connector)
+{
+	struct udl_connector *udl_connector = to_udl_connector(connector);
+
+	drm_connector_update_edid_property(connector, udl_connector->edid);
+	if (udl_connector->edid)
+		return drm_add_edid_modes(connector, udl_connector->edid);
+
+	return 0;
+}
+
+static const struct drm_connector_helper_funcs udl_connector_helper_funcs = {
+	.get_modes = udl_connector_helper_get_modes,
+};
+
+static int udl_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
+{
+	struct udl_device *udl = data;
+	struct drm_device *dev = &udl->drm;
+	struct usb_device *udev = udl_to_usb_device(udl);
+	u8 *read_buff;
+	int ret;
+	size_t i;
+
+	read_buff = kmalloc(2, GFP_KERNEL);
+	if (!read_buff)
+		return -ENOMEM;
+
+	for (i = 0; i < len; i++) {
+		int bval = (i + block * EDID_LENGTH) << 8;
+
+		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+				      0x02, (0x80 | (0x02 << 5)), bval,
+				      0xA1, read_buff, 2, USB_CTRL_GET_TIMEOUT);
+		if (ret < 0) {
+			drm_err(dev, "Read EDID byte %zu failed err %x\n", i, ret);
+			goto err_kfree;
+		} else if (ret < 1) {
+			ret = -EIO;
+			drm_err(dev, "Read EDID byte %zu failed\n", i);
+			goto err_kfree;
+		}
+
+		buf[i] = read_buff[1];
+	}
+
+	kfree(read_buff);
+
+	return 0;
+
+err_kfree:
+	kfree(read_buff);
+	return ret;
+}
+
+static enum drm_connector_status udl_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct drm_device *dev = connector->dev;
+	struct udl_device *udl = to_udl(dev);
+	struct udl_connector *udl_connector = to_udl_connector(connector);
+	enum drm_connector_status status = connector_status_disconnected;
+	int idx;
+
+	/* cleanup previous EDID */
+	kfree(udl_connector->edid);
+	udl_connector->edid = NULL;
+
+	if (!drm_dev_enter(dev, &idx))
+		return connector_status_disconnected;
+
+	udl_connector->edid = drm_do_get_edid(connector, udl_get_edid_block, udl);
+	if (udl_connector->edid)
+		status = connector_status_connected;
+
+	drm_dev_exit(idx);
+
+	return status;
+}
+
+static void udl_connector_destroy(struct drm_connector *connector)
+{
+	struct udl_connector *udl_connector = to_udl_connector(connector);
+
+	drm_connector_cleanup(connector);
+	kfree(udl_connector->edid);
+	kfree(udl_connector);
+}
+
+static const struct drm_connector_funcs udl_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.detect = udl_connector_detect,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = udl_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+struct drm_connector *udl_connector_init(struct drm_device *dev)
+{
+	struct udl_connector *udl_connector;
+	struct drm_connector *connector;
+	int ret;
+
+	udl_connector = kzalloc(sizeof(*udl_connector), GFP_KERNEL);
+	if (!udl_connector)
+		return ERR_PTR(-ENOMEM);
+
+	connector = &udl_connector->connector;
+	ret = drm_connector_init(dev, connector, &udl_connector_funcs, DRM_MODE_CONNECTOR_VGA);
+	if (ret)
+		goto err_kfree;
+
+	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
+
+	connector->polled = DRM_CONNECTOR_POLL_HPD |
+			    DRM_CONNECTOR_POLL_CONNECT |
+			    DRM_CONNECTOR_POLL_DISCONNECT;
+
+	return connector;
+
+err_kfree:
+	kfree(udl_connector);
+	return ERR_PTR(ret);
+}
 
 /*
  * Modesetting
  */
 
-static const struct drm_mode_config_funcs udl_mode_funcs = {
+static enum drm_mode_status udl_mode_config_mode_valid(struct drm_device *dev,
+						       const struct drm_display_mode *mode)
+{
+	struct udl_device *udl = to_udl(dev);
+
+	if (udl->sku_pixel_limit) {
+		if (mode->vdisplay * mode->hdisplay > udl->sku_pixel_limit)
+			return MODE_MEM;
+	}
+
+	return MODE_OK;
+}
+
+static const struct drm_mode_config_funcs udl_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = udl_mode_config_mode_valid,
 	.atomic_check  = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
 int udl_modeset_init(struct drm_device *dev)
 {
-	size_t format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
 	struct udl_device *udl = to_udl(dev);
+	struct drm_plane *primary_plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	int ret;
 
@@ -426,28 +571,42 @@ int udl_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.min_width = 640;
 	dev->mode_config.min_height = 480;
-
 	dev->mode_config.max_width = 2048;
 	dev->mode_config.max_height = 2048;
-
-	dev->mode_config.prefer_shadow = 0;
 	dev->mode_config.preferred_depth = 16;
+	dev->mode_config.funcs = &udl_mode_config_funcs;
 
-	dev->mode_config.funcs = &udl_mode_funcs;
+	primary_plane = &udl->primary_plane;
+	ret = drm_universal_plane_init(dev, primary_plane, 0,
+				       &udl_primary_plane_funcs,
+				       udl_primary_plane_formats,
+				       ARRAY_SIZE(udl_primary_plane_formats),
+				       udl_primary_plane_fmtmods,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(primary_plane, &udl_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary_plane);
+
+	crtc = &udl->crtc;
+	ret = drm_crtc_init_with_planes(dev, crtc, primary_plane, NULL,
+					&udl_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &udl_crtc_helper_funcs);
+
+	encoder = &udl->encoder;
+	ret = drm_encoder_init(dev, encoder, &udl_encoder_funcs, DRM_MODE_ENCODER_DAC, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	connector = udl_connector_init(dev);
 	if (IS_ERR(connector))
 		return PTR_ERR(connector);
-
-	format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
-
-	ret = drm_simple_display_pipe_init(dev, &udl->display_pipe,
-					   &udl_simple_display_pipe_funcs,
-					   udl_simple_display_pipe_formats,
-					   format_count, NULL, connector);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
-	drm_plane_enable_fb_damage_clips(&udl->display_pipe.plane);
 
 	drm_mode_config_reset(dev);
 

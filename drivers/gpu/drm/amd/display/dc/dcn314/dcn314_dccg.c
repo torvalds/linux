@@ -104,7 +104,7 @@ static void dccg314_set_pixel_rate_div(
 	}
 
 	dccg314_get_pixel_rate_div(dccg, otg_inst, &cur_k1, &cur_k2);
-	if (k1 == PIXEL_RATE_DIV_NA || k2 == PIXEL_RATE_DIV_NA || (k1 == cur_k1 && k2 == cur_k2))
+	if (k1 == cur_k1 && k2 == cur_k2)
 		return;
 
 	switch (otg_inst) {

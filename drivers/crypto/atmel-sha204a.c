@@ -91,13 +91,12 @@ static int atmel_sha204a_rng_read(struct hwrng *rng, void *data, size_t max,
 	return max;
 }
 
-static int atmel_sha204a_probe(struct i2c_client *client,
-			       const struct i2c_device_id *id)
+static int atmel_sha204a_probe(struct i2c_client *client)
 {
 	struct atmel_i2c_client_priv *i2c_priv;
 	int ret;
 
-	ret = atmel_i2c_probe(client, id);
+	ret = atmel_i2c_probe(client);
 	if (ret)
 		return ret;
 
@@ -107,7 +106,6 @@ static int atmel_sha204a_probe(struct i2c_client *client,
 
 	i2c_priv->hwrng.name = dev_name(&client->dev);
 	i2c_priv->hwrng.read = atmel_sha204a_rng_read;
-	i2c_priv->hwrng.quality = 1024;
 
 	ret = devm_hwrng_register(&client->dev, &i2c_priv->hwrng);
 	if (ret)
@@ -143,7 +141,7 @@ static const struct i2c_device_id atmel_sha204a_id[] = {
 MODULE_DEVICE_TABLE(i2c, atmel_sha204a_id);
 
 static struct i2c_driver atmel_sha204a_driver = {
-	.probe			= atmel_sha204a_probe,
+	.probe_new		= atmel_sha204a_probe,
 	.remove			= atmel_sha204a_remove,
 	.id_table		= atmel_sha204a_id,
 

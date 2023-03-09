@@ -11,7 +11,7 @@ Overview
 --------
 
 The DPAA2 MAC / PHY support consists of a set of APIs that help DPAA2 network
-drivers (dpaa2-eth, dpaa2-ethsw) interract with the PHY library.
+drivers (dpaa2-eth, dpaa2-ethsw) interact with the PHY library.
 
 DPAA2 Software Architecture
 ---------------------------
@@ -181,10 +181,13 @@ when necessary using the below listed API::
  - int dpaa2_mac_connect(struct dpaa2_mac *mac);
  - void dpaa2_mac_disconnect(struct dpaa2_mac *mac);
 
-A phylink integration is necessary only when the partner DPMAC is not of TYPE_FIXED.
-One can check for this condition using the below API::
+A phylink integration is necessary only when the partner DPMAC is not of
+``TYPE_FIXED``. This means it is either of ``TYPE_PHY``, or of
+``TYPE_BACKPLANE`` (the difference being the two that in the ``TYPE_BACKPLANE``
+mode, the MC firmware does not access the PCS registers). One can check for
+this condition using the following helper::
 
- - bool dpaa2_mac_is_type_fixed(struct fsl_mc_device *dpmac_dev,struct fsl_mc_io *mc_io);
+ - static inline bool dpaa2_mac_is_type_phy(struct dpaa2_mac *mac);
 
 Before connection to a MAC, the caller must allocate and populate the
 dpaa2_mac structure with the associated net_device, a pointer to the MC portal

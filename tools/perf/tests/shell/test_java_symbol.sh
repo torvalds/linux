@@ -65,7 +65,7 @@ fi
 #   8.18%  jshell           jitted-50116-29.so    [.] Interpreter
 #   0.75%  Thread-1         jitted-83602-1670.so  [.] jdk.internal.jimage.BasicImageReader.getString(int)
 perf report --stdio -i ${PERF_INJ_DATA} 2>&1 | \
-	egrep " +[0-9]+\.[0-9]+% .* (Interpreter|jdk\.internal).*" > /dev/null 2>&1
+	grep -E " +[0-9]+\.[0-9]+% .* (Interpreter|jdk\.internal).*" > /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Fail to find java symbols"

@@ -1019,8 +1019,7 @@ static int __maybe_unused iqs5xx_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(iqs5xx_pm, iqs5xx_suspend, iqs5xx_resume);
 
-static int iqs5xx_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int iqs5xx_probe(struct i2c_client *client)
 {
 	struct iqs5xx_private *iqs5xx;
 	int error;
@@ -1094,7 +1093,7 @@ static struct i2c_driver iqs5xx_i2c_driver = {
 		.pm		= &iqs5xx_pm,
 	},
 	.id_table	= iqs5xx_id,
-	.probe		= iqs5xx_probe,
+	.probe_new	= iqs5xx_probe,
 };
 module_i2c_driver(iqs5xx_i2c_driver);
 

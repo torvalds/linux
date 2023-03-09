@@ -932,7 +932,6 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 	unsigned blocks, unsigned blksz, int write)
 {
 	int ret, i;
-	unsigned long flags;
 
 	if (write) {
 		for (i = 0; i < blocks * blksz; i++)
@@ -940,9 +939,7 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 	} else {
 		memset(test->scratch, 0, BUFFER_SIZE);
 	}
-	local_irq_save(flags);
 	sg_copy_from_buffer(sg, sg_len, test->scratch, BUFFER_SIZE);
-	local_irq_restore(flags);
 
 	ret = mmc_test_set_blksize(test, blksz);
 	if (ret)
@@ -987,9 +984,7 @@ static int mmc_test_transfer(struct mmc_test_card *test,
 				return RESULT_FAIL;
 		}
 	} else {
-		local_irq_save(flags);
 		sg_copy_to_buffer(sg, sg_len, test->scratch, BUFFER_SIZE);
-		local_irq_restore(flags);
 		for (i = 0; i < blocks * blksz; i++) {
 			if (test->scratch[i] != (u8)i)
 				return RESULT_FAIL;

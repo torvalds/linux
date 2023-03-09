@@ -807,16 +807,5 @@ static void jpeg_v2_5_set_ras_funcs(struct amdgpu_device *adev)
 		break;
 	}
 
-	if (adev->jpeg.ras) {
-		amdgpu_ras_register_ras_block(adev, &adev->jpeg.ras->ras_block);
-
-		strcpy(adev->jpeg.ras->ras_block.ras_comm.name, "jpeg");
-		adev->jpeg.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__JPEG;
-		adev->jpeg.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
-		adev->jpeg.ras_if = &adev->jpeg.ras->ras_block.ras_comm;
-
-		/* If don't define special ras_late_init function, use default ras_late_init */
-		if (!adev->jpeg.ras->ras_block.ras_late_init)
-			adev->jpeg.ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
-	}
+	jpeg_set_ras_funcs(adev);
 }

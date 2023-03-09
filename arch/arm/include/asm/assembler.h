@@ -236,21 +236,26 @@ THUMB(	fpreg	.req	r7	)
 	sub	\tmp, \tmp, #1			@ decrement it
 	str	\tmp, [\ti, #TI_PREEMPT]
 	.endm
-
-	.macro	dec_preempt_count_ti, ti, tmp
-	get_thread_info \ti
-	dec_preempt_count \ti, \tmp
-	.endm
 #else
 	.macro	inc_preempt_count, ti, tmp
 	.endm
 
 	.macro	dec_preempt_count, ti, tmp
 	.endm
-
-	.macro	dec_preempt_count_ti, ti, tmp
-	.endm
 #endif
+
+	.macro	local_bh_disable, ti, tmp
+	ldr	\tmp, [\ti, #TI_PREEMPT]
+	add	\tmp, \tmp, #SOFTIRQ_DISABLE_OFFSET
+	str	\tmp, [\ti, #TI_PREEMPT]
+	.endm
+
+	.macro	local_bh_enable_ti, ti, tmp
+	get_thread_info \ti
+	ldr	\tmp, [\ti, #TI_PREEMPT]
+	sub	\tmp, \tmp, #SOFTIRQ_DISABLE_OFFSET
+	str	\tmp, [\ti, #TI_PREEMPT]
+	.endm
 
 #define USERL(l, x...)				\
 9999:	x;					\
@@ -760,6 +765,12 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	rev		\val, \val
 	.endif
 	.endm
+
+	.if		__LINUX_ARM_ARCH__ < 6
+	.set		.Lrev_l_uses_tmp, 1
+	.else
+	.set		.Lrev_l_uses_tmp, 0
+	.endif
 
 	/*
 	 * bl_r - branch and link to register

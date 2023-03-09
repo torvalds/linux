@@ -139,6 +139,14 @@ static void test_libbpf_bpf_map_type_str(void)
 		snprintf(buf, sizeof(buf), "BPF_MAP_TYPE_%s", map_type_str);
 		uppercase(buf);
 
+		/* Special case for map_type_name BPF_MAP_TYPE_CGROUP_STORAGE_DEPRECATED
+		 * where it and BPF_MAP_TYPE_CGROUP_STORAGE have the same enum value
+		 * (map_type). For this enum value, libbpf_bpf_map_type_str() picks
+		 * BPF_MAP_TYPE_CGROUP_STORAGE.
+		 */
+		if (strcmp(map_type_name, "BPF_MAP_TYPE_CGROUP_STORAGE_DEPRECATED") == 0)
+			continue;
+
 		ASSERT_STREQ(buf, map_type_name, "exp_str_value");
 	}
 

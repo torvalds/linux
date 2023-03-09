@@ -5,6 +5,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/ste-db8500-clkout.h>
 #include <dt-bindings/reset/stericsson,db8500-prcc-reset.h>
 #include <dt-bindings/mfd/dbx500-prcmu.h>
 #include <dt-bindings/arm/ux500_pm_domains.h>
@@ -311,6 +312,11 @@
 
 			smp_twd_clk: smp-twd-clock {
 				#clock-cells = <0>;
+			};
+
+			clkout_clk: clkout-clock {
+				/* Cell 1 id, cell 2 source, cell 3 div */
+				#clock-cells = <3>;
 			};
 		};
 

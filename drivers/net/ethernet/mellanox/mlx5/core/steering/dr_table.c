@@ -295,7 +295,7 @@ int mlx5dr_table_destroy(struct mlx5dr_table *tbl)
 	mlx5dr_dbg_tbl_del(tbl);
 	ret = dr_table_destroy_sw_owned_tbl(tbl);
 	if (ret)
-		return ret;
+		mlx5dr_err(tbl->dmn, "Failed to destroy sw owned table\n");
 
 	dr_table_uninit(tbl);
 

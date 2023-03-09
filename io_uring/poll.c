@@ -223,22 +223,22 @@ enum {
 	IOU_POLL_DONE = 0,
 	IOU_POLL_NO_ACTION = 1,
 	IOU_POLL_REMOVE_POLL_USE_RES = 2,
+	IOU_POLL_REISSUE = 3,
 };
 
 /*
  * All poll tw should go through this. Checks for poll events, manages
  * references, does rewait, etc.
  *
- * Returns a negative error on failure. IOU_POLL_NO_ACTION when no action require,
- * which is either spurious wakeup or multishot CQE is served.
- * IOU_POLL_DONE when it's done with the request, then the mask is stored in req->cqe.res.
- * IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot poll and that the result
- * is stored in req->cqe.
+ * Returns a negative error on failure. IOU_POLL_NO_ACTION when no action
+ * require, which is either spurious wakeup or multishot CQE is served.
+ * IOU_POLL_DONE when it's done with the request, then the mask is stored in
+ * req->cqe.res. IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot
+ * poll and that the result is stored in req->cqe.
  */
 static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-	int v, ret;
+	int v;
 
 	/* req->task == current here, checking PF_EXITING is safe */
 	if (unlikely(req->task->flags & PF_EXITING))
@@ -247,40 +247,50 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 	do {
 		v = atomic_read(&req->poll_refs);
 
-		/* tw handler should be the owner, and so have some references */
-		if (WARN_ON_ONCE(!(v & IO_POLL_REF_MASK)))
-			return IOU_POLL_DONE;
-		if (v & IO_POLL_CANCEL_FLAG)
-			return -ECANCELED;
-		/*
-		 * cqe.res contains only events of the first wake up
-		 * and all others are be lost. Redo vfs_poll() to get
-		 * up to date state.
-		 */
-		if ((v & IO_POLL_REF_MASK) != 1)
-			req->cqe.res = 0;
-		if (v & IO_POLL_RETRY_FLAG) {
-			req->cqe.res = 0;
+		if (unlikely(v != 1)) {
+			/* tw should be the owner and so have some refs */
+			if (WARN_ON_ONCE(!(v & IO_POLL_REF_MASK)))
+				return IOU_POLL_NO_ACTION;
+			if (v & IO_POLL_CANCEL_FLAG)
+				return -ECANCELED;
 			/*
-			 * We won't find new events that came in between
-			 * vfs_poll and the ref put unless we clear the flag
-			 * in advance.
+			 * cqe.res contains only events of the first wake up
+			 * and all others are to be lost. Redo vfs_poll() to get
+			 * up to date state.
 			 */
-			atomic_andnot(IO_POLL_RETRY_FLAG, &req->poll_refs);
-			v &= ~IO_POLL_RETRY_FLAG;
+			if ((v & IO_POLL_REF_MASK) != 1)
+				req->cqe.res = 0;
+
+			if (v & IO_POLL_RETRY_FLAG) {
+				req->cqe.res = 0;
+				/*
+				 * We won't find new events that came in between
+				 * vfs_poll and the ref put unless we clear the
+				 * flag in advance.
+				 */
+				atomic_andnot(IO_POLL_RETRY_FLAG, &req->poll_refs);
+				v &= ~IO_POLL_RETRY_FLAG;
+			}
 		}
 
 		/* the mask was stashed in __io_poll_execute */
 		if (!req->cqe.res) {
 			struct poll_table_struct pt = { ._key = req->apoll_events };
 			req->cqe.res = vfs_poll(req->file, &pt) & req->apoll_events;
+			/*
+			 * We got woken with a mask, but someone else got to
+			 * it first. The above vfs_poll() doesn't add us back
+			 * to the waitqueue, so if we get nothing back, we
+			 * should be safe and attempt a reissue.
+			 */
+			if (unlikely(!req->cqe.res)) {
+				/* Multishot armed need not reissue */
+				if (!(req->apoll_events & EPOLLONESHOT))
+					continue;
+				return IOU_POLL_REISSUE;
+			}
 		}
-
-		if ((unlikely(!req->cqe.res)))
-			continue;
 		if (req->apoll_events & EPOLLONESHOT)
-			return IOU_POLL_DONE;
-		if (io_is_uring_fops(req->file))
 			return IOU_POLL_DONE;
 
 		/* multishot, just fill a CQE and proceed */
@@ -288,13 +298,13 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			__poll_t mask = mangle_poll(req->cqe.res &
 						    req->apoll_events);
 
-			if (!io_post_aux_cqe(ctx, req->cqe.user_data,
-					     mask, IORING_CQE_F_MORE, false)) {
+			if (!io_aux_cqe(req->ctx, *locked, req->cqe.user_data,
+					mask, IORING_CQE_F_MORE, false)) {
 				io_req_set_res(req, mask, 0);
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			}
 		} else {
-			ret = io_poll_issue(req, locked);
+			int ret = io_poll_issue(req, locked);
 			if (ret == IOU_STOP_MULTISHOT)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			if (ret < 0)
@@ -321,54 +331,41 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 	ret = io_poll_check_events(req, locked);
 	if (ret == IOU_POLL_NO_ACTION)
 		return;
+	io_poll_remove_entries(req);
+	io_poll_tw_hash_eject(req, locked);
 
-	if (ret == IOU_POLL_DONE) {
-		struct io_poll *poll = io_kiocb_to_cmd(req, struct io_poll);
-		req->cqe.res = mangle_poll(req->cqe.res & poll->events);
-	} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
-		req->cqe.res = ret;
-		req_set_fail(req);
+	if (req->opcode == IORING_OP_POLL_ADD) {
+		if (ret == IOU_POLL_DONE) {
+			struct io_poll *poll;
+
+			poll = io_kiocb_to_cmd(req, struct io_poll);
+			req->cqe.res = mangle_poll(req->cqe.res & poll->events);
+		} else if (ret == IOU_POLL_REISSUE) {
+			io_req_task_submit(req, locked);
+			return;
+		} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
+			req->cqe.res = ret;
+			req_set_fail(req);
+		}
+
+		io_req_set_res(req, req->cqe.res, 0);
+		io_req_task_complete(req, locked);
+	} else {
+		io_tw_lock(req->ctx, locked);
+
+		if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
+			io_req_task_complete(req, locked);
+		else if (ret == IOU_POLL_DONE || ret == IOU_POLL_REISSUE)
+			io_req_task_submit(req, locked);
+		else
+			io_req_defer_failed(req, ret);
 	}
-
-	io_poll_remove_entries(req);
-	io_poll_tw_hash_eject(req, locked);
-
-	io_req_set_res(req, req->cqe.res, 0);
-	io_req_task_complete(req, locked);
-}
-
-static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
-{
-	int ret;
-
-	ret = io_poll_check_events(req, locked);
-	if (ret == IOU_POLL_NO_ACTION)
-		return;
-
-	io_poll_remove_entries(req);
-	io_poll_tw_hash_eject(req, locked);
-
-	if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
-		io_req_complete_post(req);
-	else if (ret == IOU_POLL_DONE)
-		io_req_task_submit(req, locked);
-	else
-		io_req_complete_failed(req, ret);
 }
 
 static void __io_poll_execute(struct io_kiocb *req, int mask)
 {
 	io_req_set_res(req, mask, 0);
-	/*
-	 * This is useful for poll that is armed on behalf of another
-	 * request, and where the wakeup path could be on a different
-	 * CPU. We want to avoid pulling in req->apoll->events for that
-	 * case.
-	 */
-	if (req->opcode == IORING_OP_POLL_ADD)
-		req->io_task_work.func = io_poll_task_func;
-	else
-		req->io_task_work.func = io_apoll_task_func;
+	req->io_task_work.func = io_poll_task_func;
 
 	trace_io_uring_task_add(req, mask);
 	io_req_task_work_add(req);
@@ -429,6 +426,14 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 		return 0;
 
 	if (io_poll_get_ownership(req)) {
+		/*
+		 * If we trigger a multishot poll off our own wakeup path,
+		 * disable multishot as there is a circular dependency between
+		 * CQ posting and triggering the event.
+		 */
+		if (mask & EPOLL_URING_WAKE)
+			poll->events |= EPOLLONESHOT;
+
 		/* optional, saves extra locking for removal in tw handler */
 		if (mask && poll->events & EPOLLONESHOT) {
 			list_del_init(&poll->wait.entry);
@@ -541,6 +546,14 @@ static bool io_poll_can_finish_inline(struct io_kiocb *req,
 	return pt->owning || io_poll_get_ownership(req);
 }
 
+static void io_poll_add_hash(struct io_kiocb *req)
+{
+	if (req->flags & REQ_F_HASH_LOCKED)
+		io_poll_req_insert_locked(req);
+	else
+		io_poll_req_insert(req);
+}
+
 /*
  * Returns 0 when it's handed over for polling. The caller owns the requests if
  * it returns non-zero, but otherwise should not touch it. Negative values
@@ -599,18 +612,17 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 
 	if (mask &&
 	   ((poll->events & (EPOLLET|EPOLLONESHOT)) == (EPOLLET|EPOLLONESHOT))) {
-		if (!io_poll_can_finish_inline(req, ipt))
+		if (!io_poll_can_finish_inline(req, ipt)) {
+			io_poll_add_hash(req);
 			return 0;
+		}
 		io_poll_remove_entries(req);
 		ipt->result_mask = mask;
 		/* no one else has access to the req, forget about the ref */
 		return 1;
 	}
 
-	if (req->flags & REQ_F_HASH_LOCKED)
-		io_poll_req_insert_locked(req);
-	else
-		io_poll_req_insert(req);
+	io_poll_add_hash(req);
 
 	if (mask && (poll->events & EPOLLET) &&
 	    io_poll_can_finish_inline(req, ipt)) {
@@ -648,10 +660,13 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 	if (req->flags & REQ_F_POLLED) {
 		apoll = req->apoll;
 		kfree(apoll->double_poll);
-	} else if (!(issue_flags & IO_URING_F_UNLOCKED) &&
-		   (entry = io_alloc_cache_get(&ctx->apoll_cache)) != NULL) {
+	} else if (!(issue_flags & IO_URING_F_UNLOCKED)) {
+		entry = io_alloc_cache_get(&ctx->apoll_cache);
+		if (entry == NULL)
+			goto alloc_apoll;
 		apoll = container_of(entry, struct async_poll, cache);
 	} else {
+alloc_apoll:
 		apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
 		if (unlikely(!apoll))
 			return NULL;
@@ -663,7 +678,7 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 
 int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 	struct async_poll *apoll;
 	struct io_poll_table ipt;
 	__poll_t mask = POLLPRI | POLLERR | EPOLLET;

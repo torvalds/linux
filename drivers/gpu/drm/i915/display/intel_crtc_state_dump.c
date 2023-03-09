@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <drm/drm_edid.h>
+
 #include "i915_drv.h"
 #include "intel_crtc_state_dump.h"
 #include "intel_display_types.h"
@@ -54,6 +56,17 @@ intel_dump_dp_vsc_sdp(struct drm_i915_private *i915,
 		return;
 
 	drm_dp_vsc_sdp_log(KERN_DEBUG, i915->drm.dev, vsc);
+}
+
+static void
+intel_dump_buffer(struct drm_i915_private *i915,
+		  const char *prefix, const u8 *buf, size_t len)
+{
+	if (!drm_debug_enabled(DRM_UT_KMS))
+		return;
+
+	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_NONE,
+		       16, 0, buf, len, false);
 }
 
 #define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
@@ -236,6 +249,10 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	    intel_hdmi_infoframe_enable(DP_SDP_VSC))
 		intel_dump_dp_vsc_sdp(i915, &pipe_config->infoframes.vsc);
 
+	if (pipe_config->has_audio)
+		intel_dump_buffer(i915, "ELD: ", pipe_config->eld,
+				  drm_eld_size(pipe_config->eld));
+
 	drm_dbg_kms(&i915->drm, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
 		    str_yes_no(pipe_config->vrr.enable),
 		    pipe_config->vrr.vmin, pipe_config->vrr.vmax,
@@ -298,11 +315,13 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			    pipe_config->csc_mode, pipe_config->gamma_mode,
 			    pipe_config->gamma_enable, pipe_config->csc_enable);
 
-	drm_dbg_kms(&i915->drm, "degamma lut: %d entries, gamma lut: %d entries\n",
-		    pipe_config->hw.degamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.degamma_lut) : 0,
-		    pipe_config->hw.gamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.gamma_lut) : 0);
+	drm_dbg_kms(&i915->drm, "pre csc lut: %s%d entries, post csc lut: %d entries\n",
+		    pipe_config->pre_csc_lut && pipe_config->pre_csc_lut ==
+		    i915->display.color.glk_linear_degamma_lut ? "(linear) " : "",
+		    pipe_config->pre_csc_lut ?
+		    drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
+		    pipe_config->post_csc_lut ?
+		    drm_color_lut_size(pipe_config->post_csc_lut) : 0);
 
 dump_planes:
 	if (!state)

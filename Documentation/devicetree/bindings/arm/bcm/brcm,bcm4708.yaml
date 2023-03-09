@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/bcm/brcm,bcm4708.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom BCM4708 device tree bindings
+title: Broadcom BCM4708
 
 description:
   Broadcom BCM4708/47081/4709/47094/53012 Wi-Fi/network SoCs based

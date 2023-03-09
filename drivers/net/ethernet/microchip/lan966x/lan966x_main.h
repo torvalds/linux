@@ -3,15 +3,20 @@
 #ifndef __LAN966X_MAIN_H__
 #define __LAN966X_MAIN_H__
 
+#include <linux/debugfs.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/page_pool.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/switchdev.h>
+
+#include <vcap_api.h>
+#include <vcap_api_client.h>
 
 #include "lan966x_regs.h"
 #include "lan966x_ifh.h"
@@ -87,6 +92,10 @@
 #define SE_IDX_QUEUE			0  /* 0-79 : Queue scheduler elements */
 #define SE_IDX_PORT			80 /* 80-89 : Port schedular elements */
 
+#define LAN966X_VCAP_CID_IS2_L0 VCAP_CID_INGRESS_STAGE2_L0 /* IS2 lookup 0 */
+#define LAN966X_VCAP_CID_IS2_L1 VCAP_CID_INGRESS_STAGE2_L1 /* IS2 lookup 1 */
+#define LAN966X_VCAP_CID_IS2_MAX (VCAP_CID_INGRESS_STAGE2_L2 - 1) /* IS2 Max */
+
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
  * ENTRYTYPE_LOCKED is not subject to aging.
@@ -98,6 +107,36 @@ enum macaccess_entry_type {
 	ENTRYTYPE_LOCKED,
 	ENTRYTYPE_MACV4,
 	ENTRYTYPE_MACV6,
+};
+
+/* FDMA return action codes for checking if the frame is valid
+ * FDMA_PASS, frame is valid and can be used
+ * FDMA_ERROR, something went wrong, stop getting more frames
+ * FDMA_DROP, frame is dropped, but continue to get more frames
+ * FDMA_TX, frame is given to TX, but continue to get more frames
+ * FDMA_REDIRECT, frame is given to TX, but continue to get more frames
+ */
+enum lan966x_fdma_action {
+	FDMA_PASS = 0,
+	FDMA_ERROR,
+	FDMA_DROP,
+	FDMA_TX,
+	FDMA_REDIRECT,
+};
+
+/* Controls how PORT_MASK is applied */
+enum LAN966X_PORT_MASK_MODE {
+	LAN966X_PMM_NO_ACTION,
+	LAN966X_PMM_REPLACE,
+	LAN966X_PMM_FORWARDING,
+	LAN966X_PMM_REDIRECT,
+};
+
+enum vcap_is2_port_sel_ipv6 {
+	VCAP_IS2_PS_IPV6_TCPUDP_OTHER,
+	VCAP_IS2_PS_IPV6_STD,
+	VCAP_IS2_PS_IPV6_IP4_TCPUDP_IP4_OTHER,
+	VCAP_IS2_PS_IPV6_MAC_ETYPE,
 };
 
 struct lan966x_port;
@@ -150,15 +189,28 @@ struct lan966x_rx {
 	 */
 	u8 page_order;
 
+	/* Represents the max size frame that it can receive to the CPU. This
+	 * includes the IFH + VLAN tags + frame + skb_shared_info
+	 */
+	u32 max_mtu;
+
 	u8 channel_id;
+
+	struct page_pool *page_pool;
 };
 
 struct lan966x_tx_dcb_buf {
-	struct net_device *dev;
-	struct sk_buff *skb;
 	dma_addr_t dma_addr;
-	bool used;
-	bool ptp;
+	struct net_device *dev;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	} data;
+	u32 len;
+	u32 used : 1;
+	u32 ptp : 1;
+	u32 use_skb : 1;
+	u32 xdp_ndo : 1;
 };
 
 struct lan966x_tx {
@@ -271,6 +323,12 @@ struct lan966x {
 	struct lan966x_port *mirror_monitor;
 	u32 mirror_mask[2];
 	u32 mirror_count;
+
+	/* vcap */
+	struct vcap_control *vcap_ctrl;
+
+	/* debugfs */
+	struct dentry *debugfs_root;
 };
 
 struct lan966x_port_config {
@@ -320,6 +378,9 @@ struct lan966x_port {
 	enum netdev_lag_hash hash_type;
 
 	struct lan966x_port_tc tc;
+
+	struct bpf_prog *xdp_prog;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
@@ -337,6 +398,8 @@ bool lan966x_hw_offload(struct lan966x *lan966x, u32 port, struct sk_buff *skb);
 
 void lan966x_ifh_get_src_port(void *ifh, u64 *src_port);
 void lan966x_ifh_get_timestamp(void *ifh, u64 *timestamp);
+void lan966x_ifh_set_bypass(void *ifh, u64 bypass);
+void lan966x_ifh_set_port(void *ifh, u64 bypass);
 
 void lan966x_stats_get(struct net_device *dev,
 		       struct rtnl_link_stats64 *stats);
@@ -435,14 +498,21 @@ irqreturn_t lan966x_ptp_irq_handler(int irq, void *args);
 irqreturn_t lan966x_ptp_ext_irq_handler(int irq, void *args);
 u32 lan966x_ptp_get_period_ps(void);
 int lan966x_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
+int lan966x_ptp_setup_traps(struct lan966x_port *port, struct ifreq *ifr);
+int lan966x_ptp_del_traps(struct lan966x_port *port);
 
 int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev);
+int lan966x_fdma_xmit_xdpf(struct lan966x_port *port,
+			   struct xdp_frame *frame,
+			   struct page *page,
+			   bool dma_map);
 int lan966x_fdma_change_mtu(struct lan966x *lan966x);
 void lan966x_fdma_netdev_init(struct lan966x *lan966x, struct net_device *dev);
 void lan966x_fdma_netdev_deinit(struct lan966x *lan966x, struct net_device *dev);
 int lan966x_fdma_init(struct lan966x *lan966x);
 void lan966x_fdma_deinit(struct lan966x *lan966x);
 irqreturn_t lan966x_fdma_irq_handler(int irq, void *args);
+int lan966x_fdma_reload_page_pool(struct lan966x *lan966x);
 
 int lan966x_lag_port_join(struct lan966x_port *port,
 			  struct net_device *brport_dev,
@@ -526,6 +596,49 @@ int lan966x_mirror_port_del(struct lan966x_port *port,
 void lan966x_mirror_port_stats(struct lan966x_port *port,
 			       struct flow_stats *stats,
 			       bool ingress);
+
+int lan966x_xdp_port_init(struct lan966x_port *port);
+void lan966x_xdp_port_deinit(struct lan966x_port *port);
+int lan966x_xdp(struct net_device *dev, struct netdev_bpf *xdp);
+int lan966x_xdp_run(struct lan966x_port *port,
+		    struct page *page,
+		    u32 data_len);
+int lan966x_xdp_xmit(struct net_device *dev,
+		     int n,
+		     struct xdp_frame **frames,
+		     u32 flags);
+bool lan966x_xdp_present(struct lan966x *lan966x);
+static inline bool lan966x_xdp_port_present(struct lan966x_port *port)
+{
+	return !!port->xdp_prog;
+}
+
+int lan966x_vcap_init(struct lan966x *lan966x);
+void lan966x_vcap_deinit(struct lan966x *lan966x);
+#if defined(CONFIG_DEBUG_FS)
+int lan966x_vcap_port_info(struct net_device *dev,
+			   struct vcap_admin *admin,
+			   struct vcap_output_print *out);
+#else
+static inline int lan966x_vcap_port_info(struct net_device *dev,
+					 struct vcap_admin *admin,
+					 struct vcap_output_print *out)
+{
+	return 0;
+}
+#endif
+
+int lan966x_tc_flower(struct lan966x_port *port,
+		      struct flow_cls_offload *f,
+		      bool ingress);
+
+int lan966x_goto_port_add(struct lan966x_port *port,
+			  int from_cid, int to_cid,
+			  unsigned long goto_id,
+			  struct netlink_ext_ack *extack);
+int lan966x_goto_port_del(struct lan966x_port *port,
+			  unsigned long goto_id,
+			  struct netlink_ext_ack *extack);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

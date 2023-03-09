@@ -228,6 +228,17 @@ const char *parse_fs_hdrs(struct trace_seq *p,
 	return ret;
 }
 
+static const char
+*fs_dest_range_field_to_str(enum mlx5_flow_dest_range_field field)
+{
+	switch (field) {
+	case MLX5_FLOW_DEST_RANGE_FIELD_PKT_LEN:
+		return "packet len";
+	default:
+		return "unknown dest range field";
+	}
+}
+
 const char *parse_fs_dst(struct trace_seq *p,
 			 const struct mlx5_flow_destination *dst,
 			 u32 counter_id)
@@ -258,6 +269,15 @@ const char *parse_fs_dst(struct trace_seq *p,
 		break;
 	case MLX5_FLOW_DESTINATION_TYPE_PORT:
 		trace_seq_printf(p, "port\n");
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_RANGE:
+		trace_seq_printf(p, "field=%s min=%d max=%d\n",
+				 fs_dest_range_field_to_str(dst->range.field),
+				 dst->range.min, dst->range.max);
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE:
+		trace_seq_printf(p, "flow_table_type=%u id:%u\n", dst->ft->type,
+				 dst->ft->id);
 		break;
 	case MLX5_FLOW_DESTINATION_TYPE_NONE:
 		trace_seq_printf(p, "none\n");

@@ -154,13 +154,13 @@ static inline uint64_t cvmx_build_bits(uint64_t high_bit,
 
 /**
  * Convert a memory pointer (void*) into a hardware compatible
- * memory address (uint64_t). Octeon hardware widgets don't
+ * memory address (phys_addr_t). Octeon hardware widgets don't
  * understand logical addresses.
  *
  * @ptr:    C style memory pointer
  * Returns Hardware physical address
  */
-static inline uint64_t cvmx_ptr_to_phys(void *ptr)
+static inline phys_addr_t cvmx_ptr_to_phys(void *ptr)
 {
 	if (sizeof(void *) == 8) {
 		/*

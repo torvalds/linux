@@ -1,7 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _arch_page_table_helpers:
-
 ===============================
 Architecture Page Table Helpers
 ===============================
@@ -94,7 +92,7 @@ PMD Page Table Helpers
 +---------------------------+--------------------------------------------------+
 | pmd_trans_huge            | Tests a Transparent Huge Page (THP) at PMD       |
 +---------------------------+--------------------------------------------------+
-| pmd_present               | Tests a valid mapped PMD                         |
+| pmd_present               | Tests whether pmd_page() points to valid memory  |
 +---------------------------+--------------------------------------------------+
 | pmd_young                 | Tests a young PMD                                |
 +---------------------------+--------------------------------------------------+

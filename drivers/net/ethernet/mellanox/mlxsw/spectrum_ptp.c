@@ -189,29 +189,17 @@ mlxsw_sp1_ptp_phc_settime(struct mlxsw_sp1_ptp_clock *clock, u64 nsec)
 static int mlxsw_sp1_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct mlxsw_sp1_ptp_clock *clock = mlxsw_sp1_ptp_clock(ptp);
-	int neg_adj = 0;
-	u32 diff;
-	u64 adj;
 	s32 ppb;
 
 	ppb = scaled_ppm_to_ppb(scaled_ppm);
 
-	if (ppb < 0) {
-		neg_adj = 1;
-		ppb = -ppb;
-	}
-
-	adj = clock->nominal_c_mult;
-	adj *= ppb;
-	diff = div_u64(adj, NSEC_PER_SEC);
-
 	spin_lock_bh(&clock->lock);
 	timecounter_read(&clock->tc);
-	clock->cycles.mult = neg_adj ? clock->nominal_c_mult - diff :
-				       clock->nominal_c_mult + diff;
+	clock->cycles.mult = adjust_by_scaled_ppm(clock->nominal_c_mult,
+						  scaled_ppm);
 	spin_unlock_bh(&clock->lock);
 
-	return mlxsw_sp_ptp_phc_adjfreq(&clock->common, neg_adj ? -ppb : ppb);
+	return mlxsw_sp_ptp_phc_adjfreq(&clock->common, ppb);
 }
 
 static int mlxsw_sp1_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
