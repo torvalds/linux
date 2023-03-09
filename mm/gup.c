@@ -2193,7 +2193,7 @@ static bool is_valid_gup_args(struct page **pages, struct vm_area_struct **vmas,
  * This does not guarantee that the page exists in the user mappings when
  * get_user_pages_remote returns, and there may even be a completely different
  * page there in some cases (eg. if mmapped pagecache has been invalidated
- * and subsequently re faulted). However it does guarantee that the page
+ * and subsequently re-faulted). However it does guarantee that the page
  * won't be freed completely. And mostly callers simply care that the page
  * contains data that was valid *at some point in time*. Typically, an IO
  * or similar operation cannot guarantee anything stronger anyway because
