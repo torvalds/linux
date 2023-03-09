@@ -129,7 +129,7 @@ void xe_hw_fence_ctx_init(struct xe_hw_fence_ctx *ctx, struct xe_gt *gt,
 	ctx->gt = gt;
 	ctx->irq = irq;
 	ctx->dma_fence_ctx = dma_fence_context_alloc(1);
-	ctx->next_seqno = 1;
+	ctx->next_seqno = XE_FENCE_INITIAL_SEQNO;
 	sprintf(ctx->name, "%s", name);
 }
 
@@ -165,7 +165,7 @@ static bool xe_hw_fence_signaled(struct dma_fence *dma_fence)
 	u32 seqno = xe_map_rd(xe, &fence->seqno_map, 0, u32);
 
 	return dma_fence->error ||
-		(s32)fence->dma.seqno <= (s32)seqno;
+		!__dma_fence_is_later(dma_fence->seqno, seqno, dma_fence->ops);
 }
 
 static bool xe_hw_fence_enable_signaling(struct dma_fence *dma_fence)

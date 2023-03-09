@@ -13,6 +13,7 @@
 
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_hw_fence.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_migrate.h"
@@ -57,11 +58,11 @@ static struct xe_engine *__xe_engine_create(struct xe_device *xe,
 
 	if (xe_engine_is_parallel(e)) {
 		e->parallel.composite_fence_ctx = dma_fence_context_alloc(1);
-		e->parallel.composite_fence_seqno = 1;
+		e->parallel.composite_fence_seqno = XE_FENCE_INITIAL_SEQNO;
 	}
 	if (e->flags & ENGINE_FLAG_VM) {
 		e->bind.fence_ctx = dma_fence_context_alloc(1);
-		e->bind.fence_seqno = 1;
+		e->bind.fence_seqno = XE_FENCE_INITIAL_SEQNO;
 	}
 
 	for (i = 0; i < width; ++i) {
