@@ -1234,6 +1234,8 @@ static int wiz_phy_fullrt_div(struct wiz *wiz, int lane)
 		if (wiz->lane_phy_type[lane] == PHY_TYPE_PCIE)
 			return regmap_field_write(wiz->p0_fullrt_div[lane], 0x1);
 		break;
+
+	case J721E_WIZ_16G:
 	case J721E_WIZ_10G:
 	case J7200_WIZ_10G:
 	case J721S2_WIZ_10G:
