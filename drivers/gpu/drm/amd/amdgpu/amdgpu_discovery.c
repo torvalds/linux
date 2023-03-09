@@ -96,6 +96,7 @@
 #include "amdgpu_vkms.h"
 #include "mes_v10_1.h"
 #include "mes_v11_0.h"
+#include "mes_v12_0.h"
 #include "smuio_v11_0.h"
 #include "smuio_v11_0_6.h"
 #include "smuio_v13_0.h"
@@ -2241,6 +2242,14 @@ static int amdgpu_discovery_set_mes_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(11, 5, 0):
 	case IP_VERSION(11, 5, 1):
 		amdgpu_device_ip_block_add(adev, &mes_v11_0_ip_block);
+		adev->enable_mes = true;
+		adev->enable_mes_kiq = true;
+		if (amdgpu_uni_mes)
+			adev->enable_uni_mes = true;
+		break;
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		amdgpu_device_ip_block_add(adev, &mes_v12_0_ip_block);
 		adev->enable_mes = true;
 		adev->enable_mes_kiq = true;
 		if (amdgpu_uni_mes)
