@@ -1143,6 +1143,7 @@
 };
 
 &mipi_csi1 {
+	assigned-clock-rates = <266000000>, <200000000>, <66000000>;
 	status = "okay";
 
 	ports {
