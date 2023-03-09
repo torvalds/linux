@@ -28,27 +28,28 @@
  *		EAGAIN
  */
 
-#include <linux/types.h>
-#include <linux/major.h>
-#include <linux/errno.h>
-#include <linux/signal.h>
-#include <linux/fcntl.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/tty.h>
-#include <linux/timer.h>
-#include <linux/ctype.h>
-#include <linux/mm.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
-#include <linux/bitops.h>
 #include <linux/audit.h>
+#include <linux/bitops.h>
+#include <linux/ctype.h>
+#include <linux/errno.h>
+#include <linux/fcntl.h>
 #include <linux/file.h>
-#include <linux/uaccess.h>
+#include <linux/interrupt.h>
+#include <linux/major.h>
+#include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/poll.h>
 #include <linux/ratelimit.h>
+#include <linux/sched.h>
+#include <linux/signal.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/timer.h>
+#include <linux/tty.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+
 #include "tty.h"
 
 /*
