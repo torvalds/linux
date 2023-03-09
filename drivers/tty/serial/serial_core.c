@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/gpio/consumer.h>
+#include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -1491,7 +1492,7 @@ static int uart_set_iso7816_config(struct uart_port *port,
 	 * There are 5 words reserved for future use. Check that userspace
 	 * doesn't put stuff in there to prevent breakages in the future.
 	 */
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < ARRAY_SIZE(iso7816.reserved); i++)
 		if (iso7816.reserved[i])
 			return -EINVAL;
 
