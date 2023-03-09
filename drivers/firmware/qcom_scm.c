@@ -1479,7 +1479,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	init_completion(&__scm->waitq_comp);
 
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_optional(pdev, 0);
 	if (irq < 0) {
 		if (irq != -ENXIO)
 			return irq;
