@@ -341,7 +341,7 @@ static void acerhdf_check_param(struct thermal_zone_device *thermal)
 		pr_err("fanoff temperature (%d) is above fanon temperature (%d), clamping to %d\n",
 		       fanoff, fanon, fanon);
 		fanoff = fanon;
-	};
+	}
 
 	trips[0].temperature = fanon;
 	trips[0].hysteresis  = fanon - fanoff;
