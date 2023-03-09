@@ -56,7 +56,7 @@ static const struct mtk_mmsys_driver_data mt8173_mmsys_driver_data = {
 	.routes = mt8173_mmsys_routing_table,
 	.num_routes = ARRAY_SIZE(mt8173_mmsys_routing_table),
 	.sw0_rst_offset = MT8183_MMSYS_SW0_RST_B,
-	.num_resets = 32,
+	.num_resets = 64,
 };
 
 static const struct mtk_mmsys_driver_data mt8183_mmsys_driver_data = {
