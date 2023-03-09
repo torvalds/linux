@@ -8,7 +8,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
@@ -1050,7 +1049,6 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pci_regions;
 	}
 
-	pci_enable_pcie_error_reporting(pdev);
 	pci_set_master(pdev);
 
 	netdev = alloc_etherdev_mq(sizeof(struct octep_device),
@@ -1106,7 +1104,6 @@ register_dev_err:
 err_octep_config:
 	free_netdev(netdev);
 err_alloc_netdev:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_release_mem_regions(pdev);
 err_pci_regions:
 err_dma_mask:
@@ -1139,7 +1136,6 @@ static void octep_remove(struct pci_dev *pdev)
 	octep_device_cleanup(oct);
 	pci_release_mem_regions(pdev);
 	free_netdev(netdev);
-	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
 }
 
