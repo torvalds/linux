@@ -327,7 +327,7 @@ const struct option longopts[] = {
 	}
 };
 
-static void help(void)
+static void help(int status)
 {
 	fprintf(stderr, "Usage: virtio_test [--help]"
 		" [--no-indirect]"
@@ -337,6 +337,8 @@ static void help(void)
 		" [--batch=random/N]"
 		" [--reset=N]"
 		"\n");
+
+	exit(status);
 }
 
 int main(int argc, char **argv)
@@ -354,14 +356,12 @@ int main(int argc, char **argv)
 		case -1:
 			goto done;
 		case '?':
-			help();
-			exit(2);
+			help(2);
 		case 'e':
 			features &= ~(1ULL << VIRTIO_RING_F_EVENT_IDX);
 			break;
 		case 'h':
-			help();
-			goto done;
+			help(0);
 		case 'i':
 			features &= ~(1ULL << VIRTIO_RING_F_INDIRECT_DESC);
 			break;
