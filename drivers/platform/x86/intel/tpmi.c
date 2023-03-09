@@ -239,8 +239,8 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	/*
 	 * intel_vsec_add_aux() is resource managed, no explicit
 	 * delete is required on error or on module unload.
-	 * feature_vsec_dev memory is also freed as part of device
-	 * delete.
+	 * feature_vsec_dev and res memory are also freed as part of
+	 * device deletion.
 	 */
 	return intel_vsec_add_aux(vsec_dev->pcidev, &vsec_dev->auxdev.dev,
 				  feature_vsec_dev, feature_id_name);
