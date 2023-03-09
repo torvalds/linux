@@ -811,6 +811,17 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x07);
 			break;
+		case WCD_USBSS_CHARGER:
+			/* Disable DN DP Switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x00);
+			/* Select DN2 DP2 */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SELECT0, 0x3C, 0x28);
+			/* Enable DN DP Switches */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x18, 0x18);
+			break;
 		case WCD_USBSS_DP_AUX_CC1:
 			fallthrough;
 		case WCD_USBSS_DP_AUX_CC2:
