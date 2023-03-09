@@ -286,6 +286,7 @@ static void enc32_stream_encoder_dp_unblank(
 		uint32_t n_vid = 0x8000;
 		uint32_t m_vid;
 		uint32_t n_multiply = 0;
+		uint32_t pix_per_cycle = 0;
 		uint64_t m_vid_l = n_vid;
 
 		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
@@ -320,6 +321,10 @@ static void enc32_stream_encoder_dp_unblank(
 		REG_UPDATE_2(DP_VID_TIMING,
 				DP_VID_M_N_GEN_EN, 1,
 				DP_VID_N_MUL, n_multiply);
+
+		REG_UPDATE(DP_PIXEL_FORMAT,
+				DP_PIXEL_PER_CYCLE_PROCESSING_MODE,
+				pix_per_cycle);
 	}
 
 	/* make sure stream is disabled before resetting steer fifo */
