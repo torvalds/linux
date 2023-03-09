@@ -7,6 +7,7 @@
  * discipline handling modules (like SLIP).
  */
 
+#include <linux/bits.h>
 #include <linux/types.h>
 #include <linux/termios.h>
 #include <linux/errno.h>
@@ -40,10 +41,10 @@
 /*
  * Internal flag options for termios setting behavior
  */
-#define TERMIOS_FLUSH	1
-#define TERMIOS_WAIT	2
-#define TERMIOS_TERMIO	4
-#define TERMIOS_OLD	8
+#define TERMIOS_FLUSH	BIT(0)
+#define TERMIOS_WAIT	BIT(1)
+#define TERMIOS_TERMIO	BIT(2)
+#define TERMIOS_OLD	BIT(3)
 
 
 /**
