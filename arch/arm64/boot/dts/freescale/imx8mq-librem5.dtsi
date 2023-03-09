@@ -981,7 +981,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	magnetometer@1e	{
+	magnetometer: magnetometer@1e	{
 		compatible = "st,lsm9ds1-magn";
 		reg = <0x1e>;
 		pinctrl-names = "default";

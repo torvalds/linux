@@ -38,6 +38,12 @@
 	};
 };
 
+&magnetometer {
+	mount-matrix =  "1",  "0",  "0",
+			"0", "-1",  "0",
+			"0",  "0", "-1";
+};
+
 &proximity {
 	proximity-near-level = <25>;
 };
