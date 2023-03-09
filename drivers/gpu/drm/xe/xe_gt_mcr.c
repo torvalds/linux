@@ -34,7 +34,10 @@
  * fused off or currently powered down due to power gating, the MMIO operation
  * is "terminated" by the hardware.  Terminated read operations will return a
  * value of zero and terminated unicast write operations will be silently
- * ignored.
+ * ignored. During device initialization, the goal of the various
+ * ``init_steering_*()`` functions is to apply the platform-specific rules for
+ * each MCR register type to identify a steering target that will select a
+ * non-terminated instance.
  */
 
 enum {
