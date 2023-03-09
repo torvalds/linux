@@ -1060,7 +1060,7 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 			if (info->serial_signals & SerialSignal_CTS) {
 				if (debug_level >= DEBUG_LEVEL_ISR)
 					printk("CTS tx start...");
-				tty->hw_stopped = 0;
+				tty->hw_stopped = false;
 				tx_start(info, tty);
 				info->pending_bh |= BH_TRANSMIT;
 				return;
@@ -1069,7 +1069,7 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 			if (!(info->serial_signals & SerialSignal_CTS)) {
 				if (debug_level >= DEBUG_LEVEL_ISR)
 					printk("CTS tx stop...");
-				tty->hw_stopped = 1;
+				tty->hw_stopped = true;
 				tx_stop(info);
 			}
 		}
@@ -2312,7 +2312,7 @@ static void mgslpc_set_termios(struct tty_struct *tty,
 
 	/* Handle turning off CRTSCTS */
 	if (old_termios->c_cflag & CRTSCTS && !C_CRTSCTS(tty)) {
-		tty->hw_stopped = 0;
+		tty->hw_stopped = false;
 		tx_release(tty);
 	}
 }
