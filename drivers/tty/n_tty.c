@@ -28,24 +28,21 @@
  *		EAGAIN
  */
 
-#include <linux/audit.h>
+#include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/fcntl.h>
 #include <linux/file.h>
-#include <linux/interrupt.h>
-#include <linux/major.h>
+#include <linux/jiffies.h>
 #include <linux/math.h>
-#include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/ratelimit.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/timer.h>
 #include <linux/tty.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
