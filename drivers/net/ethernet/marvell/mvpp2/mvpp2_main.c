@@ -4996,6 +4996,14 @@ static int mvpp2_bm_switch_buffers(struct mvpp2 *priv, bool percpu)
 
 	for (i = 0; i < priv->port_count; i++) {
 		port = priv->port_list[i];
+		if (percpu && port->ntxqs >= num_possible_cpus() * 2)
+			xdp_set_features_flag(port->dev,
+					      NETDEV_XDP_ACT_BASIC |
+					      NETDEV_XDP_ACT_REDIRECT |
+					      NETDEV_XDP_ACT_NDO_XMIT);
+		else
+			xdp_clear_features_flag(port->dev);
+
 		mvpp2_swf_bm_pool_init(port);
 		if (status[i])
 			mvpp2_open(port->dev);
@@ -6863,12 +6871,13 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	if (!port->priv->percpu_pools)
 		mvpp2_set_hw_csum(port, port->pool_long->id);
+	else if (port->ntxqs >= num_possible_cpus() * 2)
+		dev->xdp_features = NETDEV_XDP_ACT_BASIC |
+				    NETDEV_XDP_ACT_REDIRECT |
+				    NETDEV_XDP_ACT_NDO_XMIT;
 
 	dev->vlan_features |= features;
 	netif_set_tso_max_segs(dev, MVPP2_MAX_TSO_SEGS);
-
-	dev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-			    NETDEV_XDP_ACT_NDO_XMIT;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
