@@ -48,8 +48,6 @@ static struct lock_class_key port_lock_key;
  */
 #define RS485_MAX_RTS_DELAY	100 /* msecs */
 
-static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
-			      const struct ktermios *old_termios);
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout);
 static void uart_change_pm(struct uart_state *state,
 			   enum uart_pm_state pm_state);
@@ -175,6 +173,52 @@ static void uart_port_dtr_rts(struct uart_port *uport, int raise)
 		uart_set_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
 	else
 		uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
+}
+
+/* Caller holds port mutex */
+static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
+			      const struct ktermios *old_termios)
+{
+	struct uart_port *uport = uart_port_check(state);
+	struct ktermios *termios;
+	int hw_stopped;
+
+	/*
+	 * If we have no tty, termios, or the port does not exist,
+	 * then we can't set the parameters for this port.
+	 */
+	if (!tty || uport->type == PORT_UNKNOWN)
+		return;
+
+	termios = &tty->termios;
+	uport->ops->set_termios(uport, termios, old_termios);
+
+	/*
+	 * Set modem status enables based on termios cflag
+	 */
+	spin_lock_irq(&uport->lock);
+	if (termios->c_cflag & CRTSCTS)
+		uport->status |= UPSTAT_CTS_ENABLE;
+	else
+		uport->status &= ~UPSTAT_CTS_ENABLE;
+
+	if (termios->c_cflag & CLOCAL)
+		uport->status &= ~UPSTAT_DCD_ENABLE;
+	else
+		uport->status |= UPSTAT_DCD_ENABLE;
+
+	/* reset sw-assisted CTS flow control based on (possibly) new mode */
+	hw_stopped = uport->hw_stopped;
+	uport->hw_stopped = uart_softcts_mode(uport) &&
+			    !(uport->ops->get_mctrl(uport) & TIOCM_CTS);
+	if (uport->hw_stopped) {
+		if (!hw_stopped)
+			uport->ops->stop_tx(uport);
+	} else {
+		if (hw_stopped)
+			__uart_start(tty);
+	}
+	spin_unlock_irq(&uport->lock);
 }
 
 /*
@@ -484,52 +528,6 @@ uart_get_divisor(struct uart_port *port, unsigned int baud)
 	return quot;
 }
 EXPORT_SYMBOL(uart_get_divisor);
-
-/* Caller holds port mutex */
-static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
-			      const struct ktermios *old_termios)
-{
-	struct uart_port *uport = uart_port_check(state);
-	struct ktermios *termios;
-	int hw_stopped;
-
-	/*
-	 * If we have no tty, termios, or the port does not exist,
-	 * then we can't set the parameters for this port.
-	 */
-	if (!tty || uport->type == PORT_UNKNOWN)
-		return;
-
-	termios = &tty->termios;
-	uport->ops->set_termios(uport, termios, old_termios);
-
-	/*
-	 * Set modem status enables based on termios cflag
-	 */
-	spin_lock_irq(&uport->lock);
-	if (termios->c_cflag & CRTSCTS)
-		uport->status |= UPSTAT_CTS_ENABLE;
-	else
-		uport->status &= ~UPSTAT_CTS_ENABLE;
-
-	if (termios->c_cflag & CLOCAL)
-		uport->status &= ~UPSTAT_DCD_ENABLE;
-	else
-		uport->status |= UPSTAT_DCD_ENABLE;
-
-	/* reset sw-assisted CTS flow control based on (possibly) new mode */
-	hw_stopped = uport->hw_stopped;
-	uport->hw_stopped = uart_softcts_mode(uport) &&
-				!(uport->ops->get_mctrl(uport) & TIOCM_CTS);
-	if (uport->hw_stopped) {
-		if (!hw_stopped)
-			uport->ops->stop_tx(uport);
-	} else {
-		if (hw_stopped)
-			__uart_start(tty);
-	}
-	spin_unlock_irq(&uport->lock);
-}
 
 static int uart_put_char(struct tty_struct *tty, unsigned char c)
 {
