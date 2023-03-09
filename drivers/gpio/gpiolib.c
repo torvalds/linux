@@ -3926,13 +3926,10 @@ static struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 						bool platform_lookup_allowed)
 {
 	unsigned long lookupflags = GPIO_LOOKUP_FLAGS_DEFAULT;
-	struct gpio_desc *desc = ERR_PTR(-ENOENT);
+	struct gpio_desc *desc;
 	int ret;
 
-	if (!IS_ERR_OR_NULL(fwnode))
-		desc = gpiod_find_by_fwnode(fwnode, consumer, con_id, idx,
-					    &flags, &lookupflags);
-
+	desc = gpiod_find_by_fwnode(fwnode, consumer, con_id, idx, &flags, &lookupflags);
 	if (gpiod_not_found(desc) && platform_lookup_allowed) {
 		/*
 		 * Either we are not using DT or ACPI, or their lookup did not
