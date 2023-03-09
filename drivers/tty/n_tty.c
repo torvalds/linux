@@ -625,7 +625,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 		c = echo_buf(ldata, tail);
 		if (c == ECHO_OP_START) {
 			unsigned char op;
-			int no_space_left = 0;
+			bool space_left = true;
 
 			/*
 			 * Since add_echo_byte() is called without holding
@@ -664,7 +664,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				num_bs = 8 - (num_chars & 7);
 
 				if (num_bs > space) {
-					no_space_left = 1;
+					space_left = false;
 					break;
 				}
 				space -= num_bs;
@@ -690,7 +690,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 			case ECHO_OP_START:
 				/* This is an escaped echo op start code */
 				if (!space) {
-					no_space_left = 1;
+					space_left = false;
 					break;
 				}
 				tty_put_char(tty, ECHO_OP_START);
@@ -710,7 +710,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				 *
 				 */
 				if (space < 2) {
-					no_space_left = 1;
+					space_left = false;
 					break;
 				}
 				tty_put_char(tty, '^');
@@ -720,7 +720,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				tail += 2;
 			}
 
-			if (no_space_left)
+			if (!space_left)
 				break;
 		} else {
 			if (O_OPOST(tty)) {
