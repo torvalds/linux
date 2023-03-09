@@ -164,7 +164,7 @@ struct oldmem_data {
 };
 extern struct oldmem_data oldmem_data;
 
-static inline u32 gen_lpswe(unsigned long addr)
+static __always_inline u32 gen_lpswe(unsigned long addr)
 {
 	BUILD_BUG_ON(addr > 0xfff);
 	return 0xb2b20000 | addr;
