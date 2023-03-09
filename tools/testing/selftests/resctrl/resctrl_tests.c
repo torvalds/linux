@@ -77,7 +77,7 @@ static void run_mbm_test(bool has_ben, char **benchmark_cmd, int span,
 
 	ksft_print_msg("Starting MBM BW change ...\n");
 
-	if (!validate_resctrl_feature_request(MBM_STR)) {
+	if (!validate_resctrl_feature_request(MBM_STR) || (get_vendor() != ARCH_INTEL)) {
 		ksft_test_result_skip("Hardware does not support MBM or MBM is disabled\n");
 		return;
 	}
@@ -98,7 +98,7 @@ static void run_mba_test(bool has_ben, char **benchmark_cmd, int span,
 
 	ksft_print_msg("Starting MBA Schemata change ...\n");
 
-	if (!validate_resctrl_feature_request(MBA_STR)) {
+	if (!validate_resctrl_feature_request(MBA_STR) || (get_vendor() != ARCH_INTEL)) {
 		ksft_test_result_skip("Hardware does not support MBA or MBA is disabled\n");
 		return;
 	}
@@ -258,10 +258,10 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(tests ? : 4);
 
-	if ((get_vendor() == ARCH_INTEL) && mbm_test)
+	if (mbm_test)
 		run_mbm_test(has_ben, benchmark_cmd, span, cpu_no, bw_report);
 
-	if ((get_vendor() == ARCH_INTEL) && mba_test)
+	if (mba_test)
 		run_mba_test(has_ben, benchmark_cmd, span, cpu_no, bw_report);
 
 	if (cmt_test)
@@ -272,5 +272,5 @@ int main(int argc, char **argv)
 
 	umount_resctrlfs();
 
-	return ksft_exit_pass();
+	ksft_finished();
 }
