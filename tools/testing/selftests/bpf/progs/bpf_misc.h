@@ -76,6 +76,9 @@
 #define FUNC_REG_ARG_CNT 5
 #endif
 
+/* make it look to compiler like value is read and written */
+#define __sink(expr) asm volatile("" : "+g"(expr))
+
 struct bpf_iter_num;
 
 extern int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end) __ksym;
