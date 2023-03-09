@@ -19,7 +19,11 @@
 #define IS_ALL_ONES(v)	(!(typeof (v))~(v))
 
 struct efx_tc_action_set {
+	u16 vlan_push:2;
+	u16 vlan_pop:2;
 	u16 deliver:1;
+	__be16 vlan_tci[2]; /* TCIs for vlan_push */
+	__be16 vlan_proto[2]; /* Ethertypes for vlan_push */
 	struct efx_tc_counter_index *count;
 	u32 dest_mport;
 	u32 fw_id; /* index of this entry in firmware actions table */

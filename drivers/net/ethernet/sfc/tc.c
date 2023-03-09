@@ -286,6 +286,8 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 
 /* For details of action order constraints refer to SF-123102-TC-1§12.6.1 */
 enum efx_tc_action_order {
+	EFX_TC_AO_VLAN_POP,
+	EFX_TC_AO_VLAN_PUSH,
 	EFX_TC_AO_COUNT,
 	EFX_TC_AO_DELIVER
 };
@@ -294,6 +296,20 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 					  enum efx_tc_action_order new)
 {
 	switch (new) {
+	case EFX_TC_AO_VLAN_POP:
+		if (act->vlan_pop >= 2)
+			return false;
+		/* If we've already pushed a VLAN, we can't then pop it;
+		 * the hardware would instead try to pop an existing VLAN
+		 * before pushing the new one.
+		 */
+		if (act->vlan_push)
+			return false;
+		fallthrough;
+	case EFX_TC_AO_VLAN_PUSH:
+		if (act->vlan_push >= 2)
+			return false;
+		fallthrough;
 	case EFX_TC_AO_COUNT:
 		if (act->count)
 			return false;
@@ -393,6 +409,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	flow_action_for_each(i, fa, &fr->action) {
 		struct efx_tc_action_set save;
+		u16 tci;
 
 		if (!act) {
 			/* more actions after a non-pipe action */
@@ -493,6 +510,31 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 				goto release;
 			}
 			*act = save;
+			break;
+		case FLOW_ACTION_VLAN_POP:
+			if (act->vlan_push) {
+				act->vlan_push--;
+			} else if (efx_tc_flower_action_order_ok(act, EFX_TC_AO_VLAN_POP)) {
+				act->vlan_pop++;
+			} else {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "More than two VLAN pops, or action order violated");
+				rc = -EINVAL;
+				goto release;
+			}
+			break;
+		case FLOW_ACTION_VLAN_PUSH:
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_VLAN_PUSH)) {
+				rc = -EINVAL;
+				NL_SET_ERR_MSG_MOD(extack,
+						   "More than two VLAN pushes, or action order violated");
+				goto release;
+			}
+			tci = fa->vlan.vid & VLAN_VID_MASK;
+			tci |= fa->vlan.prio << VLAN_PRIO_SHIFT;
+			act->vlan_tci[act->vlan_push] = cpu_to_be16(tci);
+			act->vlan_proto[act->vlan_push] = fa->vlan.proto;
+			act->vlan_push++;
 			break;
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
