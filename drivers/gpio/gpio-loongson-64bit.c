@@ -222,7 +222,6 @@ MODULE_DEVICE_TABLE(acpi, loongson_gpio_acpi_match);
 static struct platform_driver loongson_gpio_driver = {
 	.driver = {
 		.name = "loongson-gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = loongson_gpio_of_match,
 		.acpi_match_table = loongson_gpio_acpi_match,
 	},
