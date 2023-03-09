@@ -143,6 +143,12 @@ struct ec_stripe_buf {
 
 struct ec_stripe_head;
 
+enum ec_stripe_ref {
+	STRIPE_REF_io,
+	STRIPE_REF_stripe,
+	STRIPE_REF_NR
+};
+
 struct ec_stripe_new {
 	struct bch_fs		*c;
 	struct ec_stripe_head	*h;
@@ -154,8 +160,7 @@ struct ec_stripe_new {
 
 	struct closure		iodone;
 
-	/* counts in flight writes, stripe is created when pin == 0 */
-	atomic_t		pin;
+	atomic_t		ref[STRIPE_REF_NR];
 
 	int			err;
 
@@ -213,19 +218,30 @@ void bch2_stripes_heap_insert(struct bch_fs *, struct stripe *, size_t);
 
 void bch2_do_stripe_deletes(struct bch_fs *);
 void bch2_ec_do_stripe_creates(struct bch_fs *);
+void bch2_ec_stripe_new_free(struct bch_fs *, struct ec_stripe_new *);
 
-static inline void ec_stripe_new_get(struct ec_stripe_new *s)
+static inline void ec_stripe_new_get(struct ec_stripe_new *s,
+				     enum ec_stripe_ref ref)
 {
-	atomic_inc(&s->pin);
+	atomic_inc(&s->ref[ref]);
 }
 
-static inline void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s)
+static inline void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s,
+				     enum ec_stripe_ref ref)
 {
-	BUG_ON(atomic_read(&s->pin) <= 0);
-	BUG_ON(!s->err && !s->idx);
+	BUG_ON(atomic_read(&s->ref[ref]) <= 0);
 
-	if (atomic_dec_and_test(&s->pin))
-		bch2_ec_do_stripe_creates(c);
+	if (atomic_dec_and_test(&s->ref[ref]))
+		switch (ref) {
+		case STRIPE_REF_stripe:
+			bch2_ec_stripe_new_free(c, s);
+			break;
+		case STRIPE_REF_io:
+			bch2_ec_do_stripe_creates(c);
+			break;
+		default:
+			unreachable();
+		}
 }
 
 void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);

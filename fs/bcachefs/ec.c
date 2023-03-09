@@ -1057,6 +1057,13 @@ static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
 		s->err = ret;
 }
 
+void bch2_ec_stripe_new_free(struct bch_fs *c, struct ec_stripe_new *s)
+{
+	if (s->idx)
+		bch2_stripe_close(c, s);
+	kfree(s);
+}
+
 /*
  * data buckets of new stripe all written: create the stripe
  */
@@ -1152,13 +1159,11 @@ err:
 	list_del(&s->list);
 	mutex_unlock(&c->ec_stripe_new_lock);
 
-	if (s->idx)
-		bch2_stripe_close(c, s);
-
 	ec_stripe_buf_exit(&s->existing_stripe);
 	ec_stripe_buf_exit(&s->new_stripe);
 	closure_debug_destroy(&s->iodone);
-	kfree(s);
+
+	ec_stripe_new_put(c, s, STRIPE_REF_stripe);
 }
 
 static struct ec_stripe_new *get_pending_stripe(struct bch_fs *c)
@@ -1167,7 +1172,7 @@ static struct ec_stripe_new *get_pending_stripe(struct bch_fs *c)
 
 	mutex_lock(&c->ec_stripe_new_lock);
 	list_for_each_entry(s, &c->ec_stripe_new_list, list)
-		if (!atomic_read(&s->pin))
+		if (!atomic_read(&s->ref[STRIPE_REF_io]))
 			goto out;
 	s = NULL;
 out:
@@ -1209,7 +1214,7 @@ static void ec_stripe_set_pending(struct bch_fs *c, struct ec_stripe_head *h)
 	list_add(&s->list, &c->ec_stripe_new_list);
 	mutex_unlock(&c->ec_stripe_new_lock);
 
-	ec_stripe_new_put(c, s);
+	ec_stripe_new_put(c, s, STRIPE_REF_io);
 }
 
 void bch2_ec_bucket_cancel(struct bch_fs *c, struct open_bucket *ob)
@@ -1321,7 +1326,8 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 
 	mutex_init(&s->lock);
 	closure_init(&s->iodone, NULL);
-	atomic_set(&s->pin, 1);
+	atomic_set(&s->ref[STRIPE_REF_stripe], 1);
+	atomic_set(&s->ref[STRIPE_REF_io], 1);
 	s->c		= c;
 	s->h		= h;
 	s->nr_data	= min_t(unsigned, h->nr_active_devs,
@@ -1829,13 +1835,16 @@ void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 	size_t i;
 
 	mutex_lock(&c->ec_stripes_heap_lock);
-	for (i = 0; i < min_t(size_t, h->used, 20); i++) {
+	for (i = 0; i < min_t(size_t, h->used, 50); i++) {
 		m = genradix_ptr(&c->stripes, h->data[i].idx);
 
-		prt_printf(out, "%zu %u/%u+%u\n", h->data[i].idx,
+		prt_printf(out, "%zu %u/%u+%u", h->data[i].idx,
 		       h->data[i].blocks_nonempty,
 		       m->nr_blocks - m->nr_redundant,
 		       m->nr_redundant);
+		if (bch2_stripe_is_open(c, h->data[i].idx))
+			prt_str(out, " open");
+		prt_newline(out);
 	}
 	mutex_unlock(&c->ec_stripes_heap_lock);
 }
@@ -1860,9 +1869,10 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->ec_stripe_new_lock);
 	list_for_each_entry(s, &c->ec_stripe_new_list, list) {
-		prt_printf(out, "\tin flight: idx %llu blocks %u+%u pin %u\n",
+		prt_printf(out, "\tin flight: idx %llu blocks %u+%u ref %u %u\n",
 			   s->idx, s->nr_data, s->nr_parity,
-			   atomic_read(&s->pin));
+			   atomic_read(&s->ref[STRIPE_REF_io]),
+			   atomic_read(&s->ref[STRIPE_REF_stripe]));
 	}
 	mutex_unlock(&c->ec_stripe_new_lock);
 }

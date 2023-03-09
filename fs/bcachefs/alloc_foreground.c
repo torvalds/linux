@@ -97,7 +97,7 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
 
 	if (ob->ec) {
-		ec_stripe_new_put(c, ob->ec);
+		ec_stripe_new_put(c, ob->ec, STRIPE_REF_io);
 		return;
 	}
 
@@ -799,7 +799,7 @@ got_bucket:
 
 	ob->ec_idx	= ec_idx;
 	ob->ec		= h->s;
-	ec_stripe_new_get(h->s);
+	ec_stripe_new_get(h->s, STRIPE_REF_io);
 
 	ret = add_new_bucket(c, ptrs, devs_may_alloc,
 			     nr_replicas, nr_effective,
