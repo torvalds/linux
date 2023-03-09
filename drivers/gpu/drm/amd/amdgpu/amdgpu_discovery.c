@@ -79,6 +79,7 @@
 #include "sdma_v5_0.h"
 #include "sdma_v5_2.h"
 #include "sdma_v6_0.h"
+#include "sdma_v7_0.h"
 #include "lsdma_v6_0.h"
 #include "lsdma_v7_0.h"
 #include "vcn_v2_0.h"
@@ -2083,6 +2084,10 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(6, 1, 0):
 	case IP_VERSION(6, 1, 1):
 		amdgpu_device_ip_block_add(adev, &sdma_v6_0_ip_block);
+		break;
+	case IP_VERSION(7, 0, 0):
+	case IP_VERSION(7, 0, 1):
+		amdgpu_device_ip_block_add(adev, &sdma_v7_0_ip_block);
 		break;
 	default:
 		dev_err(adev->dev,
