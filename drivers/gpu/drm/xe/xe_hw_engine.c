@@ -369,29 +369,29 @@ static void hw_engine_setup_logical_mapping(struct xe_gt *gt)
 	}
 }
 
-static void read_fuses(struct xe_gt *gt)
+static void read_media_fuses(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 media_fuse;
 	u16 vdbox_mask;
 	u16 vebox_mask;
-	u32 bcs_mask;
 	int i, j;
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	/*
-	 * FIXME: Hack job, thinking we should have table of vfuncs for each
-	 * class which picks the correct vfunc based on IP version.
-	 */
-
 	media_fuse = xe_mmio_read32(gt, GEN11_GT_VEBOX_VDBOX_DISABLE.reg);
+
+	/*
+	 * Pre-Xe_HP platforms had register bits representing absent engines,
+	 * whereas Xe_HP and beyond have bits representing present engines.
+	 * Invert the polarity on old platforms so that we can use common
+	 * handling below.
+	 */
 	if (GRAPHICS_VERx100(xe) < 1250)
 		media_fuse = ~media_fuse;
 
-	vdbox_mask = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-		      GEN11_GT_VEBOX_DISABLE_SHIFT;
+	vdbox_mask = REG_FIELD_GET(GEN11_GT_VDBOX_DISABLE_MASK, media_fuse);
+	vebox_mask = REG_FIELD_GET(GEN11_GT_VEBOX_DISABLE_MASK, media_fuse);
 
 	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
 		if (!(gt->info.engine_mask & BIT(i)))
@@ -412,28 +412,37 @@ static void read_fuses(struct xe_gt *gt)
 			drm_info(&xe->drm, "vecs%u fused off\n", j);
 		}
 	}
+}
+
+static void read_copy_fuses(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 bcs_mask;
+
+	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
 	bcs_mask = xe_mmio_read32(gt, GEN10_MIRROR_FUSE3.reg);
 	bcs_mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK, bcs_mask);
 
-	for (i = XE_HW_ENGINE_BCS1, j = 0; i <= XE_HW_ENGINE_BCS8; ++i, ++j) {
+	/* BCS0 is always present; only BCS1-BCS8 may be fused off */
+	for (int i = XE_HW_ENGINE_BCS1, j = 0; i <= XE_HW_ENGINE_BCS8; ++i, ++j) {
 		if (!(gt->info.engine_mask & BIT(i)))
 			continue;
 
-		if (!(BIT(j/2) & bcs_mask)) {
+		if (!(BIT(j / 2) & bcs_mask)) {
 			gt->info.engine_mask &= ~BIT(i);
 			drm_info(&xe->drm, "bcs%u fused off\n", j);
 		}
 	}
-
-	/* TODO: compute engines */
 }
 
 int xe_hw_engines_init_early(struct xe_gt *gt)
 {
 	int i;
 
-	read_fuses(gt);
+	read_media_fuses(gt);
+	read_copy_fuses(gt);
+	/* TODO: compute engines */
 
 	for (i = 0; i < ARRAY_SIZE(gt->hw_engines); i++)
 		hw_engine_init_early(gt, &gt->hw_engines[i], i);
