@@ -182,7 +182,7 @@ static void uart_change_line_settings(struct tty_struct *tty, struct uart_state 
 {
 	struct uart_port *uport = uart_port_check(state);
 	struct ktermios *termios;
-	bool hw_stopped;
+	bool old_hw_stopped;
 
 	/*
 	 * If we have no tty, termios, or the port does not exist,
@@ -209,14 +209,13 @@ static void uart_change_line_settings(struct tty_struct *tty, struct uart_state 
 		uport->status |= UPSTAT_DCD_ENABLE;
 
 	/* reset sw-assisted CTS flow control based on (possibly) new mode */
-	hw_stopped = uport->hw_stopped;
+	old_hw_stopped = uport->hw_stopped;
 	uport->hw_stopped = uart_softcts_mode(uport) &&
 			    !(uport->ops->get_mctrl(uport) & TIOCM_CTS);
-	if (uport->hw_stopped) {
-		if (!hw_stopped)
+	if (uport->hw_stopped != old_hw_stopped) {
+		if (!old_hw_stopped)
 			uport->ops->stop_tx(uport);
-	} else {
-		if (hw_stopped)
+		else
 			__uart_start(tty);
 	}
 	spin_unlock_irq(&uport->lock);
