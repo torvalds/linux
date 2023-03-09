@@ -556,6 +556,15 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		if (connected_to_cpu)
 			return AMD_RESET_METHOD_MODE2;
 		break;
+	case IP_VERSION(13, 0, 6):
+		/* Use gpu_recovery param to target a reset method.
+		 * Enable triggering of GPU reset only if specified
+		 * by module parameter.
+		 */
+		if (amdgpu_gpu_recovery == 4 || amdgpu_gpu_recovery == 5)
+			return AMD_RESET_METHOD_MODE2;
+		else
+			return AMD_RESET_METHOD_NONE;
 	default:
 		break;
 	}
