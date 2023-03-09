@@ -371,6 +371,16 @@
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	pinctrl_hog: hoggrp {
+		fsl,pins = <
+			/* CLKO2 for cameras on both CSI1 and CSI2 */
+			MX8MQ_IOMUXC_GPIO1_IO15_CCMSRCGPCMIX_CLKO2      0x1f
+		>;
+	};
+
 	pinctrl_audiopwr: audiopwrgrp {
 		fsl,pins = <
 			/* AUDIO_POWER_EN_3V3 */
