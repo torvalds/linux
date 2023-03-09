@@ -363,7 +363,7 @@ struct xe_reg_sr;
  */
 #define XE_RTP_RULES(r1, ...)							\
 	.n_rules = COUNT_ARGS(r1, ##__VA_ARGS__),				\
-	.rules = (struct xe_rtp_rule[]) {					\
+	.rules = (const struct xe_rtp_rule[]) {					\
 		CALL_FOR_EACH(__ADD_XE_RTP_RULE_PREFIX, r1, ##__VA_ARGS__)	\
 	}
 
@@ -390,7 +390,7 @@ struct xe_reg_sr;
  */
 #define XE_RTP_ACTIONS(a1, ...)							\
 	.n_actions = COUNT_ARGS(a1, ##__VA_ARGS__),				\
-	.actions = (struct xe_rtp_action[]) {					\
+	.actions = (const struct xe_rtp_action[]) {				\
 		CALL_FOR_EACH(__ADD_XE_RTP_ACTION_PREFIX, a1, ##__VA_ARGS__)	\
 	}
 
