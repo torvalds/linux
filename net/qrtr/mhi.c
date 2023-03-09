@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/mhi.h>
@@ -68,7 +68,7 @@ static int __qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 
 	rc = mhi_queue_skb(qdev->mhi_dev, DMA_TO_DEVICE, skb, skb->len,
 			   MHI_EOT);
-	if (rc)
+	if (rc && rc != -EAGAIN)
 		goto free_skb;
 
 	return rc;
@@ -84,11 +84,13 @@ free_skb:
 static int qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 {
 	int rc;
+	int retry = 5;
 
 	do {
 		rc = __qcom_mhi_qrtr_send(ep, skb);
-		usleep_range(1000, 2000);
-	} while (rc == -EAGAIN);
+		if (rc == -EAGAIN)
+			usleep_range(1000, 2000);
+	} while (rc == -EAGAIN && --retry);
 
 	return rc;
 }
