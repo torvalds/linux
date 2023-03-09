@@ -65,4 +65,13 @@ config QRTR_GUNYAH
 	  Router communication between two virtual machines. The transport
 	  uses dynamically shared memory and gunyah doorbells.
 
+config QRTR_GENPOOL
+	tristate "Genpool FIFO IPC Router channels"
+	help
+	  Say Y here to support a fifo based ipcrouter channel with genpool and
+	  IPCC signaling. The genpool fifo transport layer enables IPC Router
+	  communication between two endpoints. The transport utilizes a reserved
+	  memory created and owned by another device, which is shared through
+	  the genpool framework.
+
 endif # QRTR
