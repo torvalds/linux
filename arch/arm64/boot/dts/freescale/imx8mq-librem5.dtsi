@@ -1147,7 +1147,9 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 		phys = <&usb3_phy0>;
-		ti,precharge-current = <130000>; /* uA */
+		ti,battery-regulation-voltage = <4208000>; /* uV */
+		ti,termination-current = <128000>;  /* uA */
+		ti,precharge-current = <128000>; /* uA */
 		ti,minimum-sys-voltage = <3700000>; /* uV */
 		ti,boost-voltage = <5000000>; /* uV */
 		ti,boost-max-current = <1500000>; /* uA */

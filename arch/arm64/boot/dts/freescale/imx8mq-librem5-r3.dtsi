@@ -22,9 +22,7 @@
 };
 
 &bq25895 {
-	ti,battery-regulation-voltage = <4200000>; /* uV */
 	ti,charge-current = <1500000>; /* uA */
-	ti,termination-current = <144000>;  /* uA */
 };
 
 &camera_front {
