@@ -412,11 +412,14 @@ void rkisp_params_get_meshbuf_inf(struct rkisp_isp_params_vdev *params_vdev,
 		params_vdev->ops->get_meshbuf_inf(params_vdev, meshbuf);
 }
 
-void rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev,
-				   void *meshsize)
+int rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev,
+				  void *meshsize)
 {
 	if (params_vdev->ops->set_meshbuf_size)
-		params_vdev->ops->set_meshbuf_size(params_vdev, meshsize);
+		return params_vdev->ops->set_meshbuf_size(params_vdev,
+							  meshsize);
+	else
+		return -EINVAL;
 }
 
 void rkisp_params_meshbuf_free(struct rkisp_isp_params_vdev *params_vdev, u64 id)

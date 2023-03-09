@@ -4190,14 +4190,14 @@ rkisp_params_get_ldchbuf_inf_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	}
 }
 
-static void
+static int
 rkisp_params_set_ldchbuf_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 				  void *size)
 {
 	struct rkisp_ldchbuf_size *ldchsize = size;
 
 	rkisp_deinit_ldch_buf(params_vdev);
-	rkisp_init_ldch_buf(params_vdev, ldchsize);
+	return rkisp_init_ldch_buf(params_vdev, ldchsize);
 }
 
 static void

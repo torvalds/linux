@@ -3456,7 +3456,7 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKISP_CMD_SET_LDCHBUF_SIZE:
 	case RKISP_CMD_SET_MESHBUF_SIZE:
-		rkisp_params_set_meshbuf_size(&isp_dev->params_vdev, arg);
+		ret = rkisp_params_set_meshbuf_size(&isp_dev->params_vdev, arg);
 		break;
 	case RKISP_CMD_GET_SHM_BUFFD:
 		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {

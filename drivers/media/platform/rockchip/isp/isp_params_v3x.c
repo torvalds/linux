@@ -4598,7 +4598,7 @@ rkisp_params_get_meshbuf_inf_v3x(struct rkisp_isp_params_vdev *params_vdev,
 	}
 }
 
-static void
+static int
 rkisp_params_set_meshbuf_size_v3x(struct rkisp_isp_params_vdev *params_vdev,
 				  void *size)
 {
@@ -4607,7 +4607,7 @@ rkisp_params_set_meshbuf_size_v3x(struct rkisp_isp_params_vdev *params_vdev,
 	if (!params_vdev->dev->hw_dev->is_unite)
 		meshsize->unite_isp_id = 0;
 	rkisp_deinit_mesh_buf(params_vdev, meshsize->module_id, meshsize->unite_isp_id);
-	rkisp_init_mesh_buf(params_vdev, meshsize);
+	return rkisp_init_mesh_buf(params_vdev, meshsize);
 }
 
 static void

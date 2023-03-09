@@ -5024,13 +5024,13 @@ rkisp_params_get_meshbuf_inf_v32(struct rkisp_isp_params_vdev *params_vdev,
 	}
 }
 
-static void
+static int
 rkisp_params_set_meshbuf_size_v32(struct rkisp_isp_params_vdev *params_vdev,
 				  void *size)
 {
 	struct rkisp_meshbuf_size *meshsize = size;
 
-	rkisp_init_mesh_buf(params_vdev, meshsize);
+	return rkisp_init_mesh_buf(params_vdev, meshsize);
 }
 
 static void
