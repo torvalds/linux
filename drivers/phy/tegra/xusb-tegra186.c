@@ -145,6 +145,8 @@
 #define   MODE_HS				MODE(0)
 #define   MODE_RST				MODE(1)
 
+#define XUSB_AO_UTMIP_SLEEPWALK_STATUS(x)	(0xa0 + (x) * 4)
+
 #define XUSB_AO_UTMIP_SLEEPWALK_CFG(x)		(0xd0 + (x) * 4)
 #define XUSB_AO_UHSIC_SLEEPWALK_CFG(x)		(0xf0 + (x) * 4)
 #define   FAKE_USBOP_VAL			BIT(0)
@@ -172,24 +174,30 @@
 #define   AP_A					BIT(4)
 #define   AN_A					BIT(5)
 #define   HIGHZ_A				BIT(6)
+#define   MASTER_ENABLE_A			BIT(7)
 /* phase B */
 #define   USBOP_RPD_B				BIT(8)
 #define   USBON_RPD_B				BIT(9)
 #define   AP_B					BIT(12)
 #define   AN_B					BIT(13)
 #define   HIGHZ_B				BIT(14)
+#define   MASTER_ENABLE_B			BIT(15)
 /* phase C */
 #define   USBOP_RPD_C				BIT(16)
 #define   USBON_RPD_C				BIT(17)
 #define   AP_C					BIT(20)
 #define   AN_C					BIT(21)
 #define   HIGHZ_C				BIT(22)
+#define   MASTER_ENABLE_C			BIT(23)
 /* phase D */
 #define   USBOP_RPD_D				BIT(24)
 #define   USBON_RPD_D				BIT(25)
 #define   AP_D					BIT(28)
 #define   AN_D					BIT(29)
 #define   HIGHZ_D				BIT(30)
+#define   MASTER_ENABLE_D			BIT(31)
+#define   MASTER_ENABLE_B_C_D					\
+	 (MASTER_ENABLE_B | MASTER_ENABLE_C | MASTER_ENABLE_D)
 
 #define XUSB_AO_UHSIC_SLEEPWALK(x)		(0x120 + (x) * 4)
 /* phase A */
@@ -417,6 +425,8 @@ static int tegra186_utmi_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 		value |= HIGHZ_A;
 		value |= AP_A;
 		value |= AN_B | AN_C | AN_D;
+		if (padctl->soc->supports_lp_cfg_en)
+			value |= MASTER_ENABLE_B_C_D;
 		break;
 
 	case USB_SPEED_LOW:
@@ -424,6 +434,8 @@ static int tegra186_utmi_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 		value |= HIGHZ_A;
 		value |= AN_A;
 		value |= AP_B | AP_C | AP_D;
+		if (padctl->soc->supports_lp_cfg_en)
+			value |= MASTER_ENABLE_B_C_D;
 		break;
 
 	default:
@@ -487,6 +499,13 @@ static int tegra186_utmi_disable_phy_sleepwalk(struct tegra_xusb_lane *lane)
 	value &= ~WAKE_VAL(~0);
 	value |= WAKE_VAL_NONE;
 	ao_writel(priv, value, XUSB_AO_UTMIP_SLEEPWALK_CFG(index));
+
+	if (padctl->soc->supports_lp_cfg_en) {
+		/* disable the four stages of sleepwalk */
+		value = ao_readl(priv, XUSB_AO_UTMIP_SLEEPWALK(index));
+		value &= ~(MASTER_ENABLE_A | MASTER_ENABLE_B_C_D);
+		ao_writel(priv, value, XUSB_AO_UTMIP_SLEEPWALK(index));
+	}
 
 	/* power down the line state detectors of the port */
 	value = ao_readl(priv, XUSB_AO_UTMIP_PAD_CFG(index));
@@ -1673,6 +1692,7 @@ const struct tegra_xusb_padctl_soc tegra234_xusb_padctl_soc = {
 	.supports_gen2 = true,
 	.poll_trk_completed = true,
 	.trk_hw_mode = true,
+	.supports_lp_cfg_en = true,
 };
 EXPORT_SYMBOL_GPL(tegra234_xusb_padctl_soc);
 #endif
