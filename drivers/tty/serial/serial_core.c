@@ -1662,10 +1662,10 @@ static void uart_set_termios(struct tty_struct *tty,
 	cflag = tty->termios.c_cflag;
 
 	/* Handle transition to B0 status */
-	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD))
+	if (((old_termios->c_cflag & CBAUD) != B0) && ((cflag & CBAUD) == B0))
 		uart_clear_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
 	/* Handle transition away from B0 status */
-	else if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
+	else if (((old_termios->c_cflag & CBAUD) == B0) && ((cflag & CBAUD) != B0)) {
 		unsigned int mask = TIOCM_DTR;
 
 		if (!(cflag & CRTSCTS) || !tty_throttled(tty))
