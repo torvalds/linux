@@ -1611,8 +1611,8 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 
 	if (dsi2->te_gpio) {
 		ret = devm_request_threaded_irq(dsi2->dev, gpiod_to_irq(dsi2->te_gpio),
-						NULL, dw_mipi_dsi2_te_irq_handler,
-						IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+						dw_mipi_dsi2_te_irq_handler, NULL,
+						IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 						"PANEL-TE", dsi2);
 		if (ret) {
 			dev_err(dsi2->dev, "failed to request TE IRQ: %d\n", ret);
