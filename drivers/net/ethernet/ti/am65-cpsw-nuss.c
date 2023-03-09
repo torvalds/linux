@@ -1466,7 +1466,7 @@ static void am65_cpsw_disable_serdes_phy(struct am65_cpsw_common *common)
 static int am65_cpsw_init_serdes_phy(struct device *dev, struct device_node *port_np,
 				     struct am65_cpsw_port *port)
 {
-	const char *name = "serdes-phy";
+	const char *name = "serdes";
 	struct phy *phy;
 	int ret;
 
