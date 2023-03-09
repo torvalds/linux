@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "gunyah: " fmt
@@ -26,6 +27,11 @@
 #define QC_HYP_UID1 0x0b37571b
 #define QC_HYP_UID2 0x946f609b
 #define QC_HYP_UID3 0x54539de6
+
+#define QC_HYP1_UID0 0xbd54bd19
+#define QC_HYP1_UID1 0x1b57370b
+#define QC_HYP1_UID2 0x9b606f94
+#define QC_HYP1_UID3 0xe69d5354
 
 #define GH_API_INFO_API_VERSION(x)	(((x) >> 0) & 0x3fff)
 #define GH_API_INFO_BIG_ENDIAN(x)	(((x) >> 14) & 1)
@@ -239,6 +245,9 @@ static int __init gh_ctrl_init(void)
 	arm_smccc_1_1_smc(QC_HYP_SMCCC_CALL_UID, &res);
 	if ((res.a0 == QC_HYP_UID0) && (res.a1 == QC_HYP_UID1) &&
 	    (res.a2 == QC_HYP_UID2) && (res.a3 == QC_HYP_UID3))
+		qc_hyp_calls = true;
+	else if ((res.a0 == QC_HYP1_UID0) && (res.a1 == QC_HYP1_UID1) &&
+	    (res.a2 == QC_HYP1_UID2) && (res.a3 == QC_HYP1_UID3))
 		qc_hyp_calls = true;
 
 	if (qc_hyp_calls) {
