@@ -1108,7 +1108,7 @@ enum bpf_link_type {
  */
 #define BPF_F_STRICT_ALIGNMENT	(1U << 0)
 
-/* If BPF_F_ANY_ALIGNMENT is used in BPF_PROF_LOAD command, the
+/* If BPF_F_ANY_ALIGNMENT is used in BPF_PROG_LOAD command, the
  * verifier will allow any alignment whatsoever.  On platforms
  * with strict alignment requirements for loads ands stores (such
  * as sparc and mips) the verifier validates that all loads and
