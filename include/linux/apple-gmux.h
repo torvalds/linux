@@ -86,7 +86,7 @@ static inline bool apple_gmux_is_mmio(unsigned long iostart)
  * apple_gmux_detect() - detect if gmux is built into the machine
  *
  * @pnp_dev:     Device to probe or NULL to use the first matching device
- * @indexed_ret: Returns (by reference) if the gmux is indexed or not
+ * @type_ret: Returns (by reference) the apple_gmux_type of the device
  *
  * Detect if a supported gmux device is present by actually probing it.
  * This avoids the false positives returned on some models by
