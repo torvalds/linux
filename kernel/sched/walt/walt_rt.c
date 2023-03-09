@@ -107,6 +107,7 @@ static void walt_rt_energy_aware_wake_cpu(struct task_struct *task, struct cpuma
 	bool boost_on_big = rt_boost_on_big();
 	int cluster;
 	int order_index = (boost_on_big && num_sched_clusters > 1) ? 1 : 0;
+	int end_index = 0;
 	bool best_cpu_lt = true;
 
 	if (unlikely(walt_disabled))
@@ -116,6 +117,10 @@ static void walt_rt_energy_aware_wake_cpu(struct task_struct *task, struct cpuma
 		return; /* No targets found */
 
 	rcu_read_lock();
+
+	if (num_sched_clusters > 3 && order_index == 0)
+		end_index = 1;
+
 	for (cluster = 0; cluster < num_sched_clusters; cluster++) {
 		for_each_cpu_and(cpu, lowest_mask, &cpu_array[order_index][cluster]) {
 			bool lt;
@@ -184,6 +189,10 @@ static void walt_rt_energy_aware_wake_cpu(struct task_struct *task, struct cpuma
 			best_cpu_util = util;
 			*best_cpu = cpu;
 			best_cpu_lt = lt;
+		}
+		if (cluster < end_index) {
+			if (*best_cpu == -1 || !available_idle_cpu(*best_cpu))
+				continue;
 		}
 
 		if (*best_cpu != -1)
