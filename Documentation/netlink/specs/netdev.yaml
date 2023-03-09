@@ -9,6 +9,7 @@ definitions:
   -
     type: flags
     name: xdp-act
+    render-max: true
     entries:
       -
         name: basic
