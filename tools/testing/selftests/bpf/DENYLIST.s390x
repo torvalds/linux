@@ -8,6 +8,7 @@ dynptr/test_dynptr_skb_data
 dynptr/test_skb_readonly
 fexit_sleep                              # fexit_skel_load fexit skeleton failed                                       (trampoline)
 get_stack_raw_tp                         # user_stack corrupted user stack                                             (no backchain userspace)
+iters/testmod_seq*                       # s390x doesn't support kfuncs in modules yet
 kprobe_multi_bench_attach                # bpf_program__attach_kprobe_multi_opts unexpected error: -95
 kprobe_multi_test                        # relies on fentry
 ksyms_module                             # test_ksyms_module__open_and_load unexpected error: -9                       (?)

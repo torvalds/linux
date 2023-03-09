@@ -7596,6 +7596,108 @@ BTF_ID_LIST_GLOBAL(btf_tracing_ids, MAX_BTF_TRACING_TYPE)
 BTF_TRACING_TYPE_xxx
 #undef BTF_TRACING_TYPE
 
+static int btf_check_iter_kfuncs(struct btf *btf, const char *func_name,
+				 const struct btf_type *func, u32 func_flags)
+{
+	u32 flags = func_flags & (KF_ITER_NEW | KF_ITER_NEXT | KF_ITER_DESTROY);
+	const char *name, *sfx, *iter_name;
+	const struct btf_param *arg;
+	const struct btf_type *t;
+	char exp_name[128];
+	u32 nr_args;
+
+	/* exactly one of KF_ITER_{NEW,NEXT,DESTROY} can be set */
+	if (!flags || (flags & (flags - 1)))
+		return -EINVAL;
+
+	/* any BPF iter kfunc should have `struct bpf_iter_<type> *` first arg */
+	nr_args = btf_type_vlen(func);
+	if (nr_args < 1)
+		return -EINVAL;
+
+	arg = &btf_params(func)[0];
+	t = btf_type_skip_modifiers(btf, arg->type, NULL);
+	if (!t || !btf_type_is_ptr(t))
+		return -EINVAL;
+	t = btf_type_skip_modifiers(btf, t->type, NULL);
+	if (!t || !__btf_type_is_struct(t))
+		return -EINVAL;
+
+	name = btf_name_by_offset(btf, t->name_off);
+	if (!name || strncmp(name, ITER_PREFIX, sizeof(ITER_PREFIX) - 1))
+		return -EINVAL;
+
+	/* sizeof(struct bpf_iter_<type>) should be a multiple of 8 to
+	 * fit nicely in stack slots
+	 */
+	if (t->size == 0 || (t->size % 8))
+		return -EINVAL;
+
+	/* validate bpf_iter_<type>_{new,next,destroy}(struct bpf_iter_<type> *)
+	 * naming pattern
+	 */
+	iter_name = name + sizeof(ITER_PREFIX) - 1;
+	if (flags & KF_ITER_NEW)
+		sfx = "new";
+	else if (flags & KF_ITER_NEXT)
+		sfx = "next";
+	else /* (flags & KF_ITER_DESTROY) */
+		sfx = "destroy";
+
+	snprintf(exp_name, sizeof(exp_name), "bpf_iter_%s_%s", iter_name, sfx);
+	if (strcmp(func_name, exp_name))
+		return -EINVAL;
+
+	/* only iter constructor should have extra arguments */
+	if (!(flags & KF_ITER_NEW) && nr_args != 1)
+		return -EINVAL;
+
+	if (flags & KF_ITER_NEXT) {
+		/* bpf_iter_<type>_next() should return pointer */
+		t = btf_type_skip_modifiers(btf, func->type, NULL);
+		if (!t || !btf_type_is_ptr(t))
+			return -EINVAL;
+	}
+
+	if (flags & KF_ITER_DESTROY) {
+		/* bpf_iter_<type>_destroy() should return void */
+		t = btf_type_by_id(btf, func->type);
+		if (!t || !btf_type_is_void(t))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int btf_check_kfunc_protos(struct btf *btf, u32 func_id, u32 func_flags)
+{
+	const struct btf_type *func;
+	const char *func_name;
+	int err;
+
+	/* any kfunc should be FUNC -> FUNC_PROTO */
+	func = btf_type_by_id(btf, func_id);
+	if (!func || !btf_type_is_func(func))
+		return -EINVAL;
+
+	/* sanity check kfunc name */
+	func_name = btf_name_by_offset(btf, func->name_off);
+	if (!func_name || !func_name[0])
+		return -EINVAL;
+
+	func = btf_type_by_id(btf, func->type);
+	if (!func || !btf_type_is_func_proto(func))
+		return -EINVAL;
+
+	if (func_flags & (KF_ITER_NEW | KF_ITER_NEXT | KF_ITER_DESTROY)) {
+		err = btf_check_iter_kfuncs(btf, func_name, func, func_flags);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /* Kernel Function (kfunc) BTF ID set registration API */
 
 static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
@@ -7772,7 +7874,7 @@ static int __register_btf_kfunc_id_set(enum btf_kfunc_hook hook,
 				       const struct btf_kfunc_id_set *kset)
 {
 	struct btf *btf;
-	int ret;
+	int ret, i;
 
 	btf = btf_get_module_btf(kset->owner);
 	if (!btf) {
@@ -7789,7 +7891,15 @@ static int __register_btf_kfunc_id_set(enum btf_kfunc_hook hook,
 	if (IS_ERR(btf))
 		return PTR_ERR(btf);
 
+	for (i = 0; i < kset->set->cnt; i++) {
+		ret = btf_check_kfunc_protos(btf, kset->set->pairs[i].id,
+					     kset->set->pairs[i].flags);
+		if (ret)
+			goto err_out;
+	}
+
 	ret = btf_populate_kfunc_set(btf, hook, kset->set);
+err_out:
 	btf_put(btf);
 	return ret;
 }

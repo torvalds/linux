@@ -65,6 +65,34 @@ bpf_testmod_test_mod_kfunc(int i)
 	*(int *)this_cpu_ptr(&bpf_testmod_ksym_percpu) = i;
 }
 
+__bpf_kfunc int bpf_iter_testmod_seq_new(struct bpf_iter_testmod_seq *it, s64 value, int cnt)
+{
+	if (cnt < 0) {
+		it->cnt = 0;
+		return -EINVAL;
+	}
+
+	it->value = value;
+	it->cnt = cnt;
+
+	return 0;
+}
+
+__bpf_kfunc s64 *bpf_iter_testmod_seq_next(struct bpf_iter_testmod_seq* it)
+{
+	if (it->cnt <= 0)
+		return NULL;
+
+	it->cnt--;
+
+	return &it->value;
+}
+
+__bpf_kfunc void bpf_iter_testmod_seq_destroy(struct bpf_iter_testmod_seq *it)
+{
+	it->cnt = 0;
+}
+
 struct bpf_testmod_btf_type_tag_1 {
 	int a;
 };
@@ -220,6 +248,17 @@ static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 	.write = bpf_testmod_test_write,
 };
 
+BTF_SET8_START(bpf_testmod_common_kfunc_ids)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_new, KF_ITER_NEW)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
+BTF_SET8_END(bpf_testmod_common_kfunc_ids)
+
+static const struct btf_kfunc_id_set bpf_testmod_common_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &bpf_testmod_common_kfunc_ids,
+};
+
 BTF_SET8_START(bpf_testmod_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
 BTF_SET8_END(bpf_testmod_check_kfunc_ids)
@@ -235,7 +274,8 @@ static int bpf_testmod_init(void)
 {
 	int ret;
 
-	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_UNSPEC, &bpf_testmod_common_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
 	if (ret < 0)
 		return ret;
 	if (bpf_fentry_test1(0) < 0)
