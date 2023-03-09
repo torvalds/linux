@@ -516,7 +516,7 @@ static void irq_uninstall(struct drm_device *drm, void *arg)
 int xe_irq_install(struct xe_device *xe)
 {
 	int irq = to_pci_dev(xe->drm.dev)->irq;
-	static irq_handler_t irq_handler;
+	irq_handler_t irq_handler;
 	int err;
 
 	irq_handler = xe_irq_handler(xe);
