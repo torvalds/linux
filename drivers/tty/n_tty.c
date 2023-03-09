@@ -36,6 +36,7 @@
 #include <linux/file.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
+#include <linux/math.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/poll.h>
@@ -1692,7 +1693,7 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 
 		room = N_TTY_BUF_SIZE - (ldata->read_head - tail);
 		if (I_PARMRK(tty))
-			room = (room + 2) / 3;
+			room = DIV_ROUND_UP(room, 3);
 		room--;
 		if (room <= 0) {
 			overflow = ldata->icanon && ldata->canon_head == tail;
