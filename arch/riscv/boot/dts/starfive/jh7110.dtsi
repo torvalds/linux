@@ -12,6 +12,7 @@
 #include <dt-bindings/clock/starfive-jh7110-isp.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/power/jh7110-power.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "starfive,jh7110";
@@ -62,6 +63,7 @@
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imac";
 			tlb-split;
+			#cooling-cells = <2>;
 			status = "disabled";
 
 			cpu0intctrl: interrupt-controller {
@@ -89,6 +91,7 @@
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
+			#cooling-cells = <2>;
 			status = "okay";
 			operating-points-v2 = <&cluster0_opp>;
 
@@ -117,6 +120,7 @@
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
+			#cooling-cells = <2>;
 			status = "okay";
 			operating-points-v2 = <&cluster0_opp>;
 
@@ -145,6 +149,7 @@
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
+			#cooling-cells = <2>;
 			status = "okay";
 			operating-points-v2 = <&cluster0_opp>;
 
@@ -173,6 +178,7 @@
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
+			#cooling-cells = <2>;
 			status = "okay";
 			operating-points-v2 = <&cluster0_opp>;
 
@@ -641,9 +647,6 @@
 
 				thermal-sensors = <&sfctemp>;
 
-				cooling-maps {
-				};
-
 				trips {
 					cpu_alert0: cpu_alert0 {
 						/* milliCelsius */
@@ -657,6 +660,17 @@
 						temperature = <90000>;
 						hysteresis = <2000>;
 						type = "critical";
+					};
+				};
+
+				cooling-maps {
+					map0 {
+						trip = <&cpu_alert0>;
+						cooling-device =
+							<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					};
 				};
 			};

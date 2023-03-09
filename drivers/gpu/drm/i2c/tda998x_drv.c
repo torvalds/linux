@@ -1392,21 +1392,13 @@ static enum drm_mode_status tda998x_bridge_mode_valid(struct drm_bridge *bridge,
 		return MODE_BAD_HVALUE;
 	if (mode->vtotal >= BIT(11))
 		return MODE_BAD_VVALUE;
-	
-	//if ((mode->hdisplay == 1280)&&(mode->vdisplay == 720)&&(mode->clock == 74250))
-	//	return MODE_OK;
-	if ((mode->hdisplay == 1920)&&(mode->vdisplay == 1080)&&(mode->clock == 148500))
-	{
-		u32 vic = drm_match_cea_mode(mode);
-		//printk("====> %s, %d--vic ============== %d.\n", __func__, __LINE__,vic);
-		if(vic == 16)
-			return MODE_OK;
-		else
-			return MODE_BAD;
-	}else
-		return MODE_BAD;
+	//u32 vic = drm_match_cea_mode(mode);
 
-	//return MODE_OK;
+	//if (vic >= 1)
+	//	return MODE_OK;
+	//else
+	//	return MODE_BAD;
+	return MODE_OK;
 }
 
 static void tda998x_bridge_enable(struct drm_bridge *bridge)
