@@ -151,26 +151,22 @@ void serial8250_unregister_port(int line);
 void serial8250_suspend_port(int line);
 void serial8250_resume_port(int line);
 
-extern int early_serial_setup(struct uart_port *port);
+int early_serial_setup(struct uart_port *port);
+int early_serial8250_setup(struct earlycon_device *device, const char *options);
 
-extern int early_serial8250_setup(struct earlycon_device *device,
-					 const char *options);
-extern void serial8250_update_uartclk(struct uart_port *port,
-				      unsigned int uartclk);
-extern void serial8250_do_set_termios(struct uart_port *port,
-		struct ktermios *termios, const struct ktermios *old);
-extern void serial8250_do_set_ldisc(struct uart_port *port,
-				    struct ktermios *termios);
-extern unsigned int serial8250_do_get_mctrl(struct uart_port *port);
-extern int serial8250_do_startup(struct uart_port *port);
-extern void serial8250_do_shutdown(struct uart_port *port);
-extern void serial8250_do_pm(struct uart_port *port, unsigned int state,
-			     unsigned int oldstate);
-extern void serial8250_do_set_mctrl(struct uart_port *port, unsigned int mctrl);
-extern void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
-				      unsigned int quot,
-				      unsigned int quot_frac);
-extern int fsl8250_handle_irq(struct uart_port *port);
+void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk);
+void serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
+			       const struct ktermios *old);
+void serial8250_do_set_ldisc(struct uart_port *port, struct ktermios *termios);
+unsigned int serial8250_do_get_mctrl(struct uart_port *port);
+int serial8250_do_startup(struct uart_port *port);
+void serial8250_do_shutdown(struct uart_port *port);
+void serial8250_do_pm(struct uart_port *port, unsigned int state,
+		      unsigned int oldstate);
+void serial8250_do_set_mctrl(struct uart_port *port, unsigned int mctrl);
+void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
+			       unsigned int quot, unsigned int quot_frac);
+int fsl8250_handle_irq(struct uart_port *port);
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir);
 u16 serial8250_rx_chars(struct uart_8250_port *up, u16 lsr);
 void serial8250_read_char(struct uart_8250_port *up, u16 lsr);
@@ -183,9 +179,8 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 int serial8250_console_setup(struct uart_port *port, char *options, bool probe);
 int serial8250_console_exit(struct uart_port *port);
 
-extern void serial8250_set_isa_configurator(void (*v)
-					(int port, struct uart_port *up,
-						u32 *capabilities));
+void serial8250_set_isa_configurator(void (*v)(int port, struct uart_port *up,
+					       u32 *capabilities));
 
 #ifdef CONFIG_SERIAL_8250_RT288X
 unsigned int au_serial_in(struct uart_port *p, int offset);
