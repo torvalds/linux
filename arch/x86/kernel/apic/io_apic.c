@@ -66,6 +66,7 @@
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/pgtable.h>
+#include <asm/x86_init.h>
 
 #define	for_each_ioapic(idx)		\
 	for ((idx) = 0; (idx) < nr_ioapics; (idx)++)
@@ -2680,10 +2681,15 @@ static void io_apic_set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
 	pgprot_t flags = FIXMAP_PAGE_NOCACHE;
 
 	/*
-	 * Ensure fixmaps for IOAPIC MMIO respect memory encryption pgprot
+	 * Ensure fixmaps for IO-APIC MMIO respect memory encryption pgprot
 	 * bits, just like normal ioremap():
 	 */
-	flags = pgprot_decrypted(flags);
+	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
+		if (x86_platform.hyper.is_private_mmio(phys))
+			flags = pgprot_encrypted(flags);
+		else
+			flags = pgprot_decrypted(flags);
+	}
 
 	__set_fixmap(idx, phys, flags);
 }
