@@ -230,15 +230,17 @@ system call numbers to kernel functions:
 
    .. code-block:: c
 
-      __SYSCALL_I386(0, sys_restart_syscall, )
-      __SYSCALL_I386(1, sys_exit, )
+      __SYSCALL_I386(0, sys_restart_syscall)
+      __SYSCALL_I386(1, sys_exit)
+      __SYSCALL_I386(2, sys_fork)
+      __SYSCALL_I386(3, sys_read)
+      __SYSCALL_I386(4, sys_write)
       #ifdef CONFIG_X86_32
-      __SYSCALL_I386(2, sys_fork, )
+      __SYSCALL_I386(5, sys_open)
       #else
-      __SYSCALL_I386(2, sys_fork, )
+      __SYSCALL_I386(5, compat_sys_open)
       #endif
-      __SYSCALL_I386(3, sys_read, )
-      __SYSCALL_I386(4, sys_write, )
+      __SYSCALL_I386(6, sys_close)
 
 
 
