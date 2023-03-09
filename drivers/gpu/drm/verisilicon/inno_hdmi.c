@@ -1034,7 +1034,7 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 		dev_err(dev, "failed to audio init\n");
 
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 5000);
 	pm_runtime_enable(&pdev->dev);
 
 	inno_hdmi_disable_clk_assert_rst(dev, hdmi);
