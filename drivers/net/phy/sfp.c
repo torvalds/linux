@@ -2284,7 +2284,11 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		    sfp->sm_dev_state != SFP_DEV_UP)
 			break;
 
-		if (!(sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE))
+		/* Only use the soft state bits if we have access to the A2h
+		 * memory, which implies that we have some level of SFF-8472
+		 * compliance.
+		 */
+		if (sfp->have_a2)
 			sfp_soft_start_poll(sfp);
 
 		sfp_module_tx_enable(sfp);
