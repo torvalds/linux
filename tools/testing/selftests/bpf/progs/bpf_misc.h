@@ -115,7 +115,8 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __ksym;
 	struct bpf_iter_##type ___it __attribute__((aligned(8), /* enforce, just in case */,	\
 						    cleanup(bpf_iter_##type##_destroy))),	\
 	/* ___p pointer is just to call bpf_iter_##type##_new() *once* to init ___it */		\
-			       *___p = (bpf_iter_##type##_new(&___it, ##args),			\
+			       *___p __attribute__((unused)) = (				\
+					bpf_iter_##type##_new(&___it, ##args),			\
 	/* this is a workaround for Clang bug: it currently doesn't emit BTF */			\
 	/* for bpf_iter_##type##_destroy() when used from cleanup() attribute */		\
 					(void)bpf_iter_##type##_destroy, (void *)0);		\
@@ -143,7 +144,8 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __ksym;
 	struct bpf_iter_num ___it __attribute__((aligned(8), /* enforce, just in case */	\
 						 cleanup(bpf_iter_num_destroy))),		\
 	/* ___p pointer is necessary to call bpf_iter_num_new() *once* to init ___it */		\
-			    *___p = (bpf_iter_num_new(&___it, (start), (end)),			\
+			    *___p __attribute__((unused)) = (					\
+				bpf_iter_num_new(&___it, (start), (end)),			\
 	/* this is a workaround for Clang bug: it currently doesn't emit BTF */			\
 	/* for bpf_iter_num_destroy() when used from cleanup() attribute */			\
 				(void)bpf_iter_num_destroy, (void *)0);				\
@@ -167,7 +169,8 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __ksym;
 	struct bpf_iter_num ___it __attribute__((aligned(8), /* enforce, just in case */	\
 						 cleanup(bpf_iter_num_destroy))),		\
 	/* ___p pointer is necessary to call bpf_iter_num_new() *once* to init ___it */		\
-			    *___p = (bpf_iter_num_new(&___it, 0, (N)),				\
+			    *___p __attribute__((unused)) = (					\
+				bpf_iter_num_new(&___it, 0, (N)),				\
 	/* this is a workaround for Clang bug: it currently doesn't emit BTF */			\
 	/* for bpf_iter_num_destroy() when used from cleanup() attribute */			\
 				(void)bpf_iter_num_destroy, (void *)0);				\
