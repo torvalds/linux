@@ -152,20 +152,26 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'D':
 		if (make_sockaddr(AF_INET6, arg, DUT_ECHO_PORT,
 				  &env.dut_addr, NULL)) {
-			fprintf(stderr, "Invalid DUT address: %s\n", arg);
+			fprintf(stderr,
+				"Invalid address assigned to the Device Under Test: %s\n",
+				arg);
 			return ARGP_ERR_UNKNOWN;
 		}
 		break;
 	case 'C':
 		if (make_sockaddr(AF_INET6, arg, DUT_CTRL_PORT,
 				  &env.dut_ctrl_addr, NULL)) {
-			fprintf(stderr, "Invalid DUT CTRL address: %s\n", arg);
+			fprintf(stderr,
+				"Invalid address assigned to the Device Under Test: %s\n",
+				arg);
 			return ARGP_ERR_UNKNOWN;
 		}
 		break;
 	case 'T':
 		if (make_sockaddr(AF_INET6, arg, 0, &env.tester_addr, NULL)) {
-			fprintf(stderr, "Invalid Tester address: %s\n", arg);
+			fprintf(stderr,
+				"Invalid address assigned to the Tester device: %s\n",
+				arg);
 			return ARGP_ERR_UNKNOWN;
 		}
 		break;
@@ -454,7 +460,8 @@ static int dut_run(struct xdp_features *skel)
 						   &key, sizeof(key),
 						   &val, sizeof(val), 0);
 			if (err) {
-				fprintf(stderr, "bpf_map_lookup_elem failed\n");
+				fprintf(stderr,
+					"bpf_map_lookup_elem failed (%d)\n", err);
 				goto end_thread;
 			}
 
@@ -496,7 +503,7 @@ static bool tester_collect_detected_cap(struct xdp_features *skel,
 	err = bpf_map__lookup_elem(skel->maps.stats, &key, sizeof(key),
 				   &val, sizeof(val), 0);
 	if (err) {
-		fprintf(stderr, "bpf_map_lookup_elem failed\n");
+		fprintf(stderr, "bpf_map_lookup_elem failed (%d)\n", err);
 		return false;
 	}
 
@@ -574,7 +581,8 @@ static int tester_run(struct xdp_features *skel)
 
 	sockfd = socket(AF_INET6, SOCK_STREAM, 0);
 	if (sockfd < 0) {
-		fprintf(stderr, "Failed to create tester socket\n");
+		fprintf(stderr,
+			"Failed creating tester service control socket\n");
 		return -errno;
 	}
 
@@ -584,7 +592,8 @@ static int tester_run(struct xdp_features *skel)
 	err = connect(sockfd, (struct sockaddr *)&env.dut_ctrl_addr,
 		      sizeof(env.dut_ctrl_addr));
 	if (err) {
-		fprintf(stderr, "Failed to connect to the DUT\n");
+		fprintf(stderr,
+			"Failed connecting to the Device Under Test control socket\n");
 		return -errno;
 	}
 
