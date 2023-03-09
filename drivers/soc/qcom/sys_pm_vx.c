@@ -223,25 +223,22 @@ static void trigger_dump(struct vx_platform_data *pd)
 
 static void sys_pm_vx_send_msg(struct vx_platform_data *pd, bool enable)
 {
-	char *buf;
 	int ret = 0;
-
-	buf = kcalloc(MAX_QMP_MSG_SIZE, sizeof(char), GFP_KERNEL);
-	if (!buf)
-		return;
+	char buf[MAX_QMP_MSG_SIZE] = {};
 
 	mutex_lock(&pd->lock);
 	if (enable)
-		buf = "{class: lpm_mon, type: cxpc, dur: 1000, flush: 5, ts_adj: 1}";
+		scnprintf(buf, sizeof(buf),
+			"{class: lpm_mon, type: cxpc, dur: 1000, flush: 5, ts_adj: 1}");
 	else
-		buf = "{class: lpm_mon, type: cxpc, dur: 1000, flush: 1, log_once: 1}";
+		scnprintf(buf, sizeof(buf),
+			"{class: lpm_mon, type: cxpc, dur: 1000, flush: 1, log_once: 1}");
 
-	ret = qmp_send(pd->qmp, buf, sizeof(*buf));
+	ret = qmp_send(pd->qmp, buf, sizeof(buf));
 	if (ret)
 		pr_err("Error sending qmp message: %d\n", ret);
 
 	mutex_unlock(&pd->lock);
-	kfree(buf);
 }
 
 static int read_vx_data(struct vx_platform_data *pd, struct vx_log *log)
