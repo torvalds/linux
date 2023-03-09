@@ -25,6 +25,7 @@
 
 static struct env {
 	bool verbosity;
+	char ifname[IF_NAMESIZE];
 	int ifindex;
 	bool is_tester;
 	struct {
@@ -179,7 +180,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.ifindex = if_nametoindex(arg);
 		if (!env.ifindex)
 			env.ifindex = strtoul(arg, NULL, 0);
-		if (!env.ifindex) {
+		if (!env.ifindex || !if_indextoname(env.ifindex, env.ifname)) {
 			fprintf(stderr,
 				"Bad interface index or name (%d): %s\n",
 				errno, strerror(errno));
@@ -205,6 +206,7 @@ static void set_env_default(void)
 	env.feature.drv_feature = NETDEV_XDP_ACT_NDO_XMIT;
 	env.feature.action = -EINVAL;
 	env.ifindex = -ENODEV;
+	strcpy(env.ifname, "unknown");
 	make_sockaddr(AF_INET6, "::ffff:127.0.0.1", DUT_CTRL_PORT,
 		      &env.dut_ctrl_addr, NULL);
 	make_sockaddr(AF_INET6, "::ffff:127.0.0.1", DUT_ECHO_PORT,
@@ -248,15 +250,18 @@ static int dut_run_echo_thread(pthread_t *t, int *sockfd)
 	sockfd = start_reuseport_server(AF_INET6, SOCK_DGRAM, NULL,
 					DUT_ECHO_PORT, 0, 1);
 	if (!sockfd) {
-		fprintf(stderr, "Failed to create echo socket\n");
+		fprintf(stderr,
+			"Failed creating data UDP socket on device %s\n",
+			env.ifname);
 		return -errno;
 	}
 
 	/* start echo channel */
 	err = pthread_create(t, NULL, dut_echo_thread, sockfd);
 	if (err) {
-		fprintf(stderr, "Failed creating dut_echo thread: %s\n",
-			strerror(-err));
+		fprintf(stderr,
+			"Failed creating data UDP thread on device %s: %s\n",
+			env.ifname, strerror(-err));
 		free_fds(sockfd, 1);
 		return -EINVAL;
 	}
@@ -320,9 +325,8 @@ static int dut_attach_xdp_prog(struct xdp_features *skel, int flags)
 
 	err = bpf_xdp_attach(env.ifindex, bpf_program__fd(prog), flags, NULL);
 	if (err)
-		fprintf(stderr,
-			"Failed to attach XDP program to ifindex %d\n",
-			env.ifindex);
+		fprintf(stderr, "Failed attaching XDP program to device %s\n",
+			env.ifname);
 	return err;
 }
 
@@ -358,13 +362,16 @@ static int dut_run(struct xdp_features *skel)
 	sockfd = start_reuseport_server(AF_INET6, SOCK_STREAM, NULL,
 					DUT_CTRL_PORT, 0, 1);
 	if (!sockfd) {
-		fprintf(stderr, "Failed to create DUT socket\n");
+		fprintf(stderr,
+			"Failed creating control socket on device %s\n", env.ifname);
 		return -errno;
 	}
 
 	ctrl_sockfd = accept(*sockfd, (struct sockaddr *)&ctrl_addr, &addrlen);
 	if (ctrl_sockfd < 0) {
-		fprintf(stderr, "Failed to accept connection on DUT socket\n");
+		fprintf(stderr,
+			"Failed accepting connections on device %s control socket\n",
+			env.ifname);
 		free_fds(sockfd, 1);
 		return -errno;
 	}
@@ -422,8 +429,8 @@ static int dut_run(struct xdp_features *skel)
 					    &opts);
 			if (err) {
 				fprintf(stderr,
-					"Failed to query XDP cap for ifindex %d\n",
-					env.ifindex);
+					"Failed querying XDP cap for device %s\n",
+					env.ifname);
 				goto end_thread;
 			}
 
@@ -540,7 +547,9 @@ static int send_echo_msg(void)
 
 	sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
-		fprintf(stderr, "Failed to create echo socket\n");
+		fprintf(stderr,
+			"Failed creating data UDP socket on device %s\n",
+			env.ifname);
 		return -errno;
 	}
 
@@ -596,8 +605,8 @@ static int tester_run(struct xdp_features *skel)
 
 	err = bpf_xdp_attach(env.ifindex, bpf_program__fd(prog), flags, NULL);
 	if (err) {
-		fprintf(stderr, "Failed to attach XDP program to ifindex %d\n",
-			env.ifindex);
+		fprintf(stderr, "Failed attaching XDP program to device %s\n",
+			env.ifname);
 		goto out;
 	}
 
@@ -653,7 +662,7 @@ int main(int argc, char **argv)
 		return err;
 
 	if (env.ifindex < 0) {
-		fprintf(stderr, "Invalid ifindex\n");
+		fprintf(stderr, "Invalid device name %s\n", env.ifname);
 		return -ENODEV;
 	}
 
@@ -684,11 +693,12 @@ int main(int argc, char **argv)
 
 	if (env.is_tester) {
 		/* Tester */
-		fprintf(stdout, "Starting tester on device %d\n", env.ifindex);
+		fprintf(stdout, "Starting tester service on device %s\n",
+			env.ifname);
 		err = tester_run(skel);
 	} else {
 		/* DUT */
-		fprintf(stdout, "Starting DUT on device %d\n", env.ifindex);
+		fprintf(stdout, "Starting test on device %s\n", env.ifname);
 		err = dut_run(skel);
 	}
 
