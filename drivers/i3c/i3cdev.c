@@ -197,6 +197,7 @@ i3cdev_send_hdr_xfer(struct i3c_device *dev, struct i3c_ioc_priv_xfer *xfers,
 {
 	struct i3c_hdr_cmd *k_xfers;
 	u8 **data_ptrs;
+	u16 xfer_len;
 	int i, ret = 0;
 
 	/* Since we have nxfers we may allocate k_xfer + *data_ptrs together */
@@ -209,9 +210,16 @@ i3cdev_send_hdr_xfer(struct i3c_device *dev, struct i3c_ioc_priv_xfer *xfers,
 	data_ptrs = (void *)k_xfers + (nxfers * sizeof(*k_xfers));
 
 	for (i = 0; i < nxfers; i++) {
-		data_ptrs[i] = memdup_user((const u8 __user *)
-					   (uintptr_t)xfers[i].data,
-					   xfers[i].len);
+		xfer_len = roundup(xfers[i].len, 2);
+		data_ptrs[i] = kzalloc(xfer_len, GFP_KERNEL);
+		if (!data_ptrs[i])
+			return -ENOMEM;
+		if (copy_from_user(data_ptrs[i],
+				   (const u8 __user *)(uintptr_t)xfers[i].data,
+				   xfers[i].len)) {
+			kfree(data_ptrs[i]);
+			return -EFAULT;
+		}
 		if (IS_ERR(data_ptrs[i])) {
 			ret = PTR_ERR(data_ptrs[i]);
 			break;
