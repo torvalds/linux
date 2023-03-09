@@ -49,6 +49,9 @@ struct qcom_scm_waitq {
 	struct idr idr;
 	spinlock_t idr_lock;
 	struct work_struct scm_irq_work;
+	u64 call_ctx_cnt;
+	u64 irq;
+	enum qcom_scm_wq_feature wq_feature;
 };
 
 struct qcom_scm {
@@ -2518,6 +2521,7 @@ int qcom_scm_invoke_smc_legacy(phys_addr_t in_buf, size_t in_buf_size,
 		.args[3] = out_buf_size,
 		.arginfo = QCOM_SCM_ARGS(4, QCOM_SCM_RW, QCOM_SCM_VAL,
 			QCOM_SCM_RW, QCOM_SCM_VAL),
+		.multicall_allowed = true,
 	};
 
 	struct qcom_scm_res res;
@@ -2552,6 +2556,7 @@ int qcom_scm_invoke_smc(phys_addr_t in_buf, size_t in_buf_size,
 		.args[3] = out_buf_size,
 		.arginfo = QCOM_SCM_ARGS(4, QCOM_SCM_RW, QCOM_SCM_VAL,
 					QCOM_SCM_RW, QCOM_SCM_VAL),
+		.multicall_allowed = true,
 	};
 	struct qcom_scm_res res;
 
@@ -2582,6 +2587,7 @@ int qcom_scm_invoke_callback_response(phys_addr_t out_buf,
 		.args[0] = out_buf,
 		.args[1] = out_buf_size,
 		.arginfo = QCOM_SCM_ARGS(2, QCOM_SCM_RW, QCOM_SCM_VAL),
+		.multicall_allowed = true,
 	};
 	struct qcom_scm_res res;
 
@@ -2687,6 +2693,45 @@ static int qcom_scm_do_restart(struct notifier_block *this, unsigned long event,
 
 	return NOTIFY_OK;
 }
+
+static int qcom_scm_query_wq_queue_info(struct qcom_scm *scm)
+{
+	int ret;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_WAITQ,
+		.cmd = QCOM_SCM_GET_WQ_QUEUE_INFO,
+		.owner = ARM_SMCCC_OWNER_SIP
+	};
+	struct qcom_scm_res res;
+
+	scm->waitq.wq_feature = QCOM_SCM_SINGLE_SMC_ALLOW;
+	ret = qcom_scm_call_atomic(__scm->dev, &desc, &res);
+	if (ret) {
+		pr_err("%s: Failed to get wq queue info: %d\n", __func__, ret);
+		return ret;
+	}
+
+	scm->waitq.call_ctx_cnt = res.result[0] & 0xFF;
+	scm->waitq.irq = res.result[1] & 0xFFFF;
+	scm->waitq.wq_feature = QCOM_SCM_MULTI_SMC_WHITE_LIST_ALLOW;
+
+	pr_info("WQ Info, feature: %d call_ctx_cnt: %d irq: %d\n",
+		scm->waitq.wq_feature, scm->waitq.call_ctx_cnt, scm->waitq.irq);
+
+	return ret;
+}
+
+bool qcom_scm_multi_call_allow(struct device *dev, bool multicall_allowed)
+{
+	struct qcom_scm *scm;
+
+	scm = dev_get_drvdata(dev);
+	if (multicall_allowed &&
+		scm->waitq.wq_feature == QCOM_SCM_MULTI_SMC_WHITE_LIST_ALLOW)
+		return true;
+
+	return false;
+};
 
 struct completion *qcom_scm_lookup_wq(struct qcom_scm *scm, u32 wq_ctx)
 {
@@ -2920,6 +2965,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, scm);
 
 	__scm = scm;
+	qcom_scm_query_wq_queue_info(__scm);
 	__scm->dev = &pdev->dev;
 
 	spin_lock_init(&__scm->waitq.idr_lock);
