@@ -136,6 +136,59 @@ int __ref profile_init(void)
 	return -ENOMEM;
 }
 
+/* Profile event notifications */
+
+static BLOCKING_NOTIFIER_HEAD(task_exit_notifier);
+static BLOCKING_NOTIFIER_HEAD(munmap_notifier);
+
+void profile_task_exit(struct task_struct *task)
+{
+	blocking_notifier_call_chain(&task_exit_notifier, 0, task);
+}
+
+void profile_munmap(unsigned long addr)
+{
+	blocking_notifier_call_chain(&munmap_notifier, 0, (void *)addr);
+}
+
+int profile_event_register(enum profile_type type, struct notifier_block *n)
+{
+	int err = -EINVAL;
+
+	switch (type) {
+	case PROFILE_TASK_EXIT:
+		err = blocking_notifier_chain_register(
+				&task_exit_notifier, n);
+		break;
+	case PROFILE_MUNMAP:
+		err = blocking_notifier_chain_register(
+				&munmap_notifier, n);
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(profile_event_register);
+
+int profile_event_unregister(enum profile_type type, struct notifier_block *n)
+{
+	int err = -EINVAL;
+
+	switch (type) {
+	case PROFILE_TASK_EXIT:
+		err = blocking_notifier_chain_unregister(
+				&task_exit_notifier, n);
+		break;
+	case PROFILE_MUNMAP:
+		err = blocking_notifier_chain_unregister(
+				&munmap_notifier, n);
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(profile_event_unregister);
+
 #if defined(CONFIG_SMP) && defined(CONFIG_PROC_FS)
 /*
  * Each cpu has a pair of open-addressed hashtables for pending
