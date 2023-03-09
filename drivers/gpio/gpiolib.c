@@ -1218,7 +1218,7 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 	if (ret)
 		return ret;
 
-	chip_dbg(gc, "allocate IRQ %d, hwirq %lu\n", irq,  hwirq);
+	chip_dbg(gc, "allocate IRQ %d, hwirq %lu\n", irq, hwirq);
 
 	ret = girq->child_to_parent_hwirq(gc, hwirq, type,
 					  &parent_hwirq, &parent_type);
@@ -1386,8 +1386,7 @@ static bool gpiochip_hierarchy_is_hierarchical(struct gpio_chip *gc)
  * gpiochip by assigning the gpiochip as chip data, and using the irqchip
  * stored inside the gpiochip.
  */
-int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
-		     irq_hw_number_t hwirq)
+int gpiochip_irq_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hwirq)
 {
 	struct gpio_chip *gc = d->host_data;
 	int ret = 0;
@@ -1463,8 +1462,9 @@ int gpiochip_irq_domain_activate(struct irq_domain *domain,
 				 struct irq_data *data, bool reserve)
 {
 	struct gpio_chip *gc = domain->host_data;
+	unsigned int hwirq = irqd_to_hwirq(data);
 
-	return gpiochip_lock_as_irq(gc, data->hwirq);
+	return gpiochip_lock_as_irq(gc, hwirq);
 }
 EXPORT_SYMBOL_GPL(gpiochip_irq_domain_activate);
 
@@ -1481,8 +1481,9 @@ void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
 				    struct irq_data *data)
 {
 	struct gpio_chip *gc = domain->host_data;
+	unsigned int hwirq = irqd_to_hwirq(data);
 
-	return gpiochip_unlock_as_irq(gc, data->hwirq);
+	return gpiochip_unlock_as_irq(gc, hwirq);
 }
 EXPORT_SYMBOL_GPL(gpiochip_irq_domain_deactivate);
 
@@ -1522,33 +1523,37 @@ static int gpiochip_to_irq(struct gpio_chip *gc, unsigned int offset)
 int gpiochip_irq_reqres(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
 
-	return gpiochip_reqres_irq(gc, d->hwirq);
+	return gpiochip_reqres_irq(gc, hwirq);
 }
 EXPORT_SYMBOL(gpiochip_irq_reqres);
 
 void gpiochip_irq_relres(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
 
-	gpiochip_relres_irq(gc, d->hwirq);
+	gpiochip_relres_irq(gc, hwirq);
 }
 EXPORT_SYMBOL(gpiochip_irq_relres);
 
 static void gpiochip_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
 
 	if (gc->irq.irq_mask)
 		gc->irq.irq_mask(d);
-	gpiochip_disable_irq(gc, d->hwirq);
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void gpiochip_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
 
-	gpiochip_enable_irq(gc, d->hwirq);
+	gpiochip_enable_irq(gc, hwirq);
 	if (gc->irq.irq_unmask)
 		gc->irq.irq_unmask(d);
 }
@@ -1556,17 +1561,19 @@ static void gpiochip_irq_unmask(struct irq_data *d)
 static void gpiochip_irq_enable(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
 
-	gpiochip_enable_irq(gc, d->hwirq);
+	gpiochip_enable_irq(gc, hwirq);
 	gc->irq.irq_enable(d);
 }
 
 static void gpiochip_irq_disable(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
 
 	gc->irq.irq_disable(d);
-	gpiochip_disable_irq(gc, d->hwirq);
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void gpiochip_set_irq_hooks(struct gpio_chip *gc)
