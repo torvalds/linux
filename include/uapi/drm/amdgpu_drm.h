@@ -1138,6 +1138,14 @@ struct drm_amdgpu_info_device {
 	__u64 mall_size;            /* AKA infinity cache */
 	/* high 32 bits of the rb pipes mask */
 	__u32 enabled_rb_pipes_mask_hi;
+	/* shadow area size for gfx11 */
+	__u32 shadow_size;
+	/* shadow area base virtual alignment for gfx11 */
+	__u32 shadow_alignment;
+	/* context save area size for gfx11 */
+	__u32 csa_size;
+	/* context save area base virtual alignment for gfx11 */
+	__u32 csa_alignment;
 };
 
 struct drm_amdgpu_info_hw_ip {
