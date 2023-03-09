@@ -182,7 +182,7 @@ static void uart_change_line_settings(struct tty_struct *tty, struct uart_state 
 {
 	struct uart_port *uport = uart_port_check(state);
 	struct ktermios *termios;
-	int hw_stopped;
+	bool hw_stopped;
 
 	/*
 	 * If we have no tty, termios, or the port does not exist,
@@ -3304,13 +3304,13 @@ void uart_handle_cts_change(struct uart_port *uport, bool active)
 	if (uart_softcts_mode(uport)) {
 		if (uport->hw_stopped) {
 			if (active) {
-				uport->hw_stopped = 0;
+				uport->hw_stopped = false;
 				uport->ops->start_tx(uport);
 				uart_write_wakeup(uport);
 			}
 		} else {
 			if (!active) {
-				uport->hw_stopped = 1;
+				uport->hw_stopped = true;
 				uport->ops->stop_tx(uport);
 			}
 		}
