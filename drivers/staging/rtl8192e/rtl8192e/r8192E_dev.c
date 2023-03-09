@@ -1969,15 +1969,6 @@ void rtl92e_disable_irq(struct net_device *dev)
 	priv->irq_enabled = 0;
 }
 
-void rtl92e_clear_irq(struct net_device *dev)
-{
-	u32 tmp;
-
-	tmp = rtl92e_readl(dev, ISR);
-	rtl92e_writel(dev, ISR, tmp);
-}
-
-
 void rtl92e_enable_rx(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
