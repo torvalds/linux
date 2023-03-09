@@ -1490,9 +1490,10 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	vdsc_cfg->dsc_version_minor =
 		min(intel_dp_source_dsc_version_minor(intel_dp),
 		    intel_dp_sink_dsc_version_minor(intel_dp));
-
-	vdsc_cfg->convert_rgb = intel_dp->dsc_dpcd[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT] &
-		DP_DSC_RGB;
+	if (vdsc_cfg->convert_rgb)
+		vdsc_cfg->convert_rgb =
+			intel_dp->dsc_dpcd[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT] &
+			DP_DSC_RGB;
 
 	line_buf_depth = drm_dp_dsc_sink_line_buf_depth(intel_dp->dsc_dpcd);
 	if (!line_buf_depth) {
@@ -1610,6 +1611,15 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 							    pipe_config->bigjoiner_pipes,
 							    pipe_bpp,
 							    timeslots);
+			/*
+			 * According to DSC 1.2a Section 4.1.1 Table 4.1 the maximum
+			 * supported PPS value can be 63.9375 and with the further
+			 * mention that bpp should be programmed double the target bpp
+			 * restricting our target bpp to be 31.9375 at max
+			 */
+			if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+				dsc_max_output_bpp = min_t(u16, dsc_max_output_bpp, 31 << 4);
+
 			if (!dsc_max_output_bpp) {
 				drm_dbg_kms(&dev_priv->drm,
 					    "Compressed BPP not supported\n");
