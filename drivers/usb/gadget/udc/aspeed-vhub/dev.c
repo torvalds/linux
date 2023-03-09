@@ -244,7 +244,7 @@ int ast_vhub_std_dev_request(struct ast_vhub_ep *ep,
 		d->gadget.speed = ep->vhub->speed;
 		if (d->gadget.speed > d->driver->max_speed)
 			d->gadget.speed = d->driver->max_speed;
-		DDBG(d, "fist packet, captured speed %d\n",
+		DDBG(d, "first packet, captured speed %d\n",
 		     d->gadget.speed);
 	}
 
