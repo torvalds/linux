@@ -17,8 +17,8 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-heap.h>
 #include <linux/device.h>
-#include <linux/mem-buf-exporter.h>
 #include "deferred-free-helper.h"
+#include "qcom_dma_heap_priv.h"
 
 struct qcom_sg_buffer {
 	struct dma_heap *heap;

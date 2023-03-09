@@ -328,7 +328,7 @@ static struct dma_buf *ubwcp_allocate(struct dma_heap *heap,
 	exp_info.size = buffer->qcom_sg_buf.len;
 	exp_info.flags = fd_flags;
 	exp_info.priv = &buffer->qcom_sg_buf;
-	dmabuf = mem_buf_dma_buf_export(&exp_info, &ubwcp_ops);
+	dmabuf = qcom_dma_buf_export(&exp_info, &ubwcp_ops);
 	if (IS_ERR(dmabuf)) {
 		ret = PTR_ERR(dmabuf);
 		goto free_vmperm;
