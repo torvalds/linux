@@ -464,34 +464,6 @@ static int entry_ffs_ep0_ioctl(struct kretprobe_instance *ri,
 	return 0;
 }
 
-static int entry_ffs_ep0_poll(struct kretprobe_instance *ri,
-				    struct pt_regs *regs)
-{
-	struct kprobe_data *data = (struct kprobe_data *)ri->data;
-	struct file *file = (struct file *)regs->regs[0];
-	struct ffs_data *ffs = file->private_data;
-	void *context = get_ipc_context(ffs);
-
-	data->x0 = file;
-	kprobe_log(context, "state %d setup_state %d flags %lu opened %d",
-		ffs->state, ffs->setup_state, ffs->flags,
-		atomic_read(&ffs->opened));
-	return 0;
-}
-
-static int exit_ffs_ep0_poll(struct kretprobe_instance *ri,
-				   struct pt_regs *regs)
-{
-	struct kprobe_data *data = (struct kprobe_data *)ri->data;
-	unsigned long ret = regs_return_value(regs);
-	struct file *file = data->x0;
-	struct ffs_data *ffs = file->private_data;
-	void *context = get_ipc_context(ffs);
-
-	kprobe_log(context, "exit: mask %u", ret);
-	return 0;
-}
-
 static int entry_ffs_epfile_open(struct kretprobe_instance *ri,
 				    struct pt_regs *regs)
 {
@@ -849,7 +821,6 @@ static struct kretprobe ffsprobes[] = {
 	ENTRY(ffs_ep0_open),
 	ENTRY(ffs_ep0_release),
 	ENTRY(ffs_ep0_ioctl),
-	ENTRY_EXIT(ffs_ep0_poll),
 	ENTRY(ffs_epfile_open),
 	ENTRY_EXIT(ffs_aio_cancel),
 	ENTRY(ffs_epfile_release),
