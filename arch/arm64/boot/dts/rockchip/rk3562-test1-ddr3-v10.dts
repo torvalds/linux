@@ -9,7 +9,16 @@
 #include "rk3562-rk809.dtsi"
 
 &rk809_codec {
+	#sound-dai-cells = <1>;
+	compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
+	clocks = <&mclkout_sai2>;
+	clock-names = "mclk";
+	assigned-clocks = <&mclkout_sai2>;
+	assigned-clock-rates = <12288000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s2m1_mclk>;
+	hp-volume = <20>;
+	spk-volume = <3>;
 	/delete-property/ mic-in-differential;
+	status = "okay";
 };

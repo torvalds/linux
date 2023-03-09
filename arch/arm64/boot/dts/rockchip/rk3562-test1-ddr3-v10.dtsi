@@ -291,6 +291,10 @@
 	};
 };
 
+&route_dsi {
+	status = "okay";
+};
+
 &sai2 {
 	status = "okay";
 	pinctrl-names = "default";
