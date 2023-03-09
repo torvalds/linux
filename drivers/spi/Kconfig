@@ -835,6 +835,15 @@ config SPI_MSM_GENI
 	  This driver can also be built as a module.  If so, the module
 	  will be called spi-msm-geni.
 
+config VIRTIO_SPI
+	tristate "VirtIO SPI driver"
+	depends on VIRTIO
+	help
+	  This spi driver for virtio. It can be used on virtual machine.
+	  Say Y if you want to support virtual SPI for the build-in SPI
+	  interface. This driver can also be built as a module. If so,
+	  the module will be called virtio-spi.
+
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
 	depends on ARCH_S3C24XX
