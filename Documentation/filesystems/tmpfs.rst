@@ -13,7 +13,8 @@ everything stored therein is lost.
 
 tmpfs puts everything into the kernel internal caches and grows and
 shrinks to accommodate the files it contains and is able to swap
-unneeded pages out to swap space, and supports THP.
+unneeded pages out to swap space, if swap was enabled for the tmpfs
+mount. tmpfs also supports THP.
 
 tmpfs extends ramfs with a few userspace configurable options listed and
 explained further below, some of which can be reconfigured dynamically on the
@@ -33,8 +34,8 @@ configured in size at initialization and you cannot dynamically resize them.
 Contrary to brd ramdisks, tmpfs has its own filesystem, it does not rely on the
 block layer at all.
 
-Since tmpfs lives completely in the page cache and on swap, all tmpfs
-pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
+Since tmpfs lives completely in the page cache and optionally on swap,
+all tmpfs pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
 free(1). Notice that these counters also include shared memory
 (shmem, see ipcs(1)). The most reliable way to get the count is
 using df(1) and du(1).
@@ -83,6 +84,8 @@ nr_inodes  The maximum number of inodes for this instance. The default
            is half of the number of your physical RAM pages, or (on a
            machine with highmem) the number of lowmem RAM pages,
            whichever is the lower.
+noswap     Disables swap. Remounts must respect the original settings.
+           By default swap is enabled.
 =========  ============================================================
 
 These parameters accept a suffix k, m or g for kilo, mega and giga and
