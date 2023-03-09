@@ -502,6 +502,8 @@ struct snd_sof_dai {
 	int number_configs;
 	int current_config;
 	struct list_head list;	/* list in sdev dai list */
+	/* core should not touch this */
+	const void *platform_private;
 	void *private;
 };
 
