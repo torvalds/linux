@@ -752,7 +752,7 @@ static int iter_get_spi(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 	return stack_slot_obj_get_spi(env, reg, "iter", nr_slots);
 }
 
-static const char *kernel_type_name(const struct btf* btf, u32 id)
+static const char *btf_type_name(const struct btf *btf, u32 id)
 {
 	return btf_name_by_offset(btf, btf_type_by_id(btf, id)->name_off);
 }
@@ -782,7 +782,7 @@ static const char *iter_type_str(const struct btf *btf, u32 btf_id)
 		return "<invalid>";
 
 	/* we already validated that type is valid and has conforming name */
-	return kernel_type_name(btf, btf_id) + sizeof(ITER_PREFIX) - 1;
+	return btf_type_name(btf, btf_id) + sizeof(ITER_PREFIX) - 1;
 }
 
 static const char *iter_state_str(enum bpf_iter_state state)
@@ -1349,7 +1349,7 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 
 			verbose(env, "%s", reg_type_str(env, t));
 			if (base_type(t) == PTR_TO_BTF_ID)
-				verbose(env, "%s", kernel_type_name(reg->btf, reg->btf_id));
+				verbose(env, "%s", btf_type_name(reg->btf, reg->btf_id));
 			verbose(env, "(");
 /*
  * _a stands for append, was shortened to avoid multiline statements below.
@@ -4518,7 +4518,7 @@ static int map_kptr_match_type(struct bpf_verifier_env *env,
 			       struct btf_field *kptr_field,
 			       struct bpf_reg_state *reg, u32 regno)
 {
-	const char *targ_name = kernel_type_name(kptr_field->kptr.btf, kptr_field->kptr.btf_id);
+	const char *targ_name = btf_type_name(kptr_field->kptr.btf, kptr_field->kptr.btf_id);
 	int perm_flags = PTR_MAYBE_NULL | PTR_TRUSTED | MEM_RCU;
 	const char *reg_name = "";
 
@@ -4534,7 +4534,7 @@ static int map_kptr_match_type(struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 	/* We need to verify reg->type and reg->btf, before accessing reg->btf */
-	reg_name = kernel_type_name(reg->btf, reg->btf_id);
+	reg_name = btf_type_name(reg->btf, reg->btf_id);
 
 	/* For ref_ptr case, release function check should ensure we get one
 	 * referenced PTR_TO_BTF_ID, and that its fixed offset is 0. For the
@@ -7177,8 +7177,8 @@ found:
 						  btf_vmlinux, *arg_btf_id,
 						  strict_type_match)) {
 				verbose(env, "R%d is of type %s but %s is expected\n",
-					regno, kernel_type_name(reg->btf, reg->btf_id),
-					kernel_type_name(btf_vmlinux, *arg_btf_id));
+					regno, btf_type_name(reg->btf, reg->btf_id),
+					btf_type_name(btf_vmlinux, *arg_btf_id));
 				return -EACCES;
 			}
 		}
@@ -7248,7 +7248,7 @@ int check_func_arg_reg_off(struct bpf_verifier_env *env,
 			verbose(env, "R%d must have zero offset when passed to release func\n",
 				regno);
 			verbose(env, "No graph node or root found at R%d type:%s off:%d\n", regno,
-				kernel_type_name(reg->btf, reg->btf_id), reg->off);
+				btf_type_name(reg->btf, reg->btf_id), reg->off);
 			return -EINVAL;
 		}
 
