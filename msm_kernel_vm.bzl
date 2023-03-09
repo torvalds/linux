@@ -8,6 +8,7 @@ load(
     "kernel_compile_commands",
     "kernel_images",
     "kernel_modules_install",
+    "kernel_uapi_headers_cc_library",
     "merged_kernel_uapi_headers",
 )
 load(
@@ -22,7 +23,6 @@ load(
 load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":image_opts.bzl", "vm_image_opts")
-load(":uapi_library.bzl", "define_uapi_library")
 load(":target_variants.bzl", "vm_variants")
 
 def define_make_vm_dtb_img(target, dtb_list, page_size):
@@ -248,6 +248,17 @@ def _define_kernel_dist(target, msm_target, variant):
         dist_dir = dist_dir,
     )
 
+def _define_uapi_library(target):
+    """Define a cc_library for userspace programs to use
+
+    Args:
+      target: kernel_build target name (e.g. "kalama_gki")
+    """
+    kernel_uapi_headers_cc_library(
+        name = "{}_uapi_header_library".format(target),
+        kernel_build = ":{}".format(target),
+    )
+
 def define_msm_vm(
         msm_target,
         variant,
@@ -294,9 +305,9 @@ def define_msm_vm(
 
     _define_kernel_dist(target, msm_target, variant)
 
-    define_dtc_dist(target, msm_target, variant)
+    _define_uapi_library(target)
 
-    define_uapi_library(target)
+    define_dtc_dist(target, msm_target, variant)
 
     # use only dtbs related to the variant for dtb image creation
     if "tuivm" in msm_target:
