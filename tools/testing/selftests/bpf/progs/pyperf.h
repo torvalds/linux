@@ -345,7 +345,7 @@ int __on_event(struct bpf_raw_tracepoint_args *ctx)
 SEC("raw_tracepoint/kfree_skb")
 int on_event(struct bpf_raw_tracepoint_args* ctx)
 {
-	int i, ret = 0;
+	int ret = 0;
 	ret |= __on_event(ctx);
 	ret |= __on_event(ctx);
 	ret |= __on_event(ctx);

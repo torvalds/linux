@@ -105,7 +105,7 @@ long rbtree_api_remove_unadded_node(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("Unreleased reference id=2 alloc_insn=11")
+__failure __msg("Unreleased reference id=2 alloc_insn=10")
 long rbtree_api_remove_no_drop(void *ctx)
 {
 	struct bpf_rb_node *res;
@@ -119,6 +119,7 @@ long rbtree_api_remove_no_drop(void *ctx)
 	res = bpf_rbtree_remove(&groot, res);
 
 	n = container_of(res, struct node_data, node);
+	__sink(n);
 	bpf_spin_unlock(&glock);
 
 	/* bpf_obj_drop(n) is missing here */

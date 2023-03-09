@@ -109,6 +109,7 @@ int BPF_PROG(cgrp_kfunc_acquire_unreleased, struct cgroup *cgrp, const char *pat
 	acquired = bpf_cgroup_acquire(cgrp);
 
 	/* Acquired cgroup is never released. */
+	__sink(acquired);
 
 	return 0;
 }

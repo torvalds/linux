@@ -2,6 +2,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_legacy.h"
+#include "bpf_misc.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
@@ -20,6 +21,8 @@ int subprog_tail2(struct __sk_buff *skb)
 	else
 		bpf_tail_call_static(skb, &jmp_table, 1);
 
+	__sink(arr[sizeof(arr) - 1]);
+
 	return skb->len;
 }
 
@@ -30,6 +33,8 @@ int subprog_tail(struct __sk_buff *skb)
 
 	bpf_tail_call_static(skb, &jmp_table, 0);
 
+	__sink(arr[sizeof(arr) - 1]);
+
 	return skb->len * 2;
 }
 
@@ -37,6 +42,8 @@ SEC("tc")
 int classifier_0(struct __sk_buff *skb)
 {
 	volatile char arr[128] = {};
+
+	__sink(arr[sizeof(arr) - 1]);
 
 	return subprog_tail2(skb);
 }
@@ -46,6 +53,8 @@ int classifier_1(struct __sk_buff *skb)
 {
 	volatile char arr[128] = {};
 
+	__sink(arr[sizeof(arr) - 1]);
+
 	return skb->len * 3;
 }
 
@@ -53,6 +62,8 @@ SEC("tc")
 int entry(struct __sk_buff *skb)
 {
 	volatile char arr[128] = {};
+
+	__sink(arr[sizeof(arr) - 1]);
 
 	return subprog_tail(skb);
 }

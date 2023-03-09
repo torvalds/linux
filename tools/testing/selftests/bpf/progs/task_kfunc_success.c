@@ -171,8 +171,6 @@ static void lookup_compare_pid(const struct task_struct *p)
 SEC("tp_btf/task_newtask")
 int BPF_PROG(test_task_from_pid_arg, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *acquired;
-
 	if (!is_test_kfunc_task())
 		return 0;
 
@@ -183,8 +181,6 @@ int BPF_PROG(test_task_from_pid_arg, struct task_struct *task, u64 clone_flags)
 SEC("tp_btf/task_newtask")
 int BPF_PROG(test_task_from_pid_current, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *current, *acquired;
-
 	if (!is_test_kfunc_task())
 		return 0;
 
@@ -208,8 +204,6 @@ static int is_pid_lookup_valid(s32 pid)
 SEC("tp_btf/task_newtask")
 int BPF_PROG(test_task_from_pid_invalid, struct task_struct *task, u64 clone_flags)
 {
-	struct task_struct *acquired;
-
 	if (!is_test_kfunc_task())
 		return 0;
 

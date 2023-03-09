@@ -23,6 +23,7 @@ int BPF_PROG(test_alloc_no_release, struct task_struct *task, u64 clone_flags)
 	struct bpf_cpumask *cpumask;
 
 	cpumask = create_cpumask();
+	__sink(cpumask);
 
 	/* cpumask is never released. */
 	return 0;
@@ -51,6 +52,7 @@ int BPF_PROG(test_acquire_wrong_cpumask, struct task_struct *task, u64 clone_fla
 
 	/* Can't acquire a non-struct bpf_cpumask. */
 	cpumask = bpf_cpumask_acquire((struct bpf_cpumask *)task->cpus_ptr);
+	__sink(cpumask);
 
 	return 0;
 }
@@ -63,6 +65,7 @@ int BPF_PROG(test_mutate_cpumask, struct task_struct *task, u64 clone_flags)
 
 	/* Can't set the CPU of a non-struct bpf_cpumask. */
 	bpf_cpumask_set_cpu(0, (struct bpf_cpumask *)task->cpus_ptr);
+	__sink(cpumask);
 
 	return 0;
 }

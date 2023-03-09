@@ -353,7 +353,6 @@ SEC("tp_btf/task_newtask")
 int BPF_PROG(test_insert_leave, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *cpumask;
-	struct __cpumask_map_value *v;
 
 	cpumask = create_cpumask();
 	if (!cpumask)

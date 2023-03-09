@@ -179,8 +179,6 @@ SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int miss_lock(void *ctx)
 {
 	struct task_struct *task;
-	struct css_set *cgroups;
-	struct cgroup *dfl_cgrp;
 
 	/* missing bpf_rcu_read_lock() */
 	task = bpf_get_current_task_btf();
@@ -195,8 +193,6 @@ SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int miss_unlock(void *ctx)
 {
 	struct task_struct *task;
-	struct css_set *cgroups;
-	struct cgroup *dfl_cgrp;
 
 	/* missing bpf_rcu_read_unlock() */
 	task = bpf_get_current_task_btf();
