@@ -36,6 +36,7 @@ properties:
       - mediatek,mt8192-disp-mutex
       - mediatek,mt8195-disp-mutex
       - mediatek,mt8195-vpp-mutex
+      - mediatek,mt8365-disp-mutex
 
   reg:
     maxItems: 1
