@@ -118,7 +118,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 
 		cur_size = size;
 
-		if (fpfn + size != place->lpfn << PAGE_SHIFT) {
+		if (fpfn + size != (u64)place->lpfn << PAGE_SHIFT) {
 			/*
 			 * Except for actual range allocation, modify the size and
 			 * min_block_size conforming to continuous flag enablement
