@@ -219,6 +219,23 @@ former will have ``UFFD_PAGEFAULT_FLAG_WP`` set, the latter
 you still need to supply a page when ``UFFDIO_REGISTER_MODE_MISSING`` was
 used.
 
+Userfaultfd write-protect mode currently behave differently on none ptes
+(when e.g. page is missing) over different types of memories.
+
+For anonymous memory, ``ioctl(UFFDIO_WRITEPROTECT)`` will ignore none ptes
+(e.g. when pages are missing and not populated).  For file-backed memories
+like shmem and hugetlbfs, none ptes will be write protected just like a
+present pte.  In other words, there will be a userfaultfd write fault
+message generated when writing to a missing page on file typed memories,
+as long as the page range was write-protected before.  Such a message will
+not be generated on anonymous memories by default.
+
+If the application wants to be able to write protect none ptes on anonymous
+memory, one can pre-populate the memory with e.g. MADV_POPULATE_READ.  On
+newer kernels, one can also detect the feature UFFD_FEATURE_WP_UNPOPULATED
+and set the feature bit in advance to make sure none ptes will also be
+write protected even upon anonymous memory.
+
 QEMU/KVM
 ========
 
