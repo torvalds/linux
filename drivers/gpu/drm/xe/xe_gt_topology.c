@@ -62,6 +62,21 @@ load_eu_mask(struct xe_gt *gt, xe_eu_mask_t mask)
 	bitmap_from_arr32(mask, &val, XE_MAX_EU_FUSE_BITS);
 }
 
+static void
+get_num_dss_regs(struct xe_device *xe, int *geometry_regs, int *compute_regs)
+{
+	if (GRAPHICS_VERx100(xe) == 1260) {
+		*geometry_regs = 0;
+		*compute_regs = 2;
+	} else if (GRAPHICS_VERx100(xe) >= 1250) {
+		*geometry_regs = 1;
+		*compute_regs = 1;
+	} else {
+		*geometry_regs = 1;
+		*compute_regs = 0;
+	}
+}
+
 void
 xe_gt_topology_init(struct xe_gt *gt)
 {
@@ -69,18 +84,17 @@ xe_gt_topology_init(struct xe_gt *gt)
 	struct drm_printer p = drm_debug_printer("GT topology");
 	int num_geometry_regs, num_compute_regs;
 
-	if (GRAPHICS_VERx100(xe) == 1260) {
-		num_geometry_regs = 0;
-		num_compute_regs = 2;
-	} else if (GRAPHICS_VERx100(xe) >= 1250) {
-		num_geometry_regs = 1;
-		num_compute_regs = 1;
-	} else {
-		num_geometry_regs = 1;
-		num_compute_regs = 0;
-	}
+	get_num_dss_regs(xe, &num_geometry_regs, &num_compute_regs);
 
-	load_dss_mask(gt, gt->fuse_topo.g_dss_mask, num_geometry_regs,
+	/*
+	 * Register counts returned shouldn't exceed the number of registers
+	 * passed as parameters below.
+	 */
+	drm_WARN_ON(&xe->drm, num_geometry_regs > 1);
+	drm_WARN_ON(&xe->drm, num_compute_regs > 2);
+
+	load_dss_mask(gt, gt->fuse_topo.g_dss_mask,
+		      num_geometry_regs,
 		      XELP_GT_GEOMETRY_DSS_ENABLE.reg);
 	load_dss_mask(gt, gt->fuse_topo.c_dss_mask, num_compute_regs,
 		      XEHP_GT_COMPUTE_DSS_ENABLE.reg,
@@ -112,4 +126,33 @@ unsigned int
 xe_dss_mask_group_ffs(xe_dss_mask_t mask, int groupsize, int groupnum)
 {
 	return find_next_bit(mask, XE_MAX_DSS_FUSE_BITS, groupnum * groupsize);
+}
+
+/**
+ * xe_gt_topology_has_dss_in_quadrant - check fusing of DSS in GT quadrant
+ * @gt: GT to check
+ * @quad: Which quadrant of the DSS space to check
+ *
+ * Since Xe_HP platforms can have up to four CCS engines, those engines
+ * are each logically associated with a quarter of the possible DSS.  If there
+ * are no DSS present in one of the four quadrants of the DSS space, the
+ * corresponding CCS engine is also not available for use.
+ *
+ * Returns false if all DSS in a quadrant of the GT are fused off, else true.
+ */
+bool xe_gt_topology_has_dss_in_quadrant(struct xe_gt *gt, int quad)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	xe_dss_mask_t all_dss;
+	int g_dss_regs, c_dss_regs, dss_per_quad, quad_first;
+
+	bitmap_or(all_dss, gt->fuse_topo.g_dss_mask, gt->fuse_topo.c_dss_mask,
+		  XE_MAX_DSS_FUSE_BITS);
+
+	get_num_dss_regs(xe, &g_dss_regs, &c_dss_regs);
+	dss_per_quad = 32 * max(g_dss_regs, c_dss_regs) / 4;
+
+	quad_first = xe_dss_mask_group_ffs(all_dss, dss_per_quad, quad);
+
+	return quad_first < (quad + 1) * dss_per_quad;
 }

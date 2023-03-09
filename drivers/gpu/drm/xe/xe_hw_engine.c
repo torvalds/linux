@@ -436,13 +436,40 @@ static void read_copy_fuses(struct xe_gt *gt)
 	}
 }
 
+static void read_compute_fuses(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	/*
+	 * CCS fusing based on DSS masks only applies to platforms that can
+	 * have more than one CCS.
+	 */
+	if (hweight64(gt->info.engine_mask &
+		      GENMASK_ULL(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0)) <= 1)
+		return;
+
+	/*
+	 * CCS availability on Xe_HP is inferred from the presence of DSS in
+	 * each quadrant.
+	 */
+	for (int i = XE_HW_ENGINE_CCS0, j = 0; i <= XE_HW_ENGINE_CCS3; ++i, ++j) {
+		if (!(gt->info.engine_mask & BIT(i)))
+			continue;
+
+		if (!xe_gt_topology_has_dss_in_quadrant(gt, j)) {
+			gt->info.engine_mask &= ~BIT(i);
+			drm_info(&xe->drm, "ccs%u fused off\n", j);
+		}
+	}
+}
+
 int xe_hw_engines_init_early(struct xe_gt *gt)
 {
 	int i;
 
 	read_media_fuses(gt);
 	read_copy_fuses(gt);
-	/* TODO: compute engines */
+	read_compute_fuses(gt);
 
 	for (i = 0; i < ARRAY_SIZE(gt->hw_engines); i++)
 		hw_engine_init_early(gt, &gt->hw_engines[i], i);
