@@ -20,6 +20,8 @@
 	backlight_dsi: backlight-dsi {
 		compatible = "led-backlight";
 		leds = <&led_backlight>;
+		brightness-levels = <255>;
+		default-brightness-level = <190>;
 	};
 
 	pmic_osc: clock-pmic {
