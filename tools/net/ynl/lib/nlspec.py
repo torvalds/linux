@@ -138,10 +138,8 @@ class SpecEnumSet(SpecElement):
 
     def get_mask(self):
         mask = 0
-        idx = self.yaml.get('value-start', 0)
-        for _ in self.entries.values():
-            mask |= 1 << idx
-            idx += 1
+        for e in self.entries.values():
+            mask += e.user_value()
         return mask
 
 
