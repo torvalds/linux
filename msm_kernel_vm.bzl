@@ -170,6 +170,8 @@ def _define_kernel_build(
         dtstree = dtstree,
         kmi_symbol_list = None,
         additional_kmi_symbol_lists = None,
+        module_signing_key = ":signing_key",
+        system_trusted_key = ":verity_cert.pem",
         abi_definition = None,
         strip_modules = True,
         enable_interceptor = define_compile_commands,
