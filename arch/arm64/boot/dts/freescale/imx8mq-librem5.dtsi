@@ -91,6 +91,14 @@
 		enable-active-high;
 	};
 
+	reg_mic_2v4: regulator-mic-2v4 {
+		compatible = "regulator-fixed";
+		regulator-name = "MIC_2V4";
+		regulator-min-microvolt = <2400000>;
+		regulator-max-microvolt = <2400000>;
+		vin-supply = <&reg_aud_1v8>;
+	};
+
 	/*
 	 * the pinctrl for reg_csi_1v8 and reg_vcam_1v8 is added to the PMIC
 	 * since we can't have it twice in the 2 different regulator nodes.
@@ -1033,7 +1041,7 @@
 		DBVDD-supply = <&reg_aud_1v8>;
 		AVDD-supply = <&reg_aud_1v8>;
 		CPVDD-supply = <&reg_aud_1v8>;
-		MICVDD-supply = <&reg_aud_1v8>;
+		MICVDD-supply = <&reg_mic_2v4>;
 		PLLVDD-supply = <&reg_aud_1v8>;
 		SPKVDD1-supply = <&reg_vsys_3v4>;
 		SPKVDD2-supply = <&reg_vsys_3v4>;
