@@ -66,9 +66,16 @@ sanity_populate_cb(struct xe_migrate_pt_update *pt_update,
 {
 	int i;
 	u64 *ptr = dst;
+	u64 value;
 
-	for (i = 0; i < num_qwords; i++)
-		ptr[i] = (qword_ofs + i - update->ofs) * 0x1111111111111111ULL;
+	for (i = 0; i < num_qwords; i++) {
+		value = (qword_ofs + i - update->ofs) * 0x1111111111111111ULL;
+		if (map)
+			xe_map_wr(gt_to_xe(gt), map, (qword_ofs + i) *
+				  sizeof(u64), u64, value);
+		else
+			ptr[i] = value;
+	}
 }
 
 static const struct xe_migrate_pt_update_ops sanity_ops = {
