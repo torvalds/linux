@@ -139,6 +139,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	*image_addr = *reserve_addr;
 	memcpy((void *)*image_addr, _text, kernel_size);
 	caches_clean_inval_pou(*image_addr, *image_addr + kernel_codesize);
+	efi_remap_image(*image_addr, *reserve_size, kernel_codesize);
 
 	return EFI_SUCCESS;
 }
