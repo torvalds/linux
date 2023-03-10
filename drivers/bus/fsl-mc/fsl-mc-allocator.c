@@ -614,19 +614,18 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
  * fsl_mc_allocator_remove - callback invoked when an allocatable device is
  * being removed from the system
  */
-static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
+static void fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
 	int error;
 
 	if (mc_dev->resource) {
 		error = fsl_mc_resource_pool_remove_device(mc_dev);
 		if (error < 0)
-			return 0;
+			return;
 	}
 
 	dev_dbg(&mc_dev->dev,
 		"Allocatable fsl-mc device unbound from fsl_mc_allocator driver");
-	return 0;
 }
 
 static const struct fsl_mc_device_id match_id_table[] = {

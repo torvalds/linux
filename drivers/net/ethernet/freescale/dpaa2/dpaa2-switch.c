@@ -3221,7 +3221,7 @@ static void dpaa2_switch_teardown(struct fsl_mc_device *sw_dev)
 		dev_warn(dev, "dpsw_close err %d\n", err);
 }
 
-static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
+static void dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 {
 	struct ethsw_port_priv *port_priv;
 	struct ethsw_core *ethsw;
@@ -3252,8 +3252,6 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 	kfree(ethsw);
 
 	dev_set_drvdata(dev, NULL);
-
-	return 0;
 }
 
 static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
