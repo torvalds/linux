@@ -243,7 +243,7 @@ static ssize_t gt1x_debug_write_proc(struct file *file, const char *buffer, size
 		gt1x_update_firmware(arg1);
 		return count;
 	}
-
+#if 0 //close for GKI
 	if (strcmp(mode_str, "sendconfig") == 0) {
 		cfg_len = gt1x_parse_config(arg1, temp_config);
 		if (cfg_len < 0) {
@@ -252,7 +252,7 @@ static ssize_t gt1x_debug_write_proc(struct file *file, const char *buffer, size
 		gt1x_send_cfg(temp_config, gt1x_cfg_length);
 		return count;
 	}
-
+#endif
 	if (strcmp(mode_str, "debug_gesture") == 0) {
 #if GTP_GESTURE_WAKEUP
 		gt1x_gesture_debug(!!mode);
@@ -266,7 +266,7 @@ static ssize_t gt1x_debug_write_proc(struct file *file, const char *buffer, size
 }
 #endif
 
-static u8 ascii2hex(u8 a)
+static u8 __maybe_unused ascii2hex(u8 a)
 {
 	s8 value = 0;
 	if (a >= '0' && a <= '9') {
@@ -281,6 +281,7 @@ static u8 ascii2hex(u8 a)
 	return value;
 }
 
+#if 0 //close for GKI
 int gt1x_parse_config(char *filename, u8 *config)
 {
 	mm_segment_t old_fs;
@@ -357,6 +358,7 @@ parse_cfg_fail1:
 
 	return cur_len;
 }
+#endif
 
 s32 _do_i2c_read(struct i2c_msg *msgs, u16 addr, u8 *buffer, s32 len)
 {
