@@ -32,10 +32,6 @@
 #include "ksz9477.h"
 #include "lan937x.h"
 
-#define KSZ_CBS_ENABLE ((MTI_SCHEDULE_STRICT_PRIO << MTI_SCHEDULE_MODE_S) | \
-			(MTI_SHAPING_SRP << MTI_SHAPING_S))
-#define KSZ_CBS_DISABLE ((MTI_SCHEDULE_WRR << MTI_SCHEDULE_MODE_S) |\
-			 (MTI_SHAPING_OFF << MTI_SHAPING_S))
 #define MIB_COUNTER_NUM 0x20
 
 struct ksz_stats_raw {
@@ -3091,6 +3087,14 @@ static int cinc_cal(s32 idle_slope, s32 send_slope, u32 *bw)
 	return 0;
 }
 
+static int ksz_setup_tc_mode(struct ksz_device *dev, int port, u8 scheduler,
+			     u8 shaper)
+{
+	return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
+			   FIELD_PREP(MTI_SCHEDULE_MODE_M, scheduler) |
+			   FIELD_PREP(MTI_SHAPING_M, shaper));
+}
+
 static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
 			    struct tc_cbs_qopt_offload *qopt)
 {
@@ -3110,8 +3114,8 @@ static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
 		return ret;
 
 	if (!qopt->enable)
-		return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
-				   KSZ_CBS_DISABLE);
+		return ksz_setup_tc_mode(dev, port, MTI_SCHEDULE_WRR,
+					 MTI_SHAPING_OFF);
 
 	/* High Credit */
 	ret = ksz_pwrite16(dev, port, REG_PORT_MTI_HI_WATER_MARK,
@@ -3136,8 +3140,8 @@ static int ksz_setup_tc_cbs(struct dsa_switch *ds, int port,
 			return ret;
 	}
 
-	return ksz_pwrite8(dev, port, REG_PORT_MTI_QUEUE_CTRL_0,
-			   KSZ_CBS_ENABLE);
+	return ksz_setup_tc_mode(dev, port, MTI_SCHEDULE_STRICT_PRIO,
+				 MTI_SHAPING_SRP);
 }
 
 static int ksz_setup_tc(struct dsa_switch *ds, int port,

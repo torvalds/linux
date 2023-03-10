@@ -654,12 +654,10 @@ static inline int is_lan937x(struct ksz_device *dev)
 
 #define REG_PORT_MTI_QUEUE_CTRL_0	0x0914
 
-#define MTI_SCHEDULE_MODE_M		0x3
-#define MTI_SCHEDULE_MODE_S		6
+#define MTI_SCHEDULE_MODE_M		GENMASK(7, 6)
 #define MTI_SCHEDULE_STRICT_PRIO	0
 #define MTI_SCHEDULE_WRR		2
-#define MTI_SHAPING_M			0x3
-#define MTI_SHAPING_S			4
+#define MTI_SHAPING_M			GENMASK(5, 4)
 #define MTI_SHAPING_OFF			0
 #define MTI_SHAPING_SRP			1
 #define MTI_SHAPING_TIME_AWARE		2
