@@ -104,22 +104,30 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	int error = -EINVAL;
 
 	resource = mc_dev->resource;
-	if (!resource || resource->data != mc_dev)
+	if (!resource || resource->data != mc_dev) {
+		dev_err(&mc_bus_dev->dev, "resource mismatch\n");
 		goto out;
+	}
 
 	mc_bus_dev = to_fsl_mc_device(mc_dev->dev.parent);
 	mc_bus = to_fsl_mc_bus(mc_bus_dev);
 	res_pool = resource->parent_pool;
-	if (res_pool != &mc_bus->resource_pools[resource->type])
+	if (res_pool != &mc_bus->resource_pools[resource->type]) {
+		dev_err(&mc_bus_dev->dev, "pool mismatch\n");
 		goto out;
+	}
 
 	mutex_lock(&res_pool->mutex);
 
-	if (res_pool->max_count <= 0)
+	if (res_pool->max_count <= 0) {
+		dev_err(&mc_bus_dev->dev, "max_count underflow\n");
 		goto out_unlock;
+	}
 	if (res_pool->free_count <= 0 ||
-	    res_pool->free_count > res_pool->max_count)
+	    res_pool->free_count > res_pool->max_count) {
+		dev_err(&mc_bus_dev->dev, "free_count mismatch\n");
 		goto out_unlock;
+	}
 
 	/*
 	 * If the device is currently allocated, its resource is not
@@ -613,7 +621,7 @@ static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 	if (mc_dev->resource) {
 		error = fsl_mc_resource_pool_remove_device(mc_dev);
 		if (error < 0)
-			return error;
+			return 0;
 	}
 
 	dev_dbg(&mc_dev->dev,
