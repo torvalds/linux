@@ -543,6 +543,7 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 	struct harvest_table *harvest_info;
 	u16 offset;
 	int i;
+	uint32_t umc_harvest_config = 0;
 
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	offset = le16_to_cpu(bhdr->table_list[HARVEST_INFO].offset);
@@ -570,12 +571,17 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
 			break;
 		case UMC_HWID:
+			umc_harvest_config |=
+				1 << (le16_to_cpu(harvest_info->list[i].number_instance));
 			(*umc_harvest_count)++;
 			break;
 		default:
 			break;
 		}
 	}
+
+	adev->umc.active_mask = ((1 << adev->umc.node_inst_num) - 1) &
+				~umc_harvest_config;
 }
 
 /* ================================================== */
@@ -1156,8 +1162,10 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 						AMDGPU_MAX_SDMA_INSTANCES);
 			}
 
-			if (le16_to_cpu(ip->hw_id) == UMC_HWID)
+			if (le16_to_cpu(ip->hw_id) == UMC_HWID) {
 				adev->gmc.num_umc++;
+				adev->umc.node_inst_num++;
+			}
 
 			for (k = 0; k < num_base_address; k++) {
 				/*

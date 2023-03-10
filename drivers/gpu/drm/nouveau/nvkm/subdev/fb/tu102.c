@@ -31,7 +31,7 @@ tu102_fb_vpr_scrub_required(struct nvkm_fb *fb)
 static const struct nvkm_fb_func
 tu102_fb = {
 	.dtor = gf100_fb_dtor,
-	.oneinit = gf100_fb_oneinit,
+	.oneinit = gp102_fb_oneinit,
 	.init = gm200_fb_init,
 	.init_page = gv100_fb_init_page,
 	.init_unkn = gp100_fb_init_unkn,
@@ -45,7 +45,7 @@ tu102_fb = {
 int
 tu102_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return gp102_fb_new_(&tu102_fb, device, type, inst, pfb);
+	return gf100_fb_new_(&tu102_fb, device, type, inst, pfb);
 }
 
 MODULE_FIRMWARE("nvidia/tu102/nvdec/scrubber.bin");
