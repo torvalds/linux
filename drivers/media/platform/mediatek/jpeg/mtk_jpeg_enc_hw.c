@@ -286,10 +286,6 @@ static irqreturn_t mtk_jpegenc_hw_irq_handler(int irq, void *priv)
 	mtk_jpegenc_put_buf(jpeg);
 	pm_runtime_put(ctx->jpeg->dev);
 	clk_disable_unprepare(jpeg->venc_clk.clks->clk);
-	if (!list_empty(&ctx->fh.m2m_ctx->out_q_ctx.rdy_queue) ||
-	    !list_empty(&ctx->fh.m2m_ctx->cap_q_ctx.rdy_queue)) {
-		queue_work(master_jpeg->workqueue, &ctx->jpeg_work);
-	}
 
 	jpeg->hw_state = MTK_JPEG_HW_IDLE;
 	wake_up(&master_jpeg->enc_hw_wq);
