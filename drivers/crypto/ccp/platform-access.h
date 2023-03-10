@@ -24,6 +24,7 @@ struct psp_platform_access_device {
 	struct platform_access_vdata *vdata;
 
 	struct mutex mailbox_mutex;
+	struct mutex doorbell_mutex;
 
 	void *platform_access_data;
 };

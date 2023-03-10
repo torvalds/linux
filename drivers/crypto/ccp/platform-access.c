@@ -20,6 +20,14 @@
 
 #define PSP_CMD_TIMEOUT_US	(500 * USEC_PER_MSEC)
 
+/* Doorbell shouldn't be ringing */
+static int check_doorbell(u32 __iomem *doorbell)
+{
+	u32 tmp;
+
+	return readl_poll_timeout(doorbell, tmp, tmp != 0, 0, PSP_CMD_TIMEOUT_US);
+}
+
 /* Recovery field should be equal 0 to start sending commands */
 static int check_recovery(u32 __iomem *cmd)
 {
@@ -132,6 +140,62 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(psp_send_platform_access_msg);
 
+int psp_ring_platform_doorbell(int msg)
+{
+	struct psp_device *psp = psp_get_master_device();
+	struct psp_platform_access_device *pa_dev;
+	u32 __iomem *button, *cmd;
+	int ret, val;
+
+	if (!psp || !psp->platform_access_data)
+		return -ENODEV;
+
+	pa_dev = psp->platform_access_data;
+	button = psp->io_regs + pa_dev->vdata->doorbell_button_reg;
+	cmd = psp->io_regs + pa_dev->vdata->doorbell_cmd_reg;
+
+	mutex_lock(&pa_dev->doorbell_mutex);
+
+	if (check_doorbell(button)) {
+		dev_dbg(psp->dev, "doorbell is not ready\n");
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	if (check_recovery(cmd)) {
+		dev_dbg(psp->dev, "doorbell command in recovery\n");
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	if (wait_cmd(cmd)) {
+		dev_dbg(psp->dev, "doorbell command not done processing\n");
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	iowrite32(FIELD_PREP(PSP_DRBL_MSG, msg), cmd);
+	iowrite32(PSP_DRBL_RING, button);
+
+	if (wait_cmd(cmd)) {
+		ret = -ETIMEDOUT;
+		goto unlock;
+	}
+
+	val = FIELD_GET(PSP_CMDRESP_STS, ioread32(cmd));
+	if (val) {
+		ret = -EIO;
+		goto unlock;
+	}
+
+	ret = 0;
+unlock:
+	mutex_unlock(&pa_dev->doorbell_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(psp_ring_platform_doorbell);
+
 void platform_access_dev_destroy(struct psp_device *psp)
 {
 	struct psp_platform_access_device *pa_dev = psp->platform_access_data;
@@ -140,6 +204,7 @@ void platform_access_dev_destroy(struct psp_device *psp)
 		return;
 
 	mutex_destroy(&pa_dev->mailbox_mutex);
+	mutex_destroy(&pa_dev->doorbell_mutex);
 	psp->platform_access_data = NULL;
 }
 
@@ -159,6 +224,7 @@ int platform_access_dev_init(struct psp_device *psp)
 	pa_dev->vdata = (struct platform_access_vdata *)psp->vdata->platform_access;
 
 	mutex_init(&pa_dev->mailbox_mutex);
+	mutex_init(&pa_dev->doorbell_mutex);
 
 	dev_dbg(dev, "platform access enabled\n");
 

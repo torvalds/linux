@@ -57,6 +57,9 @@ struct platform_access_vdata {
 	const unsigned int cmdresp_reg;
 	const unsigned int cmdbuff_addr_lo_reg;
 	const unsigned int cmdbuff_addr_hi_reg;
+	const unsigned int doorbell_button_reg;
+	const unsigned int doorbell_cmd_reg;
+
 };
 
 struct psp_vdata {

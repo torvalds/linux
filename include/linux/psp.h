@@ -23,4 +23,7 @@
 #define PSP_CMDRESP_RECOVERY	BIT(30)
 #define PSP_CMDRESP_RESP	BIT(31)
 
+#define PSP_DRBL_MSG		PSP_CMDRESP_CMD
+#define PSP_DRBL_RING		BIT(0)
+
 #endif /* __PSP_H */

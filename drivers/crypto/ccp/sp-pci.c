@@ -365,6 +365,8 @@ static const struct platform_access_vdata pa_v1 = {
 	.cmdresp_reg		= 0x10570,	/* C2PMSG_28 */
 	.cmdbuff_addr_lo_reg	= 0x10574,	/* C2PMSG_29 */
 	.cmdbuff_addr_hi_reg	= 0x10578,	/* C2PMSG_30 */
+	.doorbell_button_reg	= 0x10a24,	/* C2PMSG_73 */
+	.doorbell_cmd_reg	= 0x10a40,	/* C2PMSG_80 */
 };
 
 static const struct psp_vdata pspv1 = {
