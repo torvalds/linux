@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/qcom-iommu-util.h>
 #include <linux/qcom-io-pgtable.h>
+#include <trace/hooks/iommu.h>
 #include "qcom-dma-iommu-generic.h"
 #include "qcom-io-pgtable-alloc.h"
 
@@ -549,6 +550,31 @@ static inline unsigned long iovad_get_max_align_shift(struct iova_domain *iovad)
 
 	return (unsigned long)max_shift;
 }
+
+static void init_iovad_attr(void *unused, struct device *dev,
+		struct iova_domain *iovad)
+{
+	struct device_node *node;
+	u32 shift;
+
+	node = dev->of_node;
+	if (of_property_read_bool(node, "qcom,iova-best-fit"))
+		iovad_set_best_fit_iova(iovad);
+
+	if (!of_property_read_u32(node, "qcom,iova-max-align-shift", &shift))
+		iovad_set_max_align_shift(iovad, (unsigned long)shift);
+}
+
+static void register_iommu_iovad_init_alloc_algo_vh(void)
+{
+	if (register_trace_android_rvh_iommu_iovad_init_alloc_algo(
+				init_iovad_attr, NULL))
+		pr_err("Failed to register init_iovad_attr vendor hook\n");
+}
+#else
+static void register_iommu_iovad_init_alloc_algo_vh(void)
+{
+}
 #endif
 
 /*
@@ -589,6 +615,8 @@ static int __init qcom_iommu_util_init(void)
 			goto out_undo;
 		}
 	}
+
+	register_iommu_iovad_init_alloc_algo_vh();
 
 	return 0;
 
