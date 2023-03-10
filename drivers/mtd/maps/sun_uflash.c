@@ -112,7 +112,7 @@ static int uflash_probe(struct platform_device *op)
 	/* Flashprom must have the "user" property in order to
 	 * be used by this driver.
 	 */
-	if (!of_find_property(dp, "user", NULL))
+	if (!of_property_read_bool(dp, "user"))
 		return -ENODEV;
 
 	return uflash_devinit(op, dp);
