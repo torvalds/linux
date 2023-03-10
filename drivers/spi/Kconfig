@@ -357,7 +357,7 @@ config SPI_FALCON
 
 config SPI_FSI
 	tristate "FSI SPI driver"
-	depends on FSI || COMPILE_TEST
+	depends on FSI
 	help
 	  This enables support for the driver for FSI bus attached SPI
 	  controllers.
