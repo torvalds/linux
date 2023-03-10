@@ -43,10 +43,11 @@ struct ap_queue_status {
 	unsigned int queue_empty	: 1;
 	unsigned int replies_waiting	: 1;
 	unsigned int queue_full		: 1;
-	unsigned int _pad1		: 4;
+	unsigned int			: 3;
+	unsigned int async		: 1;
 	unsigned int irq_enabled	: 1;
 	unsigned int response_code	: 8;
-	unsigned int _pad2		: 16;
+	unsigned int			: 16;
 };
 
 /*
@@ -113,6 +114,14 @@ struct ap_tapq_gr2 {
 		};
 	};
 };
+
+/*
+ * Convenience defines to be used with the bs field from struct ap_tapq_gr2
+ */
+#define AP_BS_Q_USABLE		      0
+#define AP_BS_Q_USABLE_NO_SECURE_KEY  1
+#define AP_BS_Q_AVAIL_FOR_BINDING     2
+#define AP_BS_Q_UNUSABLE	      3
 
 /**
  * ap_tapq(): Test adjunct processor queue.

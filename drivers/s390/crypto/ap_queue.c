@@ -18,6 +18,21 @@
 
 static void __ap_flush_queue(struct ap_queue *aq);
 
+/*
+ * some AP queue helper functions
+ */
+
+static inline bool ap_q_supports_bind(struct ap_queue *aq)
+{
+	return ap_test_bit(&aq->card->functions, AP_FUNC_EP11) ||
+		ap_test_bit(&aq->card->functions, AP_FUNC_ACCEL);
+}
+
+static inline bool ap_q_supports_assoc(struct ap_queue *aq)
+{
+	return ap_test_bit(&aq->card->functions, AP_FUNC_EP11);
+}
+
 /**
  * ap_queue_enable_irq(): Enable interrupt support on this AP queue.
  * @aq: The AP queue
@@ -322,12 +337,13 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 {
 	struct ap_queue_status status;
 
-	status = ap_rapq(aq->qid, 0);
+	status = ap_rapq(aq->qid, aq->rapq_fbit);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
 		aq->interrupt = false;
+		aq->rapq_fbit = 0;
 		return AP_SM_WAIT_LOW_TIMEOUT;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
@@ -423,6 +439,59 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 	}
 }
 
+/**
+ * ap_sm_assoc_wait(): Test queue for completion of a pending
+ *		       association request.
+ * @aq: pointer to the AP queue
+ */
+static enum ap_sm_wait ap_sm_assoc_wait(struct ap_queue *aq)
+{
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	/* handle asynchronous error on this queue */
+	if (status.async && status.response_code) {
+		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s asynch RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return AP_SM_WAIT_NONE;
+	}
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return AP_SM_WAIT_NONE;
+	}
+
+	/* check bs bits */
+	switch (info.bs) {
+	case AP_BS_Q_USABLE:
+		/* association is through */
+		aq->sm_state = AP_SM_STATE_IDLE;
+		AP_DBF_DBG("%s queue 0x%02x.%04x associated with %u\n",
+			   __func__, AP_QID_CARD(aq->qid),
+			   AP_QID_QUEUE(aq->qid), aq->assoc_idx);
+		return AP_SM_WAIT_NONE;
+	case AP_BS_Q_USABLE_NO_SECURE_KEY:
+		/* association still pending */
+		return AP_SM_WAIT_LOW_TIMEOUT;
+	default:
+		/* reset from 'outside' happened or no idea at all */
+		aq->assoc_idx = ASSOC_IDX_INVALID;
+		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s bs 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, info.bs,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return AP_SM_WAIT_NONE;
+	}
+}
+
 /*
  * AP state machine jump table
  */
@@ -449,6 +518,10 @@ static ap_func_t *ap_jumptable[NR_AP_SM_STATES][NR_AP_SM_EVENTS] = {
 	},
 	[AP_SM_STATE_QUEUE_FULL] = {
 		[AP_SM_EVENT_POLL] = ap_sm_read,
+		[AP_SM_EVENT_TIMEOUT] = ap_sm_reset,
+	},
+	[AP_SM_STATE_ASSOC_WAIT] = {
+		[AP_SM_EVENT_POLL] = ap_sm_assoc_wait,
 		[AP_SM_EVENT_TIMEOUT] = ap_sm_reset,
 	},
 };
@@ -696,6 +769,9 @@ static ssize_t states_show(struct device *dev,
 		case AP_SM_STATE_QUEUE_FULL:
 			rc += sysfs_emit_at(buf, rc, " [FULL]\n");
 			break;
+		case AP_SM_STATE_ASSOC_WAIT:
+			rc += sysfs_emit_at(buf, rc, " [ASSOC_WAIT]\n");
+			break;
 		default:
 			rc += sysfs_emit_at(buf, rc, " [UNKNOWN]\n");
 		}
@@ -780,6 +856,186 @@ static struct device_type ap_queue_type = {
 	.groups = ap_queue_dev_attr_groups,
 };
 
+static ssize_t se_bind_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	if (!ap_q_supports_bind(aq))
+		return sysfs_emit(buf, "-\n");
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			   __func__, status.response_code,
+			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+	switch (info.bs) {
+	case AP_BS_Q_USABLE:
+	case AP_BS_Q_USABLE_NO_SECURE_KEY:
+		return sysfs_emit(buf, "bound\n");
+	default:
+		return sysfs_emit(buf, "unbound\n");
+	}
+}
+
+static ssize_t se_bind_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	bool value;
+	int rc;
+
+	if (!ap_q_supports_bind(aq))
+		return -EINVAL;
+
+	/* only 0 (unbind) and 1 (bind) allowed */
+	rc = kstrtobool(buf, &value);
+	if (rc)
+		return rc;
+
+	if (value) {
+		/* bind, do BAPQ */
+		spin_lock_bh(&aq->lock);
+		if (aq->sm_state < AP_SM_STATE_IDLE) {
+			spin_unlock_bh(&aq->lock);
+			return -EBUSY;
+		}
+		status = ap_bapq(aq->qid);
+		spin_unlock_bh(&aq->lock);
+		if (status.response_code) {
+			AP_DBF_WARN("%s RC 0x%02x on bapq(0x%02x.%04x)\n",
+				    __func__, status.response_code,
+				    AP_QID_CARD(aq->qid),
+				    AP_QID_QUEUE(aq->qid));
+			return -EIO;
+		}
+	} else {
+		/* unbind, set F bit arg and trigger RAPQ */
+		spin_lock_bh(&aq->lock);
+		__ap_flush_queue(aq);
+		aq->rapq_fbit = 1;
+		aq->assoc_idx = ASSOC_IDX_INVALID;
+		aq->sm_state = AP_SM_STATE_RESET_START;
+		ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
+		spin_unlock_bh(&aq->lock);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(se_bind);
+
+static ssize_t se_associate_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	if (!ap_q_supports_assoc(aq))
+		return sysfs_emit(buf, "-\n");
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			   __func__, status.response_code,
+			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+
+	switch (info.bs) {
+	case AP_BS_Q_USABLE:
+		if (aq->assoc_idx == ASSOC_IDX_INVALID) {
+			AP_DBF_WARN("%s AP_BS_Q_USABLE but invalid assoc_idx\n", __func__);
+			return -EIO;
+		}
+		return sysfs_emit(buf, "associated %u\n", aq->assoc_idx);
+	case AP_BS_Q_USABLE_NO_SECURE_KEY:
+		if (aq->assoc_idx != ASSOC_IDX_INVALID)
+			return sysfs_emit(buf, "association pending\n");
+		fallthrough;
+	default:
+		return sysfs_emit(buf, "unassociated\n");
+	}
+}
+
+static ssize_t se_associate_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	unsigned int value;
+	int rc;
+
+	if (!ap_q_supports_assoc(aq))
+		return -EINVAL;
+
+	/* association index needs to be >= 0 */
+	rc = kstrtouint(buf, 0, &value);
+	if (rc)
+		return rc;
+	if (value >= ASSOC_IDX_INVALID)
+		return -EINVAL;
+
+	spin_lock_bh(&aq->lock);
+
+	/* sm should be in idle state */
+	if (aq->sm_state != AP_SM_STATE_IDLE) {
+		spin_unlock_bh(&aq->lock);
+		return -EBUSY;
+	}
+
+	/* already associated or association pending ? */
+	if (aq->assoc_idx != ASSOC_IDX_INVALID) {
+		spin_unlock_bh(&aq->lock);
+		return -EINVAL;
+	}
+
+	/* trigger the asynchronous association request */
+	status = ap_aapq(aq->qid, value);
+	switch (status.response_code) {
+	case AP_RESPONSE_NORMAL:
+	case AP_RESPONSE_STATE_CHANGE_IN_PROGRESS:
+		aq->sm_state = AP_SM_STATE_ASSOC_WAIT;
+		aq->assoc_idx = value;
+		ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
+		spin_unlock_bh(&aq->lock);
+		break;
+	default:
+		spin_unlock_bh(&aq->lock);
+		AP_DBF_WARN("%s RC 0x%02x on aapq(0x%02x.%04x)\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(se_associate);
+
+static struct attribute *ap_queue_dev_sb_attrs[] = {
+	&dev_attr_se_bind.attr,
+	&dev_attr_se_associate.attr,
+	NULL
+};
+
+static struct attribute_group ap_queue_dev_sb_attr_group = {
+	.attrs = ap_queue_dev_sb_attrs
+};
+
+static const struct attribute_group *ap_queue_dev_sb_attr_groups[] = {
+	&ap_queue_dev_sb_attr_group,
+	NULL
+};
+
 static void ap_queue_device_release(struct device *dev)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
@@ -801,6 +1057,9 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	aq->ap_dev.device.release = ap_queue_device_release;
 	aq->ap_dev.device.type = &ap_queue_type;
 	aq->ap_dev.device_type = device_type;
+	// add optional SE secure binding attributes group
+	if (ap_sb_available() && is_prot_virt_guest())
+		aq->ap_dev.device.groups = ap_queue_dev_sb_attr_groups;
 	aq->qid = qid;
 	aq->interrupt = false;
 	spin_lock_init(&aq->lock);
@@ -947,6 +1206,7 @@ void ap_queue_init_state(struct ap_queue *aq)
 	aq->dev_state = AP_DEV_STATE_OPERATING;
 	aq->sm_state = AP_SM_STATE_RESET_START;
 	aq->last_err_rc = 0;
+	aq->assoc_idx = ASSOC_IDX_INVALID;
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 }
