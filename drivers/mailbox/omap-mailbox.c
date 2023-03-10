@@ -749,8 +749,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 
 		finfo->name = child->name;
 
-		if (of_find_property(child, "ti,mbox-send-noirq", NULL))
-			finfo->send_no_irq = true;
+		finfo->send_no_irq = of_property_read_bool(child, "ti,mbox-send-noirq");
 
 		if (finfo->tx_id >= num_fifos || finfo->rx_id >= num_fifos ||
 		    finfo->tx_usr >= num_users || finfo->rx_usr >= num_users)
