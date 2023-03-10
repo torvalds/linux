@@ -877,30 +877,6 @@ bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 	return true;
 }
 
-/*  <20121004, Kordan> For example,
- *  ParseQualifiedString(inString, 0, outString, '[', ']') gets "Kordan" from
- *  a string "Hello [Kordan]".
- *  If RightQualifier does not exist, it will hang in the while loop
- */
-bool ParseQualifiedString(
-	char *In, u32 *Start, char *Out, char LeftQualifier, char RightQualifier
-)
-{
-	u32 i = 0, j = 0;
-	char c = In[(*Start)++];
-
-	if (c != LeftQualifier)
-		return false;
-
-	i = (*Start);
-	while ((c = In[(*Start)++]) != RightQualifier)
-		; /*  find ']' */
-	j = (*Start) - 2;
-	strncpy((char *)Out, (const char *)(In+i), j-i+1);
-
-	return true;
-}
-
 bool isAllSpaceOrTab(u8 *data, u8 size)
 {
 	u8 cnt = 0, NumOfSpaceAndTab = 0;
