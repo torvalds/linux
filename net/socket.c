@@ -2292,9 +2292,9 @@ INDIRECT_CALLABLE_DECLARE(bool tcp_bpf_bypass_getsockopt(int level,
 int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
 		int __user *optlen)
 {
+	int max_optlen __maybe_unused;
 	int err, fput_needed;
 	struct socket *sock;
-	int max_optlen;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
