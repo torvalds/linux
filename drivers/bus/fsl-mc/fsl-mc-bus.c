@@ -457,10 +457,8 @@ static int fsl_mc_driver_remove(struct device *dev)
 	int error;
 
 	error = mc_drv->remove(mc_dev);
-	if (error < 0) {
+	if (error < 0)
 		dev_err(dev, "%s failed: %d\n", __func__, error);
-		return error;
-	}
 
 	return 0;
 }
