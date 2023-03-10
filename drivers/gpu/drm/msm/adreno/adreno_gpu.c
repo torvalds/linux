@@ -964,7 +964,7 @@ static void adreno_get_pwrlevels(struct device *dev,
 	gpu->fast_rate = 0;
 
 	/* You down with OPP? */
-	if (!of_find_property(dev->of_node, "operating-points-v2", NULL))
+	if (!of_property_present(dev->of_node, "operating-points-v2"))
 		ret = adreno_get_legacy_pwrlevels(dev);
 	else {
 		ret = devm_pm_opp_of_add_table(dev);
