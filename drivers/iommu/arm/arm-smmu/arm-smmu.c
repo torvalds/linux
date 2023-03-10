@@ -139,7 +139,7 @@ static int arm_smmu_register_legacy_master(struct device *dev,
 	int err;
 
 	np = dev_get_dev_node(dev);
-	if (!np || !of_find_property(np, "#stream-id-cells", NULL)) {
+	if (!np || !of_property_present(np, "#stream-id-cells")) {
 		of_node_put(np);
 		return -ENODEV;
 	}

@@ -1014,7 +1014,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 	 * the lack of has_cache_leaf_nodes flag or renesas,ipmmu-main property.
 	 */
 	if (!mmu->features->has_cache_leaf_nodes ||
-	    !of_find_property(pdev->dev.of_node, "renesas,ipmmu-main", NULL))
+	    !of_property_present(pdev->dev.of_node, "renesas,ipmmu-main"))
 		mmu->root = mmu;
 	else
 		mmu->root = ipmmu_find_root();
