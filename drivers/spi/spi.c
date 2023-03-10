@@ -3622,6 +3622,55 @@ int spi_split_transfers_maxsize(struct spi_controller *ctlr,
 }
 EXPORT_SYMBOL_GPL(spi_split_transfers_maxsize);
 
+
+/**
+ * spi_split_transfers_maxwords - split spi transfers into multiple transfers
+ *                                when an individual transfer exceeds a
+ *                                certain number of SPI words
+ * @ctlr:     the @spi_controller for this transfer
+ * @msg:      the @spi_message to transform
+ * @maxwords: the number of words to limit each transfer to
+ * @gfp:      GFP allocation flags
+ *
+ * Return: status of transformation
+ */
+int spi_split_transfers_maxwords(struct spi_controller *ctlr,
+				 struct spi_message *msg,
+				 size_t maxwords,
+				 gfp_t gfp)
+{
+	struct spi_transfer *xfer;
+
+	/*
+	 * Iterate over the transfer_list,
+	 * but note that xfer is advanced to the last transfer inserted
+	 * to avoid checking sizes again unnecessarily (also xfer does
+	 * potentially belong to a different list by the time the
+	 * replacement has happened).
+	 */
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		size_t maxsize;
+		int ret;
+
+		if (xfer->bits_per_word <= 8)
+			maxsize = maxwords;
+		else if (xfer->bits_per_word <= 16)
+			maxsize = 2 * maxwords;
+		else
+			maxsize = 4 * maxwords;
+
+		if (xfer->len > maxsize) {
+			ret = __spi_split_transfer_maxsize(ctlr, msg, &xfer,
+							   maxsize, gfp);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spi_split_transfers_maxwords);
+
 /*-------------------------------------------------------------------------*/
 
 /* Core methods for SPI controller protocol drivers.  Some of the
