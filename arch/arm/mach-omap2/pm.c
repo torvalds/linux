@@ -54,12 +54,6 @@ static struct omap2_oscillator oscillator = {
 	.shutdown_time = ULONG_MAX,
 };
 
-void omap_pm_setup_oscillator(u32 tstart, u32 tshut)
-{
-	oscillator.startup_time = tstart;
-	oscillator.shutdown_time = tshut;
-}
-
 void omap_pm_get_oscillator(u32 *tstart, u32 *tshut)
 {
 	if (!tstart || !tshut)
@@ -140,7 +134,7 @@ int __maybe_unused omap_pm_nop_init(void)
 
 int (*omap_pm_soc_init)(void);
 
-int __init omap2_common_pm_late_init(void)
+static int __init omap2_common_pm_late_init(void)
 {
 	int error;
 

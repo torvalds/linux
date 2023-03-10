@@ -839,12 +839,12 @@ static const struct device_type nd_volatile_device_type = {
 	.groups = nd_region_attribute_groups,
 };
 
-bool is_nd_pmem(struct device *dev)
+bool is_nd_pmem(const struct device *dev)
 {
 	return dev ? dev->type == &nd_pmem_device_type : false;
 }
 
-bool is_nd_volatile(struct device *dev)
+bool is_nd_volatile(const struct device *dev)
 {
 	return dev ? dev->type == &nd_volatile_device_type : false;
 }

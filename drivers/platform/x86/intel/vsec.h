@@ -38,7 +38,13 @@ struct intel_vsec_device {
 	struct ida *ida;
 	struct intel_vsec_platform_info *info;
 	int num_resources;
+	void *priv_data;
+	size_t priv_data_size;
 };
+
+int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
+		       struct intel_vsec_device *intel_vsec_dev,
+		       const char *name);
 
 static inline struct intel_vsec_device *dev_to_ivdev(struct device *dev)
 {

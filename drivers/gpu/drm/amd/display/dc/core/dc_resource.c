@@ -40,11 +40,11 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 #include "link_enc_cfg.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "virtual/virtual_link_hwss.h"
-#include "link/link_hwss_dio.h"
-#include "link/link_hwss_dpia.h"
-#include "link/link_hwss_hpo_dp.h"
+#include "link/hwss/link_hwss_dio.h"
+#include "link/hwss/link_hwss_dpia.h"
+#include "link/hwss/link_hwss_hpo_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -2213,7 +2213,7 @@ enum dc_status dc_remove_stream_from_ctx(
 			del_pipe->stream_res.stream_enc,
 			false);
 
-	if (is_dp_128b_132b_signal(del_pipe)) {
+	if (link_is_dp_128b_132b_signal(del_pipe)) {
 		update_hpo_dp_stream_engine_usage(
 			&new_ctx->res_ctx, dc->res_pool,
 			del_pipe->stream_res.hpo_dp_stream_enc,
@@ -2513,9 +2513,9 @@ enum dc_status resource_map_pool_resources(
 	 * and link settings
 	 */
 	if (dc_is_dp_signal(stream->signal)) {
-		if (!decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
+		if (!link_decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
 			return DC_FAIL_DP_LINK_BANDWIDTH;
-		if (dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
+		if (link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
 			pipe_ctx->stream_res.hpo_dp_stream_enc =
 					find_first_free_match_hpo_dp_stream_enc_for_link(
 							&context->res_ctx, pool, stream);
@@ -3269,6 +3269,50 @@ static void set_hfvs_info_packet(
 	*info_packet = stream->hfvsif_infopacket;
 }
 
+static void adaptive_sync_override_dp_info_packets_sdp_line_num(
+		const struct dc_crtc_timing *timing,
+		struct enc_sdp_line_num *sdp_line_num,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+{
+	uint32_t asic_blank_start = 0;
+	uint32_t asic_blank_end   = 0;
+	uint32_t v_update = 0;
+
+	const struct dc_crtc_timing *tg = timing;
+
+	/* blank_start = frame end - front porch */
+	asic_blank_start = tg->v_total - tg->v_front_porch;
+
+	/* blank_end = blank_start - active */
+	asic_blank_end = (asic_blank_start - tg->v_border_bottom -
+						tg->v_addressable - tg->v_border_top);
+
+	if (pipe_dlg_param->vstartup_start > asic_blank_end) {
+		v_update = (tg->v_total - (pipe_dlg_param->vstartup_start - asic_blank_end));
+		sdp_line_num->adaptive_sync_line_num_valid = true;
+		sdp_line_num->adaptive_sync_line_num = (tg->v_total - v_update - 1);
+	} else {
+		sdp_line_num->adaptive_sync_line_num_valid = false;
+		sdp_line_num->adaptive_sync_line_num = 0;
+	}
+}
+
+static void set_adaptive_sync_info_packet(
+		struct dc_info_packet *info_packet,
+		const struct dc_stream_state *stream,
+		struct encoder_info_frame *info_frame,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+{
+	if (!stream->adaptive_sync_infopacket.valid)
+		return;
+
+	adaptive_sync_override_dp_info_packets_sdp_line_num(
+			&stream->timing,
+			&info_frame->sdp_line_num,
+			pipe_dlg_param);
+
+	*info_packet = stream->adaptive_sync_infopacket;
+}
 
 static void set_vtem_info_packet(
 		struct dc_info_packet *info_packet,
@@ -3361,6 +3405,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->vsc.valid = false;
 	info->hfvsif.valid = false;
 	info->vtem.valid = false;
+	info->adaptive_sync.valid = false;
 	signal = pipe_ctx->stream->signal;
 
 	/* HDMi and DP have different info packets*/
@@ -3381,6 +3426,10 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
 		set_hdr_static_info_packet(&info->hdrsmd, pipe_ctx->stream);
+		set_adaptive_sync_info_packet(&info->adaptive_sync,
+										pipe_ctx->stream,
+										info,
+										&pipe_ctx->pipe_dlg_param);
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);
@@ -3636,7 +3685,7 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 	/* TODO: validate audio ASIC caps, encoder */
 
 	if (res == DC_OK)
-		res = dc_link_validate_mode_timing(stream,
+		res = link_validate_mode_timing(stream,
 		      link,
 		      &stream->timing);
 
@@ -3763,7 +3812,7 @@ bool get_temp_dp_link_res(struct dc_link *link,
 
 	memset(link_res, 0, sizeof(*link_res));
 
-	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+	if (link_dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
 		link_res->hpo_dp_link_enc = get_temp_hpo_dp_link_enc(res_ctx,
 				dc->res_pool, link);
 		if (!link_res->hpo_dp_link_enc)
@@ -3820,9 +3869,20 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 		pipe_ctx_check = &context->res_ctx.pipe_ctx[i];
 
 		if ((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_check) == disabled_master_pipe_idx) &&
-			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx))
+		    IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx)) {
+			struct pipe_ctx *first_pipe = pipe_ctx_check;
+
+			while (first_pipe->prev_odm_pipe)
+				first_pipe = first_pipe->prev_odm_pipe;
+			/* When ODM combine is enabled, this case is expected. If the disabled pipe
+			 * is part of the ODM tree, then we should not print an error.
+			 * */
+			if (first_pipe->pipe_idx == disabled_master_pipe_idx)
+				continue;
+
 			DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
-				i, disabled_master_pipe_idx);
+				   i, disabled_master_pipe_idx);
+		}
 	}
 }
 
@@ -3981,3 +4041,42 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
 
 	return true;
 }
+
+enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx)
+{
+	if (link_dp_get_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc == NULL) {
+			pipe_ctx->stream_res.hpo_dp_stream_enc =
+					find_first_free_match_hpo_dp_stream_enc_for_link(
+							&context->res_ctx, dc->res_pool, pipe_ctx->stream);
+
+			if (!pipe_ctx->stream_res.hpo_dp_stream_enc)
+				return DC_NO_STREAM_ENC_RESOURCE;
+
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					true);
+		}
+
+		if (pipe_ctx->link_res.hpo_dp_link_enc == NULL) {
+			if (!add_hpo_dp_link_enc_to_ctx(&context->res_ctx, dc->res_pool, pipe_ctx, pipe_ctx->stream))
+				return DC_NO_LINK_ENC_RESOURCE;
+		}
+	} else {
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc) {
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					false);
+			pipe_ctx->stream_res.hpo_dp_stream_enc = NULL;
+		}
+		if (pipe_ctx->link_res.hpo_dp_link_enc)
+			remove_hpo_dp_link_enc_from_ctx(&context->res_ctx, pipe_ctx, pipe_ctx->stream);
+	}
+
+	return DC_OK;
+}
+

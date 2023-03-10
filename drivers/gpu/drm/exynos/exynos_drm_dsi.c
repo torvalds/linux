@@ -75,10 +75,27 @@
 #define DSIM_MAIN_PIX_FORMAT_RGB565	(0x4 << 12)
 #define DSIM_SUB_VC			(((x) & 0x3) << 16)
 #define DSIM_MAIN_VC			(((x) & 0x3) << 18)
-#define DSIM_HSA_MODE			(1 << 20)
-#define DSIM_HBP_MODE			(1 << 21)
-#define DSIM_HFP_MODE			(1 << 22)
-#define DSIM_HSE_MODE			(1 << 23)
+#define DSIM_HSA_DISABLE_MODE		(1 << 20)
+#define DSIM_HBP_DISABLE_MODE		(1 << 21)
+#define DSIM_HFP_DISABLE_MODE		(1 << 22)
+/*
+ * The i.MX 8M Mini Applications Processor Reference Manual,
+ * Rev. 3, 11/2020 Page 4091
+ * The i.MX 8M Nano Applications Processor Reference Manual,
+ * Rev. 2, 07/2022 Page 3058
+ * The i.MX 8M Plus Applications Processor Reference Manual,
+ * Rev. 1, 06/2021 Page 5436
+ * named this bit as 'HseDisableMode' but the bit definition
+ * is quite opposite like
+ * 0 = Disables transfer
+ * 1 = Enables transfer
+ * which clearly states that HSE is not a disable bit.
+ *
+ * This bit is named as per the manual even though it is not
+ * a disable bit however the driver logic for handling HSE
+ * is based on the MIPI_DSI_MODE_VIDEO_HSE flag itself.
+ */
+#define DSIM_HSE_DISABLE_MODE		(1 << 23)
 #define DSIM_AUTO_MODE			(1 << 24)
 #define DSIM_VIDEO_MODE			(1 << 25)
 #define DSIM_BURST_MODE			(1 << 26)
@@ -804,16 +821,16 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_AUTO_VERT)
 			reg |= DSIM_AUTO_MODE;
 		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HSE)
-			reg |= DSIM_HSE_MODE;
-		if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HFP))
-			reg |= DSIM_HFP_MODE;
-		if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HBP))
-			reg |= DSIM_HBP_MODE;
-		if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HSA))
-			reg |= DSIM_HSA_MODE;
+			reg |= DSIM_HSE_DISABLE_MODE;
+		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HFP)
+			reg |= DSIM_HFP_DISABLE_MODE;
+		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HBP)
+			reg |= DSIM_HBP_DISABLE_MODE;
+		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_NO_HSA)
+			reg |= DSIM_HSA_DISABLE_MODE;
 	}
 
-	if (!(dsi->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET))
+	if (dsi->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET)
 		reg |= DSIM_EOT_DISABLE;
 
 	switch (dsi->format) {
@@ -1428,7 +1445,8 @@ static int exynos_dsi_attach(struct drm_bridge *bridge,
 {
 	struct exynos_dsi *dsi = bridge_to_dsi(bridge);
 
-	return drm_bridge_attach(bridge->encoder, dsi->out_bridge, NULL, flags);
+	return drm_bridge_attach(bridge->encoder, dsi->out_bridge, bridge,
+				 flags);
 }
 
 static const struct drm_bridge_funcs exynos_dsi_bridge_funcs = {
@@ -1474,7 +1492,10 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 
 	drm_bridge_add(&dsi->bridge);
 
-	drm_bridge_attach(encoder, &dsi->bridge, NULL, 0);
+	drm_bridge_attach(encoder, &dsi->bridge,
+			  list_first_entry_or_null(&encoder->bridge_chain,
+						   struct drm_bridge,
+						   chain_node), 0);
 
 	/*
 	 * This is a temporary solution and should be made by more generic way.
@@ -1709,6 +1730,7 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	dsi->bridge.funcs = &exynos_dsi_bridge_funcs;
 	dsi->bridge.of_node = dev->of_node;
 	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
+	dsi->bridge.pre_enable_prev_first = true;
 
 	ret = component_add(dev, &exynos_dsi_component_ops);
 	if (ret)

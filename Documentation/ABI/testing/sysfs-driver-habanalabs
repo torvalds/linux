@@ -201,7 +201,19 @@ What:           /sys/class/habanalabs/hl<n>/status
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
-Description:    Status of the card: "Operational", "Malfunction", "In reset".
+Description:    Status of the card:
+
+                  * "operational" - Device is available for work.
+                  * "in reset" - Device is going through reset, will be
+                    available shortly.
+                  * "disabled" - Device is not usable.
+                  * "needs reset" - Device is not usable until a hard reset
+                    is initiated.
+                  * "in device creation" - Device is not available yet, as it
+                    is still initializing.
+                  * "in reset after device release" - Device is going through
+                    a compute-reset which is executed after a device release
+                    (relevant for Gaudi2 only).
 
 What:           /sys/class/habanalabs/hl<n>/thermal_ver
 Date:           Jan 2019

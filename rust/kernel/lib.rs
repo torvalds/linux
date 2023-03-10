@@ -13,7 +13,12 @@
 
 #![no_std]
 #![feature(allocator_api)]
+#![feature(coerce_unsized)]
 #![feature(core_ffi_c)]
+#![feature(dispatch_from_dyn)]
+#![feature(generic_associated_types)]
+#![feature(receiver_trait)]
+#![feature(unsize)]
 
 // Ensure conditional compilation based on the kernel configuration works;
 // otherwise we may silently break things like initcall handling.
@@ -31,6 +36,7 @@ mod static_assert;
 #[doc(hidden)]
 pub mod std_vendor;
 pub mod str;
+pub mod sync;
 pub mod types;
 
 #[doc(hidden)]

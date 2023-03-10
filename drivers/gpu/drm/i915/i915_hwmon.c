@@ -293,6 +293,10 @@ static const struct hwmon_channel_info *hwm_gt_info[] = {
 /* I1 is exposed as power_crit or as curr_crit depending on bit 31 */
 static int hwm_pcode_read_i1(struct drm_i915_private *i915, u32 *uval)
 {
+	/* Avoid ILLEGAL_SUBCOMMAND "mailbox access failed" warning in snb_pcode_read */
+	if (IS_DG1(i915) || IS_DG2(i915))
+		return -ENXIO;
+
 	return snb_pcode_read_p(&i915->uncore, PCODE_POWER_SETUP,
 				POWER_SETUP_SUBCOMMAND_READ_I1, 0, uval);
 }
@@ -355,6 +359,38 @@ hwm_power_is_visible(const struct hwm_drvdata *ddat, u32 attr, int chan)
 	}
 }
 
+/*
+ * HW allows arbitrary PL1 limits to be set but silently clamps these values to
+ * "typical but not guaranteed" min/max values in rg.pkg_power_sku. Follow the
+ * same pattern for sysfs, allow arbitrary PL1 limits to be set but display
+ * clamped values when read. Write/read I1 also follows the same pattern.
+ */
+static int
+hwm_power_max_read(struct hwm_drvdata *ddat, long *val)
+{
+	struct i915_hwmon *hwmon = ddat->hwmon;
+	intel_wakeref_t wakeref;
+	u64 r, min, max;
+
+	*val = hwm_field_read_and_scale(ddat,
+					hwmon->rg.pkg_rapl_limit,
+					PKG_PWR_LIM_1,
+					hwmon->scl_shift_power,
+					SF_POWER);
+
+	with_intel_runtime_pm(ddat->uncore->rpm, wakeref)
+		r = intel_uncore_read64(ddat->uncore, hwmon->rg.pkg_power_sku);
+	min = REG_FIELD_GET(PKG_MIN_PWR, r);
+	min = mul_u64_u32_shr(min, SF_POWER, hwmon->scl_shift_power);
+	max = REG_FIELD_GET(PKG_MAX_PWR, r);
+	max = mul_u64_u32_shr(max, SF_POWER, hwmon->scl_shift_power);
+
+	if (min && max)
+		*val = clamp_t(u64, *val, min, max);
+
+	return 0;
+}
+
 static int
 hwm_power_read(struct hwm_drvdata *ddat, u32 attr, int chan, long *val)
 {
@@ -364,12 +400,7 @@ hwm_power_read(struct hwm_drvdata *ddat, u32 attr, int chan, long *val)
 
 	switch (attr) {
 	case hwmon_power_max:
-		*val = hwm_field_read_and_scale(ddat,
-						hwmon->rg.pkg_rapl_limit,
-						PKG_PWR_LIM_1,
-						hwmon->scl_shift_power,
-						SF_POWER);
-		return 0;
+		return hwm_power_max_read(ddat, val);
 	case hwmon_power_rated_max:
 		*val = hwm_field_read_and_scale(ddat,
 						hwmon->rg.pkg_power_sku,

@@ -1042,6 +1042,7 @@ struct lan743x_adapter {
 #define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
 	u32			flags;
 	u32			hw_cfg;
+	phy_interface_t		phy_interface;
 };
 
 #define LAN743X_COMPONENT_FLAG_RX(channel)  BIT(20 + (channel))

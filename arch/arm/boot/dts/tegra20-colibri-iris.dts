@@ -143,6 +143,12 @@
 		status = "okay";
 	};
 
+	/* SPI4: Colibri SSP */
+	spi@7000da00 {
+		status = "okay";
+		spi-max-frequency = <25000000>;
+	};
+
 	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
 	usb@c5000000 {
 		status = "okay";
@@ -162,12 +168,6 @@
 	usb-phy@c5008000 {
 		status = "okay";
 		vbus-supply = <&reg_usbh_vbus>;
-	};
-
-	/* SPI4: Colibri SSP */
-	spi@7000da00 {
-		status = "okay";
-		spi-max-frequency = <25000000>;
 	};
 
 	/* SD/MMC */

@@ -90,7 +90,7 @@ static inline int cifs_fscache_query_occupancy(struct inode *inode,
 }
 
 extern int __cifs_readpage_from_fscache(struct inode *pinode, struct page *ppage);
-extern void __cifs_readpage_to_fscache(struct inode *pinode, struct page *ppage);
+extern void __cifs_readahead_to_fscache(struct inode *pinode, loff_t pos, size_t len);
 
 
 static inline int cifs_readpage_from_fscache(struct inode *inode,
@@ -101,11 +101,11 @@ static inline int cifs_readpage_from_fscache(struct inode *inode,
 	return -ENOBUFS;
 }
 
-static inline void cifs_readpage_to_fscache(struct inode *inode,
-					    struct page *page)
+static inline void cifs_readahead_to_fscache(struct inode *inode,
+					     loff_t pos, size_t len)
 {
 	if (cifs_inode_cookie(inode))
-		__cifs_readpage_to_fscache(inode, page);
+		__cifs_readahead_to_fscache(inode, pos, len);
 }
 
 #else /* CONFIG_CIFS_FSCACHE */
@@ -141,7 +141,7 @@ cifs_readpage_from_fscache(struct inode *inode, struct page *page)
 }
 
 static inline
-void cifs_readpage_to_fscache(struct inode *inode, struct page *page) {}
+void cifs_readahead_to_fscache(struct inode *inode, loff_t pos, size_t len) {}
 
 #endif /* CONFIG_CIFS_FSCACHE */
 

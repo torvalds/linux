@@ -47,7 +47,8 @@ static __u32 query_prog_cnt(int cgroup_fd, const char *attach_func)
 
 		fd = bpf_prog_get_fd_by_id(p.prog_ids[i]);
 		ASSERT_GE(fd, 0, "prog_get_fd_by_id");
-		ASSERT_OK(bpf_obj_get_info_by_fd(fd, &info, &info_len), "prog_info_by_fd");
+		ASSERT_OK(bpf_prog_get_info_by_fd(fd, &info, &info_len),
+			  "prog_info_by_fd");
 		close(fd);
 
 		if (info.attach_btf_id ==

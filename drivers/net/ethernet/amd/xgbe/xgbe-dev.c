@@ -814,6 +814,9 @@ static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
 	unsigned int ss;
 
 	switch (speed) {
+	case SPEED_10:
+		ss = 0x07;
+		break;
 	case SPEED_1000:
 		ss = 0x03;
 		break;
@@ -1154,8 +1157,8 @@ static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 	unsigned int mmd_address, index, offset;
 	int mmd_data;
 
-	if (mmd_reg & MII_ADDR_C45)
-		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	if (mmd_reg & XGBE_ADDR_C45)
+		mmd_address = mmd_reg & ~XGBE_ADDR_C45;
 	else
 		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
 
@@ -1186,8 +1189,8 @@ static void xgbe_write_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 	unsigned long flags;
 	unsigned int mmd_address, index, offset;
 
-	if (mmd_reg & MII_ADDR_C45)
-		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	if (mmd_reg & XGBE_ADDR_C45)
+		mmd_address = mmd_reg & ~XGBE_ADDR_C45;
 	else
 		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
 
@@ -1217,8 +1220,8 @@ static int xgbe_read_mmd_regs_v1(struct xgbe_prv_data *pdata, int prtad,
 	unsigned int mmd_address;
 	int mmd_data;
 
-	if (mmd_reg & MII_ADDR_C45)
-		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	if (mmd_reg & XGBE_ADDR_C45)
+		mmd_address = mmd_reg & ~XGBE_ADDR_C45;
 	else
 		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
 
@@ -1245,8 +1248,8 @@ static void xgbe_write_mmd_regs_v1(struct xgbe_prv_data *pdata, int prtad,
 	unsigned int mmd_address;
 	unsigned long flags;
 
-	if (mmd_reg & MII_ADDR_C45)
-		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	if (mmd_reg & XGBE_ADDR_C45)
+		mmd_address = mmd_reg & ~XGBE_ADDR_C45;
 	else
 		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
 
@@ -1291,11 +1294,20 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	}
 }
 
-static unsigned int xgbe_create_mdio_sca(int port, int reg)
+static unsigned int xgbe_create_mdio_sca_c22(int port, int reg)
 {
-	unsigned int mdio_sca, da;
+	unsigned int mdio_sca;
 
-	da = (reg & MII_ADDR_C45) ? reg >> 16 : 0;
+	mdio_sca = 0;
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, RA, reg);
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, PA, port);
+
+	return mdio_sca;
+}
+
+static unsigned int xgbe_create_mdio_sca_c45(int port, unsigned int da, int reg)
+{
+	unsigned int mdio_sca;
 
 	mdio_sca = 0;
 	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, RA, reg);
@@ -1305,14 +1317,13 @@ static unsigned int xgbe_create_mdio_sca(int port, int reg)
 	return mdio_sca;
 }
 
-static int xgbe_write_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
-				   int reg, u16 val)
+static int xgbe_write_ext_mii_regs(struct xgbe_prv_data *pdata,
+				   unsigned int mdio_sca, u16 val)
 {
-	unsigned int mdio_sca, mdio_sccd;
+	unsigned int mdio_sccd;
 
 	reinit_completion(&pdata->mdio_complete);
 
-	mdio_sca = xgbe_create_mdio_sca(addr, reg);
 	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
 
 	mdio_sccd = 0;
@@ -1329,14 +1340,33 @@ static int xgbe_write_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
 	return 0;
 }
 
-static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
-				  int reg)
+static int xgbe_write_ext_mii_regs_c22(struct xgbe_prv_data *pdata, int addr,
+				       int reg, u16 val)
 {
-	unsigned int mdio_sca, mdio_sccd;
+	unsigned int mdio_sca;
+
+	mdio_sca = xgbe_create_mdio_sca_c22(addr, reg);
+
+	return xgbe_write_ext_mii_regs(pdata, mdio_sca, val);
+}
+
+static int xgbe_write_ext_mii_regs_c45(struct xgbe_prv_data *pdata, int addr,
+				       int devad, int reg, u16 val)
+{
+	unsigned int mdio_sca;
+
+	mdio_sca = xgbe_create_mdio_sca_c45(addr, devad, reg);
+
+	return xgbe_write_ext_mii_regs(pdata, mdio_sca, val);
+}
+
+static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata,
+				  unsigned int mdio_sca)
+{
+	unsigned int mdio_sccd;
 
 	reinit_completion(&pdata->mdio_complete);
 
-	mdio_sca = xgbe_create_mdio_sca(addr, reg);
 	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
 
 	mdio_sccd = 0;
@@ -1350,6 +1380,26 @@ static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
 	}
 
 	return XGMAC_IOREAD_BITS(pdata, MAC_MDIOSCCDR, DATA);
+}
+
+static int xgbe_read_ext_mii_regs_c22(struct xgbe_prv_data *pdata, int addr,
+				      int reg)
+{
+	unsigned int mdio_sca;
+
+	mdio_sca = xgbe_create_mdio_sca_c22(addr, reg);
+
+	return xgbe_read_ext_mii_regs(pdata, mdio_sca);
+}
+
+static int xgbe_read_ext_mii_regs_c45(struct xgbe_prv_data *pdata, int addr,
+				      int devad, int reg)
+{
+	unsigned int mdio_sca;
+
+	mdio_sca = xgbe_create_mdio_sca_c45(addr, devad, reg);
+
+	return xgbe_read_ext_mii_regs(pdata, mdio_sca);
 }
 
 static int xgbe_set_ext_mii_mode(struct xgbe_prv_data *pdata, unsigned int port,
@@ -3565,8 +3615,10 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->set_speed = xgbe_set_speed;
 
 	hw_if->set_ext_mii_mode = xgbe_set_ext_mii_mode;
-	hw_if->read_ext_mii_regs = xgbe_read_ext_mii_regs;
-	hw_if->write_ext_mii_regs = xgbe_write_ext_mii_regs;
+	hw_if->read_ext_mii_regs_c22 = xgbe_read_ext_mii_regs_c22;
+	hw_if->write_ext_mii_regs_c22 = xgbe_write_ext_mii_regs_c22;
+	hw_if->read_ext_mii_regs_c45 = xgbe_read_ext_mii_regs_c45;
+	hw_if->write_ext_mii_regs_c45 = xgbe_write_ext_mii_regs_c45;
 
 	hw_if->set_gpio = xgbe_set_gpio;
 	hw_if->clr_gpio = xgbe_clr_gpio;

@@ -66,13 +66,6 @@ static inline int gpio_to_irq(unsigned gpio)
 		return __gpio_to_irq(gpio);
 }
 
-static inline int irq_to_gpio(unsigned irq)
-{
-	return (irq >= MCFGPIO_IRQ_VECBASE &&
-		irq < (MCFGPIO_IRQ_VECBASE + MCFGPIO_IRQ_MAX)) ?
-		irq - MCFGPIO_IRQ_VECBASE : -ENXIO;
-}
-
 static inline int gpio_cansleep(unsigned gpio)
 {
 	return gpio < MCFGPIO_PIN_MAX ? 0 : __gpio_cansleep(gpio);

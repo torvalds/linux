@@ -39,6 +39,7 @@
 #include "node.h"
 #include "net.h"
 #include <net/genetlink.h>
+#include <linux/string_helpers.h>
 #include <linux/tipc_config.h>
 
 /* The legacy API had an artificial message length limit called
@@ -171,11 +172,6 @@ static struct sk_buff *tipc_get_err_tlv(char *str)
 		tipc_add_tlv(buf, TIPC_TLV_ERROR_STRING, str, str_len);
 
 	return buf;
-}
-
-static inline bool string_is_valid(char *s, int len)
-{
-	return memchr(s, '\0', len) ? true : false;
 }
 
 static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
@@ -445,7 +441,7 @@ static int tipc_nl_compat_bearer_enable(struct tipc_nl_compat_cmd_doit *cmd,
 		return -EINVAL;
 
 	len = min_t(int, len, TIPC_MAX_BEARER_NAME);
-	if (!string_is_valid(b->name, len))
+	if (!string_is_terminated(b->name, len))
 		return -EINVAL;
 
 	if (nla_put_string(skb, TIPC_NLA_BEARER_NAME, b->name))
@@ -486,7 +482,7 @@ static int tipc_nl_compat_bearer_disable(struct tipc_nl_compat_cmd_doit *cmd,
 		return -EINVAL;
 
 	len = min_t(int, len, TIPC_MAX_BEARER_NAME);
-	if (!string_is_valid(name, len))
+	if (!string_is_terminated(name, len))
 		return -EINVAL;
 
 	if (nla_put_string(skb, TIPC_NLA_BEARER_NAME, name))
@@ -584,7 +580,7 @@ static int tipc_nl_compat_link_stat_dump(struct tipc_nl_compat_msg *msg,
 		return -EINVAL;
 
 	len = min_t(int, len, TIPC_MAX_LINK_NAME);
-	if (!string_is_valid(name, len))
+	if (!string_is_terminated(name, len))
 		return -EINVAL;
 
 	if (strcmp(name, nla_data(link[TIPC_NLA_LINK_NAME])) != 0)
@@ -819,7 +815,7 @@ static int tipc_nl_compat_link_set(struct tipc_nl_compat_cmd_doit *cmd,
 		return -EINVAL;
 
 	len = min_t(int, len, TIPC_MAX_LINK_NAME);
-	if (!string_is_valid(lc->name, len))
+	if (!string_is_terminated(lc->name, len))
 		return -EINVAL;
 
 	media = tipc_media_find(lc->name);
@@ -856,7 +852,7 @@ static int tipc_nl_compat_link_reset_stats(struct tipc_nl_compat_cmd_doit *cmd,
 		return -EINVAL;
 
 	len = min_t(int, len, TIPC_MAX_LINK_NAME);
-	if (!string_is_valid(name, len))
+	if (!string_is_terminated(name, len))
 		return -EINVAL;
 
 	if (nla_put_string(skb, TIPC_NLA_LINK_NAME, name))

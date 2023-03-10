@@ -18,7 +18,7 @@ maintainers:
   - Martin Povišer <povik+lin@cutebit.org>
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   compatible:

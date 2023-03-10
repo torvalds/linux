@@ -33,6 +33,14 @@
 	 */
 	chosen {};
 
+	firmware {
+		trusted-foundations {
+			compatible = "tlm,trusted-foundations";
+			tlm,version-major = <2>;
+			tlm,version-minor = <8>;
+		};
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
@@ -1187,17 +1195,6 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		nct72: temperature-sensor@4c {
-			compatible = "onnn,nct1008";
-			reg = <0x4c>;
-
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
-
-			vcc-supply = <&vdd_3v3_sys>;
-			#thermal-sensor-cells = <1>;
-		};
-
 		/* Texas Instruments TPS659110 PMIC */
 		pmic: pmic@2d {
 			compatible = "ti,tps65911";
@@ -1321,6 +1318,17 @@
 					ti,regulator-ext-sleep-control = <8>;
 				};
 			};
+		};
+
+		nct72: temperature-sensor@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
+
+			vcc-supply = <&vdd_3v3_sys>;
+			#thermal-sensor-cells = <1>;
 		};
 
 		vdd_core: core-regulator@60 {
@@ -1531,14 +1539,6 @@
 		};
 	};
 
-	firmware {
-		trusted-foundations {
-			compatible = "tlm,trusted-foundations";
-			tlm,version-major = <2>;
-			tlm,version-minor = <8>;
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -1551,19 +1551,19 @@
 			wakeup-source;
 		};
 
-		key-volume-up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(Q, 3) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <10>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
 		};
 
-		key-volume-down {
-			label = "Volume Down";
-			gpios = <&gpio TEGRA_GPIO(Q, 3) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEDOWN>;
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <10>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;

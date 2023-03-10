@@ -1516,23 +1516,22 @@ static void ipr_process_ccn(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
- * strip_and_pad_whitespace - Strip and pad trailing whitespace.
- * @i:		index into buffer
- * @buf:		string to modify
+ * strip_whitespace - Strip and pad trailing whitespace.
+ * @i:		size of buffer
+ * @buf:	string to modify
  *
- * This function will strip all trailing whitespace, pad the end
- * of the string with a single space, and NULL terminate the string.
+ * This function will strip all trailing whitespace and
+ * NUL terminate the string.
  *
- * Return value:
- * 	new length of string
  **/
-static int strip_and_pad_whitespace(int i, char *buf)
+static void strip_whitespace(int i, char *buf)
 {
+	if (i < 1)
+		return;
+	i--;
 	while (i && buf[i] == ' ')
 		i--;
-	buf[i+1] = ' ';
-	buf[i+2] = '\0';
-	return i + 2;
+	buf[i+1] = '\0';
 }
 
 /**
@@ -1547,19 +1546,21 @@ static int strip_and_pad_whitespace(int i, char *buf)
 static void ipr_log_vpd_compact(char *prefix, struct ipr_hostrcb *hostrcb,
 				struct ipr_vpd *vpd)
 {
-	char buffer[IPR_VENDOR_ID_LEN + IPR_PROD_ID_LEN + IPR_SERIAL_NUM_LEN + 3];
-	int i = 0;
+	char vendor_id[IPR_VENDOR_ID_LEN + 1];
+	char product_id[IPR_PROD_ID_LEN + 1];
+	char sn[IPR_SERIAL_NUM_LEN + 1];
 
-	memcpy(buffer, vpd->vpids.vendor_id, IPR_VENDOR_ID_LEN);
-	i = strip_and_pad_whitespace(IPR_VENDOR_ID_LEN - 1, buffer);
+	memcpy(vendor_id, vpd->vpids.vendor_id, IPR_VENDOR_ID_LEN);
+	strip_whitespace(IPR_VENDOR_ID_LEN, vendor_id);
 
-	memcpy(&buffer[i], vpd->vpids.product_id, IPR_PROD_ID_LEN);
-	i = strip_and_pad_whitespace(i + IPR_PROD_ID_LEN - 1, buffer);
+	memcpy(product_id, vpd->vpids.product_id, IPR_PROD_ID_LEN);
+	strip_whitespace(IPR_PROD_ID_LEN, product_id);
 
-	memcpy(&buffer[i], vpd->sn, IPR_SERIAL_NUM_LEN);
-	buffer[IPR_SERIAL_NUM_LEN + i] = '\0';
+	memcpy(sn, vpd->sn, IPR_SERIAL_NUM_LEN);
+	strip_whitespace(IPR_SERIAL_NUM_LEN, sn);
 
-	ipr_hcam_err(hostrcb, "%s VPID/SN: %s\n", prefix, buffer);
+	ipr_hcam_err(hostrcb, "%s VPID/SN: %s %s %s\n", prefix,
+		     vendor_id, product_id, sn);
 }
 
 /**
@@ -3912,7 +3913,6 @@ static int ipr_copy_ucode_buffer(struct ipr_sglist *sglist,
 {
 	int bsize_elem, i, result = 0;
 	struct scatterlist *sg;
-	void *kaddr;
 
 	/* Determine the actual number of bytes per element */
 	bsize_elem = PAGE_SIZE * (1 << sglist->order);
@@ -3923,9 +3923,7 @@ static int ipr_copy_ucode_buffer(struct ipr_sglist *sglist,
 			buffer += bsize_elem) {
 		struct page *page = sg_page(sg);
 
-		kaddr = kmap(page);
-		memcpy(kaddr, buffer, bsize_elem);
-		kunmap(page);
+		memcpy_to_page(page, 0, buffer, bsize_elem);
 
 		sg->length = bsize_elem;
 
@@ -3938,9 +3936,7 @@ static int ipr_copy_ucode_buffer(struct ipr_sglist *sglist,
 	if (len % bsize_elem) {
 		struct page *page = sg_page(sg);
 
-		kaddr = kmap(page);
-		memcpy(kaddr, buffer, len % bsize_elem);
-		kunmap(page);
+		memcpy_to_page(page, 0, buffer, len % bsize_elem);
 
 		sg->length = len % bsize_elem;
 	}
@@ -5370,9 +5366,9 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 					continue;
 
 				ipr_cmd->done = ipr_sata_eh_done;
-				if (!(ipr_cmd->qc->flags & ATA_QCFLAG_FAILED)) {
+				if (!(ipr_cmd->qc->flags & ATA_QCFLAG_EH)) {
 					ipr_cmd->qc->err_mask |= AC_ERR_TIMEOUT;
-					ipr_cmd->qc->flags |= ATA_QCFLAG_FAILED;
+					ipr_cmd->qc->flags |= ATA_QCFLAG_EH;
 				}
 			}
 		}
@@ -7142,11 +7138,8 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 /**
  * ipr_qc_fill_rtf - Read result TF
  * @qc: ATA queued command
- *
- * Return value:
- * 	true
  **/
-static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
+static void ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct ipr_sata_port *sata_port = qc->ap->private_data;
 	struct ipr_ioasa_gata *g = &sata_port->ioasa;
@@ -7163,8 +7156,6 @@ static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
 	tf->hob_lbal = g->hob_lbal;
 	tf->hob_lbam = g->hob_lbam;
 	tf->hob_lbah = g->hob_lbah;
-
-	return true;
 }
 
 static struct ata_port_operations ipr_sata_ops = {
@@ -9505,11 +9496,10 @@ static pci_ers_result_t ipr_pci_error_detected(struct pci_dev *pdev,
  * This function takes care of initilizing the adapter to the point
  * where it can accept new commands.
  * Return value:
- * 	0 on success / -EIO on failure
+ *     none
  **/
-static int ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
+static void ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
 {
-	int rc = 0;
 	unsigned long host_lock_flags = 0;
 
 	ENTER;
@@ -9525,7 +9515,6 @@ static int ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 
 	LEAVE;
-	return rc;
 }
 
 /**
@@ -10568,12 +10557,7 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		return rc;
 
 	ioa_cfg = pci_get_drvdata(pdev);
-	rc = ipr_probe_ioa_part2(ioa_cfg);
-
-	if (rc) {
-		__ipr_remove(pdev);
-		return rc;
-	}
+	ipr_probe_ioa_part2(ioa_cfg);
 
 	rc = scsi_add_host(ioa_cfg->host, &pdev->dev);
 

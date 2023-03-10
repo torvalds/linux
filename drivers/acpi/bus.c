@@ -1014,7 +1014,7 @@ static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 		&& !acpi_match_device_ids(acpi_dev, acpi_drv->ids);
 }
 
-static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int acpi_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	return __acpi_device_uevent_modalias(to_acpi_device(dev), env);
 }

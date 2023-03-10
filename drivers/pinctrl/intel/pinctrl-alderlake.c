@@ -34,25 +34,11 @@
 		.gpio_base = (g),			\
 	}
 
-#define ADL_COMMUNITY(b, s, e, g, v)				\
-	{							\
-		.barno = (b),					\
-		.padown_offset = ADL_##v##_PAD_OWN,		\
-		.padcfglock_offset = ADL_##v##_PADCFGLOCK,	\
-		.hostown_offset = ADL_##v##_HOSTSW_OWN,		\
-		.is_offset = ADL_##v##_GPI_IS,			\
-		.ie_offset = ADL_##v##_GPI_IE,			\
-		.pin_base = (s),				\
-		.npins = ((e) - (s) + 1),			\
-		.gpps = (g),					\
-		.ngpps = ARRAY_SIZE(g),				\
-	}
-
 #define ADL_N_COMMUNITY(b, s, e, g)			\
-	ADL_COMMUNITY(b, s, e, g, N)
+	INTEL_COMMUNITY_GPPS(b, s, e, g, ADL_N)
 
 #define ADL_S_COMMUNITY(b, s, e, g)			\
-	ADL_COMMUNITY(b, s, e, g, S)
+	INTEL_COMMUNITY_GPPS(b, s, e, g, ADL_S)
 
 /* Alder Lake-N */
 static const struct pinctrl_pin_desc adln_pins[] = {

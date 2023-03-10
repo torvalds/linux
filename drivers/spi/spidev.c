@@ -90,9 +90,21 @@ MODULE_PARM_DESC(bufsiz, "data bytes in biggest supported SPI message");
 /*-------------------------------------------------------------------------*/
 
 static ssize_t
+spidev_sync_unlocked(struct spi_device *spi, struct spi_message *message)
+{
+	ssize_t status;
+
+	status = spi_sync(spi, message);
+	if (status == 0)
+		status = message->actual_length;
+
+	return status;
+}
+
+static ssize_t
 spidev_sync(struct spidev_data *spidev, struct spi_message *message)
 {
-	int status;
+	ssize_t status;
 	struct spi_device *spi;
 
 	mutex_lock(&spidev->spi_lock);
@@ -101,10 +113,7 @@ spidev_sync(struct spidev_data *spidev, struct spi_message *message)
 	if (spi == NULL)
 		status = -ESHUTDOWN;
 	else
-		status = spi_sync(spi, message);
-
-	if (status == 0)
-		status = message->actual_length;
+		status = spidev_sync_unlocked(spi, message);
 
 	mutex_unlock(&spidev->spi_lock);
 	return status;
@@ -294,7 +303,7 @@ static int spidev_message(struct spidev_data *spidev,
 		spi_message_add_tail(k_tmp, &msg);
 	}
 
-	status = spidev_sync(spidev, &msg);
+	status = spidev_sync_unlocked(spidev->spi, &msg);
 	if (status < 0)
 		goto done;
 
@@ -702,6 +711,8 @@ static const struct spi_device_id spidev_spi_ids[] = {
 	{ .name = "m53cpld" },
 	{ .name = "spi-petra" },
 	{ .name = "spi-authenta" },
+	{ .name = "em3581" },
+	{ .name = "si3210" },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, spidev_spi_ids);
@@ -720,14 +731,16 @@ static int spidev_of_check(struct device *dev)
 }
 
 static const struct of_device_id spidev_dt_ids[] = {
-	{ .compatible = "rohm,dh2228fv", .data = &spidev_of_check },
-	{ .compatible = "lineartechnology,ltc2488", .data = &spidev_of_check },
-	{ .compatible = "semtech,sx1301", .data = &spidev_of_check },
-	{ .compatible = "lwn,bk4", .data = &spidev_of_check },
-	{ .compatible = "dh,dhcom-board", .data = &spidev_of_check },
-	{ .compatible = "menlo,m53cpld", .data = &spidev_of_check },
 	{ .compatible = "cisco,spi-petra", .data = &spidev_of_check },
+	{ .compatible = "dh,dhcom-board", .data = &spidev_of_check },
+	{ .compatible = "lineartechnology,ltc2488", .data = &spidev_of_check },
+	{ .compatible = "lwn,bk4", .data = &spidev_of_check },
+	{ .compatible = "menlo,m53cpld", .data = &spidev_of_check },
 	{ .compatible = "micron,spi-authenta", .data = &spidev_of_check },
+	{ .compatible = "rohm,dh2228fv", .data = &spidev_of_check },
+	{ .compatible = "semtech,sx1301", .data = &spidev_of_check },
+	{ .compatible = "silabs,em3581", .data = &spidev_of_check },
+	{ .compatible = "silabs,si3210", .data = &spidev_of_check },
 	{},
 };
 MODULE_DEVICE_TABLE(of, spidev_dt_ids);

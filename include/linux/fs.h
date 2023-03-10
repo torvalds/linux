@@ -166,6 +166,8 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* File supports DIRECT IO */
 #define	FMODE_CAN_ODIRECT	((__force fmode_t)0x400000)
 
+#define	FMODE_NOREUSE		((__force fmode_t)0x800000)
+
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
 
@@ -1003,134 +1005,10 @@ static inline struct file *get_file(struct file *f)
 #define MAX_LFS_FILESIZE 	((loff_t)LLONG_MAX)
 #endif
 
-#define FL_POSIX	1
-#define FL_FLOCK	2
-#define FL_DELEG	4	/* NFSv4 delegation */
-#define FL_ACCESS	8	/* not trying to lock, just looking */
-#define FL_EXISTS	16	/* when unlocking, test for existence */
-#define FL_LEASE	32	/* lease held on this file */
-#define FL_CLOSE	64	/* unlock on close */
-#define FL_SLEEP	128	/* A blocking lock */
-#define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
-#define FL_UNLOCK_PENDING	512 /* Lease is being broken */
-#define FL_OFDLCK	1024	/* lock is "owned" by struct file */
-#define FL_LAYOUT	2048	/* outstanding pNFS layout */
-#define FL_RECLAIM	4096	/* reclaiming from a reboot server */
-
-#define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
-
-/*
- * Special return value from posix_lock_file() and vfs_lock_file() for
- * asynchronous locking.
- */
-#define FILE_LOCK_DEFERRED 1
-
 /* legacy typedef, should eventually be removed */
 typedef void *fl_owner_t;
 
 struct file_lock;
-
-struct file_lock_operations {
-	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
-	void (*fl_release_private)(struct file_lock *);
-};
-
-struct lock_manager_operations {
-	void *lm_mod_owner;
-	fl_owner_t (*lm_get_owner)(fl_owner_t);
-	void (*lm_put_owner)(fl_owner_t);
-	void (*lm_notify)(struct file_lock *);	/* unblock callback */
-	int (*lm_grant)(struct file_lock *, int);
-	bool (*lm_break)(struct file_lock *);
-	int (*lm_change)(struct file_lock *, int, struct list_head *);
-	void (*lm_setup)(struct file_lock *, void **);
-	bool (*lm_breaker_owns_lease)(struct file_lock *);
-	bool (*lm_lock_expirable)(struct file_lock *cfl);
-	void (*lm_expire_lock)(void);
-};
-
-struct lock_manager {
-	struct list_head list;
-	/*
-	 * NFSv4 and up also want opens blocked during the grace period;
-	 * NLM doesn't care:
-	 */
-	bool block_opens;
-};
-
-struct net;
-void locks_start_grace(struct net *, struct lock_manager *);
-void locks_end_grace(struct lock_manager *);
-bool locks_in_grace(struct net *);
-bool opens_in_grace(struct net *);
-
-/* that will die - we need it for nfs_lock_info */
-#include <linux/nfs_fs_i.h>
-
-/*
- * struct file_lock represents a generic "file lock". It's used to represent
- * POSIX byte range locks, BSD (flock) locks, and leases. It's important to
- * note that the same struct is used to represent both a request for a lock and
- * the lock itself, but the same object is never used for both.
- *
- * FIXME: should we create a separate "struct lock_request" to help distinguish
- * these two uses?
- *
- * The varous i_flctx lists are ordered by:
- *
- * 1) lock owner
- * 2) lock range start
- * 3) lock range end
- *
- * Obviously, the last two criteria only matter for POSIX locks.
- */
-struct file_lock {
-	struct file_lock *fl_blocker;	/* The lock, that is blocking us */
-	struct list_head fl_list;	/* link into file_lock_context */
-	struct hlist_node fl_link;	/* node in global lists */
-	struct list_head fl_blocked_requests;	/* list of requests with
-						 * ->fl_blocker pointing here
-						 */
-	struct list_head fl_blocked_member;	/* node in
-						 * ->fl_blocker->fl_blocked_requests
-						 */
-	fl_owner_t fl_owner;
-	unsigned int fl_flags;
-	unsigned char fl_type;
-	unsigned int fl_pid;
-	int fl_link_cpu;		/* what cpu's list is this on? */
-	wait_queue_head_t fl_wait;
-	struct file *fl_file;
-	loff_t fl_start;
-	loff_t fl_end;
-
-	struct fasync_struct *	fl_fasync; /* for lease break notifications */
-	/* for lease breaks: */
-	unsigned long fl_break_time;
-	unsigned long fl_downgrade_time;
-
-	const struct file_lock_operations *fl_ops;	/* Callbacks for filesystems */
-	const struct lock_manager_operations *fl_lmops;	/* Callbacks for lockmanagers */
-	union {
-		struct nfs_lock_info	nfs_fl;
-		struct nfs4_lock_info	nfs4_fl;
-		struct {
-			struct list_head link;	/* link in AFS vnode's pending_locks list */
-			int state;		/* state of grant or error if -ve */
-			unsigned int	debug_id;
-		} afs;
-		struct {
-			struct inode *inode;
-		} ceph;
-	} fl_u;
-} __randomize_layout;
-
-struct file_lock_context {
-	spinlock_t		flc_lock;
-	struct list_head	flc_flock;
-	struct list_head	flc_posix;
-	struct list_head	flc_lease;
-};
 
 /* The following constant reflects the upper bound of the file/locking space */
 #ifndef OFFSET_MAX
@@ -1140,216 +1018,6 @@ struct file_lock_context {
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
-#define locks_inode(f) file_inode(f)
-
-#ifdef CONFIG_FILE_LOCKING
-extern int fcntl_getlk(struct file *, unsigned int, struct flock *);
-extern int fcntl_setlk(unsigned int, struct file *, unsigned int,
-			struct flock *);
-
-#if BITS_PER_LONG == 32
-extern int fcntl_getlk64(struct file *, unsigned int, struct flock64 *);
-extern int fcntl_setlk64(unsigned int, struct file *, unsigned int,
-			struct flock64 *);
-#endif
-
-extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
-extern int fcntl_getlease(struct file *filp);
-
-/* fs/locks.c */
-void locks_free_lock_context(struct inode *inode);
-void locks_free_lock(struct file_lock *fl);
-extern void locks_init_lock(struct file_lock *);
-extern struct file_lock * locks_alloc_lock(void);
-extern void locks_copy_lock(struct file_lock *, struct file_lock *);
-extern void locks_copy_conflock(struct file_lock *, struct file_lock *);
-extern void locks_remove_posix(struct file *, fl_owner_t);
-extern void locks_remove_file(struct file *);
-extern void locks_release_private(struct file_lock *);
-extern void posix_test_lock(struct file *, struct file_lock *);
-extern int posix_lock_file(struct file *, struct file_lock *, struct file_lock *);
-extern int locks_delete_block(struct file_lock *);
-extern int vfs_test_lock(struct file *, struct file_lock *);
-extern int vfs_lock_file(struct file *, unsigned int, struct file_lock *, struct file_lock *);
-extern int vfs_cancel_lock(struct file *filp, struct file_lock *fl);
-bool vfs_inode_has_locks(struct inode *inode);
-extern int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl);
-extern int __break_lease(struct inode *inode, unsigned int flags, unsigned int type);
-extern void lease_get_mtime(struct inode *, struct timespec64 *time);
-extern int generic_setlease(struct file *, long, struct file_lock **, void **priv);
-extern int vfs_setlease(struct file *, long, struct file_lock **, void **);
-extern int lease_modify(struct file_lock *, int, struct list_head *);
-
-struct notifier_block;
-extern int lease_register_notifier(struct notifier_block *);
-extern void lease_unregister_notifier(struct notifier_block *);
-
-struct files_struct;
-extern void show_fd_locks(struct seq_file *f,
-			 struct file *filp, struct files_struct *files);
-extern bool locks_owner_has_blockers(struct file_lock_context *flctx,
-			fl_owner_t owner);
-
-static inline struct file_lock_context *
-locks_inode_context(const struct inode *inode)
-{
-	return smp_load_acquire(&inode->i_flctx);
-}
-
-#else /* !CONFIG_FILE_LOCKING */
-static inline int fcntl_getlk(struct file *file, unsigned int cmd,
-			      struct flock __user *user)
-{
-	return -EINVAL;
-}
-
-static inline int fcntl_setlk(unsigned int fd, struct file *file,
-			      unsigned int cmd, struct flock __user *user)
-{
-	return -EACCES;
-}
-
-#if BITS_PER_LONG == 32
-static inline int fcntl_getlk64(struct file *file, unsigned int cmd,
-				struct flock64 *user)
-{
-	return -EINVAL;
-}
-
-static inline int fcntl_setlk64(unsigned int fd, struct file *file,
-				unsigned int cmd, struct flock64 *user)
-{
-	return -EACCES;
-}
-#endif
-static inline int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
-{
-	return -EINVAL;
-}
-
-static inline int fcntl_getlease(struct file *filp)
-{
-	return F_UNLCK;
-}
-
-static inline void
-locks_free_lock_context(struct inode *inode)
-{
-}
-
-static inline void locks_init_lock(struct file_lock *fl)
-{
-	return;
-}
-
-static inline void locks_copy_conflock(struct file_lock *new, struct file_lock *fl)
-{
-	return;
-}
-
-static inline void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
-{
-	return;
-}
-
-static inline void locks_remove_posix(struct file *filp, fl_owner_t owner)
-{
-	return;
-}
-
-static inline void locks_remove_file(struct file *filp)
-{
-	return;
-}
-
-static inline void posix_test_lock(struct file *filp, struct file_lock *fl)
-{
-	return;
-}
-
-static inline int posix_lock_file(struct file *filp, struct file_lock *fl,
-				  struct file_lock *conflock)
-{
-	return -ENOLCK;
-}
-
-static inline int locks_delete_block(struct file_lock *waiter)
-{
-	return -ENOENT;
-}
-
-static inline int vfs_test_lock(struct file *filp, struct file_lock *fl)
-{
-	return 0;
-}
-
-static inline int vfs_lock_file(struct file *filp, unsigned int cmd,
-				struct file_lock *fl, struct file_lock *conf)
-{
-	return -ENOLCK;
-}
-
-static inline int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
-{
-	return 0;
-}
-
-static inline bool vfs_inode_has_locks(struct inode *inode)
-{
-	return false;
-}
-
-static inline int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl)
-{
-	return -ENOLCK;
-}
-
-static inline int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
-{
-	return 0;
-}
-
-static inline void lease_get_mtime(struct inode *inode,
-				   struct timespec64 *time)
-{
-	return;
-}
-
-static inline int generic_setlease(struct file *filp, long arg,
-				    struct file_lock **flp, void **priv)
-{
-	return -EINVAL;
-}
-
-static inline int vfs_setlease(struct file *filp, long arg,
-			       struct file_lock **lease, void **priv)
-{
-	return -EINVAL;
-}
-
-static inline int lease_modify(struct file_lock *fl, int arg,
-			       struct list_head *dispose)
-{
-	return -EINVAL;
-}
-
-struct files_struct;
-static inline void show_fd_locks(struct seq_file *f,
-			struct file *filp, struct files_struct *files) {}
-static inline bool locks_owner_has_blockers(struct file_lock_context *flctx,
-			fl_owner_t owner)
-{
-	return false;
-}
-
-static inline struct file_lock_context *
-locks_inode_context(const struct inode *inode)
-{
-	return NULL;
-}
-
-#endif /* !CONFIG_FILE_LOCKING */
-
 static inline struct inode *file_inode(const struct file *f)
 {
 	return f->f_inode;
@@ -1358,11 +1026,6 @@ static inline struct inode *file_inode(const struct file *f)
 static inline struct dentry *file_dentry(const struct file *file)
 {
 	return d_real(file->f_path.dentry, file_inode(file));
-}
-
-static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
-{
-	return locks_lock_inode_wait(locks_inode(filp), fl);
 }
 
 struct fasync_struct {
@@ -1635,22 +1298,22 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
 }
 
 /**
- * i_uid_into_vfsuid - map an inode's i_uid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
+ * i_uid_into_vfsuid - map an inode's i_uid down according to an idmapping
+ * @idmap: idmap of the mount the inode was found from
  * @inode: inode to map
  *
- * Return: whe inode's i_uid mapped down according to @mnt_userns.
+ * Return: whe inode's i_uid mapped down according to @idmap.
  * If the inode's i_uid has no mapping INVALID_VFSUID is returned.
  */
-static inline vfsuid_t i_uid_into_vfsuid(struct user_namespace *mnt_userns,
+static inline vfsuid_t i_uid_into_vfsuid(struct mnt_idmap *idmap,
 					 const struct inode *inode)
 {
-	return make_vfsuid(mnt_userns, i_user_ns(inode), inode->i_uid);
+	return make_vfsuid(idmap, i_user_ns(inode), inode->i_uid);
 }
 
 /**
  * i_uid_needs_update - check whether inode's i_uid needs to be updated
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
@@ -1659,50 +1322,50 @@ static inline vfsuid_t i_uid_into_vfsuid(struct user_namespace *mnt_userns,
  *
  * Return: true if @inode's i_uid field needs to be updated, false if not.
  */
-static inline bool i_uid_needs_update(struct user_namespace *mnt_userns,
+static inline bool i_uid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
 				      const struct inode *inode)
 {
 	return ((attr->ia_valid & ATTR_UID) &&
 		!vfsuid_eq(attr->ia_vfsuid,
-			   i_uid_into_vfsuid(mnt_userns, inode)));
+			   i_uid_into_vfsuid(idmap, inode)));
 }
 
 /**
  * i_uid_update - update @inode's i_uid field
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
  * Safely update @inode's i_uid field translating the vfsuid of any idmapped
  * mount into the filesystem kuid.
  */
-static inline void i_uid_update(struct user_namespace *mnt_userns,
+static inline void i_uid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
 				struct inode *inode)
 {
 	if (attr->ia_valid & ATTR_UID)
-		inode->i_uid = from_vfsuid(mnt_userns, i_user_ns(inode),
+		inode->i_uid = from_vfsuid(idmap, i_user_ns(inode),
 					   attr->ia_vfsuid);
 }
 
 /**
- * i_gid_into_vfsgid - map an inode's i_gid down into a mnt_userns
- * @mnt_userns: user namespace of the mount the inode was found from
+ * i_gid_into_vfsgid - map an inode's i_gid down according to an idmapping
+ * @idmap: idmap of the mount the inode was found from
  * @inode: inode to map
  *
- * Return: the inode's i_gid mapped down according to @mnt_userns.
+ * Return: the inode's i_gid mapped down according to @idmap.
  * If the inode's i_gid has no mapping INVALID_VFSGID is returned.
  */
-static inline vfsgid_t i_gid_into_vfsgid(struct user_namespace *mnt_userns,
+static inline vfsgid_t i_gid_into_vfsgid(struct mnt_idmap *idmap,
 					 const struct inode *inode)
 {
-	return make_vfsgid(mnt_userns, i_user_ns(inode), inode->i_gid);
+	return make_vfsgid(idmap, i_user_ns(inode), inode->i_gid);
 }
 
 /**
  * i_gid_needs_update - check whether inode's i_gid needs to be updated
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
@@ -1711,83 +1374,83 @@ static inline vfsgid_t i_gid_into_vfsgid(struct user_namespace *mnt_userns,
  *
  * Return: true if @inode's i_gid field needs to be updated, false if not.
  */
-static inline bool i_gid_needs_update(struct user_namespace *mnt_userns,
+static inline bool i_gid_needs_update(struct mnt_idmap *idmap,
 				      const struct iattr *attr,
 				      const struct inode *inode)
 {
 	return ((attr->ia_valid & ATTR_GID) &&
 		!vfsgid_eq(attr->ia_vfsgid,
-			   i_gid_into_vfsgid(mnt_userns, inode)));
+			   i_gid_into_vfsgid(idmap, inode)));
 }
 
 /**
  * i_gid_update - update @inode's i_gid field
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  * @attr: the new attributes of @inode
  * @inode: the inode to update
  *
  * Safely update @inode's i_gid field translating the vfsgid of any idmapped
  * mount into the filesystem kgid.
  */
-static inline void i_gid_update(struct user_namespace *mnt_userns,
+static inline void i_gid_update(struct mnt_idmap *idmap,
 				const struct iattr *attr,
 				struct inode *inode)
 {
 	if (attr->ia_valid & ATTR_GID)
-		inode->i_gid = from_vfsgid(mnt_userns, i_user_ns(inode),
+		inode->i_gid = from_vfsgid(idmap, i_user_ns(inode),
 					   attr->ia_vfsgid);
 }
 
 /**
  * inode_fsuid_set - initialize inode's i_uid field with callers fsuid
  * @inode: inode to initialize
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  *
  * Initialize the i_uid field of @inode. If the inode was found/created via
- * an idmapped mount map the caller's fsuid according to @mnt_users.
+ * an idmapped mount map the caller's fsuid according to @idmap.
  */
 static inline void inode_fsuid_set(struct inode *inode,
-				   struct user_namespace *mnt_userns)
+				   struct mnt_idmap *idmap)
 {
-	inode->i_uid = mapped_fsuid(mnt_userns, i_user_ns(inode));
+	inode->i_uid = mapped_fsuid(idmap, i_user_ns(inode));
 }
 
 /**
  * inode_fsgid_set - initialize inode's i_gid field with callers fsgid
  * @inode: inode to initialize
- * @mnt_userns: user namespace of the mount the inode was found from
+ * @idmap: idmap of the mount the inode was found from
  *
  * Initialize the i_gid field of @inode. If the inode was found/created via
- * an idmapped mount map the caller's fsgid according to @mnt_users.
+ * an idmapped mount map the caller's fsgid according to @idmap.
  */
 static inline void inode_fsgid_set(struct inode *inode,
-				   struct user_namespace *mnt_userns)
+				   struct mnt_idmap *idmap)
 {
-	inode->i_gid = mapped_fsgid(mnt_userns, i_user_ns(inode));
+	inode->i_gid = mapped_fsgid(idmap, i_user_ns(inode));
 }
 
 /**
  * fsuidgid_has_mapping() - check whether caller's fsuid/fsgid is mapped
  * @sb: the superblock we want a mapping in
- * @mnt_userns: user namespace of the relevant mount
+ * @idmap: idmap of the relevant mount
  *
  * Check whether the caller's fsuid and fsgid have a valid mapping in the
  * s_user_ns of the superblock @sb. If the caller is on an idmapped mount map
- * the caller's fsuid and fsgid according to the @mnt_userns first.
+ * the caller's fsuid and fsgid according to the @idmap first.
  *
  * Return: true if fsuid and fsgid is mapped, false if not.
  */
 static inline bool fsuidgid_has_mapping(struct super_block *sb,
-					struct user_namespace *mnt_userns)
+					struct mnt_idmap *idmap)
 {
 	struct user_namespace *fs_userns = sb->s_user_ns;
 	kuid_t kuid;
 	kgid_t kgid;
 
-	kuid = mapped_fsuid(mnt_userns, fs_userns);
+	kuid = mapped_fsuid(idmap, fs_userns);
 	if (!uid_valid(kuid))
 		return false;
-	kgid = mapped_fsgid(mnt_userns, fs_userns);
+	kgid = mapped_fsgid(idmap, fs_userns);
 	if (!gid_valid(kgid))
 		return false;
 	return kuid_has_mapping(fs_userns, kuid) &&
@@ -1941,42 +1604,42 @@ static inline bool sb_start_intwrite_trylock(struct super_block *sb)
 	return __sb_start_write_trylock(sb, SB_FREEZE_FS);
 }
 
-bool inode_owner_or_capable(struct user_namespace *mnt_userns,
+bool inode_owner_or_capable(struct mnt_idmap *idmap,
 			    const struct inode *inode);
 
 /*
  * VFS helper functions..
  */
-int vfs_create(struct user_namespace *, struct inode *,
+int vfs_create(struct mnt_idmap *, struct inode *,
 	       struct dentry *, umode_t, bool);
-int vfs_mkdir(struct user_namespace *, struct inode *,
+int vfs_mkdir(struct mnt_idmap *, struct inode *,
 	      struct dentry *, umode_t);
-int vfs_mknod(struct user_namespace *, struct inode *, struct dentry *,
+int vfs_mknod(struct mnt_idmap *, struct inode *, struct dentry *,
               umode_t, dev_t);
-int vfs_symlink(struct user_namespace *, struct inode *,
+int vfs_symlink(struct mnt_idmap *, struct inode *,
 		struct dentry *, const char *);
-int vfs_link(struct dentry *, struct user_namespace *, struct inode *,
+int vfs_link(struct dentry *, struct mnt_idmap *, struct inode *,
 	     struct dentry *, struct inode **);
-int vfs_rmdir(struct user_namespace *, struct inode *, struct dentry *);
-int vfs_unlink(struct user_namespace *, struct inode *, struct dentry *,
+int vfs_rmdir(struct mnt_idmap *, struct inode *, struct dentry *);
+int vfs_unlink(struct mnt_idmap *, struct inode *, struct dentry *,
 	       struct inode **);
 
 /**
  * struct renamedata - contains all information required for renaming
- * @old_mnt_userns:    old user namespace of the mount the inode was found from
+ * @old_mnt_idmap:     idmap of the old mount the inode was found from
  * @old_dir:           parent of source
  * @old_dentry:                source
- * @new_mnt_userns:    new user namespace of the mount the inode was found from
+ * @new_mnt_idmap:     idmap of the new mount the inode was found from
  * @new_dir:           parent of destination
  * @new_dentry:                destination
  * @delegated_inode:   returns an inode needing a delegation break
  * @flags:             rename flags
  */
 struct renamedata {
-	struct user_namespace *old_mnt_userns;
+	struct mnt_idmap *old_mnt_idmap;
 	struct inode *old_dir;
 	struct dentry *old_dentry;
-	struct user_namespace *new_mnt_userns;
+	struct mnt_idmap *new_mnt_idmap;
 	struct inode *new_dir;
 	struct dentry *new_dentry;
 	struct inode **delegated_inode;
@@ -1985,14 +1648,14 @@ struct renamedata {
 
 int vfs_rename(struct renamedata *);
 
-static inline int vfs_whiteout(struct user_namespace *mnt_userns,
+static inline int vfs_whiteout(struct mnt_idmap *idmap,
 			       struct inode *dir, struct dentry *dentry)
 {
-	return vfs_mknod(mnt_userns, dir, dentry, S_IFCHR | WHITEOUT_MODE,
+	return vfs_mknod(idmap, dir, dentry, S_IFCHR | WHITEOUT_MODE,
 			 WHITEOUT_DEV);
 }
 
-struct file *vfs_tmpfile_open(struct user_namespace *mnt_userns,
+struct file *vfs_tmpfile_open(struct mnt_idmap *idmap,
 			const struct path *parentpath,
 			umode_t mode, int open_flag, const struct cred *cred);
 
@@ -2016,10 +1679,10 @@ extern long compat_ptr_ioctl(struct file *file, unsigned int cmd,
 /*
  * VFS file helper functions.
  */
-void inode_init_owner(struct user_namespace *mnt_userns, struct inode *inode,
+void inode_init_owner(struct mnt_idmap *idmap, struct inode *inode,
 		      const struct inode *dir, umode_t mode);
 extern bool may_open_dev(const struct path *path);
-umode_t mode_strip_sgid(struct user_namespace *mnt_userns,
+umode_t mode_strip_sgid(struct mnt_idmap *idmap,
 			const struct inode *dir, umode_t mode);
 
 /*
@@ -2137,27 +1800,26 @@ struct file_operations {
 struct inode_operations {
 	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	const char * (*get_link) (struct dentry *, struct inode *, struct delayed_call *);
-	int (*permission) (struct user_namespace *, struct inode *, int);
+	int (*permission) (struct mnt_idmap *, struct inode *, int);
 	struct posix_acl * (*get_inode_acl)(struct inode *, int, bool);
 
 	int (*readlink) (struct dentry *, char __user *,int);
 
-	int (*create) (struct user_namespace *, struct inode *,struct dentry *,
+	int (*create) (struct mnt_idmap *, struct inode *,struct dentry *,
 		       umode_t, bool);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);
-	int (*symlink) (struct user_namespace *, struct inode *,struct dentry *,
+	int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,
 			const char *);
-	int (*mkdir) (struct user_namespace *, struct inode *,struct dentry *,
+	int (*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,
 		      umode_t);
 	int (*rmdir) (struct inode *,struct dentry *);
-	int (*mknod) (struct user_namespace *, struct inode *,struct dentry *,
+	int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,
 		      umode_t,dev_t);
-	int (*rename) (struct user_namespace *, struct inode *, struct dentry *,
+	int (*rename) (struct mnt_idmap *, struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
-	int (*setattr) (struct user_namespace *, struct dentry *,
-			struct iattr *);
-	int (*getattr) (struct user_namespace *, const struct path *,
+	int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
+	int (*getattr) (struct mnt_idmap *, const struct path *,
 			struct kstat *, u32, unsigned int);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
@@ -2166,13 +1828,13 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *,
 			   struct file *, unsigned open_flag,
 			   umode_t create_mode);
-	int (*tmpfile) (struct user_namespace *, struct inode *,
+	int (*tmpfile) (struct mnt_idmap *, struct inode *,
 			struct file *, umode_t);
-	struct posix_acl *(*get_acl)(struct user_namespace *, struct dentry *,
+	struct posix_acl *(*get_acl)(struct mnt_idmap *, struct dentry *,
 				     int);
-	int (*set_acl)(struct user_namespace *, struct dentry *,
+	int (*set_acl)(struct mnt_idmap *, struct dentry *,
 		       struct posix_acl *, int);
-	int (*fileattr_set)(struct user_namespace *mnt_userns,
+	int (*fileattr_set)(struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct fileattr *fa);
 	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
 } ____cacheline_aligned;
@@ -2326,11 +1988,11 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags 
 #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
 				 (inode)->i_rdev == WHITEOUT_DEV)
 
-static inline bool HAS_UNMAPPED_ID(struct user_namespace *mnt_userns,
+static inline bool HAS_UNMAPPED_ID(struct mnt_idmap *idmap,
 				   struct inode *inode)
 {
-	return !vfsuid_valid(i_uid_into_vfsuid(mnt_userns, inode)) ||
-	       !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode));
+	return !vfsuid_valid(i_uid_into_vfsuid(idmap, inode)) ||
+	       !vfsgid_valid(i_gid_into_vfsgid(idmap, inode));
 }
 
 static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
@@ -2624,96 +2286,6 @@ extern struct kobject *fs_kobj;
 
 #define MAX_RW_COUNT (INT_MAX & PAGE_MASK)
 
-#ifdef CONFIG_FILE_LOCKING
-static inline int break_lease(struct inode *inode, unsigned int mode)
-{
-	/*
-	 * Since this check is lockless, we must ensure that any refcounts
-	 * taken are done before checking i_flctx->flc_lease. Otherwise, we
-	 * could end up racing with tasks trying to set a new lease on this
-	 * file.
-	 */
-	smp_mb();
-	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
-		return __break_lease(inode, mode, FL_LEASE);
-	return 0;
-}
-
-static inline int break_deleg(struct inode *inode, unsigned int mode)
-{
-	/*
-	 * Since this check is lockless, we must ensure that any refcounts
-	 * taken are done before checking i_flctx->flc_lease. Otherwise, we
-	 * could end up racing with tasks trying to set a new lease on this
-	 * file.
-	 */
-	smp_mb();
-	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
-		return __break_lease(inode, mode, FL_DELEG);
-	return 0;
-}
-
-static inline int try_break_deleg(struct inode *inode, struct inode **delegated_inode)
-{
-	int ret;
-
-	ret = break_deleg(inode, O_WRONLY|O_NONBLOCK);
-	if (ret == -EWOULDBLOCK && delegated_inode) {
-		*delegated_inode = inode;
-		ihold(inode);
-	}
-	return ret;
-}
-
-static inline int break_deleg_wait(struct inode **delegated_inode)
-{
-	int ret;
-
-	ret = break_deleg(*delegated_inode, O_WRONLY);
-	iput(*delegated_inode);
-	*delegated_inode = NULL;
-	return ret;
-}
-
-static inline int break_layout(struct inode *inode, bool wait)
-{
-	smp_mb();
-	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
-		return __break_lease(inode,
-				wait ? O_WRONLY : O_WRONLY | O_NONBLOCK,
-				FL_LAYOUT);
-	return 0;
-}
-
-#else /* !CONFIG_FILE_LOCKING */
-static inline int break_lease(struct inode *inode, unsigned int mode)
-{
-	return 0;
-}
-
-static inline int break_deleg(struct inode *inode, unsigned int mode)
-{
-	return 0;
-}
-
-static inline int try_break_deleg(struct inode *inode, struct inode **delegated_inode)
-{
-	return 0;
-}
-
-static inline int break_deleg_wait(struct inode **delegated_inode)
-{
-	BUG();
-	return 0;
-}
-
-static inline int break_layout(struct inode *inode, bool wait)
-{
-	return 0;
-}
-
-#endif /* CONFIG_FILE_LOCKING */
-
 /* fs/open.c */
 struct audit_names;
 struct filename {
@@ -2724,11 +2296,6 @@ struct filename {
 	const char		iname[];
 };
 static_assert(offsetof(struct filename, iname) % sizeof(long) == 0);
-
-static inline struct user_namespace *file_mnt_user_ns(struct file *file)
-{
-	return mnt_user_ns(file->f_path.mnt);
-}
 
 static inline struct mnt_idmap *file_mnt_idmap(struct file *file)
 {
@@ -2749,7 +2316,7 @@ static inline bool is_idmapped_mnt(const struct vfsmount *mnt)
 }
 
 extern long vfs_truncate(const struct path *, loff_t);
-int do_truncate(struct user_namespace *, struct dentry *, loff_t start,
+int do_truncate(struct mnt_idmap *, struct dentry *, loff_t start,
 		unsigned int time_attrs, struct file *filp);
 extern int vfs_fallocate(struct file *file, int mode, loff_t offset,
 			loff_t len);
@@ -2904,21 +2471,21 @@ static inline int bmap(struct inode *inode,  sector_t *block)
 }
 #endif
 
-int notify_change(struct user_namespace *, struct dentry *,
+int notify_change(struct mnt_idmap *, struct dentry *,
 		  struct iattr *, struct inode **);
-int inode_permission(struct user_namespace *, struct inode *, int);
-int generic_permission(struct user_namespace *, struct inode *, int);
+int inode_permission(struct mnt_idmap *, struct inode *, int);
+int generic_permission(struct mnt_idmap *, struct inode *, int);
 static inline int file_permission(struct file *file, int mask)
 {
-	return inode_permission(file_mnt_user_ns(file),
+	return inode_permission(file_mnt_idmap(file),
 				file_inode(file), mask);
 }
 static inline int path_permission(const struct path *path, int mask)
 {
-	return inode_permission(mnt_user_ns(path->mnt),
+	return inode_permission(mnt_idmap(path->mnt),
 				d_inode(path->dentry), mask);
 }
-int __check_sticky(struct user_namespace *mnt_userns, struct inode *dir,
+int __check_sticky(struct mnt_idmap *idmap, struct inode *dir,
 		   struct inode *inode);
 
 static inline bool execute_ok(struct inode *inode)
@@ -3106,7 +2673,7 @@ extern void __destroy_inode(struct inode *);
 extern struct inode *new_inode_pseudo(struct super_block *sb);
 extern struct inode *new_inode(struct super_block *sb);
 extern void free_inode_nonrcu(struct inode *inode);
-extern int setattr_should_drop_suidgid(struct user_namespace *, struct inode *);
+extern int setattr_should_drop_suidgid(struct mnt_idmap *, struct inode *);
 extern int file_remove_privs(struct file *);
 
 /*
@@ -3163,6 +2730,12 @@ ssize_t vfs_iocb_iter_write(struct file *file, struct kiocb *iocb,
 			    struct iov_iter *iter);
 
 /* fs/splice.c */
+ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
+			    struct pipe_inode_info *pipe,
+			    size_t len, unsigned int flags);
+ssize_t direct_splice_read(struct file *in, loff_t *ppos,
+			   struct pipe_inode_info *pipe,
+			   size_t len, unsigned int flags);
 extern ssize_t generic_file_splice_read(struct file *, loff_t *,
 		struct pipe_inode_info *, size_t, unsigned int);
 extern ssize_t iter_file_splice_write(struct pipe_inode_info *,
@@ -3265,7 +2838,7 @@ extern void page_put_link(void *);
 extern int page_symlink(struct inode *inode, const char *symname, int len);
 extern const struct inode_operations page_symlink_inode_operations;
 extern void kfree_link(void *);
-void generic_fillattr(struct user_namespace *, struct inode *, struct kstat *);
+void generic_fillattr(struct mnt_idmap *, struct inode *, struct kstat *);
 void generic_fill_statx_attr(struct inode *inode, struct kstat *stat);
 extern int vfs_getattr_nosec(const struct path *, struct kstat *, u32, unsigned int);
 extern int vfs_getattr(const struct path *, struct kstat *, u32, unsigned int);
@@ -3316,9 +2889,9 @@ extern int dcache_dir_open(struct inode *, struct file *);
 extern int dcache_dir_close(struct inode *, struct file *);
 extern loff_t dcache_dir_lseek(struct file *, loff_t, int);
 extern int dcache_readdir(struct file *, struct dir_context *);
-extern int simple_setattr(struct user_namespace *, struct dentry *,
+extern int simple_setattr(struct mnt_idmap *, struct dentry *,
 			  struct iattr *);
-extern int simple_getattr(struct user_namespace *, const struct path *,
+extern int simple_getattr(struct mnt_idmap *, const struct path *,
 			  struct kstat *, u32, unsigned int);
 extern int simple_statfs(struct dentry *, struct kstatfs *);
 extern int simple_open(struct inode *inode, struct file *file);
@@ -3327,7 +2900,7 @@ extern int simple_unlink(struct inode *, struct dentry *);
 extern int simple_rmdir(struct inode *, struct dentry *);
 extern int simple_rename_exchange(struct inode *old_dir, struct dentry *old_dentry,
 				  struct inode *new_dir, struct dentry *new_dentry);
-extern int simple_rename(struct user_namespace *, struct inode *,
+extern int simple_rename(struct mnt_idmap *, struct inode *,
 			 struct dentry *, struct inode *, struct dentry *,
 			 unsigned int);
 extern void simple_recursive_removal(struct dentry *,
@@ -3369,11 +2942,11 @@ extern int generic_check_addressable(unsigned, u64);
 
 extern void generic_set_encrypted_ci_d_ops(struct dentry *dentry);
 
-int may_setattr(struct user_namespace *mnt_userns, struct inode *inode,
+int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 		unsigned int ia_valid);
-int setattr_prepare(struct user_namespace *, struct dentry *, struct iattr *);
+int setattr_prepare(struct mnt_idmap *, struct dentry *, struct iattr *);
 extern int inode_newsize_ok(const struct inode *, loff_t offset);
-void setattr_copy(struct user_namespace *, struct inode *inode,
+void setattr_copy(struct mnt_idmap *, struct inode *inode,
 		  const struct iattr *attr);
 
 extern int file_update_time(struct file *file);
@@ -3540,13 +3113,13 @@ static inline bool is_sxid(umode_t mode)
 	return mode & (S_ISUID | S_ISGID);
 }
 
-static inline int check_sticky(struct user_namespace *mnt_userns,
+static inline int check_sticky(struct mnt_idmap *idmap,
 			       struct inode *dir, struct inode *inode)
 {
 	if (!(dir->i_mode & S_ISVTX))
 		return 0;
 
-	return __check_sticky(mnt_userns, dir, inode);
+	return __check_sticky(idmap, dir, inode);
 }
 
 static inline void inode_has_no_xattr(struct inode *inode)

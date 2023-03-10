@@ -85,7 +85,7 @@ retry:
 	return acl;
 }
 
-int ceph_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ceph_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	int ret = 0, size = 0;
@@ -105,7 +105,7 @@ int ceph_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
-			ret = posix_acl_update_mode(&init_user_ns, inode,
+			ret = posix_acl_update_mode(&nop_mnt_idmap, inode,
 						    &new_mode, &acl);
 			if (ret)
 				goto out;

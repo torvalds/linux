@@ -314,7 +314,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	}
 
 	vma->vm_ops = &videobuf_vm_ops;
-	vma->vm_flags |= VM_DONTEXPAND;
+	vm_flags_set(vma, VM_DONTEXPAND);
 	vma->vm_private_data = map;
 
 	dev_dbg(q->dev, "mmap %p: q=%p %08lx-%08lx (%lx) pgoff %08lx buf %d\n",

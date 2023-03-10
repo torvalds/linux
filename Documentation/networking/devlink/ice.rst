@@ -285,7 +285,7 @@ features are enabled after the hierarchy is exported, but before any
 changes are made.
 
 This feature is also dependent on switchdev being enabled in the system.
-It's required bacause devlink-rate requires devlink-port objects to be
+It's required because devlink-rate requires devlink-port objects to be
 present, and those objects are only created in switchdev mode.
 
 If the driver is set to the switchdev mode, it will export internal
@@ -320,7 +320,7 @@ nodes and nodes with children also can't be deleted.
     * - ``tx_weight``
       - allows for usage of Weighted Fair Queuing arbitration scheme among
         siblings. This arbitration scheme can be used simultaneously with
-        the strict priority. Range 1-200. Only relative values mater for
+        the strict priority. Range 1-200. Only relative values matter for
         arbitration.
 
 ``tx_priority`` and ``tx_weight`` can be used simultaneously. In that case

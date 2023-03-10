@@ -54,8 +54,8 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     spi {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
         adc@0 {
             compatible = "maxim,max1241";

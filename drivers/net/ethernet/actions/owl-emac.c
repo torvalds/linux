@@ -1275,9 +1275,6 @@ static int owl_emac_mdio_read(struct mii_bus *bus, int addr, int regnum)
 	u32 data, tmp;
 	int ret;
 
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	data = OWL_EMAC_BIT_MAC_CSR10_SB;
 	data |= OWL_EMAC_VAL_MAC_CSR10_OPCODE_RD << OWL_EMAC_OFF_MAC_CSR10_OPCODE;
 
@@ -1304,9 +1301,6 @@ owl_emac_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val)
 {
 	struct owl_emac_priv *priv = bus->priv;
 	u32 data, tmp;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	data = OWL_EMAC_BIT_MAC_CSR10_SB;
 	data |= OWL_EMAC_VAL_MAC_CSR10_OPCODE_WR << OWL_EMAC_OFF_MAC_CSR10_OPCODE;

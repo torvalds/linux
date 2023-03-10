@@ -69,7 +69,7 @@ Description:
 		This file contains boolean value that tells does the device
 		support both source and sink power roles.
 
-What:		/sys/class/usb_power_delivery/.../<capability>/1:fixed_supply/usb_suspend_supported
+What:		/sys/class/usb_power_delivery/.../source-capabilities/1:fixed_supply/usb_suspend_supported
 Date:		May 2022
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
@@ -77,6 +77,15 @@ Description:
 		vSafe5V Fixed Supply Object. If the bit is set then the device
 		will follow the USB 2.0 and USB 3.2 rules for suspend and
 		resume.
+
+What:		/sys/class/usb_power_delivery/.../sink-capabilities/1:fixed_supply/higher_capability
+Date:		February 2023
+Contact:	Saranya Gopal <saranya.gopal@linux.intel.com>
+Description:
+		This file shows the value of the Higher capability bit in
+		vsafe5V Fixed Supply Object. If the bit is set, then the sink
+		needs more than vsafe5V(eg. 12 V) to provide full functionality.
+		Valid values: 0, 1
 
 What:		/sys/class/usb_power_delivery/.../<capability>/1:fixed_supply/unconstrained_power
 Date:		May 2022

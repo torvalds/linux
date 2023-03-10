@@ -682,10 +682,6 @@ config CPU_ISOLATION
 
 source "kernel/rcu/Kconfig"
 
-config BUILD_BIN2C
-	bool
-	default n
-
 config IKCONFIG
 	tristate "Kernel .config support"
 	help
@@ -1045,6 +1041,10 @@ config RT_GROUP_SCHED
 
 endif #CGROUP_SCHED
 
+config SCHED_MM_CID
+	def_bool y
+	depends on SMP && RSEQ
+
 config UCLAMP_TASK_GROUP
 	bool "Utilization clamping per group of tasks"
 	depends on CGROUP_SCHED
@@ -1379,6 +1379,19 @@ config BOOT_CONFIG
 	  See <file:Documentation/admin-guide/bootconfig.rst> for details.
 
 	  If unsure, say Y.
+
+config BOOT_CONFIG_FORCE
+	bool "Force unconditional bootconfig processing"
+	depends on BOOT_CONFIG
+	default y if BOOT_CONFIG_EMBED
+	help
+	  With this Kconfig option set, BOOT_CONFIG processing is carried
+	  out even when the "bootconfig" kernel-boot parameter is omitted.
+	  In fact, with this Kconfig option set, there is no way to
+	  make the kernel ignore the BOOT_CONFIG-supplied kernel-boot
+	  parameters.
+
+	  If unsure, say N.
 
 config BOOT_CONFIG_EMBED
 	bool "Embed bootconfig file in the kernel"
@@ -1869,7 +1882,6 @@ config PERF_EVENTS
 	default y if PROFILING
 	depends on HAVE_PERF_EVENTS
 	select IRQ_WORK
-	select SRCU
 	help
 	  Enable kernel support for various performance events provided
 	  by software and hardware.
@@ -1939,7 +1951,7 @@ config RUST
 	depends on !MODVERSIONS
 	depends on !GCC_PLUGINS
 	depends on !RANDSTRUCT
-	depends on !DEBUG_INFO_BTF
+	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
 	select CONSTRUCTORS
 	help
 	  Enables Rust support in the kernel.

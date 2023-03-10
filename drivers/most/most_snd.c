@@ -27,6 +27,7 @@ static struct most_component comp;
 /**
  * struct channel - private structure to keep channel specific data
  * @substream: stores the substream structure
+ * @pcm_hardware: low-level hardware description
  * @iface: interface for which the channel belongs to
  * @cfg: channel configuration
  * @card: registered sound card
@@ -38,6 +39,7 @@ static struct most_component comp;
  * @opened: set when the stream is opened
  * @playback_task: playback thread
  * @playback_waitq: waitq used by playback thread
+ * @copy_fn: copy function for PCM-specific format and width
  */
 struct channel {
 	struct snd_pcm_substream *substream;
@@ -400,7 +402,7 @@ static snd_pcm_uframes_t pcm_pointer(struct snd_pcm_substream *substream)
 	return channel->buffer_pos;
 }
 
-/**
+/*
  * Initialization of struct snd_pcm_ops
  */
 static const struct snd_pcm_ops pcm_ops = {
@@ -501,8 +503,8 @@ static void release_adapter(struct sound_adapter *adpt)
  * @iface: pointer to interface instance
  * @channel_id: channel index/ID
  * @cfg: pointer to actual channel configuration
- * @arg_list: string that provides the name of the device to be created in /dev
- *	      plus the desired audio resolution
+ * @device_name: name of the device to be created in /dev
+ * @arg_list: string that provides the desired audio resolution
  *
  * Creates sound card, pcm device, sets pcm ops and registers sound card.
  *
@@ -699,7 +701,7 @@ static int audio_tx_completion(struct most_interface *iface, int channel_id)
 	return 0;
 }
 
-/**
+/*
  * Initialization of the struct most_component
  */
 static struct most_component comp = {

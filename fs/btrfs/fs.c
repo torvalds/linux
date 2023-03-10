@@ -24,6 +24,7 @@ void __btrfs_set_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag,
 				name, flag);
 		}
 		spin_unlock(&fs_info->super_lock);
+		set_bit(BTRFS_FS_FEATURE_CHANGED, &fs_info->flags);
 	}
 }
 
@@ -46,6 +47,7 @@ void __btrfs_clear_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag,
 				name, flag);
 		}
 		spin_unlock(&fs_info->super_lock);
+		set_bit(BTRFS_FS_FEATURE_CHANGED, &fs_info->flags);
 	}
 }
 
@@ -68,6 +70,7 @@ void __btrfs_set_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 				name, flag);
 		}
 		spin_unlock(&fs_info->super_lock);
+		set_bit(BTRFS_FS_FEATURE_CHANGED, &fs_info->flags);
 	}
 }
 
@@ -90,5 +93,6 @@ void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 				name, flag);
 		}
 		spin_unlock(&fs_info->super_lock);
+		set_bit(BTRFS_FS_FEATURE_CHANGED, &fs_info->flags);
 	}
 }

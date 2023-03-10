@@ -110,8 +110,8 @@ static int clk_mt8167_mm_probe(struct platform_device *pdev)
 
 	data = &mt8167_mmsys_driver_data;
 
-	ret = mtk_clk_register_gates(node, data->gates_clk, data->gates_num,
-				     clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, data->gates_clk,
+				     data->gates_num, clk_data);
 	if (ret)
 		return ret;
 

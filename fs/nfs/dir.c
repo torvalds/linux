@@ -203,14 +203,14 @@ static void nfs_readdir_page_init_array(struct page *page, u64 last_cookie,
 {
 	struct nfs_cache_array *array;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	array->change_attr = change_attr;
 	array->last_cookie = last_cookie;
 	array->size = 0;
 	array->page_full = 0;
 	array->page_is_eof = 0;
 	array->cookies_are_ordered = 1;
-	kunmap_atomic(array);
+	kunmap_local(array);
 }
 
 /*
@@ -221,11 +221,11 @@ static void nfs_readdir_clear_array(struct page *page)
 	struct nfs_cache_array *array;
 	unsigned int i;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	for (i = 0; i < array->size; i++)
 		kfree(array->array[i].name);
 	array->size = 0;
-	kunmap_atomic(array);
+	kunmap_local(array);
 }
 
 static void nfs_readdir_free_folio(struct folio *folio)
@@ -371,14 +371,14 @@ static pgoff_t nfs_readdir_page_cookie_hash(u64 cookie)
 static bool nfs_readdir_page_validate(struct page *page, u64 last_cookie,
 				      u64 change_attr)
 {
-	struct nfs_cache_array *array = kmap_atomic(page);
+	struct nfs_cache_array *array = kmap_local_page(page);
 	int ret = true;
 
 	if (array->change_attr != change_attr)
 		ret = false;
 	if (nfs_readdir_array_index_cookie(array) != last_cookie)
 		ret = false;
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return ret;
 }
 
@@ -418,9 +418,9 @@ static u64 nfs_readdir_page_last_cookie(struct page *page)
 	struct nfs_cache_array *array;
 	u64 ret;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	ret = array->last_cookie;
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return ret;
 }
 
@@ -429,9 +429,9 @@ static bool nfs_readdir_page_needs_filling(struct page *page)
 	struct nfs_cache_array *array;
 	bool ret;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	ret = !nfs_readdir_array_is_full(array);
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return ret;
 }
 
@@ -439,9 +439,9 @@ static void nfs_readdir_page_set_eof(struct page *page)
 {
 	struct nfs_cache_array *array;
 
-	array = kmap_atomic(page);
+	array = kmap_local_page(page);
 	nfs_readdir_array_set_eof(array);
-	kunmap_atomic(array);
+	kunmap_local(array);
 }
 
 static struct page *nfs_readdir_page_get_next(struct address_space *mapping,
@@ -568,14 +568,14 @@ static int nfs_readdir_search_array(struct nfs_readdir_descriptor *desc)
 	struct nfs_cache_array *array;
 	int status;
 
-	array = kmap_atomic(desc->page);
+	array = kmap_local_page(desc->page);
 
 	if (desc->dir_cookie == 0)
 		status = nfs_readdir_search_for_pos(array, desc);
 	else
 		status = nfs_readdir_search_for_cookie(array, desc);
 
-	kunmap_atomic(array);
+	kunmap_local(array);
 	return status;
 }
 
@@ -2296,7 +2296,7 @@ EXPORT_SYMBOL_GPL(nfs_instantiate);
  * that the operation succeeded on the server, but an error in the
  * reply path made it appear to have failed.
  */
-int nfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+int nfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	       struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct iattr attr;
@@ -2325,7 +2325,7 @@ EXPORT_SYMBOL_GPL(nfs_create);
  * See comments for nfs_proc_create regarding failed operations.
  */
 int
-nfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+nfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	  struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct iattr attr;
@@ -2352,7 +2352,7 @@ EXPORT_SYMBOL_GPL(nfs_mknod);
 /*
  * See comments for nfs_proc_create regarding failed operations.
  */
-int nfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+int nfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	      struct dentry *dentry, umode_t mode)
 {
 	struct iattr attr;
@@ -2524,7 +2524,7 @@ EXPORT_SYMBOL_GPL(nfs_unlink);
  * now have a new file handle and can instantiate an in-core NFS inode
  * and move the raw page into its mapping.
  */
-int nfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+int nfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *dentry, const char *symname)
 {
 	struct page *page;
@@ -2642,7 +2642,7 @@ nfs_unblock_rename(struct rpc_task *task, struct nfs_renamedata *data)
  * If these conditions are met, we can drop the dentries before doing
  * the rename.
  */
-int nfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+int nfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	       struct dentry *old_dentry, struct inode *new_dir,
 	       struct dentry *new_dentry, unsigned int flags)
 {
@@ -3262,7 +3262,7 @@ static int nfs_execute_ok(struct inode *inode, int mask)
 	return ret;
 }
 
-int nfs_permission(struct user_namespace *mnt_userns,
+int nfs_permission(struct mnt_idmap *idmap,
 		   struct inode *inode,
 		   int mask)
 {
@@ -3313,7 +3313,7 @@ out_notsup:
 	res = nfs_revalidate_inode(inode, NFS_INO_INVALID_MODE |
 						  NFS_INO_INVALID_OTHER);
 	if (res == 0)
-		res = generic_permission(&init_user_ns, inode, mask);
+		res = generic_permission(&nop_mnt_idmap, inode, mask);
 	goto out;
 }
 EXPORT_SYMBOL_GPL(nfs_permission);

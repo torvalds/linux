@@ -154,6 +154,7 @@ properties:
         items:
           - enum:
               - khadas,vim3
+              - radxa,zero2
           - const: amlogic,a311d
           - const: amlogic,g12b
 
@@ -165,6 +166,7 @@ properties:
               - azw,gtking-pro
               - hardkernel,odroid-go-ultra
               - hardkernel,odroid-n2
+              - hardkernel,odroid-n2l
               - hardkernel,odroid-n2-plus
               - khadas,vim3
               - ugoos,am6
@@ -176,6 +178,7 @@ properties:
           - enum:
               - amediatech,x96-air
               - amediatech,x96-air-gbit
+              - bananapi,bpi-m2-pro
               - bananapi,bpi-m5
               - cyx,a95xf3-air
               - cyx,a95xf3-air-gbit

@@ -881,7 +881,7 @@ static ssize_t key_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(key);
 
-static int get_modalias(struct tb_service *svc, char *buf, size_t size)
+static int get_modalias(const struct tb_service *svc, char *buf, size_t size)
 {
 	return snprintf(buf, size, "tbsvc:k%sp%08Xv%08Xr%08X", svc->key,
 			svc->prtcid, svc->prtcvers, svc->prtcrevs);
@@ -953,9 +953,9 @@ static const struct attribute_group *tb_service_attr_groups[] = {
 	NULL,
 };
 
-static int tb_service_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int tb_service_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct tb_service *svc = container_of(dev, struct tb_service, dev);
+	const struct tb_service *svc = container_of_const(dev, struct tb_service, dev);
 	char modalias[64];
 
 	get_modalias(svc, modalias, sizeof(modalias));

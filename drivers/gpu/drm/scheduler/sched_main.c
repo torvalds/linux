@@ -551,10 +551,21 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 EXPORT_SYMBOL(drm_sched_start);
 
 /**
- * drm_sched_resubmit_jobs - helper to relaunch jobs from the pending list
+ * drm_sched_resubmit_jobs - Deprecated, don't use in new code!
  *
  * @sched: scheduler instance
  *
+ * Re-submitting jobs was a concept AMD came up as cheap way to implement
+ * recovery after a job timeout.
+ *
+ * This turned out to be not working very well. First of all there are many
+ * problem with the dma_fence implementation and requirements. Either the
+ * implementation is risking deadlocks with core memory management or violating
+ * documented implementation details of the dma_fence object.
+ *
+ * Drivers can still save and restore their state for recovery operations, but
+ * we shouldn't make this a general scheduler feature around the dma_fence
+ * interface.
  */
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 {
@@ -894,6 +905,12 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	}
 
 	spin_unlock(&sched->job_list_lock);
+
+	if (job) {
+		job->entity->elapsed_ns += ktime_to_ns(
+			ktime_sub(job->s_fence->finished.timestamp,
+				  job->s_fence->scheduled.timestamp));
+	}
 
 	return job;
 }

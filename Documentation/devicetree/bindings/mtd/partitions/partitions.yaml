@@ -32,7 +32,7 @@ properties:
     enum: [1, 2]
 
 patternProperties:
-  "partition(-.+|@[0-9a-f]+)":
+  "^partition(-.+|@[0-9a-f]+)$":
     $ref: partition.yaml
 
 required:

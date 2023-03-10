@@ -597,7 +597,6 @@ static void stm32_crypt_gcmccm_end_header(struct stm32_cryp *cryp)
 
 static void stm32_cryp_write_ccm_first_header(struct stm32_cryp *cryp)
 {
-	unsigned int i;
 	size_t written;
 	size_t len;
 	u32 alen = cryp->areq->assoclen;
@@ -623,8 +622,8 @@ static void stm32_cryp_write_ccm_first_header(struct stm32_cryp *cryp)
 	written = min_t(size_t, AES_BLOCK_SIZE - len, alen);
 
 	scatterwalk_copychunks((char *)block + len, &cryp->in_walk, written, 0);
-	for (i = 0; i < AES_BLOCK_32; i++)
-		stm32_cryp_write(cryp, cryp->caps->din, block[i]);
+
+	writesl(cryp->regs + cryp->caps->din, block, AES_BLOCK_32);
 
 	cryp->header_in -= written;
 
@@ -1363,18 +1362,14 @@ static int stm32_cryp_read_auth_tag(struct stm32_cryp *cryp)
 		u32 out_tag[AES_BLOCK_32];
 
 		/* Get and write tag */
-		for (i = 0; i < AES_BLOCK_32; i++)
-			out_tag[i] = stm32_cryp_read(cryp, cryp->caps->dout);
-
+		readsl(cryp->regs + cryp->caps->dout, out_tag, AES_BLOCK_32);
 		scatterwalk_copychunks(out_tag, &cryp->out_walk, cryp->authsize, 1);
 	} else {
 		/* Get and check tag */
 		u32 in_tag[AES_BLOCK_32], out_tag[AES_BLOCK_32];
 
 		scatterwalk_copychunks(in_tag, &cryp->in_walk, cryp->authsize, 0);
-
-		for (i = 0; i < AES_BLOCK_32; i++)
-			out_tag[i] = stm32_cryp_read(cryp, cryp->caps->dout);
+		readsl(cryp->regs + cryp->caps->dout, out_tag, AES_BLOCK_32);
 
 		if (crypto_memneq(in_tag, out_tag, cryp->authsize))
 			ret = -EBADMSG;
@@ -1415,12 +1410,9 @@ static void stm32_cryp_check_ctr_counter(struct stm32_cryp *cryp)
 
 static void stm32_cryp_irq_read_data(struct stm32_cryp *cryp)
 {
-	unsigned int i;
 	u32 block[AES_BLOCK_32];
 
-	for (i = 0; i < cryp->hw_blocksize / sizeof(u32); i++)
-		block[i] = stm32_cryp_read(cryp, cryp->caps->dout);
-
+	readsl(cryp->regs + cryp->caps->dout, block, cryp->hw_blocksize / sizeof(u32));
 	scatterwalk_copychunks(block, &cryp->out_walk, min_t(size_t, cryp->hw_blocksize,
 							     cryp->payload_out), 1);
 	cryp->payload_out -= min_t(size_t, cryp->hw_blocksize,
@@ -1429,14 +1421,11 @@ static void stm32_cryp_irq_read_data(struct stm32_cryp *cryp)
 
 static void stm32_cryp_irq_write_block(struct stm32_cryp *cryp)
 {
-	unsigned int i;
 	u32 block[AES_BLOCK_32] = {0};
 
 	scatterwalk_copychunks(block, &cryp->in_walk, min_t(size_t, cryp->hw_blocksize,
 							    cryp->payload_in), 0);
-	for (i = 0; i < cryp->hw_blocksize / sizeof(u32); i++)
-		stm32_cryp_write(cryp, cryp->caps->din, block[i]);
-
+	writesl(cryp->regs + cryp->caps->din, block, cryp->hw_blocksize / sizeof(u32));
 	cryp->payload_in -= min_t(size_t, cryp->hw_blocksize, cryp->payload_in);
 }
 
@@ -1480,8 +1469,7 @@ static void stm32_cryp_irq_write_gcm_padded_data(struct stm32_cryp *cryp)
 	 * Same code as stm32_cryp_irq_read_data(), but we want to store
 	 * block value
 	 */
-	for (i = 0; i < cryp->hw_blocksize / sizeof(u32); i++)
-		block[i] = stm32_cryp_read(cryp, cryp->caps->dout);
+	readsl(cryp->regs + cryp->caps->dout, block, cryp->hw_blocksize / sizeof(u32));
 
 	scatterwalk_copychunks(block, &cryp->out_walk, min_t(size_t, cryp->hw_blocksize,
 							     cryp->payload_out), 1);
@@ -1499,8 +1487,7 @@ static void stm32_cryp_irq_write_gcm_padded_data(struct stm32_cryp *cryp)
 	stm32_cryp_write(cryp, cryp->caps->cr, cfg);
 
 	/* f) write padded data */
-	for (i = 0; i < AES_BLOCK_32; i++)
-		stm32_cryp_write(cryp, cryp->caps->din, block[i]);
+	writesl(cryp->regs + cryp->caps->din, block, AES_BLOCK_32);
 
 	/* g) Empty fifo out */
 	err = stm32_cryp_wait_output(cryp);
@@ -1580,8 +1567,7 @@ static void stm32_cryp_irq_write_ccm_padded_data(struct stm32_cryp *cryp)
 	 * Same code as stm32_cryp_irq_read_data(), but we want to store
 	 * block value
 	 */
-	for (i = 0; i < cryp->hw_blocksize / sizeof(u32); i++)
-		block[i] = stm32_cryp_read(cryp, cryp->caps->dout);
+	readsl(cryp->regs + cryp->caps->dout, block, cryp->hw_blocksize / sizeof(u32));
 
 	scatterwalk_copychunks(block, &cryp->out_walk, min_t(size_t, cryp->hw_blocksize,
 							     cryp->payload_out), 1);
@@ -1660,15 +1646,14 @@ static void stm32_cryp_irq_write_data(struct stm32_cryp *cryp)
 
 static void stm32_cryp_irq_write_gcmccm_header(struct stm32_cryp *cryp)
 {
-	unsigned int i;
 	u32 block[AES_BLOCK_32] = {0};
 	size_t written;
 
 	written = min_t(size_t, AES_BLOCK_SIZE, cryp->header_in);
 
 	scatterwalk_copychunks(block, &cryp->in_walk, written, 0);
-	for (i = 0; i < AES_BLOCK_32; i++)
-		stm32_cryp_write(cryp, cryp->caps->din, block[i]);
+
+	writesl(cryp->regs + cryp->caps->din, block, AES_BLOCK_32);
 
 	cryp->header_in -= written;
 

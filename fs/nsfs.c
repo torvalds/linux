@@ -21,6 +21,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 static const struct file_operations ns_file_operations = {
 	.llseek		= no_llseek,
 	.unlocked_ioctl = ns_ioctl,
+	.compat_ioctl   = compat_ptr_ioctl,
 };
 
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
@@ -254,7 +255,7 @@ out_invalid:
 
 /**
  * ns_match() - Returns true if current namespace matches dev/ino provided.
- * @ns_common: current ns
+ * @ns: current namespace
  * @dev: dev_t from nsfs that will be matched against current nsfs
  * @ino: ino_t from nsfs that will be matched against current nsfs
  *

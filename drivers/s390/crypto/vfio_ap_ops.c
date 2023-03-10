@@ -30,10 +30,13 @@
 #define AP_QUEUE_UNASSIGNED "unassigned"
 #define AP_QUEUE_IN_USE "in use"
 
+#define MAX_RESET_CHECK_WAIT	200	/* Sleep max 200ms for reset check	*/
+#define AP_RESET_INTERVAL		20	/* Reset sleep interval (20ms)		*/
+
 static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable);
 static struct vfio_ap_queue *vfio_ap_find_queue(int apqn);
 static const struct vfio_device_ops vfio_ap_matrix_dev_ops;
-static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q, unsigned int retry);
+static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q);
 
 /**
  * get_update_locks_for_kvm: Acquire the locks required to dynamically update a
@@ -298,7 +301,7 @@ static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
  */
 static struct ap_queue_status vfio_ap_irq_disable(struct vfio_ap_queue *q)
 {
-	struct ap_qirq_ctrl aqic_gisa = {};
+	union ap_qirq_ctrl aqic_gisa = { .value = 0 };
 	struct ap_queue_status status;
 	int retries = 5;
 
@@ -349,6 +352,8 @@ static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, dma_addr_t *nib)
 {
 	*nib = vcpu->run->s.regs.gprs[2];
 
+	if (!*nib)
+		return -EINVAL;
 	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *nib >> PAGE_SHIFT)))
 		return -EINVAL;
 
@@ -379,7 +384,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 						 int isc,
 						 struct kvm_vcpu *vcpu)
 {
-	struct ap_qirq_ctrl aqic_gisa = {};
+	union ap_qirq_ctrl aqic_gisa = { .value = 0 };
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
 	struct page *h_page;
@@ -1598,12 +1603,56 @@ static struct vfio_ap_queue *vfio_ap_find_queue(int apqn)
 	return q;
 }
 
-static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q,
-				    unsigned int retry)
+static int apq_status_check(int apqn, struct ap_queue_status *status)
+{
+	switch (status->response_code) {
+	case AP_RESPONSE_NORMAL:
+	case AP_RESPONSE_RESET_IN_PROGRESS:
+		if (status->queue_empty && !status->irq_enabled)
+			return 0;
+		return -EBUSY;
+	case AP_RESPONSE_DECONFIGURED:
+		/*
+		 * If the AP queue is deconfigured, any subsequent AP command
+		 * targeting the queue will fail with the same response code. On the
+		 * other hand, when an AP adapter is deconfigured, the associated
+		 * queues are reset, so let's return a value indicating the reset
+		 * for which we're waiting completed successfully.
+		 */
+		return 0;
+	default:
+		WARN(true,
+		     "failed to verify reset of queue %02x.%04x: TAPQ rc=%u\n",
+		     AP_QID_CARD(apqn), AP_QID_QUEUE(apqn),
+		     status->response_code);
+		return -EIO;
+	}
+}
+
+static int apq_reset_check(struct vfio_ap_queue *q)
+{
+	int ret;
+	int iters = MAX_RESET_CHECK_WAIT / AP_RESET_INTERVAL;
+	struct ap_queue_status status;
+
+	for (; iters > 0; iters--) {
+		msleep(AP_RESET_INTERVAL);
+		status = ap_tapq(q->apqn, NULL);
+		ret = apq_status_check(q->apqn, &status);
+		if (ret != -EBUSY)
+			return ret;
+	}
+	WARN_ONCE(iters <= 0,
+		  "timeout verifying reset of queue %02x.%04x (%u, %u, %u)",
+		  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
+		  status.queue_empty, status.irq_enabled, status.response_code);
+	return ret;
+}
+
+static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 {
 	struct ap_queue_status status;
 	int ret;
-	int retry2 = 2;
 
 	if (!q)
 		return 0;
@@ -1613,25 +1662,29 @@ retry_zapq:
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		ret = 0;
+		/* if the reset has not completed, wait for it to take effect */
+		if (!status.queue_empty || status.irq_enabled)
+			ret = apq_reset_check(q);
 		break;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
-		if (retry--) {
-			msleep(20);
-			goto retry_zapq;
-		}
-		ret = -EBUSY;
-		break;
-	case AP_RESPONSE_Q_NOT_AVAIL:
+		/*
+		 * There is a reset issued by another process in progress. Let's wait
+		 * for that to complete. Since we have no idea whether it was a RAPQ or
+		 * ZAPQ, then if it completes successfully, let's issue the ZAPQ.
+		 */
+		ret = apq_reset_check(q);
+		if (ret)
+			break;
+		goto retry_zapq;
 	case AP_RESPONSE_DECONFIGURED:
-	case AP_RESPONSE_CHECKSTOPPED:
-		WARN_ONCE(status.irq_enabled,
-			  "PQAP/ZAPQ for %02x.%04x failed with rc=%u while IRQ enabled",
-			  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
-			  status.response_code);
-		ret = -EBUSY;
-		goto free_resources;
+		/*
+		 * When an AP adapter is deconfigured, the associated
+		 * queues are reset, so let's return a value indicating the reset
+		 * completed successfully.
+		 */
+		ret = 0;
+		break;
 	default:
-		/* things are really broken, give up */
 		WARN(true,
 		     "PQAP/ZAPQ for %02x.%04x failed with invalid rc=%u\n",
 		     AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn),
@@ -1639,17 +1692,6 @@ retry_zapq:
 		return -EIO;
 	}
 
-	/* wait for the reset to take effect */
-	while (retry2--) {
-		if (status.queue_empty && !status.irq_enabled)
-			break;
-		msleep(20);
-		status = ap_tapq(q->apqn, NULL);
-	}
-	WARN_ONCE(retry2 <= 0, "unable to verify reset of queue %02x.%04x",
-		  AP_QID_CARD(q->apqn), AP_QID_QUEUE(q->apqn));
-
-free_resources:
 	vfio_ap_free_aqic_resources(q);
 
 	return ret;
@@ -1661,7 +1703,7 @@ static int vfio_ap_mdev_reset_queues(struct ap_queue_table *qtable)
 	struct vfio_ap_queue *q;
 
 	hash_for_each(qtable->queues, loop_cursor, q, mdev_qnode) {
-		ret = vfio_ap_mdev_reset_queue(q, 1);
+		ret = vfio_ap_mdev_reset_queue(q);
 		/*
 		 * Regardless whether a queue turns out to be busy, or
 		 * is not operational, we need to continue resetting
@@ -1857,8 +1899,10 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 		return ret;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
-	if (!q)
-		return -ENOMEM;
+	if (!q) {
+		ret = -ENOMEM;
+		goto err_remove_group;
+	}
 
 	q->apqn = to_ap_queue(&apdev->device)->qid;
 	q->saved_isc = VFIO_AP_ISC_INVALID;
@@ -1876,6 +1920,10 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 	release_update_locks_for_mdev(matrix_mdev);
 
 	return 0;
+
+err_remove_group:
+	sysfs_remove_group(&apdev->device.kobj, &vfio_queue_attr_group);
+	return ret;
 }
 
 void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
@@ -1906,7 +1954,7 @@ void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 		}
 	}
 
-	vfio_ap_mdev_reset_queue(q, 1);
+	vfio_ap_mdev_reset_queue(q);
 	dev_set_drvdata(&apdev->device, NULL);
 	kfree(q);
 	release_update_locks_for_mdev(matrix_mdev);

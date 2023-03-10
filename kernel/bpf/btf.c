@@ -337,6 +337,12 @@ const char *btf_type_str(const struct btf_type *t)
 #define BTF_SHOW_NAME_SIZE		80
 
 /*
+ * The suffix of a type that indicates it cannot alias another type when
+ * comparing BTF IDs for kfunc invocations.
+ */
+#define NOCAST_ALIAS_SUFFIX		"___init"
+
+/*
  * Common data to all BTF show operations. Private show functions can add
  * their own data to a structure containing a struct btf_show and consult it
  * in the show callback.  See btf_type_show() below.
@@ -1397,12 +1403,18 @@ __printf(4, 5) static void __btf_verifier_log_type(struct btf_verifier_env *env,
 	if (!bpf_verifier_log_needed(log))
 		return;
 
-	/* btf verifier prints all types it is processing via
-	 * btf_verifier_log_type(..., fmt = NULL).
-	 * Skip those prints for in-kernel BTF verification.
-	 */
-	if (log->level == BPF_LOG_KERNEL && !fmt)
-		return;
+	if (log->level == BPF_LOG_KERNEL) {
+		/* btf verifier prints all types it is processing via
+		 * btf_verifier_log_type(..., fmt = NULL).
+		 * Skip those prints for in-kernel BTF verification.
+		 */
+		if (!fmt)
+			return;
+
+		/* Skip logging when loading module BTF with mismatches permitted */
+		if (env->btf->base_btf && IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+			return;
+	}
 
 	__btf_verifier_log(log, "[%u] %s %s%s",
 			   env->log_type_id,
@@ -1441,8 +1453,15 @@ static void btf_verifier_log_member(struct btf_verifier_env *env,
 	if (!bpf_verifier_log_needed(log))
 		return;
 
-	if (log->level == BPF_LOG_KERNEL && !fmt)
-		return;
+	if (log->level == BPF_LOG_KERNEL) {
+		if (!fmt)
+			return;
+
+		/* Skip logging when loading module BTF with mismatches permitted */
+		if (env->btf->base_btf && IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+			return;
+	}
+
 	/* The CHECK_META phase already did a btf dump.
 	 *
 	 * If member is logged again, it must hit an error in
@@ -3228,7 +3247,7 @@ struct btf_field_info {
 		struct {
 			const char *node_name;
 			u32 value_btf_id;
-		} list_head;
+		} graph_root;
 	};
 };
 
@@ -3305,12 +3324,14 @@ static const char *btf_find_decl_tag_value(const struct btf *btf,
 	return NULL;
 }
 
-static int btf_find_list_head(const struct btf *btf, const struct btf_type *pt,
-			      const struct btf_type *t, int comp_idx,
-			      u32 off, int sz, struct btf_field_info *info)
+static int
+btf_find_graph_root(const struct btf *btf, const struct btf_type *pt,
+		    const struct btf_type *t, int comp_idx, u32 off,
+		    int sz, struct btf_field_info *info,
+		    enum btf_field_type head_type)
 {
+	const char *node_field_name;
 	const char *value_type;
-	const char *list_node;
 	s32 id;
 
 	if (!__btf_type_is_struct(t))
@@ -3320,25 +3341,31 @@ static int btf_find_list_head(const struct btf *btf, const struct btf_type *pt,
 	value_type = btf_find_decl_tag_value(btf, pt, comp_idx, "contains:");
 	if (!value_type)
 		return -EINVAL;
-	list_node = strstr(value_type, ":");
-	if (!list_node)
+	node_field_name = strstr(value_type, ":");
+	if (!node_field_name)
 		return -EINVAL;
-	value_type = kstrndup(value_type, list_node - value_type, GFP_KERNEL | __GFP_NOWARN);
+	value_type = kstrndup(value_type, node_field_name - value_type, GFP_KERNEL | __GFP_NOWARN);
 	if (!value_type)
 		return -ENOMEM;
 	id = btf_find_by_name_kind(btf, value_type, BTF_KIND_STRUCT);
 	kfree(value_type);
 	if (id < 0)
 		return id;
-	list_node++;
-	if (str_is_empty(list_node))
+	node_field_name++;
+	if (str_is_empty(node_field_name))
 		return -EINVAL;
-	info->type = BPF_LIST_HEAD;
+	info->type = head_type;
 	info->off = off;
-	info->list_head.value_btf_id = id;
-	info->list_head.node_name = list_node;
+	info->graph_root.value_btf_id = id;
+	info->graph_root.node_name = node_field_name;
 	return BTF_FIELD_FOUND;
 }
+
+#define field_mask_test_name(field_type, field_type_str) \
+	if (field_mask & field_type && !strcmp(name, field_type_str)) { \
+		type = field_type;					\
+		goto end;						\
+	}
 
 static int btf_get_field_type(const char *name, u32 field_mask, u32 *seen_mask,
 			      int *align, int *sz)
@@ -3363,18 +3390,11 @@ static int btf_get_field_type(const char *name, u32 field_mask, u32 *seen_mask,
 			goto end;
 		}
 	}
-	if (field_mask & BPF_LIST_HEAD) {
-		if (!strcmp(name, "bpf_list_head")) {
-			type = BPF_LIST_HEAD;
-			goto end;
-		}
-	}
-	if (field_mask & BPF_LIST_NODE) {
-		if (!strcmp(name, "bpf_list_node")) {
-			type = BPF_LIST_NODE;
-			goto end;
-		}
-	}
+	field_mask_test_name(BPF_LIST_HEAD, "bpf_list_head");
+	field_mask_test_name(BPF_LIST_NODE, "bpf_list_node");
+	field_mask_test_name(BPF_RB_ROOT,   "bpf_rb_root");
+	field_mask_test_name(BPF_RB_NODE,   "bpf_rb_node");
+
 	/* Only return BPF_KPTR when all other types with matchable names fail */
 	if (field_mask & BPF_KPTR) {
 		type = BPF_KPTR_REF;
@@ -3386,6 +3406,8 @@ end:
 	*align = btf_field_type_align(type);
 	return type;
 }
+
+#undef field_mask_test_name
 
 static int btf_find_struct_field(const struct btf *btf,
 				 const struct btf_type *t, u32 field_mask,
@@ -3419,6 +3441,7 @@ static int btf_find_struct_field(const struct btf *btf,
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
 		case BPF_LIST_NODE:
+		case BPF_RB_NODE:
 			ret = btf_find_struct(btf, member_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3432,8 +3455,11 @@ static int btf_find_struct_field(const struct btf *btf,
 				return ret;
 			break;
 		case BPF_LIST_HEAD:
-			ret = btf_find_list_head(btf, t, member_type, i, off, sz,
-						 idx < info_cnt ? &info[idx] : &tmp);
+		case BPF_RB_ROOT:
+			ret = btf_find_graph_root(btf, t, member_type,
+						  i, off, sz,
+						  idx < info_cnt ? &info[idx] : &tmp,
+						  field_type);
 			if (ret < 0)
 				return ret;
 			break;
@@ -3480,6 +3506,7 @@ static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 		case BPF_SPIN_LOCK:
 		case BPF_TIMER:
 		case BPF_LIST_NODE:
+		case BPF_RB_NODE:
 			ret = btf_find_struct(btf, var_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3493,8 +3520,11 @@ static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 				return ret;
 			break;
 		case BPF_LIST_HEAD:
-			ret = btf_find_list_head(btf, var, var_type, -1, off, sz,
-						 idx < info_cnt ? &info[idx] : &tmp);
+		case BPF_RB_ROOT:
+			ret = btf_find_graph_root(btf, var, var_type,
+						  -1, off, sz,
+						  idx < info_cnt ? &info[idx] : &tmp,
+						  field_type);
 			if (ret < 0)
 				return ret;
 			break;
@@ -3596,21 +3626,25 @@ end_btf:
 	return ret;
 }
 
-static int btf_parse_list_head(const struct btf *btf, struct btf_field *field,
-			       struct btf_field_info *info)
+static int btf_parse_graph_root(const struct btf *btf,
+				struct btf_field *field,
+				struct btf_field_info *info,
+				const char *node_type_name,
+				size_t node_type_align)
 {
 	const struct btf_type *t, *n = NULL;
 	const struct btf_member *member;
 	u32 offset;
 	int i;
 
-	t = btf_type_by_id(btf, info->list_head.value_btf_id);
+	t = btf_type_by_id(btf, info->graph_root.value_btf_id);
 	/* We've already checked that value_btf_id is a struct type. We
 	 * just need to figure out the offset of the list_node, and
 	 * verify its type.
 	 */
 	for_each_member(i, t, member) {
-		if (strcmp(info->list_head.node_name, __btf_name_by_offset(btf, member->name_off)))
+		if (strcmp(info->graph_root.node_name,
+			   __btf_name_by_offset(btf, member->name_off)))
 			continue;
 		/* Invalid BTF, two members with same name */
 		if (n)
@@ -3618,22 +3652,36 @@ static int btf_parse_list_head(const struct btf *btf, struct btf_field *field,
 		n = btf_type_by_id(btf, member->type);
 		if (!__btf_type_is_struct(n))
 			return -EINVAL;
-		if (strcmp("bpf_list_node", __btf_name_by_offset(btf, n->name_off)))
+		if (strcmp(node_type_name, __btf_name_by_offset(btf, n->name_off)))
 			return -EINVAL;
 		offset = __btf_member_bit_offset(n, member);
 		if (offset % 8)
 			return -EINVAL;
 		offset /= 8;
-		if (offset % __alignof__(struct bpf_list_node))
+		if (offset % node_type_align)
 			return -EINVAL;
 
-		field->list_head.btf = (struct btf *)btf;
-		field->list_head.value_btf_id = info->list_head.value_btf_id;
-		field->list_head.node_offset = offset;
+		field->graph_root.btf = (struct btf *)btf;
+		field->graph_root.value_btf_id = info->graph_root.value_btf_id;
+		field->graph_root.node_offset = offset;
 	}
 	if (!n)
 		return -ENOENT;
 	return 0;
+}
+
+static int btf_parse_list_head(const struct btf *btf, struct btf_field *field,
+			       struct btf_field_info *info)
+{
+	return btf_parse_graph_root(btf, field, info, "bpf_list_node",
+					    __alignof__(struct bpf_list_node));
+}
+
+static int btf_parse_rb_root(const struct btf *btf, struct btf_field *field,
+			     struct btf_field_info *info)
+{
+	return btf_parse_graph_root(btf, field, info, "bpf_rb_node",
+					    __alignof__(struct bpf_rb_node));
 }
 
 struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type *t,
@@ -3698,7 +3746,13 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 			if (ret < 0)
 				goto end;
 			break;
+		case BPF_RB_ROOT:
+			ret = btf_parse_rb_root(btf, &rec->fields[i], &info_arr[i]);
+			if (ret < 0)
+				goto end;
+			break;
 		case BPF_LIST_NODE:
+		case BPF_RB_NODE:
 			break;
 		default:
 			ret = -EFAULT;
@@ -3707,8 +3761,33 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 		rec->cnt++;
 	}
 
-	/* bpf_list_head requires bpf_spin_lock */
-	if (btf_record_has_field(rec, BPF_LIST_HEAD) && rec->spin_lock_off < 0) {
+	/* bpf_{list_head, rb_node} require bpf_spin_lock */
+	if ((btf_record_has_field(rec, BPF_LIST_HEAD) ||
+	     btf_record_has_field(rec, BPF_RB_ROOT)) && rec->spin_lock_off < 0) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	/* need collection identity for non-owning refs before allowing this
+	 *
+	 * Consider a node type w/ both list and rb_node fields:
+	 *   struct node {
+	 *     struct bpf_list_node l;
+	 *     struct bpf_rb_node r;
+	 *   }
+	 *
+	 * Used like so:
+	 *   struct node *n = bpf_obj_new(....);
+	 *   bpf_list_push_front(&list_head, &n->l);
+	 *   bpf_rbtree_remove(&rb_root, &n->r);
+	 *
+	 * It should not be possible to rbtree_remove the node since it hasn't
+	 * been added to a tree. But push_front converts n to a non-owning
+	 * reference, and rbtree_remove accepts the non-owning reference to
+	 * a type w/ bpf_rb_node field.
+	 */
+	if (btf_record_has_field(rec, BPF_LIST_NODE) &&
+	    btf_record_has_field(rec, BPF_RB_NODE)) {
 		ret = -EINVAL;
 		goto end;
 	}
@@ -3719,62 +3798,76 @@ end:
 	return ERR_PTR(ret);
 }
 
+#define GRAPH_ROOT_MASK (BPF_LIST_HEAD | BPF_RB_ROOT)
+#define GRAPH_NODE_MASK (BPF_LIST_NODE | BPF_RB_NODE)
+
 int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec)
 {
 	int i;
 
-	/* There are two owning types, kptr_ref and bpf_list_head. The former
-	 * only supports storing kernel types, which can never store references
-	 * to program allocated local types, atleast not yet. Hence we only need
-	 * to ensure that bpf_list_head ownership does not form cycles.
+	/* There are three types that signify ownership of some other type:
+	 *  kptr_ref, bpf_list_head, bpf_rb_root.
+	 * kptr_ref only supports storing kernel types, which can't store
+	 * references to program allocated local types.
+	 *
+	 * Hence we only need to ensure that bpf_{list_head,rb_root} ownership
+	 * does not form cycles.
 	 */
-	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & BPF_LIST_HEAD))
+	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & GRAPH_ROOT_MASK))
 		return 0;
 	for (i = 0; i < rec->cnt; i++) {
 		struct btf_struct_meta *meta;
 		u32 btf_id;
 
-		if (!(rec->fields[i].type & BPF_LIST_HEAD))
+		if (!(rec->fields[i].type & GRAPH_ROOT_MASK))
 			continue;
-		btf_id = rec->fields[i].list_head.value_btf_id;
+		btf_id = rec->fields[i].graph_root.value_btf_id;
 		meta = btf_find_struct_meta(btf, btf_id);
 		if (!meta)
 			return -EFAULT;
-		rec->fields[i].list_head.value_rec = meta->record;
+		rec->fields[i].graph_root.value_rec = meta->record;
 
-		if (!(rec->field_mask & BPF_LIST_NODE))
+		/* We need to set value_rec for all root types, but no need
+		 * to check ownership cycle for a type unless it's also a
+		 * node type.
+		 */
+		if (!(rec->field_mask & GRAPH_NODE_MASK))
 			continue;
 
 		/* We need to ensure ownership acyclicity among all types. The
 		 * proper way to do it would be to topologically sort all BTF
 		 * IDs based on the ownership edges, since there can be multiple
-		 * bpf_list_head in a type. Instead, we use the following
-		 * reasoning:
+		 * bpf_{list_head,rb_node} in a type. Instead, we use the
+		 * following resaoning:
 		 *
 		 * - A type can only be owned by another type in user BTF if it
-		 *   has a bpf_list_node.
+		 *   has a bpf_{list,rb}_node. Let's call these node types.
 		 * - A type can only _own_ another type in user BTF if it has a
-		 *   bpf_list_head.
+		 *   bpf_{list_head,rb_root}. Let's call these root types.
 		 *
-		 * We ensure that if a type has both bpf_list_head and
-		 * bpf_list_node, its element types cannot be owning types.
+		 * We ensure that if a type is both a root and node, its
+		 * element types cannot be root types.
 		 *
 		 * To ensure acyclicity:
 		 *
-		 * When A only has bpf_list_head, ownership chain can be:
+		 * When A is an root type but not a node, its ownership
+		 * chain can be:
 		 *	A -> B -> C
 		 * Where:
-		 * - B has both bpf_list_head and bpf_list_node.
-		 * - C only has bpf_list_node.
+		 * - A is an root, e.g. has bpf_rb_root.
+		 * - B is both a root and node, e.g. has bpf_rb_node and
+		 *   bpf_list_head.
+		 * - C is only an root, e.g. has bpf_list_node
 		 *
-		 * When A has both bpf_list_head and bpf_list_node, some other
-		 * type already owns it in the BTF domain, hence it can not own
-		 * another owning type through any of the bpf_list_head edges.
+		 * When A is both a root and node, some other type already
+		 * owns it in the BTF domain, hence it can not own
+		 * another root type through any of the ownership edges.
 		 *	A -> B
 		 * Where:
-		 * - B only has bpf_list_node.
+		 * - A is both an root and node.
+		 * - B is only an node.
 		 */
-		if (meta->record->field_mask & BPF_LIST_HEAD)
+		if (meta->record->field_mask & GRAPH_ROOT_MASK)
 			return -ELOOP;
 	}
 	return 0;
@@ -4476,6 +4569,7 @@ static int btf_datasec_resolve(struct btf_verifier_env *env,
 	struct btf *btf = env->btf;
 	u16 i;
 
+	env->resolve_mode = RESOLVE_TBD;
 	for_each_vsi_from(i, v->next_member, v->t, vsi) {
 		u32 var_type_id = vsi->type, type_id, type_size = 0;
 		const struct btf_type *var_type = btf_type_by_id(env->btf,
@@ -5236,6 +5330,8 @@ static const char *alloc_obj_fields[] = {
 	"bpf_spin_lock",
 	"bpf_list_head",
 	"bpf_list_node",
+	"bpf_rb_root",
+	"bpf_rb_node",
 };
 
 static struct btf_struct_metas *
@@ -5309,7 +5405,8 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 
 		type = &tab->types[tab->cnt];
 		type->btf_id = i;
-		record = btf_parse_fields(btf, t, BPF_SPIN_LOCK | BPF_LIST_HEAD | BPF_LIST_NODE, t->size);
+		record = btf_parse_fields(btf, t, BPF_SPIN_LOCK | BPF_LIST_HEAD | BPF_LIST_NODE |
+						  BPF_RB_ROOT | BPF_RB_NODE, t->size);
 		/* The record cannot be unset, treat it as an error if so */
 		if (IS_ERR_OR_NULL(record)) {
 			ret = PTR_ERR_OR_ZERO(record) ?: -EFAULT;
@@ -5573,6 +5670,7 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 	if (!ctx_struct)
 		/* should not happen */
 		return NULL;
+again:
 	ctx_tname = btf_name_by_offset(btf_vmlinux, ctx_struct->name_off);
 	if (!ctx_tname) {
 		/* should not happen */
@@ -5586,8 +5684,16 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 	 * int socket_filter_bpf_prog(struct __sk_buff *skb)
 	 * { // no fields of skb are ever used }
 	 */
-	if (strcmp(ctx_tname, tname))
-		return NULL;
+	if (strcmp(ctx_tname, tname)) {
+		/* bpf_user_pt_regs_t is a typedef, so resolve it to
+		 * underlying struct and check name again
+		 */
+		if (!btf_type_is_modifier(ctx_struct))
+			return NULL;
+		while (btf_type_is_modifier(ctx_struct))
+			ctx_struct = btf_type_by_id(btf_vmlinux, ctx_struct->type);
+		goto again;
+	}
 	return ctx_type;
 }
 
@@ -6433,6 +6539,18 @@ static int __get_type_size(struct btf *btf, u32 btf_id,
 	return -EINVAL;
 }
 
+static u8 __get_type_fmodel_flags(const struct btf_type *t)
+{
+	u8 flags = 0;
+
+	if (__btf_type_is_struct(t))
+		flags |= BTF_FMODEL_STRUCT_ARG;
+	if (btf_type_is_signed_int(t))
+		flags |= BTF_FMODEL_SIGNED_ARG;
+
+	return flags;
+}
+
 int btf_distill_func_proto(struct bpf_verifier_log *log,
 			   struct btf *btf,
 			   const struct btf_type *func,
@@ -6453,6 +6571,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			m->arg_flags[i] = 0;
 		}
 		m->ret_size = 8;
+		m->ret_flags = 0;
 		m->nr_args = MAX_BPF_FUNC_REG_ARGS;
 		return 0;
 	}
@@ -6472,6 +6591,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 		return -EINVAL;
 	}
 	m->ret_size = ret;
+	m->ret_flags = __get_type_fmodel_flags(t);
 
 	for (i = 0; i < nargs; i++) {
 		if (i == nargs - 1 && args[i].type == 0) {
@@ -6496,7 +6616,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			return -EINVAL;
 		}
 		m->arg_size[i] = ret;
-		m->arg_flags[i] = __btf_type_is_struct(t) ? BTF_FMODEL_STRUCT_ARG : 0;
+		m->arg_flags[i] = __get_type_fmodel_flags(t);
 	}
 	m->nr_args = nargs;
 	return 0;
@@ -7260,11 +7380,14 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 		}
 		btf = btf_parse_module(mod->name, mod->btf_data, mod->btf_data_size);
 		if (IS_ERR(btf)) {
-			pr_warn("failed to validate module [%s] BTF: %ld\n",
-				mod->name, PTR_ERR(btf));
 			kfree(btf_mod);
-			if (!IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+			if (!IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH)) {
+				pr_warn("failed to validate module [%s] BTF: %ld\n",
+					mod->name, PTR_ERR(btf));
 				err = PTR_ERR(btf);
+			} else {
+				pr_warn_once("Kernel module BTF mismatch detected, BTF debug info may be unavailable for some modules\n");
+			}
 			goto out;
 		}
 		err = btf_alloc_id(btf);
@@ -8209,4 +8332,120 @@ out:
 			print_cand_cache(ctx->log);
 	}
 	return err;
+}
+
+bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
+				const struct bpf_reg_state *reg,
+				int off)
+{
+	struct btf *btf = reg->btf;
+	const struct btf_type *walk_type, *safe_type;
+	const char *tname;
+	char safe_tname[64];
+	long ret, safe_id;
+	const struct btf_member *member, *m_walk = NULL;
+	u32 i;
+	const char *walk_name;
+
+	walk_type = btf_type_by_id(btf, reg->btf_id);
+	if (!walk_type)
+		return false;
+
+	tname = btf_name_by_offset(btf, walk_type->name_off);
+
+	ret = snprintf(safe_tname, sizeof(safe_tname), "%s__safe_fields", tname);
+	if (ret < 0)
+		return false;
+
+	safe_id = btf_find_by_name_kind(btf, safe_tname, BTF_INFO_KIND(walk_type->info));
+	if (safe_id < 0)
+		return false;
+
+	safe_type = btf_type_by_id(btf, safe_id);
+	if (!safe_type)
+		return false;
+
+	for_each_member(i, walk_type, member) {
+		u32 moff;
+
+		/* We're looking for the PTR_TO_BTF_ID member in the struct
+		 * type we're walking which matches the specified offset.
+		 * Below, we'll iterate over the fields in the safe variant of
+		 * the struct and see if any of them has a matching type /
+		 * name.
+		 */
+		moff = __btf_member_bit_offset(walk_type, member) / 8;
+		if (off == moff) {
+			m_walk = member;
+			break;
+		}
+	}
+	if (m_walk == NULL)
+		return false;
+
+	walk_name = __btf_name_by_offset(btf, m_walk->name_off);
+	for_each_member(i, safe_type, member) {
+		const char *m_name = __btf_name_by_offset(btf, member->name_off);
+
+		/* If we match on both type and name, the field is considered trusted. */
+		if (m_walk->type == member->type && !strcmp(walk_name, m_name))
+			return true;
+	}
+
+	return false;
+}
+
+bool btf_type_ids_nocast_alias(struct bpf_verifier_log *log,
+			       const struct btf *reg_btf, u32 reg_id,
+			       const struct btf *arg_btf, u32 arg_id)
+{
+	const char *reg_name, *arg_name, *search_needle;
+	const struct btf_type *reg_type, *arg_type;
+	int reg_len, arg_len, cmp_len;
+	size_t pattern_len = sizeof(NOCAST_ALIAS_SUFFIX) - sizeof(char);
+
+	reg_type = btf_type_by_id(reg_btf, reg_id);
+	if (!reg_type)
+		return false;
+
+	arg_type = btf_type_by_id(arg_btf, arg_id);
+	if (!arg_type)
+		return false;
+
+	reg_name = btf_name_by_offset(reg_btf, reg_type->name_off);
+	arg_name = btf_name_by_offset(arg_btf, arg_type->name_off);
+
+	reg_len = strlen(reg_name);
+	arg_len = strlen(arg_name);
+
+	/* Exactly one of the two type names may be suffixed with ___init, so
+	 * if the strings are the same size, they can't possibly be no-cast
+	 * aliases of one another. If you have two of the same type names, e.g.
+	 * they're both nf_conn___init, it would be improper to return true
+	 * because they are _not_ no-cast aliases, they are the same type.
+	 */
+	if (reg_len == arg_len)
+		return false;
+
+	/* Either of the two names must be the other name, suffixed with ___init. */
+	if ((reg_len != arg_len + pattern_len) &&
+	    (arg_len != reg_len + pattern_len))
+		return false;
+
+	if (reg_len < arg_len) {
+		search_needle = strstr(arg_name, NOCAST_ALIAS_SUFFIX);
+		cmp_len = reg_len;
+	} else {
+		search_needle = strstr(reg_name, NOCAST_ALIAS_SUFFIX);
+		cmp_len = arg_len;
+	}
+
+	if (!search_needle)
+		return false;
+
+	/* ___init suffix must come at the end of the name */
+	if (*(search_needle + pattern_len) != '\0')
+		return false;
+
+	return !strncmp(reg_name, arg_name, cmp_len);
 }

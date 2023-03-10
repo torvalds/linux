@@ -45,8 +45,7 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "dce/dmub_outbox.h"
-#include "dc_link_dp.h"
-#include "inc/link_dpcd.h"
+#include "link.h"
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "inc/link_enc_cfg.h"
 #include "dcn30/dcn30_vpg.h"
@@ -203,7 +202,7 @@ void dcn31_init_hw(struct dc *dc)
 		dmub_enable_outbox_notification(dc->ctx->dmub_srv);
 
 	/* we want to turn off all dp displays before doing detection */
-	dc_link_blank_all_dp_displays(dc);
+	link_blank_all_dp_displays(dc);
 
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
@@ -231,7 +230,7 @@ void dcn31_init_hw(struct dc *dc)
 				}
 
 				if (num_opps > 1) {
-					dc_link_blank_all_edp_displays(dc);
+					link_blank_all_edp_displays(dc);
 					break;
 				}
 			}
@@ -415,7 +414,17 @@ void dcn31_update_info_frame(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
-	else {
+	else if (link_is_dp_128b_132b_signal(pipe_ctx)) {
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->update_dp_info_packets(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				&pipe_ctx->stream_res.encoder_info_frame);
+		return;
+	} else {
+		if (pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num)
+			pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets_sdp_line_num(
+				pipe_ctx->stream_res.stream_enc,
+				&pipe_ctx->stream_res.encoder_info_frame);
+
 		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
@@ -556,7 +565,7 @@ static void dcn31_reset_back_end_for_pipe(
 		 * VBIOS lit up eDP, so check link status too.
 		 */
 		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			core_link_disable_stream(pipe_ctx);
+			link_set_dpms_off(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
@@ -575,7 +584,7 @@ static void dcn31_reset_back_end_for_pipe(
 			}
 		}
 	} else if (pipe_ctx->stream_res.dsc) {
-			dp_set_dsc_enable(pipe_ctx, false);
+			link_set_dsc_enable(pipe_ctx, false);
 	}
 
 	pipe_ctx->stream = NULL;
@@ -622,44 +631,4 @@ void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
 {
 	if (hws->ctx->dc->debug.hpo_optimization)
 		REG_UPDATE(HPO_TOP_HW_CONTROL, HPO_IO_EN, !!enable);
-}
-void dcn31_set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, struct dc_crtc_timing_adjust adjust)
-{
-	int i = 0;
-	struct drr_params params = {0};
-	unsigned int event_triggers = 0x2;/*Bit[1]: OTG_TRIG_A*/
-	unsigned int num_frames = 2;
-	params.vertical_total_max = adjust.v_total_max;
-	params.vertical_total_min = adjust.v_total_min;
-	params.vertical_total_mid = adjust.v_total_mid;
-	params.vertical_total_mid_frame_num = adjust.v_total_mid_frame_num;
-	for (i = 0; i < num_pipes; i++) {
-		if ((pipe_ctx[i]->stream_res.tg != NULL) && pipe_ctx[i]->stream_res.tg->funcs) {
-			if (pipe_ctx[i]->stream_res.tg->funcs->set_drr)
-				pipe_ctx[i]->stream_res.tg->funcs->set_drr(
-					pipe_ctx[i]->stream_res.tg, &params);
-			if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
-				if (pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control)
-					pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
-						pipe_ctx[i]->stream_res.tg,
-						event_triggers, num_frames);
-		}
-	}
-}
-void dcn31_set_static_screen_control(struct pipe_ctx **pipe_ctx,
-		int num_pipes, const struct dc_static_screen_params *params)
-{
-	unsigned int i;
-	unsigned int triggers = 0;
-	if (params->triggers.surface_update)
-		triggers |= 0x600;/*bit 9 and bit10 : 110 0000 0000*/
-	if (params->triggers.cursor_update)
-		triggers |= 0x10;/*bit4*/
-	if (params->triggers.force_trigger)
-		triggers |= 0x1;
-	for (i = 0; i < num_pipes; i++)
-		pipe_ctx[i]->stream_res.tg->funcs->
-			set_static_screen_control(pipe_ctx[i]->stream_res.tg,
-					triggers, params->num_frames);
 }

@@ -347,8 +347,7 @@ static ssize_t zcdn_create_store(struct class *class,
 	int rc;
 	char name[ZCDN_MAX_NAME];
 
-	strncpy(name, skip_spaces(buf), sizeof(name));
-	name[sizeof(name) - 1] = '\0';
+	strscpy(name, skip_spaces(buf), sizeof(name));
 
 	rc = zcdn_create(strim(name));
 
@@ -365,8 +364,7 @@ static ssize_t zcdn_destroy_store(struct class *class,
 	int rc;
 	char name[ZCDN_MAX_NAME];
 
-	strncpy(name, skip_spaces(buf), sizeof(name));
-	name[sizeof(name) - 1] = '\0';
+	strscpy(name, skip_spaces(buf), sizeof(name));
 
 	rc = zcdn_destroy(strim(name));
 

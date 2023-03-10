@@ -124,7 +124,7 @@
 		};
 	};
 
-	iio-hwmon-battery {
+	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc1 7>;
 	};
@@ -854,6 +854,10 @@
 };
 
 &i2c15 {
+	status = "okay";
+};
+
+&uart2 {
 	status = "okay";
 };
 

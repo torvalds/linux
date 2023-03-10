@@ -830,10 +830,10 @@ Error conditions
   The extended error information and usage takes the form shown in
   this example::
 
-    # echo xxx > /sys/kernel/debug/tracing/events/sched/sched_wakeup/trigger
+    # echo xxx > /sys/kernel/tracing/events/sched/sched_wakeup/trigger
     echo: write error: Invalid argument
 
-    # cat /sys/kernel/debug/tracing/error_log
+    # cat /sys/kernel/tracing/error_log
     [ 5348.887237] location: error: Couldn't yyy: zzz
       Command: xxx
                ^
@@ -843,7 +843,7 @@ Error conditions
 
   To clear the error log, echo the empty string into it::
 
-    # echo > /sys/kernel/debug/tracing/error_log
+    # echo > /sys/kernel/tracing/error_log
 
 Examples of using the tracer
 ----------------------------

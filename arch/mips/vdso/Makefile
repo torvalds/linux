@@ -52,9 +52,6 @@ endif
 CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE)
 
 ifdef CONFIG_MIPS_DISABLE_VDSO
-  ifndef CONFIG_MIPS_LD_CAN_LINK_VDSO
-    $(warning MIPS VDSO requires binutils >= 2.25)
-  endif
   obj-vdso-y := $(filter-out vgettimeofday.o, $(obj-vdso-y))
 endif
 

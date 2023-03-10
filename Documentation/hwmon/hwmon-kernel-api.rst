@@ -57,7 +57,7 @@ register/unregister functions::
 hwmon_device_register_with_groups registers a hardware monitoring device.
 The first parameter of this function is a pointer to the parent device.
 The name parameter is a pointer to the hwmon device name. The registration
-function wil create a name sysfs attribute pointing to this name.
+function will create a name sysfs attribute pointing to this name.
 The drvdata parameter is the pointer to the local driver data.
 hwmon_device_register_with_groups will attach this pointer to the newly
 allocated hwmon device. The pointer can be retrieved by the driver using
@@ -299,7 +299,7 @@ Parameters:
 
 Return value:
 	The file mode for this attribute. Typically, this will be 0 (the
-	attribute will not be created), S_IRUGO, or 'S_IRUGO | S_IWUSR'.
+	attribute will not be created), 0444, or 0644.
 
 ::
 
@@ -360,7 +360,7 @@ functions is used.
 The header file linux/hwmon-sysfs.h provides a number of useful macros to
 declare and use hardware monitoring sysfs attributes.
 
-In many cases, you can use the exsting define DEVICE_ATTR or its variants
+In many cases, you can use the existing define DEVICE_ATTR or its variants
 DEVICE_ATTR_{RW,RO,WO} to declare such attributes. This is feasible if an
 attribute has no additional context. However, in many cases there will be
 additional information such as a sensor index which will need to be passed

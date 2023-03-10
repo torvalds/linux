@@ -376,7 +376,7 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
 		/* Still read out the GRC value for state verification */
 		if (phy_info->rcomp_phy != -1)
-			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
+			dev_priv->display.state.bxt_phy_grc = bxt_get_grc(dev_priv, phy);
 
 		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
 			drm_dbg(&dev_priv->drm, "DDI PHY %d already enabled, "
@@ -442,8 +442,9 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 		 * the corresponding calibrated value from PHY1, and disable
 		 * the automatic calibration on PHY0.
 		 */
-		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv,
-							  phy_info->rcomp_phy);
+		val = bxt_get_grc(dev_priv, phy_info->rcomp_phy);
+		dev_priv->display.state.bxt_phy_grc = val;
+
 		grc_code = val << GRC_CODE_FAST_SHIFT |
 			   val << GRC_CODE_SLOW_SHIFT |
 			   val;
@@ -568,7 +569,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			   "BXT_PORT_CL2CM_DW6(%d)", phy);
 
 	if (phy_info->rcomp_phy != -1) {
-		u32 grc_code = dev_priv->bxt_phy_grc;
+		u32 grc_code = dev_priv->display.state.bxt_phy_grc;
 
 		grc_code = grc_code << GRC_CODE_FAST_SHIFT |
 			   grc_code << GRC_CODE_SLOW_SHIFT |

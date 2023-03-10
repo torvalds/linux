@@ -1467,7 +1467,7 @@ static int m88e1540_set_fld(struct phy_device *phydev, const u8 *msecs)
 	/* According to the Marvell data sheet EEE must be disabled for
 	 * Fast Link Down detection to work properly
 	 */
-	ret = phy_ethtool_get_eee(phydev, &eee);
+	ret = genphy_c45_ethtool_get_eee(phydev, &eee);
 	if (!ret && eee.eee_enabled) {
 		phydev_warn(phydev, "Fast Link Down detection requires EEE to be disabled!\n");
 		return -EBUSY;

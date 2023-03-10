@@ -38,11 +38,13 @@
 #include <linux/bug.h>
 #include <linux/sched/signal.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/splice.h>
 #include <crypto/aead.h>
 
 #include <net/strparser.h>
 #include <net/tls.h>
+#include <trace/events/sock.h>
 
 #include "tls.h"
 
@@ -57,6 +59,7 @@ struct tls_decrypt_arg {
 };
 
 struct tls_decrypt_ctx {
+	struct sock *sk;
 	u8 iv[MAX_IV_SIZE];
 	u8 aad[TLS_MAX_AAD_SIZE];
 	u8 tail;
@@ -177,18 +180,25 @@ static int tls_padding_length(struct tls_prot_info *prot, struct sk_buff *skb,
 	return sub;
 }
 
-static void tls_decrypt_done(struct crypto_async_request *req, int err)
+static void tls_decrypt_done(void *data, int err)
 {
-	struct aead_request *aead_req = (struct aead_request *)req;
+	struct aead_request *aead_req = data;
+	struct crypto_aead *aead = crypto_aead_reqtfm(aead_req);
 	struct scatterlist *sgout = aead_req->dst;
 	struct scatterlist *sgin = aead_req->src;
 	struct tls_sw_context_rx *ctx;
+	struct tls_decrypt_ctx *dctx;
 	struct tls_context *tls_ctx;
 	struct scatterlist *sg;
 	unsigned int pages;
 	struct sock *sk;
+	int aead_size;
 
-	sk = (struct sock *)req->data;
+	aead_size = sizeof(*aead_req) + crypto_aead_reqsize(aead);
+	aead_size = ALIGN(aead_size, __alignof__(*dctx));
+	dctx = (void *)((u8 *)aead_req + aead_size);
+
+	sk = dctx->sk;
 	tls_ctx = tls_get_ctx(sk);
 	ctx = tls_sw_ctx_rx(tls_ctx);
 
@@ -240,7 +250,7 @@ static int tls_do_decryption(struct sock *sk,
 	if (darg->async) {
 		aead_request_set_callback(aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
-					  tls_decrypt_done, sk);
+					  tls_decrypt_done, aead_req);
 		atomic_inc(&ctx->decrypt_pending);
 	} else {
 		aead_request_set_callback(aead_req,
@@ -336,6 +346,8 @@ static struct tls_rec *tls_get_rec(struct sock *sk)
 	sg_set_buf(&rec->sg_aead_out[0], rec->aad_space, prot->aad_size);
 	sg_unmark_end(&rec->sg_aead_out[1]);
 
+	rec->sk = sk;
+
 	return rec;
 }
 
@@ -417,21 +429,24 @@ tx_err:
 	return rc;
 }
 
-static void tls_encrypt_done(struct crypto_async_request *req, int err)
+static void tls_encrypt_done(void *data, int err)
 {
-	struct aead_request *aead_req = (struct aead_request *)req;
-	struct sock *sk = req->data;
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_prot_info *prot = &tls_ctx->prot_info;
-	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
+	struct tls_sw_context_tx *ctx;
+	struct tls_context *tls_ctx;
+	struct tls_prot_info *prot;
+	struct tls_rec *rec = data;
 	struct scatterlist *sge;
 	struct sk_msg *msg_en;
-	struct tls_rec *rec;
 	bool ready = false;
+	struct sock *sk;
 	int pending;
 
-	rec = container_of(aead_req, struct tls_rec, aead_req);
 	msg_en = &rec->msg_encrypted;
+
+	sk = rec->sk;
+	tls_ctx = tls_get_ctx(sk);
+	prot = &tls_ctx->prot_info;
+	ctx = tls_sw_ctx_tx(tls_ctx);
 
 	sge = sk_msg_elem(msg_en, msg_en->sg.curr);
 	sge->offset -= prot->prepend_size;
@@ -520,7 +535,7 @@ static int tls_do_encryption(struct sock *sk,
 			       data_len, rec->iv_data);
 
 	aead_request_set_callback(aead_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				  tls_encrypt_done, sk);
+				  tls_encrypt_done, rec);
 
 	/* Add the record in tx_list */
 	list_add_tail((struct list_head *)&rec->list, &ctx->tx_list);
@@ -941,7 +956,9 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 			       MSG_CMSG_COMPAT))
 		return -EOPNOTSUPP;
 
-	mutex_lock(&tls_ctx->tx_lock);
+	ret = mutex_lock_interruptible(&tls_ctx->tx_lock);
+	if (ret)
+		return ret;
 	lock_sock(sk);
 
 	if (unlikely(msg->msg_controllen)) {
@@ -1275,7 +1292,9 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 		      MSG_SENDPAGE_NOTLAST | MSG_SENDPAGE_NOPOLICY))
 		return -EOPNOTSUPP;
 
-	mutex_lock(&tls_ctx->tx_lock);
+	ret = mutex_lock_interruptible(&tls_ctx->tx_lock);
+	if (ret)
+		return ret;
 	lock_sock(sk);
 	ret = tls_sw_do_sendpage(sk, page, offset, size, flags);
 	release_sock(sk);
@@ -1485,6 +1504,7 @@ static int tls_decrypt_sg(struct sock *sk, struct iov_iter *out_iov,
 	 * Both structs are variable length.
 	 */
 	aead_size = sizeof(*aead_req) + crypto_aead_reqsize(ctx->aead_recv);
+	aead_size = ALIGN(aead_size, __alignof__(*dctx));
 	mem = kmalloc(aead_size + struct_size(dctx, sg, n_sgin + n_sgout),
 		      sk->sk_allocation);
 	if (!mem) {
@@ -1495,6 +1515,7 @@ static int tls_decrypt_sg(struct sock *sk, struct iov_iter *out_iov,
 	/* Segment the allocated memory */
 	aead_req = (struct aead_request *)mem;
 	dctx = (struct tls_decrypt_ctx *)(mem + aead_size);
+	dctx->sk = sk;
 	sgin = &dctx->sg[0];
 	sgout = &dctx->sg[n_sgin];
 
@@ -2110,7 +2131,7 @@ recv_end:
 		else
 			err = process_rx_list(ctx, msg, &control, 0,
 					      async_copy_bytes, is_peek);
-		decrypted = max(err, 0);
+		decrypted += max(err, 0);
 	}
 
 	copied += decrypted;
@@ -2284,6 +2305,8 @@ static void tls_data_ready(struct sock *sk)
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	struct sk_psock *psock;
 
+	trace_sk_data_ready(sk);
+
 	tls_strp_data_ready(&ctx->strp);
 
 	psock = sk_psock_get(sk);
@@ -2416,11 +2439,19 @@ static void tx_work_handler(struct work_struct *work)
 
 	if (!test_and_clear_bit(BIT_TX_SCHEDULED, &ctx->tx_bitmask))
 		return;
-	mutex_lock(&tls_ctx->tx_lock);
-	lock_sock(sk);
-	tls_tx_records(sk, -1);
-	release_sock(sk);
-	mutex_unlock(&tls_ctx->tx_lock);
+
+	if (mutex_trylock(&tls_ctx->tx_lock)) {
+		lock_sock(sk);
+		tls_tx_records(sk, -1);
+		release_sock(sk);
+		mutex_unlock(&tls_ctx->tx_lock);
+	} else if (!test_and_set_bit(BIT_TX_SCHEDULED, &ctx->tx_bitmask)) {
+		/* Someone is holding the tx_lock, they will likely run Tx
+		 * and cancel the work on their way out of the lock section.
+		 * Schedule a long delay just in case.
+		 */
+		schedule_delayed_work(&ctx->tx_work.work, msecs_to_jiffies(10));
+	}
 }
 
 static bool tls_is_tx_ready(struct tls_sw_context_tx *ctx)

@@ -10,16 +10,15 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/module.h>
+#include <linux/vfio.h>
 
 struct iommufd_ctx;
 struct iommu_group;
-struct vfio_device;
 struct vfio_container;
 
 void vfio_device_put_registration(struct vfio_device *device);
 bool vfio_device_try_get_registration(struct vfio_device *device);
-int vfio_device_open(struct vfio_device *device,
-		     struct iommufd_ctx *iommufd, struct kvm *kvm);
+int vfio_device_open(struct vfio_device *device, struct iommufd_ctx *iommufd);
 void vfio_device_close(struct vfio_device *device,
 		       struct iommufd_ctx *iommufd);
 
@@ -74,6 +73,7 @@ struct vfio_group {
 	struct file			*opened_file;
 	struct blocking_notifier_head	notifier;
 	struct iommufd_ctx		*iommufd;
+	spinlock_t			kvm_ref_lock;
 };
 
 int vfio_device_set_group(struct vfio_device *device,
@@ -88,12 +88,13 @@ bool vfio_device_has_container(struct vfio_device *device);
 int __init vfio_group_init(void);
 void vfio_group_cleanup(void);
 
-#if IS_ENABLED(CONFIG_VFIO_CONTAINER)
-/* events for the backend driver notify callback */
-enum vfio_iommu_notify_type {
-	VFIO_IOMMU_CONTAINER_CLOSE = 0,
-};
+static inline bool vfio_device_is_noiommu(struct vfio_device *vdev)
+{
+	return IS_ENABLED(CONFIG_VFIO_NOIOMMU) &&
+	       vdev->group->type == VFIO_NO_IOMMU;
+}
 
+#if IS_ENABLED(CONFIG_VFIO_CONTAINER)
 /**
  * struct vfio_iommu_driver_ops - VFIO IOMMU driver callbacks
  */
@@ -124,8 +125,6 @@ struct vfio_iommu_driver_ops {
 				  void *data, size_t count, bool write);
 	struct iommu_domain *(*group_iommu_domain)(void *iommu_data,
 						   struct iommu_group *group);
-	void		(*notify)(void *iommu_data,
-				  enum vfio_iommu_notify_type event);
 };
 
 struct vfio_iommu_driver {
@@ -249,6 +248,20 @@ static inline void vfio_virqfd_exit(void)
 extern bool vfio_noiommu __read_mostly;
 #else
 enum { vfio_noiommu = false };
+#endif
+
+#ifdef CONFIG_HAVE_KVM
+void _vfio_device_get_kvm_safe(struct vfio_device *device, struct kvm *kvm);
+void vfio_device_put_kvm(struct vfio_device *device);
+#else
+static inline void _vfio_device_get_kvm_safe(struct vfio_device *device,
+					     struct kvm *kvm)
+{
+}
+
+static inline void vfio_device_put_kvm(struct vfio_device *device)
+{
+}
 #endif
 
 #endif

@@ -123,7 +123,7 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	 * A first data channel is for MIDI messages, the rest is Multi Bit
 	 * Linear Audio data channel.
 	 */
-	err = amdtp_stream_set_parameters(s, rate, pcm_channels + 1);
+	err = amdtp_stream_set_parameters(s, rate, pcm_channels + 1, 1);
 	if (err < 0)
 		return err;
 
@@ -341,16 +341,13 @@ void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 		WRITE_ONCE(p->midi[port], midi);
 }
 
-static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
-					    struct snd_pcm_substream *pcm)
+static void process_ir_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -360,21 +357,18 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 		}
 
 		read_midi_messages(s, buf, data_blocks);
-	}
 
-	return pcm_frames;
+		desc = amdtp_stream_next_packet_desc(s, desc);
+	}
 }
 
-static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
-					    struct snd_pcm_substream *pcm)
+static void process_it_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -387,9 +381,9 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		write_midi_messages(s, buf, data_blocks,
 				    desc->data_block_counter);
-	}
 
-	return pcm_frames;
+		desc = amdtp_stream_next_packet_desc(s, desc);
+	}
 }
 
 int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,

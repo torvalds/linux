@@ -1991,6 +1991,8 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(9, 4, 2):
 		case IP_VERSION(10, 3, 0):
 		case IP_VERSION(11, 0, 0):
+		case IP_VERSION(11, 0, 1):
+		case IP_VERSION(11, 0, 2):
 			*states = ATTR_STATE_SUPPORTED;
 			break;
 		default:
@@ -3061,7 +3063,7 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * hwmon interfaces for GPU power:
  *
- * - power1_average: average power used by the GPU in microWatts
+ * - power1_average: average power used by the SoC in microWatts.  On APUs this includes the CPU.
  *
  * - power1_cap_min: minimum cap supported in microWatts
  *

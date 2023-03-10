@@ -22,7 +22,9 @@ properties:
   reg:
     maxItems: 1
 
-  interrupts: true
+  interrupts:
+    maxItems: 1
+
   interrupt-controller: true
   "#interrupt-cells": true
   gpio-controller: true
@@ -32,7 +34,7 @@ properties:
     maxItems: 105
 
   gpio-line-names:
-    maxItems: 209
+    maxItems: 210
 
   "#gpio-cells": true
   gpio-ranges: true

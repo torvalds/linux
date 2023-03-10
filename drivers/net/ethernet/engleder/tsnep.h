@@ -65,7 +65,11 @@ struct tsnep_tx_entry {
 
 	u32 properties;
 
-	struct sk_buff *skb;
+	u32 type;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	};
 	size_t len;
 	DEFINE_DMA_UNMAP_ADDR(dma);
 };
@@ -78,8 +82,6 @@ struct tsnep_tx {
 	void *page[TSNEP_RING_PAGE_COUNT];
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];
 
-	/* TX ring lock */
-	spinlock_t lock;
 	struct tsnep_tx_entry entry[TSNEP_RING_SIZE];
 	int write;
 	int read;
@@ -107,6 +109,7 @@ struct tsnep_rx {
 	struct tsnep_adapter *adapter;
 	void __iomem *addr;
 	int queue_index;
+	int tx_queue_index;
 
 	void *page[TSNEP_RING_PAGE_COUNT];
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];
@@ -123,6 +126,8 @@ struct tsnep_rx {
 	u32 dropped;
 	u32 multicast;
 	u32 alloc_failed;
+
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct tsnep_queue {
@@ -172,6 +177,8 @@ struct tsnep_adapter {
 	int rxnfc_count;
 	int rxnfc_max;
 
+	struct bpf_prog *xdp_prog;
+
 	int num_tx_queues;
 	struct tsnep_tx tx[TSNEP_MAX_QUEUES];
 	int num_rx_queues;
@@ -203,6 +210,9 @@ int tsnep_rxnfc_add_rule(struct tsnep_adapter *adapter,
 			 struct ethtool_rxnfc *cmd);
 int tsnep_rxnfc_del_rule(struct tsnep_adapter *adapter,
 			 struct ethtool_rxnfc *cmd);
+
+int tsnep_xdp_setup_prog(struct tsnep_adapter *adapter, struct bpf_prog *prog,
+			 struct netlink_ext_ack *extack);
 
 #if IS_ENABLED(CONFIG_TSNEP_SELFTESTS)
 int tsnep_ethtool_get_test_count(void);

@@ -32,7 +32,6 @@
 #include "dc_bios_types.h"
 #include "include/grph_object_ctrl_defs.h"
 #include "include/bios_parser_interface.h"
-#include "include/i2caux_interface.h"
 #include "include/logger_interface.h"
 
 #include "command_table2.h"
@@ -1698,14 +1697,15 @@ static enum bp_result bios_parser_enable_disp_power_gating(
 static enum bp_result bios_parser_enable_lvtma_control(
 	struct dc_bios *dcb,
 	uint8_t uc_pwr_on,
-	uint8_t panel_instance)
+	uint8_t panel_instance,
+	uint8_t bypass_panel_control_wait)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 
 	if (!bp->cmd_tbl.enable_lvtma_control)
 		return BP_RESULT_FAILURE;
 
-	return bp->cmd_tbl.enable_lvtma_control(bp, uc_pwr_on, panel_instance);
+	return bp->cmd_tbl.enable_lvtma_control(bp, uc_pwr_on, panel_instance, bypass_panel_control_wait);
 }
 
 static bool bios_parser_is_accelerated_mode(
@@ -2929,7 +2929,6 @@ static enum bp_result construct_integrated_info(
 	struct atom_common_table_header *header;
 	struct atom_data_revision revision;
 
-	struct clock_voltage_caps temp = {0, 0};
 	uint32_t i;
 	uint32_t j;
 
@@ -3032,14 +3031,8 @@ static enum bp_result construct_integrated_info(
 	for (i = 1; i < NUMBER_OF_DISP_CLK_VOLTAGE; ++i) {
 		for (j = i; j > 0; --j) {
 			if (info->disp_clk_voltage[j].max_supported_clk <
-				info->disp_clk_voltage[j-1].max_supported_clk
-				) {
-				/* swap j and j - 1*/
-				temp = info->disp_clk_voltage[j-1];
-				info->disp_clk_voltage[j-1] =
-					info->disp_clk_voltage[j];
-				info->disp_clk_voltage[j] = temp;
-			}
+			    info->disp_clk_voltage[j-1].max_supported_clk)
+				swap(info->disp_clk_voltage[j-1], info->disp_clk_voltage[j]);
 		}
 	}
 

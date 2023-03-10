@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>

@@ -22,7 +22,6 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 	struct user_namespace *uns = seq_user_ns(m);
 	struct group_info *gi;
 	kernel_cap_t cap;
-	unsigned __capi;
 	int g;
 
 	seq_printf(m, "%5d\n", id);
@@ -42,8 +41,7 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 	}
 	seq_puts(m, "\n\tCapEff:\t");
 	cap = cred->cap_effective;
-	CAP_FOR_EACH_U32(__capi)
-		seq_put_hex_ll(m, NULL, cap.cap[CAP_LAST_U32 - __capi], 8);
+	seq_put_hex_ll(m, NULL, cap.val, 16);
 	seq_putc(m, '\n');
 	return 0;
 }

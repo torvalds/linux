@@ -963,6 +963,7 @@
 	pinctrl-0 = <&uart1_pins_default>;
 	pinctrl-1 = <&uart1_pins_sleep>;
 	status = "okay";
+	/delete-property/ interrupts;
 	interrupts-extended = <&sysirq GIC_SPI 92 IRQ_TYPE_LEVEL_LOW>,
 			      <&pio 121 IRQ_TYPE_EDGE_FALLING>;
 
@@ -989,5 +990,4 @@
 	};
 };
 
-#include <arm/cros-ec-keyboard.dtsi>
 #include <arm/cros-ec-sbs.dtsi>

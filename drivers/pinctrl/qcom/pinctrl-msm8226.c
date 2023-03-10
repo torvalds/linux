@@ -362,6 +362,8 @@ enum msm8226_functions {
 	MSM_MUX_cam_mclk0,
 	MSM_MUX_cam_mclk1,
 	MSM_MUX_cci_i2c0,
+	MSM_MUX_gp0_clk,
+	MSM_MUX_gp1_clk,
 	MSM_MUX_gpio,
 	MSM_MUX_sdc3,
 	MSM_MUX_wlan,
@@ -447,6 +449,9 @@ static const char * const cci_i2c0_groups[] = { "gpio29", "gpio30" };
 static const char * const cam_mclk0_groups[] = { "gpio26" };
 static const char * const cam_mclk1_groups[] = { "gpio27" };
 
+static const char * const gp0_clk_groups[] = { "gpio33" };
+static const char * const gp1_clk_groups[] = { "gpio34" };
+
 static const char * const sdc3_groups[] = {
 	"gpio39", "gpio40", "gpio41", "gpio42", "gpio43", "gpio44"
 };
@@ -480,6 +485,8 @@ static const struct msm_function msm8226_functions[] = {
 	FUNCTION(cam_mclk0),
 	FUNCTION(cam_mclk1),
 	FUNCTION(cci_i2c0),
+	FUNCTION(gp0_clk),
+	FUNCTION(gp1_clk),
 	FUNCTION(gpio),
 	FUNCTION(sdc3),
 	FUNCTION(wlan),
@@ -519,8 +526,8 @@ static const struct msm_pingroup msm8226_groups[] = {
 	PINGROUP(30,  cci_i2c0, NA, NA, NA, NA, NA, NA),
 	PINGROUP(31,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(32,  NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(33,  NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(34,  NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(33,  NA, NA, gp0_clk, NA, NA, NA, NA),
+	PINGROUP(34,  NA, NA, gp1_clk, NA, NA, NA, NA),
 	PINGROUP(35,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(36,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(37,  NA, NA, NA, NA, NA, NA, NA),

@@ -7,6 +7,7 @@
  * Authors:
  *   Yaozu (Eddie) Dong <Eddie.dong@intel.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/export.h>
 #include <linux/kvm_host.h>

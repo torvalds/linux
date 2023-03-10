@@ -57,8 +57,9 @@ int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk)
 
 static inline bool
 mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
-		    struct page *page, struct xdp_buff *xdp)
+		    struct xdp_buff *xdp)
 {
+	struct page *page = virt_to_page(xdp->data);
 	struct skb_shared_info *sinfo = NULL;
 	struct mlx5e_xmit_data xdptxd;
 	struct mlx5e_xdp_info xdpi;
@@ -156,10 +157,39 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	return true;
 }
 
-/* returns true if packet was consumed by xdp */
-bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct page *page,
-		      struct bpf_prog *prog, struct xdp_buff *xdp)
+static int mlx5e_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 {
+	const struct mlx5e_xdp_buff *_ctx = (void *)ctx;
+
+	if (unlikely(!mlx5e_rx_hw_stamp(_ctx->rq->tstamp)))
+		return -EOPNOTSUPP;
+
+	*timestamp =  mlx5e_cqe_ts_to_ns(_ctx->rq->ptp_cyc2time,
+					 _ctx->rq->clock, get_cqe_ts(_ctx->cqe));
+	return 0;
+}
+
+static int mlx5e_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash)
+{
+	const struct mlx5e_xdp_buff *_ctx = (void *)ctx;
+
+	if (unlikely(!(_ctx->xdp.rxq->dev->features & NETIF_F_RXHASH)))
+		return -EOPNOTSUPP;
+
+	*hash = be32_to_cpu(_ctx->cqe->rss_hash_result);
+	return 0;
+}
+
+const struct xdp_metadata_ops mlx5e_xdp_metadata_ops = {
+	.xmo_rx_timestamp		= mlx5e_xdp_rx_timestamp,
+	.xmo_rx_hash			= mlx5e_xdp_rx_hash,
+};
+
+/* returns true if packet was consumed by xdp */
+bool mlx5e_xdp_handle(struct mlx5e_rq *rq,
+		      struct bpf_prog *prog, struct mlx5e_xdp_buff *mxbuf)
+{
+	struct xdp_buff *xdp = &mxbuf->xdp;
 	u32 act;
 	int err;
 
@@ -168,7 +198,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct page *page,
 	case XDP_PASS:
 		return false;
 	case XDP_TX:
-		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, page, xdp)))
+		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, xdp)))
 			goto xdp_abort;
 		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
 		return true;
@@ -180,7 +210,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct page *page,
 		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags);
 		__set_bit(MLX5E_RQ_FLAG_XDP_REDIRECT, rq->flags);
 		if (xdp->rxq->mem.type != MEM_TYPE_XSK_BUFF_POOL)
-			mlx5e_page_dma_unmap(rq, page);
+			mlx5e_page_dma_unmap(rq, virt_to_page(xdp->data));
 		rq->stats->xdp_redirect++;
 		return true;
 	default:

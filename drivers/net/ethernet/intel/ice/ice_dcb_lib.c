@@ -862,7 +862,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	if (err)
 		goto dcb_init_err;
 
-	return err;
+	return 0;
 
 dcb_init_err:
 	dev_err(dev, "DCB init failed\n");
@@ -947,6 +947,16 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring *tx_ring,
 }
 
 /**
+ * ice_dcb_is_mib_change_pending - Check if MIB change is pending
+ * @state: MIB change state
+ */
+static bool ice_dcb_is_mib_change_pending(u8 state)
+{
+	return ICE_AQ_LLDP_MIB_CHANGE_PENDING ==
+		FIELD_GET(ICE_AQ_LLDP_MIB_CHANGE_STATE_M, state);
+}
+
+/**
  * ice_dcb_process_lldp_set_mib_change - Process MIB change
  * @pf: ptr to ice_pf
  * @event: pointer to the admin queue receive event
@@ -959,6 +969,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_aqc_lldp_get_mib *mib;
 	struct ice_dcbx_cfg tmp_dcbx_cfg;
+	bool pending_handled = true;
 	bool need_reconfig = false;
 	struct ice_port_info *pi;
 	u8 mib_type;
@@ -975,41 +986,58 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 
 	pi = pf->hw.port_info;
 	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
+
 	/* Ignore if event is not for Nearest Bridge */
-	mib_type = ((mib->type >> ICE_AQ_LLDP_BRID_TYPE_S) &
-		    ICE_AQ_LLDP_BRID_TYPE_M);
+	mib_type = FIELD_GET(ICE_AQ_LLDP_BRID_TYPE_M, mib->type);
 	dev_dbg(dev, "LLDP event MIB bridge type 0x%x\n", mib_type);
 	if (mib_type != ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID)
 		return;
 
+	/* A pending change event contains accurate config information, and
+	 * the FW setting has not been updaed yet, so detect if change is
+	 * pending to determine where to pull config information from
+	 * (FW vs event)
+	 */
+	if (ice_dcb_is_mib_change_pending(mib->state))
+		pending_handled = false;
+
 	/* Check MIB Type and return if event for Remote MIB update */
-	mib_type = mib->type & ICE_AQ_LLDP_MIB_TYPE_M;
+	mib_type = FIELD_GET(ICE_AQ_LLDP_MIB_TYPE_M, mib->type);
 	dev_dbg(dev, "LLDP event mib type %s\n", mib_type ? "remote" : "local");
 	if (mib_type == ICE_AQ_LLDP_MIB_REMOTE) {
 		/* Update the remote cached instance and return */
-		ret = ice_aq_get_dcb_cfg(pi->hw, ICE_AQ_LLDP_MIB_REMOTE,
-					 ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID,
-					 &pi->qos_cfg.remote_dcbx_cfg);
-		if (ret) {
-			dev_err(dev, "Failed to get remote DCB config\n");
-			return;
+		if (!pending_handled) {
+			ice_get_dcb_cfg_from_mib_change(pi, event);
+		} else {
+			ret =
+			  ice_aq_get_dcb_cfg(pi->hw, ICE_AQ_LLDP_MIB_REMOTE,
+					     ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID,
+					     &pi->qos_cfg.remote_dcbx_cfg);
+			if (ret)
+				dev_dbg(dev, "Failed to get remote DCB config\n");
 		}
+		return;
 	}
 
+	/* That a DCB change has happened is now determined */
 	mutex_lock(&pf->tc_mutex);
 
 	/* store the old configuration */
-	tmp_dcbx_cfg = pf->hw.port_info->qos_cfg.local_dcbx_cfg;
+	tmp_dcbx_cfg = pi->qos_cfg.local_dcbx_cfg;
 
 	/* Reset the old DCBX configuration data */
 	memset(&pi->qos_cfg.local_dcbx_cfg, 0,
 	       sizeof(pi->qos_cfg.local_dcbx_cfg));
 
 	/* Get updated DCBX data from firmware */
-	ret = ice_get_dcb_cfg(pf->hw.port_info);
-	if (ret) {
-		dev_err(dev, "Failed to get DCB config\n");
-		goto out;
+	if (!pending_handled) {
+		ice_get_dcb_cfg_from_mib_change(pi, event);
+	} else {
+		ret = ice_get_dcb_cfg(pi);
+		if (ret) {
+			dev_err(dev, "Failed to get DCB config\n");
+			goto out;
+		}
 	}
 
 	/* No change detected in DCBX configs */
@@ -1036,11 +1064,17 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
 	}
 
+	/* Send Execute Pending MIB Change event if it is a Pending event */
+	if (!pending_handled) {
+		ice_lldp_execute_pending_mib(&pf->hw);
+		pending_handled = true;
+	}
+
 	rtnl_lock();
 	/* disable VSIs affected by DCB changes */
 	ice_dcb_ena_dis_vsi(pf, false, true);
 
-	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
+	ret = ice_query_port_ets(pi, &buf, sizeof(buf), NULL);
 	if (ret) {
 		dev_err(dev, "Query Port ETS failed\n");
 		goto unlock_rtnl;
@@ -1055,4 +1089,8 @@ unlock_rtnl:
 	rtnl_unlock();
 out:
 	mutex_unlock(&pf->tc_mutex);
+
+	/* Send Execute Pending MIB Change event if it is a Pending event */
+	if (!pending_handled)
+		ice_lldp_execute_pending_mib(&pf->hw);
 }

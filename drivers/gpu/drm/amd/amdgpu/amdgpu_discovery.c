@@ -33,6 +33,7 @@
 #include "gmc_v9_0.h"
 #include "df_v1_7.h"
 #include "df_v3_6.h"
+#include "df_v4_3.h"
 #include "nbio_v6_1.h"
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
@@ -542,6 +543,7 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 	struct harvest_table *harvest_info;
 	u16 offset;
 	int i;
+	uint32_t umc_harvest_config = 0;
 
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
 	offset = le16_to_cpu(bhdr->table_list[HARVEST_INFO].offset);
@@ -569,12 +571,17 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
 			break;
 		case UMC_HWID:
+			umc_harvest_config |=
+				1 << (le16_to_cpu(harvest_info->list[i].number_instance));
 			(*umc_harvest_count)++;
 			break;
 		default:
 			break;
 		}
 	}
+
+	adev->umc.active_mask = ((1 << adev->umc.node_inst_num) - 1) &
+				~umc_harvest_config;
 }
 
 /* ================================================== */
@@ -1155,8 +1162,10 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 						AMDGPU_MAX_SDMA_INSTANCES);
 			}
 
-			if (le16_to_cpu(ip->hw_id) == UMC_HWID)
+			if (le16_to_cpu(ip->hw_id) == UMC_HWID) {
 				adev->gmc.num_umc++;
+				adev->umc.node_inst_num++;
+			}
 
 			for (k = 0; k < num_base_address; k++) {
 				/*
@@ -2328,6 +2337,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 1):
 	case IP_VERSION(3, 5, 2):
 		adev->df.funcs = &df_v1_7_funcs;
+		break;
+	case IP_VERSION(4, 3, 0):
+		adev->df.funcs = &df_v4_3_funcs;
 		break;
 	default:
 		break;

@@ -3100,7 +3100,7 @@ static inline void reiserfs_update_sd(struct reiserfs_transaction_handle *th,
 }
 
 void sd_attrs_to_i_attrs(__u16 sd_attrs, struct inode *inode);
-int reiserfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int reiserfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *attr);
 
 int __reiserfs_write_begin(struct page *page, unsigned from, unsigned len);
@@ -3407,7 +3407,7 @@ __u32 r5_hash(const signed char *msg, int len);
 
 /* prototypes from ioctl.c */
 int reiserfs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-int reiserfs_fileattr_set(struct user_namespace *mnt_userns,
+int reiserfs_fileattr_set(struct mnt_idmap *idmap,
 			  struct dentry *dentry, struct fileattr *fa);
 long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long reiserfs_compat_ioctl(struct file *filp,

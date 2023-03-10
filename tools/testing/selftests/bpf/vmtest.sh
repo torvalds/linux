@@ -13,7 +13,7 @@ s390x)
 	QEMU_BINARY=qemu-system-s390x
 	QEMU_CONSOLE="ttyS1"
 	QEMU_FLAGS=(-smp 2)
-	BZIMAGE="arch/s390/boot/compressed/vmlinux"
+	BZIMAGE="arch/s390/boot/vmlinux"
 	;;
 x86_64)
 	QEMU_BINARY=qemu-system-x86_64

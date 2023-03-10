@@ -304,6 +304,12 @@ struct net *get_net_ns_by_id(const struct net *net, int id)
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_id);
 
+/* init code that must occur even if setup_net() is not called. */
+static __net_init void preinit_net(struct net *net)
+{
+	ref_tracker_dir_init(&net->notrefcnt_tracker, 128);
+}
+
 /*
  * setup_net runs the initializers for the network namespace object.
  */
@@ -316,7 +322,6 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 
 	refcount_set(&net->ns.count, 1);
 	ref_tracker_dir_init(&net->refcnt_tracker, 128);
-	ref_tracker_dir_init(&net->notrefcnt_tracker, 128);
 
 	refcount_set(&net->passive, 1);
 	get_random_bytes(&net->hash_mix, sizeof(u32));
@@ -472,6 +477,8 @@ struct net *copy_net_ns(unsigned long flags,
 		rv = -ENOMEM;
 		goto dec_ucounts;
 	}
+
+	preinit_net(net);
 	refcount_set(&net->passive, 1);
 	net->ucounts = ucounts;
 	get_user_ns(user_ns);
@@ -1118,6 +1125,7 @@ void __init net_ns_init(void)
 	init_net.key_domain = &init_net_key_domain;
 #endif
 	down_write(&pernet_ops_rwsem);
+	preinit_net(&init_net);
 	if (setup_net(&init_net, &init_user_ns))
 		panic("Could not setup the initial network namespace");
 

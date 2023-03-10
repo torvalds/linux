@@ -199,9 +199,7 @@ int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
 static int xpcs_modify_changed(struct dw_xpcs *xpcs, int dev, u32 reg,
 			       u16 mask, u16 set)
 {
-	u32 reg_addr = mdiobus_c45_addr(dev, reg);
-
-	return mdiodev_modify_changed(xpcs->mdiodev, reg_addr, mask, set);
+	return mdiodev_c45_modify_changed(xpcs->mdiodev, dev, reg, mask, set);
 }
 
 static int xpcs_read_vendor(struct dw_xpcs *xpcs, int dev, u32 reg)

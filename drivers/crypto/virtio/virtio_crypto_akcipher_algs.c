@@ -116,7 +116,7 @@ static int virtio_crypto_alg_akcipher_init_session(struct virtio_crypto_akcipher
 	struct virtio_crypto_session_input *input;
 	struct virtio_crypto_ctrl_request *vc_ctrl_req;
 
-	pkey = kmemdup(key, keylen, GFP_ATOMIC);
+	pkey = kmemdup(key, keylen, GFP_KERNEL);
 	if (!pkey)
 		return -ENOMEM;
 

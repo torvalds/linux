@@ -1,34 +1,35 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
+#include <linux/compat.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
+#include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/gpio.h>
-#include <linux/idr.h>
-#include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
+#include <linux/idr.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/fs.h>
-#include <linux/compat.h>
-#include <linux/file.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+
 #include <uapi/linux/gpio.h>
 
-#include "gpiolib.h"
-#include "gpiolib-of.h"
 #include "gpiolib-acpi.h"
-#include "gpiolib-swnode.h"
 #include "gpiolib-cdev.h"
+#include "gpiolib-of.h"
+#include "gpiolib-swnode.h"
 #include "gpiolib-sysfs.h"
+#include "gpiolib.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
@@ -531,6 +532,14 @@ static void gpiochip_free_valid_mask(struct gpio_chip *gc)
 
 static int gpiochip_add_pin_ranges(struct gpio_chip *gc)
 {
+	/*
+	 * Device Tree platforms are supposed to use "gpio-ranges"
+	 * property. This check ensures that the ->add_pin_ranges()
+	 * won't be called for them.
+	 */
+	if (device_property_present(&gc->gpiodev->dev, "gpio-ranges"))
+		return 0;
+
 	if (gc->add_pin_ranges)
 		return gc->add_pin_ranges(gc);
 
@@ -577,6 +586,13 @@ static void gpiodevice_release(struct device *dev)
 static int gpiochip_setup_dev(struct gpio_device *gdev)
 {
 	int ret;
+
+	/*
+	 * If fwnode doesn't belong to another device, it's safe to clear its
+	 * initialized flag.
+	 */
+	if (gdev->dev.fwnode && !gdev->dev.fwnode->dev)
+		fwnode_dev_initialized(gdev->dev.fwnode, false);
 
 	ret = gcdev_register(gdev, gpio_devt);
 	if (ret)
@@ -659,10 +675,12 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	int base = 0;
 	int ret = 0;
 
+	/* If the calling driver did not initialize firmware node, do it here */
 	if (gc->fwnode)
 		fwnode = gc->fwnode;
 	else if (gc->parent)
 		fwnode = dev_fwnode(gc->parent);
+	gc->fwnode = fwnode;
 
 	/*
 	 * First: allocate and populate the internal stat container, and
@@ -676,14 +694,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	gdev->chip = gc;
 	gc->gpiodev = gdev;
 
-	of_gpio_dev_init(gc, gdev);
-	acpi_gpio_dev_init(gc, gdev);
-
-	/*
-	 * Assign fwnode depending on the result of the previous calls,
-	 * if none of them succeed, assign it to the parent's one.
-	 */
-	gc->fwnode = gdev->dev.fwnode = dev_fwnode(&gdev->dev) ?: fwnode;
+	device_set_node(&gdev->dev, gc->fwnode);
 
 	gdev->id = ida_alloc(&gpio_ida, GFP_KERNEL);
 	if (gdev->id < 0) {
@@ -882,7 +893,7 @@ err_free_gpiochip_mask:
 	gpiochip_free_valid_mask(gc);
 	if (gdev->dev.release) {
 		/* release() has been registered by gpiochip_setup_dev() */
-		put_device(&gdev->dev);
+		gpio_device_put(gdev);
 		goto err_print_message;
 	}
 err_remove_from_list:
@@ -972,7 +983,7 @@ void gpiochip_remove(struct gpio_chip *gc)
 	 */
 	gcdev_unregister(gdev);
 	up_write(&gdev->sem);
-	put_device(&gdev->dev);
+	gpio_device_put(gdev);
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);
 
@@ -1126,14 +1137,8 @@ static void gpiochip_set_hierarchical_irqchip(struct gpio_chip *gc,
 			/* Just pick something */
 			fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
 			fwspec.param_count = 2;
-			ret = __irq_domain_alloc_irqs(gc->irq.domain,
-						      /* just pick something */
-						      -1,
-						      1,
-						      NUMA_NO_NODE,
-						      &fwspec,
-						      false,
-						      NULL);
+			ret = irq_domain_alloc_irqs(gc->irq.domain, 1,
+						    NUMA_NO_NODE, &fwspec);
 			if (ret < 0) {
 				chip_err(gc,
 					 "can not allocate irq for GPIO line %d parent hwirq %d in hierarchy domain: %d\n",
@@ -2063,17 +2068,15 @@ static int validate_desc(const struct gpio_desc *desc, const char *func)
 int gpiod_request(struct gpio_desc *desc, const char *label)
 {
 	int ret = -EPROBE_DEFER;
-	struct gpio_device *gdev;
 
 	VALIDATE_DESC(desc);
-	gdev = desc->gdev;
 
-	if (try_module_get(gdev->owner)) {
+	if (try_module_get(desc->gdev->owner)) {
 		ret = gpiod_request_commit(desc, label);
 		if (ret)
-			module_put(gdev->owner);
+			module_put(desc->gdev->owner);
 		else
-			get_device(&gdev->dev);
+			gpio_device_get(desc->gdev);
 	}
 
 	if (ret)
@@ -2134,7 +2137,7 @@ void gpiod_free(struct gpio_desc *desc)
 {
 	if (desc && desc->gdev && gpiod_free_commit(desc)) {
 		module_put(desc->gdev->owner);
-		put_device(&desc->gdev->dev);
+		gpio_device_put(desc->gdev);
 	} else {
 		WARN_ON(extra_checks);
 	}

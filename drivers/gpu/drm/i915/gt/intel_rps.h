@@ -12,6 +12,9 @@
 struct i915_request;
 struct drm_printer;
 
+#define GT_FREQUENCY_MULTIPLIER 50
+#define GEN9_FREQ_SCALER 3
+
 void intel_rps_init_early(struct intel_rps *rps);
 void intel_rps_init(struct intel_rps *rps);
 void intel_rps_sanitize(struct intel_rps *rps);

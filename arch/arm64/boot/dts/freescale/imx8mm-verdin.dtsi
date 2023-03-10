@@ -56,7 +56,11 @@
 	hdmi_connector: hdmi-connector {
 		compatible = "hdmi-connector";
 		ddc-i2c-bus = <&i2c2>;
+		/* Verdin PWM_3_DSI (SODIMM 19) */
+		hpd-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 		label = "hdmi";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pwm_3_dsi_hpd_gpio>;
 		type = "a";
 		status = "disabled";
 	};
@@ -359,7 +363,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
 		reg = <0x25>;
-		sd-vsel-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 
 		/*
 		 * The bootloader is expected to switch on the I2C level shifter for the TLA2024 ADC
@@ -599,7 +602,7 @@
 	hdmi_lontium_lt8912: hdmi@48 {
 		compatible = "lontium,lt8912b";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpio_10_dsi>, <&pinctrl_pwm_3_dsi_hpd_gpio>;
+		pinctrl-0 = <&pinctrl_gpio_10_dsi>;
 		reg = <0x48>;
 		/* Verdin GPIO_9_DSI (LT8912 INT, SODIMM 17, unused) */
 		/* Verdin GPIO_10_DSI (SODIMM 21) */
@@ -654,10 +657,6 @@
 	assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_50M>,
 				 <&clk IMX8MM_SYS_PLL2_250M>;
 	assigned-clock-rates = <10000000>, <250000000>;
-	clocks = <&clk IMX8MM_CLK_PCIE1_ROOT>,
-		 <&clk IMX8MM_CLK_PCIE1_AUX>,
-		 <&clk IMX8MM_CLK_PCIE1_PHY>;
-	clock-names = "pcie", "pcie_aux", "pcie_bus";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie0>;
 	/* PCIE_1_RESET# (SODIMM 244) */
@@ -742,7 +741,6 @@
 	adp-disable;
 	dr_mode = "otg";
 	hnp-disable;
-	over-current-active-low;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	srp-disable;
@@ -752,7 +750,6 @@
 /* Verdin USB_2 */
 &usbotg2 {
 	dr_mode = "host";
-	over-current-active-low;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	vbus-supply = <&reg_usb_otg2_vbus>;

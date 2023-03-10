@@ -338,7 +338,7 @@ static int ndr_encode_posix_acl_entry(struct ndr *n, struct xattr_smb_acl *acl)
 }
 
 int ndr_encode_posix_acl(struct ndr *n,
-			 struct user_namespace *user_ns,
+			 struct mnt_idmap *idmap,
 			 struct inode *inode,
 			 struct xattr_smb_acl *acl,
 			 struct xattr_smb_acl *def_acl)
@@ -374,11 +374,11 @@ int ndr_encode_posix_acl(struct ndr *n,
 	if (ret)
 		return ret;
 
-	vfsuid = i_uid_into_vfsuid(user_ns, inode);
+	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	ret = ndr_write_int64(n, from_kuid(&init_user_ns, vfsuid_into_kuid(vfsuid)));
 	if (ret)
 		return ret;
-	vfsgid = i_gid_into_vfsgid(user_ns, inode);
+	vfsgid = i_gid_into_vfsgid(idmap, inode);
 	ret = ndr_write_int64(n, from_kgid(&init_user_ns, vfsgid_into_kgid(vfsgid)));
 	if (ret)
 		return ret;

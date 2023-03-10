@@ -190,9 +190,9 @@ struct posix_acl_state {
 	struct posix_ace_state_array *groups;
 };
 
-int parse_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
+int parse_sec_desc(struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
 		   int acl_len, struct smb_fattr *fattr);
-int build_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
+int build_sec_desc(struct mnt_idmap *idmap, struct smb_ntsd *pntsd,
 		   struct smb_ntsd *ppntsd, int ppntsd_size, int addition_info,
 		   __u32 *secdesclen, struct smb_fattr *fattr);
 int init_acl_state(struct posix_acl_state *state, int cnt);
@@ -211,25 +211,25 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 void id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid);
 void ksmbd_init_domain(u32 *sub_auth);
 
-static inline uid_t posix_acl_uid_translate(struct user_namespace *mnt_userns,
+static inline uid_t posix_acl_uid_translate(struct mnt_idmap *idmap,
 					    struct posix_acl_entry *pace)
 {
 	vfsuid_t vfsuid;
 
 	/* If this is an idmapped mount, apply the idmapping. */
-	vfsuid = make_vfsuid(mnt_userns, &init_user_ns, pace->e_uid);
+	vfsuid = make_vfsuid(idmap, &init_user_ns, pace->e_uid);
 
 	/* Translate the kuid into a userspace id ksmbd would see. */
 	return from_kuid(&init_user_ns, vfsuid_into_kuid(vfsuid));
 }
 
-static inline gid_t posix_acl_gid_translate(struct user_namespace *mnt_userns,
+static inline gid_t posix_acl_gid_translate(struct mnt_idmap *idmap,
 					    struct posix_acl_entry *pace)
 {
 	vfsgid_t vfsgid;
 
 	/* If this is an idmapped mount, apply the idmapping. */
-	vfsgid = make_vfsgid(mnt_userns, &init_user_ns, pace->e_gid);
+	vfsgid = make_vfsgid(idmap, &init_user_ns, pace->e_gid);
 
 	/* Translate the kgid into a userspace id ksmbd would see. */
 	return from_kgid(&init_user_ns, vfsgid_into_kgid(vfsgid));

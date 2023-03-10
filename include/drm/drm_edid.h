@@ -609,6 +609,8 @@ const struct drm_edid *drm_edid_read_custom(struct drm_connector *connector,
 					    void *context);
 int drm_edid_connector_update(struct drm_connector *connector,
 			      const struct drm_edid *edid);
+int drm_edid_connector_add_modes(struct drm_connector *connector);
+
 const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index);
 

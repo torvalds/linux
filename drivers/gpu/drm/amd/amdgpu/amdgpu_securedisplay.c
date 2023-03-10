@@ -77,11 +77,11 @@ void psp_securedisplay_parse_resp_status(struct psp_context *psp,
 	}
 }
 
-void psp_prep_securedisplay_cmd_buf(struct psp_context *psp, struct securedisplay_cmd **cmd,
+void psp_prep_securedisplay_cmd_buf(struct psp_context *psp, struct ta_securedisplay_cmd **cmd,
 	enum ta_securedisplay_command command_id)
 {
-	*cmd = (struct securedisplay_cmd *)psp->securedisplay_context.context.mem_context.shared_buf;
-	memset(*cmd, 0, sizeof(struct securedisplay_cmd));
+	*cmd = (struct ta_securedisplay_cmd *)psp->securedisplay_context.context.mem_context.shared_buf;
+	memset(*cmd, 0, sizeof(struct ta_securedisplay_cmd));
 	(*cmd)->status = TA_SECUREDISPLAY_STATUS__GENERIC_FAILURE;
 	(*cmd)->cmd_id = command_id;
 }
@@ -93,7 +93,7 @@ static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __u
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	struct psp_context *psp = &adev->psp;
-	struct securedisplay_cmd *securedisplay_cmd;
+	struct ta_securedisplay_cmd *securedisplay_cmd;
 	struct drm_device *dev = adev_to_drm(adev);
 	uint32_t phy_id;
 	uint32_t op;

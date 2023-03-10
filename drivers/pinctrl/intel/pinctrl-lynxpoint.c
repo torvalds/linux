@@ -341,18 +341,18 @@ static const char *lp_get_function_name(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *lg = pinctrl_dev_get_drvdata(pctldev);
 
-	return lg->soc->functions[selector].name;
+	return lg->soc->functions[selector].func.name;
 }
 
 static int lp_get_function_groups(struct pinctrl_dev *pctldev,
 				  unsigned int selector,
 				  const char * const **groups,
-				  unsigned int *num_groups)
+				  unsigned int *ngroups)
 {
 	struct intel_pinctrl *lg = pinctrl_dev_get_drvdata(pctldev);
 
-	*groups		= lg->soc->functions[selector].groups;
-	*num_groups	= lg->soc->functions[selector].ngroups;
+	*groups		= lg->soc->functions[selector].func.groups;
+	*ngroups	= lg->soc->functions[selector].func.ngroups;
 
 	return 0;
 }

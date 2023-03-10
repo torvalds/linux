@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 
-#include <linux/aperture.h>
 #include <linux/compat.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -1454,6 +1453,10 @@ __releases(&info->lock)
 	struct fb_info * const info = file->private_data;
 
 	lock_fb_info(info);
+#if IS_ENABLED(CONFIG_FB_DEFERRED_IO)
+	if (info->fbdefio)
+		fb_deferred_io_release(info);
+#endif
 	if (info->fbops->fb_release)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
@@ -1653,32 +1656,6 @@ static void do_unregister_framebuffer(struct fb_info *fb_info)
 	put_fb_info(fb_info);
 }
 
-static int fb_aperture_acquire_for_platform_device(struct fb_info *fb_info)
-{
-	struct apertures_struct *ap = fb_info->apertures;
-	struct device *dev = fb_info->device;
-	struct platform_device *pdev;
-	unsigned int i;
-	int ret;
-
-	if (!ap)
-		return 0;
-
-	if (!dev_is_platform(dev))
-		return 0;
-
-	pdev = to_platform_device(dev);
-
-	for (ret = 0, i = 0; i < ap->count; ++i) {
-		ret = devm_aperture_acquire_for_platform_device(pdev, ap->ranges[i].base,
-								ap->ranges[i].size);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
 /**
  *	register_framebuffer - registers a frame buffer device
  *	@fb_info: frame buffer info structure
@@ -1692,12 +1669,6 @@ int
 register_framebuffer(struct fb_info *fb_info)
 {
 	int ret;
-
-	if (fb_info->flags & FBINFO_MISC_FIRMWARE) {
-		ret = fb_aperture_acquire_for_platform_device(fb_info);
-		if (ret)
-			return ret;
-	}
 
 	mutex_lock(&registration_lock);
 	ret = do_register_framebuffer(fb_info);

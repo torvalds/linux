@@ -24,6 +24,7 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/backlight.h>
 #include <linux/slab.h>
 #include <linux/power_supply.h>
 #include <linux/pm_runtime.h>
@@ -31,7 +32,6 @@
 #include <acpi/video.h>
 #include <acpi/actbl.h>
 
-#include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_display.h"
@@ -1073,26 +1073,25 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 	    (pm_suspend_target_state != PM_SUSPEND_TO_IDLE))
 		return false;
 
+	if (adev->asic_type < CHIP_RAVEN)
+		return false;
+
 	/*
 	 * If ACPI_FADT_LOW_POWER_S0 is not set in the FADT, it is generally
 	 * risky to do any special firmware-related preparations for entering
 	 * S0ix even though the system is suspending to idle, so return false
 	 * in that case.
 	 */
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
 		dev_warn_once(adev->dev,
 			      "Power consumption will be higher as BIOS has not been configured for suspend-to-idle.\n"
 			      "To use suspend-to-idle change the sleep mode in BIOS setup.\n");
-		return false;
-	}
 
 #if !IS_ENABLED(CONFIG_AMD_PMC)
 	dev_warn_once(adev->dev,
 		      "Power consumption will be higher as the kernel has not been compiled with CONFIG_AMD_PMC.\n");
-	return false;
-#else
-	return true;
 #endif /* CONFIG_AMD_PMC */
+	return true;
 }
 
 #endif /* CONFIG_SUSPEND */

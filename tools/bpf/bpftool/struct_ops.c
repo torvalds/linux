@@ -151,7 +151,7 @@ static int get_next_struct_ops_map(const char *name, int *res_fd,
 			return -1;
 		}
 
-		err = bpf_obj_get_info_by_fd(fd, info, &info_len);
+		err = bpf_map_get_info_by_fd(fd, info, &info_len);
 		if (err) {
 			p_err("can't get map info: %s", strerror(errno));
 			close(fd);
@@ -262,7 +262,7 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 		goto done;
 	}
 
-	if (bpf_obj_get_info_by_fd(fd, info, &info_len)) {
+	if (bpf_map_get_info_by_fd(fd, info, &info_len)) {
 		p_err("can't get map info: %s", strerror(errno));
 		res.nr_errs++;
 		goto done;
@@ -522,7 +522,7 @@ static int do_register(int argc, char **argv)
 		bpf_link__disconnect(link);
 		bpf_link__destroy(link);
 
-		if (!bpf_obj_get_info_by_fd(bpf_map__fd(map), &info,
+		if (!bpf_map_get_info_by_fd(bpf_map__fd(map), &info,
 					    &info_len))
 			p_info("Registered %s %s id %u",
 			       get_kern_struct_ops_name(&info),

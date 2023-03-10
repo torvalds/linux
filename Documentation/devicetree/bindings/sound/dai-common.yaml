@@ -9,15 +9,10 @@ title: Digital Audio Interface Common Properties
 maintainers:
   - Jerome Brunet <jbrunet@baylibre.com>
 
-properties:
-  sound-name-prefix:
-    $ref: /schemas/types.yaml#/definitions/string
-    description: |
-      Card implementing the routing property define the connection between
-      audio components as list of string pair. Component using the same
-      sink/source names may use this property to prepend the name of their
-      sinks/sources with the provided string.
+allOf:
+  - $ref: component-common.yaml#
 
+properties:
   '#sound-dai-cells': true
 
 additionalProperties: true

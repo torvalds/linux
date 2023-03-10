@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/soundwire/sdw.h>
 #include <sound/jack.h>
 #include <sound/cs42l42.h>
 #include <sound/soc-component.h>
@@ -30,13 +31,14 @@ struct  cs42l42_private {
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
+	struct sdw_slave *sdw_peripheral;
 	struct mutex irq_lock;
 	int devid;
 	int irq;
 	int pll_config;
 	u32 sclk;
+	u32 sample_rate;
 	u32 bclk_ratio;
-	u32 srate;
 	u8 plug_state;
 	u8 hs_type;
 	u8 ts_inv;
@@ -62,6 +64,11 @@ extern struct snd_soc_dai_driver cs42l42_dai;
 bool cs42l42_readable_register(struct device *dev, unsigned int reg);
 bool cs42l42_volatile_register(struct device *dev, unsigned int reg);
 
+int cs42l42_pll_config(struct snd_soc_component *component,
+		       unsigned int clk, unsigned int sample_rate);
+void cs42l42_src_config(struct snd_soc_component *component, unsigned int sample_rate);
+int cs42l42_mute_stream(struct snd_soc_dai *dai, int mute, int stream);
+irqreturn_t cs42l42_irq_thread(int irq, void *data);
 int cs42l42_suspend(struct device *dev);
 int cs42l42_resume(struct device *dev);
 void cs42l42_resume_restore(struct device *dev);

@@ -26,7 +26,9 @@
 #include <asm/firmware.h>
 #include <asm/kexec_ranges.h>
 #include <asm/crashdump-ppc64.h>
+#include <asm/mmzone.h>
 #include <asm/prom.h>
+#include <asm/plpks.h>
 
 struct umem_info {
 	u64 *buf;		/* data buffer for usable-memory property */
@@ -688,7 +690,8 @@ static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
 		ret = fdt_setprop(fdt, node, "linux,drconf-usable-memory",
 				  um_info.buf, (um_info.idx * sizeof(u64)));
 		if (ret) {
-			pr_err("Failed to update fdt with linux,drconf-usable-memory property");
+			pr_err("Failed to update fdt with linux,drconf-usable-memory property: %s",
+			       fdt_strerror(ret));
 			goto out;
 		}
 	}
@@ -977,12 +980,17 @@ static unsigned int cpu_node_size(void)
  */
 unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 {
-	unsigned int cpu_nodes, extra_size;
+	unsigned int cpu_nodes, extra_size = 0;
 	struct device_node *dn;
 	u64 usm_entries;
 
+	// Budget some space for the password blob. There's already extra space
+	// for the key name
+	if (plpks_is_available())
+		extra_size += (unsigned int)plpks_get_passwordlen();
+
 	if (image->type != KEXEC_TYPE_CRASH)
-		return 0;
+		return extra_size;
 
 	/*
 	 * For kdump kernel, account for linux,usable-memory and
@@ -992,9 +1000,7 @@ unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 	if (drmem_lmb_size()) {
 		usm_entries = ((memory_hotplug_max() / drmem_lmb_size()) +
 			       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
-		extra_size = (unsigned int)(usm_entries * sizeof(u64));
-	} else {
-		extra_size = 0;
+		extra_size += (unsigned int)(usm_entries * sizeof(u64));
 	}
 
 	/*
@@ -1232,6 +1238,10 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 			goto out;
 		}
 	}
+
+	// If we have PLPKS active, we need to provide the password to the new kernel
+	if (plpks_is_available())
+		ret = plpks_populate_fdt(fdt);
 
 out:
 	kfree(rmem);

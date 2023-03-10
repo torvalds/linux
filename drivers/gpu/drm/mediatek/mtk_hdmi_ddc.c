@@ -19,6 +19,9 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
+#include "mtk_drm_drv.h"
+#include "mtk_hdmi.h"
+
 #define SIF1_CLOK		(288)
 #define DDC_DDCMCTL0		(0x0)
 #define DDCM_ODRAIN			BIT(31)

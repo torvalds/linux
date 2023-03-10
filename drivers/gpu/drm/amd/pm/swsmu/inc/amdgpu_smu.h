@@ -1201,6 +1201,8 @@ struct pptable_funcs {
 	 * IPs reset varies by asic.
 	 */
 	int (*mode2_reset)(struct smu_context *smu);
+	/* for gfx feature enablement after mode2 reset */
+	int (*enable_gfx_features)(struct smu_context *smu);
 
 	/**
 	 * @get_dpm_ultimate_freq: Get the hard frequency range of a clock

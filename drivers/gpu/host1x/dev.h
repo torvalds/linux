@@ -74,8 +74,7 @@ struct host1x_syncpt_ops {
 };
 
 struct host1x_intr_ops {
-	int (*init_host_sync)(struct host1x *host, u32 cpm,
-		void (*syncpt_thresh_work)(struct work_struct *work));
+	int (*init_host_sync)(struct host1x *host, u32 cpm);
 	void (*set_syncpt_threshold)(
 		struct host1x *host, unsigned int id, u32 thresh);
 	void (*enable_syncpt_intr)(struct host1x *host, unsigned int id);
@@ -125,6 +124,7 @@ struct host1x {
 	void __iomem *regs;
 	void __iomem *hv_regs; /* hypervisor region */
 	void __iomem *common_regs;
+	int syncpt_irq;
 	struct host1x_syncpt *syncpt;
 	struct host1x_syncpt_base *bases;
 	struct device *dev;
@@ -138,7 +138,6 @@ struct host1x {
 	dma_addr_t iova_end;
 
 	struct mutex intr_mutex;
-	int intr_syncpt_irq;
 
 	const struct host1x_syncpt_ops *syncpt_op;
 	const struct host1x_intr_ops *intr_op;
@@ -216,10 +215,9 @@ static inline void host1x_hw_syncpt_enable_protection(struct host1x *host)
 	return host->syncpt_op->enable_protection(host);
 }
 
-static inline int host1x_hw_intr_init_host_sync(struct host1x *host, u32 cpm,
-			void (*syncpt_thresh_work)(struct work_struct *))
+static inline int host1x_hw_intr_init_host_sync(struct host1x *host, u32 cpm)
 {
-	return host->intr_op->init_host_sync(host, cpm, syncpt_thresh_work);
+	return host->intr_op->init_host_sync(host, cpm);
 }
 
 static inline void host1x_hw_intr_set_syncpt_threshold(struct host1x *host,

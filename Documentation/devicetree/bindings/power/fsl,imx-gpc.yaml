@@ -23,17 +23,26 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - fsl,imx6q-gpc
-      - fsl,imx6qp-gpc
-      - fsl,imx6sl-gpc
-      - fsl,imx6sx-gpc
+    oneOf:
+      - enum:
+          - fsl,imx6q-gpc
+      - items:
+          - enum:
+              - fsl,imx6qp-gpc
+              - fsl,imx6sl-gpc
+              - fsl,imx6sx-gpc
+              - fsl,imx6ul-gpc
+          - const: fsl,imx6q-gpc
 
   reg:
     maxItems: 1
 
   interrupts:
     maxItems: 1
+
+  interrupt-controller: true
+  '#interrupt-cells':
+    const: 3
 
   clocks:
     maxItems: 1

@@ -446,8 +446,6 @@ out:
 	return ret;
 }
 
-#include <linux/seq_file.h>
-
 static void abx500_gpio_dbg_show_one(struct seq_file *s,
 				     struct pinctrl_dev *pctldev,
 				     struct gpio_chip *chip,

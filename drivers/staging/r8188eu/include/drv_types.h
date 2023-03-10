@@ -152,7 +152,6 @@ struct adapter {
 	struct	mlme_ext_priv mlmeextpriv;
 	struct	cmd_priv	cmdpriv;
 	struct	evt_priv	evtpriv;
-	struct	io_priv	iopriv;
 	struct	xmit_priv	xmitpriv;
 	struct	recv_priv	recvpriv;
 	struct	sta_priv	stapriv;
@@ -172,8 +171,6 @@ struct adapter {
 	s8	signal_strength;
 
 	void *cmdThread;
-	void (*intf_start)(struct adapter *adapter);
-	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
 
 	/*  used by rtw_rereg_nd_name related function */
@@ -187,7 +184,6 @@ struct adapter {
 	int bup;
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
-	struct proc_dir_entry *dir_dev;/*  for proc directory */
 
 	int net_closed;
 	u8 bFWReady;

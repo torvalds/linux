@@ -543,6 +543,8 @@ static int ath11k_pci_claim(struct ath11k_pci *ab_pci, struct pci_dev *pdev)
 		goto clear_master;
 	}
 
+	ab->mem_ce = ab->mem;
+
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot pci_mem 0x%pK\n", ab->mem);
 	return 0;
 
@@ -979,7 +981,7 @@ static __maybe_unused int ath11k_pci_pm_suspend(struct device *dev)
 	if (ret)
 		ath11k_warn(ab, "failed to suspend core: %d\n", ret);
 
-	return ret;
+	return 0;
 }
 
 static __maybe_unused int ath11k_pci_pm_resume(struct device *dev)

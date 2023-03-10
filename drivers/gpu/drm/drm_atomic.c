@@ -880,7 +880,7 @@ EXPORT_SYMBOL(drm_atomic_get_private_obj_state);
  * or NULL if the private_obj is not part of the global atomic state.
  */
 struct drm_private_state *
-drm_atomic_get_old_private_obj_state(struct drm_atomic_state *state,
+drm_atomic_get_old_private_obj_state(const struct drm_atomic_state *state,
 				     struct drm_private_obj *obj)
 {
 	int i;
@@ -902,7 +902,7 @@ EXPORT_SYMBOL(drm_atomic_get_old_private_obj_state);
  * or NULL if the private_obj is not part of the global atomic state.
  */
 struct drm_private_state *
-drm_atomic_get_new_private_obj_state(struct drm_atomic_state *state,
+drm_atomic_get_new_private_obj_state(const struct drm_atomic_state *state,
 				     struct drm_private_obj *obj)
 {
 	int i;
@@ -934,7 +934,7 @@ EXPORT_SYMBOL(drm_atomic_get_new_private_obj_state);
  * not connected.
  */
 struct drm_connector *
-drm_atomic_get_old_connector_for_encoder(struct drm_atomic_state *state,
+drm_atomic_get_old_connector_for_encoder(const struct drm_atomic_state *state,
 					 struct drm_encoder *encoder)
 {
 	struct drm_connector_state *conn_state;
@@ -968,7 +968,7 @@ EXPORT_SYMBOL(drm_atomic_get_old_connector_for_encoder);
  * not connected.
  */
 struct drm_connector *
-drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
+drm_atomic_get_new_connector_for_encoder(const struct drm_atomic_state *state,
 					 struct drm_encoder *encoder)
 {
 	struct drm_connector_state *conn_state;
@@ -1070,6 +1070,7 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
 	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
 	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
 	drm_printf(p, "\tself_refresh_aware=%d\n", state->self_refresh_aware);
+	drm_printf(p, "\tmax_requested_bpc=%d\n", state->max_requested_bpc);
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
 		if (state->writeback_job && state->writeback_job->fb)
@@ -1117,7 +1118,7 @@ EXPORT_SYMBOL(drm_atomic_get_bridge_state);
  * the bridge is not part of the global atomic state.
  */
 struct drm_bridge_state *
-drm_atomic_get_old_bridge_state(struct drm_atomic_state *state,
+drm_atomic_get_old_bridge_state(const struct drm_atomic_state *state,
 				struct drm_bridge *bridge)
 {
 	struct drm_private_state *obj_state;
@@ -1139,7 +1140,7 @@ EXPORT_SYMBOL(drm_atomic_get_old_bridge_state);
  * the bridge is not part of the global atomic state.
  */
 struct drm_bridge_state *
-drm_atomic_get_new_bridge_state(struct drm_atomic_state *state,
+drm_atomic_get_new_bridge_state(const struct drm_atomic_state *state,
 				struct drm_bridge *bridge)
 {
 	struct drm_private_state *obj_state;
@@ -1756,8 +1757,8 @@ EXPORT_SYMBOL(drm_state_dump);
 #ifdef CONFIG_DEBUG_FS
 static int drm_state_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_debugfs_entry *entry = m->private;
+	struct drm_device *dev = entry->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	__drm_state_dump(dev, &p, true);
@@ -1766,14 +1767,13 @@ static int drm_state_info(struct seq_file *m, void *data)
 }
 
 /* any use in debugfs files to dump individual planes/crtc/etc? */
-static const struct drm_info_list drm_atomic_debugfs_list[] = {
+static const struct drm_debugfs_info drm_atomic_debugfs_list[] = {
 	{"state", drm_state_info, 0},
 };
 
 void drm_atomic_debugfs_init(struct drm_minor *minor)
 {
-	drm_debugfs_create_files(drm_atomic_debugfs_list,
-				 ARRAY_SIZE(drm_atomic_debugfs_list),
-				 minor->debugfs_root, minor);
+	drm_debugfs_add_files(minor->dev, drm_atomic_debugfs_list,
+			      ARRAY_SIZE(drm_atomic_debugfs_list));
 }
 #endif

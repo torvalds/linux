@@ -235,26 +235,13 @@ static const struct watchdog_info otto_wdt_info = {
 		WDIOF_PRETIMEOUT,
 };
 
-static void otto_wdt_clock_action(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int otto_wdt_probe_clk(struct otto_wdt_ctrl *ctrl)
 {
-	struct clk *clk = devm_clk_get(ctrl->dev, NULL);
-	int ret;
+	struct clk *clk;
 
+	clk = devm_clk_get_enabled(ctrl->dev, NULL);
 	if (IS_ERR(clk))
 		return dev_err_probe(ctrl->dev, PTR_ERR(clk), "Failed to get clock\n");
-
-	ret = clk_prepare_enable(clk);
-	if (ret)
-		return dev_err_probe(ctrl->dev, ret, "Failed to enable clock\n");
-
-	ret = devm_add_action_or_reset(ctrl->dev, otto_wdt_clock_action, clk);
-	if (ret)
-		return ret;
 
 	ctrl->clk_rate_khz = clk_get_rate(clk) / 1000;
 	if (ctrl->clk_rate_khz == 0)

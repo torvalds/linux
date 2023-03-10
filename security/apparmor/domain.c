@@ -313,7 +313,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	d = bprm->file->f_path.dentry;
 
 	for (i = 0; i < attach->xattr_count; i++) {
-		size = vfs_getxattr_alloc(&init_user_ns, d, attach->xattrs[i],
+		size = vfs_getxattr_alloc(&nop_mnt_idmap, d, attach->xattrs[i],
 					  &value, value_size, GFP_KERNEL);
 		if (size >= 0) {
 			u32 index, perm;
@@ -862,7 +862,7 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 	const char *info = NULL;
 	int error = 0;
 	bool unsafe = false;
-	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_user_ns(bprm->file),
+	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_idmap(bprm->file),
 					    file_inode(bprm->file));
 	struct path_cond cond = {
 		vfsuid_into_kuid(vfsuid),

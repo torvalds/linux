@@ -3593,6 +3593,14 @@
 #define regGCL2TLB_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                       1
 
 
+// addressBlock: gc_rlcsdec
+// base address: 0x3b980
+#define regRLC_RLCS_FED_STATUS_0                                                                        0x4eff
+#define regRLC_RLCS_FED_STATUS_0_BASE_IDX                                                               1
+#define regRLC_RLCS_FED_STATUS_1                                                                        0x4f00
+#define regRLC_RLCS_FED_STATUS_1_BASE_IDX                                                               1
+
+
 // addressBlock: gc_gcvml2pspdec
 // base address: 0x3f900
 #define regGCUTCL2_TRANSLATION_BYPASS_BY_VMID                                                           0x5e41

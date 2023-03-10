@@ -14,7 +14,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/qcom-geni-se.h>
+#include <linux/soc/qcom/geni-se.h>
 #include <linux/spinlock.h>
 
 #define SE_I2C_TX_TRANS_LEN		0x26c
@@ -1025,7 +1025,7 @@ static const struct dev_pm_ops geni_i2c_pm_ops = {
 									NULL)
 };
 
-const struct geni_i2c_desc i2c_master_hub = {
+static const struct geni_i2c_desc i2c_master_hub = {
 	.has_core_clk = true,
 	.icc_ddr = NULL,
 	.no_dma_support = true,

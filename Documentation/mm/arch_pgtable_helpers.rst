@@ -1,7 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _arch_page_table_helpers:
-
 ===============================
 Architecture Page Table Helpers
 ===============================

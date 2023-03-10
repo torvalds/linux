@@ -9,12 +9,10 @@
 #include "../libwx/wx_hw.h"
 #include "ngbe_type.h"
 #include "ngbe_hw.h"
-#include "ngbe.h"
 
-int ngbe_eeprom_chksum_hostif(struct ngbe_hw *hw)
+int ngbe_eeprom_chksum_hostif(struct wx *wx)
 {
 	struct wx_hic_read_shadow_ram buffer;
-	struct wx_hw *wxhw = &hw->wxhw;
 	int status;
 	int tmp;
 
@@ -27,61 +25,73 @@ int ngbe_eeprom_chksum_hostif(struct ngbe_hw *hw)
 	/* one word */
 	buffer.length = 0;
 
-	status = wx_host_interface_command(wxhw, (u32 *)&buffer, sizeof(buffer),
+	status = wx_host_interface_command(wx, (u32 *)&buffer, sizeof(buffer),
 					   WX_HI_COMMAND_TIMEOUT, false);
 
 	if (status < 0)
 		return status;
-	tmp = rd32a(wxhw, WX_MNG_MBOX, 1);
+	tmp = rd32a(wx, WX_MNG_MBOX, 1);
 	if (tmp == NGBE_FW_CMD_ST_PASS)
 		return 0;
 	return -EIO;
 }
 
-static int ngbe_reset_misc(struct ngbe_hw *hw)
+static int ngbe_reset_misc(struct wx *wx)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
-
-	wx_reset_misc(wxhw);
-	if (hw->mac_type == ngbe_mac_type_rgmii)
-		wr32(wxhw, NGBE_MDIO_CLAUSE_SELECT, 0xF);
-	if (hw->gpio_ctrl) {
+	wx_reset_misc(wx);
+	if (wx->gpio_ctrl) {
 		/* gpio0 is used to power on/off control*/
-		wr32(wxhw, NGBE_GPIO_DDR, 0x1);
-		wr32(wxhw, NGBE_GPIO_DR, NGBE_GPIO_DR_0);
+		wr32(wx, NGBE_GPIO_DDR, 0x1);
+		ngbe_sfp_modules_txrx_powerctl(wx, false);
 	}
 	return 0;
 }
 
+void ngbe_sfp_modules_txrx_powerctl(struct wx *wx, bool swi)
+{
+	/* gpio0 is used to power on control . 0 is on */
+	wr32(wx, NGBE_GPIO_DR, swi ? 0 : NGBE_GPIO_DR_0);
+}
+
 /**
  *  ngbe_reset_hw - Perform hardware reset
- *  @hw: pointer to hardware structure
+ *  @wx: pointer to hardware structure
  *
  *  Resets the hardware by resetting the transmit and receive units, masks
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
  **/
-int ngbe_reset_hw(struct ngbe_hw *hw)
+int ngbe_reset_hw(struct wx *wx)
 {
-	struct wx_hw *wxhw = &hw->wxhw;
-	int status = 0;
-	u32 reset = 0;
+	u32 val = 0;
+	int ret = 0;
 
-	/* Call adapter stop to disable tx/rx and clear interrupts */
-	status = wx_stop_adapter(wxhw);
-	if (status != 0)
-		return status;
-	reset = WX_MIS_RST_LAN_RST(wxhw->bus.func);
-	wr32(wxhw, WX_MIS_RST, reset | rd32(wxhw, WX_MIS_RST));
-	ngbe_reset_misc(hw);
+	/* Call wx stop to disable tx/rx and clear interrupts */
+	ret = wx_stop_adapter(wx);
+	if (ret != 0)
+		return ret;
+
+	if (wx->mac_type != em_mac_type_mdi) {
+		val = WX_MIS_RST_LAN_RST(wx->bus.func);
+		wr32(wx, WX_MIS_RST, val | rd32(wx, WX_MIS_RST));
+
+		ret = read_poll_timeout(rd32, val,
+					!(val & (BIT(9) << wx->bus.func)), 1000,
+					100000, false, wx, 0x10028);
+		if (ret) {
+			wx_err(wx, "Lan reset exceed s maximum times.\n");
+			return ret;
+		}
+	}
+	ngbe_reset_misc(wx);
 
 	/* Store the permanent mac address */
-	wx_get_mac_addr(wxhw, wxhw->mac.perm_addr);
+	wx_get_mac_addr(wx, wx->mac.perm_addr);
 
 	/* reset num_rar_entries to 128 */
-	wxhw->mac.num_rar_entries = NGBE_RAR_ENTRIES;
-	wx_init_rx_addrs(wxhw);
-	pci_set_master(wxhw->pdev);
+	wx->mac.num_rar_entries = NGBE_RAR_ENTRIES;
+	wx_init_rx_addrs(wx);
+	pci_set_master(wx->pdev);
 
 	return 0;
 }

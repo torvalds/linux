@@ -24,7 +24,7 @@ unless this is fixed in the HW platform.
 
 The demux kABI only controls front-ends regarding to their connections with
 demuxes; the kABI used to set the other front-end parameters, such as
-tuning, are devined via the Digital TV Frontend kABI.
+tuning, are defined via the Digital TV Frontend kABI.
 
 The functions that implement the abstract interface demux should be defined
 static or module private and registered to the Demux core for external

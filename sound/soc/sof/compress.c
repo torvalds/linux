@@ -10,6 +10,7 @@
 #include "sof-audio.h"
 #include "sof-priv.h"
 #include "sof-utils.h"
+#include "ops.h"
 
 static void sof_set_transferred_bytes(struct sof_compr_stream *sstream,
 				      u64 host_pos, u64 buffer_size)
@@ -234,6 +235,14 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 				 &ipc_params_reply, sizeof(ipc_params_reply));
 	if (ret < 0) {
 		dev_err(component->dev, "error ipc failed\n");
+		goto out;
+	}
+
+	ret = snd_sof_set_stream_data_offset(sdev, &spcm->stream[cstream->direction],
+					     ipc_params_reply.posn_offset);
+	if (ret < 0) {
+		dev_err(component->dev, "Invalid stream data offset for Compr %d\n",
+			spcm->pcm.pcm_id);
 		goto out;
 	}
 

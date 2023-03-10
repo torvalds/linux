@@ -55,8 +55,7 @@ properties:
     minItems: 4
     maxItems: 5
 
-  operating-points-v2:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+  operating-points-v2: true
 
   power-domains:
     items:

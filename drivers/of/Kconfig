@@ -23,7 +23,19 @@ config OF_UNITTEST
 	  that are executed once at boot time, and the results dumped to the
 	  console.
 
-	  If unsure, say N here, but this option is safe to enable.
+	  This option should only be enabled for a development kernel. The tests
+	  will taint the kernel with TAINT_TEST. The tests will cause ERROR and
+	  WARNING messages to print on the console. The tests will cause stack
+	  traces to print on the console.  It is possible that the tests will
+	  leave the devicetree in a corrupted state.
+
+	  The unittest output will be verbose.  Copy the output to a file
+	  via capturing the console output or via the dmesg command.  Process
+	  this file with scripts/dtc/of_unittest_expect to reduce the
+	  verbosity, test whether expected output is present, and to
+	  summarize the results.
+
+	  If unsure, say N here. This option is not safe to enable.
 
 config OF_ALL_DTBS
 	bool "Build all Device Tree Blobs"

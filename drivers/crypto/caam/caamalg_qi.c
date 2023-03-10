@@ -20,6 +20,11 @@
 #include "caamalg_desc.h"
 #include <crypto/xts.h>
 #include <asm/unaligned.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 /*
  * crypto alg
@@ -959,7 +964,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		return (struct aead_edesc *)drv_ctx;
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = qi_cache_alloc(GFP_DMA | flags);
+	edesc = qi_cache_alloc(flags);
 	if (unlikely(!edesc)) {
 		dev_err(qidev, "could not allocate extended descriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1202,6 +1207,12 @@ static int ipsec_gcm_decrypt(struct aead_request *req)
 					   false);
 }
 
+static inline u8 *skcipher_edesc_iv(struct skcipher_edesc *edesc)
+{
+	return PTR_ALIGN((u8 *)&edesc->sgt[0] + edesc->qm_sg_bytes,
+			 dma_get_cache_alignment());
+}
+
 static void skcipher_done(struct caam_drv_req *drv_req, u32 status)
 {
 	struct skcipher_edesc *edesc;
@@ -1234,8 +1245,7 @@ static void skcipher_done(struct caam_drv_req *drv_req, u32 status)
 	 * This is used e.g. by the CTS mode.
 	 */
 	if (!ecode)
-		memcpy(req->iv, (u8 *)&edesc->sgt[0] + edesc->qm_sg_bytes,
-		       ivsize);
+		memcpy(req->iv, skcipher_edesc_iv(edesc), ivsize);
 
 	qi_cache_free(edesc);
 	skcipher_request_complete(req, ecode);
@@ -1257,6 +1267,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	int dst_sg_idx, qm_sg_ents, qm_sg_bytes;
 	struct qm_sg_entry *sg_table, *fd_sgt;
 	struct caam_drv_ctx *drv_ctx;
+	unsigned int len;
 
 	drv_ctx = get_drv_ctx(ctx, encrypt ? ENCRYPT : DECRYPT);
 	if (IS_ERR(drv_ctx))
@@ -1317,8 +1328,12 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		qm_sg_ents = 1 + pad_sg_nents(qm_sg_ents);
 
 	qm_sg_bytes = qm_sg_ents * sizeof(struct qm_sg_entry);
-	if (unlikely(offsetof(struct skcipher_edesc, sgt) + qm_sg_bytes +
-		     ivsize > CAAM_QI_MEMCACHE_SIZE)) {
+
+	len = offsetof(struct skcipher_edesc, sgt) + qm_sg_bytes;
+	len = ALIGN(len, dma_get_cache_alignment());
+	len += ivsize;
+
+	if (unlikely(len > CAAM_QI_MEMCACHE_SIZE)) {
 		dev_err(qidev, "No space for %d S/G entries and/or %dB IV\n",
 			qm_sg_ents, ivsize);
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
@@ -1327,7 +1342,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	}
 
 	/* allocate space for base edesc, link tables and IV */
-	edesc = qi_cache_alloc(GFP_DMA | flags);
+	edesc = qi_cache_alloc(flags);
 	if (unlikely(!edesc)) {
 		dev_err(qidev, "could not allocate extended descriptor\n");
 		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents, 0,
@@ -1335,9 +1350,16 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	edesc->src_nents = src_nents;
+	edesc->dst_nents = dst_nents;
+	edesc->qm_sg_bytes = qm_sg_bytes;
+	edesc->drv_req.app_ctx = req;
+	edesc->drv_req.cbk = skcipher_done;
+	edesc->drv_req.drv_ctx = drv_ctx;
+
 	/* Make sure IV is located in a DMAable area */
 	sg_table = &edesc->sgt[0];
-	iv = (u8 *)(sg_table + qm_sg_ents);
+	iv = skcipher_edesc_iv(edesc);
 	memcpy(iv, req->iv, ivsize);
 
 	iv_dma = dma_map_single(qidev, iv, ivsize, DMA_BIDIRECTIONAL);
@@ -1349,13 +1371,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	edesc->src_nents = src_nents;
-	edesc->dst_nents = dst_nents;
 	edesc->iv_dma = iv_dma;
-	edesc->qm_sg_bytes = qm_sg_bytes;
-	edesc->drv_req.app_ctx = req;
-	edesc->drv_req.cbk = skcipher_done;
-	edesc->drv_req.drv_ctx = drv_ctx;
 
 	dma_to_qm_sg_one(sg_table, iv_dma, ivsize, 0);
 	sg_to_qm_sg(req->src, req->cryptlen, sg_table + 1, 0);

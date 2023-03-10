@@ -280,7 +280,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 		}
 
 		/* Check if we have reached page boundary */
-		if (IS_ALIGNED(cur_in, PAGE_SIZE)) {
+		if (PAGE_ALIGNED(cur_in)) {
 			put_page(page_in);
 			page_in = NULL;
 		}

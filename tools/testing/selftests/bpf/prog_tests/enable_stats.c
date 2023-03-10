@@ -28,7 +28,7 @@ void test_enable_stats(void)
 
 	prog_fd = bpf_program__fd(skel->progs.test_enable_stats);
 	memset(&info, 0, info_len);
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (CHECK(err, "get_prog_info",
 		  "failed to get bpf_prog_info for fd %d\n", prog_fd))
 		goto cleanup;

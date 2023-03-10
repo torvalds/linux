@@ -18,6 +18,16 @@ extern asmlinkage void *__memcpy(void *, const void *, size_t);
 #define __HAVE_ARCH_MEMMOVE
 extern asmlinkage void *memmove(void *, const void *, size_t);
 extern asmlinkage void *__memmove(void *, const void *, size_t);
+
+#define __HAVE_ARCH_STRCMP
+extern asmlinkage int strcmp(const char *cs, const char *ct);
+
+#define __HAVE_ARCH_STRLEN
+extern asmlinkage __kernel_size_t strlen(const char *);
+
+#define __HAVE_ARCH_STRNCMP
+extern asmlinkage int strncmp(const char *cs, const char *ct, size_t count);
+
 /* For those files which don't want to check by kasan. */
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 #define memcpy(dst, src, len) __memcpy(dst, src, len)

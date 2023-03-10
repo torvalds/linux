@@ -218,6 +218,8 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
+	struct snd_soc_dapm_widget *p = snd_soc_dai_get_widget_playback(dai);
+	struct snd_soc_dapm_widget *c = snd_soc_dai_get_widget_capture(dai);
 	int pcm_id = dai->id;
 	struct mtk_afe_pcm_priv *pcm_priv = afe_priv->dai_priv[pcm_id];
 	unsigned int rate = params_rate(params);
@@ -230,12 +232,11 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int pcm_con = 0;
 
 	dev_dbg(afe->dev, "%s(), id %d, stream %d, widget active p %d, c %d\n",
-		__func__, dai->id, substream->stream, dai->playback_widget->active,
-		dai->capture_widget->active);
+		__func__, dai->id, substream->stream, p->active, c->active);
 	dev_dbg(afe->dev, "%s(), rate %d, rate_reg %d, data_width %d, wlen_width %d\n",
 		__func__, rate, rate_reg, data_width, wlen_width);
 
-	if (dai->playback_widget->active || dai->capture_widget->active)
+	if (p->active || c->active)
 		return 0;
 
 	switch (dai->id) {

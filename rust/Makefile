@@ -1,8 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-always-$(CONFIG_RUST) += target.json
-no-clean-files += target.json
-
 obj-$(CONFIG_RUST) += core.o compiler_builtins.o
 always-$(CONFIG_RUST) += exports_core_generated.h
 
@@ -50,6 +47,7 @@ core-cfgs = \
     --cfg no_fp_fmt_parse
 
 alloc-cfgs = \
+    --cfg no_borrow \
     --cfg no_fmt \
     --cfg no_global_oom_handling \
     --cfg no_macros \
@@ -231,11 +229,6 @@ rusttest-kernel: $(src)/kernel/lib.rs rusttest-prepare \
 	$(call if_changed,rustc_test)
 	$(call if_changed,rustc_test_library)
 
-filechk_rust_target = $(objtree)/scripts/generate_rust_target < $<
-
-$(obj)/target.json: $(objtree)/include/config/auto.conf FORCE
-	$(call filechk,rust_target)
-
 ifdef CONFIG_CC_IS_CLANG
 bindgen_c_flags = $(c_flags)
 else
@@ -331,11 +324,9 @@ $(obj)/exports_kernel_generated.h: $(obj)/kernel.o FORCE
 quiet_cmd_rustc_procmacro = $(RUSTC_OR_CLIPPY_QUIET) P $@
       cmd_rustc_procmacro = \
 	$(RUSTC_OR_CLIPPY) $(rust_common_flags) \
-		--emit=dep-info,link --extern proc_macro \
-		--crate-type proc-macro --out-dir $(objtree)/$(obj) \
-		--crate-name $(patsubst lib%.so,%,$(notdir $@)) $<; \
-	mv $(objtree)/$(obj)/$(patsubst lib%.so,%,$(notdir $@)).d $(depfile); \
-	sed -i '/^\#/d' $(depfile)
+		--emit=dep-info=$(depfile) --emit=link=$@ --extern proc_macro \
+		--crate-type proc-macro \
+		--crate-name $(patsubst lib%.so,%,$(notdir $@)) $<
 
 # Procedural macros can only be used with the `rustc` that compiled it.
 # Therefore, to get `libmacros.so` automatically recompiled when the compiler
@@ -348,21 +339,34 @@ quiet_cmd_rustc_library = $(if $(skip_clippy),RUSTC,$(RUSTC_OR_CLIPPY_QUIET)) L 
 	OBJTREE=$(abspath $(objtree)) \
 	$(if $(skip_clippy),$(RUSTC),$(RUSTC_OR_CLIPPY)) \
 		$(filter-out $(skip_flags),$(rust_flags) $(rustc_target_flags)) \
-		--emit=dep-info,obj,metadata --crate-type rlib \
-		--out-dir $(objtree)/$(obj) -L$(objtree)/$(obj) \
-		--crate-name $(patsubst %.o,%,$(notdir $@)) $<; \
-	mv $(objtree)/$(obj)/$(patsubst %.o,%,$(notdir $@)).d $(depfile); \
-	sed -i '/^\#/d' $(depfile) \
+		--emit=dep-info=$(depfile) --emit=obj=$@ \
+		--emit=metadata=$(dir $@)$(patsubst %.o,lib%.rmeta,$(notdir $@)) \
+		--crate-type rlib -L$(objtree)/$(obj) \
+		--crate-name $(patsubst %.o,%,$(notdir $@)) $< \
 	$(if $(rustc_objcopy),;$(OBJCOPY) $(rustc_objcopy) $@)
 
 rust-analyzer:
 	$(Q)$(srctree)/scripts/generate_rust_analyzer.py $(srctree) $(objtree) \
 		$(RUST_LIB_SRC) > $(objtree)/rust-project.json
 
+redirect-intrinsics = \
+	__eqsf2 __gesf2 __lesf2 __nesf2 __unordsf2 \
+	__unorddf2 \
+	__muloti4 __multi3 \
+	__udivmodti4 __udivti3 __umodti3
+
+ifneq ($(or $(CONFIG_ARM64),$(and $(CONFIG_RISCV),$(CONFIG_64BIT))),)
+	# These intrinsics are defined for ARM64 and RISCV64
+	redirect-intrinsics += \
+		__ashrti3 \
+		__ashlti3 __lshrti3
+endif
+
 $(obj)/core.o: private skip_clippy = 1
 $(obj)/core.o: private skip_flags = -Dunreachable_pub
+$(obj)/core.o: private rustc_objcopy = $(foreach sym,$(redirect-intrinsics),--redefine-sym $(sym)=__rust$(sym))
 $(obj)/core.o: private rustc_target_flags = $(core-cfgs)
-$(obj)/core.o: $(RUST_LIB_SRC)/core/src/lib.rs $(obj)/target.json FORCE
+$(obj)/core.o: $(RUST_LIB_SRC)/core/src/lib.rs scripts/target.json FORCE
 	$(call if_changed_dep,rustc_library)
 
 $(obj)/compiler_builtins.o: private rustc_objcopy = -w -W '__*'

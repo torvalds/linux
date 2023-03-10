@@ -113,11 +113,11 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst *rqstp)
 
 	inode_lock(inode);
 
-	error = set_posix_acl(&init_user_ns, fh->fh_dentry, ACL_TYPE_ACCESS,
+	error = set_posix_acl(&nop_mnt_idmap, fh->fh_dentry, ACL_TYPE_ACCESS,
 			      argp->acl_access);
 	if (error)
 		goto out_drop_lock;
-	error = set_posix_acl(&init_user_ns, fh->fh_dentry, ACL_TYPE_DEFAULT,
+	error = set_posix_acl(&nop_mnt_idmap, fh->fh_dentry, ACL_TYPE_DEFAULT,
 			      argp->acl_default);
 	if (error)
 		goto out_drop_lock;
@@ -377,10 +377,11 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 	},
 };
 
-static unsigned int nfsd_acl_count2[ARRAY_SIZE(nfsd_acl_procedures2)];
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nfsd_acl_count2[ARRAY_SIZE(nfsd_acl_procedures2)]);
 const struct svc_version nfsd_acl_version2 = {
 	.vs_vers	= 2,
-	.vs_nproc	= 5,
+	.vs_nproc	= ARRAY_SIZE(nfsd_acl_procedures2),
 	.vs_proc	= nfsd_acl_procedures2,
 	.vs_count	= nfsd_acl_count2,
 	.vs_dispatch	= nfsd_dispatch,

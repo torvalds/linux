@@ -1044,9 +1044,9 @@ done:
 	return pdata;
 }
 
-static int mt9v032_probe(struct i2c_client *client,
-		const struct i2c_device_id *did)
+static int mt9v032_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *did = i2c_client_get_device_id(client);
 	struct mt9v032_platform_data *pdata = mt9v032_get_pdata(client);
 	struct mt9v032 *mt9v032;
 	unsigned int i;
@@ -1296,7 +1296,7 @@ static struct i2c_driver mt9v032_driver = {
 		.name = "mt9v032",
 		.of_match_table = of_match_ptr(mt9v032_of_match),
 	},
-	.probe		= mt9v032_probe,
+	.probe_new	= mt9v032_probe,
 	.remove		= mt9v032_remove,
 	.id_table	= mt9v032_id,
 };

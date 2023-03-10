@@ -424,7 +424,7 @@ static int mousevsc_hid_raw_request(struct hid_device *hid,
 	return 0;
 }
 
-static struct hid_ll_driver mousevsc_ll_driver = {
+static const struct hid_ll_driver mousevsc_ll_driver = {
 	.parse = mousevsc_hid_parse,
 	.open = mousevsc_hid_open,
 	.close = mousevsc_hid_close,
@@ -524,7 +524,7 @@ probe_err0:
 }
 
 
-static int mousevsc_remove(struct hv_device *dev)
+static void mousevsc_remove(struct hv_device *dev)
 {
 	struct mousevsc_dev *input_dev = hv_get_drvdata(dev);
 
@@ -533,8 +533,6 @@ static int mousevsc_remove(struct hv_device *dev)
 	hid_hw_stop(input_dev->hid_device);
 	hid_destroy_device(input_dev->hid_device);
 	mousevsc_free_device(input_dev);
-
-	return 0;
 }
 
 static int mousevsc_suspend(struct hv_device *dev)

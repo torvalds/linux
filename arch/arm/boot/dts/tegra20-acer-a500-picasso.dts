@@ -347,6 +347,19 @@
 				nvidia,pins = "ddc";
 				nvidia,function = "i2c2";
 			};
+
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_idle: pinmux-i2cmux-idle {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+
 			pta {
 				nvidia,pins = "pta";
 				nvidia,function = "rsvd4";
@@ -358,20 +371,10 @@
 				nvidia,pins = "ddc";
 				nvidia,function = "rsvd4";
 			};
+
 			pta {
 				nvidia,pins = "pta";
 				nvidia,function = "i2c2";
-			};
-		};
-
-		state_i2cmux_idle: pinmux-i2cmux-idle {
-			ddc {
-				nvidia,pins = "ddc";
-				nvidia,function = "rsvd4";
-			};
-			pta {
-				nvidia,pins = "pta";
-				nvidia,function = "rsvd4";
 			};
 		};
 	};
@@ -423,6 +426,10 @@
 
 	uartd: serial@70006300 {
 		/* Docking station */
+	};
+
+	pwm: pwm@7000a000 {
+		status = "okay";
 	};
 
 	i2c@7000c000 {
@@ -509,45 +516,6 @@
 
 	i2c@7000c400 {
 		clock-frequency = <10000>;
-		status = "okay";
-	};
-
-	i2cmux {
-		compatible = "i2c-mux-pinctrl";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		i2c-parent = <&{/i2c@7000c400}>;
-
-		pinctrl-names = "ddc", "pta", "idle";
-		pinctrl-0 = <&state_i2cmux_ddc>;
-		pinctrl-1 = <&state_i2cmux_pta>;
-		pinctrl-2 = <&state_i2cmux_idle>;
-
-		hdmi_ddc: i2c@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		panel_ddc: i2c@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			embedded-controller@58 {
-				compatible = "acer,a500-iconia-ec", "ene,kb930";
-				reg = <0x58>;
-
-				system-power-controller;
-
-				monitored-battery = <&bat1010>;
-				power-supplies = <&mains>;
-			};
-		};
-	};
-
-	pwm: pwm@7000a000 {
 		status = "okay";
 	};
 
@@ -727,396 +695,6 @@
 		nvidia,core-pwr-off-time = <458>;
 		nvidia,sys-clock-req-active-high;
 		core-supply = <&vdd_core>;
-	};
-
-	usb@c5000000 {
-		compatible = "nvidia,tegra20-udc";
-		status = "okay";
-		dr_mode = "peripheral";
-	};
-
-	usb-phy@c5000000 {
-		status = "okay";
-		dr_mode = "peripheral";
-		nvidia,xcvr-setup-use-fuses;
-		nvidia,xcvr-lsfslew = <2>;
-		nvidia,xcvr-lsrslew = <2>;
-	};
-
-	usb@c5008000 {
-		status = "okay";
-	};
-
-	usb-phy@c5008000 {
-		status = "okay";
-		nvidia,xcvr-setup-use-fuses;
-		nvidia,xcvr-lsfslew = <2>;
-		nvidia,xcvr-lsrslew = <2>;
-		vbus-supply = <&vdd_5v0_sys>;
-	};
-
-	brcm_wifi_pwrseq: wifi-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-
-		clocks = <&rtc_32k_wifi>;
-		clock-names = "ext_clock";
-
-		reset-gpios = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_LOW>;
-		post-power-on-delay-ms = <300>;
-		power-off-delay-us = <300>;
-	};
-
-	sdmmc1: mmc@c8000000 {
-		status = "okay";
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		assigned-clocks = <&tegra_car TEGRA20_CLK_SDMMC1>;
-		assigned-clock-parents = <&tegra_car TEGRA20_CLK_PLL_C>;
-		assigned-clock-rates = <50000000>;
-
-		max-frequency = <50000000>;
-		keep-power-in-suspend;
-		bus-width = <4>;
-		non-removable;
-
-		mmc-pwrseq = <&brcm_wifi_pwrseq>;
-		vmmc-supply = <&vdd_3v3_sys>;
-		vqmmc-supply = <&vdd_1v8_sys>;
-
-		/* Azurewave AW-NH611 BCM4329 */
-		wifi@1 {
-			reg = <1>;
-			compatible = "brcm,bcm4329-fmac";
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(S, 0) IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "host-wake";
-		};
-	};
-
-	sdmmc3: mmc@c8000400 {
-		status = "okay";
-		bus-width = <4>;
-		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
-		power-gpios = <&gpio TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
-		vmmc-supply = <&vdd_3v3_sys>;
-		vqmmc-supply = <&vdd_3v3_sys>;
-	};
-
-	sdmmc4: mmc@c8000600 {
-		status = "okay";
-		bus-width = <8>;
-		vmmc-supply = <&vcore_emmc>;
-		vqmmc-supply = <&vdd_3v3_sys>;
-		non-removable;
-	};
-
-	mains: ac-adapter-detect {
-		compatible = "gpio-charger";
-		charger-type = "mains";
-		gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_LOW>;
-	};
-
-	backlight: backlight {
-		compatible = "pwm-backlight";
-
-		enable-gpios = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
-		power-supply = <&vdd_3v3_sys>;
-		pwms = <&pwm 2 41667>;
-
-		brightness-levels = <7 255>;
-		num-interpolated-steps = <248>;
-		default-brightness-level = <20>;
-	};
-
-	bat1010: battery-2s1p {
-		compatible = "simple-battery";
-		charge-full-design-microamp-hours = <3260000>;
-		energy-full-design-microwatt-hours = <24000000>;
-		operating-range-celsius = <0 40>;
-	};
-
-	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
-	clk32k_in: clock-32k-in {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		clock-output-names = "tps658621-out32k";
-	};
-
-	/*
-	 * This standalone onboard fixed-clock always-ON 32KHz
-	 * oscillator is used as a reference clock-source by the
-	 * Azurewave WiFi/BT module.
-	 */
-	rtc_32k_wifi: clock-32k-wifi {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		clock-output-names = "kk3270032";
-	};
-
-	cpus {
-		cpu0: cpu@0 {
-			cpu-supply = <&vdd_cpu>;
-			operating-points-v2 = <&cpu0_opp_table>;
-			#cooling-cells = <2>;
-		};
-
-		cpu1: cpu@1 {
-			cpu-supply = <&vdd_cpu>;
-			operating-points-v2 = <&cpu0_opp_table>;
-			#cooling-cells = <2>;
-		};
-	};
-
-	display-panel {
-		compatible = "auo,b101ew05", "panel-lvds";
-
-		ddc-i2c-bus = <&panel_ddc>;
-		power-supply = <&vdd_pnl>;
-		backlight = <&backlight>;
-
-		width-mm = <218>;
-		height-mm = <135>;
-
-		data-mapping = "jeida-18";
-
-		panel-timing {
-			clock-frequency = <71200000>;
-			hactive = <1280>;
-			vactive = <800>;
-			hfront-porch = <8>;
-			hback-porch = <18>;
-			hsync-len = <184>;
-			vsync-len = <3>;
-			vfront-porch = <4>;
-			vback-porch = <8>;
-		};
-
-		port {
-			panel_input: endpoint {
-				remote-endpoint = <&lvds_encoder_output>;
-			};
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		key-power {
-			label = "Power";
-			gpios = <&gpio TEGRA_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_POWER>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
-		key-rotation-lock {
-			label = "Rotate-lock";
-			gpios = <&gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_HIGH>;
-			linux,code = <SW_ROTATE_LOCK>;
-			linux,input-type = <EV_SW>;
-			debounce-interval = <10>;
-		};
-
-		key-volume-up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
-		key-volume-down {
-			label = "Volume Down";
-			gpios = <&gpio TEGRA_GPIO(Q, 5) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEDOWN>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-	};
-
-	haptic-feedback {
-		compatible = "gpio-vibrator";
-		enable-gpios = <&gpio TEGRA_GPIO(V, 5) GPIO_ACTIVE_HIGH>;
-		vcc-supply = <&vdd_3v3_sys>;
-	};
-
-	lvds-encoder {
-		compatible = "ti,sn75lvds83", "lvds-encoder";
-
-		powerdown-gpios = <&gpio TEGRA_GPIO(B, 2) GPIO_ACTIVE_LOW>;
-		power-supply = <&vdd_3v3_sys>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				lvds_encoder_input: endpoint {
-					remote-endpoint = <&lcd_output>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				lvds_encoder_output: endpoint {
-					remote-endpoint = <&panel_input>;
-				};
-			};
-		};
-	};
-
-	vdd_5v0_sys: regulator-5v0 {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_5v0";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-	};
-
-	vdd_3v3_sys: regulator-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_3v3_vs";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		vin-supply = <&vdd_5v0_sys>;
-	};
-
-	vdd_1v8_sys: regulator-1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_1v8_vs";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-		vin-supply = <&vdd_5v0_sys>;
-	};
-
-	vdd_pnl: regulator-panel {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_panel";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-enable-ramp-delay = <300000>;
-		gpio = <&gpio TEGRA_GPIO(C, 6) GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		vin-supply = <&vdd_5v0_sys>;
-	};
-
-	sound {
-		compatible = "nvidia,tegra-audio-wm8903-picasso",
-			     "nvidia,tegra-audio-wm8903";
-		nvidia,model = "Acer Iconia Tab A500 WM8903";
-
-		nvidia,audio-routing =
-			"Headphone Jack", "HPOUTR",
-			"Headphone Jack", "HPOUTL",
-			"Int Spk", "LINEOUTL",
-			"Int Spk", "LINEOUTR",
-			"Mic Jack", "MICBIAS",
-			"IN2L", "Mic Jack",
-			"IN2R", "Mic Jack",
-			"IN1L", "Int Mic",
-			"IN1R", "Int Mic";
-
-		nvidia,i2s-controller = <&tegra_i2s1>;
-		nvidia,audio-codec = <&wm8903>;
-
-		nvidia,spkr-en-gpios = <&wm8903 2 GPIO_ACTIVE_HIGH>;
-		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
-		nvidia,int-mic-en-gpios = <&wm8903 1 GPIO_ACTIVE_HIGH>;
-		nvidia,headset;
-
-		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
-			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
-			 <&tegra_car TEGRA20_CLK_CDEV1>;
-		clock-names = "pll_a", "pll_a_out0", "mclk";
-	};
-
-	thermal-zones {
-		/*
-		 * NCT1008 has two sensors:
-		 *
-		 *	0: internal that monitors ambient/skin temperature
-		 *	1: external that is connected to the CPU's diode
-		 *
-		 * Ideally we should use userspace thermal governor,
-		 * but it's a much more complex solution.  The "skin"
-		 * zone is a simpler solution which prevents A500 from
-		 * getting too hot from a user's tactile perspective.
-		 * The CPU zone is intended to protect silicon from damage.
-		 */
-
-		skin-thermal {
-			polling-delay-passive = <1000>; /* milliseconds */
-			polling-delay = <5000>; /* milliseconds */
-
-			thermal-sensors = <&nct1008 0>;
-
-			trips {
-				trip0: skin-alert {
-					/* start throttling at 60C */
-					temperature = <60000>;
-					hysteresis = <200>;
-					type = "passive";
-				};
-
-				trip1: skin-crit {
-					/* shut down at 70C */
-					temperature = <70000>;
-					hysteresis = <2000>;
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				map0 {
-					trip = <&trip0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-				};
-			};
-		};
-
-		cpu-thermal {
-			polling-delay-passive = <1000>; /* milliseconds */
-			polling-delay = <5000>; /* milliseconds */
-
-			thermal-sensors = <&nct1008 1>;
-
-			trips {
-				trip2: cpu-alert {
-					/* throttle at 85C until temperature drops to 84.8C */
-					temperature = <85000>;
-					hysteresis = <200>;
-					type = "passive";
-				};
-
-				trip3: cpu-crit {
-					/* shut down at 90C */
-					temperature = <90000>;
-					hysteresis = <2000>;
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				map1 {
-					trip = <&trip2>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-				};
-			};
-		};
 	};
 
 	memory-controller@7000f400 {
@@ -1514,9 +1092,434 @@
 			};
 		};
 	};
-};
 
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-666000000;
-	/delete-node/ opp-760000000;
+	usb@c5000000 {
+		compatible = "nvidia,tegra20-udc";
+		status = "okay";
+		dr_mode = "peripheral";
+	};
+
+	usb-phy@c5000000 {
+		status = "okay";
+		dr_mode = "peripheral";
+		nvidia,xcvr-setup-use-fuses;
+		nvidia,xcvr-lsfslew = <2>;
+		nvidia,xcvr-lsrslew = <2>;
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	usb-phy@c5008000 {
+		status = "okay";
+		nvidia,xcvr-setup-use-fuses;
+		nvidia,xcvr-lsfslew = <2>;
+		nvidia,xcvr-lsrslew = <2>;
+		vbus-supply = <&vdd_5v0_sys>;
+	};
+
+	sdmmc1: mmc@c8000000 {
+		status = "okay";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		assigned-clocks = <&tegra_car TEGRA20_CLK_SDMMC1>;
+		assigned-clock-parents = <&tegra_car TEGRA20_CLK_PLL_C>;
+		assigned-clock-rates = <50000000>;
+
+		max-frequency = <50000000>;
+		keep-power-in-suspend;
+		bus-width = <4>;
+		non-removable;
+
+		mmc-pwrseq = <&brcm_wifi_pwrseq>;
+		vmmc-supply = <&vdd_3v3_sys>;
+		vqmmc-supply = <&vdd_1v8_sys>;
+
+		/* Azurewave AW-NH611 BCM4329 */
+		wifi@1 {
+			reg = <1>;
+			compatible = "brcm,bcm4329-fmac";
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(S, 0) IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host-wake";
+		};
+	};
+
+	sdmmc3: mmc@c8000400 {
+		status = "okay";
+		bus-width = <4>;
+		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
+		power-gpios = <&gpio TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
+		vmmc-supply = <&vdd_3v3_sys>;
+		vqmmc-supply = <&vdd_3v3_sys>;
+	};
+
+	sdmmc4: mmc@c8000600 {
+		status = "okay";
+		bus-width = <8>;
+		vmmc-supply = <&vcore_emmc>;
+		vqmmc-supply = <&vdd_3v3_sys>;
+		non-removable;
+	};
+
+	mains: ac-adapter-detect {
+		compatible = "gpio-charger";
+		charger-type = "mains";
+		gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+
+		enable-gpios = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
+		power-supply = <&vdd_3v3_sys>;
+		pwms = <&pwm 2 41667>;
+
+		brightness-levels = <7 255>;
+		num-interpolated-steps = <248>;
+		default-brightness-level = <20>;
+	};
+
+	bat1010: battery-2s1p {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <3260000>;
+		energy-full-design-microwatt-hours = <24000000>;
+		operating-range-celsius = <0 40>;
+	};
+
+	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
+	clk32k_in: clock-32k-in {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "tps658621-out32k";
+	};
+
+	/*
+	 * This standalone onboard fixed-clock always-ON 32KHz
+	 * oscillator is used as a reference clock-source by the
+	 * Azurewave WiFi/BT module.
+	 */
+	rtc_32k_wifi: clock-32k-wifi {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "kk3270032";
+	};
+
+	cpus {
+		cpu0: cpu@0 {
+			cpu-supply = <&vdd_cpu>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+		};
+
+		cpu1: cpu@1 {
+			cpu-supply = <&vdd_cpu>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+		};
+	};
+
+	display-panel {
+		compatible = "auo,b101ew05", "panel-lvds";
+
+		ddc-i2c-bus = <&panel_ddc>;
+		power-supply = <&vdd_pnl>;
+		backlight = <&backlight>;
+
+		width-mm = <218>;
+		height-mm = <135>;
+
+		data-mapping = "jeida-18";
+
+		panel-timing {
+			clock-frequency = <71200000>;
+			hactive = <1280>;
+			vactive = <800>;
+			hfront-porch = <8>;
+			hback-porch = <18>;
+			hsync-len = <184>;
+			vsync-len = <3>;
+			vfront-porch = <4>;
+			vback-porch = <8>;
+		};
+
+		port {
+			panel_input: endpoint {
+				remote-endpoint = <&lvds_encoder_output>;
+			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-rotation-lock {
+			label = "Rotate-lock";
+			gpios = <&gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_HIGH>;
+			linux,code = <SW_ROTATE_LOCK>;
+			linux,input-type = <EV_SW>;
+			debounce-interval = <10>;
+		};
+
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(Q, 5) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+	};
+
+	haptic-feedback {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&gpio TEGRA_GPIO(V, 5) GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&vdd_3v3_sys>;
+	};
+
+	i2cmux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&{/i2c@7000c400}>;
+
+		pinctrl-names = "ddc", "pta", "idle";
+		pinctrl-0 = <&state_i2cmux_ddc>;
+		pinctrl-1 = <&state_i2cmux_pta>;
+		pinctrl-2 = <&state_i2cmux_idle>;
+
+		hdmi_ddc: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		panel_ddc: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			embedded-controller@58 {
+				compatible = "acer,a500-iconia-ec", "ene,kb930";
+				reg = <0x58>;
+
+				system-power-controller;
+
+				monitored-battery = <&bat1010>;
+				power-supplies = <&mains>;
+			};
+		};
+	};
+
+	lvds-encoder {
+		compatible = "ti,sn75lvds83", "lvds-encoder";
+
+		powerdown-gpios = <&gpio TEGRA_GPIO(B, 2) GPIO_ACTIVE_LOW>;
+		power-supply = <&vdd_3v3_sys>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lvds_encoder_input: endpoint {
+					remote-endpoint = <&lcd_output>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_encoder_output: endpoint {
+					remote-endpoint = <&panel_input>;
+				};
+			};
+		};
+	};
+
+	opp-table-emc {
+		/delete-node/ opp-666000000;
+		/delete-node/ opp-760000000;
+	};
+
+	vdd_5v0_sys: regulator-5v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	vdd_3v3_sys: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_3v3_vs";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	vdd_1v8_sys: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_1v8_vs";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	vdd_pnl: regulator-panel {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_panel";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-enable-ramp-delay = <300000>;
+		gpio = <&gpio TEGRA_GPIO(C, 6) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-wm8903-picasso",
+			     "nvidia,tegra-audio-wm8903";
+		nvidia,model = "Acer Iconia Tab A500 WM8903";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "LINEOUTL",
+			"Int Spk", "LINEOUTR",
+			"Mic Jack", "MICBIAS",
+			"IN2L", "Mic Jack",
+			"IN2R", "Mic Jack",
+			"IN1L", "Int Mic",
+			"IN1R", "Int Mic";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&wm8903>;
+
+		nvidia,spkr-en-gpios = <&wm8903 2 GPIO_ACTIVE_HIGH>;
+		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
+		nvidia,int-mic-en-gpios = <&wm8903 1 GPIO_ACTIVE_HIGH>;
+		nvidia,headset;
+
+		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
+			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA20_CLK_CDEV1>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
+	};
+
+	thermal-zones {
+		/*
+		 * NCT1008 has two sensors:
+		 *
+		 *	0: internal that monitors ambient/skin temperature
+		 *	1: external that is connected to the CPU's diode
+		 *
+		 * Ideally we should use userspace thermal governor,
+		 * but it's a much more complex solution.  The "skin"
+		 * zone is a simpler solution which prevents A500 from
+		 * getting too hot from a user's tactile perspective.
+		 * The CPU zone is intended to protect silicon from damage.
+		 */
+
+		skin-thermal {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&nct1008 0>;
+
+			trips {
+				trip0: skin-alert {
+					/* start throttling at 60C */
+					temperature = <60000>;
+					hysteresis = <200>;
+					type = "passive";
+				};
+
+				trip1: skin-crit {
+					/* shut down at 70C */
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&trip0>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		cpu-thermal {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&nct1008 1>;
+
+			trips {
+				trip2: cpu-alert {
+					/* throttle at 85C until temperature drops to 84.8C */
+					temperature = <85000>;
+					hysteresis = <200>;
+					type = "passive";
+				};
+
+				trip3: cpu-crit {
+					/* shut down at 90C */
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map1 {
+					trip = <&trip2>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+
+	brcm_wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+
+		clocks = <&rtc_32k_wifi>;
+		clock-names = "ext_clock";
+
+		reset-gpios = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <300>;
+		power-off-delay-us = <300>;
+	};
 };
