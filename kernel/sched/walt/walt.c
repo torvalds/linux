@@ -2387,14 +2387,6 @@ static void init_new_task_load(struct task_struct *p)
 	walt_flag_set(p, WALT_INIT, 1);
 }
 
-static void init_existing_task_load(struct task_struct *p)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	init_new_task_load(p);
-	cpumask_copy(&wts->cpus_requested, &p->cpus_mask);
-}
-
 static void walt_task_dead(struct task_struct *p)
 {
 	sched_set_group_id(p, 0);
@@ -4391,18 +4383,6 @@ static void android_rvh_schedule(void *unused, struct task_struct *prev,
 	}
 }
 
-static void android_rvh_update_cpus_allowed(void *unused, struct task_struct *p,
-						cpumask_var_t cpus_requested,
-						const struct cpumask *new_mask, int *ret)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	if (unlikely(walt_disabled))
-		return;
-	if (cpumask_subset(&wts->cpus_requested, cpus_requested))
-		*ret = set_cpus_allowed_ptr(p, &wts->cpus_requested);
-}
-
 static void android_rvh_sched_getaffinity(void *unused, struct task_struct *p,
 					  struct cpumask *in_mask)
 {
@@ -4411,27 +4391,6 @@ static void android_rvh_sched_getaffinity(void *unused, struct task_struct *p,
 
 	if (!(p->flags & PF_KTHREAD))
 		cpumask_andnot(in_mask, in_mask, cpu_halt_mask);
-}
-
-static void android_rvh_sched_setaffinity(void *unused, struct task_struct *p,
-					  const struct cpumask *in_mask,
-					  int *retval)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	if (unlikely(walt_disabled))
-		return;
-
-	/* nothing to do if the affinity call failed */
-	if (*retval)
-		return;
-
-	/*
-	 * cache the affinity for user space tasks so that they
-	 * can be restored during cpuset cgroup change.
-	 */
-	if (!(p->flags & PF_KTHREAD))
-		cpumask_and(&wts->cpus_requested, in_mask, cpu_possible_mask);
 }
 
 static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
@@ -4575,8 +4534,6 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_schedule(android_rvh_schedule, NULL);
 	register_trace_android_rvh_cpu_cgroup_attach(android_rvh_cpu_cgroup_attach, NULL);
 	register_trace_android_rvh_cpu_cgroup_online(android_rvh_cpu_cgroup_online, NULL);
-	register_trace_android_rvh_update_cpus_allowed(android_rvh_update_cpus_allowed, NULL);
-	register_trace_android_rvh_sched_setaffinity(android_rvh_sched_setaffinity, NULL);
 	register_trace_android_rvh_sched_getaffinity(android_rvh_sched_getaffinity, NULL);
 	register_trace_android_rvh_sched_fork_init(android_rvh_sched_fork_init, NULL);
 	register_trace_android_rvh_ttwu_cond(android_rvh_ttwu_cond, NULL);
@@ -4607,7 +4564,7 @@ static int walt_init_stop_handler(void *data)
 	}
 
 	do_each_thread(g, p) {
-		init_existing_task_load(p);
+		init_new_task_load(p);
 	} while_each_thread(g, p);
 
 	for_each_possible_cpu(cpu) {

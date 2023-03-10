@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LINUX_SCHED_WALT_H
@@ -124,7 +124,6 @@ struct walt_task_struct {
 	struct walt_related_thread_group __rcu	*grp;
 	struct list_head		grp_list;
 	u64				cpu_cycles;
-	cpumask_t			cpus_requested;
 	bool				iowaited;
 	int				prev_on_rq;
 	int				prev_on_rq_cpu;
