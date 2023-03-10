@@ -681,7 +681,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 			dev_warn(dev, "Invalid VTT GPIO(%d) pin\n", temp);
 	}
 
-	if (of_find_property(np, "ti,set-io-isolation", NULL))
+	if (of_property_read_bool(np, "ti,set-io-isolation"))
 		wkup_m3_set_io_isolation(m3_ipc);
 
 	ret = of_property_read_string(np, "firmware-name",
