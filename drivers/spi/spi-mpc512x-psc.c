@@ -511,13 +511,9 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 
 	ret = mpc512x_psc_spi_port_config(master, mps);
 	if (ret < 0)
-		goto free_ipg_clock;
+		return ret;
 
-	ret = devm_spi_register_master(dev, master);
-	if (ret < 0)
-		goto free_ipg_clock;
-
-	return ret;
+	return devm_spi_register_master(dev, master);
 }
 
 static const struct of_device_id mpc512x_psc_spi_of_match[] = {
