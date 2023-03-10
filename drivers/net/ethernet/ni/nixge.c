@@ -1422,7 +1422,7 @@ static struct platform_driver nixge_driver = {
 	.remove		= nixge_remove,
 	.driver		= {
 		.name		= "nixge",
-		.of_match_table	= of_match_ptr(nixge_dt_ids),
+		.of_match_table	= nixge_dt_ids,
 	},
 };
 module_platform_driver(nixge_driver);
