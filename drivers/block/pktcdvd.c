@@ -70,6 +70,8 @@
 #include <linux/nospec.h>
 #include <linux/uaccess.h>
 
+#include <asm/unaligned.h>
+
 #define DRIVER_NAME	"pktcdvd"
 
 #define MAX_SPEED 0xffff
@@ -808,10 +810,8 @@ static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
 	init_cdrom_command(&cgc, NULL, 0, CGC_DATA_NONE);
 	cgc.sshdr = &sshdr;
 	cgc.cmd[0] = GPCMD_SET_SPEED;
-	cgc.cmd[2] = (read_speed >> 8) & 0xff;
-	cgc.cmd[3] = read_speed & 0xff;
-	cgc.cmd[4] = (write_speed >> 8) & 0xff;
-	cgc.cmd[5] = write_speed & 0xff;
+	put_unaligned_be16(read_speed, &cgc.cmd[2]);
+	put_unaligned_be16(write_speed, &cgc.cmd[4]);
 
 	ret = pkt_generic_packet(pd, &cgc);
 	if (ret)
@@ -1509,8 +1509,7 @@ static int pkt_mode_sense(struct pktcdvd_device *pd, struct packet_command *cgc,
 
 	cgc->cmd[0] = GPCMD_MODE_SENSE_10;
 	cgc->cmd[2] = page_code | (page_control << 6);
-	cgc->cmd[7] = cgc->buflen >> 8;
-	cgc->cmd[8] = cgc->buflen & 0xff;
+	put_unaligned_be16(cgc->buflen, &cgc->cmd[7]);
 	cgc->data_direction = CGC_DATA_READ;
 	return pkt_generic_packet(pd, cgc);
 }
@@ -1521,8 +1520,7 @@ static int pkt_mode_select(struct pktcdvd_device *pd, struct packet_command *cgc
 	memset(cgc->buffer, 0, 2);
 	cgc->cmd[0] = GPCMD_MODE_SELECT_10;
 	cgc->cmd[1] = 0x10;		/* PF */
-	cgc->cmd[7] = cgc->buflen >> 8;
-	cgc->cmd[8] = cgc->buflen & 0xff;
+	put_unaligned_be16(cgc->buflen, &cgc->cmd[7]);
 	cgc->data_direction = CGC_DATA_WRITE;
 	return pkt_generic_packet(pd, cgc);
 }
@@ -1563,8 +1561,7 @@ static int pkt_get_track_info(struct pktcdvd_device *pd, __u16 track, __u8 type,
 	init_cdrom_command(&cgc, ti, 8, CGC_DATA_READ);
 	cgc.cmd[0] = GPCMD_READ_TRACK_RZONE_INFO;
 	cgc.cmd[1] = type & 3;
-	cgc.cmd[4] = (track & 0xff00) >> 8;
-	cgc.cmd[5] = track & 0xff;
+	put_unaligned_be16(track, &cgc.cmd[4]);
 	cgc.cmd[8] = 8;
 	cgc.quiet = 1;
 
@@ -1645,8 +1642,8 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 		return ret;
 	}
 
-	size = 2 + ((buffer[0] << 8) | (buffer[1] & 0xff));
-	pd->mode_offset = (buffer[6] << 8) | (buffer[7] & 0xff);
+	size = 2 + get_unaligned_be16(&buffer[0]);
+	pd->mode_offset = get_unaligned_be16(&buffer[6]);
 	if (size > sizeof(buffer))
 		size = sizeof(buffer);
 
@@ -1803,7 +1800,7 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 	cgc.cmd[0] = GPCMD_GET_CONFIGURATION;
 	cgc.cmd[8] = 8;
 	ret = pkt_generic_packet(pd, &cgc);
-	pd->mmc3_profile = ret ? 0xffff : buf[6] << 8 | buf[7];
+	pd->mmc3_profile = ret ? 0xffff : get_unaligned_be16(&buf[6]);
 
 	memset(&di, 0, sizeof(disc_information));
 	memset(&ti, 0, sizeof(track_information));
@@ -1921,7 +1918,7 @@ static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd)
 	 */
 	buf[pd->mode_offset + 10] |= (set << 2);
 
-	cgc.buflen = cgc.cmd[8] = 2 + ((buf[0] << 8) | (buf[1] & 0xff));
+	cgc.buflen = cgc.cmd[8] = 2 + get_unaligned_be16(&buf[0]);
 	ret = pkt_mode_select(pd, &cgc);
 	if (ret) {
 		dev_err(ddev, "write caching control failed\n");
@@ -1976,12 +1973,12 @@ static noinline_for_stack int pkt_get_max_speed(struct pktcdvd_device *pd,
 		 * Speed Performance Descriptor Block", use the information
 		 * in the first block. (contains the highest speed)
 		 */
-		int num_spdb = (cap_buf[30] << 8) + cap_buf[31];
+		int num_spdb = get_unaligned_be16(&cap_buf[30]);
 		if (num_spdb > 0)
 			offset = 34;
 	}
 
-	*write_speed = (cap_buf[offset] << 8) | cap_buf[offset + 1];
+	*write_speed = get_unaligned_be16(&cap_buf[offset]);
 	return 0;
 }
 
@@ -2026,7 +2023,7 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
-	size = ((unsigned int) buf[0]<<8) + buf[1] + 2;
+	size = 2 + get_unaligned_be16(&buf[0]);
 	if (size > sizeof(buf))
 		size = sizeof(buf);
 
