@@ -25,12 +25,6 @@
 #define PSP_I2C_REQ_STS_BUS_BUSY	0x1
 #define PSP_I2C_REQ_STS_INV_PARAM	0x3
 
-#define PSP_MBOX_FIELDS_STS		GENMASK(15, 0)
-#define PSP_MBOX_FIELDS_CMD		GENMASK(23, 16)
-#define PSP_MBOX_FIELDS_RESERVED	GENMASK(29, 24)
-#define PSP_MBOX_FIELDS_RECOVERY	BIT(30)
-#define PSP_MBOX_FIELDS_READY		BIT(31)
-
 struct psp_req_buffer_hdr {
 	u32 total_size;
 	u32 status;
@@ -99,15 +93,15 @@ static int psp_check_mbox_recovery(struct psp_mbox __iomem *mbox)
 
 	tmp = readl(&mbox->cmd_fields);
 
-	return FIELD_GET(PSP_MBOX_FIELDS_RECOVERY, tmp);
+	return FIELD_GET(PSP_CMDRESP_RECOVERY, tmp);
 }
 
 static int psp_wait_cmd(struct psp_mbox __iomem *mbox)
 {
 	u32 tmp, expected;
 
-	/* Expect mbox_cmd to be cleared and ready bit to be set by PSP */
-	expected = FIELD_PREP(PSP_MBOX_FIELDS_READY, 1);
+	/* Expect mbox_cmd to be cleared and the response bit to be set by PSP */
+	expected = FIELD_PREP(PSP_CMDRESP_RESP, 1);
 
 	/*
 	 * Check for readiness of PSP mailbox in a tight loop in order to
@@ -124,7 +118,7 @@ static u32 psp_check_mbox_sts(struct psp_mbox __iomem *mbox)
 
 	cmd_reg = readl(&mbox->cmd_fields);
 
-	return FIELD_GET(PSP_MBOX_FIELDS_STS, cmd_reg);
+	return FIELD_GET(PSP_CMDRESP_STS, cmd_reg);
 }
 
 static int psp_send_cmd(struct psp_i2c_req *req)
@@ -148,7 +142,7 @@ static int psp_send_cmd(struct psp_i2c_req *req)
 	writeq(req_addr, &mbox->i2c_req_addr);
 
 	/* Write command register to trigger processing */
-	cmd_reg = FIELD_PREP(PSP_MBOX_FIELDS_CMD, PSP_I2C_REQ_BUS_CMD);
+	cmd_reg = FIELD_PREP(PSP_CMDRESP_CMD, PSP_I2C_REQ_BUS_CMD);
 	writel(cmd_reg, &mbox->cmd_fields);
 
 	if (psp_wait_cmd(mbox))
