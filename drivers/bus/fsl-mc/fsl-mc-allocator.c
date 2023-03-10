@@ -103,9 +103,6 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	struct fsl_mc_resource *resource;
 	int error = -EINVAL;
 
-	if (!fsl_mc_is_allocatable(mc_dev))
-		goto out;
-
 	resource = mc_dev->resource;
 	if (!resource || resource->data != mc_dev)
 		goto out;
@@ -612,9 +609,6 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 {
 	int error;
-
-	if (!fsl_mc_is_allocatable(mc_dev))
-		return -EINVAL;
 
 	if (mc_dev->resource) {
 		error = fsl_mc_resource_pool_remove_device(mc_dev);
