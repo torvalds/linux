@@ -4150,6 +4150,9 @@ static int raid10_run(struct mddev *mddev)
 	if (!conf)
 		goto out;
 
+	mddev->thread = conf->thread;
+	conf->thread = NULL;
+
 	if (mddev_is_clustered(conf->mddev)) {
 		int fc, fo;
 
@@ -4161,9 +4164,6 @@ static int raid10_run(struct mddev *mddev)
 			goto out_free_conf;
 		}
 	}
-
-	mddev->thread = conf->thread;
-	conf->thread = NULL;
 
 	if (mddev->queue) {
 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
