@@ -420,6 +420,15 @@ config PINCTRL_SM8250
 	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	  Technologies Inc SM8250 platform.
 
+config PINCTRL_SLPI
+	tristate "Qualcomm Technologies, Inc SLPI pin controller driver"
+	depends on GPIOLIB && OF
+	help
+	  Sensor Low Power Island(SLPI) has a Pin controller which can support
+	  14 pin configurations. This is the pinctrl, pinmux and  pinconf
+	  driver for the SLPI pin controller block. Select Y if this driver
+	  needs to be enabled or select N if unsure.
+
 config PINCTRL_SM8250_LPASS_LPI
 	tristate "Qualcomm Technologies Inc SM8250 LPASS LPI pin controller driver"
 	depends on GPIOLIB
