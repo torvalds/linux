@@ -618,8 +618,7 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 	if (ret)
 		return -EINVAL;
 
-	if (of_find_property(pmic_np, "max8998,pmic-buck-voltage-lock", NULL))
-		pdata->buck_voltage_lock = true;
+	pdata->buck_voltage_lock = of_property_read_bool(pmic_np, "max8998,pmic-buck-voltage-lock");
 
 	ret = of_property_read_u32(pmic_np,
 					"max8998,pmic-buck1-default-dvs-idx",
