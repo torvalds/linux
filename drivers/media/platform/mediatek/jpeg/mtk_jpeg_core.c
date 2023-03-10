@@ -1742,6 +1742,7 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 			num_child++;
 
 		atomic_set(&jpeg->hw_rdy, num_child);
+		atomic_set(&jpeg->hw_index, 0);
 
 		jpeg->workqueue = alloc_ordered_workqueue(MTK_JPEG_NAME,
 							  WQ_MEM_RECLAIM

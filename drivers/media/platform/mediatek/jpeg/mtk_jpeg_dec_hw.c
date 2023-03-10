@@ -638,14 +638,10 @@ static int mtk_jpegdec_hw_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to register JPEGDEC irq handler.\n");
 
-	for (i = 0; i < MTK_JPEGDEC_HW_MAX; i++) {
-		if (master_dev->dec_hw_dev[i])
-			continue;
-
-		master_dev->dec_hw_dev[i] = dev;
-		master_dev->reg_decbase[i] = dev->reg_base;
-		dev->master_dev = master_dev;
-	}
+	i = atomic_add_return(1, &master_dev->hw_index) - 1;
+	master_dev->dec_hw_dev[i] = dev;
+	master_dev->reg_decbase[i] = dev->reg_base;
+	dev->master_dev = master_dev;
 
 	platform_set_drvdata(pdev, dev);
 	pm_runtime_enable(&pdev->dev);
