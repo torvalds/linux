@@ -1671,10 +1671,50 @@ static void mtk_jpeg_job_timeout_work(struct work_struct *work)
 	v4l2_m2m_job_finish(jpeg->m2m_dev, ctx->fh.m2m_ctx);
 }
 
+static int mtk_jpeg_single_core_init(struct platform_device *pdev,
+				     struct mtk_jpeg_dev *jpeg_dev)
+{
+	struct mtk_jpeg_dev *jpeg = jpeg_dev;
+	int jpeg_irq, ret;
+
+	INIT_DELAYED_WORK(&jpeg->job_timeout_work,
+			  mtk_jpeg_job_timeout_work);
+
+	jpeg->reg_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(jpeg->reg_base)) {
+		ret = PTR_ERR(jpeg->reg_base);
+		return ret;
+	}
+
+	jpeg_irq = platform_get_irq(pdev, 0);
+	if (jpeg_irq < 0)
+		return jpeg_irq;
+
+	ret = devm_request_irq(&pdev->dev,
+			       jpeg_irq,
+			       jpeg->variant->irq_handler,
+			       0,
+			       pdev->name, jpeg);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to request jpeg_irq %d (%d)\n",
+			jpeg_irq, ret);
+		return ret;
+	}
+
+	ret = devm_clk_bulk_get(jpeg->dev,
+				jpeg->variant->num_clks,
+				jpeg->variant->clks);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to init clk\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int mtk_jpeg_probe(struct platform_device *pdev)
 {
 	struct mtk_jpeg_dev *jpeg;
-	int jpeg_irq;
 	int ret;
 
 	jpeg = devm_kzalloc(&pdev->dev, sizeof(*jpeg), GFP_KERNEL);
@@ -1693,36 +1733,10 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	}
 
 	if (!jpeg->variant->multi_core) {
-		INIT_DELAYED_WORK(&jpeg->job_timeout_work,
-				  mtk_jpeg_job_timeout_work);
-
-		jpeg->reg_base = devm_platform_ioremap_resource(pdev, 0);
-		if (IS_ERR(jpeg->reg_base)) {
-			ret = PTR_ERR(jpeg->reg_base);
-			return ret;
-		}
-
-		jpeg_irq = platform_get_irq(pdev, 0);
-		if (jpeg_irq < 0)
-			return jpeg_irq;
-
-		ret = devm_request_irq(&pdev->dev,
-				       jpeg_irq,
-				       jpeg->variant->irq_handler,
-				       0,
-				       pdev->name, jpeg);
+		ret = mtk_jpeg_single_core_init(pdev, jpeg);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to request jpeg_irq %d (%d)\n",
-				jpeg_irq, ret);
-			return ret;
-		}
-
-		ret = devm_clk_bulk_get(jpeg->dev,
-					jpeg->variant->num_clks,
-					jpeg->variant->clks);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to init clk\n");
-			return ret;
+			v4l2_err(&jpeg->v4l2_dev, "mtk_jpeg_single_core_init failed.");
+			return -EINVAL;
 		}
 	}
 
