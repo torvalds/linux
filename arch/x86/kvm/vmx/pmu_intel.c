@@ -57,7 +57,7 @@ static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 		pmc = get_fixed_pmc(pmu, MSR_CORE_PERF_FIXED_CTR0 + i);
 
 		__set_bit(INTEL_PMC_IDX_FIXED + i, pmu->pmc_in_use);
-		kvm_pmu_request_counter_reprogam(pmc);
+		kvm_pmu_request_counter_reprogram(pmc);
 	}
 }
 
@@ -484,7 +484,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 			if (data != pmc->eventsel) {
 				pmc->eventsel = data;
-				kvm_pmu_request_counter_reprogam(pmc);
+				kvm_pmu_request_counter_reprogram(pmc);
 			}
 			break;
 		} else if (intel_pmu_handle_lbr_msrs_access(vcpu, msr_info, false)) {

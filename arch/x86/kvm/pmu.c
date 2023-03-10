@@ -650,7 +650,7 @@ static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
 {
 	pmc->prev_counter = pmc->counter;
 	pmc->counter = (pmc->counter + 1) & pmc_bitmask(pmc);
-	kvm_pmu_request_counter_reprogam(pmc);
+	kvm_pmu_request_counter_reprogram(pmc);
 }
 
 static inline bool eventsel_match_perf_hw_id(struct kvm_pmc *pmc,
