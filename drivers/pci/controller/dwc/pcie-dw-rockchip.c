@@ -40,7 +40,6 @@
 #include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
-#include <linux/version.h>
 #include <linux/pci-epf.h>
 
 #include "pcie-designware.h"
@@ -181,7 +180,6 @@ struct rk_pcie {
 	bool				supports_clkreq;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
-	int				legacy_parent_irq;
 	raw_spinlock_t			intx_lock;
 	u16				aspm;
 	u32				l1ss_ctl1;
@@ -1637,42 +1635,12 @@ static void rk_pcie_legacy_irq_unmask(struct irq_data *d)
 	raw_spin_unlock_irqrestore(&rk_pcie->intx_lock, flags);
 }
 
-#ifdef CONFIG_SMP
-static int rk_pcie_irq_set_affinity(struct irq_data *d,
-				    const struct cpumask *mask_val,
-				    bool force)
-{
-	unsigned int cpu;
-	struct rk_pcie *priv = irq_data_get_irq_chip_data(d);
-
-	if (!force)
-		cpu = cpumask_any_and(mask_val, cpu_online_mask);
-	else
-		cpu = cpumask_first(mask_val);
-
-	if (cpu >= nr_cpu_ids)
-		return -EINVAL;
-
-#if defined(MODULE) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0))
-	irq_set_affinity_hint(priv->legacy_parent_irq, cpumask_of(cpu));
-#else
-	irq_set_affinity(priv->legacy_parent_irq, cpumask_of(cpu));
-#endif
-	irq_data_update_effective_affinity(d, cpumask_of(cpu));
-
-	return IRQ_SET_MASK_OK_DONE;
-}
-#endif
-
 static struct irq_chip rk_pcie_legacy_irq_chip = {
 	.name		= "rk-pcie-legacy-int",
 	.irq_enable	= rk_pcie_legacy_irq_unmask,
 	.irq_disable	= rk_pcie_legacy_irq_mask,
 	.irq_mask	= rk_pcie_legacy_irq_mask,
 	.irq_unmask	= rk_pcie_legacy_irq_unmask,
-#ifdef CONFIG_SMP
-	.irq_set_affinity = rk_pcie_irq_set_affinity,
-#endif
 	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND,
 };
 
@@ -2059,7 +2027,6 @@ retry_regulator:
 	if (!ret) {
 		irq = platform_get_irq_byname(pdev, "legacy");
 		if (irq >= 0) {
-			rk_pcie->legacy_parent_irq = irq;
 			irq_set_chained_handler_and_data(irq, rk_pcie_legacy_int_handler,
 							 rk_pcie);
 			/* Unmask all legacy interrupt from INTA~INTD  */
