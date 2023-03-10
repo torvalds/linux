@@ -46,7 +46,7 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 	struct bkey_i *n;
 	int ret;
 
-	if (!bch2_bkey_has_device(k, dev_idx))
+	if (!bch2_bkey_has_device_c(k, dev_idx))
 		return 0;
 
 	n = bch2_bkey_make_mut(trans, k);
@@ -130,8 +130,7 @@ retry:
 		while (bch2_trans_begin(&trans),
 		       (b = bch2_btree_iter_peek_node(&iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
-			if (!bch2_bkey_has_device(bkey_i_to_s_c(&b->key),
-						  dev_idx))
+			if (!bch2_bkey_has_device_c(bkey_i_to_s_c(&b->key), dev_idx))
 				goto next;
 
 			bch2_bkey_buf_copy(&k, c, &b->key);

@@ -170,13 +170,13 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		i = 0;
 		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry) {
 			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
-			    bch2_extent_has_ptr(old, p, bkey_i_to_s_c(insert))) {
+			    bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) {
 				/*
 				 * If we're going to be adding a pointer to the
 				 * same device, we have to drop the old one -
 				 * otherwise, we can just mark it cached:
 				 */
-				if (bch2_bkey_has_device(bkey_i_to_s_c(&new->k_i), p.ptr.dev))
+				if (bch2_bkey_has_device_c(bkey_i_to_s_c(&new->k_i), p.ptr.dev))
 					bch2_bkey_drop_device_noerror(bkey_i_to_s(insert), p.ptr.dev);
 				else
 					bch2_bkey_mark_dev_cached(bkey_i_to_s(insert), p.ptr.dev);
@@ -188,7 +188,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		/* Add new ptrs: */
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
 			const struct bch_extent_ptr *existing_ptr =
-				bch2_bkey_has_device(bkey_i_to_s_c(insert), p.ptr.dev);
+				bch2_bkey_has_device_c(bkey_i_to_s_c(insert), p.ptr.dev);
 
 			if (existing_ptr && existing_ptr->cached) {
 				/*

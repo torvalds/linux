@@ -959,7 +959,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	bkey_reassemble(n, k);
 
 	bch2_bkey_drop_ptrs(bkey_i_to_s(n), ptr, ptr->dev != dev);
-	ec_ptr = (void *) bch2_bkey_has_device(bkey_i_to_s_c(n), dev);
+	ec_ptr = bch2_bkey_has_device(bkey_i_to_s(n), dev);
 	BUG_ON(!ec_ptr);
 
 	stripe_ptr = (struct bch_extent_stripe_ptr) {

@@ -971,7 +971,7 @@ static bool bch2_journal_writing_to_device(struct journal *j, unsigned dev_idx)
 	     seq++) {
 		struct journal_buf *buf = journal_seq_to_buf(j, seq);
 
-		if (bch2_bkey_has_device(bkey_i_to_s_c(&buf->key), dev_idx))
+		if (bch2_bkey_has_device_c(bkey_i_to_s_c(&buf->key), dev_idx))
 			ret = true;
 	}
 	spin_unlock(&j->lock);

@@ -1338,8 +1338,7 @@ static void __journal_write_alloc(struct journal *j,
 		if (!ca->mi.durability ||
 		    ca->mi.state != BCH_MEMBER_STATE_rw ||
 		    !ja->nr ||
-		    bch2_bkey_has_device(bkey_i_to_s_c(&w->key),
-					 ca->dev_idx) ||
+		    bch2_bkey_has_device_c(bkey_i_to_s_c(&w->key), ca->dev_idx) ||
 		    sectors > ja->sectors_free)
 			continue;
 

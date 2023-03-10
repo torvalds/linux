@@ -25,8 +25,6 @@
 #include "trace.h"
 #include "util.h"
 
-static union bch_extent_entry *__bch2_bkey_drop_ptr(struct bkey_s, struct bch_extent_ptr *);
-
 static unsigned bch2_crc_field_size_max[] = {
 	[BCH_EXTENT_ENTRY_crc32] = CRC32_SIZE_MAX,
 	[BCH_EXTENT_ENTRY_crc64] = CRC64_SIZE_MAX,
@@ -511,7 +509,7 @@ restart_narrow_pointers:
 
 	bkey_for_each_ptr_decode(&k->k, ptrs, p, i)
 		if (can_narrow_crc(p.crc, n)) {
-			__bch2_bkey_drop_ptr(bkey_i_to_s(k), &i->ptr);
+			bch2_bkey_drop_ptr_noerror(bkey_i_to_s(k), &i->ptr);
 			p.ptr.offset += p.crc.offset;
 			p.crc = n;
 			bch2_extent_ptr_decoded_append(k, &p);
@@ -691,7 +689,21 @@ unsigned bch2_bkey_durability(struct bch_fs *c, struct bkey_s_c k)
 	unsigned durability = 0;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-		durability += bch2_extent_ptr_durability(c,& p);
+		durability += bch2_extent_ptr_durability(c, &p);
+
+	return durability;
+}
+
+static unsigned bch2_bkey_durability_safe(struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	unsigned durability = 0;
+
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+		if (p.ptr.dev < c->sb.nr_devices && c->devs[p.ptr.dev])
+			durability += bch2_extent_ptr_durability(c, &p);
 
 	return durability;
 }
@@ -764,8 +776,8 @@ static void extent_entry_drop(struct bkey_s k, union bch_extent_entry *entry)
 /*
  * Returns pointer to the next entry after the one being dropped:
  */
-static union bch_extent_entry *__bch2_bkey_drop_ptr(struct bkey_s k,
-					   struct bch_extent_ptr *ptr)
+union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s k,
+						   struct bch_extent_ptr *ptr)
 {
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 	union bch_extent_entry *entry = to_entry(ptr), *next;
@@ -808,7 +820,7 @@ union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
 {
 	bool have_dirty = bch2_bkey_dirty_devs(k.s_c).nr;
 	union bch_extent_entry *ret =
-		__bch2_bkey_drop_ptr(k, ptr);
+		bch2_bkey_drop_ptr_noerror(k, ptr);
 
 	/*
 	 * If we deleted all the dirty pointers and there's still cached
@@ -839,14 +851,13 @@ void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
 
 void bch2_bkey_drop_device_noerror(struct bkey_s k, unsigned dev)
 {
-	struct bch_extent_ptr *ptr = (void *) bch2_bkey_has_device(k.s_c, dev);
+	struct bch_extent_ptr *ptr = bch2_bkey_has_device(k, dev);
 
 	if (ptr)
-		__bch2_bkey_drop_ptr(k, ptr);
+		bch2_bkey_drop_ptr_noerror(k, ptr);
 }
 
-const struct bch_extent_ptr *
-bch2_bkey_has_device(struct bkey_s_c k, unsigned dev)
+const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned dev)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const struct bch_extent_ptr *ptr;
@@ -921,11 +932,11 @@ bool bch2_extents_match(struct bkey_s_c k1, struct bkey_s_c k2)
 	}
 }
 
-bool bch2_extent_has_ptr(struct bkey_s_c k1, struct extent_ptr_decoded p1,
-			 struct bkey_s_c k2)
+struct bch_extent_ptr *
+bch2_extent_has_ptr(struct bkey_s_c k1, struct extent_ptr_decoded p1, struct bkey_s k2)
 {
-	struct bkey_ptrs_c ptrs2 = bch2_bkey_ptrs_c(k2);
-	const union bch_extent_entry *entry2;
+	struct bkey_ptrs ptrs2 = bch2_bkey_ptrs(k2);
+	union bch_extent_entry *entry2;
 	struct extent_ptr_decoded p2;
 
 	bkey_for_each_ptr_decode(k2.k, ptrs2, p2, entry2)
@@ -933,9 +944,9 @@ bool bch2_extent_has_ptr(struct bkey_s_c k1, struct extent_ptr_decoded p1,
 		    p1.ptr.gen		== p2.ptr.gen &&
 		    (s64) p1.ptr.offset + p1.crc.offset - bkey_start_offset(k1.k) ==
 		    (s64) p2.ptr.offset + p2.crc.offset - bkey_start_offset(k2.k))
-			return true;
+			return &entry2->ptr;
 
-	return false;
+	return NULL;
 }
 
 void bch2_extent_ptr_set_cached(struct bkey_s k, struct bch_extent_ptr *ptr)
@@ -990,6 +1001,9 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 	const struct bch_extent_stripe_ptr *ec;
 	struct bch_dev *ca;
 	bool first = true;
+
+	if (c)
+		prt_printf(out, "durability: %u ", bch2_bkey_durability_safe(c, k));
 
 	bkey_extent_entry_for_each(ptrs, entry) {
 		if (!first)

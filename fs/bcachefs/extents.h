@@ -613,14 +613,21 @@ unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);
 
 void bch2_bkey_drop_device(struct bkey_s, unsigned);
 void bch2_bkey_drop_device_noerror(struct bkey_s, unsigned);
-const struct bch_extent_ptr *bch2_bkey_has_device(struct bkey_s_c, unsigned);
+
+const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c, unsigned);
+
+static inline struct bch_extent_ptr *bch2_bkey_has_device(struct bkey_s k, unsigned dev)
+{
+	return (void *) bch2_bkey_has_device_c(k.s_c, dev);
+}
+
 bool bch2_bkey_has_target(struct bch_fs *, struct bkey_s_c, unsigned);
 
 void bch2_bkey_extent_entry_drop(struct bkey_i *, union bch_extent_entry *);
 
 static inline void bch2_bkey_append_ptr(struct bkey_i *k, struct bch_extent_ptr ptr)
 {
-	EBUG_ON(bch2_bkey_has_device(bkey_i_to_s_c(k), ptr.dev));
+	EBUG_ON(bch2_bkey_has_device(bkey_i_to_s(k), ptr.dev));
 
 	switch (k->k.type) {
 	case KEY_TYPE_btree_ptr:
@@ -642,6 +649,8 @@ static inline void bch2_bkey_append_ptr(struct bkey_i *k, struct bch_extent_ptr 
 
 void bch2_extent_ptr_decoded_append(struct bkey_i *,
 				    struct extent_ptr_decoded *);
+union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s,
+						   struct bch_extent_ptr *);
 union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s,
 					   struct bch_extent_ptr *);
 
@@ -665,7 +674,8 @@ do {									\
 bool bch2_bkey_matches_ptr(struct bch_fs *, struct bkey_s_c,
 			   struct bch_extent_ptr, u64);
 bool bch2_extents_match(struct bkey_s_c, struct bkey_s_c);
-bool bch2_extent_has_ptr(struct bkey_s_c, struct extent_ptr_decoded, struct bkey_s_c);
+struct bch_extent_ptr *
+bch2_extent_has_ptr(struct bkey_s_c, struct extent_ptr_decoded, struct bkey_s);
 
 void bch2_extent_ptr_set_cached(struct bkey_s, struct bch_extent_ptr *);
 
