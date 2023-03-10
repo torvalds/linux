@@ -839,11 +839,10 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 {
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 
-	if (!is_fsl_mc_bus_dprc(mc_dev))
-		return -EINVAL;
-
-	if (!mc_bus->irq_resources)
-		return -EINVAL;
+	if (!mc_bus->irq_resources) {
+		dev_err(&mc_dev->dev, "No irq resources, so unbinding the device failed\n");
+		return 0;
+	}
 
 	if (dev_get_msi_domain(&mc_dev->dev))
 		dprc_teardown_irq(mc_dev);
