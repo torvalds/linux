@@ -64,8 +64,12 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 		ASSERT_EQ(read(pipe_p2c[0], buf, 1), 1, "pipe_read");
 
 		/* wait a little for signal handler */
-		for (int i = 0; i < 1000000000 && !sigusr1_received; i++)
+		for (int i = 0; i < 1000000000 && !sigusr1_received; i++) {
 			j /= i + j + 1;
+			if (!attr)
+				/* trigger the nanosleep tracepoint program. */
+				usleep(1);
+		}
 
 		buf[0] = sigusr1_received ? '2' : '0';
 		ASSERT_EQ(sigusr1_received, 1, "sigusr1_received");
