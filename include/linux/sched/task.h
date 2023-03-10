@@ -25,6 +25,8 @@ struct kernel_clone_args {
 	int __user *parent_tid;
 	const char *name;
 	int exit_signal;
+	u32 kthread:1;
+	u32 io_thread:1;
 	unsigned long stack;
 	unsigned long stack_size;
 	unsigned long tls;
@@ -32,8 +34,6 @@ struct kernel_clone_args {
 	/* Number of elements in *set_tid */
 	size_t set_tid_size;
 	int cgroup;
-	int io_thread;
-	int kthread;
 	int idle;
 	int (*fn)(void *);
 	void *fn_arg;
