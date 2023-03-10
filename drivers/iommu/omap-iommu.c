@@ -1191,7 +1191,7 @@ static int omap_iommu_probe(struct platform_device *pdev)
 		return err;
 	if (obj->nr_tlb_entries != 32 && obj->nr_tlb_entries != 8)
 		return -EINVAL;
-	if (of_find_property(of, "ti,iommu-bus-err-back", NULL))
+	if (of_property_read_bool(of, "ti,iommu-bus-err-back"))
 		obj->has_bus_err_back = MMU_GP_REG_BUS_ERR_BACK_EN;
 
 	obj->dev = &pdev->dev;
