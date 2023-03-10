@@ -382,7 +382,7 @@ static int st_rproc_probe(struct platform_device *pdev)
 		clk_set_rate(ddata->clk, ddata->clk_rate);
 	}
 
-	if (of_get_property(np, "mbox-names", NULL)) {
+	if (of_property_present(np, "mbox-names")) {
 		ddata->mbox_client_vq0.dev		= dev;
 		ddata->mbox_client_vq0.tx_done		= NULL;
 		ddata->mbox_client_vq0.tx_block	= false;
