@@ -11,7 +11,8 @@ Documentation conventions
 =========================
 
 For brevity, this document uses the type notion "u64", "u32", etc.
-to mean an unsigned integer whose width is the specified number of bits.
+to mean an unsigned integer whose width is the specified number of bits,
+and "s32", etc. to mean a signed integer of the specified number of bits.
 
 Registers and calling convention
 ================================
@@ -263,6 +264,14 @@ BPF_JSLE  0xd0   PC += off if dst <= src    signed
 
 The eBPF program needs to store the return value into register R0 before doing a
 BPF_EXIT.
+
+Example:
+
+``BPF_JSGE | BPF_X | BPF_JMP32`` (0x7e) means::
+
+  if (s32)dst s>= (s32)src goto +offset
+
+where 's>=' indicates a signed '>=' comparison.
 
 Helper functions
 ~~~~~~~~~~~~~~~~
