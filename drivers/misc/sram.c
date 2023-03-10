@@ -218,14 +218,9 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		block->res = child_res;
 		list_add_tail(&block->list, &reserve_list);
 
-		if (of_find_property(child, "export", NULL))
-			block->export = true;
-
-		if (of_find_property(child, "pool", NULL))
-			block->pool = true;
-
-		if (of_find_property(child, "protect-exec", NULL))
-			block->protect_exec = true;
+		block->export = of_property_read_bool(child, "export");
+		block->pool = of_property_read_bool(child, "pool");
+		block->protect_exec = of_property_read_bool(child, "protect-exec");
 
 		if ((block->export || block->pool || block->protect_exec) &&
 		    block->size) {
