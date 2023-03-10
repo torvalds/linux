@@ -201,10 +201,10 @@ static int buck12_set_hw_dvs_levels(struct device_node *np,
 
 	data = container_of(desc, struct bd71815_regulator, desc);
 
-	if (of_find_property(np, "rohm,dvs-run-voltage", NULL) ||
-	    of_find_property(np, "rohm,dvs-suspend-voltage", NULL) ||
-	    of_find_property(np, "rohm,dvs-lpsr-voltage", NULL) ||
-	    of_find_property(np, "rohm,dvs-snvs-voltage", NULL)) {
+	if (of_property_present(np, "rohm,dvs-run-voltage") ||
+	    of_property_present(np, "rohm,dvs-suspend-voltage") ||
+	    of_property_present(np, "rohm,dvs-lpsr-voltage") ||
+	    of_property_present(np, "rohm,dvs-snvs-voltage")) {
 		ret = regmap_read(cfg->regmap, desc->vsel_reg, &val);
 		if (ret)
 			return ret;
