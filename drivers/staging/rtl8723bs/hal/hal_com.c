@@ -859,22 +859,6 @@ bool eqNByte(u8 *str1, u8 *str2, u32 num)
 	return true;
 }
 
-/*  */
-/* 	Description: */
-/* 		Translate a character to hex digit. */
-/*  */
-u32 MapCharToHexDigit(char chTmp)
-{
-	if (chTmp >= '0' && chTmp <= '9')
-		return chTmp - '0';
-	else if (chTmp >= 'a' && chTmp <= 'f')
-		return 10 + (chTmp - 'a');
-	else if (chTmp >= 'A' && chTmp <= 'F')
-		return 10 + (chTmp - 'A');
-	else
-		return 0;
-}
-
 bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 {
 	u16 i = 0;
