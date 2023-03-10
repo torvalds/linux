@@ -16,7 +16,7 @@
 #include <linux/qcom_scm.h>
 
 #include <soc/qcom/secure_buffer.h>
-#include <linux/gunyah.h>
+#include <linux/gunyah_deprecated.h>
 
 #include "gh_secure_vm_virtio_backend.h"
 #include "gh_secure_vm_loader.h"

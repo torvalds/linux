@@ -7,7 +7,6 @@
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/cpufreq.h>
-#include <linux/gunyah.h>
 #include <linux/gunyah/gh_errno.h>
 #include <asm/gunyah/hcall.h>
 

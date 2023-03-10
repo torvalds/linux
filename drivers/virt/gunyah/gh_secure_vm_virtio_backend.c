@@ -27,7 +27,7 @@
 #include <linux/eventfd.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
-#include <linux/gunyah.h>
+#include <linux/gunyah_deprecated.h>
 #include <linux/of_irq.h>
 #include <uapi/linux/virtio_mmio.h>
 #include <linux/gunyah/gh_rm_drv.h>
