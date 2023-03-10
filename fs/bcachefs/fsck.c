@@ -954,11 +954,11 @@ static int check_inode(struct btree_trans *trans,
 				     iter->pos.snapshot),
 				POS(u.bi_inum, U64_MAX),
 				0, NULL);
-		if (ret) {
+		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			bch_err(c, "error in fsck: error truncating inode: %s",
 				bch2_err_str(ret));
+		if (ret)
 			return ret;
-		}
 
 		/*
 		 * We truncated without our normal sector accounting hook, just
