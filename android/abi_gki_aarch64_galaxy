@@ -234,6 +234,15 @@
   time64_to_tm
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_is_fpsimd_save
+  __traceiter_android_vh_mutex_wait_finish
+  __traceiter_android_vh_mutex_wait_start
+  __traceiter_android_vh_rtmutex_wait_finish
+  __traceiter_android_vh_rtmutex_wait_start
+  __traceiter_android_vh_rwsem_read_wait_finish
+  __traceiter_android_vh_rwsem_read_wait_start
+  __traceiter_android_vh_rwsem_write_wait_finish
+  __traceiter_android_vh_rwsem_write_wait_start
+  __traceiter_android_vh_sched_show_task
   __traceiter_console
   __traceiter_hrtimer_expire_entry
   __traceiter_hrtimer_expire_exit
@@ -243,6 +252,15 @@
   __traceiter_workqueue_execute_start
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_is_fpsimd_save
+  __tracepoint_android_vh_mutex_wait_finish
+  __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_rtmutex_wait_finish
+  __tracepoint_android_vh_rtmutex_wait_start
+  __tracepoint_android_vh_rwsem_read_wait_finish
+  __tracepoint_android_vh_rwsem_read_wait_start
+  __tracepoint_android_vh_rwsem_write_wait_finish
+  __tracepoint_android_vh_rwsem_write_wait_start
+  __tracepoint_android_vh_sched_show_task
   __tracepoint_console
   __tracepoint_hrtimer_expire_entry
   __tracepoint_hrtimer_expire_exit
