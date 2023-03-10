@@ -1045,7 +1045,7 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	int i;
 
 	num_regions = 1;
-	if (of_find_property(pdev->dev.of_node, "qcom,rpm-msg-ram", NULL))
+	if (of_property_present(pdev->dev.of_node, "qcom,rpm-msg-ram"))
 		num_regions++;
 
 	array_size = num_regions * sizeof(struct smem_region);
