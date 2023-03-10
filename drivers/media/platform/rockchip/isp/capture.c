@@ -1559,7 +1559,12 @@ static void rkisp_buf_done_task(unsigned long arg)
 		buf = list_first_entry(&local_list,
 				       struct rkisp_buffer, queue);
 		list_del(&buf->queue);
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+
+		v4l2_dbg(2, rkisp_debug, &stream->ispdev->v4l2_dev,
+			 "stream:%d seq:%d buf:0x%x done\n",
+			 stream->id, buf->vb.sequence, buf->buff_addr[0]);
+		vb2_buffer_done(&buf->vb.vb2_buf,
+				stream->streaming ? VB2_BUF_STATE_DONE : VB2_BUF_STATE_ERROR);
 	}
 }
 

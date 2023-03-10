@@ -1672,6 +1672,13 @@ static void destroy_buf_queue(struct rkisp_stream *stream,
 		if (buf->vb.vb2_buf.memory)
 			vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
+	while (!list_empty(&stream->buf_done_list)) {
+		buf = list_first_entry(&stream->buf_done_list,
+			struct rkisp_buffer, queue);
+		list_del(&buf->queue);
+		if (buf->vb.vb2_buf.memory)
+			vb2_buffer_done(&buf->vb.vb2_buf, state);
+	}
 	rkisp_rockit_buf_free(stream);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
