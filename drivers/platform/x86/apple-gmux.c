@@ -694,7 +694,6 @@ static ssize_t gmux_selected_port_data_write(struct file *file,
 		const char __user *userbuf, size_t count, loff_t *ppos)
 {
 	struct apple_gmux_data *gmux_data = file->private_data;
-	int ret;
 
 	if (*ppos)
 		return -EINVAL;
@@ -702,16 +701,16 @@ static ssize_t gmux_selected_port_data_write(struct file *file,
 	if (count == 1) {
 		u8 data;
 
-		ret = copy_from_user(&data, userbuf, 1);
-		if (ret)
-			return ret;
+		if (copy_from_user(&data, userbuf, 1))
+			return -EFAULT;
+
 		gmux_write8(gmux_data, gmux_data->selected_port, data);
 	} else if (count == 4) {
 		u32 data;
 
-		ret = copy_from_user(&data, userbuf, 4);
-		if (ret)
-			return ret;
+		if (copy_from_user(&data, userbuf, 4))
+			return -EFAULT;
+
 		gmux_write32(gmux_data, gmux_data->selected_port, data);
 	} else
 		return -EINVAL;
