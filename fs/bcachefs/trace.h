@@ -682,9 +682,21 @@ DEFINE_EVENT(bkey, move_extent_finish,
 	TP_ARGS(k)
 );
 
-DEFINE_EVENT(bkey, move_extent_fail,
-	TP_PROTO(const struct bkey *k),
-	TP_ARGS(k)
+TRACE_EVENT(move_extent_fail,
+	TP_PROTO(struct bch_fs *c, const char *msg),
+	TP_ARGS(c, msg),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__string(msg,		msg			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		__assign_str(msg, msg);
+	),
+
+	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
 );
 
 DEFINE_EVENT(bkey, move_extent_alloc_mem_fail,

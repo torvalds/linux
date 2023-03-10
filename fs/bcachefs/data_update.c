@@ -7,6 +7,7 @@
 #include "buckets.h"
 #include "data_update.h"
 #include "ec.h"
+#include "error.h"
 #include "extents.h"
 #include "io.h"
 #include "keylist.h"
@@ -91,6 +92,70 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 	return ret;
 }
 
+static void trace_move_extent_fail2(struct data_update *m,
+			 struct bkey_s_c new,
+			 struct bkey_s_c wrote,
+			 struct bkey_i *insert,
+			 const char *msg)
+{
+	struct bch_fs *c = m->op.c;
+	struct bkey_s_c old = bkey_i_to_s_c(m->k.k);
+	const union bch_extent_entry *entry;
+	struct bch_extent_ptr *ptr;
+	struct extent_ptr_decoded p;
+	struct printbuf buf = PRINTBUF;
+	unsigned i, rewrites_found = 0;
+
+	if (!trace_move_extent_fail_enabled())
+		return;
+
+	prt_str(&buf, msg);
+
+	if (insert) {
+		i = 0;
+		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry) {
+			struct bkey_s new_s;
+			new_s.k = (void *) new.k;
+			new_s.v = (void *) new.v;
+
+			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
+			    (ptr = bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) &&
+			    !ptr->cached)
+				rewrites_found |= 1U << i;
+			i++;
+		}
+	}
+
+	prt_printf(&buf, "\nrewrite ptrs:   %u%u%u%u",
+		   (m->data_opts.rewrite_ptrs & (1 << 0)) != 0,
+		   (m->data_opts.rewrite_ptrs & (1 << 1)) != 0,
+		   (m->data_opts.rewrite_ptrs & (1 << 2)) != 0,
+		   (m->data_opts.rewrite_ptrs & (1 << 3)) != 0);
+
+	prt_printf(&buf, "\nrewrites found: %u%u%u%u",
+		   (rewrites_found & (1 << 0)) != 0,
+		   (rewrites_found & (1 << 1)) != 0,
+		   (rewrites_found & (1 << 2)) != 0,
+		   (rewrites_found & (1 << 3)) != 0);
+
+	prt_str(&buf, "\nold:    ");
+	bch2_bkey_val_to_text(&buf, c, old);
+
+	prt_str(&buf, "\nnew:    ");
+	bch2_bkey_val_to_text(&buf, c, new);
+
+	prt_str(&buf, "\nwrote:  ");
+	bch2_bkey_val_to_text(&buf, c, wrote);
+
+	if (insert) {
+		prt_str(&buf, "\ninsert: ");
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+	}
+
+	trace_move_extent_fail(c, buf.buf);
+	printbuf_exit(&buf);
+}
+
 static int __bch2_data_update_index_update(struct btree_trans *trans,
 					   struct bch_write_op *op)
 {
@@ -134,8 +199,11 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 
 		new = bkey_i_to_extent(bch2_keylist_front(keys));
 
-		if (!bch2_extents_match(k, old))
+		if (!bch2_extents_match(k, old)) {
+			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i),
+						NULL, "no match:");
 			goto nowork;
+		}
 
 		bkey_reassemble(_insert.k, k);
 		insert = _insert.k;
@@ -174,8 +242,10 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 
 		if (m->data_opts.rewrite_ptrs &&
 		    !rewrites_found &&
-		    bch2_bkey_durability(c, k) >= m->op.opts.data_replicas)
+		    bch2_bkey_durability(c, k) >= m->op.opts.data_replicas) {
+			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "no rewrites found:");
 			goto nowork;
+		}
 
 		/*
 		 * A replica that we just wrote might conflict with a replica
@@ -189,8 +259,10 @@ restart_drop_conflicting_replicas:
 				goto restart_drop_conflicting_replicas;
 			}
 
-		if (!bkey_val_u64s(&new->k))
+		if (!bkey_val_u64s(&new->k)) {
+			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "new replicas conflicted:");
 			goto nowork;
+		}
 
 		/* Now, drop pointers that conflict with what we just wrote: */
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry)
@@ -293,7 +365,6 @@ nowork:
 		}
 
 		this_cpu_add(c->counters[BCH_COUNTER_move_extent_fail], new->k.size);
-		trace_move_extent_fail(&new->k);
 
 		bch2_btree_iter_advance(&iter);
 		goto next;
