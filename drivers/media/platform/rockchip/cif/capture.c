@@ -4467,6 +4467,14 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		}
 		INIT_LIST_HEAD(&stream->buf_head);
+		while (!list_empty(&stream->vb_done_list)) {
+			buf = list_first_entry(&stream->vb_done_list,
+					       struct rkcif_buffer, queue);
+			if (buf) {
+				list_del(&buf->queue);
+				vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+			}
+		}
 		stream->lack_buf_cnt = 0;
 		stream->dma_en &= ~RKCIF_DMAEN_BY_VICAP;
 	}
