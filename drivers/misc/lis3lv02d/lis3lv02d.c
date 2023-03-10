@@ -1085,7 +1085,7 @@ int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 	if (of_property_read_s32(np, "st,axis-z", &sval) == 0)
 		pdata->axis_z = sval;
 
-	if (of_get_property(np, "st,default-rate", NULL))
+	if (of_property_read_u32(np, "st,default-rate", &val) == 0)
 		pdata->default_rate = val;
 
 	if (of_property_read_s32(np, "st,min-limit-x", &sval) == 0)
