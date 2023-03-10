@@ -14,6 +14,7 @@
 #include "psp-dev.h"
 #include "sev-dev.h"
 #include "tee-dev.h"
+#include "platform-access.h"
 
 struct psp_device *psp_master;
 
@@ -102,6 +103,17 @@ static int psp_check_tee_support(struct psp_device *psp)
 	return 0;
 }
 
+static void psp_init_platform_access(struct psp_device *psp)
+{
+	int ret;
+
+	ret = platform_access_dev_init(psp);
+	if (ret) {
+		dev_warn(psp->dev, "platform access init failed: %d\n", ret);
+		return;
+	}
+}
+
 static int psp_init(struct psp_device *psp)
 {
 	int ret;
@@ -117,6 +129,9 @@ static int psp_init(struct psp_device *psp)
 		if (ret)
 			return ret;
 	}
+
+	if (psp->vdata->platform_access)
+		psp_init_platform_access(psp);
 
 	return 0;
 }
@@ -197,6 +212,8 @@ void psp_dev_destroy(struct sp_device *sp)
 	sev_dev_destroy(psp);
 
 	tee_dev_destroy(psp);
+
+	platform_access_dev_destroy(psp);
 
 	sp_free_psp_irq(sp, psp);
 
