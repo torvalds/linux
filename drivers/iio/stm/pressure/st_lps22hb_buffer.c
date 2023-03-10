@@ -81,7 +81,7 @@ ssize_t st_lps22hb_sysfs_set_hwfifo_watermark(struct device * dev,
 					      struct device_attribute * attr,
 					      const char *buf, size_t count)
 {
-	struct st_lps22hb_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lps22hb_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	int err, watermark;
 
 	err = kstrtoint(buf, 10, &watermark);
@@ -139,7 +139,7 @@ ssize_t st_lps22hb_sysfs_flush_fifo(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t size)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct st_lps22hb_sensor *sensor = iio_priv(indio_dev);
 	struct st_lps22hb_hw *hw = sensor->hw;
 	u64 type, event;
@@ -266,7 +266,12 @@ int st_lps22hb_allocate_buffers(struct st_lps22hb_hw *hw)
 
 	for (i = 0; i < ST_LPS22HB_SENSORS_NUMB; i++) {
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[i],
+						  &st_lps22hb_buffer_ops);
+		if (err)
+			return err;
+#elif KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
 		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[i],
 						  INDIO_BUFFER_SOFTWARE,
 						  &st_lps22hb_buffer_ops);

@@ -16,6 +16,8 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/hrtimer.h>
+#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 

@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/iio/iio.h>
+#include <linux/of_device.h>
 #include <linux/delay.h>
 
 #define ST_ISM330DHCX_MAX_ODR			833

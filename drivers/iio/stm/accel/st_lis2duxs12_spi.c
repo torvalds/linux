@@ -12,6 +12,7 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/version.h>
 
 #include "st_lis2duxs12.h"
 
@@ -38,10 +39,17 @@ static int st_lis2duxs12_spi_probe(struct spi_device *spi)
 	return st_lis2duxs12_probe(&spi->dev, spi->irq, hw_id, regmap);
 }
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+static void st_lis2duxs12_spi_remove(struct spi_device *spi)
+{
+	st_lis2duxs12_remove(&spi->dev);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_lis2duxs12_spi_remove(struct spi_device *spi)
 {
 	return st_lis2duxs12_remove(&spi->dev);
 }
+#endif /* LINUX_VERSION_CODE */
 
 static const struct of_device_id st_lis2duxs12_spi_of_match[] = {
 	{

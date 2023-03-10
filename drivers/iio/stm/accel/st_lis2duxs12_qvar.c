@@ -42,7 +42,7 @@ st_lis2duxs12_sysfs_qvar_sampling_freq_avail(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2duxs12_sensor *sensor = iio_priv(iio_dev);
 	struct st_lis2duxs12_hw *hw = sensor->hw;
 	int len = 0;

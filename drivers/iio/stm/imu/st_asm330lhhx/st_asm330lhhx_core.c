@@ -690,7 +690,7 @@ static ssize_t st_asm330lhhx_sysfs_get_selftest_status(struct device *dev,
 {
 	int8_t result;
 	char *message = NULL;
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_asm330lhhx_sensor_id id = sensor->id;
 
 	if (id != ST_ASM330LHHX_ID_ACC &&
@@ -1466,7 +1466,7 @@ st_asm330lhhx_sysfs_sampling_freq_avail(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_asm330lhhx_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -1485,7 +1485,7 @@ static ssize_t st_asm330lhhx_sysfs_scale_avail(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_asm330lhhx_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -1502,7 +1502,7 @@ st_asm330lhhx_sysfs_get_power_mode_avail(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	struct st_asm330lhhx_hw *hw = sensor->hw;
 	int i, len = 0;
@@ -1527,7 +1527,7 @@ static ssize_t
 st_asm330lhhx_get_power_mode(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 
 	return sprintf(buf, "%s\n",
@@ -1539,7 +1539,7 @@ st_asm330lhhx_set_power_mode(struct device *dev,
 			 struct device_attribute *attr,
 			 const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	struct st_asm330lhhx_hw *hw = sensor->hw;
 	int err, i;
@@ -1727,7 +1727,7 @@ selftest_failure:
 static ssize_t st_asm330lhhx_sysfs_start_selftest(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	enum st_asm330lhhx_sensor_id id = sensor->id;
 	struct st_asm330lhhx_hw *hw = sensor->hw;
@@ -1806,7 +1806,7 @@ ssize_t st_asm330lhhx_get_module_id(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	struct st_asm330lhhx_hw *hw = sensor->hw;
 
@@ -1844,7 +1844,7 @@ static
 ssize_t __maybe_unused st_asm330lhhx_get_discharded_samples(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
 

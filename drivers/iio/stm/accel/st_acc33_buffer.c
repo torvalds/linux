@@ -270,7 +270,12 @@ int st_acc33_fifo_setup(struct st_acc33_hw *hw)
 		return ret;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	ret = devm_iio_kfifo_buffer_setup(hw->dev, iio_dev,
+					  &st_acc33_buffer_ops);
+	if (ret)
+		return ret;
+#elif KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
 	ret = devm_iio_kfifo_buffer_setup(hw->dev, iio_dev,
 					  INDIO_BUFFER_SOFTWARE,
 					  &st_acc33_buffer_ops);

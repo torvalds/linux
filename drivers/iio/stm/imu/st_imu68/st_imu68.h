@@ -11,6 +11,8 @@
 #define ST_IMU68_H
 
 #include <linux/device.h>
+#include <linux/of_device.h>
+#include <linux/version.h>
 
 #define ST_LSM9DS1_DEV_NAME		"lsm9ds1"
 

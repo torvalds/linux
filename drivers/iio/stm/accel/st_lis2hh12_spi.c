@@ -112,6 +112,16 @@ free_data:
 	return err;
 }
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+static void lis2hh12_spi_remove(struct spi_device *spi)
+{
+	struct lis2hh12_data *cdata = spi_get_drvdata(spi);
+
+	lis2hh12_common_remove(cdata, spi->irq);
+	dev_info(cdata->dev, "%s: removed\n", LIS2HH12_DEV_NAME);
+	kfree(cdata);
+}
+#else /* LINUX_VERSION_CODE */
 static int lis2hh12_spi_remove(struct spi_device *spi)
 {
 	struct lis2hh12_data *cdata = spi_get_drvdata(spi);
@@ -122,6 +132,7 @@ static int lis2hh12_spi_remove(struct spi_device *spi)
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_PM
 static int __maybe_unused lis2hh12_suspend(struct device *dev)

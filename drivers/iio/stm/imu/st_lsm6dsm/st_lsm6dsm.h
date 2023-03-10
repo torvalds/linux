@@ -12,6 +12,11 @@
 
 #include <linux/types.h>
 #include <linux/iio/trigger.h>
+#include <linux/version.h>
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+#include <linux/iio/iio-opaque.h>
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_ST_LSM6DSM_IIO_MASTER_SUPPORT
 #include <linux/i2c.h>
@@ -367,5 +372,18 @@ static inline int st_lsm6dsm_i2c_master_exit(struct lsm6dsm_data *cdata)
 	return 0;
 }
 #endif /* CONFIG_ST_LSM6DSM_IIO_MASTER_SUPPORT */
+
+static inline int st_lsm6dsm_iio_dev_currentmode(struct iio_dev *indio_dev)
+{
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	struct iio_dev_opaque *iio_opq = to_iio_dev_opaque(indio_dev);
+
+	return iio_opq->currentmode;
+#else /* LINUX_VERSION_CODE */
+	return indio_dev->currentmode;
+#endif /* LINUX_VERSION_CODE */
+
+}
 
 #endif /* ST_LSM6DSM_H */

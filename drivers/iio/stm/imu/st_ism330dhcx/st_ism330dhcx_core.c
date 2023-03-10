@@ -852,6 +852,7 @@ static int st_ism330dhcx_write_raw(struct iio_dev *iio_dev,
 					break;
 
 				err = st_ism330dhcx_update_batching(iio_dev, 1);
+				break;
 			default:
 				break;
 			}
@@ -951,7 +952,7 @@ st_ism330dhcx_sysfs_sampling_frequency_avail(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_ism330dhcx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_ism330dhcx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_ism330dhcx_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -987,7 +988,7 @@ static ssize_t st_ism330dhcx_sysfs_scale_avail(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct st_ism330dhcx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_ism330dhcx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_ism330dhcx_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -1013,7 +1014,7 @@ st_ism330dhcx_sysfs_reset_step_counter(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	int err;
 
 	err = st_ism330dhcx_reset_step_counter(iio_dev);
@@ -1044,7 +1045,7 @@ ssize_t st_ism330dhcx_get_module_id(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_ism330dhcx_sensor *sensor = iio_priv(iio_dev);
 	struct st_ism330dhcx_hw *hw = sensor->hw;
 

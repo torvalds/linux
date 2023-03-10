@@ -277,7 +277,7 @@ st_imu68_sysfs_sampling_frequency_avail(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct st_imu68_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_imu68_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_imu68_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -293,7 +293,7 @@ static ssize_t st_imu68_sysfs_scale_avail(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_imu68_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_imu68_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_imu68_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -438,7 +438,7 @@ static ssize_t st_imu68_get_sampling_frequency(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
 {
-	struct st_imu68_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_imu68_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->odr);
 }
@@ -447,7 +447,7 @@ static ssize_t st_imu68_set_sampling_frequency(struct device *dev,
 					       struct device_attribute *attr,
 					       const char *buf, size_t count)
 {
-	struct st_imu68_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_imu68_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	int err, odr;
 
 	err = kstrtoint(buf, 10, &odr);
@@ -463,7 +463,7 @@ ssize_t st_imu68_get_module_id(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_imu68_sensor *sensor = iio_priv(iio_dev);
 	struct st_imu68_hw *hw = sensor->hw;
 

@@ -13,6 +13,11 @@
 #include <linux/types.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
+#include <linux/version.h>
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+#include <linux/iio/iio-opaque.h>
+#endif /* LINUX_VERSION_CODE */
 
 #define LIS2HH12_WHO_AM_I_ADDR			0x0f
 #define LIS2HH12_WHO_AM_I_DEF			0x41
@@ -189,6 +194,19 @@ struct lis2hh12_data {
 	const struct lis2hh12_transfer_function *tf;
 	struct lis2hh12_transfer_buffer tb;
 };
+
+static inline int lis2hh12_iio_dev_currentmode(struct iio_dev *indio_dev)
+{
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	struct iio_dev_opaque *iio_opq = to_iio_dev_opaque(indio_dev);
+
+	return iio_opq->currentmode;
+#else /* LINUX_VERSION_CODE */
+	return indio_dev->currentmode;
+#endif /* LINUX_VERSION_CODE */
+
+}
 
 int lis2hh12_common_probe(struct lis2hh12_data *cdata, int irq);
 #ifdef CONFIG_PM

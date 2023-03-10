@@ -124,6 +124,15 @@ free_data:
 	return err;
 }
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+static void st_lsm6ds3_spi_remove(struct spi_device *spi)
+{
+	struct lsm6ds3_data *cdata = spi_get_drvdata(spi);
+
+	st_lsm6ds3_common_remove(cdata, spi->irq);
+	kfree(cdata);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_lsm6ds3_spi_remove(struct spi_device *spi)
 {
 	struct lsm6ds3_data *cdata = spi_get_drvdata(spi);
@@ -133,6 +142,7 @@ static int st_lsm6ds3_spi_remove(struct spi_device *spi)
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_PM
 static int __maybe_unused st_lsm6ds3_suspend(struct device *dev)

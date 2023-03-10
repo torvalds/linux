@@ -883,7 +883,7 @@ st_lsm6dsrx_sysfs_sampling_frequency_avail(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lsm6dsrx_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -902,7 +902,7 @@ static ssize_t st_lsm6dsrx_sysfs_scale_avail(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lsm6dsrx_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -934,7 +934,7 @@ st_lsm6dsrx_sysfs_get_power_mode_avail(struct device *dev,
 ssize_t st_lsm6dsrx_get_power_mode(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 
 	return sprintf(buf, "%s\n",
@@ -945,7 +945,7 @@ ssize_t st_lsm6dsrx_set_power_mode(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	int err, i;
 
@@ -1163,7 +1163,7 @@ static ssize_t st_lsm6dsrx_sysfs_get_selftest_status(struct device *dev,
 {
 	int8_t result;
 	char *message = NULL;
-	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lsm6dsrx_sensor_id id = sensor->id;
 
 	if (id != ST_LSM6DSRX_ID_ACC &&
@@ -1337,7 +1337,7 @@ selftest_failure:
 static ssize_t st_lsm6dsrx_sysfs_start_selftest(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	enum st_lsm6dsrx_sensor_id id = sensor->id;
 	struct st_lsm6dsrx_hw *hw = sensor->hw;
@@ -1432,7 +1432,7 @@ ssize_t st_lsm6dsrx_get_module_id(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsrx_hw *hw = sensor->hw;
 

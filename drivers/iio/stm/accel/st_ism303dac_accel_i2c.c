@@ -103,6 +103,16 @@ free_data:
 	return err;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void ism303dac_i2c_remove(struct i2c_client *client)
+{
+	struct ism303dac_data *cdata = i2c_get_clientdata(client);
+
+	ism303dac_common_remove(cdata, client->irq);
+	dev_info(cdata->dev, "%s: removed\n", ISM303DAC_DEV_NAME);
+	kfree(cdata);
+}
+#else /* LINUX_VERSION_CODE */
 static int ism303dac_i2c_remove(struct i2c_client *client)
 {
 	struct ism303dac_data *cdata = i2c_get_clientdata(client);
@@ -110,8 +120,10 @@ static int ism303dac_i2c_remove(struct i2c_client *client)
 	ism303dac_common_remove(cdata, client->irq);
 	dev_info(cdata->dev, "%s: removed\n", ISM303DAC_DEV_NAME);
 	kfree(cdata);
+
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_PM
 static int __maybe_unused ism303dac_suspend(struct device *dev)

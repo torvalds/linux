@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
+#include <linux/version.h>
 
 #define ST_MAG40_DEV_NAME			"st_mag40"
 #define LIS2MDL_DEV_NAME			"lis2mdl_magn"

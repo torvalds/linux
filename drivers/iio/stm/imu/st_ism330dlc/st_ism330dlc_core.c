@@ -1633,7 +1633,7 @@ static int st_ism330dlc_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		if (st_ism330dlc_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 			mutex_unlock(&indio_dev->mlock);
 			return -EBUSY;
 		}
@@ -1693,7 +1693,7 @@ static int st_ism330dlc_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&indio_dev->mlock);
 
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		if (st_ism330dlc_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 			mutex_unlock(&indio_dev->mlock);
 			return -EBUSY;
 		}
@@ -1774,7 +1774,7 @@ static int st_ism330dlc_set_selftest(struct ism330dlc_sensor_data *sdata, int in
 static ssize_t st_ism330dlc_sysfs_get_sampling_frequency(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct ism330dlc_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
+	struct ism330dlc_sensor_data *sdata = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sdata->cdata->v_odr[sdata->sindex]);
 }
@@ -1784,7 +1784,7 @@ static ssize_t st_ism330dlc_sysfs_set_sampling_frequency(struct device *dev,
 {
 	int err;
 	unsigned int odr;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &odr);
@@ -1834,7 +1834,7 @@ static ssize_t st_ism330dlc_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int i, len = 0;
-	struct ism330dlc_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
+	struct ism330dlc_sensor_data *sdata = iio_priv(dev_to_iio_dev(dev));
 
 	for (i = 0; i < ST_ISM330DLC_FS_LIST_NUM; i++) {
 		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
@@ -1858,7 +1858,7 @@ static ssize_t st_ism330dlc_sysfs_get_selftest_status(struct device *dev,
 {
 	int8_t result;
 	char *message = NULL;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&sdata->cdata->odr_lock);
@@ -1891,7 +1891,7 @@ static ssize_t st_ism330dlc_sysfs_start_selftest_status(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	int err, i, n;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 	u8 reg_status, reg_addr, temp_reg_status, outdata[6];
 	int x = 0, y = 0, z = 0, x_selftest = 0, y_selftest = 0, z_selftest = 0;
@@ -2069,12 +2069,12 @@ ssize_t st_ism330dlc_sysfs_flush_fifo(struct device *dev,
 	u64 sensor_last_timestamp, event_type = 0;
 	int stype = 0;
 	u64 timestamp_flush = 0;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&indio_dev->mlock);
 
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (st_ism330dlc_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 		mutex_lock(&sdata->cdata->odr_lock);
 		disable_irq(sdata->cdata->irq);
 	} else {
@@ -2127,7 +2127,7 @@ ssize_t st_ism330dlc_sysfs_flush_fifo(struct device *dev,
 ssize_t st_ism330dlc_sysfs_get_hwfifo_enabled(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n",
@@ -2139,11 +2139,11 @@ ssize_t st_ism330dlc_sysfs_set_hwfifo_enabled(struct device *dev,
 {
 	int err;
 	bool enable = false;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (st_ism330dlc_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 		err = -EBUSY;
 		goto set_hwfifo_enabled_unlock_mutex;
 	}
@@ -2174,7 +2174,7 @@ set_hwfifo_enabled_unlock_mutex:
 ssize_t st_ism330dlc_sysfs_get_hwfifo_watermark(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n",
@@ -2185,7 +2185,7 @@ ssize_t st_ism330dlc_sysfs_set_hwfifo_watermark(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	int err = 0, watermark = 0, old_watermark;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &watermark);
@@ -2237,12 +2237,12 @@ static ssize_t st_ism330dlc_sysfs_set_injection_mode(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	int err, start;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&indio_dev->mlock);
 
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (st_ism330dlc_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
@@ -2306,7 +2306,7 @@ static ssize_t st_ism330dlc_sysfs_set_injection_mode(struct device *dev,
 static ssize_t st_ism330dlc_sysfs_get_injection_mode(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", sdata->cdata->injection_mode);
@@ -2318,7 +2318,7 @@ static ssize_t st_ism330dlc_sysfs_upload_xl_data(struct device *dev,
 	int err, i, n = 1;
 	s64 timestamp, deltatime;
 	u8 sample[3], current_odr;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&indio_dev->mlock);
@@ -2397,7 +2397,7 @@ ssize_t st_ism330dlc_get_module_id(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 	struct ism330dlc_data *cdata = sdata->cdata;
 

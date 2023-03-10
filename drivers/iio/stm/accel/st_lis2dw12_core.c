@@ -691,7 +691,7 @@ static ssize_t st_lis2dw12_get_hwfifo_watermark(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2dw12_sensor *sensor = iio_priv(iio_dev);
 	struct st_lis2dw12_hw *hw = sensor->hw;
 
@@ -718,7 +718,7 @@ static ssize_t st_lis2dw12_get_selftest_status(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2dw12_sensor *sensor = iio_priv(iio_dev);
 	struct st_lis2dw12_hw *hw = sensor->hw;
 	char *ret;
@@ -743,7 +743,7 @@ static ssize_t st_lis2dw12_enable_selftest(struct device *dev,
 					   struct device_attribute *attr,
 					   const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2dw12_sensor *sensor = iio_priv(iio_dev);
 	struct st_lis2dw12_hw *hw = sensor->hw;
 	s16 acc_st_x = 0, acc_st_y = 0, acc_st_z = 0;

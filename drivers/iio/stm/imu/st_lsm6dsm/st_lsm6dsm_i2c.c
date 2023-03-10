@@ -105,6 +105,15 @@ free_data:
 	return err;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void st_lsm6dsm_i2c_remove(struct i2c_client *client)
+{
+	struct lsm6dsm_data *cdata = i2c_get_clientdata(client);
+
+	st_lsm6dsm_common_remove(cdata, client->irq);
+	kfree(cdata);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_lsm6dsm_i2c_remove(struct i2c_client *client)
 {
 	struct lsm6dsm_data *cdata = i2c_get_clientdata(client);
@@ -114,6 +123,7 @@ static int st_lsm6dsm_i2c_remove(struct i2c_client *client)
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_PM
 static int __maybe_unused st_lsm6dsm_suspend(struct device *dev)

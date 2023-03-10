@@ -80,7 +80,7 @@ static irqreturn_t lis2ds12_irq_handler(int irq, void *private)
 {
 	u8 ewma_level;
 	struct lis2ds12_data *cdata = private;
-	struct iio_dev *iio_dev = dev_get_drvdata(cdata->dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(cdata->dev);
 	s64 ts;
 
 	ewma_level = (cdata->common_odr >= 100) ? 120 : 96;

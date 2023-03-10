@@ -479,7 +479,7 @@ static ssize_t st_lis2duxs12_mlc_info(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	struct st_lis2duxs12_hw *hw = sensor->hw;
 
 	return scnprintf(buf, PAGE_SIZE, "mlc %02x fsm %02x\n",
@@ -499,7 +499,7 @@ static ssize_t st_lis2duxs12_mlc_flush(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t size)
 {
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	struct st_lis2duxs12_hw *hw = sensor->hw;
 	int ret;
 
@@ -513,7 +513,7 @@ static ssize_t st_lis2duxs12_mlc_upload(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t size)
 {
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	int err;
 
 	err = request_firmware_nowait(THIS_MODULE, true,
@@ -529,7 +529,7 @@ static ssize_t st_lis2duxs12_mlc_odr(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	struct st_lis2duxs12_hw *hw = sensor->hw;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", hw->mlc_config->requested_odr);
@@ -566,7 +566,7 @@ static ssize_t st_lis2duxs12_mlc_x_odr(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return scnprintf(buf, PAGE_SIZE, "%d.%02d\n",
 			 sensor->odr, sensor->uodr);

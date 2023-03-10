@@ -533,7 +533,7 @@ st_lsm6dso16is_sysfs_sampling_frequency_avail(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf)
 {
-	struct st_lsm6dso16is_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dso16is_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	const struct st_lsm6dso16is_odr_table_entry *odr_table;
 	enum st_lsm6dso16is_sensor_id id = sensor->id;
 	int i, len = 0;
@@ -554,7 +554,7 @@ static ssize_t st_lsm6dso16is_sysfs_scale_avail(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct st_lsm6dso16is_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dso16is_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lsm6dso16is_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -604,7 +604,7 @@ st_lsm6dso16is_sysfs_get_selftest_status(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct st_lsm6dso16is_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dso16is_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lsm6dso16is_sensor_id id = sensor->id;
 	char *message = NULL;
 	int8_t result;
@@ -782,7 +782,7 @@ st_lsm6dso16is_sysfs_start_selftest(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dso16is_sensor *sensor = iio_priv(iio_dev);
 	enum st_lsm6dso16is_sensor_id id = sensor->id;
 	struct st_lsm6dso16is_hw *hw = sensor->hw;

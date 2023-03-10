@@ -414,7 +414,7 @@ ssize_t st_lsm6dsvx_get_max_watermark(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(iio_dev);
 
 	return sprintf(buf, "%d\n", sensor->max_watermark);
@@ -424,7 +424,7 @@ ssize_t st_lsm6dsvx_get_watermark(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(iio_dev);
 
 	return sprintf(buf, "%d\n", sensor->watermark);
@@ -434,7 +434,7 @@ ssize_t st_lsm6dsvx_set_watermark(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -462,7 +462,7 @@ ssize_t st_lsm6dsvx_flush_fifo(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsvx_hw *hw = sensor->hw;
 	s64 type;
@@ -758,7 +758,12 @@ int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw)
 		if (!hw->iio_devs[id])
 			continue;
 
-#if KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[id],
+						  &st_lsm6dsvx_fifo_ops);
+		if (err)
+			return err;
+#elif KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
 		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[id],
 						  INDIO_BUFFER_SOFTWARE,
 						  &st_lsm6dsvx_fifo_ops);

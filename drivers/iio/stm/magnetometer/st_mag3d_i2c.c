@@ -42,6 +42,14 @@ static int st_mag3d_i2c_probe(struct i2c_client *client,
 			      &st_mag3d_tf_i2c);
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void st_mag3d_i2c_remove(struct i2c_client *client)
+{
+	struct iio_dev *iio_dev = i2c_get_clientdata(client);
+
+	st_mag3d_remove(iio_dev);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_mag3d_i2c_remove(struct i2c_client *client)
 {
 	struct iio_dev *iio_dev = i2c_get_clientdata(client);
@@ -50,6 +58,7 @@ static int st_mag3d_i2c_remove(struct i2c_client *client)
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 static const struct i2c_device_id st_mag3d_ids[] = {
 	{ LIS3MDL_DEV_NAME },

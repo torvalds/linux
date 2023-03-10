@@ -15,9 +15,11 @@
 #include <linux/device.h>
 #include <linux/hrtimer.h>
 #include <linux/iio/iio.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/version.h>
 
 #define ST_LSM6DSOX_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 

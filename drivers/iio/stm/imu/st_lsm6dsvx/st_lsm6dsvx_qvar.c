@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/workqueue.h>
+#include <linux/version.h>
 
 #include "st_lsm6dsvx.h"
 
@@ -281,6 +282,20 @@ static int st_lsm6dsvx_qvar_buffer(struct st_lsm6dsvx_hw *hw)
 {
 	struct iio_buffer *buffer;
 
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	err = devm_iio_kfifo_buffer_setup(hw->dev,
+					  hw->iio_devs[ST_LSM6DSVX_ID_QVAR],
+					  &st_lsm6dsvx_qvar_ops);
+	if (err)
+		return err;
+#elif KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
+	err = devm_iio_kfifo_buffer_setup(hw->dev,
+					  hw->iio_devs[ST_LSM6DSVX_ID_QVAR],
+					  INDIO_BUFFER_SOFTWARE,
+					  &st_lsm6dsvx_qvar_ops);
+	if (err)
+		return err;
+#else /* LINUX_VERSION_CODE */
 	buffer = devm_iio_kfifo_allocate(hw->dev);
 	if (!buffer)
 		return -ENOMEM;
@@ -288,6 +303,7 @@ static int st_lsm6dsvx_qvar_buffer(struct st_lsm6dsvx_hw *hw)
 	iio_device_attach_buffer(hw->iio_devs[ST_LSM6DSVX_ID_QVAR], buffer);
 	hw->iio_devs[ST_LSM6DSVX_ID_QVAR]->modes |= INDIO_BUFFER_SOFTWARE;
 	hw->iio_devs[ST_LSM6DSVX_ID_QVAR]->setup_ops = &st_lsm6dsvx_qvar_ops;
+#endif /* LINUX_VERSION_CODE */
 
 	return st_lsm6dsvx_allocate_workqueue(hw);
 }

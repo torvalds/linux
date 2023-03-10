@@ -228,7 +228,7 @@ static ssize_t
 st_lps22df_sysfs_get_hwfifo_watermark(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct st_lps22df_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lps22df_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->hw->watermark);
 }

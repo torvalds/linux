@@ -834,7 +834,7 @@ st_lsm6dsox_sysfs_shub_sampling_freq_avail(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct st_lsm6dsox_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsox_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	struct st_lsm6dsox_ext_dev_info *ext_info = &sensor->ext_dev_info;
 	int i, len = 0;
 
@@ -864,7 +864,7 @@ static ssize_t st_lsm6dsox_sysfs_shub_scale_avail(struct device *dev,
 						  struct device_attribute *attr,
 						  char *buf)
 {
-	struct st_lsm6dsox_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsox_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	struct st_lsm6dsox_ext_dev_info *ext_info = &sensor->ext_dev_info;
 	int i, len = 0;
 

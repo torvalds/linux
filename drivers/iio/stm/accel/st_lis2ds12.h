@@ -14,6 +14,11 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/platform_data/stm/lis2ds12.h>
+#include <linux/version.h>
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+#include <linux/iio/iio-opaque.h>
+#endif /* LINUX_VERSION_CODE */
 
 #define LIS2DS12_WHO_AM_I_ADDR			0x0f
 #define LIS2DS12_WHO_AM_I_DEF			0x43
@@ -310,6 +315,19 @@ struct lis2ds12_data {
 static inline s64 lis2ds12_get_time_ns(struct iio_dev *iio_dev)
 {
 	return iio_get_time_ns(iio_dev);
+}
+
+static inline int lis2ds12_iio_dev_currentmode(struct iio_dev *indio_dev)
+{
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	struct iio_dev_opaque *iio_opq = to_iio_dev_opaque(indio_dev);
+
+	return iio_opq->currentmode;
+#else /* LINUX_VERSION_CODE */
+	return indio_dev->currentmode;
+#endif /* LINUX_VERSION_CODE */
+
 }
 
 int lis2ds12_common_probe(struct lis2ds12_data *cdata, int irq);

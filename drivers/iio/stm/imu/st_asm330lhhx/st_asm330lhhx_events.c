@@ -174,7 +174,7 @@ ssize_t st_asm330lhhx_wakeup_threshold_get(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[0]);
 }
@@ -183,7 +183,7 @@ ssize_t st_asm330lhhx_wakeup_threshold_set(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -211,7 +211,7 @@ ssize_t st_asm330lhhx_wakeup_duration_get(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[1]);
 }
@@ -220,7 +220,7 @@ ssize_t st_asm330lhhx_wakeup_duration_set(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -248,7 +248,7 @@ ssize_t st_asm330lhhx_freefall_threshold_get(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[2]);
 }
@@ -257,7 +257,7 @@ ssize_t st_asm330lhhx_freefall_threshold_set(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -285,7 +285,7 @@ ssize_t st_asm330lhhx_6D_threshold_get(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[3]);
 }
@@ -294,7 +294,7 @@ ssize_t st_asm330lhhx_6D_threshold_set(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -609,14 +609,15 @@ int st_asm330lhhx_probe_event(struct st_asm330lhhx_hw *hw)
 		if (!sensor->trig)
 			return -ENOMEM;
 
-		iio_trigger_set_drvdata(sensor->trig, iio_dev);
 		sensor->trig->ops = &st_asm330lhhx_trigger_ops;
 		sensor->trig->dev.parent = hw->dev;
-		iio_dev->trig = iio_trigger_get(sensor->trig);
+		iio_trigger_set_drvdata(sensor->trig, iio_dev);
 
 		err = devm_iio_trigger_register(hw->dev, sensor->trig);
 		if (err)
 			return err;
+
+		iio_dev->trig = iio_trigger_get(sensor->trig);
 	}
 
 	for (i = ST_ASM330LHHX_ID_EVENT; i < ST_ASM330LHHX_ID_MAX; i++) {

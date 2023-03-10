@@ -14,6 +14,11 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/platform_data/stm/ism303dac.h>
+#include <linux/version.h>
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+#include <linux/iio/iio-opaque.h>
+#endif /* LINUX_VERSION_CODE */
 
 #define ISM303DAC_WHO_AM_I_ADDR			0x0f
 #define ISM303DAC_WHO_AM_I_DEF			0x43
@@ -277,6 +282,19 @@ struct ism303dac_data {
 static inline s64 ism303dac_get_time_ns(struct iio_dev *iio_sensors_dev)
 {
 	return iio_get_time_ns(iio_sensors_dev);
+}
+
+static inline int ism303dac_iio_dev_currentmode(struct iio_dev *indio_dev)
+{
+
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	struct iio_dev_opaque *iio_opq = to_iio_dev_opaque(indio_dev);
+
+	return iio_opq->currentmode;
+#else /* LINUX_VERSION_CODE */
+	return indio_dev->currentmode;
+#endif /* LINUX_VERSION_CODE */
+
 }
 
 int ism303dac_common_probe(struct ism303dac_data *cdata, int irq);

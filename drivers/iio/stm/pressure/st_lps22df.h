@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/iio/trigger.h>
 
 #define ST_LPS22DF_MAX_FIFO_LENGTH		127

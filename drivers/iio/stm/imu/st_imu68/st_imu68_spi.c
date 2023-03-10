@@ -75,12 +75,19 @@ static int st_imu68_spi_probe(struct spi_device *spi)
 			      &st_imu68_transfer_fn);
 }
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+static void st_imu68_spi_remove(struct spi_device *spi)
+{
+	st_imu68_remove(&spi->dev);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_imu68_spi_remove(struct spi_device *spi)
 {
 	st_imu68_remove(&spi->dev);
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 static const struct of_device_id st_imu68_spi_of_match[] = {
 	{

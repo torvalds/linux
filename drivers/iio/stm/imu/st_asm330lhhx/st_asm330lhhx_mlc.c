@@ -607,7 +607,7 @@ static ssize_t st_asm330lhhx_mlc_info(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	return scnprintf(buf, PAGE_SIZE, "mlc %02x fsm %02x\n",
@@ -629,7 +629,7 @@ st_asm330lhhx_mlc_upload_firmware(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t size)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	int err;
 
 	err = request_firmware_nowait(THIS_MODULE, true,
@@ -645,7 +645,7 @@ static ssize_t st_asm330lhhx_mlc_flush(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t size)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	struct st_asm330lhhx_hw *hw = sensor->hw;
 	int ret;
 

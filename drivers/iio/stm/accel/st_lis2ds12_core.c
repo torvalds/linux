@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
+#include <linux/of_device.h>
 #include <asm/unaligned.h>
 
 #include "st_lis2ds12.h"
@@ -822,7 +823,7 @@ static ssize_t lis2ds12_get_sampling_frequency(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct lis2ds12_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
+	struct lis2ds12_sensor_data *sdata = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sdata->odr);
 }
@@ -834,7 +835,7 @@ ssize_t lis2ds12_set_sampling_frequency(struct device * dev,
 	int err;
 	u8 power_mode;
 	unsigned int odr, i;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &odr);
@@ -866,7 +867,7 @@ static ssize_t lis2ds12_get_sampling_frequency_avail(struct device *dev,
 						*attr, char *buf)
 {
 	int i, len = 0, mode_count, mode;
-	struct lis2ds12_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
+	struct lis2ds12_sensor_data *sdata = iio_priv(dev_to_iio_dev(dev));
 
 	mode = sdata->cdata->power_mode;
 	mode_count = (mode == LIS2DS12_LP_MODE) ?
@@ -906,7 +907,7 @@ static int lis2ds12_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		if (lis2ds12_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 			mutex_unlock(&indio_dev->mlock);
 			return -EBUSY;
 		}
@@ -960,7 +961,7 @@ static int lis2ds12_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&indio_dev->mlock);
 
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		if (lis2ds12_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 			mutex_unlock(&indio_dev->mlock);
 			return -EBUSY;
 		}
@@ -985,7 +986,7 @@ static int lis2ds12_write_raw(struct iio_dev *indio_dev,
 static ssize_t lis2ds12_sysfs_get_hwfifo_enabled(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", sdata->cdata->hwfifo_enabled);
@@ -996,7 +997,7 @@ ssize_t lis2ds12_sysfs_set_hwfifo_enabled(struct device *dev,
 {
 	int err = 0, enable = 0;
 	u8 mode = BYPASS;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &enable);
@@ -1020,7 +1021,7 @@ ssize_t lis2ds12_sysfs_set_hwfifo_enabled(struct device *dev,
 static ssize_t lis2ds12_sysfs_get_hwfifo_watermark(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", sdata->cdata->hwfifo_watermark);
@@ -1030,7 +1031,7 @@ ssize_t lis2ds12_sysfs_set_hwfifo_watermark(struct device * dev,
 		struct device_attribute * attr, const char *buf, size_t count)
 {
 	int err = 0, watermark = 0;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &watermark);
@@ -1068,12 +1069,12 @@ ssize_t lis2ds12_sysfs_flush_fifo(struct device *dev,
 {
 	u64 event_type;
 	int64_t sensor_last_timestamp;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&indio_dev->mlock);
 
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (lis2ds12_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 		disable_irq(sdata->cdata->irq);
 	} else {
 		mutex_unlock(&indio_dev->mlock);
@@ -1106,7 +1107,7 @@ ssize_t lis2ds12_sysfs_flush_fifo(struct device *dev,
 ssize_t lis2ds12_reset_step_counter(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	return lis2ds12_write_register(sdata->cdata,
@@ -1121,7 +1122,7 @@ static ssize_t lis2ds12_sysfs_set_max_delivery_rate(struct device *dev,
 	u8 duration;
 	int err;
 	unsigned int max_delivery_rate;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtouint(buf, 10, &max_delivery_rate);
@@ -1146,7 +1147,7 @@ static ssize_t lis2ds12_sysfs_set_max_delivery_rate(struct device *dev,
 static ssize_t lis2ds12_sysfs_get_max_delivery_rate(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", sdata->odr);
@@ -1164,7 +1165,7 @@ static ssize_t lis2ds12_get_selftest_status(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	u8 status;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	status = sdata->cdata->selftest_status;
@@ -1176,7 +1177,7 @@ static ssize_t lis2ds12_set_selftest_status(struct device *dev,
 					const char *buf, size_t size)
 {
 	int err, i;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lis2ds12_sensor_data *sdata = iio_priv(indio_dev);
 
 	for (i = 0; i < ARRAY_SIZE(lis2ds12_selftest_table); i++) {

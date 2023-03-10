@@ -342,7 +342,7 @@ static ssize_t st_lsm6ds3h_i2c_master_sysfs_sampling_frequency_avail(
 static ssize_t st_lsm6ds3h_i2c_master_sysfs_get_sampling_frequency(
 		struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct lsm6ds3h_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
+	struct lsm6ds3h_sensor_data *sdata = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sdata->cdata->v_odr[sdata->sindex]);
 }
@@ -353,7 +353,7 @@ static ssize_t st_lsm6ds3h_i2c_master_sysfs_set_sampling_frequency(
 {
 	int err;
 	unsigned int odr;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lsm6ds3h_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &odr);
@@ -782,7 +782,7 @@ static ssize_t st_lsm6ds3h_i2c_master_sysfs_get_selftest_status(
 {
 	int8_t result;
 	char *message = NULL;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lsm6ds3h_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&sdata->cdata->odr_lock);
@@ -813,7 +813,7 @@ static ssize_t st_lsm6ds3h_i2c_master_sysfs_start_selftest(struct device *dev,
 #ifdef ST_LSM6DS3H_EXT0_IS_AKM
 	u8 temp, sh_config[3], timeout = 0;
 #endif /* ST_LSM6DS3H_EXT0_IS_AKM */
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct lsm6ds3h_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&sdata->cdata->odr_lock);
@@ -1259,7 +1259,7 @@ static int st_lsm6ds3h_i2c_master_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		if (st_lsm6ds3h_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 			mutex_unlock(&indio_dev->mlock);
 			return -EBUSY;
 		}

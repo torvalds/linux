@@ -529,7 +529,12 @@ static int st_stts22h_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	err = devm_iio_kfifo_buffer_setup(data->dev, data->iio_devs,
+					  &st_stts22h_buffer_ops);
+	if (err)
+		return err;
+#elif KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
 	err = devm_iio_kfifo_buffer_setup(data->dev, data->iio_devs,
 					  INDIO_BUFFER_SOFTWARE,
 					  &st_stts22h_buffer_ops);
@@ -548,6 +553,19 @@ static int st_stts22h_probe(struct i2c_client *client,
 	return devm_iio_device_register(data->dev, data->iio_devs);
 }
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+static void st_stts22h_remove(struct i2c_client *client)
+{
+	struct st_stts22h_data *data = dev_get_drvdata(&client->dev);
+
+	if (data->enable)
+		st_stts22h_sensor_set_enable(data, false);
+
+	st_stts22h_flush_works(data);
+	destroy_workqueue(data->st_stts22h_workqueue);
+	data->st_stts22h_workqueue = NULL;
+}
+#else /* LINUX_VERSION_CODE */
 static int st_stts22h_remove(struct i2c_client *client)
 {
 	struct st_stts22h_data *data = dev_get_drvdata(&client->dev);
@@ -562,6 +580,7 @@ static int st_stts22h_remove(struct i2c_client *client)
 
 	return err;
 }
+#endif /* LINUX_VERSION_CODE */
 
 static int __maybe_unused st_stts22h_suspend(struct device *dev)
 {

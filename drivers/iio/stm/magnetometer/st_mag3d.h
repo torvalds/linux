@@ -11,6 +11,7 @@
 #define __ST_MAG3D_H
 
 #include <linux/iio/iio.h>
+#include <linux/version.h>
 
 #define LIS3MDL_DEV_NAME		"lis3mdl_magn"
 #define LSM9DS1_DEV_NAME		"lsm9ds1_magn"

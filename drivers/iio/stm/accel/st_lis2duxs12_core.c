@@ -715,7 +715,7 @@ st_lis2duxs12_sysfs_sampling_frequency_avail(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lis2duxs12_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -735,7 +735,7 @@ st_lis2duxs12_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lis2duxs12_sensor_id id = sensor->id;
 	int i, len = 0;
 
@@ -768,7 +768,7 @@ ssize_t st_lis2duxs12_get_power_mode(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2duxs12_sensor *sensor = iio_priv(iio_dev);
 
 	return sprintf(buf, "%s\n",
@@ -779,7 +779,7 @@ ssize_t st_lis2duxs12_set_power_mode(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2duxs12_sensor *sensor = iio_priv(iio_dev);
 	int err, i;
 
@@ -890,7 +890,7 @@ st_lis2duxs12_sysfs_get_selftest_status(struct device *dev,
 {
 	int8_t result;
 	char *message;
-	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lis2duxs12_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	enum st_lis2duxs12_sensor_id id = sensor->id;
 
 	if (id != ST_LIS2DUXS12_ID_ACC)
@@ -901,7 +901,7 @@ st_lis2duxs12_sysfs_get_selftest_status(struct device *dev,
 		message = "na";
 	else if (result < 0)
 		message = "fail";
-	else if (result > 0)
+	else
 		message = "pass";
 
 	return sprintf(buf, "%s\n", message);
@@ -928,6 +928,8 @@ st_lis2duxs12_selftest_sensor(struct st_lis2duxs12_sensor *sensor,
 	/* wait 25 ms for stable output */
 	msleep(25);
 
+	odr = sensor->odr;
+	uodr = sensor->uodr;
 	if (mode == 1) {
 		ret = st_lis2duxs12_update_bits_locked(sensor->hw,
 					       ST_LIS2DUXS12_CTRL3_ADDR,
@@ -960,8 +962,6 @@ st_lis2duxs12_selftest_sensor(struct st_lis2duxs12_sensor *sensor,
 	if (ret < 0)
 		goto selftest_stop;
 
-	odr = sensor->odr;
-	uodr = sensor->uodr;
 	sensor->odr = 200;
 	sensor->uodr = 0;
 
@@ -1030,7 +1030,7 @@ st_lis2duxs12_sysfs_start_selftest(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2duxs12_sensor *sensor = iio_priv(iio_dev);
 	struct st_lis2duxs12_hw *hw = sensor->hw;
 	int ret, mode;
@@ -1080,7 +1080,7 @@ st_lis2duxs12_sysfs_reset_step_counter(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	int err;
 
 	err = st_lis2duxs12_reset_step_counter(iio_dev);

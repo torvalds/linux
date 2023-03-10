@@ -448,7 +448,7 @@ st_lsm6dsrx_wakeup_threshold_get(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[0]);
 }
@@ -458,7 +458,7 @@ st_lsm6dsrx_wakeup_threshold_set(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -487,7 +487,7 @@ st_lsm6dsrx_wakeup_duration_get(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[1]);
 }
@@ -497,7 +497,7 @@ st_lsm6dsrx_wakeup_duration_set(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -526,7 +526,7 @@ st_lsm6dsrx_freefall_threshold_get(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[2]);
 }
@@ -536,7 +536,7 @@ st_lsm6dsrx_freefall_threshold_set(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -565,7 +565,7 @@ st_lsm6dsrx_6D_threshold_get(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf)
 {
-	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sensor->conf[3]);
 }
@@ -575,7 +575,7 @@ st_lsm6dsrx_6D_threshold_set(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	int err, val;
 
@@ -1014,7 +1014,7 @@ int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw)
 
 		err = devm_iio_triggered_buffer_setup(hw->dev, iio_dev,
 				NULL,
-				pthread[i - ST_LSM6DSRX_ID_WK],
+				pthread[id - ST_LSM6DSRX_ID_WK],
 				&st_lsm6dsrx_buffer_ops);
 		if (err < 0)
 			return err;

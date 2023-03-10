@@ -88,7 +88,7 @@ ssize_t st_lis2dw12_set_hwfifo_watermark(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2dw12_sensor *sensor = iio_priv(iio_dev);
 	struct st_lis2dw12_hw *hw = sensor->hw;
 	int err, val;
@@ -182,7 +182,7 @@ ssize_t st_lis2dw12_flush_fifo(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_lis2dw12_sensor *sensor = iio_priv(iio_dev);
 	struct st_lis2dw12_hw *hw = sensor->hw;
 	s64 code;
@@ -307,7 +307,12 @@ int st_lis2dw12_fifo_setup(struct st_lis2dw12_hw *hw)
 		return ret;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+#if KERNEL_VERSION(5, 19, 0) <= LINUX_VERSION_CODE
+	ret = devm_iio_kfifo_buffer_setup(hw->dev, iio_dev,
+					  &st_lis2dw12_acc_buffer_setup_ops);
+	if (ret)
+		return ret;
+#elif KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
 	ret = devm_iio_kfifo_buffer_setup(hw->dev, iio_dev,
 					  INDIO_BUFFER_SOFTWARE,
 					  &st_lis2dw12_acc_buffer_setup_ops);

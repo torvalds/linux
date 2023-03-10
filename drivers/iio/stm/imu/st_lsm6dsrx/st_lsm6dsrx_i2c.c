@@ -37,10 +37,17 @@ static int st_lsm6dsrx_i2c_probe(struct i2c_client *client,
 			       hw_id, regmap);
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void st_lsm6dsrx_i2c_remove(struct i2c_client *client)
+{
+	st_lsm6dsrx_mlc_remove(&client->dev);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_lsm6dsrx_i2c_remove(struct i2c_client *client)
 {
 	return st_lsm6dsrx_mlc_remove(&client->dev);
 }
+#endif /* LINUX_VERSION_CODE */
 
 static const struct of_device_id st_lsm6dsrx_i2c_of_match[] = {
 	{

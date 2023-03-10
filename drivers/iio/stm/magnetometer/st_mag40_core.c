@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
+#include <linux/of_device.h>
 #include <asm/unaligned.h>
 
 #include "st_mag40_core.h"

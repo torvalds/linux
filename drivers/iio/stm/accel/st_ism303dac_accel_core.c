@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/iio/iio.h>
+#include <linux/of.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
 #include <linux/delay.h>
@@ -641,7 +642,7 @@ static ssize_t ism303dac_get_sampling_frequency(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct ism303dac_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
+	struct ism303dac_sensor_data *sdata = iio_priv(dev_to_iio_dev(dev));
 
 	return sprintf(buf, "%d\n", sdata->odr);
 }
@@ -653,7 +654,7 @@ ssize_t ism303dac_set_sampling_frequency(struct device * dev,
 	int err;
 	u8 power_mode;
 	unsigned int odr, i;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &odr);
@@ -685,7 +686,7 @@ static ssize_t ism303dac_get_sampling_frequency_avail(struct device *dev,
 						      char *buf)
 {
 	int i, len = 0, mode_count, mode;
-	struct ism303dac_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
+	struct ism303dac_sensor_data *sdata = iio_priv(dev_to_iio_dev(dev));
 
 	mode = sdata->cdata->power_mode;
 	mode_count = (mode == ISM303DAC_LP_MODE) ?
@@ -726,7 +727,7 @@ static int ism303dac_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		if (ism303dac_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 			mutex_unlock(&indio_dev->mlock);
 			return -EBUSY;
 		}
@@ -781,7 +782,7 @@ static int ism303dac_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&indio_dev->mlock);
 
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		if (ism303dac_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 			mutex_unlock(&indio_dev->mlock);
 			return -EBUSY;
 		}
@@ -807,7 +808,7 @@ static ssize_t ism303dac_sysfs_get_hwfifo_enabled(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", sdata->cdata->hwfifo_enabled);
@@ -819,7 +820,7 @@ ssize_t ism303dac_sysfs_set_hwfifo_enabled(struct device *dev,
 {
 	int err = 0, enable = 0;
 	u8 mode = BYPASS;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &enable);
@@ -844,7 +845,7 @@ static ssize_t ism303dac_sysfs_get_hwfifo_watermark(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", sdata->cdata->hwfifo_watermark);
@@ -855,7 +856,7 @@ ssize_t ism303dac_sysfs_set_hwfifo_watermark(struct device * dev,
 					const char *buf, size_t count)
 {
 	int err = 0, watermark = 0;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = kstrtoint(buf, 10, &watermark);
@@ -896,12 +897,12 @@ ssize_t ism303dac_sysfs_flush_fifo(struct device *dev,
 {
 	u64 event_type;
 	int64_t sensor_last_timestamp;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	mutex_lock(&indio_dev->mlock);
 
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (ism303dac_iio_dev_currentmode(indio_dev) == INDIO_BUFFER_TRIGGERED) {
 		disable_irq(sdata->cdata->irq);
 	} else {
 		mutex_unlock(&indio_dev->mlock);
@@ -945,7 +946,7 @@ static ssize_t ism303dac_get_selftest_status(struct device *dev,
 					     char *buf)
 {
 	u8 status;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	status = sdata->cdata->selftest_status;
@@ -957,7 +958,7 @@ static ssize_t ism303dac_set_selftest_status(struct device *dev,
 					     const char *buf, size_t size)
 {
 	int err, i;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ism303dac_sensor_data *sdata = iio_priv(indio_dev);
 
 	for (i = 0; i < ARRAY_SIZE(ism303dac_selftest_table); i++) {

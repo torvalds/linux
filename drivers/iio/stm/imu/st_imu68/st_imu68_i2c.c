@@ -39,12 +39,19 @@ static int st_imu68_i2c_probe(struct i2c_client *client,
 			      &st_imu68_transfer_fn);
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void st_imu68_i2c_remove(struct i2c_client *client)
+{
+	st_imu68_remove(&client->dev);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_imu68_i2c_remove(struct i2c_client *client)
 {
 	st_imu68_remove(&client->dev);
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 static const struct of_device_id st_imu68_i2c_of_match[] = {
 	{

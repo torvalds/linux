@@ -123,6 +123,15 @@ free_data:
 	return err;
 }
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+static void st_ism330dlc_spi_remove(struct spi_device *spi)
+{
+	struct ism330dlc_data *cdata = spi_get_drvdata(spi);
+
+	st_ism330dlc_common_remove(cdata, spi->irq);
+	kfree(cdata);
+}
+#else /* LINUX_VERSION_CODE */
 static int st_ism330dlc_spi_remove(struct spi_device *spi)
 {
 	struct ism330dlc_data *cdata = spi_get_drvdata(spi);
@@ -132,6 +141,7 @@ static int st_ism330dlc_spi_remove(struct spi_device *spi)
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_PM
 static int __maybe_unused st_ism330dlc_suspend(struct device *dev)

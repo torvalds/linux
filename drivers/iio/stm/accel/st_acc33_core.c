@@ -15,6 +15,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <asm/unaligned.h>
+#include <linux/of_device.h>
+#include <linux/property.h>
 
 #include "st_acc33.h"
 
