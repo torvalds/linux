@@ -46,29 +46,30 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/pktcdvd.h>
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/compat.h>
-#include <linux/kthread.h>
-#include <linux/errno.h>
-#include <linux/spinlock.h>
-#include <linux/file.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/miscdevice.h>
-#include <linux/freezer.h>
-#include <linux/mutex.h>
-#include <linux/slab.h>
 #include <linux/backing-dev.h>
-#include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_ioctl.h>
-#include <scsi/scsi.h>
+#include <linux/compat.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/file.h>
+#include <linux/freezer.h>
+#include <linux/kernel.h>
+#include <linux/kthread.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/nospec.h>
+#include <linux/pktcdvd.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 #include <linux/uaccess.h>
+
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_ioctl.h>
 
 #include <asm/unaligned.h>
 
