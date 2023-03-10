@@ -23,6 +23,7 @@ struct kernel_clone_args {
 	int __user *pidfd;
 	int __user *child_tid;
 	int __user *parent_tid;
+	const char *name;
 	int exit_signal;
 	unsigned long stack;
 	unsigned long stack_size;
@@ -91,7 +92,8 @@ extern void exit_itimers(struct task_struct *);
 extern pid_t kernel_clone(struct kernel_clone_args *kargs);
 struct task_struct *create_io_thread(int (*fn)(void *), void *arg, int node);
 struct task_struct *fork_idle(int);
-extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
+extern pid_t kernel_thread(int (*fn)(void *), void *arg, const char *name,
+			    unsigned long flags);
 extern pid_t user_mode_thread(int (*fn)(void *), void *arg, unsigned long flags);
 extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
 int kernel_wait(pid_t pid, int *stat);
