@@ -71,7 +71,7 @@ static int hdcp_load_keys_cb(struct rk_hdmirx_hdcp *hdcp)
 	if (!base)
 		return -ENOMEM;
 
-	memcpy(base, hdcp_vendor_data, size);
+	memcpy_toio(base, hdcp_vendor_data, size);
 	hdcp->keys_is_load = true;
 
 	return 0;
