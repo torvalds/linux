@@ -451,7 +451,7 @@ struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 	 * When the consumer DT node do not have "interconnects" property
 	 * return a NULL path to skip setting constraints.
 	 */
-	if (!of_find_property(np, "interconnects", NULL))
+	if (!of_property_present(np, "interconnects"))
 		return NULL;
 
 	/*
@@ -544,7 +544,7 @@ struct icc_path *of_icc_get(struct device *dev, const char *name)
 	 * When the consumer DT node do not have "interconnects" property
 	 * return a NULL path to skip setting constraints.
 	 */
-	if (!of_find_property(np, "interconnects", NULL))
+	if (!of_property_present(np, "interconnects"))
 		return NULL;
 
 	/*
