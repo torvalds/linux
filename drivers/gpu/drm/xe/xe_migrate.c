@@ -979,25 +979,13 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 	int err;
 	u32 i;
 
-	/* Wait on BO moves for 10 ms, then fall back to GPU job */
-	if (bo) {
-		long wait;
+	if (bo && !dma_resv_test_signaled(bo->ttm.base.resv,
+					  DMA_RESV_USAGE_KERNEL))
+		return ERR_PTR(-ETIME);
 
-		wait = dma_resv_wait_timeout(bo->ttm.base.resv,
-					     DMA_RESV_USAGE_KERNEL,
-					     true, HZ / 100);
-		if (wait <= 0)
-			return ERR_PTR(-ETIME);
-	}
-	if (wait_vm) {
-		long wait;
-
-		wait = dma_resv_wait_timeout(&vm->resv,
-					     DMA_RESV_USAGE_BOOKKEEP,
-					     true, HZ / 100);
-		if (wait <= 0)
-			return ERR_PTR(-ETIME);
-	}
+	if (wait_vm && !dma_resv_test_signaled(&vm->resv,
+					       DMA_RESV_USAGE_BOOKKEEP))
+		return ERR_PTR(-ETIME);
 
 	if (ops->pre_commit) {
 		err = ops->pre_commit(pt_update);
@@ -1011,8 +999,10 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 			      update->ofs, update->qwords, update);
 	}
 
-	trace_xe_vm_cpu_bind(vm);
-	xe_device_wmb(vm->xe);
+	if (vm) {
+		trace_xe_vm_cpu_bind(vm);
+		xe_device_wmb(vm->xe);
+	}
 
 	fence = dma_fence_get_stub();
 
