@@ -4386,29 +4386,31 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		stream->id, stream->cur_stream_mode, mode);
 
 	if (mode == stream->cur_stream_mode) {
-		stream->stopping = true;
 		if (stream->dma_en) {
 			if (!dev->sensor_linetime)
 				dev->sensor_linetime = rkcif_get_linetime(stream);
 			vblank = rkcif_get_sensor_vblank(dev);
-			frame_time_ns = (vblank + dev->terminal_sensor.raw_rect.height) *
-					dev->sensor_linetime;
-			spin_lock_irqsave(&stream->fps_lock, flags);
-			fs_time = stream->readout.fs_timestamp;
-			spin_unlock_irqrestore(&stream->fps_lock, flags);
-			cur_time = ktime_get_ns();
-			if (cur_time > fs_time &&
-			    cur_time - fs_time < (frame_time_ns - 10000000)) {
-				spin_lock_irqsave(&stream->vbq_lock, flags);
-				if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
-					stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
-				else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
-					stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
-				stream->is_stop_capture = true;
-				rkcif_stop_dma_capture(stream);
-				spin_unlock_irqrestore(&stream->vbq_lock, flags);
+			if (vblank) {
+				frame_time_ns = (vblank + dev->terminal_sensor.raw_rect.height) *
+						dev->sensor_linetime;
+				spin_lock_irqsave(&stream->fps_lock, flags);
+				fs_time = stream->readout.fs_timestamp;
+				spin_unlock_irqrestore(&stream->fps_lock, flags);
+				cur_time = ktime_get_ns();
+				if (cur_time > fs_time &&
+				    cur_time - fs_time < (frame_time_ns - 10000000)) {
+					spin_lock_irqsave(&stream->vbq_lock, flags);
+					if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
+						stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
+					else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
+						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+					stream->is_stop_capture = true;
+					rkcif_stop_dma_capture(stream);
+					spin_unlock_irqrestore(&stream->vbq_lock, flags);
+				}
 			}
 		}
+		stream->stopping = true;
 		ret = wait_event_timeout(stream->wq_stopped,
 					 stream->state != RKCIF_STATE_STREAMING,
 					 msecs_to_jiffies(500));
