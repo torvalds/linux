@@ -808,7 +808,7 @@ static int st_lsm6dsvx_write_raw(struct iio_dev *iio_dev,
 		err = st_lsm6dsvx_get_odr_val(sensor->id, val, val2,
 					      &todr, &tuodr, &data);
 		if (!err) {
-			sensor->odr = val;
+			sensor->odr = todr;
 			sensor->uodr = tuodr;
 
 			/*
