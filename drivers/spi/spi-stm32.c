@@ -984,9 +984,9 @@ static int stm32_spi_prepare_msg(struct spi_master *master,
 	if (spi->cfg->set_number_of_data) {
 		int ret;
 
-		ret = spi_split_transfers_maxsize(master, msg,
-						  STM32H7_SPI_TSIZE_MAX,
-						  GFP_KERNEL | GFP_DMA);
+		ret = spi_split_transfers_maxwords(master, msg,
+						   STM32H7_SPI_TSIZE_MAX,
+						   GFP_KERNEL | GFP_DMA);
 		if (ret)
 			return ret;
 	}
