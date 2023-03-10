@@ -9818,20 +9818,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		}
 
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
-			if (intstat & CSI_LINE_INTSTAT(i)) {
-				stream = &cif_dev->stream[i];
-				if (stream->is_line_inten) {
-					stream->line_int_cnt++;
-					rkcif_line_wake_up(stream, stream->id);
-					rkcif_modify_line_int(stream, false);
-					stream->is_line_inten = false;
-				}
-				v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
-					 "%s: id0 cur line:%d\n", __func__, lastline & 0x3fff);
-			}
-		}
-
-		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 			mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev,
 						      intstat);
 			if (mipi_id < 0)
@@ -9931,19 +9917,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, intstat);
 
 		stream = &cif_dev->stream[RKCIF_STREAM_CIF];
-
-		if ((intstat & LINE_INT_END) && !(intstat & FRAME_END) &&
-		    (cif_dev->dvp_sof_in_oneframe == 0)) {
-			if ((intstat & (PRE_INF_FRAME_END | PST_INF_FRAME_END)) == 0x0) {
-				if ((intstat & INTSTAT_ERR) == 0x0) {
-					rkcif_deal_sof(cif_dev);
-					int_en = rkcif_read_register(cif_dev, CIF_REG_DVP_INTEN);
-					int_en &= ~LINE_INT_EN;
-					rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, int_en);
-					cif_dev->dvp_sof_in_oneframe = 1;
-				}
-			}
-		}
 
 		if (intstat & BUS_ERR) {
 			cif_dev->irq_stats.dvp_bus_err_cnt++;
@@ -10105,6 +10078,19 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			}
 		}
 
+		if ((intstat & LINE_INT_END) && !(intstat & FRAME_END) &&
+		    (cif_dev->dvp_sof_in_oneframe == 0)) {
+			if ((intstat & (PRE_INF_FRAME_END | PST_INF_FRAME_END)) == 0x0) {
+				if ((intstat & INTSTAT_ERR) == 0x0) {
+					rkcif_deal_sof(cif_dev);
+					int_en = rkcif_read_register(cif_dev, CIF_REG_DVP_INTEN);
+					int_en &= ~LINE_INT_EN;
+					rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, int_en);
+					cif_dev->dvp_sof_in_oneframe = 1;
+				}
+			}
+		}
+
 		if (stream->crop_dyn_en)
 			rkcif_dynamic_crop(stream);
 	}
@@ -10147,18 +10133,6 @@ void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 			return;
 		}
 
-		if (intstat & CSI_FRAME0_START_ID0)
-			rkcif_lvds_event_inc_sof(cif_dev);
-
-
-		if (intstat & CSI_FRAME1_START_ID0)
-			rkcif_lvds_event_inc_sof(cif_dev);
-
-		/* if do not reach frame dma end, return irq */
-		mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev, intstat);
-		if (mipi_id < 0)
-			return;
-
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 			mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev,
 						      intstat);
@@ -10198,8 +10172,14 @@ void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 
 			rkcif_update_stream(cif_dev, stream, mipi_id);
 			rkcif_monitor_reset_event(cif_dev);
+			cif_dev->irq_stats.all_frm_end_cnt++;
 		}
-		cif_dev->irq_stats.all_frm_end_cnt++;
+
+		if (intstat & CSI_FRAME0_START_ID0)
+			rkcif_lvds_event_inc_sof(cif_dev);
+
+		if (intstat & CSI_FRAME1_START_ID0)
+			rkcif_lvds_event_inc_sof(cif_dev);
 	}
 }
 
