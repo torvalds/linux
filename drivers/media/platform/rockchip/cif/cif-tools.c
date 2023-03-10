@@ -636,21 +636,21 @@ retry_done_buf:
 	if (tools_vdev->stopping) {
 		rkcif_tools_stop(tools_vdev);
 		tools_vdev->stopping = false;
-		rkcif_vb_done_tasklet(stream, buf);
+		rkcif_vb_done_oneframe(stream, &buf->vb);
 		spin_lock_irqsave(&tools_vdev->vbq_lock, flags);
 		while (!list_empty(&tools_vdev->buf_done_head)) {
 			buf = list_first_entry(&tools_vdev->buf_done_head,
 					       struct rkcif_buffer, queue);
 			if (buf) {
 				list_del(&buf->queue);
-				rkcif_vb_done_tasklet(stream, buf);
+				rkcif_vb_done_oneframe(stream, &buf->vb);
 			}
 		}
 		spin_unlock_irqrestore(&tools_vdev->vbq_lock, flags);
 		wake_up(&tools_vdev->wq_stopped);
 		return;
 	}
-	rkcif_vb_done_tasklet(stream, buf);
+	rkcif_vb_done_oneframe(stream, &buf->vb);
 
 	if (!list_empty(&tools_vdev->buf_head)) {
 		tools_vdev->curr_buf = list_first_entry(&tools_vdev->buf_head,
@@ -675,6 +675,10 @@ retry_done_buf:
 
 			if (!src || !dst)
 				break;
+
+			if (buf->vb.vb2_buf.vb2_queue->mem_ops->finish)
+				buf->vb.vb2_buf.vb2_queue->mem_ops->finish(buf->vb.vb2_buf.planes[i].mem_priv);
+
 			vb2_set_plane_payload(&tools_vdev->curr_buf->vb.vb2_buf, i,
 					      payload_size);
 			memcpy(dst, src, payload_size);

@@ -6502,8 +6502,8 @@ static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_default = rkcif_ioctl_default,
 };
 
-static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
-				   struct vb2_v4l2_buffer *vb_done)
+void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
+			    struct vb2_v4l2_buffer *vb_done)
 {
 	const struct cif_output_fmt *fmt = stream->cif_fmt_out;
 	u32 i;

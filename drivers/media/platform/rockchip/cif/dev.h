@@ -884,6 +884,9 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on);
 void rkcif_reset_work(struct work_struct *work);
 
+void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
+			    struct vb2_v4l2_buffer *vb_done);
+
 int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num);
 void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num);
 
