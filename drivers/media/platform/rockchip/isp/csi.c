@@ -666,7 +666,10 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 	if (dev->isp_ver >= ISP_V30)
 		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS,
 				     true, dev->hw_dev->is_unite);
-
+	/* line counter from isp out, default from mp out */
+	if (dev->isp_ver == ISP_V32_L)
+		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP32L_ISP2ENC_CNT_MUX,
+				     true, dev->hw_dev->is_unite);
 	dev->rdbk_cnt = -1;
 	dev->rdbk_cnt_x1 = -1;
 	dev->rdbk_cnt_x2 = -1;
