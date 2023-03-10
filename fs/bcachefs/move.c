@@ -818,14 +818,6 @@ next:
 	}
 
 	trace_evacuate_bucket(c, &bucket, dirty_sectors, bucket_size, fragmentation, ret);
-
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) && gen >= 0) {
-		bch2_trans_unlock(trans);
-		move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
-		closure_sync(&ctxt->cl);
-		if (!ctxt->write_error)
-			bch2_verify_bucket_evacuated(trans, bucket, gen);
-	}
 err:
 	bch2_bkey_buf_exit(&sk, c);
 	return ret;
