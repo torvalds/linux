@@ -2264,8 +2264,7 @@ static int imx_uart_probe(struct platform_device *pdev)
 	if (of_get_property(np, "fsl,dte-mode", NULL))
 		sport->dte_mode = 1;
 
-	if (of_get_property(np, "rts-gpios", NULL))
-		sport->have_rtsgpio = 1;
+	sport->have_rtsgpio = of_property_present(np, "rts-gpios");
 
 	if (of_get_property(np, "fsl,inverted-tx", NULL))
 		sport->inverted_tx = 1;
