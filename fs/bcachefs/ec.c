@@ -1706,6 +1706,14 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		if (waiting || !cl || ret != -BCH_ERR_stripe_alloc_blocked)
 			goto err;
 
+		if (reserve == RESERVE_movinggc) {
+			ret =   new_stripe_alloc_buckets(trans, h, reserve, NULL) ?:
+				__bch2_ec_stripe_head_reserve(trans, h);
+			if (ret)
+				goto err;
+			goto allocate_buf;
+		}
+
 		/* XXX freelist_wait? */
 		closure_wait(&c->freelist_wait, cl);
 		waiting = true;
