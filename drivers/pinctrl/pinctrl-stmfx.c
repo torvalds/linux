@@ -632,7 +632,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	pctl->dev = &pdev->dev;
 	pctl->stmfx = stmfx;
 
-	if (!of_find_property(np, "gpio-ranges", NULL)) {
+	if (!of_property_present(np, "gpio-ranges")) {
 		dev_err(pctl->dev, "missing required gpio-ranges property\n");
 		return -EINVAL;
 	}
