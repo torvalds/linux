@@ -487,24 +487,7 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 			pd->write_congestion_on);
 	return 0;
 }
-
-static int pkt_debugfs_seq_show(struct seq_file *m, void *p)
-{
-	return pkt_seq_show(m, p);
-}
-
-static int pkt_debugfs_fops_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pkt_debugfs_seq_show, inode->i_private);
-}
-
-static const struct file_operations debug_fops = {
-	.open		= pkt_debugfs_fops_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.owner		= THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(pkt_seq);
 
 static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
 {
@@ -514,8 +497,8 @@ static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
 	if (!pd->dfs_d_root)
 		return;
 
-	pd->dfs_f_info = debugfs_create_file("info", 0444,
-					     pd->dfs_d_root, pd, &debug_fops);
+	pd->dfs_f_info = debugfs_create_file("info", 0444, pd->dfs_d_root,
+					     pd, &pkt_seq_fops);
 }
 
 static void pkt_debugfs_dev_remove(struct pktcdvd_device *pd)
