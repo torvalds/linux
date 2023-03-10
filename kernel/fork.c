@@ -1627,7 +1627,8 @@ static int copy_fs(unsigned long clone_flags, struct task_struct *tsk)
 	return 0;
 }
 
-static int copy_files(unsigned long clone_flags, struct task_struct *tsk)
+static int copy_files(unsigned long clone_flags, struct task_struct *tsk,
+		      int no_files)
 {
 	struct files_struct *oldf, *newf;
 	int error = 0;
@@ -1638,6 +1639,11 @@ static int copy_files(unsigned long clone_flags, struct task_struct *tsk)
 	oldf = current->files;
 	if (!oldf)
 		goto out;
+
+	if (no_files) {
+		tsk->files = NULL;
+		goto out;
+	}
 
 	if (clone_flags & CLONE_FILES) {
 		atomic_inc(&oldf->count);
@@ -2259,7 +2265,7 @@ static __latent_entropy struct task_struct *copy_process(
 	retval = copy_semundo(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_security;
-	retval = copy_files(clone_flags, p);
+	retval = copy_files(clone_flags, p, args->no_files);
 	if (retval)
 		goto bad_fork_cleanup_semundo;
 	retval = copy_fs(clone_flags, p);
