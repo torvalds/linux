@@ -758,8 +758,13 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 			data_opts.rewrite_ptrs = 0;
 
 			bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
-				if (ptr->dev == bucket.inode)
+				if (ptr->dev == bucket.inode) {
 					data_opts.rewrite_ptrs |= 1U << i;
+					if (ptr->cached) {
+						bch2_trans_iter_exit(trans, &iter);
+						goto next;
+					}
+				}
 				i++;
 			}
 
