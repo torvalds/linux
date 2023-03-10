@@ -10459,6 +10459,7 @@ F:	drivers/watchdog/mei_wdt.c
 F:	include/linux/mei_aux.h
 F:	include/linux/mei_cl_bus.h
 F:	include/uapi/linux/mei.h
+F:	include/uapi/linux/mei_uuid.h
 F:	include/uapi/linux/uuid.h
 F:	samples/mei/*
 
