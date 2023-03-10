@@ -1959,6 +1959,9 @@ struct bcm_cfg80211 {
 	u32 join_iovar_ver;
 	struct delayed_work ap_work;     /* AP linkup timeout handler */
 	wl_event_idx_t eidx;	/* event state tracker */
+#if defined (WL_SCHED_SCAN) && defined (SCHED_SCAN_DELAYED_WORK)
+	struct delayed_work sched_scan_stop_work;
+#endif
 #ifdef WL_P2P_6G
 	bool p2p_6g_enabled;	/* P2P 6G support enabled */
 #endif /* WL_P2P_6G */

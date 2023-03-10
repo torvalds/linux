@@ -175,4 +175,7 @@ extern bool wl_cfgscan_is_dfs_set(wifi_band band);
 extern s32 wl_cfgscan_get_band_freq_list(struct bcm_cfg80211 *cfg, int band,
         uint16 *list, uint32 *num_channels);
 #endif /* DHD_GET_VALID_CHANNELS */
+#if defined (WL_SCHED_SCAN) && defined (SCHED_SCAN_DELAYED_WORK)
+extern void wl_cfgscan_sched_scan_stop_work(struct work_struct *work);
+#endif /* WL_SCHED_SCAN */
 #endif /* _wl_cfgscan_h_ */

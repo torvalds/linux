@@ -10916,6 +10916,10 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 	wdev->wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN;
 #endif /* WL_SCAN_TYPE */
 
+#ifdef DHD_PNO_FLAG
+	wiphy_ext_feature_set(wdev->wiphy, NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI);
+#endif
+
 	/* Now we can register wiphy with cfg80211 module */
 	err = wiphy_register(wdev->wiphy);
 	if (unlikely(err < 0)) {
@@ -15683,6 +15687,9 @@ static void wl_deinit_priv(struct bcm_cfg80211 *cfg)
 	wl_destroy_event_handler(cfg);
 	wl_flush_eq(cfg);
 	wl_link_down(cfg);
+#if defined (WL_SCHED_SCAN) && defined (SCHED_SCAN_DELAYED_WORK)
+	cancel_delayed_work_sync(&cfg->sched_scan_stop_work);
+#endif /* WL_SCHED_SCAN */
 	del_timer_sync(&cfg->scan_timeout);
 #ifdef DHD_LOSSLESS_ROAMING
 	del_timer_sync(&cfg->roam_timeout);
@@ -15949,6 +15956,9 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 	INIT_WORK(&cfg->wlan_work, wl_cfg80211_work_handler);
 #endif /* DHCP_SCAN_SUPPRESS */
 
+#if defined (WL_SCHED_SCAN) && defined (SCHED_SCAN_DELAYED_WORK)
+	INIT_DELAYED_WORK(&cfg->sched_scan_stop_work, wl_cfgscan_sched_scan_stop_work);
+#endif /* WL_SCHED_SCAN */
 	INIT_DELAYED_WORK(&cfg->pm_enable_work, wl_cfg80211_work_handler);
 	INIT_DELAYED_WORK(&cfg->loc.work, wl_cfgscan_listen_complete_work);
 	INIT_DELAYED_WORK(&cfg->ap_work, wl_cfg80211_ap_timeout_work);
