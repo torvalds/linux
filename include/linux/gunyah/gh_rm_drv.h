@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/notifier.h>
 #include <linux/fwnode.h>
+#include <linux/gunyah_rsc_mgr.h>
 
 #include "gh_common.h"
 
@@ -362,21 +363,16 @@ int gh_rm_vm_config_image(gh_vmid_t vmid, u16 auth_mech, u32 mem_handle,
 int gh_rm_vm_auth_image(gh_vmid_t vmid, ssize_t n_entries,
 				struct gh_vm_auth_param_entry *entry);
 int ghd_rm_vm_init(gh_vmid_t vmid);
-int gh_rm_vm_init(gh_vmid_t vmid);
 int ghd_rm_get_vmid(enum gh_vm_names vm_name, gh_vmid_t *vmid);
-int gh_rm_get_vmid(enum gh_vm_names vm_name, gh_vmid_t *vmid);
 int gh_rm_get_vm_id_info(gh_vmid_t vmid);
 int gh_rm_get_vm_name(gh_vmid_t vmid, enum gh_vm_names *vm_name);
 int gh_rm_get_vminfo(enum gh_vm_names vm_name, struct gh_vminfo *vminfo);
 int ghd_rm_vm_start(int vmid);
-int gh_rm_vm_start(int vmid);
 enum gh_vm_names gh_get_image_name(const char *str);
 enum gh_vm_names gh_get_vm_name(const char *str);
 int gh_rm_get_this_vmid(gh_vmid_t *vmid);
 int ghd_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags);
-int gh_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags);
 int ghd_rm_vm_reset(gh_vmid_t vmid);
-int gh_rm_vm_reset(gh_vmid_t vmid);
 
 /* Client APIs for VM query */
 int gh_rm_populate_hyp_res(gh_vmid_t vmid, const char *vm_name);
@@ -399,7 +395,6 @@ int gh_rm_mem_qcom_lookup_sgl(u8 mem_type, gh_label_t label,
 			      gh_memparcel_handle_t *handle);
 int gh_rm_mem_release(gh_memparcel_handle_t handle, u8 flags);
 int ghd_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags);
-int gh_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags);
 struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 				     u8 trans_type, u8 flags, gh_label_t label,
 				     struct gh_acl_desc *acl_desc,
@@ -410,15 +405,7 @@ int ghd_rm_mem_share(u8 mem_type, u8 flags, gh_label_t label,
 		    struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
 		    struct gh_mem_attr_desc *mem_attr_desc,
 		    gh_memparcel_handle_t *handle);
-int gh_rm_mem_share(u8 mem_type, u8 flags, gh_label_t label,
-		    struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
-		    struct gh_mem_attr_desc *mem_attr_desc,
-		    gh_memparcel_handle_t *handle);
 int ghd_rm_mem_lend(u8 mem_type, u8 flags, gh_label_t label,
-		   struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
-		   struct gh_mem_attr_desc *mem_attr_desc,
-		   gh_memparcel_handle_t *handle);
-int gh_rm_mem_lend(u8 mem_type, u8 flags, gh_label_t label,
 		   struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
 		   struct gh_mem_attr_desc *mem_attr_desc,
 		   gh_memparcel_handle_t *handle);
@@ -535,17 +522,7 @@ static inline int ghd_rm_vm_init(gh_vmid_t vmid)
 	return -EINVAL;
 }
 
-static inline int gh_rm_vm_init(gh_vmid_t vmid)
-{
-	return -EINVAL;
-}
-
 static inline int ghd_rm_get_vmid(enum gh_vm_names vm_name, gh_vmid_t *vmid)
-{
-	return -EINVAL;
-}
-
-static inline int gh_rm_get_vmid(enum gh_vm_names vm_name, gh_vmid_t *vmid)
 {
 	return -EINVAL;
 }
@@ -570,11 +547,6 @@ static inline int ghd_rm_vm_start(int vmid)
 	return -EINVAL;
 }
 
-static inline int gh_rm_vm_start(int vmid)
-{
-	return -EINVAL;
-}
-
 static inline int gh_rm_get_vm_id_info(gh_vmid_t vmid)
 {
 	return -EINVAL;
@@ -585,17 +557,7 @@ static inline int ghd_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags)
 	return -EINVAL;
 }
 
-static inline int gh_rm_vm_stop(gh_vmid_t vmid, u32 stop_reason, u8 flags)
-{
-	return -EINVAL;
-}
-
 static inline int ghd_rm_vm_reset(gh_vmid_t vmid)
-{
-	return -EINVAL;
-}
-
-static inline int gh_rm_vm_reset(gh_vmid_t vmid)
 {
 	return -EINVAL;
 }
@@ -672,11 +634,6 @@ static inline int ghd_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags)
 	return -EINVAL;
 }
 
-static inline int gh_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags)
-{
-	return -EINVAL;
-}
-
 static inline struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle,
 				     u8 mem_type,
 				     u8 trans_type, u8 flags, gh_label_t label,
@@ -696,23 +653,7 @@ static inline int ghd_rm_mem_share(u8 mem_type, u8 flags, gh_label_t label,
 	return -EINVAL;
 }
 
-static inline int gh_rm_mem_share(u8 mem_type, u8 flags, gh_label_t label,
-		    struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
-		    struct gh_mem_attr_desc *mem_attr_desc,
-		    gh_memparcel_handle_t *handle)
-{
-	return -EINVAL;
-}
-
 static inline int ghd_rm_mem_lend(u8 mem_type, u8 flags, gh_label_t label,
-		   struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
-		   struct gh_mem_attr_desc *mem_attr_desc,
-		   gh_memparcel_handle_t *handle)
-{
-	return -EINVAL;
-}
-
-static inline int gh_rm_mem_lend(u8 mem_type, u8 flags, gh_label_t label,
 		   struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
 		   struct gh_mem_attr_desc *mem_attr_desc,
 		   gh_memparcel_handle_t *handle)

@@ -12,7 +12,7 @@
 #define GH_VM_EARLY_POWEROFF		0x3
 #define GH_VM_POWEROFF			0x4
 
-#if IS_ENABLED(CONFIG_GUNYAH)
+#if IS_ENABLED(CONFIG_GH_SECURE_VM_LOADER)
 int gh_register_vm_notifier(struct notifier_block *nb);
 int gh_unregister_vm_notifier(struct notifier_block *nb);
 #else

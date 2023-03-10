@@ -14,6 +14,7 @@
 #include <linux/gunyah/gh_common.h>
 
 extern bool gh_rm_core_initialized;
+extern struct gh_rm *rm;
 
 /* Resource Manager Header */
 struct gh_rm_rpc_hdr {
@@ -515,9 +516,6 @@ struct gh_minidump_get_slot_resp_payload {
 void gh_init_vm_prop_table(void);
 int gh_update_vm_prop_table(enum gh_vm_names vm_name,
 			struct gh_vm_property *vm_prop);
-void *gh_rm_call(gh_rm_msgid_t message_id,
-			void *req_buff, size_t req_buff_size,
-			size_t *resp_buff_size, int *reply_err_code);
 struct gh_vm_get_id_resp_entry *
 gh_rm_vm_get_id(gh_vmid_t vmid, u32 *out_n_entries);
 int gh_rm_vm_lookup(enum gh_vm_lookup_type type, const void *name,
