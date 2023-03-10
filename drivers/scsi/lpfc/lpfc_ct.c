@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -476,8 +476,8 @@ lpfc_free_ct_rsp(struct lpfc_hba *phba, struct lpfc_dmabuf *mlist)
 	struct lpfc_dmabuf *mlast, *next_mlast;
 
 	list_for_each_entry_safe(mlast, next_mlast, &mlist->list, list) {
-		lpfc_mbuf_free(phba, mlast->virt, mlast->phys);
 		list_del(&mlast->list);
+		lpfc_mbuf_free(phba, mlast->virt, mlast->phys);
 		kfree(mlast);
 	}
 	lpfc_mbuf_free(phba, mlist->virt, mlist->phys);
@@ -958,7 +958,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
-	if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
+	if (lpfc_error_lost_link(vport, ulp_status, ulp_word4)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0226 NS query failed due to link event: "
 				 "ulp_status x%x ulp_word4 x%x fc_flag x%x "
@@ -1181,7 +1181,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
-	if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
+	if (lpfc_error_lost_link(vport, ulp_status, ulp_word4)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "4166 NS query failed due to link event: "
 				 "ulp_status x%x ulp_word4 x%x fc_flag x%x "

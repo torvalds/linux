@@ -8080,16 +8080,16 @@ int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
 /**
  * lpfc_rx_monitor_destroy_ring - Free ring buffer for rx_monitor
  * @rx_monitor: Pointer to lpfc_rx_info_monitor object
+ *
+ * Called after cancellation of cmf_timer.
  **/
 void lpfc_rx_monitor_destroy_ring(struct lpfc_rx_info_monitor *rx_monitor)
 {
-	spin_lock(&rx_monitor->lock);
 	kfree(rx_monitor->ring);
 	rx_monitor->ring = NULL;
 	rx_monitor->entries = 0;
 	rx_monitor->head_idx = 0;
 	rx_monitor->tail_idx = 0;
-	spin_unlock(&rx_monitor->lock);
 }
 
 /**
@@ -9895,7 +9895,8 @@ lpfc_sli4_async_mbox_unblock(struct lpfc_hba *phba)
  * port for twice the regular mailbox command timeout value.
  *
  *      0 - no timeout on waiting for bootstrap mailbox register ready.
- *      MBXERR_ERROR - wait for bootstrap mailbox register timed out.
+ *      MBXERR_ERROR - wait for bootstrap mailbox register timed out or port
+ *                     is in an unrecoverable state.
  **/
 static int
 lpfc_sli4_wait_bmbx_ready(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
@@ -9903,6 +9904,23 @@ lpfc_sli4_wait_bmbx_ready(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint32_t db_ready;
 	unsigned long timeout;
 	struct lpfc_register bmbx_reg;
+	struct lpfc_register portstat_reg = {-1};
+
+	/* Sanity check - there is no point to wait if the port is in an
+	 * unrecoverable state.
+	 */
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
+	    LPFC_SLI_INTF_IF_TYPE_2) {
+		if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			       &portstat_reg.word0) ||
+		    lpfc_sli4_unrecoverable_port(&portstat_reg)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3858 Skipping bmbx ready because "
+					"Port Status x%x\n",
+					portstat_reg.word0);
+			return MBXERR_ERROR;
+		}
+	}
 
 	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
 				   * 1000) + jiffies;
@@ -22329,10 +22347,10 @@ lpfc_free_sgl_per_hdwq(struct lpfc_hba *phba,
 	/* Free sgl pool */
 	list_for_each_entry_safe(list_entry, tmp,
 				 buf_list, list_node) {
+		list_del(&list_entry->list_node);
 		dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 			      list_entry->dma_sgl,
 			      list_entry->dma_phys_sgl);
-		list_del(&list_entry->list_node);
 		kfree(list_entry);
 	}
 
@@ -22479,10 +22497,10 @@ lpfc_free_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
 	list_for_each_entry_safe(list_entry, tmp,
 				 buf_list,
 				 list_node) {
+		list_del(&list_entry->list_node);
 		dma_pool_free(phba->lpfc_cmd_rsp_buf_pool,
 			      list_entry->fcp_cmnd,
 			      list_entry->fcp_cmd_rsp_dma_handle);
-		list_del(&list_entry->list_node);
 		kfree(list_entry);
 	}
 

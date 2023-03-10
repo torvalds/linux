@@ -2148,7 +2148,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		/* fall through for not able to recover */
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3152 Unrecoverable error\n");
-		phba->link_state = LPFC_HBA_ERROR;
+		lpfc_sli4_offline_eratt(phba);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
@@ -9567,8 +9567,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			/* Final checks.  The port status should be clean. */
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&reg_data.word0) ||
-				(bf_get(lpfc_sliport_status_err, &reg_data) &&
-				 !bf_get(lpfc_sliport_status_rn, &reg_data))) {
+				lpfc_sli4_unrecoverable_port(&reg_data)) {
 				phba->work_status[0] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR1regaddr);
