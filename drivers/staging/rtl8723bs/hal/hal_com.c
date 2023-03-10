@@ -898,38 +898,6 @@ void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 }
 
 #ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
-void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
-{
-	u8 isCCKrate, rf_path;
-	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
-
-	netdev_dbg(padapter->pnetdev,
-		   "RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
-		   HDATA_RATE(psample_pkt_rssi->data_rate),
-		   psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all);
-
-	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
-
-	if (isCCKrate)
-		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
-
-	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		netdev_dbg(padapter->pnetdev,
-			   "RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)\n",
-			   rf_path,
-			   psample_pkt_rssi->mimo_signal_strength[rf_path],
-			   psample_pkt_rssi->mimo_signal_quality[rf_path]);
-
-		if (!isCCKrate) {
-			netdev_dbg(padapter->pnetdev,
-				   "\trx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
-				   psample_pkt_rssi->ofdm_pwr[rf_path],
-				   psample_pkt_rssi->ofdm_snr[rf_path]);
-		}
-	}
-}
-
 void rtw_dump_raw_rssi_info(struct adapter *padapter)
 {
 	u8 isCCKrate, rf_path;
