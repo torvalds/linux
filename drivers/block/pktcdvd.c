@@ -476,7 +476,7 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 	seq_printf(m, "\nQueue state:\n");
 	seq_printf(m, "\tbios queued:\t\t%d\n", pd->bio_queue_size);
 	seq_printf(m, "\tbios pending:\t\t%d\n", atomic_read(&pd->cdrw.pending_bios));
-	seq_printf(m, "\tcurrent sector:\t\t0x%llx\n", (unsigned long long)pd->current_sector);
+	seq_printf(m, "\tcurrent sector:\t\t0x%llx\n", pd->current_sector);
 
 	pkt_count_states(pd, states);
 	seq_printf(m, "\tstate:\t\t\ti:%d ow:%d rw:%d ww:%d rec:%d fin:%d\n",
@@ -986,8 +986,7 @@ static void pkt_end_io_read(struct bio *bio)
 	BUG_ON(!pd);
 
 	dev_dbg(disk_to_dev(pd->disk), "bio=%p sec0=%llx sec=%llx err=%d\n",
-		bio, (unsigned long long)pkt->sector,
-		(unsigned long long)bio->bi_iter.bi_sector, bio->bi_status);
+		bio, pkt->sector, bio->bi_iter.bi_sector, bio->bi_status);
 
 	if (bio->bi_status)
 		atomic_inc(&pkt->io_errors);
@@ -1050,7 +1049,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	spin_unlock(&pkt->lock);
 
 	if (pkt->cache_valid) {
-		dev_dbg(ddev, "zone %llx cached\n", (unsigned long long)pkt->sector);
+		dev_dbg(ddev, "zone %llx cached\n", pkt->sector);
 		goto out_account;
 	}
 
@@ -1082,8 +1081,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	}
 
 out_account:
-	dev_dbg(ddev, "need %d frames for zone %llx\n", frames_read,
-		(unsigned long long)pkt->sector);
+	dev_dbg(ddev, "need %d frames for zone %llx\n", frames_read, pkt->sector);
 	pd->stats.pkt_started++;
 	pd->stats.secs_rg += frames_read * (CD_FRAMESIZE >> 9);
 }
@@ -1126,8 +1124,7 @@ static inline void pkt_set_state(struct device *ddev, struct packet_data *pkt,
 	enum packet_data_state old_state = pkt->state;
 
 	dev_dbg(ddev, "pkt %2d : s=%6llx %s -> %s\n",
-		pkt->id, (unsigned long long)pkt->sector,
-		state_name[old_state], state_name[state]);
+		pkt->id, pkt->sector, state_name[old_state], state_name[state]);
 
 	pkt->state = state;
 }
@@ -1201,12 +1198,12 @@ try_next_bio:
 	 * to this packet.
 	 */
 	spin_lock(&pd->lock);
-	dev_dbg(ddev, "looking for zone %llx\n", (unsigned long long)zone);
+	dev_dbg(ddev, "looking for zone %llx\n", zone);
 	while ((node = pkt_rbtree_find(pd, zone)) != NULL) {
 		sector_t tmp = get_zone(node->bio->bi_iter.bi_sector, pd);
 
 		bio = node->bio;
-		dev_dbg(ddev, "found zone=%llx\n", (unsigned long long)tmp);
+		dev_dbg(ddev, "found zone=%llx\n", tmp);
 		if (tmp != zone)
 			break;
 		pkt_rbtree_erase(pd, node);
@@ -1306,8 +1303,7 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	pkt_set_state(ddev, pkt, PACKET_WRITE_WAIT_STATE);
 	spin_unlock(&pkt->lock);
 
-	dev_dbg(ddev, "Writing %d frames for zone %llx\n", pkt->write_size,
-		(unsigned long long)pkt->sector);
+	dev_dbg(ddev, "Writing %d frames for zone %llx\n", pkt->write_size, pkt->sector);
 
 	if (test_bit(PACKET_MERGE_SEGS, &pd->flags) || (pkt->write_size < pkt->frames))
 		pkt->cache_valid = 1;
@@ -2461,8 +2457,7 @@ static void pkt_submit_bio(struct bio *bio)
 		return;
 
 	dev_dbg(ddev, "start = %6llx stop = %6llx\n",
-		(unsigned long long)bio->bi_iter.bi_sector,
-		(unsigned long long)bio_end_sector(bio));
+		bio->bi_iter.bi_sector, bio_end_sector(bio));
 
 	/*
 	 * Clone READ bios so we can have our own bi_end_io callback.
@@ -2473,8 +2468,7 @@ static void pkt_submit_bio(struct bio *bio)
 	}
 
 	if (!test_bit(PACKET_WRITABLE, &pd->flags)) {
-		dev_notice(ddev, "WRITE for ro device (%llu)\n",
-			   (unsigned long long)bio->bi_iter.bi_sector);
+		dev_notice(ddev, "WRITE for ro device (%llu)\n", bio->bi_iter.bi_sector);
 		goto end_io;
 	}
 
