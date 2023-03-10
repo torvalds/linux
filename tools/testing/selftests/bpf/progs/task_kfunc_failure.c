@@ -109,6 +109,7 @@ int BPF_PROG(task_kfunc_acquire_unreleased, struct task_struct *task, u64 clone_
 	acquired = bpf_task_acquire(task);
 
 	/* Acquired task is never released. */
+	__sink(acquired);
 
 	return 0;
 }

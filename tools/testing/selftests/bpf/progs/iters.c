@@ -45,7 +45,6 @@ __failure __msg("unbounded memory access")
 int iter_err_unsafe_asm_loop(const void *ctx)
 {
 	struct bpf_iter_num it;
-	int *v, i = 0;
 
 	MY_PID_GUARD();
 
@@ -88,7 +87,7 @@ __success
 int iter_while_loop(const void *ctx)
 {
 	struct bpf_iter_num it;
-	int *v, i;
+	int *v;
 
 	MY_PID_GUARD();
 
@@ -106,7 +105,7 @@ __success
 int iter_while_loop_auto_cleanup(const void *ctx)
 {
 	__attribute__((cleanup(bpf_iter_num_destroy))) struct bpf_iter_num it;
-	int *v, i;
+	int *v;
 
 	MY_PID_GUARD();
 
@@ -124,7 +123,7 @@ __success
 int iter_for_loop(const void *ctx)
 {
 	struct bpf_iter_num it;
-	int *v, i;
+	int *v;
 
 	MY_PID_GUARD();
 
@@ -192,7 +191,7 @@ __success
 int iter_manual_unroll_loop(const void *ctx)
 {
 	struct bpf_iter_num it;
-	int *v, i;
+	int *v;
 
 	MY_PID_GUARD();
 
@@ -621,7 +620,7 @@ __success
 int iter_stack_array_loop(const void *ctx)
 {
 	long arr1[16], arr2[16], sum = 0;
-	int *v, i;
+	int i;
 
 	MY_PID_GUARD();
 

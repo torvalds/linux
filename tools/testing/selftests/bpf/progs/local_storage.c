@@ -77,7 +77,6 @@ int BPF_PROG(inode_rename, struct inode *old_dir, struct dentry *old_dentry,
 	     struct inode *new_dir, struct dentry *new_dentry,
 	     unsigned int flags)
 {
-	__u32 pid = bpf_get_current_pid_tgid() >> 32;
 	struct local_storage *storage;
 	int err;
 

@@ -64,7 +64,7 @@ SEC("sk_reuseport")
 int _select_by_skb_data(struct sk_reuseport_md *reuse_md)
 {
 	__u32 linum, index = 0, flags = 0, index_zero = 0;
-	__u32 *result_cnt, *linum_value;
+	__u32 *result_cnt;
 	struct data_check data_check = {};
 	struct cmd *cmd, cmd_copy;
 	void *data, *data_end;
