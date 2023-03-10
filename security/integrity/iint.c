@@ -182,6 +182,7 @@ static int __init integrity_iintcache_init(void)
 DEFINE_LSM(integrity) = {
 	.name = "integrity",
 	.init = integrity_iintcache_init,
+	.order = LSM_ORDER_LAST,
 };
 
 

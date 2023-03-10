@@ -285,9 +285,9 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		bool found = false;
 
 		for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
-			if (lsm->order == LSM_ORDER_MUTABLE &&
-			    strcmp(lsm->name, name) == 0) {
-				append_ordered_lsm(lsm, origin);
+			if (strcmp(lsm->name, name) == 0) {
+				if (lsm->order == LSM_ORDER_MUTABLE)
+					append_ordered_lsm(lsm, origin);
 				found = true;
 			}
 		}
@@ -305,6 +305,12 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 			if (strcmp(lsm->name, chosen_major_lsm) == 0)
 				append_ordered_lsm(lsm, "security=");
 		}
+	}
+
+	/* LSM_ORDER_LAST is always last. */
+	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
+		if (lsm->order == LSM_ORDER_LAST)
+			append_ordered_lsm(lsm, "   last");
 	}
 
 	/* Disable all LSMs not in the ordered list. */
