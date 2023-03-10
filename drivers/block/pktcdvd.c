@@ -335,7 +335,7 @@ static ssize_t device_map_show(const struct class *c, const struct class_attribu
 		struct pktcdvd_device *pd = pkt_devs[idx];
 		if (!pd)
 			continue;
-		n += sprintf(data+n, "%s %u:%u %u:%u\n",
+		n += sysfs_emit_at(data, n, "%s %u:%u %u:%u\n",
 			pd->disk->disk_name,
 			MAJOR(pd->pkt_dev), MINOR(pd->pkt_dev),
 			MAJOR(pd->bdev->bd_dev),
