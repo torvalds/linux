@@ -981,16 +981,6 @@ static struct ctl_table s390dbf_table[] = {
 	{ }
 };
 
-static struct ctl_table s390dbf_dir_table[] = {
-	{
-		.procname	= "s390dbf",
-		.maxlen		= 0,
-		.mode		= S_IRUGO | S_IXUGO,
-		.child		= s390dbf_table,
-	},
-	{ }
-};
-
 static struct ctl_table_header *s390dbf_sysctl_header;
 
 /**
@@ -1574,7 +1564,7 @@ out:
  */
 static int __init debug_init(void)
 {
-	s390dbf_sysctl_header = register_sysctl_table(s390dbf_dir_table);
+	s390dbf_sysctl_header = register_sysctl("s390dbf", s390dbf_table);
 	mutex_lock(&debug_mutex);
 	debug_debugfs_root_entry = debugfs_create_dir(DEBUG_DIR_ROOT, NULL);
 	initialized = 1;
