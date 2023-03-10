@@ -132,22 +132,4 @@ typedef struct {
 #define THROTTLER_TEMP_AID_BIT     8
 #define THROTTLER_VRHOT_BIT        9
 
-
-// These defines are used with the following messages:
-// SMC_MSG_TransferTableDram2Smu
-// SMC_MSG_TransferTableSmu2Dram
-// #define TABLE_PPTABLE                 0
-// #define TABLE_AVFS_PSM_DEBUG          1
-// #define TABLE_AVFS_FUSE_OVERRIDE      2
-// #define TABLE_PMSTATUSLOG             3
-// #define TABLE_SMU_METRICS             4
-// #define TABLE_DRIVER_SMU_CONFIG       5
-// #define TABLE_I2C_COMMANDS            6
-// #define TABLE_COUNT                   7
-
-// // Table transfer status
-// #define TABLE_TRANSFER_OK         0x0
-// #define TABLE_TRANSFER_FAILED     0xFF
-// #define TABLE_TRANSFER_PENDING    0xAB
-
 #endif
