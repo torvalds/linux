@@ -897,27 +897,6 @@ void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 	}
 }
 
-void linked_info_dump(struct adapter *padapter, u8 benable)
-{
-	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
-
-	if (padapter->bLinkInfoDump == benable)
-		return;
-
-	if (benable) {
-		pwrctrlpriv->org_power_mgnt = pwrctrlpriv->power_mgnt;/* keep org value */
-		rtw_pm_set_lps(padapter, PS_MODE_ACTIVE);
-
-		pwrctrlpriv->ips_org_mode = pwrctrlpriv->ips_mode;/* keep org value */
-		rtw_pm_set_ips(padapter, IPS_NONE);
-	} else {
-		rtw_pm_set_ips(padapter, pwrctrlpriv->ips_org_mode);
-
-		rtw_pm_set_lps(padapter, pwrctrlpriv->ips_org_mode);
-	}
-	padapter->bLinkInfoDump = benable;
-}
-
 #ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
 void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
 {
