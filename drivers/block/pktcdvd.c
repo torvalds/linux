@@ -237,15 +237,16 @@ static ssize_t congestion_off_store(struct device *dev,
 				    const char *buf, size_t len)
 {
 	struct pktcdvd_device *pd = dev_get_drvdata(dev);
-	int val;
+	int val, ret;
 
-	if (sscanf(buf, "%d", &val) == 1) {
-		spin_lock(&pd->lock);
-		pd->write_congestion_off = val;
-		init_write_congestion_marks(&pd->write_congestion_off,
-					&pd->write_congestion_on);
-		spin_unlock(&pd->lock);
-	}
+	ret = kstrtoint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	spin_lock(&pd->lock);
+	pd->write_congestion_off = val;
+	init_write_congestion_marks(&pd->write_congestion_off, &pd->write_congestion_on);
+	spin_unlock(&pd->lock);
 	return len;
 }
 static DEVICE_ATTR_RW(congestion_off);
@@ -267,15 +268,16 @@ static ssize_t congestion_on_store(struct device *dev,
 				   const char *buf, size_t len)
 {
 	struct pktcdvd_device *pd = dev_get_drvdata(dev);
-	int val;
+	int val, ret;
 
-	if (sscanf(buf, "%d", &val) == 1) {
-		spin_lock(&pd->lock);
-		pd->write_congestion_on = val;
-		init_write_congestion_marks(&pd->write_congestion_off,
-					&pd->write_congestion_on);
-		spin_unlock(&pd->lock);
-	}
+	ret = kstrtoint(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	spin_lock(&pd->lock);
+	pd->write_congestion_on = val;
+	init_write_congestion_marks(&pd->write_congestion_off, &pd->write_congestion_on);
+	spin_unlock(&pd->lock);
 	return len;
 }
 static DEVICE_ATTR_RW(congestion_on);
