@@ -598,6 +598,15 @@ err:
 	return rc;
 }
 
+static int qrtr_genpool_remove(struct platform_device *pdev)
+{
+	struct qrtr_genpool_dev *qdev = platform_get_drvdata(pdev);
+
+	vfree(qdev->ring.buf);
+
+	return 0;
+}
+
 static const struct of_device_id qrtr_genpool_match_table[] = {
 	{ .compatible = "qcom,qrtr-genpool" },
 	{},
@@ -605,6 +614,7 @@ static const struct of_device_id qrtr_genpool_match_table[] = {
 
 static struct platform_driver qrtr_genpool_driver = {
 	.probe = qrtr_genpool_probe,
+	.remove = qrtr_genpool_remove,
 	.driver = {
 		.name = "qcom_genpool_qrtr",
 		.of_match_table = qrtr_genpool_match_table,
