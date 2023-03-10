@@ -55,7 +55,7 @@ int of_i2c_get_board_info(struct device *dev, struct device_node *node,
 	if (of_property_read_bool(node, "host-notify"))
 		info->flags |= I2C_CLIENT_HOST_NOTIFY;
 
-	if (of_get_property(node, "wakeup-source", NULL))
+	if (of_property_read_bool(node, "wakeup-source"))
 		info->flags |= I2C_CLIENT_WAKE;
 
 	return 0;
