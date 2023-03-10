@@ -175,6 +175,6 @@ static inline u32 xe_uc_fw_get_upload_size(struct xe_uc_fw *uc_fw)
 	return __xe_uc_fw_get_upload_size(uc_fw);
 }
 
-#define XE_UC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/xe"
+#define XE_UC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/i915"
 
 #endif

@@ -55,12 +55,12 @@ static struct xe_device *uc_fw_to_xe(struct xe_uc_fw *uc_fw)
 	fw_def(TIGERLAKE,    0, huc_def(tgl,  7, 9, 3))
 
 #define __MAKE_UC_FW_PATH_MAJOR(prefix_, name_, major_) \
-	"xe/" \
+	"i915/" \
 	__stringify(prefix_) "_" name_ "_" \
 	__stringify(major_) ".bin"
 
 #define __MAKE_UC_FW_PATH(prefix_, name_, major_, minor_, patch_) \
-        "xe/" \
+        "i915/" \
        __stringify(prefix_) name_ \
        __stringify(major_) "." \
        __stringify(minor_) "." \
