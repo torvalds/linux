@@ -230,6 +230,7 @@ properties:
               - thwc,uf896
               - thwc,ufi001c
               - wingtech,wt88047
+              - yiming,uz801-v3
           - const: qcom,msm8916
 
       - items:
