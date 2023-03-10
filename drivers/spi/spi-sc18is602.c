@@ -315,7 +315,7 @@ static const struct i2c_device_id sc18is602_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sc18is602_id);
 
-static const struct of_device_id sc18is602_of_match[] = {
+static const struct of_device_id sc18is602_of_match[] __maybe_unused = {
 	{
 		.compatible = "nxp,sc18is602",
 		.data = (void *)sc18is602
