@@ -37,8 +37,7 @@
 
 static inline int get_pgtable_level(void)
 {
-	/* 5 level page table is not supported */
-	return PAGE_MODE_4_LEVEL;
+	return amd_iommu_gpt_level;
 }
 
 static inline bool is_large_pte(u64 pte)
@@ -379,6 +378,7 @@ static struct io_pgtable *v2_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	struct amd_io_pgtable *pgtable = io_pgtable_cfg_to_data(cfg);
 	struct protection_domain *pdom = (struct protection_domain *)cookie;
 	int ret;
+	int ias = IOMMU_IN_ADDR_BIT_SIZE;
 
 	pgtable->pgd = alloc_pgtable_page(pdom->nid, GFP_ATOMIC);
 	if (!pgtable->pgd)
@@ -388,12 +388,15 @@ static struct io_pgtable *v2_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	if (ret)
 		goto err_free_pgd;
 
+	if (get_pgtable_level() == PAGE_MODE_5_LEVEL)
+		ias = 57;
+
 	pgtable->iop.ops.map_pages    = iommu_v2_map_pages;
 	pgtable->iop.ops.unmap_pages  = iommu_v2_unmap_pages;
 	pgtable->iop.ops.iova_to_phys = iommu_v2_iova_to_phys;
 
 	cfg->pgsize_bitmap = AMD_IOMMU_PGSIZES_V2,
-	cfg->ias           = IOMMU_IN_ADDR_BIT_SIZE,
+	cfg->ias           = ias,
 	cfg->oas           = IOMMU_OUT_ADDR_BIT_SIZE,
 	cfg->tlb           = &v2_flush_ops;
 
