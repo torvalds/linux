@@ -282,7 +282,7 @@ static int imx8mm_tmu_probe_set_calib(struct platform_device *pdev,
 	 * strongly recommended to update such old DTs to get correct
 	 * temperature compensation values for each SoC.
 	 */
-	if (!of_find_property(pdev->dev.of_node, "nvmem-cells", NULL)) {
+	if (!of_property_present(pdev->dev.of_node, "nvmem-cells")) {
 		dev_warn(dev,
 			 "No OCOTP nvmem reference found, SoC-specific calibration not loaded. Please update your DT.\n");
 		return 0;

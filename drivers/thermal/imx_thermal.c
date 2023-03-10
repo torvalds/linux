@@ -571,7 +571,7 @@ static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
 
 	np = of_get_cpu_node(data->policy->cpu, NULL);
 
-	if (!np || !of_find_property(np, "#cooling-cells", NULL)) {
+	if (!np || !of_property_present(np, "#cooling-cells")) {
 		data->cdev = cpufreq_cooling_register(data->policy);
 		if (IS_ERR(data->cdev)) {
 			ret = PTR_ERR(data->cdev);
@@ -648,7 +648,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	if (of_find_property(pdev->dev.of_node, "nvmem-cells", NULL)) {
+	if (of_property_present(pdev->dev.of_node, "nvmem-cells")) {
 		ret = imx_init_from_nvmem_cells(pdev);
 		if (ret)
 			return dev_err_probe(&pdev->dev, ret,

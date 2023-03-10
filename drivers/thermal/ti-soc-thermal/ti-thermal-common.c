@@ -223,7 +223,7 @@ int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 	 * using DT, then it must be aware that the cooling device
 	 * loading has to happen via cpufreq driver.
 	 */
-	if (of_find_property(np, "#thermal-sensor-cells", NULL))
+	if (of_property_present(np, "#thermal-sensor-cells"))
 		return 0;
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
