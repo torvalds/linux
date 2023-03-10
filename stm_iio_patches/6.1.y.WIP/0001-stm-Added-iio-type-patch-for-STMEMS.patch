@@ -1,0 +1,66 @@
+From 5097de98081ebae94770bb91a99a43c9f93fe853 Mon Sep 17 00:00:00 2001
+From: Mario Tesi <mario.tesi@st.com>
+Date: Fri, 10 Mar 2023 13:20:43 +0100
+Subject: [PATCH 1/3] Added iio type patch for STMEMS
+
+Signed-off-by: Mario Tesi <mario.tesi@st.com>
+---
+ drivers/iio/industrialio-event.c |  1 +
+ include/uapi/linux/iio/types.h   | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/drivers/iio/industrialio-event.c b/drivers/iio/industrialio-event.c
+index 727e2ef66..59b6f46a1 100644
+--- a/drivers/iio/industrialio-event.c
++++ b/drivers/iio/industrialio-event.c
+@@ -240,6 +240,7 @@ static const char * const iio_ev_dir_text[] = {
+ 	[IIO_EV_DIR_FALLING] = "falling",
+ 	[IIO_EV_DIR_SINGLETAP] = "singletap",
+ 	[IIO_EV_DIR_DOUBLETAP] = "doubletap",
++	[IIO_EV_DIR_WAKE_UP] = "wakeup",
+ };
+ 
+ static const char * const iio_ev_info_text[] = {
+diff --git a/include/uapi/linux/iio/types.h b/include/uapi/linux/iio/types.h
+index c79f2f046..8116b4907 100644
+--- a/include/uapi/linux/iio/types.h
++++ b/include/uapi/linux/iio/types.h
+@@ -47,6 +47,15 @@ enum iio_chan_type {
+ 	IIO_POSITIONRELATIVE,
+ 	IIO_PHASE,
+ 	IIO_MASSCONCENTRATION,
++	/* starting custom chan type */
++	IIO_SIGN_MOTION = 0x100,
++	IIO_STEP_DETECTOR,
++	IIO_STEP_COUNTER,
++	IIO_TILT,
++	IIO_TAP,
++	IIO_TAP_TAP,
++	IIO_WRIST_TILT_GESTURE,
++	IIO_GESTURE,
+ };
+ 
+ enum iio_modifier {
+@@ -112,6 +121,8 @@ enum iio_event_type {
+ 	IIO_EV_TYPE_CHANGE,
+ 	IIO_EV_TYPE_MAG_REFERENCED,
+ 	IIO_EV_TYPE_GESTURE,
++	/* starting custom event type */
++	IIO_EV_TYPE_FIFO_FLUSH = 0x100,
+ };
+ 
+ enum iio_event_direction {
+@@ -121,6 +132,10 @@ enum iio_event_direction {
+ 	IIO_EV_DIR_NONE,
+ 	IIO_EV_DIR_SINGLETAP,
+ 	IIO_EV_DIR_DOUBLETAP,
++	/* starting custom event direction */
++	IIO_EV_DIR_FIFO_EMPTY = 0x100,
++	IIO_EV_DIR_FIFO_DATA,
++	IIO_EV_DIR_WAKE_UP,
+ };
+ 
+ #endif /* _UAPI_IIO_TYPES_H_ */
+-- 
+2.25.1
+
