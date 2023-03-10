@@ -208,11 +208,8 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 
 		pdata->operating_mode = FSL_USB2_MPH_HOST;
 	} else {
-		if (of_get_property(np, "fsl,invert-drvvbus", NULL))
-			pdata->invert_drvvbus = 1;
-
-		if (of_get_property(np, "fsl,invert-pwr-fault", NULL))
-			pdata->invert_pwr_fault = 1;
+		pdata->invert_drvvbus = of_property_read_bool(np, "fsl,invert-drvvbus");
+		pdata->invert_pwr_fault = of_property_read_bool(np, "fsl,invert-pwr-fault");
 
 		/* setup mode selected in the device tree */
 		pdata->operating_mode = dev_data->op_mode;
