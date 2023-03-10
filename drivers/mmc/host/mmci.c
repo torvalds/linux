@@ -1962,28 +1962,28 @@ static int mmci_of_parse(struct device_node *np, struct mmc_host *mmc)
 	if (ret)
 		return ret;
 
-	if (of_get_property(np, "st,sig-dir-dat0", NULL))
+	if (of_property_read_bool(np, "st,sig-dir-dat0"))
 		host->pwr_reg_add |= MCI_ST_DATA0DIREN;
-	if (of_get_property(np, "st,sig-dir-dat2", NULL))
+	if (of_property_read_bool(np, "st,sig-dir-dat2"))
 		host->pwr_reg_add |= MCI_ST_DATA2DIREN;
-	if (of_get_property(np, "st,sig-dir-dat31", NULL))
+	if (of_property_read_bool(np, "st,sig-dir-dat31"))
 		host->pwr_reg_add |= MCI_ST_DATA31DIREN;
-	if (of_get_property(np, "st,sig-dir-dat74", NULL))
+	if (of_property_read_bool(np, "st,sig-dir-dat74"))
 		host->pwr_reg_add |= MCI_ST_DATA74DIREN;
-	if (of_get_property(np, "st,sig-dir-cmd", NULL))
+	if (of_property_read_bool(np, "st,sig-dir-cmd"))
 		host->pwr_reg_add |= MCI_ST_CMDDIREN;
-	if (of_get_property(np, "st,sig-pin-fbclk", NULL))
+	if (of_property_read_bool(np, "st,sig-pin-fbclk"))
 		host->pwr_reg_add |= MCI_ST_FBCLKEN;
-	if (of_get_property(np, "st,sig-dir", NULL))
+	if (of_property_read_bool(np, "st,sig-dir"))
 		host->pwr_reg_add |= MCI_STM32_DIRPOL;
-	if (of_get_property(np, "st,neg-edge", NULL))
+	if (of_property_read_bool(np, "st,neg-edge"))
 		host->clk_reg_add |= MCI_STM32_CLK_NEGEDGE;
-	if (of_get_property(np, "st,use-ckin", NULL))
+	if (of_property_read_bool(np, "st,use-ckin"))
 		mmci_probe_level_translator(mmc);
 
-	if (of_get_property(np, "mmc-cap-mmc-highspeed", NULL))
+	if (of_property_read_bool(np, "mmc-cap-mmc-highspeed"))
 		mmc->caps |= MMC_CAP_MMC_HIGHSPEED;
-	if (of_get_property(np, "mmc-cap-sd-highspeed", NULL))
+	if (of_property_read_bool(np, "mmc-cap-sd-highspeed"))
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
 
 	return 0;

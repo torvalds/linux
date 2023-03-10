@@ -802,10 +802,8 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	priv->power_inverted = 0;
 	priv->cd_inverted = 0;
 
-	if (of_get_property(np, "sdon-inverted", NULL))
-		priv->power_inverted = 1;
-	if (of_get_property(np, "cd-inverted", NULL))
-		priv->cd_inverted = 1;
+	priv->power_inverted = of_property_read_bool(np, "sdon-inverted");
+	priv->cd_inverted = of_property_read_bool(np, "cd-inverted");
 
 	priv->sdmmc_base = of_iomap(np, 0);
 	if (!priv->sdmmc_base) {
