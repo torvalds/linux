@@ -63,7 +63,7 @@ __efistub_efi_zboot_header:
 	.long		.Lefi_header_end - .Ldoshdr
 	.long		0
 	.short		IMAGE_SUBSYSTEM_EFI_APPLICATION
-	.short		0
+	.short		IMAGE_DLL_CHARACTERISTICS_NX_COMPAT
 #ifdef CONFIG_64BIT
 	.quad		0, 0, 0, 0
 #else
