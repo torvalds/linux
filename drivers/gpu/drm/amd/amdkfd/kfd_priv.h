@@ -1068,7 +1068,6 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev);
-struct kfd_node *kfd_device_by_adev(const struct amdgpu_device *adev);
 static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t node_id,
 					uint32_t vmid)
 {
