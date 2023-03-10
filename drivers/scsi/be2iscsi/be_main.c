@@ -5545,13 +5545,6 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto disable_pci;
 	}
 
-	/* Enable EEH reporting */
-	ret = pci_enable_pcie_error_reporting(pcidev);
-	if (ret)
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
-			    "BM_%d : PCIe Error Reporting "
-			    "Enabling Failed\n");
-
 	pci_save_state(pcidev);
 
 	/* Initialize Driver configuration Paramters */
@@ -5736,7 +5729,6 @@ free_hba:
 	pci_disable_msix(phba->pcidev);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
-	pci_disable_pcie_error_reporting(pcidev);
 	pci_set_drvdata(pcidev, NULL);
 disable_pci:
 	pci_release_regions(pcidev);
@@ -5779,7 +5771,6 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
-	pci_disable_pcie_error_reporting(pcidev);
 	pci_set_drvdata(pcidev, NULL);
 	pci_release_regions(pcidev);
 	pci_disable_device(pcidev);

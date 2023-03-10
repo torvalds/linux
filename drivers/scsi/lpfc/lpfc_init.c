@@ -32,7 +32,6 @@
 #include <linux/spinlock.h>
 #include <linux/sched/clock.h>
 #include <linux/ctype.h>
-#include <linux/aer.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/miscdevice.h>

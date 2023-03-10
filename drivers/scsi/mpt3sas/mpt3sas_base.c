@@ -60,7 +60,6 @@
 #include <linux/ktime.h>
 #include <linux/kthread.h>
 #include <asm/page.h>        /* To get host page size per arch */
-#include <linux/aer.h>
 
 
 #include "mpt3sas_base.h"
@@ -3535,7 +3534,6 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
 
 	if (pci_is_enabled(pdev)) {
 		pci_release_selected_regions(ioc->pdev, ioc->bars);
-		pci_disable_pcie_error_reporting(pdev);
 		pci_disable_device(pdev);
 	}
 }
@@ -3614,9 +3612,6 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		r = -ENODEV;
 		goto out_fail;
 	}
-
-/* AER (Advanced Error Reporting) hooks */
-	pci_enable_pcie_error_reporting(pdev);
 
 	pci_set_master(pdev);
 
