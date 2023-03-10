@@ -40,9 +40,6 @@ struct psp_device {
 	psp_irq_handler_t sev_irq_handler;
 	void *sev_irq_data;
 
-	psp_irq_handler_t tee_irq_handler;
-	void *tee_irq_data;
-
 	void *sev_data;
 	void *tee_data;
 
@@ -52,10 +49,6 @@ struct psp_device {
 void psp_set_sev_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
 			     void *data);
 void psp_clear_sev_irq_handler(struct psp_device *psp);
-
-void psp_set_tee_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
-			     void *data);
-void psp_clear_tee_irq_handler(struct psp_device *psp);
 
 struct psp_device *psp_get_master_device(void);
 
