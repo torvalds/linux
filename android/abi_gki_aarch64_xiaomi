@@ -208,3 +208,9 @@
   __tracepoint_android_vh_alloc_pages_reclaim_bypass
   __traceiter_android_vh_alloc_pages_failure_bypass
   __tracepoint_android_vh_alloc_pages_failure_bypass
+
+#required by us_prox.ko module
+  iio_trigger_alloc
+  __iio_trigger_register
+  iio_trigger_free
+  iio_trigger_unregister
