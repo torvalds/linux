@@ -502,7 +502,7 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 	 * If clock parents are not set in DT, configure here to use clk_out_1
 	 * as mclk and extern1 as parent for Tegra30 and higher.
 	 */
-	if (!of_find_property(dev->of_node, "assigned-clock-parents", NULL) &&
+	if (!of_property_present(dev->of_node, "assigned-clock-parents") &&
 	    !of_machine_is_compatible("nvidia,tegra20")) {
 		struct clk *clk_out_1, *clk_extern1;
 

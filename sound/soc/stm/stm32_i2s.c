@@ -1066,7 +1066,7 @@ static int stm32_i2s_parse_dt(struct platform_device *pdev,
 				     "Could not get x11k parent clock\n");
 
 	/* Register mclk provider if requested */
-	if (of_find_property(np, "#clock-cells", NULL)) {
+	if (of_property_present(np, "#clock-cells")) {
 		ret = stm32_i2s_add_mclk_provider(i2s);
 		if (ret < 0)
 			return ret;

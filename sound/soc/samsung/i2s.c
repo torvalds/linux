@@ -1289,7 +1289,7 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 	int ret, i;
 
 	/* Register the clock provider only if it's expected in the DTB */
-	if (!of_find_property(dev->of_node, "#clock-cells", NULL))
+	if (!of_property_present(dev->of_node, "#clock-cells"))
 		return 0;
 
 	/* Get the RCLKSRC mux clock parent clock names */

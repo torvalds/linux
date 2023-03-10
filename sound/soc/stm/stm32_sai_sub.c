@@ -1394,7 +1394,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 
 	/* Get spdif iec60958 property */
 	sai->spdif = false;
-	if (of_get_property(np, "st,iec60958", NULL)) {
+	if (of_property_present(np, "st,iec60958")) {
 		if (!STM_SAI_HAS_SPDIF(sai) ||
 		    sai->dir == SNDRV_PCM_STREAM_CAPTURE) {
 			dev_err(&pdev->dev, "S/PDIF IEC60958 not supported\n");
@@ -1480,7 +1480,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 		return 0;
 
 	/* Register mclk provider if requested */
-	if (of_find_property(np, "#clock-cells", NULL)) {
+	if (of_property_present(np, "#clock-cells")) {
 		ret = stm32_sai_add_mclk_provider(sai);
 		if (ret < 0)
 			return ret;

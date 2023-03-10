@@ -150,7 +150,7 @@ static int mxs_sgtl5000_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	if (of_find_property(np, "audio-routing", NULL)) {
+	if (of_property_present(np, "audio-routing")) {
 		card->dapm_widgets = mxs_sgtl5000_dapm_widgets;
 		card->num_dapm_widgets = ARRAY_SIZE(mxs_sgtl5000_dapm_widgets);
 

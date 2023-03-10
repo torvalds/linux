@@ -376,7 +376,7 @@ static int graph_get_dai_id(struct device_node *ep)
 		 * only of_graph_parse_endpoint().
 		 * We need to check "reg" property
 		 */
-		if (of_get_property(ep,   "reg", NULL))
+		if (of_property_present(ep,   "reg"))
 			return info.id;
 
 		node = of_get_parent(ep);

@@ -1855,7 +1855,7 @@ static void fsi_of_parse(char *name,
 
 	for (i = 0; i < ARRAY_SIZE(of_parse_property); i++) {
 		sprintf(prop, "%s,%s", name, of_parse_property[i].name);
-		if (of_get_property(np, prop, NULL))
+		if (of_property_present(np, prop))
 			flags |= of_parse_property[i].val;
 	}
 	info->flags = flags;
