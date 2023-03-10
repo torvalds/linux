@@ -121,7 +121,8 @@ static int vs_gem_alloc_buf(struct vs_gem_object *vs_obj)
 						&vs_obj->dma_addr, GFP_KERNEL,
 						vs_obj->dma_attrs);
 
-	printk("Allocated coherent memory, vaddr: 0x%0llX, paddr: 0x%0llX\n", (u64)vs_obj->cookie, vs_obj->dma_addr);
+	DRM_DEV_DEBUG(dev->dev,"Allocated coherent memory, vaddr: 0x%0llX, paddr: 0x%0llX, size: %d\n", 
+		(u64)vs_obj->cookie,vs_obj->dma_addr,vs_obj->size);
 	if (!vs_obj->cookie) {
 #ifdef CONFIG_VERISILICON_MMU
 		ret = get_pages(nr_pages, vs_obj);
@@ -158,8 +159,6 @@ static int vs_gem_alloc_buf(struct vs_gem_object *vs_obj)
 #else
 	vs_obj->iova = vs_obj->dma_addr;
 #endif
-
-	printk("====> %s, %d.vs_obj->get_pages = %d\n", __func__, __LINE__, vs_obj->get_pages);
 
 	if (!vs_obj->get_pages) {
 		ret = dma_get_sgtable_attrs(to_dma_dev(dev), &sgt,
@@ -424,7 +423,6 @@ int vs_gem_dumb_create(struct drm_file *file,
 		/* for costum 10bit format with no bit gaps */
 		args->pitch = pitch;
 	args->size = PAGE_ALIGN(args->pitch * args->height);
-	printk("vs_gem_dumb_create size = %llx\n", args->size);
 	vs_obj = vs_gem_create_with_handle(dev, file, args->size,
 						 &args->handle);
 	return PTR_ERR_OR_ZERO(vs_obj);
