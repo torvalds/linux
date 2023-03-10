@@ -432,7 +432,7 @@ static int exynos_bus_probe(struct platform_device *pdev)
 		goto err;
 
 	/* Create child platform device for the interconnect provider */
-	if (of_get_property(dev->of_node, "#interconnect-cells", NULL)) {
+	if (of_property_present(dev->of_node, "#interconnect-cells")) {
 		bus->icc_pdev = platform_device_register_data(
 						dev, "exynos-generic-icc",
 						PLATFORM_DEVID_AUTO, NULL, 0);
