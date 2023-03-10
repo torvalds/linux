@@ -1586,7 +1586,7 @@ static struct platform_driver pxa168_eth_driver = {
 	.suspend = pxa168_eth_suspend,
 	.driver = {
 		.name		= DRIVER_NAME,
-		.of_match_table	= of_match_ptr(pxa168_eth_of_match),
+		.of_match_table	= pxa168_eth_of_match,
 	},
 };
 
