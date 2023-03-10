@@ -403,6 +403,7 @@ void mac802154_beacon_worker(struct work_struct *work)
 	struct cfg802154_beacon_request *beacon_req;
 	struct ieee802154_sub_if_data *sdata;
 	struct wpan_dev *wpan_dev;
+	u8 interval;
 	int ret;
 
 	rcu_read_lock();
@@ -423,6 +424,7 @@ void mac802154_beacon_worker(struct work_struct *work)
 	}
 
 	wpan_dev = beacon_req->wpan_dev;
+	interval = beacon_req->interval;
 
 	rcu_read_unlock();
 
@@ -432,8 +434,9 @@ void mac802154_beacon_worker(struct work_struct *work)
 		dev_err(&sdata->dev->dev,
 			"Beacon could not be transmitted (%d)\n", ret);
 
-	queue_delayed_work(local->mac_wq, &local->beacon_work,
-			   local->beacon_interval);
+	if (interval < IEEE802154_ACTIVE_SCAN_DURATION)
+		queue_delayed_work(local->mac_wq, &local->beacon_work,
+				   local->beacon_interval);
 }
 
 int mac802154_stop_beacons_locked(struct ieee802154_local *local,
@@ -488,12 +491,16 @@ int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
 	local->beacon.mhr.source.pan_id = request->wpan_dev->pan_id;
 	local->beacon.mhr.source.extended_addr = request->wpan_dev->extended_addr;
 	local->beacon.mac_pl.beacon_order = request->interval;
-	local->beacon.mac_pl.superframe_order = request->interval;
+	if (request->interval <= IEEE802154_MAX_SCAN_DURATION)
+		local->beacon.mac_pl.superframe_order = request->interval;
 	local->beacon.mac_pl.final_cap_slot = 0xf;
 	local->beacon.mac_pl.battery_life_ext = 0;
-	/* TODO: Fill this field depending on the coordinator capacity */
+	/* TODO: Fill this field with the coordinator situation in the network */
 	local->beacon.mac_pl.pan_coordinator = 1;
 	local->beacon.mac_pl.assoc_permit = 1;
+
+	if (request->interval == IEEE802154_ACTIVE_SCAN_DURATION)
+		return 0;
 
 	/* Start the beacon work */
 	local->beacon_interval =
