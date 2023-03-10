@@ -61,6 +61,7 @@ enum mtk_jpeg_ctx_state {
  * @out_q_default_fourcc:	output queue default fourcc
  * @cap_q_default_fourcc:	capture queue default fourcc
  * @multi_core:		mark jpeg hw is multi_core or not
+ * @jpeg_worker:		jpeg dec or enc worker
  */
 struct mtk_jpeg_variant {
 	struct clk_bulk_data *clks;
@@ -76,6 +77,7 @@ struct mtk_jpeg_variant {
 	u32 out_q_default_fourcc;
 	u32 cap_q_default_fourcc;
 	bool multi_core;
+	void (*jpeg_worker)(struct work_struct *work);
 };
 
 struct mtk_jpeg_src_buf {

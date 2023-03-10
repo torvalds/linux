@@ -1575,12 +1575,7 @@ static int mtk_jpeg_open(struct file *file)
 		goto free;
 	}
 
-	if (jpeg->is_jpgenc_multihw)
-		INIT_WORK(&ctx->jpeg_work, mtk_jpegenc_worker);
-
-	if (jpeg->is_jpgdec_multihw)
-		INIT_WORK(&ctx->jpeg_work, mtk_jpegdec_worker);
-
+	INIT_WORK(&ctx->jpeg_work, jpeg->variant->jpeg_worker);
 	INIT_LIST_HEAD(&ctx->dst_done_queue);
 	spin_lock_init(&ctx->done_queue_lock);
 	v4l2_fh_init(&ctx->fh, vfd);
@@ -1902,6 +1897,7 @@ static struct mtk_jpeg_variant mtk8195_jpegenc_drvdata = {
 	.out_q_default_fourcc = V4L2_PIX_FMT_YUYV,
 	.cap_q_default_fourcc = V4L2_PIX_FMT_JPEG,
 	.multi_core = true,
+	.jpeg_worker = mtk_jpegenc_worker,
 };
 
 static const struct mtk_jpeg_variant mtk8195_jpegdec_drvdata = {
@@ -1914,6 +1910,7 @@ static const struct mtk_jpeg_variant mtk8195_jpegdec_drvdata = {
 	.out_q_default_fourcc = V4L2_PIX_FMT_JPEG,
 	.cap_q_default_fourcc = V4L2_PIX_FMT_YUV420M,
 	.multi_core = true,
+	.jpeg_worker = mtk_jpegdec_worker,
 };
 
 static const struct of_device_id mtk_jpeg_match[] = {
