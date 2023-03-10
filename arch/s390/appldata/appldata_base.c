@@ -66,16 +66,6 @@ static struct ctl_table appldata_table[] = {
 	{ },
 };
 
-static struct ctl_table appldata_dir_table[] = {
-	{
-		.procname	= appldata_proc_name,
-		.maxlen		= 0,
-		.mode		= S_IRUGO | S_IXUGO,
-		.child		= appldata_table,
-	},
-	{ },
-};
-
 /*
  * Timer
  */
@@ -422,7 +412,7 @@ static int __init appldata_init(void)
 	appldata_wq = alloc_ordered_workqueue("appldata", 0);
 	if (!appldata_wq)
 		return -ENOMEM;
-	appldata_sysctl_header = register_sysctl_table(appldata_dir_table);
+	appldata_sysctl_header = register_sysctl(appldata_proc_name, appldata_table);
 	return 0;
 }
 
