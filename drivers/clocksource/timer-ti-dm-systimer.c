@@ -584,7 +584,7 @@ static int __init dmtimer_clkevt_init_common(struct dmtimer_clockevent *clkevt,
 	writel_relaxed(OMAP_TIMER_INT_OVERFLOW, t->base + t->wakeup);
 
 	pr_info("TI gptimer %s: %s%lu Hz at %pOF\n",
-		name, of_find_property(np, "ti,timer-alwon", NULL) ?
+		name, of_property_read_bool(np, "ti,timer-alwon") ?
 		"always-on " : "", t->rate, np->parent);
 
 	return 0;
@@ -785,7 +785,7 @@ static int __init dmtimer_clocksource_init(struct device_node *np)
 		       t->base + t->ctrl);
 
 	pr_info("TI gptimer clocksource: %s%pOF\n",
-		of_find_property(np, "ti,timer-alwon", NULL) ?
+		of_property_read_bool(np, "ti,timer-alwon") ?
 		"always-on " : "", np->parent);
 
 	if (!dmtimer_sched_clock_counter) {

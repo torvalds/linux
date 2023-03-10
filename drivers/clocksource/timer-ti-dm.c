@@ -1104,13 +1104,13 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, timer);
 
 	if (dev->of_node) {
-		if (of_find_property(dev->of_node, "ti,timer-alwon", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-alwon"))
 			timer->capability |= OMAP_TIMER_ALWON;
-		if (of_find_property(dev->of_node, "ti,timer-dsp", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-dsp"))
 			timer->capability |= OMAP_TIMER_HAS_DSP_IRQ;
-		if (of_find_property(dev->of_node, "ti,timer-pwm", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-pwm"))
 			timer->capability |= OMAP_TIMER_HAS_PWM;
-		if (of_find_property(dev->of_node, "ti,timer-secure", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-secure"))
 			timer->capability |= OMAP_TIMER_SECURE;
 	} else {
 		timer->id = pdev->id;
