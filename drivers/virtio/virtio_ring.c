@@ -231,9 +231,9 @@ static void vring_free(struct virtqueue *_vq);
  * Helpers.
  */
 
-#define to_vvq(_vq) container_of(_vq, struct vring_virtqueue, vq)
+#define to_vvq(_vq) container_of_const(_vq, struct vring_virtqueue, vq)
 
-static bool virtqueue_use_indirect(struct vring_virtqueue *vq,
+static bool virtqueue_use_indirect(const struct vring_virtqueue *vq,
 				   unsigned int total_sg)
 {
 	/*
@@ -269,7 +269,7 @@ static bool virtqueue_use_indirect(struct vring_virtqueue *vq,
  * unconditionally on data path.
  */
 
-static bool vring_use_dma_api(struct virtio_device *vdev)
+static bool vring_use_dma_api(const struct virtio_device *vdev)
 {
 	if (!virtio_has_dma_quirk(vdev))
 		return true;
@@ -289,7 +289,7 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
 	return false;
 }
 
-size_t virtio_max_dma_size(struct virtio_device *vdev)
+size_t virtio_max_dma_size(const struct virtio_device *vdev)
 {
 	size_t max_segment_size = SIZE_MAX;
 
@@ -423,7 +423,7 @@ static void virtqueue_init(struct vring_virtqueue *vq, u32 num)
  */
 
 static void vring_unmap_one_split_indirect(const struct vring_virtqueue *vq,
-					   struct vring_desc *desc)
+					   const struct vring_desc *desc)
 {
 	u16 flags;
 
@@ -1183,7 +1183,7 @@ static u16 packed_last_used(u16 last_used_idx)
 }
 
 static void vring_unmap_extra_packed(const struct vring_virtqueue *vq,
-				     struct vring_desc_extra *extra)
+				     const struct vring_desc_extra *extra)
 {
 	u16 flags;
 
@@ -1206,7 +1206,7 @@ static void vring_unmap_extra_packed(const struct vring_virtqueue *vq,
 }
 
 static void vring_unmap_desc_packed(const struct vring_virtqueue *vq,
-				   struct vring_packed_desc *desc)
+				    const struct vring_packed_desc *desc)
 {
 	u16 flags;
 
@@ -2786,10 +2786,10 @@ EXPORT_SYMBOL_GPL(vring_transport_features);
  * Returns the size of the vring.  This is mainly used for boasting to
  * userspace.  Unlike other operations, this need not be serialized.
  */
-unsigned int virtqueue_get_vring_size(struct virtqueue *_vq)
+unsigned int virtqueue_get_vring_size(const struct virtqueue *_vq)
 {
 
-	struct vring_virtqueue *vq = to_vvq(_vq);
+	const struct vring_virtqueue *vq = to_vvq(_vq);
 
 	return vq->packed_ring ? vq->packed.vring.num : vq->split.vring.num;
 }
@@ -2819,9 +2819,9 @@ void __virtqueue_unbreak(struct virtqueue *_vq)
 }
 EXPORT_SYMBOL_GPL(__virtqueue_unbreak);
 
-bool virtqueue_is_broken(struct virtqueue *_vq)
+bool virtqueue_is_broken(const struct virtqueue *_vq)
 {
-	struct vring_virtqueue *vq = to_vvq(_vq);
+	const struct vring_virtqueue *vq = to_vvq(_vq);
 
 	return READ_ONCE(vq->broken);
 }
@@ -2868,9 +2868,9 @@ void __virtio_unbreak_device(struct virtio_device *dev)
 }
 EXPORT_SYMBOL_GPL(__virtio_unbreak_device);
 
-dma_addr_t virtqueue_get_desc_addr(struct virtqueue *_vq)
+dma_addr_t virtqueue_get_desc_addr(const struct virtqueue *_vq)
 {
-	struct vring_virtqueue *vq = to_vvq(_vq);
+	const struct vring_virtqueue *vq = to_vvq(_vq);
 
 	BUG_ON(!vq->we_own_ring);
 
@@ -2881,9 +2881,9 @@ dma_addr_t virtqueue_get_desc_addr(struct virtqueue *_vq)
 }
 EXPORT_SYMBOL_GPL(virtqueue_get_desc_addr);
 
-dma_addr_t virtqueue_get_avail_addr(struct virtqueue *_vq)
+dma_addr_t virtqueue_get_avail_addr(const struct virtqueue *_vq)
 {
-	struct vring_virtqueue *vq = to_vvq(_vq);
+	const struct vring_virtqueue *vq = to_vvq(_vq);
 
 	BUG_ON(!vq->we_own_ring);
 
@@ -2895,9 +2895,9 @@ dma_addr_t virtqueue_get_avail_addr(struct virtqueue *_vq)
 }
 EXPORT_SYMBOL_GPL(virtqueue_get_avail_addr);
 
-dma_addr_t virtqueue_get_used_addr(struct virtqueue *_vq)
+dma_addr_t virtqueue_get_used_addr(const struct virtqueue *_vq)
 {
-	struct vring_virtqueue *vq = to_vvq(_vq);
+	const struct vring_virtqueue *vq = to_vvq(_vq);
 
 	BUG_ON(!vq->we_own_ring);
 
@@ -2910,7 +2910,7 @@ dma_addr_t virtqueue_get_used_addr(struct virtqueue *_vq)
 EXPORT_SYMBOL_GPL(virtqueue_get_used_addr);
 
 /* Only available for split ring */
-const struct vring *virtqueue_get_vring(struct virtqueue *vq)
+const struct vring *virtqueue_get_vring(const struct virtqueue *vq)
 {
 	return &to_vvq(vq)->split.vring;
 }
