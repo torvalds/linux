@@ -1179,7 +1179,7 @@ static int soft_uart_init(struct platform_device *ofdev)
 	struct qe_firmware_info *qe_fw_info;
 	int ret;
 
-	if (of_find_property(np, "soft-uart", NULL)) {
+	if (of_property_read_bool(np, "soft-uart")) {
 		dev_dbg(&ofdev->dev, "using Soft-UART mode\n");
 		soft_uart = 1;
 	} else {

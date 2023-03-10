@@ -2257,20 +2257,16 @@ static int imx_uart_probe(struct platform_device *pdev)
 	}
 	sport->port.line = ret;
 
-	if (of_get_property(np, "uart-has-rtscts", NULL) ||
-	    of_get_property(np, "fsl,uart-has-rtscts", NULL) /* deprecated */)
-		sport->have_rtscts = 1;
+	sport->have_rtscts = of_property_read_bool(np, "uart-has-rtscts") ||
+		of_property_read_bool(np, "fsl,uart-has-rtscts"); /* deprecated */
 
-	if (of_get_property(np, "fsl,dte-mode", NULL))
-		sport->dte_mode = 1;
+	sport->dte_mode = of_property_read_bool(np, "fsl,dte-mode");
 
 	sport->have_rtsgpio = of_property_present(np, "rts-gpios");
 
-	if (of_get_property(np, "fsl,inverted-tx", NULL))
-		sport->inverted_tx = 1;
+	sport->inverted_tx = of_property_read_bool(np, "fsl,inverted-tx");
 
-	if (of_get_property(np, "fsl,inverted-rx", NULL))
-		sport->inverted_rx = 1;
+	sport->inverted_rx = of_property_read_bool(np, "fsl,inverted-rx");
 
 	if (!of_property_read_u32_array(np, "fsl,dma-info", dma_buf_conf, 2)) {
 		sport->rx_period_length = dma_buf_conf[0];
