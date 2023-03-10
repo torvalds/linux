@@ -475,8 +475,7 @@ static int __init pmac_pic_probe_mpic(void)
 
 	/* We can have up to 2 MPICs cascaded */
 	for_each_node_by_type(np, "open-pic") {
-		if (master == NULL &&
-		    of_get_property(np, "interrupts", NULL) == NULL)
+		if (master == NULL && !of_property_present(np, "interrupts"))
 			master = of_node_get(np);
 		else if (slave == NULL)
 			slave = of_node_get(np);
