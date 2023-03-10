@@ -15,14 +15,10 @@
 };
 
 &dsi {
-	status = "okay";
+	status = "disabled";
 };
 
 &dsi_in_vp0 {
-	status = "okay";
-};
-
-&dsi_in_vp1 {
 	status = "disabled";
 };
 
@@ -100,13 +96,9 @@
 };
 
 &rgb_in_vp0 {
-	status = "disabled";
-};
-
-&rgb_in_vp1 {
 	status = "okay";
 };
 
 &video_phy {
-	status = "okay";
+	status = "disabled";
 };

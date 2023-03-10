@@ -425,7 +425,7 @@
 				logo,kernel = "logo_kernel.bmp";
 				logo,mode = "center";
 				charge_logo,mode = "center";
-				connect = <&vp1_out_rgb>;
+				connect = <&vp0_out_rgb>;
 			};
 		};
 	};
@@ -998,12 +998,6 @@
 						remote-endpoint = <&vp0_out_lvds>;
 						status = "disabled";
 					};
-
-					lvds_in_vp1: endpoint@1 {
-						reg = <1>;
-						remote-endpoint = <&vp1_out_lvds>;
-						status = "disabled";
-					};
 				};
 			};
 		};
@@ -1036,12 +1030,6 @@
 					rgb_in_vp0: endpoint@0 {
 						reg = <0>;
 						remote-endpoint = <&vp0_out_rgb>;
-						status = "disabled";
-					};
-
-					rgb_in_vp1: endpoint@1 {
-						reg = <1>;
-						remote-endpoint = <&vp1_out_rgb>;
 						status = "disabled";
 					};
 				};
@@ -1635,25 +1623,21 @@
 		interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>,
 			 <&cru HCLK_VOP>,
-			 <&cru DCLK_VOP>,
-			 <&cru DCLK_VOP1>;
+			 <&cru DCLK_VOP>;
 		clock-names = "aclk_vop",
 			      "hclk_vop",
-			      "dclk_vp0",
-			      "dclk_vp1";
+			      "dclk_vp0";
 		resets = <&cru SRST_A_VOP>,
 			 <&cru SRST_H_VOP>,
-			 <&cru SRST_D_VOP>,
-			 <&cru SRST_D_VOP1>;
+			 <&cru SRST_D_VOP>;
 		reset-names = "axi",
 			      "ahb",
-			      "dclk_vp0",
-			      "dclk_vp1";
+			      "dclk_vp0";
 		iommus = <&vop_mmu>;
 		power-domains = <&power RK3562_PD_VO>;
 		rockchip,grf = <&ioc_grf>;
-		assigned-clocks = <&cru DCLK_VOP>, <&cru DCLK_VOP1>;
-		assigned-clock-parents = <&cru PLL_VPLL>, <&cru PLL_APLL>;
+		assigned-clocks = <&cru DCLK_VOP>;
+		assigned-clock-parents = <&cru PLL_VPLL>;
 		status = "disabled";
 
 		vop_out: ports {
@@ -1678,27 +1662,6 @@
 				vp0_out_lvds: endpoint@2 {
 					reg = <2>;
 					remote-endpoint = <&lvds_in_vp0>;
-				};
-			};
-
-			vp1: port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <1>;
-
-				vp1_out_rgb: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&rgb_in_vp1>;
-				};
-
-				vp1_out_dsi: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&dsi_in_vp1>;
-				};
-
-				vp1_out_lvds: endpoint@2 {
-					reg = <2>;
-					remote-endpoint = <&lvds_in_vp1>;
 				};
 			};
 		};
@@ -2639,12 +2602,6 @@
 				dsi_in_vp0: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vp0_out_dsi>;
-					status = "disabled";
-				};
-
-				dsi_in_vp1: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vp1_out_dsi>;
 					status = "disabled";
 				};
 			};

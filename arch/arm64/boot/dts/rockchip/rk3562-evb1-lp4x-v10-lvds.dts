@@ -91,10 +91,6 @@
 	status = "okay";
 };
 
-&lvds_in_vp1 {
-	status = "disabled";
-};
-
 &pinctrl {
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {

@@ -106,10 +106,6 @@
 	status = "okay";
 };
 
-&rgb_in_vp1 {
-	status = "disabled";
-};
-
 &route_rgb {
 	status = "okay";
 	connect = <&vp0_out_rgb>;

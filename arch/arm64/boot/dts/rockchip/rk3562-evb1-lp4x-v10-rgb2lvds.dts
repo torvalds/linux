@@ -94,10 +94,6 @@
 	status = "okay";
 };
 
-&rgb_in_vp1 {
-	status = "disabled";
-};
-
 &pwm9 {
 	pinctrl-names = "active";
 	pinctrl-0 = <&pwm9m0_pins>;

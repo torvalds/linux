@@ -522,10 +522,6 @@
 	status = "okay";
 };
 
-&dsi_in_vp1 {
-	status = "disabled";
-};
-
 &gpu {
 	mali-supply = <&vdd_gpu>;
 	status = "okay";
