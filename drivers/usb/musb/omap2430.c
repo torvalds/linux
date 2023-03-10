@@ -334,7 +334,7 @@ static int omap2430_probe(struct platform_device *pdev)
 	 * Legacy SoCs using omap_device get confused if node is moved
 	 * because of interconnect properties mixed into the node.
 	 */
-	if (of_get_property(np, "ti,hwmods", NULL)) {
+	if (of_property_present(np, "ti,hwmods")) {
 		dev_warn(&pdev->dev, "please update to probe with ti-sysc\n");
 		populate_irqs = true;
 	} else {
