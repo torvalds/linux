@@ -941,7 +941,7 @@ static int sysc_map_and_check_registers(struct sysc *ddata)
 
 	sysc_check_children(ddata);
 
-	if (!of_get_property(np, "reg", NULL))
+	if (!of_property_present(np, "reg"))
 		return 0;
 
 	error = sysc_parse_registers(ddata);
