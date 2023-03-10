@@ -887,6 +887,7 @@ static bool dc_construct_ctx(struct dc *dc,
 	}
 
 	dc->ctx = dc_ctx;
+	dc->link_srv = link_create_link_service();
 
 	return true;
 }
