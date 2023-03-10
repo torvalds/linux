@@ -1457,7 +1457,7 @@ static const struct bcm_qspi_data bcm_qspi_spcr3_data = {
 	.has_spcr3_sysclk = true,
 };
 
-static const struct of_device_id bcm_qspi_of_match[] = {
+static const struct of_device_id bcm_qspi_of_match[] __maybe_unused = {
 	{
 		.compatible = "brcm,spi-bcm7445-qspi",
 		.data = &bcm_qspi_rev_data,
