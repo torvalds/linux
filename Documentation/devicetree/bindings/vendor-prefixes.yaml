@@ -1528,6 +1528,8 @@ patternProperties:
     description: Yes Optoelectronics Co.,Ltd.
   "^yic,.*":
     description: YIC System Co., Ltd.
+  "^yiming,.*":
+    description: Henan Yiming Technology Co., Ltd.
   "^ylm,.*":
     description: Shenzhen Yangliming Electronic Technology Co., Ltd.
   "^yna,.*":
