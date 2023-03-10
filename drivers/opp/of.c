@@ -224,7 +224,7 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 	of_property_read_u32(np, "voltage-tolerance",
 			     &opp_table->voltage_tolerance_v1);
 
-	if (of_find_property(np, "#power-domain-cells", NULL))
+	if (of_property_present(np, "#power-domain-cells"))
 		opp_table->is_genpd = true;
 
 	/* Get OPP table node */
@@ -536,7 +536,7 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 		 * an OPP then the OPP should not be enabled as there is
 		 * no way to see if the hardware supports it.
 		 */
-		if (of_find_property(np, "opp-supported-hw", NULL))
+		if (of_property_present(np, "opp-supported-hw"))
 			return false;
 		else
 			return true;
