@@ -1004,8 +1004,8 @@ static void mtk_jpegenc_worker(struct work_struct *work)
 retry_select:
 	hw_id = mtk_jpegenc_get_hw(ctx);
 	if (hw_id < 0) {
-		ret = wait_event_interruptible(jpeg->enc_hw_wq,
-					       atomic_read(&jpeg->enchw_rdy) > 0);
+		ret = wait_event_interruptible(jpeg->hw_wq,
+					       atomic_read(&jpeg->hw_rdy) > 0);
 		if (ret != 0 || (i++ > MTK_JPEG_MAX_RETRY_TIME)) {
 			dev_err(jpeg->dev, "%s : %d, all HW are busy\n",
 				__func__, __LINE__);
@@ -1016,7 +1016,7 @@ retry_select:
 		goto retry_select;
 	}
 
-	atomic_dec(&jpeg->enchw_rdy);
+	atomic_dec(&jpeg->hw_rdy);
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	if (!src_buf)
 		goto getbuf_fail;
@@ -1073,7 +1073,7 @@ enc_end:
 	v4l2_m2m_buf_done(src_buf, buf_state);
 	v4l2_m2m_buf_done(dst_buf, buf_state);
 getbuf_fail:
-	atomic_inc(&jpeg->enchw_rdy);
+	atomic_inc(&jpeg->hw_rdy);
 	mtk_jpegenc_put_hw(jpeg, hw_id);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, ctx->fh.m2m_ctx);
 }
@@ -1198,8 +1198,8 @@ static void mtk_jpegdec_worker(struct work_struct *work)
 retry_select:
 	hw_id = mtk_jpegdec_get_hw(ctx);
 	if (hw_id < 0) {
-		ret = wait_event_interruptible_timeout(jpeg->dec_hw_wq,
-						       atomic_read(&jpeg->dechw_rdy) > 0,
+		ret = wait_event_interruptible_timeout(jpeg->hw_wq,
+						       atomic_read(&jpeg->hw_rdy) > 0,
 						       MTK_JPEG_HW_TIMEOUT_MSEC);
 		if (ret != 0 || (i++ > MTK_JPEG_MAX_RETRY_TIME)) {
 			dev_err(jpeg->dev, "%s : %d, all HW are busy\n",
@@ -1211,7 +1211,7 @@ retry_select:
 		goto retry_select;
 	}
 
-	atomic_dec(&jpeg->dechw_rdy);
+	atomic_dec(&jpeg->hw_rdy);
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	if (!src_buf)
 		goto getbuf_fail;
@@ -1290,7 +1290,7 @@ dec_end:
 	v4l2_m2m_buf_done(src_buf, buf_state);
 	v4l2_m2m_buf_done(dst_buf, buf_state);
 getbuf_fail:
-	atomic_inc(&jpeg->dechw_rdy);
+	atomic_inc(&jpeg->hw_rdy);
 	mtk_jpegdec_put_hw(jpeg, hw_id);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, ctx->fh.m2m_ctx);
 }
@@ -1710,6 +1710,8 @@ static int mtk_jpeg_single_core_init(struct platform_device *pdev,
 static int mtk_jpeg_probe(struct platform_device *pdev)
 {
 	struct mtk_jpeg_dev *jpeg;
+	struct device_node *child;
+	int num_child = 0;
 	int ret;
 
 	jpeg = devm_kzalloc(&pdev->dev, sizeof(*jpeg), GFP_KERNEL);
@@ -1733,6 +1735,19 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 			v4l2_err(&jpeg->v4l2_dev, "mtk_jpeg_single_core_init failed.");
 			return -EINVAL;
 		}
+	} else {
+		init_waitqueue_head(&jpeg->hw_wq);
+
+		for_each_child_of_node(pdev->dev.of_node, child)
+			num_child++;
+
+		atomic_set(&jpeg->hw_rdy, num_child);
+
+		jpeg->workqueue = alloc_ordered_workqueue(MTK_JPEG_NAME,
+							  WQ_MEM_RECLAIM
+							  | WQ_FREEZABLE);
+		if (!jpeg->workqueue)
+			return -EINVAL;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &jpeg->v4l2_dev);

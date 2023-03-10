@@ -248,8 +248,8 @@ static void mtk_jpegenc_timeout_work(struct work_struct *work)
 	clk_disable_unprepare(cjpeg->venc_clk.clks->clk);
 	pm_runtime_put(cjpeg->dev);
 	cjpeg->hw_state = MTK_JPEG_HW_IDLE;
-	atomic_inc(&master_jpeg->enchw_rdy);
-	wake_up(&master_jpeg->enc_hw_wq);
+	atomic_inc(&master_jpeg->hw_rdy);
+	wake_up(&master_jpeg->hw_wq);
 	v4l2_m2m_buf_done(src_buf, buf_state);
 	mtk_jpegenc_put_buf(cjpeg);
 }
@@ -288,8 +288,8 @@ static irqreturn_t mtk_jpegenc_hw_irq_handler(int irq, void *priv)
 	clk_disable_unprepare(jpeg->venc_clk.clks->clk);
 
 	jpeg->hw_state = MTK_JPEG_HW_IDLE;
-	wake_up(&master_jpeg->enc_hw_wq);
-	atomic_inc(&master_jpeg->enchw_rdy);
+	wake_up(&master_jpeg->hw_wq);
+	atomic_inc(&master_jpeg->hw_rdy);
 
 	return IRQ_HANDLED;
 }
@@ -340,14 +340,6 @@ static int mtk_jpegenc_hw_probe(struct platform_device *pdev)
 	dev->plat_dev = pdev;
 	dev->dev = &pdev->dev;
 
-	init_waitqueue_head(&master_dev->enc_hw_wq);
-	master_dev->workqueue = alloc_ordered_workqueue(MTK_JPEG_NAME,
-							WQ_MEM_RECLAIM
-							| WQ_FREEZABLE);
-	if (!master_dev->workqueue)
-		return -EINVAL;
-
-	atomic_set(&master_dev->enchw_rdy, MTK_JPEGENC_HW_MAX);
 	spin_lock_init(&dev->hw_lock);
 	dev->hw_state = MTK_JPEG_HW_IDLE;
 

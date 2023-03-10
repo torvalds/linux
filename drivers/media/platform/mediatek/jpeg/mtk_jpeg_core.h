@@ -203,14 +203,11 @@ struct mtk_jpegdec_comp_dev {
  * @job_timeout_work:	IRQ timeout structure
  * @variant:		driver variant to be used
  * @reg_encbase:	jpg encode register base addr
- * @enc_hw_dev:		jpg encode hardware device
- * @enc_hw_wq:		jpg encode wait queue
- * @enchw_rdy:		jpg encode hw ready flag
+ * @enc_hw_dev:	jpg encode hardware device
+ * @hw_wq:		jpg wait queue
+ * @hw_rdy:		jpg hw ready flag
  * @reg_decbase:	jpg decode register base addr
- * @dec_hw_dev:		jpg decode hardware device
- * @dec_hw_wq:		jpg decode wait queue
- * @dec_workqueue:	jpg decode work queue
- * @dechw_rdy:		jpg decode hw ready flag
+ * @dec_hw_dev:	jpg decode hardware device
  */
 struct mtk_jpeg_dev {
 	struct mutex		lock;
@@ -227,14 +224,11 @@ struct mtk_jpeg_dev {
 
 	void __iomem *reg_encbase[MTK_JPEGENC_HW_MAX];
 	struct mtk_jpegenc_comp_dev *enc_hw_dev[MTK_JPEGENC_HW_MAX];
-	wait_queue_head_t enc_hw_wq;
-	atomic_t enchw_rdy;
+	wait_queue_head_t hw_wq;
+	atomic_t hw_rdy;
 
 	void __iomem *reg_decbase[MTK_JPEGDEC_HW_MAX];
 	struct mtk_jpegdec_comp_dev *dec_hw_dev[MTK_JPEGDEC_HW_MAX];
-	wait_queue_head_t dec_hw_wq;
-	struct workqueue_struct	*dec_workqueue;
-	atomic_t dechw_rdy;
 };
 
 /**
