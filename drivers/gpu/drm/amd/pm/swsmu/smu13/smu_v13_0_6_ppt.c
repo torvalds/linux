@@ -122,6 +122,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(GetMaxGfxclkFrequency,               PPSMC_MSG_GetMaxGfxDpmFreq,                0),
 	MSG_MAP(SetSoftMinGfxclk,                    PPSMC_MSG_SetSoftMinGfxClk,                0),
 	MSG_MAP(SetSoftMaxGfxClk,                    PPSMC_MSG_SetSoftMaxGfxClk,                0),
+	MSG_MAP(PrepareMp1ForUnload,                 PPSMC_MSG_PrepareForDriverUnload,          0),
 };
 
 static const struct cmn2asic_mapping smu_v13_0_6_clk_map[SMU_CLK_COUNT] = {
@@ -1385,14 +1386,34 @@ int smu_v13_0_6_register_irq_handler(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v13_0_6_notify_unload(struct smu_context *smu)
+{
+	uint32_t smu_version;
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version <= 0x553500)
+		return 0;
+
+	dev_dbg(smu->adev->dev, "Notify PMFW about driver unload");
+	/* Ignore return, just intimate FW that driver is not going to be there */
+	smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
+
+	return 0;
+}
+
 static int smu_v13_0_6_system_features_control(struct smu_context *smu,
 					       bool enable)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret;
 
-	/* Nothing to be done for APU */
-	if (smu->adev->flags & AMD_IS_APU)
+	/* On APUs, notify FW that the device is no longer driver managed */
+	if (adev->flags & AMD_IS_APU) {
+		if (!enable)
+			smu_v13_0_6_notify_unload(smu);
+
 		return 0;
+	}
 
 	ret = smu_v13_0_system_features_control(smu, enable);
 
