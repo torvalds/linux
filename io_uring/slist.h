@@ -3,6 +3,9 @@
 
 #include <linux/io_uring_types.h>
 
+#define __wq_list_for_each(pos, head)				\
+	for (pos = (head)->first; pos; pos = (pos)->next)
+
 #define wq_list_for_each(pos, prv, head)			\
 	for (pos = (head)->first, prv = NULL; pos; prv = pos, pos = (pos)->next)
 
