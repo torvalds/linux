@@ -304,7 +304,17 @@ static struct gmin_cfg_var surface3_vars[] = {
 	{},
 };
 
+static struct gmin_cfg_var lenovo_ideapad_miix_310_vars[] = {
+	/* _DSM contains the wrong CsiPort! */
+	{ "OVTI2680:01_CsiPort", "0" },
+	{}
+};
+
 static const struct dmi_system_id gmin_vars[] = {
+	/*
+	 * These DMI IDs were present when the atomisp driver was merged into
+	 * drivers/staging and it is unclear if they are really necessary.
+	 */
 	{
 		.ident = "BYT-T FFD8",
 		.matches = {
@@ -341,12 +351,21 @@ static const struct dmi_system_id gmin_vars[] = {
 		},
 		.driver_data = i8880_vars,
 	},
+	/* Later added DMI ids, these are confirmed to really be necessary! */
 	{
 		.ident = "Surface 3",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "Surface 3"),
 		},
 		.driver_data = surface3_vars,
+	},
+	{
+		.ident = "Lenovo Ideapad Miix 310",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "MIIX 310-10"),
+		},
+		.driver_data = lenovo_ideapad_miix_310_vars,
 	},
 	{}
 };
