@@ -58,6 +58,7 @@ struct ieee802154_local {
 	/* Scanning */
 	u8 scan_page;
 	u8 scan_channel;
+	struct ieee802154_beacon_req_frame scan_beacon_req;
 	struct cfg802154_scan_request __rcu *scan_req;
 	struct delayed_work scan_work;
 
