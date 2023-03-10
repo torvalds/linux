@@ -649,7 +649,7 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 				dev_dbg(hdmi->dev, "ddc read err\n");
 				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
 				retry--;
-				mdelay(10);
+				usleep_range(10000, 11000);
 				continue;
 			}
 
@@ -708,7 +708,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi *hdmi,
 				dev_dbg(hdmi->dev, "ddc write err\n");
 				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
 				retry--;
-				mdelay(10);
+				usleep_range(10000, 11000);
 				continue;
 			}
 
