@@ -671,10 +671,46 @@ void symbol_put_addr(void *addr);
    to handle the error case (which only happens with rmmod --wait). */
 extern void __module_get(struct module *module);
 
-/* This is the Right Way to get a module: if it fails, it's being removed,
- * so pretend it's not there. */
+/**
+ * try_module_get() - take module refcount unless module is being removed
+ * @module: the module we should check for
+ *
+ * Only try to get a module reference count if the module is not being removed.
+ * This call will fail if the module is already being removed.
+ *
+ * Care must also be taken to ensure the module exists and is alive prior to
+ * usage of this call. This can be gauranteed through two means:
+ *
+ * 1) Direct protection: you know an earlier caller must have increased the
+ *    module reference through __module_get(). This can typically be achieved
+ *    by having another entity other than the module itself increment the
+ *    module reference count.
+ *
+ * 2) Implied protection: there is an implied protection against module
+ *    removal. An example of this is the implied protection used by kernfs /
+ *    sysfs. The sysfs store / read file operations are guaranteed to exist
+ *    through the use of kernfs's active reference (see kernfs_active()) and a
+ *    sysfs / kernfs file removal cannot happen unless the same file is not
+ *    active. Therefore, if a sysfs file is being read or written to the module
+ *    which created it must still exist. It is therefore safe to use
+ *    try_module_get() on module sysfs store / read ops.
+ *
+ * One of the real values to try_module_get() is the module_is_live() check
+ * which ensures that the caller of try_module_get() can yield to userspace
+ * module removal requests and gracefully fail if the module is on its way out.
+ *
+ * Returns true if the reference count was successfully incremented.
+ */
 extern bool try_module_get(struct module *module);
 
+/**
+ * module_put() - release a reference count to a module
+ * @module: the module we should release a reference count for
+ *
+ * If you successfully bump a reference count to a module with try_module_get(),
+ * when you are finished you must call module_put() to release that reference
+ * count.
+ */
 extern void module_put(struct module *module);
 
 #else /*!CONFIG_MODULE_UNLOAD*/
