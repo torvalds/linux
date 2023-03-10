@@ -751,8 +751,7 @@ static int s32g_pinctrl_probe(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops s32g_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(s32_pinctrl_suspend,
-				     s32_pinctrl_resume)
+	LATE_SYSTEM_SLEEP_PM_OPS(s32_pinctrl_suspend, s32_pinctrl_resume)
 };
 
 static struct platform_driver s32g_pinctrl_driver = {

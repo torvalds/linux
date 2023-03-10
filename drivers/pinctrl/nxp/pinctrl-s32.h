@@ -68,8 +68,6 @@ struct s32_pinctrl_soc_info {
 
 int s32_pinctrl_probe(struct platform_device *pdev,
 			struct s32_pinctrl_soc_info *info);
-#ifdef CONFIG_PM_SLEEP
-int __maybe_unused s32_pinctrl_resume(struct device *dev);
-int __maybe_unused s32_pinctrl_suspend(struct device *dev);
-#endif
+int s32_pinctrl_resume(struct device *dev);
+int s32_pinctrl_suspend(struct device *dev);
 #endif /* __DRIVERS_PINCTRL_S32_H */
