@@ -1208,10 +1208,10 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 			goto rsnd_ssi_probe_done;
 		}
 
-		if (of_get_property(np, "shared-pin", NULL))
+		if (of_property_read_bool(np, "shared-pin"))
 			rsnd_flags_set(ssi, RSND_SSI_CLK_PIN_SHARE);
 
-		if (of_get_property(np, "no-busif", NULL))
+		if (of_property_read_bool(np, "no-busif"))
 			rsnd_flags_set(ssi, RSND_SSI_NO_BUSIF);
 
 		ssi->irq = irq_of_parse_and_map(np, 0);
