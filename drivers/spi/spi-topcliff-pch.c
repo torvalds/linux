@@ -499,7 +499,7 @@ static inline void pch_spi_select_chip(struct pch_spi_data *data,
 				       struct spi_device *pspi)
 {
 	if (data->current_chip != NULL) {
-		if (pspi->chip_select != data->n_curnt_chip) {
+		if (spi_get_chipselect(pspi, 0) != data->n_curnt_chip) {
 			dev_dbg(&pspi->dev, "%s : different slave\n", __func__);
 			data->current_chip = NULL;
 		}
@@ -507,7 +507,7 @@ static inline void pch_spi_select_chip(struct pch_spi_data *data,
 
 	data->current_chip = pspi;
 
-	data->n_curnt_chip = data->current_chip->chip_select;
+	data->n_curnt_chip = spi_get_chipselect(data->current_chip, 0);
 
 	dev_dbg(&pspi->dev, "%s :Invoking pch_spi_setup_transfer\n", __func__);
 	pch_spi_setup_transfer(pspi);

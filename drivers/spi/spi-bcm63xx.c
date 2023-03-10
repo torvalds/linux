@@ -282,7 +282,7 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 	/* Issue the transfer */
 	cmd = SPI_CMD_START_IMMEDIATE;
 	cmd |= (prepend_len << SPI_CMD_PREPEND_BYTE_CNT_SHIFT);
-	cmd |= (spi->chip_select << SPI_CMD_DEVICE_ID_SHIFT);
+	cmd |= (spi_get_chipselect(spi, 0) << SPI_CMD_DEVICE_ID_SHIFT);
 	bcm_spi_writew(bs, cmd, SPI_CMD);
 
 	/* Enable the CMD_DONE interrupt */

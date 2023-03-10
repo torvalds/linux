@@ -1355,7 +1355,7 @@ static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
 	struct cqspi_flash_pdata *f_pdata;
 
-	f_pdata = &cqspi->f_pdata[mem->spi->chip_select];
+	f_pdata = &cqspi->f_pdata[spi_get_chipselect(mem->spi, 0)];
 	cqspi_configure(f_pdata, mem->spi->max_speed_hz);
 
 	if (op->data.dir == SPI_MEM_DATA_IN && op->data.buf.in) {
@@ -1561,7 +1561,8 @@ static const char *cqspi_get_name(struct spi_mem *mem)
 	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
 	struct device *dev = &cqspi->pdev->dev;
 
-	return devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev), mem->spi->chip_select);
+	return devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev),
+			      spi_get_chipselect(mem->spi, 0));
 }
 
 static const struct spi_controller_mem_ops cqspi_mem_ops = {

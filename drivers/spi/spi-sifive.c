@@ -135,13 +135,13 @@ sifive_spi_prepare_message(struct spi_master *master, struct spi_message *msg)
 
 	/* Update the chip select polarity */
 	if (device->mode & SPI_CS_HIGH)
-		spi->cs_inactive &= ~BIT(device->chip_select);
+		spi->cs_inactive &= ~BIT(spi_get_chipselect(device, 0));
 	else
-		spi->cs_inactive |= BIT(device->chip_select);
+		spi->cs_inactive |= BIT(spi_get_chipselect(device, 0));
 	sifive_spi_write(spi, SIFIVE_SPI_REG_CSDEF, spi->cs_inactive);
 
 	/* Select the correct device */
-	sifive_spi_write(spi, SIFIVE_SPI_REG_CSID, device->chip_select);
+	sifive_spi_write(spi, SIFIVE_SPI_REG_CSID, spi_get_chipselect(device, 0));
 
 	/* Set clock mode */
 	sifive_spi_write(spi, SIFIVE_SPI_REG_SCKMODE,

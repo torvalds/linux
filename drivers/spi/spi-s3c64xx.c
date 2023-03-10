@@ -891,7 +891,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 	/* NULL is fine, we just avoid using the FB delay (=0) */
 	if (IS_ERR(cs)) {
-		dev_err(&spi->dev, "No CS for SPI(%d)\n", spi->chip_select);
+		dev_err(&spi->dev, "No CS for SPI(%d)\n", spi_get_chipselect(spi, 0));
 		return -ENODEV;
 	}
 

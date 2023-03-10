@@ -528,7 +528,7 @@ static void fsl_qspi_select_mem(struct fsl_qspi *q, struct spi_device *spi)
 	unsigned long rate = spi->max_speed_hz;
 	int ret;
 
-	if (q->selected == spi->chip_select)
+	if (q->selected == spi_get_chipselect(spi, 0))
 		return;
 
 	if (needs_4x_clock(q))
@@ -544,7 +544,7 @@ static void fsl_qspi_select_mem(struct fsl_qspi *q, struct spi_device *spi)
 	if (ret)
 		return;
 
-	q->selected = spi->chip_select;
+	q->selected = spi_get_chipselect(spi, 0);
 
 	fsl_qspi_invalidate(q);
 }
@@ -823,7 +823,7 @@ static const char *fsl_qspi_get_name(struct spi_mem *mem)
 
 	name = devm_kasprintf(dev, GFP_KERNEL,
 			      "%s-%d", dev_name(q->dev),
-			      mem->spi->chip_select);
+			      spi_get_chipselect(mem->spi, 0));
 
 	if (!name) {
 		dev_err(dev, "failed to get memory for custom flash name\n");

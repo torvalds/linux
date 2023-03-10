@@ -391,9 +391,9 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 			cpha = CPHA;
 
 		if (spi_slv->mode & SPI_CS_HIGH)
-			demux_output_inv = BIT(spi_slv->chip_select);
+			demux_output_inv = BIT(spi_get_chipselect(spi_slv, 0));
 
-		demux_sel = spi_slv->chip_select;
+		demux_sel = spi_get_chipselect(spi_slv, 0);
 		mas->cur_bits_per_word = spi_slv->bits_per_word;
 
 		spi_setup_word_len(mas, spi_slv->mode, spi_slv->bits_per_word);
@@ -469,7 +469,7 @@ static int setup_gsi_xfer(struct spi_transfer *xfer, struct spi_geni_master *mas
 	peripheral.loopback_en = !!(spi_slv->mode & SPI_LOOP);
 	peripheral.clock_pol_high = !!(spi_slv->mode & SPI_CPOL);
 	peripheral.data_pol_high = !!(spi_slv->mode & SPI_CPHA);
-	peripheral.cs = spi_slv->chip_select;
+	peripheral.cs = spi_get_chipselect(spi_slv, 0);
 	peripheral.pack_en = true;
 	peripheral.word_len = xfer->bits_per_word - MIN_WORD_LEN;
 

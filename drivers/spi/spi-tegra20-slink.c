@@ -758,9 +758,9 @@ static int tegra_slink_setup(struct spi_device *spi)
 	spin_lock_irqsave(&tspi->lock, flags);
 	val = tspi->def_command_reg;
 	if (spi->mode & SPI_CS_HIGH)
-		val |= cs_pol_bit[spi->chip_select];
+		val |= cs_pol_bit[spi_get_chipselect(spi, 0)];
 	else
-		val &= ~cs_pol_bit[spi->chip_select];
+		val &= ~cs_pol_bit[spi_get_chipselect(spi, 0)];
 	tspi->def_command_reg = val;
 	tegra_slink_writel(tspi, tspi->def_command_reg, SLINK_COMMAND);
 	spin_unlock_irqrestore(&tspi->lock, flags);
@@ -781,7 +781,7 @@ static int tegra_slink_prepare_message(struct spi_master *master,
 	tspi->command_reg |= SLINK_CS_SW | SLINK_CS_VALUE;
 
 	tspi->command2_reg = tspi->def_command2_reg;
-	tspi->command2_reg |= SLINK_SS_EN_CS(spi->chip_select);
+	tspi->command2_reg |= SLINK_SS_EN_CS(spi_get_chipselect(spi, 0));
 
 	tspi->command_reg &= ~SLINK_MODES;
 	if (spi->mode & SPI_CPHA)

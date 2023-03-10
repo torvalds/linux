@@ -250,7 +250,7 @@ static int synquacer_spi_config(struct spi_master *master,
 	}
 
 	mode = spi->mode;
-	cs = spi->chip_select;
+	cs = spi_get_chipselect(spi, 0);
 	speed = xfer->speed_hz;
 	bpw = xfer->bits_per_word;
 
@@ -344,7 +344,7 @@ static int synquacer_spi_config(struct spi_master *master,
 	sspi->bpw = bpw;
 	sspi->mode = mode;
 	sspi->speed = speed;
-	sspi->cs = spi->chip_select;
+	sspi->cs = spi_get_chipselect(spi, 0);
 	sspi->bus_width = bus_width;
 
 	return 0;
@@ -488,7 +488,7 @@ static void synquacer_spi_set_cs(struct spi_device *spi, bool enable)
 	val = readl(sspi->regs + SYNQUACER_HSSPI_REG_DMSTART);
 	val &= ~(SYNQUACER_HSSPI_DMPSEL_CS_MASK <<
 		 SYNQUACER_HSSPI_DMPSEL_CS_SHIFT);
-	val |= spi->chip_select << SYNQUACER_HSSPI_DMPSEL_CS_SHIFT;
+	val |= spi_get_chipselect(spi, 0) << SYNQUACER_HSSPI_DMPSEL_CS_SHIFT;
 
 	if (!enable)
 		val |= SYNQUACER_HSSPI_DMSTOP_STOP;

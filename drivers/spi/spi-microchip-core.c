@@ -247,8 +247,8 @@ static void mchp_corespi_set_cs(struct spi_device *spi, bool disable)
 	struct mchp_corespi *corespi = spi_master_get_devdata(spi->master);
 
 	reg = mchp_corespi_read(corespi, REG_SLAVE_SELECT);
-	reg &= ~BIT(spi->chip_select);
-	reg |= !disable << spi->chip_select;
+	reg &= ~BIT(spi_get_chipselect(spi, 0));
+	reg |= !disable << spi_get_chipselect(spi, 0);
 
 	mchp_corespi_write(corespi, REG_SLAVE_SELECT, reg);
 }
@@ -265,7 +265,7 @@ static int mchp_corespi_setup(struct spi_device *spi)
 	 */
 	if (spi->mode & SPI_CS_HIGH) {
 		reg = mchp_corespi_read(corespi, REG_SLAVE_SELECT);
-		reg |= BIT(spi->chip_select);
+		reg |= BIT(spi_get_chipselect(spi, 0));
 		mchp_corespi_write(corespi, REG_SLAVE_SELECT, reg);
 	}
 	return 0;

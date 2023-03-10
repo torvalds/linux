@@ -306,8 +306,8 @@ static u32 mxic_spi_prep_hc_cfg(struct spi_device *spi, u32 flags)
 		nio = 2;
 
 	return flags | HC_CFG_NIO(nio) |
-	       HC_CFG_TYPE(spi->chip_select, HC_CFG_TYPE_SPI_NOR) |
-	       HC_CFG_SLV_ACT(spi->chip_select) | HC_CFG_IDLE_SIO_LVL(1);
+	       HC_CFG_TYPE(spi_get_chipselect(spi, 0), HC_CFG_TYPE_SPI_NOR) |
+	       HC_CFG_SLV_ACT(spi_get_chipselect(spi, 0)) | HC_CFG_IDLE_SIO_LVL(1);
 }
 
 static u32 mxic_spi_mem_prep_op_cfg(const struct spi_mem_op *op,
@@ -405,7 +405,7 @@ static ssize_t mxic_spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	len = min_t(size_t, len, mxic->linear.size);
 	writel(len, mxic->regs + LRD_RANGE);
 	writel(LMODE_CMD0(desc->info.op_tmpl.cmd.opcode) |
-	       LMODE_SLV_ACT(desc->mem->spi->chip_select) |
+	       LMODE_SLV_ACT(spi_get_chipselect(desc->mem->spi, 0)) |
 	       LMODE_EN,
 	       mxic->regs + LRD_CTRL);
 
@@ -449,7 +449,7 @@ static ssize_t mxic_spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
 	len = min_t(size_t, len, mxic->linear.size);
 	writel(len, mxic->regs + LWR_RANGE);
 	writel(LMODE_CMD0(desc->info.op_tmpl.cmd.opcode) |
-	       LMODE_SLV_ACT(desc->mem->spi->chip_select) |
+	       LMODE_SLV_ACT(spi_get_chipselect(desc->mem->spi, 0)) |
 	       LMODE_EN,
 	       mxic->regs + LWR_CTRL);
 
@@ -524,7 +524,7 @@ static int mxic_spi_mem_exec_op(struct spi_mem *mem,
 	writel(HC_EN_BIT, mxic->regs + HC_EN);
 
 	writel(mxic_spi_mem_prep_op_cfg(op, op->data.nbytes),
-	       mxic->regs + SS_CTRL(mem->spi->chip_select));
+	       mxic->regs + SS_CTRL(spi_get_chipselect(mem->spi, 0)));
 
 	writel(readl(mxic->regs + HC_CFG) | HC_CFG_MAN_CS_ASSERT,
 	       mxic->regs + HC_CFG);

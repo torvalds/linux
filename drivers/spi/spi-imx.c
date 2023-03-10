@@ -528,7 +528,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 		ctrl |= MX51_ECSPI_CTRL_DRCTL(spi_imx->spi_drctl);
 
 	/* set chip select to use */
-	ctrl |= MX51_ECSPI_CTRL_CS(spi->chip_select);
+	ctrl |= MX51_ECSPI_CTRL_CS(spi_get_chipselect(spi, 0));
 
 	/*
 	 * The ctrl register must be written first, with the EN bit set other
@@ -549,22 +549,22 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	 * BURST_LENGTH + 1 bits are received
 	 */
 	if (spi_imx->slave_mode && is_imx53_ecspi(spi_imx))
-		cfg &= ~MX51_ECSPI_CONFIG_SBBCTRL(spi->chip_select);
+		cfg &= ~MX51_ECSPI_CONFIG_SBBCTRL(spi_get_chipselect(spi, 0));
 	else
-		cfg |= MX51_ECSPI_CONFIG_SBBCTRL(spi->chip_select);
+		cfg |= MX51_ECSPI_CONFIG_SBBCTRL(spi_get_chipselect(spi, 0));
 
 	if (spi->mode & SPI_CPOL) {
-		cfg |= MX51_ECSPI_CONFIG_SCLKPOL(spi->chip_select);
-		cfg |= MX51_ECSPI_CONFIG_SCLKCTL(spi->chip_select);
+		cfg |= MX51_ECSPI_CONFIG_SCLKPOL(spi_get_chipselect(spi, 0));
+		cfg |= MX51_ECSPI_CONFIG_SCLKCTL(spi_get_chipselect(spi, 0));
 	} else {
-		cfg &= ~MX51_ECSPI_CONFIG_SCLKPOL(spi->chip_select);
-		cfg &= ~MX51_ECSPI_CONFIG_SCLKCTL(spi->chip_select);
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKPOL(spi_get_chipselect(spi, 0));
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKCTL(spi_get_chipselect(spi, 0));
 	}
 
 	if (spi->mode & SPI_CS_HIGH)
-		cfg |= MX51_ECSPI_CONFIG_SSBPOL(spi->chip_select);
+		cfg |= MX51_ECSPI_CONFIG_SSBPOL(spi_get_chipselect(spi, 0));
 	else
-		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(spi->chip_select);
+		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(spi_get_chipselect(spi, 0));
 
 	if (cfg == current_cfg)
 		return 0;
@@ -614,9 +614,9 @@ static void mx51_configure_cpha(struct spi_imx_data *spi_imx,
 	cpha ^= flip_cpha;
 
 	if (cpha)
-		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(spi->chip_select);
+		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(spi_get_chipselect(spi, 0));
 	else
-		cfg &= ~MX51_ECSPI_CONFIG_SCLKPHA(spi->chip_select);
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKPHA(spi_get_chipselect(spi, 0));
 
 	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
 }
@@ -768,8 +768,8 @@ static int mx31_prepare_transfer(struct spi_imx_data *spi_imx,
 		reg |= MX31_CSPICTRL_POL;
 	if (spi->mode & SPI_CS_HIGH)
 		reg |= MX31_CSPICTRL_SSPOL;
-	if (!spi->cs_gpiod)
-		reg |= (spi->chip_select) <<
+	if (!spi_get_csgpiod(spi, 0))
+		reg |= (spi_get_chipselect(spi, 0)) <<
 			(is_imx35_cspi(spi_imx) ? MX35_CSPICTRL_CS_SHIFT :
 						  MX31_CSPICTRL_CS_SHIFT);
 
@@ -868,8 +868,8 @@ static int mx21_prepare_transfer(struct spi_imx_data *spi_imx,
 		reg |= MX21_CSPICTRL_POL;
 	if (spi->mode & SPI_CS_HIGH)
 		reg |= MX21_CSPICTRL_SSPOL;
-	if (!spi->cs_gpiod)
-		reg |= spi->chip_select << MX21_CSPICTRL_CS_SHIFT;
+	if (!spi_get_csgpiod(spi, 0))
+		reg |= spi_get_chipselect(spi, 0) << MX21_CSPICTRL_CS_SHIFT;
 
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 

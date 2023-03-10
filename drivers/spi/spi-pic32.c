@@ -591,7 +591,7 @@ static int pic32_spi_setup(struct spi_device *spi)
 	 * unreliable/erroneous SPI transactions.
 	 * To avoid that we will always handle /CS by toggling GPIO.
 	 */
-	if (!spi->cs_gpiod)
+	if (!spi_get_csgpiod(spi, 0))
 		return -EINVAL;
 
 	return 0;
@@ -600,7 +600,7 @@ static int pic32_spi_setup(struct spi_device *spi)
 static void pic32_spi_cleanup(struct spi_device *spi)
 {
 	/* de-activate cs-gpio, gpiolib will handle inversion */
-	gpiod_direction_output(spi->cs_gpiod, 0);
+	gpiod_direction_output(spi_get_csgpiod(spi, 0), 0);
 }
 
 static int pic32_spi_dma_prep(struct pic32_spi *pic32s, struct device *dev)

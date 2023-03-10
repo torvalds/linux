@@ -167,7 +167,7 @@ static void sun4i_spi_set_cs(struct spi_device *spi, bool enable)
 	reg = sun4i_spi_read(sspi, SUN4I_CTL_REG);
 
 	reg &= ~SUN4I_CTL_CS_MASK;
-	reg |= SUN4I_CTL_CS(spi->chip_select);
+	reg |= SUN4I_CTL_CS(spi_get_chipselect(spi, 0));
 
 	/* We want to control the chip select manually */
 	reg |= SUN4I_CTL_CS_MANUAL;

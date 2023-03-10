@@ -296,7 +296,7 @@ static void zynq_qspi_chipselect(struct spi_device *spi, bool assert)
 	/* Select the lower (CS0) or upper (CS1) memory */
 	if (ctlr->num_chipselect > 1) {
 		config_reg = zynq_qspi_read(xqspi, ZYNQ_QSPI_LINEAR_CFG_OFFSET);
-		if (!spi->chip_select)
+		if (!spi_get_chipselect(spi, 0))
 			config_reg &= ~ZYNQ_QSPI_LCFG_U_PAGE;
 		else
 			config_reg |= ZYNQ_QSPI_LCFG_U_PAGE;

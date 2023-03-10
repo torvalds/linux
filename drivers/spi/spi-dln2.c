@@ -596,12 +596,12 @@ static int dln2_spi_prepare_message(struct spi_master *master,
 	struct dln2_spi *dln2 = spi_master_get_devdata(master);
 	struct spi_device *spi = message->spi;
 
-	if (dln2->cs != spi->chip_select) {
-		ret = dln2_spi_cs_set_one(dln2, spi->chip_select);
+	if (dln2->cs != spi_get_chipselect(spi, 0)) {
+		ret = dln2_spi_cs_set_one(dln2, spi_get_chipselect(spi, 0));
 		if (ret < 0)
 			return ret;
 
-		dln2->cs = spi->chip_select;
+		dln2->cs = spi_get_chipselect(spi, 0);
 	}
 
 	return 0;

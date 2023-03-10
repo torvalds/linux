@@ -267,7 +267,7 @@ static void f_ospi_config_indir_protocol(struct f_ospi *ospi,
 	int unit;
 
 	/* Set one chip select */
-	writel(BIT(spi->chip_select), ospi->base + OSPI_SSEL);
+	writel(BIT(spi_get_chipselect(spi, 0)), ospi->base + OSPI_SSEL);
 
 	mode = f_ospi_get_mode(ospi, op->cmd.buswidth, 1);
 	prot |= FIELD_PREP(OSPI_PROT_MODE_CODE_MASK, mode);

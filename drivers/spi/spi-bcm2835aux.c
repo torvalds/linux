@@ -448,7 +448,7 @@ static int bcm2835aux_spi_setup(struct spi_device *spi)
 	if (spi->mode & SPI_NO_CS)
 		return 0;
 
-	if (spi->cs_gpiod)
+	if (spi_get_csgpiod(spi, 0))
 		return 0;
 
 	/* for dt-backwards compatibility: only support native on CS0
@@ -465,7 +465,7 @@ static int bcm2835aux_spi_setup(struct spi_device *spi)
 	dev_warn(&spi->dev,
 		 "Native CS is not supported - please configure cs-gpio in device-tree\n");
 
-	if (spi->chip_select == 0)
+	if (spi_get_chipselect(spi, 0) == 0)
 		return 0;
 
 	dev_warn(&spi->dev, "Native CS is not working for cs > 0\n");

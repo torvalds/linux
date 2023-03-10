@@ -213,7 +213,7 @@ static void xilinx_spi_chipselect(struct spi_device *spi, int is_on)
 	 */
 
 	cs = xspi->cs_inactive;
-	cs ^= BIT(spi->chip_select);
+	cs ^= BIT(spi_get_chipselect(spi, 0));
 
 	/* Activate the chip select */
 	xspi->write_fn(cs, xspi->regs + XSPI_SSR_OFFSET);
@@ -228,9 +228,9 @@ static int xilinx_spi_setup_transfer(struct spi_device *spi,
 	struct xilinx_spi *xspi = spi_master_get_devdata(spi->master);
 
 	if (spi->mode & SPI_CS_HIGH)
-		xspi->cs_inactive &= ~BIT(spi->chip_select);
+		xspi->cs_inactive &= ~BIT(spi_get_chipselect(spi, 0));
 	else
-		xspi->cs_inactive |= BIT(spi->chip_select);
+		xspi->cs_inactive |= BIT(spi_get_chipselect(spi, 0));
 
 	return 0;
 }

@@ -327,10 +327,10 @@ static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 	int chip_select;
 	u32 mr;
 
-	if (spi->cs_gpiod)
+	if (spi_get_csgpiod(spi, 0))
 		chip_select = as->native_cs_for_gpio;
 	else
-		chip_select = spi->chip_select;
+		chip_select = spi_get_chipselect(spi, 0);
 
 	if (atmel_spi_is_v2(as)) {
 		spi_writel(as, CSR0 + 4 * chip_select, asd->csr);
@@ -378,10 +378,10 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 	int chip_select;
 	u32 mr;
 
-	if (spi->cs_gpiod)
+	if (spi_get_csgpiod(spi, 0))
 		chip_select = as->native_cs_for_gpio;
 	else
-		chip_select = spi->chip_select;
+		chip_select = spi_get_chipselect(spi, 0);
 
 	/* only deactivate *this* device; sometimes transfers to
 	 * another device may be active when this routine is called.
@@ -394,7 +394,7 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "DEactivate NPCS, mr %08x\n", mr);
 
-	if (!spi->cs_gpiod)
+	if (!spi_get_csgpiod(spi, 0))
 		spi_writel(as, CR, SPI_BIT(LASTXFER));
 }
 
@@ -800,10 +800,10 @@ static int atmel_spi_set_xfer_speed(struct atmel_spi *as,
 	unsigned long		bus_hz;
 	int chip_select;
 
-	if (spi->cs_gpiod)
+	if (spi_get_csgpiod(spi, 0))
 		chip_select = as->native_cs_for_gpio;
 	else
-		chip_select = spi->chip_select;
+		chip_select = spi_get_chipselect(spi, 0);
 
 	/* v1 chips start out at half the peripheral bus speed. */
 	bus_hz = as->spi_clk;
@@ -1189,7 +1189,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 	as = spi_controller_get_devdata(spi->controller);
 
 	/* see notes above re chipselect */
-	if (!spi->cs_gpiod && (spi->mode & SPI_CS_HIGH)) {
+	if (!spi_get_csgpiod(spi, 0) && (spi->mode & SPI_CS_HIGH)) {
 		dev_warn(&spi->dev, "setup: non GPIO CS can't be active-high\n");
 		return -EINVAL;
 	}
@@ -1201,16 +1201,16 @@ static int atmel_spi_setup(struct spi_device *spi)
 	 */
 	initialize_native_cs_for_gpio(as);
 
-	if (spi->cs_gpiod && as->native_cs_free) {
+	if (spi_get_csgpiod(spi, 0) && as->native_cs_free) {
 		dev_err(&spi->dev,
 			"No native CS available to support this GPIO CS\n");
 		return -EBUSY;
 	}
 
-	if (spi->cs_gpiod)
+	if (spi_get_csgpiod(spi, 0))
 		chip_select = as->native_cs_for_gpio;
 	else
-		chip_select = spi->chip_select;
+		chip_select = spi_get_chipselect(spi, 0);
 
 	csr = SPI_BF(BITS, bits - 8);
 	if (spi->mode & SPI_CPOL)
@@ -1218,7 +1218,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 	if (!(spi->mode & SPI_CPHA))
 		csr |= SPI_BIT(NCPHA);
 
-	if (!spi->cs_gpiod)
+	if (!spi_get_csgpiod(spi, 0))
 		csr |= SPI_BIT(CSAAT);
 	csr |= SPI_BF(DLYBS, 0);
 
@@ -1244,7 +1244,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	dev_dbg(&spi->dev,
 		"setup: bpw %u mode 0x%x -> csr%d %08x\n",
-		bits, spi->mode, spi->chip_select, csr);
+		bits, spi->mode, spi_get_chipselect(spi, 0), csr);
 
 	if (!atmel_spi_is_v2(as))
 		spi_writel(as, CSR0 + 4 * chip_select, csr);

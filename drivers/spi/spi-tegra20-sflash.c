@@ -280,7 +280,7 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 			command |= SPI_ACTIVE_SCLK_DRIVE_HIGH;
 		else
 			command |= SPI_ACTIVE_SCLK_DRIVE_LOW;
-		command |= SPI_CS0_EN << spi->chip_select;
+		command |= SPI_CS0_EN << spi_get_chipselect(spi, 0);
 	} else {
 		command = tsd->command_reg;
 		command &= ~SPI_BIT_LENGTH(~0);

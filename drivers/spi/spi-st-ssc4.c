@@ -183,7 +183,7 @@ static int spi_st_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (!spi->cs_gpiod) {
+	if (!spi_get_csgpiod(spi, 0)) {
 		dev_err(&spi->dev, "no valid gpio assigned\n");
 		return -EINVAL;
 	}
