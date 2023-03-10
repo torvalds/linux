@@ -427,7 +427,7 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
 	struct device_node *np = dev->of_node;
 	int num, i, ret;
 
-	if (!of_find_property(np, "cooling-levels", NULL))
+	if (!of_property_present(np, "cooling-levels"))
 		return 0;
 
 	ret = of_property_count_u32_elems(np, "cooling-levels");
