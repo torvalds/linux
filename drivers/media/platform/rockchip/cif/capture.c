@@ -8830,6 +8830,7 @@ static void rkcif_modify_line_int(struct rkcif_stream *stream, bool en)
 		}
 		rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
 					line_intr_en);
+		stream->is_line_inten = true;
 	} else {
 		rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
 					 ~line_intr_en);
@@ -8840,6 +8841,9 @@ static void rkcif_detect_wake_up_mode_change(struct rkcif_stream *stream)
 {
 	struct rkcif_device *cif_dev = stream->cifdev;
 	struct sditf_priv *priv = cif_dev->sditf[0];
+	bool is_change = false;
+	int ch = 0;
+	int i = 0;
 
 	if (!priv || priv->mode.rdbk_mode == RKISP_VICAP_ONLINE)
 		return;
@@ -8857,27 +8861,37 @@ static void rkcif_detect_wake_up_mode_change(struct rkcif_stream *stream)
 	}
 
 	if (cif_dev->wait_line && (!stream->is_line_wake_up)) {
+		is_change = true;
 		stream->is_line_wake_up = true;
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY)
 			stream->line_int_cnt = 1;
 		else if (stream->frame_phase == CIF_CSI_FRAME1_READY)
 			stream->line_int_cnt = 0;
-		rkcif_modify_line_int(stream, true);
 		if (cif_dev->hdr.hdr_mode == HDR_X2) {
 			cif_dev->stream[0].is_line_wake_up = true;
-			cif_dev->stream[0].is_line_inten = true;
 			cif_dev->stream[0].line_int_cnt = stream->line_int_cnt;
 		} else if (cif_dev->hdr.hdr_mode == HDR_X3) {
 			cif_dev->stream[0].is_line_wake_up = true;
 			cif_dev->stream[1].is_line_wake_up = true;
-			cif_dev->stream[0].is_line_inten = true;
-			cif_dev->stream[1].is_line_inten = true;
 			cif_dev->stream[0].line_int_cnt = stream->line_int_cnt;
 			cif_dev->stream[1].line_int_cnt = stream->line_int_cnt;
 		}
-		stream->is_line_inten = true;
 	} else if ((cif_dev->wait_line == 0) && stream->is_line_wake_up) {
 		stream->is_line_wake_up = false;
+	}
+	if (stream->is_line_wake_up) {
+		if (is_change) {
+			if (cif_dev->hdr.hdr_mode == HDR_X2)
+				ch = 2;
+			else if (cif_dev->hdr.hdr_mode == HDR_X3)
+				ch = 3;
+			else
+				ch = 1;
+			for (i = 0; i < ch; i++)
+				rkcif_modify_line_int(&cif_dev->stream[i], true);
+		} else {
+			rkcif_modify_line_int(stream, true);
+		}
 	}
 }
 
