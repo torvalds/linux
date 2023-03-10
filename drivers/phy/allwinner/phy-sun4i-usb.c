@@ -756,7 +756,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(data->vbus_det_gpio);
 	}
 
-	if (of_find_property(np, "usb0_vbus_power-supply", NULL)) {
+	if (of_property_present(np, "usb0_vbus_power-supply")) {
 		data->vbus_power_supply = devm_power_supply_get_by_phandle(dev,
 						     "usb0_vbus_power-supply");
 		if (IS_ERR(data->vbus_power_supply)) {
