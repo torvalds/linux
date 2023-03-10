@@ -877,21 +877,6 @@ bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 	return true;
 }
 
-bool isAllSpaceOrTab(u8 *data, u8 size)
-{
-	u8 cnt = 0, NumOfSpaceAndTab = 0;
-
-	while (size > cnt) {
-		if (data[cnt] == ' ' || data[cnt] == '\t' || data[cnt] == '\0')
-			++NumOfSpaceAndTab;
-
-		++cnt;
-	}
-
-	return size == NumOfSpaceAndTab;
-}
-
-
 void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 {
 	struct dvobj_priv *psdpriv = adapter->dvobj;
