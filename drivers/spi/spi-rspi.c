@@ -1190,7 +1190,7 @@ static const struct spi_ops rspi_ops = {
 	.num_hw_ss =		2,
 };
 
-static const struct spi_ops rspi_rz_ops = {
+static const struct spi_ops rspi_rz_ops __maybe_unused = {
 	.set_config_register =	rspi_rz_set_config_register,
 	.transfer_one =		rspi_rz_transfer_one,
 	.min_div =		2,
@@ -1200,7 +1200,7 @@ static const struct spi_ops rspi_rz_ops = {
 	.num_hw_ss =		1,
 };
 
-static const struct spi_ops qspi_ops = {
+static const struct spi_ops qspi_ops __maybe_unused = {
 	.set_config_register =	qspi_set_config_register,
 	.transfer_one =		qspi_transfer_one,
 	.extra_mode_bits =	SPI_TX_DUAL | SPI_TX_QUAD |
@@ -1212,8 +1212,7 @@ static const struct spi_ops qspi_ops = {
 	.num_hw_ss =		1,
 };
 
-#ifdef CONFIG_OF
-static const struct of_device_id rspi_of_match[] = {
+static const struct of_device_id rspi_of_match[] __maybe_unused = {
 	/* RSPI on legacy SH */
 	{ .compatible = "renesas,rspi", .data = &rspi_ops },
 	/* RSPI on RZ/A1H */
@@ -1225,6 +1224,7 @@ static const struct of_device_id rspi_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, rspi_of_match);
 
+#ifdef CONFIG_OF
 static void rspi_reset_control_assert(void *data)
 {
 	reset_control_assert(data);
