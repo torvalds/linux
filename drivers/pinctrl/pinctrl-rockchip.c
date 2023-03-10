@@ -622,9 +622,9 @@ static struct rockchip_mux_recalced_data rk3308_mux_recalced_data[] = {
 		/* gpio3b3_sel_plus */
 		.num = 3,
 		.pin = 11,
-		.reg = 0x68,
-		.bit = 6,
-		.mask = 0x3
+		.reg = 0x610,
+		.bit = 4,
+		.mask = 0x7
 	}, {
 		/* gpio3b4_sel */
 		.num = 3,
