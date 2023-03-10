@@ -941,25 +941,25 @@ static int pkt_set_segment_merging(struct pktcdvd_device *pd, struct request_que
 {
 	struct device *ddev = disk_to_dev(pd->disk);
 
-	if ((pd->settings.size << 9) / CD_FRAMESIZE
-	    <= queue_max_segments(q)) {
+	if ((pd->settings.size << 9) / CD_FRAMESIZE <= queue_max_segments(q)) {
 		/*
 		 * The cdrom device can handle one segment/frame
 		 */
 		clear_bit(PACKET_MERGE_SEGS, &pd->flags);
 		return 0;
-	} else if ((pd->settings.size << 9) / PAGE_SIZE
-		   <= queue_max_segments(q)) {
+	}
+
+	if ((pd->settings.size << 9) / PAGE_SIZE <= queue_max_segments(q)) {
 		/*
 		 * We can handle this case at the expense of some extra memory
 		 * copies during write operations
 		 */
 		set_bit(PACKET_MERGE_SEGS, &pd->flags);
 		return 0;
-	} else {
-		dev_err(ddev, "cdrom max_phys_segments too small\n");
-		return -EIO;
 	}
+
+	dev_err(ddev, "cdrom max_phys_segments too small\n");
+	return -EIO;
 }
 
 static void pkt_end_io_read(struct bio *bio)
