@@ -2067,6 +2067,7 @@ static void __bpf_prog_put_noref(struct bpf_prog *prog, bool deferred)
 {
 	bpf_prog_kallsyms_del_all(prog);
 	btf_put(prog->aux->btf);
+	module_put(prog->aux->mod);
 	kvfree(prog->aux->jited_linfo);
 	kvfree(prog->aux->linfo);
 	kfree(prog->aux->kfunc_tab);
@@ -3112,6 +3113,11 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 					      &tgt_info);
 		if (err)
 			goto out_unlock;
+
+		if (tgt_info.tgt_mod) {
+			module_put(prog->aux->mod);
+			prog->aux->mod = tgt_info.tgt_mod;
+		}
 
 		tr = bpf_trampoline_get(key, &tgt_info);
 		if (!tr) {
