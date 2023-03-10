@@ -321,7 +321,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_get_property(pdev->dev.of_node, "dma-ranges", NULL)) {
+	if (of_property_present(pdev->dev.of_node, "dma-ranges")) {
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
 		if (ret) {
 			mtk_v4l2_err("Failed to set mask");

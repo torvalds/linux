@@ -254,7 +254,7 @@ struct xvtc_device *xvtc_of_get(struct device_node *np)
 	struct xvtc_device *found = NULL;
 	struct xvtc_device *xvtc;
 
-	if (!of_find_property(np, "xlnx,vtc", NULL))
+	if (!of_property_present(np, "xlnx,vtc"))
 		return NULL;
 
 	xvtc_node = of_parse_phandle(np, "xlnx,vtc", 0);
