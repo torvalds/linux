@@ -5907,6 +5907,8 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_display_mode adjusted_mode;
+	int vmax_vblank_start = 0;
+	unsigned long irqflags;
 
 	drm_mode_init(&adjusted_mode, &crtc_state->hw.adjusted_mode);
 
@@ -5914,10 +5916,27 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 		adjusted_mode.crtc_vtotal = crtc_state->vrr.vmax;
 		adjusted_mode.crtc_vblank_end = crtc_state->vrr.vmax;
 		adjusted_mode.crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
-		crtc->vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+		vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
 	}
 
+	/*
+	 * Belts and suspenders locking to guarantee everyone sees 100%
+	 * consistent state during fastset seamless refresh rate changes.
+	 *
+	 * vblank_time_lock takes care of all drm_vblank.c stuff, and
+	 * uncore.lock takes care of __intel_get_crtc_scanline() which
+	 * may get called elsewhere as well.
+	 *
+	 * TODO maybe just protect everything (including
+	 * __intel_get_crtc_scanline()) with vblank_time_lock?
+	 * Need to audit everything to make sure it's safe.
+	 */
+	spin_lock_irqsave(&dev_priv->drm.vblank_time_lock, irqflags);
+	spin_lock(&dev_priv->uncore.lock);
+
 	drm_calc_timestamping_constants(&crtc->base, &adjusted_mode);
+
+	crtc->vmax_vblank_start = vmax_vblank_start;
 
 	crtc->mode_flags = crtc_state->mode_flags;
 
@@ -5962,6 +5981,9 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 	} else {
 		crtc->scanline_offset = 1;
 	}
+
+	spin_unlock(&dev_priv->uncore.lock);
+	spin_unlock_irqrestore(&dev_priv->drm.vblank_time_lock, irqflags);
 }
 
 /*
