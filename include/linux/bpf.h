@@ -189,10 +189,19 @@ enum btf_field_type {
 				 BPF_RB_NODE | BPF_RB_ROOT,
 };
 
+typedef void (*btf_dtor_kfunc_t)(void *);
+typedef void (*btf_dtor_obj_drop)(void *, const struct btf_record *);
+
 struct btf_field_kptr {
 	struct btf *btf;
 	struct module *module;
-	btf_dtor_kfunc_t dtor;
+	union {
+		/* dtor used if btf_is_kernel(btf), otherwise the type
+		 * is program-allocated and obj_drop is used
+		 */
+		btf_dtor_kfunc_t dtor;
+		btf_dtor_obj_drop obj_drop;
+	};
 	u32 btf_id;
 };
 
