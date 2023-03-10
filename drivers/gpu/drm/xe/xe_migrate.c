@@ -1024,12 +1024,6 @@ static bool no_in_syncs(struct xe_sync_entry *syncs, u32 num_syncs)
 	return true;
 }
 
-static bool engine_is_idle(struct xe_engine *e)
-{
-	return !e || e->lrc[0].fence_ctx.next_seqno == 1 ||
-		xe_lrc_seqno(&e->lrc[0]) == e->lrc[0].fence_ctx.next_seqno;
-}
-
 /**
  * xe_migrate_update_pgtables() - Pipelined page-table update
  * @m: The migrate context.
@@ -1082,7 +1076,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	bool first_munmap_rebind = vma && vma->first_munmap_rebind;
 
 	/* Use the CPU if no in syncs and engine is idle */
-	if (no_in_syncs(syncs, num_syncs) && engine_is_idle(eng)) {
+	if (no_in_syncs(syncs, num_syncs) && (!eng || xe_engine_is_idle(eng))) {
 		fence =  xe_migrate_update_pgtables_cpu(m, vm, bo, updates,
 							num_updates,
 							first_munmap_rebind,

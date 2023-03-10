@@ -683,6 +683,29 @@ static void engine_kill_compute(struct xe_engine *e)
 	up_write(&e->vm->lock);
 }
 
+/**
+ * xe_engine_is_idle() - Whether an engine is idle.
+ * @engine: The engine
+ *
+ * FIXME: Need to determine what to use as the short-lived
+ * timeline lock for the engines, so that the return value
+ * of this function becomes more than just an advisory
+ * snapshot in time. The timeline lock must protect the
+ * seqno from racing submissions on the same engine.
+ * Typically vm->resv, but user-created timeline locks use the migrate vm
+ * and never grabs the migrate vm->resv so we have a race there.
+ *
+ * Return: True if the engine is idle, false otherwise.
+ */
+bool xe_engine_is_idle(struct xe_engine *engine)
+{
+	if (XE_WARN_ON(xe_engine_is_parallel(engine)))
+		return false;
+
+	return xe_lrc_seqno(&engine->lrc[0]) ==
+		engine->lrc[0].fence_ctx.next_seqno - 1;
+}
+
 void xe_engine_kill(struct xe_engine *e)
 {
 	struct xe_engine *engine = e, *next;
