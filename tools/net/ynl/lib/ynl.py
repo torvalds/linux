@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 import functools
 import os
@@ -303,11 +303,6 @@ class YnlFamily(SpecFamily):
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_EXT_ACK, 1)
 
-        self._types = dict()
-
-        for elem in self.yaml.get('definitions', []):
-            self._types[elem['name']] = elem
-
         self.async_msg_ids = set()
         self.async_msg_queue = []
 
@@ -353,13 +348,13 @@ class YnlFamily(SpecFamily):
 
     def _decode_enum(self, rsp, attr_spec):
         raw = rsp[attr_spec['name']]
-        enum = self._types[attr_spec['enum']]
+        enum = self.consts[attr_spec['enum']]
         i = attr_spec.get('value-start', 0)
         if 'enum-as-flags' in attr_spec and attr_spec['enum-as-flags']:
             value = set()
             while raw:
                 if raw & 1:
-                    value.add(enum['entries'][i])
+                    value.add(enum.entries_by_val[i].name)
                 raw >>= 1
                 i += 1
         else:

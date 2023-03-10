@@ -589,7 +589,6 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
 					  bool *has_fcap)
 {
 	struct cred *new = bprm->cred;
-	unsigned i;
 	int ret = 0;
 
 	if (caps->magic_etc & VFS_CAP_FLAGS_EFFECTIVE)
@@ -598,22 +597,17 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
 	if (caps->magic_etc & VFS_CAP_REVISION_MASK)
 		*has_fcap = true;
 
-	CAP_FOR_EACH_U32(i) {
-		__u32 permitted = caps->permitted.cap[i];
-		__u32 inheritable = caps->inheritable.cap[i];
+	/*
+	 * pP' = (X & fP) | (pI & fI)
+	 * The addition of pA' is handled later.
+	 */
+	new->cap_permitted.val =
+		(new->cap_bset.val & caps->permitted.val) |
+		(new->cap_inheritable.val & caps->inheritable.val);
 
-		/*
-		 * pP' = (X & fP) | (pI & fI)
-		 * The addition of pA' is handled later.
-		 */
-		new->cap_permitted.cap[i] =
-			(new->cap_bset.cap[i] & permitted) |
-			(new->cap_inheritable.cap[i] & inheritable);
-
-		if (permitted & ~new->cap_permitted.cap[i])
-			/* insufficient to execute correctly */
-			ret = -EPERM;
-	}
+	if (caps->permitted.val & ~new->cap_permitted.val)
+		/* insufficient to execute correctly */
+		ret = -EPERM;
 
 	/*
 	 * For legacy apps, with no internal support for recognizing they
@@ -644,7 +638,6 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 {
 	struct inode *inode = d_backing_inode(dentry);
 	__u32 magic_etc;
-	unsigned tocopy, i;
 	int size;
 	struct vfs_ns_cap_data data, *nscaps = &data;
 	struct vfs_cap_data *caps = (struct vfs_cap_data *) &data;
@@ -677,17 +670,14 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 	case VFS_CAP_REVISION_1:
 		if (size != XATTR_CAPS_SZ_1)
 			return -EINVAL;
-		tocopy = VFS_CAP_U32_1;
 		break;
 	case VFS_CAP_REVISION_2:
 		if (size != XATTR_CAPS_SZ_2)
 			return -EINVAL;
-		tocopy = VFS_CAP_U32_2;
 		break;
 	case VFS_CAP_REVISION_3:
 		if (size != XATTR_CAPS_SZ_3)
 			return -EINVAL;
-		tocopy = VFS_CAP_U32_3;
 		rootkuid = make_kuid(fs_ns, le32_to_cpu(nscaps->rootid));
 		break;
 
@@ -705,15 +695,20 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 	if (!rootid_owns_currentns(rootvfsuid))
 		return -ENODATA;
 
-	CAP_FOR_EACH_U32(i) {
-		if (i >= tocopy)
-			break;
-		cpu_caps->permitted.cap[i] = le32_to_cpu(caps->data[i].permitted);
-		cpu_caps->inheritable.cap[i] = le32_to_cpu(caps->data[i].inheritable);
+	cpu_caps->permitted.val = le32_to_cpu(caps->data[0].permitted);
+	cpu_caps->inheritable.val = le32_to_cpu(caps->data[0].inheritable);
+
+	/*
+	 * Rev1 had just a single 32-bit word, later expanded
+	 * to a second one for the high bits
+	 */
+	if ((magic_etc & VFS_CAP_REVISION_MASK) != VFS_CAP_REVISION_1) {
+		cpu_caps->permitted.val += (u64)le32_to_cpu(caps->data[1].permitted) << 32;
+		cpu_caps->inheritable.val += (u64)le32_to_cpu(caps->data[1].inheritable) << 32;
 	}
 
-	cpu_caps->permitted.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
-	cpu_caps->inheritable.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
+	cpu_caps->permitted.val &= CAP_VALID_MASK;
+	cpu_caps->inheritable.val &= CAP_VALID_MASK;
 
 	cpu_caps->rootid = vfsuid_into_kuid(rootvfsuid);
 

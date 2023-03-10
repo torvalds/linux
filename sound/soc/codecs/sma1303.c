@@ -569,7 +569,7 @@ static int sma1303_aif_in_event(struct snd_soc_dapm_widget *w,
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_11_SYSTEM_CTRL2,
 					SMA1303_LR_DATA_SW_MASK,
-					SMA1303_LR_DATA_SW_NORMAL,
+					SMA1303_LR_DATA_SW_SWAP,
 					&temp);
 			if (temp == true)
 				change = true;

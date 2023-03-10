@@ -126,22 +126,13 @@ static int gxp_i2c_master_xfer(struct i2c_adapter *adapter,
 	time_left = wait_for_completion_timeout(&drvdata->completion,
 						adapter->timeout);
 	ret = num - drvdata->msgs_remaining;
-	if (time_left == 0) {
-		switch (drvdata->state) {
-		case GXP_I2C_WDATA_PHASE:
-			break;
-		case GXP_I2C_RDATA_PHASE:
-			break;
-		case GXP_I2C_ADDR_PHASE:
-			break;
-		default:
-			break;
-		}
+	if (time_left == 0)
 		return -ETIMEDOUT;
-	}
 
-	if (drvdata->state == GXP_I2C_ADDR_NACK ||
-	    drvdata->state == GXP_I2C_DATA_NACK)
+	if (drvdata->state == GXP_I2C_ADDR_NACK)
+		return -ENXIO;
+
+	if (drvdata->state == GXP_I2C_DATA_NACK)
 		return -EIO;
 
 	return ret;
@@ -525,7 +516,7 @@ static int gxp_i2c_probe(struct platform_device *pdev)
 		i2cg_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							   "hpe,sysreg");
 		if (IS_ERR(i2cg_map)) {
-			return dev_err_probe(&pdev->dev, IS_ERR(i2cg_map),
+			return dev_err_probe(&pdev->dev, PTR_ERR(i2cg_map),
 					     "failed to map i2cg_handle\n");
 		}
 

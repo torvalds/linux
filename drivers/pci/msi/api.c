@@ -163,11 +163,11 @@ EXPORT_SYMBOL_GPL(pci_msix_alloc_irq_at);
 
 /**
  * pci_msix_free_irq - Free an interrupt on a PCI/MSIX interrupt domain
- *		      which was allocated via pci_msix_alloc_irq_at()
  *
  * @dev:	The PCI device to operate on
  * @map:	A struct msi_map describing the interrupt to free
- *		as returned from the allocation function.
+ *
+ * Undo an interrupt vector allocation. Does not disable MSI-X.
  */
 void pci_msix_free_irq(struct pci_dev *dev, struct msi_map map)
 {

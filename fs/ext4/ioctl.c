@@ -155,9 +155,6 @@ static int ext4_update_backup_sb(struct super_block *sb,
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 
-	if (err)
-		goto out_bh;
-
 	if (handle) {
 		err = ext4_handle_dirty_metadata(handle, NULL, bh);
 		if (err)

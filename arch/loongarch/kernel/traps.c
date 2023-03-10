@@ -371,8 +371,13 @@ int no_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
 
 asmlinkage void noinstr do_ale(struct pt_regs *regs)
 {
-	unsigned int *pc;
 	irqentry_state_t state = irqentry_enter(regs);
+
+#ifndef CONFIG_ARCH_STRICT_ALIGN
+	die_if_kernel("Kernel ale access", regs);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)regs->csr_badvaddr);
+#else
+	unsigned int *pc;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, regs->csr_badvaddr);
 
@@ -397,8 +402,8 @@ asmlinkage void noinstr do_ale(struct pt_regs *regs)
 sigbus:
 	die_if_kernel("Kernel ale access", regs);
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)regs->csr_badvaddr);
-
 out:
+#endif
 	irqentry_exit(regs, state);
 }
 
@@ -432,7 +437,9 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	unsigned long era = exception_era(regs);
 	irqentry_state_t state = irqentry_enter(regs);
 
-	local_irq_enable();
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_enable();
+
 	current->thread.trap_nr = read_csr_excode();
 	if (__get_inst(&opcode, (u32 *)era, user))
 		goto out_sigsegv;
@@ -445,14 +452,12 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	 */
 	switch (bcode) {
 	case BRK_KPROBE_BP:
-		if (notify_die(DIE_BREAK, "Kprobe", regs, bcode,
-			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+		if (kprobe_breakpoint_handler(regs))
 			goto out;
 		else
 			break;
 	case BRK_KPROBE_SSTEPBP:
-		if (notify_die(DIE_SSTEPBP, "Kprobe_SingleStep", regs, bcode,
-			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+		if (kprobe_singlestep_handler(regs))
 			goto out;
 		else
 			break;
@@ -495,7 +500,9 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	}
 
 out:
-	local_irq_disable();
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_disable();
+
 	irqentry_exit(regs, state);
 	return;
 
@@ -506,7 +513,52 @@ out_sigsegv:
 
 asmlinkage void noinstr do_watch(struct pt_regs *regs)
 {
+	irqentry_state_t state = irqentry_enter(regs);
+
+#ifndef CONFIG_HAVE_HW_BREAKPOINT
 	pr_warn("Hardware watch point handler not implemented!\n");
+#else
+	if (test_tsk_thread_flag(current, TIF_SINGLESTEP)) {
+		int llbit = (csr_read32(LOONGARCH_CSR_LLBCTL) & 0x1);
+		unsigned long pc = instruction_pointer(regs);
+		union loongarch_instruction *ip = (union loongarch_instruction *)pc;
+
+		if (llbit) {
+			/*
+			 * When the ll-sc combo is encountered, it is regarded as an single
+			 * instruction. So don't clear llbit and reset CSR.FWPS.Skip until
+			 * the llsc execution is completed.
+			 */
+			csr_write32(CSR_FWPC_SKIP, LOONGARCH_CSR_FWPS);
+			csr_write32(CSR_LLBCTL_KLO, LOONGARCH_CSR_LLBCTL);
+			goto out;
+		}
+
+		if (pc == current->thread.single_step) {
+			/*
+			 * Certain insns are occasionally not skipped when CSR.FWPS.Skip is
+			 * set, such as fld.d/fst.d. So singlestep needs to compare whether
+			 * the csr_era is equal to the value of singlestep which last time set.
+			 */
+			if (!is_self_loop_ins(ip, regs)) {
+				/*
+				 * Check if the given instruction the target pc is equal to the
+				 * current pc, If yes, then we should not set the CSR.FWPS.SKIP
+				 * bit to break the original instruction stream.
+				 */
+				csr_write32(CSR_FWPC_SKIP, LOONGARCH_CSR_FWPS);
+				goto out;
+			}
+		}
+	} else {
+		breakpoint_handler(regs);
+		watchpoint_handler(regs);
+	}
+
+	force_sig(SIGTRAP);
+out:
+#endif
+	irqentry_exit(regs, state);
 }
 
 asmlinkage void noinstr do_ri(struct pt_regs *regs)

@@ -64,16 +64,10 @@
  * compiler should see some alignment anyway, when the return value is
  * massaged by 'flags = ptr & 3; ptr &= ~3;').
  *
- * Optional: not supported by icc
- *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-assume_005faligned-function-attribute
  * clang: https://clang.llvm.org/docs/AttributeReference.html#assume-aligned
  */
-#if __has_attribute(__assume_aligned__)
-# define __assume_aligned(a, ...)       __attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
-#else
-# define __assume_aligned(a, ...)
-#endif
+#define __assume_aligned(a, ...)        __attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
 
 /*
  * Note the long name.
@@ -85,7 +79,6 @@
 /*
  * Optional: only supported since gcc >= 9
  * Optional: not supported by clang
- * Optional: not supported by icc
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-copy-function-attribute
  */
@@ -98,7 +91,6 @@
 /*
  * Optional: not supported by gcc
  * Optional: only supported since clang >= 14.0
- * Optional: not supported by icc
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#diagnose_as_builtin
  */
@@ -122,7 +114,6 @@
 
 /*
  * Optional: not supported by clang
- * Optional: not supported by icc
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Type-Attributes.html#index-designated_005finit-type-attribute
  */
@@ -236,7 +227,6 @@
 /*
  * Optional: only supported since gcc >= 8
  * Optional: not supported by clang
- * Optional: not supported by icc
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-nonstring-variable-attribute
  */
@@ -267,7 +257,6 @@
 
 /*
  * Optional: not supported by gcc.
- * Optional: not supported by icc.
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#overloadable
  */
@@ -287,7 +276,6 @@
  * Note: the "type" argument should match any __builtin_object_size(p, type) usage.
  *
  * Optional: not supported by gcc.
- * Optional: not supported by icc.
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#pass-object-size-pass-dynamic-object-size
  */

@@ -65,7 +65,7 @@ static int parse_hacks(const struct option *opt, const char *str, int unset)
 	return found ? 0 : -1;
 }
 
-const struct option check_options[] = {
+static const struct option check_options[] = {
 	OPT_GROUP("Actions:"),
 	OPT_CALLBACK_OPTARG('h', "hacks", NULL, NULL, "jump_label,noinstr,skylake", "patch toolchain bugs/limitations", parse_hacks),
 	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and annotate IBT"),

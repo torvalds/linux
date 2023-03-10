@@ -211,8 +211,8 @@ int orc_dump(const char *_objname)
 
 		print_reg(orc[i].bp_reg, bswap_if_needed(&dummy_elf, orc[i].bp_offset));
 
-		printf(" type:%s end:%d\n",
-		       orc_type_name(orc[i].type), orc[i].end);
+		printf(" type:%s signal:%d end:%d\n",
+		       orc_type_name(orc[i].type), orc[i].signal, orc[i].end);
 	}
 
 	elf_end(elf);

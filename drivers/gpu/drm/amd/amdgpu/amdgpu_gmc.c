@@ -552,6 +552,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 	case IP_VERSION(10, 3, 2):
 	case IP_VERSION(10, 3, 4):
 	case IP_VERSION(10, 3, 5):
+	case IP_VERSION(10, 3, 6):
 	/* VANGOGH */
 	case IP_VERSION(10, 3, 1):
 	/* YELLOW_CARP*/

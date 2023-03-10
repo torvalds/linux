@@ -49,7 +49,8 @@ static void kdf_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	derivedkey.data = kunit_kzalloc(test, param->expected_result->len,
 					GFP_KERNEL);
@@ -83,7 +84,8 @@ static void checksum_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	Kc.len = gk5e->Kc_length;
 	Kc.data = kunit_kzalloc(test, Kc.len, GFP_KERNEL);
@@ -517,6 +519,7 @@ static struct kunit_case rfc3961_test_cases[] = {
 		.run_case		= kdf_case,
 		.generate_params	= rfc3961_kdf_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc3961_suite = {
@@ -725,7 +728,8 @@ static void rfc3962_encrypt_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
@@ -777,6 +781,7 @@ static struct kunit_case rfc3962_test_cases[] = {
 		.run_case		= rfc3962_encrypt_case,
 		.generate_params	= rfc3962_encrypt_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc3962_suite = {
@@ -1319,7 +1324,8 @@ static void rfc6803_encrypt_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	usage.data[3] = param->constant;
 
@@ -1411,6 +1417,7 @@ static struct kunit_case rfc6803_test_cases[] = {
 		.run_case		= rfc6803_encrypt_case,
 		.generate_params	= rfc6803_encrypt_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc6803_suite = {
@@ -1810,7 +1817,8 @@ static void rfc8009_encrypt_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	*(__be32 *)usage.data = cpu_to_be32(2);
 
@@ -1902,6 +1910,7 @@ static struct kunit_case rfc8009_test_cases[] = {
 		.run_case		= rfc8009_encrypt_case,
 		.generate_params	= rfc8009_encrypt_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite rfc8009_suite = {
@@ -1975,7 +1984,8 @@ static void encrypt_selftest_case(struct kunit *test)
 
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
-	KUNIT_ASSERT_NOT_NULL(test, gk5e);
+	if (!gk5e)
+		kunit_skip(test, "Encryption type is not available");
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
@@ -2023,6 +2033,7 @@ static struct kunit_case encryption_test_cases[] = {
 		.run_case		= encrypt_selftest_case,
 		.generate_params	= encrypt_selftest_gen_params,
 	},
+	{}
 };
 
 static struct kunit_suite encryption_test_suite = {

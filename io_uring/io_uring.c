@@ -719,7 +719,7 @@ static void io_put_task_remote(struct task_struct *task, int nr)
 	struct io_uring_task *tctx = task->io_uring;
 
 	percpu_counter_sub(&tctx->inflight, nr);
-	if (unlikely(atomic_read(&tctx->in_idle)))
+	if (unlikely(atomic_read(&tctx->in_cancel)))
 		wake_up(&tctx->wait);
 	put_task_struct_many(task, nr);
 }
@@ -1258,8 +1258,8 @@ void tctx_task_work(struct callback_head *cb)
 
 	ctx_flush_and_put(ctx, &uring_locked);
 
-	/* relaxed read is enough as only the task itself sets ->in_idle */
-	if (unlikely(atomic_read(&tctx->in_idle)))
+	/* relaxed read is enough as only the task itself sets ->in_cancel */
+	if (unlikely(atomic_read(&tctx->in_cancel)))
 		io_uring_drop_tctx_refs(current);
 
 	trace_io_uring_task_work_run(tctx, count, loops);
@@ -1285,17 +1285,15 @@ static void io_req_local_work_add(struct io_kiocb *req)
 
 	percpu_ref_get(&ctx->refs);
 
-	if (!llist_add(&req->io_task_work.node, &ctx->work_llist)) {
-		percpu_ref_put(&ctx->refs);
-		return;
-	}
+	if (!llist_add(&req->io_task_work.node, &ctx->work_llist))
+		goto put_ref;
+
 	/* needed for the following wake up */
 	smp_mb__after_atomic();
 
-	if (unlikely(atomic_read(&req->task->io_uring->in_idle))) {
+	if (unlikely(atomic_read(&req->task->io_uring->in_cancel))) {
 		io_move_task_work_from_local(ctx);
-		percpu_ref_put(&ctx->refs);
-		return;
+		goto put_ref;
 	}
 
 	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
@@ -1305,6 +1303,8 @@ static void io_req_local_work_add(struct io_kiocb *req)
 
 	if (READ_ONCE(ctx->cq_waiting))
 		wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
+
+put_ref:
 	percpu_ref_put(&ctx->refs);
 }
 
@@ -1777,7 +1777,7 @@ int io_req_prep_async(struct io_kiocb *req)
 	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 
 	/* assign early for deferred execution for non-fixed file */
-	if (def->needs_file && !(req->flags & REQ_F_FIXED_FILE))
+	if (def->needs_file && !(req->flags & REQ_F_FIXED_FILE) && !req->file)
 		req->file = io_file_get_normal(req, req->cqe.fd);
 	if (!cdef->prep_async)
 		return 0;
@@ -2937,12 +2937,12 @@ static __cold void io_tctx_exit_cb(struct callback_head *cb)
 
 	work = container_of(cb, struct io_tctx_exit, task_work);
 	/*
-	 * When @in_idle, we're in cancellation and it's racy to remove the
+	 * When @in_cancel, we're in cancellation and it's racy to remove the
 	 * node. It'll be removed by the end of cancellation, just ignore it.
 	 * tctx can be NULL if the queueing of this task_work raced with
 	 * work cancelation off the exec path.
 	 */
-	if (tctx && !atomic_read(&tctx->in_idle))
+	if (tctx && !atomic_read(&tctx->in_cancel))
 		io_uring_del_tctx_node((unsigned long)work->ctx);
 	complete(&work->completion);
 }
@@ -3210,7 +3210,7 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 	if (tctx->io_wq)
 		io_wq_exit_start(tctx->io_wq);
 
-	atomic_inc(&tctx->in_idle);
+	atomic_inc(&tctx->in_cancel);
 	do {
 		bool loop = false;
 
@@ -3261,9 +3261,9 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 	if (cancel_all) {
 		/*
 		 * We shouldn't run task_works after cancel, so just leave
-		 * ->in_idle set for normal exit.
+		 * ->in_cancel set for normal exit.
 		 */
-		atomic_dec(&tctx->in_idle);
+		atomic_dec(&tctx->in_cancel);
 		/* for exec all current's requests should be gone, kill tctx */
 		__io_uring_free(current);
 	}

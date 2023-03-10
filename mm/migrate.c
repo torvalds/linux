@@ -1035,11 +1035,16 @@ out:
  * destination folio.  This is safe because nobody is using them
  * except us.
  */
+union migration_ptr {
+	struct anon_vma *anon_vma;
+	struct address_space *mapping;
+};
 static void __migrate_folio_record(struct folio *dst,
 				   unsigned long page_was_mapped,
 				   struct anon_vma *anon_vma)
 {
-	dst->mapping = (void *)anon_vma;
+	union migration_ptr ptr = { .anon_vma = anon_vma };
+	dst->mapping = ptr.mapping;
 	dst->private = (void *)page_was_mapped;
 }
 
@@ -1047,7 +1052,8 @@ static void __migrate_folio_extract(struct folio *dst,
 				   int *page_was_mappedp,
 				   struct anon_vma **anon_vmap)
 {
-	*anon_vmap = (void *)dst->mapping;
+	union migration_ptr ptr = { .mapping = dst->mapping };
+	*anon_vmap = ptr.anon_vma;
 	*page_was_mappedp = (unsigned long)dst->private;
 	dst->mapping = NULL;
 	dst->private = NULL;

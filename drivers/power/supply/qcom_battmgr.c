@@ -1126,8 +1126,7 @@ static void qcom_battmgr_sm8350_callback(struct qcom_battmgr *battmgr,
 			battmgr->info.charge_type = le32_to_cpu(resp->intval.value);
 			break;
 		case BATT_CAPACITY:
-			battmgr->status.percent = le32_to_cpu(resp->intval.value);
-			do_div(battmgr->status.percent, 100);
+			battmgr->status.percent = le32_to_cpu(resp->intval.value) / 100;
 			break;
 		case BATT_VOLT_OCV:
 			battmgr->status.voltage_ocv = le32_to_cpu(resp->intval.value);

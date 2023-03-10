@@ -52,6 +52,8 @@ targets += vmlinux.bin.zst info.bin syms.bin vmlinux.syms $(obj-all)
 OBJECTS := $(addprefix $(obj)/,$(obj-y))
 OBJECTS_ALL := $(addprefix $(obj)/,$(obj-all))
 
+clean-files += vmlinux.map
+
 quiet_cmd_section_cmp = SECTCMP $*
 define cmd_section_cmp
 	s1=`$(OBJDUMP) -t -j "$*" "$<" | sort | \
@@ -71,7 +73,7 @@ $(obj)/bzImage: $(obj)/vmlinux $(obj)/section_cmp.boot.data $(obj)/section_cmp.b
 $(obj)/section_cmp%: vmlinux $(obj)/vmlinux FORCE
 	$(call if_changed,section_cmp)
 
-LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup --build-id=sha1 -T
+LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup $(if $(CONFIG_VMLINUX_MAP),-Map=$(obj)/vmlinux.map) --build-id=sha1 -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS_ALL) FORCE
 	$(call if_changed,ld)
 

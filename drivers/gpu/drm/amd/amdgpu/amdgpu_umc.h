@@ -74,6 +74,8 @@ struct amdgpu_umc {
 
 	/* UMC regiser per channel offset */
 	uint32_t channel_offs;
+	/* how many pages are retired in one UE */
+	uint32_t retire_unit;
 	/* channel index table of interleaved memory */
 	const uint32_t *channel_idx_tbl;
 	struct ras_common_if *ras_if;

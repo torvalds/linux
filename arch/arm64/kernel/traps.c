@@ -997,7 +997,7 @@ static int cfi_handler(struct pt_regs *regs, unsigned long esr)
 
 	switch (report_cfi_failure(regs, regs->pc, &target, type)) {
 	case BUG_TRAP_TYPE_BUG:
-		die("Oops - CFI", regs, 0);
+		die("Oops - CFI", regs, esr);
 		break;
 
 	case BUG_TRAP_TYPE_WARN:

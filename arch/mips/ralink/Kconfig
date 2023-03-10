@@ -54,7 +54,7 @@ choice
 		select HAVE_PCI
 		select PCI_DRIVERS_GENERIC
 		select SOC_BUS
-		select PINCTRL_MT7621
+		select PINCTRL
 
 		help
 		  The MT7621 system-on-a-chip includes an 880 MHz MIPS1004Kc
