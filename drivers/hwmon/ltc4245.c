@@ -434,7 +434,7 @@ static bool ltc4245_use_extra_gpios(struct i2c_client *client)
 		return pdata->use_extra_gpios;
 
 	/* fallback on OF */
-	if (of_find_property(np, "ltc4245,use-extra-gpios", NULL))
+	if (of_property_read_bool(np, "ltc4245,use-extra-gpios"))
 		return true;
 
 	return false;
