@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Portions based off of __alloc_and_insert_iova_range() implementation
+ * in drivers/iommu/iova.c:
+ *	Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
+ *	Copyright © 2006-2009, Intel Corporation.
+ *
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
@@ -8,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/qcom-iommu-util.h>
+#include <linux/iova.h>
 #include <linux/qcom-io-pgtable.h>
 #include <trace/hooks/iommu.h>
 #include "qcom-dma-iommu-generic.h"
@@ -571,8 +577,142 @@ static void register_iommu_iovad_init_alloc_algo_vh(void)
 				init_iovad_attr, NULL))
 		pr_err("Failed to register init_iovad_attr vendor hook\n");
 }
+
+#define IOMMU_DEFAULT_IOVA_MAX_ALIGN_SHIFT	9
+
+static unsigned long iommu_max_align_shift __read_mostly = IOMMU_DEFAULT_IOVA_MAX_ALIGN_SHIFT;
+
+static struct iova *to_iova(struct rb_node *node)
+{
+	return rb_entry(node, struct iova, node);
+}
+
+/* Insert the iova into domain rbtree by holding writer lock */
+static void iova_insert_rbtree(struct rb_root *root, struct iova *iova,
+			       struct rb_node *start)
+{
+	struct rb_node **new, *parent = NULL;
+
+	new = (start) ? &start : &(root->rb_node);
+	/* Figure out where to put new node */
+	while (*new) {
+		struct iova *this = to_iova(*new);
+
+		parent = *new;
+
+		if (iova->pfn_lo < this->pfn_lo)
+			new = &((*new)->rb_left);
+		else if (iova->pfn_lo > this->pfn_lo)
+			new = &((*new)->rb_right);
+		else {
+			WARN_ON(1); /* this should not happen */
+			return;
+		}
+	}
+	/* Add new node and rebalance tree. */
+	rb_link_node(&iova->node, parent, new);
+	rb_insert_color(&iova->node, root);
+}
+
+static unsigned long limit_align_shift(struct iova_domain *iovad,
+				       unsigned long shift)
+{
+	unsigned long max_align_shift;
+
+	max_align_shift = iommu_max_align_shift + PAGE_SHIFT - iova_shift(iovad);
+	return min_t(unsigned long, max_align_shift, shift);
+}
+
+static int __alloc_and_insert_iova_best_fit(struct iova_domain *iovad,
+					    unsigned long size,
+					    unsigned long limit_pfn,
+					    struct iova *new,
+					    bool size_aligned)
+{
+	struct rb_node *curr, *prev;
+	struct iova *curr_iova, *prev_iova;
+	unsigned long flags;
+	unsigned long align_mask = ~0UL;
+	struct rb_node *candidate_rb_parent;
+	unsigned long new_pfn, candidate_pfn = ~0UL;
+	unsigned long gap, candidate_gap = ~0UL;
+
+	if (!iovad_use_best_fit_iova(iovad))
+		return -EINVAL;
+
+	if (size_aligned)
+		align_mask <<= limit_align_shift(iovad, fls_long(size - 1));
+
+	/* Walk the tree backwards */
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+	curr = &iovad->anchor.node;
+	prev = rb_prev(curr);
+	for (; prev; curr = prev, prev = rb_prev(curr)) {
+		curr_iova = rb_entry(curr, struct iova, node);
+		prev_iova = rb_entry(prev, struct iova, node);
+
+		limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
+		new_pfn = (limit_pfn - size) & align_mask;
+		gap = curr_iova->pfn_lo - prev_iova->pfn_hi - 1;
+		if ((limit_pfn >= size) && (new_pfn > prev_iova->pfn_hi)
+				&& (gap < candidate_gap)) {
+			candidate_gap = gap;
+			candidate_pfn = new_pfn;
+			candidate_rb_parent = curr;
+			if (gap == size)
+				goto insert;
+		}
+	}
+
+	curr_iova = rb_entry(curr, struct iova, node);
+	limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
+	new_pfn = (limit_pfn - size) & align_mask;
+	gap = curr_iova->pfn_lo - iovad->start_pfn;
+	if (limit_pfn >= size && new_pfn >= iovad->start_pfn &&
+			gap < candidate_gap) {
+		candidate_gap = gap;
+		candidate_pfn = new_pfn;
+		candidate_rb_parent = curr;
+	}
+
+insert:
+	if (candidate_pfn == ~0UL) {
+		spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+		return -ENOMEM;
+	}
+
+	/* pfn_lo will point to size aligned address if size_aligned is set */
+	new->pfn_lo = candidate_pfn;
+	new->pfn_hi = new->pfn_lo + size - 1;
+
+	/* If we have 'prev', it's a valid place to start the insertion. */
+	iova_insert_rbtree(&iovad->rbroot, new, candidate_rb_parent);
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+	return 0;
+}
+
+static void __qcom_alloc_insert_iova(void *data, struct iova_domain *iovad,
+				     unsigned long size,
+				     unsigned long limit_pfn, struct iova *new,
+				     bool size_aligned, int *ret)
+{
+	*ret =  __alloc_and_insert_iova_best_fit(iovad, size, limit_pfn, new,
+						 size_aligned);
+}
+
+static void register_iommu_alloc_insert_iova_vh(void)
+{
+	if (register_trace_android_rvh_iommu_alloc_insert_iova(
+			__qcom_alloc_insert_iova, NULL)) {
+		pr_err("Failed to register alloc_inser_iova vendor hook\n");
+	}
+}
 #else
 static void register_iommu_iovad_init_alloc_algo_vh(void)
+{
+}
+
+static void register_iommu_alloc_insert_iova_vh(void)
 {
 }
 #endif
@@ -617,6 +757,7 @@ static int __init qcom_iommu_util_init(void)
 	}
 
 	register_iommu_iovad_init_alloc_algo_vh();
+	register_iommu_alloc_insert_iova_vh();
 
 	return 0;
 
