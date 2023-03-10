@@ -606,7 +606,7 @@ static struct platform_driver qcom_ethqos_driver = {
 	.driver = {
 		.name           = "qcom-ethqos",
 		.pm		= &stmmac_pltfr_pm_ops,
-		.of_match_table = of_match_ptr(qcom_ethqos_match),
+		.of_match_table = qcom_ethqos_match,
 	},
 };
 module_platform_driver(qcom_ethqos_driver);
