@@ -136,9 +136,6 @@ enum pageflags {
 	PG_arch_2,
 	PG_arch_3,
 #endif
-#ifdef CONFIG_KASAN_HW_TAGS
-	PG_skip_kasan_poison,
-#endif
 	__NR_PAGEFLAGS,
 
 	PG_readahead = PG_reclaim,
@@ -592,12 +589,6 @@ TESTPAGEFLAG(Young, young, PF_ANY)
 SETPAGEFLAG(Young, young, PF_ANY)
 TESTCLEARFLAG(Young, young, PF_ANY)
 PAGEFLAG(Idle, idle, PF_ANY)
-#endif
-
-#ifdef CONFIG_KASAN_HW_TAGS
-PAGEFLAG(SkipKASanPoison, skip_kasan_poison, PF_HEAD)
-#else
-PAGEFLAG_FALSE(SkipKASanPoison, skip_kasan_poison)
 #endif
 
 /*

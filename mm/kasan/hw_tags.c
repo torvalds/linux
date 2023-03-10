@@ -318,7 +318,7 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 	 * Thus, for VM_ALLOC mappings, hardware tag-based KASAN only tags
 	 * the first virtual mapping, which is created by vmalloc().
 	 * Tagging the page_alloc memory backing that vmalloc() allocation is
-	 * skipped, see ___GFP_SKIP_KASAN_UNPOISON.
+	 * skipped, see ___GFP_SKIP_KASAN.
 	 *
 	 * For non-VM_ALLOC allocations, page_alloc memory is tagged as usual.
 	 */

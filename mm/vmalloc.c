@@ -3188,7 +3188,7 @@ again:
 			 * pages backing VM_ALLOC mapping. Memory is instead
 			 * poisoned and zeroed by kasan_unpoison_vmalloc().
 			 */
-			gfp_mask |= __GFP_SKIP_KASAN_UNPOISON | __GFP_SKIP_ZERO;
+			gfp_mask |= __GFP_SKIP_KASAN | __GFP_SKIP_ZERO;
 		}
 
 		/* Take note that the mapping is PAGE_KERNEL. */
