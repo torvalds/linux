@@ -129,7 +129,7 @@ static int mp8859_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct of_device_id mp8859_dt_id[] = {
+static const struct of_device_id mp8859_dt_id[] __maybe_unused = {
 	{.compatible =  "mps,mp8859"},
 	{},
 };
