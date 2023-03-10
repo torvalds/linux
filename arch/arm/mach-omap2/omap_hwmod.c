@@ -2322,11 +2322,11 @@ static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 static void __init parse_module_flags(struct omap_hwmod *oh,
 				      struct device_node *np)
 {
-	if (of_find_property(np, "ti,no-reset-on-init", NULL))
+	if (of_property_read_bool(np, "ti,no-reset-on-init"))
 		oh->flags |= HWMOD_INIT_NO_RESET;
-	if (of_find_property(np, "ti,no-idle-on-init", NULL))
+	if (of_property_read_bool(np, "ti,no-idle-on-init"))
 		oh->flags |= HWMOD_INIT_NO_IDLE;
-	if (of_find_property(np, "ti,no-idle", NULL))
+	if (of_property_read_bool(np, "ti,no-idle"))
 		oh->flags |= HWMOD_NO_IDLE;
 }
 
