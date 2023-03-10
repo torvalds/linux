@@ -3054,7 +3054,7 @@ static int qcom_nand_host_parse_boot_partitions(struct qcom_nand_controller *nan
 	struct device *dev = nandc->dev;
 	int partitions_count, i, j, ret;
 
-	if (!of_find_property(dn, "qcom,boot-partitions", NULL))
+	if (!of_property_present(dn, "qcom,boot-partitions"))
 		return 0;
 
 	partitions_count = of_property_count_u32_elems(dn, "qcom,boot-partitions");
