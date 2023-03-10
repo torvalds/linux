@@ -1434,7 +1434,7 @@ static void sdhci_arasan_unregister_sdclk(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 
-	if (!of_find_property(np, "#clock-cells", NULL))
+	if (!of_property_present(np, "#clock-cells"))
 		return;
 
 	of_clk_del_provider(dev->of_node);
