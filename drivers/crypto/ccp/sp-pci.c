@@ -361,6 +361,12 @@ static const struct tee_vdata teev1 = {
 	.ring_rptr_reg          = 0x10554,	/* C2PMSG_21 */
 };
 
+static const struct platform_access_vdata pa_v1 = {
+	.cmdresp_reg		= 0x10570,	/* C2PMSG_28 */
+	.cmdbuff_addr_lo_reg	= 0x10574,	/* C2PMSG_29 */
+	.cmdbuff_addr_hi_reg	= 0x10578,	/* C2PMSG_30 */
+};
+
 static const struct psp_vdata pspv1 = {
 	.sev			= &sevv1,
 	.feature_reg		= 0x105fc,	/* C2PMSG_63 */
@@ -377,6 +383,7 @@ static const struct psp_vdata pspv2 = {
 
 static const struct psp_vdata pspv3 = {
 	.tee			= &teev1,
+	.platform_access	= &pa_v1,
 	.feature_reg		= 0x109fc,	/* C2PMSG_63 */
 	.inten_reg		= 0x10690,	/* P2CMSG_INTEN */
 	.intsts_reg		= 0x10694,	/* P2CMSG_INTSTS */
