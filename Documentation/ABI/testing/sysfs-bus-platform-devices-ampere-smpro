@@ -265,6 +265,16 @@ Description:
 		For more details, see section `5.7 GPI Status Registers and 5.9 Memory Error Register Definitions,
 		Altra Family Soc BMC Interface Specification`.
 
+What:		/sys/bus/platform/devices/smpro-errmon.*/event_dimm[0-15]_syndrome
+KernelVersion:	6.4
+Contact:	Quan Nguyen <quan@os.amperecomputing.com>
+Description:
+		(RO) The sysfs returns the 2-byte DIMM failure syndrome data for slot
+		0-15 if it failed to initialize.
+
+		For more details, see section `5.11 Boot Stage Register Definitions,
+		Altra Family Soc BMC Interface Specification`.
+
 What:		/sys/bus/platform/devices/smpro-misc.*/boot_progress
 KernelVersion:	6.1
 Contact:	Quan Nguyen <quan@os.amperecomputing.com>
