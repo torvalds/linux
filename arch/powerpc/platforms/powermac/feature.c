@@ -2506,7 +2506,7 @@ found:
 			int cpu_count = 1;
 
 			/* Nap mode not supported on SMP */
-			if (of_get_property(np, "flush-on-lock", NULL) ||
+			if (of_property_read_bool(np, "flush-on-lock") ||
 			    (cpu_count > 1)) {
 				powersave_nap = 0;
 				of_node_put(np);

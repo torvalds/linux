@@ -1381,7 +1381,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	}
 
 	if (family == PFO) {
-		if (of_get_property(of_node, "interrupt-controller", NULL)) {
+		if (of_property_read_bool(of_node, "interrupt-controller")) {
 			pr_debug("%s: Skipping the interrupt controller %pOFn.\n",
 					__func__, of_node);
 			return NULL;

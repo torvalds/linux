@@ -235,7 +235,7 @@ static void __init maple_init_IRQ(void)
 	BUG_ON(openpic_addr == 0);
 
 	/* Check for a big endian MPIC */
-	if (of_get_property(np, "big-endian", NULL) != NULL)
+	if (of_property_read_bool(np, "big-endian"))
 		flags |= MPIC_BIG_ENDIAN;
 
 	/* XXX Maple specific bits */

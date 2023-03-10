@@ -132,7 +132,7 @@ static int __init tsi108_eth_of_init(void)
 		 * driver itself to phylib and use a non-misleading
 		 * name for the workaround flag - it's not actually to
 		 * do with the model of PHY in use */
-		if (of_get_property(phy, "txc-rxc-delay-disable", NULL))
+		if (of_property_read_bool(phy, "txc-rxc-delay-disable"))
 			tsi_eth_data.phy_type = TSI108_PHY_BCM54XX;
 		of_node_put(phy);
 
