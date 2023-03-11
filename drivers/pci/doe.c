@@ -455,7 +455,7 @@ static struct pci_doe_mb *pci_doe_create_mb(struct pci_dev *pdev,
 	xa_init(&doe_mb->prots);
 
 	doe_mb->work_queue = alloc_ordered_workqueue("%s %s DOE [%x]", 0,
-						dev_driver_string(&pdev->dev),
+						dev_bus_name(&pdev->dev),
 						pci_name(pdev),
 						doe_mb->cap_offset);
 	if (!doe_mb->work_queue) {
@@ -499,49 +499,17 @@ err_free:
 /**
  * pci_doe_destroy_mb() - Destroy a DOE mailbox object
  *
- * @ptr: Pointer to DOE mailbox
+ * @doe_mb: DOE mailbox
  *
  * Destroy all internal data structures created for the DOE mailbox.
  */
-static void pci_doe_destroy_mb(void *ptr)
+static void pci_doe_destroy_mb(struct pci_doe_mb *doe_mb)
 {
-	struct pci_doe_mb *doe_mb = ptr;
-
 	pci_doe_cancel_tasks(doe_mb);
 	xa_destroy(&doe_mb->prots);
 	destroy_workqueue(doe_mb->work_queue);
 	kfree(doe_mb);
 }
-
-/**
- * pcim_doe_create_mb() - Create a DOE mailbox object
- *
- * @pdev: PCI device to create the DOE mailbox for
- * @cap_offset: Offset of the DOE mailbox
- *
- * Create a single mailbox object to manage the mailbox protocol at the
- * cap_offset specified.  The mailbox will automatically be destroyed on
- * driver unbinding from @pdev.
- *
- * RETURNS: created mailbox object on success
- *	    ERR_PTR(-errno) on failure
- */
-struct pci_doe_mb *pcim_doe_create_mb(struct pci_dev *pdev, u16 cap_offset)
-{
-	struct pci_doe_mb *doe_mb;
-	int rc;
-
-	doe_mb = pci_doe_create_mb(pdev, cap_offset);
-	if (IS_ERR(doe_mb))
-		return doe_mb;
-
-	rc = devm_add_action_or_reset(&pdev->dev, pci_doe_destroy_mb, doe_mb);
-	if (rc)
-		return ERR_PTR(rc);
-
-	return doe_mb;
-}
-EXPORT_SYMBOL_GPL(pcim_doe_create_mb);
 
 /**
  * pci_doe_supports_prot() - Return if the DOE instance supports the given
@@ -552,7 +520,7 @@ EXPORT_SYMBOL_GPL(pcim_doe_create_mb);
  *
  * RETURNS: True if the DOE mailbox supports the protocol specified
  */
-bool pci_doe_supports_prot(struct pci_doe_mb *doe_mb, u16 vid, u8 type)
+static bool pci_doe_supports_prot(struct pci_doe_mb *doe_mb, u16 vid, u8 type)
 {
 	unsigned long index;
 	void *entry;
@@ -567,7 +535,6 @@ bool pci_doe_supports_prot(struct pci_doe_mb *doe_mb, u16 vid, u8 type)
 
 	return false;
 }
-EXPORT_SYMBOL_GPL(pci_doe_supports_prot);
 
 /**
  * pci_doe_submit_task() - Submit a task to be processed by the state machine
