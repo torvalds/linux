@@ -121,8 +121,6 @@ struct btf_struct_metas {
 	struct btf_struct_meta types[];
 };
 
-typedef void (*btf_dtor_kfunc_t)(void *);
-
 extern const struct file_operations btf_fops;
 
 void btf_get(struct btf *btf);

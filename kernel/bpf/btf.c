@@ -3551,12 +3551,17 @@ static int btf_find_field(const struct btf *btf, const struct btf_type *t,
 	return -EINVAL;
 }
 
+extern void __bpf_obj_drop_impl(void *p, const struct btf_record *rec);
+
 static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 			  struct btf_field_info *info)
 {
 	struct module *mod = NULL;
 	const struct btf_type *t;
-	struct btf *kernel_btf;
+	/* If a matching btf type is found in kernel or module BTFs, kptr_ref
+	 * is that BTF, otherwise it's program BTF
+	 */
+	struct btf *kptr_btf;
 	int ret;
 	s32 id;
 
@@ -3565,7 +3570,20 @@ static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 	 */
 	t = btf_type_by_id(btf, info->kptr.type_id);
 	id = bpf_find_btf_id(__btf_name_by_offset(btf, t->name_off), BTF_INFO_KIND(t->info),
-			     &kernel_btf);
+			     &kptr_btf);
+	if (id == -ENOENT) {
+		/* btf_parse_kptr should only be called w/ btf = program BTF */
+		WARN_ON_ONCE(btf_is_kernel(btf));
+
+		/* Type exists only in program BTF. Assume that it's a MEM_ALLOC
+		 * kptr allocated via bpf_obj_new
+		 */
+		field->kptr.dtor = (void *)&__bpf_obj_drop_impl;
+		id = info->kptr.type_id;
+		kptr_btf = (struct btf *)btf;
+		btf_get(kptr_btf);
+		goto found_dtor;
+	}
 	if (id < 0)
 		return id;
 
@@ -3582,20 +3600,20 @@ static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 		 * can be used as a referenced pointer and be stored in a map at
 		 * the same time.
 		 */
-		dtor_btf_id = btf_find_dtor_kfunc(kernel_btf, id);
+		dtor_btf_id = btf_find_dtor_kfunc(kptr_btf, id);
 		if (dtor_btf_id < 0) {
 			ret = dtor_btf_id;
 			goto end_btf;
 		}
 
-		dtor_func = btf_type_by_id(kernel_btf, dtor_btf_id);
+		dtor_func = btf_type_by_id(kptr_btf, dtor_btf_id);
 		if (!dtor_func) {
 			ret = -ENOENT;
 			goto end_btf;
 		}
 
-		if (btf_is_module(kernel_btf)) {
-			mod = btf_try_get_module(kernel_btf);
+		if (btf_is_module(kptr_btf)) {
+			mod = btf_try_get_module(kptr_btf);
 			if (!mod) {
 				ret = -ENXIO;
 				goto end_btf;
@@ -3605,7 +3623,7 @@ static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 		/* We already verified dtor_func to be btf_type_is_func
 		 * in register_btf_id_dtor_kfuncs.
 		 */
-		dtor_func_name = __btf_name_by_offset(kernel_btf, dtor_func->name_off);
+		dtor_func_name = __btf_name_by_offset(kptr_btf, dtor_func->name_off);
 		addr = kallsyms_lookup_name(dtor_func_name);
 		if (!addr) {
 			ret = -EINVAL;
@@ -3614,14 +3632,15 @@ static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 		field->kptr.dtor = (void *)addr;
 	}
 
+found_dtor:
 	field->kptr.btf_id = id;
-	field->kptr.btf = kernel_btf;
+	field->kptr.btf = kptr_btf;
 	field->kptr.module = mod;
 	return 0;
 end_mod:
 	module_put(mod);
 end_btf:
-	btf_put(kernel_btf);
+	btf_put(kptr_btf);
 	return ret;
 }
 

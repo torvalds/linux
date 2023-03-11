@@ -7123,6 +7123,9 @@ static int check_reg_type(struct bpf_verifier_env *env, u32 regno,
 	if (arg_type & PTR_MAYBE_NULL)
 		type &= ~PTR_MAYBE_NULL;
 
+	if (meta->func_id == BPF_FUNC_kptr_xchg && type & MEM_ALLOC)
+		type &= ~MEM_ALLOC;
+
 	for (i = 0; i < ARRAY_SIZE(compatible->types); i++) {
 		expected = compatible->types[i];
 		if (expected == NOT_INIT)
@@ -7185,7 +7188,8 @@ found:
 		break;
 	}
 	case PTR_TO_BTF_ID | MEM_ALLOC:
-		if (meta->func_id != BPF_FUNC_spin_lock && meta->func_id != BPF_FUNC_spin_unlock) {
+		if (meta->func_id != BPF_FUNC_spin_lock && meta->func_id != BPF_FUNC_spin_unlock &&
+		    meta->func_id != BPF_FUNC_kptr_xchg) {
 			verbose(env, "verifier internal error: unimplemented handling of MEM_ALLOC\n");
 			return -EFAULT;
 		}
@@ -9151,6 +9155,8 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		if (func_id == BPF_FUNC_kptr_xchg) {
 			ret_btf = meta.kptr_field->kptr.btf;
 			ret_btf_id = meta.kptr_field->kptr.btf_id;
+			if (!btf_is_kernel(ret_btf))
+				regs[BPF_REG_0].type |= MEM_ALLOC;
 		} else {
 			if (fn->ret_btf_id == BPF_PTR_POISON) {
 				verbose(env, "verifier internal error:");
