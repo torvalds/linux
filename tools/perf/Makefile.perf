@@ -44,8 +44,6 @@ include ../scripts/utilities.mak
 #
 # Define WERROR=0 to disable treating any warnings as errors.
 #
-# Define NO_NEWT if you do not want TUI support. (deprecated)
-#
 # Define NO_SLANG if you do not want TUI support.
 #
 # Define GTK2 if you want GTK+ GUI support.
