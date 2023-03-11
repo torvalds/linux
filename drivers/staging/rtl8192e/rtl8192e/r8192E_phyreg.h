@@ -50,8 +50,6 @@
 #define rFPGA0_RFTiming2		0x814
 #define rFPGA0_XA_HSSIParameter2	0x824
 #define rFPGA0_XB_HSSIParameter2	0x82c
-#define rFPGA0_XC_HSSIParameter2	0x834
-#define rFPGA0_XD_HSSIParameter2	0x83c
 #define rFPGA0_XA_LSSIParameter		0x840
 #define rFPGA0_XB_LSSIParameter		0x844
 #define rFPGA0_RFWakeUpParameter	0x850
