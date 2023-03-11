@@ -2813,7 +2813,11 @@ static int early_mod_check(struct load_info *info, int flags)
 	if (err)
 		return err;
 
-	return 0;
+	mutex_lock(&module_mutex);
+	err = module_patient_check_exists(info->mod->name, FAIL_DUP_MOD_BECOMING);
+	mutex_unlock(&module_mutex);
+
+	return err;
 }
 
 /*

@@ -85,7 +85,7 @@
  * calls:
  *
  *   a) FAIL_DUP_MOD_BECOMING: at the end of early_mod_check() before
- *	layout_and_allocate(). This does not yet happen.
+ *	layout_and_allocate().
  *	- with module decompression: 2 virtual memory allocation calls
  *	- without module decompression: 1 virtual memory allocation calls
  *   b) FAIL_DUP_MOD_LOAD: after layout_and_allocate() on add_unformed_module()
@@ -126,17 +126,16 @@ static LIST_HEAD(dup_failed_modules);
  *     pressure.
  *   * invalid_becoming_bytes: total number of bytes allocated and freed used
  *     used to read the kernel module userspace wants us to read before we
- *     promote it to be processed to be added to our @modules linked list.
- *     These failures could in theory happen if we had a check in
- *     between a successful kernel_read_file_from_fd()
+ *     promote it to be processed to be added to our @modules linked list. These
+ *     failures can happen if we had a check in between a successful kernel_read_file_from_fd()
  *     call and right before we allocate the our private memory for the module
  *     which would be kept if the module is successfully loaded. The most common
  *     reason for this failure is when userspace is racing to load a module
  *     which it does not yet see loaded. The first module to succeed in
  *     add_unformed_module() will add a module to our &modules list and
  *     subsequent loads of modules with the same name will error out at the
- *     end of early_mod_check(). A check for module_patient_check_exists()
- *     at the end of early_mod_check() could be added to prevent duplicate allocations
+ *     end of early_mod_check(). The check for module_patient_check_exists()
+ *     at the end of early_mod_check() prevents duplicate allocations
  *     on layout_and_allocate() for modules already being processed. These
  *     duplicate failed modules are non-fatal, however they typically are
  *     indicative of userspace not seeing a module in userspace loaded yet and
