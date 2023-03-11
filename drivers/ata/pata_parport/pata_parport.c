@@ -487,12 +487,13 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 
 	pi_connect(pi);
 	if (ata_host_activate(host, 0, NULL, 0, &pata_parport_sht))
-		goto out_unreg_parport;
+		goto out_disconnect;
 
 	return pi;
 
-out_unreg_parport:
+out_disconnect:
 	pi_disconnect(pi);
+out_unreg_parport:
 	parport_unregister_device(pi->pardev);
 	if (pi->proto->release_proto)
 		pi->proto->release_proto(pi);
