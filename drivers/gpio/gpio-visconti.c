@@ -194,7 +194,7 @@ static struct platform_driver visconti_gpio_driver = {
 	.probe		= visconti_gpio_probe,
 	.driver		= {
 		.name	= "visconti_gpio",
-		.of_match_table = of_match_ptr(visconti_gpio_of_match),
+		.of_match_table = visconti_gpio_of_match,
 	}
 };
 module_platform_driver(visconti_gpio_driver);
