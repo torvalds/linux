@@ -340,7 +340,7 @@ void kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 		/* do not error out as sometimes we can recover */
 		pr_err("kobject (%p): tried to init an initialized object, something is seriously wrong.\n",
 		       kobj);
-		dump_stack();
+		dump_stack_lvl(KERN_ERR);
 	}
 
 	kobject_init_internal(kobj);
@@ -349,7 +349,7 @@ void kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 
 error:
 	pr_err("kobject (%p): %s\n", kobj, err_str);
-	dump_stack();
+	dump_stack_lvl(KERN_ERR);
 }
 EXPORT_SYMBOL(kobject_init);
 
@@ -413,7 +413,7 @@ int kobject_add(struct kobject *kobj, struct kobject *parent,
 	if (!kobj->state_initialized) {
 		pr_err("kobject '%s' (%p): tried to add an uninitialized object, something is seriously wrong.\n",
 		       kobject_name(kobj), kobj);
-		dump_stack();
+		dump_stack_lvl(KERN_ERR);
 		return -EINVAL;
 	}
 	va_start(args, fmt);
