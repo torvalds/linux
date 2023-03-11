@@ -49,6 +49,11 @@ static const union perf_capabilities immutable_caps = {
 	.pebs_baseline = 1,
 };
 
+static const union perf_capabilities format_caps = {
+	.lbr_format = -1,
+	.pebs_format = -1,
+};
+
 static void guest_code(void)
 {
 	wrmsr(MSR_IA32_PERF_CAPABILITIES, PMU_CAP_LBR_FMT);
@@ -91,12 +96,30 @@ static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
 	kvm_vm_free(vm);
 }
 
+/*
+ * Verify KVM rejects attempts to set unsupported and/or immutable features in
+ * PERF_CAPABILITIES.  Note, LBR format and PEBS format need to be validated
+ * separately as they are multi-bit values, e.g. toggling or setting a single
+ * bit can generate a false positive without dedicated safeguards.
+ */
 static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
 {
+	const uint64_t reserved_caps = (~host_cap.capabilities |
+					immutable_caps.capabilities) &
+				       ~format_caps.capabilities;
+
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, NULL);
 	uint64_t val;
-	int ret;
+	int r, bit;
+
+	for_each_set_bit(bit, &reserved_caps, 64) {
+		r = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES,
+				  host_cap.capabilities ^ BIT_ULL(bit));
+		TEST_ASSERT(!r, "%s immutable feature 0x%llx (bit %d) didn't fail",
+			    host_cap.capabilities & BIT_ULL(bit) ? "Setting" : "Clearing",
+			    BIT_ULL(bit), bit);
+	}
 
 	/*
 	 * KVM only supports the host's native LBR format, as well as '0' (to
@@ -106,9 +129,10 @@ static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
 		if (val == (host_cap.capabilities & PMU_CAP_LBR_FMT))
 			continue;
 
-		ret = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, val);
-		TEST_ASSERT(!ret, "Bad LBR FMT = 0x%lx didn't fail", val);
+		r = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, val);
+		TEST_ASSERT(!r, "Bad LBR FMT = 0x%lx didn't fail", val);
 	}
+
 	kvm_vm_free(vm);
 }
 
