@@ -705,6 +705,15 @@ Description:
 		zoned will report "none".
 
 
+What:		/sys/block/<disk>/hidden
+Date:		March 2023
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] the block device is hidden. it doesn’t produce events, and
+		can’t be opened from userspace or using blkdev_get*.
+		Used for the underlying components of multipath devices.
+
+
 What:		/sys/block/<disk>/stat
 Date:		February 2008
 Contact:	Jerome Marchand <jmarchan@redhat.com>
