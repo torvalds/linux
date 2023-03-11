@@ -1546,7 +1546,7 @@ static struct platform_driver mtk_i2c_driver = {
 	.driver = {
 		.name = I2C_DRV_NAME,
 		.pm = &mtk_i2c_pm,
-		.of_match_table = of_match_ptr(mtk_i2c_of_match),
+		.of_match_table = mtk_i2c_of_match,
 	},
 };
 
