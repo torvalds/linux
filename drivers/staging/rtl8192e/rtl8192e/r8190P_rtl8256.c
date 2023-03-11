@@ -74,12 +74,10 @@ bool rtl92e_config_rf(struct net_device *dev)
 
 		switch (eRFPath) {
 		case RF90_PATH_A:
-		case RF90_PATH_C:
 			u4RegValue = rtl92e_get_bb_reg(dev, pPhyReg->rfintfs,
 						       bRFSI_RFENV);
 			break;
 		case RF90_PATH_B:
-		case RF90_PATH_D:
 			u4RegValue = rtl92e_get_bb_reg(dev, pPhyReg->rfintfs,
 						       bRFSI_RFENV<<16);
 			break;
@@ -120,12 +118,10 @@ bool rtl92e_config_rf(struct net_device *dev)
 
 		switch (eRFPath) {
 		case RF90_PATH_A:
-		case RF90_PATH_C:
 			rtl92e_set_bb_reg(dev, pPhyReg->rfintfs, bRFSI_RFENV,
 					  u4RegValue);
 			break;
 		case RF90_PATH_B:
-		case RF90_PATH_D:
 			rtl92e_set_bb_reg(dev, pPhyReg->rfintfs,
 					  bRFSI_RFENV<<16, u4RegValue);
 			break;
