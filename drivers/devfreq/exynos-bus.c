@@ -513,7 +513,7 @@ static struct platform_driver exynos_bus_platdrv = {
 	.driver = {
 		.name	= "exynos-bus",
 		.pm	= &exynos_bus_pm,
-		.of_match_table = of_match_ptr(exynos_bus_of_match),
+		.of_match_table = exynos_bus_of_match,
 	},
 };
 module_platform_driver(exynos_bus_platdrv);
