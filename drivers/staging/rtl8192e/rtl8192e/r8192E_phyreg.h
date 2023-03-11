@@ -80,8 +80,6 @@
 #define rFPGA0_XC_LSSIReadBack		0x8a8
 #define rFPGA0_XD_LSSIReadBack		0x8ac
 #define rFPGA0_PSDReport		0x8b4
-#define rFPGA0_XAB_RFInterfaceRB	0x8e0
-#define rFPGA0_XCD_RFInterfaceRB	0x8e4
 
 /* Page 9 - RF mode & OFDM TxSC */
 #define rFPGA1_RFMOD			0x900

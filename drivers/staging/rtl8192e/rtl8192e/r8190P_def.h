@@ -103,7 +103,6 @@ enum rf_optype {
 
 struct bb_reg_definition {
 	u32 rfintfs;
-	u32 rfintfi;
 	u32 rfintfo;
 	u32 rfintfe;
 	u32 rf3wireOffset;
