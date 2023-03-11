@@ -441,27 +441,6 @@ EXPORT_SYMBOL_NS_GPL(cxl_hdm_decode_init, CXL);
 #define CXL_DOE_TABLE_ACCESS_LAST_ENTRY		0xffff
 #define CXL_DOE_PROTOCOL_TABLE_ACCESS 2
 
-static struct pci_doe_mb *find_cdat_doe(struct device *uport)
-{
-	struct cxl_memdev *cxlmd;
-	struct cxl_dev_state *cxlds;
-	unsigned long index;
-	void *entry;
-
-	cxlmd = to_cxl_memdev(uport);
-	cxlds = cxlmd->cxlds;
-
-	xa_for_each(&cxlds->doe_mbs, index, entry) {
-		struct pci_doe_mb *cur = entry;
-
-		if (pci_doe_supports_prot(cur, PCI_DVSEC_VENDOR_ID_CXL,
-					  CXL_DOE_PROTOCOL_TABLE_ACCESS))
-			return cur;
-	}
-
-	return NULL;
-}
-
 #define CDAT_DOE_REQ(entry_handle) cpu_to_le32				\
 	(FIELD_PREP(CXL_DOE_TABLE_ACCESS_REQ_CODE,			\
 		    CXL_DOE_TABLE_ACCESS_REQ_CODE_READ) |		\
@@ -559,10 +538,14 @@ void read_cdat_data(struct cxl_port *port)
 	struct pci_doe_mb *cdat_doe;
 	struct device *dev = &port->dev;
 	struct device *uport = port->uport;
+	struct cxl_memdev *cxlmd = to_cxl_memdev(uport);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	size_t cdat_length;
 	int rc;
 
-	cdat_doe = find_cdat_doe(uport);
+	cdat_doe = pci_find_doe_mailbox(pdev, PCI_DVSEC_VENDOR_ID_CXL,
+					CXL_DOE_PROTOCOL_TABLE_ACCESS);
 	if (!cdat_doe) {
 		dev_dbg(dev, "No CDAT mailbox\n");
 		return;

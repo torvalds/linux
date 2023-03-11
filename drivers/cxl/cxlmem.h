@@ -249,7 +249,6 @@ struct cxl_event_state {
  * @component_reg_phys: register base of component registers
  * @info: Cached DVSEC information about the device.
  * @serial: PCIe Device Serial Number
- * @doe_mbs: PCI DOE mailbox array
  * @event: event log driver state
  * @mbox_send: @dev specific transport for transmitting mailbox commands
  *
@@ -286,8 +285,6 @@ struct cxl_dev_state {
 
 	resource_size_t component_reg_phys;
 	u64 serial;
-
-	struct xarray doe_mbs;
 
 	struct cxl_event_state event;
 
