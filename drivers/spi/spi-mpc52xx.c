@@ -101,7 +101,7 @@ static void mpc52xx_spi_chipsel(struct mpc52xx_spi *ms, int value)
 	int cs;
 
 	if (ms->gpio_cs_count > 0) {
-		cs = ms->message->spi->chip_select;
+		cs = spi_get_chipselect(ms->message->spi, 0);
 		gpiod_set_value(ms->gpio_cs[cs], value);
 	} else {
 		out_8(ms->regs + SPI_PORTDATA, value ? 0 : 0x08);

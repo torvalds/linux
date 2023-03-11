@@ -390,7 +390,7 @@ static int at91_usart_spi_setup(struct spi_device *spi)
 
 	dev_dbg(&spi->dev,
 		"setup: bpw %u mode 0x%x -> mr %d %08x\n",
-		spi->bits_per_word, spi->mode, spi->chip_select, mr);
+		spi->bits_per_word, spi->mode, spi_get_chipselect(spi, 0), mr);
 
 	return 0;
 }

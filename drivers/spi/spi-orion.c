@@ -346,7 +346,7 @@ static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 	 * as it is handled by a GPIO, but that doesn't matter. What we need
 	 * is to deassert the old chip select and assert some other chip select.
 	 */
-	val |= ORION_SPI_CS(spi->chip_select);
+	val |= ORION_SPI_CS(spi_get_chipselect(spi, 0));
 
 	/*
 	 * Chip select logic is inverted from spi_set_cs(). For lines using a
@@ -470,7 +470,7 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 	unsigned int count;
 	int word_len;
 	struct orion_spi *orion_spi;
-	int cs = spi->chip_select;
+	int cs = spi_get_chipselect(spi, 0);
 	void __iomem *vaddr;
 
 	word_len = spi->bits_per_word;

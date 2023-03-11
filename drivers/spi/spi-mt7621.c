@@ -76,7 +76,7 @@ static inline void mt7621_spi_write(struct mt7621_spi *rs, u32 reg, u32 val)
 static void mt7621_spi_set_cs(struct spi_device *spi, int enable)
 {
 	struct mt7621_spi *rs = spidev_to_mt7621_spi(spi);
-	int cs = spi->chip_select;
+	int cs = spi_get_chipselect(spi, 0);
 	u32 polar = 0;
 	u32 master;
 

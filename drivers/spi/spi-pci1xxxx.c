@@ -116,11 +116,11 @@ static void pci1xxxx_spi_set_cs(struct spi_device *spi, bool enable)
 	regval = readl(par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
 	if (enable) {
 		regval &= ~SPI_MST_CTL_DEVSEL_MASK;
-		regval |= (spi->chip_select << 25);
+		regval |= (spi_get_chipselect(spi, 0) << 25);
 		writel(regval,
 		       par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
 	} else {
-		regval &= ~(spi->chip_select << 25);
+		regval &= ~(spi_get_chipselect(spi, 0) << 25);
 		writel(regval,
 		       par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
 

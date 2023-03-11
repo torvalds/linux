@@ -425,7 +425,7 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 	if (fsl_lpspi->is_only_cs1)
 		fsl_lpspi->config.chip_select = 1;
 	else
-		fsl_lpspi->config.chip_select = spi->chip_select;
+		fsl_lpspi->config.chip_select = spi_get_chipselect(spi, 0);
 
 	if (!fsl_lpspi->config.speed_hz)
 		fsl_lpspi->config.speed_hz = spi->max_speed_hz;

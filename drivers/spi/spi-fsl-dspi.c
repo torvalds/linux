@@ -902,19 +902,19 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 
 static void dspi_assert_cs(struct spi_device *spi, bool *cs)
 {
-	if (!spi->cs_gpiod || *cs)
+	if (!spi_get_csgpiod(spi, 0) || *cs)
 		return;
 
-	gpiod_set_value_cansleep(spi->cs_gpiod, true);
+	gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), true);
 	*cs = true;
 }
 
 static void dspi_deassert_cs(struct spi_device *spi, bool *cs)
 {
-	if (!spi->cs_gpiod || !*cs)
+	if (!spi_get_csgpiod(spi, 0) || !*cs)
 		return;
 
-	gpiod_set_value_cansleep(spi->cs_gpiod, false);
+	gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), false);
 	*cs = false;
 }
 
@@ -938,8 +938,8 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 
 		/* Prepare command word for CMD FIFO */
 		dspi->tx_cmd = SPI_PUSHR_CMD_CTAS(0);
-		if (!spi->cs_gpiod)
-			dspi->tx_cmd |= SPI_PUSHR_CMD_PCS(spi->chip_select);
+		if (!spi_get_csgpiod(spi, 0))
+			dspi->tx_cmd |= SPI_PUSHR_CMD_PCS(spi_get_chipselect(spi, 0));
 
 		if (list_is_last(&dspi->cur_transfer->transfer_list,
 				 &dspi->cur_msg->transfers)) {
@@ -1058,7 +1058,7 @@ static int dspi_setup(struct spi_device *spi)
 			chip->ctar_val |= SPI_CTAR_LSBFE;
 	}
 
-	gpiod_direction_output(spi->cs_gpiod, false);
+	gpiod_direction_output(spi_get_csgpiod(spi, 0), false);
 	dspi_deassert_cs(spi, &cs);
 
 	spi_set_ctldata(spi, chip);
@@ -1071,7 +1071,7 @@ static void dspi_cleanup(struct spi_device *spi)
 	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
 
 	dev_dbg(&spi->dev, "spi_device %u.%u cleanup\n",
-		spi->controller->bus_num, spi->chip_select);
+		spi->controller->bus_num, spi_get_chipselect(spi, 0));
 
 	kfree(chip);
 }

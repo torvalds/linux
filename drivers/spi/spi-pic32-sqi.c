@@ -267,7 +267,7 @@ static int pic32_sqi_one_transfer(struct pic32_sqi *sqi,
 	u32 nbits;
 
 	/* Device selection */
-	bd_ctrl = spi->chip_select << BD_DEVSEL_SHIFT;
+	bd_ctrl = spi_get_chipselect(spi, 0) << BD_DEVSEL_SHIFT;
 
 	/* half-duplex: select transfer buffer, direction and lane */
 	if (xfer->rx_buf) {

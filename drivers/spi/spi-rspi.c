@@ -950,7 +950,7 @@ static int rspi_setup(struct spi_device *spi)
 	struct rspi_data *rspi = spi_controller_get_devdata(spi->controller);
 	u8 sslp;
 
-	if (spi->cs_gpiod)
+	if (spi_get_csgpiod(spi, 0))
 		return 0;
 
 	pm_runtime_get_sync(&rspi->pdev->dev);
@@ -958,9 +958,9 @@ static int rspi_setup(struct spi_device *spi)
 
 	sslp = rspi_read8(rspi, RSPI_SSLP);
 	if (spi->mode & SPI_CS_HIGH)
-		sslp |= SSLP_SSLP(spi->chip_select);
+		sslp |= SSLP_SSLP(spi_get_chipselect(spi, 0));
 	else
-		sslp &= ~SSLP_SSLP(spi->chip_select);
+		sslp &= ~SSLP_SSLP(spi_get_chipselect(spi, 0));
 	rspi_write8(rspi, sslp, RSPI_SSLP);
 
 	spin_unlock_irq(&rspi->lock);
@@ -1001,8 +1001,8 @@ static int rspi_prepare_message(struct spi_controller *ctlr,
 		rspi->spcmd |= SPCMD_LSBF;
 
 	/* Configure slave signal to assert */
-	rspi->spcmd |= SPCMD_SSLA(spi->cs_gpiod ? rspi->ctlr->unused_native_cs
-						: spi->chip_select);
+	rspi->spcmd |= SPCMD_SSLA(spi_get_csgpiod(spi, 0) ? rspi->ctlr->unused_native_cs
+						: spi_get_chipselect(spi, 0));
 
 	/* CMOS output mode and MOSI signal from previous transfer */
 	rspi->sppcr = 0;

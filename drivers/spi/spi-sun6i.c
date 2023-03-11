@@ -174,7 +174,7 @@ static void sun6i_spi_set_cs(struct spi_device *spi, bool enable)
 
 	reg = sun6i_spi_read(sspi, SUN6I_TFR_CTL_REG);
 	reg &= ~SUN6I_TFR_CTL_CS_MASK;
-	reg |= SUN6I_TFR_CTL_CS(spi->chip_select);
+	reg |= SUN6I_TFR_CTL_CS(spi_get_chipselect(spi, 0));
 
 	if (enable)
 		reg |= SUN6I_TFR_CTL_CS_LEVEL;

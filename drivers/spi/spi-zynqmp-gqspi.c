@@ -468,7 +468,7 @@ static void zynqmp_qspi_chipselect(struct spi_device *qspi, bool is_high)
 	genfifoentry |= GQSPI_GENFIFO_MODE_SPI;
 
 	if (!is_high) {
-		if (!qspi->chip_select) {
+		if (!spi_get_chipselect(qspi, 0)) {
 			xqspi->genfifobus = GQSPI_GENFIFO_BUS_LOWER;
 			xqspi->genfifocs = GQSPI_GENFIFO_CS_LOWER;
 		} else {
