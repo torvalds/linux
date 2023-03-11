@@ -1006,7 +1006,7 @@ static bool next_bucket(struct bch_fs *c, struct bpos *bucket)
 	iter = bucket->inode;
 	ca = __bch2_next_dev(c, &iter, NULL);
 	if (ca)
-		bucket->offset = ca->mi.first_bucket;
+		*bucket = POS(ca->dev_idx, ca->mi.first_bucket);
 	rcu_read_unlock();
 
 	return ca != NULL;
