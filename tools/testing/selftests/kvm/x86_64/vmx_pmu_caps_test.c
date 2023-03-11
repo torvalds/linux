@@ -41,24 +41,10 @@ static void guest_code(void)
 	wrmsr(MSR_IA32_PERF_CAPABILITIES, PMU_CAP_LBR_FMT);
 }
 
-int main(int argc, char *argv[])
+static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
 {
-	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
-	int ret;
-	union perf_capabilities host_cap;
-	uint64_t val;
-
-	host_cap.capabilities = kvm_get_feature_msr(MSR_IA32_PERF_CAPABILITIES);
-	host_cap.capabilities &= (PMU_CAP_FW_WRITES | PMU_CAP_LBR_FMT);
-
-	/* Create VM */
-	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-
-	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_PDCM));
-
-	TEST_REQUIRE(kvm_cpu_has_p(X86_PROPERTY_PMU_VERSION));
-	TEST_REQUIRE(kvm_cpu_property(X86_PROPERTY_PMU_VERSION) > 0);
+	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	/* testcase 1, set capabilities when we have PDCM bit */
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, PMU_CAP_FW_WRITES);
@@ -70,7 +56,16 @@ int main(int argc, char *argv[])
 	vcpu_run(vcpu);
 	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), PMU_CAP_FW_WRITES);
 
-	/* testcase 2, check valid LBR formats are accepted */
+	kvm_vm_free(vm);
+}
+
+static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, NULL);
+	uint64_t val;
+	int ret;
+
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, 0);
 	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), 0);
 
@@ -78,8 +73,8 @@ int main(int argc, char *argv[])
 	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), (u64)host_cap.lbr_format);
 
 	/*
-	 * Testcase 3, check that an "invalid" LBR format is rejected.  Only an
-	 * exact match of the host's format (and 0/disabled) is allowed.
+	 * KVM only supports the host's native LBR format, as well as '0' (to
+	 * disable LBR support).  Verify KVM rejects all other LBR formats.
 	 */
 	for (val = 1; val <= PMU_CAP_LBR_FMT; val++) {
 		if (val == (host_cap.capabilities & PMU_CAP_LBR_FMT))
@@ -88,7 +83,23 @@ int main(int argc, char *argv[])
 		ret = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, val);
 		TEST_ASSERT(!ret, "Bad LBR FMT = 0x%lx didn't fail", val);
 	}
+	kvm_vm_free(vm);
+}
+
+int main(int argc, char *argv[])
+{
+	union perf_capabilities host_cap;
+
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_PDCM));
+
+	TEST_REQUIRE(kvm_cpu_has_p(X86_PROPERTY_PMU_VERSION));
+	TEST_REQUIRE(kvm_cpu_property(X86_PROPERTY_PMU_VERSION) > 0);
+
+	host_cap.capabilities = kvm_get_feature_msr(MSR_IA32_PERF_CAPABILITIES);
+	host_cap.capabilities &= (PMU_CAP_FW_WRITES | PMU_CAP_LBR_FMT);
+
+	test_fungible_perf_capabilities(host_cap);
+	test_immutable_perf_capabilities(host_cap);
 
 	printf("Completed perf capability tests.\n");
-	kvm_vm_free(vm);
 }
