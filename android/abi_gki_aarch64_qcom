@@ -2122,6 +2122,7 @@
   msi_get_virq
   msleep
   msleep_interruptible
+  mtree_load
   __mutex_init
   mutex_is_locked
   mutex_lock
@@ -4107,6 +4108,7 @@
   xsk_tx_peek_desc
   xsk_tx_release
   xsk_uses_need_wakeup
+  zap_vma_ptes
   zlib_deflate
   zlib_deflateEnd
   zlib_deflateInit2
