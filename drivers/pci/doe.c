@@ -429,7 +429,7 @@ static void pci_doe_destroy_workqueue(void *mb)
 	destroy_workqueue(doe_mb->work_queue);
 }
 
-static void pci_doe_flush_mb(void *mb)
+static void pci_doe_cancel_tasks(void *mb)
 {
 	struct pci_doe_mb *doe_mb = mb;
 
@@ -439,9 +439,6 @@ static void pci_doe_flush_mb(void *mb)
 	/* Cancel an in progress work item, if necessary */
 	set_bit(PCI_DOE_FLAG_CANCEL, &doe_mb->flags);
 	wake_up(&doe_mb->wq);
-
-	/* Flush all work items */
-	flush_workqueue(doe_mb->work_queue);
 }
 
 /**
@@ -498,9 +495,9 @@ struct pci_doe_mb *pcim_doe_create_mb(struct pci_dev *pdev, u16 cap_offset)
 
 	/*
 	 * The state machine and the mailbox should be in sync now;
-	 * Set up mailbox flush prior to using the mailbox to query protocols.
+	 * Set up cancel tasks prior to using the mailbox to query protocols.
 	 */
-	rc = devm_add_action_or_reset(dev, pci_doe_flush_mb, doe_mb);
+	rc = devm_add_action_or_reset(dev, pci_doe_cancel_tasks, doe_mb);
 	if (rc)
 		return ERR_PTR(rc);
 
