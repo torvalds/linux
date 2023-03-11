@@ -37,7 +37,7 @@
  *
  * This state is used to manage a single DOE mailbox capability.  All fields
  * should be considered opaque to the consumers and the structure passed into
- * the helpers below after being created by devm_pci_doe_create()
+ * the helpers below after being created by pci_doe_create_mb().
  *
  * @pdev: PCI device this mailbox belongs to
  * @cap_offset: Capability offset
@@ -415,24 +415,8 @@ static int pci_doe_cache_protocols(struct pci_doe_mb *doe_mb)
 	return 0;
 }
 
-static void pci_doe_xa_destroy(void *mb)
+static void pci_doe_cancel_tasks(struct pci_doe_mb *doe_mb)
 {
-	struct pci_doe_mb *doe_mb = mb;
-
-	xa_destroy(&doe_mb->prots);
-}
-
-static void pci_doe_destroy_workqueue(void *mb)
-{
-	struct pci_doe_mb *doe_mb = mb;
-
-	destroy_workqueue(doe_mb->work_queue);
-}
-
-static void pci_doe_cancel_tasks(void *mb)
-{
-	struct pci_doe_mb *doe_mb = mb;
-
 	/* Stop all pending work items from starting */
 	set_bit(PCI_DOE_FLAG_DEAD, &doe_mb->flags);
 
@@ -442,7 +426,7 @@ static void pci_doe_cancel_tasks(void *mb)
 }
 
 /**
- * pcim_doe_create_mb() - Create a DOE mailbox object
+ * pci_doe_create_mb() - Create a DOE mailbox object
  *
  * @pdev: PCI device to create the DOE mailbox for
  * @cap_offset: Offset of the DOE mailbox
@@ -453,24 +437,20 @@ static void pci_doe_cancel_tasks(void *mb)
  * RETURNS: created mailbox object on success
  *	    ERR_PTR(-errno) on failure
  */
-struct pci_doe_mb *pcim_doe_create_mb(struct pci_dev *pdev, u16 cap_offset)
+static struct pci_doe_mb *pci_doe_create_mb(struct pci_dev *pdev,
+					    u16 cap_offset)
 {
 	struct pci_doe_mb *doe_mb;
-	struct device *dev = &pdev->dev;
 	int rc;
 
-	doe_mb = devm_kzalloc(dev, sizeof(*doe_mb), GFP_KERNEL);
+	doe_mb = kzalloc(sizeof(*doe_mb), GFP_KERNEL);
 	if (!doe_mb)
 		return ERR_PTR(-ENOMEM);
 
 	doe_mb->pdev = pdev;
 	doe_mb->cap_offset = cap_offset;
 	init_waitqueue_head(&doe_mb->wq);
-
 	xa_init(&doe_mb->prots);
-	rc = devm_add_action(dev, pci_doe_xa_destroy, doe_mb);
-	if (rc)
-		return ERR_PTR(rc);
 
 	doe_mb->work_queue = alloc_ordered_workqueue("%s %s DOE [%x]", 0,
 						dev_driver_string(&pdev->dev),
@@ -479,34 +459,83 @@ struct pci_doe_mb *pcim_doe_create_mb(struct pci_dev *pdev, u16 cap_offset)
 	if (!doe_mb->work_queue) {
 		pci_err(pdev, "[%x] failed to allocate work queue\n",
 			doe_mb->cap_offset);
-		return ERR_PTR(-ENOMEM);
+		rc = -ENOMEM;
+		goto err_free;
 	}
-	rc = devm_add_action_or_reset(dev, pci_doe_destroy_workqueue, doe_mb);
-	if (rc)
-		return ERR_PTR(rc);
 
 	/* Reset the mailbox by issuing an abort */
 	rc = pci_doe_abort(doe_mb);
 	if (rc) {
 		pci_err(pdev, "[%x] failed to reset mailbox with abort command : %d\n",
 			doe_mb->cap_offset, rc);
-		return ERR_PTR(rc);
+		goto err_destroy_wq;
 	}
 
 	/*
 	 * The state machine and the mailbox should be in sync now;
-	 * Set up cancel tasks prior to using the mailbox to query protocols.
+	 * Use the mailbox to query protocols.
 	 */
-	rc = devm_add_action_or_reset(dev, pci_doe_cancel_tasks, doe_mb);
-	if (rc)
-		return ERR_PTR(rc);
-
 	rc = pci_doe_cache_protocols(doe_mb);
 	if (rc) {
 		pci_err(pdev, "[%x] failed to cache protocols : %d\n",
 			doe_mb->cap_offset, rc);
-		return ERR_PTR(rc);
+		goto err_cancel;
 	}
+
+	return doe_mb;
+
+err_cancel:
+	pci_doe_cancel_tasks(doe_mb);
+	xa_destroy(&doe_mb->prots);
+err_destroy_wq:
+	destroy_workqueue(doe_mb->work_queue);
+err_free:
+	kfree(doe_mb);
+	return ERR_PTR(rc);
+}
+
+/**
+ * pci_doe_destroy_mb() - Destroy a DOE mailbox object
+ *
+ * @ptr: Pointer to DOE mailbox
+ *
+ * Destroy all internal data structures created for the DOE mailbox.
+ */
+static void pci_doe_destroy_mb(void *ptr)
+{
+	struct pci_doe_mb *doe_mb = ptr;
+
+	pci_doe_cancel_tasks(doe_mb);
+	xa_destroy(&doe_mb->prots);
+	destroy_workqueue(doe_mb->work_queue);
+	kfree(doe_mb);
+}
+
+/**
+ * pcim_doe_create_mb() - Create a DOE mailbox object
+ *
+ * @pdev: PCI device to create the DOE mailbox for
+ * @cap_offset: Offset of the DOE mailbox
+ *
+ * Create a single mailbox object to manage the mailbox protocol at the
+ * cap_offset specified.  The mailbox will automatically be destroyed on
+ * driver unbinding from @pdev.
+ *
+ * RETURNS: created mailbox object on success
+ *	    ERR_PTR(-errno) on failure
+ */
+struct pci_doe_mb *pcim_doe_create_mb(struct pci_dev *pdev, u16 cap_offset)
+{
+	struct pci_doe_mb *doe_mb;
+	int rc;
+
+	doe_mb = pci_doe_create_mb(pdev, cap_offset);
+	if (IS_ERR(doe_mb))
+		return doe_mb;
+
+	rc = devm_add_action_or_reset(&pdev->dev, pci_doe_destroy_mb, doe_mb);
+	if (rc)
+		return ERR_PTR(rc);
 
 	return doe_mb;
 }
