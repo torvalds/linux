@@ -23043,7 +23043,6 @@ F:	drivers/i2c/busses/i2c-xlp9xx.c
 
 XRA1403 GPIO EXPANDER
 M:	Nandor Han <nandor.han@ge.com>
-M:	Semi Malinen <semi.malinen@ge.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/gpio/gpio-xra1403.txt
