@@ -475,10 +475,10 @@ static int cxl_cdat_get_length(struct device *dev,
 
 static int cxl_cdat_read_table(struct device *dev,
 			       struct pci_doe_mb *cdat_doe,
-			       struct cxl_cdat *cdat)
+			       void *cdat_table, size_t *cdat_length)
 {
-	size_t length = cdat->length;
-	__le32 *data = cdat->table;
+	size_t length = *cdat_length;
+	__le32 *data = cdat_table;
 	int entry_handle = 0;
 
 	do {
@@ -522,7 +522,7 @@ static int cxl_cdat_read_table(struct device *dev,
 	} while (entry_handle != CXL_DOE_TABLE_ACCESS_LAST_ENTRY);
 
 	/* Length in CDAT header may exceed concatenation of CDAT entries */
-	cdat->length -= length;
+	*cdat_length -= length;
 
 	return 0;
 }
@@ -542,6 +542,7 @@ void read_cdat_data(struct cxl_port *port)
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	size_t cdat_length;
+	void *cdat_table;
 	int rc;
 
 	cdat_doe = pci_find_doe_mailbox(pdev, PCI_DVSEC_VENDOR_ID_CXL,
@@ -558,19 +559,19 @@ void read_cdat_data(struct cxl_port *port)
 		return;
 	}
 
-	port->cdat.table = devm_kzalloc(dev, cdat_length, GFP_KERNEL);
-	if (!port->cdat.table)
+	cdat_table = devm_kzalloc(dev, cdat_length, GFP_KERNEL);
+	if (!cdat_table)
 		return;
 
-	port->cdat.length = cdat_length;
-	rc = cxl_cdat_read_table(dev, cdat_doe, &port->cdat);
+	rc = cxl_cdat_read_table(dev, cdat_doe, cdat_table, &cdat_length);
 	if (rc) {
 		/* Don't leave table data allocated on error */
-		devm_kfree(dev, port->cdat.table);
-		port->cdat.table = NULL;
-		port->cdat.length = 0;
+		devm_kfree(dev, cdat_table);
 		dev_err(dev, "CDAT data read error\n");
 	}
+
+	port->cdat.table = cdat_table;
+	port->cdat.length = cdat_length;
 }
 EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);
 
