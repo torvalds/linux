@@ -578,10 +578,6 @@ static void register_iommu_iovad_init_alloc_algo_vh(void)
 		pr_err("Failed to register init_iovad_attr vendor hook\n");
 }
 
-#define IOMMU_DEFAULT_IOVA_MAX_ALIGN_SHIFT	9
-
-static unsigned long iommu_max_align_shift __read_mostly = IOMMU_DEFAULT_IOVA_MAX_ALIGN_SHIFT;
-
 static struct iova *to_iova(struct rb_node *node)
 {
 	return rb_entry(node, struct iova, node);
@@ -618,8 +614,16 @@ static unsigned long limit_align_shift(struct iova_domain *iovad,
 				       unsigned long shift)
 {
 	unsigned long max_align_shift;
+	unsigned long new_shift;
 
-	max_align_shift = iommu_max_align_shift + PAGE_SHIFT - iova_shift(iovad);
+	new_shift = iovad_get_max_align_shift(iovad);
+
+	/* If device doesn't override reuse current value */
+	if (!new_shift)
+		return shift;
+
+	max_align_shift = new_shift + PAGE_SHIFT - iova_shift(iovad);
+
 	return min_t(unsigned long, max_align_shift, shift);
 }
 
@@ -707,12 +711,31 @@ static void register_iommu_alloc_insert_iova_vh(void)
 		pr_err("Failed to register alloc_inser_iova vendor hook\n");
 	}
 }
+
+static void __qcom_limit_align_shift(void *data, struct iova_domain *iovad,
+		unsigned long size, unsigned long *shift)
+{
+	*shift = limit_align_shift(iovad, *shift);
+}
+
+static void register_iommu_limit_align_shift(void)
+{
+	if (register_trace_android_rvh_iommu_limit_align_shift(
+			__qcom_limit_align_shift, NULL)) {
+		pr_err("Failed to register limit_align_shift vendor hook\n");
+	}
+}
+
 #else
 static void register_iommu_iovad_init_alloc_algo_vh(void)
 {
 }
 
 static void register_iommu_alloc_insert_iova_vh(void)
+{
+}
+
+static void register_iommu_limit_align_shift(void)
 {
 }
 #endif
@@ -758,6 +781,7 @@ static int __init qcom_iommu_util_init(void)
 
 	register_iommu_iovad_init_alloc_algo_vh();
 	register_iommu_alloc_insert_iova_vh();
+	register_iommu_limit_align_shift();
 
 	return 0;
 
