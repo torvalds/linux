@@ -121,7 +121,7 @@ struct bch_write_op {
 	unsigned		nr_replicas_required:4;
 	unsigned		alloc_reserve:3;
 	unsigned		incompressible:1;
-	unsigned		btree_update_ready:1;
+	unsigned		stripe_waited:1;
 
 	struct bch_devs_list	devs_have;
 	u16			target;

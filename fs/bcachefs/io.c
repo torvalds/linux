@@ -834,36 +834,30 @@ static void bch2_write_index(struct closure *cl)
 	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
 	struct write_point *wp = op->wp;
 	struct workqueue_struct *wq = index_update_wq(op);
+	unsigned long flags;
 
 	if ((op->flags & BCH_WRITE_DONE) &&
 	    (op->flags & BCH_WRITE_MOVE))
 		bch2_bio_free_pages_pool(op->c, &op->wbio.bio);
 
-	barrier();
-
-	/*
-	 * We're not using wp->writes_lock here, so this is racey: that's ok,
-	 * because this is just for diagnostic purposes, and we're running out
-	 * of interrupt context here so if we were to take the log we'd have to
-	 * switch to spin_lock_irq()/irqsave(), which is not free:
-	 */
+	spin_lock_irqsave(&wp->writes_lock, flags);
 	if (wp->state == WRITE_POINT_waiting_io)
 		__wp_update_state(wp, WRITE_POINT_waiting_work);
+	list_add_tail(&op->wp_list, &wp->writes);
+	spin_unlock_irqrestore (&wp->writes_lock, flags);
 
-	op->btree_update_ready = true;
 	queue_work(wq, &wp->index_update_work);
 }
 
 static inline void bch2_write_queue(struct bch_write_op *op, struct write_point *wp)
 {
-	op->btree_update_ready = false;
 	op->wp = wp;
 
-	spin_lock(&wp->writes_lock);
-	list_add_tail(&op->wp_list, &wp->writes);
-	if (wp->state == WRITE_POINT_stopped)
+	if (wp->state == WRITE_POINT_stopped) {
+		spin_lock_irq(&wp->writes_lock);
 		__wp_update_state(wp, WRITE_POINT_waiting_io);
-	spin_unlock(&wp->writes_lock);
+		spin_unlock_irq(&wp->writes_lock);
+	}
 }
 
 void bch2_write_point_do_index_updates(struct work_struct *work)
@@ -873,16 +867,12 @@ void bch2_write_point_do_index_updates(struct work_struct *work)
 	struct bch_write_op *op;
 
 	while (1) {
-		spin_lock(&wp->writes_lock);
-		list_for_each_entry(op, &wp->writes, wp_list)
-			if (op->btree_update_ready) {
-				list_del(&op->wp_list);
-				goto unlock;
-			}
-		op = NULL;
-unlock:
+		spin_lock_irq(&wp->writes_lock);
+		op = list_first_entry_or_null(&wp->writes, struct bch_write_op, wp_list);
+		if (op)
+			list_del(&op->wp_list);
 		wp_update_state(wp, op != NULL);
-		spin_unlock(&wp->writes_lock);
+		spin_unlock_irq(&wp->writes_lock);
 
 		if (!op)
 			break;
@@ -1673,7 +1663,6 @@ static void __bch2_write(struct bch_write_op *op)
 	}
 again:
 	memset(&op->failed, 0, sizeof(op->failed));
-	op->btree_update_ready = false;
 
 	do {
 		struct bkey_i *key_to_write;
