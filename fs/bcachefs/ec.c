@@ -659,14 +659,13 @@ static void bch2_stripe_close(struct bch_fs *c, struct ec_stripe_new *s)
 static u64 stripe_idx_to_delete(struct bch_fs *c)
 {
 	ec_stripes_heap *h = &c->ec_stripes_heap;
-	size_t heap_idx;
 
 	lockdep_assert_held(&c->ec_stripes_heap_lock);
 
-	for (heap_idx = 0; heap_idx < h->used; heap_idx++)
-		if (h->data[heap_idx].blocks_nonempty == 0 &&
-		    !bch2_stripe_is_open(c, h->data[heap_idx].idx))
-			return h->data[heap_idx].idx;
+	if (h->used &&
+	    h->data[0].blocks_nonempty == 0 &&
+	    !bch2_stripe_is_open(c, h->data[0].idx))
+		return h->data[0].idx;
 
 	return 0;
 }
