@@ -117,12 +117,7 @@
 #define rOFDM0_HTSTFAGC			0xc7c
 #define rOFDM0_XATxIQImbalance		0xc80
 #define rOFDM0_XATxAFE			0xc84
-#define rOFDM0_XBTxIQImbalance		0xc88
-#define rOFDM0_XBTxAFE			0xc8c
 #define rOFDM0_XCTxIQImbalance		0xc90
-#define rOFDM0_XCTxAFE			0xc94
-#define rOFDM0_XDTxIQImbalance		0xc98
-#define rOFDM0_XDTxAFE			0xc9c
 #define rOFDM0_RxHPParameter		0xce0
 #define rOFDM0_TxPseudoNoiseWgt		0xce4
 #define rOFDM0_FrameSync		0xcf0
