@@ -164,7 +164,7 @@ MODULE_DEVICE_TABLE(of, lan9303_mdio_of_match);
 static struct mdio_driver lan9303_mdio_driver = {
 	.mdiodrv.driver = {
 		.name = "LAN9303_MDIO",
-		.of_match_table = of_match_ptr(lan9303_mdio_of_match),
+		.of_match_table = lan9303_mdio_of_match,
 	},
 	.probe  = lan9303_mdio_probe,
 	.remove = lan9303_mdio_remove,
