@@ -20,6 +20,8 @@
 #include <linux/pci-doe.h>
 #include <linux/workqueue.h>
 
+#include "pci.h"
+
 #define PCI_DOE_PROTOCOL_DISCOVERY 0
 
 /* Timeout of 1 second from 6.30.2 Operation, PCI Spec r6.0 */
@@ -658,3 +660,74 @@ int pci_doe(struct pci_doe_mb *doe_mb, u16 vendor, u8 type,
 	return task.rv;
 }
 EXPORT_SYMBOL_GPL(pci_doe);
+
+/**
+ * pci_find_doe_mailbox() - Find Data Object Exchange mailbox
+ *
+ * @pdev: PCI device
+ * @vendor: Vendor ID
+ * @type: Data Object Type
+ *
+ * Find first DOE mailbox of a PCI device which supports the given protocol.
+ *
+ * RETURNS: Pointer to the DOE mailbox or NULL if none was found.
+ */
+struct pci_doe_mb *pci_find_doe_mailbox(struct pci_dev *pdev, u16 vendor,
+					u8 type)
+{
+	struct pci_doe_mb *doe_mb;
+	unsigned long index;
+
+	xa_for_each(&pdev->doe_mbs, index, doe_mb)
+		if (pci_doe_supports_prot(doe_mb, vendor, type))
+			return doe_mb;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(pci_find_doe_mailbox);
+
+void pci_doe_init(struct pci_dev *pdev)
+{
+	struct pci_doe_mb *doe_mb;
+	u16 offset = 0;
+	int rc;
+
+	xa_init(&pdev->doe_mbs);
+
+	while ((offset = pci_find_next_ext_capability(pdev, offset,
+						      PCI_EXT_CAP_ID_DOE))) {
+		doe_mb = pci_doe_create_mb(pdev, offset);
+		if (IS_ERR(doe_mb)) {
+			pci_err(pdev, "[%x] failed to create mailbox: %ld\n",
+				offset, PTR_ERR(doe_mb));
+			continue;
+		}
+
+		rc = xa_insert(&pdev->doe_mbs, offset, doe_mb, GFP_KERNEL);
+		if (rc) {
+			pci_err(pdev, "[%x] failed to insert mailbox: %d\n",
+				offset, rc);
+			pci_doe_destroy_mb(doe_mb);
+		}
+	}
+}
+
+void pci_doe_destroy(struct pci_dev *pdev)
+{
+	struct pci_doe_mb *doe_mb;
+	unsigned long index;
+
+	xa_for_each(&pdev->doe_mbs, index, doe_mb)
+		pci_doe_destroy_mb(doe_mb);
+
+	xa_destroy(&pdev->doe_mbs);
+}
+
+void pci_doe_disconnected(struct pci_dev *pdev)
+{
+	struct pci_doe_mb *doe_mb;
+	unsigned long index;
+
+	xa_for_each(&pdev->doe_mbs, index, doe_mb)
+		pci_doe_cancel_tasks(doe_mb);
+}
