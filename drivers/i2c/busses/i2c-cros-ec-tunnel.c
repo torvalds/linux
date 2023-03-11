@@ -292,13 +292,13 @@ static int ec_i2c_remove(struct platform_device *dev)
 	return 0;
 }
 
-static const struct of_device_id cros_ec_i2c_of_match[] = {
+static const struct of_device_id cros_ec_i2c_of_match[] __maybe_unused = {
 	{ .compatible = "google,cros-ec-i2c-tunnel" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, cros_ec_i2c_of_match);
 
-static const struct acpi_device_id cros_ec_i2c_tunnel_acpi_id[] = {
+static const struct acpi_device_id cros_ec_i2c_tunnel_acpi_id[] __maybe_unused = {
 	{ "GOOG0012", 0 },
 	{ }
 };
