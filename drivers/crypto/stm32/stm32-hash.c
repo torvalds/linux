@@ -417,7 +417,7 @@ static int stm32_hash_update_cpu(struct stm32_hash_dev *hdev)
 
 	dev_dbg(hdev->dev, "%s flags %lx\n", __func__, rctx->flags);
 
-	final = (rctx->flags & HASH_FLAGS_FINUP);
+	final = rctx->flags & HASH_FLAGS_FINAL;
 
 	while ((rctx->total >= rctx->buflen) ||
 	       (rctx->bufcnt + rctx->total >= rctx->buflen)) {
@@ -761,6 +761,11 @@ static int stm32_hash_init(struct ahash_request *req)
 
 static int stm32_hash_update_req(struct stm32_hash_dev *hdev)
 {
+	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(hdev->req);
+
+	if (!(rctx->flags & HASH_FLAGS_CPU))
+		return stm32_hash_dma_send(hdev);
+
 	return stm32_hash_update_cpu(hdev);
 }
 
@@ -768,17 +773,14 @@ static int stm32_hash_final_req(struct stm32_hash_dev *hdev)
 {
 	struct ahash_request *req = hdev->req;
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
-	int err;
 	int buflen = rctx->bufcnt;
+
+	if (rctx->flags & HASH_FLAGS_FINUP)
+		return stm32_hash_update_req(hdev);
 
 	rctx->bufcnt = 0;
 
-	if (!(rctx->flags & HASH_FLAGS_CPU))
-		err = stm32_hash_dma_send(hdev);
-	else
-		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, buflen, 1);
-
-	return err;
+	return stm32_hash_xmit_cpu(hdev, rctx->buffer, buflen, 1);
 }
 
 static void stm32_hash_emptymsg_fallback(struct ahash_request *req)
@@ -1000,7 +1002,7 @@ static int stm32_hash_final(struct ahash_request *req)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 
-	rctx->flags |= HASH_FLAGS_FINUP;
+	rctx->flags |= HASH_FLAGS_FINAL;
 
 	return stm32_hash_enqueue(req, HASH_OP_FINAL);
 }
@@ -1010,25 +1012,20 @@ static int stm32_hash_finup(struct ahash_request *req)
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
-	int err1, err2;
+
+	if (!req->nbytes)
+		goto out;
 
 	rctx->flags |= HASH_FLAGS_FINUP;
+	rctx->total = req->nbytes;
+	rctx->sg = req->src;
+	rctx->offset = 0;
 
 	if (hdev->dma_lch && stm32_hash_dma_aligned_data(req))
 		rctx->flags &= ~HASH_FLAGS_CPU;
 
-	err1 = stm32_hash_update(req);
-
-	if (err1 == -EINPROGRESS || err1 == -EBUSY)
-		return err1;
-
-	/*
-	 * final() has to be always called to cleanup resources
-	 * even if update() failed, except EINPROGRESS
-	 */
-	err2 = stm32_hash_final(req);
-
-	return err1 ?: err2;
+out:
+	return stm32_hash_final(req);
 }
 
 static int stm32_hash_digest(struct ahash_request *req)
