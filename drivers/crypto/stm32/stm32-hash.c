@@ -95,6 +95,7 @@
 #define HASH_FLAGS_SHA1			BIT(19)
 #define HASH_FLAGS_SHA224		BIT(20)
 #define HASH_FLAGS_SHA256		BIT(21)
+#define HASH_FLAGS_EMPTY		BIT(22)
 #define HASH_FLAGS_HMAC			BIT(23)
 
 #define HASH_OP_UPDATE			1
@@ -310,13 +311,6 @@ static void stm32_hash_write_ctrl(struct stm32_hash_dev *hdev, int bufcnt)
 				reg |= HASH_CR_LKEY;
 		}
 
-		/*
-		 * On the Ux500 we need to set a special flag to indicate that
-		 * the message is zero length.
-		 */
-		if (hdev->pdata->ux500 && bufcnt == 0)
-			reg |= HASH_CR_UX500_EMPTYMSG;
-
 		if (!hdev->polled)
 			stm32_hash_write(hdev, HASH_IMR, HASH_DCIE);
 
@@ -366,12 +360,22 @@ static void stm32_hash_append_sg(struct stm32_hash_request_ctx *rctx)
 static int stm32_hash_xmit_cpu(struct stm32_hash_dev *hdev,
 			       const u8 *buf, size_t length, int final)
 {
+	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(hdev->req);
+	struct stm32_hash_state *state = &rctx->state;
 	unsigned int count, len32;
 	const u32 *buffer = (const u32 *)buf;
 	u32 reg;
 
-	if (final)
+	if (final) {
 		hdev->flags |= HASH_FLAGS_FINAL;
+
+		/* Do not process empty messages if hw is buggy. */
+		if (!(hdev->flags & HASH_FLAGS_INIT) && !length &&
+		    hdev->pdata->broken_emptymsg) {
+			state->flags |= HASH_FLAGS_EMPTY;
+			return 0;
+		}
+	}
 
 	len32 = DIV_ROUND_UP(length, sizeof(u32));
 
@@ -827,7 +831,7 @@ static void stm32_hash_copy_hash(struct ahash_request *req)
 	__be32 *hash = (void *)rctx->digest;
 	unsigned int i, hashsize;
 
-	if (hdev->pdata->broken_emptymsg && !req->nbytes)
+	if (hdev->pdata->broken_emptymsg && (state->flags & HASH_FLAGS_EMPTY))
 		return stm32_hash_emptymsg_fallback(req);
 
 	switch (state->flags & HASH_FLAGS_ALGO_MASK) {
