@@ -373,16 +373,6 @@ static void _rtl92e_init_bb_rf_reg_def(struct net_device *dev)
 	priv->phy_reg_def[RF90_PATH_C].rfHSSIPara2 = rFPGA0_XC_HSSIParameter2;
 	priv->phy_reg_def[RF90_PATH_D].rfHSSIPara2 = rFPGA0_XD_HSSIParameter2;
 
-	priv->phy_reg_def[RF90_PATH_A].rfRxIQImbalance = rOFDM0_XARxIQImbalance;
-	priv->phy_reg_def[RF90_PATH_B].rfRxIQImbalance = rOFDM0_XBRxIQImbalance;
-	priv->phy_reg_def[RF90_PATH_C].rfRxIQImbalance = rOFDM0_XCRxIQImbalance;
-	priv->phy_reg_def[RF90_PATH_D].rfRxIQImbalance = rOFDM0_XDRxIQImbalance;
-
-	priv->phy_reg_def[RF90_PATH_A].rfRxAFE = rOFDM0_XARxAFE;
-	priv->phy_reg_def[RF90_PATH_B].rfRxAFE = rOFDM0_XBRxAFE;
-	priv->phy_reg_def[RF90_PATH_C].rfRxAFE = rOFDM0_XCRxAFE;
-	priv->phy_reg_def[RF90_PATH_D].rfRxAFE = rOFDM0_XDRxAFE;
-
 	priv->phy_reg_def[RF90_PATH_A].rfTxIQImbalance = rOFDM0_XATxIQImbalance;
 	priv->phy_reg_def[RF90_PATH_B].rfTxIQImbalance = rOFDM0_XBTxIQImbalance;
 	priv->phy_reg_def[RF90_PATH_C].rfTxIQImbalance = rOFDM0_XCTxIQImbalance;

@@ -107,8 +107,6 @@ struct bb_reg_definition {
 	u32 rfintfe;
 	u32 rf3wireOffset;
 	u32 rfHSSIPara2;
-	u32 rfRxIQImbalance;
-	u32 rfRxAFE;
 	u32 rfTxIQImbalance;
 	u32 rfTxAFE;
 	u32 rfLSSIReadBack;

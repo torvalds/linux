@@ -98,15 +98,6 @@
 #define rOFDM0_TRxPathEnable		0xc04
 #define rOFDM0_TRMuxPar			0xc08
 #define rOFDM0_TRSWIsolation		0xc0c
-/* RxIQ DC offset, Rx digital filter, DC notch filter */
-#define rOFDM0_XARxAFE			0xc10
-#define rOFDM0_XARxIQImbalance		0xc14 /* RxIQ imbalance matrix */
-#define rOFDM0_XBRxAFE			0xc18
-#define rOFDM0_XBRxIQImbalance		0xc1c
-#define rOFDM0_XCRxAFE			0xc20
-#define rOFDM0_XCRxIQImbalance		0xc24
-#define rOFDM0_XDRxAFE			0xc28
-#define rOFDM0_XDRxIQImbalance		0xc2c
 #define rOFDM0_RxDetector1		0xc30 /* PD, BW & SBD */
 #define rOFDM0_RxDetector2		0xc34 /* SBD */
 #define rOFDM0_RxDetector3		0xc38 /* Frame Sync */
