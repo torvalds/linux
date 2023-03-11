@@ -224,6 +224,7 @@ static void signal_task_complete(struct pci_doe_task *task, int rv)
 {
 	task->rv = rv;
 	task->complete(task);
+	destroy_work_on_stack(&task->work);
 }
 
 static void signal_task_abort(struct pci_doe_task *task, int rv)
