@@ -195,7 +195,7 @@ static const struct spi_device_id xra1403_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, xra1403_ids);
 
-static const struct of_device_id xra1403_spi_of_match[] = {
+static const struct of_device_id xra1403_spi_of_match[] __maybe_unused = {
 	{ .compatible = "exar,xra1403" },
 	{},
 };
