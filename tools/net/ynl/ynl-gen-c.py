@@ -1931,9 +1931,14 @@ def render_uapi(family, cw):
 
             if const.get('render-max', False):
                 cw.nl()
-                max_name = c_upper(name_pfx + 'max')
-                cw.p('__' + max_name + ',')
-                cw.p(max_name + ' = (__' + max_name + ' - 1)')
+                if const['type'] == 'flags':
+                    max_name = c_upper(name_pfx + 'mask')
+                    max_val = f' = {enum.get_mask()},'
+                    cw.p(max_name + max_val)
+                else:
+                    max_name = c_upper(name_pfx + 'max')
+                    cw.p('__' + max_name + ',')
+                    cw.p(max_name + ' = (__' + max_name + ' - 1)')
             cw.block_end(line=';')
             cw.nl()
         elif const['type'] == 'const':
