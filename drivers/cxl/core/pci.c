@@ -453,7 +453,7 @@ static int cxl_cdat_get_length(struct device *dev,
 			       size_t *length)
 {
 	__le32 request = CDAT_DOE_REQ(0);
-	__le32 response[32];
+	__le32 response[2];
 	int rc;
 
 	rc = pci_doe(cdat_doe, PCI_DVSEC_VENDOR_ID_CXL,
@@ -464,7 +464,7 @@ static int cxl_cdat_get_length(struct device *dev,
 		dev_err(dev, "DOE failed: %d", rc);
 		return rc;
 	}
-	if (rc < 2 * sizeof(__le32))
+	if (rc < sizeof(response))
 		return -EIO;
 
 	*length = le32_to_cpu(response[1]);
@@ -477,28 +477,28 @@ static int cxl_cdat_read_table(struct device *dev,
 			       struct pci_doe_mb *cdat_doe,
 			       void *cdat_table, size_t *cdat_length)
 {
-	size_t length = *cdat_length;
+	size_t length = *cdat_length + sizeof(__le32);
 	__le32 *data = cdat_table;
 	int entry_handle = 0;
+	__le32 saved_dw = 0;
 
 	do {
 		__le32 request = CDAT_DOE_REQ(entry_handle);
 		struct cdat_entry_header *entry;
-		__le32 response[32];
 		size_t entry_dw;
 		int rc;
 
 		rc = pci_doe(cdat_doe, PCI_DVSEC_VENDOR_ID_CXL,
 			     CXL_DOE_PROTOCOL_TABLE_ACCESS,
 			     &request, sizeof(request),
-			     &response, sizeof(response));
+			     data, length);
 		if (rc < 0) {
 			dev_err(dev, "DOE failed: %d", rc);
 			return rc;
 		}
 
 		/* 1 DW Table Access Response Header + CDAT entry */
-		entry = (struct cdat_entry_header *)(response + 1);
+		entry = (struct cdat_entry_header *)(data + 1);
 		if ((entry_handle == 0 &&
 		     rc != sizeof(__le32) + sizeof(struct cdat_header)) ||
 		    (entry_handle > 0 &&
@@ -508,21 +508,22 @@ static int cxl_cdat_read_table(struct device *dev,
 
 		/* Get the CXL table access header entry handle */
 		entry_handle = FIELD_GET(CXL_DOE_TABLE_ACCESS_ENTRY_HANDLE,
-					 le32_to_cpu(response[0]));
+					 le32_to_cpu(data[0]));
 		entry_dw = rc / sizeof(__le32);
 		/* Skip Header */
 		entry_dw -= 1;
-		entry_dw = min(length / sizeof(__le32), entry_dw);
-		/* Prevent length < 1 DW from causing a buffer overflow */
-		if (entry_dw) {
-			memcpy(data, entry, entry_dw * sizeof(__le32));
-			length -= entry_dw * sizeof(__le32);
-			data += entry_dw;
-		}
+		/*
+		 * Table Access Response Header overwrote the last DW of
+		 * previous entry, so restore that DW
+		 */
+		*data = saved_dw;
+		length -= entry_dw * sizeof(__le32);
+		data += entry_dw;
+		saved_dw = *data;
 	} while (entry_handle != CXL_DOE_TABLE_ACCESS_LAST_ENTRY);
 
 	/* Length in CDAT header may exceed concatenation of CDAT entries */
-	*cdat_length -= length;
+	*cdat_length -= length - sizeof(__le32);
 
 	return 0;
 }
@@ -559,7 +560,8 @@ void read_cdat_data(struct cxl_port *port)
 		return;
 	}
 
-	cdat_table = devm_kzalloc(dev, cdat_length, GFP_KERNEL);
+	cdat_table = devm_kzalloc(dev, cdat_length + sizeof(__le32),
+				  GFP_KERNEL);
 	if (!cdat_table)
 		return;
 
@@ -570,7 +572,7 @@ void read_cdat_data(struct cxl_port *port)
 		dev_err(dev, "CDAT data read error\n");
 	}
 
-	port->cdat.table = cdat_table;
+	port->cdat.table = cdat_table + sizeof(__le32);
 	port->cdat.length = cdat_length;
 }
 EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);
