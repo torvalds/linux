@@ -65,8 +65,6 @@
 #define rFPGA0_AnalogParameter4		0x88c
 #define rFPGA0_XA_LSSIReadBack		0x8a0
 #define rFPGA0_XB_LSSIReadBack		0x8a4
-#define rFPGA0_XC_LSSIReadBack		0x8a8
-#define rFPGA0_XD_LSSIReadBack		0x8ac
 #define rFPGA0_PSDReport		0x8b4
 
 /* Page 9 - RF mode & OFDM TxSC */
