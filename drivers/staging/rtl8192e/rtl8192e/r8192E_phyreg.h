@@ -58,8 +58,6 @@
 #define rFPGA0_XD_HSSIParameter2	0x83c
 #define rFPGA0_XA_LSSIParameter		0x840
 #define rFPGA0_XB_LSSIParameter		0x844
-#define rFPGA0_XC_LSSIParameter		0x848
-#define rFPGA0_XD_LSSIParameter		0x84c
 #define rFPGA0_RFWakeUpParameter	0x850
 #define rFPGA0_RFSleepUpParameter	0x854
 #define rFPGA0_XAB_SwitchControl	0x858
