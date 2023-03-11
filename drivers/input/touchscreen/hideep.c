@@ -467,9 +467,9 @@ static int hideep_program_nvm(struct hideep_ts *ts,
 	u32 addr = 0;
 	int error;
 
-       error = hideep_nvm_unlock(ts);
-       if (error)
-               return error;
+	error = hideep_nvm_unlock(ts);
+	if (error)
+		return error;
 
 	while (ucode_len > 0) {
 		xfer_len = min_t(size_t, ucode_len, HIDEEP_NVM_PAGE_SIZE);
