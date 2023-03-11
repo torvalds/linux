@@ -1096,6 +1096,11 @@ struct iwl_mvm {
 
 	/* does a monitor vif exist (only one can exist hence bool) */
 	bool monitor_on;
+	/*
+	 * primary channel position relative to he whole bandwidth,
+	 * in steps of 80 MHz
+	 */
+	u8 monitor_p80;
 
 	/* sniffer data to include in radiotap */
 	__le16 cur_aid;

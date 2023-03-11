@@ -235,6 +235,7 @@ static bool __fw_feat_cond_ ## __cond(u32 suit_ver_code, u32 comp_ver_code) \
 
 __DEF_FW_FEAT_COND(ge, >=); /* greater or equal */
 __DEF_FW_FEAT_COND(le, <=); /* less or equal */
+__DEF_FW_FEAT_COND(lt, <); /* less than */
 
 struct __fw_feat_cfg {
 	enum rtw89_core_chip_id chip_id;
@@ -256,9 +257,11 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, TX_WAKE),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 36, 0, CRASH_TRIGGER),
-	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 38, 0, PACKET_DROP),
+	__CFG_FW_FEAT(RTL8852A, lt, 0, 13, 38, 0, NO_PACKET_DROP),
 	__CFG_FW_FEAT(RTL8852B, ge, 0, 29, 26, 0, NO_LPS_PG),
-	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 20, 0, PACKET_DROP),
+	__CFG_FW_FEAT(RTL8852B, ge, 0, 29, 26, 0, TX_WAKE),
+	__CFG_FW_FEAT(RTL8852B, ge, 0, 29, 29, 0, CRASH_TRIGGER),
+	__CFG_FW_FEAT(RTL8852B, ge, 0, 29, 29, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852C, le, 0, 27, 33, 0, NO_DEEP_PS),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 34, 0, TX_WAKE),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 36, 0, SCAN_OFFLOAD),
@@ -2702,9 +2705,29 @@ static void rtw89_release_pkt_list(struct rtw89_dev *rtwdev)
 	}
 }
 
+static bool rtw89_is_6ghz_wildcard_probe_req(struct rtw89_dev *rtwdev,
+					     struct rtw89_vif *rtwvif,
+					     struct rtw89_pktofld_info *info,
+					     enum nl80211_band band, u8 ssid_idx)
+{
+	struct cfg80211_scan_request *req = rtwvif->scan_req;
+
+	if (band != NL80211_BAND_6GHZ)
+		return false;
+
+	if (req->ssids[ssid_idx].ssid_len) {
+		memcpy(info->ssid, req->ssids[ssid_idx].ssid,
+		       req->ssids[ssid_idx].ssid_len);
+		info->ssid_len = req->ssids[ssid_idx].ssid_len;
+		return false;
+	} else {
+		return true;
+	}
+}
+
 static int rtw89_append_probe_req_ie(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif *rtwvif,
-				     struct sk_buff *skb)
+				     struct sk_buff *skb, u8 ssid_idx)
 {
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct ieee80211_scan_ies *ies = rtwvif->scan_ies;
@@ -2729,6 +2752,13 @@ static int rtw89_append_probe_req_ie(struct rtw89_dev *rtwdev,
 		if (!info) {
 			ret = -ENOMEM;
 			kfree_skb(new);
+			goto out;
+		}
+
+		if (rtw89_is_6ghz_wildcard_probe_req(rtwdev, rtwvif, info, band,
+						     ssid_idx)) {
+			kfree_skb(new);
+			kfree(info);
 			goto out;
 		}
 
@@ -2762,7 +2792,7 @@ static int rtw89_hw_scan_update_probe_req(struct rtw89_dev *rtwdev,
 		if (!skb)
 			return -ENOMEM;
 
-		ret = rtw89_append_probe_req_ie(rtwdev, rtwvif, skb);
+		ret = rtw89_append_probe_req_ie(rtwdev, rtwvif, skb, i);
 		kfree_skb(skb);
 
 		if (ret)
@@ -2770,6 +2800,77 @@ static int rtw89_hw_scan_update_probe_req(struct rtw89_dev *rtwdev,
 	}
 
 	return 0;
+}
+
+static int rtw89_update_6ghz_rnr_chan(struct rtw89_dev *rtwdev,
+				      struct cfg80211_scan_request *req,
+				      struct rtw89_mac_chinfo *ch_info)
+{
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+	struct list_head *pkt_list = rtwdev->scan_info.pkt_list;
+	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
+	struct ieee80211_scan_ies *ies = rtwvif->scan_ies;
+	struct cfg80211_scan_6ghz_params *params;
+	struct rtw89_pktofld_info *info, *tmp;
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb;
+	bool found;
+	int ret = 0;
+	u8 i;
+
+	if (!req->n_6ghz_params)
+		return 0;
+
+	for (i = 0; i < req->n_6ghz_params; i++) {
+		params = &req->scan_6ghz_params[i];
+
+		if (req->channels[params->channel_idx]->hw_value !=
+		    ch_info->pri_ch)
+			continue;
+
+		found = false;
+		list_for_each_entry(tmp, &pkt_list[NL80211_BAND_6GHZ], list) {
+			if (ether_addr_equal(tmp->bssid, params->bssid)) {
+				found = true;
+				break;
+			}
+		}
+		if (found)
+			continue;
+
+		skb = ieee80211_probereq_get(rtwdev->hw, rtwvif->mac_addr,
+					     NULL, 0, req->ie_len);
+		skb_put_data(skb, ies->ies[NL80211_BAND_6GHZ], ies->len[NL80211_BAND_6GHZ]);
+		skb_put_data(skb, ies->common_ies, ies->common_ie_len);
+		hdr = (struct ieee80211_hdr *)skb->data;
+		ether_addr_copy(hdr->addr3, params->bssid);
+
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info) {
+			ret = -ENOMEM;
+			kfree_skb(skb);
+			goto out;
+		}
+
+		ret = rtw89_fw_h2c_add_pkt_offload(rtwdev, &info->id, skb);
+		if (ret) {
+			kfree_skb(skb);
+			kfree(info);
+			goto out;
+		}
+
+		ether_addr_copy(info->bssid, params->bssid);
+		info->channel_6ghz = req->channels[params->channel_idx]->hw_value;
+		list_add_tail(&info->list, &rtwdev->scan_info.pkt_list[NL80211_BAND_6GHZ]);
+
+		ch_info->tx_pkt = true;
+		ch_info->period = RTW89_CHANNEL_TIME_6G + RTW89_DWELL_TIME_6G;
+
+		kfree_skb(skb);
+	}
+
+out:
+	return ret;
 }
 
 static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
@@ -2782,6 +2883,7 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct rtw89_pktofld_info *info;
 	u8 band, probe_count = 0;
+	int ret;
 
 	ch_info->notify_action = RTW89_SCANOFLD_DEBUG_MASK;
 	ch_info->dfs_ch = chan_type == RTW89_CHAN_DFS;
@@ -2793,25 +2895,31 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 	ch_info->pause_data = false;
 	ch_info->probe_id = RTW89_SCANOFLD_PKT_NONE;
 
-	if (ssid_num) {
-		ch_info->num_pkt = ssid_num;
-		band = rtw89_hw_to_nl80211_band(ch_info->ch_band);
-
-		list_for_each_entry(info, &scan_info->pkt_list[band], list) {
-			ch_info->pkt_id[probe_count] = info->id;
-			if (++probe_count >= ssid_num)
-				break;
-		}
-		if (probe_count != ssid_num)
-			rtw89_err(rtwdev, "SSID num differs from list len\n");
-	}
-
 	if (ch_info->ch_band == RTW89_BAND_6G) {
-		if (ssid_num == 1 && req->ssids[0].ssid_len == 0) {
+		if ((ssid_num == 1 && req->ssids[0].ssid_len == 0) ||
+		    !ch_info->is_psc) {
 			ch_info->tx_pkt = false;
 			if (!req->duration_mandatory)
 				ch_info->period -= RTW89_DWELL_TIME_6G;
 		}
+	}
+
+	ret = rtw89_update_6ghz_rnr_chan(rtwdev, req, ch_info);
+	if (ret)
+		rtw89_warn(rtwdev, "RNR fails: %d\n", ret);
+
+	if (ssid_num) {
+		band = rtw89_hw_to_nl80211_band(ch_info->ch_band);
+
+		list_for_each_entry(info, &scan_info->pkt_list[band], list) {
+			if (info->channel_6ghz &&
+			    ch_info->pri_ch != info->channel_6ghz)
+				continue;
+			ch_info->pkt_id[probe_count++] = info->id;
+			if (probe_count >= RTW89_SCANOFLD_MAX_SSID)
+				break;
+		}
+		ch_info->num_pkt = probe_count;
 	}
 
 	switch (chan_type) {
@@ -2872,6 +2980,7 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 		ch_info->central_ch = channel->hw_value;
 		ch_info->pri_ch = channel->hw_value;
 		ch_info->rand_seq_num = random_seq;
+		ch_info->is_psc = cfg80211_channel_is_psc(channel);
 
 		if (channel->flags &
 		    (IEEE80211_CHAN_RADAR | IEEE80211_CHAN_NO_IR))

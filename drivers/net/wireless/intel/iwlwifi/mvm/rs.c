@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2005 - 2014, 2018 - 2021 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014, 2018 - 2022 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *****************************************************************************/
@@ -895,8 +895,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 			WARN_ON_ONCE(1);
 		}
 	} else if (ucode_rate & RATE_MCS_VHT_MSK_V1) {
-		nss = ((ucode_rate & RATE_VHT_MCS_NSS_MSK) >>
-		       RATE_VHT_MCS_NSS_POS) + 1;
+		nss = FIELD_GET(RATE_MCS_NSS_MSK, ucode_rate) + 1;
 
 		if (nss == 1) {
 			rate->type = LQ_VHT_SISO;
@@ -910,8 +909,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 			WARN_ON_ONCE(1);
 		}
 	} else if (ucode_rate & RATE_MCS_HE_MSK_V1) {
-		nss = ((ucode_rate & RATE_VHT_MCS_NSS_MSK) >>
-		      RATE_VHT_MCS_NSS_POS) + 1;
+		nss = FIELD_GET(RATE_MCS_NSS_MSK, ucode_rate) + 1;
 
 		if (nss == 1) {
 			rate->type = LQ_HE_SISO;
@@ -2885,8 +2883,7 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 		nss = ((rate & RATE_HT_MCS_NSS_MSK_V1) >> RATE_HT_MCS_NSS_POS_V1) + 1;
 	} else if (rate & RATE_MCS_VHT_MSK_V1) {
 		mvm->drv_rx_stats.vht_frames++;
-		nss = ((rate & RATE_VHT_MCS_NSS_MSK) >>
-		       RATE_VHT_MCS_NSS_POS) + 1;
+		nss = FIELD_GET(RATE_MCS_NSS_MSK, rate) + 1;
 	} else {
 		mvm->drv_rx_stats.legacy_frames++;
 	}
@@ -3665,8 +3662,7 @@ int rs_pretty_print_rate_v1(char *buf, int bufsz, const u32 rate)
 	if (rate & RATE_MCS_VHT_MSK_V1) {
 		type = "VHT";
 		mcs = rate & RATE_VHT_MCS_RATE_CODE_MSK;
-		nss = ((rate & RATE_VHT_MCS_NSS_MSK)
-		       >> RATE_VHT_MCS_NSS_POS) + 1;
+		nss = FIELD_GET(RATE_MCS_NSS_MSK, rate) + 1;
 	} else if (rate & RATE_MCS_HT_MSK_V1) {
 		type = "HT";
 		mcs = rate & RATE_HT_MCS_INDEX_MSK_V1;
@@ -3675,8 +3671,7 @@ int rs_pretty_print_rate_v1(char *buf, int bufsz, const u32 rate)
 	} else if (rate & RATE_MCS_HE_MSK_V1) {
 		type = "HE";
 		mcs = rate & RATE_VHT_MCS_RATE_CODE_MSK;
-		nss = ((rate & RATE_VHT_MCS_NSS_MSK)
-		       >> RATE_VHT_MCS_NSS_POS) + 1;
+		nss = FIELD_GET(RATE_MCS_NSS_MSK, rate) + 1;
 	} else {
 		type = "Unknown"; /* shouldn't happen */
 	}

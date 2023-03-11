@@ -1396,8 +1396,8 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 		r->idx = rate;
 	} else if (format ==  RATE_MCS_VHT_MSK) {
 		ieee80211_rate_set_vht(r, rate,
-				       ((rate_n_flags & RATE_MCS_NSS_MSK) >>
-					RATE_MCS_NSS_POS) + 1);
+				       FIELD_GET(RATE_MCS_NSS_MSK,
+						 rate_n_flags) + 1);
 		r->flags |= IEEE80211_TX_RC_VHT_MCS;
 	} else if (format == RATE_MCS_HE_MSK) {
 		/* mac80211 cannot do this without ieee80211_tx_status_ext()
@@ -1428,8 +1428,7 @@ void iwl_mvm_hwrate_to_tx_rate_v1(u32 rate_n_flags,
 	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1) {
 		ieee80211_rate_set_vht(
 			r, rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK,
-			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
-						RATE_VHT_MCS_NSS_POS) + 1);
+			FIELD_GET(RATE_MCS_NSS_MSK, rate_n_flags) + 1);
 		r->flags |= IEEE80211_TX_RC_VHT_MCS;
 	} else {
 		r->idx = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,

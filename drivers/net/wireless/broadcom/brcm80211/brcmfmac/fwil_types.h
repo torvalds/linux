@@ -48,6 +48,10 @@
 
 /* size of brcmf_scan_params not including variable length array */
 #define BRCMF_SCAN_PARAMS_FIXED_SIZE	64
+#define BRCMF_SCAN_PARAMS_V2_FIXED_SIZE	72
+
+/* version of brcmf_scan_params structure */
+#define BRCMF_SCAN_PARAMS_VERSION_V2	2
 
 /* masks for channel and ssid count */
 #define BRCMF_SCAN_PARAMS_COUNT_MASK	0x0000ffff
@@ -67,6 +71,7 @@
 #define BRCMF_PRIMARY_KEY		(1 << 1)
 #define DOT11_BSSTYPE_ANY		2
 #define BRCMF_ESCAN_REQ_VERSION		1
+#define BRCMF_ESCAN_REQ_VERSION_V2	2
 
 #define BRCMF_MAXRATES_IN_SET		16	/* max # of rates in rateset */
 
@@ -168,6 +173,10 @@
 #define BRCMF_VHT_CAP_MCS_MAP_NSS_MAX	8
 
 #define BRCMF_HE_CAP_MCS_MAP_NSS_MAX	8
+
+#define BRCMF_PMKSA_VER_2		2
+#define BRCMF_PMKSA_VER_3		3
+#define BRCMF_PMKSA_NO_EXPIRY		0xffffffff
 
 /* MAX_CHUNK_LEN is the maximum length for data passing to firmware in each
  * ioctl. It is relatively small because firmware has small maximum size input
@@ -350,6 +359,12 @@ struct brcmf_ssid_le {
 	unsigned char SSID[IEEE80211_MAX_SSID_LEN];
 };
 
+/* Alternate SSID structure used in some places... */
+struct brcmf_ssid8_le {
+	u8 SSID_len;
+	unsigned char SSID[IEEE80211_MAX_SSID_LEN];
+};
+
 struct brcmf_scan_params_le {
 	struct brcmf_ssid_le ssid_le;	/* default: {0, ""} */
 	u8 bssid[ETH_ALEN];	/* default: bcast */
@@ -358,6 +373,45 @@ struct brcmf_scan_params_le {
 				 */
 	u8 scan_type;	/* flags, 0 use default */
 	__le32 nprobes;	  /* -1 use default, number of probes per channel */
+	__le32 active_time;	/* -1 use default, dwell time per channel for
+				 * active scanning
+				 */
+	__le32 passive_time;	/* -1 use default, dwell time per channel
+				 * for passive scanning
+				 */
+	__le32 home_time;	/* -1 use default, dwell time for the
+				 * home channel between channel scans
+				 */
+	__le32 channel_num;	/* count of channels and ssids that follow
+				 *
+				 * low half is count of channels in
+				 * channel_list, 0 means default (use all
+				 * available channels)
+				 *
+				 * high half is entries in struct brcmf_ssid
+				 * array that follows channel_list, aligned for
+				 * s32 (4 bytes) meaning an odd channel count
+				 * implies a 2-byte pad between end of
+				 * channel_list and first ssid
+				 *
+				 * if ssid count is zero, single ssid in the
+				 * fixed parameter portion is assumed, otherwise
+				 * ssid in the fixed portion is ignored
+				 */
+	__le16 channel_list[1];	/* list of chanspecs */
+};
+
+struct brcmf_scan_params_v2_le {
+	__le16 version;		/* structure version */
+	__le16 length;		/* structure length */
+	struct brcmf_ssid_le ssid_le;	/* default: {0, ""} */
+	u8 bssid[ETH_ALEN];	/* default: bcast */
+	s8 bss_type;		/* default: any,
+				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
+				 */
+	u8 pad;
+	__le32 scan_type;	/* flags, 0 use default */
+	__le32 nprobes;		/* -1 use default, number of probes per channel */
 	__le32 active_time;	/* -1 use default, dwell time per channel for
 				 * active scanning
 				 */
@@ -397,7 +451,10 @@ struct brcmf_escan_params_le {
 	__le32 version;
 	__le16 action;
 	__le16 sync_id;
-	struct brcmf_scan_params_le params_le;
+	union {
+		struct brcmf_scan_params_le params_le;
+		struct brcmf_scan_params_v2_le params_v2_le;
+	};
 };
 
 struct brcmf_escan_result_le {
@@ -742,6 +799,31 @@ struct brcmf_rev_info_le {
 };
 
 /**
+ * struct brcmf_wlc_version_le - firmware revision info.
+ *
+ * @version: structure version.
+ * @length: structure length.
+ * @epi_ver_major: EPI major version
+ * @epi_ver_minor: EPI minor version
+ * @epi_ver_rc: EPI rc version
+ * @epi_ver_incr: EPI increment version
+ * @wlc_ver_major: WLC major version
+ * @wlc_ver_minor: WLC minor version
+ */
+struct brcmf_wlc_version_le {
+	__le16 version;
+	__le16 length;
+
+	__le16 epi_ver_major;
+	__le16 epi_ver_minor;
+	__le16 epi_ver_rc;
+	__le16 epi_ver_incr;
+
+	__le16 wlc_ver_major;
+	__le16 wlc_ver_minor;
+};
+
+/**
  * struct brcmf_assoclist_le - request assoc list.
  *
  * @count: indicates number of stations.
@@ -804,6 +886,51 @@ struct brcmf_pmksa {
 };
 
 /**
+ * struct brcmf_pmksa_v2 - PMK Security Association
+ *
+ * @length: Length of the structure.
+ * @bssid: The AP's BSSID.
+ * @pmkid: The PMK ID.
+ * @pmk: PMK material for FILS key derivation.
+ * @pmk_len: Length of PMK data.
+ * @ssid: The AP's SSID.
+ * @fils_cache_id: FILS cache identifier
+ */
+struct brcmf_pmksa_v2 {
+	__le16 length;
+	u8 bssid[ETH_ALEN];
+	u8 pmkid[WLAN_PMKID_LEN];
+	u8 pmk[WLAN_PMK_LEN_SUITE_B_192];
+	__le16 pmk_len;
+	struct brcmf_ssid8_le ssid;
+	u16 fils_cache_id;
+};
+
+/**
+ * struct brcmf_pmksa_v3 - PMK Security Association
+ *
+ * @bssid: The AP's BSSID.
+ * @pmkid: The PMK ID.
+ * @pmkid_len: The length of the PMK ID.
+ * @pmk: PMK material for FILS key derivation.
+ * @pmk_len: Length of PMK data.
+ * @fils_cache_id: FILS cache identifier
+ * @ssid: The AP's SSID.
+ * @time_left: Remaining time until expiry. 0 = expired, ~0 = no expiry.
+ */
+struct brcmf_pmksa_v3 {
+	u8 bssid[ETH_ALEN];
+	u8 pmkid[WLAN_PMKID_LEN];
+	u8 pmkid_len;
+	u8 pmk[WLAN_PMK_LEN_SUITE_B_192];
+	u8 pmk_len;
+	__le16 fils_cache_id;
+	u8 pad;
+	struct brcmf_ssid8_le ssid;
+	__le32 time_left;
+};
+
+/**
  * struct brcmf_pmk_list_le - List of pmksa's.
  *
  * @npmk: Number of pmksa's.
@@ -812,6 +939,34 @@ struct brcmf_pmksa {
 struct brcmf_pmk_list_le {
 	__le32 npmk;
 	struct brcmf_pmksa pmk[BRCMF_MAXPMKID];
+};
+
+/**
+ * struct brcmf_pmk_list_v2_le - List of pmksa's.
+ *
+ * @version: Request version.
+ * @length: Length of this structure.
+ * @pmk: PMK SA information.
+ */
+struct brcmf_pmk_list_v2_le {
+	__le16 version;
+	__le16 length;
+	struct brcmf_pmksa_v2 pmk[BRCMF_MAXPMKID];
+};
+
+/**
+ * struct brcmf_pmk_op_v3_le - Operation on PMKSA list.
+ *
+ * @version: Request version.
+ * @length: Length of this structure.
+ * @pmk: PMK SA information.
+ */
+struct brcmf_pmk_op_v3_le {
+	__le16 version;
+	__le16 length;
+	__le16 count;
+	__le16 pad;
+	struct brcmf_pmksa_v3 pmk[BRCMF_MAXPMKID];
 };
 
 /**

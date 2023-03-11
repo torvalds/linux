@@ -5426,7 +5426,7 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	for (i = 0; i < try_cnt; i++) {
 		ret = read_poll_timeout(mac_is_txq_empty, empty, empty, 50,
 					50000, false, rtwdev);
-		if (ret)
+		if (ret && !RTW89_CHK_FW_FEATURE(NO_PACKET_DROP, &rtwdev->fw))
 			rtw89_fw_h2c_pkt_drop(rtwdev, &params);
 		else
 			return 0;

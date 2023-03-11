@@ -1699,6 +1699,12 @@ void rtl8188e_handle_ra_tx_report2(struct rtl8xxxu_priv *priv, struct sk_buff *s
 
 	dev_dbg(dev, "%s: len: %d items: %d\n", __func__, tx_rpt_len, items);
 
+	/* We only use macid 0, so only the first item is relevant.
+	 * AP mode will use more of them if it's ever implemented.
+	 */
+	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_STATION)
+		items = 1;
+
 	for (macid = 0; macid < items; macid++) {
 		valid = false;
 
@@ -1741,12 +1747,6 @@ void rtl8188e_handle_ra_tx_report2(struct rtl8xxxu_priv *priv, struct sk_buff *s
 			min_rpt_time = ra->rpt_time;
 
 		rpt += TX_RPT2_ITEM_SIZE;
-
-		/*
-		 * We only use macid 0, so only the first item is relevant.
-		 * AP mode will use more of them if it's ever implemented.
-		 */
-		break;
 	}
 
 	if (min_rpt_time != ra->pre_min_rpt_time) {

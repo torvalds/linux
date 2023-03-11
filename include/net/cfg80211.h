@@ -828,6 +828,18 @@ struct cfg80211_fils_aad {
 };
 
 /**
+ * struct cfg80211_set_hw_timestamp - enable/disable HW timestamping
+ * @macaddr: peer MAC address. NULL to enable/disable HW timestamping for all
+ *	addresses.
+ * @enable: if set, enable HW timestamping for the specified MAC address.
+ *	Otherwise disable HW timestamping for the specified MAC address.
+ */
+struct cfg80211_set_hw_timestamp {
+	const u8 *macaddr;
+	bool enable;
+};
+
+/**
  * cfg80211_get_chandef_type - return old channel type from chandef
  * @chandef: the channel definition
  *
@@ -4330,6 +4342,8 @@ struct mgmt_frame_regs {
  * @add_link_station: Add a link to a station.
  * @mod_link_station: Modify a link of a station.
  * @del_link_station: Remove a link of a station.
+ *
+ * @set_hw_timestamp: Enable/disable HW timestamping of TM/FTM frames.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -4683,6 +4697,8 @@ struct cfg80211_ops {
 				    struct link_station_parameters *params);
 	int	(*del_link_station)(struct wiphy *wiphy, struct net_device *dev,
 				    struct link_station_del_parameters *params);
+	int	(*set_hw_timestamp)(struct wiphy *wiphy, struct net_device *dev,
+				    struct cfg80211_set_hw_timestamp *hwts);
 };
 
 /*
@@ -5139,6 +5155,8 @@ struct wiphy_iftype_akm_suites {
 	int n_akm_suites;
 };
 
+#define CFG80211_HW_TIMESTAMP_ALL_PEERS	0xffff
+
 /**
  * struct wiphy - wireless hardware description
  * @mtx: mutex for the data (structures) of this device
@@ -5348,6 +5366,13 @@ struct wiphy_iftype_akm_suites {
  *	NL80211_MAX_NR_AKM_SUITES in order to avoid compatibility issues with
  *	legacy userspace and maximum allowed value is
  *	CFG80211_MAX_NUM_AKM_SUITES.
+ *
+ * @hw_timestamp_max_peers: maximum number of peers that the driver supports
+ *	enabling HW timestamping for concurrently. Setting this field to a
+ *	non-zero value indicates that the driver supports HW timestamping.
+ *	A value of %CFG80211_HW_TIMESTAMP_ALL_PEERS indicates the driver
+ *	supports enabling HW timestamping for all peers (i.e. no need to
+ *	specify a mac address).
  */
 struct wiphy {
 	struct mutex mtx;
@@ -5495,6 +5520,8 @@ struct wiphy {
 	u8 mbssid_max_interfaces;
 	u8 ema_max_profile_periodicity;
 	u16 max_num_akm_suites;
+
+	u16 hw_timestamp_max_peers;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };
@@ -6814,13 +6841,11 @@ enum cfg80211_bss_frame_type {
  * @ie: IEs
  * @ielen: length of IEs
  * @band: enum nl80211_band of the channel
- * @ftype: frame type
  *
  * Returns the channel number, or -1 if none could be determined.
  */
 int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
-				    enum nl80211_band band,
-				    enum cfg80211_bss_frame_type ftype);
+				    enum nl80211_band band);
 
 /**
  * cfg80211_inform_bss_data - inform cfg80211 of a new BSS
@@ -8101,6 +8126,7 @@ void cfg80211_control_port_tx_status(struct wireless_dev *wdev, u64 cookie,
  *	responsible for any cleanup.  The caller must also ensure that
  *	skb->protocol is set appropriately.
  * @unencrypted: Whether the frame was received unencrypted
+ * @link_id: the link the frame was received on, -1 if not applicable or unknown
  *
  * This function is used to inform userspace about a received control port
  * frame.  It should only be used if userspace indicated it wants to receive
@@ -8111,8 +8137,8 @@ void cfg80211_control_port_tx_status(struct wireless_dev *wdev, u64 cookie,
  *
  * Return: %true if the frame was passed to userspace
  */
-bool cfg80211_rx_control_port(struct net_device *dev,
-			      struct sk_buff *skb, bool unencrypted);
+bool cfg80211_rx_control_port(struct net_device *dev, struct sk_buff *skb,
+			      bool unencrypted, int link_id);
 
 /**
  * cfg80211_cqm_rssi_notify - connection quality monitoring rssi event

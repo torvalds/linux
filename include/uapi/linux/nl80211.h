@@ -1299,6 +1299,16 @@
  * @NL80211_CMD_MODIFY_LINK_STA: Modify a link of an MLD station
  * @NL80211_CMD_REMOVE_LINK_STA: Remove a link of an MLD station
  *
+ * @NL80211_CMD_SET_HW_TIMESTAMP: Enable/disable HW timestamping of Timing
+ *	measurement and Fine timing measurement frames. If %NL80211_ATTR_MAC
+ *	is included, enable/disable HW timestamping only for frames to/from the
+ *	specified MAC address. Otherwise enable/disable HW timestamping for
+ *	all TM/FTM frames (including ones that were enabled with specific MAC
+ *	address). If %NL80211_ATTR_HW_TIMESTAMP_ENABLED is not included, disable
+ *	HW timestamping.
+ *	The number of peers that HW timestamping can be enabled for concurrently
+ *	is indicated by %NL80211_ATTR_MAX_HW_TIMESTAMP_PEERS.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1549,6 +1559,8 @@ enum nl80211_commands {
 	NL80211_CMD_ADD_LINK_STA,
 	NL80211_CMD_MODIFY_LINK_STA,
 	NL80211_CMD_REMOVE_LINK_STA,
+
+	NL80211_CMD_SET_HW_TIMESTAMP,
 
 	/* add new commands above here */
 
@@ -2775,6 +2787,13 @@ enum nl80211_commands {
  *	indicates that the sub-channel is punctured. Higher 16 bits are
  *	reserved.
  *
+ * @NL80211_ATTR_MAX_HW_TIMESTAMP_PEERS: Maximum number of peers that HW
+ *	timestamping can be enabled for concurrently (u16), a wiphy attribute.
+ *	A value of 0xffff indicates setting for all peers (i.e. not specifying
+ *	an address with %NL80211_CMD_SET_HW_TIMESTAMP) is supported.
+ * @NL80211_ATTR_HW_TIMESTAMP_ENABLED: Indicates whether HW timestamping should
+ *	be enabled or not (flag attribute).
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3305,6 +3324,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_TD_BITMAP,
 
 	NL80211_ATTR_PUNCT_BITMAP,
+
+	NL80211_ATTR_MAX_HW_TIMESTAMP_PEERS,
+	NL80211_ATTR_HW_TIMESTAMP_ENABLED,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -6326,6 +6348,10 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_SECURE_NAN: Device supports NAN Pairing which enables
  *	authentication, data encryption and message integrity.
  *
+ * @NL80211_EXT_FEATURE_AUTH_AND_DEAUTH_RANDOM_TA: Device supports randomized TA
+ *	in authentication and deauthentication frames sent to unassociated peer
+ *	using @NL80211_CMD_FRAME.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -6396,6 +6422,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_POWERED_ADDR_CHANGE,
 	NL80211_EXT_FEATURE_PUNCT,
 	NL80211_EXT_FEATURE_SECURE_NAN,
+	NL80211_EXT_FEATURE_AUTH_AND_DEAUTH_RANDOM_TA,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -6510,8 +6537,14 @@ enum nl80211_timeout_reason {
  * @NL80211_SCAN_FLAG_FREQ_KHZ: report scan results with
  *	%NL80211_ATTR_SCAN_FREQ_KHZ. This also means
  *	%NL80211_ATTR_SCAN_FREQUENCIES will not be included.
- * @NL80211_SCAN_FLAG_COLOCATED_6GHZ: scan for colocated APs reported by
- *	2.4/5 GHz APs
+ * @NL80211_SCAN_FLAG_COLOCATED_6GHZ: scan for collocated APs reported by
+ *	2.4/5 GHz APs. When the flag is set, the scan logic will use the
+ *	information from the RNR element found in beacons/probe responses
+ *	received on the 2.4/5 GHz channels to actively scan only the 6GHz
+ *	channels on which APs are expected to be found. Note that when not set,
+ *	the scan logic would scan all 6GHz channels, but since transmission of
+ *	probe requests on non PSC channels is limited, it is highly likely that
+ *	these channels would passively be scanned.
  */
 enum nl80211_scan_flags {
 	NL80211_SCAN_FLAG_LOW_PRIORITY				= 1<<0,

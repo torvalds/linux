@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
@@ -276,6 +276,9 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 		break;
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HRCDB):
 		pos = scnprintf(buf, buflen, "HRCDB");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_MS):
+		pos = scnprintf(buf, buflen, "MS");
 		break;
 	default:
 		return;

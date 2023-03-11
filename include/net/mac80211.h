@@ -534,6 +534,7 @@ struct ieee80211_fils_discovery {
  * This structure keeps information about a BSS (and an association
  * to that BSS) that can change during the lifetime of the BSS.
  *
+ * @vif: reference to owning VIF
  * @addr: (link) address used locally
  * @link_id: link ID, or 0 for non-MLO
  * @htc_trig_based_pkt_ext: default PE in 4us units, if BSS supports HE
@@ -656,6 +657,9 @@ struct ieee80211_fils_discovery {
  *	write-protected by sdata_lock and local->mtx so holding either is fine
  *	for read access.
  * @color_change_color: the bss color that will be used after the change.
+ * @ht_ldpc: in AP mode, indicates interface has HT LDPC capability.
+ * @vht_ldpc: in AP mode, indicates interface has VHT LDPC capability.
+ * @he_ldpc: in AP mode, indicates interface has HE LDPC capability.
  * @vht_su_beamformer: in AP mode, does this BSS support operation as an VHT SU
  *	beamformer
  * @vht_su_beamformee: in AP mode, does this BSS support operation as an VHT SU
@@ -673,8 +677,16 @@ struct ieee80211_fils_discovery {
  * @he_full_ul_mumimo: does this BSS support the reception (AP) or transmission
  *	(non-AP STA) of an HE TB PPDU on an RU that spans the entire PPDU
  *	bandwidth
+ * @eht_su_beamformer: in AP-mode, does this BSS enable operation as an EHT SU
+ *	beamformer
+ * @eht_su_beamformee: in AP-mode, does this BSS enable operation as an EHT SU
+ *	beamformee
+ * @eht_mu_beamformer: in AP-mode, does this BSS enable operation as an EHT MU
+ *	beamformer
  */
 struct ieee80211_bss_conf {
+	struct ieee80211_vif *vif;
+
 	const u8 *bssid;
 	unsigned int link_id;
 	u8 addr[ETH_ALEN] __aligned(2);
@@ -750,6 +762,9 @@ struct ieee80211_bss_conf {
 	bool color_change_active;
 	u8 color_change_color;
 
+	bool ht_ldpc;
+	bool vht_ldpc;
+	bool he_ldpc;
 	bool vht_su_beamformer;
 	bool vht_su_beamformee;
 	bool vht_mu_beamformer;
@@ -758,6 +773,9 @@ struct ieee80211_bss_conf {
 	bool he_su_beamformee;
 	bool he_mu_beamformer;
 	bool he_full_ul_mumimo;
+	bool eht_su_beamformer;
+	bool eht_su_beamformee;
+	bool eht_mu_beamformer;
 };
 
 /**
@@ -1372,9 +1390,12 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	subframes share the same sequence number. Reported subframes can be
  *	either regular MSDU or singly A-MSDUs. Subframes must not be
  *	interleaved with other frames.
- * @RX_FLAG_RADIOTAP_VENDOR_DATA: This frame contains vendor-specific
- *	radiotap data in the skb->data (before the frame) as described by
- *	the &struct ieee80211_vendor_radiotap.
+ * @RX_FLAG_RADIOTAP_TLV_AT_END: This frame contains radiotap TLVs in the
+ *	skb->data (before the 802.11 header).
+ *	If used, the SKB's mac_header pointer must be set to point
+ *	to the 802.11 header after the TLVs, and any padding added after TLV
+ *	data to align to 4 must be cleared by the driver putting the TLVs
+ *	in the skb.
  * @RX_FLAG_ALLOW_SAME_PN: Allow the same PN as same packet before.
  *	This is used for AMSDU subframes which can have the same PN as
  *	the first subframe.
@@ -1426,7 +1447,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_ONLY_MONITOR		= BIT(17),
 	RX_FLAG_SKIP_MONITOR		= BIT(18),
 	RX_FLAG_AMSDU_MORE		= BIT(19),
-	RX_FLAG_RADIOTAP_VENDOR_DATA	= BIT(20),
+	RX_FLAG_RADIOTAP_TLV_AT_END	= BIT(20),
 	RX_FLAG_MIC_STRIPPED		= BIT(21),
 	RX_FLAG_ALLOW_SAME_PN		= BIT(22),
 	RX_FLAG_ICV_STRIPPED		= BIT(23),
@@ -1565,39 +1586,6 @@ ieee80211_rx_status_to_khz(struct ieee80211_rx_status *rx_status)
 	return MHZ_TO_KHZ(rx_status->freq) +
 	       (rx_status->freq_offset ? 500 : 0);
 }
-
-/**
- * struct ieee80211_vendor_radiotap - vendor radiotap data information
- * @present: presence bitmap for this vendor namespace
- *	(this could be extended in the future if any vendor needs more
- *	 bits, the radiotap spec does allow for that)
- * @align: radiotap vendor namespace alignment. This defines the needed
- *	alignment for the @data field below, not for the vendor namespace
- *	description itself (which has a fixed 2-byte alignment)
- *	Must be a power of two, and be set to at least 1!
- * @oui: radiotap vendor namespace OUI
- * @subns: radiotap vendor sub namespace
- * @len: radiotap vendor sub namespace skip length, if alignment is done
- *	then that's added to this, i.e. this is only the length of the
- *	@data field.
- * @pad: number of bytes of padding after the @data, this exists so that
- *	the skb data alignment can be preserved even if the data has odd
- *	length
- * @data: the actual vendor namespace data
- *
- * This struct, including the vendor data, goes into the skb->data before
- * the 802.11 header. It's split up in mac80211 using the align/oui/subns
- * data.
- */
-struct ieee80211_vendor_radiotap {
-	u32 present;
-	u8 align;
-	u8 oui[3];
-	u8 subns;
-	u8 pad;
-	u16 len;
-	u8 data[];
-} __packed;
 
 /**
  * enum ieee80211_conf_flags - configuration flags
@@ -3841,6 +3829,12 @@ struct ieee80211_prep_tx_info {
  *	the station. See @sta_pre_rcu_remove if needed.
  *	This callback can sleep.
  *
+ * @link_add_debugfs: Drivers can use this callback to add debugfs files
+ *	when a link is added to a mac80211 vif. This callback should be within
+ *	a CONFIG_MAC80211_DEBUGFS conditional. This callback can sleep.
+ *	For non-MLO the callback will be called once for the default bss_conf
+ *	with the vif's directory rather than a separate subdirectory.
+ *
  * @sta_add_debugfs: Drivers can use this callback to add debugfs files
  *	when a station is added to mac80211's station list. This callback
  *	should be within a CONFIG_MAC80211_DEBUGFS conditional. This
@@ -4230,6 +4224,9 @@ struct ieee80211_prep_tx_info {
  *	Note that a sta can also be inserted or removed with valid links,
  *	i.e. passed to @sta_add/@sta_state with sta->valid_links not zero.
  *	In fact, cannot change from having valid_links and not having them.
+ * @set_hw_timestamp: Enable/disable HW timestamping of TM/FTM frames. This is
+ *	not restored at HW reset by mac80211 so drivers need to take care of
+ *	that.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -4319,6 +4316,10 @@ struct ieee80211_ops {
 	int (*sta_remove)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta);
 #ifdef CONFIG_MAC80211_DEBUGFS
+	void (*link_add_debugfs)(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *link_conf,
+				 struct dentry *dir);
 	void (*sta_add_debugfs)(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
@@ -4589,6 +4590,9 @@ struct ieee80211_ops {
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
 				u16 old_links, u16 new_links);
+	int (*set_hw_timestamp)(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct cfg80211_set_hw_timestamp *hwts);
 };
 
 /**
@@ -5983,6 +5987,20 @@ void ieee80211_queue_work(struct ieee80211_hw *hw, struct work_struct *work);
 void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 				  struct delayed_work *dwork,
 				  unsigned long delay);
+
+/**
+ * ieee80211_refresh_tx_agg_session_timer - Refresh a tx agg session timer.
+ * @sta: the station for which to start a BA session
+ * @tid: the TID to BA on.
+ *
+ * This function allows low level driver to refresh tx agg session timer
+ * to maintain BA session, the session level will still be managed by the
+ * mac80211.
+ *
+ * Note: must be called in an RCU critical section.
+ */
+void ieee80211_refresh_tx_agg_session_timer(struct ieee80211_sta *sta,
+					    u16 tid);
 
 /**
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.

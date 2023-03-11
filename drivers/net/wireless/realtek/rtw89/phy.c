@@ -4294,3 +4294,75 @@ void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
 					      data[RTW89_TSSI_SBW20]);
 }
 EXPORT_SYMBOL(rtw89_phy_tssi_ctrl_set_bandedge_cfg);
+
+static
+const u8 rtw89_ch_base_table[16] = {1, 0xff,
+				    36, 100, 132, 149, 0xff,
+				    1, 33, 65, 97, 129, 161, 193, 225, 0xff};
+#define RTW89_CH_BASE_IDX_2G		0
+#define RTW89_CH_BASE_IDX_5G_FIRST	2
+#define RTW89_CH_BASE_IDX_5G_LAST	5
+#define RTW89_CH_BASE_IDX_6G_FIRST	7
+#define RTW89_CH_BASE_IDX_6G_LAST	14
+
+#define RTW89_CH_BASE_IDX_MASK		GENMASK(7, 4)
+#define RTW89_CH_OFFSET_MASK		GENMASK(3, 0)
+
+u8 rtw89_encode_chan_idx(struct rtw89_dev *rtwdev, u8 central_ch, u8 band)
+{
+	u8 chan_idx;
+	u8 last, first;
+	u8 idx;
+
+	switch (band) {
+	case RTW89_BAND_2G:
+		chan_idx = FIELD_PREP(RTW89_CH_BASE_IDX_MASK, RTW89_CH_BASE_IDX_2G) |
+			   FIELD_PREP(RTW89_CH_OFFSET_MASK, central_ch);
+		return chan_idx;
+	case RTW89_BAND_5G:
+		first = RTW89_CH_BASE_IDX_5G_FIRST;
+		last = RTW89_CH_BASE_IDX_5G_LAST;
+		break;
+	case RTW89_BAND_6G:
+		first = RTW89_CH_BASE_IDX_6G_FIRST;
+		last = RTW89_CH_BASE_IDX_6G_LAST;
+		break;
+	default:
+		rtw89_warn(rtwdev, "Unsupported band %d\n", band);
+		return 0;
+	}
+
+	for (idx = last; idx >= first; idx--)
+		if (central_ch >= rtw89_ch_base_table[idx])
+			break;
+
+	if (idx < first) {
+		rtw89_warn(rtwdev, "Unknown band %d channel %d\n", band, central_ch);
+		return 0;
+	}
+
+	chan_idx = FIELD_PREP(RTW89_CH_BASE_IDX_MASK, idx) |
+		   FIELD_PREP(RTW89_CH_OFFSET_MASK,
+			      (central_ch - rtw89_ch_base_table[idx]) >> 1);
+	return chan_idx;
+}
+EXPORT_SYMBOL(rtw89_encode_chan_idx);
+
+void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
+			   u8 *ch, enum nl80211_band *band)
+{
+	u8 idx, offset;
+
+	idx = FIELD_GET(RTW89_CH_BASE_IDX_MASK, chan_idx);
+	offset = FIELD_GET(RTW89_CH_OFFSET_MASK, chan_idx);
+
+	if (idx == RTW89_CH_BASE_IDX_2G) {
+		*band = NL80211_BAND_2GHZ;
+		*ch = offset;
+		return;
+	}
+
+	*band = idx <= RTW89_CH_BASE_IDX_5G_LAST ? NL80211_BAND_5GHZ : NL80211_BAND_6GHZ;
+	*ch = rtw89_ch_base_table[idx] + (offset << 1);
+}
+EXPORT_SYMBOL(rtw89_decode_chan_idx);
