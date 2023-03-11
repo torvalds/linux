@@ -54,9 +54,59 @@ static const union perf_capabilities format_caps = {
 	.pebs_format = -1,
 };
 
-static void guest_code(void)
+static void guest_code(uint64_t current_val)
 {
-	wrmsr(MSR_IA32_PERF_CAPABILITIES, PMU_CAP_LBR_FMT);
+	uint8_t vector;
+	int i;
+
+	vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES, current_val);
+	GUEST_ASSERT_2(vector == GP_VECTOR, current_val, vector);
+
+	vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES, 0);
+	GUEST_ASSERT_2(vector == GP_VECTOR, 0, vector);
+
+	for (i = 0; i < 64; i++) {
+		vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES,
+				    current_val ^ BIT_ULL(i));
+		GUEST_ASSERT_2(vector == GP_VECTOR,
+			       current_val ^ BIT_ULL(i), vector);
+	}
+
+	GUEST_DONE();
+}
+
+/*
+ * Verify that guest WRMSRs to PERF_CAPABILITIES #GP regardless of the value
+ * written, that the guest always sees the userspace controlled value, and that
+ * PERF_CAPABILITIES is immutable after KVM_RUN.
+ */
+static void test_guest_wrmsr_perf_capabilities(union perf_capabilities host_cap)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	struct ucall uc;
+
+	vm_init_descriptor_tables(vm);
+	vcpu_init_descriptor_tables(vcpu);
+
+	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
+
+	vcpu_args_set(vcpu, 1, host_cap.capabilities);
+	vcpu_run(vcpu);
+
+	switch (get_ucall(vcpu, &uc)) {
+	case UCALL_ABORT:
+		REPORT_GUEST_ASSERT_2(uc, "val = 0x%lx, vector = %lu");
+		break;
+	case UCALL_DONE:
+		break;
+	default:
+		TEST_FAIL("Unexpected ucall: %lu", uc.cmd);
+	}
+
+	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), host_cap.capabilities);
+
+	kvm_vm_free(vm);
 }
 
 /*
@@ -79,7 +129,7 @@ static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
 	const uint64_t fungible_caps = host_cap.capabilities & ~immutable_caps.capabilities;
 
 	struct kvm_vcpu *vcpu;
-	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, NULL);
 	int bit;
 
 	for_each_set_bit(bit, &fungible_caps, 64) {
@@ -88,10 +138,6 @@ static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
 			     host_cap.capabilities & ~BIT_ULL(bit));
 	}
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
-
-	/* check whatever we write with KVM_SET_MSR is _not_ modified */
-	vcpu_run(vcpu);
-	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), host_cap.capabilities);
 
 	kvm_vm_free(vm);
 }
@@ -153,6 +199,7 @@ int main(int argc, char *argv[])
 	test_basic_perf_capabilities(host_cap);
 	test_fungible_perf_capabilities(host_cap);
 	test_immutable_perf_capabilities(host_cap);
+	test_guest_wrmsr_perf_capabilities(host_cap);
 
 	printf("Completed perf capability tests.\n");
 }
