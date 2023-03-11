@@ -335,7 +335,7 @@ MODULE_DEVICE_TABLE(of, altera_gpio_of_match);
 static struct platform_driver altera_gpio_driver = {
 	.driver = {
 		.name	= "altera_gpio",
-		.of_match_table = of_match_ptr(altera_gpio_of_match),
+		.of_match_table = altera_gpio_of_match,
 	},
 	.probe		= altera_gpio_probe,
 	.remove		= altera_gpio_remove,
