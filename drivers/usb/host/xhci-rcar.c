@@ -282,7 +282,7 @@ static struct platform_driver usb_xhci_renesas_driver = {
 	.driver	= {
 		.name = "xhci-renesas-hcd",
 		.pm = &xhci_plat_pm_ops,
-		.of_match_table = of_match_ptr(usb_xhci_of_match),
+		.of_match_table = usb_xhci_of_match,
 	},
 };
 module_platform_driver(usb_xhci_renesas_driver);
