@@ -128,7 +128,7 @@ static int pci_doe_send_req(struct pci_doe_mb *doe_mb,
 		return -EIO;
 
 	/* Length is 2 DW of header + length of payload in DW */
-	length = 2 + task->request_pl_sz / sizeof(u32);
+	length = 2 + task->request_pl_sz / sizeof(__le32);
 	if (length > PCI_DOE_MAX_LENGTH)
 		return -EIO;
 	if (length == PCI_DOE_MAX_LENGTH)
@@ -141,9 +141,9 @@ static int pci_doe_send_req(struct pci_doe_mb *doe_mb,
 	pci_write_config_dword(pdev, offset + PCI_DOE_WRITE,
 			       FIELD_PREP(PCI_DOE_DATA_OBJECT_HEADER_2_LENGTH,
 					  length));
-	for (i = 0; i < task->request_pl_sz / sizeof(u32); i++)
+	for (i = 0; i < task->request_pl_sz / sizeof(__le32); i++)
 		pci_write_config_dword(pdev, offset + PCI_DOE_WRITE,
-				       task->request_pl[i]);
+				       le32_to_cpu(task->request_pl[i]));
 
 	pci_doe_write_ctrl(doe_mb, PCI_DOE_CTRL_GO);
 
@@ -195,11 +195,11 @@ static int pci_doe_recv_resp(struct pci_doe_mb *doe_mb, struct pci_doe_task *tas
 
 	/* First 2 dwords have already been read */
 	length -= 2;
-	payload_length = min(length, task->response_pl_sz / sizeof(u32));
+	payload_length = min(length, task->response_pl_sz / sizeof(__le32));
 	/* Read the rest of the response payload */
 	for (i = 0; i < payload_length; i++) {
-		pci_read_config_dword(pdev, offset + PCI_DOE_READ,
-				      &task->response_pl[i]);
+		pci_read_config_dword(pdev, offset + PCI_DOE_READ, &val);
+		task->response_pl[i] = cpu_to_le32(val);
 		/* Prior to the last ack, ensure Data Object Ready */
 		if (i == (payload_length - 1) && !pci_doe_data_obj_ready(doe_mb))
 			return -EIO;
@@ -217,7 +217,7 @@ static int pci_doe_recv_resp(struct pci_doe_mb *doe_mb, struct pci_doe_task *tas
 	if (FIELD_GET(PCI_DOE_STATUS_ERROR, val))
 		return -EIO;
 
-	return min(length, task->response_pl_sz / sizeof(u32)) * sizeof(u32);
+	return min(length, task->response_pl_sz / sizeof(__le32)) * sizeof(__le32);
 }
 
 static void signal_task_complete(struct pci_doe_task *task, int rv)
@@ -317,14 +317,16 @@ static int pci_doe_discovery(struct pci_doe_mb *doe_mb, u8 *index, u16 *vid,
 {
 	u32 request_pl = FIELD_PREP(PCI_DOE_DATA_OBJECT_DISC_REQ_3_INDEX,
 				    *index);
+	__le32 request_pl_le = cpu_to_le32(request_pl);
+	__le32 response_pl_le;
 	u32 response_pl;
 	DECLARE_COMPLETION_ONSTACK(c);
 	struct pci_doe_task task = {
 		.prot.vid = PCI_VENDOR_ID_PCI_SIG,
 		.prot.type = PCI_DOE_PROTOCOL_DISCOVERY,
-		.request_pl = &request_pl,
+		.request_pl = &request_pl_le,
 		.request_pl_sz = sizeof(request_pl),
-		.response_pl = &response_pl,
+		.response_pl = &response_pl_le,
 		.response_pl_sz = sizeof(response_pl),
 		.complete = pci_doe_task_complete,
 		.private = &c,
@@ -340,6 +342,7 @@ static int pci_doe_discovery(struct pci_doe_mb *doe_mb, u8 *index, u16 *vid,
 	if (task.rv != sizeof(response_pl))
 		return -EIO;
 
+	response_pl = le32_to_cpu(response_pl_le);
 	*vid = FIELD_GET(PCI_DOE_DATA_OBJECT_DISC_RSP_3_VID, response_pl);
 	*protocol = FIELD_GET(PCI_DOE_DATA_OBJECT_DISC_RSP_3_PROTOCOL,
 			      response_pl);
@@ -533,8 +536,8 @@ int pci_doe_submit_task(struct pci_doe_mb *doe_mb, struct pci_doe_task *task)
 	 * DOE requests must be a whole number of DW and the response needs to
 	 * be big enough for at least 1 DW
 	 */
-	if (task->request_pl_sz % sizeof(u32) ||
-	    task->response_pl_sz < sizeof(u32))
+	if (task->request_pl_sz % sizeof(__le32) ||
+	    task->response_pl_sz < sizeof(__le32))
 		return -EINVAL;
 
 	if (test_bit(PCI_DOE_FLAG_DEAD, &doe_mb->flags))
