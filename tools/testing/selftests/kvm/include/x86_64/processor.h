@@ -945,12 +945,27 @@ do {										\
 	}									\
 } while (0)
 
+/*
+ * Returns true if KVM should return the last written value when reading an MSR
+ * from userspace, e.g. the MSR isn't a command MSR, doesn't emulate state that
+ * is changing, etc.  This is NOT an exhaustive list!  The intent is to filter
+ * out MSRs that are not durable _and_ that a selftest wants to write.
+ */
+static inline bool is_durable_msr(uint32_t msr)
+{
+	return msr != MSR_IA32_TSC;
+}
+
 #define vcpu_set_msr(vcpu, msr, val)							\
 do {											\
-	uint64_t v = val;								\
+	uint64_t r, v = val;								\
 											\
 	TEST_ASSERT_MSR(_vcpu_set_msr(vcpu, msr, v) == 1,				\
 			"KVM_SET_MSRS failed on %s, value = 0x%lx", msr, #msr, v);	\
+	if (!is_durable_msr(msr))							\
+		break;									\
+	r = vcpu_get_msr(vcpu, msr);							\
+	TEST_ASSERT_MSR(r == v, "Set %s to '0x%lx', got back '0x%lx'", msr, #msr, v, r);\
 } while (0)
 
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
