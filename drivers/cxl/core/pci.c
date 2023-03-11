@@ -510,7 +510,7 @@ static int cxl_cdat_get_length(struct device *dev,
 		return rc;
 	}
 	wait_for_completion(&t.c);
-	if (t.task.rv < sizeof(__le32))
+	if (t.task.rv < 2 * sizeof(__le32))
 		return -EIO;
 
 	*length = le32_to_cpu(t.response_pl[1]);
