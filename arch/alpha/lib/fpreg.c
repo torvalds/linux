@@ -23,7 +23,7 @@ alpha_read_fp_reg (unsigned long reg)
 
 	if (unlikely(reg >= 32))
 		return 0;
-	preempt_enable();
+	preempt_disable();
 	if (current_thread_info()->status & TS_SAVED_FP)
 		val = current_thread_info()->fp[reg];
 	else switch (reg) {
@@ -133,7 +133,7 @@ alpha_read_fp_reg_s (unsigned long reg)
 	if (unlikely(reg >= 32))
 		return 0;
 
-	preempt_enable();
+	preempt_disable();
 	if (current_thread_info()->status & TS_SAVED_FP) {
 		LDT(0, current_thread_info()->fp[reg]);
 		STS(0, val);
