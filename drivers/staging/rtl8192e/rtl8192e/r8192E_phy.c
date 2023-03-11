@@ -358,8 +358,6 @@ static void _rtl92e_init_bb_rf_reg_def(struct net_device *dev)
 
 	priv->phy_reg_def[RF90_PATH_A].rfintfs = rFPGA0_XAB_RFInterfaceSW;
 	priv->phy_reg_def[RF90_PATH_B].rfintfs = rFPGA0_XAB_RFInterfaceSW;
-	priv->phy_reg_def[RF90_PATH_C].rfintfs = rFPGA0_XCD_RFInterfaceSW;
-	priv->phy_reg_def[RF90_PATH_D].rfintfs = rFPGA0_XCD_RFInterfaceSW;
 
 	priv->phy_reg_def[RF90_PATH_A].rfintfi = rFPGA0_XAB_RFInterfaceRB;
 	priv->phy_reg_def[RF90_PATH_B].rfintfi = rFPGA0_XAB_RFInterfaceRB;
