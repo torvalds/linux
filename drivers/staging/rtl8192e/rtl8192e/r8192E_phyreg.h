@@ -66,8 +66,6 @@
 #define rFPGA0_XCD_SwitchControl	0x85c
 #define rFPGA0_XA_RFInterfaceOE		0x860
 #define rFPGA0_XB_RFInterfaceOE		0x864
-#define rFPGA0_XC_RFInterfaceOE		0x868
-#define rFPGA0_XD_RFInterfaceOE		0x86c
 #define rFPGA0_XAB_RFInterfaceSW	0x870
 #define rFPGA0_XAB_RFParameter		0x878
 #define rFPGA0_XCD_RFParameter		0x87c

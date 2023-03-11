@@ -361,13 +361,9 @@ static void _rtl92e_init_bb_rf_reg_def(struct net_device *dev)
 
 	priv->phy_reg_def[RF90_PATH_A].rfintfo = rFPGA0_XA_RFInterfaceOE;
 	priv->phy_reg_def[RF90_PATH_B].rfintfo = rFPGA0_XB_RFInterfaceOE;
-	priv->phy_reg_def[RF90_PATH_C].rfintfo = rFPGA0_XC_RFInterfaceOE;
-	priv->phy_reg_def[RF90_PATH_D].rfintfo = rFPGA0_XD_RFInterfaceOE;
 
 	priv->phy_reg_def[RF90_PATH_A].rfintfe = rFPGA0_XA_RFInterfaceOE;
 	priv->phy_reg_def[RF90_PATH_B].rfintfe = rFPGA0_XB_RFInterfaceOE;
-	priv->phy_reg_def[RF90_PATH_C].rfintfe = rFPGA0_XC_RFInterfaceOE;
-	priv->phy_reg_def[RF90_PATH_D].rfintfe = rFPGA0_XD_RFInterfaceOE;
 
 	priv->phy_reg_def[RF90_PATH_A].rf3wireOffset = rFPGA0_XA_LSSIParameter;
 	priv->phy_reg_def[RF90_PATH_B].rf3wireOffset = rFPGA0_XB_LSSIParameter;
