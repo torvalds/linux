@@ -85,6 +85,7 @@ static void test_guest_wrmsr_perf_capabilities(union perf_capabilities host_cap)
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	struct ucall uc;
+	int r, i;
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
@@ -105,6 +106,18 @@ static void test_guest_wrmsr_perf_capabilities(union perf_capabilities host_cap)
 	}
 
 	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), host_cap.capabilities);
+
+	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
+
+	r = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, 0);
+	TEST_ASSERT(!r, "Post-KVM_RUN write '0' didn't fail");
+
+	for (i = 0; i < 64; i++) {
+		r = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES,
+				  host_cap.capabilities ^ BIT_ULL(i));
+		TEST_ASSERT(!r, "Post-KVM_RUN write '0x%llx'didn't fail",
+			    host_cap.capabilities ^ BIT_ULL(i));
+	}
 
 	kvm_vm_free(vm);
 }
