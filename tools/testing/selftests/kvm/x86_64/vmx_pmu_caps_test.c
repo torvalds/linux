@@ -19,8 +19,6 @@
 #include "kvm_util.h"
 #include "vmx.h"
 
-#define PMU_CAP_LBR_FMT		0x3f
-
 union perf_capabilities {
 	struct {
 		u64	lbr_format:6;
@@ -169,7 +167,7 @@ static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
 
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, NULL);
-	uint64_t val;
+	union perf_capabilities val = host_cap;
 	int r, bit;
 
 	for_each_set_bit(bit, &reserved_caps, 64) {
@@ -184,12 +182,13 @@ static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
 	 * KVM only supports the host's native LBR format, as well as '0' (to
 	 * disable LBR support).  Verify KVM rejects all other LBR formats.
 	 */
-	for (val = 1; val <= PMU_CAP_LBR_FMT; val++) {
-		if (val == (host_cap.capabilities & PMU_CAP_LBR_FMT))
+	for (val.lbr_format = 1; val.lbr_format; val.lbr_format++) {
+		if (val.lbr_format == host_cap.lbr_format)
 			continue;
 
-		r = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, val);
-		TEST_ASSERT(!r, "Bad LBR FMT = 0x%lx didn't fail", val);
+		r = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, val.capabilities);
+		TEST_ASSERT(!r, "Bad LBR FMT = 0x%x didn't fail, host = 0x%x",
+			    val.lbr_format, host_cap.lbr_format);
 	}
 
 	kvm_vm_free(vm);
