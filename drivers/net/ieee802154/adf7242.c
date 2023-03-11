@@ -1338,7 +1338,6 @@ static struct spi_driver adf7242_driver = {
 	.driver = {
 		   .of_match_table = adf7242_of_match,
 		   .name = "adf7242",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = adf7242_probe,
 	.remove = adf7242_remove,
