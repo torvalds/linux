@@ -122,7 +122,7 @@ include ../scripts/utilities.mak
 # generated from the kernel .tbl or unistd.h files and use, if available, libaudit
 # for doing the conversions to/from strings/id.
 #
-# Define LIBPFM4 to enable libpfm4 events extension.
+# Define NO_LIBPFM4 to disable libpfm4 events extension.
 #
 # Define NO_LIBDEBUGINFOD if you do not want support debuginfod
 #
