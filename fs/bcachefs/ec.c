@@ -1855,23 +1855,27 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->ec_stripe_head_lock);
 	list_for_each_entry(h, &c->ec_stripe_head_list, list) {
-		prt_printf(out, "target %u algo %u redundancy %u:\n",
-		       h->target, h->algo, h->redundancy);
+		prt_printf(out, "target %u algo %u redundancy %u %s:\n",
+		       h->target, h->algo, h->redundancy,
+		       bch2_alloc_reserves[h->reserve]);
 
 		if (h->s)
-			prt_printf(out, "\tpending: idx %llu blocks %u+%u allocated %u\n",
+			prt_printf(out, "\tidx %llu blocks %u+%u allocated %u\n",
 			       h->s->idx, h->s->nr_data, h->s->nr_parity,
 			       bitmap_weight(h->s->blocks_allocated,
 					     h->s->nr_data));
 	}
 	mutex_unlock(&c->ec_stripe_head_lock);
 
+	prt_printf(out, "in flight:\n");
+
 	mutex_lock(&c->ec_stripe_new_lock);
 	list_for_each_entry(s, &c->ec_stripe_new_list, list) {
-		prt_printf(out, "\tin flight: idx %llu blocks %u+%u ref %u %u\n",
+		prt_printf(out, "\tidx %llu blocks %u+%u ref %u %u %s\n",
 			   s->idx, s->nr_data, s->nr_parity,
 			   atomic_read(&s->ref[STRIPE_REF_io]),
-			   atomic_read(&s->ref[STRIPE_REF_stripe]));
+			   atomic_read(&s->ref[STRIPE_REF_stripe]),
+			   bch2_alloc_reserves[s->h->reserve]);
 	}
 	mutex_unlock(&c->ec_stripe_new_lock);
 }
