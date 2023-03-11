@@ -3018,7 +3018,7 @@ static struct platform_driver renesas_usb3_driver = {
 	.driver		= {
 		.name =	udc_name,
 		.pm		= &renesas_usb3_pm_ops,
-		.of_match_table = of_match_ptr(usb3_of_match),
+		.of_match_table = usb3_of_match,
 	},
 };
 module_platform_driver(renesas_usb3_driver);
