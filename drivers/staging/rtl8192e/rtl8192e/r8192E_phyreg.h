@@ -117,13 +117,9 @@
 #define rOFDM0_CCADropThreshold		0xc48
 #define rOFDM0_ECCAThreshold		0xc4c /* Energy CCA */
 #define rOFDM0_XAAGCCore1		0xc50
-#define rOFDM0_XAAGCCore2		0xc54
 #define rOFDM0_XBAGCCore1		0xc58
-#define rOFDM0_XBAGCCore2		0xc5c
 #define rOFDM0_XCAGCCore1		0xc60
-#define rOFDM0_XCAGCCore2		0xc64
 #define rOFDM0_XDAGCCore1		0xc68
-#define rOFDM0_XDAGCCore2		0xc6c
 #define rOFDM0_AGCParameter1		0xc70
 #define rOFDM0_AGCParameter2		0xc74
 #define rOFDM0_AGCRSSITable		0xc78
