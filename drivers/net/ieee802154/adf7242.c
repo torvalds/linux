@@ -1336,7 +1336,7 @@ MODULE_DEVICE_TABLE(spi, adf7242_device_id);
 static struct spi_driver adf7242_driver = {
 	.id_table = adf7242_device_id,
 	.driver = {
-		   .of_match_table = of_match_ptr(adf7242_of_match),
+		   .of_match_table = adf7242_of_match,
 		   .name = "adf7242",
 		   .owner = THIS_MODULE,
 		   },
