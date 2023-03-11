@@ -4146,7 +4146,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	 * provide gurantee on number of contiguous blocks allocation since that
 	 * depends upon free space left, etc).
 	 * In case of inode pa, later we use the allocated blocks
-	 * [pa_start + fe_logical - pa_lstart, fe_len/size] from the preallocated
+	 * [pa_pstart + fe_logical - pa_lstart, fe_len/size] from the preallocated
 	 * range of goal/best blocks [start, size] to put it at the
 	 * ac_o_ex.fe_logical extent of this inode.
 	 * (See ext4_mb_use_inode_pa() for more details)
@@ -4299,7 +4299,7 @@ static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 	ac->ac_status = AC_STATUS_FOUND;
 	ac->ac_pa = pa;
 
-	/* we don't correct pa_pstart or pa_plen here to avoid
+	/* we don't correct pa_pstart or pa_len here to avoid
 	 * possible race when the group is being loaded concurrently
 	 * instead we correct pa later, after blocks are marked
 	 * in on-disk bitmap -- see ext4_mb_release_context()
