@@ -1008,12 +1008,11 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rstmsg = kzalloc(sizeof(*rstmsg), GFP_KERNEL);
 	rwrmsg = kzalloc(sizeof(*rwrmsg), GFP_KERNEL);
 	if (!rstmsg || !rwrmsg) {
-		kfree(rstmsg);
-		kfree(rwrmsg);
 		netdev_err(wlandev->netdev,
 			   "%s: no memory for firmware download, aborting download\n",
 			   __func__);
-		return -ENOMEM;
+		result = -ENOMEM;
+		goto free_result;
 	}
 
 	/* Initialize the messages */
