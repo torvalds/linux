@@ -425,6 +425,8 @@ static int stm32_hash_update_cpu(struct stm32_hash_dev *hdev)
 		bufcnt = rctx->bufcnt;
 		rctx->bufcnt = 0;
 		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, bufcnt, 0);
+		if (err)
+			return err;
 	}
 
 	stm32_hash_append_sg(rctx);
@@ -433,14 +435,6 @@ static int stm32_hash_update_cpu(struct stm32_hash_dev *hdev)
 		bufcnt = rctx->bufcnt;
 		rctx->bufcnt = 0;
 		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, bufcnt, 1);
-
-		/* If we have an IRQ, wait for that, else poll for completion */
-		if (hdev->polled) {
-			if (stm32_hash_wait_busy(hdev))
-				return -ETIMEDOUT;
-			hdev->flags |= HASH_FLAGS_OUTPUT_READY;
-			err = 0;
-		}
 	}
 
 	return err;
@@ -784,15 +778,6 @@ static int stm32_hash_final_req(struct stm32_hash_dev *hdev)
 	else
 		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, buflen, 1);
 
-	/* If we have an IRQ, wait for that, else poll for completion */
-	if (hdev->polled) {
-		if (stm32_hash_wait_busy(hdev))
-			return -ETIMEDOUT;
-		hdev->flags |= HASH_FLAGS_OUTPUT_READY;
-		/* Caller will call stm32_hash_finish_req() */
-		err = 0;
-	}
-
 	return err;
 }
 
@@ -963,6 +948,16 @@ static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 		err = stm32_hash_update_req(hdev);
 	else if (rctx->op == HASH_OP_FINAL)
 		err = stm32_hash_final_req(hdev);
+
+	/* If we have an IRQ, wait for that, else poll for completion */
+	if (err == -EINPROGRESS && hdev->polled) {
+		if (stm32_hash_wait_busy(hdev))
+			err = -ETIMEDOUT;
+		else {
+			hdev->flags |= HASH_FLAGS_OUTPUT_READY;
+			err = 0;
+		}
+	}
 
 	if (err != -EINPROGRESS)
 	/* done task will not finish it, so do it here */
