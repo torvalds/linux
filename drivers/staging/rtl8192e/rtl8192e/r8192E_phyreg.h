@@ -65,8 +65,6 @@
 #define rFPGA0_XA_RFInterfaceOE		0x860
 #define rFPGA0_XB_RFInterfaceOE		0x864
 #define rFPGA0_XAB_RFInterfaceSW	0x870
-#define rFPGA0_XAB_RFParameter		0x878
-#define rFPGA0_XCD_RFParameter		0x87c
 #define rFPGA0_AnalogParameter1		0x880
 #define rFPGA0_AnalogParameter2		0x884
 #define rFPGA0_AnalogParameter3		0x888

@@ -368,16 +368,6 @@ static void _rtl92e_init_bb_rf_reg_def(struct net_device *dev)
 	priv->phy_reg_def[RF90_PATH_A].rf3wireOffset = rFPGA0_XA_LSSIParameter;
 	priv->phy_reg_def[RF90_PATH_B].rf3wireOffset = rFPGA0_XB_LSSIParameter;
 
-	priv->phy_reg_def[RF90_PATH_A].rfLSSI_Select = rFPGA0_XAB_RFParameter;
-	priv->phy_reg_def[RF90_PATH_B].rfLSSI_Select = rFPGA0_XAB_RFParameter;
-	priv->phy_reg_def[RF90_PATH_C].rfLSSI_Select = rFPGA0_XCD_RFParameter;
-	priv->phy_reg_def[RF90_PATH_D].rfLSSI_Select = rFPGA0_XCD_RFParameter;
-
-	priv->phy_reg_def[RF90_PATH_A].rfTxGainStage = rFPGA0_TxGainStage;
-	priv->phy_reg_def[RF90_PATH_B].rfTxGainStage = rFPGA0_TxGainStage;
-	priv->phy_reg_def[RF90_PATH_C].rfTxGainStage = rFPGA0_TxGainStage;
-	priv->phy_reg_def[RF90_PATH_D].rfTxGainStage = rFPGA0_TxGainStage;
-
 	priv->phy_reg_def[RF90_PATH_A].rfHSSIPara1 = rFPGA0_XA_HSSIParameter1;
 	priv->phy_reg_def[RF90_PATH_B].rfHSSIPara1 = rFPGA0_XB_HSSIParameter1;
 	priv->phy_reg_def[RF90_PATH_C].rfHSSIPara1 = rFPGA0_XC_HSSIParameter1;

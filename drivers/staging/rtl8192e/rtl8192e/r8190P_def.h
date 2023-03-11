@@ -106,8 +106,6 @@ struct bb_reg_definition {
 	u32 rfintfo;
 	u32 rfintfe;
 	u32 rf3wireOffset;
-	u32 rfLSSI_Select;
-	u32 rfTxGainStage;
 	u32 rfHSSIPara1;
 	u32 rfHSSIPara2;
 	u32 rfSwitchControl;
