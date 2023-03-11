@@ -274,10 +274,10 @@ static bool is_dp_dig_pixel_rate_div_policy(struct dc *dc, const struct dc_crtc_
 		dc->debug.enable_dp_dig_pixel_rate_div_policy;
 }
 
-static void enc32_stream_encoder_dp_unblank(
-        struct dc_link *link,
-		struct stream_encoder *enc,
-		const struct encoder_unblank_param *param)
+void enc32_stream_encoder_dp_unblank(
+	struct dc_link *link,
+	struct stream_encoder *enc,
+	const struct encoder_unblank_param *param)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	struct dc *dc = enc->ctx->dc;
@@ -440,7 +440,7 @@ static void enc32_reset_fifo(struct stream_encoder *enc, bool reset)
 		udelay(10);
 }
 
-static void enc32_enable_fifo(struct stream_encoder *enc)
+void enc32_enable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 

@@ -2477,11 +2477,12 @@ void link_set_dpms_on(
 		 * from transmitter control.
 		 */
 		if (!(dc_is_virtual_signal(pipe_ctx->stream->signal) ||
-				dp_is_128b_132b_signal(pipe_ctx)))
-			if (link_enc)
-				link_enc->funcs->setup(
-					link_enc,
-					pipe_ctx->stream->signal);
+				dp_is_128b_132b_signal(pipe_ctx))) {
+				if (link_enc)
+					link_enc->funcs->setup(
+						link_enc,
+						pipe_ctx->stream->signal);
+			}
 
 		dc->hwss.enable_stream(pipe_ctx);
 
