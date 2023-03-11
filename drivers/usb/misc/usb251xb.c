@@ -377,7 +377,6 @@ out_err:
 	return err;
 }
 
-#ifdef CONFIG_OF
 static void usb251xb_get_ports_field(struct usb251xb *hub,
 				    const char *prop_name, u8 port_cnt,
 				    bool ds_only, u8 *fld)
@@ -623,13 +622,6 @@ static const struct of_device_id usb251xb_of_match[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, usb251xb_of_match);
-#else /* CONFIG_OF */
-static int usb251xb_get_ofdata(struct usb251xb *hub,
-			       const struct usb251xb_data *data)
-{
-	return 0;
-}
-#endif /* CONFIG_OF */
 
 static void usb251xb_regulator_disable_action(void *data)
 {
@@ -751,7 +743,7 @@ MODULE_DEVICE_TABLE(i2c, usb251xb_id);
 static struct i2c_driver usb251xb_i2c_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = of_match_ptr(usb251xb_of_match),
+		.of_match_table = usb251xb_of_match,
 		.pm = &usb251xb_pm_ops,
 	},
 	.probe_new = usb251xb_i2c_probe,
