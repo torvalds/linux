@@ -18,6 +18,7 @@ properties:
     enum:
       - qcom,sc8280xp-qmp-ufs-phy
       - qcom,sm6125-qmp-ufs-phy
+      - qcom,sm7150-qmp-ufs-phy
       - qcom,sm8550-qmp-ufs-phy
 
   reg:
