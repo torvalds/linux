@@ -368,20 +368,10 @@ static void _rtl92e_init_bb_rf_reg_def(struct net_device *dev)
 	priv->phy_reg_def[RF90_PATH_A].rf3wireOffset = rFPGA0_XA_LSSIParameter;
 	priv->phy_reg_def[RF90_PATH_B].rf3wireOffset = rFPGA0_XB_LSSIParameter;
 
-	priv->phy_reg_def[RF90_PATH_A].rfHSSIPara1 = rFPGA0_XA_HSSIParameter1;
-	priv->phy_reg_def[RF90_PATH_B].rfHSSIPara1 = rFPGA0_XB_HSSIParameter1;
-	priv->phy_reg_def[RF90_PATH_C].rfHSSIPara1 = rFPGA0_XC_HSSIParameter1;
-	priv->phy_reg_def[RF90_PATH_D].rfHSSIPara1 = rFPGA0_XD_HSSIParameter1;
-
 	priv->phy_reg_def[RF90_PATH_A].rfHSSIPara2 = rFPGA0_XA_HSSIParameter2;
 	priv->phy_reg_def[RF90_PATH_B].rfHSSIPara2 = rFPGA0_XB_HSSIParameter2;
 	priv->phy_reg_def[RF90_PATH_C].rfHSSIPara2 = rFPGA0_XC_HSSIParameter2;
 	priv->phy_reg_def[RF90_PATH_D].rfHSSIPara2 = rFPGA0_XD_HSSIParameter2;
-
-	priv->phy_reg_def[RF90_PATH_A].rfSwitchControl = rFPGA0_XAB_SwitchControl;
-	priv->phy_reg_def[RF90_PATH_B].rfSwitchControl = rFPGA0_XAB_SwitchControl;
-	priv->phy_reg_def[RF90_PATH_C].rfSwitchControl = rFPGA0_XCD_SwitchControl;
-	priv->phy_reg_def[RF90_PATH_D].rfSwitchControl = rFPGA0_XCD_SwitchControl;
 
 	priv->phy_reg_def[RF90_PATH_A].rfAGCControl1 = rOFDM0_XAAGCCore1;
 	priv->phy_reg_def[RF90_PATH_B].rfAGCControl1 = rOFDM0_XBAGCCore1;
