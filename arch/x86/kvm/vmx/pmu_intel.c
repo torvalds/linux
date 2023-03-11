@@ -531,6 +531,16 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->pebs_enable_mask = ~0ull;
 	pmu->pebs_data_cfg_mask = ~0ull;
 
+	memset(&lbr_desc->records, 0, sizeof(lbr_desc->records));
+
+	/*
+	 * Setting passthrough of LBR MSRs is done only in the VM-Entry loop,
+	 * and PMU refresh is disallowed after the vCPU has run, i.e. this code
+	 * should never be reached while KVM is passing through MSRs.
+	 */
+	if (KVM_BUG_ON(lbr_desc->msr_passthrough, vcpu->kvm))
+		return;
+
 	entry = kvm_find_cpuid_entry(vcpu, 0xa);
 	if (!entry || !vcpu->kvm->arch.enable_pmu)
 		return;
