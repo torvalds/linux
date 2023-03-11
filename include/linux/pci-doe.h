@@ -49,7 +49,7 @@ struct pci_doe_mb;
  */
 struct pci_doe_task {
 	struct pci_doe_protocol prot;
-	__le32 *request_pl;
+	const __le32 *request_pl;
 	size_t request_pl_sz;
 	__le32 *response_pl;
 	size_t response_pl_sz;
@@ -77,5 +77,9 @@ struct pci_doe_task {
 struct pci_doe_mb *pcim_doe_create_mb(struct pci_dev *pdev, u16 cap_offset);
 bool pci_doe_supports_prot(struct pci_doe_mb *doe_mb, u16 vid, u8 type);
 int pci_doe_submit_task(struct pci_doe_mb *doe_mb, struct pci_doe_task *task);
+
+int pci_doe(struct pci_doe_mb *doe_mb, u16 vendor, u8 type,
+	    const void *request, size_t request_sz,
+	    void *response, size_t response_sz);
 
 #endif
