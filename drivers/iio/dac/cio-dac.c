@@ -4,7 +4,7 @@
  * Copyright (C) 2016 William Breathitt Gray
  *
  * This driver supports the following Measurement Computing devices: CIO-DAC16,
- * CIO-DAC06, and PC104-DAC06.
+ * CIO-DAC08, and PC104-DAC06.
  */
 #include <linux/bitops.h>
 #include <linux/device.h>
