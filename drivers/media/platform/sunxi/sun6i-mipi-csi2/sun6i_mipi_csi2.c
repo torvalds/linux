@@ -757,7 +757,7 @@ static struct platform_driver sun6i_mipi_csi2_platform_driver = {
 	.remove_new = sun6i_mipi_csi2_remove,
 	.driver	= {
 		.name		= SUN6I_MIPI_CSI2_NAME,
-		.of_match_table	= of_match_ptr(sun6i_mipi_csi2_of_match),
+		.of_match_table	= sun6i_mipi_csi2_of_match,
 		.pm		= &sun6i_mipi_csi2_pm_ops,
 	},
 };
