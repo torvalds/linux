@@ -261,7 +261,36 @@ static const struct drm_ioctl_desc lima_drm_driver_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(LIMA_CTX_FREE, lima_ioctl_ctx_free, DRM_RENDER_ALLOW),
 };
 
-DEFINE_DRM_GEM_FOPS(lima_drm_driver_fops);
+static void lima_drm_driver_show_fdinfo(struct seq_file *m, struct file *filp)
+{
+	struct drm_file *file = filp->private_data;
+	struct drm_device *dev = file->minor->dev;
+	struct lima_device *ldev = to_lima_dev(dev);
+	struct lima_drm_priv *priv = file->driver_priv;
+	struct lima_ctx_mgr *ctx_mgr = &priv->ctx_mgr;
+	u64 usage[lima_pipe_num];
+
+	lima_ctx_mgr_usage(ctx_mgr, usage);
+
+	/*
+	 * For a description of the text output format used here, see
+	 * Documentation/gpu/drm-usage-stats.rst.
+	 */
+	seq_printf(m, "drm-driver:\t%s\n", dev->driver->name);
+	seq_printf(m, "drm-client-id:\t%u\n", priv->id);
+	for (int i = 0; i < lima_pipe_num; i++) {
+		struct lima_sched_pipe *pipe = &ldev->pipe[i];
+		struct drm_gpu_scheduler *sched = &pipe->base;
+
+		seq_printf(m, "drm-engine-%s:\t%llu ns\n", sched->name, usage[i]);
+	}
+}
+
+static const struct file_operations lima_drm_driver_fops = {
+	.owner = THIS_MODULE,
+	DRM_GEM_FOPS,
+	.show_fdinfo = lima_drm_driver_show_fdinfo,
+};
 
 /*
  * Changelog:
