@@ -707,8 +707,6 @@ static int xvcu_remove(struct platform_device *pdev)
 	struct xvcu_device *xvcu;
 
 	xvcu = platform_get_drvdata(pdev);
-	if (!xvcu)
-		return -ENODEV;
 
 	xvcu_unregister_clock_provider(xvcu);
 
