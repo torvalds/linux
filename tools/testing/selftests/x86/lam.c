@@ -30,6 +30,7 @@
 #define ARCH_GET_UNTAG_MASK     0x4001
 #define ARCH_ENABLE_TAGGED_ADDR 0x4002
 #define ARCH_GET_MAX_TAG_BITS   0x4003
+#define ARCH_FORCE_TAGGED_SVA	0x4004
 
 /* Specified test function bits */
 #define FUNC_MALLOC             0x1
@@ -38,8 +39,9 @@
 #define FUNC_SYSCALL            0x8
 #define FUNC_URING              0x10
 #define FUNC_INHERITE           0x20
+#define FUNC_PASID              0x40
 
-#define TEST_MASK               0x3f
+#define TEST_MASK               0x7f
 
 #define LOW_ADDR                (0x1UL << 30)
 #define HIGH_ADDR               (0x3UL << 48)
@@ -55,11 +57,19 @@
 #define URING_QUEUE_SZ 1
 #define URING_BLOCK_SZ 2048
 
+/* Pasid test define */
+#define LAM_CMD_BIT 0x1
+#define PAS_CMD_BIT 0x2
+#define SVA_CMD_BIT 0x4
+
+#define PAS_CMD(cmd1, cmd2, cmd3) (((cmd3) << 8) | ((cmd2) << 4) | ((cmd1) << 0))
+
 struct testcases {
 	unsigned int later;
 	int expected; /* 2: SIGSEGV Error; 1: other errors */
 	unsigned long lam;
 	uint64_t addr;
+	uint64_t cmd;
 	int (*test_func)(struct testcases *test);
 	const char *msg;
 };
@@ -556,7 +566,7 @@ int do_uring(unsigned long lam)
 	struct file_io *fi;
 	struct stat st;
 	int ret = 1;
-	char path[PATH_MAX];
+	char path[PATH_MAX] = {0};
 
 	/* get current process path */
 	if (readlink("/proc/self/exe", path, PATH_MAX) <= 0)
@@ -852,6 +862,226 @@ static void cmd_help(void)
 	printf("\t-h: help\n");
 }
 
+/* Check for file existence */
+uint8_t file_Exists(const char *fileName)
+{
+	struct stat buffer;
+
+	uint8_t ret = (stat(fileName, &buffer) == 0);
+
+	return ret;
+}
+
+/* Sysfs idxd files */
+const char *dsa_configs[] = {
+	"echo 1 > /sys/bus/dsa/devices/dsa0/wq0.1/group_id",
+	"echo shared > /sys/bus/dsa/devices/dsa0/wq0.1/mode",
+	"echo 10 > /sys/bus/dsa/devices/dsa0/wq0.1/priority",
+	"echo 16 > /sys/bus/dsa/devices/dsa0/wq0.1/size",
+	"echo 15 > /sys/bus/dsa/devices/dsa0/wq0.1/threshold",
+	"echo user > /sys/bus/dsa/devices/dsa0/wq0.1/type",
+	"echo MyApp1 > /sys/bus/dsa/devices/dsa0/wq0.1/name",
+	"echo 1 > /sys/bus/dsa/devices/dsa0/engine0.1/group_id",
+	"echo dsa0 > /sys/bus/dsa/drivers/idxd/bind",
+	/* bind files and devices, generated a device file in /dev */
+	"echo wq0.1 > /sys/bus/dsa/drivers/user/bind",
+};
+
+/* DSA device file */
+const char *dsaDeviceFile = "/dev/dsa/wq0.1";
+/* file for io*/
+const char *dsaPasidEnable = "/sys/bus/dsa/devices/dsa0/pasid_enabled";
+
+/*
+ * DSA depends on kernel cmdline "intel_iommu=on,sm_on"
+ * return pasid_enabled (0: disable 1:enable)
+ */
+int Check_DSA_Kernel_Setting(void)
+{
+	char command[256] = "";
+	char buf[256] = "";
+	char *ptr;
+	int rv = -1;
+
+	snprintf(command, sizeof(command) - 1, "cat %s", dsaPasidEnable);
+
+	FILE *cmd = popen(command, "r");
+
+	if (cmd) {
+		while (fgets(buf, sizeof(buf) - 1, cmd) != NULL);
+
+		pclose(cmd);
+		rv = strtol(buf, &ptr, 16);
+	}
+
+	return rv;
+}
+
+/*
+ * Config DSA's sysfs files as shared DSA's WQ.
+ * Generated a device file /dev/dsa/wq0.1
+ * Return:  0 OK; 1 Failed; 3 Skip(SVA disabled).
+ */
+int Dsa_Init_Sysfs(void)
+{
+	uint len = ARRAY_SIZE(dsa_configs);
+	const char **p = dsa_configs;
+
+	if (file_Exists(dsaDeviceFile) == 1)
+		return 0;
+
+	/* check the idxd driver */
+	if (file_Exists(dsaPasidEnable) != 1) {
+		printf("Please make sure idxd driver was loaded\n");
+		return 3;
+	}
+
+	/* Check SVA feature */
+	if (Check_DSA_Kernel_Setting() != 1) {
+		printf("Please enable SVA.(Add intel_iommu=on,sm_on in kernel cmdline)\n");
+		return 3;
+	}
+
+	/* Check the idxd device file on /dev/dsa/ */
+	for (int i = 0; i < len; i++) {
+		if (system(p[i]))
+			return 1;
+	}
+
+	/* After config, /dev/dsa/wq0.1 should be generated */
+	return (file_Exists(dsaDeviceFile) != 1);
+}
+
+/*
+ * Open DSA device file, triger API: iommu_sva_alloc_pasid
+ */
+void *allocate_dsa_pasid(void)
+{
+	int fd;
+	void *wq;
+
+	fd = open(dsaDeviceFile, O_RDWR);
+	if (fd < 0) {
+		perror("open");
+		return MAP_FAILED;
+	}
+
+	wq = mmap(NULL, 0x1000, PROT_WRITE,
+			   MAP_SHARED | MAP_POPULATE, fd, 0);
+	if (wq == MAP_FAILED)
+		perror("mmap");
+
+	return wq;
+}
+
+int set_force_svm(void)
+{
+	int ret = 0;
+
+	ret = syscall(SYS_arch_prctl, ARCH_FORCE_TAGGED_SVA);
+
+	return ret;
+}
+
+int handle_pasid(struct testcases *test)
+{
+	uint tmp = test->cmd;
+	uint runed = 0x0;
+	int ret = 0;
+	void *wq = NULL;
+
+	ret = Dsa_Init_Sysfs();
+	if (ret != 0)
+		return ret;
+
+	for (int i = 0; i < 3; i++) {
+		int err = 0;
+
+		if (tmp & 0x1) {
+			/* run set lam mode*/
+			if ((runed & 0x1) == 0)	{
+				err = set_lam(LAM_U57_BITS);
+				runed = runed | 0x1;
+			} else
+				err = 1;
+		} else if (tmp & 0x4) {
+			/* run force svm */
+			if ((runed & 0x4) == 0)	{
+				err = set_force_svm();
+				runed = runed | 0x4;
+			} else
+				err = 1;
+		} else if (tmp & 0x2) {
+			/* run allocate pasid */
+			if ((runed & 0x2) == 0) {
+				runed = runed | 0x2;
+				wq = allocate_dsa_pasid();
+				if (wq == MAP_FAILED)
+					err = 1;
+			} else
+				err = 1;
+		}
+
+		ret = ret + err;
+		if (ret > 0)
+			break;
+
+		tmp = tmp >> 4;
+	}
+
+	if (wq != MAP_FAILED && wq != NULL)
+		if (munmap(wq, 0x1000))
+			printf("munmap failed %d\n", errno);
+
+	if (runed != 0x7)
+		ret = 1;
+
+	return (ret != 0);
+}
+
+/*
+ * Pasid test depends on idxd and SVA, kernel should enable iommu and sm.
+ * command line(intel_iommu=on,sm_on)
+ */
+static struct testcases pasid_cases[] = {
+	{
+		.expected = 1,
+		.cmd = PAS_CMD(LAM_CMD_BIT, PAS_CMD_BIT, SVA_CMD_BIT),
+		.test_func = handle_pasid,
+		.msg = "PASID: [Negative] Execute LAM, PASID, SVA in sequence\n",
+	},
+	{
+		.expected = 0,
+		.cmd = PAS_CMD(LAM_CMD_BIT, SVA_CMD_BIT, PAS_CMD_BIT),
+		.test_func = handle_pasid,
+		.msg = "PASID: Execute LAM, SVA, PASID in sequence\n",
+	},
+	{
+		.expected = 1,
+		.cmd = PAS_CMD(PAS_CMD_BIT, LAM_CMD_BIT, SVA_CMD_BIT),
+		.test_func = handle_pasid,
+		.msg = "PASID: [Negative] Execute PASID, LAM, SVA in sequence\n",
+	},
+	{
+		.expected = 0,
+		.cmd = PAS_CMD(PAS_CMD_BIT, SVA_CMD_BIT, LAM_CMD_BIT),
+		.test_func = handle_pasid,
+		.msg = "PASID: Execute PASID, SVA, LAM in sequence\n",
+	},
+	{
+		.expected = 0,
+		.cmd = PAS_CMD(SVA_CMD_BIT, LAM_CMD_BIT, PAS_CMD_BIT),
+		.test_func = handle_pasid,
+		.msg = "PASID: Execute SVA, LAM, PASID in sequence\n",
+	},
+	{
+		.expected = 0,
+		.cmd = PAS_CMD(SVA_CMD_BIT, PAS_CMD_BIT, LAM_CMD_BIT),
+		.test_func = handle_pasid,
+		.msg = "PASID: Execute SVA, PASID, LAM in sequence\n",
+	},
+};
+
 int main(int argc, char **argv)
 {
 	int c = 0;
@@ -909,6 +1139,9 @@ int main(int argc, char **argv)
 
 	if (tests & FUNC_INHERITE)
 		run_test(inheritance_cases, ARRAY_SIZE(inheritance_cases));
+
+	if (tests & FUNC_PASID)
+		run_test(pasid_cases, ARRAY_SIZE(pasid_cases));
 
 	ksft_set_plan(tests_cnt);
 
