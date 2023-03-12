@@ -2975,30 +2975,18 @@ static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
 static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 {
 	struct amdgpu_dm_backlight_caps *caps;
-	struct amdgpu_display_manager *dm;
 	struct drm_connector *conn_base;
 	struct amdgpu_device *adev;
-	struct dc_link *link = NULL;
 	struct drm_luminance_range_info *luminance_range;
-	int i;
 
-	if (!aconnector || !aconnector->dc_link)
-		return;
-
-	link = aconnector->dc_link;
-	if (link->connector_signal != SIGNAL_TYPE_EDP)
+	if (aconnector->bl_idx == -1 ||
+	    aconnector->dc_link->connector_signal != SIGNAL_TYPE_EDP)
 		return;
 
 	conn_base = &aconnector->base;
 	adev = drm_to_adev(conn_base->dev);
-	dm = &adev->dm;
-	for (i = 0; i < dm->num_of_edps; i++) {
-		if (link == dm->backlight_link[i])
-			break;
-	}
-	if (i >= dm->num_of_edps)
-		return;
-	caps = &dm->backlight_caps[i];
+
+	caps = &adev->dm.backlight_caps[aconnector->bl_idx];
 	caps->ext_caps = &aconnector->dc_link->dpcd_sink_ext_caps;
 	caps->aux_support = false;
 
@@ -4266,8 +4254,9 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 
 
 static void register_backlight_device(struct amdgpu_display_manager *dm,
-				      struct dc_link *link)
+				      struct amdgpu_dm_connector *aconnector)
 {
+	struct dc_link *link = aconnector->dc_link;
 	int bl_idx = dm->num_of_edps;
 
 	if (!(link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) ||
@@ -4279,9 +4268,13 @@ static void register_backlight_device(struct amdgpu_display_manager *dm,
 		return;
 	}
 
+	aconnector->bl_idx = bl_idx;
+
 	amdgpu_dm_register_backlight_device(dm);
-	if (!dm->backlight_dev[bl_idx])
+	if (!dm->backlight_dev[bl_idx]) {
+		aconnector->bl_idx = -1;
 		return;
+	}
 
 	dm->backlight_link[bl_idx] = link;
 	dm->num_of_edps++;
@@ -4464,7 +4457,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 			if (ret) {
 				amdgpu_dm_update_connector_after_detect(aconnector);
-				register_backlight_device(dm, link);
+				register_backlight_device(dm, aconnector);
 
 				if (dm->num_of_edps)
 					update_connector_ext_caps(aconnector);
@@ -6243,10 +6236,8 @@ static void amdgpu_dm_connector_unregister(struct drm_connector *connector)
 static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	const struct dc_link *link = aconnector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct amdgpu_display_manager *dm = &adev->dm;
-	int i;
 
 	/*
 	 * Call only if mst_mgr was initialized before since it's not done
@@ -6255,11 +6246,9 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	if (aconnector->mst_mgr.dev)
 		drm_dp_mst_topology_mgr_destroy(&aconnector->mst_mgr);
 
-	for (i = 0; i < dm->num_of_edps; i++) {
-		if ((link == dm->backlight_link[i]) && dm->backlight_dev[i]) {
-			backlight_device_unregister(dm->backlight_dev[i]);
-			dm->backlight_dev[i] = NULL;
-		}
+	if (aconnector->bl_idx != -1) {
+		backlight_device_unregister(dm->backlight_dev[aconnector->bl_idx]);
+		dm->backlight_dev[aconnector->bl_idx] = NULL;
 	}
 
 	if (aconnector->dc_em_sink)
@@ -7229,6 +7218,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 		aconnector->base.funcs->reset(&aconnector->base);
 
 	aconnector->connector_id = link_index;
+	aconnector->bl_idx = -1;
 	aconnector->dc_link = link;
 	aconnector->base.interlace_allowed = false;
 	aconnector->base.doublescan_allowed = false;
