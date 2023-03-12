@@ -244,6 +244,7 @@ KERNELRELEASE = ${KERNELRELEASE}
 build-indep:
 build-arch:
 	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \
+	KERNELRELEASE=\$(KERNELRELEASE) \
 	\$(shell \$(srctree)/scripts/package/deb-build-option) \
 	olddefconfig all
 

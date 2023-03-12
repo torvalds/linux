@@ -8,9 +8,8 @@ if [ -z "${CROSS_COMPILE}${cross_compiling}" -a "${DEB_HOST_ARCH}" != "${DEB_BUI
 fi
 
 version=$(dpkg-parsechangelog -S Version)
-version_upstream="${version%-*}"
-debian_revision="${version#${version_upstream}}"
-debian_revision="${debian_revision#*-}"
+debian_revision="${version##*-}"
 
-echo KERNELRELEASE=${version_upstream}
-echo KBUILD_BUILD_VERSION=${debian_revision}
+if [ "${version}" != "${debian_revision}" ]; then
+	echo KBUILD_BUILD_VERSION=${debian_revision}
+fi
