@@ -1022,6 +1022,7 @@ mt7996_mcu_sta_amsdu_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 	struct tlv *tlv;
 
 	if (vif->type != NL80211_IFTYPE_STATION &&
+	    vif->type != NL80211_IFTYPE_MESH_POINT &&
 	    vif->type != NL80211_IFTYPE_AP)
 		return;
 
@@ -1469,6 +1470,12 @@ mt7996_mcu_sta_hdr_trans_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 	if (test_bit(MT_WCID_FLAG_4ADDR, &wcid->flags)) {
 		hdr_trans->to_ds = true;
 		hdr_trans->from_ds = true;
+	}
+
+	if (vif->type == NL80211_IFTYPE_MESH_POINT) {
+		hdr_trans->to_ds = true;
+		hdr_trans->from_ds = true;
+		hdr_trans->mesh = true;
 	}
 }
 

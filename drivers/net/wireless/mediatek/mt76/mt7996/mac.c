@@ -641,6 +641,8 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
 	u32 rxd4 = le32_to_cpu(rxd[4]);
 	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
 	u32 csum_status = *(u32 *)skb->cb;
+	u32 mesh_mask = MT_RXD0_MESH | MT_RXD0_MHCP;
+	bool is_mesh = (rxd0 & mesh_mask) == mesh_mask;
 	bool unicast, insert_ccmp_hdr = false;
 	u8 remove_pad, amsdu_info, band_idx;
 	u8 mode = 0, qos_ctl = 0;
@@ -832,19 +834,16 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
 		int pad_start = 0;
 
 		skb_pull(skb, hdr_gap);
-		if (!hdr_trans && status->amsdu) {
+		if (!hdr_trans && status->amsdu && !(ieee80211_has_a4(fc) && is_mesh)) {
 			pad_start = ieee80211_get_hdrlen_from_skb(skb);
-		} else if (hdr_trans && (rxd2 & MT_RXD2_NORMAL_HDR_TRANS_ERROR)) {
+		} else if (hdr_trans && (rxd2 & MT_RXD2_NORMAL_HDR_TRANS_ERROR) &&
+			   get_unaligned_be16(skb->data + pad_start) == ETH_P_8021Q) {
 			/* When header translation failure is indicated,
 			 * the hardware will insert an extra 2-byte field
 			 * containing the data length after the protocol
 			 * type field.
 			 */
-			pad_start = 12;
-			if (get_unaligned_be16(skb->data + pad_start) == ETH_P_8021Q)
-				pad_start += 4;
-			else
-				pad_start = 0;
+			pad_start = 16;
 		}
 
 		if (pad_start) {
@@ -865,8 +864,17 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
 		hdr = mt76_skb_get_hdr(skb);
 		fc = hdr->frame_control;
 		if (ieee80211_is_data_qos(fc)) {
+			u8 *qos = ieee80211_get_qos_ctl(hdr);
+
 			seq_ctrl = le16_to_cpu(hdr->seq_ctrl);
-			qos_ctl = *ieee80211_get_qos_ctl(hdr);
+			qos_ctl = *qos;
+
+			/* Mesh DA/SA/Length will be stripped after hardware
+			 * de-amsdu, so here needs to clear amsdu present bit
+			 * to mark it as a normal mesh frame.
+			 */
+			if (ieee80211_has_a4(fc) && is_mesh && status->amsdu)
+				*qos &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 		}
 	} else {
 		status->flag |= RX_FLAG_8023;

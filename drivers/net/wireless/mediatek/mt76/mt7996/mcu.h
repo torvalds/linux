@@ -396,7 +396,7 @@ struct sta_rec_hdr_trans {
 	u8 from_ds;
 	u8 to_ds;
 	u8 dis_rx_hdr_tran;
-	u8 rsv;
+	u8 mesh;
 } __packed;
 
 struct hdr_trans_en {
