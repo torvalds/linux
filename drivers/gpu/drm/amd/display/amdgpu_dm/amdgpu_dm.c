@@ -4182,9 +4182,6 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 	char bl_name[16];
 	struct backlight_properties props = { 0 };
 
-	amdgpu_dm_update_backlight_caps(dm, dm->num_of_edps);
-	dm->brightness[dm->num_of_edps] = AMDGPU_MAX_BL_LEVEL;
-
 	if (!acpi_video_backlight_use_native()) {
 		drm_info(adev_to_drm(dm->adev), "Skipping amdgpu DM backlight registration\n");
 		/* Try registering an ACPI video backlight device instead. */
@@ -4253,8 +4250,8 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 }
 
 
-static void register_backlight_device(struct amdgpu_display_manager *dm,
-				      struct amdgpu_dm_connector *aconnector)
+static void setup_backlight_device(struct amdgpu_display_manager *dm,
+				   struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_link *link = aconnector->dc_link;
 	int bl_idx = dm->num_of_edps;
@@ -4270,6 +4267,9 @@ static void register_backlight_device(struct amdgpu_display_manager *dm,
 
 	aconnector->bl_idx = bl_idx;
 
+	amdgpu_dm_update_backlight_caps(dm, bl_idx);
+	dm->brightness[bl_idx] = AMDGPU_MAX_BL_LEVEL;
+
 	amdgpu_dm_register_backlight_device(dm);
 	if (!dm->backlight_dev[bl_idx]) {
 		aconnector->bl_idx = -1;
@@ -4278,6 +4278,8 @@ static void register_backlight_device(struct amdgpu_display_manager *dm,
 
 	dm->backlight_link[bl_idx] = link;
 	dm->num_of_edps++;
+
+	update_connector_ext_caps(aconnector);
 }
 
 static void amdgpu_set_panel_orientation(struct drm_connector *connector);
@@ -4457,10 +4459,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 			if (ret) {
 				amdgpu_dm_update_connector_after_detect(aconnector);
-				register_backlight_device(dm, aconnector);
-
-				if (dm->num_of_edps)
-					update_connector_ext_caps(aconnector);
+				setup_backlight_device(dm, aconnector);
 
 				if (psr_feature_enabled)
 					amdgpu_dm_set_psr_caps(link);
