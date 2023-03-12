@@ -7,11 +7,13 @@
 #include <linux/compiler.h>
 #include <linux/instrumented.h>
 #include <linux/kasan-checks.h>
+#include <linux/mm_types.h>
 #include <linux/string.h>
 #include <asm/asm.h>
 #include <asm/page.h>
 #include <asm/smap.h>
 #include <asm/extable.h>
+#include <asm/tlbflush.h>
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 static inline bool pagefault_disabled(void);
@@ -19,6 +21,39 @@ static inline bool pagefault_disabled(void);
 	WARN_ON_ONCE(!in_task() && !pagefault_disabled())
 #else
 # define WARN_ON_IN_IRQ()
+#endif
+
+#ifdef CONFIG_ADDRESS_MASKING
+/*
+ * Mask out tag bits from the address.
+ *
+ * Magic with the 'sign' allows to untag userspace pointer without any branches
+ * while leaving kernel addresses intact.
+ */
+static inline unsigned long __untagged_addr(unsigned long addr,
+					    unsigned long mask)
+{
+	long sign = addr >> 63;
+
+	addr &= mask | sign;
+	return addr;
+}
+
+#define untagged_addr(addr)	({					\
+	u64 __addr = (__force u64)(addr);				\
+	__addr = __untagged_addr(__addr, current_untag_mask());		\
+	(__force __typeof__(addr))__addr;				\
+})
+
+#define untagged_addr_remote(mm, addr)	({				\
+	u64 __addr = (__force u64)(addr);				\
+	mmap_assert_locked(mm);						\
+	__addr = __untagged_addr(__addr, (mm)->context.untag_mask);	\
+	(__force __typeof__(addr))__addr;				\
+})
+
+#else
+#define untagged_addr(addr)	(addr)
 #endif
 
 /**
@@ -38,10 +73,10 @@ static inline bool pagefault_disabled(void);
  * Return: true (nonzero) if the memory block may be valid, false (zero)
  * if it is definitely invalid.
  */
-#define access_ok(addr, size)					\
+#define access_ok(addr, size)						\
 ({									\
 	WARN_ON_IN_IRQ();						\
-	likely(__access_ok(addr, size));				\
+	likely(__access_ok(untagged_addr(addr), size));			\
 })
 
 #include <asm-generic/access_ok.h>

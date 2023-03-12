@@ -101,6 +101,12 @@ static inline unsigned long mm_lam_cr3_mask(struct mm_struct *mm)
 static inline void dup_lam(struct mm_struct *oldmm, struct mm_struct *mm)
 {
 	mm->context.lam_cr3_mask = oldmm->context.lam_cr3_mask;
+	mm->context.untag_mask = oldmm->context.untag_mask;
+}
+
+static inline void mm_reset_untag_mask(struct mm_struct *mm)
+{
+	mm->context.untag_mask = -1UL;
 }
 
 #else
@@ -111,6 +117,10 @@ static inline unsigned long mm_lam_cr3_mask(struct mm_struct *mm)
 }
 
 static inline void dup_lam(struct mm_struct *oldmm, struct mm_struct *mm)
+{
+}
+
+static inline void mm_reset_untag_mask(struct mm_struct *mm)
 {
 }
 #endif
@@ -139,6 +149,7 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.execute_only_pkey = -1;
 	}
 #endif
+	mm_reset_untag_mask(mm);
 	init_new_context_ldt(mm);
 	return 0;
 }
