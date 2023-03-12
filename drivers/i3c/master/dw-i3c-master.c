@@ -1209,7 +1209,7 @@ static struct platform_driver dw_i3c_driver = {
 	.remove = dw_i3c_remove,
 	.driver = {
 		.name = "dw-i3c-master",
-		.of_match_table = of_match_ptr(dw_i3c_master_of_match),
+		.of_match_table = dw_i3c_master_of_match,
 	},
 };
 module_platform_driver(dw_i3c_driver);
