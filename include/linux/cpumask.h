@@ -147,7 +147,7 @@ static __always_inline void cpu_max_bits_warn(unsigned int cpu, unsigned int bit
 /* verify cpu argument to cpumask_* operators */
 static __always_inline unsigned int cpumask_check(unsigned int cpu)
 {
-	cpu_max_bits_warn(cpu, nr_cpumask_bits);
+	cpu_max_bits_warn(cpu, small_cpumask_bits);
 	return cpu;
 }
 
