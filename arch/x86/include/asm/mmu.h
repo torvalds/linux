@@ -42,6 +42,11 @@ typedef struct {
 	unsigned long flags;
 #endif
 
+#ifdef CONFIG_ADDRESS_MASKING
+	/* Active LAM mode:  X86_CR3_LAM_U48 or X86_CR3_LAM_U57 or 0 (disabled) */
+	unsigned long lam_cr3_mask;
+#endif
+
 	struct mutex lock;
 	void __user *vdso;			/* vdso base address */
 	const struct vdso_image *vdso_image;	/* vdso image in use */
