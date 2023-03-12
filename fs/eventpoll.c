@@ -483,8 +483,8 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
  * (efd1) notices that it may have some event ready, so it needs to wake up
  * the waiters on its poll wait list (efd2). So it calls ep_poll_safewake()
  * that ends up in another wake_up(), after having checked about the
- * recursion constraints. That are, no more than EP_MAX_POLLWAKE_NESTS, to
- * avoid stack blasting.
+ * recursion constraints. That are, no more than EP_MAX_NESTS, to avoid
+ * stack blasting.
  *
  * When CONFIG_DEBUG_LOCK_ALLOC is enabled, make sure lockdep can handle
  * this special case of epoll.
