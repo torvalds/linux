@@ -591,10 +591,9 @@ err:
 	return ret;
 }
 
-static int rpm_clk_remove(struct platform_device *pdev)
+static void rpm_clk_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-	return 0;
 }
 
 static struct platform_driver rpm_clk_driver = {
@@ -603,7 +602,7 @@ static struct platform_driver rpm_clk_driver = {
 		.of_match_table = rpm_clk_match_table,
 	},
 	.probe = rpm_clk_probe,
-	.remove = rpm_clk_remove,
+	.remove_new = rpm_clk_remove,
 };
 
 static int __init rpm_clk_init(void)

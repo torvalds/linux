@@ -3754,19 +3754,17 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gcc_msm8960_remove(struct platform_device *pdev)
+static void gcc_msm8960_remove(struct platform_device *pdev)
 {
 	struct platform_device *tsens = platform_get_drvdata(pdev);
 
 	if (tsens)
 		platform_device_unregister(tsens);
-
-	return 0;
 }
 
 static struct platform_driver gcc_msm8960_driver = {
 	.probe		= gcc_msm8960_probe,
-	.remove		= gcc_msm8960_remove,
+	.remove_new	= gcc_msm8960_remove,
 	.driver		= {
 		.name	= "gcc-msm8960",
 		.of_match_table = gcc_msm8960_match_table,
