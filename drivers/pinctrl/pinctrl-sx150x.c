@@ -1250,7 +1250,7 @@ static int sx150x_probe(struct i2c_client *client)
 static struct i2c_driver sx150x_driver = {
 	.driver = {
 		.name = "sx150x-pinctrl",
-		.of_match_table = of_match_ptr(sx150x_of_match),
+		.of_match_table = sx150x_of_match,
 	},
 	.probe_new = sx150x_probe,
 	.id_table = sx150x_id,
