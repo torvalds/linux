@@ -9,6 +9,7 @@
 #include <linux/kasan-checks.h>
 #include <linux/mm_types.h>
 #include <linux/string.h>
+#include <linux/mmap_lock.h>
 #include <asm/asm.h>
 #include <asm/page.h>
 #include <asm/smap.h>
@@ -30,26 +31,44 @@ static inline bool pagefault_disabled(void);
  * Magic with the 'sign' allows to untag userspace pointer without any branches
  * while leaving kernel addresses intact.
  */
-static inline unsigned long __untagged_addr(unsigned long addr,
-					    unsigned long mask)
+static inline unsigned long __untagged_addr(unsigned long addr)
 {
-	long sign = addr >> 63;
+	long sign;
 
-	addr &= mask | sign;
+	/*
+	 * Refer tlbstate_untag_mask directly to avoid RIP-relative relocation
+	 * in alternative instructions. The relocation gets wrong when gets
+	 * copied to the target place.
+	 */
+	asm (ALTERNATIVE("",
+			 "sar $63, %[sign]\n\t" /* user_ptr ? 0 : -1UL */
+			 "or %%gs:tlbstate_untag_mask, %[sign]\n\t"
+			 "and %[sign], %[addr]\n\t", X86_FEATURE_LAM)
+	     : [addr] "+r" (addr), [sign] "=r" (sign)
+	     : "m" (tlbstate_untag_mask), "[sign]" (addr));
+
 	return addr;
 }
 
 #define untagged_addr(addr)	({					\
-	u64 __addr = (__force u64)(addr);				\
-	__addr = __untagged_addr(__addr, current_untag_mask());		\
-	(__force __typeof__(addr))__addr;				\
+	unsigned long __addr = (__force unsigned long)(addr);		\
+	(__force __typeof__(addr))__untagged_addr(__addr);		\
 })
 
+static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
+						   unsigned long addr)
+{
+	long sign = addr >> 63;
+
+	mmap_assert_locked(mm);
+	addr &= (mm)->context.untag_mask | sign;
+
+	return addr;
+}
+
 #define untagged_addr_remote(mm, addr)	({				\
-	u64 __addr = (__force u64)(addr);				\
-	mmap_assert_locked(mm);						\
-	__addr = __untagged_addr(__addr, (mm)->context.untag_mask);	\
-	(__force __typeof__(addr))__addr;				\
+	unsigned long __addr = (__force unsigned long)(addr);		\
+	(__force __typeof__(addr))__untagged_addr_remote(mm, __addr);	\
 })
 
 #else
