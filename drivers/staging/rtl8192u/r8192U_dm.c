@@ -2859,44 +2859,6 @@ void dm_check_fsync(struct net_device *dev)
 	}
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	dm_shadow_init()
- *
- * Overview:	Store all NIC MAC/BB register content.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/29/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------
- */
-void dm_shadow_init(struct net_device *dev)
-{
-	u8	page;
-	u16	offset;
-
-	for (page = 0; page < 5; page++)
-		for (offset = 0; offset < 256; offset++) {
-			read_nic_byte(dev, offset + page * 256, &dm_shadow[page][offset]);
-			/*DbgPrint("P-%d/O-%02x=%02x\r\n", page, offset, DM_Shadow[page][offset]);*/
-		}
-
-	for (page = 8; page < 11; page++)
-		for (offset = 0; offset < 256; offset++)
-			read_nic_byte(dev, offset + page * 256, &dm_shadow[page][offset]);
-
-	for (page = 12; page < 15; page++)
-		for (offset = 0; offset < 256; offset++)
-			read_nic_byte(dev, offset + page * 256, &dm_shadow[page][offset]);
-
-}   /* dm_shadow_init */
-
 /*---------------------------Define function prototype------------------------*/
 /*-----------------------------------------------------------------------------
  * Function:	DM_DynamicTxPower()
