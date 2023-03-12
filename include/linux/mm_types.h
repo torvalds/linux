@@ -485,12 +485,7 @@ struct vm_area_struct {
 					   within vm_mm. */
 
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
-
-	/*
-	 * Access permissions of this VMA.
-	 * See vmf_insert_mixed_prot() for discussion.
-	 */
-	pgprot_t vm_page_prot;
+	pgprot_t vm_page_prot;          /* Access permissions of this VMA. */
 
 	/*
 	 * Flags, see mm.h.
