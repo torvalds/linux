@@ -2454,7 +2454,7 @@ static struct platform_driver pxa_camera_driver = {
 	.driver		= {
 		.name	= PXA_CAM_DRV_NAME,
 		.pm	= &pxa_camera_pm,
-		.of_match_table = of_match_ptr(pxa_camera_of_match),
+		.of_match_table = pxa_camera_of_match,
 	},
 	.probe		= pxa_camera_probe,
 	.remove_new	= pxa_camera_remove,
