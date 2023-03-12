@@ -214,8 +214,11 @@
 #define BCH_WRITE_REF_DEBUG
 #endif
 
+#ifndef dynamic_fault
 #define dynamic_fault(...)		0
-#define race_fault(...)			0
+#endif
+
+#define race_fault(...)			dynamic_fault("bcachefs:race")
 
 #define trace_and_count(_c, _name, ...)					\
 do {									\
@@ -922,6 +925,13 @@ struct bch_fs {
 
 	mempool_t		large_bkey_pool;
 
+	/* MOVE.C */
+	struct list_head	moving_context_list;
+	struct mutex		moving_context_lock;
+
+	struct list_head	data_progress_list;
+	struct mutex		data_progress_lock;
+
 	/* REBALANCE */
 	struct bch_fs_rebalance	rebalance;
 
@@ -931,10 +941,6 @@ struct bch_fs {
 	s64			copygc_wait;
 	bool			copygc_running;
 	wait_queue_head_t	copygc_running_wq;
-
-	/* DATA PROGRESS STATS */
-	struct list_head	data_progress_list;
-	struct mutex		data_progress_lock;
 
 	/* STRIPES: */
 	GENRADIX(struct stripe) stripes;

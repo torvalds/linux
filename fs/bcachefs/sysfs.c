@@ -248,6 +248,7 @@ read_attribute(io_timers_read);
 read_attribute(io_timers_write);
 
 read_attribute(data_jobs);
+read_attribute(moving_ctxts);
 
 #ifdef CONFIG_BCACHEFS_TESTS
 write_attribute(perf_test);
@@ -274,25 +275,6 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 		ret += btree_bytes(c);
 
 	mutex_unlock(&c->btree_cache.lock);
-	return ret;
-}
-
-static long data_progress_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	long ret = 0;
-	struct bch_move_stats *stats;
-
-	mutex_lock(&c->data_progress_lock);
-	list_for_each_entry(stats, &c->data_progress_list, list) {
-		prt_printf(out, "%s: data type %s btree_id %s position: ",
-		       stats->name,
-		       bch2_data_types[stats->data_type],
-		       bch2_btree_ids[stats->btree_id]);
-		bch2_bpos_to_text(out, stats->pos);
-		prt_printf(out, "%s", "\n");
-	}
-
-	mutex_unlock(&c->data_progress_lock);
 	return ret;
 }
 
@@ -476,7 +458,10 @@ SHOW(bch2_fs)
 		bch2_io_timers_to_text(out, &c->io_clock[WRITE]);
 
 	if (attr == &sysfs_data_jobs)
-		data_progress_to_text(out, c);
+		bch2_data_jobs_to_text(out, c);
+
+	if (attr == &sysfs_moving_ctxts)
+		bch2_fs_moving_ctxts_to_text(out, c);
 
 #ifdef BCH_WRITE_REF_DEBUG
 	if (attr == &sysfs_write_refs)
@@ -693,6 +678,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	sysfs_pd_controller_files(rebalance),
 
 	&sysfs_data_jobs,
+	&sysfs_moving_ctxts,
 
 	&sysfs_internal_uuid,
 	NULL

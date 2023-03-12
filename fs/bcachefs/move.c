@@ -40,7 +40,8 @@ static void progress_list_del(struct bch_fs *c, struct bch_move_stats *stats)
 }
 
 struct moving_io {
-	struct list_head		list;
+	struct list_head		read_list;
+	struct list_head		io_list;
 	struct move_bucket_in_flight	*b;
 	struct closure			cl;
 	bool				read_completed;
@@ -64,7 +65,12 @@ static void move_free(struct moving_io *io)
 		atomic_dec(&io->b->count);
 
 	bch2_data_update_exit(&io->write);
+
+	mutex_lock(&ctxt->lock);
+	list_del(&io->io_list);
 	wake_up(&ctxt->wait);
+	mutex_unlock(&ctxt->lock);
+
 	bch2_write_ref_put(c, BCH_WRITE_REF_move);
 	kfree(io);
 }
@@ -100,7 +106,7 @@ static void move_write(struct moving_io *io)
 struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *ctxt)
 {
 	struct moving_io *io =
-		list_first_entry_or_null(&ctxt->reads, struct moving_io, list);
+		list_first_entry_or_null(&ctxt->reads, struct moving_io, read_list);
 
 	return io && io->read_completed ? io : NULL;
 }
@@ -127,7 +133,7 @@ void bch2_moving_ctxt_do_pending_writes(struct moving_context *ctxt,
 		bch2_trans_unlock(trans);
 
 	while ((io = bch2_moving_ctxt_next_pending_write(ctxt))) {
-		list_del(&io->list);
+		list_del(&io->read_list);
 		move_write(io);
 	}
 }
@@ -144,6 +150,8 @@ static void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt,
 
 void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 {
+	struct bch_fs *c = ctxt->c;
+
 	move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
 	closure_sync(&ctxt->cl);
 
@@ -153,12 +161,15 @@ void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 	EBUG_ON(atomic_read(&ctxt->read_ios));
 
 	if (ctxt->stats) {
-		progress_list_del(ctxt->c, ctxt->stats);
-
-		trace_move_data(ctxt->c,
+		progress_list_del(c, ctxt->stats);
+		trace_move_data(c,
 				atomic64_read(&ctxt->stats->sectors_moved),
 				atomic64_read(&ctxt->stats->keys_moved));
 	}
+
+	mutex_lock(&c->moving_context_lock);
+	list_del(&ctxt->list);
+	mutex_unlock(&c->moving_context_lock);
 }
 
 void bch2_moving_ctxt_init(struct moving_context *ctxt,
@@ -171,14 +182,22 @@ void bch2_moving_ctxt_init(struct moving_context *ctxt,
 	memset(ctxt, 0, sizeof(*ctxt));
 
 	ctxt->c		= c;
+	ctxt->fn	= (void *) _RET_IP_;
 	ctxt->rate	= rate;
 	ctxt->stats	= stats;
 	ctxt->wp	= wp;
 	ctxt->wait_on_copygc = wait_on_copygc;
 
 	closure_init_stack(&ctxt->cl);
+
+	mutex_init(&ctxt->lock);
 	INIT_LIST_HEAD(&ctxt->reads);
+	INIT_LIST_HEAD(&ctxt->ios);
 	init_waitqueue_head(&ctxt->wait);
+
+	mutex_lock(&c->moving_context_lock);
+	list_add(&ctxt->list, &c->moving_context_list);
+	mutex_unlock(&c->moving_context_lock);
 
 	if (stats) {
 		progress_list_add(c, stats);
@@ -280,6 +299,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 	if (!io)
 		goto err;
 
+	INIT_LIST_HEAD(&io->io_list);
 	io->write.ctxt		= ctxt;
 	io->read_sectors	= k.k->size;
 	io->write_sectors	= k.k->size;
@@ -333,9 +353,14 @@ static int bch2_move_extent(struct btree_trans *trans,
 	this_cpu_add(c->counters[BCH_COUNTER_move_extent_read], k.k->size);
 	trace_move_extent_read(k.k);
 
+
+	mutex_lock(&ctxt->lock);
 	atomic_add(io->read_sectors, &ctxt->read_sectors);
 	atomic_inc(&ctxt->read_ios);
-	list_add_tail(&io->list, &ctxt->reads);
+
+	list_add_tail(&io->read_list, &ctxt->reads);
+	list_add_tail(&io->io_list, &ctxt->ios);
+	mutex_unlock(&ctxt->lock);
 
 	/*
 	 * dropped by move_read_endio() - guards against use after free of
@@ -1106,4 +1131,68 @@ int bch2_data_job(struct bch_fs *c,
 	}
 
 	return ret;
+}
+
+void bch2_data_jobs_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct bch_move_stats *stats;
+
+	mutex_lock(&c->data_progress_lock);
+	list_for_each_entry(stats, &c->data_progress_list, list) {
+		prt_printf(out, "%s: data type %s btree_id %s position: ",
+		       stats->name,
+		       bch2_data_types[stats->data_type],
+		       bch2_btree_ids[stats->btree_id]);
+		bch2_bpos_to_text(out, stats->pos);
+		prt_printf(out, "%s", "\n");
+	}
+	mutex_unlock(&c->data_progress_lock);
+}
+
+static void bch2_moving_ctxt_to_text(struct printbuf *out, struct moving_context *ctxt)
+{
+	struct moving_io *io;
+
+	prt_printf(out, "%ps:", ctxt->fn);
+	prt_newline(out);
+	printbuf_indent_add(out, 2);
+
+	prt_printf(out, "reads: %u sectors %u",
+		   atomic_read(&ctxt->read_ios),
+		   atomic_read(&ctxt->read_sectors));
+	prt_newline(out);
+
+	prt_printf(out, "writes: %u sectors %u",
+		   atomic_read(&ctxt->write_ios),
+		   atomic_read(&ctxt->write_sectors));
+	prt_newline(out);
+
+	printbuf_indent_add(out, 2);
+
+	mutex_lock(&ctxt->lock);
+	list_for_each_entry(io, &ctxt->ios, io_list) {
+		bch2_write_op_to_text(out, &io->write.op);
+	}
+	mutex_unlock(&ctxt->lock);
+
+	printbuf_indent_sub(out, 4);
+}
+
+void bch2_fs_moving_ctxts_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct moving_context *ctxt;
+
+	mutex_lock(&c->moving_context_lock);
+	list_for_each_entry(ctxt, &c->moving_context_list, list)
+		bch2_moving_ctxt_to_text(out, ctxt);
+	mutex_unlock(&c->moving_context_lock);
+}
+
+void bch2_fs_move_init(struct bch_fs *c)
+{
+	INIT_LIST_HEAD(&c->moving_context_list);
+	mutex_init(&c->moving_context_lock);
+
+	INIT_LIST_HEAD(&c->data_progress_list);
+	mutex_init(&c->data_progress_lock);
 }

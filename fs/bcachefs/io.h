@@ -28,41 +28,34 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 
 const char *bch2_blk_status_to_str(blk_status_t);
 
-enum bch_write_flags {
-	__BCH_WRITE_ALLOC_NOWAIT,
-	__BCH_WRITE_CACHED,
-	__BCH_WRITE_DATA_ENCODED,
-	__BCH_WRITE_PAGES_STABLE,
-	__BCH_WRITE_PAGES_OWNED,
-	__BCH_WRITE_ONLY_SPECIFIED_DEVS,
-	__BCH_WRITE_WROTE_DATA_INLINE,
-	__BCH_WRITE_FROM_INTERNAL,
-	__BCH_WRITE_CHECK_ENOSPC,
-	__BCH_WRITE_SYNC,
-	__BCH_WRITE_MOVE,
-	__BCH_WRITE_IN_WORKER,
-	__BCH_WRITE_DONE,
-	__BCH_WRITE_IO_ERROR,
-	__BCH_WRITE_CONVERT_UNWRITTEN,
+#define BCH_WRITE_FLAGS()		\
+	x(ALLOC_NOWAIT)			\
+	x(CACHED)			\
+	x(DATA_ENCODED)			\
+	x(PAGES_STABLE)			\
+	x(PAGES_OWNED)			\
+	x(ONLY_SPECIFIED_DEVS)		\
+	x(WROTE_DATA_INLINE)		\
+	x(FROM_INTERNAL)		\
+	x(CHECK_ENOSPC)			\
+	x(SYNC)				\
+	x(MOVE)				\
+	x(IN_WORKER)			\
+	x(DONE)				\
+	x(IO_ERROR)			\
+	x(CONVERT_UNWRITTEN)
+
+enum __bch_write_flags {
+#define x(f)	__BCH_WRITE_##f,
+	BCH_WRITE_FLAGS()
+#undef x
 };
 
-#define BCH_WRITE_ALLOC_NOWAIT		(1U << __BCH_WRITE_ALLOC_NOWAIT)
-#define BCH_WRITE_CACHED		(1U << __BCH_WRITE_CACHED)
-#define BCH_WRITE_DATA_ENCODED		(1U << __BCH_WRITE_DATA_ENCODED)
-#define BCH_WRITE_PAGES_STABLE		(1U << __BCH_WRITE_PAGES_STABLE)
-#define BCH_WRITE_PAGES_OWNED		(1U << __BCH_WRITE_PAGES_OWNED)
-#define BCH_WRITE_ONLY_SPECIFIED_DEVS	(1U << __BCH_WRITE_ONLY_SPECIFIED_DEVS)
-#define BCH_WRITE_WROTE_DATA_INLINE	(1U << __BCH_WRITE_WROTE_DATA_INLINE)
-#define BCH_WRITE_FROM_INTERNAL		(1U << __BCH_WRITE_FROM_INTERNAL)
-#define BCH_WRITE_CHECK_ENOSPC		(1U << __BCH_WRITE_CHECK_ENOSPC)
-#define BCH_WRITE_SYNC			(1U << __BCH_WRITE_SYNC)
-#define BCH_WRITE_MOVE			(1U << __BCH_WRITE_MOVE)
-
-/* Internal: */
-#define BCH_WRITE_IN_WORKER		(1U << __BCH_WRITE_IN_WORKER)
-#define BCH_WRITE_DONE			(1U << __BCH_WRITE_DONE)
-#define BCH_WRITE_IO_ERROR		(1U << __BCH_WRITE_IO_ERROR)
-#define BCH_WRITE_CONVERT_UNWRITTEN	(1U << __BCH_WRITE_CONVERT_UNWRITTEN)
+enum bch_write_flags {
+#define x(f)	BCH_WRITE_##f = 1U << __BCH_WRITE_##f,
+	BCH_WRITE_FLAGS()
+#undef x
+};
 
 static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 {
@@ -123,6 +116,8 @@ static inline struct bch_write_bio *wbio_init(struct bio *bio)
 	memset(&wbio->wbio, 0, sizeof(wbio->wbio));
 	return wbio;
 }
+
+void bch2_write_op_to_text(struct printbuf *, struct bch_write_op *);
 
 struct bch_devs_mask;
 struct cache_promote_op;

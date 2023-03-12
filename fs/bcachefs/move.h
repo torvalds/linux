@@ -11,6 +11,9 @@ struct bch_read_bio;
 
 struct moving_context {
 	struct bch_fs		*c;
+	struct list_head	list;
+	void			*fn;
+
 	struct bch_ratelimit	*rate;
 	struct bch_move_stats	*stats;
 	struct write_point_specifier wp;
@@ -19,7 +22,10 @@ struct moving_context {
 
 	/* For waiting on outstanding reads and writes: */
 	struct closure		cl;
+
+	struct mutex		lock;
 	struct list_head	reads;
+	struct list_head	ios;
 
 	/* in flight sectors: */
 	atomic_t		read_sectors;
@@ -84,6 +90,9 @@ int bch2_data_job(struct bch_fs *,
 		  struct bch_ioctl_data);
 
 void bch2_move_stats_init(struct bch_move_stats *stats, char *name);
+void bch2_data_jobs_to_text(struct printbuf *, struct bch_fs *);
+void bch2_fs_moving_ctxts_to_text(struct printbuf *, struct bch_fs *);
 
+void bch2_fs_move_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_MOVE_H */

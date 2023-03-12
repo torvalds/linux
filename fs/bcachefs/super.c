@@ -681,6 +681,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	bch2_fs_rebalance_init(c);
 	bch2_fs_quota_init(c);
 	bch2_fs_ec_init_early(c);
+	bch2_fs_move_init(c);
 
 	INIT_LIST_HEAD(&c->list);
 
@@ -705,8 +706,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	INIT_LIST_HEAD(&c->ec_stripe_new_list);
 	mutex_init(&c->ec_stripe_new_lock);
 
-	INIT_LIST_HEAD(&c->data_progress_list);
-	mutex_init(&c->data_progress_lock);
 
 	mutex_init(&c->ec_stripes_heap_lock);
 
