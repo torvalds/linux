@@ -785,7 +785,7 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 		 */
 		perf_pmu__test_parse_init();
 	}
-	ret = __parse_events(evlist, dup, error, fake_pmu);
+	ret = __parse_events(evlist, dup, error, fake_pmu, /*warn_if_reordered=*/true);
 	free(dup);
 
 	evlist__delete(evlist);

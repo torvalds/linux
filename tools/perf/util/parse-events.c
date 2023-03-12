@@ -2157,11 +2157,13 @@ static int evlist__cmp(void *state, const struct list_head *l, const struct list
 	return arch_evlist__cmp(lhs, rhs);
 }
 
-static void parse_events__sort_events_and_fix_groups(struct list_head *list)
+static bool parse_events__sort_events_and_fix_groups(struct list_head *list)
 {
-	int idx = -1;
+	int idx = 0, unsorted_idx = -1;
 	struct evsel *pos, *cur_leader = NULL;
 	struct perf_evsel *cur_leaders_grp = NULL;
+	bool idx_changed = false;
+	int orig_num_leaders = 0, num_leaders = 0;
 
 	/*
 	 * Compute index to insert ungrouped events at. Place them where the
@@ -2170,15 +2172,22 @@ static void parse_events__sort_events_and_fix_groups(struct list_head *list)
 	list_for_each_entry(pos, list, core.node) {
 		const struct evsel *pos_leader = evsel__leader(pos);
 
-		if (pos != pos_leader || pos->core.nr_members > 1)
-			continue;
+		if (pos == pos_leader)
+			orig_num_leaders++;
 
-		idx = pos->core.idx;
-		break;
+		/*
+		 * Ensure indexes are sequential, in particular for multiple
+		 * event lists being merged. The indexes are used to detect when
+		 * the user order is modified.
+		 */
+		pos->core.idx = idx++;
+
+		if (unsorted_idx == -1 && pos == pos_leader && pos->core.nr_members < 2)
+			unsorted_idx = pos->core.idx;
 	}
 
 	/* Sort events. */
-	list_sort(&idx, list, evlist__cmp);
+	list_sort(&unsorted_idx, list, evlist__cmp);
 
 	/*
 	 * Recompute groups, splitting for PMUs and adding groups for events
@@ -2192,6 +2201,8 @@ static void parse_events__sort_events_and_fix_groups(struct list_head *list)
 		bool force_grouped = arch_evsel__must_be_in_group(pos);
 
 		/* Reset index and nr_members. */
+		if (pos->core.idx != idx)
+			idx_changed = true;
 		pos->core.idx = idx++;
 		pos->core.nr_members = 0;
 
@@ -2225,12 +2236,18 @@ static void parse_events__sort_events_and_fix_groups(struct list_head *list)
 		}
 	}
 	list_for_each_entry(pos, list, core.node) {
-		pos->core.leader->nr_members++;
+		struct evsel *pos_leader = evsel__leader(pos);
+
+		if (pos == pos_leader)
+			num_leaders++;
+		pos_leader->core.nr_members++;
 	}
+	return idx_changed || num_leaders != orig_num_leaders;
 }
 
 int __parse_events(struct evlist *evlist, const char *str,
-		   struct parse_events_error *err, struct perf_pmu *fake_pmu)
+		   struct parse_events_error *err, struct perf_pmu *fake_pmu,
+		   bool warn_if_reordered)
 {
 	struct parse_events_state parse_state = {
 		.list	  = LIST_HEAD_INIT(parse_state.list),
@@ -2250,7 +2267,9 @@ int __parse_events(struct evlist *evlist, const char *str,
 		return -1;
 	}
 
-	parse_events__sort_events_and_fix_groups(&parse_state.list);
+	if (parse_events__sort_events_and_fix_groups(&parse_state.list) &&
+	    warn_if_reordered && !parse_state.wild_card_pmus)
+		pr_warning("WARNING: events were regrouped to match PMUs\n");
 
 	/*
 	 * Add list to the evlist even with errors to allow callers to clean up.

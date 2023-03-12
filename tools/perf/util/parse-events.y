@@ -323,6 +323,7 @@ event_pmu_name opt_pmu_config
 				if (!parse_events_add_pmu(_parse_state, list, pmu->name, terms,
 							  /*auto_merge_stats=*/true)) {
 					ok++;
+					parse_state->wild_card_pmus = true;
 				}
 				parse_events_terms__delete(terms);
 			}
