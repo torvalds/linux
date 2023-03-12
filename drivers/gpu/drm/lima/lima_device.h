@@ -106,6 +106,9 @@ struct lima_device {
 	struct lima_dump_head dump;
 	struct list_head error_task_list;
 	struct mutex error_task_list_lock;
+
+	struct xarray active_contexts;
+	u32 next_context_id;
 };
 
 static inline struct lima_device *

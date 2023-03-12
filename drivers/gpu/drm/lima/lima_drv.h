@@ -20,6 +20,7 @@ struct lima_sched_task;
 struct drm_lima_gem_submit_bo;
 
 struct lima_drm_priv {
+	int id;
 	struct lima_vm *vm;
 	struct lima_ctx_mgr ctx_mgr;
 };
