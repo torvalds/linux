@@ -49,14 +49,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 	free(list_evsel);
 }
 
-static void inc_group_count(struct list_head *list,
-		       struct parse_events_state *parse_state)
-{
-	/* Count groups only have more than 1 members */
-	if (!list_is_last(list->next, list))
-		parse_state->nr_groups++;
-}
-
 %}
 
 %token PE_START_EVENTS PE_START_TERMS
@@ -201,7 +193,6 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $3;
 
-	inc_group_count(list, _parse_state);
 	/* Takes ownership of $1. */
 	parse_events__set_leader($1, list);
 	$$ = list;
@@ -211,7 +202,6 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $2;
 
-	inc_group_count(list, _parse_state);
 	parse_events__set_leader(NULL, list);
 	$$ = list;
 }

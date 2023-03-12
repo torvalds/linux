@@ -1777,7 +1777,7 @@ bool evlist__exclude_kernel(struct evlist *evlist)
  */
 void evlist__force_leader(struct evlist *evlist)
 {
-	if (!evlist->core.nr_groups) {
+	if (evlist__nr_groups(evlist) == 0) {
 		struct evsel *leader = evlist__first(evlist);
 
 		evlist__set_leader(evlist);

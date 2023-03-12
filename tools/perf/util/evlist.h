@@ -9,6 +9,7 @@
 #include <api/fd/array.h>
 #include <internal/evlist.h>
 #include <internal/evsel.h>
+#include <perf/evlist.h>
 #include "events_stats.h"
 #include "evsel.h"
 #include <pthread.h>
@@ -253,6 +254,11 @@ static inline struct evsel *evlist__last(struct evlist *evlist)
 	struct perf_evsel *evsel = perf_evlist__last(&evlist->core);
 
 	return container_of(evsel, struct evsel, core);
+}
+
+static inline int evlist__nr_groups(struct evlist *evlist)
+{
+	return perf_evlist__nr_groups(&evlist->core);
 }
 
 int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);

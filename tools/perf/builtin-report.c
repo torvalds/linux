@@ -1481,7 +1481,7 @@ repeat:
 
 	setup_forced_leader(&report, session->evlist);
 
-	if (symbol_conf.group_sort_idx && !session->evlist->core.nr_groups) {
+	if (symbol_conf.group_sort_idx && evlist__nr_groups(session->evlist) == 0) {
 		parse_options_usage(NULL, options, "group-sort-idx", 0);
 		ret = -EINVAL;
 		goto error;

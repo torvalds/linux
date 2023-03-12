@@ -122,7 +122,6 @@ struct parse_events_error {
 struct parse_events_state {
 	struct list_head	   list;
 	int			   idx;
-	int			   nr_groups;
 	struct parse_events_error *error;
 	struct evlist		  *evlist;
 	struct list_head	  *terms;

@@ -2260,7 +2260,6 @@ int __parse_events(struct evlist *evlist, const char *str,
 	if (!ret) {
 		struct evsel *last;
 
-		evlist->core.nr_groups += parse_state.nr_groups;
 		last = evlist__last(evlist);
 		last->cmdline_group_boundary = true;
 
