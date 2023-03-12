@@ -239,6 +239,7 @@ cat <<EOF > debian/rules
 #!$(command -v $MAKE) -f
 
 srctree ?= .
+KERNELRELEASE = ${KERNELRELEASE}
 
 build-indep:
 build-arch:
@@ -250,7 +251,9 @@ build: build-arch
 
 binary-indep:
 binary-arch: build-arch
-	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} intdeb-pkg
+	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} \
+	KERNELRELEASE=\$(KERNELRELEASE) intdeb-pkg
+
 clean:
 	rm -rf debian/files debian/linux-*
 	\$(MAKE) -f \$(srctree)/Makefile ARCH=${ARCH} clean
