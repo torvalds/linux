@@ -203,7 +203,7 @@ PE_NAME '{' events '}'
 
 	inc_group_count(list, _parse_state);
 	/* Takes ownership of $1. */
-	parse_events__set_leader($1, list, _parse_state);
+	parse_events__set_leader($1, list);
 	$$ = list;
 }
 |
@@ -212,7 +212,7 @@ PE_NAME '{' events '}'
 	struct list_head *list = $2;
 
 	inc_group_count(list, _parse_state);
-	parse_events__set_leader(NULL, list, _parse_state);
+	parse_events__set_leader(NULL, list);
 	$$ = list;
 }
 

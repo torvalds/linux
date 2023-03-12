@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/hw_breakpoint.h>
 #include <linux/err.h>
+#include <linux/list_sort.h>
 #include <linux/zalloc.h>
 #include <dirent.h>
 #include <errno.h>
@@ -1655,125 +1656,7 @@ int parse_events__modifier_group(struct list_head *list,
 	return parse_events__modifier_event(list, event_mod, true);
 }
 
-/*
- * Check if the two uncore PMUs are from the same uncore block
- * The format of the uncore PMU name is uncore_#blockname_#pmuidx
- */
-static bool is_same_uncore_block(const char *pmu_name_a, const char *pmu_name_b)
-{
-	char *end_a, *end_b;
-
-	end_a = strrchr(pmu_name_a, '_');
-	end_b = strrchr(pmu_name_b, '_');
-
-	if (!end_a || !end_b)
-		return false;
-
-	if ((end_a - pmu_name_a) != (end_b - pmu_name_b))
-		return false;
-
-	return (strncmp(pmu_name_a, pmu_name_b, end_a - pmu_name_a) == 0);
-}
-
-static int
-parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
-					   struct parse_events_state *parse_state)
-{
-	struct evsel *evsel, *leader;
-	uintptr_t *leaders;
-	bool is_leader = true;
-	int i, nr_pmu = 0, total_members, ret = 0;
-
-	leader = list_first_entry(list, struct evsel, core.node);
-	evsel = list_last_entry(list, struct evsel, core.node);
-	total_members = evsel->core.idx - leader->core.idx + 1;
-
-	leaders = calloc(total_members, sizeof(uintptr_t));
-	if (WARN_ON(!leaders))
-		return 0;
-
-	/*
-	 * Going through the whole group and doing sanity check.
-	 * All members must use alias, and be from the same uncore block.
-	 * Also, storing the leader events in an array.
-	 */
-	__evlist__for_each_entry(list, evsel) {
-
-		/* Only split the uncore group which members use alias */
-		if (!evsel->use_uncore_alias)
-			goto out;
-
-		/* The events must be from the same uncore block */
-		if (!is_same_uncore_block(leader->pmu_name, evsel->pmu_name))
-			goto out;
-
-		if (!is_leader)
-			continue;
-		/*
-		 * If the event's PMU name starts to repeat, it must be a new
-		 * event. That can be used to distinguish the leader from
-		 * other members, even they have the same event name.
-		 */
-		if ((leader != evsel) &&
-		    !strcmp(leader->pmu_name, evsel->pmu_name)) {
-			is_leader = false;
-			continue;
-		}
-
-		/* Store the leader event for each PMU */
-		leaders[nr_pmu++] = (uintptr_t) evsel;
-	}
-
-	/* only one event alias */
-	if (nr_pmu == total_members) {
-		parse_state->nr_groups--;
-		goto handled;
-	}
-
-	/*
-	 * An uncore event alias is a joint name which means the same event
-	 * runs on all PMUs of a block.
-	 * Perf doesn't support mixed events from different PMUs in the same
-	 * group. The big group has to be split into multiple small groups
-	 * which only include the events from the same PMU.
-	 *
-	 * Here the uncore event aliases must be from the same uncore block.
-	 * The number of PMUs must be same for each alias. The number of new
-	 * small groups equals to the number of PMUs.
-	 * Setting the leader event for corresponding members in each group.
-	 */
-	i = 0;
-	__evlist__for_each_entry(list, evsel) {
-		if (i >= nr_pmu)
-			i = 0;
-		evsel__set_leader(evsel, (struct evsel *) leaders[i++]);
-	}
-
-	/* The number of members and group name are same for each group */
-	for (i = 0; i < nr_pmu; i++) {
-		evsel = (struct evsel *) leaders[i];
-		evsel->core.nr_members = total_members / nr_pmu;
-		evsel->group_name = name ? strdup(name) : NULL;
-	}
-
-	/* Take the new small groups into account */
-	parse_state->nr_groups += nr_pmu - 1;
-
-handled:
-	ret = 1;
-	free(name);
-out:
-	free(leaders);
-	return ret;
-}
-
-__weak struct evsel *arch_evlist__leader(struct list_head *list)
-{
-	return list_first_entry(list, struct evsel, core.node);
-}
-
-void parse_events__set_leader(char *name, struct list_head *list,
-			      struct parse_events_state *parse_state)
+void parse_events__set_leader(char *name, struct list_head *list)
 {
 	struct evsel *leader;
 
@@ -1782,13 +1665,9 @@ void parse_events__set_leader(char *name, struct list_head *list,
 		return;
 	}
 
-	if (parse_events__set_leader_for_uncore_aliase(name, list, parse_state))
-		return;
-
-	leader = arch_evlist__leader(list);
+	leader = list_first_entry(list, struct evsel, core.node);
 	__perf_evlist__set_leader(list, &leader->core);
 	leader->group_name = name;
-	list_move(&leader->core.node, list);
 }
 
 /* list_event is assumed to point to malloc'ed memory */
@@ -2245,6 +2124,117 @@ static int parse_events__with_hybrid_pmu(struct parse_events_state *parse_state,
 	return ret;
 }
 
+__weak int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
+{
+	/* Order by insertion index. */
+	return lhs->core.idx - rhs->core.idx;
+}
+
+static int evlist__cmp(void *state, const struct list_head *l, const struct list_head *r)
+{
+	const struct perf_evsel *lhs_core = container_of(l, struct perf_evsel, node);
+	const struct evsel *lhs = container_of(lhs_core, struct evsel, core);
+	const struct perf_evsel *rhs_core = container_of(r, struct perf_evsel, node);
+	const struct evsel *rhs = container_of(rhs_core, struct evsel, core);
+	int *leader_idx = state;
+	int lhs_leader_idx = *leader_idx, rhs_leader_idx = *leader_idx, ret;
+	const char *lhs_pmu_name, *rhs_pmu_name;
+
+	/*
+	 * First sort by grouping/leader. Read the leader idx only if the evsel
+	 * is part of a group, as -1 indicates no group.
+	 */
+	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1)
+		lhs_leader_idx = lhs_core->leader->idx;
+	if (rhs_core->leader != rhs_core || rhs_core->nr_members > 1)
+		rhs_leader_idx = rhs_core->leader->idx;
+
+	if (lhs_leader_idx != rhs_leader_idx)
+		return lhs_leader_idx - rhs_leader_idx;
+
+	/* Group by PMU. Groups can't span PMUs. */
+	lhs_pmu_name = evsel__group_pmu_name(lhs);
+	rhs_pmu_name = evsel__group_pmu_name(rhs);
+	ret = strcmp(lhs_pmu_name, rhs_pmu_name);
+	if (ret)
+		return ret;
+
+	/* Architecture specific sorting. */
+	return arch_evlist__cmp(lhs, rhs);
+}
+
+static void parse_events__sort_events_and_fix_groups(struct list_head *list)
+{
+	int idx = -1;
+	struct evsel *pos, *cur_leader = NULL;
+	struct perf_evsel *cur_leaders_grp = NULL;
+
+	/*
+	 * Compute index to insert ungrouped events at. Place them where the
+	 * first ungrouped event appears.
+	 */
+	list_for_each_entry(pos, list, core.node) {
+		const struct evsel *pos_leader = evsel__leader(pos);
+
+		if (pos != pos_leader || pos->core.nr_members > 1)
+			continue;
+
+		idx = pos->core.idx;
+		break;
+	}
+
+	/* Sort events. */
+	list_sort(&idx, list, evlist__cmp);
+
+	/*
+	 * Recompute groups, splitting for PMUs and adding groups for events
+	 * that require them.
+	 */
+	idx = 0;
+	list_for_each_entry(pos, list, core.node) {
+		const struct evsel *pos_leader = evsel__leader(pos);
+		const char *pos_pmu_name = evsel__group_pmu_name(pos);
+		const char *cur_leader_pmu_name, *pos_leader_pmu_name;
+		bool force_grouped = arch_evsel__must_be_in_group(pos);
+
+		/* Reset index and nr_members. */
+		pos->core.idx = idx++;
+		pos->core.nr_members = 0;
+
+		/*
+		 * Set the group leader respecting the given groupings and that
+		 * groups can't span PMUs.
+		 */
+		if (!cur_leader)
+			cur_leader = pos;
+
+		cur_leader_pmu_name = evsel__group_pmu_name(cur_leader);
+		if ((cur_leaders_grp != pos->core.leader && !force_grouped) ||
+		    strcmp(cur_leader_pmu_name, pos_pmu_name)) {
+			/* Event is for a different group/PMU than last. */
+			cur_leader = pos;
+			/*
+			 * Remember the leader's group before it is overwritten,
+			 * so that later events match as being in the same
+			 * group.
+			 */
+			cur_leaders_grp = pos->core.leader;
+		}
+		pos_leader_pmu_name = evsel__group_pmu_name(pos_leader);
+		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || force_grouped) {
+			/*
+			 * Event's PMU differs from its leader's. Groups can't
+			 * span PMUs, so update leader from the group/PMU
+			 * tracker.
+			 */
+			evsel__set_leader(pos, cur_leader);
+		}
+	}
+	list_for_each_entry(pos, list, core.node) {
+		pos->core.leader->nr_members++;
+	}
+}
+
 int __parse_events(struct evlist *evlist, const char *str,
 		   struct parse_events_error *err, struct perf_pmu *fake_pmu)
 {
@@ -2265,6 +2255,8 @@ int __parse_events(struct evlist *evlist, const char *str,
 		WARN_ONCE(true, "WARNING: event parser found nothing\n");
 		return -1;
 	}
+
+	parse_events__sort_events_and_fix_groups(&parse_state.list);
 
 	/*
 	 * Add list to the evlist even with errors to allow callers to clean up.
