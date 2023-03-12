@@ -12,6 +12,8 @@
 #define MM_CONTEXT_UPROBE_IA32		0
 /* vsyscall page is accessible on this MM */
 #define MM_CONTEXT_HAS_VSYSCALL		1
+/* Do not allow changing LAM mode */
+#define MM_CONTEXT_LOCK_LAM		2
 
 /*
  * x86 has arch-specific MMU state beyond what lives in mm_struct.
