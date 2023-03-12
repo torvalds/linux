@@ -462,7 +462,7 @@ static const struct of_device_id tegra_cec_of_match[] = {
 static struct platform_driver tegra_cec_driver = {
 	.driver = {
 		.name = TEGRA_CEC_NAME,
-		.of_match_table = of_match_ptr(tegra_cec_of_match),
+		.of_match_table = tegra_cec_of_match,
 	},
 	.probe = tegra_cec_probe,
 	.remove_new = tegra_cec_remove,
