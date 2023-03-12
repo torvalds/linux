@@ -93,6 +93,11 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 	return EOF;
 }
 
+bool evsel__is_aux_event(const struct evsel *evsel __maybe_unused)
+{
+	return false;
+}
+
 /*
  * Add this one here not to drag util/metricgroup.c
  */
