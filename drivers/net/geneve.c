@@ -1426,7 +1426,7 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 		dev->type = ARPHRD_NONE;
 		dev->hard_header_len = 0;
 		dev->addr_len = 0;
-		dev->flags = IFF_NOARP;
+		dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	}
 
 	err = register_netdevice(dev);
