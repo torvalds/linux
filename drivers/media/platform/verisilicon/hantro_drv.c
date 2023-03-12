@@ -1225,7 +1225,7 @@ static struct platform_driver hantro_driver = {
 	.remove_new = hantro_remove,
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .of_match_table = of_match_ptr(of_hantro_match),
+		   .of_match_table = of_hantro_match,
 		   .pm = &hantro_pm_ops,
 	},
 };
