@@ -49,8 +49,7 @@ static int lan966x_police_add(struct lan966x_port *port,
 	return 0;
 }
 
-static int lan966x_police_del(struct lan966x_port *port,
-			      u16 pol_idx)
+static void lan966x_police_del(struct lan966x_port *port, u16 pol_idx)
 {
 	struct lan966x *lan966x = port->lan966x;
 
@@ -67,8 +66,6 @@ static int lan966x_police_del(struct lan966x_port *port,
 	lan_wr(ANA_POL_PIR_CFG_PIR_RATE_SET(GENMASK(14, 0)) |
 	       ANA_POL_PIR_CFG_PIR_BURST_SET(0),
 	       lan966x, ANA_POL_PIR_CFG(pol_idx));
-
-	return 0;
 }
 
 static int lan966x_police_validate(struct lan966x_port *port,
@@ -186,7 +183,6 @@ int lan966x_police_port_del(struct lan966x_port *port,
 			    struct netlink_ext_ack *extack)
 {
 	struct lan966x *lan966x = port->lan966x;
-	int err;
 
 	if (port->tc.police_id != police_id) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -194,12 +190,7 @@ int lan966x_police_port_del(struct lan966x_port *port,
 		return -EINVAL;
 	}
 
-	err = lan966x_police_del(port, POL_IDX_PORT + port->chip_port);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Failed to add policer to port");
-		return err;
-	}
+	lan966x_police_del(port, POL_IDX_PORT + port->chip_port);
 
 	lan_rmw(ANA_POL_CFG_PORT_POL_ENA_SET(0) |
 		ANA_POL_CFG_POL_ORDER_SET(POL_ORDER),
