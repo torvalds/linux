@@ -746,7 +746,7 @@ static const struct mdp_comp_ops *mdp_comp_ops[MDP_COMP_TYPE_COUNT] = {
 	[MDP_COMP_TYPE_CCORR] =		&ccorr_ops,
 };
 
-static const struct of_device_id mdp_comp_dt_ids[] = {
+static const struct of_device_id mdp_comp_dt_ids[] __maybe_unused = {
 	{
 		.compatible = "mediatek,mt8183-mdp3-rdma",
 		.data = (void *)MDP_COMP_TYPE_RDMA,
