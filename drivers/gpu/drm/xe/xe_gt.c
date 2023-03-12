@@ -20,6 +20,7 @@
 #include "xe_gt_clock.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_pagefault.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
@@ -239,16 +240,16 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 				     hwe, ENGINE_FLAG_WA);
 		if (IS_ERR(e)) {
 			err = PTR_ERR(e);
-			drm_err(&xe->drm, "gt%d, hwe %s, xe_engine_create,e failed=%d",
-				gt->info.id, hwe->name, err);
+			xe_gt_err(gt, "hwe %s: xe_engine_create failed (%pe)\n",
+				  hwe->name, e);
 			goto put_vm;
 		}
 
 		/* Prime golden LRC with known good state */
 		err = emit_wa_job(gt, e);
 		if (err) {
-			drm_err(&xe->drm, "gt%d, hwe %s, guc_id=%d, emit_wa_job,e failed=%d",
-				gt->info.id, hwe->name, e->guc->id, err);
+			xe_gt_err(gt, "hwe %s: emit_wa_job failed (%pe) guc_id=%u\n",
+				  hwe->name, ERR_PTR(err), e->guc->id);
 			goto put_engine;
 		}
 
@@ -256,24 +257,24 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 					 1, hwe, ENGINE_FLAG_WA);
 		if (IS_ERR(nop_e)) {
 			err = PTR_ERR(nop_e);
-			drm_err(&xe->drm, "gt%d, hwe %s, xe_engine_create,nop_e failed=%d",
-				gt->info.id, hwe->name, err);
+			xe_gt_err(gt, "hwe %s: nop xe_engine_create failed (%pe)\n",
+				  hwe->name, nop_e);
 			goto put_engine;
 		}
 
 		/* Switch to different LRC */
 		err = emit_nop_job(gt, nop_e);
 		if (err) {
-			drm_err(&xe->drm, "gt%d, hwe %s, guc_id=%d, emit_nop_job,nop_e failed=%d",
-				gt->info.id, hwe->name, nop_e->guc->id, err);
+			xe_gt_err(gt, "hwe %s: nop emit_nop_job failed (%pe) guc_id=%u\n",
+				  hwe->name, ERR_PTR(err), nop_e->guc->id);
 			goto put_nop_e;
 		}
 
 		/* Reload golden LRC to record the effect of any indirect W/A */
 		err = emit_nop_job(gt, e);
 		if (err) {
-			drm_err(&xe->drm, "gt%d, hwe %s, guc_id=%d, emit_nop_job,e failed=%d",
-				gt->info.id, hwe->name, e->guc->id, err);
+			xe_gt_err(gt, "hwe %s: emit_nop_job failed (%pe) guc_id=%u\n",
+				  hwe->name, ERR_PTR(err), e->guc->id);
 			goto put_nop_e;
 		}
 
@@ -541,15 +542,14 @@ int xe_gt_init(struct xe_gt *gt)
 
 static int do_gt_reset(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	xe_mmio_write32(gt, GDRST, GRDOM_FULL);
 	err = xe_mmio_wait32(gt, GDRST, 0, GRDOM_FULL, 5000,
 			     NULL, false);
 	if (err)
-		drm_err(&xe->drm,
-			"GT reset failed to clear GEN11_GRDOM_FULL\n");
+		xe_gt_err(gt, "failed to clear GEN11_GRDOM_FULL (%pe)\n",
+			  ERR_PTR(err));
 
 	return err;
 }
@@ -592,14 +592,13 @@ static int do_gt_restart(struct xe_gt *gt)
 
 static int gt_reset(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	/* We only support GT resets with GuC submission */
 	if (!xe_device_guc_submission_enabled(gt_to_xe(gt)))
 		return -ENODEV;
 
-	drm_info(&xe->drm, "GT reset started\n");
+	xe_gt_info(gt, "reset started\n");
 
 	xe_gt_sanitize(gt);
 
@@ -628,7 +627,7 @@ static int gt_reset(struct xe_gt *gt)
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	XE_WARN_ON(err);
 
-	drm_info(&xe->drm, "GT reset done\n");
+	xe_gt_info(gt, "reset done\n");
 
 	return 0;
 
@@ -637,7 +636,7 @@ err_out:
 err_msg:
 	XE_WARN_ON(xe_uc_start(&gt->uc));
 	xe_device_mem_access_put(gt_to_xe(gt));
-	drm_err(&xe->drm, "GT reset failed, err=%d\n", err);
+	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
 
 	return err;
 }
@@ -651,15 +650,13 @@ static void gt_reset_worker(struct work_struct *w)
 
 void xe_gt_reset_async(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
-
-	drm_info(&xe->drm, "Try GT reset\n");
+	xe_gt_info(gt, "trying reset\n");
 
 	/* Don't do a reset while one is already in flight */
 	if (xe_uc_reset_prepare(&gt->uc))
 		return;
 
-	drm_info(&xe->drm, "Doing GT reset\n");
+	xe_gt_info(gt, "reset queued\n");
 	queue_work(gt->ordered_wq, &gt->reset.worker);
 }
 
@@ -676,7 +673,6 @@ void xe_gt_suspend_prepare(struct xe_gt *gt)
 
 int xe_gt_suspend(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	/* For now suspend/resume is only allowed with GuC */
@@ -696,7 +692,7 @@ int xe_gt_suspend(struct xe_gt *gt)
 
 	xe_device_mem_access_put(gt_to_xe(gt));
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
-	drm_info(&xe->drm, "GT suspended\n");
+	xe_gt_info(gt, "suspended\n");
 
 	return 0;
 
@@ -704,14 +700,13 @@ err_force_wake:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 err_msg:
 	xe_device_mem_access_put(gt_to_xe(gt));
-	drm_err(&xe->drm, "GT suspend failed: %d\n", err);
+	xe_gt_err(gt, "suspend failed (%pe)\n", ERR_PTR(err));
 
 	return err;
 }
 
 int xe_gt_resume(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	xe_device_mem_access_get(gt_to_xe(gt));
@@ -725,7 +720,7 @@ int xe_gt_resume(struct xe_gt *gt)
 
 	xe_device_mem_access_put(gt_to_xe(gt));
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
-	drm_info(&xe->drm, "GT resumed\n");
+	xe_gt_info(gt, "resumed\n");
 
 	return 0;
 
@@ -733,7 +728,7 @@ err_force_wake:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 err_msg:
 	xe_device_mem_access_put(gt_to_xe(gt));
-	drm_err(&xe->drm, "GT resume failed: %d\n", err);
+	xe_gt_err(gt, "resume failed (%pe)\n", ERR_PTR(err));
 
 	return err;
 }
