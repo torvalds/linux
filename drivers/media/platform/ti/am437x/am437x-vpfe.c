@@ -2630,7 +2630,7 @@ static struct platform_driver vpfe_driver = {
 	.driver = {
 		.name	= VPFE_MODULE_NAME,
 		.pm	= &vpfe_pm_ops,
-		.of_match_table = of_match_ptr(vpfe_of_match),
+		.of_match_table = vpfe_of_match,
 	},
 };
 
