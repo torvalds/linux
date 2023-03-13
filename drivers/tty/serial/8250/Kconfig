@@ -255,6 +255,14 @@ config SERIAL_8250_ACCENT
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_accent.
 
+config SERIAL_8250_ASPEED
+	tristate "Aspeed UART"
+	depends on ARCH_ASPEED && SERIAL_8250
+	help
+	  If you have a system using an Aspeed AST26xx SoCs and wish to
+	  make use of its 16550A-compatible UART devices with DMA support,
+	  say Y to this option. If unsure, say N.
+
 config SERIAL_8250_ASPEED_VUART
 	tristate "Aspeed Virtual UART"
 	depends on SERIAL_8250
