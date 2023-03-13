@@ -38,10 +38,10 @@ struct imx8m_blk_ctrl {
 struct imx8m_blk_ctrl_domain_data {
 	const char *name;
 	const char * const *clk_names;
-	int num_clks;
 	const char * const *path_names;
-	int num_paths;
 	const char *gpc_name;
+	int num_clks;
+	int num_paths;
 	u32 rst_mask;
 	u32 clk_mask;
 
