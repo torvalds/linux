@@ -170,6 +170,7 @@ static void sof_ipc4_dbg_audio_format(struct device *dev,
  * @scomp: pointer to pointer to SOC component
  * @swidget: pointer to struct snd_sof_widget containing tuples
  * @available_fmt: pointer to struct sof_ipc4_available_audio_format being filling in
+ * @module_base_cfg: Pointer to the base_config in the module init IPC payload
  * @has_out_format: true if available_fmt contains output format
  *
  * Return: 0 if successful
@@ -177,6 +178,7 @@ static void sof_ipc4_dbg_audio_format(struct device *dev,
 static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 				  struct snd_sof_widget *swidget,
 				  struct sof_ipc4_available_audio_format *available_fmt,
+				  struct sof_ipc4_base_module_cfg *module_base_cfg,
 				  bool has_out_format)
 {
 	struct sof_ipc4_base_module_cfg *base_config;
@@ -199,16 +201,17 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 	if (!base_config)
 		return -ENOMEM;
 
-	/* set cpc and is_pages for all base_cfg */
-	for (i = 0; i < available_fmt->audio_fmt_num; i++) {
-		ret = sof_update_ipc_object(scomp, &base_config[i],
-					    SOF_COMP_TOKENS, swidget->tuples,
-					    swidget->num_tuples, sizeof(*base_config), 1);
-		if (ret) {
-			dev_err(scomp->dev, "parse comp tokens failed %d\n", ret);
-			goto err;
-		}
+	/* set cpc and is_pages in the module's base_config */
+	ret = sof_update_ipc_object(scomp, module_base_cfg, SOF_COMP_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(*module_base_cfg), 1);
+	if (ret) {
+		dev_err(scomp->dev, "parse comp tokens for %s failed, error: %d\n",
+			swidget->widget->name, ret);
+		goto err;
 	}
+
+	dev_dbg(scomp->dev, "widget %s cpc: %d is_pages: %d\n",
+		swidget->widget->name, module_base_cfg->cpc, module_base_cfg->is_pages);
 
 	/* copy the ibs/obs for each base_cfg */
 	ret = sof_update_ipc_object(scomp, base_config,
@@ -221,9 +224,8 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 	}
 
 	for (i = 0; i < available_fmt->audio_fmt_num; i++)
-		dev_dbg(scomp->dev, "%d: ibs: %d obs: %d cpc: %d is_pages: %d\n", i,
-			base_config[i].ibs, base_config[i].obs,
-			base_config[i].cpc, base_config[i].is_pages);
+		dev_dbg(scomp->dev, "%d: ibs: %d obs: %d\n", i,
+			base_config[i].ibs, base_config[i].obs);
 
 	in_format = kcalloc(available_fmt->audio_fmt_num,
 			    sizeof(struct sof_ipc4_audio_format), GFP_KERNEL);
@@ -359,7 +361,8 @@ static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 
 	dev_dbg(scomp->dev, "Updating IPC structure for %s\n", swidget->widget->name);
 
-	ret = sof_ipc4_get_audio_fmt(scomp, swidget, available_fmt, true);
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, available_fmt,
+				     &ipc4_copier->data.base_config, true);
 	if (ret)
 		goto free_copier;
 
@@ -457,7 +460,8 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 
 	dev_dbg(scomp->dev, "Updating IPC structure for %s\n", swidget->widget->name);
 
-	ret = sof_ipc4_get_audio_fmt(scomp, swidget, available_fmt, true);
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, available_fmt,
+				     &ipc4_copier->data.base_config, true);
 	if (ret)
 		goto free_copier;
 
@@ -665,7 +669,8 @@ static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 	gain->data.init_val = SOF_IPC4_VOL_ZERO_DB;
 
 	/* The out_audio_fmt in topology is ignored as it is not required to be sent to the FW */
-	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &gain->available_fmt, false);
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &gain->available_fmt, &gain->base_config,
+				     false);
 	if (ret)
 		goto err;
 
@@ -731,7 +736,8 @@ static int sof_ipc4_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
 	swidget->private = mixer;
 
 	/* The out_audio_fmt in topology is ignored as it is not required to be sent to the FW */
-	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &mixer->available_fmt, false);
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &mixer->available_fmt,
+				     &mixer->base_config, false);
 	if (ret)
 		goto err;
 
@@ -762,7 +768,8 @@ static int sof_ipc4_widget_setup_comp_src(struct snd_sof_widget *swidget)
 	swidget->private = src;
 
 	/* The out_audio_fmt in topology is ignored as it is not required by SRC */
-	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &src->available_fmt, false);
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &src->available_fmt, &src->base_config,
+				     false);
 	if (ret)
 		goto err;
 
