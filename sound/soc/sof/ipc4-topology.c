@@ -171,15 +171,13 @@ static void sof_ipc4_dbg_audio_format(struct device *dev,
  * @swidget: pointer to struct snd_sof_widget containing tuples
  * @available_fmt: pointer to struct sof_ipc4_available_audio_format being filling in
  * @module_base_cfg: Pointer to the base_config in the module init IPC payload
- * @has_out_format: true if available_fmt contains output format
  *
  * Return: 0 if successful
  */
 static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 				  struct snd_sof_widget *swidget,
 				  struct sof_ipc4_available_audio_format *available_fmt,
-				  struct sof_ipc4_base_module_cfg *module_base_cfg,
-				  bool has_out_format)
+				  struct sof_ipc4_base_module_cfg *module_base_cfg)
 {
 	struct sof_ipc4_base_module_cfg *base_config;
 	struct sof_ipc4_audio_format *out_format, *in_format;
@@ -248,9 +246,6 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 	sof_ipc4_dbg_audio_format(scomp->dev, available_fmt->input_audio_fmts,
 				  sizeof(struct sof_ipc4_audio_format),
 				  available_fmt->audio_fmt_num);
-
-	if (!has_out_format)
-		return 0;
 
 	out_format = kcalloc(available_fmt->audio_fmt_num, sizeof(*out_format), GFP_KERNEL);
 	if (!out_format) {
@@ -362,7 +357,7 @@ static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 	dev_dbg(scomp->dev, "Updating IPC structure for %s\n", swidget->widget->name);
 
 	ret = sof_ipc4_get_audio_fmt(scomp, swidget, available_fmt,
-				     &ipc4_copier->data.base_config, true);
+				     &ipc4_copier->data.base_config);
 	if (ret)
 		goto free_copier;
 
@@ -461,7 +456,7 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	dev_dbg(scomp->dev, "Updating IPC structure for %s\n", swidget->widget->name);
 
 	ret = sof_ipc4_get_audio_fmt(scomp, swidget, available_fmt,
-				     &ipc4_copier->data.base_config, true);
+				     &ipc4_copier->data.base_config);
 	if (ret)
 		goto free_copier;
 
@@ -668,9 +663,7 @@ static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 	gain->data.channels = SOF_IPC4_GAIN_ALL_CHANNELS_MASK;
 	gain->data.init_val = SOF_IPC4_VOL_ZERO_DB;
 
-	/* The out_audio_fmt in topology is ignored as it is not required to be sent to the FW */
-	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &gain->available_fmt, &gain->base_config,
-				     false);
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &gain->available_fmt, &gain->base_config);
 	if (ret)
 		goto err;
 
@@ -735,9 +728,8 @@ static int sof_ipc4_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
 
 	swidget->private = mixer;
 
-	/* The out_audio_fmt in topology is ignored as it is not required to be sent to the FW */
 	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &mixer->available_fmt,
-				     &mixer->base_config, false);
+				     &mixer->base_config);
 	if (ret)
 		goto err;
 
@@ -767,9 +759,7 @@ static int sof_ipc4_widget_setup_comp_src(struct snd_sof_widget *swidget)
 
 	swidget->private = src;
 
-	/* The out_audio_fmt in topology is ignored as it is not required by SRC */
-	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &src->available_fmt, &src->base_config,
-				     false);
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &src->available_fmt, &src->base_config);
 	if (ret)
 		goto err;
 
