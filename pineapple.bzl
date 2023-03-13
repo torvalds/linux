@@ -89,6 +89,7 @@ def define_pineapple():
         "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
+	"drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-kalama.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-pineapple.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qrbtc-sdm845.ko",

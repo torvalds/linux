@@ -37,6 +37,7 @@ def define_kalama():
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
+	"drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-kalama.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-pineapple.ko",
         "drivers/pinctrl/qcom/pinctrl-kalama.ko",
