@@ -85,15 +85,16 @@ struct class_dev_iter {
 extern struct kobject *sysfs_dev_block_kobj;
 extern struct kobject *sysfs_dev_char_kobj;
 extern int __must_check __class_register(struct class *class,
+					 struct module *owner,
 					 struct lock_class_key *key);
 extern void class_unregister(struct class *class);
 
 /* This is a #define to keep the compiler from merging different
  * instances of the __key variable */
-#define class_register(class)			\
-({						\
-	static struct lock_class_key __key;	\
-	__class_register(class, &__key);	\
+#define class_register(class)				\
+({							\
+	static struct lock_class_key __key;		\
+	__class_register(class, THIS_MODULE, &__key);	\
 })
 
 struct class_compat;

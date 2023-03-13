@@ -154,7 +154,7 @@ static void class_remove_groups(struct class *cls,
 	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
 }
 
-int __class_register(struct class *cls, struct lock_class_key *key)
+int __class_register(struct class *cls, struct module *owner, struct lock_class_key *key)
 {
 	struct subsys_private *cp;
 	int error;
@@ -187,6 +187,7 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	if (error)
 		goto err_out;
 
+	cls->owner = owner;
 	error = class_add_groups(class_get(cls), cls->class_groups);
 	class_put(cls);
 	if (error) {
@@ -244,10 +245,9 @@ struct class *__class_create(struct module *owner, const char *name,
 	}
 
 	cls->name = name;
-	cls->owner = owner;
 	cls->class_release = class_create_release;
 
-	retval = __class_register(cls, key);
+	retval = __class_register(cls, owner, key);
 	if (retval)
 		goto error;
 
