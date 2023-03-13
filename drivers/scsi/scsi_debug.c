@@ -7531,6 +7531,13 @@ static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 		}
 		WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_NONE);
 		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+
+		if (sdebug_statistics) {
+			atomic_inc(&sdebug_completions);
+			if (raw_smp_processor_id() != sd_dp->issuing_cpu)
+				atomic_inc(&sdebug_miss_cpus);
+		}
+
 		scsi_done(scp); /* callback to mid level */
 		num_entries++;
 		spin_lock_irqsave(&sqp->qc_lock, iflags);
