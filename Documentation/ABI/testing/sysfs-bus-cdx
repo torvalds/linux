@@ -1,0 +1,12 @@
+What:		/sys/bus/cdx/rescan
+Date:		March 2023
+Contact:	nipun.gupta@amd.com
+Description:
+		Writing y/1/on to this file will cause rescan of the bus
+		and devices on the CDX bus. Any new devices are scanned and
+		added to the list of Linux devices and any devices removed are
+		also deleted from Linux.
+
+		For example::
+
+		  # echo 1 > /sys/bus/cdx/rescan
