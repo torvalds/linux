@@ -21,9 +21,7 @@ _aarch64_additional_kmi_symbol_lists = [
     "android/abi_gki_aarch64_virtual_device",
 ]
 
-load("@kernel_toolchain_info//:dict.bzl", "BRANCH")
-
-define_common_kernels(branch = BRANCH, target_configs = {
+define_common_kernels(target_configs = {
     "kernel_aarch64": {
         # TODO(b/269346251): re-enable strict mode
         "kmi_symbol_list_strict_mode": False,
