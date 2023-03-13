@@ -828,7 +828,6 @@ static int sof_ipc4_widget_assign_instance_id(struct snd_sof_dev *sdev,
 static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 				   struct snd_sof_widget *swidget,
 				   struct sof_ipc4_base_module_cfg *base_config,
-				   struct sof_ipc4_audio_format *out_format,
 				   struct snd_pcm_hw_params *params,
 				   struct sof_ipc4_available_audio_format *available_fmt)
 {
@@ -890,7 +889,7 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 
 	/* copy input format */
 	memcpy(&base_config->audio_fmt, &available_fmt->input_pin_fmts[i].audio_fmt,
-	       sizeof(*out_format));
+	       sizeof(struct sof_ipc4_audio_format));
 
 	/* set base_cfg ibs/obs */
 	base_config->ibs = available_fmt->input_pin_fmts[i].buffer_size;
@@ -898,20 +897,6 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 
 	dev_dbg(sdev->dev, "Init input audio formats for %s\n", swidget->widget->name);
 	sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->input_pin_fmts[i], 1);
-
-	if (out_format) {
-		/*
-		 * Current topology defines pin 0 input and output formats only in pairs.
-		 * This assumes that the pin 0 formats are defined before all other pins.
-		 * So pick the output audio format with the same index as the chosen
-		 * input format. This logic will need to be updated when the format definitions
-		 * in topology change.
-		 */
-		memcpy(out_format, &available_fmt->output_pin_fmts[i].audio_fmt,
-		       sizeof(*out_format));
-		dev_dbg(sdev->dev, "Init output audio formats for %s\n", swidget->widget->name);
-		sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->output_pin_fmts[i], 1);
-	}
 
 	/* Return the index of the matched format */
 	return i;
@@ -1182,11 +1167,22 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	}
 
 	/* set input and output audio formats */
-	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &copier_data->base_config,
-				      &copier_data->out_format, ref_params,
+	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &copier_data->base_config, ref_params,
 				      available_fmt);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * Set the output format. Current topology defines pin 0 input and output formats in pairs.
+	 * This assumes that the pin 0 formats are defined before all other pins.
+	 * So pick the output audio format with the same index as the chosen
+	 * input format. This logic will need to be updated when the format definitions
+	 * in topology change.
+	 */
+	memcpy(&copier_data->out_format, &available_fmt->output_pin_fmts[ret].audio_fmt,
+	       sizeof(struct sof_ipc4_audio_format));
+	dev_dbg(sdev->dev, "Output audio format for %s\n", swidget->widget->name);
+	sof_ipc4_dbg_audio_format(sdev->dev, &available_fmt->output_pin_fmts[ret], 1);
 
 	switch (swidget->id) {
 	case snd_soc_dapm_dai_in:
@@ -1361,7 +1357,7 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 
 	/* output format is not required to be sent to the FW for gain */
 	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &gain->base_config,
-				      NULL, pipeline_params, available_fmt);
+				      pipeline_params, available_fmt);
 	if (ret < 0)
 		return ret;
 
@@ -1387,7 +1383,7 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 
 	/* output format is not required to be sent to the FW for mixer */
 	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &mixer->base_config,
-				      NULL, pipeline_params, available_fmt);
+				      pipeline_params, available_fmt);
 	if (ret < 0)
 		return ret;
 
@@ -1413,7 +1409,7 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 
 	/* output format is not required to be sent to the FW for SRC */
 	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &src->base_config,
-				      NULL, pipeline_params, available_fmt);
+				      pipeline_params, available_fmt);
 	if (ret < 0)
 		return ret;
 
