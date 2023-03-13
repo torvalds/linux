@@ -888,6 +888,7 @@ enum hl_server_type {
  * @tpc_interrupt_id: interrupt id for TPC to use in order to raise events towards the host.
  * @engine_core_interrupt_reg_addr: interrupt register address for engine core to use
  *                                  in order to raise events toward FW.
+ * @reserved_dram_size: DRAM size reserved for driver and firmware.
  */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -928,6 +929,7 @@ struct hl_info_hw_ip_info {
 	__u32 reserved8;
 	__u32 reserved9;
 	__u64 engine_core_interrupt_reg_addr;
+	__u64 reserved_dram_size;
 };
 
 struct hl_info_dram_usage {
