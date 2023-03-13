@@ -1052,6 +1052,7 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 static struct platform_device *pdev[2];
 
 static const char * const asus_wmi_boards[] = {
+	"Pro A520M-C II",
 	"PRO H410T",
 	"ProArt B550-CREATOR",
 	"ProArt X570-CREATOR WIFI",
