@@ -1035,10 +1035,6 @@ int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
 	hid->vendor = le16_to_cpu(ihid->hdesc.wVendorID);
 	hid->product = le16_to_cpu(ihid->hdesc.wProductID);
 
-	hid->initial_quirks = quirks;
-	hid->initial_quirks |= i2c_hid_get_dmi_quirks(hid->vendor,
-						      hid->product);
-
 	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X",
 		 client->name, (u16)hid->vendor, (u16)hid->product);
 	strscpy(hid->phys, dev_name(&client->dev), sizeof(hid->phys));
@@ -1051,6 +1047,8 @@ int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
 			hid_err(client, "can't add hid device: %d\n", ret);
 		goto err_mem_free;
 	}
+
+	hid->quirks |= quirks;
 
 	return 0;
 

@@ -492,3 +492,4 @@ u32 i2c_hid_get_dmi_quirks(const u16 vendor, const u16 product)
 
 	return quirks;
 }
+EXPORT_SYMBOL_GPL(i2c_hid_get_dmi_quirks);
