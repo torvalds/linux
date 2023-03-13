@@ -28,6 +28,7 @@
 #include <linux/fsl/mc.h>
 #include <linux/module.h>
 #include <linux/cc_platform.h>
+#include <linux/cdx/cdx_bus.h>
 #include <trace/events/iommu.h>
 #include <linux/sched/mm.h>
 #include <linux/msi.h>
@@ -128,6 +129,9 @@ static struct bus_type * const iommu_buses[] = {
 #endif
 #ifdef CONFIG_TEGRA_HOST1X_CONTEXT_BUS
 	&host1x_context_device_bus_type,
+#endif
+#ifdef CONFIG_CDX_BUS
+	&cdx_bus_type,
 #endif
 };
 
