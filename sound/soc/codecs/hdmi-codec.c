@@ -845,9 +845,38 @@ static void plugged_cb(struct device *dev, bool plugged)
 		hdmi_codec_jack_report(hcp, 0);
 		memset(hcp->eld, 0, sizeof(hcp->eld));
 	}
+
 	mutex_lock(&hcp->lock);
-	if (hcp->substream && !plugged)
-		snd_pcm_stop(hcp->substream, SNDRV_PCM_STATE_DISCONNECTED);
+	if (hcp->substream) {
+		/*
+		 * Workaround for HDMIIN and HDMIOUT plug-{in,out} when streaming.
+		 *
+		 * Actually, we should do stop stream both for HDMI_{OUT,IN} on
+		 * plug-{out,in} event. but for better experience and depop stream,
+		 * we optimize as follows:
+		 *
+		 * a) Do stop stream for HDMIIN on plug-out when streaming.
+		 * because HDMIIN work as SLAVE mode, CLK lost after HDMI cable
+		 * plugged out which will make stream stuck until ALSA timeout(10s).
+		 * so, for better experience, we should stop stream at the moment.
+		 *
+		 * b) Do stop stream for HDMIOUT on plug-in when streaming.
+		 * because HDMIOUT work as MASTER mode, there is no clk-issue like
+		 * HDMIIN, but, on HDR situation, HDMI will be reconfigured which
+		 * make HDMI audio configure lost, especially for NLPCM/HBR bitstream
+		 * which require IEC937 packet alignment, so, for this situation,
+		 * we stop stream to notify user to re-open and configure sound card
+		 * and then go on streaming.
+		 */
+		int stream = hcp->substream->stream;
+
+		if (stream == SNDRV_PCM_STREAM_PLAYBACK && plugged)
+			snd_pcm_stop(hcp->substream, SNDRV_PCM_STATE_SETUP);
+		else if (stream == SNDRV_PCM_STREAM_CAPTURE && !plugged)
+			snd_pcm_stop(hcp->substream, SNDRV_PCM_STATE_DISCONNECTED);
+
+		dev_dbg(dev, "stream[%d]: %s\n", stream, plugged ? "plug in" : "plug out");
+	}
 	mutex_unlock(&hcp->lock);
 }
 
