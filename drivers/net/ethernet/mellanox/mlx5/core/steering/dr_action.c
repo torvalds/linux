@@ -55,6 +55,12 @@ static const char *dr_action_id_to_str(enum mlx5dr_action_type action_id)
 	return action_type_to_str[action_id];
 }
 
+static bool mlx5dr_action_supp_fwd_fdb_multi_ft(struct mlx5_core_dev *dev)
+{
+	return (MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table_limit_regc) ||
+		MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table));
+}
+
 static const enum dr_action_valid_state
 next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] = {
 	[DR_ACTION_DOMAIN_NIC_INGRESS] = {
@@ -1167,6 +1173,7 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 	struct mlx5dr_action **ref_actions;
 	struct mlx5dr_action *action;
 	bool reformat_req = false;
+	u16 num_dst_ft = 0;
 	u32 num_of_ref = 0;
 	u32 ref_act_cnt;
 	int ret;
@@ -1210,6 +1217,12 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 			break;
 
 		case DR_ACTION_TYP_FT:
+			if (num_dst_ft &&
+			    !mlx5dr_action_supp_fwd_fdb_multi_ft(dmn->mdev)) {
+				mlx5dr_dbg(dmn, "multiple FT destinations not supported\n");
+				goto free_ref_actions;
+			}
+			num_dst_ft++;
 			hw_dests[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 			if (dest_action->dest_tbl->is_fw_tbl)
 				hw_dests[i].ft_id = dest_action->dest_tbl->fw_tbl.id;
