@@ -373,20 +373,20 @@ static const struct of_device_id renesas_socs[] __initconst __maybe_unused = {
 #ifdef CONFIG_ARCH_R8A779G0
 	{ .compatible = "renesas,r8a779g0",	.data = &soc_rcar_v4h },
 #endif
-#if defined(CONFIG_ARCH_R9A07G043)
+#ifdef CONFIG_ARCH_R9A07G043
 #ifdef CONFIG_RISCV
 	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_five },
 #else
 	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_g2ul },
 #endif
 #endif
-#if defined(CONFIG_ARCH_R9A07G044)
+#ifdef CONFIG_ARCH_R9A07G044
 	{ .compatible = "renesas,r9a07g044",	.data = &soc_rz_g2l },
 #endif
-#if defined(CONFIG_ARCH_R9A07G054)
+#ifdef CONFIG_ARCH_R9A07G054
 	{ .compatible = "renesas,r9a07g054",	.data = &soc_rz_v2l },
 #endif
-#if defined(CONFIG_ARCH_R9A09G011)
+#ifdef CONFIG_ARCH_R9A09G011
 	{ .compatible = "renesas,r9a09g011",	.data = &soc_rz_v2m },
 #endif
 #ifdef CONFIG_ARCH_SH73A0
