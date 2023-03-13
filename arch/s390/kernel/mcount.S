@@ -135,6 +135,22 @@ SYM_FUNC_END(return_to_handler)
 #endif
 #endif /* CONFIG_FUNCTION_TRACER */
 
+SYM_CODE_START(ftrace_shared_hotpatch_trampoline_br)
+	lmg	%r0,%r1,2(%r1)
+	br	%r1
+SYM_INNER_LABEL(ftrace_shared_hotpatch_trampoline_br_end, SYM_L_GLOBAL)
+SYM_CODE_END(ftrace_shared_hotpatch_trampoline_br)
+
+#ifdef CONFIG_EXPOLINE
+SYM_CODE_START(ftrace_shared_hotpatch_trampoline_exrl)
+	lmg	%r0,%r1,2(%r1)
+	exrl	%r0,0f
+	j	.
+0:	br	%r1
+SYM_INNER_LABEL(ftrace_shared_hotpatch_trampoline_exrl_end, SYM_L_GLOBAL)
+SYM_CODE_END(ftrace_shared_hotpatch_trampoline_exrl)
+#endif /* CONFIG_EXPOLINE */
+
 #ifdef CONFIG_RETHOOK
 
 SYM_FUNC_START(arch_rethook_trampoline)
