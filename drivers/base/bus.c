@@ -1307,7 +1307,7 @@ EXPORT_SYMBOL_GPL(subsys_virtual_register);
  * from being unregistered or unloaded while the caller is using it.
  * The caller is responsible for preventing this.
  */
-struct device_driver *driver_find(const char *name, struct bus_type *bus)
+struct device_driver *driver_find(const char *name, const struct bus_type *bus)
 {
 	struct subsys_private *sp = bus_to_subsys(bus);
 	struct kobject *k;
