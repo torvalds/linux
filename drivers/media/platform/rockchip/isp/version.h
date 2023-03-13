@@ -404,6 +404,23 @@
  * 43.fix first frame loss
  * 44.fix rgb range for selfpath
  * 45.stats buf add application params frame id
+ *
+ * v2.2.0
+ * 1.add isp32 lite
+ * 2.add rk3562 config
+ * 3.add iqtool video for isp32 lite
+ * 4.fix build warn
+ * 5.dvfs for multi dev on/off
+ * 6.luma stream resolution alignment
+ * 7.fix sensor off to enable reset
+ * 8.fix isp and cif build warning
+ * 9.Return error code for ioctl set_meshbuf_size
+ * 10.fix isp32 lite mainpath switch fail
+ * 11.fix warning of vb2 cancel or done
+ * 12.fix isp no work due to irq_ends_mask error
+ * 13.thunder boot with multi sensor
+ * 14.support buf early done
+ * 15.fix read BP_WR_CTRL reg
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
