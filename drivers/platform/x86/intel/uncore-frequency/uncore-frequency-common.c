@@ -224,9 +224,15 @@ int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, u
 	uncore_write = write_control_freq;
 	uncore_read_freq = read_freq;
 
-	if (!uncore_root_kobj)
-		uncore_root_kobj = kobject_create_and_add("intel_uncore_frequency",
-							    &cpu_subsys.dev_root->kobj);
+	if (!uncore_root_kobj) {
+		struct device *dev_root = bus_get_dev_root(&cpu_subsys);
+
+		if (dev_root) {
+			uncore_root_kobj = kobject_create_and_add("intel_uncore_frequency",
+								  &dev_root->kobj);
+			put_device(dev_root);
+		}
+	}
 	if (uncore_root_kobj)
 		++uncore_instance_count;
 	mutex_unlock(&uncore_lock);
