@@ -1548,27 +1548,41 @@ static void sort_result(void)
 
 static const struct {
 	unsigned int flags;
+	const char *str;
 	const char *name;
 } lock_type_table[] = {
-	{ 0,				"semaphore" },
-	{ LCB_F_SPIN,			"spinlock" },
-	{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
-	{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
-	{ LCB_F_READ,			"rwsem:R" },
-	{ LCB_F_WRITE,			"rwsem:W" },
-	{ LCB_F_RT,			"rtmutex" },
-	{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
-	{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
-	{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
-	{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
-	{ LCB_F_MUTEX,			"mutex" },
-	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
+	{ 0,				"semaphore",	"semaphore" },
+	{ LCB_F_SPIN,			"spinlock",	"spinlock" },
+	{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R",	"rwlock" },
+	{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W",	"rwlock" },
+	{ LCB_F_READ,			"rwsem:R",	"rwsem" },
+	{ LCB_F_WRITE,			"rwsem:W",	"rwsem" },
+	{ LCB_F_RT,			"rt=mutex",	"rt-mutex" },
+	{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R",	"rwlock-rt" },
+	{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W",	"rwlock-rt" },
+	{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R",	"percpu-rwsem" },
+	{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W",	"percpu-rwsem" },
+	{ LCB_F_MUTEX,			"mutex",	"mutex" },
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex",	"mutex" },
 	/* alias for get_type_flag() */
-	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex-spin" },
+	{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex-spin",	"mutex" },
 };
 
 static const char *get_type_str(unsigned int flags)
 {
+	flags &= LCB_F_MAX_FLAGS - 1;
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
+		if (lock_type_table[i].flags == flags)
+			return lock_type_table[i].str;
+	}
+	return "unknown";
+}
+
+static const char *get_type_name(unsigned int flags)
+{
+	flags &= LCB_F_MAX_FLAGS - 1;
+
 	for (unsigned int i = 0; i < ARRAY_SIZE(lock_type_table); i++) {
 		if (lock_type_table[i].flags == flags)
 			return lock_type_table[i].name;
@@ -1662,7 +1676,8 @@ static void print_contention_result(struct lock_contention *con)
 				pid, pid == -1 ? "Unknown" : thread__comm_str(t));
 			break;
 		case LOCK_AGGR_ADDR:
-			pr_info("  %016llx   %s\n", (unsigned long long)st->addr, st->name);
+			pr_info("  %016llx   %s (%s)\n", (unsigned long long)st->addr,
+				st->name, get_type_name(st->flags));
 			break;
 		default:
 			break;
