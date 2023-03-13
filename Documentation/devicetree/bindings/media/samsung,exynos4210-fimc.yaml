@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/samsung,exynos4210-fimc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S5P/Exynos SoC Fully Integrated Mobile Camera
+
+maintainers:
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+
+description:
+  Each FIMC device should have an alias in the aliases node, in the form of
+  fimc<n>, where <n> is an integer specifying the IP block instance.
+
+properties:
+  compatible:
+    enum:
+      - samsung,exynos4210-fimc
+      - samsung,exynos4212-fimc
+      - samsung,s5pv210-fimc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: fimc
+      - const: sclk_fimc
+
+  clock-frequency:
+    description:
+      Maximum FIMC local clock (LCLK) frequency.
+
+  interrupts:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  samsung,cam-if:
+    type: boolean
+    description:
+      The FIMC IP block includes the camera input interface.
+
+  samsung,isp-wb:
+    type: boolean
+    description: |
+      The FIMC IP block has the ISP writeback input.
+
+  samsung,lcd-wb:
+    type: boolean
+    description: |
+      The FIMC IP block has the LCD writeback input.
+
+  samsung,mainscaler-ext:
+    type: boolean
+    description:
+      FIMC IP supports extended image size and has CIEXTEN register.
+
+  samsung,min-pix-alignment:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: Minimum supported image height alignment.
+      - description: Horizontal image offset.
+    description:
+      The values are in pixels and default is <2 1>.
+
+  samsung,min-pix-sizes:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 2
+    description: |
+      An array specyfing minimum image size in pixels at the FIMC input and
+      output DMA, in the first and second cell respectively.  Default value
+      is <16 16>.
+
+  samsung,pix-limits:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 4
+    description: |
+      An array of maximum supported image sizes in pixels, for details refer to
+      Table 2-1 in the S5PV210 SoC User Manual. The meaning of each cell is as
+      follows:
+       0 - scaler input horizontal size
+       1 - input horizontal size for the scaler bypassed
+       2 - REAL_WIDTH without input rotation
+       3 - REAL_HEIGHT with input rotation
+
+  samsung,rotators:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0x11
+    description: |
+      A bitmask specifying whether this IP has the input and the output
+      rotator. Bits 4 and 0 correspond to input and output rotator
+      respectively. If a rotator is present its corresponding bit should be
+      set.
+
+  samsung,sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      System Registers (SYSREG) node.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - samsung,pix-limits
+
+allOf:
+  - if:
+      required:
+        - samsung,isp-wb
+    then:
+      required:
+        - samsung,sysreg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos4.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    fimc@11800000 {
+        compatible = "samsung,exynos4212-fimc";
+        reg = <0x11800000 0x1000>;
+        clocks = <&clock CLK_FIMC0>,
+                 <&clock CLK_SCLK_FIMC0>;
+        clock-names = "fimc", "sclk_fimc";
+        interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+        iommus = <&sysmmu_fimc0>;
+        power-domains = <&pd_cam>;
+        samsung,sysreg = <&sys_reg>;
+
+        samsung,pix-limits = <4224 8192 1920 4224>;
+        samsung,mainscaler-ext;
+        samsung,isp-wb;
+        samsung,cam-if;
+
+        assigned-clocks = <&clock CLK_MOUT_FIMC0>,
+                          <&clock CLK_SCLK_FIMC0>;
+        assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+        assigned-clock-rates = <0>, <176000000>;
+    };
