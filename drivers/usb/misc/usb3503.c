@@ -52,27 +52,10 @@ struct usb3503 {
 	bool	secondary_ref_clk;
 };
 
-static int usb3503_reset(struct usb3503 *hub, int state)
-{
-	if (!state && hub->connect)
-		gpiod_set_value_cansleep(hub->connect, 0);
-
-	if (hub->reset)
-		gpiod_set_value_cansleep(hub->reset, !state);
-
-	/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
-	if (state)
-		usleep_range(4000, 10000);
-
-	return 0;
-}
-
 static int usb3503_connect(struct usb3503 *hub)
 {
 	struct device *dev = hub->dev;
 	int err;
-
-	usb3503_reset(hub, 1);
 
 	if (hub->regmap) {
 		/* SP_ILOCK: set connect_n, config_n for config */
@@ -126,25 +109,36 @@ static int usb3503_connect(struct usb3503 *hub)
 static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 {
 	struct device *dev = hub->dev;
-	int err = 0;
+	int rst, conn;
 
 	switch (mode) {
 	case USB3503_MODE_HUB:
-		err = usb3503_connect(hub);
+		conn = 1;
+		rst = 0;
 		break;
-
 	case USB3503_MODE_STANDBY:
-		usb3503_reset(hub, 0);
+		conn = 0;
+		rst = 1;
 		dev_info(dev, "switched to STANDBY mode\n");
 		break;
-
 	default:
 		dev_err(dev, "unknown mode is requested\n");
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	return err;
+	if (!conn && hub->connect)
+		gpiod_set_value_cansleep(hub->connect, 0);
+
+	if (hub->reset)
+		gpiod_set_value_cansleep(hub->reset, rst);
+
+	if (conn) {
+		/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
+		usleep_range(4000, 10000);
+		return usb3503_connect(hub);
+	}
+
+	return 0;
 }
 
 static const struct regmap_config usb3503_regmap_config = {
