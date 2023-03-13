@@ -207,10 +207,11 @@ static int allocate_filesystem_keyring(struct super_block *sb)
  * Release all encryption keys that have been added to the filesystem, along
  * with the keyring that contains them.
  *
- * This is called at unmount time.  The filesystem's underlying block device(s)
- * are still available at this time; this is important because after user file
- * accesses have been allowed, this function may need to evict keys from the
- * keyslots of an inline crypto engine, which requires the block device(s).
+ * This is called at unmount time, after all potentially-encrypted inodes have
+ * been evicted.  The filesystem's underlying block device(s) are still
+ * available at this time; this is important because after user file accesses
+ * have been allowed, this function may need to evict keys from the keyslots of
+ * an inline crypto engine, which requires the block device(s).
  */
 void fscrypt_destroy_keyring(struct super_block *sb)
 {
@@ -227,12 +228,12 @@ void fscrypt_destroy_keyring(struct super_block *sb)
 
 		hlist_for_each_entry_safe(mk, tmp, bucket, mk_node) {
 			/*
-			 * Since all inodes were already evicted, every key
-			 * remaining in the keyring should have an empty inode
-			 * list, and should only still be in the keyring due to
-			 * the single active ref associated with ->mk_secret.
-			 * There should be no structural refs beyond the one
-			 * associated with the active ref.
+			 * Since all potentially-encrypted inodes were already
+			 * evicted, every key remaining in the keyring should
+			 * have an empty inode list, and should only still be in
+			 * the keyring due to the single active ref associated
+			 * with ->mk_secret.  There should be no structural refs
+			 * beyond the one associated with the active ref.
 			 */
 			WARN_ON(refcount_read(&mk->mk_active_refs) != 1);
 			WARN_ON(refcount_read(&mk->mk_struct_refs) != 1);
