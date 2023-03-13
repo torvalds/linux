@@ -288,7 +288,6 @@ struct sdebug_dev_info {
 	uuid_t lu_name;
 	struct sdebug_host_info *sdbg_host;
 	unsigned long uas_bm[1];
-	atomic_t num_in_q;
 	atomic_t stopped;	/* 1: by SSU, 2: device start */
 	bool used;
 
@@ -4931,7 +4930,6 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 	struct sdebug_queue *sqp;
 	struct sdebug_queued_cmd *sqcp;
 	struct scsi_cmnd *scp;
-	struct sdebug_dev_info *devip;
 
 	if (unlikely(aborted))
 		sd_dp->aborted = false;
@@ -4956,11 +4954,7 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 		       sd_dp->sqa_idx, qc_idx, sd_dp->hc_idx);
 		return;
 	}
-	devip = (struct sdebug_dev_info *)scp->device->hostdata;
-	if (likely(devip))
-		atomic_dec(&devip->num_in_q);
-	else
-		pr_err("devip=NULL\n");
+
 	if (unlikely(atomic_read(&retired_max_queue) > 0))
 		retiring = 1;
 
@@ -5192,7 +5186,6 @@ static struct sdebug_dev_info *find_build_dev_info(struct scsi_device *sdev)
 	open_devip->target = sdev->id;
 	open_devip->lun = sdev->lun;
 	open_devip->sdbg_host = sdbg_host;
-	atomic_set(&open_devip->num_in_q, 0);
 	set_bit(SDEBUG_UA_POOCCUR, open_devip->uas_bm);
 	open_devip->used = true;
 	return open_devip;
@@ -5263,7 +5256,6 @@ static bool stop_queued_cmnd(struct scsi_cmnd *cmnd)
 	enum sdeb_defer_type l_defer_t;
 	struct sdebug_queue *sqp;
 	struct sdebug_queued_cmd *sqcp;
-	struct sdebug_dev_info *devip;
 	struct sdebug_defer *sd_dp;
 
 	for (j = 0, sqp = sdebug_q_arr; j < submit_queues; ++j, ++sqp) {
@@ -5278,10 +5270,6 @@ static bool stop_queued_cmnd(struct scsi_cmnd *cmnd)
 				if (cmnd != sqcp->a_cmnd)
 					continue;
 				/* found */
-				devip = (struct sdebug_dev_info *)
-						cmnd->device->hostdata;
-				if (devip)
-					atomic_dec(&devip->num_in_q);
 				sqcp->a_cmnd = NULL;
 				sd_dp = sqcp->sd_dp;
 				if (sd_dp) {
@@ -5308,7 +5296,6 @@ static void stop_all_queued(void)
 	enum sdeb_defer_type l_defer_t;
 	struct sdebug_queue *sqp;
 	struct sdebug_queued_cmd *sqcp;
-	struct sdebug_dev_info *devip;
 	struct sdebug_defer *sd_dp;
 
 	for (j = 0, sqp = sdebug_q_arr; j < submit_queues; ++j, ++sqp) {
@@ -5318,10 +5305,6 @@ static void stop_all_queued(void)
 				sqcp = &sqp->qc_arr[k];
 				if (sqcp->a_cmnd == NULL)
 					continue;
-				devip = (struct sdebug_dev_info *)
-					sqcp->a_cmnd->device->hostdata;
-				if (devip)
-					atomic_dec(&devip->num_in_q);
 				sqcp->a_cmnd = NULL;
 				sd_dp = sqcp->sd_dp;
 				if (sd_dp) {
@@ -5565,9 +5548,8 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			 int delta_jiff, int ndelay)
 {
 	bool new_sd_dp;
-	bool inject = false;
 	bool polled = scsi_cmd_to_rq(cmnd)->cmd_flags & REQ_POLLED;
-	int k, num_in_q, qdepth;
+	int k;
 	unsigned long iflags;
 	u64 ns_from_boot = 0;
 	struct sdebug_queue *sqp;
@@ -5591,16 +5573,21 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
-	num_in_q = atomic_read(&devip->num_in_q);
-	qdepth = cmnd->device->queue_depth;
+
 	if (unlikely(sdebug_every_nth && (SDEBUG_OPT_RARE_TSF & sdebug_opts) &&
 		     (scsi_result == 0))) {
+		int num_in_q = scsi_device_busy(sdp);
+		int qdepth = cmnd->device->queue_depth;
+
 		if ((num_in_q == (qdepth - 1)) &&
 		    (atomic_inc_return(&sdebug_a_tsf) >=
 		     abs(sdebug_every_nth))) {
 			atomic_set(&sdebug_a_tsf, 0);
-			inject = true;
 			scsi_result = device_qfull_result;
+
+			if (unlikely(SDEBUG_OPT_Q_NOISE & sdebug_opts))
+				sdev_printk(KERN_INFO, sdp, "%s: num_in_q=%d +1, <inject> status: TASK SET FULL\n",
+					    __func__, num_in_q);
 		}
 	}
 
@@ -5616,7 +5603,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		goto respond_in_thread;
 	}
 	set_bit(k, sqp->in_use_bm);
-	atomic_inc(&devip->num_in_q);
 	sqcp = &sqp->qc_arr[k];
 	sqcp->a_cmnd = cmnd;
 	cmnd->host_scribble = (unsigned char *)sqcp;
@@ -5626,7 +5612,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if (!sd_dp) {
 		sd_dp = kzalloc(sizeof(*sd_dp), GFP_ATOMIC);
 		if (!sd_dp) {
-			atomic_dec(&devip->num_in_q);
 			clear_bit(k, sqp->in_use_bm);
 			return SCSI_MLQUEUE_HOST_BUSY;
 		}
@@ -5686,7 +5671,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				if (kt <= d) {	/* elapsed duration >= kt */
 					spin_lock_irqsave(&sqp->qc_lock, iflags);
 					sqcp->a_cmnd = NULL;
-					atomic_dec(&devip->num_in_q);
 					clear_bit(k, sqp->in_use_bm);
 					spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 					if (new_sd_dp)
@@ -5762,9 +5746,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			sd_dp->aborted = false;
 		}
 	}
-	if (unlikely((SDEBUG_OPT_Q_NOISE & sdebug_opts) && scsi_result == device_qfull_result))
-		sdev_printk(KERN_INFO, sdp, "%s: num_in_q=%d +1, %s%s\n", __func__,
-			    num_in_q, (inject ? "<inject> " : ""), "status: TASK SET FULL");
+
 	return 0;
 
 respond_in_thread:	/* call back to mid-layer using invocation thread */
@@ -7369,17 +7351,12 @@ static void sdebug_do_remove_host(bool the_end)
 
 static int sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 {
-	int num_in_q = 0;
-	struct sdebug_dev_info *devip;
+	struct sdebug_dev_info *devip = sdev->hostdata;
+
+	if (!devip)
+		return	-ENODEV;
 
 	block_unblock_all_queues(true);
-	devip = (struct sdebug_dev_info *)sdev->hostdata;
-	if (NULL == devip) {
-		block_unblock_all_queues(false);
-		return	-ENODEV;
-	}
-	num_in_q = atomic_read(&devip->num_in_q);
-
 	if (qdepth > SDEBUG_CANQUEUE) {
 		qdepth = SDEBUG_CANQUEUE;
 		pr_warn("%s: requested qdepth [%d] exceeds canqueue [%d], trim\n", __func__,
@@ -7390,10 +7367,8 @@ static int sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 	if (qdepth != sdev->queue_depth)
 		scsi_change_queue_depth(sdev, qdepth);
 
-	if (SDEBUG_OPT_Q_NOISE & sdebug_opts) {
-		sdev_printk(KERN_INFO, sdev, "%s: qdepth=%d, num_in_q=%d\n",
-			    __func__, qdepth, num_in_q);
-	}
+	if (SDEBUG_OPT_Q_NOISE & sdebug_opts)
+		sdev_printk(KERN_INFO, sdev, "%s: qdepth=%d\n", __func__, qdepth);
 	block_unblock_all_queues(false);
 	return sdev->queue_depth;
 }
@@ -7495,7 +7470,6 @@ static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 	struct sdebug_queue *sqp;
 	struct sdebug_queued_cmd *sqcp;
 	struct scsi_cmnd *scp;
-	struct sdebug_dev_info *devip;
 	struct sdebug_defer *sd_dp;
 
 	sqp = sdebug_q_arr + queue_num;
@@ -7533,11 +7507,6 @@ static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 
 		} else		/* ignoring non REQ_POLLED requests */
 			continue;
-		devip = (struct sdebug_dev_info *)scp->device->hostdata;
-		if (likely(devip))
-			atomic_dec(&devip->num_in_q);
-		else
-			pr_err("devip=NULL from %s\n", __func__);
 		if (unlikely(atomic_read(&retired_max_queue) > 0))
 			retiring = true;
 
