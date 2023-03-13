@@ -1262,7 +1262,7 @@ static void veth_set_xdp_features(struct net_device *dev)
 	struct veth_priv *priv = netdev_priv(dev);
 	struct net_device *peer;
 
-	peer = rcu_dereference(priv->peer);
+	peer = rtnl_dereference(priv->peer);
 	if (peer && peer->real_num_tx_queues <= dev->real_num_rx_queues) {
 		xdp_features_t val = NETDEV_XDP_ACT_BASIC |
 				     NETDEV_XDP_ACT_REDIRECT |
