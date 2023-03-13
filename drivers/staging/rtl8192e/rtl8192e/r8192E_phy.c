@@ -47,20 +47,6 @@ static u32 _rtl92e_calculate_bit_shift(u32 dwBitMask)
 	return ffs(dwBitMask) - 1;
 }
 
-u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath)
-{
-	u8 ret = 1;
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (priv->rf_type == RF_1T2R) {
-		if (eRFPath == RF90_PATH_A || eRFPath == RF90_PATH_B)
-			ret = 1;
-		else if (eRFPath == RF90_PATH_C || eRFPath == RF90_PATH_D)
-			ret = 0;
-	}
-	return ret;
-}
-
 void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 		       u32 dwData)
 {
@@ -196,8 +182,6 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 Original_Value, BitShift, New_Value;
 
-	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-		return;
 	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return;
 
@@ -233,8 +217,6 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	u32 Original_Value, Readback_Value, BitShift;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-		return 0;
 	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return	0;
 	mutex_lock(&priv->rf_mutex);
