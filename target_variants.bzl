@@ -12,7 +12,7 @@ la_variants = [
 
 le_targets = [
     # keep sorted
-    "pineapple.allyes",
+    "pineapple-allyes",
 ]
 
 le_variants = [
