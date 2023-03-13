@@ -935,8 +935,8 @@ void bus_unregister(const struct bus_type *bus)
 		return;
 
 	pr_debug("bus: '%s': unregistering\n", bus->name);
-	if (bus->dev_root)
-		device_unregister(bus->dev_root);
+	if (sp->dev_root)
+		device_unregister(sp->dev_root);
 
 	bus_kobj = &sp->subsys.kobj;
 	sysfs_remove_groups(bus_kobj, bus->bus_groups);
@@ -1198,12 +1198,19 @@ static int subsys_register(struct bus_type *subsys,
 			   const struct attribute_group **groups,
 			   struct kobject *parent_of_root)
 {
+	struct subsys_private *sp;
 	struct device *dev;
 	int err;
 
 	err = bus_register(subsys);
 	if (err < 0)
 		return err;
+
+	sp = bus_to_subsys(subsys);
+	if (!sp) {
+		err = -EINVAL;
+		goto err_sp;
+	}
 
 	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (!dev) {
@@ -1223,7 +1230,8 @@ static int subsys_register(struct bus_type *subsys,
 	if (err < 0)
 		goto err_dev_reg;
 
-	subsys->dev_root = dev;
+	sp->dev_root = dev;
+	subsys_put(sp);
 	return 0;
 
 err_dev_reg:
@@ -1232,6 +1240,8 @@ err_dev_reg:
 err_name:
 	kfree(dev);
 err_dev:
+	subsys_put(sp);
+err_sp:
 	bus_unregister(subsys);
 	return err;
 }
@@ -1349,9 +1359,15 @@ bool bus_is_registered(const struct bus_type *bus)
  */
 struct device *bus_get_dev_root(const struct bus_type *bus)
 {
-	if (bus)
-		return get_device(bus->dev_root);
-	return NULL;
+	struct subsys_private *sp = bus_to_subsys(bus);
+	struct device *dev_root;
+
+	if (!sp)
+		return NULL;
+
+	dev_root = get_device(sp->dev_root);
+	subsys_put(sp);
+	return dev_root;
 }
 EXPORT_SYMBOL_GPL(bus_get_dev_root);
 

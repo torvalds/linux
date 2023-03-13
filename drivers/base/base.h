@@ -27,6 +27,7 @@
  *                 on this bus.
  * @bus - pointer back to the struct bus_type that this structure is associated
  *        with.
+ * @dev_root: Default device to use as the parent.
  *
  * @glue_dirs - "glue" directory to put in-between the parent device to
  *              avoid namespace conflicts
@@ -49,6 +50,7 @@ struct subsys_private {
 	struct blocking_notifier_head bus_notifier;
 	unsigned int drivers_autoprobe:1;
 	struct bus_type *bus;
+	struct device *dev_root;
 
 	struct kset glue_dirs;
 	struct class *class;
