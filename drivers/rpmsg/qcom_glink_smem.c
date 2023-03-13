@@ -292,7 +292,7 @@ struct qcom_glink *qcom_glink_smem_register(struct device *parent,
 	*tx_pipe->head = 0;
 
 	glink = qcom_glink_native_probe(dev,
-					GLINK_FEATURE_INTENT_REUSE,
+					GLINK_FEATURE_INTENT_REUSE | GLINK_FEATURE_ZERO_COPY,
 					&rx_pipe->native, &tx_pipe->native,
 					false);
 	if (IS_ERR(glink)) {
