@@ -14,6 +14,8 @@
 #include "transition.h"
 
 #define MAX_STACK_ENTRIES  100
+DEFINE_PER_CPU(unsigned long[MAX_STACK_ENTRIES], klp_stack_entries);
+
 #define STACK_ERR_BUF_SIZE 128
 
 #define SIGNALS_TIMEOUT 15
@@ -240,12 +242,15 @@ static int klp_check_stack_func(struct klp_func *func, unsigned long *entries,
  */
 static int klp_check_stack(struct task_struct *task, const char **oldname)
 {
-	static unsigned long entries[MAX_STACK_ENTRIES];
+	unsigned long *entries = this_cpu_ptr(klp_stack_entries);
 	struct klp_object *obj;
 	struct klp_func *func;
 	int ret, nr_entries;
 
-	ret = stack_trace_save_tsk_reliable(task, entries, ARRAY_SIZE(entries));
+	/* Protect 'klp_stack_entries' */
+	lockdep_assert_preemption_disabled();
+
+	ret = stack_trace_save_tsk_reliable(task, entries, MAX_STACK_ENTRIES);
 	if (ret < 0)
 		return -EINVAL;
 	nr_entries = ret;
