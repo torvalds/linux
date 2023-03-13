@@ -143,6 +143,13 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_QUANTUM__QUANTUM_SCALE__SHIFT |
 			1 << CP_HQD_QUANTUM__QUANTUM_DURATION__SHIFT;
 
+	/*
+	 * GFX11 RS64 CPFW version >= 509 supports PCIe atomics support
+	 * acknowledgment.
+	 */
+	if (amdgpu_amdkfd_have_atomics_support(mm->dev->adev))
+		m->cp_hqd_hq_status0 |= 1 << 29;
+
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;

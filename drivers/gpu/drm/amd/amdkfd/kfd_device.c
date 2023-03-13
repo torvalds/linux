@@ -204,6 +204,14 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 			/* Navi1x+ */
 			if (gc_version >= IP_VERSION(10, 1, 1))
 				kfd->device_info.needs_pci_atomics = true;
+		} else if (gc_version < IP_VERSION(12, 0, 0)) {
+			/*
+			 * PCIe atomics support acknowledgment in GFX11 RS64 CPFW requires
+			 * MEC version >= 509. Prior RS64 CPFW versions (and all F32) require
+			 * PCIe atomics support.
+			 */
+			kfd->device_info.needs_pci_atomics = true;
+			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
 		}
 	} else {
 		kfd->device_info.doorbell_size = 4;
