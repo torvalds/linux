@@ -2316,10 +2316,6 @@ int btrfs_zoned_activate_one_bg(struct btrfs_fs_info *fs_info,
 	if (!btrfs_is_zoned(fs_info) || (space_info->flags & BTRFS_BLOCK_GROUP_DATA))
 		return 0;
 
-	/* No more block groups to activate */
-	if (space_info->active_total_bytes == space_info->total_bytes)
-		return 0;
-
 	for (;;) {
 		int ret;
 		bool need_finish = false;
