@@ -12,7 +12,8 @@
 #include <sys/mman.h>
 #include "trace_helpers.h"
 
-#define DEBUGFS "/sys/kernel/debug/tracing/"
+#define TRACEFS_PIPE	"/sys/kernel/tracing/trace_pipe"
+#define DEBUGFS_PIPE	"/sys/kernel/debug/tracing/trace_pipe"
 
 #define MAX_SYMS 300000
 static struct ksym syms[MAX_SYMS];
@@ -136,7 +137,10 @@ void read_trace_pipe(void)
 {
 	int trace_fd;
 
-	trace_fd = open(DEBUGFS "trace_pipe", O_RDONLY, 0);
+	if (access(TRACEFS_PIPE, F_OK) == 0)
+		trace_fd = open(TRACEFS_PIPE, O_RDONLY, 0);
+	else
+		trace_fd = open(DEBUGFS_PIPE, O_RDONLY, 0);
 	if (trace_fd < 0)
 		return;
 

@@ -1,6 +1,11 @@
 #!/bin/bash
 
-TR=/sys/kernel/debug/tracing/
+if [[ -e /sys/kernel/tracing/trace ]]; then
+    TR=/sys/kernel/tracing/
+else
+    TR=/sys/kernel/debug/tracing/
+fi
+
 clear_trace() { # reset trace output
     echo > $TR/trace
 }
