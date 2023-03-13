@@ -1177,7 +1177,7 @@ err_disable:
  * In addition to freeing platform resources it also deletes the timer
  * entry from the local list.
  */
-static int omap_dm_timer_remove(struct platform_device *pdev)
+static void omap_dm_timer_remove(struct platform_device *pdev)
 {
 	struct dmtimer *timer;
 	unsigned long flags;
@@ -1199,8 +1199,6 @@ static int omap_dm_timer_remove(struct platform_device *pdev)
 
 	if (ret)
 		dev_err(&pdev->dev, "Unable to determine timer entry in list of drivers on remove\n");
-
-	return 0;
 }
 
 static const struct omap_dm_timer_ops dmtimer_ops = {
@@ -1275,7 +1273,7 @@ MODULE_DEVICE_TABLE(of, omap_timer_match);
 
 static struct platform_driver omap_dm_timer_driver = {
 	.probe  = omap_dm_timer_probe,
-	.remove = omap_dm_timer_remove,
+	.remove_new = omap_dm_timer_remove,
 	.driver = {
 		.name   = "omap_timer",
 		.of_match_table = omap_timer_match,
