@@ -90,7 +90,7 @@ static void ulpi_remove(struct device *dev)
 		drv->remove(to_ulpi_dev(dev));
 }
 
-static struct bus_type ulpi_bus = {
+static const struct bus_type ulpi_bus = {
 	.name = "ulpi",
 	.match = ulpi_match,
 	.uevent = ulpi_uevent,
