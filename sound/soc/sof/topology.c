@@ -1231,33 +1231,41 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 
 			continue;
 		case SOF_IN_AUDIO_FORMAT_TOKENS:
-		case SOF_OUT_AUDIO_FORMAT_TOKENS:
-			num_sets = sof_get_token_value(SOF_TKN_COMP_NUM_AUDIO_FORMATS,
+			num_sets = sof_get_token_value(SOF_TKN_COMP_NUM_INPUT_AUDIO_FORMATS,
 						       swidget->tuples, swidget->num_tuples);
-
 			if (num_sets < 0) {
-				dev_err(sdev->dev, "Invalid audio format count for %s\n",
+				dev_err(sdev->dev, "Invalid input audio format count for %s\n",
 					swidget->widget->name);
 				ret = num_sets;
 				goto err;
 			}
-
-			if (num_sets > 1) {
-				struct snd_sof_tuple *new_tuples;
-
-				num_tuples += token_list[object_token_list[i]].count * num_sets;
-				new_tuples = krealloc(swidget->tuples,
-						      sizeof(*new_tuples) * num_tuples, GFP_KERNEL);
-				if (!new_tuples) {
-					ret = -ENOMEM;
-					goto err;
-				}
-
-				swidget->tuples = new_tuples;
+			break;
+		case SOF_OUT_AUDIO_FORMAT_TOKENS:
+			num_sets = sof_get_token_value(SOF_TKN_COMP_NUM_OUTPUT_AUDIO_FORMATS,
+						       swidget->tuples, swidget->num_tuples);
+			if (num_sets < 0) {
+				dev_err(sdev->dev, "Invalid output audio format count for %s\n",
+					swidget->widget->name);
+				ret = num_sets;
+				goto err;
 			}
 			break;
 		default:
 			break;
+		}
+
+		if (num_sets > 1) {
+			struct snd_sof_tuple *new_tuples;
+
+			num_tuples += token_list[object_token_list[i]].count * num_sets;
+			new_tuples = krealloc(swidget->tuples,
+					      sizeof(*new_tuples) * num_tuples, GFP_KERNEL);
+			if (!new_tuples) {
+				ret = -ENOMEM;
+				goto err;
+			}
+
+			swidget->tuples = new_tuples;
 		}
 
 		/* copy one set of tuples per token ID into swidget->tuples */

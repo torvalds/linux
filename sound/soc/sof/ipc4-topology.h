@@ -164,12 +164,14 @@ struct sof_ipc4_pin_format {
  * struct sof_ipc4_available_audio_format - Available audio formats
  * @output_pin_fmts: Available output pin formats
  * @input_pin_fmts: Available input pin formats
- * @audio_fmt_num: Number of available audio formats
+ * @num_input_formats: Number of input pin formats
+ * @num_output_formats: Number of output pin formats
  */
 struct sof_ipc4_available_audio_format {
 	struct sof_ipc4_pin_format *output_pin_fmts;
 	struct sof_ipc4_pin_format *input_pin_fmts;
-	int audio_fmt_num;
+	u32 num_input_formats;
+	u32 num_output_formats;
 };
 
 /**
