@@ -112,6 +112,7 @@
   _raw_spin_lock
   _raw_spin_unlock
   refcount_warn_saturate
+  rng_is_initialized
   scatterwalk_ffwd
   scatterwalk_map_and_copy
   sg_init_one

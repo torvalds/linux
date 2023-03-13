@@ -315,7 +315,7 @@ static int unflatten_dt_nodes(const void *blob,
 	for (offset = 0;
 	     offset >= 0 && depth >= initial_depth;
 	     offset = fdt_next_node(blob, offset, &depth)) {
-		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH))
+		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH - 1))
 			continue;
 
 		if (!IS_ENABLED(CONFIG_OF_KOBJ) &&
@@ -1180,6 +1180,9 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 		 */
 		if (memblock_is_region_reserved(base, size))
 			return -EBUSY;
+
+		if (memblock_is_nomap_remove())
+			return memblock_remove(base, size);
 
 		return memblock_mark_nomap(base, size);
 	}

@@ -475,11 +475,99 @@ struct nand_sdr_timings {
 };
 
 /**
+ * struct nand_nvddr_timings - NV-DDR NAND chip timings
+ *
+ * This struct defines the timing requirements of a NV-DDR NAND data interface.
+ * These information can be found in every NAND datasheets and the timings
+ * meaning are described in the ONFI specifications:
+ * https://media-www.micron.com/-/media/client/onfi/specs/onfi_4_1_gold.pdf
+ * (chapter 4.18.2 NV-DDR)
+ *
+ * All these timings are expressed in picoseconds.
+ *
+ * @tBERS_max: Block erase time
+ * @tCCS_min: Change column setup time
+ * @tPROG_max: Page program time
+ * @tR_max: Page read time
+ * @tAC_min: Access window of DQ[7:0] from CLK
+ * @tAC_max: Access window of DQ[7:0] from CLK
+ * @tADL_min: ALE to data loading time
+ * @tCAD_min: Command, Address, Data delay
+ * @tCAH_min: Command/Address DQ hold time
+ * @tCALH_min: W/R_n, CLE and ALE hold time
+ * @tCALS_min: W/R_n, CLE and ALE setup time
+ * @tCAS_min: Command/address DQ setup time
+ * @tCEH_min: CE# high hold time
+ * @tCH_min:  CE# hold time
+ * @tCK_min: Average clock cycle time
+ * @tCS_min: CE# setup time
+ * @tDH_min: Data hold time
+ * @tDQSCK_min: Start of the access window of DQS from CLK
+ * @tDQSCK_max: End of the access window of DQS from CLK
+ * @tDQSD_min: Min W/R_n low to DQS/DQ driven by device
+ * @tDQSD_max: Max W/R_n low to DQS/DQ driven by device
+ * @tDQSHZ_max: W/R_n high to DQS/DQ tri-state by device
+ * @tDQSQ_max: DQS-DQ skew, DQS to last DQ valid, per access
+ * @tDS_min: Data setup time
+ * @tDSC_min: DQS cycle time
+ * @tFEAT_max: Busy time for Set Features and Get Features
+ * @tITC_max: Interface and Timing Mode Change time
+ * @tQHS_max: Data hold skew factor
+ * @tRHW_min: Data output cycle to command, address, or data input cycle
+ * @tRR_min: Ready to RE# low (data only)
+ * @tRST_max: Device reset time, measured from the falling edge of R/B# to the
+ *	      rising edge of R/B#.
+ * @tWB_max: WE# high to SR[6] low
+ * @tWHR_min: WE# high to RE# low
+ * @tWRCK_min: W/R_n low to data output cycle
+ * @tWW_min: WP# transition to WE# low
+ */
+struct nand_nvddr_timings {
+	u64 tBERS_max;
+	u32 tCCS_min;
+	u64 tPROG_max;
+	u64 tR_max;
+	u32 tAC_min;
+	u32 tAC_max;
+	u32 tADL_min;
+	u32 tCAD_min;
+	u32 tCAH_min;
+	u32 tCALH_min;
+	u32 tCALS_min;
+	u32 tCAS_min;
+	u32 tCEH_min;
+	u32 tCH_min;
+	u32 tCK_min;
+	u32 tCS_min;
+	u32 tDH_min;
+	u32 tDQSCK_min;
+	u32 tDQSCK_max;
+	u32 tDQSD_min;
+	u32 tDQSD_max;
+	u32 tDQSHZ_max;
+	u32 tDQSQ_max;
+	u32 tDS_min;
+	u32 tDSC_min;
+	u32 tFEAT_max;
+	u32 tITC_max;
+	u32 tQHS_max;
+	u32 tRHW_min;
+	u32 tRR_min;
+	u32 tRST_max;
+	u32 tWB_max;
+	u32 tWHR_min;
+	u32 tWRCK_min;
+	u32 tWW_min;
+};
+
+/**
  * enum nand_interface_type - NAND interface type
  * @NAND_SDR_IFACE:	Single Data Rate interface
+ * @NAND_NVDDR_IFACE:	Double Data Rate interface
  */
 enum nand_interface_type {
 	NAND_SDR_IFACE,
+	NAND_NVDDR_IFACE,
 };
 
 /**
@@ -488,6 +576,7 @@ enum nand_interface_type {
  * @timings:	 The timing information
  * @timings.mode: Timing mode as defined in the specification
  * @timings.sdr: Use it when @type is %NAND_SDR_IFACE.
+ * @timings.nvddr: Use it when @type is %NAND_NVDDR_IFACE.
  */
 struct nand_interface_config {
 	enum nand_interface_type type;
@@ -495,9 +584,28 @@ struct nand_interface_config {
 		unsigned int mode;
 		union {
 			struct nand_sdr_timings sdr;
+			struct nand_nvddr_timings nvddr;
 		};
 	} timings;
 };
+
+/**
+ * nand_interface_is_sdr - get the interface type
+ * @conf:	The data interface
+ */
+static bool nand_interface_is_sdr(const struct nand_interface_config *conf)
+{
+	return conf->type == NAND_SDR_IFACE;
+}
+
+/**
+ * nand_interface_is_nvddr - get the interface type
+ * @conf:	The data interface
+ */
+static bool nand_interface_is_nvddr(const struct nand_interface_config *conf)
+{
+	return conf->type == NAND_NVDDR_IFACE;
+}
 
 /**
  * nand_get_sdr_timings - get SDR timing from data interface
@@ -506,10 +614,23 @@ struct nand_interface_config {
 static inline const struct nand_sdr_timings *
 nand_get_sdr_timings(const struct nand_interface_config *conf)
 {
-	if (conf->type != NAND_SDR_IFACE)
+	if (!nand_interface_is_sdr(conf))
 		return ERR_PTR(-EINVAL);
 
 	return &conf->timings.sdr;
+}
+
+/**
+ * nand_get_nvddr_timings - get NV-DDR timing from data interface
+ * @conf:	The data interface
+ */
+static inline const struct nand_nvddr_timings *
+nand_get_nvddr_timings(const struct nand_interface_config *conf)
+{
+	if (!nand_interface_is_nvddr(conf))
+		return ERR_PTR(-EINVAL);
+
+	return &conf->timings.nvddr;
 }
 
 /**

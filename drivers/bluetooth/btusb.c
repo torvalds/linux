@@ -399,6 +399,18 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0bda, 0xc822), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
 
+	/* Realtek 8852CE Bluetooth devices */
+	{ USB_DEVICE(0x04ca, 0x4007), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x04c5, 0x1675), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x0cb8, 0xc558), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3587), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x13d3, 0x3586), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
+
 	/* Realtek Bluetooth devices */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bda, 0xe0, 0x01, 0x01),
 	  .driver_info = BTUSB_REALTEK },
@@ -414,6 +426,9 @@ static const struct usb_device_id blacklist_table[] = {
 						     BTUSB_WIDEBAND_SPEECH |
 						     BTUSB_VALID_LE_STATES },
 	{ USB_DEVICE(0x0489, 0xe0d9), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH |
+						     BTUSB_VALID_LE_STATES },
+	{ USB_DEVICE(0x13d3, 0x3568), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH |
 						     BTUSB_VALID_LE_STATES },
 
@@ -1818,6 +1833,11 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 
 	rp = (struct hci_rp_read_local_version *)skb->data;
 
+	bt_dev_info(hdev, "CSR: Setting up dongle with HCI ver=%u rev=%04x; LMP ver=%u subver=%04x; manufacturer=%u",
+		le16_to_cpu(rp->hci_ver), le16_to_cpu(rp->hci_rev),
+		le16_to_cpu(rp->lmp_ver), le16_to_cpu(rp->lmp_subver),
+		le16_to_cpu(rp->manufacturer));
+
 	/* Detect a wide host of Chinese controllers that aren't CSR.
 	 *
 	 * Known fake bcdDevices: 0x0100, 0x0134, 0x1915, 0x2520, 0x7558, 0x8891
@@ -2801,6 +2821,7 @@ enum {
 enum {
 	BTMTK_WMT_INVALID,
 	BTMTK_WMT_PATCH_UNDONE,
+	BTMTK_WMT_PATCH_PROGRESS,
 	BTMTK_WMT_PATCH_DONE,
 	BTMTK_WMT_ON_UNDONE,
 	BTMTK_WMT_ON_DONE,
@@ -2816,7 +2837,7 @@ struct btmtk_wmt_hdr {
 
 struct btmtk_hci_wmt_cmd {
 	struct btmtk_wmt_hdr hdr;
-	u8 data[256];
+	u8 data[];
 } __packed;
 
 struct btmtk_hci_wmt_evt {
@@ -2919,7 +2940,7 @@ static void btusb_mtk_wmt_recv(struct urb *urb)
 	 * to generate the event. Otherwise, the WMT event cannot return from
 	 * the device successfully.
 	 */
-	udelay(100);
+	udelay(500);
 
 	usb_anchor_urb(urb, &data->ctrl_anchor);
 	err = usb_submit_urb(urb, GFP_ATOMIC);
@@ -2995,7 +3016,7 @@ static int btusb_mtk_hci_wmt_sync(struct hci_dev *hdev,
 	struct btmtk_hci_wmt_evt_funcc *wmt_evt_funcc;
 	u32 hlen, status = BTMTK_WMT_INVALID;
 	struct btmtk_hci_wmt_evt *wmt_evt;
-	struct btmtk_hci_wmt_cmd wc;
+	struct btmtk_hci_wmt_cmd *wc;
 	struct btmtk_wmt_hdr *hdr;
 	int err;
 
@@ -3004,24 +3025,42 @@ static int btusb_mtk_hci_wmt_sync(struct hci_dev *hdev,
 	if (hlen > 255)
 		return -EINVAL;
 
-	hdr = (struct btmtk_wmt_hdr *)&wc;
+	wc = kzalloc(hlen, GFP_KERNEL);
+	if (!wc)
+		return -ENOMEM;
+
+	hdr = &wc->hdr;
 	hdr->dir = 1;
 	hdr->op = wmt_params->op;
 	hdr->dlen = cpu_to_le16(wmt_params->dlen + 1);
 	hdr->flag = wmt_params->flag;
-	memcpy(wc.data, wmt_params->data, wmt_params->dlen);
+	memcpy(wc->data, wmt_params->data, wmt_params->dlen);
 
 	set_bit(BTUSB_TX_WAIT_VND_EVT, &data->flags);
 
-	err = __hci_cmd_send(hdev, 0xfc6f, hlen, &wc);
+	/* WMT cmd/event doesn't follow up the generic HCI cmd/event handling,
+	 * it needs constantly polling control pipe until the host received the
+	 * WMT event, thus, we should require to specifically acquire PM counter
+	 * on the USB to prevent the interface from entering auto suspended
+	 * while WMT cmd/event in progress.
+	 */
+	err = usb_autopm_get_interface(data->intf);
+	if (err < 0)
+		goto err_free_wc;
+
+	err = __hci_cmd_send(hdev, 0xfc6f, hlen, wc);
 
 	if (err < 0) {
 		clear_bit(BTUSB_TX_WAIT_VND_EVT, &data->flags);
-		return err;
+		usb_autopm_put_interface(data->intf);
+		goto err_free_wc;
 	}
 
 	/* Submit control IN URB on demand to process the WMT event */
 	err = btusb_mtk_submit_wmt_recv_urb(hdev);
+
+	usb_autopm_put_interface(data->intf);
+
 	if (err < 0)
 		return err;
 
@@ -3039,13 +3078,14 @@ static int btusb_mtk_hci_wmt_sync(struct hci_dev *hdev,
 	if (err == -EINTR) {
 		bt_dev_err(hdev, "Execution of wmt command interrupted");
 		clear_bit(BTUSB_TX_WAIT_VND_EVT, &data->flags);
-		return err;
+		goto err_free_wc;
 	}
 
 	if (err) {
 		bt_dev_err(hdev, "Execution of wmt command timed out");
 		clear_bit(BTUSB_TX_WAIT_VND_EVT, &data->flags);
-		return -ETIMEDOUT;
+		err = -ETIMEDOUT;
+		goto err_free_wc;
 	}
 
 	/* Parse and handle the return WMT event */
@@ -3081,7 +3121,8 @@ static int btusb_mtk_hci_wmt_sync(struct hci_dev *hdev,
 err_free_skb:
 	kfree_skb(data->evt_skb);
 	data->evt_skb = NULL;
-
+err_free_wc:
+	kfree(wc);
 	return err;
 }
 
@@ -3223,9 +3264,9 @@ err_free_buf:
 	return err;
 }
 
-static int btusb_mtk_id_get(struct btusb_data *data, u32 *id)
+static int btusb_mtk_id_get(struct btusb_data *data, u32 reg, u32 *id)
 {
-	return btusb_mtk_reg_read(data, 0x80000008, id);
+	return btusb_mtk_reg_read(data, reg, id);
 }
 
 static int btusb_mtk_setup(struct hci_dev *hdev)
@@ -3243,7 +3284,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 
 	calltime = ktime_get();
 
-	err = btusb_mtk_id_get(data, &dev_id);
+	err = btusb_mtk_id_get(data, 0x80000008, &dev_id);
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to get device id (%d)", err);
 		return err;

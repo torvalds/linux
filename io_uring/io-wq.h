@@ -1,7 +1,18 @@
 #ifndef INTERNAL_IO_WQ_H
 #define INTERNAL_IO_WQ_H
 
+#ifdef __GENKSYMS__
+/*
+ * ANDROID ABI HACK
+ *
+ * See the big comment in the linux/io_uring.h file for details.  This
+ * include is not needed for any real functionality, but must be here to
+ * preserve the CRC of a number of variables and functions.
+ */
 #include <linux/io_uring.h>
+#endif
+
+#include <linux/refcount.h>
 
 struct io_wq;
 
@@ -9,15 +20,7 @@ enum {
 	IO_WQ_WORK_CANCEL	= 1,
 	IO_WQ_WORK_HASHED	= 2,
 	IO_WQ_WORK_UNBOUND	= 4,
-	IO_WQ_WORK_NO_CANCEL	= 8,
 	IO_WQ_WORK_CONCURRENT	= 16,
-
-	IO_WQ_WORK_FILES	= 32,
-	IO_WQ_WORK_FS		= 64,
-	IO_WQ_WORK_MM		= 128,
-	IO_WQ_WORK_CREDS	= 256,
-	IO_WQ_WORK_BLKCG	= 512,
-	IO_WQ_WORK_FSIZE	= 1024,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -52,6 +55,7 @@ static inline void wq_list_add_after(struct io_wq_work_node *node,
 static inline void wq_list_add_tail(struct io_wq_work_node *node,
 				    struct io_wq_work_list *list)
 {
+	node->next = NULL;
 	if (!list->first) {
 		list->last = node;
 		WRITE_ONCE(list->first, node);
@@ -59,7 +63,6 @@ static inline void wq_list_add_tail(struct io_wq_work_node *node,
 		list->last->next = node;
 		list->last = node;
 	}
-	node->next = NULL;
 }
 
 static inline void wq_list_cut(struct io_wq_work_list *list,
@@ -95,7 +98,6 @@ static inline void wq_list_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	struct io_wq_work_node list;
-	struct io_identity *identity;
 	unsigned flags;
 };
 
@@ -107,36 +109,47 @@ static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
 	return container_of(work->list.next, struct io_wq_work, list);
 }
 
-typedef void (free_work_fn)(struct io_wq_work *);
-typedef struct io_wq_work *(io_wq_work_fn)(struct io_wq_work *);
+typedef struct io_wq_work *(free_work_fn)(struct io_wq_work *);
+typedef void (io_wq_work_fn)(struct io_wq_work *);
+
+struct io_wq_hash {
+	refcount_t refs;
+	unsigned long map;
+	struct wait_queue_head wait;
+};
+
+static inline void io_wq_put_hash(struct io_wq_hash *hash)
+{
+	if (refcount_dec_and_test(&hash->refs))
+		kfree(hash);
+}
 
 struct io_wq_data {
-	struct user_struct *user;
-
+	struct io_wq_hash *hash;
+	struct task_struct *task;
 	io_wq_work_fn *do_work;
 	free_work_fn *free_work;
 };
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
-bool io_wq_get(struct io_wq *wq, struct io_wq_data *data);
-void io_wq_destroy(struct io_wq *wq);
+void io_wq_exit_start(struct io_wq *wq);
+void io_wq_put_and_exit(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
 void io_wq_hash_work(struct io_wq_work *work, void *val);
+
+int io_wq_cpu_affinity(struct io_wq *wq, cpumask_var_t mask);
+int io_wq_max_workers(struct io_wq *wq, int *new_count);
 
 static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
 	return work->flags & IO_WQ_WORK_HASHED;
 }
 
-void io_wq_cancel_all(struct io_wq *wq);
-
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 
 enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
 					void *data, bool cancel_all);
-
-struct task_struct *io_wq_get_task(struct io_wq *wq);
 
 #if defined(CONFIG_IO_WQ)
 extern void io_wq_worker_sleeping(struct task_struct *);
@@ -152,6 +165,7 @@ static inline void io_wq_worker_running(struct task_struct *tsk)
 
 static inline bool io_wq_current_is_worker(void)
 {
-	return in_task() && (current->flags & PF_IO_WORKER);
+	return in_task() && (current->flags & PF_IO_WORKER) &&
+		current->pf_io_worker;
 }
 #endif

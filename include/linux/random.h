@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * include/linux/random.h
- *
- * Include file for the random number generator.
- */
+
 #ifndef _LINUX_RANDOM_H
 #define _LINUX_RANDOM_H
 
@@ -14,41 +10,26 @@
 
 #include <uapi/linux/random.h>
 
-struct random_ready_callback {
-	struct list_head list;
-	void (*func)(struct random_ready_callback *rdy);
-	struct module *owner;
-};
+struct notifier_block;
 
-extern void add_device_randomness(const void *, unsigned int);
-extern void add_bootloader_randomness(const void *, unsigned int);
+void add_device_randomness(const void *buf, unsigned int len);
+void add_bootloader_randomness(const void *buf, size_t len);
+void add_input_randomness(unsigned int type, unsigned int code,
+			  unsigned int value) __latent_entropy;
+void add_interrupt_randomness(int irq) __latent_entropy;
+void add_hwgenerator_randomness(const void *buf, size_t len, size_t entropy);
 
 #if defined(LATENT_ENTROPY_PLUGIN) && !defined(__CHECKER__)
 static inline void add_latent_entropy(void)
 {
-	add_device_randomness((const void *)&latent_entropy,
-			      sizeof(latent_entropy));
+	add_device_randomness((const void *)&latent_entropy, sizeof(latent_entropy));
 }
 #else
-static inline void add_latent_entropy(void) {}
+static inline void add_latent_entropy(void) { }
 #endif
 
-extern void add_input_randomness(unsigned int type, unsigned int code,
-				 unsigned int value) __latent_entropy;
-extern void add_interrupt_randomness(int irq, int irq_flags) __latent_entropy;
-
-extern void get_random_bytes(void *buf, int nbytes);
-extern int wait_for_random_bytes(void);
-extern int __init rand_initialize(void);
-extern bool rng_is_initialized(void);
-extern int add_random_ready_callback(struct random_ready_callback *rdy);
-extern void del_random_ready_callback(struct random_ready_callback *rdy);
-extern int __must_check get_random_bytes_arch(void *buf, int nbytes);
-
-#ifndef MODULE
-extern const struct file_operations random_fops, urandom_fops;
-#endif
-
+void get_random_bytes(void *buf, int len);
+int __must_check get_random_bytes_arch(void *buf, int len);
 u32 get_random_u32(void);
 u64 get_random_u64(void);
 static inline unsigned int get_random_int(void)
@@ -80,35 +61,37 @@ static inline unsigned long get_random_long(void)
 
 static inline unsigned long get_random_canary(void)
 {
-	unsigned long val = get_random_long();
-
-	return val & CANARY_MASK;
+	return get_random_long() & CANARY_MASK;
 }
+
+int __init random_init(const char *command_line);
+bool rng_is_initialized(void);
+int wait_for_random_bytes(void);
+int register_random_ready_notifier(struct notifier_block *nb);
+int unregister_random_ready_notifier(struct notifier_block *nb);
 
 /* Calls wait_for_random_bytes() and then calls get_random_bytes(buf, nbytes).
  * Returns the result of the call to wait_for_random_bytes. */
-static inline int get_random_bytes_wait(void *buf, int nbytes)
+static inline int get_random_bytes_wait(void *buf, size_t nbytes)
 {
 	int ret = wait_for_random_bytes();
 	get_random_bytes(buf, nbytes);
 	return ret;
 }
 
-#define declare_get_random_var_wait(var) \
-	static inline int get_random_ ## var ## _wait(var *out) { \
+#define declare_get_random_var_wait(name, ret_type) \
+	static inline int get_random_ ## name ## _wait(ret_type *out) { \
 		int ret = wait_for_random_bytes(); \
 		if (unlikely(ret)) \
 			return ret; \
-		*out = get_random_ ## var(); \
+		*out = get_random_ ## name(); \
 		return 0; \
 	}
-declare_get_random_var_wait(u32)
-declare_get_random_var_wait(u64)
-declare_get_random_var_wait(int)
-declare_get_random_var_wait(long)
+declare_get_random_var_wait(u32, u32)
+declare_get_random_var_wait(u64, u32)
+declare_get_random_var_wait(int, unsigned int)
+declare_get_random_var_wait(long, unsigned long)
 #undef declare_get_random_var
-
-unsigned long randomize_page(unsigned long start, unsigned long range);
 
 /*
  * This is designed to be standalone for just prandom
@@ -120,22 +103,10 @@ unsigned long randomize_page(unsigned long start, unsigned long range);
 #ifdef CONFIG_ARCH_RANDOM
 # include <asm/archrandom.h>
 #else
-static inline bool __must_check arch_get_random_long(unsigned long *v)
-{
-	return false;
-}
-static inline bool __must_check arch_get_random_int(unsigned int *v)
-{
-	return false;
-}
-static inline bool __must_check arch_get_random_seed_long(unsigned long *v)
-{
-	return false;
-}
-static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
-{
-	return false;
-}
+static inline bool __must_check arch_get_random_long(unsigned long *v) { return false; }
+static inline bool __must_check arch_get_random_int(unsigned int *v) { return false; }
+static inline bool __must_check arch_get_random_seed_long(unsigned long *v) { return false; }
+static inline bool __must_check arch_get_random_seed_int(unsigned int *v) { return false; }
 #endif
 
 /*
@@ -157,5 +128,27 @@ static inline bool __init arch_get_random_long_early(unsigned long *v)
 	return arch_get_random_long(v);
 }
 #endif
+
+#ifdef CONFIG_SMP
+int random_prepare_cpu(unsigned int cpu);
+int random_online_cpu(unsigned int cpu);
+#endif
+
+#ifndef MODULE
+extern const struct file_operations random_fops, urandom_fops;
+#endif
+
+/*
+ * Android KABI fixups
+ * Added back the following structure and calls to preserve the ABI for
+ * out-of-tree drivers that were using them.
+ */
+struct random_ready_callback {
+	struct list_head list;
+	void (*func)(struct random_ready_callback *rdy);
+	struct module *owner;
+};
+extern int add_random_ready_callback(struct random_ready_callback *rdy);
+extern void del_random_ready_callback(struct random_ready_callback *rdy);
 
 #endif /* _LINUX_RANDOM_H */

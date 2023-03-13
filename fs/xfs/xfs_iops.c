@@ -1328,7 +1328,7 @@ xfs_setup_inode(
 	gfp_t			gfp_mask;
 
 	inode->i_ino = ip->i_ino;
-	inode->i_state = I_NEW;
+	inode->i_state |= I_NEW;
 
 	inode_sb_list_add(inode);
 	/* make the inode look hashed for the writeback code */

@@ -585,19 +585,16 @@ static int aries_audio_probe(struct platform_device *pdev)
 
 	extcon_np = of_parse_phandle(np, "extcon", 0);
 	priv->usb_extcon = extcon_find_edev_by_node(extcon_np);
-	if (IS_ERR(priv->usb_extcon)) {
-		if (PTR_ERR(priv->usb_extcon) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get extcon device");
-		return PTR_ERR(priv->usb_extcon);
-	}
 	of_node_put(extcon_np);
+	if (IS_ERR(priv->usb_extcon))
+		return dev_err_probe(dev, PTR_ERR(priv->usb_extcon),
+				     "Failed to get extcon device");
 
 	priv->adc = devm_iio_channel_get(dev, "headset-detect");
-	if (IS_ERR(priv->adc)) {
-		if (PTR_ERR(priv->adc) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get ADC channel");
-		return PTR_ERR(priv->adc);
-	}
+	if (IS_ERR(priv->adc))
+		return dev_err_probe(dev, PTR_ERR(priv->adc),
+				     "Failed to get ADC channel");
+
 	if (priv->adc->channel->type != IIO_VOLTAGE)
 		return -EINVAL;
 
@@ -631,8 +628,10 @@ static int aries_audio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	codec = of_get_child_by_name(dev->of_node, "codec");
-	if (!codec)
-		return -EINVAL;
+	if (!codec) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	for_each_card_prelinks(card, i, dai_link) {
 		dai_link->codecs->of_node = of_parse_phandle(codec,

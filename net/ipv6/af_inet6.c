@@ -225,7 +225,7 @@ lookup_protocol:
 	inet->mc_list	= NULL;
 	inet->rcv_tos	= 0;
 
-	if (net->ipv4.sysctl_ip_no_pmtu_disc)
+	if (READ_ONCE(net->ipv4.sysctl_ip_no_pmtu_disc))
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
@@ -663,7 +663,6 @@ int inet6_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 
 const struct proto_ops inet6_stream_ops = {
 	.family		   = PF_INET6,
-	.flags		   = PROTO_CMSG_DATA_ONLY,
 	.owner		   = THIS_MODULE,
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
@@ -821,7 +820,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		fl6.fl6_dport = inet->inet_dport;
 		fl6.fl6_sport = inet->inet_sport;
 		fl6.flowi6_uid = sk->sk_uid;
-		security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
+		security_sk_classify_flow(sk, flowi6_to_flowi_common(&fl6));
 
 		rcu_read_lock();
 		final_p = fl6_update_dst(&fl6, rcu_dereference(np->opt),

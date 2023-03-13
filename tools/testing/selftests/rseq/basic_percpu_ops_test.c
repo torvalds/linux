@@ -9,9 +9,8 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "../kselftest.h"
 #include "rseq.h"
-
-#define ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
 
 struct percpu_lock_entry {
 	intptr_t v;
@@ -168,7 +167,7 @@ struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
 	for (;;) {
 		struct percpu_list_node *head;
 		intptr_t *targetptr, expectnot, *load;
-		off_t offset;
+		long offset;
 		int ret, cpu;
 
 		cpu = rseq_cpu_start();

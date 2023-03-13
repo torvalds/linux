@@ -293,6 +293,8 @@ xfs_errortag_add(
 	struct xfs_mount	*mp,
 	unsigned int		error_tag)
 {
+	BUILD_BUG_ON(ARRAY_SIZE(xfs_errortag_random_default) != XFS_ERRTAG_MAX);
+
 	if (error_tag >= XFS_ERRTAG_MAX)
 		return -EINVAL;
 

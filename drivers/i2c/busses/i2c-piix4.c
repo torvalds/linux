@@ -961,6 +961,7 @@ static int piix4_probe(struct pci_dev *dev, const struct pci_device_id *id)
 					   "", &piix4_main_adapters[0]);
 		if (retval < 0)
 			return retval;
+		piix4_adapter_count = 1;
 	}
 
 	/* Check for auxiliary SMBus on some AMD chipsets */

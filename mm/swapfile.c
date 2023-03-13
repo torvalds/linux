@@ -2908,6 +2908,7 @@ static struct swap_info_struct *alloc_swap_info(void)
 	int i;
 	bool skip = false;
 
+	trace_android_rvh_alloc_si(&p, &skip);
 	trace_android_vh_alloc_si(&p, &skip);
 	if (!skip)
 		p = kvzalloc(struct_size(p, avail_lists, nr_node_ids), GFP_KERNEL);

@@ -62,6 +62,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/virtio.h>
@@ -543,6 +544,28 @@ static const struct virtio_config_ops virtio_mmio_config_ops = {
 	.get_shm_region = vm_get_shm_region,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int virtio_mmio_freeze(struct device *dev)
+{
+	struct virtio_mmio_device *vm_dev = dev_get_drvdata(dev);
+
+	return virtio_device_freeze(&vm_dev->vdev);
+}
+
+static int virtio_mmio_restore(struct device *dev)
+{
+	struct virtio_mmio_device *vm_dev = dev_get_drvdata(dev);
+
+	if (vm_dev->version == 1)
+		writel(PAGE_SIZE, vm_dev->base + VIRTIO_MMIO_GUEST_PAGE_SIZE);
+
+	return virtio_device_restore(&vm_dev->vdev);
+}
+
+static const struct dev_pm_ops virtio_mmio_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(virtio_mmio_freeze, virtio_mmio_restore)
+};
+#endif
 
 static void virtio_mmio_release_dev(struct device *_d)
 {
@@ -689,6 +712,7 @@ static int vm_cmdline_set(const char *device,
 	if (!vm_cmdline_parent_registered) {
 		err = device_register(&vm_cmdline_parent);
 		if (err) {
+			put_device(&vm_cmdline_parent);
 			pr_err("Failed to register parent device!\n");
 			return err;
 		}
@@ -763,26 +787,6 @@ static void vm_unregister_cmdline_devices(void)
 
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-static int virtio_mmio_freeze(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
-
-	return virtio_device_freeze(&vm_dev->vdev);
-}
-
-static int virtio_mmio_restore(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
-
-	return virtio_device_restore(&vm_dev->vdev);
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(virtio_mmio_pm_ops, virtio_mmio_freeze, virtio_mmio_restore);
-
 /* Platform driver */
 
 static const struct of_device_id virtio_mmio_match[] = {
@@ -806,7 +810,9 @@ static struct platform_driver virtio_mmio_driver = {
 		.name	= "virtio-mmio",
 		.of_match_table	= virtio_mmio_match,
 		.acpi_match_table = ACPI_PTR(virtio_mmio_acpi_match),
-		.pm = &virtio_mmio_pm_ops,
+#ifdef CONFIG_PM_SLEEP
+		.pm	= &virtio_mmio_pm_ops,
+#endif
 	},
 };
 

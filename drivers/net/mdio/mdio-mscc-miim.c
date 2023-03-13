@@ -6,14 +6,14 @@
  * Copyright (c) 2017 Microsemi Corporation
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/phy.h>
-#include <linux/platform_device.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_mdio.h>
+#include <linux/phy.h>
+#include <linux/platform_device.h>
 
 #define MSCC_MIIM_REG_STATUS		0x0
 #define		MSCC_MIIM_STATUS_STAT_PENDING	BIT(2)
@@ -76,6 +76,9 @@ static int mscc_miim_read(struct mii_bus *bus, int mii_id, int regnum)
 	u32 val;
 	int ret;
 
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
 	ret = mscc_miim_wait_pending(bus);
 	if (ret)
 		goto out;
@@ -104,6 +107,9 @@ static int mscc_miim_write(struct mii_bus *bus, int mii_id,
 {
 	struct mscc_miim_dev *miim = bus->priv;
 	int ret;
+
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
 
 	ret = mscc_miim_wait_pending(bus);
 	if (ret < 0)

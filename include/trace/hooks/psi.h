@@ -12,7 +12,7 @@
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
-#ifdef __GENKSYMS__
+#if defined(__GENKSYMS__) || !defined(CONFIG_PSI)
 struct psi_group;
 struct psi_trigger;
 #else

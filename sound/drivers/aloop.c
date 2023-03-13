@@ -625,10 +625,10 @@ static unsigned int loopback_jiffies_timer_pos_update
 			cable->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	struct loopback_pcm *dpcm_capt =
 			cable->streams[SNDRV_PCM_STREAM_CAPTURE];
-	unsigned long delta_play = 0, delta_capt = 0;
+	unsigned long delta_play = 0, delta_capt = 0, cur_jiffies;
 	unsigned int running, count1, count2;
-	unsigned long cur_jiffies = cycles_to_jiffies();
 
+	cur_jiffies = cycles_to_jiffies();
 	running = cable->running ^ cable->pause;
 	if (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) {
 		delta_play = cur_jiffies - dpcm_play->last_jiffies;

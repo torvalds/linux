@@ -129,6 +129,7 @@
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
+  check_move_unevictable_pages
   __check_object_size
   check_preempt_curr
   check_zeroed_user
@@ -881,6 +882,7 @@
   extcon_get_edev_name
   extcon_get_extcon_dev
   extcon_get_property
+  extcon_get_property_capability
   extcon_get_state
   extcon_register_notifier
   extcon_set_state_sync
@@ -1658,6 +1660,7 @@
   page_endio
   page_mapping
   __page_pinner_migration_failed
+  __pagevec_release
   panic
   panic_notifier_list
   panic_timeout
@@ -1965,7 +1968,6 @@
   register_kretprobe
   register_memory_notifier
   register_module_notifier
-  register_qdisc
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -1973,6 +1975,7 @@
   register_oom_notifier
   register_pernet_device
   register_pm_notifier
+  register_qdisc
   register_reboot_notifier
   register_restart_handler
   __register_rpmsg_driver
@@ -2194,6 +2197,7 @@
   sg_init_one
   sg_init_table
   sg_miter_next
+  sg_miter_skip
   sg_miter_start
   sg_miter_stop
   sg_next
@@ -2233,6 +2237,7 @@
   skb_complete_wifi_ack
   skb_copy
   skb_copy_bits
+  skb_copy_datagram_from_iter
   skb_copy_datagram_iter
   skb_copy_expand
   skb_dequeue
@@ -2321,6 +2326,7 @@
   snprintf
   soc_device_register
   soc_device_unregister
+  sock_alloc_send_pskb
   sock_alloc_send_skb
   __sock_create
   sock_create_kern
@@ -2682,6 +2688,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_disable_thermal_cooling_stats
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_freq_table_limits
   __tracepoint_android_vh_ftrace_dump_buffer
@@ -2697,6 +2704,7 @@
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_logbuf_pr_cont
+  __tracepoint_android_vh_madvise_cold_or_pageout
   __tracepoint_android_vh_oom_check_panic
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
@@ -3020,6 +3028,7 @@
   wait_for_completion_interruptible_timeout
   wait_for_completion_killable
   wait_for_completion_timeout
+  wait_on_page_bit
   __wait_rcu_gp
   wait_woken
   __wake_up

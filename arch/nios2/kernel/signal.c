@@ -242,7 +242,7 @@ static int do_signal(struct pt_regs *regs)
 	/*
 	 * If we were from a system call, check for system call restarting...
 	 */
-	if (regs->orig_r2 >= 0) {
+	if (regs->orig_r2 >= 0 && regs->r1) {
 		continue_addr = regs->ea;
 		restart_addr = continue_addr - 4;
 		retval = regs->r2;
@@ -264,6 +264,7 @@ static int do_signal(struct pt_regs *regs)
 			regs->ea = restart_addr;
 			break;
 		}
+		regs->orig_r2 = -1;
 	}
 
 	if (get_signal(&ksig)) {
@@ -308,7 +309,8 @@ asmlinkage int do_notify_resume(struct pt_regs *regs)
 	if (!user_mode(regs))
 		return 0;
 
-	if (test_thread_flag(TIF_SIGPENDING)) {
+	if (test_thread_flag(TIF_SIGPENDING) ||
+	    test_thread_flag(TIF_NOTIFY_SIGNAL)) {
 		int restart = do_signal(regs);
 
 		if (unlikely(restart)) {

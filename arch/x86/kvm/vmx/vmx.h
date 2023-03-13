@@ -13,6 +13,7 @@
 #include "vmcs.h"
 #include "vmx_ops.h"
 #include "cpuid.h"
+#include "run_flags.h"
 
 extern const u32 vmx_msr_index[];
 
@@ -300,6 +301,8 @@ struct vcpu_vmx {
 	u64 msr_ia32_feature_control;
 	u64 msr_ia32_feature_control_valid_bits;
 	u64 ept_pointer;
+	u64 msr_ia32_mcu_opt_ctrl;
+	bool disable_fb_clear;
 
 	struct pt_desc pt_desc;
 
@@ -344,7 +347,7 @@ u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu);
 void vmx_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask);
 int vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer);
 void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
-int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
+void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void set_cr4_guest_host_mask(struct vcpu_vmx *vmx);
 void ept_save_pdptrs(struct kvm_vcpu *vcpu);
 void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
@@ -363,6 +366,10 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
 struct vmx_uret_msr *vmx_find_uret_msr(struct vcpu_vmx *vmx, u32 msr);
 void pt_update_intercept_for_msr(struct kvm_vcpu *vcpu);
 void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp);
+void vmx_spec_ctrl_restore_host(struct vcpu_vmx *vmx, unsigned int flags);
+unsigned int __vmx_vcpu_run_flags(struct vcpu_vmx *vmx);
+bool __vmx_vcpu_run(struct vcpu_vmx *vmx, unsigned long *regs,
+		    unsigned int flags);
 int vmx_find_loadstore_msr_slot(struct vmx_msrs *m, u32 msr);
 void vmx_ept_load_pdptrs(struct kvm_vcpu *vcpu);
 
@@ -379,9 +386,13 @@ static inline void lname##_controls_set(struct vcpu_vmx *vmx, u32 val)	    \
 		vmx->loaded_vmcs->controls_shadow.lname = val;		    \
 	}								    \
 }									    \
+static inline u32 __##lname##_controls_get(struct loaded_vmcs *vmcs)	    \
+{									    \
+	return vmcs->controls_shadow.lname;				    \
+}									    \
 static inline u32 lname##_controls_get(struct vcpu_vmx *vmx)		    \
 {									    \
-	return vmx->loaded_vmcs->controls_shadow.lname;			    \
+	return __##lname##_controls_get(vmx->loaded_vmcs);		    \
 }									    \
 static inline void lname##_controls_setbit(struct vcpu_vmx *vmx, u32 val)   \
 {									    \

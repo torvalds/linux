@@ -15,3 +15,4 @@ obj-$(CONFIG_KASAN)		+= kasan_init.o
 KASAN_SANITIZE_kasan_init.o	:= n
 
 obj-$(CONFIG_ROCKCHIP_ARM64_ALIGN_FAULT_FIX) += fixup_fault.o
+obj-$(CONFIG_ARM64_ERRATUM_2454944) += dma-mapping-noalias.o

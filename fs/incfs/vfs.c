@@ -1592,6 +1592,10 @@ static int incfs_setattr(struct dentry *dentry, struct iattr *ia)
 	if (ia->ia_valid & ATTR_SIZE)
 		return -EINVAL;
 
+	if ((ia->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID)) &&
+	    (ia->ia_valid & ATTR_MODE))
+		return -EINVAL;
+
 	if (!di)
 		return -EINVAL;
 	backing_dentry = di->backing_path.dentry;

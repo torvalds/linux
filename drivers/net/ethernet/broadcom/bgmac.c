@@ -189,8 +189,8 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	}
 
 	slot->skb = skb;
-	ring->end += nr_frags + 1;
 	netdev_sent_queue(net_dev, skb->len);
+	ring->end += nr_frags + 1;
 
 	wmb();
 
@@ -1568,7 +1568,6 @@ void bgmac_enet_remove(struct bgmac *bgmac)
 	phy_disconnect(bgmac->net_dev->phydev);
 	netif_napi_del(&bgmac->napi);
 	bgmac_dma_free(bgmac);
-	free_netdev(bgmac->net_dev);
 }
 EXPORT_SYMBOL_GPL(bgmac_enet_remove);
 

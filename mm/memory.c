@@ -862,6 +862,17 @@ copy_present_page(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma
 	if (likely(!page_maybe_dma_pinned(page)))
 		return 1;
 
+	/*
+	 * The vma->anon_vma of the child process may be NULL
+	 * because the entire vma does not contain anonymous pages.
+	 * A BUG will occur when the copy_present_page() passes
+	 * a copy of a non-anonymous page of that vma to the
+	 * page_add_new_anon_rmap() to set up new anonymous rmap.
+	 * Return 1 if the page is not an anonymous page.
+	 */
+	if (!PageAnon(page))
+		return 1;
+
 	new_page = *prealloc;
 	if (!new_page)
 		return -EAGAIN;
@@ -1243,6 +1254,17 @@ copy_page_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 	return ret;
 }
 
+/* Whether we should zap all COWed (private) pages too */
+static inline bool should_zap_cows(struct zap_details *details)
+{
+	/* By default, zap all pages */
+	if (!details)
+		return true;
+
+	/* Or, we zap COWed pages only if the caller wants to */
+	return !details->check_mapping;
+}
+
 static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
@@ -1335,16 +1357,18 @@ again:
 			continue;
 		}
 
-		/* If details->check_mapping, we leave swap entries. */
-		if (unlikely(details))
-			continue;
-
-		if (!non_swap_entry(entry))
+		if (!non_swap_entry(entry)) {
+			/* Genuine swap entry, hence a private anon page */
+			if (!should_zap_cows(details))
+				continue;
 			rss[MM_SWAPENTS]--;
-		else if (is_migration_entry(entry)) {
+		} else if (is_migration_entry(entry)) {
 			struct page *page;
 
 			page = migration_entry_to_page(entry);
+			if (details && details->check_mapping &&
+			    details->check_mapping != page_rmapping(page))
+				continue;
 			rss[mm_counter(page)]--;
 		}
 		if (unlikely(!free_swap_and_cache(entry)))
@@ -1482,7 +1506,6 @@ void unmap_page_range(struct mmu_gather *tlb,
 	unsigned long next;
 
 	BUG_ON(addr >= end);
-	vm_write_begin(vma);
 	tlb_start_vma(tlb, vma);
 	pgd = pgd_offset(vma->vm_mm, addr);
 	do {
@@ -1492,7 +1515,6 @@ void unmap_page_range(struct mmu_gather *tlb,
 		next = zap_p4d_range(tlb, vma, pgd, addr, next, details);
 	} while (pgd++, addr = next, addr != end);
 	tlb_end_vma(tlb, vma);
-	vm_write_end(vma);
 }
 
 
@@ -3374,6 +3396,8 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 
 	if (userfaultfd_pte_wp(vma, *vmf->pte)) {
 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+		if (vmf->flags & FAULT_FLAG_SPECULATIVE)
+			return VM_FAULT_RETRY;
 		return handle_userfault(vmf, VM_UFFD_WP);
 	}
 
@@ -3585,6 +3609,11 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	int exclusive = 0;
 	vm_fault_t ret;
 	void *shadow = NULL;
+
+	if (vmf->flags & FAULT_FLAG_SPECULATIVE) {
+		pte_unmap(vmf->pte);
+		return VM_FAULT_RETRY;
+	}
 
 	ret = pte_unmap_same(vmf);
 	if (ret) {
@@ -3845,6 +3874,10 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 	if (vmf->vma_flags & VM_SHARED)
 		return VM_FAULT_SIGBUS;
 
+	/* Do not check unstable pmd, if it's changed will retry later */
+	if (vmf->flags & FAULT_FLAG_SPECULATIVE)
+		goto skip_pmd_checks;
+
 	/*
 	 * Use pte_alloc() instead of pte_alloc_map().  We can't run
 	 * pte_offset_map() on pmds where a huge pmd might be created
@@ -3862,6 +3895,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
 	if (unlikely(pmd_trans_unstable(vmf->pmd)))
 		return 0;
 
+skip_pmd_checks:
 	/* Use the zero-page for reads */
 	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
 			!mm_forbids_zeropage(vma->vm_mm)) {
@@ -3969,6 +4003,10 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	vm_fault_t ret;
 
+	/* Do not check unstable pmd, if it's changed will retry later */
+	if (vmf->flags & FAULT_FLAG_SPECULATIVE)
+		goto skip_pmd_checks;
+
 	/*
 	 * Preallocate pte before we take page_lock because this might lead to
 	 * deadlocks for memcg reclaim which waits for pages under writeback:
@@ -3991,6 +4029,7 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
 		smp_wmb(); /* See comment in __pte_alloc() */
 	}
 
+skip_pmd_checks:
 	ret = vma->vm_ops->fault(vmf);
 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY |
 			    VM_FAULT_DONE_COW)))
@@ -4166,7 +4205,11 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 			return ret;
 	}
 
-	if (pmd_none(*vmf->pmd) && !(vmf->flags & FAULT_FLAG_SPECULATIVE)) {
+	/* Do not check unstable pmd, if it's changed will retry later */
+	if (vmf->flags & FAULT_FLAG_SPECULATIVE)
+		goto skip_pmd_checks;
+
+	if (pmd_none(*vmf->pmd)) {
 		if (PageTransCompound(page)) {
 			ret = do_set_pmd(vmf, page);
 			if (ret != VM_FAULT_FALLBACK)
@@ -4186,10 +4229,14 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 		}
 	}
 
-	/* See comment in handle_pte_fault() */
+	/*
+	 * See comment in handle_pte_fault() for how this scenario happens, we
+	 * need to return NOPAGE so that we drop this page.
+	 */
 	if (pmd_devmap_trans_unstable(vmf->pmd))
-		return 0;
+		return VM_FAULT_NOPAGE;
 
+skip_pmd_checks:
 	if (!pte_map_lock(vmf))
 		return VM_FAULT_RETRY;
 
@@ -4289,7 +4336,8 @@ static vm_fault_t do_fault_around(struct vm_fault *vmf)
 	end_pgoff = min3(end_pgoff, vma_pages(vmf->vma) + vmf->vma->vm_pgoff - 1,
 			start_pgoff + nr_pages - 1);
 
-	if (pmd_none(*vmf->pmd)) {
+	if (!(vmf->flags & FAULT_FLAG_SPECULATIVE) &&
+	    pmd_none(*vmf->pmd)) {
 		vmf->prealloc_pte = pte_alloc_one(vmf->vma->vm_mm);
 		if (!vmf->prealloc_pte)
 			return VM_FAULT_OOM;
@@ -4600,6 +4648,19 @@ static vm_fault_t create_huge_pud(struct vm_fault *vmf)
 	defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
 	/* No support for anonymous transparent PUD pages yet */
 	if (vma_is_anonymous(vmf->vma))
+		return VM_FAULT_FALLBACK;
+	if (vmf->vma->vm_ops->huge_fault)
+		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+	return VM_FAULT_FALLBACK;
+}
+
+static vm_fault_t wp_huge_pud(struct vm_fault *vmf, pud_t orig_pud)
+{
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) &&			\
+	defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
+	/* No support for anonymous transparent PUD pages yet */
+	if (vma_is_anonymous(vmf->vma))
 		goto split;
 	if (vmf->vma->vm_ops->huge_fault) {
 		vm_fault_t ret = vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
@@ -4610,19 +4671,7 @@ static vm_fault_t create_huge_pud(struct vm_fault *vmf)
 split:
 	/* COW or write-notify not handled on PUD level: split pud.*/
 	__split_huge_pud(vmf->vma, vmf->pud, vmf->address);
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-	return VM_FAULT_FALLBACK;
-}
-
-static vm_fault_t wp_huge_pud(struct vm_fault *vmf, pud_t orig_pud)
-{
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	/* No support for anonymous transparent PUD pages yet */
-	if (vma_is_anonymous(vmf->vma))
-		return VM_FAULT_FALLBACK;
-	if (vmf->vma->vm_ops->huge_fault)
-		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
 	return VM_FAULT_FALLBACK;
 }
 
@@ -4646,16 +4695,11 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 	pte_t entry;
 	vm_fault_t ret = 0;
 
+	/* Do not check unstable pmd, if it's changed will retry later */
+	if (vmf->flags & FAULT_FLAG_SPECULATIVE)
+		goto skip_pmd_checks;
+
 	if (unlikely(pmd_none(*vmf->pmd))) {
-		/*
-		 * In the case of the speculative page fault handler we abort
-		 * the speculative path immediately as the pmd is probably
-		 * in the way to be converted in a huge one. We will try
-		 * again holding the mmap_sem (which implies that the collapse
-		 * operation is done).
-		 */
-		if (vmf->flags & FAULT_FLAG_SPECULATIVE)
-			return VM_FAULT_RETRY;
 		/*
 		 * Leave __pte_alloc() until later: because vm_ops->fault may
 		 * want to allocate huge page, and if we expose page table
@@ -4663,7 +4707,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		 * concurrent faults and from rmap lookups.
 		 */
 		vmf->pte = NULL;
-	} else if (!(vmf->flags & FAULT_FLAG_SPECULATIVE)) {
+	} else {
 		/*
 		 * If a huge pmd materialized under us just retry later.  Use
 		 * pmd_trans_unstable() via pmd_devmap_trans_unstable() instead
@@ -4705,6 +4749,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		}
 	}
 
+skip_pmd_checks:
 	if (!vmf->pte) {
 		if (vma_is_anonymous(vmf->vma))
 			return do_anonymous_page(vmf);
@@ -4763,6 +4808,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		if (vmf->flags & FAULT_FLAG_WRITE)
 			flush_tlb_fix_spurious_fault(vmf->vma, vmf->address);
 	}
+	trace_android_rvh_handle_pte_fault_end(vmf, highest_memmap_pfn);
 	trace_android_vh_handle_pte_fault_end(vmf, highest_memmap_pfn);
 unlock:
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
@@ -4986,11 +5032,13 @@ static vm_fault_t ___handle_speculative_fault(struct mm_struct *mm,
 	vmf.vma_flags = READ_ONCE(vmf.vma->vm_flags);
 	vmf.vma_page_prot = READ_ONCE(vmf.vma->vm_page_prot);
 
+#ifdef CONFIG_USERFAULTFD
 	/* Can't call userland page fault handler in the speculative path */
-	if (unlikely(vmf.vma_flags & VM_UFFD_MISSING)) {
+	if (unlikely(vmf.vma_flags & __VM_UFFD_FLAGS)) {
 		trace_spf_vma_notsup(_RET_IP_, vmf.vma, address);
 		return VM_FAULT_RETRY;
 	}
+#endif
 
 	if (vmf.vma_flags & VM_GROWSDOWN || vmf.vma_flags & VM_GROWSUP) {
 		/*
@@ -5029,11 +5077,10 @@ static vm_fault_t ___handle_speculative_fault(struct mm_struct *mm,
 	pol = __get_vma_policy(vmf.vma, address);
 	if (!pol)
 		pol = get_task_policy(current);
-	if (!pol)
-		if (pol && pol->mode == MPOL_INTERLEAVE) {
-			trace_spf_vma_notsup(_RET_IP_, vmf.vma, address);
-			return VM_FAULT_RETRY;
-		}
+	if (pol && pol->mode == MPOL_INTERLEAVE) {
+		trace_spf_vma_notsup(_RET_IP_, vmf.vma, address);
+		return VM_FAULT_RETRY;
+	}
 #endif
 
 	/*
@@ -5837,6 +5884,8 @@ long copy_huge_page_from_user(struct page *dst_page,
 		ret_val -= (PAGE_SIZE - rc);
 		if (rc)
 			break;
+
+		flush_dcache_page(subpage);
 
 		cond_resched();
 	}

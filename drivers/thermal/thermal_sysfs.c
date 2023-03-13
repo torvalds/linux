@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/jiffies.h>
+#include <trace/hooks/thermal.h>
 
 #include "thermal_core.h"
 
@@ -886,19 +887,39 @@ static struct attribute *cooling_device_stats_attrs[] = {
 	NULL
 };
 
+static umode_t cooling_device_stats_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int attrno)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(
+						kobj_to_dev(kobj));
+
+	if (!cdev->stats)
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group cooling_device_stats_attr_group = {
 	.attrs = cooling_device_stats_attrs,
-	.name = "stats"
+	.name = "stats",
+	.is_visible = cooling_device_stats_is_visible,
 };
 
 static void cooling_device_stats_setup(struct thermal_cooling_device *cdev)
 {
+	const struct attribute_group *stats_attr_group = NULL;
 	struct cooling_dev_stats *stats;
 	unsigned long states;
 	int var;
+	bool disable_cdev_stats = false;
+
+	trace_android_vh_disable_thermal_cooling_stats(cdev,
+						&disable_cdev_stats);
+	if (disable_cdev_stats)
+		return;
 
 	if (cdev->ops->get_max_state(cdev, &states))
-		return;
+		goto out;
 
 	states++; /* Total number of states is highest state + 1 */
 
@@ -908,7 +929,7 @@ static void cooling_device_stats_setup(struct thermal_cooling_device *cdev)
 
 	stats = kzalloc(var, GFP_KERNEL);
 	if (!stats)
-		return;
+		goto out;
 
 	stats->time_in_state = (ktime_t *)(stats + 1);
 	stats->trans_table = (unsigned int *)(stats->time_in_state + states);
@@ -918,9 +939,12 @@ static void cooling_device_stats_setup(struct thermal_cooling_device *cdev)
 
 	spin_lock_init(&stats->lock);
 
+	stats_attr_group = &cooling_device_stats_attr_group;
+
+out:
 	/* Fill the empty slot left in cooling_device_attr_groups */
 	var = ARRAY_SIZE(cooling_device_attr_groups) - 2;
-	cooling_device_attr_groups[var] = &cooling_device_stats_attr_group;
+	cooling_device_attr_groups[var] = stats_attr_group;
 }
 
 static void cooling_device_stats_destroy(struct thermal_cooling_device *cdev)

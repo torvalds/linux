@@ -100,15 +100,11 @@ static bool ingenic_tcu_enable_regs(struct clk_hw *hw)
 	bool enabled = false;
 
 	/*
-	 * If the SoC has no global TCU clock, we must ungate the channel's
-	 * clock to be able to access its registers.
-	 * If we have a TCU clock, it will be enabled automatically as it has
-	 * been attached to the regmap.
+	 * According to the programming manual, a timer channel's registers can
+	 * only be accessed when the channel's stop bit is clear.
 	 */
-	if (!tcu->clk) {
-		enabled = !!ingenic_tcu_is_enabled(hw);
-		regmap_write(tcu->map, TCU_REG_TSCR, BIT(info->gate_bit));
-	}
+	enabled = !!ingenic_tcu_is_enabled(hw);
+	regmap_write(tcu->map, TCU_REG_TSCR, BIT(info->gate_bit));
 
 	return enabled;
 }
@@ -119,8 +115,7 @@ static void ingenic_tcu_disable_regs(struct clk_hw *hw)
 	const struct ingenic_tcu_clk_info *info = tcu_clk->info;
 	struct ingenic_tcu *tcu = tcu_clk->tcu;
 
-	if (!tcu->clk)
-		regmap_write(tcu->map, TCU_REG_TSSR, BIT(info->gate_bit));
+	regmap_write(tcu->map, TCU_REG_TSSR, BIT(info->gate_bit));
 }
 
 static u8 ingenic_tcu_get_parent(struct clk_hw *hw)

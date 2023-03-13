@@ -6,9 +6,9 @@
 
 #include <linux/bitops.h>
 #include <asm/segment.h>
+#include <linux/cache.h>
 #include <asm/ptrace.h>
 #include <asm/current.h>
-#include <asm/cache.h>
 #include <abi/reg_ops.h>
 #include <abi/regdef.h>
 #include <abi/switch_context.h>

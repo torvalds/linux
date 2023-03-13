@@ -521,12 +521,27 @@ static int handle_pv_uvc(struct kvm_vcpu *vcpu)
 
 static int handle_pv_notification(struct kvm_vcpu *vcpu)
 {
+	int ret;
+
 	if (vcpu->arch.sie_block->ipa == 0xb210)
 		return handle_pv_spx(vcpu);
 	if (vcpu->arch.sie_block->ipa == 0xb220)
 		return handle_pv_sclp(vcpu);
 	if (vcpu->arch.sie_block->ipa == 0xb9a4)
 		return handle_pv_uvc(vcpu);
+	if (vcpu->arch.sie_block->ipa >> 8 == 0xae) {
+		/*
+		 * Besides external call, other SIGP orders also cause a
+		 * 108 (pv notify) intercept. In contrast to external call,
+		 * these orders need to be emulated and hence the appropriate
+		 * place to handle them is in handle_instruction().
+		 * So first try kvm_s390_handle_sigp_pei() and if that isn't
+		 * successful, go on with handle_instruction().
+		 */
+		ret = kvm_s390_handle_sigp_pei(vcpu);
+		if (!ret)
+			return ret;
+	}
 
 	return handle_instruction(vcpu);
 }

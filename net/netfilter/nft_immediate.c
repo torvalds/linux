@@ -29,28 +29,44 @@ static const struct nla_policy nft_immediate_policy[NFTA_IMMEDIATE_MAX + 1] = {
 	[NFTA_IMMEDIATE_DATA]	= { .type = NLA_NESTED },
 };
 
+static enum nft_data_types nft_reg_to_type(const struct nlattr *nla)
+{
+	enum nft_data_types type;
+	u8 reg;
+
+	reg = ntohl(nla_get_be32(nla));
+	if (reg == NFT_REG_VERDICT)
+		type = NFT_DATA_VERDICT;
+	else
+		type = NFT_DATA_VALUE;
+
+	return type;
+}
+
 static int nft_immediate_init(const struct nft_ctx *ctx,
 			      const struct nft_expr *expr,
 			      const struct nlattr * const tb[])
 {
 	struct nft_immediate_expr *priv = nft_expr_priv(expr);
-	struct nft_data_desc desc;
+	struct nft_data_desc desc = {
+		.size	= sizeof(priv->data),
+	};
 	int err;
 
 	if (tb[NFTA_IMMEDIATE_DREG] == NULL ||
 	    tb[NFTA_IMMEDIATE_DATA] == NULL)
 		return -EINVAL;
 
-	err = nft_data_init(ctx, &priv->data, sizeof(priv->data), &desc,
-			    tb[NFTA_IMMEDIATE_DATA]);
+	desc.type = nft_reg_to_type(tb[NFTA_IMMEDIATE_DREG]);
+	err = nft_data_init(ctx, &priv->data, &desc, tb[NFTA_IMMEDIATE_DATA]);
 	if (err < 0)
 		return err;
 
 	priv->dlen = desc.len;
 
-	priv->dreg = nft_parse_register(tb[NFTA_IMMEDIATE_DREG]);
-	err = nft_validate_register_store(ctx, priv->dreg, &priv->data,
-					  desc.type, desc.len);
+	err = nft_parse_register_store(ctx, tb[NFTA_IMMEDIATE_DREG],
+				       &priv->dreg, &priv->data, desc.type,
+				       desc.len);
 	if (err < 0)
 		goto err1;
 

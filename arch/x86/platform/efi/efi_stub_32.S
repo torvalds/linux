@@ -56,5 +56,5 @@ SYM_FUNC_START(efi_call_svam)
 
 	movl	16(%esp), %ebx
 	leave
-	ret
+	RET
 SYM_FUNC_END(efi_call_svam)

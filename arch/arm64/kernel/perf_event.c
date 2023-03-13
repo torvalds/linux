@@ -1116,17 +1116,32 @@ static int armv8_pmu_init_nogroups(struct arm_pmu *cpu_pmu, char *name,
 	return armv8_pmu_init(cpu_pmu, name, map_event, NULL, NULL, NULL);
 }
 
-static int armv8_pmuv3_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_pmuv3",
-				       armv8_pmuv3_map_event);
+#define PMUV3_INIT_SIMPLE(name)						\
+static int name##_pmu_init(struct arm_pmu *cpu_pmu)			\
+{									\
+	return armv8_pmu_init_nogroups(cpu_pmu, #name, armv8_pmuv3_map_event);\
 }
 
-static int armv8_a34_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a34",
-				       armv8_pmuv3_map_event);
-}
+PMUV3_INIT_SIMPLE(armv8_pmuv3)
+
+PMUV3_INIT_SIMPLE(armv8_cortex_a34)
+PMUV3_INIT_SIMPLE(armv8_cortex_a55)
+PMUV3_INIT_SIMPLE(armv8_cortex_a65)
+PMUV3_INIT_SIMPLE(armv8_cortex_a75)
+PMUV3_INIT_SIMPLE(armv8_cortex_a76)
+PMUV3_INIT_SIMPLE(armv8_cortex_a77)
+PMUV3_INIT_SIMPLE(armv8_cortex_a78)
+PMUV3_INIT_SIMPLE(armv9_cortex_a510)
+PMUV3_INIT_SIMPLE(armv9_cortex_a710)
+PMUV3_INIT_SIMPLE(armv8_cortex_x1)
+PMUV3_INIT_SIMPLE(armv9_cortex_x2)
+PMUV3_INIT_SIMPLE(armv8_neoverse_e1)
+PMUV3_INIT_SIMPLE(armv8_neoverse_n1)
+PMUV3_INIT_SIMPLE(armv9_neoverse_n2)
+PMUV3_INIT_SIMPLE(armv8_neoverse_v1)
+
+PMUV3_INIT_SIMPLE(armv8_nvidia_carmel)
+PMUV3_INIT_SIMPLE(armv8_nvidia_denver)
 
 static int armv8_a35_pmu_init(struct arm_pmu *cpu_pmu)
 {
@@ -1140,22 +1155,10 @@ static int armv8_a53_pmu_init(struct arm_pmu *cpu_pmu)
 				       armv8_a53_map_event);
 }
 
-static int armv8_a55_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a55",
-				       armv8_pmuv3_map_event);
-}
-
 static int armv8_a57_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a57",
 				       armv8_a57_map_event);
-}
-
-static int armv8_a65_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a65",
-				       armv8_pmuv3_map_event);
 }
 
 static int armv8_a72_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1168,36 +1171,6 @@ static int armv8_a73_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a73",
 				       armv8_a73_map_event);
-}
-
-static int armv8_a75_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a75",
-				       armv8_pmuv3_map_event);
-}
-
-static int armv8_a76_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a76",
-				       armv8_pmuv3_map_event);
-}
-
-static int armv8_a77_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_cortex_a77",
-				       armv8_pmuv3_map_event);
-}
-
-static int armv8_e1_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_neoverse_e1",
-				       armv8_pmuv3_map_event);
-}
-
-static int armv8_n1_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_neoverse_n1",
-				       armv8_pmuv3_map_event);
 }
 
 static int armv8_thunder_pmu_init(struct arm_pmu *cpu_pmu)
@@ -1213,22 +1186,31 @@ static int armv8_vulcan_pmu_init(struct arm_pmu *cpu_pmu)
 }
 
 static const struct of_device_id armv8_pmu_of_device_ids[] = {
-	{.compatible = "arm,armv8-pmuv3",	.data = armv8_pmuv3_init},
-	{.compatible = "arm,cortex-a34-pmu",	.data = armv8_a34_pmu_init},
+	{.compatible = "arm,armv8-pmuv3",	.data = armv8_pmuv3_pmu_init},
+	{.compatible = "arm,cortex-a34-pmu",	.data = armv8_cortex_a34_pmu_init},
 	{.compatible = "arm,cortex-a35-pmu",	.data = armv8_a35_pmu_init},
 	{.compatible = "arm,cortex-a53-pmu",	.data = armv8_a53_pmu_init},
-	{.compatible = "arm,cortex-a55-pmu",	.data = armv8_a55_pmu_init},
+	{.compatible = "arm,cortex-a55-pmu",	.data = armv8_cortex_a55_pmu_init},
 	{.compatible = "arm,cortex-a57-pmu",	.data = armv8_a57_pmu_init},
-	{.compatible = "arm,cortex-a65-pmu",	.data = armv8_a65_pmu_init},
+	{.compatible = "arm,cortex-a65-pmu",	.data = armv8_cortex_a65_pmu_init},
 	{.compatible = "arm,cortex-a72-pmu",	.data = armv8_a72_pmu_init},
 	{.compatible = "arm,cortex-a73-pmu",	.data = armv8_a73_pmu_init},
-	{.compatible = "arm,cortex-a75-pmu",	.data = armv8_a75_pmu_init},
-	{.compatible = "arm,cortex-a76-pmu",	.data = armv8_a76_pmu_init},
-	{.compatible = "arm,cortex-a77-pmu",	.data = armv8_a77_pmu_init},
-	{.compatible = "arm,neoverse-e1-pmu",	.data = armv8_e1_pmu_init},
-	{.compatible = "arm,neoverse-n1-pmu",	.data = armv8_n1_pmu_init},
+	{.compatible = "arm,cortex-a75-pmu",	.data = armv8_cortex_a75_pmu_init},
+	{.compatible = "arm,cortex-a76-pmu",	.data = armv8_cortex_a76_pmu_init},
+	{.compatible = "arm,cortex-a77-pmu",	.data = armv8_cortex_a77_pmu_init},
+	{.compatible = "arm,cortex-a78-pmu",	.data = armv8_cortex_a78_pmu_init},
+	{.compatible = "arm,cortex-a510-pmu",	.data = armv9_cortex_a510_pmu_init},
+	{.compatible = "arm,cortex-a710-pmu",	.data = armv9_cortex_a710_pmu_init},
+	{.compatible = "arm,cortex-x1-pmu",	.data = armv8_cortex_x1_pmu_init},
+	{.compatible = "arm,cortex-x2-pmu",	.data = armv9_cortex_x2_pmu_init},
+	{.compatible = "arm,neoverse-e1-pmu",	.data = armv8_neoverse_e1_pmu_init},
+	{.compatible = "arm,neoverse-n1-pmu",	.data = armv8_neoverse_n1_pmu_init},
+	{.compatible = "arm,neoverse-n2-pmu",	.data = armv9_neoverse_n2_pmu_init},
+	{.compatible = "arm,neoverse-v1-pmu",	.data = armv8_neoverse_v1_pmu_init},
 	{.compatible = "cavium,thunder-pmu",	.data = armv8_thunder_pmu_init},
 	{.compatible = "brcm,vulcan-pmu",	.data = armv8_vulcan_pmu_init},
+	{.compatible = "nvidia,carmel-pmu",	.data = armv8_nvidia_carmel_pmu_init},
+	{.compatible = "nvidia,denver-pmu",	.data = armv8_nvidia_denver_pmu_init},
 	{},
 };
 
@@ -1251,7 +1233,7 @@ static int __init armv8_pmu_driver_init(void)
 	if (acpi_disabled)
 		return platform_driver_register(&armv8_pmu_driver);
 	else
-		return arm_pmu_acpi_probe(armv8_pmuv3_init);
+		return arm_pmu_acpi_probe(armv8_pmuv3_pmu_init);
 }
 device_initcall(armv8_pmu_driver_init)
 

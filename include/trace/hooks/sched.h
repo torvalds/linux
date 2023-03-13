@@ -391,6 +391,13 @@ DECLARE_HOOK(android_vh_setscheduler_uclamp,
 	TP_PROTO(struct task_struct *tsk, int clamp_id, unsigned int value),
 	TP_ARGS(tsk, clamp_id, value));
 
+DECLARE_HOOK(android_vh_mmput,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused));
+
+DECLARE_HOOK(android_vh_sched_pelt_multiplier,
+	TP_PROTO(unsigned int old, unsigned int cur, int *ret),
+	TP_ARGS(old, cur, ret));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */

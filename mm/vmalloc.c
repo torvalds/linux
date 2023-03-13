@@ -1277,6 +1277,7 @@ int unregister_vmap_purge_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
 
+bool lazy_vunmap_enable  __read_mostly = true;
 /*
  * lazy_max_pages is the maximum amount of virtual address space we gather up
  * before attempting to purge with a TLB flush.
@@ -1296,6 +1297,9 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
 static unsigned long lazy_max_pages(void)
 {
 	unsigned int log;
+
+	if (!lazy_vunmap_enable)
+		return 0;
 
 	log = fls(num_online_cpus());
 
@@ -2170,6 +2174,7 @@ struct vm_struct *remove_vm_area(const void *addr)
 	if (va && va->vm) {
 		struct vm_struct *vm = va->vm;
 
+		trace_android_vh_remove_vmalloc_stack(vm);
 		va->vm = NULL;
 		spin_unlock(&vmap_area_lock);
 

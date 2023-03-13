@@ -14,6 +14,7 @@
 #include "cudbg_entity.h"
 #include "cudbg_lib.h"
 #include "cudbg_zlib.h"
+#include "cxgb4_tc_mqprio.h"
 
 static const u32 t6_tp_pio_array[][IREG_NUM_ELEM] = {
 	{0x7e40, 0x7e44, 0x020, 28}, /* t6_tp_pio_regs_20_to_3b */
@@ -3476,7 +3477,7 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 			for (i = 0; i < utxq->ntxq; i++)
 				QDESC_GET_TXQ(&utxq->uldtxq[i].q,
 					      cudbg_uld_txq_to_qtype(j),
-					      out_unlock);
+					      out_unlock_uld);
 		}
 	}
 
@@ -3493,7 +3494,7 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 			for (i = 0; i < urxq->nrxq; i++)
 				QDESC_GET_RXQ(&urxq->uldrxq[i].rspq,
 					      cudbg_uld_rxq_to_qtype(j),
-					      out_unlock);
+					      out_unlock_uld);
 		}
 
 		/* ULD FLQ */
@@ -3505,7 +3506,7 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 			for (i = 0; i < urxq->nrxq; i++)
 				QDESC_GET_FLQ(&urxq->uldrxq[i].fl,
 					      cudbg_uld_flq_to_qtype(j),
-					      out_unlock);
+					      out_unlock_uld);
 		}
 
 		/* ULD CIQ */
@@ -3518,29 +3519,34 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 			for (i = 0; i < urxq->nciq; i++)
 				QDESC_GET_RXQ(&urxq->uldrxq[base + i].rspq,
 					      cudbg_uld_ciq_to_qtype(j),
-					      out_unlock);
+					      out_unlock_uld);
 		}
 	}
+	mutex_unlock(&uld_mutex);
 
+	if (!padap->tc_mqprio)
+		goto out;
+
+	mutex_lock(&padap->tc_mqprio->mqprio_mutex);
 	/* ETHOFLD TXQ */
 	if (s->eohw_txq)
 		for (i = 0; i < s->eoqsets; i++)
 			QDESC_GET_TXQ(&s->eohw_txq[i].q,
-				      CUDBG_QTYPE_ETHOFLD_TXQ, out);
+				      CUDBG_QTYPE_ETHOFLD_TXQ, out_unlock_mqprio);
 
 	/* ETHOFLD RXQ and FLQ */
 	if (s->eohw_rxq) {
 		for (i = 0; i < s->eoqsets; i++)
 			QDESC_GET_RXQ(&s->eohw_rxq[i].rspq,
-				      CUDBG_QTYPE_ETHOFLD_RXQ, out);
+				      CUDBG_QTYPE_ETHOFLD_RXQ, out_unlock_mqprio);
 
 		for (i = 0; i < s->eoqsets; i++)
 			QDESC_GET_FLQ(&s->eohw_rxq[i].fl,
-				      CUDBG_QTYPE_ETHOFLD_FLQ, out);
+				      CUDBG_QTYPE_ETHOFLD_FLQ, out_unlock_mqprio);
 	}
 
-out_unlock:
-	mutex_unlock(&uld_mutex);
+out_unlock_mqprio:
+	mutex_unlock(&padap->tc_mqprio->mqprio_mutex);
 
 out:
 	qdesc_info->qdesc_entry_size = sizeof(*qdesc_entry);
@@ -3578,6 +3584,10 @@ out_free:
 #undef QDESC_GET
 
 	return rc;
+
+out_unlock_uld:
+	mutex_unlock(&uld_mutex);
+	goto out;
 }
 
 int cudbg_collect_flash(struct cudbg_init *pdbg_init,

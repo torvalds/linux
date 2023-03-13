@@ -2533,6 +2533,12 @@
 
 	memblock=debug	[KNL] Enable memblock debug messages.
 
+	android12_only.will_be_removed_soon.memblock_nomap_remove= [KNL]
+			Setting this to true through kernel command line will
+			call memblock_remove on the regions marked with no-map
+			property thereby saving memory by removing page structs
+			for those regions. By default this is set to false.
+
 	load_ramdisk=	[RAM] [Deprecated]
 
 	lockd.nlm_grace_period=P  [NFS] Assign grace period.
@@ -2926,6 +2932,8 @@
 					       kvm.nx_huge_pages=off [X86]
 					       no_entry_flush [PPC]
 					       no_uaccess_flush [PPC]
+					       mmio_stale_data=off [X86]
+					       retbleed=off [X86]
 
 				Exceptions:
 					       This does not have any effect on
@@ -2947,6 +2955,8 @@
 				Equivalent to: l1tf=flush,nosmt [X86]
 					       mds=full,nosmt [X86]
 					       tsx_async_abort=full,nosmt [X86]
+					       mmio_stale_data=full,nosmt [X86]
+					       retbleed=auto,nosmt [X86]
 
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
@@ -2955,6 +2965,40 @@
 			of 0 disables mminit logging and a level of 4 will
 			log everything. Information is printed at KERN_DEBUG
 			so loglevel=8 may also need to be specified.
+
+	mmio_stale_data=
+			[X86,INTEL] Control mitigation for the Processor
+			MMIO Stale Data vulnerabilities.
+
+			Processor MMIO Stale Data is a class of
+			vulnerabilities that may expose data after an MMIO
+			operation. Exposed data could originate or end in
+			the same CPU buffers as affected by MDS and TAA.
+			Therefore, similar to MDS and TAA, the mitigation
+			is to clear the affected CPU buffers.
+
+			This parameter controls the mitigation. The
+			options are:
+
+			full       - Enable mitigation on vulnerable CPUs
+
+			full,nosmt - Enable mitigation and disable SMT on
+				     vulnerable CPUs.
+
+			off        - Unconditionally disable mitigation
+
+			On MDS or TAA affected machines,
+			mmio_stale_data=off can be prevented by an active
+			MDS or TAA mitigation as these vulnerabilities are
+			mitigated with the same mechanism so in order to
+			disable this mitigation, you need to specify
+			mds=off and tsx_async_abort=off too.
+
+			Not specifying this option is equivalent to
+			mmio_stale_data=full.
+
+			For details see:
+			Documentation/admin-guide/hw-vuln/processor_mmio_stale_data.rst
 
 	module.sig_enforce
 			[KNL] When CONFIG_MODULE_SIG is set, this means that
@@ -3372,8 +3416,7 @@
 			difficult since unequal pointers can no longer be
 			compared.  However, if this command-line option is
 			specified, then all normal pointers will have their true
-			value printed.  Pointers printed via %pK may still be
-			hashed.  This option should only be specified when
+			value printed. This option should only be specified when
 			debugging the kernel.  Please do not use on production
 			kernels.
 
@@ -4130,6 +4173,12 @@
 			fully seed the kernel's CRNG. Default is controlled
 			by CONFIG_RANDOM_TRUST_CPU.
 
+	random.trust_bootloader={on,off}
+			[KNL] Enable or disable trusting the use of a
+			seed passed by the bootloader (if available) to
+			fully seed the kernel's CRNG. Default is controlled
+			by CONFIG_RANDOM_TRUST_BOOTLOADER.
+
 	ras=option[,option,...]	[KNL] RAS-specific options
 
 		cec_disable	[X86]
@@ -4709,6 +4758,43 @@
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
+	retbleed=	[X86] Control mitigation of RETBleed (Arbitrary
+			Speculative Code Execution with Return Instructions)
+			vulnerability.
+
+			AMD-based UNRET and IBPB mitigations alone do not stop
+			sibling threads from influencing the predictions of other
+			sibling threads. For that reason, STIBP is used on pro-
+			cessors that support it, and mitigate SMT on processors
+			that don't.
+
+			off          - no mitigation
+			auto         - automatically select a migitation
+			auto,nosmt   - automatically select a mitigation,
+				       disabling SMT if necessary for
+				       the full mitigation (only on Zen1
+				       and older without STIBP).
+			ibpb         - On AMD, mitigate short speculation
+				       windows on basic block boundaries too.
+				       Safe, highest perf impact. It also
+				       enables STIBP if present. Not suitable
+				       on Intel.
+			ibpb,nosmt   - Like "ibpb" above but will disable SMT
+				       when STIBP is not available. This is
+				       the alternative for systems which do not
+				       have STIBP.
+			unret        - Force enable untrained return thunks,
+				       only effective on AMD f15h-f17h based
+				       systems.
+			unret,nosmt  - Like unret, but will disable SMT when STIBP
+				       is not available. This is the alternative for
+				       systems which do not have STIBP.
+
+			Selecting 'auto' will choose a mitigation method at run
+			time according to the CPU.
+
+			Not specifying this option is equivalent to retbleed=auto.
+
 	rfkill.default_state=
 		0	"airplane mode".  All wifi, bluetooth, wimax, gps, fm,
 			etc. communication is blocked by default.
@@ -5058,6 +5144,7 @@
 			eibrs		  - enhanced IBRS
 			eibrs,retpoline   - enhanced IBRS + Retpolines
 			eibrs,lfence      - enhanced IBRS + LFENCE
+			ibrs		  - use IBRS to protect kernel
 
 			Not specifying this option is equivalent to
 			spectre_v2=auto.

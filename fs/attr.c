@@ -134,6 +134,8 @@ EXPORT_SYMBOL_NS(setattr_prepare, ANDROID_GKI_VFS_EXPORT_ONLY);
  */
 int inode_newsize_ok(const struct inode *inode, loff_t offset)
 {
+	if (offset < 0)
+		return -EINVAL;
 	if (inode->i_size < offset) {
 		unsigned long limit;
 

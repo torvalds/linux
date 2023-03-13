@@ -10,6 +10,7 @@ ABI_DEFINITION=android/abi_gki_aarch64.xml
 TIDY_ABI=1
 KMI_SYMBOL_LIST=android/abi_gki_aarch64
 ADDITIONAL_KMI_SYMBOL_LISTS="
+android/abi_gki_aarch64_type_visibility
 android/abi_gki_aarch64_core
 android/abi_gki_aarch64_db845c
 android/abi_gki_aarch64_exynos
@@ -18,6 +19,7 @@ android/abi_gki_aarch64_fips140
 android/abi_gki_aarch64_galaxy
 android/abi_gki_aarch64_generic
 android/abi_gki_aarch64_hikey960
+android/abi_gki_aarch64_honor
 android/abi_gki_aarch64_imx
 android/abi_gki_aarch64_lenovo
 android/abi_gki_aarch64_mtk
@@ -30,6 +32,7 @@ android/abi_gki_aarch64_vivo
 android/abi_gki_aarch64_xiaomi
 android/abi_gki_aarch64_asus
 android/abi_gki_aarch64_transsion
+android/abi_gki_aarch64_tuxera
 "
 
 FILES="${FILES}

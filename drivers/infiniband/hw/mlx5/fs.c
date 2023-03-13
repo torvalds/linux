@@ -2081,12 +2081,10 @@ static int mlx5_ib_matcher_ns(struct uverbs_attr_bundle *attrs,
 		if (err)
 			return err;
 
-		if (flags) {
-			mlx5_ib_ft_type_to_namespace(
+		if (flags)
+			return mlx5_ib_ft_type_to_namespace(
 				MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX,
 				&obj->ns_type);
-			return 0;
-		}
 	}
 
 	obj->ns_type = MLX5_FLOW_NAMESPACE_BYPASS;

@@ -277,6 +277,7 @@
   del_gendisk
   del_timer
   del_timer_sync
+  dentry_path_raw
   desc_to_gpio
   destroy_workqueue
   dev_coredumpv

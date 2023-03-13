@@ -63,7 +63,7 @@ source "drivers/zorro/Kconfig"
 
 endif
 
-if COLDFIRE
+if !MMU
 
 config ISA_DMA_API
 	def_bool !M5272

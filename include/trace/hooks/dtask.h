@@ -68,9 +68,18 @@ DECLARE_HOOK(android_vh_mutex_unlock_slowpath,
 DECLARE_HOOK(android_vh_mutex_unlock_slowpath_end,
 	TP_PROTO(struct mutex *lock, struct task_struct *next),
 	TP_ARGS(lock, next));
-DECLARE_HOOK(android_vh_mutex_start_check_new_owner,
-	TP_PROTO(struct mutex *lock),
-	TP_ARGS(lock));
+DECLARE_HOOK(android_vh_record_mutex_lock_starttime,
+	TP_PROTO(struct task_struct *tsk, unsigned long settime_jiffies),
+	TP_ARGS(tsk, settime_jiffies));
+DECLARE_HOOK(android_vh_record_rtmutex_lock_starttime,
+	TP_PROTO(struct task_struct *tsk, unsigned long settime_jiffies),
+	TP_ARGS(tsk, settime_jiffies));
+DECLARE_HOOK(android_vh_record_rwsem_lock_starttime,
+	TP_PROTO(struct task_struct *tsk, unsigned long settime_jiffies),
+	TP_ARGS(tsk, settime_jiffies));
+DECLARE_HOOK(android_vh_record_pcpu_rwsem_starttime,
+	TP_PROTO(struct task_struct *tsk, unsigned long settime_jiffies),
+	TP_ARGS(tsk, settime_jiffies));
 
 /* macro versions of hooks are no longer required */
 

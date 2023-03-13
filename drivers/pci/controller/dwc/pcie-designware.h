@@ -257,6 +257,8 @@ struct dw_pcie_ops {
 	void	(*stop_link)(struct dw_pcie *pcie);
 };
 
+#define DWC_IATU_UNROLL_EN	BIT(0)
+#define DWC_IATU_IOCFG_SHARED	BIT(1)
 struct dw_pcie {
 	struct device		*dev;
 	void __iomem		*dbi_base;
@@ -264,6 +266,7 @@ struct dw_pcie {
 	/* Used when iatu_unroll_enabled is true */
 	void __iomem		*atu_base;
 	u32			num_viewport;
+	u8			iatu_unroll_enabled;
 	struct pcie_port	pp;
 	struct dw_pcie_ep	ep;
 	const struct dw_pcie_ops *ops;
@@ -271,8 +274,6 @@ struct dw_pcie {
 	int			num_lanes;
 	int			link_gen;
 	u8			n_fts[2];
-	bool			iatu_unroll_enabled: 1;
-	bool			io_cfg_atu_shared: 1;
 };
 
 #define to_dw_pcie_from_pp(port) container_of((port), struct dw_pcie, pp)

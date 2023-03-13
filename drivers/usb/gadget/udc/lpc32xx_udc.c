@@ -3015,6 +3015,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	}
 
 	udc->isp1301_i2c_client = isp1301_get_client(isp1301_node);
+	of_node_put(isp1301_node);
 	if (!udc->isp1301_i2c_client) {
 		return -EPROBE_DEFER;
 	}

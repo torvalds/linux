@@ -658,8 +658,10 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	if (dp->data->split_mode && device_property_read_bool(dev, "split-mode")) {
 		struct rockchip_dp_device *secondary =
 				rockchip_dp_find_by_id(dev->driver, !dp->id);
-		if (!secondary)
-			return -EPROBE_DEFER;
+		if (!secondary) {
+			ret = -EPROBE_DEFER;
+			goto err_dp_remove;
+		}
 
 		dp->plat_data.right = secondary->adp;
 		dp->plat_data.split_mode = true;
@@ -670,7 +672,15 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "min-refresh-rate", &dp->min_refresh_rate);
 	device_property_read_u32(dev, "max-refresh-rate", &dp->max_refresh_rate);
 
-	return component_add(dev, &rockchip_dp_component_ops);
+	ret = component_add(dev, &rockchip_dp_component_ops);
+	if (ret)
+		goto err_dp_remove;
+
+	return 0;
+
+err_dp_remove:
+	analogix_dp_remove(dp->adp);
+	return ret;
 }
 
 static int rockchip_dp_remove(struct platform_device *pdev)

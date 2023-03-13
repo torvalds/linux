@@ -8,17 +8,17 @@
  * out of the OpenFirmware device tree and using it to populate an mii_bus.
  */
 
-#include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/netdevice.h>
 #include <linux/err.h>
-#include <linux/phy.h>
-#include <linux/phy_fixed.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/module.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
 
 #define DEFAULT_GPIO_RESET_DELAY	10	/* in microseconds */
 
@@ -332,6 +332,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	return 0;
 
 unregister:
+	of_node_put(child);
 	mdiobus_unregister(mdio);
 	return rc;
 }

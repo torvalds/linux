@@ -10,7 +10,7 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#ifdef __GENKSYMS__
+#if defined(__GENKSYMS__) || !IS_ENABLED(CONFIG_PRINTK)
 struct printk_record;
 struct printk_ringbuffer;
 #else

@@ -493,6 +493,22 @@ config ARM64_ERRATUM_834220
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_1742098
+	bool "Cortex-A57/A72: 1742098: ELR recorded incorrectly on interrupt taken between cryptographic instructions in a sequence"
+	depends on COMPAT
+	default y
+	help
+	  This option removes the AES hwcap for aarch32 user-space to
+	  workaround erratum 1742098 on Cortex-A57 and Cortex-A72.
+
+	  Affected parts may corrupt the AES state if an interrupt is
+	  taken between a pair of AES instructions. These instructions
+	  are only present if the cryptography extensions are present.
+	  All software should have a fallback implementation for CPUs
+	  that don't implement the cryptography extensions.
+
+	  If unsure, say Y.
+
 config ARM64_ERRATUM_845719
 	bool "Cortex-A53: 845719: a load might read incorrect data"
 	depends on COMPAT
@@ -671,6 +687,7 @@ config ARM64_ERRATUM_1508412
 
 config ARM64_ERRATUM_2051678
 	bool "Cortex-A510: 2051678: disable Hardware Update of the page table's dirty bit"
+	default y
 	help
 	  This options adds the workaround for ARM Cortex-A510 erratum ARM64_ERRATUM_2051678.
 	  Affected Coretex-A510 might not respect the ordering rules for
@@ -709,6 +726,47 @@ config ARM64_ERRATUM_2067961
 	  of the trace cached.
 
 	  Workaround is to issue two TSB consecutively on affected cores.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2454944
+	bool "Cortex-A510: 2454944: Unmodified cache line might be written back to memory"
+	select ARCH_HAS_TEARDOWN_DMA_OPS
+	select RODATA_FULL_DEFAULT_ENABLED
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2454944.
+
+	  Affected Cortex-A510 core might write unmodified cache lines back to
+	  memory, which breaks the assumptions upon which software coherency
+	  management for non-coherent DMA relies. If a cache line is
+	  speculatively fetched while a non-coherent device is writing directly
+	  to DRAM, and subsequently written back by natural eviction, data
+	  written by the device in the intervening period can be lost.
+
+	  The workaround is to enforce as far as reasonably possible that all
+	  non-coherent DMA transfers are bounced and/or remapped to minimise
+	  the chance that any Cacheable alias exists through which speculative
+	  cache fills could occur. To further improve effectiveness of
+	  the workaround, lazy TLB flushing should be disabled.
+
+	  This is quite involved and has unavoidable performance impact on
+	  affected systems.
+
+config ARM64_ERRATUM_2457168
+	bool "Cortex-A510: 2457168: workaround for AMEVCNTR01 incrementing incorrectly"
+	depends on ARM64_AMU_EXTN
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2457168.
+
+	  The AMU counter AMEVCNTR01 (constant counter) should increment at the same rate
+	  as the system counter. On affected Cortex-A510 cores AMEVCNTR01 increments
+	  incorrectly giving a significantly higher output value.
+
+	  Work around this problem by keeping the reference values of affected counters
+	  to 0 thus signaling an error case. This effect is the same to firmware disabling
+	  affected counters, in which case 0 will be returned when reading the disabled
+	  counters.
 
 	  If unsure, say Y.
 
@@ -1697,7 +1755,8 @@ config ARM64_BTI_KERNEL
 	depends on CC_HAS_BRANCH_PROT_PAC_RET_BTI
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94697
 	depends on !CC_IS_GCC || GCC_VERSION >= 100100
-	depends on !(CC_IS_CLANG && GCOV_KERNEL)
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106671
+	depends on !CC_IS_GCC
 	# https://bugs.llvm.org/show_bug.cgi?id=46258
 	depends on !CFI_CLANG || CLANG_VERSION >= 120000
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)

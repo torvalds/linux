@@ -322,7 +322,7 @@ void inet_csk_update_fastreuse(struct inet_bind_bucket *tb,
 
 struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu);
 
-#define TCP_PINGPONG_THRESH	3
+#define TCP_PINGPONG_THRESH	1
 
 static inline void inet_csk_enter_pingpong_mode(struct sock *sk)
 {
@@ -337,14 +337,6 @@ static inline void inet_csk_exit_pingpong_mode(struct sock *sk)
 static inline bool inet_csk_in_pingpong_mode(struct sock *sk)
 {
 	return inet_csk(sk)->icsk_ack.pingpong >= TCP_PINGPONG_THRESH;
-}
-
-static inline void inet_csk_inc_pingpong_cnt(struct sock *sk)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	if (icsk->icsk_ack.pingpong < U8_MAX)
-		icsk->icsk_ack.pingpong++;
 }
 
 static inline bool inet_csk_has_ulp(struct sock *sk)

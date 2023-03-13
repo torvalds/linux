@@ -573,7 +573,7 @@ void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	fl6.fl6_icmp_code = code;
 	fl6.flowi6_uid = sock_net_uid(net, NULL);
 	fl6.mp_hash = rt6_multipath_hash(net, &fl6, skb, NULL);
-	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
+	security_skb_classify_flow(skb, flowi6_to_flowi_common(&fl6));
 
 	np = inet6_sk(sk);
 
@@ -755,7 +755,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	fl6.fl6_icmp_type = ICMPV6_ECHO_REPLY;
 	fl6.flowi6_mark = mark;
 	fl6.flowi6_uid = sock_net_uid(net, NULL);
-	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
+	security_skb_classify_flow(skb, flowi6_to_flowi_common(&fl6));
 
 	local_bh_disable();
 	sk = icmpv6_xmit_lock(net);
@@ -1008,7 +1008,7 @@ void icmpv6_flow_init(struct sock *sk, struct flowi6 *fl6,
 	fl6->fl6_icmp_type	= type;
 	fl6->fl6_icmp_code	= 0;
 	fl6->flowi6_oif		= oif;
-	security_sk_classify_flow(sk, flowi6_to_flowi(fl6));
+	security_sk_classify_flow(sk, flowi6_to_flowi_common(fl6));
 }
 
 static void __net_exit icmpv6_sk_exit(struct net *net)

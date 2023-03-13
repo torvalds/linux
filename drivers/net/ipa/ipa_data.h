@@ -72,8 +72,8 @@
  * that can be included in a single transaction.
  */
 struct gsi_channel_data {
-	u16 tre_count;
-	u16 event_count;
+	u16 tre_count;			/* must be a power of 2 */
+	u16 event_count;		/* must be a power of 2 */
 	u8 tlv_count;
 };
 

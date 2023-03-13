@@ -245,4 +245,7 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 int register_vmap_purge_notifier(struct notifier_block *nb);
 int unregister_vmap_purge_notifier(struct notifier_block *nb);
 
+/* Allow disabling lazy TLB flushing */
+extern bool lazy_vunmap_enable;
+
 #endif /* _LINUX_VMALLOC_H */

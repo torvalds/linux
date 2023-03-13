@@ -668,9 +668,14 @@ xlog_cil_push_work(
 	ASSERT(push_seq <= ctx->sequence);
 
 	/*
-	 * Wake up any background push waiters now this context is being pushed.
+	 * As we are about to switch to a new, empty CIL context, we no longer
+	 * need to throttle tasks on CIL space overruns. Wake any waiters that
+	 * the hard push throttle may have caught so they can start committing
+	 * to the new context. The ctx->xc_push_lock provides the serialisation
+	 * necessary for safely using the lockless waitqueue_active() check in
+	 * this context.
 	 */
-	if (ctx->space_used >= XLOG_CIL_BLOCKING_SPACE_LIMIT(log))
+	if (waitqueue_active(&cil->xc_push_wait))
 		wake_up_all(&cil->xc_push_wait);
 
 	/*
@@ -772,7 +777,7 @@ xlog_cil_push_work(
 	 * that higher sequences will wait for us to write out a commit record
 	 * before they do.
 	 *
-	 * xfs_log_force_lsn requires us to mirror the new sequence into the cil
+	 * xfs_log_force_seq requires us to mirror the new sequence into the cil
 	 * structure atomically with the addition of this sequence to the
 	 * committing list. This also ensures that we can do unlocked checks
 	 * against the current sequence in log forces without risking
@@ -907,7 +912,7 @@ xlog_cil_push_background(
 	ASSERT(!list_empty(&cil->xc_cil));
 
 	/*
-	 * don't do a background push if we haven't used up all the
+	 * Don't do a background push if we haven't used up all the
 	 * space available yet.
 	 */
 	if (cil->xc_ctx->space_used < XLOG_CIL_SPACE_LIMIT(log)) {
@@ -931,9 +936,16 @@ xlog_cil_push_background(
 
 	/*
 	 * If we are well over the space limit, throttle the work that is being
-	 * done until the push work on this context has begun.
+	 * done until the push work on this context has begun. Enforce the hard
+	 * throttle on all transaction commits once it has been activated, even
+	 * if the committing transactions have resulted in the space usage
+	 * dipping back down under the hard limit.
+	 *
+	 * The ctx->xc_push_lock provides the serialisation necessary for safely
+	 * using the lockless waitqueue_active() check in this context.
 	 */
-	if (cil->xc_ctx->space_used >= XLOG_CIL_BLOCKING_SPACE_LIMIT(log)) {
+	if (cil->xc_ctx->space_used >= XLOG_CIL_BLOCKING_SPACE_LIMIT(log) ||
+	    waitqueue_active(&cil->xc_push_wait)) {
 		trace_xfs_log_cil_wait(log, cil->xc_ctx->ticket);
 		ASSERT(cil->xc_ctx->space_used < log->l_logsize);
 		xlog_wait(&cil->xc_push_wait, &cil->xc_push_lock);
@@ -1008,16 +1020,14 @@ xlog_cil_empty(
  * allowed again.
  */
 void
-xfs_log_commit_cil(
-	struct xfs_mount	*mp,
+xlog_cil_commit(
+	struct xlog		*log,
 	struct xfs_trans	*tp,
-	xfs_lsn_t		*commit_lsn,
+	xfs_csn_t		*commit_seq,
 	bool			regrant)
 {
-	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_log_item	*lip, *next;
-	xfs_lsn_t		xc_commit_lsn;
 
 	/*
 	 * Do all necessary memory allocation before we lock the CIL.
@@ -1030,10 +1040,6 @@ xfs_log_commit_cil(
 	down_read(&cil->xc_ctx_lock);
 
 	xlog_cil_insert_items(log, tp);
-
-	xc_commit_lsn = cil->xc_ctx->sequence;
-	if (commit_lsn)
-		*commit_lsn = xc_commit_lsn;
 
 	if (regrant && !XLOG_FORCED_SHUTDOWN(log))
 		xfs_log_ticket_regrant(log, tp->t_ticket);
@@ -1057,8 +1063,10 @@ xfs_log_commit_cil(
 	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
 		xfs_trans_del_item(lip);
 		if (lip->li_ops->iop_committing)
-			lip->li_ops->iop_committing(lip, xc_commit_lsn);
+			lip->li_ops->iop_committing(lip, cil->xc_ctx->sequence);
 	}
+	if (commit_seq)
+		*commit_seq = cil->xc_ctx->sequence;
 
 	/* xlog_cil_push_background() releases cil->xc_ctx_lock */
 	xlog_cil_push_background(log);
@@ -1075,9 +1083,9 @@ xfs_log_commit_cil(
  * iclog flush is necessary following this call.
  */
 xfs_lsn_t
-xlog_cil_force_lsn(
+xlog_cil_force_seq(
 	struct xlog	*log,
-	xfs_lsn_t	sequence)
+	xfs_csn_t	sequence)
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_cil_ctx	*ctx;
@@ -1171,23 +1179,19 @@ out_shutdown:
  */
 bool
 xfs_log_item_in_current_chkpt(
-	struct xfs_log_item *lip)
+	struct xfs_log_item	*lip)
 {
-	struct xfs_cil_ctx *ctx;
+	struct xfs_cil		*cil = lip->li_mountp->m_log->l_cilp;
 
 	if (list_empty(&lip->li_cil))
 		return false;
-
-	ctx = lip->li_mountp->m_log->l_cilp->xc_ctx;
 
 	/*
 	 * li_seq is written on the first commit of a log item to record the
 	 * first checkpoint it is written to. Hence if it is different to the
 	 * current sequence, we're in a new checkpoint.
 	 */
-	if (XFS_LSN_CMP(lip->li_seq, ctx->sequence) != 0)
-		return false;
-	return true;
+	return lip->li_seq == READ_ONCE(cil->xc_current_sequence);
 }
 
 /*

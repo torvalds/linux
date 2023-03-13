@@ -583,7 +583,7 @@ TRACE_EVENT(rxrpc_client,
 	    TP_fast_assign(
 		    __entry->conn = conn ? conn->debug_id : 0;
 		    __entry->channel = channel;
-		    __entry->usage = conn ? atomic_read(&conn->usage) : -2;
+		    __entry->usage = conn ? refcount_read(&conn->ref) : -2;
 		    __entry->op = op;
 		    __entry->cid = conn ? conn->proto.cid : 0;
 			   ),
@@ -1509,7 +1509,7 @@ TRACE_EVENT(rxrpc_call_reset,
 		    __entry->call_serial = call->rx_serial;
 		    __entry->conn_serial = call->conn->hi_serial;
 		    __entry->tx_seq = call->tx_hard_ack;
-		    __entry->rx_seq = call->ackr_seen;
+		    __entry->rx_seq = call->rx_hard_ack;
 			   ),
 
 	    TP_printk("c=%08x %08x:%08x r=%08x/%08x tx=%08x rx=%08x",

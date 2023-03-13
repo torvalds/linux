@@ -77,11 +77,11 @@ allOf:
 
     then:
       properties:
-        clock:
-          items:
-            minItems: 3
-            maxItems: 3
+        clocks:
+          minItems: 2
+          maxItems: 3
         clock-names:
+          minItems: 2
           items:
             - const: apb
             - const: smi
@@ -89,10 +89,9 @@ allOf:
 
     else:
       properties:
-        clock:
-          items:
-            minItems: 2
-            maxItems: 2
+        clocks:
+          minItems: 2
+          maxItems: 2
         clock-names:
           items:
             - const: apb
@@ -106,7 +105,6 @@ allOf:
               - mediatek,mt2701-smi-larb
               - mediatek,mt2712-smi-larb
               - mediatek,mt6779-smi-larb
-              - mediatek,mt8167-smi-larb
 
     then:
       required:

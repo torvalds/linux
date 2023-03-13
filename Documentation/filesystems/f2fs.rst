@@ -300,6 +300,15 @@ inlinecrypt		 When possible, encrypt/decrypt the contents of encrypted
 			 Documentation/block/inline-encryption.rst.
 atgc			 Enable age-threshold garbage collection, it provides high
 			 effectiveness and efficiency on background GC.
+memory=%s		 Control memory mode. This supports "normal" and "low" modes.
+			 "low" mode is introduced to support low memory devices.
+			 Because of the nature of low memory devices, in this mode, f2fs
+			 will try to save memory sometimes by sacrificing performance.
+			 "normal" mode is the default mode and same as before.
+age_extent_cache	 Enable an age extent cache based on rb-tree. It records
+			 data block update frequency of the extent per inode, in
+			 order to provide better temperature hints for data block
+			 allocation.
 ======================== ============================================================
 
 Debugfs Entries

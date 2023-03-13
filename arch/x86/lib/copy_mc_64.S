@@ -86,7 +86,7 @@ SYM_FUNC_START(copy_mc_fragile)
 .L_done_memcpy_trap:
 	xorl %eax, %eax
 .L_done:
-	ret
+	RET
 SYM_FUNC_END(copy_mc_fragile)
 EXPORT_SYMBOL_GPL(copy_mc_fragile)
 
@@ -142,7 +142,7 @@ SYM_FUNC_START(copy_mc_enhanced_fast_string)
 	rep movsb
 	/* Copy successful. Return zero */
 	xorl %eax, %eax
-	ret
+	RET
 SYM_FUNC_END(copy_mc_enhanced_fast_string)
 
 	.section .fixup, "ax"
@@ -155,7 +155,7 @@ SYM_FUNC_END(copy_mc_enhanced_fast_string)
 	 * user-copy routines.
 	 */
 	movq %rcx, %rax
-	ret
+	RET
 
 	.previous
 

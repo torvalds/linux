@@ -305,6 +305,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 	struct net *net = sock_net(sk);
 	if (sk->sk_family == AF_INET) {
 		struct sockaddr_in *addr = (struct sockaddr_in *) uaddr;
+		u32 tb_id = RT_TABLE_LOCAL;
 		int chk_addr_ret;
 
 		if (addr_len < sizeof(*addr))
@@ -320,8 +321,10 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 
 		if (addr->sin_addr.s_addr == htonl(INADDR_ANY))
 			chk_addr_ret = RTN_LOCAL;
-		else
-			chk_addr_ret = inet_addr_type(net, addr->sin_addr.s_addr);
+		else {
+			tb_id = l3mdev_fib_table_by_index(net, sk->sk_bound_dev_if) ? : tb_id;
+			chk_addr_ret = inet_addr_type_table(net, addr->sin_addr.s_addr, tb_id);
+		}
 
 		if ((!inet_can_nonlocal_bind(net, isk) &&
 		     chk_addr_ret != RTN_LOCAL) ||
@@ -354,6 +357,14 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		rcu_read_lock();
 		if (addr->sin6_scope_id) {
 			dev = dev_get_by_index_rcu(net, addr->sin6_scope_id);
+			if (!dev) {
+				rcu_read_unlock();
+				return -ENODEV;
+			}
+		}
+
+		if (!dev && sk->sk_bound_dev_if) {
+			dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
 			if (!dev) {
 				rcu_read_unlock();
 				return -ENODEV;
@@ -785,7 +796,7 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	fl4.fl4_icmp_type = user_icmph.type;
 	fl4.fl4_icmp_code = user_icmph.code;
 
-	security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
+	security_sk_classify_flow(sk, flowi4_to_flowi_common(&fl4));
 	rt = ip_route_output_flow(net, &fl4, sk);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);

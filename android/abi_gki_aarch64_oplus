@@ -5,6 +5,7 @@
   add_device_randomness
   add_memory
   add_memory_subsection
+  address_space_init_once
   add_swap_extent
   add_taint
   add_timer
@@ -64,6 +65,8 @@
   bio_add_pc_page
   bio_alloc_bioset
   bio_associate_blkg_from_css
+  __bio_crypt_clone
+  bio_crypt_set_ctx
   bio_endio
   bio_put
   bio_reset
@@ -89,6 +92,7 @@
   blk_execute_rq_nowait
   blk_get_request
   blk_mq_free_request
+  blk_mq_queue_inflight
   blk_mq_rq_cpu
   blk_mq_sched_mark_restart_hctx
   blk_mq_start_request
@@ -408,6 +412,7 @@
   dev_fwnode
   __dev_get_by_index
   dev_get_by_index
+  dev_get_by_index_rcu
   dev_get_by_name
   dev_get_regmap
   dev_get_stats
@@ -681,6 +686,7 @@
   dma_unmap_sg_attrs
   do_exit
   do_wait_intr_irq
+  do_traversal_all_lruvec
   down
   down_interruptible
   down_read
@@ -1657,7 +1663,9 @@
   net_ratelimit
   nf_ct_attach
   nf_ct_delete
+  nf_register_net_hook
   nf_register_net_hooks
+  nf_unregister_net_hook
   nf_unregister_net_hooks
   nla_find
   nla_memcpy
@@ -1802,10 +1810,12 @@
   page_endio
   __page_file_index
   __page_file_mapping
+  __page_mapcount
   page_get_link
   page_mapping
   __page_pinner_migration_failed
   page_symlink
+  page_to_lruvec
   panic
   panic_notifier_list
   panic_timeout
@@ -2000,6 +2010,7 @@
   preempt_schedule_notrace
   prepare_to_wait
   prepare_to_wait_event
+  prepare_to_wait_exclusive
   print_hex_dump
   printk
   printk_deferred
@@ -2041,11 +2052,14 @@
   qcom_smem_state_update_bits
   queue_delayed_work_on
   queue_work_on
+  radix_tree_delete_item
   radix_tree_gang_lookup
   radix_tree_insert
   radix_tree_iter_delete
   radix_tree_lookup
+  radix_tree_lookup_slot
   radix_tree_next_chunk
+  radix_tree_replace_slot
   radix_tree_preload
   ___ratelimit
   rational_best_approximation
@@ -2097,6 +2111,7 @@
   rdev_get_regmap
   read_cache_page_gfp
   reboot_mode
+  reclaim_pages
   refcount_dec_and_lock
   refcount_dec_not_one
   refcount_warn_saturate
@@ -2282,6 +2297,8 @@
   rtc_update_irq
   rtc_valid_tm
   rtnl_is_locked
+  __rtnl_link_register
+  __rtnl_link_unregister
   rtnl_lock
   rtnl_unlock
   runqueues
@@ -2680,6 +2697,7 @@
   __traceiter_android_rvh_build_perf_domains
   __traceiter_android_rvh_can_migrate_task
   __traceiter_android_rvh_check_preempt_wakeup
+  __traceiter_android_rvh_check_preempt_tick
   __traceiter_android_rvh_cpu_cgroup_attach
   __traceiter_android_rvh_cpu_cgroup_online
   __traceiter_android_rvh_cpu_overutilized
@@ -2779,6 +2797,8 @@
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpu_up
+  __traceiter_android_vh_check_page_look_around_ref
+  __traceiter_android_vh_do_futex
   __traceiter_android_vh_do_send_sig_info
   __traceiter_android_vh_drain_all_pages_bypass
   __traceiter_android_vh_em_cpu_energy
@@ -2793,8 +2813,14 @@
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_futex_sleep_start
+  __traceiter_android_vh_futex_wait_end
+  __traceiter_android_vh_futex_wait_start
+  __traceiter_android_vh_futex_wake_this
+  __traceiter_android_vh_futex_wake_traverse_plist
+  __traceiter_android_vh_futex_wake_up_q_finish
   __traceiter_android_vh_get_from_fragment_pool
   __traceiter_android_vh_gpio_block_read
+  __traceiter_android_vh_handle_failed_page_trylock
   __traceiter_android_vh_include_reserved_zone
   __traceiter_android_vh_iommu_alloc_iova
   __traceiter_android_vh_iommu_free_iova
@@ -2802,32 +2828,58 @@
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_ipv6_gen_linklocal_addr
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_killed_process
   __traceiter_android_vh_kmalloc_slab
   __traceiter_android_vh_logbuf
+  __traceiter_android_vh_look_around
+  __traceiter_android_vh_look_around_migrate_page
   __traceiter_android_vh_mem_cgroup_alloc
   __traceiter_android_vh_mem_cgroup_css_offline
   __traceiter_android_vh_mem_cgroup_css_online
   __traceiter_android_vh_mem_cgroup_free
   __traceiter_android_vh_mem_cgroup_id_remove
   __traceiter_android_vh_meminfo_proc_show
+  __traceiter_android_vh_alloc_pages_slowpath_begin
+  __traceiter_android_vh_alloc_pages_slowpath_end
   __traceiter_android_vh_mutex_unlock_slowpath
+  __traceiter_android_vh_mutex_unlock_slowpath_end
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
   __traceiter_android_vh_override_creds
   __traceiter_android_vh_page_referenced_check_bypass
+  __traceiter_android_vh_page_should_be_protected
+  __traceiter_android_vh_page_trylock_set
+  __traceiter_android_vh_page_trylock_clear
+  __traceiter_android_vh_page_trylock_get_result
+  __traceiter_android_vh_mark_page_accessed
+  __traceiter_android_vh_show_mapcount_pages
+  __traceiter_android_vh_do_traversal_lruvec
+  __traceiter_android_vh_do_page_trylock
+  __traceiter_android_vh_update_page_mapcount
+  __traceiter_android_vh_add_page_to_lrulist
+  __traceiter_android_vh_del_page_from_lrulist
   __traceiter_android_vh_pcplist_add_cma_pages_bypass
   __traceiter_android_vh_prepare_update_load_avg_se
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_process_killed
-  __traceiter_android_vh_killed_process
   __traceiter_android_vh_revert_creds
+  __traceiter_android_vh_record_mutex_lock_starttime
+  __traceiter_android_vh_record_rtmutex_lock_starttime
+  __traceiter_android_vh_record_rwsem_lock_starttime
+  __traceiter_android_vh_record_pcpu_rwsem_starttime
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
+  __traceiter_android_vh_rwsem_mark_wake_readers
+  __traceiter_android_vh_rwsem_set_owner
+  __traceiter_android_vh_rwsem_set_reader_owned
+  __traceiter_android_vh_rwsem_up_read_end
+  __traceiter_android_vh_rwsem_up_write_end
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_wake_finish
   __traceiter_android_vh_rwsem_write_finished
   __traceiter_android_vh_save_track_hash
   __traceiter_android_vh_save_vmalloc_stack
+  __traceiter_android_vh_remove_vmalloc_stack
   __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_selinux_avc_insert
@@ -2882,12 +2934,14 @@
   __traceiter_suspend_resume
   __traceiter_task_newtask
   __traceiter_task_rename
+  __traceiter_android_vh_test_clear_look_around_ref
   __traceiter_xhci_urb_giveback
   __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_after_enqueue_task
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_wakeup
+  __tracepoint_android_rvh_check_preempt_tick
   __tracepoint_android_rvh_cpu_cgroup_attach
   __tracepoint_android_rvh_cpu_cgroup_online
   __tracepoint_android_rvh_cpu_overutilized
@@ -2987,6 +3041,8 @@
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpu_up
+  __tracepoint_android_vh_check_page_look_around_ref
+  __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_do_send_sig_info
   __tracepoint_android_vh_drain_all_pages_bypass
   __tracepoint_android_vh_em_cpu_energy
@@ -3001,8 +3057,14 @@
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_futex_sleep_start
+  __tracepoint_android_vh_futex_wait_end
+  __tracepoint_android_vh_futex_wait_start
+  __tracepoint_android_vh_futex_wake_this
+  __tracepoint_android_vh_futex_wake_traverse_plist
+  __tracepoint_android_vh_futex_wake_up_q_finish
   __tracepoint_android_vh_get_from_fragment_pool
   __tracepoint_android_vh_gpio_block_read
+  __tracepoint_android_vh_handle_failed_page_trylock
   __tracepoint_android_vh_include_reserved_zone
   __tracepoint_android_vh_iommu_alloc_iova
   __tracepoint_android_vh_iommu_free_iova
@@ -3010,32 +3072,58 @@
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_ipv6_gen_linklocal_addr
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_killed_process
   __tracepoint_android_vh_kmalloc_slab
   __tracepoint_android_vh_logbuf
+  __tracepoint_android_vh_look_around
+  __tracepoint_android_vh_look_around_migrate_page
   __tracepoint_android_vh_mem_cgroup_alloc
   __tracepoint_android_vh_mem_cgroup_css_offline
   __tracepoint_android_vh_mem_cgroup_css_online
   __tracepoint_android_vh_mem_cgroup_free
   __tracepoint_android_vh_mem_cgroup_id_remove
   __tracepoint_android_vh_meminfo_proc_show
+  __tracepoint_android_vh_alloc_pages_slowpath_begin
+  __tracepoint_android_vh_alloc_pages_slowpath_end
   __tracepoint_android_vh_mutex_unlock_slowpath
+  __tracepoint_android_vh_mutex_unlock_slowpath_end
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
   __tracepoint_android_vh_override_creds
   __tracepoint_android_vh_page_referenced_check_bypass
+  __tracepoint_android_vh_page_should_be_protected
+  __tracepoint_android_vh_page_trylock_set
+  __tracepoint_android_vh_page_trylock_clear
+  __tracepoint_android_vh_page_trylock_get_result
+  __tracepoint_android_vh_mark_page_accessed
+  __tracepoint_android_vh_show_mapcount_pages
+  __tracepoint_android_vh_do_traversal_lruvec
+  __tracepoint_android_vh_do_page_trylock
+  __tracepoint_android_vh_update_page_mapcount
+  __tracepoint_android_vh_add_page_to_lrulist
+  __tracepoint_android_vh_del_page_from_lrulist
   __tracepoint_android_vh_pcplist_add_cma_pages_bypass
   __tracepoint_android_vh_prepare_update_load_avg_se
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
-  __tracepoint_android_vh_killed_process
   __tracepoint_android_vh_revert_creds
+  __tracepoint_android_vh_record_mutex_lock_starttime
+  __tracepoint_android_vh_record_rtmutex_lock_starttime
+  __tracepoint_android_vh_record_rwsem_lock_starttime
+  __tracepoint_android_vh_record_pcpu_rwsem_starttime
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
+  __tracepoint_android_vh_rwsem_mark_wake_readers
+  __tracepoint_android_vh_rwsem_set_owner
+  __tracepoint_android_vh_rwsem_set_reader_owned
+  __tracepoint_android_vh_rwsem_up_read_end
+  __tracepoint_android_vh_rwsem_up_write_end
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_wake_finish
   __tracepoint_android_vh_rwsem_write_finished
   __tracepoint_android_vh_save_track_hash
   __tracepoint_android_vh_save_vmalloc_stack
+  __tracepoint_android_vh_remove_vmalloc_stack
   __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_selinux_avc_insert
@@ -3062,6 +3150,7 @@
   __tracepoint_android_vh_tune_inactive_ratio
   __tracepoint_android_vh_tune_scan_type
   __tracepoint_android_vh_tune_swappiness
+  __tracepoint_android_vh_test_clear_look_around_ref
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_send_tm_command
@@ -3074,6 +3163,10 @@
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
   __tracepoint_irq_handler_entry
+  __tracepoint_net_dev_queue
+  __tracepoint_net_dev_xmit
+  __tracepoint_netif_receive_skb
+  __tracepoint_netif_rx
   __tracepoint_pelt_se_tp
   tracepoint_probe_register
   tracepoint_probe_register_prio
@@ -3556,3 +3649,4 @@
   xhci_ring_cmd_db
   xhci_ring_free
   xhci_trb_virt_to_dma
+  zero_pfn

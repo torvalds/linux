@@ -229,7 +229,7 @@ SYM_FUNC_END_PI(__dma_flush_area)
  */
 SYM_FUNC_START_PI(__dma_map_area)
 	cmp	w2, #DMA_FROM_DEVICE
-	b.eq	__dma_inv_area
+	b.eq	__dma_flush_area
 	b	__dma_clean_area
 SYM_FUNC_END_PI(__dma_map_area)
 

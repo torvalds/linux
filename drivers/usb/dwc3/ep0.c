@@ -826,9 +826,9 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
 	struct usb_ctrlrequest *ctrl = (void *) dwc->ep0_trb;
-	struct dwc3_vendor *vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 	int ret = -EINVAL;
 	u32 len;
+	struct dwc3_vendor	*vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 
 	if (!dwc->gadget_driver || !vdwc->softconnect || !dwc->connected)
 		goto out;
@@ -1132,7 +1132,7 @@ void dwc3_ep0_end_control_data(struct dwc3 *dwc, struct dwc3_ep *dep)
 static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
-	struct dwc3_vendor *vdwc = container_of(dwc, struct dwc3_vendor, dwc);
+	struct dwc3_vendor	*vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 
 	switch (event->status) {
 	case DEPEVT_STATUS_CONTROL_DATA:

@@ -91,6 +91,13 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	enum hclge_cmd_status status;
 	struct hclge_desc desc;
 
+	if (msg_len > HCLGE_MBX_MAX_MSG_SIZE) {
+		dev_err(&hdev->pdev->dev,
+			"msg data length(=%u) exceeds maximum(=%u)\n",
+			msg_len, HCLGE_MBX_MAX_MSG_SIZE);
+		return -EMSGSIZE;
+	}
+
 	resp_pf_to_vf = (struct hclge_mbx_pf_to_vf_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_PF_TO_VF, false);
@@ -173,7 +180,7 @@ static int hclge_get_ring_chain_from_mbx(
 	ring_num = req->msg.ring_num;
 
 	if (ring_num > HCLGE_MBX_MAX_RING_CHAIN_PARAM_NUM)
-		return -ENOMEM;
+		return -EINVAL;
 
 	for (i = 0; i < ring_num; i++) {
 		if (req->msg.param[i].tqp_index >= vport->nic.kinfo.rss_size) {
@@ -577,9 +584,9 @@ static int hclge_set_vf_mtu(struct hclge_vport *vport,
 	return hclge_set_vport_mtu(vport, mtu);
 }
 
-static void hclge_get_queue_id_in_pf(struct hclge_vport *vport,
-				     struct hclge_mbx_vf_to_pf_cmd *mbx_req,
-				     struct hclge_respond_to_vf_msg *resp_msg)
+static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+				    struct hclge_respond_to_vf_msg *resp_msg)
 {
 	struct hnae3_handle *handle = &vport->nic;
 	struct hclge_dev *hdev = vport->back;
@@ -589,17 +596,18 @@ static void hclge_get_queue_id_in_pf(struct hclge_vport *vport,
 	if (queue_id >= handle->kinfo.num_tqps) {
 		dev_err(&hdev->pdev->dev, "Invalid queue id(%u) from VF %u\n",
 			queue_id, mbx_req->mbx_src_vfid);
-		return;
+		return -EINVAL;
 	}
 
 	qid_in_pf = hclge_covert_handle_qid_global(&vport->nic, queue_id);
 	memcpy(resp_msg->data, &qid_in_pf, sizeof(qid_in_pf));
 	resp_msg->len = sizeof(qid_in_pf);
+	return 0;
 }
 
-static void hclge_get_rss_key(struct hclge_vport *vport,
-			      struct hclge_mbx_vf_to_pf_cmd *mbx_req,
-			      struct hclge_respond_to_vf_msg *resp_msg)
+static int hclge_get_rss_key(struct hclge_vport *vport,
+			     struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+			     struct hclge_respond_to_vf_msg *resp_msg)
 {
 #define HCLGE_RSS_MBX_RESP_LEN	8
 	struct hclge_dev *hdev = vport->back;
@@ -615,13 +623,14 @@ static void hclge_get_rss_key(struct hclge_vport *vport,
 		dev_warn(&hdev->pdev->dev,
 			 "failed to get the rss hash key, the index(%u) invalid !\n",
 			 index);
-		return;
+		return -EINVAL;
 	}
 
 	memcpy(resp_msg->data,
 	       &hdev->vport[0].rss_hash_key[index * HCLGE_RSS_MBX_RESP_LEN],
 	       HCLGE_RSS_MBX_RESP_LEN);
 	resp_msg->len = HCLGE_RSS_MBX_RESP_LEN;
+	return 0;
 }
 
 static void hclge_link_fail_parse(struct hclge_dev *hdev, u8 link_fail_code)
@@ -800,10 +809,10 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					"VF fail(%d) to set mtu\n", ret);
 			break;
 		case HCLGE_MBX_GET_QID_IN_PF:
-			hclge_get_queue_id_in_pf(vport, req, &resp_msg);
+			ret = hclge_get_queue_id_in_pf(vport, req, &resp_msg);
 			break;
 		case HCLGE_MBX_GET_RSS_KEY:
-			hclge_get_rss_key(vport, req, &resp_msg);
+			ret = hclge_get_rss_key(vport, req, &resp_msg);
 			break;
 		case HCLGE_MBX_GET_LINK_MODE:
 			hclge_get_link_mode(vport, req);

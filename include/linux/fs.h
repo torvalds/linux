@@ -515,6 +515,11 @@ static inline void i_mmap_unlock_write(struct address_space *mapping)
 	up_write(&mapping->i_mmap_rwsem);
 }
 
+static inline int i_mmap_trylock_read(struct address_space *mapping)
+{
+	return down_read_trylock(&mapping->i_mmap_rwsem);
+}
+
 static inline void i_mmap_lock_read(struct address_space *mapping)
 {
 	down_read(&mapping->i_mmap_rwsem);
@@ -1466,7 +1471,16 @@ struct super_block {
 	const struct xattr_handler **s_xattr;
 #ifdef CONFIG_FS_ENCRYPTION
 	const struct fscrypt_operations	*s_cop;
+#ifdef __GENKSYMS__
+	/*
+	 * Android ABI CRC preservation due to commit 391cceee6d43 ("fscrypt:
+	 * stop using keyrings subsystem for fscrypt_master_key") changing this
+	 * type.  Size is the same, this is a private field.
+	 */
 	struct key		*s_master_keys; /* master crypto keys in use */
+#else
+	struct fscrypt_keyring	*s_master_keys; /* master crypto keys in use */
+#endif
 #endif
 #ifdef CONFIG_FS_VERITY
 	const struct fsverity_operations *s_vop;
@@ -1850,6 +1864,14 @@ struct dir_context {
  * btrfs clone/dedupe ioctls.
  */
 #define REMAP_FILE_ADVISORY		(REMAP_FILE_CAN_SHORTEN)
+
+/*
+ * These flags control the behavior of vfs_copy_file_range().
+ * They are not available to the user via syscall.
+ *
+ * COPY_FILE_SPLICE: call splice direct instead of fs clone/copy ops
+ */
+#define COPY_FILE_SPLICE		(1 << 0)
 
 struct iov_iter;
 

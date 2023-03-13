@@ -157,7 +157,6 @@ struct plat_stmmacenet_data {
 	struct stmmac_est *est;
 	int clk_csr;
 	int has_gmac;
-	int sph_disable;
 	int enh_desc;
 	int tx_coe;
 	int rx_coe;
@@ -208,5 +207,6 @@ struct plat_stmmacenet_data {
 	bool vlan_fail_q_en;
 	u8 vlan_fail_q;
 	unsigned int eee_usecs_rate;
+	bool sph_disable;
 };
 #endif

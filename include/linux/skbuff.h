@@ -685,6 +685,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@csum_level: indicates the number of consecutive checksums found in
  *		the packet minus one that have been verified as
  *		CHECKSUM_UNNECESSARY (max 3)
+ *	@scm_io_uring: SKB holds io_uring registered files
  *	@dst_pending_confirm: need to confirm neighbour
  *	@decrypted: Decrypted SKB
  *	@napi_id: id of the NAPI struct this skb came from
@@ -912,7 +913,21 @@ struct sk_buff {
 	__u32			headers_end[0];
 	/* public: */
 
-	ANDROID_KABI_RESERVE(1);
+	/* Android KABI preservation.
+	 *
+	 * "open coded" version of ANDROID_KABI_USE() to pack more
+	 * fields/variables into the space that we have.
+	 *
+	 * scm_io_uring is from 04df9719df18 ("io_uring/af_unix: defer
+	 * registered files gc to io_uring release")
+	 */
+	_ANDROID_KABI_REPLACE(_ANDROID_KABI_RESERVE(1),
+			 struct {
+				__u8 scm_io_uring:1;
+				__u8 android_kabi_reserved1_padding1;
+				__u16 android_kabi_reserved1_padding2;
+				__u32 android_kabi_reserved1_padding3;
+				});
 	ANDROID_KABI_RESERVE(2);
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
@@ -1417,6 +1432,11 @@ static inline unsigned int skb_end_offset(const struct sk_buff *skb)
 {
 	return skb->end;
 }
+
+static inline void skb_set_end_offset(struct sk_buff *skb, unsigned int offset)
+{
+	skb->end = offset;
+}
 #else
 static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
 {
@@ -1426,6 +1446,11 @@ static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
 static inline unsigned int skb_end_offset(const struct sk_buff *skb)
 {
 	return skb->end - skb->head;
+}
+
+static inline void skb_set_end_offset(struct sk_buff *skb, unsigned int offset)
+{
+	skb->end = skb->head + offset;
 }
 #endif
 
@@ -1646,19 +1671,19 @@ static inline int skb_unclone(struct sk_buff *skb, gfp_t pri)
 	return 0;
 }
 
-/* This variant of skb_unclone() makes sure skb->truesize is not changed */
+/* This variant of skb_unclone() makes sure skb->truesize
+ * and skb_end_offset() are not changed, whenever a new skb->head is needed.
+ *
+ * Indeed there is no guarantee that ksize(kmalloc(X)) == ksize(kmalloc(X))
+ * when various debugging features are in place.
+ */
+int __skb_unclone_keeptruesize(struct sk_buff *skb, gfp_t pri);
 static inline int skb_unclone_keeptruesize(struct sk_buff *skb, gfp_t pri)
 {
 	might_sleep_if(gfpflags_allow_blocking(pri));
 
-	if (skb_cloned(skb)) {
-		unsigned int save = skb->truesize;
-		int res;
-
-		res = pskb_expand_head(skb, 0, 0, pri);
-		skb->truesize = save;
-		return res;
-	}
+	if (skb_cloned(skb))
+		return __skb_unclone_keeptruesize(skb, pri);
 	return 0;
 }
 
@@ -2244,6 +2269,14 @@ static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
 }
 
 #endif /* NET_SKBUFF_DATA_USES_OFFSET */
+
+static inline void skb_assert_len(struct sk_buff *skb)
+{
+#ifdef CONFIG_DEBUG_NET
+	if (WARN_ONCE(!skb->len, "%s\n", __func__))
+		DO_ONCE_LITE(skb_dump, KERN_ERR, skb, false);
+#endif /* CONFIG_DEBUG_NET */
+}
 
 /*
  *	Add data to an sk_buff

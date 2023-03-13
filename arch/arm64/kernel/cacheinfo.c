@@ -45,7 +45,8 @@ static void ci_leaf_init(struct cacheinfo *this_leaf,
 
 int init_cache_level(unsigned int cpu)
 {
-	unsigned int ctype, level, leaves, fw_level;
+	unsigned int ctype, level, leaves;
+	int fw_level;
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 
 	for (level = 1, leaves = 0; level <= MAX_CACHE_LEVEL; level++) {
@@ -62,6 +63,9 @@ int init_cache_level(unsigned int cpu)
 		fw_level = of_find_last_cache_level(cpu);
 	else
 		fw_level = acpi_find_last_cache_level(cpu);
+
+	if (fw_level < 0)
+		return fw_level;
 
 	if (level < fw_level) {
 		/*

@@ -194,6 +194,13 @@ static int ptn5150_init_dev_type(struct ptn5150_info *info)
 	return 0;
 }
 
+static void ptn5150_work_sync_and_put(void *data)
+{
+	struct ptn5150_info *info = data;
+
+	cancel_work_sync(&info->irq_work);
+}
+
 static int ptn5150_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
@@ -283,6 +290,10 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c)
 	ret = ptn5150_init_dev_type(info);
 	if (ret)
 		return -EINVAL;
+
+	ret = devm_add_action_or_reset(dev, ptn5150_work_sync_and_put, info);
+	if (ret)
+		return ret;
 
 	/*
 	 * Update current extcon state if for example OTG connection was there

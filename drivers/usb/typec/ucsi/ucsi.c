@@ -76,6 +76,10 @@ static int ucsi_read_error(struct ucsi *ucsi)
 	if (ret)
 		return ret;
 
+	ret = ucsi_acknowledge_command(ucsi);
+	if (ret)
+		return ret;
+
 	switch (error) {
 	case UCSI_ERROR_INCOMPATIBLE_PARTNER:
 		return -EOPNOTSUPP;
@@ -511,8 +515,6 @@ static int ucsi_get_pdos(struct ucsi_connector *con, int is_partner,
 				num_pdos * sizeof(u32));
 	if (ret < 0)
 		dev_err(ucsi->dev, "UCSI_GET_PDOS failed (%d)\n", ret);
-	if (ret == 0 && offset == 0)
-		dev_warn(ucsi->dev, "UCSI_GET_PDOS returned 0 bytes\n");
 
 	return ret;
 }
@@ -955,6 +957,8 @@ static int ucsi_dr_swap(struct typec_port *port, enum typec_data_role role)
 	     role == TYPEC_HOST))
 		goto out_unlock;
 
+	reinit_completion(&con->complete);
+
 	command = UCSI_SET_UOR | UCSI_CONNECTOR_NUMBER(con->num);
 	command |= UCSI_SET_UOR_ROLE(role);
 	command |= UCSI_SET_UOR_ACCEPT_ROLE_SWAPS;
@@ -962,14 +966,18 @@ static int ucsi_dr_swap(struct typec_port *port, enum typec_data_role role)
 	if (ret < 0)
 		goto out_unlock;
 
+	mutex_unlock(&con->lock);
+
 	if (!wait_for_completion_timeout(&con->complete,
-					msecs_to_jiffies(UCSI_SWAP_TIMEOUT_MS)))
-		ret = -ETIMEDOUT;
+					 msecs_to_jiffies(UCSI_SWAP_TIMEOUT_MS)))
+		return -ETIMEDOUT;
+
+	return 0;
 
 out_unlock:
 	mutex_unlock(&con->lock);
 
-	return ret < 0 ? ret : 0;
+	return ret;
 }
 
 static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
@@ -991,6 +999,8 @@ static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 	if (cur_role == role)
 		goto out_unlock;
 
+	reinit_completion(&con->complete);
+
 	command = UCSI_SET_PDR | UCSI_CONNECTOR_NUMBER(con->num);
 	command |= UCSI_SET_PDR_ROLE(role);
 	command |= UCSI_SET_PDR_ACCEPT_ROLE_SWAPS;
@@ -998,11 +1008,13 @@ static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 	if (ret < 0)
 		goto out_unlock;
 
+	mutex_unlock(&con->lock);
+
 	if (!wait_for_completion_timeout(&con->complete,
-				msecs_to_jiffies(UCSI_SWAP_TIMEOUT_MS))) {
-		ret = -ETIMEDOUT;
-		goto out_unlock;
-	}
+					 msecs_to_jiffies(UCSI_SWAP_TIMEOUT_MS)))
+		return -ETIMEDOUT;
+
+	mutex_lock(&con->lock);
 
 	/* Something has gone wrong while swapping the role */
 	if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) !=
@@ -1049,6 +1061,15 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	con->num = index + 1;
 	con->ucsi = ucsi;
 
+	cap->fwnode = ucsi_find_fwnode(con);
+	con->usb_role_sw = fwnode_usb_role_switch_get(cap->fwnode);
+	if (IS_ERR(con->usb_role_sw)) {
+		dev_err(ucsi->dev, "con%d: failed to get usb role switch\n",
+			con->num);
+		return PTR_ERR(con->usb_role_sw);
+	}
+
+
 	/* Delay other interactions with the con until registration is complete */
 	mutex_lock(&con->lock);
 
@@ -1084,7 +1105,6 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_DEBUG_ACCESSORY)
 		*accessory = TYPEC_ACCESSORY_DEBUG;
 
-	cap->fwnode = ucsi_find_fwnode(con);
 	cap->driver_data = con;
 	cap->ops = &ucsi_ops;
 
@@ -1140,13 +1160,6 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 		ucsi_pwr_opmode_change(con);
 		ucsi_register_partner(con);
 		ucsi_port_psy_changed(con);
-	}
-
-	con->usb_role_sw = fwnode_usb_role_switch_get(cap->fwnode);
-	if (IS_ERR(con->usb_role_sw)) {
-		dev_err(ucsi->dev, "con%d: failed to get usb role switch\n",
-			con->num);
-		con->usb_role_sw = NULL;
 	}
 
 	/* Only notify USB controller if partner supports USB data */
@@ -1261,12 +1274,21 @@ err:
 
 static void ucsi_init_work(struct work_struct *work)
 {
-	struct ucsi *ucsi = container_of(work, struct ucsi, work);
+	struct ucsi_android *aucsi = container_of(work,
+				    struct ucsi_android, work.work);
 	int ret;
 
-	ret = ucsi_init(ucsi);
+	ret = ucsi_init(&aucsi->ucsi);
 	if (ret)
-		dev_err(ucsi->dev, "PPM init failed (%d)\n", ret);
+		dev_err(aucsi->ucsi.dev, "PPM init failed (%d)\n", ret);
+
+	if (ret == -EPROBE_DEFER) {
+		if (aucsi->work_count++ > UCSI_ROLE_SWITCH_WAIT_COUNT)
+			return;
+
+		queue_delayed_work(system_long_wq, &aucsi->work,
+				   UCSI_ROLE_SWITCH_INTERVAL);
+	}
 }
 
 /**
@@ -1298,15 +1320,17 @@ EXPORT_SYMBOL_GPL(ucsi_set_drvdata);
 struct ucsi *ucsi_create(struct device *dev, const struct ucsi_operations *ops)
 {
 	struct ucsi *ucsi;
+	struct ucsi_android *aucsi;
 
 	if (!ops || !ops->read || !ops->sync_write || !ops->async_write)
 		return ERR_PTR(-EINVAL);
 
-	ucsi = kzalloc(sizeof(*ucsi), GFP_KERNEL);
-	if (!ucsi)
+	aucsi = kzalloc(sizeof(*aucsi), GFP_KERNEL);
+	if (!aucsi)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_WORK(&ucsi->work, ucsi_init_work);
+	ucsi = &aucsi->ucsi;
+	INIT_DELAYED_WORK(&aucsi->work, ucsi_init_work);
 	mutex_init(&ucsi->ppm_lock);
 	ucsi->dev = dev;
 	ucsi->ops = ops;
@@ -1321,7 +1345,9 @@ EXPORT_SYMBOL_GPL(ucsi_create);
  */
 void ucsi_destroy(struct ucsi *ucsi)
 {
-	kfree(ucsi);
+	struct ucsi_android *aucsi = container_of(ucsi,
+				    struct ucsi_android, ucsi);
+	kfree(aucsi);
 }
 EXPORT_SYMBOL_GPL(ucsi_destroy);
 
@@ -1331,6 +1357,8 @@ EXPORT_SYMBOL_GPL(ucsi_destroy);
  */
 int ucsi_register(struct ucsi *ucsi)
 {
+	struct ucsi_android *aucsi = container_of(ucsi,
+				    struct ucsi_android, ucsi);
 	int ret;
 
 	ret = ucsi->ops->read(ucsi, UCSI_VERSION, &ucsi->version,
@@ -1341,7 +1369,7 @@ int ucsi_register(struct ucsi *ucsi)
 	if (!ucsi->version)
 		return -ENODEV;
 
-	queue_work(system_long_wq, &ucsi->work);
+	queue_delayed_work(system_long_wq, &aucsi->work, 0);
 
 	return 0;
 }
@@ -1355,11 +1383,13 @@ EXPORT_SYMBOL_GPL(ucsi_register);
  */
 void ucsi_unregister(struct ucsi *ucsi)
 {
+	struct ucsi_android *aucsi = container_of(ucsi,
+				    struct ucsi_android, ucsi);
 	u64 cmd = UCSI_SET_NOTIFICATION_ENABLE;
 	int i;
 
 	/* Make sure that we are not in the middle of driver initialization */
-	cancel_work_sync(&ucsi->work);
+	cancel_delayed_work_sync(&aucsi->work);
 
 	/* Disable notifications */
 	ucsi->ops->async_write(ucsi, UCSI_CONTROL, &cmd, sizeof(cmd));

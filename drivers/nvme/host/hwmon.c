@@ -12,7 +12,7 @@
 
 struct nvme_hwmon_data {
 	struct nvme_ctrl *ctrl;
-	struct nvme_smart_log log;
+	struct nvme_smart_log *log;
 	struct mutex read_lock;
 };
 
@@ -60,14 +60,14 @@ static int nvme_set_temp_thresh(struct nvme_ctrl *ctrl, int sensor, bool under,
 static int nvme_hwmon_get_smart_log(struct nvme_hwmon_data *data)
 {
 	return nvme_get_log(data->ctrl, NVME_NSID_ALL, NVME_LOG_SMART, 0,
-			   NVME_CSI_NVM, &data->log, sizeof(data->log), 0);
+			   NVME_CSI_NVM, data->log, sizeof(*data->log), 0);
 }
 
 static int nvme_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			   u32 attr, int channel, long *val)
 {
 	struct nvme_hwmon_data *data = dev_get_drvdata(dev);
-	struct nvme_smart_log *log = &data->log;
+	struct nvme_smart_log *log = data->log;
 	int temp;
 	int err;
 
@@ -163,7 +163,7 @@ static umode_t nvme_hwmon_is_visible(const void *_data,
 	case hwmon_temp_max:
 	case hwmon_temp_min:
 		if ((!channel && data->ctrl->wctemp) ||
-		    (channel && data->log.temp_sensor[channel - 1])) {
+		    (channel && data->log->temp_sensor[channel - 1])) {
 			if (data->ctrl->quirks &
 			    NVME_QUIRK_NO_TEMP_THRESH_CHANGE)
 				return 0444;
@@ -176,7 +176,7 @@ static umode_t nvme_hwmon_is_visible(const void *_data,
 		break;
 	case hwmon_temp_input:
 	case hwmon_temp_label:
-		if (!channel || data->log.temp_sensor[channel - 1])
+		if (!channel || data->log->temp_sensor[channel - 1])
 			return 0444;
 		break;
 	default:
@@ -223,33 +223,57 @@ static const struct hwmon_chip_info nvme_hwmon_chip_info = {
 
 int nvme_hwmon_init(struct nvme_ctrl *ctrl)
 {
-	struct device *dev = ctrl->dev;
+	struct device *dev = ctrl->device;
 	struct nvme_hwmon_data *data;
 	struct device *hwmon;
 	int err;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return 0;
+		return -ENOMEM;
+
+	data->log = kzalloc(sizeof(*data->log), GFP_KERNEL);
+	if (!data->log) {
+		err = -ENOMEM;
+		goto err_free_data;
+	}
 
 	data->ctrl = ctrl;
 	mutex_init(&data->read_lock);
 
 	err = nvme_hwmon_get_smart_log(data);
 	if (err) {
-		dev_warn(ctrl->device,
-			"Failed to read smart log (error %d)\n", err);
-		devm_kfree(dev, data);
-		return err;
+		dev_warn(dev, "Failed to read smart log (error %d)\n", err);
+		goto err_free_log;
 	}
 
-	hwmon = devm_hwmon_device_register_with_info(dev, "nvme", data,
-						     &nvme_hwmon_chip_info,
-						     NULL);
+	hwmon = hwmon_device_register_with_info(dev, "nvme",
+						data, &nvme_hwmon_chip_info,
+						NULL);
 	if (IS_ERR(hwmon)) {
 		dev_warn(dev, "Failed to instantiate hwmon device\n");
-		devm_kfree(dev, data);
+		err = PTR_ERR(hwmon);
+		goto err_free_log;
 	}
-
+	ctrl->hwmon_device = hwmon;
 	return 0;
+
+err_free_log:
+	kfree(data->log);
+err_free_data:
+	kfree(data);
+	return err;
+}
+
+void nvme_hwmon_exit(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->hwmon_device) {
+		struct nvme_hwmon_data *data =
+			dev_get_drvdata(ctrl->hwmon_device);
+
+		hwmon_device_unregister(ctrl->hwmon_device);
+		ctrl->hwmon_device = NULL;
+		kfree(data->log);
+		kfree(data);
+	}
 }
