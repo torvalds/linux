@@ -1068,7 +1068,7 @@ static int dspi_setup(struct spi_device *spi)
 
 static void dspi_cleanup(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
+	struct chip_data *chip = spi_get_ctldata(spi);
 
 	dev_dbg(&spi->dev, "spi_device %u.%u cleanup\n",
 		spi->controller->bus_num, spi_get_chipselect(spi, 0));
