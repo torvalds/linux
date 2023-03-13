@@ -146,6 +146,7 @@ struct ipc4_pipeline_set_state_data {
  * struct sof_ipc4_available_audio_format - Available audio formats
  * @base_config: Available base config
  * @out_audio_fmt: Available output audio format
+ * @input_audio_fmts: Available input audio formats
  * @ref_audio_fmt: Reference audio format to match runtime audio format
  * @dma_buffer_size: Available Gateway DMA buffer size (in bytes)
  * @audio_fmt_num: Number of available audio formats
@@ -153,6 +154,7 @@ struct ipc4_pipeline_set_state_data {
 struct sof_ipc4_available_audio_format {
 	struct sof_ipc4_base_module_cfg *base_config;
 	struct sof_ipc4_audio_format *out_audio_fmt;
+	struct sof_ipc4_audio_format *input_audio_fmts;
 	struct sof_ipc4_audio_format *ref_audio_fmt;
 	u32 *dma_buffer_size;
 	int audio_fmt_num;
