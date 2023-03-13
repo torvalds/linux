@@ -355,7 +355,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_exit);
  * @fn is allowed to do anything including calling back into class
  * code.  There's no locking restriction.
  */
-int class_for_each_device(struct class *class, struct device *start,
+int class_for_each_device(const struct class *class, const struct device *start,
 			  void *data, int (*fn)(struct device *, void *))
 {
 	struct class_dev_iter iter;

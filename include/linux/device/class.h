@@ -109,7 +109,7 @@ extern void class_dev_iter_init(struct class_dev_iter *iter,
 extern struct device *class_dev_iter_next(struct class_dev_iter *iter);
 extern void class_dev_iter_exit(struct class_dev_iter *iter);
 
-extern int class_for_each_device(struct class *class, struct device *start,
+extern int class_for_each_device(const struct class *class, const struct device *start,
 				 void *data,
 				 int (*fn)(struct device *dev, void *data));
 extern struct device *class_find_device(struct class *class,
