@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 TOOL=$(dirname $(realpath $0))/ynl-gen-c.py
 

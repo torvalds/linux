@@ -558,14 +558,15 @@ u64 add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end
 static int sample_block_group_extent_item(struct btrfs_caching_control *caching_ctl,
 					  struct btrfs_block_group *block_group,
 					  int index, int max_index,
-					  struct btrfs_key *key)
+					  struct btrfs_key *found_key)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_root *extent_root;
-	int ret = 0;
 	u64 search_offset;
 	u64 search_end = block_group->start + block_group->length;
 	struct btrfs_path *path;
+	struct btrfs_key search_key;
+	int ret = 0;
 
 	ASSERT(index >= 0);
 	ASSERT(index <= max_index);
@@ -585,37 +586,24 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
 	path->reada = READA_FORWARD;
 
 	search_offset = index * div_u64(block_group->length, max_index);
-	key->objectid = block_group->start + search_offset;
-	key->type = BTRFS_EXTENT_ITEM_KEY;
-	key->offset = 0;
+	search_key.objectid = block_group->start + search_offset;
+	search_key.type = BTRFS_EXTENT_ITEM_KEY;
+	search_key.offset = 0;
 
-	while (1) {
-		ret = btrfs_search_forward(extent_root, key, path, 0);
-		if (ret != 0)
-			goto out;
+	btrfs_for_each_slot(extent_root, &search_key, found_key, path, ret) {
 		/* Success; sampled an extent item in the block group */
-		if (key->type == BTRFS_EXTENT_ITEM_KEY &&
-		    key->objectid >= block_group->start &&
-		    key->objectid + key->offset <= search_end)
-			goto out;
+		if (found_key->type == BTRFS_EXTENT_ITEM_KEY &&
+		    found_key->objectid >= block_group->start &&
+		    found_key->objectid + found_key->offset <= search_end)
+			break;
 
 		/* We can't possibly find a valid extent item anymore */
-		if (key->objectid >= search_end) {
+		if (found_key->objectid >= search_end) {
 			ret = 1;
 			break;
 		}
-		if (key->type < BTRFS_EXTENT_ITEM_KEY)
-			key->type = BTRFS_EXTENT_ITEM_KEY;
-		else
-			key->objectid++;
-		btrfs_release_path(path);
-		up_read(&fs_info->commit_root_sem);
-		mutex_unlock(&caching_ctl->mutex);
-		cond_resched();
-		mutex_lock(&caching_ctl->mutex);
-		down_read(&fs_info->commit_root_sem);
 	}
-out:
+
 	lockdep_assert_held(&caching_ctl->mutex);
 	lockdep_assert_held_read(&fs_info->commit_root_sem);
 	btrfs_free_path(path);
@@ -659,6 +647,7 @@ out:
 static int load_block_group_size_class(struct btrfs_caching_control *caching_ctl,
 				       struct btrfs_block_group *block_group)
 {
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_key key;
 	int i;
 	u64 min_size = block_group->length;
@@ -668,6 +657,8 @@ static int load_block_group_size_class(struct btrfs_caching_control *caching_ctl
 	if (!btrfs_block_group_should_use_size_class(block_group))
 		return 0;
 
+	lockdep_assert_held(&caching_ctl->mutex);
+	lockdep_assert_held_read(&fs_info->commit_root_sem);
 	for (i = 0; i < 5; ++i) {
 		ret = sample_block_group_extent_item(caching_ctl, block_group, i, 5, &key);
 		if (ret < 0)
@@ -682,7 +673,6 @@ static int load_block_group_size_class(struct btrfs_caching_control *caching_ctl
 		block_group->size_class = size_class;
 		spin_unlock(&block_group->lock);
 	}
-
 out:
 	return ret;
 }
@@ -1836,7 +1826,8 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 
 		btrfs_info(fs_info,
 			"reclaiming chunk %llu with %llu%% used %llu%% unusable",
-				bg->start, div_u64(bg->used * 100, bg->length),
+				bg->start,
+				div64_u64(bg->used * 100, bg->length),
 				div64_u64(zone_unusable * 100, bg->length));
 		trace_btrfs_reclaim_block_group(bg);
 		ret = btrfs_relocate_chunk(fs_info, bg->start);
@@ -2493,18 +2484,29 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_item bgi;
 	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	struct btrfs_key key;
+	u64 old_commit_used;
+	int ret;
 
 	spin_lock(&block_group->lock);
 	btrfs_set_stack_block_group_used(&bgi, block_group->used);
 	btrfs_set_stack_block_group_chunk_objectid(&bgi,
 						   block_group->global_root_id);
 	btrfs_set_stack_block_group_flags(&bgi, block_group->flags);
+	old_commit_used = block_group->commit_used;
+	block_group->commit_used = block_group->used;
 	key.objectid = block_group->start;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	key.offset = block_group->length;
 	spin_unlock(&block_group->lock);
 
-	return btrfs_insert_item(trans, root, &key, &bgi, sizeof(bgi));
+	ret = btrfs_insert_item(trans, root, &key, &bgi, sizeof(bgi));
+	if (ret < 0) {
+		spin_lock(&block_group->lock);
+		block_group->commit_used = old_commit_used;
+		spin_unlock(&block_group->lock);
+	}
+
+	return ret;
 }
 
 static int insert_dev_extent(struct btrfs_trans_handle *trans,
