@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/platform_device.h>
@@ -30,6 +30,7 @@
 #define LLCC_AUDHW       22
 #define LLCC_NPU         23
 #define LLCC_WLNHW       24
+#define LLCC_PIMEM       25
 #define LLCC_ECC         26
 #define LLCC_CVP         28
 #define LLCC_MDMVPE      29
