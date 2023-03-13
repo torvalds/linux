@@ -11,19 +11,25 @@
 
 #include <linux/types.h>
 
-/*
- * Header for all non IPC ABI data.
+/**
+ * struct sof_abi_hdr - Header for all non IPC ABI data.
+ * @magic: Magic number for validation: 0x00464F53 ('S', 'O', 'F', '\0')
+ * @type: Component specific type
+ * @size: The size in bytes of the data, excluding this struct
+ * @abi: SOF ABI version
+ * @reserved: Reserved for future use
+ * @data: Component data - opaque to core
  *
  * Identifies data type, size and ABI.
  * Used by any bespoke component data structures or binary blobs.
  */
 struct sof_abi_hdr {
-	__u32 magic;		/**< 'S', 'O', 'F', '\0' */
-	__u32 type;		/**< component specific type */
-	__u32 size;		/**< size in bytes of data excl. this struct */
-	__u32 abi;		/**< SOF ABI version */
-	__u32 reserved[4];	/**< reserved for future use */
-	__u32 data[];		/**< Component data - opaque to core */
+	__u32 magic;
+	__u32 type;
+	__u32 size;
+	__u32 abi;
+	__u32 reserved[4];
+	__u32 data[];
 }  __packed;
 
 #define SOF_MANIFEST_DATA_TYPE_NHLT 1
