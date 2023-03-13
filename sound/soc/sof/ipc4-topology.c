@@ -877,11 +877,14 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 	}
 
 	/*
-	 * Search supported audio formats to match rate, channels ,and
+	 * Search supported audio formats with pin index 0 to match rate, channels ,and
 	 * sample_valid_bytes from runtime params
 	 */
 	for (i = 0; i < pin_fmts_size; i++) {
 		struct sof_ipc4_audio_format *fmt = &pin_fmts[i].audio_fmt;
+
+		if (pin_fmts[i].pin_index)
+			continue;
 
 		rate = fmt->sampling_frequency;
 		channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
