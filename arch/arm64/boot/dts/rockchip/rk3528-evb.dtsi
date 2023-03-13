@@ -48,6 +48,21 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	es7243_sound: es7243-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,es7243";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&es7243e>;
+		};
+	};
+
 	hdmi_sound: hdmi-sound {
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
@@ -278,6 +293,30 @@
 
 &hdmiphy {
 	status = "okay";
+};
+
+&i2c6 {
+	status = "disabled";
+	es7243e: es7243e@10 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7243E_MicArray_0";
+		reg = <0x10>;
+	};
+
+	es7243e_11: es7243e@11 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7243E_MicArray_1";
+		reg = <0x11>;
+	};
+
+	es7243e_12: es7243e@12 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7243E_MicArray_2";
+		reg = <0x12>;
+	};
 };
 
 &iep {

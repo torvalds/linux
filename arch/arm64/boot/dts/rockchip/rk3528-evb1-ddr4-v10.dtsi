@@ -45,6 +45,14 @@
 
 };
 
+&es7243_sound {
+	status = "okay";
+};
+
+&i2c6 {
+	status = "okay";
+};
+
 &gmac1 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";
@@ -74,6 +82,10 @@
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
 	};
+};
+
+&sai1 {
+	status = "okay";
 };
 
 &sdio0 {
