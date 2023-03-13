@@ -89,7 +89,7 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 			      unsigned long action, void *data);
 static int iommu_alloc_default_domain(struct iommu_group *group,
 				      struct device *dev);
-static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
+static struct iommu_domain *__iommu_domain_alloc(const struct bus_type *bus,
 						 unsigned type);
 static int __iommu_attach_device(struct iommu_domain *domain,
 				 struct device *dev);
@@ -1631,7 +1631,7 @@ static int iommu_get_def_domain_type(struct device *dev)
 	return 0;
 }
 
-static int iommu_group_alloc_default_domain(struct bus_type *bus,
+static int iommu_group_alloc_default_domain(const struct bus_type *bus,
 					    struct iommu_group *group,
 					    unsigned int type)
 {
@@ -1777,7 +1777,7 @@ static int probe_get_default_domain_type(struct device *dev, void *data)
 	return 0;
 }
 
-static void probe_alloc_default_domain(struct bus_type *bus,
+static void probe_alloc_default_domain(const struct bus_type *bus,
 				       struct iommu_group *group)
 {
 	struct __group_domain_type gtype;
@@ -1832,7 +1832,7 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group)
 					  iommu_do_create_direct_mappings);
 }
 
-int bus_iommu_probe(struct bus_type *bus)
+int bus_iommu_probe(const struct bus_type *bus)
 {
 	struct iommu_group *group, *next;
 	LIST_HEAD(group_list);
@@ -1876,7 +1876,7 @@ int bus_iommu_probe(struct bus_type *bus)
 	return ret;
 }
 
-bool iommu_present(struct bus_type *bus)
+bool iommu_present(const struct bus_type *bus)
 {
 	return bus->iommu_ops != NULL;
 }
@@ -1951,7 +1951,7 @@ void iommu_set_fault_handler(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_set_fault_handler);
 
-static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
+static struct iommu_domain *__iommu_domain_alloc(const struct bus_type *bus,
 						 unsigned type)
 {
 	struct iommu_domain *domain;
@@ -1976,7 +1976,7 @@ static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
 	return domain;
 }
 
-struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
+struct iommu_domain *iommu_domain_alloc(const struct bus_type *bus)
 {
 	return __iommu_domain_alloc(bus, IOMMU_DOMAIN_UNMANAGED);
 }
