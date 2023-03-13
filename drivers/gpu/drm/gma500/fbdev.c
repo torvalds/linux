@@ -22,32 +22,24 @@
 static vm_fault_t psb_fbdev_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct drm_framebuffer *fb = vma->vm_private_data;
-	struct drm_device *dev = fb->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct psb_gem_object *pobj = to_psb_gem_object(fb->obj[0]);
-	int page_num;
-	int i;
-	unsigned long address;
-	vm_fault_t ret = VM_FAULT_SIGBUS;
-	unsigned long pfn;
-	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base + pobj->offset;
-
-	page_num = vma_pages(vma);
-	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
+	struct fb_info *info = vma->vm_private_data;
+	unsigned long address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
+	unsigned long pfn = info->fix.smem_start >> PAGE_SHIFT;
+	vm_fault_t err = VM_FAULT_SIGBUS;
+	unsigned long page_num = vma_pages(vma);
+	unsigned long i;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	for (i = 0; i < page_num; i++) {
-		pfn = (phys_addr >> PAGE_SHIFT);
-
-		ret = vmf_insert_mixed(vma, address, __pfn_to_pfn_t(pfn, PFN_DEV));
-		if (unlikely(ret & VM_FAULT_ERROR))
+	for (i = 0; i < page_num; ++i) {
+		err = vmf_insert_mixed(vma, address, __pfn_to_pfn_t(pfn, PFN_DEV));
+		if (unlikely(err & VM_FAULT_ERROR))
 			break;
 		address += PAGE_SIZE;
-		phys_addr += PAGE_SIZE;
+		++pfn;
 	}
-	return ret;
+
+	return err;
 }
 
 static const struct vm_operations_struct psb_fbdev_vm_ops = {
@@ -102,9 +94,6 @@ static int psb_fbdev_fb_setcolreg(unsigned int regno,
 
 static int psb_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_framebuffer *fb = fb_helper->fb;
-
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
@@ -116,7 +105,7 @@ static int psb_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	 * suitable for our mmap work
 	 */
 	vma->vm_ops = &psb_fbdev_vm_ops;
-	vma->vm_private_data = (void *)fb;
+	vma->vm_private_data = info;
 	vm_flags_set(vma, VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP);
 
 	return 0;
@@ -235,7 +224,7 @@ static int psb_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
-	info->fix.smem_start = dev_priv->fb_base;
+	info->fix.smem_start = dev_priv->stolen_base + backing->offset;
 	info->fix.smem_len = size;
 	info->fix.ywrapstep = 0;
 	info->fix.ypanstep = 0;

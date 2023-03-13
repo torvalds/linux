@@ -186,7 +186,6 @@ void psb_modeset_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int i;
 
 	if (drmm_mode_config_init(dev))
@@ -196,10 +195,6 @@ void psb_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_height = 0;
 
 	dev->mode_config.funcs = &psb_mode_funcs;
-
-	/* set memory base */
-	/* Oaktrail and Poulsbo should use BAR 2*/
-	pci_read_config_dword(pdev, PSB_BSM, (u32 *)&(dev_priv->fb_base));
 
 	/* num pipes is 2 for PSB but 1 for Mrst */
 	for (i = 0; i < dev_priv->num_pipe; i++)
