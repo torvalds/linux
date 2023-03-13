@@ -89,7 +89,8 @@ static struct erofs_dirent *find_target_dirent(struct erofs_qstr *name,
 static void *erofs_find_target_block(struct erofs_buf *target,
 		struct inode *dir, struct erofs_qstr *name, int *_ndirents)
 {
-	int head = 0, back = DIV_ROUND_UP(dir->i_size, EROFS_BLKSIZ) - 1;
+	unsigned int bsz = i_blocksize(dir);
+	int head = 0, back = erofs_iblks(dir) - 1;
 	unsigned int startprfx = 0, endprfx = 0;
 	void *candidate = ERR_PTR(-ENOENT);
 
@@ -100,8 +101,7 @@ static void *erofs_find_target_block(struct erofs_buf *target,
 
 		de = erofs_bread(&buf, dir, mid, EROFS_KMAP);
 		if (!IS_ERR(de)) {
-			const int nameoff = nameoff_from_disk(de->nameoff,
-							      EROFS_BLKSIZ);
+			const int nameoff = nameoff_from_disk(de->nameoff, bsz);
 			const int ndirents = nameoff / sizeof(*de);
 			int diff;
 			unsigned int matched;
@@ -121,11 +121,10 @@ static void *erofs_find_target_block(struct erofs_buf *target,
 
 			dname.name = (u8 *)de + nameoff;
 			if (ndirents == 1)
-				dname.end = (u8 *)de + EROFS_BLKSIZ;
+				dname.end = (u8 *)de + bsz;
 			else
 				dname.end = (u8 *)de +
-					nameoff_from_disk(de[1].nameoff,
-							  EROFS_BLKSIZ);
+					nameoff_from_disk(de[1].nameoff, bsz);
 
 			/* string comparison without already matched prefix */
 			diff = erofs_dirnamecmp(name, &dname, &matched);
@@ -178,7 +177,8 @@ int erofs_namei(struct inode *dir, const struct qstr *name, erofs_nid_t *nid,
 		return PTR_ERR(de);
 
 	if (ndirents)
-		de = find_target_dirent(&qn, (u8 *)de, EROFS_BLKSIZ, ndirents);
+		de = find_target_dirent(&qn, (u8 *)de, i_blocksize(dir),
+					ndirents);
 
 	if (!IS_ERR(de)) {
 		*nid = le64_to_cpu(de->nid);
