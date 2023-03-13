@@ -2315,6 +2315,8 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 
 	prop->hints_range_reservation = true;
 
+	prop->rotator_enabled_mask = BIT(NUM_OF_ROT) - 1;
+
 	if (hdev->pldm)
 		prop->mmu_pgt_size = 0x800000; /* 8MB */
 	else

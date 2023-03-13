@@ -886,6 +886,8 @@ enum hl_server_type {
  * @device_mem_alloc_default_page_size: default page size used in device memory allocation.
  * @revision_id: PCI revision ID of the ASIC.
  * @tpc_interrupt_id: interrupt id for TPC to use in order to raise events towards the host.
+ * @rotator_enabled_mask: Bit-mask that represents which rotators are enabled.
+ *                        Relevant for Gaudi3 and later.
  * @engine_core_interrupt_reg_addr: interrupt register address for engine core to use
  *                                  in order to raise events toward FW.
  * @reserved_dram_size: DRAM size reserved for driver and firmware.
@@ -926,7 +928,7 @@ struct hl_info_hw_ip_info {
 	__u8 reserved7;
 	__u8 revision_id;
 	__u16 tpc_interrupt_id;
-	__u32 reserved8;
+	__u32 rotator_enabled_mask;
 	__u32 reserved9;
 	__u64 engine_core_interrupt_reg_addr;
 	__u64 reserved_dram_size;

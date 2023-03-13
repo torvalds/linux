@@ -609,8 +609,8 @@ struct hl_hints_range {
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @decoder_enabled_mask: which decoders are enabled.
- * @decoder_binning_mask: which decoders are binned, 0 means usable and 1
- *                        means binned (at most one binned decoder per dcore).
+ * @decoder_binning_mask: which decoders are binned, 0 means usable and 1 means binned.
+ * @rotator_enabled_mask: which rotators are enabled.
  * @edma_enabled_mask: which EDMAs are enabled.
  * @edma_binning_mask: which EDMAs are binned, 0 means usable and 1 means
  *                     binned (at most one binned DMA).
@@ -760,6 +760,7 @@ struct asic_fixed_properties {
 	u32				cb_pool_cb_size;
 	u32				decoder_enabled_mask;
 	u32				decoder_binning_mask;
+	u32				rotator_enabled_mask;
 	u32				edma_enabled_mask;
 	u32				edma_binning_mask;
 	u32				max_pending_cs;
