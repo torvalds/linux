@@ -733,6 +733,15 @@ config XILINX_ZYNQMP_DPDMA
 	  driver provides the dmaengine required by the DisplayPort subsystem
 	  display driver.
 
+config ASPEED_AST2600_UDMA
+	bool "Aspeed AST2600 UDMA support"
+	depends on ARCH_ASPEED
+	help
+	  Enable support for Aspeed AST2600 UART DMA. Select this option if you
+	  have a AST2600 SoC integrated system. The driver provides the UART DMA
+	  support with the dmaengine subsystem, which can be leveraged by generic
+	  8250 serial drivers.
+
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
 
