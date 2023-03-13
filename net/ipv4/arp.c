@@ -375,7 +375,7 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 
 	probes -= NEIGH_VAR(neigh->parms, UCAST_PROBES);
 	if (probes < 0) {
-		if (!(neigh->nud_state & NUD_VALID))
+		if (!(READ_ONCE(neigh->nud_state) & NUD_VALID))
 			pr_debug("trying to ucast probe in NUD_INVALID\n");
 		neigh_ha_snapshot(dst_ha, neigh, dev);
 		dst_hw = dst_ha;
@@ -1123,7 +1123,7 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 
 	neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	if (neigh) {
-		if (!(neigh->nud_state & NUD_NOARP)) {
+		if (!(READ_ONCE(neigh->nud_state) & NUD_NOARP)) {
 			read_lock_bh(&neigh->lock);
 			memcpy(r->arp_ha.sa_data, neigh->ha, dev->addr_len);
 			r->arp_flags = arp_state_to_flags(neigh);
@@ -1144,12 +1144,12 @@ int arp_invalidate(struct net_device *dev, __be32 ip, bool force)
 	struct neigh_table *tbl = &arp_tbl;
 
 	if (neigh) {
-		if ((neigh->nud_state & NUD_VALID) && !force) {
+		if ((READ_ONCE(neigh->nud_state) & NUD_VALID) && !force) {
 			neigh_release(neigh);
 			return 0;
 		}
 
-		if (neigh->nud_state & ~NUD_NOARP)
+		if (READ_ONCE(neigh->nud_state) & ~NUD_NOARP)
 			err = neigh_update(neigh, NULL, NUD_FAILED,
 					   NEIGH_UPDATE_F_OVERRIDE|
 					   NEIGH_UPDATE_F_ADMIN, 0);
