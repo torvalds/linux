@@ -5,23 +5,10 @@
  *
  **************************************************************************/
 
-#include <linux/console.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/pfn_t.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/tty.h>
 
-#include <drm/drm.h>
-#include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
@@ -29,8 +16,6 @@
 #include "framebuffer.h"
 #include "gem.h"
 #include "psb_drv.h"
-#include "psb_intel_drv.h"
-#include "psb_intel_reg.h"
 
 static const struct drm_framebuffer_funcs psb_fb_funcs = {
 	.destroy = drm_gem_fb_destroy,
