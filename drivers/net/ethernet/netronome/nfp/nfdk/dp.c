@@ -387,7 +387,8 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 	if (!skb_is_gso(skb)) {
 		real_len = skb->len;
 		/* Metadata desc */
-		metadata = nfp_nfdk_tx_csum(dp, r_vec, 1, skb, metadata);
+		if (!ipsec)
+			metadata = nfp_nfdk_tx_csum(dp, r_vec, 1, skb, metadata);
 		txd->raw = cpu_to_le64(metadata);
 		txd++;
 	} else {
@@ -395,7 +396,8 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 		(txd + 1)->raw = nfp_nfdk_tx_tso(r_vec, txbuf, skb);
 		real_len = txbuf->real_len;
 		/* Metadata desc */
-		metadata = nfp_nfdk_tx_csum(dp, r_vec, txbuf->pkt_cnt, skb, metadata);
+		if (!ipsec)
+			metadata = nfp_nfdk_tx_csum(dp, r_vec, txbuf->pkt_cnt, skb, metadata);
 		txd->raw = cpu_to_le64(metadata);
 		txd += 2;
 		txbuf++;
