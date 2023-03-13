@@ -46,6 +46,7 @@ struct usb3503 {
 	struct device		*dev;
 	struct clk		*clk;
 	u8	port_off_mask;
+	struct gpio_desc	*bypass;
 	struct gpio_desc	*intn;
 	struct gpio_desc 	*reset;
 	struct gpio_desc 	*connect;
@@ -109,17 +110,24 @@ static int usb3503_connect(struct usb3503 *hub)
 static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 {
 	struct device *dev = hub->dev;
-	int rst, conn;
+	int rst, bypass, conn;
 
 	switch (mode) {
 	case USB3503_MODE_HUB:
 		conn = 1;
 		rst = 0;
+		bypass = 0;
 		break;
 	case USB3503_MODE_STANDBY:
 		conn = 0;
 		rst = 1;
+		bypass = 1;
 		dev_info(dev, "switched to STANDBY mode\n");
+		break;
+	case USB3503_MODE_BYPASS:
+		conn = 0;
+		rst = 0;
+		bypass = 1;
 		break;
 	default:
 		dev_err(dev, "unknown mode is requested\n");
@@ -131,6 +139,9 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 
 	if (hub->reset)
 		gpiod_set_value_cansleep(hub->reset, rst);
+
+	if (hub->bypass)
+		gpiod_set_value_cansleep(hub->bypass, bypass);
 
 	if (conn) {
 		/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
@@ -246,6 +257,14 @@ static int usb3503_probe(struct usb3503 *hub)
 	}
 	if (hub->connect)
 		gpiod_set_consumer_name(hub->connect, "usb3503 connect");
+
+	hub->bypass = devm_gpiod_get_optional(dev, "bypass", GPIOD_OUT_HIGH);
+	if (IS_ERR(hub->bypass)) {
+		err = PTR_ERR(hub->bypass);
+		goto err_clk;
+	}
+	if (hub->bypass)
+		gpiod_set_consumer_name(hub->bypass, "usb3503 bypass");
 
 	hub->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(hub->reset)) {
@@ -382,6 +401,7 @@ MODULE_DEVICE_TABLE(i2c, usb3503_id);
 static const struct of_device_id usb3503_of_match[] = {
 	{ .compatible = "smsc,usb3503", },
 	{ .compatible = "smsc,usb3503a", },
+	{ .compatible = "smsc,usb3803", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, usb3503_of_match);
