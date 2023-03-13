@@ -5,7 +5,7 @@ NS1=lwt_ns1
 VETH0=tst_lwt1a
 VETH1=tst_lwt1b
 BPF_PROG=lwt_len_hist.bpf.o
-TRACE_ROOT=/sys/kernel/debug/tracing
+TRACE_ROOT=/sys/kernel/tracing
 
 function cleanup {
 	# To reset saved histogram, remove pinned map
