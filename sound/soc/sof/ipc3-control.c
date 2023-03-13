@@ -343,55 +343,6 @@ static int sof_ipc3_bytes_put(struct snd_sof_control *scontrol,
 	return 0;
 }
 
-static int sof_ipc3_bytes_ext_get(struct snd_sof_control *scontrol,
-				  const unsigned int __user *binary_data, unsigned int size)
-{
-	struct snd_ctl_tlv __user *tlvd = (struct snd_ctl_tlv __user *)binary_data;
-	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
-	struct snd_soc_component *scomp = scontrol->scomp;
-	struct snd_ctl_tlv header;
-	size_t data_size;
-
-	sof_ipc3_refresh_control(scontrol);
-
-	/*
-	 * Decrement the limit by ext bytes header size to
-	 * ensure the user space buffer is not exceeded.
-	 */
-	if (size < sizeof(struct snd_ctl_tlv))
-		return -ENOSPC;
-
-	size -= sizeof(struct snd_ctl_tlv);
-
-	/* set the ABI header values */
-	cdata->data->magic = SOF_ABI_MAGIC;
-	cdata->data->abi = SOF_ABI_VERSION;
-
-	/* check data size doesn't exceed max coming from topology */
-	if (cdata->data->size > scontrol->max_size - sizeof(struct sof_abi_hdr)) {
-		dev_err_ratelimited(scomp->dev, "User data size %d exceeds max size %zu\n",
-				    cdata->data->size,
-				    scontrol->max_size - sizeof(struct sof_abi_hdr));
-		return -EINVAL;
-	}
-
-	data_size = cdata->data->size + sizeof(struct sof_abi_hdr);
-
-	/* make sure we don't exceed size provided by user space for data */
-	if (data_size > size)
-		return -ENOSPC;
-
-	header.numid = cdata->cmd;
-	header.length = data_size;
-	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
-		return -EFAULT;
-
-	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
-		return -EFAULT;
-
-	return 0;
-}
-
 static int sof_ipc3_bytes_ext_put(struct snd_sof_control *scontrol,
 				  const unsigned int __user *binary_data,
 				  unsigned int size)
@@ -457,16 +408,15 @@ static int sof_ipc3_bytes_ext_put(struct snd_sof_control *scontrol,
 	return 0;
 }
 
-static int sof_ipc3_bytes_ext_volatile_get(struct snd_sof_control *scontrol,
-					   const unsigned int __user *binary_data,
-					   unsigned int size)
+static int _sof_ipc3_bytes_ext_get(struct snd_sof_control *scontrol,
+				   const unsigned int __user *binary_data,
+				   unsigned int size, bool from_dsp)
 {
 	struct snd_ctl_tlv __user *tlvd = (struct snd_ctl_tlv __user *)binary_data;
 	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct snd_soc_component *scomp = scontrol->scomp;
 	struct snd_ctl_tlv header;
 	size_t data_size;
-	int ret;
 
 	/*
 	 * Decrement the limit by ext bytes header size to
@@ -482,9 +432,12 @@ static int sof_ipc3_bytes_ext_volatile_get(struct snd_sof_control *scontrol,
 	cdata->data->abi = SOF_ABI_VERSION;
 
 	/* get all the component data from DSP */
-	ret = sof_ipc3_set_get_kcontrol_data(scontrol, false, true);
-	if (ret < 0)
-		return ret;
+	if (from_dsp) {
+		int ret = sof_ipc3_set_get_kcontrol_data(scontrol, false, true);
+
+		if (ret < 0)
+			return ret;
+	}
 
 	/* check data size doesn't exceed max coming from topology */
 	if (cdata->data->size > scontrol->max_size - sizeof(struct sof_abi_hdr)) {
@@ -508,7 +461,20 @@ static int sof_ipc3_bytes_ext_volatile_get(struct snd_sof_control *scontrol,
 	if (copy_to_user(tlvd->tlv, cdata->data, data_size))
 		return -EFAULT;
 
-	return ret;
+	return 0;
+}
+
+static int sof_ipc3_bytes_ext_get(struct snd_sof_control *scontrol,
+				  const unsigned int __user *binary_data, unsigned int size)
+{
+	return _sof_ipc3_bytes_ext_get(scontrol, binary_data, size, false);
+}
+
+static int sof_ipc3_bytes_ext_volatile_get(struct snd_sof_control *scontrol,
+					   const unsigned int __user *binary_data,
+					   unsigned int size)
+{
+	return _sof_ipc3_bytes_ext_get(scontrol, binary_data, size, true);
 }
 
 static void snd_sof_update_control(struct snd_sof_control *scontrol,
