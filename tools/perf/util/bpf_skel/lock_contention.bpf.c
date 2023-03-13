@@ -10,6 +10,9 @@
 /* default buffer size */
 #define MAX_ENTRIES  10240
 
+/* for collect_lock_syms().  4096 was rejected by the verifier */
+#define MAX_CPUS  1024
+
 /* lock contention flags from include/trace/events/lock.h */
 #define LCB_F_SPIN	(1U << 0)
 #define LCB_F_READ	(1U << 1)
@@ -55,6 +58,13 @@ struct {
 	__uint(value_size, sizeof(struct contention_task_data));
 	__uint(max_entries, MAX_ENTRIES);
 } task_data SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u64));
+	__uint(value_size, sizeof(__u32));
+	__uint(max_entries, 16384);
+} lock_syms SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -381,6 +391,27 @@ int contention_end(u64 *ctx)
 		data->min_time = duration;
 
 	bpf_map_delete_elem(&tstamp, &pid);
+	return 0;
+}
+
+extern struct rq runqueues __ksym;
+
+SEC("raw_tp/bpf_test_finish")
+int BPF_PROG(collect_lock_syms)
+{
+	__u64 lock_addr;
+	__u32 lock_flag;
+
+	for (int i = 0; i < MAX_CPUS; i++) {
+		struct rq *rq = bpf_per_cpu_ptr(&runqueues, i);
+
+		if (rq == NULL)
+			break;
+
+		lock_addr = (__u64)&rq->__lock;
+		lock_flag = LOCK_CLASS_RQLOCK;
+		bpf_map_update_elem(&lock_syms, &lock_addr, &lock_flag, BPF_ANY);
+	}
 	return 0;
 }
 

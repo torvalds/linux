@@ -36,4 +36,9 @@ enum lock_aggr_mode {
 	LOCK_AGGR_CALLER,
 };
 
+enum lock_class_sym {
+	LOCK_CLASS_NONE,
+	LOCK_CLASS_RQLOCK,
+};
+
 #endif /* UTIL_BPF_SKEL_LOCK_DATA_H */
