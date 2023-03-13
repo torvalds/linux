@@ -690,16 +690,16 @@ static enum rt6_nud_state rt6_check_neigh(const struct fib6_nh *fib6_nh)
 	neigh = __ipv6_neigh_lookup_noref(fib6_nh->fib_nh_dev,
 					  &fib6_nh->fib_nh_gw6);
 	if (neigh) {
-		read_lock(&neigh->lock);
-		if (neigh->nud_state & NUD_VALID)
+		u8 nud_state = READ_ONCE(neigh->nud_state);
+
+		if (nud_state & NUD_VALID)
 			ret = RT6_NUD_SUCCEED;
 #ifdef CONFIG_IPV6_ROUTER_PREF
-		else if (!(neigh->nud_state & NUD_FAILED))
+		else if (!(nud_state & NUD_FAILED))
 			ret = RT6_NUD_SUCCEED;
 		else
 			ret = RT6_NUD_FAIL_PROBE;
 #endif
-		read_unlock(&neigh->lock);
 	} else {
 		ret = IS_ENABLED(CONFIG_IPV6_ROUTER_PREF) ?
 		      RT6_NUD_SUCCEED : RT6_NUD_FAIL_DO_RR;
