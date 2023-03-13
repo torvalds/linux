@@ -129,7 +129,7 @@ static int rsmu_write_page_register(struct rsmu_ddata *rsmu, u16 reg)
 
 static int rsmu_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	struct rsmu_ddata *rsmu = spi_get_drvdata((struct spi_device *)context);
+	struct rsmu_ddata *rsmu = spi_get_drvdata(context);
 	u8 addr = (u8)(reg & RSMU_LOWER_ADDR_MASK);
 	int err;
 
@@ -146,7 +146,7 @@ static int rsmu_reg_read(void *context, unsigned int reg, unsigned int *val)
 
 static int rsmu_reg_write(void *context, unsigned int reg, unsigned int val)
 {
-	struct rsmu_ddata *rsmu = spi_get_drvdata((struct spi_device *)context);
+	struct rsmu_ddata *rsmu = spi_get_drvdata(context);
 	u8 addr = (u8)(reg & RSMU_LOWER_ADDR_MASK);
 	u8 data = (u8)val;
 	int err;
