@@ -5,7 +5,6 @@
  *
  **************************************************************************/
 
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
@@ -120,7 +119,6 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 
 static const struct drm_mode_config_funcs psb_mode_funcs = {
 	.fb_create = psb_user_framebuffer_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 static void psb_setup_outputs(struct drm_device *dev)
@@ -223,6 +221,5 @@ void psb_modeset_cleanup(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	if (dev_priv->modeset) {
 		drm_kms_helper_poll_fini(dev);
-		psb_fbdev_fini(dev);
 	}
 }

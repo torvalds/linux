@@ -193,8 +193,6 @@
 #define KSEL_BYPASS_25 6
 #define KSEL_BYPASS_83_100 7
 
-struct drm_fb_helper;
-
 struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
@@ -522,7 +520,6 @@ struct drm_psb_private {
 	uint32_t blc_adj1;
 	uint32_t blc_adj2;
 
-	struct drm_fb_helper *fb_helper;
 	resource_size_t fb_base;
 
 	bool dsr_enable;
@@ -618,14 +615,9 @@ struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
 
 /* fbdev */
 #if defined(CONFIG_DRM_FBDEV_EMULATION)
-extern int psb_fbdev_init(struct drm_device *dev);
-extern void psb_fbdev_fini(struct drm_device *dev);
+void psb_fbdev_setup(struct drm_psb_private *dev_priv);
 #else
-static inline int psb_fbdev_init(struct drm_device *dev)
-{
-	return 0;
-}
-static inline void psb_fbdev_fini(struct drm_device *dev)
+static inline void psb_fbdev_setup(struct drm_psb_private *dev_priv)
 { }
 #endif
 
