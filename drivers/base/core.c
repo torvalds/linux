@@ -4253,7 +4253,7 @@ static void device_create_release(struct device *dev)
 }
 
 static __printf(6, 0) struct device *
-device_create_groups_vargs(struct class *class, struct device *parent,
+device_create_groups_vargs(const struct class *class, struct device *parent,
 			   dev_t devt, void *drvdata,
 			   const struct attribute_group **groups,
 			   const char *fmt, va_list args)
@@ -4317,7 +4317,7 @@ error:
  * Note: the struct class passed to this function must have previously
  * been created with a call to class_create().
  */
-struct device *device_create(struct class *class, struct device *parent,
+struct device *device_create(const struct class *class, struct device *parent,
 			     dev_t devt, void *drvdata, const char *fmt, ...)
 {
 	va_list vargs;
@@ -4358,7 +4358,7 @@ EXPORT_SYMBOL_GPL(device_create);
  * Note: the struct class passed to this function must have previously
  * been created with a call to class_create().
  */
-struct device *device_create_with_groups(struct class *class,
+struct device *device_create_with_groups(const struct class *class,
 					 struct device *parent, dev_t devt,
 					 void *drvdata,
 					 const struct attribute_group **groups,
