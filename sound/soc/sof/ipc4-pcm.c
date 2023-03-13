@@ -389,7 +389,7 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	snd_mask_none(fmt);
 	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
 
-	rate->min = ipc4_copier->available_fmt.input_audio_fmts->sampling_frequency;
+	rate->min = ipc4_copier->available_fmt.input_pin_fmts->audio_fmt.sampling_frequency;
 	rate->max = rate->min;
 
 	switch (ipc4_copier->dai_type) {
