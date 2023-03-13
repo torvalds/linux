@@ -64,6 +64,8 @@ sanity_populate_cb(struct xe_migrate_pt_update *pt_update,
 		   u32 qword_ofs, u32 num_qwords,
 		   const struct xe_vm_pgtable_update *update)
 {
+	struct migrate_test_params *p =
+		to_migrate_test_params(xe_cur_kunit_priv(XE_TEST_LIVE_MIGRATE));
 	int i;
 	u64 *ptr = dst;
 	u64 value;
@@ -76,6 +78,10 @@ sanity_populate_cb(struct xe_migrate_pt_update *pt_update,
 		else
 			ptr[i] = value;
 	}
+
+	kunit_info(xe_cur_kunit(), "Used %s.\n", map ? "CPU" : "GPU");
+	if (p->force_gpu && map)
+		KUNIT_FAIL(xe_cur_kunit(), "GPU pagetable update used CPU.\n");
 }
 
 static const struct xe_migrate_pt_update_ops sanity_ops = {
@@ -177,11 +183,12 @@ out_unlock:
 }
 
 static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
-			   struct kunit *test)
+			   struct kunit *test, bool force_gpu)
 {
 	struct xe_device *xe = gt_to_xe(m->gt);
 	struct dma_fence *fence;
 	u64 retval, expected;
+	ktime_t then, now;
 	int i;
 
 	struct xe_vm_pgtable_update update = {
@@ -192,15 +199,25 @@ static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 	struct xe_migrate_pt_update pt_update = {
 		.ops = &sanity_ops,
 	};
+	struct migrate_test_params p = {
+		.base.id = XE_TEST_LIVE_MIGRATE,
+		.force_gpu = force_gpu,
+	};
 
+	test->priv = &p;
 	/* Test xe_migrate_update_pgtables() updates the pagetable as expected */
 	expected = 0xf0f0f0f0f0f0f0f0ULL;
 	xe_map_memset(xe, &pt->vmap, 0, (u8)expected, pt->size);
 
+	then = ktime_get();
 	fence = xe_migrate_update_pgtables(m, NULL, NULL, m->eng, &update, 1,
 					   NULL, 0, &pt_update);
+	now = ktime_get();
 	if (sanity_fence_failed(xe, fence, "Migration pagetable update", test))
 		return;
+
+	kunit_info(test, "Updating without syncing took %llu us,\n",
+		   (unsigned long long)ktime_to_us(ktime_sub(now, then)));
 
 	dma_fence_put(fence);
 	retval = xe_map_rd(xe, &pt->vmap, 0, u64);
@@ -344,7 +361,10 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		test_copy(m, big, test);
 	}
 
-	test_pt_update(m, pt, test);
+	kunit_info(test, "Testing page table update using CPU if GPU idle.\n");
+	test_pt_update(m, pt, test, false);
+	kunit_info(test, "Testing page table update using GPU\n");
+	test_pt_update(m, pt, test, true);
 
 out:
 	xe_bb_free(bb, NULL);

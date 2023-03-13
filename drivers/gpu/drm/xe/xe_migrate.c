@@ -13,6 +13,7 @@
 #include <drm/xe_drm.h>
 
 #include "regs/xe_gpu_commands.h"
+#include "tests/xe_test.h"
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_engine.h"
@@ -967,6 +968,16 @@ struct xe_vm *xe_migrate_get_vm(struct xe_migrate *m)
 	return xe_vm_get(m->eng->vm);
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+struct migrate_test_params {
+	struct xe_test_priv base;
+	bool force_gpu;
+};
+
+#define to_migrate_test_params(_priv) \
+	container_of(_priv, struct migrate_test_params, base)
+#endif
+
 static struct dma_fence *
 xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 			       struct xe_vm *vm, struct xe_bo *bo,
@@ -974,10 +985,16 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 			       u32 num_updates, bool wait_vm,
 			       struct xe_migrate_pt_update *pt_update)
 {
+	XE_TEST_DECLARE(struct migrate_test_params *test =
+			to_migrate_test_params
+			(xe_cur_kunit_priv(XE_TEST_LIVE_MIGRATE));)
 	const struct xe_migrate_pt_update_ops *ops = pt_update->ops;
 	struct dma_fence *fence;
 	int err;
 	u32 i;
+
+	if (XE_TEST_ONLY(test && test->force_gpu))
+		return ERR_PTR(-ETIME);
 
 	if (bo && !dma_resv_test_signaled(bo->ttm.base.resv,
 					  DMA_RESV_USAGE_KERNEL))

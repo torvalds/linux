@@ -18,6 +18,7 @@
  */
 enum xe_test_priv_id {
 	XE_TEST_LIVE_DMA_BUF,
+	XE_TEST_LIVE_MIGRATE,
 };
 
 /**
