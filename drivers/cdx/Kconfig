@@ -15,3 +15,5 @@ config CDX_BUS
 	  of CDX devices. CDX devices are memory mapped on system bus
 	  for embedded CPUs. CDX bus uses CDX controller and firmware
 	  to scan these CDX devices.
+
+source "drivers/cdx/controller/Kconfig"
