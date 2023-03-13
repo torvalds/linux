@@ -59,10 +59,10 @@ static const struct vm_operations_struct psb_fbdev_vm_ops = {
 
 #define CMAP_TOHW(_val, _width) ((((_val) << (_width)) + 0x7FFF - (_val)) >> 16)
 
-static int psbfb_setcolreg(unsigned int regno,
-			   unsigned int red, unsigned int green,
-			   unsigned int blue, unsigned int transp,
-			   struct fb_info *info)
+static int psb_fbdev_fb_setcolreg(unsigned int regno,
+				  unsigned int red, unsigned int green,
+				  unsigned int blue, unsigned int transp,
+				  struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
@@ -99,7 +99,7 @@ static int psbfb_setcolreg(unsigned int regno,
 	return 0;
 }
 
-static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
+static int psb_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
@@ -121,16 +121,16 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static const struct fb_ops psbfb_unaccel_ops = {
+static const struct fb_ops psb_fbdev_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_setcolreg = psbfb_setcolreg,
+	.fb_setcolreg = psb_fbdev_fb_setcolreg,
 	.fb_read = drm_fb_helper_cfb_read,
 	.fb_write = drm_fb_helper_cfb_write,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-	.fb_mmap = psbfb_mmap,
+	.fb_mmap = psb_fbdev_fb_mmap,
 };
 
 /*
@@ -190,7 +190,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 
 	fb_helper->fb = fb;
 
-	info->fbops = &psbfb_unaccel_ops;
+	info->fbops = &psb_fbdev_fb_ops;
 
 	info->fix.smem_start = dev_priv->fb_base;
 	info->fix.smem_len = size;
