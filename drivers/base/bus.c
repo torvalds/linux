@@ -841,7 +841,7 @@ static struct bus_attribute bus_attr_uevent = __ATTR(uevent, 0200, NULL,
  * infrastructure, then register the children subsystems it has:
  * the devices and drivers that belong to the subsystem.
  */
-int bus_register(struct bus_type *bus)
+int bus_register(const struct bus_type *bus)
 {
 	int retval;
 	struct subsys_private *priv;

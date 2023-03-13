@@ -110,7 +110,7 @@ struct bus_type {
 	bool need_parent_lock;
 };
 
-extern int __must_check bus_register(struct bus_type *bus);
+extern int __must_check bus_register(const struct bus_type *bus);
 
 extern void bus_unregister(const struct bus_type *bus);
 
