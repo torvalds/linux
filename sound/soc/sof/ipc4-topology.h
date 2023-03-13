@@ -55,6 +55,9 @@
 
 #define SOF_IPC4_INVALID_NODE_ID	0xffffffff
 
+/* FW requires minimum 2ms DMA buffer size */
+#define SOF_IPC4_MIN_DMA_BUFFER_SIZE	2
+
 /*
  * The base of multi-gateways. Multi-gateways addressing starts from
  * ALH_MULTI_GTW_BASE and there are ALH_MULTI_GTW_COUNT multi-sources
@@ -148,7 +151,6 @@ struct ipc4_pipeline_set_state_data {
  * @out_audio_fmt: Available output audio format
  * @input_audio_fmts: Available input audio formats
  * @ref_audio_fmt: Reference audio format to match runtime audio format
- * @dma_buffer_size: Available Gateway DMA buffer size (in bytes)
  * @audio_fmt_num: Number of available audio formats
  */
 struct sof_ipc4_available_audio_format {
@@ -156,7 +158,6 @@ struct sof_ipc4_available_audio_format {
 	struct sof_ipc4_audio_format *out_audio_fmt;
 	struct sof_ipc4_audio_format *input_audio_fmts;
 	struct sof_ipc4_audio_format *ref_audio_fmt;
-	u32 *dma_buffer_size;
 	int audio_fmt_num;
 };
 

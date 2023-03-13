@@ -1232,7 +1232,6 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 			continue;
 		case SOF_IN_AUDIO_FORMAT_TOKENS:
 		case SOF_OUT_AUDIO_FORMAT_TOKENS:
-		case SOF_COPIER_GATEWAY_CFG_TOKENS:
 		case SOF_AUDIO_FORMAT_BUFFER_SIZE_TOKENS:
 			num_sets = sof_get_token_value(SOF_TKN_COMP_NUM_AUDIO_FORMATS,
 						       swidget->tuples, swidget->num_tuples);
