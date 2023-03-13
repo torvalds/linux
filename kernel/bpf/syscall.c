@@ -650,6 +650,8 @@ void bpf_obj_free_timer(const struct btf_record *rec, void *obj)
 	bpf_timer_cancel_and_free(obj + rec->timer_off);
 }
 
+extern void __bpf_obj_drop_impl(void *p, const struct btf_record *rec);
+
 void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 {
 	const struct btf_field *fields;
@@ -679,9 +681,11 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 				pointee_struct_meta = btf_find_struct_meta(field->kptr.btf,
 									   field->kptr.btf_id);
 				WARN_ON_ONCE(!pointee_struct_meta);
-				field->kptr.obj_drop(xchgd_field, pointee_struct_meta ?
-								  pointee_struct_meta->record :
-								  NULL);
+				migrate_disable();
+				__bpf_obj_drop_impl(xchgd_field, pointee_struct_meta ?
+								 pointee_struct_meta->record :
+								 NULL);
+				migrate_enable();
 			} else {
 				field->kptr.dtor(xchgd_field);
 			}

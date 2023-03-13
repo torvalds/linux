@@ -3551,8 +3551,6 @@ static int btf_find_field(const struct btf *btf, const struct btf_type *t,
 	return -EINVAL;
 }
 
-extern void __bpf_obj_drop_impl(void *p, const struct btf_record *rec);
-
 static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 			  struct btf_field_info *info)
 {
@@ -3578,7 +3576,7 @@ static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 		/* Type exists only in program BTF. Assume that it's a MEM_ALLOC
 		 * kptr allocated via bpf_obj_new
 		 */
-		field->kptr.dtor = (void *)&__bpf_obj_drop_impl;
+		field->kptr.dtor = NULL;
 		id = info->kptr.type_id;
 		kptr_btf = (struct btf *)btf;
 		btf_get(kptr_btf);
