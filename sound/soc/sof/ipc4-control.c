@@ -186,15 +186,25 @@ static int sof_ipc4_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_s
 	struct snd_sof_control *scontrol;
 	int ret;
 
-	list_for_each_entry(scontrol, &sdev->kcontrol_list, list)
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
 		if (scontrol->comp_id == swidget->comp_id) {
-			ret = sof_ipc4_set_volume_data(sdev, swidget, scontrol, false);
-			if (ret < 0) {
-				dev_err(sdev->dev, "%s: kcontrol %d set up failed for widget %s\n",
-					__func__, scontrol->comp_id, swidget->widget->name);
-				return ret;
+			switch (scontrol->info_type) {
+			case SND_SOC_TPLG_CTL_VOLSW:
+			case SND_SOC_TPLG_CTL_VOLSW_SX:
+			case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
+				ret = sof_ipc4_set_volume_data(sdev, swidget,
+							       scontrol, false);
+				if (ret < 0) {
+					dev_err(sdev->dev, "kcontrol %d set up failed for widget %s\n",
+						scontrol->comp_id, swidget->widget->name);
+					return ret;
+				}
+				break;
+			default:
+				break;
 			}
 		}
+	}
 
 	return 0;
 }
