@@ -642,16 +642,16 @@ static const struct rpmpd_desc msm8996_desc = {
 
 /* msm8998 RPM Power domains */
 static struct rpmpd *msm8998_rpmpds[] = {
-	[MSM8998_VDDCX] =		&cx_rwcx0_lvl,
-	[MSM8998_VDDCX_AO] =		&cx_rwcx0_lvl_ao,
-	[MSM8998_VDDCX_VFL] =		&cx_rwcx0_vfl,
-	[MSM8998_VDDMX] =		&mx_rwmx0_lvl,
-	[MSM8998_VDDMX_AO] =		&mx_rwmx0_lvl_ao,
-	[MSM8998_VDDMX_VFL] =		&mx_rwmx0_vfl,
-	[MSM8998_SSCCX] =		&ssc_cx_rwsc0_lvl,
-	[MSM8998_SSCCX_VFL] =		&ssc_cx_rwsc0_vfl,
-	[MSM8998_SSCMX] =		&ssc_mx_rwsm0_lvl,
-	[MSM8998_SSCMX_VFL] =		&ssc_mx_rwsm0_vfl,
+	[MSM8998_VDDCX] =	&cx_rwcx0_lvl,
+	[MSM8998_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[MSM8998_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[MSM8998_VDDMX] =	&mx_rwmx0_lvl,
+	[MSM8998_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[MSM8998_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[MSM8998_SSCCX] =	&ssc_cx_rwsc0_lvl,
+	[MSM8998_SSCCX_VFL] =	&ssc_cx_rwsc0_vfl,
+	[MSM8998_SSCMX] =	&ssc_mx_rwsm0_lvl,
+	[MSM8998_SSCMX_VFL] =	&ssc_mx_rwsm0_vfl,
 };
 
 static const struct rpmpd_desc msm8998_desc = {
@@ -662,13 +662,13 @@ static const struct rpmpd_desc msm8998_desc = {
 
 /* qcs404 RPM Power domains */
 static struct rpmpd *qcs404_rpmpds[] = {
-	[QCS404_VDDMX] = &mx_rwmx0_lvl,
-	[QCS404_VDDMX_AO] = &mx_rwmx0_lvl_ao,
-	[QCS404_VDDMX_VFL] = &mx_rwmx0_vfl,
-	[QCS404_LPICX] = &lpi_cx_rwlc0_lvl,
-	[QCS404_LPICX_VFL] = &lpi_cx_rwlc0_vfl,
-	[QCS404_LPIMX] = &lpi_mx_rwlm0_lvl,
-	[QCS404_LPIMX_VFL] = &lpi_mx_rwlm0_vfl,
+	[QCS404_VDDMX] =	&mx_rwmx0_lvl,
+	[QCS404_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[QCS404_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[QCS404_LPICX] =	&lpi_cx_rwlc0_lvl,
+	[QCS404_LPICX_VFL] =	&lpi_cx_rwlc0_vfl,
+	[QCS404_LPIMX] =	&lpi_mx_rwlm0_lvl,
+	[QCS404_LPIMX_VFL] =	&lpi_mx_rwlm0_vfl,
 };
 
 static const struct rpmpd_desc qcs404_desc = {
@@ -679,16 +679,16 @@ static const struct rpmpd_desc qcs404_desc = {
 
 /* sdm660 RPM Power domains */
 static struct rpmpd *sdm660_rpmpds[] = {
-	[SDM660_VDDCX] =		&cx_rwcx0_lvl,
-	[SDM660_VDDCX_AO] =		&cx_rwcx0_lvl_ao,
-	[SDM660_VDDCX_VFL] =		&cx_rwcx0_vfl,
-	[SDM660_VDDMX] =		&mx_rwmx0_lvl,
-	[SDM660_VDDMX_AO] =		&mx_rwmx0_lvl_ao,
-	[SDM660_VDDMX_VFL] =		&mx_rwmx0_vfl,
-	[SDM660_SSCCX] =		&ssc_cx_rwlc0_lvl,
-	[SDM660_SSCCX_VFL] =		&ssc_cx_rwlc0_vfl,
-	[SDM660_SSCMX] =		&ssc_mx_rwlm0_lvl,
-	[SDM660_SSCMX_VFL] =		&ssc_mx_rwlm0_vfl,
+	[SDM660_VDDCX] =	&cx_rwcx0_lvl,
+	[SDM660_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SDM660_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SDM660_VDDMX] =	&mx_rwmx0_lvl,
+	[SDM660_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SDM660_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[SDM660_SSCCX] =	&ssc_cx_rwlc0_lvl,
+	[SDM660_SSCCX_VFL] =	&ssc_cx_rwlc0_vfl,
+	[SDM660_SSCMX] =	&ssc_mx_rwlm0_lvl,
+	[SDM660_SSCMX_VFL] =	&ssc_mx_rwlm0_vfl,
 };
 
 static const struct rpmpd_desc sdm660_desc = {
@@ -699,14 +699,14 @@ static const struct rpmpd_desc sdm660_desc = {
 
 /* sm4250/6115 RPM Power domains */
 static struct rpmpd *sm6115_rpmpds[] = {
-	[SM6115_VDDCX] =		&cx_rwcx0_lvl,
-	[SM6115_VDDCX_AO] =		&cx_rwcx0_lvl_ao,
-	[SM6115_VDDCX_VFL] =		&cx_rwcx0_vfl,
-	[SM6115_VDDMX] =		&mx_rwmx0_lvl,
-	[SM6115_VDDMX_AO] =		&mx_rwmx0_lvl_ao,
-	[SM6115_VDDMX_VFL] =		&mx_rwmx0_vfl,
-	[SM6115_VDD_LPI_CX] =		&lpi_cx_rwlc0_lvl,
-	[SM6115_VDD_LPI_MX] =		&lpi_mx_rwlm0_lvl,
+	[SM6115_VDDCX] =	&cx_rwcx0_lvl,
+	[SM6115_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SM6115_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SM6115_VDDMX] =	&mx_rwmx0_lvl,
+	[SM6115_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SM6115_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[SM6115_VDD_LPI_CX] =	&lpi_cx_rwlc0_lvl,
+	[SM6115_VDD_LPI_MX] =	&lpi_mx_rwlm0_lvl,
 };
 
 static const struct rpmpd_desc sm6115_desc = {
@@ -717,12 +717,12 @@ static const struct rpmpd_desc sm6115_desc = {
 
 /* sm6125 RPM Power domains */
 static struct rpmpd *sm6125_rpmpds[] = {
-	[SM6125_VDDCX] =		&cx_rwcx0_lvl,
-	[SM6125_VDDCX_AO] =		&cx_rwcx0_lvl_ao,
-	[SM6125_VDDCX_VFL] =		&cx_rwcx0_vfl,
-	[SM6125_VDDMX] =		&mx_rwmx0_lvl,
-	[SM6125_VDDMX_AO] =		&mx_rwmx0_lvl_ao,
-	[SM6125_VDDMX_VFL] =		&mx_rwmx0_vfl,
+	[SM6125_VDDCX] =	&cx_rwcx0_lvl,
+	[SM6125_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SM6125_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SM6125_VDDMX] =	&mx_rwmx0_lvl,
+	[SM6125_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SM6125_VDDMX_VFL] =	&mx_rwmx0_vfl,
 };
 
 static const struct rpmpd_desc sm6125_desc = {
@@ -732,16 +732,16 @@ static const struct rpmpd_desc sm6125_desc = {
 };
 
 static struct rpmpd *sm6375_rpmpds[] = {
-	[SM6375_VDDCX] = &cx_rwcx0_lvl,
-	[SM6375_VDDCX_AO] = &cx_rwcx0_lvl_ao,
-	[SM6375_VDDCX_VFL] = &cx_rwcx0_vfl,
-	[SM6375_VDDMX] = &mx_rwmx0_lvl,
-	[SM6375_VDDMX_AO] = &mx_rwmx0_lvl_ao,
-	[SM6375_VDDMX_VFL] = &mx_rwmx0_vfl,
-	[SM6375_VDDGX] = &gx_rwgx0_lvl,
-	[SM6375_VDDGX_AO] = &gx_rwgx0_lvl_ao,
-	[SM6375_VDD_LPI_CX] = &lpi_cx_rwlc0_lvl,
-	[SM6375_VDD_LPI_MX] = &lpi_mx_rwlm0_lvl,
+	[SM6375_VDDCX] =	&cx_rwcx0_lvl,
+	[SM6375_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[SM6375_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[SM6375_VDDMX] =	&mx_rwmx0_lvl,
+	[SM6375_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[SM6375_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[SM6375_VDDGX] =	&gx_rwgx0_lvl,
+	[SM6375_VDDGX_AO] =	&gx_rwgx0_lvl_ao,
+	[SM6375_VDD_LPI_CX] =	&lpi_cx_rwlc0_lvl,
+	[SM6375_VDD_LPI_MX] =	&lpi_mx_rwlm0_lvl,
 };
 
 static const struct rpmpd_desc sm6375_desc = {
@@ -751,14 +751,14 @@ static const struct rpmpd_desc sm6375_desc = {
 };
 
 static struct rpmpd *qcm2290_rpmpds[] = {
-	[QCM2290_VDDCX] = &cx_rwcx0_lvl,
-	[QCM2290_VDDCX_AO] = &cx_rwcx0_lvl_ao,
-	[QCM2290_VDDCX_VFL] = &cx_rwcx0_vfl,
-	[QCM2290_VDDMX] = &mx_rwmx0_lvl,
-	[QCM2290_VDDMX_AO] = &mx_rwmx0_lvl_ao,
-	[QCM2290_VDDMX_VFL] = &mx_rwmx0_vfl,
-	[QCM2290_VDD_LPI_CX] = &lpi_cx_rwlc0_lvl,
-	[QCM2290_VDD_LPI_MX] = &lpi_mx_rwlm0_lvl,
+	[QCM2290_VDDCX] =	&cx_rwcx0_lvl,
+	[QCM2290_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+	[QCM2290_VDDCX_VFL] =	&cx_rwcx0_vfl,
+	[QCM2290_VDDMX] =	&mx_rwmx0_lvl,
+	[QCM2290_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
+	[QCM2290_VDDMX_VFL] =	&mx_rwmx0_vfl,
+	[QCM2290_VDD_LPI_CX] =	&lpi_cx_rwlc0_lvl,
+	[QCM2290_VDD_LPI_MX] =	&lpi_mx_rwlm0_lvl,
 };
 
 static const struct rpmpd_desc qcm2290_desc = {
