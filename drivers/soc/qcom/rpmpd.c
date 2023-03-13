@@ -216,18 +216,22 @@ static struct rpmpd gfx_s2b_vfc = {
 	.key = KEY_FLOOR_CORNER,
 };
 
+static struct rpmpd mx_rwmx0_lvl;
 static struct rpmpd gx_rwgx0_lvl_ao;
 static struct rpmpd gx_rwgx0_lvl = {
 	.pd = { .name = "gx", },
 	.peer = &gx_rwgx0_lvl_ao,
 	.res_type = RPMPD_RWGX,
+	.parent = &mx_rwmx0_lvl.pd,
 	.res_id = 0,
 	.key = KEY_LEVEL,
 };
 
+static struct rpmpd mx_rwmx0_lvl_ao;
 static struct rpmpd gx_rwgx0_lvl_ao = {
 	.pd = { .name = "gx_ao", },
 	.peer = &gx_rwgx0_lvl,
+	.parent = &mx_rwmx0_lvl_ao.pd,
 	.active_only = true,
 	.res_type = RPMPD_RWGX,
 	.res_id = 0,
