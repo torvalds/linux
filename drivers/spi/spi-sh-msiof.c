@@ -587,11 +587,11 @@ static int sh_msiof_prepare_message(struct spi_controller *ctlr,
 	u32 ss, cs_high;
 
 	/* Configure pins before asserting CS */
-	if (spi_get_csgpiod((struct spi_device *)spi, 0)) {
+	if (spi_get_csgpiod(spi, 0)) {
 		ss = ctlr->unused_native_cs;
 		cs_high = p->native_cs_high;
 	} else {
-		ss = spi_get_chipselect((struct spi_device *)spi, 0);
+		ss = spi_get_chipselect(spi, 0);
 		cs_high = !!(spi->mode & SPI_CS_HIGH);
 	}
 	sh_msiof_spi_set_pin_regs(p, ss, !!(spi->mode & SPI_CPOL),
