@@ -337,8 +337,9 @@ static struct kobj_type ktype_edac_pci_main_kobj = {
  */
 static int edac_pci_main_kobj_setup(void)
 {
-	int err;
+	int err = -ENODEV;
 	struct bus_type *edac_subsys;
+	struct device *dev_root;
 
 	edac_dbg(0, "\n");
 
@@ -357,7 +358,6 @@ static int edac_pci_main_kobj_setup(void)
 	 */
 	if (!try_module_get(THIS_MODULE)) {
 		edac_dbg(1, "try_module_get() failed\n");
-		err = -ENODEV;
 		goto decrement_count_fail;
 	}
 
@@ -369,9 +369,13 @@ static int edac_pci_main_kobj_setup(void)
 	}
 
 	/* Instanstiate the pci object */
-	err = kobject_init_and_add(edac_pci_top_main_kobj,
-				   &ktype_edac_pci_main_kobj,
-				   &edac_subsys->dev_root->kobj, "pci");
+	dev_root = bus_get_dev_root(edac_subsys);
+	if (dev_root) {
+		err = kobject_init_and_add(edac_pci_top_main_kobj,
+					   &ktype_edac_pci_main_kobj,
+					   &dev_root->kobj, "pci");
+		put_device(dev_root);
+	}
 	if (err) {
 		edac_dbg(1, "Failed to register '.../edac/pci'\n");
 		goto kobject_init_and_add_fail;
