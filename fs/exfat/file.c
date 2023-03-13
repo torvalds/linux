@@ -11,6 +11,7 @@
 #include <linux/fsnotify.h>
 #include <linux/security.h>
 #include <linux/msdos_fs.h>
+#include <linux/writeback.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -26,6 +27,7 @@ static int exfat_cont_expand(struct inode *inode, loff_t size)
 		return err;
 
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+	EXFAT_I(inode)->valid_size = size;
 	mark_inode_dirty(inode);
 
 	if (!IS_SYNC(inode))
@@ -145,6 +147,9 @@ int __exfat_truncate(struct inode *inode)
 		ei->flags = ALLOC_NO_FAT_CHAIN;
 		ei->start_clu = EXFAT_EOF_CLUSTER;
 	}
+
+	if (i_size_read(inode) < ei->valid_size)
+		ei->valid_size = i_size_read(inode);
 
 	if (ei->type == TYPE_FILE)
 		ei->attr |= EXFAT_ATTR_ARCHIVE;
@@ -474,15 +479,124 @@ int exfat_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	return blkdev_issue_flush(inode->i_sb->s_bdev);
 }
 
+static int exfat_file_zeroed_range(struct file *file, loff_t start, loff_t end)
+{
+	int err;
+	struct inode *inode = file_inode(file);
+	struct address_space *mapping = inode->i_mapping;
+	const struct address_space_operations *ops = mapping->a_ops;
+
+	while (start < end) {
+		u32 zerofrom, len;
+		struct page *page = NULL;
+
+		zerofrom = start & (PAGE_SIZE - 1);
+		len = PAGE_SIZE - zerofrom;
+		if (start + len > end)
+			len = end - start;
+
+		err = ops->write_begin(file, mapping, start, len, &page, NULL);
+		if (err)
+			goto out;
+
+		zero_user_segment(page, zerofrom, zerofrom + len);
+
+		err = ops->write_end(file, mapping, start, len, len, page, NULL);
+		if (err < 0)
+			goto out;
+		start += len;
+
+		balance_dirty_pages_ratelimited(mapping);
+		cond_resched();
+	}
+
+out:
+	return err;
+}
+
+static ssize_t exfat_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+	ssize_t ret;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
+	struct exfat_inode_info *ei = EXFAT_I(inode);
+	loff_t pos = iocb->ki_pos;
+	loff_t valid_size;
+
+	inode_lock(inode);
+
+	valid_size = ei->valid_size;
+
+	ret = generic_write_checks(iocb, iter);
+	if (ret < 0)
+		goto unlock;
+
+	if (pos > valid_size) {
+		ret = exfat_file_zeroed_range(file, valid_size, pos);
+		if (ret < 0 && ret != -ENOSPC) {
+			exfat_err(inode->i_sb,
+				"write: fail to zero from %llu to %llu(%zd)",
+				valid_size, pos, ret);
+		}
+		if (ret < 0)
+			goto unlock;
+	}
+
+	ret = __generic_file_write_iter(iocb, iter);
+	if (ret < 0)
+		goto unlock;
+
+	inode_unlock(inode);
+
+	if (pos > valid_size)
+		pos = valid_size;
+
+	if (iocb_is_dsync(iocb) && iocb->ki_pos > pos) {
+		ssize_t err = vfs_fsync_range(file, pos, iocb->ki_pos - 1,
+				iocb->ki_flags & IOCB_SYNC);
+		if (err < 0)
+			return err;
+	}
+
+	return ret;
+
+unlock:
+	inode_unlock(inode);
+
+	return ret;
+}
+
+static int exfat_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int ret;
+	struct inode *inode = file_inode(file);
+	struct exfat_inode_info *ei = EXFAT_I(inode);
+	loff_t start = ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+	loff_t end = min_t(loff_t, i_size_read(inode),
+			start + vma->vm_end - vma->vm_start);
+
+	if ((vma->vm_flags & VM_WRITE) && ei->valid_size < end) {
+		ret = exfat_file_zeroed_range(file, ei->valid_size, end);
+		if (ret < 0) {
+			exfat_err(inode->i_sb,
+				  "mmap: fail to zero from %llu to %llu(%d)",
+				  start, end, ret);
+			return ret;
+		}
+	}
+
+	return generic_file_mmap(file, vma);
+}
+
 const struct file_operations exfat_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
-	.write_iter	= generic_file_write_iter,
+	.write_iter	= exfat_file_write_iter,
 	.unlocked_ioctl = exfat_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = exfat_compat_ioctl,
 #endif
-	.mmap		= generic_file_mmap,
+	.mmap		= exfat_file_mmap,
 	.fsync		= exfat_file_fsync,
 	.splice_read	= filemap_splice_read,
 	.splice_write	= iter_file_splice_write,
