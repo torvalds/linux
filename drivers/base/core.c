@@ -4383,7 +4383,7 @@ EXPORT_SYMBOL_GPL(device_create_with_groups);
  * This call unregisters and cleans up a device that was created with a
  * call to device_create().
  */
-void device_destroy(struct class *class, dev_t devt)
+void device_destroy(const struct class *class, dev_t devt)
 {
 	struct device *dev;
 
