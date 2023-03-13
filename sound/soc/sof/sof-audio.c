@@ -280,9 +280,11 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 					  struct snd_soc_dapm_widget_list *list, int dir)
 {
+	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	struct snd_soc_dapm_widget *widget;
+	struct snd_sof_route *sroute;
 	struct snd_soc_dapm_path *p;
-	int ret;
+	int ret = 0;
 	int i;
 
 	/*
@@ -323,6 +325,63 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 				}
 			}
 		}
+	}
+
+	/*
+	 * The above loop handles connections between widgets that belong to the DAPM widget list.
+	 * This is not sufficient to handle loopback cases between pipelines configured with
+	 * different directions, e.g. a sidetone or an amplifier feedback connected to a speaker
+	 * protection module.
+	 */
+	list_for_each_entry(sroute, &sdev->route_list, list) {
+		bool src_widget_in_dapm_list, sink_widget_in_dapm_list;
+		struct snd_sof_widget *swidget;
+
+		if (sroute->setup)
+			continue;
+
+		src_widget_in_dapm_list = widget_in_list(list, sroute->src_widget->widget);
+		sink_widget_in_dapm_list = widget_in_list(list, sroute->sink_widget->widget);
+
+		/*
+		 * if both source and sink are in the DAPM list, the route must already have been
+		 * set up above. And if neither are in the DAPM list, the route shouldn't be
+		 * handled now.
+		 */
+		if (src_widget_in_dapm_list == sink_widget_in_dapm_list)
+			continue;
+
+		/*
+		 * At this point either the source widget or the sink widget is in the DAPM list
+		 * with a route that might need to be set up. Check the use_count of the widget
+		 * that is not in the DAPM list to confirm if it is in use currently before setting
+		 * up the route.
+		 */
+		if (src_widget_in_dapm_list)
+			swidget = sroute->sink_widget;
+		else
+			swidget = sroute->src_widget;
+
+		mutex_lock(&swidget->setup_mutex);
+		if (!swidget->use_count) {
+			mutex_unlock(&swidget->setup_mutex);
+			continue;
+		}
+
+		if (tplg_ops && tplg_ops->route_setup) {
+			/*
+			 * this route will get freed when either the source widget or the sink
+			 * widget is freed during hw_free
+			 */
+			ret = tplg_ops->route_setup(sdev, sroute);
+			if (!ret)
+				sroute->setup = true;
+		}
+
+		mutex_unlock(&swidget->setup_mutex);
+
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
