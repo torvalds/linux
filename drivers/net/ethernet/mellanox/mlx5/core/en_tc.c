@@ -4096,7 +4096,7 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 			goto out_free;
 		}
 
-		if (!tc_act->can_offload(parse_state, act, i, attr)) {
+		if (tc_act->can_offload && !tc_act->can_offload(parse_state, act, i, attr)) {
 			err = -EOPNOTSUPP;
 			goto out_free;
 		}
