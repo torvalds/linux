@@ -84,7 +84,7 @@ done:
 	return sp;
 }
 
-static struct bus_type *bus_get(struct bus_type *bus)
+static const struct bus_type *bus_get(const struct bus_type *bus)
 {
 	struct subsys_private *sp = bus_to_subsys(bus);
 
@@ -233,7 +233,7 @@ static const struct kset_uevent_ops bus_uevent_ops = {
 static ssize_t unbind_store(struct device_driver *drv, const char *buf,
 			    size_t count)
 {
-	struct bus_type *bus = bus_get(drv->bus);
+	const struct bus_type *bus = bus_get(drv->bus);
 	struct device *dev;
 	int err = -ENODEV;
 
@@ -256,7 +256,7 @@ static DRIVER_ATTR_IGNORE_LOCKDEP(unbind, 0200, NULL, unbind_store);
 static ssize_t bind_store(struct device_driver *drv, const char *buf,
 			  size_t count)
 {
-	struct bus_type *bus = bus_get(drv->bus);
+	const struct bus_type *bus = bus_get(drv->bus);
 	struct device *dev;
 	int err = -ENODEV;
 
