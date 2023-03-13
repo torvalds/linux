@@ -2820,7 +2820,7 @@ EXPORT_SYMBOL_GPL(devm_device_add_groups);
 
 static int device_add_attrs(struct device *dev)
 {
-	struct class *class = dev->class;
+	const struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 	int error;
 
@@ -2887,7 +2887,7 @@ static int device_add_attrs(struct device *dev)
 
 static void device_remove_attrs(struct device *dev)
 {
-	struct class *class = dev->class;
+	const struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 
 	if (dev->physical_location) {
@@ -3120,7 +3120,7 @@ struct kobject *virtual_device_parent(struct device *dev)
 
 struct class_dir {
 	struct kobject kobj;
-	struct class *class;
+	const struct class *class;
 };
 
 #define to_class_dir(obj) container_of(obj, struct class_dir, kobj)
@@ -3145,7 +3145,7 @@ static const struct kobj_type class_dir_ktype = {
 };
 
 static struct kobject *
-class_dir_create_and_add(struct class *class, struct kobject *parent_kobj)
+class_dir_create_and_add(const struct class *class, struct kobject *parent_kobj)
 {
 	struct class_dir *dir;
 	int retval;
@@ -4580,7 +4580,7 @@ static int device_attrs_change_owner(struct device *dev, kuid_t kuid,
 				     kgid_t kgid)
 {
 	struct kobject *kobj = &dev->kobj;
-	struct class *class = dev->class;
+	const struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 	int error;
 
