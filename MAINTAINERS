@@ -9871,10 +9871,10 @@ M:	Christian Brauner <brauner@kernel.org>
 M:	Seth Forshee <sforshee@kernel.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
-T:	git://git.kernel.org/pub/scm/linux/kernel/git/vfs/idmapping.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vfs/idmapping.git
 F:	Documentation/filesystems/idmappings.rst
-F:	tools/testing/selftests/mount_setattr/
 F:	include/linux/mnt_idmapping.*
+F:	tools/testing/selftests/mount_setattr/
 
 IDT VersaClock 5 CLOCK DRIVER
 M:	Luca Ceresoli <luca@lucaceresoli.net>
@@ -16391,6 +16391,7 @@ R:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 R:	Jiri Olsa <jolsa@kernel.org>
 R:	Namhyung Kim <namhyung@kernel.org>
 R:	Ian Rogers <irogers@google.com>
+R:	Adrian Hunter <adrian.hunter@intel.com>
 L:	linux-perf-users@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
 S:	Supported
@@ -19862,13 +19863,6 @@ M:	Jon Nettleton <jon.nettleton@gmail.com>
 S:	Maintained
 W:	http://wiki.laptop.org/go/DCON
 F:	drivers/staging/olpc_dcon/
-
-STAGING - REALTEK RTL8188EU DRIVERS
-M:	Larry Finger <Larry.Finger@lwfinger.net>
-M:	Phillip Potter <phil@philpotter.co.uk>
-R:	Pavel Skripkin <paskripkin@gmail.com>
-S:	Supported
-F:	drivers/staging/r8188eu/
 
 STAGING - REALTEK RTL8712U DRIVERS
 M:	Larry Finger <Larry.Finger@lwfinger.net>
