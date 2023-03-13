@@ -1197,7 +1197,10 @@ static int omap_dm_timer_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	return ret;
+	if (ret)
+		dev_err(&pdev->dev, "Unable to determine timer entry in list of drivers on remove\n");
+
+	return 0;
 }
 
 static const struct omap_dm_timer_ops dmtimer_ops = {
