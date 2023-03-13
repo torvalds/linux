@@ -13,10 +13,15 @@
 
 /**
  * struct sof_abi_hdr - Header for all non IPC ABI data.
- * @magic: Magic number for validation: 0x00464F53 ('S', 'O', 'F', '\0')
- * @type: Component specific type
+ * @magic: Magic number for validation
+ *	   for IPC3 data: 0x00464F53 ('S', 'O', 'F', '\0')
+ *	   for IPC4 data: 0x34464F53 ('S', 'O', 'F', '4')
+ * @type: module specific parameter
+ *	  for IPC3: Component specific type
+ *	  for IPC4: parameter ID (param_id) of the data
  * @size: The size in bytes of the data, excluding this struct
- * @abi: SOF ABI version
+ * @abi: SOF ABI version. The version is valid in scope of the 'magic', IPC3 and
+ *	 IPC4 ABI version numbers have no relationship.
  * @reserved: Reserved for future use
  * @data: Component data - opaque to core
  *
