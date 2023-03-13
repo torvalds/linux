@@ -137,31 +137,49 @@ static const struct fb_ops psb_fbdev_fb_ops = {
  * struct drm_fb_helper_funcs
  */
 
-static int psbfb_create(struct drm_fb_helper *fb_helper,
-			struct drm_fb_helper_surface_size *sizes)
+static int psb_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
+			      struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd = { };
 	int size;
 	int ret;
 	struct psb_gem_object *backing;
 	struct drm_gem_object *obj;
 	u32 bpp, depth;
 
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
+	/* No 24-bit packed mode */
+	if (sizes->surface_bpp == 24) {
+		sizes->surface_bpp = 32;
+		sizes->surface_depth = 24;
+	}
 	bpp = sizes->surface_bpp;
 	depth = sizes->surface_depth;
 
-	/* No 24bit packed */
-	if (bpp == 24)
-		bpp = 32;
+	/*
+	 * If the mode does not fit in 32 bit then switch to 16 bit to get
+	 * a console on full resolution. The X mode setting server will
+	 * allocate its own 32-bit GEM framebuffer.
+	 */
+	size = ALIGN(sizes->surface_width * DIV_ROUND_UP(bpp, 8), 64) *
+		     sizes->surface_height;
+	size = ALIGN(size, PAGE_SIZE);
 
+	if (size > dev_priv->vram_stolen_size) {
+		sizes->surface_bpp = 16;
+		sizes->surface_depth = 16;
+	}
+	bpp = sizes->surface_bpp;
+	depth = sizes->surface_depth;
+
+	mode_cmd.width = sizes->surface_width;
+	mode_cmd.height = sizes->surface_height;
 	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * DIV_ROUND_UP(bpp, 8), 64);
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
@@ -179,8 +197,6 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 		ret = PTR_ERR(info);
 		goto err_drm_gem_object_put;
 	}
-
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
 	fb = psb_framebuffer_create(dev, &mode_cmd, obj);
 	if (IS_ERR(fb)) {
@@ -217,37 +233,8 @@ err_drm_gem_object_put:
 	return ret;
 }
 
-static int psbfb_probe(struct drm_fb_helper *fb_helper,
-				struct drm_fb_helper_surface_size *sizes)
-{
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	unsigned int fb_size;
-	int bytespp;
-
-	bytespp = sizes->surface_bpp / 8;
-	if (bytespp == 3)	/* no 24bit packed */
-		bytespp = 4;
-
-	/*
-	 * If the mode will not fit in 32bit then switch to 16bit to get
-	 * a console on full resolution. The X mode setting server will
-	 * allocate its own 32bit GEM framebuffer
-	 */
-	fb_size = ALIGN(sizes->surface_width * bytespp, 64) *
-		  sizes->surface_height;
-	fb_size = ALIGN(fb_size, PAGE_SIZE);
-
-	if (fb_size > dev_priv->vram_stolen_size) {
-		sizes->surface_bpp = 16;
-		sizes->surface_depth = 16;
-	}
-
-	return psbfb_create(fb_helper, sizes);
-}
-
-static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
-	.fb_probe = psbfb_probe,
+static const struct drm_fb_helper_funcs psb_fbdev_fb_helper_funcs = {
+	.fb_probe = psb_fbdev_fb_probe,
 };
 
 static int psb_fbdev_destroy(struct drm_device *dev,
@@ -280,7 +267,7 @@ int psb_fbdev_init(struct drm_device *dev)
 
 	dev_priv->fb_helper = fb_helper;
 
-	drm_fb_helper_prepare(dev, fb_helper, 32, &psb_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, fb_helper, 32, &psb_fbdev_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, fb_helper);
 	if (ret)
