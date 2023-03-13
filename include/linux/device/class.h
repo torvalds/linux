@@ -103,8 +103,8 @@ void class_compat_remove_link(struct class_compat *cls, struct device *dev,
 			      struct device *device_link);
 
 extern void class_dev_iter_init(struct class_dev_iter *iter,
-				struct class *class,
-				struct device *start,
+				const struct class *class,
+				const struct device *start,
 				const struct device_type *type);
 extern struct device *class_dev_iter_next(struct class_dev_iter *iter);
 extern void class_dev_iter_exit(struct class_dev_iter *iter);

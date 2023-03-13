@@ -284,8 +284,8 @@ EXPORT_SYMBOL_GPL(class_destroy);
  * otherwise if it is NULL, the iteration starts at the beginning of
  * the list.
  */
-void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
-			 struct device *start, const struct device_type *type)
+void class_dev_iter_init(struct class_dev_iter *iter, const struct class *class,
+			 const struct device *start, const struct device_type *type)
 {
 	struct klist_node *start_knode = NULL;
 
