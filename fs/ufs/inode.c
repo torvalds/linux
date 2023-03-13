@@ -878,91 +878,84 @@ static inline void free_data(struct to_free *ctx, u64 from, unsigned count)
 
 #define DIRECT_FRAGMENT ((inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift)
 
+/*
+ * used only for truncation down to direct blocks.
+ */
 static void ufs_trunc_direct(struct inode *inode)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct super_block * sb;
-	struct ufs_sb_private_info * uspi;
-	void *p;
-	u64 frag1, frag2, frag3, frag4, block1, block2;
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	unsigned int new_frags, old_frags;
+	unsigned int old_slot, new_slot;
+	unsigned int old_tail, new_tail;
 	struct to_free ctx = {.inode = inode};
-	unsigned i, tmp;
 
 	UFSD("ENTER: ino %lu\n", inode->i_ino);
 
-	sb = inode->i_sb;
-	uspi = UFS_SB(sb)->s_uspi;
+	new_frags = DIRECT_FRAGMENT;
+	// new_frags = first fragment past the new EOF
+	old_frags = min_t(u64, UFS_NDIR_FRAGMENT, ufsi->i_lastfrag);
+	// old_frags = first fragment past the old EOF or covered by indirects
 
-	frag1 = DIRECT_FRAGMENT;
-	frag4 = min_t(u64, UFS_NDIR_FRAGMENT, ufsi->i_lastfrag);
-	frag2 = ((frag1 & uspi->s_fpbmask) ? ((frag1 | uspi->s_fpbmask) + 1) : frag1);
-	frag3 = frag4 & ~uspi->s_fpbmask;
-	block1 = block2 = 0;
-	if (frag2 > frag3) {
-		frag2 = frag4;
-		frag3 = frag4 = 0;
-	} else if (frag2 < frag3) {
-		block1 = ufs_fragstoblks (frag2);
-		block2 = ufs_fragstoblks (frag3);
-	}
+	if (new_frags >= old_frags)	 // expanding - nothing to free
+		goto done;
 
-	UFSD("ino %lu, frag1 %llu, frag2 %llu, block1 %llu, block2 %llu,"
-	     " frag3 %llu, frag4 %llu\n", inode->i_ino,
-	     (unsigned long long)frag1, (unsigned long long)frag2,
-	     (unsigned long long)block1, (unsigned long long)block2,
-	     (unsigned long long)frag3, (unsigned long long)frag4);
+	old_tail = ufs_fragnum(old_frags);
+	old_slot = ufs_fragstoblks(old_frags);
+	new_tail = ufs_fragnum(new_frags);
+	new_slot = ufs_fragstoblks(new_frags);
 
-	if (frag1 >= frag2)
-		goto next1;
-
-	/*
-	 * Free first free fragments
-	 */
-	p = ufs_get_direct_data_ptr(uspi, ufsi, ufs_fragstoblks(frag1));
-	tmp = ufs_data_ptr_to_cpu(sb, p);
-	if (!tmp )
-		ufs_panic (sb, "ufs_trunc_direct", "internal error");
-	frag2 -= frag1;
-	frag1 = ufs_fragnum (frag1);
-
-	ufs_free_fragments(inode, tmp + frag1, frag2);
-
-next1:
-	/*
-	 * Free whole blocks
-	 */
-	for (i = block1 ; i < block2; i++) {
-		p = ufs_get_direct_data_ptr(uspi, ufsi, i);
-		tmp = ufs_data_ptr_to_cpu(sb, p);
+	if (old_slot == new_slot) { // old_tail > 0
+		void *p = ufs_get_direct_data_ptr(uspi, ufsi, old_slot);
+		u64 tmp = ufs_data_ptr_to_cpu(sb, p);
 		if (!tmp)
-			continue;
-		write_seqlock(&ufsi->meta_lock);
-		ufs_data_ptr_clear(uspi, p);
-		write_sequnlock(&ufsi->meta_lock);
+			ufs_panic(sb, __func__, "internal error");
+		if (!new_tail) {
+			write_seqlock(&ufsi->meta_lock);
+			ufs_data_ptr_clear(uspi, p);
+			write_sequnlock(&ufsi->meta_lock);
+		}
+		ufs_free_fragments(inode, tmp + new_tail, old_tail - new_tail);
+	} else {
+		unsigned int slot = new_slot;
 
-		free_data(&ctx, tmp, uspi->s_fpb);
+		if (new_tail) {
+			void *p = ufs_get_direct_data_ptr(uspi, ufsi, slot++);
+			u64 tmp = ufs_data_ptr_to_cpu(sb, p);
+			if (!tmp)
+				ufs_panic(sb, __func__, "internal error");
+
+			ufs_free_fragments(inode, tmp + new_tail,
+						uspi->s_fpb - new_tail);
+		}
+		while (slot < old_slot) {
+			void *p = ufs_get_direct_data_ptr(uspi, ufsi, slot++);
+			u64 tmp = ufs_data_ptr_to_cpu(sb, p);
+			if (!tmp)
+				continue;
+			write_seqlock(&ufsi->meta_lock);
+			ufs_data_ptr_clear(uspi, p);
+			write_sequnlock(&ufsi->meta_lock);
+
+			free_data(&ctx, tmp, uspi->s_fpb);
+		}
+
+		free_data(&ctx, 0, 0);
+
+		if (old_tail) {
+			void *p = ufs_get_direct_data_ptr(uspi, ufsi, slot);
+			u64 tmp = ufs_data_ptr_to_cpu(sb, p);
+			if (!tmp)
+				ufs_panic(sb, __func__, "internal error");
+			write_seqlock(&ufsi->meta_lock);
+			ufs_data_ptr_clear(uspi, p);
+			write_sequnlock(&ufsi->meta_lock);
+
+			ufs_free_fragments(inode, tmp, old_tail);
+		}
 	}
-
-	free_data(&ctx, 0, 0);
-
-	if (frag3 >= frag4)
-		goto next3;
-
-	/*
-	 * Free last free fragments
-	 */
-	p = ufs_get_direct_data_ptr(uspi, ufsi, ufs_fragstoblks(frag3));
-	tmp = ufs_data_ptr_to_cpu(sb, p);
-	if (!tmp )
-		ufs_panic(sb, "ufs_truncate_direct", "internal error");
-	frag4 = ufs_fragnum (frag4);
-	write_seqlock(&ufsi->meta_lock);
-	ufs_data_ptr_clear(uspi, p);
-	write_sequnlock(&ufsi->meta_lock);
-
-	ufs_free_fragments (inode, tmp, frag4);
- next3:
-
+done:
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
 }
 
