@@ -566,7 +566,7 @@ struct device {
 	const char		*init_name; /* initial name of the device */
 	const struct device_type *type;
 
-	struct bus_type	*bus;		/* type of bus device is on */
+	const struct bus_type	*bus;	/* type of bus device is on */
 	struct device_driver *driver;	/* which driver has allocated this
 					   device */
 	void		*platform_data;	/* Platform specific data, device
