@@ -1123,16 +1123,15 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 							  block_info.address);
 	}
 
-	if (info->head.block == AMDGPU_RAS_BLOCK__GFX) {
-		if (block_obj->hw_ops->ras_error_inject)
+	if (block_obj->hw_ops->ras_error_inject) {
+		if (info->head.block == AMDGPU_RAS_BLOCK__GFX)
 			ret = block_obj->hw_ops->ras_error_inject(adev, info, info->instance_mask);
-	} else {
-		/* If defined special ras_error_inject(e.g: xgmi), implement special ras_error_inject */
-		if (block_obj->hw_ops->ras_error_inject)
+		else /* Special ras_error_inject is defined (e.g: xgmi) */
 			ret = block_obj->hw_ops->ras_error_inject(adev, &block_info,
 						info->instance_mask);
-		else  /*If not defined .ras_error_inject, use default ras_error_inject*/
-			ret = psp_ras_trigger_error(&adev->psp, &block_info, info->instance_mask);
+	} else {
+		/* default path */
+		ret = psp_ras_trigger_error(&adev->psp, &block_info, info->instance_mask);
 	}
 
 	if (ret)
