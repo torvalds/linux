@@ -148,18 +148,21 @@ struct dccg_funcs {
 		struct dccg *dccg,
 		int inst);
 
-void (*set_pixel_rate_div)(
-        struct dccg *dccg,
-        uint32_t otg_inst,
-        enum pixel_rate_div k1,
-        enum pixel_rate_div k2);
+	void (*set_pixel_rate_div)(struct dccg *dccg,
+			uint32_t otg_inst,
+			enum pixel_rate_div k1,
+			enum pixel_rate_div k2);
 
-void (*set_valid_pixel_rate)(
-        struct dccg *dccg,
-	int ref_dtbclk_khz,
-        int otg_inst,
-        int pixclk_khz);
+	void (*set_valid_pixel_rate)(
+			struct dccg *dccg,
+			int ref_dtbclk_khz,
+			int otg_inst,
+			int pixclk_khz);
 
+	void (*dpp_root_clock_control)(
+			struct dccg *dccg,
+			unsigned int dpp_inst,
+			bool clock_on);
 };
 
 #endif //__DAL_DCCG_H__
