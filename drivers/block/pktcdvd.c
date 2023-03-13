@@ -417,7 +417,6 @@ static int pkt_sysfs_init(void)
 	if (!class_pktcdvd)
 		return -ENOMEM;
 	class_pktcdvd->name = DRIVER_NAME;
-	class_pktcdvd->owner = THIS_MODULE;
 	class_pktcdvd->class_release = class_pktcdvd_release;
 	class_pktcdvd->class_groups = class_pktcdvd_groups;
 	ret = class_register(class_pktcdvd);

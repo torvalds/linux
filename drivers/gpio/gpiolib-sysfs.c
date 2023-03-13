@@ -523,8 +523,6 @@ ATTRIBUTE_GROUPS(gpio_class);
 
 static struct class gpio_class = {
 	.name =		"gpio",
-	.owner =	THIS_MODULE,
-
 	.class_groups = gpio_class_groups,
 };
 

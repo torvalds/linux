@@ -514,5 +514,4 @@ EXPORT_SYMBOL_GPL(typec_mux_get_drvdata);
 
 struct class typec_mux_class = {
 	.name = "typec_mux",
-	.owner = THIS_MODULE,
 };

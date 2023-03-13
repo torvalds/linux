@@ -154,7 +154,6 @@ __ATTRIBUTE_GROUPS(fieldbus);
 
 static struct class fieldbus_class = {
 	.name =		"fieldbus_dev",
-	.owner =	THIS_MODULE,
 	.dev_groups =	fieldbus_groups,
 };
 

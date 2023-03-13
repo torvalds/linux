@@ -138,7 +138,6 @@ static void hwmon_dev_release(struct device *dev)
 
 static struct class hwmon_class = {
 	.name = "hwmon",
-	.owner = THIS_MODULE,
 	.dev_groups = hwmon_dev_attr_groups,
 	.dev_release = hwmon_dev_release,
 };

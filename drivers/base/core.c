@@ -537,7 +537,6 @@ static void devlink_dev_release(struct device *dev)
 
 static struct class devlink_class = {
 	.name = "devlink",
-	.owner = THIS_MODULE,
 	.dev_groups = devlink_groups,
 	.dev_release = devlink_dev_release,
 };

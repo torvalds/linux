@@ -475,7 +475,6 @@ static DEFINE_SIMPLE_DEV_PM_OPS(pwm_class_pm_ops, pwm_class_suspend, pwm_class_r
 
 static struct class pwm_class = {
 	.name = "pwm",
-	.owner = THIS_MODULE,
 	.dev_groups = pwm_chip_groups,
 	.pm = pm_sleep_ptr(&pwm_class_pm_ops),
 };

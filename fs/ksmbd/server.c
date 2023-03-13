@@ -516,7 +516,6 @@ ATTRIBUTE_GROUPS(ksmbd_control_class);
 
 static struct class ksmbd_control_class = {
 	.name		= "ksmbd-control",
-	.owner		= THIS_MODULE,
 	.class_groups	= ksmbd_control_class_groups,
 };
 

@@ -159,7 +159,6 @@ static void mISDN_class_release(struct class *cls)
 
 static struct class mISDN_class = {
 	.name = "mISDN",
-	.owner = THIS_MODULE,
 	.dev_uevent = mISDN_uevent,
 	.dev_groups = mISDN_groups,
 	.dev_release = mISDN_dev_release,
