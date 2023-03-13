@@ -92,6 +92,8 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 	 * destroying any subkeys embedded in it.
 	 */
 
+	if (WARN_ON(!sb->s_master_keys))
+		return;
 	spin_lock(&sb->s_master_keys->lock);
 	hlist_del_rcu(&mk->mk_node);
 	spin_unlock(&sb->s_master_keys->lock);
