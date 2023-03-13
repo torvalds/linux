@@ -1663,7 +1663,7 @@ static void print_contention_result(struct lock_contention *con)
 			break;
 		case LOCK_AGGR_ADDR:
 			pr_info("  %016llx   %s\n", (unsigned long long)st->addr,
-				st->name ? : "");
+				(st->flags & LCD_F_MMAP_LOCK) ? "mmap_lock" : st->name);
 			break;
 		default:
 			break;

@@ -92,6 +92,14 @@ struct rw_semaphore___new {
 	atomic_long_t owner;
 } __attribute__((preserve_access_index));
 
+struct mm_struct___old {
+	struct rw_semaphore mmap_sem;
+} __attribute__((preserve_access_index));
+
+struct mm_struct___new {
+	struct rw_semaphore mmap_lock;
+} __attribute__((preserve_access_index));
+
 /* control flags */
 int enabled;
 int has_cpu;
@@ -210,6 +218,36 @@ static inline struct task_struct *get_lock_owner(__u64 lock, __u32 flags)
 	return task;
 }
 
+static inline __u32 check_lock_type(__u64 lock, __u32 flags)
+{
+	struct task_struct *curr;
+	struct mm_struct___old *mm_old;
+	struct mm_struct___new *mm_new;
+
+	switch (flags) {
+	case LCB_F_READ:  /* rwsem */
+	case LCB_F_WRITE:
+		curr = bpf_get_current_task_btf();
+		if (curr->mm == NULL)
+			break;
+		mm_new = (void *)curr->mm;
+		if (bpf_core_field_exists(mm_new->mmap_lock)) {
+			if (&mm_new->mmap_lock == (void *)lock)
+				return LCD_F_MMAP_LOCK;
+			break;
+		}
+		mm_old = (void *)curr->mm;
+		if (bpf_core_field_exists(mm_old->mmap_sem)) {
+			if (&mm_old->mmap_sem == (void *)lock)
+				return LCD_F_MMAP_LOCK;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 SEC("tp_btf/contention_begin")
 int contention_begin(u64 *ctx)
 {
@@ -319,6 +357,9 @@ int contention_end(u64 *ctx)
 			.count = 1,
 			.flags = pelem->flags,
 		};
+
+		if (aggr_mode == LOCK_AGGR_ADDR)
+			first.flags |= check_lock_type(pelem->lock, pelem->flags);
 
 		bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
 		bpf_map_delete_elem(&tstamp, &pid);
