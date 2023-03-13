@@ -65,7 +65,7 @@
 
 	route {
 		route_hdmi: route-hdmi {
-			status = "disabled";
+			status = "okay";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
@@ -73,7 +73,7 @@
 			connect = <&vp0_out_hdmi>;
 		};
 		route_tve: route-tve {
-			status = "disabled";
+			status = "okay";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
