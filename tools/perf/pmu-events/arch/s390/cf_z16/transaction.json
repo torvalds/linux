@@ -3,5 +3,20 @@
     "BriefDescription": "Transaction count",
     "MetricName": "transaction",
     "MetricExpr": "TX_C_TEND + TX_NC_TEND + TX_NC_TABORT + TX_C_TABORT_SPECIAL + TX_C_TABORT_NO_SPECIAL"
+  },
+  {
+    "BriefDescription": "Cycles per Instruction",
+    "MetricName": "cpi",
+    "MetricExpr": "CPU_CYCLES / INSTRUCTIONS"
+  },
+  {
+    "BriefDescription": "Problem State Instruction Ratio",
+    "MetricName": "prbstate",
+    "MetricExpr": "(PROBLEM_STATE_INSTRUCTIONS / INSTRUCTIONS) * 100"
+  },
+  {
+    "BriefDescription": "Level One Miss per 100 Instructions",
+    "MetricName": "l1mp",
+    "MetricExpr": "((L1I_DIR_WRITES + L1D_DIR_WRITES) / INSTRUCTIONS) * 100"
   }
 ]
