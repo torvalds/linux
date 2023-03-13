@@ -5069,12 +5069,12 @@ static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
 #endif
 }
 
-#ifdef CONFIG_PAGE_POOL
 static inline void skb_mark_for_recycle(struct sk_buff *skb)
 {
+#ifdef CONFIG_PAGE_POOL
 	skb->pp_recycle = 1;
-}
 #endif
+}
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */
