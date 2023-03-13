@@ -244,7 +244,7 @@ static inline void spi_dev_put(struct spi_device *spi)
 }
 
 /* ctldata is for the bus_controller driver's runtime state */
-static inline void *spi_get_ctldata(struct spi_device *spi)
+static inline void *spi_get_ctldata(const struct spi_device *spi)
 {
 	return spi->controller_state;
 }
