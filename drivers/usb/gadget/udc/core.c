@@ -1758,7 +1758,7 @@ static int __init usb_udc_init(void)
 {
 	int rc;
 
-	udc_class = class_create(THIS_MODULE, "udc");
+	udc_class = class_create("udc");
 	if (IS_ERR(udc_class)) {
 		pr_err("failed to create udc class --> %ld\n",
 				PTR_ERR(udc_class));

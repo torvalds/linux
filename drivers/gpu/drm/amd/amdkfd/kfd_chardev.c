@@ -93,7 +93,7 @@ int kfd_chardev_init(void)
 	if (err < 0)
 		goto err_register_chrdev;
 
-	kfd_class = class_create(THIS_MODULE, kfd_dev_name);
+	kfd_class = class_create(kfd_dev_name);
 	err = PTR_ERR(kfd_class);
 	if (IS_ERR(kfd_class))
 		goto err_class_create;

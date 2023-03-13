@@ -4241,7 +4241,7 @@ static int __init vtconsole_class_init(void)
 {
 	int i;
 
-	vtconsole_class = class_create(THIS_MODULE, "vtconsole");
+	vtconsole_class = class_create("vtconsole");
 	if (IS_ERR(vtconsole_class)) {
 		pr_warn("Unable to create vt console class; errno = %ld\n",
 			PTR_ERR(vtconsole_class));

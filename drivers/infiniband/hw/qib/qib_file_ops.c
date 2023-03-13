@@ -2326,7 +2326,7 @@ int __init qib_dev_init(void)
 		goto done;
 	}
 
-	qib_class = class_create(THIS_MODULE, "ipath");
+	qib_class = class_create("ipath");
 	if (IS_ERR(qib_class)) {
 		ret = PTR_ERR(qib_class);
 		pr_err("Could not create device class (err %d)\n", -ret);

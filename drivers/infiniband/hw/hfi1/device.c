@@ -102,7 +102,7 @@ int __init dev_init(void)
 		goto done;
 	}
 
-	class = class_create(THIS_MODULE, class_name());
+	class = class_create(class_name());
 	if (IS_ERR(class)) {
 		ret = PTR_ERR(class);
 		pr_err("Could not create device class (err %d)\n", -ret);
@@ -111,7 +111,7 @@ int __init dev_init(void)
 	}
 	class->devnode = hfi1_devnode;
 
-	user_class = class_create(THIS_MODULE, class_name_user());
+	user_class = class_create(class_name_user());
 	if (IS_ERR(user_class)) {
 		ret = PTR_ERR(user_class);
 		pr_err("Could not create device class for user accessible files (err %d)\n",

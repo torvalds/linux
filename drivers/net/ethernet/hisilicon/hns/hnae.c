@@ -448,7 +448,7 @@ EXPORT_SYMBOL(hnae_ae_unregister);
 
 static int __init hnae_init(void)
 {
-	hnae_class = class_create(THIS_MODULE, "hnae");
+	hnae_class = class_create("hnae");
 	return PTR_ERR_OR_ZERO(hnae_class);
 }
 

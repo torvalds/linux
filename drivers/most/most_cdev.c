@@ -491,7 +491,7 @@ static int __init most_cdev_init(void)
 {
 	int err;
 
-	comp.class = class_create(THIS_MODULE, "most_cdev");
+	comp.class = class_create("most_cdev");
 	if (IS_ERR(comp.class))
 		return PTR_ERR(comp.class);
 

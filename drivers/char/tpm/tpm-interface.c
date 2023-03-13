@@ -466,13 +466,13 @@ static int __init tpm_init(void)
 {
 	int rc;
 
-	tpm_class = class_create(THIS_MODULE, "tpm");
+	tpm_class = class_create("tpm");
 	if (IS_ERR(tpm_class)) {
 		pr_err("couldn't create tpm class\n");
 		return PTR_ERR(tpm_class);
 	}
 
-	tpmrm_class = class_create(THIS_MODULE, "tpmrm");
+	tpmrm_class = class_create("tpmrm");
 	if (IS_ERR(tpmrm_class)) {
 		pr_err("couldn't create tpmrm class\n");
 		rc = PTR_ERR(tpmrm_class);

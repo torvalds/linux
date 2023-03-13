@@ -2603,7 +2603,7 @@ static int __init mport_init(void)
 	int ret;
 
 	/* Create device class needed by udev */
-	dev_class = class_create(THIS_MODULE, DRV_NAME);
+	dev_class = class_create(DRV_NAME);
 	if (IS_ERR(dev_class)) {
 		rmcd_error("Unable to create " DRV_NAME " class");
 		return PTR_ERR(dev_class);

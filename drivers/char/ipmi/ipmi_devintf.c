@@ -860,7 +860,7 @@ static int __init init_ipmi_devintf(void)
 
 	pr_info("ipmi device interface\n");
 
-	ipmi_class = class_create(THIS_MODULE, "ipmi");
+	ipmi_class = class_create("ipmi");
 	if (IS_ERR(ipmi_class)) {
 		pr_err("ipmi: can't register device class\n");
 		return PTR_ERR(ipmi_class);

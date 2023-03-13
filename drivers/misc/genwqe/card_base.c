@@ -1363,7 +1363,7 @@ static int __init genwqe_init_module(void)
 {
 	int rc;
 
-	class_genwqe = class_create(THIS_MODULE, GENWQE_DEVNAME);
+	class_genwqe = class_create(GENWQE_DEVNAME);
 	if (IS_ERR(class_genwqe)) {
 		pr_err("[%s] create class failed\n", __func__);
 		return -ENOMEM;

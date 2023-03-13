@@ -216,7 +216,7 @@ static int __init ryos_init(void)
 {
 	int retval;
 
-	ryos_class = class_create(THIS_MODULE, "ryos");
+	ryos_class = class_create("ryos");
 	if (IS_ERR(ryos_class))
 		return PTR_ERR(ryos_class);
 	ryos_class->dev_groups = ryos_groups;

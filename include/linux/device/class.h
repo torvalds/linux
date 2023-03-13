@@ -256,7 +256,6 @@ extern void class_destroy(struct class *cls);
 
 /**
  * class_create - create a struct class structure
- * @owner: dummy pointer, does nothing, will be removed soon.
  * @name: pointer to a string for the name of this class.
  *
  * This is used to create a struct class pointer that can then be used
@@ -267,7 +266,7 @@ extern void class_destroy(struct class *cls);
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
-#define class_create(owner, name)		\
+#define class_create(name)			\
 ({						\
 	static struct lock_class_key __key;	\
 	__class_create(name, &__key);		\

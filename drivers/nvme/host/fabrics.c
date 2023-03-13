@@ -1254,7 +1254,7 @@ static int __init nvmf_init(void)
 	if (!nvmf_default_host)
 		return -ENOMEM;
 
-	nvmf_class = class_create(THIS_MODULE, "nvme-fabrics");
+	nvmf_class = class_create("nvme-fabrics");
 	if (IS_ERR(nvmf_class)) {
 		pr_err("couldn't register class nvme-fabrics\n");
 		ret = PTR_ERR(nvmf_class);

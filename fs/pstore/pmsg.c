@@ -64,7 +64,7 @@ void pstore_register_pmsg(void)
 		goto err;
 	}
 
-	pmsg_class = class_create(THIS_MODULE, PMSG_NAME);
+	pmsg_class = class_create(PMSG_NAME);
 	if (IS_ERR(pmsg_class)) {
 		pr_err("device class file already in use\n");
 		goto err_class;

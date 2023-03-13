@@ -2171,7 +2171,7 @@ static int __init zcdn_init(void)
 	int rc;
 
 	/* create a new class 'zcrypt' */
-	zcrypt_class = class_create(THIS_MODULE, ZCRYPT_NAME);
+	zcrypt_class = class_create(ZCRYPT_NAME);
 	if (IS_ERR(zcrypt_class)) {
 		rc = PTR_ERR(zcrypt_class);
 		goto out_class_create_failed;

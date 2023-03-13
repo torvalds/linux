@@ -1325,7 +1325,7 @@ int ghid_setup(struct usb_gadget *g, int count)
 	int status;
 	dev_t dev;
 
-	hidg_class = class_create(THIS_MODULE, "hidg");
+	hidg_class = class_create("hidg");
 	if (IS_ERR(hidg_class)) {
 		status = PTR_ERR(hidg_class);
 		hidg_class = NULL;

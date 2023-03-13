@@ -1233,7 +1233,7 @@ static void phy_release(struct device *dev)
 
 static int __init phy_core_init(void)
 {
-	phy_class = class_create(THIS_MODULE, "phy");
+	phy_class = class_create("phy");
 	if (IS_ERR(phy_class)) {
 		pr_err("failed to create phy class --> %ld\n",
 			PTR_ERR(phy_class));

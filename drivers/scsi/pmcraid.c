@@ -5346,7 +5346,7 @@ static int __init pmcraid_init(void)
 	}
 
 	pmcraid_major = MAJOR(dev);
-	pmcraid_class = class_create(THIS_MODULE, PMCRAID_DEVFILE);
+	pmcraid_class = class_create(PMCRAID_DEVFILE);
 
 	if (IS_ERR(pmcraid_class)) {
 		error = PTR_ERR(pmcraid_class);

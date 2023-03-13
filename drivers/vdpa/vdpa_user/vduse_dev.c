@@ -1793,7 +1793,7 @@ static int vduse_init(void)
 	int ret;
 	struct device *dev;
 
-	vduse_class = class_create(THIS_MODULE, "vduse");
+	vduse_class = class_create("vduse");
 	if (IS_ERR(vduse_class))
 		return PTR_ERR(vduse_class);
 

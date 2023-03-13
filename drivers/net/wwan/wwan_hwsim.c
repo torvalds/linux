@@ -511,7 +511,7 @@ static int __init wwan_hwsim_init(void)
 	if (!wwan_wq)
 		return -ENOMEM;
 
-	wwan_hwsim_class = class_create(THIS_MODULE, "wwan_hwsim");
+	wwan_hwsim_class = class_create("wwan_hwsim");
 	if (IS_ERR(wwan_hwsim_class)) {
 		err = PTR_ERR(wwan_hwsim_class);
 		goto err_wq_destroy;
