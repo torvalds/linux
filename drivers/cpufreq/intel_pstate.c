@@ -1473,10 +1473,13 @@ static struct kobject *intel_pstate_kobject;
 
 static void __init intel_pstate_sysfs_expose_params(void)
 {
+	struct device *dev_root = bus_get_dev_root(&cpu_subsys);
 	int rc;
 
-	intel_pstate_kobject = kobject_create_and_add("intel_pstate",
-						&cpu_subsys.dev_root->kobj);
+	if (dev_root) {
+		intel_pstate_kobject = kobject_create_and_add("intel_pstate", &dev_root->kobj);
+		put_device(dev_root);
+	}
 	if (WARN_ON(!intel_pstate_kobject))
 		return;
 
