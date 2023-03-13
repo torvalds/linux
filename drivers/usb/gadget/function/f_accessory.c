@@ -29,6 +29,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/kref.h>
+#include <linux/kernel.h>
 
 #include <linux/types.h>
 #include <linux/file.h>
@@ -1090,6 +1091,7 @@ __acc_function_bind(struct usb_configuration *c,
 			struct usb_function *f, bool configfs)
 {
 	struct usb_composite_dev *cdev = c->cdev;
+	struct usb_string *us;
 	struct acc_dev	*dev = func_to_dev(f);
 	int			id;
 	int			ret;
@@ -1097,13 +1099,11 @@ __acc_function_bind(struct usb_configuration *c,
 	DBG(cdev, "acc_function_bind dev: %p\n", dev);
 
 	if (configfs) {
-		if (acc_string_defs[INTERFACE_STRING_INDEX].id == 0) {
-			ret = usb_string_id(c->cdev);
-			if (ret < 0)
-				return ret;
-			acc_string_defs[INTERFACE_STRING_INDEX].id = ret;
-			acc_interface_desc.iInterface = ret;
-		}
+		us = usb_gstrings_attach(cdev, acc_strings, ARRAY_SIZE(acc_string_defs));
+		if (IS_ERR(us))
+			return PTR_ERR(us);
+		ret = us[INTERFACE_STRING_INDEX].id;
+		acc_interface_desc.iInterface = ret;
 		dev->cdev = c->cdev;
 	}
 	ret = hid_register_driver(&acc_hid_driver);

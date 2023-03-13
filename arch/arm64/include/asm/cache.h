@@ -23,7 +23,7 @@
  * cache before the transfer is done, causing old data to be seen by
  * the CPU.
  */
-#define ARCH_DMA_MINALIGN	(128)
+#define ARCH_DMA_MINALIGN	(64)
 
 #ifndef __ASSEMBLY__
 

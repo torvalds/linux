@@ -24,6 +24,33 @@ struct bus_dma_region {
 	u64		offset;
 };
 
+static inline bool zone_dma32_is_empty(int node)
+{
+#ifdef CONFIG_ZONE_DMA32
+	pg_data_t *pgdat = NODE_DATA(node);
+
+	return zone_is_empty(&pgdat->node_zones[ZONE_DMA32]);
+#else
+	return true;
+#endif
+}
+
+static inline bool zone_dma32_are_empty(void)
+{
+#ifdef CONFIG_NUMA
+	int node;
+
+	for_each_node(node)
+		if (!zone_dma32_is_empty(node))
+			return false;
+#else
+	if (!zone_dma32_is_empty(numa_node_id()))
+		return false;
+#endif
+
+	return true;
+}
+
 static inline dma_addr_t translate_phys_to_dma(struct device *dev,
 		phys_addr_t paddr)
 {

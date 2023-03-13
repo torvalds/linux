@@ -683,7 +683,7 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	    container_of(base, struct vmw_user_surface, prime.base);
 	struct vmw_resource *res = &user_srf->srf.res;
 
-	if (base->shareable && res && res->backup)
+	if (res && res->backup)
 		drm_gem_object_put(&res->backup->base.base);
 
 	*p_base = NULL;
@@ -860,7 +860,11 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 			goto out_unlock;
 		}
 		vmw_bo_reference(res->backup);
-		drm_gem_object_get(&res->backup->base.base);
+		/*
+		 * We don't expose the handle to the userspace and surface
+		 * already holds a gem reference
+		 */
+		drm_gem_handle_delete(file_priv, backup_handle);
 	}
 
 	tmp = vmw_resource_reference(&srf->res);
@@ -1564,8 +1568,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 			drm_vma_node_offset_addr(&res->backup->base.base.vma_node);
 		rep->buffer_size = res->backup->base.base.size;
 		rep->buffer_handle = backup_handle;
-		if (user_srf->prime.base.shareable)
-			drm_gem_object_get(&res->backup->base.base);
 	} else {
 		rep->buffer_map_handle = 0;
 		rep->buffer_size = 0;

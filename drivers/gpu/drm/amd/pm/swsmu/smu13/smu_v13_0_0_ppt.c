@@ -407,6 +407,9 @@ static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
 	ret = smu_v13_0_0_get_pptable_from_pmfw(smu,
 						&smu_table->power_play_table,
 						&smu_table->power_play_table_size);
@@ -1256,6 +1259,9 @@ static int smu_v13_0_0_get_thermal_temperature_range(struct smu_context *smu,
 	struct smu_13_0_0_powerplay_table *powerplay_table =
 		table_context->power_play_table;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
 
 	if (!range)
 		return -EINVAL;
