@@ -95,7 +95,7 @@ enum probe_type {
  */
 struct device_driver {
 	const char		*name;
-	struct bus_type		*bus;
+	const struct bus_type	*bus;
 
 	struct module		*owner;
 	const char		*mod_name;	/* used for built-in modules */
