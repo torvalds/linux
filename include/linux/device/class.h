@@ -200,20 +200,20 @@ struct class_attribute {
 #define CLASS_ATTR_WO(_name) \
 	struct class_attribute class_attr_##_name = __ATTR_WO(_name)
 
-extern int __must_check class_create_file_ns(struct class *class,
+extern int __must_check class_create_file_ns(const struct class *class,
 					     const struct class_attribute *attr,
 					     const void *ns);
-extern void class_remove_file_ns(struct class *class,
+extern void class_remove_file_ns(const struct class *class,
 				 const struct class_attribute *attr,
 				 const void *ns);
 
-static inline int __must_check class_create_file(struct class *class,
-					const struct class_attribute *attr)
+static inline int __must_check class_create_file(const struct class *class,
+						 const struct class_attribute *attr)
 {
 	return class_create_file_ns(class, attr, NULL);
 }
 
-static inline void class_remove_file(struct class *class,
+static inline void class_remove_file(const struct class *class,
 				     const struct class_attribute *attr)
 {
 	return class_remove_file_ns(class, attr, NULL);

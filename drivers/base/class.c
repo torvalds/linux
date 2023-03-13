@@ -87,7 +87,7 @@ static const struct kobj_type class_ktype = {
 static struct kset *class_kset;
 
 
-int class_create_file_ns(struct class *cls, const struct class_attribute *attr,
+int class_create_file_ns(const struct class *cls, const struct class_attribute *attr,
 			 const void *ns)
 {
 	int error;
@@ -101,7 +101,7 @@ int class_create_file_ns(struct class *cls, const struct class_attribute *attr,
 }
 EXPORT_SYMBOL_GPL(class_create_file_ns);
 
-void class_remove_file_ns(struct class *cls, const struct class_attribute *attr,
+void class_remove_file_ns(const struct class *cls, const struct class_attribute *attr,
 			  const void *ns)
 {
 	if (cls)
