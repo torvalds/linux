@@ -351,11 +351,11 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 {
 	if (err == I2C_NACK || err == GENI_ABORT_DONE) {
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s\n",
-			     gi2c_log[err].msg);
+			    gi2c_log[err].msg);
 		goto err_ret;
 	} else {
-		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev, "%s\n",
-			     gi2c_log[err].msg);
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev, "%s\n",
+			    gi2c_log[err].msg);
 	}
 	geni_i2c_se_dump_dbg_regs(&gi2c->i2c_rsc, gi2c->base, gi2c->ipcl);
 err_ret:
@@ -631,10 +631,10 @@ static void gi2c_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb_str,
 		break;
 	}
 	if (cb_str->cb_event != MSM_GPI_QUP_NOTIFY)
-		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-				"GSI QN err:0x%x, status:0x%x, err:%d\n",
-				cb_str->error_log.error_code,
-				m_stat, cb_str->cb_event);
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+			    "GSI QN err:0x%x, status:0x%x, err:%d\n",
+			    cb_str->error_log.error_code,
+			    m_stat, cb_str->cb_event);
 }
 
 static void gi2c_gsi_cb_err(struct msm_gpi_dma_async_tx_cb_param *cb,
@@ -915,8 +915,8 @@ static int geni_i2c_lock_bus(struct geni_i2c_dev *gi2c)
 
 	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
 	if (!timeout) {
-		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-				"%s timedout\n", __func__);
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+			    "%s timedout\n", __func__);
 		geni_i2c_se_dump_dbg_regs(&gi2c->i2c_rsc, gi2c->base,
 					gi2c->ipcl);
 		gi2c->err = -ETIMEDOUT;
@@ -960,8 +960,8 @@ static void geni_i2c_unlock_bus(struct geni_i2c_dev *gi2c)
 
 	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
 	if (!timeout) {
-		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-				"%s failed\n", __func__);
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+			    "%s failed\n", __func__);
 		geni_i2c_se_dump_dbg_regs(&gi2c->i2c_rsc, gi2c->base,
 					gi2c->ipcl);
 		gi2c->err = -ETIMEDOUT;
@@ -1145,8 +1145,9 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			/* WAR: Set flag to mark cancel pending if IOS stuck */
 			geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
 			if ((geni_ios & 0x3) != 0x3) { //SCL:b'1, SDA:b'0
-				I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-					"%s: IO lines not in good state\n", __func__);
+				I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+					    "%s: IO lines not in good state\n",
+					    __func__);
 					/* doing pending cancel only rtl based SE's */
 					if (gi2c->is_i2c_rtl_based) {
 						gi2c->prev_cancel_pending = true;
@@ -1234,8 +1235,8 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 
 	geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
 	if ((geni_ios & 0x3) != 0x3) { //SCL:b'1, SDA:b'0
-		I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-			"IO lines in bad state, Power the slave\n");
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+			    "IO lines in bad state, Power the slave\n");
 		pm_runtime_mark_last_busy(gi2c->dev);
 		pm_runtime_put_autosuspend(gi2c->dev);
 		return -ENXIO;
@@ -1460,8 +1461,8 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 		}
 		ret = gi2c->err;
 		if (gi2c->err) {
-			I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
-				"i2c error :%d\n", gi2c->err);
+			I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
+				    "i2c error :%d\n", gi2c->err);
 			break;
 		}
 	}
