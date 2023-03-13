@@ -4526,8 +4526,8 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_account_irq(android_rvh_account_irq, NULL);
 	register_trace_android_rvh_flush_task(android_rvh_flush_task, NULL);
 	register_trace_android_rvh_update_misfit_status(android_rvh_update_misfit_status, NULL);
-	register_trace_android_rvh_after_enqueue_task(android_rvh_enqueue_task, NULL);
-	register_trace_android_rvh_after_dequeue_task(android_rvh_dequeue_task, NULL);
+	register_trace_android_rvh_enqueue_task(android_rvh_enqueue_task, NULL);
+	register_trace_android_rvh_dequeue_task(android_rvh_dequeue_task, NULL);
 	register_trace_android_rvh_try_to_wake_up(android_rvh_try_to_wake_up, NULL);
 	register_trace_android_rvh_tick_entry(android_rvh_tick_entry, NULL);
 	register_trace_android_vh_scheduler_tick(android_vh_scheduler_tick, NULL);
