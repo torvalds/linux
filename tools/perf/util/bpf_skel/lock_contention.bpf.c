@@ -242,6 +242,11 @@ static inline __u32 check_lock_type(__u64 lock, __u32 flags)
 				return LCD_F_MMAP_LOCK;
 		}
 		break;
+	case LCB_F_SPIN:  /* spinlock */
+		curr = bpf_get_current_task_btf();
+		if (&curr->sighand->siglock == (void *)lock)
+			return LCD_F_SIGHAND_LOCK;
+		break;
 	default:
 		break;
 	}

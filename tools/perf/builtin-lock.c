@@ -1662,8 +1662,7 @@ static void print_contention_result(struct lock_contention *con)
 				pid, pid == -1 ? "Unknown" : thread__comm_str(t));
 			break;
 		case LOCK_AGGR_ADDR:
-			pr_info("  %016llx   %s\n", (unsigned long long)st->addr,
-				(st->flags & LCD_F_MMAP_LOCK) ? "mmap_lock" : st->name);
+			pr_info("  %016llx   %s\n", (unsigned long long)st->addr, st->name);
 			break;
 		default:
 			break;

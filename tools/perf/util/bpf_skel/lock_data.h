@@ -19,7 +19,8 @@ struct contention_task_data {
  * Upper bits of the flags in the contention_data are used to identify
  * some well-known locks which do not have symbols (non-global locks).
  */
-#define LCD_F_MMAP_LOCK  (1U << 31)
+#define LCD_F_MMAP_LOCK		(1U << 31)
+#define LCD_F_SIGHAND_LOCK	(1U << 30)
 
 struct contention_data {
 	u64 total_time;

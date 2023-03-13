@@ -169,7 +169,7 @@ int lock_contention_stop(void)
 
 static const char *lock_contention_get_name(struct lock_contention *con,
 					    struct contention_key *key,
-					    u64 *stack_trace)
+					    u64 *stack_trace, u32 flags)
 {
 	int idx = 0;
 	u64 addr;
@@ -198,6 +198,10 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 	}
 
 	if (con->aggr_mode == LOCK_AGGR_ADDR) {
+		if (flags & LCD_F_MMAP_LOCK)
+			return "mmap_lock";
+		if (flags & LCD_F_SIGHAND_LOCK)
+			return "siglock";
 		sym = machine__find_kernel_symbol(machine, key->lock_addr, &kmap);
 		if (sym)
 			name = sym->name;
@@ -301,7 +305,7 @@ int lock_contention_read(struct lock_contention *con)
 			goto next;
 		}
 
-		name = lock_contention_get_name(con, &key, stack_trace);
+		name = lock_contention_get_name(con, &key, stack_trace, data.flags);
 		st = lock_stat_findnew(ls_key, name, data.flags);
 		if (st == NULL)
 			break;
