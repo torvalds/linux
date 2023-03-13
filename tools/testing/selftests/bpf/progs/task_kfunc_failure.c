@@ -301,3 +301,39 @@ int BPF_PROG(task_kfunc_from_lsm_task_free, struct task_struct *task)
 	bpf_task_release(acquired);
 	return 0;
 }
+
+SEC("tp_btf/task_newtask")
+__failure __msg("access beyond the end of member comm")
+int BPF_PROG(task_access_comm1, struct task_struct *task, u64 clone_flags)
+{
+	bpf_strncmp(task->comm, 17, "foo");
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("access beyond the end of member comm")
+int BPF_PROG(task_access_comm2, struct task_struct *task, u64 clone_flags)
+{
+	bpf_strncmp(task->comm + 1, 16, "foo");
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("write into memory")
+int BPF_PROG(task_access_comm3, struct task_struct *task, u64 clone_flags)
+{
+	bpf_probe_read_kernel(task->comm, 16, task->comm);
+	return 0;
+}
+
+SEC("fentry/__set_task_comm")
+__failure __msg("R1 type=ptr_ expected")
+int BPF_PROG(task_access_comm4, struct task_struct *task, const char *buf, bool exec)
+{
+	/*
+	 * task->comm is a legacy ptr_to_btf_id. The verifier cannot guarantee
+	 * its safety. Hence it cannot be accessed with normal load insns.
+	 */
+	bpf_strncmp(task->comm, 16, "foo");
+	return 0;
+}
