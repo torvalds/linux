@@ -5826,13 +5826,19 @@ static struct device_attribute wq_sysfs_cpumask_attr =
 
 static int __init wq_sysfs_init(void)
 {
+	struct device *dev_root;
 	int err;
 
 	err = subsys_virtual_register(&wq_subsys, NULL);
 	if (err)
 		return err;
 
-	return device_create_file(wq_subsys.dev_root, &wq_sysfs_cpumask_attr);
+	dev_root = bus_get_dev_root(&wq_subsys);
+	if (dev_root) {
+		err = device_create_file(dev_root, &wq_sysfs_cpumask_attr);
+		put_device(dev_root);
+	}
+	return err;
 }
 core_initcall(wq_sysfs_init);
 
