@@ -402,7 +402,7 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  * @match is allowed to do anything including calling back into class
  * code.  There's no locking restriction.
  */
-struct device *class_find_device(struct class *class, struct device *start,
+struct device *class_find_device(const struct class *class, const struct device *start,
 				 const void *data,
 				 int (*match)(struct device *, const void *))
 {

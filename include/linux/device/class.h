@@ -112,8 +112,8 @@ extern void class_dev_iter_exit(struct class_dev_iter *iter);
 extern int class_for_each_device(const struct class *class, const struct device *start,
 				 void *data,
 				 int (*fn)(struct device *dev, void *data));
-extern struct device *class_find_device(struct class *class,
-					struct device *start, const void *data,
+extern struct device *class_find_device(const struct class *class,
+					const struct device *start, const void *data,
 					int (*match)(struct device *, const void *));
 
 /**
@@ -122,7 +122,7 @@ extern struct device *class_find_device(struct class *class,
  * @class: class type
  * @name: name of the device to match
  */
-static inline struct device *class_find_device_by_name(struct class *class,
+static inline struct device *class_find_device_by_name(const struct class *class,
 						       const char *name)
 {
 	return class_find_device(class, NULL, name, device_match_name);
@@ -134,8 +134,8 @@ static inline struct device *class_find_device_by_name(struct class *class,
  * @class: class type
  * @np: of_node of the device to match.
  */
-static inline struct device *
-class_find_device_by_of_node(struct class *class, const struct device_node *np)
+static inline struct device *class_find_device_by_of_node(const struct class *class,
+							  const struct device_node *np)
 {
 	return class_find_device(class, NULL, np, device_match_of_node);
 }
@@ -146,9 +146,8 @@ class_find_device_by_of_node(struct class *class, const struct device_node *np)
  * @class: class type
  * @fwnode: fwnode of the device to match.
  */
-static inline struct device *
-class_find_device_by_fwnode(struct class *class,
-			    const struct fwnode_handle *fwnode)
+static inline struct device *class_find_device_by_fwnode(const struct class *class,
+							 const struct fwnode_handle *fwnode)
 {
 	return class_find_device(class, NULL, fwnode, device_match_fwnode);
 }
@@ -159,7 +158,7 @@ class_find_device_by_fwnode(struct class *class,
  * @class: class type
  * @devt: device type of the device to match.
  */
-static inline struct device *class_find_device_by_devt(struct class *class,
+static inline struct device *class_find_device_by_devt(const struct class *class,
 						       dev_t devt)
 {
 	return class_find_device(class, NULL, &devt, device_match_devt);
@@ -173,14 +172,14 @@ struct acpi_device;
  * @class: class type
  * @adev: ACPI_COMPANION device to match.
  */
-static inline struct device *
-class_find_device_by_acpi_dev(struct class *class, const struct acpi_device *adev)
+static inline struct device *class_find_device_by_acpi_dev(const struct class *class,
+							   const struct acpi_device *adev)
 {
 	return class_find_device(class, NULL, adev, device_match_acpi_dev);
 }
 #else
-static inline struct device *
-class_find_device_by_acpi_dev(struct class *class, const void *adev)
+static inline struct device *class_find_device_by_acpi_dev(const struct class *class,
+							   const void *adev)
 {
 	return NULL;
 }
