@@ -400,7 +400,7 @@ static int alloc_vmemmap_page_list(unsigned long start, unsigned long end,
 	return 0;
 out:
 	list_for_each_entry_safe(page, next, list, lru)
-		__free_pages(page, 0);
+		__free_page(page);
 	return -ENOMEM;
 }
 
