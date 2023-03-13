@@ -43,5 +43,30 @@
     "BriefDescription": "Percentage sourced from memory",
     "MetricName": "memp",
     "MetricExpr": "((L1D_ONCHIP_MEMORY_SOURCED_WRITES + L1D_ONCLUSTER_MEMORY_SOURCED_WRITES + L1D_OFFCLUSTER_MEMORY_SOURCED_WRITES + L1D_OFFDRAWER_MEMORY_SOURCED_WRITES + L1I_ONCHIP_MEMORY_SOURCED_WRITES + L1I_ONCLUSTER_MEMORY_SOURCED_WRITES + L1I_OFFCLUSTER_MEMORY_SOURCED_WRITES + L1I_OFFDRAWER_MEMORY_SOURCED_WRITES) / (L1I_DIR_WRITES + L1D_DIR_WRITES)) * 100"
+  },
+  {
+    "BriefDescription": "Cycles per Instructions from Finite cache/memory",
+    "MetricName": "finite_cpi",
+    "MetricExpr": "L1C_TLB2_MISSES / INSTRUCTIONS"
+  },
+  {
+    "BriefDescription": "Estimated Instruction Complexity CPI infinite Level 1",
+    "MetricName": "est_cpi",
+    "MetricExpr": "(CPU_CYCLES / INSTRUCTIONS) - (L1C_TLB2_MISSES / INSTRUCTIONS)"
+  },
+  {
+    "BriefDescription": "Estimated Sourcing Cycles per Level 1 Miss",
+    "MetricName": "scpl1m",
+    "MetricExpr": "L1C_TLB2_MISSES / (L1I_DIR_WRITES + L1D_DIR_WRITES)"
+  },
+  {
+    "BriefDescription": "Estimated TLB CPU percentage of Total CPU",
+    "MetricName": "tlb_percent",
+    "MetricExpr": "((DTLB2_MISSES + ITLB2_MISSES) / CPU_CYCLES) * (L1C_TLB2_MISSES / (L1I_PENALTY_CYCLES + L1D_PENALTY_CYCLES)) * 100"
+  },
+  {
+    "BriefDescription": "Estimated Cycles per TLB Miss",
+    "MetricName": "tlb_miss",
+    "MetricExpr": "((DTLB2_MISSES + ITLB2_MISSES) / (DTLB2_WRITES + ITLB2_WRITES)) * (L1C_TLB2_MISSES / (L1I_PENALTY_CYCLES + L1D_PENALTY_CYCLES))"
   }
 ]
