@@ -1078,13 +1078,15 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	closure_sync(&s->iodone);
 
-	for (i = 0; i < nr_data; i++)
-		if (s->blocks[i]) {
-			ob = c->open_buckets + s->blocks[i];
+	if (!s->err) {
+		for (i = 0; i < nr_data; i++)
+			if (s->blocks[i]) {
+				ob = c->open_buckets + s->blocks[i];
 
-			if (ob->sectors_free)
-				zero_out_rest_of_ec_bucket(c, s, i, ob);
-		}
+				if (ob->sectors_free)
+					zero_out_rest_of_ec_bucket(c, s, i, ob);
+			}
+	}
 
 	if (s->err) {
 		if (!bch2_err_matches(s->err, EROFS))
