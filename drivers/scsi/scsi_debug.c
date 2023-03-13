@@ -4983,7 +4983,8 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 	if (unlikely(aborted)) {
 		if (sdebug_verbose)
-			pr_info("bypassing scsi_done() due to aborted cmd\n");
+			pr_info("bypassing scsi_done() due to aborted cmd, kicking-off EH\n");
+		blk_abort_request(scsi_cmd_to_rq(scp));
 		return;
 	}
 	scsi_done(scp); /* callback to mid level */
@@ -5712,8 +5713,13 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			sd_dp->issuing_cpu = raw_smp_processor_id();
 	} else {	/* jdelay < 0, use work queue */
 		if (unlikely((sdebug_opts & SDEBUG_OPT_CMD_ABORT) &&
-			     atomic_read(&sdeb_inject_pending)))
+			     atomic_read(&sdeb_inject_pending))) {
 			sd_dp->aborted = true;
+			atomic_set(&sdeb_inject_pending, 0);
+			sdev_printk(KERN_INFO, sdp, "abort request tag=%#x\n",
+				    blk_mq_unique_tag_to_tag(get_tag(cmnd)));
+		}
+
 		if (polled) {
 			sd_dp->cmpl_ts = ns_to_ktime(ns_from_boot);
 			spin_lock_irqsave(&sqp->qc_lock, iflags);
@@ -5738,13 +5744,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		}
 		if (sdebug_statistics)
 			sd_dp->issuing_cpu = raw_smp_processor_id();
-		if (unlikely(sd_dp->aborted)) {
-			sdev_printk(KERN_INFO, sdp, "abort request tag %d\n",
-				    scsi_cmd_to_rq(cmnd)->tag);
-			blk_abort_request(scsi_cmd_to_rq(cmnd));
-			atomic_set(&sdeb_inject_pending, 0);
-			sd_dp->aborted = false;
-		}
 	}
 
 	return 0;
