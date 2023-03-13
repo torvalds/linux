@@ -1667,15 +1667,16 @@ static void msm_geni_uart_gsi_rx_cb(void *ptr)
 	unsigned int rx_bytes = rx_cb->length;
 	int ret;
 
-	UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
+	UART_LOG_DBG(msm_port->ipc_log_rx, uport->dev,
 		     "%s: Start\n", __func__);
 	ret = tty_insert_flip_string(tport,
 				     (unsigned char *)
 				     (msm_port->rx_gsi_buf[msm_port->count]),
 				      rx_bytes);
 	if (ret != rx_bytes)
-		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n", __func__,
-			ret, rx_bytes);
+		UART_LOG_DBG(msm_port->ipc_log_rx, uport->dev,
+			     "%s: ret %d rx_bytes %d\n", __func__,
+			     ret, rx_bytes);
 
 	uport->icount.rx += ret;
 	tty_flip_buffer_push(tport);
@@ -1684,7 +1685,7 @@ static void msm_geni_uart_gsi_rx_cb(void *ptr)
 
 	msm_geni_uart_rx_queue_dma_tre(msm_port->count, uport);
 	msm_port->count = (msm_port->count + 1) % 4;
-	UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
+	UART_LOG_DBG(msm_port->ipc_log_rx, uport->dev,
 		     "%s: End\n", __func__);
 }
 
@@ -2844,8 +2845,9 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 	ret = tty_insert_flip_string(tport, (unsigned char *)(msm_port->rx_buf),
 				     rx_bytes);
 	if (ret != rx_bytes) {
-		dev_err(uport->dev, "%s: ret %d rx_bytes %d\n", __func__,
-								ret, rx_bytes);
+		UART_LOG_DBG(msm_port->ipc_log_rx, uport->dev,
+			     "%s: ret %d rx_bytes %d\n",
+			     __func__, ret, rx_bytes);
 		msm_geni_update_uart_error_code(msm_port, UART_ERROR_RX_TTY_INSERT_FAIL);
 		WARN_ON(1);
 	}
