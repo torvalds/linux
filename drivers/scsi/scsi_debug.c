@@ -5360,13 +5360,13 @@ static int scsi_debug_abort(struct scsi_cmnd *SCpnt)
 	bool ok;
 
 	++num_aborts;
-	if (SCpnt) {
-		ok = stop_queued_cmnd(SCpnt);
-		if (SCpnt->device && (SDEBUG_OPT_ALL_NOISE & sdebug_opts))
-			sdev_printk(KERN_INFO, SCpnt->device,
-				    "%s: command%s found\n", __func__,
-				    ok ? "" : " not");
-	}
+
+	ok = stop_queued_cmnd(SCpnt);
+	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
+		sdev_printk(KERN_INFO, SCpnt->device,
+			    "%s: command%s found\n", __func__,
+			    ok ? "" : " not");
+
 	return SUCCESS;
 }
 
