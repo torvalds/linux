@@ -143,6 +143,24 @@
 		status = "okay";
 	};
 
+	/* SPI4: Colibri SSP */
+	spi@7000da00 {
+		status = "okay";
+		spi-max-frequency = <25000000>;
+
+		can@0 {
+			compatible = "microchip,mcp2515";
+			reg = <0>;
+			clocks = <&clk16m>;
+			interrupt-parent = <&gpio>;
+			/* CAN_INT */
+			interrupts = <TEGRA_GPIO(A, 0) IRQ_TYPE_EDGE_FALLING>;
+			spi-max-frequency = <10000000>;
+			vdd-supply = <&reg_3v3>;
+			xceiver-supply = <&reg_5v0>;
+		};
+	};
+
 	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
 	usb@c5000000 {
 		status = "okay";
@@ -164,24 +182,6 @@
 		vbus-supply = <&reg_usbh_vbus>;
 	};
 
-	/* SPI4: Colibri SSP */
-	spi@7000da00 {
-		status = "okay";
-		spi-max-frequency = <25000000>;
-
-		can@0 {
-			compatible = "microchip,mcp2515";
-			reg = <0>;
-			clocks = <&clk16m>;
-			interrupt-parent = <&gpio>;
-			/* CAN_INT */
-			interrupts = <TEGRA_GPIO(A, 0) IRQ_TYPE_EDGE_FALLING>;
-			spi-max-frequency = <10000000>;
-			vdd-supply = <&reg_3v3>;
-			xceiver-supply = <&reg_5v0>;
-		};
-	};
-
 	/* SD/MMC */
 	mmc@c8000600 {
 		status = "okay";
@@ -200,7 +200,7 @@
 		pwms = <&pwm 0 5000000>; /* PWM<A> */
 	};
 
-	clk16m: osc3 {
+	clk16m: clock-osc3 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <16000000>;

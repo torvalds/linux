@@ -38,6 +38,7 @@
 enum mlx5_ib_cong_node_type {
 	MLX5_IB_RROCE_ECN_RP = 1,
 	MLX5_IB_RROCE_ECN_NP = 2,
+	MLX5_IB_RROCE_GENERAL = 3,
 };
 
 static const char * const mlx5_ib_dbg_cc_name[] = {
@@ -61,6 +62,8 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 	"np_cnp_dscp",
 	"np_cnp_prio_mode",
 	"np_cnp_prio",
+	"rtt_resp_dscp_valid",
+	"rtt_resp_dscp",
 };
 
 #define MLX5_IB_RP_CLAMP_TGT_RATE_ATTR			BIT(1)
@@ -84,14 +87,18 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 #define MLX5_IB_NP_CNP_DSCP_ATTR			BIT(3)
 #define MLX5_IB_NP_CNP_PRIO_MODE_ATTR			BIT(4)
 
+#define MLX5_IB_GENERAL_RTT_RESP_DSCP_ATTR		BIT(0)
+
 static enum mlx5_ib_cong_node_type
 mlx5_ib_param_to_node(enum mlx5_ib_dbg_cc_types param_offset)
 {
-	if (param_offset >= MLX5_IB_DBG_CC_RP_CLAMP_TGT_RATE &&
-	    param_offset <= MLX5_IB_DBG_CC_RP_GD)
+	if (param_offset <= MLX5_IB_DBG_CC_RP_GD)
 		return MLX5_IB_RROCE_ECN_RP;
-	else
+
+	if (param_offset <= MLX5_IB_DBG_CC_NP_CNP_PRIO)
 		return MLX5_IB_RROCE_ECN_NP;
+
+	return MLX5_IB_RROCE_GENERAL;
 }
 
 static u32 mlx5_get_cc_param_val(void *field, int offset)
@@ -157,6 +164,12 @@ static u32 mlx5_get_cc_param_val(void *field, int offset)
 	case MLX5_IB_DBG_CC_NP_CNP_PRIO:
 		return MLX5_GET(cong_control_r_roce_ecn_np, field,
 				cnp_802p_prio);
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP_VALID:
+		return MLX5_GET(cong_control_r_roce_general, field,
+				rtt_resp_dscp_valid);
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP:
+		return MLX5_GET(cong_control_r_roce_general, field,
+				rtt_resp_dscp);
 	default:
 		return 0;
 	}
@@ -263,6 +276,15 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 		*attr_mask |= MLX5_IB_NP_CNP_PRIO_MODE_ATTR;
 		MLX5_SET(cong_control_r_roce_ecn_np, field, cnp_prio_mode, 0);
 		MLX5_SET(cong_control_r_roce_ecn_np, field, cnp_802p_prio, var);
+		break;
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP_VALID:
+		*attr_mask |= MLX5_IB_GENERAL_RTT_RESP_DSCP_ATTR;
+		MLX5_SET(cong_control_r_roce_general, field, rtt_resp_dscp_valid, var);
+		break;
+	case MLX5_IB_DBG_CC_GENERAL_RTT_RESP_DSCP:
+		*attr_mask |= MLX5_IB_GENERAL_RTT_RESP_DSCP_ATTR;
+		MLX5_SET(cong_control_r_roce_general, field, rtt_resp_dscp_valid, 1);
+		MLX5_SET(cong_control_r_roce_general, field, rtt_resp_dscp, var);
 		break;
 	}
 }

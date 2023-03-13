@@ -29,22 +29,46 @@ int show_unhandled_signals = 1;
 
 static DEFINE_SPINLOCK(die_lock);
 
+static void dump_kernel_instr(const char *loglvl, struct pt_regs *regs)
+{
+	char str[sizeof("0000 ") * 12 + 2 + 1], *p = str;
+	const u16 *insns = (u16 *)instruction_pointer(regs);
+	long bad;
+	u16 val;
+	int i;
+
+	for (i = -10; i < 2; i++) {
+		bad = get_kernel_nofault(val, &insns[i]);
+		if (!bad) {
+			p += sprintf(p, i == 0 ? "(%04hx) " : "%04hx ", val);
+		} else {
+			printk("%sCode: Unable to access instruction at 0x%px.\n",
+			       loglvl, &insns[i]);
+			return;
+		}
+	}
+	printk("%sCode: %s\n", loglvl, str);
+}
+
 void die(struct pt_regs *regs, const char *str)
 {
 	static int die_counter;
 	int ret;
 	long cause;
+	unsigned long flags;
 
 	oops_enter();
 
-	spin_lock_irq(&die_lock);
+	spin_lock_irqsave(&die_lock, flags);
 	console_verbose();
 	bust_spinlocks(1);
 
 	pr_emerg("%s [#%d]\n", str, ++die_counter);
 	print_modules();
-	if (regs)
+	if (regs) {
 		show_regs(regs);
+		dump_kernel_instr(KERN_EMERG, regs);
+	}
 
 	cause = regs ? regs->cause : -1;
 	ret = notify_die(DIE_OOPS, str, regs, 0, cause, SIGSEGV);
@@ -54,7 +78,7 @@ void die(struct pt_regs *regs, const char *str)
 
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
-	spin_unlock_irq(&die_lock);
+	spin_unlock_irqrestore(&die_lock, flags);
 	oops_exit();
 
 	if (in_interrupt())

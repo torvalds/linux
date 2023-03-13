@@ -11,7 +11,7 @@ Basic use involves replacing alloc_pages() calls with the
 page_pool_alloc_pages() call.  Drivers should use page_pool_dev_alloc_pages()
 replacing dev_alloc_pages().
 
-API keeps track of inflight pages, in order to let API user know
+API keeps track of in-flight pages, in order to let API user know
 when it is safe to free a page_pool object.  Thus, API users
 must run page_pool_release_page() when a page is leaving the page_pool or
 call page_pool_put_page() where appropriate in order to maintain correct
@@ -19,7 +19,7 @@ accounting.
 
 API user must call page_pool_put_page() once on a page, as it
 will either recycle the page, or in case of refcnt > 1, it will
-release the DMA mapping and inflight state accounting.
+release the DMA mapping and in-flight state accounting.
 
 Architecture overview
 =====================
@@ -88,7 +88,7 @@ a page will cause no race conditions is enough.
   directly into the pool fast cache.
 
 * page_pool_release_page(): Unmap the page (if mapped) and account for it on
-  inflight counters.
+  in-flight counters.
 
 * page_pool_dev_alloc_pages(): Get a page from the page allocator or page_pool
   caches.

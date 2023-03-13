@@ -35,7 +35,7 @@
 #include "hw/clk_mgr.h"
 #include "dc_dmub_srv.h"
 #include "abm.h"
-
+#include "link.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -132,8 +132,8 @@ void dcn21_PLAT_58856_wa(struct dc_state *context, struct pipe_ctx *pipe_ctx)
 		return;
 
 	pipe_ctx->stream->dpms_off = false;
-	core_link_enable_stream(context, pipe_ctx);
-	core_link_disable_stream(pipe_ctx);
+	link_set_dpms_on(context, pipe_ctx);
+	link_set_dpms_off(pipe_ctx);
 	pipe_ctx->stream->dpms_off = true;
 }
 

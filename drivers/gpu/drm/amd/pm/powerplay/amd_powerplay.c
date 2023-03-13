@@ -111,8 +111,7 @@ static int pp_sw_fini(void *handle)
 
 	hwmgr_sw_fini(hwmgr);
 
-	release_firmware(adev->pm.fw);
-	adev->pm.fw = NULL;
+	amdgpu_ucode_release(&adev->pm.fw);
 
 	return 0;
 }
@@ -769,10 +768,16 @@ static int pp_dpm_read_sensor(void *handle, int idx,
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
-		*((uint32_t *)value) = hwmgr->pstate_sclk;
+		*((uint32_t *)value) = hwmgr->pstate_sclk * 100;
 		return 0;
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK:
-		*((uint32_t *)value) = hwmgr->pstate_mclk;
+		*((uint32_t *)value) = hwmgr->pstate_mclk * 100;
+		return 0;
+	case AMDGPU_PP_SENSOR_PEAK_PSTATE_SCLK:
+		*((uint32_t *)value) = hwmgr->pstate_sclk_peak * 100;
+		return 0;
+	case AMDGPU_PP_SENSOR_PEAK_PSTATE_MCLK:
+		*((uint32_t *)value) = hwmgr->pstate_mclk_peak * 100;
 		return 0;
 	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
 		*((uint32_t *)value) = hwmgr->thermal_controller.fanInfo.ulMinRPM;

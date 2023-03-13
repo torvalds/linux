@@ -77,6 +77,8 @@ static int simatic_ipc_leds_gpio_probe(struct platform_device *pdev)
 
 	switch (plat->devmode) {
 	case SIMATIC_IPC_DEVICE_127E:
+		if (!IS_ENABLED(CONFIG_PINCTRL_BROXTON))
+			return -ENODEV;
 		simatic_ipc_led_gpio_table = &simatic_ipc_led_gpio_table_127e;
 		break;
 	case SIMATIC_IPC_DEVICE_227G:

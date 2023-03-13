@@ -13,6 +13,8 @@
 struct drm_i915_error_state_buf;
 struct drm_i915_private;
 
+enum pipe;
+
 enum {
 	DMC_FW_MAIN = 0,
 	DMC_FW_PIPEA,
@@ -25,7 +27,6 @@ enum {
 struct intel_dmc {
 	struct work_struct work;
 	const char *fw_path;
-	u32 required_version;
 	u32 max_fw_size; /* bytes */
 	u32 version;
 	struct dmc_fw_info {
@@ -48,6 +49,8 @@ struct intel_dmc {
 void intel_dmc_ucode_init(struct drm_i915_private *i915);
 void intel_dmc_load_program(struct drm_i915_private *i915);
 void intel_dmc_disable_program(struct drm_i915_private *i915);
+void intel_dmc_enable_pipe(struct drm_i915_private *i915, enum pipe pipe);
+void intel_dmc_disable_pipe(struct drm_i915_private *i915, enum pipe pipe);
 void intel_dmc_ucode_fini(struct drm_i915_private *i915);
 void intel_dmc_ucode_suspend(struct drm_i915_private *i915);
 void intel_dmc_ucode_resume(struct drm_i915_private *i915);

@@ -119,6 +119,16 @@ config CROS_EC_SPI
 	  response time cannot be guaranteed, we support ignoring
 	  'pre-amble' bytes before the response actually starts.
 
+config CROS_EC_UART
+	tristate "ChromeOS Embedded Controller (UART)"
+	depends on CROS_EC && ACPI && SERIAL_DEV_BUS
+	help
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  through a UART, using a byte-level protocol.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_uart.
+
 config CROS_EC_LPC
 	tristate "ChromeOS Embedded Controller (LPC)"
 	depends on CROS_EC && ACPI && (X86 || COMPILE_TEST)
@@ -226,7 +236,7 @@ config CROS_EC_TYPEC
 	  information from the Chrome OS EC.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called cros_ec_typec.
+	  called cros-ec-typec.
 
 config CROS_HPS_I2C
 	tristate "ChromeOS HPS device"

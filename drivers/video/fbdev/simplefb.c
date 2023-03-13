@@ -12,6 +12,7 @@
  * Copyright (C) 1996 Paul Mackerras
  */
 
+#include <linux/aperture.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/io.h>
@@ -68,6 +69,8 @@ static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 struct simplefb_par {
 	u32 palette[PSEUDO_PALETTE_SIZE];
+	resource_size_t base;
+	resource_size_t size;
 	struct resource *mem;
 #if defined CONFIG_OF && defined CONFIG_COMMON_CLK
 	bool clks_enabled;
@@ -472,16 +475,11 @@ static int simplefb_probe(struct platform_device *pdev)
 	info->var.blue = params.format->blue;
 	info->var.transp = params.format->transp;
 
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto error_fb_release;
-	}
-	info->apertures->ranges[0].base = info->fix.smem_start;
-	info->apertures->ranges[0].size = info->fix.smem_len;
+	par->base = info->fix.smem_start;
+	par->size = info->fix.smem_len;
 
 	info->fbops = &simplefb_ops;
-	info->flags = FBINFO_DEFAULT | FBINFO_MISC_FIRMWARE;
+	info->flags = FBINFO_DEFAULT;
 	info->screen_base = ioremap_wc(info->fix.smem_start,
 				       info->fix.smem_len);
 	if (!info->screen_base) {
@@ -511,6 +509,11 @@ static int simplefb_probe(struct platform_device *pdev)
 	if (mem != res)
 		par->mem = mem; /* release in clean-up handler */
 
+	ret = devm_aperture_acquire_for_platform_device(pdev, par->base, par->size);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to acquire aperture: %d\n", ret);
+		goto error_regulators;
+	}
 	ret = register_framebuffer(info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unable to register simplefb: %d\n", ret);

@@ -62,7 +62,7 @@ fixup_cpc710_pci64(struct pci_dev* dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixup_cpc710_pci64);
 
-#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP
 
 static u8* pci_to_OF_bus_map;
 static int pci_bus_count;
@@ -152,6 +152,7 @@ pcibios_make_OF_bus_map(void)
 	}
 #endif
 }
+#endif // CONFIG_PPC_PCI_OF_BUS_MAP
 
 
 #ifdef CONFIG_PPC_PMAC
@@ -160,7 +161,9 @@ pcibios_make_OF_bus_map(void)
  */
 int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 {
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP
 	struct pci_dev *dev = NULL;
+#endif
 	const __be32 *reg;
 	int size;
 
@@ -175,6 +178,9 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 	*bus = (be32_to_cpup(&reg[0]) >> 16) & 0xff;
 	*devfn = (be32_to_cpup(&reg[0]) >> 8) & 0xff;
 
+#ifndef CONFIG_PPC_PCI_OF_BUS_MAP
+	return 0;
+#else
 	/* Ok, here we need some tweak. If we have already renumbered
 	 * all busses, we can't rely on the OF bus number any more.
 	 * the pci_to_OF_bus_map is not enough as several PCI busses
@@ -192,11 +198,12 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 		}
 
 	return -ENODEV;
+#endif // CONFIG_PPC_PCI_OF_BUS_MAP
 }
 EXPORT_SYMBOL(pci_device_from_OF_node);
 #endif
 
-#ifdef CONFIG_PPC_CHRP
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP
 /* We create the "pci-OF-bus-map" property now so it appears in the
  * /proc device tree
  */
@@ -221,9 +228,7 @@ pci_create_OF_bus_map(void)
 		of_node_put(dn);
 	}
 }
-#endif
-
-#endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP) */
+#endif // CONFIG_PPC_PCI_OF_BUS_MAP
 
 void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
@@ -273,6 +278,7 @@ static int __init pcibios_init(void)
 	}
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
+#ifdef CONFIG_PPC_PCI_OF_BUS_MAP
 	pci_bus_count = next_busno;
 
 	/* OpenFirmware based machines need a map of OF bus
@@ -281,6 +287,7 @@ static int __init pcibios_init(void)
 	 */
 	if (pci_assign_all_buses)
 		pcibios_make_OF_bus_map();
+#endif
 #endif
 
 	/* Call common code to handle resource allocation */

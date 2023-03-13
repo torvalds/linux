@@ -453,7 +453,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* Limit maximum size to 2GiB due to SG table limitations */
 		size = min(remaining_size, 2ULL << 30);
 
-		if (size >= (u64)pages_per_block << PAGE_SHIFT)
+		if ((size >= (u64)pages_per_block << PAGE_SHIFT) &&
+				!(size & (((u64)pages_per_block << PAGE_SHIFT) - 1)))
 			min_block_size = (u64)pages_per_block << PAGE_SHIFT;
 
 		cur_size = size;
@@ -882,7 +883,7 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 		kfree(rsv);
 
 	list_for_each_entry_safe(rsv, temp, &mgr->reserved_pages, blocks) {
-		drm_buddy_free_list(&mgr->mm, &rsv->blocks);
+		drm_buddy_free_list(&mgr->mm, &rsv->allocated);
 		kfree(rsv);
 	}
 	drm_buddy_fini(&mgr->mm);

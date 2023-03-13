@@ -3,11 +3,13 @@
  * Copyright(c) 2020 Intel Corporation.
  */
 
+#include "i915_drv.h"
+
 #include "intel_pxp.h"
 #include "intel_pxp_irq.h"
 #include "intel_pxp_pm.h"
 #include "intel_pxp_session.h"
-#include "i915_drv.h"
+#include "intel_pxp_types.h"
 
 void intel_pxp_suspend_prepare(struct intel_pxp *pxp)
 {
@@ -26,7 +28,7 @@ void intel_pxp_suspend(struct intel_pxp *pxp)
 	if (!intel_pxp_is_enabled(pxp))
 		return;
 
-	with_intel_runtime_pm(&pxp_to_gt(pxp)->i915->runtime_pm, wakeref) {
+	with_intel_runtime_pm(&pxp->ctrl_gt->i915->runtime_pm, wakeref) {
 		intel_pxp_fini_hw(pxp);
 		pxp->hw_state_invalidated = false;
 	}

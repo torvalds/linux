@@ -8,30 +8,32 @@
 
 #define pr_fmt(fmt) "iio-core: " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/anon_inodes.h>
+#include <linux/cdev.h>
+#include <linux/debugfs.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/kdev_t.h>
-#include <linux/err.h>
-#include <linux/device.h>
-#include <linux/fs.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/property.h>
 #include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/cdev.h>
 #include <linux/slab.h>
-#include <linux/anon_inodes.h>
-#include <linux/debugfs.h>
-#include <linux/mutex.h>
-#include <linux/iio/iio.h>
-#include <linux/iio/iio-opaque.h>
-#include "iio_core.h"
-#include "iio_core_trigger.h"
-#include <linux/iio/sysfs.h>
-#include <linux/iio/events.h>
+#include <linux/wait.h>
+
 #include <linux/iio/buffer.h>
 #include <linux/iio/buffer_impl.h>
+#include <linux/iio/events.h>
+#include <linux/iio/iio-opaque.h>
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+
+#include "iio_core.h"
+#include "iio_core_trigger.h"
 
 /* IDA to assign each registered device a unique id */
 static DEFINE_IDA(iio_ida);
@@ -204,36 +206,6 @@ bool iio_buffer_enabled(struct iio_dev *indio_dev)
 		   INDIO_BUFFER_SOFTWARE);
 }
 EXPORT_SYMBOL_GPL(iio_buffer_enabled);
-
-/**
- * iio_sysfs_match_string_with_gaps - matches given string in an array with gaps
- * @array: array of strings
- * @n: number of strings in the array
- * @str: string to match with
- *
- * Returns index of @str in the @array or -EINVAL, similar to match_string().
- * Uses sysfs_streq instead of strcmp for matching.
- *
- * This routine will look for a string in an array of strings.
- * The search will continue until the element is found or the n-th element
- * is reached, regardless of any NULL elements in the array.
- */
-static int iio_sysfs_match_string_with_gaps(const char * const *array, size_t n,
-					    const char *str)
-{
-	const char *item;
-	int index;
-
-	for (index = 0; index < n; index++) {
-		item = array[index];
-		if (!item)
-			continue;
-		if (sysfs_streq(item, str))
-			return index;
-	}
-
-	return -EINVAL;
-}
 
 #if defined(CONFIG_DEBUG_FS)
 /*
@@ -569,7 +541,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 	if (!e->set)
 		return -EINVAL;
 
-	ret = iio_sysfs_match_string_with_gaps(e->items, e->num_items, buf);
+	ret = __sysfs_match_string(e->items, e->num_items, buf);
 	if (ret < 0)
 		return ret;
 

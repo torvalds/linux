@@ -26,8 +26,8 @@ void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
 	bl_dma_dir = blp != blpout ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
 
 	for (i = 0; i < bl->num_bufs; i++)
-		dma_unmap_single(dev, bl->bufers[i].addr,
-				 bl->bufers[i].len, bl_dma_dir);
+		dma_unmap_single(dev, bl->buffers[i].addr,
+				 bl->buffers[i].len, bl_dma_dir);
 
 	dma_unmap_single(dev, blp, sz, DMA_TO_DEVICE);
 
@@ -36,8 +36,8 @@ void qat_bl_free_bufl(struct adf_accel_dev *accel_dev,
 
 	if (blp != blpout) {
 		for (i = 0; i < blout->num_mapped_bufs; i++) {
-			dma_unmap_single(dev, blout->bufers[i].addr,
-					 blout->bufers[i].len,
+			dma_unmap_single(dev, blout->buffers[i].addr,
+					 blout->buffers[i].len,
 					 DMA_FROM_DEVICE);
 		}
 		dma_unmap_single(dev, blpout, sz_out, DMA_TO_DEVICE);
@@ -53,6 +53,8 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 				struct qat_request_buffs *buf,
 				dma_addr_t extra_dst_buff,
 				size_t sz_extra_dst_buff,
+				unsigned int sskip,
+				unsigned int dskip,
 				gfp_t flags)
 {
 	struct device *dev = &GET_DEV(accel_dev);
@@ -63,8 +65,9 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	dma_addr_t blp = DMA_MAPPING_ERROR;
 	dma_addr_t bloutp = DMA_MAPPING_ERROR;
 	struct scatterlist *sg;
-	size_t sz_out, sz = struct_size(bufl, bufers, n);
+	size_t sz_out, sz = struct_size(bufl, buffers, n);
 	int node = dev_to_node(&GET_DEV(accel_dev));
+	unsigned int left;
 	int bufl_dma_dir;
 
 	if (unlikely(!n))
@@ -86,7 +89,9 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	bufl_dma_dir = sgl != sglout ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
 
 	for (i = 0; i < n; i++)
-		bufl->bufers[i].addr = DMA_MAPPING_ERROR;
+		bufl->buffers[i].addr = DMA_MAPPING_ERROR;
+
+	left = sskip;
 
 	for_each_sg(sgl, sg, n, i) {
 		int y = sg_nctr;
@@ -94,13 +99,21 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 		if (!sg->length)
 			continue;
 
-		bufl->bufers[y].addr = dma_map_single(dev, sg_virt(sg),
-						      sg->length,
-						      bufl_dma_dir);
-		bufl->bufers[y].len = sg->length;
-		if (unlikely(dma_mapping_error(dev, bufl->bufers[y].addr)))
+		if (left >= sg->length) {
+			left -= sg->length;
+			continue;
+		}
+		bufl->buffers[y].addr = dma_map_single(dev, sg_virt(sg) + left,
+						       sg->length - left,
+						       bufl_dma_dir);
+		bufl->buffers[y].len = sg->length;
+		if (unlikely(dma_mapping_error(dev, bufl->buffers[y].addr)))
 			goto err_in;
 		sg_nctr++;
+		if (left) {
+			bufl->buffers[y].len -= left;
+			left = 0;
+		}
 	}
 	bufl->num_bufs = sg_nctr;
 	blp = dma_map_single(dev, bufl, sz, DMA_TO_DEVICE);
@@ -111,12 +124,14 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	buf->sz = sz;
 	/* Handle out of place operation */
 	if (sgl != sglout) {
-		struct qat_alg_buf *bufers;
+		struct qat_alg_buf *buffers;
 		int extra_buff = extra_dst_buff ? 1 : 0;
 		int n_sglout = sg_nents(sglout);
 
 		n = n_sglout + extra_buff;
-		sz_out = struct_size(buflout, bufers, n);
+		sz_out = struct_size(buflout, buffers, n);
+		left = dskip;
+
 		sg_nctr = 0;
 
 		if (n > QAT_MAX_BUFF_DESC) {
@@ -129,9 +144,9 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 			buf->sgl_dst_valid = true;
 		}
 
-		bufers = buflout->bufers;
+		buffers = buflout->buffers;
 		for (i = 0; i < n; i++)
-			bufers[i].addr = DMA_MAPPING_ERROR;
+			buffers[i].addr = DMA_MAPPING_ERROR;
 
 		for_each_sg(sglout, sg, n_sglout, i) {
 			int y = sg_nctr;
@@ -139,17 +154,25 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 			if (!sg->length)
 				continue;
 
-			bufers[y].addr = dma_map_single(dev, sg_virt(sg),
-							sg->length,
-							DMA_FROM_DEVICE);
-			if (unlikely(dma_mapping_error(dev, bufers[y].addr)))
+			if (left >= sg->length) {
+				left -= sg->length;
+				continue;
+			}
+			buffers[y].addr = dma_map_single(dev, sg_virt(sg) + left,
+							 sg->length - left,
+							 DMA_FROM_DEVICE);
+			if (unlikely(dma_mapping_error(dev, buffers[y].addr)))
 				goto err_out;
-			bufers[y].len = sg->length;
+			buffers[y].len = sg->length;
 			sg_nctr++;
+			if (left) {
+				buffers[y].len -= left;
+				left = 0;
+			}
 		}
 		if (extra_buff) {
-			bufers[sg_nctr].addr = extra_dst_buff;
-			bufers[sg_nctr].len = sz_extra_dst_buff;
+			buffers[sg_nctr].addr = extra_dst_buff;
+			buffers[sg_nctr].len = sz_extra_dst_buff;
 		}
 
 		buflout->num_bufs = sg_nctr;
@@ -174,11 +197,11 @@ err_out:
 
 	n = sg_nents(sglout);
 	for (i = 0; i < n; i++) {
-		if (buflout->bufers[i].addr == extra_dst_buff)
+		if (buflout->buffers[i].addr == extra_dst_buff)
 			break;
-		if (!dma_mapping_error(dev, buflout->bufers[i].addr))
-			dma_unmap_single(dev, buflout->bufers[i].addr,
-					 buflout->bufers[i].len,
+		if (!dma_mapping_error(dev, buflout->buffers[i].addr))
+			dma_unmap_single(dev, buflout->buffers[i].addr,
+					 buflout->buffers[i].len,
 					 DMA_FROM_DEVICE);
 	}
 
@@ -191,9 +214,9 @@ err_in:
 
 	n = sg_nents(sgl);
 	for (i = 0; i < n; i++)
-		if (!dma_mapping_error(dev, bufl->bufers[i].addr))
-			dma_unmap_single(dev, bufl->bufers[i].addr,
-					 bufl->bufers[i].len,
+		if (!dma_mapping_error(dev, bufl->buffers[i].addr))
+			dma_unmap_single(dev, bufl->buffers[i].addr,
+					 bufl->buffers[i].len,
 					 bufl_dma_dir);
 
 	if (!buf->sgl_src_valid)
@@ -212,15 +235,19 @@ int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 {
 	dma_addr_t extra_dst_buff = 0;
 	size_t sz_extra_dst_buff = 0;
+	unsigned int sskip = 0;
+	unsigned int dskip = 0;
 
 	if (params) {
 		extra_dst_buff = params->extra_dst_buff;
 		sz_extra_dst_buff = params->sz_extra_dst_buff;
+		sskip = params->sskip;
+		dskip = params->dskip;
 	}
 
 	return __qat_bl_sgl_to_bufl(accel_dev, sgl, sglout, buf,
 				    extra_dst_buff, sz_extra_dst_buff,
-				    flags);
+				    sskip, dskip, flags);
 }
 
 static void qat_bl_sgl_unmap(struct adf_accel_dev *accel_dev,
@@ -231,9 +258,9 @@ static void qat_bl_sgl_unmap(struct adf_accel_dev *accel_dev,
 	int i;
 
 	for (i = 0; i < n; i++)
-		if (!dma_mapping_error(dev, bl->bufers[i].addr))
-			dma_unmap_single(dev, bl->bufers[i].addr,
-					 bl->bufers[i].len, DMA_FROM_DEVICE);
+		if (!dma_mapping_error(dev, bl->buffers[i].addr))
+			dma_unmap_single(dev, bl->buffers[i].addr,
+					 bl->buffers[i].len, DMA_FROM_DEVICE);
 }
 
 static int qat_bl_sgl_map(struct adf_accel_dev *accel_dev,
@@ -248,13 +275,13 @@ static int qat_bl_sgl_map(struct adf_accel_dev *accel_dev,
 	size_t sz;
 
 	n = sg_nents(sgl);
-	sz = struct_size(bufl, bufers, n);
+	sz = struct_size(bufl, buffers, n);
 	bufl = kzalloc_node(sz, GFP_KERNEL, node);
 	if (unlikely(!bufl))
 		return -ENOMEM;
 
 	for (i = 0; i < n; i++)
-		bufl->bufers[i].addr = DMA_MAPPING_ERROR;
+		bufl->buffers[i].addr = DMA_MAPPING_ERROR;
 
 	sg_nctr = 0;
 	for_each_sg(sgl, sg, n, i) {
@@ -263,11 +290,11 @@ static int qat_bl_sgl_map(struct adf_accel_dev *accel_dev,
 		if (!sg->length)
 			continue;
 
-		bufl->bufers[y].addr = dma_map_single(dev, sg_virt(sg),
-						      sg->length,
-						      DMA_FROM_DEVICE);
-		bufl->bufers[y].len = sg->length;
-		if (unlikely(dma_mapping_error(dev, bufl->bufers[y].addr)))
+		bufl->buffers[y].addr = dma_map_single(dev, sg_virt(sg),
+						       sg->length,
+						       DMA_FROM_DEVICE);
+		bufl->buffers[y].len = sg->length;
+		if (unlikely(dma_mapping_error(dev, bufl->buffers[y].addr)))
 			goto err_map;
 		sg_nctr++;
 	}
@@ -280,9 +307,9 @@ static int qat_bl_sgl_map(struct adf_accel_dev *accel_dev,
 
 err_map:
 	for (i = 0; i < n; i++)
-		if (!dma_mapping_error(dev, bufl->bufers[i].addr))
-			dma_unmap_single(dev, bufl->bufers[i].addr,
-					 bufl->bufers[i].len,
+		if (!dma_mapping_error(dev, bufl->buffers[i].addr))
+			dma_unmap_single(dev, bufl->buffers[i].addr,
+					 bufl->buffers[i].len,
 					 DMA_FROM_DEVICE);
 	kfree(bufl);
 	*bl = NULL;
@@ -351,7 +378,7 @@ int qat_bl_realloc_map_new_dst(struct adf_accel_dev *accel_dev,
 	if (ret)
 		return ret;
 
-	new_bl_size = struct_size(new_bl, bufers, new_bl->num_bufs);
+	new_bl_size = struct_size(new_bl, buffers, new_bl->num_bufs);
 
 	/* Map new firmware SGL descriptor */
 	new_blp = dma_map_single(dev, new_bl, new_bl_size, DMA_TO_DEVICE);

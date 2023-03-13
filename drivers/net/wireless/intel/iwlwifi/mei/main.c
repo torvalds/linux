@@ -788,7 +788,7 @@ static void iwl_mei_handle_amt_state(struct mei_cl_device *cldev,
 	if (mei->amt_enabled)
 		iwl_mei_set_init_conf(mei);
 	else if (iwl_mei_cache.ops)
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
 
 	schedule_work(&mei->netdev_work);
 
@@ -829,7 +829,7 @@ static void iwl_mei_handle_csme_taking_ownership(struct mei_cl_device *cldev,
 		 */
 		mei->csme_taking_ownership = true;
 
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, true, true);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, true);
 	} else {
 		iwl_mei_send_sap_msg(cldev,
 				     SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED);
@@ -1774,7 +1774,7 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 			if (mei->amt_enabled)
 				iwl_mei_send_sap_msg(mei->cldev,
 						     SAP_MSG_NOTIF_WIFIDR_UP);
-			ops->rfkill(priv, mei->link_prot_state, false);
+			ops->rfkill(priv, mei->link_prot_state);
 		}
 	}
 	ret = 0;

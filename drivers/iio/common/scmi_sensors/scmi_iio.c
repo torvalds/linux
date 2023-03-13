@@ -400,12 +400,12 @@ static ssize_t scmi_iio_get_raw_available(struct iio_dev *iio_dev,
 			rem = do_div(resolution,
 				     int_pow(10, abs(exponent))
 				     );
-			len = scnprintf(buf, PAGE_SIZE,
+			len = sysfs_emit(buf,
 					"[%lld %llu.%llu %lld]\n", min_range,
 					resolution, rem, max_range);
 		} else {
 			resolution = resolution * int_pow(10, exponent);
-			len = scnprintf(buf, PAGE_SIZE, "[%lld %llu %lld]\n",
+			len = sysfs_emit(buf, "[%lld %llu %lld]\n",
 					min_range, resolution, max_range);
 		}
 	}

@@ -8,6 +8,7 @@ REDIRECT_USER='./tc_l2_redirect'
 REDIRECT_BPF='./tc_l2_redirect_kern.o'
 
 RP_FILTER=$(< /proc/sys/net/ipv4/conf/all/rp_filter)
+IPV6_DISABLED=$(< /proc/sys/net/ipv6/conf/all/disable_ipv6)
 IPV6_FORWARDING=$(< /proc/sys/net/ipv6/conf/all/forwarding)
 
 function config_common {
@@ -64,6 +65,7 @@ function config_common {
 
 	sysctl -q -w net.ipv4.conf.all.rp_filter=0
 	sysctl -q -w net.ipv6.conf.all.forwarding=1
+	sysctl -q -w net.ipv6.conf.all.disable_ipv6=0
 }
 
 function cleanup {
@@ -77,6 +79,7 @@ function cleanup {
 	$IP link del ip6t >& /dev/null
 	sysctl -q -w net.ipv4.conf.all.rp_filter=$RP_FILTER
 	sysctl -q -w net.ipv6.conf.all.forwarding=$IPV6_FORWARDING
+	sysctl -q -w net.ipv6.conf.all.disable_ipv6=$IPV6_DISABLED
 	rm -f /sys/fs/bpf/tc/globals/tun_iface
 	[[ -z $DEBUG ]] || set -x
 	set -e

@@ -4,6 +4,7 @@ config INTEL_SKL_INT3472
 	depends on COMMON_CLK
 	depends on I2C
 	depends on GPIOLIB
+	depends on LEDS_CLASS
 	depends on REGULATOR
 	select MFD_CORE
 	select REGMAP_I2C

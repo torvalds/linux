@@ -67,9 +67,9 @@ tree - drivers/accel/.
 The accelerator devices will be exposed to the user space with the dedicated
 261 major number and will have the following convention:
 
-- device char files - /dev/accel/accel*
-- sysfs             - /sys/class/accel/accel*/
-- debugfs           - /sys/kernel/debug/accel/accel*/
+- device char files - /dev/accel/accel\*
+- sysfs             - /sys/class/accel/accel\*/
+- debugfs           - /sys/kernel/debug/accel/\*/
 
 Getting Started
 ===============

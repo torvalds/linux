@@ -70,7 +70,7 @@ dsp_map
     PCM device number maps assigned to the 1st OSS device;
     Default: 0
 adsp_map
-    PCM device number maps assigned to the 2st OSS device;
+    PCM device number maps assigned to the 2nd OSS device;
     Default: 1
 nonblock_open
     Don't block opening busy PCM devices;
@@ -97,7 +97,7 @@ midi_map
     MIDI device number maps assigned to the 1st OSS device;
     Default: 0
 amidi_map
-    MIDI device number maps assigned to the 2st OSS device;
+    MIDI device number maps assigned to the 2nd OSS device;
     Default: 1
 
 Module snd-soc-core
@@ -727,9 +727,9 @@ Module for EMU10K1/EMU10k2 based PCI sound cards.
 * Sound Blaster Audigy
 	
 extin
-    bitmap of available external inputs for FX8010 (see bellow)
+    bitmap of available external inputs for FX8010 (see below)
 extout
-    bitmap of available external outputs for FX8010 (see bellow)
+    bitmap of available external outputs for FX8010 (see below)
 seq_ports
     allocated sequencer ports (4 by default)
 max_synth_voices

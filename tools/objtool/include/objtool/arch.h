@@ -62,9 +62,9 @@ struct op_src {
 };
 
 struct stack_op {
+	struct stack_op *next;
 	struct op_dest dest;
 	struct op_src src;
-	struct list_head list;
 };
 
 struct instruction;
@@ -75,9 +75,7 @@ void arch_initial_func_cfi_state(struct cfi_init_state *state);
 
 int arch_decode_instruction(struct objtool_file *file, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
-			    unsigned int *len, enum insn_type *type,
-			    unsigned long *immediate,
-			    struct list_head *ops_list);
+			    struct instruction *insn);
 
 bool arch_callee_saved_reg(unsigned char reg);
 

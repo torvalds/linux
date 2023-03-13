@@ -445,7 +445,7 @@ int ndisc_late_init(void);
 void ndisc_late_cleanup(void);
 void ndisc_cleanup(void);
 
-int ndisc_rcv(struct sk_buff *skb);
+enum skb_drop_reason ndisc_rcv(struct sk_buff *skb);
 
 struct sk_buff *ndisc_ns_create(struct net_device *dev, const struct in6_addr *solicit,
 				const struct in6_addr *saddr, u64 nonce);

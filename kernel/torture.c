@@ -450,7 +450,7 @@ unsigned long
 torture_random(struct torture_random_state *trsp)
 {
 	if (--trsp->trs_count < 0) {
-		trsp->trs_state += (unsigned long)local_clock();
+		trsp->trs_state += (unsigned long)local_clock() + raw_smp_processor_id();
 		trsp->trs_count = TORTURE_RANDOM_REFRESH;
 	}
 	trsp->trs_state = trsp->trs_state * TORTURE_RANDOM_MULT +
@@ -915,7 +915,7 @@ void torture_kthread_stopping(char *title)
 	VERBOSE_TOROUT_STRING(buf);
 	while (!kthread_should_stop()) {
 		torture_shutdown_absorb(title);
-		schedule_timeout_uninterruptible(1);
+		schedule_timeout_uninterruptible(HZ / 20);
 	}
 }
 EXPORT_SYMBOL_GPL(torture_kthread_stopping);

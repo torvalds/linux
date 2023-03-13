@@ -36,9 +36,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		wakeup {
+		key-wakeup {
 			debounce-interval = <10>;
-			gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>; /* SODIMM 45 */
+			gpios = <&gpio2 22 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* SODIMM 45 */
 			label = "Wake-Up";
 			linux,code = <KEY_WAKEUP>;
 			wakeup-source;
@@ -684,7 +684,6 @@
 
 /* Colibri USBC */
 &usbotg {
-	disable-over-current;
 	dr_mode = "otg";
 	extcon = <0>, <&extcon_usbc_det>;
 	status = "disabled";

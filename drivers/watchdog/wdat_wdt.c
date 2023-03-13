@@ -301,13 +301,12 @@ static const struct watchdog_info wdat_wdt_info = {
 	.identity = "wdat_wdt",
 };
 
-static const struct watchdog_ops wdat_wdt_ops = {
+static struct watchdog_ops wdat_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = wdat_wdt_start,
 	.stop = wdat_wdt_stop,
 	.ping = wdat_wdt_ping,
 	.set_timeout = wdat_wdt_set_timeout,
-	.get_timeleft = wdat_wdt_get_timeleft,
 };
 
 static int wdat_wdt_probe(struct platform_device *pdev)
@@ -435,6 +434,9 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		list_add_tail(&instr->node, instructions);
 	}
+
+	if (wdat->instructions[ACPI_WDAT_GET_CURRENT_COUNTDOWN])
+		wdat_wdt_ops.get_timeleft = wdat_wdt_get_timeleft;
 
 	wdat_wdt_boot_status(wdat);
 	wdat_wdt_set_running(wdat);

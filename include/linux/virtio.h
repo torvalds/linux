@@ -127,10 +127,7 @@ struct virtio_device {
 	void *priv;
 };
 
-static inline struct virtio_device *dev_to_virtio(struct device *_dev)
-{
-	return container_of(_dev, struct virtio_device, dev);
-}
+#define dev_to_virtio(_dev)	container_of_const(_dev, struct virtio_device, dev)
 
 void virtio_add_status(struct virtio_device *dev, unsigned int status);
 int register_virtio_device(struct virtio_device *dev);

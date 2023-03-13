@@ -88,6 +88,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_watchdog_gpio>;
 		compatible = "linux,wdt-gpio";
+		always-running;
 		gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		hw_algo = "level";
 		/* Reset triggers in 2..3 seconds */
@@ -275,7 +276,7 @@
 		compatible = "rohm,bd71847";
 		reg = <0x4b>;
 		#clock-cells = <0>;
-		clocks = <&clk_xtal32k 0>;
+		clocks = <&clk_xtal32k>;
 		clock-output-names = "clk-32k-out";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
@@ -904,9 +905,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie0>;
 	reset-gpio = <&gpio1 5 GPIO_ACTIVE_LOW>;
-	clocks = <&clk IMX8MM_CLK_PCIE1_ROOT>, <&clk IMX8MM_CLK_PCIE1_AUX>,
-		 <&pcieclk 0>;
-	clock-names = "pcie", "pcie_aux", "pcie_bus";
+	clocks = <&clk IMX8MM_CLK_PCIE1_ROOT>, <&pcieclk 0>,
+		 <&clk IMX8MM_CLK_PCIE1_AUX>;
 	assigned-clocks = <&clk IMX8MM_CLK_PCIE1_AUX>,
 			  <&clk IMX8MM_CLK_PCIE1_CTRL>;
 	assigned-clock-rates = <10000000>, <250000000>;

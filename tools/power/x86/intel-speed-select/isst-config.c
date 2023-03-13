@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.13";
+static const char *version_str = "v1.14";
 
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
@@ -110,7 +110,7 @@ int is_skx_based_platform(void)
 
 int is_spr_platform(void)
 {
-	if (cpu_model == 0x8F)
+	if (cpu_model == 0x8F || cpu_model == 0xCF)
 		return 1;
 
 	return 0;
@@ -383,11 +383,11 @@ void set_isst_id(struct isst_id *id, int cpu)
 	id->cpu = cpu;
 
 	id->pkg = get_physical_package_id(cpu);
-	if (id < 0 || id->pkg >= MAX_PACKAGE_COUNT)
+	if (id->pkg >= MAX_PACKAGE_COUNT)
 		id->pkg = -1;
 
 	id->die = get_physical_die_id(cpu);
-	if (id < 0 || id->die >= MAX_DIE_PER_PACKAGE)
+	if (id->die >= MAX_DIE_PER_PACKAGE)
 		id->die = -1;
 }
 
@@ -411,6 +411,33 @@ int get_cpufreq_base_freq(int cpu)
 int get_topo_max_cpus(void)
 {
 	return topo_max_cpus;
+}
+
+static unsigned int is_cpu_online(int cpu)
+{
+	char buffer[128];
+	int fd, ret;
+	unsigned char online;
+
+	snprintf(buffer, sizeof(buffer),
+		 "/sys/devices/system/cpu/cpu%d/online", cpu);
+
+	fd = open(buffer, O_RDONLY);
+	if (fd < 0)
+		return fd;
+
+	ret = read(fd, &online, sizeof(online));
+	close(fd);
+
+	if (ret == -1)
+		return ret;
+
+	if (online == '1')
+		online = 1;
+	else
+		online = 0;
+
+	return online;
 }
 
 void set_cpu_online_offline(int cpu, int state)
@@ -1292,6 +1319,34 @@ static void dump_isst_config(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static int set_uncore_min_max(struct isst_id *id, int max, int freq)
+{
+	char buffer[128], freq_str[16];
+	int fd, ret, len;
+
+	if (max)
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/max_freq_khz", id->pkg, id->die);
+	else
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/min_freq_khz", id->pkg, id->die);
+
+	fd = open(buffer, O_WRONLY);
+	if (fd < 0)
+		return fd;
+
+	snprintf(freq_str, sizeof(freq_str), "%d", freq);
+	len = strlen(freq_str);
+	ret = write(fd, freq_str, len);
+	if (ret == -1) {
+		close(fd);
+		return ret;
+	}
+	close(fd);
+
+	return 0;
+}
+
 static void adjust_scaling_max_from_base_freq(int cpu);
 
 static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *arg3,
@@ -1312,6 +1367,14 @@ static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, vo
 
 			/* Wait for updated base frequencies */
 			usleep(2000);
+
+			/* Adjusting uncore freq */
+			isst_get_uncore_p0_p1_info(id, tdp_level, &ctdp_level);
+			if (ctdp_level.uncore_pm)
+				set_uncore_min_max(id, 0, ctdp_level.uncore_pm * 100000);
+
+			if (ctdp_level.uncore_p0)
+				set_uncore_min_max(id, 1, ctdp_level.uncore_p0 * 100000);
 
 			fprintf(stderr, "Option is set to online/offline\n");
 			ctdp_level.core_cpumask_size =
@@ -1583,6 +1646,7 @@ static int set_cpufreq_scaling_min_max_from_cpuinfo(int cpu, int cpuinfo_max, in
 	if (fd < 0)
 		return fd;
 
+	min_freq[15] = '\0';
 	len = strlen(min_freq);
 	ret = write(fd, min_freq, len);
 	if (ret == -1) {
@@ -1602,6 +1666,9 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
+		if (is_cpu_online(i) != 1)
+			continue;
+
 		adjust_scaling_max_from_base_freq(i);
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
 		adjust_scaling_min_from_base_freq(i);
@@ -1614,6 +1681,9 @@ static void set_scaling_min_to_cpuinfo_min(struct isst_id *id)
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		if (!is_cpu_in_power_domain(i, id))
+			continue;
+
+		if (is_cpu_online(i) != 1)
 			continue;
 
 		adjust_scaling_max_from_base_freq(i);
@@ -2015,6 +2085,7 @@ static void set_fact_enable(int arg)
 			if (len < 0)
 				continue;
 
+			sibling_list[127] = '\0';
 			cpu_str = strtok(sibling_list, ",");
 			while (cpu_str != NULL) {
 				int cpu;
@@ -2029,6 +2100,9 @@ static void set_fact_enable(int arg)
 			int clos;
 
 			if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+				continue;
+
+			if (is_cpu_online(i) != 1)
 				continue;
 
 			set_isst_id(&id, i);

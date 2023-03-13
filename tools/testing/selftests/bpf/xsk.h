@@ -23,77 +23,6 @@
 extern "C" {
 #endif
 
-/* This whole API has been deprecated and moved to libxdp that can be found at
- * https://github.com/xdp-project/xdp-tools. The APIs are exactly the same so
- * it should just be linking with libxdp instead of libbpf for this set of
- * functionality. If not, please submit a bug report on the aforementioned page.
- */
-
-/* Load-Acquire Store-Release barriers used by the XDP socket
- * library. The following macros should *NOT* be considered part of
- * the xsk.h API, and is subject to change anytime.
- *
- * LIBRARY INTERNAL
- */
-
-#define __XSK_READ_ONCE(x) (*(volatile typeof(x) *)&x)
-#define __XSK_WRITE_ONCE(x, v) (*(volatile typeof(x) *)&x) = (v)
-
-#if defined(__i386__) || defined(__x86_64__)
-# define libbpf_smp_store_release(p, v)					\
-	do {								\
-		asm volatile("" : : : "memory");			\
-		__XSK_WRITE_ONCE(*p, v);				\
-	} while (0)
-# define libbpf_smp_load_acquire(p)					\
-	({								\
-		typeof(*p) ___p1 = __XSK_READ_ONCE(*p);			\
-		asm volatile("" : : : "memory");			\
-		___p1;							\
-	})
-#elif defined(__aarch64__)
-# define libbpf_smp_store_release(p, v)					\
-		asm volatile ("stlr %w1, %0" : "=Q" (*p) : "r" (v) : "memory")
-# define libbpf_smp_load_acquire(p)					\
-	({								\
-		typeof(*p) ___p1;					\
-		asm volatile ("ldar %w0, %1"				\
-			      : "=r" (___p1) : "Q" (*p) : "memory");	\
-		___p1;							\
-	})
-#elif defined(__riscv)
-# define libbpf_smp_store_release(p, v)					\
-	do {								\
-		asm volatile ("fence rw,w" : : : "memory");		\
-		__XSK_WRITE_ONCE(*p, v);				\
-	} while (0)
-# define libbpf_smp_load_acquire(p)					\
-	({								\
-		typeof(*p) ___p1 = __XSK_READ_ONCE(*p);			\
-		asm volatile ("fence r,rw" : : : "memory");		\
-		___p1;							\
-	})
-#endif
-
-#ifndef libbpf_smp_store_release
-#define libbpf_smp_store_release(p, v)					\
-	do {								\
-		__sync_synchronize();					\
-		__XSK_WRITE_ONCE(*p, v);				\
-	} while (0)
-#endif
-
-#ifndef libbpf_smp_load_acquire
-#define libbpf_smp_load_acquire(p)					\
-	({								\
-		typeof(*p) ___p1 = __XSK_READ_ONCE(*p);			\
-		__sync_synchronize();					\
-		___p1;							\
-	})
-#endif
-
-/* LIBRARY INTERNAL -- END */
-
 /* Do not access these members directly. Use the functions below. */
 #define DEFINE_XSK_RING(name) \
 struct name { \
@@ -168,7 +97,7 @@ static inline __u32 xsk_prod_nb_free(struct xsk_ring_prod *r, __u32 nb)
 	 * this function. Without this optimization it whould have been
 	 * free_entries = r->cached_prod - r->cached_cons + r->size.
 	 */
-	r->cached_cons = libbpf_smp_load_acquire(r->consumer);
+	r->cached_cons = __atomic_load_n(r->consumer, __ATOMIC_ACQUIRE);
 	r->cached_cons += r->size;
 
 	return r->cached_cons - r->cached_prod;
@@ -179,7 +108,7 @@ static inline __u32 xsk_cons_nb_avail(struct xsk_ring_cons *r, __u32 nb)
 	__u32 entries = r->cached_prod - r->cached_cons;
 
 	if (entries == 0) {
-		r->cached_prod = libbpf_smp_load_acquire(r->producer);
+		r->cached_prod = __atomic_load_n(r->producer, __ATOMIC_ACQUIRE);
 		entries = r->cached_prod - r->cached_cons;
 	}
 
@@ -202,7 +131,7 @@ static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, __u32 nb)
 	/* Make sure everything has been written to the ring before indicating
 	 * this to the kernel by writing the producer pointer.
 	 */
-	libbpf_smp_store_release(prod->producer, *prod->producer + nb);
+	__atomic_store_n(prod->producer, *prod->producer + nb, __ATOMIC_RELEASE);
 }
 
 static inline __u32 xsk_ring_cons__peek(struct xsk_ring_cons *cons, __u32 nb, __u32 *idx)
@@ -227,8 +156,7 @@ static inline void xsk_ring_cons__release(struct xsk_ring_cons *cons, __u32 nb)
 	/* Make sure data has been read before indicating we are done
 	 * with the entries by updating the consumer pointer.
 	 */
-	libbpf_smp_store_release(cons->consumer, *cons->consumer + nb);
-
+	__atomic_store_n(cons->consumer, *cons->consumer + nb, __ATOMIC_RELEASE);
 }
 
 static inline void *xsk_umem__get_data(void *umem_area, __u64 addr)
@@ -269,18 +197,15 @@ struct xsk_umem_config {
 	__u32 flags;
 };
 
-int xsk_setup_xdp_prog_xsk(struct xsk_socket *xsk, int *xsks_map_fd);
-int xsk_setup_xdp_prog(int ifindex, int *xsks_map_fd);
-int xsk_socket__update_xskmap(struct xsk_socket *xsk, int xsks_map_fd);
-
-/* Flags for the libbpf_flags field. */
-#define XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD (1 << 0)
+int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags);
+void xsk_detach_xdp_program(int ifindex, u32 xdp_flags);
+int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk);
+void xsk_clear_xskmap(struct bpf_map *map);
+bool xsk_is_in_mode(u32 ifindex, int mode);
 
 struct xsk_socket_config {
 	__u32 rx_size;
 	__u32 tx_size;
-	__u32 libbpf_flags;
-	__u32 xdp_flags;
 	__u16 bind_flags;
 };
 
@@ -291,13 +216,13 @@ int xsk_umem__create(struct xsk_umem **umem,
 		     struct xsk_ring_cons *comp,
 		     const struct xsk_umem_config *config);
 int xsk_socket__create(struct xsk_socket **xsk,
-		       const char *ifname, __u32 queue_id,
+		       int ifindex, __u32 queue_id,
 		       struct xsk_umem *umem,
 		       struct xsk_ring_cons *rx,
 		       struct xsk_ring_prod *tx,
 		       const struct xsk_socket_config *config);
 int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
-			      const char *ifname,
+			      int ifindex,
 			      __u32 queue_id, struct xsk_umem *umem,
 			      struct xsk_ring_cons *rx,
 			      struct xsk_ring_prod *tx,

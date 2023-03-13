@@ -524,10 +524,9 @@ static void ac97_bus_remove(struct device *dev)
 	if (ret < 0)
 		return;
 
-	ret = adrv->remove(adev);
+	adrv->remove(adev);
 	pm_runtime_put_noidle(dev);
-	if (ret == 0)
-		ac97_put_disable_clk(adev);
+	ac97_put_disable_clk(adev);
 
 	pm_runtime_disable(dev);
 }

@@ -225,7 +225,7 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 }
 
 int
-ext4_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+ext4_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	     struct posix_acl *acl, int type)
 {
 	handle_t *handle;
@@ -249,7 +249,7 @@ retry:
 		return PTR_ERR(handle);
 
 	if ((type == ACL_TYPE_ACCESS) && acl) {
-		error = posix_acl_update_mode(mnt_userns, inode, &mode, &acl);
+		error = posix_acl_update_mode(idmap, inode, &mode, &acl);
 		if (error)
 			goto out_stop;
 		if (mode != inode->i_mode)

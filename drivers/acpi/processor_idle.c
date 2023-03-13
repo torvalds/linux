@@ -109,8 +109,8 @@ static const struct dmi_system_id processor_power_dmi_table[] = {
 static void __cpuidle acpi_safe_halt(void)
 {
 	if (!tif_need_resched()) {
-		safe_halt();
-		local_irq_disable();
+		raw_safe_halt();
+		raw_local_irq_disable();
 	}
 }
 
@@ -147,7 +147,7 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 
 static void __lapic_timer_propagate_broadcast(void *arg)
 {
-	struct acpi_processor *pr = (struct acpi_processor *) arg;
+	struct acpi_processor *pr = arg;
 
 	if (pr->power.timer_broadcast_on_state < INT_MAX)
 		tick_broadcast_enable();
@@ -523,8 +523,11 @@ static int acpi_idle_bm_check(void)
 	return bm_status;
 }
 
-static void wait_for_freeze(void)
+static __cpuidle void io_idle(unsigned long addr)
 {
+	/* IO port based C-state */
+	inb(addr);
+
 #ifdef	CONFIG_X86
 	/* No delay is needed if we are in guest */
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
@@ -569,9 +572,7 @@ static void __cpuidle acpi_idle_do_entry(struct acpi_processor_cx *cx)
 	} else if (cx->entry_method == ACPI_CSTATE_HALT) {
 		acpi_safe_halt();
 	} else {
-		/* IO port based C-state */
-		inb(cx->address);
-		wait_for_freeze();
+		io_idle(cx->address);
 	}
 
 	perf_lopwr_cb(false);
@@ -593,8 +594,7 @@ static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 		if (cx->entry_method == ACPI_CSTATE_HALT)
 			safe_halt();
 		else if (cx->entry_method == ACPI_CSTATE_SYSTEMIO) {
-			inb(cx->address);
-			wait_for_freeze();
+			io_idle(cx->address);
 		} else
 			return -ENODEV;
 
@@ -607,7 +607,7 @@ static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 	return 0;
 }
 
-static bool acpi_idle_fallback_to_c1(struct acpi_processor *pr)
+static __always_inline bool acpi_idle_fallback_to_c1(struct acpi_processor *pr)
 {
 	return IS_ENABLED(CONFIG_HOTPLUG_CPU) && !pr->flags.has_cst &&
 		!(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED);
@@ -642,6 +642,8 @@ static int __cpuidle acpi_idle_enter_bm(struct cpuidle_driver *drv,
 	 */
 	bool dis_bm = pr->flags.bm_control;
 
+	instrumentation_begin();
+
 	/* If we can skip BM, demote to a safe state. */
 	if (!cx->bm_sts_skip && acpi_idle_bm_check()) {
 		dis_bm = false;
@@ -663,11 +665,11 @@ static int __cpuidle acpi_idle_enter_bm(struct cpuidle_driver *drv,
 		raw_spin_unlock(&c3_lock);
 	}
 
-	ct_idle_enter();
+	ct_cpuidle_enter();
 
 	acpi_idle_do_entry(cx);
 
-	ct_idle_exit();
+	ct_cpuidle_exit();
 
 	/* Re-enable bus master arbitration */
 	if (dis_bm) {
@@ -676,6 +678,8 @@ static int __cpuidle acpi_idle_enter_bm(struct cpuidle_driver *drv,
 		c3_cpu_count--;
 		raw_spin_unlock(&c3_lock);
 	}
+
+	instrumentation_end();
 
 	return index;
 }
@@ -1219,6 +1223,8 @@ static int acpi_processor_setup_lpi_states(struct acpi_processor *pr)
 		state->target_residency = lpi->min_residency;
 		if (lpi->arch_flags)
 			state->flags |= CPUIDLE_FLAG_TIMER_STOP;
+		if (i != 0 && lpi->entry_method == ACPI_CSTATE_FFH)
+			state->flags |= CPUIDLE_FLAG_RCU_IDLE;
 		state->enter = acpi_idle_lpi_enter;
 		drv->safe_state_index = i;
 	}

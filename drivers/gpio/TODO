@@ -61,8 +61,8 @@ Work items:
 
 - Get rid of struct of_mm_gpio_chip altogether: use the generic  MMIO
   GPIO for all current users (see below). Delete struct of_mm_gpio_chip,
-  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_add()
-  of_mm_gpiochip_remove() from the kernel.
+  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_remove()
+  from the kernel.
 
 - Change all consumer drivers that #include <linux/of_gpio.h> to
   #include <linux/gpio/consumer.h> and stop doing custom parsing of the

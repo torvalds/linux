@@ -50,15 +50,26 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CH7xxx_INPUT_CLOCK	0x1d
 #define CH7xxx_GPIO		0x1e
 #define CH7xxx_GPIO_HPIR	(1<<3)
-#define CH7xxx_IDF		0x1f
 
+#define CH7xxx_IDF		0x1f
+#define CH7xxx_IDF_IBS		(1<<7)
+#define CH7xxx_IDF_DES		(1<<6)
 #define CH7xxx_IDF_HSP		(1<<3)
 #define CH7xxx_IDF_VSP		(1<<4)
 
 #define CH7xxx_CONNECTION_DETECT 0x20
 #define CH7xxx_CDET_DVI		(1<<5)
 
-#define CH7301_DAC_CNTL		0x21
+#define CH7xxx_DAC_CNTL		0x21
+#define CH7xxx_SYNCO_MASK	(3 << 3)
+#define CH7xxx_SYNCO_VGA_HSYNC	(1 << 3)
+
+#define CH7xxx_CLOCK_OUTPUT	0x22
+#define CH7xxx_BCOEN		(1 << 4)
+#define CH7xxx_BCOP		(1 << 3)
+#define CH7xxx_BCO_MASK		(7 << 0)
+#define CH7xxx_BCO_VGA_VSYNC	(6 << 0)
+
 #define CH7301_HOTPLUG		0x23
 #define CH7xxx_TCTL		0x31
 #define CH7xxx_TVCO		0x32
@@ -301,6 +312,8 @@ static void ch7xxx_mode_set(struct intel_dvo_device *dvo,
 
 	ch7xxx_readb(dvo, CH7xxx_IDF, &idf);
 
+	idf |= CH7xxx_IDF_IBS;
+
 	idf &= ~(CH7xxx_IDF_HSP | CH7xxx_IDF_VSP);
 	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 		idf |= CH7xxx_IDF_HSP;
@@ -309,6 +322,11 @@ static void ch7xxx_mode_set(struct intel_dvo_device *dvo,
 		idf |= CH7xxx_IDF_VSP;
 
 	ch7xxx_writeb(dvo, CH7xxx_IDF, idf);
+
+	ch7xxx_writeb(dvo, CH7xxx_DAC_CNTL,
+		      CH7xxx_SYNCO_VGA_HSYNC);
+	ch7xxx_writeb(dvo, CH7xxx_CLOCK_OUTPUT,
+		      CH7xxx_BCOEN | CH7xxx_BCO_VGA_VSYNC);
 }
 
 /* set the CH7xxx power state */

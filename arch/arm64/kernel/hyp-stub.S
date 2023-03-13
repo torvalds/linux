@@ -16,30 +16,6 @@
 #include <asm/ptrace.h>
 #include <asm/virt.h>
 
-// Warning, hardcoded register allocation
-// This will clobber x1 and x2, and expect x1 to contain
-// the id register value as read from the HW
-.macro __check_override idreg, fld, width, pass, fail
-	ubfx	x1, x1, #\fld, #\width
-	cbz	x1, \fail
-
-	adr_l	x1, \idreg\()_override
-	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
-	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
-	ubfx	x2, x2, #\fld, #\width
-	ubfx	x1, x1, #\fld, #\width
-	cmp	x1, xzr
-	and	x2, x2, x1
-	csinv	x2, x2, xzr, ne
-	cbnz	x2, \pass
-	b	\fail
-.endm
-
-.macro check_override idreg, fld, pass, fail
-	mrs	x1, \idreg\()_el1
-	__check_override \idreg \fld 4 \pass \fail
-.endm
-
 	.text
 	.pushsection	.hyp.text, "ax"
 
@@ -98,58 +74,7 @@ SYM_CODE_START_LOCAL(elx_sync)
 SYM_CODE_END(elx_sync)
 
 SYM_CODE_START_LOCAL(__finalise_el2)
-	check_override id_aa64pfr0 ID_AA64PFR0_EL1_SVE_SHIFT .Linit_sve .Lskip_sve
-
-.Linit_sve:	/* SVE register access */
-	mrs	x0, cptr_el2			// Disable SVE traps
-	bic	x0, x0, #CPTR_EL2_TZ
-	msr	cptr_el2, x0
-	isb
-	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
-	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
-
-.Lskip_sve:
-	check_override id_aa64pfr1 ID_AA64PFR1_EL1_SME_SHIFT .Linit_sme .Lskip_sme
-
-.Linit_sme:	/* SME register access and priority mapping */
-	mrs	x0, cptr_el2			// Disable SME traps
-	bic	x0, x0, #CPTR_EL2_TSM
-	msr	cptr_el2, x0
-	isb
-
-	mrs	x1, sctlr_el2
-	orr	x1, x1, #SCTLR_ELx_ENTP2	// Disable TPIDR2 traps
-	msr	sctlr_el2, x1
-	isb
-
-	mov	x0, #0				// SMCR controls
-
-	// Full FP in SM?
-	mrs_s	x1, SYS_ID_AA64SMFR0_EL1
-	__check_override id_aa64smfr0 ID_AA64SMFR0_EL1_FA64_SHIFT 1 .Linit_sme_fa64 .Lskip_sme_fa64
-
-.Linit_sme_fa64:
-	orr	x0, x0, SMCR_ELx_FA64_MASK
-.Lskip_sme_fa64:
-
-	orr	x0, x0, #SMCR_ELx_LEN_MASK	// Enable full SME vector
-	msr_s	SYS_SMCR_EL2, x0		// length for EL1.
-
-	mrs_s	x1, SYS_SMIDR_EL1		// Priority mapping supported?
-	ubfx    x1, x1, #SMIDR_EL1_SMPS_SHIFT, #1
-	cbz     x1, .Lskip_sme
-
-	msr_s	SYS_SMPRIMAP_EL2, xzr		// Make all priorities equal
-
-	mrs	x1, id_aa64mmfr1_el1		// HCRX_EL2 present?
-	ubfx	x1, x1, #ID_AA64MMFR1_EL1_HCX_SHIFT, #4
-	cbz	x1, .Lskip_sme
-
-	mrs_s	x1, SYS_HCRX_EL2
-	orr	x1, x1, #HCRX_EL2_SMPME_MASK	// Enable priority mapping
-	msr_s	SYS_HCRX_EL2, x1
-
-.Lskip_sme:
+	finalise_el2_state
 
 	// nVHE? No way! Give me the real thing!
 	// Sanity check: MMU *must* be off
@@ -157,7 +82,7 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	tbnz	x1, #0, 1f
 
 	// Needs to be VHE capable, obviously
-	check_override id_aa64mmfr1 ID_AA64MMFR1_EL1_VH_SHIFT 2f 1f
+	check_override id_aa64mmfr1 ID_AA64MMFR1_EL1_VH_SHIFT 2f 1f x1 x2
 
 1:	mov_q	x0, HVC_STUB_ERR
 	eret

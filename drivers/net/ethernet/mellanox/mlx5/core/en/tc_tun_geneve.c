@@ -273,6 +273,11 @@ static int mlx5e_tc_tun_parse_geneve_options(struct mlx5e_priv *priv,
 		 geneve_tlv_option_0_data, be32_to_cpu(opt_data_key));
 	MLX5_SET(fte_match_set_misc3, misc_3_c,
 		 geneve_tlv_option_0_data, be32_to_cpu(opt_data_mask));
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
+				       ft_field_support.geneve_tlv_option_0_exist)) {
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc_c, geneve_tlv_option_0_exist);
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc_v, geneve_tlv_option_0_exist);
+	}
 
 	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_3;
 

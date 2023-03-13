@@ -490,21 +490,6 @@ static int rtw89_wow_check_fw_status(struct rtw89_dev *rtwdev, bool wow_enable)
 	return ret;
 }
 
-static void rtw89_wow_release_pkt_list(struct rtw89_dev *rtwdev)
-{
-	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
-	struct list_head *pkt_list = &rtw_wow->pkt_list;
-	struct rtw89_pktofld_info *info, *tmp;
-
-	list_for_each_entry_safe(info, tmp, pkt_list, list) {
-		rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
-		rtw89_core_release_bit_map(rtwdev->pkt_offload,
-					   info->id);
-		list_del(&info->list);
-		kfree(info);
-	}
-}
-
 static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 {
 	enum rtw89_fw_type fw_type = wow ? RTW89_FW_WOWLAN : RTW89_FW_NORMAL;
@@ -561,6 +546,11 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 	}
 
 	if (is_conn) {
+		ret = rtw89_fw_h2c_general_pkt(rtwdev, rtwvif, rtwsta->mac_id);
+		if (ret) {
+			rtw89_warn(rtwdev, "failed to send h2c general packet\n");
+			return ret;
+		}
 		rtw89_phy_ra_assoc(rtwdev, wow_sta);
 		rtw89_phy_set_bss_color(rtwdev, wow_vif);
 		rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, wow_vif);
@@ -708,8 +698,6 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
-	rtw89_wow_release_pkt_list(rtwdev);
-
 	ret = rtw89_fw_h2c_disconnect_detect(rtwdev, rtwvif, false);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to disable disconnect detect\n");
@@ -721,6 +709,8 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "wow: failed to disable config wake\n");
 		goto out;
 	}
+
+	rtw89_fw_release_general_pkt_list(rtwdev, true);
 
 	ret = rtw89_wow_check_fw_status(rtwdev, false);
 	if (ret) {
@@ -743,6 +733,8 @@ static int rtw89_wow_enable(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "wow: failed to enable trx_pre\n");
 		goto out;
 	}
+
+	rtw89_fw_release_general_pkt_list(rtwdev, true);
 
 	ret = rtw89_wow_swap_fw(rtwdev, true);
 	if (ret) {

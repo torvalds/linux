@@ -613,10 +613,10 @@ static int ap_bus_match(struct device *dev, struct device_driver *drv)
  * It sets up a single environment variable DEV_TYPE which contains the
  * hardware device type.
  */
-static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int ap_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int rc = 0;
-	struct ap_device *ap_dev = to_ap_dev(dev);
+	const struct ap_device *ap_dev = to_ap_dev(dev);
 
 	/* Uevents from ap bus core don't need extensions to the env */
 	if (dev == ap_root_device)

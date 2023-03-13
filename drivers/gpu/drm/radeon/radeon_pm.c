@@ -1853,11 +1853,10 @@ static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish
 static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 {
 	struct radeon_device *rdev;
-	int resched;
+
 	rdev = container_of(work, struct radeon_device,
 				pm.dynpm_idle_work.work);
 
-	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	mutex_lock(&rdev->pm.mutex);
 	if (rdev->pm.dynpm_state == DYNPM_STATE_ACTIVE) {
 		int not_processed = 0;
@@ -1908,7 +1907,6 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 				      msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
 	}
 	mutex_unlock(&rdev->pm.mutex);
-	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 }
 
 /*

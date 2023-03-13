@@ -416,14 +416,30 @@ static void drm_fb_helper_damage_work(struct work_struct *work)
  * drm_fb_helper_prepare - setup a drm_fb_helper structure
  * @dev: DRM device
  * @helper: driver-allocated fbdev helper structure to set up
+ * @preferred_bpp: Preferred bits per pixel for the device.
  * @funcs: pointer to structure of functions associate with this helper
  *
  * Sets up the bare minimum to make the framebuffer helper usable. This is
  * useful to implement race-free initialization of the polling helpers.
  */
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
+			   unsigned int preferred_bpp,
 			   const struct drm_fb_helper_funcs *funcs)
 {
+	/*
+	 * Pick a preferred bpp of 32 if no value has been given. This
+	 * will select XRGB8888 for the framebuffer formats. All drivers
+	 * have to support XRGB8888 for backwards compatibility with legacy
+	 * userspace, so it's the safe choice here.
+	 *
+	 * TODO: Replace struct drm_mode_config.preferred_depth and this
+	 *       bpp value with a preferred format that is given as struct
+	 *       drm_format_info. Then derive all other values from the
+	 *       format.
+	 */
+	if (!preferred_bpp)
+		preferred_bpp = 32;
+
 	INIT_LIST_HEAD(&helper->kernel_fb_list);
 	spin_lock_init(&helper->damage_lock);
 	INIT_WORK(&helper->resume_work, drm_fb_helper_resume_worker);
@@ -432,8 +448,21 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 	mutex_init(&helper->lock);
 	helper->funcs = funcs;
 	helper->dev = dev;
+	helper->preferred_bpp = preferred_bpp;
 }
 EXPORT_SYMBOL(drm_fb_helper_prepare);
+
+/**
+ * drm_fb_helper_unprepare - clean up a drm_fb_helper structure
+ * @fb_helper: driver-allocated fbdev helper structure to set up
+ *
+ * Cleans up the framebuffer helper. Inverse of drm_fb_helper_prepare().
+ */
+void drm_fb_helper_unprepare(struct drm_fb_helper *fb_helper)
+{
+	mutex_destroy(&fb_helper->lock);
+}
+EXPORT_SYMBOL(drm_fb_helper_unprepare);
 
 /**
  * drm_fb_helper_init - initialize a &struct drm_fb_helper
@@ -475,8 +504,8 @@ EXPORT_SYMBOL(drm_fb_helper_init);
  * drm_fb_helper_alloc_info - allocate fb_info and some of its members
  * @fb_helper: driver-allocated fbdev helper
  *
- * A helper to alloc fb_info and the members cmap and apertures. Called
- * by the driver within the fb_probe fb_helper callback function. Drivers do not
+ * A helper to alloc fb_info and the member cmap. Called by the driver
+ * within the fb_probe fb_helper callback function. Drivers do not
  * need to release the allocated fb_info structure themselves, this is
  * automatically done when calling drm_fb_helper_fini().
  *
@@ -498,27 +527,11 @@ struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
 	if (ret)
 		goto err_release;
 
-	/*
-	 * TODO: We really should be smarter here and alloc an aperture
-	 * for each IORESOURCE_MEM resource helper->dev->dev has and also
-	 * init the ranges of the appertures based on the resources.
-	 * Note some drivers currently count on there being only 1 empty
-	 * aperture and fill this themselves, these will need to be dealt
-	 * with somehow when fixing this.
-	 */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto err_free_cmap;
-	}
-
 	fb_helper->info = info;
 	info->skip_vt_switch = true;
 
 	return info;
 
-err_free_cmap:
-	fb_dealloc_cmap(&info->cmap);
 err_release:
 	framebuffer_release(info);
 	return ERR_PTR(ret);
@@ -576,8 +589,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 	mutex_unlock(&kernel_fb_helper_lock);
-
-	mutex_destroy(&fb_helper->lock);
 
 	if (!fb_helper->client.funcs)
 		drm_client_release(&fb_helper->client);
@@ -1728,116 +1739,131 @@ unlock:
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
-/*
- * Allocates the backing storage and sets up the fbdev info structure through
- * the ->fb_probe callback.
- */
-static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
-					 int preferred_bpp)
+static uint32_t drm_fb_helper_find_format(struct drm_fb_helper *fb_helper, const uint32_t *formats,
+					  size_t format_count, uint32_t bpp, uint32_t depth)
+{
+	struct drm_device *dev = fb_helper->dev;
+	uint32_t format;
+	size_t i;
+
+	/*
+	 * Do not consider YUV or other complicated formats
+	 * for framebuffers. This means only legacy formats
+	 * are supported (fmt->depth is a legacy field), but
+	 * the framebuffer emulation can only deal with such
+	 * formats, specifically RGB/BGA formats.
+	 */
+	format = drm_mode_legacy_fb_format(bpp, depth);
+	if (!format)
+		goto err;
+
+	for (i = 0; i < format_count; ++i) {
+		if (formats[i] == format)
+			return format;
+	}
+
+err:
+	/* We found nothing. */
+	drm_warn(dev, "bpp/depth value of %u/%u not supported\n", bpp, depth);
+
+	return DRM_FORMAT_INVALID;
+}
+
+static uint32_t drm_fb_helper_find_color_mode_format(struct drm_fb_helper *fb_helper,
+						     const uint32_t *formats, size_t format_count,
+						     unsigned int color_mode)
+{
+	struct drm_device *dev = fb_helper->dev;
+	uint32_t bpp, depth;
+
+	switch (color_mode) {
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+	case 16:
+	case 24:
+		bpp = depth = color_mode;
+		break;
+	case 15:
+		bpp = 16;
+		depth = 15;
+		break;
+	case 32:
+		bpp = 32;
+		depth = 24;
+		break;
+	default:
+		drm_info(dev, "unsupported color mode of %d\n", color_mode);
+		return DRM_FORMAT_INVALID;
+	}
+
+	return drm_fb_helper_find_format(fb_helper, formats, format_count, bpp, depth);
+}
+
+static int __drm_fb_helper_find_sizes(struct drm_fb_helper *fb_helper,
+				      struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-	int ret = 0;
 	int crtc_count = 0;
 	struct drm_connector_list_iter conn_iter;
-	struct drm_fb_helper_surface_size sizes;
 	struct drm_connector *connector;
 	struct drm_mode_set *mode_set;
-	int best_depth = 0;
+	uint32_t surface_format = DRM_FORMAT_INVALID;
+	const struct drm_format_info *info;
 
-	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
-	sizes.surface_depth = 24;
-	sizes.surface_bpp = 32;
-	sizes.fb_width = (u32)-1;
-	sizes.fb_height = (u32)-1;
+	memset(sizes, 0, sizeof(*sizes));
+	sizes->fb_width = (u32)-1;
+	sizes->fb_height = (u32)-1;
 
-	/*
-	 * If driver picks 8 or 16 by default use that for both depth/bpp
-	 * to begin with
-	 */
-	if (preferred_bpp != sizes.surface_bpp)
-		sizes.surface_depth = sizes.surface_bpp = preferred_bpp;
-
-	drm_connector_list_iter_begin(fb_helper->dev, &conn_iter);
-	drm_client_for_each_connector_iter(connector, &conn_iter) {
-		struct drm_cmdline_mode *cmdline_mode;
-
-		cmdline_mode = &connector->cmdline_mode;
-
-		if (cmdline_mode->bpp_specified) {
-			switch (cmdline_mode->bpp) {
-			case 8:
-				sizes.surface_depth = sizes.surface_bpp = 8;
-				break;
-			case 15:
-				sizes.surface_depth = 15;
-				sizes.surface_bpp = 16;
-				break;
-			case 16:
-				sizes.surface_depth = sizes.surface_bpp = 16;
-				break;
-			case 24:
-				sizes.surface_depth = sizes.surface_bpp = 24;
-				break;
-			case 32:
-				sizes.surface_depth = 24;
-				sizes.surface_bpp = 32;
-				break;
-			}
-			break;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
-
-	/*
-	 * If we run into a situation where, for example, the primary plane
-	 * supports RGBA5551 (16 bpp, depth 15) but not RGB565 (16 bpp, depth
-	 * 16) we need to scale down the depth of the sizes we request.
-	 */
-	mutex_lock(&client->modeset_mutex);
 	drm_client_for_each_modeset(mode_set, client) {
 		struct drm_crtc *crtc = mode_set->crtc;
 		struct drm_plane *plane = crtc->primary;
-		int j;
 
 		drm_dbg_kms(dev, "test CRTC %u primary plane\n", drm_crtc_index(crtc));
 
-		for (j = 0; j < plane->format_count; j++) {
-			const struct drm_format_info *fmt;
+		drm_connector_list_iter_begin(fb_helper->dev, &conn_iter);
+		drm_client_for_each_connector_iter(connector, &conn_iter) {
+			struct drm_cmdline_mode *cmdline_mode = &connector->cmdline_mode;
 
-			fmt = drm_format_info(plane->format_types[j]);
-
-			/*
-			 * Do not consider YUV or other complicated formats
-			 * for framebuffers. This means only legacy formats
-			 * are supported (fmt->depth is a legacy field) but
-			 * the framebuffer emulation can only deal with such
-			 * formats, specifically RGB/BGA formats.
-			 */
-			if (fmt->depth == 0)
+			if (!cmdline_mode->bpp_specified)
 				continue;
 
-			/* We found a perfect fit, great */
-			if (fmt->depth == sizes.surface_depth) {
-				best_depth = fmt->depth;
-				break;
-			}
-
-			/* Skip depths above what we're looking for */
-			if (fmt->depth > sizes.surface_depth)
-				continue;
-
-			/* Best depth found so far */
-			if (fmt->depth > best_depth)
-				best_depth = fmt->depth;
+			surface_format = drm_fb_helper_find_color_mode_format(fb_helper,
+									      plane->format_types,
+									      plane->format_count,
+									      cmdline_mode->bpp);
+			if (surface_format != DRM_FORMAT_INVALID)
+				break; /* found supported format */
 		}
+		drm_connector_list_iter_end(&conn_iter);
+
+		if (surface_format != DRM_FORMAT_INVALID)
+			break; /* found supported format */
+
+		/* try preferred color mode */
+		surface_format = drm_fb_helper_find_color_mode_format(fb_helper,
+								      plane->format_types,
+								      plane->format_count,
+								      fb_helper->preferred_bpp);
+		if (surface_format != DRM_FORMAT_INVALID)
+			break; /* found supported format */
 	}
-	if (sizes.surface_depth != best_depth && best_depth) {
-		drm_info(dev, "requested bpp %d, scaled depth down to %d",
-			 sizes.surface_bpp, best_depth);
-		sizes.surface_depth = best_depth;
+
+	if (surface_format == DRM_FORMAT_INVALID) {
+		/*
+		 * If none of the given color modes works, fall back
+		 * to XRGB8888. Drivers are expected to provide this
+		 * format for compatibility with legacy applications.
+		 */
+		drm_warn(dev, "No compatible format found\n");
+		surface_format = drm_driver_legacy_fb_format(dev, 32, 24);
 	}
+
+	info = drm_format_info(surface_format);
+	sizes->surface_bpp = drm_format_info_bpp(info, 0);
+	sizes->surface_depth = info->depth;
 
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	crtc_count = 0;
@@ -1860,8 +1886,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		x = mode_set->x;
 		y = mode_set->y;
 
-		sizes.surface_width  = max_t(u32, desired_mode->hdisplay + x, sizes.surface_width);
-		sizes.surface_height = max_t(u32, desired_mode->vdisplay + y, sizes.surface_height);
+		sizes->surface_width  =
+			max_t(u32, desired_mode->hdisplay + x, sizes->surface_width);
+		sizes->surface_height =
+			max_t(u32, desired_mode->vdisplay + y, sizes->surface_height);
 
 		for (j = 0; j < mode_set->num_connectors; j++) {
 			struct drm_connector *connector = mode_set->connectors[j];
@@ -1877,28 +1905,63 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		}
 
 		if (lasth)
-			sizes.fb_width  = min_t(u32, desired_mode->hdisplay + x, sizes.fb_width);
+			sizes->fb_width  = min_t(u32, desired_mode->hdisplay + x, sizes->fb_width);
 		if (lastv)
-			sizes.fb_height = min_t(u32, desired_mode->vdisplay + y, sizes.fb_height);
+			sizes->fb_height = min_t(u32, desired_mode->vdisplay + y, sizes->fb_height);
 	}
-	mutex_unlock(&client->modeset_mutex);
 
-	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
+	if (crtc_count == 0 || sizes->fb_width == -1 || sizes->fb_height == -1) {
 		drm_info(dev, "Cannot find any crtc or sizes\n");
-
-		/* First time: disable all crtc's.. */
-		if (!fb_helper->deferred_setup)
-			drm_client_modeset_commit(client);
 		return -EAGAIN;
 	}
 
+	return 0;
+}
+
+static int drm_fb_helper_find_sizes(struct drm_fb_helper *fb_helper,
+				    struct drm_fb_helper_surface_size *sizes)
+{
+	struct drm_client_dev *client = &fb_helper->client;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+	int ret;
+
+	mutex_lock(&client->modeset_mutex);
+	ret = __drm_fb_helper_find_sizes(fb_helper, sizes);
+	mutex_unlock(&client->modeset_mutex);
+
+	if (ret)
+		return ret;
+
 	/* Handle our overallocation */
-	sizes.surface_height *= drm_fbdev_overalloc;
-	sizes.surface_height /= 100;
-	if (sizes.surface_height > config->max_height) {
+	sizes->surface_height *= drm_fbdev_overalloc;
+	sizes->surface_height /= 100;
+	if (sizes->surface_height > config->max_height) {
 		drm_dbg_kms(dev, "Fbdev over-allocation too large; clamping height to %d\n",
 			    config->max_height);
-		sizes.surface_height = config->max_height;
+		sizes->surface_height = config->max_height;
+	}
+
+	return 0;
+}
+
+/*
+ * Allocates the backing storage and sets up the fbdev info structure through
+ * the ->fb_probe callback.
+ */
+static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper)
+{
+	struct drm_client_dev *client = &fb_helper->client;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_fb_helper_surface_size sizes;
+	int ret;
+
+	ret = drm_fb_helper_find_sizes(fb_helper, &sizes);
+	if (ret) {
+		/* First time: disable all crtc's.. */
+		if (!fb_helper->deferred_setup)
+			drm_client_modeset_commit(client);
+		return ret;
 	}
 
 #if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
@@ -2076,8 +2139,7 @@ static void drm_setup_crtcs_fb(struct drm_fb_helper *fb_helper)
 
 /* Note: Drops fb_helper->lock before returning. */
 static int
-__drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
-					  int bpp_sel)
+__drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct fb_info *info;
@@ -2088,10 +2150,9 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 	height = dev->mode_config.max_height;
 
 	drm_client_modeset_probe(&fb_helper->client, width, height);
-	ret = drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
+	ret = drm_fb_helper_single_fb_probe(fb_helper);
 	if (ret < 0) {
 		if (ret == -EAGAIN) {
-			fb_helper->preferred_bpp = bpp_sel;
 			fb_helper->deferred_setup = true;
 			ret = 0;
 		}
@@ -2137,7 +2198,6 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 /**
  * drm_fb_helper_initial_config - setup a sane initial connector configuration
  * @fb_helper: fb_helper device struct
- * @bpp_sel: bpp value to use for the framebuffer configuration
  *
  * Scans the CRTCs and connectors and tries to put together an initial setup.
  * At the moment, this is a cloned configuration across all heads with
@@ -2175,7 +2235,7 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
  */
-int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
+int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
 {
 	int ret;
 
@@ -2183,7 +2243,7 @@ int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
-	ret = __drm_fb_helper_initial_config_and_unlock(fb_helper, bpp_sel);
+	ret = __drm_fb_helper_initial_config_and_unlock(fb_helper);
 
 	return ret;
 }
@@ -2219,8 +2279,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	mutex_lock(&fb_helper->lock);
 	if (fb_helper->deferred_setup) {
-		err = __drm_fb_helper_initial_config_and_unlock(fb_helper,
-				fb_helper->preferred_bpp);
+		err = __drm_fb_helper_initial_config_and_unlock(fb_helper);
 		return err;
 	}
 

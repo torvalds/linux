@@ -51,11 +51,11 @@ additionalProperties: false
 examples:
   - |
     axi-adc@44a00000 {
-          compatible = "adi,axi-adc-10.0.a";
-          reg = <0x44a00000 0x10000>;
-          dmas = <&rx_dma 0>;
-          dma-names = "rx";
+        compatible = "adi,axi-adc-10.0.a";
+        reg = <0x44a00000 0x10000>;
+        dmas = <&rx_dma 0>;
+        dma-names = "rx";
 
-          adi,adc-dev = <&spi_adc>;
+        adi,adc-dev = <&spi_adc>;
     };
 ...

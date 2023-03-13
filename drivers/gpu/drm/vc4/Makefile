@@ -25,6 +25,13 @@ vc4-y := \
 	vc4_validate.o \
 	vc4_validate_shaders.o
 
+vc4-$(CONFIG_DRM_VC4_KUNIT_TEST) += \
+	tests/vc4_mock.o \
+	tests/vc4_mock_crtc.o \
+	tests/vc4_mock_output.o \
+	tests/vc4_mock_plane.o \
+	tests/vc4_test_pv_muxing.o
+
 vc4-$(CONFIG_DEBUG_FS) += vc4_debugfs.o
 
 obj-$(CONFIG_DRM_VC4)  += vc4.o

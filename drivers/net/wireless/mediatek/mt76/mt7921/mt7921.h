@@ -144,6 +144,8 @@ enum mt7921_rxq_id {
 	MT7921_RXQ_MCU_WM = 0,
 };
 
+DECLARE_EWMA(avg_signal, 10, 8)
+
 struct mt7921_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -151,6 +153,9 @@ struct mt7921_sta {
 
 	struct list_head poll_list;
 	u32 airtime_ac[8];
+
+	int ack_signal;
+	struct ewma_avg_signal avg_ack_signal;
 
 	unsigned long last_txs;
 	unsigned long ampdu_state;
@@ -383,6 +388,8 @@ int mt7921_mcu_get_rx_rate(struct mt7921_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7921_mcu_fw_log_2_host(struct mt7921_dev *dev, u8 ctrl);
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb);
+int mt7921_mcu_set_rxfilter(struct mt7921_dev *dev, u32 fif,
+			    u8 bit_op, u32 bit_map);
 
 static inline void mt7921_irq_enable(struct mt7921_dev *dev, u32 mask)
 {
@@ -529,6 +536,8 @@ void mt7921_set_ipv6_ns_work(struct work_struct *work);
 
 int mt7921_mcu_set_sniffer(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 			   bool enable);
+int mt7921_mcu_config_sniffer(struct mt7921_vif *vif,
+			      struct ieee80211_chanctx_conf *ctx);
 
 int mt7921_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 				   enum mt76_txq_id qid, struct mt76_wcid *wcid,
@@ -554,6 +563,7 @@ int mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 #ifdef CONFIG_ACPI
 int mt7921_init_acpi_sar(struct mt7921_dev *dev);
 int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default);
+u8 mt7921_acpi_get_flags(struct mt7921_phy *phy);
 #else
 static inline int
 mt7921_init_acpi_sar(struct mt7921_dev *dev)
@@ -563,6 +573,12 @@ mt7921_init_acpi_sar(struct mt7921_dev *dev)
 
 static inline int
 mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
+{
+	return 0;
+}
+
+static inline u8
+mt7921_acpi_get_flags(struct mt7921_phy *phy)
 {
 	return 0;
 }

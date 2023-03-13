@@ -141,6 +141,7 @@ unsigned int nf_confirm(void *priv,
 	struct nf_conn *ct;
 	bool seqadj_needed;
 	__be16 frag_off;
+	int start;
 	u8 pnum;
 
 	ct = nf_ct_get(skb, &ctinfo);
@@ -163,9 +164,11 @@ unsigned int nf_confirm(void *priv,
 		break;
 	case NFPROTO_IPV6:
 		pnum = ipv6_hdr(skb)->nexthdr;
-		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum, &frag_off);
-		if (protoff < 0 || (frag_off & htons(~0x7)) != 0)
+		start = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum, &frag_off);
+		if (start < 0 || (frag_off & htons(~0x7)) != 0)
 			return nf_conntrack_confirm(skb);
+
+		protoff = start;
 		break;
 	default:
 		return nf_conntrack_confirm(skb);
@@ -281,16 +284,11 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 
 	/* We only do TCP and SCTP at the moment: is there a better way? */
 	if (tuple.dst.protonum != IPPROTO_TCP &&
-	    tuple.dst.protonum != IPPROTO_SCTP) {
-		pr_debug("SO_ORIGINAL_DST: Not a TCP/SCTP socket\n");
+	    tuple.dst.protonum != IPPROTO_SCTP)
 		return -ENOPROTOOPT;
-	}
 
-	if ((unsigned int)*len < sizeof(struct sockaddr_in)) {
-		pr_debug("SO_ORIGINAL_DST: len %d not %zu\n",
-			 *len, sizeof(struct sockaddr_in));
+	if ((unsigned int)*len < sizeof(struct sockaddr_in))
 		return -EINVAL;
-	}
 
 	h = nf_conntrack_find_get(sock_net(sk), &nf_ct_zone_dflt, &tuple);
 	if (h) {
@@ -304,17 +302,12 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 			.tuple.dst.u3.ip;
 		memset(sin.sin_zero, 0, sizeof(sin.sin_zero));
 
-		pr_debug("SO_ORIGINAL_DST: %pI4 %u\n",
-			 &sin.sin_addr.s_addr, ntohs(sin.sin_port));
 		nf_ct_put(ct);
 		if (copy_to_user(user, &sin, sizeof(sin)) != 0)
 			return -EFAULT;
 		else
 			return 0;
 	}
-	pr_debug("SO_ORIGINAL_DST: Can't find %pI4/%u-%pI4/%u.\n",
-		 &tuple.src.u3.ip, ntohs(tuple.src.u.tcp.port),
-		 &tuple.dst.u3.ip, ntohs(tuple.dst.u.tcp.port));
 	return -ENOENT;
 }
 
@@ -357,12 +350,8 @@ ipv6_getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 		return -EINVAL;
 
 	h = nf_conntrack_find_get(sock_net(sk), &nf_ct_zone_dflt, &tuple);
-	if (!h) {
-		pr_debug("IP6T_SO_ORIGINAL_DST: Can't find %pI6c/%u-%pI6c/%u.\n",
-			 &tuple.src.u3.ip6, ntohs(tuple.src.u.tcp.port),
-			 &tuple.dst.u3.ip6, ntohs(tuple.dst.u.tcp.port));
+	if (!h)
 		return -ENOENT;
-	}
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
 

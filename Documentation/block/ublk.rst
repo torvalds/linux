@@ -144,6 +144,43 @@ managing and controlling ublk devices with help of several control commands:
   For retrieving device info via ``ublksrv_ctrl_dev_info``. It is the server's
   responsibility to save IO target specific info in userspace.
 
+- ``UBLK_CMD_GET_DEV_INFO2``
+  Same purpose with ``UBLK_CMD_GET_DEV_INFO``, but ublk server has to
+  provide path of the char device of ``/dev/ublkc*`` for kernel to run
+  permission check, and this command is added for supporting unprivileged
+  ublk device, and introduced with ``UBLK_F_UNPRIVILEGED_DEV`` together.
+  Only the user owning the requested device can retrieve the device info.
+
+  How to deal with userspace/kernel compatibility:
+
+  1) if kernel is capable of handling ``UBLK_F_UNPRIVILEGED_DEV``
+
+    If ublk server supports ``UBLK_F_UNPRIVILEGED_DEV``:
+
+    ublk server should send ``UBLK_CMD_GET_DEV_INFO2``, given anytime
+    unprivileged application needs to query devices the current user owns,
+    when the application has no idea if ``UBLK_F_UNPRIVILEGED_DEV`` is set
+    given the capability info is stateless, and application should always
+    retrieve it via ``UBLK_CMD_GET_DEV_INFO2``
+
+    If ublk server doesn't support ``UBLK_F_UNPRIVILEGED_DEV``:
+
+    ``UBLK_CMD_GET_DEV_INFO`` is always sent to kernel, and the feature of
+    UBLK_F_UNPRIVILEGED_DEV isn't available for user
+
+  2) if kernel isn't capable of handling ``UBLK_F_UNPRIVILEGED_DEV``
+
+    If ublk server supports ``UBLK_F_UNPRIVILEGED_DEV``:
+
+    ``UBLK_CMD_GET_DEV_INFO2`` is tried first, and will be failed, then
+    ``UBLK_CMD_GET_DEV_INFO`` needs to be retried given
+    ``UBLK_F_UNPRIVILEGED_DEV`` can't be set
+
+    If ublk server doesn't support ``UBLK_F_UNPRIVILEGED_DEV``:
+
+    ``UBLK_CMD_GET_DEV_INFO`` is always sent to kernel, and the feature of
+    ``UBLK_F_UNPRIVILEGED_DEV`` isn't available for user
+
 - ``UBLK_CMD_START_USER_RECOVERY``
 
   This command is valid if ``UBLK_F_USER_RECOVERY`` feature is enabled. This
@@ -179,6 +216,15 @@ managing and controlling ublk devices with help of several control commands:
   ``UBLK_F_USER_RECOVERY_REISSUE`` is designed for backends who tolerate
   double-write since the driver may issue the same I/O request twice. It
   might be useful to a read-only FS or a VM backend.
+
+Unprivileged ublk device is supported by passing ``UBLK_F_UNPRIVILEGED_DEV``.
+Once the flag is set, all control commands can be sent by unprivileged
+user. Except for command of ``UBLK_CMD_ADD_DEV``, permission check on
+the specified char device(``/dev/ublkc*``) is done for all other control
+commands by ublk driver, for doing that, path of the char device has to
+be provided in these commands' payload from ublk server. With this way,
+ublk device becomes container-ware, and device created in one container
+can be controlled/accessed just inside this container.
 
 Data plane
 ----------
@@ -253,15 +299,6 @@ with specified IO tag in the command data:
 
 Future development
 ==================
-
-Container-aware ublk deivice
-----------------------------
-
-ublk driver doesn't handle any IO logic. Its function is well defined
-for now and very limited userspace interfaces are needed, which is also
-well defined too. It is possible to make ublk devices container-aware block
-devices in future as Stefan Hajnoczi suggested [#stefan]_, by removing
-ADMIN privilege.
 
 Zero copy
 ---------

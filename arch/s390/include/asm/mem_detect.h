@@ -30,6 +30,7 @@ struct mem_detect_block {
 struct mem_detect_info {
 	u32 count;
 	u8 info_source;
+	unsigned long usable;
 	struct mem_detect_block entries[MEM_INLINED_ENTRIES];
 	struct mem_detect_block *entries_extended;
 };
@@ -38,7 +39,7 @@ extern struct mem_detect_info mem_detect;
 void add_mem_detect_block(u64 start, u64 end);
 
 static inline int __get_mem_detect_block(u32 n, unsigned long *start,
-					 unsigned long *end)
+					 unsigned long *end, bool respect_usable_limit)
 {
 	if (n >= mem_detect.count) {
 		*start = 0;
@@ -53,21 +54,41 @@ static inline int __get_mem_detect_block(u32 n, unsigned long *start,
 		*start = (unsigned long)mem_detect.entries_extended[n - MEM_INLINED_ENTRIES].start;
 		*end = (unsigned long)mem_detect.entries_extended[n - MEM_INLINED_ENTRIES].end;
 	}
+
+	if (respect_usable_limit && mem_detect.usable) {
+		if (*start >= mem_detect.usable)
+			return -1;
+		if (*end > mem_detect.usable)
+			*end = mem_detect.usable;
+	}
 	return 0;
 }
 
 /**
- * for_each_mem_detect_block - early online memory range iterator
+ * for_each_mem_detect_usable_block - early online memory range iterator
  * @i: an integer used as loop variable
  * @p_start: ptr to unsigned long for start address of the range
  * @p_end: ptr to unsigned long for end address of the range
  *
- * Walks over detected online memory ranges.
+ * Walks over detected online memory ranges below usable limit.
  */
-#define for_each_mem_detect_block(i, p_start, p_end)			\
-	for (i = 0, __get_mem_detect_block(i, p_start, p_end);		\
-	     i < mem_detect.count;					\
-	     i++, __get_mem_detect_block(i, p_start, p_end))
+#define for_each_mem_detect_usable_block(i, p_start, p_end)		\
+	for (i = 0; !__get_mem_detect_block(i, p_start, p_end, true); i++)
+
+/* Walks over all detected online memory ranges disregarding usable limit. */
+#define for_each_mem_detect_block(i, p_start, p_end)		\
+	for (i = 0; !__get_mem_detect_block(i, p_start, p_end, false); i++)
+
+static inline unsigned long get_mem_detect_usable_total(void)
+{
+	unsigned long start, end, total = 0;
+	int i;
+
+	for_each_mem_detect_usable_block(i, &start, &end)
+		total += end - start;
+
+	return total;
+}
 
 static inline void get_mem_detect_reserved(unsigned long *start,
 					   unsigned long *size)
@@ -84,8 +105,10 @@ static inline unsigned long get_mem_detect_end(void)
 	unsigned long start;
 	unsigned long end;
 
+	if (mem_detect.usable)
+		return mem_detect.usable;
 	if (mem_detect.count) {
-		__get_mem_detect_block(mem_detect.count - 1, &start, &end);
+		__get_mem_detect_block(mem_detect.count - 1, &start, &end, false);
 		return end;
 	}
 	return 0;

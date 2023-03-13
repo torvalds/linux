@@ -44,29 +44,46 @@
 
 typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
 
-static inline void set_cpu_flag(int flag)
+static __always_inline void set_cpu_flag(int flag)
 {
 	S390_lowcore.cpu_flags |= (1UL << flag);
 }
 
-static inline void clear_cpu_flag(int flag)
+static __always_inline void clear_cpu_flag(int flag)
 {
 	S390_lowcore.cpu_flags &= ~(1UL << flag);
 }
 
-static inline int test_cpu_flag(int flag)
+static __always_inline bool test_cpu_flag(int flag)
 {
-	return !!(S390_lowcore.cpu_flags & (1UL << flag));
+	return S390_lowcore.cpu_flags & (1UL << flag);
+}
+
+static __always_inline bool test_and_set_cpu_flag(int flag)
+{
+	if (test_cpu_flag(flag))
+		return true;
+	set_cpu_flag(flag);
+	return false;
+}
+
+static __always_inline bool test_and_clear_cpu_flag(int flag)
+{
+	if (!test_cpu_flag(flag))
+		return false;
+	clear_cpu_flag(flag);
+	return true;
 }
 
 /*
  * Test CIF flag of another CPU. The caller needs to ensure that
  * CPU hotplug can not happen, e.g. by disabling preemption.
  */
-static inline int test_cpu_flag_of(int flag, int cpu)
+static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 {
 	struct lowcore *lc = lowcore_ptr[cpu];
-	return !!(lc->cpu_flags & (1UL << flag));
+
+	return lc->cpu_flags & (1UL << flag);
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)

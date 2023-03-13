@@ -382,7 +382,6 @@
 					interrupts = <29>;
 					/* overwrite MAC address in bootloader */
 					local-mac-address = [00 00 00 00 00 00];
-					phy-handle = <&ethphy>;
 				};
 			};
 
@@ -394,10 +393,6 @@
 				interrupts = <30>;
 				clocks = <&gate_clk 2>;
 				status = "disabled";
-
-				ethphy: ethernet-phy {
-					/* set phy address in board file */
-				};
 			};
 
 			sdio0: sdio-host@92000 {

@@ -1693,7 +1693,7 @@ static int mtk_dp_training(struct mtk_dp *mtk_dp)
 				break;
 			default:
 				return -EINVAL;
-			};
+			}
 			continue;
 		}
 
@@ -1981,7 +1981,7 @@ static struct edid *mtk_dp_get_edid(struct drm_bridge *bridge,
 	struct cea_sad *sads;
 
 	if (!enabled) {
-		drm_bridge_chain_pre_enable(bridge);
+		drm_atomic_bridge_chain_pre_enable(bridge, connector->state->state);
 
 		/* power on aux */
 		mtk_dp_update_bits(mtk_dp, MTK_DP_TOP_PWR_STATE,
@@ -2019,7 +2019,7 @@ static struct edid *mtk_dp_get_edid(struct drm_bridge *bridge,
 				   DP_PWR_STATE_BANDGAP_TPLL,
 				   DP_PWR_STATE_MASK);
 
-		drm_bridge_chain_post_disable(bridge);
+		drm_atomic_bridge_chain_post_disable(bridge, connector->state->state);
 	}
 
 	return new_edid;

@@ -83,7 +83,8 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp)
 {
 	const struct svc_program *prog = statp->program;
 	const struct svc_version *vers;
-	unsigned int i, j;
+	unsigned int i, j, k;
+	unsigned long count;
 
 	seq_printf(seq,
 		"net %u %u %u %u\n",
@@ -104,8 +105,12 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp)
 		if (!vers)
 			continue;
 		seq_printf(seq, "proc%d %u", i, vers->vs_nproc);
-		for (j = 0; j < vers->vs_nproc; j++)
-			seq_printf(seq, " %u", vers->vs_count[j]);
+		for (j = 0; j < vers->vs_nproc; j++) {
+			count = 0;
+			for_each_possible_cpu(k)
+				count += per_cpu(vers->vs_count[j], k);
+			seq_printf(seq, " %lu", count);
+		}
 		seq_putc(seq, '\n');
 	}
 }

@@ -75,9 +75,14 @@ static const struct clk_pcr_layout sam9x60_pcr_layout = {
 static const struct {
 	char *n;
 	char *p;
+	unsigned long flags;
 	u8 id;
 } sam9x60_systemck[] = {
-	{ .n = "ddrck",  .p = "masterck_div", .id = 2 },
+	/*
+	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
+	 * to keep it enabled in case there is no Linux consumer for it.
+	 */
+	{ .n = "ddrck",  .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "uhpck",  .p = "usbck",    .id = 6 },
 	{ .n = "pck0",   .p = "prog0",    .id = 8 },
 	{ .n = "pck1",   .p = "prog1",    .id = 9 },
@@ -86,6 +91,7 @@ static const struct {
 
 static const struct {
 	char *n;
+	unsigned long flags;
 	u8 id;
 } sam9x60_periphck[] = {
 	{ .n = "pioA_clk",   .id = 2, },
@@ -132,7 +138,11 @@ static const struct {
 	{ .n = "pioD_clk",   .id = 44, },
 	{ .n = "tcb1_clk",   .id = 45, },
 	{ .n = "dbgu_clk",   .id = 47, },
-	{ .n = "mpddr_clk",  .id = 49, },
+	/*
+	 * mpddr_clk feeds DDR controller and is enabled by bootloader thus we
+	 * need to keep it enabled in case there is no Linux consumer for it.
+	 */
+	{ .n = "mpddr_clk",  .id = 49, .flags = CLK_IS_CRITICAL },
 };
 
 static const struct {
@@ -315,7 +325,8 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(sam9x60_systemck); i++) {
 		hw = at91_clk_register_system(regmap, sam9x60_systemck[i].n,
 					      sam9x60_systemck[i].p,
-					      sam9x60_systemck[i].id);
+					      sam9x60_systemck[i].id,
+					      sam9x60_systemck[i].flags);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -328,7 +339,8 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 							 sam9x60_periphck[i].n,
 							 "masterck_div",
 							 sam9x60_periphck[i].id,
-							 &range, INT_MIN);
+							 &range, INT_MIN,
+							 sam9x60_periphck[i].flags);
 		if (IS_ERR(hw))
 			goto err_free;
 

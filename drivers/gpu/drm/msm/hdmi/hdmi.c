@@ -120,6 +120,10 @@ static int msm_hdmi_init(struct hdmi *hdmi)
 	int ret;
 
 	hdmi->workq = alloc_ordered_workqueue("msm_hdmi", 0);
+	if (!hdmi->workq) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	hdmi->i2c = msm_hdmi_i2c_init(hdmi);
 	if (IS_ERR(hdmi->i2c)) {
@@ -202,8 +206,6 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 				hdmi->irq, ret);
 		goto fail;
 	}
-
-	drm_bridge_connector_enable_hpd(hdmi->connector);
 
 	ret = msm_hdmi_hpd_enable(hdmi->bridge);
 	if (ret < 0) {
@@ -532,11 +534,19 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 
 	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
-		return ret;
+		goto err_put_phy;
 
 	platform_set_drvdata(pdev, hdmi);
 
-	return component_add(&pdev->dev, &msm_hdmi_ops);
+	ret = component_add(&pdev->dev, &msm_hdmi_ops);
+	if (ret)
+		goto err_put_phy;
+
+	return 0;
+
+err_put_phy:
+	msm_hdmi_put_phy(hdmi);
+	return ret;
 }
 
 static int msm_hdmi_dev_remove(struct platform_device *pdev)

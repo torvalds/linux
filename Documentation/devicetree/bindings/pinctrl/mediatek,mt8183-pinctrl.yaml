@@ -67,11 +67,11 @@ required:
   - gpio-ranges
 
 patternProperties:
-  '-[0-9]+$':
+  '-pins(-[a-z]+)?$':
     type: object
     additionalProperties: false
     patternProperties:
-      'pins':
+      '^pins':
         type: object
         additionalProperties: false
         description: |
@@ -210,7 +210,7 @@ examples:
           interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
           #interrupt-cells = <2>;
 
-          i2c0_pins_a: i2c-0 {
+          i2c0_pins_a: i2c0-pins {
             pins1 {
               pinmux = <PINMUX_GPIO48__FUNC_SCL5>,
                 <PINMUX_GPIO49__FUNC_SDA5>;
@@ -219,7 +219,7 @@ examples:
             };
           };
 
-          i2c1_pins_a: i2c-1 {
+          i2c1_pins_a: i2c1-pins {
             pins {
               pinmux = <PINMUX_GPIO50__FUNC_SCL3>,
                 <PINMUX_GPIO51__FUNC_SDA3>;

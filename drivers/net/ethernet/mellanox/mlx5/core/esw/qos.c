@@ -22,15 +22,13 @@ struct mlx5_esw_rate_group {
 };
 
 static int esw_qos_tsar_config(struct mlx5_core_dev *dev, u32 *sched_ctx,
-			       u32 parent_ix, u32 tsar_ix,
-			       u32 max_rate, u32 bw_share)
+			       u32 tsar_ix, u32 max_rate, u32 bw_share)
 {
 	u32 bitmask = 0;
 
 	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, esw_scheduling))
 		return -EOPNOTSUPP;
 
-	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, parent_ix);
 	MLX5_SET(scheduling_context, sched_ctx, max_average_bw, max_rate);
 	MLX5_SET(scheduling_context, sched_ctx, bw_share, bw_share);
 	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
@@ -51,7 +49,7 @@ static int esw_qos_group_config(struct mlx5_eswitch *esw, struct mlx5_esw_rate_g
 	int err;
 
 	err = esw_qos_tsar_config(dev, sched_ctx,
-				  esw->qos.root_tsar_ix, group->tsar_ix,
+				  group->tsar_ix,
 				  max_rate, bw_share);
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify group TSAR element failed");
@@ -67,23 +65,13 @@ static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 				struct netlink_ext_ack *extack)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
-	struct mlx5_esw_rate_group *group = vport->qos.group;
 	struct mlx5_core_dev *dev = esw->dev;
-	u32 parent_tsar_ix;
-	void *vport_elem;
 	int err;
 
 	if (!vport->qos.enabled)
 		return -EIO;
 
-	parent_tsar_ix = group ? group->tsar_ix : esw->qos.root_tsar_ix;
-	MLX5_SET(scheduling_context, sched_ctx, element_type,
-		 SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT);
-	vport_elem = MLX5_ADDR_OF(scheduling_context, sched_ctx,
-				  element_attributes);
-	MLX5_SET(vport_element, vport_elem, vport_number, vport->vport);
-
-	err = esw_qos_tsar_config(dev, sched_ctx, parent_tsar_ix, vport->qos.esw_tsar_ix,
+	err = esw_qos_tsar_config(dev, sched_ctx, vport->qos.esw_tsar_ix,
 				  max_rate, bw_share);
 	if (err) {
 		esw_warn(esw->dev,

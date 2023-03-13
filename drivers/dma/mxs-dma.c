@@ -746,7 +746,6 @@ static int mxs_dma_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	const struct mxs_dma_type *dma_type;
 	struct mxs_dma_engine *mxs_dma;
-	struct resource *iores;
 	int ret, i;
 
 	mxs_dma = devm_kzalloc(&pdev->dev, sizeof(*mxs_dma), GFP_KERNEL);
@@ -763,8 +762,7 @@ static int mxs_dma_probe(struct platform_device *pdev)
 	mxs_dma->type = dma_type->type;
 	mxs_dma->dev_id = dma_type->id;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mxs_dma->base = devm_ioremap_resource(&pdev->dev, iores);
+	mxs_dma->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mxs_dma->base))
 		return PTR_ERR(mxs_dma->base);
 

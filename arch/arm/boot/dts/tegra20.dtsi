@@ -356,18 +356,18 @@
 		operating-points-v2 = <&vde_dvfs_opp_table>;
 	};
 
-	apbmisc@70000800 {
-		compatible = "nvidia,tegra20-apbmisc";
-		reg = <0x70000800 0x64>, /* Chip revision */
-		      <0x70000008 0x04>; /* Strapping options */
-	};
-
 	pinmux: pinmux@70000014 {
 		compatible = "nvidia,tegra20-pinmux";
 		reg = <0x70000014 0x10>, /* Tri-state registers */
 		      <0x70000080 0x20>, /* Mux registers */
 		      <0x700000a0 0x14>, /* Pull-up/down registers */
 		      <0x70000868 0xa8>; /* Pad control registers */
+	};
+
+	apbmisc@70000800 {
+		compatible = "nvidia,tegra20-apbmisc";
+		reg = <0x70000800 0x64>, /* Chip revision */
+		      <0x70000008 0x04>; /* Strapping options */
 	};
 
 	das@70000c00 {
@@ -542,13 +542,6 @@
 		status = "disabled";
 	};
 
-	rtc@7000e000 {
-		compatible = "nvidia,tegra20-rtc";
-		reg = <0x7000e000 0x100>;
-		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&tegra_car TEGRA20_CLK_RTC>;
-	};
-
 	i2c@7000c000 {
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000c000 0x100>;
@@ -683,6 +676,13 @@
 		status = "disabled";
 	};
 
+	rtc@7000e000 {
+		compatible = "nvidia,tegra20-rtc";
+		reg = <0x7000e000 0x100>;
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA20_CLK_RTC>;
+	};
+
 	kbc@7000e200 {
 		compatible = "nvidia,tegra20-kbc";
 		reg = <0x7000e200 0x100>;
@@ -706,10 +706,28 @@
 		};
 
 		powergates {
+			pd_mpe: mpe {
+				clocks = <&tegra_car TEGRA20_CLK_MPE>;
+				resets = <&mc TEGRA20_MC_RESET_MPEA>,
+					 <&mc TEGRA20_MC_RESET_MPEB>,
+					 <&mc TEGRA20_MC_RESET_MPEC>,
+					 <&tegra_car TEGRA20_CLK_MPE>;
+				power-domains = <&pd_core>;
+				#power-domain-cells = <0>;
+			};
+
 			pd_3d: td {
 				clocks = <&tegra_car TEGRA20_CLK_GR3D>;
 				resets = <&mc TEGRA20_MC_RESET_3D>,
 					 <&tegra_car TEGRA20_CLK_GR3D>;
+				power-domains = <&pd_core>;
+				#power-domain-cells = <0>;
+			};
+
+			pd_vde: vdec {
+				clocks = <&tegra_car TEGRA20_CLK_VDE>;
+				resets = <&mc TEGRA20_MC_RESET_VDE>,
+					 <&tegra_car TEGRA20_CLK_VDE>;
 				power-domains = <&pd_core>;
 				#power-domain-cells = <0>;
 			};
@@ -723,24 +741,6 @@
 					 <&tegra_car TEGRA20_CLK_ISP>,
 					 <&tegra_car 20 /* VI */>,
 					 <&tegra_car TEGRA20_CLK_CSI>;
-				power-domains = <&pd_core>;
-				#power-domain-cells = <0>;
-			};
-
-			pd_vde: vdec {
-				clocks = <&tegra_car TEGRA20_CLK_VDE>;
-				resets = <&mc TEGRA20_MC_RESET_VDE>,
-					 <&tegra_car TEGRA20_CLK_VDE>;
-				power-domains = <&pd_core>;
-				#power-domain-cells = <0>;
-			};
-
-			pd_mpe: mpe {
-				clocks = <&tegra_car TEGRA20_CLK_MPE>;
-				resets = <&mc TEGRA20_MC_RESET_MPEA>,
-					 <&mc TEGRA20_MC_RESET_MPEB>,
-					 <&mc TEGRA20_MC_RESET_MPEC>,
-					 <&tegra_car TEGRA20_CLK_MPE>;
 				power-domains = <&pd_core>;
 				#power-domain-cells = <0>;
 			};
@@ -1049,12 +1049,12 @@
 		simple-audio-card,dai-link@0 {
 			reg = <0>;
 
-			cpu {
-				sound-dai = <&tegra_spdif>;
-			};
-
 			codec {
 				sound-dai = <&tegra_hdmi>;
+			};
+
+			cpu {
+				sound-dai = <&tegra_spdif>;
 			};
 		};
 	};

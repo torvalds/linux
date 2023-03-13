@@ -76,7 +76,7 @@ Linux将系统的硬件资源划分为多个软件抽象，称为“节点”。
 系统管理员和应用程序设计者可以使用各种CPU亲和命令行接口，如taskset(1)和numactl(1)，以及程
 序接口，如sched_setaffinity(2)，来限制任务的迁移，以改善NUMA定位。此外，人们可以使用
 Linux NUMA内存策略修改内核的默认本地分配行为。 [见
-:ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`].
+Documentation/admin-guide/mm/numa_memory_policy.rst].
 
 系统管理员可以使用控制组和CPUsets限制非特权用户在调度或NUMA命令和功能中可以指定的CPU和节点
 的内存。 [见 Documentation/admin-guide/cgroup-v1/cpusets.rst]

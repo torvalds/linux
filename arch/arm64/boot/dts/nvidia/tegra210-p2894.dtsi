@@ -1342,7 +1342,35 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77620_default>;
 
-			max77620_default: pinmux@0 {
+			fps {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				fps0 {
+					reg = <0>;
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+
+				fps1 {
+					reg = <1>;
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+					maxim,device-state-on-disabled-event = <MAX77620_FPS_INACTIVE_STATE_SLEEP>;
+				};
+
+				fps2 {
+					reg = <2>;
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
+
+			hog-0 {
+				gpio-hog;
+				output-high;
+				gpios = <2 GPIO_ACTIVE_HIGH>,
+					<7 GPIO_ACTIVE_HIGH>;
+			};
+
+			max77620_default: pinmux {
 				gpio0 {
 					pins = "gpio0";
 					function = "gpio";
@@ -1380,34 +1408,6 @@
 					pins = "gpio5", "gpio6", "gpio7";
 					function = "gpio";
 					drive-push-pull = <1>;
-				};
-			};
-
-			hog-0 {
-				gpio-hog;
-				output-high;
-				gpios = <2 GPIO_ACTIVE_HIGH>,
-					<7 GPIO_ACTIVE_HIGH>;
-			};
-
-			fps {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				fps0 {
-					reg = <0>;
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
-				};
-
-				fps1 {
-					reg = <1>;
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
-					maxim,device-state-on-disabled-event = <MAX77620_FPS_INACTIVE_STATE_SLEEP>;
-				};
-
-				fps2 {
-					reg = <2>;
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
 				};
 			};
 
@@ -1592,20 +1592,6 @@
 		#clock-cells = <0>;
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-		status = "okay";
-
-		key-power {
-			debounce-interval = <30>;
-			gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
-			label = "Power";
-			linux,code = <KEY_POWER>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-	};
-
 	cpus {
 		cpu@0 {
 			enable-method = "psci";
@@ -1627,6 +1613,20 @@
 			cpu-sleep {
 				status = "okay";
 			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		status = "okay";
+
+		key-power {
+			debounce-interval = <30>;
+			gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
+			label = "Power";
+			linux,code = <KEY_POWER>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
 		};
 	};
 

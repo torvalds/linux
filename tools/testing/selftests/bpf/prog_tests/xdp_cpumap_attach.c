@@ -33,8 +33,8 @@ static void test_xdp_with_cpumap_helpers(void)
 
 	prog_fd = bpf_program__fd(skel->progs.xdp_dummy_cm);
 	map_fd = bpf_map__fd(skel->maps.cpu_map);
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &len);
-	if (!ASSERT_OK(err, "bpf_obj_get_info_by_fd"))
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &len);
+	if (!ASSERT_OK(err, "bpf_prog_get_info_by_fd"))
 		goto out_close;
 
 	val.bpf_prog.fd = prog_fd;
@@ -85,8 +85,8 @@ static void test_xdp_with_cpumap_frags_helpers(void)
 
 	frags_prog_fd = bpf_program__fd(skel->progs.xdp_dummy_cm_frags);
 	map_fd = bpf_map__fd(skel->maps.cpu_map);
-	err = bpf_obj_get_info_by_fd(frags_prog_fd, &info, &len);
-	if (!ASSERT_OK(err, "bpf_obj_get_info_by_fd"))
+	err = bpf_prog_get_info_by_fd(frags_prog_fd, &info, &len);
+	if (!ASSERT_OK(err, "bpf_prog_get_info_by_fd"))
 		goto out_close;
 
 	val.bpf_prog.fd = frags_prog_fd;

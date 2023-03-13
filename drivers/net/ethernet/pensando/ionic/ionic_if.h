@@ -3073,9 +3073,10 @@ union ionic_adminq_comp {
 
 #define IONIC_BARS_MAX			6
 #define IONIC_PCI_BAR_DBELL		1
+#define IONIC_PCI_BAR_CMB		2
 
-/* BAR0 */
 #define IONIC_BAR0_SIZE				0x8000
+#define IONIC_BAR2_SIZE				0x800000
 
 #define IONIC_BAR0_DEV_INFO_REGS_OFFSET		0x0000
 #define IONIC_BAR0_DEV_CMD_REGS_OFFSET		0x0800

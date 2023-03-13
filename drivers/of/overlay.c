@@ -1121,7 +1121,7 @@ static int node_overlaps_later_cs(struct overlay_changeset *remove_ovcs,
  * The topmost check is done by exploiting this property. For each
  * affected device node in the log list we check if this overlay is
  * the one closest to the tail. If another overlay has affected this
- * device node and is closest to the tail, then removal is not permited.
+ * device node and is closest to the tail, then removal is not permitted.
  */
 static int overlay_removal_is_ok(struct overlay_changeset *remove_ovcs)
 {

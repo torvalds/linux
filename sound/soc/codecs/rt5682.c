@@ -1094,8 +1094,8 @@ void rt5682_jack_detect_handler(struct work_struct *work)
 	struct snd_soc_dapm_context *dapm;
 	int val, btn_type;
 
-	if (!rt5682->component || !rt5682->component->card ||
-	    !rt5682->component->card->instantiated) {
+	if (!rt5682->component ||
+	    !snd_soc_card_is_instantiated(rt5682->component->card)) {
 		/* card not yet ready, try later */
 		mod_delayed_work(system_power_efficient_wq,
 				 &rt5682->jack_detect_work, msecs_to_jiffies(15));

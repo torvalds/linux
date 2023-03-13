@@ -69,8 +69,8 @@ static void vc4_bo_stats_print(struct drm_printer *p, struct vc4_dev *vc4)
 
 static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_debugfs_entry *entry = m->private;
+	struct drm_device *dev = entry->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -991,15 +991,11 @@ int vc4_bo_debugfs_init(struct drm_minor *minor)
 {
 	struct drm_device *drm = minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
-	int ret;
 
 	if (!vc4->v3d)
 		return -ENODEV;
 
-	ret = vc4_debugfs_add_file(minor, "bo_stats",
-				   vc4_bo_stats_debugfs, NULL);
-	if (ret)
-		return ret;
+	drm_debugfs_add_file(drm, "bo_stats", vc4_bo_stats_debugfs, NULL);
 
 	return 0;
 }

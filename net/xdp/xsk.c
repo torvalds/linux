@@ -22,6 +22,7 @@
 #include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/rculist.h>
+#include <linux/vmalloc.h>
 #include <net/xdp_sock_drv.h>
 #include <net/busy_poll.h>
 #include <net/xdp.h>
@@ -511,7 +512,7 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 	return skb;
 }
 
-static int xsk_generic_xmit(struct sock *sk)
+static int __xsk_generic_xmit(struct sock *sk)
 {
 	struct xdp_sock *xs = xdp_sk(sk);
 	u32 max_batch = TX_BATCH_SIZE;
@@ -594,22 +595,13 @@ out:
 	return err;
 }
 
-static int xsk_xmit(struct sock *sk)
+static int xsk_generic_xmit(struct sock *sk)
 {
-	struct xdp_sock *xs = xdp_sk(sk);
 	int ret;
-
-	if (unlikely(!(xs->dev->flags & IFF_UP)))
-		return -ENETDOWN;
-	if (unlikely(!xs->tx))
-		return -ENOBUFS;
-
-	if (xs->zc)
-		return xsk_wakeup(xs, XDP_WAKEUP_TX);
 
 	/* Drop the RCU lock since the SKB path might sleep. */
 	rcu_read_unlock();
-	ret = xsk_generic_xmit(sk);
+	ret = __xsk_generic_xmit(sk);
 	/* Reaquire RCU lock before going into common code. */
 	rcu_read_lock();
 
@@ -627,17 +619,31 @@ static bool xsk_no_wakeup(struct sock *sk)
 #endif
 }
 
+static int xsk_check_common(struct xdp_sock *xs)
+{
+	if (unlikely(!xsk_is_bound(xs)))
+		return -ENXIO;
+	if (unlikely(!(xs->dev->flags & IFF_UP)))
+		return -ENETDOWN;
+
+	return 0;
+}
+
 static int __xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 {
 	bool need_wait = !(m->msg_flags & MSG_DONTWAIT);
 	struct sock *sk = sock->sk;
 	struct xdp_sock *xs = xdp_sk(sk);
 	struct xsk_buff_pool *pool;
+	int err;
 
-	if (unlikely(!xsk_is_bound(xs)))
-		return -ENXIO;
+	err = xsk_check_common(xs);
+	if (err)
+		return err;
 	if (unlikely(need_wait))
 		return -EOPNOTSUPP;
+	if (unlikely(!xs->tx))
+		return -ENOBUFS;
 
 	if (sk_can_busy_loop(sk)) {
 		if (xs->zc)
@@ -649,8 +655,11 @@ static int __xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len
 		return 0;
 
 	pool = xs->pool;
-	if (pool->cached_need_wakeup & XDP_WAKEUP_TX)
-		return xsk_xmit(sk);
+	if (pool->cached_need_wakeup & XDP_WAKEUP_TX) {
+		if (xs->zc)
+			return xsk_wakeup(xs, XDP_WAKEUP_TX);
+		return xsk_generic_xmit(sk);
+	}
 	return 0;
 }
 
@@ -670,11 +679,11 @@ static int __xsk_recvmsg(struct socket *sock, struct msghdr *m, size_t len, int 
 	bool need_wait = !(flags & MSG_DONTWAIT);
 	struct sock *sk = sock->sk;
 	struct xdp_sock *xs = xdp_sk(sk);
+	int err;
 
-	if (unlikely(!xsk_is_bound(xs)))
-		return -ENXIO;
-	if (unlikely(!(xs->dev->flags & IFF_UP)))
-		return -ENETDOWN;
+	err = xsk_check_common(xs);
+	if (err)
+		return err;
 	if (unlikely(!xs->rx))
 		return -ENOBUFS;
 	if (unlikely(need_wait))
@@ -713,21 +722,20 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 	sock_poll_wait(file, sock, wait);
 
 	rcu_read_lock();
-	if (unlikely(!xsk_is_bound(xs))) {
-		rcu_read_unlock();
-		return mask;
-	}
+	if (xsk_check_common(xs))
+		goto skip_tx;
 
 	pool = xs->pool;
 
 	if (pool->cached_need_wakeup) {
 		if (xs->zc)
 			xsk_wakeup(xs, pool->cached_need_wakeup);
-		else
+		else if (xs->tx)
 			/* Poll needs to drive Tx also in copy mode */
-			xsk_xmit(sk);
+			xsk_generic_xmit(sk);
 	}
 
+skip_tx:
 	if (xs->rx && !xskq_prod_is_empty(xs->rx))
 		mask |= EPOLLIN | EPOLLRDNORM;
 	if (xs->tx && xsk_tx_writeable(xs))
@@ -845,7 +853,6 @@ static int xsk_release(struct socket *sock)
 	sock_orphan(sk);
 	sock->sk = NULL;
 
-	sk_refcnt_debug_release(sk);
 	sock_put(sk);
 
 	return 0;
@@ -1295,8 +1302,6 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	unsigned long size = vma->vm_end - vma->vm_start;
 	struct xdp_sock *xs = xdp_sk(sock->sk);
 	struct xsk_queue *q = NULL;
-	unsigned long pfn;
-	struct page *qpg;
 
 	if (READ_ONCE(xs->state) != XSK_READY)
 		return -EBUSY;
@@ -1319,13 +1324,10 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 
 	/* Matches the smp_wmb() in xsk_init_queue */
 	smp_rmb();
-	qpg = virt_to_head_page(q->ring);
-	if (size > page_size(qpg))
+	if (size > q->ring_vmalloc_size)
 		return -EINVAL;
 
-	pfn = virt_to_phys(q->ring) >> PAGE_SHIFT;
-	return remap_pfn_range(vma, vma->vm_start, pfn,
-			       size, vma->vm_page_prot);
+	return remap_vmalloc_range(vma, q->ring, 0);
 }
 
 static int xsk_notifier(struct notifier_block *this,
@@ -1396,8 +1398,6 @@ static void xsk_destruct(struct sock *sk)
 
 	if (!xp_put_pool(xs->pool))
 		xdp_put_umem(xs->umem, !xs->pool);
-
-	sk_refcnt_debug_dec(sk);
 }
 
 static int xsk_create(struct net *net, struct socket *sock, int protocol,
@@ -1427,7 +1427,6 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_family = PF_XDP;
 
 	sk->sk_destruct = xsk_destruct;
-	sk_refcnt_debug_inc(sk);
 
 	sock_set_flag(sk, SOCK_RCU_FREE);
 

@@ -57,17 +57,17 @@ additionalProperties: false
 examples:
   - |
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-       adc1: adc@28 {
-               reg = <0x28>;
-               compatible = "adi,ad7991";
-               interrupts = <13 2>;
-               interrupt-parent = <&gpio6>;
+        adc1: adc@28 {
+            reg = <0x28>;
+            compatible = "adi,ad7991";
+            interrupts = <13 2>;
+            interrupt-parent = <&gpio6>;
 
-               vcc-supply = <&vcc_3v3>;
-               vref-supply = <&adc_vref>;
+            vcc-supply = <&vcc_3v3>;
+            vref-supply = <&adc_vref>;
         };
     };
 ...

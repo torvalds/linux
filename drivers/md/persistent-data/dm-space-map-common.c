@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Red Hat, Inc.
  *
@@ -41,7 +42,7 @@ static int index_check(struct dm_block_validator *v,
 	__le32 csum_disk;
 
 	if (dm_block_location(b) != le64_to_cpu(mi_le->blocknr)) {
-		DMERR_LIMIT("index_check failed: blocknr %llu != wanted %llu",
+		DMERR_LIMIT("%s failed: blocknr %llu != wanted %llu", __func__,
 			    le64_to_cpu(mi_le->blocknr), dm_block_location(b));
 		return -ENOTBLK;
 	}
@@ -50,7 +51,7 @@ static int index_check(struct dm_block_validator *v,
 					       block_size - sizeof(__le32),
 					       INDEX_CSUM_XOR));
 	if (csum_disk != mi_le->csum) {
-		DMERR_LIMIT("index_check failed: csum %u != wanted %u",
+		DMERR_LIMIT("i%s failed: csum %u != wanted %u", __func__,
 			    le32_to_cpu(csum_disk), le32_to_cpu(mi_le->csum));
 		return -EILSEQ;
 	}
@@ -126,7 +127,7 @@ static void *dm_bitmap_data(struct dm_block *b)
 
 #define WORD_MASK_HIGH 0xAAAAAAAAAAAAAAAAULL
 
-static unsigned dm_bitmap_word_used(void *addr, unsigned b)
+static unsigned int dm_bitmap_word_used(void *addr, unsigned int b)
 {
 	__le64 *words_le = addr;
 	__le64 *w_le = words_le + (b >> ENTRIES_SHIFT);
@@ -137,11 +138,11 @@ static unsigned dm_bitmap_word_used(void *addr, unsigned b)
 	return !(~bits & mask);
 }
 
-static unsigned sm_lookup_bitmap(void *addr, unsigned b)
+static unsigned int sm_lookup_bitmap(void *addr, unsigned int b)
 {
 	__le64 *words_le = addr;
 	__le64 *w_le = words_le + (b >> ENTRIES_SHIFT);
-	unsigned hi, lo;
+	unsigned int hi, lo;
 
 	b = (b & (ENTRIES_PER_WORD - 1)) << 1;
 	hi = !!test_bit_le(b, (void *) w_le);
@@ -149,7 +150,7 @@ static unsigned sm_lookup_bitmap(void *addr, unsigned b)
 	return (hi << 1) | lo;
 }
 
-static void sm_set_bitmap(void *addr, unsigned b, unsigned val)
+static void sm_set_bitmap(void *addr, unsigned int b, unsigned int val)
 {
 	__le64 *words_le = addr;
 	__le64 *w_le = words_le + (b >> ENTRIES_SHIFT);
@@ -167,8 +168,8 @@ static void sm_set_bitmap(void *addr, unsigned b, unsigned val)
 		__clear_bit_le(b + 1, (void *) w_le);
 }
 
-static int sm_find_free(void *addr, unsigned begin, unsigned end,
-			unsigned *result)
+static int sm_find_free(void *addr, unsigned int begin, unsigned int end,
+			unsigned int *result)
 {
 	while (begin < end) {
 		if (!(begin & (ENTRIES_PER_WORD - 1)) &&
@@ -237,7 +238,7 @@ int sm_ll_extend(struct ll_disk *ll, dm_block_t extra_blocks)
 {
 	int r;
 	dm_block_t i, nr_blocks, nr_indexes;
-	unsigned old_blocks, blocks;
+	unsigned int old_blocks, blocks;
 
 	nr_blocks = ll->nr_blocks + extra_blocks;
 	old_blocks = dm_sector_div_up(ll->nr_blocks, ll->entries_per_block);
@@ -351,7 +352,7 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 
 	for (i = index_begin; i < index_end; i++, begin = 0) {
 		struct dm_block *blk;
-		unsigned position;
+		unsigned int position;
 		uint32_t bit_end;
 
 		r = ll->load_ie(ll, i, &ie_disk);
@@ -369,7 +370,7 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 		bit_end = (i == index_end - 1) ?  end : ll->entries_per_block;
 
 		r = sm_find_free(dm_bitmap_data(blk),
-				 max_t(unsigned, begin, le32_to_cpu(ie_disk.none_free_before)),
+				 max_t(unsigned int, begin, le32_to_cpu(ie_disk.none_free_before)),
 				 bit_end, &position);
 		if (r == -ENOSPC) {
 			/*
@@ -390,7 +391,7 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 }
 
 int sm_ll_find_common_free_block(struct ll_disk *old_ll, struct ll_disk *new_ll,
-	                         dm_block_t begin, dm_block_t end, dm_block_t *b)
+				 dm_block_t begin, dm_block_t end, dm_block_t *b)
 {
 	int r;
 	uint32_t count;
@@ -608,6 +609,7 @@ static int sm_ll_inc_overflow(struct ll_disk *ll, dm_block_t b, struct inc_conte
 static inline int shadow_bitmap(struct ll_disk *ll, struct inc_context *ic)
 {
 	int r, inc;
+
 	r = dm_tm_shadow_block(ll->tm, le64_to_cpu(ic->ie_disk.blocknr),
 			       &dm_sm_bitmap_validator, &ic->bitmap_block, &inc);
 	if (r < 0) {
@@ -747,6 +749,7 @@ int sm_ll_inc(struct ll_disk *ll, dm_block_t b, dm_block_t e,
 	*nr_allocations = 0;
 	while (b != e) {
 		int r = __sm_ll_inc(ll, b, e, nr_allocations, &b);
+
 		if (r)
 			return r;
 	}
@@ -790,13 +793,12 @@ static int __sm_ll_dec_overflow(struct ll_disk *ll, dm_block_t b,
 	rc = le32_to_cpu(*v_ptr);
 	*old_rc = rc;
 
-	if (rc == 3) {
+	if (rc == 3)
 		return __sm_ll_del_overflow(ll, b, ic);
-	} else {
-		rc--;
-		*v_ptr = cpu_to_le32(rc);
-		return 0;
-	}
+
+	rc--;
+	*v_ptr = cpu_to_le32(rc);
+	return 0;
 }
 
 static int sm_ll_dec_overflow(struct ll_disk *ll, dm_block_t b,
@@ -929,6 +931,7 @@ int sm_ll_dec(struct ll_disk *ll, dm_block_t b, dm_block_t e,
 	*nr_allocations = 0;
 	while (b != e) {
 		int r = __sm_ll_dec(ll, b, e, nr_allocations, &b);
+
 		if (r)
 			return r;
 	}
@@ -1097,7 +1100,7 @@ static inline int ie_cache_writeback(struct ll_disk *ll, struct ie_cache *iec)
 			       &iec->index, &iec->ie, &ll->bitmap_root);
 }
 
-static inline unsigned hash_index(dm_block_t index)
+static inline unsigned int hash_index(dm_block_t index)
 {
 	return dm_hash_block(index, IE_CACHE_MASK);
 }
@@ -1106,7 +1109,7 @@ static int disk_ll_load_ie(struct ll_disk *ll, dm_block_t index,
 			   struct disk_index_entry *ie)
 {
 	int r;
-	unsigned h = hash_index(index);
+	unsigned int h = hash_index(index);
 	struct ie_cache *iec = ll->ie_cache + h;
 
 	if (iec->valid) {
@@ -1137,7 +1140,7 @@ static int disk_ll_save_ie(struct ll_disk *ll, dm_block_t index,
 			   struct disk_index_entry *ie)
 {
 	int r;
-	unsigned h = hash_index(index);
+	unsigned int h = hash_index(index);
 	struct ie_cache *iec = ll->ie_cache + h;
 
 	ll->bitmap_index_changed = true;
@@ -1164,9 +1167,11 @@ static int disk_ll_save_ie(struct ll_disk *ll, dm_block_t index,
 
 static int disk_ll_init_index(struct ll_disk *ll)
 {
-	unsigned i;
+	unsigned int i;
+
 	for (i = 0; i < IE_CACHE_SIZE; i++) {
 		struct ie_cache *iec = ll->ie_cache + i;
+
 		iec->valid = false;
 		iec->dirty = false;
 	}
@@ -1186,10 +1191,11 @@ static dm_block_t disk_ll_max_entries(struct ll_disk *ll)
 static int disk_ll_commit(struct ll_disk *ll)
 {
 	int r = 0;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < IE_CACHE_SIZE; i++) {
 		struct ie_cache *iec = ll->ie_cache + i;
+
 		if (iec->valid && iec->dirty)
 			r = ie_cache_writeback(ll, iec);
 	}

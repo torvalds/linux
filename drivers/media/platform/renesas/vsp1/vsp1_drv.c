@@ -818,9 +818,9 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.wpf_count = 2,
 		.num_bru_inputs = 5,
 	}, {
-		.version = VI6_IP_VERSION_MODEL_VSPD_V3U,
+		.version = VI6_IP_VERSION_MODEL_VSPD_GEN4,
 		.model = "VSP2-D",
-		.gen = 3,
+		.gen = 4,
 		.features = VSP1_HAS_BRU | VSP1_HAS_EXT_DL,
 		.lif_count = 1,
 		.rpf_count = 5,

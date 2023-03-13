@@ -23,9 +23,9 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/vmalloc.h>
-#include <linux/raspberrypi/vchiq.h>
 #include <media/videobuf2-vmalloc.h>
 
+#include "../include/linux/raspberrypi/vchiq.h"
 #include "mmal-common.h"
 #include "mmal-vchiq.h"
 #include "mmal-msg.h"
@@ -245,7 +245,7 @@ static void event_to_host_cb(struct vchiq_mmal_instance *instance,
 /* workqueue scheduled callback
  *
  * we do this because it is important we do not call any other vchiq
- * sync calls from witin the message delivery thread
+ * sync calls from within the message delivery thread
  */
 static void buffer_work_cb(struct work_struct *work)
 {
@@ -548,10 +548,9 @@ static void bulk_abort_cb(struct vchiq_mmal_instance *instance,
 }
 
 /* incoming event service callback */
-static enum vchiq_status service_callback(struct vchiq_instance *vchiq_instance,
-					  enum vchiq_reason reason,
-					  struct vchiq_header *header,
-					  unsigned int handle, void *bulk_ctx)
+static int service_callback(struct vchiq_instance *vchiq_instance,
+			    enum vchiq_reason reason, struct vchiq_header *header,
+			    unsigned int handle, void *bulk_ctx)
 {
 	struct vchiq_mmal_instance *instance = vchiq_get_service_userdata(vchiq_instance, handle);
 	u32 msg_len;
@@ -560,7 +559,7 @@ static enum vchiq_status service_callback(struct vchiq_instance *vchiq_instance,
 
 	if (!instance) {
 		pr_err("Message callback passed NULL instance\n");
-		return VCHIQ_SUCCESS;
+		return 0;
 	}
 
 	switch (reason) {
@@ -644,7 +643,7 @@ static enum vchiq_status service_callback(struct vchiq_instance *vchiq_instance,
 		break;
 	}
 
-	return VCHIQ_SUCCESS;
+	return 0;
 }
 
 static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,

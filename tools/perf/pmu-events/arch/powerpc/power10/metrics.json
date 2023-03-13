@@ -15,7 +15,7 @@
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled for any reason",
         "MetricExpr": "PM_DISP_STALL_CYC / PM_RUN_INST_CMPL",
-        "MetricGroup": "CPI",
+        "MetricGroup": "CPI;CPI_STALL_RATIO",
         "MetricName": "DISPATCHED_CPI"
     },
     {
@@ -147,13 +147,13 @@
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction has been dispatched but not issued for any reason",
         "MetricExpr": "PM_ISSUE_STALL / PM_RUN_INST_CMPL",
-        "MetricGroup": "CPI",
+        "MetricGroup": "CPI;CPI_STALL_RATIO",
         "MetricName": "ISSUE_STALL_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction is waiting to be finished in one of the execution units",
         "MetricExpr": "PM_EXEC_STALL / PM_RUN_INST_CMPL",
-        "MetricGroup": "CPI",
+        "MetricGroup": "CPI;CPI_STALL_RATIO",
         "MetricName": "EXECUTION_STALL_CPI"
     },
     {
@@ -309,7 +309,7 @@
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction cannot complete because the thread was blocked",
         "MetricExpr": "PM_CMPL_STALL / PM_RUN_INST_CMPL",
-        "MetricGroup": "CPI",
+        "MetricGroup": "CPI;CPI_STALL_RATIO",
         "MetricName": "COMPLETION_STALL_CPI"
     },
     {

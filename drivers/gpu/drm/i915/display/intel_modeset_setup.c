@@ -698,8 +698,10 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 
 		drm_crtc_vblank_reset(&crtc->base);
 
-		if (crtc_state->hw.active)
+		if (crtc_state->hw.active) {
+			intel_dmc_enable_pipe(i915, crtc->pipe);
 			intel_crtc_vblank_on(crtc_state);
+		}
 	}
 
 	intel_fbc_sanitize(i915);

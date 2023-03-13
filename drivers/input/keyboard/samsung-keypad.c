@@ -458,7 +458,6 @@ static int samsung_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int samsung_keypad_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -503,9 +502,7 @@ static int samsung_keypad_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static void samsung_keypad_toggle_wakeup(struct samsung_keypad *keypad,
 					 bool enable)
 {
@@ -563,12 +560,11 @@ static int samsung_keypad_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops samsung_keypad_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(samsung_keypad_suspend, samsung_keypad_resume)
-	SET_RUNTIME_PM_OPS(samsung_keypad_runtime_suspend,
-			   samsung_keypad_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(samsung_keypad_suspend, samsung_keypad_resume)
+	RUNTIME_PM_OPS(samsung_keypad_runtime_suspend,
+		       samsung_keypad_runtime_resume, NULL)
 };
 
 #ifdef CONFIG_OF
@@ -598,7 +594,7 @@ static struct platform_driver samsung_keypad_driver = {
 	.driver		= {
 		.name	= "samsung-keypad",
 		.of_match_table = of_match_ptr(samsung_keypad_dt_match),
-		.pm	= &samsung_keypad_pm_ops,
+		.pm	= pm_ptr(&samsung_keypad_pm_ops),
 	},
 	.id_table	= samsung_keypad_driver_ids,
 };

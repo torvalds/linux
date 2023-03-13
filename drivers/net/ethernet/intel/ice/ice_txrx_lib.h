@@ -6,6 +6,36 @@
 #include "ice.h"
 
 /**
+ * ice_set_rx_bufs_act - propagate Rx buffer action to frags
+ * @xdp: XDP buffer representing frame (linear and frags part)
+ * @rx_ring: Rx ring struct
+ * act: action to store onto Rx buffers related to XDP buffer parts
+ *
+ * Set action that should be taken before putting Rx buffer from first frag
+ * to one before last. Last one is handled by caller of this function as it
+ * is the EOP frag that is currently being processed. This function is
+ * supposed to be called only when XDP buffer contains frags.
+ */
+static inline void
+ice_set_rx_bufs_act(struct xdp_buff *xdp, const struct ice_rx_ring *rx_ring,
+		    const unsigned int act)
+{
+	const struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+	u32 first = rx_ring->first_desc;
+	u32 nr_frags = sinfo->nr_frags;
+	u32 cnt = rx_ring->count;
+	struct ice_rx_buf *buf;
+
+	for (int i = 0; i < nr_frags; i++) {
+		buf = &rx_ring->rx_buf[first];
+		buf->act = act;
+
+		if (++first == cnt)
+			first = 0;
+	}
+}
+
+/**
  * ice_test_staterr - tests bits in Rx descriptor status and error fields
  * @status_err_n: Rx descriptor status_error0 or status_error1 bits
  * @stat_err_bits: value to mask
@@ -19,6 +49,28 @@ static inline bool
 ice_test_staterr(__le16 status_err_n, const u16 stat_err_bits)
 {
 	return !!(status_err_n & cpu_to_le16(stat_err_bits));
+}
+
+/**
+ * ice_is_non_eop - process handling of non-EOP buffers
+ * @rx_ring: Rx ring being processed
+ * @rx_desc: Rx descriptor for current buffer
+ *
+ * If the buffer is an EOP buffer, this function exits returning false,
+ * otherwise return true indicating that this is in fact a non-EOP buffer.
+ */
+static inline bool
+ice_is_non_eop(const struct ice_rx_ring *rx_ring,
+	       const union ice_32b_rx_flex_desc *rx_desc)
+{
+	/* if we are the last buffer then there is nothing else to do */
+#define ICE_RXD_EOF BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)
+	if (likely(ice_test_staterr(rx_desc->wb.status_error0, ICE_RXD_EOF)))
+		return false;
+
+	rx_ring->ring_stats->rx_stats.non_eop_descs++;
+
+	return true;
 }
 
 static inline __le64
@@ -70,9 +122,28 @@ static inline void ice_xdp_ring_update_tail(struct ice_tx_ring *xdp_ring)
 	writel_relaxed(xdp_ring->next_to_use, xdp_ring->tail);
 }
 
-void ice_finalize_xdp_rx(struct ice_tx_ring *xdp_ring, unsigned int xdp_res);
+/**
+ * ice_set_rs_bit - set RS bit on last produced descriptor (one behind current NTU)
+ * @xdp_ring: XDP ring to produce the HW Tx descriptors on
+ *
+ * returns index of descriptor that had RS bit produced on
+ */
+static inline u32 ice_set_rs_bit(const struct ice_tx_ring *xdp_ring)
+{
+	u32 rs_idx = xdp_ring->next_to_use ? xdp_ring->next_to_use - 1 : xdp_ring->count - 1;
+	struct ice_tx_desc *tx_desc;
+
+	tx_desc = ICE_TX_DESC(xdp_ring, rs_idx);
+	tx_desc->cmd_type_offset_bsz |=
+		cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
+
+	return rs_idx;
+}
+
+void ice_finalize_xdp_rx(struct ice_tx_ring *xdp_ring, unsigned int xdp_res, u32 first_idx);
 int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_tx_ring *xdp_ring);
-int ice_xmit_xdp_ring(void *data, u16 size, struct ice_tx_ring *xdp_ring);
+int __ice_xmit_xdp_ring(struct xdp_buff *xdp, struct ice_tx_ring *xdp_ring,
+			bool frame);
 void ice_release_rx_desc(struct ice_rx_ring *rx_ring, u16 val);
 void
 ice_process_skb_fields(struct ice_rx_ring *rx_ring,

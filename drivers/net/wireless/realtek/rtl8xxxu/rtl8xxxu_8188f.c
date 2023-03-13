@@ -370,7 +370,7 @@ static void rtl8188f_channel_to_group(int channel, int *group, int *cck_group)
 		*cck_group = *group;
 }
 
-static void
+void
 rtl8188f_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 {
 	u32 val32, ofdm, mcs;
@@ -716,7 +716,6 @@ static void rtl8188fu_init_statistics(struct rtl8xxxu_priv *priv)
 static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8188fu_efuse *efuse = &priv->efuse_wifi.efuse8188fu;
-	int i;
 
 	if (efuse->rtl_id != cpu_to_le16(0x8129))
 		return -EINVAL;
@@ -738,22 +737,12 @@ static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.7s\n", efuse->device_name);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
-		unsigned char *raw = priv->efuse_wifi.raw;
-
-		dev_info(&priv->udev->dev,
-			 "%s: dumping efuse (0x%02zx bytes):\n",
-			 __func__, sizeof(struct rtl8188fu_efuse));
-		for (i = 0; i < sizeof(struct rtl8188fu_efuse); i += 8)
-			dev_info(&priv->udev->dev, "%02x: %8ph\n", i, &raw[i]);
-	}
-
 	return 0;
 }
 
 static int rtl8188fu_load_firmware(struct rtl8xxxu_priv *priv)
 {
-	char *fw_name;
+	const char *fw_name;
 	int ret;
 
 	fw_name = "rtlwifi/rtl8188fufw.bin";
@@ -1122,7 +1111,7 @@ static void rtl8188fu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 
 	if (t == 0) {
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XA_HSSI_PARM1);
-		priv->pi_enabled = val32 & FPGA0_HSSI_PARM1_PI;
+		priv->pi_enabled = u32_get_bits(val32, FPGA0_HSSI_PARM1_PI);
 	}
 
 	/* save RF path */
@@ -1662,7 +1651,7 @@ static void rtl8188f_usb_quirks(struct rtl8xxxu_priv *priv)
 #define XTAL1	GENMASK(22, 17)
 #define XTAL0	GENMASK(16, 11)
 
-static void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
+void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
 {
 	struct rtl8xxxu_cfo_tracking *cfo = &priv->cfo_tracking;
 	u32 val32;
@@ -1693,8 +1682,8 @@ static s8 rtl8188f_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
 	s8 rx_pwr_all = 0x00;
 	u8 vga_idx, lna_idx;
 
-	lna_idx = (cck_agc_rpt & 0xE0) >> 5;
-	vga_idx = cck_agc_rpt & 0x1F;
+	lna_idx = u8_get_bits(cck_agc_rpt, CCK_AGC_RPT_LNA_IDX_MASK);
+	vga_idx = u8_get_bits(cck_agc_rpt, CCK_AGC_RPT_VGA_IDX_MASK);
 
 	switch (lna_idx) {
 	case 7:
@@ -1743,6 +1732,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.set_tx_power = rtl8188f_set_tx_power,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
+	.report_rssi = rtl8xxxu_gen2_report_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
 	.set_crystal_cap = rtl8188f_set_crystal_cap,
 	.cck_rssi = rtl8188f_cck_rssi,

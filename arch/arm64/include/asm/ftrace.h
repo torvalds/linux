@@ -62,20 +62,7 @@ extern unsigned long ftrace_graph_call;
 
 extern void return_to_handler(void);
 
-static inline unsigned long ftrace_call_adjust(unsigned long addr)
-{
-	/*
-	 * Adjust addr to point at the BL in the callsite.
-	 * See ftrace_init_nop() for the callsite sequence.
-	 */
-	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_ARGS))
-		return addr + AARCH64_INSN_SIZE;
-	/*
-	 * addr is the address of the mcount call instruction.
-	 * recordmcount does the necessary offset calculation.
-	 */
-	return addr;
-}
+unsigned long ftrace_call_adjust(unsigned long addr);
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 struct dyn_ftrace;

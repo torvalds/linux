@@ -3296,7 +3296,7 @@ static void mxt_remove(struct i2c_client *client)
 			       data->regulators);
 }
 
-static int __maybe_unused mxt_suspend(struct device *dev)
+static int mxt_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt_data *data = i2c_get_clientdata(client);
@@ -3317,7 +3317,7 @@ static int __maybe_unused mxt_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mxt_resume(struct device *dev)
+static int mxt_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt_data *data = i2c_get_clientdata(client);
@@ -3338,7 +3338,7 @@ static int __maybe_unused mxt_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);
 
 static const struct of_device_id mxt_of_match[] = {
 	{ .compatible = "atmel,maxtouch", },
@@ -3375,7 +3375,7 @@ static struct i2c_driver mxt_driver = {
 		.name	= "atmel_mxt_ts",
 		.of_match_table = mxt_of_match,
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
-		.pm	= &mxt_pm_ops,
+		.pm	= pm_sleep_ptr(&mxt_pm_ops),
 	},
 	.probe_new	= mxt_probe,
 	.remove		= mxt_remove,
