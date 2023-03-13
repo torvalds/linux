@@ -25,7 +25,6 @@ struct fwnode_handle;
 /**
  * struct class - device classes
  * @name:	Name of the class.
- * @owner:	The module owner.
  * @class_groups: Default attributes of this class.
  * @dev_groups:	Default attributes of the devices that belong to the class.
  * @dev_kobj:	The kobject that represents this class and links it into the hierarchy.
@@ -53,7 +52,6 @@ struct fwnode_handle;
  */
 struct class {
 	const char		*name;
-	struct module		*owner;
 
 	const struct attribute_group	**class_groups;
 	const struct attribute_group	**dev_groups;
@@ -85,16 +83,15 @@ struct class_dev_iter {
 extern struct kobject *sysfs_dev_block_kobj;
 extern struct kobject *sysfs_dev_char_kobj;
 extern int __must_check __class_register(struct class *class,
-					 struct module *owner,
 					 struct lock_class_key *key);
 extern void class_unregister(struct class *class);
 
 /* This is a #define to keep the compiler from merging different
  * instances of the __key variable */
-#define class_register(class)				\
-({							\
-	static struct lock_class_key __key;		\
-	__class_register(class, THIS_MODULE, &__key);	\
+#define class_register(class)			\
+({						\
+	static struct lock_class_key __key;	\
+	__class_register(class, &__key);	\
 })
 
 struct class_compat;
@@ -250,8 +247,7 @@ struct class_interface {
 extern int __must_check class_interface_register(struct class_interface *);
 extern void class_interface_unregister(struct class_interface *);
 
-extern struct class * __must_check __class_create(struct module *owner,
-						  const char *name,
+extern struct class * __must_check __class_create(const char *name,
 						  struct lock_class_key *key);
 extern void class_destroy(struct class *cls);
 
@@ -260,7 +256,7 @@ extern void class_destroy(struct class *cls);
 
 /**
  * class_create - create a struct class structure
- * @owner: pointer to the module that is to "own" this struct class
+ * @owner: dummy pointer, does nothing, will be removed soon.
  * @name: pointer to a string for the name of this class.
  *
  * This is used to create a struct class pointer that can then be used
@@ -274,7 +270,7 @@ extern void class_destroy(struct class *cls);
 #define class_create(owner, name)		\
 ({						\
 	static struct lock_class_key __key;	\
-	__class_create(owner, name, &__key);	\
+	__class_create(name, &__key);		\
 })
 
 

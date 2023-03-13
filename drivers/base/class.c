@@ -154,7 +154,7 @@ static void class_remove_groups(struct class *cls,
 	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
 }
 
-int __class_register(struct class *cls, struct module *owner, struct lock_class_key *key)
+int __class_register(struct class *cls, struct lock_class_key *key)
 {
 	struct subsys_private *cp;
 	int error;
@@ -187,7 +187,6 @@ int __class_register(struct class *cls, struct module *owner, struct lock_class_
 	if (error)
 		goto err_out;
 
-	cls->owner = owner;
 	error = class_add_groups(class_get(cls), cls->class_groups);
 	class_put(cls);
 	if (error) {
@@ -220,7 +219,6 @@ static void class_create_release(struct class *cls)
 
 /**
  * __class_create - create a struct class structure
- * @owner: pointer to the module that is to "own" this struct class
  * @name: pointer to a string for the name of this class.
  * @key: the lock_class_key for this class; used by mutex lock debugging
  *
@@ -232,8 +230,7 @@ static void class_create_release(struct class *cls)
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
-struct class *__class_create(struct module *owner, const char *name,
-			     struct lock_class_key *key)
+struct class *__class_create(const char *name, struct lock_class_key *key)
 {
 	struct class *cls;
 	int retval;
@@ -247,7 +244,7 @@ struct class *__class_create(struct module *owner, const char *name,
 	cls->name = name;
 	cls->class_release = class_create_release;
 
-	retval = __class_register(cls, owner, key);
+	retval = __class_register(cls, key);
 	if (retval)
 		goto error;
 
