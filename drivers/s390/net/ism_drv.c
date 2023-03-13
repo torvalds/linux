@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/pci.h>
 #include <linux/err.h>
 #include <linux/ctype.h>
 #include <linux/processor.h>
