@@ -114,7 +114,7 @@ extern int __must_check bus_register(const struct bus_type *bus);
 
 extern void bus_unregister(const struct bus_type *bus);
 
-extern int __must_check bus_rescan_devices(struct bus_type *bus);
+extern int __must_check bus_rescan_devices(const struct bus_type *bus);
 
 struct bus_attribute {
 	struct attribute	attr;
