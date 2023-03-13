@@ -5155,7 +5155,6 @@ static struct sdebug_dev_info *sdebug_device_create(
 		} else {
 			devip->zmodel = BLK_ZONED_NONE;
 		}
-		devip->sdbg_host = sdbg_host;
 		devip->create_ts = ktime_get_boottime();
 		atomic_set(&devip->stopped, (sdeb_tur_ms_to_ready > 0 ? 2 : 0));
 		list_add_tail(&devip->dev_list, &sdbg_host->dev_info_list);
