@@ -1698,17 +1698,17 @@ static int sof_ipc4_get_queue_id(struct snd_sof_widget *src_widget,
 	u32 num_pins;
 	int i;
 
-	if (pin_type == SOF_PIN_TYPE_SOURCE) {
+	if (pin_type == SOF_PIN_TYPE_OUTPUT) {
 		current_swidget = src_widget;
-		pin_binding = src_widget->src_pin_binding;
-		queue_ida = &src_widget->src_queue_ida;
-		num_pins = src_widget->num_source_pins;
+		pin_binding = src_widget->output_pin_binding;
+		queue_ida = &src_widget->output_queue_ida;
+		num_pins = src_widget->num_output_pins;
 		buddy_name = sink_widget->widget->name;
 	} else {
 		current_swidget = sink_widget;
-		pin_binding = sink_widget->sink_pin_binding;
-		queue_ida = &sink_widget->sink_queue_ida;
-		num_pins = sink_widget->num_sink_pins;
+		pin_binding = sink_widget->input_pin_binding;
+		queue_ida = &sink_widget->input_queue_ida;
+		num_pins = sink_widget->num_input_pins;
 		buddy_name = src_widget->widget->name;
 	}
 
@@ -1716,12 +1716,12 @@ static int sof_ipc4_get_queue_id(struct snd_sof_widget *src_widget,
 
 	if (num_pins < 1) {
 		dev_err(scomp->dev, "invalid %s num_pins: %d for queue allocation for %s\n",
-			(pin_type == SOF_PIN_TYPE_SOURCE ? "source" : "sink"),
+			(pin_type == SOF_PIN_TYPE_OUTPUT ? "output" : "input"),
 			num_pins, current_swidget->widget->name);
 		return -EINVAL;
 	}
 
-	/* If there is only one sink/source pin, queue id must be 0 */
+	/* If there is only one input/output pin, queue id must be 0 */
 	if (num_pins == 1)
 		return 0;
 
@@ -1736,7 +1736,7 @@ static int sof_ipc4_get_queue_id(struct snd_sof_widget *src_widget,
 		 * mixed use pin binding array and ida for queue ID allocation.
 		 */
 		dev_err(scomp->dev, "no %s queue id found from pin binding array for %s\n",
-			(pin_type == SOF_PIN_TYPE_SOURCE ? "source" : "sink"),
+			(pin_type == SOF_PIN_TYPE_OUTPUT ? "output" : "input"),
 			current_swidget->widget->name);
 		return -EINVAL;
 	}
@@ -1752,14 +1752,14 @@ static void sof_ipc4_put_queue_id(struct snd_sof_widget *swidget, int queue_id,
 	char **pin_binding;
 	int num_pins;
 
-	if (pin_type == SOF_PIN_TYPE_SOURCE) {
-		pin_binding = swidget->src_pin_binding;
-		queue_ida = &swidget->src_queue_ida;
-		num_pins = swidget->num_source_pins;
+	if (pin_type == SOF_PIN_TYPE_OUTPUT) {
+		pin_binding = swidget->output_pin_binding;
+		queue_ida = &swidget->output_queue_ida;
+		num_pins = swidget->num_output_pins;
 	} else {
-		pin_binding = swidget->sink_pin_binding;
-		queue_ida = &swidget->sink_queue_ida;
-		num_pins = swidget->num_sink_pins;
+		pin_binding = swidget->input_pin_binding;
+		queue_ida = &swidget->input_queue_ida;
+		num_pins = swidget->num_input_pins;
 	}
 
 	/* Nothing to free if queue ID is not allocated with ida. */
@@ -1829,7 +1829,7 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	int ret;
 
 	sroute->src_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
-						     SOF_PIN_TYPE_SOURCE);
+						     SOF_PIN_TYPE_OUTPUT);
 	if (sroute->src_queue_id < 0) {
 		dev_err(sdev->dev, "failed to get queue ID for source widget: %s\n",
 			src_widget->widget->name);
@@ -1837,12 +1837,12 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	}
 
 	sroute->dst_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
-						     SOF_PIN_TYPE_SINK);
+						     SOF_PIN_TYPE_INPUT);
 	if (sroute->dst_queue_id < 0) {
 		dev_err(sdev->dev, "failed to get queue ID for sink widget: %s\n",
 			sink_widget->widget->name);
 		sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id,
-				      SOF_PIN_TYPE_SOURCE);
+				      SOF_PIN_TYPE_OUTPUT);
 		return sroute->dst_queue_id;
 	}
 
@@ -1886,8 +1886,8 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	return ret;
 
 out:
-	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_SOURCE);
-	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_SINK);
+	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_OUTPUT);
+	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_INPUT);
 	return ret;
 }
 
@@ -1932,8 +1932,8 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 			src_widget->widget->name, sroute->src_queue_id,
 			sink_widget->widget->name, sroute->dst_queue_id);
 out:
-	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_SINK);
-	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_SOURCE);
+	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_INPUT);
+	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_OUTPUT);
 
 	return ret;
 }
