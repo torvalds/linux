@@ -554,8 +554,7 @@ void pata_parport_unregister_driver(struct pi_protocol *pr)
 }
 EXPORT_SYMBOL_GPL(pata_parport_unregister_driver);
 
-static ssize_t new_device_store(struct bus_type *bus, const char *buf,
-				size_t count)
+static ssize_t new_device_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	char port[12] = "auto";
 	char protocol[8] = "auto";
@@ -630,8 +629,7 @@ static void pi_remove_one(struct device *dev)
 	/* pata_parport_dev_release will do kfree(pi) */
 }
 
-static ssize_t delete_device_store(struct bus_type *bus, const char *buf,
-				   size_t count)
+static ssize_t delete_device_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	struct device *dev;
 

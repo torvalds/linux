@@ -1006,7 +1006,7 @@ ATTRIBUTE_GROUPS(vio_cmo_dev);
 /* sysfs bus functions and data structures for CMO */
 
 #define viobus_cmo_rd_attr(name)                                        \
-static ssize_t cmo_bus_##name##_show(struct bus_type *bt, char *buf)    \
+static ssize_t cmo_bus_##name##_show(const struct bus_type *bt, char *buf)    \
 {                                                                       \
 	return sprintf(buf, "%lu\n", vio_cmo.name);                     \
 }                                                                       \
@@ -1015,7 +1015,7 @@ static struct bus_attribute bus_attr_cmo_bus_##name =			\
 
 #define viobus_cmo_pool_rd_attr(name, var)                              \
 static ssize_t                                                          \
-cmo_##name##_##var##_show(struct bus_type *bt, char *buf)               \
+cmo_##name##_##var##_show(const struct bus_type *bt, char *buf)         \
 {                                                                       \
 	return sprintf(buf, "%lu\n", vio_cmo.name.var);                 \
 }                                                                       \
@@ -1030,12 +1030,12 @@ viobus_cmo_pool_rd_attr(reserve, size);
 viobus_cmo_pool_rd_attr(excess, size);
 viobus_cmo_pool_rd_attr(excess, free);
 
-static ssize_t cmo_high_show(struct bus_type *bt, char *buf)
+static ssize_t cmo_high_show(const struct bus_type *bt, char *buf)
 {
 	return sprintf(buf, "%lu\n", vio_cmo.high);
 }
 
-static ssize_t cmo_high_store(struct bus_type *bt, const char *buf,
+static ssize_t cmo_high_store(const struct bus_type *bt, const char *buf,
 			      size_t count)
 {
 	unsigned long flags;
