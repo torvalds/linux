@@ -149,11 +149,9 @@ DEFINE_RPMPD_PAIR(vddmd, vddmd_ao, SMPA, LEVEL, 1);
 DEFINE_RPMPD_VFC(vddmd_vfc, SMPA, 1);
 
 DEFINE_RPMPD_LEVEL(vdd_lpi_cx, RWLC, 0);
-DEFINE_RPMPD_LEVEL(vdd_lpicx, RWLC, 0);
 DEFINE_RPMPD_VFL(vdd_lpicx_vfl, RWLC, 0);
 
 DEFINE_RPMPD_LEVEL(vdd_lpi_mx, RWLM, 0);
-DEFINE_RPMPD_LEVEL(vdd_lpimx, RWLM, 0);
 DEFINE_RPMPD_VFL(vdd_lpimx_vfl, RWLM, 0);
 
 DEFINE_RPMPD_CORNER(vddsscx, LDOA, 26);
@@ -324,9 +322,9 @@ static struct rpmpd *qcs404_rpmpds[] = {
 	[QCS404_VDDMX] = &RWMX0_LEVEL_vddmx,
 	[QCS404_VDDMX_AO] = &RWMX0_LEVEL_vddmx_ao,
 	[QCS404_VDDMX_VFL] = &RWMX0_vddmx_vfl,
-	[QCS404_LPICX] = &RWLC0_vdd_lpicx_lvl,
+	[QCS404_LPICX] = &RWLC0_vdd_lpi_cx_lvl,
 	[QCS404_LPICX_VFL] = &RWLC0_vdd_lpicx_vfl,
-	[QCS404_LPIMX] = &RWLM0_vdd_lpimx_lvl,
+	[QCS404_LPIMX] = &RWLM0_vdd_lpi_mx_lvl,
 	[QCS404_LPIMX_VFL] = &RWLM0_vdd_lpimx_vfl,
 };
 
