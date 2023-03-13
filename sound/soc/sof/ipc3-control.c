@@ -104,7 +104,7 @@ unlock:
 	return ret;
 }
 
-static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
+static void sof_ipc3_refresh_control(struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
 	struct snd_soc_component *scomp = scontrol->scomp;
@@ -138,7 +138,7 @@ static int sof_ipc3_volume_get(struct snd_sof_control *scontrol,
 	unsigned int channels = scontrol->num_channels;
 	unsigned int i;
 
-	snd_sof_refresh_control(scontrol);
+	sof_ipc3_refresh_control(scontrol);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
@@ -189,7 +189,7 @@ static int sof_ipc3_switch_get(struct snd_sof_control *scontrol,
 	unsigned int channels = scontrol->num_channels;
 	unsigned int i;
 
-	snd_sof_refresh_control(scontrol);
+	sof_ipc3_refresh_control(scontrol);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
@@ -237,7 +237,7 @@ static int sof_ipc3_enum_get(struct snd_sof_control *scontrol,
 	unsigned int channels = scontrol->num_channels;
 	unsigned int i;
 
-	snd_sof_refresh_control(scontrol);
+	sof_ipc3_refresh_control(scontrol);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
@@ -286,7 +286,7 @@ static int sof_ipc3_bytes_get(struct snd_sof_control *scontrol,
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
 
-	snd_sof_refresh_control(scontrol);
+	sof_ipc3_refresh_control(scontrol);
 
 	if (scontrol->max_size > sizeof(ucontrol->value.bytes.data)) {
 		dev_err_ratelimited(scomp->dev, "data max %zu exceeds ucontrol data array size\n",
@@ -352,7 +352,7 @@ static int sof_ipc3_bytes_ext_get(struct snd_sof_control *scontrol,
 	struct snd_ctl_tlv header;
 	size_t data_size;
 
-	snd_sof_refresh_control(scontrol);
+	sof_ipc3_refresh_control(scontrol);
 
 	/*
 	 * Decrement the limit by ext bytes header size to
