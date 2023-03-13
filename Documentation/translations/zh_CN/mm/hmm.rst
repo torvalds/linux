@@ -248,7 +248,7 @@ migrate_vma_finalize() 函数旨在使驱动程序更易于编写并集中跨驱
 还有devm_request_free_mem_region(), devm_memremap_pages(),
 devm_memunmap_pages() 和 devm_release_mem_region() 当资源可以绑定到 ``struct device``.
 
-整体迁移步骤类似于在系统内存中迁移 NUMA 页面(see :ref:`Page migration <page_migration>`) ，
+整体迁移步骤类似于在系统内存中迁移 NUMA 页面(see Documentation/mm/page_migration.rst) ，
 但这些步骤分为设备驱动程序特定代码和共享公共代码:
 
 1. ``mmap_read_lock()``

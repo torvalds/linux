@@ -192,10 +192,10 @@ static int nfp_nfd3_prep_tx_meta(struct nfp_net_dp *dp, struct sk_buff *skb,
 		return 0;
 
 	md_bytes = sizeof(meta_id) +
-		   !!md_dst * NFP_NET_META_PORTID_SIZE +
-		   !!tls_handle * NFP_NET_META_CONN_HANDLE_SIZE +
-		   vlan_insert * NFP_NET_META_VLAN_SIZE +
-		   *ipsec * NFP_NET_META_IPSEC_FIELD_SIZE; /* IPsec has 12 bytes of metadata */
+		   (!!md_dst ? NFP_NET_META_PORTID_SIZE : 0) +
+		   (!!tls_handle ? NFP_NET_META_CONN_HANDLE_SIZE : 0) +
+		   (vlan_insert ? NFP_NET_META_VLAN_SIZE : 0) +
+		   (*ipsec ? NFP_NET_META_IPSEC_FIELD_SIZE : 0);
 
 	if (unlikely(skb_cow_head(skb, md_bytes)))
 		return -ENOMEM;
@@ -226,9 +226,6 @@ static int nfp_nfd3_prep_tx_meta(struct nfp_net_dp *dp, struct sk_buff *skb,
 		meta_id |= NFP_NET_META_VLAN;
 	}
 	if (*ipsec) {
-		/* IPsec has three consecutive 4-bit IPsec metadata types,
-		 * so in total IPsec has three 4 bytes of metadata.
-		 */
 		data -= NFP_NET_META_IPSEC_SIZE;
 		put_unaligned_be32(offload_info.seq_hi, data);
 		data -= NFP_NET_META_IPSEC_SIZE;

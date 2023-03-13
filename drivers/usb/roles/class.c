@@ -274,8 +274,7 @@ static const struct attribute_group *usb_role_switch_groups[] = {
 	NULL,
 };
 
-static int
-usb_role_switch_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int usb_role_switch_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int ret;
 

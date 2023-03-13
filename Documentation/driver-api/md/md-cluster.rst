@@ -65,7 +65,7 @@ There are three groups of locks for managing the device:
 2.3 new-device management
 -------------------------
 
- A single lock: "no-new-dev" is used to co-ordinate the addition of
+ A single lock: "no-new-dev" is used to coordinate the addition of
  new devices - this must be synchronized across the array.
  Normally all nodes hold a concurrent-read lock on this device.
 

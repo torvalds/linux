@@ -44,7 +44,7 @@ This _wc variant returns a write-combining map to the page and may only be
 used with mappings created by io_mapping_create_wc()
 
 Temporary mappings are only valid in the context of the caller. The mapping
-is not guaranteed to be globaly visible.
+is not guaranteed to be globally visible.
 
 io_mapping_map_local_wc() has a side effect on X86 32bit as it disables
 migration to make the mapping code work. No caller can rely on this side
@@ -78,7 +78,7 @@ variant, although this may be significantly slower::
 				unsigned long offset)
 
 This works like io_mapping_map_atomic/local_wc() except it has no side
-effects and the pointer is globaly visible.
+effects and the pointer is globally visible.
 
 The mappings are released with::
 

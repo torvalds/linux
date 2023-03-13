@@ -553,7 +553,6 @@ static int sppctl_gpio_new(struct platform_device *pdev, struct sppctl_pdata *pc
 	gchip->base             = -1;
 	gchip->ngpio            = sppctl_gpio_list_sz;
 	gchip->names            = sppctl_gpio_list_s;
-	gchip->of_gpio_n_cells  = 2;
 
 	pctl->pctl_grange.npins = gchip->ngpio;
 	pctl->pctl_grange.name  = gchip->label;

@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for ULCB + Audio Graph Card (MIX)
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/*
+ * Note:
+ * The HDMI output is ignored due to the limited number of subdevices
+ *
+ *	(A) CPU0 (2ch) <-----> (2ch) (X) ak4613	(MIX-0)
+ *	(B) CPU1 (2ch)  --/			(MIX-1)
+ *
+ *	(A) aplay   -D plughw:0,0 xxx.wav
+ *	(B) aplay   -D plughw:0,1 xxx.wav
+ *
+ *	(A) arecord -D plughw:0,0 xxx.wav
+ */
+
+/ {
+	sound_card: sound {
+		compatible = "audio-graph-scu-card";
+		label = "rcar-sound";
+
+		routing = "ak4613 Playback", "DAI0 Playback",
+			  "ak4613 Playback", "DAI1 Playback",
+			  "DAI0 Capture",    "ak4613 Capture";
+
+		dais = <&rsnd_port0 /* (A) CPU0 */
+			&rsnd_port1 /* (B) CPU1 */
+		>;
+	};
+};
+
+&ak4613 {
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/*
+		 * (X) ak4613
+		 */
+		prefix = "ak4613";
+		convert-rate = <48000>;
+
+		/* (A) CPU0 <-> (X) ak4613 */
+		ak4613_ep1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&rsnd_for_ak4613_1>;
+		};
+		/* (B) CPU1 -> (X) ak4613 */
+		ak4613_ep2: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&rsnd_for_ak4613_2>;
+		};
+	};
+};
+
+&rcar_sound {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/*
+		 * (A) CPU0
+		 */
+		rsnd_port0: port@0 {
+			reg = <0>;
+			rsnd_for_ak4613_1: endpoint {
+				remote-endpoint = <&ak4613_ep1>;
+				bitclock-master;
+				frame-master;
+				playback = <&src1 &ctu02 &mix0 &dvc0 &ssi0>;
+				capture  = <&ssi1 &src0 &dvc1>;
+			};
+		};
+		/*
+		 * (B) CPU1
+		 */
+		rsnd_port1: port@1 {
+			reg = <1>;
+			rsnd_for_ak4613_2: endpoint {
+				remote-endpoint = <&ak4613_ep2>;
+				bitclock-master;
+				frame-master;
+				playback = <&src2 &ctu03 &mix0 &dvc0 &ssi0>;
+			};
+		};
+	};
+};

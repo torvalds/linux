@@ -9,16 +9,6 @@
 #include "../include/usb_ops.h"
 #include "../include/rtl8188e_hal.h"
 
-s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
-{
-	struct xmit_priv	*pxmitpriv = &adapt->xmitpriv;
-
-	tasklet_init(&pxmitpriv->xmit_tasklet,
-		     rtl8188eu_xmit_tasklet,
-		     (unsigned long)adapt);
-	return _SUCCESS;
-}
-
 static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
 	u16	*usptr = (u16 *)ptxdesc;
@@ -147,7 +137,7 @@ static void fill_txdesc_phy(struct pkt_attrib *pattrib, __le32 *pdw)
 	}
 }
 
-static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bagg_pkt)
+static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz)
 {
 	uint	qsel;
 	u8 data_rate, pwr_status, offset;
@@ -329,7 +319,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 			sz = pattrib->last_txcmdsz;
 		}
 
-		pull = update_txdesc(pxmitframe, mem_addr, sz, false);
+		pull = update_txdesc(pxmitframe, mem_addr, sz);
 
 		if (pull) {
 			mem_addr += PACKET_OFFSET_SZ; /* pull txdesc head */
@@ -375,11 +365,13 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 	return len;
 }
 
-bool rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
+bool rtl8188eu_xmitframe_complete(struct adapter *adapt)
 {
+	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_frame *pfirstframe = NULL;
+	struct xmit_buf *pxmitbuf;
 
 	/*  aggregate variable */
 	struct hw_xmit *phwxmit;
@@ -403,17 +395,11 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmit
 	else
 		bulksize = USB_FULL_SPEED_BULK_SIZE;
 
-	/*  check xmitbuffer is ok */
-	if (!pxmitbuf) {
-		pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-		if (!pxmitbuf)
-			return false;
-	}
+	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
+	if (!pxmitbuf)
+		return false;
 
-	/* 3 1. pick up first frame */
-	rtw_free_xmitframe(pxmitpriv, pxmitframe);
-
-	pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
+	pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits);
 	if (!pxmitframe) {
 		/*  no more xmit frame, release xmit buffer */
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
@@ -475,7 +461,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmit
 	}
 	spin_lock_bh(&pxmitpriv->lock);
 
-	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
+	xmitframe_phead = &ptxservq->sta_pending;
 	xmitframe_plist = xmitframe_phead->next;
 
 	while (xmitframe_phead != xmitframe_plist) {
@@ -503,7 +489,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmit
 		rtw_xmit_complete(adapt, pxmitframe);
 
 		/*  (len - TXDESC_SIZE) == pxmitframe->attrib.last_txcmdsz */
-		update_txdesc(pxmitframe, pxmitframe->buf_addr, pxmitframe->attrib.last_txcmdsz, true);
+		update_txdesc(pxmitframe, pxmitframe->buf_addr, pxmitframe->attrib.last_txcmdsz);
 
 		/*  don't need xmitframe any more */
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
@@ -526,7 +512,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmit
 		}
 	} /* end while (aggregate same priority and same DA(AP or STA) frames) */
 
-	if (list_empty(&ptxservq->sta_pending.queue))
+	if (list_empty(&ptxservq->sta_pending))
 		list_del_init(&ptxservq->tx_pending);
 
 	spin_unlock_bh(&pxmitpriv->lock);
@@ -543,7 +529,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmit
 		pfirstframe->pkt_offset--;
 	}
 
-	update_txdesc(pfirstframe, pfirstframe->buf_addr, pfirstframe->attrib.last_txcmdsz, true);
+	update_txdesc(pfirstframe, pfirstframe->buf_addr, pfirstframe->attrib.last_txcmdsz);
 
 	/* 3 4. write xmit buffer to USB FIFO */
 	ff_hwaddr = rtw_get_ff_hwaddr(pfirstframe);
@@ -610,7 +596,7 @@ static s32 pre_xmitframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	return true;
 
 enqueue:
-	res = rtw_xmitframe_enqueue(adapt, pxmitframe);
+	res = rtw_xmit_classifier(adapt, pxmitframe);
 	spin_unlock_bh(&pxmitpriv->lock);
 
 	if (res != _SUCCESS) {

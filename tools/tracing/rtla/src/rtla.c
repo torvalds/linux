@@ -26,6 +26,7 @@ static void rtla_usage(int err)
 		"",
 		"  commands:",
 		"     osnoise  - gives information about the operating system noise (osnoise)",
+		"     hwnoise  - gives information about hardware-related noise",
 		"     timerlat - measures the timer irq and thread latency",
 		"",
 		NULL,
@@ -46,6 +47,9 @@ int run_command(int argc, char **argv, int start_position)
 {
 	if (strcmp(argv[start_position], "osnoise") == 0) {
 		osnoise_main(argc-start_position, &argv[start_position]);
+		goto ran;
+	} else if (strcmp(argv[start_position], "hwnoise") == 0) {
+		hwnoise_main(argc-start_position, &argv[start_position]);
 		goto ran;
 	} else if (strcmp(argv[start_position], "timerlat") == 0) {
 		timerlat_main(argc-start_position, &argv[start_position]);

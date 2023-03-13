@@ -38,7 +38,6 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
-#include <linux/platform_data/irda-sa11x0.h>
 #include <asm/mach/map.h>
 #include <mach/assabet.h>
 #include <linux/platform_data/mfd-mcp-sa11x0.h>
@@ -296,38 +295,6 @@ static struct resource assabet_flash_resources[] = {
 	DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_32M),
 };
 
-
-/*
- * Assabet IrDA support code.
- */
-
-static int assabet_irda_set_power(struct device *dev, unsigned int state)
-{
-	static unsigned int bcr_state[4] = {
-		ASSABET_BCR_IRDA_MD0,
-		ASSABET_BCR_IRDA_MD1|ASSABET_BCR_IRDA_MD0,
-		ASSABET_BCR_IRDA_MD1,
-		0
-	};
-
-	if (state < 4)
-		ASSABET_BCR_frob(ASSABET_BCR_IRDA_MD1 | ASSABET_BCR_IRDA_MD0,
-				 bcr_state[state]);
-	return 0;
-}
-
-static void assabet_irda_set_speed(struct device *dev, unsigned int speed)
-{
-	if (speed < 4000000)
-		ASSABET_BCR_clear(ASSABET_BCR_IRDA_FSEL);
-	else
-		ASSABET_BCR_set(ASSABET_BCR_IRDA_FSEL);
-}
-
-static struct irda_platform_data assabet_irda_data = {
-	.set_power	= assabet_irda_set_power,
-	.set_speed	= assabet_irda_set_speed,
-};
 
 static struct ucb1x00_plat_data assabet_ucb1x00_data = {
 	.reset		= assabet_ucb1x00_reset,
@@ -618,7 +585,6 @@ static void __init assabet_init(void)
 #endif
 	sa11x0_register_mtd(&assabet_flash_data, assabet_flash_resources,
 			    ARRAY_SIZE(assabet_flash_resources));
-	sa11x0_register_irda(&assabet_irda_data);
 	sa11x0_register_mcp(&assabet_mcp_data);
 
 	if (!machine_has_neponset())

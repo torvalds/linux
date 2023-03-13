@@ -38,10 +38,6 @@ void dp_disable_link_phy(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal);
 
-void dp_disable_link_phy_mst(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal);
-
 void dp_set_hw_lane_settings(
 		struct dc_link *link,
 		const struct link_resource *link_res,
@@ -52,5 +48,9 @@ void dp_set_drive_settings(
 	struct dc_link *link,
 	const struct link_resource *link_res,
 	struct link_training_settings *lt_settings);
+
+enum dc_status dp_set_fec_ready(struct dc_link *link,
+		const struct link_resource *link_res, bool ready);
+void dp_set_fec_enable(struct dc_link *link, bool enable);
 
 #endif /* __DC_LINK_DP_PHY_H__ */

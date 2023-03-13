@@ -22,6 +22,7 @@
 #define LIS2MDL_MAGN_DEV_NAME		"lis2mdl"
 #define LSM9DS1_MAGN_DEV_NAME		"lsm9ds1_magn"
 #define IIS2MDC_MAGN_DEV_NAME		"iis2mdc"
+#define LSM303C_MAGN_DEV_NAME		"lsm303c_magn"
 
 #ifdef CONFIG_IIO_BUFFER
 int st_magn_allocate_ring(struct iio_dev *indio_dev);

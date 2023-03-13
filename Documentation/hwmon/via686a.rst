@@ -58,7 +58,7 @@ representable value is around 2600 RPM.
 
 Voltage sensors (also known as IN sensors) report their values in volts.
 An alarm is triggered if the voltage has crossed a programmable minimum
-or maximum limit. Voltages are internally scalled, so each voltage channel
+or maximum limit. Voltages are internally scaled, so each voltage channel
 has a different resolution and range.
 
 If an alarm triggers, it will remain triggered until the hardware register

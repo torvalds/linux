@@ -561,6 +561,12 @@ int avs_ipc_set_system_time(struct avs_dev *adev);
 #define AVS_COPIER_MOD_UUID \
 	GUID_INIT(0x9BA00C83, 0xCA12, 0x4A83, 0x94, 0x3C, 0x1F, 0xA2, 0xE8, 0x2F, 0x9D, 0xDA)
 
+#define AVS_PEAKVOL_MOD_UUID \
+	GUID_INIT(0x8A171323, 0x94A3, 0x4E1D, 0xAF, 0xE9, 0xFE, 0x5D, 0xBA, 0xa4, 0xC3, 0x93)
+
+#define AVS_GAIN_MOD_UUID \
+	GUID_INIT(0x61BCA9A8, 0x18D0, 0x4A18, 0x8E, 0x7B, 0x26, 0x39, 0x21, 0x98, 0x04, 0xB7)
+
 #define AVS_KPBUFF_MOD_UUID \
 	GUID_INIT(0xA8A0CB32, 0x4A77, 0x4DB1, 0x85, 0xC7, 0x53, 0xD7, 0xEE, 0x07, 0xBC, 0xE6)
 
@@ -729,6 +735,19 @@ struct avs_copier_cfg {
 	struct avs_copier_gtw_cfg gtw_cfg;
 } __packed;
 
+struct avs_volume_cfg {
+	u32 channel_id;
+	u32 target_volume;
+	u32 curve_type;
+	u32 reserved; /* alignment */
+	u64 curve_duration;
+} __packed;
+
+struct avs_peakvol_cfg {
+	struct avs_modcfg_base base;
+	struct avs_volume_cfg vols[];
+} __packed;
+
 struct avs_micsel_cfg {
 	struct avs_modcfg_base base;
 	struct avs_audio_format out_fmt;
@@ -801,6 +820,20 @@ int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 				   u8 instance_id, u32 sink_id,
 				   const struct avs_audio_format *src_fmt,
 				   const struct avs_audio_format *sink_fmt);
+
+enum avs_peakvol_runtime_param {
+	AVS_PEAKVOL_VOLUME = 0,
+};
+
+enum avs_audio_curve_type {
+	AVS_AUDIO_CURVE_NONE = 0,
+	AVS_AUDIO_CURVE_WINDOWS_FADE = 1,
+};
+
+int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg *vol);
+int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg **vols, size_t *num_vols);
 
 #define AVS_PROBE_INST_ID	0
 

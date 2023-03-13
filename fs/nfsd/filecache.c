@@ -331,37 +331,27 @@ nfsd_file_alloc(struct nfsd_file_lookup_key *key, unsigned int may)
 	return nf;
 }
 
+/**
+ * nfsd_file_check_write_error - check for writeback errors on a file
+ * @nf: nfsd_file to check for writeback errors
+ *
+ * Check whether a nfsd_file has an unseen error. Reset the write
+ * verifier if so.
+ */
 static void
-nfsd_file_fsync(struct nfsd_file *nf)
-{
-	struct file *file = nf->nf_file;
-	int ret;
-
-	if (!file || !(file->f_mode & FMODE_WRITE))
-		return;
-	ret = vfs_fsync(file, 1);
-	trace_nfsd_file_fsync(nf, ret);
-	if (ret)
-		nfsd_reset_write_verifier(net_generic(nf->nf_net, nfsd_net_id));
-}
-
-static int
 nfsd_file_check_write_error(struct nfsd_file *nf)
 {
 	struct file *file = nf->nf_file;
 
-	if (!file || !(file->f_mode & FMODE_WRITE))
-		return 0;
-	return filemap_check_wb_err(file->f_mapping, READ_ONCE(file->f_wb_err));
+	if ((file->f_mode & FMODE_WRITE) &&
+	    filemap_check_wb_err(file->f_mapping, READ_ONCE(file->f_wb_err)))
+		nfsd_reset_write_verifier(net_generic(nf->nf_net, nfsd_net_id));
 }
 
 static void
 nfsd_file_hash_remove(struct nfsd_file *nf)
 {
 	trace_nfsd_file_unhash(nf);
-
-	if (nfsd_file_check_write_error(nf))
-		nfsd_reset_write_verifier(net_generic(nf->nf_net, nfsd_net_id));
 	rhashtable_remove_fast(&nfsd_file_rhash_tbl, &nf->nf_rhash,
 			       nfsd_file_rhash_params);
 }
@@ -387,23 +377,12 @@ nfsd_file_free(struct nfsd_file *nf)
 	this_cpu_add(nfsd_file_total_age, age);
 
 	nfsd_file_unhash(nf);
-
-	/*
-	 * We call fsync here in order to catch writeback errors. It's not
-	 * strictly required by the protocol, but an nfsd_file could get
-	 * evicted from the cache before a COMMIT comes in. If another
-	 * task were to open that file in the interim and scrape the error,
-	 * then the client may never see it. By calling fsync here, we ensure
-	 * that writeback happens before the entry is freed, and that any
-	 * errors reported result in the write verifier changing.
-	 */
-	nfsd_file_fsync(nf);
-
 	if (nf->nf_mark)
 		nfsd_file_mark_put(nf->nf_mark);
 	if (nf->nf_file) {
 		get_file(nf->nf_file);
 		filp_close(nf->nf_file, NULL);
+		nfsd_file_check_write_error(nf);
 		fput(nf->nf_file);
 	}
 
@@ -452,7 +431,7 @@ static bool nfsd_file_lru_remove(struct nfsd_file *nf)
 struct nfsd_file *
 nfsd_file_get(struct nfsd_file *nf)
 {
-	if (likely(refcount_inc_not_zero(&nf->nf_ref)))
+	if (nf && refcount_inc_not_zero(&nf->nf_ref))
 		return nf;
 	return NULL;
 }
@@ -1107,8 +1086,7 @@ retry:
 	rcu_read_lock();
 	nf = rhashtable_lookup(&nfsd_file_rhash_tbl, &key,
 			       nfsd_file_rhash_params);
-	if (nf)
-		nf = nfsd_file_get(nf);
+	nf = nfsd_file_get(nf);
 	rcu_read_unlock();
 
 	if (nf) {
@@ -1159,6 +1137,7 @@ wait_for_construction:
 out:
 	if (status == nfs_ok) {
 		this_cpu_inc(nfsd_file_acquisitions);
+		nfsd_file_check_write_error(nf);
 		*pnf = nf;
 	} else {
 		if (refcount_dec_and_test(&nf->nf_ref))

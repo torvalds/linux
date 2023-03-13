@@ -16,7 +16,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/phylink.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 #include <linux/rtnetlink.h>
@@ -122,13 +121,6 @@ static void rswitch_fwd_init(struct rswitch_private *priv)
 	iowrite32(FWPC1_DDE, priv->addr + FWPC1(priv->gwca.index));
 	iowrite32(0, priv->addr + FWPBFC(priv->gwca.index));
 	iowrite32(GENMASK(RSWITCH_NUM_PORTS - 1, 0), priv->addr + FWPBFC(priv->gwca.index));
-}
-
-/* gPTP timer (gPTP) */
-static void rswitch_get_timestamp(struct rswitch_private *priv,
-				  struct timespec64 *ts)
-{
-	priv->ptp_priv->info.gettime64(&priv->ptp_priv->info, ts);
 }
 
 /* Gateway CPU agent block (GWCA) */
@@ -241,7 +233,7 @@ static int rswitch_get_num_cur_queues(struct rswitch_gwca_queue *gq)
 
 static bool rswitch_is_queue_rxed(struct rswitch_gwca_queue *gq)
 {
-	struct rswitch_ext_ts_desc *desc = &gq->ts_ring[gq->dirty];
+	struct rswitch_ext_ts_desc *desc = &gq->rx_ring[gq->dirty];
 
 	if ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY)
 		return true;
@@ -281,36 +273,43 @@ static void rswitch_gwca_queue_free(struct net_device *ndev,
 {
 	int i;
 
-	if (gq->gptp) {
+	if (!gq->dir_tx) {
 		dma_free_coherent(ndev->dev.parent,
 				  sizeof(struct rswitch_ext_ts_desc) *
-				  (gq->ring_size + 1), gq->ts_ring, gq->ring_dma);
-		gq->ts_ring = NULL;
+				  (gq->ring_size + 1), gq->rx_ring, gq->ring_dma);
+		gq->rx_ring = NULL;
+
+		for (i = 0; i < gq->ring_size; i++)
+			dev_kfree_skb(gq->skbs[i]);
 	} else {
 		dma_free_coherent(ndev->dev.parent,
 				  sizeof(struct rswitch_ext_desc) *
-				  (gq->ring_size + 1), gq->ring, gq->ring_dma);
-		gq->ring = NULL;
-	}
-
-	if (!gq->dir_tx) {
-		for (i = 0; i < gq->ring_size; i++)
-			dev_kfree_skb(gq->skbs[i]);
+				  (gq->ring_size + 1), gq->tx_ring, gq->ring_dma);
+		gq->tx_ring = NULL;
 	}
 
 	kfree(gq->skbs);
 	gq->skbs = NULL;
 }
 
+static void rswitch_gwca_ts_queue_free(struct rswitch_private *priv)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(struct rswitch_ts_desc) * (gq->ring_size + 1),
+			  gq->ts_ring, gq->ring_dma);
+	gq->ts_ring = NULL;
+}
+
 static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 				    struct rswitch_private *priv,
 				    struct rswitch_gwca_queue *gq,
-				    bool dir_tx, bool gptp, int ring_size)
+				    bool dir_tx, int ring_size)
 {
 	int i, bit;
 
 	gq->dir_tx = dir_tx;
-	gq->gptp = gptp;
 	gq->ring_size = ring_size;
 	gq->ndev = ndev;
 
@@ -318,18 +317,19 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 	if (!gq->skbs)
 		return -ENOMEM;
 
-	if (!dir_tx)
+	if (!dir_tx) {
 		rswitch_gwca_queue_alloc_skb(gq, 0, gq->ring_size);
 
-	if (gptp)
-		gq->ts_ring = dma_alloc_coherent(ndev->dev.parent,
+		gq->rx_ring = dma_alloc_coherent(ndev->dev.parent,
 						 sizeof(struct rswitch_ext_ts_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
-	else
-		gq->ring = dma_alloc_coherent(ndev->dev.parent,
-					      sizeof(struct rswitch_ext_desc) *
-					      (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
-	if (!gq->ts_ring && !gq->ring)
+	} else {
+		gq->tx_ring = dma_alloc_coherent(ndev->dev.parent,
+						 sizeof(struct rswitch_ext_desc) *
+						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
+	}
+
+	if (!gq->rx_ring && !gq->tx_ring)
 		goto out;
 
 	i = gq->index / 32;
@@ -347,6 +347,17 @@ out:
 	return -ENOMEM;
 }
 
+static int rswitch_gwca_ts_queue_alloc(struct rswitch_private *priv)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+
+	gq->ring_size = TS_RING_SIZE;
+	gq->ts_ring = dma_alloc_coherent(&priv->pdev->dev,
+					 sizeof(struct rswitch_ts_desc) *
+					 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
+	return !gq->ts_ring ? -ENOMEM : 0;
+}
+
 static void rswitch_desc_set_dptr(struct rswitch_desc *desc, dma_addr_t addr)
 {
 	desc->dptrl = cpu_to_le32(lower_32_bits(addr));
@@ -362,14 +373,14 @@ static int rswitch_gwca_queue_format(struct net_device *ndev,
 				     struct rswitch_private *priv,
 				     struct rswitch_gwca_queue *gq)
 {
-	int tx_ring_size = sizeof(struct rswitch_ext_desc) * gq->ring_size;
+	int ring_size = sizeof(struct rswitch_ext_desc) * gq->ring_size;
 	struct rswitch_ext_desc *desc;
 	struct rswitch_desc *linkfix;
 	dma_addr_t dma_addr;
 	int i;
 
-	memset(gq->ring, 0, tx_ring_size);
-	for (i = 0, desc = gq->ring; i < gq->ring_size; i++, desc++) {
+	memset(gq->tx_ring, 0, ring_size);
+	for (i = 0, desc = gq->tx_ring; i < gq->ring_size; i++, desc++) {
 		if (!gq->dir_tx) {
 			dma_addr = dma_map_single(ndev->dev.parent,
 						  gq->skbs[i]->data, PKT_BUF_SZ,
@@ -387,7 +398,7 @@ static int rswitch_gwca_queue_format(struct net_device *ndev,
 	rswitch_desc_set_dptr(&desc->desc, gq->ring_dma);
 	desc->desc.die_dt = DT_LINKFIX;
 
-	linkfix = &priv->linkfix_table[gq->index];
+	linkfix = &priv->gwca.linkfix_table[gq->index];
 	linkfix->die_dt = DT_LINKFIX;
 	rswitch_desc_set_dptr(linkfix, gq->ring_dma);
 
@@ -398,7 +409,7 @@ static int rswitch_gwca_queue_format(struct net_device *ndev,
 
 err:
 	if (!gq->dir_tx) {
-		for (i--, desc = gq->ring; i >= 0; i--, desc++) {
+		for (i--, desc = gq->tx_ring; i >= 0; i--, desc++) {
 			dma_addr = rswitch_desc_get_dptr(&desc->desc);
 			dma_unmap_single(ndev->dev.parent, dma_addr, PKT_BUF_SZ,
 					 DMA_FROM_DEVICE);
@@ -408,9 +419,23 @@ err:
 	return -ENOMEM;
 }
 
-static int rswitch_gwca_queue_ts_fill(struct net_device *ndev,
-				      struct rswitch_gwca_queue *gq,
-				      int start_index, int num)
+static void rswitch_gwca_ts_queue_fill(struct rswitch_private *priv,
+				       int start_index, int num)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+	struct rswitch_ts_desc *desc;
+	int i, index;
+
+	for (i = 0; i < num; i++) {
+		index = (i + start_index) % gq->ring_size;
+		desc = &gq->ts_ring[index];
+		desc->desc.die_dt = DT_FEMPTY_ND | DIE;
+	}
+}
+
+static int rswitch_gwca_queue_ext_ts_fill(struct net_device *ndev,
+					  struct rswitch_gwca_queue *gq,
+					  int start_index, int num)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 	struct rswitch_ext_ts_desc *desc;
@@ -419,7 +444,7 @@ static int rswitch_gwca_queue_ts_fill(struct net_device *ndev,
 
 	for (i = 0; i < num; i++) {
 		index = (i + start_index) % gq->ring_size;
-		desc = &gq->ts_ring[index];
+		desc = &gq->rx_ring[index];
 		if (!gq->dir_tx) {
 			dma_addr = dma_map_single(ndev->dev.parent,
 						  gq->skbs[index]->data, PKT_BUF_SZ,
@@ -443,7 +468,7 @@ err:
 	if (!gq->dir_tx) {
 		for (i--; i >= 0; i--) {
 			index = (i + start_index) % gq->ring_size;
-			desc = &gq->ts_ring[index];
+			desc = &gq->rx_ring[index];
 			dma_addr = rswitch_desc_get_dptr(&desc->desc);
 			dma_unmap_single(ndev->dev.parent, dma_addr, PKT_BUF_SZ,
 					 DMA_FROM_DEVICE);
@@ -453,25 +478,25 @@ err:
 	return -ENOMEM;
 }
 
-static int rswitch_gwca_queue_ts_format(struct net_device *ndev,
-					struct rswitch_private *priv,
-					struct rswitch_gwca_queue *gq)
+static int rswitch_gwca_queue_ext_ts_format(struct net_device *ndev,
+					    struct rswitch_private *priv,
+					    struct rswitch_gwca_queue *gq)
 {
-	int tx_ts_ring_size = sizeof(struct rswitch_ext_ts_desc) * gq->ring_size;
+	int ring_size = sizeof(struct rswitch_ext_ts_desc) * gq->ring_size;
 	struct rswitch_ext_ts_desc *desc;
 	struct rswitch_desc *linkfix;
 	int err;
 
-	memset(gq->ts_ring, 0, tx_ts_ring_size);
-	err = rswitch_gwca_queue_ts_fill(ndev, gq, 0, gq->ring_size);
+	memset(gq->rx_ring, 0, ring_size);
+	err = rswitch_gwca_queue_ext_ts_fill(ndev, gq, 0, gq->ring_size);
 	if (err < 0)
 		return err;
 
-	desc = &gq->ts_ring[gq->ring_size];	/* Last */
+	desc = &gq->rx_ring[gq->ring_size];	/* Last */
 	rswitch_desc_set_dptr(&desc->desc, gq->ring_dma);
 	desc->desc.die_dt = DT_LINKFIX;
 
-	linkfix = &priv->linkfix_table[gq->index];
+	linkfix = &priv->gwca.linkfix_table[gq->index];
 	linkfix->die_dt = DT_LINKFIX;
 	rswitch_desc_set_dptr(linkfix, gq->ring_dma);
 
@@ -481,28 +506,31 @@ static int rswitch_gwca_queue_ts_format(struct net_device *ndev,
 	return 0;
 }
 
-static int rswitch_gwca_desc_alloc(struct rswitch_private *priv)
+static int rswitch_gwca_linkfix_alloc(struct rswitch_private *priv)
 {
 	int i, num_queues = priv->gwca.num_queues;
+	struct rswitch_gwca *gwca = &priv->gwca;
 	struct device *dev = &priv->pdev->dev;
 
-	priv->linkfix_table_size = sizeof(struct rswitch_desc) * num_queues;
-	priv->linkfix_table = dma_alloc_coherent(dev, priv->linkfix_table_size,
-						 &priv->linkfix_table_dma, GFP_KERNEL);
-	if (!priv->linkfix_table)
+	gwca->linkfix_table_size = sizeof(struct rswitch_desc) * num_queues;
+	gwca->linkfix_table = dma_alloc_coherent(dev, gwca->linkfix_table_size,
+						 &gwca->linkfix_table_dma, GFP_KERNEL);
+	if (!gwca->linkfix_table)
 		return -ENOMEM;
 	for (i = 0; i < num_queues; i++)
-		priv->linkfix_table[i].die_dt = DT_EOS;
+		gwca->linkfix_table[i].die_dt = DT_EOS;
 
 	return 0;
 }
 
-static void rswitch_gwca_desc_free(struct rswitch_private *priv)
+static void rswitch_gwca_linkfix_free(struct rswitch_private *priv)
 {
-	if (priv->linkfix_table)
-		dma_free_coherent(&priv->pdev->dev, priv->linkfix_table_size,
-				  priv->linkfix_table, priv->linkfix_table_dma);
-	priv->linkfix_table = NULL;
+	struct rswitch_gwca *gwca = &priv->gwca;
+
+	if (gwca->linkfix_table)
+		dma_free_coherent(&priv->pdev->dev, gwca->linkfix_table_size,
+				  gwca->linkfix_table, gwca->linkfix_table_dma);
+	gwca->linkfix_table = NULL;
 }
 
 static struct rswitch_gwca_queue *rswitch_gwca_get(struct rswitch_private *priv)
@@ -537,8 +565,7 @@ static int rswitch_txdmac_alloc(struct net_device *ndev)
 	if (!rdev->tx_queue)
 		return -EBUSY;
 
-	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->tx_queue, true, false,
-				       TX_RING_SIZE);
+	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->tx_queue, true, TX_RING_SIZE);
 	if (err < 0) {
 		rswitch_gwca_put(priv, rdev->tx_queue);
 		return err;
@@ -572,8 +599,7 @@ static int rswitch_rxdmac_alloc(struct net_device *ndev)
 	if (!rdev->rx_queue)
 		return -EBUSY;
 
-	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->rx_queue, false, true,
-				       RX_RING_SIZE);
+	err = rswitch_gwca_queue_alloc(ndev, priv, rdev->rx_queue, false, RX_RING_SIZE);
 	if (err < 0) {
 		rswitch_gwca_put(priv, rdev->rx_queue);
 		return err;
@@ -595,7 +621,7 @@ static int rswitch_rxdmac_init(struct rswitch_private *priv, int index)
 	struct rswitch_device *rdev = priv->rdev[index];
 	struct net_device *ndev = rdev->ndev;
 
-	return rswitch_gwca_queue_ts_format(ndev, priv, rdev->rx_queue);
+	return rswitch_gwca_queue_ext_ts_format(ndev, priv, rdev->rx_queue);
 }
 
 static int rswitch_gwca_hw_init(struct rswitch_private *priv)
@@ -618,8 +644,11 @@ static int rswitch_gwca_hw_init(struct rswitch_private *priv)
 
 	iowrite32(GWVCC_VEM_SC_TAG, priv->addr + GWVCC);
 	iowrite32(0, priv->addr + GWTTFC);
-	iowrite32(lower_32_bits(priv->linkfix_table_dma), priv->addr + GWDCBAC1);
-	iowrite32(upper_32_bits(priv->linkfix_table_dma), priv->addr + GWDCBAC0);
+	iowrite32(lower_32_bits(priv->gwca.linkfix_table_dma), priv->addr + GWDCBAC1);
+	iowrite32(upper_32_bits(priv->gwca.linkfix_table_dma), priv->addr + GWDCBAC0);
+	iowrite32(lower_32_bits(priv->gwca.ts_queue.ring_dma), priv->addr + GWTDCAC10);
+	iowrite32(upper_32_bits(priv->gwca.ts_queue.ring_dma), priv->addr + GWTDCAC00);
+	iowrite32(GWCA_TS_IRQ_BIT, priv->addr + GWTSDCC0);
 	rswitch_gwca_set_rate_limit(priv, priv->gwca.speed);
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
@@ -676,7 +705,7 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 	boguscnt = min_t(int, gq->ring_size, *quota);
 	limit = boguscnt;
 
-	desc = &gq->ts_ring[gq->cur];
+	desc = &gq->rx_ring[gq->cur];
 	while ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY) {
 		if (--boguscnt < 0)
 			break;
@@ -704,14 +733,14 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 		rdev->ndev->stats.rx_bytes += pkt_len;
 
 		gq->cur = rswitch_next_queue_index(gq, true, 1);
-		desc = &gq->ts_ring[gq->cur];
+		desc = &gq->rx_ring[gq->cur];
 	}
 
 	num = rswitch_get_num_cur_queues(gq);
 	ret = rswitch_gwca_queue_alloc_skb(gq, gq->dirty, num);
 	if (ret < 0)
 		goto err;
-	ret = rswitch_gwca_queue_ts_fill(ndev, gq, gq->dirty, num);
+	ret = rswitch_gwca_queue_ext_ts_fill(ndev, gq, gq->dirty, num);
 	if (ret < 0)
 		goto err;
 	gq->dirty = rswitch_next_queue_index(gq, false, num);
@@ -738,7 +767,7 @@ static int rswitch_tx_free(struct net_device *ndev, bool free_txed_only)
 
 	for (; rswitch_get_num_cur_queues(gq) > 0;
 	     gq->dirty = rswitch_next_queue_index(gq, false, 1)) {
-		desc = &gq->ring[gq->dirty];
+		desc = &gq->tx_ring[gq->dirty];
 		if (free_txed_only && (desc->desc.die_dt & DT_MASK) != DT_FEMPTY)
 			break;
 
@@ -746,15 +775,6 @@ static int rswitch_tx_free(struct net_device *ndev, bool free_txed_only)
 		size = le16_to_cpu(desc->desc.info_ds) & TX_DS;
 		skb = gq->skbs[gq->dirty];
 		if (skb) {
-			if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
-				struct skb_shared_hwtstamps shhwtstamps;
-				struct timespec64 ts;
-
-				rswitch_get_timestamp(rdev->priv, &ts);
-				memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-				shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
-				skb_tstamp_tx(skb, &shhwtstamps);
-			}
 			dma_addr = rswitch_desc_get_dptr(&desc->desc);
 			dma_unmap_single(ndev->dev.parent, dma_addr,
 					 size, DMA_TO_DEVICE);
@@ -878,6 +898,73 @@ static int rswitch_gwca_request_irqs(struct rswitch_private *priv)
 	}
 
 	return 0;
+}
+
+static void rswitch_ts(struct rswitch_private *priv)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
+	struct skb_shared_hwtstamps shhwtstamps;
+	struct rswitch_ts_desc *desc;
+	struct timespec64 ts;
+	u32 tag, port;
+	int num;
+
+	desc = &gq->ts_ring[gq->cur];
+	while ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY_ND) {
+		dma_rmb();
+
+		port = TS_DESC_DPN(__le32_to_cpu(desc->desc.dptrl));
+		tag = TS_DESC_TSUN(__le32_to_cpu(desc->desc.dptrl));
+
+		list_for_each_entry_safe(ts_info, ts_info2, &priv->gwca.ts_info_list, list) {
+			if (!(ts_info->port == port && ts_info->tag == tag))
+				continue;
+
+			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+			ts.tv_sec = __le32_to_cpu(desc->ts_sec);
+			ts.tv_nsec = __le32_to_cpu(desc->ts_nsec & cpu_to_le32(0x3fffffff));
+			shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
+			skb_tstamp_tx(ts_info->skb, &shhwtstamps);
+			dev_consume_skb_irq(ts_info->skb);
+			list_del(&ts_info->list);
+			kfree(ts_info);
+			break;
+		}
+
+		gq->cur = rswitch_next_queue_index(gq, true, 1);
+		desc = &gq->ts_ring[gq->cur];
+	}
+
+	num = rswitch_get_num_cur_queues(gq);
+	rswitch_gwca_ts_queue_fill(priv, gq->dirty, num);
+	gq->dirty = rswitch_next_queue_index(gq, false, num);
+}
+
+static irqreturn_t rswitch_gwca_ts_irq(int irq, void *dev_id)
+{
+	struct rswitch_private *priv = dev_id;
+
+	if (ioread32(priv->addr + GWTSDIS) & GWCA_TS_IRQ_BIT) {
+		iowrite32(GWCA_TS_IRQ_BIT, priv->addr + GWTSDIS);
+		rswitch_ts(priv);
+
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
+static int rswitch_gwca_ts_request_irqs(struct rswitch_private *priv)
+{
+	int irq;
+
+	irq = platform_get_irq_byname(priv->pdev, GWCA_TS_IRQ_RESOURCE_NAME);
+	if (irq < 0)
+		return irq;
+
+	return devm_request_irq(&priv->pdev->dev, irq, rswitch_gwca_ts_irq,
+				0, GWCA_TS_IRQ_NAME, priv);
 }
 
 /* Ethernet TSN Agent block (ETHA) and Ethernet MAC IP block (RMAC) */
@@ -1024,34 +1111,18 @@ static int rswitch_etha_set_access(struct rswitch_etha *etha, bool read,
 	return ret;
 }
 
-static int rswitch_etha_mii_read(struct mii_bus *bus, int addr, int regnum)
+static int rswitch_etha_mii_read_c45(struct mii_bus *bus, int addr, int devad,
+				     int regad)
 {
 	struct rswitch_etha *etha = bus->priv;
-	int mode, devad, regad;
-
-	mode = regnum & MII_ADDR_C45;
-	devad = (regnum >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	regad = regnum & MII_REGADDR_C45_MASK;
-
-	/* Not support Clause 22 access method */
-	if (!mode)
-		return -EOPNOTSUPP;
 
 	return rswitch_etha_set_access(etha, true, addr, devad, regad, 0);
 }
 
-static int rswitch_etha_mii_write(struct mii_bus *bus, int addr, int regnum, u16 val)
+static int rswitch_etha_mii_write_c45(struct mii_bus *bus, int addr, int devad,
+				      int regad, u16 val)
 {
 	struct rswitch_etha *etha = bus->priv;
-	int mode, devad, regad;
-
-	mode = regnum & MII_ADDR_C45;
-	devad = (regnum >> MII_DEVADDR_C45_SHIFT) & 0x1f;
-	regad = regnum & MII_REGADDR_C45_MASK;
-
-	/* Not support Clause 22 access method */
-	if (!mode)
-		return -EOPNOTSUPP;
 
 	return rswitch_etha_set_access(etha, false, addr, devad, regad, val);
 }
@@ -1087,33 +1158,25 @@ out:
 	return port;
 }
 
-/* Call of_node_put(mdio) after done */
-static struct device_node *rswitch_get_mdio_node(struct rswitch_device *rdev)
-{
-	struct device_node *port, *mdio;
-
-	port = rswitch_get_port_node(rdev);
-	if (!port)
-		return NULL;
-
-	mdio = of_get_child_by_name(port, "mdio");
-	of_node_put(port);
-
-	return mdio;
-}
-
 static int rswitch_etha_get_params(struct rswitch_device *rdev)
 {
-	struct device_node *port;
+	u32 max_speed;
 	int err;
 
-	port = rswitch_get_port_node(rdev);
-	if (!port)
+	if (!rdev->np_port)
 		return 0;	/* ignored */
 
-	err = of_get_phy_mode(port, &rdev->etha->phy_interface);
-	of_node_put(port);
+	err = of_get_phy_mode(rdev->np_port, &rdev->etha->phy_interface);
+	if (err)
+		return err;
 
+	err = of_property_read_u32(rdev->np_port, "max-speed", &max_speed);
+	if (!err) {
+		rdev->etha->speed = max_speed;
+		return 0;
+	}
+
+	/* if no "max-speed" property, let's use default speed */
 	switch (rdev->etha->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
 		rdev->etha->speed = SPEED_100;
@@ -1125,11 +1188,10 @@ static int rswitch_etha_get_params(struct rswitch_device *rdev)
 		rdev->etha->speed = SPEED_2500;
 		break;
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static int rswitch_mii_register(struct rswitch_device *rdev)
@@ -1145,11 +1207,11 @@ static int rswitch_mii_register(struct rswitch_device *rdev)
 	mii_bus->name = "rswitch_mii";
 	sprintf(mii_bus->id, "etha%d", rdev->etha->index);
 	mii_bus->priv = rdev->etha;
-	mii_bus->read = rswitch_etha_mii_read;
-	mii_bus->write = rswitch_etha_mii_write;
+	mii_bus->read_c45 = rswitch_etha_mii_read_c45;
+	mii_bus->write_c45 = rswitch_etha_mii_write_c45;
 	mii_bus->parent = &rdev->priv->pdev->dev;
 
-	mdio_np = rswitch_get_mdio_node(rdev);
+	mdio_np = of_get_child_by_name(rdev->np_port, "mdio");
 	err = of_mdiobus_register(mii_bus, mdio_np);
 	if (err < 0) {
 		mdiobus_free(mii_bus);
@@ -1173,114 +1235,107 @@ static void rswitch_mii_unregister(struct rswitch_device *rdev)
 	}
 }
 
-static void rswitch_mac_config(struct phylink_config *config,
-			       unsigned int mode,
-			       const struct phylink_link_state *state)
+static void rswitch_adjust_link(struct net_device *ndev)
 {
+	struct rswitch_device *rdev = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
+
+	/* Current hardware has a restriction not to change speed at runtime */
+	if (phydev->link != rdev->etha->link) {
+		phy_print_status(phydev);
+		if (phydev->link)
+			phy_power_on(rdev->serdes);
+		else
+			phy_power_off(rdev->serdes);
+
+		rdev->etha->link = phydev->link;
+	}
 }
 
-static void rswitch_mac_link_down(struct phylink_config *config,
-				  unsigned int mode,
-				  phy_interface_t interface)
+static void rswitch_phy_remove_link_mode(struct rswitch_device *rdev,
+					 struct phy_device *phydev)
 {
-}
-
-static void rswitch_mac_link_up(struct phylink_config *config,
-				struct phy_device *phydev, unsigned int mode,
-				phy_interface_t interface, int speed,
-				int duplex, bool tx_pause, bool rx_pause)
-{
-	/* Current hardware cannot change speed at runtime */
-}
-
-static const struct phylink_mac_ops rswitch_phylink_ops = {
-	.mac_config = rswitch_mac_config,
-	.mac_link_down = rswitch_mac_link_down,
-	.mac_link_up = rswitch_mac_link_up,
-};
-
-static int rswitch_phylink_init(struct rswitch_device *rdev)
-{
-	struct device_node *port;
-	struct phylink *phylink;
-	int err;
-
-	port = rswitch_get_port_node(rdev);
-	if (!port)
-		return -ENODEV;
-
-	rdev->phylink_config.dev = &rdev->ndev->dev;
-	rdev->phylink_config.type = PHYLINK_NETDEV;
-	__set_bit(PHY_INTERFACE_MODE_SGMII, rdev->phylink_config.supported_interfaces);
-	__set_bit(PHY_INTERFACE_MODE_USXGMII, rdev->phylink_config.supported_interfaces);
-	rdev->phylink_config.mac_capabilities = MAC_100FD | MAC_1000FD | MAC_2500FD;
-
-	phylink = phylink_create(&rdev->phylink_config, &port->fwnode,
-				 rdev->etha->phy_interface, &rswitch_phylink_ops);
-	if (IS_ERR(phylink)) {
-		err = PTR_ERR(phylink);
-		goto out;
+	/* Current hardware has a restriction not to change speed at runtime */
+	switch (rdev->etha->speed) {
+	case SPEED_2500:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
+		break;
+	case SPEED_1000:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Full_BIT);
+		break;
+	case SPEED_100:
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_2500baseX_Full_BIT);
+		phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
+		break;
+	default:
+		break;
 	}
 
-	rdev->phylink = phylink;
-	err = phylink_of_phy_connect(rdev->phylink, port, rdev->etha->phy_interface);
+	phy_set_max_speed(phydev, rdev->etha->speed);
+}
+
+static int rswitch_phy_device_init(struct rswitch_device *rdev)
+{
+	struct phy_device *phydev;
+	struct device_node *phy;
+	int err = -ENOENT;
+
+	if (!rdev->np_port)
+		return -ENODEV;
+
+	phy = of_parse_phandle(rdev->np_port, "phy-handle", 0);
+	if (!phy)
+		return -ENODEV;
+
+	/* Set phydev->host_interfaces before calling of_phy_connect() to
+	 * configure the PHY with the information of host_interfaces.
+	 */
+	phydev = of_phy_find_device(phy);
+	if (!phydev)
+		goto out;
+	__set_bit(rdev->etha->phy_interface, phydev->host_interfaces);
+
+	phydev = of_phy_connect(rdev->ndev, phy, rswitch_adjust_link, 0,
+				rdev->etha->phy_interface);
+	if (!phydev)
+		goto out;
+
+	phy_set_max_speed(phydev, SPEED_2500);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
+	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	rswitch_phy_remove_link_mode(rdev, phydev);
+
+	phy_attached_info(phydev);
+
+	err = 0;
 out:
-	of_node_put(port);
+	of_node_put(phy);
 
 	return err;
 }
 
-static void rswitch_phylink_deinit(struct rswitch_device *rdev)
+static void rswitch_phy_device_deinit(struct rswitch_device *rdev)
 {
-	rtnl_lock();
-	phylink_disconnect_phy(rdev->phylink);
-	rtnl_unlock();
-	phylink_destroy(rdev->phylink);
+	if (rdev->ndev->phydev) {
+		phy_disconnect(rdev->ndev->phydev);
+		rdev->ndev->phydev = NULL;
+	}
 }
 
 static int rswitch_serdes_set_params(struct rswitch_device *rdev)
 {
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
 	int err;
 
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	err = phy_set_mode_ext(serdes, PHY_MODE_ETHERNET,
+	err = phy_set_mode_ext(rdev->serdes, PHY_MODE_ETHERNET,
 			       rdev->etha->phy_interface);
 	if (err < 0)
 		return err;
 
-	return phy_set_speed(serdes, rdev->etha->speed);
-}
-
-static int rswitch_serdes_init(struct rswitch_device *rdev)
-{
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
-
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	return phy_init(serdes);
-}
-
-static int rswitch_serdes_deinit(struct rswitch_device *rdev)
-{
-	struct device_node *port = rswitch_get_port_node(rdev);
-	struct phy *serdes;
-
-	serdes = devm_of_phy_get(&rdev->priv->pdev->dev, port, NULL);
-	of_node_put(port);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
-
-	return phy_exit(serdes);
+	return phy_set_speed(rdev->serdes, rdev->etha->speed);
 }
 
 static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
@@ -1298,9 +1353,15 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 	if (err < 0)
 		return err;
 
-	err = rswitch_phylink_init(rdev);
+	err = rswitch_phy_device_init(rdev);
 	if (err < 0)
-		goto err_phylink_init;
+		goto err_phy_device_init;
+
+	rdev->serdes = devm_of_phy_get(&rdev->priv->pdev->dev, rdev->np_port, NULL);
+	if (IS_ERR(rdev->serdes)) {
+		err = PTR_ERR(rdev->serdes);
+		goto err_serdes_phy_get;
+	}
 
 	err = rswitch_serdes_set_params(rdev);
 	if (err < 0)
@@ -1309,9 +1370,10 @@ static int rswitch_ether_port_init_one(struct rswitch_device *rdev)
 	return 0;
 
 err_serdes_set_params:
-	rswitch_phylink_deinit(rdev);
+err_serdes_phy_get:
+	rswitch_phy_device_deinit(rdev);
 
-err_phylink_init:
+err_phy_device_init:
 	rswitch_mii_unregister(rdev);
 
 	return err;
@@ -1319,7 +1381,7 @@ err_phylink_init:
 
 static void rswitch_ether_port_deinit_one(struct rswitch_device *rdev)
 {
-	rswitch_phylink_deinit(rdev);
+	rswitch_phy_device_deinit(rdev);
 	rswitch_mii_unregister(rdev);
 }
 
@@ -1334,7 +1396,7 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 	}
 
 	rswitch_for_each_enabled_port(priv, i) {
-		err = rswitch_serdes_init(priv->rdev[i]);
+		err = phy_init(priv->rdev[i]->serdes);
 		if (err)
 			goto err_serdes;
 	}
@@ -1343,7 +1405,7 @@ static int rswitch_ether_port_init_all(struct rswitch_private *priv)
 
 err_serdes:
 	rswitch_for_each_enabled_port_continue_reverse(priv, i)
-		rswitch_serdes_deinit(priv->rdev[i]);
+		phy_exit(priv->rdev[i]->serdes);
 	i = RSWITCH_NUM_PORTS;
 
 err_init_one:
@@ -1358,7 +1420,7 @@ static void rswitch_ether_port_deinit_all(struct rswitch_private *priv)
 	int i;
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
-		rswitch_serdes_deinit(priv->rdev[i]);
+		phy_exit(priv->rdev[i]->serdes);
 		rswitch_ether_port_deinit_one(priv->rdev[i]);
 	}
 }
@@ -1367,7 +1429,7 @@ static int rswitch_open(struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 
-	phylink_start(rdev->phylink);
+	phy_start(ndev->phydev);
 
 	napi_enable(&rdev->napi);
 	netif_start_queue(ndev);
@@ -1375,19 +1437,32 @@ static int rswitch_open(struct net_device *ndev)
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, true);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, true);
 
+	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDIE);
+
 	return 0;
 };
 
 static int rswitch_stop(struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
+	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
 
 	netif_tx_stop_all_queues(ndev);
+
+	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDID);
+
+	list_for_each_entry_safe(ts_info, ts_info2, &rdev->priv->gwca.ts_info_list, list) {
+		if (ts_info->port != rdev->port)
+			continue;
+		dev_kfree_skb_irq(ts_info->skb);
+		list_del(&ts_info->list);
+		kfree(ts_info);
+	}
 
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, false);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, false);
 
-	phylink_stop(rdev->phylink);
+	phy_stop(ndev->phydev);
 	napi_disable(&rdev->napi);
 
 	return 0;
@@ -1416,17 +1491,31 @@ static netdev_tx_t rswitch_start_xmit(struct sk_buff *skb, struct net_device *nd
 	}
 
 	gq->skbs[gq->cur] = skb;
-	desc = &gq->ring[gq->cur];
+	desc = &gq->tx_ring[gq->cur];
 	rswitch_desc_set_dptr(&desc->desc, dma_addr);
 	desc->desc.info_ds = cpu_to_le16(skb->len);
 
 	desc->info1 = cpu_to_le64(INFO1_DV(BIT(rdev->etha->index)) | INFO1_FMT);
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
+		struct rswitch_gwca_ts_info *ts_info;
+
+		ts_info = kzalloc(sizeof(*ts_info), GFP_ATOMIC);
+		if (!ts_info) {
+			dma_unmap_single(ndev->dev.parent, dma_addr, skb->len, DMA_TO_DEVICE);
+			return -ENOMEM;
+		}
+
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		rdev->ts_tag++;
 		desc->info1 |= cpu_to_le64(INFO1_TSUN(rdev->ts_tag) | INFO1_TXC);
+
+		ts_info->skb = skb_get(skb);
+		ts_info->port = rdev->port;
+		ts_info->tag = rdev->ts_tag;
+		list_add_tail(&ts_info->list, &rdev->priv->gwca.ts_info_list);
+
+		skb_tx_timestamp(skb);
 	}
-	skb_tx_timestamp(skb);
 
 	dma_wmb();
 
@@ -1515,8 +1604,6 @@ static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
 
 static int rswitch_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct rswitch_device *rdev = netdev_priv(ndev);
-
 	if (!netif_running(ndev))
 		return -EINVAL;
 
@@ -1526,7 +1613,7 @@ static int rswitch_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd
 	case SIOCSHWTSTAMP:
 		return rswitch_hwstamp_set(ndev, req);
 	default:
-		return phylink_mii_ioctl(rdev->phylink, req, cmd);
+		return phy_mii_ioctl(ndev->phydev, req, cmd);
 	}
 }
 
@@ -1581,7 +1668,6 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct rswitch_device *rdev;
-	struct device_node *port;
 	struct net_device *ndev;
 	int err;
 
@@ -1610,10 +1696,10 @@ static int rswitch_device_alloc(struct rswitch_private *priv, int index)
 
 	netif_napi_add(ndev, &rdev->napi, rswitch_poll);
 
-	port = rswitch_get_port_node(rdev);
-	rdev->disabled = !port;
-	err = of_get_ethdev_address(port, ndev);
-	of_node_put(port);
+	rdev->np_port = rswitch_get_port_node(rdev);
+	rdev->disabled = !rdev->np_port;
+	err = of_get_ethdev_address(rdev->np_port, ndev);
+	of_node_put(rdev->np_port);
 	if (err) {
 		if (is_valid_ether_addr(rdev->etha->mac_addr))
 			eth_hw_addr_set(ndev, rdev->etha->mac_addr);
@@ -1679,9 +1765,16 @@ static int rswitch_init(struct rswitch_private *priv)
 	if (err < 0)
 		return err;
 
-	err = rswitch_gwca_desc_alloc(priv);
+	err = rswitch_gwca_linkfix_alloc(priv);
 	if (err < 0)
 		return -ENOMEM;
+
+	err = rswitch_gwca_ts_queue_alloc(priv);
+	if (err < 0)
+		goto err_ts_queue_alloc;
+
+	rswitch_gwca_ts_queue_fill(priv, 0, TS_RING_SIZE);
+	INIT_LIST_HEAD(&priv->gwca.ts_info_list);
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
 		err = rswitch_device_alloc(priv, i);
@@ -1702,6 +1795,10 @@ static int rswitch_init(struct rswitch_private *priv)
 	err = rswitch_gwca_request_irqs(priv);
 	if (err < 0)
 		goto err_gwca_request_irq;
+
+	err = rswitch_gwca_ts_request_irqs(priv);
+	if (err < 0)
+		goto err_gwca_ts_request_irq;
 
 	err = rswitch_gwca_hw_init(priv);
 	if (err < 0)
@@ -1733,6 +1830,7 @@ err_ether_port_init_all:
 	rswitch_gwca_hw_deinit(priv);
 
 err_gwca_hw_init:
+err_gwca_ts_request_irq:
 err_gwca_request_irq:
 	rcar_gen4_ptp_unregister(priv->ptp_priv);
 
@@ -1741,7 +1839,10 @@ err_ptp_register:
 		rswitch_device_free(priv, i);
 
 err_device_alloc:
-	rswitch_gwca_desc_free(priv);
+	rswitch_gwca_ts_queue_free(priv);
+
+err_ts_queue_alloc:
+	rswitch_gwca_linkfix_free(priv);
 
 	return err;
 }
@@ -1814,13 +1915,14 @@ static void rswitch_deinit(struct rswitch_private *priv)
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
 		struct rswitch_device *rdev = priv->rdev[i];
 
-		rswitch_serdes_deinit(rdev);
+		phy_exit(priv->rdev[i]->serdes);
 		rswitch_ether_port_deinit_one(rdev);
 		unregister_netdev(rdev->ndev);
 		rswitch_device_free(priv, i);
 	}
 
-	rswitch_gwca_desc_free(priv);
+	rswitch_gwca_ts_queue_free(priv);
+	rswitch_gwca_linkfix_free(priv);
 
 	rswitch_clock_disable(priv);
 }

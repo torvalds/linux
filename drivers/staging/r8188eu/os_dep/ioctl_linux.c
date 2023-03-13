@@ -3061,8 +3061,7 @@ static int rtw_rereg_nd_name(struct net_device *dev,
 		char *reg_ifname;
 		reg_ifname = padapter->registrypriv.if2name;
 
-		strncpy(rereg_priv->old_ifname, reg_ifname, IFNAMSIZ);
-		rereg_priv->old_ifname[IFNAMSIZ - 1] = 0;
+		strscpy(rereg_priv->old_ifname, reg_ifname, IFNAMSIZ);
 	}
 
 	if (wrqu->data.length > IFNAMSIZ)
@@ -3084,8 +3083,7 @@ static int rtw_rereg_nd_name(struct net_device *dev,
 		rtw_ips_mode_req(&padapter->pwrctrlpriv, rereg_priv->old_ips_mode);
 	}
 
-	strncpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
-	rereg_priv->old_ifname[IFNAMSIZ - 1] = 0;
+	strscpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
 
 	if (!memcmp(new_ifname, "disable%d", 9)) {
 		/*  free network queue for Android's timming issue */

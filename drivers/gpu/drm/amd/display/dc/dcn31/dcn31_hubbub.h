@@ -133,6 +133,8 @@
 int hubbub31_init_dchub_sys_ctx(struct hubbub *hubbub,
 		struct dcn_hubbub_phys_addr_config *pa_config);
 
+void hubbub31_init(struct hubbub *hubbub);
+
 void hubbub31_construct(struct dcn20_hubbub *hubbub3,
 	struct dc_context *ctx,
 	const struct dcn_hubbub_registers *hubbub_regs,

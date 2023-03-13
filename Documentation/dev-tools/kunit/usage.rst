@@ -648,10 +648,9 @@ We can do this via the ``kunit_test`` field in ``task_struct``, which we can
 access using the ``kunit_get_current_test()`` function in ``kunit/test-bug.h``.
 
 ``kunit_get_current_test()`` is safe to call even if KUnit is not enabled. If
-KUnit is not enabled, was built as a module (``CONFIG_KUNIT=m``), or no test is
-running in the current task, it will return ``NULL``. This compiles down to
-either a no-op or a static key check, so will have a negligible performance
-impact when no test is running.
+KUnit is not enabled, or if no test is running in the current task, it will
+return ``NULL``. This compiles down to either a no-op or a static key check,
+so will have a negligible performance impact when no test is running.
 
 The example below uses this to implement a "mock" implementation of a function, ``foo``:
 
@@ -726,8 +725,6 @@ structures as shown below:
 	#endif
 
 ``kunit_fail_current_test()`` is safe to call even if KUnit is not enabled. If
-KUnit is not enabled, was built as a module (``CONFIG_KUNIT=m``), or no test is
-running in the current task, it will do nothing. This compiles down to either a
-no-op or a static key check, so will have a negligible performance impact when
-no test is running.
-
+KUnit is not enabled, or if no test is running in the current task, it will do
+nothing. This compiles down to either a no-op or a static key check, so will
+have a negligible performance impact when no test is running.

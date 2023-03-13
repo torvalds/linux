@@ -444,8 +444,6 @@ static void update_current_network(struct adapter *adapter, struct wlan_bssid_ex
 	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
 	    is_same_network(&pmlmepriv->cur_network.network, pnetwork)) {
 		update_network(&pmlmepriv->cur_network.network, pnetwork, adapter, true);
-		rtw_update_protection(adapter, (pmlmepriv->cur_network.network.IEs) + sizeof(struct ndis_802_11_fixed_ie),
-				      pmlmepriv->cur_network.network.IELength);
 	}
 
 }
@@ -1027,9 +1025,6 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 		break;
 	}
 
-	rtw_update_protection(padapter, (cur_network->network.IEs) +
-			      sizeof(struct ndis_802_11_fixed_ie),
-			      (cur_network->network.IELength));
 	rtw_update_ht_cap(padapter, cur_network->network.IEs, cur_network->network.IELength);
 }
 

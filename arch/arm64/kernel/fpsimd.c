@@ -299,7 +299,7 @@ void task_set_vl_onexec(struct task_struct *task, enum vec_type type,
 /*
  * TIF_SME controls whether a task can use SME without trapping while
  * in userspace, when TIF_SME is set then we must have storage
- * alocated in sve_state and za_state to store the contents of both ZA
+ * alocated in sve_state and sme_state to store the contents of both ZA
  * and the SVE registers for both streaming and non-streaming modes.
  *
  * If both SVCR.ZA and SVCR.SM are disabled then at any point we
@@ -429,7 +429,8 @@ static void task_fpsimd_load(void)
 		write_sysreg_s(current->thread.svcr, SYS_SVCR);
 
 		if (thread_za_enabled(&current->thread))
-			za_load_state(current->thread.za_state);
+			sme_load_state(current->thread.sme_state,
+				       system_supports_sme2());
 
 		if (thread_sm_enabled(&current->thread))
 			restore_ffr = system_supports_fa64();
@@ -490,7 +491,8 @@ static void fpsimd_save(void)
 		*svcr = read_sysreg_s(SYS_SVCR);
 
 		if (*svcr & SVCR_ZA_MASK)
-			za_save_state(last->za_state);
+			sme_save_state(last->sme_state,
+				       system_supports_sme2());
 
 		/* If we are in streaming mode override regular SVE. */
 		if (*svcr & SVCR_SM_MASK) {
@@ -1257,30 +1259,30 @@ void fpsimd_release_task(struct task_struct *dead_task)
 #ifdef CONFIG_ARM64_SME
 
 /*
- * Ensure that task->thread.za_state is allocated and sufficiently large.
+ * Ensure that task->thread.sme_state is allocated and sufficiently large.
  *
  * This function should be used only in preparation for replacing
- * task->thread.za_state with new data.  The memory is always zeroed
+ * task->thread.sme_state with new data.  The memory is always zeroed
  * here to prevent stale data from showing through: this is done in
  * the interest of testability and predictability, the architecture
  * guarantees that when ZA is enabled it will be zeroed.
  */
 void sme_alloc(struct task_struct *task)
 {
-	if (task->thread.za_state) {
-		memset(task->thread.za_state, 0, za_state_size(task));
+	if (task->thread.sme_state) {
+		memset(task->thread.sme_state, 0, sme_state_size(task));
 		return;
 	}
 
 	/* This could potentially be up to 64K. */
-	task->thread.za_state =
-		kzalloc(za_state_size(task), GFP_KERNEL);
+	task->thread.sme_state =
+		kzalloc(sme_state_size(task), GFP_KERNEL);
 }
 
 static void sme_free(struct task_struct *task)
 {
-	kfree(task->thread.za_state);
-	task->thread.za_state = NULL;
+	kfree(task->thread.sme_state);
+	task->thread.sme_state = NULL;
 }
 
 void sme_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
@@ -1296,6 +1298,17 @@ void sme_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 	/* Allow EL0 to access TPIDR2 */
 	write_sysreg(read_sysreg(SCTLR_EL1) | SCTLR_ELx_ENTP2, SCTLR_EL1);
 	isb();
+}
+
+/*
+ * This must be called after sme_kernel_enable(), we rely on the
+ * feature table being sorted to ensure this.
+ */
+void sme2_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+{
+	/* Allow use of ZT0 */
+	write_sysreg_s(read_sysreg_s(SYS_SMCR_EL1) | SMCR_ELx_EZT0_MASK,
+		       SYS_SMCR_EL1);
 }
 
 /*
@@ -1322,7 +1335,6 @@ u64 read_smcr_features(void)
 	unsigned int vq_max;
 
 	sme_kernel_enable(NULL);
-	sme_smstart_sm();
 
 	/*
 	 * Set the maximum possible VL.
@@ -1332,10 +1344,8 @@ u64 read_smcr_features(void)
 
 	smcr = read_sysreg_s(SYS_SMCR_EL1);
 	smcr &= ~(u64)SMCR_ELx_LEN_MASK; /* Only the LEN field */
-	vq_max = sve_vq_from_vl(sve_get_vl());
+	vq_max = sve_vq_from_vl(sme_get_vl());
 	smcr |= vq_max - 1; /* set LEN field to maximum effective value */
-
-	sme_smstop_sm();
 
 	return smcr;
 }
@@ -1488,7 +1498,7 @@ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
 
 	sve_alloc(current, false);
 	sme_alloc(current);
-	if (!current->thread.sve_state || !current->thread.za_state) {
+	if (!current->thread.sve_state || !current->thread.sme_state) {
 		force_sig(SIGKILL);
 		return;
 	}
@@ -1609,7 +1619,7 @@ static void fpsimd_flush_thread_vl(enum vec_type type)
 void fpsimd_flush_thread(void)
 {
 	void *sve_state = NULL;
-	void *za_state = NULL;
+	void *sme_state = NULL;
 
 	if (!system_supports_fpsimd())
 		return;
@@ -1634,8 +1644,8 @@ void fpsimd_flush_thread(void)
 		clear_thread_flag(TIF_SME);
 
 		/* Defer kfree() while in atomic context */
-		za_state = current->thread.za_state;
-		current->thread.za_state = NULL;
+		sme_state = current->thread.sme_state;
+		current->thread.sme_state = NULL;
 
 		fpsimd_flush_thread_vl(ARM64_VEC_SME);
 		current->thread.svcr = 0;
@@ -1645,7 +1655,7 @@ void fpsimd_flush_thread(void)
 
 	put_cpu_fpsimd_context();
 	kfree(sve_state);
-	kfree(za_state);
+	kfree(sme_state);
 }
 
 /*
@@ -1711,7 +1721,7 @@ static void fpsimd_bind_task_to_cpu(void)
 	WARN_ON(!system_supports_fpsimd());
 	last->st = &current->thread.uw.fpsimd_state;
 	last->sve_state = current->thread.sve_state;
-	last->za_state = current->thread.za_state;
+	last->sme_state = current->thread.sme_state;
 	last->sve_vl = task_get_sve_vl(current);
 	last->sme_vl = task_get_sme_vl(current);
 	last->svcr = &current->thread.svcr;
@@ -2111,9 +2121,6 @@ static int __init fpsimd_init(void)
 	if (!cpu_have_named_feature(ASIMD))
 		pr_notice("Advanced SIMD is not implemented\n");
 
-
-	if (cpu_have_named_feature(SME) && !cpu_have_named_feature(SVE))
-		pr_notice("SME is implemented but not SVE\n");
 
 	sve_sysctl_init();
 	sme_sysctl_init();

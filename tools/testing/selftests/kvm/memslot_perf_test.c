@@ -308,8 +308,6 @@ static bool prepare_vm(struct vm_data *data, int nslots, uint64_t *maxslots,
 	data->hva_slots = malloc(sizeof(*data->hva_slots) * data->nslots);
 	TEST_ASSERT(data->hva_slots, "malloc() fail");
 
-	data->vm = __vm_create_with_one_vcpu(&data->vcpu, mempages, guest_code);
-
 	pr_info_v("Adding slots 1..%i, each slot with %"PRIu64" pages + %"PRIu64" extra pages last\n",
 		data->nslots, data->pages_per_slot, rempages);
 
@@ -349,6 +347,7 @@ static bool prepare_vm(struct vm_data *data, int nslots, uint64_t *maxslots,
 	virt_map(data->vm, MEM_GPA, MEM_GPA, data->npages);
 
 	sync = (typeof(sync))vm_gpa2hva(data, MEM_SYNC_GPA, NULL);
+	sync->guest_page_size = data->vm->page_size;
 	atomic_init(&sync->start_flag, false);
 	atomic_init(&sync->exit_flag, false);
 	atomic_init(&sync->sync_flag, false);
@@ -810,8 +809,6 @@ static bool test_execute(int nslots, uint64_t *maxslots,
 	}
 
 	sync = (typeof(sync))vm_gpa2hva(data, MEM_SYNC_GPA, NULL);
-
-	sync->guest_page_size = data->vm->page_size;
 	if (tdata->prepare &&
 	    !tdata->prepare(data, sync, maxslots)) {
 		ret = false;

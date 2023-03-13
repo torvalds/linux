@@ -92,7 +92,7 @@ static int __init uefi_init(u64 efi_system_table)
 	if (IS_ENABLED(CONFIG_64BIT))
 		set_bit(EFI_64BIT, &efi.flags);
 
-	retval = efi_systab_check_header(&systab->hdr, 2);
+	retval = efi_systab_check_header(&systab->hdr);
 	if (retval)
 		goto out;
 

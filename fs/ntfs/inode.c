@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * inode.c - NTFS kernel inode handling.
  *
  * Copyright (c) 2001-2014 Anton Altaparmakov and Tuxera Inc.
@@ -2865,7 +2865,7 @@ void ntfs_truncate_vfs(struct inode *vi) {
 
 /**
  * ntfs_setattr - called from notify_change() when an attribute is being changed
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @idmap:	idmap of the mount the inode was found from
  * @dentry:	dentry whose attributes to change
  * @attr:	structure describing the attributes and the changes
  *
@@ -2878,14 +2878,14 @@ void ntfs_truncate_vfs(struct inode *vi) {
  *
  * Called with ->i_mutex held.
  */
-int ntfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *vi = d_inode(dentry);
 	int err;
 	unsigned int ia_valid = attr->ia_valid;
 
-	err = setattr_prepare(&init_user_ns, dentry, attr);
+	err = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (err)
 		goto out;
 	/* We do not support NTFS ACLs yet. */
@@ -2935,7 +2935,7 @@ out:
 }
 
 /**
- * ntfs_write_inode - write out a dirty inode
+ * __ntfs_write_inode - write out a dirty inode
  * @vi:		inode to write out
  * @sync:	if true, write out synchronously
  *
@@ -3033,7 +3033,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	 * might not need to be written out.
 	 * NOTE: It is not a problem when the inode for $MFT itself is being
 	 * written out as mark_ntfs_record_dirty() will only set I_DIRTY_PAGES
-	 * on the $MFT inode and hence ntfs_write_inode() will not be
+	 * on the $MFT inode and hence __ntfs_write_inode() will not be
 	 * re-invoked because of it which in turn is ok since the dirtied mft
 	 * record will be cleaned and written out to disk below, i.e. before
 	 * this function returns.

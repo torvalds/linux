@@ -262,13 +262,13 @@
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 		status = "okay";
 
-		d8 {
+		led-d8 {
 			label = "d8";
 			gpios = <&pioD 30 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
-		d10 {
+		led-d10 {
 			label = "d10";
 			gpios = <&pioE 15 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";

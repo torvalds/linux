@@ -10,6 +10,7 @@
 / {
 	model = "MENLO MX8MM EMBEDDED DEVICE";
 	compatible = "menlo,mx8menlo",
+		     "toradex,verdin-imx8mm-nonwifi",
 		     "toradex,verdin-imx8mm",
 		     "fsl,imx8mm";
 

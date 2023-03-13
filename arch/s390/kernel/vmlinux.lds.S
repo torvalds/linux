@@ -44,7 +44,6 @@ SECTIONS
 		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
-		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		IRQENTRY_TEXT
@@ -217,6 +216,9 @@ SECTIONS
 		QUAD(__rela_dyn_start)				/* rela_dyn_start */
 		QUAD(__rela_dyn_end)				/* rela_dyn_end */
 		QUAD(_eamode31 - _samode31)			/* amode31_size */
+		QUAD(init_mm)
+		QUAD(swapper_pg_dir)
+		QUAD(invalid_pg_dir)
 	} :NONE
 
 	/* Debugging sections.	*/
@@ -228,5 +230,6 @@ SECTIONS
 	DISCARDS
 	/DISCARD/ : {
 		*(.eh_frame)
+		*(.interp)
 	}
 }

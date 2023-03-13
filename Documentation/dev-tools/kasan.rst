@@ -140,6 +140,23 @@ disabling KASAN altogether or controlling its features:
 - ``kasan.vmalloc=off`` or ``=on`` disables or enables tagging of vmalloc
   allocations (default: ``on``).
 
+- ``kasan.page_alloc.sample=<sampling interval>`` makes KASAN tag only every
+  Nth page_alloc allocation with the order equal or greater than
+  ``kasan.page_alloc.sample.order``, where N is the value of the ``sample``
+  parameter (default: ``1``, or tag every such allocation).
+  This parameter is intended to mitigate the performance overhead introduced
+  by KASAN.
+  Note that enabling this parameter makes Hardware Tag-Based KASAN skip checks
+  of allocations chosen by sampling and thus miss bad accesses to these
+  allocations. Use the default value for accurate bug detection.
+
+- ``kasan.page_alloc.sample.order=<minimum page order>`` specifies the minimum
+  order of allocations that are affected by sampling (default: ``3``).
+  Only applies when ``kasan.page_alloc.sample`` is set to a value greater
+  than ``1``.
+  This parameter is intended to allow sampling only large page_alloc
+  allocations, which is the biggest source of the performance overhead.
+
 Error reports
 ~~~~~~~~~~~~~
 

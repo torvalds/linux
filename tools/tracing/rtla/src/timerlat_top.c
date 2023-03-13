@@ -10,10 +10,12 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
+#include <errno.h>
 
 #include "utils.h"
 #include "osnoise.h"
 #include "timerlat.h"
+#include "timerlat_aa.h"
 
 struct timerlat_top_params {
 	char			*cpus;
@@ -30,6 +32,8 @@ struct timerlat_top_params {
 	int			quiet;
 	int			set_sched;
 	int			dma_latency;
+	int			no_aa;
+	int			dump_tasks;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 };
@@ -130,16 +134,21 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 		     struct tep_event *event, void *context)
 {
 	struct trace_instance *trace = context;
+	struct timerlat_top_params *params;
 	unsigned long long latency, thread;
 	struct osnoise_tool *top;
 	int cpu = record->cpu;
 
 	top = container_of(trace, struct osnoise_tool, trace);
+	params = top->params;
 
 	tep_get_field_val(s, event, "context", record, &thread, 1);
 	tep_get_field_val(s, event, "timer_latency", record, &latency, 1);
 
 	timerlat_top_update(top, cpu, thread, latency);
+
+	if (!params->no_aa)
+		timerlat_aa_handler(s, record, event, context);
 
 	return 0;
 }
@@ -281,11 +290,13 @@ static void timerlat_top_usage(char *usage)
 		"	  -c/--cpus cpus: run the tracer only on the given cpus",
 		"	  -d/--duration time[m|h|d]: duration of the session in seconds",
 		"	  -D/--debug: print debug info",
+		"	     --dump-tasks: prints the task running on all CPUs if stop conditions are met (depends on !--no-aa)",
 		"	  -t/--trace[=file]: save the stopped trace to [file|timerlat_trace.txt]",
 		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
 		"	     --filter <command>: enable a trace event filter to the previous -e event",
 		"	     --trigger <command>: enable a trace event trigger to the previous -e event",
 		"	  -n/--nano: display data in nanoseconds",
+		"	     --no-aa: disable auto-analysis, reducing rtla timerlat cpu usage",
 		"	  -q/--quiet print only a summary at the end",
 		"	     --dma-latency us: set /dev/cpu_dma_latency latency <us> to reduce exit from idle latency",
 		"	  -P/--priority o:prio|r:prio|f:prio|d:runtime:period : set scheduling parameters",
@@ -349,13 +360,15 @@ static struct timerlat_top_params
 			{"trigger",		required_argument,	0, '0'},
 			{"filter",		required_argument,	0, '1'},
 			{"dma-latency",		required_argument,	0, '2'},
+			{"no-aa",		no_argument,		0, '3'},
+			{"dump-tasks",		no_argument,		0, '4'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:d:De:hi:np:P:qs:t::T:0:1:2:",
+		c = getopt_long(argc, argv, "a:c:d:De:hi:np:P:qs:t::T:0:1:2:34",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -368,13 +381,13 @@ static struct timerlat_top_params
 
 			/* set thread stop to auto_thresh */
 			params->stop_total_us = auto_thresh;
+			params->stop_us = auto_thresh;
 
 			/* get stack trace */
 			params->print_stack = auto_thresh;
 
 			/* set trace */
 			params->trace_output = "timerlat_trace.txt";
-
 			break;
 		case 'c':
 			retval = parse_cpu_list(optarg, &params->monitored_cpus);
@@ -437,6 +450,7 @@ static struct timerlat_top_params
 				params->trace_output = &optarg[1];
 			else
 				params->trace_output = "timerlat_trace.txt";
+
 			break;
 		case '0': /* trigger */
 			if (params->events) {
@@ -467,6 +481,12 @@ static struct timerlat_top_params
 				exit(EXIT_FAILURE);
 			}
 			break;
+		case '3': /* no-aa */
+			params->no_aa = 1;
+			break;
+		case '4':
+			params->dump_tasks = 1;
+			break;
 		default:
 			timerlat_top_usage("Invalid option");
 		}
@@ -476,6 +496,12 @@ static struct timerlat_top_params
 		err_msg("rtla needs root permission\n");
 		exit(EXIT_FAILURE);
 	}
+
+	/*
+	 * Auto analysis only happens if stop tracing, thus:
+	 */
+	if (!params->stop_us && !params->stop_total_us)
+		params->no_aa = 1;
 
 	return params;
 }
@@ -547,6 +573,7 @@ static struct osnoise_tool
 {
 	struct osnoise_tool *top;
 	int nr_cpus;
+	int retval;
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
@@ -562,6 +589,16 @@ static struct osnoise_tool
 
 	tep_register_event_handler(top->trace.tep, -1, "ftrace", "timerlat",
 				   timerlat_top_handler, top);
+
+	/*
+	 * If no auto analysis, we are ready.
+	 */
+	if (params->no_aa)
+		return top;
+
+	retval = timerlat_aa_init(top, nr_cpus, params->dump_tasks);
+	if (retval)
+		goto out_err;
 
 	return top;
 
@@ -688,6 +725,10 @@ int timerlat_top_main(int argc, char *argv[])
 
 	if (trace_is_off(&top->trace, &record->trace)) {
 		printf("rtla timerlat hit stop tracing\n");
+
+		if (!params->no_aa)
+			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
+
 		if (params->trace_output) {
 			printf("  Saving trace to %s\n", params->trace_output);
 			save_trace_to_file(record->trace.inst, params->trace_output);
@@ -701,6 +742,7 @@ out_top:
 	params->events = NULL;
 out_free:
 	timerlat_free_top(top->data);
+	timerlat_aa_destroy();
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(top);
 	free(params);

@@ -321,8 +321,20 @@ out_unlock:
 	return ret;
 }
 
+static int intelfb_dirty(struct drm_fb_helper *helper, struct drm_clip_rect *clip)
+{
+	if (!(clip->x1 < clip->x2 && clip->y1 < clip->y2))
+		return 0;
+
+	if (helper->fb->funcs->dirty)
+		return helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, clip, 1);
+
+	return 0;
+}
+
 static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_probe = intelfb_create,
+	.fb_dirty = intelfb_dirty,
 };
 
 static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
@@ -340,6 +352,7 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 	if (ifbdev->fb)
 		drm_framebuffer_remove(&ifbdev->fb->base);
 
+	drm_fb_helper_unprepare(&ifbdev->helper);
 	kfree(ifbdev);
 }
 
@@ -620,7 +633,13 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	struct intel_fbdev *ifbdev = dev_priv->display.fbdev.fbdev;
 	struct fb_info *info;
 
-	if (!ifbdev || !ifbdev->vma)
+	if (!ifbdev)
+		return;
+
+	if (drm_WARN_ON(&dev_priv->drm, !HAS_DISPLAY(dev_priv)))
+		return;
+
+	if (!ifbdev->vma)
 		goto set_suspend;
 
 	info = ifbdev->helper.info;

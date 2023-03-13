@@ -251,7 +251,8 @@ The tags in common use are:
  - Reported-by: names a user who reported a problem which is fixed by this
    patch; this tag is used to give credit to the (often underappreciated)
    people who test our code and let us know when things do not work
-   correctly.
+   correctly. Note, this tag should be followed by a Link: tag pointing to the
+   report, unless the report is not available on the web.
 
  - Cc: the named person received a copy of the patch and had the
    opportunity to comment on it.

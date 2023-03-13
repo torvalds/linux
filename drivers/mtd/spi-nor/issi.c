@@ -18,7 +18,7 @@ is25lp256_post_bfpt_fixups(struct spi_nor *nor,
 	 * BFPT_DWORD1_ADDRESS_BYTES_3_ONLY.
 	 * Overwrite the number of address bytes advertised by the BFPT.
 	 */
-	if ((bfpt->dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) ==
+	if ((bfpt->dwords[SFDP_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) ==
 		BFPT_DWORD1_ADDRESS_BYTES_3_ONLY)
 		nor->params->addr_nbytes = 4;
 

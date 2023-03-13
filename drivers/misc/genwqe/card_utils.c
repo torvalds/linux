@@ -151,6 +151,9 @@ int genwqe_read_app_id(struct genwqe_dev *cd, char *app_name, int len)
 	return i;
 }
 
+#define CRC32_POLYNOMIAL	0x20044009
+static u32 crc32_tab[256];	/* crc32 lookup table */
+
 /**
  * genwqe_init_crc32() - Prepare a lookup table for fast crc32 calculations
  *
@@ -159,9 +162,6 @@ int genwqe_read_app_id(struct genwqe_dev *cd, char *app_name, int len)
  *
  * Genwqe's Polynomial = 0x20044009
  */
-#define CRC32_POLYNOMIAL	0x20044009
-static u32 crc32_tab[256];	/* crc32 lookup table */
-
 void genwqe_init_crc32(void)
 {
 	int i, j;

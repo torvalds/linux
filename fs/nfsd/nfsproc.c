@@ -93,7 +93,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		if (delta < 0)
 			delta = -delta;
 		if (delta < MAX_TOUCH_TIME_ERROR &&
-		    setattr_prepare(&init_user_ns, fhp->fh_dentry, iap) != 0) {
+		    setattr_prepare(&nop_mnt_idmap, fhp->fh_dentry, iap) != 0) {
 			/*
 			 * Turn off ATTR_[AM]TIME_SET but leave ATTR_[AM]TIME.
 			 * This will cause notify_change to set these times
@@ -838,11 +838,11 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 	},
 };
 
-
-static unsigned int nfsd_count2[ARRAY_SIZE(nfsd_procedures2)];
+static DEFINE_PER_CPU_ALIGNED(unsigned long,
+			      nfsd_count2[ARRAY_SIZE(nfsd_procedures2)]);
 const struct svc_version nfsd_version2 = {
 	.vs_vers	= 2,
-	.vs_nproc	= 18,
+	.vs_nproc	= ARRAY_SIZE(nfsd_procedures2),
 	.vs_proc	= nfsd_procedures2,
 	.vs_count	= nfsd_count2,
 	.vs_dispatch	= nfsd_dispatch,

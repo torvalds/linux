@@ -1259,7 +1259,8 @@ static int pqi_get_device_lists(struct pqi_ctrl_info *ctrl_info,
 			"report logical LUNs failed\n");
 
 	/*
-	 * Tack the controller itself onto the end of the logical device list.
+	 * Tack the controller itself onto the end of the logical device list
+	 * by adding a list entry that is all zeros.
 	 */
 
 	logdev_data = *logdev_list;

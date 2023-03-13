@@ -653,12 +653,12 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 	int res;
 
 	if (dev->type != &i2c_adapter_type)
-		return 0;
+		return NOTIFY_DONE;
 	adap = to_i2c_adapter(dev);
 
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
-		return PTR_ERR(i2c_dev);
+		return NOTIFY_DONE;
 
 	cdev_init(&i2c_dev->cdev, &i2cdev_fops);
 	i2c_dev->cdev.owner = THIS_MODULE;
@@ -678,11 +678,11 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 		goto err_put_i2c_dev;
 
 	pr_debug("adapter [%s] registered as minor %d\n", adap->name, adap->nr);
-	return 0;
+	return NOTIFY_OK;
 
 err_put_i2c_dev:
 	put_i2c_dev(i2c_dev, false);
-	return res;
+	return NOTIFY_DONE;
 }
 
 static int i2cdev_detach_adapter(struct device *dev, void *dummy)
@@ -691,17 +691,17 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	struct i2c_dev *i2c_dev;
 
 	if (dev->type != &i2c_adapter_type)
-		return 0;
+		return NOTIFY_DONE;
 	adap = to_i2c_adapter(dev);
 
 	i2c_dev = i2c_dev_get_by_minor(adap->nr);
 	if (!i2c_dev) /* attach_adapter must have failed */
-		return 0;
+		return NOTIFY_DONE;
 
 	put_i2c_dev(i2c_dev, true);
 
 	pr_debug("adapter [%s] unregistered\n", adap->name);
-	return 0;
+	return NOTIFY_OK;
 }
 
 static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
@@ -716,7 +716,7 @@ static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
 		return i2cdev_detach_adapter(dev, NULL);
 	}
 
-	return 0;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block i2cdev_notifier = {

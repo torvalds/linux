@@ -501,7 +501,7 @@ EXPORT_SYMBOL(backlight_device_get_by_type);
  *
  * This function looks up a backlight device by its name. It obtains a reference
  * on the backlight device and it is the caller's responsibility to drop the
- * reference by calling backlight_put().
+ * reference by calling put_device().
  *
  * Returns:
  * A pointer to the backlight device if found, otherwise NULL.

@@ -65,6 +65,8 @@ static void drm_fbdev_fb_destroy(struct fb_info *info)
 
 	drm_client_framebuffer_delete(fb_helper->buffer);
 	drm_client_release(&fb_helper->client);
+
+	drm_fb_helper_unprepare(fb_helper);
 	kfree(fb_helper);
 }
 

@@ -143,12 +143,14 @@ struct uvc_device {
 		const struct uvc_descriptor_header * const *fs_streaming;
 		const struct uvc_descriptor_header * const *hs_streaming;
 		const struct uvc_descriptor_header * const *ss_streaming;
+		struct list_head *extension_units;
 	} desc;
 
 	unsigned int control_intf;
-	struct usb_ep *control_ep;
+	struct usb_ep *interrupt_ep;
 	struct usb_request *control_req;
 	void *control_buf;
+	bool enable_interrupt_ep;
 
 	unsigned int streaming_intf;
 

@@ -83,8 +83,7 @@ static int lan966x_ptp_add_trap(struct lan966x_port *port,
 	if (err)
 		goto free_rule;
 
-	err = vcap_set_rule_set_actionset(vrule, VCAP_AFS_BASE_TYPE);
-	err |= vcap_rule_add_action_bit(vrule, VCAP_AF_CPU_COPY_ENA, VCAP_BIT_1);
+	err = vcap_rule_add_action_bit(vrule, VCAP_AF_CPU_COPY_ENA, VCAP_BIT_1);
 	err |= vcap_rule_add_action_u32(vrule, VCAP_AF_MASK_MODE, LAN966X_PMM_REPLACE);
 	err |= vcap_val_rule(vrule, proto);
 	if (err)
@@ -524,9 +523,9 @@ irqreturn_t lan966x_ptp_irq_handler(int irq, void *args)
 		if (WARN_ON(!skb_match))
 			continue;
 
-		spin_lock(&lan966x->ptp_ts_id_lock);
+		spin_lock_irqsave(&lan966x->ptp_ts_id_lock, flags);
 		lan966x->ptp_skbs--;
-		spin_unlock(&lan966x->ptp_ts_id_lock);
+		spin_unlock_irqrestore(&lan966x->ptp_ts_id_lock, flags);
 
 		/* Get the h/w timestamp */
 		lan966x_get_hwtimestamp(lan966x, &ts, delay);

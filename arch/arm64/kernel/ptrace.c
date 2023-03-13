@@ -683,7 +683,7 @@ static int tls_set(struct task_struct *target, const struct user_regset *regset,
 	unsigned long tls[2];
 
 	tls[0] = target->thread.uw.tp_value;
-	if (system_supports_sme())
+	if (system_supports_tpidr2())
 		tls[1] = target->thread.tpidr2_el0;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, tls, 0, count);
@@ -691,7 +691,7 @@ static int tls_set(struct task_struct *target, const struct user_regset *regset,
 		return ret;
 
 	target->thread.uw.tp_value = tls[0];
-	if (system_supports_sme())
+	if (system_supports_tpidr2())
 		target->thread.tpidr2_el0 = tls[1];
 
 	return ret;
@@ -1045,7 +1045,7 @@ static int za_get(struct task_struct *target,
 	if (thread_za_enabled(&target->thread)) {
 		start = end;
 		end = ZA_PT_SIZE(vq);
-		membuf_write(&to, target->thread.za_state, end - start);
+		membuf_write(&to, target->thread.sme_state, end - start);
 	}
 
 	/* Zero any trailing padding */
@@ -1099,7 +1099,7 @@ static int za_set(struct task_struct *target,
 
 	/* Allocate/reinit ZA storage */
 	sme_alloc(target);
-	if (!target->thread.za_state) {
+	if (!target->thread.sme_state) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1124,7 +1124,7 @@ static int za_set(struct task_struct *target,
 	start = ZA_PT_ZA_OFFSET;
 	end = ZA_PT_SIZE(vq);
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 target->thread.za_state,
+				 target->thread.sme_state,
 				 start, end);
 	if (ret)
 		goto out;
@@ -1135,6 +1135,51 @@ static int za_set(struct task_struct *target,
 
 out:
 	fpsimd_flush_task_state(target);
+	return ret;
+}
+
+static int zt_get(struct task_struct *target,
+		  const struct user_regset *regset,
+		  struct membuf to)
+{
+	if (!system_supports_sme2())
+		return -EINVAL;
+
+	/*
+	 * If PSTATE.ZA is not set then ZT will be zeroed when it is
+	 * enabled so report the current register value as zero.
+	 */
+	if (thread_za_enabled(&target->thread))
+		membuf_write(&to, thread_zt_state(&target->thread),
+			     ZT_SIG_REG_BYTES);
+	else
+		membuf_zero(&to, ZT_SIG_REG_BYTES);
+
+	return 0;
+}
+
+static int zt_set(struct task_struct *target,
+		  const struct user_regset *regset,
+		  unsigned int pos, unsigned int count,
+		  const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+
+	if (!system_supports_sme2())
+		return -EINVAL;
+
+	if (!thread_za_enabled(&target->thread)) {
+		sme_alloc(target);
+		if (!target->thread.sme_state)
+			return -ENOMEM;
+	}
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 thread_zt_state(&target->thread),
+				 0, ZT_SIG_REG_BYTES);
+	if (ret == 0)
+		target->thread.svcr |= SVCR_ZA_MASK;
+
 	return ret;
 }
 
@@ -1360,6 +1405,7 @@ enum aarch64_regset {
 #ifdef CONFIG_ARM64_SME
 	REGSET_SSVE,
 	REGSET_ZA,
+	REGSET_ZT,
 #endif
 #ifdef CONFIG_ARM64_PTR_AUTH
 	REGSET_PAC_MASK,
@@ -1466,6 +1512,14 @@ static const struct user_regset aarch64_regsets[] = {
 		.align = SVE_VQ_BYTES,
 		.regset_get = za_get,
 		.set = za_set,
+	},
+	[REGSET_ZT] = { /* SME ZT */
+		.core_note_type = NT_ARM_ZT,
+		.n = 1,
+		.size = ZT_SIG_REG_BYTES,
+		.align = sizeof(u64),
+		.regset_get = zt_get,
+		.set = zt_set,
 	},
 #endif
 #ifdef CONFIG_ARM64_PTR_AUTH

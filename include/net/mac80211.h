@@ -340,7 +340,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_FILS_DISCOVERY: FILS discovery status changed.
  * @BSS_CHANGED_UNSOL_BCAST_PROBE_RESP: Unsolicited broadcast probe response
  *	status changed.
- *
+ * @BSS_CHANGED_EHT_PUNCTURING: The channel puncturing bitmap changed.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -375,6 +375,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_HE_BSS_COLOR	= 1<<29,
 	BSS_CHANGED_FILS_DISCOVERY      = 1<<30,
 	BSS_CHANGED_UNSOL_BCAST_PROBE_RESP = 1<<31,
+	BSS_CHANGED_EHT_PUNCTURING	= BIT_ULL(32),
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -640,9 +641,11 @@ struct ieee80211_fils_discovery {
  * @tx_pwr_env_num: number of @tx_pwr_env.
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
+ * @eht_puncturing: bitmap to indicate which channels are punctured in this BSS
  * @csa_active: marks whether a channel switch is going on. Internally it is
  *	write-protected by sdata_lock and local->mtx so holding either is fine
  *	for read access.
+ * @csa_punct_bitmap: new puncturing bitmap for channel switch
  * @mu_mimo_owner: indicates interface owns MU-MIMO capability
  * @chanctx_conf: The channel context this interface is assigned to, or %NULL
  *	when it is not assigned. This pointer is RCU-protected due to the TX
@@ -653,6 +656,23 @@ struct ieee80211_fils_discovery {
  *	write-protected by sdata_lock and local->mtx so holding either is fine
  *	for read access.
  * @color_change_color: the bss color that will be used after the change.
+ * @vht_su_beamformer: in AP mode, does this BSS support operation as an VHT SU
+ *	beamformer
+ * @vht_su_beamformee: in AP mode, does this BSS support operation as an VHT SU
+ *	beamformee
+ * @vht_mu_beamformer: in AP mode, does this BSS support operation as an VHT MU
+ *	beamformer
+ * @vht_mu_beamformee: in AP mode, does this BSS support operation as an VHT MU
+ *	beamformee
+ * @he_su_beamformer: in AP-mode, does this BSS support operation as an HE SU
+ *	beamformer
+ * @he_su_beamformee: in AP-mode, does this BSS support operation as an HE SU
+ *	beamformee
+ * @he_mu_beamformer: in AP-mode, does this BSS support operation as an HE MU
+ *	beamformer
+ * @he_full_ul_mumimo: does this BSS support the reception (AP) or transmission
+ *	(non-AP STA) of an HE TB PPDU on an RU that spans the entire PPDU
+ *	bandwidth
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -719,13 +739,25 @@ struct ieee80211_bss_conf {
 	u8 tx_pwr_env_num;
 	u8 pwr_reduction;
 	bool eht_support;
+	u16 eht_puncturing;
 
 	bool csa_active;
+	u16 csa_punct_bitmap;
+
 	bool mu_mimo_owner;
 	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
 
 	bool color_change_active;
 	u8 color_change_color;
+
+	bool vht_su_beamformer;
+	bool vht_su_beamformee;
+	bool vht_mu_beamformer;
+	bool vht_mu_beamformee;
+	bool he_su_beamformer;
+	bool he_su_beamformee;
+	bool he_mu_beamformer;
+	bool he_full_ul_mumimo;
 };
 
 /**
@@ -1436,6 +1468,7 @@ enum mac80211_rx_encoding {
 	RX_ENC_HT,
 	RX_ENC_VHT,
 	RX_ENC_HE,
+	RX_ENC_EHT,
 };
 
 /**
@@ -1469,7 +1502,7 @@ enum mac80211_rx_encoding {
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
- * @nss: number of streams (VHT and HE only)
+ * @nss: number of streams (VHT, HE and EHT only)
  * @flag: %RX_FLAG_\*
  * @encoding: &enum mac80211_rx_encoding
  * @bw: &enum rate_info_bw
@@ -1477,6 +1510,9 @@ enum mac80211_rx_encoding {
  * @he_ru: HE RU, from &enum nl80211_he_ru_alloc
  * @he_gi: HE GI, from &enum nl80211_he_gi
  * @he_dcm: HE DCM value
+ * @eht: EHT specific rate information
+ * @eht.ru: EHT RU, from &enum nl80211_eht_ru_alloc
+ * @eht.gi: EHT GI, from &enum nl80211_eht_gi
  * @rx_flags: internal RX flags for mac80211
  * @ampdu_reference: A-MPDU reference number, must be a different value for
  *	each A-MPDU but the same for each subframe within one A-MPDU
@@ -1498,8 +1534,18 @@ struct ieee80211_rx_status {
 	u32 flag;
 	u16 freq: 13, freq_offset: 1;
 	u8 enc_flags;
-	u8 encoding:2, bw:3, he_ru:3;
-	u8 he_gi:2, he_dcm:1;
+	u8 encoding:3, bw:4;
+	union {
+		struct {
+			u8 he_ru:3;
+			u8 he_gi:2;
+			u8 he_dcm:1;
+		};
+		struct {
+			u8 ru:4;
+			u8 gi:2;
+		} eht;
+	};
 	u8 rate_idx;
 	u8 nss;
 	u8 rx_flags;
@@ -5884,9 +5930,6 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
  * This function iterates over the interfaces associated with a given
  * hardware that are currently active and calls the callback for them.
  * This version can only be used while holding the wiphy mutex.
- * The driver must not call this with a lock held that it can also take in
- * response to callbacks from mac80211, and it must not call this within
- * callbacks made by mac80211 - both would result in deadlocks.
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
  * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
@@ -5899,24 +5942,6 @@ void ieee80211_iterate_active_interfaces_mtx(struct ieee80211_hw *hw,
 						u8 *mac,
 						struct ieee80211_vif *vif),
 					     void *data);
-
-/**
- * ieee80211_iterate_stations - iterate stations
- *
- * This function iterates over all stations associated with a given
- * hardware that are currently uploaded to the driver and calls the callback
- * function for them.
- * This function allows the iterator function to sleep, when the iterator
- * function is atomic @ieee80211_iterate_stations_atomic can be used.
- *
- * @hw: the hardware struct of which the interfaces should be iterated over
- * @iterator: the iterator function to call, cannot sleep
- * @data: first argument of the iterator function
- */
-void ieee80211_iterate_stations(struct ieee80211_hw *hw,
-				void (*iterator)(void *data,
-						 struct ieee80211_sta *sta),
-				void *data);
 
 /**
  * ieee80211_iterate_stations_atomic - iterate stations
@@ -7191,7 +7216,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
 					  struct ieee80211_vif *vif);
 
 /**
- * ieeee80211_obss_color_collision_notify - notify userland about a BSS color
+ * ieee80211_obss_color_collision_notify - notify userland about a BSS color
  * collision.
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
@@ -7200,8 +7225,8 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
  * @gfp: allocation flags
  */
 void
-ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
-				       u64 color_bitmap, gfp_t gfp);
+ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
+				      u64 color_bitmap, gfp_t gfp);
 
 /**
  * ieee80211_is_tx_data - check if frame is a data frame

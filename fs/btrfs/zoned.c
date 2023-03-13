@@ -17,6 +17,7 @@
 #include "space-info.h"
 #include "fs.h"
 #include "accessors.h"
+#include "bio.h"
 
 /* Maximum number of zones to report per blkdev_report_zones() call */
 #define BTRFS_REPORT_NR_ZONES   4096
@@ -160,7 +161,7 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
  */
 static inline u32 sb_zone_number(int shift, int mirror)
 {
-	u64 zone;
+	u64 zone = U64_MAX;
 
 	ASSERT(mirror < BTRFS_SUPER_MIRROR_MAX);
 	switch (mirror) {
@@ -220,7 +221,6 @@ static int btrfs_get_dev_zones(struct btrfs_device *device, u64 pos,
 			       struct blk_zone *zones, unsigned int *nr_zones)
 {
 	struct btrfs_zoned_device_info *zinfo = device->zone_info;
-	u32 zno;
 	int ret;
 
 	if (!*nr_zones)
@@ -235,6 +235,7 @@ static int btrfs_get_dev_zones(struct btrfs_device *device, u64 pos,
 	/* Check cache */
 	if (zinfo->zone_cache) {
 		unsigned int i;
+		u32 zno;
 
 		ASSERT(IS_ALIGNED(pos, zinfo->zone_size));
 		zno = pos >> zinfo->zone_size_shift;
@@ -274,9 +275,12 @@ static int btrfs_get_dev_zones(struct btrfs_device *device, u64 pos,
 		return -EIO;
 
 	/* Populate cache */
-	if (zinfo->zone_cache)
+	if (zinfo->zone_cache) {
+		u32 zno = pos >> zinfo->zone_size_shift;
+
 		memcpy(zinfo->zone_cache + zno, zones,
 		       sizeof(*zinfo->zone_cache) * *nr_zones);
+	}
 
 	return 0;
 }
@@ -417,25 +421,6 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 	nr_sectors = bdev_nr_sectors(bdev);
 	zone_info->zone_size_shift = ilog2(zone_info->zone_size);
 	zone_info->nr_zones = nr_sectors >> ilog2(zone_sectors);
-	/*
-	 * We limit max_zone_append_size also by max_segments *
-	 * PAGE_SIZE. Technically, we can have multiple pages per segment. But,
-	 * since btrfs adds the pages one by one to a bio, and btrfs cannot
-	 * increase the metadata reservation even if it increases the number of
-	 * extents, it is safe to stick with the limit.
-	 *
-	 * With the zoned emulation, we can have non-zoned device on the zoned
-	 * mode. In this case, we don't have a valid max zone append size. So,
-	 * use max_segments * PAGE_SIZE as the pseudo max_zone_append_size.
-	 */
-	if (bdev_is_zoned(bdev)) {
-		zone_info->max_zone_append_size = min_t(u64,
-			(u64)bdev_max_zone_append_sectors(bdev) << SECTOR_SHIFT,
-			(u64)bdev_max_segments(bdev) << PAGE_SHIFT);
-	} else {
-		zone_info->max_zone_append_size =
-			(u64)bdev_max_segments(bdev) << PAGE_SHIFT;
-	}
 	if (!IS_ALIGNED(nr_sectors, zone_sectors))
 		zone_info->nr_zones++;
 
@@ -715,9 +700,9 @@ static int btrfs_check_for_zoned_device(struct btrfs_fs_info *fs_info)
 
 int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 {
+	struct queue_limits *lim = &fs_info->limits;
 	struct btrfs_device *device;
 	u64 zone_size = 0;
-	u64 max_zone_append_size = 0;
 	int ret;
 
 	/*
@@ -726,6 +711,8 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	 */
 	if (!btrfs_fs_incompat(fs_info, ZONED))
 		return btrfs_check_for_zoned_device(fs_info);
+
+	blk_set_stacking_limits(lim);
 
 	list_for_each_entry(device, &fs_info->fs_devices->devices, dev_list) {
 		struct btrfs_zoned_device_info *zone_info = device->zone_info;
@@ -741,10 +728,17 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 				  zone_info->zone_size, zone_size);
 			return -EINVAL;
 		}
-		if (!max_zone_append_size ||
-		    (zone_info->max_zone_append_size &&
-		     zone_info->max_zone_append_size < max_zone_append_size))
-			max_zone_append_size = zone_info->max_zone_append_size;
+
+		/*
+		 * With the zoned emulation, we can have non-zoned device on the
+		 * zoned mode. In this case, we don't have a valid max zone
+		 * append size.
+		 */
+		if (bdev_is_zoned(device->bdev)) {
+			blk_stack_limits(lim,
+					 &bdev_get_queue(device->bdev)->limits,
+					 0);
+		}
 	}
 
 	/*
@@ -765,8 +759,18 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	}
 
 	fs_info->zone_size = zone_size;
-	fs_info->max_zone_append_size = ALIGN_DOWN(max_zone_append_size,
-						   fs_info->sectorsize);
+	/*
+	 * Also limit max_zone_append_size by max_segments * PAGE_SIZE.
+	 * Technically, we can have multiple pages per segment. But, since
+	 * we add the pages one by one to a bio, and cannot increase the
+	 * metadata reservation even if it increases the number of extents, it
+	 * is safe to stick with the limit.
+	 */
+	fs_info->max_zone_append_size = ALIGN_DOWN(
+		min3((u64)lim->max_zone_append_sectors << SECTOR_SHIFT,
+		     (u64)lim->max_sectors << SECTOR_SHIFT,
+		     (u64)lim->max_segments << PAGE_SHIFT),
+		fs_info->sectorsize);
 	fs_info->fs_devices->chunk_alloc_policy = BTRFS_CHUNK_ALLOC_ZONED;
 	if (fs_info->max_zone_append_size < fs_info->max_extent_size)
 		fs_info->max_extent_size = fs_info->max_zone_append_size;
@@ -1623,8 +1627,10 @@ void btrfs_free_redirty_list(struct btrfs_transaction *trans)
 	spin_unlock(&trans->releasing_ebs_lock);
 }
 
-bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start)
+bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 {
+	u64 start = (bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT);
+	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_block_group *cache;
 	bool ret = false;
@@ -1633,6 +1639,9 @@ bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start)
 		return false;
 
 	if (!is_data_inode(&inode->vfs_inode))
+		return false;
+
+	if (btrfs_op(&bbio->bio) != BTRFS_MAP_WRITE)
 		return false;
 
 	/*
@@ -1657,22 +1666,16 @@ bool btrfs_use_zone_append(struct btrfs_inode *inode, u64 start)
 	return ret;
 }
 
-void btrfs_record_physical_zoned(struct inode *inode, u64 file_offset,
-				 struct bio *bio)
+void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 {
+	const u64 physical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	struct btrfs_ordered_extent *ordered;
-	const u64 physical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 
-	if (bio_op(bio) != REQ_OP_ZONE_APPEND)
-		return;
-
-	ordered = btrfs_lookup_ordered_extent(BTRFS_I(inode), file_offset);
+	ordered = btrfs_lookup_ordered_extent(bbio->inode, bbio->file_offset);
 	if (WARN_ON(!ordered))
 		return;
 
 	ordered->physical = physical;
-	ordered->bdev = bio->bi_bdev;
-
 	btrfs_put_ordered_extent(ordered);
 }
 
@@ -1684,43 +1687,46 @@ void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered)
 	struct extent_map *em;
 	struct btrfs_ordered_sum *sum;
 	u64 orig_logical = ordered->disk_bytenr;
-	u64 *logical = NULL;
-	int nr, stripe_len;
+	struct map_lookup *map;
+	u64 physical = ordered->physical;
+	u64 chunk_start_phys;
+	u64 logical;
 
-	/* Zoned devices should not have partitions. So, we can assume it is 0 */
-	ASSERT(!bdev_is_partition(ordered->bdev));
-	if (WARN_ON(!ordered->bdev))
+	em = btrfs_get_chunk_map(fs_info, orig_logical, 1);
+	if (IS_ERR(em))
+		return;
+	map = em->map_lookup;
+	chunk_start_phys = map->stripes[0].physical;
+
+	if (WARN_ON_ONCE(map->num_stripes > 1) ||
+	    WARN_ON_ONCE((map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) != 0) ||
+	    WARN_ON_ONCE(physical < chunk_start_phys) ||
+	    WARN_ON_ONCE(physical > chunk_start_phys + em->orig_block_len)) {
+		free_extent_map(em);
+		return;
+	}
+	logical = em->start + (physical - map->stripes[0].physical);
+	free_extent_map(em);
+
+	if (orig_logical == logical)
 		return;
 
-	if (WARN_ON(btrfs_rmap_block(fs_info, orig_logical, ordered->bdev,
-				     ordered->physical, &logical, &nr,
-				     &stripe_len)))
-		goto out;
-
-	WARN_ON(nr != 1);
-
-	if (orig_logical == *logical)
-		goto out;
-
-	ordered->disk_bytenr = *logical;
+	ordered->disk_bytenr = logical;
 
 	em_tree = &inode->extent_tree;
 	write_lock(&em_tree->lock);
 	em = search_extent_mapping(em_tree, ordered->file_offset,
 				   ordered->num_bytes);
-	em->block_start = *logical;
+	em->block_start = logical;
 	free_extent_map(em);
 	write_unlock(&em_tree->lock);
 
 	list_for_each_entry(sum, &ordered->list, list) {
-		if (*logical < orig_logical)
-			sum->bytenr -= orig_logical - *logical;
+		if (logical < orig_logical)
+			sum->bytenr -= orig_logical - logical;
 		else
-			sum->bytenr += *logical - orig_logical;
+			sum->bytenr += logical - orig_logical;
 	}
-
-out:
-	kfree(logical);
 }
 
 bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
@@ -1843,26 +1849,6 @@ int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev, u64 logical,
 
 	length = wp - physical_pos;
 	return btrfs_zoned_issue_zeroout(tgt_dev, physical_pos, length);
-}
-
-struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
-					    u64 logical, u64 length)
-{
-	struct btrfs_device *device;
-	struct extent_map *em;
-	struct map_lookup *map;
-
-	em = btrfs_get_chunk_map(fs_info, logical, length);
-	if (IS_ERR(em))
-		return ERR_CAST(em);
-
-	map = em->map_lookup;
-	/* We only support single profile for now */
-	device = map->stripes[0].dev;
-
-	free_extent_map(em);
-
-	return device;
 }
 
 /*

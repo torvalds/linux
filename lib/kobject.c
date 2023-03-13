@@ -112,7 +112,7 @@ static int get_kobj_path_length(const struct kobject *kobj)
 	return length;
 }
 
-static void fill_kobj_path(const struct kobject *kobj, char *path, int length)
+static int fill_kobj_path(const struct kobject *kobj, char *path, int length)
 {
 	const struct kobject *parent;
 
@@ -121,12 +121,16 @@ static void fill_kobj_path(const struct kobject *kobj, char *path, int length)
 		int cur = strlen(kobject_name(parent));
 		/* back up enough to print this name with '/' */
 		length -= cur;
+		if (length <= 0)
+			return -EINVAL;
 		memcpy(path + length, kobject_name(parent), cur);
 		*(path + --length) = '/';
 	}
 
 	pr_debug("kobject: '%s' (%p): %s: path = '%s'\n", kobject_name(kobj),
 		 kobj, __func__, path);
+
+	return 0;
 }
 
 /**
@@ -141,13 +145,17 @@ char *kobject_get_path(const struct kobject *kobj, gfp_t gfp_mask)
 	char *path;
 	int len;
 
+retry:
 	len = get_kobj_path_length(kobj);
 	if (len == 0)
 		return NULL;
 	path = kzalloc(len, gfp_mask);
 	if (!path)
 		return NULL;
-	fill_kobj_path(kobj, path, len);
+	if (fill_kobj_path(kobj, path, len)) {
+		kfree(path);
+		goto retry;
+	}
 
 	return path;
 }
@@ -729,7 +737,7 @@ static void dynamic_kobj_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
-static struct kobj_type dynamic_kobj_ktype = {
+static const struct kobj_type dynamic_kobj_ktype = {
 	.release	= dynamic_kobj_release,
 	.sysfs_ops	= &kobj_sysfs_ops,
 };
@@ -913,7 +921,7 @@ static void kset_get_ownership(const struct kobject *kobj, kuid_t *uid, kgid_t *
 		kobject_get_ownership(kobj->parent, uid, gid);
 }
 
-static struct kobj_type kset_ktype = {
+static const struct kobj_type kset_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.release	= kset_release,
 	.get_ownership	= kset_get_ownership,

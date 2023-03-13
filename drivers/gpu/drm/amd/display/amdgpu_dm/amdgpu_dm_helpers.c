@@ -208,7 +208,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	if (enable)
 		drm_dp_add_payload_part1(mst_mgr, mst_state, payload);
 	else
-		drm_dp_remove_payload(mst_mgr, mst_state, payload);
+		drm_dp_remove_payload(mst_mgr, mst_state, payload, payload);
 
 	/* mst_mgr->->payloads are VC payload notify MST branch using DPCD or
 	 * AUX message. The sequence is slot 1-63 allocated sequence for each
@@ -403,6 +403,7 @@ bool dm_helpers_dp_mst_start_top_mgr(
 		bool boot)
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
+	int ret;
 
 	if (!aconnector) {
 		DRM_ERROR("Failed to find connector for link!");
@@ -418,7 +419,16 @@ bool dm_helpers_dp_mst_start_top_mgr(
 	DRM_INFO("DM_MST: starting TM on aconnector: %p [id: %d]\n",
 			aconnector, aconnector->base.base.id);
 
-	return (drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true) == 0);
+	ret = drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
+	if (ret < 0) {
+		DRM_ERROR("DM_MST: Failed to set the device into MST mode!");
+		return false;
+	}
+
+	DRM_INFO("DM_MST: DP%x, %d-lane link detected\n", aconnector->mst_mgr.dpcd[0],
+		aconnector->mst_mgr.dpcd[2] & DP_MAX_LANE_COUNT_MASK);
+
+	return true;
 }
 
 bool dm_helpers_dp_mst_stop_top_mgr(
@@ -1094,7 +1104,7 @@ bool dm_helpers_dp_handle_test_pattern_request(
 		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
 		pipe_ctx->stream->timing.pixel_encoding = requestPixelEncoding;
 
-		dp_update_dsc_config(pipe_ctx);
+		dc_link_update_dsc_config(pipe_ctx);
 
 		aconnector->timing_changed = true;
 		/* store current timing */
@@ -1133,3 +1143,38 @@ void dm_helpers_dp_mst_update_branch_bandwidth(
 	// TODO
 }
 
+static bool dm_is_freesync_pcon_whitelist(const uint32_t branch_dev_id)
+{
+	bool ret_val = false;
+
+	switch (branch_dev_id) {
+	case DP_BRANCH_DEVICE_ID_0060AD:
+	case DP_BRANCH_DEVICE_ID_00E04C:
+	case DP_BRANCH_DEVICE_ID_90CC24:
+		ret_val = true;
+		break;
+	default:
+		break;
+	}
+
+	return ret_val;
+}
+
+enum adaptive_sync_type dm_get_adaptive_sync_support_type(struct dc_link *link)
+{
+	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
+	enum adaptive_sync_type as_type = ADAPTIVE_SYNC_TYPE_NONE;
+
+	switch (dpcd_caps->dongle_type) {
+	case DISPLAY_DONGLE_DP_HDMI_CONVERTER:
+		if (dpcd_caps->adaptive_sync_caps.dp_adap_sync_caps.bits.ADAPTIVE_SYNC_SDP_SUPPORT == true &&
+			dpcd_caps->allow_invalid_MSA_timing_param == true &&
+			dm_is_freesync_pcon_whitelist(dpcd_caps->branch_dev_id))
+			as_type = FREESYNC_TYPE_PCON_IN_WHITELIST;
+		break;
+	default:
+		break;
+	}
+
+	return as_type;
+}

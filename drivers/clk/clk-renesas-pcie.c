@@ -60,7 +60,6 @@ struct rs9_driver_data {
 	struct i2c_client	*client;
 	struct regmap		*regmap;
 	const struct rs9_chip_info *chip_info;
-	struct clk		*pin_xin;
 	struct clk_hw		*clk_dif[2];
 	u8			pll_amplitude;
 	u8			pll_ssc;

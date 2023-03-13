@@ -241,7 +241,7 @@
 
 	rcar_sound: sound@ffd90000 {
 		/*
-		 * #sound-dai-cells is required
+		 * #sound-dai-cells is required if simple-card
 		 *
 		 * Single DAI : #sound-dai-cells = <0>;         <&rcar_sound>;
 		 * Multi  DAI : #sound-dai-cells = <1>;         <&rcar_sound N>;

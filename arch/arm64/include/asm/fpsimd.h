@@ -61,7 +61,7 @@ extern void fpsimd_kvm_prepare(void);
 struct cpu_fp_state {
 	struct user_fpsimd_state *st;
 	void *sve_state;
-	void *za_state;
+	void *sme_state;
 	u64 *svcr;
 	unsigned int sve_vl;
 	unsigned int sme_vl;
@@ -105,6 +105,13 @@ static inline void *sve_pffr(struct thread_struct *thread)
 	return (char *)thread->sve_state + sve_ffr_offset(vl);
 }
 
+static inline void *thread_zt_state(struct thread_struct *thread)
+{
+	/* The ZT register state is stored immediately after the ZA state */
+	unsigned int sme_vq = sve_vq_from_vl(thread_get_sme_vl(thread));
+	return thread->sme_state + ZA_SIG_REGS_SIZE(sme_vq);
+}
+
 extern void sve_save_state(void *state, u32 *pfpsr, int save_ffr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   int restore_ffr);
@@ -112,12 +119,13 @@ extern void sve_flush_live(bool flush_ffr, unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
 extern void sve_set_vq(unsigned long vq_minus_1);
 extern void sme_set_vq(unsigned long vq_minus_1);
-extern void za_save_state(void *state);
-extern void za_load_state(void const *state);
+extern void sme_save_state(void *state, int zt);
+extern void sme_load_state(void const *state, int zt);
 
 struct arm64_cpu_capabilities;
 extern void sve_kernel_enable(const struct arm64_cpu_capabilities *__unused);
 extern void sme_kernel_enable(const struct arm64_cpu_capabilities *__unused);
+extern void sme2_kernel_enable(const struct arm64_cpu_capabilities *__unused);
 extern void fa64_kernel_enable(const struct arm64_cpu_capabilities *__unused);
 
 extern u64 read_zcr_features(void);
@@ -355,14 +363,20 @@ extern int sme_get_current_vl(void);
 
 /*
  * Return how many bytes of memory are required to store the full SME
- * specific state (currently just ZA) for task, given task's currently
- * configured vector length.
+ * specific state for task, given task's currently configured vector
+ * length.
  */
-static inline size_t za_state_size(struct task_struct const *task)
+static inline size_t sme_state_size(struct task_struct const *task)
 {
 	unsigned int vl = task_get_sme_vl(task);
+	size_t size;
 
-	return ZA_SIG_REGS_SIZE(sve_vq_from_vl(vl));
+	size = ZA_SIG_REGS_SIZE(sve_vq_from_vl(vl));
+
+	if (system_supports_sme2())
+		size += ZT_SIG_REG_SIZE;
+
+	return size;
 }
 
 #else
@@ -382,7 +396,7 @@ static inline int sme_max_virtualisable_vl(void) { return 0; }
 static inline int sme_set_current_vl(unsigned long arg) { return -EINVAL; }
 static inline int sme_get_current_vl(void) { return -EINVAL; }
 
-static inline size_t za_state_size(struct task_struct const *task)
+static inline size_t sme_state_size(struct task_struct const *task)
 {
 	return 0;
 }

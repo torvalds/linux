@@ -152,22 +152,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 }
 
-static void usb_intf_start(struct adapter *padapter)
-{
-	rtl8188eu_inirp_init(padapter);
-}
-
-static void usb_intf_stop(struct adapter *padapter)
-{
-	/* cancel in irp */
-	rtw_read_port_cancel(padapter);
-
-	/* cancel out irp */
-	rtw_write_port_cancel(padapter);
-
-	/* todo:cancel other irps */
-}
-
 static void rtw_dev_unload(struct adapter *padapter)
 {
 	if (padapter->bup) {
@@ -175,8 +159,9 @@ static void rtw_dev_unload(struct adapter *padapter)
 		if (padapter->xmitpriv.ack_tx)
 			rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_DRV_STOP);
 		/* s3. */
-		if (padapter->intf_stop)
-			padapter->intf_stop(padapter);
+		rtw_read_port_cancel(padapter);
+		rtw_write_port_cancel(padapter);
+
 		/* s4. */
 		rtw_stop_drv_threads(padapter);
 
@@ -290,8 +275,6 @@ static int rtw_usb_if1_init(struct dvobj_priv *dvobj, struct usb_interface *pusb
 {
 	struct adapter *padapter = NULL;
 	struct net_device *pnetdev = NULL;
-	struct io_priv *piopriv;
-	struct intf_hdl *pintf;
 	int ret;
 
 	padapter = vzalloc(sizeof(*padapter));
@@ -314,16 +297,6 @@ static int rtw_usb_if1_init(struct dvobj_priv *dvobj, struct usb_interface *pusb
 	}
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
-
-	padapter->intf_start = &usb_intf_start;
-	padapter->intf_stop = &usb_intf_stop;
-
-	/* step init_io_priv */
-	piopriv = &padapter->iopriv;
-	pintf = &piopriv->intf;
-	piopriv->padapter = padapter;
-	pintf->padapter = padapter;
-	pintf->pintf_dev = adapter_to_dvobj(padapter);
 
 	/* step read_chip_version */
 	rtl8188e_read_chip_version(padapter);

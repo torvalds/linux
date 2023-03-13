@@ -17,6 +17,7 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <bpf/btf.h>
 
 static bool verbose(void)
 {
@@ -967,6 +968,43 @@ int write_sysctl(const char *sysctl, const char *value)
 	return 0;
 }
 
+int get_bpf_max_tramp_links_from(struct btf *btf)
+{
+	const struct btf_enum *e;
+	const struct btf_type *t;
+	__u32 i, type_cnt;
+	const char *name;
+	__u16 j, vlen;
+
+	for (i = 1, type_cnt = btf__type_cnt(btf); i < type_cnt; i++) {
+		t = btf__type_by_id(btf, i);
+		if (!t || !btf_is_enum(t) || t->name_off)
+			continue;
+		e = btf_enum(t);
+		for (j = 0, vlen = btf_vlen(t); j < vlen; j++, e++) {
+			name = btf__str_by_offset(btf, e->name_off);
+			if (name && !strcmp(name, "BPF_MAX_TRAMP_LINKS"))
+				return e->val;
+		}
+	}
+
+	return -1;
+}
+
+int get_bpf_max_tramp_links(void)
+{
+	struct btf *vmlinux_btf;
+	int ret;
+
+	vmlinux_btf = btf__load_vmlinux_btf();
+	if (!ASSERT_OK_PTR(vmlinux_btf, "vmlinux btf"))
+		return -1;
+	ret = get_bpf_max_tramp_links_from(vmlinux_btf);
+	btf__free(vmlinux_btf);
+
+	return ret;
+}
+
 #define MAX_BACKTRACE_SZ 128
 void crash_handler(int signum)
 {
@@ -975,12 +1013,12 @@ void crash_handler(int signum)
 
 	sz = backtrace(bt, ARRAY_SIZE(bt));
 
+	if (env.stdout)
+		stdio_restore();
 	if (env.test) {
 		env.test_state->error_cnt++;
 		dump_test_log(env.test, env.test_state, true, false);
 	}
-	if (env.stdout)
-		stdio_restore();
 	if (env.worker_id != -1)
 		fprintf(stderr, "[%d]: ", env.worker_id);
 	fprintf(stderr, "Caught signal #%d!\nStack trace:\n", signum);

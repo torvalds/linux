@@ -103,3 +103,4 @@ bool dc_link_dpia_query_hpd_status(struct dc_link *link)
 
 	return is_hpd_high;
 }
+

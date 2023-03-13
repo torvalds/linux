@@ -152,6 +152,15 @@ static irqreturn_t t7xx_dpmaif_isr_handler(int irq, void *data)
 	}
 
 	t7xx_pcie_mac_clear_int(dpmaif_ctrl->t7xx_dev, isr_para->pcie_int);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t t7xx_dpmaif_isr_thread(int irq, void *data)
+{
+	struct dpmaif_isr_para *isr_para = data;
+	struct dpmaif_ctrl *dpmaif_ctrl = isr_para->dpmaif_ctrl;
+
 	t7xx_dpmaif_irq_cb(isr_para);
 	t7xx_pcie_mac_set_int(dpmaif_ctrl->t7xx_dev, isr_para->pcie_int);
 	return IRQ_HANDLED;
@@ -188,7 +197,7 @@ static void t7xx_dpmaif_register_pcie_irq(struct dpmaif_ctrl *dpmaif_ctrl)
 		t7xx_pcie_mac_clear_int(t7xx_dev, int_type);
 
 		t7xx_dev->intr_handler[int_type] = t7xx_dpmaif_isr_handler;
-		t7xx_dev->intr_thread[int_type] = NULL;
+		t7xx_dev->intr_thread[int_type] = t7xx_dpmaif_isr_thread;
 		t7xx_dev->callback_param[int_type] = isr_para;
 
 		t7xx_pcie_mac_clear_int_status(t7xx_dev, int_type);

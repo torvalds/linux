@@ -1083,15 +1083,6 @@ config PATA_OPTI
 
 	  If unsure, say N.
 
-config PATA_PALMLD
-	tristate "Palm LifeDrive PATA support"
-	depends on MACH_PALMLD
-	help
-	  This option enables support for Palm LifeDrive's internal ATA
-	  port via the new ATA layer.
-
-	  If unsure, say N.
-
 config PATA_PCMCIA
 	tristate "PCMCIA PATA support"
 	depends on PCMCIA
@@ -1145,16 +1136,6 @@ config PATA_RZ1000
 
 	  If unsure, say N.
 
-config PATA_SAMSUNG_CF
-	tristate "Samsung SoC PATA support"
-	depends on SAMSUNG_DEV_IDE || COMPILE_TEST
-	select PATA_TIMINGS
-	help
-	  This option enables basic support for Samsung's S3C/S5P board
-	  PATA controllers via the new ATA layer
-
-	  If unsure, say N.
-
 config PATA_WINBOND_VLB
 	tristate "Winbond W83759A VLB PATA support (Experimental)"
 	depends on ISA
@@ -1162,6 +1143,20 @@ config PATA_WINBOND_VLB
 	help
 	  Support for the Winbond W83759A controller on Vesa Local Bus
 	  systems.
+
+config PATA_PARPORT
+	tristate "Parallel port IDE device support"
+	depends on PARPORT_PC
+	help
+	  There are many external CD-ROM and disk devices that connect through
+	  your computer's parallel port. Most of them are actually IDE devices
+	  using a parallel port IDE adapter. This option enables the
+	  PATA_PARPORT subsystem which contains drivers for many of these
+	  external drives.
+	  Read <file:Documentation/admin-guide/blockdev/paride.rst> for more
+	  information.
+
+source "drivers/ata/pata_parport/Kconfig"
 
 comment "Generic fallback / legacy drivers"
 

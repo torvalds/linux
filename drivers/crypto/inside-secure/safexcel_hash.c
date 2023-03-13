@@ -625,15 +625,16 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	EIP197_REQUEST_ON_STACK(req, ahash, EIP197_AHASH_REQ_SIZE);
 	struct safexcel_ahash_req *rctx = ahash_request_ctx_dma(req);
-	struct safexcel_inv_result result = {};
+	DECLARE_CRYPTO_WAIT(result);
 	int ring = ctx->base.ring;
+	int err;
 
 	memset(req, 0, EIP197_AHASH_REQ_SIZE);
 
 	/* create invalidation request */
 	init_completion(&result.completion);
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				   safexcel_inv_complete, &result);
+				   crypto_req_done, &result);
 
 	ahash_request_set_tfm(req, __crypto_ahash_cast(tfm));
 	ctx = crypto_tfm_ctx(req->base.tfm);
@@ -647,12 +648,11 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	queue_work(priv->ring[ring].workqueue,
 		   &priv->ring[ring].work_data.work);
 
-	wait_for_completion(&result.completion);
+	err = crypto_wait_req(-EINPROGRESS, &result);
 
-	if (result.error) {
-		dev_warn(priv->dev, "hash: completion error (%d)\n",
-			 result.error);
-		return result.error;
+	if (err) {
+		dev_warn(priv->dev, "hash: completion error (%d)\n", err);
+		return err;
 	}
 
 	return 0;
@@ -1042,27 +1042,11 @@ static int safexcel_hmac_sha1_digest(struct ahash_request *areq)
 	return safexcel_ahash_finup(areq);
 }
 
-struct safexcel_ahash_result {
-	struct completion completion;
-	int error;
-};
-
-static void safexcel_ahash_complete(struct crypto_async_request *req, int error)
-{
-	struct safexcel_ahash_result *result = req->data;
-
-	if (error == -EINPROGRESS)
-		return;
-
-	result->error = error;
-	complete(&result->completion);
-}
-
 static int safexcel_hmac_init_pad(struct ahash_request *areq,
 				  unsigned int blocksize, const u8 *key,
 				  unsigned int keylen, u8 *ipad, u8 *opad)
 {
-	struct safexcel_ahash_result result;
+	DECLARE_CRYPTO_WAIT(result);
 	struct scatterlist sg;
 	int ret, i;
 	u8 *keydup;
@@ -1075,16 +1059,12 @@ static int safexcel_hmac_init_pad(struct ahash_request *areq,
 			return -ENOMEM;
 
 		ahash_request_set_callback(areq, CRYPTO_TFM_REQ_MAY_BACKLOG,
-					   safexcel_ahash_complete, &result);
+					   crypto_req_done, &result);
 		sg_init_one(&sg, keydup, keylen);
 		ahash_request_set_crypt(areq, &sg, ipad, keylen);
-		init_completion(&result.completion);
 
 		ret = crypto_ahash_digest(areq);
-		if (ret == -EINPROGRESS || ret == -EBUSY) {
-			wait_for_completion_interruptible(&result.completion);
-			ret = result.error;
-		}
+		ret = crypto_wait_req(ret, &result);
 
 		/* Avoid leaking */
 		kfree_sensitive(keydup);
@@ -1109,16 +1089,15 @@ static int safexcel_hmac_init_pad(struct ahash_request *areq,
 static int safexcel_hmac_init_iv(struct ahash_request *areq,
 				 unsigned int blocksize, u8 *pad, void *state)
 {
-	struct safexcel_ahash_result result;
 	struct safexcel_ahash_req *req;
+	DECLARE_CRYPTO_WAIT(result);
 	struct scatterlist sg;
 	int ret;
 
 	ahash_request_set_callback(areq, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				   safexcel_ahash_complete, &result);
+				   crypto_req_done, &result);
 	sg_init_one(&sg, pad, blocksize);
 	ahash_request_set_crypt(areq, &sg, pad, blocksize);
-	init_completion(&result.completion);
 
 	ret = crypto_ahash_init(areq);
 	if (ret)
@@ -1129,14 +1108,9 @@ static int safexcel_hmac_init_iv(struct ahash_request *areq,
 	req->last_req = true;
 
 	ret = crypto_ahash_update(areq);
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		return ret;
+	ret = crypto_wait_req(ret, &result);
 
-	wait_for_completion_interruptible(&result.completion);
-	if (result.error)
-		return result.error;
-
-	return crypto_ahash_export(areq, state);
+	return ret ?: crypto_ahash_export(areq, state);
 }
 
 static int __safexcel_hmac_setkey(const char *alg, const u8 *key,

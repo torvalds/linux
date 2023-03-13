@@ -82,3 +82,9 @@ flag ~empty different-values(srcu-rscs) as srcu-bad-nesting
 let Marked = (~M) | IW | Once | Release | Acquire | domain(rmw) | range(rmw) |
 		LKR | LKW | UL | LF | RL | RU
 let Plain = M \ Marked
+
+(* Redefine dependencies to include those carried through plain accesses *)
+let carry-dep = (data ; rfi)*
+let addr = carry-dep ; addr
+let ctrl = carry-dep ; ctrl
+let data = carry-dep ; data

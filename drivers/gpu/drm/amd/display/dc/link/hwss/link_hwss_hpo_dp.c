@@ -115,7 +115,7 @@ static void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx)
 			stream->use_vsc_sdp_for_colorimetry,
 			stream->timing.flags.DSC,
 			false);
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
+	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
 }
 
 static void enable_hpo_dp_fpga_link_output(struct dc_link *link,
@@ -201,7 +201,7 @@ static void set_hpo_dp_link_test_pattern(struct dc_link *link,
 {
 	link_res->hpo_dp_link_enc->funcs->set_link_test_pattern(
 			link_res->hpo_dp_link_enc, tp_params);
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
+	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
 }
 
 static void set_hpo_dp_lane_settings(struct dc_link *link,

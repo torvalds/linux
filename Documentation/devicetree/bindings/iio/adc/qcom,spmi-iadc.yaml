@@ -20,6 +20,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,pm8226-iadc
           - qcom,pm8941-iadc
       - const: qcom,spmi-iadc
 
@@ -49,7 +50,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
-    spmi_bus {
+    spmi {
         #address-cells = <1>;
         #size-cells = <0>;
         pmic_iadc: adc@3600 {

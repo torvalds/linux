@@ -149,8 +149,10 @@ struct sja1105_info {
 	bool (*rxtstamp)(struct dsa_switch *ds, int port, struct sk_buff *skb);
 	void (*txtstamp)(struct dsa_switch *ds, int port, struct sk_buff *skb);
 	int (*clocking_setup)(struct sja1105_private *priv);
-	int (*pcs_mdio_read)(struct mii_bus *bus, int phy, int reg);
-	int (*pcs_mdio_write)(struct mii_bus *bus, int phy, int reg, u16 val);
+	int (*pcs_mdio_read_c45)(struct mii_bus *bus, int phy, int mmd,
+				 int reg);
+	int (*pcs_mdio_write_c45)(struct mii_bus *bus, int phy, int mmd,
+				  int reg, u16 val);
 	int (*disable_microcontroller)(struct sja1105_private *priv);
 	const char *name;
 	bool supports_mii[SJA1105_MAX_NUM_PORTS];
@@ -303,10 +305,12 @@ void sja1105_frame_memory_partitioning(struct sja1105_private *priv);
 /* From sja1105_mdio.c */
 int sja1105_mdiobus_register(struct dsa_switch *ds);
 void sja1105_mdiobus_unregister(struct dsa_switch *ds);
-int sja1105_pcs_mdio_read(struct mii_bus *bus, int phy, int reg);
-int sja1105_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val);
-int sja1110_pcs_mdio_read(struct mii_bus *bus, int phy, int reg);
-int sja1110_pcs_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val);
+int sja1105_pcs_mdio_read_c45(struct mii_bus *bus, int phy, int mmd, int reg);
+int sja1105_pcs_mdio_write_c45(struct mii_bus *bus, int phy, int mmd, int reg,
+			       u16 val);
+int sja1110_pcs_mdio_read_c45(struct mii_bus *bus, int phy, int mmd, int reg);
+int sja1110_pcs_mdio_write_c45(struct mii_bus *bus, int phy, int mmd, int reg,
+			       u16 val);
 
 /* From sja1105_devlink.c */
 int sja1105_devlink_setup(struct dsa_switch *ds);

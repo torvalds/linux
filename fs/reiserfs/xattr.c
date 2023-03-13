@@ -66,14 +66,14 @@
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
 	BUG_ON(!inode_is_locked(dir));
-	return dir->i_op->create(&init_user_ns, dir, dentry, mode, true);
+	return dir->i_op->create(&nop_mnt_idmap, dir, dentry, mode, true);
 }
 #endif
 
 static int xattr_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	BUG_ON(!inode_is_locked(dir));
-	return dir->i_op->mkdir(&init_user_ns, dir, dentry, mode);
+	return dir->i_op->mkdir(&nop_mnt_idmap, dir, dentry, mode);
 }
 
 /*
@@ -352,7 +352,7 @@ static int chown_one_xattr(struct dentry *dentry, void *data)
 	 * ATTR_MODE is set.
 	 */
 	attrs->ia_valid &= (ATTR_UID|ATTR_GID);
-	err = reiserfs_setattr(&init_user_ns, dentry, attrs);
+	err = reiserfs_setattr(&nop_mnt_idmap, dentry, attrs);
 	attrs->ia_valid = ia_valid;
 
 	return err;
@@ -597,7 +597,7 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 		inode_lock_nested(d_inode(dentry), I_MUTEX_XATTR);
 		inode_dio_wait(d_inode(dentry));
 
-		err = reiserfs_setattr(&init_user_ns, dentry, &newattrs);
+		err = reiserfs_setattr(&nop_mnt_idmap, dentry, &newattrs);
 		inode_unlock(d_inode(dentry));
 	} else
 		update_ctime(inode);
@@ -941,7 +941,7 @@ static int xattr_mount_check(struct super_block *s)
 	return 0;
 }
 
-int reiserfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int reiserfs_permission(struct mnt_idmap *idmap, struct inode *inode,
 			int mask)
 {
 	/*
@@ -951,7 +951,7 @@ int reiserfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
 	if (IS_PRIVATE(inode))
 		return 0;
 
-	return generic_permission(&init_user_ns, inode, mask);
+	return generic_permission(&nop_mnt_idmap, inode, mask);
 }
 
 static int xattr_hide_revalidate(struct dentry *dentry, unsigned int flags)

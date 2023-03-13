@@ -83,7 +83,7 @@ xfs_iomap_valid(
 	return true;
 }
 
-static const struct iomap_page_ops xfs_iomap_page_ops = {
+static const struct iomap_folio_ops xfs_iomap_folio_ops = {
 	.iomap_valid		= xfs_iomap_valid,
 };
 
@@ -133,7 +133,7 @@ xfs_bmbt_to_iomap(
 		iomap->flags |= IOMAP_F_DIRTY;
 
 	iomap->validity_cookie = sequence_cookie;
-	iomap->page_ops = &xfs_iomap_page_ops;
+	iomap->folio_ops = &xfs_iomap_folio_ops;
 	return 0;
 }
 

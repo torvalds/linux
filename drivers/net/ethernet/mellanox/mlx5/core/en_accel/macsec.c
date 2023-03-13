@@ -7,7 +7,7 @@
 
 #include "en.h"
 #include "lib/aso.h"
-#include "lib/mlx5.h"
+#include "lib/crypto.h"
 #include "en_accel/macsec.h"
 #include "en_accel/macsec_fs.h"
 

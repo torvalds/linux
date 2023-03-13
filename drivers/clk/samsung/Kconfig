@@ -94,38 +94,6 @@ config EXYNOS_CLKOUT
 	  status of the certains clocks from SoC, but it could also be tied to
 	  other devices as an input clock.
 
-# For S3C24XX platforms, select following symbols:
-config S3C2410_COMMON_CLK
-	bool "Samsung S3C2410 clock controller support" if COMPILE_TEST
-	select COMMON_CLK_SAMSUNG
-	help
-	  Support for the clock controller present on the Samsung
-	  S3C2410/S3C2440/S3C2442 SoCs. Choose Y here only if you build for
-	  this SoC.
-
-config S3C2410_COMMON_DCLK
-	bool
-	select COMMON_CLK_SAMSUNG
-	select REGMAP_MMIO
-	help
-	  Support for the dclk clock controller present on the Samsung
-	  S3C2410/S3C2412/S3C2440/S3C2443 SoCs. Choose Y here only if you build
-	  for this SoC.
-
-config S3C2412_COMMON_CLK
-	bool "Samsung S3C2412 clock controller support" if COMPILE_TEST
-	select COMMON_CLK_SAMSUNG
-	help
-	  Support for the clock controller present on the Samsung S3C2412 SoCs.
-	  Choose Y here only if you build for this SoC.
-
-config S3C2443_COMMON_CLK
-	bool "Samsung S3C2443 clock controller support" if COMPILE_TEST
-	select COMMON_CLK_SAMSUNG
-	help
-	  Support for the clock controller present on the Samsung
-	  S3C2416/S3C2443 SoCs. Choose Y here only if you build for this SoC.
-
 config TESLA_FSD_COMMON_CLK
 	bool "Tesla FSD clock controller support" if COMPILE_TEST
 	depends on COMMON_CLK_SAMSUNG

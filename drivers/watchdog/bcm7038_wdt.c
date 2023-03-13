@@ -127,11 +127,6 @@ static const struct watchdog_ops bcm7038_wdt_ops = {
 	.get_timeleft	= bcm7038_wdt_get_timeleft,
 };
 
-static void bcm7038_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int bcm7038_wdt_probe(struct platform_device *pdev)
 {
 	struct bcm7038_wdt_platform_data *pdata = pdev->dev.platform_data;
@@ -153,17 +148,9 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	if (pdata && pdata->clk_name)
 		clk_name = pdata->clk_name;
 
-	wdt->clk = devm_clk_get(dev, clk_name);
+	wdt->clk = devm_clk_get_enabled(dev, clk_name);
 	/* If unable to get clock, use default frequency */
 	if (!IS_ERR(wdt->clk)) {
-		err = clk_prepare_enable(wdt->clk);
-		if (err)
-			return err;
-		err = devm_add_action_or_reset(dev,
-					       bcm7038_clk_disable_unprepare,
-					       wdt->clk);
-		if (err)
-			return err;
 		wdt->rate = clk_get_rate(wdt->clk);
 		/* Prevent divide-by-zero exception */
 		if (!wdt->rate)

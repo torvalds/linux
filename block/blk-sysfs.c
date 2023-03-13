@@ -16,6 +16,7 @@
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
+#include "blk-rq-qos.h"
 #include "blk-wbt.h"
 #include "blk-cgroup.h"
 #include "blk-throttle.h"
@@ -239,19 +240,28 @@ static ssize_t queue_zone_append_max_show(struct request_queue *q, char *page)
 static ssize_t
 queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 {
-	unsigned long max_sectors_kb,
+	unsigned long var;
+	unsigned int max_sectors_kb,
 		max_hw_sectors_kb = queue_max_hw_sectors(q) >> 1,
 			page_kb = 1 << (PAGE_SHIFT - 10);
-	ssize_t ret = queue_var_store(&max_sectors_kb, page, count);
+	ssize_t ret = queue_var_store(&var, page, count);
 
 	if (ret < 0)
 		return ret;
 
-	max_hw_sectors_kb = min_not_zero(max_hw_sectors_kb, (unsigned long)
+	max_sectors_kb = (unsigned int)var;
+	max_hw_sectors_kb = min_not_zero(max_hw_sectors_kb,
 					 q->limits.max_dev_sectors >> 1);
-
-	if (max_sectors_kb > max_hw_sectors_kb || max_sectors_kb < page_kb)
-		return -EINVAL;
+	if (max_sectors_kb == 0) {
+		q->limits.max_user_sectors = 0;
+		max_sectors_kb = min(max_hw_sectors_kb,
+				     BLK_DEF_MAX_SECTORS >> 1);
+	} else {
+		if (max_sectors_kb > max_hw_sectors_kb ||
+		    max_sectors_kb < page_kb)
+			return -EINVAL;
+		q->limits.max_user_sectors = max_sectors_kb << 1;
+	}
 
 	spin_lock_irq(&q->queue_lock);
 	q->limits.max_sectors = max_sectors_kb << 1;
@@ -491,7 +501,7 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 
 	rqos = wbt_rq_qos(q);
 	if (!rqos) {
-		ret = wbt_init(q);
+		ret = wbt_init(q->disk);
 		if (ret)
 			return ret;
 	}
@@ -755,7 +765,7 @@ static void blk_queue_release(struct kobject *kobj)
 	/* nothing to do here, all data is associated with the parent gendisk */
 }
 
-static struct kobj_type blk_queue_ktype = {
+static const struct kobj_type blk_queue_ktype = {
 	.default_groups = blk_queue_attr_groups,
 	.sysfs_ops	= &queue_sysfs_ops,
 	.release	= blk_queue_release,
@@ -817,7 +827,7 @@ int blk_register_queue(struct gendisk *disk)
 		goto out_elv_unregister;
 
 	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
-	wbt_enable_default(q);
+	wbt_enable_default(disk);
 	blk_throtl_register(disk);
 
 	/* Now everything is ready and send out KOBJ_ADD uevent */

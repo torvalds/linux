@@ -7,9 +7,12 @@
 #include "../include/usb_ops.h"
 #include "../include/rtl8188e_hal.h"
 
-static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)
+#define VENDOR_CMD_MAX_DATA_LEN	254
+
+#define RTW_USB_CONTROL_MSG_TIMEOUT	500/* ms */
+
+static int usb_read(struct adapter *adapt, u16 value, void *data, u8 size)
 {
-	struct adapter *adapt = intf->padapter;
 	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
 	struct usb_device *udev = dvobjpriv->pusbdev;
 	int status;
@@ -50,9 +53,8 @@ static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	return status;
 }
 
-static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
+static int usb_write(struct adapter *adapt, u16 value, void *data, u8 size)
 {
-	struct adapter *adapt = intf->padapter;
 	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
 	struct usb_device *udev = dvobjpriv->pusbdev;
 	int status;
@@ -95,22 +97,18 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 
 int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
 
-	return usb_read(intf, value, data, 1);
+	return usb_read(adapter, value, data, 1);
 }
 
 int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
 	__le16 le_data;
 	int res;
 
-	res = usb_read(intf, value, &le_data, 2);
+	res = usb_read(adapter, value, &le_data, 2);
 	if (res)
 		return res;
 
@@ -121,13 +119,11 @@ int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 
 int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
 	__le32 le_data;
 	int res;
 
-	res = usb_read(intf, value, &le_data, 4);
+	res = usb_read(adapter, value, &le_data, 4);
 	if (res)
 		return res;
 
@@ -138,55 +134,44 @@ int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data)
 
 int rtw_write8(struct adapter *adapter, u32 addr, u8 val)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
 	int ret;
 
-	ret = usb_write(intf, value, &val, 1);
+	ret = usb_write(adapter, value, &val, 1);
 
 	return RTW_STATUS_CODE(ret);
 }
 
 int rtw_write16(struct adapter *adapter, u32 addr, u16 val)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
 	__le16 data = cpu_to_le16(val);
 	int ret;
 
-	ret = usb_write(intf, value, &data, 2);
+	ret = usb_write(adapter, value, &data, 2);
 
 	return RTW_STATUS_CODE(ret);
 }
 
 int rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
 	__le32 data = cpu_to_le32(val);
 	int ret;
 
-	ret = usb_write(intf, value, &data, 4);
+	ret = usb_write(adapter, value, &data, 4);
 
 	return RTW_STATUS_CODE(ret);
 }
 
 int rtw_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *data)
 {
-	struct io_priv *io_priv = &adapter->iopriv;
-	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
-	int ret;
 
 	if (length > VENDOR_CMD_MAX_DATA_LEN)
-		return _FAIL;
+		return -EINVAL;
 
-	ret = usb_write(intf, value, data, length);
-
-	return RTW_STATUS_CODE(ret);
+	return usb_write(adapter, value, data, length);
 }
 
 static void handle_txrpt_ccx_88e(struct adapter *adapter, u8 *buf)
@@ -363,7 +348,7 @@ void rtl8188eu_recv_tasklet(unsigned long priv)
 	}
 }
 
-static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
+static void usb_read_port_complete(struct urb *purb)
 {
 	struct recv_buf	*precvbuf = (struct recv_buf *)purb->context;
 	struct adapter	*adapt = (struct adapter *)precvbuf->adapter;
@@ -379,7 +364,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	if (purb->status == 0) { /* SUCCESS */
 		if ((purb->actual_length > MAX_RECVBUF_SZ) || (purb->actual_length < RXDESC_SIZE)) {
 			precvbuf->reuse = true;
-			rtw_read_port(adapt, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, precvbuf);
 		} else {
 			rtw_reset_continual_urb_error(adapter_to_dvobj(adapt));
 
@@ -391,7 +376,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 
 			precvbuf->pskb = NULL;
 			precvbuf->reuse = false;
-			rtw_read_port(adapt, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, precvbuf);
 		}
 	} else {
 		skb_put(precvbuf->pskb, purb->actual_length);
@@ -411,7 +396,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		case -EPROTO:
 		case -EOVERFLOW:
 			precvbuf->reuse = true;
-			rtw_read_port(adapt, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, precvbuf);
 			break;
 		case -EINPROGRESS:
 			break;
@@ -421,10 +406,9 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	}
 }
 
-u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
+int rtw_read_port(struct adapter *adapter, struct recv_buf *precvbuf)
 {
 	struct urb *purb = NULL;
-	struct recv_buf	*precvbuf = (struct recv_buf *)rmem;
 	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
 	struct recv_priv	*precvpriv = &adapter->recvpriv;
 	struct usb_device	*pusbd = pdvobj->pusbdev;
@@ -432,13 +416,12 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 	unsigned int pipe;
 	size_t tmpaddr = 0;
 	size_t alignment = 0;
-	u32 ret = _SUCCESS;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
-		return _FAIL;
+		return -EPERM;
 
 	if (!precvbuf)
-		return _FAIL;
+		return -ENOMEM;
 
 	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
@@ -450,7 +433,7 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
 		if (!precvbuf->pskb)
-			return _FAIL;
+			return -ENOMEM;
 
 		tmpaddr = (size_t)precvbuf->pskb->data;
 		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
@@ -474,29 +457,20 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 
 	err = usb_submit_urb(purb, GFP_ATOMIC);
 	if ((err) && (err != (-EPERM)))
-		ret = _FAIL;
+		return err;
 
-	return ret;
+	return 0;
 }
 
 void rtl8188eu_xmit_tasklet(unsigned long priv)
 {
-	int ret = false;
 	struct adapter *adapt = (struct adapter *)priv;
-	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 
 	if (check_fwstate(&adapt->mlmepriv, _FW_UNDER_SURVEY))
 		return;
 
-	while (1) {
-		if ((adapt->bDriverStopped) ||
-		    (adapt->bSurpriseRemoved) ||
-		    (adapt->bWritePortCancel))
+	do {
+		if (adapt->bDriverStopped || adapt->bSurpriseRemoved || adapt->bWritePortCancel)
 			break;
-
-		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv, NULL);
-
-		if (!ret)
-			break;
-	}
+	} while (rtl8188eu_xmitframe_complete(adapt));
 }

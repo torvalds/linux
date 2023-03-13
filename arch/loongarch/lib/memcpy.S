@@ -17,6 +17,7 @@ SYM_FUNC_START(memcpy)
 	ALTERNATIVE	"b __memcpy_generic", \
 			"b __memcpy_fast", CPU_FEATURE_UAL
 SYM_FUNC_END(memcpy)
+_ASM_NOKPROBE(memcpy)
 
 EXPORT_SYMBOL(memcpy)
 
@@ -41,6 +42,7 @@ SYM_FUNC_START(__memcpy_generic)
 2:	move	a0, a3
 	jr	ra
 SYM_FUNC_END(__memcpy_generic)
+_ASM_NOKPROBE(__memcpy_generic)
 
 /*
  * void *__memcpy_fast(void *dst, const void *src, size_t n)
@@ -93,3 +95,4 @@ SYM_FUNC_START(__memcpy_fast)
 3:	move	a0, a3
 	jr	ra
 SYM_FUNC_END(__memcpy_fast)
+_ASM_NOKPROBE(__memcpy_fast)

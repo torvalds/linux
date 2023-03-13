@@ -263,6 +263,7 @@ struct vba_vars_st {
 	int maxMpcComb;
 	bool UseMaximumVStartup;
 
+	double MaxVRatioPre;
 	double WritebackDISPCLK;
 	double DPPCLKUsingSingleDPPLuma;
 	double DPPCLKUsingSingleDPPChroma;

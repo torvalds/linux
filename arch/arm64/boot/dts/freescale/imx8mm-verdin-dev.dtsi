@@ -3,8 +3,6 @@
  * Copyright 2022 Toradex
  */
 
-#include "imx8mm-verdin-dahlia.dtsi"
-
 / {
 	sound_card: sound-card {
 		compatible = "simple-audio-card";
@@ -42,17 +40,92 @@
 	};
 };
 
+/* Verdin SPI_1 */
+&ecspi2 {
+	status = "okay";
+};
+
+/* EEPROM on display adapter boards */
+&eeprom_display_adapter {
+	status = "okay";
+};
+
+/* EEPROM on Verdin Development board */
+&eeprom_carrier_board {
+	status = "okay";
+};
+
+&fec1 {
+	status = "okay";
+};
+
+/* Verdin QSPI_1 */
+&flexspi {
+	status = "okay";
+};
+
+/* Current measurement into module VCC */
+&hwmon {
+	status = "okay";
+};
+
+&hwmon_temp {
+	vs-supply = <&reg_1p8v>;
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
 &gpio_expander_21 {
 	status = "okay";
 };
 
 /* Verdin I2C_1 */
 &i2c4 {
+	status = "okay";
+
 	/* Audio Codec */
 	nau8822_1a: audio-codec@1a {
 		compatible = "nuvoton,nau8822";
 		reg = <0x1a>;
+		#sound-dai-cells = <0>;
 	};
+};
+
+/* Verdin PCIE_1 */
+&pcie0 {
+	status = "okay";
+};
+
+&pcie_phy {
+	status = "okay";
+};
+
+/* Verdin PWM_3_DSI */
+&pwm1 {
+	status = "okay";
+};
+
+/* Verdin PWM_1 */
+&pwm2 {
+	status = "okay";
+};
+
+/* Verdin PWM_2 */
+&pwm3 {
+	status = "okay";
+};
+
+/* Verdin I2S_1 */
+&sai2 {
+	status = "okay";
+};
+
+/* Verdin UART_3 */
+&uart1 {
+	status = "okay";
 };
 
 /* Verdin UART_1, connector X50 through RS485 transceiver */
@@ -60,9 +133,28 @@
 	linux,rs485-enabled-at-boot-time;
 	rs485-rts-active-low;
 	rs485-rx-during-tx;
+	status = "okay";
+};
+
+/* Verdin UART_2 */
+&uart3 {
+	status = "okay";
+};
+
+/* Verdin USB_1 */
+&usbotg1 {
+	disable-over-current;
+	status = "okay";
+};
+
+/* Verdin USB_2 */
+&usbotg2 {
+	disable-over-current;
+	status = "okay";
 };
 
 /* Limit frequency on dev board due to long traces and bad signal integrity */
 &usdhc2 {
 	max-frequency = <100000000>;
+	status = "okay";
 };

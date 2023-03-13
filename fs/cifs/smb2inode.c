@@ -105,14 +105,15 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		goto finished;
 	}
 
-	vars->oparms.tcon = tcon;
-	vars->oparms.desired_access = desired_access;
-	vars->oparms.disposition = create_disposition;
-	vars->oparms.create_options = cifs_create_options(cifs_sb, create_options);
-	vars->oparms.fid = &fid;
-	vars->oparms.reconnect = false;
-	vars->oparms.mode = mode;
-	vars->oparms.cifs_sb = cifs_sb;
+	vars->oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.desired_access = desired_access,
+		.disposition = create_disposition,
+		.create_options = cifs_create_options(cifs_sb, create_options),
+		.fid = &fid,
+		.mode = mode,
+		.cifs_sb = cifs_sb,
+	};
 
 	rqst[num_rqst].rq_iov = &vars->open_iov[0];
 	rqst[num_rqst].rq_nvec = SMB2_CREATE_IOV_SIZE;
@@ -526,12 +527,13 @@ int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 struct cifs_sb_info *cifs_sb, const char *full_path,
 			 struct cifs_open_info_data *data, bool *adjust_tz, bool *reparse)
 {
-	int rc;
 	__u32 create_options = 0;
 	struct cifsFileInfo *cfile;
 	struct cached_fid *cfid = NULL;
 	struct kvec err_iov[3] = {};
 	int err_buftype[3] = {};
+	bool islink;
+	int rc, rc2;
 
 	*adjust_tz = false;
 	*reparse = false;
@@ -579,15 +581,15 @@ int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 					      SMB2_OP_QUERY_INFO, cfile, NULL, NULL,
 					      NULL, NULL);
 			goto out;
-		} else if (rc != -EREMOTE && IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) &&
-			   hdr->Status == STATUS_OBJECT_NAME_INVALID) {
-			/*
-			 * Handle weird Windows SMB server behaviour. It responds with
-			 * STATUS_OBJECT_NAME_INVALID code to SMB2 QUERY_INFO request
-			 * for "\<server>\<dfsname>\<linkpath>" DFS reference,
-			 * where <dfsname> contains non-ASCII unicode symbols.
-			 */
-			rc = -EREMOTE;
+		} else if (rc != -EREMOTE && hdr->Status == STATUS_OBJECT_NAME_INVALID) {
+			rc2 = cifs_inval_name_dfs_link_error(xid, tcon, cifs_sb,
+							     full_path, &islink);
+			if (rc2) {
+				rc = rc2;
+				goto out;
+			}
+			if (islink)
+				rc = -EREMOTE;
 		}
 		if (rc == -EREMOTE && IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) && cifs_sb &&
 		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS))

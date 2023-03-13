@@ -16,7 +16,9 @@
 #include "caamalg_desc.h"
 #include "caamhash_desc.h"
 #include "dpseci-debugfs.h"
+#include <linux/dma-mapping.h>
 #include <linux/fsl/mc.h>
+#include <linux/kernel.h>
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
 #include <crypto/xts.h>
@@ -370,7 +372,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	struct dpaa2_sg_entry *sg_table;
 
 	/* allocate space for base edesc, link tables and IV */
-	edesc = qi_cache_zalloc(GFP_DMA | flags);
+	edesc = qi_cache_zalloc(flags);
 	if (unlikely(!edesc)) {
 		dev_err(dev, "could not allocate extended descriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1189,7 +1191,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req)
 	}
 
 	/* allocate space for base edesc, link tables and IV */
-	edesc = qi_cache_zalloc(GFP_DMA | flags);
+	edesc = qi_cache_zalloc(flags);
 	if (unlikely(!edesc)) {
 		dev_err(dev, "could not allocate extended descriptor\n");
 		caam_unmap(dev, req->src, req->dst, src_nents, dst_nents, 0,
@@ -3220,14 +3222,14 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
 	int ret = -ENOMEM;
 	struct dpaa2_fl_entry *in_fle, *out_fle;
 
-	req_ctx = kzalloc(sizeof(*req_ctx), GFP_KERNEL | GFP_DMA);
+	req_ctx = kzalloc(sizeof(*req_ctx), GFP_KERNEL);
 	if (!req_ctx)
 		return -ENOMEM;
 
 	in_fle = &req_ctx->fd_flt[1];
 	out_fle = &req_ctx->fd_flt[0];
 
-	flc = kzalloc(sizeof(*flc), GFP_KERNEL | GFP_DMA);
+	flc = kzalloc(sizeof(*flc), GFP_KERNEL);
 	if (!flc)
 		goto err_flc;
 
@@ -3316,7 +3318,13 @@ static int ahash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	dev_dbg(ctx->dev, "keylen %d blocksize %d\n", keylen, blocksize);
 
 	if (keylen > blocksize) {
-		hashed_key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
+		unsigned int aligned_len =
+			ALIGN(keylen, dma_get_cache_alignment());
+
+		if (aligned_len < keylen)
+			return -EOVERFLOW;
+
+		hashed_key = kmemdup(key, aligned_len, GFP_KERNEL);
 		if (!hashed_key)
 			return -ENOMEM;
 		ret = hash_digest_key(ctx, &keylen, hashed_key, digestsize);
@@ -3411,7 +3419,7 @@ static void ahash_done(void *cbk_ctx, u32 status)
 			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
 			     ctx->ctx_len, 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static void ahash_done_bi(void *cbk_ctx, u32 status)
@@ -3449,7 +3457,7 @@ static void ahash_done_bi(void *cbk_ctx, u32 status)
 				     DUMP_PREFIX_ADDRESS, 16, 4, req->result,
 				     crypto_ahash_digestsize(ahash), 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static void ahash_done_ctx_src(void *cbk_ctx, u32 status)
@@ -3476,7 +3484,7 @@ static void ahash_done_ctx_src(void *cbk_ctx, u32 status)
 			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
 			     ctx->ctx_len, 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static void ahash_done_ctx_dst(void *cbk_ctx, u32 status)
@@ -3514,7 +3522,7 @@ static void ahash_done_ctx_dst(void *cbk_ctx, u32 status)
 				     DUMP_PREFIX_ADDRESS, 16, 4, req->result,
 				     crypto_ahash_digestsize(ahash), 1);
 
-	req->base.complete(&req->base, ecode);
+	ahash_request_complete(req, ecode);
 }
 
 static int ahash_update_ctx(struct ahash_request *req)
@@ -3560,7 +3568,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 		}
 
 		/* allocate space for base edesc and link tables */
-		edesc = qi_cache_zalloc(GFP_DMA | flags);
+		edesc = qi_cache_zalloc(flags);
 		if (!edesc) {
 			dma_unmap_sg(ctx->dev, req->src, src_nents,
 				     DMA_TO_DEVICE);
@@ -3654,7 +3662,7 @@ static int ahash_final_ctx(struct ahash_request *req)
 	int ret;
 
 	/* allocate space for base edesc and link tables */
-	edesc = qi_cache_zalloc(GFP_DMA | flags);
+	edesc = qi_cache_zalloc(flags);
 	if (!edesc)
 		return -ENOMEM;
 
@@ -3743,7 +3751,7 @@ static int ahash_finup_ctx(struct ahash_request *req)
 	}
 
 	/* allocate space for base edesc and link tables */
-	edesc = qi_cache_zalloc(GFP_DMA | flags);
+	edesc = qi_cache_zalloc(flags);
 	if (!edesc) {
 		dma_unmap_sg(ctx->dev, req->src, src_nents, DMA_TO_DEVICE);
 		return -ENOMEM;
@@ -3836,7 +3844,7 @@ static int ahash_digest(struct ahash_request *req)
 	}
 
 	/* allocate space for base edesc and link tables */
-	edesc = qi_cache_zalloc(GFP_DMA | flags);
+	edesc = qi_cache_zalloc(flags);
 	if (!edesc) {
 		dma_unmap_sg(ctx->dev, req->src, src_nents, DMA_TO_DEVICE);
 		return ret;
@@ -3913,7 +3921,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	int ret = -ENOMEM;
 
 	/* allocate space for base edesc and link tables */
-	edesc = qi_cache_zalloc(GFP_DMA | flags);
+	edesc = qi_cache_zalloc(flags);
 	if (!edesc)
 		return ret;
 
@@ -4012,7 +4020,7 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 		}
 
 		/* allocate space for base edesc and link tables */
-		edesc = qi_cache_zalloc(GFP_DMA | flags);
+		edesc = qi_cache_zalloc(flags);
 		if (!edesc) {
 			dma_unmap_sg(ctx->dev, req->src, src_nents,
 				     DMA_TO_DEVICE);
@@ -4125,7 +4133,7 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 	}
 
 	/* allocate space for base edesc and link tables */
-	edesc = qi_cache_zalloc(GFP_DMA | flags);
+	edesc = qi_cache_zalloc(flags);
 	if (!edesc) {
 		dma_unmap_sg(ctx->dev, req->src, src_nents, DMA_TO_DEVICE);
 		return ret;
@@ -4230,7 +4238,7 @@ static int ahash_update_first(struct ahash_request *req)
 		}
 
 		/* allocate space for base edesc and link tables */
-		edesc = qi_cache_zalloc(GFP_DMA | flags);
+		edesc = qi_cache_zalloc(flags);
 		if (!edesc) {
 			dma_unmap_sg(ctx->dev, req->src, src_nents,
 				     DMA_TO_DEVICE);
@@ -4926,6 +4934,7 @@ static int dpaa2_dpseci_congestion_setup(struct dpaa2_caam_priv *priv,
 {
 	struct dpseci_congestion_notification_cfg cong_notif_cfg = { 0 };
 	struct device *dev = priv->dev;
+	unsigned int alignmask;
 	int err;
 
 	/*
@@ -4936,13 +4945,14 @@ static int dpaa2_dpseci_congestion_setup(struct dpaa2_caam_priv *priv,
 	    !(priv->dpseci_attr.options & DPSECI_OPT_HAS_CG))
 		return 0;
 
-	priv->cscn_mem = kzalloc(DPAA2_CSCN_SIZE + DPAA2_CSCN_ALIGN,
-				 GFP_KERNEL | GFP_DMA);
+	alignmask = DPAA2_CSCN_ALIGN - 1;
+	alignmask |= dma_get_cache_alignment() - 1;
+	priv->cscn_mem = kzalloc(ALIGN(DPAA2_CSCN_SIZE, alignmask + 1),
+				 GFP_KERNEL);
 	if (!priv->cscn_mem)
 		return -ENOMEM;
 
-	priv->cscn_mem_aligned = PTR_ALIGN(priv->cscn_mem, DPAA2_CSCN_ALIGN);
-	priv->cscn_dma = dma_map_single(dev, priv->cscn_mem_aligned,
+	priv->cscn_dma = dma_map_single(dev, priv->cscn_mem,
 					DPAA2_CSCN_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, priv->cscn_dma)) {
 		dev_err(dev, "Error mapping CSCN memory area\n");
@@ -5174,7 +5184,7 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 	priv->domain = iommu_get_domain_for_dev(dev);
 
 	qi_cache = kmem_cache_create("dpaa2_caamqicache", CAAM_QI_MEMCACHE_SIZE,
-				     0, SLAB_CACHE_DMA, NULL);
+				     0, 0, NULL);
 	if (!qi_cache) {
 		dev_err(dev, "Can't allocate SEC cache\n");
 		return -ENOMEM;
@@ -5451,7 +5461,7 @@ int dpaa2_caam_enqueue(struct device *dev, struct caam_request *req)
 		dma_sync_single_for_cpu(priv->dev, priv->cscn_dma,
 					DPAA2_CSCN_SIZE,
 					DMA_FROM_DEVICE);
-		if (unlikely(dpaa2_cscn_state_congested(priv->cscn_mem_aligned))) {
+		if (unlikely(dpaa2_cscn_state_congested(priv->cscn_mem))) {
 			dev_dbg_ratelimited(dev, "Dropping request\n");
 			return -EBUSY;
 		}

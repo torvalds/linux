@@ -77,9 +77,6 @@ void inet_twsk_free(struct inet_timewait_sock *tw)
 {
 	struct module *owner = tw->tw_prot->owner;
 	twsk_destructor((struct sock *)tw);
-#ifdef SOCK_REFCNT_DEBUG
-	pr_debug("%s timewait_sock %p released\n", tw->tw_prot->name, tw);
-#endif
 	kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
 	module_put(owner);
 }

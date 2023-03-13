@@ -1096,9 +1096,12 @@ void dml32_CalculatePrefetchBandwithSupport(unsigned int NumberOfActiveSurfaces,
 		double UrgentBurstFactorLumaPre[],
 		double UrgentBurstFactorChromaPre[],
 		double UrgentBurstFactorCursorPre[],
+		double PrefetchBW[],
+		double VRatio[],
+		double MaxVRatioPre,
 
 		/* output */
-		double  *PrefetchBandwidth,
+		double  *MaxPrefetchBandwidth,
 		double  *FractionOfUrgentBandwidth,
 		bool *PrefetchBandwidthSupport);
 

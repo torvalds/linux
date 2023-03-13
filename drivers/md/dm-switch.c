@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2012 by Dell Inc.  All rights reserved.
  * Copyright (C) 2011-2013 Red Hat, Inc.
@@ -38,9 +39,9 @@ struct switch_path {
 struct switch_ctx {
 	struct dm_target *ti;
 
-	unsigned nr_paths;		/* Number of paths in path_list. */
+	unsigned int nr_paths;		/* Number of paths in path_list. */
 
-	unsigned region_size;		/* Region size in 512-byte sectors */
+	unsigned int region_size;		/* Region size in 512-byte sectors */
 	unsigned long nr_regions;	/* Number of regions making up the device */
 	signed char region_size_bits;	/* log2 of region_size or -1 */
 
@@ -56,8 +57,8 @@ struct switch_ctx {
 	struct switch_path path_list[];
 };
 
-static struct switch_ctx *alloc_switch_ctx(struct dm_target *ti, unsigned nr_paths,
-					   unsigned region_size)
+static struct switch_ctx *alloc_switch_ctx(struct dm_target *ti, unsigned int nr_paths,
+					   unsigned int region_size)
 {
 	struct switch_ctx *sctx;
 
@@ -73,7 +74,7 @@ static struct switch_ctx *alloc_switch_ctx(struct dm_target *ti, unsigned nr_pat
 	return sctx;
 }
 
-static int alloc_region_table(struct dm_target *ti, unsigned nr_paths)
+static int alloc_region_table(struct dm_target *ti, unsigned int nr_paths)
 {
 	struct switch_ctx *sctx = ti->private;
 	sector_t nr_regions = ti->len;
@@ -124,7 +125,7 @@ static int alloc_region_table(struct dm_target *ti, unsigned nr_paths)
 }
 
 static void switch_get_position(struct switch_ctx *sctx, unsigned long region_nr,
-				unsigned long *region_index, unsigned *bit)
+				unsigned long *region_index, unsigned int *bit)
 {
 	if (sctx->region_entries_per_slot_bits >= 0) {
 		*region_index = region_nr >> sctx->region_entries_per_slot_bits;
@@ -137,10 +138,10 @@ static void switch_get_position(struct switch_ctx *sctx, unsigned long region_nr
 	*bit *= sctx->region_table_entry_bits;
 }
 
-static unsigned switch_region_table_read(struct switch_ctx *sctx, unsigned long region_nr)
+static unsigned int switch_region_table_read(struct switch_ctx *sctx, unsigned long region_nr)
 {
 	unsigned long region_index;
-	unsigned bit;
+	unsigned int bit;
 
 	switch_get_position(sctx, region_nr, &region_index, &bit);
 
@@ -151,9 +152,9 @@ static unsigned switch_region_table_read(struct switch_ctx *sctx, unsigned long 
 /*
  * Find which path to use at given offset.
  */
-static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
+static unsigned int switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 {
-	unsigned path_nr;
+	unsigned int path_nr;
 	sector_t p;
 
 	p = offset;
@@ -172,10 +173,10 @@ static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 }
 
 static void switch_region_table_write(struct switch_ctx *sctx, unsigned long region_nr,
-				      unsigned value)
+				      unsigned int value)
 {
 	unsigned long region_index;
-	unsigned bit;
+	unsigned int bit;
 	region_table_slot_t pte;
 
 	switch_get_position(sctx, region_nr, &region_index, &bit);
@@ -191,7 +192,7 @@ static void switch_region_table_write(struct switch_ctx *sctx, unsigned long reg
  */
 static void initialise_region_table(struct switch_ctx *sctx)
 {
-	unsigned path_nr = 0;
+	unsigned int path_nr = 0;
 	unsigned long region_nr;
 
 	for (region_nr = 0; region_nr < sctx->nr_regions; region_nr++) {
@@ -249,7 +250,7 @@ static void switch_dtr(struct dm_target *ti)
  * Optional args are to allow for future extension: currently this
  * parameter must be 0.
  */
-static int switch_ctr(struct dm_target *ti, unsigned argc, char **argv)
+static int switch_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	static const struct dm_arg _args[] = {
 		{1, (KMALLOC_MAX_SIZE - sizeof(struct switch_ctx)) / sizeof(struct switch_path), "Invalid number of paths"},
@@ -259,7 +260,7 @@ static int switch_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	struct switch_ctx *sctx;
 	struct dm_arg_set as;
-	unsigned nr_paths, region_size, nr_optional_args;
+	unsigned int nr_paths, region_size, nr_optional_args;
 	int r;
 
 	as.argc = argc;
@@ -320,7 +321,7 @@ static int switch_map(struct dm_target *ti, struct bio *bio)
 {
 	struct switch_ctx *sctx = ti->private;
 	sector_t offset = dm_target_offset(ti, bio->bi_iter.bi_sector);
-	unsigned path_nr = switch_get_path_nr(sctx, offset);
+	unsigned int path_nr = switch_get_path_nr(sctx, offset);
 
 	bio_set_dev(bio, sctx->path_list[path_nr].dmdev->bdev);
 	bio->bi_iter.bi_sector = sctx->path_list[path_nr].start + offset;
@@ -371,9 +372,9 @@ static __always_inline unsigned long parse_hex(const char **string)
 }
 
 static int process_set_region_mappings(struct switch_ctx *sctx,
-				       unsigned argc, char **argv)
+				       unsigned int argc, char **argv)
 {
-	unsigned i;
+	unsigned int i;
 	unsigned long region_index = 0;
 
 	for (i = 1; i < argc; i++) {
@@ -466,8 +467,8 @@ static int process_set_region_mappings(struct switch_ctx *sctx,
  *
  * Only set_region_mappings is supported.
  */
-static int switch_message(struct dm_target *ti, unsigned argc, char **argv,
-			  char *result, unsigned maxlen)
+static int switch_message(struct dm_target *ti, unsigned int argc, char **argv,
+			  char *result, unsigned int maxlen)
 {
 	static DEFINE_MUTEX(message_mutex);
 
@@ -487,10 +488,10 @@ static int switch_message(struct dm_target *ti, unsigned argc, char **argv,
 }
 
 static void switch_status(struct dm_target *ti, status_type_t type,
-			  unsigned status_flags, char *result, unsigned maxlen)
+			  unsigned int status_flags, char *result, unsigned int maxlen)
 {
 	struct switch_ctx *sctx = ti->private;
-	unsigned sz = 0;
+	unsigned int sz = 0;
 	int path_nr;
 
 	switch (type) {
@@ -519,7 +520,7 @@ static void switch_status(struct dm_target *ti, status_type_t type,
 static int switch_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 {
 	struct switch_ctx *sctx = ti->private;
-	unsigned path_nr;
+	unsigned int path_nr;
 
 	path_nr = switch_get_path_nr(sctx, 0);
 

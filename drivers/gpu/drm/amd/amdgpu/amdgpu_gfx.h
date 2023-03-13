@@ -178,6 +178,8 @@ struct amdgpu_gfx_config {
 	uint32_t num_sc_per_sh;
 	uint32_t num_packer_per_sc;
 	uint32_t pa_sc_tile_steering_override;
+	/* Whether texture coordinate truncation is conformant. */
+	bool ta_cntl2_truncate_coord_mode;
 	uint64_t tcc_disabled_mask;
 	uint32_t gc_num_tcp_per_sa;
 	uint32_t gc_num_sdp_interface;

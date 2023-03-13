@@ -933,7 +933,7 @@ void enc1_stream_encoder_dp_blank(
 	/* disable DP stream */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, 0);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_DP_VID_STREAM);
+	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_DP_VID_STREAM);
 
 	/* the encoder stops sending the video stream
 	 * at the start of the vertical blanking.
@@ -952,7 +952,7 @@ void enc1_stream_encoder_dp_blank(
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, true);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_FIFO_STEER_RESET);
+	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_FIFO_STEER_RESET);
 }
 
 /* output video stream to link encoder */
@@ -1025,7 +1025,7 @@ void enc1_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
+	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 void enc1_stream_encoder_set_avmute(

@@ -11,10 +11,10 @@ that can be viewed via existing tools, such as ftrace and perf.
 To enable this feature, build your kernel with CONFIG_USER_EVENTS=y.
 
 Programs can view status of the events via
-/sys/kernel/debug/tracing/user_events_status and can both register and write
-data out via /sys/kernel/debug/tracing/user_events_data.
+/sys/kernel/tracing/user_events_status and can both register and write
+data out via /sys/kernel/tracing/user_events_data.
 
-Programs can also use /sys/kernel/debug/tracing/dynamic_events to register and
+Programs can also use /sys/kernel/tracing/dynamic_events to register and
 delete user based events via the u: prefix. The format of the command to
 dynamic_events is the same as the ioctl with the u: prefix applied.
 
@@ -22,9 +22,9 @@ Typically programs will register a set of events that they wish to expose to
 tools that can read trace_events (such as ftrace and perf). The registration
 process gives back two ints to the program for each event. The first int is
 the status bit. This describes which bit in little-endian format in the
-/sys/kernel/debug/tracing/user_events_status file represents this event. The
+/sys/kernel/tracing/user_events_status file represents this event. The
 second int is the write index which describes the data when a write() or
-writev() is called on the /sys/kernel/debug/tracing/user_events_data file.
+writev() is called on the /sys/kernel/tracing/user_events_data file.
 
 The structures referenced in this document are contained within the
 /include/uapi/linux/user_events.h file in the source tree.
@@ -35,7 +35,7 @@ filesystem and may be mounted at different paths than above.*
 Registering
 -----------
 Registering within a user process is done via ioctl() out to the
-/sys/kernel/debug/tracing/user_events_data file. The command to issue is
+/sys/kernel/tracing/user_events_data file. The command to issue is
 DIAG_IOCSREG.
 
 This command takes a packed struct user_reg as an argument::
@@ -54,7 +54,7 @@ and the write index.
 
 User based events show up under tracefs like any other event under the
 subsystem named "user_events". This means tools that wish to attach to the
-events need to use /sys/kernel/debug/tracing/events/user_events/[name]/enable
+events need to use /sys/kernel/tracing/events/user_events/[name]/enable
 or perf record -e user_events:[name] when attaching/recording.
 
 **NOTE:** *The write_index returned is only valid for the FD that was used*
@@ -96,7 +96,7 @@ Would be represented by the following field::
 Deleting
 -----------
 Deleting an event from within a user process is done via ioctl() out to the
-/sys/kernel/debug/tracing/user_events_data file. The command to issue is
+/sys/kernel/tracing/user_events_data file. The command to issue is
 DIAG_IOCSDEL.
 
 This command only requires a single string specifying the event to delete by
@@ -110,7 +110,7 @@ When tools attach/record user based events the status of the event is updated
 in realtime. This allows user programs to only incur the cost of the write() or
 writev() calls when something is actively attached to the event.
 
-User programs call mmap() on /sys/kernel/debug/tracing/user_events_status to
+User programs call mmap() on /sys/kernel/tracing/user_events_status to
 check the status for each event that is registered. The bit to check in the
 file is given back after the register ioctl() via user_reg.status_bit. The bit
 is always in little-endian format. Programs can check if the bit is set either

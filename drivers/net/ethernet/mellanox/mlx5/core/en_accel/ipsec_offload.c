@@ -4,7 +4,7 @@
 #include "mlx5_core.h"
 #include "en.h"
 #include "ipsec.h"
-#include "lib/mlx5.h"
+#include "lib/crypto.h"
 
 enum {
 	MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET,
@@ -41,6 +41,11 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, reformat_del_esp_trasport) &&
 	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, decap))
 		caps |= MLX5_IPSEC_CAP_PACKET_OFFLOAD;
+
+	if (mlx5_get_roce_state(mdev) &&
+	    MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) & MLX5_FT_NIC_RX_2_NIC_RX_RDMA &&
+	    MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) & MLX5_FT_NIC_TX_RDMA_2_NIC_TX)
+		caps |= MLX5_IPSEC_CAP_ROCE;
 
 	if (!caps)
 		return 0;
@@ -92,7 +97,6 @@ static void mlx5e_ipsec_packet_setup(void *obj, u32 pdn,
 		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_pkt_cnt,
 			 lower_32_bits(attrs->hard_packet_limit));
 		MLX5_SET(ipsec_aso, aso_ctx, hard_lft_arm, 1);
-		MLX5_SET(ipsec_aso, aso_ctx, remove_flow_enable, 1);
 	}
 
 	if (attrs->soft_packet_limit != XFRM_INF) {
@@ -329,8 +333,7 @@ static void mlx5e_ipsec_handle_event(struct work_struct *_work)
 
 	if (attrs->soft_packet_limit != XFRM_INF)
 		if (!MLX5_GET(ipsec_aso, aso->ctx, soft_lft_arm) ||
-		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm) ||
-		    !MLX5_GET(ipsec_aso, aso->ctx, remove_flow_enable))
+		    !MLX5_GET(ipsec_aso, aso->ctx, hard_lft_arm))
 			xfrm_state_check_expire(sa_entry->x);
 
 unlock:

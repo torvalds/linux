@@ -947,12 +947,13 @@ static int clk_mt8365_top_probe(struct platform_device *pdev)
 	if (ret)
 		goto unregister_fixed_clks;
 
-	ret = mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes), node,
+	ret = mtk_clk_register_muxes(&pdev->dev, top_muxes,
+				     ARRAY_SIZE(top_muxes), node,
 				     &mt8365_clk_lock, clk_data);
 	if (ret)
 		goto unregister_factors;
 
-	ret = mtk_clk_register_composites(top_misc_mux_gates,
+	ret = mtk_clk_register_composites(&pdev->dev, top_misc_mux_gates,
 					  ARRAY_SIZE(top_misc_mux_gates), base,
 					  &mt8365_clk_lock, clk_data);
 	if (ret)
@@ -1019,8 +1020,8 @@ static int clk_mt8365_infra_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	ret = mtk_clk_register_gates(node, ifr_clks, ARRAY_SIZE(ifr_clks),
-				     clk_data);
+	ret = mtk_clk_register_gates(&pdev->dev, node, ifr_clks,
+				     ARRAY_SIZE(ifr_clks), clk_data);
 	if (ret)
 		goto free_clk_data;
 
@@ -1080,8 +1081,9 @@ static int clk_mt8365_mcu_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	ret = mtk_clk_register_composites(mcu_muxes, ARRAY_SIZE(mcu_muxes),
-					  base, &mt8365_clk_lock, clk_data);
+	ret = mtk_clk_register_composites(&pdev->dev, mcu_muxes,
+					  ARRAY_SIZE(mcu_muxes), base,
+					  &mt8365_clk_lock, clk_data);
 	if (ret)
 		goto free_clk_data;
 

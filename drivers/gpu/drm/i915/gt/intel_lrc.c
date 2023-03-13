@@ -1316,16 +1316,16 @@ static u32 *
 dg2_emit_rcs_hang_wabb(const struct intel_context *ce, u32 *cs)
 {
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(GEN12_STATE_ACK_DEBUG);
+	*cs++ = i915_mmio_reg_offset(GEN12_STATE_ACK_DEBUG(ce->engine->mmio_base));
 	*cs++ = 0x21;
 
 	*cs++ = MI_LOAD_REGISTER_REG;
 	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
-	*cs++ = i915_mmio_reg_offset(GEN12_CULLBIT1);
+	*cs++ = i915_mmio_reg_offset(XEHP_CULLBIT1);
 
 	*cs++ = MI_LOAD_REGISTER_REG;
 	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
-	*cs++ = i915_mmio_reg_offset(GEN12_CULLBIT2);
+	*cs++ = i915_mmio_reg_offset(XEHP_CULLBIT2);
 
 	return cs;
 }

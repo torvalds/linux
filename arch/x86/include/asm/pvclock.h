@@ -7,6 +7,7 @@
 
 /* some helper functions for xen and kvm pv clock sources */
 u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
+u64 pvclock_clocksource_read_nowd(struct pvclock_vcpu_time_info *src);
 u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
 void pvclock_set_flags(u8 flags);
 unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src);
@@ -39,7 +40,7 @@ bool pvclock_read_retry(const struct pvclock_vcpu_time_info *src,
  * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
  * yielding a 64-bit result.
  */
-static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
+static __always_inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 {
 	u64 product;
 #ifdef __i386__

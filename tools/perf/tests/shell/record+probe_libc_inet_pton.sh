@@ -11,6 +11,7 @@
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
 . $(dirname $0)/lib/probe.sh
+. $(dirname $0)/lib/probe_vfs_getname.sh
 
 libc=$(grep -w libc /proc/self/maps | head -1 | sed -r 's/.*[[:space:]](\/.*)/\1/g')
 nm -Dg $libc 2>/dev/null | fgrep -q inet_pton || exit 254
@@ -57,7 +58,17 @@ trace_libc_inet_pton_backtrace() {
 
 	perf_data=`mktemp -u /tmp/perf.data.XXX`
 	perf_script=`mktemp -u /tmp/perf.script.XXX`
+
+	# Check presence of libtraceevent support to run perf record
+	skip_no_probe_record_support "$event_name/$eventattr/"
+	[ $? -eq 2 ] && return 2
+
 	perf record -e $event_name/$eventattr/ -o $perf_data ping -6 -c 1 ::1 > /dev/null 2>&1
+	# check if perf data file got created in above step.
+	if [ ! -e $perf_data ]; then
+		printf "FAIL: perf record failed to create \"%s\" \n" "$perf_data"
+		return 1
+	fi
 	perf script -i $perf_data | tac | grep -m1 ^ping -B9 | tac > $perf_script
 
 	exec 3<$perf_script

@@ -165,10 +165,6 @@ bool resource_validate_attach_surfaces(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-void resource_validate_ctx_update_pointer_after_copy(
-		const struct dc_state *src_ctx,
-		struct dc_state *dst_ctx);
-
 enum dc_status resource_map_clock_resources(
 		const struct dc *dc,
 		struct dc_state *context,

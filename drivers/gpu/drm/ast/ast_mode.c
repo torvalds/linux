@@ -725,7 +725,7 @@ static int ast_primary_plane_init(struct ast_device *ast)
 	struct ast_plane *ast_primary_plane = &ast->primary_plane;
 	struct drm_plane *primary_plane = &ast_primary_plane->base;
 	void __iomem *vaddr = ast->vram;
-	u64 offset = ast->vram_base;
+	u64 offset = 0; /* with shmem, the primary plane is always at offset 0 */
 	unsigned long cursor_size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
 	unsigned long size = ast->vram_fb_available - cursor_size;
 	int ret;
@@ -983,7 +983,7 @@ static int ast_cursor_plane_init(struct ast_device *ast)
 		return -ENOMEM;
 
 	vaddr = ast->vram + ast->vram_fb_available - size;
-	offset = ast->vram_base + ast->vram_fb_available - size;
+	offset = ast->vram_fb_available - size;
 
 	ret = ast_plane_init(dev, ast_cursor_plane, vaddr, offset, size,
 			     0x01, &ast_cursor_plane_funcs,

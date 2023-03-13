@@ -590,8 +590,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	}
 	mutex_unlock(&kernel_fb_helper_lock);
 
-	drm_fb_helper_unprepare(fb_helper);
-
 	if (!fb_helper->client.funcs)
 		drm_client_release(&fb_helper->client);
 }

@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 #include "internal.h"
 
-static int ramfs_nommu_setattr(struct user_namespace *, struct dentry *, struct iattr *);
+static int ramfs_nommu_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
 static unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 						   unsigned long addr,
 						   unsigned long len,
@@ -158,7 +158,7 @@ static int ramfs_nommu_resize(struct inode *inode, loff_t newsize, loff_t size)
  * handle a change of attributes
  * - we're specifically interested in a change of size
  */
-static int ramfs_nommu_setattr(struct user_namespace *mnt_userns,
+static int ramfs_nommu_setattr(struct mnt_idmap *idmap,
 			       struct dentry *dentry, struct iattr *ia)
 {
 	struct inode *inode = d_inode(dentry);
@@ -166,7 +166,7 @@ static int ramfs_nommu_setattr(struct user_namespace *mnt_userns,
 	int ret = 0;
 
 	/* POSIX UID/GID verification for setting inode attributes */
-	ret = setattr_prepare(&init_user_ns, dentry, ia);
+	ret = setattr_prepare(&nop_mnt_idmap, dentry, ia);
 	if (ret)
 		return ret;
 
@@ -186,7 +186,7 @@ static int ramfs_nommu_setattr(struct user_namespace *mnt_userns,
 		}
 	}
 
-	setattr_copy(&init_user_ns, inode, ia);
+	setattr_copy(&nop_mnt_idmap, inode, ia);
  out:
 	ia->ia_valid = old_ia_valid;
 	return ret;
@@ -264,7 +264,7 @@ out:
  */
 static int ramfs_nommu_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	if (!(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
+	if (!is_nommu_shared_mapping(vma->vm_flags))
 		return -ENOSYS;
 
 	file_accessed(file);

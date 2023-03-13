@@ -40,6 +40,19 @@
 #include "core_types.h"
 #include "dc_link.h"
 
+struct link_init_data {
+	const struct dc *dc;
+	struct dc_context *ctx; /* TODO: remove 'dal' when DC is complete. */
+	uint32_t connector_index; /* this will be mapped to the HPD pins */
+	uint32_t link_index; /* this is mapped to DAL display_index
+				TODO: remove it when DC is complete. */
+	bool is_dpia_link;
+};
+
+struct dc_link *link_create(const struct link_init_data *init_params);
+void link_destroy(struct dc_link **link);
+
+// TODO - convert any function declarations below to function pointers
 struct gpio *link_get_hpd_gpio(struct dc_bios *dcb,
 		struct graphics_object_id link_id,
 		struct gpio_service *gpio_service);
@@ -105,5 +118,40 @@ bool link_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
 bool link_set_sink_vtotal_in_psr_active(const struct dc_link *link,
 		uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
 void link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
+enum dc_status link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t req_pbn);
+enum dc_status link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t req_pbn);
+void link_blank_all_dp_displays(struct dc *dc);
+void link_blank_all_edp_displays(struct dc *dc);
+void link_blank_dp_stream(struct dc_link *link, bool hw_init);
+void link_resume(struct dc_link *link);
+void link_set_dpms_on(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx);
+void link_set_dpms_off(struct pipe_ctx *pipe_ctx);
+void link_dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
+void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
+bool link_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
+bool link_update_dsc_config(struct pipe_ctx *pipe_ctx);
+enum dc_status link_validate_mode_timing(
+		const struct dc_stream_state *stream,
+		struct dc_link *link,
+		const struct dc_crtc_timing *timing);
+bool link_detect(struct dc_link *link, enum dc_detect_reason reason);
+bool link_detect_connection_type(struct dc_link *link,
+		enum dc_connection_type *type);
+const struct dc_link_status *link_get_status(const struct dc_link *link);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+/* return true if the connected receiver supports the hdcp version */
+bool link_is_hdcp14(struct dc_link *link, enum signal_type signal);
+bool link_is_hdcp22(struct dc_link *link, enum signal_type signal);
+#endif
+void link_clear_dprx_states(struct dc_link *link);
+bool link_reset_cur_dp_mst_topology(struct dc_link *link);
+uint32_t dp_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_settings);
+uint32_t link_timing_bandwidth_kbps(const struct dc_crtc_timing *timing);
+void link_get_cur_res_map(const struct dc *dc, uint32_t *map);
+void link_restore_res_map(const struct dc *dc, uint32_t *map);
 
 #endif /* __DC_LINK_HPD_H__ */

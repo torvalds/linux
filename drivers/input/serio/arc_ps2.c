@@ -182,7 +182,6 @@ static int arc_ps2_create_port(struct platform_device *pdev,
 static int arc_ps2_probe(struct platform_device *pdev)
 {
 	struct arc_ps2_data *arc_ps2;
-	struct resource *res;
 	int irq;
 	int error, id, i;
 
@@ -197,8 +196,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	arc_ps2->addr = devm_ioremap_resource(&pdev->dev, res);
+	arc_ps2->addr = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(arc_ps2->addr))
 		return PTR_ERR(arc_ps2->addr);
 

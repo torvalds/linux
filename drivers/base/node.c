@@ -587,6 +587,9 @@ static const struct attribute_group *node_dev_groups[] = {
 #ifdef CONFIG_HAVE_ARCH_NODE_DEV_GROUP
 	&arch_node_dev_group,
 #endif
+#ifdef CONFIG_MEMORY_FAILURE
+	&memory_failure_attr_group,
+#endif
 	NULL
 };
 

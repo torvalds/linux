@@ -15,6 +15,7 @@ struct xspi_platform_data {
 	u8 bits_per_word;
 	struct spi_board_info *devices;
 	u8 num_devices;
+	bool force_irq;
 };
 
 #endif /* __LINUX_SPI_XILINX_SPI_H */

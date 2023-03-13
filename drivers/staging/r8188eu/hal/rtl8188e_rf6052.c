@@ -371,7 +371,7 @@ int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 	struct bb_reg_def *pPhyReg;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 u4RegValue = 0;
-	int rtStatus = _SUCCESS;
+	int err;
 
 	/* Initialize RF */
 
@@ -396,11 +396,10 @@ int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 	udelay(1);/* PlatformStallExecution(1); */
 
 	/*----Initialize RF fom connfiguration file----*/
-	if (ODM_ReadAndConfig_RadioA_1T_8188E(&pHalData->odmpriv))
-		rtStatus = _FAIL;
+	err = ODM_ReadAndConfig_RadioA_1T_8188E(&pHalData->odmpriv);
 
 	/*----Restore RFENV control type----*/;
 	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
 
-	return rtStatus;
+	return err;
 }

@@ -137,11 +137,13 @@
 
 /* Verdin USB_1 */
 &usbotg1 {
+	disable-over-current;
 	status = "okay";
 };
 
 /* Verdin USB_2 */
 &usbotg2 {
+	disable-over-current;
 	status = "okay";
 };
 

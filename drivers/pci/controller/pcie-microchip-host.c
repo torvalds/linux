@@ -1135,6 +1135,5 @@ static struct platform_driver mc_pcie_driver = {
 };
 
 builtin_platform_driver(mc_pcie_driver);
-MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Microchip PCIe host controller driver");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");

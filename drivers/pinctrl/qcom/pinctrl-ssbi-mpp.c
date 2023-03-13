@@ -881,7 +881,7 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 	girq->chip = &pctrl->irq;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = of_node_to_fwnode(pctrl->dev->of_node);
+	girq->fwnode = dev_fwnode(pctrl->dev);
 	girq->parent_domain = parent_domain;
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,pm8821-mpp"))
 		girq->child_to_parent_hwirq = pm8821_mpp_child_to_parent_hwirq;

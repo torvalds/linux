@@ -79,6 +79,10 @@
 #define EVENT_ERROR_PSM_ERR1	(0x28108000U)
 #define EVENT_ERROR_PSM_ERR2	(0x2810C000U)
 
+/* ZynqMP SD tap delay tuning */
+#define SD_ITAPDLY	0xFF180314
+#define SD_OTAPDLYSEL	0xFF180318
+
 enum pm_api_cb_id {
 	PM_INIT_SUSPEND_CB = 30,
 	PM_ACKNOWLEDGE_CB = 31,

@@ -69,6 +69,13 @@ enum {
 	MLX5_MTPPS_FS_OUT_PULSE_DURATION_NS     = BIT(0xa),
 };
 
+enum {
+	MLX5_MTUTC_OPERATION_ADJUST_TIME_MIN          = S16_MIN,
+	MLX5_MTUTC_OPERATION_ADJUST_TIME_MAX          = S16_MAX,
+	MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MIN = -200000,
+	MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MAX = 200000,
+};
+
 static bool mlx5_real_time_mode(struct mlx5_core_dev *mdev)
 {
 	return (mlx5_is_real_time_rq(mdev) || mlx5_is_real_time_sq(mdev));
@@ -84,6 +91,22 @@ static bool mlx5_npps_real_time_supported(struct mlx5_core_dev *mdev)
 static bool mlx5_modify_mtutc_allowed(struct mlx5_core_dev *mdev)
 {
 	return MLX5_CAP_MCAM_FEATURE(mdev, ptpcyc2realtime_modify);
+}
+
+static bool mlx5_is_mtutc_time_adj_cap(struct mlx5_core_dev *mdev, s64 delta)
+{
+	s64 min = MLX5_MTUTC_OPERATION_ADJUST_TIME_MIN;
+	s64 max = MLX5_MTUTC_OPERATION_ADJUST_TIME_MAX;
+
+	if (MLX5_CAP_MCAM_FEATURE(mdev, mtutc_time_adjustment_extended_range)) {
+		min = MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MIN;
+		max = MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MAX;
+	}
+
+	if (delta < min || delta > max)
+		return false;
+
+	return true;
 }
 
 static int mlx5_set_mtutc(struct mlx5_core_dev *dev, u32 *mtutc, u32 size)
@@ -288,8 +311,8 @@ static int mlx5_ptp_adjtime_real_time(struct mlx5_core_dev *mdev, s64 delta)
 	if (!mlx5_modify_mtutc_allowed(mdev))
 		return 0;
 
-	/* HW time adjustment range is s16. If out of range, settime instead */
-	if (delta < S16_MIN || delta > S16_MAX) {
+	/* HW time adjustment range is checked. If out of range, settime instead */
+	if (!mlx5_is_mtutc_time_adj_cap(mdev, delta)) {
 		struct timespec64 ts;
 		s64 ns;
 
@@ -326,7 +349,20 @@ static int mlx5_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int mlx5_ptp_adjfreq_real_time(struct mlx5_core_dev *mdev, s32 freq)
+static int mlx5_ptp_adjphase(struct ptp_clock_info *ptp, s32 delta)
+{
+	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
+	struct mlx5_core_dev *mdev;
+
+	mdev = container_of(clock, struct mlx5_core_dev, clock);
+
+	if (!mlx5_is_mtutc_time_adj_cap(mdev, delta))
+		return -ERANGE;
+
+	return mlx5_ptp_adjtime(ptp, delta);
+}
+
+static int mlx5_ptp_freq_adj_real_time(struct mlx5_core_dev *mdev, long scaled_ppm)
 {
 	u32 in[MLX5_ST_SZ_DW(mtutc_reg)] = {};
 
@@ -334,7 +370,15 @@ static int mlx5_ptp_adjfreq_real_time(struct mlx5_core_dev *mdev, s32 freq)
 		return 0;
 
 	MLX5_SET(mtutc_reg, in, operation, MLX5_MTUTC_OPERATION_ADJUST_FREQ_UTC);
-	MLX5_SET(mtutc_reg, in, freq_adjustment, freq);
+
+	if (MLX5_CAP_MCAM_FEATURE(mdev, mtutc_freq_adj_units)) {
+		MLX5_SET(mtutc_reg, in, freq_adj_units,
+			 MLX5_MTUTC_FREQ_ADJ_UNITS_SCALED_PPM);
+		MLX5_SET(mtutc_reg, in, freq_adjustment, scaled_ppm);
+	} else {
+		MLX5_SET(mtutc_reg, in, freq_adj_units, MLX5_MTUTC_FREQ_ADJ_UNITS_PPB);
+		MLX5_SET(mtutc_reg, in, freq_adjustment, scaled_ppm_to_ppb(scaled_ppm));
+	}
 
 	return mlx5_set_mtutc(mdev, in, sizeof(in));
 }
@@ -349,7 +393,8 @@ static int mlx5_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	int err;
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
-	err = mlx5_ptp_adjfreq_real_time(mdev, scaled_ppm_to_ppb(scaled_ppm));
+
+	err = mlx5_ptp_freq_adj_real_time(mdev, scaled_ppm);
 	if (err)
 		return err;
 
@@ -688,6 +733,7 @@ static const struct ptp_clock_info mlx5_ptp_clock_info = {
 	.n_pins		= 0,
 	.pps		= 0,
 	.adjfine	= mlx5_ptp_adjfine,
+	.adjphase	= mlx5_ptp_adjphase,
 	.adjtime	= mlx5_ptp_adjtime,
 	.gettimex64	= mlx5_ptp_gettimex,
 	.settime64	= mlx5_ptp_settime,

@@ -31,6 +31,7 @@
 #include <asm/sigframe.h>
 #include <asm/sighandling.h>
 #include <asm/smap.h>
+#include <asm/gsseg.h>
 
 #ifdef CONFIG_IA32_EMULATION
 #include <asm/ia32_unistd.h>
@@ -54,12 +55,14 @@ static inline void reload_segments(struct sigcontext_32 *sc)
 }
 
 #define sigset32_t			compat_sigset_t
+#define siginfo32_t			compat_siginfo_t
 #define restore_altstack32		compat_restore_altstack
 #define unsafe_save_altstack32		unsafe_compat_save_altstack
 
 #else
 
 #define sigset32_t			sigset_t
+#define siginfo32_t			siginfo_t
 #define __NR_ia32_sigreturn		__NR_sigreturn
 #define __NR_ia32_rt_sigreturn		__NR_rt_sigreturn
 #define restore_altstack32		restore_altstack
@@ -377,3 +380,128 @@ Efault:
 	user_access_end();
 	return -EFAULT;
 }
+
+/*
+ * The siginfo_t structure and handing code is very easy
+ * to break in several ways.  It must always be updated when new
+ * updates are made to the main siginfo_t, and
+ * copy_siginfo_to_user32() must be updated when the
+ * (arch-independent) copy_siginfo_to_user() is updated.
+ *
+ * It is also easy to put a new member in the siginfo_t
+ * which has implicit alignment which can move internal structure
+ * alignment around breaking the ABI.  This can happen if you,
+ * for instance, put a plain 64-bit value in there.
+ */
+
+/*
+* If adding a new si_code, there is probably new data in
+* the siginfo.  Make sure folks bumping the si_code
+* limits also have to look at this code.  Make sure any
+* new fields are handled in copy_siginfo_to_user32()!
+*/
+static_assert(NSIGILL  == 11);
+static_assert(NSIGFPE  == 15);
+static_assert(NSIGSEGV == 9);
+static_assert(NSIGBUS  == 5);
+static_assert(NSIGTRAP == 6);
+static_assert(NSIGCHLD == 6);
+static_assert(NSIGSYS  == 2);
+
+/* This is part of the ABI and can never change in size: */
+static_assert(sizeof(siginfo32_t) == 128);
+
+/* This is a part of the ABI and can never change in alignment */
+static_assert(__alignof__(siginfo32_t) == 4);
+
+/*
+* The offsets of all the (unioned) si_fields are fixed
+* in the ABI, of course.  Make sure none of them ever
+* move and are always at the beginning:
+*/
+static_assert(offsetof(siginfo32_t, _sifields) == 3 * sizeof(int));
+
+static_assert(offsetof(siginfo32_t, si_signo) == 0);
+static_assert(offsetof(siginfo32_t, si_errno) == 4);
+static_assert(offsetof(siginfo32_t, si_code)  == 8);
+
+/*
+* Ensure that the size of each si_field never changes.
+* If it does, it is a sign that the
+* copy_siginfo_to_user32() code below needs to updated
+* along with the size in the CHECK_SI_SIZE().
+*
+* We repeat this check for both the generic and compat
+* siginfos.
+*
+* Note: it is OK for these to grow as long as the whole
+* structure stays within the padding size (checked
+* above).
+*/
+
+#define CHECK_SI_OFFSET(name)						\
+	static_assert(offsetof(siginfo32_t, _sifields) ==		\
+		      offsetof(siginfo32_t, _sifields.name))
+
+#define CHECK_SI_SIZE(name, size)					\
+	static_assert(sizeof_field(siginfo32_t, _sifields.name) == size)
+
+CHECK_SI_OFFSET(_kill);
+CHECK_SI_SIZE  (_kill, 2*sizeof(int));
+static_assert(offsetof(siginfo32_t, si_pid) == 0xC);
+static_assert(offsetof(siginfo32_t, si_uid) == 0x10);
+
+CHECK_SI_OFFSET(_timer);
+#ifdef CONFIG_COMPAT
+/* compat_siginfo_t doesn't have si_sys_private */
+CHECK_SI_SIZE  (_timer, 3*sizeof(int));
+#else
+CHECK_SI_SIZE  (_timer, 4*sizeof(int));
+#endif
+static_assert(offsetof(siginfo32_t, si_tid)     == 0x0C);
+static_assert(offsetof(siginfo32_t, si_overrun) == 0x10);
+static_assert(offsetof(siginfo32_t, si_value)   == 0x14);
+
+CHECK_SI_OFFSET(_rt);
+CHECK_SI_SIZE  (_rt, 3*sizeof(int));
+static_assert(offsetof(siginfo32_t, si_pid)   == 0x0C);
+static_assert(offsetof(siginfo32_t, si_uid)   == 0x10);
+static_assert(offsetof(siginfo32_t, si_value) == 0x14);
+
+CHECK_SI_OFFSET(_sigchld);
+CHECK_SI_SIZE  (_sigchld, 5*sizeof(int));
+static_assert(offsetof(siginfo32_t, si_pid)    == 0x0C);
+static_assert(offsetof(siginfo32_t, si_uid)    == 0x10);
+static_assert(offsetof(siginfo32_t, si_status) == 0x14);
+static_assert(offsetof(siginfo32_t, si_utime)  == 0x18);
+static_assert(offsetof(siginfo32_t, si_stime)  == 0x1C);
+
+CHECK_SI_OFFSET(_sigfault);
+CHECK_SI_SIZE  (_sigfault, 4*sizeof(int));
+static_assert(offsetof(siginfo32_t, si_addr) == 0x0C);
+
+static_assert(offsetof(siginfo32_t, si_trapno) == 0x10);
+
+static_assert(offsetof(siginfo32_t, si_addr_lsb) == 0x10);
+
+static_assert(offsetof(siginfo32_t, si_lower) == 0x14);
+static_assert(offsetof(siginfo32_t, si_upper) == 0x18);
+
+static_assert(offsetof(siginfo32_t, si_pkey) == 0x14);
+
+static_assert(offsetof(siginfo32_t, si_perf_data) == 0x10);
+static_assert(offsetof(siginfo32_t, si_perf_type) == 0x14);
+static_assert(offsetof(siginfo32_t, si_perf_flags) == 0x18);
+
+CHECK_SI_OFFSET(_sigpoll);
+CHECK_SI_SIZE  (_sigpoll, 2*sizeof(int));
+static_assert(offsetof(siginfo32_t, si_band) == 0x0C);
+static_assert(offsetof(siginfo32_t, si_fd)   == 0x10);
+
+CHECK_SI_OFFSET(_sigsys);
+CHECK_SI_SIZE  (_sigsys, 3*sizeof(int));
+static_assert(offsetof(siginfo32_t, si_call_addr) == 0x0C);
+static_assert(offsetof(siginfo32_t, si_syscall)   == 0x10);
+static_assert(offsetof(siginfo32_t, si_arch)      == 0x14);
+
+/* any new si_fields should be added here */

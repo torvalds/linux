@@ -8,6 +8,7 @@
  * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  * Copyright IBM Corporation, 2008
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kvm_host.h>
 #include <linux/export.h>
@@ -25,6 +26,7 @@
 #include "mmu.h"
 #include "trace.h"
 #include "pmu.h"
+#include "xen.h"
 
 /*
  * Unlike "struct cpuinfo_x86.x86_capability", kvm_cpu_caps doesn't need to be
@@ -180,15 +182,15 @@ static int kvm_cpuid_check_equal(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 
 	return 0;
 }
 
-static void kvm_update_kvm_cpuid_base(struct kvm_vcpu *vcpu)
+static struct kvm_hypervisor_cpuid kvm_get_hypervisor_cpuid(struct kvm_vcpu *vcpu,
+							    const char *sig)
 {
-	u32 function;
+	struct kvm_hypervisor_cpuid cpuid = {};
 	struct kvm_cpuid_entry2 *entry;
+	u32 base;
 
-	vcpu->arch.kvm_cpuid_base = 0;
-
-	for_each_possible_hypervisor_cpuid_base(function) {
-		entry = kvm_find_cpuid_entry(vcpu, function);
+	for_each_possible_hypervisor_cpuid_base(base) {
+		entry = kvm_find_cpuid_entry(vcpu, base);
 
 		if (entry) {
 			u32 signature[3];
@@ -197,19 +199,21 @@ static void kvm_update_kvm_cpuid_base(struct kvm_vcpu *vcpu)
 			signature[1] = entry->ecx;
 			signature[2] = entry->edx;
 
-			BUILD_BUG_ON(sizeof(signature) > sizeof(KVM_SIGNATURE));
-			if (!memcmp(signature, KVM_SIGNATURE, sizeof(signature))) {
-				vcpu->arch.kvm_cpuid_base = function;
+			if (!memcmp(signature, sig, sizeof(signature))) {
+				cpuid.base = base;
+				cpuid.limit = entry->eax;
 				break;
 			}
 		}
 	}
+
+	return cpuid;
 }
 
 static struct kvm_cpuid_entry2 *__kvm_find_kvm_cpuid_features(struct kvm_vcpu *vcpu,
 					      struct kvm_cpuid_entry2 *entries, int nent)
 {
-	u32 base = vcpu->arch.kvm_cpuid_base;
+	u32 base = vcpu->arch.kvm_cpuid.base;
 
 	if (!base)
 		return NULL;
@@ -439,7 +443,8 @@ static int kvm_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
 	vcpu->arch.cpuid_entries = e2;
 	vcpu->arch.cpuid_nent = nent;
 
-	kvm_update_kvm_cpuid_base(vcpu);
+	vcpu->arch.kvm_cpuid = kvm_get_hypervisor_cpuid(vcpu, KVM_SIGNATURE);
+	vcpu->arch.xen.cpuid = kvm_get_hypervisor_cpuid(vcpu, XEN_SIGNATURE);
 	kvm_vcpu_after_set_cpuid(vcpu);
 
 	return 0;
@@ -663,8 +668,9 @@ void kvm_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_SPEC_CTRL_SSBD);
 
 	kvm_cpu_cap_mask(CPUID_7_1_EAX,
-		F(AVX_VNNI) | F(AVX512_BF16) | F(CMPCCXADD) | F(AMX_FP16) |
-		F(AVX_IFMA)
+		F(AVX_VNNI) | F(AVX512_BF16) | F(CMPCCXADD) |
+		F(FZRM) | F(FSRS) | F(FSRC) |
+		F(AMX_FP16) | F(AVX_IFMA)
 	);
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_7_1_EDX,
@@ -700,6 +706,10 @@ void kvm_set_cpu_caps(void)
 
 	if (!tdp_enabled && IS_ENABLED(CONFIG_X86_64))
 		kvm_cpu_cap_set(X86_FEATURE_GBPAGES);
+
+	kvm_cpu_cap_init_kvm_defined(CPUID_8000_0007_EDX,
+		SF(CONSTANT_TSC)
+	);
 
 	kvm_cpu_cap_mask(CPUID_8000_0008_EBX,
 		F(CLZERO) | F(XSAVEERPTR) |
@@ -740,6 +750,27 @@ void kvm_set_cpu_caps(void)
 	kvm_cpu_cap_mask(CPUID_8000_001F_EAX,
 		0 /* SME */ | F(SEV) | 0 /* VM_PAGE_FLUSH */ | F(SEV_ES) |
 		F(SME_COHERENT));
+
+	kvm_cpu_cap_mask(CPUID_8000_0021_EAX,
+		F(NO_NESTED_DATA_BP) | F(LFENCE_RDTSC) | 0 /* SmmPgCfgLock */ |
+		F(NULL_SEL_CLR_BASE) | F(AUTOIBRS) | 0 /* PrefetchCtlMsr */
+	);
+
+	/*
+	 * Synthesize "LFENCE is serializing" into the AMD-defined entry in
+	 * KVM's supported CPUID if the feature is reported as supported by the
+	 * kernel.  LFENCE_RDTSC was a Linux-defined synthetic feature long
+	 * before AMD joined the bandwagon, e.g. LFENCE is serializing on most
+	 * CPUs that support SSE2.  On CPUs that don't support AMD's leaf,
+	 * kvm_cpu_cap_mask() will unfortunately drop the flag due to ANDing
+	 * the mask with the raw host CPUID, and reporting support in AMD's
+	 * leaf can make it easier for userspace to detect the feature.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_LFENCE_RDTSC))
+		kvm_cpu_cap_set(X86_FEATURE_LFENCE_RDTSC);
+	if (!static_cpu_has_bug(X86_BUG_NULL_SEG))
+		kvm_cpu_cap_set(X86_FEATURE_NULL_SEL_CLR_BASE);
+	kvm_cpu_cap_set(X86_FEATURE_NO_SMM_CTL_MSR);
 
 	kvm_cpu_cap_mask(CPUID_C000_0001_EDX,
 		F(XSTORE) | F(XSTORE_EN) | F(XCRYPT) | F(XCRYPT_EN) |
@@ -1148,8 +1179,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		entry->edx &= ~GENMASK(17, 16);
 		break;
 	case 0x80000007: /* Advanced power management */
-		/* invariant TSC is CPUID.80000007H:EDX[8] */
-		entry->edx &= (1 << 8);
+		cpuid_entry_override(entry, CPUID_8000_0007_EDX);
+
 		/* mask against host */
 		entry->edx &= boot_cpu_data.x86_power;
 		entry->eax = entry->ebx = entry->ecx = 0;
@@ -1222,25 +1253,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		break;
 	case 0x80000021:
 		entry->ebx = entry->ecx = entry->edx = 0;
-		/*
-		 * Pass down these bits:
-		 *    EAX      0      NNDBP, Processor ignores nested data breakpoints
-		 *    EAX      2      LAS, LFENCE always serializing
-		 *    EAX      6      NSCB, Null selector clear base
-		 *
-		 * Other defined bits are for MSRs that KVM does not expose:
-		 *   EAX      3      SPCL, SMM page configuration lock
-		 *   EAX      13     PCMSR, Prefetch control MSR
-		 *
-		 * KVM doesn't support SMM_CTL.
-		 *   EAX       9     SMM_CTL MSR is not supported
-		 */
-		entry->eax &= BIT(0) | BIT(2) | BIT(6);
-		entry->eax |= BIT(9);
-		if (static_cpu_has(X86_FEATURE_LFENCE_RDTSC))
-			entry->eax |= BIT(2);
-		if (!static_cpu_has_bug(X86_BUG_NULL_SEG))
-			entry->eax |= BIT(6);
+		cpuid_entry_override(entry, CPUID_8000_0021_EAX);
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:
@@ -1482,6 +1495,9 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 		        if (!__kvm_get_msr(vcpu, MSR_IA32_TSX_CTRL, &data, true) &&
 			    (data & TSX_CTRL_CPUID_CLEAR))
 				*ebx &= ~(F(RTM) | F(HLE));
+		} else if (function == 0x80000007) {
+			if (kvm_hv_invtsc_suppressed(vcpu))
+				*edx &= ~SF(CONSTANT_TSC);
 		}
 	} else {
 		*eax = *ebx = *ecx = *edx = 0;

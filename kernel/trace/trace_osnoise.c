@@ -1539,7 +1539,7 @@ static void osnoise_sleep(void)
 	wake_time = ktime_add_us(ktime_get(), interval);
 	__set_current_state(TASK_INTERRUPTIBLE);
 
-	while (schedule_hrtimeout_range(&wake_time, 0, HRTIMER_MODE_ABS)) {
+	while (schedule_hrtimeout(&wake_time, HRTIMER_MODE_ABS)) {
 		if (kthread_should_stop())
 			break;
 	}

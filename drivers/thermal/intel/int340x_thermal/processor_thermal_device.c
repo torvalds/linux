@@ -4,6 +4,7 @@
  * Copyright (c) 2014, Intel Corporation.
  */
 #include <linux/acpi.h>
+#include <linux/intel_tcc.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -68,54 +69,17 @@ static const struct attribute_group power_limit_attribute_group = {
 	.name = "power_limits"
 };
 
-static int tcc_get_offset(void)
-{
-	u64 val;
-	int err;
-
-	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
-	if (err)
-		return err;
-
-	return (val >> 24) & 0x3f;
-}
-
 static ssize_t tcc_offset_degree_celsius_show(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf)
 {
-	int tcc;
+	int offset;
 
-	tcc = tcc_get_offset();
-	if (tcc < 0)
-		return tcc;
+	offset = intel_tcc_get_offset(-1);
+	if (offset < 0)
+		return offset;
 
-	return sprintf(buf, "%d\n", tcc);
-}
-
-static int tcc_offset_update(unsigned int tcc)
-{
-	u64 val;
-	int err;
-
-	if (tcc > 63)
-		return -EINVAL;
-
-	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
-	if (err)
-		return err;
-
-	if (val & BIT(31))
-		return -EPERM;
-
-	val &= ~GENMASK_ULL(29, 24);
-	val |= (tcc & 0x3f) << 24;
-
-	err = wrmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, val);
-	if (err)
-		return err;
-
-	return 0;
+	return sprintf(buf, "%d\n", offset);
 }
 
 static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
@@ -136,7 +100,7 @@ static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
 	if (kstrtouint(buf, 0, &tcc))
 		return -EINVAL;
 
-	err = tcc_offset_update(tcc);
+	err = intel_tcc_set_offset(-1, tcc);
 	if (err)
 		return err;
 
@@ -145,71 +109,26 @@ static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
 
 static DEVICE_ATTR_RW(tcc_offset_degree_celsius);
 
-static int stored_tjmax; /* since it is fixed, we can have local storage */
-
-static int get_tjmax(void)
-{
-	u32 eax, edx;
-	u32 val;
-	int err;
-
-	err = rdmsr_safe(MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
-	if (err)
-		return err;
-
-	val = (eax >> 16) & 0xff;
-	if (val)
-		return val;
-
-	return -EINVAL;
-}
-
-static int read_temp_msr(int *temp)
+static int proc_thermal_get_zone_temp(struct thermal_zone_device *zone,
+					 int *temp)
 {
 	int cpu;
-	u32 eax, edx;
-	int err;
-	unsigned long curr_temp_off = 0;
+	int curr_temp;
 
 	*temp = 0;
 
 	for_each_online_cpu(cpu) {
-		err = rdmsr_safe_on_cpu(cpu, MSR_IA32_THERM_STATUS, &eax,
-					&edx);
-		if (err)
-			goto err_ret;
-		else {
-			if (eax & 0x80000000) {
-				curr_temp_off = (eax >> 16) & 0x7f;
-				if (!*temp || curr_temp_off < *temp)
-					*temp = curr_temp_off;
-			} else {
-				err = -EINVAL;
-				goto err_ret;
-			}
-		}
+		curr_temp = intel_tcc_get_temp(cpu, false);
+		if (curr_temp < 0)
+			return curr_temp;
+		if (!*temp || curr_temp > *temp)
+			*temp = curr_temp;
 	}
 
+	*temp *= 1000;
+
 	return 0;
-err_ret:
-	return err;
 }
-
-static int proc_thermal_get_zone_temp(struct thermal_zone_device *zone,
-					 int *temp)
-{
-	int ret;
-
-	ret = read_temp_msr(temp);
-	if (!ret)
-		*temp = (stored_tjmax - *temp) * 1000;
-
-	return ret;
-}
-
-static struct thermal_zone_device_ops proc_thermal_local_ops = {
-	.get_temp       = proc_thermal_get_zone_temp,
-};
 
 static int proc_thermal_read_ppcc(struct proc_thermal_device *proc_priv)
 {
@@ -285,7 +204,7 @@ int proc_thermal_add(struct device *dev, struct proc_thermal_device *proc_priv)
 	struct acpi_device *adev;
 	acpi_status status;
 	unsigned long long tmp;
-	struct thermal_zone_device_ops *ops = NULL;
+	int (*get_temp) (struct thermal_zone_device *, int *) = NULL;
 	int ret;
 
 	adev = ACPI_COMPANION(dev);
@@ -302,12 +221,11 @@ int proc_thermal_add(struct device *dev, struct proc_thermal_device *proc_priv)
 	status = acpi_evaluate_integer(adev->handle, "_TMP", NULL, &tmp);
 	if (ACPI_FAILURE(status)) {
 		/* there is no _TMP method, add local method */
-		stored_tjmax = get_tjmax();
-		if (stored_tjmax > 0)
-			ops = &proc_thermal_local_ops;
+		if (intel_tcc_get_tjmax(-1) > 0)
+			get_temp = proc_thermal_get_zone_temp;
 	}
 
-	proc_priv->int340x_zone = int340x_thermal_zone_add(adev, ops);
+	proc_priv->int340x_zone = int340x_thermal_zone_add(adev, get_temp);
 	if (IS_ERR(proc_priv->int340x_zone)) {
 		return PTR_ERR(proc_priv->int340x_zone);
 	} else
@@ -356,7 +274,7 @@ static int tcc_offset_save = -1;
 
 int proc_thermal_suspend(struct device *dev)
 {
-	tcc_offset_save = tcc_get_offset();
+	tcc_offset_save = intel_tcc_get_offset(-1);
 	if (tcc_offset_save < 0)
 		dev_warn(dev, "failed to save offset (%d)\n", tcc_offset_save);
 
@@ -373,7 +291,7 @@ int proc_thermal_resume(struct device *dev)
 
 	/* Do not update if saving failed */
 	if (tcc_offset_save >= 0)
-		tcc_offset_update(tcc_offset_save);
+		intel_tcc_set_offset(-1, tcc_offset_save);
 
 	return 0;
 }
@@ -460,6 +378,7 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 }
 EXPORT_SYMBOL_GPL(proc_thermal_mmio_remove);
 
+MODULE_IMPORT_NS(INTEL_TCC);
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Processor Thermal Reporting Device Driver");
 MODULE_LICENSE("GPL v2");

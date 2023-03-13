@@ -1393,15 +1393,13 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 
 static enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
-	enum dc_status result = DC_OK;
-
 	if (plane_state->ctx->dc->debug.disable_dcc == DCC_ENABLE) {
 		plane_state->dcc.enable = 1;
 		/* align to our worst case block width */
 		plane_state->dcc.meta_pitch = ((plane_state->src_rect.width + 1023) / 1024) * 1024;
 	}
-	result = dcn20_patch_unknown_plane_state(plane_state);
-	return result;
+
+	return dcn20_patch_unknown_plane_state(plane_state);
 }
 
 static const struct resource_funcs dcn21_res_pool_funcs = {

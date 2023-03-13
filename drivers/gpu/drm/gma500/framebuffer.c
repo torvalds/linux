@@ -141,7 +141,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	 */
 	vma->vm_ops = &psbfb_vm_ops;
 	vma->vm_private_data = (void *)fb;
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP);
 	return 0;
 }
 
@@ -427,6 +427,7 @@ int psb_fbdev_init(struct drm_device *dev)
 fini:
 	drm_fb_helper_fini(fb_helper);
 free:
+	drm_fb_helper_unprepare(fb_helper);
 	kfree(fb_helper);
 	return ret;
 }
@@ -439,6 +440,7 @@ static void psb_fbdev_fini(struct drm_device *dev)
 		return;
 
 	psb_fbdev_destroy(dev, dev_priv->fb_helper);
+	drm_fb_helper_unprepare(dev_priv->fb_helper);
 	kfree(dev_priv->fb_helper);
 	dev_priv->fb_helper = NULL;
 }

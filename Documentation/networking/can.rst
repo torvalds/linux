@@ -931,7 +931,7 @@ ival1:
 ival2:
 	Throttle the received message rate down to the value of ival2. This
 	is useful to reduce messages for the application when the signal inside the
-	CAN frame is stateless as state changes within the ival2 periode may get
+	CAN frame is stateless as state changes within the ival2 period may get
 	lost.
 
 Broadcast Manager Multiplex Message Receive Filter

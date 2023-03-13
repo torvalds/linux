@@ -98,7 +98,7 @@ static int i2c_dw_unreg_slave(struct i2c_client *slave)
 
 static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
 {
-	u32 stat, dummy;
+	unsigned int stat, dummy;
 
 	/*
 	 * The IC_INTR_STAT register just indicates "enabled" interrupts.
@@ -150,7 +150,7 @@ static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
 static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
 {
 	struct dw_i2c_dev *dev = dev_id;
-	u32 raw_stat, stat, enabled, tmp;
+	unsigned int raw_stat, stat, enabled, tmp;
 	u8 val = 0, slave_activity;
 
 	regmap_read(dev->map, DW_IC_ENABLE, &enabled);

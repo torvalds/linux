@@ -712,7 +712,7 @@ static struct platform_driver ehci_fsl_driver = {
 	.remove = fsl_ehci_drv_remove,
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
-		.name = "fsl-ehci",
+		.name = DRV_NAME,
 		.pm = EHCI_FSL_PM_OPS,
 	},
 };

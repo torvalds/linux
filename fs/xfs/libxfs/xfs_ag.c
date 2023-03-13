@@ -44,16 +44,15 @@ xfs_perag_get(
 	xfs_agnumber_t		agno)
 {
 	struct xfs_perag	*pag;
-	int			ref = 0;
 
 	rcu_read_lock();
 	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
 	if (pag) {
+		trace_xfs_perag_get(pag, _RET_IP_);
 		ASSERT(atomic_read(&pag->pag_ref) >= 0);
-		ref = atomic_inc_return(&pag->pag_ref);
+		atomic_inc(&pag->pag_ref);
 	}
 	rcu_read_unlock();
-	trace_xfs_perag_get(mp, agno, ref, _RET_IP_);
 	return pag;
 }
 
@@ -68,7 +67,6 @@ xfs_perag_get_tag(
 {
 	struct xfs_perag	*pag;
 	int			found;
-	int			ref;
 
 	rcu_read_lock();
 	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
@@ -77,9 +75,9 @@ xfs_perag_get_tag(
 		rcu_read_unlock();
 		return NULL;
 	}
-	ref = atomic_inc_return(&pag->pag_ref);
+	trace_xfs_perag_get_tag(pag, _RET_IP_);
+	atomic_inc(&pag->pag_ref);
 	rcu_read_unlock();
-	trace_xfs_perag_get_tag(mp, pag->pag_agno, ref, _RET_IP_);
 	return pag;
 }
 
@@ -87,11 +85,68 @@ void
 xfs_perag_put(
 	struct xfs_perag	*pag)
 {
-	int	ref;
-
+	trace_xfs_perag_put(pag, _RET_IP_);
 	ASSERT(atomic_read(&pag->pag_ref) > 0);
-	ref = atomic_dec_return(&pag->pag_ref);
-	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
+	atomic_dec(&pag->pag_ref);
+}
+
+/*
+ * Active references for perag structures. This is for short term access to the
+ * per ag structures for walking trees or accessing state. If an AG is being
+ * shrunk or is offline, then this will fail to find that AG and return NULL
+ * instead.
+ */
+struct xfs_perag *
+xfs_perag_grab(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	struct xfs_perag	*pag;
+
+	rcu_read_lock();
+	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
+	if (pag) {
+		trace_xfs_perag_grab(pag, _RET_IP_);
+		if (!atomic_inc_not_zero(&pag->pag_active_ref))
+			pag = NULL;
+	}
+	rcu_read_unlock();
+	return pag;
+}
+
+/*
+ * search from @first to find the next perag with the given tag set.
+ */
+struct xfs_perag *
+xfs_perag_grab_tag(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		first,
+	int			tag)
+{
+	struct xfs_perag	*pag;
+	int			found;
+
+	rcu_read_lock();
+	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
+					(void **)&pag, first, 1, tag);
+	if (found <= 0) {
+		rcu_read_unlock();
+		return NULL;
+	}
+	trace_xfs_perag_grab_tag(pag, _RET_IP_);
+	if (!atomic_inc_not_zero(&pag->pag_active_ref))
+		pag = NULL;
+	rcu_read_unlock();
+	return pag;
+}
+
+void
+xfs_perag_rele(
+	struct xfs_perag	*pag)
+{
+	trace_xfs_perag_rele(pag, _RET_IP_);
+	if (atomic_dec_and_test(&pag->pag_active_ref))
+		wake_up(&pag->pag_active_wq);
 }
 
 /*
@@ -196,6 +251,10 @@ xfs_free_perag(
 		cancel_delayed_work_sync(&pag->pag_blockgc_work);
 		xfs_buf_hash_destroy(pag);
 
+		/* drop the mount's active reference */
+		xfs_perag_rele(pag);
+		XFS_IS_CORRUPT(pag->pag_mount,
+				atomic_read(&pag->pag_active_ref) != 0);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
@@ -314,6 +373,7 @@ xfs_initialize_perag(
 		INIT_DELAYED_WORK(&pag->pag_blockgc_work, xfs_blockgc_worker);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
 		init_waitqueue_head(&pag->pagb_wait);
+		init_waitqueue_head(&pag->pag_active_wq);
 		pag->pagb_count = 0;
 		pag->pagb_tree = RB_ROOT;
 #endif /* __KERNEL__ */
@@ -321,6 +381,9 @@ xfs_initialize_perag(
 		error = xfs_buf_hash_init(pag);
 		if (error)
 			goto out_remove_pag;
+
+		/* Active ref owned by mount indicates AG is online. */
+		atomic_set(&pag->pag_active_ref, 1);
 
 		/* first new pag is fully initialized */
 		if (first_initialised == NULLAGNUMBER)
@@ -824,7 +887,7 @@ xfs_ag_shrink_space(
 	struct xfs_alloc_arg	args = {
 		.tp	= *tpp,
 		.mp	= mp,
-		.type	= XFS_ALLOCTYPE_THIS_BNO,
+		.pag	= pag,
 		.minlen = delta,
 		.maxlen = delta,
 		.oinfo	= XFS_RMAP_OINFO_SKIP_UPDATE,
@@ -856,14 +919,11 @@ xfs_ag_shrink_space(
 	if (delta >= aglen)
 		return -EINVAL;
 
-	args.fsbno = XFS_AGB_TO_FSB(mp, pag->pag_agno, aglen - delta);
-
 	/*
 	 * Make sure that the last inode cluster cannot overlap with the new
 	 * end of the AG, even if it's sparse.
 	 */
-	error = xfs_ialloc_check_shrink(*tpp, pag->pag_agno, agibp,
-			aglen - delta);
+	error = xfs_ialloc_check_shrink(pag, *tpp, agibp, aglen - delta);
 	if (error)
 		return error;
 
@@ -876,7 +936,8 @@ xfs_ag_shrink_space(
 		return error;
 
 	/* internal log shouldn't also show up in the free space btrees */
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_exact_bno(&args,
+			XFS_AGB_TO_FSB(mp, pag->pag_agno, aglen - delta));
 	if (!error && args.agbno == NULLAGBLOCK)
 		error = -ENOSPC;
 

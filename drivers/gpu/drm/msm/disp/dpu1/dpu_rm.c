@@ -496,6 +496,11 @@ static int _dpu_rm_reserve_dsc(struct dpu_rm *rm,
 
 	/* check if DSC required are allocated or not */
 	for (i = 0; i < num_dsc; i++) {
+		if (!rm->dsc_blks[i]) {
+			DPU_ERROR("DSC %d does not exist\n", i);
+			return -EIO;
+		}
+
 		if (global_state->dsc_to_enc_id[i]) {
 			DPU_ERROR("DSC %d is already allocated\n", i);
 			return -EIO;
@@ -543,8 +548,8 @@ static int _dpu_rm_populate_requirements(
 {
 	reqs->topology = req_topology;
 
-	DRM_DEBUG_KMS("num_lm: %d num_enc: %d num_intf: %d\n",
-		      reqs->topology.num_lm, reqs->topology.num_enc,
+	DRM_DEBUG_KMS("num_lm: %d num_dsc: %d num_intf: %d\n",
+		      reqs->topology.num_lm, reqs->topology.num_dsc,
 		      reqs->topology.num_intf);
 
 	return 0;
@@ -658,6 +663,11 @@ int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 		if (num_blks == blks_size) {
 			DPU_ERROR("More than %d resources assigned to enc %d\n",
 				  blks_size, enc_id);
+			break;
+		}
+		if (!hw_blks[i]) {
+			DPU_ERROR("Allocated resource %d unavailable to assign to enc %d\n",
+				  type, enc_id);
 			break;
 		}
 		blks[num_blks++] = hw_blks[i];

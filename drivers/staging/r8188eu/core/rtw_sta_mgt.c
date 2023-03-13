@@ -260,22 +260,22 @@ void rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 	spin_lock_bh(&pxmitpriv->lock);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &psta->sleep_q);
+	rtw_free_xmitframe_list(pxmitpriv, get_list_head(&psta->sleep_q));
 	psta->sleepq_len = 0;
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vo_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, &pstaxmitpriv->vo_q.sta_pending);
 
 	list_del_init(&pstaxmitpriv->vo_q.tx_pending);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vi_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, &pstaxmitpriv->vi_q.sta_pending);
 
 	list_del_init(&pstaxmitpriv->vi_q.tx_pending);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
 
 	list_del_init(&pstaxmitpriv->bk_q.tx_pending);
 
-	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->be_q.sta_pending);
+	rtw_free_xmitframe_list(pxmitpriv, &pstaxmitpriv->be_q.sta_pending);
 
 	list_del_init(&pstaxmitpriv->be_q.tx_pending);
 
@@ -391,8 +391,7 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 /* any station allocated can be searched by hash list */
 struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
-	struct list_head *plist, *phead;
-	struct sta_info *psta = NULL;
+	struct sta_info *ploop, *psta = NULL;
 	u32	index;
 	u8 *addr;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -409,18 +408,11 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
 
-	phead = &pstapriv->sta_hash[index];
-	plist = phead->next;
-
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, hash_list);
-
-		if ((!memcmp(psta->hwaddr, addr, ETH_ALEN))) {
-			/*  if found the matched address */
+	list_for_each_entry(ploop, &pstapriv->sta_hash[index], hash_list) {
+		if (!memcmp(ploop->hwaddr, addr, ETH_ALEN)) {
+			psta = ploop;
 			break;
 		}
-		psta = NULL;
-		plist = plist->next;
 	}
 
 	spin_unlock_bh(&pstapriv->sta_hash_lock);

@@ -149,7 +149,7 @@ struct rxrpc_sock {
 	struct list_head	sock_calls;	/* List of calls owned by this socket */
 	struct list_head	to_be_accepted;	/* calls awaiting acceptance */
 	struct list_head	recvmsg_q;	/* Calls awaiting recvmsg's attention  */
-	rwlock_t		recvmsg_lock;	/* Lock for recvmsg_q */
+	spinlock_t		recvmsg_lock;	/* Lock for recvmsg_q */
 	struct key		*key;		/* security for this socket */
 	struct key		*securities;	/* list of server security descriptors */
 	struct rb_root		calls;		/* User ID -> call mapping */
@@ -284,7 +284,9 @@ struct rxrpc_local {
 	struct task_struct	*io_thread;
 	struct completion	io_thread_ready; /* Indication that the I/O thread started */
 	struct rxrpc_sock	*service;	/* Service(s) listening on this endpoint */
-	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+	struct sk_buff_head	rx_delay_queue;	/* Delay injection queue */
+#endif
 	struct sk_buff_head	rx_queue;	/* Received packets */
 	struct list_head	conn_attend_q;	/* Conns requiring immediate attention */
 	struct list_head	call_attend_q;	/* Calls requiring immediate attention */
@@ -688,9 +690,11 @@ struct rxrpc_call {
 
 	/* Receive-phase ACK management (ACKs we send). */
 	u8			ackr_reason;	/* reason to ACK */
+	u16			ackr_sack_base;	/* Starting slot in SACK table ring */
 	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
-	atomic64_t		ackr_window;	/* Base (in LSW) and top (in MSW) of SACK window */
-	atomic_t		ackr_nr_unacked; /* Number of unacked packets */
+	rxrpc_seq_t		ackr_window;	/* Base of SACK window */
+	rxrpc_seq_t		ackr_wtop;	/* Base of SACK window */
+	unsigned int		ackr_nr_unacked; /* Number of unacked packets */
 	atomic_t		ackr_nr_consumed; /* Number of packets needing hard ACK */
 	struct {
 #define RXRPC_SACK_SIZE 256
@@ -795,7 +799,7 @@ struct rxrpc_txbuf {
 			u8	data[RXRPC_JUMBO_DATALEN]; /* Data packet */
 			struct {
 				struct rxrpc_ackpacket ack;
-				u8 acks[0];
+				DECLARE_FLEX_ARRAY(u8, acks);
 			};
 		};
 	} __aligned(64);
@@ -1109,6 +1113,9 @@ extern unsigned long rxrpc_idle_ack_delay;
 extern unsigned int rxrpc_rx_window_size;
 extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+extern unsigned long rxrpc_inject_rx_delay;
+#endif
 
 /*
  * net_ns.c

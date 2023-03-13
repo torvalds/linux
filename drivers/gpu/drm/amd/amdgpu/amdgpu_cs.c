@@ -1222,10 +1222,13 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 		 * next job actually sees the results from the previous one
 		 * before we start executing on the same scheduler ring.
 		 */
-		if (!s_fence || s_fence->sched != sched)
+		if (!s_fence || s_fence->sched != sched) {
+			dma_fence_put(fence);
 			continue;
+		}
 
 		r = amdgpu_sync_fence(&p->gang_leader->explicit_sync, fence);
+		dma_fence_put(fence);
 		if (r)
 			return r;
 	}

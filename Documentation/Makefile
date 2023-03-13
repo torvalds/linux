@@ -28,7 +28,7 @@ BUILDDIR      = $(obj)/output
 PDFLATEX      = xelatex
 LATEXOPTS     = -interaction=batchmode -no-shell-escape
 
-ifeq ($(KBUILD_VERBOSE),0)
+ifeq ($(findstring 1, $(KBUILD_VERBOSE)),)
 SPHINXOPTS    += "-q"
 endif
 

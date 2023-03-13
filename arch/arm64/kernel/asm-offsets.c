@@ -9,6 +9,7 @@
 
 #include <linux/arm_sdei.h>
 #include <linux/sched.h>
+#include <linux/ftrace.h>
 #include <linux/kexec.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
@@ -193,6 +194,9 @@ int main(void)
   DEFINE(KIMAGE_HEAD,			offsetof(struct kimage, head));
   DEFINE(KIMAGE_START,			offsetof(struct kimage, start));
   BLANK();
+#endif
+#ifdef CONFIG_FUNCTION_TRACER
+  DEFINE(FTRACE_OPS_FUNC,		offsetof(struct ftrace_ops, func));
 #endif
   return 0;
 }

@@ -22,10 +22,13 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 
 #include "ipa.h"
 #include "ipa_reg.h"
 #include "ipa_endpoint.h"
+#include "ipa_power.h"
+#include "ipa_uc.h"
 #include "ipa_interrupt.h"
 
 /**
@@ -33,47 +36,47 @@
  * @ipa:		IPA pointer
  * @irq:		Linux IRQ number used for IPA interrupts
  * @enabled:		Mask indicating which interrupts are enabled
- * @handler:		Array of handlers indexed by IPA interrupt ID
  */
 struct ipa_interrupt {
 	struct ipa *ipa;
 	u32 irq;
 	u32 enabled;
-	ipa_irq_handler_t handler[IPA_IRQ_COUNT];
 };
-
-/* Returns true if the interrupt type is associated with the microcontroller */
-static bool ipa_interrupt_uc(struct ipa_interrupt *interrupt, u32 irq_id)
-{
-	return irq_id == IPA_IRQ_UC_0 || irq_id == IPA_IRQ_UC_1;
-}
 
 /* Process a particular interrupt type that has been received */
 static void ipa_interrupt_process(struct ipa_interrupt *interrupt, u32 irq_id)
 {
-	bool uc_irq = ipa_interrupt_uc(interrupt, irq_id);
 	struct ipa *ipa = interrupt->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 mask = BIT(irq_id);
 	u32 offset;
 
-	/* For microcontroller interrupts, clear the interrupt right away,
-	 * "to avoid clearing unhandled interrupts."
-	 */
 	reg = ipa_reg(ipa, IPA_IRQ_CLR);
-	offset = ipa_reg_offset(reg);
-	if (uc_irq)
-		iowrite32(mask, ipa->reg_virt + offset);
+	offset = reg_offset(reg);
 
-	if (irq_id < IPA_IRQ_COUNT && interrupt->handler[irq_id])
-		interrupt->handler[irq_id](interrupt->ipa, irq_id);
-
-	/* Clearing the SUSPEND_TX interrupt also clears the register
-	 * that tells us which suspended endpoint(s) caused the interrupt,
-	 * so defer clearing until after the handler has been called.
-	 */
-	if (!uc_irq)
+	switch (irq_id) {
+	case IPA_IRQ_UC_0:
+	case IPA_IRQ_UC_1:
+		/* For microcontroller interrupts, clear the interrupt right
+		 * away, "to avoid clearing unhandled interrupts."
+		 */
 		iowrite32(mask, ipa->reg_virt + offset);
+		ipa_uc_interrupt_handler(ipa, irq_id);
+		break;
+
+	case IPA_IRQ_TX_SUSPEND:
+		/* Clearing the SUSPEND_TX interrupt also clears the
+		 * register that tells us which suspended endpoint(s)
+		 * caused the interrupt, so defer clearing until after
+		 * the handler has been called.
+		 */
+		ipa_power_suspend_handler(ipa, irq_id);
+		fallthrough;
+
+	default:	/* Silently ignore (and clear) any other condition */
+		iowrite32(mask, ipa->reg_virt + offset);
+		break;
+	}
 }
 
 /* IPA IRQ handler is threaded */
@@ -82,7 +85,7 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 	struct ipa_interrupt *interrupt = dev_id;
 	struct ipa *ipa = interrupt->ipa;
 	u32 enabled = interrupt->enabled;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	struct device *dev;
 	u32 pending;
 	u32 offset;
@@ -99,7 +102,7 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 	 * only the enabled ones.
 	 */
 	reg = ipa_reg(ipa, IPA_IRQ_STTS);
-	offset = ipa_reg_offset(reg);
+	offset = reg_offset(reg);
 	pending = ioread32(ipa->reg_virt + offset);
 	while ((mask = pending & enabled)) {
 		do {
@@ -117,14 +120,36 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 		dev_dbg(dev, "clearing disabled IPA interrupts 0x%08x\n",
 			pending);
 		reg = ipa_reg(ipa, IPA_IRQ_CLR);
-		offset = ipa_reg_offset(reg);
-		iowrite32(pending, ipa->reg_virt + offset);
+		iowrite32(pending, ipa->reg_virt + reg_offset(reg));
 	}
 out_power_put:
 	pm_runtime_mark_last_busy(dev);
 	(void)pm_runtime_put_autosuspend(dev);
 
 	return IRQ_HANDLED;
+}
+
+static void ipa_interrupt_enabled_update(struct ipa *ipa)
+{
+	const struct reg *reg = ipa_reg(ipa, IPA_IRQ_EN);
+
+	iowrite32(ipa->interrupt->enabled, ipa->reg_virt + reg_offset(reg));
+}
+
+/* Enable an IPA interrupt type */
+void ipa_interrupt_enable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
+{
+	/* Update the IPA interrupt mask to enable it */
+	ipa->interrupt->enabled |= BIT(ipa_irq);
+	ipa_interrupt_enabled_update(ipa);
+}
+
+/* Disable an IPA interrupt type */
+void ipa_interrupt_disable(struct ipa *ipa, enum ipa_irq_id ipa_irq)
+{
+	/* Update the IPA interrupt mask to disable it */
+	ipa->interrupt->enabled &= ~BIT(ipa_irq);
+	ipa_interrupt_enabled_update(ipa);
 }
 
 void ipa_interrupt_irq_disable(struct ipa *ipa)
@@ -144,7 +169,7 @@ static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 	struct ipa *ipa = interrupt->ipa;
 	u32 mask = BIT(endpoint_id % 32);
 	u32 unit = endpoint_id / 32;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -155,7 +180,7 @@ static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 		return;
 
 	reg = ipa_reg(ipa, IRQ_SUSPEND_EN);
-	offset = ipa_reg_n_offset(reg, unit);
+	offset = reg_n_offset(reg, unit);
 	val = ioread32(ipa->reg_virt + offset);
 
 	if (enable)
@@ -189,18 +214,18 @@ void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
 
 	unit_count = roundup(ipa->endpoint_count, 32);
 	for (unit = 0; unit < unit_count; unit++) {
-		const struct ipa_reg *reg;
+		const struct reg *reg;
 		u32 val;
 
 		reg = ipa_reg(ipa, IRQ_SUSPEND_INFO);
-		val = ioread32(ipa->reg_virt + ipa_reg_n_offset(reg, unit));
+		val = ioread32(ipa->reg_virt + reg_n_offset(reg, unit));
 
 		/* SUSPEND interrupt status isn't cleared on IPA version 3.0 */
 		if (ipa->version == IPA_VERSION_3_0)
 			continue;
 
 		reg = ipa_reg(ipa, IRQ_SUSPEND_CLR);
-		iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, unit));
+		iowrite32(val, ipa->reg_virt + reg_n_offset(reg, unit));
 	}
 }
 
@@ -210,50 +235,12 @@ void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt)
 	ipa_interrupt_process(interrupt, IPA_IRQ_TX_SUSPEND);
 }
 
-/* Add a handler for an IPA interrupt */
-void ipa_interrupt_add(struct ipa_interrupt *interrupt,
-		       enum ipa_irq_id ipa_irq, ipa_irq_handler_t handler)
-{
-	struct ipa *ipa = interrupt->ipa;
-	const struct ipa_reg *reg;
-
-	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
-		return;
-
-	interrupt->handler[ipa_irq] = handler;
-
-	/* Update the IPA interrupt mask to enable it */
-	interrupt->enabled |= BIT(ipa_irq);
-
-	reg = ipa_reg(ipa, IPA_IRQ_EN);
-	iowrite32(interrupt->enabled, ipa->reg_virt + ipa_reg_offset(reg));
-}
-
-/* Remove the handler for an IPA interrupt type */
-void
-ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
-{
-	struct ipa *ipa = interrupt->ipa;
-	const struct ipa_reg *reg;
-
-	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
-		return;
-
-	/* Update the IPA interrupt mask to disable it */
-	interrupt->enabled &= ~BIT(ipa_irq);
-
-	reg = ipa_reg(ipa, IPA_IRQ_EN);
-	iowrite32(interrupt->enabled, ipa->reg_virt + ipa_reg_offset(reg));
-
-	interrupt->handler[ipa_irq] = NULL;
-}
-
 /* Configure the IPA interrupt framework */
 struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
 	struct ipa_interrupt *interrupt;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	unsigned int irq;
 	int ret;
 
@@ -273,7 +260,7 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 
 	/* Start with all IPA interrupts disabled */
 	reg = ipa_reg(ipa, IPA_IRQ_EN);
-	iowrite32(0, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(0, ipa->reg_virt + reg_offset(reg));
 
 	ret = request_threaded_irq(irq, NULL, ipa_isr_thread, IRQF_ONESHOT,
 				   "ipa", interrupt);
@@ -282,9 +269,9 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 		goto err_kfree;
 	}
 
-	ret = enable_irq_wake(irq);
+	ret = dev_pm_set_wake_irq(dev, irq);
 	if (ret) {
-		dev_err(dev, "error %d enabling wakeup for \"ipa\" IRQ\n", ret);
+		dev_err(dev, "error %d registering \"ipa\" IRQ as wakeirq\n", ret);
 		goto err_free_irq;
 	}
 
@@ -302,11 +289,8 @@ err_kfree:
 void ipa_interrupt_deconfig(struct ipa_interrupt *interrupt)
 {
 	struct device *dev = &interrupt->ipa->pdev->dev;
-	int ret;
 
-	ret = disable_irq_wake(interrupt->irq);
-	if (ret)
-		dev_err(dev, "error %d disabling \"ipa\" IRQ wakeup\n", ret);
+	dev_pm_clear_wake_irq(dev);
 	free_irq(interrupt->irq, interrupt);
 	kfree(interrupt);
 }

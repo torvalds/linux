@@ -315,6 +315,7 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm)
 
 static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 {
+	drm_fb_helper_unprepare(&fbdev->base);
 	kfree(fbdev);
 }
 

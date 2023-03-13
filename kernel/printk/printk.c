@@ -466,21 +466,6 @@ static struct latched_seq clear_seq = {
 	.val[1]		= 0,
 };
 
-#ifdef CONFIG_PRINTK_CALLER
-#define PREFIX_MAX		48
-#else
-#define PREFIX_MAX		32
-#endif
-
-/* the maximum size of a formatted record (i.e. with prefix added per line) */
-#define CONSOLE_LOG_MAX		1024
-
-/* the maximum size for a dropped text message */
-#define DROPPED_TEXT_MAX	64
-
-/* the maximum size allowed to be reserved for a record */
-#define LOG_LINE_MAX		(CONSOLE_LOG_MAX - PREFIX_MAX)
-
 #define LOG_LEVEL(v)		((v) & 0x07)
 #define LOG_FACILITY(v)		((v) >> 3 & 0xff)
 
@@ -711,16 +696,15 @@ out:
 	return len;
 }
 
+static bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
+				    bool is_extended, bool may_supress);
+
 /* /dev/kmsg - userspace message inject/listen interface */
 struct devkmsg_user {
 	atomic64_t seq;
 	struct ratelimit_state rs;
 	struct mutex lock;
-	char buf[CONSOLE_EXT_LOG_MAX];
-
-	struct printk_info info;
-	char text_buf[CONSOLE_EXT_LOG_MAX];
-	struct printk_record record;
+	struct printk_buffers pbufs;
 };
 
 static __printf(3, 4) __cold
@@ -746,7 +730,7 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	size_t len = iov_iter_count(from);
 	ssize_t ret = len;
 
-	if (!user || len > LOG_LINE_MAX)
+	if (!user || len > PRINTKRB_RECORD_MAX)
 		return -EINVAL;
 
 	/* Ignore when user logging is disabled. */
@@ -802,8 +786,10 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	struct devkmsg_user *user = file->private_data;
-	struct printk_record *r = &user->record;
-	size_t len;
+	char *outbuf = &user->pbufs.outbuf[0];
+	struct printk_message pmsg = {
+		.pbufs = &user->pbufs,
+	};
 	ssize_t ret;
 
 	if (!user)
@@ -813,7 +799,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	if (!prb_read_valid(prb, atomic64_read(&user->seq), r)) {
+	if (!printk_get_next_message(&pmsg, atomic64_read(&user->seq), true, false)) {
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
 			goto out;
@@ -830,36 +816,31 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		 * This pairs with __wake_up_klogd:A.
 		 */
 		ret = wait_event_interruptible(log_wait,
-				prb_read_valid(prb,
-					atomic64_read(&user->seq), r)); /* LMM(devkmsg_read:A) */
+				printk_get_next_message(&pmsg, atomic64_read(&user->seq), true,
+							false)); /* LMM(devkmsg_read:A) */
 		if (ret)
 			goto out;
 	}
 
-	if (r->info->seq != atomic64_read(&user->seq)) {
+	if (pmsg.dropped) {
 		/* our last seen message is gone, return error and reset */
-		atomic64_set(&user->seq, r->info->seq);
+		atomic64_set(&user->seq, pmsg.seq);
 		ret = -EPIPE;
 		goto out;
 	}
 
-	len = info_print_ext_header(user->buf, sizeof(user->buf), r->info);
-	len += msg_print_ext_body(user->buf + len, sizeof(user->buf) - len,
-				  &r->text_buf[0], r->info->text_len,
-				  &r->info->dev_info);
+	atomic64_set(&user->seq, pmsg.seq + 1);
 
-	atomic64_set(&user->seq, r->info->seq + 1);
-
-	if (len > count) {
+	if (pmsg.outbuf_len > count) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (copy_to_user(buf, user->buf, len)) {
+	if (copy_to_user(buf, outbuf, pmsg.outbuf_len)) {
 		ret = -EFAULT;
 		goto out;
 	}
-	ret = len;
+	ret = pmsg.outbuf_len;
 out:
 	mutex_unlock(&user->lock);
 	return ret;
@@ -952,9 +933,6 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 	ratelimit_set_flags(&user->rs, RATELIMIT_MSG_ON_RELEASE);
 
 	mutex_init(&user->lock);
-
-	prb_rec_init_rd(&user->record, &user->info,
-			&user->text_buf[0], sizeof(user->text_buf));
 
 	atomic64_set(&user->seq, prb_first_valid_seq(prb));
 
@@ -1150,7 +1128,7 @@ static unsigned int __init add_to_rb(struct printk_ringbuffer *rb,
 	return prb_record_text_space(&e);
 }
 
-static char setup_text_buf[LOG_LINE_MAX] __initdata;
+static char setup_text_buf[PRINTKRB_RECORD_MAX] __initdata;
 
 void __init setup_log_buf(int early)
 {
@@ -1416,7 +1394,7 @@ static size_t record_print_text(struct printk_record *r, bool syslog,
 	size_t text_len = r->info->text_len;
 	size_t buf_size = r->text_buf_size;
 	char *text = r->text_buf;
-	char prefix[PREFIX_MAX];
+	char prefix[PRINTK_PREFIX_MAX];
 	bool truncated = false;
 	size_t prefix_len;
 	size_t line_len;
@@ -1515,7 +1493,7 @@ static size_t get_record_print_text_size(struct printk_info *info,
 					 unsigned int line_count,
 					 bool syslog, bool time)
 {
-	char prefix[PREFIX_MAX];
+	char prefix[PRINTK_PREFIX_MAX];
 	size_t prefix_len;
 
 	prefix_len = info_print_prefix(info, syslog, time, prefix);
@@ -1581,11 +1559,11 @@ static int syslog_print(char __user *buf, int size)
 	int len = 0;
 	u64 seq;
 
-	text = kmalloc(CONSOLE_LOG_MAX, GFP_KERNEL);
+	text = kmalloc(PRINTK_MESSAGE_MAX, GFP_KERNEL);
 	if (!text)
 		return -ENOMEM;
 
-	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
+	prb_rec_init_rd(&r, &info, text, PRINTK_MESSAGE_MAX);
 
 	mutex_lock(&syslog_lock);
 
@@ -1686,7 +1664,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	u64 seq;
 	bool time;
 
-	text = kmalloc(CONSOLE_LOG_MAX, GFP_KERNEL);
+	text = kmalloc(PRINTK_MESSAGE_MAX, GFP_KERNEL);
 	if (!text)
 		return -ENOMEM;
 
@@ -1698,7 +1676,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	seq = find_first_fitting_seq(latched_seq_read_nolock(&clear_seq), -1,
 				     size, true, time);
 
-	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
+	prb_rec_init_rd(&r, &info, text, PRINTK_MESSAGE_MAX);
 
 	len = 0;
 	prb_for_each_record(seq, prb, seq, &r) {
@@ -2013,27 +1991,6 @@ static int console_trylock_spinning(void)
 }
 
 /*
- * Call the specified console driver, asking it to write out the specified
- * text and length. If @dropped_text is non-NULL and any records have been
- * dropped, a dropped message will be written out first.
- */
-static void call_console_driver(struct console *con, const char *text, size_t len,
-				char *dropped_text)
-{
-	size_t dropped_len;
-
-	if (con->dropped && dropped_text) {
-		dropped_len = snprintf(dropped_text, DROPPED_TEXT_MAX,
-				       "** %lu printk messages dropped **\n",
-				       con->dropped);
-		con->dropped = 0;
-		con->write(con, dropped_text, dropped_len);
-	}
-
-	con->write(con, text, len);
-}
-
-/*
  * Recursion is tracked separately on each CPU. If NMIs are supported, an
  * additional NMI context per CPU is also separately tracked. Until per-CPU
  * is available, a separate "early tracking" is performed.
@@ -2196,7 +2153,7 @@ static u16 printk_sprint(char *text, u16 size, int facility,
 		}
 	}
 
-	trace_console_rcuidle(text, text_len);
+	trace_console(text, text_len);
 
 	return text_len;
 }
@@ -2243,8 +2200,8 @@ int vprintk_store(int facility, int level,
 	reserve_size = vsnprintf(&prefix_buf[0], sizeof(prefix_buf), fmt, args2) + 1;
 	va_end(args2);
 
-	if (reserve_size > LOG_LINE_MAX)
-		reserve_size = LOG_LINE_MAX;
+	if (reserve_size > PRINTKRB_RECORD_MAX)
+		reserve_size = PRINTKRB_RECORD_MAX;
 
 	/* Extract log level or control flags. */
 	if (facility == 0)
@@ -2258,7 +2215,7 @@ int vprintk_store(int facility, int level,
 
 	if (flags & LOG_CONT) {
 		prb_rec_init_wr(&r, reserve_size);
-		if (prb_reserve_in_last(&e, prb, &r, caller_id, LOG_LINE_MAX)) {
+		if (prb_reserve_in_last(&e, prb, &r, caller_id, PRINTKRB_RECORD_MAX)) {
 			text_len = printk_sprint(&r.text_buf[r.info->text_len], reserve_size,
 						 facility, &flags, fmt, args);
 			r.info->text_len += text_len;
@@ -2389,8 +2346,6 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 
 #else /* CONFIG_PRINTK */
 
-#define CONSOLE_LOG_MAX		0
-#define DROPPED_TEXT_MAX	0
 #define printk_time		false
 
 #define prb_read_valid(rb, seq, r)	false
@@ -2414,10 +2369,6 @@ static ssize_t msg_print_ext_body(char *buf, size_t size,
 				  struct dev_printk_info *dev_info) { return 0; }
 static void console_lock_spinning_enable(void) { }
 static int console_lock_spinning_disable_and_check(int cookie) { return 0; }
-static void call_console_driver(struct console *con, const char *text, size_t len,
-				char *dropped_text)
-{
-}
 static bool suppress_message_printing(int level) { return false; }
 static bool pr_flush(int timeout_ms, bool reset_on_progress) { return true; }
 static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progress) { return true; }
@@ -2744,16 +2695,136 @@ static void __console_unlock(void)
 }
 
 /*
+ * Prepend the message in @pmsg->pbufs->outbuf with a "dropped message". This
+ * is achieved by shifting the existing message over and inserting the dropped
+ * message.
+ *
+ * @pmsg is the printk message to prepend.
+ *
+ * @dropped is the dropped count to report in the dropped message.
+ *
+ * If the message text in @pmsg->pbufs->outbuf does not have enough space for
+ * the dropped message, the message text will be sufficiently truncated.
+ *
+ * If @pmsg->pbufs->outbuf is modified, @pmsg->outbuf_len is updated.
+ */
+#ifdef CONFIG_PRINTK
+static void console_prepend_dropped(struct printk_message *pmsg, unsigned long dropped)
+{
+	struct printk_buffers *pbufs = pmsg->pbufs;
+	const size_t scratchbuf_sz = sizeof(pbufs->scratchbuf);
+	const size_t outbuf_sz = sizeof(pbufs->outbuf);
+	char *scratchbuf = &pbufs->scratchbuf[0];
+	char *outbuf = &pbufs->outbuf[0];
+	size_t len;
+
+	len = scnprintf(scratchbuf, scratchbuf_sz,
+		       "** %lu printk messages dropped **\n", dropped);
+
+	/*
+	 * Make sure outbuf is sufficiently large before prepending.
+	 * Keep at least the prefix when the message must be truncated.
+	 * It is a rather theoretical problem when someone tries to
+	 * use a minimalist buffer.
+	 */
+	if (WARN_ON_ONCE(len + PRINTK_PREFIX_MAX >= outbuf_sz))
+		return;
+
+	if (pmsg->outbuf_len + len >= outbuf_sz) {
+		/* Truncate the message, but keep it terminated. */
+		pmsg->outbuf_len = outbuf_sz - (len + 1);
+		outbuf[pmsg->outbuf_len] = 0;
+	}
+
+	memmove(outbuf + len, outbuf, pmsg->outbuf_len + 1);
+	memcpy(outbuf, scratchbuf, len);
+	pmsg->outbuf_len += len;
+}
+#else
+#define console_prepend_dropped(pmsg, dropped)
+#endif /* CONFIG_PRINTK */
+
+/*
+ * Read and format the specified record (or a later record if the specified
+ * record is not available).
+ *
+ * @pmsg will contain the formatted result. @pmsg->pbufs must point to a
+ * struct printk_buffers.
+ *
+ * @seq is the record to read and format. If it is not available, the next
+ * valid record is read.
+ *
+ * @is_extended specifies if the message should be formatted for extended
+ * console output.
+ *
+ * @may_supress specifies if records may be skipped based on loglevel.
+ *
+ * Returns false if no record is available. Otherwise true and all fields
+ * of @pmsg are valid. (See the documentation of struct printk_message
+ * for information about the @pmsg fields.)
+ */
+static bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
+				    bool is_extended, bool may_suppress)
+{
+	static int panic_console_dropped;
+
+	struct printk_buffers *pbufs = pmsg->pbufs;
+	const size_t scratchbuf_sz = sizeof(pbufs->scratchbuf);
+	const size_t outbuf_sz = sizeof(pbufs->outbuf);
+	char *scratchbuf = &pbufs->scratchbuf[0];
+	char *outbuf = &pbufs->outbuf[0];
+	struct printk_info info;
+	struct printk_record r;
+	size_t len = 0;
+
+	/*
+	 * Formatting extended messages requires a separate buffer, so use the
+	 * scratch buffer to read in the ringbuffer text.
+	 *
+	 * Formatting normal messages is done in-place, so read the ringbuffer
+	 * text directly into the output buffer.
+	 */
+	if (is_extended)
+		prb_rec_init_rd(&r, &info, scratchbuf, scratchbuf_sz);
+	else
+		prb_rec_init_rd(&r, &info, outbuf, outbuf_sz);
+
+	if (!prb_read_valid(prb, seq, &r))
+		return false;
+
+	pmsg->seq = r.info->seq;
+	pmsg->dropped = r.info->seq - seq;
+
+	/*
+	 * Check for dropped messages in panic here so that printk
+	 * suppression can occur as early as possible if necessary.
+	 */
+	if (pmsg->dropped &&
+	    panic_in_progress() &&
+	    panic_console_dropped++ > 10) {
+		suppress_panic_printk = 1;
+		pr_warn_once("Too many dropped messages. Suppress messages on non-panic CPUs to prevent livelock.\n");
+	}
+
+	/* Skip record that has level above the console loglevel. */
+	if (may_suppress && suppress_message_printing(r.info->level))
+		goto out;
+
+	if (is_extended) {
+		len = info_print_ext_header(outbuf, outbuf_sz, r.info);
+		len += msg_print_ext_body(outbuf + len, outbuf_sz - len,
+					  &r.text_buf[0], r.info->text_len, &r.info->dev_info);
+	} else {
+		len = record_print_text(&r, console_msg_format & MSG_FORMAT_SYSLOG, printk_time);
+	}
+out:
+	pmsg->outbuf_len = len;
+	return true;
+}
+
+/*
  * Print one record for the given console. The record printed is whatever
  * record is the next available record for the given console.
- *
- * @text is a buffer of size CONSOLE_LOG_MAX.
- *
- * If extended messages should be printed, @ext_text is a buffer of size
- * CONSOLE_EXT_LOG_MAX. Otherwise @ext_text must be NULL.
- *
- * If dropped messages should be printed, @dropped_text is a buffer of size
- * DROPPED_TEXT_MAX. Otherwise @dropped_text must be NULL.
  *
  * @handover will be set to true if a printk waiter has taken over the
  * console_lock, in which case the caller is no longer holding both the
@@ -2766,46 +2837,33 @@ static void __console_unlock(void)
  *
  * Requires the console_lock and the SRCU read lock.
  */
-static bool console_emit_next_record(struct console *con, char *text, char *ext_text,
-				     char *dropped_text, bool *handover, int cookie)
+static bool console_emit_next_record(struct console *con, bool *handover, int cookie)
 {
-	static int panic_console_dropped;
-	struct printk_info info;
-	struct printk_record r;
-	unsigned long flags;
-	char *write_text;
-	size_t len;
+	static struct printk_buffers pbufs;
 
-	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
+	bool is_extended = console_srcu_read_flags(con) & CON_EXTENDED;
+	char *outbuf = &pbufs.outbuf[0];
+	struct printk_message pmsg = {
+		.pbufs = &pbufs,
+	};
+	unsigned long flags;
 
 	*handover = false;
 
-	if (!prb_read_valid(prb, con->seq, &r))
+	if (!printk_get_next_message(&pmsg, con->seq, is_extended, true))
 		return false;
 
-	if (con->seq != r.info->seq) {
-		con->dropped += r.info->seq - con->seq;
-		con->seq = r.info->seq;
-		if (panic_in_progress() && panic_console_dropped++ > 10) {
-			suppress_panic_printk = 1;
-			pr_warn_once("Too many dropped messages. Suppress messages on non-panic CPUs to prevent livelock.\n");
-		}
-	}
+	con->dropped += pmsg.dropped;
 
-	/* Skip record that has level above the console loglevel. */
-	if (suppress_message_printing(r.info->level)) {
-		con->seq++;
+	/* Skip messages of formatted length 0. */
+	if (pmsg.outbuf_len == 0) {
+		con->seq = pmsg.seq + 1;
 		goto skip;
 	}
 
-	if (ext_text) {
-		write_text = ext_text;
-		len = info_print_ext_header(ext_text, CONSOLE_EXT_LOG_MAX, r.info);
-		len += msg_print_ext_body(ext_text + len, CONSOLE_EXT_LOG_MAX - len,
-					  &r.text_buf[0], r.info->text_len, &r.info->dev_info);
-	} else {
-		write_text = text;
-		len = record_print_text(&r, console_msg_format & MSG_FORMAT_SYSLOG, printk_time);
+	if (con->dropped && !is_extended) {
+		console_prepend_dropped(&pmsg, con->dropped);
+		con->dropped = 0;
 	}
 
 	/*
@@ -2821,11 +2879,15 @@ static bool console_emit_next_record(struct console *con, char *text, char *ext_
 	printk_safe_enter_irqsave(flags);
 	console_lock_spinning_enable();
 
-	stop_critical_timings();	/* don't trace print latency */
-	call_console_driver(con, write_text, len, dropped_text);
+	/* Do not trace print latency. */
+	stop_critical_timings();
+
+	/* Write everything out to the hardware. */
+	con->write(con, outbuf, pmsg.outbuf_len);
+
 	start_critical_timings();
 
-	con->seq++;
+	con->seq = pmsg.seq + 1;
 
 	*handover = console_lock_spinning_disable_and_check(cookie);
 	printk_safe_exit_irqrestore(flags);
@@ -2858,9 +2920,6 @@ skip:
  */
 static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handover)
 {
-	static char dropped_text[DROPPED_TEXT_MAX];
-	static char ext_text[CONSOLE_EXT_LOG_MAX];
-	static char text[CONSOLE_LOG_MAX];
 	bool any_usable = false;
 	struct console *con;
 	bool any_progress;
@@ -2880,16 +2939,7 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 				continue;
 			any_usable = true;
 
-			if (console_srcu_read_flags(con) & CON_EXTENDED) {
-				/* Extended consoles do not print "dropped messages". */
-				progress = console_emit_next_record(con, &text[0],
-								    &ext_text[0], NULL,
-								    handover, cookie);
-			} else {
-				progress = console_emit_next_record(con, &text[0],
-								    NULL, &dropped_text[0],
-								    handover, cookie);
-			}
+			progress = console_emit_next_record(con, handover, cookie);
 
 			/*
 			 * If a handover has occurred, the SRCU read lock

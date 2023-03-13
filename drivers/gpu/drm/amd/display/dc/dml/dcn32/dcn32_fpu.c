@@ -27,6 +27,7 @@
 #include "dcn32/dcn32_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "display_mode_vba_util_32.h"
+#include "dml/dcn32/display_mode_vba_32.h"
 // We need this includes for WATERMARKS_* defines
 #include "clk_mgr/dcn32/dcn32_smu13_driver_if.h"
 #include "dcn30/dcn30_resource.h"
@@ -879,6 +880,10 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context, struc
 	int16_t stretched_drr_us = 0;
 	int16_t drr_stretched_vblank_us = 0;
 	int16_t max_vblank_mallregion = 0;
+	const struct dc_config *config = &dc->config;
+
+	if (config->disable_subvp_drr)
+		return false;
 
 	// Find SubVP pipe
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1400,7 +1405,7 @@ static void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context,
 					/* SS PSR On: all active surfaces part of streams not supporting PSR stored in MALL */
 					context->bw_ctx.bw.dcn.mall_ss_psr_active_size_bytes += context->res_ctx.pipe_ctx[i].surface_size_in_mall_bytes;
 				}
-			} else if (context->res_ctx.pipe_ctx[i].stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			} else {
 				/* SUBVP: phantom surfaces only stored in MALL */
 				context->bw_ctx.bw.dcn.mall_subvp_size_bytes += context->res_ctx.pipe_ctx[i].surface_size_in_mall_bytes;
 			}
@@ -1618,6 +1623,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 	}
 
 	dml_log_pipe_params(&context->bw_ctx.dml, pipes, pipe_cnt);
+	context->bw_ctx.dml.soc.max_vratio_pre = dcn32_determine_max_vratio_prefetch(dc, context);
 
 	if (!fast_validate)
 		dcn32_full_validate_bw_helper(dc, context, pipes, &vlevel, split, merge, &pipe_cnt);
@@ -2126,6 +2132,10 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		 */
 		context->bw_ctx.bw.dcn.watermarks.a = context->bw_ctx.bw.dcn.watermarks.c;
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 0;
+		/* Calculate FCLK p-state change watermark based on FCLK pstate change latency in case
+		 * UCLK p-state is not supported, to avoid underflow in case FCLK pstate is supported
+		 */
+		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.fclk_pstate_change_ns = get_fclk_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	} else {
 		/* Set A:
 		 * All clocks min.
@@ -2739,4 +2749,34 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
 			allow = true;
 	}
 	return allow;
+}
+
+/**
+ * *******************************************************************************************
+ * dcn32_determine_max_vratio_prefetch: Determine max Vratio for prefetch by driver policy
+ *
+ * @param [in]: dc: Current DC state
+ * @param [in]: context: New DC state to be programmed
+ *
+ * @return: Max vratio for prefetch
+ *
+ * *******************************************************************************************
+ */
+double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *context)
+{
+	double max_vratio_pre = __DML_MAX_BW_RATIO_PRE__; // Default value is 4
+	int i;
+
+	/* For single display MPO configs, allow the max vratio to be 8
+	 * if any plane is YUV420 format
+	 */
+	if (context->stream_count == 1 && context->stream_status[0].plane_count > 1) {
+		for (i = 0; i < context->stream_status[0].plane_count; i++) {
+			if (context->stream_status[0].plane_states[i]->format == SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr ||
+					context->stream_status[0].plane_states[i]->format == SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb) {
+				max_vratio_pre = __DML_MAX_VRATIO_PRE__;
+			}
+		}
+	}
+	return max_vratio_pre;
 }

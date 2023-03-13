@@ -389,6 +389,15 @@ config PAHOLE_HAS_BTF_TAG
 	  btf_decl_tag) or not. Currently only clang compiler implements
 	  these attributes, so make the config depend on CC_IS_CLANG.
 
+config PAHOLE_HAS_LANG_EXCLUDE
+	def_bool PAHOLE_VERSION >= 124
+	help
+	  Support for the --lang_exclude flag which makes pahole exclude
+	  compilation units from the supplied language. Used in Kbuild to
+	  omit Rust CUs which are not supported in version 1.24 of pahole,
+	  otherwise it would emit malformed kernel and module binaries when
+	  using DEBUG_INFO_BTF_MODULES.
+
 config DEBUG_INFO_BTF_MODULES
 	def_bool y
 	depends on DEBUG_INFO_BTF && MODULES && PAHOLE_HAS_SPLIT_BTF
@@ -742,76 +751,6 @@ config SHRINKER_DEBUG
 	  Say Y to enable the shrinker debugfs interface which provides
 	  visibility into the kernel memory shrinkers subsystem.
 	  Disable it to avoid an extra memory footprint.
-
-config HAVE_DEBUG_KMEMLEAK
-	bool
-
-config DEBUG_KMEMLEAK
-	bool "Kernel memory leak detector"
-	depends on DEBUG_KERNEL && HAVE_DEBUG_KMEMLEAK
-	select DEBUG_FS
-	select STACKTRACE if STACKTRACE_SUPPORT
-	select KALLSYMS
-	select CRC32
-	select STACKDEPOT
-	help
-	  Say Y here if you want to enable the memory leak
-	  detector. The memory allocation/freeing is traced in a way
-	  similar to the Boehm's conservative garbage collector, the
-	  difference being that the orphan objects are not freed but
-	  only shown in /sys/kernel/debug/kmemleak. Enabling this
-	  feature will introduce an overhead to memory
-	  allocations. See Documentation/dev-tools/kmemleak.rst for more
-	  details.
-
-	  Enabling DEBUG_SLAB or SLUB_DEBUG may increase the chances
-	  of finding leaks due to the slab objects poisoning.
-
-	  In order to access the kmemleak file, debugfs needs to be
-	  mounted (usually at /sys/kernel/debug).
-
-config DEBUG_KMEMLEAK_MEM_POOL_SIZE
-	int "Kmemleak memory pool size"
-	depends on DEBUG_KMEMLEAK
-	range 200 1000000
-	default 16000
-	help
-	  Kmemleak must track all the memory allocations to avoid
-	  reporting false positives. Since memory may be allocated or
-	  freed before kmemleak is fully initialised, use a static pool
-	  of metadata objects to track such callbacks. After kmemleak is
-	  fully initialised, this memory pool acts as an emergency one
-	  if slab allocations fail.
-
-config DEBUG_KMEMLEAK_TEST
-	tristate "Simple test for the kernel memory leak detector"
-	depends on DEBUG_KMEMLEAK && m
-	help
-	  This option enables a module that explicitly leaks memory.
-
-	  If unsure, say N.
-
-config DEBUG_KMEMLEAK_DEFAULT_OFF
-	bool "Default kmemleak to off"
-	depends on DEBUG_KMEMLEAK
-	help
-	  Say Y here to disable kmemleak by default. It can then be enabled
-	  on the command line via kmemleak=on.
-
-config DEBUG_KMEMLEAK_AUTO_SCAN
-	bool "Enable kmemleak auto scan thread on boot up"
-	default y
-	depends on DEBUG_KMEMLEAK
-	help
-	  Depending on the cpu, kmemleak scan may be cpu intensive and can
-	  stall user tasks at times. This option enables/disables automatic
-	  kmemleak scan at boot up.
-
-	  Say N here to disable kmemleak auto scan thread to stop automatic
-	  scanning. Disabling this option disables automatic reporting of
-	  memory leaks.
-
-	  If unsure, say Y.
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
@@ -1207,7 +1146,7 @@ config SCHED_DEBUG
 	depends on DEBUG_KERNEL && PROC_FS
 	default y
 	help
-	  If you say Y here, the /proc/sched_debug file will be provided
+	  If you say Y here, the /sys/kernel/debug/sched file will be provided
 	  that can help debug the scheduler. The runtime overhead of this
 	  option is minimal.
 
@@ -1246,12 +1185,15 @@ config DEBUG_TIMEKEEPING
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
 	depends on DEBUG_KERNEL && PREEMPTION && TRACE_IRQFLAGS_SUPPORT
-	default y
 	help
 	  If you say Y here then the kernel will use a debug variant of the
 	  commonly used smp_processor_id() function and will print warnings
 	  if kernel code uses it in a preemption-unsafe way. Also, the kernel
 	  will detect preemption count underflows.
+
+	  This option has potential to introduce high runtime overhead,
+	  depending on workload as it triggers debugging routines for each
+	  this_cpu operation. It should only be used for debugging purposes.
 
 menu "Lock Debugging (spinlocks, mutexes, etc...)"
 
@@ -1551,6 +1493,17 @@ config TRACE_IRQFLAGS_NMI
 	def_bool y
 	depends on TRACE_IRQFLAGS
 	depends on TRACE_IRQFLAGS_NMI_SUPPORT
+
+config NMI_CHECK_CPU
+	bool "Debugging for CPUs failing to respond to backtrace requests"
+	depends on DEBUG_KERNEL
+	depends on X86
+	default n
+	help
+	  Enables debug prints when a CPU fails to respond to a given
+	  backtrace NMI.  These prints provide some reasons why a CPU
+	  might legitimately be failing to respond, for example, if it
+	  is offline of if ignore_nmis is set.
 
 config DEBUG_IRQFLAGS
 	bool "Debug IRQ flag manipulation"
@@ -2079,6 +2032,41 @@ menuconfig RUNTIME_TESTING_MENU
 
 if RUNTIME_TESTING_MENU
 
+config TEST_DHRY
+	tristate "Dhrystone benchmark test"
+	help
+	  Enable this to include the Dhrystone 2.1 benchmark.  This test
+	  calculates the number of Dhrystones per second, and the number of
+	  DMIPS (Dhrystone MIPS) obtained when the Dhrystone score is divided
+	  by 1757 (the number of Dhrystones per second obtained on the VAX
+	  11/780, nominally a 1 MIPS machine).
+
+	  To run the benchmark, it needs to be enabled explicitly, either from
+	  the kernel command line (when built-in), or from userspace (when
+	  built-in or modular.
+
+	  Run once during kernel boot:
+
+	      test_dhry.run
+
+	  Set number of iterations from kernel command line:
+
+	      test_dhry.iterations=<n>
+
+	  Set number of iterations from userspace:
+
+	      echo <n> > /sys/module/test_dhry/parameters/iterations
+
+	  Trigger manual run from userspace:
+
+	      echo y > /sys/module/test_dhry/parameters/run
+
+	  If the number of iterations is <= 0, the test will devise a suitable
+	  number of iterations (test runs for at least 2s) automatically.
+	  This process takes ca. 4s.
+
+	  If unsure, say N.
+
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
 	depends on DEBUG_FS
@@ -2496,6 +2484,19 @@ config LIST_KUNIT_TEST
 
 	  If unsure, say N.
 
+config HASHTABLE_KUNIT_TEST
+	tristate "KUnit Test for Kernel Hashtable structures" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the hashtable KUnit test suite.
+	  It tests the basic functionality of the API defined in
+	  include/linux/hashtable.h. For more information on KUnit and
+	  unit tests in general please refer to the KUnit documentation
+	  in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config LINEAR_RANGES_TEST
 	tristate "KUnit test for linear_ranges"
 	depends on KUNIT
@@ -2880,7 +2881,5 @@ config RUST_BUILD_ASSERT_ALLOW
 	  If unsure, say N.
 
 endmenu # "Rust"
-
-source "Documentation/Kconfig"
 
 endmenu # Kernel hacking
