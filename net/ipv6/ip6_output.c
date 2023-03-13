@@ -1153,7 +1153,7 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	rcu_read_lock_bh();
 	n = __ipv6_neigh_lookup_noref(rt->dst.dev,
 				      rt6_nexthop(rt, &fl6->daddr));
-	err = n && !(n->nud_state & NUD_VALID) ? -EINVAL : 0;
+	err = n && !(READ_ONCE(n->nud_state) & NUD_VALID) ? -EINVAL : 0;
 	rcu_read_unlock_bh();
 
 	if (err) {
