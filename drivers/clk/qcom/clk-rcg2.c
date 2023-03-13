@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013, 2016-2018, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -1841,11 +1841,15 @@ static int clk_rcg2_crmc_determine_rate(struct clk_hw *hw,
 	struct clk_crm *crm = rcg->clkr.crm;
 	int ret;
 
+	ret = clk_runtime_get_regmap(&rcg->clkr);
+	if (ret)
+		return ret;
+
 	ret = qcom_clk_crm_init(rcg->clkr.dev, crm);
 	if (ret) {
 		pr_err("%s Failed to initialize CRM ret=%d clk=%s\n",
 		       __func__, ret, qcom_clk_hw_get_name(hw));
-		return ret;
+		goto err;
 	}
 
 	if (!rcg->freq_populated) {
@@ -1853,12 +1857,15 @@ static int clk_rcg2_crmc_determine_rate(struct clk_hw *hw,
 		if (ret) {
 			pr_err("%s Failed to populate crmc tables for %s\n",
 			       __func__, qcom_clk_hw_get_name(hw));
-			return ret;
+			goto err;
 		}
 		rcg->freq_populated = true;
 	}
+	ret = clk_rcg2_determine_rate(hw, req);
 
-	return clk_rcg2_determine_rate(hw, req);
+err:
+	clk_runtime_put_regmap(&rcg->clkr);
+	return ret;
 }
 
 static int clk_rcg2_vote_perf_level(struct clk_hw *hw, unsigned long rate)
@@ -1902,10 +1909,10 @@ static int clk_rcg2_crmc_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 
-	if (!clk_hw_is_prepared(hw)) {
-		rcg->current_freq = rate;
+	rcg->current_freq = rate;
+
+	if (!clk_hw_is_prepared(hw))
 		return 0;
-	}
 
 	return clk_rcg2_vote_perf_level(hw, rate);
 }
@@ -1926,6 +1933,9 @@ static int clk_rcg2_crmc_set_rate(struct clk_hw *hw, unsigned long rate,
 int clk_rcg2_crmc_prepare(struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
+
+	if (!rcg->current_freq)
+		rcg->current_freq = cxo_f.freq;
 
 	return clk_rcg2_vote_perf_level(hw, rcg->current_freq);
 }
@@ -2129,10 +2139,10 @@ static int clk_rcg2_crmb_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_crm *crm = rcg->clkr.crm;
 	int ret;
 
-	if (!clk_hw_is_prepared(hw)) {
-		rcg->current_freq = rate;
+	rcg->current_freq = rate;
+
+	if (!clk_hw_is_prepared(hw))
 		return 0;
-	}
 
 	if (rcg->freq_tbl && crm->initialized) {
 		ret = clk_rcg2_vote_bw(hw, rate);
