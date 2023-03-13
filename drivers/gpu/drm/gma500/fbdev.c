@@ -18,7 +18,7 @@
  * VM area struct
  */
 
-static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
+static vm_fault_t psb_fbdev_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_framebuffer *fb = vma->vm_private_data;
@@ -49,16 +49,8 @@ static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 	return ret;
 }
 
-static void psbfb_vm_open(struct vm_area_struct *vma)
-{ }
-
-static void psbfb_vm_close(struct vm_area_struct *vma)
-{ }
-
-static const struct vm_operations_struct psbfb_vm_ops = {
-	.fault	= psbfb_vm_fault,
-	.open	= psbfb_vm_open,
-	.close	= psbfb_vm_close
+static const struct vm_operations_struct psb_fbdev_vm_ops = {
+	.fault	= psb_fbdev_vm_fault,
 };
 
 /*
@@ -122,7 +114,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	 * kernel remapping of the object. FIXME: Review if this is
 	 * suitable for our mmap work
 	 */
-	vma->vm_ops = &psbfb_vm_ops;
+	vma->vm_ops = &psb_fbdev_vm_ops;
 	vma->vm_private_data = (void *)fb;
 	vm_flags_set(vma, VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP);
 
