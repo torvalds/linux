@@ -873,6 +873,7 @@ struct dc_debug_options {
 	bool dig_fifo_off_in_blank;
 	bool temp_mst_deallocation_sequence;
 	bool override_dispclk_programming;
+	bool disable_fpo_optimizations;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
