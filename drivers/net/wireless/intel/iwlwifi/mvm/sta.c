@@ -2256,8 +2256,8 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return 0;
 }
 
-static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
-					  struct ieee80211_vif *vif)
+void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u16 *queueptr, queue;

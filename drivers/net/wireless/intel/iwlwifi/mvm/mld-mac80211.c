@@ -113,6 +113,40 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
+					     struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (iwl_mvm_mac_remove_interface_common(hw, vif))
+		goto out;
+
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		mvm->p2p_device_vif = NULL;
+		iwl_mvm_mld_rm_bcast_sta(mvm, vif);
+		/* Link needs to be deactivated before removal */
+		iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
+				     false);
+		iwl_mvm_remove_link(mvm, vif);
+		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
+		mvmvif->phy_ctxt = NULL;
+	}
+
+	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
+
+	RCU_INIT_POINTER(mvm->vif_id_to_mac[mvmvif->id], NULL);
+
+	if (vif->type == NL80211_IFTYPE_MONITOR) {
+		mvm->monitor_on = false;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, mvm->hw->flags);
+	}
+
+out:
+	mutex_unlock(&mvm->mutex);
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.add_interface = iwl_mvm_mld_mac_add_interface,
+	.remove_interface = iwl_mvm_mld_mac_remove_interface,
 };
