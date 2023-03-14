@@ -2000,10 +2000,9 @@ static void iwl_mvm_get_optimal_ppe_info(struct iwl_he_pkt_ext_v2 *pkt_ext,
  * This function sets the MU EDCA parameters ans returns whether MU EDCA
  * is enabled or not
  */
-static bool iwl_mvm_set_fw_mu_edca_params(struct iwl_mvm *mvm,
-					  struct iwl_mvm_vif *mvmvif,
-					  struct iwl_he_backoff_conf
-					  *trig_based_txf)
+bool iwl_mvm_set_fw_mu_edca_params(struct iwl_mvm *mvm,
+				   struct iwl_mvm_vif *mvmvif,
+				   struct iwl_he_backoff_conf *trig_based_txf)
 {
 	int i;
 	/* Mark MU EDCA as enabled, unless none detected on some AC */

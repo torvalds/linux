@@ -38,6 +38,10 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	MAC_CONFIG_CMD = 0x8,
 	/**
+	 * @LINK_CONFIG_CMD: &struct iwl_link_config_cmd
+	 */
+	LINK_CONFIG_CMD = 0x9,
+	/**
 	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
 	 */
 	SESSION_PROTECTION_NOTIF = 0xFB,
@@ -286,5 +290,180 @@ struct iwl_mac_config_cmd {
 		struct iwl_mac_p2p_dev_data p2p_dev;
 	};
 } __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * enum iwl_link_ctx_modify_flags - indicate to the fw what fields are being
+ *	modified in &iwl_link_ctx_cfg_cmd
+ *
+ * @LINK_CONTEXT_MODIFY_ACTIVE: covers iwl_link_ctx_cfg_cmd::active
+ * @LINK_CONTEXT_MODIFY_RATES_INFO: covers iwl_link_ctx_cfg_cmd::cck_rates,
+ *	iwl_link_ctx_cfg_cmd::ofdm_rates,
+ *	iwl_link_ctx_cfg_cmd::cck_short_preamble,
+ *	iwl_link_ctx_cfg_cmd::short_slot
+ * @LINK_CONTEXT_MODIFY_PROTECT_FLAGS: covers
+ *	iwl_link_ctx_cfg_cmd::protection_flags
+ * @LINK_CONTEXT_MODIFY_QOS_PARAMS: covers iwl_link_ctx_cfg_cmd::qos_flags,
+ *	iwl_link_ctx_cfg_cmd::ac,
+ * @LINK_CONTEXT_MODIFY_BEACON_TIMING: covers iwl_link_ctx_cfg_cmd::bi,
+ *	iwl_link_ctx_cfg_cmd::dtim_interval,
+ *	iwl_link_ctx_cfg_cmd::dtim_time,
+ *	iwl_link_ctx_cfg_cmd::dtim_tsf,
+ *	iwl_link_ctx_cfg_cmd::assoc_beacon_arrive_time.
+ *	This flag can be set only once after assoc.
+ * @LINK_CONTEXT_MODIFY_HE_PARAMS: covers
+ *	iwl_link_ctx_cfg_cmd::htc_trig_based_pkt_ext
+ *	iwl_link_ctx_cfg_cmd::rand_alloc_ecwmin,
+ *	iwl_link_ctx_cfg_cmd::rand_alloc_ecwmax,
+ *	iwl_link_ctx_cfg_cmd::trig_based_txf,
+ *	iwl_link_ctx_cfg_cmd::bss_color,
+ *	iwl_link_ctx_cfg_cmd::ndp_fdbk_buff_th_exp,
+ *	iwl_link_ctx_cfg_cmd::ref_bssid_addr
+ *	iwl_link_ctx_cfg_cmd::bssid_index,
+ *	iwl_link_ctx_cfg_cmd::frame_time_rts_th.
+ *	This flag can be set any time.
+ * @LINK_CONTEXT_MODIFY_BSS_COLOR_DISABLE: covers
+ *	iwl_link_ctx_cfg_cmd::bss_color_disable
+ * @LINK_CONTEXT_MODIFY_EHT_PARAMS: covers iwl_link_ctx_cfg_cmd::puncture_mask.
+ *	This flag can be set only if the MAC that this link relates to has
+ *	eht_support set to true.
+ * @LINK_CONTEXT_MODIFY_ALL: set all above flags
+ */
+enum iwl_link_ctx_modify_flags {
+	LINK_CONTEXT_MODIFY_ACTIVE		= BIT(0),
+	LINK_CONTEXT_MODIFY_RATES_INFO		= BIT(1),
+	LINK_CONTEXT_MODIFY_PROTECT_FLAGS	= BIT(2),
+	LINK_CONTEXT_MODIFY_QOS_PARAMS		= BIT(3),
+	LINK_CONTEXT_MODIFY_BEACON_TIMING	= BIT(4),
+	LINK_CONTEXT_MODIFY_HE_PARAMS		= BIT(5),
+	LINK_CONTEXT_MODIFY_BSS_COLOR_DISABLE	= BIT(6),
+	LINK_CONTEXT_MODIFY_EHT_PARAMS		= BIT(7),
+	LINK_CONTEXT_MODIFY_ALL			= 0xff,
+}; /* LINK_CONTEXT_MODIFY_MASK_E_VER_1 */
+
+/**
+ * enum iwl_link_ctx_protection_flags - link protection flags
+ * @LINK_PROT_FLG_TGG_PROTECT: 11g protection when transmitting OFDM frames,
+ *	this will require CCK RTS/CTS2self.
+ *	RTS/CTS will protect full burst time.
+ * @LINK_PROT_FLG_HT_PROT: enable HT protection
+ * @LINK_PROT_FLG_FAT_PROT: protect 40 MHz transmissions
+ * @LINK_PROT_FLG_SELF_CTS_EN: allow CTS2self
+ */
+enum iwl_link_ctx_protection_flags {
+	LINK_PROT_FLG_TGG_PROTECT	= BIT(0),
+	LINK_PROT_FLG_HT_PROT		= BIT(1),
+	LINK_PROT_FLG_FAT_PROT		= BIT(2),
+	LINK_PROT_FLG_SELF_CTS_EN	= BIT(3),
+}; /* LINK_PROTECT_FLAGS_E_VER_1 */
+
+/**
+ * enum iwl_link_ctx_flags - link context flags
+ *
+ * @LINK_FLG_BSS_COLOR_DIS: BSS color disable, don't use the BSS
+ *	color for RX filter but use MAC header
+ *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
+ * @LINK_FLG_MU_EDCA_CW: indicates that there is an element of MU EDCA
+ *	parameter set, i.e. the backoff counters for trig-based ACs
+ * @LINK_FLG_RU_2MHZ_BLOCK: indicates that 26-tone RU OFDMA transmission are
+ *      not allowed (as there are OBSS that might classify such transmissions as
+ *      radar pulses).
+ */
+enum iwl_link_ctx_flags {
+	LINK_FLG_BSS_COLOR_DIS		= BIT(0),
+	LINK_FLG_MU_EDCA_CW		= BIT(1),
+	LINK_FLG_RU_2MHZ_BLOCK		= BIT(2),
+}; /* LINK_CONTEXT_FLAG_E_VER_1 */
+
+/**
+ * struct iwl_link_config_cmd - command structure to configure the LINK context
+ *	in MLD API
+ * ( LINK_CONFIG_CMD =0x9 )
+ *
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @link_id: the id of the link that this cmd configures
+ * @mac_id: interface ID. Relevant only if action is FW_CTXT_ACTION_ADD
+ * @phy_id: PHY index. Can be changed only if the link was inactive
+ *	(and stays inactive). If the link is active (or becomes active),
+ *	this field is ignored.
+ * @local_link_addr: the links MAC address. Can be changed only if the link was
+ *	inactive (and stays inactive). If the link is active
+ *	(or becomes active), this field is ignored.
+ * @reserved_for_local_link_addr: reserved
+ * @modify_mask: from &enum iwl_link_ctx_modify_flags, selects what to change.
+ *	Relevant only if action is FW_CTXT_ACTION_MODIFY
+ * @active: indicates whether the link is active or not
+ * @listen_lmac: indicates whether the link should be allocated on the Listen
+ *	Lmac or on the Main Lmac. Cannot be changed on an active Link.
+ *	Relevant only for eSR.
+ * @cck_rates: basic rates available for CCK
+ * @ofdm_rates: basic rates available for OFDM
+ * @cck_short_preamble: 1 for enabling short preamble, 0 otherwise
+ * @short_slot: 1 for enabling short slots, 0 otherwise
+ * @protection_flags: combination of &enum iwl_link_ctx_protection_flags
+ * @qos_flags: from &enum iwl_mac_qos_flags
+ * @ac: one iwl_mac_qos configuration for each AC
+ * @htc_trig_based_pkt_ext: default PE in 4us units
+ * @rand_alloc_ecwmin: random CWmin = 2**ECWmin-1
+ * @rand_alloc_ecwmax: random CWmax = 2**ECWmax-1
+ * @ndp_fdbk_buff_th_exp: set exponent for the NDP feedback buffered threshold
+ * @trig_based_txf: MU EDCA Parameter set for the trigger based traffic queues
+ * @dtim_time: DTIM arrival time in system time
+ * @dtim_tsf: DTIM arrival time in TSF
+ * @assoc_beacon_arrive_time: TSF of first beacon after association
+ * @bi: beacon interval in TU, applicable only when associated
+ * @dtim_interval: DTIM interval in TU.
+ *	Relevant only for GO, otherwise this is offloaded.
+ * @beacon_template: beacon template ID. For GO only
+ * @puncture_mask: puncture mask for EHT
+ * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
+ * @flags: a combination from &enum iwl_link_ctx_flags
+ * @flags_mask: what of %flags have changed. Also &enum iwl_link_ctx_flags
+ * Below fields are for multi-bssid:
+ * @ref_bssid_addr: reference BSSID used by the AP
+ * @reserved_for_ref_bssid_addr: reserved
+ * @bssid_index: index of the associated VAP
+ * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
+ * @reserved: alignment
+ */
+struct iwl_link_config_cmd {
+	__le32 action;
+	__le32 link_id;
+	__le32 mac_id;
+	__le32 phy_id;
+	u8 local_link_addr[6];
+	__le16 reserved_for_local_link_addr;
+	__le32 modify_mask;
+	__le32 active;
+	__le32 listen_lmac;
+	__le32 cck_rates;
+	__le32 ofdm_rates;
+	__le32 cck_short_preamble;
+	__le32 short_slot;
+	__le32 protection_flags;
+	/* MAC_QOS_PARAM_API_S_VER_1 */
+	__le32 qos_flags;
+	struct iwl_ac_qos ac[AC_NUM + 1];
+	u8 htc_trig_based_pkt_ext;
+	u8 rand_alloc_ecwmin;
+	u8 rand_alloc_ecwmax;
+	u8 ndp_fdbk_buff_th_exp;
+	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
+	__le32 dtim_time;
+	__le64 dtim_tsf;
+	__le32 assoc_beacon_arrive_time;
+	__le32 bi;
+	__le32 dtim_interval;
+	__le32 beacon_template;
+	__le16 puncture_mask;
+	__le16 frame_time_rts_th;
+	__le32 flags;
+	__le32 flags_mask;
+	/* The below fields are for multi-bssid */
+	u8 ref_bssid_addr[6];
+	__le16 reserved_for_ref_bssid_addr;
+	u8 bssid_index;
+	u8 bss_color;
+	u8 reserved[2];
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

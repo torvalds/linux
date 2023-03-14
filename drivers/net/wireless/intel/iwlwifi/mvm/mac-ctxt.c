@@ -396,9 +396,8 @@ static void iwl_mvm_ack_rates(struct iwl_mvm *mvm,
 	*ofdm_rates = ofdm;
 }
 
-static void iwl_mvm_set_fw_basic_rates(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif,
-				       __le32 *cck_rates, __le32 *ofdm_rates)
+void iwl_mvm_set_fw_basic_rates(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				__le32 *cck_rates, __le32 *ofdm_rates)
 {
 	struct ieee80211_chanctx_conf *chanctx;
 	u8 cck_ack_rates, ofdm_ack_rates;
@@ -414,11 +413,10 @@ static void iwl_mvm_set_fw_basic_rates(struct iwl_mvm *mvm,
 	*ofdm_rates = cpu_to_le32((u32)ofdm_ack_rates);
 }
 
-static void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif,
-					    __le32 *protection_flags,
-					    u32 ht_flag,
-					    u32 tgg_flag)
+void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     __le32 *protection_flags, u32 ht_flag,
+				     u32 tgg_flag)
 {
 	/* for both sta and ap, ht_operation_mode hold the protection_mode */
 	u8 protection_mode = vif->bss_conf.ht_operation_mode &
@@ -460,9 +458,8 @@ static void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
 	}
 }
 
-static void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif,
-				      struct iwl_ac_qos *ac, __le32 *qos_flags)
+void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct iwl_ac_qos *ac, __le32 *qos_flags)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int i;
@@ -572,10 +569,9 @@ static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static void iwl_mvm_set_fw_dtim_tbtt(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     __le64 *dtim_tsf, __le32 *dtim_time,
-				     __le32 *assoc_beacon_arrive_time)
+void iwl_mvm_set_fw_dtim_tbtt(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			      __le64 *dtim_tsf, __le32 *dtim_time,
+			      __le32 *assoc_beacon_arrive_time)
 {
 	u32 dtim_offs;
 
