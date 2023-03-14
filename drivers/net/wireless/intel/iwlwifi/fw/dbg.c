@@ -2320,6 +2320,34 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	return entry->size;
 }
 
+static u32 iwl_dump_ini_file_name_info(struct iwl_fw_runtime *fwrt,
+				       struct list_head *list)
+{
+	struct iwl_fw_ini_dump_entry *entry;
+	struct iwl_dump_file_name_info *tlv;
+	u32 len = strnlen(fwrt->trans->dbg.dump_file_name_ext,
+			  IWL_FW_INI_MAX_NAME);
+
+	if (!fwrt->trans->dbg.dump_file_name_ext_valid)
+		return 0;
+
+	entry = vzalloc(sizeof(*entry) + sizeof(*tlv) + len);
+	if (!entry)
+		return 0;
+
+	entry->size = sizeof(*tlv) + len;
+
+	tlv = (void *)entry->data;
+	tlv->type = cpu_to_le32(IWL_INI_DUMP_NAME_TYPE);
+	tlv->len = cpu_to_le32(len);
+	memcpy(tlv->data, fwrt->trans->dbg.dump_file_name_ext, len);
+
+	/* add the dump file name extension tlv to the list */
+	list_add_tail(&entry->list, list);
+
+	return entry->size;
+}
+
 static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 	[IWL_FW_INI_REGION_INVALID] = {},
 	[IWL_FW_INI_REGION_INTERNAL_BUFFER] = {
@@ -2495,8 +2523,10 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 		size += iwl_dump_ini_mem(fwrt, list, &reg_data,
 					 &iwl_dump_ini_region_ops[IWL_FW_INI_REGION_DRAM_IMR]);
 
-	if (size)
+	if (size) {
+		size += iwl_dump_ini_file_name_info(fwrt, list);
 		size += iwl_dump_ini_info(fwrt, trigger, list);
+	}
 
 	return size;
 }
