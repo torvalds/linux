@@ -34,8 +34,18 @@
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
-		serial5 = &vuart1;
-		serial6 = &vuart2;
+		serial5 = &uart6;
+		serial6 = &uart7;
+		serial7 = &uart8;
+		serial8 = &uart9;
+		serial9 = &uart10;
+		serial10 = &uart11;
+		serial11 = &uart12;
+		serial12 = &uart13;
+		serial13 = &vuart1;
+		serial14 = &vuart2;
+		serial15 = &vuart3;
+		serial16 = &vuart4;
 		mdio0 = &mdio0;
 		mdio1 = &mdio1;
 		mdio2 = &mdio2;
@@ -97,9 +107,9 @@
 			    <0x40466000 0x2000>;
 			};
 
-		ahbc: bus@1e600000 {
-			compatible = "aspeed,ast2600-ahbc", "syscon";
-			reg = <0x1e600000 0x100>;
+		ahbc: ahbc@1e600000 {
+			compatible = "aspeed,aspeed-ahbc", "syscon";
+			reg = < 0x1e600000 0x100>;
 		};
 
 		fmc: spi@1e620000 {
@@ -337,6 +347,16 @@
 				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_YCLK>;
 				resets = <&syscon ASPEED_RESET_HACE>;
+			};
+
+			acry: acry@1e6fa000 {
+				compatible = "aspeed,ast2600-acry";
+				reg = <0x1e6fa000 0x400 0x1e710000 0x1800>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_RSACLK>;
+				clock-names = "rsaclk";
+				aspeed,ahbc = <&ahbc>;
+				status = "ok";
 			};
 
 			syscon: syscon@1e6e2000 {
@@ -613,6 +633,42 @@
 				status = "disabled";
 			};
 
+			vuart1: serial@1e787000 {
+				compatible = "ns16550a";
+				reg = <0x1e787000 0x40>;
+				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB1>;
+				virtual;
+				status = "disabled";
+			};
+
+			vuart3: serial@1e787800 {
+				compatible = "ns16550a";
+				reg = <0x1e787800 0x40>;
+				interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB1>;
+				virtual;
+				status = "disabled";
+			};
+
+			vuart2: serial@1e788000 {
+				compatible = "ns16550a";
+				reg = <0x1e788000 0x40>;
+				interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB1>;
+				virtual;
+				status = "disabled";
+			};
+
+			vuart4: serial@1e788800 {
+				compatible = "ns16550a";
+				reg = <0x1e788800 0x40>;
+				interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_APB2>;
+				virtual;
+				status = "disabled";
+			};
+
 			lpc: lpc@1e789000 {
 				compatible = "aspeed,ast2600-lpc-v2", "simple-mfd", "syscon";
 				reg = <0x1e789000 0x1000>;
@@ -757,6 +813,7 @@
 				};
 			};
 
+<<<<<<< HEAD:arch/arm/boot/dts/aspeed/aspeed-g6.dtsi
 			vuart1: serial@1e787000 {
 				compatible = "aspeed,ast2500-vuart";
 				reg = <0x1e787000 0x40>;
@@ -785,6 +842,13 @@
 				clocks = <&syscon ASPEED_CLK_APB1>;
 				no-loopback-test;
 				status = "disabled";
+=======
+			i2c: bus@1e78a000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e78a000 0x1000>;
+>>>>>>> ARM: dts: aspeed-g6: Add missing node:arch/arm/boot/dts/aspeed-g6.dtsi
 			};
 
 			vuart4: serial@1e788800 {
@@ -895,11 +959,48 @@
 				status = "disabled";
 			};
 
-			i2c: bus@1e78a000 {
-				compatible = "simple-bus";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x1e78a000 0x1000>;
+			uart10: serial@1e790400 {
+				compatible = "ns16550a";
+				reg = <0x1e790400 0x20>;
+				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART10CLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart10_default>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart11: serial@1e790500 {
+				compatible = "ns16550a";
+				reg = <0x1e790500 0x20>;
+				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART11CLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart11_default>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart12: serial@1e790600 {
+				compatible = "ns16550a";
+				reg = <0x1e790600 0x20>;
+				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART12CLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart12g1_default>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart13: serial@1e790700 {
+				compatible = "ns16550a";
+				reg = <0x1e790700 0x20>;
+				interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART13CLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart13g1_default>;
+				no-loopback-test;
+				status = "disabled";
 			};
 
 			fsim0: fsi@1e79b000 {
