@@ -3076,9 +3076,7 @@ EXPORT_SYMBOL_GPL(fwnode_get_phy_node);
  * phy_probe - probe and init a PHY device
  * @dev: device to probe and init
  *
- * Description: Take care of setting up the phy_device structure,
- *   set the state to READY (the driver's init function should
- *   set it to STARTING if needed).
+ * Take care of setting up the phy_device structure, set the state to READY.
  */
 static int phy_probe(struct device *dev)
 {
