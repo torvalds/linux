@@ -72,6 +72,18 @@ parameters.
 
        Default: disabled
 
+   * - ``hairpin_num_queues``
+     - u32
+     - driverinit
+     - We refer to a TC NIC rule that involves forwarding as "hairpin".
+       Hairpin queues are mlx5 hardware specific implementation for hardware
+       forwarding of such packets.
+
+       Control the number of hairpin queues.
+   * - ``hairpin_queue_size``
+     - u32
+     - driverinit
+     - Control the size (in packets) of the hairpin queues.
 
 The ``mlx5`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
 

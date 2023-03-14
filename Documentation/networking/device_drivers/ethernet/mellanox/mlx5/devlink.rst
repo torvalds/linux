@@ -122,6 +122,41 @@ users try to enable them.
 
     $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
 
+hairpin_num_queues: Number of hairpin queues
+--------------------------------------------
+We refer to a TC NIC rule that involves forwarding as "hairpin".
+
+Hairpin queues are mlx5 hardware specific implementation for hardware
+forwarding of such packets.
+
+- Show the number of hairpin queues::
+
+    $ devlink dev param show pci/0000:06:00.0 name hairpin_num_queues
+      pci/0000:06:00.0:
+        name hairpin_num_queues type driver-specific
+          values:
+            cmode driverinit value 2
+
+- Change the number of hairpin queues::
+
+    $ devlink dev param set pci/0000:06:00.0 name hairpin_num_queues value 4 cmode driverinit
+
+hairpin_queue_size: Size of the hairpin queues
+----------------------------------------------
+Control the size of the hairpin queues.
+
+- Show the size of the hairpin queues::
+
+    $ devlink dev param show pci/0000:06:00.0 name hairpin_queue_size
+      pci/0000:06:00.0:
+        name hairpin_queue_size type driver-specific
+          values:
+            cmode driverinit value 1024
+
+- Change the size (in packets) of the hairpin queues::
+
+    $ devlink dev param set pci/0000:06:00.0 name hairpin_queue_size value 512 cmode driverinit
+
 Health reporters
 ================
 
