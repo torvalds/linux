@@ -318,6 +318,17 @@ config DRM_PANEL_LG_LG4573
 	  Say Y here if you want to enable support for LG4573 RGB panel.
 	  To compile this driver as a module, choose M here.
 
+config DRM_PANEL_MAGNACHIP_D53E6EA8966
+	tristate "Magnachip D53E6EA8966 DSI panel"
+	depends on OF && SPI
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	help
+	  DRM panel driver for the Samsung AMS495QA01 panel controlled
+	  with the Magnachip D53E6EA8966 panel IC. This panel receives
+	  video data via DSI but commands via 9-bit SPI using DBI.
+
 config DRM_PANEL_NEC_NL8048HL11
 	tristate "NEC NL8048HL11 RGB panel"
 	depends on GPIOLIB && OF && SPI

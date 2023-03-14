@@ -48,6 +48,8 @@ struct drm_gem_object;
 struct drm_gpu_scheduler;
 struct drm_sched_rq;
 
+struct drm_file;
+
 /* These are often used as an (initial) index
  * to an array, and as such should start at 0.
  */
@@ -522,6 +524,10 @@ int drm_sched_job_init(struct drm_sched_job *job,
 void drm_sched_job_arm(struct drm_sched_job *job);
 int drm_sched_job_add_dependency(struct drm_sched_job *job,
 				 struct dma_fence *fence);
+int drm_sched_job_add_syncobj_dependency(struct drm_sched_job *job,
+					 struct drm_file *file,
+					 u32 handle,
+					 u32 point);
 int drm_sched_job_add_resv_dependencies(struct drm_sched_job *job,
 					struct dma_resv *resv,
 					enum dma_resv_usage usage);

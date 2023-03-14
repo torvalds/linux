@@ -400,25 +400,6 @@ struct drm_driver {
 	int (*dumb_map_offset)(struct drm_file *file_priv,
 			       struct drm_device *dev, uint32_t handle,
 			       uint64_t *offset);
-	/**
-	 * @dumb_destroy:
-	 *
-	 * This destroys the userspace handle for the given dumb backing storage buffer.
-	 * Since buffer objects must be reference counted in the kernel a buffer object
-	 * won't be immediately freed if a framebuffer modeset object still uses it.
-	 *
-	 * Called by the user via ioctl.
-	 *
-	 * The default implementation is drm_gem_dumb_destroy(). GEM based drivers
-	 * must not overwrite this.
-	 *
-	 * Returns:
-	 *
-	 * Zero on success, negative errno on failure.
-	 */
-	int (*dumb_destroy)(struct drm_file *file_priv,
-			    struct drm_device *dev,
-			    uint32_t handle);
 
 	/** @major: driver major number */
 	int major;

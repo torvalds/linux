@@ -690,7 +690,7 @@ struct vc4_exec_info {
 	/* This is the array of BOs that were looked up at the start of exec.
 	 * Command validation will use indices into this array.
 	 */
-	struct drm_gem_dma_object **bo;
+	struct drm_gem_object **bo;
 	uint32_t bo_count;
 
 	/* List of BOs that are being written by the RCL.  Other than

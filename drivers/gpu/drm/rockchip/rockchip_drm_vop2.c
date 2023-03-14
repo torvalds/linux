@@ -38,6 +38,7 @@
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_vop2.h"
+#include "rockchip_rgb.h"
 
 /*
  * VOP2 architecture
@@ -210,6 +211,9 @@ struct vop2 {
 	unsigned int enable_count;
 	struct clk *hclk;
 	struct clk *aclk;
+
+	/* optional internal rgb encoder */
+	struct rockchip_rgb *rgb;
 
 	/* must be put at the end of the struct */
 	struct vop2_win win[];
@@ -2245,7 +2249,7 @@ static struct vop2_video_port *find_vp_without_primary(struct vop2 *vop2)
 
 #define NR_LAYERS 6
 
-static int vop2_create_crtc(struct vop2 *vop2)
+static int vop2_create_crtcs(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
 	struct drm_device *drm = vop2->drm;
@@ -2321,10 +2325,11 @@ static int vop2_create_crtc(struct vop2 *vop2)
 				/* change the unused primary window to overlay window */
 				win->type = DRM_PLANE_TYPE_OVERLAY;
 			}
-		}
-
-		if (win->type == DRM_PLANE_TYPE_OVERLAY)
+		} else if (win->type == DRM_PLANE_TYPE_OVERLAY) {
 			possible_crtcs = (1 << nvps) - 1;
+		} else {
+			possible_crtcs = 0;
+		}
 
 		ret = vop2_plane_init(vop2, win, possible_crtcs);
 		if (ret) {
@@ -2370,15 +2375,44 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	return 0;
 }
 
-static void vop2_destroy_crtc(struct drm_crtc *crtc)
+static void vop2_destroy_crtcs(struct vop2 *vop2)
 {
-	of_node_put(crtc->port);
+	struct drm_device *drm = vop2->drm;
+	struct list_head *crtc_list = &drm->mode_config.crtc_list;
+	struct list_head *plane_list = &drm->mode_config.plane_list;
+	struct drm_crtc *crtc, *tmpc;
+	struct drm_plane *plane, *tmpp;
+
+	list_for_each_entry_safe(plane, tmpp, plane_list, head)
+		drm_plane_cleanup(plane);
 
 	/*
 	 * Destroy CRTC after vop2_plane_destroy() since vop2_disable_plane()
 	 * references the CRTC.
 	 */
-	drm_crtc_cleanup(crtc);
+	list_for_each_entry_safe(crtc, tmpc, crtc_list, head) {
+		of_node_put(crtc->port);
+		drm_crtc_cleanup(crtc);
+	}
+}
+
+static int vop2_find_rgb_encoder(struct vop2 *vop2)
+{
+	struct device_node *node = vop2->dev->of_node;
+	struct device_node *endpoint;
+	int i;
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		endpoint = of_graph_get_endpoint_by_regs(node, i,
+							 ROCKCHIP_VOP2_EP_RGB0);
+		if (!endpoint)
+			continue;
+
+		of_node_put(endpoint);
+		return i;
+	}
+
+	return -ENOENT;
 }
 
 static struct reg_field vop2_cluster_regs[VOP2_WIN_MAX_REG] = {
@@ -2682,33 +2716,45 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-	ret = vop2_create_crtc(vop2);
+	ret = vop2_create_crtcs(vop2);
 	if (ret)
 		return ret;
+
+	ret = vop2_find_rgb_encoder(vop2);
+	if (ret >= 0) {
+		vop2->rgb = rockchip_rgb_init(dev, &vop2->vps[ret].crtc,
+					      vop2->drm, ret);
+		if (IS_ERR(vop2->rgb)) {
+			if (PTR_ERR(vop2->rgb) == -EPROBE_DEFER) {
+				ret = PTR_ERR(vop2->rgb);
+				goto err_crtcs;
+			}
+			vop2->rgb = NULL;
+		}
+	}
 
 	rockchip_drm_dma_init_device(vop2->drm, vop2->dev);
 
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
+
+err_crtcs:
+	vop2_destroy_crtcs(vop2);
+
+	return ret;
 }
 
 static void vop2_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct vop2 *vop2 = dev_get_drvdata(dev);
-	struct drm_device *drm = vop2->drm;
-	struct list_head *plane_list = &drm->mode_config.plane_list;
-	struct list_head *crtc_list = &drm->mode_config.crtc_list;
-	struct drm_crtc *crtc, *tmpc;
-	struct drm_plane *plane, *tmpp;
 
 	pm_runtime_disable(dev);
 
-	list_for_each_entry_safe(plane, tmpp, plane_list, head)
-		drm_plane_cleanup(plane);
+	if (vop2->rgb)
+		rockchip_rgb_fini(vop2->rgb);
 
-	list_for_each_entry_safe(crtc, tmpc, crtc_list, head)
-		vop2_destroy_crtc(crtc);
+	vop2_destroy_crtcs(vop2);
 }
 
 const struct component_ops vop2_component_ops = {

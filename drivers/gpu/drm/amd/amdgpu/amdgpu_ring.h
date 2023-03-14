@@ -27,6 +27,7 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_print.h>
+#include <drm/drm_suballoc.h>
 
 struct amdgpu_device;
 struct amdgpu_ring;
@@ -92,7 +93,7 @@ enum amdgpu_ib_pool_type {
 };
 
 struct amdgpu_ib {
-	struct amdgpu_sa_bo		*sa_bo;
+	struct drm_suballoc		*sa_bo;
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;

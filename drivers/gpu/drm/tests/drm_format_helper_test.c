@@ -597,7 +597,7 @@ static void drm_test_fb_xrgb8888_to_xrgb1555(struct kunit *test)
 
 	drm_fb_xrgb8888_to_xrgb1555(&dst, &result->dst_pitch, &src, &fb, &params->clip);
 	buf = le16buf_to_cpu(test, (__force const __le16 *)buf, dst_size / sizeof(__le16));
-	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
 static void drm_test_fb_xrgb8888_to_argb1555(struct kunit *test)
@@ -628,7 +628,7 @@ static void drm_test_fb_xrgb8888_to_argb1555(struct kunit *test)
 
 	drm_fb_xrgb8888_to_argb1555(&dst, &result->dst_pitch, &src, &fb, &params->clip);
 	buf = le16buf_to_cpu(test, (__force const __le16 *)buf, dst_size / sizeof(__le16));
-	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
 static void drm_test_fb_xrgb8888_to_rgba5551(struct kunit *test)
@@ -659,7 +659,7 @@ static void drm_test_fb_xrgb8888_to_rgba5551(struct kunit *test)
 
 	drm_fb_xrgb8888_to_rgba5551(&dst, &result->dst_pitch, &src, &fb, &params->clip);
 	buf = le16buf_to_cpu(test, (__force const __le16 *)buf, dst_size / sizeof(__le16));
-	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
 static void drm_test_fb_xrgb8888_to_rgb888(struct kunit *test)
@@ -724,7 +724,7 @@ static void drm_test_fb_xrgb8888_to_argb8888(struct kunit *test)
 
 	drm_fb_xrgb8888_to_argb8888(&dst, &result->dst_pitch, &src, &fb, &params->clip);
 	buf = le32buf_to_cpu(test, (__force const __le32 *)buf, dst_size / sizeof(u32));
-	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
 static void drm_test_fb_xrgb8888_to_xrgb2101010(struct kunit *test)
@@ -786,7 +786,7 @@ static void drm_test_fb_xrgb8888_to_argb2101010(struct kunit *test)
 
 	drm_fb_xrgb8888_to_argb2101010(&dst, &result->dst_pitch, &src, &fb, &params->clip);
 	buf = le32buf_to_cpu(test, (__force const __le32 *)buf, dst_size / sizeof(u32));
-	KUNIT_EXPECT_EQ(test, memcmp(buf, result->expected, dst_size), 0);
+	KUNIT_EXPECT_MEMEQ(test, buf, result->expected, dst_size);
 }
 
 static struct kunit_case drm_format_helper_test_cases[] = {
