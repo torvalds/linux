@@ -259,6 +259,27 @@
 			  "UNUSABLE_SODIMM_184";
 };
 
+/* Colibri PWM_B */
+&lsio_pwm0 {
+	#pwm-cells = <3>;
+	pinctrl-0 = <&pinctrl_pwm_b>;
+	pinctrl-names = "default";
+};
+
+/* Colibri PWM_C */
+&lsio_pwm1 {
+	#pwm-cells = <3>;
+	pinctrl-0 = <&pinctrl_pwm_c>;
+	pinctrl-names = "default";
+};
+
+/* Colibri PWM_D */
+&lsio_pwm2 {
+	#pwm-cells = <3>;
+	pinctrl-0 = <&pinctrl_pwm_d>;
+	pinctrl-names = "default";
+};
+
 /* On-module eMMC */
 &usdhc1 {
 	bus-width = <8>;

@@ -51,6 +51,21 @@
 	status = "okay";
 };
 
+/* Colibri PWM_B */
+&lsio_pwm0 {
+	status = "okay";
+};
+
+/* Colibri PWM_C */
+&lsio_pwm1 {
+	status = "okay";
+};
+
+/* Colibri PWM_D */
+&lsio_pwm2 {
+	status = "okay";
+};
+
 /* Colibri UART_A */
 &lpuart3 {
 	status = "okay";
