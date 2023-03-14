@@ -783,9 +783,9 @@ static int iwl_mvm_get_queue_size(struct ieee80211_sta *sta)
 	return IWL_DEFAULT_QUEUE_SIZE;
 }
 
-static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
-				   struct ieee80211_sta *sta,
-				   u8 sta_id, u8 tid, unsigned int timeout)
+int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
+			    struct ieee80211_sta *sta,
+			    u8 sta_id, u8 tid, unsigned int timeout)
 {
 	int queue, size;
 
@@ -2005,7 +2005,7 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 			     struct iwl_mvm_int_sta *sta,
 			     u32 qmask, enum nl80211_iftype iftype,
-			     enum iwl_sta_type type)
+			     u8 type)
 {
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) ||
 	    sta->sta_id == IWL_MVM_INVALID_STA) {
