@@ -1262,6 +1262,7 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 		 * removing cached DFS targets that the client would eventually
 		 * need during failover.
 		 */
+		ses = CIFS_DFS_ROOT_SES(ses);
 		if (ses->server->ops->get_dfs_refer &&
 		    !ses->server->ops->get_dfs_refer(xid, ses, ref_path, &refs,
 						     &num_refs, cifs_sb->local_nls,
