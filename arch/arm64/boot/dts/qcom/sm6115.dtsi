@@ -603,13 +603,6 @@
 					bias-pull-up;
 					drive-strength = <10>;
 				};
-
-				sd-cd-pins {
-					pins = "gpio88";
-					function = "gpio";
-					bias-pull-up;
-					drive-strength = <2>;
-				};
 			};
 
 			sdc2_state_off: sdc2-off-state {
@@ -628,13 +621,6 @@
 				data-pins {
 					pins = "sdc2_data";
 					bias-pull-up;
-					drive-strength = <2>;
-				};
-
-				sd-cd-pins {
-					pins = "gpio88";
-					function = "gpio";
-					bias-disable;
 					drive-strength = <2>;
 				};
 			};
@@ -739,10 +725,6 @@
 				 <&gcc GCC_SDCC1_ICE_CORE_CLK>;
 			clock-names = "iface", "core", "xo", "ice";
 
-			pinctrl-0 = <&sdc1_state_on>;
-			pinctrl-1 = <&sdc1_state_off>;
-			pinctrl-names = "default", "sleep";
-
 			bus-width = <8>;
 			status = "disabled";
 		};
@@ -760,10 +742,6 @@
 				 <&gcc GCC_SDCC2_APPS_CLK>,
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "iface", "core", "xo";
-
-			pinctrl-0 = <&sdc2_state_on>;
-			pinctrl-1 = <&sdc2_state_off>;
-			pinctrl-names = "default", "sleep";
 
 			power-domains = <&rpmpd SM6115_VDDCX>;
 			operating-points-v2 = <&sdhc2_opp_table>;
