@@ -207,6 +207,10 @@ int BPF_PROG(test_task_from_pid_invalid, struct task_struct *task, u64 clone_fla
 	if (!is_test_kfunc_task())
 		return 0;
 
+	bpf_strncmp(task->comm, 12, "foo");
+	bpf_strncmp(task->comm, 16, "foo");
+	bpf_strncmp(&task->comm[8], 4, "foo");
+
 	if (is_pid_lookup_valid(-1)) {
 		err = 1;
 		return 0;
