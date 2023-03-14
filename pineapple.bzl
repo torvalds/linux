@@ -67,6 +67,7 @@ def define_pineapple():
         "drivers/interconnect/qcom/icc-bcm-voter.ko",
         "drivers/interconnect/qcom/icc-debug.ko",
         "drivers/interconnect/qcom/icc-rpmh.ko",
+        "drivers/interconnect/qcom/qnoc-cliffs.ko",
         "drivers/interconnect/qcom/qnoc-pineapple.ko",
         "drivers/interconnect/qcom/qnoc-qos.ko",
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
