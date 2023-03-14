@@ -327,7 +327,7 @@ do {									\
 	"2:\n"								\
 	_ASM_EXTABLE_##type##ACCESS_ERR(1b, 2b, %w0)			\
 	: "+r" (err)							\
-	: "r" (x), "r" (addr))
+	: "rZ" (x), "r" (addr))
 
 #define __raw_put_mem(str, x, ptr, err, type)					\
 do {										\
