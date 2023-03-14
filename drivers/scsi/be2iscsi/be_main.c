@@ -139,7 +139,7 @@ beiscsi_disp_param(_name)\
 beiscsi_change_param(_name, _minval, _maxval, _defval)\
 beiscsi_store_param(_name)\
 beiscsi_init_param(_name, _minval, _maxval, _defval)\
-DEVICE_ATTR(beiscsi_##_name, S_IRUGO | S_IWUSR,\
+static DEVICE_ATTR(beiscsi_##_name, S_IRUGO | S_IWUSR,\
 	      beiscsi_##_name##_disp, beiscsi_##_name##_store)
 
 /*
@@ -155,14 +155,14 @@ BEISCSI_RW_ATTR(log_enable, 0x00,
 		"\t\t\t\tConfiguration Path	: 0x20\n"
 		"\t\t\t\tiSCSI Protocol		: 0x40\n");
 
-DEVICE_ATTR(beiscsi_drvr_ver, S_IRUGO, beiscsi_drvr_ver_disp, NULL);
-DEVICE_ATTR(beiscsi_adapter_family, S_IRUGO, beiscsi_adap_family_disp, NULL);
-DEVICE_ATTR(beiscsi_fw_ver, S_IRUGO, beiscsi_fw_ver_disp, NULL);
-DEVICE_ATTR(beiscsi_phys_port, S_IRUGO, beiscsi_phys_port_disp, NULL);
-DEVICE_ATTR(beiscsi_active_session_count, S_IRUGO,
-	     beiscsi_active_session_disp, NULL);
-DEVICE_ATTR(beiscsi_free_session_count, S_IRUGO,
-	     beiscsi_free_session_disp, NULL);
+static DEVICE_ATTR(beiscsi_drvr_ver, S_IRUGO, beiscsi_drvr_ver_disp, NULL);
+static DEVICE_ATTR(beiscsi_adapter_family, S_IRUGO, beiscsi_adap_family_disp, NULL);
+static DEVICE_ATTR(beiscsi_fw_ver, S_IRUGO, beiscsi_fw_ver_disp, NULL);
+static DEVICE_ATTR(beiscsi_phys_port, S_IRUGO, beiscsi_phys_port_disp, NULL);
+static DEVICE_ATTR(beiscsi_active_session_count, S_IRUGO,
+		   beiscsi_active_session_disp, NULL);
+static DEVICE_ATTR(beiscsi_free_session_count, S_IRUGO,
+		   beiscsi_free_session_disp, NULL);
 
 static struct attribute *beiscsi_attrs[] = {
 	&dev_attr_beiscsi_log_enable.attr,
