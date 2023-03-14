@@ -90,9 +90,9 @@ static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 
 	/*
 	 * There may be few KB of platform dependent reserved memory at the end
-	 * of lmem which is not part of the DSM. Such reserved memory portion is
+	 * of vram which is not part of the DSM. Such reserved memory portion is
 	 * always less then DSM granularity so align down the stolen_size to DSM
-	 * granularity to accommodate such reserve lmem portion.
+	 * granularity to accommodate such reserve vram portion.
 	 */
 	return ALIGN_DOWN(stolen_size, SZ_1M);
 }
