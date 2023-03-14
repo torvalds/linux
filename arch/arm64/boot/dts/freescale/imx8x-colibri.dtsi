@@ -159,6 +159,10 @@
 			   <IMX8QXP_QSPI0A_SS1_B_LSIO_GPIO3_IO15		0x20>;		/* SODIMM  89 */
 	};
 
+	pinctrl_csi_mclk: csimclkgrp {
+		fsl,pins = <IMX8QXP_CSI_MCLK_CI_PI_MCLK				0xC0000041>;	/* SODIMM  75 / X3-12 */
+	};
+
 	pinctrl_ext_io0: extio0grp {
 		fsl,pins = <IMX8QXP_ENET0_RGMII_RXD3_LSIO_GPIO5_IO08		0x06000040>;	/* SODIMM 135 */
 	};
