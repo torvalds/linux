@@ -696,7 +696,7 @@ struct ieee80211_if_mesh {
 	struct mesh_stats mshstats;
 	struct mesh_config mshcfg;
 	atomic_t estab_plinks;
-	u32 mesh_seqnum;
+	atomic_t mesh_seqnum;
 	bool accepting_plinks;
 	int num_gates;
 	struct beacon_data __rcu *beacon;

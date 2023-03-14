@@ -752,10 +752,8 @@ unsigned int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
 
 	meshhdr->ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
 
-	/* FIXME: racy -- TX on multiple queues can be concurrent */
-	put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &meshhdr->seqnum);
-	sdata->u.mesh.mesh_seqnum++;
-
+	put_unaligned_le32(atomic_inc_return(&sdata->u.mesh.mesh_seqnum),
+			   &meshhdr->seqnum);
 	if (addr4or5 && !addr6) {
 		meshhdr->flags |= MESH_FLAGS_AE_A4;
 		memcpy(meshhdr->eaddr1, addr4or5, ETH_ALEN);
