@@ -27,15 +27,17 @@ module_param_named(cnds_mcp_int_mask, interrupt_mask, int, 0444);
 MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 
 #define CDNS_MCP_CONFIG				0x0
-
-#define CDNS_MCP_CONFIG_MCMD_RETRY		GENMASK(27, 24)
-#define CDNS_MCP_CONFIG_MPREQ_DELAY		GENMASK(20, 16)
-#define CDNS_MCP_CONFIG_MMASTER			BIT(7)
 #define CDNS_MCP_CONFIG_BUS_REL			BIT(6)
-#define CDNS_MCP_CONFIG_SNIFFER			BIT(5)
-#define CDNS_MCP_CONFIG_CMD			BIT(3)
-#define CDNS_MCP_CONFIG_OP			GENMASK(2, 0)
-#define CDNS_MCP_CONFIG_OP_NORMAL		0
+
+#define CDNS_IP_MCP_CONFIG			0x0 /* IP offset added at run-time */
+
+#define CDNS_IP_MCP_CONFIG_MCMD_RETRY		GENMASK(27, 24)
+#define CDNS_IP_MCP_CONFIG_MPREQ_DELAY		GENMASK(20, 16)
+#define CDNS_IP_MCP_CONFIG_MMASTER		BIT(7)
+#define CDNS_IP_MCP_CONFIG_SNIFFER		BIT(5)
+#define CDNS_IP_MCP_CONFIG_CMD			BIT(3)
+#define CDNS_IP_MCP_CONFIG_OP			GENMASK(2, 0)
+#define CDNS_IP_MCP_CONFIG_OP_NORMAL		0
 
 #define CDNS_MCP_CONTROL			0x4
 
@@ -1348,28 +1350,33 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	/* Configure mcp config */
 	val = cdns_readl(cdns, CDNS_MCP_CONFIG);
 
-	/* enable bus operations with clock and data */
-	val &= ~CDNS_MCP_CONFIG_OP;
-	val |= CDNS_MCP_CONFIG_OP_NORMAL;
-
-	/* Set cmd mode for Tx and Rx cmds */
-	val &= ~CDNS_MCP_CONFIG_CMD;
-
-	/* Disable sniffer mode */
-	val &= ~CDNS_MCP_CONFIG_SNIFFER;
-
 	/* Disable auto bus release */
 	val &= ~CDNS_MCP_CONFIG_BUS_REL;
 
+	cdns_writel(cdns, CDNS_MCP_CONFIG, val);
+
+	/* Configure IP mcp config */
+	val = cdns_ip_readl(cdns, CDNS_IP_MCP_CONFIG);
+
+	/* enable bus operations with clock and data */
+	val &= ~CDNS_IP_MCP_CONFIG_OP;
+	val |= CDNS_IP_MCP_CONFIG_OP_NORMAL;
+
+	/* Set cmd mode for Tx and Rx cmds */
+	val &= ~CDNS_IP_MCP_CONFIG_CMD;
+
+	/* Disable sniffer mode */
+	val &= ~CDNS_IP_MCP_CONFIG_SNIFFER;
+
 	if (cdns->bus.multi_link)
 		/* Set Multi-master mode to take gsync into account */
-		val |= CDNS_MCP_CONFIG_MMASTER;
+		val |= CDNS_IP_MCP_CONFIG_MMASTER;
 
 	/* leave frame delay to hardware default of 0x1F */
 
 	/* leave command retry to hardware default of 0 */
 
-	cdns_writel(cdns, CDNS_MCP_CONFIG, val);
+	cdns_ip_writel(cdns, CDNS_IP_MCP_CONFIG, val);
 
 	/* changes will be committed later */
 	return 0;
@@ -1683,9 +1690,9 @@ int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
 	if (!bus_reset) {
 
 		/* enable bus operations with clock and data */
-		cdns_updatel(cdns, CDNS_MCP_CONFIG,
-			     CDNS_MCP_CONFIG_OP,
-			     CDNS_MCP_CONFIG_OP_NORMAL);
+		cdns_ip_updatel(cdns, CDNS_IP_MCP_CONFIG,
+				CDNS_IP_MCP_CONFIG_OP,
+				CDNS_IP_MCP_CONFIG_OP_NORMAL);
 
 		ret = cdns_config_update(cdns);
 		if (ret < 0) {
