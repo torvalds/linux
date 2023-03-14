@@ -143,7 +143,7 @@ static void *__alloc(struct bpf_mem_cache *c, int node)
 		return obj;
 	}
 
-	return kmalloc_node(c->unit_size, flags, node);
+	return kmalloc_node(c->unit_size, flags | __GFP_ZERO, node);
 }
 
 static struct mem_cgroup *get_memcg(const struct bpf_mem_cache *c)

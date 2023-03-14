@@ -566,9 +566,9 @@ enum ufshcd_quirks {
 	UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING = 1 << 13,
 
 	/*
-	 * This quirk allows only sg entries aligned with page size.
+	 * Align DMA SG entries on a 4 KiB boundary.
 	 */
-	UFSHCD_QUIRK_ALIGN_SG_WITH_PAGE_SIZE		= 1 << 14,
+	UFSHCD_QUIRK_4KB_DMA_ALIGNMENT			= 1 << 14,
 
 	/*
 	 * This quirk needs to be enabled if the host controller does not

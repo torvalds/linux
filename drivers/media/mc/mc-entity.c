@@ -703,7 +703,7 @@ done:
 __must_check int __media_pipeline_start(struct media_pad *pad,
 					struct media_pipeline *pipe)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 	struct media_pipeline_pad *err_ppad;
 	struct media_pipeline_pad *ppad;
 	int ret;
@@ -851,7 +851,7 @@ EXPORT_SYMBOL_GPL(__media_pipeline_start);
 __must_check int media_pipeline_start(struct media_pad *pad,
 				      struct media_pipeline *pipe)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
@@ -888,7 +888,7 @@ EXPORT_SYMBOL_GPL(__media_pipeline_stop);
 
 void media_pipeline_stop(struct media_pad *pad)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 
 	mutex_lock(&mdev->graph_mutex);
 	__media_pipeline_stop(pad);
@@ -898,7 +898,7 @@ EXPORT_SYMBOL_GPL(media_pipeline_stop);
 
 __must_check int media_pipeline_alloc_start(struct media_pad *pad)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 	struct media_pipeline *new_pipe = NULL;
 	struct media_pipeline *pipe;
 	int ret;

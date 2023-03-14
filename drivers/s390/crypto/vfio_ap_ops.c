@@ -349,6 +349,8 @@ static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, dma_addr_t *nib)
 {
 	*nib = vcpu->run->s.regs.gprs[2];
 
+	if (!*nib)
+		return -EINVAL;
 	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *nib >> PAGE_SHIFT)))
 		return -EINVAL;
 
@@ -1844,8 +1846,10 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 		return ret;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
-	if (!q)
-		return -ENOMEM;
+	if (!q) {
+		ret = -ENOMEM;
+		goto err_remove_group;
+	}
 
 	q->apqn = to_ap_queue(&apdev->device)->qid;
 	q->saved_isc = VFIO_AP_ISC_INVALID;
@@ -1863,6 +1867,10 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 	release_update_locks_for_mdev(matrix_mdev);
 
 	return 0;
+
+err_remove_group:
+	sysfs_remove_group(&apdev->device.kobj, &vfio_queue_attr_group);
+	return ret;
 }
 
 void vfio_ap_mdev_remove_queue(struct ap_device *apdev)

@@ -465,7 +465,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 	dev_warn(dev->dev, "timeout in disabling adapter\n");
 }
 
-unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
+u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 {
 	/*
 	 * Clock is not necessary if we got LCNT/HCNT values directly from

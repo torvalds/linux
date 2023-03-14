@@ -402,6 +402,7 @@ static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
 {
 	struct drm_connector *connector = &vc4_hdmi->connector;
 	struct edid *edid;
+	int ret;
 
 	/*
 	 * NOTE: This function should really be called with
@@ -430,7 +431,15 @@ static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
 	cec_s_phys_addr_from_edid(vc4_hdmi->cec_adap, edid);
 	kfree(edid);
 
-	vc4_hdmi_reset_link(connector, ctx);
+	for (;;) {
+		ret = vc4_hdmi_reset_link(connector, ctx);
+		if (ret == -EDEADLK) {
+			drm_modeset_backoff(ctx);
+			continue;
+		}
+
+		break;
+	}
 }
 
 static int vc4_hdmi_connector_detect_ctx(struct drm_connector *connector,
@@ -1297,11 +1306,12 @@ static void vc5_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 		     VC4_SET_FIELD(mode->crtc_vdisplay, VC5_HDMI_VERTA_VAL));
 	u32 vertb = (VC4_SET_FIELD(mode->htotal >> (2 - pixel_rep),
 				   VC5_HDMI_VERTB_VSPO) |
-		     VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end,
+		     VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end +
+				   interlaced,
 				   VC4_HDMI_VERTB_VBP));
 	u32 vertb_even = (VC4_SET_FIELD(0, VC5_HDMI_VERTB_VSPO) |
 			  VC4_SET_FIELD(mode->crtc_vtotal -
-					mode->crtc_vsync_end - interlaced,
+					mode->crtc_vsync_end,
 					VC4_HDMI_VERTB_VBP));
 	unsigned long flags;
 	unsigned char gcp;

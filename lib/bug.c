@@ -47,6 +47,7 @@
 #include <linux/sched.h>
 #include <linux/rculist.h>
 #include <linux/ftrace.h>
+#include <linux/context_tracking.h>
 
 #include <trace/hooks/bug.h>
 
@@ -155,7 +156,7 @@ struct bug_entry *find_bug(unsigned long bugaddr)
 	return module_find_bug(bugaddr);
 }
 
-enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
+static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *regs)
 {
 	struct bug_entry *bug;
 	const char *file;
@@ -211,6 +212,18 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 	trace_android_rvh_report_bug(file, line, bugaddr);
 
 	return BUG_TRAP_TYPE_BUG;
+}
+
+enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
+{
+	enum bug_trap_type ret;
+	bool rcu = false;
+
+	rcu = warn_rcu_enter();
+	ret = __report_bug(bugaddr, regs);
+	warn_rcu_exit(rcu);
+
+	return ret;
 }
 
 static void clear_once_table(struct bug_entry *start, struct bug_entry *end)
