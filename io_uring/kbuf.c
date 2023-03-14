@@ -494,7 +494,9 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	if (copy_from_user(&reg, arg, sizeof(reg)))
 		return -EFAULT;
 
-	if (reg.pad || reg.resv[0] || reg.resv[1] || reg.resv[2])
+	if (reg.resv[0] || reg.resv[1] || reg.resv[2])
+		return -EINVAL;
+	if (reg.flags)
 		return -EINVAL;
 	if (!reg.ring_addr)
 		return -EFAULT;
@@ -544,7 +546,9 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 
 	if (copy_from_user(&reg, arg, sizeof(reg)))
 		return -EFAULT;
-	if (reg.pad || reg.resv[0] || reg.resv[1] || reg.resv[2])
+	if (reg.resv[0] || reg.resv[1] || reg.resv[2])
+		return -EINVAL;
+	if (reg.flags)
 		return -EINVAL;
 
 	bl = io_buffer_get_list(ctx, reg.bgid);
