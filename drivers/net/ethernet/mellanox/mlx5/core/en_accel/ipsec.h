@@ -94,6 +94,7 @@ enum mlx5_ipsec_cap {
 	MLX5_IPSEC_CAP_ESN		= 1 << 1,
 	MLX5_IPSEC_CAP_PACKET_OFFLOAD	= 1 << 2,
 	MLX5_IPSEC_CAP_ROCE             = 1 << 3,
+	MLX5_IPSEC_CAP_PRIO             = 1 << 4,
 };
 
 struct mlx5e_priv;
@@ -198,6 +199,7 @@ struct mlx5_accel_pol_xfrm_attrs {
 	u8 type : 2;
 	u8 dir : 2;
 	u32 reqid;
+	u32 prio;
 };
 
 struct mlx5e_ipsec_pol_entry {

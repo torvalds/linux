@@ -499,7 +499,8 @@ static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)
 	mlx5e_ipsec_aso_update_curlft(sa_entry, &x->curlft.packets);
 }
 
-static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x,
+static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
+				      struct xfrm_policy *x,
 				      struct netlink_ext_ack *extack)
 {
 	if (x->type != XFRM_POLICY_TYPE_MAIN) {
@@ -535,6 +536,18 @@ static int mlx5e_xfrm_validate_policy(struct xfrm_policy *x,
 		return -EINVAL;
 	}
 
+	if (x->priority) {
+		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO)) {
+			NL_SET_ERR_MSG_MOD(extack, "Device does not support policy priority");
+			return -EINVAL;
+		}
+
+		if (x->priority == U32_MAX) {
+			NL_SET_ERR_MSG_MOD(extack, "Device does not support requested policy priority");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -560,6 +573,7 @@ mlx5e_ipsec_build_accel_pol_attrs(struct mlx5e_ipsec_pol_entry *pol_entry,
 	attrs->upspec.sport = ntohs(sel->sport);
 	attrs->upspec.sport_mask = ntohs(sel->sport_mask);
 	attrs->upspec.proto = sel->proto;
+	attrs->prio = x->priority;
 }
 
 static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
@@ -576,7 +590,7 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 		return -EOPNOTSUPP;
 	}
 
-	err = mlx5e_xfrm_validate_policy(x, extack);
+	err = mlx5e_xfrm_validate_policy(priv->mdev, x, extack);
 	if (err)
 		return err;
 
