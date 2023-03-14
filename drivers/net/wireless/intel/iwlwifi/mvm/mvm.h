@@ -2168,6 +2168,12 @@ static inline u8 iwl_mvm_phy_band_from_nl80211(enum nl80211_band band)
 /* Channel Switch */
 void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk);
 
+/* Channel Context */
+bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_chanctx_conf *ctx,
+					 bool switching_chanctx, int *ret);
+
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)
 {

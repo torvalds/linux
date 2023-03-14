@@ -146,7 +146,67 @@ out:
 	mutex_unlock(&mvm->mutex);
 }
 
+static int __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif,
+					    struct ieee80211_chanctx_conf *ctx,
+					    bool switching_chanctx)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	if (__iwl_mvm_assign_vif_chanctx_common(mvm, vif, ctx,
+						switching_chanctx, &ret))
+		goto out;
+
+	ret = iwl_mvm_add_link(mvm, vif);
+	if (ret)
+		goto out;
+	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
+				   true);
+	if (ret)
+		goto out_remove_link;
+
+	/*
+	 * Power state must be updated before quotas,
+	 * otherwise fw will complain.
+	 */
+	iwl_mvm_power_update_mac(mvm);
+
+	if (vif->type == NL80211_IFTYPE_MONITOR) {
+		ret = iwl_mvm_mld_add_snif_sta(mvm, vif);
+		if (ret)
+			goto out_remove_link;
+	}
+
+	goto out;
+
+out_remove_link:
+	/* Link needs to be deactivated before removal */
+	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_remove_link(mvm, vif);
+	iwl_mvm_power_update_mac(mvm);
+out:
+	if (ret)
+		mvmvif->phy_ctxt = NULL;
+	return ret;
+}
+
+static int iwl_mvm_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_bss_conf *link_conf,
+					  struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = __iwl_mvm_mld_assign_vif_chanctx(mvm, vif, ctx, false);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.add_interface = iwl_mvm_mld_mac_add_interface,
 	.remove_interface = iwl_mvm_mld_mac_remove_interface,
+	.assign_vif_chanctx = iwl_mvm_mld_assign_vif_chanctx,
 };

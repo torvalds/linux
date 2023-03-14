@@ -4411,11 +4411,10 @@ out_unlock:
  * Returns true if we're done assigning the chanctx
  * (either on failure or success)
  */
-static bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
-						struct ieee80211_vif *vif,
-						struct ieee80211_chanctx_conf *ctx,
-						bool switching_chanctx,
-						int *ret)
+bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_chanctx_conf *ctx,
+					 bool switching_chanctx, int *ret)
 {
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
