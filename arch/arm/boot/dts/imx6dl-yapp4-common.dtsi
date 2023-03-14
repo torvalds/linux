@@ -269,9 +269,9 @@
 		compatible = "ti,lp5562";
 		reg = <0x30>;
 		clock-mode = /bits/ 8 <1>;
-		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disabled";
 
 		led@0 {
 			chan-name = "R";
