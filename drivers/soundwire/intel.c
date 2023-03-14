@@ -475,7 +475,6 @@ static int intel_shim_sync_go_unlocked(struct sdw_intel *sdw)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	u32 sync_reg;
-	int ret;
 
 	/* Read SYNC register */
 	sync_reg = intel_readl(shim, SDW_SHIM_SYNC);
@@ -487,13 +486,9 @@ static int intel_shim_sync_go_unlocked(struct sdw_intel *sdw)
 	 */
 	sync_reg |= SDW_SHIM_SYNC_SYNCGO;
 
-	ret = intel_clear_bit(shim, SDW_SHIM_SYNC, sync_reg,
-			      SDW_SHIM_SYNC_SYNCGO);
+	intel_writel(shim, SDW_SHIM_SYNC, sync_reg);
 
-	if (ret < 0)
-		dev_err(sdw->cdns.dev, "SyncGO clear failed: %d\n", ret);
-
-	return ret;
+	return 0;
 }
 
 static int intel_shim_sync_go(struct sdw_intel *sdw)
