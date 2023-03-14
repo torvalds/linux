@@ -256,14 +256,13 @@ static void end_compressed_bio_write(struct btrfs_bio *bbio)
 	queue_work(fs_info->compressed_write_workers, &cb->write_end_work);
 }
 
-static void btrfs_add_compressed_bio_pages(struct compressed_bio *cb,
-					   u64 disk_bytenr)
+static void btrfs_add_compressed_bio_pages(struct compressed_bio *cb)
 {
 	struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	struct bio *bio = &cb->bbio.bio;
+	u64 disk_bytenr = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 cur_disk_byte = disk_bytenr;
 
-	bio->bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	while (cur_disk_byte < disk_bytenr + cb->compressed_len) {
 		u64 offset = cur_disk_byte - disk_bytenr;
 		unsigned int index = offset >> PAGE_SHIFT;
@@ -331,8 +330,9 @@ void btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	cb->writeback = writeback;
 	INIT_WORK(&cb->write_end_work, btrfs_finish_compressed_write_work);
 	cb->nr_pages = nr_pages;
+	cb->bbio.bio.bi_iter.bi_sector = disk_start >> SECTOR_SHIFT;
+	btrfs_add_compressed_bio_pages(cb);
 
-	btrfs_add_compressed_bio_pages(cb, disk_start);
 	btrfs_submit_bio(&cb->bbio, 0);
 
 	if (blkcg_css)
@@ -506,7 +506,6 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio, int mirror_num)
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct compressed_bio *cb;
 	unsigned int compressed_len;
-	const u64 disk_bytenr = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 file_offset = bbio->file_offset;
 	u64 em_len;
 	u64 em_start;
@@ -560,8 +559,8 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio, int mirror_num)
 
 	/* include any pages we added in add_ra-bio_pages */
 	cb->len = bbio->bio.bi_iter.bi_size;
-
-	btrfs_add_compressed_bio_pages(cb, disk_bytenr);
+	cb->bbio.bio.bi_iter.bi_sector = bbio->bio.bi_iter.bi_sector;
+	btrfs_add_compressed_bio_pages(cb);
 
 	if (memstall)
 		psi_memstall_leave(&pflags);
