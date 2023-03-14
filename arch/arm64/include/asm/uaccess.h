@@ -237,7 +237,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	"1:	" load "	" reg "1, [%2]\n"			\
 	"2:\n"								\
 	_ASM_EXTABLE_##type##ACCESS_ERR_ZERO(1b, 2b, %w0, %w1)		\
-	: "+r" (err), "=&r" (x)						\
+	: "+r" (err), "=r" (x)						\
 	: "r" (addr))
 
 #define __raw_get_mem(ldr, x, ptr, err, type)					\
