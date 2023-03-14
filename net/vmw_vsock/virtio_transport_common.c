@@ -364,7 +364,7 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 
 	spin_lock_bh(&vvs->rx_lock);
 	while (total < len && !skb_queue_empty(&vvs->rx_queue)) {
-		skb = __skb_dequeue(&vvs->rx_queue);
+		skb = skb_peek(&vvs->rx_queue);
 
 		bytes = len - total;
 		if (bytes > skb->len)
@@ -388,9 +388,8 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 			u32 pkt_len = le32_to_cpu(virtio_vsock_hdr(skb)->len);
 
 			virtio_transport_dec_rx_pkt(vvs, pkt_len);
+			__skb_unlink(skb, &vvs->rx_queue);
 			consume_skb(skb);
-		} else {
-			__skb_queue_head(&vvs->rx_queue, skb);
 		}
 	}
 
