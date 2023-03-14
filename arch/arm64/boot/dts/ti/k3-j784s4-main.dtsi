@@ -398,6 +398,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x00 0x30000000 0x00 0x30000000 0x00 0x0c400000>;
+		ti,sci-dev-id = <280>;
 		dma-coherent;
 		dma-ranges;
 
