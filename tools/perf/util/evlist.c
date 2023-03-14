@@ -31,6 +31,7 @@
 #include "util/evlist-hybrid.h"
 #include "util/pmu.h"
 #include "util/sample.h"
+#include "util/bpf-filter.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
@@ -1086,17 +1087,27 @@ int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
 	int err = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->filter == NULL)
-			continue;
-
 		/*
 		 * filters only work for tracepoint event, which doesn't have cpu limit.
 		 * So evlist and evsel should always be same.
 		 */
-		err = perf_evsel__apply_filter(&evsel->core, evsel->filter);
-		if (err) {
-			*err_evsel = evsel;
-			break;
+		if (evsel->filter) {
+			err = perf_evsel__apply_filter(&evsel->core, evsel->filter);
+			if (err) {
+				*err_evsel = evsel;
+				break;
+			}
+		}
+
+		/*
+		 * non-tracepoint events can have BPF filters.
+		 */
+		if (!list_empty(&evsel->bpf_filters)) {
+			err = perf_bpf_filter__prepare(evsel);
+			if (err) {
+				*err_evsel = evsel;
+				break;
+			}
 		}
 	}
 

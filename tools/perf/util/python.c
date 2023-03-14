@@ -19,6 +19,7 @@
 #include "mmap.h"
 #include "stat.h"
 #include "metricgroup.h"
+#include "util/bpf-filter.h"
 #include "util/env.h"
 #include "util/pmu.h"
 #include <internal/lib.h>
@@ -134,6 +135,19 @@ int bpf_counter__disable(struct evsel *evsel __maybe_unused)
 {
 	return 0;
 }
+
+// not to drag util/bpf-filter.c
+#ifdef HAVE_BPF_SKEL
+int perf_bpf_filter__prepare(struct evsel *evsel __maybe_unused)
+{
+	return 0;
+}
+
+int perf_bpf_filter__destroy(struct evsel *evsel __maybe_unused)
+{
+	return 0;
+}
+#endif
 
 /*
  * Support debug printing even though util/debug.c is not linked.  That means

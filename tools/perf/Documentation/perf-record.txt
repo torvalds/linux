@@ -119,9 +119,12 @@ OPTIONS
 	  "perf report" to view group events together.
 
 --filter=<filter>::
-        Event filter. This option should follow an event selector (-e) which
-	selects either tracepoint event(s) or a hardware trace PMU
-	(e.g. Intel PT or CoreSight).
+	Event filter.  This option should follow an event selector (-e).
+	If the event is a tracepoint, the filter string will be parsed by
+	the kernel.  If the event is a hardware trace PMU (e.g. Intel PT
+	or CoreSight), it'll be processed as an address filter.  Otherwise
+	it means a general filter using BPF which can be applied for any
+	kind of event.
 
 	- tracepoint filters
 
@@ -175,6 +178,12 @@ OPTIONS
 	examined to determine if that is a possibility.
 
 	Multiple filters can be separated with space or comma.
+
+	- bpf filters
+
+	A BPF filter can access the sample data and make a decision based on the
+	data.  Users need to set an appropriate sample type to use the BPF
+	filter.
 
 --exclude-perf::
 	Don't record events issued by perf itself. This option should follow
