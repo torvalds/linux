@@ -2772,6 +2772,7 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 	if (mesh_hdr->flags & MESH_FLAGS_AE) {
 		struct mesh_path *mppath;
 		char *proxied_addr;
+		bool update = false;
 
 		if (multicast)
 			proxied_addr = mesh_hdr->eaddr1;
@@ -2787,11 +2788,18 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 			mpp_path_add(sdata, proxied_addr, eth->h_source);
 		} else {
 			spin_lock_bh(&mppath->state_lock);
-			if (!ether_addr_equal(mppath->mpp, eth->h_source))
+			if (!ether_addr_equal(mppath->mpp, eth->h_source)) {
 				memcpy(mppath->mpp, eth->h_source, ETH_ALEN);
+				update = true;
+			}
 			mppath->exp_time = jiffies;
 			spin_unlock_bh(&mppath->state_lock);
 		}
+
+		/* flush fast xmit cache if the address path changed */
+		if (update)
+			mesh_fast_tx_flush_addr(sdata, proxied_addr);
+
 		rcu_read_unlock();
 	}
 

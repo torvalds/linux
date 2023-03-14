@@ -37,6 +37,7 @@
 extern const struct cfg80211_ops mac80211_config_ops;
 
 struct ieee80211_local;
+struct ieee80211_mesh_fast_tx;
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the
  * associated stations are using power saving. */
@@ -656,6 +657,19 @@ struct mesh_table {
 	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
 };
 
+/**
+ * struct mesh_tx_cache - mesh fast xmit header cache
+ *
+ * @rht: hash table containing struct ieee80211_mesh_fast_tx, using skb DA as key
+ * @walk_head: linked list containing all ieee80211_mesh_fast_tx objects
+ * @walk_lock: lock protecting walk_head and rht
+ */
+struct mesh_tx_cache {
+	struct rhashtable rht;
+	struct hlist_head walk_head;
+	spinlock_t walk_lock;
+};
+
 struct ieee80211_if_mesh {
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
@@ -734,6 +748,7 @@ struct ieee80211_if_mesh {
 	struct mesh_table mpp_paths; /* Store paths for MPP&MAP */
 	int mesh_paths_generation;
 	int mpp_paths_generation;
+	struct mesh_tx_cache tx_cache;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -2018,6 +2033,11 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 			      int link_id, u64 *cookie);
 int ieee80211_probe_mesh_link(struct wiphy *wiphy, struct net_device *dev,
 			      const u8 *buf, size_t len);
+void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
+			   struct sta_info *sta,
+			   struct ieee80211_fast_tx *fast_tx,
+			   struct sk_buff *skb, bool ampdu,
+			   const u8 *da, const u8 *sa);
 
 /* HT */
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,

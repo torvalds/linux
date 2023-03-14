@@ -3019,6 +3019,9 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	if (!ieee80211_hw_check(&local->hw, SUPPORT_FAST_XMIT))
 		return;
 
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_fast_tx_flush_sta(sdata, sta);
+
 	/* Locking here protects both the pointer itself, and against concurrent
 	 * invocations winning data access races to, e.g., the key pointer that
 	 * is used.
@@ -3371,7 +3374,8 @@ static bool ieee80211_amsdu_prepare_head(struct ieee80211_sub_if_data *sdata,
 static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 				      struct sta_info *sta,
 				      struct ieee80211_fast_tx *fast_tx,
-				      struct sk_buff *skb)
+				      struct sk_buff *skb,
+				      const u8 *da, const u8 *sa)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct fq *fq = &local->fq;
@@ -3398,6 +3402,9 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 		return false;
 
 	if (sdata->vif.offload_flags & IEEE80211_OFFLOAD_ENCAP_ENABLED)
+		return false;
+
+	if (ieee80211_vif_is_mesh(&sdata->vif))
 		return false;
 
 	if (skb_is_gso(skb))
@@ -3484,7 +3491,8 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 
 	ret = true;
 	data = skb_push(skb, ETH_ALEN + 2);
-	memmove(data, data + ETH_ALEN + 2, 2 * ETH_ALEN);
+	ether_addr_copy(data, da);
+	ether_addr_copy(data + ETH_ALEN, sa);
 
 	data += 2 * ETH_ALEN;
 	len = cpu_to_be16(subframe_len);
@@ -3632,10 +3640,11 @@ free:
 	return NULL;
 }
 
-static void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
-				  struct sta_info *sta,
-				  struct ieee80211_fast_tx *fast_tx,
-				  struct sk_buff *skb, u8 tid, bool ampdu)
+void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
+			   struct sta_info *sta,
+			   struct ieee80211_fast_tx *fast_tx,
+			   struct sk_buff *skb, bool ampdu,
+			   const u8 *da, const u8 *sa)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hdr *hdr = (void *)fast_tx->hdr;
@@ -3644,14 +3653,13 @@ static void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_result r;
 	int hw_headroom = sdata->local->hw.extra_tx_headroom;
 	int extra_head = fast_tx->hdr_len - (ETH_HLEN - 2);
-	struct ethhdr eth;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return;
 
 	if ((hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) &&
-	    ieee80211_amsdu_aggregate(sdata, sta, fast_tx, skb))
+	    ieee80211_amsdu_aggregate(sdata, sta, fast_tx, skb, da, sa))
 		return;
 
 	/* will not be crypto-handled beyond what we do here, so use false
@@ -3664,11 +3672,10 @@ static void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 					  ENCRYPT_NO)))
 		goto free;
 
-	memcpy(&eth, skb->data, ETH_HLEN - 2);
 	hdr = skb_push(skb, extra_head);
 	memcpy(skb->data, fast_tx->hdr, fast_tx->hdr_len);
-	memcpy(skb->data + fast_tx->da_offs, eth.h_dest, ETH_ALEN);
-	memcpy(skb->data + fast_tx->sa_offs, eth.h_source, ETH_ALEN);
+	memcpy(skb->data + fast_tx->da_offs, da, ETH_ALEN);
+	memcpy(skb->data + fast_tx->sa_offs, sa, ETH_ALEN);
 
 	info = IEEE80211_SKB_CB(skb);
 	memset(info, 0, sizeof(*info));
@@ -3686,7 +3693,8 @@ static void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 #endif
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
-		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+		u8 tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+
 		*ieee80211_get_qos_ctl(hdr) = tid;
 	}
 
@@ -3729,6 +3737,7 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_hdr *hdr = (void *)fast_tx->hdr;
 	struct tid_ampdu_tx *tid_tx = NULL;
 	struct sk_buff *next;
+	struct ethhdr eth;
 	u8 tid = IEEE80211_NUM_TIDS;
 
 	/* control port protocol needs a lot of special handling */
@@ -3754,6 +3763,8 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	memcpy(&eth, skb->data, ETH_HLEN - 2);
+
 	/* after this point (skb is modified) we cannot return false */
 	skb = ieee80211_tx_skb_fixup(skb, ieee80211_sdata_netdev_features(sdata));
 	if (!skb)
@@ -3761,7 +3772,8 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 
 	skb_list_walk_safe(skb, skb, next) {
 		skb_mark_not_on_list(skb);
-		__ieee80211_xmit_fast(sdata, sta, fast_tx, skb, tid, tid_tx);
+		__ieee80211_xmit_fast(sdata, sta, fast_tx, skb, tid_tx,
+				      eth.h_dest, eth.h_source);
 	}
 
 	return true;
@@ -4245,7 +4257,14 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 		return;
 	}
 
+	sk_pacing_shift_update(skb->sk, sdata->local->hw.tx_sk_pacing_shift);
+
 	rcu_read_lock();
+
+	if (ieee80211_vif_is_mesh(&sdata->vif) &&
+	    ieee80211_hw_check(&local->hw, SUPPORT_FAST_XMIT) &&
+	    ieee80211_mesh_xmit_fast(sdata, skb, ctrl_flags))
+		goto out;
 
 	if (ieee80211_lookup_ra_sta(sdata, skb, &sta))
 		goto out_free;
@@ -4255,8 +4274,6 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	skb_set_queue_mapping(skb, ieee80211_select_queue(sdata, sta, skb));
 	ieee80211_aggr_check(sdata, sta, skb);
-
-	sk_pacing_shift_update(skb->sk, sdata->local->hw.tx_sk_pacing_shift);
 
 	if (sta) {
 		struct ieee80211_fast_tx *fast_tx;
