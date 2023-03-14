@@ -54,64 +54,6 @@
 #include "intel_sprite.h"
 #include "intel_vrr.h"
 
-int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
-{
-	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct drm_rect *src = &plane_state->uapi.src;
-	u32 src_x, src_y, src_w, src_h, hsub, vsub;
-	bool rotated = drm_rotation_90_or_270(plane_state->hw.rotation);
-
-	/*
-	 * FIXME hsub/vsub vs. block size is a mess. Pre-tgl CCS
-	 * abuses hsub/vsub so we can't use them here. But as they
-	 * are limited to 32bpp RGB formats we don't actually need
-	 * to check anything.
-	 */
-	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-	    fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)
-		return 0;
-
-	/*
-	 * Hardware doesn't handle subpixel coordinates.
-	 * Adjust to (macro)pixel boundary, but be careful not to
-	 * increase the source viewport size, because that could
-	 * push the downscaling factor out of bounds.
-	 */
-	src_x = src->x1 >> 16;
-	src_w = drm_rect_width(src) >> 16;
-	src_y = src->y1 >> 16;
-	src_h = drm_rect_height(src) >> 16;
-
-	drm_rect_init(src, src_x << 16, src_y << 16,
-		      src_w << 16, src_h << 16);
-
-	if (fb->format->format == DRM_FORMAT_RGB565 && rotated) {
-		hsub = 2;
-		vsub = 2;
-	} else {
-		hsub = fb->format->hsub;
-		vsub = fb->format->vsub;
-	}
-
-	if (rotated)
-		hsub = vsub = max(hsub, vsub);
-
-	if (src_x % hsub || src_w % hsub) {
-		drm_dbg_kms(&i915->drm, "src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			    src_x, src_w, hsub, str_yes_no(rotated));
-		return -EINVAL;
-	}
-
-	if (src_y % vsub || src_h % vsub) {
-		drm_dbg_kms(&i915->drm, "src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			    src_y, src_h, vsub, str_yes_no(rotated));
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static void i9xx_plane_linear_gamma(u16 gamma[8])
 {
 	/* The points are not evenly spaced. */

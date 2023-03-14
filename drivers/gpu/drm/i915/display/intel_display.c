@@ -111,7 +111,6 @@
 #include "intel_quirks.h"
 #include "intel_sdvo.h"
 #include "intel_snps_phy.h"
-#include "intel_sprite.h"
 #include "intel_tc.h"
 #include "intel_tv.h"
 #include "intel_vblank.h"
