@@ -2186,12 +2186,13 @@ struct rtw89_btc_dm {
 	u32 wl_stb_chg: 1;
 	u32 pta_owner: 1;
 	u32 tdma_instant_excute: 1;
-	u32 rsvd: 1;
 
 	u16 slot_dur[CXST_MAX];
 
 	u8 run_reason;
 	u8 run_action;
+
+	u8 wl_lna2: 1;
 };
 
 struct rtw89_btc_ctrl {

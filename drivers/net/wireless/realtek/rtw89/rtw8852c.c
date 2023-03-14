@@ -2633,20 +2633,25 @@ static void rtw8852c_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
 
 static void rtw8852c_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 {
+	struct rtw89_btc *btc = &rtwdev->btc;
+
 	switch (level) {
 	case 0: /* original */
+	default:
 		rtw8852c_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852c_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 1: /* for FDD free-run */
 		rtw8852c_bb_ctrl_btc_preagc(rtwdev, true);
-		rtw8852c_set_wl_lna2(rtwdev, 0);
+		btc->dm.wl_lna2 = 0;
 		break;
 	case 2: /* for BTG Co-Rx*/
 		rtw8852c_bb_ctrl_btc_preagc(rtwdev, false);
-		rtw8852c_set_wl_lna2(rtwdev, 1);
+		btc->dm.wl_lna2 = 1;
 		break;
 	}
+
+	rtw8852c_set_wl_lna2(rtwdev, btc->dm.wl_lna2);
 }
 
 static void rtw8852c_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
