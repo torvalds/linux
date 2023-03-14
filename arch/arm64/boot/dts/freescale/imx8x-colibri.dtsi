@@ -8,6 +8,21 @@
 		stdout-path = &lpuart3;
 	};
 
+	colibri_gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiokeys>;
+		status = "disabled";
+
+		key-wakeup {
+			debounce-interval = <10>;
+			gpios = <&lsio_gpio3 10 GPIO_ACTIVE_HIGH>;
+			label = "Wake-Up";
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
+	};
+
 	reg_module_3v3: regulator-module-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "+V3.3";
