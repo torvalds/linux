@@ -430,6 +430,36 @@ static void iwl_mvm_mac_ctxt_set_ht_flags(struct iwl_mvm *mvm,
 	}
 }
 
+static int iwl_mvm_get_mac_type(struct ieee80211_vif *vif)
+{
+	u32 mac_type = FW_MAC_TYPE_BSS_STA;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		if (vif->p2p)
+			mac_type = FW_MAC_TYPE_P2P_STA;
+		else
+			mac_type = FW_MAC_TYPE_BSS_STA;
+		break;
+	case NL80211_IFTYPE_AP:
+		mac_type = FW_MAC_TYPE_GO;
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		mac_type = FW_MAC_TYPE_LISTENER;
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		mac_type = FW_MAC_TYPE_P2P_DEVICE;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		mac_type = FW_MAC_TYPE_IBSS;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
+
+	return mac_type;
+}
+
 static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					struct iwl_mac_ctx_cmd *cmd,
@@ -447,29 +477,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	cmd->id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							    mvmvif->color));
 	cmd->action = cpu_to_le32(action);
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_STATION:
-		if (vif->p2p)
-			cmd->mac_type = cpu_to_le32(FW_MAC_TYPE_P2P_STA);
-		else
-			cmd->mac_type = cpu_to_le32(FW_MAC_TYPE_BSS_STA);
-		break;
-	case NL80211_IFTYPE_AP:
-		cmd->mac_type = cpu_to_le32(FW_MAC_TYPE_GO);
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		cmd->mac_type = cpu_to_le32(FW_MAC_TYPE_LISTENER);
-		break;
-	case NL80211_IFTYPE_P2P_DEVICE:
-		cmd->mac_type = cpu_to_le32(FW_MAC_TYPE_P2P_DEVICE);
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		cmd->mac_type = cpu_to_le32(FW_MAC_TYPE_IBSS);
-		break;
-	default:
-		WARN_ON_ONCE(1);
-	}
+	cmd->mac_type = cpu_to_le32(iwl_mvm_get_mac_type(vif));
 
 	cmd->tsf_id = cpu_to_le32(mvmvif->tsf_id);
 
@@ -1428,6 +1436,7 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	struct ieee80211_vif *vif;
 	u32 id = le32_to_cpu(mb->mac_id);
 	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
+	u32 mac_type;
 
 	IWL_DEBUG_INFO(mvm,
 		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
@@ -1442,6 +1451,14 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
 	if (!vif)
 		goto out;
+
+	mac_type = iwl_mvm_get_mac_type(vif);
+
+	IWL_DEBUG_INFO(mvm, "missed beacon mac_type=%u,\n", mac_type);
+
+	mvm->trans->dbg.dump_file_name_ext_valid = true;
+	snprintf(mvm->trans->dbg.dump_file_name_ext, IWL_FW_INI_MAX_NAME,
+		 "MacId_%d_MacType_%d", id, mac_type);
 
 	rx_missed_bcon = le32_to_cpu(mb->consec_missed_beacons);
 	rx_missed_bcon_since_rx =
