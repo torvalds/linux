@@ -41,7 +41,7 @@ struct crypto_istat_hash {
 #define HASH_ALG_COMMON_STAT
 #endif
 
-/**
+/*
  * struct hash_alg_common - define properties of message digest
  * @stat: Statistics for hash algorithm.
  * @digestsize: Size of the result of the transformation. A buffer of this size
@@ -219,6 +219,7 @@ struct shash_desc {
  * @stat: Statistics for hash algorithm.
  * @base: internally used
  * @halg: see struct hash_alg_common
+ * @HASH_ALG_COMMON: see struct hash_alg_common
  */
 struct shash_alg {
 	int (*init)(struct shash_desc *desc);
