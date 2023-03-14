@@ -202,11 +202,7 @@ void bch2_alloc_sectors_append_ptrs(struct bch_fs *, struct write_point *,
 				    struct bkey_i *, unsigned, bool);
 void bch2_alloc_sectors_done(struct bch_fs *, struct write_point *);
 
-void bch2_open_buckets_stop_dev(struct bch_fs *, struct bch_dev *,
-				struct open_buckets *);
-
-void bch2_writepoint_stop(struct bch_fs *, struct bch_dev *,
-			  struct write_point *);
+void bch2_open_buckets_stop(struct bch_fs *c, struct bch_dev *, bool);
 
 static inline struct write_point_specifier writepoint_hashed(unsigned long v)
 {

@@ -1023,43 +1023,94 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 	return ret < 0 ? ret : 0;
 }
 
-void bch2_open_buckets_stop_dev(struct bch_fs *c, struct bch_dev *ca,
-				struct open_buckets *obs)
+static bool should_drop_bucket(struct open_bucket *ob, struct bch_fs *c,
+			       struct bch_dev *ca, bool ec)
 {
-	struct open_buckets ptrs = { .nr = 0 };
-	struct open_bucket *ob, *ob2;
-	unsigned i, j;
-
-	open_bucket_for_each(c, obs, ob, i) {
-		bool drop = !ca || ob->dev == ca->dev_idx;
+	if (ec) {
+		return ob->ec != NULL;
+	} else if (ca) {
+		bool drop = ob->dev == ca->dev_idx;
+		struct open_bucket *ob2;
+		unsigned i;
 
 		if (!drop && ob->ec) {
 			mutex_lock(&ob->ec->lock);
-			for (j = 0; j < ob->ec->new_stripe.key.v.nr_blocks; j++) {
-				if (!ob->ec->blocks[j])
+			for (i = 0; i < ob->ec->new_stripe.key.v.nr_blocks; i++) {
+				if (!ob->ec->blocks[i])
 					continue;
 
-				ob2 = c->open_buckets + ob->ec->blocks[j];
+				ob2 = c->open_buckets + ob->ec->blocks[i];
 				drop |= ob2->dev == ca->dev_idx;
 			}
 			mutex_unlock(&ob->ec->lock);
 		}
 
-		if (drop)
+		return drop;
+	} else {
+		return true;
+	}
+}
+
+static void bch2_writepoint_stop(struct bch_fs *c, struct bch_dev *ca,
+				 bool ec, struct write_point *wp)
+{
+	struct open_buckets ptrs = { .nr = 0 };
+	struct open_bucket *ob;
+	unsigned i;
+
+	mutex_lock(&wp->lock);
+	open_bucket_for_each(c, &wp->ptrs, ob, i)
+		if (should_drop_bucket(ob, c, ca, ec))
 			bch2_open_bucket_put(c, ob);
 		else
 			ob_push(c, &ptrs, ob);
-	}
-
-	*obs = ptrs;
+	wp->ptrs = ptrs;
+	mutex_unlock(&wp->lock);
 }
 
-void bch2_writepoint_stop(struct bch_fs *c, struct bch_dev *ca,
-			  struct write_point *wp)
+void bch2_open_buckets_stop(struct bch_fs *c, struct bch_dev *ca,
+			    bool ec)
 {
-	mutex_lock(&wp->lock);
-	bch2_open_buckets_stop_dev(c, ca, &wp->ptrs);
-	mutex_unlock(&wp->lock);
+	unsigned i;
+
+	/* Next, close write points that point to this device... */
+	for (i = 0; i < ARRAY_SIZE(c->write_points); i++)
+		bch2_writepoint_stop(c, ca, ec, &c->write_points[i]);
+
+	bch2_writepoint_stop(c, ca, ec, &c->copygc_write_point);
+	bch2_writepoint_stop(c, ca, ec, &c->rebalance_write_point);
+	bch2_writepoint_stop(c, ca, ec, &c->btree_write_point);
+
+	mutex_lock(&c->btree_reserve_cache_lock);
+	while (c->btree_reserve_cache_nr) {
+		struct btree_alloc *a =
+			&c->btree_reserve_cache[--c->btree_reserve_cache_nr];
+
+		bch2_open_buckets_put(c, &a->ob);
+	}
+	mutex_unlock(&c->btree_reserve_cache_lock);
+
+	spin_lock(&c->freelist_lock);
+	i = 0;
+	while (i < c->open_buckets_partial_nr) {
+		struct open_bucket *ob =
+			c->open_buckets + c->open_buckets_partial[i];
+
+		if (should_drop_bucket(ob, c, ca, ec)) {
+			--c->open_buckets_partial_nr;
+			swap(c->open_buckets_partial[i],
+			     c->open_buckets_partial[c->open_buckets_partial_nr]);
+			ob->on_partial_list = false;
+			spin_unlock(&c->freelist_lock);
+			bch2_open_bucket_put(c, ob);
+			spin_lock(&c->freelist_lock);
+		} else {
+			i++;
+		}
+	}
+	spin_unlock(&c->freelist_lock);
+
+	bch2_ec_stop_dev(c, ca);
 }
 
 static inline struct hlist_head *writepoint_hash(struct bch_fs *c,
@@ -1107,8 +1158,7 @@ static bool try_increase_writepoints(struct bch_fs *c)
 	return true;
 }
 
-static bool try_decrease_writepoints(struct bch_fs *c,
-				     unsigned old_nr)
+static bool try_decrease_writepoints(struct bch_fs *c, unsigned old_nr)
 {
 	struct write_point *wp;
 
@@ -1129,7 +1179,7 @@ static bool try_decrease_writepoints(struct bch_fs *c,
 	hlist_del_rcu(&wp->node);
 	mutex_unlock(&c->write_points_hash_lock);
 
-	bch2_writepoint_stop(c, NULL, wp);
+	bch2_writepoint_stop(c, NULL, false, wp);
 	return true;
 }
 

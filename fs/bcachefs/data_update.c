@@ -252,6 +252,7 @@ restart_drop_extra_replicas:
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 			bch2_trans_commit(trans, &op->res,
 				NULL,
+				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL|
 				m->data_opts.btree_insert_flags);
 		if (!ret) {

@@ -2158,44 +2158,7 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 	 */
 	bch2_recalc_capacity(c);
 
-	/* Next, close write points that point to this device... */
-	for (i = 0; i < ARRAY_SIZE(c->write_points); i++)
-		bch2_writepoint_stop(c, ca, &c->write_points[i]);
-
-	bch2_writepoint_stop(c, ca, &c->copygc_write_point);
-	bch2_writepoint_stop(c, ca, &c->rebalance_write_point);
-	bch2_writepoint_stop(c, ca, &c->btree_write_point);
-
-	mutex_lock(&c->btree_reserve_cache_lock);
-	while (c->btree_reserve_cache_nr) {
-		struct btree_alloc *a =
-			&c->btree_reserve_cache[--c->btree_reserve_cache_nr];
-
-		bch2_open_buckets_put(c, &a->ob);
-	}
-	mutex_unlock(&c->btree_reserve_cache_lock);
-
-	spin_lock(&c->freelist_lock);
-	i = 0;
-	while (i < c->open_buckets_partial_nr) {
-		struct open_bucket *ob =
-			c->open_buckets + c->open_buckets_partial[i];
-
-		if (ob->dev == ca->dev_idx) {
-			--c->open_buckets_partial_nr;
-			swap(c->open_buckets_partial[i],
-			     c->open_buckets_partial[c->open_buckets_partial_nr]);
-			ob->on_partial_list = false;
-			spin_unlock(&c->freelist_lock);
-			bch2_open_bucket_put(c, ob);
-			spin_lock(&c->freelist_lock);
-		} else {
-			i++;
-		}
-	}
-	spin_unlock(&c->freelist_lock);
-
-	bch2_ec_stop_dev(c, ca);
+	bch2_open_buckets_stop(c, ca, false);
 
 	/*
 	 * Wake up threads that were blocked on allocation, so they can notice

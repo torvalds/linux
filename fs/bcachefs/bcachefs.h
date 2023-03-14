@@ -655,7 +655,6 @@ typedef struct {
 	x(fallocate)							\
 	x(discard)							\
 	x(invalidate)							\
-	x(move)								\
 	x(delete_dead_snapshots)					\
 	x(snapshot_delete_pagecache)					\
 	x(sysfs)
@@ -958,14 +957,14 @@ struct bch_fs {
 
 	struct list_head	ec_stripe_new_list;
 	struct mutex		ec_stripe_new_lock;
+	wait_queue_head_t	ec_stripe_new_wait;
 
 	struct work_struct	ec_stripe_create_work;
 	u64			ec_stripe_hint;
 
-	struct bio_set		ec_bioset;
-
 	struct work_struct	ec_stripe_delete_work;
-	struct llist_head	ec_stripe_delete_list;
+
+	struct bio_set		ec_bioset;
 
 	/* REFLINK */
 	u64			reflink_hint;

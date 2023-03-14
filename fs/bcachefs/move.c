@@ -59,7 +59,6 @@ struct moving_io {
 static void move_free(struct moving_io *io)
 {
 	struct moving_context *ctxt = io->write.ctxt;
-	struct bch_fs *c = ctxt->c;
 
 	if (io->b)
 		atomic_dec(&io->b->count);
@@ -71,7 +70,6 @@ static void move_free(struct moving_io *io)
 	wake_up(&ctxt->wait);
 	mutex_unlock(&ctxt->lock);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_move);
 	kfree(io);
 }
 
@@ -280,9 +278,6 @@ static int bch2_move_extent(struct btree_trans *trans,
 		return 0;
 	}
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_move))
-		return -BCH_ERR_erofs_no_writes;
-
 	/*
 	 * Before memory allocations & taking nocow locks in
 	 * bch2_data_update_init():
@@ -378,7 +373,6 @@ err_free_pages:
 err_free:
 	kfree(io);
 err:
-	bch2_write_ref_put(c, BCH_WRITE_REF_move);
 	trace_and_count(c, move_extent_alloc_mem_fail, k.k);
 	return ret;
 }

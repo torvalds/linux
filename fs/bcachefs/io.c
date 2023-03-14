@@ -705,7 +705,8 @@ static void bch2_write_done(struct closure *cl)
 	struct bch_fs *c = op->c;
 
 	bch2_disk_reservation_put(c, &op->res);
-	bch2_write_ref_put(c, BCH_WRITE_REF_write);
+	if (!(op->flags & BCH_WRITE_MOVE))
+		bch2_write_ref_put(c, BCH_WRITE_REF_write);
 	bch2_keylist_free(&op->insert_keys, op->inline_keys);
 
 	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
@@ -1842,7 +1843,12 @@ void bch2_write(struct closure *cl)
 		goto err;
 	}
 
-	if (c->opts.nochanges ||
+	if (c->opts.nochanges) {
+		op->error = -BCH_ERR_erofs_no_writes;
+		goto err;
+	}
+
+	if (!(op->flags & BCH_WRITE_MOVE) &&
 	    !bch2_write_ref_tryget(c, BCH_WRITE_REF_write)) {
 		op->error = -BCH_ERR_erofs_no_writes;
 		goto err;
