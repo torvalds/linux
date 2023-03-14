@@ -4106,7 +4106,7 @@ static int lan8841_ptp_perout(struct ptp_clock_info *ptp,
 	period_nsec = timespec64_to_ns(&ts_period);
 
 	if (period_nsec < 200) {
-		pr_warn_ratelimited("%s: perout period too small, minimim is 200 nsec\n",
+		pr_warn_ratelimited("%s: perout period too small, minimum is 200 nsec\n",
 				    phydev_name(phydev));
 		return -EOPNOTSUPP;
 	}
