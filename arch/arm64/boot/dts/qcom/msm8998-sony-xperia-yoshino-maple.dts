@@ -22,7 +22,7 @@
 		enable-active-high;
 		gpio = <&pmi8998_gpios 10 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&disp_dvdd_en>;
+		pinctrl-0 = <&four_k_disp_dcdc_en>;
 	};
 };
 
@@ -60,7 +60,7 @@
 			  "SPMI_I2C_SEL",
 			  "NC";
 
-	disp_dvdd_en: disp-dvdd-en-active-state {
+	four_k_disp_dcdc_en: 4k-disp-dcdc-en-state {
 		pins = "gpio10";
 		function = "normal";
 		bias-disable;
