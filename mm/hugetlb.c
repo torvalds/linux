@@ -6159,8 +6159,7 @@ out_mutex:
  * Used by userfaultfd UFFDIO_* ioctls. Based on userfaultfd's mfill_atomic_pte
  * with modifications for hugetlb pages.
  */
-int hugetlb_mfill_atomic_pte(struct mm_struct *dst_mm,
-			     pte_t *dst_pte,
+int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 			     struct vm_area_struct *dst_vma,
 			     unsigned long dst_addr,
 			     unsigned long src_addr,
@@ -6168,6 +6167,7 @@ int hugetlb_mfill_atomic_pte(struct mm_struct *dst_mm,
 			     struct page **pagep,
 			     bool wp_copy)
 {
+	struct mm_struct *dst_mm = dst_vma->vm_mm;
 	bool is_continue = (mode == MCOPY_ATOMIC_CONTINUE);
 	struct hstate *h = hstate_vma(dst_vma);
 	struct address_space *mapping = dst_vma->vm_file->f_mapping;
