@@ -436,11 +436,9 @@ static int kszphy_config_intr(struct phy_device *phydev)
 		if (err)
 			return err;
 
-		temp = KSZPHY_INTCS_ALL;
-		err = phy_write(phydev, MII_KSZPHY_INTCS, temp);
+		err = phy_write(phydev, MII_KSZPHY_INTCS, KSZPHY_INTCS_ALL);
 	} else {
-		temp = 0;
-		err = phy_write(phydev, MII_KSZPHY_INTCS, temp);
+		err = phy_write(phydev, MII_KSZPHY_INTCS, 0);
 		if (err)
 			return err;
 
