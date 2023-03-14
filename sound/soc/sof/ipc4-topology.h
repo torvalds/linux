@@ -55,6 +55,9 @@
 
 #define SOF_IPC4_INVALID_NODE_ID	0xffffffff
 
+/* FW requires minimum 2ms DMA buffer size */
+#define SOF_IPC4_MIN_DMA_BUFFER_SIZE	2
+
 /*
  * The base of multi-gateways. Multi-gateways addressing starts from
  * ALH_MULTI_GTW_BASE and there are ALH_MULTI_GTW_COUNT multi-sources
@@ -143,19 +146,32 @@ struct ipc4_pipeline_set_state_data {
 } __packed;
 
 /**
+ * struct sof_ipc4_pin_format - Module pin format
+ * @pin_index: pin index
+ * @buffer_size: buffer size in bytes
+ * @audio_fmt: audio format for the pin
+ *
+ * This structure can be used for both output or input pins and the pin_index is relative to the
+ * pin type i.e output/input pin
+ */
+struct sof_ipc4_pin_format {
+	u32 pin_index;
+	u32 buffer_size;
+	struct sof_ipc4_audio_format audio_fmt;
+};
+
+/**
  * struct sof_ipc4_available_audio_format - Available audio formats
- * @base_config: Available base config
- * @out_audio_fmt: Available output audio format
- * @ref_audio_fmt: Reference audio format to match runtime audio format
- * @dma_buffer_size: Available Gateway DMA buffer size (in bytes)
- * @audio_fmt_num: Number of available audio formats
+ * @output_pin_fmts: Available output pin formats
+ * @input_pin_fmts: Available input pin formats
+ * @num_input_formats: Number of input pin formats
+ * @num_output_formats: Number of output pin formats
  */
 struct sof_ipc4_available_audio_format {
-	struct sof_ipc4_base_module_cfg *base_config;
-	struct sof_ipc4_audio_format *out_audio_fmt;
-	struct sof_ipc4_audio_format *ref_audio_fmt;
-	u32 *dma_buffer_size;
-	int audio_fmt_num;
+	struct sof_ipc4_pin_format *output_pin_fmts;
+	struct sof_ipc4_pin_format *input_pin_fmts;
+	u32 num_input_formats;
+	u32 num_output_formats;
 };
 
 /**
