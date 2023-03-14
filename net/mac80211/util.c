@@ -314,6 +314,8 @@ void ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(txq->vif);
 	struct ieee80211_txq *queue;
 
+	spin_lock(&local->handle_wake_tx_queue_lock);
+
 	/* Use ieee80211_next_txq() for airtime fairness accounting */
 	ieee80211_txq_schedule_start(hw, txq->ac);
 	while ((queue = ieee80211_next_txq(hw, txq->ac))) {
@@ -321,6 +323,7 @@ void ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
 		ieee80211_return_txq(hw, queue, false);
 	}
 	ieee80211_txq_schedule_end(hw, txq->ac);
+	spin_unlock(&local->handle_wake_tx_queue_lock);
 }
 EXPORT_SYMBOL(ieee80211_handle_wake_tx_queue);
 
