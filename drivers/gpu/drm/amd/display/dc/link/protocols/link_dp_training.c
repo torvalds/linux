@@ -86,6 +86,9 @@ void dp_log_training_result(
 	case LINK_RATE_HIGH2:
 		link_rate = "HBR2";
 		break;
+	case LINK_RATE_RATE_8:
+		link_rate = "R8";
+		break;
 	case LINK_RATE_HIGH3:
 		link_rate = "HBR3";
 		break;
