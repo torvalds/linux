@@ -2983,13 +2983,23 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 		return RX_DROP_UNUSABLE;
 
 	if (rx->sta && rx->sta->amsdu_mesh_control < 0) {
-		bool valid_std = ieee80211_is_valid_amsdu(skb, true);
-		bool valid_nonstd = ieee80211_is_valid_amsdu(skb, false);
+		s8 valid = -1;
+		int i;
 
-		if (valid_std && !valid_nonstd)
-			rx->sta->amsdu_mesh_control = 1;
-		else if (valid_nonstd && !valid_std)
-			rx->sta->amsdu_mesh_control = 0;
+		for (i = 0; i <= 2; i++) {
+			if (!ieee80211_is_valid_amsdu(skb, i))
+				continue;
+
+			if (valid >= 0) {
+				/* ambiguous */
+				valid = -1;
+				break;
+			}
+
+			valid = i;
+		}
+
+		rx->sta->amsdu_mesh_control = valid;
 	}
 
 	ieee80211_amsdu_to_8023s(skb, &frame_list, dev->dev_addr,
