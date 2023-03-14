@@ -1108,7 +1108,7 @@ mlx5e_hairpin_params_init(struct mlx5e_hairpin_params *hairpin_params,
 
 	hairpin_params->mdev = mdev;
 	/* set hairpin pair per each 50Gbs share of the link */
-	mlx5e_port_max_linkspeed(mdev, &link_speed);
+	mlx5_port_max_linkspeed(mdev, &link_speed);
 	link_speed = max_t(u32, link_speed, 50000);
 	link_speed64 = link_speed;
 	do_div(link_speed64, 50000);
