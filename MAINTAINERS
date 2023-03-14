@@ -19951,6 +19951,13 @@ S:	Supported
 F:	Documentation/devicetree/bindings/rng/starfive*
 F:	drivers/char/hw_random/jh7110-trng.c
 
+STARFIVE WATCHDOG DRIVER
+M:	Xingyu Wu <xingyu.wu@starfivetech.com>
+M:	Samin Guo <samin.guo@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/watchdog/starfive*
+F:	drivers/watchdog/starfive-wdt.c
+
 STATIC BRANCH/CALL
 M:	Peter Zijlstra <peterz@infradead.org>
 M:	Josh Poimboeuf <jpoimboe@kernel.org>
