@@ -433,6 +433,7 @@ mlx5e_rep_check_indr_block_supported(struct mlx5e_rep_priv *rpriv,
 {
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct net_device *macvlan_real_dev;
 
 	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
 	    f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
@@ -450,7 +451,11 @@ mlx5e_rep_check_indr_block_supported(struct mlx5e_rep_priv *rpriv,
 			return false;
 		}
 
-		if (macvlan_dev_real_dev(netdev) == rpriv->netdev)
+		macvlan_real_dev = macvlan_dev_real_dev(netdev);
+
+		if (macvlan_real_dev == rpriv->netdev)
+			return true;
+		if (netif_is_bond_master(macvlan_real_dev))
 			return true;
 	}
 
