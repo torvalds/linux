@@ -887,7 +887,10 @@ static bool dc_construct_ctx(struct dc *dc,
 	}
 
 	dc->ctx = dc_ctx;
+
 	dc->link_srv = link_create_link_service();
+	if (!dc->link_srv)
+		return false;
 
 	return true;
 }
@@ -985,8 +988,6 @@ static bool dc_construct(struct dc *dc,
 		ASSERT_CRITICAL(false);
 		goto fail;
 	}
-
-	dc->link_srv = link_create_link_service();
 
 	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_ctx->dce_version);
 	if (!dc->res_pool)
