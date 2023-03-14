@@ -287,7 +287,7 @@ void rtl92e_config_mac(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->tx_pwr_data_read_from_eeprom) {
-		dwArrayLen = MACPHY_Array_PGLength;
+		dwArrayLen = RTL8192E_MACPHY_ARR_PG_LEN;
 		pdwArray = Rtl819XMACPHY_Array_PG;
 
 	} else {
