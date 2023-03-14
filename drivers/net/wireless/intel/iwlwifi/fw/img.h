@@ -182,10 +182,10 @@ struct iwl_dump_exclude {
  * @enhance_sensitivity_table: device can do enhanced sensitivity.
  * @init_evtlog_ptr: event log offset for init ucode.
  * @init_evtlog_size: event log size for init ucode.
- * @init_errlog_ptr: error log offfset for init ucode.
+ * @init_errlog_ptr: error log offset for init ucode.
  * @inst_evtlog_ptr: event log offset for runtime ucode.
  * @inst_evtlog_size: event log size for runtime ucode.
- * @inst_errlog_ptr: error log offfset for runtime ucode.
+ * @inst_errlog_ptr: error log offset for runtime ucode.
  * @type: firmware type (&enum iwl_fw_type)
  * @human_readable: human readable version
  *	we get the ALIVE from the uCode
