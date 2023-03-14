@@ -131,7 +131,7 @@
 static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state);
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
 static void hsw_set_transconf(const struct intel_crtc_state *crtc_state);
-static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state);
+static void bdw_set_pipe_misc(const struct intel_crtc_state *crtc_state);
 static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state);
 
 /* returns HPLL frequency in kHz */
@@ -1793,7 +1793,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	intel_set_pipe_src_size(new_crtc_state);
 	if (DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
-		bdw_set_pipemisc(new_crtc_state);
+		bdw_set_pipe_misc(new_crtc_state);
 
 	if (!intel_crtc_is_bigjoiner_slave(new_crtc_state) &&
 	    !transcoder_is_dsi(cpu_transcoder))
@@ -3074,20 +3074,20 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 }
 
 static enum intel_output_format
-bdw_get_pipemisc_output_format(struct intel_crtc *crtc)
+bdw_get_pipe_misc_output_format(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 tmp;
 
-	tmp = intel_de_read(dev_priv, PIPEMISC(crtc->pipe));
+	tmp = intel_de_read(dev_priv, PIPE_MISC(crtc->pipe));
 
-	if (tmp & PIPEMISC_YUV420_ENABLE) {
+	if (tmp & PIPE_MISC_YUV420_ENABLE) {
 		/* We support 4:2:0 in full blend mode only */
 		drm_WARN_ON(&dev_priv->drm,
-			    (tmp & PIPEMISC_YUV420_MODE_FULL_BLEND) == 0);
+			    (tmp & PIPE_MISC_YUV420_MODE_FULL_BLEND) == 0);
 
 		return INTEL_OUTPUT_FORMAT_YCBCR420;
-	} else if (tmp & PIPEMISC_OUTPUT_COLORSPACE_YUV) {
+	} else if (tmp & PIPE_MISC_OUTPUT_COLORSPACE_YUV) {
 		return INTEL_OUTPUT_FORMAT_YCBCR444;
 	} else {
 		return INTEL_OUTPUT_FORMAT_RGB;
@@ -3330,7 +3330,7 @@ static void hsw_set_transconf(const struct intel_crtc_state *crtc_state)
 	intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
 }
 
-static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
+static void bdw_set_pipe_misc(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -3338,18 +3338,18 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 
 	switch (crtc_state->pipe_bpp) {
 	case 18:
-		val |= PIPEMISC_BPC_6;
+		val |= PIPE_MISC_BPC_6;
 		break;
 	case 24:
-		val |= PIPEMISC_BPC_8;
+		val |= PIPE_MISC_BPC_8;
 		break;
 	case 30:
-		val |= PIPEMISC_BPC_10;
+		val |= PIPE_MISC_BPC_10;
 		break;
 	case 36:
 		/* Port output 12BPC defined for ADLP+ */
 		if (DISPLAY_VER(dev_priv) > 12)
-			val |= PIPEMISC_BPC_12_ADLP;
+			val |= PIPE_MISC_BPC_12_ADLP;
 		break;
 	default:
 		MISSING_CASE(crtc_state->pipe_bpp);
@@ -3357,38 +3357,38 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 	}
 
 	if (crtc_state->dither)
-		val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
+		val |= PIPE_MISC_DITHER_ENABLE | PIPE_MISC_DITHER_TYPE_SP;
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
 	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
-		val |= PIPEMISC_OUTPUT_COLORSPACE_YUV;
+		val |= PIPE_MISC_OUTPUT_COLORSPACE_YUV;
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-		val |= PIPEMISC_YUV420_ENABLE |
-			PIPEMISC_YUV420_MODE_FULL_BLEND;
+		val |= PIPE_MISC_YUV420_ENABLE |
+			PIPE_MISC_YUV420_MODE_FULL_BLEND;
 
 	if (DISPLAY_VER(dev_priv) >= 11 && is_hdr_mode(crtc_state))
-		val |= PIPEMISC_HDR_MODE_PRECISION;
+		val |= PIPE_MISC_HDR_MODE_PRECISION;
 
 	if (DISPLAY_VER(dev_priv) >= 12)
-		val |= PIPEMISC_PIXEL_ROUNDING_TRUNC;
+		val |= PIPE_MISC_PIXEL_ROUNDING_TRUNC;
 
-	intel_de_write(dev_priv, PIPEMISC(crtc->pipe), val);
+	intel_de_write(dev_priv, PIPE_MISC(crtc->pipe), val);
 }
 
-int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
+int bdw_get_pipe_misc_bpp(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 tmp;
 
-	tmp = intel_de_read(dev_priv, PIPEMISC(crtc->pipe));
+	tmp = intel_de_read(dev_priv, PIPE_MISC(crtc->pipe));
 
-	switch (tmp & PIPEMISC_BPC_MASK) {
-	case PIPEMISC_BPC_6:
+	switch (tmp & PIPE_MISC_BPC_MASK) {
+	case PIPE_MISC_BPC_6:
 		return 18;
-	case PIPEMISC_BPC_8:
+	case PIPE_MISC_BPC_8:
 		return 24;
-	case PIPEMISC_BPC_10:
+	case PIPE_MISC_BPC_10:
 		return 30;
 	/*
 	 * PORT OUTPUT 12 BPC defined for ADLP+.
@@ -3400,7 +3400,7 @@ int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
 	 * on older platforms, need to find a workaround for 12 BPC
 	 * MIPI DSI HW readout.
 	 */
-	case PIPEMISC_BPC_12_ADLP:
+	case PIPE_MISC_BPC_12_ADLP:
 		if (DISPLAY_VER(dev_priv) > 12)
 			return 36;
 		fallthrough;
@@ -3981,7 +3981,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 			pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	} else {
 		pipe_config->output_format =
-			bdw_get_pipemisc_output_format(crtc);
+			bdw_get_pipe_misc_output_format(crtc);
 	}
 
 	pipe_config->gamma_mode = intel_de_read(dev_priv,
@@ -6967,7 +6967,7 @@ static void commit_pipe_pre_planes(struct intel_atomic_state *state,
 			intel_color_commit_arm(new_crtc_state);
 
 		if (DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
-			bdw_set_pipemisc(new_crtc_state);
+			bdw_set_pipe_misc(new_crtc_state);
 
 		if (intel_crtc_needs_fastset(new_crtc_state))
 			intel_pipe_fastset(old_crtc_state, new_crtc_state);
