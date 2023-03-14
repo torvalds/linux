@@ -179,7 +179,7 @@ void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
 
 	bl = io_buffer_get_list(ctx, req->buf_index);
 	if (likely(bl)) {
-		if (bl->buf_nr_pages)
+		if (bl->is_mapped)
 			ret = io_ring_buffer_select(req, len, bl, issue_flags);
 		else
 			ret = io_provided_buffer_select(req, len, bl);
@@ -214,7 +214,7 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 	if (!nbufs)
 		return 0;
 
-	if (bl->buf_nr_pages) {
+	if (bl->is_mapped && bl->buf_nr_pages) {
 		int j;
 
 		i = bl->buf_ring->tail - bl->head;
@@ -225,6 +225,7 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 		bl->buf_nr_pages = 0;
 		/* make sure it's seen as empty */
 		INIT_LIST_HEAD(&bl->buf_list);
+		bl->is_mapped = 0;
 		return i;
 	}
 
@@ -303,7 +304,7 @@ int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 	if (bl) {
 		ret = -EINVAL;
 		/* can't use provide/remove buffers command on mapped buffers */
-		if (!bl->buf_nr_pages)
+		if (!bl->is_mapped)
 			ret = __io_remove_buffers(ctx, bl, p->nbufs);
 	}
 	io_ring_submit_unlock(ctx, issue_flags);
@@ -448,7 +449,7 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 		}
 	}
 	/* can't add buffers via this command for a mapped buffer ring */
-	if (bl->buf_nr_pages) {
+	if (bl->is_mapped) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -480,6 +481,7 @@ static int io_pin_pbuf_ring(struct io_uring_buf_reg *reg,
 	bl->buf_pages = pages;
 	bl->buf_nr_pages = nr_pages;
 	bl->buf_ring = br;
+	bl->is_mapped = 1;
 	return 0;
 }
 
@@ -514,7 +516,7 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	bl = io_buffer_get_list(ctx, reg.bgid);
 	if (bl) {
 		/* if mapped buffer ring OR classic exists, don't allow */
-		if (bl->buf_nr_pages || !list_empty(&bl->buf_list))
+		if (bl->is_mapped || !list_empty(&bl->buf_list))
 			return -EEXIST;
 	} else {
 		free_bl = bl = kzalloc(sizeof(*bl), GFP_KERNEL);
@@ -548,7 +550,7 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	bl = io_buffer_get_list(ctx, reg.bgid);
 	if (!bl)
 		return -ENOENT;
-	if (!bl->buf_nr_pages)
+	if (!bl->is_mapped)
 		return -EINVAL;
 
 	__io_remove_buffers(ctx, bl, -1U);
