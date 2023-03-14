@@ -1886,6 +1886,8 @@ endif
 
 else # KBUILD_EXTMOD
 
+filechk_kernel.release = echo $(KERNELRELEASE)
+
 ###
 # External module support.
 # When building external modules the kernel used as basis is considered
