@@ -95,25 +95,22 @@ static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 	ctx->leaf_fullpath = (char *)full_path;
 	rc = cifs_mount_get_session(mnt_ctx);
 	ctx->leaf_fullpath = NULL;
-	if (!rc) {
-		struct cifs_ses *ses = mnt_ctx->ses;
 
-		mutex_lock(&ses->session_mutex);
-		ses->dfs_root_ses = mnt_ctx->root_ses;
-		mutex_unlock(&ses->session_mutex);
-	}
 	return rc;
 }
 
 static void set_root_ses(struct cifs_mount_ctx *mnt_ctx)
 {
-	if (mnt_ctx->ses) {
+	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
+	struct cifs_ses *ses = mnt_ctx->ses;
+
+	if (ses) {
 		spin_lock(&cifs_tcp_ses_lock);
-		mnt_ctx->ses->ses_count++;
+		ses->ses_count++;
 		spin_unlock(&cifs_tcp_ses_lock);
-		dfs_cache_add_refsrv_session(&mnt_ctx->mount_id, mnt_ctx->ses);
+		dfs_cache_add_refsrv_session(&mnt_ctx->mount_id, ses);
 	}
-	mnt_ctx->root_ses = mnt_ctx->ses;
+	ctx->dfs_root_ses = mnt_ctx->ses;
 }
 
 static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, const char *full_path,
@@ -260,7 +257,7 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	rc = get_session(mnt_ctx, NULL);
 	if (rc)
 		return rc;
-	mnt_ctx->root_ses = mnt_ctx->ses;
+	ctx->dfs_root_ses = mnt_ctx->ses;
 	/*
 	 * If called with 'nodfs' mount option, then skip DFS resolving.  Otherwise unconditionally
 	 * try to get an DFS referral (even cached) to determine whether it is an DFS mount.

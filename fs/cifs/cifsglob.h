@@ -1749,7 +1749,6 @@ struct cifs_mount_ctx {
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	struct cifs_ses *root_ses;
 	uuid_t mount_id;
 	char *origin_fullpath, *leaf_fullpath;
 };

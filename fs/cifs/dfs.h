@@ -22,9 +22,10 @@ static inline char *dfs_get_path(struct cifs_sb_info *cifs_sb, const char *path)
 static inline int dfs_get_referral(struct cifs_mount_ctx *mnt_ctx, const char *path,
 				   struct dfs_info3_param *ref, struct dfs_cache_tgt_list *tl)
 {
+	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
 
-	return dfs_cache_find(mnt_ctx->xid, mnt_ctx->root_ses, cifs_sb->local_nls,
+	return dfs_cache_find(mnt_ctx->xid, ctx->dfs_root_ses, cifs_sb->local_nls,
 			      cifs_remap(cifs_sb), path, ref, tl);
 }
 
