@@ -16,6 +16,10 @@
 #define MCR_REG(x)	_XE_RTP_MCR_REG(x)
 
 static const struct xe_rtp_entry gt_tunings[] = {
+	{ XE_RTP_NAME("Tuning: Blend Fill Caching Optimization Disable"),
+	  XE_RTP_RULES(PLATFORM(DG2)),
+	  XE_RTP_ACTIONS(SET(XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS))
+	},
 	{ XE_RTP_NAME("Tuning: 32B Access Enable"),
 	  XE_RTP_RULES(PLATFORM(DG2)),
 	  XE_RTP_ACTIONS(SET(XEHP_SQCM, EN_32B_ACCESS))
