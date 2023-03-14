@@ -805,6 +805,11 @@ int mlx5_devlink_params_register(struct devlink *devlink)
 {
 	int err;
 
+	/* Here only the driver init params should be registered.
+	 * Runtime params should be registered by the code which
+	 * behaviour they configure.
+	 */
+
 	err = devl_params_register(devlink, mlx5_devlink_params,
 				   ARRAY_SIZE(mlx5_devlink_params));
 	if (err)
