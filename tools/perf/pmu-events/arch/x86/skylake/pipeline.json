@@ -405,6 +405,16 @@
         "UMask": "0x1"
     },
     {
+        "AnyThread": "1",
+        "BriefDescription": "Clears speculative count",
+        "CounterMask": "1",
+        "EventCode": "0x0D",
+        "EventName": "INT_MISC.CLEARS_COUNT",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Cycles the issue-stage is waiting for front-end to fetch from resteered path following branch misprediction or machine clear events.",
         "EventCode": "0x0D",
         "EventName": "INT_MISC.CLEAR_RESTEER_CYCLES",
