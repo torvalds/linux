@@ -308,6 +308,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 	struct net_device *netdev = x->xso.real_dev;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5e_priv *priv;
+	gfp_t gfp;
 	int err;
 
 	priv = netdev_priv(netdev);
@@ -315,16 +316,20 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 		return -EOPNOTSUPP;
 
 	ipsec = priv->ipsec;
-	err = mlx5e_xfrm_validate_state(priv->mdev, x, extack);
-	if (err)
-		return err;
-
-	sa_entry = kzalloc(sizeof(*sa_entry), GFP_KERNEL);
+	gfp = (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ) ? GFP_ATOMIC : GFP_KERNEL;
+	sa_entry = kzalloc(sizeof(*sa_entry), gfp);
 	if (!sa_entry)
 		return -ENOMEM;
 
 	sa_entry->x = x;
 	sa_entry->ipsec = ipsec;
+	/* Check if this SA is originated from acquire flow temporary SA */
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
+		goto out;
+
+	err = mlx5e_xfrm_validate_state(priv->mdev, x, extack);
+	if (err)
+		goto err_xfrm;
 
 	/* check esn */
 	mlx5e_ipsec_update_esn_state(sa_entry);
@@ -353,6 +358,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 				mlx5e_ipsec_set_iv_esn : mlx5e_ipsec_set_iv;
 
 	INIT_WORK(&sa_entry->modify_work.work, _update_xfrm_state);
+out:
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	return 0;
 
@@ -372,6 +378,9 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 	struct mlx5e_ipsec_sa_entry *old;
 
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
+		return;
+
 	old = xa_erase_bh(&ipsec->sadb, sa_entry->ipsec_obj_id);
 	WARN_ON(old != sa_entry);
 }
@@ -380,9 +389,13 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
+		goto sa_entry_free;
+
 	cancel_work_sync(&sa_entry->modify_work.work);
 	mlx5e_accel_ipsec_fs_del_rule(sa_entry);
 	mlx5_ipsec_free_sa_ctx(sa_entry);
+sa_entry_free:
 	kfree(sa_entry);
 }
 
@@ -485,6 +498,9 @@ static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)
 	int err;
 
 	lockdep_assert_held(&x->lock);
+
+	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
+		return;
 
 	if (sa_entry->attrs.soft_packet_limit == XFRM_INF)
 		/* Limits are not configured, as soft limit
