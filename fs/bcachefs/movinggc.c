@@ -334,8 +334,8 @@ static int bch2_copygc_thread(void *arg)
 		wake_up(&c->copygc_running_wq);
 	}
 
-	bch2_moving_ctxt_exit(&ctxt);
 	bch2_trans_exit(&trans);
+	bch2_moving_ctxt_exit(&ctxt);
 	free_fifo(&move_buckets);
 
 	return 0;
