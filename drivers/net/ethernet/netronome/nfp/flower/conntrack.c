@@ -1656,6 +1656,22 @@ void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry)
 	kfree(entry);
 }
 
+static struct flow_action_entry *get_flow_act_ct(struct flow_rule *rule)
+{
+	struct flow_action_entry *act;
+	int i;
+
+	/* More than one ct action may be present in a flow rule,
+	 * Return the first one that is not a CT clear action
+	 */
+	flow_action_for_each(i, act, &rule->action) {
+		if (act->id == FLOW_ACTION_CT && act->ct.action != TCA_CT_ACT_CLEAR)
+			return act;
+	}
+
+	return NULL;
+}
+
 static struct flow_action_entry *get_flow_act(struct flow_rule *rule,
 					      enum flow_action_id act_id)
 {
@@ -1720,7 +1736,7 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 	struct nfp_fl_ct_zone_entry *zt;
 	int err;
 
-	ct_act = get_flow_act(flow->rule, FLOW_ACTION_CT);
+	ct_act = get_flow_act_ct(flow->rule);
 	if (!ct_act) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: Conntrack action empty in conntrack offload");
