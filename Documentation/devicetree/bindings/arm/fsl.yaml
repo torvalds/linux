@@ -1154,10 +1154,13 @@ properties:
               - fsl,imx8dxl-evk           # i.MX8DXL EVK Board
           - const: fsl,imx8dxl
 
-      - description: i.MX8QXP Boards with Toradex Coilbri iMX8X Modules
+      - description: i.MX8QXP Boards with Toradex Colibri iMX8X Modules
         items:
           - enum:
+              - toradex,colibri-imx8x-aster   # Colibri iMX8X Module on Aster Board
               - toradex,colibri-imx8x-eval-v3 # Colibri iMX8X Module on Colibri Evaluation Board V3
+              - toradex,colibri-imx8x-iris    # Colibri iMX8X Module on Iris Board
+              - toradex,colibri-imx8x-iris-v2 # Colibri iMX8X Module on Iris Board V2
           - const: toradex,colibri-imx8x
           - const: fsl,imx8qxp
 
