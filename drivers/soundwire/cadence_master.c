@@ -54,9 +54,9 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_IP_MCP_CONTROL_CMD_ACCEPT		BIT(1)
 #define CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP	BIT(0)
 
-#define CDNS_MCP_CMDCTRL			0x8
+#define CDNS_IP_MCP_CMDCTRL			0x8 /* IP offset added at run-time */
 
-#define CDNS_MCP_CMDCTRL_INSERT_PARITY_ERR	BIT(2)
+#define CDNS_IP_MCP_CMDCTRL_INSERT_PARITY_ERR	BIT(2)
 
 #define CDNS_MCP_SSPSTAT			0xC
 #define CDNS_MCP_FRAME_SHAPE			0x10
@@ -428,9 +428,9 @@ static int cdns_parity_error_injection(void *data, u64 value)
 	mutex_lock(&bus->bus_lock);
 
 	/* program hardware to inject parity error */
-	cdns_updatel(cdns, CDNS_MCP_CMDCTRL,
-		     CDNS_MCP_CMDCTRL_INSERT_PARITY_ERR,
-		     CDNS_MCP_CMDCTRL_INSERT_PARITY_ERR);
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CMDCTRL,
+			CDNS_IP_MCP_CMDCTRL_INSERT_PARITY_ERR,
+			CDNS_IP_MCP_CMDCTRL_INSERT_PARITY_ERR);
 
 	/* commit changes */
 	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
@@ -442,9 +442,9 @@ static int cdns_parity_error_injection(void *data, u64 value)
 	dev_info(cdns->dev, "parity error injection, read: %d\n", ret);
 
 	/* program hardware to disable parity error */
-	cdns_updatel(cdns, CDNS_MCP_CMDCTRL,
-		     CDNS_MCP_CMDCTRL_INSERT_PARITY_ERR,
-		     0);
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CMDCTRL,
+			CDNS_IP_MCP_CMDCTRL_INSERT_PARITY_ERR,
+			0);
 
 	/* commit changes */
 	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
