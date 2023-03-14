@@ -55,8 +55,20 @@ static void *get_hashentry(struct rhashtable *ht, void *key,
 
 bool is_pre_ct_flow(struct flow_cls_offload *flow)
 {
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
+	struct flow_dissector *dissector = rule->match.dissector;
 	struct flow_action_entry *act;
+	struct flow_match_ct ct;
 	int i;
+
+	if (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT)) {
+		flow_rule_match_ct(rule, &ct);
+		if (ct.key->ct_state)
+			return false;
+	}
+
+	if (flow->common.chain_index)
+		return false;
 
 	flow_action_for_each(i, act, &flow->rule->action) {
 		if (act->id == FLOW_ACTION_CT) {
