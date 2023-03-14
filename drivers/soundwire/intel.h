@@ -187,4 +187,11 @@ static inline int sdw_intel_sync_go(struct sdw_intel *sdw)
 	return -ENOTSUPP;
 }
 
+/* common bus management */
+int intel_start_bus(struct sdw_intel *sdw);
+int intel_start_bus_after_reset(struct sdw_intel *sdw);
+void intel_check_clock_stop(struct sdw_intel *sdw);
+int intel_start_bus_after_clock_stop(struct sdw_intel *sdw);
+int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop);
+
 #endif /* __SDW_INTEL_LOCAL_H */
