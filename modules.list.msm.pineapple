@@ -68,6 +68,7 @@ interconnect_qcom.ko
 icc-bcm-voter.ko
 icc-rpmh.ko
 qnoc-qos.ko
+qnoc-cliffs.ko
 qnoc-pineapple.ko
 icc-debug.ko
 icc-test.ko
