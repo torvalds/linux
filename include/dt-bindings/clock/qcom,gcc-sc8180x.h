@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2021, Linaro Ltd.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_GCC_SC8180X_H
@@ -246,6 +247,21 @@
 #define GCC_PCIE_3_CLKREF_CLK					236
 #define GCC_USB3_PRIM_CLKREF_CLK				237
 #define GCC_USB3_SEC_CLKREF_CLK					238
+#define GPLL9							239
+#define GCC_AGGRE_UFS_CARD_2_AXI_CLK				240
+#define GCC_CAMERA_AHB_CLK					241
+#define GCC_CAMERA_XO_CLK					242
+#define GCC_CPUSS_DVM_BUS_CLK					243
+#define GCC_CPUSS_GNOC_CLK					244
+#define GCC_DISP_AHB_CLK					245
+#define GCC_DISP_XO_CLK						246
+#define GCC_GPU_CFG_AHB_CLK					247
+#define GCC_GPU_IREF_CLK					248
+#define GCC_NPU_CFG_AHB_CLK					249
+#define GCC_UFS_CARD_CLKREF_CLK					250
+#define GCC_VIDEO_AHB_CLK					251
+#define GCC_VIDEO_XO_CLK					252
+#define GCC_UFS_MEM_CLKREF_CLK					254
 
 #define GCC_EMAC_BCR						0
 #define GCC_GPU_BCR						1
@@ -292,6 +308,10 @@
 #define GCC_VIDEO_AXI0_CLK_BCR					42
 #define GCC_VIDEO_AXI1_CLK_BCR					43
 #define GCC_USB3_DP_PHY_SEC_BCR					44
+#define GCC_USB3_UNIPHY_MP0_BCR					45
+#define GCC_USB3_UNIPHY_MP1_BCR					46
+#define GCC_USB3UNIPHY_PHY_MP0_BCR				47
+#define GCC_USB3UNIPHY_PHY_MP1_BCR				48
 
 /* GCC GDSCRs */
 #define EMAC_GDSC						0
