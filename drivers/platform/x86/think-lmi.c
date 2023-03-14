@@ -1047,33 +1047,6 @@ static const struct attribute_group tlmi_attr_group = {
 	.attrs = tlmi_attrs,
 };
 
-static ssize_t tlmi_attr_show(struct kobject *kobj, struct attribute *attr,
-				    char *buf)
-{
-	struct kobj_attribute *kattr;
-
-	kattr = container_of(attr, struct kobj_attribute, attr);
-	if (kattr->show)
-		return kattr->show(kobj, kattr, buf);
-	return -EIO;
-}
-
-static ssize_t tlmi_attr_store(struct kobject *kobj, struct attribute *attr,
-				     const char *buf, size_t count)
-{
-	struct kobj_attribute *kattr;
-
-	kattr = container_of(attr, struct kobj_attribute, attr);
-	if (kattr->store)
-		return kattr->store(kobj, kattr, buf, count);
-	return -EIO;
-}
-
-static const struct sysfs_ops tlmi_kobj_sysfs_ops = {
-	.show	= tlmi_attr_show,
-	.store	= tlmi_attr_store,
-};
-
 static void tlmi_attr_setting_release(struct kobject *kobj)
 {
 	struct tlmi_attr_setting *setting = to_tlmi_attr_setting(kobj);
@@ -1091,12 +1064,12 @@ static void tlmi_pwd_setting_release(struct kobject *kobj)
 
 static const struct kobj_type tlmi_attr_setting_ktype = {
 	.release        = &tlmi_attr_setting_release,
-	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
+	.sysfs_ops	= &kobj_sysfs_ops,
 };
 
 static const struct kobj_type tlmi_pwd_setting_ktype = {
 	.release        = &tlmi_pwd_setting_release,
-	.sysfs_ops	= &tlmi_kobj_sysfs_ops,
+	.sysfs_ops	= &kobj_sysfs_ops,
 };
 
 static ssize_t pending_reboot_show(struct kobject *kobj, struct kobj_attribute *attr,
