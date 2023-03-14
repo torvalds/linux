@@ -586,13 +586,6 @@ static int intel_pdi_stream_ch_update(struct sdw_intel *sdw,
 	return 0;
 }
 
-static int intel_pdi_ch_update(struct sdw_intel *sdw)
-{
-	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm);
-
-	return 0;
-}
-
 static void
 intel_pdi_shim_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 {
@@ -1094,7 +1087,7 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	if (ret)
 		return ret;
 
-	intel_pdi_ch_update(sdw);
+	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm);
 
 	/* DAIs are created based on total number of PDIs supported */
 	num_dai = cdns->pcm.num_pdi;
