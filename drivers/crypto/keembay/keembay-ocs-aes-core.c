@@ -1580,8 +1580,6 @@ static int kmb_ocs_aes_remove(struct platform_device *pdev)
 	struct ocs_aes_dev *aes_dev;
 
 	aes_dev = platform_get_drvdata(pdev);
-	if (!aes_dev)
-		return -ENODEV;
 
 	unregister_aes_algs(aes_dev);
 
