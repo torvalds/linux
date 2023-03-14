@@ -41,6 +41,7 @@ struct mlx5e_ipsec_rx {
 struct mlx5e_ipsec_tx {
 	struct mlx5e_ipsec_ft ft;
 	struct mlx5e_ipsec_miss pol;
+	struct mlx5e_ipsec_rule status;
 	struct mlx5_flow_namespace *ns;
 	struct mlx5e_ipsec_fc *fc;
 	struct mlx5_fs_chains *chains;
@@ -455,6 +456,39 @@ static void rx_ft_put_policy(struct mlx5e_ipsec *ipsec, u32 family, u32 prio)
 	mutex_unlock(&rx->ft.mutex);
 }
 
+static int ipsec_counter_rule_tx(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx)
+{
+	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *fte;
+	struct mlx5_flow_spec *spec;
+	int err;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	/* create fte */
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW |
+			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+	dest.counter_id = mlx5_fc_id(tx->fc->cnt);
+	fte = mlx5_add_flow_rules(tx->ft.status, spec, &flow_act, &dest, 1);
+	if (IS_ERR(fte)) {
+		err = PTR_ERR(fte);
+		mlx5_core_err(mdev, "Fail to add ipsec tx counter rule err=%d\n", err);
+		goto err_rule;
+	}
+
+	kvfree(spec);
+	tx->status.rule = fte;
+	return 0;
+
+err_rule:
+	kvfree(spec);
+	return err;
+}
+
 /* IPsec TX flow steering */
 static void tx_destroy(struct mlx5e_ipsec_tx *tx, struct mlx5_ipsec_fs *roce)
 {
@@ -468,6 +502,8 @@ static void tx_destroy(struct mlx5e_ipsec_tx *tx, struct mlx5_ipsec_fs *roce)
 	}
 
 	mlx5_destroy_flow_table(tx->ft.sa);
+	mlx5_del_flow_rules(tx->status.rule);
+	mlx5_destroy_flow_table(tx->ft.status);
 }
 
 static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
@@ -477,10 +513,20 @@ static int tx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_tx *tx,
 	struct mlx5_flow_table *ft;
 	int err;
 
-	ft = ipsec_ft_create(tx->ns, 1, 0, 4);
+	ft = ipsec_ft_create(tx->ns, 2, 0, 1);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
+	tx->ft.status = ft;
 
+	err = ipsec_counter_rule_tx(mdev, tx);
+	if (err)
+		goto err_status_rule;
+
+	ft = ipsec_ft_create(tx->ns, 1, 0, 4);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		goto err_sa_ft;
+	}
 	tx->ft.sa = ft;
 
 	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO) {
@@ -525,6 +571,10 @@ err_roce:
 	}
 err_pol_ft:
 	mlx5_destroy_flow_table(tx->ft.sa);
+err_sa_ft:
+	mlx5_del_flow_rules(tx->status.rule);
+err_status_rule:
+	mlx5_destroy_flow_table(tx->ft.status);
 	return err;
 }
 
@@ -949,11 +999,11 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	flow_act.crypto.type = MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC;
 	flow_act.crypto.obj_id = sa_entry->ipsec_obj_id;
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
-	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW |
+	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			   MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT |
 			   MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest.counter_id = mlx5_fc_id(tx->fc->cnt);
+	dest.ft = tx->ft.status;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	rule = mlx5_add_flow_rules(tx->ft.sa, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
