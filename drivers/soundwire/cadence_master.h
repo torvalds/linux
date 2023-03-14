@@ -107,6 +107,7 @@ struct sdw_cdns_dai_runtime {
  * @dev: Linux device
  * @bus: Bus handle
  * @instance: instance number
+ * @ip_offset: version-dependent offset to access IP_MCP registers and fields
  * @response_buf: SoundWire response buffer
  * @tx_complete: Tx completion
  * @ports: Data ports
@@ -121,6 +122,8 @@ struct sdw_cdns {
 	struct device *dev;
 	struct sdw_bus bus;
 	unsigned int instance;
+
+	u32 ip_offset;
 
 	/*
 	 * The datasheet says the RX FIFO AVAIL can be 2 entries more

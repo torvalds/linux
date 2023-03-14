@@ -205,6 +205,16 @@ static inline void cdns_writel(struct sdw_cdns *cdns, int offset, u32 value)
 	writel(value, cdns->registers + offset);
 }
 
+static inline u32 cdns_ip_readl(struct sdw_cdns *cdns, int offset)
+{
+	return cdns_readl(cdns, cdns->ip_offset + offset);
+}
+
+static inline void cdns_ip_writel(struct sdw_cdns *cdns, int offset, u32 value)
+{
+	return cdns_writel(cdns, cdns->ip_offset + offset, value);
+}
+
 static inline void cdns_updatel(struct sdw_cdns *cdns,
 				int offset, u32 mask, u32 val)
 {
@@ -213,6 +223,12 @@ static inline void cdns_updatel(struct sdw_cdns *cdns,
 	tmp = cdns_readl(cdns, offset);
 	tmp = (tmp & ~mask) | val;
 	cdns_writel(cdns, offset, tmp);
+}
+
+static inline void cdns_ip_updatel(struct sdw_cdns *cdns,
+				   int offset, u32 mask, u32 val)
+{
+	cdns_updatel(cdns, cdns->ip_offset + offset, mask, val);
 }
 
 static int cdns_set_wait(struct sdw_cdns *cdns, int offset, u32 mask, u32 value)
