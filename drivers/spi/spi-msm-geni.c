@@ -713,6 +713,10 @@ static void spi_gsi_ch_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb,
 		complete_all(&mas->rx_cb);
 
 		break;
+	default:
+		SPI_LOG_ERR(mas->ipc, false, mas->dev,
+					"%s: Unsupported event: %d\n", __func__, cb->cb_event);
+		break;
 	}
 }
 
