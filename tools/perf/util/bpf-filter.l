@@ -151,6 +151,7 @@ hops2		{ return constant(PERF_MEM_HOPS_2); }
 hops3		{ return constant(PERF_MEM_HOPS_3); }
 
 ","		{ return ','; }
+"||"		{ return BFT_LOGICAL_OR; }
 
 {ident}		{ return error("ident"); }
 .		{ return error("input"); }

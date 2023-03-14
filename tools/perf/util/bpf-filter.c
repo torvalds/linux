@@ -42,8 +42,32 @@ int perf_bpf_filter__prepare(struct evsel *evsel)
 		};
 		bpf_map_update_elem(fd, &i, &entry, BPF_ANY);
 		i++;
+
+		if (expr->op == PBF_OP_GROUP_BEGIN) {
+			struct perf_bpf_filter_expr *group;
+
+			list_for_each_entry(group, &expr->groups, list) {
+				struct perf_bpf_filter_entry group_entry = {
+					.op = group->op,
+					.part = group->part,
+					.flags = group->sample_flags,
+					.value = group->val,
+				};
+				bpf_map_update_elem(fd, &i, &group_entry, BPF_ANY);
+				i++;
+			}
+
+			memset(&entry, 0, sizeof(entry));
+			entry.op = PBF_OP_GROUP_END;
+			bpf_map_update_elem(fd, &i, &entry, BPF_ANY);
+			i++;
+		}
 	}
 
+	if (i > MAX_FILTERS) {
+		pr_err("Too many filters: %d (max = %d)\n", i, MAX_FILTERS);
+		return -1;
+	}
 	prog = skel->progs.perf_sample_filter;
 	for (x = 0; x < xyarray__max_x(evsel->core.fd); x++) {
 		for (y = 0; y < xyarray__max_y(evsel->core.fd); y++) {
@@ -89,6 +113,7 @@ struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(unsigned long sample_flag
 		expr->part = part;
 		expr->op = op;
 		expr->val = val;
+		INIT_LIST_HEAD(&expr->groups);
 	}
 	return expr;
 }

@@ -99,6 +99,14 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 	return 0;
 }
 
+#define CHECK_RESULT(data, op, val)			\
+	if (!(data op val)) {				\
+		if (!in_group)				\
+			goto drop;			\
+	} else if (in_group) {				\
+		group_result = 1;			\
+	}
+
 /* BPF program to be called from perf event overflow handler */
 SEC("perf_event")
 int perf_sample_filter(void *ctx)
@@ -106,6 +114,8 @@ int perf_sample_filter(void *ctx)
 	struct bpf_perf_event_data_kern *kctx;
 	struct perf_bpf_filter_entry *entry;
 	__u64 sample_data;
+	int in_group = 0;
+	int group_result = 0;
 	int i;
 
 	kctx = bpf_cast_to_kern_ctx(ctx);
@@ -120,32 +130,34 @@ int perf_sample_filter(void *ctx)
 
 		switch (entry->op) {
 		case PBF_OP_EQ:
-			if (!(sample_data == entry->value))
-				goto drop;
+			CHECK_RESULT(sample_data, ==, entry->value)
 			break;
 		case PBF_OP_NEQ:
-			if (!(sample_data != entry->value))
-				goto drop;
+			CHECK_RESULT(sample_data, !=, entry->value)
 			break;
 		case PBF_OP_GT:
-			if (!(sample_data > entry->value))
-				goto drop;
+			CHECK_RESULT(sample_data, >, entry->value)
 			break;
 		case PBF_OP_GE:
-			if (!(sample_data >= entry->value))
-				goto drop;
+			CHECK_RESULT(sample_data, >=, entry->value)
 			break;
 		case PBF_OP_LT:
-			if (!(sample_data < entry->value))
-				goto drop;
+			CHECK_RESULT(sample_data, <, entry->value)
 			break;
 		case PBF_OP_LE:
-			if (!(sample_data <= entry->value))
-				goto drop;
+			CHECK_RESULT(sample_data, <=, entry->value)
 			break;
 		case PBF_OP_AND:
-			if (!(sample_data & entry->value))
+			CHECK_RESULT(sample_data, &, entry->value)
+			break;
+		case PBF_OP_GROUP_BEGIN:
+			in_group = 1;
+			group_result = 0;
+			break;
+		case PBF_OP_GROUP_END:
+			if (group_result == 0)
 				goto drop;
+			in_group = 0;
 			break;
 		}
 	}

@@ -1,7 +1,7 @@
 #ifndef PERF_UTIL_BPF_SKEL_SAMPLE_FILTER_H
 #define PERF_UTIL_BPF_SKEL_SAMPLE_FILTER_H
 
-#define MAX_FILTERS  32
+#define MAX_FILTERS  64
 
 /* supported filter operations */
 enum perf_bpf_filter_op {
@@ -11,7 +11,9 @@ enum perf_bpf_filter_op {
 	PBF_OP_GE,
 	PBF_OP_LT,
 	PBF_OP_LE,
-	PBF_OP_AND
+	PBF_OP_AND,
+	PBF_OP_GROUP_BEGIN,
+	PBF_OP_GROUP_END,
 };
 
 /* BPF map entry for filtering */

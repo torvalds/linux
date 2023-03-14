@@ -8,6 +8,7 @@
 
 struct perf_bpf_filter_expr {
 	struct list_head list;
+	struct list_head groups;
 	enum perf_bpf_filter_op op;
 	int part;
 	unsigned long sample_flags;
