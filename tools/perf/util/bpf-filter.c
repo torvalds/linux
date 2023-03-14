@@ -17,6 +17,64 @@
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->core.fd, x, y))
 
+#define __PERF_SAMPLE_TYPE(st, opt)	{ st, #st, opt }
+#define PERF_SAMPLE_TYPE(_st, opt)	__PERF_SAMPLE_TYPE(PERF_SAMPLE_##_st, opt)
+
+static const struct perf_sample_info {
+	u64 type;
+	const char *name;
+	const char *option;
+} sample_table[] = {
+	/* default sample flags */
+	PERF_SAMPLE_TYPE(IP, NULL),
+	PERF_SAMPLE_TYPE(TID, NULL),
+	PERF_SAMPLE_TYPE(PERIOD, NULL),
+	/* flags mostly set by default, but still have options */
+	PERF_SAMPLE_TYPE(ID, "--sample-identifier"),
+	PERF_SAMPLE_TYPE(CPU, "--sample-cpu"),
+	PERF_SAMPLE_TYPE(TIME, "-T"),
+	/* optional sample flags */
+	PERF_SAMPLE_TYPE(ADDR, "-d"),
+	PERF_SAMPLE_TYPE(DATA_SRC, "-d"),
+	PERF_SAMPLE_TYPE(PHYS_ADDR, "--phys-data"),
+	PERF_SAMPLE_TYPE(WEIGHT, "-W"),
+	PERF_SAMPLE_TYPE(WEIGHT_STRUCT, "-W"),
+	PERF_SAMPLE_TYPE(TRANSACTION, "--transaction"),
+	PERF_SAMPLE_TYPE(CODE_PAGE_SIZE, "--code-page-size"),
+	PERF_SAMPLE_TYPE(DATA_PAGE_SIZE, "--data-page-size"),
+};
+
+static const struct perf_sample_info *get_sample_info(u64 flags)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(sample_table); i++) {
+		if (sample_table[i].type == flags)
+			return &sample_table[i];
+	}
+	return NULL;
+}
+
+static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *expr)
+{
+	const struct perf_sample_info *info;
+
+	if (evsel->core.attr.sample_type & expr->sample_flags)
+		return 0;
+
+	info = get_sample_info(expr->sample_flags);
+	if (info == NULL) {
+		pr_err("Error: %s event does not have sample flags %lx\n",
+		       evsel__name(evsel), expr->sample_flags);
+		return -1;
+	}
+
+	pr_err("Error: %s event does not have %s\n", evsel__name(evsel), info->name);
+	if (info->option)
+		pr_err(" Hint: please add %s option to perf record\n", info->option);
+	return -1;
+}
+
 int perf_bpf_filter__prepare(struct evsel *evsel)
 {
 	int i, x, y, fd;
@@ -40,6 +98,10 @@ int perf_bpf_filter__prepare(struct evsel *evsel)
 			.flags = expr->sample_flags,
 			.value = expr->val,
 		};
+
+		if (check_sample_flags(evsel, expr) < 0)
+			return -1;
+
 		bpf_map_update_elem(fd, &i, &entry, BPF_ANY);
 		i++;
 
