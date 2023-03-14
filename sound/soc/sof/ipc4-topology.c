@@ -1506,6 +1506,71 @@ static int sof_ipc4_control_load_volume(struct snd_sof_dev *sdev, struct snd_sof
 	return 0;
 }
 
+static int sof_ipc4_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	struct sof_ipc4_control_data *control_data;
+	struct sof_ipc4_msg *msg;
+	int ret;
+
+	if (scontrol->max_size < (sizeof(*control_data) + sizeof(struct sof_abi_hdr))) {
+		dev_err(sdev->dev, "insufficient size for a bytes control %s: %zu.\n",
+			scontrol->name, scontrol->max_size);
+		return -EINVAL;
+	}
+
+	if (scontrol->priv_size > scontrol->max_size - sizeof(*control_data)) {
+		dev_err(sdev->dev, "scontrol %s bytes data size %zu exceeds max %zu.\n",
+			scontrol->name, scontrol->priv_size,
+			scontrol->max_size - sizeof(*control_data));
+		return -EINVAL;
+	}
+
+	scontrol->size = sizeof(struct sof_ipc4_control_data) + scontrol->priv_size;
+
+	scontrol->ipc_control_data = kzalloc(scontrol->max_size, GFP_KERNEL);
+	if (!scontrol->ipc_control_data)
+		return -ENOMEM;
+
+	control_data = scontrol->ipc_control_data;
+	control_data->index = scontrol->index;
+	if (scontrol->priv_size > 0) {
+		memcpy(control_data->data, scontrol->priv, scontrol->priv_size);
+		kfree(scontrol->priv);
+		scontrol->priv = NULL;
+
+		if (control_data->data->magic != SOF_IPC4_ABI_MAGIC) {
+			dev_err(sdev->dev, "Wrong ABI magic (%#x) for control: %s\n",
+				control_data->data->magic, scontrol->name);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/* TODO: check the ABI version */
+
+		if (control_data->data->size + sizeof(struct sof_abi_hdr) !=
+		    scontrol->priv_size) {
+			dev_err(sdev->dev, "Control %s conflict in bytes %zu vs. priv size %zu.\n",
+				scontrol->name,
+				control_data->data->size + sizeof(struct sof_abi_hdr),
+				scontrol->priv_size);
+			ret = -EINVAL;
+			goto err;
+		}
+	}
+
+	msg = &control_data->msg;
+	msg->primary = SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_LARGE_CONFIG_SET);
+	msg->primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg->primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+
+	return 0;
+
+err:
+	kfree(scontrol->ipc_control_data);
+	scontrol->ipc_control_data = NULL;
+	return ret;
+}
+
 static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
 {
 	switch (scontrol->info_type) {
@@ -1513,6 +1578,8 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 	case SND_SOC_TPLG_CTL_VOLSW_SX:
 	case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
 		return sof_ipc4_control_load_volume(sdev, scontrol);
+	case SND_SOC_TPLG_CTL_BYTES:
+		return sof_ipc4_control_load_bytes(sdev, scontrol);
 	default:
 		break;
 	}
