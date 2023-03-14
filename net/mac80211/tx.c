@@ -1189,10 +1189,8 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 	return queued;
 }
 
-static void
-ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
-		     struct sta_info *sta,
-		     struct sk_buff *skb)
+void ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
+			  struct sta_info *sta, struct sk_buff *skb)
 {
 	struct rate_control_ref *ref = sdata->local->rate_ctrl;
 	u16 tid;

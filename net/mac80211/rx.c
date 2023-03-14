@@ -2701,6 +2701,65 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	}
 }
 
+#ifdef CONFIG_MAC80211_MESH
+static bool
+ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
+			       struct sk_buff *skb, int hdrlen)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct ieee80211_mesh_fast_tx *entry = NULL;
+	struct ieee80211s_hdr *mesh_hdr;
+	struct tid_ampdu_tx *tid_tx;
+	struct sta_info *sta;
+	struct ethhdr eth;
+	u8 tid;
+
+	mesh_hdr = (struct ieee80211s_hdr *)(skb->data + sizeof(eth));
+	if ((mesh_hdr->flags & MESH_FLAGS_AE) == MESH_FLAGS_AE_A5_A6)
+		entry = mesh_fast_tx_get(sdata, mesh_hdr->eaddr1);
+	else if (!(mesh_hdr->flags & MESH_FLAGS_AE))
+		entry = mesh_fast_tx_get(sdata, skb->data);
+	if (!entry)
+		return false;
+
+	sta = rcu_dereference(entry->mpath->next_hop);
+	if (!sta)
+		return false;
+
+	if (skb_linearize(skb))
+		return false;
+
+	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
+	if (tid_tx) {
+		if (!test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state))
+			return false;
+
+		if (tid_tx->timeout)
+			tid_tx->last_tx = jiffies;
+	}
+
+	ieee80211_aggr_check(sdata, sta, skb);
+
+	if (ieee80211_get_8023_tunnel_proto(skb->data + hdrlen,
+					    &skb->protocol))
+		hdrlen += ETH_ALEN;
+	else
+		skb->protocol = htons(skb->len - hdrlen);
+	skb_set_network_header(skb, hdrlen + 2);
+
+	skb->dev = sdata->dev;
+	memcpy(&eth, skb->data, ETH_HLEN - 2);
+	skb_pull(skb, 2);
+	__ieee80211_xmit_fast(sdata, sta, &entry->fast_tx, skb, tid_tx,
+			      eth.h_dest, eth.h_source);
+	IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_unicast);
+	IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_frames);
+
+	return true;
+}
+#endif
+
 static ieee80211_rx_result
 ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta,
 		       struct sk_buff *skb)
@@ -2805,6 +2864,10 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 
 	skb_set_queue_mapping(skb, ieee802_1d_to_ac[skb->priority]);
 
+	if (!multicast &&
+	    ieee80211_rx_mesh_fast_forward(sdata, skb, mesh_hdrlen))
+		return RX_QUEUED;
+
 	ieee80211_fill_mesh_addresses(&hdr, &hdr.frame_control,
 				      eth->h_dest, eth->h_source);
 	hdrlen = ieee80211_hdrlen(hdr.frame_control);
@@ -2843,6 +2906,7 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 	info->control.flags |= IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
 	info->control.vif = &sdata->vif;
 	info->control.jiffies = jiffies;
+	fwd_skb->dev = sdata->dev;
 	if (multicast) {
 		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_mcast);
 		memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
@@ -2864,7 +2928,6 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 	}
 
 	IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_frames);
-	fwd_skb->dev = sdata->dev;
 	ieee80211_add_pending_skb(local, fwd_skb);
 
 rx_accept:

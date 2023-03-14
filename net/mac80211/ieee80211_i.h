@@ -2038,6 +2038,8 @@ void __ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 			   struct ieee80211_fast_tx *fast_tx,
 			   struct sk_buff *skb, bool ampdu,
 			   const u8 *da, const u8 *sa);
+void ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
+			  struct sta_info *sta, struct sk_buff *skb);
 
 /* HT */
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
