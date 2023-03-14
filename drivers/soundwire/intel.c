@@ -1056,7 +1056,6 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 	if (num == 0)
 		return 0;
 
-	 /* TODO: Read supported rates/formats from hardware */
 	for (i = off; i < (off + num); i++) {
 		dais[i].name = devm_kasprintf(cdns->dev, GFP_KERNEL,
 					      "SDW%d Pin%d",
