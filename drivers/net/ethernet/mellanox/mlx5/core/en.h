@@ -336,8 +336,11 @@ static inline u8 mlx5e_get_dcb_num_tc(struct mlx5e_params *params)
 		params->mqprio.num_tc : 1;
 }
 
+/* Keep this enum consistent with the corresponding strings array
+ * declared in en/reporter_rx.c
+ */
 enum {
-	MLX5E_RQ_STATE_ENABLED,
+	MLX5E_RQ_STATE_ENABLED = 0,
 	MLX5E_RQ_STATE_RECOVERING,
 	MLX5E_RQ_STATE_DIM,
 	MLX5E_RQ_STATE_NO_CSUM_COMPLETE,
@@ -345,6 +348,7 @@ enum {
 	MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX, /* set when mini_cqe_resp_stride_index cap is used */
 	MLX5E_RQ_STATE_SHAMPO, /* set when SHAMPO cap is used */
 	MLX5E_RQ_STATE_MINI_CQE_ENHANCED,  /* set when enhanced mini_cqe_cap is used */
+	MLX5E_NUM_RQ_STATES, /* Must be kept last */
 };
 
 struct mlx5e_cq {
