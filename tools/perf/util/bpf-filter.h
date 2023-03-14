@@ -22,6 +22,7 @@ struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(unsigned long sample_flag
 int perf_bpf_filter__parse(struct list_head *expr_head, const char *str);
 int perf_bpf_filter__prepare(struct evsel *evsel);
 int perf_bpf_filter__destroy(struct evsel *evsel);
+u64 perf_bpf_filter__lost_count(struct evsel *evsel);
 
 #else /* !HAVE_BPF_SKEL */
 
@@ -37,6 +38,10 @@ static inline int perf_bpf_filter__prepare(struct evsel *evsel __maybe_unused)
 static inline int perf_bpf_filter__destroy(struct evsel *evsel __maybe_unused)
 {
 	return -EOPNOTSUPP;
+}
+static inline u64 perf_bpf_filter__lost_count(struct evsel *evsel __maybe_unused)
+{
+	return 0;
 }
 #endif /* HAVE_BPF_SKEL*/
 #endif /* PERF_UTIL_BPF_FILTER_H */
