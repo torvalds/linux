@@ -41,15 +41,18 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 
 #define CDNS_MCP_CONTROL			0x4
 
-#define CDNS_MCP_CONTROL_RST_DELAY		GENMASK(10, 8)
 #define CDNS_MCP_CONTROL_CMD_RST		BIT(7)
 #define CDNS_MCP_CONTROL_SOFT_RST		BIT(6)
-#define CDNS_MCP_CONTROL_SW_RST			BIT(5)
 #define CDNS_MCP_CONTROL_HW_RST			BIT(4)
-#define CDNS_MCP_CONTROL_CLK_PAUSE		BIT(3)
 #define CDNS_MCP_CONTROL_CLK_STOP_CLR		BIT(2)
-#define CDNS_MCP_CONTROL_CMD_ACCEPT		BIT(1)
-#define CDNS_MCP_CONTROL_BLOCK_WAKEUP		BIT(0)
+
+#define CDNS_IP_MCP_CONTROL			0x4  /* IP offset added at run-time */
+
+#define CDNS_IP_MCP_CONTROL_RST_DELAY		GENMASK(10, 8)
+#define CDNS_IP_MCP_CONTROL_SW_RST		BIT(5)
+#define CDNS_IP_MCP_CONTROL_CLK_PAUSE		BIT(3)
+#define CDNS_IP_MCP_CONTROL_CMD_ACCEPT		BIT(1)
+#define CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP	BIT(0)
 
 #define CDNS_MCP_CMDCTRL			0x8
 
@@ -1050,12 +1053,19 @@ update_status:
 void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string,
 				       bool initial_delay, int reset_iterations)
 {
+	u32 ip_mcp_control;
 	u32 mcp_control;
 	u32 mcp_config_update;
 	int i;
 
 	if (initial_delay)
 		usleep_range(1000, 1500);
+
+	ip_mcp_control = cdns_ip_readl(cdns, CDNS_IP_MCP_CONTROL);
+
+	/* the following bits should be cleared immediately */
+	if (ip_mcp_control & CDNS_IP_MCP_CONTROL_SW_RST)
+		dev_err(cdns->dev, "%s failed: IP_MCP_CONTROL_SW_RST is not cleared\n", string);
 
 	mcp_control = cdns_readl(cdns, CDNS_MCP_CONTROL);
 
@@ -1064,10 +1074,9 @@ void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string
 		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CMD_RST is not cleared\n", string);
 	if (mcp_control & CDNS_MCP_CONTROL_SOFT_RST)
 		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SOFT_RST is not cleared\n", string);
-	if (mcp_control & CDNS_MCP_CONTROL_SW_RST)
-		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SW_RST is not cleared\n", string);
 	if (mcp_control & CDNS_MCP_CONTROL_CLK_STOP_CLR)
 		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CLK_STOP_CLR is not cleared\n", string);
+
 	mcp_config_update = cdns_readl(cdns, CDNS_MCP_CONFIG_UPDATE);
 	if (mcp_config_update & CDNS_MCP_CONFIG_UPDATE_BIT)
 		dev_err(cdns->dev, "%s failed: MCP_CONFIG_UPDATE_BIT is not cleared\n", string);
@@ -1344,8 +1353,8 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 		     CDNS_MCP_CONTROL_CMD_RST);
 
 	/* Set cmd accept mode */
-	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_CMD_ACCEPT,
-		     CDNS_MCP_CONTROL_CMD_ACCEPT);
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL, CDNS_IP_MCP_CONTROL_CMD_ACCEPT,
+			CDNS_IP_MCP_CONTROL_CMD_ACCEPT);
 
 	/* Configure mcp config */
 	val = cdns_readl(cdns, CDNS_MCP_CONFIG);
@@ -1606,9 +1615,9 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	 * in clock stop state
 	 */
 	if (block_wake)
-		cdns_updatel(cdns, CDNS_MCP_CONTROL,
-			     CDNS_MCP_CONTROL_BLOCK_WAKEUP,
-			     CDNS_MCP_CONTROL_BLOCK_WAKEUP);
+		cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL,
+				CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP,
+				CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP);
 
 	list_for_each_entry(slave, &cdns->bus.slaves, node) {
 		if (slave->status == SDW_SLAVE_ATTACHED ||
@@ -1681,11 +1690,11 @@ int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
 		return ret;
 	}
 
-	cdns_updatel(cdns, CDNS_MCP_CONTROL,
-		     CDNS_MCP_CONTROL_BLOCK_WAKEUP, 0);
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL,
+			CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP, 0);
 
-	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_CMD_ACCEPT,
-		     CDNS_MCP_CONTROL_CMD_ACCEPT);
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL, CDNS_IP_MCP_CONTROL_CMD_ACCEPT,
+			CDNS_IP_MCP_CONTROL_CMD_ACCEPT);
 
 	if (!bus_reset) {
 
