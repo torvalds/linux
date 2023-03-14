@@ -506,11 +506,11 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
 	/* Assume we are blitting from Guest (bo) to Host (display_srf) */
 	src_pitch = stdu->display_srf->metadata.base_size.width * stdu->cpp;
 	src_bo = &stdu->display_srf->res.guest_memory_bo->tbo;
-	src_offset = ddirty->top * dst_pitch + ddirty->left * stdu->cpp;
+	src_offset = ddirty->top * src_pitch + ddirty->left * stdu->cpp;
 
 	dst_pitch = ddirty->pitch;
 	dst_bo = &ddirty->buf->tbo;
-	dst_offset = ddirty->fb_top * src_pitch + ddirty->fb_left * stdu->cpp;
+	dst_offset = ddirty->fb_top * dst_pitch + ddirty->fb_left * stdu->cpp;
 
 	(void) vmw_bo_cpu_blit(dst_bo, dst_offset, dst_pitch,
 			       src_bo, src_offset, src_pitch,
