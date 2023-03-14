@@ -53,6 +53,14 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 };
 
+&jpegdec {
+	status = "okay";
+};
+
+&jpegenc {
+	status = "okay";
+};
+
 /* Colibri UART_B */
 &lpuart0 {
 	pinctrl-names = "default";
