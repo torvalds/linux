@@ -150,8 +150,10 @@ struct evsel {
 	 */
 	struct bpf_counter_ops	*bpf_counter_ops;
 
-	/* for perf-stat -b */
-	struct list_head	bpf_counter_list;
+	union {
+		struct list_head	bpf_counter_list; /* for perf-stat -b */
+		struct list_head	bpf_filters; /* for perf-record --filter */
+	};
 
 	/* for perf-stat --use-bpf */
 	int			bperf_leader_prog_fd;
@@ -159,6 +161,7 @@ struct evsel {
 	union {
 		struct bperf_leader_bpf *leader_skel;
 		struct bperf_follower_bpf *follower_skel;
+		void *bpf_skel;
 	};
 	unsigned long		open_flags;
 	int			precise_ip_original;

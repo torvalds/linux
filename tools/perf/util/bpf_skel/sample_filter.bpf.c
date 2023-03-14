@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+// Copyright (c) 2023 Google
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
+
+#include "sample-filter.h"
+
+/* BPF map that will be filled by user space */
+struct filters {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, struct perf_bpf_filter_entry);
+	__uint(max_entries, MAX_FILTERS);
+} filters SEC(".maps");
+
+int dropped;
+
+void *bpf_cast_to_kern_ctx(void *) __ksym;
+
+/* new kernel perf_sample_data definition */
+struct perf_sample_data___new {
+	__u64 sample_flags;
+} __attribute__((preserve_access_index));
+
+/* helper function to return the given perf sample data */
+static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
+				    struct perf_bpf_filter_entry *entry)
+{
+	struct perf_sample_data___new *data = (void *)kctx->data;
+
+	if (!bpf_core_field_exists(data->sample_flags) ||
+	    (data->sample_flags & entry->flags) == 0)
+		return 0;
+
+	switch (entry->flags) {
+	case PERF_SAMPLE_IP:
+		return kctx->data->ip;
+	case PERF_SAMPLE_ID:
+		return kctx->data->id;
+	case PERF_SAMPLE_TID:
+		return kctx->data->tid_entry.tid;
+	case PERF_SAMPLE_CPU:
+		return kctx->data->cpu_entry.cpu;
+	case PERF_SAMPLE_TIME:
+		return kctx->data->time;
+	case PERF_SAMPLE_ADDR:
+		return kctx->data->addr;
+	case PERF_SAMPLE_PERIOD:
+		return kctx->data->period;
+	case PERF_SAMPLE_TRANSACTION:
+		return kctx->data->txn;
+	case PERF_SAMPLE_WEIGHT:
+		return kctx->data->weight.full;
+	case PERF_SAMPLE_PHYS_ADDR:
+		return kctx->data->phys_addr;
+	case PERF_SAMPLE_CODE_PAGE_SIZE:
+		return kctx->data->code_page_size;
+	case PERF_SAMPLE_DATA_PAGE_SIZE:
+		return kctx->data->data_page_size;
+	default:
+		break;
+	}
+	return 0;
+}
+
+/* BPF program to be called from perf event overflow handler */
+SEC("perf_event")
+int perf_sample_filter(void *ctx)
+{
+	struct bpf_perf_event_data_kern *kctx;
+	struct perf_bpf_filter_entry *entry;
+	__u64 sample_data;
+	int i;
+
+	kctx = bpf_cast_to_kern_ctx(ctx);
+
+	for (i = 0; i < MAX_FILTERS; i++) {
+		int key = i; /* needed for verifier :( */
+
+		entry = bpf_map_lookup_elem(&filters, &key);
+		if (entry == NULL)
+			break;
+		sample_data = perf_get_sample(kctx, entry);
+
+		switch (entry->op) {
+		case PBF_OP_EQ:
+			if (!(sample_data == entry->value))
+				goto drop;
+			break;
+		case PBF_OP_NEQ:
+			if (!(sample_data != entry->value))
+				goto drop;
+			break;
+		case PBF_OP_GT:
+			if (!(sample_data > entry->value))
+				goto drop;
+			break;
+		case PBF_OP_GE:
+			if (!(sample_data >= entry->value))
+				goto drop;
+			break;
+		case PBF_OP_LT:
+			if (!(sample_data < entry->value))
+				goto drop;
+			break;
+		case PBF_OP_LE:
+			if (!(sample_data <= entry->value))
+				goto drop;
+			break;
+		case PBF_OP_AND:
+			if (!(sample_data & entry->value))
+				goto drop;
+			break;
+		}
+	}
+	/* generate sample data */
+	return 1;
+
+drop:
+	__sync_fetch_and_add(&dropped, 1);
+	return 0;
+}
+
+char LICENSE[] SEC("license") = "Dual BSD/GPL";
