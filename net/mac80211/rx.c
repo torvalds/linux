@@ -4543,6 +4543,12 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 		}
 
 		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		fastrx.expected_ds_bits = cpu_to_le16(IEEE80211_FCTL_FROMDS |
+						      IEEE80211_FCTL_TODS);
+		fastrx.da_offs = offsetof(struct ieee80211_hdr, addr3);
+		fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr4);
+		break;
 	default:
 		goto clear;
 	}
@@ -4751,6 +4757,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	static ieee80211_rx_result res;
 	int orig_len = skb->len;
 	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	int snap_offs = hdrlen;
@@ -4812,7 +4819,8 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 		snap_offs += IEEE80211_CCMP_HDR_LEN;
 	}
 
-	if (!(status->rx_flags & IEEE80211_RX_AMSDU)) {
+	if (!ieee80211_vif_is_mesh(&rx->sdata->vif) &&
+	    !(status->rx_flags & IEEE80211_RX_AMSDU)) {
 		if (!pskb_may_pull(skb, snap_offs + sizeof(*payload)))
 			return false;
 
@@ -4851,12 +4859,28 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	/* do the header conversion - first grab the addresses */
 	ether_addr_copy(addrs.da, skb->data + fast_rx->da_offs);
 	ether_addr_copy(addrs.sa, skb->data + fast_rx->sa_offs);
-	skb_postpull_rcsum(skb, skb->data + snap_offs,
-			   sizeof(rfc1042_header) + 2);
-	/* remove the SNAP but leave the ethertype */
-	skb_pull(skb, snap_offs + sizeof(rfc1042_header));
+	if (ieee80211_vif_is_mesh(&rx->sdata->vif)) {
+	    skb_pull(skb, snap_offs - 2);
+	    put_unaligned_be16(skb->len - 2, skb->data);
+	} else {
+	    skb_postpull_rcsum(skb, skb->data + snap_offs,
+			       sizeof(rfc1042_header) + 2);
+
+	    /* remove the SNAP but leave the ethertype */
+	    skb_pull(skb, snap_offs + sizeof(rfc1042_header));
+	}
 	/* push the addresses in front */
 	memcpy(skb_push(skb, sizeof(addrs)), &addrs, sizeof(addrs));
+
+	res = ieee80211_rx_mesh_data(rx->sdata, rx->sta, rx->skb);
+	switch (res) {
+	case RX_QUEUED:
+		return true;
+	case RX_CONTINUE:
+		break;
+	default:
+		goto drop;
+	}
 
 	ieee80211_rx_8023(rx, fast_rx, orig_len);
 
