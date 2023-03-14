@@ -20,7 +20,7 @@ config APPLE_MBOX
 
 config APPLE_RTKIT
 	tristate "Apple RTKit co-processor IPC protocol"
-	depends on MAILBOX
+	depends on APPLE_MBOX
 	depends on ARCH_APPLE || COMPILE_TEST
 	default ARCH_APPLE
 	help
