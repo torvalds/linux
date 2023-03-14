@@ -258,37 +258,17 @@ static void end_compressed_bio_write(struct btrfs_bio *bbio)
 
 static void btrfs_add_compressed_bio_pages(struct compressed_bio *cb)
 {
-	struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	struct bio *bio = &cb->bbio.bio;
-	u64 disk_bytenr = bio->bi_iter.bi_sector << SECTOR_SHIFT;
-	u64 cur_disk_byte = disk_bytenr;
+	u32 offset = 0;
 
-	while (cur_disk_byte < disk_bytenr + cb->compressed_len) {
-		u64 offset = cur_disk_byte - disk_bytenr;
-		unsigned int index = offset >> PAGE_SHIFT;
-		unsigned int real_size;
-		unsigned int added;
-		struct page *page = cb->compressed_pages[index];
+	while (offset < cb->compressed_len) {
+		u32 len = min_t(u32, cb->compressed_len - offset, PAGE_SIZE);
 
-		/*
-		 * We have various limit on the real read size:
-		 * - page boundary
-		 * - compressed length boundary
-		 */
-		real_size = min_t(u64, U32_MAX, PAGE_SIZE - offset_in_page(offset));
-		real_size = min_t(u64, real_size, cb->compressed_len - offset);
-		ASSERT(IS_ALIGNED(real_size, fs_info->sectorsize));
-
-		added = bio_add_page(bio, page, real_size, offset_in_page(offset));
-		/*
-		 * Maximum compressed extent is smaller than bio size limit,
-		 * thus bio_add_page() should always success.
-		 */
-		ASSERT(added == real_size);
-		cur_disk_byte += added;
+		/* Maximum compressed extent is smaller than bio size limit. */
+		__bio_add_page(bio, cb->compressed_pages[offset >> PAGE_SHIFT],
+			       len, 0);
+		offset += len;
 	}
-
-	ASSERT(bio->bi_iter.bi_size);
 }
 
 /*
