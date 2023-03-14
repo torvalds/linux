@@ -1576,6 +1576,16 @@ enum rtw89_btc_bt_sta_counter {
 	BTC_BCNT_STA_MAX
 };
 
+enum rtw89_btc_bt_sta_counter_v105 {
+	BTC_BCNT_RFK_REQ_V105 = 0,
+	BTC_BCNT_HI_TX_V105 = 1,
+	BTC_BCNT_HI_RX_V105 = 2,
+	BTC_BCNT_LO_TX_V105 = 3,
+	BTC_BCNT_LO_RX_V105 = 4,
+	BTC_BCNT_POLLUTED_V105 = 5,
+	BTC_BCNT_STA_MAX_V105
+};
+
 struct rtw89_btc_fbtc_rpt_ctrl_v1 {
 	u16 fver; /* btc_ver::fcxbtcrpt */
 	u16 rpt_cnt; /* tmr counters */
@@ -1666,10 +1676,23 @@ struct rtw89_btc_fbtc_rpt_ctrl_v5 {
 	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
 } __packed;
 
+struct rtw89_btc_fbtc_rpt_ctrl_v105 {
+	u8 fver;
+	u8 rsvd;
+	__le16 rsvd1;
+
+	u8 gnt_val[RTW89_PHY_MAX][4];
+	__le16 bt_cnt[BTC_BCNT_STA_MAX_V105];
+
+	struct rtw89_btc_fbtc_rpt_ctrl_info_v5 rpt_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
+} __packed;
+
 union rtw89_btc_fbtc_rpt_ctrl_ver_info {
 	struct rtw89_btc_fbtc_rpt_ctrl_v1 v1;
 	struct rtw89_btc_fbtc_rpt_ctrl_v4 v4;
 	struct rtw89_btc_fbtc_rpt_ctrl_v5 v5;
+	struct rtw89_btc_fbtc_rpt_ctrl_v105 v105;
 };
 
 enum rtw89_fbtc_ext_ctrl_type {
