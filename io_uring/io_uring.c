@@ -3289,7 +3289,7 @@ static void *io_uring_validate_mmap_request(struct file *file,
 	struct page *page;
 	void *ptr;
 
-	switch (offset) {
+	switch (offset & IORING_OFF_MMAP_MASK) {
 	case IORING_OFF_SQ_RING:
 	case IORING_OFF_CQ_RING:
 		ptr = ctx->rings;
@@ -3297,6 +3297,17 @@ static void *io_uring_validate_mmap_request(struct file *file,
 	case IORING_OFF_SQES:
 		ptr = ctx->sq_sqes;
 		break;
+	case IORING_OFF_PBUF_RING: {
+		unsigned int bgid;
+
+		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
+		mutex_lock(&ctx->uring_lock);
+		ptr = io_pbuf_get_address(ctx, bgid);
+		mutex_unlock(&ctx->uring_lock);
+		if (!ptr)
+			return ERR_PTR(-EINVAL);
+		break;
+		}
 	default:
 		return ERR_PTR(-EINVAL);
 	}
