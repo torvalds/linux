@@ -38,32 +38,17 @@ to_stolen_mgr(struct ttm_resource_manager *man)
 }
 
 /**
- * xe_ttm_stolen_cpu_inaccessible - Can we directly CPU access stolen memory for
- * this device.
+ * xe_ttm_stolen_cpu_access_needs_ggtt() - If we can't directly CPU access
+ * stolen, can we then fallback to mapping through the GGTT.
  * @xe: xe device
  *
- * On some integrated platforms we can't directly access stolen via the CPU
- * (like some normal system memory).  Also on small-bar systems for discrete,
- * since stolen is always as the end of normal VRAM, and the BAR likely doesn't
- * stretch that far. However CPU access of stolen is generally rare, and at
- * least on discrete should not be needed.
- *
- * If this is indeed inaccessible then we fallback to using the GGTT mappable
- * aperture for CPU access. On discrete platforms we have no such thing, so when
- * later attempting to CPU map the memory an error is instead thrown.
+ * Some older integrated platforms don't support reliable CPU access for stolen,
+ * however on such hardware we can always use the mappable part of the GGTT for
+ * CPU access. Check if that's the case for this device.
  */
-bool xe_ttm_stolen_cpu_inaccessible(struct xe_device *xe)
+bool xe_ttm_stolen_cpu_access_needs_ggtt(struct xe_device *xe)
 {
-	struct ttm_resource_manager *ttm_mgr =
-		ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
-	struct xe_ttm_stolen_mgr *mgr;
-
-	if (!ttm_mgr)
-		return true;
-
-	mgr = to_stolen_mgr(ttm_mgr);
-
-	return !mgr->io_base || GRAPHICS_VERx100(xe) < 1270;
+	return GRAPHICS_VERx100(xe) < 1270 && !IS_DGFX(xe);
 }
 
 static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
@@ -178,7 +163,7 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	drm_dbg_kms(&xe->drm, "Initialized stolen memory support with %llu bytes\n",
 		    stolen_size);
 
-	if (!xe_ttm_stolen_cpu_inaccessible(xe))
+	if (mgr->io_base && !xe_ttm_stolen_cpu_access_needs_ggtt(xe))
 		mgr->mapping = devm_ioremap_wc(&pdev->dev, mgr->io_base, stolen_size);
 }
 
@@ -191,7 +176,7 @@ u64 xe_ttm_stolen_io_offset(struct xe_bo *bo, u32 offset)
 
 	XE_BUG_ON(!mgr->io_base);
 
-	if (!IS_DGFX(xe) && xe_ttm_stolen_cpu_inaccessible(xe))
+	if (xe_ttm_stolen_cpu_access_needs_ggtt(xe))
 		return mgr->io_base + xe_bo_ggtt_addr(bo) + offset;
 
 	xe_res_first(bo->ttm.resource, offset, 4096, &cur);
@@ -257,10 +242,10 @@ int xe_ttm_stolen_io_mem_reserve(struct xe_device *xe, struct ttm_resource *mem)
 	if (!mgr || !mgr->io_base)
 		return -EIO;
 
-	if (!xe_ttm_stolen_cpu_inaccessible(xe))
-		return __xe_ttm_stolen_io_mem_reserve_bar2(xe, mgr, mem);
-	else
+	if (xe_ttm_stolen_cpu_access_needs_ggtt(xe))
 		return __xe_ttm_stolen_io_mem_reserve_stolen(xe, mgr, mem);
+	else
+		return __xe_ttm_stolen_io_mem_reserve_bar2(xe, mgr, mem);
 }
 
 u64 xe_ttm_stolen_gpu_offset(struct xe_device *xe)
