@@ -1311,13 +1311,13 @@ static int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 		return ret;
 	}
 
-	ret = intel_link_power_down(sdw);
+	ret = sdw_intel_link_power_down(sdw);
 	if (ret) {
 		dev_err(dev, "%s: Link power down failed: %d\n", __func__, ret);
 		return ret;
 	}
 
-	intel_shim_wake(sdw, wake_enable);
+	sdw_intel_shim_wake(sdw, wake_enable);
 
 	return 0;
 }
