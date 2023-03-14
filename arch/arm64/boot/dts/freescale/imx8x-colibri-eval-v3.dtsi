@@ -36,6 +36,11 @@
 	};
 };
 
+/* Colibri SPI */
+&lpspi2 {
+	status = "okay";
+};
+
 /* Colibri UART_B */
 &lpuart0 {
 	status = "okay";

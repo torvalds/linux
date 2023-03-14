@@ -91,6 +91,13 @@
 	};
 };
 
+/* Colibri SPI */
+&lpspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpspi2>;
+	cs-gpios = <&lsio_gpio1 0 GPIO_ACTIVE_LOW>;
+};
+
 /* On-module eMMC */
 &usdhc1 {
 	bus-width = <8>;
