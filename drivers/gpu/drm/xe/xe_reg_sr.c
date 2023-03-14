@@ -20,6 +20,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
+#include "xe_reg_whitelist.h"
 #include "xe_rtp_types.h"
 
 #define XE_REG_SR_GROW_STEP_DEFAULT	16
@@ -193,6 +194,7 @@ void xe_reg_sr_apply_whitelist(struct xe_reg_sr *sr, u32 mmio_base,
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_reg_sr_entry *entry;
+	struct drm_printer p;
 	unsigned long reg;
 	unsigned int slot = 0;
 	int err;
@@ -206,7 +208,9 @@ void xe_reg_sr_apply_whitelist(struct xe_reg_sr *sr, u32 mmio_base,
 	if (err)
 		goto err_force_wake;
 
+	p = drm_debug_printer(KBUILD_MODNAME);
 	xa_for_each(&sr->xa, reg, entry) {
+		xe_reg_whitelist_print_entry(&p, 0, reg, entry);
 		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot).reg,
 				reg | entry->set_bits);
 		slot++;

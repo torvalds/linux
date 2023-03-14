@@ -67,3 +67,44 @@ void xe_reg_whitelist_process_engine(struct xe_hw_engine *hwe)
 {
 	xe_rtp_process(register_whitelist, &hwe->reg_whitelist, hwe->gt, hwe);
 }
+
+/**
+ * xe_reg_whitelist_print_entry - print one whitelist entry
+ * @p: DRM printer
+ * @indent: indent level
+ * @reg: register allowed/denied
+ * @entry: save-restore entry
+ *
+ * Print details about the entry added to allow/deny access
+ */
+void xe_reg_whitelist_print_entry(struct drm_printer *p, unsigned int indent,
+				  u32 reg, struct xe_reg_sr_entry *entry)
+{
+	u32 val = entry->set_bits;
+	const char *access_str = "(invalid)";
+	unsigned range_bit = 2;
+	u32 range_start, range_end;
+	bool deny;
+
+	deny = val & RING_FORCE_TO_NONPRIV_DENY;
+
+	switch (val & RING_FORCE_TO_NONPRIV_RANGE_MASK) {
+	case RING_FORCE_TO_NONPRIV_RANGE_4: range_bit = 4; break;
+	case RING_FORCE_TO_NONPRIV_RANGE_16: range_bit = 6; break;
+	case RING_FORCE_TO_NONPRIV_RANGE_64: range_bit = 8; break;
+	}
+
+	range_start = reg & REG_GENMASK(25, range_bit);
+	range_end = range_start | REG_GENMASK(range_bit, 0);
+
+	switch (val & RING_FORCE_TO_NONPRIV_ACCESS_MASK) {
+	case RING_FORCE_TO_NONPRIV_ACCESS_RW: access_str = "rw"; break;
+	case RING_FORCE_TO_NONPRIV_ACCESS_RD: access_str = "read"; break;
+	case RING_FORCE_TO_NONPRIV_ACCESS_WR: access_str = "write"; break;
+	}
+
+	drm_printf_indent(p, indent, "REG[0x%x-0x%x]: %s %s access\n",
+			  range_start, range_end,
+			  deny ? "deny" : "allow",
+			  access_str);
+}
