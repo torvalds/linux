@@ -189,7 +189,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	for_each_btree_key_norestart(trans, reflink_iter, BTREE_ID_reflink,
 			   POS(0, c->reflink_hint),
-			   BTREE_ITER_INTENT|BTREE_ITER_SLOTS, k, ret) {
+			   BTREE_ITER_SLOTS, k, ret) {
 		if (reflink_iter.pos.inode) {
 			bch2_btree_iter_set_pos(&reflink_iter, POS_MIN);
 			continue;
