@@ -1309,7 +1309,7 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 		struct thermal_trip trip;
 
 		result = thermal_zone_get_trip(tz, count, &trip);
-		if (result)
+		if (result || !trip.temperature)
 			set_bit(count, &tz->trips_disabled);
 	}
 
