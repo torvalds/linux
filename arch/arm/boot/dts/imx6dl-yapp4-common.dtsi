@@ -98,7 +98,6 @@
 		regulator-max-microvolt = <5000000>;
 		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		status = "okay";
 	};
 };
 
@@ -302,7 +301,6 @@
 		compatible = "atmel,24c128";
 		reg = <0x57>;
 		pagesize = <64>;
-		status = "okay";
 	};
 
 	touchscreen: touchscreen@5c {
