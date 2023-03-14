@@ -389,8 +389,11 @@ struct mlx5e_sq_dma {
 	enum mlx5e_dma_map_type type;
 };
 
+/* Keep this enum consistent with with the corresponding strings array
+ * declared in en/reporter_tx.c
+ */
 enum {
-	MLX5E_SQ_STATE_ENABLED,
+	MLX5E_SQ_STATE_ENABLED = 0,
 	MLX5E_SQ_STATE_MPWQE,
 	MLX5E_SQ_STATE_RECOVERING,
 	MLX5E_SQ_STATE_IPSEC,
@@ -399,6 +402,7 @@ enum {
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
 	MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC,
 	MLX5E_SQ_STATE_XDP_MULTIBUF,
+	MLX5E_NUM_SQ_STATES, /* Must be kept last */
 };
 
 struct mlx5e_tx_mpwqe {
