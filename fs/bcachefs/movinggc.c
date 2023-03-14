@@ -46,7 +46,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	if (bch2_bucket_is_open(trans->c, bucket.inode, bucket.offset))
 		return 0;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, bucket, 0);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, bucket, BTREE_ITER_CACHED);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	bch2_trans_iter_exit(trans, &iter);
