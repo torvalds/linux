@@ -108,3 +108,21 @@ void xe_reg_whitelist_print_entry(struct drm_printer *p, unsigned int indent,
 			  deny ? "deny" : "allow",
 			  access_str);
 }
+
+/**
+ * xe_reg_whitelist_dump - print all whitelist entries
+ * @sr: Save/restore entries
+ * @p: DRM printer
+ */
+void xe_reg_whitelist_dump(struct xe_reg_sr *sr, struct drm_printer *p)
+{
+	struct xe_reg_sr_entry *entry;
+	unsigned long reg;
+
+	if (!sr->name || xa_empty(&sr->xa))
+		return;
+
+	drm_printf(p, "%s\n", sr->name);
+	xa_for_each(&sr->xa, reg, entry)
+		xe_reg_whitelist_print_entry(p, 1, reg, entry);
+}

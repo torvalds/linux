@@ -16,6 +16,8 @@
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"
 #include "xe_macros.h"
+#include "xe_reg_sr.h"
+#include "xe_reg_whitelist.h"
 #include "xe_uc_debugfs.h"
 
 static struct xe_gt *node_to_gt(struct drm_info_node *node)
@@ -98,6 +100,33 @@ static int ggtt(struct seq_file *m, void *data)
 	return xe_ggtt_dump(gt->mem.ggtt, &p);
 }
 
+static int register_save_restore(struct seq_file *m, void *data)
+{
+	struct xe_gt *gt = node_to_gt(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	xe_reg_sr_dump(&gt->reg_sr, &p);
+	drm_printf(&p, "\n");
+
+	drm_printf(&p, "Engine\n");
+	for_each_hw_engine(hwe, gt, id)
+		xe_reg_sr_dump(&hwe->reg_sr, &p);
+	drm_printf(&p, "\n");
+
+	drm_printf(&p, "LRC\n");
+	for_each_hw_engine(hwe, gt, id)
+		xe_reg_sr_dump(&hwe->reg_lrc, &p);
+	drm_printf(&p, "\n");
+
+	drm_printf(&p, "Whitelist\n");
+	for_each_hw_engine(hwe, gt, id)
+		xe_reg_whitelist_dump(&hwe->reg_whitelist, &p);
+
+	return 0;
+}
+
 static const struct drm_info_list debugfs_list[] = {
 	{"hw_engines", hw_engines, 0},
 	{"force_reset", force_reset, 0},
@@ -105,6 +134,7 @@ static const struct drm_info_list debugfs_list[] = {
 	{"topology", topology, 0},
 	{"steering", steering, 0},
 	{"ggtt", ggtt, 0},
+	{"register-save-restore", register_save_restore, 0},
 };
 
 void xe_gt_debugfs_register(struct xe_gt *gt)

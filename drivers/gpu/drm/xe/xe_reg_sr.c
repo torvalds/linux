@@ -229,3 +229,24 @@ void xe_reg_sr_apply_whitelist(struct xe_reg_sr *sr, u32 mmio_base,
 err_force_wake:
 	drm_err(&xe->drm, "Failed to apply, err=%d\n", err);
 }
+
+/**
+ * xe_reg_sr_dump - print all save/restore entries
+ * @sr: Save/restore entries
+ * @p: DRM printer
+ */
+void xe_reg_sr_dump(struct xe_reg_sr *sr, struct drm_printer *p)
+{
+	struct xe_reg_sr_entry *entry;
+	unsigned long reg;
+
+	if (!sr->name || xa_empty(&sr->xa))
+		return;
+
+	drm_printf(p, "%s\n", sr->name);
+	xa_for_each(&sr->xa, reg, entry)
+		drm_printf(p, "\tREG[0x%lx] clr=0x%08x set=0x%08x masked=%s mcr=%s\n",
+			   reg, entry->clr_bits, entry->set_bits,
+			   str_yes_no(entry->masked_reg),
+			   str_yes_no(entry->reg_type == XE_RTP_REG_MCR));
+}
