@@ -283,7 +283,7 @@ u32 Rtl8192PciERadioA_Array[RTL8192E_RADIO_A_ARR_LEN] = {
 	0x007, 0x00000700,
 };
 
-u32 Rtl8192PciERadioB_Array[RadioB_ArrayLengthPciE] = {
+u32 Rtl8192PciERadioB_Array[RTL8192E_RADIO_B_ARR_LEN] = {
 	0x019, 0x00000003,
 	0x000, 0x000000bf,
 	0x001, 0x000006e0,

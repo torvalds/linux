@@ -15,8 +15,8 @@
 extern u32 Rtl8192PciEPHY_REG_1T2RArray[PHY_REG_1T2RArrayLengthPciE];
 #define RTL8192E_RADIO_A_ARR_LEN 246
 extern u32 Rtl8192PciERadioA_Array[RTL8192E_RADIO_A_ARR_LEN];
-#define RadioB_ArrayLengthPciE 78
-extern u32 Rtl8192PciERadioB_Array[RadioB_ArrayLengthPciE];
+#define RTL8192E_RADIO_B_ARR_LEN 78
+extern u32 Rtl8192PciERadioB_Array[RTL8192E_RADIO_B_ARR_LEN];
 #define RTL8192E_MACPHY_ARR_LEN 18
 extern u32 Rtl8192PciEMACPHY_Array[RTL8192E_MACPHY_ARR_LEN];
 #define MACPHY_Array_PGLengthPciE 30
