@@ -292,7 +292,7 @@ void rtl92e_config_mac(struct net_device *dev)
 
 	} else {
 		dwArrayLen = RTL8192E_MACPHY_ARR_LEN;
-		pdwArray = Rtl819XMACPHY_Array;
+		pdwArray = RTL8192E_MACPHY_ARR;
 	}
 	for (i = 0; i < dwArrayLen; i += 3) {
 		if (pdwArray[i] == 0x318)

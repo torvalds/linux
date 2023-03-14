@@ -325,7 +325,7 @@ u32 Rtl8192PciERadioB_Array[RTL8192E_RADIO_B_ARR_LEN] = {
 	0x007, 0x00000700,
 };
 
-u32 Rtl8192PciEMACPHY_Array[] = {
+u32 RTL8192E_MACPHY_ARR[] = {
 	0x03c, 0xffff0000, 0x00000f0f,
 	0x340, 0xffffffff, 0x161a1a1a,
 	0x344, 0xffffffff, 0x12121416,
