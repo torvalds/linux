@@ -11,6 +11,13 @@
 		rtc1 = &rtc;
 	};
 
+	/* fixed crystal dedicated to mcp25xx */
+	clk16m: clock-16mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -39,6 +46,17 @@
 /* Colibri SPI */
 &lpspi2 {
 	status = "okay";
+
+	mcp2515: can@0 {
+		compatible = "microchip,mcp2515";
+		reg = <0>;
+		interrupt-parent = <&lsio_gpio3>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&pinctrl_can_int>;
+		pinctrl-names = "default";
+		clocks = <&clk16m>;
+		spi-max-frequency = <10000000>;
+	};
 };
 
 /* Colibri UART_B */
