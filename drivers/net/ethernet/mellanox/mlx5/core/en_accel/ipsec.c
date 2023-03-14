@@ -495,24 +495,18 @@ static void mlx5e_xfrm_advance_esn_state(struct xfrm_state *x)
 static void mlx5e_xfrm_update_curlft(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
-	int err;
+	struct mlx5e_ipsec_rule *ipsec_rule = &sa_entry->ipsec_rule;
+	u64 packets, bytes, lastuse;
 
-	lockdep_assert_held(&x->lock);
+	lockdep_assert(lockdep_is_held(&x->lock) ||
+		       lockdep_is_held(&dev_net(x->xso.real_dev)->xfrm.xfrm_cfg_mutex));
 
 	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
 		return;
 
-	if (sa_entry->attrs.soft_packet_limit == XFRM_INF)
-		/* Limits are not configured, as soft limit
-		 * must be lowever than hard limit.
-		 */
-		return;
-
-	err = mlx5e_ipsec_aso_query(sa_entry, NULL);
-	if (err)
-		return;
-
-	mlx5e_ipsec_aso_update_curlft(sa_entry, &x->curlft.packets);
+	mlx5_fc_query_cached(ipsec_rule->fc, &bytes, &packets, &lastuse);
+	x->curlft.packets += packets;
+	x->curlft.bytes += bytes;
 }
 
 static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,

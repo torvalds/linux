@@ -489,18 +489,3 @@ int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 	spin_unlock_bh(&aso->lock);
 	return ret;
 }
-
-void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
-				   u64 *packets)
-{
-	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
-	struct mlx5e_ipsec_aso *aso = ipsec->aso;
-	u64 hard_cnt;
-
-	hard_cnt = MLX5_GET(ipsec_aso, aso->ctx, remove_flow_pkt_cnt);
-	/* HW decresases the limit till it reaches zero to fire an avent.
-	 * We need to fix the calculations, so the returned count is a total
-	 * number of passed packets and not how much left.
-	 */
-	*packets = sa_entry->attrs.hard_packet_limit - hard_cnt;
-}

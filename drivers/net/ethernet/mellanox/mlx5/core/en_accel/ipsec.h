@@ -162,6 +162,7 @@ struct mlx5e_ipsec_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
+	struct mlx5_fc *fc;
 };
 
 struct mlx5e_ipsec_modify_state_work {
@@ -235,9 +236,6 @@ void mlx5e_ipsec_aso_cleanup(struct mlx5e_ipsec *ipsec);
 
 int mlx5e_ipsec_aso_query(struct mlx5e_ipsec_sa_entry *sa_entry,
 			  struct mlx5_wqe_aso_ctrl_seg *data);
-void mlx5e_ipsec_aso_update_curlft(struct mlx5e_ipsec_sa_entry *sa_entry,
-				   u64 *packets);
-
 void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv,
 				     void *ipsec_stats);
 
