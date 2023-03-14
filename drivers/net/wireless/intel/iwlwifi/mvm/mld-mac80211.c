@@ -205,8 +205,49 @@ static int iwl_mvm_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	return ret;
 }
+
+static void __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
+					       struct ieee80211_vif *vif,
+					       struct ieee80211_chanctx_conf *ctx,
+					       bool switching_chanctx)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (__iwl_mvm_unassign_vif_chanctx_common(mvm, vif, switching_chanctx))
+		goto out;
+
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		iwl_mvm_mld_rm_snif_sta(mvm, vif);
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		/* Set CS bit on all the stations */
+		iwl_mvm_mld_modify_all_sta_disable_tx(mvm, mvmvif, true);
+
+	/* Link needs to be deactivated before removal */
+	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_remove_link(mvm, vif);
+
+out:
+	if (switching_chanctx)
+		return;
+	mvmvif->phy_ctxt = NULL;
+	iwl_mvm_power_update_mac(mvm);
+}
+
+static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
+					     struct ieee80211_vif *vif,
+					     struct ieee80211_bss_conf *link_conf,
+					     struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	mutex_lock(&mvm->mutex);
+	__iwl_mvm_mld_unassign_vif_chanctx(mvm, vif, ctx, false);
+	mutex_unlock(&mvm->mutex);
+}
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.add_interface = iwl_mvm_mld_mac_add_interface,
 	.remove_interface = iwl_mvm_mld_mac_remove_interface,
 	.assign_vif_chanctx = iwl_mvm_mld_assign_vif_chanctx,
+	.unassign_vif_chanctx = iwl_mvm_mld_unassign_vif_chanctx,
 };

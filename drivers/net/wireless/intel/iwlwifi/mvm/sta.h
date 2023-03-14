@@ -545,6 +545,7 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvmvif,
 				       bool disable);
+
 void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
 int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -559,8 +560,14 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 			    u8 sta_id, u8 tid, unsigned int timeout);
 
 /* New MLD STA related APIs */
+/* STA */
 int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mld_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mld_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mld_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+
+/* Queues */
+void iwl_mvm_mld_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
+					   struct iwl_mvm_vif *mvmvif,
+					   bool disable);
 #endif /* __sta_h__ */

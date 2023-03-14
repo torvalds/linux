@@ -2173,6 +2173,9 @@ bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_chanctx_conf *ctx,
 					 bool switching_chanctx, int *ret);
+bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   bool switching_chanctx);
 
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)

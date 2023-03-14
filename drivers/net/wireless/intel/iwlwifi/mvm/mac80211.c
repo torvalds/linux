@@ -4551,9 +4551,9 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
  * Returns if chanctx unassign chanctx is done
  * (either on failure or success)
  */
-static bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
-						  struct ieee80211_vif *vif,
-						  bool switching_chanctx)
+bool __iwl_mvm_unassign_vif_chanctx_common(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   bool switching_chanctx)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
