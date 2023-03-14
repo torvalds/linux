@@ -542,7 +542,7 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 
 	switch (eRFPath) {
 	case RF90_PATH_A:
-		for (i = 0; i < RadioA_ArrayLength; i += 2) {
+		for (i = 0; i < RTL8192E_RADIO_A_ARR_LEN; i += 2) {
 			if (Rtl819XRadioA_Array[i] == 0xfe) {
 				msleep(100);
 				continue;
