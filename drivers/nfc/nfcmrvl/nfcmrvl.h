@@ -56,16 +56,16 @@ struct nfcmrvl_platform_data {
 	/* GPIO that is wired to RESET_N signal */
 	int reset_n_io;
 	/* Tell if transport is muxed in HCI one */
-	unsigned int hci_muxed;
+	bool hci_muxed;
 
 	/*
 	 * UART specific
 	 */
 
 	/* Tell if UART needs flow control at init */
-	unsigned int flow_control;
+	bool flow_control;
 	/* Tell if firmware supports break control for power management */
-	unsigned int break_control;
+	bool break_control;
 
 
 	/*
