@@ -254,6 +254,13 @@ mlx5e_ipsec_pol2dev(struct mlx5e_ipsec_pol_entry *pol_entry)
 {
 	return pol_entry->ipsec->mdev;
 }
+
+static inline bool addr6_all_zero(__be32 *addr6)
+{
+	static const __be32 zaddr6[4] = {};
+
+	return !memcmp(addr6, zaddr6, sizeof(*zaddr6));
+}
 #else
 static inline void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 {

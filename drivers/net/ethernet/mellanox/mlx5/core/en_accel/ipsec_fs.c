@@ -621,37 +621,53 @@ static void tx_ft_put_policy(struct mlx5e_ipsec *ipsec, u32 prio)
 static void setup_fte_addr4(struct mlx5_flow_spec *spec, __be32 *saddr,
 			    __be32 *daddr)
 {
+	if (!*saddr && !*daddr)
+		return;
+
 	spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.ip_version);
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.ip_version, 4);
 
-	memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
-			    outer_headers.src_ipv4_src_ipv6.ipv4_layout.ipv4), saddr, 4);
-	memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
-			    outer_headers.dst_ipv4_dst_ipv6.ipv4_layout.ipv4), daddr, 4);
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
-			 outer_headers.src_ipv4_src_ipv6.ipv4_layout.ipv4);
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
-			 outer_headers.dst_ipv4_dst_ipv6.ipv4_layout.ipv4);
+	if (*saddr) {
+		memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    outer_headers.src_ipv4_src_ipv6.ipv4_layout.ipv4), saddr, 4);
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+				 outer_headers.src_ipv4_src_ipv6.ipv4_layout.ipv4);
+	}
+
+	if (*daddr) {
+		memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    outer_headers.dst_ipv4_dst_ipv6.ipv4_layout.ipv4), daddr, 4);
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+				 outer_headers.dst_ipv4_dst_ipv6.ipv4_layout.ipv4);
+	}
 }
 
 static void setup_fte_addr6(struct mlx5_flow_spec *spec, __be32 *saddr,
 			    __be32 *daddr)
 {
+	if (addr6_all_zero(saddr) && addr6_all_zero(daddr))
+		return;
+
 	spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.ip_version);
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.ip_version, 6);
 
-	memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
-			    outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6), saddr, 16);
-	memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
-			    outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6), daddr, 16);
-	memset(MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-			    outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6), 0xff, 16);
-	memset(MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-			    outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6), 0xff, 16);
+	if (!addr6_all_zero(saddr)) {
+		memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6), saddr, 16);
+		memset(MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6), 0xff, 16);
+	}
+
+	if (!addr6_all_zero(daddr)) {
+		memcpy(MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6), daddr, 16);
+		memset(MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6), 0xff, 16);
+	}
 }
 
 static void setup_fte_esp(struct mlx5_flow_spec *spec)
@@ -920,7 +936,8 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		setup_fte_reg_a(spec);
 		break;
 	case XFRM_DEV_OFFLOAD_PACKET:
-		setup_fte_reg_c0(spec, attrs->reqid);
+		if (attrs->reqid)
+			setup_fte_reg_c0(spec, attrs->reqid);
 		err = setup_pkt_reformat(mdev, attrs, &flow_act);
 		if (err)
 			goto err_pkt_reformat;
@@ -989,10 +1006,12 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	setup_fte_no_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
-	err = setup_modify_header(mdev, attrs->reqid, XFRM_DEV_OFFLOAD_OUT,
-				  &flow_act);
-	if (err)
-		goto err_mod_header;
+	if (attrs->reqid) {
+		err = setup_modify_header(mdev, attrs->reqid,
+					  XFRM_DEV_OFFLOAD_OUT, &flow_act);
+		if (err)
+			goto err_mod_header;
+	}
 
 	switch (attrs->action) {
 	case XFRM_POLICY_ALLOW:
@@ -1028,7 +1047,8 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	return 0;
 
 err_action:
-	mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
+	if (attrs->reqid)
+		mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
 err_mod_header:
 	kvfree(spec);
 err_alloc:
@@ -1263,7 +1283,9 @@ void mlx5e_accel_ipsec_fs_del_pol(struct mlx5e_ipsec_pol_entry *pol_entry)
 		return;
 	}
 
-	mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
+	if (ipsec_rule->modify_hdr)
+		mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
+
 	tx_ft_put_policy(pol_entry->ipsec, pol_entry->attrs.prio);
 }
 

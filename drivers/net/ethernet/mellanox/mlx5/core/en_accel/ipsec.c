@@ -503,6 +503,8 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 				      struct xfrm_policy *x,
 				      struct netlink_ext_ack *extack)
 {
+	struct xfrm_selector *sel = &x->selector;
+
 	if (x->type != XFRM_POLICY_TYPE_MAIN) {
 		NL_SET_ERR_MSG_MOD(extack, "Cannot offload non-main policy types");
 		return -EINVAL;
@@ -520,8 +522,9 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 	}
 
-	if (!x->xfrm_vec[0].reqid) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot offload policy without reqid");
+	if (!x->xfrm_vec[0].reqid && sel->proto == IPPROTO_IP &&
+	    addr6_all_zero(sel->saddr.a6) && addr6_all_zero(sel->daddr.a6)) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported policy with reqid 0 without at least one of upper protocol or ip addr(s) different than 0");
 		return -EINVAL;
 	}
 
@@ -530,8 +533,8 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 	}
 
-	if (x->selector.proto != IPPROTO_IP &&
-	    (x->selector.proto != IPPROTO_UDP || x->xdo.dir != XFRM_DEV_OFFLOAD_OUT)) {
+	if (sel->proto != IPPROTO_IP &&
+	    (sel->proto != IPPROTO_UDP || x->xdo.dir != XFRM_DEV_OFFLOAD_OUT)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP, and only Tx direction");
 		return -EINVAL;
 	}
