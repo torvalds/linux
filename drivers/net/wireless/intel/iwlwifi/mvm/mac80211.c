@@ -4405,15 +4405,21 @@ out_unlock:
 	mutex_unlock(&mvm->mutex);
 }
 
-static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
-					struct ieee80211_vif *vif,
-					struct ieee80211_chanctx_conf *ctx,
-					bool switching_chanctx)
+/*
+ * This function executes the common part for MLD and non-MLD modes.
+ *
+ * Returns true if we're done assigning the chanctx
+ * (either on failure or success)
+ */
+static bool __iwl_mvm_assign_vif_chanctx_common(struct iwl_mvm *mvm,
+						struct ieee80211_vif *vif,
+						struct ieee80211_chanctx_conf *ctx,
+						bool switching_chanctx,
+						int *ret)
 {
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -4432,19 +4438,32 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		 * The AP binding flow is handled as part of the start_ap flow
 		 * (in bss_info_changed), similarly for IBSS.
 		 */
-		ret = 0;
-		goto out;
+		*ret = 0;
+		return true;
 	case NL80211_IFTYPE_STATION:
-		mvmvif->csa_bcn_pending = false;
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		/* always disable PS when a monitor interface is active */
 		mvmvif->ps_disabled = true;
 		break;
 	default:
-		ret = -EINVAL;
-		goto out;
+		*ret = -EINVAL;
+		return true;
 	}
+	return false;
+}
+
+static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct ieee80211_chanctx_conf *ctx,
+					bool switching_chanctx)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	if (__iwl_mvm_assign_vif_chanctx_common(mvm, vif, ctx,
+						switching_chanctx, &ret))
+		goto out;
 
 	ret = iwl_mvm_binding_add_vif(mvm, vif);
 	if (ret)
@@ -4478,7 +4497,12 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	}
 
-	if (switching_chanctx && vif->type == NL80211_IFTYPE_STATION) {
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (!switching_chanctx) {
+			mvmvif->csa_bcn_pending = false;
+			goto out;
+		}
+
 		mvmvif->csa_bcn_pending = true;
 
 		if (!fw_has_capa(&mvm->fw->ucode_capa,
@@ -4506,6 +4530,7 @@ out:
 		mvmvif->phy_ctxt = NULL;
 	return ret;
 }
+
 static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_bss_conf *link_conf,
