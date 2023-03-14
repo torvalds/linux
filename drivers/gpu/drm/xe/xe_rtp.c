@@ -8,6 +8,7 @@
 #include <drm/xe_drm.h>
 
 #include "xe_gt.h"
+#include "xe_gt_topology.h"
 #include "xe_macros.h"
 #include "xe_reg_sr.h"
 
@@ -169,4 +170,19 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
 
 	return render_compute_mask &&
 		hwe->engine_id == __ffs(render_compute_mask);
+}
+
+bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
+					 const struct xe_hw_engine *hwe)
+{
+	unsigned int dss_per_gslice = 4;
+	unsigned int dss;
+
+	if (drm_WARN(&gt_to_xe(gt)->drm, !gt->fuse_topo.g_dss_mask,
+		     "Checking gslice for platform without geometry pipeline\n"))
+		return false;
+
+	dss = xe_dss_mask_group_ffs(gt->fuse_topo.g_dss_mask, 0, 0);
+
+	return dss >= dss_per_gslice;
 }
