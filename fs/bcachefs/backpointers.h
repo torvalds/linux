@@ -48,7 +48,7 @@ static inline struct bpos bucket_pos_to_bp(const struct bch_fs *c,
 		  (bucket_to_sector(ca, bucket.offset) <<
 		   MAX_EXTENT_COMPRESS_RATIO_SHIFT) + bucket_offset);
 
-	BUG_ON(!bkey_eq(bucket, bp_pos_to_bucket(c, ret)));
+	EBUG_ON(!bkey_eq(bucket, bp_pos_to_bucket(c, ret)));
 
 	return ret;
 }

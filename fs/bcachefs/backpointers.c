@@ -298,11 +298,12 @@ err:
 /*
  * Find the next backpointer >= *bp_offset:
  */
-int bch2_get_next_backpointer(struct btree_trans *trans,
-			      struct bpos bucket, int gen,
-			      u64 *bp_offset,
-			      struct bch_backpointer *dst,
-			      unsigned iter_flags)
+int __bch2_get_next_backpointer(struct btree_trans *trans,
+				struct bpos bucket, int gen,
+				u64 *bp_offset,
+				struct bpos *bp_pos_ret,
+				struct bch_backpointer *dst,
+				unsigned iter_flags)
 {
 	struct bch_fs *c = trans->c;
 	struct bpos bp_pos, bp_end_pos;
@@ -352,6 +353,7 @@ int bch2_get_next_backpointer(struct btree_trans *trans,
 
 		*dst = *bkey_s_c_to_backpointer(k).v;
 		*bp_offset = dst->bucket_offset + BACKPOINTER_OFFSET_MAX;
+		*bp_pos_ret = k.k->p;
 		goto out;
 	}
 done:
@@ -360,6 +362,19 @@ out:
 	bch2_trans_iter_exit(trans, &bp_iter);
 	bch2_trans_iter_exit(trans, &alloc_iter);
 	return ret;
+}
+
+int bch2_get_next_backpointer(struct btree_trans *trans,
+			      struct bpos bucket, int gen,
+			      u64 *bp_offset,
+			      struct bch_backpointer *dst,
+			      unsigned iter_flags)
+{
+	struct bpos bp_pos;
+
+	return __bch2_get_next_backpointer(trans, bucket, gen,
+					   bp_offset, &bp_pos,
+					   dst, iter_flags);
 }
 
 static void backpointer_not_found(struct btree_trans *trans,
@@ -952,7 +967,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	ret = bch2_get_next_backpointer(trans, bucket, -1, bp_offset, &bp, 0);
+	ret = __bch2_get_next_backpointer(trans, bucket, -1, bp_offset, &bp_pos, &bp, 0);
 	if (ret || *bp_offset == U64_MAX)
 		return ret;
 
@@ -968,23 +983,17 @@ static int check_one_backpointer(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	bp_pos = bucket_pos_to_bp(c, bucket,
-			max(*bp_offset, BACKPOINTER_OFFSET_MAX) - BACKPOINTER_OFFSET_MAX);
-
 	if (!k.k && !bpos_eq(*last_flushed_pos, bp_pos)) {
 		*last_flushed_pos = bp_pos;
-		pr_info("flushing at %llu:%llu",
-			last_flushed_pos->inode,
-			last_flushed_pos->offset);
-
 		ret = bch2_btree_write_buffer_flush_sync(trans) ?:
 			-BCH_ERR_transaction_restart_write_buffer_flush;
 		goto out;
 	}
 
 	if (fsck_err_on(!k.k, c,
-			"%s backpointer points to missing extent\n%s",
-			*bp_offset < BACKPOINTER_OFFSET_MAX ? "alloc" : "btree",
+			"backpointer for %llu:%llu:%llu (btree pos %llu:%llu) points to missing extent\n  %s",
+			bucket.inode, bucket.offset, (u64) bp.bucket_offset,
+			bp_pos.inode, bp_pos.offset,
 			(bch2_backpointer_to_text(&buf, &bp), buf.buf))) {
 		ret = bch2_backpointer_del_by_offset(trans, bucket, *bp_offset, bp);
 		if (ret == -ENOENT)
