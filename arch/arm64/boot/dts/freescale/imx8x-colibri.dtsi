@@ -120,7 +120,7 @@
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ext_io0>, <&pinctrl_hog0>, <&pinctrl_hog1>,
-		    <&pinctrl_hog2>;
+		    <&pinctrl_hog2>, <&pinctrl_lpspi2_cs2>;
 
 	/* On-module touch pen-down interrupt */
 	pinctrl_ad7879_int: ad7879intgrp {
@@ -223,8 +223,7 @@
 	};
 
 	pinctrl_hog0: hog0grp {
-		fsl,pins = <IMX8QXP_ENET0_RGMII_TXD3_LSIO_GPIO5_IO02		0x06000020>,	/* SODIMM  65 */
-			   <IMX8QXP_CSI_D07_CI_PI_D09				0x61>,		/* SODIMM  65 */
+		fsl,pins = <IMX8QXP_CSI_D07_CI_PI_D09				0x61>,		/* SODIMM  65 */
 			   <IMX8QXP_QSPI0A_DATA2_LSIO_GPIO3_IO11		0x20>,		/* SODIMM  69 */
 			   <IMX8QXP_SAI0_TXC_LSIO_GPIO0_IO26			0x20>,		/* SODIMM  79 */
 			   <IMX8QXP_CSI_D02_CI_PI_D04				0x61>,		/* SODIMM  79 */
@@ -325,6 +324,10 @@
 			   <IMX8QXP_SPI2_SDO_ADMA_SPI2_SDO			0x06000040>,	/* SODIMM  92 */
 			   <IMX8QXP_SPI2_SDI_ADMA_SPI2_SDI			0x06000040>,	/* SODIMM  90 */
 			   <IMX8QXP_SPI2_SCK_ADMA_SPI2_SCK			0x06000040>;	/* SODIMM  88 */
+	};
+
+	pinctrl_lpspi2_cs2: lpspi2cs2grp {
+		fsl,pins = <IMX8QXP_ENET0_RGMII_TXD3_LSIO_GPIO5_IO02		0x21>;		/* SODIMM  65 */
 	};
 
 	/* Colibri UART_B */
