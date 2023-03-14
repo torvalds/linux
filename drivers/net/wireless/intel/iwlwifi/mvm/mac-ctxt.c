@@ -488,7 +488,7 @@ static void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm,
 		*qos_flags |= cpu_to_le32(MAC_QOS_FLG_TGN);
 }
 
-static int iwl_mvm_get_mac_type(struct ieee80211_vif *vif)
+int iwl_mvm_get_mac_type(struct ieee80211_vif *vif)
 {
 	u32 mac_type = FW_MAC_TYPE_BSS_STA;
 
@@ -612,8 +612,8 @@ static void iwl_mvm_set_fw_dtim_tbtt(struct iwl_mvm *mvm,
 		       dtim_offs);
 }
 
-static __le32 iwl_mvm_mac_ctxt_cmd_p2p_sta_get_oppps_ctwin(struct iwl_mvm *mvm,
-							   struct ieee80211_vif *vif)
+__le32 iwl_mvm_mac_ctxt_cmd_p2p_sta_get_oppps_ctwin(struct iwl_mvm *mvm,
+						    struct ieee80211_vif *vif)
 {
 	struct ieee80211_p2p_noa_attr *noa =
 		&vif->bss_conf.p2p_noa_attr;
@@ -622,8 +622,8 @@ static __le32 iwl_mvm_mac_ctxt_cmd_p2p_sta_get_oppps_ctwin(struct iwl_mvm *mvm,
 			IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
 }
 
-static __le32 iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(struct iwl_mvm *mvm,
-						      struct ieee80211_vif *vif)
+__le32 iwl_mvm_mac_ctxt_cmd_sta_get_twt_policy(struct iwl_mvm *mvm,
+					       struct ieee80211_vif *vif)
 {
 	__le32 twt_policy = cpu_to_le32(0);
 
@@ -785,8 +785,8 @@ static void iwl_mvm_go_iterator(void *_data, u8 *mac, struct ieee80211_vif *vif)
 		data->go_active = true;
 }
 
-static __le32 iwl_mac_ctxt_p2p_dev_has_extended_disc(struct iwl_mvm *mvm,
-						     struct ieee80211_vif *vif)
+__le32 iwl_mac_ctxt_p2p_dev_has_extended_disc(struct iwl_mvm *mvm,
+					      struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_go_iterator_data data = {};
 
@@ -1167,11 +1167,11 @@ static void iwl_mvm_mac_ap_iterator(void *_data, u8 *mac,
 /*
  * Fill the filter flags for mac context of type AP or P2P GO.
  */
-static void iwl_mvm_mac_ctxt_cmd_ap_set_filter_flags(struct iwl_mvm *mvm,
-						     struct iwl_mvm_vif *mvmvif,
-						     __le32 *filter_flags,
-						     int accept_probe_req_flag,
-						     int accept_beacon_flag)
+void iwl_mvm_mac_ctxt_cmd_ap_set_filter_flags(struct iwl_mvm *mvm,
+					      struct iwl_mvm_vif *mvmvif,
+					      __le32 *filter_flags,
+					      int accept_probe_req_flag,
+					      int accept_beacon_flag)
 {
 	/*
 	 * in AP mode, pass probe requests and beacons from other APs

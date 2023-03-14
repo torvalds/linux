@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_mac_cfg_h__
 #define __iwl_fw_api_mac_cfg_h__
+
+#include "mac.h"
 
 /**
  * enum iwl_mac_conf_subcmd_ids - mac configuration command IDs
@@ -31,7 +33,10 @@ enum iwl_mac_conf_subcmd_ids {
 	 * @CANCEL_CHANNEL_SWITCH_CMD: &struct iwl_cancel_channel_switch_cmd
 	 */
 	CANCEL_CHANNEL_SWITCH_CMD = 0x6,
-
+	/**
+	 * @MAC_CONFIG_CMD: &struct iwl_mac_config_cmd
+	 */
+	MAC_CONFIG_CMD = 0x8,
 	/**
 	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
 	 */
@@ -181,5 +186,105 @@ struct iwl_mac_low_latency_cmd {
 	u8 low_latency_tx;
 	__le16 reserved;
 } __packed; /* MAC_LOW_LATENCY_API_S_VER_1 */
+
+/**
+ * struct iwl_mac_client_data - configuration data for client MAC context
+ *
+ * @is_assoc: 1 for associated state, 0 otherwise
+ * @assoc_id: unique ID assigned by the AP during association
+ * @data_policy: see &enum iwl_mac_data_policy
+ * @ctwin: client traffic window in TU (period after TBTT when GO is present).
+ *	0 indicates that there is no CT window.
+ */
+struct iwl_mac_client_data {
+	__le32 is_assoc;
+	__le32 assoc_id;
+	__le32 data_policy;
+	__le32 ctwin;
+} __packed; /* MAC_CONTEXT_CONFIG_CLIENT_DATA_API_S_VER_1 */
+
+/**
+ * struct iwl_mac_go_ibss_data - configuration data for GO and IBSS MAC context
+ *
+ * @beacon_template: beacon template ID
+ */
+struct iwl_mac_go_ibss_data {
+	__le32 beacon_template;
+} __packed; /* MAC_CONTEXT_CONFIG_GO_IBSS_DATA_API_S_VER_1 */
+
+/**
+ * struct iwl_mac_p2p_dev_data  - configuration data for P2P device MAC context
+ *
+ * @is_disc_extended: if set to true, P2P Device discoverability is enabled on
+ *	other channels as well. This should be to true only in case that the
+ *	device is discoverable and there is an active GO. Note that setting this
+ *	field when not needed, will increase the number of interrupts and have
+ *	effect on the platform power, as this setting opens the Rx filters on
+ *	all macs.
+ */
+struct iwl_mac_p2p_dev_data {
+	__le32 is_disc_extended;
+} __packed; /* MAC_CONTEXT_CONFIG_P2P_DEV_DATA_API_S_VER_1 */
+
+/**
+ * enum iwl_mac_config_filter_flags - MAC context configuration filter flags
+ *
+ * @MAC_CFG_FILTER_PROMISC: accept all data frames
+ * @MAC_CFG_FILTER_ACCEPT_CONTROL_AND_MGMT: pass all management and
+ *	control frames to the host
+ * @MAC_CFG_FILTER_ACCEPT_GRP: accept multicast frames
+ * @MAC_CFG_FILTER_ACCEPT_BEACON: accept beacon frames
+ * @MAC_CFG_FILTER_ACCEPT_BCAST_PROBE_RESP: accept broadcast probe response
+ * @MAC_CFG_FILTER_ACCEPT_PROBE_REQ: accept probe requests
+ */
+enum iwl_mac_config_filter_flags {
+	MAC_CFG_FILTER_PROMISC			= BIT(0),
+	MAC_CFG_FILTER_ACCEPT_CONTROL_AND_MGMT	= BIT(1),
+	MAC_CFG_FILTER_ACCEPT_GRP		= BIT(2),
+	MAC_CFG_FILTER_ACCEPT_BEACON		= BIT(3),
+	MAC_CFG_FILTER_ACCEPT_BCAST_PROBE_RESP	= BIT(4),
+	MAC_CFG_FILTER_ACCEPT_PROBE_REQ		= BIT(5),
+}; /* MAC_FILTER_FLAGS_MASK_E_VER_1 */
+
+/**
+ * struct iwl_mac_config_cmd - command structure to configure MAC contexts in
+ *	MLD API
+ * ( MAC_CONTEXT_CONFIG_CMD = 0x8 )
+ *
+ * @id_and_color: ID and color of the MAC
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @mac_type: one of &enum iwl_mac_types
+ * @local_mld_addr: mld address
+ * @reserved_for_local_mld_addr: reserved
+ * @filter_flags: combination of &enum iwl_mac_config_filter_flags
+ * @he_support: does this MAC support HE
+ * @eht_support: does this MAC support EHT. Requires he_support
+ * @nic_not_ack_enabled: mark that the NIC doesn't support receiving
+ *	ACK-enabled AGG, (i.e. both BACK and non-BACK frames in single AGG).
+ *	If the NIC is not ACK_ENABLED it may use the EOF-bit in first non-0
+ *	len delim to determine if AGG or single.
+ * @client: client mac data
+ * @go_ibss: mac data for go or ibss
+ * @p2p_dev: mac data for p2p device
+ */
+struct iwl_mac_config_cmd {
+	/* COMMON_INDEX_HDR_API_S_VER_1 */
+	__le32 id_and_color;
+	__le32 action;
+	/* MAC_CONTEXT_TYPE_API_E */
+	__le32 mac_type;
+	u8 local_mld_addr[6];
+	__le16 reserved_for_local_mld_addr;
+	__le32 filter_flags;
+	__le32 he_support;
+	__le32 eht_support;
+	__le32 nic_not_ack_enabled;
+	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_1 */
+	union {
+		struct iwl_mac_client_data client;
+		struct iwl_mac_go_ibss_data go_ibss;
+		struct iwl_mac_p2p_dev_data p2p_dev;
+	};
+} __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

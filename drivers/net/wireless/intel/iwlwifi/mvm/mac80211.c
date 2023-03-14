@@ -2032,8 +2032,7 @@ static bool iwl_mvm_set_fw_mu_edca_params(struct iwl_mvm *mvm,
 	return mu_edca_enabled;
 }
 
-static bool iwl_mvm_is_nic_ack_enabled(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif)
+bool iwl_mvm_is_nic_ack_enabled(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	const struct ieee80211_supported_band *sband;
 	const struct ieee80211_sta_he_cap *own_he_cap = NULL;
