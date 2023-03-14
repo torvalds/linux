@@ -2939,9 +2939,9 @@ static int emac_init_config(struct emac_instance *dev)
 	}
 
 	/* Fixup some feature bits based on the device tree */
-	if (of_get_property(np, "has-inverted-stacr-oc", NULL))
+	if (of_property_read_bool(np, "has-inverted-stacr-oc"))
 		dev->features |= EMAC_FTR_STACR_OC_INVERT;
-	if (of_get_property(np, "has-new-stacr-staopc", NULL))
+	if (of_property_read_bool(np, "has-new-stacr-staopc"))
 		dev->features |= EMAC_FTR_HAS_NEW_STACR;
 
 	/* CAB lacks the appropriate properties */
@@ -3042,7 +3042,7 @@ static int emac_probe(struct platform_device *ofdev)
 	 * property here for now, but new flat device trees should set a
 	 * status property to "disabled" instead.
 	 */
-	if (of_get_property(np, "unused", NULL) || !of_device_is_available(np))
+	if (of_property_read_bool(np, "unused") || !of_device_is_available(np))
 		return -ENODEV;
 
 	/* Find ourselves in the bootlist if we are there */
@@ -3333,7 +3333,7 @@ static void __init emac_make_bootlist(void)
 
 		if (of_match_node(emac_match, np) == NULL)
 			continue;
-		if (of_get_property(np, "unused", NULL))
+		if (of_property_read_bool(np, "unused"))
 			continue;
 		idx = of_get_property(np, "cell-index", NULL);
 		if (idx == NULL)
