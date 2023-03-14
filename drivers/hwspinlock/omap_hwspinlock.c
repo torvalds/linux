@@ -153,7 +153,7 @@ static int omap_hwspinlock_remove(struct platform_device *pdev)
 	ret = hwspin_lock_unregister(bank);
 	if (ret) {
 		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
-		return ret;
+		return 0;
 	}
 
 	pm_runtime_disable(&pdev->dev);
