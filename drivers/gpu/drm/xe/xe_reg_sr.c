@@ -167,6 +167,9 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 	unsigned long reg;
 	int err;
 
+	if (xa_empty(&sr->xa))
+		return;
+
 	drm_dbg(&xe->drm, "Applying %s save-restore MMIOs\n", sr->name);
 
 	err = xe_force_wake_get(&gt->mmio.fw, XE_FORCEWAKE_ALL);
@@ -193,6 +196,9 @@ void xe_reg_sr_apply_whitelist(struct xe_reg_sr *sr, u32 mmio_base,
 	unsigned long reg;
 	unsigned int slot = 0;
 	int err;
+
+	if (xa_empty(&sr->xa))
+		return;
 
 	drm_dbg(&xe->drm, "Whitelisting %s registers\n", sr->name);
 
