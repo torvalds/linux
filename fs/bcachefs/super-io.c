@@ -139,14 +139,14 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		return 0;
 
 	if (dynamic_fault("bcachefs:add:super_realloc"))
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_sb_realloc_injected;
 
 	if (sb->have_bio) {
 		unsigned nr_bvecs = DIV_ROUND_UP(new_buffer_size, PAGE_SIZE);
 
 		bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
 		if (!bio)
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_sb_bio_realloc;
 
 		bio_init(bio, NULL, bio->bi_inline_vecs, nr_bvecs, 0);
 
@@ -156,7 +156,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 
 	new_sb = krealloc(sb->sb, new_buffer_size, GFP_NOFS|__GFP_ZERO);
 	if (!new_sb)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_sb_buf_realloc;
 
 	sb->sb = new_sb;
 	sb->buffer_size = new_buffer_size;
@@ -562,8 +562,9 @@ reread:
 	}
 
 	if (bytes > sb->buffer_size) {
-		if (bch2_sb_realloc(sb, le32_to_cpu(sb->sb->u64s)))
-			return -ENOMEM;
+		ret = bch2_sb_realloc(sb, le32_to_cpu(sb->sb->u64s));
+		if (ret)
+			return ret;
 		goto reread;
 	}
 

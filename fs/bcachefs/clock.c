@@ -184,10 +184,10 @@ int bch2_io_clock_init(struct io_clock *clock)
 
 	clock->pcpu_buf = alloc_percpu(*clock->pcpu_buf);
 	if (!clock->pcpu_buf)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_io_clock_init;
 
 	if (!init_heap(&clock->timers, NR_IO_TIMERS, GFP_KERNEL))
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_io_clock_init;
 
 	return 0;
 }

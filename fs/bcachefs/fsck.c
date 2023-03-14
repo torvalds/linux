@@ -1237,7 +1237,7 @@ static int extent_ends_at(extent_ends *extent_ends,
 			      sizeof(seen->ids.data[0]) * seen->ids.size,
 			      GFP_KERNEL);
 	if (!n.seen.ids.data)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_fsck_extent_ends_at;
 
 	darray_for_each(*extent_ends, i) {
 		if (i->snapshot == k.k->p.snapshot) {
@@ -2141,7 +2141,7 @@ static int add_nlink(struct bch_fs *c, struct nlink_table *t,
 		if (!d) {
 			bch_err(c, "fsck: error allocating memory for nlink_table, size %zu",
 				new_size);
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_fsck_add_nlink;
 		}
 
 		if (t->d)

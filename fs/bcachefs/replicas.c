@@ -336,7 +336,7 @@ out:
 	return ret;
 err:
 	bch_err(c, "error updating replicas table: memory allocation failure");
-	ret = -ENOMEM;
+	ret = -BCH_ERR_ENOMEM_replicas_table;
 	goto out;
 }
 
@@ -383,14 +383,18 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 	if (c->replicas_gc.entries &&
 	    !__replicas_has_entry(&c->replicas_gc, new_entry)) {
 		new_gc = cpu_replicas_add_entry(&c->replicas_gc, new_entry);
-		if (!new_gc.entries)
+		if (!new_gc.entries) {
+			ret = -BCH_ERR_ENOMEM_cpu_replicas;
 			goto err;
+		}
 	}
 
 	if (!__replicas_has_entry(&c->replicas, new_entry)) {
 		new_r = cpu_replicas_add_entry(&c->replicas, new_entry);
-		if (!new_r.entries)
+		if (!new_r.entries) {
+			ret = -BCH_ERR_ENOMEM_cpu_replicas;
 			goto err;
+		}
 
 		ret = bch2_cpu_replicas_to_sb_replicas(c, &new_r);
 		if (ret)
@@ -425,8 +429,7 @@ out:
 
 	return ret;
 err:
-	bch_err(c, "error adding replicas entry: memory allocation failure");
-	ret = -ENOMEM;
+	bch_err(c, "error adding replicas entry: %s", bch2_err_str(ret));
 	goto out;
 }
 
@@ -478,7 +481,7 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 		    bch2_fs_usage_read_one(c, &c->usage_base->replicas[i])) {
 			n = cpu_replicas_add_entry(&c->replicas_gc, e);
 			if (!n.entries) {
-				ret = -ENOMEM;
+				ret = -BCH_ERR_ENOMEM_cpu_replicas;
 				goto err;
 			}
 
@@ -533,7 +536,7 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	if (!c->replicas_gc.entries) {
 		mutex_unlock(&c->sb_lock);
 		bch_err(c, "error allocating c->replicas_gc");
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_replicas_gc;
 	}
 
 	for_each_cpu_replicas_entry(&c->replicas, e)
@@ -562,7 +565,7 @@ retry:
 	new.entries	= kcalloc(nr, new.entry_size, GFP_KERNEL);
 	if (!new.entries) {
 		bch_err(c, "error allocating c->replicas_gc");
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_replicas_gc;
 	}
 
 	mutex_lock(&c->sb_lock);
@@ -621,7 +624,7 @@ int bch2_replicas_set_usage(struct bch_fs *c,
 
 		n = cpu_replicas_add_entry(&c->replicas, r);
 		if (!n.entries)
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_cpu_replicas;
 
 		ret = replicas_table_update(c, &n);
 		if (ret)
@@ -655,7 +658,7 @@ __bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r,
 
 	cpu_r->entries = kcalloc(nr, entry_size, GFP_KERNEL);
 	if (!cpu_r->entries)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_cpu_replicas;
 
 	cpu_r->nr		= nr;
 	cpu_r->entry_size	= entry_size;
@@ -687,7 +690,7 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r,
 
 	cpu_r->entries = kcalloc(nr, entry_size, GFP_KERNEL);
 	if (!cpu_r->entries)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_cpu_replicas;
 
 	cpu_r->nr		= nr;
 	cpu_r->entry_size	= entry_size;
@@ -717,9 +720,8 @@ int bch2_sb_replicas_to_cpu_replicas(struct bch_fs *c)
 		ret = __bch2_sb_replicas_to_cpu_replicas(sb_v1, &new_r);
 	else if ((sb_v0 = bch2_sb_get_replicas_v0(c->disk_sb.sb)))
 		ret = __bch2_sb_replicas_v0_to_cpu_replicas(sb_v0, &new_r);
-
 	if (ret)
-		return -ENOMEM;
+		return ret;
 
 	bch2_cpu_replicas_sort(&new_r);
 
@@ -881,8 +883,9 @@ static int bch2_sb_replicas_validate(struct bch_sb *sb, struct bch_sb_field *f,
 	struct bch_replicas_cpu cpu_r;
 	int ret;
 
-	if (__bch2_sb_replicas_to_cpu_replicas(sb_r, &cpu_r))
-		return -ENOMEM;
+	ret = __bch2_sb_replicas_to_cpu_replicas(sb_r, &cpu_r);
+	if (ret)
+		return ret;
 
 	ret = bch2_cpu_replicas_validate(&cpu_r, sb, err);
 	kfree(cpu_r.entries);
@@ -919,8 +922,9 @@ static int bch2_sb_replicas_v0_validate(struct bch_sb *sb, struct bch_sb_field *
 	struct bch_replicas_cpu cpu_r;
 	int ret;
 
-	if (__bch2_sb_replicas_v0_to_cpu_replicas(sb_r, &cpu_r))
-		return -ENOMEM;
+	ret = __bch2_sb_replicas_v0_to_cpu_replicas(sb_r, &cpu_r);
+	if (ret)
+		return ret;
 
 	ret = bch2_cpu_replicas_validate(&cpu_r, sb, err);
 	kfree(cpu_r.entries);

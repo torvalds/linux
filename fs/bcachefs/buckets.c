@@ -906,7 +906,7 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 	if (!m) {
 		bch_err(c, "error allocating memory for gc_stripes, idx %llu",
 			(u64) p.idx);
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_mark_stripe_ptr;
 	}
 
 	mutex_lock(&c->ec_stripes_heap_lock);
@@ -1075,7 +1075,7 @@ int bch2_mark_stripe(struct btree_trans *trans,
 		if (!m) {
 			bch_err(c, "error allocating memory for gc_stripes, idx %llu",
 				idx);
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_mark_stripe;
 		}
 		/*
 		 * This will be wrong when we bring back runtime gc: we should
@@ -2045,15 +2045,21 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	struct bucket_gens *bucket_gens = NULL, *old_bucket_gens = NULL;
 	unsigned long *buckets_nouse = NULL;
 	bool resize = ca->bucket_gens != NULL;
-	int ret = -ENOMEM;
+	int ret;
 
 	if (!(bucket_gens	= kvpmalloc(sizeof(struct bucket_gens) + nbuckets,
-					    GFP_KERNEL|__GFP_ZERO)) ||
-	    (c->opts.buckets_nouse &&
+					    GFP_KERNEL|__GFP_ZERO))) {
+		ret = -BCH_ERR_ENOMEM_bucket_gens;
+		goto err;
+	}
+
+	if ((c->opts.buckets_nouse &&
 	     !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
 					    sizeof(unsigned long),
-					    GFP_KERNEL|__GFP_ZERO))))
+					    GFP_KERNEL|__GFP_ZERO)))) {
+		ret = -BCH_ERR_ENOMEM_buckets_nouse;
 		goto err;
+	}
 
 	bucket_gens->first_bucket = ca->mi.first_bucket;
 	bucket_gens->nbuckets	= nbuckets;
@@ -2123,12 +2129,12 @@ int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 
 	ca->usage_base = kzalloc(sizeof(struct bch_dev_usage), GFP_KERNEL);
 	if (!ca->usage_base)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_usage_init;
 
 	for (i = 0; i < ARRAY_SIZE(ca->usage); i++) {
 		ca->usage[i] = alloc_percpu(struct bch_dev_usage);
 		if (!ca->usage[i])
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_usage_init;
 	}
 
 	return bch2_dev_buckets_resize(c, ca, ca->mi.nbuckets);

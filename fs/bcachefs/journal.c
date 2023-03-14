@@ -768,7 +768,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	new_buckets	= kcalloc(nr, sizeof(u64), GFP_KERNEL);
 	new_bucket_seq	= kcalloc(nr, sizeof(u64), GFP_KERNEL);
 	if (!bu || !ob || !new_buckets || !new_bucket_seq) {
-		ret = -ENOMEM;
+		ret = -BCH_ERR_ENOMEM_set_nr_journal_buckets;
 		goto err_free;
 	}
 
@@ -941,7 +941,7 @@ int bch2_dev_journal_alloc(struct bch_dev *ca)
 	unsigned nr;
 
 	if (dynamic_fault("bcachefs:add:journal_alloc"))
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_set_nr_journal_buckets;
 
 	/* 1/128th of the device by default: */
 	nr = ca->mi.nbuckets >> 7;
@@ -1033,7 +1033,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 		init_fifo(&j->pin, roundup_pow_of_two(nr + 1), GFP_KERNEL);
 		if (!j->pin.data) {
 			bch_err(c, "error reallocating journal fifo (%llu open entries)", nr);
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_journal_pin_fifo;
 		}
 	}
 
@@ -1127,19 +1127,19 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 
 	ja->bucket_seq = kcalloc(ja->nr, sizeof(u64), GFP_KERNEL);
 	if (!ja->bucket_seq)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_dev_journal_init;
 
 	nr_bvecs = DIV_ROUND_UP(JOURNAL_ENTRY_SIZE_MAX, PAGE_SIZE);
 
 	ca->journal.bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
 	if (!ca->journal.bio)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_dev_journal_init;
 
 	bio_init(ca->journal.bio, NULL, ca->journal.bio->bi_inline_vecs, nr_bvecs, 0);
 
 	ja->buckets = kcalloc(ja->nr, sizeof(u64), GFP_KERNEL);
 	if (!ja->buckets)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_dev_journal_init;
 
 	if (journal_buckets_v2) {
 		unsigned nr = bch2_sb_field_journal_v2_nr_entries(journal_buckets_v2);
@@ -1193,7 +1193,7 @@ int bch2_fs_journal_init(struct journal *j)
 		 { .cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL }).v);
 
 	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL))) {
-		ret = -ENOMEM;
+		ret = -BCH_ERR_ENOMEM_journal_pin_fifo;
 		goto out;
 	}
 
@@ -1201,7 +1201,7 @@ int bch2_fs_journal_init(struct journal *j)
 		j->buf[i].buf_size = JOURNAL_ENTRY_SIZE_MIN;
 		j->buf[i].data = kvpmalloc(j->buf[i].buf_size, GFP_KERNEL);
 		if (!j->buf[i].data) {
-			ret = -ENOMEM;
+			ret = -BCH_ERR_ENOMEM_journal_buf;
 			goto out;
 		}
 	}

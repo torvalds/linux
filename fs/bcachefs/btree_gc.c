@@ -201,7 +201,7 @@ static int set_node_min(struct bch_fs *c, struct btree *b, struct bpos new_min)
 
 	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_gc_repair_key;
 
 	btree_ptr_to_v2(b, new);
 	b->data->min_key	= new_min;
@@ -230,7 +230,7 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 
 	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_gc_repair_key;
 
 	btree_ptr_to_v2(b, new);
 	b->data->max_key	= new_max;
@@ -686,7 +686,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 		new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
 		if (!new) {
 			bch_err(c, "%s: error allocating new key", __func__);
-			ret = -ENOMEM;
+			ret = -BCH_ERR_ENOMEM_gc_repair_key;
 			goto err;
 		}
 
@@ -1293,7 +1293,7 @@ static int bch2_gc_start(struct bch_fs *c)
 					 sizeof(u64), GFP_KERNEL);
 	if (!c->usage_gc) {
 		bch_err(c, "error allocating c->usage_gc");
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_gc_start;
 	}
 
 	for_each_member_device(ca, c, i) {
@@ -1303,7 +1303,7 @@ static int bch2_gc_start(struct bch_fs *c)
 		if (!ca->usage_gc) {
 			bch_err(c, "error allocating ca->usage_gc");
 			percpu_ref_put(&ca->ref);
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_gc_start;
 		}
 
 		this_cpu_write(ca->usage_gc->d[BCH_DATA_free].buckets,
@@ -1495,7 +1495,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 		if (!buckets) {
 			percpu_ref_put(&ca->ref);
 			bch_err(c, "error allocating ca->buckets[gc]");
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_gc_alloc_start;
 		}
 
 		buckets->first_bucket	= ca->mi.first_bucket;
@@ -1656,7 +1656,7 @@ static int bch2_gc_reflink_start(struct bch_fs *c,
 		r = genradix_ptr_alloc(&c->reflink_gc_table, c->reflink_gc_nr++,
 				       GFP_KERNEL);
 		if (!r) {
-			ret = -ENOMEM;
+			ret = -BCH_ERR_ENOMEM_gc_reflink_start;
 			break;
 		}
 
@@ -1977,7 +1977,7 @@ int bch2_gc_gens(struct bch_fs *c)
 		ca->oldest_gen = kvmalloc(ca->mi.nbuckets, GFP_KERNEL);
 		if (!ca->oldest_gen) {
 			percpu_ref_put(&ca->ref);
-			ret = -ENOMEM;
+			ret = -BCH_ERR_ENOMEM_gc_gens;
 			goto err;
 		}
 

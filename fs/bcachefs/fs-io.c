@@ -3713,16 +3713,22 @@ int bch2_fs_fsio_init(struct bch_fs *c)
 
 	if (bioset_init(&c->writepage_bioset,
 			4, offsetof(struct bch_writepage_io, op.wbio.bio),
-			BIOSET_NEED_BVECS) ||
-	    bioset_init(&c->dio_read_bioset,
+			BIOSET_NEED_BVECS))
+		return -BCH_ERR_ENOMEM_writepage_bioset_init;
+
+	if (bioset_init(&c->dio_read_bioset,
 			4, offsetof(struct dio_read, rbio.bio),
-			BIOSET_NEED_BVECS) ||
-	    bioset_init(&c->dio_write_bioset,
+			BIOSET_NEED_BVECS))
+		return -BCH_ERR_ENOMEM_dio_read_bioset_init;
+
+	if (bioset_init(&c->dio_write_bioset,
 			4, offsetof(struct dio_write, op.wbio.bio),
-			BIOSET_NEED_BVECS) ||
-	    bioset_init(&c->nocow_flush_bioset,
+			BIOSET_NEED_BVECS))
+		return -BCH_ERR_ENOMEM_dio_write_bioset_init;
+
+	if (bioset_init(&c->nocow_flush_bioset,
 			1, offsetof(struct nocow_flush, bio), 0))
-		ret = -ENOMEM;
+		return -BCH_ERR_ENOMEM_nocow_flush_bioset_init;
 
 	pr_verbose_init(c->opts, "ret %i", ret);
 	return ret;

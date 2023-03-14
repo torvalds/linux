@@ -68,7 +68,7 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 
 	sorted = kmalloc_array(nr_groups, sizeof(*sorted), GFP_KERNEL);
 	if (!sorted)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_disk_groups_validate;
 
 	memcpy(sorted, groups->entries, nr_groups * sizeof(*sorted));
 	sort(sorted, nr_groups, sizeof(*sorted), group_cmp, NULL);
@@ -134,7 +134,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 	cpu_g = kzalloc(sizeof(*cpu_g) +
 			sizeof(cpu_g->entries[0]) * nr_groups, GFP_KERNEL);
 	if (!cpu_g)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_disk_groups_to_cpu;
 
 	cpu_g->nr = nr_groups;
 

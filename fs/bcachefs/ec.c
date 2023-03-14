@@ -494,7 +494,7 @@ int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
 
 	buf = kzalloc(sizeof(*buf), GFP_NOIO);
 	if (!buf)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_ec_read_extent;
 
 	ret = get_stripe_key(c, rbio->pick.ec.idx, buf);
 	if (ret) {
@@ -559,7 +559,7 @@ static int __ec_stripe_mem_alloc(struct bch_fs *c, size_t idx, gfp_t gfp)
 
 	if (idx >= h->size) {
 		if (!init_heap(&n, max(1024UL, roundup_pow_of_two(idx + 1)), gfp))
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_ec_stripe_mem_alloc;
 
 		mutex_lock(&c->ec_stripes_heap_lock);
 		if (n.size > h->size) {
@@ -573,11 +573,11 @@ static int __ec_stripe_mem_alloc(struct bch_fs *c, size_t idx, gfp_t gfp)
 	}
 
 	if (!genradix_ptr_alloc(&c->stripes, idx, gfp))
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_ec_stripe_mem_alloc;
 
 	if (c->gc_pos.phase != GC_PHASE_NOT_RUNNING &&
 	    !genradix_ptr_alloc(&c->gc_stripes, idx, gfp))
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_ec_stripe_mem_alloc;
 
 	return 0;
 }
@@ -1323,7 +1323,7 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_ec_new_stripe_alloc;
 
 	mutex_init(&s->lock);
 	closure_init(&s->iodone, NULL);
@@ -1680,8 +1680,8 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		return h;
 
 	if (!h->s) {
-		if (ec_new_stripe_alloc(c, h)) {
-			ret = -ENOMEM;
+		ret = ec_new_stripe_alloc(c, h);
+		if (ret) {
 			bch_err(c, "failed to allocate new stripe");
 			goto err;
 		}

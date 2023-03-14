@@ -4,6 +4,79 @@
 
 #define BCH_ERRCODES()								\
 	x(ENOMEM,			ENOMEM_stripe_buf)			\
+	x(ENOMEM,			ENOMEM_replicas_table)			\
+	x(ENOMEM,			ENOMEM_cpu_replicas)			\
+	x(ENOMEM,			ENOMEM_replicas_gc)			\
+	x(ENOMEM,			ENOMEM_disk_groups_validate)		\
+	x(ENOMEM,			ENOMEM_disk_groups_to_cpu)		\
+	x(ENOMEM,			ENOMEM_mark_snapshot)			\
+	x(ENOMEM,			ENOMEM_mark_stripe)			\
+	x(ENOMEM,			ENOMEM_mark_stripe_ptr)			\
+	x(ENOMEM,			ENOMEM_btree_key_cache_create)		\
+	x(ENOMEM,			ENOMEM_btree_key_cache_fill)		\
+	x(ENOMEM,			ENOMEM_btree_key_cache_insert)		\
+	x(ENOMEM,			ENOMEM_trans_kmalloc)			\
+	x(ENOMEM,			ENOMEM_trans_log_msg)			\
+	x(ENOMEM,			ENOMEM_do_encrypt)			\
+	x(ENOMEM,			ENOMEM_ec_read_extent)			\
+	x(ENOMEM,			ENOMEM_ec_stripe_mem_alloc)		\
+	x(ENOMEM,			ENOMEM_ec_new_stripe_alloc)		\
+	x(ENOMEM,			ENOMEM_fs_btree_cache_init)		\
+	x(ENOMEM,			ENOMEM_fs_btree_key_cache_init)		\
+	x(ENOMEM,			ENOMEM_fs_counters_init)		\
+	x(ENOMEM,			ENOMEM_fs_btree_write_buffer_init)	\
+	x(ENOMEM,			ENOMEM_io_clock_init)			\
+	x(ENOMEM,			ENOMEM_blacklist_table_init)		\
+	x(ENOMEM,			ENOMEM_sb_realloc_injected)		\
+	x(ENOMEM,			ENOMEM_sb_bio_realloc)			\
+	x(ENOMEM,			ENOMEM_sb_buf_realloc)			\
+	x(ENOMEM,			ENOMEM_sb_journal_validate)		\
+	x(ENOMEM,			ENOMEM_sb_journal_v2_validate)		\
+	x(ENOMEM,			ENOMEM_journal_entry_add)		\
+	x(ENOMEM,			ENOMEM_journal_read_buf_realloc)	\
+	x(ENOMEM,			ENOMEM_btree_interior_update_worker_init)\
+	x(ENOMEM,			ENOMEM_btree_interior_update_pool_init)	\
+	x(ENOMEM,			ENOMEM_bio_read_init)			\
+	x(ENOMEM,			ENOMEM_bio_read_split_init)		\
+	x(ENOMEM,			ENOMEM_bio_write_init)			\
+	x(ENOMEM,			ENOMEM_bio_bounce_pages_init)		\
+	x(ENOMEM,			ENOMEM_writepage_bioset_init)		\
+	x(ENOMEM,			ENOMEM_dio_read_bioset_init)		\
+	x(ENOMEM,			ENOMEM_dio_write_bioset_init)		\
+	x(ENOMEM,			ENOMEM_nocow_flush_bioset_init)		\
+	x(ENOMEM,			ENOMEM_promote_table_init)		\
+	x(ENOMEM,			ENOMEM_compression_bounce_read_init)	\
+	x(ENOMEM,			ENOMEM_compression_bounce_write_init)	\
+	x(ENOMEM,			ENOMEM_compression_workspace_init)	\
+	x(ENOMEM,			ENOMEM_decompression_workspace_init)	\
+	x(ENOMEM,			ENOMEM_bucket_gens)			\
+	x(ENOMEM,			ENOMEM_buckets_nouse)			\
+	x(ENOMEM,			ENOMEM_usage_init)			\
+	x(ENOMEM,			ENOMEM_btree_node_read_all_replicas)	\
+	x(ENOMEM,			ENOMEM_btree_node_reclaim)		\
+	x(ENOMEM,			ENOMEM_btree_node_mem_alloc)		\
+	x(ENOMEM,			ENOMEM_btree_cache_cannibalize_lock)	\
+	x(ENOMEM,			ENOMEM_buckets_waiting_for_journal_init)\
+	x(ENOMEM,			ENOMEM_buckets_waiting_for_journal_set)	\
+	x(ENOMEM,			ENOMEM_set_nr_journal_buckets)		\
+	x(ENOMEM,			ENOMEM_dev_journal_init)		\
+	x(ENOMEM,			ENOMEM_journal_pin_fifo)		\
+	x(ENOMEM,			ENOMEM_journal_buf)			\
+	x(ENOMEM,			ENOMEM_gc_start)			\
+	x(ENOMEM,			ENOMEM_gc_alloc_start)			\
+	x(ENOMEM,			ENOMEM_gc_reflink_start)		\
+	x(ENOMEM,			ENOMEM_gc_gens)				\
+	x(ENOMEM,			ENOMEM_gc_repair_key)			\
+	x(ENOMEM,			ENOMEM_fsck_extent_ends_at)		\
+	x(ENOMEM,			ENOMEM_fsck_add_nlink)			\
+	x(ENOMEM,			ENOMEM_journal_key_insert)		\
+	x(ENOMEM,			ENOMEM_journal_keys_sort)		\
+	x(ENOMEM,			ENOMEM_journal_replay)			\
+	x(ENOMEM,			ENOMEM_read_superblock_clean)		\
+	x(ENOMEM,			ENOMEM_fs_alloc)			\
+	x(ENOMEM,			ENOMEM_fs_name_alloc)			\
+	x(ENOMEM,			ENOMEM_fs_other_alloc)			\
+	x(ENOMEM,			ENOMEM_dev_alloc)			\
 	x(ENOSPC,			ENOSPC_disk_reservation)		\
 	x(ENOSPC,			ENOSPC_bucket_alloc)			\
 	x(ENOSPC,			ENOSPC_disk_label_add)			\
@@ -14,9 +87,11 @@
 	x(ENOSPC,			ENOSPC_subvolume_create)		\
 	x(ENOSPC,			ENOSPC_sb)				\
 	x(ENOSPC,			ENOSPC_sb_journal)			\
+	x(ENOSPC,			ENOSPC_sb_journal_seq_blacklist)	\
 	x(ENOSPC,			ENOSPC_sb_quota)			\
 	x(ENOSPC,			ENOSPC_sb_replicas)			\
 	x(ENOSPC,			ENOSPC_sb_members)			\
+	x(ENOSPC,			ENOSPC_sb_crypt)			\
 	x(0,				open_buckets_empty)			\
 	x(0,				freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\

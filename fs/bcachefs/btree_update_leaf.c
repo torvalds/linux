@@ -401,7 +401,7 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 	if (!new_k) {
 		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
 			bch2_btree_ids[path->btree_id], new_u64s);
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
 	}
 
 	trans_for_each_update(trans, i)
@@ -1891,7 +1891,7 @@ static int __bch2_trans_log_msg(darray_u64 *entries, const char *fmt, va_list ar
 	int ret;
 
 	prt_vprintf(&buf, fmt, args);
-	ret = buf.allocation_failure ? -ENOMEM : 0;
+	ret = buf.allocation_failure ? -BCH_ERR_ENOMEM_trans_log_msg : 0;
 	if (ret)
 		goto err;
 

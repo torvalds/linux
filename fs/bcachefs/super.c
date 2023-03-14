@@ -644,7 +644,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	c = kvpmalloc(sizeof(struct bch_fs), GFP_KERNEL|__GFP_ZERO);
 	if (!c) {
-		c = ERR_PTR(-ENOMEM);
+		c = ERR_PTR(-BCH_ERR_ENOMEM_fs_alloc);
 		goto out;
 	}
 
@@ -744,7 +744,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	strscpy(c->name, name.buf, sizeof(c->name));
 	printbuf_exit(&name);
 
-	ret = name.allocation_failure ? -ENOMEM : 0;
+	ret = name.allocation_failure ? -BCH_ERR_ENOMEM_fs_name_alloc : 0;
 	if (ret)
 		goto err;
 
@@ -808,7 +808,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048) ||
 	    !(c->unused_inode_hints = kcalloc(1U << c->inode_shard_bits,
 					      sizeof(u64), GFP_KERNEL))) {
-		ret = -ENOMEM;
+		ret = -BCH_ERR_ENOMEM_fs_other_alloc;
 		goto err;
 	}
 
@@ -1189,7 +1189,7 @@ out:
 err:
 	if (ca)
 		bch2_dev_free(ca);
-	ret = -ENOMEM;
+	ret = -BCH_ERR_ENOMEM_dev_alloc;
 	goto out;
 }
 

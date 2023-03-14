@@ -2475,8 +2475,11 @@ int bch2_fs_btree_interior_update_init(struct bch_fs *c)
 	c->btree_interior_update_worker =
 		alloc_workqueue("btree_update", WQ_UNBOUND|WQ_MEM_RECLAIM, 1);
 	if (!c->btree_interior_update_worker)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_btree_interior_update_worker_init;
 
-	return mempool_init_kmalloc_pool(&c->btree_interior_update_pool, 1,
-					 sizeof(struct btree_update));
+	if (mempool_init_kmalloc_pool(&c->btree_interior_update_pool, 1,
+				      sizeof(struct btree_update)))
+		return -BCH_ERR_ENOMEM_btree_interior_update_pool_init;
+
+	return 0;
 }

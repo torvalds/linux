@@ -118,7 +118,7 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 				journal_entry_radix_idx(c, le64_to_cpu(j->seq)),
 				GFP_KERNEL);
 	if (!_i)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_journal_entry_add;
 
 	/*
 	 * Duplicate journal entries? If so we want the one that didn't have a
@@ -148,7 +148,7 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 replace:
 	i = kvpmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
 	if (!i)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_journal_entry_add;
 
 	i->nr_ptrs	= 0;
 	i->csum_good	= entry_ptr.csum_good;
@@ -835,12 +835,12 @@ static int journal_read_buf_realloc(struct journal_read_buf *b,
 
 	/* the bios are sized for this many pages, max: */
 	if (new_size > JOURNAL_ENTRY_SIZE_MAX)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_journal_read_buf_realloc;
 
 	new_size = roundup_pow_of_two(new_size);
 	n = kvpmalloc(new_size, GFP_KERNEL);
 	if (!n)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_journal_read_buf_realloc;
 
 	kvpfree(b->data, b->size);
 	b->data = n;

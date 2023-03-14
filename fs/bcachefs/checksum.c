@@ -133,7 +133,7 @@ static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 
 		sg = kmalloc_array(pages, sizeof(*sg), GFP_KERNEL);
 		if (!sg)
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_do_encrypt;
 
 		sg_init_table(sg, pages);
 
@@ -648,7 +648,7 @@ int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 
 	crypt = bch2_sb_resize_crypt(&c->disk_sb, sizeof(*crypt) / sizeof(u64));
 	if (!crypt) {
-		ret = -ENOMEM; /* XXX this technically could be -ENOSPC */
+		ret = -BCH_ERR_ENOSPC_sb_crypt;
 		goto err;
 	}
 

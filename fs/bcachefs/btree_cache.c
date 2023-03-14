@@ -91,7 +91,7 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 
 	b->data = kvpmalloc(btree_bytes(c), gfp);
 	if (!b->data)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_btree_node_mem_alloc;
 #ifdef __KERNEL__
 	b->aux_data = kvmalloc(btree_aux_data_bytes(b), gfp);
 #else
@@ -104,7 +104,7 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 	if (!b->aux_data) {
 		kvpfree(b->data, btree_bytes(c));
 		b->data = NULL;
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_btree_node_mem_alloc;
 	}
 
 	return 0;
@@ -207,7 +207,7 @@ wait_on_io:
 			(1U << BTREE_NODE_read_in_flight)|
 			(1U << BTREE_NODE_write_in_flight))) {
 		if (!flush)
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_btree_node_reclaim;
 
 		/* XXX: waiting on IO with btree cache lock held */
 		bch2_btree_node_wait_on_read(b);
@@ -215,7 +215,7 @@ wait_on_io:
 	}
 
 	if (!six_trylock_intent(&b->c.lock))
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_btree_node_reclaim;
 
 	if (!six_trylock_write(&b->c.lock))
 		goto out_unlock_intent;
@@ -263,7 +263,7 @@ out_unlock:
 	six_unlock_write(&b->c.lock);
 out_unlock_intent:
 	six_unlock_intent(&b->c.lock);
-	ret = -ENOMEM;
+	ret = -BCH_ERR_ENOMEM_btree_node_reclaim;
 	goto out;
 }
 
@@ -462,7 +462,7 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 
 	for (i = 0; i < bc->reserve; i++)
 		if (!__bch2_btree_node_mem_alloc(c)) {
-			ret = -ENOMEM;
+			ret = -BCH_ERR_ENOMEM_fs_btree_cache_init;
 			goto out;
 		}
 
@@ -516,7 +516,7 @@ int bch2_btree_cache_cannibalize_lock(struct bch_fs *c, struct closure *cl)
 
 	if (!cl) {
 		trace_and_count(c, btree_cache_cannibalize_lock_fail, c);
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_btree_cache_cannibalize_lock;
 	}
 
 	closure_wait(&bc->alloc_wait, cl);
@@ -669,7 +669,7 @@ err:
 
 	mutex_unlock(&bc->lock);
 	memalloc_nofs_restore(flags);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-BCH_ERR_ENOMEM_btree_node_mem_alloc);
 }
 
 /* Slowpath, don't want it inlined into btree_iter_traverse() */
@@ -698,7 +698,7 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 
 	b = bch2_btree_node_mem_alloc(trans, level != 0);
 
-	if (b == ERR_PTR(-ENOMEM)) {
+	if (bch2_err_matches(PTR_ERR_OR_ZERO(b), ENOMEM)) {
 		trans->memory_allocation_failure = true;
 		trace_and_count(c, trans_restart_memory_allocation_failure, trans, _THIS_IP_, path);
 		return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_fill_mem_alloc_fail));

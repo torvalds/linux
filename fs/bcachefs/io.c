@@ -2995,18 +2995,26 @@ void bch2_fs_io_exit(struct bch_fs *c)
 int bch2_fs_io_init(struct bch_fs *c)
 {
 	if (bioset_init(&c->bio_read, 1, offsetof(struct bch_read_bio, bio),
-			BIOSET_NEED_BVECS) ||
-	    bioset_init(&c->bio_read_split, 1, offsetof(struct bch_read_bio, bio),
-			BIOSET_NEED_BVECS) ||
-	    bioset_init(&c->bio_write, 1, offsetof(struct bch_write_bio, bio),
-			BIOSET_NEED_BVECS) ||
-	    mempool_init_page_pool(&c->bio_bounce_pages,
+			BIOSET_NEED_BVECS))
+		return -BCH_ERR_ENOMEM_bio_read_init;
+
+	if (bioset_init(&c->bio_read_split, 1, offsetof(struct bch_read_bio, bio),
+			BIOSET_NEED_BVECS))
+		return -BCH_ERR_ENOMEM_bio_read_split_init;
+
+	if (bioset_init(&c->bio_write, 1, offsetof(struct bch_write_bio, bio),
+			BIOSET_NEED_BVECS))
+		return -BCH_ERR_ENOMEM_bio_write_init;
+
+	if (mempool_init_page_pool(&c->bio_bounce_pages,
 				   max_t(unsigned,
 					 c->opts.btree_node_size,
 					 c->opts.encoded_extent_max) /
-				   PAGE_SIZE, 0) ||
-	    rhashtable_init(&c->promote_table, &bch_promote_params))
-		return -ENOMEM;
+				   PAGE_SIZE, 0))
+		return -BCH_ERR_ENOMEM_bio_bounce_pages_init;
+
+	if (rhashtable_init(&c->promote_table, &bch_promote_params))
+		return -BCH_ERR_ENOMEM_promote_table_init;
 
 	return 0;
 }

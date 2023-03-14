@@ -333,7 +333,7 @@ int bch2_fs_btree_write_buffer_init(struct bch_fs *c)
 	wb->keys[0] = kvmalloc_array(wb->size, sizeof(*wb->keys[0]), GFP_KERNEL);
 	wb->keys[1] = kvmalloc_array(wb->size, sizeof(*wb->keys[1]), GFP_KERNEL);
 	if (!wb->keys[0] || !wb->keys[1])
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_fs_btree_write_buffer_init;
 
 	return 0;
 }

@@ -33,7 +33,7 @@ static int bch2_sb_journal_validate(struct bch_sb *sb,
 
 	b = kmalloc_array(nr, sizeof(u64), GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_sb_journal_validate;
 
 	for (i = 0; i < nr; i++)
 		b[i] = le64_to_cpu(journal->buckets[i]);
@@ -116,7 +116,7 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 
 	b = kmalloc_array(nr, sizeof(*b), GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_sb_journal_v2_validate;
 
 	for (i = 0; i < nr; i++) {
 		b[i].start = le64_to_cpu(journal->d[i].start);

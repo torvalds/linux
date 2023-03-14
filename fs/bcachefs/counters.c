@@ -96,7 +96,7 @@ int bch2_fs_counters_init(struct bch_fs *c)
 {
 	c->counters = __alloc_percpu(sizeof(u64) * BCH_COUNTER_NR, sizeof(u64));
 	if (!c->counters)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_fs_counters_init;
 
 	return bch2_sb_counters_to_cpu(c);
 }

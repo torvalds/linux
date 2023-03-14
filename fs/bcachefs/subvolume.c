@@ -87,7 +87,7 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 			       U32_MAX - new.k->p.offset,
 			       GFP_KERNEL);
 	if (!t)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_mark_snapshot;
 
 	if (new.k->type == KEY_TYPE_snapshot) {
 		struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(new);

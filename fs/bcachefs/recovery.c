@@ -228,7 +228,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		if (!new_keys.d) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);
-			return -ENOMEM;
+			return -BCH_ERR_ENOMEM_journal_key_insert;
 		}
 
 		/* Since @keys was full, there was no gap: */
@@ -266,7 +266,7 @@ int bch2_journal_key_insert(struct bch_fs *c, enum btree_id id,
 
 	n = kmalloc(bkey_bytes(&k->k), GFP_KERNEL);
 	if (!n)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_journal_key_insert;
 
 	bkey_copy(n, k);
 	ret = bch2_journal_key_insert_take(c, id, level, n);
@@ -503,7 +503,7 @@ static int journal_keys_sort(struct bch_fs *c)
 
 	keys->d = kvmalloc_array(keys->size, sizeof(keys->d[0]), GFP_KERNEL);
 	if (!keys->d)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_journal_keys_sort;
 
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
@@ -601,7 +601,7 @@ static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
 
 	keys_sorted = kvmalloc_array(sizeof(*keys_sorted), keys->nr, GFP_KERNEL);
 	if (!keys_sorted)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_journal_replay;
 
 	for (i = 0; i < keys->nr; i++)
 		keys_sorted[i] = &keys->d[i];
@@ -905,7 +905,7 @@ static struct bch_sb_field_clean *read_superblock_clean(struct bch_fs *c)
 			GFP_KERNEL);
 	if (!clean) {
 		mutex_unlock(&c->sb_lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-BCH_ERR_ENOMEM_read_superblock_clean);
 	}
 
 	ret = bch2_sb_clean_validate_late(c, clean, READ);

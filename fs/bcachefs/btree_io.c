@@ -1483,7 +1483,7 @@ static int btree_node_read_all_replicas(struct bch_fs *c, struct btree *b, bool 
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
 	if (!ra)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_btree_node_read_all_replicas;
 
 	closure_init(&ra->cl, NULL);
 	ra->c	= c;

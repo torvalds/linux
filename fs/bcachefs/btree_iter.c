@@ -1012,7 +1012,7 @@ retry_all:
 			__btree_path_put(path, false);
 
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
-			    ret == -ENOMEM)
+			    bch2_err_matches(ret, ENOMEM))
 				goto retry_all;
 			if (ret)
 				goto err;
@@ -2809,7 +2809,7 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	}
 
 	if (!new_mem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-BCH_ERR_ENOMEM_trans_kmalloc);
 
 	trans->mem = new_mem;
 	trans->mem_bytes = new_bytes;

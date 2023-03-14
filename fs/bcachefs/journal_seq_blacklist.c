@@ -103,7 +103,7 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 	bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
 					sb_blacklist_u64s(nr + 1));
 	if (!bl) {
-		ret = -ENOMEM;
+		ret = -BCH_ERR_ENOSPC_sb_journal_seq_blacklist;
 		goto out;
 	}
 
@@ -168,7 +168,7 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 	t = kzalloc(sizeof(*t) + sizeof(t->entries[0]) * nr,
 		    GFP_KERNEL);
 	if (!t)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_blacklist_table_init;
 
 	t->nr = nr;
 

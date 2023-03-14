@@ -110,7 +110,7 @@ int bch2_set_bucket_needs_journal_commit(struct buckets_waiting_for_journal *b,
 
 	n = kvmalloc(sizeof(*n) + (sizeof(n->d[0]) << new_bits), GFP_KERNEL);
 	if (!n) {
-		ret = -ENOMEM;
+		ret = -BCH_ERR_ENOMEM_buckets_waiting_for_journal_set;
 		goto out;
 	}
 
@@ -159,7 +159,7 @@ int bch2_fs_buckets_waiting_for_journal_init(struct bch_fs *c)
 	b->t = kvmalloc(sizeof(*b->t) +
 			(sizeof(b->t->d[0]) << INITIAL_TABLE_BITS), GFP_KERNEL);
 	if (!b->t)
-		return -ENOMEM;
+		return -BCH_ERR_ENOMEM_buckets_waiting_for_journal_init;
 
 	bucket_table_init(b->t, INITIAL_TABLE_BITS);
 	return 0;
