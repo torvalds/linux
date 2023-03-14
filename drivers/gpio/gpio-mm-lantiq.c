@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio/legacy-of-mm-gpiochip.h.h>
+#include <linux/gpio/legacy-of-mm-gpiochip.h>
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/slab.h>
