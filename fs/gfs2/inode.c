@@ -992,9 +992,6 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	error = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		goto out_gunlock;
-	error = -EINVAL;
-	if (!ip->i_inode.i_nlink)
-		goto out_gunlock;
 	error = -EMLINK;
 	if (ip->i_inode.i_nlink == (u32)-1)
 		goto out_gunlock;
