@@ -129,8 +129,8 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_MCP_FIFOSTAT			0x7C
 #define CDNS_MCP_RX_FIFO_AVAIL			GENMASK(5, 0)
 
-#define CDNS_MCP_CMD_BASE			0x80
-#define CDNS_MCP_RESP_BASE			0x80
+#define CDNS_IP_MCP_CMD_BASE			0x80 /* IP offset added at run-time */
+#define CDNS_IP_MCP_RESP_BASE			0x80 /* IP offset added at run-time */
 /* FIFO can hold 8 commands */
 #define CDNS_MCP_CMD_LEN			8
 #define CDNS_MCP_CMD_WORD_LEN			0x4
@@ -590,10 +590,10 @@ static void cdns_read_response(struct sdw_cdns *cdns)
 		num_resp = ARRAY_SIZE(cdns->response_buf);
 	}
 
-	cmd_base = CDNS_MCP_CMD_BASE;
+	cmd_base = CDNS_IP_MCP_CMD_BASE;
 
 	for (i = 0; i < num_resp; i++) {
-		cdns->response_buf[i] = cdns_readl(cdns, cmd_base);
+		cdns->response_buf[i] = cdns_ip_readl(cdns, cmd_base);
 		cmd_base += CDNS_MCP_CMD_WORD_LEN;
 	}
 }
@@ -612,7 +612,7 @@ _cdns_xfer_msg(struct sdw_cdns *cdns, struct sdw_msg *msg, int cmd,
 		cdns->msg_count = count;
 	}
 
-	base = CDNS_MCP_CMD_BASE;
+	base = CDNS_IP_MCP_CMD_BASE;
 	addr = msg->addr + offset;
 
 	for (i = 0; i < count; i++) {
@@ -625,7 +625,7 @@ _cdns_xfer_msg(struct sdw_cdns *cdns, struct sdw_msg *msg, int cmd,
 			data |= msg->buf[i + offset];
 
 		data |= FIELD_PREP(CDNS_MCP_CMD_SSP_TAG, msg->ssp_sync);
-		cdns_writel(cdns, base, data);
+		cdns_ip_writel(cdns, base, data);
 		base += CDNS_MCP_CMD_WORD_LEN;
 	}
 
@@ -673,10 +673,10 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 	data[0] |= msg->addr_page1;
 	data[1] |= msg->addr_page2;
 
-	base = CDNS_MCP_CMD_BASE;
-	cdns_writel(cdns, base, data[0]);
+	base = CDNS_IP_MCP_CMD_BASE;
+	cdns_ip_writel(cdns, base, data[0]);
 	base += CDNS_MCP_CMD_WORD_LEN;
-	cdns_writel(cdns, base, data[1]);
+	cdns_ip_writel(cdns, base, data[1]);
 
 	time = wait_for_completion_timeout(&cdns->tx_complete,
 					   msecs_to_jiffies(CDNS_TX_TIMEOUT));
