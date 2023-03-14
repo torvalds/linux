@@ -7456,7 +7456,7 @@ system fingerprint.  To prevent userspace from circumventing such restrictions
 by running an enclave in a VM, KVM prevents access to privileged attributes by
 default.
 
-See Documentation/x86/sgx.rst for more details.
+See Documentation/arch/x86/sgx.rst for more details.
 
 7.26 KVM_CAP_PPC_RPT_INVALIDATE
 -------------------------------
