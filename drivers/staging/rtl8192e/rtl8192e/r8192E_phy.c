@@ -288,7 +288,7 @@ void rtl92e_config_mac(struct net_device *dev)
 
 	if (priv->tx_pwr_data_read_from_eeprom) {
 		dwArrayLen = RTL8192E_MACPHY_ARR_PG_LEN;
-		pdwArray = Rtl819XMACPHY_Array_PG;
+		pdwArray = RTL8192E_MACPHY_ARR_PG;
 
 	} else {
 		dwArrayLen = RTL8192E_MACPHY_ARR_LEN;
