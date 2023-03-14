@@ -5238,6 +5238,9 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 	int scsi_status;
 	enum utp_ocs ocs;
 
+	scsi_set_resid(lrbp->cmd,
+		be32_to_cpu(lrbp->ucd_rsp_ptr->sr.residual_transfer_count));
+
 	/* overall command status of utrd */
 	ocs = ufshcd_get_tr_ocs(lrbp, cqe);
 
