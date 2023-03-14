@@ -218,6 +218,11 @@
 		fsl,pins = <IMX8QXP_QSPI0A_DATA3_LSIO_GPIO3_IO12		0x60>;		/* SODIMM  71 */
 	};
 
+	/* HDMI Hot Plug Detect on FFC (X2) */
+	pinctrl_gpio_hpd: gpiohpdgrp {
+		fsl,pins = <IMX8QXP_MIPI_DSI1_GPIO0_00_LSIO_GPIO1_IO31		0x20>;		/* SODIMM 138 */
+	};
+
 	pinctrl_gpiokeys: gpiokeysgrp {
 		fsl,pins = <IMX8QXP_QSPI0A_DATA1_LSIO_GPIO3_IO10		0x06700041>;	/* SODIMM  45 */
 	};
