@@ -369,7 +369,7 @@ static int ul_tinyconn_event(struct snd_soc_dapm_widget *w,
 	unsigned int reg_shift;
 	unsigned int reg_mask_shift;
 
-	dev_info(afe->dev, "%s(), event 0x%x\n", __func__, event);
+	dev_dbg(afe->dev, "%s(), event 0x%x\n", __func__, event);
 
 	if (strstr(w->name, "UL1")) {
 		reg_shift = VUL1_USE_TINY_SFT;
@@ -2055,8 +2055,6 @@ static int mt8192_afe_runtime_suspend(struct device *dev)
 	unsigned int value;
 	int ret;
 
-	dev_info(afe->dev, "%s()\n", __func__);
-
 	if (!afe->regmap || afe_priv->pm_runtime_bypass_reg_ctl)
 		goto skip_regmap;
 
@@ -2096,8 +2094,6 @@ static int mt8192_afe_runtime_resume(struct device *dev)
 	struct mtk_base_afe *afe = dev_get_drvdata(dev);
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
 	int ret;
-
-	dev_info(afe->dev, "%s()\n", __func__);
 
 	ret = mt8192_afe_enable_clock(afe);
 	if (ret)
