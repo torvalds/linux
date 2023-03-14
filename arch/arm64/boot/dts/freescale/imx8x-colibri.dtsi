@@ -31,6 +31,10 @@
 	};
 };
 
+/* TODO Analogue Inputs */
+
+/* TODO Cooling maps for DX */
+
 &cpu_alert0 {
 	hysteresis = <2000>;
 	temperature = <90000>;
@@ -42,6 +46,10 @@
 	temperature = <105000>;
 	type = "critical";
 };
+
+/* TODO flexcan1 - 3 */
+
+/* TODO GPU */
 
 /* On-module I2C */
 &i2c0 {
@@ -71,6 +79,10 @@
 	};
 };
 
+/* TODO i2c lvds0 accessible on FFC (X2) */
+
+/* TODO i2c lvds1 accessible on FFC (X3) */
+
 /* Colibri I2C */
 &i2c1 {
 	#address-cells = <1>;
@@ -87,6 +99,8 @@
 &jpegenc {
 	status = "okay";
 };
+
+/* TODO Parallel RRB */
 
 /* Colibri UART_B */
 &lpuart0 {
@@ -307,6 +321,14 @@
 	pinctrl-names = "default";
 };
 
+/* TODO MIPI CSI */
+
+/* TODO MIPI DSI with DSI-to-HDMI bridge lt8912 */
+
+/* TODO on-module PCIe for Wi-Fi */
+
+/* TODO On-module i2s / Audio */
+
 /* On-module eMMC */
 &usdhc1 {
 	bus-width = <8>;
@@ -333,6 +355,12 @@
 	disable-wp;
 	no-1-8-v;
 };
+
+/* TODO USB Client/Host */
+
+/* TODO USB Host */
+
+/* TODO VPU Encoder/Decoder */
 
 &iomuxc {
 	pinctrl-names = "default";
