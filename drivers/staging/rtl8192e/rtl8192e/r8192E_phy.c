@@ -555,13 +555,13 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 		break;
 	case RF90_PATH_B:
 		for (i = 0; i < RTL8192E_RADIO_B_ARR_LEN; i += 2) {
-			if (Rtl819XRadioB_Array[i] == 0xfe) {
+			if (RTL8192E_RADIO_B_ARR[i] == 0xfe) {
 				msleep(100);
 				continue;
 			}
-			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioB_Array[i],
+			rtl92e_set_rf_reg(dev, eRFPath, RTL8192E_RADIO_B_ARR[i],
 					  bMask12Bits,
-					  Rtl819XRadioB_Array[i+1]);
+					  RTL8192E_RADIO_B_ARR[i + 1]);
 
 		}
 		break;
