@@ -1762,7 +1762,8 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 
 	if (ignore_level) {
 		if (ft->type != FS_FT_FDB &&
-		    ft->type != FS_FT_NIC_RX)
+		    ft->type != FS_FT_NIC_RX &&
+		    ft->type != FS_FT_NIC_TX)
 			return false;
 
 		if (dest->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
