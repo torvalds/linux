@@ -966,8 +966,7 @@ static int img_hash_probe(struct platform_device *pdev)
 	}
 
 	/* Write port (DMA or CPU) */
-	hash_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	hdev->cpu_addr = devm_ioremap_resource(dev, hash_res);
+	hdev->cpu_addr = devm_platform_get_and_ioremap_resource(pdev, 1, &hash_res);
 	if (IS_ERR(hdev->cpu_addr)) {
 		err = PTR_ERR(hdev->cpu_addr);
 		goto res_err;
