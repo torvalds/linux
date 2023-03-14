@@ -16,6 +16,18 @@
 	};
 };
 
+&cpu_alert0 {
+	hysteresis = <2000>;
+	temperature = <90000>;
+	type = "passive";
+};
+
+&cpu_crit0 {
+	hysteresis = <2000>;
+	temperature = <105000>;
+	type = "critical";
+};
+
 /* On-module I2C */
 &i2c0 {
 	#address-cells = <1>;
