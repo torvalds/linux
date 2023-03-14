@@ -670,13 +670,17 @@ struct mlx5e_rq_frags_info {
 
 struct mlx5e_dma_info {
 	dma_addr_t addr;
-	struct page *page;
+	union {
+		struct page **pagep;
+		struct page *page;
+	};
 };
 
 struct mlx5e_shampo_hd {
 	u32 mkey;
 	struct mlx5e_dma_info *info;
-	struct page *last_page;
+	struct page **pages;
+	u16 curr_page_index;
 	u16 hd_per_wq;
 	u16 hd_per_wqe;
 	unsigned long *bitmap;

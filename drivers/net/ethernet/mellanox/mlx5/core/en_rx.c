@@ -586,10 +586,11 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
 	u16 entries, pi, header_offset, err, wqe_bbs, new_entries;
 	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey;
-	struct page *page = shampo->last_page;
+	u16 page_index = shampo->curr_page_index;
 	u64 addr = shampo->last_addr;
 	struct mlx5e_dma_info *dma_info;
 	struct mlx5e_umr_wqe *umr_wqe;
+	struct page **pagep;
 	int headroom, i;
 
 	headroom = rq->buff.headroom;
@@ -600,6 +601,8 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	umr_wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
 	build_klm_umr(sq, umr_wqe, shampo->key, index, entries, wqe_bbs);
 
+	pagep = &shampo->pages[page_index];
+
 	for (i = 0; i < entries; i++, index++) {
 		dma_info = &shampo->info[index];
 		if (i >= klm_entries || (index < shampo->pi && shampo->pi - index <
@@ -608,17 +611,20 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 		header_offset = (index & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) <<
 			MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
 		if (!(header_offset & (PAGE_SIZE - 1))) {
+			page_index = (page_index + 1) & (shampo->hd_per_wq - 1);
+			pagep = &shampo->pages[page_index];
 
-			err = mlx5e_page_alloc_pool(rq, &page);
+			err = mlx5e_page_alloc_pool(rq, pagep);
 			if (unlikely(err))
 				goto err_unmap;
 
-			addr = page_pool_get_dma_addr(page);
+			addr = page_pool_get_dma_addr(*pagep);
+
 			dma_info->addr = addr;
-			dma_info->page = page;
+			dma_info->pagep = pagep;
 		} else {
 			dma_info->addr = addr + header_offset;
-			dma_info->page = page;
+			dma_info->pagep = pagep;
 		}
 
 update_klm:
@@ -636,7 +642,7 @@ update_klm:
 	};
 
 	shampo->pi = (shampo->pi + new_entries) & (shampo->hd_per_wq - 1);
-	shampo->last_page = page;
+	shampo->curr_page_index = page_index;
 	shampo->last_addr = addr;
 	sq->pc += wqe_bbs;
 	sq->doorbell_cseg = &umr_wqe->ctrl;
@@ -648,7 +654,7 @@ err_unmap:
 		dma_info = &shampo->info[--index];
 		if (!(i & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1))) {
 			dma_info->addr = ALIGN_DOWN(dma_info->addr, PAGE_SIZE);
-			mlx5e_page_release_dynamic(rq, dma_info->page, true);
+			mlx5e_page_release_dynamic(rq, *dma_info->pagep, true);
 		}
 	}
 	rq->stats->buff_alloc_err++;
@@ -783,7 +789,7 @@ void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close
 {
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
 	int hd_per_wq = shampo->hd_per_wq;
-	struct page *deleted_page = NULL;
+	struct page **deleted_page = NULL;
 	struct mlx5e_dma_info *hd_info;
 	int i, index = start;
 
@@ -796,9 +802,9 @@ void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close
 
 		hd_info = &shampo->info[index];
 		hd_info->addr = ALIGN_DOWN(hd_info->addr, PAGE_SIZE);
-		if (hd_info->page != deleted_page) {
-			deleted_page = hd_info->page;
-			mlx5e_page_release_dynamic(rq, hd_info->page, false);
+		if (hd_info->pagep != deleted_page) {
+			deleted_page = hd_info->pagep;
+			mlx5e_page_release_dynamic(rq, *hd_info->pagep, false);
 		}
 	}
 
@@ -1137,7 +1143,7 @@ static void *mlx5e_shampo_get_packet_hd(struct mlx5e_rq *rq, u16 header_index)
 	struct mlx5e_dma_info *last_head = &rq->mpwqe.shampo->info[header_index];
 	u16 head_offset = (last_head->addr & (PAGE_SIZE - 1)) + rq->buff.headroom;
 
-	return page_address(last_head->page) + head_offset;
+	return page_address(*last_head->pagep) + head_offset;
 }
 
 static void mlx5e_shampo_update_ipv4_udp_hdr(struct mlx5e_rq *rq, struct iphdr *ipv4)
@@ -2048,7 +2054,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	void *hdr, *data;
 	u32 frag_size;
 
-	hdr		= page_address(head->page) + head_offset;
+	hdr		= page_address(*head->pagep) + head_offset;
 	data		= hdr + rx_headroom;
 	frag_size	= MLX5_SKB_FRAG_SZ(rx_headroom + head_size);
 
@@ -2063,7 +2069,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 			return NULL;
 
 		/* queue up for recycling/reuse */
-		page_ref_inc(head->page);
+		page_ref_inc(*head->pagep);
 
 	} else {
 		/* allocate SKB and copy header for large header */
@@ -2076,7 +2082,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 		}
 
 		prefetchw(skb->data);
-		mlx5e_copy_skb_header(rq, skb, head->page, head->addr,
+		mlx5e_copy_skb_header(rq, skb, *head->pagep, head->addr,
 				      head_offset + rx_headroom,
 				      rx_headroom, head_size);
 		/* skb linear part was allocated with headlen and aligned to long */
@@ -2127,8 +2133,10 @@ mlx5e_free_rx_shampo_hd_entry(struct mlx5e_rq *rq, u16 header_index)
 	u64 addr = shampo->info[header_index].addr;
 
 	if (((header_index + 1) & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) == 0) {
-		shampo->info[header_index].addr = ALIGN_DOWN(addr, PAGE_SIZE);
-		mlx5e_page_release_dynamic(rq, shampo->info[header_index].page, true);
+		struct mlx5e_dma_info *dma_info = &shampo->info[header_index];
+
+		dma_info->addr = ALIGN_DOWN(addr, PAGE_SIZE);
+		mlx5e_page_release_dynamic(rq, *dma_info->pagep, true);
 	}
 	bitmap_clear(shampo->bitmap, header_index, 1);
 }
