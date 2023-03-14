@@ -348,6 +348,7 @@ enum {
 	MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX, /* set when mini_cqe_resp_stride_index cap is used */
 	MLX5E_RQ_STATE_SHAMPO, /* set when SHAMPO cap is used */
 	MLX5E_RQ_STATE_MINI_CQE_ENHANCED,  /* set when enhanced mini_cqe_cap is used */
+	MLX5E_RQ_STATE_XSK, /* set to indicate an xsk rq */
 	MLX5E_NUM_RQ_STATES, /* Must be kept last */
 };
 
