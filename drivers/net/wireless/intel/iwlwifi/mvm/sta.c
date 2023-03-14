@@ -766,7 +766,25 @@ static int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id,
 	return -ENOSPC;
 }
 
+static int iwl_mvm_get_queue_size(struct ieee80211_sta *sta)
+{
+	/* this queue isn't used for traffic (cab_queue) */
+	if (!sta)
+		return IWL_MGMT_QUEUE_SIZE;
+
+	/* support for 1k ba size */
+	if (sta->deflink.eht_cap.has_eht)
+		return IWL_DEFAULT_QUEUE_SIZE_EHT;
+
+	/* support for 256 ba size */
+	if (sta->deflink.he_cap.has_he)
+		return IWL_DEFAULT_QUEUE_SIZE_HE;
+
+	return IWL_DEFAULT_QUEUE_SIZE;
+}
+
 static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
+				   struct ieee80211_sta *sta,
 				   u8 sta_id, u8 tid, unsigned int timeout)
 {
 	int queue, size;
@@ -776,22 +794,7 @@ static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
 			     mvm->trans->cfg->min_txq_size);
 	} else {
-		struct ieee80211_sta *sta;
-
-		rcu_read_lock();
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-
-		/* this queue isn't used for traffic (cab_queue) */
-		if (IS_ERR_OR_NULL(sta)) {
-			size = IWL_MGMT_QUEUE_SIZE;
-		} else if (sta->deflink.he_cap.has_he) {
-			/* support for 256 ba size */
-			size = IWL_DEFAULT_QUEUE_SIZE_HE;
-		} else {
-			size = IWL_DEFAULT_QUEUE_SIZE;
-		}
-
-		rcu_read_unlock();
+		size = iwl_mvm_get_queue_size(sta);
 	}
 
 	/* take the min with bc tbl entries allowed */
@@ -836,7 +839,8 @@ static int iwl_mvm_sta_alloc_queue_tvqm(struct iwl_mvm *mvm,
 	IWL_DEBUG_TX_QUEUES(mvm,
 			    "Allocating queue for sta %d on tid %d\n",
 			    mvmsta->sta_id, tid);
-	queue = iwl_mvm_tvqm_enable_txq(mvm, mvmsta->sta_id, tid, wdg_timeout);
+	queue = iwl_mvm_tvqm_enable_txq(mvm, sta, mvmsta->sta_id,
+					tid, wdg_timeout);
 	if (queue < 0)
 		return queue;
 
@@ -1537,7 +1541,8 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 			IWL_DEBUG_TX_QUEUES(mvm,
 					    "Re-mapping sta %d tid %d\n",
 					    mvm_sta->sta_id, i);
-			txq_id = iwl_mvm_tvqm_enable_txq(mvm, mvm_sta->sta_id,
+			txq_id = iwl_mvm_tvqm_enable_txq(mvm, sta,
+							 mvm_sta->sta_id,
 							 i, wdg);
 			/*
 			 * on failures, just set it to IWL_MVM_INVALID_QUEUE
@@ -2049,7 +2054,7 @@ static int iwl_mvm_enable_aux_snif_queue_tvqm(struct iwl_mvm *mvm, u8 sta_id)
 
 	WARN_ON(!iwl_mvm_has_new_tx_api(mvm));
 
-	return iwl_mvm_tvqm_enable_txq(mvm, sta_id, IWL_MAX_TID_COUNT,
+	return iwl_mvm_tvqm_enable_txq(mvm, NULL, sta_id, IWL_MAX_TID_COUNT,
 				       wdg_timeout);
 }
 
@@ -2233,7 +2238,7 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * to firmware so enable queue here - after the station was added
 	 */
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		queue = iwl_mvm_tvqm_enable_txq(mvm, bsta->sta_id,
+		queue = iwl_mvm_tvqm_enable_txq(mvm, NULL, bsta->sta_id,
 						IWL_MAX_TID_COUNT,
 						wdg_timeout);
 		if (queue < 0) {
@@ -2427,9 +2432,8 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * tfd_queue_mask.
 	 */
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		int queue = iwl_mvm_tvqm_enable_txq(mvm, msta->sta_id,
-						    0,
-						    timeout);
+		int queue = iwl_mvm_tvqm_enable_txq(mvm, NULL, msta->sta_id,
+						    0, timeout);
 		if (queue < 0) {
 			ret = queue;
 			goto err;
