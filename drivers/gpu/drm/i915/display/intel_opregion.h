@@ -86,6 +86,10 @@ static inline int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+static inline void intel_opregion_cleanup(struct drm_i915_private *i915)
+{
+}
+
 static inline void intel_opregion_register(struct drm_i915_private *dev_priv)
 {
 }
