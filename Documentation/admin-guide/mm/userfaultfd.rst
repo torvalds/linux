@@ -236,6 +236,14 @@ newer kernels, one can also detect the feature UFFD_FEATURE_WP_UNPOPULATED
 and set the feature bit in advance to make sure none ptes will also be
 write protected even upon anonymous memory.
 
+When using ``UFFDIO_REGISTER_MODE_WP`` in combination with either
+``UFFDIO_REGISTER_MODE_MISSING`` or ``UFFDIO_REGISTER_MODE_MINOR``, when
+resolving missing / minor faults with ``UFFDIO_COPY`` or ``UFFDIO_CONTINUE``
+respectively, it may be desirable for the new page / mapping to be
+write-protected (so future writes will also result in a WP fault). These ioctls
+support a mode flag (``UFFDIO_COPY_MODE_WP`` or ``UFFDIO_CONTINUE_MODE_WP``
+respectively) to configure the mapping this way.
+
 QEMU/KVM
 ========
 

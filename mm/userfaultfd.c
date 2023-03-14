@@ -693,10 +693,11 @@ ssize_t mfill_atomic_zeropage(struct mm_struct *dst_mm, unsigned long start,
 }
 
 ssize_t mfill_atomic_continue(struct mm_struct *dst_mm, unsigned long start,
-			      unsigned long len, atomic_t *mmap_changing)
+			      unsigned long len, atomic_t *mmap_changing,
+			      uffd_flags_t flags)
 {
 	return mfill_atomic(dst_mm, start, 0, len, mmap_changing,
-			    uffd_flags_set_mode(0, MFILL_ATOMIC_CONTINUE));
+			    uffd_flags_set_mode(flags, MFILL_ATOMIC_CONTINUE));
 }
 
 long uffd_wp_range(struct vm_area_struct *dst_vma,
