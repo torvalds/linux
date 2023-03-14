@@ -364,6 +364,7 @@ retry:
 				     &job->drm.s_fence->finished);
 
 	xe_sched_job_push(job);
+	xe_vm_reactivate_rebind(vm);
 
 err_repin:
 	if (!xe_vm_no_dma_fences(vm))

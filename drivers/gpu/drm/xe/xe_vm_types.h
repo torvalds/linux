@@ -294,6 +294,11 @@ struct xe_vm {
 		/** @num_engines: number user engines attached to this VM */
 		int num_engines;
 		/**
+		 * @rebind_deactivated: Whether rebind has been temporarily deactivated
+		 * due to no work available. Protected by the vm resv.
+		 */
+		bool rebind_deactivated;
+		/**
 		 * @rebind_work: worker to rebind invalidated userptrs / evicted
 		 * BOs
 		 */

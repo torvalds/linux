@@ -98,6 +98,23 @@ extern struct ttm_device_funcs xe_ttm_funcs;
 
 struct ttm_buffer_object *xe_vm_ttm_bo(struct xe_vm *vm);
 
+/**
+ * xe_vm_reactivate_rebind() - Reactivate the rebind functionality on compute
+ * vms.
+ * @vm: The vm.
+ *
+ * If the rebind functionality on a compute vm was disabled due
+ * to nothing to execute. Reactivate it and run the rebind worker.
+ * This function should be called after submitting a batch to a compute vm.
+ */
+static inline void xe_vm_reactivate_rebind(struct xe_vm *vm)
+{
+	if (xe_vm_in_compute_mode(vm) && vm->preempt.rebind_deactivated) {
+		vm->preempt.rebind_deactivated = false;
+		queue_work(system_unbound_wq, &vm->preempt.rebind_work);
+	}
+}
+
 static inline bool xe_vma_is_userptr(struct xe_vma *vma)
 {
 	return !vma->bo;

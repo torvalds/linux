@@ -226,6 +226,19 @@ static int wait_for_existing_preempt_fences(struct xe_vm *vm)
 	return 0;
 }
 
+static bool xe_vm_is_idle(struct xe_vm *vm)
+{
+	struct xe_engine *e;
+
+	xe_vm_assert_held(vm);
+	list_for_each_entry(e, &vm->preempt.engines, compute.link) {
+		if (!xe_engine_is_idle(e))
+			return false;
+	}
+
+	return true;
+}
+
 static void arm_preempt_fences(struct xe_vm *vm, struct list_head *list)
 {
 	struct list_head *link;
@@ -547,6 +560,11 @@ retry:
 				  false, vm->preempt.num_engines);
 	if (err)
 		goto out_unlock_outer;
+
+	if (xe_vm_is_idle(vm)) {
+		vm->preempt.rebind_deactivated = true;
+		goto out_unlock;
+	}
 
 	/* Fresh preempt fences already installed. Everyting is running. */
 	if (!preempt_fences_waiting(vm))
