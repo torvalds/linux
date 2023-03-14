@@ -187,6 +187,13 @@ static inline int sdw_intel_sync_go(struct sdw_intel *sdw)
 	return -ENOTSUPP;
 }
 
+static inline bool sdw_intel_sync_check_cmdsync_unlocked(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_check_cmdsync_unlocked))
+		return SDW_INTEL_OPS(sdw, sync_check_cmdsync_unlocked)(sdw);
+	return false;
+}
+
 /* common bus management */
 int intel_start_bus(struct sdw_intel *sdw);
 int intel_start_bus_after_reset(struct sdw_intel *sdw);

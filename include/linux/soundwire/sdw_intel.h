@@ -313,6 +313,8 @@ struct sdw_intel;
  * @sync_go_unlocked: helper for multi-link synchronization -
  * shim_lock is assumed to be locked at higher level
  * @sync_go: helper for multi-link synchronization
+ * @sync_check_cmdsync_unlocked: helper for multi-link synchronization
+ * and bank switch - shim_lock is assumed to be locked at higher level
  */
 struct sdw_intel_hw_ops {
 	void (*debugfs_init)(struct sdw_intel *sdw);
@@ -338,6 +340,7 @@ struct sdw_intel_hw_ops {
 	void (*sync_arm)(struct sdw_intel *sdw);
 	int (*sync_go_unlocked)(struct sdw_intel *sdw);
 	int (*sync_go)(struct sdw_intel *sdw);
+	bool (*sync_check_cmdsync_unlocked)(struct sdw_intel *sdw);
 };
 
 extern const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops;

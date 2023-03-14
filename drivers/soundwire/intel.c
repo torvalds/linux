@@ -325,6 +325,15 @@ static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
 	mutex_unlock(sdw->link_res->shim_lock);
 }
 
+static bool intel_check_cmdsync_unlocked(struct sdw_intel *sdw)
+{
+	void __iomem *shim = sdw->link_res->shim;
+	int sync_reg;
+
+	sync_reg = intel_readl(shim, SDW_SHIM_SYNC);
+	return !!(sync_reg & SDW_SHIM_SYNC_CMDSYNC_MASK);
+}
+
 static int intel_link_power_up(struct sdw_intel *sdw)
 {
 	unsigned int link_id = sdw->instance;
@@ -695,17 +704,13 @@ static int intel_post_bank_switch(struct sdw_intel *sdw)
 {
 	struct sdw_cdns *cdns = &sdw->cdns;
 	struct sdw_bus *bus = &cdns->bus;
-	void __iomem *shim = sdw->link_res->shim;
-	int sync_reg, ret;
+	int ret = 0;
 
 	/* Write to register only for multi-link */
 	if (!bus->multi_link)
 		return 0;
 
 	mutex_lock(sdw->link_res->shim_lock);
-
-	/* Read SYNC register */
-	sync_reg = intel_readl(shim, SDW_SHIM_SYNC);
 
 	/*
 	 * post_bank_switch() ops is called from the bus in loop for
@@ -715,13 +720,9 @@ static int intel_post_bank_switch(struct sdw_intel *sdw)
 	 *
 	 * So, set the SYNCGO bit only if CMDSYNC bit is set for any Master.
 	 */
-	if (!(sync_reg & SDW_SHIM_SYNC_CMDSYNC_MASK)) {
-		ret = 0;
-		goto unlock;
-	}
+	if (sdw_intel_sync_check_cmdsync_unlocked(sdw))
+		ret = sdw_intel_sync_go_unlocked(sdw);
 
-	ret = sdw_intel_sync_go_unlocked(sdw);
-unlock:
 	mutex_unlock(sdw->link_res->shim_lock);
 
 	if (ret < 0)
@@ -1147,6 +1148,7 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 	.sync_arm = intel_shim_sync_arm,
 	.sync_go_unlocked = intel_shim_sync_go_unlocked,
 	.sync_go = intel_shim_sync_go,
+	.sync_check_cmdsync_unlocked = intel_check_cmdsync_unlocked,
 };
 EXPORT_SYMBOL_NS(sdw_intel_cnl_hw_ops, SOUNDWIRE_INTEL);
 
