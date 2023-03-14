@@ -10,6 +10,11 @@
 #include "fs_context.h"
 #include "cifs_unicode.h"
 
+struct dfs_root_ses {
+	struct list_head list;
+	struct cifs_ses *ses;
+};
+
 int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_param *ref,
 			      struct smb3_fs_context *ctx);
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs);
@@ -42,6 +47,17 @@ static inline char *dfs_get_automount_devname(struct dentry *dentry, void *page)
 							server->origin_fullpath,
 							strlen(server->origin_fullpath),
 							true);
+}
+
+static inline void dfs_put_root_smb_sessions(struct list_head *head)
+{
+	struct dfs_root_ses *root, *tmp;
+
+	list_for_each_entry_safe(root, tmp, head, list) {
+		list_del_init(&root->list);
+		cifs_put_smb_ses(root->ses);
+		kfree(root);
+	}
 }
 
 #endif /* _CIFS_DFS_H */

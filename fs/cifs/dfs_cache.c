@@ -49,17 +49,6 @@ struct cache_entry {
 	struct cache_dfs_tgt *tgthint;
 };
 
-/* List of referral server sessions per dfs mount */
-struct mount_group {
-	struct list_head list;
-	uuid_t id;
-	struct cifs_ses *sessions[CACHE_MAX_ENTRIES];
-	int num_sessions;
-	spinlock_t lock;
-	struct list_head refresh_list;
-	struct kref refcount;
-};
-
 static struct kmem_cache *cache_slab __read_mostly;
 static struct workqueue_struct *dfscache_wq __read_mostly;
 
@@ -76,84 +65,9 @@ static atomic_t cache_count;
 static struct hlist_head cache_htable[CACHE_HTABLE_SIZE];
 static DECLARE_RWSEM(htable_rw_lock);
 
-static LIST_HEAD(mount_group_list);
-static DEFINE_MUTEX(mount_group_list_lock);
-
 static void refresh_cache_worker(struct work_struct *work);
 
 static DECLARE_DELAYED_WORK(refresh_task, refresh_cache_worker);
-
-static void __mount_group_release(struct mount_group *mg)
-{
-	int i;
-
-	for (i = 0; i < mg->num_sessions; i++)
-		cifs_put_smb_ses(mg->sessions[i]);
-	kfree(mg);
-}
-
-static void mount_group_release(struct kref *kref)
-{
-	struct mount_group *mg = container_of(kref, struct mount_group, refcount);
-
-	mutex_lock(&mount_group_list_lock);
-	list_del(&mg->list);
-	mutex_unlock(&mount_group_list_lock);
-	__mount_group_release(mg);
-}
-
-static struct mount_group *find_mount_group_locked(const uuid_t *id)
-{
-	struct mount_group *mg;
-
-	list_for_each_entry(mg, &mount_group_list, list) {
-		if (uuid_equal(&mg->id, id))
-			return mg;
-	}
-	return ERR_PTR(-ENOENT);
-}
-
-static struct mount_group *__get_mount_group_locked(const uuid_t *id)
-{
-	struct mount_group *mg;
-
-	mg = find_mount_group_locked(id);
-	if (!IS_ERR(mg))
-		return mg;
-
-	mg = kmalloc(sizeof(*mg), GFP_KERNEL);
-	if (!mg)
-		return ERR_PTR(-ENOMEM);
-	kref_init(&mg->refcount);
-	uuid_copy(&mg->id, id);
-	mg->num_sessions = 0;
-	spin_lock_init(&mg->lock);
-	list_add(&mg->list, &mount_group_list);
-	return mg;
-}
-
-static struct mount_group *get_mount_group(const uuid_t *id)
-{
-	struct mount_group *mg;
-
-	mutex_lock(&mount_group_list_lock);
-	mg = __get_mount_group_locked(id);
-	if (!IS_ERR(mg))
-		kref_get(&mg->refcount);
-	mutex_unlock(&mount_group_list_lock);
-
-	return mg;
-}
-
-static void free_mount_group_list(void)
-{
-	struct mount_group *mg, *tmp_mg;
-
-	list_for_each_entry_safe(mg, tmp_mg, &mount_group_list, list) {
-		list_del_init(&mg->list);
-		__mount_group_release(mg);
-	}
-}
 
 /**
  * dfs_cache_canonical_path - get a canonical DFS path
@@ -704,7 +618,6 @@ void dfs_cache_destroy(void)
 {
 	cancel_delayed_work_sync(&refresh_task);
 	unload_nls(cache_cp);
-	free_mount_group_list();
 	flush_cache_ents();
 	kmem_cache_destroy(cache_slab);
 	destroy_workqueue(dfscache_wq);
@@ -1111,54 +1024,6 @@ out_unlock:
 	return rc;
 }
 
-/**
- * dfs_cache_add_refsrv_session - add SMB session of referral server
- *
- * @mount_id: mount group uuid to lookup.
- * @ses: reference counted SMB session of referral server.
- */
-void dfs_cache_add_refsrv_session(const uuid_t *mount_id, struct cifs_ses *ses)
-{
-	struct mount_group *mg;
-
-	if (WARN_ON_ONCE(!mount_id || uuid_is_null(mount_id) || !ses))
-		return;
-
-	mg = get_mount_group(mount_id);
-	if (WARN_ON_ONCE(IS_ERR(mg)))
-		return;
-
-	spin_lock(&mg->lock);
-	if (mg->num_sessions < ARRAY_SIZE(mg->sessions))
-		mg->sessions[mg->num_sessions++] = ses;
-	spin_unlock(&mg->lock);
-	kref_put(&mg->refcount, mount_group_release);
-}
-
-/**
- * dfs_cache_put_refsrv_sessions - put all referral server sessions
- *
- * Put all SMB sessions from the given mount group id.
- *
- * @mount_id: mount group uuid to lookup.
- */
-void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id)
-{
-	struct mount_group *mg;
-
-	if (!mount_id || uuid_is_null(mount_id))
-		return;
-
-	mutex_lock(&mount_group_list_lock);
-	mg = find_mount_group_locked(mount_id);
-	if (IS_ERR(mg)) {
-		mutex_unlock(&mount_group_list_lock);
-		return;
-	}
-	mutex_unlock(&mount_group_list_lock);
-	kref_put(&mg->refcount, mount_group_release);
-}
-
 /* Extract share from DFS target and return a pointer to prefix path or NULL */
 static const char *parse_target_share(const char *target, char **share)
 {
@@ -1383,11 +1248,6 @@ int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb)
 	if (!server->origin_fullpath) {
 		cifs_dbg(FYI, "%s: not a dfs mount\n", __func__);
 		return 0;
-	}
-
-	if (uuid_is_null(&cifs_sb->dfs_mount_id)) {
-		cifs_dbg(FYI, "%s: no dfs mount group id\n", __func__);
-		return -EINVAL;
 	}
 	/*
 	 * After reconnecting to a different server, unique ids won't match anymore, so we disable
