@@ -1216,7 +1216,7 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&mvm->async_handlers_wk);
 }
 
-static struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm)
+struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm)
 {
 	u16 i;
 
@@ -1350,7 +1350,7 @@ static void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
 	iwl_mvm_post_channel_switch(hw, vif);
 }
 
-static void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk)
+void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk)
 {
 	struct iwl_mvm_vif *mvmvif;
 	struct ieee80211_vif *vif;
@@ -1384,12 +1384,17 @@ iwl_mvm_chandef_get_primary_80(struct cfg80211_chan_def *chandef)
 	return (control_start - data_start) / 80;
 }
 
-static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
+/*
+ * Returns true if addding the interface is done
+ * (either with success or failure)
+ */
+bool iwl_mvm_mac_add_interface_common(struct iwl_mvm *mvm,
+				      struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif, int *ret)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
 
 	mvmvif->mvm = mvm;
 	RCU_INIT_POINTER(mvmvif->probe_resp_data, NULL);
@@ -1400,17 +1405,15 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 * don't really have to check the types.
 	 */
 
-	mutex_lock(&mvm->mutex);
-
 	/* make sure that beacon statistics don't go backwards with FW reset */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		mvmvif->beacon_stats.accu_num_beacons +=
 			mvmvif->beacon_stats.num_beacons;
 
 	/* Allocate resources for the MAC context, and add it to the fw  */
-	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
-	if (ret)
-		goto out_unlock;
+	*ret = iwl_mvm_mac_ctxt_init(mvm, vif);
+	if (*ret)
+		return true;
 
 	rcu_assign_pointer(mvm->vif_id_to_mac[mvmvif->id], vif);
 
@@ -1427,27 +1430,48 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
-		ret = iwl_mvm_alloc_bcast_sta(mvm, vif);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to allocate bcast sta\n");
-			goto out_unlock;
-		}
-
-		/*
-		 * Only queue for this station is the mcast queue,
-		 * which shouldn't be in TFD mask anyway
-		 */
-		ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->mcast_sta,
-					       0, vif->type,
-					       IWL_STA_MULTICAST);
-		if (ret)
-			goto out_unlock;
-
 		iwl_mvm_vif_dbgfs_register(mvm, vif);
-		goto out_unlock;
+		return true;
 	}
 
 	mvmvif->features |= hw->netdev_features;
+	return false;
+}
+
+static int iwl_mvm_alloc_bcast_mcast_sta(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_alloc_bcast_sta(mvm, vif);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to allocate bcast sta\n");
+		return ret;
+	}
+
+	/*
+	 * Only queue for this station is the mcast queue,
+	 * which shouldn't be in TFD mask anyway
+	 */
+	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->mcast_sta, 0, vif->type,
+					IWL_STA_MULTICAST);
+}
+
+static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	/* Common for MLD and non-MLD API */
+	if (iwl_mvm_mac_add_interface_common(mvm, hw, vif, &ret))
+		goto out;
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 	if (ret)
@@ -1515,6 +1539,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		iwl_mei_set_netdev(ieee80211_vif_to_wdev(vif)->netdev);
 		mvm->csme_vif = vif;
 	}
+
+out:
+	if (!ret && (vif->type == NL80211_IFTYPE_AP ||
+		     vif->type == NL80211_IFTYPE_ADHOC))
+		ret = iwl_mvm_alloc_bcast_mcast_sta(mvm, vif);
 
 	goto out_unlock;
 

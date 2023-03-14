@@ -72,6 +72,7 @@
 #define IWL_MVM_OFFCHANNEL_QUEUE 0
 
 extern const struct ieee80211_ops iwl_mvm_hw_ops;
+extern const struct ieee80211_ops iwl_mvm_mld_hw_ops;
 
 /**
  * struct iwl_mvm_mod_params - module parameters for iwlmvm
@@ -1624,6 +1625,7 @@ void iwl_mvm_rx_shared_mem_cfg_notif(struct iwl_mvm *mvm,
 				     struct iwl_rx_cmd_buffer *rxb);
 
 /* MVM PHY */
+struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm);
 int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			 struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic);
@@ -1640,6 +1642,9 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef);
 
 /* MAC (virtual interface) programming */
 
+bool iwl_mvm_mac_add_interface_common(struct iwl_mvm *mvm,
+				      struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif, int *ret);
 void iwl_mvm_set_fw_basic_rates(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				__le32 *cck_rates, __le32 *ofdm_rates);
 void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
@@ -2157,6 +2162,9 @@ static inline u8 iwl_mvm_phy_band_from_nl80211(enum nl80211_band band)
 		return PHY_BAND_5;
 	}
 }
+
+/* Channel Switch */
+void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk);
 
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)
