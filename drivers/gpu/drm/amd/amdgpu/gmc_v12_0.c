@@ -686,7 +686,8 @@ static int gmc_v12_0_gart_init(struct amdgpu_device *adev)
 
 	adev->gart.table_size = adev->gart.num_gpu_pages * 8;
 	adev->gart.gart_pte_flags = AMDGPU_PTE_MTYPE_GFX12(MTYPE_UC) |
-				 AMDGPU_PTE_EXECUTABLE;
+				    AMDGPU_PTE_EXECUTABLE |
+				    AMDGPU_PTE_IS_PTE;
 
 	return amdgpu_gart_table_vram_alloc(adev);
 }
