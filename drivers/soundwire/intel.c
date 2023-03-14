@@ -686,7 +686,7 @@ static int intel_pre_bank_switch(struct sdw_intel *sdw)
 	if (!bus->multi_link)
 		return 0;
 
-	intel_shim_sync_arm(sdw);
+	sdw_intel_sync_arm(sdw);
 
 	return 0;
 }
@@ -720,7 +720,7 @@ static int intel_post_bank_switch(struct sdw_intel *sdw)
 		goto unlock;
 	}
 
-	ret = intel_shim_sync_go_unlocked(sdw);
+	ret = sdw_intel_sync_go_unlocked(sdw);
 unlock:
 	mutex_unlock(sdw->link_res->shim_lock);
 
@@ -1140,7 +1140,7 @@ static int intel_start_bus(struct sdw_intel *sdw)
 	 * gsync is enabled
 	 */
 	if (bus->multi_link)
-		intel_shim_sync_arm(sdw);
+		sdw_intel_sync_arm(sdw);
 
 	ret = sdw_cdns_init(cdns);
 	if (ret < 0) {
@@ -1155,7 +1155,7 @@ static int intel_start_bus(struct sdw_intel *sdw)
 	}
 
 	if (bus->multi_link) {
-		ret = intel_shim_sync_go(sdw);
+		ret = sdw_intel_sync_go(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: sync go failed: %d\n", __func__, ret);
 			goto err_interrupt;
@@ -1210,7 +1210,7 @@ static int intel_start_bus_after_reset(struct sdw_intel *sdw)
 		 * timeouts when gsync is enabled
 		 */
 		if (bus->multi_link)
-			intel_shim_sync_arm(sdw);
+			sdw_intel_sync_arm(sdw);
 
 		/*
 		 * Re-initialize the IP since it was powered-off
@@ -1239,7 +1239,7 @@ static int intel_start_bus_after_reset(struct sdw_intel *sdw)
 		}
 
 		if (bus->multi_link) {
-			ret = intel_shim_sync_go(sdw);
+			ret = sdw_intel_sync_go(sdw);
 			if (ret < 0) {
 				dev_err(sdw->cdns.dev, "sync go failed during resume\n");
 				goto err_interrupt;
@@ -1342,6 +1342,10 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 
 	.pre_bank_switch = intel_pre_bank_switch,
 	.post_bank_switch = intel_post_bank_switch,
+
+	.sync_arm = intel_shim_sync_arm,
+	.sync_go_unlocked = intel_shim_sync_go_unlocked,
+	.sync_go = intel_shim_sync_go,
 };
 EXPORT_SYMBOL_NS(sdw_intel_cnl_hw_ops, SOUNDWIRE_INTEL);
 

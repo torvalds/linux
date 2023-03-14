@@ -167,4 +167,24 @@ static inline void sdw_intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
 		SDW_INTEL_OPS(sdw, shim_wake)(sdw, wake_enable);
 }
 
+static inline void sdw_intel_sync_arm(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_arm))
+		SDW_INTEL_OPS(sdw, sync_arm)(sdw);
+}
+
+static inline int sdw_intel_sync_go_unlocked(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_go_unlocked))
+		return SDW_INTEL_OPS(sdw, sync_go_unlocked)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_sync_go(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, sync_go))
+		return SDW_INTEL_OPS(sdw, sync_go)(sdw);
+	return -ENOTSUPP;
+}
+
 #endif /* __SDW_INTEL_LOCAL_H */
