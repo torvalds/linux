@@ -201,4 +201,8 @@ void intel_check_clock_stop(struct sdw_intel *sdw);
 int intel_start_bus_after_clock_stop(struct sdw_intel *sdw);
 int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop);
 
+/* common bank switch routines */
+int intel_pre_bank_switch(struct sdw_intel *sdw);
+int intel_post_bank_switch(struct sdw_intel *sdw);
+
 #endif /* __SDW_INTEL_LOCAL_H */

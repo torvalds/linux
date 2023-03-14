@@ -208,3 +208,52 @@ int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 
 	return 0;
 }
+
+/*
+ * bank switch routines
+ */
+
+int intel_pre_bank_switch(struct sdw_intel *sdw)
+{
+	struct sdw_cdns *cdns = &sdw->cdns;
+	struct sdw_bus *bus = &cdns->bus;
+
+	/* Write to register only for multi-link */
+	if (!bus->multi_link)
+		return 0;
+
+	sdw_intel_sync_arm(sdw);
+
+	return 0;
+}
+
+int intel_post_bank_switch(struct sdw_intel *sdw)
+{
+	struct sdw_cdns *cdns = &sdw->cdns;
+	struct sdw_bus *bus = &cdns->bus;
+	int ret = 0;
+
+	/* Write to register only for multi-link */
+	if (!bus->multi_link)
+		return 0;
+
+	mutex_lock(sdw->link_res->shim_lock);
+
+	/*
+	 * post_bank_switch() ops is called from the bus in loop for
+	 * all the Masters in the steam with the expectation that
+	 * we trigger the bankswitch for the only first Master in the list
+	 * and do nothing for the other Masters
+	 *
+	 * So, set the SYNCGO bit only if CMDSYNC bit is set for any Master.
+	 */
+	if (sdw_intel_sync_check_cmdsync_unlocked(sdw))
+		ret = sdw_intel_sync_go_unlocked(sdw);
+
+	mutex_unlock(sdw->link_res->shim_lock);
+
+	if (ret < 0)
+		dev_err(sdw->cdns.dev, "Post bank switch failed: %d\n", ret);
+
+	return ret;
+}
