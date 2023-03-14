@@ -502,8 +502,11 @@ static int journal_keys_sort(struct bch_fs *c)
 	keys->size = roundup_pow_of_two(nr_keys);
 
 	keys->d = kvmalloc_array(keys->size, sizeof(keys->d[0]), GFP_KERNEL);
-	if (!keys->d)
+	if (!keys->d) {
+		bch_err(c, "Failed to allocate buffer for sorted journal keys (%zu keys)",
+			nr_keys);
 		return -BCH_ERR_ENOMEM_journal_keys_sort;
+	}
 
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
