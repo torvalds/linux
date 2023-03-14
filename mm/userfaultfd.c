@@ -58,7 +58,7 @@ struct vm_area_struct *find_dst_vma(struct mm_struct *dst_mm,
 int mfill_atomic_install_pte(pmd_t *dst_pmd,
 			     struct vm_area_struct *dst_vma,
 			     unsigned long dst_addr, struct page *page,
-			     bool newly_allocated, bool wp_copy)
+			     bool newly_allocated, uffd_flags_t flags)
 {
 	int ret;
 	struct mm_struct *dst_mm = dst_vma->vm_mm;
@@ -77,7 +77,7 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 		writable = false;
 	if (writable)
 		_dst_pte = pte_mkwrite(_dst_pte);
-	if (wp_copy)
+	if (flags & MFILL_ATOMIC_WP)
 		_dst_pte = pte_mkuffd_wp(_dst_pte);
 
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
@@ -132,8 +132,8 @@ static int mfill_atomic_pte_copy(pmd_t *dst_pmd,
 				 struct vm_area_struct *dst_vma,
 				 unsigned long dst_addr,
 				 unsigned long src_addr,
-				 struct page **pagep,
-				 bool wp_copy)
+				 uffd_flags_t flags,
+				 struct page **pagep)
 {
 	void *page_kaddr;
 	int ret;
@@ -194,7 +194,7 @@ static int mfill_atomic_pte_copy(pmd_t *dst_pmd,
 		goto out_release;
 
 	ret = mfill_atomic_install_pte(dst_pmd, dst_vma, dst_addr,
-				       page, true, wp_copy);
+				       page, true, flags);
 	if (ret)
 		goto out_release;
 out:
@@ -242,7 +242,7 @@ out_unlock:
 static int mfill_atomic_pte_continue(pmd_t *dst_pmd,
 				     struct vm_area_struct *dst_vma,
 				     unsigned long dst_addr,
-				     bool wp_copy)
+				     uffd_flags_t flags)
 {
 	struct inode *inode = file_inode(dst_vma->vm_file);
 	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
@@ -268,7 +268,7 @@ static int mfill_atomic_pte_continue(pmd_t *dst_pmd,
 	}
 
 	ret = mfill_atomic_install_pte(dst_pmd, dst_vma, dst_addr,
-				       page, false, wp_copy);
+				       page, false, flags);
 	if (ret)
 		goto out_release;
 
@@ -313,8 +313,7 @@ static __always_inline ssize_t mfill_atomic_hugetlb(
 					      unsigned long dst_start,
 					      unsigned long src_start,
 					      unsigned long len,
-					      enum mcopy_atomic_mode mode,
-					      bool wp_copy)
+					      uffd_flags_t flags)
 {
 	struct mm_struct *dst_mm = dst_vma->vm_mm;
 	int vm_shared = dst_vma->vm_flags & VM_SHARED;
@@ -334,7 +333,7 @@ static __always_inline ssize_t mfill_atomic_hugetlb(
 	 * by THP.  Since we can not reliably insert a zero page, this
 	 * feature is not supported.
 	 */
-	if (mode == MCOPY_ATOMIC_ZEROPAGE) {
+	if (uffd_flags_mode_is(flags, MFILL_ATOMIC_ZEROPAGE)) {
 		mmap_read_unlock(dst_mm);
 		return -EINVAL;
 	}
@@ -402,7 +401,7 @@ retry:
 			goto out_unlock;
 		}
 
-		if (mode != MCOPY_ATOMIC_CONTINUE &&
+		if (!uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE) &&
 		    !huge_pte_none_mostly(huge_ptep_get(dst_pte))) {
 			err = -EEXIST;
 			hugetlb_vma_unlock_read(dst_vma);
@@ -410,9 +409,8 @@ retry:
 			goto out_unlock;
 		}
 
-		err = hugetlb_mfill_atomic_pte(dst_pte, dst_vma,
-					       dst_addr, src_addr, mode, &page,
-					       wp_copy);
+		err = hugetlb_mfill_atomic_pte(dst_pte, dst_vma, dst_addr,
+					       src_addr, flags, &page);
 
 		hugetlb_vma_unlock_read(dst_vma);
 		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
@@ -466,23 +464,21 @@ extern ssize_t mfill_atomic_hugetlb(struct vm_area_struct *dst_vma,
 				    unsigned long dst_start,
 				    unsigned long src_start,
 				    unsigned long len,
-				    enum mcopy_atomic_mode mode,
-				    bool wp_copy);
+				    uffd_flags_t flags);
 #endif /* CONFIG_HUGETLB_PAGE */
 
 static __always_inline ssize_t mfill_atomic_pte(pmd_t *dst_pmd,
 						struct vm_area_struct *dst_vma,
 						unsigned long dst_addr,
 						unsigned long src_addr,
-						struct page **page,
-						enum mcopy_atomic_mode mode,
-						bool wp_copy)
+						uffd_flags_t flags,
+						struct page **pagep)
 {
 	ssize_t err;
 
-	if (mode == MCOPY_ATOMIC_CONTINUE) {
+	if (uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE)) {
 		return mfill_atomic_pte_continue(dst_pmd, dst_vma,
-						 dst_addr, wp_copy);
+						 dst_addr, flags);
 	}
 
 	/*
@@ -496,18 +492,17 @@ static __always_inline ssize_t mfill_atomic_pte(pmd_t *dst_pmd,
 	 * and not in the radix tree.
 	 */
 	if (!(dst_vma->vm_flags & VM_SHARED)) {
-		if (mode == MCOPY_ATOMIC_NORMAL)
+		if (uffd_flags_mode_is(flags, MFILL_ATOMIC_COPY))
 			err = mfill_atomic_pte_copy(dst_pmd, dst_vma,
-						    dst_addr, src_addr, page,
-						    wp_copy);
+						    dst_addr, src_addr,
+						    flags, pagep);
 		else
 			err = mfill_atomic_pte_zeropage(dst_pmd,
 						 dst_vma, dst_addr);
 	} else {
 		err = shmem_mfill_atomic_pte(dst_pmd, dst_vma,
 					     dst_addr, src_addr,
-					     mode != MCOPY_ATOMIC_NORMAL,
-					     wp_copy, page);
+					     flags, pagep);
 	}
 
 	return err;
@@ -517,9 +512,8 @@ static __always_inline ssize_t mfill_atomic(struct mm_struct *dst_mm,
 					    unsigned long dst_start,
 					    unsigned long src_start,
 					    unsigned long len,
-					    enum mcopy_atomic_mode mcopy_mode,
 					    atomic_t *mmap_changing,
-					    __u64 mode)
+					    uffd_flags_t flags)
 {
 	struct vm_area_struct *dst_vma;
 	ssize_t err;
@@ -527,7 +521,6 @@ static __always_inline ssize_t mfill_atomic(struct mm_struct *dst_mm,
 	unsigned long src_addr, dst_addr;
 	long copied;
 	struct page *page;
-	bool wp_copy;
 
 	/*
 	 * Sanitize the command parameters:
@@ -577,8 +570,7 @@ retry:
 	 * validate 'mode' now that we know the dst_vma: don't allow
 	 * a wrprotect copy if the userfaultfd didn't register as WP.
 	 */
-	wp_copy = mode & UFFDIO_COPY_MODE_WP;
-	if (wp_copy && !(dst_vma->vm_flags & VM_UFFD_WP))
+	if ((flags & MFILL_ATOMIC_WP) && !(dst_vma->vm_flags & VM_UFFD_WP))
 		goto out_unlock;
 
 	/*
@@ -586,12 +578,12 @@ retry:
 	 */
 	if (is_vm_hugetlb_page(dst_vma))
 		return  mfill_atomic_hugetlb(dst_vma, dst_start,
-					     src_start, len, mcopy_mode,
-					     wp_copy);
+					     src_start, len, flags);
 
 	if (!vma_is_anonymous(dst_vma) && !vma_is_shmem(dst_vma))
 		goto out_unlock;
-	if (!vma_is_shmem(dst_vma) && mcopy_mode == MCOPY_ATOMIC_CONTINUE)
+	if (!vma_is_shmem(dst_vma) &&
+	    uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE))
 		goto out_unlock;
 
 	/*
@@ -639,7 +631,7 @@ retry:
 		BUG_ON(pmd_trans_huge(*dst_pmd));
 
 		err = mfill_atomic_pte(dst_pmd, dst_vma, dst_addr,
-				       src_addr, &page, mcopy_mode, wp_copy);
+				       src_addr, flags, &page);
 		cond_resched();
 
 		if (unlikely(err == -ENOENT)) {
@@ -687,24 +679,24 @@ out:
 
 ssize_t mfill_atomic_copy(struct mm_struct *dst_mm, unsigned long dst_start,
 			  unsigned long src_start, unsigned long len,
-			  atomic_t *mmap_changing, __u64 mode)
+			  atomic_t *mmap_changing, uffd_flags_t flags)
 {
-	return mfill_atomic(dst_mm, dst_start, src_start, len,
-			    MCOPY_ATOMIC_NORMAL, mmap_changing, mode);
+	return mfill_atomic(dst_mm, dst_start, src_start, len, mmap_changing,
+			    uffd_flags_set_mode(flags, MFILL_ATOMIC_COPY));
 }
 
 ssize_t mfill_atomic_zeropage(struct mm_struct *dst_mm, unsigned long start,
 			      unsigned long len, atomic_t *mmap_changing)
 {
-	return mfill_atomic(dst_mm, start, 0, len, MCOPY_ATOMIC_ZEROPAGE,
-			    mmap_changing, 0);
+	return mfill_atomic(dst_mm, start, 0, len, mmap_changing,
+			    uffd_flags_set_mode(0, MFILL_ATOMIC_ZEROPAGE));
 }
 
 ssize_t mfill_atomic_continue(struct mm_struct *dst_mm, unsigned long start,
 			      unsigned long len, atomic_t *mmap_changing)
 {
-	return mfill_atomic(dst_mm, start, 0, len, MCOPY_ATOMIC_CONTINUE,
-			    mmap_changing, 0);
+	return mfill_atomic(dst_mm, start, 0, len, mmap_changing,
+			    uffd_flags_set_mode(0, MFILL_ATOMIC_CONTINUE));
 }
 
 long uffd_wp_range(struct vm_area_struct *dst_vma,

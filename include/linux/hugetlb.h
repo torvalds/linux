@@ -162,9 +162,8 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 			     struct vm_area_struct *dst_vma,
 			     unsigned long dst_addr,
 			     unsigned long src_addr,
-			     enum mcopy_atomic_mode mode,
-			     struct page **pagep,
-			     bool wp_copy);
+			     uffd_flags_t flags,
+			     struct page **pagep);
 #endif /* CONFIG_USERFAULTFD */
 bool hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						struct vm_area_struct *vma,
@@ -397,9 +396,8 @@ static inline int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 					   struct vm_area_struct *dst_vma,
 					   unsigned long dst_addr,
 					   unsigned long src_addr,
-					   enum mcopy_atomic_mode mode,
-					   struct page **pagep,
-					   bool wp_copy)
+					   uffd_flags_t flags,
+					   struct page **pagep)
 {
 	BUG();
 	return 0;

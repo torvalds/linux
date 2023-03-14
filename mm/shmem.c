@@ -76,7 +76,6 @@ static struct vfsmount *shm_mnt;
 #include <linux/syscalls.h>
 #include <linux/fcntl.h>
 #include <uapi/linux/memfd.h>
-#include <linux/userfaultfd_k.h>
 #include <linux/rmap.h>
 #include <linux/uuid.h>
 
@@ -2433,7 +2432,7 @@ int shmem_mfill_atomic_pte(pmd_t *dst_pmd,
 			   struct vm_area_struct *dst_vma,
 			   unsigned long dst_addr,
 			   unsigned long src_addr,
-			   bool zeropage, bool wp_copy,
+			   uffd_flags_t flags,
 			   struct page **pagep)
 {
 	struct inode *inode = file_inode(dst_vma->vm_file);
@@ -2465,7 +2464,7 @@ int shmem_mfill_atomic_pte(pmd_t *dst_pmd,
 		if (!folio)
 			goto out_unacct_blocks;
 
-		if (!zeropage) {	/* COPY */
+		if (uffd_flags_mode_is(flags, MFILL_ATOMIC_COPY)) {
 			page_kaddr = kmap_local_folio(folio, 0);
 			/*
 			 * The read mmap_lock is held here.  Despite the
@@ -2524,7 +2523,7 @@ int shmem_mfill_atomic_pte(pmd_t *dst_pmd,
 		goto out_release;
 
 	ret = mfill_atomic_install_pte(dst_pmd, dst_vma, dst_addr,
-				       &folio->page, true, wp_copy);
+				       &folio->page, true, flags);
 	if (ret)
 		goto out_delete_from_cache;
 

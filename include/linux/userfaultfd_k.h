@@ -40,30 +40,44 @@ extern int sysctl_unprivileged_userfaultfd;
 
 extern vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason);
 
-/*
- * The mode of operation for __mcopy_atomic and its helpers.
- *
- * This is almost an implementation detail (mcopy_atomic below doesn't take this
- * as a parameter), but it's exposed here because memory-kind-specific
- * implementations (e.g. hugetlbfs) need to know the mode of operation.
- */
-enum mcopy_atomic_mode {
-	/* A normal copy_from_user into the destination range. */
-	MCOPY_ATOMIC_NORMAL,
-	/* Don't copy; map the destination range to the zero page. */
-	MCOPY_ATOMIC_ZEROPAGE,
-	/* Just install pte(s) with the existing page(s) in the page cache. */
-	MCOPY_ATOMIC_CONTINUE,
+/* A combined operation mode + behavior flags. */
+typedef unsigned int __bitwise uffd_flags_t;
+
+/* Mutually exclusive modes of operation. */
+enum mfill_atomic_mode {
+	MFILL_ATOMIC_COPY,
+	MFILL_ATOMIC_ZEROPAGE,
+	MFILL_ATOMIC_CONTINUE,
+	NR_MFILL_ATOMIC_MODES,
 };
+
+#define MFILL_ATOMIC_MODE_BITS (const_ilog2(NR_MFILL_ATOMIC_MODES - 1) + 1)
+#define MFILL_ATOMIC_BIT(nr) BIT(MFILL_ATOMIC_MODE_BITS + (nr))
+#define MFILL_ATOMIC_FLAG(nr) ((__force uffd_flags_t) MFILL_ATOMIC_BIT(nr))
+#define MFILL_ATOMIC_MODE_MASK ((__force uffd_flags_t) (MFILL_ATOMIC_BIT(0) - 1))
+
+static inline bool uffd_flags_mode_is(uffd_flags_t flags, enum mfill_atomic_mode expected)
+{
+	return (flags & MFILL_ATOMIC_MODE_MASK) == ((__force uffd_flags_t) expected);
+}
+
+static inline uffd_flags_t uffd_flags_set_mode(uffd_flags_t flags, enum mfill_atomic_mode mode)
+{
+	flags &= ~MFILL_ATOMIC_MODE_MASK;
+	return flags | ((__force uffd_flags_t) mode);
+}
+
+/* Flags controlling behavior. These behavior changes are mode-independent. */
+#define MFILL_ATOMIC_WP MFILL_ATOMIC_FLAG(0)
 
 extern int mfill_atomic_install_pte(pmd_t *dst_pmd,
 				    struct vm_area_struct *dst_vma,
 				    unsigned long dst_addr, struct page *page,
-				    bool newly_allocated, bool wp_copy);
+				    bool newly_allocated, uffd_flags_t flags);
 
 extern ssize_t mfill_atomic_copy(struct mm_struct *dst_mm, unsigned long dst_start,
 				 unsigned long src_start, unsigned long len,
-				 atomic_t *mmap_changing, __u64 mode);
+				 atomic_t *mmap_changing, uffd_flags_t flags);
 extern ssize_t mfill_atomic_zeropage(struct mm_struct *dst_mm,
 				     unsigned long dst_start,
 				     unsigned long len,
