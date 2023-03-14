@@ -94,24 +94,23 @@ bool is_post_ct_flow(struct flow_cls_offload *flow)
 	struct flow_match_ct ct;
 	int i;
 
-	/* post ct entry cannot contains any ct action except ct_clear. */
-	flow_action_for_each(i, act, &flow->rule->action) {
-		if (act->id == FLOW_ACTION_CT) {
-			/* ignore ct clear action. */
-			if (act->ct.action == TCA_CT_ACT_CLEAR) {
-				exist_ct_clear = true;
-				continue;
-			}
-
-			return false;
-		}
-	}
-
 	if (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT)) {
 		flow_rule_match_ct(rule, &ct);
 		if (ct.key->ct_state & TCA_FLOWER_KEY_CT_FLAGS_ESTABLISHED)
 			return true;
 	} else {
+		/* post ct entry cannot contains any ct action except ct_clear. */
+		flow_action_for_each(i, act, &flow->rule->action) {
+			if (act->id == FLOW_ACTION_CT) {
+				/* ignore ct clear action. */
+				if (act->ct.action == TCA_CT_ACT_CLEAR) {
+					exist_ct_clear = true;
+					continue;
+				}
+
+				return false;
+			}
+		}
 		/* when do nat with ct, the post ct entry ignore the ct status,
 		 * will match the nat field(sip/dip) instead. In this situation,
 		 * the flow chain index is not zero and contains ct clear action.
