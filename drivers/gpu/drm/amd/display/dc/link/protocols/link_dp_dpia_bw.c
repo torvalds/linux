@@ -137,8 +137,9 @@ static uint8_t get_lowest_dpia_index(struct dc_link *link)
 {
 	const struct dc *dc_struct = link->dc;
 	uint8_t idx = 0xFF;
+	int i;
 
-	for (int i = 0; i < MAX_PIPES * 2; ++i) {
+	for (i = 0; i < MAX_PIPES * 2; ++i) {
 
 		if (!dc_struct->links[i] ||
 				dc_struct->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
@@ -165,8 +166,9 @@ static int get_host_router_total_bw(struct dc_link *link, uint8_t type)
 	uint8_t idx = (link->link_index - lowest_dpia_index) / 2, idx_temp = 0;
 	struct dc_link *link_temp;
 	int total_bw = 0;
+	int i;
 
-	for (int i = 0; i < MAX_PIPES * 2; ++i) {
+	for (i = 0; i < MAX_PIPES * 2; ++i) {
 
 		if (!dc_struct->links[i] || dc_struct->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
 			continue;
@@ -467,12 +469,13 @@ bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed_per_dpia, uint8
 	bool ret = true;
 	int bw_needed_per_hr[MAX_HR_NUM] = { 0, 0 };
 	uint8_t lowest_dpia_index = 0, dpia_index = 0;
+	uint8_t i;
 
 	if (!num_dpias || num_dpias > MAX_DPIA_NUM)
 		return ret;
 
 	//Get total Host Router BW & Validate against each Host Router max BW
-	for (uint8_t i = 0; i < num_dpias; ++i) {
+	for (i = 0; i < num_dpias; ++i) {
 
 		if (!link[i]->dpia_bw_alloc_config.bw_alloc_enabled)
 			continue;

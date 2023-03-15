@@ -325,6 +325,7 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
 	int ret;
+	int i;
 
 	/* Store one-time values in driver PPTable */
 	if (!pptable->Init) {
@@ -339,7 +340,7 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 		pptable->MinGfxclkFrequency =
 			SMUQ10_TO_UINT(metrics->MinGfxclkFrequency);
 
-		for (int i = 0; i < 4; ++i) {
+		for (i = 0; i < 4; ++i) {
 			pptable->FclkFrequencyTable[i] =
 				SMUQ10_TO_UINT(metrics->FclkFrequencyTable[i]);
 			pptable->UclkFrequencyTable[i] =
@@ -466,7 +467,7 @@ static int smu_v13_0_6_set_default_dpm_table(struct smu_context *smu)
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
 	uint32_t gfxclkmin, gfxclkmax, levels;
-	int ret = 0, i;
+	int ret = 0, i, j;
 	struct smu_v13_0_6_dpm_map dpm_map[] = {
 		{ SMU_SOCCLK, SMU_FEATURE_DPM_SOCCLK_BIT,
 		  &dpm_context->dpm_tables.soc_table,
@@ -513,7 +514,7 @@ static int smu_v13_0_6_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
-	for (int j = 0; j < ARRAY_SIZE(dpm_map); j++) {
+	for (j = 0; j < ARRAY_SIZE(dpm_map); j++) {
 		dpm_table = dpm_map[j].dpm_table;
 		levels = 1;
 		if (smu_cmn_feature_is_enabled(smu, dpm_map[j].feature_num)) {
