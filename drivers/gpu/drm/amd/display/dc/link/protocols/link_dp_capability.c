@@ -447,8 +447,12 @@ static enum dc_lane_count reduce_lane_count(enum dc_lane_count lane_count)
 	}
 }
 
-static enum dc_link_rate reduce_link_rate(enum dc_link_rate link_rate)
+static enum dc_link_rate reduce_link_rate(const struct dc_link *link, enum dc_link_rate link_rate)
 {
+	// NEEDSWORK: provide some details about why this function never returns some of the
+	// obscure link rates such as 4.32 Gbps or 3.24 Gbps and if such behavior is intended.
+	//
+
 	switch (link_rate) {
 	case LINK_RATE_UHBR20:
 		return LINK_RATE_UHBR13_5;
@@ -457,13 +461,22 @@ static enum dc_link_rate reduce_link_rate(enum dc_link_rate link_rate)
 	case LINK_RATE_UHBR10:
 		return LINK_RATE_HIGH3;
 	case LINK_RATE_HIGH3:
+		if (link->connector_signal == SIGNAL_TYPE_EDP && link->dc->debug.support_eDP1_5)
+			return LINK_RATE_RATE_8;
+		return LINK_RATE_HIGH2;
+	case LINK_RATE_RATE_8:
 		return LINK_RATE_HIGH2;
 	case LINK_RATE_HIGH2:
 		return LINK_RATE_HIGH;
+	case LINK_RATE_RATE_6:
+	case LINK_RATE_RBR2:
+		return LINK_RATE_HIGH;
 	case LINK_RATE_HIGH:
 		return LINK_RATE_LOW;
+	case LINK_RATE_RATE_3:
+	case LINK_RATE_RATE_2:
+		return LINK_RATE_LOW;
 	case LINK_RATE_LOW:
-		return LINK_RATE_UNKNOWN;
 	default:
 		return LINK_RATE_UNKNOWN;
 	}
@@ -586,7 +599,7 @@ bool decide_fallback_link_setting(
 	case LINK_TRAINING_LQA_FAIL:
 	{
 		if (!reached_minimum_link_rate(cur->link_rate)) {
-			cur->link_rate = reduce_link_rate(cur->link_rate);
+			cur->link_rate = reduce_link_rate(link, cur->link_rate);
 		} else if (!reached_minimum_lane_count(cur->lane_count)) {
 			cur->link_rate = max->link_rate;
 			if (training_result == LINK_TRAINING_CR_FAIL_LANE0)
@@ -608,7 +621,7 @@ bool decide_fallback_link_setting(
 		if (!reached_minimum_lane_count(cur->lane_count)) {
 			cur->lane_count = reduce_lane_count(cur->lane_count);
 		} else if (!reached_minimum_link_rate(cur->link_rate)) {
-			cur->link_rate = reduce_link_rate(cur->link_rate);
+			cur->link_rate = reduce_link_rate(link, cur->link_rate);
 			/* Reduce max link rate to avoid potential infinite loop.
 			 * Needed so that any subsequent CR_FAIL fallback can't
 			 * re-set the link rate higher than the link rate from
@@ -624,7 +637,7 @@ bool decide_fallback_link_setting(
 	case LINK_TRAINING_EQ_FAIL_CR:
 	{
 		if (!reached_minimum_link_rate(cur->link_rate)) {
-			cur->link_rate = reduce_link_rate(cur->link_rate);
+			cur->link_rate = reduce_link_rate(link, cur->link_rate);
 			/* Reduce max link rate to avoid potential infinite loop.
 			 * Needed so that any subsequent CR_FAIL fallback can't
 			 * re-set the link rate higher than the link rate from
