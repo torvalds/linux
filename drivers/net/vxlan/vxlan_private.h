@@ -235,6 +235,12 @@ int vxlan_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
 		  struct netlink_ext_ack *extack);
 int vxlan_mdb_del(struct net_device *dev, struct nlattr *tb[],
 		  struct netlink_ext_ack *extack);
+struct vxlan_mdb_entry *vxlan_mdb_entry_skb_get(struct vxlan_dev *vxlan,
+						struct sk_buff *skb,
+						__be32 src_vni);
+netdev_tx_t vxlan_mdb_xmit(struct vxlan_dev *vxlan,
+			   const struct vxlan_mdb_entry *mdb_entry,
+			   struct sk_buff *skb);
 int vxlan_mdb_init(struct vxlan_dev *vxlan);
 void vxlan_mdb_fini(struct vxlan_dev *vxlan);
 #endif

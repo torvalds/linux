@@ -1298,6 +1298,120 @@ int vxlan_mdb_del(struct net_device *dev, struct nlattr *tb[],
 	return err;
 }
 
+struct vxlan_mdb_entry *vxlan_mdb_entry_skb_get(struct vxlan_dev *vxlan,
+						struct sk_buff *skb,
+						__be32 src_vni)
+{
+	struct vxlan_mdb_entry *mdb_entry;
+	struct vxlan_mdb_entry_key group;
+
+	if (!is_multicast_ether_addr(eth_hdr(skb)->h_dest) ||
+	    is_broadcast_ether_addr(eth_hdr(skb)->h_dest))
+		return NULL;
+
+	/* When not in collect metadata mode, 'src_vni' is zero, but MDB
+	 * entries are stored with the VNI of the VXLAN device.
+	 */
+	if (!(vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA))
+		src_vni = vxlan->default_dst.remote_vni;
+
+	memset(&group, 0, sizeof(group));
+	group.vni = src_vni;
+
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+			return NULL;
+		group.dst.sa.sa_family = AF_INET;
+		group.dst.sin.sin_addr.s_addr = ip_hdr(skb)->daddr;
+		group.src.sa.sa_family = AF_INET;
+		group.src.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+		if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+			return NULL;
+		group.dst.sa.sa_family = AF_INET6;
+		group.dst.sin6.sin6_addr = ipv6_hdr(skb)->daddr;
+		group.src.sa.sa_family = AF_INET6;
+		group.src.sin6.sin6_addr = ipv6_hdr(skb)->saddr;
+		break;
+#endif
+	default:
+		return NULL;
+	}
+
+	mdb_entry = vxlan_mdb_entry_lookup(vxlan, &group);
+	if (mdb_entry)
+		return mdb_entry;
+
+	memset(&group.src, 0, sizeof(group.src));
+	mdb_entry = vxlan_mdb_entry_lookup(vxlan, &group);
+	if (mdb_entry)
+		return mdb_entry;
+
+	/* No (S, G) or (*, G) found. Look up the all-zeros entry, but only if
+	 * the destination IP address is not link-local multicast since we want
+	 * to transmit such traffic together with broadcast and unknown unicast
+	 * traffic.
+	 */
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		if (ipv4_is_local_multicast(group.dst.sin.sin_addr.s_addr))
+			return NULL;
+		group.dst.sin.sin_addr.s_addr = 0;
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+		if (ipv6_addr_type(&group.dst.sin6.sin6_addr) &
+		    IPV6_ADDR_LINKLOCAL)
+			return NULL;
+		memset(&group.dst.sin6.sin6_addr, 0,
+		       sizeof(group.dst.sin6.sin6_addr));
+		break;
+#endif
+	default:
+		return NULL;
+	}
+
+	return vxlan_mdb_entry_lookup(vxlan, &group);
+}
+
+netdev_tx_t vxlan_mdb_xmit(struct vxlan_dev *vxlan,
+			   const struct vxlan_mdb_entry *mdb_entry,
+			   struct sk_buff *skb)
+{
+	struct vxlan_mdb_remote *remote, *fremote = NULL;
+	__be32 src_vni = mdb_entry->key.vni;
+
+	list_for_each_entry_rcu(remote, &mdb_entry->remotes, list) {
+		struct sk_buff *skb1;
+
+		if ((vxlan_mdb_is_star_g(&mdb_entry->key) &&
+		     READ_ONCE(remote->filter_mode) == MCAST_INCLUDE) ||
+		    (READ_ONCE(remote->flags) & VXLAN_MDB_REMOTE_F_BLOCKED))
+			continue;
+
+		if (!fremote) {
+			fremote = remote;
+			continue;
+		}
+
+		skb1 = skb_clone(skb, GFP_ATOMIC);
+		if (skb1)
+			vxlan_xmit_one(skb1, vxlan->dev, src_vni,
+				       rcu_dereference(remote->rd), false);
+	}
+
+	if (fremote)
+		vxlan_xmit_one(skb, vxlan->dev, src_vni,
+			       rcu_dereference(fremote->rd), false);
+	else
+		kfree_skb(skb);
+
+	return NETDEV_TX_OK;
+}
+
 static void vxlan_mdb_check_empty(void *ptr, void *arg)
 {
 	WARN_ON_ONCE(1);
