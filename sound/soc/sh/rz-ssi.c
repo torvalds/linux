@@ -1075,7 +1075,7 @@ err_reset:
 	return ret;
 }
 
-static int rz_ssi_remove(struct platform_device *pdev)
+static void rz_ssi_remove(struct platform_device *pdev)
 {
 	struct rz_ssi_priv *ssi = dev_get_drvdata(&pdev->dev);
 
@@ -1084,8 +1084,6 @@ static int rz_ssi_remove(struct platform_device *pdev)
 	pm_runtime_put(ssi->dev);
 	pm_runtime_disable(ssi->dev);
 	reset_control_assert(ssi->rstc);
-
-	return 0;
 }
 
 static const struct of_device_id rz_ssi_of_match[] = {
@@ -1100,7 +1098,7 @@ static struct platform_driver rz_ssi_driver = {
 		.of_match_table = rz_ssi_of_match,
 	},
 	.probe		= rz_ssi_probe,
-	.remove		= rz_ssi_remove,
+	.remove_new	= rz_ssi_remove,
 };
 
 module_platform_driver(rz_ssi_driver);
