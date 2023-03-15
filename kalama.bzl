@@ -1,5 +1,6 @@
 load(":target_variants.bzl", "la_variants")
 load(":msm_kernel_la.bzl", "define_msm_la")
+load(":image_opts.bzl", "boot_image_opts")
 
 target_name = "kalama"
 
@@ -105,4 +106,13 @@ def define_kalama():
             msm_target = target_name,
             variant = variant,
             in_tree_module_list = mod_list,
+            boot_image_opts = boot_image_opts(
+                earlycon_addr = "qcom_geni,0x00a9C000",
+                kernel_vendor_cmdline_extras = [
+                    # do not sort
+                    "console=ttyMSM0,115200n8",
+                    "qcom_geni_serial.con_enabled=1",
+                    "bootconfig",
+                ],
+            ),
         )
