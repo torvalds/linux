@@ -1441,7 +1441,10 @@ static int rswitch_open(struct net_device *ndev)
 	rswitch_enadis_data_irq(rdev->priv, rdev->tx_queue->index, true);
 	rswitch_enadis_data_irq(rdev->priv, rdev->rx_queue->index, true);
 
-	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDIE);
+	if (bitmap_empty(rdev->priv->opened_ports, RSWITCH_NUM_PORTS))
+		iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDIE);
+
+	bitmap_set(rdev->priv->opened_ports, rdev->port, 1);
 
 	return 0;
 };
@@ -1452,8 +1455,10 @@ static int rswitch_stop(struct net_device *ndev)
 	struct rswitch_gwca_ts_info *ts_info, *ts_info2;
 
 	netif_tx_stop_all_queues(ndev);
+	bitmap_clear(rdev->priv->opened_ports, rdev->port, 1);
 
-	iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDID);
+	if (bitmap_empty(rdev->priv->opened_ports, RSWITCH_NUM_PORTS))
+		iowrite32(GWCA_TS_IRQ_BIT, rdev->priv->addr + GWTSDID);
 
 	list_for_each_entry_safe(ts_info, ts_info2, &rdev->priv->gwca.ts_info_list, list) {
 		if (ts_info->port != rdev->port)
