@@ -2076,7 +2076,7 @@ err:
 	return ret;
 }
 
-static int tx_macro_remove(struct platform_device *pdev)
+static void tx_macro_remove(struct platform_device *pdev)
 {
 	struct tx_macro *tx = dev_get_drvdata(&pdev->dev);
 
@@ -2087,8 +2087,6 @@ static int tx_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(tx->fsgen);
 
 	lpass_macro_pds_exit(tx->pds);
-
-	return 0;
 }
 
 static int __maybe_unused tx_macro_runtime_suspend(struct device *dev)
@@ -2160,7 +2158,7 @@ static struct platform_driver tx_macro_driver = {
 		.pm = &tx_macro_pm_ops,
 	},
 	.probe = tx_macro_probe,
-	.remove = tx_macro_remove,
+	.remove_new = tx_macro_remove,
 };
 
 module_platform_driver(tx_macro_driver);
