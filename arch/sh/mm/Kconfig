@@ -20,13 +20,13 @@ config PAGE_OFFSET
 
 config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
-	range 9 64 if PAGE_SIZE_16KB
-	default "9" if PAGE_SIZE_16KB
-	range 7 64 if PAGE_SIZE_64KB
-	default "7" if PAGE_SIZE_64KB
-	range 11 64
-	default "14" if !MMU
-	default "11"
+	range 8 63 if PAGE_SIZE_16KB
+	default "8" if PAGE_SIZE_16KB
+	range 6 63 if PAGE_SIZE_64KB
+	default "6" if PAGE_SIZE_64KB
+	range 10 63
+	default "13" if !MMU
+	default "10"
 	help
 	  The kernel memory allocator divides physically contiguous memory
 	  blocks into "zones", where each zone is a power of two number of
@@ -34,9 +34,6 @@ config ARCH_FORCE_MAX_ORDER
 	  keeps in the memory allocator.  If you need to allocate very large
 	  blocks of physically contiguous memory, then you may need to
 	  increase this value.
-
-	  This config option is actually maximum order plus one. For example,
-	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 	  The page size is not necessarily 4KB. Keep this in mind when
 	  choosing a value for this option.

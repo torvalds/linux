@@ -400,7 +400,7 @@ config SINGLE_MEMORY_CHUNK
 config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order" if ADVANCED
 	depends on !SINGLE_MEMORY_CHUNK
-	default "11"
+	default "10"
 	help
 	  The kernel memory allocator divides physically contiguous memory
 	  blocks into "zones", where each zone is a power of two number of
@@ -412,9 +412,6 @@ config ARCH_FORCE_MAX_ORDER
 	  For systems that have holes in their physical address space this
 	  value also defines the minimal size of the hole that allows
 	  freeing unused memory map.
-
-	  This config option is actually maximum order plus one. For example,
-	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 config 060_WRITETHROUGH
 	bool "Use write-through caching for 68060 supervisor accesses"

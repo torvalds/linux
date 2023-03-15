@@ -97,7 +97,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 	}
 
 	mmap_read_lock(mm);
-	chunk = (1UL << (PAGE_SHIFT + MAX_ORDER - 1)) /
+	chunk = (1UL << (PAGE_SHIFT + MAX_ORDER)) /
 			sizeof(struct vm_area_struct *);
 	chunk = min(chunk, entries);
 	for (entry = 0; entry < entries; entry += chunk) {

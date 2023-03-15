@@ -334,7 +334,7 @@ config HIGHMEM
 
 config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
-	default "11"
+	default "10"
 
 config DRAM_BASE
 	hex "DRAM start addr (the same with memory-section in dts)"

@@ -202,10 +202,10 @@ config IA64_CYCLONE
 	  If you're unsure, answer N.
 
 config ARCH_FORCE_MAX_ORDER
-	int "MAX_ORDER (11 - 17)"  if !HUGETLB_PAGE
-	range 11 17  if !HUGETLB_PAGE
-	default "17" if HUGETLB_PAGE
-	default "11"
+	int "MAX_ORDER (10 - 16)"  if !HUGETLB_PAGE
+	range 10 16  if !HUGETLB_PAGE
+	default "16" if HUGETLB_PAGE
+	default "10"
 
 config SMP
 	bool "Symmetric multi-processing support"
