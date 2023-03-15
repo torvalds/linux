@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/pci.h>
 #include <linux/err.h>
 #include <linux/ctype.h>
 #include <linux/processor.h>
@@ -842,6 +841,12 @@ static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
 	return ism_move(smcd->priv, dmb_tok, idx, sf, offset, data, size);
 }
 
+static int smcd_supports_v2(void)
+{
+	return SYSTEM_EID.serial_number[0] != '0' ||
+		SYSTEM_EID.type[0] != '0';
+}
+
 static u64 smcd_get_local_gid(struct smcd_dev *smcd)
 {
 	return ism_get_local_gid(smcd->priv);
@@ -869,6 +874,7 @@ static const struct smcd_ops ism_ops = {
 	.reset_vlan_required = smcd_reset_vlan_required,
 	.signal_event = smcd_signal_ieq,
 	.move_data = smcd_move,
+	.supports_v2 = smcd_supports_v2,
 	.get_system_eid = ism_get_seid,
 	.get_local_gid = smcd_get_local_gid,
 	.get_chid = smcd_get_chid,
