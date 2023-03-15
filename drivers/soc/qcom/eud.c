@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -44,6 +45,8 @@
 #define EUD_REG_CHGR_INT_CLR	0x0084
 #define EUD_REG_CSR_EUD_EN	0x1014
 #define EUD_REG_SW_ATTACH_DET	0x1018
+#define EUD_REG_UTMI_DELAY_LSB	0x1030
+#define EUD_REG_UTMI_DELAY_MSB	0x1034
 
 #define EUD_INT_RX		BIT(0)
 #define EUD_INT_TX		BIT(1)
@@ -58,6 +61,8 @@
 #define EUD_CONSOLE		NULL
 #define UART_ID			0x90
 #define MAX_FIFO_SIZE		14
+#define EUD_UTMI_DELAY_MASK	0xff
+#define EUD_UTMI_DELAY_MIN	28
 
 #define PORT_EUD_UART		300
 
@@ -81,6 +86,8 @@ struct eud_chip {
 	struct clk			*eud_ahb2phy_clk;
 	struct clk			*eud_clkref_clk;
 	bool				eud_clkref_enabled;
+	bool				eud_enabled;
+	u16				utmi_switch_delay;
 };
 
 static const unsigned int eud_extcon_cable[] = {
@@ -146,6 +153,20 @@ static int msm_eud_hw_is_enabled(struct platform_device *pdev)
 	return readl_relaxed(chip->eud_reg_base + EUD_REG_CSR_EUD_EN) & BIT(0);
 }
 
+static int set_eud_utmi_switch_delay(struct eud_chip *chip)
+{
+	u8 val;
+
+	if (chip->utmi_switch_delay) {
+		val = (chip->utmi_switch_delay >> 8) & EUD_UTMI_DELAY_MASK;
+		writew_relaxed(val, chip->eud_reg_base + EUD_REG_UTMI_DELAY_MSB);
+		val = chip->utmi_switch_delay & EUD_UTMI_DELAY_MASK;
+		writew_relaxed(val, chip->eud_reg_base + EUD_REG_UTMI_DELAY_LSB);
+	}
+
+	return 0;
+}
+
 static int check_eud_mode_mgr2(struct eud_chip *chip)
 {
 	u32 val;
@@ -159,6 +180,10 @@ static void enable_eud(struct platform_device *pdev)
 	struct eud_chip *priv = platform_get_drvdata(pdev);
 	int ret;
 
+	/* No need to notify USB and modify EUD CSR if already enabled */
+	if (priv->eud_enabled)
+		return;
+
 	/*
 	 * Set the default cable state to usb connect and charger
 	 * enable
@@ -170,7 +195,7 @@ static void enable_eud(struct platform_device *pdev)
 	extcon_set_state_sync(priv->extcon, EXTCON_USB, false);
 
 	msm_eud_clkref_en(priv, true);
-
+	set_eud_utmi_switch_delay(priv);
 	/* write into CSR to enable EUD */
 	writel_relaxed(BIT(0), priv->eud_reg_base + EUD_REG_CSR_EUD_EN);
 
@@ -192,6 +217,8 @@ static void enable_eud(struct platform_device *pdev)
 	/* perform spoof connect as recommended */
 	extcon_set_state_sync(priv->extcon, EXTCON_USB, true);
 	extcon_set_state_sync(priv->extcon, EXTCON_CHG_USB_SDP, true);
+	priv->eud_enabled = true;
+
 	dev_dbg(&pdev->dev, "%s: EUD is Enabled\n", __func__);
 }
 
@@ -199,6 +226,9 @@ static void disable_eud(struct platform_device *pdev)
 {
 	struct eud_chip *priv = platform_get_drvdata(pdev);
 	int ret;
+
+	if (!priv->eud_enabled)
+		return;
 
 	/* indicate that the eud enable is due to the module param */
 	extcon_set_state(priv->extcon, EXTCON_JIG, false);
@@ -223,6 +253,8 @@ static void disable_eud(struct platform_device *pdev)
 	usleep_range(50, 100);
 	/* perform spoof connect as recommended */
 	extcon_set_state_sync(priv->extcon, EXTCON_USB, true);
+	priv->eud_enabled = false;
+
 	dev_dbg(&pdev->dev, "%s: EUD Disabled!\n", __func__);
 }
 
@@ -714,6 +746,16 @@ static int msm_eud_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	ret = of_property_read_u16(pdev->dev.of_node, "qcom,eud-utmi-delay",
+					&chip->utmi_switch_delay);
+	if (ret || (chip->utmi_switch_delay < EUD_UTMI_DELAY_MIN))
+		/*
+		 * Leave default POR value if not defined.  According to
+		 * EUD team, a zero value written to the UTMI SWITCH delay
+		 * register is not valid.  Requires a minimum value of 28.
+		 */
+		chip->utmi_switch_delay = 0;
+
 	device_init_wakeup(&pdev->dev, true);
 	enable_irq_wake(chip->eud_irq);
 
@@ -778,6 +820,8 @@ static int msm_eud_probe(struct platform_device *pdev)
 		 */
 		msm_eud_clkref_en(chip, true);
 
+		set_eud_utmi_switch_delay(chip);
+
 		msm_eud_enable_irqs(chip);
 
 		/*
@@ -796,6 +840,7 @@ static int msm_eud_probe(struct platform_device *pdev)
 				"Failed to set EXTCON_CHG_USB_SDP (%d)\n", ret);
 
 		enable = EUD_ENABLE_CMD;
+		chip->eud_enabled = true;
 	}
 
 	return 0;
