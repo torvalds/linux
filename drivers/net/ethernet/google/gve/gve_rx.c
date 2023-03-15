@@ -556,7 +556,7 @@ static struct sk_buff *gve_rx_skb(struct gve_priv *priv, struct gve_rx_ring *rx,
 
 	if (len <= priv->rx_copybreak && is_only_frag)  {
 		/* Just copy small packets */
-		skb = gve_rx_copy(netdev, napi, page_info, len, GVE_RX_PAD);
+		skb = gve_rx_copy(netdev, napi, page_info, len);
 		if (skb) {
 			u64_stats_update_begin(&rx->statss);
 			rx->rx_copied_pkt++;

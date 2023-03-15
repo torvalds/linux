@@ -374,18 +374,18 @@ static int gve_maybe_stop_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
 }
 
 static void gve_tx_fill_pkt_desc(union gve_tx_desc *pkt_desc,
-				 struct sk_buff *skb, bool is_gso,
+				 u16 csum_offset, u8 ip_summed, bool is_gso,
 				 int l4_hdr_offset, u32 desc_cnt,
-				 u16 hlen, u64 addr)
+				 u16 hlen, u64 addr, u16 pkt_len)
 {
 	/* l4_hdr_offset and csum_offset are in units of 16-bit words */
 	if (is_gso) {
 		pkt_desc->pkt.type_flags = GVE_TXD_TSO | GVE_TXF_L4CSUM;
-		pkt_desc->pkt.l4_csum_offset = skb->csum_offset >> 1;
+		pkt_desc->pkt.l4_csum_offset = csum_offset >> 1;
 		pkt_desc->pkt.l4_hdr_offset = l4_hdr_offset >> 1;
-	} else if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
+	} else if (likely(ip_summed == CHECKSUM_PARTIAL)) {
 		pkt_desc->pkt.type_flags = GVE_TXD_STD | GVE_TXF_L4CSUM;
-		pkt_desc->pkt.l4_csum_offset = skb->csum_offset >> 1;
+		pkt_desc->pkt.l4_csum_offset = csum_offset >> 1;
 		pkt_desc->pkt.l4_hdr_offset = l4_hdr_offset >> 1;
 	} else {
 		pkt_desc->pkt.type_flags = GVE_TXD_STD;
@@ -393,7 +393,7 @@ static void gve_tx_fill_pkt_desc(union gve_tx_desc *pkt_desc,
 		pkt_desc->pkt.l4_hdr_offset = 0;
 	}
 	pkt_desc->pkt.desc_cnt = desc_cnt;
-	pkt_desc->pkt.len = cpu_to_be16(skb->len);
+	pkt_desc->pkt.len = cpu_to_be16(pkt_len);
 	pkt_desc->pkt.seg_len = cpu_to_be16(hlen);
 	pkt_desc->pkt.seg_addr = cpu_to_be64(addr);
 }
@@ -412,15 +412,16 @@ static void gve_tx_fill_mtd_desc(union gve_tx_desc *mtd_desc,
 }
 
 static void gve_tx_fill_seg_desc(union gve_tx_desc *seg_desc,
-				 struct sk_buff *skb, bool is_gso,
+				 u16 l3_offset, u16 gso_size,
+				 bool is_gso_v6, bool is_gso,
 				 u16 len, u64 addr)
 {
 	seg_desc->seg.type_flags = GVE_TXD_SEG;
 	if (is_gso) {
-		if (skb_is_gso_v6(skb))
+		if (is_gso_v6)
 			seg_desc->seg.type_flags |= GVE_TXSF_IPV6;
-		seg_desc->seg.l3_offset = skb_network_offset(skb) >> 1;
-		seg_desc->seg.mss = cpu_to_be16(skb_shinfo(skb)->gso_size);
+		seg_desc->seg.l3_offset = l3_offset >> 1;
+		seg_desc->seg.mss = cpu_to_be16(gso_size);
 	}
 	seg_desc->seg.seg_len = cpu_to_be16(len);
 	seg_desc->seg.seg_addr = cpu_to_be64(addr);
@@ -473,9 +474,10 @@ static int gve_tx_add_skb_copy(struct gve_priv *priv, struct gve_tx_ring *tx, st
 	payload_nfrags = gve_tx_alloc_fifo(&tx->tx_fifo, skb->len - hlen,
 					   &info->iov[payload_iov]);
 
-	gve_tx_fill_pkt_desc(pkt_desc, skb, is_gso, l4_hdr_offset,
+	gve_tx_fill_pkt_desc(pkt_desc, skb->csum_offset, skb->ip_summed,
+			     is_gso, l4_hdr_offset,
 			     1 + mtd_desc_nr + payload_nfrags, hlen,
-			     info->iov[hdr_nfrags - 1].iov_offset);
+			     info->iov[hdr_nfrags - 1].iov_offset, skb->len);
 
 	skb_copy_bits(skb, 0,
 		      tx->tx_fifo.base + info->iov[hdr_nfrags - 1].iov_offset,
@@ -494,7 +496,9 @@ static int gve_tx_add_skb_copy(struct gve_priv *priv, struct gve_tx_ring *tx, st
 		next_idx = (tx->req + 1 + mtd_desc_nr + i - payload_iov) & tx->mask;
 		seg_desc = &tx->desc[next_idx];
 
-		gve_tx_fill_seg_desc(seg_desc, skb, is_gso,
+		gve_tx_fill_seg_desc(seg_desc, skb_network_offset(skb),
+				     skb_shinfo(skb)->gso_size,
+				     skb_is_gso_v6(skb), is_gso,
 				     info->iov[i].iov_len,
 				     info->iov[i].iov_offset);
 
@@ -552,8 +556,9 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 	if (mtd_desc_nr)
 		num_descriptors++;
 
-	gve_tx_fill_pkt_desc(pkt_desc, skb, is_gso, l4_hdr_offset,
-			     num_descriptors, hlen, addr);
+	gve_tx_fill_pkt_desc(pkt_desc, skb->csum_offset, skb->ip_summed,
+			     is_gso, l4_hdr_offset,
+			     num_descriptors, hlen, addr, skb->len);
 
 	if (mtd_desc_nr) {
 		idx = (idx + 1) & tx->mask;
@@ -569,7 +574,9 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 		addr += hlen;
 		idx = (idx + 1) & tx->mask;
 		seg_desc = &tx->desc[idx];
-		gve_tx_fill_seg_desc(seg_desc, skb, is_gso, len, addr);
+		gve_tx_fill_seg_desc(seg_desc, skb_network_offset(skb),
+				     skb_shinfo(skb)->gso_size,
+				     skb_is_gso_v6(skb), is_gso, len, addr);
 	}
 
 	for (i = 0; i < shinfo->nr_frags; i++) {
@@ -587,7 +594,9 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 		dma_unmap_len_set(&tx->info[idx], len, len);
 		dma_unmap_addr_set(&tx->info[idx], dma, addr);
 
-		gve_tx_fill_seg_desc(seg_desc, skb, is_gso, len, addr);
+		gve_tx_fill_seg_desc(seg_desc, skb_network_offset(skb),
+				     skb_shinfo(skb)->gso_size,
+				     skb_is_gso_v6(skb), is_gso, len, addr);
 	}
 
 	return num_descriptors;

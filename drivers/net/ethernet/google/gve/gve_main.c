@@ -90,8 +90,10 @@ static void gve_get_stats(struct net_device *dev, struct rtnl_link_stats64 *s)
 	struct gve_priv *priv = netdev_priv(dev);
 	unsigned int start;
 	u64 packets, bytes;
+	int num_tx_queues;
 	int ring;
 
+	num_tx_queues = gve_num_tx_queues(priv);
 	if (priv->rx) {
 		for (ring = 0; ring < priv->rx_cfg.num_queues; ring++) {
 			do {
@@ -106,7 +108,7 @@ static void gve_get_stats(struct net_device *dev, struct rtnl_link_stats64 *s)
 		}
 	}
 	if (priv->tx) {
-		for (ring = 0; ring < priv->tx_cfg.num_queues; ring++) {
+		for (ring = 0; ring < num_tx_queues; ring++) {
 			do {
 				start =
 				  u64_stats_fetch_begin(&priv->tx[ring].statss);
@@ -180,7 +182,7 @@ static int gve_alloc_stats_report(struct gve_priv *priv)
 	int tx_stats_num, rx_stats_num;
 
 	tx_stats_num = (GVE_TX_STATS_REPORT_NUM + NIC_TX_STATS_REPORT_NUM) *
-		       priv->tx_cfg.num_queues;
+		       gve_num_tx_queues(priv);
 	rx_stats_num = (GVE_RX_STATS_REPORT_NUM + NIC_RX_STATS_REPORT_NUM) *
 		       priv->rx_cfg.num_queues;
 	priv->stats_report_len = struct_size(priv->stats_report, stats,
@@ -622,20 +624,21 @@ static int gve_unregister_qpls(struct gve_priv *priv)
 
 static int gve_create_rings(struct gve_priv *priv)
 {
+	int num_tx_queues = gve_num_tx_queues(priv);
 	int err;
 	int i;
 
-	err = gve_adminq_create_tx_queues(priv, priv->tx_cfg.num_queues);
+	err = gve_adminq_create_tx_queues(priv, num_tx_queues);
 	if (err) {
 		netif_err(priv, drv, priv->dev, "failed to create %d tx queues\n",
-			  priv->tx_cfg.num_queues);
+			  num_tx_queues);
 		/* This failure will trigger a reset - no need to clean
 		 * up
 		 */
 		return err;
 	}
 	netif_dbg(priv, drv, priv->dev, "created %d tx queues\n",
-		  priv->tx_cfg.num_queues);
+		  num_tx_queues);
 
 	err = gve_adminq_create_rx_queues(priv, priv->rx_cfg.num_queues);
 	if (err) {
@@ -675,7 +678,7 @@ static void add_napi_init_sync_stats(struct gve_priv *priv,
 	int i;
 
 	/* Add tx napi & init sync stats*/
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+	for (i = 0; i < gve_num_tx_queues(priv); i++) {
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, i);
 
 		u64_stats_init(&priv->tx[i].statss);
@@ -753,9 +756,10 @@ free_tx:
 
 static int gve_destroy_rings(struct gve_priv *priv)
 {
+	int num_tx_queues = gve_num_tx_queues(priv);
 	int err;
 
-	err = gve_adminq_destroy_tx_queues(priv, priv->tx_cfg.num_queues);
+	err = gve_adminq_destroy_tx_queues(priv, num_tx_queues);
 	if (err) {
 		netif_err(priv, drv, priv->dev,
 			  "failed to destroy tx queues\n");
@@ -784,11 +788,12 @@ static void gve_rx_free_rings(struct gve_priv *priv)
 
 static void gve_free_rings(struct gve_priv *priv)
 {
+	int num_tx_queues = gve_num_tx_queues(priv);
 	int ntfy_idx;
 	int i;
 
 	if (priv->tx) {
-		for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+		for (i = 0; i < num_tx_queues; i++) {
 			ntfy_idx = gve_tx_idx_to_ntfy(priv, i);
 			gve_remove_napi(priv, ntfy_idx);
 		}
@@ -1118,7 +1123,7 @@ static void gve_turndown(struct gve_priv *priv)
 		return;
 
 	/* Disable napi to prevent more work from coming in */
-	for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
+	for (idx = 0; idx < gve_num_tx_queues(priv); idx++) {
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
@@ -1146,7 +1151,7 @@ static void gve_turnup(struct gve_priv *priv)
 	netif_tx_start_all_queues(priv->dev);
 
 	/* Enable napi and unmask interrupts for all queues */
-	for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
+	for (idx = 0; idx < gve_num_tx_queues(priv); idx++) {
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
@@ -1306,7 +1311,7 @@ void gve_handle_report_stats(struct gve_priv *priv)
 	be64_add_cpu(&priv->stats_report->written_count, 1);
 	/* tx stats */
 	if (priv->tx) {
-		for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
+		for (idx = 0; idx < gve_num_tx_queues(priv); idx++) {
 			u32 last_completion = 0;
 			u32 tx_frames = 0;
 

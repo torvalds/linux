@@ -855,6 +855,11 @@ static inline bool gve_is_gqi(struct gve_priv *priv)
 		priv->queue_format == GVE_GQI_QPL_FORMAT;
 }
 
+static inline u32 gve_num_tx_queues(struct gve_priv *priv)
+{
+	return priv->tx_cfg.num_queues;
+}
+
 /* buffers */
 int gve_alloc_page(struct gve_priv *priv, struct device *dev,
 		   struct page **page, dma_addr_t *dma,
