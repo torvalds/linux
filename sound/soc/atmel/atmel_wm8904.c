@@ -161,7 +161,7 @@ err_set_audio:
 	return ret;
 }
 
-static int atmel_asoc_wm8904_remove(struct platform_device *pdev)
+static void atmel_asoc_wm8904_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct snd_soc_dai_link *dailink = &atmel_asoc_wm8904_dailink;
@@ -171,8 +171,6 @@ static int atmel_asoc_wm8904_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_card(card);
 	atmel_ssc_put_audio(id);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -190,7 +188,7 @@ static struct platform_driver atmel_asoc_wm8904_driver = {
 		.pm		= &snd_soc_pm_ops,
 	},
 	.probe = atmel_asoc_wm8904_probe,
-	.remove = atmel_asoc_wm8904_remove,
+	.remove_new = atmel_asoc_wm8904_remove,
 };
 
 module_platform_driver(atmel_asoc_wm8904_driver);
