@@ -86,6 +86,10 @@ properties:
         - tx-m
         - rx-m
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
