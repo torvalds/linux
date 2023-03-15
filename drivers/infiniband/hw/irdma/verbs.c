@@ -1226,10 +1226,6 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			udp_info->ipv4 = false;
 			irdma_copy_ip_ntohl(local_ip, daddr);
 
-			udp_info->arp_idx = irdma_arp_table(iwdev->rf,
-							    &local_ip[0],
-							    false, NULL,
-							    IRDMA_ARP_RESOLVE);
 		} else if (av->net_type == RDMA_NETWORK_IPV4) {
 			__be32 saddr = av->sgid_addr.saddr_in.sin_addr.s_addr;
 			__be32 daddr = av->dgid_addr.saddr_in.sin_addr.s_addr;
