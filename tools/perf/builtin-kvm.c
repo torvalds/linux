@@ -85,6 +85,20 @@ static struct kvm_event_key keys[] = {
 	DEF_SORT_NAME_KEY(time, mean),
 	{ NULL, NULL }
 };
+
+struct kvm_hists {
+	struct hists		hists;
+	struct perf_hpp_list	list;
+};
+
+static struct kvm_hists kvm_hists;
+
+static int kvm_hists__init(void)
+{
+	__hists__init(&kvm_hists.hists, &kvm_hists.list);
+	perf_hpp_list__init(&kvm_hists.list);
+	return 0;
+}
 #endif // defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
 
 static const char *get_filename_for_perf_kvm(void)
@@ -959,6 +973,8 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	set_term_quiet_input(&save);
 	init_kvm_event_record(kvm);
 
+	kvm_hists__init();
+
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
@@ -1153,6 +1169,8 @@ static int kvm_events_report_vcpu(struct perf_kvm_stat *kvm)
 
 	init_kvm_event_record(kvm);
 	setup_pager();
+
+	kvm_hists__init();
 
 	ret = read_events(kvm);
 	if (ret)
