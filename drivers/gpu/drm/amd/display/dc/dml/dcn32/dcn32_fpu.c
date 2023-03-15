@@ -1960,6 +1960,10 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	}
 
 	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i])
+			context->streams[i]->fpo_in_use = false;
+	}
 
 	if (!pstate_en || (!dc->debug.disable_fpo_optimizations &&
 			pstate_en && vlevel != 0)) {
@@ -2198,10 +2202,6 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		/* Restore full p-state latency */
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 				dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
-
-	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
-		dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(dc, context);
-	}
 
 	/* revert fclk lat changes if required */
 	if (need_fclk_lat_as_dummy)

@@ -389,6 +389,10 @@ void dcn30_fpu_calculate_wm_and_dlg(
 	dc_assert_fp_enabled();
 
 	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+    for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i])
+			context->streams[i]->fpo_in_use = false;
+	}
 
 	if (!pstate_en) {
 		/* only when the mclk switch can not be natural, is the fw based vblank stretch attempted */

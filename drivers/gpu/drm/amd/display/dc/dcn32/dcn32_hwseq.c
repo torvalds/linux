@@ -571,39 +571,50 @@ bool dcn32_set_output_transfer_func(struct dc *dc,
 	return ret;
 }
 
-/* Program P-State force value according to if pipe is using SubVP or not:
+/* Program P-State force value according to if pipe is using SubVP / FPO or not:
  * 1. Reset P-State force on all pipes first
  * 2. For each main pipe, force P-State disallow (P-State allow moderated by DMUB)
  */
-void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context)
+void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 {
 	int i;
-	int num_subvp = 0;
-	/* Unforce p-state for each pipe
+
+	/* Unforce p-state for each pipe if it is not FPO or SubVP.
+	 * For FPO and SubVP, if it's already forced disallow, leave
+	 * it as disallow.
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
-		if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
-			hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
-		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_MAIN)
-			num_subvp++;
+		if (!pipe->stream || (pipe->stream && !(pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+						pipe->stream->fpo_in_use))) {
+			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
+				hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
+			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
+				hubp->funcs->hubp_update_force_cursor_pstate_disallow(hubp, false);
+		}
 	}
-
-	if (num_subvp == 0)
-		return;
 
 	/* Loop through each pipe -- for each subvp main pipe force p-state allow equal to false.
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct hubp *hubp = pipe->plane_res.hubp;
 
-		if (pipe->stream && pipe->plane_state && (pipe->stream->mall_stream_config.type == SUBVP_MAIN)) {
-			struct hubp *hubp = pipe->plane_res.hubp;
-
+		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, true);
+		}
+
+		if (pipe->stream && pipe->stream->fpo_in_use) {
+			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
+				hubp->funcs->hubp_update_force_pstate_disallow(hubp, true);
+			/* For now only force cursor p-state disallow for FPO
+			 * Needs to be added for subvp once FW side gets updated
+			 */
+			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
+				hubp->funcs->hubp_update_force_cursor_pstate_disallow(hubp, true);
 		}
 	}
 }
@@ -676,10 +687,6 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 	// Update MALL_SEL register for each pipe
 	if (hws && hws->funcs.update_mall_sel)
 		hws->funcs.update_mall_sel(dc, context);
-
-	//update subvp force pstate
-	if (hws && hws->funcs.subvp_update_force_pstate)
-		dc->hwseq->funcs.subvp_update_force_pstate(dc, context);
 
 	// Program FORCE_ONE_ROW_FOR_FRAME and CURSOR_REQ_MODE for main subvp pipes
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {

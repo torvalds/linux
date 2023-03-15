@@ -67,7 +67,7 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context);
 
 void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context);
 
-void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context);
+void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context);
 
 void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);
 
