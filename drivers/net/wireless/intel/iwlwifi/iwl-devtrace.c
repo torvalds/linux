@@ -12,6 +12,7 @@
 #include "iwl-trans.h"
 
 #define CREATE_TRACE_POINTS
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
 #include "iwl-devtrace.h"
 
 EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_ucode_event);
