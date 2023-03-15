@@ -2325,11 +2325,10 @@ static bool irdma_check_mr_contiguous(struct irdma_pble_alloc *palloc,
  * irdma_setup_pbles - copy user pg address to pble's
  * @rf: RDMA PCI function
  * @iwmr: mr pointer for this memory registration
- * @use_pbles: flag if to use pble's
- * @lvl_1_only: request only level 1 pble if true
+ * @lvl: requested pble levels
  */
 static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
-			     bool use_pbles, bool lvl_1_only)
+			     u8 lvl)
 {
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
@@ -2338,9 +2337,9 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 	int status;
 	enum irdma_pble_level level = PBLE_LEVEL_1;
 
-	if (use_pbles) {
+	if (lvl) {
 		status = irdma_get_pble(rf->pble_rsrc, palloc, iwmr->page_cnt,
-					lvl_1_only);
+					lvl);
 		if (status)
 			return status;
 
@@ -2355,7 +2354,7 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 
 	irdma_copy_user_pgaddrs(iwmr, pbl, level);
 
-	if (use_pbles)
+	if (lvl)
 		iwmr->pgaddrmem[0] = *pbl;
 
 	return 0;
@@ -2366,11 +2365,11 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
  * @iwdev: irdma device
  * @req: information for q memory management
  * @iwpbl: pble struct
- * @use_pbles: flag to use pble
+ * @lvl: pble level mask
  */
 static int irdma_handle_q_mem(struct irdma_device *iwdev,
 			      struct irdma_mem_reg_req *req,
-			      struct irdma_pbl *iwpbl, bool use_pbles)
+			      struct irdma_pbl *iwpbl, u8 lvl)
 {
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct irdma_mr *iwmr = iwpbl->iwmr;
@@ -2383,11 +2382,11 @@ static int irdma_handle_q_mem(struct irdma_device *iwdev,
 	bool ret = true;
 
 	pg_size = iwmr->page_size;
-	err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles, true);
+	err = irdma_setup_pbles(iwdev->rf, iwmr, lvl);
 	if (err)
 		return err;
 
-	if (use_pbles)
+	if (lvl)
 		arr = palloc->level1.addr;
 
 	switch (iwmr->type) {
@@ -2396,7 +2395,7 @@ static int irdma_handle_q_mem(struct irdma_device *iwdev,
 		hmc_p = &qpmr->sq_pbl;
 		qpmr->shadow = (dma_addr_t)arr[total];
 
-		if (use_pbles) {
+		if (lvl) {
 			ret = irdma_check_mem_contiguous(arr, req->sq_pages,
 							 pg_size);
 			if (ret)
@@ -2421,7 +2420,7 @@ static int irdma_handle_q_mem(struct irdma_device *iwdev,
 		if (!cqmr->split)
 			cqmr->shadow = (dma_addr_t)arr[req->cq_pages];
 
-		if (use_pbles)
+		if (lvl)
 			ret = irdma_check_mem_contiguous(arr, req->cq_pages,
 							 pg_size);
 
@@ -2435,7 +2434,7 @@ static int irdma_handle_q_mem(struct irdma_device *iwdev,
 		err = -EINVAL;
 	}
 
-	if (use_pbles && ret) {
+	if (lvl && ret) {
 		irdma_free_pble(iwdev->rf->pble_rsrc, palloc);
 		iwpbl->pbl_allocated = false;
 	}
@@ -2745,17 +2744,17 @@ static int irdma_reg_user_mr_type_mem(struct irdma_mr *iwmr, int access)
 {
 	struct irdma_device *iwdev = to_iwdev(iwmr->ibmr.device);
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
-	bool use_pbles;
 	u32 stag;
+	u8 lvl;
 	int err;
 
-	use_pbles = iwmr->page_cnt != 1;
+	lvl = iwmr->page_cnt != 1 ? PBLE_LEVEL_1 | PBLE_LEVEL_2 : PBLE_LEVEL_0;
 
-	err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles, false);
+	err = irdma_setup_pbles(iwdev->rf, iwmr, lvl);
 	if (err)
 		return err;
 
-	if (use_pbles) {
+	if (lvl) {
 		err = irdma_check_mr_contiguous(&iwpbl->pble_alloc,
 						iwmr->page_size);
 		if (err) {
@@ -2839,17 +2838,17 @@ static int irdma_reg_user_mr_type_qp(struct irdma_mem_reg_req req,
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
 	struct irdma_ucontext *ucontext = NULL;
 	unsigned long flags;
-	bool use_pbles;
 	u32 total;
 	int err;
+	u8 lvl;
 
 	total = req.sq_pages + req.rq_pages + 1;
 	if (total > iwmr->page_cnt)
 		return -EINVAL;
 
 	total = req.sq_pages + req.rq_pages;
-	use_pbles = total > 2;
-	err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+	lvl = total > 2 ? PBLE_LEVEL_1 : PBLE_LEVEL_0;
+	err = irdma_handle_q_mem(iwdev, &req, iwpbl, lvl);
 	if (err)
 		return err;
 
@@ -2872,9 +2871,9 @@ static int irdma_reg_user_mr_type_cq(struct irdma_mem_reg_req req,
 	struct irdma_ucontext *ucontext = NULL;
 	u8 shadow_pgcnt = 1;
 	unsigned long flags;
-	bool use_pbles;
 	u32 total;
 	int err;
+	u8 lvl;
 
 	if (iwdev->rf->sc_dev.hw_attrs.uk_attrs.feature_flags & IRDMA_FEATURE_CQ_RESIZE)
 		shadow_pgcnt = 0;
@@ -2882,8 +2881,8 @@ static int irdma_reg_user_mr_type_cq(struct irdma_mem_reg_req req,
 	if (total > iwmr->page_cnt)
 		return -EINVAL;
 
-	use_pbles = req.cq_pages > 1;
-	err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+	lvl = req.cq_pages > 1 ? PBLE_LEVEL_1 : PBLE_LEVEL_0;
+	err = irdma_handle_q_mem(iwdev, &req, iwpbl, lvl);
 	if (err)
 		return err;
 
