@@ -11,6 +11,7 @@
 #include <linux/tcp.h>
 #include <linux/vmalloc.h>
 #include <linux/skbuff.h>
+#include <net/xdp_sock_drv.h>
 
 static inline void gve_tx_put_doorbell(struct gve_priv *priv,
 				       struct gve_queue_resources *q_resources,
@@ -160,6 +161,7 @@ static int gve_clean_xdp_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 	u32 clean_end = tx->done + to_do;
 	u64 pkts = 0, bytes = 0;
 	size_t space_freed = 0;
+	u32 xsk_complete = 0;
 	u32 idx;
 
 	for (; tx->done < clean_end; tx->done++) {
@@ -171,6 +173,7 @@ static int gve_clean_xdp_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 
 		bytes += info->xdp.size;
 		pkts++;
+		xsk_complete += info->xdp.is_xsk;
 
 		info->xdp.size = 0;
 		if (info->xdp_frame) {
@@ -181,6 +184,8 @@ static int gve_clean_xdp_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 	}
 
 	gve_tx_free_fifo(&tx->tx_fifo, space_freed);
+	if (xsk_complete > 0 && tx->xsk_pool)
+		xsk_tx_completed(tx->xsk_pool, xsk_complete);
 	u64_stats_update_begin(&tx->statss);
 	tx->bytes_done += bytes;
 	tx->pkt_done += pkts;
@@ -720,7 +725,7 @@ netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
-			   void *data, int len, void *frame_p)
+			   void *data, int len, void *frame_p, bool is_xsk)
 {
 	int pad, nfrags, ndescs, iovi, offset;
 	struct gve_tx_buffer_state *info;
@@ -732,6 +737,7 @@ static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
 	info = &tx->info[reqi & tx->mask];
 	info->xdp_frame = frame_p;
 	info->xdp.size = len;
+	info->xdp.is_xsk = is_xsk;
 
 	nfrags = gve_tx_alloc_fifo(&tx->tx_fifo, pad + len,
 				   &info->iov[0]);
@@ -809,7 +815,7 @@ int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 	if (!gve_can_tx(tx, len + GVE_TX_MAX_HEADER_SIZE - 1))
 		return -EBUSY;
 
-	nsegs = gve_tx_fill_xdp(priv, tx, data, len, frame_p);
+	nsegs = gve_tx_fill_xdp(priv, tx, data, len, frame_p, false);
 	tx->req += nsegs;
 
 	return 0;
@@ -882,11 +888,43 @@ u32 gve_tx_load_event_counter(struct gve_priv *priv,
 	return be32_to_cpu(counter);
 }
 
+static int gve_xsk_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
+		      int budget)
+{
+	struct xdp_desc desc;
+	int sent = 0, nsegs;
+	void *data;
+
+	spin_lock(&tx->xdp_lock);
+	while (sent < budget) {
+		if (!gve_can_tx(tx, GVE_TX_START_THRESH))
+			goto out;
+
+		if (!xsk_tx_peek_desc(tx->xsk_pool, &desc)) {
+			tx->xdp_xsk_done = tx->xdp_xsk_wakeup;
+			goto out;
+		}
+
+		data = xsk_buff_raw_get_data(tx->xsk_pool, desc.addr);
+		nsegs = gve_tx_fill_xdp(priv, tx, data, desc.len, NULL, true);
+		tx->req += nsegs;
+		sent++;
+	}
+out:
+	if (sent > 0) {
+		gve_tx_put_doorbell(priv, tx->q_resources, tx->req);
+		xsk_tx_release(tx->xsk_pool);
+	}
+	spin_unlock(&tx->xdp_lock);
+	return sent;
+}
+
 bool gve_xdp_poll(struct gve_notify_block *block, int budget)
 {
 	struct gve_priv *priv = block->priv;
 	struct gve_tx_ring *tx = block->tx;
 	u32 nic_done;
+	bool repoll;
 	u32 to_do;
 
 	/* If budget is 0, do all the work */
@@ -897,7 +935,21 @@ bool gve_xdp_poll(struct gve_notify_block *block, int budget)
 	nic_done = gve_tx_load_event_counter(priv, tx);
 	to_do = min_t(u32, (nic_done - tx->done), budget);
 	gve_clean_xdp_done(priv, tx, to_do);
-	return nic_done != tx->done;
+	repoll = nic_done != tx->done;
+
+	if (tx->xsk_pool) {
+		int sent = gve_xsk_tx(priv, tx, budget);
+
+		u64_stats_update_begin(&tx->statss);
+		tx->xdp_xsk_sent += sent;
+		u64_stats_update_end(&tx->statss);
+		repoll |= (sent == budget);
+		if (xsk_uses_need_wakeup(tx->xsk_pool))
+			xsk_set_tx_need_wakeup(tx->xsk_pool);
+	}
+
+	/* If we still have work we want to repoll */
+	return repoll;
 }
 
 bool gve_tx_poll(struct gve_notify_block *block, int budget)

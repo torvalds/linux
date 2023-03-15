@@ -17,6 +17,7 @@
 #include <linux/utsname.h>
 #include <linux/version.h>
 #include <net/sch_generic.h>
+#include <net/xdp_sock_drv.h>
 #include "gve.h"
 #include "gve_dqo.h"
 #include "gve_adminq.h"
@@ -1188,6 +1189,7 @@ static int gve_reg_xdp_info(struct gve_priv *priv, struct net_device *dev)
 	struct gve_rx_ring *rx;
 	int err = 0;
 	int i, j;
+	u32 tx_qid;
 
 	if (!priv->num_xdp_queues)
 		return 0;
@@ -1204,6 +1206,24 @@ static int gve_reg_xdp_info(struct gve_priv *priv, struct net_device *dev)
 						 MEM_TYPE_PAGE_SHARED, NULL);
 		if (err)
 			goto err;
+		rx->xsk_pool = xsk_get_pool_from_qid(dev, i);
+		if (rx->xsk_pool) {
+			err = xdp_rxq_info_reg(&rx->xsk_rxq, dev, i,
+					       napi->napi_id);
+			if (err)
+				goto err;
+			err = xdp_rxq_info_reg_mem_model(&rx->xsk_rxq,
+							 MEM_TYPE_XSK_BUFF_POOL, NULL);
+			if (err)
+				goto err;
+			xsk_pool_set_rxq_info(rx->xsk_pool,
+					      &rx->xsk_rxq);
+		}
+	}
+
+	for (i = 0; i < priv->num_xdp_queues; i++) {
+		tx_qid = gve_xdp_tx_queue_id(priv, i);
+		priv->tx[tx_qid].xsk_pool = xsk_get_pool_from_qid(dev, i);
 	}
 	return 0;
 
@@ -1212,13 +1232,15 @@ err:
 		rx = &priv->rx[j];
 		if (xdp_rxq_info_is_reg(&rx->xdp_rxq))
 			xdp_rxq_info_unreg(&rx->xdp_rxq);
+		if (xdp_rxq_info_is_reg(&rx->xsk_rxq))
+			xdp_rxq_info_unreg(&rx->xsk_rxq);
 	}
 	return err;
 }
 
 static void gve_unreg_xdp_info(struct gve_priv *priv)
 {
-	int i;
+	int i, tx_qid;
 
 	if (!priv->num_xdp_queues)
 		return;
@@ -1227,6 +1249,15 @@ static void gve_unreg_xdp_info(struct gve_priv *priv)
 		struct gve_rx_ring *rx = &priv->rx[i];
 
 		xdp_rxq_info_unreg(&rx->xdp_rxq);
+		if (rx->xsk_pool) {
+			xdp_rxq_info_unreg(&rx->xsk_rxq);
+			rx->xsk_pool = NULL;
+		}
+	}
+
+	for (i = 0; i < priv->num_xdp_queues; i++) {
+		tx_qid = gve_xdp_tx_queue_id(priv, i);
+		priv->tx[tx_qid].xsk_pool = NULL;
 	}
 }
 
@@ -1469,6 +1500,140 @@ out:
 	return err;
 }
 
+static int gve_xsk_pool_enable(struct net_device *dev,
+			       struct xsk_buff_pool *pool,
+			       u16 qid)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct napi_struct *napi;
+	struct gve_rx_ring *rx;
+	int tx_qid;
+	int err;
+
+	if (qid >= priv->rx_cfg.num_queues) {
+		dev_err(&priv->pdev->dev, "xsk pool invalid qid %d", qid);
+		return -EINVAL;
+	}
+	if (xsk_pool_get_rx_frame_size(pool) <
+	     priv->dev->max_mtu + sizeof(struct ethhdr)) {
+		dev_err(&priv->pdev->dev, "xsk pool frame_len too small");
+		return -EINVAL;
+	}
+
+	err = xsk_pool_dma_map(pool, &priv->pdev->dev,
+			       DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
+	if (err)
+		return err;
+
+	/* If XDP prog is not installed, return */
+	if (!priv->xdp_prog)
+		return 0;
+
+	rx = &priv->rx[qid];
+	napi = &priv->ntfy_blocks[rx->ntfy_id].napi;
+	err = xdp_rxq_info_reg(&rx->xsk_rxq, dev, qid, napi->napi_id);
+	if (err)
+		goto err;
+
+	err = xdp_rxq_info_reg_mem_model(&rx->xsk_rxq,
+					 MEM_TYPE_XSK_BUFF_POOL, NULL);
+	if (err)
+		goto err;
+
+	xsk_pool_set_rxq_info(pool, &rx->xsk_rxq);
+	rx->xsk_pool = pool;
+
+	tx_qid = gve_xdp_tx_queue_id(priv, qid);
+	priv->tx[tx_qid].xsk_pool = pool;
+
+	return 0;
+err:
+	if (xdp_rxq_info_is_reg(&rx->xsk_rxq))
+		xdp_rxq_info_unreg(&rx->xsk_rxq);
+
+	xsk_pool_dma_unmap(pool,
+			   DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
+	return err;
+}
+
+static int gve_xsk_pool_disable(struct net_device *dev,
+				u16 qid)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct napi_struct *napi_rx;
+	struct napi_struct *napi_tx;
+	struct xsk_buff_pool *pool;
+	int tx_qid;
+
+	pool = xsk_get_pool_from_qid(dev, qid);
+	if (!pool)
+		return -EINVAL;
+	if (qid >= priv->rx_cfg.num_queues)
+		return -EINVAL;
+
+	/* If XDP prog is not installed, unmap DMA and return */
+	if (!priv->xdp_prog)
+		goto done;
+
+	tx_qid = gve_xdp_tx_queue_id(priv, qid);
+	if (!netif_running(dev)) {
+		priv->rx[qid].xsk_pool = NULL;
+		xdp_rxq_info_unreg(&priv->rx[qid].xsk_rxq);
+		priv->tx[tx_qid].xsk_pool = NULL;
+		goto done;
+	}
+
+	napi_rx = &priv->ntfy_blocks[priv->rx[qid].ntfy_id].napi;
+	napi_disable(napi_rx); /* make sure current rx poll is done */
+
+	napi_tx = &priv->ntfy_blocks[priv->tx[tx_qid].ntfy_id].napi;
+	napi_disable(napi_tx); /* make sure current tx poll is done */
+
+	priv->rx[qid].xsk_pool = NULL;
+	xdp_rxq_info_unreg(&priv->rx[qid].xsk_rxq);
+	priv->tx[tx_qid].xsk_pool = NULL;
+	smp_mb(); /* Make sure it is visible to the workers on datapath */
+
+	napi_enable(napi_rx);
+	if (gve_rx_work_pending(&priv->rx[qid]))
+		napi_schedule(napi_rx);
+
+	napi_enable(napi_tx);
+	if (gve_tx_clean_pending(priv, &priv->tx[tx_qid]))
+		napi_schedule(napi_tx);
+
+done:
+	xsk_pool_dma_unmap(pool,
+			   DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
+	return 0;
+}
+
+static int gve_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	int tx_queue_id = gve_xdp_tx_queue_id(priv, queue_id);
+
+	if (queue_id >= priv->rx_cfg.num_queues || !priv->xdp_prog)
+		return -EINVAL;
+
+	if (flags & XDP_WAKEUP_TX) {
+		struct gve_tx_ring *tx = &priv->tx[tx_queue_id];
+		struct napi_struct *napi =
+			&priv->ntfy_blocks[tx->ntfy_id].napi;
+
+		if (!napi_if_scheduled_mark_missed(napi)) {
+			/* Call local_bh_enable to trigger SoftIRQ processing */
+			local_bh_disable();
+			napi_schedule(napi);
+			local_bh_enable();
+		}
+
+		tx->xdp_xsk_wakeup++;
+	}
+
+	return 0;
+}
+
 static int verify_xdp_configuration(struct net_device *dev)
 {
 	struct gve_priv *priv = netdev_priv(dev);
@@ -1512,6 +1677,11 @@ static int gve_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return gve_set_xdp(priv, xdp->prog, xdp->extack);
+	case XDP_SETUP_XSK_POOL:
+		if (xdp->xsk.pool)
+			return gve_xsk_pool_enable(dev, xdp->xsk.pool, xdp->xsk.queue_id);
+		else
+			return gve_xsk_pool_disable(dev, xdp->xsk.queue_id);
 	default:
 		return -EINVAL;
 	}
@@ -1713,6 +1883,7 @@ static const struct net_device_ops gve_netdev_ops = {
 	.ndo_set_features	=	gve_set_features,
 	.ndo_bpf		=	gve_xdp,
 	.ndo_xdp_xmit		=	gve_xdp_xmit,
+	.ndo_xsk_wakeup		=	gve_xsk_wakeup,
 };
 
 static void gve_handle_status(struct gve_priv *priv, u32 status)
@@ -1838,6 +2009,7 @@ static void gve_set_netdev_xdp_features(struct gve_priv *priv)
 		priv->dev->xdp_features = NETDEV_XDP_ACT_BASIC;
 		priv->dev->xdp_features |= NETDEV_XDP_ACT_REDIRECT;
 		priv->dev->xdp_features |= NETDEV_XDP_ACT_NDO_XMIT;
+		priv->dev->xdp_features |= NETDEV_XDP_ACT_XSK_ZEROCOPY;
 	} else {
 		priv->dev->xdp_features = 0;
 	}

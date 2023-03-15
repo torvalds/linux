@@ -62,8 +62,8 @@ static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 static const char gve_gstrings_tx_stats[][ETH_GSTRING_LEN] = {
 	"tx_posted_desc[%u]", "tx_completed_desc[%u]", "tx_consumed_desc[%u]", "tx_bytes[%u]",
 	"tx_wake[%u]", "tx_stop[%u]", "tx_event_counter[%u]",
-	"tx_dma_mapping_error[%u]",
-	"tx_xdp_xmit[%u]", "tx_xdp_xmit_errors[%u]"
+	"tx_dma_mapping_error[%u]", "tx_xsk_wakeup[%u]",
+	"tx_xsk_done[%u]", "tx_xsk_sent[%u]", "tx_xdp_xmit[%u]", "tx_xdp_xmit_errors[%u]"
 };
 
 static const char gve_gstrings_adminq_stats[][ETH_GSTRING_LEN] = {
@@ -381,13 +381,17 @@ gve_get_ethtool_stats(struct net_device *netdev,
 					data[i++] = value;
 				}
 			}
+			/* XDP xsk counters */
+			data[i++] = tx->xdp_xsk_wakeup;
+			data[i++] = tx->xdp_xsk_done;
 			do {
 				start = u64_stats_fetch_begin(&priv->tx[ring].statss);
-				data[i] = tx->xdp_xmit;
-				data[i + 1] = tx->xdp_xmit_errors;
+				data[i] = tx->xdp_xsk_sent;
+				data[i + 1] = tx->xdp_xmit;
+				data[i + 2] = tx->xdp_xmit_errors;
 			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
 						       start));
-			i += 2; /* XDP tx counters */
+			i += 3; /* XDP tx counters */
 		}
 	} else {
 		i += num_tx_queues * NUM_GVE_TX_CNTS;

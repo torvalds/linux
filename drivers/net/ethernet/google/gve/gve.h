@@ -248,6 +248,8 @@ struct gve_rx_ring {
 
 	/* XDP stuff */
 	struct xdp_rxq_info xdp_rxq;
+	struct xdp_rxq_info xsk_rxq;
+	struct xsk_buff_pool *xsk_pool;
 	struct page_frag_cache page_cache; /* Page cache to allocate XDP frames */
 };
 
@@ -275,6 +277,7 @@ struct gve_tx_buffer_state {
 	};
 	struct {
 		u16 size; /* size of xmitted xdp pkt */
+		u8 is_xsk; /* xsk buff */
 	} xdp;
 	union {
 		struct gve_tx_iovec iov[GVE_TX_MAX_IOVEC]; /* segments of this pkt */
@@ -469,6 +472,10 @@ struct gve_tx_ring {
 	dma_addr_t q_resources_bus; /* dma address of the queue resources */
 	dma_addr_t complq_bus_dqo; /* dma address of the dqo.compl_ring */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
+	struct xsk_buff_pool *xsk_pool;
+	u32 xdp_xsk_wakeup;
+	u32 xdp_xsk_done;
+	u64 xdp_xsk_sent;
 	u64 xdp_xmit;
 	u64 xdp_xmit_errors;
 } ____cacheline_aligned;

@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/filter.h>
 #include <net/xdp.h>
+#include <net/xdp_sock_drv.h>
 
 static void gve_rx_free_buffer(struct device *dev,
 			       struct gve_rx_slot_page_info *page_info,
@@ -593,6 +594,31 @@ static struct sk_buff *gve_rx_skb(struct gve_priv *priv, struct gve_rx_ring *rx,
 	return skb;
 }
 
+static int gve_xsk_pool_redirect(struct net_device *dev,
+				 struct gve_rx_ring *rx,
+				 void *data, int len,
+				 struct bpf_prog *xdp_prog)
+{
+	struct xdp_buff *xdp;
+	int err;
+
+	if (rx->xsk_pool->frame_len < len)
+		return -E2BIG;
+	xdp = xsk_buff_alloc(rx->xsk_pool);
+	if (!xdp) {
+		u64_stats_update_begin(&rx->statss);
+		rx->xdp_alloc_fails++;
+		u64_stats_update_end(&rx->statss);
+		return -ENOMEM;
+	}
+	xdp->data_end = xdp->data + len;
+	memcpy(xdp->data, data, len);
+	err = xdp_do_redirect(dev, xdp, xdp_prog);
+	if (err)
+		xsk_buff_free(xdp);
+	return err;
+}
+
 static int gve_xdp_redirect(struct net_device *dev, struct gve_rx_ring *rx,
 			    struct xdp_buff *orig, struct bpf_prog *xdp_prog)
 {
@@ -601,6 +627,10 @@ static int gve_xdp_redirect(struct net_device *dev, struct gve_rx_ring *rx,
 	struct xdp_buff new;
 	void *frame;
 	int err;
+
+	if (rx->xsk_pool)
+		return gve_xsk_pool_redirect(dev, rx, orig->data,
+					     len, xdp_prog);
 
 	total_len = headroom + SKB_DATA_ALIGN(len) +
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
