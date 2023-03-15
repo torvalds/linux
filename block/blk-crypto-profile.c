@@ -227,13 +227,12 @@ EXPORT_SYMBOL_GPL(blk_crypto_keyslot_index);
  * @profile: the crypto profile of the device the key will be used on
  * @key: the key that will be used
  * @slot_ptr: If a keyslot is allocated, an opaque pointer to the keyslot struct
- *	      will be stored here; otherwise NULL will be stored here.
+ *	      will be stored here.  blk_crypto_put_keyslot() must be called
+ *	      later to release it.  Otherwise, NULL will be stored here.
  *
  * If the device has keyslots, this gets a keyslot that's been programmed with
  * the specified key.  If the key is already in a slot, this reuses it;
  * otherwise this waits for a slot to become idle and programs the key into it.
- *
- * This must be paired with a call to blk_crypto_put_keyslot().
  *
  * Context: Process context. Takes and releases profile->lock.
  * Return: BLK_STS_OK on success, meaning that either a keyslot was allocated or
@@ -312,19 +311,14 @@ success:
 
 /**
  * blk_crypto_put_keyslot() - Release a reference to a keyslot
- * @slot: The keyslot to release the reference of (may be NULL).
+ * @slot: The keyslot to release the reference of
  *
  * Context: Any context.
  */
 void blk_crypto_put_keyslot(struct blk_crypto_keyslot *slot)
 {
-	struct blk_crypto_profile *profile;
+	struct blk_crypto_profile *profile = slot->profile;
 	unsigned long flags;
-
-	if (!slot)
-		return;
-
-	profile = slot->profile;
 
 	if (atomic_dec_and_lock_irqsave(&slot->slot_refs,
 					&profile->idle_slots_lock, flags)) {
