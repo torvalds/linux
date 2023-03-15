@@ -1925,21 +1925,13 @@ static int journal_get_superblock(journal_t *journal)
 		goto out;
 	}
 
-	switch(be32_to_cpu(sb->s_header.h_blocktype)) {
-	case JBD2_SUPERBLOCK_V1:
-		journal->j_format_version = 1;
-		break;
-	case JBD2_SUPERBLOCK_V2:
-		journal->j_format_version = 2;
-		break;
-	default:
+	if (be32_to_cpu(sb->s_header.h_blocktype) != JBD2_SUPERBLOCK_V1 &&
+	    be32_to_cpu(sb->s_header.h_blocktype) != JBD2_SUPERBLOCK_V2) {
 		printk(KERN_WARNING "JBD2: unrecognised superblock format ID\n");
 		goto out;
 	}
 
-	if (be32_to_cpu(sb->s_maxlen) < journal->j_total_len)
-		journal->j_total_len = be32_to_cpu(sb->s_maxlen);
-	else if (be32_to_cpu(sb->s_maxlen) > journal->j_total_len) {
+	if (be32_to_cpu(sb->s_maxlen) > journal->j_total_len) {
 		printk(KERN_WARNING "JBD2: journal file too short\n");
 		goto out;
 	}
@@ -1982,25 +1974,14 @@ static int journal_get_superblock(journal_t *journal)
 			journal->j_chksum_driver = NULL;
 			goto out;
 		}
-	}
-
-	if (jbd2_journal_has_csum_v2or3(journal)) {
 		/* Check superblock checksum */
 		if (sb->s_checksum != jbd2_superblock_csum(journal, sb)) {
 			printk(KERN_ERR "JBD2: journal checksum error\n");
 			err = -EFSBADCRC;
 			goto out;
 		}
-
-		/* Precompute checksum seed for all metadata */
-		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
-						   sizeof(sb->s_uuid));
 	}
-
-	journal->j_revoke_records_per_block =
-				journal_revoke_records_per_block(journal);
 	set_buffer_verified(bh);
-
 	return 0;
 
 out:
@@ -2025,11 +2006,29 @@ static int load_superblock(journal_t *journal)
 
 	sb = journal->j_superblock;
 
+	switch (be32_to_cpu(sb->s_header.h_blocktype)) {
+	case JBD2_SUPERBLOCK_V1:
+		journal->j_format_version = 1;
+		break;
+	case JBD2_SUPERBLOCK_V2:
+		journal->j_format_version = 2;
+		break;
+	}
+
 	journal->j_tail_sequence = be32_to_cpu(sb->s_sequence);
 	journal->j_tail = be32_to_cpu(sb->s_start);
 	journal->j_first = be32_to_cpu(sb->s_first);
 	journal->j_errno = be32_to_cpu(sb->s_errno);
 	journal->j_last = be32_to_cpu(sb->s_maxlen);
+
+	if (be32_to_cpu(sb->s_maxlen) < journal->j_total_len)
+		journal->j_total_len = be32_to_cpu(sb->s_maxlen);
+	/* Precompute checksum seed for all metadata */
+	if (jbd2_journal_has_csum_v2or3(journal))
+		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+						   sizeof(sb->s_uuid));
+	journal->j_revoke_records_per_block =
+				journal_revoke_records_per_block(journal);
 
 	if (jbd2_has_feature_fast_commit(journal)) {
 		journal->j_fc_last = be32_to_cpu(sb->s_maxlen);
@@ -2226,8 +2225,7 @@ int jbd2_journal_check_used_features(journal_t *journal, unsigned long compat,
 	if (!compat && !ro && !incompat)
 		return 1;
 	/* Load journal superblock if it is not loaded yet. */
-	if (journal->j_format_version == 0 &&
-	    journal_get_superblock(journal) != 0)
+	if (journal_get_superblock(journal))
 		return 0;
 	if (!jbd2_format_support_feature(journal))
 		return 0;
