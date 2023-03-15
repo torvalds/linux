@@ -702,13 +702,14 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 	u16 pkt_len;
 	u32 get_ts;
 
+	if (*quota <= 0)
+		return true;
+
 	boguscnt = min_t(int, gq->ring_size, *quota);
 	limit = boguscnt;
 
 	desc = &gq->rx_ring[gq->cur];
 	while ((desc->desc.die_dt & DT_MASK) != DT_FEMPTY) {
-		if (--boguscnt < 0)
-			break;
 		dma_rmb();
 		pkt_len = le16_to_cpu(desc->desc.info_ds) & RX_DS;
 		skb = gq->skbs[gq->cur];
@@ -734,6 +735,9 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 
 		gq->cur = rswitch_next_queue_index(gq, true, 1);
 		desc = &gq->rx_ring[gq->cur];
+
+		if (--boguscnt <= 0)
+			break;
 	}
 
 	num = rswitch_get_num_cur_queues(gq);
@@ -745,7 +749,7 @@ static bool rswitch_rx(struct net_device *ndev, int *quota)
 		goto err;
 	gq->dirty = rswitch_next_queue_index(gq, false, num);
 
-	*quota -= limit - (++boguscnt);
+	*quota -= limit - boguscnt;
 
 	return boguscnt <= 0;
 
