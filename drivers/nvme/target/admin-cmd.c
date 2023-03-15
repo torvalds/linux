@@ -701,19 +701,29 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 	case NVME_ID_CNS_NS:
 		nvmet_execute_identify_ns(req);
 		return;
-	case NVME_ID_CNS_CS_NS:
-		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
-			switch (req->cmd->identify.csi) {
-			case NVME_CSI_ZNS:
-				return nvmet_execute_identify_cns_cs_ns(req);
-			default:
-				break;
-			}
-		}
-		break;
 	case NVME_ID_CNS_CTRL:
 		nvmet_execute_identify_ctrl(req);
 		return;
+	case NVME_ID_CNS_NS_ACTIVE_LIST:
+		nvmet_execute_identify_nslist(req);
+		return;
+	case NVME_ID_CNS_NS_DESC_LIST:
+		if (nvmet_handle_identify_desclist(req) == true)
+			return;
+		break;
+	case NVME_ID_CNS_CS_NS:
+		switch (req->cmd->identify.csi) {
+		case NVME_CSI_NVM:
+			/* Not supported */
+			break;
+		case NVME_CSI_ZNS:
+			if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+				nvmet_execute_identify_cns_cs_ns(req);
+				return;
+			}
+			break;
+		}
+		break;
 	case NVME_ID_CNS_CS_CTRL:
 		switch (req->cmd->identify.csi) {
 		case NVME_CSI_NVM:
@@ -726,13 +736,6 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 			}
 			break;
 		}
-		break;
-	case NVME_ID_CNS_NS_ACTIVE_LIST:
-		nvmet_execute_identify_nslist(req);
-		return;
-	case NVME_ID_CNS_NS_DESC_LIST:
-		if (nvmet_handle_identify_desclist(req) == true)
-			return;
 		break;
 	}
 
