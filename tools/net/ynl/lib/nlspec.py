@@ -274,6 +274,7 @@ class SpecFamily(SpecElement):
 
     Attributes:
         proto     protocol type (e.g. genetlink)
+        license   spec license (loaded from an SPDX tag on the spec)
 
         attr_sets  dict of attribute sets
         msgs       dict of all messages (index by name)
@@ -283,6 +284,13 @@ class SpecFamily(SpecElement):
     """
     def __init__(self, spec_path, schema_path=None):
         with open(spec_path, "r") as stream:
+            prefix = '# SPDX-License-Identifier: '
+            first = stream.readline().strip()
+            if not first.startswith(prefix):
+                raise Exception('SPDX license tag required in the spec')
+            self.license = first[len(prefix):]
+
+            stream.seek(0)
             spec = yaml.safe_load(stream)
 
         self._resolution_list = []
