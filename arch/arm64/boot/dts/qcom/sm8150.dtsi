@@ -1342,7 +1342,7 @@
 				status = "disabled";
 			};
 
-			uart9: serial@a8c000 {
+			uart9: serial@a84000 {
 				compatible = "qcom,geni-uart";
 				reg = <0x0 0x00a84000 0x0 0x4000>;
 				reg-names = "se";
