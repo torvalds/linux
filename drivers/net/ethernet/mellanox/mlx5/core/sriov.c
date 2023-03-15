@@ -305,6 +305,7 @@ int mlx5_sriov_init(struct mlx5_core_dev *dev)
 	total_vfs = pci_sriov_get_totalvfs(pdev);
 	sriov->max_vfs = mlx5_get_max_vfs(dev);
 	sriov->num_vfs = pci_num_vf(pdev);
+	sriov->max_ec_vfs = mlx5_core_ec_sriov_enabled(dev) ? pci_sriov_get_totalvfs(dev->pdev) : 0;
 	sriov->vfs_ctx = kcalloc(total_vfs, sizeof(*sriov->vfs_ctx), GFP_KERNEL);
 	if (!sriov->vfs_ctx)
 		return -ENOMEM;
