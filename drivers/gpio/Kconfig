@@ -1599,6 +1599,19 @@ config GPIO_MLXBF2
 	help
 	  Say Y here if you want GPIO support on Mellanox BlueField 2 SoC.
 
+config GPIO_MLXBF3
+	tristate "Mellanox BlueField 3 SoC GPIO"
+	depends on (MELLANOX_PLATFORM && ARM64) || COMPILE_TEST
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y if you want GPIO support on Mellanox BlueField 3 SoC.
+	  This GPIO controller supports interrupt handling and enables the
+	  manipulation of certain GPIO pins.
+	  This controller should be used in parallel with pinctrl-mlxbf3 to
+	  control the desired GPIOs.
+	  This driver can also be built as a module called mlxbf3-gpio.
+
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
 	depends on X86 || COMPILE_TEST
