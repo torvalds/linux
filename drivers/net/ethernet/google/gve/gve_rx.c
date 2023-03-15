@@ -593,6 +593,35 @@ static struct sk_buff *gve_rx_skb(struct gve_priv *priv, struct gve_rx_ring *rx,
 	return skb;
 }
 
+static int gve_xdp_redirect(struct net_device *dev, struct gve_rx_ring *rx,
+			    struct xdp_buff *orig, struct bpf_prog *xdp_prog)
+{
+	int total_len, len = orig->data_end - orig->data;
+	int headroom = XDP_PACKET_HEADROOM;
+	struct xdp_buff new;
+	void *frame;
+	int err;
+
+	total_len = headroom + SKB_DATA_ALIGN(len) +
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	frame = page_frag_alloc(&rx->page_cache, total_len, GFP_ATOMIC);
+	if (!frame) {
+		u64_stats_update_begin(&rx->statss);
+		rx->xdp_alloc_fails++;
+		u64_stats_update_end(&rx->statss);
+		return -ENOMEM;
+	}
+	xdp_init_buff(&new, total_len, &rx->xdp_rxq);
+	xdp_prepare_buff(&new, frame, headroom, len, false);
+	memcpy(new.data, orig->data, len);
+
+	err = xdp_do_redirect(dev, &new, xdp_prog);
+	if (err)
+		page_frag_free(frame);
+
+	return err;
+}
+
 static void gve_xdp_done(struct gve_priv *priv, struct gve_rx_ring *rx,
 			 struct xdp_buff *xdp, struct bpf_prog *xprog,
 			 int xdp_act)
@@ -609,8 +638,10 @@ static void gve_xdp_done(struct gve_priv *priv, struct gve_rx_ring *rx,
 	case XDP_TX:
 		tx_qid = gve_xdp_tx_queue_id(priv, rx->q_num);
 		tx = &priv->tx[tx_qid];
+		spin_lock(&tx->xdp_lock);
 		err = gve_xdp_xmit_one(priv, tx, xdp->data,
-				       xdp->data_end - xdp->data);
+				       xdp->data_end - xdp->data, NULL);
+		spin_unlock(&tx->xdp_lock);
 
 		if (unlikely(err)) {
 			u64_stats_update_begin(&rx->statss);
@@ -619,9 +650,13 @@ static void gve_xdp_done(struct gve_priv *priv, struct gve_rx_ring *rx,
 		}
 		break;
 	case XDP_REDIRECT:
-		u64_stats_update_begin(&rx->statss);
-		rx->xdp_redirect_errors++;
-		u64_stats_update_end(&rx->statss);
+		err = gve_xdp_redirect(priv->dev, rx, xdp, xprog);
+
+		if (unlikely(err)) {
+			u64_stats_update_begin(&rx->statss);
+			rx->xdp_redirect_errors++;
+			u64_stats_update_end(&rx->statss);
+		}
 		break;
 	}
 	u64_stats_update_begin(&rx->statss);
@@ -841,6 +876,7 @@ static bool gve_rx_refill_buffers(struct gve_priv *priv, struct gve_rx_ring *rx)
 static int gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 			     netdev_features_t feat)
 {
+	u64 xdp_redirects = rx->xdp_actions[XDP_REDIRECT];
 	u64 xdp_txs = rx->xdp_actions[XDP_TX];
 	struct gve_rx_ctx *ctx = &rx->ctx;
 	struct gve_priv *priv = rx->gve;
@@ -891,6 +927,9 @@ static int gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 
 	if (xdp_txs != rx->xdp_actions[XDP_TX])
 		gve_xdp_tx_flush(priv, rx->q_num);
+
+	if (xdp_redirects != rx->xdp_actions[XDP_REDIRECT])
+		xdp_do_flush();
 
 	/* restock ring slots */
 	if (!rx->data.raw_addressing) {

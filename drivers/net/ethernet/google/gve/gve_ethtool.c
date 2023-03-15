@@ -56,13 +56,14 @@ static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 	"rx_drops_packet_over_mru[%u]", "rx_drops_invalid_checksum[%u]",
 	"rx_xdp_aborted[%u]", "rx_xdp_drop[%u]", "rx_xdp_pass[%u]",
 	"rx_xdp_tx[%u]", "rx_xdp_redirect[%u]",
-	"rx_xdp_tx_errors[%u]", "rx_xdp_redirect_errors[%u]",
+	"rx_xdp_tx_errors[%u]", "rx_xdp_redirect_errors[%u]", "rx_xdp_alloc_fails[%u]",
 };
 
 static const char gve_gstrings_tx_stats[][ETH_GSTRING_LEN] = {
 	"tx_posted_desc[%u]", "tx_completed_desc[%u]", "tx_consumed_desc[%u]", "tx_bytes[%u]",
 	"tx_wake[%u]", "tx_stop[%u]", "tx_event_counter[%u]",
 	"tx_dma_mapping_error[%u]",
+	"tx_xdp_xmit[%u]", "tx_xdp_xmit_errors[%u]"
 };
 
 static const char gve_gstrings_adminq_stats[][ETH_GSTRING_LEN] = {
@@ -313,9 +314,10 @@ gve_get_ethtool_stats(struct net_device *netdev,
 					data[i + j] = rx->xdp_actions[j];
 				data[i + j++] = rx->xdp_tx_errors;
 				data[i + j++] = rx->xdp_redirect_errors;
+				data[i + j++] = rx->xdp_alloc_fails;
 			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
 						       start));
-			i += GVE_XDP_ACTIONS + 2; /* XDP rx counters */
+			i += GVE_XDP_ACTIONS + 3; /* XDP rx counters */
 		}
 	} else {
 		i += priv->rx_cfg.num_queues * NUM_GVE_RX_CNTS;
@@ -371,13 +373,21 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			if (skip_nic_stats) {
 				/* skip NIC tx stats */
 				i += NIC_TX_STATS_REPORT_NUM;
-				continue;
+			} else {
+				stats_idx = tx_qid_to_stats_idx[ring];
+				for (j = 0; j < NIC_TX_STATS_REPORT_NUM; j++) {
+					u64 value =
+						be64_to_cpu(report_stats[stats_idx + j].value);
+					data[i++] = value;
+				}
 			}
-			for (j = 0; j < NIC_TX_STATS_REPORT_NUM; j++) {
-				u64 value =
-				be64_to_cpu(report_stats[tx_qid_to_stats_idx[ring] + j].value);
-				data[i++] = value;
-			}
+			do {
+				start = u64_stats_fetch_begin(&priv->tx[ring].statss);
+				data[i] = tx->xdp_xmit;
+				data[i + 1] = tx->xdp_xmit_errors;
+			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
+						       start));
+			i += 2; /* XDP tx counters */
 		}
 	} else {
 		i += num_tx_queues * NUM_GVE_TX_CNTS;

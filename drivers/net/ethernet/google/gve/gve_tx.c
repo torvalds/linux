@@ -173,6 +173,10 @@ static int gve_clean_xdp_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 		pkts++;
 
 		info->xdp.size = 0;
+		if (info->xdp_frame) {
+			xdp_return_frame(info->xdp_frame);
+			info->xdp_frame = NULL;
+		}
 		space_freed += gve_tx_clear_buffer_state(info);
 	}
 
@@ -233,6 +237,7 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 	/* Make sure everything is zeroed to start */
 	memset(tx, 0, sizeof(*tx));
 	spin_lock_init(&tx->clean_lock);
+	spin_lock_init(&tx->xdp_lock);
 	tx->q_num = idx;
 
 	tx->mask = slots - 1;
@@ -715,7 +720,7 @@ netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
-			   void *data, int len)
+			   void *data, int len, void *frame_p)
 {
 	int pad, nfrags, ndescs, iovi, offset;
 	struct gve_tx_buffer_state *info;
@@ -725,6 +730,7 @@ static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
 	if (pad >= GVE_TX_MAX_HEADER_SIZE)
 		pad = 0;
 	info = &tx->info[reqi & tx->mask];
+	info->xdp_frame = frame_p;
 	info->xdp.size = len;
 
 	nfrags = gve_tx_alloc_fifo(&tx->tx_fifo, pad + len,
@@ -759,15 +765,51 @@ static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
 	return ndescs;
 }
 
+int gve_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
+		 u32 flags)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_tx_ring *tx;
+	int i, err = 0, qid;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	qid = gve_xdp_tx_queue_id(priv,
+				  smp_processor_id() % priv->num_xdp_queues);
+
+	tx = &priv->tx[qid];
+
+	spin_lock(&tx->xdp_lock);
+	for (i = 0; i < n; i++) {
+		err = gve_xdp_xmit_one(priv, tx, frames[i]->data,
+				       frames[i]->len, frames[i]);
+		if (err)
+			break;
+	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		gve_tx_put_doorbell(priv, tx->q_resources, tx->req);
+
+	spin_unlock(&tx->xdp_lock);
+
+	u64_stats_update_begin(&tx->statss);
+	tx->xdp_xmit += n;
+	tx->xdp_xmit_errors += n - i;
+	u64_stats_update_end(&tx->statss);
+
+	return i ? i : err;
+}
+
 int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
-		     void *data, int len)
+		     void *data, int len, void *frame_p)
 {
 	int nsegs;
 
 	if (!gve_can_tx(tx, len + GVE_TX_MAX_HEADER_SIZE - 1))
 		return -EBUSY;
 
-	nsegs = gve_tx_fill_xdp(priv, tx, data, len);
+	nsegs = gve_tx_fill_xdp(priv, tx, data, len, frame_p);
 	tx->req += nsegs;
 
 	return 0;

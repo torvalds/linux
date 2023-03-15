@@ -1230,6 +1230,21 @@ static void gve_unreg_xdp_info(struct gve_priv *priv)
 	}
 }
 
+static void gve_drain_page_cache(struct gve_priv *priv)
+{
+	struct page_frag_cache *nc;
+	int i;
+
+	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
+		nc = &priv->rx[i].page_cache;
+		if (nc->va) {
+			__page_frag_cache_drain(virt_to_page(nc->va),
+						nc->pagecnt_bias);
+			nc->va = NULL;
+		}
+	}
+}
+
 static int gve_open(struct net_device *dev)
 {
 	struct gve_priv *priv = netdev_priv(dev);
@@ -1313,6 +1328,7 @@ static int gve_close(struct net_device *dev)
 	netif_carrier_off(dev);
 	if (gve_get_device_rings_ok(priv)) {
 		gve_turndown(priv);
+		gve_drain_page_cache(priv);
 		err = gve_destroy_rings(priv);
 		if (err)
 			goto err;
@@ -1696,6 +1712,7 @@ static const struct net_device_ops gve_netdev_ops = {
 	.ndo_tx_timeout         =       gve_tx_timeout,
 	.ndo_set_features	=	gve_set_features,
 	.ndo_bpf		=	gve_xdp,
+	.ndo_xdp_xmit		=	gve_xdp_xmit,
 };
 
 static void gve_handle_status(struct gve_priv *priv, u32 status)
@@ -1819,6 +1836,8 @@ static void gve_set_netdev_xdp_features(struct gve_priv *priv)
 {
 	if (priv->queue_format == GVE_GQI_QPL_FORMAT) {
 		priv->dev->xdp_features = NETDEV_XDP_ACT_BASIC;
+		priv->dev->xdp_features |= NETDEV_XDP_ACT_REDIRECT;
+		priv->dev->xdp_features |= NETDEV_XDP_ACT_NDO_XMIT;
 	} else {
 		priv->dev->xdp_features = 0;
 	}
