@@ -13,6 +13,7 @@
 
 struct bch_inode_info {
 	struct inode		v;
+	struct list_head	ei_vfs_inode_list;
 	unsigned long		ei_flags;
 
 	struct mutex		ei_update_lock;

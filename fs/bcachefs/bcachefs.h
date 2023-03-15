@@ -971,6 +971,10 @@ struct bch_fs {
 	reflink_gc_table	reflink_gc_table;
 	size_t			reflink_gc_nr;
 
+	/* fs.c */
+	struct list_head	vfs_inodes_list;
+	struct mutex		vfs_inodes_lock;
+
 	/* VFS IO PATH - fs-io.c */
 	struct bio_set		writepage_bioset;
 	struct bio_set		dio_write_bioset;

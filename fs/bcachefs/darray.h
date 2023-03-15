@@ -19,11 +19,11 @@ struct {								\
 
 typedef DARRAY(void) darray_void;
 
-static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more)
+static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more, gfp_t gfp)
 {
 	if (d->nr + more > d->size) {
 		size_t new_size = roundup_pow_of_two(d->nr + more);
-		void *data = krealloc_array(d->data, new_size, t_size, GFP_KERNEL);
+		void *data = krealloc_array(d->data, new_size, t_size, gfp);
 
 		if (!data)
 			return -ENOMEM;
@@ -35,19 +35,24 @@ static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more)
 	return 0;
 }
 
+#define darray_make_room_gfp(_d, _more, _gfp)				\
+	__darray_make_room((darray_void *) (_d), sizeof((_d)->data[0]), (_more), _gfp)
+
 #define darray_make_room(_d, _more)					\
-	__darray_make_room((darray_void *) (_d), sizeof((_d)->data[0]), (_more))
+	darray_make_room_gfp(_d, _more, GFP_KERNEL)
 
 #define darray_top(_d)		((_d).data[(_d).nr])
 
-#define darray_push(_d, _item)						\
+#define darray_push_gfp(_d, _item, _gfp)				\
 ({									\
-	int _ret = darray_make_room((_d), 1);				\
+	int _ret = darray_make_room_gfp((_d), 1, _gfp);			\
 									\
 	if (!_ret)							\
 		(_d)->data[(_d)->nr++] = (_item);			\
 	_ret;								\
 })
+
+#define darray_push(_d, _item)	darray_push_gfp(_d, _item, GFP_KERNEL)
 
 #define darray_insert_item(_d, _pos, _item)				\
 ({									\

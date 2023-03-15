@@ -803,9 +803,6 @@ retry:
 
 	bch2_inode_unpack(k, &inode_u);
 
-	/* Subvolume root? */
-	BUG_ON(inode_u.bi_subvol);
-
 	bkey_inode_generation_init(&delete.k_i);
 	delete.k.p = iter.pos;
 	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
