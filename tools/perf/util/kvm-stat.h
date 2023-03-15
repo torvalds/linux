@@ -40,7 +40,7 @@ struct kvm_event {
 	struct kvm_event_stats *vcpu;
 };
 
-typedef int (*key_cmp_fun)(struct kvm_event*, struct kvm_event*, int);
+typedef int64_t (*key_cmp_fun)(struct kvm_event*, struct kvm_event*, int);
 
 struct kvm_event_key {
 	const char *name;
