@@ -2100,6 +2100,50 @@ exit:
 	return rc;
 }
 
+void bnxt_qplib_resize_cq_complete(struct bnxt_qplib_res *res,
+				   struct bnxt_qplib_cq *cq)
+{
+	bnxt_qplib_free_hwq(res, &cq->hwq);
+	memcpy(&cq->hwq, &cq->resize_hwq, sizeof(cq->hwq));
+}
+
+int bnxt_qplib_resize_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq,
+			 int new_cqes)
+{
+	struct bnxt_qplib_hwq_attr hwq_attr = {};
+	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
+	struct creq_resize_cq_resp resp = {};
+	struct cmdq_resize_cq req = {};
+	struct bnxt_qplib_pbl *pbl;
+	u32 pg_sz, lvl, new_sz;
+	u16 cmd_flags = 0;
+	int rc;
+
+	RCFW_CMD_PREP(req, RESIZE_CQ, cmd_flags);
+	hwq_attr.sginfo = &cq->sg_info;
+	hwq_attr.res = res;
+	hwq_attr.depth = new_cqes;
+	hwq_attr.stride = sizeof(struct cq_base);
+	hwq_attr.type = HWQ_TYPE_QUEUE;
+	rc = bnxt_qplib_alloc_init_hwq(&cq->resize_hwq, &hwq_attr);
+	if (rc)
+		return rc;
+
+	req.cq_cid = cpu_to_le32(cq->id);
+	pbl = &cq->resize_hwq.pbl[PBL_LVL_0];
+	pg_sz = bnxt_qplib_base_pg_size(&cq->resize_hwq);
+	lvl = (cq->resize_hwq.level << CMDQ_RESIZE_CQ_LVL_SFT) &
+				       CMDQ_RESIZE_CQ_LVL_MASK;
+	new_sz = (new_cqes << CMDQ_RESIZE_CQ_NEW_CQ_SIZE_SFT) &
+		  CMDQ_RESIZE_CQ_NEW_CQ_SIZE_MASK;
+	req.new_cq_size_pg_size_lvl = cpu_to_le32(new_sz | pg_sz | lvl);
+	req.new_pbl = cpu_to_le64(pbl->pg_map_arr[0]);
+
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	return rc;
+}
+
 int bnxt_qplib_destroy_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;

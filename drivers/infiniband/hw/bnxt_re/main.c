@@ -553,6 +553,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.query_srq = bnxt_re_query_srq,
 	.reg_user_mr = bnxt_re_reg_user_mr,
 	.req_notify_cq = bnxt_re_req_notify_cq,
+	.resize_cq = bnxt_re_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, bnxt_re_pd, ib_pd),
@@ -584,6 +585,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 		return ret;
 
 	dma_set_max_seg_size(&rdev->en_dev->pdev->dev, UINT_MAX);
+	ibdev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POLL_CQ);
 	return ib_register_device(ibdev, "bnxt_re%d", &rdev->en_dev->pdev->dev);
 }
 

@@ -400,6 +400,7 @@ struct bnxt_qplib_cq {
 	u16				count;
 	u16				period;
 	struct bnxt_qplib_hwq		hwq;
+	struct bnxt_qplib_hwq		resize_hwq;
 	u32				cnq_hw_ring_id;
 	struct bnxt_qplib_nq		*nq;
 	bool				resize_in_progress;
@@ -532,6 +533,10 @@ void bnxt_qplib_post_recv_db(struct bnxt_qplib_qp *qp);
 int bnxt_qplib_post_recv(struct bnxt_qplib_qp *qp,
 			 struct bnxt_qplib_swqe *wqe);
 int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq);
+int bnxt_qplib_resize_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq,
+			 int new_cqes);
+void bnxt_qplib_resize_cq_complete(struct bnxt_qplib_res *res,
+				   struct bnxt_qplib_cq *cq);
 int bnxt_qplib_destroy_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq);
 int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 		       int num, struct bnxt_qplib_qp **qp);
