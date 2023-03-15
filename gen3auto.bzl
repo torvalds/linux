@@ -91,6 +91,7 @@ def define_gen3auto():
         "drivers/regulator/qti-fixed-regulator.ko",
         "drivers/regulator/rpmh-regulator.ko",
         "drivers/regulator/stub-regulator.ko",
+        "drivers/regulator/refgen.ko",
         "drivers/remoteproc/qcom_pil_info.ko",
         "drivers/remoteproc/qcom_q6v5.ko",
         "drivers/remoteproc/qcom_q6v5_pas.ko",
