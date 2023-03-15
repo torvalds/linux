@@ -23,6 +23,10 @@ struct event_key {
 	struct exit_reasons_table *exit_reasons;
 };
 
+struct kvm_info {
+	char name[KVM_EVENT_NAME_LEN];
+};
+
 struct kvm_event_stats {
 	u64 time;
 	struct stats stats;

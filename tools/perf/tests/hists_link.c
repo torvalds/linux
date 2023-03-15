@@ -87,7 +87,7 @@ static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 				goto out;
 
 			he = hists__add_entry(hists, &al, NULL,
-						NULL, NULL, &sample, true);
+					      NULL, NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);
 				goto out;
@@ -106,7 +106,7 @@ static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 				goto out;
 
 			he = hists__add_entry(hists, &al, NULL,
-						NULL, NULL, &sample, true);
+					      NULL, NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);
 				goto out;

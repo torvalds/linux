@@ -423,7 +423,7 @@ static int diff__process_sample_event(struct perf_tool *tool,
 	switch (compute) {
 	case COMPUTE_CYCLES:
 		if (!hists__add_entry_ops(hists, &block_hist_ops, &al, NULL,
-					  NULL, NULL, sample, true)) {
+					  NULL, NULL, NULL, sample, true)) {
 			pr_warning("problem incrementing symbol period, "
 				   "skipping event\n");
 			goto out_put;
@@ -442,7 +442,7 @@ static int diff__process_sample_event(struct perf_tool *tool,
 		break;
 
 	default:
-		if (!hists__add_entry(hists, &al, NULL, NULL, NULL, sample,
+		if (!hists__add_entry(hists, &al, NULL, NULL, NULL, NULL, sample,
 				      true)) {
 			pr_warning("problem incrementing symbol period, "
 				   "skipping event\n");
