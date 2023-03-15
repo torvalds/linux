@@ -136,18 +136,6 @@ static const struct clk_parent_data gpucc_parent_data_1[] = {
 	{ .index = DT_GCC_GPU_GPLL0_CLK_SRC },
 };
 
-static const struct parent_map gpucc_parent_map_2[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GCC_GPU_GPLL0_CLK_SRC, 5 },
-	{ P_GCC_GPU_GPLL0_DIV_CLK_SRC, 6 },
-};
-
-static const struct clk_parent_data gpucc_parent_data_2[] = {
-	{ .index = P_BI_TCXO },
-	{ .index = DT_GCC_GPU_GPLL0_CLK_SRC },
-	{ .index = DT_GCC_GPU_GPLL0_DIV_CLK_SRC },
-};
-
 static const struct freq_tbl ftbl_gpucc_gmu_clk_src[] = {
 	F(200000000, P_GCC_GPU_GPLL0_DIV_CLK_SRC, 1.5, 0, 0),
 	{ }
