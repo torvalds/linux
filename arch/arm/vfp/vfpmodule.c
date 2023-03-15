@@ -30,11 +30,6 @@
 #include "vfpinstr.h"
 #include "vfp.h"
 
-/*
- * Our undef handlers (in entry.S)
- */
-asmlinkage void vfp_support_entry(u32, void *, u32, u32);
-
 static bool have_vfp __ro_after_init;
 
 /*
@@ -325,7 +320,7 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 /*
  * Package up a bounce condition.
  */
-void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
+static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 {
 	u32 fpscr, orig_fpscr, fpsid, exceptions;
 
@@ -374,7 +369,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 		 * on VFP subarch 1.
 		 */
 		 vfp_raise_exceptions(VFP_EXCEPTION_ERROR, trigger, fpscr, regs);
-		goto exit;
+		return;
 	}
 
 	/*
@@ -405,7 +400,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 * the FPEXC.FP2V bit is valid only if FPEXC.EX is 1.
 	 */
 	if ((fpexc & (FPEXC_EX | FPEXC_FP2V)) != (FPEXC_EX | FPEXC_FP2V))
-		goto exit;
+		return;
 
 	/*
 	 * The barrier() here prevents fpinst2 being read
@@ -418,8 +413,6 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	exceptions = vfp_emulate_instruction(trigger, orig_fpscr, regs);
 	if (exceptions)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
- exit:
-	local_bh_enable();
 }
 
 static void vfp_enable(void *unused)
@@ -649,22 +642,112 @@ static int vfp_starting_cpu(unsigned int unused)
 }
 
 /*
- * Entered with:
+ * vfp_support_entry - Handle VFP exception from user mode
  *
- *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
- *  r1  = thread_info pointer
- *  r2  = PC value to resume execution after successful emulation
- *  r3  = normal "successful" return address
- *  lr  = unrecognised instruction return address
+ * @regs:	pt_regs structure holding the register state at exception entry
+ * @trigger:	The opcode of the instruction that triggered the exception
+ *
+ * Returns 0 if the exception was handled, or an error code otherwise.
  */
-asmlinkage void vfp_entry(u32 trigger, struct thread_info *ti, u32 resume_pc,
-			  u32 resume_return_address)
+asmlinkage int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 {
+	struct thread_info *ti = current_thread_info();
+	u32 fpexc;
+
 	if (unlikely(!have_vfp))
-		return;
+		return -ENODEV;
 
 	local_bh_disable();
-	vfp_support_entry(trigger, ti, resume_pc, resume_return_address);
+	fpexc = fmrx(FPEXC);
+
+	/*
+	 * If the VFP unit was not enabled yet, we have to check whether the
+	 * VFP state in the CPU's registers is the most recent VFP state
+	 * associated with the process. On UP systems, we don't save the VFP
+	 * state eagerly on a context switch, so we may need to save the
+	 * VFP state to memory first, as it may belong to another process.
+	 */
+	if (!(fpexc & FPEXC_EN)) {
+		/*
+		 * Enable the VFP unit but mask the FP exception flag for the
+		 * time being, so we can access all the registers.
+		 */
+		fpexc |= FPEXC_EN;
+		fmxr(FPEXC, fpexc & ~FPEXC_EX);
+
+		/*
+		 * Check whether or not the VFP state in the CPU's registers is
+		 * the most recent VFP state associated with this task. On SMP,
+		 * migration may result in multiple CPUs holding VFP states
+		 * that belong to the same task, but only the most recent one
+		 * is valid.
+		 */
+		if (!vfp_state_in_hw(ti->cpu, ti)) {
+			if (!IS_ENABLED(CONFIG_SMP) &&
+			    vfp_current_hw_state[ti->cpu] != NULL) {
+				/*
+				 * This CPU is currently holding the most
+				 * recent VFP state associated with another
+				 * task, and we must save that to memory first.
+				 */
+				vfp_save_state(vfp_current_hw_state[ti->cpu],
+					       fpexc);
+			}
+
+			/*
+			 * We can now proceed with loading the task's VFP state
+			 * from memory into the CPU registers.
+			 */
+			fpexc = vfp_load_state(&ti->vfpstate);
+			vfp_current_hw_state[ti->cpu] = &ti->vfpstate;
+#ifdef CONFIG_SMP
+			/*
+			 * Record that this CPU is now the one holding the most
+			 * recent VFP state of the task.
+			 */
+			ti->vfpstate.hard.cpu = ti->cpu;
+#endif
+		}
+
+		if (fpexc & FPEXC_EX)
+			/*
+			 * Might as well handle the pending exception before
+			 * retrying branch out before setting an FPEXC that
+			 * stops us reading stuff.
+			 */
+			goto bounce;
+
+		/*
+		 * No FP exception is pending: just enable the VFP and
+		 * replay the instruction that trapped.
+		 */
+		fmxr(FPEXC, fpexc);
+		regs->ARM_pc -= 4;
+	} else {
+		/* Check for synchronous or asynchronous exceptions */
+		if (!(fpexc & (FPEXC_EX | FPEXC_DEX))) {
+			u32 fpscr = fmrx(FPSCR);
+
+			/*
+			 * On some implementations of the VFP subarch 1,
+			 * setting FPSCR.IXE causes all the CDP instructions to
+			 * be bounced synchronously without setting the
+			 * FPEXC.EX bit
+			 */
+			if (!(fpscr & FPSCR_IXE)) {
+				if (!(fpscr & FPSCR_LENGTH_MASK)) {
+					pr_debug("not VFP\n");
+					local_bh_enable();
+					return -ENOEXEC;
+				}
+				fpexc |= FPEXC_DEX;
+			}
+		}
+bounce:		VFP_bounce(trigger, fpexc, regs);
+	}
+
+	local_bh_enable();
+	return 0;
 }
 
 #ifdef CONFIG_KERNEL_MODE_NEON

@@ -22,10 +22,10 @@
 @  IRQs enabled.
 @
 ENTRY(do_vfp)
-	mov	r1, r10
-	str	lr, [sp, #-8]!
-	add	r3, sp, #4
-	str	r9, [r3]
-	bl	vfp_entry
-	ldr	pc, [sp], #8
+	mov	r1, r0				@ pass trigger opcode via R1
+	mov	r0, sp				@ pass struct pt_regs via R0
+	bl	vfp_support_entry		@ dispatch the VFP exception
+	cmp	r0, #0				@ handled successfully?
+	reteq	r9				@ then use R9 as return address
+	ret	lr				@ pass to undef handler
 ENDPROC(do_vfp)
