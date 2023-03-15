@@ -408,6 +408,8 @@ struct xe_device {
 	/** @needs_flr_on_fini: requests function-reset on fini */
 	bool needs_flr_on_fini;
 
+	/* private: */
+
 #if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
 	/*
 	 * Any fields below this point are the ones used by display.
