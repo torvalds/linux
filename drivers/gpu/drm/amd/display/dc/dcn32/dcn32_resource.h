@@ -472,6 +472,7 @@ double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *conte
       SRI_ARR(OTG_H_BLANK, DSCL, id), SRI_ARR(OTG_V_BLANK, DSCL, id),          \
       SRI_ARR(SCL_MODE, DSCL, id), SRI_ARR(LB_DATA_FORMAT, DSCL, id),          \
       SRI_ARR(LB_MEMORY_CTRL, DSCL, id), SRI_ARR(DSCL_AUTOCAL, DSCL, id),      \
+      SRI_ARR(DSCL_CONTROL, DSCL, id),                                         \
       SRI_ARR(SCL_TAP_CONTROL, DSCL, id),                                      \
       SRI_ARR(SCL_COEF_RAM_TAP_SELECT, DSCL, id),                              \
       SRI_ARR(SCL_COEF_RAM_TAP_DATA, DSCL, id),                                \
