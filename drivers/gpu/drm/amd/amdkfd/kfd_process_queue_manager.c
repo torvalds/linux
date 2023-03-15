@@ -242,6 +242,13 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	enum kfd_queue_type type = properties->type;
 	unsigned int max_queues = 127; /* HWS limit */
 
+	/*
+	 * On GFX 9.4.3, increase the number of queues that
+	 * can be created to 255. No HWS limit on GFX 9.4.3.
+	 */
+	if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3))
+		max_queues = 255;
+
 	q = NULL;
 	kq = NULL;
 
