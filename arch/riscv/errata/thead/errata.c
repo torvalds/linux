@@ -93,10 +93,10 @@ void __init_or_module thead_errata_patch_func(struct alt_entry *begin, struct al
 	for (alt = begin; alt < end; alt++) {
 		if (alt->vendor_id != THEAD_VENDOR_ID)
 			continue;
-		if (alt->errata_id >= ERRATA_THEAD_NUMBER)
+		if (alt->patch_id >= ERRATA_THEAD_NUMBER)
 			continue;
 
-		tmp = (1U << alt->errata_id);
+		tmp = (1U << alt->patch_id);
 		if (cpu_req_errata & tmp) {
 			oldptr = ALT_OLD_PTR(alt);
 			altptr = ALT_ALT_PTR(alt);

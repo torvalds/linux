@@ -8,20 +8,15 @@
 
 #include <linux/bitmap.h>
 #include <linux/ctype.h>
-#include <linux/libfdt.h>
 #include <linux/log2.h>
 #include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
-#include <asm/errata_list.h>
 #include <asm/hwcap.h>
 #include <asm/patch.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/smp.h>
-#include <asm/switch_to.h>
 
 #define NUM_ALPHA_EXTS ('z' - 'a' + 1)
 
@@ -283,13 +278,13 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 	for (alt = begin; alt < end; alt++) {
 		if (alt->vendor_id != 0)
 			continue;
-		if (alt->errata_id >= RISCV_ISA_EXT_MAX) {
+		if (alt->patch_id >= RISCV_ISA_EXT_MAX) {
 			WARN(1, "This extension id:%d is not in ISA extension list",
-				alt->errata_id);
+				alt->patch_id);
 			continue;
 		}
 
-		if (!__riscv_isa_extension_available(NULL, alt->errata_id))
+		if (!__riscv_isa_extension_available(NULL, alt->patch_id))
 			continue;
 
 		oldptr = ALT_OLD_PTR(alt);

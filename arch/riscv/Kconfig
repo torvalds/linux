@@ -245,7 +245,7 @@ config AS_HAS_INSN
 	def_bool $(as-instr,.insn r 51$(comma) 0$(comma) 0$(comma) t0$(comma) t0$(comma) zero)
 
 source "arch/riscv/Kconfig.socs"
-source "arch/riscv/Kconfig.erratas"
+source "arch/riscv/Kconfig.errata"
 
 menu "Platform type"
 
@@ -378,9 +378,9 @@ config RISCV_ALTERNATIVE
 	depends on !XIP_KERNEL
 	help
 	  This Kconfig allows the kernel to automatically patch the
-	  errata required by the execution platform at run time. The
-	  code patching is performed once in the boot stages. It means
-	  that the overhead from this mechanism is just taken once.
+	  erratum or cpufeature required by the execution platform at run
+	  time. The code patching overhead is minimal, as it's only done
+	  once at boot and once on each module load.
 
 config RISCV_ALTERNATIVE_EARLY
 	bool

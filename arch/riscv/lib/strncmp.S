@@ -2,9 +2,8 @@
 
 #include <linux/linkage.h>
 #include <asm/asm.h>
-#include <asm-generic/export.h>
 #include <asm/alternative-macros.h>
-#include <asm/errata_list.h>
+#include <asm/hwcap.h>
 
 /* int strncmp(const char *cs, const char *ct, size_t count) */
 SYM_FUNC_START(strncmp)

@@ -2,9 +2,8 @@
 
 #include <linux/linkage.h>
 #include <asm/asm.h>
-#include <asm-generic/export.h>
 #include <asm/alternative-macros.h>
-#include <asm/errata_list.h>
+#include <asm/hwcap.h>
 
 /* int strlen(const char *s) */
 SYM_FUNC_START(strlen)
