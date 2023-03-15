@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO Driver for Loongson 1 SoC
  *
- * Copyright (C) 2015-2016 Zhang, Keguang <keguang.zhang@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
+ * Copyright (C) 2015-2023 Keguang Zhang <keguang.zhang@gmail.com>
  */
 
 #include <linux/module.h>
@@ -90,6 +87,6 @@ static struct platform_driver ls1x_gpio_driver = {
 
 module_platform_driver(ls1x_gpio_driver);
 
-MODULE_AUTHOR("Kelvin Cheung <keguang.zhang@gmail.com>");
+MODULE_AUTHOR("Keguang Zhang <keguang.zhang@gmail.com>");
 MODULE_DESCRIPTION("Loongson1 GPIO driver");
 MODULE_LICENSE("GPL");
