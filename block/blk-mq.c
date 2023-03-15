@@ -3049,8 +3049,9 @@ blk_status_t blk_insert_cloned_request(struct request *rq)
 	if (q->disk && should_fail_request(q->disk->part0, blk_rq_bytes(rq)))
 		return BLK_STS_IOERR;
 
-	if (blk_crypto_rq_get_keyslot(rq))
-		return BLK_STS_IOERR;
+	ret = blk_crypto_rq_get_keyslot(rq);
+	if (ret != BLK_STS_OK)
+		return ret;
 
 	blk_account_io_start(rq);
 
