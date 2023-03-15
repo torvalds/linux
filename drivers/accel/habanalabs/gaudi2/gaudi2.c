@@ -8846,7 +8846,7 @@ static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool 
 				is_pmmu ? "PMMU" : "HMMU", addr, ((u64)axid_h << 32) + axid_l);
 	hl_handle_page_fault(hdev, addr, 0, is_pmmu, event_mask);
 
-	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_ERROR_CAPTURE), 0);
+	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_PAGE_ERROR_VALID), 0);
 }
 
 static void gaudi2_handle_access_error(struct hl_device *hdev, u64 mmu_base, bool is_pmmu)
