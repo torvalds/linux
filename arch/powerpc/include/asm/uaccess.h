@@ -361,8 +361,6 @@ copy_mc_to_user(void __user *to, const void *from, unsigned long n)
 
 extern long __copy_from_user_flushcache(void *dst, const void __user *src,
 		unsigned size);
-extern void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
-			   size_t len);
 
 static __must_check inline bool user_access_begin(const void __user *ptr, size_t len)
 {
