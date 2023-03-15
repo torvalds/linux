@@ -29,6 +29,8 @@ Config Initiator
 
 #. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
 
+#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for non-defaults.
+
 #. Obtain base gsmtty number for the used serial port.
 
    Major parts of the initialization program
@@ -119,6 +121,8 @@ Config Requester
    ioctl if needed.
 
 #. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
+
+#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for non-defaults.
 
 #. Obtain base gsmtty number for the used serial port::
 
