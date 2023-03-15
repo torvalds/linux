@@ -435,7 +435,6 @@ fail_free_skb:
 static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 					 struct dp_rxdma_ring *rx_ring)
 {
-	struct ath11k_pdev_dp *dp = &ar->dp;
 	struct sk_buff *skb;
 	int buf_id;
 
@@ -447,28 +446,6 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 		 */
 		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
 				 skb->len + skb_tailroom(skb), DMA_FROM_DEVICE);
-		dev_kfree_skb_any(skb);
-	}
-
-	idr_destroy(&rx_ring->bufs_idr);
-	spin_unlock_bh(&rx_ring->idr_lock);
-
-	/* if rxdma1_enable is false, mon_status_refill_ring
-	 * isn't setup, so don't clean.
-	 */
-	if (!ar->ab->hw_params.rxdma1_enable)
-		return 0;
-
-	rx_ring = &dp->rx_mon_status_refill_ring[0];
-
-	spin_lock_bh(&rx_ring->idr_lock);
-	idr_for_each_entry(&rx_ring->bufs_idr, skb, buf_id) {
-		idr_remove(&rx_ring->bufs_idr, buf_id);
-		/* XXX: Understand where internal driver does this dma_unmap
-		 * of rxdma_buffer.
-		 */
-		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
-				 skb->len + skb_tailroom(skb), DMA_BIDIRECTIONAL);
 		dev_kfree_skb_any(skb);
 	}
 
@@ -3029,39 +3006,51 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 
 			spin_lock_bh(&rx_ring->idr_lock);
 			skb = idr_find(&rx_ring->bufs_idr, buf_id);
+			spin_unlock_bh(&rx_ring->idr_lock);
+
 			if (!skb) {
 				ath11k_warn(ab, "rx monitor status with invalid buf_id %d\n",
 					    buf_id);
-				spin_unlock_bh(&rx_ring->idr_lock);
 				pmon->buf_state = DP_MON_STATUS_REPLINISH;
 				goto move_next;
 			}
 
-			idr_remove(&rx_ring->bufs_idr, buf_id);
-			spin_unlock_bh(&rx_ring->idr_lock);
-
 			rxcb = ATH11K_SKB_RXCB(skb);
 
-			dma_unmap_single(ab->dev, rxcb->paddr,
-					 skb->len + skb_tailroom(skb),
-					 DMA_FROM_DEVICE);
+			dma_sync_single_for_cpu(ab->dev, rxcb->paddr,
+						skb->len + skb_tailroom(skb),
+						DMA_FROM_DEVICE);
 
 			tlv = (struct hal_tlv_hdr *)skb->data;
 			if (FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl) !=
 					HAL_RX_STATUS_BUFFER_DONE) {
-				ath11k_warn(ab, "mon status DONE not set %lx\n",
+				ath11k_warn(ab, "mon status DONE not set %lx, buf_id %d\n",
 					    FIELD_GET(HAL_TLV_HDR_TAG,
-						      tlv->tl));
-				dev_kfree_skb_any(skb);
+						      tlv->tl), buf_id);
+				/* If done status is missing, hold onto status
+				 * ring until status is done for this status
+				 * ring buffer.
+				 * Keep HP in mon_status_ring unchanged,
+				 * and break from here.
+				 * Check status for same buffer for next time
+				 */
 				pmon->buf_state = DP_MON_STATUS_NO_DMA;
-				goto move_next;
+				break;
 			}
 
+			spin_lock_bh(&rx_ring->idr_lock);
+			idr_remove(&rx_ring->bufs_idr, buf_id);
+			spin_unlock_bh(&rx_ring->idr_lock);
 			if (ab->hw_params.full_monitor_mode) {
 				ath11k_dp_rx_mon_update_status_buf_state(pmon, tlv);
 				if (paddr == pmon->mon_status_paddr)
 					pmon->buf_state = DP_MON_STATUS_MATCH;
 			}
+
+			dma_unmap_single(ab->dev, rxcb->paddr,
+					 skb->len + skb_tailroom(skb),
+					 DMA_FROM_DEVICE);
+
 			__skb_queue_tail(skb_list, skb);
 		} else {
 			pmon->buf_state = DP_MON_STATUS_REPLINISH;
