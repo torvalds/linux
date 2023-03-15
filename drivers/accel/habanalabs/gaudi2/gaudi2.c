@@ -6997,7 +6997,7 @@ static bool gaudi2_get_nic_idle_status(struct hl_device *hdev, u64 *mask_arr, u8
 	u32 qm_glbl_sts0, qm_glbl_sts1, qm_cgm_sts;
 	bool is_idle = true, is_eng_idle;
 	int engine_idx, i;
-	u64 offset;
+	u64 offset = 0;
 
 	/* NIC, twelve macros in Full chip */
 	if (e && hdev->nic_ports_mask)
@@ -8349,7 +8349,7 @@ static int gaudi2_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 {
 	u32 qid_base, error_count = 0;
 	u64 qman_base;
-	u8 index;
+	u8 index = 0;
 
 	switch (event_type) {
 	case GAUDI2_EVENT_TPC0_QM ... GAUDI2_EVENT_TPC5_QM:
