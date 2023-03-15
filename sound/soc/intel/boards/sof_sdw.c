@@ -1602,13 +1602,11 @@ static int mc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mc_remove(struct platform_device *pdev)
+static void mc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
 	mc_dailink_exit_loop(card);
-
-	return 0;
 }
 
 static struct platform_driver sof_sdw_driver = {
@@ -1617,7 +1615,7 @@ static struct platform_driver sof_sdw_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = mc_probe,
-	.remove = mc_remove,
+	.remove_new = mc_remove,
 };
 
 module_platform_driver(sof_sdw_driver);
