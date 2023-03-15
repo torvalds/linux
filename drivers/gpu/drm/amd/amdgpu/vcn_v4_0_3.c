@@ -112,7 +112,7 @@ static int vcn_v4_0_3_sw_init(void *handle)
 			(adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
 			9 * vcn_inst;
 		ring->vm_hub = AMDGPU_MMHUB0(adev->vcn.inst[i].aid_id);
-		sprintf(ring->name, "vcn_unified_%d", i);
+		sprintf(ring->name, "vcn_unified_%d", adev->vcn.inst[i].aid_id);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst->irq, 0,
 				     AMDGPU_RING_PRIO_DEFAULT,
 				     &adev->vcn.inst[i].sched_score);
