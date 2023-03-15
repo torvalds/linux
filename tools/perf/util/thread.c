@@ -311,17 +311,30 @@ const char *thread__comm_str(struct thread *thread)
 	return str;
 }
 
+static int __thread__comm_len(struct thread *thread, const char *comm)
+{
+	if (!comm)
+		return 0;
+	thread->comm_len = strlen(comm);
+
+	return thread->comm_len;
+}
+
 /* CHECKME: it should probably better return the max comm len from its comm list */
 int thread__comm_len(struct thread *thread)
 {
-	if (!thread->comm_len) {
-		const char *comm = thread__comm_str(thread);
-		if (!comm)
-			return 0;
-		thread->comm_len = strlen(comm);
+	int comm_len = thread->comm_len;
+
+	if (!comm_len) {
+		const char *comm;
+
+		down_read(&thread->comm_lock);
+		comm = __thread__comm_str(thread);
+		comm_len = __thread__comm_len(thread, comm);
+		up_read(&thread->comm_lock);
 	}
 
-	return thread->comm_len;
+	return comm_len;
 }
 
 size_t thread__fprintf(struct thread *thread, FILE *fp)
