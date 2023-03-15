@@ -32,6 +32,7 @@ static int cs35l45_i2c_probe(struct i2c_client *client)
 	}
 
 	cs35l45->dev = dev;
+	cs35l45->irq = client->irq;
 
 	return cs35l45_probe(cs35l45);
 }

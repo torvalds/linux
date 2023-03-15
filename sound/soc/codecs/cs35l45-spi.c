@@ -32,6 +32,7 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 	}
 
 	cs35l45->dev = dev;
+	cs35l45->irq = spi->irq;
 
 	return cs35l45_probe(cs35l45);
 }

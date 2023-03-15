@@ -586,10 +586,13 @@ static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 					   val << CS35L45_GPIO_CTRL_SHIFT);
 
 		ret = of_property_read_u32(child, "gpio-invert", &val);
-		if (!ret)
+		if (!ret) {
 			regmap_update_bits(cs35l45->regmap, pad_regs[i],
 					   CS35L45_GPIO_INVERT_MASK,
 					   val << CS35L45_GPIO_INVERT_SHIFT);
+			if (i == 1)
+				cs35l45->irq_invert = val;
+		}
 
 		of_node_put(child);
 	}
@@ -603,6 +606,78 @@ static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 
 	return 0;
 }
+
+static irqreturn_t cs35l45_pll_unlock(int irq, void *data)
+{
+	struct cs35l45_private *cs35l45 = data;
+
+	dev_dbg(cs35l45->dev, "PLL unlock detected!");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l45_pll_lock(int irq, void *data)
+{
+	struct cs35l45_private *cs35l45 = data;
+
+	dev_dbg(cs35l45->dev, "PLL lock detected!");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l45_spk_safe_err(int irq, void *data);
+
+static const struct cs35l45_irq cs35l45_irqs[] = {
+	CS35L45_IRQ(AMP_SHORT_ERR, "Amplifier short error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(UVLO_VDDBATT_ERR, "VDDBATT undervoltage error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(BST_SHORT_ERR, "Boost inductor error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(BST_UVP_ERR, "Boost undervoltage error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(TEMP_ERR, "Overtemperature error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(AMP_CAL_ERR, "Amplifier calibration error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(UVLO_VDDLV_ERR, "LV threshold detector error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(GLOBAL_ERROR, "Global error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(DSP_WDT_EXPIRE, "DSP Watchdog Timer", cs35l45_spk_safe_err),
+	CS35L45_IRQ(PLL_UNLOCK_FLAG_RISE, "PLL unlock", cs35l45_pll_unlock),
+	CS35L45_IRQ(PLL_LOCK_FLAG, "PLL lock", cs35l45_pll_lock),
+};
+
+static irqreturn_t cs35l45_spk_safe_err(int irq, void *data)
+{
+	struct cs35l45_private *cs35l45 = data;
+	int i;
+
+	i = irq - regmap_irq_get_virq(cs35l45->irq_data, 0);
+
+	dev_err(cs35l45->dev, "%s condition detected!\n", cs35l45_irqs[i].name);
+
+	return IRQ_HANDLED;
+}
+
+static const struct regmap_irq cs35l45_reg_irqs[] = {
+	CS35L45_REG_IRQ(IRQ1_EINT_1, AMP_SHORT_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, UVLO_VDDBATT_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, BST_SHORT_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, BST_UVP_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, TEMP_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_3, AMP_CAL_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_18, UVLO_VDDLV_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_18, GLOBAL_ERROR),
+	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_WDT_EXPIRE),
+	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_UNLOCK_FLAG_RISE),
+	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_LOCK_FLAG),
+};
+
+static const struct regmap_irq_chip cs35l45_regmap_irq_chip = {
+	.name = "cs35l45 IRQ1 Controller",
+	.main_status = CS35L45_IRQ1_STATUS,
+	.status_base = CS35L45_IRQ1_EINT_1,
+	.mask_base = CS35L45_IRQ1_MASK_1,
+	.ack_base = CS35L45_IRQ1_EINT_1,
+	.num_regs = 18,
+	.irqs = cs35l45_reg_irqs,
+	.num_irqs = ARRAY_SIZE(cs35l45_reg_irqs),
+	.runtime_pm = true,
+};
 
 static int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
@@ -660,7 +735,8 @@ static int cs35l45_initialize(struct cs35l45_private *cs35l45)
 int cs35l45_probe(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
-	int ret;
+	unsigned long irq_pol = IRQF_ONESHOT | IRQF_SHARED;
+	int ret, i, irq;
 
 	cs35l45->vdd_batt = devm_regulator_get(dev, "vdd-batt");
 	if (IS_ERR(cs35l45->vdd_batt))
@@ -704,6 +780,37 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	ret = cs35l45_initialize(cs35l45);
 	if (ret < 0)
 		goto err_reset;
+
+	if (cs35l45->irq) {
+		if (cs35l45->irq_invert)
+			irq_pol |= IRQF_TRIGGER_HIGH;
+		else
+			irq_pol |= IRQF_TRIGGER_LOW;
+
+		ret = devm_regmap_add_irq_chip(dev, cs35l45->regmap, cs35l45->irq, irq_pol, 0,
+					       &cs35l45_regmap_irq_chip, &cs35l45->irq_data);
+		if (ret) {
+			dev_err(dev, "Failed to register IRQ chip: %d\n", ret);
+			goto err_reset;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(cs35l45_irqs); i++) {
+			irq = regmap_irq_get_virq(cs35l45->irq_data, cs35l45_irqs[i].irq);
+			if (irq < 0) {
+				dev_err(dev, "Failed to get %s\n", cs35l45_irqs[i].name);
+				ret = irq;
+				goto err_reset;
+			}
+
+			ret = devm_request_threaded_irq(dev, irq, NULL, cs35l45_irqs[i].handler,
+							irq_pol, cs35l45_irqs[i].name, cs35l45);
+			if (ret) {
+				dev_err(dev, "Failed to request IRQ %s: %d\n",
+					cs35l45_irqs[i].name, ret);
+				goto err_reset;
+			}
+		}
+	}
 
 	ret = devm_snd_soc_register_component(dev, &cs35l45_component,
 					      cs35l45_dai,
