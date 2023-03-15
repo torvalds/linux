@@ -33,11 +33,13 @@
 static u32 kvm_ipa_limit;
 
 unsigned int kvm_sve_max_vl;
+unsigned int kvm_host_sve_max_vl;
 
 int kvm_arm_init_sve(void)
 {
 	if (system_supports_sve()) {
 		kvm_sve_max_vl = sve_max_virtualisable_vl();
+		kvm_host_sve_max_vl = sve_max_vl();
 
 		/*
 		 * The get_sve_reg()/set_sve_reg() ioctl interface will need
