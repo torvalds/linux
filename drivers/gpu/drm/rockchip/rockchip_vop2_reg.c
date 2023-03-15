@@ -2196,9 +2196,9 @@ static const struct vop2_scl_regs rk3568_area3_scl = {
 	.vsd_yrgb_gt4 = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 9),
 	.vsd_cbcr_gt2 = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 10),
 	.vsd_cbcr_gt4 = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 11),
-	.xavg_en = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 20),/* supported from vop3 */
-	.xgt_en = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 21),
-	.xgt_mode = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x3, 22),
+	.xavg_en = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 20),/* supported from vop3 */
+	.xgt_en = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 21),
+	.xgt_mode = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x3, 22),
 };
 
 static const struct vop2_win_regs rk3568_area1_data = {
