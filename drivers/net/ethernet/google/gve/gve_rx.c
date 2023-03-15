@@ -8,6 +8,8 @@
 #include "gve_adminq.h"
 #include "gve_utils.h"
 #include <linux/etherdevice.h>
+#include <linux/filter.h>
+#include <net/xdp.h>
 
 static void gve_rx_free_buffer(struct device *dev,
 			       struct gve_rx_slot_page_info *page_info,
@@ -591,6 +593,43 @@ static struct sk_buff *gve_rx_skb(struct gve_priv *priv, struct gve_rx_ring *rx,
 	return skb;
 }
 
+static void gve_xdp_done(struct gve_priv *priv, struct gve_rx_ring *rx,
+			 struct xdp_buff *xdp, struct bpf_prog *xprog,
+			 int xdp_act)
+{
+	struct gve_tx_ring *tx;
+	int tx_qid;
+	int err;
+
+	switch (xdp_act) {
+	case XDP_ABORTED:
+	case XDP_DROP:
+	default:
+		break;
+	case XDP_TX:
+		tx_qid = gve_xdp_tx_queue_id(priv, rx->q_num);
+		tx = &priv->tx[tx_qid];
+		err = gve_xdp_xmit_one(priv, tx, xdp->data,
+				       xdp->data_end - xdp->data);
+
+		if (unlikely(err)) {
+			u64_stats_update_begin(&rx->statss);
+			rx->xdp_tx_errors++;
+			u64_stats_update_end(&rx->statss);
+		}
+		break;
+	case XDP_REDIRECT:
+		u64_stats_update_begin(&rx->statss);
+		rx->xdp_redirect_errors++;
+		u64_stats_update_end(&rx->statss);
+		break;
+	}
+	u64_stats_update_begin(&rx->statss);
+	if ((u32)xdp_act < GVE_XDP_ACTIONS)
+		rx->xdp_actions[xdp_act]++;
+	u64_stats_update_end(&rx->statss);
+}
+
 #define GVE_PKTCONT_BIT_IS_SET(x) (GVE_RXF_PKT_CONT & (x))
 static void gve_rx(struct gve_rx_ring *rx, netdev_features_t feat,
 		   struct gve_rx_desc *desc, u32 idx,
@@ -603,9 +642,12 @@ static void gve_rx(struct gve_rx_ring *rx, netdev_features_t feat,
 	union gve_rx_data_slot *data_slot;
 	struct gve_priv *priv = rx->gve;
 	struct sk_buff *skb = NULL;
+	struct bpf_prog *xprog;
+	struct xdp_buff xdp;
 	dma_addr_t page_bus;
 	void *va;
 
+	u16 len = frag_size;
 	struct napi_struct *napi = &priv->ntfy_blocks[rx->ntfy_id].napi;
 	bool is_first_frag = ctx->frag_cnt == 0;
 
@@ -645,9 +687,35 @@ static void gve_rx(struct gve_rx_ring *rx, netdev_features_t feat,
 	dma_sync_single_for_cpu(&priv->pdev->dev, page_bus,
 				PAGE_SIZE, DMA_FROM_DEVICE);
 	page_info->pad = is_first_frag ? GVE_RX_PAD : 0;
+	len -= page_info->pad;
 	frag_size -= page_info->pad;
 
-	skb = gve_rx_skb(priv, rx, page_info, napi, frag_size,
+	xprog = READ_ONCE(priv->xdp_prog);
+	if (xprog && is_only_frag) {
+		void *old_data;
+		int xdp_act;
+
+		xdp_init_buff(&xdp, rx->packet_buffer_size, &rx->xdp_rxq);
+		xdp_prepare_buff(&xdp, page_info->page_address +
+				 page_info->page_offset, GVE_RX_PAD,
+				 len, false);
+		old_data = xdp.data;
+		xdp_act = bpf_prog_run_xdp(xprog, &xdp);
+		if (xdp_act != XDP_PASS) {
+			gve_xdp_done(priv, rx, &xdp, xprog, xdp_act);
+			ctx->total_size += frag_size;
+			goto finish_ok_pkt;
+		}
+
+		page_info->pad += xdp.data - old_data;
+		len = xdp.data_end - xdp.data;
+
+		u64_stats_update_begin(&rx->statss);
+		rx->xdp_actions[XDP_PASS]++;
+		u64_stats_update_end(&rx->statss);
+	}
+
+	skb = gve_rx_skb(priv, rx, page_info, napi, len,
 			 data_slot, is_only_frag);
 	if (!skb) {
 		u64_stats_update_begin(&rx->statss);
@@ -773,6 +841,7 @@ static bool gve_rx_refill_buffers(struct gve_priv *priv, struct gve_rx_ring *rx)
 static int gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 			     netdev_features_t feat)
 {
+	u64 xdp_txs = rx->xdp_actions[XDP_TX];
 	struct gve_rx_ctx *ctx = &rx->ctx;
 	struct gve_priv *priv = rx->gve;
 	struct gve_rx_cnts cnts = {0};
@@ -819,6 +888,9 @@ static int gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 		rx->rx_desc_err_dropped_pkt += cnts.desc_err_pkt_cnt;
 		u64_stats_update_end(&rx->statss);
 	}
+
+	if (xdp_txs != rx->xdp_actions[XDP_TX])
+		gve_xdp_tx_flush(priv, rx->q_num);
 
 	/* restock ring slots */
 	if (!rx->data.raw_addressing) {

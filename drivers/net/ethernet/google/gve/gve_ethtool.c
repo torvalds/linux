@@ -34,6 +34,11 @@ static u32 gve_get_msglevel(struct net_device *netdev)
 	return priv->msg_enable;
 }
 
+/* For the following stats column string names, make sure the order
+ * matches how it is filled in the code. For xdp_aborted, xdp_drop,
+ * xdp_pass, xdp_tx, xdp_redirect, make sure it also matches the order
+ * as declared in enum xdp_action inside file uapi/linux/bpf.h .
+ */
 static const char gve_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets", "tx_packets", "rx_bytes", "tx_bytes",
 	"rx_dropped", "tx_dropped", "tx_timeouts",
@@ -49,6 +54,9 @@ static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 	"rx_dropped_pkt[%u]", "rx_copybreak_pkt[%u]", "rx_copied_pkt[%u]",
 	"rx_queue_drop_cnt[%u]", "rx_no_buffers_posted[%u]",
 	"rx_drops_packet_over_mru[%u]", "rx_drops_invalid_checksum[%u]",
+	"rx_xdp_aborted[%u]", "rx_xdp_drop[%u]", "rx_xdp_pass[%u]",
+	"rx_xdp_tx[%u]", "rx_xdp_redirect[%u]",
+	"rx_xdp_tx_errors[%u]", "rx_xdp_redirect_errors[%u]",
 };
 
 static const char gve_gstrings_tx_stats[][ETH_GSTRING_LEN] = {
@@ -289,14 +297,25 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			if (skip_nic_stats) {
 				/* skip NIC rx stats */
 				i += NIC_RX_STATS_REPORT_NUM;
-				continue;
-			}
-			for (j = 0; j < NIC_RX_STATS_REPORT_NUM; j++) {
-				u64 value =
-				be64_to_cpu(report_stats[rx_qid_to_stats_idx[ring] + j].value);
+			} else {
+				stats_idx = rx_qid_to_stats_idx[ring];
+				for (j = 0; j < NIC_RX_STATS_REPORT_NUM; j++) {
+					u64 value =
+						be64_to_cpu(report_stats[stats_idx + j].value);
 
-				data[i++] = value;
+					data[i++] = value;
+				}
 			}
+			/* XDP rx counters */
+			do {
+				start =	u64_stats_fetch_begin(&priv->rx[ring].statss);
+				for (j = 0; j < GVE_XDP_ACTIONS; j++)
+					data[i + j] = rx->xdp_actions[j];
+				data[i + j++] = rx->xdp_tx_errors;
+				data[i + j++] = rx->xdp_redirect_errors;
+			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
+						       start));
+			i += GVE_XDP_ACTIONS + 2; /* XDP rx counters */
 		}
 	} else {
 		i += priv->rx_cfg.num_queues * NUM_GVE_RX_CNTS;
@@ -417,6 +436,12 @@ static int gve_set_channels(struct net_device *netdev,
 
 	if (!new_rx || !new_tx)
 		return -EINVAL;
+
+	if (priv->num_xdp_queues &&
+	    (new_tx != new_rx || (2 * new_tx > priv->tx_cfg.max_queues))) {
+		dev_err(&priv->pdev->dev, "XDP load failed: The number of configured RX queues should be equal to the number of configured TX queues and the number of configured RX/TX queues should be less than or equal to half the maximum number of RX/TX queues");
+		return -EINVAL;
+	}
 
 	if (!netif_carrier_ok(netdev)) {
 		priv->tx_cfg.num_queues = new_tx;

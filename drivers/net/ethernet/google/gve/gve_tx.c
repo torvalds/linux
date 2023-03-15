@@ -19,6 +19,14 @@ static inline void gve_tx_put_doorbell(struct gve_priv *priv,
 	iowrite32be(val, &priv->db_bar2[be32_to_cpu(q_resources->db_index)]);
 }
 
+void gve_xdp_tx_flush(struct gve_priv *priv, u32 xdp_qid)
+{
+	u32 tx_qid = gve_xdp_tx_queue_id(priv, xdp_qid);
+	struct gve_tx_ring *tx = &priv->tx[tx_qid];
+
+	gve_tx_put_doorbell(priv, tx->q_resources, tx->req);
+}
+
 /* gvnic can only transmit from a Registered Segment.
  * We copy skb payloads into the registered segment before writing Tx
  * descriptors and ringing the Tx doorbell.
@@ -132,6 +140,50 @@ static void gve_tx_free_fifo(struct gve_tx_fifo *fifo, size_t bytes)
 	atomic_add(bytes, &fifo->available);
 }
 
+static size_t gve_tx_clear_buffer_state(struct gve_tx_buffer_state *info)
+{
+	size_t space_freed = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(info->iov); i++) {
+		space_freed += info->iov[i].iov_len + info->iov[i].iov_padding;
+		info->iov[i].iov_len = 0;
+		info->iov[i].iov_padding = 0;
+	}
+	return space_freed;
+}
+
+static int gve_clean_xdp_done(struct gve_priv *priv, struct gve_tx_ring *tx,
+			      u32 to_do)
+{
+	struct gve_tx_buffer_state *info;
+	u32 clean_end = tx->done + to_do;
+	u64 pkts = 0, bytes = 0;
+	size_t space_freed = 0;
+	u32 idx;
+
+	for (; tx->done < clean_end; tx->done++) {
+		idx = tx->done & tx->mask;
+		info = &tx->info[idx];
+
+		if (unlikely(!info->xdp.size))
+			continue;
+
+		bytes += info->xdp.size;
+		pkts++;
+
+		info->xdp.size = 0;
+		space_freed += gve_tx_clear_buffer_state(info);
+	}
+
+	gve_tx_free_fifo(&tx->tx_fifo, space_freed);
+	u64_stats_update_begin(&tx->statss);
+	tx->bytes_done += bytes;
+	tx->pkt_done += pkts;
+	u64_stats_update_end(&tx->statss);
+	return pkts;
+}
+
 static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			     u32 to_do, bool try_to_wake);
 
@@ -144,8 +196,12 @@ static void gve_tx_free_ring(struct gve_priv *priv, int idx)
 
 	gve_tx_remove_from_block(priv, idx);
 	slots = tx->mask + 1;
-	gve_clean_tx_done(priv, tx, priv->tx_desc_cnt, false);
-	netdev_tx_reset_queue(tx->netdev_txq);
+	if (tx->q_num < priv->tx_cfg.num_queues) {
+		gve_clean_tx_done(priv, tx, priv->tx_desc_cnt, false);
+		netdev_tx_reset_queue(tx->netdev_txq);
+	} else {
+		gve_clean_xdp_done(priv, tx, priv->tx_desc_cnt);
+	}
 
 	dma_free_coherent(hdev, sizeof(*tx->q_resources),
 			  tx->q_resources, tx->q_resources_bus);
@@ -213,7 +269,8 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 
 	netif_dbg(priv, drv, priv->dev, "tx[%d]->bus=%lx\n", idx,
 		  (unsigned long)tx->bus);
-	tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
+	if (idx < priv->tx_cfg.num_queues)
+		tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
 	gve_tx_add_to_block(priv, idx);
 
 	return 0;
@@ -657,6 +714,65 @@ netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
+			   void *data, int len)
+{
+	int pad, nfrags, ndescs, iovi, offset;
+	struct gve_tx_buffer_state *info;
+	u32 reqi = tx->req;
+
+	pad = gve_tx_fifo_pad_alloc_one_frag(&tx->tx_fifo, len);
+	if (pad >= GVE_TX_MAX_HEADER_SIZE)
+		pad = 0;
+	info = &tx->info[reqi & tx->mask];
+	info->xdp.size = len;
+
+	nfrags = gve_tx_alloc_fifo(&tx->tx_fifo, pad + len,
+				   &info->iov[0]);
+	iovi = pad > 0;
+	ndescs = nfrags - iovi;
+	offset = 0;
+
+	while (iovi < nfrags) {
+		if (!offset)
+			gve_tx_fill_pkt_desc(&tx->desc[reqi & tx->mask], 0,
+					     CHECKSUM_NONE, false, 0, ndescs,
+					     info->iov[iovi].iov_len,
+					     info->iov[iovi].iov_offset, len);
+		else
+			gve_tx_fill_seg_desc(&tx->desc[reqi & tx->mask],
+					     0, 0, false, false,
+					     info->iov[iovi].iov_len,
+					     info->iov[iovi].iov_offset);
+
+		memcpy(tx->tx_fifo.base + info->iov[iovi].iov_offset,
+		       data + offset, info->iov[iovi].iov_len);
+		gve_dma_sync_for_device(&priv->pdev->dev,
+					tx->tx_fifo.qpl->page_buses,
+					info->iov[iovi].iov_offset,
+					info->iov[iovi].iov_len);
+		offset += info->iov[iovi].iov_len;
+		iovi++;
+		reqi++;
+	}
+
+	return ndescs;
+}
+
+int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
+		     void *data, int len)
+{
+	int nsegs;
+
+	if (!gve_can_tx(tx, len + GVE_TX_MAX_HEADER_SIZE - 1))
+		return -EBUSY;
+
+	nsegs = gve_tx_fill_xdp(priv, tx, data, len);
+	tx->req += nsegs;
+
+	return 0;
+}
+
 #define GVE_TX_START_THRESH	PAGE_SIZE
 
 static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
@@ -666,8 +782,8 @@ static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 	u64 pkts = 0, bytes = 0;
 	size_t space_freed = 0;
 	struct sk_buff *skb;
-	int i, j;
 	u32 idx;
+	int j;
 
 	for (j = 0; j < to_do; j++) {
 		idx = tx->done & tx->mask;
@@ -689,12 +805,7 @@ static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			dev_consume_skb_any(skb);
 			if (tx->raw_addressing)
 				continue;
-			/* FIFO free */
-			for (i = 0; i < ARRAY_SIZE(info->iov); i++) {
-				space_freed += info->iov[i].iov_len + info->iov[i].iov_padding;
-				info->iov[i].iov_len = 0;
-				info->iov[i].iov_padding = 0;
-			}
+			space_freed += gve_tx_clear_buffer_state(info);
 		}
 	}
 
@@ -727,6 +838,24 @@ u32 gve_tx_load_event_counter(struct gve_priv *priv,
 	__be32 counter = READ_ONCE(priv->counter_array[counter_index]);
 
 	return be32_to_cpu(counter);
+}
+
+bool gve_xdp_poll(struct gve_notify_block *block, int budget)
+{
+	struct gve_priv *priv = block->priv;
+	struct gve_tx_ring *tx = block->tx;
+	u32 nic_done;
+	u32 to_do;
+
+	/* If budget is 0, do all the work */
+	if (budget == 0)
+		budget = INT_MAX;
+
+	/* Find out how much work there is to be done */
+	nic_done = gve_tx_load_event_counter(priv, tx);
+	to_do = min_t(u32, (nic_done - tx->done), budget);
+	gve_clean_xdp_done(priv, tx, to_do);
+	return nic_done != tx->done;
 }
 
 bool gve_tx_poll(struct gve_notify_block *block, int budget)
