@@ -40,8 +40,6 @@
 		spi2 = &spi_2;
 		spi3 = &spi_3;
 		spi4 = &spi_4;
-		mshc0 = &mshc_0;
-		mshc2 = &mshc_2;
 	};
 
 	chosen {
@@ -952,6 +950,7 @@
 
 &mshc_0 {
 	status = "okay";
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-highspeed;
