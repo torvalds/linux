@@ -8,6 +8,8 @@
 #include "stat.h"
 #include "record.h"
 
+#define KVM_EVENT_NAME_LEN	40
+
 struct evsel;
 struct evlist;
 struct perf_session;
@@ -143,7 +145,6 @@ extern const char *kvm_events_tp[];
 extern struct kvm_reg_events_ops kvm_reg_events_ops[];
 extern const char * const kvm_skip_events[];
 extern const char *vcpu_id_str;
-extern const int decode_str_len;
 extern const char *kvm_exit_reason;
 extern const char *kvm_entry_trace;
 extern const char *kvm_exit_trace;

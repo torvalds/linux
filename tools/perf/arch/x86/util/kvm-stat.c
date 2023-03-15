@@ -18,7 +18,6 @@ static struct kvm_events_ops exit_events = {
 };
 
 const char *vcpu_id_str = "vcpu_id";
-const int decode_str_len = 20;
 const char *kvm_exit_reason = "exit_reason";
 const char *kvm_entry_trace = "kvm:kvm_entry";
 const char *kvm_exit_trace = "kvm:kvm_exit";
@@ -77,7 +76,7 @@ static void mmio_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				  struct event_key *key,
 				  char *decode)
 {
-	scnprintf(decode, decode_str_len, "%#lx:%s",
+	scnprintf(decode, KVM_EVENT_NAME_LEN, "%#lx:%s",
 		  (unsigned long)key->key,
 		  key->info == KVM_TRACE_MMIO_WRITE ? "W" : "R");
 }
@@ -121,7 +120,7 @@ static void ioport_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				    struct event_key *key,
 				    char *decode)
 {
-	scnprintf(decode, decode_str_len, "%#llx:%s",
+	scnprintf(decode, KVM_EVENT_NAME_LEN, "%#llx:%s",
 		  (unsigned long long)key->key,
 		  key->info ? "POUT" : "PIN");
 }
@@ -165,7 +164,7 @@ static void msr_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				    struct event_key *key,
 				    char *decode)
 {
-	scnprintf(decode, decode_str_len, "%#llx:%s",
+	scnprintf(decode, KVM_EVENT_NAME_LEN, "%#llx:%s",
 		  (unsigned long long)key->key,
 		  key->info ? "W" : "R");
 }
