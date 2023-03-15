@@ -259,10 +259,6 @@ static int mlx5e_health_rq_put_sw_state(struct devlink_fmsg *fmsg, struct mlx5e_
 
 	BUILD_BUG_ON_MSG(ARRAY_SIZE(rq_sw_state_type_name) != MLX5E_NUM_RQ_STATES,
 			 "rq_sw_state_type_name string array must be consistent with MLX5E_RQ_STATE_* enum in en.h");
-	err = devlink_fmsg_obj_nest_start(fmsg);
-	if (err)
-		return err;
-
 	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "SW State");
 	if (err)
 		return err;
@@ -274,11 +270,7 @@ static int mlx5e_health_rq_put_sw_state(struct devlink_fmsg *fmsg, struct mlx5e_
 			return err;
 	}
 
-	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return devlink_fmsg_obj_nest_end(fmsg);
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }
 
 static int
