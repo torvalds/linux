@@ -668,23 +668,6 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-static bool nvmet_handle_identify_desclist(struct nvmet_req *req)
-{
-	switch (req->cmd->identify.csi) {
-	case NVME_CSI_NVM:
-		nvmet_execute_identify_desclist(req);
-		return true;
-	case NVME_CSI_ZNS:
-		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
-			nvmet_execute_identify_desclist(req);
-			return true;
-		}
-		return false;
-	default:
-		return false;
-	}
-}
-
 static void nvmet_execute_identify_ctrl_nvm(struct nvmet_req *req)
 {
 	/* Not supported: return zeroes */
@@ -708,8 +691,7 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 		nvmet_execute_identify_nslist(req);
 		return;
 	case NVME_ID_CNS_NS_DESC_LIST:
-		if (nvmet_handle_identify_desclist(req) == true)
-			return;
+		nvmet_execute_identify_desclist(req);
 		break;
 	case NVME_ID_CNS_CS_NS:
 		switch (req->cmd->identify.csi) {
