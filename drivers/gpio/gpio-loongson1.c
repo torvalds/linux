@@ -68,25 +68,38 @@ static int ls1x_gpio_probe(struct platform_device *pdev)
 	ls1x_gc->gc.owner = THIS_MODULE;
 	ls1x_gc->gc.request = ls1x_gpio_request;
 	ls1x_gc->gc.free = ls1x_gpio_free;
-	ls1x_gc->gc.base = pdev->id * 32;
+	/*
+	 * Clear ngpio to let gpiolib get the correct number
+	 * by reading ngpios property
+	 */
+	ls1x_gc->gc.ngpio = 0;
 
 	ret = devm_gpiochip_add_data(dev, &ls1x_gc->gc, ls1x_gc);
 	if (ret)
 		goto err;
 
 	platform_set_drvdata(pdev, ls1x_gc);
-	dev_info(dev, "Loongson1 GPIO driver registered\n");
+
+	dev_info(dev, "GPIO controller registered with %d pins\n",
+		 ls1x_gc->gc.ngpio);
 
 	return 0;
 err:
-	dev_err(dev, "failed to register GPIO device\n");
+	dev_err(dev, "failed to register GPIO controller\n");
 	return ret;
 }
+
+static const struct of_device_id ls1x_gpio_dt_ids[] = {
+	{ .compatible = "loongson,ls1x-gpio" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ls1x_gpio_dt_ids);
 
 static struct platform_driver ls1x_gpio_driver = {
 	.probe	= ls1x_gpio_probe,
 	.driver	= {
 		.name	= "ls1x-gpio",
+		.of_match_table = ls1x_gpio_dt_ids,
 	},
 };
 
