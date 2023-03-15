@@ -300,6 +300,8 @@
 #define WX_MAX_RXD                   8192
 #define WX_MAX_TXD                   8192
 
+#define WX_MAX_JUMBO_FRAME_SIZE      9432 /* max payload 9414 */
+
 /* Supported Rx Buffer Sizes */
 #define WX_RXBUFFER_256      256    /* Used for skb receive header */
 #define WX_RXBUFFER_2K       2048
