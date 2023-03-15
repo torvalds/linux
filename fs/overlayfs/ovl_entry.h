@@ -124,6 +124,11 @@ static inline struct ovl_entry *OVL_E(struct dentry *dentry)
 	return (struct ovl_entry *) dentry->d_fsdata;
 }
 
+static inline unsigned long *OVL_E_FLAGS(struct dentry *dentry)
+{
+	return &OVL_E(dentry)->flags;
+}
+
 struct ovl_inode {
 	union {
 		struct ovl_dir_cache *cache;	/* directory */

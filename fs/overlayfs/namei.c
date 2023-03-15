@@ -790,7 +790,7 @@ fail:
  */
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
+	struct ovl_entry *oe = OVL_E(dentry);
 
 	BUG_ON(idx < 0);
 	if (idx == 0) {
@@ -833,8 +833,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	struct ovl_entry *oe;
 	const struct cred *old_cred;
 	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
-	struct ovl_entry *poe = dentry->d_parent->d_fsdata;
-	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
+	struct ovl_entry *poe = OVL_E(dentry->d_parent);
+	struct ovl_entry *roe = OVL_E(dentry->d_sb->s_root);
 	struct ovl_path *stack = NULL, *origin_path = NULL;
 	struct dentry *upperdir, *upperdentry = NULL;
 	struct dentry *origin = NULL;
@@ -1157,7 +1157,7 @@ out:
 
 bool ovl_lower_positive(struct dentry *dentry)
 {
-	struct ovl_entry *poe = dentry->d_parent->d_fsdata;
+	struct ovl_entry *poe = OVL_E(dentry->d_parent);
 	const struct qstr *name = &dentry->d_name;
 	const struct cred *old_cred;
 	unsigned int i;
