@@ -226,6 +226,16 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 
 	  Say Y here to enable "download mode" by default.
 
+config QCOM_SCM_HAB
+	tristate "To enable QCOM SCM HAB for QCPE-TZ virtualization"
+	depends on QCOM_SCM && MSM_HAB
+	help
+	  QCOM SCM HAB serves the scm with HAB channel with Secure Channel
+	  Mananger(SCM) support for SoC in virtualized Linux,
+	  where SCM backend is QCPE (QCOM Protected environment). The SCM
+	  channel will use QCOM HAB interface for front-end to back-end
+	  communication.
+
 config QTEE_SHM_BRIDGE
 	bool "QTI TEE shared memory bridge"
 	depends on QCOM_SCM

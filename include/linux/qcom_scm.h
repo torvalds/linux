@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2010-2015, 2018-2019, 2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef __QCOM_SCM_H
 #define __QCOM_SCM_H
@@ -63,6 +63,14 @@ struct qcom_scm_current_perm_info {
 struct qcom_scm_mem_map_info {
 	__le64 mem_addr;
 	__le64 mem_size;
+};
+
+/**
+ * struct arm_smccc_args
+ * @args: The array of values used in registers in smc instruction
+ */
+struct arm_smccc_args {
+	unsigned long args[8];
 };
 
 enum qcom_scm_ice_cipher {
