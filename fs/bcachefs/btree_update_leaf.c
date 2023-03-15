@@ -622,14 +622,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	prefetch(&trans->c->journal.flags);
 
-	h = trans->hooks;
-	while (h) {
-		ret = h->fn(trans, h);
-		if (ret)
-			return ret;
-		h = h->next;
-	}
-
 	trans_for_each_update(trans, i) {
 		/* Multiple inserts might go to same leaf: */
 		if (!same_leaf_as_prev(trans, i))
@@ -694,6 +686,14 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 		ret = bch2_btree_insert_keys_write_buffer(trans);
 		if (ret)
 			goto revert_fs_usage;
+	}
+
+	h = trans->hooks;
+	while (h) {
+		ret = h->fn(trans, h);
+		if (ret)
+			goto revert_fs_usage;
+		h = h->next;
 	}
 
 	trans_for_each_update(trans, i)
