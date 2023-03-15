@@ -46,6 +46,8 @@ struct kvm_event {
 	#define DEFAULT_VCPU_NUM 8
 	int max_vcpu;
 	struct kvm_event_stats *vcpu;
+
+	struct hist_entry he;
 };
 
 typedef int64_t (*key_cmp_fun)(struct kvm_event*, struct kvm_event*, int);
