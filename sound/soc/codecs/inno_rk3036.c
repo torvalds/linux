@@ -15,6 +15,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/device.h>
@@ -29,67 +30,39 @@ struct rk3036_codec_priv {
 	struct clk *pclk;
 	struct regmap *regmap;
 	struct device *dev;
+	struct gpio_desc *pa_ctl;
 };
 
 static const DECLARE_TLV_DB_MINMAX(rk3036_codec_hp_tlv, -39, 0);
 
-static int rk3036_codec_antipop_info(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_info *uinfo)
+static int rk3036_codec_antipop_event(struct snd_soc_dapm_widget *w,
+				      struct snd_kcontrol *kcontrol, int event)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-
-	return 0;
-}
-
-static int rk3036_codec_antipop_get(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	int val, regval;
-
-	regval = snd_soc_component_read(component, INNO_R09);
-	val = ((regval >> INNO_R09_HPL_ANITPOP_SHIFT) &
-	       INNO_R09_HP_ANTIPOP_MSK) == INNO_R09_HP_ANTIPOP_ON;
-	ucontrol->value.integer.value[0] = val;
-
-	val = ((regval >> INNO_R09_HPR_ANITPOP_SHIFT) &
-	       INNO_R09_HP_ANTIPOP_MSK) == INNO_R09_HP_ANTIPOP_ON;
-	ucontrol->value.integer.value[1] = val;
-
-	return 0;
-}
-
-static int rk3036_codec_antipop_put(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	int val, ret, regmsk;
 
-	val = (ucontrol->value.integer.value[0] ?
-	       INNO_R09_HP_ANTIPOP_ON : INNO_R09_HP_ANTIPOP_OFF) <<
-	      INNO_R09_HPL_ANITPOP_SHIFT;
-	val |= (ucontrol->value.integer.value[1] ?
-		INNO_R09_HP_ANTIPOP_ON : INNO_R09_HP_ANTIPOP_OFF) <<
-	       INNO_R09_HPR_ANITPOP_SHIFT;
-
-	regmsk = INNO_R09_HP_ANTIPOP_MSK << INNO_R09_HPL_ANITPOP_SHIFT |
-		 INNO_R09_HP_ANTIPOP_MSK << INNO_R09_HPR_ANITPOP_SHIFT;
+	regmsk = INNO_R09_HP_ANTIPOP_MSK << w->shift;
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		val = INNO_R09_HP_ANTIPOP_ON << w->shift;
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		val = INNO_R09_HP_ANTIPOP_OFF << w->shift;
+		break;
+	default:
+		return 0;
+	}
 
 	ret = snd_soc_component_update_bits(component, INNO_R09,
 					    regmsk, val);
 	if (ret < 0)
 		return ret;
 
+	/* Need to wait POP Sound VCM is stable */
+	msleep(50);
+
 	return 0;
 }
-
-#define SOC_RK3036_CODEC_ANTIPOP_DECL(xname) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = rk3036_codec_antipop_info, .get = rk3036_codec_antipop_get, \
-	.put = rk3036_codec_antipop_put, }
 
 static const struct snd_kcontrol_new rk3036_codec_dapm_controls[] = {
 	SOC_DOUBLE_R_RANGE_TLV("Headphone Volume", INNO_R07, INNO_R08,
@@ -99,68 +72,64 @@ static const struct snd_kcontrol_new rk3036_codec_dapm_controls[] = {
 		INNO_R06_VOUTR_CZ_SHIFT, 1, 0),
 	SOC_DOUBLE("Headphone Switch", INNO_R09, INNO_R09_HPL_MUTE_SHIFT,
 		INNO_R09_HPR_MUTE_SHIFT, 1, 0),
-	SOC_RK3036_CODEC_ANTIPOP_DECL("Anti-pop Switch"),
-};
-
-static const struct snd_kcontrol_new rk3036_codec_hpl_mixer_controls[] = {
-	SOC_DAPM_SINGLE("DAC Left Out Switch", INNO_R09,
-			INNO_R09_DACL_SWITCH_SHIFT, 1, 0),
-};
-
-static const struct snd_kcontrol_new rk3036_codec_hpr_mixer_controls[] = {
-	SOC_DAPM_SINGLE("DAC Right Out Switch", INNO_R09,
-			INNO_R09_DACR_SWITCH_SHIFT, 1, 0),
-};
-
-static const struct snd_kcontrol_new rk3036_codec_hpl_switch_controls[] = {
-	SOC_DAPM_SINGLE("HP Left Out Switch", INNO_R05,
-			INNO_R05_HPL_WORK_SHIFT, 1, 0),
-};
-
-static const struct snd_kcontrol_new rk3036_codec_hpr_switch_controls[] = {
-	SOC_DAPM_SINGLE("HP Right Out Switch", INNO_R05,
-			INNO_R05_HPR_WORK_SHIFT, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget rk3036_codec_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY_S("DAC PWR", 1, INNO_R06,
-			      INNO_R06_DAC_EN_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACL VREF", 2, INNO_R04,
-			      INNO_R04_DACL_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACR VREF", 2, INNO_R04,
-			      INNO_R04_DACR_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACL HiLo VREF", 3, INNO_R06,
-			      INNO_R06_DACL_HILO_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACR HiLo VREF", 3, INNO_R06,
-			      INNO_R06_DACR_HILO_VREF_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACR CLK", 3, INNO_R04,
-			      INNO_R04_DACR_CLK_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("DACL CLK", 3, INNO_R04,
-			      INNO_R04_DACL_CLK_SHIFT, 0, NULL, 0),
+	/* Using S3(Step3) as the starting step by datasheet */
+	SND_SOC_DAPM_SUPPLY_S("DAC PWR", 0, INNO_R06,
+			      INNO_R06_DAC_EN_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACL VREF", 1, INNO_R04,
+			      INNO_R04_DACL_VREF_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACR VREF", 1, INNO_R04,
+			      INNO_R04_DACR_VREF_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACL ANTI-POP", 2, SND_SOC_NOPM,
+			      INNO_R09_HPL_ANITPOP_SHIFT, 0, rk3036_codec_antipop_event,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACR ANTI-POP", 2, SND_SOC_NOPM,
+			      INNO_R09_HPR_ANITPOP_SHIFT, 0, rk3036_codec_antipop_event,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("HPL OUT EN", 3, INNO_R05,
+			      INNO_R05_HPL_EN_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("HPR OUT EN", 3, INNO_R05,
+			      INNO_R05_HPR_EN_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("HPL OUT WORK", 4, INNO_R05,
+			      INNO_R05_HPL_WORK_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("HPR OUT WORK", 4, INNO_R05,
+			      INNO_R05_HPR_WORK_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACL HiLo VREF", 5, INNO_R06,
+			      INNO_R06_DACL_HILO_VREF_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACR HiLo VREF", 5, INNO_R06,
+			      INNO_R06_DACR_HILO_VREF_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACL CLK", 6, INNO_R04,
+			      INNO_R04_DACL_CLK_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACR CLK", 6, INNO_R04,
+			      INNO_R04_DACR_CLK_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACL WORK", 7, INNO_R04,
+			      INNO_R04_DACL_SW_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("DACR WORK", 7, INNO_R04,
+			      INNO_R04_DACR_SW_SHIFT, 0, NULL,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_DAC("DACL", "Left Playback", INNO_R04,
-			 INNO_R04_DACL_SW_SHIFT, 0),
-	SND_SOC_DAPM_DAC("DACR", "Right Playback", INNO_R04,
-			 INNO_R04_DACR_SW_SHIFT, 0),
+	SND_SOC_DAPM_DAC_E("DACL", "Left Playback", INNO_R09,
+			 INNO_R09_DACL_SWITCH_SHIFT, 0, NULL,
+			 SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_DAC_E("DACR", "Right Playback", INNO_R09,
+			 INNO_R09_DACR_SWITCH_SHIFT, 0, NULL,
+			 SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("Left Headphone Mixer", SND_SOC_NOPM, 0, 0,
-		rk3036_codec_hpl_mixer_controls,
-		ARRAY_SIZE(rk3036_codec_hpl_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right Headphone Mixer", SND_SOC_NOPM, 0, 0,
-		rk3036_codec_hpr_mixer_controls,
-		ARRAY_SIZE(rk3036_codec_hpr_mixer_controls)),
-
-	SND_SOC_DAPM_PGA("HP Left Out", INNO_R05,
-			 INNO_R05_HPL_EN_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("HP Right Out", INNO_R05,
-			 INNO_R05_HPR_EN_SHIFT, 0, NULL, 0),
-
-	SND_SOC_DAPM_MIXER("HP Left Switch",  SND_SOC_NOPM, 0, 0,
-			   rk3036_codec_hpl_switch_controls,
-			   ARRAY_SIZE(rk3036_codec_hpl_switch_controls)),
-	SND_SOC_DAPM_MIXER("HP Right Switch",  SND_SOC_NOPM, 0, 0,
-			   rk3036_codec_hpr_switch_controls,
-			   ARRAY_SIZE(rk3036_codec_hpr_switch_controls)),
+	SND_SOC_DAPM_AIF_IN("DAI-IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 
 	SND_SOC_DAPM_OUTPUT("HPL"),
 	SND_SOC_DAPM_OUTPUT("HPR"),
@@ -169,28 +138,39 @@ static const struct snd_soc_dapm_widget rk3036_codec_dapm_widgets[] = {
 static const struct snd_soc_dapm_route rk3036_codec_dapm_routes[] = {
 	{"DACL VREF", NULL, "DAC PWR"},
 	{"DACR VREF", NULL, "DAC PWR"},
+	{"DACL ANTI-POP", NULL, "DAC PWR"},
+	{"DACR ANTI-POP", NULL, "DAC PWR"},
+	{"HPL OUT EN", NULL, "DAC PWR"},
+	{"HPR OUT EN", NULL, "DAC PWR"},
+	{"HPL OUT WORK", NULL, "DAC PWR"},
+	{"HPR OUT WORK", NULL, "DAC PWR"},
 	{"DACL HiLo VREF", NULL, "DAC PWR"},
 	{"DACR HiLo VREF", NULL, "DAC PWR"},
 	{"DACL CLK", NULL, "DAC PWR"},
 	{"DACR CLK", NULL, "DAC PWR"},
+	{"DACL WORK", NULL, "DAC PWR"},
+	{"DACR WORK", NULL, "DAC PWR"},
 
 	{"DACL", NULL, "DACL VREF"},
+	{"DACL", NULL, "DACL ANTI-POP"},
+	{"DACL", NULL, "HPL OUT EN"},
+	{"DACL", NULL, "HPL OUT WORK"},
 	{"DACL", NULL, "DACL HiLo VREF"},
 	{"DACL", NULL, "DACL CLK"},
+	{"DACL", NULL, "DACL WORK"},
 	{"DACR", NULL, "DACR VREF"},
+	{"DACR", NULL, "DACR ANTI-POP"},
+	{"DACR", NULL, "HPR OUT EN"},
+	{"DACR", NULL, "HPR OUT WORK"},
 	{"DACR", NULL, "DACR HiLo VREF"},
 	{"DACR", NULL, "DACR CLK"},
+	{"DACR", NULL, "DACR WORK"},
 
-	{"Left Headphone Mixer", "DAC Left Out Switch", "DACL"},
-	{"Right Headphone Mixer", "DAC Right Out Switch", "DACR"},
-	{"HP Left Out", NULL, "Left Headphone Mixer"},
-	{"HP Right Out", NULL, "Right Headphone Mixer"},
+	{"DACL", NULL, "DAI-IN"},
+	{"DACR", NULL, "DAI-IN"},
 
-	{"HP Left Switch", "HP Left Out Switch", "HP Left Out"},
-	{"HP Right Switch", "HP Right Out Switch", "HP Right Out"},
-
-	{"HPL", NULL, "HP Left Switch"},
-	{"HPR", NULL, "HP Right Switch"},
+	{"HPL", NULL, "DACL"},
+	{"HPR", NULL, "DACR"},
 };
 
 static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -297,6 +277,20 @@ static int rk3036_codec_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
+{
+	struct snd_soc_component *component = dai->component;
+	struct rk3036_codec_priv *priv = snd_soc_component_get_drvdata(component);
+
+	if (stream == SNDRV_PCM_STREAM_CAPTURE)
+		return 0;
+
+	if (priv->pa_ctl)
+		gpiod_direction_output(priv->pa_ctl, !mute);
+
+	return 0;
+}
+
 #define RK3036_CODEC_RATES (SNDRV_PCM_RATE_8000  | \
 			    SNDRV_PCM_RATE_16000 | \
 			    SNDRV_PCM_RATE_32000 | \
@@ -312,6 +306,7 @@ static int rk3036_codec_dai_hw_params(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops rk3036_codec_dai_ops = {
 	.set_fmt	= rk3036_codec_dai_set_fmt,
 	.hw_params	= rk3036_codec_dai_hw_params,
+	.mute_stream    = rk3308_mute_stream,
 };
 
 static struct snd_soc_dai_driver rk3036_codec_dai_driver[] = {
@@ -352,17 +347,18 @@ static int rk3036_codec_set_bias_level(struct snd_soc_component *component,
 				       enum snd_soc_bias_level level)
 {
 	switch (level) {
-	case SND_SOC_BIAS_STANDBY:
-		/* set a big current for capacitor charging. */
-		snd_soc_component_write(component, INNO_R10, INNO_R10_MAX_CUR);
-		/* start precharge */
+	case SND_SOC_BIAS_PREPARE:
+		/* start precharge and waiting finish. */
 		snd_soc_component_write(component, INNO_R06, INNO_R06_DAC_PRECHARGE);
+		msleep(20);
 
 		break;
 
-	case SND_SOC_BIAS_OFF:
-		/* set a big current for capacitor discharging. */
-		snd_soc_component_write(component, INNO_R10, INNO_R10_MAX_CUR);
+	case SND_SOC_BIAS_STANDBY:
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+			/* set a big current for capacitor charging. */
+			snd_soc_component_write(component, INNO_R10, INNO_R10_MAX_CUR);
+		}
 		/* start discharge. */
 		snd_soc_component_write(component, INNO_R06, INNO_R06_DAC_DISCHARGE);
 
@@ -432,6 +428,15 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Could not write to GRF: %d\n", ret);
 		return ret;
+	}
+
+	priv->pa_ctl = devm_gpiod_get_optional(&pdev->dev, "pa-ctl",
+					       GPIOD_OUT_LOW);
+	if (!priv->pa_ctl) {
+		dev_info(&pdev->dev, "Don't need pa-ctl gpio\n");
+	} else if (IS_ERR(priv->pa_ctl)) {
+		dev_err(&pdev->dev, "Unable to claim gpio pa-ctl\n");
+		return PTR_ERR(priv->pa_ctl);
 	}
 
 	priv->pclk = devm_clk_get(&pdev->dev, "acodec_pclk");
