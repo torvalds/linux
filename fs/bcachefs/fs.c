@@ -105,6 +105,11 @@ retry:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
+	bch2_fs_fatal_err_on(ret == -ENOENT, c,
+			     "inode %u:%llu not found when updating",
+			     inode_inum(inode).subvol,
+			     inode_inum(inode).inum);
+
 	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
 }
