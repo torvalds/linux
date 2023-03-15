@@ -16,15 +16,19 @@
 #define GPIO_DATA		0x20
 #define GPIO_OUTPUT		0x30
 
-static void __iomem *gpio_reg_base;
+struct ls1x_gpio_chip {
+	struct gpio_chip gc;
+	void __iomem *reg_base;
+};
 
 static int ls1x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 {
+	struct ls1x_gpio_chip *ls1x_gc = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
-	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) | BIT(offset),
-		     gpio_reg_base + GPIO_CFG);
+	__raw_writel(__raw_readl(ls1x_gc->reg_base + GPIO_CFG) | BIT(offset),
+		     ls1x_gc->reg_base + GPIO_CFG);
 	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	return 0;
@@ -32,44 +36,45 @@ static int ls1x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 
 static void ls1x_gpio_free(struct gpio_chip *gc, unsigned int offset)
 {
+	struct ls1x_gpio_chip *ls1x_gc = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
-	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) & ~BIT(offset),
-		     gpio_reg_base + GPIO_CFG);
+	__raw_writel(__raw_readl(ls1x_gc->reg_base + GPIO_CFG) & ~BIT(offset),
+		     ls1x_gc->reg_base + GPIO_CFG);
 	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }
 
 static int ls1x_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct gpio_chip *gc;
+	struct ls1x_gpio_chip *ls1x_gc;
 	int ret;
 
-	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
-	if (!gc)
+	ls1x_gc = devm_kzalloc(dev, sizeof(*ls1x_gc), GFP_KERNEL);
+	if (!ls1x_gc)
 		return -ENOMEM;
 
-	gpio_reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(gpio_reg_base))
-		return PTR_ERR(gpio_reg_base);
+	ls1x_gc->reg_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ls1x_gc->reg_base))
+		return PTR_ERR(ls1x_gc->reg_base);
 
-	ret = bgpio_init(gc, dev, 4, gpio_reg_base + GPIO_DATA,
-			 gpio_reg_base + GPIO_OUTPUT, NULL,
-			 NULL, gpio_reg_base + GPIO_DIR, 0);
+	ret = bgpio_init(&ls1x_gc->gc, dev, 4, ls1x_gc->reg_base + GPIO_DATA,
+			 ls1x_gc->reg_base + GPIO_OUTPUT, NULL,
+			 NULL, ls1x_gc->reg_base + GPIO_DIR, 0);
 	if (ret)
 		goto err;
 
-	gc->owner = THIS_MODULE;
-	gc->request = ls1x_gpio_request;
-	gc->free = ls1x_gpio_free;
-	gc->base = pdev->id * 32;
+	ls1x_gc->gc.owner = THIS_MODULE;
+	ls1x_gc->gc.request = ls1x_gpio_request;
+	ls1x_gc->gc.free = ls1x_gpio_free;
+	ls1x_gc->gc.base = pdev->id * 32;
 
-	ret = devm_gpiochip_add_data(dev, gc, NULL);
+	ret = devm_gpiochip_add_data(dev, &ls1x_gc->gc, ls1x_gc);
 	if (ret)
 		goto err;
 
-	platform_set_drvdata(pdev, gc);
+	platform_set_drvdata(pdev, ls1x_gc);
 	dev_info(dev, "Loongson1 GPIO driver registered\n");
 
 	return 0;
