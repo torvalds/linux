@@ -2432,7 +2432,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 	mpd->next_page = index;
 	/*
 	 * Start a transaction for writeback of journalled data. We don't start
-	 * start the transaction if the filesystem is frozen. In that case we
+	 * the transaction if the filesystem is frozen. In that case we
 	 * should not have any dirty data to write anymore but possibly there
 	 * are stray page dirty bits left by the checkpointing code so this
 	 * loop clears them.
