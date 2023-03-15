@@ -35,7 +35,7 @@
 
 #include "mt9m114.h"
 
-#define to_mt9m114_sensor(sd) container_of(sd, struct mt9m114_device, sd)
+#define to_mt9m114_sensor(s) container_of(s, struct mt9m114_device, sd)
 
 /*
  * TODO: use debug parameter to actually define when debug messages should
