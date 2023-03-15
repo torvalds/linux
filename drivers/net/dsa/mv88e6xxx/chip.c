@@ -3848,9 +3848,9 @@ static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 	}
 }
 
-static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
-				    struct device_node *np)
+static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip)
 {
+	struct device_node *np = chip->dev->of_node;
 	struct device_node *child;
 	int err;
 
@@ -3885,9 +3885,12 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 
 static void mv88e6xxx_teardown(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_chip *chip = ds->priv;
+
 	mv88e6xxx_teardown_devlink_params(ds);
 	dsa_devlink_resources_unregister(ds);
 	mv88e6xxx_teardown_devlink_regions_global(ds);
+	mv88e6xxx_mdios_unregister(chip);
 }
 
 static int mv88e6xxx_setup(struct dsa_switch *ds)
@@ -3896,6 +3899,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	u8 cmode;
 	int err;
 	int i;
+
+	err = mv88e6xxx_mdios_register(chip);
+	if (err)
+		return err;
 
 	chip->ds = ds;
 	ds->slave_mii_bus = mv88e6xxx_default_mdio_bus(chip);
@@ -4023,7 +4030,7 @@ unlock:
 	mv88e6xxx_reg_unlock(chip);
 
 	if (err)
-		return err;
+		goto out_mdios;
 
 	/* Have to be called without holding the register lock, since
 	 * they take the devlink lock, and we later take the locks in
@@ -4032,7 +4039,7 @@ unlock:
 	 */
 	err = mv88e6xxx_setup_devlink_resources(ds);
 	if (err)
-		return err;
+		goto out_mdios;
 
 	err = mv88e6xxx_setup_devlink_params(ds);
 	if (err)
@@ -4048,6 +4055,8 @@ out_params:
 	mv88e6xxx_teardown_devlink_params(ds);
 out_resources:
 	dsa_devlink_resources_unregister(ds);
+out_mdios:
+	mv88e6xxx_mdios_unregister(chip);
 
 	return err;
 }
@@ -7228,18 +7237,12 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (err)
 		goto out_g1_atu_prob_irq;
 
-	err = mv88e6xxx_mdios_register(chip, np);
+	err = mv88e6xxx_register_switch(chip);
 	if (err)
 		goto out_g1_vtu_prob_irq;
 
-	err = mv88e6xxx_register_switch(chip);
-	if (err)
-		goto out_mdio;
-
 	return 0;
 
-out_mdio:
-	mv88e6xxx_mdios_unregister(chip);
 out_g1_vtu_prob_irq:
 	mv88e6xxx_g1_vtu_prob_irq_free(chip);
 out_g1_atu_prob_irq:
@@ -7276,7 +7279,6 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 
 	mv88e6xxx_phy_destroy(chip);
 	mv88e6xxx_unregister_switch(chip);
-	mv88e6xxx_mdios_unregister(chip);
 
 	mv88e6xxx_g1_vtu_prob_irq_free(chip);
 	mv88e6xxx_g1_atu_prob_irq_free(chip);
