@@ -20,17 +20,6 @@ config SIBYTE_BCM1125
 	select SIBYTE_HAS_ZBUS_PROFILING
 	select SIBYTE_SB1xxx_SOC
 
-config SIBYTE_BCM1125H
-	bool
-	select CEVT_SB1250
-	select CSRC_SB1250
-	select HAVE_PCI
-	select IRQ_MIPS_CPU
-	select SIBYTE_BCM112X
-	select SIBYTE_ENABLE_LDT_IF_PCI
-	select SIBYTE_HAS_ZBUS_PROFILING
-	select SIBYTE_SB1xxx_SOC
-
 config SIBYTE_BCM112X
 	bool
 	select CEVT_SB1250
