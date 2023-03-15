@@ -7,11 +7,6 @@
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
 
-/* Vendor ID */
-#ifndef PCI_VENDOR_ID_WANGXUN
-#define PCI_VENDOR_ID_WANGXUN                   0x8088
-#endif
-
 #define WX_NCSI_SUP                             0x8000
 #define WX_NCSI_MASK                            0x8000
 #define WX_WOL_SUP                              0x4000
