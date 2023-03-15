@@ -1129,7 +1129,7 @@ pm_runtime_suspend:
 	return ret;
 }
 
-static int mchp_pdmc_remove(struct platform_device *pdev)
+static void mchp_pdmc_remove(struct platform_device *pdev)
 {
 	struct mchp_pdmc *dd = platform_get_drvdata(pdev);
 
@@ -1137,8 +1137,6 @@ static int mchp_pdmc_remove(struct platform_device *pdev)
 		mchp_pdmc_runtime_suspend(dd->dev);
 
 	pm_runtime_disable(dd->dev);
-
-	return 0;
 }
 
 static const struct of_device_id mchp_pdmc_of_match[] = {
@@ -1163,7 +1161,7 @@ static struct platform_driver mchp_pdmc_driver = {
 		.pm		= pm_ptr(&mchp_pdmc_pm_ops),
 	},
 	.probe	= mchp_pdmc_probe,
-	.remove = mchp_pdmc_remove,
+	.remove_new = mchp_pdmc_remove,
 };
 module_platform_driver(mchp_pdmc_driver);
 
