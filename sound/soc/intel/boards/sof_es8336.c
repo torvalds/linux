@@ -780,7 +780,7 @@ err_put_codec:
 	return ret;
 }
 
-static int sof_es8336_remove(struct platform_device *pdev)
+static void sof_es8336_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct sof_es8336_private *priv = snd_soc_card_get_drvdata(card);
@@ -789,8 +789,6 @@ static int sof_es8336_remove(struct platform_device *pdev)
 	gpiod_put(priv->gpio_speakers);
 	device_remove_software_node(priv->codec_dev);
 	put_device(priv->codec_dev);
-
-	return 0;
 }
 
 static const struct platform_device_id board_ids[] = {
@@ -817,7 +815,7 @@ static struct platform_driver sof_es8336_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = sof_es8336_probe,
-	.remove = sof_es8336_remove,
+	.remove_new = sof_es8336_remove,
 	.id_table = board_ids,
 };
 module_platform_driver(sof_es8336_driver);
