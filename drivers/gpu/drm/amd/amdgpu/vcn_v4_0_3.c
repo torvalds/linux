@@ -681,9 +681,15 @@ static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, b
 	tmp |= UVD_POWER_STATUS__UVD_PG_EN_MASK;
 	WREG32_SOC15(VCN, vcn_inst, regUVD_POWER_STATUS, tmp);
 
-	if (indirect)
+	if (indirect) {
+		DRM_DEV_DEBUG(adev->dev, "VCN %d start: on AID %d",
+			inst_idx, adev->vcn.inst[inst_idx].aid_id);
 		adev->vcn.inst[inst_idx].dpg_sram_curr_addr =
 				(uint32_t *)adev->vcn.inst[inst_idx].dpg_sram_cpu_addr;
+		/* Use dummy register 0xDEADBEEF passing AID selection to PSP FW */
+		WREG32_SOC15_DPG_MODE(inst_idx, 0xDEADBEEF,
+			adev->vcn.inst[inst_idx].aid_id, 0, true);
+	}
 
 	/* enable clock gating */
 	vcn_v4_0_3_disable_clock_gating_dpg_mode(adev, 0, inst_idx, indirect);
