@@ -24,10 +24,13 @@ struct kvm_event_stats {
 	struct stats stats;
 };
 
+struct perf_kvm_stat;
+
 struct kvm_event {
 	struct list_head hash_entry;
 	struct rb_node rb;
 
+	struct perf_kvm_stat *perf_kvm;
 	struct event_key key;
 
 	struct kvm_event_stats total;
@@ -43,8 +46,6 @@ struct kvm_event_key {
 	const char *name;
 	key_cmp_fun key;
 };
-
-struct perf_kvm_stat;
 
 struct child_event_ops {
 	void (*get_key)(struct evsel *evsel,
