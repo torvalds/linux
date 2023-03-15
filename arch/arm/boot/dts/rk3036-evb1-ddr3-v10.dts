@@ -121,7 +121,7 @@
 };
 
 &acodec {
-	spk_ctl_io = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
+	pa-ctl-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
 	#sound-dai-cells = <0>;
 	status = "okay";
 };
