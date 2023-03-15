@@ -48,6 +48,10 @@ enum TRI_STATE {
 
 #define MAX_PORTS_IN_MANA_DEV 256
 
+/* Update this count whenever the respective structures are changed */
+#define MANA_STATS_RX_COUNT 5
+#define MANA_STATS_TX_COUNT 11
+
 struct mana_stats_rx {
 	u64 packets;
 	u64 bytes;
@@ -61,6 +65,14 @@ struct mana_stats_tx {
 	u64 packets;
 	u64 bytes;
 	u64 xdp_xmit;
+	u64 tso_packets;
+	u64 tso_bytes;
+	u64 tso_inner_packets;
+	u64 tso_inner_bytes;
+	u64 short_pkt_fmt;
+	u64 long_pkt_fmt;
+	u64 csum_partial;
+	u64 mana_map_err;
 	struct u64_stats_sync syncp;
 };
 
@@ -331,6 +343,12 @@ struct mana_tx_qp {
 struct mana_ethtool_stats {
 	u64 stop_queue;
 	u64 wake_queue;
+	u64 tx_cqes;
+	u64 tx_cqe_err;
+	u64 tx_cqe_unknown_type;
+	u64 rx_cqes;
+	u64 rx_coalesced_err;
+	u64 rx_cqe_unknown_type;
 };
 
 struct mana_context {
