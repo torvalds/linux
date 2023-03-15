@@ -43,6 +43,9 @@ EXPORT_SYMBOL_NS_GPL(cs35l45_apply_patch, SND_SOC_CS35L45);
 static const struct reg_default cs35l45_defaults[] = {
 	{ CS35L45_BLOCK_ENABLES,		0x00003323 },
 	{ CS35L45_BLOCK_ENABLES2,		0x00000010 },
+	{ CS35L45_SYNC_GPIO1,			0x00000007 },
+	{ CS35L45_INTB_GPIO2_MCLK_REF,		0x00000005 },
+	{ CS35L45_GPIO3,			0x00000005 },
 	{ CS35L45_REFCLK_INPUT,			0x00000510 },
 	{ CS35L45_GLOBAL_SAMPLE_RATE,		0x00000003 },
 	{ CS35L45_ASP_ENABLES1,			0x00000000 },
@@ -61,6 +64,9 @@ static const struct reg_default cs35l45_defaults[] = {
 	{ CS35L45_ASPTX4_INPUT,			0x00000028 },
 	{ CS35L45_ASPTX5_INPUT,			0x00000048 },
 	{ CS35L45_AMP_PCM_CONTROL,		0x00100000 },
+	{ CS35L45_GPIO1_CTRL1,			0x81000001 },
+	{ CS35L45_GPIO2_CTRL1,			0x81000001 },
+	{ CS35L45_GPIO3_CTRL1,			0x81000001 },
 };
 
 static bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
@@ -72,6 +78,9 @@ static bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L45_BLOCK_ENABLES:
 	case CS35L45_BLOCK_ENABLES2:
 	case CS35L45_ERROR_RELEASE:
+	case CS35L45_SYNC_GPIO1:
+	case CS35L45_INTB_GPIO2_MCLK_REF:
+	case CS35L45_GPIO3:
 	case CS35L45_REFCLK_INPUT:
 	case CS35L45_GLOBAL_SAMPLE_RATE:
 	case CS35L45_ASP_ENABLES1:
@@ -92,6 +101,10 @@ static bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L45_AMP_PCM_CONTROL:
 	case CS35L45_AMP_PCM_HPF_TST:
 	case CS35L45_IRQ1_EINT_4:
+	case CS35L45_GPIO_STATUS1:
+	case CS35L45_GPIO1_CTRL1:
+	case CS35L45_GPIO2_CTRL1:
+	case CS35L45_GPIO3_CTRL1:
 		return true;
 	default:
 		return false;
@@ -107,6 +120,7 @@ static bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L45_ERROR_RELEASE:
 	case CS35L45_AMP_PCM_HPF_TST:	/* not cachable */
 	case CS35L45_IRQ1_EINT_4:
+	case CS35L45_GPIO_STATUS1:
 		return true;
 	default:
 		return false;

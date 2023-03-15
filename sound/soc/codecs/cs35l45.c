@@ -536,7 +536,63 @@ static int __maybe_unused cs35l45_runtime_resume(struct device *dev)
 
 static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 {
+	struct device_node *node = cs35l45->dev->of_node;
+	unsigned int gpio_regs[] = {CS35L45_GPIO1_CTRL1, CS35L45_GPIO2_CTRL1,
+				    CS35L45_GPIO3_CTRL1};
+	unsigned int pad_regs[] = {CS35L45_SYNC_GPIO1,
+				   CS35L45_INTB_GPIO2_MCLK_REF, CS35L45_GPIO3};
+	struct device_node *child;
 	unsigned int val;
+	char of_name[32];
+	int ret, i;
+
+	if (!node)
+		return 0;
+
+	for (i = 0; i < CS35L45_NUM_GPIOS; i++) {
+		sprintf(of_name, "cirrus,gpio-ctrl%d", i + 1);
+		child = of_get_child_by_name(node, of_name);
+		if (!child)
+			continue;
+
+		ret = of_property_read_u32(child, "gpio-dir", &val);
+		if (!ret)
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_DIR_MASK,
+					   val << CS35L45_GPIO_DIR_SHIFT);
+
+		ret = of_property_read_u32(child, "gpio-lvl", &val);
+		if (!ret)
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_LVL_MASK,
+					   val << CS35L45_GPIO_LVL_SHIFT);
+
+		ret = of_property_read_u32(child, "gpio-op-cfg", &val);
+		if (!ret)
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_OP_CFG_MASK,
+					   val << CS35L45_GPIO_OP_CFG_SHIFT);
+
+		ret = of_property_read_u32(child, "gpio-pol", &val);
+		if (!ret)
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_POL_MASK,
+					   val << CS35L45_GPIO_POL_SHIFT);
+
+		ret = of_property_read_u32(child, "gpio-ctrl", &val);
+		if (!ret)
+			regmap_update_bits(cs35l45->regmap, pad_regs[i],
+					   CS35L45_GPIO_CTRL_MASK,
+					   val << CS35L45_GPIO_CTRL_SHIFT);
+
+		ret = of_property_read_u32(child, "gpio-invert", &val);
+		if (!ret)
+			regmap_update_bits(cs35l45->regmap, pad_regs[i],
+					   CS35L45_GPIO_INVERT_MASK,
+					   val << CS35L45_GPIO_INVERT_SHIFT);
+
+		of_node_put(child);
+	}
 
 	if (device_property_read_u32(cs35l45->dev,
 				     "cirrus,asp-sdout-hiz-ctrl", &val) == 0) {
