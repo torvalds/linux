@@ -54,11 +54,11 @@ properties:
 
   compatible:
     enum:
+      - ti,am642-cpsw-nuss
       - ti,am654-cpsw-nuss
       - ti,j7200-cpswxg-nuss
       - ti,j721e-cpsw-nuss
       - ti,j721e-cpswxg-nuss
-      - ti,am642-cpsw-nuss
 
   reg:
     maxItems: 1
@@ -215,8 +215,8 @@ allOf:
           compatible:
             contains:
               enum:
-                - ti,j721e-cpswxg-nuss
                 - ti,j7200-cpswxg-nuss
+                - ti,j721e-cpswxg-nuss
     then:
       properties:
         ethernet-ports:
