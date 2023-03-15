@@ -3680,185 +3680,6 @@ static int mv88e6390_setup_errata(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_software_reset(chip);
 }
 
-static void mv88e6xxx_teardown(struct dsa_switch *ds)
-{
-	mv88e6xxx_teardown_devlink_params(ds);
-	dsa_devlink_resources_unregister(ds);
-	mv88e6xxx_teardown_devlink_regions_global(ds);
-}
-
-static int mv88e6xxx_setup(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	u8 cmode;
-	int err;
-	int i;
-
-	chip->ds = ds;
-	ds->slave_mii_bus = mv88e6xxx_default_mdio_bus(chip);
-
-	/* Since virtual bridges are mapped in the PVT, the number we support
-	 * depends on the physical switch topology. We need to let DSA figure
-	 * that out and therefore we cannot set this at dsa_register_switch()
-	 * time.
-	 */
-	if (mv88e6xxx_has_pvt(chip))
-		ds->max_num_bridges = MV88E6XXX_MAX_PVT_SWITCHES -
-				      ds->dst->last_switch - 1;
-
-	mv88e6xxx_reg_lock(chip);
-
-	if (chip->info->ops->setup_errata) {
-		err = chip->info->ops->setup_errata(chip);
-		if (err)
-			goto unlock;
-	}
-
-	/* Cache the cmode of each port. */
-	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
-		if (chip->info->ops->port_get_cmode) {
-			err = chip->info->ops->port_get_cmode(chip, i, &cmode);
-			if (err)
-				goto unlock;
-
-			chip->ports[i].cmode = cmode;
-		}
-	}
-
-	err = mv88e6xxx_vtu_setup(chip);
-	if (err)
-		goto unlock;
-
-	/* Must be called after mv88e6xxx_vtu_setup (which flushes the
-	 * VTU, thereby also flushing the STU).
-	 */
-	err = mv88e6xxx_stu_setup(chip);
-	if (err)
-		goto unlock;
-
-	/* Setup Switch Port Registers */
-	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
-		if (dsa_is_unused_port(ds, i))
-			continue;
-
-		/* Prevent the use of an invalid port. */
-		if (mv88e6xxx_is_invalid_port(chip, i)) {
-			dev_err(chip->dev, "port %d is invalid\n", i);
-			err = -EINVAL;
-			goto unlock;
-		}
-
-		err = mv88e6xxx_setup_port(chip, i);
-		if (err)
-			goto unlock;
-	}
-
-	err = mv88e6xxx_irl_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_mac_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_phy_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_pvt_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_atu_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_broadcast_setup(chip, 0);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_pot_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_rmu_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_rsvd2cpu_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_trunk_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_devmap_setup(chip);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_pri_setup(chip);
-	if (err)
-		goto unlock;
-
-	/* Setup PTP Hardware Clock and timestamping */
-	if (chip->info->ptp_support) {
-		err = mv88e6xxx_ptp_setup(chip);
-		if (err)
-			goto unlock;
-
-		err = mv88e6xxx_hwtstamp_setup(chip);
-		if (err)
-			goto unlock;
-	}
-
-	err = mv88e6xxx_stats_setup(chip);
-	if (err)
-		goto unlock;
-
-unlock:
-	mv88e6xxx_reg_unlock(chip);
-
-	if (err)
-		return err;
-
-	/* Have to be called without holding the register lock, since
-	 * they take the devlink lock, and we later take the locks in
-	 * the reverse order when getting/setting parameters or
-	 * resource occupancy.
-	 */
-	err = mv88e6xxx_setup_devlink_resources(ds);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_setup_devlink_params(ds);
-	if (err)
-		goto out_resources;
-
-	err = mv88e6xxx_setup_devlink_regions_global(ds);
-	if (err)
-		goto out_params;
-
-	return 0;
-
-out_params:
-	mv88e6xxx_teardown_devlink_params(ds);
-out_resources:
-	dsa_devlink_resources_unregister(ds);
-
-	return err;
-}
-
-static int mv88e6xxx_port_setup(struct dsa_switch *ds, int port)
-{
-	return mv88e6xxx_setup_devlink_regions_port(ds, port);
-}
-
-static void mv88e6xxx_port_teardown(struct dsa_switch *ds, int port)
-{
-	mv88e6xxx_teardown_devlink_regions_port(ds, port);
-}
-
 /* prod_id for switch families which do not have a PHY model number */
 static const u16 family_prod_id_table[] = {
 	[MV88E6XXX_FAMILY_6341] = MV88E6XXX_PORT_SWITCH_ID_PROD_6341,
@@ -4060,6 +3881,185 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 	}
 
 	return 0;
+}
+
+static void mv88e6xxx_teardown(struct dsa_switch *ds)
+{
+	mv88e6xxx_teardown_devlink_params(ds);
+	dsa_devlink_resources_unregister(ds);
+	mv88e6xxx_teardown_devlink_regions_global(ds);
+}
+
+static int mv88e6xxx_setup(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	u8 cmode;
+	int err;
+	int i;
+
+	chip->ds = ds;
+	ds->slave_mii_bus = mv88e6xxx_default_mdio_bus(chip);
+
+	/* Since virtual bridges are mapped in the PVT, the number we support
+	 * depends on the physical switch topology. We need to let DSA figure
+	 * that out and therefore we cannot set this at dsa_register_switch()
+	 * time.
+	 */
+	if (mv88e6xxx_has_pvt(chip))
+		ds->max_num_bridges = MV88E6XXX_MAX_PVT_SWITCHES -
+				      ds->dst->last_switch - 1;
+
+	mv88e6xxx_reg_lock(chip);
+
+	if (chip->info->ops->setup_errata) {
+		err = chip->info->ops->setup_errata(chip);
+		if (err)
+			goto unlock;
+	}
+
+	/* Cache the cmode of each port. */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
+		if (chip->info->ops->port_get_cmode) {
+			err = chip->info->ops->port_get_cmode(chip, i, &cmode);
+			if (err)
+				goto unlock;
+
+			chip->ports[i].cmode = cmode;
+		}
+	}
+
+	err = mv88e6xxx_vtu_setup(chip);
+	if (err)
+		goto unlock;
+
+	/* Must be called after mv88e6xxx_vtu_setup (which flushes the
+	 * VTU, thereby also flushing the STU).
+	 */
+	err = mv88e6xxx_stu_setup(chip);
+	if (err)
+		goto unlock;
+
+	/* Setup Switch Port Registers */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
+		if (dsa_is_unused_port(ds, i))
+			continue;
+
+		/* Prevent the use of an invalid port. */
+		if (mv88e6xxx_is_invalid_port(chip, i)) {
+			dev_err(chip->dev, "port %d is invalid\n", i);
+			err = -EINVAL;
+			goto unlock;
+		}
+
+		err = mv88e6xxx_setup_port(chip, i);
+		if (err)
+			goto unlock;
+	}
+
+	err = mv88e6xxx_irl_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_mac_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_phy_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_pvt_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_atu_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_broadcast_setup(chip, 0);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_pot_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_rmu_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_rsvd2cpu_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_trunk_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_devmap_setup(chip);
+	if (err)
+		goto unlock;
+
+	err = mv88e6xxx_pri_setup(chip);
+	if (err)
+		goto unlock;
+
+	/* Setup PTP Hardware Clock and timestamping */
+	if (chip->info->ptp_support) {
+		err = mv88e6xxx_ptp_setup(chip);
+		if (err)
+			goto unlock;
+
+		err = mv88e6xxx_hwtstamp_setup(chip);
+		if (err)
+			goto unlock;
+	}
+
+	err = mv88e6xxx_stats_setup(chip);
+	if (err)
+		goto unlock;
+
+unlock:
+	mv88e6xxx_reg_unlock(chip);
+
+	if (err)
+		return err;
+
+	/* Have to be called without holding the register lock, since
+	 * they take the devlink lock, and we later take the locks in
+	 * the reverse order when getting/setting parameters or
+	 * resource occupancy.
+	 */
+	err = mv88e6xxx_setup_devlink_resources(ds);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_setup_devlink_params(ds);
+	if (err)
+		goto out_resources;
+
+	err = mv88e6xxx_setup_devlink_regions_global(ds);
+	if (err)
+		goto out_params;
+
+	return 0;
+
+out_params:
+	mv88e6xxx_teardown_devlink_params(ds);
+out_resources:
+	dsa_devlink_resources_unregister(ds);
+
+	return err;
+}
+
+static int mv88e6xxx_port_setup(struct dsa_switch *ds, int port)
+{
+	return mv88e6xxx_setup_devlink_regions_port(ds, port);
+}
+
+static void mv88e6xxx_port_teardown(struct dsa_switch *ds, int port)
+{
+	mv88e6xxx_teardown_devlink_regions_port(ds, port);
 }
 
 static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
