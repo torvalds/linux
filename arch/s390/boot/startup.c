@@ -278,7 +278,7 @@ void startup_kernel(void)
 {
 	unsigned long max_physmem_end;
 	unsigned long vmlinux_lma = 0;
-	unsigned long amode31_lma;
+	unsigned long amode31_lma = 0;
 	unsigned long asce_limit;
 	unsigned long safe_addr;
 	void *img;
@@ -338,7 +338,9 @@ void startup_kernel(void)
 
 	/* vmlinux decompression is done, shrink reserved low memory */
 	physmem_reserve(RR_DECOMPRESSOR, 0, (unsigned long)_decompressor_end);
-	amode31_lma = vmlinux.default_lma - vmlinux.amode31_size;
+	if (kaslr_enabled())
+		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, 0, SZ_2G);
+	amode31_lma = amode31_lma ?: vmlinux.default_lma - vmlinux.amode31_size;
 	physmem_reserve(RR_AMODE31, amode31_lma, vmlinux.amode31_size);
 
 	/*
