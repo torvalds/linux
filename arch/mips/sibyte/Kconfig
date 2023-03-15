@@ -10,15 +10,6 @@ config SIBYTE_SB1250
 	select SIBYTE_SB1xxx_SOC
 	select SYS_SUPPORTS_SMP
 
-config SIBYTE_BCM1120
-	bool
-	select CEVT_SB1250
-	select CSRC_SB1250
-	select IRQ_MIPS_CPU
-	select SIBYTE_BCM112X
-	select SIBYTE_HAS_ZBUS_PROFILING
-	select SIBYTE_SB1xxx_SOC
-
 config SIBYTE_BCM1125
 	bool
 	select CEVT_SB1250

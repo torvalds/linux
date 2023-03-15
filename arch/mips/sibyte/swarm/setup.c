@@ -146,12 +146,6 @@ void __init plat_mem_setup(void)
 
 #ifdef LEDS_PHYS
 
-#ifdef CONFIG_SIBYTE_CARMEL
-/* XXXKW need to detect Monterey/LittleSur/etc */
-#undef LEDS_PHYS
-#define LEDS_PHYS MLEDS_PHYS
-#endif
-
 void setleds(char *str)
 {
 	void *reg;
