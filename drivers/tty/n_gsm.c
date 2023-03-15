@@ -3276,8 +3276,8 @@ static int gsm_config(struct gsm_mux *gsm, struct gsm_config *c)
 	int need_close = 0;
 	int need_restart = 0;
 
-	/* Stuff we don't support yet - UI or I frame transport, windowing */
-	if ((c->adaption != 1 && c->adaption != 2) || c->k)
+	/* Stuff we don't support yet - UI or I frame transport */
+	if (c->adaption != 1 && c->adaption != 2)
 		return -EOPNOTSUPP;
 	/* Check the MRU/MTU range looks sane */
 	if (c->mru < MIN_MTU || c->mtu < MIN_MTU)
