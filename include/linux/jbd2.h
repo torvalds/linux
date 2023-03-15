@@ -793,11 +793,6 @@ struct journal_s
 	journal_superblock_t	*j_superblock;
 
 	/**
-	 * @j_format_version: Version of the superblock format.
-	 */
-	int			j_format_version;
-
-	/**
 	 * @j_state_lock: Protect the various scalars in the journal.
 	 */
 	rwlock_t		j_state_lock;
