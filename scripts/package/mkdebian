@@ -91,7 +91,7 @@ version=$KERNELRELEASE
 if [ -n "$KDEB_PKGVERSION" ]; then
 	packageversion=$KDEB_PKGVERSION
 else
-	packageversion=$version-$($srctree/init/build-version)
+	packageversion=$(${srctree}/scripts/setlocalversion --no-local ${srctree})-$($srctree/init/build-version)
 fi
 sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
@@ -151,6 +151,14 @@ mkdir -p debian/patches
 	diff -u /dev/null "${KCONFIG_CONFIG}" | tail -n +3
 } > debian/patches/config
 echo config > debian/patches/series
+
+$(dirname $0)/gen-diff-patch debian/patches/diff.patch debian/patches/untracked.patch
+if [ -f debian/patches/diff.patch ]; then
+	echo diff.patch >> debian/patches/series
+fi
+if [ -f debian/patches/untracked.patch ]; then
+	echo untracked.patch >> debian/patches/series
+fi
 
 echo $debarch > debian/arch
 extra_build_depends=", $(if_enabled_echo CONFIG_UNWINDER_ORC libelf-dev:native)"

@@ -19,6 +19,8 @@ else
 	mkdir -p rpmbuild/SOURCES
 	cp linux.tar.gz rpmbuild/SOURCES
 	cp "${KCONFIG_CONFIG}" rpmbuild/SOURCES/config
+	$(dirname $0)/gen-diff-patch rpmbuild/SOURCES/diff.patch rpmbuild/SOURCES/untracked.patch
+	touch rpmbuild/SOURCES/diff.patch rpmbuild/SOURCES/untracked.patch
 fi
 
 if grep -q CONFIG_MODULES=y include/config/auto.conf; then
@@ -53,6 +55,8 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 	URL: https://www.kernel.org
 $S	Source0: linux.tar.gz
 $S	Source1: config
+$S	Source2: diff.patch
+$S	Source3: untracked.patch
 	Provides: $PROVIDES
 $S	BuildRequires: bc binutils bison dwarves
 $S	BuildRequires: (elfutils-libelf-devel or libelf-devel) flex
@@ -90,6 +94,12 @@ $S$M
 $S	%prep
 $S	%setup -q -n linux
 $S	cp %{SOURCE1} .config
+$S	if [ -s %{SOURCE2} ]; then
+$S		patch -p1 < %{SOURCE2}
+$S	fi
+$S	if [ -s %{SOURCE3} ]; then
+$S		patch -p1 < %{SOURCE3}
+$S	fi
 $S
 $S	%build
 $S	$MAKE %{?_smp_mflags} KERNELRELEASE=$KERNELRELEASE KBUILD_BUILD_VERSION=%{release}
