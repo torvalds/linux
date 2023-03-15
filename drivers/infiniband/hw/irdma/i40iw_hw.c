@@ -32,7 +32,7 @@ static u32 i40iw_regs[IRDMA_MAX_REGS] = {
 	0xffffffff      /* PFINT_RATEN not used in FPK */
 };
 
-static u32 i40iw_stat_offsets_32[IRDMA_HW_STAT_INDEX_MAX_32] = {
+static u32 i40iw_stat_offsets[] = {
 	I40E_GLPES_PFIP4RXDISCARD(0),
 	I40E_GLPES_PFIP4RXTRUNC(0),
 	I40E_GLPES_PFIP4TXNOROUTE(0),
@@ -42,10 +42,8 @@ static u32 i40iw_stat_offsets_32[IRDMA_HW_STAT_INDEX_MAX_32] = {
 	I40E_GLPES_PFTCPRTXSEG(0),
 	I40E_GLPES_PFTCPRXOPTERR(0),
 	I40E_GLPES_PFTCPRXPROTOERR(0),
-	I40E_GLPES_PFRXVLANERR(0)
-};
+	I40E_GLPES_PFRXVLANERR(0),
 
-static u32 i40iw_stat_offsets_64[IRDMA_HW_STAT_INDEX_MAX_64] = {
 	I40E_GLPES_PFIP4RXOCTSLO(0),
 	I40E_GLPES_PFIP4RXPKTSLO(0),
 	I40E_GLPES_PFIP4RXFRAGSLO(0),
@@ -158,6 +156,51 @@ static const struct irdma_irq_ops i40iw_irq_ops = {
 	.irdma_en_irq = i40iw_ena_irq,
 };
 
+static const struct irdma_hw_stat_map i40iw_hw_stat_map[] = {
+	[IRDMA_HW_STAT_INDEX_RXVLANERR]	=	{   0,  0, IRDMA_MAX_STATS_24 },
+	[IRDMA_HW_STAT_INDEX_IP4RXOCTS] =	{   8,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4RXPKTS] =	{  16,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4RXDISCARD] =	{  24,  0, IRDMA_MAX_STATS_32 },
+	[IRDMA_HW_STAT_INDEX_IP4RXTRUNC] =	{  32,  0, IRDMA_MAX_STATS_32 },
+	[IRDMA_HW_STAT_INDEX_IP4RXFRAGS] =      {  40,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4RXMCPKTS] =     {  48,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6RXOCTS] =       {  56,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6RXPKTS] =       {  64,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6RXDISCARD] =    {  72,  0, IRDMA_MAX_STATS_32 },
+	[IRDMA_HW_STAT_INDEX_IP6RXTRUNC] =      {  80,  0, IRDMA_MAX_STATS_32 },
+	[IRDMA_HW_STAT_INDEX_IP6RXFRAGS] =      {  88,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6RXMCPKTS] =     {  96,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4TXOCTS] =       { 104,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4TXPKTS] =       { 112,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4TXFRAGS] =      { 120,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4TXMCPKTS] =     { 128,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6TXOCTS] =       { 136,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6TXPKTS] =       { 144,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6TXFRAGS] =      { 152,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6TXMCPKTS] =     { 160,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4TXNOROUTE] =    { 168,  0, IRDMA_MAX_STATS_24 },
+	[IRDMA_HW_STAT_INDEX_IP6TXNOROUTE] =    { 176,  0, IRDMA_MAX_STATS_24 },
+	[IRDMA_HW_STAT_INDEX_TCPRXSEGS] =       { 184,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_TCPRXOPTERR] =     { 192,  0, IRDMA_MAX_STATS_24 },
+	[IRDMA_HW_STAT_INDEX_TCPRXPROTOERR] =   { 200,  0, IRDMA_MAX_STATS_24 },
+	[IRDMA_HW_STAT_INDEX_TCPTXSEG] =        { 208,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_TCPRTXSEG] =       { 216,  0, IRDMA_MAX_STATS_32 },
+	[IRDMA_HW_STAT_INDEX_RDMARXWRS] =       { 224,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_RDMARXRDS] =       { 232,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_RDMARXSNDS] =      { 240,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_RDMATXWRS] =       { 248,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_RDMATXRDS] =       { 256,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_RDMATXSNDS] =      { 264,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_RDMAVBND] =        { 272,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_RDMAVINV] =        { 280,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4RXMCOCTS] =     { 288,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP4TXMCOCTS] =     { 296,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6RXMCOCTS] =     { 304,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_IP6TXMCOCTS] =     { 312,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_UDPRXPKTS] =       { 320,  0, IRDMA_MAX_STATS_48 },
+	[IRDMA_HW_STAT_INDEX_UDPTXPKTS] =       { 328,  0, IRDMA_MAX_STATS_48 },
+};
+
 void i40iw_init_hw(struct irdma_sc_dev *dev)
 {
 	int i;
@@ -172,11 +215,8 @@ void i40iw_init_hw(struct irdma_sc_dev *dev)
 		dev->hw_regs[i] = (u32 __iomem *)(i40iw_regs[i] + hw_addr);
 	}
 
-	for (i = 0; i < IRDMA_HW_STAT_INDEX_MAX_32; ++i)
-		dev->hw_stats_regs_32[i] = i40iw_stat_offsets_32[i];
-
-	for (i = 0; i < IRDMA_HW_STAT_INDEX_MAX_64; ++i)
-		dev->hw_stats_regs_64[i] = i40iw_stat_offsets_64[i];
+	for (i = 0; i < IRDMA_HW_STAT_INDEX_MAX_GEN_1; ++i)
+		dev->hw_stats_regs[i] = i40iw_stat_offsets[i];
 
 	dev->hw_attrs.first_hw_vf_fpm_id = I40IW_FIRST_VF_FPM_ID;
 	dev->hw_attrs.max_hw_vf_fpm_id = IRDMA_MAX_VF_FPM_ID;
@@ -195,6 +235,7 @@ void i40iw_init_hw(struct irdma_sc_dev *dev)
 	dev->ceq_itr_mask_db = NULL;
 	dev->aeq_itr_mask_db = NULL;
 	dev->irq_ops = &i40iw_irq_ops;
+	dev->hw_stats_map = i40iw_hw_stat_map;
 
 	/* Setup the hardware limits, hmc may limit further */
 	dev->hw_attrs.uk_attrs.max_hw_wq_frags = I40IW_MAX_WQ_FRAGMENT_COUNT;
@@ -210,6 +251,7 @@ void i40iw_init_hw(struct irdma_sc_dev *dev)
 	dev->hw_attrs.uk_attrs.max_hw_sq_chunk = I40IW_MAX_QUANTA_PER_WR;
 	dev->hw_attrs.max_hw_pds = I40IW_MAX_PDS;
 	dev->hw_attrs.max_stat_inst = I40IW_MAX_STATS_COUNT;
+	dev->hw_attrs.max_stat_idx = IRDMA_HW_STAT_INDEX_MAX_GEN_1;
 	dev->hw_attrs.max_hw_outbound_msg_size = I40IW_MAX_OUTBOUND_MSG_SIZE;
 	dev->hw_attrs.max_hw_inbound_msg_size = I40IW_MAX_INBOUND_MSG_SIZE;
 	dev->hw_attrs.max_qp_wr = I40IW_MAX_QP_WRS;
