@@ -3716,7 +3716,9 @@ static int gsmld_ioctl(struct tty_struct *tty, unsigned int cmd,
 {
 	struct gsm_config c;
 	struct gsm_config_ext ce;
+	struct gsm_dlci_config dc;
 	struct gsm_mux *gsm = tty->disc_data;
+	struct gsm_dlci *dlci;
 	unsigned int base;
 
 	switch (cmd) {
@@ -3741,6 +3743,33 @@ static int gsmld_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if (copy_from_user(&ce, (void __user *)arg, sizeof(ce)))
 			return -EFAULT;
 		return gsm_config_ext(gsm, &ce);
+	case GSMIOC_GETCONF_DLCI:
+		if (copy_from_user(&dc, (void __user *)arg, sizeof(dc)))
+			return -EFAULT;
+		if (dc.channel == 0 || dc.channel >= NUM_DLCI)
+			return -EINVAL;
+		dlci = gsm->dlci[dc.channel];
+		if (!dlci) {
+			dlci = gsm_dlci_alloc(gsm, dc.channel);
+			if (!dlci)
+				return -ENOMEM;
+		}
+		gsm_dlci_copy_config_values(dlci, &dc);
+		if (copy_to_user((void __user *)arg, &dc, sizeof(dc)))
+			return -EFAULT;
+		return 0;
+	case GSMIOC_SETCONF_DLCI:
+		if (copy_from_user(&dc, (void __user *)arg, sizeof(dc)))
+			return -EFAULT;
+		if (dc.channel == 0 || dc.channel >= NUM_DLCI)
+			return -EINVAL;
+		dlci = gsm->dlci[dc.channel];
+		if (!dlci) {
+			dlci = gsm_dlci_alloc(gsm, dc.channel);
+			if (!dlci)
+				return -ENOMEM;
+		}
+		return gsm_dlci_config(dlci, &dc, 0);
 	default:
 		return n_tty_ioctl_helper(tty, cmd, arg);
 	}

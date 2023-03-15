@@ -47,6 +47,7 @@ Config Initiator
       int ldisc = N_GSM0710;
       struct gsm_config c;
       struct gsm_config_ext ce;
+      struct gsm_dlci_config dc;
       struct termios configuration;
       uint32_t first;
 
@@ -83,6 +84,13 @@ Config Initiator
       c.mtu = 127;
       /* set the new configuration */
       ioctl(fd, GSMIOC_SETCONF, &c);
+      /* get DLC 1 configuration */
+      dc.channel = 1;
+      ioctl(fd, GSMIOC_GETCONF_DLCI, &dc);
+      /* the first user channel gets a higher priority */
+      dc.priority = 1;
+      /* set the new DLC 1 specific configuration */
+      ioctl(fd, GSMIOC_SETCONF_DLCI, &dc);
       /* get first gsmtty device node */
       ioctl(fd, GSMIOC_GETFIRST, &first);
       printf("first muxed line: /dev/gsmtty%i\n", first);
@@ -136,6 +144,7 @@ Config Requester
 	int ldisc = N_GSM0710;
 	struct gsm_config c;
 	struct gsm_config_ext ce;
+	struct gsm_dlci_config dc;
 	struct termios configuration;
 	uint32_t first;
 
@@ -165,6 +174,13 @@ Config Requester
 	c.mtu = 127;
 	/* set the new configuration */
 	ioctl(fd, GSMIOC_SETCONF, &c);
+	/* get DLC 1 configuration */
+	dc.channel = 1;
+	ioctl(fd, GSMIOC_GETCONF_DLCI, &dc);
+	/* the first user channel gets a higher priority */
+	dc.priority = 1;
+	/* set the new DLC 1 specific configuration */
+	ioctl(fd, GSMIOC_SETCONF_DLCI, &dc);
 	/* get first gsmtty device node */
 	ioctl(fd, GSMIOC_GETFIRST, &first);
 	printf("first muxed line: /dev/gsmtty%i\n", first);
