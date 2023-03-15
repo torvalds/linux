@@ -2486,7 +2486,7 @@ err:
 
 }
 
-static int wsa_macro_remove(struct platform_device *pdev)
+static void wsa_macro_remove(struct platform_device *pdev)
 {
 	struct wsa_macro *wsa = dev_get_drvdata(&pdev->dev);
 
@@ -2495,8 +2495,6 @@ static int wsa_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(wsa->mclk);
 	clk_disable_unprepare(wsa->npl);
 	clk_disable_unprepare(wsa->fsgen);
-
-	return 0;
 }
 
 static int __maybe_unused wsa_macro_runtime_suspend(struct device *dev)
@@ -2568,7 +2566,7 @@ static struct platform_driver wsa_macro_driver = {
 		.pm = &wsa_macro_pm_ops,
 	},
 	.probe = wsa_macro_probe,
-	.remove = wsa_macro_remove,
+	.remove_new = wsa_macro_remove,
 };
 
 module_platform_driver(wsa_macro_driver);
