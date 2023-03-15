@@ -634,6 +634,7 @@
   device_for_each_child
   device_for_each_child_reverse
   device_get_child_node_count
+  device_get_dma_attr
   device_get_match_data
   device_get_next_child_node
   device_get_phy_mode
@@ -973,7 +974,6 @@
   drm_client_init
   drm_client_modeset_commit_locked
   drm_client_register
-  drm_connector_list_update
   drm_compat_ioctl
   drm_connector_attach_encoder
   drm_connector_cleanup
@@ -981,6 +981,7 @@
   drm_connector_list_iter_begin
   drm_connector_list_iter_end
   drm_connector_list_iter_next
+  drm_connector_list_update
   drm_connector_register
   drm_connector_unregister
   drm_connector_update_edid_property
@@ -1070,11 +1071,11 @@
   drm_mode_equal
   drm_mode_is_420_only
   drm_mode_match
-  drm_mode_prune_invalid
   drm_mode_object_find
   drm_mode_object_get
   drm_mode_object_put
   drm_mode_probed_add
+  drm_mode_prune_invalid
   drm_modeset_acquire_fini
   drm_modeset_acquire_init
   drm_modeset_backoff
@@ -1085,9 +1086,9 @@
   drm_modeset_lock_all_ctx
   drm_modeset_lock_single_interruptible
   drm_mode_set_name
-  drm_mode_sort
   drm_modeset_unlock
   drm_modeset_unlock_all
+  drm_mode_sort
   drm_mode_vrefresh
   drm_object_attach_property
   drm_object_property_set_value
@@ -1679,6 +1680,7 @@
   in_egroup_p
   inet6_csk_xmit
   inet6_ioctl
+  __inet6_lookup_established
   inet_csk_get_port
   inet_frag_destroy
   inet_frag_find
@@ -1689,6 +1691,7 @@
   inet_frags_fini
   inet_frags_init
   inet_ioctl
+  __inet_lookup_established
   init_dummy_netdev
   init_iova_domain
   init_net
@@ -2914,6 +2917,7 @@
   rproc_put
   rproc_remove_subdev
   rproc_report_crash
+  rproc_set_firmware
   rproc_shutdown
   rtc_time64_to_tm
   rtc_tm_to_time64
@@ -3200,6 +3204,7 @@
   sock_diag_register
   sock_diag_save_cookie
   sock_diag_unregister
+  sock_edemux
   sock_efree
   sockfd_lookup
   sock_gettstamp
@@ -3366,6 +3371,7 @@
   tasklist_lock
   __task_pid_nr_ns
   __task_rq_lock
+  tcp_hashinfo
   thermal_cdev_update
   thermal_cooling_device_register
   thermal_cooling_device_unregister
@@ -3507,9 +3513,9 @@
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_send_tm_command
-  __traceiter_android_vh_update_topology_flags_workfn
-  __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_ufs_send_uic_command
+  __traceiter_android_vh_ufs_update_sdev
+  __traceiter_android_vh_update_topology_flags_workfn
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
   __traceiter_cpu_idle
@@ -3726,10 +3732,13 @@
   ucsi_set_drvdata
   ucsi_unregister
   __udelay
+  __udp4_lib_lookup
+  __udp6_lib_lookup
   udp6_set_csum
   udp_set_csum
   udp_sock_create4
   udp_sock_create6
+  udp_table
   udp_tunnel6_xmit_skb
   udp_tunnel_sock_release
   udp_tunnel_xmit_skb
