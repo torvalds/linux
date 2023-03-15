@@ -2349,7 +2349,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int mt8192_afe_pcm_dev_remove(struct platform_device *pdev)
+static void mt8192_afe_pcm_dev_remove(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe = platform_get_drvdata(pdev);
 
@@ -2359,7 +2359,6 @@ static int mt8192_afe_pcm_dev_remove(struct platform_device *pdev)
 
 	/* disable afe clock */
 	mt8192_afe_disable_clock(afe);
-	return 0;
 }
 
 static const struct of_device_id mt8192_afe_pcm_dt_match[] = {
@@ -2380,7 +2379,7 @@ static struct platform_driver mt8192_afe_pcm_driver = {
 		   .pm = &mt8192_afe_pm_ops,
 	},
 	.probe = mt8192_afe_pcm_dev_probe,
-	.remove = mt8192_afe_pcm_dev_remove,
+	.remove_new = mt8192_afe_pcm_dev_remove,
 };
 
 module_platform_driver(mt8192_afe_pcm_driver);
