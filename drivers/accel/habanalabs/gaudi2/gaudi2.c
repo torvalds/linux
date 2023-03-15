@@ -2112,6 +2112,7 @@ static bool gaudi2_get_mme_idle_status(struct hl_device *hdev, u64 *mask_arr, u8
 static bool gaudi2_get_edma_idle_status(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
 		struct engines_data *e);
 static u64 gaudi2_mmu_scramble_addr(struct hl_device *hdev, u64 raw_addr);
+static u64 gaudi2_mmu_descramble_addr(struct hl_device *hdev, u64 scrambled_addr);
 
 static void gaudi2_init_scrambler_hbm(struct hl_device *hdev)
 {
@@ -8844,7 +8845,7 @@ static int gaudi2_handle_hif_fatal(struct hl_device *hdev, u16 event_type, u64 i
 static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool is_pmmu,
 					u64 *event_mask)
 {
-	u32 valid, val, axid_l, axid_h;
+	u32 valid, val;
 	u64 addr;
 
 	valid = RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_PAGE_ERROR_VALID));
@@ -8857,11 +8858,11 @@ static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool 
 	addr <<= 32;
 	addr |= RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_ERROR_CAPTURE_VA));
 
-	axid_l = RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_FAULT_ID_LSB));
-	axid_h = RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_FAULT_ID_MSB));
+	if (!is_pmmu)
+		addr = gaudi2_mmu_descramble_addr(hdev, addr);
 
-	dev_err_ratelimited(hdev->dev, "%s page fault on va 0x%llx, transaction id 0x%llX\n",
-				is_pmmu ? "PMMU" : "HMMU", addr, ((u64)axid_h << 32) + axid_l);
+	dev_err_ratelimited(hdev->dev, "%s page fault on va 0x%llx\n",
+				is_pmmu ? "PMMU" : "HMMU", addr);
 	hl_handle_page_fault(hdev, addr, 0, is_pmmu, event_mask);
 
 	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_PAGE_ERROR_VALID), 0);
@@ -8881,6 +8882,9 @@ static void gaudi2_handle_access_error(struct hl_device *hdev, u64 mmu_base, boo
 	addr = val & DCORE0_HMMU0_MMU_ACCESS_ERROR_CAPTURE_VA_63_32_MASK;
 	addr <<= 32;
 	addr |= RREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_ACCESS_ERROR_CAPTURE_VA));
+
+	if (!is_pmmu)
+		addr = gaudi2_mmu_descramble_addr(hdev, addr);
 
 	dev_err_ratelimited(hdev->dev, "%s access error on va 0x%llx\n",
 				is_pmmu ? "PMMU" : "HMMU", addr);
@@ -8976,46 +8980,110 @@ static int gaudi2_handle_sm_err(struct hl_device *hdev, u16 event_type, u8 sm_in
 	return error_count;
 }
 
+static u64 get_hmmu_base(u16 event_type)
+{
+	u8 dcore, index_in_dcore;
+
+	switch (event_type) {
+	case GAUDI2_EVENT_HMMU_0_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU0_SPI_BASE ... GAUDI2_EVENT_HMMU0_SECURITY_ERROR:
+		dcore = 0;
+		index_in_dcore = 0;
+	break;
+	case GAUDI2_EVENT_HMMU_1_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU1_SPI_BASE ... GAUDI2_EVENT_HMMU1_SECURITY_ERROR:
+		dcore = 1;
+		index_in_dcore = 0;
+	break;
+	case GAUDI2_EVENT_HMMU_2_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU2_SPI_BASE ... GAUDI2_EVENT_HMMU2_SECURITY_ERROR:
+		dcore = 0;
+		index_in_dcore = 1;
+	break;
+	case GAUDI2_EVENT_HMMU_3_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU3_SPI_BASE ... GAUDI2_EVENT_HMMU3_SECURITY_ERROR:
+		dcore = 1;
+		index_in_dcore = 1;
+	break;
+	case GAUDI2_EVENT_HMMU_4_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU4_SPI_BASE ... GAUDI2_EVENT_HMMU4_SECURITY_ERROR:
+		dcore = 3;
+		index_in_dcore = 2;
+	break;
+	case GAUDI2_EVENT_HMMU_5_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU5_SPI_BASE ... GAUDI2_EVENT_HMMU5_SECURITY_ERROR:
+		dcore = 2;
+		index_in_dcore = 2;
+	break;
+	case GAUDI2_EVENT_HMMU_6_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU6_SPI_BASE ... GAUDI2_EVENT_HMMU6_SECURITY_ERROR:
+		dcore = 3;
+		index_in_dcore = 3;
+	break;
+	case GAUDI2_EVENT_HMMU_7_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU7_SPI_BASE ... GAUDI2_EVENT_HMMU7_SECURITY_ERROR:
+		dcore = 2;
+		index_in_dcore = 3;
+	break;
+	case GAUDI2_EVENT_HMMU_8_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU8_SPI_BASE ... GAUDI2_EVENT_HMMU8_SECURITY_ERROR:
+		dcore = 0;
+		index_in_dcore = 2;
+	break;
+	case GAUDI2_EVENT_HMMU_9_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU9_SPI_BASE ... GAUDI2_EVENT_HMMU9_SECURITY_ERROR:
+		dcore = 1;
+		index_in_dcore = 2;
+	break;
+	case GAUDI2_EVENT_HMMU_10_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU10_SPI_BASE ... GAUDI2_EVENT_HMMU10_SECURITY_ERROR:
+		dcore = 0;
+		index_in_dcore = 3;
+	break;
+	case GAUDI2_EVENT_HMMU_11_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU11_SPI_BASE ... GAUDI2_EVENT_HMMU11_SECURITY_ERROR:
+		dcore = 1;
+		index_in_dcore = 3;
+	break;
+	case GAUDI2_EVENT_HMMU_12_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU12_SPI_BASE ... GAUDI2_EVENT_HMMU12_SECURITY_ERROR:
+		dcore = 3;
+		index_in_dcore = 0;
+	break;
+	case GAUDI2_EVENT_HMMU_13_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU13_SPI_BASE ... GAUDI2_EVENT_HMMU13_SECURITY_ERROR:
+		dcore = 2;
+		index_in_dcore = 0;
+	break;
+	case GAUDI2_EVENT_HMMU_14_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU14_SPI_BASE ... GAUDI2_EVENT_HMMU14_SECURITY_ERROR:
+		dcore = 3;
+		index_in_dcore = 1;
+	break;
+	case GAUDI2_EVENT_HMMU_15_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU15_SPI_BASE ... GAUDI2_EVENT_HMMU15_SECURITY_ERROR:
+		dcore = 2;
+		index_in_dcore = 1;
+	break;
+	default:
+		return ULONG_MAX;
+	}
+
+	return mmDCORE0_HMMU0_MMU_BASE + dcore * DCORE_OFFSET + index_in_dcore * DCORE_HMMU_OFFSET;
+}
+
 static int gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type, u64 *event_mask)
 {
 	bool is_pmmu = false;
 	u32 error_count = 0;
 	u64 mmu_base;
-	u8 index;
 
 	switch (event_type) {
-	case GAUDI2_EVENT_HMMU0_PAGE_FAULT_OR_WR_PERM ... GAUDI2_EVENT_HMMU3_SECURITY_ERROR:
-		index = (event_type - GAUDI2_EVENT_HMMU0_PAGE_FAULT_OR_WR_PERM) / 3;
-		mmu_base = mmDCORE0_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
+	case GAUDI2_EVENT_HMMU_0_AXI_ERR_RSP ... GAUDI2_EVENT_HMMU_12_AXI_ERR_RSP:
+	case GAUDI2_EVENT_HMMU0_SPI_BASE ... GAUDI2_EVENT_HMMU12_SECURITY_ERROR:
+		mmu_base = get_hmmu_base(event_type);
 		break;
-	case GAUDI2_EVENT_HMMU_0_AXI_ERR_RSP ... GAUDI2_EVENT_HMMU_3_AXI_ERR_RSP:
-		index = (event_type - GAUDI2_EVENT_HMMU_0_AXI_ERR_RSP);
-		mmu_base = mmDCORE0_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
-		break;
-	case GAUDI2_EVENT_HMMU8_PAGE_FAULT_WR_PERM ... GAUDI2_EVENT_HMMU11_SECURITY_ERROR:
-		index = (event_type - GAUDI2_EVENT_HMMU8_PAGE_FAULT_WR_PERM) / 3;
-		mmu_base = mmDCORE1_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
-		break;
-	case GAUDI2_EVENT_HMMU_8_AXI_ERR_RSP ... GAUDI2_EVENT_HMMU_11_AXI_ERR_RSP:
-		index = (event_type - GAUDI2_EVENT_HMMU_8_AXI_ERR_RSP);
-		mmu_base = mmDCORE1_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
-		break;
-	case GAUDI2_EVENT_HMMU7_PAGE_FAULT_WR_PERM ... GAUDI2_EVENT_HMMU4_SECURITY_ERROR:
-		index = (event_type - GAUDI2_EVENT_HMMU7_PAGE_FAULT_WR_PERM) / 3;
-		mmu_base = mmDCORE2_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
-		break;
-	case GAUDI2_EVENT_HMMU_7_AXI_ERR_RSP ... GAUDI2_EVENT_HMMU_4_AXI_ERR_RSP:
-		index = (event_type - GAUDI2_EVENT_HMMU_7_AXI_ERR_RSP);
-		mmu_base = mmDCORE2_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
-		break;
-	case GAUDI2_EVENT_HMMU15_PAGE_FAULT_WR_PERM ... GAUDI2_EVENT_HMMU12_SECURITY_ERROR:
-		index = (event_type - GAUDI2_EVENT_HMMU15_PAGE_FAULT_WR_PERM) / 3;
-		mmu_base = mmDCORE3_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
-		break;
-	case GAUDI2_EVENT_HMMU_15_AXI_ERR_RSP ... GAUDI2_EVENT_HMMU_12_AXI_ERR_RSP:
-		index = (event_type - GAUDI2_EVENT_HMMU_15_AXI_ERR_RSP);
-		mmu_base = mmDCORE3_HMMU0_MMU_BASE + index * DCORE_HMMU_OFFSET;
-		break;
+
 	case GAUDI2_EVENT_PMMU0_PAGE_FAULT_WR_PERM ... GAUDI2_EVENT_PMMU0_SECURITY_ERROR:
 	case GAUDI2_EVENT_PMMU_AXI_ERR_RSP_0:
 		is_pmmu = true;
@@ -9024,6 +9092,9 @@ static int gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type,
 	default:
 		return 0;
 	}
+
+	if (mmu_base == ULONG_MAX)
+		return 0;
 
 	error_count = gaudi2_handle_mmu_spi_sei_generic(hdev, event_type, mmu_base,
 							is_pmmu, event_mask);
