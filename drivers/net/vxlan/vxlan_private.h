@@ -110,6 +110,14 @@ static inline int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
 		return nla_put_in_addr(skb, attr, ip->sin.sin_addr.s_addr);
 }
 
+static inline bool vxlan_addr_is_multicast(const union vxlan_addr *ip)
+{
+	if (ip->sa.sa_family == AF_INET6)
+		return ipv6_addr_is_multicast(&ip->sin6.sin6_addr);
+	else
+		return ipv4_is_multicast(ip->sin.sin_addr.s_addr);
+}
+
 #else /* !CONFIG_IPV6 */
 
 static inline
@@ -138,7 +146,20 @@ static inline int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
 	return nla_put_in_addr(skb, attr, ip->sin.sin_addr.s_addr);
 }
 
+static inline bool vxlan_addr_is_multicast(const union vxlan_addr *ip)
+{
+	return ipv4_is_multicast(ip->sin.sin_addr.s_addr);
+}
+
 #endif
+
+static inline size_t vxlan_addr_size(const union vxlan_addr *ip)
+{
+	if (ip->sa.sa_family == AF_INET6)
+		return sizeof(struct in6_addr);
+	else
+		return sizeof(__be32);
+}
 
 static inline struct vxlan_vni_node *
 vxlan_vnifilter_lookup(struct vxlan_dev *vxlan, __be32 vni)
@@ -206,4 +227,14 @@ int vxlan_igmp_join(struct vxlan_dev *vxlan, union vxlan_addr *rip,
 		    int rifindex);
 int vxlan_igmp_leave(struct vxlan_dev *vxlan, union vxlan_addr *rip,
 		     int rifindex);
+
+/* vxlan_mdb.c */
+int vxlan_mdb_dump(struct net_device *dev, struct sk_buff *skb,
+		   struct netlink_callback *cb);
+int vxlan_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
+		  struct netlink_ext_ack *extack);
+int vxlan_mdb_del(struct net_device *dev, struct nlattr *tb[],
+		  struct netlink_ext_ack *extack);
+int vxlan_mdb_init(struct vxlan_dev *vxlan);
+void vxlan_mdb_fini(struct vxlan_dev *vxlan);
 #endif

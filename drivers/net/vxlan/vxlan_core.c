@@ -2878,8 +2878,14 @@ static int vxlan_init(struct net_device *dev)
 	if (err)
 		goto err_free_percpu;
 
+	err = vxlan_mdb_init(vxlan);
+	if (err)
+		goto err_gro_cells_destroy;
+
 	return 0;
 
+err_gro_cells_destroy:
+	gro_cells_destroy(&vxlan->gro_cells);
 err_free_percpu:
 	free_percpu(dev->tstats);
 err_vnigroup_uninit:
@@ -2903,6 +2909,8 @@ static void vxlan_fdb_delete_default(struct vxlan_dev *vxlan, __be32 vni)
 static void vxlan_uninit(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+
+	vxlan_mdb_fini(vxlan);
 
 	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER)
 		vxlan_vnigroup_uninit(vxlan);
