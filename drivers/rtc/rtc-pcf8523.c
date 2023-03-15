@@ -65,7 +65,7 @@ static int pcf8523_load_capacitance(struct pcf8523 *pcf8523, struct device_node 
 			 load);
 		fallthrough;
 	case 12500:
-		value |= PCF8523_CONTROL1_CAP_SEL;
+		value = PCF8523_CONTROL1_CAP_SEL;
 		break;
 	case 7000:
 		break;
