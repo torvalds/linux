@@ -1489,13 +1489,11 @@ err_pm_disable:
 	return ret;
 }
 
-static int fsl_sai_remove(struct platform_device *pdev)
+static void fsl_sai_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		fsl_sai_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct fsl_sai_soc_data fsl_sai_vf610_data = {
@@ -1696,7 +1694,7 @@ static const struct dev_pm_ops fsl_sai_pm_ops = {
 
 static struct platform_driver fsl_sai_driver = {
 	.probe = fsl_sai_probe,
-	.remove = fsl_sai_remove,
+	.remove_new = fsl_sai_remove,
 	.driver = {
 		.name = "fsl-sai",
 		.pm = &fsl_sai_pm_ops,
