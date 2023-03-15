@@ -466,6 +466,19 @@ int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
+	/* mca.x ras block */
+	r = amdgpu_mca_mp0_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_mca_mp1_ras_sw_init(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_mca_mpio_ras_sw_init(adev);
+	if (r)
+		return r;
+
 	if (!adev->gmc.xgmi.connected_to_cpu) {
 		adev->gmc.xgmi.ras = &xgmi_ras;
 		amdgpu_ras_register_ras_block(adev, &adev->gmc.xgmi.ras->ras_block);

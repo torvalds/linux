@@ -1363,13 +1363,18 @@ static void gmc_v9_0_set_hdp_ras_funcs(struct amdgpu_device *adev)
 	adev->hdp.ras = &hdp_v4_0_ras;
 }
 
-static void gmc_v9_0_set_mca_funcs(struct amdgpu_device *adev)
+static void gmc_v9_0_set_mca_ras_funcs(struct amdgpu_device *adev)
 {
+	struct amdgpu_mca *mca = &adev->mca;
+
 	/* is UMC the right IP to check for MCA?  Maybe DF? */
 	switch (adev->ip_versions[UMC_HWIP][0]) {
 	case IP_VERSION(6, 7, 0):
-		if (!adev->gmc.xgmi.connected_to_cpu)
-			adev->mca.funcs = &mca_v3_0_funcs;
+		if (!adev->gmc.xgmi.connected_to_cpu) {
+			mca->mp0.ras = &mca_v3_0_mp0_ras;
+			mca->mp1.ras = &mca_v3_0_mp1_ras;
+			mca->mpio.ras = &mca_v3_0_mpio_ras;
+		}
 		break;
 	default:
 		break;
@@ -1398,7 +1403,7 @@ static int gmc_v9_0_early_init(void *handle)
 	gmc_v9_0_set_mmhub_ras_funcs(adev);
 	gmc_v9_0_set_gfxhub_funcs(adev);
 	gmc_v9_0_set_hdp_ras_funcs(adev);
-	gmc_v9_0_set_mca_funcs(adev);
+	gmc_v9_0_set_mca_ras_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -1611,8 +1616,6 @@ static int gmc_v9_0_sw_init(void *handle)
 	adev->gfxhub.funcs->init(adev);
 
 	adev->mmhub.funcs->init(adev);
-	if (adev->mca.funcs)
-		adev->mca.funcs->init(adev);
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
