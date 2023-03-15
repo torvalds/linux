@@ -2313,8 +2313,8 @@ static void setup_scripting(void)
 {
 #ifdef HAVE_LIBTRACEEVENT
 	setup_perl_scripting();
-	setup_python_scripting();
 #endif
+	setup_python_scripting();
 }
 
 static int flush_scripting(void)
