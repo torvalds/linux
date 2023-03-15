@@ -295,7 +295,7 @@ void __init prom_init(void)
 #if defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
 	register_smp_ops(&sb_smp_ops);
 #endif
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#ifdef CONFIG_SIBYTE_BCM1x80
 	register_smp_ops(&bcm1480_smp_ops);
 #endif
 }

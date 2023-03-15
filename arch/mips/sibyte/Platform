@@ -13,10 +13,6 @@ cflags-$(CONFIG_SIBYTE_SB1250)	+=					\
 		-I$(srctree)/arch/mips/include/asm/mach-sibyte		\
 		-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1250_112x_ALL
 
-cflags-$(CONFIG_SIBYTE_BCM1x55) +=					\
-		-I$(srctree)/arch/mips/include/asm/mach-sibyte		\
-		-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL
-
 cflags-$(CONFIG_SIBYTE_BCM1x80) +=					\
 		-I$(srctree)/arch/mips/include/asm/mach-sibyte		\
 		-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL

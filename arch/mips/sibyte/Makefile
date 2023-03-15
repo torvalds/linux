@@ -6,8 +6,6 @@ obj-$(CONFIG_SIBYTE_BCM112X)	+= sb1250/
 obj-$(CONFIG_SIBYTE_BCM112X)	+= common/
 obj-$(CONFIG_SIBYTE_SB1250)	+= sb1250/
 obj-$(CONFIG_SIBYTE_SB1250)	+= common/
-obj-$(CONFIG_SIBYTE_BCM1x55)	+= bcm1480/
-obj-$(CONFIG_SIBYTE_BCM1x55)	+= common/
 obj-$(CONFIG_SIBYTE_BCM1x80)	+= bcm1480/
 obj-$(CONFIG_SIBYTE_BCM1x80)	+= common/
 
