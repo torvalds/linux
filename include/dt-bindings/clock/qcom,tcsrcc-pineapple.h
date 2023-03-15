@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_TCSR_CC_PINEAPPLE_H
@@ -13,5 +13,6 @@
 #define TCSR_UFS_PAD_CLKREF_EN					3
 #define TCSR_USB2_CLKREF_EN					4
 #define TCSR_USB3_CLKREF_EN					5
+#define TCSR_PCIE_2L_CLKREF_EN					0
 
 #endif
