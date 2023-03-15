@@ -95,7 +95,7 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-void nvmet_execute_identify_cns_cs_ns(struct nvmet_req *req)
+void nvmet_execute_identify_ns_zns(struct nvmet_req *req)
 {
 	struct nvme_id_ns_zns *id_zns = NULL;
 	u64 zsze;

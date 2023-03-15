@@ -692,7 +692,7 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 		return;
 	case NVME_ID_CNS_NS_DESC_LIST:
 		nvmet_execute_identify_desclist(req);
-		break;
+		return;
 	case NVME_ID_CNS_CS_NS:
 		switch (req->cmd->identify.csi) {
 		case NVME_CSI_NVM:
@@ -700,7 +700,7 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 			break;
 		case NVME_CSI_ZNS:
 			if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
-				nvmet_execute_identify_cns_cs_ns(req);
+				nvmet_execute_identify_ns_zns(req);
 				return;
 			}
 			break;
