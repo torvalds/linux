@@ -278,6 +278,7 @@ void startup_kernel(void)
 {
 	unsigned long max_physmem_end;
 	unsigned long vmlinux_lma = 0;
+	unsigned long amode31_lma;
 	unsigned long asce_limit;
 	unsigned long safe_addr;
 	void *img;
@@ -335,7 +336,8 @@ void startup_kernel(void)
 
 	/* vmlinux decompression is done, shrink reserved low memory */
 	physmem_reserve(RR_DECOMPRESSOR, 0, (unsigned long)_decompressor_end);
-	physmem_alloc_range(RR_AMODE31, vmlinux.amode31_size, PAGE_SIZE, 0, SZ_2G, true);
+	amode31_lma = vmlinux.default_lma - vmlinux.amode31_size;
+	physmem_reserve(RR_AMODE31, amode31_lma, vmlinux.amode31_size);
 
 	/*
 	 * The order of the following operations is important:
