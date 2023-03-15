@@ -44,6 +44,7 @@ lookup_key                                       # test_lookup_key__attach unexp
 lru_bug                                          # lru_bug__attach unexpected error: -524 (errno 524)
 modify_return                                    # modify_return__attach failed unexpected error: -524 (errno 524)
 module_attach                                    # skel_attach skeleton attach failed: -524
+module_fentry_shadow                             # bpf_link_create unexpected bpf_link_create: actual -524 < expected 0
 mptcp/base                                       # run_test mptcp unexpected error: -524 (errno 524)
 netcnt                                           # packets unexpected packets: actual 10001 != expected 10000
 rcu_read_lock                                    # failed to attach: ERROR: strerror_r(-524)=22

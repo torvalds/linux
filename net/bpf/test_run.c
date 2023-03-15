@@ -560,6 +560,11 @@ long noinline bpf_kfunc_call_test4(signed char a, short b, int c, long d)
 	return (long)a + (long)b + (long)c + d;
 }
 
+int noinline bpf_fentry_shadow_test(int a)
+{
+	return a + 1;
+}
+
 struct prog_test_member1 {
 	int a;
 };
