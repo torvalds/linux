@@ -798,16 +798,35 @@ static inline u32 gve_num_rx_qpls(struct gve_priv *priv)
 	return priv->rx_cfg.num_queues;
 }
 
+static inline u32 gve_tx_qpl_id(struct gve_priv *priv, int tx_qid)
+{
+	return tx_qid;
+}
+
+static inline u32 gve_rx_qpl_id(struct gve_priv *priv, int rx_qid)
+{
+	return priv->tx_cfg.max_queues + rx_qid;
+}
+
+static inline u32 gve_tx_start_qpl_id(struct gve_priv *priv)
+{
+	return gve_tx_qpl_id(priv, 0);
+}
+
+static inline u32 gve_rx_start_qpl_id(struct gve_priv *priv)
+{
+	return gve_rx_qpl_id(priv, 0);
+}
+
 /* Returns a pointer to the next available tx qpl in the list of qpls
  */
 static inline
-struct gve_queue_page_list *gve_assign_tx_qpl(struct gve_priv *priv)
+struct gve_queue_page_list *gve_assign_tx_qpl(struct gve_priv *priv, int tx_qid)
 {
-	int id = find_first_zero_bit(priv->qpl_cfg.qpl_id_map,
-				     priv->qpl_cfg.qpl_map_size);
+	int id = gve_tx_qpl_id(priv, tx_qid);
 
-	/* we are out of tx qpls */
-	if (id >= gve_num_tx_qpls(priv))
+	/* QPL already in use */
+	if (test_bit(id, priv->qpl_cfg.qpl_id_map))
 		return NULL;
 
 	set_bit(id, priv->qpl_cfg.qpl_id_map);
@@ -817,14 +836,12 @@ struct gve_queue_page_list *gve_assign_tx_qpl(struct gve_priv *priv)
 /* Returns a pointer to the next available rx qpl in the list of qpls
  */
 static inline
-struct gve_queue_page_list *gve_assign_rx_qpl(struct gve_priv *priv)
+struct gve_queue_page_list *gve_assign_rx_qpl(struct gve_priv *priv, int rx_qid)
 {
-	int id = find_next_zero_bit(priv->qpl_cfg.qpl_id_map,
-				    priv->qpl_cfg.qpl_map_size,
-				    gve_num_tx_qpls(priv));
+	int id = gve_rx_qpl_id(priv, rx_qid);
 
-	/* we are out of rx qpls */
-	if (id == gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv))
+	/* QPL already in use */
+	if (test_bit(id, priv->qpl_cfg.qpl_id_map))
 		return NULL;
 
 	set_bit(id, priv->qpl_cfg.qpl_id_map);
@@ -843,7 +860,7 @@ static inline void gve_unassign_qpl(struct gve_priv *priv, int id)
 static inline enum dma_data_direction gve_qpl_dma_dir(struct gve_priv *priv,
 						      int id)
 {
-	if (id < gve_num_tx_qpls(priv))
+	if (id < gve_rx_start_qpl_id(priv))
 		return DMA_TO_DEVICE;
 	else
 		return DMA_FROM_DEVICE;
@@ -869,8 +886,8 @@ void gve_free_page(struct device *dev, struct page *page, dma_addr_t dma,
 /* tx handling */
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
 bool gve_tx_poll(struct gve_notify_block *block, int budget);
-int gve_tx_alloc_rings(struct gve_priv *priv);
-void gve_tx_free_rings_gqi(struct gve_priv *priv);
+int gve_tx_alloc_rings(struct gve_priv *priv, int start_id, int num_rings);
+void gve_tx_free_rings_gqi(struct gve_priv *priv, int start_id, int num_rings);
 u32 gve_tx_load_event_counter(struct gve_priv *priv,
 			      struct gve_tx_ring *tx);
 bool gve_tx_clean_pending(struct gve_priv *priv, struct gve_tx_ring *tx);

@@ -195,7 +195,7 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 	tx->raw_addressing = priv->queue_format == GVE_GQI_RDA_FORMAT;
 	tx->dev = &priv->pdev->dev;
 	if (!tx->raw_addressing) {
-		tx->tx_fifo.qpl = gve_assign_tx_qpl(priv);
+		tx->tx_fifo.qpl = gve_assign_tx_qpl(priv, idx);
 		if (!tx->tx_fifo.qpl)
 			goto abort_with_desc;
 		/* map Tx FIFO */
@@ -233,12 +233,12 @@ abort_with_info:
 	return -ENOMEM;
 }
 
-int gve_tx_alloc_rings(struct gve_priv *priv)
+int gve_tx_alloc_rings(struct gve_priv *priv, int start_id, int num_rings)
 {
 	int err = 0;
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+	for (i = start_id; i < start_id + num_rings; i++) {
 		err = gve_tx_alloc_ring(priv, i);
 		if (err) {
 			netif_err(priv, drv, priv->dev,
@@ -251,17 +251,17 @@ int gve_tx_alloc_rings(struct gve_priv *priv)
 	if (err) {
 		int j;
 
-		for (j = 0; j < i; j++)
+		for (j = start_id; j < i; j++)
 			gve_tx_free_ring(priv, j);
 	}
 	return err;
 }
 
-void gve_tx_free_rings_gqi(struct gve_priv *priv)
+void gve_tx_free_rings_gqi(struct gve_priv *priv, int start_id, int num_rings)
 {
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++)
+	for (i = start_id; i < start_id + num_rings; i++)
 		gve_tx_free_ring(priv, i);
 }
 

@@ -584,11 +584,26 @@ static void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
 
 static int gve_register_qpls(struct gve_priv *priv)
 {
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
+	int start_id;
 	int err;
 	int i;
 
-	for (i = 0; i < num_qpls; i++) {
+	start_id = gve_tx_start_qpl_id(priv);
+	for (i = start_id; i < start_id + gve_num_tx_qpls(priv); i++) {
+		err = gve_adminq_register_page_list(priv, &priv->qpls[i]);
+		if (err) {
+			netif_err(priv, drv, priv->dev,
+				  "failed to register queue page list %d\n",
+				  priv->qpls[i].id);
+			/* This failure will trigger a reset - no need to clean
+			 * up
+			 */
+			return err;
+		}
+	}
+
+	start_id = gve_rx_start_qpl_id(priv);
+	for (i = start_id; i < start_id + gve_num_rx_qpls(priv); i++) {
 		err = gve_adminq_register_page_list(priv, &priv->qpls[i]);
 		if (err) {
 			netif_err(priv, drv, priv->dev,
@@ -605,11 +620,24 @@ static int gve_register_qpls(struct gve_priv *priv)
 
 static int gve_unregister_qpls(struct gve_priv *priv)
 {
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
+	int start_id;
 	int err;
 	int i;
 
-	for (i = 0; i < num_qpls; i++) {
+	start_id = gve_tx_start_qpl_id(priv);
+	for (i = start_id; i < start_id + gve_num_tx_qpls(priv); i++) {
+		err = gve_adminq_unregister_page_list(priv, priv->qpls[i].id);
+		/* This failure will trigger a reset - no need to clean up */
+		if (err) {
+			netif_err(priv, drv, priv->dev,
+				  "Failed to unregister queue page list %d\n",
+				  priv->qpls[i].id);
+			return err;
+		}
+	}
+
+	start_id = gve_rx_start_qpl_id(priv);
+	for (i = start_id; i < start_id + gve_num_rx_qpls(priv); i++) {
 		err = gve_adminq_unregister_page_list(priv, priv->qpls[i].id);
 		/* This failure will trigger a reset - no need to clean up */
 		if (err) {
@@ -628,7 +656,7 @@ static int gve_create_rings(struct gve_priv *priv)
 	int err;
 	int i;
 
-	err = gve_adminq_create_tx_queues(priv, num_tx_queues);
+	err = gve_adminq_create_tx_queues(priv, 0, num_tx_queues);
 	if (err) {
 		netif_err(priv, drv, priv->dev, "failed to create %d tx queues\n",
 			  num_tx_queues);
@@ -695,10 +723,10 @@ static void add_napi_init_sync_stats(struct gve_priv *priv,
 	}
 }
 
-static void gve_tx_free_rings(struct gve_priv *priv)
+static void gve_tx_free_rings(struct gve_priv *priv, int start_id, int num_rings)
 {
 	if (gve_is_gqi(priv)) {
-		gve_tx_free_rings_gqi(priv);
+		gve_tx_free_rings_gqi(priv, start_id, num_rings);
 	} else {
 		gve_tx_free_rings_dqo(priv);
 	}
@@ -709,20 +737,20 @@ static int gve_alloc_rings(struct gve_priv *priv)
 	int err;
 
 	/* Setup tx rings */
-	priv->tx = kvcalloc(priv->tx_cfg.num_queues, sizeof(*priv->tx),
+	priv->tx = kvcalloc(priv->tx_cfg.max_queues, sizeof(*priv->tx),
 			    GFP_KERNEL);
 	if (!priv->tx)
 		return -ENOMEM;
 
 	if (gve_is_gqi(priv))
-		err = gve_tx_alloc_rings(priv);
+		err = gve_tx_alloc_rings(priv, 0, gve_num_tx_queues(priv));
 	else
 		err = gve_tx_alloc_rings_dqo(priv);
 	if (err)
 		goto free_tx;
 
 	/* Setup rx rings */
-	priv->rx = kvcalloc(priv->rx_cfg.num_queues, sizeof(*priv->rx),
+	priv->rx = kvcalloc(priv->rx_cfg.max_queues, sizeof(*priv->rx),
 			    GFP_KERNEL);
 	if (!priv->rx) {
 		err = -ENOMEM;
@@ -747,7 +775,7 @@ free_rx:
 	kvfree(priv->rx);
 	priv->rx = NULL;
 free_tx_queue:
-	gve_tx_free_rings(priv);
+	gve_tx_free_rings(priv, 0, gve_num_tx_queues(priv));
 free_tx:
 	kvfree(priv->tx);
 	priv->tx = NULL;
@@ -759,7 +787,7 @@ static int gve_destroy_rings(struct gve_priv *priv)
 	int num_tx_queues = gve_num_tx_queues(priv);
 	int err;
 
-	err = gve_adminq_destroy_tx_queues(priv, num_tx_queues);
+	err = gve_adminq_destroy_tx_queues(priv, 0, num_tx_queues);
 	if (err) {
 		netif_err(priv, drv, priv->dev,
 			  "failed to destroy tx queues\n");
@@ -797,7 +825,7 @@ static void gve_free_rings(struct gve_priv *priv)
 			ntfy_idx = gve_tx_idx_to_ntfy(priv, i);
 			gve_remove_napi(priv, ntfy_idx);
 		}
-		gve_tx_free_rings(priv);
+		gve_tx_free_rings(priv, 0, num_tx_queues);
 		kvfree(priv->tx);
 		priv->tx = NULL;
 	}
@@ -894,40 +922,46 @@ static void gve_free_queue_page_list(struct gve_priv *priv, u32 id)
 			      qpl->page_buses[i], gve_qpl_dma_dir(priv, id));
 
 	kvfree(qpl->page_buses);
+	qpl->page_buses = NULL;
 free_pages:
 	kvfree(qpl->pages);
+	qpl->pages = NULL;
 	priv->num_registered_pages -= qpl->num_entries;
 }
 
 static int gve_alloc_qpls(struct gve_priv *priv)
 {
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
+	int max_queues = priv->tx_cfg.max_queues + priv->rx_cfg.max_queues;
+	int start_id;
 	int i, j;
 	int err;
 
-	if (num_qpls == 0)
+	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
 		return 0;
 
-	priv->qpls = kvcalloc(num_qpls, sizeof(*priv->qpls), GFP_KERNEL);
+	priv->qpls = kvcalloc(max_queues, sizeof(*priv->qpls), GFP_KERNEL);
 	if (!priv->qpls)
 		return -ENOMEM;
 
-	for (i = 0; i < gve_num_tx_qpls(priv); i++) {
+	start_id = gve_tx_start_qpl_id(priv);
+	for (i = start_id; i < start_id + gve_num_tx_qpls(priv); i++) {
 		err = gve_alloc_queue_page_list(priv, i,
 						priv->tx_pages_per_qpl);
 		if (err)
 			goto free_qpls;
 	}
-	for (; i < num_qpls; i++) {
+
+	start_id = gve_rx_start_qpl_id(priv);
+	for (i = start_id; i < start_id + gve_num_rx_qpls(priv); i++) {
 		err = gve_alloc_queue_page_list(priv, i,
 						priv->rx_data_slot_cnt);
 		if (err)
 			goto free_qpls;
 	}
 
-	priv->qpl_cfg.qpl_map_size = BITS_TO_LONGS(num_qpls) *
+	priv->qpl_cfg.qpl_map_size = BITS_TO_LONGS(max_queues) *
 				     sizeof(unsigned long) * BITS_PER_BYTE;
-	priv->qpl_cfg.qpl_id_map = kvcalloc(BITS_TO_LONGS(num_qpls),
+	priv->qpl_cfg.qpl_id_map = kvcalloc(BITS_TO_LONGS(max_queues),
 					    sizeof(unsigned long), GFP_KERNEL);
 	if (!priv->qpl_cfg.qpl_id_map) {
 		err = -ENOMEM;
@@ -940,23 +974,26 @@ free_qpls:
 	for (j = 0; j <= i; j++)
 		gve_free_queue_page_list(priv, j);
 	kvfree(priv->qpls);
+	priv->qpls = NULL;
 	return err;
 }
 
 static void gve_free_qpls(struct gve_priv *priv)
 {
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
+	int max_queues = priv->tx_cfg.max_queues + priv->rx_cfg.max_queues;
 	int i;
 
-	if (num_qpls == 0)
+	if (!priv->qpls)
 		return;
 
 	kvfree(priv->qpl_cfg.qpl_id_map);
+	priv->qpl_cfg.qpl_id_map = NULL;
 
-	for (i = 0; i < num_qpls; i++)
+	for (i = 0; i < max_queues; i++)
 		gve_free_queue_page_list(priv, i);
 
 	kvfree(priv->qpls);
+	priv->qpls = NULL;
 }
 
 /* Use this to schedule a reset when the device is capable of continuing
