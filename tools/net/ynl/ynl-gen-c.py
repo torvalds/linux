@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 
 import argparse
 import collections
@@ -2068,12 +2068,12 @@ def main():
 
     _, spec_kernel = find_kernel_root(args.spec)
     if args.mode == 'uapi':
-        cw.p('/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause */')
+        cw.p('/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */')
     else:
         if args.header:
-            cw.p('/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */')
+            cw.p('/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */')
         else:
-            cw.p('// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause')
+            cw.p('// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
     cw.p("/* Do not edit directly, auto-generated from: */")
     cw.p(f"/*\t{spec_kernel} */")
     cw.p(f"/* YNL-GEN {args.mode} {'header' if args.header else 'source'} */")
