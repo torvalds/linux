@@ -26,7 +26,7 @@
  *           |
  *           |          frame start:
  *           |          generate frame start interrupt (aka. vblank interrupt) (gmch)
- *           |          may be shifted forward 1-3 extra lines via PIPECONF
+ *           |          may be shifted forward 1-3 extra lines via TRANSCONF
  *           |          |
  *           |          |  start of vsync:
  *           |          |  generate vsync interrupt
@@ -54,7 +54,7 @@
  * Summary:
  * - most events happen at the start of horizontal sync
  * - frame start happens at the start of horizontal blank, 1-4 lines
- *   (depending on PIPECONF settings) after the start of vblank
+ *   (depending on TRANSCONF settings) after the start of vblank
  * - gen3/4 pixel and frame counter are synchronized with the start
  *   of horizontal active on the first line of vertical active
  */

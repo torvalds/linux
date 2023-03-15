@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_trace.h"
+#include "intel_bios.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp_aux.h"
@@ -736,4 +737,38 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
+}
+
+static enum aux_ch default_aux_ch(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	/* SKL has DDI E but no AUX E */
+	if (DISPLAY_VER(i915) == 9 && encoder->port == PORT_E)
+		return AUX_CH_A;
+
+	return (enum aux_ch)encoder->port;
+}
+
+enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum aux_ch aux_ch;
+
+	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
+	if (aux_ch != AUX_CH_NONE) {
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] using AUX %c (VBT)\n",
+			    encoder->base.base.id, encoder->base.name,
+			    aux_ch_name(aux_ch));
+		return aux_ch;
+	}
+
+	aux_ch = default_aux_ch(encoder);
+
+	drm_dbg_kms(&i915->drm,
+		    "[ENCODER:%d:%s] using AUX %c (platform default)\n",
+		    encoder->base.base.id, encoder->base.name,
+		    aux_ch_name(aux_ch));
+
+	return aux_ch;
 }

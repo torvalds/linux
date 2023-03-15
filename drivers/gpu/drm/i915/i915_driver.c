@@ -167,6 +167,8 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 	pre |= IS_KABYLAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x1;
 	pre |= IS_GEMINILAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x3;
 	pre |= IS_ICELAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x7;
+	pre |= IS_TIGERLAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x1;
+	pre |= IS_DG1(dev_priv) && INTEL_REVID(dev_priv) < 0x1;
 
 	if (pre) {
 		drm_err(&dev_priv->drm, "This is a pre-production stepping. "
@@ -248,10 +250,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev_priv);
 
-	intel_pm_setup(dev_priv);
-	ret = intel_power_domains_init(dev_priv);
-	if (ret < 0)
-		goto err_gem;
 	intel_irq_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
@@ -260,10 +258,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	return 0;
 
-err_gem:
-	i915_gem_cleanup_early(dev_priv);
-	intel_gt_driver_late_release_all(dev_priv);
-	i915_drm_clients_fini(&dev_priv->clients);
 err_rootgt:
 	intel_region_ttm_device_fini(dev_priv);
 err_ttm:
@@ -936,7 +930,9 @@ static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  */
 static void i915_driver_lastclose(struct drm_device *dev)
 {
-	intel_fbdev_restore_mode(dev);
+	struct drm_i915_private *i915 = to_i915(dev);
+
+	intel_fbdev_restore_mode(i915);
 
 	vga_switcheroo_process_delayed_switch();
 }
@@ -1002,7 +998,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_suspend_encoders(i915);
 	intel_shutdown_encoders(i915);
 
-	intel_dmc_ucode_suspend(i915);
+	intel_dmc_suspend(i915);
 
 	i915_gem_suspend(i915);
 
@@ -1030,6 +1026,13 @@ static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 		return true;
 #endif
 	return false;
+}
+
+static void i915_drm_complete(struct drm_device *dev)
+{
+	struct drm_i915_private *i915 = to_i915(dev);
+
+	intel_pxp_resume_complete(i915->pxp);
 }
 
 static int i915_drm_prepare(struct drm_device *dev)
@@ -1072,8 +1075,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_suspend_encoders(dev_priv);
 
-	intel_suspend_hw(dev_priv);
-
 	/* Must be called before GGTT is suspended. */
 	intel_dpt_suspend(dev_priv);
 	i915_ggtt_suspend(to_gt(dev_priv)->ggtt);
@@ -1087,7 +1088,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	dev_priv->suspend_count++;
 
-	intel_dmc_ucode_suspend(dev_priv);
+	intel_dmc_suspend(dev_priv);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -1208,7 +1209,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	/* Must be called after GGTT is resumed. */
 	intel_dpt_resume(dev_priv);
 
-	intel_dmc_ucode_resume(dev_priv);
+	intel_dmc_resume(dev_priv);
 
 	i915_restore_display(dev_priv);
 	intel_pps_unlock_regs_wa(dev_priv);
@@ -1231,8 +1232,6 @@ static int i915_drm_resume(struct drm_device *dev)
 		drm_mode_config_reset(dev);
 
 	i915_gem_resume(dev_priv);
-
-	intel_pxp_resume(dev_priv->pxp);
 
 	intel_modeset_init_hw(dev_priv);
 	intel_init_clock_gating(dev_priv);
@@ -1423,6 +1422,16 @@ static int i915_pm_resume(struct device *kdev)
 		return 0;
 
 	return i915_drm_resume(&i915->drm);
+}
+
+static void i915_pm_complete(struct device *kdev)
+{
+	struct drm_i915_private *i915 = kdev_to_i915(kdev);
+
+	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
+		return;
+
+	i915_drm_complete(&i915->drm);
 }
 
 /* freeze: before creating the hibernation_image */
@@ -1645,6 +1654,7 @@ const struct dev_pm_ops i915_pm_ops = {
 	.suspend_late = i915_pm_suspend_late,
 	.resume_early = i915_pm_resume_early,
 	.resume = i915_pm_resume,
+	.complete = i915_pm_complete,
 
 	/*
 	 * S4 event handlers

@@ -642,7 +642,7 @@ icl_plane_disable_arm(struct intel_plane *plane,
 
 	skl_write_plane_wm(plane, crtc_state);
 
-	intel_psr2_disable_plane_sel_fetch(plane, crtc_state);
+	intel_psr2_disable_plane_sel_fetch_arm(plane, crtc_state);
 	intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), 0);
 	intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id), 0);
 }
@@ -1260,7 +1260,7 @@ icl_plane_update_noarm(struct intel_plane *plane,
 	if (plane_state->force_black)
 		icl_plane_csc_load_black(plane);
 
-	intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, color_plane);
+	intel_psr2_program_plane_sel_fetch_noarm(plane, crtc_state, plane_state, color_plane);
 }
 
 static void
@@ -1286,6 +1286,8 @@ icl_plane_update_arm(struct intel_plane *plane,
 	 */
 	if (plane_state->scaler_id >= 0)
 		skl_program_plane_scaler(plane, crtc_state, plane_state);
+
+	intel_psr2_program_plane_sel_fetch_arm(plane, crtc_state, plane_state);
 
 	/*
 	 * The control register self-arms if the plane was previously
@@ -2180,7 +2182,7 @@ static bool gen12_plane_has_mc_ccs(struct drm_i915_private *i915,
 	if (DISPLAY_VER(i915) < 12)
 		return false;
 
-	/* Wa_14010477008:tgl[a0..c0],rkl[all],dg1[all] */
+	/* Wa_14010477008 */
 	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) ||
 	    IS_TGL_DISPLAY_STEP(i915, STEP_A0, STEP_D0))
 		return false;

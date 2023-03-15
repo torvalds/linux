@@ -1470,42 +1470,11 @@ gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
-tgl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
-{
-	struct drm_i915_private *i915 = gt->i915;
-
-	gen12_gt_workarounds_init(gt, wal);
-
-	/* Wa_1409420604:tgl */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_mcr_write_or(wal,
-				SUBSLICE_UNIT_LEVEL_CLKGATE2,
-				CPSSUNIT_CLKGATE_DIS);
-
-	/* Wa_1607087056:tgl also know as BUG:1409180338 */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal,
-			    GEN11_SLICE_UNIT_LEVEL_CLKGATE,
-			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
-
-	/* Wa_1408615072:tgl[a0] */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
-			    VSUNIT_CLKGATE_DIS_TGL);
-}
-
-static void
 dg1_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
 	gen12_gt_workarounds_init(gt, wal);
-
-	/* Wa_1607087056:dg1 */
-	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal,
-			    GEN11_SLICE_UNIT_LEVEL_CLKGATE,
-			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 
 	/* Wa_1409420604:dg1 */
 	if (IS_DG1(i915))
@@ -1779,8 +1748,6 @@ gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 		xehpsdv_gt_workarounds_init(gt, wal);
 	else if (IS_DG1(i915))
 		dg1_gt_workarounds_init(gt, wal);
-	else if (IS_TIGERLAKE(i915))
-		tgl_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 12)
 		gen12_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -2193,20 +2160,6 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 	}
 }
 
-static void dg1_whitelist_build(struct intel_engine_cs *engine)
-{
-	struct i915_wa_list *w = &engine->whitelist;
-
-	tgl_whitelist_build(engine);
-
-	/* GEN:BUG:1409280441:dg1 */
-	if (IS_DG1_GRAPHICS_STEP(engine->i915, STEP_A0, STEP_B0) &&
-	    (engine->class == RENDER_CLASS ||
-	     engine->class == COPY_ENGINE_CLASS))
-		whitelist_reg_ext(w, RING_ID(engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
-}
-
 static void xehpsdv_whitelist_build(struct intel_engine_cs *engine)
 {
 	allow_read_ctx_timestamp(engine);
@@ -2286,8 +2239,6 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 		dg2_whitelist_build(engine);
 	else if (IS_XEHPSDV(i915))
 		xehpsdv_whitelist_build(engine);
-	else if (IS_DG1(i915))
-		dg1_whitelist_build(engine);
 	else if (GRAPHICS_VER(i915) == 12)
 		tgl_whitelist_build(engine);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -2482,27 +2433,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			   true);
 	}
 
-	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
-	    IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
-		/*
-		 * Wa_1607138336:tgl[a0],dg1[a0]
-		 * Wa_1607063988:tgl[a0],dg1[a0]
-		 */
-		wa_write_or(wal,
-			    GEN9_CTX_PREEMPT_REG,
-			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
-	}
-
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
-		/*
-		 * Wa_1606679103:tgl
-		 * (see also Wa_1606682166:icl)
-		 */
-		wa_write_or(wal,
-			    GEN7_SARCHKMD,
-			    GEN7_DISABLE_SAMPLER_PREFETCH);
-	}
-
 	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
 	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
 		/* Wa_1606931601:tgl,rkl,dg1,adl-s,adl-p */
@@ -2532,30 +2462,22 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	}
 
 	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
-	    IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
 	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1409804808:tgl,rkl,dg1[a0],adl-s,adl-p */
+		/* Wa_1409804808 */
 		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2,
 				 GEN12_PUSH_CONST_DEREF_HOLD_DIS);
 
-		/*
-		 * Wa_1409085225:tgl
-		 * Wa_14010229206:tgl,rkl,dg1[a0],adl-s,adl-p
-		 */
+		/* Wa_14010229206 */
 		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
 	}
 
-	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
-	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) {
+	if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) {
 		/*
-		 * Wa_1607030317:tgl
-		 * Wa_1607186500:tgl
-		 * Wa_1607297627:tgl,rkl,dg1[a0],adlp
+		 * Wa_1607297627
 		 *
 		 * On TGL and RKL there are multiple entries for this WA in the
 		 * BSpec; some indicate this is an A0-only WA, others indicate
 		 * it applies to all steppings so we trust the "all steppings."
-		 * For DG1 this only applies to A0.
 		 */
 		wa_masked_en(wal,
 			     RING_PSMI_CTL(RENDER_RING_BASE),

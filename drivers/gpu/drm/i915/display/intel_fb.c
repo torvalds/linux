@@ -2007,6 +2007,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 		vm = intel_dpt_create(intel_fb);
 		if (IS_ERR(vm)) {
+			drm_dbg_kms(&dev_priv->drm, "failed to create DPT\n");
 			ret = PTR_ERR(vm);
 			goto err;
 		}
@@ -2017,11 +2018,14 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	ret = drm_framebuffer_init(&dev_priv->drm, fb, &intel_fb_funcs);
 	if (ret) {
 		drm_err(&dev_priv->drm, "framebuffer init failed %d\n", ret);
-		goto err;
+		goto err_free_dpt;
 	}
 
 	return 0;
 
+err_free_dpt:
+	if (intel_fb_uses_dpt(fb))
+		intel_dpt_destroy(intel_fb->dpt_vm);
 err:
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 	return ret;
@@ -2046,6 +2050,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	if (HAS_LMEM(i915) && !i915_gem_object_can_migrate(obj, INTEL_REGION_LMEM_0)) {
 		/* object is "remote", not in local memory */
 		i915_gem_object_put(obj);
+		drm_dbg_kms(&i915->drm, "framebuffer must reside in local memory\n");
 		return ERR_PTR(-EREMOTE);
 	}
 
