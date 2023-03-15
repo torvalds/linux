@@ -366,7 +366,7 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rembrandt_audio_remove(struct platform_device *pdev)
+static void rembrandt_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
@@ -376,12 +376,11 @@ static int rembrandt_audio_remove(struct platform_device *pdev)
 
 	acp6x_disable_interrupts(adata);
 	acp_platform_unregister(dev);
-	return 0;
 }
 
 static struct platform_driver rembrandt_driver = {
 	.probe = rembrandt_audio_probe,
-	.remove = rembrandt_audio_remove,
+	.remove_new = rembrandt_audio_remove,
 	.driver = {
 		.name = "acp_asoc_rembrandt",
 	},
