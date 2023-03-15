@@ -533,6 +533,11 @@ properties:
               - khadas,edge-v
           - const: rockchip,rk3399
 
+      - description: Khadas Edge2 series boards
+        items:
+          - const: khadas,edge2
+          - const: rockchip,rk3588s
+
       - description: Kobol Helios64
         items:
           - const: kobol,helios64
