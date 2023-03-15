@@ -59,6 +59,7 @@ properties:
       - ti,j7200-cpswxg-nuss
       - ti,j721e-cpsw-nuss
       - ti,j721e-cpswxg-nuss
+      - ti,j784s4-cpswxg-nuss
 
   reg:
     maxItems: 1
@@ -197,7 +198,9 @@ allOf:
         properties:
           compatible:
             contains:
-              const: ti,j721e-cpswxg-nuss
+              enum:
+                - ti,j721e-cpswxg-nuss
+                - ti,j784s4-cpswxg-nuss
     then:
       properties:
         ethernet-ports:
@@ -217,6 +220,7 @@ allOf:
               enum:
                 - ti,j7200-cpswxg-nuss
                 - ti,j721e-cpswxg-nuss
+                - ti,j784s4-cpswxg-nuss
     then:
       properties:
         ethernet-ports:
