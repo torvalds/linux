@@ -235,9 +235,9 @@ static unsigned long setup_kernel_memory_layout(void)
 /*
  * This function clears the BSS section of the decompressed Linux kernel and NOT the decompressor's.
  */
-static void clear_bss_section(void)
+static void clear_bss_section(unsigned long vmlinux_lma)
 {
-	memset((void *)vmlinux.default_lma + vmlinux.image_size, 0, vmlinux.bss_size);
+	memset((void *)vmlinux_lma + vmlinux.image_size, 0, vmlinux.bss_size);
 }
 
 /*
@@ -256,7 +256,6 @@ static void setup_vmalloc_size(void)
 
 static void offset_vmlinux_info(unsigned long offset)
 {
-	vmlinux.default_lma += offset;
 	*(unsigned long *)(&vmlinux.entry) += offset;
 	vmlinux.bootdata_off += offset;
 	vmlinux.bootdata_preserved_off += offset;
@@ -278,7 +277,7 @@ static void offset_vmlinux_info(unsigned long offset)
 void startup_kernel(void)
 {
 	unsigned long max_physmem_end;
-	unsigned long random_lma;
+	unsigned long vmlinux_lma = 0;
 	unsigned long asce_limit;
 	unsigned long safe_addr;
 	void *img;
@@ -316,26 +315,26 @@ void startup_kernel(void)
 	rescue_initrd(safe_addr, ident_map_size);
 
 	if (kaslr_enabled()) {
-		random_lma = get_random_base();
-		if (random_lma) {
-			__kaslr_offset = random_lma - vmlinux.default_lma;
-			img = (void *)vmlinux.default_lma;
+		vmlinux_lma = get_random_base();
+		if (vmlinux_lma) {
+			__kaslr_offset = vmlinux_lma - vmlinux.default_lma;
 			offset_vmlinux_info(__kaslr_offset);
 		}
 	}
+	vmlinux_lma = vmlinux_lma ?: vmlinux.default_lma;
+	physmem_reserve(RR_VMLINUX, vmlinux_lma, vmlinux.image_size + vmlinux.bss_size);
 
 	if (!IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED)) {
 		img = decompress_kernel();
-		memmove((void *)vmlinux.default_lma, img, vmlinux.image_size);
+		memmove((void *)vmlinux_lma, img, vmlinux.image_size);
 	} else if (__kaslr_offset) {
-		memcpy((void *)vmlinux.default_lma, img, vmlinux.image_size);
+		img = (void *)vmlinux.default_lma;
+		memmove((void *)vmlinux_lma, img, vmlinux.image_size);
 		memset(img, 0, vmlinux.image_size);
 	}
 
 	/* vmlinux decompression is done, shrink reserved low memory */
 	physmem_reserve(RR_DECOMPRESSOR, 0, (unsigned long)_decompressor_end);
-	if (!__kaslr_offset)
-		physmem_reserve(RR_VMLINUX, vmlinux.default_lma, vmlinux.image_size + vmlinux.bss_size);
 	physmem_alloc_range(RR_AMODE31, vmlinux.amode31_size, PAGE_SIZE, 0, SZ_2G, true);
 
 	/*
@@ -351,7 +350,7 @@ void startup_kernel(void)
 	 * - copy_bootdata() must follow setup_vmem() to propagate changes to
 	 *   bootdata made by setup_vmem()
 	 */
-	clear_bss_section();
+	clear_bss_section(vmlinux_lma);
 	handle_relocs(__kaslr_offset);
 	setup_vmem(asce_limit);
 	copy_bootdata();
