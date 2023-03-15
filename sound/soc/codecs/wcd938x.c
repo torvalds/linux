@@ -3616,11 +3616,9 @@ static int wcd938x_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wcd938x_remove(struct platform_device *pdev)
+static void wcd938x_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &wcd938x_comp_ops);
-
-	return 0;
 }
 
 #if defined(CONFIG_OF)
@@ -3634,7 +3632,7 @@ MODULE_DEVICE_TABLE(of, wcd938x_dt_match);
 
 static struct platform_driver wcd938x_codec_driver = {
 	.probe = wcd938x_probe,
-	.remove = wcd938x_remove,
+	.remove_new = wcd938x_remove,
 	.driver = {
 		.name = "wcd938x_codec",
 		.of_match_table = of_match_ptr(wcd938x_dt_match),
