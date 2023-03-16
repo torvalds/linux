@@ -71,7 +71,7 @@ free_fw_ver:
 	return NULL;
 }
 
-static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
+static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 {
 	char major[8], minor[8], *first_dot, *second_dot;
 	int rc;
@@ -86,7 +86,7 @@ static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
 
 	if (rc) {
 		dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
-		goto out;
+		return rc;
 	}
 
 	/* skip the first dot */
@@ -102,9 +102,6 @@ static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
 
 	if (rc)
 		dev_err(hdev->dev, "Error %d parsing preboot minor version\n", rc);
-
-out:
-	kfree(preboot_ver);
 	return rc;
 }
 
@@ -2181,8 +2178,8 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 
 			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
 
-			/* This function takes care of freeing preboot_ver */
-			rc = extract_fw_sub_versions(hdev, preboot_ver);
+			rc = hl_get_preboot_major_minor(hdev, preboot_ver);
+			kfree(preboot_ver);
 			if (rc)
 				return rc;
 		}
