@@ -26,6 +26,10 @@
 #define SOF_IPC4_MODULE_LL		BIT(5)
 #define SOF_IPC4_MODULE_DP		BIT(6)
 #define SOF_IPC4_MODULE_LIB_CODE		BIT(7)
+#define SOF_IPC4_MODULE_INIT_CONFIG_MASK	GENMASK(11, 8)
+
+#define SOF_IPC4_MODULE_INIT_CONFIG_TYPE_BASE_CFG		0
+#define SOF_IPC4_MODULE_INIT_CONFIG_TYPE_BASE_CFG_WITH_EXT	1
 
 #define SOF_IPC4_MODULE_INSTANCE_LIST_ITEM_SIZE 12
 #define SOF_IPC4_PIPELINE_OBJECT_SIZE 448
@@ -367,19 +371,25 @@ struct sof_ipc4_base_module_cfg_ext {
 /**
  * struct sof_ipc4_process - process config data
  * @base_config: IPC base config data
+ * @base_config_ext: Base config extension data for module init
  * @output_format: Output audio format
  * @available_fmt: Available audio format
  * @ipc_config_data: Process module config data
  * @ipc_config_size: Size of process module config data
  * @msg: IPC4 message struct containing header and data info
+ * @base_config_ext_size: Size of the base config extension data in bytes
+ * @init_config: Module init config type (SOF_IPC4_MODULE_INIT_CONFIG_TYPE_*)
  */
 struct sof_ipc4_process {
 	struct sof_ipc4_base_module_cfg base_config;
+	struct sof_ipc4_base_module_cfg_ext *base_config_ext;
 	struct sof_ipc4_audio_format output_format;
 	struct sof_ipc4_available_audio_format available_fmt;
 	void *ipc_config_data;
 	uint32_t ipc_config_size;
 	struct sof_ipc4_msg msg;
+	u32 base_config_ext_size;
+	u32 init_config;
 };
 
 #endif
