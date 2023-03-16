@@ -474,7 +474,7 @@ static __u32 __packet_set_timestamp(struct packet_sock *po, void *frame,
 	struct timespec64 ts;
 	__u32 ts_status;
 
-	if (!(ts_status = tpacket_get_timestamp(skb, &ts, po->tp_tstamp)))
+	if (!(ts_status = tpacket_get_timestamp(skb, &ts, READ_ONCE(po->tp_tstamp))))
 		return 0;
 
 	h.raw = frame;
@@ -2403,7 +2403,8 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * closer to the time of capture.
 	 */
 	ts_status = tpacket_get_timestamp(skb, &ts,
-					  po->tp_tstamp | SOF_TIMESTAMPING_SOFTWARE);
+					  READ_ONCE(po->tp_tstamp) |
+					  SOF_TIMESTAMPING_SOFTWARE);
 	if (!ts_status)
 		ktime_get_real_ts64(&ts);
 
@@ -3945,7 +3946,7 @@ packet_setsockopt(struct socket *sock, int level, int optname, sockptr_t optval,
 		if (copy_from_sockptr(&val, optval, sizeof(val)))
 			return -EFAULT;
 
-		po->tp_tstamp = val;
+		WRITE_ONCE(po->tp_tstamp, val);
 		return 0;
 	}
 	case PACKET_FANOUT:
@@ -4097,7 +4098,7 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		val = po->tp_loss;
 		break;
 	case PACKET_TIMESTAMP:
-		val = po->tp_tstamp;
+		val = READ_ONCE(po->tp_tstamp);
 		break;
 	case PACKET_FANOUT:
 		val = (po->fanout ?
