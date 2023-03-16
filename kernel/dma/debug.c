@@ -53,6 +53,7 @@ enum map_err_types {
  * struct dma_debug_entry - track a dma_map* or dma_alloc_coherent mapping
  * @list: node on pre-allocated free_entries list
  * @dev: 'dev' argument to dma_map_{page|single|sg} or dma_alloc_coherent
+ * @dev_addr: dma address
  * @size: length of the mapping
  * @type: single, page, sg, coherent
  * @direction: enum dma_data_direction
@@ -1262,13 +1263,13 @@ void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 }
 EXPORT_SYMBOL(debug_dma_mapping_error);
 
-void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
+void debug_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 			  size_t size, int direction)
 {
 	struct dma_debug_entry ref = {
 		.type           = dma_debug_single,
 		.dev            = dev,
-		.dev_addr       = addr,
+		.dev_addr       = dma_addr,
 		.size           = size,
 		.direction      = direction,
 	};
@@ -1403,13 +1404,13 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
 }
 
 void debug_dma_free_coherent(struct device *dev, size_t size,
-			 void *virt, dma_addr_t addr)
+			 void *virt, dma_addr_t dma_addr)
 {
 	struct dma_debug_entry ref = {
 		.type           = dma_debug_coherent,
 		.dev            = dev,
 		.offset		= offset_in_page(virt),
-		.dev_addr       = addr,
+		.dev_addr       = dma_addr,
 		.size           = size,
 		.direction      = DMA_BIDIRECTIONAL,
 	};
