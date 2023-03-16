@@ -1069,6 +1069,69 @@ static int snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_s
 }
 #endif
 
+static int ipc4_set_fmt_mask(struct snd_mask *fmt, unsigned int bit_depth)
+{
+	switch (bit_depth) {
+	case 16:
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
+		break;
+	case 24:
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
+		break;
+	case 32:
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ipc4_copier_set_capture_fmt(struct snd_sof_dev *sdev,
+				       struct snd_pcm_hw_params *pipeline_params,
+				       struct snd_pcm_hw_params *fe_params,
+				       struct sof_ipc4_available_audio_format *available_fmt)
+{
+	struct sof_ipc4_audio_format *audio_fmt;
+	unsigned int sample_valid_bits;
+	bool multiple_formats = false;
+	bool fe_format_match = false;
+	struct snd_mask *fmt;
+	int i;
+
+	for (i = 0; i < available_fmt->num_output_formats; i++) {
+		unsigned int val;
+
+		audio_fmt = &available_fmt->output_pin_fmts[i].audio_fmt;
+		val = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(audio_fmt->fmt_cfg);
+
+		if (i == 0)
+			sample_valid_bits = val;
+		else if (sample_valid_bits != val)
+			multiple_formats = true;
+
+		if (snd_pcm_format_width(params_format(fe_params)) == val)
+			fe_format_match = true;
+	}
+
+	fmt = hw_param_mask(pipeline_params, SNDRV_PCM_HW_PARAM_FORMAT);
+	snd_mask_none(fmt);
+
+	if (multiple_formats) {
+		if (fe_format_match) {
+			/* multiple formats defined and one matches FE */
+			snd_mask_set_format(fmt, params_format(fe_params));
+			return 0;
+		}
+
+		dev_err(sdev->dev, "Multiple audio formats for single dai_out not supported\n");
+		return -EINVAL;
+	}
+
+	return ipc4_set_fmt_mask(fmt, sample_valid_bits);
+}
+
 static int
 sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			       struct snd_pcm_hw_params *fe_params,
@@ -1152,13 +1215,10 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			format_list_to_search = available_fmt->output_pin_fmts;
 			format_list_count = available_fmt->num_output_formats;
 
-			/*
-			 * modify the input params for the dai copier as it only supports
-			 * 32-bit always
-			 */
-			fmt = hw_param_mask(pipeline_params, SNDRV_PCM_HW_PARAM_FORMAT);
-			snd_mask_none(fmt);
-			snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
+			ret = ipc4_copier_set_capture_fmt(sdev, pipeline_params, fe_params,
+							  available_fmt);
+			if (ret < 0)
+				return ret;
 		} else {
 			format_list_to_search = available_fmt->input_pin_fmts;
 			format_list_count = available_fmt->num_input_formats;

@@ -362,15 +362,68 @@ static void ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev, const
 	}
 }
 
+/*
+ * Fixup DAI link parameters for sampling rate based on
+ * DAI copier configuration.
+ */
+static int sof_ipc4_pcm_dai_link_fixup_rate(struct snd_sof_dev *sdev,
+					    struct snd_pcm_hw_params *params,
+					    struct sof_ipc4_copier *ipc4_copier)
+{
+	struct sof_ipc4_pin_format *pin_fmts = ipc4_copier->available_fmt.input_pin_fmts;
+	struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	int num_input_formats = ipc4_copier->available_fmt.num_input_formats;
+	unsigned int fe_rate = params_rate(params);
+	bool fe_be_rate_match = false;
+	bool single_be_rate = true;
+	unsigned int be_rate;
+	int i;
+
+	/*
+	 * Copier does not change sampling rate, so we
+	 * need to only consider the input pin information.
+	 */
+	for (i = 0; i < num_input_formats; i++) {
+		unsigned int val = pin_fmts[i].audio_fmt.sampling_frequency;
+
+		if (i == 0)
+			be_rate = val;
+		else if (val != be_rate)
+			single_be_rate = false;
+
+		if (val == fe_rate) {
+			fe_be_rate_match = true;
+			break;
+		}
+	}
+
+	/*
+	 * If rate is different than FE rate, topology must
+	 * contain an SRC. But we do require topology to
+	 * define a single rate in the DAI copier config in
+	 * this case (FE rate may be variable).
+	 */
+	if (!fe_be_rate_match) {
+		if (!single_be_rate) {
+			dev_err(sdev->dev, "Unable to select sampling rate for DAI link\n");
+			return -EINVAL;
+		}
+
+		rate->min = be_rate;
+		rate->max = rate->min;
+	}
+
+	return 0;
+}
+
 static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 				       struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
 	struct snd_sof_dai *dai = snd_sof_find_dai(component, rtd->dai_link->name);
-	struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct sof_ipc4_copier *ipc4_copier;
+	int ret;
 
 	if (!dai) {
 		dev_err(component->dev, "%s: No DAI found with name %s\n", __func__,
@@ -385,12 +438,9 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		return -EINVAL;
 	}
 
-	/* always set BE format to 32-bits for both playback and capture */
-	snd_mask_none(fmt);
-	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
-
-	rate->min = ipc4_copier->available_fmt.input_pin_fmts->audio_fmt.sampling_frequency;
-	rate->max = rate->min;
+	ret = sof_ipc4_pcm_dai_link_fixup_rate(sdev, params, ipc4_copier);
+	if (ret)
+		return ret;
 
 	switch (ipc4_copier->dai_type) {
 	case SOF_DAI_INTEL_SSP:
