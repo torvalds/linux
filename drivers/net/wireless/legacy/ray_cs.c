@@ -738,9 +738,12 @@ static void ray_release(struct pcmcia_device *link)
 
 	del_timer_sync(&local->timer);
 
-	iounmap(local->sram);
-	iounmap(local->rmem);
-	iounmap(local->amem);
+	if (local->sram)
+		iounmap(local->sram);
+	if (local->rmem)
+		iounmap(local->rmem);
+	if (local->amem)
+		iounmap(local->amem);
 	pcmcia_disable_device(link);
 
 	dev_dbg(&link->dev, "ray_release ending\n");
