@@ -37,7 +37,7 @@ def main(argv: Sequence[str]) -> None:
 	if argv:
 		raise RuntimeError('This script takes no arguments')
 
-	future_to_name: Dict[futures.Future, str] = {}
+	future_to_name: Dict[futures.Future[None], str] = {}
 	executor = futures.ThreadPoolExecutor(max_workers=len(commands))
 	for name, argv in commands.items():
 		if name in necessary_deps and shutil.which(necessary_deps[name]) is None:
