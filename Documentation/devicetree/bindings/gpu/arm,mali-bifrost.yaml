@@ -181,6 +181,25 @@ allOf:
       properties:
         compatible:
           contains:
+            const: mediatek,mt8192-mali
+    then:
+      properties:
+        power-domains:
+          minItems: 5
+        power-domain-names:
+          items:
+            - const: core0
+            - const: core1
+            - const: core2
+            - const: core3
+            - const: core4
+      required:
+        - power-domains
+        - power-domain-names
+  - if:
+      properties:
+        compatible:
+          contains:
             const: rockchip,rk3568-mali
     then:
       properties:
