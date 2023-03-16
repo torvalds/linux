@@ -2340,7 +2340,6 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->dmmu.num_hops = MMU_ARCH_6_HOPS;
 	prop->dmmu.last_mask = LAST_MASK;
 	prop->dmmu.host_resident = 1;
-	/* TODO: will be duplicated until implementing per-MMU props */
 	prop->dmmu.hop_table_size = prop->mmu_hop_table_size;
 	prop->dmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
 
@@ -2356,7 +2355,6 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->pmmu.host_resident = 1;
 	prop->pmmu.num_hops = MMU_ARCH_6_HOPS;
 	prop->pmmu.last_mask = LAST_MASK;
-	/* TODO: will be duplicated until implementing per-MMU props */
 	prop->pmmu.hop_table_size = prop->mmu_hop_table_size;
 	prop->pmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
 
@@ -6906,9 +6904,6 @@ static int gaudi2_compute_reset_late_init(struct hl_device *hdev)
 	size_t irq_arr_size;
 	int rc;
 
-	/* TODO: missing gaudi2_nic_resume.
-	 * Until implemented nic_hw_cap_initialized will remain zeroed
-	 */
 	gaudi2_init_arcs(hdev);
 
 	rc = gaudi2_scrub_arcs_dccm(hdev);
