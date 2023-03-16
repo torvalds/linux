@@ -35,6 +35,15 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 
+static void bch2_trans_mutex_lock_norelock(struct btree_trans *trans,
+					   struct mutex *lock)
+{
+	if (!mutex_trylock(lock)) {
+		bch2_trans_unlock(trans);
+		mutex_lock(lock);
+	}
+}
+
 const char * const bch2_alloc_reserves[] = {
 #define x(t) #t,
 	BCH_ALLOC_RESERVES()
@@ -150,9 +159,7 @@ static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
 	return ob;
 }
 
-static void open_bucket_free_unused(struct bch_fs *c,
-				    struct write_point *wp,
-				    struct open_bucket *ob)
+static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 {
 	BUG_ON(c->open_buckets_partial_nr >=
 	       ARRAY_SIZE(c->open_buckets_partial));
@@ -1158,9 +1165,12 @@ static bool try_increase_writepoints(struct bch_fs *c)
 	return true;
 }
 
-static bool try_decrease_writepoints(struct bch_fs *c, unsigned old_nr)
+static bool try_decrease_writepoints(struct btree_trans *trans, unsigned old_nr)
 {
+	struct bch_fs *c = trans->c;
 	struct write_point *wp;
+	struct open_bucket *ob;
+	unsigned i;
 
 	mutex_lock(&c->write_points_hash_lock);
 	if (c->write_points_nr < old_nr) {
@@ -1179,17 +1189,11 @@ static bool try_decrease_writepoints(struct bch_fs *c, unsigned old_nr)
 	hlist_del_rcu(&wp->node);
 	mutex_unlock(&c->write_points_hash_lock);
 
-	bch2_writepoint_stop(c, NULL, false, wp);
+	bch2_trans_mutex_lock_norelock(trans, &wp->lock);
+	open_bucket_for_each(c, &wp->ptrs, ob, i)
+		open_bucket_free_unused(c, ob);
+	mutex_unlock(&wp->lock);
 	return true;
-}
-
-static void bch2_trans_mutex_lock_norelock(struct btree_trans *trans,
-				  struct mutex *lock)
-{
-	if (!mutex_trylock(lock)) {
-		bch2_trans_unlock(trans);
-		mutex_lock(lock);
-	}
 }
 
 static struct write_point *writepoint_find(struct btree_trans *trans,
@@ -1336,7 +1340,7 @@ alloc_done:
 
 	/* Free buckets we didn't use: */
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
-		open_bucket_free_unused(c, wp, ob);
+		open_bucket_free_unused(c, ob);
 
 	wp->ptrs = ptrs;
 
@@ -1353,13 +1357,13 @@ err:
 		if (ptrs.nr < ARRAY_SIZE(ptrs.v))
 			ob_push(c, &ptrs, ob);
 		else
-			open_bucket_free_unused(c, wp, ob);
+			open_bucket_free_unused(c, ob);
 	wp->ptrs = ptrs;
 
 	mutex_unlock(&wp->lock);
 
 	if (bch2_err_matches(ret, BCH_ERR_freelist_empty) &&
-	    try_decrease_writepoints(c, write_points_nr))
+	    try_decrease_writepoints(trans, write_points_nr))
 		goto retry;
 
 	if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty) ||
