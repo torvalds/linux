@@ -128,6 +128,7 @@
   blk_rq_map_user_io
   blk_rq_unmap_user
   blk_status_to_errno
+  blkdev_get_by_dev
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
@@ -2133,6 +2134,7 @@
   mutex_lock_interruptible
   mutex_trylock
   mutex_unlock
+  name_to_dev_t
   __napi_alloc_skb
   napi_complete_done
   napi_consume_skb
@@ -2586,8 +2588,10 @@
   power_supply_get_property
   power_supply_put
   power_supply_reg_notifier
+  power_supply_register
   power_supply_set_property
   power_supply_unreg_notifier
+  power_supply_unregister
   ppp_channel_index
   ppp_dev_name
   ppp_input
@@ -3330,6 +3334,8 @@
   synchronize_rcu_tasks_trace
   synchronize_srcu
   synchronize_srcu_expedited
+  sync_file_create
+  sync_file_get_fence
   synth_event_create
   synth_event_delete
   syscon_node_to_regmap
