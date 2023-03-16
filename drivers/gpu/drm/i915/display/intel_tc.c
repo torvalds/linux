@@ -482,7 +482,8 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	u32 live_status_mask;
 	int max_lanes;
 
-	if (!tc_phy_status_complete(dig_port)) {
+	if (!tc_phy_status_complete(dig_port) &&
+	    !drm_WARN_ON(&i915->drm, dig_port->tc_legacy_port)) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
 			    dig_port->tc_port_name);
 		goto out_set_tbt_alt_mode;
