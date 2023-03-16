@@ -1596,6 +1596,10 @@ static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
+	if (extack && extack->_msg &&
+	    nla_put_string(skb, TCA_ROOT_EXT_WARN_MSG, extack->_msg))
+		goto out_nlmsg_trim;
+
 	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
 	if (!nest)
 		goto out_nlmsg_trim;
@@ -1604,10 +1608,6 @@ static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 		goto out_nlmsg_trim;
 
 	nla_nest_end(skb, nest);
-
-	if (extack && extack->_msg &&
-	    nla_put_string(skb, TCA_EXT_WARN_MSG, extack->_msg))
-		goto out_nlmsg_trim;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 
