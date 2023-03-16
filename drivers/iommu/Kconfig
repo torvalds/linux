@@ -448,6 +448,17 @@ config ARM_SMMU_QCOM_DEBUG
 	  Say Y here to enable debug for issues such as TLB sync timeouts
 	  which requires implementation defined register dumps.
 
+config ARM_SMMU_TESTBUS
+	bool "Enable ARM SMMU testbus feature "
+	depends on ARM_SMMU
+	help
+	  Enable testbus feature to help in capturing TCU/TBU state and
+	  help debug TLB Sync timeout failure.Enables option for testbus
+	  debugfs to select and read testbus output.
+	  Note to use this only on debug builds.
+
+	  If unsure, say N here.
+
 config ARM_SMMU_V3
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
 	depends on ARM64

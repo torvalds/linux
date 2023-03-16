@@ -808,6 +808,7 @@ struct qsmmuv500_archdata {
 	u32				actlr_tbl_size;
 	struct work_struct		outstanding_tnx_work;
 	spinlock_t			atos_lock;
+	void __iomem			*tcu_base;
 };
 #define to_qsmmuv500_archdata(smmu)				\
 	container_of(smmu, struct qsmmuv500_archdata, smmu)
@@ -1984,6 +1985,9 @@ struct arm_smmu_device *qsmmuv500_create(struct arm_smmu_device *smmu,
 	struct device *dev = smmu->dev;
 	struct qsmmuv500_archdata *data;
 	int ret;
+#ifdef ARM_SMMU_TESTBUS
+	struct platform_device *pdev;
+#endif
 
 	/*
 	 * devm_krealloc() invokes devm_kmalloc(), so we pass __GFP_ZERO
@@ -1999,6 +2003,15 @@ struct arm_smmu_device *qsmmuv500_create(struct arm_smmu_device *smmu,
 	INIT_WORK(&data->outstanding_tnx_work,
 		  qsmmuv500_log_outstanding_transactions);
 	data->smmu.impl = impl;
+
+#ifdef ARM_SMMU_TESTBUS
+	pdev = to_platform_device(dev);
+	data->tcu_base = devm_platform_ioremap_resource_byname(pdev, "tcu-base");
+	if (IS_ERR(data->tcu_base)) {
+		dev_err(dev, "Unable to get the tcu-base\n");
+		return ERR_PTR(-EINVAL);
+	}
+#endif
 
 	ret = qsmmuv500_read_actlr_tbl(data);
 	if (ret)
