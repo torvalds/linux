@@ -348,6 +348,23 @@ struct sof_ipc4_src {
 };
 
 /**
+ * struct sof_ipc4_base_module_cfg_ext - base module config extension containing the pin format
+ * information for the module. Both @num_input_pin_fmts and @num_output_pin_fmts cannot be 0 for a
+ * module.
+ * @num_input_pin_fmts: number of input pin formats in the @pin_formats array
+ * @num_output_pin_fmts: number of output pin formats in the @pin_formats array
+ * @reserved: reserved for future use
+ * @pin_formats: flexible array consisting of @num_input_pin_fmts input pin format items followed
+ *		 by @num_output_pin_fmts output pin format items
+ */
+struct sof_ipc4_base_module_cfg_ext {
+	u16 num_input_pin_fmts;
+	u16 num_output_pin_fmts;
+	u8 reserved[12];
+	DECLARE_FLEX_ARRAY(struct sof_ipc4_pin_format, pin_formats);
+} __packed;
+
+/**
  * struct sof_ipc4_process - process config data
  * @base_config: IPC base config data
  * @output_format: Output audio format
