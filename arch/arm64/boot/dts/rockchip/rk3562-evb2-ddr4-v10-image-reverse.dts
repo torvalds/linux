@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3562-evb2-ddr4-v10.dtsi"
+#include "rk3562-android.dtsi"
+#include "rk3562-rk809.dtsi"
+#include "rk3562-evb2-nvp6324.dtsi"
+#include "rk3562-evb2-image-reverse.dtsi"

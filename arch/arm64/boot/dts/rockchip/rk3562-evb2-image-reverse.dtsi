@@ -1,0 +1,171 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/{
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		drm_vehicle: drm-vehicle@0{
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;
+			reg = <0x0 (512 * 0x100000) 0x0 (256 * 0x100000)>;//512M ~ 512M+256M
+			linux,cma-default;
+		};
+	};
+
+	gpio_det: gpio-det {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&vehicle_gpios>;
+
+		/*if use the reverse, please config this*/
+		car-reverse {
+			car-reverse-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+			linux,debounce-ms = <5>;
+			label = "car-reverse";
+			gpio,wakeup;
+		};
+	};
+
+	vehicle: vehicle {
+		compatible = "rockchip,vehicle";
+		status = "okay";
+
+		// pinctrl-names = "default";
+		// pinctrl-0 = <&camm0_clk0_out>;
+
+		clocks = <&cru ACLK_VICAP>,
+			<&cru HCLK_VICAP>,
+			<&cru DCLK_VICAP>,
+			<&cru CSIRX0_CLK_DATA>,
+			<&cru CSIRX1_CLK_DATA>,
+			<&cru CSIRX2_CLK_DATA>,
+			<&cru CSIRX3_CLK_DATA>;
+		clock-names = "aclk_cif",
+			      "hclk_cif",
+			      "dclk_cif",
+			      "csirx0_data",
+			      "csirx1_data",
+			      "csirx2_data",
+			      "csirx3_data";
+		resets = <&cru SRST_A_VICAP>,
+			<&cru SRST_H_VICAP>,
+			<&cru SRST_D_VICAP>,
+			<&cru SRST_I0_VICAP>,
+			<&cru SRST_I1_VICAP>,
+			<&cru SRST_I2_VICAP>,
+			<&cru SRST_I3_VICAP>;
+		reset-names = "rst_cif_a",
+			      "rst_cif_h",
+			      "rst_cif_d",
+			      "rst_cif_i0",
+			      "rst_cif_i1",
+			      "rst_cif_i2",
+			      "rst_cif_i3";
+		power-domains = <&power RK3562_PD_VI>;
+		cif,drop-frames = <4>; //frames to drop
+		cif,chip-id = <2>; /*0:rk3568 1:rk3588 2:rk3562*/
+		rockchip,grf = <&sys_grf>;
+		rockchip,cru = <&cru>;
+		rockchip,cif = <&rkcif>;
+		rockchip,gpio-det = <&gpio_det>;
+		rockchip,cif-sensor = <&cif_sensor>;
+		rockchip,cif-phy = <&cif_phy>;
+		ad,fix-format = <0>;//0:auto detect,1:pal;2:ntsc;3:720p50;4:720p30;5:720p25
+		/*0:no, 1:90; 2:180; 4:270; 0x10:mirror-y; 0x20:mirror-x*/
+		vehicle,rotate-mirror = <0x00>;
+		vehicle,crtc_name = "video_port0";
+		vehicle,plane_name = "Esmart0-win0";
+	};
+
+	cif_phy: cif_phy {
+		status = "okay";
+
+		csi2_dphy0 {
+			status = "okay";
+			clocks = <&cru CLK_CAM0_OUT2IO>,
+				 <&cru PCLK_CSIPHY0>,
+				 <&cru PCLK_CSIHOST0>;
+			clock-names = "xvclk",
+				      "pclk",
+				      "pclk_csi2host";
+			resets = <&cru SRST_P_CSIPHY0>,
+				 <&cru SRST_P_CSIHOST0>;
+			reset-names = "srst_p_csiphy",
+				      "srst_csihost_p";
+			csihost-idx = <0>;
+			rockchip,csi2-dphy = <&csi2_dphy0_hw>;
+			rockchip,csi2 = <&mipi0_csi2>;
+		};
+		csi2_dphy3 {
+			status = "disabled";
+			clocks = <&cru CLK_CAM2_OUT2IO>,
+				<&cru PCLK_CSIPHY1>,
+				<&cru PCLK_CSIHOST2>;
+			clock-names = "xvclk",
+				      "pclk",
+				      "pclk_csi2host";
+			resets = <&cru SRST_P_CSIPHY1>,
+				 <&cru SRST_P_CSIHOST2>;
+			reset-names = "srst_p_csiphy",
+				      "srst_csihost_p";
+			csihost-idx = <2>;
+			rockchip,csi2-dphy = <&csi2_dphy1_hw>;
+			rockchip,csi2 = <&mipi2_csi2>;
+		};
+	};
+
+	cif_sensor: cif_sensor {
+		compatible = "rockchip,sensor";
+		status = "okay";
+
+		nvp6324 {
+			status = "okay";
+			// dphy0
+			powerdown-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+			pwdn_active = <1>;
+			reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+			rst_active = <1>;
+			// dphy3
+			// powerdown-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+			// pwdn_active = <1>;
+			// reset-gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_HIGH>;
+			// rst_active = <1>;
+
+			orientation = <90>;
+			i2c_add = <0x60>;
+			i2c_chl = <4>;
+			cif_chl = <0>;
+			ad_chl = <0>;
+			mclk_rate = <24>;
+			rockchip,camera-module-defrect0 = <1920 1080 0 0 1920 1080>;
+		};
+	};
+};
+
+&display_subsystem {
+	memory-region = <&drm_logo>, <&drm_vehicle>;
+	memory-region-names = "drm-logo", "drm-vehicle";
+};
+
+&i2c4 {
+	status = "okay";
+};
+
+&pinctrl {
+	vehicle {
+		vehicle_gpios: vehicle-pins {
+			/* gpios */
+			rockchip,pins =
+				/* car-reverse */
+				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
