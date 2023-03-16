@@ -15,6 +15,7 @@
 #include "intel_lvds.h"
 #include "intel_lvds_regs.h"
 #include "intel_pps.h"
+#include "intel_pps_regs.h"
 #include "intel_quirks.h"
 
 static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
