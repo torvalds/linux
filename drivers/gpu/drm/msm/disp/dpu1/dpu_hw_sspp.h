@@ -158,15 +158,11 @@ struct dpu_hw_pixel_ext {
  * @src_rect:  src ROI, caller takes into account the different operations
  *             such as decimation, flip etc to program this field
  * @dest_rect: destination ROI.
- * @index:     index of the rectangle of SSPP
- * @mode:      parallel or time multiplex multirect mode
  */
 struct dpu_hw_sspp_cfg {
 	struct dpu_hw_fmt_layout layout;
 	struct drm_rect src_rect;
 	struct drm_rect dst_rect;
-	enum dpu_sspp_multirect_index index;
-	enum dpu_sspp_multirect_mode mode;
 };
 
 /**
@@ -199,6 +195,18 @@ enum {
 struct dpu_hw_pipe_ts_cfg {
 	u64 size;
 	u64 time;
+};
+
+/**
+ * struct dpu_sw_pipe - software pipe description
+ * @sspp:      backing SSPP pipe
+ * @index:     index of the rectangle of SSPP
+ * @mode:      parallel or time multiplex multirect mode
+ */
+struct dpu_sw_pipe {
+	struct dpu_hw_sspp *sspp;
+	enum dpu_sspp_multirect_index multirect_index;
+	enum dpu_sspp_multirect_mode multirect_mode;
 };
 
 /**
