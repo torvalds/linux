@@ -126,6 +126,7 @@ extern atomic64_t event_counter;
 #define	MPI3MR_RAID_ERRREC_RESET_TIMEOUT	180
 #define MPI3MR_PREPARE_FOR_RESET_TIMEOUT	180
 #define MPI3MR_RESET_ACK_TIMEOUT		30
+#define MPI3MR_MUR_TIMEOUT			120
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
 
