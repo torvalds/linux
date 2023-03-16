@@ -26,7 +26,6 @@ struct array_map {
 struct bpf_cpumask *bpf_cpumask_create(void) __ksym;
 void bpf_cpumask_release(struct bpf_cpumask *cpumask) __ksym;
 struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask) __ksym;
-struct bpf_cpumask *bpf_cpumask_kptr_get(struct bpf_cpumask **cpumask) __ksym;
 u32 bpf_cpumask_first(const struct cpumask *cpumask) __ksym;
 u32 bpf_cpumask_first_zero(const struct cpumask *cpumask) __ksym;
 void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;

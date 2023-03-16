@@ -395,36 +395,6 @@ int BPF_PROG(test_insert_remove_release, struct task_struct *task, u64 clone_fla
 }
 
 SEC("tp_btf/task_newtask")
-int BPF_PROG(test_insert_kptr_get_release, struct task_struct *task, u64 clone_flags)
-{
-	struct bpf_cpumask *cpumask;
-	struct __cpumask_map_value *v;
-
-	cpumask = create_cpumask();
-	if (!cpumask)
-		return 0;
-
-	if (cpumask_map_insert(cpumask)) {
-		err = 3;
-		return 0;
-	}
-
-	v = cpumask_map_value_lookup();
-	if (!v) {
-		err = 4;
-		return 0;
-	}
-
-	cpumask = bpf_cpumask_kptr_get(&v->cpumask);
-	if (cpumask)
-		bpf_cpumask_release(cpumask);
-	else
-		err = 5;
-
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
 int BPF_PROG(test_global_mask_rcu, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *local, *prev;

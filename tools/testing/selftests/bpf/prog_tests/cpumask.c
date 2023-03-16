@@ -16,7 +16,6 @@ static const char * const cpumask_success_testcases[] = {
 	"test_copy_any_anyand",
 	"test_insert_leave",
 	"test_insert_remove_release",
-	"test_insert_kptr_get_release",
 	"test_global_mask_rcu",
 };
 

@@ -82,34 +82,6 @@ __bpf_kfunc struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask)
 	return cpumask;
 }
 
-/**
- * bpf_cpumask_kptr_get() - Attempt to acquire a reference to a BPF cpumask
- *			    stored in a map.
- * @cpumaskp: A pointer to a BPF cpumask map value.
- *
- * Attempts to acquire a reference to a BPF cpumask stored in a map value. The
- * cpumask returned by this function must either be embedded in a map as a
- * kptr, or freed with bpf_cpumask_release(). This function may return NULL if
- * no BPF cpumask was found in the specified map value.
- */
-__bpf_kfunc struct bpf_cpumask *bpf_cpumask_kptr_get(struct bpf_cpumask **cpumaskp)
-{
-	struct bpf_cpumask *cpumask;
-
-	/* The BPF memory allocator frees memory backing its caches in an RCU
-	 * callback. Thus, we can safely use RCU to ensure that the cpumask is
-	 * safe to read.
-	 */
-	rcu_read_lock();
-
-	cpumask = READ_ONCE(*cpumaskp);
-	if (cpumask && !refcount_inc_not_zero(&cpumask->usage))
-		cpumask = NULL;
-
-	rcu_read_unlock();
-	return cpumask;
-}
-
 static void cpumask_free_cb(struct rcu_head *head)
 {
 	struct bpf_cpumask *cpumask;
@@ -435,7 +407,6 @@ BTF_SET8_START(cpumask_kfunc_btf_ids)
 BTF_ID_FLAGS(func, bpf_cpumask_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cpumask_release, KF_RELEASE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_cpumask_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
-BTF_ID_FLAGS(func, bpf_cpumask_kptr_get, KF_ACQUIRE | KF_KPTR_GET | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cpumask_first, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_first_zero, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_set_cpu, KF_RCU)
