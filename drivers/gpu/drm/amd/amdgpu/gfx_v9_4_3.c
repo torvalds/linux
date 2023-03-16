@@ -1004,16 +1004,6 @@ static void gfx_v9_4_3_xcc_init_pg(struct amdgpu_device *adev, int xcc_id)
 	 */
 	if (adev->gfx.rlc.is_rlc_v2_1)
 		gfx_v9_4_3_xcc_enable_save_restore_machine(adev, xcc_id);
-
-	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
-			      AMD_PG_SUPPORT_GFX_SMG |
-			      AMD_PG_SUPPORT_GFX_DMG |
-			      AMD_PG_SUPPORT_CP |
-			      AMD_PG_SUPPORT_GDS |
-			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
-		WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_JUMP_TABLE_RESTORE,
-		       adev->gfx.rlc.cp_table_gpu_addr >> 8);
-	}
 }
 
 static void gfx_v9_4_3_xcc_disable_gpa_mode(struct amdgpu_device *adev, int xcc_id)
@@ -1071,7 +1061,7 @@ static void gfx_v9_4_3_xcc_set_safe_mode(struct amdgpu_device *adev, int xcc_id)
 
 	/* wait for RLC_SAFE_MODE */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!REG_GET_FIELD(RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
+		if (!REG_GET_FIELD(RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
 			break;
 		udelay(1);
 	}
@@ -1107,7 +1097,7 @@ static void gfx_v9_4_3_xcc_wait_for_rlc_serdes(struct amdgpu_device *adev,
 			gfx_v9_4_3_xcc_select_se_sh(adev, i, j, 0xffffffff,
 						    xcc_id);
 			for (k = 0; k < adev->usec_timeout; k++) {
-				if (RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_SERDES_CU_MASTER_BUSY) == 0)
+				if (RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_SERDES_CU_MASTER_BUSY) == 0)
 					break;
 				udelay(1);
 			}
@@ -1131,7 +1121,7 @@ static void gfx_v9_4_3_xcc_wait_for_rlc_serdes(struct amdgpu_device *adev,
 		RLC_SERDES_NONCU_MASTER_BUSY__TC0_MASTER_BUSY_MASK |
 		RLC_SERDES_NONCU_MASTER_BUSY__TC1_MASTER_BUSY_MASK;
 	for (k = 0; k < adev->usec_timeout; k++) {
-		if ((RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_SERDES_NONCU_MASTER_BUSY) & mask) == 0)
+		if ((RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_SERDES_NONCU_MASTER_BUSY) & mask) == 0)
 			break;
 		udelay(1);
 	}
