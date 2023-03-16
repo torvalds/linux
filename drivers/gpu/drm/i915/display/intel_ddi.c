@@ -3544,6 +3544,37 @@ static void icl_ddi_combo_get_config(struct intel_encoder *encoder,
 	intel_ddi_get_config(encoder, crtc_state);
 }
 
+static bool icl_ddi_tc_pll_is_tbt(const struct intel_shared_dpll *pll)
+{
+	return pll->info->id == DPLL_ID_ICL_TBTPLL;
+}
+
+static enum icl_port_dpll_id
+icl_ddi_tc_port_pll_type(struct intel_encoder *encoder,
+			 const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return ICL_PORT_DPLL_DEFAULT;
+
+	if (icl_ddi_tc_pll_is_tbt(pll))
+		return ICL_PORT_DPLL_DEFAULT;
+	else
+		return ICL_PORT_DPLL_MG_PHY;
+}
+
+enum icl_port_dpll_id
+intel_ddi_port_pll_type(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state)
+{
+	if (!encoder->port_pll_type)
+		return ICL_PORT_DPLL_DEFAULT;
+
+	return encoder->port_pll_type(encoder, crtc_state);
+}
+
 static void icl_ddi_tc_get_clock(struct intel_encoder *encoder,
 				 struct intel_crtc_state *crtc_state,
 				 struct intel_shared_dpll *pll)
@@ -3556,7 +3587,7 @@ static void icl_ddi_tc_get_clock(struct intel_encoder *encoder,
 	if (drm_WARN_ON(&i915->drm, !pll))
 		return;
 
-	if (pll->info->id == DPLL_ID_ICL_TBTPLL)
+	if (icl_ddi_tc_pll_is_tbt(pll))
 		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 	else
 		port_dpll_id = ICL_PORT_DPLL_MG_PHY;
@@ -3569,7 +3600,7 @@ static void icl_ddi_tc_get_clock(struct intel_encoder *encoder,
 
 	icl_set_active_port_dpll(crtc_state, port_dpll_id);
 
-	if (crtc_state->shared_dpll->info->id == DPLL_ID_ICL_TBTPLL)
+	if (icl_ddi_tc_pll_is_tbt(crtc_state->shared_dpll))
 		crtc_state->port_clock = icl_calc_tbt_pll_link(i915, encoder->port);
 	else
 		crtc_state->port_clock = intel_dpll_get_freq(i915, crtc_state->shared_dpll,
@@ -4405,6 +4436,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			encoder->enable_clock = jsl_ddi_tc_enable_clock;
 			encoder->disable_clock = jsl_ddi_tc_disable_clock;
 			encoder->is_clock_enabled = jsl_ddi_tc_is_clock_enabled;
+			encoder->port_pll_type = icl_ddi_tc_port_pll_type;
 			encoder->get_config = icl_ddi_combo_get_config;
 		} else {
 			encoder->enable_clock = icl_ddi_combo_enable_clock;
@@ -4417,6 +4449,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			encoder->enable_clock = icl_ddi_tc_enable_clock;
 			encoder->disable_clock = icl_ddi_tc_disable_clock;
 			encoder->is_clock_enabled = icl_ddi_tc_is_clock_enabled;
+			encoder->port_pll_type = icl_ddi_tc_port_pll_type;
 			encoder->get_config = icl_ddi_tc_get_config;
 		} else {
 			encoder->enable_clock = icl_ddi_combo_enable_clock;

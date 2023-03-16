@@ -255,6 +255,11 @@ struct intel_encoder {
 	 * Returns whether the port clock is enabled or not.
 	 */
 	bool (*is_clock_enabled)(struct intel_encoder *encoder);
+	/*
+	 * Returns the PLL type the port uses.
+	 */
+	enum icl_port_dpll_id (*port_pll_type)(struct intel_encoder *encoder,
+					       const struct intel_crtc_state *crtc_state);
 	const struct intel_ddi_buf_trans *(*get_buf_trans)(struct intel_encoder *encoder,
 							   const struct intel_crtc_state *crtc_state,
 							   int *n_entries);
