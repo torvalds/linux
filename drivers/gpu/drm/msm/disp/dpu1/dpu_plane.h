@@ -50,16 +50,6 @@ struct dpu_plane_state {
 	unsigned int rotation;
 };
 
-/**
- * struct dpu_multirect_plane_states: Defines multirect pair of drm plane states
- * @r0: drm plane configured on rect 0
- * @r1: drm plane configured on rect 1
- */
-struct dpu_multirect_plane_states {
-	const struct drm_plane_state *r0;
-	const struct drm_plane_state *r1;
-};
-
 #define to_dpu_plane_state(x) \
 	container_of(x, struct dpu_plane_state, base)
 
@@ -86,13 +76,6 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error);
 struct drm_plane *dpu_plane_init(struct drm_device *dev,
 		uint32_t pipe, enum drm_plane_type type,
 		unsigned long possible_crtcs);
-
-/**
- * dpu_plane_validate_multirecti_v2 - validate the multirect planes
- *				      against hw limitations
- * @plane: drm plate states of the multirect pair
- */
-int dpu_plane_validate_multirect_v2(struct dpu_multirect_plane_states *plane);
 
 /**
  * dpu_plane_color_fill - enables color fill on plane
