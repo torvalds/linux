@@ -805,12 +805,12 @@ static int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static bool __udp_v6_is_mcast_sock(struct net *net, struct sock *sk,
+static bool __udp_v6_is_mcast_sock(struct net *net, const struct sock *sk,
 				   __be16 loc_port, const struct in6_addr *loc_addr,
 				   __be16 rmt_port, const struct in6_addr *rmt_addr,
 				   int dif, int sdif, unsigned short hnum)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	if (!net_eq(sock_net(sk), net))
 		return false;
