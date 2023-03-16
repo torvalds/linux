@@ -1432,7 +1432,7 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 				 BUS_INTERVAL_FULL_SPEED));
 	}
 
-	return 0;
+	return ret;
 }
 
 static void handle_uaudio_stream_req(struct qmi_handle *handle,
