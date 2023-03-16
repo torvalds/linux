@@ -5,6 +5,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power_map.h"
 #include "intel_display_types.h"
@@ -114,6 +115,24 @@ assert_tc_cold_blocked(struct intel_digital_port *dig_port)
 						 tc_cold_get_power_domain(dig_port,
 									  dig_port->tc_mode));
 	drm_WARN_ON(&i915->drm, !enabled);
+}
+
+static enum intel_display_power_domain
+tc_port_power_domain(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, dig_port->base.port);
+
+	return POWER_DOMAIN_PORT_DDI_LANES_TC1 + tc_port - TC_PORT_1;
+}
+
+static void
+assert_tc_port_power_enabled(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	drm_WARN_ON(&i915->drm,
+		    !intel_display_power_is_enabled(i915, tc_port_power_domain(dig_port)));
 }
 
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
@@ -693,6 +712,16 @@ static void __intel_tc_port_put_link(struct intel_digital_port *dig_port)
 	dig_port->tc_link_refcount--;
 }
 
+static bool tc_port_is_enabled(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	assert_tc_port_power_enabled(dig_port);
+
+	return intel_de_read(i915, DDI_BUF_CTL(dig_port->base.port)) &
+	       DDI_BUF_CTL_ENABLE;
+}
+
 /**
  * intel_tc_port_init_mode: Read out HW state and init the given port's TypeC mode
  * @dig_port: digital port
@@ -715,9 +744,23 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	tc_cold_wref = tc_cold_block(dig_port, &domain);
 
 	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
+	/*
+	 * Save the initial mode for the state check in
+	 * intel_tc_port_sanitize_mode().
+	 */
+	dig_port->tc_init_mode = dig_port->tc_mode;
+	dig_port->tc_lock_wakeref = tc_cold_block(dig_port, &dig_port->tc_lock_power_domain);
+
+	/*
+	 * The PHY needs to be connected for AUX to work during HW readout and
+	 * MST topology resume, but the PHY mode can only be changed if the
+	 * port is disabled.
+	 */
+	if (!tc_port_is_enabled(dig_port))
+		intel_tc_port_update_mode(dig_port, 1, false);
+
 	/* Prevent changing dig_port->tc_mode until intel_tc_port_sanitize_mode() is called. */
 	__intel_tc_port_get_link(dig_port);
-	dig_port->tc_lock_wakeref = tc_cold_block(dig_port, &dig_port->tc_lock_power_domain);
 
 	tc_cold_unblock(dig_port, domain, tc_cold_wref);
 
@@ -764,11 +807,11 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
 		 * we'll just switch to disconnected mode from it here without
 		 * a note.
 		 */
-		if (dig_port->tc_mode != TC_PORT_TBT_ALT)
+		if (dig_port->tc_init_mode != TC_PORT_TBT_ALT)
 			drm_dbg_kms(&i915->drm,
 				    "Port %s: PHY left in %s mode on disabled port, disconnecting it\n",
 				    dig_port->tc_port_name,
-				    tc_port_mode_name(dig_port->tc_mode));
+				    tc_port_mode_name(dig_port->tc_init_mode));
 		icl_tc_phy_disconnect(dig_port);
 		__intel_tc_port_put_link(dig_port);
 
