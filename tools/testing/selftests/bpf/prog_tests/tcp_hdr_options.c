@@ -151,7 +151,7 @@ static int check_hdr_opt(const struct bpf_test_option *exp,
 			 const struct bpf_test_option *act,
 			 const char *hdr_desc)
 {
-	if (!ASSERT_OK(memcmp(exp, act, sizeof(*exp)), hdr_desc)) {
+	if (!ASSERT_EQ(memcmp(exp, act, sizeof(*exp)), 0, hdr_desc)) {
 		print_option(exp, "expected: ");
 		print_option(act, "  actual: ");
 		return -1;
@@ -169,7 +169,7 @@ static int check_hdr_stg(const struct hdr_stg *exp, int fd,
 		  "map_lookup(hdr_stg_map_fd)"))
 		return -1;
 
-	if (!ASSERT_OK(memcmp(exp, &act, sizeof(*exp)), stg_desc)) {
+	if (!ASSERT_EQ(memcmp(exp, &act, sizeof(*exp)), 0, stg_desc)) {
 		print_hdr_stg(exp, "expected: ");
 		print_hdr_stg(&act, "  actual: ");
 		return -1;
