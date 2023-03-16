@@ -117,7 +117,6 @@ struct packet_sock {
 	spinlock_t		bind_lock;
 	struct mutex		pg_vec_lock;
 	unsigned long		flags;
-	int			pressure;
 	int			ifindex;	/* bound device		*/
 	__be16			num;
 	struct packet_rollover	*rollover;
@@ -146,6 +145,7 @@ enum packet_sock_flags {
 	PACKET_SOCK_TP_LOSS,
 	PACKET_SOCK_HAS_VNET_HDR,
 	PACKET_SOCK_RUNNING,
+	PACKET_SOCK_PRESSURE,
 };
 
 static inline void packet_sock_flag_set(struct packet_sock *po,

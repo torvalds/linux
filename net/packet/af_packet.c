@@ -1307,22 +1307,23 @@ static int __packet_rcv_has_room(const struct packet_sock *po,
 
 static int packet_rcv_has_room(struct packet_sock *po, struct sk_buff *skb)
 {
-	int pressure, ret;
+	bool pressure;
+	int ret;
 
 	ret = __packet_rcv_has_room(po, skb);
 	pressure = ret != ROOM_NORMAL;
 
-	if (READ_ONCE(po->pressure) != pressure)
-		WRITE_ONCE(po->pressure, pressure);
+	if (packet_sock_flag(po, PACKET_SOCK_PRESSURE) != pressure)
+		packet_sock_flag_set(po, PACKET_SOCK_PRESSURE, pressure);
 
 	return ret;
 }
 
 static void packet_rcv_try_clear_pressure(struct packet_sock *po)
 {
-	if (READ_ONCE(po->pressure) &&
+	if (packet_sock_flag(po, PACKET_SOCK_PRESSURE) &&
 	    __packet_rcv_has_room(po, NULL) == ROOM_NORMAL)
-		WRITE_ONCE(po->pressure,  0);
+		packet_sock_flag_set(po, PACKET_SOCK_PRESSURE, false);
 }
 
 static void packet_sock_destruct(struct sock *sk)
@@ -1409,7 +1410,8 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 	i = j = min_t(int, po->rollover->sock, num - 1);
 	do {
 		po_next = pkt_sk(rcu_dereference(f->arr[i]));
-		if (po_next != po_skip && !READ_ONCE(po_next->pressure) &&
+		if (po_next != po_skip &&
+		    !packet_sock_flag(po_next, PACKET_SOCK_PRESSURE) &&
 		    packet_rcv_has_room(po_next, skb) == ROOM_NORMAL) {
 			if (i != j)
 				po->rollover->sock = i;
