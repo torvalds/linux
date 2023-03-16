@@ -103,8 +103,7 @@ def _define_kernel_build(
         in_tree_module_list,
         dtb_list,
         dtbo_list,
-        dtstree,
-        define_compile_commands):
+        dtstree):
     """Creates a `kernel_build` and other associated definitions
 
     This is where the main kernel build target is created (e.g. `//msm-kernel:kalama_gki`).
@@ -115,7 +114,6 @@ def _define_kernel_build(
       in_tree_module_list: list of in-tree modules
       dtb_list: device tree blobs expected to be built
       dtbo_list: device tree overlay blobs expected to be built
-      define_compile_commands: boolean determining if `compile_commands.json` should be generated
     """
     out_list = [".config", "Module.symvers"]
 
@@ -141,7 +139,6 @@ def _define_kernel_build(
         additional_kmi_symbol_lists = None,
         abi_definition = None,
         strip_modules = True,
-        enable_interceptor = define_compile_commands,
         visibility = ["//visibility:public"],
     )
 
@@ -156,11 +153,10 @@ def _define_kernel_build(
         kernel_build = ":{}".format(target),
     )
 
-    if define_compile_commands:
-        kernel_compile_commands(
-            name = "{}_compile_commands".format(target),
-            kernel_build = ":{}".format(target),
-        )
+    kernel_compile_commands(
+        name = "{}_compile_commands".format(target),
+        kernel_build = ":{}".format(target),
+    )
 
 
 def _define_kernel_dist(target, msm_target, variant):
@@ -219,7 +215,6 @@ def define_msm_le(
         variant,
         defconfig,
         in_tree_module_list,
-        define_compile_commands = False,
         boot_image_opts = boot_image_opts()):
     """Top-level kernel build definition macro for an MSM platform
 
@@ -227,7 +222,6 @@ def define_msm_le(
       msm_target: name of target platform (e.g. "pineapple.allyes")
       variant: variant of kernel to build (e.g. "gki")
       in_tree_module_list: list of in-tree modules
-      define_compile_commands: boolean determining if `compile_commands.json` should be generated
       boot_image_header_version: boot image header version (for `boot.img`)
       base_address: edk2 base address
       page_size: kernel page size
@@ -255,7 +249,7 @@ def define_msm_le(
         variant,
         defconfig,
         boot_image_opts = boot_image_opts,
-	build_config_fragments = build_config_fragments,
+        build_config_fragments = build_config_fragments,
     )
 
     _define_kernel_build(
@@ -264,7 +258,6 @@ def define_msm_le(
         dtb_list,
         dtbo_list,
         dtstree,
-        define_compile_commands,
     )
 
     kernel_images(
@@ -278,7 +271,6 @@ def define_msm_le(
         vendor_ramdisk_binaries = vendor_ramdisk_binaries,
         boot_image_outs = ["boot.img"],
     )
-
 
     _define_kernel_dist(target, le_target, variant)
 
