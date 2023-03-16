@@ -1,0 +1,45 @@
+* h3lis331dl driver for accel MEMS sensors
+
+Required properties for the spi bindings:
+- compatible:        must be one of:
+                     "st,h3lis331dl"
+                     "st,lis331dlh"
+
+- reg:               the chipselect index
+
+- spi-max-frequency: maximal bus speed, should be set to 10000000 unless
+                     constrained by external circuitry
+
+Optional properties:
+- st,drdy-int-pin:  the pin on the package that will be used to signal
+                    "data ready" (valid values: 1 or 2, default: 1).
+
+- interrupts:       interrupt mapping for IRQ. It should be configured with
+                    flags IRQ_TYPE_LEVEL_HIGH.
+
+                    Refer to interrupt-controller/interrupts.txt for generic
+                    interrupt client node bindings.
+
+- drive-open-drain: interrupt pin open drain setting (valid values: 0 or 1,
+                    default: 0).
+
+Example for an i2c device node:
+
+h3lis331dl@18 {
+        compatible = "st,lis331dlh-accel";
+        reg = <0x18>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+        st,drdy-int-pin = <1>;
+};
+
+Example for an spi device node:
+
+h3lis331dl-accel@0 {
+        compatible = "st,h3lis331dl";
+        reg = <0x0>;
+        spi-max-frequency = <1000000>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+        st,drdy-int-pin = <1>;
+};
