@@ -558,8 +558,9 @@ static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 			rkisp_update_regs(dev, ISP3X_BAY3D_CTRL, ISP3X_BAY3D_CTRL);
 		}
 	} else {
-		/* disabled bay3d and mi */
-		writel(0, hw->base_addr + ISP3X_MI_WR_CTRL);
+		/* disabled bay3d and mi. rv1106 sdmmc workaround, 3a_wr no close */
+		writel(CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_CTRL_INIT_BASE_EN,
+		       hw->base_addr + ISP3X_MI_WR_CTRL);
 		if (dev->isp_ver == ISP_V21) {
 			writel(0, hw->base_addr + ISP21_BAY3D_CTRL);
 		} else if (dev->isp_ver == ISP_V30) {
