@@ -3140,8 +3140,10 @@ struct rtw89_chip_info {
 	u32 txwd_body_size;
 	u32 h2c_ctrl_reg;
 	const u32 *h2c_regs;
+	struct rtw89_reg_def h2c_counter_reg;
 	u32 c2h_ctrl_reg;
 	const u32 *c2h_regs;
+	struct rtw89_reg_def c2h_counter_reg;
 	const struct rtw89_page_regs *page_regs;
 	bool cfo_src_fd;
 	const struct rtw89_reg_def *dcfo_comp;
@@ -3268,6 +3270,8 @@ struct rtw89_fw_info {
 	struct completion completion;
 	u8 h2c_seq;
 	u8 rec_seq;
+	u8 h2c_counter;
+	u8 c2h_counter;
 	struct rtw89_fw_suit normal;
 	struct rtw89_fw_suit wowlan;
 	bool fw_log_enable;
