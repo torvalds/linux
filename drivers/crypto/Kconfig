@@ -774,7 +774,7 @@ config CRYPTO_DEV_ARTPEC6
 config CRYPTO_DEV_CCREE
 	tristate "Support for ARM TrustZone CryptoCell family of security processors"
 	depends on CRYPTO && CRYPTO_HW && OF && HAS_DMA
-	default n
+	depends on HAS_IOMEM
 	select CRYPTO_HASH
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
