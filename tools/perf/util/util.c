@@ -524,7 +524,8 @@ int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x, size_t msz,
 	new_arr = calloc(new_sz, msz);
 	if (!new_arr)
 		return -ENOMEM;
-	memcpy(new_arr, *arr, *arr_sz * msz);
+	if (*arr_sz)
+		memcpy(new_arr, *arr, *arr_sz * msz);
 	if (init_val) {
 		for (i = *arr_sz; i < new_sz; i++)
 			memcpy(new_arr + (i * msz), init_val, msz);
