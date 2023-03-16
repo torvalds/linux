@@ -24,19 +24,16 @@
  *     David Airlie
  */
 
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
-#include <linux/slab.h>
 #include <linux/vga_switcheroo.h>
 
-#include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/radeon_drm.h>
 
 #include "radeon.h"
 
@@ -179,14 +176,16 @@ static void radeon_fbdev_fb_destroy(struct fb_info *info)
 	struct drm_framebuffer *fb = fb_helper->fb;
 	struct drm_gem_object *gobj = drm_gem_fb_get_obj(fb, 0);
 
+	drm_fb_helper_fini(fb_helper);
+
 	drm_framebuffer_unregister_private(fb);
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
-	fb_helper->fb = NULL;
-
 	radeon_fbdev_destroy_pinned_object(gobj);
 
-	drm_fb_helper_fini(fb_helper);
+	drm_client_release(&fb_helper->client);
+	drm_fb_helper_unprepare(fb_helper);
+	kfree(fb_helper);
 }
 
 static const struct fb_ops radeon_fbdev_fb_ops = {
@@ -279,7 +278,6 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
-	vga_switcheroo_client_fb_set(rdev->pdev, info);
 	return 0;
 
 err_drm_framebuffer_unregister_private:
@@ -297,59 +295,107 @@ static const struct drm_fb_helper_funcs radeon_fbdev_fb_helper_funcs = {
 	.fb_probe = radeon_fbdev_fb_helper_fb_probe,
 };
 
-int radeon_fbdev_init(struct radeon_device *rdev)
+/*
+ * Fbdev client and struct drm_client_funcs
+ */
+
+static void radeon_fbdev_client_unregister(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+	struct drm_device *dev = fb_helper->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (fb_helper->info) {
+		vga_switcheroo_client_fb_set(rdev->pdev, NULL);
+		drm_fb_helper_unregister_info(fb_helper);
+	} else {
+		drm_client_release(&fb_helper->client);
+		drm_fb_helper_unprepare(fb_helper);
+		kfree(fb_helper);
+	}
+}
+
+static int radeon_fbdev_client_restore(struct drm_client_dev *client)
+{
+	drm_fb_helper_lastclose(client->dev);
+	vga_switcheroo_process_delayed_switch();
+
+	return 0;
+}
+
+static int radeon_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+	struct drm_device *dev = client->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int ret;
+
+	if (dev->fb_helper)
+		return drm_fb_helper_hotplug_event(dev->fb_helper);
+
+	ret = drm_fb_helper_init(dev, fb_helper);
+	if (ret)
+		goto err_drm_err;
+
+	if (!drm_drv_uses_atomic_modeset(dev))
+		drm_helper_disable_unused_functions(dev);
+
+	ret = drm_fb_helper_initial_config(fb_helper);
+	if (ret)
+		goto err_drm_fb_helper_fini;
+
+	vga_switcheroo_client_fb_set(rdev->pdev, fb_helper->info);
+
+	return 0;
+
+err_drm_fb_helper_fini:
+	drm_fb_helper_fini(fb_helper);
+err_drm_err:
+	drm_err(dev, "Failed to setup radeon fbdev emulation (ret=%d)\n", ret);
+	return ret;
+}
+
+static const struct drm_client_funcs radeon_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= radeon_fbdev_client_unregister,
+	.restore	= radeon_fbdev_client_restore,
+	.hotplug	= radeon_fbdev_client_hotplug,
+};
+
+void radeon_fbdev_setup(struct radeon_device *rdev)
 {
 	struct drm_fb_helper *fb_helper;
 	int bpp_sel = 32;
 	int ret;
 
-	/* don't enable fbdev if no connectors */
-	if (list_empty(&rdev->ddev->mode_config.connector_list))
-		return 0;
-
-	/* select 8 bpp console on 8MB cards, or 16 bpp on RN50 or 32MB */
-	if (rdev->mc.real_vram_size <= (8*1024*1024))
+	if (rdev->mc.real_vram_size <= (8 * 1024 * 1024))
 		bpp_sel = 8;
-	else if (ASIC_IS_RN50(rdev) ||
-		 rdev->mc.real_vram_size <= (32*1024*1024))
+	else if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32 * 1024 * 1024))
 		bpp_sel = 16;
 
 	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
 	if (!fb_helper)
-		return -ENOMEM;
-
+		return;
 	drm_fb_helper_prepare(rdev->ddev, fb_helper, bpp_sel, &radeon_fbdev_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(rdev->ddev, fb_helper);
+	ret = drm_client_init(rdev->ddev, &fb_helper->client, "radeon-fbdev",
+			      &radeon_fbdev_client_funcs);
+	if (ret) {
+		drm_err(rdev->ddev, "Failed to register client: %d\n", ret);
+		goto err_drm_client_init;
+	}
+
+	ret = radeon_fbdev_client_hotplug(&fb_helper->client);
 	if (ret)
-		goto free;
+		drm_dbg_kms(rdev->ddev, "client hotplug ret=%d\n", ret);
 
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(rdev->ddev);
+	drm_client_register(&fb_helper->client);
 
-	ret = drm_fb_helper_initial_config(fb_helper);
-	if (ret)
-		goto fini;
+	return;
 
-	return 0;
-
-fini:
-	drm_fb_helper_fini(fb_helper);
-free:
+err_drm_client_init:
 	drm_fb_helper_unprepare(fb_helper);
 	kfree(fb_helper);
-	return ret;
-}
-
-void radeon_fbdev_fini(struct radeon_device *rdev)
-{
-	if (!rdev->ddev->fb_helper)
-		return;
-
-	drm_fb_helper_unregister_info(rdev->ddev->fb_helper);
-	drm_fb_helper_unprepare(rdev->ddev->fb_helper);
-	kfree(rdev->ddev->fb_helper);
-	rdev->ddev->fb_helper = NULL;
 }
 
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
