@@ -94,6 +94,71 @@ static char *extract_u32_until_given_char(char *str, u32 *ver_num, char given_ch
 }
 
 /**
+ * hl_get_sw_major_minor_subminor() - extract the FW's SW version major, minor, sub-minor
+ *				      from the version string
+ * @hdev: pointer to the hl_device
+ * @fw_str: the FW's version string
+ *
+ * The extracted version is set in the hdev fields: fw_sw_{major/minor/sub_minor}_ver.
+ *
+ * fw_str is expected to have one of two possible formats, examples:
+ * 1) 'Preboot version hl-gaudi2-1.9.0-fw-42.0.1-sec-3'
+ * 2) 'Preboot version hl-gaudi2-1.9.0-rc-fw-42.0.1-sec-3'
+ * In those examples, the SW major,minor,subminor are correspondingly: 1,9,0.
+ *
+ * Return: 0 for success or a negative error code for failure.
+ */
+static int hl_get_sw_major_minor_subminor(struct hl_device *hdev, const char *fw_str)
+{
+	char *end, *start;
+
+	end = strnstr(fw_str, "-rc-", VERSION_MAX_LEN);
+	if (end == fw_str)
+		return -EINVAL;
+
+	if (!end)
+		end = strnstr(fw_str, "-fw-", VERSION_MAX_LEN);
+
+	if (end == fw_str)
+		return -EINVAL;
+
+	if (!end)
+		return -EINVAL;
+
+	for (start = end - 1; start != fw_str; start--) {
+		if (*start == '-')
+			break;
+	}
+
+	if (start == fw_str)
+		return -EINVAL;
+
+	/* start/end point each to the starting and ending hyphen of the sw version e.g. -1.9.0- */
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_major_ver, '.');
+	if (!start)
+		goto err_zero_ver;
+
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_minor_ver, '.');
+	if (!start)
+		goto err_zero_ver;
+
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_sub_minor_ver, '-');
+	if (!start)
+		goto err_zero_ver;
+
+	return 0;
+
+err_zero_ver:
+	hdev->fw_sw_major_ver = 0;
+	hdev->fw_sw_minor_ver = 0;
+	hdev->fw_sw_sub_minor_ver = 0;
+	return -EINVAL;
+}
+
+/**
  * hl_get_preboot_major_minor() - extract the FW's version major, minor from the version string.
  * @hdev: pointer to the hl_device
  * @preboot_ver: the FW's version string
@@ -2172,6 +2237,7 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	char *preboot_ver, *boot_ver;
 	char btl_ver[32];
+	int rc;
 
 	switch (fwc) {
 	case FW_COMP_BOOT_FIT:
@@ -2185,20 +2251,20 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 		break;
 	case FW_COMP_PREBOOT:
 		strscpy(prop->preboot_ver, fw_version, VERSION_MAX_LEN);
-		preboot_ver = strnstr(prop->preboot_ver, "Preboot",
-						VERSION_MAX_LEN);
+		preboot_ver = strnstr(prop->preboot_ver, "Preboot", VERSION_MAX_LEN);
+		dev_info(hdev->dev, "preboot full version: '%s'\n", preboot_ver);
+
 		if (preboot_ver && preboot_ver != prop->preboot_ver) {
 			strscpy(btl_ver, prop->preboot_ver,
 				min((int) (preboot_ver - prop->preboot_ver), 31));
 			dev_info(hdev->dev, "%s\n", btl_ver);
 		}
 
+		rc = hl_get_sw_major_minor_subminor(hdev, preboot_ver);
+		if (rc)
+			return rc;
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			int rc;
-
-			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
-
 			rc = hl_get_preboot_major_minor(hdev, preboot_ver);
 			kfree(preboot_ver);
 			if (rc)

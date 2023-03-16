@@ -3227,6 +3227,9 @@ struct hl_reset_info {
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_inner_major_ver: the major of current loaded preboot inner version.
  * @fw_inner_minor_ver: the minor of current loaded preboot inner version.
+ * @fw_sw_major_ver: the major of current loaded preboot SW version.
+ * @fw_sw_minor_ver: the minor of current loaded preboot SW version.
+ * @fw_sw_sub_minor_ver: the sub-minor of current loaded preboot SW version.
  * @dram_used_mem: current DRAM memory consumption.
  * @memory_scrub_val: the value to which the dram will be scrubbed to using cb scrub_device_dram
  * @timeout_jiffies: device CS timeout value.
@@ -3414,6 +3417,9 @@ struct hl_device {
 	u32				*stream_master_qid_arr;
 	u32				fw_inner_major_ver;
 	u32				fw_inner_minor_ver;
+	u32				fw_sw_major_ver;
+	u32				fw_sw_minor_ver;
+	u32				fw_sw_sub_minor_ver;
 	atomic64_t			dram_used_mem;
 	u64				memory_scrub_val;
 	u64				timeout_jiffies;
