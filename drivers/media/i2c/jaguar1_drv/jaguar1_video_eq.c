@@ -204,18 +204,6 @@ void video_input_eq_val_set(video_equalizer_info_s *pvin_eq_set)
 		__eq_clk_set_value( pvin_eq_set, &eq_value.eq_clk );
 		__eq_timing_b_set_value( pvin_eq_set, &eq_value.eq_timing_b );
 
-		if( AHD20_SD_H960_2EX_Btype_NT_SINGLE_ENDED || AHD20_SD_H960_2EX_Btype_NT_DIFFERENTIAL )
-		{
-
-		}
-		else if( AHD20_SD_H960_2EX_Btype_PAL_SINGLE_ENDED || AHD20_SD_H960_2EX_Btype_PAL_DIFFERENTIAL )
-		{
-
-		}
-		else
-		{
-
-		}
 		printk("[drv_eq]ch::%d >>> fmt::%s\n", ch, eq_value.name);
 	}
 }

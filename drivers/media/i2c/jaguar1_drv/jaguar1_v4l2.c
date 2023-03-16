@@ -481,13 +481,28 @@ static int jaguar1_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
-
 static int jaguar1_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_mbus_config *cfg)
 {
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
 	cfg->flags = V4L2_MBUS_CSI2_4_LANE |
 		     V4L2_MBUS_CSI2_CHANNELS;
+
+	return 0;
+}
+
+static int jaguar1_enum_frame_interval(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(jaguar1_framesizes))
+		return -EINVAL;
+
+	fie->code = jaguar1_formats[0].code;
+
+	fie->width = jaguar1_framesizes[fie->index].width;
+	fie->height = jaguar1_framesizes[fie->index].height;
+	fie->interval = jaguar1_framesizes[fie->index].max_fps;
 
 	return 0;
 }
@@ -738,6 +753,7 @@ static const struct v4l2_subdev_video_ops jaguar1_video_ops = {
 static const struct v4l2_subdev_pad_ops jaguar1_subdev_pad_ops = {
 	.enum_mbus_code = jaguar1_enum_mbus_code,
 	.enum_frame_size = jaguar1_enum_frame_sizes,
+	.enum_frame_interval = jaguar1_enum_frame_interval,
 	.get_fmt = jaguar1_get_fmt,
 	.set_fmt = jaguar1_set_fmt,
 	.get_mbus_config = jaguar1_g_mbus_config,
@@ -938,6 +954,10 @@ static int jaguar1_probe(struct i2c_client *client,
 	sd = &jaguar1->subdev;
 	v4l2_i2c_subdev_init(sd, client, &jaguar1_subdev_ops);
 	ret = jaguar1_initialize_controls(jaguar1);
+	if (ret) {
+		dev_err(dev, "Failed to initialize controls jaguar1\n");
+		return ret;
+	}
 
 	__jaguar1_power_on(jaguar1);
 	ret = jaguar1_init(i2c_adapter_id(client->adapter));
