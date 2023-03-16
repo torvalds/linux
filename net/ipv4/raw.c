@@ -116,10 +116,10 @@ void raw_unhash_sk(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(raw_unhash_sk);
 
-bool raw_v4_match(struct net *net, struct sock *sk, unsigned short num,
+bool raw_v4_match(struct net *net, const struct sock *sk, unsigned short num,
 		  __be32 raddr, __be32 laddr, int dif, int sdif)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	if (net_eq(sock_net(sk), net) && inet->inet_num == num	&&
 	    !(inet->inet_daddr && inet->inet_daddr != raddr) 	&&
