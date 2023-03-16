@@ -952,8 +952,6 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id);
 
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 
-int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
-
 int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx);
 void radeon_atom_release_dig_encoder(struct radeon_device *rdev, int enc_idx);
 #endif
