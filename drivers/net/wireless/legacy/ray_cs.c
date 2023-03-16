@@ -328,7 +328,6 @@ err_free_dev:
 static void ray_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev;
-	ray_dev_t *local;
 
 	dev_dbg(&link->dev, "ray_detach\n");
 
@@ -336,9 +335,6 @@ static void ray_detach(struct pcmcia_device *link)
 	dev = link->priv;
 
 	ray_release(link);
-
-	local = netdev_priv(dev);
-	del_timer_sync(&local->timer);
 
 	if (link->priv) {
 		unregister_netdev(dev);
@@ -740,7 +736,7 @@ static void ray_release(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "ray_release\n");
 
-	del_timer(&local->timer);
+	del_timer_sync(&local->timer);
 
 	iounmap(local->sram);
 	iounmap(local->rmem);
