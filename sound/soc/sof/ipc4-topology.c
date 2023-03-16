@@ -1363,21 +1363,9 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	out_sample_valid_bits =
 		SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(copier_data->out_format.fmt_cfg);
 	snd_mask_none(fmt);
-	switch (out_sample_valid_bits) {
-	case 16:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
-		break;
-	case 24:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
-		break;
-	case 32:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
-		break;
-	default:
-		dev_err(sdev->dev, "invalid sample frame format %d\n",
-			params_format(pipeline_params));
-		return -EINVAL;
-	}
+	ret = ipc4_set_fmt_mask(fmt, out_sample_valid_bits);
+	if (ret)
+		return ret;
 
 	/*
 	 * Set the gateway dma_buffer_size to 2ms buffer size to meet the FW expectation. In the
