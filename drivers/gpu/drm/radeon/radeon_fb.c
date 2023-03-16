@@ -40,7 +40,7 @@
 
 #include "radeon.h"
 
-static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
+static void radeon_fbdev_destroy_pinned_object(struct drm_gem_object *gobj)
 {
 	struct radeon_bo *rbo = gem_to_radeon_bo(gobj);
 	int ret;
@@ -54,9 +54,9 @@ static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 	drm_gem_object_put(gobj);
 }
 
-static int radeonfb_create_pinned_object(struct drm_fb_helper *fb_helper,
-					 struct drm_mode_fb_cmd2 *mode_cmd,
-					 struct drm_gem_object **gobj_p)
+static int radeon_fbdev_create_pinned_object(struct drm_fb_helper *fb_helper,
+					     struct drm_mode_fb_cmd2 *mode_cmd,
+					     struct drm_gem_object **gobj_p)
 {
 	const struct drm_format_info *info;
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
@@ -113,64 +113,71 @@ static int radeonfb_create_pinned_object(struct drm_fb_helper *fb_helper,
 			dev_err(rdev->dev, "FB failed to set tiling flags\n");
 	}
 
-
 	ret = radeon_bo_reserve(rbo, false);
 	if (unlikely(ret != 0))
-		goto out_unref;
+		goto err_radeon_fbdev_destroy_pinned_object;
 	/* Only 27 bit offset for legacy CRTC */
 	ret = radeon_bo_pin_restricted(rbo, RADEON_GEM_DOMAIN_VRAM,
 				       ASIC_IS_AVIVO(rdev) ? 0 : 1 << 27,
 				       NULL);
 	if (ret) {
 		radeon_bo_unreserve(rbo);
-		goto out_unref;
+		goto err_radeon_fbdev_destroy_pinned_object;
 	}
 	if (fb_tiled)
 		radeon_bo_check_tiling(rbo, 0, 0);
 	ret = radeon_bo_kmap(rbo, NULL);
 	radeon_bo_unreserve(rbo);
 	if (ret)
-		goto out_unref;
+		goto err_radeon_fbdev_destroy_pinned_object;
 
 	*gobj_p = gobj;
 	return 0;
-out_unref:
-	radeonfb_destroy_pinned_object(gobj);
+
+err_radeon_fbdev_destroy_pinned_object:
+	radeon_fbdev_destroy_pinned_object(gobj);
 	*gobj_p = NULL;
 	return ret;
 }
 
-static int
-radeonfb_open(struct fb_info *info, int user)
+/*
+ * Fbdev ops and struct fb_ops
+ */
+
+static int radeon_fbdev_fb_open(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
-	int ret = pm_runtime_get_sync(rdev->ddev->dev);
+	int ret;
 
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_mark_last_busy(rdev->ddev->dev);
-		pm_runtime_put_autosuspend(rdev->ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_sync(rdev->ddev->dev);
+	if (ret < 0 && ret != -EACCES)
+		goto err_pm_runtime_mark_last_busy;
+
 	return 0;
+
+err_pm_runtime_mark_last_busy:
+	pm_runtime_mark_last_busy(rdev->ddev->dev);
+	pm_runtime_put_autosuspend(rdev->ddev->dev);
+	return ret;
 }
 
-static int
-radeonfb_release(struct fb_info *info, int user)
+static int radeon_fbdev_fb_release(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
 
 	pm_runtime_mark_last_busy(rdev->ddev->dev);
 	pm_runtime_put_autosuspend(rdev->ddev->dev);
+
 	return 0;
 }
 
-static const struct fb_ops radeonfb_ops = {
+static const struct fb_ops radeon_fbdev_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_open = radeonfb_open,
-	.fb_release = radeonfb_release,
+	.fb_open = radeon_fbdev_fb_open,
+	.fb_release = radeon_fbdev_fb_release,
 	.fb_read = drm_fb_helper_cfb_read,
 	.fb_write = drm_fb_helper_cfb_write,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
@@ -178,10 +185,14 @@ static const struct fb_ops radeonfb_ops = {
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 };
 
-static int radeonfb_create(struct drm_fb_helper *helper,
-			   struct drm_fb_helper_surface_size *sizes)
+/*
+ * Fbdev helpers and struct drm_fb_helper_funcs
+ */
+
+static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
+					   struct drm_fb_helper_surface_size *sizes)
 {
-	struct radeon_device *rdev = helper->dev->dev_private;
+	struct radeon_device *rdev = fb_helper->dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd;
@@ -200,7 +211,7 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	ret = radeonfb_create_pinned_object(helper, &mode_cmd, &gobj);
+	ret = radeon_fbdev_create_pinned_object(fb_helper, &mode_cmd, &gobj);
 	if (ret) {
 		DRM_ERROR("failed to create fbcon object %d\n", ret);
 		return ret;
@@ -209,7 +220,7 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	rbo = gem_to_radeon_bo(gobj);
 
 	/* okay we have an object now allocate the framebuffer */
-	info = drm_fb_helper_alloc_info(helper);
+	info = drm_fb_helper_alloc_info(fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
 		goto out;
@@ -231,11 +242,11 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	}
 
 	/* setup helper */
-	helper->fb = fb;
+	fb_helper->fb = fb;
 
 	memset_io(rbo->kptr, 0x0, radeon_bo_size(rbo));
 
-	info->fbops = &radeonfb_ops;
+	info->fbops = &radeon_fbdev_fb_ops;
 
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
 	info->fix.smem_start = rdev->mc.aper_base + tmp;
@@ -243,7 +254,7 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	info->screen_base = rbo->kptr;
 	info->screen_size = radeon_bo_size(rbo);
 
-	drm_fb_helper_fill_info(info, helper, sizes);
+	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
@@ -274,7 +285,7 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct drm_fb_helper *fb
 
 	if (fb) {
 		if (fb->obj[0]) {
-			radeonfb_destroy_pinned_object(fb->obj[0]);
+			radeon_fbdev_destroy_pinned_object(fb->obj[0]);
 			fb->obj[0] = NULL;
 			drm_framebuffer_unregister_private(fb);
 			drm_framebuffer_cleanup(fb);
@@ -287,8 +298,8 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct drm_fb_helper *fb
 	return 0;
 }
 
-static const struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
-	.fb_probe = radeonfb_create,
+static const struct drm_fb_helper_funcs radeon_fbdev_fb_helper_funcs = {
+	.fb_probe = radeon_fbdev_fb_helper_fb_probe,
 };
 
 int radeon_fbdev_init(struct radeon_device *rdev)
@@ -312,7 +323,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	if (!fb_helper)
 		return -ENOMEM;
 
-	drm_fb_helper_prepare(rdev->ddev, fb_helper, bpp_sel, &radeon_fb_helper_funcs);
+	drm_fb_helper_prepare(rdev->ddev, fb_helper, bpp_sel, &radeon_fbdev_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(rdev->ddev, fb_helper);
 	if (ret)
