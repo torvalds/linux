@@ -125,6 +125,8 @@ properties:
           - usb-gadget
             # LED indicates USB host activity
           - usb-host
+            # LED indicates USB port state
+          - usbport
         # LED is triggered by CPU activity
       - pattern: "^cpu[0-9]*$"
         # LED is triggered by Bluetooth activity
