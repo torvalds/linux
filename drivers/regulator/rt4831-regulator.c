@@ -194,6 +194,7 @@ MODULE_DEVICE_TABLE(platform, rt4831_regulator_match);
 static struct platform_driver rt4831_regulator_driver = {
 	.driver = {
 		.name = "rt4831-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = rt4831_regulator_match,
 	.probe = rt4831_regulator_probe,
