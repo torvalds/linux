@@ -181,6 +181,14 @@ config IPQ_GCC_8074
 	  i2c, USB, SD/eMMC, etc. Select this for the root clock
 	  of ipq8074.
 
+config IPQ_GCC_9574
+	tristate "IPQ9574 Global Clock Controller"
+	help
+	  Support for global clock controller on ipq9574 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc. Select this for the root clock
+	  of ipq9574.
+
 config MSM_GCC_8660
 	tristate "MSM8660 Global Clock Controller"
 	help
