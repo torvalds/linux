@@ -915,17 +915,18 @@ struct hl_info_hw_ip_info {
 	__u64 dram_page_size;
 	__u32 edma_enabled_mask;
 	__u16 number_of_user_interrupts;
-	__u16 pad2;
-	__u64 reserved4;
+	__u8 reserved1;
+	__u8 reserved2;
+	__u64 reserved3;
 	__u64 device_mem_alloc_default_page_size;
+	__u64 reserved4;
 	__u64 reserved5;
-	__u64 reserved6;
-	__u32 reserved7;
-	__u8 reserved8;
+	__u32 reserved6;
+	__u8 reserved7;
 	__u8 revision_id;
 	__u16 tpc_interrupt_id;
+	__u32 reserved8;
 	__u32 reserved9;
-	__u8 pad3[4];
 	__u64 engine_core_interrupt_reg_addr;
 };
 
