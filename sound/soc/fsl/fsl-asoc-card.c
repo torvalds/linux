@@ -609,6 +609,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	priv->card.dapm_routes = audio_map;
 	priv->card.num_dapm_routes = ARRAY_SIZE(audio_map);
+	priv->card.driver_name = DRIVER_NAME;
 	/* Diversify the card configurations */
 	if (of_device_is_compatible(np, "fsl,imx-audio-cs42888")) {
 		codec_dai_name = "cs42888";
