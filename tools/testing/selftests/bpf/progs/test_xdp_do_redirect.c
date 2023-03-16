@@ -52,7 +52,7 @@ int xdp_redirect(struct xdp_md *xdp)
 
 	*payload = MARK_IN;
 
-	if (bpf_xdp_adjust_meta(xdp, 4))
+	if (bpf_xdp_adjust_meta(xdp, sizeof(__u64)))
 		return XDP_ABORTED;
 
 	if (retcode > XDP_PASS)
