@@ -148,6 +148,7 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		break;
 	case IP_VERSION(13, 0, 10):
 		adev->virt.autoload_ucode_id = AMDGPU_UCODE_ID_CP_MES1_DATA;
+		ret = psp_init_cap_microcode(psp, ucode_prefix);
 		break;
 	default:
 		return -EINVAL;

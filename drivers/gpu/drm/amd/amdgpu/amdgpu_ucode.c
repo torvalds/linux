@@ -669,6 +669,8 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "VCN1_RAM";
 	case AMDGPU_UCODE_ID_DMCUB:
 		return "DMCUB";
+	case AMDGPU_UCODE_ID_CAP:
+		return "CAP";
 	default:
 		return "UNKNOWN UCODE";
 	}
