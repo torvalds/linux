@@ -250,11 +250,11 @@ static inline int serdev_device_write_buf(struct serdev_device *serdev,
 static inline void serdev_device_wait_until_sent(struct serdev_device *sdev, long timeout) {}
 static inline int serdev_device_get_tiocm(struct serdev_device *serdev)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int serdev_device_set_tiocm(struct serdev_device *serdev, int set, int clear)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int serdev_device_write(struct serdev_device *sdev, const unsigned char *buf,
 				      size_t count, unsigned long timeout)
