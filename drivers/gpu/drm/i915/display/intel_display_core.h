@@ -398,6 +398,12 @@ struct intel_display {
 		struct i915_hdcp_master *master;
 		bool comp_added;
 
+		/*
+		 * HDCP message struct for allocation of memory which can be
+		 * reused when sending message to gsc cs.
+		 * this is only populated post Meteorlake
+		 */
+		struct intel_hdcp_gsc_message *hdcp_message;
 		/* Mutex to protect the above hdcp component related values. */
 		struct mutex comp_mutex;
 	} hdcp;
