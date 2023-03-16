@@ -203,11 +203,9 @@ static int vepu_process_reg_fd(struct mpp_session *session,
 		struct mpp_dma_buffer *bs_buf = mpp_dma_find_buffer_fd(session->dma, fd_bs);
 
 		task->offset_bs = mpp_query_reg_offset_info(&task->off_inf, VEPU2_REG_OUT_INDEX);
-		if (bs_buf && task->offset_bs > 0) {
+		if (bs_buf && task->offset_bs > 0)
 			mpp_dma_buf_sync(bs_buf, 0, task->offset_bs, DMA_TO_DEVICE, false);
-			task->bs_buf = bs_buf;
-		}
-
+		task->bs_buf = bs_buf;
 	}
 
 	return 0;

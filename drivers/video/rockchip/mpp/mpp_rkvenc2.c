@@ -958,11 +958,9 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 			struct mpp_dma_buffer *bs_buf =
 					mpp_dma_find_buffer_fd(session->dma, fd_bs);
 
-			if (bs_buf && task->offset_bs > 0) {
-				mpp_dma_buf_sync(bs_buf, 0, task->offset_bs,
-						 DMA_TO_DEVICE, false);
-				task->bs_buf = bs_buf;
-			}
+			if (bs_buf && task->offset_bs > 0)
+				mpp_dma_buf_sync(bs_buf, 0, task->offset_bs, DMA_TO_DEVICE, false);
+			task->bs_buf = bs_buf;
 		}
 	}
 	rkvenc2_setup_task_id(session->index, task);
