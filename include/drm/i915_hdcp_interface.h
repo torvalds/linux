@@ -6,15 +6,15 @@
  * Ramalingam C <ramalingam.c@intel.com>
  */
 
-#ifndef _I915_MEI_HDCP_INTERFACE_H_
-#define _I915_MEI_HDCP_INTERFACE_H_
+#ifndef _I915_HDCP_INTERFACE_H_
+#define _I915_HDCP_INTERFACE_H_
 
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <drm/display/drm_hdcp.h>
 
 /**
- * enum hdcp_port_type - HDCP port implementation type defined by ME FW
+ * enum hdcp_port_type - HDCP port implementation type defined by ME/GSC FW
  * @HDCP_PORT_TYPE_INVALID: Invalid hdcp port type
  * @HDCP_PORT_TYPE_INTEGRATED: In-Host HDCP2.x port
  * @HDCP_PORT_TYPE_LSPCON: HDCP2.2 discrete wired Tx port with LSPCON
@@ -41,46 +41,46 @@ enum hdcp_wired_protocol {
 	HDCP_PROTOCOL_DP
 };
 
-enum mei_fw_ddi {
-	MEI_DDI_INVALID_PORT = 0x0,
+enum hdcp_ddi {
+	HDCP_DDI_INVALID_PORT = 0x0,
 
-	MEI_DDI_B = 1,
-	MEI_DDI_C,
-	MEI_DDI_D,
-	MEI_DDI_E,
-	MEI_DDI_F,
-	MEI_DDI_A = 7,
-	MEI_DDI_RANGE_END = MEI_DDI_A,
+	HDCP_DDI_B = 1,
+	HDCP_DDI_C,
+	HDCP_DDI_D,
+	HDCP_DDI_E,
+	HDCP_DDI_F,
+	HDCP_DDI_A = 7,
+	HDCP_DDI_RANGE_END = HDCP_DDI_A,
 };
 
 /**
- * enum mei_fw_tc - ME Firmware defined index for transcoders
- * @MEI_INVALID_TRANSCODER: Index for Invalid transcoder
- * @MEI_TRANSCODER_EDP: Index for EDP Transcoder
- * @MEI_TRANSCODER_DSI0: Index for DSI0 Transcoder
- * @MEI_TRANSCODER_DSI1: Index for DSI1 Transcoder
- * @MEI_TRANSCODER_A: Index for Transcoder A
- * @MEI_TRANSCODER_B: Index for Transcoder B
- * @MEI_TRANSCODER_C: Index for Transcoder C
- * @MEI_TRANSCODER_D: Index for Transcoder D
+ * enum hdcp_tc - ME/GSC Firmware defined index for transcoders
+ * @HDCP_INVALID_TRANSCODER: Index for Invalid transcoder
+ * @HDCP_TRANSCODER_EDP: Index for EDP Transcoder
+ * @HDCP_TRANSCODER_DSI0: Index for DSI0 Transcoder
+ * @HDCP_TRANSCODER_DSI1: Index for DSI1 Transcoder
+ * @HDCP_TRANSCODER_A: Index for Transcoder A
+ * @HDCP_TRANSCODER_B: Index for Transcoder B
+ * @HDCP_TRANSCODER_C: Index for Transcoder C
+ * @HDCP_TRANSCODER_D: Index for Transcoder D
  */
-enum mei_fw_tc {
-	MEI_INVALID_TRANSCODER = 0x00,
-	MEI_TRANSCODER_EDP,
-	MEI_TRANSCODER_DSI0,
-	MEI_TRANSCODER_DSI1,
-	MEI_TRANSCODER_A = 0x10,
-	MEI_TRANSCODER_B,
-	MEI_TRANSCODER_C,
-	MEI_TRANSCODER_D
+enum hdcp_transcoder {
+	HDCP_INVALID_TRANSCODER = 0x00,
+	HDCP_TRANSCODER_EDP,
+	HDCP_TRANSCODER_DSI0,
+	HDCP_TRANSCODER_DSI1,
+	HDCP_TRANSCODER_A = 0x10,
+	HDCP_TRANSCODER_B,
+	HDCP_TRANSCODER_C,
+	HDCP_TRANSCODER_D
 };
 
 /**
  * struct hdcp_port_data - intel specific HDCP port data
- * @fw_ddi: ddi index as per ME FW
- * @fw_tc: transcoder index as per ME FW
- * @port_type: HDCP port type as per ME FW classification
- * @protocol: HDCP adaptation as per ME FW
+ * @hdcp_ddi: ddi index as per ME/GSC FW
+ * @hdcp_transcoder: transcoder index as per ME/GSC FW
+ * @port_type: HDCP port type as per ME/GSC FW classification
+ * @protocol: HDCP adaptation as per ME/GSC FW
  * @k: No of streams transmitted on a port. Only on DP MST this is != 1
  * @seq_num_m: Count of RepeaterAuth_Stream_Manage msg propagated.
  *	       Initialized to 0 on AKE_INIT. Incremented after every successful
@@ -90,8 +90,8 @@ enum mei_fw_tc {
  *	     streams
  */
 struct hdcp_port_data {
-	enum mei_fw_ddi fw_ddi;
-	enum mei_fw_tc fw_tc;
+	enum hdcp_ddi hdcp_ddi;
+	enum hdcp_transcoder hdcp_transcoder;
 	u8 port_type;
 	u8 protocol;
 	u16 k;
@@ -100,7 +100,7 @@ struct hdcp_port_data {
 };
 
 /**
- * struct i915_hdcp_component_ops- ops for HDCP2.2 services.
+ * struct i915_hdcp_ops- ops for HDCP2.2 services.
  * @owner: Module providing the ops
  * @initiate_hdcp2_session: Initiate a Wired HDCP2.2 Tx Session.
  *			    And Prepare AKE_Init.
@@ -119,9 +119,9 @@ struct hdcp_port_data {
  * @close_hdcp_session: Close the Wired HDCP Tx session per port.
  *			This also disables the authenticated state of the port.
  */
-struct i915_hdcp_component_ops {
+struct i915_hdcp_ops {
 	/**
-	 * @owner: mei_hdcp module
+	 * @owner: hdcp module
 	 */
 	struct module *owner;
 
@@ -168,17 +168,17 @@ struct i915_hdcp_component_ops {
 };
 
 /**
- * struct i915_hdcp_component_master - Used for communication between i915
- * and mei_hdcp drivers for the HDCP2.2 services
- * @mei_dev: device that provide the HDCP2.2 service from MEI Bus.
- * @hdcp_ops: Ops implemented by mei_hdcp driver, used by i915 driver.
+ * struct i915_hdcp_master - Used for communication between i915
+ * and hdcp drivers for the HDCP2.2 services
+ * @hdcp_dev: device that provide the HDCP2.2 service from MEI Bus.
+ * @hdcp_ops: Ops implemented by hdcp driver or intel_hdcp_gsc , used by i915 driver.
  */
-struct i915_hdcp_comp_master {
-	struct device *mei_dev;
-	const struct i915_hdcp_component_ops *ops;
+struct i915_hdcp_master {
+	struct device *hdcp_dev;
+	const struct i915_hdcp_ops *ops;
 
 	/* To protect the above members. */
 	struct mutex mutex;
 };
 
-#endif /* _I915_MEI_HDCP_INTERFACE_H_ */
+#endif /* _I915_HDCP_INTERFACE_H_ */

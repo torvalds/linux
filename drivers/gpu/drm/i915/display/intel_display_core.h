@@ -395,7 +395,7 @@ struct intel_display {
 	} gmbus;
 
 	struct {
-		struct i915_hdcp_comp_master *master;
+		struct i915_hdcp_master *master;
 		bool comp_added;
 
 		/* Mutex to protect the above hdcp component related values. */
