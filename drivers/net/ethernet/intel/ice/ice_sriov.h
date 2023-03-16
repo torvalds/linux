@@ -33,11 +33,7 @@ int
 ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi);
 
 void ice_free_vfs(struct ice_pf *pf);
-void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
-bool
-ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
-		    u16 num_msg_proc, u16 num_msg_pending);
 
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
@@ -68,21 +64,10 @@ ice_vc_validate_pattern(struct ice_vf *vf, struct virtchnl_proto_hdrs *proto);
 static inline void ice_process_vflr_event(struct ice_pf *pf) { }
 static inline void ice_free_vfs(struct ice_pf *pf) { }
 static inline
-void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event) { }
-static inline
 void ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event) { }
 static inline void ice_print_vfs_mdd_events(struct ice_pf *pf) { }
 static inline void ice_print_vf_rx_mdd_event(struct ice_vf *vf) { }
 static inline void ice_restore_all_vfs_msi_state(struct pci_dev *pdev) { }
-
-static inline bool
-ice_is_malicious_vf(struct ice_pf __always_unused *pf,
-		    struct ice_rq_event_info __always_unused *event,
-		    u16 __always_unused num_msg_proc,
-		    u16 __always_unused num_msg_pending)
-{
-	return false;
-}
 
 static inline int
 ice_sriov_configure(struct pci_dev __always_unused *pdev,
