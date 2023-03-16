@@ -177,17 +177,14 @@ static void radeon_fbdev_fb_destroy(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
+	struct drm_gem_object *gobj = drm_gem_fb_get_obj(fb, 0);
 
-	if (fb) {
-		if (fb->obj[0]) {
-			radeon_fbdev_destroy_pinned_object(fb->obj[0]);
-			fb->obj[0] = NULL;
-			drm_framebuffer_unregister_private(fb);
-			drm_framebuffer_cleanup(fb);
-		}
-		kfree(fb);
-		fb_helper->fb = NULL;
-	}
+	drm_framebuffer_unregister_private(fb);
+	drm_framebuffer_cleanup(fb);
+	kfree(fb);
+	fb_helper->fb = NULL;
+
+	radeon_fbdev_destroy_pinned_object(gobj);
 
 	drm_fb_helper_fini(fb_helper);
 }
@@ -213,11 +210,11 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 					   struct drm_fb_helper_surface_size *sizes)
 {
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
+	struct drm_mode_fb_cmd2 mode_cmd = { };
 	struct fb_info *info;
-	struct drm_framebuffer *fb = NULL;
-	struct drm_mode_fb_cmd2 mode_cmd;
-	struct drm_gem_object *gobj = NULL;
-	struct radeon_bo *rbo = NULL;
+	struct drm_gem_object *gobj;
+	struct radeon_bo *rbo;
+	struct drm_framebuffer *fb;
 	int ret;
 	unsigned long tmp;
 
@@ -236,45 +233,43 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 		DRM_ERROR("failed to create fbcon object %d\n", ret);
 		return ret;
 	}
-
 	rbo = gem_to_radeon_bo(gobj);
-
-	/* okay we have an object now allocate the framebuffer */
-	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto out;
-	}
-
-	/* radeon resume is fragile and needs a vt switch to help it along */
-	info->skip_vt_switch = false;
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb) {
 		ret = -ENOMEM;
-		goto out;
+		goto err_radeon_fbdev_destroy_pinned_object;
 	}
-
 	ret = radeon_framebuffer_init(rdev->ddev, fb, &mode_cmd, gobj);
 	if (ret) {
 		DRM_ERROR("failed to initialize framebuffer %d\n", ret);
-		goto out;
+		goto err_kfree;
 	}
 
 	/* setup helper */
 	fb_helper->fb = fb;
 
-	memset_io(rbo->kptr, 0x0, radeon_bo_size(rbo));
+	/* okay we have an object now allocate the framebuffer */
+	info = drm_fb_helper_alloc_info(fb_helper);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
+		goto err_drm_framebuffer_unregister_private;
+	}
 
 	info->fbops = &radeon_fbdev_fb_ops;
+	info->flags = FBINFO_DEFAULT;
+	/* radeon resume is fragile and needs a vt switch to help it along */
+	info->skip_vt_switch = false;
+
+	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
 	info->fix.smem_start = rdev->mc.aper_base + tmp;
 	info->fix.smem_len = radeon_bo_size(rbo);
-	info->screen_base = rbo->kptr;
+	info->screen_base = (__force void __iomem *)rbo->kptr;
 	info->screen_size = radeon_bo_size(rbo);
 
-	drm_fb_helper_fill_info(info, fb_helper, sizes);
+	memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
@@ -287,13 +282,14 @@ static int radeon_fbdev_fb_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	vga_switcheroo_client_fb_set(rdev->pdev, info);
 	return 0;
 
-out:
-	if (fb && ret) {
-		drm_gem_object_put(gobj);
-		drm_framebuffer_unregister_private(fb);
-		drm_framebuffer_cleanup(fb);
-		kfree(fb);
-	}
+err_drm_framebuffer_unregister_private:
+	fb_helper->fb = NULL;
+	drm_framebuffer_unregister_private(fb);
+	drm_framebuffer_cleanup(fb);
+err_kfree:
+	kfree(fb);
+err_radeon_fbdev_destroy_pinned_object:
+	radeon_fbdev_destroy_pinned_object(gobj);
 	return ret;
 }
 
