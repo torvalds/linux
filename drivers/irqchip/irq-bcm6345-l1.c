@@ -257,6 +257,9 @@ static int __init bcm6345_l1_init_one(struct device_node *dn,
 	if (!cpu->map_base)
 		return -ENOMEM;
 
+	if (!request_mem_region(res.start, sz, res.name))
+		pr_err("failed to request intc memory");
+
 	for (i = 0; i < n_words; i++) {
 		cpu->enable_cache[i] = 0;
 		__raw_writel(0, cpu->map_base + reg_enable(intc, i));
@@ -335,8 +338,7 @@ static int __init bcm6345_l1_of_init(struct device_node *dn,
 	for_each_cpu(idx, &intc->cpumask) {
 		struct bcm6345_l1_cpu *cpu = intc->cpus[idx];
 
-		pr_info("  CPU%u at MMIO 0x%p (irq = %d)\n", idx,
-				cpu->map_base, cpu->parent_irq);
+		pr_info("  CPU%u (irq = %d)\n", idx, cpu->parent_irq);
 	}
 
 	return 0;
