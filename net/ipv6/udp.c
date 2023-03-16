@@ -1708,7 +1708,7 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq, IPV6_SEQ_DGRAM_HEADER);
 	} else {
 		int bucket = ((struct udp_iter_state *)seq->private)->bucket;
-		struct inet_sock *inet = inet_sk(v);
+		const struct inet_sock *inet = inet_sk((const struct sock *)v);
 		__u16 srcp = ntohs(inet->inet_sport);
 		__u16 destp = ntohs(inet->inet_dport);
 		__ip6_dgram_sock_seq_show(seq, v, srcp, destp,
