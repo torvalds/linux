@@ -4344,8 +4344,11 @@ static void android_vh_scheduler_tick(void *unused, struct rq *rq)
 		/*
 		 * Let the window begin 20us prior to the tick,
 		 * that way we are guaranteed a rollover when the tick occurs.
+		 * Use rq->clock directly instead of rq_clock() since
+		 * we do not have the rq lock and
+		 * rq->clock was updated in the tick callpath.
 		 */
-		tick_sched_clock = rq_clock(rq) - 20000;
+		tick_sched_clock = rq->clock - 20000;
 		complete(&tick_sched_clock_completion);
 	}
 
