@@ -582,12 +582,29 @@ static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
 	       dig_port->tc_mode == TC_PORT_LEGACY;
 }
 
+static void tc_phy_wait_for_ready(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	if (wait_for(tc_phy_status_complete(dig_port), 100))
+		drm_err(&i915->drm, "Port %s: timeout waiting for PHY ready\n",
+			dig_port->tc_port_name);
+}
+
 static enum tc_port_mode
 intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	u32 live_status_mask = tc_port_live_status_mask(dig_port);
 	enum tc_port_mode mode;
+
+	/*
+	 * For legacy ports the IOM firmware initializes the PHY during boot-up
+	 * and system resume whether or not a sink is connected. Wait here for
+	 * the initialization to get ready.
+	 */
+	if (dig_port->tc_legacy_port)
+		tc_phy_wait_for_ready(dig_port);
 
 	if (!tc_phy_is_owned(dig_port) ||
 	    drm_WARN_ON(&i915->drm, !tc_phy_status_complete(dig_port)))
