@@ -40,44 +40,6 @@
 
 #include "radeon.h"
 
-static int
-radeonfb_open(struct fb_info *info, int user)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct radeon_device *rdev = fb_helper->dev->dev_private;
-	int ret = pm_runtime_get_sync(rdev->ddev->dev);
-
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_mark_last_busy(rdev->ddev->dev);
-		pm_runtime_put_autosuspend(rdev->ddev->dev);
-		return ret;
-	}
-	return 0;
-}
-
-static int
-radeonfb_release(struct fb_info *info, int user)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct radeon_device *rdev = fb_helper->dev->dev_private;
-
-	pm_runtime_mark_last_busy(rdev->ddev->dev);
-	pm_runtime_put_autosuspend(rdev->ddev->dev);
-	return 0;
-}
-
-static const struct fb_ops radeonfb_ops = {
-	.owner = THIS_MODULE,
-	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_open = radeonfb_open,
-	.fb_release = radeonfb_release,
-	.fb_read = drm_fb_helper_cfb_read,
-	.fb_write = drm_fb_helper_cfb_write,
-	.fb_fillrect = drm_fb_helper_cfb_fillrect,
-	.fb_copyarea = drm_fb_helper_cfb_copyarea,
-	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-};
-
 static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 {
 	struct radeon_bo *rbo = gem_to_radeon_bo(gobj);
@@ -177,6 +139,44 @@ out_unref:
 	*gobj_p = NULL;
 	return ret;
 }
+
+static int
+radeonfb_open(struct fb_info *info, int user)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct radeon_device *rdev = fb_helper->dev->dev_private;
+	int ret = pm_runtime_get_sync(rdev->ddev->dev);
+
+	if (ret < 0 && ret != -EACCES) {
+		pm_runtime_mark_last_busy(rdev->ddev->dev);
+		pm_runtime_put_autosuspend(rdev->ddev->dev);
+		return ret;
+	}
+	return 0;
+}
+
+static int
+radeonfb_release(struct fb_info *info, int user)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct radeon_device *rdev = fb_helper->dev->dev_private;
+
+	pm_runtime_mark_last_busy(rdev->ddev->dev);
+	pm_runtime_put_autosuspend(rdev->ddev->dev);
+	return 0;
+}
+
+static const struct fb_ops radeonfb_ops = {
+	.owner = THIS_MODULE,
+	DRM_FB_HELPER_DEFAULT_OPS,
+	.fb_open = radeonfb_open,
+	.fb_release = radeonfb_release,
+	.fb_read = drm_fb_helper_cfb_read,
+	.fb_write = drm_fb_helper_cfb_write,
+	.fb_fillrect = drm_fb_helper_cfb_fillrect,
+	.fb_copyarea = drm_fb_helper_cfb_copyarea,
+	.fb_imageblit = drm_fb_helper_cfb_imageblit,
+};
 
 static int radeonfb_create(struct drm_fb_helper *helper,
 			   struct drm_fb_helper_surface_size *sizes)
