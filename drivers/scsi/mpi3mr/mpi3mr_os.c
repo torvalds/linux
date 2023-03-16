@@ -4015,10 +4015,14 @@ static int mpi3mr_eh_target_reset(struct scsi_cmnd *scmd)
 	stgt_priv_data = sdev_priv_data->tgt_priv_data;
 	dev_handle = stgt_priv_data->dev_handle;
 	if (stgt_priv_data->dev_removed) {
+		struct scmd_priv *cmd_priv = scsi_cmd_priv(scmd);
 		sdev_printk(KERN_INFO, scmd->device,
 		    "%s:target(handle = 0x%04x) is removed, target reset is not issued\n",
 		    mrioc->name, dev_handle);
-		retval = FAILED;
+		if (!cmd_priv->in_lld_scope || cmd_priv->host_tag == MPI3MR_HOSTTAG_INVALID)
+			retval = SUCCESS;
+		else
+			retval = FAILED;
 		goto out;
 	}
 	sdev_printk(KERN_INFO, scmd->device,
@@ -4083,10 +4087,14 @@ static int mpi3mr_eh_dev_reset(struct scsi_cmnd *scmd)
 	stgt_priv_data = sdev_priv_data->tgt_priv_data;
 	dev_handle = stgt_priv_data->dev_handle;
 	if (stgt_priv_data->dev_removed) {
+		struct scmd_priv *cmd_priv = scsi_cmd_priv(scmd);
 		sdev_printk(KERN_INFO, scmd->device,
 		    "%s: device(handle = 0x%04x) is removed, device(LUN) reset is not issued\n",
 		    mrioc->name, dev_handle);
-		retval = FAILED;
+		if (!cmd_priv->in_lld_scope || cmd_priv->host_tag == MPI3MR_HOSTTAG_INVALID)
+			retval = SUCCESS;
+		else
+			retval = FAILED;
 		goto out;
 	}
 	sdev_printk(KERN_INFO, scmd->device,
@@ -4644,12 +4652,23 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 
+	stgt_priv_data = sdev_priv_data->tgt_priv_data;
+	dev_handle = stgt_priv_data->dev_handle;
+
+	/* Avoid error handling escalation when device is removed or blocked */
+
+	if (scmd->device->host->shost_state == SHOST_RECOVERY &&
+		scmd->cmnd[0] == TEST_UNIT_READY &&
+		(stgt_priv_data->dev_removed || (dev_handle == MPI3MR_INVALID_DEV_HANDLE))) {
+		scsi_build_sense(scmd, 0, UNIT_ATTENTION, 0x29, 0x07);
+		scsi_done(scmd);
+		goto out;
+	}
+
 	if (mrioc->reset_in_progress) {
 		retval = SCSI_MLQUEUE_HOST_BUSY;
 		goto out;
 	}
-
-	stgt_priv_data = sdev_priv_data->tgt_priv_data;
 
 	if (atomic_read(&stgt_priv_data->block_io)) {
 		if (mrioc->stop_drv_processing) {
@@ -4661,7 +4680,6 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 
-	dev_handle = stgt_priv_data->dev_handle;
 	if (dev_handle == MPI3MR_INVALID_DEV_HANDLE) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scsi_done(scmd);
