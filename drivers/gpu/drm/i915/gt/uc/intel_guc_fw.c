@@ -12,6 +12,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
+#include "gt/intel_rps.h"
 #include "intel_guc_fw.h"
 #include "intel_guc_print.h"
 #include "i915_drv.h"
@@ -135,13 +136,29 @@ static inline bool guc_load_done(struct intel_uncore *uncore, u32 *status, bool 
 	return false;
 }
 
+/*
+ * Use a longer timeout for debug builds so that problems can be detected
+ * and analysed. But a shorter timeout for releases so that user's don't
+ * wait forever to find out there is a problem. Note that the only reason
+ * an end user should hit the timeout is in case of extreme thermal throttling.
+ * And a system that is that hot during boot is probably dead anyway!
+ */
+#if defined(CONFIG_DRM_I915_DEBUG_GEM)
+#define GUC_LOAD_RETRY_LIMIT	20
+#else
+#define GUC_LOAD_RETRY_LIMIT	3
+#endif
+
 static int guc_wait_ucode(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_uncore *uncore = gt->uncore;
+	ktime_t before, after, delta;
 	bool success;
 	u32 status;
-	int ret;
+	int ret, count;
+	u64 delta_ms;
+	u32 before_freq;
 
 	/*
 	 * Wait for the GuC to start up.
@@ -159,13 +176,32 @@ static int guc_wait_ucode(struct intel_guc *guc)
 	 * issues to be resolved. In the meantime bump the timeout to
 	 * 200ms. Even at slowest clock, this should be sufficient. And
 	 * in the working case, a larger timeout makes no difference.
+	 *
+	 * IFWI updates have also been seen to cause sporadic failures due to
+	 * the requested frequency not being granted and thus the firmware
+	 * load is attempted at minimum frequency. That can lead to load times
+	 * in the seconds range. However, there is a limit on how long an
+	 * individual wait_for() can wait. So wrap it in a loop.
 	 */
-	ret = wait_for(guc_load_done(uncore, &status, &success), 200);
+	before_freq = intel_rps_read_actual_frequency(&uncore->gt->rps);
+	before = ktime_get();
+	for (count = 0; count < GUC_LOAD_RETRY_LIMIT; count++) {
+		ret = wait_for(guc_load_done(uncore, &status, &success), 1000);
+		if (!ret || !success)
+			break;
+
+		guc_dbg(guc, "load still in progress, count = %d, freq = %dMHz\n",
+			count, intel_rps_read_actual_frequency(&uncore->gt->rps));
+	}
+	after = ktime_get();
+	delta = ktime_sub(after, before);
+	delta_ms = ktime_to_ms(delta);
 	if (ret || !success) {
 		u32 ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
 		u32 bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
 
-		guc_info(guc, "load failed: status = 0x%08X, ret = %d\n", status, ret);
+		guc_info(guc, "load failed: status = 0x%08X, time = %lldms, freq = %dMHz, ret = %d\n",
+			 status, delta_ms, intel_rps_read_actual_frequency(&uncore->gt->rps), ret);
 		guc_info(guc, "load failed: status: Reset = %d, BootROM = 0x%02X, UKernel = 0x%02X, MIA = 0x%02X, Auth = 0x%02X\n",
 			 REG_FIELD_GET(GS_MIA_IN_RESET, status),
 			 bootrom, ukernel,
@@ -206,6 +242,14 @@ static int guc_wait_ucode(struct intel_guc *guc)
 		/* Uncommon/unexpected error, see earlier status code print for details */
 		if (ret == 0)
 			ret = -ENXIO;
+	} else if (delta_ms > 200) {
+		guc_warn(guc, "excessive init time: %lldms! [freq = %dMHz, before = %dMHz, status = 0x%08X, count = %d, ret = %d]\n",
+			 delta_ms, intel_rps_read_actual_frequency(&uncore->gt->rps),
+			 before_freq, status, count, ret);
+	} else {
+		guc_dbg(guc, "init took %lldms, freq = %dMHz, before = %dMHz, status = 0x%08X, count = %d, ret = %d\n",
+			delta_ms, intel_rps_read_actual_frequency(&uncore->gt->rps),
+			before_freq, status, count, ret);
 	}
 
 	return ret;
