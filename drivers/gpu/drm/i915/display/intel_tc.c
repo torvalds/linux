@@ -558,6 +558,16 @@ static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 	}
 }
 
+static bool tc_phy_is_ready_and_owned(struct intel_digital_port *dig_port,
+				      bool phy_is_ready, bool phy_is_owned)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	drm_WARN_ON(&i915->drm, phy_is_owned && !phy_is_ready);
+
+	return phy_is_ready && phy_is_owned;
+}
+
 static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -610,10 +620,33 @@ tc_phy_hpd_live_mode(struct intel_digital_port *dig_port)
 }
 
 static enum tc_port_mode
+get_tc_mode_in_phy_not_owned_state(struct intel_digital_port *dig_port,
+				   enum tc_port_mode live_mode)
+{
+	switch (live_mode) {
+	case TC_PORT_LEGACY:
+		return TC_PORT_DISCONNECTED;
+	case TC_PORT_DP_ALT:
+	case TC_PORT_TBT_ALT:
+		return TC_PORT_TBT_ALT;
+	default:
+		MISSING_CASE(live_mode);
+		fallthrough;
+	case TC_PORT_DISCONNECTED:
+		if (dig_port->tc_legacy_port)
+			return TC_PORT_DISCONNECTED;
+		else
+			return TC_PORT_TBT_ALT;
+	}
+}
+
+static enum tc_port_mode
 intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum tc_port_mode live_mode = tc_phy_hpd_live_mode(dig_port);
+	bool phy_is_ready;
+	bool phy_is_owned;
 	enum tc_port_mode mode;
 
 	/*
@@ -624,9 +657,11 @@ intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 	if (dig_port->tc_legacy_port)
 		tc_phy_wait_for_ready(dig_port);
 
-	if (!tc_phy_is_owned(dig_port) ||
-	    drm_WARN_ON(&i915->drm, !tc_phy_status_complete(dig_port)))
-		return TC_PORT_TBT_ALT;
+	phy_is_ready = tc_phy_status_complete(dig_port);
+	phy_is_owned = tc_phy_is_owned(dig_port);
+
+	if (!tc_phy_is_ready_and_owned(dig_port, phy_is_ready, phy_is_owned))
+		return get_tc_mode_in_phy_not_owned_state(dig_port, live_mode);
 
 	mode = dig_port->tc_legacy_port ? TC_PORT_LEGACY : TC_PORT_DP_ALT;
 	if (live_mode != TC_PORT_DISCONNECTED &&
@@ -758,6 +793,7 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	intel_wakeref_t tc_cold_wref;
 	enum intel_display_power_domain domain;
+	bool update_mode = false;
 
 	mutex_lock(&dig_port->tc_lock);
 
@@ -773,14 +809,32 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	 * intel_tc_port_sanitize_mode().
 	 */
 	dig_port->tc_init_mode = dig_port->tc_mode;
-	dig_port->tc_lock_wakeref = tc_cold_block(dig_port, &dig_port->tc_lock_power_domain);
+	if (dig_port->tc_mode != TC_PORT_DISCONNECTED)
+		dig_port->tc_lock_wakeref =
+			tc_cold_block(dig_port, &dig_port->tc_lock_power_domain);
 
 	/*
 	 * The PHY needs to be connected for AUX to work during HW readout and
 	 * MST topology resume, but the PHY mode can only be changed if the
 	 * port is disabled.
+	 *
+	 * An exception is the case where BIOS leaves the PHY incorrectly
+	 * disconnected on an enabled legacy port. Work around that by
+	 * connecting the PHY even though the port is enabled. This doesn't
+	 * cause a problem as the PHY ownership state is ignored by the
+	 * IOM/TCSS firmware (only display can own the PHY in that case).
 	 */
-	if (!tc_port_is_enabled(dig_port))
+	if (!tc_port_is_enabled(dig_port)) {
+		update_mode = true;
+	} else if (dig_port->tc_mode == TC_PORT_DISCONNECTED) {
+		drm_WARN_ON(&i915->drm, !dig_port->tc_legacy_port);
+		drm_err(&i915->drm,
+			"Port %s: PHY disconnected on enabled port, connecting it\n",
+			dig_port->tc_port_name);
+		update_mode = true;
+	}
+
+	if (update_mode)
 		intel_tc_port_update_mode(dig_port, 1, false);
 
 	/* Prevent changing dig_port->tc_mode until intel_tc_port_sanitize_mode() is called. */
@@ -831,7 +885,8 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
 		 * we'll just switch to disconnected mode from it here without
 		 * a note.
 		 */
-		if (dig_port->tc_init_mode != TC_PORT_TBT_ALT)
+		if (dig_port->tc_init_mode != TC_PORT_TBT_ALT &&
+		    dig_port->tc_init_mode != TC_PORT_DISCONNECTED)
 			drm_dbg_kms(&i915->drm,
 				    "Port %s: PHY left in %s mode on disabled port, disconnecting it\n",
 				    dig_port->tc_port_name,
