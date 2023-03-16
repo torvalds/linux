@@ -380,6 +380,7 @@ static struct platform_driver arizona_ldo1_driver = {
 	.remove = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "arizona-ldo1",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

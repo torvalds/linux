@@ -368,6 +368,7 @@ static struct platform_driver gpio_regulator_driver = {
 	.probe		= gpio_regulator_probe,
 	.driver		= {
 		.name		= "gpio-regulator",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(regulator_gpio_of_match),
 	},
 };

@@ -845,6 +845,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 static struct i2c_driver pfuze_driver = {
 	.driver = {
 		.name = "pfuze100-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = pfuze_dt_ids,
 	},
 	.probe_new = pfuze100_regulator_probe,

@@ -789,6 +789,7 @@ MODULE_DEVICE_TABLE(i2c, act8865_ids);
 static struct i2c_driver act8865_pmic_driver = {
 	.driver	= {
 		.name	= "act8865",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe_new	= act8865_pmic_probe,
 	.id_table	= act8865_ids,

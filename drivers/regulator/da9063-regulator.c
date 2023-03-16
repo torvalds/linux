@@ -971,6 +971,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 static struct platform_driver da9063_regulator_driver = {
 	.driver = {
 		.name = DA9063_DRVNAME_REGULATORS,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = da9063_regulator_probe,
 };
