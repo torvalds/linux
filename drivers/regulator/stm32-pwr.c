@@ -176,6 +176,7 @@ static struct platform_driver stm32_pwr_driver = {
 	.probe = stm32_pwr_regulator_probe,
 	.driver = {
 		.name  = "stm32-pwr-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(stm32_pwr_of_match),
 	},
 };

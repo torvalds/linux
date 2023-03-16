@@ -373,6 +373,7 @@ static struct platform_driver madera_micsupp_driver = {
 	.probe = madera_micsupp_probe,
 	.driver		= {
 		.name	= "madera-micsupp",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
