@@ -768,16 +768,23 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
  * connected ports are usable, and avoids exposing to the users objects they
  * can't really use.
  */
+bool intel_tc_port_connected_locked(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	drm_WARN_ON(&i915->drm, !intel_tc_port_ref_held(dig_port));
+
+	return tc_port_live_status_mask(dig_port) & BIT(dig_port->tc_mode);
+}
+
 bool intel_tc_port_connected(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool is_connected;
 
 	intel_tc_port_lock(dig_port);
-
-	is_connected = tc_port_live_status_mask(dig_port) &
-		       BIT(dig_port->tc_mode);
-
+	is_connected = intel_tc_port_connected_locked(encoder);
 	intel_tc_port_unlock(dig_port);
 
 	return is_connected;
