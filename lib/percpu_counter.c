@@ -122,23 +122,6 @@ void percpu_counter_sync(struct percpu_counter *fbc)
 }
 EXPORT_SYMBOL(percpu_counter_sync);
 
-static s64 __percpu_counter_sum_mask(struct percpu_counter *fbc,
-			      const struct cpumask *cpu_mask)
-{
-	s64 ret;
-	int cpu;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&fbc->lock, flags);
-	ret = fbc->count;
-	for_each_cpu_or(cpu, cpu_online_mask, cpu_mask) {
-		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
-		ret += *pcount;
-	}
-	raw_spin_unlock_irqrestore(&fbc->lock, flags);
-	return ret;
-}
-
 /*
  * Add up all the per-cpu counts, return the result.  This is a more accurate
  * but much slower version of percpu_counter_read_positive().
@@ -153,21 +136,20 @@ static s64 __percpu_counter_sum_mask(struct percpu_counter *fbc,
  */
 s64 __percpu_counter_sum(struct percpu_counter *fbc)
 {
+	s64 ret;
+	int cpu;
+	unsigned long flags;
 
-	return __percpu_counter_sum_mask(fbc, cpu_dying_mask);
+	raw_spin_lock_irqsave(&fbc->lock, flags);
+	ret = fbc->count;
+	for_each_cpu_or(cpu, cpu_online_mask, cpu_dying_mask) {
+		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
+		ret += *pcount;
+	}
+	raw_spin_unlock_irqrestore(&fbc->lock, flags);
+	return ret;
 }
 EXPORT_SYMBOL(__percpu_counter_sum);
-
-/*
- * This is slower version of percpu_counter_sum as it traverses all possible
- * cpus. Use this only in the cases where accurate data is needed in the
- * presense of CPUs getting offlined.
- */
-s64 percpu_counter_sum_all(struct percpu_counter *fbc)
-{
-	return __percpu_counter_sum_mask(fbc, cpu_possible_mask);
-}
-EXPORT_SYMBOL(percpu_counter_sum_all);
 
 int __percpu_counter_init(struct percpu_counter *fbc, s64 amount, gfp_t gfp,
 			  struct lock_class_key *key)
