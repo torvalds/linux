@@ -1736,7 +1736,7 @@
 		rockchip,grf = <&grf>;
 		power-domains = <&power RK3568_PD_VI>;
 		iommus = <&rkisp_mmu>;
-		rockchip,iq-feature = /bits/ 64 <0x3FBFFFE67FF>;
+		rockchip,iq-feature = /bits/ 64 <0x1BFBFFFE67FF>;
 		status = "disabled";
 	};
 

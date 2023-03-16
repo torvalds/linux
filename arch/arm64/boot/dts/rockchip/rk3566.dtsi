@@ -38,7 +38,7 @@
 };
 
 &rkisp {
-	rockchip,iq-feature = /bits/ 64 <0x3FBF7FE67FF>;
+	rockchip,iq-feature = /bits/ 64 <0x1BFBF7FE67FF>;
 };
 
 &usbdrd_dwc3 {
