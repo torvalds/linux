@@ -1037,6 +1037,10 @@
 			can be useful when debugging issues that require an SLB
 			miss to occur.
 
+	disable_dma32=	[KNL]
+			Dynamically disable ZONE_DMA32 on kernels compiled with
+			CONFIG_ZONE_DMA32=y.
+
 	stress_slb	[PPC]
 			Limits the number of kernel SLB entries, and flushes
 			them frequently to increase the rate of SLB faults

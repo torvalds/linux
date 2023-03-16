@@ -13,4 +13,4 @@ modules.builtin
 modules.builtin.modinfo
 "
 
-NDK_TRIPLE=aarch64-linux-android31
+NDK_TRIPLE=${AARCH64_NDK_TRIPLE}

@@ -14,6 +14,7 @@
 #include <hyp/adjust_pc.h>
 #include <nvhe/iommu.h>
 #include <nvhe/mm.h>
+#include <nvhe/pkvm.h>
 
 #define DRV_ID(drv_addr)			((unsigned long)drv_addr)
 
@@ -450,7 +451,7 @@ out_unlock:
 	return ret;
 }
 
-int __pkvm_iommu_finalize(void)
+int __pkvm_iommu_finalize(int err)
 {
 	int ret = 0;
 
@@ -460,6 +461,14 @@ int __pkvm_iommu_finalize(void)
 	else
 		ret = -EPERM;
 	hyp_spin_unlock(&iommu_registration_lock);
+
+	/*
+	 * If finalize failed in EL1 driver for any reason, this means we can't trust the DMA
+	 * isolation. So we have to inform pKVM to properly protect itself.
+	 */
+	if (!ret && err)
+		pkvm_handle_system_misconfiguration(NO_DMA_ISOLATION);
+
 	return ret;
 }
 

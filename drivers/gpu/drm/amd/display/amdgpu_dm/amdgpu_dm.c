@@ -147,14 +147,6 @@ MODULE_FIRMWARE(FIRMWARE_NAVI12_DMCU);
 /* Number of bytes in PSP footer for firmware. */
 #define PSP_FOOTER_BYTES 0x100
 
-/*
- * DMUB Async to Sync Mechanism Status
- */
-#define DMUB_ASYNC_TO_SYNC_ACCESS_FAIL 1
-#define DMUB_ASYNC_TO_SYNC_ACCESS_TIMEOUT 2
-#define DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS 3
-#define DMUB_ASYNC_TO_SYNC_ACCESS_INVALID 4
-
 /**
  * DOC: overview
  *
@@ -1193,24 +1185,38 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 
 	memset(pa_config, 0, sizeof(*pa_config));
 
-	logical_addr_low  = min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18;
-	pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
-
-	if (adev->apu_flags & AMD_APU_IS_RAVEN2)
-		/*
-		 * Raven2 has a HW issue that it is unable to use the vram which
-		 * is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR. So here is the
-		 * workaround that increase system aperture high address (add 1)
-		 * to get rid of the VM fault and hardware hang.
-		 */
-		logical_addr_high = max((adev->gmc.fb_end >> 18) + 0x1, adev->gmc.agp_end >> 18);
-	else
-		logical_addr_high = max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18;
-
 	agp_base = 0;
 	agp_bot = adev->gmc.agp_start >> 24;
 	agp_top = adev->gmc.agp_end >> 24;
 
+	/* AGP aperture is disabled */
+	if (agp_bot == agp_top) {
+		logical_addr_low  = adev->gmc.vram_start >> 18;
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
+			/*
+			 * Raven2 has a HW issue that it is unable to use the vram which
+			 * is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR. So here is the
+			 * workaround that increase system aperture high address (add 1)
+			 * to get rid of the VM fault and hardware hang.
+			 */
+			logical_addr_high = (adev->gmc.fb_end >> 18) + 0x1;
+		else
+			logical_addr_high = adev->gmc.vram_end >> 18;
+	} else {
+		logical_addr_low  = min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18;
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
+			/*
+			 * Raven2 has a HW issue that it is unable to use the vram which
+			 * is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR. So here is the
+			 * workaround that increase system aperture high address (add 1)
+			 * to get rid of the VM fault and hardware hang.
+			 */
+			logical_addr_high = max((adev->gmc.fb_end >> 18) + 0x1, adev->gmc.agp_end >> 18);
+		else
+			logical_addr_high = max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18;
+	}
+
+	pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
 
 	page_table_start.high_part = (u32)(adev->gmc.gart_start >> 44) & 0xF;
 	page_table_start.low_part = (u32)(adev->gmc.gart_start >> 12);
@@ -1442,6 +1448,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	memset(&init_params, 0, sizeof(init_params));
 #endif
 
+	mutex_init(&adev->dm.dpia_aux_lock);
 	mutex_init(&adev->dm.dc_lock);
 	mutex_init(&adev->dm.audio_lock);
 	spin_lock_init(&adev->dm.vblank_lock);
@@ -1802,6 +1809,7 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 	mutex_destroy(&adev->dm.audio_lock);
 	mutex_destroy(&adev->dm.dc_lock);
+	mutex_destroy(&adev->dm.dpia_aux_lock);
 
 	return;
 }
@@ -4512,6 +4520,17 @@ DEVICE_ATTR_WO(s3_debug);
 static int dm_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	struct atom_context *ctx = mode_info->atom_context;
+	int index = GetIndexIntoMasterTable(DATA, Object_Header);
+	u16 data_offset;
+
+	/* if there is no object header, skip DM */
+	if (!amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
+		adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
+		dev_info(adev->dev, "No object header, skipping DM\n");
+		return -ENOENT;
+	}
 
 	switch (adev->asic_type) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
@@ -9531,7 +9550,11 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 * `dcn10_can_pipe_disable_cursor`). By now, all modified planes are in
 	 * atomic state, so call drm helper to normalize zpos.
 	 */
-	drm_atomic_normalize_zpos(dev, state);
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret) {
+		drm_dbg(dev, "drm_atomic_normalize_zpos() failed\n");
+		goto fail;
+	}
 
 	/* Remove exiting planes if they are modified */
 	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
@@ -10171,91 +10194,95 @@ uint32_t dm_read_reg_func(const struct dc_context *ctx, uint32_t address,
 	return value;
 }
 
-static int amdgpu_dm_set_dmub_async_sync_status(bool is_cmd_aux,
-						struct dc_context *ctx,
-						uint8_t status_type,
-						uint32_t *operation_result)
+int amdgpu_dm_process_dmub_aux_transfer_sync(
+		struct dc_context *ctx,
+		unsigned int link_index,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	int return_status = -1;
 	struct dmub_notification *p_notify = adev->dm.dmub_notify;
+	int ret = -1;
 
-	if (is_cmd_aux) {
-		if (status_type == DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS) {
-			return_status = p_notify->aux_reply.length;
-			*operation_result = p_notify->result;
-		} else if (status_type == DMUB_ASYNC_TO_SYNC_ACCESS_TIMEOUT) {
-			*operation_result = AUX_RET_ERROR_TIMEOUT;
-		} else if (status_type == DMUB_ASYNC_TO_SYNC_ACCESS_FAIL) {
-			*operation_result = AUX_RET_ERROR_ENGINE_ACQUIRE;
-		} else if (status_type == DMUB_ASYNC_TO_SYNC_ACCESS_INVALID) {
-			*operation_result = AUX_RET_ERROR_INVALID_REPLY;
-		} else {
-			*operation_result = AUX_RET_ERROR_UNKNOWN;
-		}
-	} else {
-		if (status_type == DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS) {
-			return_status = 0;
-			*operation_result = p_notify->sc_status;
-		} else {
-			*operation_result = SET_CONFIG_UNKNOWN_ERROR;
-		}
+	mutex_lock(&adev->dm.dpia_aux_lock);
+	if (!dc_process_dmub_aux_transfer_async(ctx->dc, link_index, payload)) {
+		*operation_result = AUX_RET_ERROR_ENGINE_ACQUIRE;
+		goto out;
+ 	}
+
+	if (!wait_for_completion_timeout(&adev->dm.dmub_aux_transfer_done, 10 * HZ)) {
+		DRM_ERROR("wait_for_completion_timeout timeout!");
+		*operation_result = AUX_RET_ERROR_TIMEOUT;
+		goto out;
 	}
 
-	return return_status;
+	if (p_notify->result != AUX_RET_SUCCESS) {
+		/*
+		 * Transient states before tunneling is enabled could
+		 * lead to this error. We can ignore this for now.
+		 */
+		if (p_notify->result != AUX_RET_ERROR_PROTOCOL_ERROR) {
+			DRM_WARN("DPIA AUX failed on 0x%x(%d), error %d\n",
+					payload->address, payload->length,
+					p_notify->result);
+		}
+		*operation_result = AUX_RET_ERROR_INVALID_REPLY;
+		goto out;
+	}
+
+
+	payload->reply[0] = adev->dm.dmub_notify->aux_reply.command;
+	if (!payload->write && p_notify->aux_reply.length &&
+			(payload->reply[0] == AUX_TRANSACTION_REPLY_AUX_ACK)) {
+
+		if (payload->length != p_notify->aux_reply.length) {
+			DRM_WARN("invalid read length %d from DPIA AUX 0x%x(%d)!\n",
+				p_notify->aux_reply.length,
+					payload->address, payload->length);
+			*operation_result = AUX_RET_ERROR_INVALID_REPLY;
+			goto out;
+		}
+
+		memcpy(payload->data, p_notify->aux_reply.data,
+				p_notify->aux_reply.length);
+	}
+
+	/* success */
+	ret = p_notify->aux_reply.length;
+	*operation_result = p_notify->result;
+out:
+	reinit_completion(&adev->dm.dmub_aux_transfer_done);
+	mutex_unlock(&adev->dm.dpia_aux_lock);
+	return ret;
 }
 
-int amdgpu_dm_process_dmub_aux_transfer_sync(bool is_cmd_aux, struct dc_context *ctx,
-	unsigned int link_index, void *cmd_payload, void *operation_result)
+int amdgpu_dm_process_dmub_set_config_sync(
+		struct dc_context *ctx,
+		unsigned int link_index,
+		struct set_config_cmd_payload *payload,
+		enum set_config_status *operation_result)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	int ret = 0;
+	bool is_cmd_complete;
+	int ret;
 
-	if (is_cmd_aux) {
-		dc_process_dmub_aux_transfer_async(ctx->dc,
-			link_index, (struct aux_payload *)cmd_payload);
-	} else if (dc_process_dmub_set_config_async(ctx->dc, link_index,
-					(struct set_config_cmd_payload *)cmd_payload,
-					adev->dm.dmub_notify)) {
-		return amdgpu_dm_set_dmub_async_sync_status(is_cmd_aux,
-					ctx, DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS,
-					(uint32_t *)operation_result);
-	}
+	mutex_lock(&adev->dm.dpia_aux_lock);
+	is_cmd_complete = dc_process_dmub_set_config_async(ctx->dc,
+			link_index, payload, adev->dm.dmub_notify);
 
-	ret = wait_for_completion_timeout(&adev->dm.dmub_aux_transfer_done, 10 * HZ);
-	if (ret == 0) {
+	if (is_cmd_complete || wait_for_completion_timeout(&adev->dm.dmub_aux_transfer_done, 10 * HZ)) {
+		ret = 0;
+		*operation_result = adev->dm.dmub_notify->sc_status;
+	} else {
 		DRM_ERROR("wait_for_completion_timeout timeout!");
-		return amdgpu_dm_set_dmub_async_sync_status(is_cmd_aux,
-				ctx, DMUB_ASYNC_TO_SYNC_ACCESS_TIMEOUT,
-				(uint32_t *)operation_result);
+		ret = -1;
+		*operation_result = SET_CONFIG_UNKNOWN_ERROR;
 	}
 
-	if (is_cmd_aux) {
-		if (adev->dm.dmub_notify->result == AUX_RET_SUCCESS) {
-			struct aux_payload *payload = (struct aux_payload *)cmd_payload;
-
-			payload->reply[0] = adev->dm.dmub_notify->aux_reply.command;
-			if (!payload->write && adev->dm.dmub_notify->aux_reply.length &&
-			    payload->reply[0] == AUX_TRANSACTION_REPLY_AUX_ACK) {
-
-				if (payload->length != adev->dm.dmub_notify->aux_reply.length) {
-					DRM_WARN("invalid read from DPIA AUX %x(%d) got length %d!\n",
-							payload->address, payload->length,
-							adev->dm.dmub_notify->aux_reply.length);
-					return amdgpu_dm_set_dmub_async_sync_status(is_cmd_aux, ctx,
-							DMUB_ASYNC_TO_SYNC_ACCESS_INVALID,
-							(uint32_t *)operation_result);
-				}
-
-				memcpy(payload->data, adev->dm.dmub_notify->aux_reply.data,
-				       adev->dm.dmub_notify->aux_reply.length);
-			}
-		}
-	}
-
-	return amdgpu_dm_set_dmub_async_sync_status(is_cmd_aux,
-			ctx, DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS,
-			(uint32_t *)operation_result);
+	if (!is_cmd_complete)
+		reinit_completion(&adev->dm.dmub_aux_transfer_done);
+	mutex_unlock(&adev->dm.dpia_aux_lock);
+	return ret;
 }
 
 /*

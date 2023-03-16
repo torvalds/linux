@@ -29,6 +29,8 @@ static bool modversions;
 static bool all_versions;
 /* If we are modposting external module set to 1 */
 static bool external_module;
+#define MODULE_SCMVERSION_SIZE 64
+static char module_scmversion[MODULE_SCMVERSION_SIZE];
 /* Only warn about unresolved symbols */
 static bool warn_unresolved;
 
@@ -788,6 +790,7 @@ static void check_section(const char *modname, struct elf_info *elf,
 	const char *sec = sech_name(elf, sechdr);
 
 	if (sechdr->sh_type == SHT_PROGBITS &&
+	    sechdr->sh_size > 0 &&
 	    !(sechdr->sh_flags & SHF_ALLOC) &&
 	    !match(sec, section_white_list)) {
 		warn("%s (%s): unexpected non-allocatable section.\n"
@@ -1998,6 +2001,9 @@ static void add_header(struct buffer *b, struct module *mod)
 	if (!external_module)
 		buf_printf(b, "\nMODULE_INFO(intree, \"Y\");\n");
 
+	if (module_scmversion[0] != '\0')
+		buf_printf(b, "\nMODULE_INFO(scmversion, \"%s\");\n", module_scmversion);
+
 	buf_printf(b,
 		   "\n"
 		   "#ifdef CONFIG_RETPOLINE\n"
@@ -2326,7 +2332,7 @@ int main(int argc, char **argv)
 	LIST_HEAD(dump_lists);
 	struct dump_list *dl, *dl2;
 
-	while ((opt = getopt(argc, argv, "ei:mnT:o:awENd:")) != -1) {
+	while ((opt = getopt(argc, argv, "ei:mnT:o:awENd:v:")) != -1) {
 		switch (opt) {
 		case 'e':
 			external_module = true;
@@ -2362,6 +2368,9 @@ int main(int argc, char **argv)
 			break;
 		case 'd':
 			missing_namespace_deps = optarg;
+			break;
+		case 'v':
+			strncpy(module_scmversion, optarg, sizeof(module_scmversion) - 1);
 			break;
 		default:
 			exit(1);

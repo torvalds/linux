@@ -711,7 +711,7 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 		struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
 
 		if (vc4_encoder->type == VC4_ENCODER_TYPE_HDMI0) {
-			vc4_state->hvs_load = max(mode->clock * mode->hdisplay / mode->htotal + 1000,
+			vc4_state->hvs_load = max(mode->clock * mode->hdisplay / mode->htotal + 8000,
 						  mode->clock * 9 / 10) * 1000;
 		} else {
 			vc4_state->hvs_load = mode->clock * 1000;

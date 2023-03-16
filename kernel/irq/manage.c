@@ -286,6 +286,7 @@ int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(irq_do_set_affinity);
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 static inline int irq_set_affinity_pending(struct irq_data *data,
