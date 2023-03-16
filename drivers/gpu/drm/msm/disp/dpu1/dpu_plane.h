@@ -89,12 +89,6 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 int dpu_plane_validate_multirect_v2(struct dpu_multirect_plane_states *plane);
 
 /**
- * dpu_plane_clear_multirect - clear multirect bits for the given pipe
- * @drm_state: Pointer to DRM plane state
- */
-void dpu_plane_clear_multirect(const struct drm_plane_state *drm_state);
-
-/**
  * dpu_plane_color_fill - enables color fill on plane
  * @plane:  Pointer to DRM plane object
  * @color:  RGB fill color value, [23..16] Blue, [15..8] Green, [7..0] Red
