@@ -35,6 +35,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/radeon_drm.h>
 
 #include "radeon.h"
@@ -366,10 +367,17 @@ void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
 
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 {
-	if (!rdev->mode_info.rfbdev)
+	struct drm_fb_helper *fb_helper = rdev->ddev->fb_helper;
+	struct drm_gem_object *gobj;
+
+	if (!fb_helper)
 		return false;
 
-	if (robj == gem_to_radeon_bo(rdev->mode_info.rfbdev->fb.obj[0]))
-		return true;
-	return false;
+	gobj = drm_gem_fb_get_obj(fb_helper->fb, 0);
+	if (!gobj)
+		return false;
+	if (gobj != &robj->tbo.base)
+		return false;
+
+	return true;
 }
