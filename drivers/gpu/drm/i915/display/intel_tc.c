@@ -635,15 +635,23 @@ intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 	return mode;
 }
 
+static enum tc_port_mode default_tc_mode(struct intel_digital_port *dig_port)
+{
+	if (dig_port->tc_legacy_port)
+		return TC_PORT_LEGACY;
+
+	return TC_PORT_TBT_ALT;
+}
+
 static enum tc_port_mode
-hpd_mask_to_target_mode(u32 live_status_mask)
+hpd_mask_to_target_mode(struct intel_digital_port *dig_port, u32 live_status_mask)
 {
 	enum tc_port_mode mode = hpd_mask_to_tc_mode(live_status_mask);
 
 	if (mode != TC_PORT_DISCONNECTED)
 		return mode;
 
-	return TC_PORT_TBT_ALT;
+	return default_tc_mode(dig_port);
 }
 
 static enum tc_port_mode
@@ -651,7 +659,7 @@ intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
 {
 	u32 live_status_mask = tc_port_live_status_mask(dig_port);
 
-	return hpd_mask_to_target_mode(live_status_mask);
+	return hpd_mask_to_target_mode(dig_port, live_status_mask);
 }
 
 static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
