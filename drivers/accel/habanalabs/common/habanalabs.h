@@ -3547,6 +3547,10 @@ struct hl_ioctl_desc {
 	hl_ioctl_t *func;
 };
 
+static inline bool hl_is_fw_ver_below_1_9(struct hl_device *hdev)
+{
+	return (hdev->fw_major_version < 42);
+}
 
 /*
  * Kernel module functions that can be accessed by entire module
