@@ -270,6 +270,7 @@ config COMMON_CLK_MT6795
 	tristate "Clock driver for MediaTek MT6795"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select COMMON_CLK_MEDIATEK
+	select COMMON_CLK_MEDIATEK_FHCTL
 	default ARCH_MEDIATEK
 	help
 	  This driver supports MediaTek MT6795 basic clocks and clocks
