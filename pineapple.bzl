@@ -241,6 +241,7 @@ def define_pineapple():
         "drivers/virt/gunyah/gh_mem_notifier.ko",
         "drivers/virt/gunyah/gh_msgq.ko",
         "drivers/virt/gunyah/gh_panic_notifier.ko",
+        "drivers/virt/gunyah/gh_rm_booster.ko",
         "drivers/virt/gunyah/gh_rm_drv.ko",
         "drivers/virt/gunyah/gh_virt_wdt.ko",
         "drivers/virt/gunyah/gunyah.ko",
