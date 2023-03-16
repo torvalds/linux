@@ -10,7 +10,7 @@
 #include "dpu_hw_util.h"
 #include "dpu_formats.h"
 
-struct dpu_hw_pipe;
+struct dpu_hw_sspp;
 
 /**
  * Flags
@@ -153,7 +153,7 @@ struct dpu_hw_pixel_ext {
 };
 
 /**
- * struct dpu_hw_pipe_cfg : Pipe description
+ * struct dpu_hw_sspp_cfg : SSPP configuration
  * @layout:    format layout information for programming buffer to hardware
  * @src_rect:  src ROI, caller takes into account the different operations
  *             such as decimation, flip etc to program this field
@@ -161,7 +161,7 @@ struct dpu_hw_pixel_ext {
  * @index:     index of the rectangle of SSPP
  * @mode:      parallel or time multiplex multirect mode
  */
-struct dpu_hw_pipe_cfg {
+struct dpu_hw_sspp_cfg {
 	struct dpu_hw_fmt_layout layout;
 	struct drm_rect src_rect;
 	struct drm_rect dst_rect;
@@ -214,7 +214,7 @@ struct dpu_hw_sspp_ops {
 	 * @flags: Extra flags for format config
 	 * @index: rectangle index in multirect
 	 */
-	void (*setup_format)(struct dpu_hw_pipe *ctx,
+	void (*setup_format)(struct dpu_hw_sspp *ctx,
 			const struct dpu_format *fmt, u32 flags,
 			enum dpu_sspp_multirect_index index);
 
@@ -224,8 +224,8 @@ struct dpu_hw_sspp_ops {
 	 * @cfg: Pointer to pipe config structure
 	 * @index: rectangle index in multirect
 	 */
-	void (*setup_rects)(struct dpu_hw_pipe *ctx,
-			struct dpu_hw_pipe_cfg *cfg,
+	void (*setup_rects)(struct dpu_hw_sspp *ctx,
+			struct dpu_hw_sspp_cfg *cfg,
 			enum dpu_sspp_multirect_index index);
 
 	/**
@@ -233,7 +233,7 @@ struct dpu_hw_sspp_ops {
 	 * @ctx: Pointer to pipe context
 	 * @pe_ext: Pointer to pixel ext settings
 	 */
-	void (*setup_pe)(struct dpu_hw_pipe *ctx,
+	void (*setup_pe)(struct dpu_hw_sspp *ctx,
 			struct dpu_hw_pixel_ext *pe_ext);
 
 	/**
@@ -242,8 +242,8 @@ struct dpu_hw_sspp_ops {
 	 * @cfg: Pointer to pipe config structure
 	 * @index: rectangle index in multirect
 	 */
-	void (*setup_sourceaddress)(struct dpu_hw_pipe *ctx,
-			struct dpu_hw_pipe_cfg *cfg,
+	void (*setup_sourceaddress)(struct dpu_hw_sspp *ctx,
+			struct dpu_hw_sspp_cfg *cfg,
 			enum dpu_sspp_multirect_index index);
 
 	/**
@@ -251,7 +251,7 @@ struct dpu_hw_sspp_ops {
 	 * @ctx: Pointer to pipe context
 	 * @data: Pointer to config structure
 	 */
-	void (*setup_csc)(struct dpu_hw_pipe *ctx, const struct dpu_csc_cfg *data);
+	void (*setup_csc)(struct dpu_hw_sspp *ctx, const struct dpu_csc_cfg *data);
 
 	/**
 	 * setup_solidfill - enable/disable colorfill
@@ -260,7 +260,7 @@ struct dpu_hw_sspp_ops {
 	 * @flags: Pipe flags
 	 * @index: rectangle index in multirect
 	 */
-	void (*setup_solidfill)(struct dpu_hw_pipe *ctx, u32 color,
+	void (*setup_solidfill)(struct dpu_hw_sspp *ctx, u32 color,
 			enum dpu_sspp_multirect_index index);
 
 	/**
@@ -270,7 +270,7 @@ struct dpu_hw_sspp_ops {
 	 * @mode: parallel fetch / time multiplex multirect mode
 	 */
 
-	void (*setup_multirect)(struct dpu_hw_pipe *ctx,
+	void (*setup_multirect)(struct dpu_hw_sspp *ctx,
 			enum dpu_sspp_multirect_index index,
 			enum dpu_sspp_multirect_mode mode);
 
@@ -279,7 +279,7 @@ struct dpu_hw_sspp_ops {
 	 * @ctx: Pointer to pipe context
 	 * @cfg: Pointer to config structure
 	 */
-	void (*setup_sharpening)(struct dpu_hw_pipe *ctx,
+	void (*setup_sharpening)(struct dpu_hw_sspp *ctx,
 			struct dpu_hw_sharp_cfg *cfg);
 
 	/**
@@ -289,7 +289,7 @@ struct dpu_hw_sspp_ops {
 	 * @safe_lut: LUT for generate safe level based on fill level
 	 *
 	 */
-	void (*setup_danger_safe_lut)(struct dpu_hw_pipe *ctx,
+	void (*setup_danger_safe_lut)(struct dpu_hw_sspp *ctx,
 			u32 danger_lut,
 			u32 safe_lut);
 
@@ -299,7 +299,7 @@ struct dpu_hw_sspp_ops {
 	 * @creq_lut: LUT for generate creq level based on fill level
 	 *
 	 */
-	void (*setup_creq_lut)(struct dpu_hw_pipe *ctx,
+	void (*setup_creq_lut)(struct dpu_hw_sspp *ctx,
 			u64 creq_lut);
 
 	/**
@@ -308,7 +308,7 @@ struct dpu_hw_sspp_ops {
 	 * @cfg: Pointer to pipe QoS configuration
 	 *
 	 */
-	void (*setup_qos_ctrl)(struct dpu_hw_pipe *ctx,
+	void (*setup_qos_ctrl)(struct dpu_hw_sspp *ctx,
 			struct dpu_hw_pipe_qos_cfg *cfg);
 
 	/**
@@ -316,7 +316,7 @@ struct dpu_hw_sspp_ops {
 	 * @ctx: Pointer to pipe context
 	 * @cfg: Pointer to histogram configuration
 	 */
-	void (*setup_histogram)(struct dpu_hw_pipe *ctx,
+	void (*setup_histogram)(struct dpu_hw_sspp *ctx,
 			void *cfg);
 
 	/**
@@ -325,15 +325,15 @@ struct dpu_hw_sspp_ops {
 	 * @pipe_cfg: Pointer to pipe configuration
 	 * @scaler_cfg: Pointer to scaler configuration
 	 */
-	void (*setup_scaler)(struct dpu_hw_pipe *ctx,
-		struct dpu_hw_pipe_cfg *pipe_cfg,
+	void (*setup_scaler)(struct dpu_hw_sspp *ctx,
+		struct dpu_hw_sspp_cfg *pipe_cfg,
 		void *scaler_cfg);
 
 	/**
 	 * get_scaler_ver - get scaler h/w version
 	 * @ctx: Pointer to pipe context
 	 */
-	u32 (*get_scaler_ver)(struct dpu_hw_pipe *ctx);
+	u32 (*get_scaler_ver)(struct dpu_hw_sspp *ctx);
 
 	/**
 	 * setup_cdp - setup client driven prefetch
@@ -341,13 +341,13 @@ struct dpu_hw_sspp_ops {
 	 * @cfg: Pointer to cdp configuration
 	 * @index: rectangle index in multirect
 	 */
-	void (*setup_cdp)(struct dpu_hw_pipe *ctx,
+	void (*setup_cdp)(struct dpu_hw_sspp *ctx,
 			struct dpu_hw_cdp_cfg *cfg,
 			enum dpu_sspp_multirect_index index);
 };
 
 /**
- * struct dpu_hw_pipe - pipe description
+ * struct dpu_hw_sspp - pipe description
  * @base: hardware block base structure
  * @hw: block hardware details
  * @catalog: back pointer to catalog
@@ -356,7 +356,7 @@ struct dpu_hw_sspp_ops {
  * @cap: pointer to layer_cfg
  * @ops: pointer to operations possible for this pipe
  */
-struct dpu_hw_pipe {
+struct dpu_hw_sspp {
 	struct dpu_hw_blk base;
 	struct dpu_hw_blk_reg_map hw;
 	const struct dpu_mdss_cfg *catalog;
@@ -378,7 +378,7 @@ struct dpu_kms;
  * @addr: Mapped register io address of MDP
  * @catalog : Pointer to mdss catalog data
  */
-struct dpu_hw_pipe *dpu_hw_sspp_init(enum dpu_sspp idx,
+struct dpu_hw_sspp *dpu_hw_sspp_init(enum dpu_sspp idx,
 		void __iomem *addr, const struct dpu_mdss_cfg *catalog);
 
 /**
@@ -386,10 +386,11 @@ struct dpu_hw_pipe *dpu_hw_sspp_init(enum dpu_sspp idx,
  * should be called during Hw pipe cleanup.
  * @ctx:  Pointer to SSPP driver context returned by dpu_hw_sspp_init
  */
-void dpu_hw_sspp_destroy(struct dpu_hw_pipe *ctx);
+void dpu_hw_sspp_destroy(struct dpu_hw_sspp *ctx);
 
 void dpu_debugfs_sspp_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root);
-int _dpu_hw_sspp_init_debugfs(struct dpu_hw_pipe *hw_pipe, struct dpu_kms *kms, struct dentry *entry);
+int _dpu_hw_sspp_init_debugfs(struct dpu_hw_sspp *hw_pipe, struct dpu_kms *kms,
+			      struct dentry *entry);
 
 #endif /*_DPU_HW_SSPP_H */
 
