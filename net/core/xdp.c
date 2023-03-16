@@ -781,7 +781,9 @@ void xdp_set_features_flag(struct net_device *dev, xdp_features_t val)
 		return;
 
 	dev->xdp_features = val;
-	call_netdevice_notifiers(NETDEV_XDP_FEAT_CHANGE, dev);
+
+	if (dev->reg_state == NETREG_REGISTERED)
+		call_netdevice_notifiers(NETDEV_XDP_FEAT_CHANGE, dev);
 }
 EXPORT_SYMBOL_GPL(xdp_set_features_flag);
 
