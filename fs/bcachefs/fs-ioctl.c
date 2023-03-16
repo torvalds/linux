@@ -451,19 +451,20 @@ static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
 		return ret;
 
 	if (path.dentry->d_sb->s_fs_info != c) {
-		path_put(&path);
-		return -EXDEV;
+		ret = -EXDEV;
+		goto err;
 	}
 
 	dir = path.dentry->d_parent->d_inode;
 
 	ret = __bch2_unlink(dir, path.dentry, true);
-	if (!ret) {
-		fsnotify_rmdir(dir, path.dentry);
-		d_delete(path.dentry);
-	}
-	path_put(&path);
+	if (ret)
+		goto err;
 
+	fsnotify_rmdir(dir, path.dentry);
+	d_delete(path.dentry);
+err:
+	path_put(&path);
 	return ret;
 }
 
