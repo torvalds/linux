@@ -320,6 +320,24 @@ static int sof_ipc4_widget_setup_msg(struct snd_sof_widget *swidget, struct sof_
 	return 0;
 }
 
+static void sof_ipc4_widget_update_kcontrol_module_id(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
+	struct snd_sof_control *scontrol;
+
+	/* update module ID for all kcontrols for this widget */
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
+		if (scontrol->comp_id == swidget->comp_id) {
+			struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+			struct sof_ipc4_msg *msg = &cdata->msg;
+
+			msg->primary |= fw_module->man4_module_entry.id;
+		}
+	}
+}
+
 static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 {
 	struct sof_ipc4_available_audio_format *available_fmt;
@@ -627,9 +645,6 @@ err:
 static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 {
 	struct snd_soc_component *scomp = swidget->scomp;
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct sof_ipc4_fw_module *fw_module;
-	struct snd_sof_control *scontrol;
 	struct sof_ipc4_gain *gain;
 	int ret;
 
@@ -662,16 +677,7 @@ static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 	if (ret)
 		goto err;
 
-	fw_module = swidget->module_info;
-
-	/* update module ID for all kcontrols for this widget */
-	list_for_each_entry(scontrol, &sdev->kcontrol_list, list)
-		if (scontrol->comp_id == swidget->comp_id) {
-			struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
-			struct sof_ipc4_msg *msg = &cdata->msg;
-
-			msg->primary |= fw_module->man4_module_entry.id;
-		}
+	sof_ipc4_widget_update_kcontrol_module_id(swidget);
 
 	return 0;
 err:
