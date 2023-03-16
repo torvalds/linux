@@ -199,7 +199,7 @@ static void xgene_rng_chk_overflow(struct xgene_rng_dev *ctx)
 
 static irqreturn_t xgene_rng_irq_handler(int irq, void *id)
 {
-	struct xgene_rng_dev *ctx = (struct xgene_rng_dev *) id;
+	struct xgene_rng_dev *ctx = id;
 
 	/* RNG Alarm Counter overflow */
 	xgene_rng_chk_overflow(ctx);
