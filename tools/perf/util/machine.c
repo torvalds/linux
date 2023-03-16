@@ -44,6 +44,7 @@
 #include <linux/zalloc.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
+static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms, u64 ip);
 
 static struct dso *machine__kernel_dso(struct machine *machine)
 {
@@ -2322,6 +2323,10 @@ static int add_callchain_ip(struct thread *thread,
 	ms.maps = al.maps;
 	ms.map = al.map;
 	ms.sym = al.sym;
+
+	if (!branch && append_inlines(cursor, &ms, ip) == 0)
+		return 0;
+
 	srcline = callchain_srcline(&ms, al.addr);
 	return callchain_cursor_append(cursor, ip, &ms,
 				       branch, flags, nr_loop_iter,
