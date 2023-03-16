@@ -241,6 +241,9 @@ static int dwc3_ti_probe(struct platform_device *pdev)
 
 	/* Device has capability to wakeup system from sleep */
 	device_set_wakeup_capable(dev, true);
+	ret = device_wakeup_enable(dev);
+	if (ret)
+		dev_err(dev, "couldn't enable device as a wakeup source: %d\n", ret);
 
 	/* Setting up autosuspend */
 	pm_runtime_set_autosuspend_delay(dev, DWC3_AM62_AUTOSUSPEND_DELAY);
