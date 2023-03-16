@@ -60,13 +60,6 @@ struct dpu_multirect_plane_states {
 	container_of(x, struct dpu_plane_state, base)
 
 /**
- * dpu_plane_pipe - return sspp identifier for the given plane
- * @plane:   Pointer to DRM plane object
- * Returns: sspp identifier of the given plane
- */
-enum dpu_sspp dpu_plane_pipe(struct drm_plane *plane);
-
-/**
  * dpu_plane_flush - final plane operations before commit flush
  * @plane: Pointer to drm plane structure
  */
