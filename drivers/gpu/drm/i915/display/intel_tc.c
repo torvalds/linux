@@ -620,6 +620,26 @@ tc_phy_hpd_live_mode(struct intel_digital_port *dig_port)
 }
 
 static enum tc_port_mode
+get_tc_mode_in_phy_owned_state(struct intel_digital_port *dig_port,
+			       enum tc_port_mode live_mode)
+{
+	switch (live_mode) {
+	case TC_PORT_LEGACY:
+	case TC_PORT_DP_ALT:
+		return live_mode;
+	default:
+		MISSING_CASE(live_mode);
+		fallthrough;
+	case TC_PORT_TBT_ALT:
+	case TC_PORT_DISCONNECTED:
+		if (dig_port->tc_legacy_port)
+			return TC_PORT_LEGACY;
+		else
+			return TC_PORT_DP_ALT;
+	}
+}
+
+static enum tc_port_mode
 get_tc_mode_in_phy_not_owned_state(struct intel_digital_port *dig_port,
 				   enum tc_port_mode live_mode)
 {
@@ -660,13 +680,20 @@ intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 	phy_is_ready = tc_phy_status_complete(dig_port);
 	phy_is_owned = tc_phy_is_owned(dig_port);
 
-	if (!tc_phy_is_ready_and_owned(dig_port, phy_is_ready, phy_is_owned))
-		return get_tc_mode_in_phy_not_owned_state(dig_port, live_mode);
+	if (!tc_phy_is_ready_and_owned(dig_port, phy_is_ready, phy_is_owned)) {
+		mode = get_tc_mode_in_phy_not_owned_state(dig_port, live_mode);
+	} else {
+		drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT);
+		mode = get_tc_mode_in_phy_owned_state(dig_port, live_mode);
+	}
 
-	mode = dig_port->tc_legacy_port ? TC_PORT_LEGACY : TC_PORT_DP_ALT;
-	if (live_mode != TC_PORT_DISCONNECTED &&
-	    !drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT))
-		mode = live_mode;
+	drm_dbg_kms(&i915->drm,
+		    "Port %s: PHY mode: %s (ready: %s, owned: %s, HPD: %s)\n",
+		    dig_port->tc_port_name,
+		    tc_port_mode_name(mode),
+		    str_yes_no(phy_is_ready),
+		    str_yes_no(phy_is_owned),
+		    tc_port_mode_name(live_mode));
 
 	return mode;
 }
@@ -841,10 +868,6 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	__intel_tc_port_get_link(dig_port);
 
 	tc_cold_unblock(dig_port, domain, tc_cold_wref);
-
-	drm_dbg_kms(&i915->drm, "Port %s: init mode (%s)\n",
-		    dig_port->tc_port_name,
-		    tc_port_mode_name(dig_port->tc_mode));
 
 	mutex_unlock(&dig_port->tc_lock);
 }
