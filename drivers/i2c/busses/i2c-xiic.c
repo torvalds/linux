@@ -1233,8 +1233,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 		i2c->quirks = data->quirks;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
