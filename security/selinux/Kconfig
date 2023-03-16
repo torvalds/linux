@@ -70,29 +70,6 @@ config SECURITY_SELINUX_AVC_STATS
 	  /sys/fs/selinux/avc/cache_stats, which may be monitored via
 	  tools such as avcstat.
 
-config SECURITY_SELINUX_CHECKREQPROT_VALUE
-	int "NSA SELinux checkreqprot default value"
-	depends on SECURITY_SELINUX
-	range 0 1
-	default 0
-	help
-	  This option sets the default value for the 'checkreqprot' flag
-	  that determines whether SELinux checks the protection requested
-	  by the application or the protection that will be applied by the
-	  kernel (including any implied execute for read-implies-exec) for
-	  mmap and mprotect calls.  If this option is set to 0 (zero),
-	  SELinux will default to checking the protection that will be applied
-	  by the kernel.  If this option is set to 1 (one), SELinux will
-	  default to checking the protection requested by the application.
-	  The checkreqprot flag may be changed from the default via the
-	  'checkreqprot=' boot parameter.  It may also be changed at runtime
-	  via /sys/fs/selinux/checkreqprot if authorized by policy.
-
-	  WARNING: this option is deprecated and will be removed in a future
-	  kernel release.
-
-	  If you are unsure how to answer this question, answer 0.
-
 config SECURITY_SELINUX_SIDTAB_HASH_BITS
 	int "NSA SELinux sidtab hashtable size"
 	depends on SECURITY_SELINUX

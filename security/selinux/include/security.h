@@ -95,7 +95,6 @@ struct selinux_state {
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
 	bool enforcing;
 #endif
-	bool checkreqprot;
 	bool initialized;
 	bool policycap[__POLICYDB_CAP_MAX];
 
@@ -145,14 +144,8 @@ static inline void enforcing_set(bool value)
 
 static inline bool checkreqprot_get(void)
 {
-	return READ_ONCE(selinux_state.checkreqprot);
-}
-
-static inline void checkreqprot_set(bool value)
-{
-	if (value)
-		pr_err("SELinux: https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-checkreqprot\n");
-	WRITE_ONCE(selinux_state.checkreqprot, value);
+	/* non-zero/true checkreqprot values are no longer supported */
+	return 0;
 }
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE

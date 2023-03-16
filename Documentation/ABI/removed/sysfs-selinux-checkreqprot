@@ -4,6 +4,9 @@ KernelVersion:	2.6.12-rc2 (predates git)
 Contact:	selinux@vger.kernel.org
 Description:
 
+	REMOVAL UPDATE: The SELinux checkreqprot functionality was removed in
+	March 2023, the original deprecation notice is shown below.
+
 	The selinuxfs "checkreqprot" node allows SELinux to be configured
 	to check the protection requested by userspace for mmap/mprotect
 	calls instead of the actual protection applied by the kernel.

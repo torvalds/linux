@@ -136,17 +136,13 @@ static int __init selinux_enabled_setup(char *str)
 __setup("selinux=", selinux_enabled_setup);
 #endif
 
-static unsigned int selinux_checkreqprot_boot =
-	CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
-
 static int __init checkreqprot_setup(char *str)
 {
 	unsigned long checkreqprot;
 
 	if (!kstrtoul(str, 0, &checkreqprot)) {
-		selinux_checkreqprot_boot = checkreqprot ? 1 : 0;
 		if (checkreqprot)
-			pr_err("SELinux: checkreqprot set to 1 via kernel parameter.  This is deprecated and will be rejected in a future kernel release.\n");
+			pr_err("SELinux: checkreqprot set to 1 via kernel parameter.  This is no longer supported.\n");
 	}
 	return 1;
 }
@@ -3712,7 +3708,8 @@ static int selinux_mmap_addr(unsigned long addr)
 	return rc;
 }
 
-static int selinux_mmap_file(struct file *file, unsigned long reqprot,
+static int selinux_mmap_file(struct file *file,
+			     unsigned long reqprot __always_unused,
 			     unsigned long prot, unsigned long flags)
 {
 	struct common_audit_data ad;
@@ -3727,22 +3724,16 @@ static int selinux_mmap_file(struct file *file, unsigned long reqprot,
 			return rc;
 	}
 
-	if (checkreqprot_get())
-		prot = reqprot;
-
 	return file_map_prot_check(file, prot,
 				   (flags & MAP_TYPE) == MAP_SHARED);
 }
 
 static int selinux_file_mprotect(struct vm_area_struct *vma,
-				 unsigned long reqprot,
+				 unsigned long reqprot __always_unused,
 				 unsigned long prot)
 {
 	const struct cred *cred = current_cred();
 	u32 sid = cred_sid(cred);
-
-	if (checkreqprot_get())
-		prot = reqprot;
 
 	if (default_noexec &&
 	    (prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
@@ -7202,9 +7193,6 @@ static __init int selinux_init(void)
 
 	memset(&selinux_state, 0, sizeof(selinux_state));
 	enforcing_set(selinux_enforcing_boot);
-	if (CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE)
-		pr_err("SELinux: CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE is non-zero.  This is deprecated and will be rejected in a future kernel release.\n");
-	checkreqprot_set(selinux_checkreqprot_boot);
 	selinux_avc_init();
 	mutex_init(&selinux_state.status_lock);
 	mutex_init(&selinux_state.policy_mutex);
