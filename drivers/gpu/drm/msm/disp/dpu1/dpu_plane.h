@@ -18,6 +18,7 @@
  * struct dpu_plane_state: Define dpu extension of drm plane state object
  * @base:	base drm plane state object
  * @aspace:	pointer to address space for input/output buffers
+ * @hw_sspp:	pointer to corresponding SSPP instance
  * @stage:	assigned by crtc blender
  * @needs_qos_remap: qos remap settings need to be updated
  * @multirect_index: index of the rectangle of SSPP
@@ -31,6 +32,7 @@
 struct dpu_plane_state {
 	struct drm_plane_state base;
 	struct msm_gem_address_space *aspace;
+	struct dpu_hw_sspp *hw_sspp;
 	enum dpu_stage stage;
 	bool needs_qos_remap;
 	uint32_t multirect_index;
