@@ -1283,7 +1283,7 @@ static void ssif_remove(struct i2c_client *client)
 		return;
 
 	/*
-	 * After this point, we won't deliver anything asychronously
+	 * After this point, we won't deliver anything asynchronously
 	 * to the message handler.  We can unregister ourself.
 	 */
 	ipmi_unregister_smi(ssif_info->intf);
