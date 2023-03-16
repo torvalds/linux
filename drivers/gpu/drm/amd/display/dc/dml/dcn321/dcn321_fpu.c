@@ -471,79 +471,77 @@ static void dcn321_get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
 void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	dc_assert_fp_enabled();
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		/* Overrides from dc->config options */
-		dcn3_21_ip.clamp_min_dcfclk = dc->config.clamp_min_dcfclk;
+	/* Overrides from dc->config options */
+	dcn3_21_ip.clamp_min_dcfclk = dc->config.clamp_min_dcfclk;
 
-		/* Override from passed dc->bb_overrides if available*/
-		if ((int)(dcn3_21_soc.sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
-				&& dc->bb_overrides.sr_exit_time_ns) {
-			dcn3_21_soc.sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
-		}
-
-		if ((int)(dcn3_21_soc.sr_enter_plus_exit_time_us * 1000)
-				!= dc->bb_overrides.sr_enter_plus_exit_time_ns
-				&& dc->bb_overrides.sr_enter_plus_exit_time_ns) {
-			dcn3_21_soc.sr_enter_plus_exit_time_us =
-				dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
-		}
-
-		if ((int)(dcn3_21_soc.urgent_latency_us * 1000) != dc->bb_overrides.urgent_latency_ns
-			&& dc->bb_overrides.urgent_latency_ns) {
-			dcn3_21_soc.urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
-			dcn3_21_soc.urgent_latency_pixel_data_only_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
-		}
-
-		if ((int)(dcn3_21_soc.dram_clock_change_latency_us * 1000)
-				!= dc->bb_overrides.dram_clock_change_latency_ns
-				&& dc->bb_overrides.dram_clock_change_latency_ns) {
-			dcn3_21_soc.dram_clock_change_latency_us =
-				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
-		}
-
-		if ((int)(dcn3_21_soc.fclk_change_latency_us * 1000)
-				!= dc->bb_overrides.fclk_clock_change_latency_ns
-				&& dc->bb_overrides.fclk_clock_change_latency_ns) {
-			dcn3_21_soc.fclk_change_latency_us =
-				dc->bb_overrides.fclk_clock_change_latency_ns / 1000;
-		}
-
-		if ((int)(dcn3_21_soc.dummy_pstate_latency_us * 1000)
-				!= dc->bb_overrides.dummy_clock_change_latency_ns
-				&& dc->bb_overrides.dummy_clock_change_latency_ns) {
-			dcn3_21_soc.dummy_pstate_latency_us =
-				dc->bb_overrides.dummy_clock_change_latency_ns / 1000.0;
-		}
-
-		/* Override from VBIOS if VBIOS bb_info available */
-		if (dc->ctx->dc_bios->funcs->get_soc_bb_info) {
-			struct bp_soc_bb_info bb_info = {0};
-
-			if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
-				if (bb_info.dram_clock_change_latency_100ns > 0)
-					dcn3_21_soc.dram_clock_change_latency_us =
-						bb_info.dram_clock_change_latency_100ns * 10;
-
-				if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
-					dcn3_21_soc.sr_enter_plus_exit_time_us =
-						bb_info.dram_sr_enter_exit_latency_100ns * 10;
-
-				if (bb_info.dram_sr_exit_latency_100ns > 0)
-					dcn3_21_soc.sr_exit_time_us =
-						bb_info.dram_sr_exit_latency_100ns * 10;
-			}
-		}
-
-		/* Override from VBIOS for num_chan */
-		if (dc->ctx->dc_bios->vram_info.num_chans) {
-			dcn3_21_soc.num_chans = dc->ctx->dc_bios->vram_info.num_chans;
-			dcn3_21_soc.mall_allocated_for_dcn_mbytes = (double)(dcn32_calc_num_avail_chans_for_mall(dc,
-				dc->ctx->dc_bios->vram_info.num_chans) * dc->caps.mall_size_per_mem_channel);
-		}
-
-		if (dc->ctx->dc_bios->vram_info.dram_channel_width_bytes)
-			dcn3_21_soc.dram_channel_width_bytes = dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
+	/* Override from passed dc->bb_overrides if available*/
+	if ((int)(dcn3_21_soc.sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
+			&& dc->bb_overrides.sr_exit_time_ns) {
+		dcn3_21_soc.sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
 	}
+
+	if ((int)(dcn3_21_soc.sr_enter_plus_exit_time_us * 1000)
+			!= dc->bb_overrides.sr_enter_plus_exit_time_ns
+			&& dc->bb_overrides.sr_enter_plus_exit_time_ns) {
+		dcn3_21_soc.sr_enter_plus_exit_time_us =
+			dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
+	}
+
+	if ((int)(dcn3_21_soc.urgent_latency_us * 1000) != dc->bb_overrides.urgent_latency_ns
+		&& dc->bb_overrides.urgent_latency_ns) {
+		dcn3_21_soc.urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
+		dcn3_21_soc.urgent_latency_pixel_data_only_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
+	}
+
+	if ((int)(dcn3_21_soc.dram_clock_change_latency_us * 1000)
+			!= dc->bb_overrides.dram_clock_change_latency_ns
+			&& dc->bb_overrides.dram_clock_change_latency_ns) {
+		dcn3_21_soc.dram_clock_change_latency_us =
+			dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
+	}
+
+	if ((int)(dcn3_21_soc.fclk_change_latency_us * 1000)
+			!= dc->bb_overrides.fclk_clock_change_latency_ns
+			&& dc->bb_overrides.fclk_clock_change_latency_ns) {
+		dcn3_21_soc.fclk_change_latency_us =
+			dc->bb_overrides.fclk_clock_change_latency_ns / 1000;
+	}
+
+	if ((int)(dcn3_21_soc.dummy_pstate_latency_us * 1000)
+			!= dc->bb_overrides.dummy_clock_change_latency_ns
+			&& dc->bb_overrides.dummy_clock_change_latency_ns) {
+		dcn3_21_soc.dummy_pstate_latency_us =
+			dc->bb_overrides.dummy_clock_change_latency_ns / 1000.0;
+	}
+
+	/* Override from VBIOS if VBIOS bb_info available */
+	if (dc->ctx->dc_bios->funcs->get_soc_bb_info) {
+		struct bp_soc_bb_info bb_info = {0};
+
+		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
+			if (bb_info.dram_clock_change_latency_100ns > 0)
+				dcn3_21_soc.dram_clock_change_latency_us =
+					bb_info.dram_clock_change_latency_100ns * 10;
+
+			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+				dcn3_21_soc.sr_enter_plus_exit_time_us =
+					bb_info.dram_sr_enter_exit_latency_100ns * 10;
+
+			if (bb_info.dram_sr_exit_latency_100ns > 0)
+				dcn3_21_soc.sr_exit_time_us =
+					bb_info.dram_sr_exit_latency_100ns * 10;
+		}
+	}
+
+	/* Override from VBIOS for num_chan */
+	if (dc->ctx->dc_bios->vram_info.num_chans) {
+		dcn3_21_soc.num_chans = dc->ctx->dc_bios->vram_info.num_chans;
+		dcn3_21_soc.mall_allocated_for_dcn_mbytes = (double)(dcn32_calc_num_avail_chans_for_mall(dc,
+			dc->ctx->dc_bios->vram_info.num_chans) * dc->caps.mall_size_per_mem_channel);
+	}
+
+	if (dc->ctx->dc_bios->vram_info.dram_channel_width_bytes)
+		dcn3_21_soc.dram_channel_width_bytes = dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
 
 	/* DML DSC delay factor workaround */
 	dcn3_21_ip.dsc_delay_factor_wa = dc->debug.dsc_delay_factor_wa_x1000 / 1000.0;
@@ -555,7 +553,6 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 
 	/* Overrides Clock levelsfrom CLK Mgr table entries as reported by PM FW */
-	if ((!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) && (bw_params->clk_table.entries[0].memclk_mhz)) {
 		if (dc->debug.use_legacy_soc_bb_mechanism) {
 			unsigned int i = 0, j = 0, num_states = 0;
 
@@ -699,6 +696,5 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 		dml_init_instance(&dc->dml, &dcn3_21_soc, &dcn3_21_ip, DML_PROJECT_DCN32);
 		if (dc->current_state)
 			dml_init_instance(&dc->current_state->bw_ctx.dml, &dcn3_21_soc, &dcn3_21_ip, DML_PROJECT_DCN32);
-	}
 }
 

@@ -111,12 +111,10 @@ int dce112_set_clock(struct clk_mgr *clk_mgr_base, int requested_clk_khz)
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
-			if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
-				dmcu->funcs->set_psr_wait_loop(dmcu,
-						actual_clock / 1000 / 7);
-		}
+	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+		if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
+			dmcu->funcs->set_psr_wait_loop(dmcu,
+					actual_clock / 1000 / 7);
 	}
 
 	clk_mgr_dce->dfs_bypass_disp_clk = actual_clock;
@@ -153,12 +151,10 @@ int dce112_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_clk_khz)
 		clk_mgr->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
-			if (clk_mgr->dfs_bypass_disp_clk != actual_clock)
-				dmcu->funcs->set_psr_wait_loop(dmcu,
-						actual_clock / 1000 / 7);
-		}
+	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+		if (clk_mgr->dfs_bypass_disp_clk != actual_clock)
+			dmcu->funcs->set_psr_wait_loop(dmcu,
+					actual_clock / 1000 / 7);
 	}
 
 	clk_mgr->dfs_bypass_disp_clk = actual_clock;

@@ -69,13 +69,6 @@ enum dce_environment {
 	DCE_ENV_VIRTUAL_HW
 };
 
-/* Note: use these macro definitions instead of direct comparison! */
-#define IS_FPGA_MAXIMUS_DC(dce_environment) \
-	(dce_environment == DCE_ENV_FPGA_MAXIMUS)
-
-#define IS_DIAG_DC(dce_environment) \
-	(IS_FPGA_MAXIMUS_DC(dce_environment) || (dce_environment == DCE_ENV_DIAG))
-
 struct dc_perf_trace {
 	unsigned long read_count;
 	unsigned long write_count;

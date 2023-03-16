@@ -326,8 +326,7 @@ bool dp_is_fec_supported(const struct dc_link *link)
 
 	return (dc_is_dp_signal(link->connector_signal) && link_enc &&
 			link_enc->features.fec_supported &&
-			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
-			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE);
 }
 
 bool dp_should_enable_fec(const struct dc_link *link)

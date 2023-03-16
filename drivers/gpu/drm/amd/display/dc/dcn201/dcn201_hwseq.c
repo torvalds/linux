@@ -231,52 +231,39 @@ void dcn201_init_hw(struct dc *dc)
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		REG_WRITE(RBBMIF_TIMEOUT_DIS, 0xFFFFFFFF);
-		REG_WRITE(RBBMIF_TIMEOUT_DIS_2, 0xFFFFFFFF);
+	hws->funcs.bios_golden_init(dc);
 
-		hws->funcs.dccg_init(hws);
+	if (dc->ctx->dc_bios->fw_info_valid) {
+		res_pool->ref_clocks.xtalin_clock_inKhz =
+			dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, 2);
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-		REG_WRITE(REFCLK_CNTL, 0);
-	} else {
-		hws->funcs.bios_golden_init(dc);
+		if (res_pool->dccg && res_pool->hubbub) {
+			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
+					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
+					&res_pool->ref_clocks.dccg_ref_clock_inKhz);
 
-		if (dc->ctx->dc_bios->fw_info_valid) {
-			res_pool->ref_clocks.xtalin_clock_inKhz =
-				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
-
-			if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-				if (res_pool->dccg && res_pool->hubbub) {
-					(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
-							dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
-							&res_pool->ref_clocks.dccg_ref_clock_inKhz);
-
-					(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
-							res_pool->ref_clocks.dccg_ref_clock_inKhz,
-							&res_pool->ref_clocks.dchub_ref_clock_inKhz);
-				} else {
-					res_pool->ref_clocks.dccg_ref_clock_inKhz =
-							res_pool->ref_clocks.xtalin_clock_inKhz;
-					res_pool->ref_clocks.dchub_ref_clock_inKhz =
-							res_pool->ref_clocks.xtalin_clock_inKhz;
-				}
-			}
-		} else
-			ASSERT_CRITICAL(false);
-		for (i = 0; i < dc->link_count; i++) {
-			/* Power up AND update implementation according to the
-			 * required signal (which may be different from the
-			 * default signal on connector).
-			 */
-			struct dc_link *link = dc->links[i];
-
-			link->link_enc->funcs->hw_init(link->link_enc);
+			(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
+					res_pool->ref_clocks.dccg_ref_clock_inKhz,
+					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
+		} else {
+			res_pool->ref_clocks.dccg_ref_clock_inKhz =
+					res_pool->ref_clocks.xtalin_clock_inKhz;
+			res_pool->ref_clocks.dchub_ref_clock_inKhz =
+					res_pool->ref_clocks.xtalin_clock_inKhz;
 		}
-		if (hws->fb_offset.quad_part == 0)
-			read_mmhub_vm_setup(hws);
+	} else
+		ASSERT_CRITICAL(false);
+	for (i = 0; i < dc->link_count; i++) {
+		/* Power up AND update implementation according to the
+		 * required signal (which may be different from the
+		 * default signal on connector).
+		 */
+		struct dc_link *link = dc->links[i];
+
+		link->link_enc->funcs->hw_init(link->link_enc);
 	}
+	if (hws->fb_offset.quad_part == 0)
+		read_mmhub_vm_setup(hws);
 
 	/* Blank pixel data with OPP DPG */
 	for (i = 0; i < res_pool->timing_generator_count; i++) {
@@ -361,10 +348,6 @@ void dcn201_init_hw(struct dc *dc)
 
 		tg->funcs->tg_init(tg);
 	}
-
-	/* end of FPGA. Below if real ASIC */
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		return;
 
 	for (i = 0; i < res_pool->audio_count; i++) {
 		struct audio *audio = res_pool->audios[i];

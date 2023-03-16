@@ -2488,15 +2488,9 @@ static bool dcn20_resource_construct(
 
 	dc->caps.dp_hdmi21_pcon_support = true;
 
-	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV) {
+	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	} else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS) {
-		pool->base.pipe_count = 4;
-		pool->base.mpcc_count = pool->base.pipe_count;
-		dc->debug = debug_defaults_diags;
-	} else {
-		dc->debug = debug_defaults_diags;
-	}
+
 	//dcn2.0x
 	dc->work_arounds.dedcn20_305_wa = true;
 
@@ -2734,9 +2728,8 @@ static bool dcn20_resource_construct(
 	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
-			&res_create_funcs : &res_create_maximus_funcs)))
-			goto create_fail;
+			&res_create_funcs))
+		goto create_fail;
 
 	dcn20_hw_sequencer_construct(dc);
 

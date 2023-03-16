@@ -1520,14 +1520,6 @@ static void dml_rq_dlg_get_dlg_params(
 	dml_print("DML_DLG: %s: disp_dlg_regs->dst_y_per_vm_flip    = 0x%x\n", __func__, disp_dlg_regs->dst_y_per_vm_flip);
 	dml_print("DML_DLG: %s: disp_dlg_regs->dst_y_per_row_flip   = 0x%x\n", __func__, disp_dlg_regs->dst_y_per_row_flip);
 
-	// hack for FPGA
-	if (mode_lib->project == DML_PROJECT_DCN31_FPGA) {
-		if (disp_dlg_regs->vratio_prefetch >= (unsigned int) dml_pow(2, 22)) {
-			disp_dlg_regs->vratio_prefetch = (unsigned int) dml_pow(2, 22) - 1;
-			dml_print("vratio_prefetch exceed the max value, the register field is [21:0]\n");
-		}
-	}
-
 	disp_dlg_regs->refcyc_per_pte_group_vblank_l = (unsigned int) (dst_y_per_row_vblank * (double) htotal * ref_freq_to_pix_freq / (double) dpte_groups_per_row_ub_l);
 	ASSERT(disp_dlg_regs->refcyc_per_pte_group_vblank_l < (unsigned int)dml_pow(2, 13));
 

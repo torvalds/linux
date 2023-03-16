@@ -161,8 +161,4 @@ void dcn32_hw_sequencer_init_functions(struct dc *dc)
 	dc->hwss = dcn32_funcs;
 	dc->hwseq->funcs = dcn32_private_funcs;
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->hwss.init_hw = dcn20_fpga_init_hw;
-		dc->hwseq->funcs.init_pipes = NULL;
-	}
 }

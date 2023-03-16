@@ -160,8 +160,4 @@ void dcn314_hw_sequencer_construct(struct dc *dc)
 	dc->hwss = dcn314_funcs;
 	dc->hwseq->funcs = dcn314_private_funcs;
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->hwss.init_hw = dcn20_fpga_init_hw;
-		dc->hwseq->funcs.init_pipes = NULL;
-	}
 }
