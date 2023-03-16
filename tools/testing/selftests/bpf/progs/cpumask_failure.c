@@ -95,35 +95,73 @@ int BPF_PROG(test_insert_remove_no_release, struct task_struct *task, u64 clone_
 }
 
 SEC("tp_btf/task_newtask")
-__failure __msg("Unreleased reference")
-int BPF_PROG(test_kptr_get_no_release, struct task_struct *task, u64 clone_flags)
-{
-	struct bpf_cpumask *cpumask;
-	struct __cpumask_map_value *v;
-
-	cpumask = create_cpumask();
-	if (!cpumask)
-		return 0;
-
-	if (cpumask_map_insert(cpumask))
-		return 0;
-
-	v = cpumask_map_value_lookup();
-	if (!v)
-		return 0;
-
-	cpumask = bpf_cpumask_kptr_get(&v->cpumask);
-
-	/* cpumask is never released. */
-	return 0;
-}
-
-SEC("tp_btf/task_newtask")
 __failure __msg("NULL pointer passed to trusted arg0")
 int BPF_PROG(test_cpumask_null, struct task_struct *task, u64 clone_flags)
 {
   /* NULL passed to KF_TRUSTED_ARGS kfunc. */
 	bpf_cpumask_empty(NULL);
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("R2 must be a rcu pointer")
+int BPF_PROG(test_global_mask_out_of_rcu, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local, *prev;
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask, local);
+	if (prev) {
+		bpf_cpumask_release(prev);
+		err = 3;
+		return 0;
+	}
+
+	bpf_rcu_read_lock();
+	local = global_mask;
+	if (!local) {
+		err = 4;
+		bpf_rcu_read_unlock();
+		return 0;
+	}
+
+	bpf_rcu_read_unlock();
+
+	/* RCU region is exited before calling KF_RCU kfunc. */
+
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("NULL pointer passed to trusted arg1")
+int BPF_PROG(test_global_mask_no_null_check, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local, *prev;
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask, local);
+	if (prev) {
+		bpf_cpumask_release(prev);
+		err = 3;
+		return 0;
+	}
+
+	bpf_rcu_read_lock();
+	local = global_mask;
+
+	/* No NULL check is performed on global cpumask kptr. */
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
+
+	bpf_rcu_read_unlock();
 
 	return 0;
 }
