@@ -1105,6 +1105,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		if (!timeout) {
 			SLIM_WARN(ctrl, "TX usr_msg timed out:MC:0x%x,mt:0x%x",
 				txn->mc, txn->mt);
+			ctrl->capability_timeout = true;
+			txn->comp = NULL;
 			mutex_unlock(&ctrl->tx_lock);
 			return -ETIMEDOUT;
 		}

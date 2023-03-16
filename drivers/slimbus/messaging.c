@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2011-2017, The Linux Foundation
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -173,6 +173,7 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 						      msecs_to_jiffies(ms));
 		if (!timeout) {
 			ret = -ETIMEDOUT;
+			txn->comp = NULL;
 			slim_free_txn_tid(ctrl, txn);
 		}
 	}
