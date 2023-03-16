@@ -442,19 +442,27 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 	bch2_trans_init(&trans, c, 4, 1024);
 
 	ret = commit_do(&trans, NULL, NULL,
-			      BTREE_INSERT_NOFAIL,
-			bch2_unlink_trans(&trans,
-					  inode_inum(dir), &dir_u,
-					  &inode_u, &dentry->d_name,
-					  deleting_snapshot));
+			BTREE_INSERT_NOFAIL,
+		bch2_unlink_trans(&trans,
+				  inode_inum(dir), &dir_u,
+				  &inode_u, &dentry->d_name,
+				  deleting_snapshot));
+	if (unlikely(ret))
+		goto err;
 
-	if (likely(!ret)) {
-		bch2_inode_update_after_write(&trans, dir, &dir_u,
-					      ATTR_MTIME|ATTR_CTIME);
-		bch2_inode_update_after_write(&trans, inode, &inode_u,
-					      ATTR_MTIME);
+	bch2_inode_update_after_write(&trans, dir, &dir_u,
+				      ATTR_MTIME|ATTR_CTIME);
+	bch2_inode_update_after_write(&trans, inode, &inode_u,
+				      ATTR_MTIME);
+
+	if (inode_u.bi_subvol) {
+		/*
+		 * Subvolume deletion is asynchronous, but we still want to tell
+		 * the VFS that it's been deleted here:
+		 */
+		set_nlink(&inode->v, 0);
 	}
-
+err:
 	bch2_trans_exit(&trans);
 	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
 
