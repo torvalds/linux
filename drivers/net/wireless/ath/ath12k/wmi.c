@@ -2438,6 +2438,9 @@ int ath12k_wmi_send_scan_chan_list_cmd(struct ath12k *ar,
 			if (channel_arg->psc_channel)
 				chan_info->info |= cpu_to_le32(WMI_CHAN_INFO_PSC);
 
+			if (channel_arg->dfs_set)
+				chan_info->info |= cpu_to_le32(WMI_CHAN_INFO_DFS);
+
 			chan_info->info |= le32_encode_bits(channel_arg->phy_mode,
 							    WMI_CHAN_INFO_MODE);
 			*reg1 |= le32_encode_bits(channel_arg->minpower,
