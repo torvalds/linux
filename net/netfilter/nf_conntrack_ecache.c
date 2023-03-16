@@ -309,7 +309,7 @@ bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp
 			break;
 		return true;
 	case 2: /* autodetect: no event listener, don't allocate extension. */
-		if (!READ_ONCE(nf_ctnetlink_has_listener))
+		if (!READ_ONCE(net->ct.ctnetlink_has_listener))
 			return true;
 		fallthrough;
 	case 1:
