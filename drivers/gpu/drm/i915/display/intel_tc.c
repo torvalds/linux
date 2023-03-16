@@ -683,11 +683,14 @@ static void intel_tc_port_update_mode(struct intel_digital_port *dig_port,
 	tc_cold_unblock(dig_port, domain, wref);
 }
 
-static void
-intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
-				 int refcount)
+static void __intel_tc_port_get_link(struct intel_digital_port *dig_port)
 {
-	dig_port->tc_link_refcount = refcount;
+	dig_port->tc_link_refcount++;
+}
+
+static void __intel_tc_port_put_link(struct intel_digital_port *dig_port)
+{
+	dig_port->tc_link_refcount--;
 }
 
 /**
@@ -713,7 +716,7 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 
 	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
 	/* Prevent changing dig_port->tc_mode until intel_tc_port_sanitize_mode() is called. */
-	intel_tc_port_link_init_refcount(dig_port, 1);
+	__intel_tc_port_get_link(dig_port);
 	dig_port->tc_lock_wakeref = tc_cold_block(dig_port, &dig_port->tc_lock_power_domain);
 
 	tc_cold_unblock(dig_port, domain, tc_cold_wref);
@@ -749,8 +752,6 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
 		active_links = to_intel_crtc(encoder->base.crtc)->active;
 
 	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount != 1);
-	intel_tc_port_link_init_refcount(dig_port, active_links);
-
 	if (active_links) {
 		if (!icl_tc_phy_is_connected(dig_port))
 			drm_dbg_kms(&i915->drm,
@@ -769,6 +770,7 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
 				    dig_port->tc_port_name,
 				    tc_port_mode_name(dig_port->tc_mode));
 		icl_tc_phy_disconnect(dig_port);
+		__intel_tc_port_put_link(dig_port);
 
 		tc_cold_unblock(dig_port, dig_port->tc_lock_power_domain,
 				fetch_and_zero(&dig_port->tc_lock_wakeref));
@@ -880,14 +882,14 @@ void intel_tc_port_get_link(struct intel_digital_port *dig_port,
 			    int required_lanes)
 {
 	__intel_tc_port_lock(dig_port, required_lanes);
-	dig_port->tc_link_refcount++;
+	__intel_tc_port_get_link(dig_port);
 	intel_tc_port_unlock(dig_port);
 }
 
 void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 {
 	intel_tc_port_lock(dig_port);
-	--dig_port->tc_link_refcount;
+	__intel_tc_port_put_link(dig_port);
 	intel_tc_port_unlock(dig_port);
 
 	/*
