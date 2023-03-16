@@ -592,10 +592,27 @@ static void tc_phy_wait_for_ready(struct intel_digital_port *dig_port)
 }
 
 static enum tc_port_mode
+hpd_mask_to_tc_mode(u32 live_status_mask)
+{
+	if (live_status_mask)
+		return fls(live_status_mask) - 1;
+
+	return TC_PORT_DISCONNECTED;
+}
+
+static enum tc_port_mode
+tc_phy_hpd_live_mode(struct intel_digital_port *dig_port)
+{
+	u32 live_status_mask = tc_port_live_status_mask(dig_port);
+
+	return hpd_mask_to_tc_mode(live_status_mask);
+}
+
+static enum tc_port_mode
 intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	u32 live_status_mask = tc_port_live_status_mask(dig_port);
+	enum tc_port_mode live_mode = tc_phy_hpd_live_mode(dig_port);
 	enum tc_port_mode mode;
 
 	/*
@@ -611,14 +628,22 @@ intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 		return TC_PORT_TBT_ALT;
 
 	mode = dig_port->tc_legacy_port ? TC_PORT_LEGACY : TC_PORT_DP_ALT;
-	if (live_status_mask) {
-		enum tc_port_mode live_mode = fls(live_status_mask) - 1;
-
-		if (!drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT))
-			mode = live_mode;
-	}
+	if (live_mode != TC_PORT_DISCONNECTED &&
+	    !drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT))
+		mode = live_mode;
 
 	return mode;
+}
+
+static enum tc_port_mode
+hpd_mask_to_target_mode(u32 live_status_mask)
+{
+	enum tc_port_mode mode = hpd_mask_to_tc_mode(live_status_mask);
+
+	if (mode != TC_PORT_DISCONNECTED)
+		return mode;
+
+	return TC_PORT_TBT_ALT;
 }
 
 static enum tc_port_mode
@@ -626,10 +651,7 @@ intel_tc_port_get_target_mode(struct intel_digital_port *dig_port)
 {
 	u32 live_status_mask = tc_port_live_status_mask(dig_port);
 
-	if (live_status_mask)
-		return fls(live_status_mask) - 1;
-
-	return TC_PORT_TBT_ALT;
+	return hpd_mask_to_target_mode(live_status_mask);
 }
 
 static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
