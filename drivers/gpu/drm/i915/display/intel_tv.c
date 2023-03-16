@@ -35,8 +35,8 @@
 #include <drm/drm_edid.h>
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -44,6 +44,7 @@
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
 #include "intel_tv.h"
+#include "intel_tv_regs.h"
 
 enum tv_margin {
 	TV_MARGIN_LEFT, TV_MARGIN_TOP,
