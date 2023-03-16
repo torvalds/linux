@@ -123,7 +123,7 @@ def _suites_from_test_list(tests: List[str]) -> List[str]:
 		parts = t.split('.', maxsplit=2)
 		if len(parts) != 2:
 			raise ValueError(f'internal KUnit error, test name should be of the form "<suite>.<test>", got "{t}"')
-		suite, case = parts
+		suite, _ = parts
 		if not suites or suites[-1] != suite:
 			suites.append(suite)
 	return suites

@@ -18,7 +18,6 @@ import threading
 from typing import Iterator, List, Optional, Tuple
 
 import kunit_config
-from kunit_printer import stdout
 import qemu_config
 
 KCONFIG_PATH = '.config'
