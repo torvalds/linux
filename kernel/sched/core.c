@@ -261,36 +261,51 @@ void sched_core_dequeue(struct rq *rq, struct task_struct *p, int flags)
 		resched_curr(rq);
 }
 
-/*
- * Find left-most (aka, highest priority) task matching @cookie.
- */
-static struct task_struct *sched_core_find(struct rq *rq, unsigned long cookie)
+static int sched_task_is_throttled(struct task_struct *p, int cpu)
 {
-	struct rb_node *node;
+	if (p->sched_class->task_is_throttled)
+		return p->sched_class->task_is_throttled(p, cpu);
 
-	node = rb_find_first((void *)cookie, &rq->core_tree, rb_sched_core_cmp);
-	/*
-	 * The idle task always matches any cookie!
-	 */
-	if (!node)
-		return idle_sched_class.pick_task(rq);
-
-	return __node_2_sc(node);
+	return 0;
 }
 
 static struct task_struct *sched_core_next(struct task_struct *p, unsigned long cookie)
 {
 	struct rb_node *node = &p->core_node;
+	int cpu = task_cpu(p);
 
-	node = rb_next(node);
+	do {
+		node = rb_next(node);
+		if (!node)
+			return NULL;
+
+		p = __node_2_sc(node);
+		if (p->core_cookie != cookie)
+			return NULL;
+
+	} while (sched_task_is_throttled(p, cpu));
+
+	return p;
+}
+
+/*
+ * Find left-most (aka, highest priority) and unthrottled task matching @cookie.
+ * If no suitable task is found, NULL will be returned.
+ */
+static struct task_struct *sched_core_find(struct rq *rq, unsigned long cookie)
+{
+	struct task_struct *p;
+	struct rb_node *node;
+
+	node = rb_find_first((void *)cookie, &rq->core_tree, rb_sched_core_cmp);
 	if (!node)
 		return NULL;
 
-	p = container_of(node, struct task_struct, core_node);
-	if (p->core_cookie != cookie)
-		return NULL;
+	p = __node_2_sc(node);
+	if (!sched_task_is_throttled(p, rq->cpu))
+		return p;
 
-	return p;
+	return sched_core_next(p, cookie);
 }
 
 /*
@@ -6236,7 +6251,7 @@ static bool try_steal_cookie(int this, int that)
 		goto unlock;
 
 	p = sched_core_find(src, cookie);
-	if (p == src->idle)
+	if (!p)
 		goto unlock;
 
 	do {
@@ -6247,6 +6262,13 @@ static bool try_steal_cookie(int this, int that)
 			goto next;
 
 		if (p->core_occupation > dst->idle->core_occupation)
+			goto next;
+		/*
+		 * sched_core_find() and sched_core_next() will ensure that task @p
+		 * is not throttled now, we also need to check whether the runqueue
+		 * of the destination CPU is being throttled.
+		 */
+		if (sched_task_is_throttled(p, this))
 			goto next;
 
 		deactivate_task(src, p, 0);

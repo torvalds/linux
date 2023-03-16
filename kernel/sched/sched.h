@@ -2224,6 +2224,10 @@ struct sched_class {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	void (*task_change_group)(struct task_struct *p);
 #endif
+
+#ifdef CONFIG_SCHED_CORE
+	int (*task_is_throttled)(struct task_struct *p, int cpu);
+#endif
 };
 
 static inline void put_prev_task(struct rq *rq, struct task_struct *prev)
