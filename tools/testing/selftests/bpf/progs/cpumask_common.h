@@ -9,6 +9,9 @@
 
 int err;
 
+#define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
+private(MASK) static struct bpf_cpumask __kptr * global_mask;
+
 struct __cpumask_map_value {
 	struct bpf_cpumask __kptr * cpumask;
 };
@@ -50,6 +53,9 @@ bool bpf_cpumask_full(const struct cpumask *cpumask) __ksym;
 void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src) __ksym;
 u32 bpf_cpumask_any(const struct cpumask *src) __ksym;
 u32 bpf_cpumask_any_and(const struct cpumask *src1, const struct cpumask *src2) __ksym;
+
+void bpf_rcu_read_lock(void) __ksym;
+void bpf_rcu_read_unlock(void) __ksym;
 
 static inline const struct cpumask *cast(struct bpf_cpumask *cpumask)
 {

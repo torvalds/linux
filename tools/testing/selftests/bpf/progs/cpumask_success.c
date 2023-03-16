@@ -423,3 +423,36 @@ int BPF_PROG(test_insert_kptr_get_release, struct task_struct *task, u64 clone_f
 
 	return 0;
 }
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_global_mask_rcu, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local, *prev;
+
+	if (!is_test_task())
+		return 0;
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask, local);
+	if (prev) {
+		bpf_cpumask_release(prev);
+		err = 3;
+		return 0;
+	}
+
+	bpf_rcu_read_lock();
+	local = global_mask;
+	if (!local) {
+		err = 4;
+		bpf_rcu_read_unlock();
+		return 0;
+	}
+
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
+	bpf_rcu_read_unlock();
+
+	return 0;
+}

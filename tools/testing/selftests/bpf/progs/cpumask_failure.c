@@ -127,3 +127,65 @@ int BPF_PROG(test_cpumask_null, struct task_struct *task, u64 clone_flags)
 
 	return 0;
 }
+
+SEC("tp_btf/task_newtask")
+__failure __msg("R2 must be a rcu pointer")
+int BPF_PROG(test_global_mask_out_of_rcu, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local, *prev;
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask, local);
+	if (prev) {
+		bpf_cpumask_release(prev);
+		err = 3;
+		return 0;
+	}
+
+	bpf_rcu_read_lock();
+	local = global_mask;
+	if (!local) {
+		err = 4;
+		bpf_rcu_read_unlock();
+		return 0;
+	}
+
+	bpf_rcu_read_unlock();
+
+	/* RCU region is exited before calling KF_RCU kfunc. */
+
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("NULL pointer passed to trusted arg1")
+int BPF_PROG(test_global_mask_no_null_check, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local, *prev;
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask, local);
+	if (prev) {
+		bpf_cpumask_release(prev);
+		err = 3;
+		return 0;
+	}
+
+	bpf_rcu_read_lock();
+	local = global_mask;
+
+	/* No NULL check is performed on global cpumask kptr. */
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
+
+	bpf_rcu_read_unlock();
+
+	return 0;
+}
