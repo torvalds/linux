@@ -173,6 +173,25 @@ static int radeon_fbdev_fb_release(struct fb_info *info, int user)
 	return 0;
 }
 
+static void radeon_fbdev_fb_destroy(struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
+
+	if (fb) {
+		if (fb->obj[0]) {
+			radeon_fbdev_destroy_pinned_object(fb->obj[0]);
+			fb->obj[0] = NULL;
+			drm_framebuffer_unregister_private(fb);
+			drm_framebuffer_cleanup(fb);
+		}
+		kfree(fb);
+		fb_helper->fb = NULL;
+	}
+
+	drm_fb_helper_fini(fb_helper);
+}
+
 static const struct fb_ops radeon_fbdev_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
@@ -183,6 +202,7 @@ static const struct fb_ops radeon_fbdev_fb_ops = {
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
+	.fb_destroy = radeon_fbdev_fb_destroy,
 };
 
 /*
@@ -277,27 +297,6 @@ out:
 	return ret;
 }
 
-static int radeon_fbdev_destroy(struct drm_device *dev, struct drm_fb_helper *fb_helper)
-{
-	struct drm_framebuffer *fb = fb_helper->fb;
-
-	drm_fb_helper_unregister_info(fb_helper);
-
-	if (fb) {
-		if (fb->obj[0]) {
-			radeon_fbdev_destroy_pinned_object(fb->obj[0]);
-			fb->obj[0] = NULL;
-			drm_framebuffer_unregister_private(fb);
-			drm_framebuffer_cleanup(fb);
-		}
-		kfree(fb);
-		fb_helper->fb = NULL;
-	}
-	drm_fb_helper_fini(fb_helper);
-
-	return 0;
-}
-
 static const struct drm_fb_helper_funcs radeon_fbdev_fb_helper_funcs = {
 	.fb_probe = radeon_fbdev_fb_helper_fb_probe,
 };
@@ -351,7 +350,7 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 	if (!rdev->ddev->fb_helper)
 		return;
 
-	radeon_fbdev_destroy(rdev->ddev, rdev->ddev->fb_helper);
+	drm_fb_helper_unregister_info(rdev->ddev->fb_helper);
 	drm_fb_helper_unprepare(rdev->ddev->fb_helper);
 	kfree(rdev->ddev->fb_helper);
 	rdev->ddev->fb_helper = NULL;
