@@ -104,6 +104,16 @@ config GH_IRQ_LEND
 	  supports sharing these interrupts. The follows RM recommended
 	  protocol.
 
+config GH_RM_BOOSTER
+	tristate "Gunyah RM booster driver"
+	depends on GH_RM_DRV
+	help
+	 Optimize vm bootup time by boost the performance of Gunyah
+	 Resource Manager, this config enables the driver to change RM affinity
+	 and change cpu frequency. At the beginning of vm bootup, the driver will
+	 migrate RM to the more powerful core and boost the frequency of it, and
+	 resume the status at the end of bootup period.
+
 config GH_MEM_NOTIFIER
 	tristate "Gunyah Memory Resource Notification Framework"
 	depends on GH_RM_DRV

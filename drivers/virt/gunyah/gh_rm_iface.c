@@ -673,6 +673,7 @@ out:
 	kfree(resp_payload);
 	return resp_entries;
 }
+EXPORT_SYMBOL(gh_rm_vm_get_hyp_res);
 
 /**
  * gh_rm_vm_irq_notify: Notify an IRQ to another VM
