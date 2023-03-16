@@ -793,6 +793,69 @@ static void sof_ipc4_widget_free_comp_mixer(struct snd_sof_widget *swidget)
 	swidget->private = NULL;
 }
 
+/*
+ * Add the process modules support. The process modules are defined as snd_soc_dapm_effect modules.
+ */
+static int sof_ipc4_widget_setup_comp_process(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct sof_ipc4_process *process;
+	int cfg_size;
+	void *cfg;
+	int ret;
+
+	process = kzalloc(sizeof(*process), GFP_KERNEL);
+	if (!process)
+		return -ENOMEM;
+
+	swidget->private = process;
+
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &process->available_fmt,
+				     &process->base_config);
+	if (ret)
+		goto err;
+
+	cfg_size = sizeof(struct sof_ipc4_base_module_cfg);
+
+	cfg = kzalloc(cfg_size, GFP_KERNEL);
+	if (!cfg) {
+		ret = -ENOMEM;
+		goto free_available_fmt;
+	}
+
+	process->ipc_config_data = cfg;
+	process->ipc_config_size = cfg_size;
+	ret = sof_ipc4_widget_setup_msg(swidget, &process->msg);
+	if (ret)
+		goto free_cfg_data;
+
+	sof_ipc4_widget_update_kcontrol_module_id(swidget);
+
+	return 0;
+free_cfg_data:
+	kfree(process->ipc_config_data);
+	process->ipc_config_data = NULL;
+free_available_fmt:
+	sof_ipc4_free_audio_fmt(&process->available_fmt);
+err:
+	kfree(process);
+	swidget->private = NULL;
+	return ret;
+}
+
+static void sof_ipc4_widget_free_comp_process(struct snd_sof_widget *swidget)
+{
+	struct sof_ipc4_process *process = swidget->private;
+
+	if (!process)
+		return;
+
+	kfree(process->ipc_config_data);
+	sof_ipc4_free_audio_fmt(&process->available_fmt);
+	kfree(swidget->private);
+	swidget->private = NULL;
+}
+
 static void
 sof_ipc4_update_pipeline_mem_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 				   struct sof_ipc4_base_module_cfg *base_config)
@@ -1454,6 +1517,38 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	return 0;
 }
 
+static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
+					   struct snd_pcm_hw_params *fe_params,
+					   struct snd_sof_platform_stream_params *platform_params,
+					   struct snd_pcm_hw_params *pipeline_params, int dir)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct sof_ipc4_process *process = swidget->private;
+	struct sof_ipc4_available_audio_format *available_fmt = &process->available_fmt;
+	void *cfg = process->ipc_config_data;
+	int ret;
+
+	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &process->base_config,
+				      pipeline_params, available_fmt,
+				      available_fmt->input_pin_fmts,
+				      available_fmt->num_input_formats);
+	if (ret < 0)
+		return ret;
+
+	/* update pipeline memory usage */
+	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &process->base_config);
+
+	/*
+	 * ipc_config_data is composed of the base_config, optional output formats followed
+	 * by the data required for module init in that order.
+	 */
+	memcpy(cfg, &process->base_config, sizeof(struct sof_ipc4_base_module_cfg));
+	cfg += sizeof(struct sof_ipc4_base_module_cfg);
+
+	return 0;
+}
+
 static int sof_ipc4_control_load_volume(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
 {
 	struct sof_ipc4_control_data *control_data;
@@ -1650,6 +1745,22 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 		ipc_data = src;
 
 		msg = &src->msg;
+		break;
+	}
+	case snd_soc_dapm_effect:
+	{
+		struct sof_ipc4_process *process = swidget->private;
+
+		if (!process->ipc_config_size) {
+			dev_err(sdev->dev, "module %s has no config data!\n",
+				swidget->widget->name);
+			return -EINVAL;
+		}
+
+		ipc_size = process->ipc_config_size;
+		ipc_data = process->ipc_config_data;
+
+		msg = &process->msg;
 		break;
 	}
 	default:
@@ -2257,6 +2368,14 @@ static enum sof_tokens src_token_list[] = {
 	SOF_COMP_EXT_TOKENS,
 };
 
+static enum sof_tokens process_token_list[] = {
+	SOF_COMP_TOKENS,
+	SOF_AUDIO_FMT_NUM_TOKENS,
+	SOF_IN_AUDIO_FORMAT_TOKENS,
+	SOF_OUT_AUDIO_FORMAT_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+};
+
 static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TYPE_COUNT] = {
 	[snd_soc_dapm_aif_in] =  {sof_ipc4_widget_setup_pcm, sof_ipc4_widget_free_comp_pcm,
 				  common_copier_token_list, ARRAY_SIZE(common_copier_token_list),
@@ -2293,6 +2412,11 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 	[snd_soc_dapm_src] = {sof_ipc4_widget_setup_comp_src, sof_ipc4_widget_free_comp_src,
 				src_token_list, ARRAY_SIZE(src_token_list),
 				NULL, sof_ipc4_prepare_src_module,
+				NULL},
+	[snd_soc_dapm_effect] = {sof_ipc4_widget_setup_comp_process,
+				sof_ipc4_widget_free_comp_process,
+				process_token_list, ARRAY_SIZE(process_token_list),
+				NULL, sof_ipc4_prepare_process_module,
 				NULL},
 };
 

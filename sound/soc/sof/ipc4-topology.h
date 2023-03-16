@@ -347,4 +347,22 @@ struct sof_ipc4_src {
 	struct sof_ipc4_msg msg;
 };
 
+/**
+ * struct sof_ipc4_process - process config data
+ * @base_config: IPC base config data
+ * @output_format: Output audio format
+ * @available_fmt: Available audio format
+ * @ipc_config_data: Process module config data
+ * @ipc_config_size: Size of process module config data
+ * @msg: IPC4 message struct containing header and data info
+ */
+struct sof_ipc4_process {
+	struct sof_ipc4_base_module_cfg base_config;
+	struct sof_ipc4_audio_format output_format;
+	struct sof_ipc4_available_audio_format available_fmt;
+	void *ipc_config_data;
+	uint32_t ipc_config_size;
+	struct sof_ipc4_msg msg;
+};
+
 #endif
