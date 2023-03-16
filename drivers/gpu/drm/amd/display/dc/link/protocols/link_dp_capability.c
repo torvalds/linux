@@ -1450,7 +1450,8 @@ bool read_is_mst_supported(struct dc_link *link)
  */
 static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 {
-	uint8_t dpcd_data;
+	uint8_t dpcd_data = 0;
+	uint8_t edp_general_cap2 = 0;
 
 	if (!link)
 		return false;
@@ -1459,6 +1460,12 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 		return false;
 
 	link->dpcd_sink_ext_caps.raw = dpcd_data;
+
+	if (core_link_read_dpcd(link, DP_EDP_GENERAL_CAP_2, &edp_general_cap2, 1) != DC_OK)
+		return false;
+
+	link->dpcd_caps.panel_luminance_control = (edp_general_cap2 & DP_EDP_PANEL_LUMINANCE_CONTROL_CAPABLE) != 0;
+
 	return true;
 }
 
