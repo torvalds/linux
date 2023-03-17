@@ -92,7 +92,7 @@ static int read_channel(struct gab *adc_bat, enum gab_chan_type channel,
 
 	ret = iio_read_channel_processed(adc_bat->channel[channel], result);
 	if (ret < 0)
-		pr_err("read channel error\n");
+		dev_err(&adc_bat->psy->dev, "read channel error: %d\n", ret);
 	else
 		*result *= 1000;
 
