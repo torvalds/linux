@@ -651,7 +651,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 			break;
 
 		case TPIDR2_MAGIC:
-			if (!system_supports_sme())
+			if (!system_supports_tpidr2())
 				goto invalid;
 
 			if (user->tpidr2)
@@ -802,7 +802,7 @@ static int restore_sigframe(struct pt_regs *regs,
 			err = restore_fpsimd_context(&user);
 	}
 
-	if (err == 0 && system_supports_sme() && user.tpidr2)
+	if (err == 0 && system_supports_tpidr2() && user.tpidr2)
 		err = restore_tpidr2_context(&user);
 
 	if (err == 0 && system_supports_sme() && user.za)
@@ -974,7 +974,7 @@ static int setup_sigframe(struct rt_sigframe_user_layout *user,
 	}
 
 	/* TPIDR2 if supported */
-	if (system_supports_sme() && err == 0) {
+	if (system_supports_tpidr2() && err == 0) {
 		struct tpidr2_context __user *tpidr2_ctx =
 			apply_user_offset(user, user->tpidr2_offset);
 		err |= preserve_tpidr2_context(tpidr2_ctx);
