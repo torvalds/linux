@@ -1671,7 +1671,12 @@ early_param("fw_devlink.strict", fw_devlink_strict_setup);
 #define FW_DEVLINK_SYNC_STATE_STRICT	0
 #define FW_DEVLINK_SYNC_STATE_TIMEOUT	1
 
+#ifndef CONFIG_FW_DEVLINK_SYNC_STATE_TIMEOUT
 static int fw_devlink_sync_state;
+#else
+static int fw_devlink_sync_state = FW_DEVLINK_SYNC_STATE_TIMEOUT;
+#endif
+
 static int __init fw_devlink_sync_state_setup(char *arg)
 {
 	if (!arg)
