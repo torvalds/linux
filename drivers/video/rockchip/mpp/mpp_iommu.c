@@ -589,6 +589,9 @@ int mpp_iommu_dev_activate(struct mpp_iommu_info *info, struct mpp_dev *dev)
 	unsigned long flags;
 	int ret = 0;
 
+	if (!info)
+		return 0;
+
 	spin_lock_irqsave(&info->dev_lock, flags);
 
 	if (info->dev_active || !dev) {
@@ -613,6 +616,9 @@ int mpp_iommu_dev_activate(struct mpp_iommu_info *info, struct mpp_dev *dev)
 int mpp_iommu_dev_deactivate(struct mpp_iommu_info *info, struct mpp_dev *dev)
 {
 	unsigned long flags;
+
+	if (!info)
+		return 0;
 
 	spin_lock_irqsave(&info->dev_lock, flags);
 
