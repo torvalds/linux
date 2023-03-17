@@ -15,6 +15,8 @@
 #define OCELOT_PORT_MODE_USXGMII	BIT(4)
 #define OCELOT_PORT_MODE_1000BASEX	BIT(5)
 
+struct device_node;
+
 /* Platform-specific information */
 struct felix_info {
 	/* Hardcoded resources provided by the hardware instantiation. */
@@ -61,6 +63,8 @@ struct felix_info {
 	void	(*phylink_mac_config)(struct ocelot *ocelot, int port,
 				      unsigned int mode,
 				      const struct phylink_link_state *state);
+	int	(*configure_serdes)(struct ocelot *ocelot, int port,
+				    struct device_node *portnp);
 };
 
 /* Methods for initializing the hardware resources specific to a tagging

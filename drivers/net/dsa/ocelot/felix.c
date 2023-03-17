@@ -1585,6 +1585,10 @@ static int felix_setup(struct dsa_switch *ds)
 	dsa_switch_for_each_available_port(dp, ds) {
 		ocelot_init_port(ocelot, dp->index);
 
+		if (felix->info->configure_serdes)
+			felix->info->configure_serdes(ocelot, dp->index,
+						      dp->dn);
+
 		/* Set the default QoS Classification based on PCP and DEI
 		 * bits of vlan tag.
 		 */
