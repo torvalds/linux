@@ -832,7 +832,7 @@ static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
 		verify_link_capability_non_destructive(link);
 }
 
-/**
+/*
  * detect_link_and_local_sink() - Detect if a sink is attached to a given link
  *
  * link->local_sink is created or destroyed as needed.
@@ -1185,7 +1185,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	return true;
 }
 
-/**
+/*
  * link_detect_connection_type() - Determine if there is a sink connected
  *
  * @type: Returned connection type
