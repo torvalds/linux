@@ -1104,6 +1104,11 @@ int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
 			    &ctx_data->meta_data_obj,
 			    &ctx_data->meta_data_mc_addr,
 			    &ctx_data->meta_data_ptr);
+	if (r) {
+		dev_warn(adev->dev, "(%d) create CTX bo failed\n", r);
+		return r;
+	}
+
 	if (!ctx_data->meta_data_obj)
 		return -ENOMEM;
 
