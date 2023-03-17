@@ -75,10 +75,10 @@ static bool riscv_isa_extension_check(int id)
 	switch (id) {
 	case RISCV_ISA_EXT_ZICBOM:
 		if (!riscv_cbom_block_size) {
-			pr_err("Zicbom detected in ISA string, but no cbom-block-size found\n");
+			pr_err("Zicbom detected in ISA string, disabling as no cbom-block-size found\n");
 			return false;
 		} else if (!is_power_of_2(riscv_cbom_block_size)) {
-			pr_err("cbom-block-size present, but is not a power-of-2\n");
+			pr_err("Zicbom disabled as cbom-block-size present, but is not a power-of-2\n");
 			return false;
 		}
 		return true;
