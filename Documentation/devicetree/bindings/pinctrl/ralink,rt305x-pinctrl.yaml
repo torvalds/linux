@@ -10,7 +10,7 @@ maintainers:
   - Arınç ÜNAL <arinc.unal@arinc9.com>
   - Sergio Paracuellos <sergio.paracuellos@gmail.com>
 
-description:
+description: |
   Ralink RT305X pin controller for RT3050, RT3052, RT3350, RT3352 and RT5350
   SoCs.
   The pin controller can only set the muxing of pin groups. Muxing individual

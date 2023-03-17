@@ -10,7 +10,7 @@ maintainers:
   - Zhiyong Tao <zhiyong.tao@mediatek.com>
   - Bernhard Rosenkränzer <bero@baylibre.com>
 
-description: |
+description:
   The MediaTek's MT8365 Pin controller is used to control SoC pins.
 
 properties:
@@ -26,17 +26,17 @@ properties:
       maxItems: 1
     minItems: 1
     maxItems: 2
-    description: |
+    description:
       Should be phandles of the syscfg node.
 
   gpio-controller: true
 
   "#gpio-cells":
     const: 2
-    description: |
-      Number of cells in GPIO specifier. Since the generic GPIO
-      binding is used, the amount of cells must be specified as 2. See the below
-      mentioned gpio binding representation for description of particular cells.
+    description:
+      Number of cells in GPIO specifier. Since the generic GPIO binding is used,
+      the amount of cells must be specified as 2. See the below mentioned gpio
+      binding representation for description of particular cells.
 
   interrupt-controller: true
 
@@ -54,7 +54,7 @@ patternProperties:
       "pins$":
         type: object
         additionalProperties: false
-        description: |
+        description:
           A pinctrl node should contain at least one subnode representing the
           pinctrl groups available on the machine. Each subnode will list the
           pins it needs, and how they should be configured, with regard to muxer
@@ -65,14 +65,14 @@ patternProperties:
         properties:
           pinmux:
             description:
-              integer array, represents gpio pin number and mux setting.
+              Integer array, represents gpio pin number and mux setting.
               Supported pin number and mux varies for different SoCs, and are
               defined as macros in <soc>-pinfunc.h directly.
 
           bias-disable: true
 
           bias-pull-up:
-            description: |
+            description:
               Besides generic pinconfig options, it can be used as the pull up
               settings for 2 pull resistors, R0 and R1. User can configure those
               special pins.
@@ -120,7 +120,8 @@ patternProperties:
           mediatek,pull-up-adv:
             description: |
               Pull up setings for 2 pull resistors, R0 and R1. User can
-              configure those special pins. Valid arguments are described as below:
+              configure those special pins. Valid arguments are described as
+              below:
               0: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
               1: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.
               2: (R1, R0) = (1, 0) which means R1 enabled and R0 disabled.
@@ -131,7 +132,8 @@ patternProperties:
           mediatek,pull-down-adv:
             description: |
               Pull down settings for 2 pull resistors, R0 and R1. User can
-              configure those special pins. Valid arguments are described as below:
+              configure those special pins. Valid arguments are described as
+              below:
               0: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
               1: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.
               2: (R1, R0) = (1, 0) which means R1 enabled and R0 disabled.
@@ -140,14 +142,14 @@ patternProperties:
             enum: [0, 1, 2, 3]
 
           mediatek,tdsel:
-            description: |
+            description:
               An integer describing the steps for output level shifter duty
               cycle when asserted (high pulse width adjustment). Valid arguments
               are from 0 to 15.
             $ref: /schemas/types.yaml#/definitions/uint32
 
           mediatek,rdsel:
-            description: |
+            description:
               An integer describing the steps for input level shifter duty cycle
               when asserted (high pulse width adjustment). Valid arguments are
               from 0 to 63.

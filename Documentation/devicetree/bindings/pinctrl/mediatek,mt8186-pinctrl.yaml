@@ -9,7 +9,7 @@ title: MediaTek MT8186 Pin Controller
 maintainers:
   - Sean Wang <sean.wang@mediatek.com>
 
-description: |
+description:
   The MediaTek's MT8186 Pin controller is used to control SoC pins.
 
 properties:
@@ -19,10 +19,10 @@ properties:
   gpio-controller: true
 
   '#gpio-cells':
-    description: |
+    description:
       Number of cells in GPIO specifier. Since the generic GPIO binding is used,
-      the amount of cells must be specified as 2. See the below
-      mentioned gpio binding representation for description of particular cells.
+      the amount of cells must be specified as 2. See the below mentioned gpio
+      binding representation for description of particular cells.
     const: 2
 
   gpio-ranges:
@@ -31,14 +31,14 @@ properties:
   gpio-line-names: true
 
   reg:
-    description: |
-      Physical address base for gpio base registers. There are 8 different GPIO
+    description:
+      Physical address base for GPIO base registers. There are 8 different GPIO
       physical address base in mt8186.
     maxItems: 8
 
   reg-names:
-    description: |
-      Gpio base register names.
+    description:
+      GPIO base register names.
     items:
       - const: iocfg0
       - const: iocfg_lt
@@ -60,9 +60,9 @@ properties:
 
   mediatek,rsel-resistance-in-si-unit:
     type: boolean
-    description: |
-      Identifying i2c pins pull up/down type which is RSEL. It can support
-      RSEL define or si unit value(ohm) to set different resistance.
+    description:
+      Identifying i2c pins pull up/down type which is RSEL. It can support RSEL
+      define or si unit value(ohm) to set different resistance.
 
 # PIN CONFIGURATION NODES
 patternProperties:
@@ -77,8 +77,8 @@ patternProperties:
           A pinctrl node should contain at least one subnodes representing the
           pinctrl groups available on the machine. Each subnode will list the
           pins it needs, and how they should be configured, with regard to muxer
-          configuration, pullups, drive strength, input enable/disable and
-          input schmitt.
+          configuration, pullups, drive strength, input enable/disable and input
+          schmitt.
           An example of using macro:
           pincontroller {
             /* GPIO0 set as multifunction GPIO0 */
@@ -98,11 +98,10 @@ patternProperties:
 
         properties:
           pinmux:
-            description: |
+            description:
               Integer array, represents gpio pin number and mux setting.
               Supported pin number and mux varies for different SoCs, and are
-              defined as macros in dt-bindings/pinctrl/<soc>-pinfunc.h
-              directly.
+              defined as macros in dt-bindings/pinctrl/<soc>-pinfunc.h directly.
 
           drive-strength:
             enum: [2, 4, 6, 8, 10, 12, 14, 16]
@@ -129,10 +128,10 @@ patternProperties:
               For pull down type is RSEL, it can add RSEL define & resistance
               value(ohm) to set different resistance by identifying property
               "mediatek,rsel-resistance-in-si-unit".
-              It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
-              & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011"
-              define in mt8186. It can also support resistance value(ohm)
-              "75000" & "5000" in mt8186.
+              It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001" &
+              "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011" define in
+              mt8186. It can also support resistance value(ohm) "75000" & "5000"
+              in mt8186.
               An example of using RSEL define:
               pincontroller {
                 i2c0_pin {
@@ -174,10 +173,10 @@ patternProperties:
               For pull up type is RSEL, it can add RSEL define & resistance
               value(ohm) to set different resistance by identifying property
               "mediatek,rsel-resistance-in-si-unit".
-              It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
-              & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011"
-              define in mt8186. It can also support resistance value(ohm)
-              "1000" & "5000" & "10000" & "75000" in mt8186.
+              It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001" &
+              "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011" define in
+              mt8186. It can also support resistance value(ohm) "1000" & "5000"
+              & "10000" & "75000" in mt8186.
               An example of using si unit resistance value(ohm):
               &pio {
                 mediatek,rsel-resistance-in-si-unit;
