@@ -45,14 +45,14 @@
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 #include <linux/rockchip/rockchip_sip.h>
 #endif
-
-#define UART_USR	0x1f	/* In: UART Status Register */
+#define UART_USR			0x1f /* In: UART Status Register */
 #define UART_USR_RX_FIFO_FULL		0x10 /* Receive FIFO full */
 #define UART_USR_RX_FIFO_NOT_EMPTY	0x08 /* Receive FIFO not empty */
 #define UART_USR_TX_FIFO_EMPTY		0x04 /* Transmit FIFO empty */
 #define UART_USR_TX_FIFO_NOT_FULL	0x02 /* Transmit FIFO not full */
 #define UART_USR_BUSY			0x01 /* UART busy indicator */
 #define UART_SRR			0x22 /* software reset register */
+#define RK_UART_RFL			0x21 /* UART Receive Fifo Level Register */
 
 struct rk_fiq_debugger {
 	int irq;
@@ -150,7 +150,7 @@ static int debug_port_init(struct platform_device *pdev)
 
 static int debug_getc(struct platform_device *pdev)
 {
-	unsigned int lsr;
+	unsigned int lsr, usr, rfl, iir;
 	struct rk_fiq_debugger *t;
 	unsigned int temp;
 	static unsigned int n;
@@ -160,8 +160,22 @@ static int debug_getc(struct platform_device *pdev)
 	/*
 	 * Clear uart interrupt status
 	 */
-	rk_fiq_read(t, UART_USR);
+	iir = rk_fiq_read(t, UART_IIR);
+	usr = rk_fiq_read(t, UART_USR);
 	lsr = rk_fiq_read_lsr(t);
+
+	/*
+	 * There are ways to get Designware-based UARTs into a state where
+	 * they are asserting UART_IIR_RX_TIMEOUT but there is no actual
+	 * data available.  If we see such a case then we'll do a bogus
+	 * read.  If we don't do this then the "RX TIMEOUT" interrupt will
+	 * fire forever.
+	 */
+	if ((iir & 0x3f) == UART_IIR_RX_TIMEOUT) {
+		rfl = rk_fiq_read(t, RK_UART_RFL);
+		if (!(lsr & (UART_LSR_DR | UART_LSR_BI)) && !(usr & 0x1) && (rfl == 0))
+			rk_fiq_read(t, UART_RX);
+	}
 
 	if (lsr & UART_LSR_DR) {
 		temp = rk_fiq_read(t, UART_RX);
