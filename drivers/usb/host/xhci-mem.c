@@ -607,8 +607,7 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	int ret;
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	xhci_dbg(xhci, "Allocating %u streams and %u "
-			"stream context array entries.\n",
+	xhci_dbg(xhci, "Allocating %u streams and %u stream context array entries.\n",
 			num_streams, num_stream_ctxs);
 	if (xhci->cmd_ring_reserved_trbs == MAX_RSVD_CMD_TRBS) {
 		xhci_dbg(xhci, "Command ring has no reserved TRBs available\n");
@@ -1950,8 +1949,7 @@ static void xhci_set_hc_event_deq(struct xhci_hcd *xhci, struct xhci_interrupter
 	deq = xhci_trb_virt_to_dma(ir->event_ring->deq_seg,
 			ir->event_ring->dequeue);
 	if (!deq)
-		xhci_warn(xhci, "WARN something wrong with SW event ring "
-				"dequeue ptr.\n");
+		xhci_warn(xhci, "WARN something wrong with SW event ring dequeue ptr.\n");
 	/* Update HC event ring dequeue pointer */
 	temp = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
 	temp &= ERST_PTR_MASK;
@@ -1960,8 +1958,7 @@ static void xhci_set_hc_event_deq(struct xhci_hcd *xhci, struct xhci_interrupter
 	 */
 	temp &= ~ERST_EHB;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"// Write event ring dequeue pointer, "
-			"preserving EHB bit");
+		       "// Write event ring dequeue pointer, preserving EHB bit");
 	xhci_write_64(xhci, ((u64) deq & (u64) ~ERST_PTR_MASK) | temp,
 			&ir->ir_set->erst_dequeue);
 }
@@ -1994,8 +1991,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	} else if (major_revision <= 0x02) {
 		rhub = &xhci->usb2_rhub;
 	} else {
-		xhci_warn(xhci, "Ignoring unknown port speed, "
-				"Ext Cap %p, revision = 0x%x\n",
+		xhci_warn(xhci, "Ignoring unknown port speed, Ext Cap %p, revision = 0x%x\n",
 				addr, major_revision);
 		/* Ignoring port protocol we can't understand. FIXME */
 		return;
@@ -2010,9 +2006,8 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	port_offset = XHCI_EXT_PORT_OFF(temp);
 	port_count = XHCI_EXT_PORT_COUNT(temp);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"Ext Cap %p, port offset = %u, "
-			"count = %u, revision = 0x%x",
-			addr, port_offset, port_count, major_revision);
+		       "Ext Cap %p, port offset = %u, count = %u, revision = 0x%x",
+		       addr, port_offset, port_count, major_revision);
 	/* Port count includes the current port offset */
 	if (port_offset == 0 || (port_offset + port_count - 1) > num_ports)
 		/* WTF? "Valid values are ‘1’ to MaxPorts" */
@@ -2069,10 +2064,8 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		struct xhci_port *hw_port = &xhci->hw_ports[i];
 		/* Duplicate entry.  Ignore the port if the revisions differ. */
 		if (hw_port->rhub) {
-			xhci_warn(xhci, "Duplicate port entry, Ext Cap %p,"
-					" port %u\n", addr, i);
-			xhci_warn(xhci, "Port was marked as USB %u, "
-					"duplicated as USB %u\n",
+			xhci_warn(xhci, "Duplicate port entry, Ext Cap %p, port %u\n", addr, i);
+			xhci_warn(xhci, "Port was marked as USB %u, duplicated as USB %u\n",
 					hw_port->rhub->maj_rev, major_revision);
 			/* Only adjust the roothub port counts if we haven't
 			 * found a similar duplicate.
@@ -2411,8 +2404,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	val = readl(&xhci->cap_regs->db_off);
 	val &= DBOFF_MASK;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"// Doorbell array is located at offset 0x%x"
-			" from cap regs base addr", val);
+		       "// Doorbell array is located at offset 0x%x from cap regs base addr",
+		       val);
 	xhci->dba = (void __iomem *) xhci->cap_regs + val;
 	/* Set ir_set to interrupt register set 0 */
 
