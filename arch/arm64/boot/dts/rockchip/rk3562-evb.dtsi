@@ -531,20 +531,20 @@
 	status = "okay";
 };
 
+&rga2 {
+	status = "okay";
+};
+
+&rga2_mmu {
+	status = "okay";
+};
+
 &rknpu {
 	rknpu-supply = <&vdd_npu>;
 	status = "okay";
 };
 
 &rknpu_mmu {
-	status = "okay";
-};
-
-&rga2 {
-	status = "okay";
-};
-
-&rga2_mmu {
 	status = "okay";
 };
 
