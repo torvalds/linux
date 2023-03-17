@@ -139,23 +139,6 @@ config IGBVF
 	  To compile this driver as a module, choose M here. The module
 	  will be called igbvf.
 
-config IXGB
-	tristate "Intel(R) PRO/10GbE support"
-	depends on PCI
-	help
-	  This driver supports Intel(R) PRO/10GbE family of adapters for
-	  PCI-X type cards. For PCI-E type cards, use the "ixgbe" driver
-	  instead. For more information on how to identify your adapter, go
-	  to the Adapter & Driver ID Guide that can be located at:
-
-	  <http://support.intel.com>
-
-	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/device_drivers/ethernet/intel/ixgb.rst>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ixgb.
-
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI

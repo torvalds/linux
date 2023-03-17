@@ -31,7 +31,6 @@ Contents:
    intel/fm10k
    intel/igb
    intel/igbvf
-   intel/ixgb
    intel/ixgbe
    intel/ixgbevf
    intel/i40e
