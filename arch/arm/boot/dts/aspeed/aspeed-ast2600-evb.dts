@@ -408,3 +408,7 @@
 &uart_routing {
 	status = "okay";
 };
+
+&udma {
+	status = "okay";
+};
