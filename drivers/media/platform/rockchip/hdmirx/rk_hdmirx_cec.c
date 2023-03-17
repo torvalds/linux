@@ -68,7 +68,7 @@ static int hdmirx_cec_transmit(struct cec_adapter *adap, u8 attempts,
 	for (i = 0; i < msg_len; i++)
 		data[i / 4] |= msg->msg[i] << (i % 4) * 8;
 
-	data_len = msg_len / 4 + 1;
+	data_len = (msg_len + 3) / 4;
 	for (i = 0; i < data_len; i++)
 		hdmirx_cec_write(cec, CEC_TX_DATA3_0 + i * 4, data[i]);
 
