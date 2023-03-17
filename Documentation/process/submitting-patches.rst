@@ -320,7 +320,7 @@ for their time.  Code review is a tiring and time-consuming process, and
 reviewers sometimes get grumpy.  Even in that case, though, respond
 politely and address the problems they have pointed out.  When sending a next
 version, add a ``patch changelog`` to the cover letter or to individual patches
-explaining difference aganst previous submission (see
+explaining difference against previous submission (see
 :ref:`the_canonical_patch_format`).
 
 See Documentation/process/email-clients.rst for recommendations on email

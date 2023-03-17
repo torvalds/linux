@@ -265,6 +265,7 @@ struct smb3_fs_context {
 	bool rootfs:1; /* if it's a SMB root file system */
 	bool witness:1; /* use witness protocol */
 	char *leaf_fullpath;
+	struct cifs_ses *dfs_root_ses;
 };
 
 extern const struct fs_parameter_spec smb3_fs_parameters[];
