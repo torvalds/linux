@@ -78,7 +78,7 @@ definitions:
     $ref: /schemas/types.yaml#/definitions/uint32
 
   prefix:
-    description: "device name prefix"
+    description: device name prefix
     $ref: /schemas/types.yaml#/definitions/string
 
   label:

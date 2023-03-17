@@ -45,7 +45,7 @@ properties:
       Audio serial port SDOUT Hi-Z control. Sets the Hi-Z
       configuration for SDOUT pin of amplifier. Logical OR of
       CS35L45_ASP_TX_HIZ_xxx values.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
     default: 2

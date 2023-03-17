@@ -145,7 +145,7 @@ properties:
           dmas:
             maxItems: 1
           dma-names:
-            const: "tx"
+            const: tx
         required:
           - dmas
           - dma-names
