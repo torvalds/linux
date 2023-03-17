@@ -208,6 +208,16 @@ static void xdp_test_run_teardown(struct xdp_test_data *xdp)
 	kfree(xdp->skbs);
 }
 
+static bool frame_was_changed(const struct xdp_page_head *head)
+{
+	/* xdp_scrub_frame() zeroes the data pointer, flags is the last field,
+	 * i.e. has the highest chances to be overwritten. If those two are
+	 * untouched, it's most likely safe to skip the context reset.
+	 */
+	return head->frm.data != head->orig_ctx.data ||
+	       head->frm.flags != head->orig_ctx.flags;
+}
+
 static bool ctx_was_changed(struct xdp_page_head *head)
 {
 	return head->orig_ctx.data != head->ctx.data ||
@@ -217,7 +227,7 @@ static bool ctx_was_changed(struct xdp_page_head *head)
 
 static void reset_ctx(struct xdp_page_head *head)
 {
-	if (likely(!ctx_was_changed(head)))
+	if (likely(!frame_was_changed(head) && !ctx_was_changed(head)))
 		return;
 
 	head->ctx.data = head->orig_ctx.data;
