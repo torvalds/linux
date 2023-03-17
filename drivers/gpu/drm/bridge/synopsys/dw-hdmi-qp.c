@@ -962,8 +962,12 @@ static int dw_hdmi_i2c_read(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, i2c->slave_reg++ << 12, I2CM_ADDR,
 			  I2CM_INTERFACE_CONTROL0);
 
-		hdmi_modb(hdmi, I2CM_FM_READ, I2CM_WR_MASK,
-			  I2CM_INTERFACE_CONTROL0);
+		if (i2c->is_segment)
+			hdmi_modb(hdmi, I2CM_EXT_READ, I2CM_WR_MASK,
+				  I2CM_INTERFACE_CONTROL0);
+		else
+			hdmi_modb(hdmi, I2CM_FM_READ, I2CM_WR_MASK,
+				  I2CM_INTERFACE_CONTROL0);
 
 		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
 		if (!stat) {
@@ -1086,7 +1090,7 @@ static int dw_hdmi_i2c_xfer(struct i2c_adapter *adap,
 			i2c->is_segment = true;
 			hdmi_modb(hdmi, DDC_SEGMENT_ADDR, I2CM_SEG_ADDR,
 				  I2CM_INTERFACE_CONTROL1);
-			hdmi_modb(hdmi, *msgs[i].buf, I2CM_SEG_PTR,
+			hdmi_modb(hdmi, *msgs[i].buf << 7, I2CM_SEG_PTR,
 				  I2CM_INTERFACE_CONTROL1);
 		} else {
 			if (msgs[i].flags & I2C_M_RD)
