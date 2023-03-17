@@ -114,6 +114,7 @@ struct test_env {
 	FILE *stdout;
 	FILE *stderr;
 	int nr_cpus;
+	FILE *json;
 
 	int succ_cnt; /* successful tests */
 	int sub_succ_cnt; /* successful sub-tests */
