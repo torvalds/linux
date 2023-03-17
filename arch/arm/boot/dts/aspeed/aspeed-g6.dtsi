@@ -634,7 +634,7 @@
 			};
 
 			vuart1: serial@1e787000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-vuart";
 				reg = <0x1e787000 0x40>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
@@ -643,7 +643,7 @@
 			};
 
 			vuart3: serial@1e787800 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-vuart";
 				reg = <0x1e787800 0x40>;
 				interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
@@ -652,7 +652,7 @@
 			};
 
 			vuart2: serial@1e788000 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-vuart";
 				reg = <0x1e788000 0x40>;
 				interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
@@ -661,7 +661,7 @@
 			};
 
 			vuart4: serial@1e788800 {
-				compatible = "ns16550a";
+				compatible = "aspeed,ast2600-vuart";
 				reg = <0x1e788800 0x40>;
 				interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
