@@ -15,7 +15,7 @@ description: |
   controller is also embedded.
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:

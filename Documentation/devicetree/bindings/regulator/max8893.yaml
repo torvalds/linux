@@ -25,7 +25,7 @@ properties:
 
     patternProperties:
       "^(ldo[1-5]|buck)$":
-        $ref: "regulator.yaml#"
+        $ref: regulator.yaml#
 
     additionalProperties: false
 

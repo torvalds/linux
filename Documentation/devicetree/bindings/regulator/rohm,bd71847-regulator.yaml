@@ -54,7 +54,7 @@ patternProperties:
           should be "buck1", ..., "buck6"
 
       rohm,dvs-run-voltage:
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
         description:
@@ -62,7 +62,7 @@ patternProperties:
           bucks which support this. 0 means disabled.
 
       rohm,dvs-idle-voltage:
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
         description:
@@ -70,7 +70,7 @@ patternProperties:
           bucks which support this. 0 means disabled.
 
       rohm,dvs-suspend-voltage:
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1300000
         description:

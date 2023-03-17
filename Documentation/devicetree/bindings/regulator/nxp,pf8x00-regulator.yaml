@@ -59,7 +59,7 @@ properties:
               should be "buck1", ..., "buck7"
 
           nxp,ilim-ma:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 2100
             maximum: 4500
             deprecated: true
@@ -75,7 +75,7 @@ properties:
               4500
 
           nxp,phase-shift:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             default: 0
             enum: [ 0, 45, 90, 135, 180, 225, 270, 315 ]
             description:
