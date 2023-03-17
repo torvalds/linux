@@ -311,14 +311,11 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	ret = cpupri_find_fitness(&task_rq(task)->rd->cpupri, task,
 				lowest_mask, walt_rt_task_fits_capacity);
 
-	/* try finding a packing cpu only if this task had run on silver */
-	if (is_min_cluster_cpu(task_cpu(task))) {
-		packing_cpu = walt_find_and_choose_cluster_packing_cpu(task_cpu(task), task);
-		if (packing_cpu >= 0) {
-			fastpath = CLUSTER_PACKING_FASTPATH;
-			*new_cpu = packing_cpu;
-			goto unlock;
-		}
+	packing_cpu = walt_find_and_choose_cluster_packing_cpu(0, task);
+	if (packing_cpu >= 0) {
+		fastpath = CLUSTER_PACKING_FASTPATH;
+		*new_cpu = packing_cpu;
+		goto unlock;
 	}
 
 	walt_rt_energy_aware_wake_cpu(task, lowest_mask, ret, &target);
@@ -360,14 +357,11 @@ static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
 	if (unlikely(walt_disabled))
 		return;
 
-	/* try finding a packing cpu only if this task had run on silver */
-	if (is_min_cluster_cpu(task_cpu(task))) {
-		packing_cpu = walt_find_and_choose_cluster_packing_cpu(task_cpu(task), task);
-		if (packing_cpu >= 0) {
-			*best_cpu = packing_cpu;
-			fastpath = CLUSTER_PACKING_FASTPATH;
-			goto out;
-		}
+	packing_cpu = walt_find_and_choose_cluster_packing_cpu(0, task);
+	if (packing_cpu >= 0) {
+		*best_cpu = packing_cpu;
+		fastpath = CLUSTER_PACKING_FASTPATH;
+		goto out;
 	}
 
 	walt_rt_energy_aware_wake_cpu(task, lowest_mask, ret, best_cpu);
