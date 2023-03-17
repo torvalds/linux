@@ -37,6 +37,11 @@
 #include "abm.h"
 #define DC_LOGGER_INIT(logger)
 
+/* Travis */
+static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
+/* Nutmeg */
+static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
+
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 {
 	union dpcd_edp_config edp_config_set;
