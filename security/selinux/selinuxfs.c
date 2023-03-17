@@ -267,7 +267,6 @@ static const struct file_operations sel_handle_status_ops = {
 	.llseek		= generic_file_llseek,
 };
 
-#ifdef CONFIG_SECURITY_SELINUX_DISABLE
 static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 
@@ -275,16 +274,6 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	char *page;
 	ssize_t length;
 	int new_value;
-	int enforcing;
-
-	/* NOTE: we are now officially considering runtime disable as
-	 *       deprecated, and using it will become increasingly painful
-	 *       (e.g. sleeping/blocking) as we progress through future
-	 *       kernel releases until eventually it is removed
-	 */
-	pr_err("SELinux:  Runtime disable is deprecated, use selinux=0 on the kernel cmdline.\n");
-	pr_err("SELinux:  https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-runtime-disable\n");
-	ssleep(15);
 
 	if (count >= PAGE_SIZE)
 		return -ENOMEM;
@@ -297,31 +286,21 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
-	length = -EINVAL;
-	if (sscanf(page, "%d", &new_value) != 1)
+	if (sscanf(page, "%d", &new_value) != 1) {
+		length = -EINVAL;
 		goto out;
+	}
+	length = count;
 
 	if (new_value) {
-		enforcing = enforcing_enabled();
-		length = selinux_disable();
-		if (length)
-			goto out;
-		audit_log(audit_context(), GFP_KERNEL, AUDIT_MAC_STATUS,
-			"enforcing=%d old_enforcing=%d auid=%u ses=%u"
-			" enabled=0 old-enabled=1 lsm=selinux res=1",
-			enforcing, enforcing,
-			from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			audit_get_sessionid(current));
+		pr_err("SELinux: https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-runtime-disable\n");
+		pr_err("SELinux: Runtime disable is not supported, use selinux=0 on the kernel cmdline.\n");
 	}
 
-	length = count;
 out:
 	kfree(page);
 	return length;
 }
-#else
-#define sel_write_disable NULL
-#endif
 
 static const struct file_operations sel_disable_ops = {
 	.write		= sel_write_disable,
@@ -2194,13 +2173,3 @@ static int __init init_sel_fs(void)
 }
 
 __initcall(init_sel_fs);
-
-#ifdef CONFIG_SECURITY_SELINUX_DISABLE
-void exit_sel_fs(void)
-{
-	sysfs_remove_mount_point(fs_kobj, "selinux");
-	dput(selinux_null.dentry);
-	kern_unmount(selinuxfs_mount);
-	unregister_filesystem(&sel_fs_type);
-}
-#endif

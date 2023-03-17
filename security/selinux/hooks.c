@@ -6769,7 +6769,7 @@ static void selinux_bpf_prog_free(struct bpf_prog_aux *aux)
 }
 #endif
 
-struct lsm_blob_sizes selinux_blob_sizes __lsm_ro_after_init = {
+struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
 	.lbs_cred = sizeof(struct task_security_struct),
 	.lbs_file = sizeof(struct file_security_struct),
 	.lbs_inode = sizeof(struct inode_security_struct),
@@ -6905,7 +6905,7 @@ static int selinux_uring_cmd(struct io_uring_cmd *ioucmd)
  * safely. Breaking the ordering rules above might lead to NULL pointer derefs
  * when disabling SELinux at runtime.
  */
-static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
+static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(binder_set_context_mgr, selinux_binder_set_context_mgr),
 	LSM_HOOK_INIT(binder_transaction, selinux_binder_transaction),
 	LSM_HOOK_INIT(binder_transfer_binder, selinux_binder_transfer_binder),
@@ -7253,7 +7253,6 @@ DEFINE_LSM(selinux) = {
 };
 
 #if defined(CONFIG_NETFILTER)
-
 static const struct nf_hook_ops selinux_nf_ops[] = {
 	{
 		.hook =		selinux_ip_postroute,
@@ -7328,56 +7327,4 @@ static int __init selinux_nf_ip_init(void)
 	return 0;
 }
 __initcall(selinux_nf_ip_init);
-
-#ifdef CONFIG_SECURITY_SELINUX_DISABLE
-static void selinux_nf_ip_exit(void)
-{
-	pr_debug("SELinux:  Unregistering netfilter hooks\n");
-
-	unregister_pernet_subsys(&selinux_net_ops);
-}
-#endif
-
-#else /* CONFIG_NETFILTER */
-
-#ifdef CONFIG_SECURITY_SELINUX_DISABLE
-#define selinux_nf_ip_exit()
-#endif
-
 #endif /* CONFIG_NETFILTER */
-
-#ifdef CONFIG_SECURITY_SELINUX_DISABLE
-int selinux_disable(void)
-{
-	if (selinux_initialized()) {
-		/* Not permitted after initial policy load. */
-		return -EINVAL;
-	}
-
-	if (selinux_disabled()) {
-		/* Only do this once. */
-		return -EINVAL;
-	}
-
-	selinux_mark_disabled();
-
-	pr_info("SELinux:  Disabled at runtime.\n");
-
-	/*
-	 * Unregister netfilter hooks.
-	 * Must be done before security_delete_hooks() to avoid breaking
-	 * runtime disable.
-	 */
-	selinux_nf_ip_exit();
-
-	security_delete_hooks(selinux_hooks, ARRAY_SIZE(selinux_hooks));
-
-	/* Try to destroy the avc node cache */
-	avc_disable();
-
-	/* Unregister selinuxfs. */
-	exit_sel_fs();
-
-	return 0;
-}
-#endif
