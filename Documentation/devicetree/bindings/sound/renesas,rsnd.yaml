@@ -279,9 +279,9 @@ required:
 allOf:
   - $ref: dai-common.yaml#
 
-  #--------------------
+  # --------------------
   # reg/reg-names
-  #--------------------
+  # --------------------
   # for Gen1
   - if:
       properties:
@@ -336,9 +336,9 @@ allOf:
               - ssi
               - sdmc
 
-  #--------------------
+  # --------------------
   # clock-names
-  #--------------------
+  # --------------------
   - if:
       properties:
         compatible:
