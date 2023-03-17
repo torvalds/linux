@@ -591,6 +591,12 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 						pipe->stream->fpo_in_use))) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
+		}
+
+		/* Today only FPO uses cursor P-State force. Only clear cursor P-State force
+		 * if it's not FPO.
+		 */
+		if (!pipe->stream || (pipe->stream && !pipe->stream->fpo_in_use)) {
 			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
 				hubp->funcs->hubp_update_force_cursor_pstate_disallow(hubp, false);
 		}
