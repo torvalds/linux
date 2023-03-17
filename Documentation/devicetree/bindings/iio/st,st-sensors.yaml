@@ -48,6 +48,9 @@ properties:
           - st,lsm330d-accel
           - st,lsm330dl-accel
           - st,lsm330dlc-accel
+      - items:
+          - const: st,iis328dq
+          - const: st,h3lis331dl-accel
       - description: Silan Accelerometers
         enum:
           - silan,sc7a20
