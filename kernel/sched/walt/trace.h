@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #undef TRACE_SYSTEM
@@ -1057,24 +1057,50 @@ TRACE_EVENT(sched_compute_energy,
 
 TRACE_EVENT(sched_select_task_rt,
 
-	TP_PROTO(struct task_struct *p, int fastpath),
+	TP_PROTO(struct task_struct *p, int fastpath, int new_cpu),
 
-	TP_ARGS(p, fastpath),
+	TP_ARGS(p, fastpath, new_cpu),
 
 	TP_STRUCT__entry(
 		__field(int,		pid)
 		__array(char,		comm, TASK_COMM_LEN)
 		__field(int,		fastpath)
+		__field(int,		new_cpu)
 	),
 
 	TP_fast_assign(
 		__entry->pid			= p->pid;
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->fastpath		= fastpath;
+		__entry->new_cpu		= new_cpu;
 	),
 
-	TP_printk("pid=%d comm=%s fastpath=%u",
-		__entry->pid, __entry->comm, __entry->fastpath)
+	TP_printk("pid=%d comm=%s fastpath=%u best_cpu=%d",
+		__entry->pid, __entry->comm, __entry->fastpath, __entry->new_cpu)
+);
+
+TRACE_EVENT(sched_rt_find_lowest_rq,
+
+	TP_PROTO(struct task_struct *p, int fastpath, int best_cpu),
+
+	TP_ARGS(p, fastpath, best_cpu),
+
+	TP_STRUCT__entry(
+		__field(int,		pid)
+		__array(char,		comm, TASK_COMM_LEN)
+		__field(int,		fastpath)
+		__field(int,		best_cpu)
+	),
+
+	TP_fast_assign(
+		__entry->pid			= p->pid;
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->fastpath		= fastpath;
+		__entry->best_cpu		= best_cpu;
+	),
+
+	TP_printk("pid=%d comm=%s fastpath=%u best_cpu=%d",
+		__entry->pid, __entry->comm, __entry->fastpath, __entry->best_cpu)
 );
 
 TRACE_EVENT(sched_task_util,

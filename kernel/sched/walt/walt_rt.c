@@ -346,7 +346,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 unlock:
 	rcu_read_unlock();
 out:
-	trace_sched_select_task_rt(task, fastpath);
+	trace_sched_select_task_rt(task, fastpath, *new_cpu);
 }
 
 
@@ -355,6 +355,7 @@ static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
 
 {
 	int packing_cpu;
+	int fastpath = 0;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -364,7 +365,8 @@ static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
 		packing_cpu = walt_find_and_choose_cluster_packing_cpu(task_cpu(task), task);
 		if (packing_cpu >= 0) {
 			*best_cpu = packing_cpu;
-			return;
+			fastpath = CLUSTER_PACKING_FASTPATH;
+			goto out;
 		}
 	}
 
@@ -377,6 +379,8 @@ static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
 	 */
 	if (*best_cpu == -1)
 		cpumask_andnot(lowest_mask, lowest_mask, cpu_halt_mask);
+out:
+	trace_sched_rt_find_lowest_rq(task, fastpath, *best_cpu);
 }
 
 void walt_rt_init(void)
