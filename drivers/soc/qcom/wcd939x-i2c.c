@@ -348,7 +348,8 @@ static int wcd_usbss_validate_display_port_settings(struct wcd_usbss_ctxt *priv,
 	if (rc)
 		return rc;
 
-	pr_info("Switch Status (MG1/2): %08x\n", sts);
+	sts &= 0xCC;
+	pr_info("DPAUX switch status (MG1/2): %08x\n", sts);
 
 	if (ctype == WCD_USBSS_DP_AUX_CC1 && sts == 0x48)
 		return 0;
