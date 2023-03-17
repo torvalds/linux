@@ -1183,4 +1183,6 @@ ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
 }
 #endif
 
+void ocelot_pll5_init(struct ocelot *ocelot);
+
 #endif
