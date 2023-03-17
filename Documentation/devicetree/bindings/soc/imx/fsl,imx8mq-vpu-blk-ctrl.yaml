@@ -59,7 +59,7 @@ examples:
     #include <dt-bindings/clock/imx8mq-clock.h>
     #include <dt-bindings/power/imx8mq-power.h>
 
-    vpu_blk_ctrl: blk-ctrl@38320000 {
+    blk-ctrl@38320000 {
       compatible = "fsl,imx8mq-vpu-blk-ctrl";
       reg = <0x38320000 0x100>;
       power-domains = <&pgc_vpu>, <&pgc_vpu>, <&pgc_vpu>;
