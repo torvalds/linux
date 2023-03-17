@@ -572,14 +572,11 @@ static struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
 	size_t size = size_mul(sizeof(struct xhci_stream_ctx), num_stream_ctxs);
 
 	if (size > MEDIUM_STREAM_ARRAY_SIZE)
-		return dma_alloc_coherent(dev, size,
-				dma, mem_flags);
-	else if (size <= SMALL_STREAM_ARRAY_SIZE)
-		return dma_pool_zalloc(xhci->small_streams_pool,
-				mem_flags, dma);
+		return dma_alloc_coherent(dev, size, dma, mem_flags);
+	if (size > SMALL_STREAM_ARRAY_SIZE)
+		return dma_pool_zalloc(xhci->medium_streams_pool, mem_flags, dma);
 	else
-		return dma_pool_zalloc(xhci->medium_streams_pool,
-				mem_flags, dma);
+		return dma_pool_zalloc(xhci->small_streams_pool, mem_flags, dma);
 }
 
 struct xhci_ring *xhci_dma_to_transfer_ring(
@@ -1399,8 +1396,9 @@ static u32 xhci_get_max_esit_payload(struct usb_device *udev,
 	if ((udev->speed >= USB_SPEED_SUPER_PLUS) &&
 	    USB_SS_SSP_ISOC_COMP(ep->ss_ep_comp.bmAttributes))
 		return le32_to_cpu(ep->ssp_isoc_ep_comp.dwBytesPerInterval);
+
 	/* SuperSpeed or SuperSpeedPlus Isoc ep with less than 48k per esit */
-	else if (udev->speed >= USB_SPEED_SUPER)
+	if (udev->speed >= USB_SPEED_SUPER)
 		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
 
 	max_packet = usb_endpoint_maxp(&ep->desc);
