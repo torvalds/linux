@@ -1046,7 +1046,7 @@ static int mptcp_getsockopt_tcpinfo(struct mptcp_sock *msk, char __user *optval,
 
 static void mptcp_get_sub_addrs(const struct sock *sk, struct mptcp_subflow_addrs *a)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	memset(a, 0, sizeof(*a));
 

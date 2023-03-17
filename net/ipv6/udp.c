@@ -805,12 +805,12 @@ static int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static bool __udp_v6_is_mcast_sock(struct net *net, struct sock *sk,
+static bool __udp_v6_is_mcast_sock(struct net *net, const struct sock *sk,
 				   __be16 loc_port, const struct in6_addr *loc_addr,
 				   __be16 rmt_port, const struct in6_addr *rmt_addr,
 				   int dif, int sdif, unsigned short hnum)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	if (!net_eq(sock_net(sk), net))
 		return false;
@@ -1708,7 +1708,7 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq, IPV6_SEQ_DGRAM_HEADER);
 	} else {
 		int bucket = ((struct udp_iter_state *)seq->private)->bucket;
-		struct inet_sock *inet = inet_sk(v);
+		const struct inet_sock *inet = inet_sk((const struct sock *)v);
 		__u16 srcp = ntohs(inet->inet_sport);
 		__u16 destp = ntohs(inet->inet_dport);
 		__ip6_dgram_sock_seq_show(seq, v, srcp, destp,

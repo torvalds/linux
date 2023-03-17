@@ -223,7 +223,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
 		      const struct in6_addr *addr);
 void __ipv6_sock_mc_close(struct sock *sk);
 void ipv6_sock_mc_close(struct sock *sk);
-bool inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
+bool inet6_mc_check(const struct sock *sk, const struct in6_addr *mc_addr,
 		    const struct in6_addr *src_addr);
 
 int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr);

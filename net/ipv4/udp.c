@@ -578,12 +578,12 @@ struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 EXPORT_SYMBOL_GPL(udp4_lib_lookup);
 #endif
 
-static inline bool __udp_is_mcast_sock(struct net *net, struct sock *sk,
+static inline bool __udp_is_mcast_sock(struct net *net, const struct sock *sk,
 				       __be16 loc_port, __be32 loc_addr,
 				       __be16 rmt_port, __be32 rmt_addr,
 				       int dif, int sdif, unsigned short hnum)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	if (!net_eq(sock_net(sk), net) ||
 	    udp_sk(sk)->udp_port_hash != hnum ||
