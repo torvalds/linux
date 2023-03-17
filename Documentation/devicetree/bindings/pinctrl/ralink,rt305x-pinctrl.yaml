@@ -253,7 +253,7 @@ patternProperties:
                   enum: [spi_cs1]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

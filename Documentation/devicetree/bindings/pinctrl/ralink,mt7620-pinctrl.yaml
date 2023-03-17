@@ -636,7 +636,7 @@ patternProperties:
                   enum: [i2c, spi cs1, uart0]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible
