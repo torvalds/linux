@@ -381,7 +381,7 @@ struct bch_folio {
 	 * (Not the data itself)
 	 */
 	bool			uptodate;
-	struct bch_folio_sector	s[PAGE_SECTORS];
+	struct bch_folio_sector	s[];
 };
 
 static inline struct bch_folio *__bch2_folio(struct folio *folio)
@@ -415,7 +415,9 @@ static struct bch_folio *__bch2_folio_create(struct folio *folio, gfp_t gfp)
 {
 	struct bch_folio *s;
 
-	s = kzalloc(sizeof(*s), GFP_NOFS|gfp);
+	s = kzalloc(sizeof(*s) +
+		    sizeof(struct bch_folio_sector) *
+		    folio_sectors(folio), GFP_NOFS|gfp);
 	if (!s)
 		return NULL;
 
@@ -1295,6 +1297,8 @@ int bch2_read_folio(struct file *file, struct folio *folio)
 struct bch_writepage_state {
 	struct bch_writepage_io	*io;
 	struct bch_io_opts	opts;
+	struct bch_folio_sector	*tmp;
+	unsigned		tmp_sectors;
 };
 
 static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
@@ -1422,7 +1426,7 @@ static int __bch2_writepage(struct folio *folio,
 	struct bch_inode_info *inode = to_bch_ei(folio->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_writepage_state *w = data;
-	struct bch_folio *s, orig;
+	struct bch_folio *s;
 	unsigned i, offset, f_sectors, nr_replicas_this_write = U32_MAX;
 	loff_t i_size = i_size_read(&inode->v);
 	int ret;
@@ -1453,6 +1457,13 @@ do_io:
 	f_sectors = folio_sectors(folio);
 	s = bch2_folio_create(folio, __GFP_NOFAIL);
 
+	if (f_sectors > w->tmp_sectors) {
+		kfree(w->tmp);
+		w->tmp = kzalloc(sizeof(struct bch_folio_sector) *
+				 f_sectors, __GFP_NOFAIL);
+		w->tmp_sectors = f_sectors;
+	}
+
 	/*
 	 * Things get really hairy with errors during writeback:
 	 */
@@ -1461,7 +1472,7 @@ do_io:
 
 	/* Before unlocking the page, get copy of reservations: */
 	spin_lock(&s->lock);
-	orig = *s;
+	memcpy(w->tmp, s->s, sizeof(struct bch_folio_sector) * f_sectors);
 	spin_unlock(&s->lock);
 
 	for (i = 0; i < f_sectors; i++) {
@@ -1499,16 +1510,16 @@ do_io:
 		u64 sector;
 
 		while (offset < f_sectors &&
-		       orig.s[offset].state < SECTOR_DIRTY)
+		       w->tmp[offset].state < SECTOR_DIRTY)
 			offset++;
 
 		if (offset == f_sectors)
 			break;
 
 		while (offset + sectors < f_sectors &&
-		       orig.s[offset + sectors].state >= SECTOR_DIRTY) {
-			reserved_sectors += orig.s[offset + sectors].replicas_reserved;
-			dirty_sectors += orig.s[offset + sectors].state == SECTOR_DIRTY;
+		       w->tmp[offset + sectors].state >= SECTOR_DIRTY) {
+			reserved_sectors += w->tmp[offset + sectors].replicas_reserved;
+			dirty_sectors += w->tmp[offset + sectors].state == SECTOR_DIRTY;
 			sectors++;
 		}
 		BUG_ON(!sectors);
@@ -1568,6 +1579,7 @@ int bch2_writepages(struct address_space *mapping, struct writeback_control *wbc
 	if (w.io)
 		bch2_writepage_do_io(&w);
 	blk_finish_plug(&plug);
+	kfree(w.tmp);
 	return bch2_err_class(ret);
 }
 
