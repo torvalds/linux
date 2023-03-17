@@ -230,6 +230,16 @@ static int xhci_pci_run(struct usb_hcd *hcd)
 	return xhci_run(hcd);
 }
 
+static void xhci_pci_stop(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	xhci_stop(hcd);
+
+	if (usb_hcd_is_primary_hcd(hcd))
+		xhci_cleanup_msix(xhci);
+}
+
 /* called after powerup, by probe or system-pm "wakeup" */
 static int xhci_pci_reinit(struct xhci_hcd *xhci, struct pci_dev *pdev)
 {
@@ -868,6 +878,7 @@ static void xhci_pci_shutdown(struct usb_hcd *hcd)
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 
 	xhci_shutdown(hcd);
+	xhci_cleanup_msix(xhci);
 
 	/* Yet another workaround for spurious wakeups at shutdown with HSW */
 	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
@@ -932,6 +943,7 @@ static int __init xhci_pci_init(void)
 	xhci_pci_hc_driver.pci_poweroff_late = xhci_pci_poweroff_late;
 	xhci_pci_hc_driver.shutdown = xhci_pci_shutdown;
 #endif
+	xhci_pci_hc_driver.stop = xhci_pci_stop;
 	return pci_register_driver(&xhci_pci_driver);
 }
 module_init(xhci_pci_init);
