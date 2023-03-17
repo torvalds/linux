@@ -11,6 +11,7 @@
 #include "btree_iter.h"
 #include "btree_locking.h"
 #include "buckets.h"
+#include "clock.h"
 #include "error.h"
 #include "extents.h"
 #include "journal.h"
@@ -363,6 +364,7 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as,
 	BUG_ON(ret);
 
 	trace_and_count(c, btree_node_alloc, c, b);
+	bch2_increment_clock(c, btree_sectors(c), WRITE);
 	return b;
 }
 

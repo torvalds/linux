@@ -384,6 +384,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 	struct open_buckets open_buckets;
 	struct bkey_s_c k;
 	struct bkey_buf old, new;
+	unsigned sectors_allocated;
 	bool have_reservation = false;
 	bool unwritten = opts.nocow &&
 	    c->sb.version >= bcachefs_metadata_version_unwritten_extents;
@@ -394,6 +395,8 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 	closure_init_stack(&cl);
 	open_buckets.nr = 0;
 retry:
+	sectors_allocated = 0;
+
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -459,6 +462,7 @@ retry:
 			return ret;
 
 		sectors = min(sectors, wp->sectors_free);
+		sectors_allocated = sectors;
 
 		bch2_key_resize(&e->k, sectors);
 
@@ -484,6 +488,9 @@ out:
 		bch2_trans_begin(trans);
 		goto retry;
 	}
+
+	if (!ret && sectors_allocated)
+		bch2_increment_clock(c, sectors_allocated, WRITE);
 
 	bch2_open_buckets_put(c, &open_buckets);
 	bch2_disk_reservation_put(c, &disk_res);
