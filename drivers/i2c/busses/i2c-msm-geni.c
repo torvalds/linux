@@ -30,6 +30,7 @@
 #define SE_I2C_TX_TRANS_LEN		(0x26C)
 #define SE_I2C_RX_TRANS_LEN		(0x270)
 #define SE_I2C_SCL_COUNTERS		(0x278)
+#define SE_GENI_M_GP_LENGTH		(0x910)
 
 #define SE_I2C_ERR  (M_CMD_OVERRUN_EN | M_ILLEGAL_CMD_EN | M_CMD_FAILURE_EN |\
 			M_GP_IRQ_1_EN | M_GP_IRQ_3_EN | M_GP_IRQ_4_EN)
@@ -66,6 +67,8 @@
 #define GENI_TIMEOUT		9
 
 #define GENI_HW_PARAM			0x50
+#define I2C_ADDR_NACK		10
+#define I2C_DATA_NACK		11
 
 #define I2C_NACK		GP_IRQ1
 #define I2C_BUS_PROTO		GP_IRQ3
@@ -193,8 +196,10 @@ struct geni_i2c_err_log {
 
 static struct geni_i2c_err_log gi2c_log[] = {
 	[GP_IRQ0] = {-EINVAL, "Unknown I2C err GP_IRQ0"},
-	[I2C_NACK] = {-ENOTCONN,
-			"NACK: slv unresponsive, check its power/reset-ln"},
+	[I2C_ADDR_NACK] = {-ENOTCONN,
+			"Address NACK: slv unresponsive, check its power/reset-ln"},
+	[I2C_DATA_NACK] = {-ENOTCONN,
+			"Data NACK: Device NACK before end of TX transfer"},
 	[GP_IRQ2] = {-EINVAL, "Unknown I2C err GP IRQ2"},
 	[I2C_BUS_PROTO] = {-EPROTO,
 				"Bus proto err, noisy/unepxected start/stop"},
@@ -351,7 +356,8 @@ static inline void qcom_geni_i2c_calc_timeout(struct geni_i2c_dev *gi2c)
 
 static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 {
-	if (err == I2C_NACK || err == GENI_ABORT_DONE) {
+	if (err == I2C_DATA_NACK || err == I2C_ADDR_NACK
+			|| err == GENI_ABORT_DONE) {
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s\n",
 			    gi2c_log[err].msg);
 		goto err_ret;
@@ -516,8 +522,12 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 		(m_stat & M_GP_IRQ_3_EN) ||
 		(m_stat & M_GP_IRQ_4_EN)) {
 
-		if (m_stat & M_GP_IRQ_1_EN)
-			geni_i2c_err(gi2c, I2C_NACK);
+		if (m_stat & M_GP_IRQ_1_EN) {
+			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH))
+				geni_i2c_err(gi2c, I2C_DATA_NACK);
+			else
+				geni_i2c_err(gi2c, I2C_ADDR_NACK);
+		}
 		if (m_stat & M_GP_IRQ_3_EN)
 			geni_i2c_err(gi2c, I2C_BUS_PROTO);
 		if (m_stat & M_GP_IRQ_4_EN)
