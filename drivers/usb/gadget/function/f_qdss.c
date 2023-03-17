@@ -3,7 +3,7 @@
  * f_qdss.c -- QDSS function Driver
  *
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -646,6 +646,7 @@ static void usb_qdss_connect_work(struct work_struct *work)
 	/* If cable is already removed, discard connect_work */
 	if (qdss->usb_connected == 0) {
 		cancel_work_sync(&qdss->disconnect_w);
+		usb_gadget_autopm_put_async(qdss->gadget);
 		return;
 	}
 
