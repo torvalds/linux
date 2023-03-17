@@ -271,9 +271,14 @@ static int hideep_pgm_w_reg(struct hideep_ts *ts, u32 addr, u32 val)
 
 #define SW_RESET_IN_PGM(clk)					\
 {								\
+	__be32 data = cpu_to_be32(0x01);			\
 	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CNT, (clk));	\
 	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CON, 0x03);	\
-	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CON, 0x01);	\
+	/*							\
+	 * The first write may already cause a reset, use a raw	\
+	 * write for the second write to avoid error logging.	\
+	 */							\
+	hideep_pgm_w_mem(ts, HIDEEP_SYSCON_WDT_CON, &data, 1);	\
 }
 
 #define SET_FLASH_PIO(ce)					\
