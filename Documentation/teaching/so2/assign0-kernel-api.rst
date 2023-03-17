@@ -2,7 +2,7 @@
 Assignment 0 - Kernel API
 =========================
 
--  Deadline: :command:`Tuesday, 22 March 2022, 23:00`
+-  Deadline: :command:`Sunday, 26 March 2023, 23:00`
 
 Assignment's Objectives
 =======================
@@ -24,18 +24,6 @@ For details you can take a look at `the laboratory 2 <https://linux-kernel-labs.
 
 It is mandatory to start the implementation of the assignment from the code skeleton found in
 `list.c <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/0-list/list.c>`__ file.
-
-Use the new test infrastructure by running the commands below:
-
-.. code-block:: console
-
-    $ git clone https://github.com/linux-kernel-labs/linux.git
-    $ cd linux/tools/labs
-    $ LABS=assignments/0-list make skels
-    $ # The code skeleton will be found in api_assignment/0-list/list.c
-    $ make build
-    $ make copy
-    $ make boot
 
 The module exports a directory named :command:`list` to procfs. The directory contains two files:
 
@@ -61,7 +49,12 @@ Testing
 In order to simplify the assignment evaluation process, but also to reduce the mistakes of the submitted assignments,
 the assignment evaluation will be done automatically with the help of a
 `test script <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/0-list/checker/_checker>`__ called `_checker`.
-The test script assumes that the kernel module is called `list`.
+The test script assumes that the kernel module is called `list.ko`.
+
+QuickStart
+==========
+
+Start the implementation of the assignment from `this repository <https://gitlab.cs.pub.ro/so2/0-list>`__ following the instructions in the `README.md file <https://gitlab.cs.pub.ro/so2/0-list/-/blob/master/README.md>`__.
 
 Tips
 ----
@@ -103,20 +96,18 @@ and if the assigment does not pass all the tests, the grade will may decrease mo
 Submitting the assigment
 ------------------------
 
-The assignment archive will be submitted to vmchecker, according to the rules on the
-`rules page <https://ocw.cs.pub.ro/courses/so2/reguli-notare#reguli_de_trimitere_a_temelor>`__.
-
-From the vmchecker interface choose the `Kernel API` option for this assigment.
+The assignment will be graded automatically using the `vmchecker-next <https://github.com/systems-cs-pub-ro/vmchecker-next/wiki/Student-Handbook>`__ infrastructure.
+The submission will be made on moodle on the `course's page <https://curs.upb.ro/2022/course/view.php?id=5121>`__ to the related assignment.
+You will find the submission details in the `README.md file <https://gitlab.cs.pub.ro/so2/0-list/-/blob/master/README.md>`__ of the `repo <https://gitlab.cs.pub.ro/so2/0-list/-/blob/master>`__.
 
 Resources
 =========
 
 We recommend that you use gitlab to store your homework. Follow the directions in
-`README <https://github.com/systems-cs-pub-ro/so2-assignments/blob/master/README.md>`__
-and on the dedicated `git wiki page <https://ocw.cs.pub.ro/courses/so2/teme/folosire-gitlab>`__.
+`README.md file <https://gitlab.cs.pub.ro/so2/0-list/-/blob/master/README.md>`__.
 
 Questions
 =========
 
 For questions about the topic, you can consult the mailing `list archives <http://cursuri.cs.pub.ro/pipermail/so2/>`__
-or send an e-mail (you must be `registered <http://cursuri.cs.pub.ro/cgi-bin/mailman/listinfo/so2>`__).
+or you can write a question on the dedicated Teams channel.
