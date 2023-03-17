@@ -35,6 +35,49 @@
 
 #include <trace/events/writeback.h>
 
+struct folio_vec {
+	struct folio	*fv_folio;
+	size_t		fv_offset;
+	size_t		fv_len;
+};
+
+static inline struct folio_vec biovec_to_foliovec(struct bio_vec bv)
+{
+
+	struct folio *folio	= page_folio(bv.bv_page);
+	size_t offset		= (folio_page_idx(folio, bv.bv_page) << PAGE_SHIFT) +
+		bv.bv_offset;
+	size_t len = min_t(size_t, folio_size(folio) - offset, bv.bv_len);
+
+	return (struct folio_vec) {
+		.fv_folio	= folio,
+		.fv_offset	= offset,
+		.fv_len		= len,
+	};
+}
+
+static inline struct folio_vec bio_iter_iovec_folio(struct bio *bio,
+						    struct bvec_iter iter)
+{
+	return biovec_to_foliovec(bio_iter_iovec(bio, iter));
+}
+
+#define __bio_for_each_folio(bvl, bio, iter, start)			\
+	for (iter = (start);						\
+	     (iter).bi_size &&						\
+		((bvl = bio_iter_iovec_folio((bio), (iter))), 1);	\
+	     bio_advance_iter_single((bio), &(iter), (bvl).fv_len))
+
+/**
+ * bio_for_each_folio - iterate over folios within a bio
+ *
+ * Like other non-_all versions, this iterates over what bio->bi_iter currently
+ * points to. This version is for drivers, where the bio may have previously
+ * been split or cloned.
+ */
+#define bio_for_each_folio(bvl, bio, iter)				\
+	__bio_for_each_folio(bvl, bio, iter, (bio)->bi_iter)
+
 static inline loff_t folio_end_pos(struct folio *folio)
 {
 	return folio_pos(folio) + folio_size(folio);
@@ -622,14 +665,16 @@ err:
 static void bch2_bio_page_state_set(struct bio *bio, struct bkey_s_c k)
 {
 	struct bvec_iter iter;
-	struct bio_vec bv;
+	struct folio_vec fv;
 	unsigned nr_ptrs = k.k->type == KEY_TYPE_reflink_v
 		? 0 : bch2_bkey_nr_ptrs_fully_allocated(k);
 	unsigned state = bkey_to_sector_state(k);
 
-	bio_for_each_segment(bv, bio, iter)
-		__bch2_folio_set(page_folio(bv.bv_page), bv.bv_offset >> 9,
-				 bv.bv_len >> 9, nr_ptrs, state);
+	bio_for_each_folio(fv, bio, iter)
+		__bch2_folio_set(fv.fv_folio,
+				 fv.fv_offset >> 9,
+				 fv.fv_len >> 9,
+				 nr_ptrs, state);
 }
 
 static void mark_pagecache_unallocated(struct bch_inode_info *inode,
@@ -1049,44 +1094,48 @@ static void bch2_readpages_end_io(struct bio *bio)
 
 struct readpages_iter {
 	struct address_space	*mapping;
-	struct page		**pages;
-	unsigned		nr_pages;
 	unsigned		idx;
-	pgoff_t			offset;
+	folios			folios;
 };
 
 static int readpages_iter_init(struct readpages_iter *iter,
 			       struct readahead_control *ractl)
 {
-	unsigned i, nr_pages = readahead_count(ractl);
+	struct folio **fi;
+	int ret;
 
 	memset(iter, 0, sizeof(*iter));
 
-	iter->mapping	= ractl->mapping;
-	iter->offset	= readahead_index(ractl);
-	iter->nr_pages	= nr_pages;
+	iter->mapping = ractl->mapping;
 
-	iter->pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOFS);
-	if (!iter->pages)
-		return -ENOMEM;
+	ret = filemap_get_contig_folios_d(iter->mapping,
+				ractl->_index << PAGE_SHIFT,
+				(ractl->_index + ractl->_nr_pages) << PAGE_SHIFT,
+				0, mapping_gfp_mask(iter->mapping),
+				&iter->folios);
+	if (ret)
+		return ret;
 
-	nr_pages = __readahead_batch(ractl, iter->pages, nr_pages);
-	for (i = 0; i < nr_pages; i++) {
-		__bch2_folio_create(page_folio(iter->pages[i]), __GFP_NOFAIL);
-		put_page(iter->pages[i]);
+	darray_for_each(iter->folios, fi) {
+		ractl->_nr_pages -= 1U << folio_order(*fi);
+		__bch2_folio_create(*fi, __GFP_NOFAIL);
+		folio_put(*fi);
+		folio_put(*fi);
 	}
 
 	return 0;
 }
 
-static inline struct folio *readpage_iter_next(struct readpages_iter *iter)
+static inline struct folio *readpage_iter_peek(struct readpages_iter *iter)
 {
-	if (iter->idx >= iter->nr_pages)
+	if (iter->idx >= iter->folios.nr)
 		return NULL;
+	return iter->folios.data[iter->idx];
+}
 
-	EBUG_ON(iter->pages[iter->idx]->index != iter->offset + iter->idx);
-
-	return page_folio(iter->pages[iter->idx]);
+static inline void readpage_iter_advance(struct readpages_iter *iter)
+{
+	iter->idx++;
 }
 
 static bool extent_partial_reads_expensive(struct bkey_s_c k)
@@ -1108,16 +1157,14 @@ static void readpage_bio_extend(struct readpages_iter *iter,
 {
 	while (bio_sectors(bio) < sectors_this_extent &&
 	       bio->bi_vcnt < bio->bi_max_vecs) {
-		pgoff_t folio_offset = bio_end_sector(bio) >> PAGE_SECTORS_SHIFT;
-		struct folio *folio = readpage_iter_next(iter);
+		struct folio *folio = readpage_iter_peek(iter);
 		int ret;
 
 		if (folio) {
-			if (iter->offset + iter->idx != folio_offset)
-				break;
-
-			iter->idx++;
+			readpage_iter_advance(iter);
 		} else {
+			pgoff_t folio_offset = bio_end_sector(bio) >> PAGE_SECTORS_SHIFT;
+
 			if (!get_more)
 				break;
 
@@ -1143,6 +1190,8 @@ static void readpage_bio_extend(struct readpages_iter *iter,
 
 			folio_put(folio);
 		}
+
+		BUG_ON(folio_sector(folio) != bio_end_sector(bio));
 
 		BUG_ON(!bio_add_folio(bio, folio, folio_size(folio), 0));
 	}
@@ -1275,10 +1324,9 @@ void bch2_readahead(struct readahead_control *ractl)
 
 	bch2_pagecache_add_get(inode);
 
-	while ((folio = readpage_iter_next(&readpages_iter))) {
-		pgoff_t index = readpages_iter.offset + readpages_iter.idx;
+	while ((folio = readpage_iter_peek(&readpages_iter))) {
 		unsigned n = min_t(unsigned,
-				   readpages_iter.nr_pages -
+				   readpages_iter.folios.nr -
 				   readpages_iter.idx,
 				   BIO_MAX_VECS);
 		struct bch_read_bio *rbio =
@@ -1286,9 +1334,9 @@ void bch2_readahead(struct readahead_control *ractl)
 						   GFP_NOFS, &c->bio_read),
 				  opts);
 
-		readpages_iter.idx++;
+		readpage_iter_advance(&readpages_iter);
 
-		rbio->bio.bi_iter.bi_sector = (sector_t) index << PAGE_SECTORS_SHIFT;
+		rbio->bio.bi_iter.bi_sector = folio_sector(folio);
 		rbio->bio.bi_end_io = bch2_readpages_end_io;
 		BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
@@ -1299,7 +1347,7 @@ void bch2_readahead(struct readahead_control *ractl)
 	bch2_pagecache_add_put(inode);
 
 	bch2_trans_exit(&trans);
-	kfree(readpages_iter.pages);
+	darray_exit(&readpages_iter.folios);
 }
 
 static void __bchfs_readfolio(struct bch_fs *c, struct bch_read_bio *rbio,
