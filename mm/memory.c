@@ -4405,13 +4405,13 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 	return ret;
 }
 
-static unsigned long fault_around_bytes __read_mostly =
-	rounddown_pow_of_two(65536);
+static unsigned long fault_around_pages __read_mostly =
+	65536 >> PAGE_SHIFT;
 
 #ifdef CONFIG_DEBUG_FS
 static int fault_around_bytes_get(void *data, u64 *val)
 {
-	*val = fault_around_bytes;
+	*val = fault_around_pages << PAGE_SHIFT;
 	return 0;
 }
 
@@ -4423,10 +4423,13 @@ static int fault_around_bytes_set(void *data, u64 val)
 {
 	if (val / PAGE_SIZE > PTRS_PER_PTE)
 		return -EINVAL;
-	if (val > PAGE_SIZE)
-		fault_around_bytes = rounddown_pow_of_two(val);
-	else
-		fault_around_bytes = PAGE_SIZE; /* rounddown_pow_of_two(0) is undefined */
+
+	/*
+	 * The minimum value is 1 page, however this results in no fault-around
+	 * at all. See should_fault_around().
+	 */
+	fault_around_pages = max(rounddown_pow_of_two(val) >> PAGE_SHIFT, 1UL);
+
 	return 0;
 }
 DEFINE_DEBUGFS_ATTRIBUTE(fault_around_bytes_fops,
@@ -4452,18 +4455,18 @@ late_initcall(fault_around_debugfs);
  * This function doesn't cross VMA or page table boundaries, in order to call
  * map_pages() and acquire a PTE lock only once.
  *
- * fault_around_bytes defines how many bytes we'll try to map.
+ * fault_around_pages defines how many pages we'll try to map.
  * do_fault_around() expects it to be set to a power of two less than or equal
  * to PTRS_PER_PTE.
  *
  * The virtual address of the area that we map is naturally aligned to
- * fault_around_bytes rounded down to the machine page size
+ * fault_around_pages * PAGE_SIZE rounded down to the machine page size
  * (and therefore to page order).  This way it's easier to guarantee
  * that we don't cross page table boundaries.
  */
 static vm_fault_t do_fault_around(struct vm_fault *vmf)
 {
-	pgoff_t nr_pages = READ_ONCE(fault_around_bytes) >> PAGE_SHIFT;
+	pgoff_t nr_pages = READ_ONCE(fault_around_pages);
 	pgoff_t pte_off = pte_index(vmf->address);
 	/* The page offset of vmf->address within the VMA. */
 	pgoff_t vma_off = vmf->pgoff - vmf->vma->vm_pgoff;
@@ -4498,7 +4501,8 @@ static inline bool should_fault_around(struct vm_fault *vmf)
 	if (uffd_disable_fault_around(vmf->vma))
 		return false;
 
-	return fault_around_bytes >> PAGE_SHIFT > 1;
+	/* A single page implies no faulting 'around' at all. */
+	return fault_around_pages > 1;
 }
 
 static vm_fault_t do_read_fault(struct vm_fault *vmf)
