@@ -71,6 +71,7 @@ struct xe_device_desc {
 	bool has_4tile;
 	bool has_range_tlb_invalidation;
 	bool has_asid;
+	bool has_link_copy_engine;
 };
 
 #define PLATFORM(x)		\
@@ -226,6 +227,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.vm_max_level = 4,
 	.supports_usm = true,
 	.has_asid = true,
+	.has_link_copy_engine = true,
 };
 
 #define MTL_MEDIA_ENGINES \
@@ -413,6 +415,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	xe->info.has_flat_ccs = desc->has_flat_ccs;
 	xe->info.has_4tile = desc->has_4tile;
 	xe->info.has_range_tlb_invalidation = desc->has_range_tlb_invalidation;
+	xe->info.has_link_copy_engine = desc->has_link_copy_engine;
 
 	spd = subplatform_get(xe, desc);
 	xe->info.subplatform = spd ? spd->subplatform : XE_SUBPLATFORM_NONE;

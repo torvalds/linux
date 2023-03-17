@@ -89,6 +89,8 @@ struct xe_device {
 		bool has_4tile;
 		/** @has_range_tlb_invalidation: Has range based TLB invalidations */
 		bool has_range_tlb_invalidation;
+		/** @has_link_copy_engines: Whether the platform has link copy engines */
+		bool has_link_copy_engine;
 	} info;
 
 	/** @irq: device interrupt state */

@@ -99,7 +99,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 		      struct kunit *test)
 {
 	struct xe_device *xe = gt_to_xe(m->gt);
-	u64 retval, expected = 0xc0c0c0c0c0c0c0c0ULL;
+	u64 retval, expected = 0;
 	bool big = bo->size >= SZ_2M;
 	struct dma_fence *fence;
 	const char *str = big ? "Copying big bo" : "Copying small bo";
@@ -130,7 +130,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 	}
 
 	xe_map_memset(xe, &sysmem->vmap, 0, 0xd0, sysmem->size);
-	fence = xe_migrate_clear(m, sysmem, sysmem->ttm.resource, 0xc0c0c0c0);
+	fence = xe_migrate_clear(m, sysmem, sysmem->ttm.resource);
 	if (!sanity_fence_failed(xe, fence, big ? "Clearing sysmem big bo" :
 				 "Clearing sysmem small bo", test)) {
 		retval = xe_map_rd(xe, &sysmem->vmap, 0, u64);
@@ -311,10 +311,10 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	bb->len = 0;
 	bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 	xe_map_wr(xe, &pt->vmap, 0, u32, 0xdeaddead);
-	expected = 0x12345678U;
+	expected = 0;
 
 	emit_clear(m->gt, bb, xe_migrate_vm_addr(NUM_KERNEL_PDE - 1, 0), 4, 4,
-		   expected, IS_DGFX(xe));
+		   IS_DGFX(xe));
 	run_sanity_job(m, xe, bb, 1, "Writing to our newly mapped pagetable",
 		       test);
 
@@ -326,8 +326,8 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	/* Clear a small bo */
 	kunit_info(test, "Clearing small buffer object\n");
 	xe_map_memset(xe, &tiny->vmap, 0, 0x22, tiny->size);
-	expected = 0x224488ff;
-	fence = xe_migrate_clear(m, tiny, tiny->ttm.resource, expected);
+	expected = 0;
+	fence = xe_migrate_clear(m, tiny, tiny->ttm.resource);
 	if (sanity_fence_failed(xe, fence, "Clearing small bo", test))
 		goto out;
 
@@ -342,11 +342,11 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		test_copy(m, tiny, test);
 	}
 
-	/* Clear a big bo with a fixed value */
+	/* Clear a big bo */
 	kunit_info(test, "Clearing big buffer object\n");
 	xe_map_memset(xe, &big->vmap, 0, 0x11, big->size);
-	expected = 0x11223344U;
-	fence = xe_migrate_clear(m, big, big->ttm.resource, expected);
+	expected = 0;
+	fence = xe_migrate_clear(m, big, big->ttm.resource);
 	if (sanity_fence_failed(xe, fence, "Clearing big bo", test))
 		goto out;
 

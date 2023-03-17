@@ -747,14 +747,35 @@ err_sync:
 	return fence;
 }
 
-static int emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
-		      u32 size, u32 pitch, u32 value, bool is_vram)
+static void emit_clear_link_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
+				 u32 size, u32 pitch)
 {
+	u32 *cs = bb->cs + bb->len;
+	u32 mocs = xe_mocs_index_to_value(gt->mocs.uc_index);
+	u32 len = PVC_MEM_SET_CMD_LEN_DW;
+
+	*cs++ = PVC_MEM_SET_CMD | PVC_MS_MATRIX | (len - 2);
+	*cs++ = pitch - 1;
+	*cs++ = (size / pitch) - 1;
+	*cs++ = pitch - 1;
+	*cs++ = lower_32_bits(src_ofs);
+	*cs++ = upper_32_bits(src_ofs);
+	*cs++ = FIELD_PREP(PVC_MS_MOCS_INDEX_MASK, mocs);
+
+	XE_BUG_ON(cs - bb->cs != len + bb->len);
+
+	bb->len += len;
+}
+
+static void emit_clear_main_copy(struct xe_gt *gt, struct xe_bb *bb,
+				 u64 src_ofs, u32 size, u32 pitch, bool is_vram)
+{
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 *cs = bb->cs + bb->len;
 	u32 len = XY_FAST_COLOR_BLT_DW;
 	u32 mocs = xe_mocs_index_to_value(gt->mocs.uc_index);
 
-	if (GRAPHICS_VERx100(gt->xe) < 1250)
+	if (GRAPHICS_VERx100(xe) < 1250)
 		len = 11;
 
 	*cs++ = XY_FAST_COLOR_BLT_CMD | XY_FAST_COLOR_BLT_DEPTH_32 |
@@ -766,7 +787,7 @@ static int emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
 	*cs++ = lower_32_bits(src_ofs);
 	*cs++ = upper_32_bits(src_ofs);
 	*cs++ = (is_vram ? 0x0 : 0x1) <<  XY_FAST_COLOR_BLT_MEM_TYPE_SHIFT;
-	*cs++ = value;
+	*cs++ = 0;
 	*cs++ = 0;
 	*cs++ = 0;
 	*cs++ = 0;
@@ -780,7 +801,30 @@ static int emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
 	}
 
 	XE_BUG_ON(cs - bb->cs != len + bb->len);
+
 	bb->len += len;
+}
+
+static u32 emit_clear_cmd_len(struct xe_device *xe)
+{
+	if (xe->info.has_link_copy_engine)
+		return PVC_MEM_SET_CMD_LEN_DW;
+	else
+		return XY_FAST_COLOR_BLT_DW;
+}
+
+static int emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
+		      u32 size, u32 pitch, bool is_vram)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (xe->info.has_link_copy_engine) {
+		emit_clear_link_copy(gt, bb, src_ofs, size, pitch);
+
+	} else {
+		emit_clear_main_copy(gt, bb, src_ofs, size, pitch,
+				     is_vram);
+	}
 
 	return 0;
 }
@@ -790,10 +834,9 @@ static int emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
  * @m: The migration context.
  * @bo: The buffer object @dst is currently bound to.
  * @dst: The dst TTM resource to be cleared.
- * @value: Clear value.
  *
- * Clear the contents of @dst. On flat CCS devices,
- * the CCS metadata is cleared to zero as well on VRAM destionations.
+ * Clear the contents of @dst to zero. On flat CCS devices,
+ * the CCS metadata is cleared to zero as well on VRAM destinations.
  * TODO: Eliminate the @bo argument.
  *
  * Return: Pointer to a dma_fence representing the last clear batch, or
@@ -802,8 +845,7 @@ static int emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
  */
 struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 				   struct xe_bo *bo,
-				   struct ttm_resource *dst,
-				   u32 value)
+				   struct ttm_resource *dst)
 {
 	bool clear_vram = mem_type_is_vram(dst->mem_type);
 	struct xe_gt *gt = m->gt;
@@ -837,7 +879,8 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		batch_size = 2 +
 			pte_update_size(m, clear_vram, &src_it,
 					&clear_L0, &clear_L0_ofs, &clear_L0_pt,
-					XY_FAST_COLOR_BLT_DW, 0, NUM_PT_PER_BLIT);
+					emit_clear_cmd_len(xe), 0,
+					NUM_PT_PER_BLIT);
 		if (xe_device_has_flat_ccs(xe) && clear_vram)
 			batch_size += EMIT_COPY_CCS_DW;
 
@@ -868,7 +911,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		update_idx = bb->len;
 
 		emit_clear(gt, bb, clear_L0_ofs, clear_L0, GEN8_PAGE_SIZE,
-			   value, clear_vram);
+			   clear_vram);
 		if (xe_device_has_flat_ccs(xe) && clear_vram) {
 			emit_copy_ccs(gt, bb, clear_L0_ofs, true,
 				      m->cleared_vram_ofs, false, clear_L0);
