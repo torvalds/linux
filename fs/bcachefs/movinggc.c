@@ -269,6 +269,12 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 					atomic64_read(&c->io_clock[WRITE].now)) << 9);
 	prt_newline(out);
 
+	prt_printf(out, "Currently waiting since:   ");
+	prt_human_readable_u64(out, max(0LL,
+					atomic64_read(&c->io_clock[WRITE].now) -
+					c->copygc_wait_at) << 9);
+	prt_newline(out);
+
 	prt_printf(out, "Currently calculated wait: ");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
@@ -317,9 +323,11 @@ static int bch2_copygc_thread(void *arg)
 		wait = bch2_copygc_wait_amount(c);
 
 		if (wait > clock->max_slop) {
+			c->copygc_wait_at = last;
+			c->copygc_wait = last + wait;
+
 			move_buckets_wait(&trans, &ctxt, &move_buckets, 0, true);
 			trace_and_count(c, copygc_wait, c, wait, last + wait);
-			c->copygc_wait = last + wait;
 			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);
 			continue;

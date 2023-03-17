@@ -943,6 +943,7 @@ struct bch_fs {
 	/* COPYGC */
 	struct task_struct	*copygc_thread;
 	struct write_point	copygc_write_point;
+	s64			copygc_wait_at;
 	s64			copygc_wait;
 	bool			copygc_running;
 	wait_queue_head_t	copygc_running_wq;
