@@ -24,6 +24,18 @@ config FW_LOADER
 	  You also want to be sure to enable this built-in if you are going to
 	  enable built-in firmware (CONFIG_EXTRA_FIRMWARE).
 
+config FW_LOADER_DEBUG
+	bool "Log filenames and checksums for loaded firmware"
+	depends on DYNAMIC_DEBUG
+	depends on FW_LOADER
+	depends on CRYPTO
+	depends on CRYPTO_SHA256
+	default FW_LOADER
+	help
+	  Select this option to use dynamic debug to log firmware filenames and
+	  SHA256 checksums to the kernel log for each firmware file that is
+	  loaded.
+
 if FW_LOADER
 
 config FW_LOADER_PAGED_BUF
