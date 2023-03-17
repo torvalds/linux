@@ -108,14 +108,23 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
 
-#define __SRCU_STRUCT_INIT(name, pcpu_name)							\
-{												\
-	.sda = &pcpu_name,									\
+#define __SRCU_STRUCT_INIT_COMMON(name)								\
 	.lock = __SPIN_LOCK_UNLOCKED(name.lock),						\
 	.srcu_gp_seq_needed = -1UL,								\
 	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
-	__SRCU_DEP_MAP_INIT(name)								\
+	__SRCU_DEP_MAP_INIT(name)
+
+#define __SRCU_STRUCT_INIT_MODULE(name)								\
+{												\
+	__SRCU_STRUCT_INIT_COMMON(name)								\
 }
+
+#define __SRCU_STRUCT_INIT(name, pcpu_name)							\
+{												\
+	.sda = &pcpu_name,									\
+	__SRCU_STRUCT_INIT_COMMON(name)								\
+}
+
 
 /*
  * Define and initialize a srcu struct at build time.
@@ -138,7 +147,7 @@ struct srcu_struct {
  */
 #ifdef MODULE
 # define __DEFINE_SRCU(name, is_static)								\
-	is_static struct srcu_struct name;							\
+	is_static struct srcu_struct name = __SRCU_STRUCT_INIT_MODULE(name);			\
 	extern struct srcu_struct * const __srcu_struct_##name;					\
 	struct srcu_struct * const __srcu_struct_##name						\
 		__section("___srcu_struct_ptrs") = &name

@@ -1873,13 +1873,14 @@ void __init srcu_init(void)
 static int srcu_module_coming(struct module *mod)
 {
 	int i;
+	struct srcu_struct *ssp;
 	struct srcu_struct **sspp = mod->srcu_struct_ptrs;
-	int ret;
 
 	for (i = 0; i < mod->num_srcu_structs; i++) {
-		ret = init_srcu_struct(*(sspp++));
-		if (WARN_ON_ONCE(ret))
-			return ret;
+		ssp = *(sspp++);
+		ssp->sda = alloc_percpu(struct srcu_data);
+		if (WARN_ON_ONCE(!ssp->sda))
+			return -ENOMEM;
 	}
 	return 0;
 }
@@ -1888,10 +1889,16 @@ static int srcu_module_coming(struct module *mod)
 static void srcu_module_going(struct module *mod)
 {
 	int i;
+	struct srcu_struct *ssp;
 	struct srcu_struct **sspp = mod->srcu_struct_ptrs;
 
-	for (i = 0; i < mod->num_srcu_structs; i++)
-		cleanup_srcu_struct(*(sspp++));
+	for (i = 0; i < mod->num_srcu_structs; i++) {
+		ssp = *(sspp++);
+		if (!rcu_seq_state(smp_load_acquire(&ssp->srcu_gp_seq_needed)) &&
+		    !WARN_ON_ONCE(!ssp->sda_is_static))
+			cleanup_srcu_struct(ssp);
+		free_percpu(ssp->sda);
+	}
 }
 
 /* Handle one module, either coming or going. */
