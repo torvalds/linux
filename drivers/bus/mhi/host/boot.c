@@ -326,8 +326,8 @@ void mhi_free_bhie_table(struct mhi_controller *mhi_cntrl,
 		return;
 
 	for (i = 0; i < (*image_info)->entries; i++, mhi_buf++)
-		dma_free_coherent(mhi_cntrl->cntrl_dev, mhi_buf->len,
-				  mhi_buf->buf, mhi_buf->dma_addr);
+		dma_free_attrs(mhi_cntrl->cntrl_dev, mhi_buf->len, mhi_buf->buf,
+			       mhi_buf->dma_addr, DMA_ATTR_FORCE_CONTIGUOUS);
 
 	kfree((*image_info)->mhi_buf);
 	kfree(*image_info);
@@ -368,9 +368,9 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 			vec_size = sizeof(struct bhi_vec_entry) * i;
 
 		mhi_buf->len = vec_size;
-		mhi_buf->buf = dma_alloc_coherent(mhi_cntrl->cntrl_dev,
-						  vec_size, &mhi_buf->dma_addr,
-						  GFP_KERNEL);
+		mhi_buf->buf = dma_alloc_attrs(mhi_cntrl->cntrl_dev, vec_size,
+					       &mhi_buf->dma_addr, GFP_KERNEL,
+					       DMA_ATTR_FORCE_CONTIGUOUS);
 		if (!mhi_buf->buf)
 			goto error_alloc_segment;
 	}
@@ -383,8 +383,8 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 
 error_alloc_segment:
 	for (--i, --mhi_buf; i >= 0; i--, mhi_buf--)
-		dma_free_coherent(mhi_cntrl->cntrl_dev, mhi_buf->len,
-				  mhi_buf->buf, mhi_buf->dma_addr);
+		dma_free_attrs(mhi_cntrl->cntrl_dev, mhi_buf->len, mhi_buf->buf,
+			       mhi_buf->dma_addr, DMA_ATTR_FORCE_CONTIGUOUS);
 
 error_alloc_mhi_buf:
 	kfree(img_info);
