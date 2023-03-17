@@ -142,269 +142,6 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_psr_sink_status_show(struct seq_file *m, void *data)
-{
-	u8 val;
-	static const char * const sink_status[] = {
-		"inactive",
-		"transition to active, capture and display",
-		"active, display from RFB",
-		"active, capture and display on sink device timings",
-		"transition to inactive, capture and display, timing re-sync",
-		"reserved",
-		"reserved",
-		"sink internal error",
-	};
-	struct drm_connector *connector = m->private;
-	struct intel_dp *intel_dp =
-		intel_attached_dp(to_intel_connector(connector));
-	int ret;
-
-	if (!CAN_PSR(intel_dp)) {
-		seq_puts(m, "PSR Unsupported\n");
-		return -ENODEV;
-	}
-
-	if (connector->status != connector_status_connected)
-		return -ENODEV;
-
-	ret = drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val);
-
-	if (ret == 1) {
-		const char *str = "unknown";
-
-		val &= DP_PSR_SINK_STATE_MASK;
-		if (val < ARRAY_SIZE(sink_status))
-			str = sink_status[val];
-		seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val, str);
-	} else {
-		return ret;
-	}
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(i915_psr_sink_status);
-
-static void
-psr_source_status(struct intel_dp *intel_dp, struct seq_file *m)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	const char *status = "unknown";
-	u32 val, status_val;
-
-	if (intel_dp->psr.psr2_enabled) {
-		static const char * const live_status[] = {
-			"IDLE",
-			"CAPTURE",
-			"CAPTURE_FS",
-			"SLEEP",
-			"BUFON_FW",
-			"ML_UP",
-			"SU_STANDBY",
-			"FAST_SLEEP",
-			"DEEP_SLEEP",
-			"BUF_ON",
-			"TG_ON"
-		};
-		val = intel_de_read(dev_priv,
-				    EDP_PSR2_STATUS(intel_dp->psr.transcoder));
-		status_val = REG_FIELD_GET(EDP_PSR2_STATUS_STATE_MASK, val);
-		if (status_val < ARRAY_SIZE(live_status))
-			status = live_status[status_val];
-	} else {
-		static const char * const live_status[] = {
-			"IDLE",
-			"SRDONACK",
-			"SRDENT",
-			"BUFOFF",
-			"BUFON",
-			"AUXACK",
-			"SRDOFFACK",
-			"SRDENT_ON",
-		};
-		val = intel_de_read(dev_priv,
-				    EDP_PSR_STATUS(intel_dp->psr.transcoder));
-		status_val = (val & EDP_PSR_STATUS_STATE_MASK) >>
-			      EDP_PSR_STATUS_STATE_SHIFT;
-		if (status_val < ARRAY_SIZE(live_status))
-			status = live_status[status_val];
-	}
-
-	seq_printf(m, "Source PSR status: %s [0x%08x]\n", status, val);
-}
-
-static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_psr *psr = &intel_dp->psr;
-	intel_wakeref_t wakeref;
-	const char *status;
-	bool enabled;
-	u32 val;
-
-	seq_printf(m, "Sink support: %s", str_yes_no(psr->sink_support));
-	if (psr->sink_support)
-		seq_printf(m, " [0x%02x]", intel_dp->psr_dpcd[0]);
-	seq_puts(m, "\n");
-
-	if (!psr->sink_support)
-		return 0;
-
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-	mutex_lock(&psr->lock);
-
-	if (psr->enabled)
-		status = psr->psr2_enabled ? "PSR2 enabled" : "PSR1 enabled";
-	else
-		status = "disabled";
-	seq_printf(m, "PSR mode: %s\n", status);
-
-	if (!psr->enabled) {
-		seq_printf(m, "PSR sink not reliable: %s\n",
-			   str_yes_no(psr->sink_not_reliable));
-
-		goto unlock;
-	}
-
-	if (psr->psr2_enabled) {
-		val = intel_de_read(dev_priv,
-				    EDP_PSR2_CTL(intel_dp->psr.transcoder));
-		enabled = val & EDP_PSR2_ENABLE;
-	} else {
-		val = intel_de_read(dev_priv,
-				    EDP_PSR_CTL(intel_dp->psr.transcoder));
-		enabled = val & EDP_PSR_ENABLE;
-	}
-	seq_printf(m, "Source PSR ctl: %s [0x%08x]\n",
-		   str_enabled_disabled(enabled), val);
-	psr_source_status(intel_dp, m);
-	seq_printf(m, "Busy frontbuffer bits: 0x%08x\n",
-		   psr->busy_frontbuffer_bits);
-
-	/*
-	 * SKL+ Perf counter is reset to 0 everytime DC state is entered
-	 */
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		val = intel_de_read(dev_priv,
-				    EDP_PSR_PERF_CNT(intel_dp->psr.transcoder));
-		val &= EDP_PSR_PERF_CNT_MASK;
-		seq_printf(m, "Performance counter: %u\n", val);
-	}
-
-	if (psr->debug & I915_PSR_DEBUG_IRQ) {
-		seq_printf(m, "Last attempted entry at: %lld\n",
-			   psr->last_entry_attempt);
-		seq_printf(m, "Last exit at: %lld\n", psr->last_exit);
-	}
-
-	if (psr->psr2_enabled) {
-		u32 su_frames_val[3];
-		int frame;
-
-		/*
-		 * Reading all 3 registers before hand to minimize crossing a
-		 * frame boundary between register reads
-		 */
-		for (frame = 0; frame < PSR2_SU_STATUS_FRAMES; frame += 3) {
-			val = intel_de_read(dev_priv,
-					    PSR2_SU_STATUS(intel_dp->psr.transcoder, frame));
-			su_frames_val[frame / 3] = val;
-		}
-
-		seq_puts(m, "Frame:\tPSR2 SU blocks:\n");
-
-		for (frame = 0; frame < PSR2_SU_STATUS_FRAMES; frame++) {
-			u32 su_blocks;
-
-			su_blocks = su_frames_val[frame / 3] &
-				    PSR2_SU_STATUS_MASK(frame);
-			su_blocks = su_blocks >> PSR2_SU_STATUS_SHIFT(frame);
-			seq_printf(m, "%d\t%d\n", frame, su_blocks);
-		}
-
-		seq_printf(m, "PSR2 selective fetch: %s\n",
-			   str_enabled_disabled(psr->psr2_sel_fetch_enabled));
-	}
-
-unlock:
-	mutex_unlock(&psr->lock);
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-
-	return 0;
-}
-
-static int i915_edp_psr_status(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_dp *intel_dp = NULL;
-	struct intel_encoder *encoder;
-
-	if (!HAS_PSR(dev_priv))
-		return -ENODEV;
-
-	/* Find the first EDP which supports PSR */
-	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
-		intel_dp = enc_to_intel_dp(encoder);
-		break;
-	}
-
-	if (!intel_dp)
-		return -ENODEV;
-
-	return intel_psr_status(m, intel_dp);
-}
-
-static int
-i915_edp_psr_debug_set(void *data, u64 val)
-{
-	struct drm_i915_private *dev_priv = data;
-	struct intel_encoder *encoder;
-	intel_wakeref_t wakeref;
-	int ret = -ENODEV;
-
-	if (!HAS_PSR(dev_priv))
-		return ret;
-
-	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		drm_dbg_kms(&dev_priv->drm, "Setting PSR debug to %llx\n", val);
-
-		wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-		// TODO: split to each transcoder's PSR debug state
-		ret = intel_psr_debug_set(intel_dp, val);
-
-		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	}
-
-	return ret;
-}
-
-static int
-i915_edp_psr_debug_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-	struct intel_encoder *encoder;
-
-	if (!HAS_PSR(dev_priv))
-		return -ENODEV;
-
-	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		// TODO: split to each transcoder's PSR debug state
-		*val = READ_ONCE(intel_dp->psr.debug);
-		return 0;
-	}
-
-	return -ENODEV;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
-			i915_edp_psr_debug_get, i915_edp_psr_debug_set,
-			"%llu\n");
-
 static int i915_power_domain_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
@@ -1320,7 +1057,6 @@ static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_vbt", i915_vbt, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
-	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
@@ -1337,7 +1073,6 @@ static const struct {
 	{"i915_dp_test_data", &i915_displayport_test_data_fops},
 	{"i915_dp_test_type", &i915_displayport_test_type_fops},
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
-	{"i915_edp_psr_debug", &i915_edp_psr_debug_fops},
 };
 
 void intel_display_debugfs_register(struct drm_i915_private *i915)
@@ -1361,6 +1096,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_dmc_debugfs_register(i915);
 	intel_fbc_debugfs_register(i915);
 	intel_hpd_debugfs_register(i915);
+	intel_psr_debugfs_register(i915);
 	intel_wm_debugfs_register(i915);
 }
 
@@ -1412,16 +1148,6 @@ out:
 	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
-
-static int i915_psr_status_show(struct seq_file *m, void *data)
-{
-	struct drm_connector *connector = m->private;
-	struct intel_dp *intel_dp =
-		intel_attached_dp(to_intel_connector(connector));
-
-	return intel_psr_status(m, intel_dp);
-}
-DEFINE_SHOW_ATTRIBUTE(i915_psr_status);
 
 static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 {
@@ -1675,19 +1401,11 @@ void intel_connector_debugfs_add(struct intel_connector *intel_connector)
 		return;
 
 	intel_drrs_connector_debugfs_add(intel_connector);
+	intel_psr_connector_debugfs_add(intel_connector);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
 		debugfs_create_file("i915_panel_timings", S_IRUGO, root,
 				    connector, &i915_panel_fops);
-		debugfs_create_file("i915_psr_sink_status", S_IRUGO, root,
-				    connector, &i915_psr_sink_status_fops);
-	}
-
-	if (HAS_PSR(dev_priv) &&
-	    connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		debugfs_create_file("i915_psr_status", 0444, root,
-				    connector, &i915_psr_status_fops);
-	}
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
