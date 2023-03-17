@@ -1111,6 +1111,9 @@ int ocelot_sb_occ_tc_port_bind_get(struct ocelot *ocelot, int port,
 				   enum devlink_sb_pool_type pool_type,
 				   u32 *p_cur, u32 *p_max);
 
+void ocelot_phylink_mac_config(struct ocelot *ocelot, int port,
+			       unsigned int link_an_mode,
+			       const struct phylink_link_state *state);
 void ocelot_phylink_mac_link_down(struct ocelot *ocelot, int port,
 				  unsigned int link_an_mode,
 				  phy_interface_t interface,
