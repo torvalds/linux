@@ -668,7 +668,7 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 			*buf = val;
 		}
 
-		lan966x_ptp_rxtstamp(lan966x, skb, timestamp);
+		lan966x_ptp_rxtstamp(lan966x, skb, src_port, timestamp);
 		skb->protocol = eth_type_trans(skb, dev);
 
 		if (lan966x->bridge_mask & BIT(src_port)) {

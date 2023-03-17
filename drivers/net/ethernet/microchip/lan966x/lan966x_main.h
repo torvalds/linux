@@ -407,7 +407,8 @@ struct lan966x_port {
 	struct phy *serdes;
 	struct fwnode_handle *fwnode;
 
-	u8 ptp_cmd;
+	u8 ptp_tx_cmd;
+	bool ptp_rx_cmd;
 	u16 ts_id;
 	struct sk_buff_head tx_skbs;
 
@@ -527,7 +528,7 @@ void lan966x_ptp_deinit(struct lan966x *lan966x);
 int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr);
 int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr);
 void lan966x_ptp_rxtstamp(struct lan966x *lan966x, struct sk_buff *skb,
-			  u64 timestamp);
+			  u64 src_port, u64 timestamp);
 int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
 				 struct sk_buff *skb);
 void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
