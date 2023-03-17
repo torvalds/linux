@@ -336,7 +336,7 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 
 /* stored in page->private: */
 
-struct bch_page_sector {
+struct bch_folio_sector {
 	/* Uncompressed, fully allocated replicas (or on disk reservation): */
 	unsigned		nr_replicas:4;
 
@@ -353,44 +353,48 @@ struct bch_page_sector {
 	}			state:8;
 };
 
-struct bch_page_state {
+struct bch_folio {
 	spinlock_t		lock;
 	atomic_t		write_count;
+	/*
+	 * Is the sector state up to date with the btree?
+	 * (Not the data itself)
+	 */
 	bool			uptodate;
-	struct bch_page_sector	s[PAGE_SECTORS];
+	struct bch_folio_sector	s[PAGE_SECTORS];
 };
 
-static inline struct bch_page_state *__bch2_page_state(struct page *page)
+static inline struct bch_folio *__bch2_folio(struct page *page)
 {
 	return page_has_private(page)
-		? (struct bch_page_state *) page_private(page)
+		? (struct bch_folio *) page_private(page)
 		: NULL;
 }
 
-static inline struct bch_page_state *bch2_page_state(struct page *page)
+static inline struct bch_folio *bch2_folio(struct page *page)
 {
 	EBUG_ON(!PageLocked(page));
 
-	return __bch2_page_state(page);
+	return __bch2_folio(page);
 }
 
 /* for newly allocated pages: */
-static void __bch2_page_state_release(struct page *page)
+static void __bch2_folio_release(struct page *page)
 {
 	kfree(detach_page_private(page));
 }
 
-static void bch2_page_state_release(struct page *page)
+static void bch2_folio_release(struct page *page)
 {
 	EBUG_ON(!PageLocked(page));
-	__bch2_page_state_release(page);
+	__bch2_folio_release(page);
 }
 
 /* for newly allocated pages: */
-static struct bch_page_state *__bch2_page_state_create(struct page *page,
+static struct bch_folio *__bch2_folio_create(struct page *page,
 						       gfp_t gfp)
 {
-	struct bch_page_state *s;
+	struct bch_folio *s;
 
 	s = kzalloc(sizeof(*s), GFP_NOFS|gfp);
 	if (!s)
@@ -401,10 +405,10 @@ static struct bch_page_state *__bch2_page_state_create(struct page *page,
 	return s;
 }
 
-static struct bch_page_state *bch2_page_state_create(struct page *page,
+static struct bch_folio *bch2_folio_create(struct page *page,
 						     gfp_t gfp)
 {
-	return bch2_page_state(page) ?: __bch2_page_state_create(page, gfp);
+	return bch2_folio(page) ?: __bch2_folio_create(page, gfp);
 }
 
 static unsigned bkey_to_sector_state(struct bkey_s_c k)
@@ -416,11 +420,11 @@ static unsigned bkey_to_sector_state(struct bkey_s_c k)
 	return SECTOR_UNALLOCATED;
 }
 
-static void __bch2_page_state_set(struct page *page,
-				  unsigned pg_offset, unsigned pg_len,
-				  unsigned nr_ptrs, unsigned state)
+static void __bch2_folio_set(struct page *page,
+			     unsigned pg_offset, unsigned pg_len,
+			     unsigned nr_ptrs, unsigned state)
 {
-	struct bch_page_state *s = bch2_page_state_create(page, __GFP_NOFAIL);
+	struct bch_folio *s = bch2_folio_create(page, __GFP_NOFAIL);
 	unsigned i;
 
 	BUG_ON(pg_offset >= PAGE_SECTORS);
@@ -429,8 +433,8 @@ static void __bch2_page_state_set(struct page *page,
 	spin_lock(&s->lock);
 
 	for (i = pg_offset; i < pg_offset + pg_len; i++) {
-		s->s[i].nr_replicas = nr_ptrs;
-		s->s[i].state = state;
+		s->s[i].nr_replicas	= nr_ptrs;
+		s->s[i].state		= state;
 	}
 
 	if (i == PAGE_SECTORS)
@@ -439,8 +443,12 @@ static void __bch2_page_state_set(struct page *page,
 	spin_unlock(&s->lock);
 }
 
-static int bch2_page_state_set(struct bch_fs *c, subvol_inum inum,
-			       struct page **pages, unsigned nr_pages)
+/*
+ * Initialize bch_folio state (allocated/unallocated, nr_replicas) from the
+ * extents btree:
+ */
+static int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
+			  struct page **pages, unsigned nr_pages)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -474,8 +482,8 @@ retry:
 			BUG_ON(k.k->p.offset < pg_start);
 			BUG_ON(bkey_start_offset(k.k) > pg_end);
 
-			if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate)
-				__bch2_page_state_set(page, pg_offset, pg_len, nr_ptrs, state);
+			if (!bch2_folio_create(page, __GFP_NOFAIL)->uptodate)
+				__bch2_folio_set(page, pg_offset, pg_len, nr_ptrs, state);
 
 			if (k.k->p.offset < pg_end)
 				break;
@@ -505,7 +513,7 @@ static void bch2_bio_page_state_set(struct bio *bio, struct bkey_s_c k)
 	unsigned state = bkey_to_sector_state(k);
 
 	bio_for_each_segment(bv, bio, iter)
-		__bch2_page_state_set(bv.bv_page, bv.bv_offset >> 9,
+		__bch2_folio_set(bv.bv_page, bv.bv_offset >> 9,
 				      bv.bv_len >> 9, nr_ptrs, state);
 }
 
@@ -530,14 +538,14 @@ static void mark_pagecache_unallocated(struct bch_inode_info *inode,
 			u64 pg_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
 			unsigned pg_offset = max(start, pg_start) - pg_start;
 			unsigned pg_len = min(end, pg_end) - pg_offset - pg_start;
-			struct bch_page_state *s;
+			struct bch_folio *s;
 
 			BUG_ON(end <= pg_start);
 			BUG_ON(pg_offset >= PAGE_SECTORS);
 			BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
 
 			folio_lock(folio);
-			s = bch2_page_state(&folio->page);
+			s = bch2_folio(&folio->page);
 
 			if (s) {
 				spin_lock(&s->lock);
@@ -576,14 +584,14 @@ static void mark_pagecache_reserved(struct bch_inode_info *inode,
 			u64 pg_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
 			unsigned pg_offset = max(start, pg_start) - pg_start;
 			unsigned pg_len = min(end, pg_end) - pg_offset - pg_start;
-			struct bch_page_state *s;
+			struct bch_folio *s;
 
 			BUG_ON(end <= pg_start);
 			BUG_ON(pg_offset >= PAGE_SECTORS);
 			BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
 
 			folio_lock(folio);
-			s = bch2_page_state(&folio->page);
+			s = bch2_folio(&folio->page);
 
 			if (s) {
 				spin_lock(&s->lock);
@@ -619,8 +627,8 @@ static inline unsigned inode_nr_replicas(struct bch_fs *c, struct bch_inode_info
 		: c->opts.data_replicas;
 }
 
-static inline unsigned sectors_to_reserve(struct bch_page_sector *s,
-						  unsigned nr_replicas)
+static inline unsigned sectors_to_reserve(struct bch_folio_sector *s,
+					  unsigned nr_replicas)
 {
 	return max(0, (int) nr_replicas -
 		   s->nr_replicas -
@@ -631,7 +639,7 @@ static int bch2_get_page_disk_reservation(struct bch_fs *c,
 				struct bch_inode_info *inode,
 				struct page *page, bool check_enospc)
 {
-	struct bch_page_state *s = bch2_page_state_create(page, 0);
+	struct bch_folio *s = bch2_folio_create(page, 0);
 	unsigned nr_replicas = inode_nr_replicas(c, inode);
 	struct disk_reservation disk_res = { 0 };
 	unsigned i, disk_res_sectors = 0;
@@ -688,7 +696,7 @@ static int bch2_page_reservation_get(struct bch_fs *c,
 			struct bch2_page_reservation *res,
 			unsigned offset, unsigned len)
 {
-	struct bch_page_state *s = bch2_page_state_create(page, 0);
+	struct bch_folio *s = bch2_folio_create(page, 0);
 	unsigned i, disk_sectors = 0, quota_sectors = 0;
 	int ret;
 
@@ -732,7 +740,7 @@ static void bch2_clear_page_bits(struct page *page)
 {
 	struct bch_inode_info *inode = to_bch_ei(page->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct bch_page_state *s = bch2_page_state(page);
+	struct bch_folio *s = bch2_folio(page);
 	struct disk_reservation disk_res = { 0 };
 	int i, dirty_sectors = 0;
 
@@ -763,7 +771,7 @@ static void bch2_clear_page_bits(struct page *page)
 
 	i_sectors_acct(c, inode, NULL, dirty_sectors);
 
-	bch2_page_state_release(page);
+	bch2_folio_release(page);
 }
 
 static void bch2_set_page_dirty(struct bch_fs *c,
@@ -771,7 +779,7 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 			struct bch2_page_reservation *res,
 			unsigned offset, unsigned len)
 {
-	struct bch_page_state *s = bch2_page_state(page);
+	struct bch_folio *s = bch2_folio(page);
 	unsigned i, dirty_sectors = 0;
 
 	WARN_ON((u64) page_offset(page) + offset + len >
@@ -889,8 +897,8 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 
 	len = min_t(loff_t, PAGE_SIZE, isize - page_offset(page));
 
-	if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
-		if (bch2_page_state_set(c, inode_inum(inode), &page, 1)) {
+	if (!bch2_folio_create(page, __GFP_NOFAIL)->uptodate) {
+		if (bch2_folio_set(c, inode_inum(inode), &page, 1)) {
 			unlock_page(page);
 			ret = VM_FAULT_SIGBUS;
 			goto out;
@@ -979,7 +987,7 @@ static int readpages_iter_init(struct readpages_iter *iter,
 
 	nr_pages = __readahead_batch(ractl, iter->pages, nr_pages);
 	for (i = 0; i < nr_pages; i++) {
-		__bch2_page_state_create(iter->pages[i], __GFP_NOFAIL);
+		__bch2_folio_create(iter->pages[i], __GFP_NOFAIL);
 		put_page(iter->pages[i]);
 	}
 
@@ -1036,7 +1044,7 @@ static void readpage_bio_extend(struct readpages_iter *iter,
 			if (!page)
 				break;
 
-			if (!__bch2_page_state_create(page, 0)) {
+			if (!__bch2_folio_create(page, 0)) {
 				put_page(page);
 				break;
 			}
@@ -1044,7 +1052,7 @@ static void readpage_bio_extend(struct readpages_iter *iter,
 			ret = add_to_page_cache_lru(page, iter->mapping,
 						    page_offset, GFP_NOFS);
 			if (ret) {
-				__bch2_page_state_release(page);
+				__bch2_folio_release(page);
 				put_page(page);
 				break;
 			}
@@ -1215,7 +1223,7 @@ static void __bchfs_readpage(struct bch_fs *c, struct bch_read_bio *rbio,
 {
 	struct btree_trans trans;
 
-	bch2_page_state_create(page, __GFP_NOFAIL);
+	bch2_folio_create(page, __GFP_NOFAIL);
 
 	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
 	rbio->bio.bi_iter.bi_sector =
@@ -1302,12 +1310,12 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 		set_bit(EI_INODE_ERROR, &io->inode->ei_flags);
 
 		bio_for_each_segment_all(bvec, bio, iter) {
-			struct bch_page_state *s;
+			struct bch_folio *s;
 
 			SetPageError(bvec->bv_page);
 			mapping_set_error(bvec->bv_page->mapping, -EIO);
 
-			s = __bch2_page_state(bvec->bv_page);
+			s = __bch2_folio(bvec->bv_page);
 			spin_lock(&s->lock);
 			for (i = 0; i < PAGE_SECTORS; i++)
 				s->s[i].nr_replicas = 0;
@@ -1317,9 +1325,9 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 
 	if (io->op.flags & BCH_WRITE_WROTE_DATA_INLINE) {
 		bio_for_each_segment_all(bvec, bio, iter) {
-			struct bch_page_state *s;
+			struct bch_folio *s;
 
-			s = __bch2_page_state(bvec->bv_page);
+			s = __bch2_folio(bvec->bv_page);
 			spin_lock(&s->lock);
 			for (i = 0; i < PAGE_SECTORS; i++)
 				s->s[i].nr_replicas = 0;
@@ -1347,7 +1355,7 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 	i_sectors_acct(c, io->inode, NULL, io->op.i_sectors_delta);
 
 	bio_for_each_segment_all(bvec, bio, iter) {
-		struct bch_page_state *s = __bch2_page_state(bvec->bv_page);
+		struct bch_folio *s = __bch2_folio(bvec->bv_page);
 
 		if (atomic_dec_and_test(&s->write_count))
 			end_page_writeback(bvec->bv_page);
@@ -1406,7 +1414,7 @@ static int __bch2_writepage(struct folio *folio,
 	struct bch_inode_info *inode = to_bch_ei(page->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_writepage_state *w = data;
-	struct bch_page_state *s, orig;
+	struct bch_folio *s, orig;
 	unsigned i, offset, nr_replicas_this_write = U32_MAX;
 	loff_t i_size = i_size_read(&inode->v);
 	pgoff_t end_index = i_size >> PAGE_SHIFT;
@@ -1434,7 +1442,7 @@ static int __bch2_writepage(struct folio *folio,
 	 */
 	zero_user_segment(page, offset, PAGE_SIZE);
 do_io:
-	s = bch2_page_state_create(page, __GFP_NOFAIL);
+	s = bch2_folio_create(page, __GFP_NOFAIL);
 
 	/*
 	 * Things get really hairy with errors during writeback:
@@ -1604,8 +1612,8 @@ readpage:
 	if (ret)
 		goto err;
 out:
-	if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
-		ret = bch2_page_state_set(c, inode_inum(inode), &page, 1);
+	if (!bch2_folio_create(page, __GFP_NOFAIL)->uptodate) {
+		ret = bch2_folio_set(c, inode_inum(inode), &page, 1);
 		if (ret)
 			goto err;
 	}
@@ -1744,9 +1752,9 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		unsigned pg_len = min_t(unsigned, len - reserved,
 					PAGE_SIZE - pg_offset);
 
-		if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
-			ret = bch2_page_state_set(c, inode_inum(inode),
-						  pages + i, nr_pages - i);
+		if (!bch2_folio_create(page, __GFP_NOFAIL)->uptodate) {
+			ret = bch2_folio_set(c, inode_inum(inode),
+					     pages + i, nr_pages - i);
 			if (ret)
 				goto out;
 		}
@@ -2634,7 +2642,7 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
-	struct bch_page_state *s;
+	struct bch_folio *s;
 	unsigned start_offset = start & (PAGE_SIZE - 1);
 	unsigned end_offset = ((end - 1) & (PAGE_SIZE - 1)) + 1;
 	unsigned i;
@@ -2670,7 +2678,7 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 		}
 	}
 
-	s = bch2_page_state_create(page, 0);
+	s = bch2_folio_create(page, 0);
 	if (!s) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -3459,7 +3467,7 @@ err:
 
 static int folio_data_offset(struct folio *folio, unsigned offset)
 {
-	struct bch_page_state *s = bch2_page_state(&folio->page);
+	struct bch_folio *s = bch2_folio(&folio->page);
 	unsigned i;
 
 	if (s)
@@ -3566,7 +3574,7 @@ err:
 
 static int __page_hole_offset(struct page *page, unsigned offset)
 {
-	struct bch_page_state *s = bch2_page_state(page);
+	struct bch_folio *s = bch2_folio(page);
 	unsigned i;
 
 	if (!s)
