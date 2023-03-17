@@ -22,11 +22,14 @@ properties:
 patternProperties:
   '-pins$':
     type: object
+    additionalProperties: false
+
     patternProperties:
       '^(.*-)?pinmux$':
         type: object
         description: node for pinctrl.
         $ref: pinmux-node.yaml#
+        additionalProperties: false
 
         properties:
           function:
@@ -115,10 +118,6 @@ patternProperties:
               properties:
                 groups:
                   enum: [pci]
-
-        additionalProperties: false
-
-    additionalProperties: false
 
 allOf:
   - $ref: "pinctrl.yaml#"
