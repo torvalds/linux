@@ -15952,8 +15952,8 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 		goto err_put;
 	}
 
-	if (!btf_type_is_var(t)) {
-		verbose(env, "pseudo btf_id %d in ldimm64 isn't KIND_VAR.\n", id);
+	if (!btf_type_is_var(t) && !btf_type_is_func(t)) {
+		verbose(env, "pseudo btf_id %d in ldimm64 isn't KIND_VAR or KIND_FUNC\n", id);
 		err = -EINVAL;
 		goto err_put;
 	}
@@ -15966,6 +15966,14 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 		err = -ENOENT;
 		goto err_put;
 	}
+	insn[0].imm = (u32)addr;
+	insn[1].imm = addr >> 32;
+
+	if (btf_type_is_func(t)) {
+		aux->btf_var.reg_type = PTR_TO_MEM | MEM_RDONLY;
+		aux->btf_var.mem_size = 0;
+		goto check_btf;
+	}
 
 	datasec_id = find_btf_percpu_datasec(btf);
 	if (datasec_id > 0) {
@@ -15977,9 +15985,6 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 			}
 		}
 	}
-
-	insn[0].imm = (u32)addr;
-	insn[1].imm = addr >> 32;
 
 	type = t->type;
 	t = btf_type_skip_modifiers(btf, type, NULL);
@@ -16008,7 +16013,7 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 		aux->btf_var.btf = btf;
 		aux->btf_var.btf_id = type;
 	}
-
+check_btf:
 	/* check whether we recorded this BTF (and maybe module) already */
 	for (i = 0; i < env->used_btf_cnt; i++) {
 		if (env->used_btfs[i].btf == btf) {
