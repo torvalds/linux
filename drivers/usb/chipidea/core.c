@@ -984,8 +984,11 @@ static ssize_t role_store(struct device *dev,
 			     strlen(ci->roles[role]->name)))
 			break;
 
-	if (role == CI_ROLE_END || role == ci->role)
+	if (role == CI_ROLE_END)
 		return -EINVAL;
+
+	if (role == ci->role)
+		return n;
 
 	pm_runtime_get_sync(dev);
 	disable_irq(ci->irq);
