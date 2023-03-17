@@ -1025,7 +1025,9 @@ properties:
 
       - description: i.MX8MP DHCOM based Boards
         items:
-          - const: dh,imx8mp-dhcom-pdk2      # i.MX8MP DHCOM SoM on PDK2 board
+          - enum:
+              - dh,imx8mp-dhcom-pdk2         # i.MX8MP DHCOM SoM on PDK2 board
+              - dh,imx8mp-dhcom-pdk3         # i.MX8MP DHCOM SoM on PDK3 board
           - const: dh,imx8mp-dhcom-som       # i.MX8MP DHCOM SoM
           - const: fsl,imx8mp
 
