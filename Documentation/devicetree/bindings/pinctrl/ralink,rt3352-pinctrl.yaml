@@ -1,23 +1,23 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/pinctrl/ralink,rt305x-pinctrl.yaml#
+$id: http://devicetree.org/schemas/pinctrl/ralink,rt3352-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ralink RT305X Pin Controller
+title: Ralink RT3352 Pin Controller
 
 maintainers:
   - Arınç ÜNAL <arinc.unal@arinc9.com>
   - Sergio Paracuellos <sergio.paracuellos@gmail.com>
 
 description: |
-  Ralink RT305X pin controller for RT3050, RT3052, and RT3350 SoCs.
+  Ralink RT3352 pin controller for RT3352 SoC.
   The pin controller can only set the muxing of pin groups. Muxing individual
   pins is not supported. There is no pinconf support.
 
 properties:
   compatible:
-    const: ralink,rt305x-pinctrl
+    const: ralink,rt3352-pinctrl
 
 patternProperties:
   '-pins$':
@@ -35,9 +35,9 @@ patternProperties:
           function:
             description:
               A string containing the name of the function to mux to the group.
-            enum: [gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, mdio,
-                   pcm gpio, pcm i2s, pcm uartf, rgmii, sdram, spi, uartf,
-                   uartlite]
+            enum: [gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, led, lna,
+                   mdio, pa, pcm gpio, pcm i2s, pcm uartf, rgmii, spi, spi_cs1,
+                   uartf, uartlite, wdg_cs1]
 
           groups:
             description:
@@ -56,7 +56,8 @@ patternProperties:
             then:
               properties:
                 groups:
-                  enum: [i2c, jtag, mdio, rgmii, sdram, spi, uartf, uartlite]
+                  enum: [i2c, jtag, led, lna, mdio, pa, rgmii, spi, spi_cs1,
+                         uartf, uartlite]
 
           - if:
               properties:
@@ -106,11 +107,38 @@ patternProperties:
           - if:
               properties:
                 function:
+                  const: led
+            then:
+              properties:
+                groups:
+                  enum: [led]
+
+          - if:
+              properties:
+                function:
+                  const: lna
+            then:
+              properties:
+                groups:
+                  enum: [lna]
+
+          - if:
+              properties:
+                function:
                   const: mdio
             then:
               properties:
                 groups:
                   enum: [mdio]
+
+          - if:
+              properties:
+                function:
+                  const: pa
+            then:
+              properties:
+                groups:
+                  enum: [pa]
 
           - if:
               properties:
@@ -151,20 +179,20 @@ patternProperties:
           - if:
               properties:
                 function:
-                  const: sdram
-            then:
-              properties:
-                groups:
-                  enum: [sdram]
-
-          - if:
-              properties:
-                function:
                   const: spi
             then:
               properties:
                 groups:
                   enum: [spi]
+
+          - if:
+              properties:
+                function:
+                  const: spi_cs1
+            then:
+              properties:
+                groups:
+                  enum: [spi_cs1]
 
           - if:
               properties:
@@ -184,6 +212,15 @@ patternProperties:
                 groups:
                   enum: [uartlite]
 
+          - if:
+              properties:
+                function:
+                  const: wdg_cs1
+            then:
+              properties:
+                groups:
+                  enum: [spi_cs1]
+
 allOf:
   - $ref: pinctrl.yaml#
 
@@ -195,7 +232,7 @@ additionalProperties: false
 examples:
   - |
     pinctrl {
-      compatible = "ralink,rt305x-pinctrl";
+      compatible = "ralink,rt3352-pinctrl";
 
       i2c_pins: i2c0-pins {
         pinmux {
