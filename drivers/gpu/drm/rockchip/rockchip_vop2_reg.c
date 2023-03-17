@@ -1108,19 +1108,6 @@ static const struct vop2_video_port_data rk3562_vop_video_ports[] = {
 	 .regs = &rk3562_vop_vp0_regs,
 	 .ovl_regs = &rk3528_vop_vp0_ovl_regs,
 	},
-	{
-	 .id = 1,
-	 .soc_id = { 0x3562, 0x3562 },
-	 .lut_dma_rid = 14,
-	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN,
-	 .gamma_lut_len = 1024,
-	 .max_output = { 2048, 4096 },
-	 .win_dly = 8,
-	 .layer_mix_dly = 8,
-	 .intr = &rk3568_vp1_intr,
-	 .regs = &rk3562_vop_vp1_regs,
-	 .ovl_regs = &rk3528_vop_vp1_ovl_regs,
-	},
 };
 
 static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
@@ -3764,7 +3751,7 @@ static const struct vop2_data rk3528_vop = {
 
 static const struct vop2_data rk3562_vop = {
 	.version = VOP_VERSION_RK3562,
-	.nr_vps = 2,
+	.nr_vps = ARRAY_SIZE(rk3562_vop_video_ports),
 	.nr_mixers = 3,
 	.nr_layers = 4,
 	.nr_gammas = 2,
