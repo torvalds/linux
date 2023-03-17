@@ -893,6 +893,13 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user,
 			return err;
 	}
 
+	if (system_supports_tpidr2()) {
+		err = sigframe_alloc(user, &user->tpidr2_offset,
+				     sizeof(struct tpidr2_context));
+		if (err)
+			return err;
+	}
+
 	if (system_supports_sme()) {
 		unsigned int vl;
 		unsigned int vq = 0;
@@ -901,11 +908,6 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user,
 			vl = sme_max_vl();
 		else
 			vl = task_get_sme_vl(current);
-
-		err = sigframe_alloc(user, &user->tpidr2_offset,
-				     sizeof(struct tpidr2_context));
-		if (err)
-			return err;
 
 		if (thread_za_enabled(&current->thread))
 			vq = sve_vq_from_vl(vl);
