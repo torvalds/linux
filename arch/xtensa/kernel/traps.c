@@ -549,31 +549,58 @@ static void show_trace(struct task_struct *task, unsigned long *sp,
 }
 
 #define STACK_DUMP_ENTRY_SIZE 4
-#define STACK_DUMP_LINE_SIZE 32
+#define STACK_DUMP_LINE_SIZE 16
 static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
+
+struct stack_fragment
+{
+	size_t len;
+	size_t off;
+	u8 *sp;
+	const char *loglvl;
+};
+
+static int show_stack_fragment_cb(struct stackframe *frame, void *data)
+{
+	struct stack_fragment *sf = data;
+
+	while (sf->off < sf->len) {
+		u8 line[STACK_DUMP_LINE_SIZE];
+		size_t line_len = sf->len - sf->off > STACK_DUMP_LINE_SIZE ?
+			STACK_DUMP_LINE_SIZE : sf->len - sf->off;
+		bool arrow = sf->off == 0;
+
+		if (frame && frame->sp == (unsigned long)(sf->sp + sf->off))
+			arrow = true;
+
+		__memcpy(line, sf->sp + sf->off, line_len);
+		print_hex_dump(sf->loglvl, arrow ? "> " : "  ", DUMP_PREFIX_NONE,
+			       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
+			       line, line_len, false);
+		sf->off += STACK_DUMP_LINE_SIZE;
+		if (arrow)
+			return 0;
+	}
+	return 1;
+}
 
 void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
-	size_t len, off = 0;
+	struct stack_fragment sf;
 
 	if (!sp)
 		sp = stack_pointer(task);
 
-	len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
-		  kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
+	sf.len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
+		     kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
+	sf.off = 0;
+	sf.sp = (u8 *)sp;
+	sf.loglvl = loglvl;
 
 	printk("%sStack:\n", loglvl);
-	while (off < len) {
-		u8 line[STACK_DUMP_LINE_SIZE];
-		size_t line_len = len - off > STACK_DUMP_LINE_SIZE ?
-			STACK_DUMP_LINE_SIZE : len - off;
-
-		__memcpy(line, (u8 *)sp + off, line_len);
-		print_hex_dump(loglvl, " ", DUMP_PREFIX_NONE,
-			       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
-			       line, line_len, false);
-		off += STACK_DUMP_LINE_SIZE;
-	}
+	walk_stackframe(sp, show_stack_fragment_cb, &sf);
+	while (sf.off < sf.len)
+		show_stack_fragment_cb(NULL, &sf);
 	show_trace(task, sp, loglvl);
 }
 
