@@ -102,6 +102,59 @@ static const struct amdgpu_video_codecs vcn_4_0_0_video_codecs_decode_vcn1 =
 	.codec_array = vcn_4_0_0_video_codecs_decode_array_vcn1,
 };
 
+/* SRIOV SOC21, not const since data is controlled by host */
+static struct amdgpu_video_codec_info sriov_vcn_4_0_0_video_codecs_encode_array_vcn0[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2304, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 4096, 2304, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static struct amdgpu_video_codec_info sriov_vcn_4_0_0_video_codecs_encode_array_vcn1[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2304, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 4096, 2304, 0)},
+};
+
+static struct amdgpu_video_codecs sriov_vcn_4_0_0_video_codecs_encode_vcn0 = {
+	.codec_count = ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_encode_array_vcn0),
+	.codec_array = sriov_vcn_4_0_0_video_codecs_encode_array_vcn0,
+};
+
+static struct amdgpu_video_codecs sriov_vcn_4_0_0_video_codecs_encode_vcn1 = {
+	.codec_count = ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_encode_array_vcn1),
+	.codec_array = sriov_vcn_4_0_0_video_codecs_encode_array_vcn1,
+};
+
+static struct amdgpu_video_codec_info sriov_vcn_4_0_0_video_codecs_decode_array_vcn0[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4, 4096, 4096, 5)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1, 4096, 4096, 4)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static struct amdgpu_video_codec_info sriov_vcn_4_0_0_video_codecs_decode_array_vcn1[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4, 4096, 4096, 5)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1, 4096, 4096, 4)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+};
+
+static struct amdgpu_video_codecs sriov_vcn_4_0_0_video_codecs_decode_vcn0 = {
+	.codec_count = ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_decode_array_vcn0),
+	.codec_array = sriov_vcn_4_0_0_video_codecs_decode_array_vcn0,
+};
+
+static struct amdgpu_video_codecs sriov_vcn_4_0_0_video_codecs_decode_vcn1 = {
+	.codec_count = ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_decode_array_vcn1),
+	.codec_array = sriov_vcn_4_0_0_video_codecs_decode_array_vcn1,
+};
+
 static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				 const struct amdgpu_video_codecs **codecs)
 {
@@ -112,16 +165,31 @@ static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 	case IP_VERSION(4, 0, 0):
 	case IP_VERSION(4, 0, 2):
 	case IP_VERSION(4, 0, 4):
-		if (adev->vcn.harvest_config & AMDGPU_VCN_HARVEST_VCN0) {
-			if (encode)
-				*codecs = &vcn_4_0_0_video_codecs_encode_vcn1;
-			else
-				*codecs = &vcn_4_0_0_video_codecs_decode_vcn1;
+		if (amdgpu_sriov_vf(adev)) {
+			if ((adev->vcn.harvest_config & AMDGPU_VCN_HARVEST_VCN0) ||
+			!amdgpu_sriov_is_av1_support(adev)) {
+				if (encode)
+					*codecs = &sriov_vcn_4_0_0_video_codecs_encode_vcn1;
+				else
+					*codecs = &sriov_vcn_4_0_0_video_codecs_decode_vcn1;
+			} else {
+				if (encode)
+					*codecs = &sriov_vcn_4_0_0_video_codecs_encode_vcn0;
+				else
+					*codecs = &sriov_vcn_4_0_0_video_codecs_decode_vcn0;
+			}
 		} else {
-			if (encode)
-				*codecs = &vcn_4_0_0_video_codecs_encode_vcn0;
-			else
-				*codecs = &vcn_4_0_0_video_codecs_decode_vcn0;
+			if ((adev->vcn.harvest_config & AMDGPU_VCN_HARVEST_VCN0)) {
+				if (encode)
+					*codecs = &vcn_4_0_0_video_codecs_encode_vcn1;
+				else
+					*codecs = &vcn_4_0_0_video_codecs_decode_vcn1;
+			} else {
+				if (encode)
+					*codecs = &vcn_4_0_0_video_codecs_encode_vcn0;
+				else
+					*codecs = &vcn_4_0_0_video_codecs_decode_vcn0;
+			}
 		}
 		return 0;
 	default:
@@ -730,8 +798,23 @@ static int soc21_common_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
 		xgpu_nv_mailbox_get_irq(adev);
+		if ((adev->vcn.harvest_config & AMDGPU_VCN_HARVEST_VCN0) ||
+		!amdgpu_sriov_is_av1_support(adev)) {
+			amdgpu_virt_update_sriov_video_codec(adev,
+							     sriov_vcn_4_0_0_video_codecs_encode_array_vcn1,
+							     ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_encode_array_vcn1),
+							     sriov_vcn_4_0_0_video_codecs_decode_array_vcn1,
+							     ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_decode_array_vcn1));
+		} else {
+			amdgpu_virt_update_sriov_video_codec(adev,
+							     sriov_vcn_4_0_0_video_codecs_encode_array_vcn0,
+							     ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_encode_array_vcn0),
+							     sriov_vcn_4_0_0_video_codecs_decode_array_vcn0,
+							     ARRAY_SIZE(sriov_vcn_4_0_0_video_codecs_decode_array_vcn0));
+		}
+	}
 
 	return 0;
 }
