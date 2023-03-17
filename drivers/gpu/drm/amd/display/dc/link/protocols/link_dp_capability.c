@@ -2177,7 +2177,7 @@ bool dp_verify_link_cap_with_retries(
 	return success;
 }
 
-/**
+/*
  * Check if there is a native DP or passive DP-HDMI dongle connected
  */
 bool dp_is_sink_present(struct dc_link *link)
