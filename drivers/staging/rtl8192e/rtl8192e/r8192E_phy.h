@@ -9,8 +9,6 @@
 
 #define MAX_DOZE_WAITING_TIMES_9x 64
 
-extern u32 rtl819XAGCTAB_Array[];
-
 enum hw90_block {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
