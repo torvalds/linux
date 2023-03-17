@@ -108,13 +108,13 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
 
-#define __SRCU_STRUCT_INIT(name, pcpu_name)				\
-{									\
-	.sda = &pcpu_name,						\
-	.lock = __SPIN_LOCK_UNLOCKED(name.lock),			\
-	.srcu_gp_seq_needed = -1UL,					\
-	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),		\
-	__SRCU_DEP_MAP_INIT(name)					\
+#define __SRCU_STRUCT_INIT(name, pcpu_name)							\
+{												\
+	.sda = &pcpu_name,									\
+	.lock = __SPIN_LOCK_UNLOCKED(name.lock),						\
+	.srcu_gp_seq_needed = -1UL,								\
+	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
+	__SRCU_DEP_MAP_INIT(name)								\
 }
 
 /*
@@ -137,15 +137,15 @@ struct srcu_struct {
  * See include/linux/percpu-defs.h for the rules on per-CPU variables.
  */
 #ifdef MODULE
-# define __DEFINE_SRCU(name, is_static)					\
-	is_static struct srcu_struct name;				\
-	extern struct srcu_struct * const __srcu_struct_##name;		\
-	struct srcu_struct * const __srcu_struct_##name			\
+# define __DEFINE_SRCU(name, is_static)								\
+	is_static struct srcu_struct name;							\
+	extern struct srcu_struct * const __srcu_struct_##name;					\
+	struct srcu_struct * const __srcu_struct_##name						\
 		__section("___srcu_struct_ptrs") = &name
 #else
-# define __DEFINE_SRCU(name, is_static)					\
-	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);	\
-	is_static struct srcu_struct name =				\
+# define __DEFINE_SRCU(name, is_static)								\
+	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);				\
+	is_static struct srcu_struct name =							\
 		__SRCU_STRUCT_INIT(name, name##_srcu_data)
 #endif
 #define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
