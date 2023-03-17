@@ -616,6 +616,8 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 /* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name);
 
+unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name);
+
 extern void __noreturn __module_put_and_kthread_exit(struct module *mod,
 			long code);
 #define module_put_and_kthread_exit(code) __module_put_and_kthread_exit(THIS_MODULE, code)
@@ -792,6 +794,12 @@ static inline int module_get_kallsym(unsigned int symnum, unsigned long *value,
 }
 
 static inline unsigned long module_kallsyms_lookup_name(const char *name)
+{
+	return 0;
+}
+
+static inline unsigned long find_kallsyms_symbol_value(struct module *mod,
+						       const char *name)
 {
 	return 0;
 }

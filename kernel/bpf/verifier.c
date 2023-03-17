@@ -24,7 +24,7 @@
 #include <linux/bpf_lsm.h>
 #include <linux/btf_ids.h>
 #include <linux/poison.h>
-#include "../module/internal.h"
+#include <linux/module.h>
 
 #include "disasm.h"
 
