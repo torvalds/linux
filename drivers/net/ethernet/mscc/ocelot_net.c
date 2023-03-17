@@ -1742,34 +1742,11 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 		return -EINVAL;
 	}
 
-	/* Ensure clock signals and speed are set on all QSGMII links */
-	if (phy_mode == PHY_INTERFACE_MODE_QSGMII)
-		ocelot_port_rmwl(ocelot_port, 0,
-				 DEV_CLOCK_CFG_MAC_TX_RST |
-				 DEV_CLOCK_CFG_MAC_RX_RST,
-				 DEV_CLOCK_CFG);
-
 	ocelot_port->phy_mode = phy_mode;
 
-	if (phy_mode != PHY_INTERFACE_MODE_INTERNAL) {
-		struct phy *serdes = of_phy_get(portnp, NULL);
-
-		if (IS_ERR(serdes)) {
-			err = PTR_ERR(serdes);
-			dev_err_probe(dev, err,
-				      "missing SerDes phys for port %d\n",
-				      port);
-			return err;
-		}
-
-		err = phy_set_mode_ext(serdes, PHY_MODE_ETHERNET, phy_mode);
-		of_phy_put(serdes);
-		if (err) {
-			dev_err(dev, "Could not SerDes mode on port %d: %pe\n",
-				port, ERR_PTR(err));
-			return err;
-		}
-	}
+	err = ocelot_port_configure_serdes(ocelot, port, portnp);
+	if (err)
+		return err;
 
 	priv = container_of(ocelot_port, struct ocelot_port_private, port);
 
