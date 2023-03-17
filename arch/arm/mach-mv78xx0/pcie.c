@@ -42,7 +42,7 @@ void __init mv78xx0_pcie_id(u32 *dev, u32 *rev)
 
 u32 pcie_port_size[8] = {
 	0,
-	0x30000000,
+	0x20000000,
 	0x10000000,
 	0x10000000,
 	0x08000000,

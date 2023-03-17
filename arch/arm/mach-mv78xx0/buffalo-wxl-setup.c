@@ -125,16 +125,8 @@ static void __init wxl_init(void)
 
 static int __init wxl_pci_init(void)
 {
-	if (machine_is_terastation_wxl()) {
-		/*
-		 * Assign the x16 PCIe slot on the board to CPU core
-		 * #0, and let CPU core #1 have the four x1 slots.
-		 */
-		if (mv78xx0_core_index() == 0)
-			mv78xx0_pcie_init(0, 1);
-		else
-			mv78xx0_pcie_init(1, 0);
-	}
+	if (machine_is_terastation_wxl() && mv78xx0_core_index() == 0)
+                mv78xx0_pcie_init(1, 1);
 
 	return 0;
 }
