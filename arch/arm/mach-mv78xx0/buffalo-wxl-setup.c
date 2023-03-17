@@ -119,6 +119,8 @@ static void __init wxl_init(void)
 	mv78xx0_uart1_init();
 	mv78xx0_uart2_init();
 	mv78xx0_uart3_init();
+	mv78xx0_xor_init();
+	mv78xx0_crypto_init();
 	mv78xx0_i2c_init();
 	i2c_register_board_info(0, &db78x00_i2c_rtc, 1);
 }
