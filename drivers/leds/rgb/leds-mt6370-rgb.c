@@ -7,6 +7,7 @@
  *   Alice Chen <alice_chen@richtek.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
