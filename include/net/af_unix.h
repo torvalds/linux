@@ -74,10 +74,7 @@ struct unix_sock {
 #endif
 };
 
-static inline struct unix_sock *unix_sk(const struct sock *sk)
-{
-	return (struct unix_sock *)sk;
-}
+#define unix_sk(ptr) container_of_const(ptr, struct unix_sock, sk)
 
 #define peer_wait peer_wq.wait
 
