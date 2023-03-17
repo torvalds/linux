@@ -1555,6 +1555,9 @@ static int felix_setup(struct dsa_switch *ds)
 	if (err)
 		return err;
 
+	if (ocelot->targets[HSIO])
+		ocelot_pll5_init(ocelot);
+
 	err = ocelot_init(ocelot);
 	if (err)
 		goto out_mdiobus_free;
