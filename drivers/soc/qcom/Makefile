@@ -34,6 +34,7 @@ obj-$(CONFIG_QTI_PMIC_GLINK_DEBUG) += pmic-glink-debug.o
 obj-$(CONFIG_QCOM_MEM_BUF) += mem_buf/
 obj-$(CONFIG_QCOM_SECURE_BUFFER) += secure_buffer.o
 obj-$(CONFIG_QCOM_SOCINFO)	+= socinfo.o
+obj-$(CONFIG_QCOM_SOCINFO_DT)	+= socinfo_dt.o
 obj-$(CONFIG_QCOM_DCC_V2) += dcc_v2.o
 obj-$(CONFIG_QCOM_SPM)		+= spm.o
 obj-$(CONFIG_QCOM_WDT_CORE) += qcom_wdt_core.o
