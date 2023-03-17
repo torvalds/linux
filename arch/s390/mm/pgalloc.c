@@ -133,13 +133,7 @@ err_p4d:
 
 static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
 {
-	unsigned int old, new;
-
-	do {
-		old = atomic_read(v);
-		new = old ^ bits;
-	} while (atomic_cmpxchg(v, old, new) != old);
-	return new;
+	return atomic_fetch_xor(bits, v) ^ bits;
 }
 
 #ifdef CONFIG_PGSTE
