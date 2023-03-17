@@ -2705,7 +2705,7 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 	rqst.rq_nvec = n_iov;
 
 	/* no need to inc num_remote_opens because we close it just below */
-	trace_smb3_posix_mkdir_enter(xid, tcon->tid, ses->Suid, CREATE_NOT_FILE,
+	trace_smb3_posix_mkdir_enter(xid, tcon->tid, ses->Suid, full_path, CREATE_NOT_FILE,
 				    FILE_WRITE_ATTRIBUTES);
 	/* resource #4: response buffer */
 	rc = cifs_send_recv(xid, ses, server,
@@ -2973,7 +2973,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	if (rc)
 		goto creat_exit;
 
-	trace_smb3_open_enter(xid, tcon->tid, tcon->ses->Suid,
+	trace_smb3_open_enter(xid, tcon->tid, tcon->ses->Suid, oparms->path,
 		oparms->create_options, oparms->desired_access);
 
 	rc = cifs_send_recv(xid, ses, server,
