@@ -410,7 +410,7 @@ __cold static int io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 				     unsigned nr, struct io_rsrc_data **pdata)
 {
 	struct io_rsrc_data *data;
-	int ret = -ENOMEM;
+	int ret = 0;
 	unsigned i;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
