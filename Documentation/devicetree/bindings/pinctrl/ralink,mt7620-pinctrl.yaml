@@ -17,7 +17,9 @@ description:
 
 properties:
   compatible:
-    const: ralink,mt7620-pinctrl
+    enum:
+      - ralink,mt7620-pinctrl
+      - ralink,mt76x8-pinctrl
 
 patternProperties:
   '-pins$':
