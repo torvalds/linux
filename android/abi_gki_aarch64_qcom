@@ -732,7 +732,6 @@
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
-  devm_pm_opp_attach_genpd
   devm_power_supply_register
   devm_pwm_get
   devm_regmap_add_irq_chip
@@ -1008,7 +1007,6 @@
   drm_dev_register
   drm_dev_unregister
   drm_display_mode_from_cea_vic
-  drm_dp_mst_dump_topology
   drm_edid_duplicate
   drm_edid_get_monitor_name
   drm_edid_is_valid
@@ -3470,9 +3468,7 @@
   __traceiter_android_rvh_ttwu_cond
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_update_cpu_capacity
-  __traceiter_android_rvh_update_cpus_allowed
   __traceiter_android_rvh_update_misfit_status
-  __traceiter_android_rvh_update_readahead_gfp_mask
   __traceiter_android_rvh_update_thermal_stats
   __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
@@ -3594,9 +3590,7 @@
   __tracepoint_android_rvh_ttwu_cond
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_update_cpu_capacity
-  __tracepoint_android_rvh_update_cpus_allowed
   __tracepoint_android_rvh_update_misfit_status
-  __tracepoint_android_rvh_update_readahead_gfp_mask
   __tracepoint_android_rvh_update_thermal_stats
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
