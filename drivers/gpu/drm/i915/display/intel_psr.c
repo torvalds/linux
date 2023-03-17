@@ -2891,6 +2891,7 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 		"reserved",
 		"sink internal error",
 	};
+	const char *str;
 	int ret;
 	u8 val;
 
@@ -2903,17 +2904,16 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	ret = drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val);
+	if (ret != 1)
+		return ret < 0 ? ret : -EIO;
 
-	if (ret == 1) {
-		const char *str = "unknown";
+	val &= DP_PSR_SINK_STATE_MASK;
+	if (val < ARRAY_SIZE(sink_status))
+		str = sink_status[val];
+	else
+		str = "unknown";
 
-		val &= DP_PSR_SINK_STATE_MASK;
-		if (val < ARRAY_SIZE(sink_status))
-			str = sink_status[val];
-		seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val, str);
-	} else {
-		return ret;
-	}
+	seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val, str);
 
 	return 0;
 }
