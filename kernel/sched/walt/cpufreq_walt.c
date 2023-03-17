@@ -319,7 +319,7 @@ static void waltgov_walt_adjust(struct waltgov_cpu *wg_cpu, unsigned long cpu_ut
 	bool employ_ed_boost = wg_cpu->walt_load.ed_active && sysctl_ed_boost_pct;
 	unsigned long pl = wg_cpu->walt_load.pl;
 
-	if (is_rtg_boost)
+	if (is_rtg_boost && !cpu_should_help_mincpus(wg_cpu->cpu))
 		max_and_reason(util, wg_policy->rtg_boost_util, wg_cpu, CPUFREQ_REASON_RTG_BOOST);
 
 	is_hiload = (cpu_util >= mult_frac(wg_policy->avg_cap,
