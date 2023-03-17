@@ -5971,7 +5971,7 @@ F:	include/linux/dm-*.h
 F:	include/uapi/linux/dm-*.h
 
 DEVLINK
-M:	Jiri Pirko <jiri@nvidia.com>
+M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/devlink
@@ -15079,7 +15079,7 @@ F:	Documentation/hwmon/nzxt-smart2.rst
 F:	drivers/hwmon/nzxt-smart2.c
 
 OBJAGG
-M:	Jiri Pirko <jiri@nvidia.com>
+M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	include/linux/objagg.h
@@ -15853,7 +15853,7 @@ F:	drivers/video/logo/logo_parisc*
 F:	include/linux/hp_sdc.h
 
 PARMAN
-M:	Jiri Pirko <jiri@nvidia.com>
+M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	include/linux/parman.h
