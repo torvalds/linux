@@ -77,17 +77,14 @@ nv50_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	return 0;
 }
 
-static u64
+static void
 nv50_devinit_disable(struct nvkm_devinit *init)
 {
 	struct nvkm_device *device = init->subdev.device;
 	u32 r001540 = nvkm_rd32(device, 0x001540);
-	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000))
 		nvkm_subdev_disable(device, NVKM_ENGINE_MPEG, 0);
-
-	return disable;
 }
 
 void

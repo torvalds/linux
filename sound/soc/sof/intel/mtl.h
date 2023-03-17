@@ -6,6 +6,12 @@
  * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
  */
 
+/* HDA Registers */
+#define MTL_PPLCLLPL_BASE		0x948
+#define MTL_PPLCLLPU_STRIDE		0x10
+#define MTL_PPLCLLPL(x)			(MTL_PPLCLLPL_BASE + (x) * MTL_PPLCLLPU_STRIDE)
+#define MTL_PPLCLLPU(x)			(MTL_PPLCLLPL_BASE + 0x4 + (x) * MTL_PPLCLLPU_STRIDE)
+
 /* DSP Registers */
 #define MTL_HFDSSCS			0x1000
 #define MTL_HFDSSCS_SPA_MASK		BIT(16)

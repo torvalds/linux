@@ -20,10 +20,10 @@ properties:
       - nvidia,tegra194-display
 
   '#address-cells':
-    const: 1
+    enum: [ 1, 2 ]
 
   '#size-cells':
-    const: 1
+    enum: [ 1, 2 ]
 
   reg:
     maxItems: 1

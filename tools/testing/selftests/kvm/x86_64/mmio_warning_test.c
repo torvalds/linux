@@ -93,7 +93,7 @@ int main(void)
 {
 	int warnings_before, warnings_after;
 
-	TEST_REQUIRE(is_intel_cpu());
+	TEST_REQUIRE(host_cpu_is_intel);
 
 	TEST_REQUIRE(!vm_is_unrestricted_guest(NULL));
 

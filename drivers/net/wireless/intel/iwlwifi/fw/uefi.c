@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2021 Intel Corporation
+ * Copyright(c) 2021-2022 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -245,6 +245,63 @@ void *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 
 	return data;
 }
+
+static int iwl_uefi_step_parse(struct uefi_cnv_common_step_data *common_step_data,
+			       struct iwl_trans *trans)
+{
+	if (common_step_data->revision != 1)
+		return -EINVAL;
+
+	trans->mbx_addr_0_step = (u32)common_step_data->revision |
+		(u32)common_step_data->cnvi_eq_channel << 8 |
+		(u32)common_step_data->cnvr_eq_channel << 16 |
+		(u32)common_step_data->radio1 << 24;
+	trans->mbx_addr_1_step = (u32)common_step_data->radio2;
+	return 0;
+}
+
+void iwl_uefi_get_step_table(struct iwl_trans *trans)
+{
+	struct uefi_cnv_common_step_data *data;
+	unsigned long package_size;
+	efi_status_t status;
+	int ret;
+
+	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		return;
+
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
+		return;
+
+	/* TODO: we hardcode a maximum length here, because reading
+	 * from the UEFI is not working.  To implement this properly,
+	 * we have to call efivar_entry_size().
+	 */
+	package_size = IWL_HARDCODED_STEP_SIZE;
+
+	data = kmalloc(package_size, GFP_KERNEL);
+	if (!data)
+		return;
+
+	status = efi.get_variable(IWL_UEFI_STEP_NAME, &IWL_EFI_VAR_GUID,
+				  NULL, &package_size, data);
+	if (status != EFI_SUCCESS) {
+		IWL_DEBUG_FW(trans,
+			     "STEP UEFI variable not found 0x%lx\n", status);
+		goto out_free;
+	}
+
+	IWL_DEBUG_FW(trans, "Read STEP from UEFI with size %lu\n",
+		     package_size);
+
+	ret = iwl_uefi_step_parse(data, trans);
+	if (ret < 0)
+		IWL_DEBUG_FW(trans, "Cannot read STEP tables. rev is invalid\n");
+
+out_free:
+	kfree(data);
+}
+IWL_EXPORT_SYMBOL(iwl_uefi_get_step_table);
 
 #ifdef CONFIG_ACPI
 static int iwl_uefi_sgom_parse(struct uefi_cnv_wlan_sgom_data *sgom_data,

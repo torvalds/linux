@@ -50,7 +50,7 @@ enum {
 #define ES_IDX_LAST_FILENAME(name_len)	\
 	(ES_IDX_FIRST_FILENAME + EXFAT_FILENAME_ENTRY_NUM(name_len) - 1)
 
-#define DIR_DELETED		0xFFFF0321
+#define DIR_DELETED		0xFFFFFFF7
 
 /* type values */
 #define TYPE_UNUSED		0x0000
@@ -71,6 +71,8 @@ enum {
 #define TYPE_PADDING		0x0402
 #define TYPE_ACLTAB		0x0403
 #define TYPE_BENIGN_SEC		0x0800
+#define TYPE_VENDOR_EXT		0x0801
+#define TYPE_VENDOR_ALLOC	0x0802
 
 #define MAX_CHARSET_SIZE	6 /* max size of multi-byte character */
 #define MAX_NAME_LENGTH		255 /* max len of file name excluding NULL */
@@ -450,9 +452,9 @@ int exfat_trim_fs(struct inode *inode, struct fstrim_range *range);
 extern const struct file_operations exfat_file_operations;
 int __exfat_truncate(struct inode *inode);
 void exfat_truncate(struct inode *inode);
-int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int exfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr);
-int exfat_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int exfat_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, unsigned int request_mask,
 		  unsigned int query_flags);
 int exfat_file_fsync(struct file *file, loff_t start, loff_t end, int datasync);

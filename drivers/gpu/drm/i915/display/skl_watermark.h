@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-#include "intel_display.h"
+#include "intel_display_limits.h"
 #include "intel_global_state.h"
 #include "intel_pm_types.h"
 

@@ -10,10 +10,10 @@ struct intel_pxp;
 struct dentry;
 
 #ifdef CONFIG_DRM_I915_PXP
-void intel_pxp_debugfs_register(struct intel_pxp *pxp, struct dentry *root);
+void intel_pxp_debugfs_register(struct intel_pxp *pxp);
 #else
 static inline void
-intel_pxp_debugfs_register(struct intel_pxp *pxp, struct dentry *root)
+intel_pxp_debugfs_register(struct intel_pxp *pxp)
 {
 }
 #endif

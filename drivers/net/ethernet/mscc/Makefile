@@ -5,6 +5,7 @@ mscc_ocelot_switch_lib-y := \
 	ocelot_devlink.o \
 	ocelot_flower.o \
 	ocelot_io.o \
+	ocelot_mm.o \
 	ocelot_police.o \
 	ocelot_ptp.o \
 	ocelot_stats.o \

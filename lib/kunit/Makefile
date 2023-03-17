@@ -2,6 +2,7 @@ obj-$(CONFIG_KUNIT) +=			kunit.o
 
 kunit-objs +=				test.o \
 					resource.o \
+					static_stub.o \
 					string-stream.o \
 					assert.o \
 					try-catch.o \
@@ -10,6 +11,9 @@ kunit-objs +=				test.o \
 ifeq ($(CONFIG_KUNIT_DEBUGFS),y)
 kunit-objs +=				debugfs.o
 endif
+
+# KUnit 'hooks' are built-in even when KUnit is built as a module.
+obj-y +=				hooks.o
 
 obj-$(CONFIG_KUNIT_TEST) +=		kunit-test.o
 

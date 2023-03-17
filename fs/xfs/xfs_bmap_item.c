@@ -246,18 +246,11 @@ static int
 xfs_trans_log_finish_bmap_update(
 	struct xfs_trans		*tp,
 	struct xfs_bud_log_item		*budp,
-	enum xfs_bmap_intent_type	type,
-	struct xfs_inode		*ip,
-	int				whichfork,
-	xfs_fileoff_t			startoff,
-	xfs_fsblock_t			startblock,
-	xfs_filblks_t			*blockcount,
-	xfs_exntst_t			state)
+	struct xfs_bmap_intent		*bi)
 {
 	int				error;
 
-	error = xfs_bmap_finish_one(tp, ip, type, whichfork, startoff,
-			startblock, blockcount, state);
+	error = xfs_bmap_finish_one(tp, bi);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
@@ -290,24 +283,24 @@ xfs_bmap_update_diff_items(
 /* Set the map extent flags for this mapping. */
 static void
 xfs_trans_set_bmap_flags(
-	struct xfs_map_extent		*bmap,
+	struct xfs_map_extent		*map,
 	enum xfs_bmap_intent_type	type,
 	int				whichfork,
 	xfs_exntst_t			state)
 {
-	bmap->me_flags = 0;
+	map->me_flags = 0;
 	switch (type) {
 	case XFS_BMAP_MAP:
 	case XFS_BMAP_UNMAP:
-		bmap->me_flags = type;
+		map->me_flags = type;
 		break;
 	default:
 		ASSERT(0);
 	}
 	if (state == XFS_EXT_UNWRITTEN)
-		bmap->me_flags |= XFS_BMAP_EXTENT_UNWRITTEN;
+		map->me_flags |= XFS_BMAP_EXTENT_UNWRITTEN;
 	if (whichfork == XFS_ATTR_FORK)
-		bmap->me_flags |= XFS_BMAP_EXTENT_ATTR_FORK;
+		map->me_flags |= XFS_BMAP_EXTENT_ATTR_FORK;
 }
 
 /* Log bmap updates in the intent item. */
@@ -315,7 +308,7 @@ STATIC void
 xfs_bmap_update_log_item(
 	struct xfs_trans		*tp,
 	struct xfs_bui_log_item		*buip,
-	struct xfs_bmap_intent		*bmap)
+	struct xfs_bmap_intent		*bi)
 {
 	uint				next_extent;
 	struct xfs_map_extent		*map;
@@ -331,12 +324,12 @@ xfs_bmap_update_log_item(
 	next_extent = atomic_inc_return(&buip->bui_next_extent) - 1;
 	ASSERT(next_extent < buip->bui_format.bui_nextents);
 	map = &buip->bui_format.bui_extents[next_extent];
-	map->me_owner = bmap->bi_owner->i_ino;
-	map->me_startblock = bmap->bi_bmap.br_startblock;
-	map->me_startoff = bmap->bi_bmap.br_startoff;
-	map->me_len = bmap->bi_bmap.br_blockcount;
-	xfs_trans_set_bmap_flags(map, bmap->bi_type, bmap->bi_whichfork,
-			bmap->bi_bmap.br_state);
+	map->me_owner = bi->bi_owner->i_ino;
+	map->me_startblock = bi->bi_bmap.br_startblock;
+	map->me_startoff = bi->bi_bmap.br_startoff;
+	map->me_len = bi->bi_bmap.br_blockcount;
+	xfs_trans_set_bmap_flags(map, bi->bi_type, bi->bi_whichfork,
+			bi->bi_bmap.br_state);
 }
 
 static struct xfs_log_item *
@@ -348,15 +341,15 @@ xfs_bmap_update_create_intent(
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_bui_log_item		*buip = xfs_bui_init(mp);
-	struct xfs_bmap_intent		*bmap;
+	struct xfs_bmap_intent		*bi;
 
 	ASSERT(count == XFS_BUI_MAX_FAST_EXTENTS);
 
 	xfs_trans_add_item(tp, &buip->bui_item);
 	if (sort)
 		list_sort(mp, items, xfs_bmap_update_diff_items);
-	list_for_each_entry(bmap, items, bi_list)
-		xfs_bmap_update_log_item(tp, buip, bmap);
+	list_for_each_entry(bi, items, bi_list)
+		xfs_bmap_update_log_item(tp, buip, bi);
 	return &buip->bui_item;
 }
 
@@ -378,25 +371,17 @@ xfs_bmap_update_finish_item(
 	struct list_head		*item,
 	struct xfs_btree_cur		**state)
 {
-	struct xfs_bmap_intent		*bmap;
-	xfs_filblks_t			count;
+	struct xfs_bmap_intent		*bi;
 	int				error;
 
-	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
-	count = bmap->bi_bmap.br_blockcount;
-	error = xfs_trans_log_finish_bmap_update(tp, BUD_ITEM(done),
-			bmap->bi_type,
-			bmap->bi_owner, bmap->bi_whichfork,
-			bmap->bi_bmap.br_startoff,
-			bmap->bi_bmap.br_startblock,
-			&count,
-			bmap->bi_bmap.br_state);
-	if (!error && count > 0) {
-		ASSERT(bmap->bi_type == XFS_BMAP_UNMAP);
-		bmap->bi_bmap.br_blockcount = count;
+	bi = container_of(item, struct xfs_bmap_intent, bi_list);
+
+	error = xfs_trans_log_finish_bmap_update(tp, BUD_ITEM(done), bi);
+	if (!error && bi->bi_bmap.br_blockcount > 0) {
+		ASSERT(bi->bi_type == XFS_BMAP_UNMAP);
 		return -EAGAIN;
 	}
-	kmem_cache_free(xfs_bmap_intent_cache, bmap);
+	kmem_cache_free(xfs_bmap_intent_cache, bi);
 	return error;
 }
 
@@ -413,10 +398,10 @@ STATIC void
 xfs_bmap_update_cancel_item(
 	struct list_head		*item)
 {
-	struct xfs_bmap_intent		*bmap;
+	struct xfs_bmap_intent		*bi;
 
-	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
-	kmem_cache_free(xfs_bmap_intent_cache, bmap);
+	bi = container_of(item, struct xfs_bmap_intent, bi_list);
+	kmem_cache_free(xfs_bmap_intent_cache, bi);
 }
 
 const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
@@ -434,18 +419,18 @@ xfs_bui_validate(
 	struct xfs_mount		*mp,
 	struct xfs_bui_log_item		*buip)
 {
-	struct xfs_map_extent		*bmap;
+	struct xfs_map_extent		*map;
 
 	/* Only one mapping operation per BUI... */
 	if (buip->bui_format.bui_nextents != XFS_BUI_MAX_FAST_EXTENTS)
 		return false;
 
-	bmap = &buip->bui_format.bui_extents[0];
+	map = &buip->bui_format.bui_extents[0];
 
-	if (bmap->me_flags & ~XFS_BMAP_EXTENT_FLAGS)
+	if (map->me_flags & ~XFS_BMAP_EXTENT_FLAGS)
 		return false;
 
-	switch (bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK) {
+	switch (map->me_flags & XFS_BMAP_EXTENT_TYPE_MASK) {
 	case XFS_BMAP_MAP:
 	case XFS_BMAP_UNMAP:
 		break;
@@ -453,13 +438,13 @@ xfs_bui_validate(
 		return false;
 	}
 
-	if (!xfs_verify_ino(mp, bmap->me_owner))
+	if (!xfs_verify_ino(mp, map->me_owner))
 		return false;
 
-	if (!xfs_verify_fileext(mp, bmap->me_startoff, bmap->me_len))
+	if (!xfs_verify_fileext(mp, map->me_startoff, map->me_len))
 		return false;
 
-	return xfs_verify_fsbext(mp, bmap->me_startblock, bmap->me_len);
+	return xfs_verify_fsbext(mp, map->me_startblock, map->me_len);
 }
 
 /*
@@ -471,17 +456,13 @@ xfs_bui_item_recover(
 	struct xfs_log_item		*lip,
 	struct list_head		*capture_list)
 {
-	struct xfs_bmbt_irec		irec;
+	struct xfs_bmap_intent		fake = { };
 	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip = NULL;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_map_extent		*bmap;
+	struct xfs_map_extent		*map;
 	struct xfs_bud_log_item		*budp;
-	xfs_filblks_t			count;
-	xfs_exntst_t			state;
-	unsigned int			bui_type;
-	int				whichfork;
 	int				iext_delta;
 	int				error = 0;
 
@@ -491,14 +472,12 @@ xfs_bui_item_recover(
 		return -EFSCORRUPTED;
 	}
 
-	bmap = &buip->bui_format.bui_extents[0];
-	state = (bmap->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
-			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
-	whichfork = (bmap->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
+	map = &buip->bui_format.bui_extents[0];
+	fake.bi_whichfork = (map->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
 			XFS_ATTR_FORK : XFS_DATA_FORK;
-	bui_type = bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
+	fake.bi_type = map->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;
 
-	error = xlog_recover_iget(mp, bmap->me_owner, &ip);
+	error = xlog_recover_iget(mp, map->me_owner, &ip);
 	if (error)
 		return error;
 
@@ -512,34 +491,34 @@ xfs_bui_item_recover(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	if (bui_type == XFS_BMAP_MAP)
+	if (fake.bi_type == XFS_BMAP_MAP)
 		iext_delta = XFS_IEXT_ADD_NOSPLIT_CNT;
 	else
 		iext_delta = XFS_IEXT_PUNCH_HOLE_CNT;
 
-	error = xfs_iext_count_may_overflow(ip, whichfork, iext_delta);
+	error = xfs_iext_count_may_overflow(ip, fake.bi_whichfork, iext_delta);
 	if (error == -EFBIG)
 		error = xfs_iext_count_upgrade(tp, ip, iext_delta);
 	if (error)
 		goto err_cancel;
 
-	count = bmap->me_len;
-	error = xfs_trans_log_finish_bmap_update(tp, budp, bui_type, ip,
-			whichfork, bmap->me_startoff, bmap->me_startblock,
-			&count, state);
+	fake.bi_owner = ip;
+	fake.bi_bmap.br_startblock = map->me_startblock;
+	fake.bi_bmap.br_startoff = map->me_startoff;
+	fake.bi_bmap.br_blockcount = map->me_len;
+	fake.bi_bmap.br_state = (map->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
+			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+
+	error = xfs_trans_log_finish_bmap_update(tp, budp, &fake);
 	if (error == -EFSCORRUPTED)
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bmap,
-				sizeof(*bmap));
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, map,
+				sizeof(*map));
 	if (error)
 		goto err_cancel;
 
-	if (count > 0) {
-		ASSERT(bui_type == XFS_BMAP_UNMAP);
-		irec.br_startblock = bmap->me_startblock;
-		irec.br_blockcount = count;
-		irec.br_startoff = bmap->me_startoff;
-		irec.br_state = state;
-		xfs_bmap_unmap_extent(tp, ip, &irec);
+	if (fake.bi_bmap.br_blockcount > 0) {
+		ASSERT(fake.bi_type == XFS_BMAP_UNMAP);
+		xfs_bmap_unmap_extent(tp, ip, &fake.bi_bmap);
 	}
 
 	/*
@@ -579,18 +558,18 @@ xfs_bui_item_relog(
 {
 	struct xfs_bud_log_item		*budp;
 	struct xfs_bui_log_item		*buip;
-	struct xfs_map_extent		*extp;
+	struct xfs_map_extent		*map;
 	unsigned int			count;
 
 	count = BUI_ITEM(intent)->bui_format.bui_nextents;
-	extp = BUI_ITEM(intent)->bui_format.bui_extents;
+	map = BUI_ITEM(intent)->bui_format.bui_extents;
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	budp = xfs_trans_get_bud(tp, BUI_ITEM(intent));
 	set_bit(XFS_LI_DIRTY, &budp->bud_item.li_flags);
 
 	buip = xfs_bui_init(tp->t_mountp);
-	memcpy(buip->bui_format.bui_extents, extp, count * sizeof(*extp));
+	memcpy(buip->bui_format.bui_extents, map, count * sizeof(*map));
 	atomic_set(&buip->bui_next_extent, count);
 	xfs_trans_add_item(tp, &buip->bui_item);
 	set_bit(XFS_LI_DIRTY, &buip->bui_item.li_flags);

@@ -230,9 +230,15 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		/*
+		 * The initial design of this regulator was to use it as 3.3V,
+		 * but due to later changes in design it was changed to 1.8V.
+		 * The original name is kept due to same schematic.
+		 */
+		ts_avccio:
 		vreg_l3c_3p0: ldo3 {
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <3540000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -335,11 +341,6 @@
 };
 
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
-
-&ipa {
-	status = "okay";
-	modem-init;
-};
 
 &lpass_va_macro {
 	vdd-micb-supply = <&vreg_bob>;

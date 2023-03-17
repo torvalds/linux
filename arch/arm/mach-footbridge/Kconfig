@@ -16,18 +16,6 @@ menuconfig ARCH_FOOTBRIDGE
 
 if ARCH_FOOTBRIDGE
 
-config ARCH_CATS
-	bool "CATS"
-	depends on UNUSED_BOARD_FILES
-	select CLKEVT_I8253
-	select CLKSRC_I8253
-	select ISA
-	select FORCE_PCI
-	help
-	  Say Y here if you intend to run this kernel on the CATS.
-
-	  Saying N will reduce the size of the Footbridge kernel.
-
 config ARCH_EBSA285_HOST
 	bool "EBSA285 (host mode)"
 	select ARCH_EBSA285

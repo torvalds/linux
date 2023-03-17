@@ -10,7 +10,7 @@
 #include <linux/mmu_notifier.h>
 
 #include <drm/drm_gem.h>
-#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo.h>
 #include <uapi/drm/i915_drm.h>
 
 #include "i915_active.h"

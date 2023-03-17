@@ -299,11 +299,6 @@ static int imx7ulp_wdt_init(struct imx7ulp_wdt_device *wdt, unsigned int timeout
 	return ret;
 }
 
-static void imx7ulp_wdt_action(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int imx7ulp_wdt_probe(struct platform_device *pdev)
 {
 	struct imx7ulp_wdt_device *imx7ulp_wdt;
@@ -321,7 +316,7 @@ static int imx7ulp_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(imx7ulp_wdt->base))
 		return PTR_ERR(imx7ulp_wdt->base);
 
-	imx7ulp_wdt->clk = devm_clk_get(dev, NULL);
+	imx7ulp_wdt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(imx7ulp_wdt->clk)) {
 		dev_err(dev, "Failed to get watchdog clock\n");
 		return PTR_ERR(imx7ulp_wdt->clk);
@@ -335,14 +330,6 @@ static int imx7ulp_wdt_probe(struct platform_device *pdev)
 	} else {
 		dev_info(dev, "imx7ulp wdt probe\n");
 	}
-
-	ret = clk_prepare_enable(imx7ulp_wdt->clk);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, imx7ulp_wdt_action, imx7ulp_wdt->clk);
-	if (ret)
-		return ret;
 
 	wdog = &imx7ulp_wdt->wdd;
 	wdog->info = &imx7ulp_wdt_info;

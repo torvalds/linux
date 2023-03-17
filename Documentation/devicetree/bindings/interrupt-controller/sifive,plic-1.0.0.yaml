@@ -45,7 +45,6 @@ description:
   from S-mode. So add thead,c900-plic to distinguish them.
 
 maintainers:
-  - Sagar Kadam <sagar.kadam@sifive.com>
   - Paul Walmsley  <paul.walmsley@sifive.com>
   - Palmer Dabbelt <palmer@dabbelt.com>
 

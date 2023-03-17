@@ -49,7 +49,6 @@ struct rdma_addr {
 	struct rdma_dev_addr dev_addr;
 };
 
-#define RDMA_PRIMARY_PATH_MAX_REC_NUM 3
 struct rdma_route {
 	struct rdma_addr addr;
 	struct sa_path_rec *path_rec;

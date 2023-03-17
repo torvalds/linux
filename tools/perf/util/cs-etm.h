@@ -71,6 +71,7 @@ enum {
 	CS_ETMV4_TRCIDR2,
 	CS_ETMV4_TRCIDR8,
 	CS_ETMV4_TRCAUTHSTATUS,
+	CS_ETMV4_TS_SOURCE,
 	CS_ETMV4_PRIV_MAX,
 };
 
@@ -82,7 +83,17 @@ enum {
  * added in header V1
  */
 enum {
-	CS_ETE_TRCDEVARCH = CS_ETMV4_PRIV_MAX,
+	/* Dynamic, configurable parameters */
+	CS_ETE_TRCCONFIGR = CS_ETM_COMMON_BLK_MAX_V1,
+	CS_ETE_TRCTRACEIDR,
+	/* RO, taken from sysFS */
+	CS_ETE_TRCIDR0,
+	CS_ETE_TRCIDR1,
+	CS_ETE_TRCIDR2,
+	CS_ETE_TRCIDR8,
+	CS_ETE_TRCAUTHSTATUS,
+	CS_ETE_TRCDEVARCH,
+	CS_ETE_TS_SOURCE,
 	CS_ETE_PRIV_MAX
 };
 
@@ -181,7 +192,7 @@ struct cs_etm_packet_queue {
 	u32 head;
 	u32 tail;
 	u32 instr_count;
-	u64 cs_timestamp;
+	u64 cs_timestamp; /* Timestamp from trace data, converted to ns if possible */
 	u64 next_cs_timestamp;
 	struct cs_etm_packet packet_buffer[CS_ETM_PACKET_MAX_BUFFER];
 };
@@ -220,6 +231,7 @@ struct cs_etm_packet_queue
 *cs_etm__etmq_get_packet_queue(struct cs_etm_queue *etmq, u8 trace_chan_id);
 int cs_etm__process_auxtrace_info_full(union perf_event *event __maybe_unused,
 				       struct perf_session *session __maybe_unused);
+u64 cs_etm__convert_sample_time(struct cs_etm_queue *etmq, u64 cs_timestamp);
 #else
 static inline int
 cs_etm__process_auxtrace_info_full(union perf_event *event __maybe_unused,

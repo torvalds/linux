@@ -391,7 +391,7 @@ static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 #ifndef MMU
 	/* this is uClinux (no MMU) specific code */
 
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_start = videomemory;
 
 	return 0;

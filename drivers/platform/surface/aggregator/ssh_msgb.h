@@ -189,8 +189,8 @@ static inline void msgb_push_cmd(struct msgbuf *msgb, u8 seq, u16 rqid,
 
 	__msgb_push_u8(msgb, SSH_PLD_TYPE_CMD);		/* Payload type. */
 	__msgb_push_u8(msgb, rqst->target_category);	/* Target category. */
-	__msgb_push_u8(msgb, rqst->target_id);		/* Target ID (out). */
-	__msgb_push_u8(msgb, 0x00);			/* Target ID (in). */
+	__msgb_push_u8(msgb, rqst->target_id);		/* Target ID. */
+	__msgb_push_u8(msgb, SSAM_SSH_TID_HOST);	/* Source ID. */
 	__msgb_push_u8(msgb, rqst->instance_id);	/* Instance ID. */
 	__msgb_push_u16(msgb, rqid);			/* Request ID. */
 	__msgb_push_u8(msgb, rqst->command_id);		/* Command ID. */

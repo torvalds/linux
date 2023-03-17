@@ -20,5 +20,5 @@
 };
 
 &blsp1_uart3 {
-	status = "ok";
+	status = "okay";
 };

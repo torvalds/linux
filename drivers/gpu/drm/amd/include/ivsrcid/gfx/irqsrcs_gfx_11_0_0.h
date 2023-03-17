@@ -49,6 +49,8 @@
 #define GFX_11_0_0__SRCID__SDMA_SEM_INCOMPLETE_TIMEOUT          65      // 0x41 GPF(Sem incomplete timeout)
 #define GFX_11_0_0__SRCID__SDMA_SEM_WAIT_FAIL_TIMEOUT           66      // 0x42 Semaphore wait fail timeout
 
+#define GFX_11_0_0__SRCID__RLC_GC_FED_INTERRUPT                 128     // 0x80 FED Interrupt (for data poisoning)
+
 #define GFX_11_0_0__SRCID__CP_GENERIC_INT				        177		// 0xB1 CP_GENERIC int
 #define GFX_11_0_0__SRCID__CP_PM4_PKT_RSVD_BIT_ERROR		    180		// 0xB4 PM4 Pkt Rsvd Bits Error
 #define GFX_11_0_0__SRCID__CP_EOP_INTERRUPT					    181		// 0xB5 End-of-Pipe Interrupt

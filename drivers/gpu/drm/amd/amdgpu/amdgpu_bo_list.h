@@ -28,6 +28,8 @@
 
 struct hmm_range;
 
+struct drm_file;
+
 struct amdgpu_device;
 struct amdgpu_bo;
 struct amdgpu_bo_va;

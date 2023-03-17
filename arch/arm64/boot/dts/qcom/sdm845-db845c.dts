@@ -11,6 +11,7 @@
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
 #include "sdm845.dtsi"
+#include "sdm845-wcd9340.dtsi"
 #include "pm8998.dtsi"
 #include "pmi8998.dtsi"
 
@@ -54,7 +55,7 @@
 		key-vol-up {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -65,7 +66,7 @@
 			label = "green:user4";
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&pm8998_gpio 13 GPIO_ACTIVE_HIGH>;
+			gpios = <&pm8998_gpios 13 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "panic-indicator";
 			default-state = "off";
 		};
@@ -74,7 +75,7 @@
 			label = "yellow:wlan";
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_YELLOW>;
-			gpios = <&pm8998_gpio 9 GPIO_ACTIVE_HIGH>;
+			gpios = <&pm8998_gpios 9 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0tx";
 			default-state = "off";
 		};
@@ -83,7 +84,7 @@
 			label = "blue:bt";
 			function = LED_FUNCTION_BLUETOOTH;
 			color = <LED_COLOR_ID_BLUE>;
-			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_HIGH>;
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "bluetooth-power";
 			default-state = "off";
 		};
@@ -142,32 +143,32 @@
 		 */
 	};
 
-	cam0_dvdd_1v2: reg_cam0_dvdd_1v2 {
+	cam0_dvdd_1v2: cam0-dvdd-1v2-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "CAM0_DVDD_1V2";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		enable-active-high;
-		gpio = <&pm8998_gpio 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&pm8998_gpios 12 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam0_dvdd_1v2_en_default>;
 		vin-supply = <&vbat>;
 	};
 
-	cam0_avdd_2v8: reg_cam0_avdd_2v8 {
+	cam0_avdd_2v8: cam0-avdd-2v8-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "CAM0_AVDD_2V8";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		enable-active-high;
-		gpio = <&pm8998_gpio 10 GPIO_ACTIVE_HIGH>;
+		gpio = <&pm8998_gpios 10 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam0_avdd_2v8_en_default>;
 		vin-supply = <&vbat>;
 	};
 
 	/* This regulator is enabled when the VREG_LVS1A_1P8 trace is enabled */
-	cam3_avdd_2v8: reg_cam3_avdd_2v8 {
+	cam3_avdd_2v8: cam3-avdd-2v8-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "CAM3_AVDD_2V8";
 		regulator-min-microvolt = <2800000>;
@@ -269,7 +270,7 @@
 };
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 		vdd-s1-supply = <&vph_pwr>;
@@ -394,7 +395,7 @@
 		};
 	};
 
-	pmi8998-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pmi8998-rpmh-regulators";
 		qcom,pmic-id = "b";
 
@@ -506,14 +507,12 @@
 &i2c11 {
 	/* On Low speed expansion */
 	clock-frequency = <100000>;
-	label = "LS-I2C1";
 	status = "okay";
 };
 
 &i2c14 {
 	/* On Low speed expansion */
 	clock-frequency = <100000>;
-	label = "LS-I2C0";
 	status = "okay";
 };
 
@@ -559,7 +558,7 @@
 	vdda-pll-supply = <&vreg_l26a_1p2>;
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	gpio-line-names =
 		"NC",
 		"NC",
@@ -615,14 +614,9 @@
 	};
 };
 
-&pm8998_pon {
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &pmi8998_lpg {
@@ -709,7 +703,7 @@
 };
 
 &sound {
-	compatible = "qcom,db845c-sndcard";
+	compatible = "qcom,db845c-sndcard", "qcom,sdm845-sndcard";
 	pinctrl-0 = <&quat_mi2s_active
 			 &quat_mi2s_sd0_active
 			 &quat_mi2s_sd1_active
@@ -830,8 +824,8 @@
 };
 
 &tlmm {
-	cam0_default: cam0_default {
-		rst {
+	cam0_default: cam0-default-state {
+		rst-pins {
 			pins = "gpio9";
 			function = "gpio";
 
@@ -839,7 +833,7 @@
 			bias-disable;
 		};
 
-		mclk0 {
+		mclk0-pins {
 			pins = "gpio13";
 			function = "cam_mclk";
 
@@ -848,8 +842,8 @@
 		};
 	};
 
-	cam3_default: cam3_default {
-		rst {
+	cam3_default: cam3-default-state {
+		rst-pins {
 			function = "gpio";
 			pins = "gpio21";
 
@@ -857,7 +851,7 @@
 			bias-disable;
 		};
 
-		mclk3 {
+		mclk3-pins {
 			function = "cam_mclk";
 			pins = "gpio16";
 
@@ -866,7 +860,7 @@
 		};
 	};
 
-	dsi_sw_sel: dsi-sw-sel {
+	dsi_sw_sel: dsi-sw-sel-state {
 		pins = "gpio120";
 		function = "gpio";
 
@@ -875,20 +869,20 @@
 		output-high;
 	};
 
-	lt9611_irq_pin: lt9611-irq {
+	lt9611_irq_pin: lt9611-irq-state {
 		pins = "gpio84";
 		function = "gpio";
 		bias-disable;
 	};
 
-	pcie0_default_state: pcie0-default {
-		clkreq {
+	pcie0_default_state: pcie0-default-state {
+		clkreq-pins {
 			pins = "gpio36";
 			function = "pci_e0";
 			bias-pull-up;
 		};
 
-		reset-n {
+		reset-n-pins {
 			pins = "gpio35";
 			function = "gpio";
 
@@ -897,7 +891,7 @@
 			bias-pull-down;
 		};
 
-		wake-n {
+		wake-n-pins {
 			pins = "gpio37";
 			function = "gpio";
 
@@ -906,7 +900,7 @@
 		};
 	};
 
-	pcie0_pwren_state: pcie0-pwren {
+	pcie0_pwren_state: pcie0-pwren-state {
 		pins = "gpio90";
 		function = "gpio";
 
@@ -914,8 +908,8 @@
 		bias-disable;
 	};
 
-	pcie1_default_state: pcie1-default {
-		perst-n {
+	pcie1_default_state: pcie1-default-state {
+		perst-n-pins {
 			pins = "gpio102";
 			function = "gpio";
 
@@ -923,13 +917,13 @@
 			bias-disable;
 		};
 
-		clkreq {
+		clkreq-pins {
 			pins = "gpio103";
 			function = "pci_e1";
 			bias-pull-up;
 		};
 
-		wake-n {
+		wake-n-pins {
 			pins = "gpio11";
 			function = "gpio";
 
@@ -937,7 +931,7 @@
 			bias-pull-up;
 		};
 
-		reset-n {
+		reset-n-pins {
 			pins = "gpio75";
 			function = "gpio";
 
@@ -947,8 +941,8 @@
 		};
 	};
 
-	sdc2_default_state: sdc2-default {
-		clk {
+	sdc2_default_state: sdc2-default-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			bias-disable;
 
@@ -959,37 +953,30 @@
 			drive-strength = <16>;
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		data {
+		data-pins {
 			pins = "sdc2_data";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 	};
 
-	sdc2_card_det_n: sd-card-det-n {
+	sdc2_card_det_n: sd-card-det-n-state {
 		pins = "gpio126";
 		function = "gpio";
 		bias-pull-up;
-	};
-
-	wcd_intr_default: wcd_intr_default {
-		pins = <54>;
-		function = "gpio";
-
-		input-enable;
-		bias-pull-down;
-		drive-strength = <2>;
 	};
 };
 
 &uart3 {
 	label = "LS-UART0";
+	pinctrl-0 = <&qup_uart3_4pin>;
+
 	status = "disabled";
 };
 
@@ -1089,10 +1076,6 @@
 };
 
 &wcd9340 {
-	pinctrl-0 = <&wcd_intr_default>;
-	pinctrl-names = "default";
-	clock-names = "extclk";
-	clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
 	reset-gpios = <&tlmm 64 GPIO_ACTIVE_HIGH>;
 	vdd-buck-supply = <&vreg_s4a_1p8>;
 	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
@@ -1135,49 +1118,30 @@
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 &qup_spi2_default {
-	pinconf {
-		pins = "gpio27", "gpio28", "gpio29", "gpio30";
-		drive-strength = <16>;
-	};
-};
-
-&qup_uart3_default {
-	pinmux {
-		pins = "gpio41", "gpio42", "gpio43", "gpio44";
-		function = "qup3";
-	};
+	drive-strength = <16>;
 };
 
 &qup_i2c10_default {
-	pinconf {
-		pins = "gpio55", "gpio56";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
-&qup_uart9_default {
-	pinconf-tx {
-		pins = "gpio4";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		pins = "gpio5";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&qup_uart9_rx {
+	drive-strength = <2>;
+	bias-pull-up;
 };
 
-&pm8998_gpio {
+&qup_uart9_tx {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&pm8998_gpios {
 
 };
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 &qup_spi0_default {
-	config {
-		drive-strength = <6>;
-		bias-disable;
-	};
+	drive-strength = <6>;
+	bias-disable;
 };

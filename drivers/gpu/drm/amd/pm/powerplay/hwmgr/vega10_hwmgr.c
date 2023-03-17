@@ -22,7 +22,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -3008,6 +3007,30 @@ static int vega10_enable_disable_PCC_limit_feature(struct pp_hwmgr *hwmgr, bool 
 	return 0;
 }
 
+static void vega10_populate_umdpstate_clocks(struct pp_hwmgr *hwmgr)
+{
+	struct phm_ppt_v2_information *table_info =
+			(struct phm_ppt_v2_information *)(hwmgr->pptable);
+
+	if (table_info->vdd_dep_on_sclk->count > VEGA10_UMD_PSTATE_GFXCLK_LEVEL &&
+	    table_info->vdd_dep_on_mclk->count > VEGA10_UMD_PSTATE_MCLK_LEVEL) {
+		hwmgr->pstate_sclk = table_info->vdd_dep_on_sclk->entries[VEGA10_UMD_PSTATE_GFXCLK_LEVEL].clk;
+		hwmgr->pstate_mclk = table_info->vdd_dep_on_mclk->entries[VEGA10_UMD_PSTATE_MCLK_LEVEL].clk;
+	} else {
+		hwmgr->pstate_sclk = table_info->vdd_dep_on_sclk->entries[0].clk;
+		hwmgr->pstate_mclk = table_info->vdd_dep_on_mclk->entries[0].clk;
+	}
+
+	hwmgr->pstate_sclk_peak = table_info->vdd_dep_on_sclk->entries[table_info->vdd_dep_on_sclk->count - 1].clk;
+	hwmgr->pstate_mclk_peak = table_info->vdd_dep_on_mclk->entries[table_info->vdd_dep_on_mclk->count - 1].clk;
+
+	/* make sure the output is in Mhz */
+	hwmgr->pstate_sclk /= 100;
+	hwmgr->pstate_mclk /= 100;
+	hwmgr->pstate_sclk_peak /= 100;
+	hwmgr->pstate_mclk_peak /= 100;
+}
+
 static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
@@ -3081,6 +3104,8 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 				    "Failed to enable ULV!",
 				    result = tmp_result);
 	}
+
+	vega10_populate_umdpstate_clocks(hwmgr);
 
 	return result;
 }
@@ -4169,8 +4194,6 @@ static int vega10_get_profiling_clk_mask(struct pp_hwmgr *hwmgr, enum amd_dpm_fo
 		*sclk_mask = VEGA10_UMD_PSTATE_GFXCLK_LEVEL;
 		*soc_mask = VEGA10_UMD_PSTATE_SOCCLK_LEVEL;
 		*mclk_mask = VEGA10_UMD_PSTATE_MCLK_LEVEL;
-		hwmgr->pstate_sclk = table_info->vdd_dep_on_sclk->entries[VEGA10_UMD_PSTATE_GFXCLK_LEVEL].clk;
-		hwmgr->pstate_mclk = table_info->vdd_dep_on_mclk->entries[VEGA10_UMD_PSTATE_MCLK_LEVEL].clk;
 	}
 
 	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
@@ -4280,9 +4303,6 @@ static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	uint32_t sclk_mask = 0;
 	uint32_t mclk_mask = 0;
 	uint32_t soc_mask = 0;
-
-	if (hwmgr->pstate_sclk == 0)
-		vega10_get_profiling_clk_mask(hwmgr, level, &sclk_mask, &mclk_mask, &soc_mask);
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:

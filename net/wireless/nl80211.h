@@ -114,7 +114,7 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 		     enum nl80211_radar_event event,
 		     struct net_device *netdev, gfp_t gfp);
 
-void nl80211_send_ap_stopped(struct wireless_dev *wdev);
+void nl80211_send_ap_stopped(struct wireless_dev *wdev, unsigned int link_id);
 
 void cfg80211_rdev_free_coalesce(struct cfg80211_registered_device *rdev);
 

@@ -428,6 +428,7 @@ static void *consumer(void *input)
 
 const struct bench bench_bloom_lookup = {
 	.name = "bloom-lookup",
+	.argp = &bench_bloom_map_argp,
 	.validate = validate,
 	.setup = bloom_lookup_setup,
 	.producer_thread = producer,
@@ -439,6 +440,7 @@ const struct bench bench_bloom_lookup = {
 
 const struct bench bench_bloom_update = {
 	.name = "bloom-update",
+	.argp = &bench_bloom_map_argp,
 	.validate = validate,
 	.setup = bloom_update_setup,
 	.producer_thread = producer,
@@ -450,6 +452,7 @@ const struct bench bench_bloom_update = {
 
 const struct bench bench_bloom_false_positive = {
 	.name = "bloom-false-positive",
+	.argp = &bench_bloom_map_argp,
 	.validate = validate,
 	.setup = false_positive_setup,
 	.producer_thread = producer,
@@ -461,6 +464,7 @@ const struct bench bench_bloom_false_positive = {
 
 const struct bench bench_hashmap_without_bloom = {
 	.name = "hashmap-without-bloom",
+	.argp = &bench_bloom_map_argp,
 	.validate = validate,
 	.setup = hashmap_no_bloom_setup,
 	.producer_thread = producer,
@@ -472,6 +476,7 @@ const struct bench bench_hashmap_without_bloom = {
 
 const struct bench bench_hashmap_with_bloom = {
 	.name = "hashmap-with-bloom",
+	.argp = &bench_bloom_map_argp,
 	.validate = validate,
 	.setup = hashmap_with_bloom_setup,
 	.producer_thread = producer,

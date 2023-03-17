@@ -174,7 +174,7 @@ static int surface_hid_raw_request(struct hid_device *hid, unsigned char reportn
 	return -EIO;
 }
 
-static struct hid_ll_driver surface_hid_ll_driver = {
+static const struct hid_ll_driver surface_hid_ll_driver = {
 	.start       = surface_hid_start,
 	.stop        = surface_hid_stop,
 	.open        = surface_hid_open,

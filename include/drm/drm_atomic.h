@@ -515,17 +515,17 @@ struct drm_private_state * __must_check
 drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 				 struct drm_private_obj *obj);
 struct drm_private_state *
-drm_atomic_get_old_private_obj_state(struct drm_atomic_state *state,
+drm_atomic_get_old_private_obj_state(const struct drm_atomic_state *state,
 				     struct drm_private_obj *obj);
 struct drm_private_state *
-drm_atomic_get_new_private_obj_state(struct drm_atomic_state *state,
+drm_atomic_get_new_private_obj_state(const struct drm_atomic_state *state,
 				     struct drm_private_obj *obj);
 
 struct drm_connector *
-drm_atomic_get_old_connector_for_encoder(struct drm_atomic_state *state,
+drm_atomic_get_old_connector_for_encoder(const struct drm_atomic_state *state,
 					 struct drm_encoder *encoder);
 struct drm_connector *
-drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
+drm_atomic_get_new_connector_for_encoder(const struct drm_atomic_state *state,
 					 struct drm_encoder *encoder);
 
 /**
@@ -540,7 +540,7 @@ drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
  * @drm_atomic_get_new_crtc_state should be used instead.
  */
 static inline struct drm_crtc_state *
-drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
+drm_atomic_get_existing_crtc_state(const struct drm_atomic_state *state,
 				   struct drm_crtc *crtc)
 {
 	return state->crtcs[drm_crtc_index(crtc)].state;
@@ -555,7 +555,7 @@ drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
  * NULL if the CRTC is not part of the global atomic state.
  */
 static inline struct drm_crtc_state *
-drm_atomic_get_old_crtc_state(struct drm_atomic_state *state,
+drm_atomic_get_old_crtc_state(const struct drm_atomic_state *state,
 			      struct drm_crtc *crtc)
 {
 	return state->crtcs[drm_crtc_index(crtc)].old_state;
@@ -569,7 +569,7 @@ drm_atomic_get_old_crtc_state(struct drm_atomic_state *state,
  * NULL if the CRTC is not part of the global atomic state.
  */
 static inline struct drm_crtc_state *
-drm_atomic_get_new_crtc_state(struct drm_atomic_state *state,
+drm_atomic_get_new_crtc_state(const struct drm_atomic_state *state,
 			      struct drm_crtc *crtc)
 {
 	return state->crtcs[drm_crtc_index(crtc)].new_state;
@@ -587,7 +587,7 @@ drm_atomic_get_new_crtc_state(struct drm_atomic_state *state,
  * @drm_atomic_get_new_plane_state should be used instead.
  */
 static inline struct drm_plane_state *
-drm_atomic_get_existing_plane_state(struct drm_atomic_state *state,
+drm_atomic_get_existing_plane_state(const struct drm_atomic_state *state,
 				    struct drm_plane *plane)
 {
 	return state->planes[drm_plane_index(plane)].state;
@@ -602,7 +602,7 @@ drm_atomic_get_existing_plane_state(struct drm_atomic_state *state,
  * NULL if the plane is not part of the global atomic state.
  */
 static inline struct drm_plane_state *
-drm_atomic_get_old_plane_state(struct drm_atomic_state *state,
+drm_atomic_get_old_plane_state(const struct drm_atomic_state *state,
 			       struct drm_plane *plane)
 {
 	return state->planes[drm_plane_index(plane)].old_state;
@@ -617,7 +617,7 @@ drm_atomic_get_old_plane_state(struct drm_atomic_state *state,
  * NULL if the plane is not part of the global atomic state.
  */
 static inline struct drm_plane_state *
-drm_atomic_get_new_plane_state(struct drm_atomic_state *state,
+drm_atomic_get_new_plane_state(const struct drm_atomic_state *state,
 			       struct drm_plane *plane)
 {
 	return state->planes[drm_plane_index(plane)].new_state;
@@ -635,7 +635,7 @@ drm_atomic_get_new_plane_state(struct drm_atomic_state *state,
  * @drm_atomic_get_new_connector_state should be used instead.
  */
 static inline struct drm_connector_state *
-drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
+drm_atomic_get_existing_connector_state(const struct drm_atomic_state *state,
 					struct drm_connector *connector)
 {
 	int index = drm_connector_index(connector);
@@ -655,7 +655,7 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
  * or NULL if the connector is not part of the global atomic state.
  */
 static inline struct drm_connector_state *
-drm_atomic_get_old_connector_state(struct drm_atomic_state *state,
+drm_atomic_get_old_connector_state(const struct drm_atomic_state *state,
 				   struct drm_connector *connector)
 {
 	int index = drm_connector_index(connector);
@@ -675,7 +675,7 @@ drm_atomic_get_old_connector_state(struct drm_atomic_state *state,
  * or NULL if the connector is not part of the global atomic state.
  */
 static inline struct drm_connector_state *
-drm_atomic_get_new_connector_state(struct drm_atomic_state *state,
+drm_atomic_get_new_connector_state(const struct drm_atomic_state *state,
 				   struct drm_connector *connector)
 {
 	int index = drm_connector_index(connector);
@@ -713,7 +713,7 @@ drm_atomic_get_new_connector_state(struct drm_atomic_state *state,
  * Read-only pointer to the current plane state.
  */
 static inline const struct drm_plane_state *
-__drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
+__drm_atomic_get_current_plane_state(const struct drm_atomic_state *state,
 				     struct drm_plane *plane)
 {
 	if (state->planes[drm_plane_index(plane)].state)
@@ -1134,10 +1134,10 @@ struct drm_bridge_state *
 drm_atomic_get_bridge_state(struct drm_atomic_state *state,
 			    struct drm_bridge *bridge);
 struct drm_bridge_state *
-drm_atomic_get_old_bridge_state(struct drm_atomic_state *state,
+drm_atomic_get_old_bridge_state(const struct drm_atomic_state *state,
 				struct drm_bridge *bridge);
 struct drm_bridge_state *
-drm_atomic_get_new_bridge_state(struct drm_atomic_state *state,
+drm_atomic_get_new_bridge_state(const struct drm_atomic_state *state,
 				struct drm_bridge *bridge);
 
 #endif /* DRM_ATOMIC_H_ */

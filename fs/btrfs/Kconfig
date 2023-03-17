@@ -17,7 +17,6 @@ config BTRFS_FS
 	select FS_IOMAP
 	select RAID6_PQ
 	select XOR_BLOCKS
-	select SRCU
 	depends on PAGE_SIZE_LESS_THAN_256KB
 
 	help

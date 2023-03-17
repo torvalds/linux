@@ -209,8 +209,8 @@ config NFS_DISABLE_UDP_SUPPORT
 config NFS_V4_2_READ_PLUS
 	bool "NFS: Enable support for the NFSv4.2 READ_PLUS operation"
 	depends on NFS_V4_2
-	default y
+	default n
 	help
-	 Choose Y here to enable the use of READ_PLUS over NFS v4.2. READ_PLUS
-	 attempts to improve read performance by compressing out sparse holes
-	 in the file contents.
+	 This is intended for developers only. The READ_PLUS operation has
+	 been shown to have issues under specific conditions and should not
+	 be used in production.

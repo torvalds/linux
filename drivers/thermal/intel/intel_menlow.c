@@ -232,9 +232,9 @@ static DEFINE_MUTEX(intel_menlow_attr_lock);
 
 /*
  * sensor_get_auxtrip - get the current auxtrip value from sensor
- * @name: Thermalzone name
- * @auxtype : AUX0/AUX1
- * @buf: syfs buffer
+ * @handle: Object handle
+ * @index : GET_AUX1/GET_AUX0
+ * @value : The address will be fill by the value
  */
 static int sensor_get_auxtrip(acpi_handle handle, int index,
 							unsigned long long *value)
@@ -254,9 +254,9 @@ static int sensor_get_auxtrip(acpi_handle handle, int index,
 
 /*
  * sensor_set_auxtrip - set the new auxtrip value to sensor
- * @name: Thermalzone name
- * @auxtype : AUX0/AUX1
- * @buf: syfs buffer
+ * @handle: Object handle
+ * @index : GET_AUX1/GET_AUX0
+ * @value : The value will be set
  */
 static int sensor_set_auxtrip(acpi_handle handle, int index, int value)
 {

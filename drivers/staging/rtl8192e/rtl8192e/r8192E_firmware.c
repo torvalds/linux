@@ -51,7 +51,7 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 				   u8 load_fw_status)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_firmware *pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->fw_info;
 	bool rt_status  = true;
 
 	switch (load_fw_status) {
@@ -134,7 +134,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 	enum opt_rst_type rst_opt = OPT_SYSTEM_RESET;
 	enum firmware_init_step starting_state = FW_INIT_STEP0_BOOT;
 
-	struct rt_firmware *pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->fw_info;
 
 	netdev_dbg(dev, " PlatformInitFirmware()==>\n");
 

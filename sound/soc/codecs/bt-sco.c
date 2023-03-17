@@ -78,11 +78,6 @@ static int bt_sco_probe(struct platform_device *pdev)
 				      bt_sco_dai, ARRAY_SIZE(bt_sco_dai));
 }
 
-static int bt_sco_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct platform_device_id bt_sco_driver_ids[] = {
 	{
 		.name		= "dfbmcs320",
@@ -109,7 +104,6 @@ static struct platform_driver bt_sco_driver = {
 		.of_match_table = of_match_ptr(bt_sco_codec_of_match),
 	},
 	.probe = bt_sco_probe,
-	.remove = bt_sco_remove,
 	.id_table = bt_sco_driver_ids,
 };
 

@@ -701,14 +701,8 @@ fail:
 	return ret;
 }
 
-static int bcm2835_power_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver bcm2835_power_driver = {
 	.probe		= bcm2835_power_probe,
-	.remove		= bcm2835_power_remove,
 	.driver = {
 		.name =	"bcm2835-power",
 	},

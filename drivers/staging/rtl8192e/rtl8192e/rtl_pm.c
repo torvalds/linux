@@ -41,7 +41,7 @@ int rtl92e_suspend(struct device *dev_d)
 		rtl92e_writel(dev, WFCRC1, 0xffffffff);
 		rtl92e_writel(dev, WFCRC2, 0xffffffff);
 		rtl92e_writeb(dev, PMR, 0x5);
-		rtl92e_writeb(dev, MacBlkCtrl, 0xa);
+		rtl92e_writeb(dev, MAC_BLK_CTRL, 0xa);
 	}
 out_pci_suspend:
 	netdev_info(dev, "WOL is %s\n", priv->rtllib->bSupportRemoteWakeUp ?

@@ -82,8 +82,6 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 		return err;
 	}
 
-	pr_debug("Valid signature for file digest %s:%*phN\n",
-		 hash_alg->name, hash_alg->digest_size, vi->file_digest);
 	return 0;
 }
 

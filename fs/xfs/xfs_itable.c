@@ -55,7 +55,7 @@ struct xfs_bstat_chunk {
 STATIC int
 xfs_bulkstat_one_int(
 	struct xfs_mount	*mp,
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct xfs_trans	*tp,
 	xfs_ino_t		ino,
 	struct xfs_bstat_chunk	*bc)
@@ -83,8 +83,8 @@ xfs_bulkstat_one_int(
 	ASSERT(ip != NULL);
 	ASSERT(ip->i_imap.im_blkno != 0);
 	inode = VFS_I(ip);
-	vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
-	vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+	vfsuid = i_uid_into_vfsuid(idmap, inode);
+	vfsgid = i_gid_into_vfsgid(idmap, inode);
 
 	/* xfs_iget returns the following without needing
 	 * further change.
@@ -178,7 +178,7 @@ xfs_bulkstat_one(
 	struct xfs_trans	*tp;
 	int			error;
 
-	if (breq->mnt_userns != &init_user_ns) {
+	if (breq->idmap != &nop_mnt_idmap) {
 		xfs_warn_ratelimited(breq->mp,
 			"bulkstat not supported inside of idmapped mounts.");
 		return -EINVAL;
@@ -199,7 +199,7 @@ xfs_bulkstat_one(
 	if (error)
 		goto out;
 
-	error = xfs_bulkstat_one_int(breq->mp, breq->mnt_userns, tp,
+	error = xfs_bulkstat_one_int(breq->mp, breq->idmap, tp,
 			breq->startino, &bc);
 	xfs_trans_cancel(tp);
 out:
@@ -225,7 +225,7 @@ xfs_bulkstat_iwalk(
 	struct xfs_bstat_chunk	*bc = data;
 	int			error;
 
-	error = xfs_bulkstat_one_int(mp, bc->breq->mnt_userns, tp, ino, data);
+	error = xfs_bulkstat_one_int(mp, bc->breq->idmap, tp, ino, data);
 	/* bulkstat just skips over missing inodes */
 	if (error == -ENOENT || error == -EINVAL)
 		return 0;
@@ -270,7 +270,7 @@ xfs_bulkstat(
 	unsigned int		iwalk_flags = 0;
 	int			error;
 
-	if (breq->mnt_userns != &init_user_ns) {
+	if (breq->idmap != &nop_mnt_idmap) {
 		xfs_warn_ratelimited(breq->mp,
 			"bulkstat not supported inside of idmapped mounts.");
 		return -EINVAL;

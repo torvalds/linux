@@ -5,7 +5,7 @@
 #ifndef __ASSEMBLER__
 #include <linux/types.h>
 
-#ifdef CONFIG_ARCH_OMAP1_ANY
+#ifdef CONFIG_ARCH_OMAP1
 /*
  * NOTE: Please use ioremap + __raw_read/write where possible instead of these
  */
@@ -15,7 +15,7 @@ extern u32 omap_readl(u32 pa);
 extern void omap_writeb(u8 v, u32 pa);
 extern void omap_writew(u16 v, u32 pa);
 extern void omap_writel(u32 v, u32 pa);
-#else
+#elif defined(CONFIG_COMPILE_TEST)
 static inline u8 omap_readb(u32 pa)  { return 0; }
 static inline u16 omap_readw(u32 pa) { return 0; }
 static inline u32 omap_readl(u32 pa) { return 0; }

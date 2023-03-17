@@ -14,6 +14,7 @@
 #include <asm/auxvec.h>
 #include <asm/byteorder.h>
 #include <asm/cacheinfo.h>
+#include <asm/hwcap.h>
 
 /*
  * These are used to set parameters in the core dumps.
@@ -59,12 +60,13 @@ extern bool compat_elf_check_arch(Elf32_Ehdr *hdr);
 #define STACK_RND_MASK		(0x3ffff >> (PAGE_SHIFT - 12))
 #endif
 #endif
+
 /*
- * This yields a mask that user programs can use to figure out what
- * instruction set this CPU supports.  This could be done in user space,
- * but it's not easy, and we've already done it here.
+ * Provides information on the availiable set of ISA extensions to userspace,
+ * via a bitmap that coorespends to each single-letter ISA extension.  This is
+ * essentially defunct, but will remain for compatibility with userspace.
  */
-#define ELF_HWCAP	(elf_hwcap)
+#define ELF_HWCAP	(elf_hwcap & ((1UL << RISCV_ISA_EXT_BASE) - 1))
 extern unsigned long elf_hwcap;
 
 /*

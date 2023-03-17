@@ -220,6 +220,12 @@
 #define SCALER_DISPCTRL                         0x00000000
 /* Global register for clock gating the HVS */
 # define SCALER_DISPCTRL_ENABLE			BIT(31)
+# define SCALER_DISPCTRL_PANIC0_MASK		VC4_MASK(25, 24)
+# define SCALER_DISPCTRL_PANIC0_SHIFT		24
+# define SCALER_DISPCTRL_PANIC1_MASK		VC4_MASK(27, 26)
+# define SCALER_DISPCTRL_PANIC1_SHIFT		26
+# define SCALER_DISPCTRL_PANIC2_MASK		VC4_MASK(29, 28)
+# define SCALER_DISPCTRL_PANIC2_SHIFT		28
 # define SCALER_DISPCTRL_DSP3_MUX_MASK		VC4_MASK(19, 18)
 # define SCALER_DISPCTRL_DSP3_MUX_SHIFT		18
 
@@ -228,15 +234,21 @@
  * always enabled.
  */
 # define SCALER_DISPCTRL_DSPEISLUR(x)		BIT(13 + (x))
+# define SCALER5_DISPCTRL_DSPEISLUR(x)		BIT(9 + ((x) * 4))
 /* Enables Display 0 end-of-line-N contribution to
  * SCALER_DISPSTAT_IRQDISP0
  */
 # define SCALER_DISPCTRL_DSPEIEOLN(x)		BIT(8 + ((x) * 2))
+# define SCALER5_DISPCTRL_DSPEIEOLN(x)		BIT(8 + ((x) * 4))
 /* Enables Display 0 EOF contribution to SCALER_DISPSTAT_IRQDISP0 */
 # define SCALER_DISPCTRL_DSPEIEOF(x)		BIT(7 + ((x) * 2))
+# define SCALER5_DISPCTRL_DSPEIEOF(x)		BIT(7 + ((x) * 4))
 
-# define SCALER_DISPCTRL_SLVRDEIRQ		BIT(6)
-# define SCALER_DISPCTRL_SLVWREIRQ		BIT(5)
+# define SCALER5_DISPCTRL_DSPEIVST(x)		BIT(6 + ((x) * 4))
+
+# define SCALER_DISPCTRL_SLVRDEIRQ		BIT(6)	/* HVS4 only */
+# define SCALER_DISPCTRL_SLVWREIRQ		BIT(5)	/* HVS4 only */
+# define SCALER5_DISPCTRL_SLVEIRQ		BIT(5)
 # define SCALER_DISPCTRL_DMAEIRQ		BIT(4)
 /* Enables interrupt generation on the enabled EOF/EOLN/EISLUR
  * bits and short frames..
@@ -360,6 +372,7 @@
 
 #define SCALER_DISPBKGND0                       0x00000044
 # define SCALER_DISPBKGND_AUTOHS		BIT(31)
+# define SCALER5_DISPBKGND_BCK2BCK		BIT(31)
 # define SCALER_DISPBKGND_INTERLACE		BIT(30)
 # define SCALER_DISPBKGND_GAMMA			BIT(29)
 # define SCALER_DISPBKGND_TESTMODE_MASK		VC4_MASK(28, 25)
@@ -835,16 +848,19 @@ enum hvs_pixel_format {
 /* Note: the LSB is the rightmost character shown.  Only valid for
  * HVS_PIXEL_FORMAT_RGB8888, not RGB888.
  */
+/* For modes 332, 4444, 555, 5551, 6666, 8888, 10:10:10:2 */
 #define HVS_PIXEL_ORDER_RGBA			0
 #define HVS_PIXEL_ORDER_BGRA			1
 #define HVS_PIXEL_ORDER_ARGB			2
 #define HVS_PIXEL_ORDER_ABGR			3
 
+/* For modes 666 and 888 (4 & 5) */
 #define HVS_PIXEL_ORDER_XBRG			0
 #define HVS_PIXEL_ORDER_XRBG			1
 #define HVS_PIXEL_ORDER_XRGB			2
 #define HVS_PIXEL_ORDER_XBGR			3
 
+/* For YCbCr modes (8-12, and 17) */
 #define HVS_PIXEL_ORDER_XYCBCR			0
 #define HVS_PIXEL_ORDER_XYCRCB			1
 #define HVS_PIXEL_ORDER_YXCBCR			2

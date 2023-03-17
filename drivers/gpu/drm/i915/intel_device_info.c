@@ -29,6 +29,7 @@
 
 #include "display/intel_cdclk.h"
 #include "display/intel_de.h"
+#include "display/intel_display.h"
 #include "gt/intel_gt_regs.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -343,6 +344,12 @@ static void intel_ipver_early_init(struct drm_i915_private *i915)
 
 	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_GRAPHICS),
 		    &runtime->graphics.ip);
+	/* Wa_22012778468 */
+	if (runtime->graphics.ip.ver == 0x0 &&
+	    INTEL_INFO(i915)->platform == INTEL_METEORLAKE) {
+		RUNTIME_INFO(i915)->graphics.ip.ver = 12;
+		RUNTIME_INFO(i915)->graphics.ip.rel = 70;
+	}
 	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_DISPLAY),
 		    &runtime->display.ip);
 	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_MEDIA),

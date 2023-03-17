@@ -223,8 +223,8 @@ const char *iavf_stat_str(struct iavf_hw *hw, enum iavf_status stat_err)
 		return "IAVF_ERR_ADMIN_QUEUE_FULL";
 	case IAVF_ERR_ADMIN_QUEUE_NO_WORK:
 		return "IAVF_ERR_ADMIN_QUEUE_NO_WORK";
-	case IAVF_ERR_BAD_IWARP_CQE:
-		return "IAVF_ERR_BAD_IWARP_CQE";
+	case IAVF_ERR_BAD_RDMA_CQE:
+		return "IAVF_ERR_BAD_RDMA_CQE";
 	case IAVF_ERR_NVM_BLANK_MODE:
 		return "IAVF_ERR_NVM_BLANK_MODE";
 	case IAVF_ERR_NOT_IMPLEMENTED:

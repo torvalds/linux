@@ -25,6 +25,7 @@ ENTRY(startup_continue)
 	larl	%r14,init_task
 	stg	%r14,__LC_CURRENT
 	larl	%r15,init_thread_union+THREAD_SIZE-STACK_FRAME_OVERHEAD-__PT_SIZE
+	brasl	%r14,sclp_early_adjust_va	# allow sclp_early_printk
 #ifdef CONFIG_KASAN
 	brasl	%r14,kasan_early_init
 #endif

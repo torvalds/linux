@@ -138,7 +138,7 @@ static int cachefiles_adjust_size(struct cachefiles_object *object)
 		newattrs.ia_size = oi_size & PAGE_MASK;
 		ret = cachefiles_inject_remove_error();
 		if (ret == 0)
-			ret = notify_change(&init_user_ns, file->f_path.dentry,
+			ret = notify_change(&nop_mnt_idmap, file->f_path.dentry,
 					    &newattrs, NULL);
 		if (ret < 0)
 			goto truncate_failed;
@@ -148,7 +148,7 @@ static int cachefiles_adjust_size(struct cachefiles_object *object)
 	newattrs.ia_size = ni_size;
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
-		ret = notify_change(&init_user_ns, file->f_path.dentry,
+		ret = notify_change(&nop_mnt_idmap, file->f_path.dentry,
 				    &newattrs, NULL);
 
 truncate_failed:

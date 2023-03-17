@@ -549,13 +549,15 @@
 		};
 
 		sysreg_peri: syscon@10020000 {
-			compatible = "samsung,exynos850-sysreg", "syscon";
+			compatible = "samsung,exynos850-peri-sysreg",
+				     "samsung,exynos850-sysreg", "syscon";
 			reg = <0x10020000 0x10000>;
 			clocks = <&cmu_peri CLK_GOUT_SYSREG_PERI_PCLK>;
 		};
 
 		sysreg_cmgp: syscon@11c20000 {
-			compatible = "samsung,exynos850-sysreg", "syscon";
+			compatible = "samsung,exynos850-cmgp-sysreg",
+				     "samsung,exynos850-sysreg", "syscon";
 			reg = <0x11c20000 0x10000>;
 			clocks = <&cmu_cmgp CLK_GOUT_SYSREG_CMGP_PCLK>;
 		};

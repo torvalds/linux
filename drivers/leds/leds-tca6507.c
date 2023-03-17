@@ -695,8 +695,7 @@ tca6507_led_dt_init(struct device *dev)
 					    &led.default_trigger);
 
 		led.flags = 0;
-		if (fwnode_property_match_string(child, "compatible",
-						 "gpio") >= 0)
+		if (fwnode_device_is_compatible(child, "gpio"))
 			led.flags |= TCA6507_MAKE_GPIO;
 
 		ret = fwnode_property_read_u32(child, "reg", &reg);
@@ -728,8 +727,7 @@ static const struct of_device_id __maybe_unused of_tca6507_leds_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_tca6507_leds_match);
 
-static int tca6507_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int tca6507_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct i2c_adapter *adapter;
@@ -809,7 +807,7 @@ static struct i2c_driver tca6507_driver = {
 		.name    = "leds-tca6507",
 		.of_match_table = of_match_ptr(of_tca6507_leds_match),
 	},
-	.probe    = tca6507_probe,
+	.probe_new = tca6507_probe,
 	.remove   = tca6507_remove,
 	.id_table = tca6507_id,
 };

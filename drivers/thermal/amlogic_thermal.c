@@ -28,7 +28,6 @@
 #include <linux/regmap.h>
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
 #include "thermal_hwmon.h"
 
 #define TSENSOR_CFG_REG1			0x4

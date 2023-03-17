@@ -340,14 +340,14 @@ and IO24. Monitoring the HPD an 5V lines is not necessary, but it is helpful.
 This kernel patch will hook up the cec-gpio driver correctly to
 e.g. ``arch/arm/boot/dts/bcm2837-rpi-3-b-plus.dts``::
 
-	cec-gpio@7 {
+	cec@7 {
 		compatible = "cec-gpio";
 		cec-gpios = <&gpio 7 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 		hpd-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
 		v5-gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
 	};
 
-	cec-gpio@8 {
+	cec@8 {
 		compatible = "cec-gpio";
 		cec-gpios = <&gpio 8 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 		hpd-gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;

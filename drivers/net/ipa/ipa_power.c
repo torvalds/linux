@@ -181,6 +181,17 @@ static int ipa_suspend(struct device *dev)
 
 	__set_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags);
 
+	/* Increment the disable depth to ensure that the IRQ won't
+	 * be re-enabled until the matching _enable call in
+	 * ipa_resume(). We do this to ensure that the interrupt
+	 * handler won't run whilst PM runtime is disabled.
+	 *
+	 * Note that disabling the IRQ is NOT the same as disabling
+	 * irq wake. If wakeup is enabled for the IPA then the IRQ
+	 * will still cause the system to wake up, see irq_set_irq_wake().
+	 */
+	ipa_interrupt_irq_disable(ipa);
+
 	return pm_runtime_force_suspend(dev);
 }
 
@@ -193,6 +204,12 @@ static int ipa_resume(struct device *dev)
 
 	__clear_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags);
 
+	/* Now that PM runtime is enabled again it's safe
+	 * to turn the IRQ back on and process any data
+	 * that was received during suspend.
+	 */
+	ipa_interrupt_irq_enable(ipa);
+
 	return ret;
 }
 
@@ -202,17 +219,7 @@ u32 ipa_core_clock_rate(struct ipa *ipa)
 	return ipa->power ? (u32)clk_get_rate(ipa->power->core) : 0;
 }
 
-/**
- * ipa_suspend_handler() - Handle the suspend IPA interrupt
- * @ipa:	IPA pointer
- * @irq_id:	IPA interrupt type (unused)
- *
- * If an RX endpoint is suspended, and the IPA has a packet destined for
- * that endpoint, the IPA generates a SUSPEND interrupt to inform the AP
- * that it should resume the endpoint.  If we get one of these interrupts
- * we just wake up the system.
- */
-static void ipa_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
+void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 {
 	/* To handle an IPA interrupt we will have resumed the hardware
 	 * just to handle the interrupt, so we're done.  If we are in a
@@ -335,12 +342,11 @@ int ipa_power_setup(struct ipa *ipa)
 {
 	int ret;
 
-	ipa_interrupt_add(ipa->interrupt, IPA_IRQ_TX_SUSPEND,
-			  ipa_suspend_handler);
+	ipa_interrupt_enable(ipa, IPA_IRQ_TX_SUSPEND);
 
 	ret = device_init_wakeup(&ipa->pdev->dev, true);
 	if (ret)
-		ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
+		ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
 
 	return ret;
 }
@@ -348,7 +354,7 @@ int ipa_power_setup(struct ipa *ipa)
 void ipa_power_teardown(struct ipa *ipa)
 {
 	(void)device_init_wakeup(&ipa->pdev->dev, false);
-	ipa_interrupt_remove(ipa->interrupt, IPA_IRQ_TX_SUSPEND);
+	ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
 }
 
 /* Initialize IPA power management */

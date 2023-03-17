@@ -213,16 +213,4 @@ static inline bool u64_stats_fetch_retry(const struct u64_stats_sync *syncp,
 	return __u64_stats_fetch_retry(syncp, start);
 }
 
-/* Obsolete interfaces */
-static inline unsigned int u64_stats_fetch_begin_irq(const struct u64_stats_sync *syncp)
-{
-	return u64_stats_fetch_begin(syncp);
-}
-
-static inline bool u64_stats_fetch_retry_irq(const struct u64_stats_sync *syncp,
-					     unsigned int start)
-{
-	return u64_stats_fetch_retry(syncp, start);
-}
-
 #endif /* _LINUX_U64_STATS_SYNC_H */

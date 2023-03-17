@@ -112,6 +112,7 @@
 #include <linux/mount.h>
 #include <net/checksum.h>
 #include <linux/security.h>
+#include <linux/splice.h>
 #include <linux/freezer.h>
 #include <linux/file.h>
 #include <linux/btf_ids.h>
@@ -807,23 +808,23 @@ static int unix_count_nr_fds(struct sock *sk)
 static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 {
 	struct sock *sk = sock->sk;
+	unsigned char s_state;
 	struct unix_sock *u;
-	int nr_fds;
+	int nr_fds = 0;
 
 	if (sk) {
+		s_state = READ_ONCE(sk->sk_state);
 		u = unix_sk(sk);
-		if (sock->type == SOCK_DGRAM) {
-			nr_fds = atomic_read(&u->scm_stat.nr_fds);
-			goto out_print;
-		}
 
-		unix_state_lock(sk);
-		if (sk->sk_state != TCP_LISTEN)
+		/* SOCK_STREAM and SOCK_SEQPACKET sockets never change their
+		 * sk_state after switching to TCP_ESTABLISHED or TCP_LISTEN.
+		 * SOCK_DGRAM is ordinary. So, no lock is needed.
+		 */
+		if (sock->type == SOCK_DGRAM || s_state == TCP_ESTABLISHED)
 			nr_fds = atomic_read(&u->scm_stat.nr_fds);
-		else
+		else if (s_state == TCP_LISTEN)
 			nr_fds = unix_count_nr_fds(sk);
-		unix_state_unlock(sk);
-out_print:
+
 		seq_printf(m, "scm_fds: %u\n", nr_fds);
 	}
 }
@@ -1190,7 +1191,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	unsigned int new_hash, old_hash = sk->sk_hash;
 	struct unix_sock *u = unix_sk(sk);
 	struct net *net = sock_net(sk);
-	struct user_namespace *ns; // barf...
+	struct mnt_idmap *idmap;
 	struct unix_address *addr;
 	struct dentry *dentry;
 	struct path parent;
@@ -1217,10 +1218,10 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	/*
 	 * All right, let's create it.
 	 */
-	ns = mnt_user_ns(parent.mnt);
+	idmap = mnt_idmap(parent.mnt);
 	err = security_path_mknod(&parent, dentry, mode, 0);
 	if (!err)
-		err = vfs_mknod(ns, d_inode(parent.dentry), dentry, mode, 0);
+		err = vfs_mknod(idmap, d_inode(parent.dentry), dentry, mode, 0);
 	if (err)
 		goto out_path;
 	err = mutex_lock_interruptible(&u->bindlock);
@@ -1245,7 +1246,7 @@ out_unlock:
 	err = -EINVAL;
 out_unlink:
 	/* failed after successful mknod?  unlink what we'd created... */
-	vfs_unlink(ns, d_inode(parent.dentry), dentry, NULL);
+	vfs_unlink(idmap, d_inode(parent.dentry), dentry, NULL);
 out_path:
 	done_path_create(&parent, dentry);
 out:
@@ -2104,7 +2105,8 @@ out:
 #define UNIX_SKB_FRAGS_SZ (PAGE_SIZE << get_order(32768))
 
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
-static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other)
+static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other,
+		     struct scm_cookie *scm, bool fds_sent)
 {
 	struct unix_sock *ousk = unix_sk(other);
 	struct sk_buff *skb;
@@ -2115,6 +2117,11 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 	if (!skb)
 		return err;
 
+	err = unix_scm_to_skb(scm, skb, !fds_sent);
+	if (err < 0) {
+		kfree_skb(skb);
+		return err;
+	}
 	skb_put(skb, 1);
 	err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, 1);
 
@@ -2242,7 +2249,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 	if (msg->msg_flags & MSG_OOB) {
-		err = queue_oob(sock, msg, other);
+		err = queue_oob(sock, msg, other, &scm, fds_sent);
 		if (err)
 			goto out_err;
 		sent++;

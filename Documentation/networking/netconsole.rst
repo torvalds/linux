@@ -167,7 +167,7 @@ following format which is the same as /dev/kmsg::
 
 Non printable characters in <message text> are escaped using "\xff"
 notation. If the message contains optional dictionary, verbatim
-newline is used as the delimeter.
+newline is used as the delimiter.
 
 If a message doesn't fit in certain number of bytes (currently 1000),
 the message is split into multiple fragments by netconsole. These

@@ -613,14 +613,17 @@ static u32 l3cc_combine(u16 low, u16 high)
 static void init_l3cc_table(struct intel_gt *gt,
 			    const struct drm_i915_mocs_table *table)
 {
+	unsigned long flags;
 	unsigned int i;
 	u32 l3cc;
 
+	intel_gt_mcr_lock(gt, &flags);
 	for_each_l3cc(l3cc, table, i)
 		if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
 			intel_gt_mcr_multicast_write_fw(gt, XEHP_LNCFCMOCS(i), l3cc);
 		else
 			intel_uncore_write_fw(gt->uncore, GEN9_LNCFCMOCS(i), l3cc);
+	intel_gt_mcr_unlock(gt, flags);
 }
 
 void intel_mocs_init_engine(struct intel_engine_cs *engine)

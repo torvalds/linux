@@ -163,7 +163,7 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	private->fb_helper = helper = &fbdev->drm_fb_helper;
 
-	drm_fb_helper_prepare(dev, helper, &exynos_drm_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, helper, PREFERRED_BPP, &exynos_drm_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper);
 	if (ret < 0) {
@@ -172,7 +172,7 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 		goto err_init;
 	}
 
-	ret = drm_fb_helper_initial_config(helper, PREFERRED_BPP);
+	ret = drm_fb_helper_initial_config(helper);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev->dev,
 			      "failed to set up hw configuration.\n");
@@ -183,8 +183,8 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 err_setup:
 	drm_fb_helper_fini(helper);
-
 err_init:
+	drm_fb_helper_unprepare(helper);
 	private->fb_helper = NULL;
 	kfree(fbdev);
 
@@ -219,6 +219,7 @@ void exynos_drm_fbdev_fini(struct drm_device *dev)
 	fbdev = to_exynos_fbdev(private->fb_helper);
 
 	exynos_drm_fbdev_destroy(dev, private->fb_helper);
+	drm_fb_helper_unprepare(private->fb_helper);
 	kfree(fbdev);
 	private->fb_helper = NULL;
 }

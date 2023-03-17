@@ -572,7 +572,7 @@ static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
 
 static void pci_pm_bridge_power_up_actions(struct pci_dev *pci_dev)
 {
-	pci_bridge_wait_for_secondary_bus(pci_dev);
+	pci_bridge_wait_for_secondary_bus(pci_dev, "resume", PCI_RESET_WAIT);
 	/*
 	 * When powering on a bridge from D3cold, the whole hierarchy may be
 	 * powered on into D0uninitialized state, resume them to give them a
@@ -1545,9 +1545,9 @@ void pci_dev_put(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_dev_put);
 
-static int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int pci_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct pci_dev *pdev;
+	const struct pci_dev *pdev;
 
 	if (!dev)
 		return -ENODEV;

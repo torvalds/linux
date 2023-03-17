@@ -323,17 +323,17 @@ static void pcpu_delegate(struct pcpu *pcpu,
 {
 	struct lowcore *lc, *abs_lc;
 	unsigned int source_cpu;
-	unsigned long flags;
 
 	lc = lowcore_ptr[pcpu - pcpu_devices];
 	source_cpu = stap();
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+
 	if (pcpu->address == source_cpu) {
 		call_on_stack(2, stack, void, __pcpu_delegate,
 			      pcpu_delegate_fn *, func, void *, data);
 	}
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
+	pcpu_sigp_retry(pcpu, SIGP_CPU_RESET, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
 	if (lc) {
 		lc->restart_stack = stack;
@@ -341,12 +341,12 @@ static void pcpu_delegate(struct pcpu *pcpu,
 		lc->restart_data = (unsigned long)data;
 		lc->restart_source = source_cpu;
 	} else {
-		abs_lc = get_abs_lowcore(&flags);
+		abs_lc = get_abs_lowcore();
 		abs_lc->restart_stack = stack;
 		abs_lc->restart_fn = (unsigned long)func;
 		abs_lc->restart_data = (unsigned long)data;
 		abs_lc->restart_source = source_cpu;
-		put_abs_lowcore(abs_lc, flags);
+		put_abs_lowcore(abs_lc);
 	}
 	__bpon();
 	asm volatile(
@@ -488,7 +488,7 @@ void smp_send_stop(void)
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS);
 	trace_hardirqs_off();
 
 	debug_set_critical();
@@ -523,7 +523,7 @@ static void smp_handle_ext_call(void)
 	if (test_bit(ec_call_function_single, &bits))
 		generic_smp_call_function_single_interrupt();
 	if (test_bit(ec_mcck_pending, &bits))
-		__s390_handle_mcck();
+		s390_handle_mcck();
 	if (test_bit(ec_irq_work, &bits))
 		irq_work_run();
 }
@@ -593,7 +593,6 @@ void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 {
 	struct ec_creg_mask_parms parms = { .cr = cr, };
 	struct lowcore *abs_lc;
-	unsigned long flags;
 	u64 ctlreg;
 
 	if (set) {
@@ -604,11 +603,11 @@ void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 		parms.andval = ~(1UL << bit);
 	}
 	spin_lock(&ctl_lock);
-	abs_lc = get_abs_lowcore(&flags);
+	abs_lc = get_abs_lowcore();
 	ctlreg = abs_lc->cregs_save_area[cr];
 	ctlreg = (ctlreg & parms.andval) | parms.orval;
 	abs_lc->cregs_save_area[cr] = ctlreg;
-	put_abs_lowcore(abs_lc, flags);
+	put_abs_lowcore(abs_lc);
 	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }

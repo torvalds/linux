@@ -162,7 +162,7 @@
 		};
 	};
 
-	uart@100000 {
+	serial@100000 {
 		compatible = "arm,pl011", "arm,primecell";
 		reg = <0x00100000 0x1000>;
 		interrupts-extended = <&impd1_vic 1>;
@@ -170,7 +170,7 @@
 		clock-names = "uartclk", "apb_pclk";
 	};
 
-	uart@200000 {
+	serial@200000 {
 		compatible = "arm,pl011", "arm,primecell";
 		reg = <0x00200000 0x1000>;
 		interrupts-extended = <&impd1_vic 2>;

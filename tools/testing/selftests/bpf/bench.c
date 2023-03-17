@@ -16,6 +16,7 @@ struct env env = {
 	.warmup_sec = 1,
 	.duration_sec = 5,
 	.affinity = false,
+	.quiet = false,
 	.consumer_cnt = 1,
 	.producer_cnt = 1,
 };
@@ -262,6 +263,7 @@ static const struct argp_option opts[] = {
 	{ "consumers", 'c', "NUM", 0, "Number of consumer threads"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output"},
 	{ "affinity", 'a', NULL, 0, "Set consumer/producer thread affinity"},
+	{ "quiet", 'q', NULL, 0, "Be more quiet"},
 	{ "prod-affinity", ARG_PROD_AFFINITY_SET, "CPUSET", 0,
 	  "Set of CPUs for producer threads; implies --affinity"},
 	{ "cons-affinity", ARG_CONS_AFFINITY_SET, "CPUSET", 0,
@@ -275,6 +277,7 @@ extern struct argp bench_bpf_loop_argp;
 extern struct argp bench_local_storage_argp;
 extern struct argp bench_local_storage_rcu_tasks_trace_argp;
 extern struct argp bench_strncmp_argp;
+extern struct argp bench_hashmap_lookup_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
@@ -284,13 +287,15 @@ static const struct argp_child bench_parsers[] = {
 	{ &bench_strncmp_argp, 0, "bpf_strncmp helper benchmark", 0 },
 	{ &bench_local_storage_rcu_tasks_trace_argp, 0,
 		"local_storage RCU Tasks Trace slowdown benchmark", 0 },
+	{ &bench_hashmap_lookup_argp, 0, "Hashmap lookup benchmark", 0 },
 	{},
 };
 
+/* Make pos_args global, so that we can run argp_parse twice, if necessary */
+static int pos_args;
+
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
-	static int pos_args;
-
 	switch (key) {
 	case 'v':
 		env.verbose = true;
@@ -329,6 +334,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'a':
 		env.affinity = true;
 		break;
+	case 'q':
+		env.quiet = true;
+		break;
 	case ARG_PROD_AFFINITY_SET:
 		env.affinity = true;
 		if (parse_num_list(arg, &env.prod_cpus.cpus,
@@ -359,7 +367,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	return 0;
 }
 
-static void parse_cmdline_args(int argc, char **argv)
+static void parse_cmdline_args_init(int argc, char **argv)
 {
 	static const struct argp argp = {
 		.options = opts,
@@ -369,9 +377,25 @@ static void parse_cmdline_args(int argc, char **argv)
 	};
 	if (argp_parse(&argp, argc, argv, 0, NULL, NULL))
 		exit(1);
-	if (!env.list && !env.bench_name) {
-		argp_help(&argp, stderr, ARGP_HELP_DOC, "bench");
-		exit(1);
+}
+
+static void parse_cmdline_args_final(int argc, char **argv)
+{
+	struct argp_child bench_parsers[2] = {};
+	const struct argp argp = {
+		.options = opts,
+		.parser = parse_arg,
+		.doc = argp_program_doc,
+		.children = bench_parsers,
+	};
+
+	/* Parse arguments the second time with the correct set of parsers */
+	if (bench->argp) {
+		bench_parsers[0].argp = bench->argp;
+		bench_parsers[0].header = bench->name;
+		pos_args = 0;
+		if (argp_parse(&argp, argc, argv, 0, NULL, NULL))
+			exit(1);
 	}
 }
 
@@ -490,6 +514,7 @@ extern const struct bench bench_local_storage_cache_seq_get;
 extern const struct bench bench_local_storage_cache_interleaved_get;
 extern const struct bench bench_local_storage_cache_hashmap_control;
 extern const struct bench bench_local_storage_tasks_trace;
+extern const struct bench bench_bpf_hashmap_lookup;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -529,17 +554,17 @@ static const struct bench *benchs[] = {
 	&bench_local_storage_cache_interleaved_get,
 	&bench_local_storage_cache_hashmap_control,
 	&bench_local_storage_tasks_trace,
+	&bench_bpf_hashmap_lookup,
 };
 
-static void setup_benchmark()
+static void find_benchmark(void)
 {
-	int i, err;
+	int i;
 
 	if (!env.bench_name) {
 		fprintf(stderr, "benchmark name is not specified\n");
 		exit(1);
 	}
-
 	for (i = 0; i < ARRAY_SIZE(benchs); i++) {
 		if (strcmp(benchs[i]->name, env.bench_name) == 0) {
 			bench = benchs[i];
@@ -550,8 +575,14 @@ static void setup_benchmark()
 		fprintf(stderr, "benchmark '%s' not found\n", env.bench_name);
 		exit(1);
 	}
+}
 
-	printf("Setting up benchmark '%s'...\n", bench->name);
+static void setup_benchmark(void)
+{
+	int i, err;
+
+	if (!env.quiet)
+		printf("Setting up benchmark '%s'...\n", bench->name);
 
 	state.producers = calloc(env.producer_cnt, sizeof(*state.producers));
 	state.consumers = calloc(env.consumer_cnt, sizeof(*state.consumers));
@@ -597,7 +628,8 @@ static void setup_benchmark()
 					    next_cpu(&env.prod_cpus));
 	}
 
-	printf("Benchmark '%s' started.\n", bench->name);
+	if (!env.quiet)
+		printf("Benchmark '%s' started.\n", bench->name);
 }
 
 static pthread_mutex_t bench_done_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -621,7 +653,7 @@ static void collect_measurements(long delta_ns) {
 
 int main(int argc, char **argv)
 {
-	parse_cmdline_args(argc, argv);
+	parse_cmdline_args_init(argc, argv);
 
 	if (env.list) {
 		int i;
@@ -632,6 +664,9 @@ int main(int argc, char **argv)
 		}
 		return 0;
 	}
+
+	find_benchmark();
+	parse_cmdline_args_final(argc, argv);
 
 	setup_benchmark();
 

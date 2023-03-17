@@ -204,7 +204,7 @@ For example::
 This should present your unmodified backing device data in /dev/loop0
 
 If your cache is in writethrough mode, then you can safely discard the
-cache device without loosing data.
+cache device without losing data.
 
 
 E) Wiping a cache device

@@ -4,6 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/percpu.h>
+#include <linux/memcontrol.h>
 
 /*
  * pcpu_block_md is the metadata block struct.
@@ -118,14 +119,15 @@ static inline int pcpu_chunk_map_bits(struct pcpu_chunk *chunk)
  * @size: size of area to allocate in bytes
  *
  * For each accounted object there is an extra space which is used to store
- * obj_cgroup membership. Charge it too.
+ * obj_cgroup membership if kmemcg is not disabled. Charge it too.
  */
 static inline size_t pcpu_obj_full_size(size_t size)
 {
 	size_t extra_size = 0;
 
 #ifdef CONFIG_MEMCG_KMEM
-	extra_size += size / PCPU_MIN_ALLOC_SIZE * sizeof(struct obj_cgroup *);
+	if (!mem_cgroup_kmem_disabled())
+		extra_size += size / PCPU_MIN_ALLOC_SIZE * sizeof(struct obj_cgroup *);
 #endif
 
 	return size * num_possible_cpus() + extra_size;

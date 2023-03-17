@@ -276,6 +276,15 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/fanY_fault
+Description:
+		Reports if a fan has reported failure.
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/pwmY
 Description:
 		Pulse width modulation fan control.

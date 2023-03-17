@@ -30,18 +30,6 @@
 
 /* EXP_ID's ranger is 1 ~ 250 */
 #define ATOMISP_MAX_EXP_ID     (250)
-enum atomisp_subdev_input_entity {
-	ATOMISP_SUBDEV_INPUT_NONE,
-	ATOMISP_SUBDEV_INPUT_MEMORY,
-	ATOMISP_SUBDEV_INPUT_CSI2,
-	/*
-	 * The following enum for CSI2 port must go together in one row.
-	 * Otherwise it breaks the code logic.
-	 */
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT1,
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT2,
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT3,
-};
 
 #define ATOMISP_SUBDEV_PAD_SINK			0
 /* capture output for still frames */
@@ -267,7 +255,6 @@ struct atomisp_sub_device {
 	struct atomisp_pad_format fmt[ATOMISP_SUBDEV_PADS_NUM];
 	u16 capture_pad; /* main capture pad; defines much of isp config */
 
-	enum atomisp_subdev_input_entity input;
 	unsigned int output;
 	struct atomisp_video_pipe video_out_capture; /* capture output */
 	struct atomisp_video_pipe video_out_vf;      /* viewfinder output */

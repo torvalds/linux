@@ -21,6 +21,7 @@
 #include "cifsfs.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dns_resolve.h"
+#include "dfs_cache.h"
 #endif
 #include "fs_context.h"
 #include "cached_dir.h"
@@ -966,110 +967,27 @@ cifs_aio_ctx_release(struct kref *refcount)
 
 	/*
 	 * ctx->bv is only set if setup_aio_ctx_iter() was call successfuly
-	 * which means that iov_iter_get_pages() was a success and thus that
-	 * we have taken reference on pages.
+	 * which means that iov_iter_extract_pages() was a success and thus
+	 * that we may have references or pins on pages that we need to
+	 * release.
 	 */
 	if (ctx->bv) {
-		unsigned i;
+		if (ctx->should_dirty || ctx->bv_need_unpin) {
+			unsigned int i;
 
-		for (i = 0; i < ctx->npages; i++) {
-			if (ctx->should_dirty)
-				set_page_dirty(ctx->bv[i].bv_page);
-			put_page(ctx->bv[i].bv_page);
+			for (i = 0; i < ctx->nr_pinned_pages; i++) {
+				struct page *page = ctx->bv[i].bv_page;
+
+				if (ctx->should_dirty)
+					set_page_dirty(page);
+				if (ctx->bv_need_unpin)
+					unpin_user_page(page);
+			}
 		}
 		kvfree(ctx->bv);
 	}
 
 	kfree(ctx);
-}
-
-#define CIFS_AIO_KMALLOC_LIMIT (1024 * 1024)
-
-int
-setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
-{
-	ssize_t rc;
-	unsigned int cur_npages;
-	unsigned int npages = 0;
-	unsigned int i;
-	size_t len;
-	size_t count = iov_iter_count(iter);
-	unsigned int saved_len;
-	size_t start;
-	unsigned int max_pages = iov_iter_npages(iter, INT_MAX);
-	struct page **pages = NULL;
-	struct bio_vec *bv = NULL;
-
-	if (iov_iter_is_kvec(iter)) {
-		memcpy(&ctx->iter, iter, sizeof(*iter));
-		ctx->len = count;
-		iov_iter_advance(iter, count);
-		return 0;
-	}
-
-	if (array_size(max_pages, sizeof(*bv)) <= CIFS_AIO_KMALLOC_LIMIT)
-		bv = kmalloc_array(max_pages, sizeof(*bv), GFP_KERNEL);
-
-	if (!bv) {
-		bv = vmalloc(array_size(max_pages, sizeof(*bv)));
-		if (!bv)
-			return -ENOMEM;
-	}
-
-	if (array_size(max_pages, sizeof(*pages)) <= CIFS_AIO_KMALLOC_LIMIT)
-		pages = kmalloc_array(max_pages, sizeof(*pages), GFP_KERNEL);
-
-	if (!pages) {
-		pages = vmalloc(array_size(max_pages, sizeof(*pages)));
-		if (!pages) {
-			kvfree(bv);
-			return -ENOMEM;
-		}
-	}
-
-	saved_len = count;
-
-	while (count && npages < max_pages) {
-		rc = iov_iter_get_pages2(iter, pages, count, max_pages, &start);
-		if (rc < 0) {
-			cifs_dbg(VFS, "Couldn't get user pages (rc=%zd)\n", rc);
-			break;
-		}
-
-		if (rc > count) {
-			cifs_dbg(VFS, "get pages rc=%zd more than %zu\n", rc,
-				 count);
-			break;
-		}
-
-		count -= rc;
-		rc += start;
-		cur_npages = DIV_ROUND_UP(rc, PAGE_SIZE);
-
-		if (npages + cur_npages > max_pages) {
-			cifs_dbg(VFS, "out of vec array capacity (%u vs %u)\n",
-				 npages + cur_npages, max_pages);
-			break;
-		}
-
-		for (i = 0; i < cur_npages; i++) {
-			len = rc > PAGE_SIZE ? PAGE_SIZE : rc;
-			bv[npages + i].bv_page = pages[i];
-			bv[npages + i].bv_offset = start;
-			bv[npages + i].bv_len = len - start;
-			rc -= len;
-			start = 0;
-		}
-
-		npages += cur_npages;
-	}
-
-	kvfree(pages);
-	ctx->bv = bv;
-	ctx->len = saved_len - count;
-	ctx->npages = npages;
-	iov_iter_bvec(&ctx->iter, rw, ctx->bv, npages, ctx->len);
-	return 0;
 }
 
 /**
@@ -1127,25 +1045,6 @@ cifs_free_hash(struct shash_desc **sdesc)
 
 	kfree_sensitive(*sdesc);
 	*sdesc = NULL;
-}
-
-/**
- * rqst_page_get_length - obtain the length and offset for a page in smb_rqst
- * @rqst: The request descriptor
- * @page: The index of the page to query
- * @len: Where to store the length for this page:
- * @offset: Where to store the offset for this page
- */
-void rqst_page_get_length(const struct smb_rqst *rqst, unsigned int page,
-			  unsigned int *len, unsigned int *offset)
-{
-	*len = rqst->rq_pagesz;
-	*offset = (page == 0) ? rqst->rq_offset : 0;
-
-	if (rqst->rq_npages == 1 || page == rqst->rq_npages-1)
-		*len = rqst->rq_tailsz;
-	else if (page == 0)
-		*len = rqst->rq_pagesz - rqst->rq_offset;
 }
 
 void extract_unc_hostname(const char *unc, const char **h, size_t *len)
@@ -1300,4 +1199,114 @@ int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
 	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
 	return 0;
 }
+
+/*
+ * Handle weird Windows SMB server behaviour. It responds with
+ * STATUS_OBJECT_NAME_INVALID code to SMB2 QUERY_INFO request for
+ * "\<server>\<dfsname>\<linkpath>" DFS reference, where <dfsname> contains
+ * non-ASCII unicode symbols.
+ */
+int cifs_inval_name_dfs_link_error(const unsigned int xid,
+				   struct cifs_tcon *tcon,
+				   struct cifs_sb_info *cifs_sb,
+				   const char *full_path,
+				   bool *islink)
+{
+	struct cifs_ses *ses = tcon->ses;
+	size_t len;
+	char *path;
+	char *ref_path;
+
+	*islink = false;
+
+	/*
+	 * Fast path - skip check when @full_path doesn't have a prefix path to
+	 * look up or tcon is not DFS.
+	 */
+	if (strlen(full_path) < 2 || !cifs_sb ||
+	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS) ||
+	    !is_tcon_dfs(tcon) || !ses->server->origin_fullpath)
+		return 0;
+
+	/*
+	 * Slow path - tcon is DFS and @full_path has prefix path, so attempt
+	 * to get a referral to figure out whether it is an DFS link.
+	 */
+	len = strnlen(tcon->tree_name, MAX_TREE_SIZE + 1) + strlen(full_path) + 1;
+	path = kmalloc(len, GFP_KERNEL);
+	if (!path)
+		return -ENOMEM;
+
+	scnprintf(path, len, "%s%s", tcon->tree_name, full_path);
+	ref_path = dfs_cache_canonical_path(path + 1, cifs_sb->local_nls,
+					    cifs_remap(cifs_sb));
+	kfree(path);
+
+	if (IS_ERR(ref_path)) {
+		if (PTR_ERR(ref_path) != -EINVAL)
+			return PTR_ERR(ref_path);
+	} else {
+		struct dfs_info3_param *refs = NULL;
+		int num_refs = 0;
+
+		/*
+		 * XXX: we are not using dfs_cache_find() here because we might
+		 * end filling all the DFS cache and thus potentially
+		 * removing cached DFS targets that the client would eventually
+		 * need during failover.
+		 */
+		if (ses->server->ops->get_dfs_refer &&
+		    !ses->server->ops->get_dfs_refer(xid, ses, ref_path, &refs,
+						     &num_refs, cifs_sb->local_nls,
+						     cifs_remap(cifs_sb)))
+			*islink = refs[0].server_type == DFS_TYPE_LINK;
+		free_dfs_info_array(refs, num_refs);
+		kfree(ref_path);
+	}
+	return 0;
+}
 #endif
+
+int cifs_wait_for_server_reconnect(struct TCP_Server_Info *server, bool retry)
+{
+	int timeout = 10;
+	int rc;
+
+	spin_lock(&server->srv_lock);
+	if (server->tcpStatus != CifsNeedReconnect) {
+		spin_unlock(&server->srv_lock);
+		return 0;
+	}
+	timeout *= server->nr_targets;
+	spin_unlock(&server->srv_lock);
+
+	/*
+	 * Give demultiplex thread up to 10 seconds to each target available for
+	 * reconnect -- should be greater than cifs socket timeout which is 7
+	 * seconds.
+	 *
+	 * On "soft" mounts we wait once. Hard mounts keep retrying until
+	 * process is killed or server comes back on-line.
+	 */
+	do {
+		rc = wait_event_interruptible_timeout(server->response_q,
+						      (server->tcpStatus != CifsNeedReconnect),
+						      timeout * HZ);
+		if (rc < 0) {
+			cifs_dbg(FYI, "%s: aborting reconnect due to received signal\n",
+				 __func__);
+			return -ERESTARTSYS;
+		}
+
+		/* are we still trying to reconnect? */
+		spin_lock(&server->srv_lock);
+		if (server->tcpStatus != CifsNeedReconnect) {
+			spin_unlock(&server->srv_lock);
+			return 0;
+		}
+		spin_unlock(&server->srv_lock);
+	} while (retry);
+
+	cifs_dbg(FYI, "%s: gave up waiting on reconnect\n", __func__);
+	return -EHOSTDOWN;
+}

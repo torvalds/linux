@@ -42,6 +42,8 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 
+#include <drm/ttm/ttm_bo.h>
+
 /**
  * enum ttm_object_type
  *
@@ -307,18 +309,12 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 #define ttm_prime_object_kfree(__obj, __prime)		\
 	kfree_rcu(__obj, __prime.base.rhead)
 
-struct ttm_base_object *
-ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint64_t key);
-
-/**
- * ttm_base_object_noref_release - release a base object pointer looked up
- * without reference
- *
- * Releases a base object pointer looked up with ttm_base_object_noref_lookup().
- */
-static inline void ttm_base_object_noref_release(void)
+static inline int ttm_bo_wait(struct ttm_buffer_object *bo, bool intr,
+			      bool no_wait)
 {
-	__acquire(RCU);
-	rcu_read_unlock();
+	struct ttm_operation_ctx ctx = { intr, no_wait };
+
+	return ttm_bo_wait_ctx(bo, &ctx);
 }
+
 #endif

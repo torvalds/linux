@@ -314,7 +314,7 @@ config IR_PWM_TX
 	tristate "PWM IR transmitter"
 	depends on LIRC
 	depends on PWM
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	   Say Y if you want to use a PWM based IR transmitter. This is
 	   more power efficient than the bit banging gpio driver.
@@ -361,7 +361,7 @@ config IR_SERIAL_TRANSMITTER
 config IR_SPI
 	tristate "SPI connected IR LED"
 	depends on SPI && LIRC
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  Say Y if you want to use an IR LED connected through SPI bus.
 

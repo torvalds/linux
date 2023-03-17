@@ -1841,23 +1841,6 @@ config FB_FSL_DIU
 	help
 	  Framebuffer driver for the Freescale SoC DIU
 
-config FB_W100
-	tristate "W100 frame buffer support"
-	depends on FB && HAS_IOMEM && (ARCH_PXA || COMPILE_TEST)
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  Frame buffer driver for the w100 as found on the Sharp SL-Cxx series.
-	  It can also drive the w3220 chip found on iPAQ hx4700.
-
-	  This driver is also available as a module ( = code which can be
-	  inserted and removed from the running kernel whenever you want). The
-	  module will be called w100fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.rst>.
-
-	  If unsure, say N.
-
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"
 	depends on FB && HAVE_CLK && HAS_IOMEM
@@ -1871,44 +1854,20 @@ config FB_SH_MOBILE_LCDC
 	help
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
 
-config FB_TMIO
-	tristate "Toshiba Mobile IO FrameBuffer support"
-	depends on FB && (MFD_TMIO || COMPILE_TEST)
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  Frame buffer driver for the Toshiba Mobile IO integrated as found
-	  on the Sharp SL-6000 series
-
-	  This driver is also available as a module ( = code which can be
-	  inserted and removed from the running kernel whenever you want). The
-	  module will be called tmiofb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.rst>.
-
-	  If unsure, say N.
-
-config FB_TMIO_ACCELL
-	bool "tmiofb acceleration"
-	depends on FB_TMIO
-	default y
-
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
 	depends on FB && HAVE_CLK && HAS_IOMEM
-	depends on (CPU_S3C2416 || ARCH_S3C64XX) || COMPILE_TEST
+	depends on ARCH_S3C64XX || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
 	  Frame buffer driver for the built-in FB controller in the Samsung
-	  SoC line from the S3C2443 onwards, including the S3C2416, S3C2450,
-	  and the S3C64XX series such as the S3C6400 and S3C6410.
+	  SoC line such as the S3C6400 and S3C6410.
 
 	  These chips all have the same basic framebuffer design with the
-	  actual capabilities depending on the chip. For instance the S3C6400
-	  and S3C6410 support 4 hardware windows whereas the S3C24XX series
-	  currently only have two.
+	  actual capabilities depending on the chip. The S3C6400
+	  and S3C6410 support 4 hardware windows.
 
 	  Currently the support is only for the S3C6400 and S3C6410 SoCs.
 
@@ -1917,29 +1876,6 @@ config FB_S3C_DEBUG_REGWRITE
 	depends on FB_S3C
 	help
 	  Show all register writes via pr_debug()
-
-config FB_S3C2410
-	tristate "S3C2410 LCD framebuffer support"
-	depends on FB && ARCH_S3C24XX
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  Frame buffer driver for the built-in LCD controller in the Samsung
-	  S3C2410 processor.
-
-	  This driver is also available as a module ( = code which can be
-	  inserted and removed from the running kernel whenever you want). The
-	  module will be called s3c2410fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.rst>.
-
-	  If unsure, say N.
-config FB_S3C2410_DEBUG
-	bool "S3C2410 lcd debug messages"
-	depends on FB_S3C2410
-	help
-	  Turn on debugging messages. Note that you can set/unset at run time
-	  through sysfs
 
 config FB_SM501
 	tristate "Silicon Motion SM501 framebuffer support"

@@ -295,13 +295,18 @@ static int idxd_setup_groups(struct idxd_device *idxd)
 		}
 
 		idxd->groups[i] = group;
-		if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override) {
+		if (idxd->hw.version <= DEVICE_VERSION_2 && !tc_override) {
 			group->tc_a = 1;
 			group->tc_b = 1;
 		} else {
 			group->tc_a = -1;
 			group->tc_b = -1;
 		}
+		/*
+		 * The default value is the same as the value of
+		 * total read buffers in GRPCAP.
+		 */
+		group->rdbufs_allowed = idxd->max_rdbufs;
 	}
 
 	return 0;

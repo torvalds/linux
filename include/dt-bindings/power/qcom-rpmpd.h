@@ -4,6 +4,25 @@
 #ifndef _DT_BINDINGS_POWER_QCOM_RPMPD_H
 #define _DT_BINDINGS_POWER_QCOM_RPMPD_H
 
+/* SA8775P Power Domain Indexes */
+#define SA8775P_CX	0
+#define SA8775P_CX_AO	1
+#define SA8775P_DDR	2
+#define SA8775P_EBI	3
+#define SA8775P_GFX	4
+#define SA8775P_LCX	5
+#define SA8775P_LMX	6
+#define SA8775P_MMCX	7
+#define SA8775P_MMCX_AO	8
+#define SA8775P_MSS	9
+#define SA8775P_MX	10
+#define SA8775P_MX_AO	11
+#define SA8775P_MXC	12
+#define SA8775P_MXC_AO	13
+#define SA8775P_NSP0	14
+#define SA8775P_NSP1	15
+#define SA8775P_XO	16
+
 /* SDM670 Power Domain Indexes */
 #define SDM670_MX	0
 #define SDM670_MX_AO	1
@@ -190,7 +209,9 @@
 /* SDM845 Power Domain performance levels */
 #define RPMH_REGULATOR_LEVEL_RETENTION	16
 #define RPMH_REGULATOR_LEVEL_MIN_SVS	48
+#define RPMH_REGULATOR_LEVEL_LOW_SVS_D1	56
 #define RPMH_REGULATOR_LEVEL_LOW_SVS	64
+#define RPMH_REGULATOR_LEVEL_LOW_SVS_L1	80
 #define RPMH_REGULATOR_LEVEL_SVS	128
 #define RPMH_REGULATOR_LEVEL_SVS_L0	144
 #define RPMH_REGULATOR_LEVEL_SVS_L1	192
@@ -305,16 +326,6 @@
 #define SDM660_SSCCX_VFL	7
 #define SDM660_SSCMX		8
 #define SDM660_SSCMX_VFL	9
-
-/* SM4250 Power Domains */
-#define SM4250_VDDCX		0
-#define SM4250_VDDCX_AO		1
-#define SM4250_VDDCX_VFL	2
-#define SM4250_VDDMX		3
-#define SM4250_VDDMX_AO		4
-#define SM4250_VDDMX_VFL	5
-#define SM4250_VDD_LPI_CX	6
-#define SM4250_VDD_LPI_MX	7
 
 /* SM6115 Power Domains */
 #define SM6115_VDDCX		0

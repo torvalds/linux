@@ -1349,7 +1349,8 @@ static void mlx5e_invalidate_encap(struct mlx5e_priv *priv,
 			mlx5e_tc_unoffload_from_slow_path(esw, flow);
 		else
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->attr);
-		mlx5_modify_header_dealloc(priv->mdev, attr->modify_hdr);
+
+		mlx5e_tc_detach_mod_hdr(priv, flow, attr);
 		attr->modify_hdr = NULL;
 
 		esw_attr->dests[flow->tmp_entry_index].flags &=
@@ -1405,7 +1406,7 @@ static void mlx5e_reoffload_encap(struct mlx5e_priv *priv,
 			continue;
 		}
 
-		err = mlx5e_tc_add_flow_mod_hdr(priv, flow, attr);
+		err = mlx5e_tc_attach_mod_hdr(priv, flow, attr);
 		if (err) {
 			mlx5_core_warn(priv->mdev, "Failed to update flow mod_hdr err=%d",
 				       err);

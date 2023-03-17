@@ -29,18 +29,13 @@
 #include <linux/sched_clock.h>
 #include <asm/mach/time.h>
 
-#include "addr-map.h"
 #include "regs-timers.h"
-#include "regs-apbc.h"
-#include "irqs.h"
 #include <linux/soc/mmp/cputype.h>
-
-#define TIMERS_VIRT_BASE	TIMERS1_VIRT_BASE
 
 #define MAX_DELTA		(0xfffffffe)
 #define MIN_DELTA		(16)
 
-static void __iomem *mmp_timer_base = TIMERS_VIRT_BASE;
+static void __iomem *mmp_timer_base;
 
 /*
  * Read the timer through the CVWR register. Delay is required after requesting
@@ -177,7 +172,7 @@ static void __init timer_config(void)
 	__raw_writel(0x2, mmp_timer_base + TMR_CER);
 }
 
-void __init mmp_timer_init(int irq, unsigned long rate)
+static void __init mmp_timer_init(int irq, unsigned long rate)
 {
 	timer_config();
 

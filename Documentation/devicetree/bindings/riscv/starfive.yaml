@@ -24,6 +24,12 @@ properties:
               - starfive,visionfive-v1
           - const: starfive,jh7100
 
+      - items:
+          - enum:
+              - starfive,visionfive-2-v1.2a
+              - starfive,visionfive-2-v1.3b
+          - const: starfive,jh7110
+
 additionalProperties: true
 
 ...

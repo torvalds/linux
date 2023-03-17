@@ -53,3 +53,10 @@ unsigned int rxrpc_rx_mtu = 5692;
  * sender that we're willing to handle.
  */
 unsigned int rxrpc_rx_jumbo_max = 4;
+
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+/*
+ * The delay to inject into packet reception.
+ */
+unsigned long rxrpc_inject_rx_delay;
+#endif

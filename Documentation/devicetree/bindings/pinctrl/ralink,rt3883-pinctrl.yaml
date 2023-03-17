@@ -29,20 +29,212 @@ patternProperties:
         $ref: pinmux-node.yaml#
 
         properties:
-          groups:
-            description: The pin group to select.
-            enum: [ge1, ge2, i2c, jtag, lna a, lna g, mdio, pci, spi, uartf,
-                   uartlite]
-
           function:
-            description: The mux function to select.
+            description:
+              A string containing the name of the function to mux to the group.
             enum: [ge1, ge2, gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag,
                    lna a, lna g, mdio, pci-dev, pci-fnc, pci-host1, pci-host2,
                    pcm gpio, pcm i2s, pcm uartf, spi, uartf, uartlite]
 
+          groups:
+            description:
+              An array of strings. Each string contains the name of a group.
+            maxItems: 1
+
         required:
           - groups
           - function
+
+        allOf:
+          - if:
+              properties:
+                function:
+                  const: ge1
+            then:
+              properties:
+                groups:
+                  enum: [ge1]
+
+          - if:
+              properties:
+                function:
+                  const: ge2
+            then:
+              properties:
+                groups:
+                  enum: [ge2]
+
+          - if:
+              properties:
+                function:
+                  const: gpio
+            then:
+              properties:
+                groups:
+                  enum: [ge1, ge2, i2c, jtag, lna a, lna g, mdio, pci, spi,
+                         uartf, uartlite]
+
+          - if:
+              properties:
+                function:
+                  const: gpio i2s
+            then:
+              properties:
+                groups:
+                  enum: [uartf]
+
+          - if:
+              properties:
+                function:
+                  const: gpio uartf
+            then:
+              properties:
+                groups:
+                  enum: [uartf]
+
+          - if:
+              properties:
+                function:
+                  const: i2c
+            then:
+              properties:
+                groups:
+                  enum: [i2c]
+
+          - if:
+              properties:
+                function:
+                  const: i2s uartf
+            then:
+              properties:
+                groups:
+                  enum: [uartf]
+
+          - if:
+              properties:
+                function:
+                  const: jtag
+            then:
+              properties:
+                groups:
+                  enum: [jtag]
+
+          - if:
+              properties:
+                function:
+                  const: lna a
+            then:
+              properties:
+                groups:
+                  enum: [lna a]
+
+          - if:
+              properties:
+                function:
+                  const: lna g
+            then:
+              properties:
+                groups:
+                  enum: [lna g]
+
+          - if:
+              properties:
+                function:
+                  const: mdio
+            then:
+              properties:
+                groups:
+                  enum: [mdio]
+
+          - if:
+              properties:
+                function:
+                  const: pci-dev
+            then:
+              properties:
+                groups:
+                  enum: [pci]
+
+          - if:
+              properties:
+                function:
+                  const: pci-fnc
+            then:
+              properties:
+                groups:
+                  enum: [pci]
+
+          - if:
+              properties:
+                function:
+                  const: pci-host1
+            then:
+              properties:
+                groups:
+                  enum: [pci]
+
+          - if:
+              properties:
+                function:
+                  const: pci-host2
+            then:
+              properties:
+                groups:
+                  enum: [pci]
+
+          - if:
+              properties:
+                function:
+                  const: pcm gpio
+            then:
+              properties:
+                groups:
+                  enum: [uartf]
+
+          - if:
+              properties:
+                function:
+                  const: pcm i2s
+            then:
+              properties:
+                groups:
+                  enum: [uartf]
+
+          - if:
+              properties:
+                function:
+                  const: pcm uartf
+            then:
+              properties:
+                groups:
+                  enum: [uartf]
+
+          - if:
+              properties:
+                function:
+                  const: spi
+            then:
+              properties:
+                groups:
+                  enum: [spi]
+
+          - if:
+              properties:
+                function:
+                  const: uartf
+            then:
+              properties:
+                groups:
+                  enum: [uartf]
+
+          - if:
+              properties:
+                function:
+                  const: uartlite
+            then:
+              properties:
+                groups:
+                  enum: [uartlite]
 
         additionalProperties: false
 
@@ -57,7 +249,6 @@ required:
 additionalProperties: false
 
 examples:
-  # Pinmux controller node
   - |
     pinctrl {
       compatible = "ralink,rt3883-pinctrl";

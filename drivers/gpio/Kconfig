@@ -354,16 +354,6 @@ config GPIO_IMX_SCU
        def_bool y
        depends on IMX_SCU
 
-config GPIO_IOP
-	tristate "Intel IOP GPIO"
-	depends on ARCH_IOP32X || COMPILE_TEST
-	select GPIO_GENERIC
-	help
-	  Say yes here to support the GPIO functionality of a number of Intel
-	  IOP32X or IOP33X series of chips.
-
-	  If unsure, say N.
-
 config GPIO_IXP4XX
 	bool "Intel IXP4xx GPIO"
 	depends on ARCH_IXP4XX
@@ -762,7 +752,7 @@ config GPIO_XTENSA
 
 config GPIO_ZEVIO
 	bool "LSI ZEVIO SoC memory mapped GPIOs"
-	depends on ARM && OF_GPIO
+	depends on ARM
 	help
 	  Say yes here to support the GPIO controller in LSI ZEVIO SoCs.
 
@@ -831,6 +821,7 @@ menu "Port-mapped I/O GPIO drivers"
 
 config GPIO_I8255
 	tristate
+	select GPIO_REGMAP
 	help
 	  Enables support for the i8255 interface library functions. The i8255
 	  interface library provides functions to facilitate communication with
@@ -845,6 +836,8 @@ config GPIO_104_DIO_48E
 	tristate "ACCES 104-DIO-48E GPIO support"
 	depends on PC104
 	select ISA_BUS_API
+	select REGMAP_MMIO
+	select REGMAP_IRQ
 	select GPIOLIB_IRQCHIP
 	select GPIO_I8255
 	help
@@ -870,8 +863,10 @@ config GPIO_104_IDI_48
 	tristate "ACCES 104-IDI-48 GPIO support"
 	depends on PC104
 	select ISA_BUS_API
+	select REGMAP_MMIO
+	select REGMAP_IRQ
 	select GPIOLIB_IRQCHIP
-	select GPIO_I8255
+	select GPIO_REGMAP
 	help
 	  Enables GPIO support for the ACCES 104-IDI-48 family (104-IDI-48A,
 	  104-IDI-48AC, 104-IDI-48B, 104-IDI-48BC). The base port addresses for
@@ -893,6 +888,7 @@ config GPIO_GPIO_MM
 	tristate "Diamond Systems GPIO-MM GPIO support"
 	depends on PC104
 	select ISA_BUS_API
+	select REGMAP_MMIO
 	select GPIO_I8255
 	help
 	  Enables GPIO support for the Diamond Systems GPIO-MM and GPIO-MM-12.
@@ -1438,13 +1434,6 @@ config GPIO_TWL6040
 	  Say yes here to access the GPO signals of twl6040
 	  audio chip from Texas Instruments.
 
-config GPIO_UCB1400
-	tristate "Philips UCB1400 GPIO"
-	depends on UCB1400_CORE
-	help
-	  This enables support for the Philips UCB1400 GPIO pins.
-	  The UCB1400 is an AC97 audio codec.
-
 config GPIO_WHISKEY_COVE
 	tristate "GPIO support for Whiskey Cove PMIC"
 	depends on (X86 || COMPILE_TEST) && INTEL_SOC_PMIC_BXTWC
@@ -1531,6 +1520,7 @@ config GPIO_MLXBF2
 	tristate "Mellanox BlueField 2 SoC GPIO"
 	depends on (MELLANOX_PLATFORM && ARM64 && ACPI) || (64BIT && COMPILE_TEST)
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here if you want GPIO support on Mellanox BlueField 2 SoC.
 

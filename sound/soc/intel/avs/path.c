@@ -10,6 +10,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "avs.h"
+#include "control.h"
 #include "path.h"
 #include "topology.h"
 
@@ -264,6 +265,65 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 	return ret;
 }
 
+static struct avs_control_data *avs_get_module_control(struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_tplg_path_template *path_tmpl;
+	struct snd_soc_dapm_widget *w;
+	int i;
+
+	path_tmpl = t->owner->owner->owner;
+	w = path_tmpl->w;
+
+	for (i = 0; i < w->num_kcontrols; i++) {
+		struct avs_control_data *ctl_data;
+		struct soc_mixer_control *mc;
+
+		mc = (struct soc_mixer_control *)w->kcontrols[i]->private_value;
+		ctl_data = (struct avs_control_data *)mc->dobj.private;
+		if (ctl_data->id == t->ctl_id)
+			return ctl_data;
+	}
+
+	return NULL;
+}
+
+static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_control_data *ctl_data;
+	struct avs_peakvol_cfg *cfg;
+	int volume = S32_MAX;
+	size_t size;
+	int ret;
+
+	ctl_data = avs_get_module_control(mod);
+	if (ctl_data)
+		volume = ctl_data->volume;
+
+	/* As 2+ channels controls are unsupported, have a single block for all channels. */
+	size = struct_size(cfg, vols, 1);
+	cfg = kzalloc(size, GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	cfg->base.cpc = t->cfg_base->cpc;
+	cfg->base.ibs = t->cfg_base->ibs;
+	cfg->base.obs = t->cfg_base->obs;
+	cfg->base.is_pages = t->cfg_base->is_pages;
+	cfg->base.audio_fmt = *t->in_fmt;
+	cfg->vols[0].target_volume = volume;
+	cfg->vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
+	cfg->vols[0].curve_type = AVS_AUDIO_CURVE_NONE;
+	cfg->vols[0].curve_duration = 0;
+
+	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
+				  t->domain, cfg, size, &mod->instance_id);
+
+	kfree(cfg);
+	return ret;
+}
+
 static int avs_updown_mix_create(struct avs_dev *adev, struct avs_path_module *mod)
 {
 	struct avs_tplg_module *t = mod->template;
@@ -465,6 +525,8 @@ static struct avs_module_create avs_module_create[] = {
 	{ &AVS_MIXOUT_MOD_UUID, avs_modbase_create },
 	{ &AVS_KPBUFF_MOD_UUID, avs_modbase_create },
 	{ &AVS_COPIER_MOD_UUID, avs_copier_create },
+	{ &AVS_PEAKVOL_MOD_UUID, avs_peakvol_create },
+	{ &AVS_GAIN_MOD_UUID, avs_peakvol_create },
 	{ &AVS_MICSEL_MOD_UUID, avs_micsel_create },
 	{ &AVS_MUX_MOD_UUID, avs_mux_create },
 	{ &AVS_UPDWMIX_MOD_UUID, avs_updown_mix_create },

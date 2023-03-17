@@ -128,7 +128,7 @@ test_type_filter()
 	echo "Testing perf lock contention --type-filter (w/ spinlock)"
 	perf lock contention -i ${perfdata} -Y spinlock -q 2> ${result}
 	if [ $(grep -c -v spinlock "${result}") != "0" ]; then
-		echo "[Fail] Recorded should not have non-spinlocks:" $(cat "${result}")
+		echo "[Fail] Recorded result should not have non-spinlocks:" $(cat "${result}")
 		err=1
 		exit
 	fi
@@ -139,7 +139,7 @@ test_type_filter()
 
 	perf lock con -a -b -Y spinlock -q -- perf bench sched messaging > /dev/null 2> ${result}
 	if [ $(grep -c -v spinlock "${result}") != "0" ]; then
-		echo "[Fail] Recorded should not have non-spinlocks:" $(cat "${result}")
+		echo "[Fail] BPF result should not have non-spinlocks:" $(cat "${result}")
 		err=1
 		exit
 	fi
@@ -160,7 +160,7 @@ test_lock_filter()
 	local type=$(head -1 "${result}" | awk '{ print $8 }' | sed -e 's/:.*//')
 
 	if [ $(grep -c -v "${type}" "${result}") != "0" ]; then
-		echo "[Fail] Recorded should not have non-${type} locks:" $(cat "${result}")
+		echo "[Fail] Recorded result should not have non-${type} locks:" $(cat "${result}")
 		err=1
 		exit
 	fi
@@ -171,7 +171,63 @@ test_lock_filter()
 
 	perf lock con -a -b -L tasklist_lock -q -- perf bench sched messaging > /dev/null 2> ${result}
 	if [ $(grep -c -v "${type}" "${result}") != "0" ]; then
-		echo "[Fail] Recorded should not have non-${type} locks:" $(cat "${result}")
+		echo "[Fail] BPF result should not have non-${type} locks:" $(cat "${result}")
+		err=1
+		exit
+	fi
+}
+
+test_stack_filter()
+{
+	echo "Testing perf lock contention --callstack-filter (w/ unix_stream)"
+	perf lock contention -i ${perfdata} -v -q 2> ${result}
+	if [ $(grep -c unix_stream "${result}") == "0" ]; then
+		echo "[Skip] Could not find 'unix_stream'"
+		return
+	fi
+
+	perf lock contention -i ${perfdata} -E 1 -S unix_stream -q 2> ${result}
+	if [ $(cat "${result}" | wc -l) != "1" ]; then
+		echo "[Fail] Recorded result should have a lock from unix_stream:" $(cat "${result}")
+		err=1
+		exit
+	fi
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		return
+	fi
+
+	perf lock con -a -b -S unix_stream -E 1 -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ $(cat "${result}" | wc -l) != "1" ]; then
+		echo "[Fail] BPF result should have a lock from unix_stream:" $(cat "${result}")
+		err=1
+		exit
+	fi
+}
+
+test_aggr_task_stack_filter()
+{
+	echo "Testing perf lock contention --callstack-filter with task aggregation"
+	perf lock contention -i ${perfdata} -v -q 2> ${result}
+	if [ $(grep -c unix_stream "${result}") == "0" ]; then
+		echo "[Skip] Could not find 'unix_stream'"
+		return
+	fi
+
+	perf lock contention -i ${perfdata} -t -E 1 -S unix_stream -q 2> ${result}
+	if [ $(cat "${result}" | wc -l) != "1" ]; then
+		echo "[Fail] Recorded result should have a task from unix_stream:" $(cat "${result}")
+		err=1
+		exit
+	fi
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		return
+	fi
+
+	perf lock con -a -b -t -S unix_stream -E 1 -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ $(cat "${result}" | wc -l) != "1" ]; then
+		echo "[Fail] BPF result should have a task from unix_stream:" $(cat "${result}")
 		err=1
 		exit
 	fi
@@ -186,5 +242,7 @@ test_aggr_task
 test_aggr_addr
 test_type_filter
 test_lock_filter
+test_stack_filter
+test_aggr_task_stack_filter
 
 exit ${err}

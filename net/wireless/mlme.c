@@ -742,7 +742,10 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
 		case NL80211_IFTYPE_AP_VLAN:
-			if (!ether_addr_equal(mgmt->bssid, wdev_address(wdev)))
+			if (!ether_addr_equal(mgmt->bssid, wdev_address(wdev)) &&
+			    (params->link_id < 0 ||
+			     !ether_addr_equal(mgmt->bssid,
+					       wdev->links[params->link_id].addr)))
 				err = -EINVAL;
 			break;
 		case NL80211_IFTYPE_MESH_POINT:

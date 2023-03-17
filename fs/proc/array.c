@@ -300,13 +300,8 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 static void render_cap_t(struct seq_file *m, const char *header,
 			kernel_cap_t *a)
 {
-	unsigned __capi;
-
 	seq_puts(m, header);
-	CAP_FOR_EACH_U32(__capi) {
-		seq_put_hex_ll(m, NULL,
-			   a->cap[CAP_LAST_U32 - __capi], 8);
-	}
+	seq_put_hex_ll(m, NULL, a->val, 16);
 	seq_putc(m, '\n');
 }
 

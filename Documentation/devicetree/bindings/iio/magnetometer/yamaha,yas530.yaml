@@ -91,12 +91,12 @@ examples:
         #size-cells = <0>;
 
         magnetometer@2e {
-          compatible = "yamaha,yas530";
-          reg = <0x2e>;
-          vdd-supply = <&ldo1_reg>;
-          iovdd-supply = <&ldo2_reg>;
-          reset-gpios = <&gpio6 12 GPIO_ACTIVE_LOW>;
-          interrupts = <13 IRQ_TYPE_EDGE_RISING>;
+            compatible = "yamaha,yas530";
+            reg = <0x2e>;
+            vdd-supply = <&ldo1_reg>;
+            iovdd-supply = <&ldo2_reg>;
+            reset-gpios = <&gpio6 12 GPIO_ACTIVE_LOW>;
+            interrupts = <13 IRQ_TYPE_EDGE_RISING>;
         };
     };
 
@@ -105,8 +105,8 @@ examples:
         #size-cells = <0>;
 
         magnetometer@2e {
-          compatible = "yamaha,yas539";
-          reg = <0x2e>;
-          vdd-supply = <&ldo1_reg>;
+            compatible = "yamaha,yas539";
+            reg = <0x2e>;
+            vdd-supply = <&ldo1_reg>;
         };
     };

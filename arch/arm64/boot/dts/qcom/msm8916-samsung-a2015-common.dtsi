@@ -434,7 +434,7 @@
 		bias-pull-down;
 	};
 
-	motor_en_default: motor-en-default-stae {
+	motor_en_default: motor-en-default-state {
 		pins = "gpio76";
 		function = "gpio";
 

@@ -335,14 +335,13 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq)
 	timer_setup(&sq->pending_timer, throtl_pending_timer_fn, 0);
 }
 
-static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp,
-						struct request_queue *q,
-						struct blkcg *blkcg)
+static struct blkg_policy_data *throtl_pd_alloc(struct gendisk *disk,
+		struct blkcg *blkcg, gfp_t gfp)
 {
 	struct throtl_grp *tg;
 	int rw;
 
-	tg = kzalloc_node(sizeof(*tg), gfp, q->node);
+	tg = kzalloc_node(sizeof(*tg), gfp, disk->node_id);
 	if (!tg)
 		return NULL;
 
@@ -2395,7 +2394,7 @@ int blk_throtl_init(struct gendisk *disk)
 	td->low_downgrade_time = jiffies;
 
 	/* activate policy */
-	ret = blkcg_activate_policy(q, &blkcg_policy_throtl);
+	ret = blkcg_activate_policy(disk, &blkcg_policy_throtl);
 	if (ret) {
 		free_percpu(td->latency_buckets[READ]);
 		free_percpu(td->latency_buckets[WRITE]);
@@ -2411,7 +2410,7 @@ void blk_throtl_exit(struct gendisk *disk)
 	BUG_ON(!q->td);
 	del_timer_sync(&q->td->service_queue.pending_timer);
 	throtl_shutdown_wq(q);
-	blkcg_deactivate_policy(q, &blkcg_policy_throtl);
+	blkcg_deactivate_policy(disk, &blkcg_policy_throtl);
 	free_percpu(q->td->latency_buckets[READ]);
 	free_percpu(q->td->latency_buckets[WRITE]);
 	kfree(q->td);
