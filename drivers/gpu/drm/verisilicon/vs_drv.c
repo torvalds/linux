@@ -251,6 +251,8 @@ static int vs_drm_bind(struct device *dev)
 	if (ret)
 		goto err_helper;
 
+	drm_fbdev_generic_setup(drm_dev, 32);
+
 	return 0;
 
 err_helper:
