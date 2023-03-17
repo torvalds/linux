@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2022 Intel Corporation.
+ * Copyright (c) 2023 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -670,8 +670,7 @@ static int perf_instr_count_open(int cpu_num)
 	/* counter for cpu_num, including user + kernel and all processes */
 	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
 	if (fd == -1) {
-		warnx("capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\"",
-		      progname);
+		warnx("capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\"", progname);
 		BIC_NOT_PRESENT(BIC_IPC);
 	}
 
@@ -3516,8 +3515,7 @@ int set_my_sched_priority(int priority)
 
 	retval = setpriority(PRIO_PROCESS, 0, priority);
 	if (retval)
-		errx(retval, "capget(CAP_SYS_NICE) failed,try \"# setcap cap_sys_nice=ep %s\"",
-		     progname);
+		errx(retval, "capget(CAP_SYS_NICE) failed,try \"# setcap cap_sys_nice=ep %s\"", progname);
 
 	errno = 0;
 	retval = getpriority(PRIO_PROCESS, 0);
@@ -5478,8 +5476,7 @@ void print_dev_latency(void)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		warnx("capget(CAP_SYS_ADMIN) failed, try \"# setcap cap_sys_admin=ep %s\"",
-		      progname);
+		warnx("capget(CAP_SYS_ADMIN) failed, try \"# setcap cap_sys_admin=ep %s\"", progname);
 		return;
 	}
 
@@ -6228,7 +6225,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2022.10.04 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2023.03.17 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
