@@ -99,14 +99,13 @@ static void charlcd_wait_complete_irq(struct charlcd *lcd)
 
 	if (ret < 0) {
 		dev_err(lcd->dev,
-			"wait_for_completion_interruptible_timeout() "
-			"returned %d waiting for ready\n", ret);
+			"wait_for_completion_interruptible_timeout() returned %d waiting for ready\n",
+			ret);
 		return;
 	}
 
 	if (ret == 0) {
-		dev_err(lcd->dev, "charlcd controller timed out "
-			"waiting for ready\n");
+		dev_err(lcd->dev, "charlcd controller timed out waiting for ready\n");
 		return;
 	}
 }
