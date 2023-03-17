@@ -299,7 +299,7 @@ void task_set_vl_onexec(struct task_struct *task, enum vec_type type,
 /*
  * TIF_SME controls whether a task can use SME without trapping while
  * in userspace, when TIF_SME is set then we must have storage
- * alocated in sve_state and sme_state to store the contents of both ZA
+ * allocated in sve_state and sme_state to store the contents of both ZA
  * and the SVE registers for both streaming and non-streaming modes.
  *
  * If both SVCR.ZA and SVCR.SM are disabled then at any point we
@@ -1477,7 +1477,7 @@ void do_sve_acc(unsigned long esr, struct pt_regs *regs)
  *
  * TIF_SME should be clear on entry: otherwise, fpsimd_restore_current_state()
  * would have disabled the SME access trap for userspace during
- * ret_to_user, making an SVE access trap impossible in that case.
+ * ret_to_user, making an SME access trap impossible in that case.
  */
 void do_sme_acc(unsigned long esr, struct pt_regs *regs)
 {
