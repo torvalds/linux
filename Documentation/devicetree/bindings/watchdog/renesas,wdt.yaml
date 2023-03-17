@@ -115,7 +115,7 @@ required:
   - clocks
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
   - if:
       not:

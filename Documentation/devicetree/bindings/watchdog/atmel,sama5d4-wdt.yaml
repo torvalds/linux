@@ -10,7 +10,7 @@ maintainers:
   - Eugen Hristev <eugen.hristev@microchip.com>
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:

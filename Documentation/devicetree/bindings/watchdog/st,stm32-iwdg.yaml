@@ -11,7 +11,7 @@ maintainers:
   - Christophe Roullier <christophe.roullier@foss.st.com>
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:

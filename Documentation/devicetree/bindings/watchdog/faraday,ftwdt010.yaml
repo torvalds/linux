@@ -15,7 +15,7 @@ description: |
   SoCs and others.
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:
