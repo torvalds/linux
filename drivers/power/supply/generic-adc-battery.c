@@ -30,6 +30,7 @@ enum gab_chan_type {
 	GAB_VOLTAGE = 0,
 	GAB_CURRENT,
 	GAB_POWER,
+	GAB_TEMP,
 	GAB_MAX_CHAN_TYPE
 };
 
@@ -40,7 +41,8 @@ enum gab_chan_type {
 static const char *const gab_chan_name[] = {
 	[GAB_VOLTAGE]	= "voltage",
 	[GAB_CURRENT]	= "current",
-	[GAB_POWER]		= "power",
+	[GAB_POWER]	= "power",
+	[GAB_TEMP]	= "temperature",
 };
 
 struct gab {
@@ -77,6 +79,7 @@ static const enum power_supply_property gab_dyn_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
 static bool gab_charge_finished(struct gab *adc_bat)
@@ -115,6 +118,8 @@ static int gab_get_property(struct power_supply *psy,
 		return read_channel(adc_bat, GAB_CURRENT, &val->intval);
 	case POWER_SUPPLY_PROP_POWER_NOW:
 		return read_channel(adc_bat, GAB_POWER, &val->intval);
+	case POWER_SUPPLY_PROP_TEMP:
+		return read_channel(adc_bat, GAB_TEMP, &val->intval);
 	default:
 		return -EINVAL;
 	}
