@@ -1211,6 +1211,13 @@ static void md_register_panic_data(void)
 {
 #ifdef CONFIG_QCOM_MINIDUMP_PANIC_MEMORY_INFO
 	struct dentry *minidump_dir = NULL;
+	int ret;
+
+	ret = md_minidump_memory_init();
+	if (ret) {
+		pr_err("Failed to look up all minidump memory symbols, rc: %d\n", ret);
+		return;
+	}
 
 	md_register_panic_entries(MD_MEMINFO_PAGES, "MEMINFO",
 				  &md_meminfo_seq_buf);

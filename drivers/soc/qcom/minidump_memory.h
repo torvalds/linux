@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define MD_MEMINFO_PAGES	1
@@ -49,3 +49,4 @@ void md_dma_buf_info(char *m, size_t dump_size);
 void md_debugfs_dmabufinfo(struct dentry *minidump_dir);
 void md_dma_buf_procs(char *m, size_t dump_size);
 void md_debugfs_dmabufprocs(struct dentry *minidump_dir);
+int md_minidump_memory_init(void);
