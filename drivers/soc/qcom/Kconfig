@@ -668,6 +668,14 @@ config MSM_BOOT_STATS
 	  This figures are reported in mpm sleep clock cycles and have a
 	  resolution of 31 bits as 1 bit is used as an overflow check.
 
+config USB_BAM
+	tristate "USB BAM Driver"
+	help
+	  Enabling this option adds USB BAM Driver.
+	  USB BAM driver was added to supports Smart Peripheral Subsystem
+	  Peripheral-to-Peripheral transfers between the USB and other
+	  peripheral.
+
 config QCOM_CPU_VENDOR_HOOKS
         tristate "QTI Vendor Hooks Support"
         depends on ARCH_QCOM && ANDROID_VENDOR_HOOKS
