@@ -54,6 +54,8 @@
 						   for MTL, do a proper probe
 						   sooner or later */
 #define GEN11_WOPCM_SIZE		SZ_2M
+
+#define GEN12_MAX_WOPCM_SIZE            SZ_8M
 /* 16KB WOPCM (RSVD WOPCM) is reserved from HuC firmware top. */
 #define WOPCM_RESERVED_SIZE		SZ_16K
 
@@ -221,6 +223,13 @@ int xe_wopcm_init(struct xe_wopcm *wopcm)
 	if (locked) {
 		drm_dbg(&xe->drm, "GuC WOPCM is already locked [%uK, %uK)\n",
 			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);
+		/*
+		 * When the GuC wopcm base and size are preprogrammed by
+		 * BIOS/IFWI, check against the max allowed wopcm size to
+		 * validate if the programmed values align to the wopcm layout.
+		 */
+		wopcm->size = GEN12_MAX_WOPCM_SIZE;
+
 		goto check;
 	}
 
