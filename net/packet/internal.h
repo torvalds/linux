@@ -133,10 +133,7 @@ struct packet_sock {
 	atomic_t		tp_drops ____cacheline_aligned_in_smp;
 };
 
-static inline struct packet_sock *pkt_sk(struct sock *sk)
-{
-	return (struct packet_sock *)sk;
-}
+#define pkt_sk(ptr) container_of_const(ptr, struct packet_sock, sk)
 
 enum packet_sock_flags {
 	PACKET_SOCK_ORIGDEV,
