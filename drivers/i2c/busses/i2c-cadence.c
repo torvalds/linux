@@ -117,7 +117,7 @@
 #define CDNS_I2C_FIFO_DEPTH_DEFAULT	16
 #define CDNS_I2C_MAX_TRANSFER_SIZE	255
 /* Transfer size in multiples of data interrupt depth */
-#define CDNS_I2C_TRANSFER_SIZE	(CDNS_I2C_MAX_TRANSFER_SIZE - 3)
+#define CDNS_I2C_TRANSFER_SIZE(max)	((max) - 3)
 
 #define DRIVER_NAME		"cdns-i2c"
 
@@ -185,6 +185,7 @@ enum cdns_i2c_slave_state {
  * @dev_mode:		I2C operating role(master/slave).
  * @slave_state:	I2C Slave state(idle/read/write).
  * @fifo_depth:		The depth of the transfer FIFO
+ * @transfer_size:	The maximum number of bytes in one transfer
  */
 struct cdns_i2c {
 	struct device		*dev;
@@ -213,6 +214,7 @@ struct cdns_i2c {
 	enum cdns_i2c_slave_state slave_state;
 #endif
 	u32 fifo_depth;
+	unsigned int transfer_size;
 };
 
 struct cdns_platform_data {
@@ -466,10 +468,10 @@ static irqreturn_t cdns_i2c_master_isr(void *ptr)
 			 * transfer size and update register accordingly.
 			 */
 			if (((int)(id->recv_count) - id->fifo_depth) >
-			    CDNS_I2C_TRANSFER_SIZE) {
-				cdns_i2c_writereg(CDNS_I2C_TRANSFER_SIZE,
+			    id->transfer_size) {
+				cdns_i2c_writereg(id->transfer_size,
 						  CDNS_I2C_XFER_SIZE_OFFSET);
-				id->curr_recv_count = CDNS_I2C_TRANSFER_SIZE +
+				id->curr_recv_count = id->transfer_size +
 						      id->fifo_depth;
 			} else {
 				cdns_i2c_writereg(id->recv_count -
@@ -605,10 +607,10 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 	 * receive if it is less than transfer size and transfer size if
 	 * it is more. Enable the interrupts.
 	 */
-	if (id->recv_count > CDNS_I2C_TRANSFER_SIZE) {
-		cdns_i2c_writereg(CDNS_I2C_TRANSFER_SIZE,
+	if (id->recv_count > id->transfer_size) {
+		cdns_i2c_writereg(id->transfer_size,
 				  CDNS_I2C_XFER_SIZE_OFFSET);
-		id->curr_recv_count = CDNS_I2C_TRANSFER_SIZE;
+		id->curr_recv_count = id->transfer_size;
 	} else {
 		cdns_i2c_writereg(id->recv_count, CDNS_I2C_XFER_SIZE_OFFSET);
 	}
@@ -1228,6 +1230,37 @@ static const struct of_device_id cdns_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, cdns_i2c_of_match);
 
 /**
+ * cdns_i2c_detect_transfer_size - Detect the maximum transfer size supported
+ * @id: Device private data structure
+ *
+ * Detect the maximum transfer size that is supported by this instance of the
+ * Cadence I2C controller.
+ */
+static void cdns_i2c_detect_transfer_size(struct cdns_i2c *id)
+{
+	u32 val;
+
+	/*
+	 * Writing to the transfer size register is only possible if these two bits
+	 * are set in the control register.
+	 */
+	cdns_i2c_writereg(CDNS_I2C_CR_MS | CDNS_I2C_CR_RW, CDNS_I2C_CR_OFFSET);
+
+	/*
+	 * The number of writable bits of the transfer size register can be between
+	 * 4 and 8. This is a controlled through a synthesis parameter of the IP
+	 * core and can vary from instance to instance. The unused MSBs always read
+	 * back as 0. Writing 0xff and then reading the value back will report the
+	 * maximum supported transfer size.
+	 */
+	cdns_i2c_writereg(CDNS_I2C_MAX_TRANSFER_SIZE, CDNS_I2C_XFER_SIZE_OFFSET);
+	val = cdns_i2c_readreg(CDNS_I2C_XFER_SIZE_OFFSET);
+	id->transfer_size = CDNS_I2C_TRANSFER_SIZE(val);
+	cdns_i2c_writereg(0, CDNS_I2C_XFER_SIZE_OFFSET);
+	cdns_i2c_writereg(0, CDNS_I2C_CR_OFFSET);
+}
+
+/**
  * cdns_i2c_probe - Platform registration call
  * @pdev:	Handle to the platform device structure
  *
@@ -1320,6 +1353,8 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 
 	id->fifo_depth = CDNS_I2C_FIFO_DEPTH_DEFAULT;
 	of_property_read_u32(pdev->dev.of_node, "fifo-depth", &id->fifo_depth);
+
+	cdns_i2c_detect_transfer_size(id);
 
 	ret = cdns_i2c_setclk(id->input_clk, id);
 	if (ret) {
