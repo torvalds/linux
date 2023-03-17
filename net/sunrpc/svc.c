@@ -842,9 +842,21 @@ EXPORT_SYMBOL_GPL(svc_set_num_threads);
  *
  * When replacing a page in rq_pages, batch the release of the
  * replaced pages to avoid hammering the page allocator.
+ *
+ * Return values:
+ *   %true: page replaced
+ *   %false: array bounds checking failed
  */
-void svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
+bool svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 {
+	struct page **begin = rqstp->rq_pages;
+	struct page **end = &rqstp->rq_pages[RPCSVC_MAXPAGES];
+
+	if (unlikely(rqstp->rq_next_page < begin || rqstp->rq_next_page > end)) {
+		trace_svc_replace_page_err(rqstp);
+		return false;
+	}
+
 	if (*rqstp->rq_next_page) {
 		if (!pagevec_space(&rqstp->rq_pvec))
 			__pagevec_release(&rqstp->rq_pvec);
@@ -853,6 +865,7 @@ void svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 
 	get_page(page);
 	*(rqstp->rq_next_page++) = page;
+	return true;
 }
 EXPORT_SYMBOL_GPL(svc_rqst_replace_page);
 
