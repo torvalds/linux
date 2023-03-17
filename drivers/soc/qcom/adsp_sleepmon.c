@@ -38,9 +38,7 @@
 #include <asm/arch_timer.h>
 #include <linux/jiffies.h>
 #include <linux/suspend.h>
-#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 #include <../../remoteproc/qcom_common.h>
-#endif
 #include <uapi/misc/adsp_sleepmon.h>
 
 #define ADSPSLEEPMON_SMEM_ADSP_PID                              2
@@ -307,10 +305,8 @@ struct adspsleepmon {
 	struct dentry *debugfs_read_panic_state;
 	struct dentry *debugfs_adsp_panic_file;
 	struct dentry *debugfs_read_adsp_panic_state;
-#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 	phandle adsp_rproc_phandle;
 	struct rproc *adsp_rproc;
-#endif
 };
 
 static struct adspsleepmon g_adspsleepmon;
@@ -346,14 +342,12 @@ static int sleepmon_send_ssr_command(void)
 
 	if (g_adspsleepmon.rpmsgdev && g_adspsleepmon.adsp_version > 1) {
 
-#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 		if (g_adspsleepmon.adsp_rproc) {
 			pr_info("Setting recovery flag for ADSP SSR\n");
 			qcom_rproc_update_recovery_status(g_adspsleepmon.adsp_rproc, true);
 		} else {
 			pr_info("Couldn't find rproc handle for ADSP\n");
 		}
-#endif
 
 		rpmsg.adsp_ver_info = SLEEPMON_ADSP_GLINK_VERSION;
 		rpmsg.feature_id = SLEEPMON_SEND_SSR_COMMAND;
@@ -366,13 +360,11 @@ static int sleepmon_send_ssr_command(void)
 		if (result) {
 			pr_err("Send SSR command failed\n");
 
-#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 			if (g_adspsleepmon.adsp_rproc) {
 				pr_info("Resetting recovery flag for ADSP SSR\n");
 				qcom_rproc_update_recovery_status(
 					g_adspsleepmon.adsp_rproc, false);
 			}
-#endif
 
 		}
 	} else {
@@ -1564,7 +1556,6 @@ static int sleepmon_rpmsg_probe(struct rpmsg_device *dev)
 	of_platform_populate(dev->dev.of_node, NULL, NULL, &dev->dev);
 	g_adspsleepmon.rpmsgdev = dev;
 
-#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 
 	if (!g_adspsleepmon.adsp_rproc &&
 			g_adspsleepmon.adsp_rproc_phandle) {
@@ -1577,7 +1568,6 @@ static int sleepmon_rpmsg_probe(struct rpmsg_device *dev)
 		qcom_rproc_update_recovery_status(
 				g_adspsleepmon.adsp_rproc, false);
 	}
-#endif
 
 	return adspsleepmon_smem_init();
 }
@@ -1690,10 +1680,8 @@ static int adspsleepmon_driver_probe(struct platform_device *pdev)
 	of_property_read_u32(dev->of_node, "qcom,min_required_resumes",
 						 &g_adspsleepmon.min_required_resumes);
 
-#if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 	of_property_read_u32(dev->of_node, "qcom,rproc-handle",
 				&g_adspsleepmon.adsp_rproc_phandle);
-#endif
 
 	g_adspsleepmon.b_panic_lpm = g_adspsleepmon.b_config_panic_lpm;
 	g_adspsleepmon.b_panic_lpi = g_adspsleepmon.b_config_panic_lpi;
