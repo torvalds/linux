@@ -128,7 +128,6 @@ struct packet_sock {
 	unsigned int		tp_tstamp;
 	struct completion	skb_completion;
 	struct net_device __rcu	*cached_dev;
-	int			(*xmit)(struct sk_buff *skb);
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 	atomic_t		tp_drops ____cacheline_aligned_in_smp;
 };
@@ -143,6 +142,7 @@ enum packet_sock_flags {
 	PACKET_SOCK_HAS_VNET_HDR,
 	PACKET_SOCK_RUNNING,
 	PACKET_SOCK_PRESSURE,
+	PACKET_SOCK_QDISC_BYPASS,
 };
 
 static inline void packet_sock_flag_set(struct packet_sock *po,

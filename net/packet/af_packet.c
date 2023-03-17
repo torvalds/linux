@@ -270,8 +270,11 @@ static noinline struct sk_buff *nf_hook_direct_egress(struct sk_buff *skb)
 }
 #endif
 
-static int packet_direct_xmit(struct sk_buff *skb)
+static int packet_xmit(const struct packet_sock *po, struct sk_buff *skb)
 {
+	if (!packet_sock_flag(po, PACKET_SOCK_QDISC_BYPASS))
+		return dev_queue_xmit(skb);
+
 #ifdef CONFIG_NETFILTER_EGRESS
 	if (nf_hook_egress_active()) {
 		skb = nf_hook_direct_egress(skb);
@@ -303,12 +306,6 @@ static void packet_cached_dev_assign(struct packet_sock *po,
 static void packet_cached_dev_reset(struct packet_sock *po)
 {
 	RCU_INIT_POINTER(po->cached_dev, NULL);
-}
-
-static bool packet_use_direct_xmit(const struct packet_sock *po)
-{
-	/* Paired with WRITE_ONCE() in packet_setsockopt() */
-	return READ_ONCE(po->xmit) == packet_direct_xmit;
 }
 
 static u16 packet_pick_tx_queue(struct sk_buff *skb)
@@ -2872,8 +2869,7 @@ tpacket_error:
 		packet_inc_pending(&po->tx_ring);
 
 		status = TP_STATUS_SEND_REQUEST;
-		/* Paired with WRITE_ONCE() in packet_setsockopt() */
-		err = READ_ONCE(po->xmit)(skb);
+		err = packet_xmit(po, skb);
 		if (unlikely(err != 0)) {
 			if (err > 0)
 				err = net_xmit_errno(err);
@@ -3076,8 +3072,8 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		virtio_net_hdr_set_proto(skb, &vnet_hdr);
 	}
 
-	/* Paired with WRITE_ONCE() in packet_setsockopt() */
-	err = READ_ONCE(po->xmit)(skb);
+	err = packet_xmit(po, skb);
+
 	if (unlikely(err != 0)) {
 		if (err > 0)
 			err = net_xmit_errno(err);
@@ -3359,7 +3355,6 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	init_completion(&po->skb_completion);
 	sk->sk_family = PF_PACKET;
 	po->num = proto;
-	po->xmit = dev_queue_xmit;
 
 	err = packet_alloc_pending(po);
 	if (err)
@@ -4010,8 +4005,7 @@ packet_setsockopt(struct socket *sock, int level, int optname, sockptr_t optval,
 		if (copy_from_sockptr(&val, optval, sizeof(val)))
 			return -EFAULT;
 
-		/* Paired with all lockless reads of po->xmit */
-		WRITE_ONCE(po->xmit, val ? packet_direct_xmit : dev_queue_xmit);
+		packet_sock_flag_set(po, PACKET_SOCK_QDISC_BYPASS, val);
 		return 0;
 	}
 	default:
@@ -4126,7 +4120,7 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		val = packet_sock_flag(po, PACKET_SOCK_TX_HAS_OFF);
 		break;
 	case PACKET_QDISC_BYPASS:
-		val = packet_use_direct_xmit(po);
+		val = packet_sock_flag(po, PACKET_SOCK_QDISC_BYPASS);
 		break;
 	default:
 		return -ENOPROTOOPT;
