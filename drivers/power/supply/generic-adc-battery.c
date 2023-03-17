@@ -42,12 +42,11 @@ static const char *const gab_chan_name[] = {
 };
 
 struct gab {
-	struct power_supply		*psy;
-	struct power_supply_desc	psy_desc;
-	struct iio_channel	*channel[GAB_MAX_CHAN_TYPE];
+	struct power_supply *psy;
+	struct power_supply_desc psy_desc;
+	struct iio_channel *channel[GAB_MAX_CHAN_TYPE];
 	struct delayed_work bat_work;
-	int	status;
-	bool cable_plugged;
+	int status;
 	struct gpio_desc *charge_finished;
 };
 
@@ -85,7 +84,7 @@ static bool gab_charge_finished(struct gab *adc_bat)
 	return gpiod_get_value(adc_bat->charge_finished);
 }
 
-static int read_channel(struct gab *adc_bat, enum gab_chan_type channel,
+static int gab_read_channel(struct gab *adc_bat, enum gab_chan_type channel,
 		int *result)
 {
 	int ret;
@@ -109,13 +108,13 @@ static int gab_get_property(struct power_supply *psy,
 		val->intval = adc_bat->status;
 		return 0;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		return read_channel(adc_bat, GAB_VOLTAGE, &val->intval);
+		return gab_read_channel(adc_bat, GAB_VOLTAGE, &val->intval);
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		return read_channel(adc_bat, GAB_CURRENT, &val->intval);
+		return gab_read_channel(adc_bat, GAB_CURRENT, &val->intval);
 	case POWER_SUPPLY_PROP_POWER_NOW:
-		return read_channel(adc_bat, GAB_POWER, &val->intval);
+		return gab_read_channel(adc_bat, GAB_POWER, &val->intval);
 	case POWER_SUPPLY_PROP_TEMP:
-		return read_channel(adc_bat, GAB_TEMP, &val->intval);
+		return gab_read_channel(adc_bat, GAB_TEMP, &val->intval);
 	default:
 		return -EINVAL;
 	}
@@ -125,17 +124,13 @@ static void gab_work(struct work_struct *work)
 {
 	struct gab *adc_bat;
 	struct delayed_work *delayed_work;
-	bool is_plugged;
 	int status;
 
 	delayed_work = to_delayed_work(work);
 	adc_bat = container_of(delayed_work, struct gab, bat_work);
 	status = adc_bat->status;
 
-	is_plugged = power_supply_am_i_supplied(adc_bat->psy);
-	adc_bat->cable_plugged = is_plugged;
-
-	if (!is_plugged)
+	if (!power_supply_am_i_supplied(adc_bat->psy))
 		adc_bat->status =  POWER_SUPPLY_STATUS_DISCHARGING;
 	else if (gab_charge_finished(adc_bat))
 		adc_bat->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -177,7 +172,6 @@ static int gab_probe(struct platform_device *pdev)
 	psy_desc->name = dev_name(&pdev->dev);
 
 	/* bootup default values for the battery */
-	adc_bat->cable_plugged = false;
 	adc_bat->status = POWER_SUPPLY_STATUS_DISCHARGING;
 	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
 	psy_desc->get_property = gab_get_property;
