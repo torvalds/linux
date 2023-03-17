@@ -88,6 +88,135 @@ static const struct xhci_driver_overrides xhci_pci_overrides __initconst = {
 	.update_hub_device = xhci_pci_update_hub_device,
 };
 
+/*
+ * Set up MSI
+ */
+static int xhci_setup_msi(struct xhci_hcd *xhci)
+{
+	int ret;
+	/*
+	 * TODO:Check with MSI Soc for sysdev
+	 */
+	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+	if (ret < 0) {
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+				"failed to allocate MSI entry");
+		return ret;
+	}
+
+	ret = request_irq(pdev->irq, xhci_msi_irq,
+				0, "xhci_hcd", xhci_to_hcd(xhci));
+	if (ret) {
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+				"disable MSI interrupt");
+		pci_free_irq_vectors(pdev);
+	}
+
+	return ret;
+}
+
+/*
+ * Set up MSI-X
+ */
+static int xhci_setup_msix(struct xhci_hcd *xhci)
+{
+	int i, ret;
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
+
+	/*
+	 * calculate number of msi-x vectors supported.
+	 * - HCS_MAX_INTRS: the max number of interrupts the host can handle,
+	 *   with max number of interrupters based on the xhci HCSPARAMS1.
+	 * - num_online_cpus: maximum msi-x vectors per CPUs core.
+	 *   Add additional 1 vector to ensure always available interrupt.
+	 */
+	xhci->msix_count = min(num_online_cpus() + 1,
+				HCS_MAX_INTRS(xhci->hcs_params1));
+
+	ret = pci_alloc_irq_vectors(pdev, xhci->msix_count, xhci->msix_count,
+			PCI_IRQ_MSIX);
+	if (ret < 0) {
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+				"Failed to enable MSI-X");
+		return ret;
+	}
+
+	for (i = 0; i < xhci->msix_count; i++) {
+		ret = request_irq(pci_irq_vector(pdev, i), xhci_msi_irq, 0,
+				"xhci_hcd", xhci_to_hcd(xhci));
+		if (ret)
+			goto disable_msix;
+	}
+
+	hcd->msix_enabled = 1;
+	return ret;
+
+disable_msix:
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "disable MSI-X interrupt");
+	while (--i >= 0)
+		free_irq(pci_irq_vector(pdev, i), xhci_to_hcd(xhci));
+	pci_free_irq_vectors(pdev);
+	return ret;
+}
+
+static int xhci_try_enable_msi(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct pci_dev  *pdev;
+	int ret;
+
+	/* The xhci platform device has set up IRQs through usb_add_hcd. */
+	if (xhci->quirks & XHCI_PLAT)
+		return 0;
+
+	pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+	/*
+	 * Some Fresco Logic host controllers advertise MSI, but fail to
+	 * generate interrupts.  Don't even try to enable MSI.
+	 */
+	if (xhci->quirks & XHCI_BROKEN_MSI)
+		goto legacy_irq;
+
+	/* unregister the legacy interrupt */
+	if (hcd->irq)
+		free_irq(hcd->irq, hcd);
+	hcd->irq = 0;
+
+	ret = xhci_setup_msix(xhci);
+	if (ret)
+		/* fall back to msi*/
+		ret = xhci_setup_msi(xhci);
+
+	if (!ret) {
+		hcd->msi_enabled = 1;
+		return 0;
+	}
+
+	if (!pdev->irq) {
+		xhci_err(xhci, "No msi-x/msi found and no IRQ in BIOS\n");
+		return -EINVAL;
+	}
+
+ legacy_irq:
+	if (!strlen(hcd->irq_descr))
+		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
+			 hcd->driver->description, hcd->self.busnum);
+
+	/* fall back to legacy interrupt*/
+	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
+			hcd->irq_descr, hcd);
+	if (ret) {
+		xhci_err(xhci, "request interrupt %d failed\n",
+				pdev->irq);
+		return ret;
+	}
+	hcd->irq = pdev->irq;
+	return 0;
+}
+
 static int xhci_pci_run(struct usb_hcd *hcd)
 {
 	int ret;
