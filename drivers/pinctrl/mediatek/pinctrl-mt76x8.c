@@ -3,7 +3,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include "pinctrl-ralink.h"
+#include "pinctrl-mtmips.h"
 
 #define MT76X8_GPIO_MODE_MASK		0x3
 
@@ -35,173 +35,173 @@
 #define MT76X8_GPIO_MODE_SPIS		2
 #define MT76X8_GPIO_MODE_GPIO		0
 
-static struct ralink_pmx_func pwm1_grp[] = {
+static struct mtmips_pmx_func pwm1_grp[] = {
 	FUNC("sdxc d6", 3, 19, 1),
 	FUNC("utif", 2, 19, 1),
 	FUNC("gpio", 1, 19, 1),
 	FUNC("pwm1", 0, 19, 1),
 };
 
-static struct ralink_pmx_func pwm0_grp[] = {
+static struct mtmips_pmx_func pwm0_grp[] = {
 	FUNC("sdxc d7", 3, 18, 1),
 	FUNC("utif", 2, 18, 1),
 	FUNC("gpio", 1, 18, 1),
 	FUNC("pwm0", 0, 18, 1),
 };
 
-static struct ralink_pmx_func uart2_grp[] = {
+static struct mtmips_pmx_func uart2_grp[] = {
 	FUNC("sdxc d5 d4", 3, 20, 2),
 	FUNC("pwm", 2, 20, 2),
 	FUNC("gpio", 1, 20, 2),
 	FUNC("uart2", 0, 20, 2),
 };
 
-static struct ralink_pmx_func uart1_grp[] = {
+static struct mtmips_pmx_func uart1_grp[] = {
 	FUNC("sw_r", 3, 45, 2),
 	FUNC("pwm", 2, 45, 2),
 	FUNC("gpio", 1, 45, 2),
 	FUNC("uart1", 0, 45, 2),
 };
 
-static struct ralink_pmx_func i2c_grp[] = {
+static struct mtmips_pmx_func i2c_grp[] = {
 	FUNC("-", 3, 4, 2),
 	FUNC("debug", 2, 4, 2),
 	FUNC("gpio", 1, 4, 2),
 	FUNC("i2c", 0, 4, 2),
 };
 
-static struct ralink_pmx_func refclk_grp[] = { FUNC("refclk", 0, 37, 1) };
-static struct ralink_pmx_func perst_grp[] = { FUNC("perst", 0, 36, 1) };
-static struct ralink_pmx_func wdt_grp[] = { FUNC("wdt", 0, 38, 1) };
-static struct ralink_pmx_func spi_grp[] = { FUNC("spi", 0, 7, 4) };
+static struct mtmips_pmx_func refclk_grp[] = { FUNC("refclk", 0, 37, 1) };
+static struct mtmips_pmx_func perst_grp[] = { FUNC("perst", 0, 36, 1) };
+static struct mtmips_pmx_func wdt_grp[] = { FUNC("wdt", 0, 38, 1) };
+static struct mtmips_pmx_func spi_grp[] = { FUNC("spi", 0, 7, 4) };
 
-static struct ralink_pmx_func sd_mode_grp[] = {
+static struct mtmips_pmx_func sd_mode_grp[] = {
 	FUNC("jtag", 3, 22, 8),
 	FUNC("utif", 2, 22, 8),
 	FUNC("gpio", 1, 22, 8),
 	FUNC("sdxc", 0, 22, 8),
 };
 
-static struct ralink_pmx_func uart0_grp[] = {
+static struct mtmips_pmx_func uart0_grp[] = {
 	FUNC("-", 3, 12, 2),
 	FUNC("-", 2, 12, 2),
 	FUNC("gpio", 1, 12, 2),
 	FUNC("uart0", 0, 12, 2),
 };
 
-static struct ralink_pmx_func i2s_grp[] = {
+static struct mtmips_pmx_func i2s_grp[] = {
 	FUNC("antenna", 3, 0, 4),
 	FUNC("pcm", 2, 0, 4),
 	FUNC("gpio", 1, 0, 4),
 	FUNC("i2s", 0, 0, 4),
 };
 
-static struct ralink_pmx_func spi_cs1_grp[] = {
+static struct mtmips_pmx_func spi_cs1_grp[] = {
 	FUNC("-", 3, 6, 1),
 	FUNC("refclk", 2, 6, 1),
 	FUNC("gpio", 1, 6, 1),
 	FUNC("spi cs1", 0, 6, 1),
 };
 
-static struct ralink_pmx_func spis_grp[] = {
+static struct mtmips_pmx_func spis_grp[] = {
 	FUNC("pwm_uart2", 3, 14, 4),
 	FUNC("utif", 2, 14, 4),
 	FUNC("gpio", 1, 14, 4),
 	FUNC("spis", 0, 14, 4),
 };
 
-static struct ralink_pmx_func gpio_grp[] = {
+static struct mtmips_pmx_func gpio_grp[] = {
 	FUNC("pcie", 3, 11, 1),
 	FUNC("refclk", 2, 11, 1),
 	FUNC("gpio", 1, 11, 1),
 	FUNC("gpio", 0, 11, 1),
 };
 
-static struct ralink_pmx_func p4led_kn_grp[] = {
+static struct mtmips_pmx_func p4led_kn_grp[] = {
 	FUNC("jtag", 3, 30, 1),
 	FUNC("utif", 2, 30, 1),
 	FUNC("gpio", 1, 30, 1),
 	FUNC("p4led_kn", 0, 30, 1),
 };
 
-static struct ralink_pmx_func p3led_kn_grp[] = {
+static struct mtmips_pmx_func p3led_kn_grp[] = {
 	FUNC("jtag", 3, 31, 1),
 	FUNC("utif", 2, 31, 1),
 	FUNC("gpio", 1, 31, 1),
 	FUNC("p3led_kn", 0, 31, 1),
 };
 
-static struct ralink_pmx_func p2led_kn_grp[] = {
+static struct mtmips_pmx_func p2led_kn_grp[] = {
 	FUNC("jtag", 3, 32, 1),
 	FUNC("utif", 2, 32, 1),
 	FUNC("gpio", 1, 32, 1),
 	FUNC("p2led_kn", 0, 32, 1),
 };
 
-static struct ralink_pmx_func p1led_kn_grp[] = {
+static struct mtmips_pmx_func p1led_kn_grp[] = {
 	FUNC("jtag", 3, 33, 1),
 	FUNC("utif", 2, 33, 1),
 	FUNC("gpio", 1, 33, 1),
 	FUNC("p1led_kn", 0, 33, 1),
 };
 
-static struct ralink_pmx_func p0led_kn_grp[] = {
+static struct mtmips_pmx_func p0led_kn_grp[] = {
 	FUNC("jtag", 3, 34, 1),
 	FUNC("rsvd", 2, 34, 1),
 	FUNC("gpio", 1, 34, 1),
 	FUNC("p0led_kn", 0, 34, 1),
 };
 
-static struct ralink_pmx_func wled_kn_grp[] = {
+static struct mtmips_pmx_func wled_kn_grp[] = {
 	FUNC("rsvd", 3, 35, 1),
 	FUNC("rsvd", 2, 35, 1),
 	FUNC("gpio", 1, 35, 1),
 	FUNC("wled_kn", 0, 35, 1),
 };
 
-static struct ralink_pmx_func p4led_an_grp[] = {
+static struct mtmips_pmx_func p4led_an_grp[] = {
 	FUNC("jtag", 3, 39, 1),
 	FUNC("utif", 2, 39, 1),
 	FUNC("gpio", 1, 39, 1),
 	FUNC("p4led_an", 0, 39, 1),
 };
 
-static struct ralink_pmx_func p3led_an_grp[] = {
+static struct mtmips_pmx_func p3led_an_grp[] = {
 	FUNC("jtag", 3, 40, 1),
 	FUNC("utif", 2, 40, 1),
 	FUNC("gpio", 1, 40, 1),
 	FUNC("p3led_an", 0, 40, 1),
 };
 
-static struct ralink_pmx_func p2led_an_grp[] = {
+static struct mtmips_pmx_func p2led_an_grp[] = {
 	FUNC("jtag", 3, 41, 1),
 	FUNC("utif", 2, 41, 1),
 	FUNC("gpio", 1, 41, 1),
 	FUNC("p2led_an", 0, 41, 1),
 };
 
-static struct ralink_pmx_func p1led_an_grp[] = {
+static struct mtmips_pmx_func p1led_an_grp[] = {
 	FUNC("jtag", 3, 42, 1),
 	FUNC("utif", 2, 42, 1),
 	FUNC("gpio", 1, 42, 1),
 	FUNC("p1led_an", 0, 42, 1),
 };
 
-static struct ralink_pmx_func p0led_an_grp[] = {
+static struct mtmips_pmx_func p0led_an_grp[] = {
 	FUNC("jtag", 3, 43, 1),
 	FUNC("rsvd", 2, 43, 1),
 	FUNC("gpio", 1, 43, 1),
 	FUNC("p0led_an", 0, 43, 1),
 };
 
-static struct ralink_pmx_func wled_an_grp[] = {
+static struct mtmips_pmx_func wled_an_grp[] = {
 	FUNC("rsvd", 3, 44, 1),
 	FUNC("rsvd", 2, 44, 1),
 	FUNC("gpio", 1, 44, 1),
 	FUNC("wled_an", 0, 44, 1),
 };
 
-static struct ralink_pmx_group mt76x8_pinmux_data[] = {
+static struct mtmips_pmx_group mt76x8_pinmux_data[] = {
 	GRP_G("pwm1", pwm1_grp, MT76X8_GPIO_MODE_MASK,
 				1, MT76X8_GPIO_MODE_PWM1),
 	GRP_G("pwm0", pwm0_grp, MT76X8_GPIO_MODE_MASK,
@@ -257,7 +257,7 @@ static struct ralink_pmx_group mt76x8_pinmux_data[] = {
 
 static int mt76x8_pinctrl_probe(struct platform_device *pdev)
 {
-	return ralink_pinctrl_init(pdev, mt76x8_pinmux_data);
+	return mtmips_pinctrl_init(pdev, mt76x8_pinmux_data);
 }
 
 static const struct of_device_id mt76x8_pinctrl_match[] = {

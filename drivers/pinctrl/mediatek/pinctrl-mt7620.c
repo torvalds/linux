@@ -3,7 +3,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include "pinctrl-ralink.h"
+#include "pinctrl-mtmips.h"
 
 #define MT7620_GPIO_MODE_UART0_SHIFT	2
 #define MT7620_GPIO_MODE_UART0_MASK	0x7
@@ -52,20 +52,20 @@
 #define MT7620_GPIO_MODE_EPHY		15
 #define MT7620_GPIO_MODE_PA		20
 
-static struct ralink_pmx_func i2c_grp[] =  { FUNC("i2c", 0, 1, 2) };
-static struct ralink_pmx_func spi_grp[] = { FUNC("spi", 0, 3, 4) };
-static struct ralink_pmx_func uartlite_grp[] = { FUNC("uartlite", 0, 15, 2) };
-static struct ralink_pmx_func mdio_grp[] = {
+static struct mtmips_pmx_func i2c_grp[] =  { FUNC("i2c", 0, 1, 2) };
+static struct mtmips_pmx_func spi_grp[] = { FUNC("spi", 0, 3, 4) };
+static struct mtmips_pmx_func uartlite_grp[] = { FUNC("uartlite", 0, 15, 2) };
+static struct mtmips_pmx_func mdio_grp[] = {
 	FUNC("mdio", MT7620_GPIO_MODE_MDIO, 22, 2),
 	FUNC("refclk", MT7620_GPIO_MODE_MDIO_REFCLK, 22, 2),
 };
-static struct ralink_pmx_func rgmii1_grp[] = { FUNC("rgmii1", 0, 24, 12) };
-static struct ralink_pmx_func refclk_grp[] = { FUNC("spi refclk", 0, 37, 3) };
-static struct ralink_pmx_func ephy_grp[] = { FUNC("ephy", 0, 40, 5) };
-static struct ralink_pmx_func rgmii2_grp[] = { FUNC("rgmii2", 0, 60, 12) };
-static struct ralink_pmx_func wled_grp[] = { FUNC("wled", 0, 72, 1) };
-static struct ralink_pmx_func pa_grp[] = { FUNC("pa", 0, 18, 4) };
-static struct ralink_pmx_func uartf_grp[] = {
+static struct mtmips_pmx_func rgmii1_grp[] = { FUNC("rgmii1", 0, 24, 12) };
+static struct mtmips_pmx_func refclk_grp[] = { FUNC("spi refclk", 0, 37, 3) };
+static struct mtmips_pmx_func ephy_grp[] = { FUNC("ephy", 0, 40, 5) };
+static struct mtmips_pmx_func rgmii2_grp[] = { FUNC("rgmii2", 0, 60, 12) };
+static struct mtmips_pmx_func wled_grp[] = { FUNC("wled", 0, 72, 1) };
+static struct mtmips_pmx_func pa_grp[] = { FUNC("pa", 0, 18, 4) };
+static struct mtmips_pmx_func uartf_grp[] = {
 	FUNC("uartf", MT7620_GPIO_MODE_UARTF, 7, 8),
 	FUNC("pcm uartf", MT7620_GPIO_MODE_PCM_UARTF, 7, 8),
 	FUNC("pcm i2s", MT7620_GPIO_MODE_PCM_I2S, 7, 8),
@@ -74,20 +74,20 @@ static struct ralink_pmx_func uartf_grp[] = {
 	FUNC("gpio uartf", MT7620_GPIO_MODE_GPIO_UARTF, 7, 4),
 	FUNC("gpio i2s", MT7620_GPIO_MODE_GPIO_I2S, 7, 4),
 };
-static struct ralink_pmx_func wdt_grp[] = {
+static struct mtmips_pmx_func wdt_grp[] = {
 	FUNC("wdt rst", 0, 17, 1),
 	FUNC("wdt refclk", 0, 17, 1),
 	};
-static struct ralink_pmx_func pcie_rst_grp[] = {
+static struct mtmips_pmx_func pcie_rst_grp[] = {
 	FUNC("pcie rst", MT7620_GPIO_MODE_PCIE_RST, 36, 1),
 	FUNC("pcie refclk", MT7620_GPIO_MODE_PCIE_REF, 36, 1)
 };
-static struct ralink_pmx_func nd_sd_grp[] = {
+static struct mtmips_pmx_func nd_sd_grp[] = {
 	FUNC("nand", MT7620_GPIO_MODE_NAND, 45, 15),
 	FUNC("sd", MT7620_GPIO_MODE_SD, 47, 13)
 };
 
-static struct ralink_pmx_group mt7620a_pinmux_data[] = {
+static struct mtmips_pmx_group mt7620a_pinmux_data[] = {
 	GRP("i2c", i2c_grp, 1, MT7620_GPIO_MODE_I2C),
 	GRP("uartf", uartf_grp, MT7620_GPIO_MODE_UART0_MASK,
 		MT7620_GPIO_MODE_UART0_SHIFT),
@@ -112,7 +112,7 @@ static struct ralink_pmx_group mt7620a_pinmux_data[] = {
 
 static int mt7620_pinctrl_probe(struct platform_device *pdev)
 {
-	return ralink_pinctrl_init(pdev, mt7620a_pinmux_data);
+	return mtmips_pinctrl_init(pdev, mt7620a_pinmux_data);
 }
 
 static const struct of_device_id mt7620_pinctrl_match[] = {

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "MediaTek pinctrl drivers"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on ARCH_MEDIATEK || RALINK || COMPILE_TEST
 
 config EINT_MTK
 	tristate "MediaTek External Interrupt Support"
@@ -22,6 +22,12 @@ config PINCTRL_MTK
 config PINCTRL_MTK_V2
 	tristate
 
+config PINCTRL_MTK_MTMIPS
+	bool
+	depends on RALINK
+	select PINMUX
+	select GENERIC_PINCONF
+
 config PINCTRL_MTK_MOORE
 	bool
 	depends on OF
@@ -42,6 +48,49 @@ config PINCTRL_MTK_PARIS
 	select EINT_MTK
 	select OF_GPIO
 	select PINCTRL_MTK_V2
+
+# For MIPS SoCs
+config PINCTRL_MT7620
+	bool "MediaTek MT7620 pin control"
+	depends on SOC_MT7620 || COMPILE_TEST
+	depends on RALINK
+	default SOC_MT7620
+	select PINCTRL_MTK_MTMIPS
+
+config PINCTRL_MT7621
+	bool "MediaTek MT7621 pin control"
+	depends on SOC_MT7621 || COMPILE_TEST
+	depends on RALINK
+	default SOC_MT7621
+	select PINCTRL_MTK_MTMIPS
+
+config PINCTRL_MT76X8
+	bool "MediaTek MT76X8 pin control"
+	depends on SOC_MT7620 || COMPILE_TEST
+	depends on RALINK
+	default SOC_MT7620
+	select PINCTRL_MTK_MTMIPS
+
+config PINCTRL_RT2880
+	bool "Ralink RT2880 pin control"
+	depends on SOC_RT288X || COMPILE_TEST
+	depends on RALINK
+	default SOC_RT288X
+	select PINCTRL_MTK_MTMIPS
+
+config PINCTRL_RT305X
+	bool "Ralink RT305X pin control"
+	depends on SOC_RT305X || COMPILE_TEST
+	depends on RALINK
+	default SOC_RT305X
+	select PINCTRL_MTK_MTMIPS
+
+config PINCTRL_RT3883
+	bool "Ralink RT3883 pin control"
+	depends on SOC_RT3883 || COMPILE_TEST
+	depends on RALINK
+	default SOC_RT3883
+	select PINCTRL_MTK_MTMIPS
 
 # For ARMv7 SoCs
 config PINCTRL_MT2701
