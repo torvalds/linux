@@ -843,8 +843,18 @@ static int fsl_i2c_probe(struct platform_device *op)
 			mpc_i2c_setup_8xxx(op->dev.of_node, i2c, clock);
 	}
 
+	/*
+	 * "fsl,timeout" has been marked as deprecated and, to maintain
+	 * backward compatibility, we will only look for it if
+	 * "i2c-scl-clk-low-timeout-us" is not present.
+	 */
 	result = of_property_read_u32(op->dev.of_node,
-				      "fsl,timeout", &mpc_ops.timeout);
+				      "i2c-scl-clk-low-timeout-us",
+				      &mpc_ops.timeout);
+	if (result == -EINVAL)
+		result = of_property_read_u32(op->dev.of_node,
+					      "fsl,timeout", &mpc_ops.timeout);
+
 	if (!result) {
 		mpc_ops.timeout *= HZ / 1000000;
 		if (mpc_ops.timeout < 5)
