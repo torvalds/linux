@@ -443,10 +443,10 @@ static void __bch2_folio_set(struct folio *folio,
 			     unsigned nr_ptrs, unsigned state)
 {
 	struct bch_folio *s = bch2_folio_create(folio, __GFP_NOFAIL);
-	unsigned i;
+	unsigned i, sectors = folio_sectors(folio);
 
-	BUG_ON(pg_offset >= PAGE_SECTORS);
-	BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
+	BUG_ON(pg_offset >= sectors);
+	BUG_ON(pg_offset + pg_len > sectors);
 
 	spin_lock(&s->lock);
 
@@ -455,7 +455,7 @@ static void __bch2_folio_set(struct folio *folio,
 		s->s[i].state		= state;
 	}
 
-	if (i == PAGE_SECTORS)
+	if (i == sectors)
 		s->uptodate = true;
 
 	spin_unlock(&s->lock);
@@ -552,15 +552,13 @@ static void mark_pagecache_unallocated(struct bch_inode_info *inode,
 				  &index, end_index, &fbatch)) {
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
-			u64 folio_start = folio->index << PAGE_SECTORS_SHIFT;
-			u64 folio_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
+			u64 folio_start = folio_sector(folio);
+			u64 folio_end = folio_end_sector(folio);
 			unsigned folio_offset = max(start, folio_start) - folio_start;
 			unsigned folio_len = min(end, folio_end) - folio_offset - folio_start;
 			struct bch_folio *s;
 
 			BUG_ON(end <= folio_start);
-			BUG_ON(folio_offset >= PAGE_SECTORS);
-			BUG_ON(folio_offset + folio_len > PAGE_SECTORS);
 
 			folio_lock(folio);
 			s = bch2_folio(folio);
@@ -598,15 +596,13 @@ static void mark_pagecache_reserved(struct bch_inode_info *inode,
 				  &index, end_index, &fbatch)) {
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
-			u64 folio_start = folio->index << PAGE_SECTORS_SHIFT;
-			u64 folio_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
+			u64 folio_start = folio_sector(folio);
+			u64 folio_end = folio_end_sector(folio);
 			unsigned folio_offset = max(start, folio_start) - folio_start;
 			unsigned folio_len = min(end, folio_end) - folio_offset - folio_start;
 			struct bch_folio *s;
 
 			BUG_ON(end <= folio_start);
-			BUG_ON(folio_offset >= PAGE_SECTORS);
-			BUG_ON(folio_offset + folio_len > PAGE_SECTORS);
 
 			folio_lock(folio);
 			s = bch2_folio(folio);
@@ -660,13 +656,13 @@ static int bch2_get_folio_disk_reservation(struct bch_fs *c,
 	struct bch_folio *s = bch2_folio_create(folio, 0);
 	unsigned nr_replicas = inode_nr_replicas(c, inode);
 	struct disk_reservation disk_res = { 0 };
-	unsigned i, disk_res_sectors = 0;
+	unsigned i, sectors = folio_sectors(folio), disk_res_sectors = 0;
 	int ret;
 
 	if (!s)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(s->s); i++)
+	for (i = 0; i < sectors; i++)
 		disk_res_sectors += sectors_to_reserve(&s->s[i], nr_replicas);
 
 	if (!disk_res_sectors)
@@ -680,7 +676,7 @@ static int bch2_get_folio_disk_reservation(struct bch_fs *c,
 	if (unlikely(ret))
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(s->s); i++)
+	for (i = 0; i < sectors; i++)
 		s->s[i].replicas_reserved +=
 			sectors_to_reserve(&s->s[i], nr_replicas);
 
@@ -761,7 +757,7 @@ static void bch2_clear_folio_bits(struct folio *folio)
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_folio *s = bch2_folio(folio);
 	struct disk_reservation disk_res = { 0 };
-	int i, dirty_sectors = 0;
+	int i, sectors = folio_sectors(folio), dirty_sectors = 0;
 
 	if (!s)
 		return;
@@ -769,7 +765,7 @@ static void bch2_clear_folio_bits(struct folio *folio)
 	EBUG_ON(!folio_test_locked(folio));
 	EBUG_ON(folio_test_writeback(folio));
 
-	for (i = 0; i < ARRAY_SIZE(s->s); i++) {
+	for (i = 0; i < sectors; i++) {
 		disk_res.sectors += s->s[i].replicas_reserved;
 		s->s[i].replicas_reserved = 0;
 
@@ -915,7 +911,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 		goto out;
 	}
 
-	len = min_t(loff_t, PAGE_SIZE, isize - folio_pos(folio));
+	len = min_t(loff_t, folio_size(folio), isize - folio_pos(folio));
 
 	if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate) {
 		if (bch2_folio_set(c, inode_inum(inode), &folio, 1)) {
@@ -1429,18 +1425,16 @@ static int __bch2_writepage(struct folio *folio,
 	struct bch_folio *s, orig;
 	unsigned i, offset, f_sectors, nr_replicas_this_write = U32_MAX;
 	loff_t i_size = i_size_read(&inode->v);
-	pgoff_t end_index = i_size >> PAGE_SHIFT;
 	int ret;
 
 	EBUG_ON(!folio_test_uptodate(folio));
 
 	/* Is the folio fully inside i_size? */
-	if (folio->index < end_index)
+	if (folio_end_pos(folio) <= i_size)
 		goto do_io;
 
 	/* Is the folio fully outside i_size? (truncate in progress) */
-	offset = i_size & (PAGE_SIZE - 1);
-	if (folio->index > end_index || !offset) {
+	if (folio_pos(folio) >= i_size) {
 		folio_unlock(folio);
 		return 0;
 	}
@@ -1452,7 +1446,9 @@ static int __bch2_writepage(struct folio *folio,
 	 * the  folio size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	folio_zero_segment(folio, offset, folio_size(folio));
+	folio_zero_segment(folio,
+			   i_size - folio_pos(folio),
+			   folio_size(folio));
 do_io:
 	f_sectors = folio_sectors(folio);
 	s = bch2_folio_create(folio, __GFP_NOFAIL);
@@ -1521,7 +1517,7 @@ do_io:
 
 		if (w->io &&
 		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
-		     bio_full(&w->io->op.wbio.bio, PAGE_SIZE) ||
+		     bio_full(&w->io->op.wbio.bio, sectors << 9) ||
 		     w->io->op.wbio.bio.bi_iter.bi_size + (sectors << 9) >=
 		     (BIO_MAX_VECS * PAGE_SIZE) ||
 		     bio_end_sector(&w->io->op.wbio.bio) != sector))
@@ -1584,9 +1580,8 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation *res;
-	pgoff_t index = pos >> PAGE_SHIFT;
-	unsigned offset = pos & (PAGE_SIZE - 1);
 	struct folio *folio;
+	unsigned offset;
 	int ret = -ENOMEM;
 
 	res = kmalloc(sizeof(*res), GFP_KERNEL);
@@ -1598,7 +1593,7 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 
 	bch2_pagecache_add_get(inode);
 
-	folio = __filemap_get_folio(mapping, index,
+	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT,
 				FGP_LOCK|FGP_WRITE|FGP_CREAT|FGP_STABLE,
 				mapping_gfp_mask(mapping));
 	if (!folio)
@@ -1607,8 +1602,11 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 	if (folio_test_uptodate(folio))
 		goto out;
 
+	offset = pos - folio_pos(folio);
+	len = min_t(size_t, len, folio_end_pos(folio) - pos);
+
 	/* If we're writing entire folio, don't need to read it in first: */
-	if (len == folio_size(folio))
+	if (!offset && len == folio_size(folio))
 		goto out;
 
 	if (!offset && pos + len >= inode->v.i_size) {
@@ -1617,7 +1615,7 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 		goto out;
 	}
 
-	if (index > inode->v.i_size >> PAGE_SHIFT) {
+	if (folio_pos(folio) >= inode->v.i_size) {
 		folio_zero_segments(folio, 0, offset, offset + len, folio_size(folio));
 		flush_dcache_folio(folio);
 		goto out;
@@ -1669,9 +1667,10 @@ int bch2_write_end(struct file *file, struct address_space *mapping,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation *res = fsdata;
 	struct folio *folio = page_folio(page);
-	unsigned offset = pos & (PAGE_SIZE - 1);
+	unsigned offset = pos - folio_pos(folio);
 
 	lockdep_assert_held(&inode->v.i_rwsem);
+	BUG_ON(offset + copied > folio_size(folio));
 
 	if (unlikely(copied < len && !folio_test_uptodate(folio))) {
 		/*
