@@ -178,9 +178,9 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 		return false;
 
 	/* Work out the overall tree geometry. */
-	ssp->level[0] = &ssp->srcu_sup->node[0];
+	ssp->srcu_sup->level[0] = &ssp->srcu_sup->node[0];
 	for (i = 1; i < rcu_num_lvls; i++)
-		ssp->level[i] = ssp->level[i - 1] + num_rcu_lvl[i - 1];
+		ssp->srcu_sup->level[i] = ssp->srcu_sup->level[i - 1] + num_rcu_lvl[i - 1];
 	rcu_init_levelspread(levelspread, num_rcu_lvl);
 
 	/* Each pass through this loop initializes one srcu_node structure. */
@@ -202,10 +202,10 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 		}
 
 		/* Non-root node. */
-		if (snp == ssp->level[level + 1])
+		if (snp == ssp->srcu_sup->level[level + 1])
 			level++;
-		snp->srcu_parent = ssp->level[level - 1] +
-				   (snp - ssp->level[level]) /
+		snp->srcu_parent = ssp->srcu_sup->level[level - 1] +
+				   (snp - ssp->srcu_sup->level[level]) /
 				   levelspread[level - 1];
 	}
 
@@ -214,7 +214,7 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 	 * leaves of the srcu_node tree.
 	 */
 	level = rcu_num_lvls - 1;
-	snp_first = ssp->level[level];
+	snp_first = ssp->srcu_sup->level[level];
 	for_each_possible_cpu(cpu) {
 		sdp = per_cpu_ptr(ssp->sda, cpu);
 		sdp->mynode = &snp_first[cpu / levelspread[level]];
@@ -889,7 +889,7 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 		srcu_for_each_node_breadth_first(ssp, snp) {
 			spin_lock_irq_rcu_node(snp);
 			cbs = false;
-			last_lvl = snp >= ssp->level[rcu_num_lvls - 1];
+			last_lvl = snp >= ssp->srcu_sup->level[rcu_num_lvls - 1];
 			if (last_lvl)
 				cbs = ss_state < SRCU_SIZE_BIG || snp->srcu_have_cbs[idx] == gpseq;
 			snp->srcu_have_cbs[idx] = gpseq;
