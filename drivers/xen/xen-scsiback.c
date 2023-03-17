@@ -1406,11 +1406,6 @@ static void scsiback_drop_tport(struct se_wwn *wwn)
 	kfree(tport);
 }
 
-static u32 scsiback_tpg_get_inst_index(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static int scsiback_check_stop_free(struct se_cmd *se_cmd)
 {
 	return transport_generic_free_cmd(se_cmd, 0);
@@ -1421,25 +1416,11 @@ static void scsiback_release_cmd(struct se_cmd *se_cmd)
 	target_free_tag(se_cmd->se_sess, se_cmd);
 }
 
-static u32 scsiback_sess_get_index(struct se_session *se_sess)
-{
-	return 0;
-}
-
 static int scsiback_write_pending(struct se_cmd *se_cmd)
 {
 	/* Go ahead and process the write immediately */
 	target_execute_cmd(se_cmd);
 
-	return 0;
-}
-
-static void scsiback_set_default_node_attrs(struct se_node_acl *nacl)
-{
-}
-
-static int scsiback_get_cmd_state(struct se_cmd *se_cmd)
-{
 	return 0;
 }
 
@@ -1822,11 +1803,6 @@ static int scsiback_check_true(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static int scsiback_check_false(struct se_portal_group *se_tpg)
-{
-	return 0;
-}
-
 static const struct target_core_fabric_ops scsiback_ops = {
 	.module				= THIS_MODULE,
 	.fabric_name			= "xen-pvscsi",
@@ -1834,16 +1810,10 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.tpg_get_tag			= scsiback_get_tag,
 	.tpg_check_demo_mode		= scsiback_check_true,
 	.tpg_check_demo_mode_cache	= scsiback_check_true,
-	.tpg_check_demo_mode_write_protect = scsiback_check_false,
-	.tpg_check_prod_mode_write_protect = scsiback_check_false,
-	.tpg_get_inst_index		= scsiback_tpg_get_inst_index,
 	.check_stop_free		= scsiback_check_stop_free,
 	.release_cmd			= scsiback_release_cmd,
-	.sess_get_index			= scsiback_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= scsiback_write_pending,
-	.set_default_node_attributes	= scsiback_set_default_node_attrs,
-	.get_cmd_state			= scsiback_get_cmd_state,
 	.queue_data_in			= scsiback_queue_data_in,
 	.queue_status			= scsiback_queue_status,
 	.queue_tm_rsp			= scsiback_queue_tm_rsp,
