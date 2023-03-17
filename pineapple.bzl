@@ -148,6 +148,7 @@ def define_pineapple():
         "drivers/soc/qcom/eud.ko",
         "drivers/soc/qcom/gh_tlmm_vm_mem_access.ko",
         "drivers/soc/qcom/glink_probe.ko",
+        "drivers/soc/qcom/health_monitor.ko",
         "drivers/soc/qcom/hung_task_enh.ko",
         "drivers/soc/qcom/hwkm.ko",
         "drivers/soc/qcom/llcc-qcom.ko",
