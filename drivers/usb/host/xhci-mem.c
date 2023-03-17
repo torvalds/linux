@@ -1679,11 +1679,10 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	return 0;
 
  fail_sp4:
-	for (i = i - 1; i >= 0; i--) {
+	while (i--)
 		dma_free_coherent(dev, xhci->page_size,
 				    xhci->scratchpad->sp_buffers[i],
 				    xhci->scratchpad->sp_array[i]);
-	}
 
 	kfree(xhci->scratchpad->sp_buffers);
 
