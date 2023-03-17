@@ -341,11 +341,13 @@ extern void rcu_init_geometry(void);
  * specified state structure (for SRCU) or the only rcu_state structure
  * (for RCU).
  */
-#define srcu_for_each_node_breadth_first(sp, rnp) \
+#define _rcu_for_each_node_breadth_first(sp, rnp) \
 	for ((rnp) = &(sp)->node[0]; \
 	     (rnp) < &(sp)->node[rcu_num_nodes]; (rnp)++)
 #define rcu_for_each_node_breadth_first(rnp) \
-	srcu_for_each_node_breadth_first(&rcu_state, rnp)
+	_rcu_for_each_node_breadth_first(&rcu_state, rnp)
+#define srcu_for_each_node_breadth_first(ssp, rnp) \
+	_rcu_for_each_node_breadth_first(ssp->srcu_sup, rnp)
 
 /*
  * Scan the leaves of the rcu_node hierarchy for the rcu_state structure.

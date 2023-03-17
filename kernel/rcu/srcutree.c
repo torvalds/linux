@@ -173,12 +173,12 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 
 	/* Initialize geometry if it has not already been initialized. */
 	rcu_init_geometry();
-	ssp->node = kcalloc(rcu_num_nodes, sizeof(*ssp->node), gfp_flags);
-	if (!ssp->node)
+	ssp->srcu_sup->node = kcalloc(rcu_num_nodes, sizeof(*ssp->srcu_sup->node), gfp_flags);
+	if (!ssp->srcu_sup->node)
 		return false;
 
 	/* Work out the overall tree geometry. */
-	ssp->level[0] = &ssp->node[0];
+	ssp->level[0] = &ssp->srcu_sup->node[0];
 	for (i = 1; i < rcu_num_lvls; i++)
 		ssp->level[i] = ssp->level[i - 1] + num_rcu_lvl[i - 1];
 	rcu_init_levelspread(levelspread, num_rcu_lvl);
@@ -195,7 +195,7 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 		snp->srcu_gp_seq_needed_exp = SRCU_SNP_INIT_SEQ;
 		snp->grplo = -1;
 		snp->grphi = -1;
-		if (snp == &ssp->node[0]) {
+		if (snp == &ssp->srcu_sup->node[0]) {
 			/* Root node, special case. */
 			snp->srcu_parent = NULL;
 			continue;
@@ -236,8 +236,12 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
  */
 static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 {
+	if (!is_static)
+		ssp->srcu_sup = kzalloc(sizeof(*ssp->srcu_sup), GFP_KERNEL);
+	if (!ssp->srcu_sup)
+		return -ENOMEM;
 	ssp->srcu_size_state = SRCU_SIZE_SMALL;
-	ssp->node = NULL;
+	ssp->srcu_sup->node = NULL;
 	mutex_init(&ssp->srcu_cb_mutex);
 	mutex_init(&ssp->srcu_gp_mutex);
 	ssp->srcu_idx = 0;
@@ -249,8 +253,11 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	ssp->sda_is_static = is_static;
 	if (!is_static)
 		ssp->sda = alloc_percpu(struct srcu_data);
-	if (!ssp->sda)
+	if (!ssp->sda) {
+		if (!is_static)
+			kfree(ssp->srcu_sup);
 		return -ENOMEM;
+	}
 	init_srcu_struct_data(ssp);
 	ssp->srcu_gp_seq_needed_exp = 0;
 	ssp->srcu_last_gp_end = ktime_get_mono_fast_ns();
@@ -259,6 +266,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 			if (!ssp->sda_is_static) {
 				free_percpu(ssp->sda);
 				ssp->sda = NULL;
+				kfree(ssp->srcu_sup);
 				return -ENOMEM;
 			}
 		} else {
@@ -656,13 +664,15 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 			rcu_seq_current(&ssp->srcu_gp_seq), ssp->srcu_gp_seq_needed);
 		return; /* Caller forgot to stop doing call_srcu()? */
 	}
+	kfree(ssp->srcu_sup->node);
+	ssp->srcu_sup->node = NULL;
+	ssp->srcu_size_state = SRCU_SIZE_SMALL;
 	if (!ssp->sda_is_static) {
 		free_percpu(ssp->sda);
 		ssp->sda = NULL;
+		kfree(ssp->srcu_sup);
+		ssp->srcu_sup = NULL;
 	}
-	kfree(ssp->node);
-	ssp->node = NULL;
-	ssp->srcu_size_state = SRCU_SIZE_SMALL;
 }
 EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
