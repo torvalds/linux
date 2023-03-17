@@ -49,10 +49,6 @@
 	status = "okay";
 };
 
-&i2c6 {
-	status = "okay";
-};
-
 &gmac1 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";
@@ -74,6 +70,10 @@
 		     &rgmii_rgmii_bus>;
 
 	phy-handle = <&rgmii_phy>;
+	status = "okay";
+};
+
+&i2c6 {
 	status = "okay";
 };
 
