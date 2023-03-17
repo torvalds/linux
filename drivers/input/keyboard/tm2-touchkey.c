@@ -354,7 +354,7 @@ static struct i2c_driver tm2_touchkey_driver = {
 	.driver = {
 		.name = TM2_TOUCHKEY_DEV_NAME,
 		.pm = pm_sleep_ptr(&tm2_touchkey_pm_ops),
-		.of_match_table = of_match_ptr(tm2_touchkey_of_match),
+		.of_match_table = tm2_touchkey_of_match,
 	},
 	.probe_new = tm2_touchkey_probe,
 	.id_table = tm2_touchkey_id_table,
