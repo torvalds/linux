@@ -307,19 +307,17 @@ static void dc_dmub_srv_populate_fams_pipe_info(struct dc *dc, struct dc_state *
 		struct dmub_cmd_fw_assisted_mclk_switch_pipe_data *fams_pipe_data)
 {
 	int j;
+	int pipe_idx = 0;
 
-	// TODO: Uncomment once FW headers are updated in driver
-	//fams_pipe_data->pipe_index[pipe_idx++] = head_pipe->plane_res.hubp->inst;
+	fams_pipe_data->pipe_index[pipe_idx++] = head_pipe->plane_res.hubp->inst;
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *split_pipe = &context->res_ctx.pipe_ctx[j];
 
 		if (split_pipe->stream == head_pipe->stream && (split_pipe->top_pipe || split_pipe->prev_odm_pipe)) {
-			// TODO: Uncomment once FW headers are updated in driver
-			//fams_pipe_data->pipe_index[pipe_idx++] = split_pipe->plane_res.hubp->inst;
+			fams_pipe_data->pipe_index[pipe_idx++] = split_pipe->plane_res.hubp->inst;
 		}
 	}
-	// TODO: Uncomment once FW headers are updated in driver
-	//fams_pipe_data->pipe_count = pipe_idx;
+	fams_pipe_data->pipe_count = pipe_idx;
 }
 
 bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, struct dc_state *context)
