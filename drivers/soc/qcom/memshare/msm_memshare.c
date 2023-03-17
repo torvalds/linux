@@ -15,6 +15,7 @@
 #include <linux/notifier.h>
 #include <linux/soc/qcom/qmi.h>
 #include <linux/remoteproc/qcom_rproc.h>
+#include <linux/rpmsg/qcom_glink.h>
 #include "msm_memshare.h"
 #include "heap_mem_ext_v01.h"
 
@@ -22,13 +23,10 @@
 #include <trace/events/rproc_qcom.h>
 
 /* Macros */
-#define MEMSHARE_DEV_NAME "memshare"
 static unsigned long(attrs);
 
 static struct qmi_handle *mem_share_svc_handle;
 static uint64_t bootup_request;
-
-static struct device *memshare_dev[MAX_CLIENTS];
 
 /* Memshare Driver Structure */
 struct memshare_driver {
@@ -41,12 +39,21 @@ struct memshare_driver {
 struct memshare_child {
 	struct device *dev;
 	int client_id;
+	struct qcom_glink_mem_entry *mem_entry;
 };
 
 static struct memshare_driver *memsh_drv;
 static struct memshare_child *memsh_child[MAX_CLIENTS];
 static struct mem_blocks memblock[MAX_CLIENTS];
 static uint32_t num_clients;
+
+static inline bool is_shared_mapping(struct mem_blocks *mb)
+{
+	if (!mb)
+		return false;
+
+	return mb->hyp_map_info.num_vmids > 1;
+}
 
 static int check_client(int client_id, int proc, int request)
 {
@@ -88,7 +95,6 @@ static void free_client(int id)
 	memblock[id].guarantee = 0;
 	memblock[id].sequence_id = -1;
 	memblock[id].memory_type = MEMORY_CMA;
-
 }
 
 static void fill_alloc_response(struct mem_alloc_generic_resp_msg_v01 *resp,
@@ -107,7 +113,6 @@ static void fill_alloc_response(struct mem_alloc_generic_resp_msg_v01 *resp,
 		resp->resp.result = QMI_RESULT_FAILURE_V01;
 		resp->resp.error = QMI_ERR_NO_MEMORY_V01;
 	}
-
 }
 
 static void initialize_client(void)
@@ -133,7 +138,6 @@ static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					void *_cmd)
 {
 	int i, ret, size = 0;
-	u32 source_vmlist[1] = {VMID_MSS_MSA};
 	int dest_vmids[1] = {VMID_HLOS};
 	int dest_perms[1] = {PERM_READ|PERM_WRITE|PERM_EXEC};
 	struct memshare_child *client_node = NULL;
@@ -185,12 +189,14 @@ static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					"memshare: hypervisor unmapping for allocated memory with client id: %d\n",
 					memblock[i].client_id);
 				if (memblock[i].hyp_mapping) {
+					struct memshare_hyp_mapping *source;
+
+					source = &memblock[i].hyp_map_info;
 					ret = hyp_assign_phys(
 							memblock[i].phy_addr,
 							memblock[i].size,
-							source_vmlist,
-							1, dest_vmids,
-							dest_perms, 1);
+							source->vmids, source->num_vmids,
+							dest_vmids, dest_perms, 1);
 					if (ret &&
 						memblock[i].hyp_mapping == 1) {
 						/*
@@ -241,28 +247,27 @@ static struct notifier_block nb = {
 
 static void shared_hyp_mapping(int index)
 {
-	int ret;
 	u32 source_vmlist[1] = {VMID_HLOS};
-	int dest_vmids[1] = {VMID_MSS_MSA};
-	int dest_perms[1] = {PERM_READ|PERM_WRITE};
+	struct memshare_hyp_mapping *dest;
+	struct mem_blocks *mb;
+	int ret;
 
 	if (index >= MAX_CLIENTS) {
 		dev_err(memsh_drv->dev,
 			"memshare: hypervisor mapping failure for invalid client\n");
 		return;
 	}
+	mb = &memblock[index];
+	dest = &mb->hyp_map_info;
 
-	ret = hyp_assign_phys(memblock[index].phy_addr,
-			memblock[index].size,
-			source_vmlist, 1, dest_vmids,
-			dest_perms, 1);
-
+	ret = hyp_assign_phys(mb->phy_addr, mb->size, source_vmlist, 1,
+			      dest->vmids, dest->perms, dest->num_vmids);
 	if (ret != 0) {
 		dev_err(memsh_drv->dev, "memshare: hyp_assign_phys failed size=%u err=%d\n",
-				memblock[index].size, ret);
+				mb->size, ret);
 		return;
 	}
-	memblock[index].hyp_mapping = 1;
+	mb->hyp_mapping = 1;
 }
 
 static void handle_alloc_generic_req(struct qmi_handle *handle,
@@ -340,6 +345,13 @@ static void handle_alloc_generic_req(struct qmi_handle *handle,
 			memblock[index].peripheral = alloc_req->proc_id;
 		}
 	}
+
+	if (is_shared_mapping(&memblock[index])) {
+		struct mem_blocks *mb = &memblock[index];
+
+		client_node->mem_entry = qcom_glink_mem_entry_init(client_node->dev,
+				mb->virtual_addr, mb->phy_addr, mb->size, mb->phy_addr);
+	}
 	dev_dbg(memsh_drv->dev,
 		"memshare_alloc: free memory count for client id: %d = %d\n",
 		memblock[index].client_id, memblock[index].free_memory);
@@ -383,7 +395,6 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 	struct memshare_child *client_node = NULL;
 	int rc, flag = 0, ret = 0, size = 0, i;
 	int index = DHMS_MEM_CLIENT_INVALID;
-	u32 source_vmlist[1] = {VMID_MSS_MSA};
 	int dest_vmids[1] = {VMID_HLOS};
 	int dest_perms[1] = {PERM_READ|PERM_WRITE|PERM_EXEC};
 
@@ -420,15 +431,24 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 		return;
 	}
 
+	if (client_node->mem_entry) {
+		qcom_glink_mem_entry_free(client_node->mem_entry);
+		client_node->mem_entry = NULL;
+	}
+
 	if (!flag && !memblock[index].guarantee &&
 				!memblock[index].client_request &&
 				memblock[index].allotted) {
+		struct memshare_hyp_mapping *source;
+
 		dev_dbg(memsh_drv->dev,
 			"memshare_free: hypervisor unmapping for free_req->client_id: %d - size: %d\n",
 			free_req->client_id, memblock[index].size);
-		ret = hyp_assign_phys(memblock[index].phy_addr,
-				memblock[index].size, source_vmlist, 1,
-				dest_vmids, dest_perms, 1);
+
+		source = &memblock[index].hyp_map_info;
+		ret = hyp_assign_phys(memblock[index].phy_addr, memblock[index].size,
+				      source->vmids, source->num_vmids,
+				      dest_vmids, dest_perms, 1);
 		if (ret && memblock[index].hyp_mapping == 1) {
 		/*
 		 * This is an error case as hyp mapping was successful
@@ -474,7 +494,6 @@ static void handle_free_generic_req(struct qmi_handle *handle,
 	if (rc < 0)
 		dev_err(memsh_drv->dev,
 		"memshare_free: error sending the free response: %d\n", rc);
-
 }
 
 static void handle_query_size_req(struct qmi_handle *handle,
@@ -570,8 +589,8 @@ static struct qmi_msg_handler qmi_memshare_handlers[] = {
 };
 
 int memshare_alloc(struct device *dev,
-					unsigned int block_size,
-					struct mem_blocks *pblk)
+		   unsigned int block_size,
+		   struct mem_blocks *pblk)
 {
 	dev_dbg(memsh_drv->dev,
 		"memshare: allocation request for size: %d", block_size);
@@ -670,6 +689,20 @@ static int memshare_child_probe(struct platform_device *pdev)
 							pdev->dev.of_node,
 							"qcom,guard-band");
 
+	/* If the shared property is set, allow access from both HLOS and peripheral */
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,shared")) {
+		memblock[num_clients].hyp_map_info.num_vmids = 2;
+		memblock[num_clients].hyp_map_info.vmids[0] = VMID_HLOS;
+		memblock[num_clients].hyp_map_info.vmids[1] = VMID_MSS_MSA;
+		memblock[num_clients].hyp_map_info.perms[0] = PERM_READ | PERM_WRITE;
+		memblock[num_clients].hyp_map_info.perms[1] = PERM_READ | PERM_WRITE;
+
+	} else {
+		memblock[num_clients].hyp_map_info.num_vmids = 1;
+		memblock[num_clients].hyp_map_info.vmids[0] = VMID_MSS_MSA;
+		memblock[num_clients].hyp_map_info.perms[0] = PERM_READ | PERM_WRITE;
+	}
+
 	rc = of_property_read_string(pdev->dev.of_node, "label",
 						&name);
 	if (rc) {
@@ -703,9 +736,9 @@ static int memshare_child_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "memshare: Continuing with allocation from CMA\n");
 	}
 
-  /*
-   *	Memshare allocation for guaranteed clients
-   */
+	/*
+	 * Memshare allocation for guaranteed clients
+	 */
 	if (memblock[num_clients].guarantee && size > 0) {
 		if (memblock[num_clients].guard_band)
 			size += MEMSHARE_GUARD_BYTES;
@@ -727,8 +760,6 @@ static int memshare_child_probe(struct platform_device *pdev)
 		memblock[num_clients].allotted = 1;
 		shared_hyp_mapping(num_clients);
 	}
-
-	memshare_dev[num_clients] = &pdev->dev;
 
 	memsh_child[num_clients] = drv;
 	num_clients++;
@@ -805,7 +836,7 @@ static struct platform_driver memshare_pdriver = {
 	.probe          = memshare_probe,
 	.remove         = memshare_remove,
 	.driver = {
-		.name   = MEMSHARE_DEV_NAME,
+		.name   = "memshare",
 		.of_match_table = memshare_match_table,
 	},
 };
