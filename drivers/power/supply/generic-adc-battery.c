@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Generic battery driver code using IIO
+ * Generic battery driver using IIO
  * Copyright (C) 2012, Anish Kumar <anish198519851985@gmail.com>
- * based on jz4740-battery.c
- * based on s3c_adc_battery.c
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive for
- * more details.
- *
+ * Copyright (c) 2023, Sebastian Reichel <sre@kernel.org>
  */
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
