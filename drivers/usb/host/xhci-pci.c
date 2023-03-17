@@ -779,6 +779,7 @@ static void xhci_sparse_control_quirk(struct usb_hcd *hcd)
 	writel(reg, hcd->regs + SPARSE_CNTL_ENABLE);
 }
 
+extern void xhci_msix_sync_irqs(struct xhci_hcd *xhci);
 static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -802,6 +803,10 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 		xhci_sparse_control_quirk(hcd);
 
 	ret = xhci_suspend(xhci, do_wakeup);
+
+	/* synchronize irq when using MSI-X */
+	xhci_msix_sync_irqs(xhci);
+
 	if (ret && (xhci->quirks & XHCI_SSIC_PORT_UNUSED))
 		xhci_ssic_port_unused_quirk(hcd, false);
 
