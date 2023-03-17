@@ -2879,7 +2879,8 @@ void intel_psr_debugfs_register(struct drm_i915_private *i915)
 
 static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 {
-	u8 val;
+	struct intel_connector *connector = m->private;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	static const char * const sink_status[] = {
 		"inactive",
 		"transition to active, capture and display",
@@ -2890,17 +2891,15 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 		"reserved",
 		"sink internal error",
 	};
-	struct drm_connector *connector = m->private;
-	struct intel_dp *intel_dp =
-		intel_attached_dp(to_intel_connector(connector));
 	int ret;
+	u8 val;
 
 	if (!CAN_PSR(intel_dp)) {
 		seq_puts(m, "PSR Unsupported\n");
 		return -ENODEV;
 	}
 
-	if (connector->status != connector_status_connected)
+	if (connector->base.status != connector_status_connected)
 		return -ENODEV;
 
 	ret = drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val);
@@ -2922,21 +2921,19 @@ DEFINE_SHOW_ATTRIBUTE(i915_psr_sink_status);
 
 static int i915_psr_status_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct intel_dp *intel_dp =
-		intel_attached_dp(to_intel_connector(connector));
+	struct intel_connector *connector = m->private;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 
 	return intel_psr_status(m, intel_dp);
 }
 DEFINE_SHOW_ATTRIBUTE(i915_psr_status);
 
-void intel_psr_connector_debugfs_add(struct intel_connector *intel_connector)
+void intel_psr_connector_debugfs_add(struct intel_connector *connector)
 {
-	struct drm_connector *connector = &intel_connector->base;
-	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct dentry *root = connector->debugfs_entry;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct dentry *root = connector->base.debugfs_entry;
 
-	if (connector->connector_type != DRM_MODE_CONNECTOR_eDP)
+	if (connector->base.connector_type != DRM_MODE_CONNECTOR_eDP)
 		return;
 
 	debugfs_create_file("i915_psr_sink_status", 0444, root,
