@@ -3,6 +3,7 @@
 #define __NET_VXLAN_H 1
 
 #include <linux/if_vlan.h>
+#include <linux/rhashtable-types.h>
 #include <net/udp_tunnel.h>
 #include <net/dst_metadata.h>
 #include <net/rtnetlink.h>
@@ -302,6 +303,10 @@ struct vxlan_dev {
 	struct vxlan_vni_group  __rcu *vnigrp;
 
 	struct hlist_head fdb_head[FDB_HASH_SIZE];
+
+	struct rhashtable mdb_tbl;
+	struct hlist_head mdb_list;
+	unsigned int mdb_seq;
 };
 
 #define VXLAN_F_LEARN			0x01
@@ -322,6 +327,7 @@ struct vxlan_dev {
 #define VXLAN_F_IPV6_LINKLOCAL		0x8000
 #define VXLAN_F_TTL_INHERIT		0x10000
 #define VXLAN_F_VNIFILTER               0x20000
+#define VXLAN_F_MDB			0x40000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable

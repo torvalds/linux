@@ -1886,7 +1886,6 @@ int __init br_netlink_init(void)
 {
 	int err;
 
-	br_mdb_init();
 	br_vlan_rtnl_init();
 	rtnl_af_register(&br_af_ops);
 
@@ -1898,13 +1897,11 @@ int __init br_netlink_init(void)
 
 out_af:
 	rtnl_af_unregister(&br_af_ops);
-	br_mdb_uninit();
 	return err;
 }
 
 void br_netlink_fini(void)
 {
-	br_mdb_uninit();
 	br_vlan_rtnl_uninit();
 	rtnl_af_unregister(&br_af_ops);
 	rtnl_link_unregister(&br_link_ops);

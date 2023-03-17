@@ -981,8 +981,12 @@ void br_multicast_get_stats(const struct net_bridge *br,
 u32 br_multicast_ngroups_get(const struct net_bridge_mcast_port *pmctx);
 void br_multicast_ngroups_set_max(struct net_bridge_mcast_port *pmctx, u32 max);
 u32 br_multicast_ngroups_get_max(const struct net_bridge_mcast_port *pmctx);
-void br_mdb_init(void);
-void br_mdb_uninit(void);
+int br_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
+	       struct netlink_ext_ack *extack);
+int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
+	       struct netlink_ext_ack *extack);
+int br_mdb_dump(struct net_device *dev, struct sk_buff *skb,
+		struct netlink_callback *cb);
 void br_multicast_host_join(const struct net_bridge_mcast *brmctx,
 			    struct net_bridge_mdb_entry *mp, bool notify);
 void br_multicast_host_leave(struct net_bridge_mdb_entry *mp, bool notify);
@@ -1374,12 +1378,22 @@ static inline bool br_multicast_querier_exists(struct net_bridge_mcast *brmctx,
 	return false;
 }
 
-static inline void br_mdb_init(void)
+static inline int br_mdb_add(struct net_device *dev, struct nlattr *tb[],
+			     u16 nlmsg_flags, struct netlink_ext_ack *extack)
 {
+	return -EOPNOTSUPP;
 }
 
-static inline void br_mdb_uninit(void)
+static inline int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
+			     struct netlink_ext_ack *extack)
 {
+	return -EOPNOTSUPP;
+}
+
+static inline int br_mdb_dump(struct net_device *dev, struct sk_buff *skb,
+			      struct netlink_callback *cb)
+{
+	return 0;
 }
 
 static inline int br_mdb_hash_init(struct net_bridge *br)
