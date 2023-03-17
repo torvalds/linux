@@ -5482,7 +5482,7 @@ void print_dev_latency(void)
 
 	retval = read(fd, (void *)&value, sizeof(int));
 	if (retval != sizeof(int)) {
-		warn("read failed %s\n", path);
+		warn("read failed %s", path);
 		close(fd);
 		return;
 	}
@@ -5543,7 +5543,7 @@ void process_cpuid()
 	edx_flags = edx;
 
 	if (get_msr(sched_getcpu(), MSR_IA32_UCODE_REV, &ucode_patch))
-		warnx("get_msr(UCODE)\n");
+		warnx("get_msr(UCODE)");
 
 	/*
 	 * check max extended function levels of CPUID.
