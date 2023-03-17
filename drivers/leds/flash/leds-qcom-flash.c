@@ -100,7 +100,7 @@ enum {
 	REG_MAX_COUNT,
 };
 
-struct reg_field mvflash_3ch_regs[REG_MAX_COUNT] = {
+static struct reg_field mvflash_3ch_regs[REG_MAX_COUNT] = {
 	REG_FIELD(0x08, 0, 7),			/* status1	*/
 	REG_FIELD(0x09, 0, 7),                  /* status2	*/
 	REG_FIELD(0x0a, 0, 7),                  /* status3	*/
@@ -112,7 +112,7 @@ struct reg_field mvflash_3ch_regs[REG_MAX_COUNT] = {
 	REG_FIELD(0x4c, 0, 2),                  /* chan_en	*/
 };
 
-struct reg_field mvflash_4ch_regs[REG_MAX_COUNT] = {
+static struct reg_field mvflash_4ch_regs[REG_MAX_COUNT] = {
 	REG_FIELD(0x06, 0, 7),			/* status1	*/
 	REG_FIELD(0x07, 0, 6),			/* status2	*/
 	REG_FIELD(0x09, 0, 7),			/* status3	*/
