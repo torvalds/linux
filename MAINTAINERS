@@ -2654,6 +2654,7 @@ F:	arch/arm64/boot/dts/renesas/
 F:	arch/riscv/boot/dts/renesas/
 F:	drivers/soc/renesas/
 F:	include/linux/soc/renesas/
+K:	\brenesas,
 
 ARM/RISCPC ARCHITECTURE
 M:	Russell King <linux@armlinux.org.uk>
