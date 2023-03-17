@@ -248,13 +248,6 @@ config SERIAL_SAMSUNG
 
 	  Choose Y/M here only if you build for such SoC.
 
-config SERIAL_SAMSUNG_UARTS_4
-	bool
-	depends on SERIAL_SAMSUNG
-	default y
-	help
-	  Internal node for the common case of 4 Samsung compatible UARTs
-
 config SERIAL_SAMSUNG_UARTS
 	int
 	depends on SERIAL_SAMSUNG
