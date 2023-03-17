@@ -853,16 +853,15 @@
 	};
 };
 
-&sai0 {
+&jpegd {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2s0m0_lrck
-		     &i2s0m0_sclk
-		     &i2s0m0_sdi0
-		     &i2s0m0_sdo0>;
 };
 
-&video_phy {
+&jpegd_mmu {
+	status = "okay";
+};
+
+&mpp_srv {
 	status = "okay";
 };
 
@@ -915,19 +914,6 @@
 	};
 };
 
-
-&jpegd {
-	status = "okay";
-};
-
-&jpegd_mmu {
-	status = "okay";
-};
-
-&mpp_srv {
-	status = "okay";
-};
-
 &pwm5 {
 	status = "okay";
 };
@@ -966,6 +952,15 @@
 
 &route_dsi {
 	status = "okay";
+};
+
+&sai0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s0m0_lrck
+		     &i2s0m0_sclk
+		     &i2s0m0_sdi0
+		     &i2s0m0_sdo0>;
 };
 
 &saradc0 {
@@ -1050,6 +1045,10 @@
 	phy-names = "usb2-phy";
 	snps,dis_u2_susphy_quirk;
 	snps,usb2-lpm-disable;
+};
+
+&video_phy {
+	status = "okay";
 };
 
 &vop {
