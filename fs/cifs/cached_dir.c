@@ -184,6 +184,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
+		.path = path,
 		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_FILE),
 		.desired_access = FILE_READ_ATTRIBUTES,
 		.disposition = FILE_OPEN,
