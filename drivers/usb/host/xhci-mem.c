@@ -575,10 +575,10 @@ static struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
 		return dma_alloc_coherent(dev, size,
 				dma, mem_flags);
 	else if (size <= SMALL_STREAM_ARRAY_SIZE)
-		return dma_pool_alloc(xhci->small_streams_pool,
+		return dma_pool_zalloc(xhci->small_streams_pool,
 				mem_flags, dma);
 	else
-		return dma_pool_alloc(xhci->medium_streams_pool,
+		return dma_pool_zalloc(xhci->medium_streams_pool,
 				mem_flags, dma);
 }
 
@@ -643,8 +643,6 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 			mem_flags);
 	if (!stream_info->stream_ctx_array)
 		goto cleanup_ring_array;
-	memset(stream_info->stream_ctx_array, 0,
-			sizeof(struct xhci_stream_ctx)*num_stream_ctxs);
 
 	/* Allocate everything needed to free the stream rings later */
 	stream_info->free_streams_command =
