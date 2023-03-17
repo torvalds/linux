@@ -60,6 +60,8 @@
  */
 #define LINK_TRAINING_MAX_VERIFY_RETRY 2
 
+static const uint8_t dp_hdmi_dongle_signature_str[] = "DP-HDMI ADAPTOR";
+
 static enum ddc_transaction_type get_ddc_transaction_type(enum signal_type sink_signal)
 {
 	enum ddc_transaction_type transaction_type = DDC_TRANSACTION_TYPE_NONE;
