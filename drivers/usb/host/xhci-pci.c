@@ -88,6 +88,32 @@ static const struct xhci_driver_overrides xhci_pci_overrides __initconst = {
 	.update_hub_device = xhci_pci_update_hub_device,
 };
 
+/* Free any IRQs and disable MSI-X */
+static void xhci_cleanup_msix(struct xhci_hcd *xhci)
+{
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
+
+	if (xhci->quirks & XHCI_PLAT)
+		return;
+
+	/* return if using legacy interrupt */
+	if (hcd->irq > 0)
+		return;
+
+	if (hcd->msix_enabled) {
+		int i;
+
+		for (i = 0; i < xhci->msix_count; i++)
+			free_irq(pci_irq_vector(pdev, i), xhci_to_hcd(xhci));
+	} else {
+		free_irq(pci_irq_vector(pdev, 0), xhci_to_hcd(xhci));
+	}
+
+	pci_free_irq_vectors(pdev);
+	hcd->msix_enabled = 0;
+}
+
 /*
  * Set up MSI
  */

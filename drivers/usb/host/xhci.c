@@ -320,33 +320,6 @@ static int xhci_disable_interrupter(struct xhci_interrupter *ir)
 
 #ifdef CONFIG_USB_PCI
 
-/* Free any IRQs and disable MSI-X */
-void xhci_cleanup_msix(struct xhci_hcd *xhci)
-{
-	struct usb_hcd *hcd = xhci_to_hcd(xhci);
-	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
-
-	if (xhci->quirks & XHCI_PLAT)
-		return;
-
-	/* return if using legacy interrupt */
-	if (hcd->irq > 0)
-		return;
-
-	if (hcd->msix_enabled) {
-		int i;
-
-		for (i = 0; i < xhci->msix_count; i++)
-			free_irq(pci_irq_vector(pdev, i), xhci_to_hcd(xhci));
-	} else {
-		free_irq(pci_irq_vector(pdev, 0), xhci_to_hcd(xhci));
-	}
-
-	pci_free_irq_vectors(pdev);
-	hcd->msix_enabled = 0;
-}
-EXPORT_SYMBOL_GPL(xhci_cleanup_msix);
-
 static void __maybe_unused xhci_msix_sync_irqs(struct xhci_hcd *xhci)
 {
 	struct usb_hcd *hcd = xhci_to_hcd(xhci);
@@ -361,10 +334,6 @@ static void __maybe_unused xhci_msix_sync_irqs(struct xhci_hcd *xhci)
 }
 
 #else
-
-static inline void xhci_cleanup_msix(struct xhci_hcd *xhci)
-{
-}
 
 static inline void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
 {
