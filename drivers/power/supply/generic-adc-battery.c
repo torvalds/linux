@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/types.h>
+#include <linux/of.h>
 #include <linux/devm-helpers.h>
 
 #define JITTER_DEFAULT 10 /* hope 10ms is enough */
@@ -175,6 +176,7 @@ static int gab_probe(struct platform_device *pdev)
 	if (!adc_bat)
 		return -ENOMEM;
 
+	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = adc_bat;
 	psy_desc = &adc_bat->psy_desc;
 	psy_desc->name = dev_name(&pdev->dev);
@@ -288,10 +290,17 @@ static int __maybe_unused gab_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(gab_pm_ops, gab_suspend, gab_resume);
 
+static const struct of_device_id gab_match[] = {
+	{ .compatible = "adc-battery" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, gab_match);
+
 static struct platform_driver gab_driver = {
 	.driver		= {
 		.name	= "generic-adc-battery",
 		.pm	= &gab_pm_ops,
+		.of_match_table = gab_match,
 	},
 	.probe		= gab_probe,
 };
