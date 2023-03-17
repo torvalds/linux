@@ -290,22 +290,24 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 		drm_WARN_ON(&xe->drm, MEDIA_VER(xe) < 13);
 
 		gt->steering[OADDRM].ranges = xelpmp_oaddrm_steering_table;
-	} else if (GRAPHICS_VERx100(xe) >= 1270) {
-		gt->steering[INSTANCE0].ranges = xelpg_instance0_steering_table;
-		gt->steering[L3BANK].ranges = xelpg_l3bank_steering_table;
-		gt->steering[DSS].ranges = xelpg_dss_steering_table;
-	} else if (xe->info.platform == XE_PVC) {
-		gt->steering[INSTANCE0].ranges = xehpc_instance0_steering_table;
-		gt->steering[DSS].ranges = xehpc_dss_steering_table;
-	} else if (xe->info.platform == XE_DG2) {
-		gt->steering[L3BANK].ranges = xehp_l3bank_steering_table;
-		gt->steering[MSLICE].ranges = xehp_mslice_steering_table;
-		gt->steering[LNCF].ranges = xehp_lncf_steering_table;
-		gt->steering[DSS].ranges = xehp_dss_steering_table;
-		gt->steering[IMPLICIT_STEERING].ranges = dg2_implicit_steering_table;
 	} else {
-		gt->steering[L3BANK].ranges = xelp_l3bank_steering_table;
-		gt->steering[DSS].ranges = xelp_dss_steering_table;
+		if (GRAPHICS_VERx100(xe) >= 1270) {
+			gt->steering[INSTANCE0].ranges = xelpg_instance0_steering_table;
+			gt->steering[L3BANK].ranges = xelpg_l3bank_steering_table;
+			gt->steering[DSS].ranges = xelpg_dss_steering_table;
+		} else if (xe->info.platform == XE_PVC) {
+			gt->steering[INSTANCE0].ranges = xehpc_instance0_steering_table;
+			gt->steering[DSS].ranges = xehpc_dss_steering_table;
+		} else if (xe->info.platform == XE_DG2) {
+			gt->steering[L3BANK].ranges = xehp_l3bank_steering_table;
+			gt->steering[MSLICE].ranges = xehp_mslice_steering_table;
+			gt->steering[LNCF].ranges = xehp_lncf_steering_table;
+			gt->steering[DSS].ranges = xehp_dss_steering_table;
+			gt->steering[IMPLICIT_STEERING].ranges = dg2_implicit_steering_table;
+		} else {
+			gt->steering[L3BANK].ranges = xelp_l3bank_steering_table;
+			gt->steering[DSS].ranges = xelp_dss_steering_table;
+		}
 	}
 
 	/* Select non-terminated steering target for each type */
