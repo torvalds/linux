@@ -644,12 +644,13 @@ static unsigned long srcu_get_delay(struct srcu_struct *ssp)
 void cleanup_srcu_struct(struct srcu_struct *ssp)
 {
 	int cpu;
+	struct srcu_usage *sup = ssp->srcu_sup;
 
 	if (WARN_ON(!srcu_get_delay(ssp)))
 		return; /* Just leak it! */
 	if (WARN_ON(srcu_readers_active(ssp)))
 		return; /* Just leak it! */
-	flush_delayed_work(&ssp->srcu_sup->work);
+	flush_delayed_work(&sup->work);
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
@@ -658,21 +659,21 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 		if (WARN_ON(rcu_segcblist_n_cbs(&sdp->srcu_cblist)))
 			return; /* Forgot srcu_barrier(), so just leak it! */
 	}
-	if (WARN_ON(rcu_seq_state(READ_ONCE(ssp->srcu_sup->srcu_gp_seq)) != SRCU_STATE_IDLE) ||
-	    WARN_ON(rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq) != ssp->srcu_sup->srcu_gp_seq_needed) ||
+	if (WARN_ON(rcu_seq_state(READ_ONCE(sup->srcu_gp_seq)) != SRCU_STATE_IDLE) ||
+	    WARN_ON(rcu_seq_current(&sup->srcu_gp_seq) != sup->srcu_gp_seq_needed) ||
 	    WARN_ON(srcu_readers_active(ssp))) {
 		pr_info("%s: Active srcu_struct %p read state: %d gp state: %lu/%lu\n",
-			__func__, ssp, rcu_seq_state(READ_ONCE(ssp->srcu_sup->srcu_gp_seq)),
-			rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq), ssp->srcu_sup->srcu_gp_seq_needed);
+			__func__, ssp, rcu_seq_state(READ_ONCE(sup->srcu_gp_seq)),
+			rcu_seq_current(&sup->srcu_gp_seq), sup->srcu_gp_seq_needed);
 		return; /* Caller forgot to stop doing call_srcu()? */
 	}
-	kfree(ssp->srcu_sup->node);
-	ssp->srcu_sup->node = NULL;
-	ssp->srcu_sup->srcu_size_state = SRCU_SIZE_SMALL;
-	if (!ssp->srcu_sup->sda_is_static) {
+	kfree(sup->node);
+	sup->node = NULL;
+	sup->srcu_size_state = SRCU_SIZE_SMALL;
+	if (!sup->sda_is_static) {
 		free_percpu(ssp->sda);
 		ssp->sda = NULL;
-		kfree(ssp->srcu_sup);
+		kfree(sup);
 		ssp->srcu_sup = NULL;
 	}
 }
