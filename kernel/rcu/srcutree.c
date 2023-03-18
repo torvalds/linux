@@ -616,17 +616,18 @@ static unsigned long srcu_get_delay(struct srcu_struct *ssp)
 	unsigned long gpstart;
 	unsigned long j;
 	unsigned long jbase = SRCU_INTERVAL;
+	struct srcu_usage *sup = ssp->srcu_sup;
 
-	if (ULONG_CMP_LT(READ_ONCE(ssp->srcu_sup->srcu_gp_seq), READ_ONCE(ssp->srcu_sup->srcu_gp_seq_needed_exp)))
+	if (ULONG_CMP_LT(READ_ONCE(sup->srcu_gp_seq), READ_ONCE(sup->srcu_gp_seq_needed_exp)))
 		jbase = 0;
-	if (rcu_seq_state(READ_ONCE(ssp->srcu_sup->srcu_gp_seq))) {
+	if (rcu_seq_state(READ_ONCE(sup->srcu_gp_seq))) {
 		j = jiffies - 1;
-		gpstart = READ_ONCE(ssp->srcu_sup->srcu_gp_start);
+		gpstart = READ_ONCE(sup->srcu_gp_start);
 		if (time_after(j, gpstart))
 			jbase += j - gpstart;
 		if (!jbase) {
-			WRITE_ONCE(ssp->srcu_sup->srcu_n_exp_nodelay, READ_ONCE(ssp->srcu_sup->srcu_n_exp_nodelay) + 1);
-			if (READ_ONCE(ssp->srcu_sup->srcu_n_exp_nodelay) > srcu_max_nodelay_phase)
+			WRITE_ONCE(sup->srcu_n_exp_nodelay, READ_ONCE(sup->srcu_n_exp_nodelay) + 1);
+			if (READ_ONCE(sup->srcu_n_exp_nodelay) > srcu_max_nodelay_phase)
 				jbase = 1;
 		}
 	}
