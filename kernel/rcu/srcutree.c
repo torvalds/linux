@@ -252,7 +252,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	mutex_init(&ssp->srcu_barrier_mutex);
 	atomic_set(&ssp->srcu_barrier_cpu_cnt, 0);
 	INIT_DELAYED_WORK(&ssp->work, process_srcu);
-	ssp->sda_is_static = is_static;
+	ssp->srcu_sup->sda_is_static = is_static;
 	if (!is_static)
 		ssp->sda = alloc_percpu(struct srcu_data);
 	if (!ssp->sda) {
@@ -265,7 +265,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	ssp->srcu_sup->srcu_last_gp_end = ktime_get_mono_fast_ns();
 	if (READ_ONCE(ssp->srcu_sup->srcu_size_state) == SRCU_SIZE_SMALL && SRCU_SIZING_IS_INIT()) {
 		if (!init_srcu_struct_nodes(ssp, GFP_ATOMIC)) {
-			if (!ssp->sda_is_static) {
+			if (!ssp->srcu_sup->sda_is_static) {
 				free_percpu(ssp->sda);
 				ssp->sda = NULL;
 				kfree(ssp->srcu_sup);
@@ -667,7 +667,7 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 	kfree(ssp->srcu_sup->node);
 	ssp->srcu_sup->node = NULL;
 	ssp->srcu_sup->srcu_size_state = SRCU_SIZE_SMALL;
-	if (!ssp->sda_is_static) {
+	if (!ssp->srcu_sup->sda_is_static) {
 		free_percpu(ssp->sda);
 		ssp->sda = NULL;
 		kfree(ssp->srcu_sup);
@@ -1906,7 +1906,7 @@ static void srcu_module_going(struct module *mod)
 	for (i = 0; i < mod->num_srcu_structs; i++) {
 		ssp = *(sspp++);
 		if (!rcu_seq_state(smp_load_acquire(&ssp->srcu_sup->srcu_gp_seq_needed)) &&
-		    !WARN_ON_ONCE(!ssp->sda_is_static))
+		    !WARN_ON_ONCE(!ssp->srcu_sup->sda_is_static))
 			cleanup_srcu_struct(ssp);
 		free_percpu(ssp->sda);
 	}
