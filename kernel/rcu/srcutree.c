@@ -248,9 +248,9 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	mutex_init(&ssp->srcu_sup->srcu_gp_mutex);
 	ssp->srcu_idx = 0;
 	ssp->srcu_sup->srcu_gp_seq = 0;
-	ssp->srcu_barrier_seq = 0;
-	mutex_init(&ssp->srcu_barrier_mutex);
-	atomic_set(&ssp->srcu_barrier_cpu_cnt, 0);
+	ssp->srcu_sup->srcu_barrier_seq = 0;
+	mutex_init(&ssp->srcu_sup->srcu_barrier_mutex);
+	atomic_set(&ssp->srcu_sup->srcu_barrier_cpu_cnt, 0);
 	INIT_DELAYED_WORK(&ssp->work, process_srcu);
 	ssp->srcu_sup->sda_is_static = is_static;
 	if (!is_static)
@@ -1496,8 +1496,8 @@ static void srcu_barrier_cb(struct rcu_head *rhp)
 
 	sdp = container_of(rhp, struct srcu_data, srcu_barrier_head);
 	ssp = sdp->ssp;
-	if (atomic_dec_and_test(&ssp->srcu_barrier_cpu_cnt))
-		complete(&ssp->srcu_barrier_completion);
+	if (atomic_dec_and_test(&ssp->srcu_sup->srcu_barrier_cpu_cnt))
+		complete(&ssp->srcu_sup->srcu_barrier_completion);
 }
 
 /*
@@ -1511,13 +1511,13 @@ static void srcu_barrier_cb(struct rcu_head *rhp)
 static void srcu_barrier_one_cpu(struct srcu_struct *ssp, struct srcu_data *sdp)
 {
 	spin_lock_irq_rcu_node(sdp);
-	atomic_inc(&ssp->srcu_barrier_cpu_cnt);
+	atomic_inc(&ssp->srcu_sup->srcu_barrier_cpu_cnt);
 	sdp->srcu_barrier_head.func = srcu_barrier_cb;
 	debug_rcu_head_queue(&sdp->srcu_barrier_head);
 	if (!rcu_segcblist_entrain(&sdp->srcu_cblist,
 				   &sdp->srcu_barrier_head)) {
 		debug_rcu_head_unqueue(&sdp->srcu_barrier_head);
-		atomic_dec(&ssp->srcu_barrier_cpu_cnt);
+		atomic_dec(&ssp->srcu_sup->srcu_barrier_cpu_cnt);
 	}
 	spin_unlock_irq_rcu_node(sdp);
 }
@@ -1530,20 +1530,20 @@ void srcu_barrier(struct srcu_struct *ssp)
 {
 	int cpu;
 	int idx;
-	unsigned long s = rcu_seq_snap(&ssp->srcu_barrier_seq);
+	unsigned long s = rcu_seq_snap(&ssp->srcu_sup->srcu_barrier_seq);
 
 	check_init_srcu_struct(ssp);
-	mutex_lock(&ssp->srcu_barrier_mutex);
-	if (rcu_seq_done(&ssp->srcu_barrier_seq, s)) {
+	mutex_lock(&ssp->srcu_sup->srcu_barrier_mutex);
+	if (rcu_seq_done(&ssp->srcu_sup->srcu_barrier_seq, s)) {
 		smp_mb(); /* Force ordering following return. */
-		mutex_unlock(&ssp->srcu_barrier_mutex);
+		mutex_unlock(&ssp->srcu_sup->srcu_barrier_mutex);
 		return; /* Someone else did our work for us. */
 	}
-	rcu_seq_start(&ssp->srcu_barrier_seq);
-	init_completion(&ssp->srcu_barrier_completion);
+	rcu_seq_start(&ssp->srcu_sup->srcu_barrier_seq);
+	init_completion(&ssp->srcu_sup->srcu_barrier_completion);
 
 	/* Initial count prevents reaching zero until all CBs are posted. */
-	atomic_set(&ssp->srcu_barrier_cpu_cnt, 1);
+	atomic_set(&ssp->srcu_sup->srcu_barrier_cpu_cnt, 1);
 
 	idx = __srcu_read_lock_nmisafe(ssp);
 	if (smp_load_acquire(&ssp->srcu_sup->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER)
@@ -1554,12 +1554,12 @@ void srcu_barrier(struct srcu_struct *ssp)
 	__srcu_read_unlock_nmisafe(ssp, idx);
 
 	/* Remove the initial count, at which point reaching zero can happen. */
-	if (atomic_dec_and_test(&ssp->srcu_barrier_cpu_cnt))
-		complete(&ssp->srcu_barrier_completion);
-	wait_for_completion(&ssp->srcu_barrier_completion);
+	if (atomic_dec_and_test(&ssp->srcu_sup->srcu_barrier_cpu_cnt))
+		complete(&ssp->srcu_sup->srcu_barrier_completion);
+	wait_for_completion(&ssp->srcu_sup->srcu_barrier_completion);
 
-	rcu_seq_end(&ssp->srcu_barrier_seq);
-	mutex_unlock(&ssp->srcu_barrier_mutex);
+	rcu_seq_end(&ssp->srcu_sup->srcu_barrier_seq);
+	mutex_unlock(&ssp->srcu_sup->srcu_barrier_mutex);
 }
 EXPORT_SYMBOL_GPL(srcu_barrier);
 

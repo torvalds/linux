@@ -77,6 +77,13 @@ struct srcu_usage {
 	unsigned long srcu_n_lock_retries;	/* Contention events in current interval. */
 	unsigned long srcu_n_exp_nodelay;	/* # expedited no-delays in current GP phase. */
 	bool sda_is_static;			/* May ->sda be passed to free_percpu()? */
+	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
+	struct mutex srcu_barrier_mutex;	/* Serialize barrier ops. */
+	struct completion srcu_barrier_completion;
+						/* Awaken barrier rq at end. */
+	atomic_t srcu_barrier_cpu_cnt;		/* # CPUs not yet posting a */
+						/*  callback for the barrier */
+						/*  operation. */
 };
 
 /*
@@ -85,13 +92,6 @@ struct srcu_usage {
 struct srcu_struct {
 	unsigned int srcu_idx;			/* Current rdr array element. */
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
-	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
-	struct mutex srcu_barrier_mutex;	/* Serialize barrier ops. */
-	struct completion srcu_barrier_completion;
-						/* Awaken barrier rq at end. */
-	atomic_t srcu_barrier_cpu_cnt;		/* # CPUs not yet posting a */
-						/*  callback for the barrier */
-						/*  operation. */
 	unsigned long reschedule_jiffies;
 	unsigned long reschedule_count;
 	struct delayed_work work;
