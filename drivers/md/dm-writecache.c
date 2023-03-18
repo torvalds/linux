@@ -2776,15 +2776,7 @@ static struct target_type writecache_target = {
 
 static int __init dm_writecache_init(void)
 {
-	int r;
-
-	r = dm_register_target(&writecache_target);
-	if (r < 0) {
-		DMERR("register failed %d", r);
-		return r;
-	}
-
-	return 0;
+	return dm_register_target(&writecache_target);
 }
 
 static void __exit dm_writecache_exit(void)

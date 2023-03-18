@@ -370,18 +370,7 @@ static struct target_type delay_target = {
 
 static int __init dm_delay_init(void)
 {
-	int r;
-
-	r = dm_register_target(&delay_target);
-	if (r < 0) {
-		DMERR("register failed %d", r);
-		goto bad_register;
-	}
-
-	return 0;
-
-bad_register:
-	return r;
+	return dm_register_target(&delay_target);
 }
 
 static void __exit dm_delay_exit(void)

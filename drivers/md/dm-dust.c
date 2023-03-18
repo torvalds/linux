@@ -573,12 +573,7 @@ static struct target_type dust_target = {
 
 static int __init dm_dust_init(void)
 {
-	int r = dm_register_target(&dust_target);
-
-	if (r < 0)
-		DMERR("dm_register_target failed %d", r);
-
-	return r;
+	return dm_register_target(&dust_target);
 }
 
 static void __exit dm_dust_exit(void)

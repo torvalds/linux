@@ -455,12 +455,7 @@ static struct target_type ebs_target = {
 
 static int __init dm_ebs_init(void)
 {
-	int r = dm_register_target(&ebs_target);
-
-	if (r < 0)
-		DMERR("register failed %d", r);
-
-	return r;
+	return dm_register_target(&ebs_target);
 }
 
 static void dm_ebs_exit(void)

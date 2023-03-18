@@ -940,12 +940,7 @@ static struct target_type log_writes_target = {
 
 static int __init dm_log_writes_init(void)
 {
-	int r = dm_register_target(&log_writes_target);
-
-	if (r < 0)
-		DMERR("register failed %d", r);
-
-	return r;
+	return dm_register_target(&log_writes_target);
 }
 
 static void __exit dm_log_writes_exit(void)

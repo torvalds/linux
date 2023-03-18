@@ -1756,15 +1756,7 @@ static struct target_type era_target = {
 
 static int __init dm_era_init(void)
 {
-	int r;
-
-	r = dm_register_target(&era_target);
-	if (r) {
-		DMERR("era target registration failed: %d", r);
-		return r;
-	}
-
-	return 0;
+	return dm_register_target(&era_target);
 }
 
 static void __exit dm_era_exit(void)

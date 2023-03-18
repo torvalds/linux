@@ -4704,7 +4704,6 @@ static int __init dm_integrity_init(void)
 
 	r = dm_register_target(&integrity_target);
 	if (r < 0) {
-		DMERR("register failed %d", r);
 		kmem_cache_destroy(journal_io_cache);
 		return r;
 	}

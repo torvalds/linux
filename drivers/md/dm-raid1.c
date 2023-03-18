@@ -1498,23 +1498,19 @@ static struct target_type mirror_target = {
 
 static int __init dm_mirror_init(void)
 {
-	int r = -ENOMEM;
+	int r;
 
 	dm_raid1_wq = alloc_workqueue("dm_raid1_wq", 0, 0);
 	if (!dm_raid1_wq)
-		goto bad_target;
+		return -ENOMEM;
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {
 		destroy_workqueue(dm_raid1_wq);
-		goto bad_target;
+		return r;
 	}
 
 	return 0;
-
-bad_target:
-	DMERR("Failed to register mirror target");
-	return r;
 }
 
 static void __exit dm_mirror_exit(void)

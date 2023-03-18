@@ -568,13 +568,7 @@ static struct target_type switch_target = {
 
 static int __init dm_switch_init(void)
 {
-	int r;
-
-	r = dm_register_target(&switch_target);
-	if (r < 0)
-		DMERR("dm_register_target() failed %d", r);
-
-	return r;
+	return dm_register_target(&switch_target);
 }
 
 static void __exit dm_switch_exit(void)

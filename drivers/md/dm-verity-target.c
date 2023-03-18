@@ -1517,13 +1517,7 @@ static struct target_type verity_target = {
 
 static int __init dm_verity_init(void)
 {
-	int r;
-
-	r = dm_register_target(&verity_target);
-	if (r < 0)
-		DMERR("register failed %d", r);
-
-	return r;
+	return dm_register_target(&verity_target);
 }
 
 static void __exit dm_verity_exit(void)

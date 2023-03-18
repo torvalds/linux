@@ -85,12 +85,15 @@ int dm_register_target(struct target_type *tt)
 	int rv = 0;
 
 	down_write(&_lock);
-	if (__find_target_type(tt->name))
+	if (__find_target_type(tt->name)) {
+		DMERR("%s: '%s' target already registered",
+		      __func__, tt->name);
 		rv = -EEXIST;
-	else
+	} else {
 		list_add(&tt->list, &_targets);
-
+	}
 	up_write(&_lock);
+
 	return rv;
 }
 EXPORT_SYMBOL(dm_register_target);

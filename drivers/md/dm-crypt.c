@@ -3662,13 +3662,7 @@ static struct target_type crypt_target = {
 
 static int __init dm_crypt_init(void)
 {
-	int r;
-
-	r = dm_register_target(&crypt_target);
-	if (r < 0)
-		DMERR("register failed %d", r);
-
-	return r;
+	return dm_register_target(&crypt_target);
 }
 
 static void __exit dm_crypt_exit(void)
