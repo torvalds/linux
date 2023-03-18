@@ -4,9 +4,7 @@
  */
 /dts-v1/;
 
-#include "msm8953.dtsi"
-#include "pm8953.dtsi"
-#include "pmi8950.dtsi"
+#include "msm8953-xiaomi-common.dtsi"
 
 /delete-node/ &adsp_fw_mem;
 /delete-node/ &qseecom_mem;
@@ -15,8 +13,6 @@
 / {
 	model = "Xiaomi Mi A2 Lite";
 	compatible = "xiaomi,daisy", "qcom,msm8953";
-	chassis-type = "handset";
-	qcom,msm-id = <293 0>;
 	qcom,board-id = <0x1000b 0x9>;
 
 	chosen {
@@ -42,19 +38,6 @@
 				 <&gcc GCC_MDSS_BYTE0_CLK>,
 				 <&gcc GCC_MDSS_PCLK0_CLK>,
 				 <&gcc GCC_MDSS_ESC0_CLK>;
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_key_default>;
-
-		key-volume-up {
-			label = "Volume Up";
-			gpios = <&tlmm 85 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
 
@@ -103,216 +86,78 @@
 					"0", "0", "1";
 		};
 	};
-
-	vph_pwr: vph-pwr-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vph_pwr";
-		regulator-always-on;
-		regulator-boot-on;
-	};
 };
 
-&hsusb_phy {
-	vdd-supply = <&pm8953_l3>;
-	vdda-pll-supply = <&pm8953_l7>;
-	vdda-phy-dpdm-supply = <&pm8953_l13>;
-
-	status = "okay";
-};
-
-&i2c_2 {
+&max98927_codec {
 	status = "okay";
 
-	speaker_codec: audio-codec@3a {
-		compatible = "maxim,max98927";
-		reg = <0x3a>;
-
-		reset-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
-
-		vmon-slot-no = <1>;
-		imon-slot-no = <1>;
-		maxim,interleave-mode;
-
-		#sound-dai-cells = <0>;
-	};
+	reset-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 };
 
-&i2c_3 {
+&ft5406_ts {
 	status = "okay";
 
-	touchscreen@38 {
-		compatible = "edt,edt-ft5406";
-		reg = <0x38>;
-
-		interrupt-parent = <&tlmm>;
-		interrupts = <65 IRQ_TYPE_EDGE_FALLING>;
-
-		reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
-
-		vcc-supply = <&pm8953_l10>;
-
-		touchscreen-size-x = <1080>;
-		touchscreen-size-y = <2280>;
-	};
+	touchscreen-size-x = <1080>;
+	touchscreen-size-y = <2280>;
 };
 
-&pm8953_resin {
-	linux,code = <KEY_VOLUMEDOWN>;
-	status = "okay";
-};
-
-&pmi8950_wled {
-	qcom,current-limit-microamp = <20000>;
-	qcom,num-strings = <2>;
-
-	status = "okay";
-};
-
-&rpm_requests {
-	regulators {
-		compatible = "qcom,rpm-pm8953-regulators";
-
-		vdd_s1-supply = <&vph_pwr>;
-		vdd_s2-supply = <&vph_pwr>;
-		vdd_s3-supply = <&vph_pwr>;
-		vdd_s4-supply = <&vph_pwr>;
-		vdd_s5-supply = <&vph_pwr>;
-		vdd_s6-supply = <&vph_pwr>;
-		vdd_s7-supply = <&vph_pwr>;
-		vdd_l1-supply = <&pm8953_s3>;
-		vdd_l2_l3-supply = <&pm8953_s3>;
-		vdd_l4_l5_l6_l7_l16_l19-supply = <&pm8953_s4>;
-		vdd_l8_l11_l12_l13_l14_l15-supply = <&vph_pwr>;
-		vdd_l9_l10_l17_l18_l22-supply = <&vph_pwr>;
-
-		pm8953_s1: s1 {
-			regulator-min-microvolt = <863000>;
-			regulator-max-microvolt = <1152000>;
-		};
-
-		pm8953_s3: s3 {
-			regulator-min-microvolt = <1224000>;
-			regulator-max-microvolt = <1224000>;
-		};
-
-		pm8953_s4: s4 {
-			regulator-min-microvolt = <1896000>;
-			regulator-max-microvolt = <2048000>;
-		};
-
-		pm8953_l1: l1 {
-			regulator-min-microvolt = <1000000>;
-			regulator-max-microvolt = <1100000>;
-		};
-
-		pm8953_l2: l2 {
-			regulator-min-microvolt = <975000>;
-			regulator-max-microvolt = <1225000>;
-		};
-
-		pm8953_l3: l3 {
-			regulator-min-microvolt = <925000>;
-			regulator-max-microvolt = <925000>;
-			regulator-allow-set-load;
-		};
-
-		pm8953_l5: l5 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-		};
-
-		pm8953_l6: l6 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-always-on;
-		};
-
-		pm8953_l7: l7 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1900000>;
-		};
-
-		pm8953_l8: l8 {
-			regulator-min-microvolt = <2900000>;
-			regulator-max-microvolt = <2900000>;
-		};
-
-		pm8953_l9: l9 {
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3300000>;
-		};
-
-		pm8953_l10: l10 {
-			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2850000>;
-			regulator-always-on;
-		};
-
-		pm8953_l11: l11 {
-			regulator-min-microvolt = <2950000>;
-			regulator-max-microvolt = <2950000>;
-		};
-
-		pm8953_l12: l12 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <2950000>;
-		};
-
-		pm8953_l13: l13 {
-			regulator-min-microvolt = <3125000>;
-			regulator-max-microvolt = <3125000>;
-		};
-
-		pm8953_l16: l16 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-		};
-
-		pm8953_l17: l17 {
-			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2850000>;
-		};
-
-		pm8953_l19: l19 {
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1350000>;
-		};
-
-		pm8953_l22: l22 {
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2850000>;
-			regulator-always-on;
-		};
-
-		pm8953_l23: l23 {
-			regulator-min-microvolt = <975000>;
-			regulator-max-microvolt = <1225000>;
-		};
-	};
-};
-
-&sdhc_1 {
-	vmmc-supply = <&pm8953_l8>;
-	vqmmc-supply = <&pm8953_l5>;
-
-	status = "okay";
+&panel {
+	compatible = "xiaomi,daisy-panel";
 };
 
 &sdhc_2 {
-	vmmc-supply = <&pm8953_l11>;
-	vqmmc-supply = <&pm8953_l12>;
-
 	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
+};
+
+&sound_card {
+	status = "okay";
+
+	model = "xiaomi-daisy";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-0 = <&cdc_pdm_lines_act
+			&cdc_pdm_lines_2_act
+			&cdc_pdm_comp_lines_act
+			&tlmm_pri_act
+			&tlmm_pri_ws_default>;
+	pinctrl-1 = <&cdc_pdm_lines_sus
+			&cdc_pdm_lines_2_sus
+			&cdc_pdm_comp_lines_sus
+			&tlmm_pri_sus
+			&tlmm_pri_ws_default>;
 
-	status = "okay";
+	quinary-mi2s-dai-link {
+		link-name = "Quinary MI2S";
+		cpu {
+			sound-dai = <&q6afedai QUINARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai = <&max98927_codec>;
+		};
+	};
 };
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <16 4>, <135 4>;
+
+	tlmm_pri_act: pri-tlmm-pins {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	tlmm_pri_sus: pri-tlmm-pins {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 };
 
 &uart_0 {
@@ -320,13 +165,4 @@
 	pinctrl-0 = <&uart_console_active>;
 
 	status = "okay";
-};
-
-&usb3 {
-	status = "okay";
-};
-
-&usb3_dwc3 {
-	/delete-property/ usb-role-switch;
-	dr_mode = "peripheral";
 };
