@@ -2962,8 +2962,6 @@ static void rtl_hw_start_8168e_2(struct rtl8169_private *tp)
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) | PFM_EN);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | PWM_EN);
 	rtl_mod_config5(tp, Spi_en, 0);
-
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8168f(struct rtl8169_private *tp)
@@ -3054,11 +3052,7 @@ static void rtl_hw_start_8168g_1(struct rtl8169_private *tp)
 	};
 
 	rtl_hw_start_8168g(tp);
-
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8168g_1);
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8168g_2(struct rtl8169_private *tp)
@@ -3076,9 +3070,6 @@ static void rtl_hw_start_8168g_2(struct rtl8169_private *tp)
 	};
 
 	rtl_hw_start_8168g(tp);
-
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8168g_2);
 }
 
@@ -3099,8 +3090,6 @@ static void rtl_hw_start_8411_2(struct rtl8169_private *tp)
 
 	rtl_hw_start_8168g(tp);
 
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8411_2);
 
 	/* The following Realtek-provided magic fixes an issue with the RX unit
@@ -3238,8 +3227,6 @@ static void rtl_hw_start_8411_2(struct rtl8169_private *tp)
 	r8168_mac_ocp_write(tp, 0xFC32, 0x0C25);
 	r8168_mac_ocp_write(tp, 0xFC34, 0x00A9);
 	r8168_mac_ocp_write(tp, 0xFC36, 0x012D);
-
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
@@ -3254,8 +3241,6 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	};
 	int rg_saw_cnt;
 
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8168h_1);
 
 	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
@@ -3303,8 +3288,6 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	r8168_mac_ocp_write(tp, 0xe63e, 0x0000);
 	r8168_mac_ocp_write(tp, 0xc094, 0x0000);
 	r8168_mac_ocp_write(tp, 0xc09e, 0x0000);
-
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
@@ -3343,8 +3326,6 @@ static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 		{ 0x1e, 0x0000,	0x2000 },
 	};
 
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8168ep_3);
 
 	rtl_hw_start_8168ep(tp);
@@ -3355,8 +3336,6 @@ static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 	r8168_mac_ocp_modify(tp, 0xd3e2, 0x0fff, 0x0271);
 	r8168_mac_ocp_modify(tp, 0xd3e4, 0x00ff, 0x0000);
 	r8168_mac_ocp_modify(tp, 0xe860, 0x0000, 0x0080);
-
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8117(struct rtl8169_private *tp)
@@ -3368,9 +3347,6 @@ static void rtl_hw_start_8117(struct rtl8169_private *tp)
 	int rg_saw_cnt;
 
 	rtl8168ep_stop_cmac(tp);
-
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8117);
 
 	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
@@ -3420,8 +3396,6 @@ static void rtl_hw_start_8117(struct rtl8169_private *tp)
 
 	/* firmware is for MAC only */
 	r8169_apply_firmware(tp);
-
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8102e_1(struct rtl8169_private *tp)
@@ -3544,8 +3518,6 @@ static void rtl_hw_start_8402(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8106(struct rtl8169_private *tp)
 {
-	rtl_hw_aspm_clkreq_enable(tp, false);
-
 	/* Force LAN exit from ASPM if Rx/Tx are not idle */
 	RTL_W32(tp, FuncEvent, RTL_R32(tp, FuncEvent) | 0x002800);
 
@@ -3562,7 +3534,6 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0x1b0, ERIAR_MASK_0011, 0x0000);
 
 	rtl_pcie_state_l2l3_disable(tp);
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 DECLARE_RTL_COND(rtl_mac_ocp_e00e_cond)
@@ -3650,13 +3621,8 @@ static void rtl_hw_start_8125a_2(struct rtl8169_private *tp)
 	};
 
 	rtl_set_def_aspm_entry_latency(tp);
-
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8125a_2);
-
 	rtl_hw_start_8125_common(tp);
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_start_8125b(struct rtl8169_private *tp)
@@ -3671,12 +3637,8 @@ static void rtl_hw_start_8125b(struct rtl8169_private *tp)
 	};
 
 	rtl_set_def_aspm_entry_latency(tp);
-	rtl_hw_aspm_clkreq_enable(tp, false);
-
 	rtl_ephy_init(tp, e_info_8125b);
 	rtl_hw_start_8125_common(tp);
-
-	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
 static void rtl_hw_config(struct rtl8169_private *tp)
@@ -3772,7 +3734,8 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 static void rtl_hw_start(struct  rtl8169_private *tp)
 {
 	rtl_unlock_config_regs(tp);
-
+	/* disable aspm and clock request before ephy access */
+	rtl_hw_aspm_clkreq_enable(tp, false);
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
@@ -3783,6 +3746,7 @@ static void rtl_hw_start(struct  rtl8169_private *tp)
 		rtl_hw_start_8168(tp);
 
 	rtl_enable_exit_l1(tp);
+	rtl_hw_aspm_clkreq_enable(tp, true);
 	rtl_set_rx_max_size(tp);
 	rtl_set_rx_tx_desc_registers(tp);
 	rtl_lock_config_regs(tp);
