@@ -1665,11 +1665,8 @@ err_disable_pclk:
 static int cdns_i3c_master_remove(struct platform_device *pdev)
 {
 	struct cdns_i3c_master *master = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = i3c_master_unregister(&master->base);
-	if (ret)
-		return ret;
+	i3c_master_unregister(&master->base);
 
 	clk_disable_unprepare(master->sysclk);
 	clk_disable_unprepare(master->pclk);

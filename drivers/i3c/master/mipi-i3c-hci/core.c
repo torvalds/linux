@@ -769,7 +769,9 @@ static int i3c_hci_remove(struct platform_device *pdev)
 {
 	struct i3c_hci *hci = platform_get_drvdata(pdev);
 
-	return i3c_master_unregister(&hci->master);
+	i3c_master_unregister(&hci->master);
+
+	return 0;
 }
 
 static const __maybe_unused struct of_device_id i3c_hci_of_match[] = {

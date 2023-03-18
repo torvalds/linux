@@ -1185,11 +1185,8 @@ err_disable_core_clk:
 static int dw_i3c_remove(struct platform_device *pdev)
 {
 	struct dw_i3c_master *master = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = i3c_master_unregister(&master->base);
-	if (ret)
-		return ret;
+	i3c_master_unregister(&master->base);
 
 	reset_control_assert(master->core_rst);
 

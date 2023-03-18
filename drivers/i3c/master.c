@@ -2695,17 +2695,13 @@ EXPORT_SYMBOL_GPL(i3c_master_register);
  * @master: master used to send frames on the bus
  *
  * Basically undo everything done in i3c_master_register().
- *
- * Return: 0 in case of success, a negative error code otherwise.
  */
-int i3c_master_unregister(struct i3c_master_controller *master)
+void i3c_master_unregister(struct i3c_master_controller *master)
 {
 	i3c_master_i2c_adapter_cleanup(master);
 	i3c_master_unregister_i3c_devs(master);
 	i3c_master_bus_cleanup(master);
 	device_unregister(&master->dev);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(i3c_master_unregister);
 

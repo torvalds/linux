@@ -542,7 +542,7 @@ int i3c_master_register(struct i3c_master_controller *master,
 			struct device *parent,
 			const struct i3c_master_controller_ops *ops,
 			bool secondary);
-int i3c_master_unregister(struct i3c_master_controller *master);
+void i3c_master_unregister(struct i3c_master_controller *master);
 
 /**
  * i3c_dev_get_master_data() - get master private data attached to an I3C
