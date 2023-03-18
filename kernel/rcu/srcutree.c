@@ -862,28 +862,29 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	unsigned long sgsne;
 	struct srcu_node *snp;
 	int ss_state;
+	struct srcu_usage *sup = ssp->srcu_sup;
 
 	/* Prevent more than one additional grace period. */
-	mutex_lock(&ssp->srcu_sup->srcu_cb_mutex);
+	mutex_lock(&sup->srcu_cb_mutex);
 
 	/* End the current grace period. */
-	spin_lock_irq_rcu_node(ssp->srcu_sup);
-	idx = rcu_seq_state(ssp->srcu_sup->srcu_gp_seq);
+	spin_lock_irq_rcu_node(sup);
+	idx = rcu_seq_state(sup->srcu_gp_seq);
 	WARN_ON_ONCE(idx != SRCU_STATE_SCAN2);
-	if (ULONG_CMP_LT(READ_ONCE(ssp->srcu_sup->srcu_gp_seq), READ_ONCE(ssp->srcu_sup->srcu_gp_seq_needed_exp)))
+	if (ULONG_CMP_LT(READ_ONCE(sup->srcu_gp_seq), READ_ONCE(sup->srcu_gp_seq_needed_exp)))
 		cbdelay = 0;
 
-	WRITE_ONCE(ssp->srcu_sup->srcu_last_gp_end, ktime_get_mono_fast_ns());
-	rcu_seq_end(&ssp->srcu_sup->srcu_gp_seq);
-	gpseq = rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq);
-	if (ULONG_CMP_LT(ssp->srcu_sup->srcu_gp_seq_needed_exp, gpseq))
-		WRITE_ONCE(ssp->srcu_sup->srcu_gp_seq_needed_exp, gpseq);
-	spin_unlock_irq_rcu_node(ssp->srcu_sup);
-	mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
+	WRITE_ONCE(sup->srcu_last_gp_end, ktime_get_mono_fast_ns());
+	rcu_seq_end(&sup->srcu_gp_seq);
+	gpseq = rcu_seq_current(&sup->srcu_gp_seq);
+	if (ULONG_CMP_LT(sup->srcu_gp_seq_needed_exp, gpseq))
+		WRITE_ONCE(sup->srcu_gp_seq_needed_exp, gpseq);
+	spin_unlock_irq_rcu_node(sup);
+	mutex_unlock(&sup->srcu_gp_mutex);
 	/* A new grace period can start at this point.  But only one. */
 
 	/* Initiate callback invocation as needed. */
-	ss_state = smp_load_acquire(&ssp->srcu_sup->srcu_size_state);
+	ss_state = smp_load_acquire(&sup->srcu_size_state);
 	if (ss_state < SRCU_SIZE_WAIT_BARRIER) {
 		srcu_schedule_cbs_sdp(per_cpu_ptr(ssp->sda, get_boot_cpu_id()),
 					cbdelay);
@@ -892,7 +893,7 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 		srcu_for_each_node_breadth_first(ssp, snp) {
 			spin_lock_irq_rcu_node(snp);
 			cbs = false;
-			last_lvl = snp >= ssp->srcu_sup->level[rcu_num_lvls - 1];
+			last_lvl = snp >= sup->level[rcu_num_lvls - 1];
 			if (last_lvl)
 				cbs = ss_state < SRCU_SIZE_BIG || snp->srcu_have_cbs[idx] == gpseq;
 			snp->srcu_have_cbs[idx] = gpseq;
@@ -924,18 +925,18 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 		}
 
 	/* Callback initiation done, allow grace periods after next. */
-	mutex_unlock(&ssp->srcu_sup->srcu_cb_mutex);
+	mutex_unlock(&sup->srcu_cb_mutex);
 
 	/* Start a new grace period if needed. */
-	spin_lock_irq_rcu_node(ssp->srcu_sup);
-	gpseq = rcu_seq_current(&ssp->srcu_sup->srcu_gp_seq);
+	spin_lock_irq_rcu_node(sup);
+	gpseq = rcu_seq_current(&sup->srcu_gp_seq);
 	if (!rcu_seq_state(gpseq) &&
-	    ULONG_CMP_LT(gpseq, ssp->srcu_sup->srcu_gp_seq_needed)) {
+	    ULONG_CMP_LT(gpseq, sup->srcu_gp_seq_needed)) {
 		srcu_gp_start(ssp);
-		spin_unlock_irq_rcu_node(ssp->srcu_sup);
+		spin_unlock_irq_rcu_node(sup);
 		srcu_reschedule(ssp, 0);
 	} else {
-		spin_unlock_irq_rcu_node(ssp->srcu_sup);
+		spin_unlock_irq_rcu_node(sup);
 	}
 
 	/* Transition to big if needed. */
@@ -943,7 +944,7 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 		if (ss_state == SRCU_SIZE_ALLOC)
 			init_srcu_struct_nodes(ssp, GFP_KERNEL);
 		else
-			smp_store_release(&ssp->srcu_sup->srcu_size_state, ss_state + 1);
+			smp_store_release(&sup->srcu_size_state, ss_state + 1);
 	}
 }
 
