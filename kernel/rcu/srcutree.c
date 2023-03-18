@@ -242,7 +242,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 		return -ENOMEM;
 	ssp->srcu_sup->srcu_size_state = SRCU_SIZE_SMALL;
 	ssp->srcu_sup->node = NULL;
-	mutex_init(&ssp->srcu_cb_mutex);
+	mutex_init(&ssp->srcu_sup->srcu_cb_mutex);
 	mutex_init(&ssp->srcu_gp_mutex);
 	ssp->srcu_idx = 0;
 	ssp->srcu_gp_seq = 0;
@@ -861,7 +861,7 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	int ss_state;
 
 	/* Prevent more than one additional grace period. */
-	mutex_lock(&ssp->srcu_cb_mutex);
+	mutex_lock(&ssp->srcu_sup->srcu_cb_mutex);
 
 	/* End the current grace period. */
 	spin_lock_irq_rcu_node(ssp);
@@ -921,7 +921,7 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 		}
 
 	/* Callback initiation done, allow grace periods after next. */
-	mutex_unlock(&ssp->srcu_cb_mutex);
+	mutex_unlock(&ssp->srcu_sup->srcu_cb_mutex);
 
 	/* Start a new grace period if needed. */
 	spin_lock_irq_rcu_node(ssp);
