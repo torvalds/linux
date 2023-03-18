@@ -348,11 +348,11 @@ static void spin_lock_irqsave_check_contention(struct srcu_struct *ssp)
 	if (!SRCU_SIZING_IS_CONTEND() || ssp->srcu_sup->srcu_size_state)
 		return;
 	j = jiffies;
-	if (ssp->srcu_size_jiffies != j) {
-		ssp->srcu_size_jiffies = j;
-		ssp->srcu_n_lock_retries = 0;
+	if (ssp->srcu_sup->srcu_size_jiffies != j) {
+		ssp->srcu_sup->srcu_size_jiffies = j;
+		ssp->srcu_sup->srcu_n_lock_retries = 0;
 	}
-	if (++ssp->srcu_n_lock_retries <= small_contention_lim)
+	if (++ssp->srcu_sup->srcu_n_lock_retries <= small_contention_lim)
 		return;
 	__srcu_transition_to_big(ssp);
 }
@@ -624,8 +624,8 @@ static unsigned long srcu_get_delay(struct srcu_struct *ssp)
 		if (time_after(j, gpstart))
 			jbase += j - gpstart;
 		if (!jbase) {
-			WRITE_ONCE(ssp->srcu_n_exp_nodelay, READ_ONCE(ssp->srcu_n_exp_nodelay) + 1);
-			if (READ_ONCE(ssp->srcu_n_exp_nodelay) > srcu_max_nodelay_phase)
+			WRITE_ONCE(ssp->srcu_sup->srcu_n_exp_nodelay, READ_ONCE(ssp->srcu_sup->srcu_n_exp_nodelay) + 1);
+			if (READ_ONCE(ssp->srcu_sup->srcu_n_exp_nodelay) > srcu_max_nodelay_phase)
 				jbase = 1;
 		}
 	}
@@ -783,7 +783,7 @@ static void srcu_gp_start(struct srcu_struct *ssp)
 				       rcu_seq_snap(&ssp->srcu_sup->srcu_gp_seq));
 	spin_unlock_rcu_node(sdp);  /* Interrupts remain disabled. */
 	WRITE_ONCE(ssp->srcu_sup->srcu_gp_start, jiffies);
-	WRITE_ONCE(ssp->srcu_n_exp_nodelay, 0);
+	WRITE_ONCE(ssp->srcu_sup->srcu_n_exp_nodelay, 0);
 	smp_mb(); /* Order prior store to ->srcu_gp_seq_needed vs. GP start. */
 	rcu_seq_start(&ssp->srcu_sup->srcu_gp_seq);
 	state = rcu_seq_state(ssp->srcu_sup->srcu_gp_seq);
@@ -1625,7 +1625,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 		srcu_flip(ssp);
 		spin_lock_irq_rcu_node(ssp->srcu_sup);
 		rcu_seq_set_state(&ssp->srcu_sup->srcu_gp_seq, SRCU_STATE_SCAN2);
-		ssp->srcu_n_exp_nodelay = 0;
+		ssp->srcu_sup->srcu_n_exp_nodelay = 0;
 		spin_unlock_irq_rcu_node(ssp->srcu_sup);
 	}
 
@@ -1640,7 +1640,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 			mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 			return; /* readers present, retry later. */
 		}
-		ssp->srcu_n_exp_nodelay = 0;
+		ssp->srcu_sup->srcu_n_exp_nodelay = 0;
 		srcu_gp_end(ssp);  /* Releases ->srcu_gp_mutex. */
 	}
 }

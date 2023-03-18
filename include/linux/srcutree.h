@@ -73,6 +73,9 @@ struct srcu_usage {
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	unsigned long srcu_gp_start;		/* Last GP start timestamp (jiffies) */
 	unsigned long srcu_last_gp_end;		/* Last GP end timestamp (ns) */
+	unsigned long srcu_size_jiffies;	/* Current contention-measurement interval. */
+	unsigned long srcu_n_lock_retries;	/* Contention events in current interval. */
+	unsigned long srcu_n_exp_nodelay;	/* # expedited no-delays in current GP phase. */
 };
 
 /*
@@ -80,9 +83,6 @@ struct srcu_usage {
  */
 struct srcu_struct {
 	unsigned int srcu_idx;			/* Current rdr array element. */
-	unsigned long srcu_size_jiffies;	/* Current contention-measurement interval. */
-	unsigned long srcu_n_lock_retries;	/* Contention events in current interval. */
-	unsigned long srcu_n_exp_nodelay;	/* # expedited no-delays in current GP phase. */
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
 	bool sda_is_static;			/* May ->sda be passed to free_percpu()? */
 	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
