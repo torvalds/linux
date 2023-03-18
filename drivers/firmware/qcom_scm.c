@@ -2728,6 +2728,7 @@ void scm_waitq_flag_handler(struct completion *wq, u32 flags)
 		break;
 	case QCOM_SMC_WAITQ_FLAG_WAKE_ALL:
 		complete_all(wq);
+		reinit_completion(wq);
 		break;
 	default:
 		pr_err("invalid flags: %u\n", flags);
