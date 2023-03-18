@@ -330,7 +330,6 @@
 
 			vccio_acodec: LDO_REG4 {
 				regulator-name = "vccio_acodec";
-				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 
@@ -438,11 +437,6 @@
 };
 
 &i2s0_8ch {
-	status = "okay";
-};
-
-&i2s1_8ch {
-	rockchip,trcm-sync-tx-only;
 	status = "okay";
 };
 
