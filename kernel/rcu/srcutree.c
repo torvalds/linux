@@ -1004,9 +1004,10 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	struct srcu_node *snp;
 	struct srcu_node *snp_leaf;
 	unsigned long snp_seq;
+	struct srcu_usage *sup = ssp->srcu_sup;
 
 	/* Ensure that snp node tree is fully initialized before traversing it */
-	if (smp_load_acquire(&ssp->srcu_sup->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER)
+	if (smp_load_acquire(&sup->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER)
 		snp_leaf = NULL;
 	else
 		snp_leaf = sdp->mynode;
@@ -1014,7 +1015,7 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	if (snp_leaf)
 		/* Each pass through the loop does one level of the srcu_node tree. */
 		for (snp = snp_leaf; snp != NULL; snp = snp->srcu_parent) {
-			if (WARN_ON_ONCE(rcu_seq_done(&ssp->srcu_sup->srcu_gp_seq, s)) && snp != snp_leaf)
+			if (WARN_ON_ONCE(rcu_seq_done(&sup->srcu_gp_seq, s)) && snp != snp_leaf)
 				return; /* GP already done and CBs recorded. */
 			spin_lock_irqsave_rcu_node(snp, flags);
 			snp_seq = snp->srcu_have_cbs[idx];
@@ -1041,20 +1042,20 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 
 	/* Top of tree, must ensure the grace period will be started. */
 	spin_lock_irqsave_ssp_contention(ssp, &flags);
-	if (ULONG_CMP_LT(ssp->srcu_sup->srcu_gp_seq_needed, s)) {
+	if (ULONG_CMP_LT(sup->srcu_gp_seq_needed, s)) {
 		/*
 		 * Record need for grace period s.  Pair with load
 		 * acquire setting up for initialization.
 		 */
-		smp_store_release(&ssp->srcu_sup->srcu_gp_seq_needed, s); /*^^^*/
+		smp_store_release(&sup->srcu_gp_seq_needed, s); /*^^^*/
 	}
-	if (!do_norm && ULONG_CMP_LT(ssp->srcu_sup->srcu_gp_seq_needed_exp, s))
-		WRITE_ONCE(ssp->srcu_sup->srcu_gp_seq_needed_exp, s);
+	if (!do_norm && ULONG_CMP_LT(sup->srcu_gp_seq_needed_exp, s))
+		WRITE_ONCE(sup->srcu_gp_seq_needed_exp, s);
 
 	/* If grace period not already in progress, start it. */
-	if (!WARN_ON_ONCE(rcu_seq_done(&ssp->srcu_sup->srcu_gp_seq, s)) &&
-	    rcu_seq_state(ssp->srcu_sup->srcu_gp_seq) == SRCU_STATE_IDLE) {
-		WARN_ON_ONCE(ULONG_CMP_GE(ssp->srcu_sup->srcu_gp_seq, ssp->srcu_sup->srcu_gp_seq_needed));
+	if (!WARN_ON_ONCE(rcu_seq_done(&sup->srcu_gp_seq, s)) &&
+	    rcu_seq_state(sup->srcu_gp_seq) == SRCU_STATE_IDLE) {
+		WARN_ON_ONCE(ULONG_CMP_GE(sup->srcu_gp_seq, sup->srcu_gp_seq_needed));
 		srcu_gp_start(ssp);
 
 		// And how can that list_add() in the "else" clause
@@ -1063,12 +1064,12 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 		// can only be executed during early boot when there is only
 		// the one boot CPU running with interrupts still disabled.
 		if (likely(srcu_init_done))
-			queue_delayed_work(rcu_gp_wq, &ssp->srcu_sup->work,
+			queue_delayed_work(rcu_gp_wq, &sup->work,
 					   !!srcu_get_delay(ssp));
-		else if (list_empty(&ssp->srcu_sup->work.work.entry))
-			list_add(&ssp->srcu_sup->work.work.entry, &srcu_boot_list);
+		else if (list_empty(&sup->work.work.entry))
+			list_add(&sup->work.work.entry, &srcu_boot_list);
 	}
-	spin_unlock_irqrestore_rcu_node(ssp->srcu_sup, flags);
+	spin_unlock_irqrestore_rcu_node(sup, flags);
 }
 
 /*
