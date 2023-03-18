@@ -1569,7 +1569,7 @@ err_disable_clks:
 	return ret;
 }
 
-static int svc_i3c_master_remove(struct platform_device *pdev)
+static void svc_i3c_master_remove(struct platform_device *pdev)
 {
 	struct svc_i3c_master *master = platform_get_drvdata(pdev);
 
@@ -1577,8 +1577,6 @@ static int svc_i3c_master_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused svc_i3c_runtime_suspend(struct device *dev)
@@ -1616,7 +1614,7 @@ MODULE_DEVICE_TABLE(of, svc_i3c_master_of_match_tbl);
 
 static struct platform_driver svc_i3c_master = {
 	.probe = svc_i3c_master_probe,
-	.remove = svc_i3c_master_remove,
+	.remove_new = svc_i3c_master_remove,
 	.driver = {
 		.name = "silvaco-i3c-master",
 		.of_match_table = svc_i3c_master_of_match_tbl,
