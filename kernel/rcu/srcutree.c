@@ -251,7 +251,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	ssp->srcu_sup->srcu_barrier_seq = 0;
 	mutex_init(&ssp->srcu_sup->srcu_barrier_mutex);
 	atomic_set(&ssp->srcu_sup->srcu_barrier_cpu_cnt, 0);
-	INIT_DELAYED_WORK(&ssp->work, process_srcu);
+	INIT_DELAYED_WORK(&ssp->srcu_sup->work, process_srcu);
 	ssp->srcu_sup->sda_is_static = is_static;
 	if (!is_static)
 		ssp->sda = alloc_percpu(struct srcu_data);
@@ -275,6 +275,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 			WRITE_ONCE(ssp->srcu_sup->srcu_size_state, SRCU_SIZE_BIG);
 		}
 	}
+	ssp->srcu_sup->srcu_ssp = ssp;
 	smp_store_release(&ssp->srcu_sup->srcu_gp_seq_needed, 0); /* Init done. */
 	return 0;
 }
@@ -647,7 +648,7 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 		return; /* Just leak it! */
 	if (WARN_ON(srcu_readers_active(ssp)))
 		return; /* Just leak it! */
-	flush_delayed_work(&ssp->work);
+	flush_delayed_work(&ssp->srcu_sup->work);
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
@@ -1059,10 +1060,10 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 		// can only be executed during early boot when there is only
 		// the one boot CPU running with interrupts still disabled.
 		if (likely(srcu_init_done))
-			queue_delayed_work(rcu_gp_wq, &ssp->work,
+			queue_delayed_work(rcu_gp_wq, &ssp->srcu_sup->work,
 					   !!srcu_get_delay(ssp));
-		else if (list_empty(&ssp->work.work.entry))
-			list_add(&ssp->work.work.entry, &srcu_boot_list);
+		else if (list_empty(&ssp->srcu_sup->work.work.entry))
+			list_add(&ssp->srcu_sup->work.work.entry, &srcu_boot_list);
 	}
 	spin_unlock_irqrestore_rcu_node(ssp->srcu_sup, flags);
 }
@@ -1723,7 +1724,7 @@ static void srcu_reschedule(struct srcu_struct *ssp, unsigned long delay)
 	spin_unlock_irq_rcu_node(ssp->srcu_sup);
 
 	if (pushgp)
-		queue_delayed_work(rcu_gp_wq, &ssp->work, delay);
+		queue_delayed_work(rcu_gp_wq, &ssp->srcu_sup->work, delay);
 }
 
 /*
@@ -1734,22 +1735,24 @@ static void process_srcu(struct work_struct *work)
 	unsigned long curdelay;
 	unsigned long j;
 	struct srcu_struct *ssp;
+	struct srcu_usage *sup;
 
-	ssp = container_of(work, struct srcu_struct, work.work);
+	sup = container_of(work, struct srcu_usage, work.work);
+	ssp = sup->srcu_ssp;
 
 	srcu_advance_state(ssp);
 	curdelay = srcu_get_delay(ssp);
 	if (curdelay) {
-		WRITE_ONCE(ssp->reschedule_count, 0);
+		WRITE_ONCE(sup->reschedule_count, 0);
 	} else {
 		j = jiffies;
-		if (READ_ONCE(ssp->reschedule_jiffies) == j) {
-			WRITE_ONCE(ssp->reschedule_count, READ_ONCE(ssp->reschedule_count) + 1);
-			if (READ_ONCE(ssp->reschedule_count) > srcu_max_nodelay)
+		if (READ_ONCE(sup->reschedule_jiffies) == j) {
+			WRITE_ONCE(sup->reschedule_count, READ_ONCE(sup->reschedule_count) + 1);
+			if (READ_ONCE(sup->reschedule_count) > srcu_max_nodelay)
 				curdelay = 1;
 		} else {
-			WRITE_ONCE(ssp->reschedule_count, 1);
-			WRITE_ONCE(ssp->reschedule_jiffies, j);
+			WRITE_ONCE(sup->reschedule_count, 1);
+			WRITE_ONCE(sup->reschedule_jiffies, j);
 		}
 	}
 	srcu_reschedule(ssp, curdelay);
@@ -1848,7 +1851,7 @@ early_initcall(srcu_bootup_announce);
 
 void __init srcu_init(void)
 {
-	struct srcu_struct *ssp;
+	struct srcu_usage *sup;
 
 	/* Decide on srcu_struct-size strategy. */
 	if (SRCU_SIZING_IS(SRCU_SIZING_AUTO)) {
@@ -1868,13 +1871,13 @@ void __init srcu_init(void)
 	 */
 	srcu_init_done = true;
 	while (!list_empty(&srcu_boot_list)) {
-		ssp = list_first_entry(&srcu_boot_list, struct srcu_struct,
+		sup = list_first_entry(&srcu_boot_list, struct srcu_usage,
 				      work.work.entry);
-		list_del_init(&ssp->work.work.entry);
+		list_del_init(&sup->work.work.entry);
 		if (SRCU_SIZING_IS(SRCU_SIZING_INIT) &&
-		    ssp->srcu_sup->srcu_size_state == SRCU_SIZE_SMALL)
-			ssp->srcu_sup->srcu_size_state = SRCU_SIZE_ALLOC;
-		queue_work(rcu_gp_wq, &ssp->work.work);
+		    sup->srcu_size_state == SRCU_SIZE_SMALL)
+			sup->srcu_size_state = SRCU_SIZE_ALLOC;
+		queue_work(rcu_gp_wq, &sup->work.work);
 	}
 }
 

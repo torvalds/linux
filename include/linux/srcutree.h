@@ -84,6 +84,10 @@ struct srcu_usage {
 	atomic_t srcu_barrier_cpu_cnt;		/* # CPUs not yet posting a */
 						/*  callback for the barrier */
 						/*  operation. */
+	unsigned long reschedule_jiffies;
+	unsigned long reschedule_count;
+	struct delayed_work work;
+	struct srcu_struct *srcu_ssp;
 };
 
 /*
@@ -92,9 +96,6 @@ struct srcu_usage {
 struct srcu_struct {
 	unsigned int srcu_idx;			/* Current rdr array element. */
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
-	unsigned long reschedule_jiffies;
-	unsigned long reschedule_count;
-	struct delayed_work work;
 	struct lockdep_map dep_map;
 	struct srcu_usage *srcu_sup;		/* Update-side data. */
 };
@@ -119,10 +120,10 @@ struct srcu_struct {
 {												\
 	.lock = __SPIN_LOCK_UNLOCKED(name.lock),						\
 	.srcu_gp_seq_needed = -1UL,								\
+	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
 }
 
 #define __SRCU_STRUCT_INIT_COMMON(name, usage_name)						\
-	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
 	.srcu_sup = &usage_name,								\
 	__SRCU_DEP_MAP_INIT(name)
 
