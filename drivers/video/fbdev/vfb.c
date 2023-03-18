@@ -479,7 +479,7 @@ err:
 	return retval;
 }
 
-static int vfb_remove(struct platform_device *dev)
+static void vfb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -489,12 +489,11 @@ static int vfb_remove(struct platform_device *dev)
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
-	return 0;
 }
 
 static struct platform_driver vfb_driver = {
 	.probe	= vfb_probe,
-	.remove = vfb_remove,
+	.remove_new = vfb_remove,
 	.driver = {
 		.name	= "vfb",
 	},
