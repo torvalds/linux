@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/user.h>
 #include <linux/export.h>
+#include <linux/perf_event.h>
 
 #include <asm/cp15.h>
 #include <asm/cputype.h>
@@ -313,6 +314,7 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 		 * emulate it.
 		 */
 	}
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->ARM_pc);
 	return exceptions & ~VFP_NAN_FLAG;
 }
 
