@@ -93,6 +93,61 @@ int verity_verify_sig_parse_opt_args(struct dm_arg_set *as,
 	return ret;
 }
 
+#if defined(CONFIG_DM_VERITY_SIG_VALUE)
+bool verity_verify_is_sig_value_opt_arg(const char *arg_name)
+{
+	return (!strcasecmp(
+		arg_name, DM_VERITY_ROOT_HASH_VERIFICATION_OPT_SIG_KEY_VALUE));
+}
+
+static int
+verity_verify_get_sig_from_key_value(const char *key_value,
+				     struct dm_verity_sig_opts *sig_opts)
+{
+	int ret = 0;
+
+	if (!key_value)
+		return -ENOMEM;
+
+	sig_opts->sig_size = strlen(key_value) / 2;
+	sig_opts->sig = kmalloc(sig_opts->sig_size, GFP_KERNEL);
+	if (!sig_opts->sig) {
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	ret = hex2bin(sig_opts->sig, key_value, strlen(key_value) / 2);
+end:
+	return ret;
+}
+
+int verity_verify_sig_value_parse_opt_args(struct dm_arg_set *as,
+					   struct dm_verity *v,
+					   struct dm_verity_sig_opts *sig_opts,
+					   unsigned int *argc,
+					   const char *arg_name)
+{
+	struct dm_target *ti = v->ti;
+	int ret = 0;
+	const char *sig_key_value = NULL;
+
+	if (!*argc) {
+		ti->error = DM_VERITY_VERIFY_ERR(
+			"Signature key value not specified");
+		return -EINVAL;
+	}
+
+	sig_key_value = dm_shift_arg(as);
+	(*argc)--;
+
+	ret = verity_verify_get_sig_from_key_value(sig_key_value, sig_opts);
+	if (ret < 0)
+		ti->error = DM_VERITY_VERIFY_ERR("Invalid key specified");
+
+	return ret;
+}
+#endif
+
 /*
  * verify_verify_roothash - Verify the root hash of the verity hash device
  *			     using builtin trusted keys.

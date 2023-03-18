@@ -1132,6 +1132,15 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 			 * properly parse all options (and their extra args).
 			 */
 			continue;
+#if defined(CONFIG_DM_VERITY_SIG_VALUE)
+		} else if (verity_verify_is_sig_value_opt_arg(arg_name)) {
+			r = verity_verify_sig_value_parse_opt_args(
+				as, v, verify_args, &argc, arg_name);
+
+			if (r)
+				return r;
+			continue;
+#endif
 		}
 
 		DMERR("Unrecognized verity feature request: %s", arg_name);
