@@ -1868,7 +1868,7 @@ int dentry_needs_remove_privs(struct dentry *dentry)
 	if (IS_NOSEC(inode))
 		return 0;
 
-	mask = should_remove_suid(dentry);
+	mask = setattr_should_drop_suidgid(inode);
 	ret = security_inode_need_killpriv(dentry);
 	if (ret < 0)
 		return ret;
