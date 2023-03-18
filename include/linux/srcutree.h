@@ -68,6 +68,11 @@ struct srcu_usage {
 	struct mutex srcu_cb_mutex;		/* Serialize CB preparation. */
 	spinlock_t __private lock;		/* Protect counters and size state. */
 	struct mutex srcu_gp_mutex;		/* Serialize GP work. */
+	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
+	unsigned long srcu_gp_seq_needed;	/* Latest gp_seq needed. */
+	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
+	unsigned long srcu_gp_start;		/* Last GP start timestamp (jiffies) */
+	unsigned long srcu_last_gp_end;		/* Last GP end timestamp (ns) */
 };
 
 /*
@@ -75,11 +80,6 @@ struct srcu_usage {
  */
 struct srcu_struct {
 	unsigned int srcu_idx;			/* Current rdr array element. */
-	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
-	unsigned long srcu_gp_seq_needed;	/* Latest gp_seq needed. */
-	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
-	unsigned long srcu_gp_start;		/* Last GP start timestamp (jiffies) */
-	unsigned long srcu_last_gp_end;		/* Last GP end timestamp (ns) */
 	unsigned long srcu_size_jiffies;	/* Current contention-measurement interval. */
 	unsigned long srcu_n_lock_retries;	/* Contention events in current interval. */
 	unsigned long srcu_n_exp_nodelay;	/* # expedited no-delays in current GP phase. */
@@ -115,8 +115,13 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
 
-#define __SRCU_STRUCT_INIT_COMMON(name, usage_name)						\
+#define __SRCU_USAGE_INIT(name)									\
+{												\
+	.lock = __SPIN_LOCK_UNLOCKED(name.lock),						\
 	.srcu_gp_seq_needed = -1UL,								\
+}
+
+#define __SRCU_STRUCT_INIT_COMMON(name, usage_name)						\
 	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
 	.srcu_sup = &usage_name,								\
 	__SRCU_DEP_MAP_INIT(name)
@@ -153,9 +158,7 @@ struct srcu_struct {
  */
 #ifdef MODULE
 # define __DEFINE_SRCU(name, is_static)								\
-	static struct srcu_usage name##_srcu_usage = {						\
-		.lock = __SPIN_LOCK_UNLOCKED(name.lock),					\
-	};											\
+	static struct srcu_usage name##_srcu_usage = __SRCU_USAGE_INIT(name##_srcu_usage);	\
 	is_static struct srcu_struct name = __SRCU_STRUCT_INIT_MODULE(name, name##_srcu_usage);	\
 	extern struct srcu_struct * const __srcu_struct_##name;					\
 	struct srcu_struct * const __srcu_struct_##name						\
@@ -163,9 +166,7 @@ struct srcu_struct {
 #else
 # define __DEFINE_SRCU(name, is_static)								\
 	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);				\
-	static struct srcu_usage name##_srcu_usage = {						\
-		.lock = __SPIN_LOCK_UNLOCKED(name.lock),					\
-	};											\
+	static struct srcu_usage name##_srcu_usage = __SRCU_USAGE_INIT(name##_srcu_usage);	\
 	is_static struct srcu_struct name =							\
 		__SRCU_STRUCT_INIT(name, name##_srcu_usage, name##_srcu_data)
 #endif
