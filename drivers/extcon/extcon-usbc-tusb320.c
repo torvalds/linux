@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/usb/typec.h>
+#include <linux/usb/typec_altmode.h>
 
 #define TUSB320_REG8				0x8
 #define TUSB320_REG8_CURRENT_MODE_ADVERTISE	GENMASK(7, 6)
@@ -26,16 +27,16 @@
 #define TUSB320_REG8_CURRENT_MODE_DETECT_MED	0x1
 #define TUSB320_REG8_CURRENT_MODE_DETECT_ACC	0x2
 #define TUSB320_REG8_CURRENT_MODE_DETECT_HI	0x3
-#define TUSB320_REG8_ACCESSORY_CONNECTED	GENMASK(3, 2)
+#define TUSB320_REG8_ACCESSORY_CONNECTED	GENMASK(3, 1)
 #define TUSB320_REG8_ACCESSORY_CONNECTED_NONE	0x0
 #define TUSB320_REG8_ACCESSORY_CONNECTED_AUDIO	0x4
-#define TUSB320_REG8_ACCESSORY_CONNECTED_ACC	0x5
-#define TUSB320_REG8_ACCESSORY_CONNECTED_DEBUG	0x6
+#define TUSB320_REG8_ACCESSORY_CONNECTED_ACHRG	0x5
+#define TUSB320_REG8_ACCESSORY_CONNECTED_DBGDFP	0x6
+#define TUSB320_REG8_ACCESSORY_CONNECTED_DBGUFP	0x7
 #define TUSB320_REG8_ACTIVE_CABLE_DETECTION	BIT(0)
 
 #define TUSB320_REG9				0x9
-#define TUSB320_REG9_ATTACHED_STATE_SHIFT	6
-#define TUSB320_REG9_ATTACHED_STATE_MASK	0x3
+#define TUSB320_REG9_ATTACHED_STATE		GENMASK(7, 6)
 #define TUSB320_REG9_CABLE_DIRECTION		BIT(5)
 #define TUSB320_REG9_INTERRUPT_STATUS		BIT(4)
 
@@ -250,8 +251,7 @@ static void tusb320_extcon_irq_handler(struct tusb320_priv *priv, u8 reg)
 {
 	int state, polarity;
 
-	state = (reg >> TUSB320_REG9_ATTACHED_STATE_SHIFT) &
-		TUSB320_REG9_ATTACHED_STATE_MASK;
+	state = FIELD_GET(TUSB320_REG9_ATTACHED_STATE, reg);
 	polarity = !!(reg & TUSB320_REG9_CABLE_DIRECTION);
 
 	dev_dbg(priv->dev, "attached state: %s, polarity: %d\n",
@@ -277,31 +277,77 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 {
 	struct typec_port *port = priv->port;
 	struct device *dev = priv->dev;
-	u8 mode, role, state;
+	int typec_mode;
+	enum typec_role pwr_role;
+	enum typec_data_role data_role;
+	u8 state, mode, accessory;
 	int ret, reg8;
 	bool ori;
-
-	ori = reg9 & TUSB320_REG9_CABLE_DIRECTION;
-	typec_set_orientation(port, ori ? TYPEC_ORIENTATION_REVERSE :
-					  TYPEC_ORIENTATION_NORMAL);
-
-	state = (reg9 >> TUSB320_REG9_ATTACHED_STATE_SHIFT) &
-		TUSB320_REG9_ATTACHED_STATE_MASK;
-	if (state == TUSB320_ATTACHED_STATE_DFP)
-		role = TYPEC_SOURCE;
-	else
-		role = TYPEC_SINK;
-
-	typec_set_vconn_role(port, role);
-	typec_set_pwr_role(port, role);
-	typec_set_data_role(port, role == TYPEC_SOURCE ?
-				  TYPEC_HOST : TYPEC_DEVICE);
 
 	ret = regmap_read(priv->regmap, TUSB320_REG8, &reg8);
 	if (ret) {
 		dev_err(dev, "error during reg8 i2c read, ret=%d!\n", ret);
 		return;
 	}
+
+	ori = reg9 & TUSB320_REG9_CABLE_DIRECTION;
+	typec_set_orientation(port, ori ? TYPEC_ORIENTATION_REVERSE :
+					  TYPEC_ORIENTATION_NORMAL);
+
+	state = FIELD_GET(TUSB320_REG9_ATTACHED_STATE, reg9);
+	accessory = FIELD_GET(TUSB320_REG8_ACCESSORY_CONNECTED, reg8);
+
+	switch (state) {
+	case TUSB320_ATTACHED_STATE_DFP:
+		typec_mode = TYPEC_MODE_USB2;
+		pwr_role = TYPEC_SOURCE;
+		data_role = TYPEC_HOST;
+		break;
+	case TUSB320_ATTACHED_STATE_UFP:
+		typec_mode = TYPEC_MODE_USB2;
+		pwr_role = TYPEC_SINK;
+		data_role = TYPEC_DEVICE;
+		break;
+	case TUSB320_ATTACHED_STATE_ACC:
+		/*
+		 * Accessory detected. For debug accessories, just make some
+		 * qualified guesses as to the role for lack of a better option.
+		 */
+		if (accessory == TUSB320_REG8_ACCESSORY_CONNECTED_AUDIO ||
+		    accessory == TUSB320_REG8_ACCESSORY_CONNECTED_ACHRG) {
+			typec_mode = TYPEC_MODE_AUDIO;
+			pwr_role = TYPEC_SINK;
+			data_role = TYPEC_DEVICE;
+			break;
+		} else if (accessory ==
+			   TUSB320_REG8_ACCESSORY_CONNECTED_DBGDFP) {
+			typec_mode = TYPEC_MODE_DEBUG;
+			pwr_role = TYPEC_SOURCE;
+			data_role = TYPEC_HOST;
+			break;
+		} else if (accessory ==
+			   TUSB320_REG8_ACCESSORY_CONNECTED_DBGUFP) {
+			typec_mode = TYPEC_MODE_DEBUG;
+			pwr_role = TYPEC_SINK;
+			data_role = TYPEC_DEVICE;
+			break;
+		}
+
+		dev_warn(priv->dev, "unexpected ACCESSORY_CONNECTED state %d\n",
+			 accessory);
+
+		fallthrough;
+	default:
+		typec_mode = TYPEC_MODE_USB2;
+		pwr_role = TYPEC_SINK;
+		data_role = TYPEC_DEVICE;
+		break;
+	}
+
+	typec_set_vconn_role(port, pwr_role);
+	typec_set_pwr_role(port, pwr_role);
+	typec_set_data_role(port, data_role);
+	typec_set_mode(port, typec_mode);
 
 	mode = FIELD_GET(TUSB320_REG8_CURRENT_MODE_DETECT, reg8);
 	if (mode == TUSB320_REG8_CURRENT_MODE_DETECT_DEF)
