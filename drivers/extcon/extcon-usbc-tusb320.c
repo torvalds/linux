@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_altmode.h>
+#include <linux/usb/role.h>
 
 #define TUSB320_REG8				0x8
 #define TUSB320_REG8_CURRENT_MODE_ADVERTISE	GENMASK(7, 6)
@@ -80,6 +81,7 @@ struct tusb320_priv {
 	enum typec_port_type port_type;
 	enum typec_pwr_opmode pwr_opmode;
 	struct fwnode_handle *connector_fwnode;
+	struct usb_role_switch *role_sw;
 };
 
 static const char * const tusb_attached_states[] = {
@@ -278,6 +280,7 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 	struct typec_port *port = priv->port;
 	struct device *dev = priv->dev;
 	int typec_mode;
+	enum usb_role usb_role;
 	enum typec_role pwr_role;
 	enum typec_data_role data_role;
 	u8 state, mode, accessory;
@@ -300,11 +303,13 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 	switch (state) {
 	case TUSB320_ATTACHED_STATE_DFP:
 		typec_mode = TYPEC_MODE_USB2;
+		usb_role = USB_ROLE_HOST;
 		pwr_role = TYPEC_SOURCE;
 		data_role = TYPEC_HOST;
 		break;
 	case TUSB320_ATTACHED_STATE_UFP:
 		typec_mode = TYPEC_MODE_USB2;
+		usb_role = USB_ROLE_DEVICE;
 		pwr_role = TYPEC_SINK;
 		data_role = TYPEC_DEVICE;
 		break;
@@ -316,6 +321,7 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 		if (accessory == TUSB320_REG8_ACCESSORY_CONNECTED_AUDIO ||
 		    accessory == TUSB320_REG8_ACCESSORY_CONNECTED_ACHRG) {
 			typec_mode = TYPEC_MODE_AUDIO;
+			usb_role = USB_ROLE_NONE;
 			pwr_role = TYPEC_SINK;
 			data_role = TYPEC_DEVICE;
 			break;
@@ -323,12 +329,14 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 			   TUSB320_REG8_ACCESSORY_CONNECTED_DBGDFP) {
 			typec_mode = TYPEC_MODE_DEBUG;
 			pwr_role = TYPEC_SOURCE;
+			usb_role = USB_ROLE_HOST;
 			data_role = TYPEC_HOST;
 			break;
 		} else if (accessory ==
 			   TUSB320_REG8_ACCESSORY_CONNECTED_DBGUFP) {
 			typec_mode = TYPEC_MODE_DEBUG;
 			pwr_role = TYPEC_SINK;
+			usb_role = USB_ROLE_DEVICE;
 			data_role = TYPEC_DEVICE;
 			break;
 		}
@@ -339,6 +347,7 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 		fallthrough;
 	default:
 		typec_mode = TYPEC_MODE_USB2;
+		usb_role = USB_ROLE_NONE;
 		pwr_role = TYPEC_SINK;
 		data_role = TYPEC_DEVICE;
 		break;
@@ -348,6 +357,7 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 	typec_set_pwr_role(port, pwr_role);
 	typec_set_data_role(port, data_role);
 	typec_set_mode(port, typec_mode);
+	usb_role_switch_set_role(priv->role_sw, usb_role);
 
 	mode = FIELD_GET(TUSB320_REG8_CURRENT_MODE_DETECT, reg8);
 	if (mode == TUSB320_REG8_CURRENT_MODE_DETECT_DEF)
@@ -472,9 +482,19 @@ static int tusb320_typec_probe(struct i2c_client *client,
 		goto err_put;
 	}
 
+	/* Find any optional USB role switch that needs reporting to */
+	priv->role_sw = fwnode_usb_role_switch_get(connector);
+	if (IS_ERR(priv->role_sw)) {
+		ret = PTR_ERR(priv->role_sw);
+		goto err_unreg;
+	}
+
 	priv->connector_fwnode = connector;
 
 	return 0;
+
+err_unreg:
+	typec_unregister_port(priv->port);
 
 err_put:
 	fwnode_handle_put(connector);
@@ -484,6 +504,7 @@ err_put:
 
 static void tusb320_typec_remove(struct tusb320_priv *priv)
 {
+	usb_role_switch_put(priv->role_sw);
 	typec_unregister_port(priv->port);
 	fwnode_handle_put(priv->connector_fwnode);
 }
