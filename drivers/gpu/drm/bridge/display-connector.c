@@ -382,7 +382,7 @@ static int display_connector_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int display_connector_remove(struct platform_device *pdev)
+static void display_connector_remove(struct platform_device *pdev)
 {
 	struct display_connector *conn = platform_get_drvdata(pdev);
 
@@ -396,8 +396,6 @@ static int display_connector_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(conn->bridge.ddc))
 		i2c_put_adapter(conn->bridge.ddc);
-
-	return 0;
 }
 
 static const struct of_device_id display_connector_match[] = {
@@ -426,7 +424,7 @@ MODULE_DEVICE_TABLE(of, display_connector_match);
 
 static struct platform_driver display_connector_driver = {
 	.probe	= display_connector_probe,
-	.remove	= display_connector_remove,
+	.remove_new = display_connector_remove,
 	.driver		= {
 		.name		= "display-connector",
 		.of_match_table	= display_connector_match,
