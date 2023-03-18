@@ -83,10 +83,7 @@ struct raw_sock {
 	u32		   ipmr_table;
 };
 
-static inline struct raw_sock *raw_sk(const struct sock *sk)
-{
-	return (struct raw_sock *)sk;
-}
+#define raw_sk(ptr) container_of_const(ptr, struct raw_sock, inet.sk)
 
 static inline bool raw_sk_bound_dev_eq(struct net *net, int bound_dev_if,
 				       int dif, int sdif)
