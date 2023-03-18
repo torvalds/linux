@@ -3344,6 +3344,7 @@
   sysfs_streq
   sysrq_mask
   system_32bit_el0_cpumask
+  system_freezable_power_efficient_wq
   system_freezable_wq
   system_highpri_wq
   system_long_wq
