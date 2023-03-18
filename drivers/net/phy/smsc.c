@@ -54,7 +54,7 @@ static int smsc_phy_ack_interrupt(struct phy_device *phydev)
 	return rc < 0 ? rc : 0;
 }
 
-static int smsc_phy_config_intr(struct phy_device *phydev)
+int smsc_phy_config_intr(struct phy_device *phydev)
 {
 	int rc;
 
@@ -75,8 +75,9 @@ static int smsc_phy_config_intr(struct phy_device *phydev)
 
 	return rc < 0 ? rc : 0;
 }
+EXPORT_SYMBOL_GPL(smsc_phy_config_intr);
 
-static irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
+irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
 
@@ -95,18 +96,20 @@ static irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(smsc_phy_handle_interrupt);
 
-static int smsc_phy_config_init(struct phy_device *phydev)
+int smsc_phy_config_init(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
 
-	if (!priv->energy_enable || phydev->irq != PHY_POLL)
+	if (!priv || !priv->energy_enable || phydev->irq != PHY_POLL)
 		return 0;
 
 	/* Enable energy detect power down mode */
 	return phy_set_bits(phydev, MII_LAN83C185_CTRL_STATUS,
 			    MII_LAN83C185_EDPWRDOWN);
 }
+EXPORT_SYMBOL_GPL(smsc_phy_config_init);
 
 static int smsc_phy_reset(struct phy_device *phydev)
 {
@@ -186,7 +189,7 @@ static int lan95xx_config_aneg_ext(struct phy_device *phydev)
  * The workaround is only applicable to poll mode. Energy Detect Power-Down may
  * not be used in interrupt mode lest link change detection becomes unreliable.
  */
-static int lan87xx_read_status(struct phy_device *phydev)
+int lan87xx_read_status(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
 	int err;
@@ -195,7 +198,8 @@ static int lan87xx_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	if (!phydev->link && priv->energy_enable && phydev->irq == PHY_POLL) {
+	if (!phydev->link && priv && priv->energy_enable &&
+	    phydev->irq == PHY_POLL) {
 		/* Disable EDPD to wake up PHY */
 		int rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
 		if (rc < 0)
@@ -229,6 +233,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(lan87xx_read_status);
 
 static int smsc_get_sset_count(struct phy_device *phydev)
 {
@@ -269,7 +274,7 @@ static void smsc_get_stats(struct phy_device *phydev,
 		data[i] = smsc_get_stat(phydev, i);
 }
 
-static int smsc_phy_probe(struct phy_device *phydev)
+int smsc_phy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	struct smsc_phy_priv *priv;
@@ -294,6 +299,7 @@ static int smsc_phy_probe(struct phy_device *phydev)
 
 	return clk_set_rate(refclk, 50 * 1000 * 1000);
 }
+EXPORT_SYMBOL_GPL(smsc_phy_probe);
 
 static struct phy_driver smsc_phy_driver[] = {
 {
