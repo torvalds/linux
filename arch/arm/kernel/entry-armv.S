@@ -557,13 +557,6 @@ ENDPROC(__und_usr)
  * co-processor instructions.  However, we have to watch out
  * for the ARM6/ARM7 SWI bug.
  *
- * NEON is a special case that has to be handled here. Not all
- * NEON instructions are co-processor instructions, so we have
- * to make a special case of checking for them. Plus, there's
- * five groups of them, so we have a table of mask/opcode pairs
- * to check against, and if any match then we branch off into the
- * NEON handler code.
- *
  * Emulators may wish to make use of the following registers:
  *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
  *  r2  = PC value to resume execution after successful emulation
@@ -575,25 +568,8 @@ ENDPROC(__und_usr)
 	@
 	@ Fall-through from Thumb-2 __und_usr
 	@
-#ifdef CONFIG_NEON
-	get_thread_info r10			@ get current thread
-	adr	r6, .LCneon_thumb_opcodes
-	b	2f
-#endif
 call_fpe:
 	get_thread_info r10			@ get current thread
-#ifdef CONFIG_NEON
-	adr	r6, .LCneon_arm_opcodes
-2:	ldr	r5, [r6], #4			@ mask value
-	ldr	r7, [r6], #4			@ opcode bits matching in mask
-	cmp	r5, #0				@ end mask?
-	beq	1f
-	and	r8, r0, r5
-	cmp	r8, r7				@ NEON instruction?
-	bne	2b
-	b	do_vfp				@ let VFP handler handle this
-1:
-#endif
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
 	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
 	reteq	lr
@@ -620,41 +596,12 @@ call_fpe:
 	ret.w	lr				@ CP#7
 	ret.w	lr				@ CP#8
 	ret.w	lr				@ CP#9
-#ifdef CONFIG_VFP
-	W(b)	do_vfp				@ CP#10 (VFP)
-	W(b)	do_vfp				@ CP#11 (VFP)
-#else
 	ret.w	lr				@ CP#10 (VFP)
 	ret.w	lr				@ CP#11 (VFP)
-#endif
 	ret.w	lr				@ CP#12
 	ret.w	lr				@ CP#13
 	ret.w	lr				@ CP#14 (Debug)
 	ret.w	lr				@ CP#15 (Control)
-
-#ifdef CONFIG_NEON
-	.align	6
-
-.LCneon_arm_opcodes:
-	.word	0xfe000000			@ mask
-	.word	0xf2000000			@ opcode
-
-	.word	0xff100000			@ mask
-	.word	0xf4000000			@ opcode
-
-	.word	0x00000000			@ mask
-	.word	0x00000000			@ opcode
-
-.LCneon_thumb_opcodes:
-	.word	0xef000000			@ mask
-	.word	0xef000000			@ opcode
-
-	.word	0xff100000			@ mask
-	.word	0xf9000000			@ opcode
-
-	.word	0x00000000			@ mask
-	.word	0x00000000			@ opcode
-#endif
 
 do_fpe:
 	add	r10, r10, #TI_FPSTATE		@ r10 = workspace

@@ -641,21 +641,46 @@ static int vfp_starting_cpu(unsigned int unused)
 	return 0;
 }
 
+static int vfp_kmode_exception(struct pt_regs *regs, unsigned int instr)
+{
+	/*
+	 * If we reach this point, a floating point exception has been raised
+	 * while running in kernel mode. If the NEON/VFP unit was enabled at the
+	 * time, it means a VFP instruction has been issued that requires
+	 * software assistance to complete, something which is not currently
+	 * supported in kernel mode.
+	 * If the NEON/VFP unit was disabled, and the location pointed to below
+	 * is properly preceded by a call to kernel_neon_begin(), something has
+	 * caused the task to be scheduled out and back in again. In this case,
+	 * rebuilding and running with CONFIG_DEBUG_ATOMIC_SLEEP enabled should
+	 * be helpful in localizing the problem.
+	 */
+	if (fmrx(FPEXC) & FPEXC_EN)
+		pr_crit("BUG: unsupported FP instruction in kernel mode\n");
+	else
+		pr_crit("BUG: FP instruction issued in kernel mode with FP unit disabled\n");
+	pr_crit("FPEXC == 0x%08x\n", fmrx(FPEXC));
+	return 1;
+}
+
 /*
- * vfp_support_entry - Handle VFP exception from user mode
+ * vfp_support_entry - Handle VFP exception
  *
  * @regs:	pt_regs structure holding the register state at exception entry
  * @trigger:	The opcode of the instruction that triggered the exception
  *
  * Returns 0 if the exception was handled, or an error code otherwise.
  */
-asmlinkage int vfp_support_entry(struct pt_regs *regs, u32 trigger)
+static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 {
 	struct thread_info *ti = current_thread_info();
 	u32 fpexc;
 
 	if (unlikely(!have_vfp))
 		return -ENODEV;
+
+	if (!user_mode(regs))
+		return vfp_kmode_exception(regs, trigger);
 
 	local_bh_disable();
 	fpexc = fmrx(FPEXC);
@@ -722,7 +747,6 @@ asmlinkage int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 		 * replay the instruction that trapped.
 		 */
 		fmxr(FPEXC, fpexc);
-		regs->ARM_pc -= 4;
 	} else {
 		/* Check for synchronous or asynchronous exceptions */
 		if (!(fpexc & (FPEXC_EX | FPEXC_DEX))) {
@@ -743,78 +767,47 @@ asmlinkage int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 				fpexc |= FPEXC_DEX;
 			}
 		}
-bounce:		VFP_bounce(trigger, fpexc, regs);
+bounce:		regs->ARM_pc += 4;
+		VFP_bounce(trigger, fpexc, regs);
 	}
 
 	local_bh_enable();
 	return 0;
 }
 
-#ifdef CONFIG_KERNEL_MODE_NEON
-
-static int vfp_kmode_exception(struct pt_regs *regs, unsigned int instr)
-{
-	/*
-	 * If we reach this point, a floating point exception has been raised
-	 * while running in kernel mode. If the NEON/VFP unit was enabled at the
-	 * time, it means a VFP instruction has been issued that requires
-	 * software assistance to complete, something which is not currently
-	 * supported in kernel mode.
-	 * If the NEON/VFP unit was disabled, and the location pointed to below
-	 * is properly preceded by a call to kernel_neon_begin(), something has
-	 * caused the task to be scheduled out and back in again. In this case,
-	 * rebuilding and running with CONFIG_DEBUG_ATOMIC_SLEEP enabled should
-	 * be helpful in localizing the problem.
-	 */
-	if (fmrx(FPEXC) & FPEXC_EN)
-		pr_crit("BUG: unsupported FP instruction in kernel mode\n");
-	else
-		pr_crit("BUG: FP instruction issued in kernel mode with FP unit disabled\n");
-	pr_crit("FPEXC == 0x%08x\n", fmrx(FPEXC));
-	return 1;
-}
-
-static struct undef_hook vfp_kmode_exception_hook[] = {{
+static struct undef_hook neon_support_hook[] = {{
 	.instr_mask	= 0xfe000000,
 	.instr_val	= 0xf2000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= 0,
+	.fn		= vfp_support_entry,
 }, {
 	.instr_mask	= 0xff100000,
 	.instr_val	= 0xf4000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= 0,
+	.fn		= vfp_support_entry,
 }, {
 	.instr_mask	= 0xef000000,
 	.instr_val	= 0xef000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE | PSR_T_BIT,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= PSR_T_BIT,
+	.fn		= vfp_support_entry,
 }, {
 	.instr_mask	= 0xff100000,
 	.instr_val	= 0xf9000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE | PSR_T_BIT,
-	.fn		= vfp_kmode_exception,
-}, {
-	.instr_mask	= 0x0c000e00,
-	.instr_val	= 0x0c000a00,
-	.cpsr_mask	= MODE_MASK,
-	.cpsr_val	= SVC_MODE,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= PSR_T_BIT,
+	.fn		= vfp_support_entry,
 }};
 
-static int __init vfp_kmode_exception_hook_init(void)
-{
-	int i;
+static struct undef_hook vfp_support_hook = {
+	.instr_mask	= 0x0c000e00,
+	.instr_val	= 0x0c000a00,
+	.fn		= vfp_support_entry,
+};
 
-	for (i = 0; i < ARRAY_SIZE(vfp_kmode_exception_hook); i++)
-		register_undef_hook(&vfp_kmode_exception_hook[i]);
-	return 0;
-}
-subsys_initcall(vfp_kmode_exception_hook_init);
+#ifdef CONFIG_KERNEL_MODE_NEON
 
 /*
  * Kernel-side NEON support functions
@@ -919,8 +912,11 @@ static int __init vfp_init(void)
 		 * for NEON if the hardware has the MVFR registers.
 		 */
 		if (IS_ENABLED(CONFIG_NEON) &&
-		   (fmrx(MVFR1) & 0x000fff00) == 0x00011100)
+		    (fmrx(MVFR1) & 0x000fff00) == 0x00011100) {
 			elf_hwcap |= HWCAP_NEON;
+			for (int i = 0; i < ARRAY_SIZE(neon_support_hook); i++)
+				register_undef_hook(&neon_support_hook[i]);
+		}
 
 		if (IS_ENABLED(CONFIG_VFPv3)) {
 			u32 mvfr0 = fmrx(MVFR0);
@@ -989,6 +985,7 @@ static int __init vfp_init(void)
 
 	have_vfp = true;
 
+	register_undef_hook(&vfp_support_hook);
 	thread_register_notifier(&vfp_notifier_block);
 	vfp_pm_init();
 
