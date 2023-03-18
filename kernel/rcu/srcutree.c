@@ -245,7 +245,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	ssp->srcu_sup->srcu_size_state = SRCU_SIZE_SMALL;
 	ssp->srcu_sup->node = NULL;
 	mutex_init(&ssp->srcu_sup->srcu_cb_mutex);
-	mutex_init(&ssp->srcu_gp_mutex);
+	mutex_init(&ssp->srcu_sup->srcu_gp_mutex);
 	ssp->srcu_idx = 0;
 	ssp->srcu_gp_seq = 0;
 	ssp->srcu_barrier_seq = 0;
@@ -876,7 +876,7 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	if (ULONG_CMP_LT(ssp->srcu_gp_seq_needed_exp, gpseq))
 		WRITE_ONCE(ssp->srcu_gp_seq_needed_exp, gpseq);
 	spin_unlock_irq_rcu_node(ssp->srcu_sup);
-	mutex_unlock(&ssp->srcu_gp_mutex);
+	mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 	/* A new grace period can start at this point.  But only one. */
 
 	/* Initiate callback invocation as needed. */
@@ -1585,7 +1585,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 {
 	int idx;
 
-	mutex_lock(&ssp->srcu_gp_mutex);
+	mutex_lock(&ssp->srcu_sup->srcu_gp_mutex);
 
 	/*
 	 * Because readers might be delayed for an extended period after
@@ -1603,7 +1603,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 		if (ULONG_CMP_GE(ssp->srcu_gp_seq, ssp->srcu_gp_seq_needed)) {
 			WARN_ON_ONCE(rcu_seq_state(ssp->srcu_gp_seq));
 			spin_unlock_irq_rcu_node(ssp->srcu_sup);
-			mutex_unlock(&ssp->srcu_gp_mutex);
+			mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 			return;
 		}
 		idx = rcu_seq_state(READ_ONCE(ssp->srcu_gp_seq));
@@ -1611,7 +1611,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 			srcu_gp_start(ssp);
 		spin_unlock_irq_rcu_node(ssp->srcu_sup);
 		if (idx != SRCU_STATE_IDLE) {
-			mutex_unlock(&ssp->srcu_gp_mutex);
+			mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 			return; /* Someone else started the grace period. */
 		}
 	}
@@ -1619,7 +1619,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 	if (rcu_seq_state(READ_ONCE(ssp->srcu_gp_seq)) == SRCU_STATE_SCAN1) {
 		idx = 1 ^ (ssp->srcu_idx & 1);
 		if (!try_check_zero(ssp, idx, 1)) {
-			mutex_unlock(&ssp->srcu_gp_mutex);
+			mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 			return; /* readers present, retry later. */
 		}
 		srcu_flip(ssp);
@@ -1637,7 +1637,7 @@ static void srcu_advance_state(struct srcu_struct *ssp)
 		 */
 		idx = 1 ^ (ssp->srcu_idx & 1);
 		if (!try_check_zero(ssp, idx, 2)) {
-			mutex_unlock(&ssp->srcu_gp_mutex);
+			mutex_unlock(&ssp->srcu_sup->srcu_gp_mutex);
 			return; /* readers present, retry later. */
 		}
 		ssp->srcu_n_exp_nodelay = 0;
