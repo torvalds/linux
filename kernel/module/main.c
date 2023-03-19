@@ -1955,6 +1955,8 @@ static int setup_load_info(struct load_info *info, int flags)
  * These calls taint the kernel depending certain module circumstances */
 static void module_augment_kernel_taints(struct module *mod, struct load_info *info)
 {
+	int prev_taint = test_taint(TAINT_PROPRIETARY_MODULE);
+
 	if (!get_modinfo(info, "intree")) {
 		if (!test_taint(TAINT_OOT_MODULE))
 			pr_warn("%s: loading out-of-tree module taints kernel.\n",
@@ -1993,6 +1995,28 @@ static void module_augment_kernel_taints(struct module *mod, struct load_info *i
 		add_taint_module(mod, TAINT_UNSIGNED_MODULE, LOCKDEP_STILL_OK);
 	}
 #endif
+
+	/*
+	 * ndiswrapper is under GPL by itself, but loads proprietary modules.
+	 * Don't use add_taint_module(), as it would prevent ndiswrapper from
+	 * using GPL-only symbols it needs.
+	 */
+	if (strcmp(mod->name, "ndiswrapper") == 0)
+		add_taint(TAINT_PROPRIETARY_MODULE, LOCKDEP_NOW_UNRELIABLE);
+
+	/* driverloader was caught wrongly pretending to be under GPL */
+	if (strcmp(mod->name, "driverloader") == 0)
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
+				 LOCKDEP_NOW_UNRELIABLE);
+
+	/* lve claims to be GPL but upstream won't provide source */
+	if (strcmp(mod->name, "lve") == 0)
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
+				 LOCKDEP_NOW_UNRELIABLE);
+
+	if (!prev_taint && test_taint(TAINT_PROPRIETARY_MODULE))
+		pr_warn("%s: module license taints kernel.\n", mod->name);
+
 }
 
 static int check_modinfo(struct module *mod, struct load_info *info, int flags)
@@ -2198,29 +2222,6 @@ out_enomem:
 
 static int check_module_license_and_versions(struct module *mod)
 {
-	int prev_taint = test_taint(TAINT_PROPRIETARY_MODULE);
-
-	/*
-	 * ndiswrapper is under GPL by itself, but loads proprietary modules.
-	 * Don't use add_taint_module(), as it would prevent ndiswrapper from
-	 * using GPL-only symbols it needs.
-	 */
-	if (strcmp(mod->name, "ndiswrapper") == 0)
-		add_taint(TAINT_PROPRIETARY_MODULE, LOCKDEP_NOW_UNRELIABLE);
-
-	/* driverloader was caught wrongly pretending to be under GPL */
-	if (strcmp(mod->name, "driverloader") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
-				 LOCKDEP_NOW_UNRELIABLE);
-
-	/* lve claims to be GPL but upstream won't provide source */
-	if (strcmp(mod->name, "lve") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
-				 LOCKDEP_NOW_UNRELIABLE);
-
-	if (!prev_taint && test_taint(TAINT_PROPRIETARY_MODULE))
-		pr_warn("%s: module license taints kernel.\n", mod->name);
-
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs) ||
 	    (mod->num_gpl_syms && !mod->gpl_crcs)) {
@@ -2772,11 +2773,6 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/*
 	 * We are tainting your kernel if your module gets into
 	 * the modules linked list somehow.
-	 *
-	 * We have a descrepancy though, see the other taints for
-	 * signature and those in check_module_license_and_versions().
-	 *
-	 * We should compromise and converge.
 	 */
 	module_augment_kernel_taints(mod, info);
 
