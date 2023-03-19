@@ -572,15 +572,15 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry->ptr);
 
-		if (c->opts.reconstruct_alloc ||
-		    fsck_err_on(!g->gen_valid, c,
-				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
+		if (!g->gen_valid &&
+		    (c->opts.reconstruct_alloc ||
+		     fsck_err(c, "bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
+			      "while marking %s",
+			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      p.ptr.gen,
+			      (printbuf_reset(&buf),
+			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))) {
 			if (!p.ptr.cached) {
 				g->gen_valid		= true;
 				g->gen			= p.ptr.gen;
@@ -589,14 +589,15 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			}
 		}
 
-		if (fsck_err_on(gen_cmp(p.ptr.gen, g->gen) > 0, c,
-				"bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen, g->gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
+		if (gen_cmp(p.ptr.gen, g->gen) > 0 &&
+		    (c->opts.reconstruct_alloc ||
+		     fsck_err(c, "bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
+			      "while marking %s",
+			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      p.ptr.gen, g->gen,
+			      (printbuf_reset(&buf),
+			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))) {
 			if (!p.ptr.cached) {
 				g->gen_valid		= true;
 				g->gen			= p.ptr.gen;
@@ -609,25 +610,26 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			}
 		}
 
-		if (fsck_err_on(gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX, c,
-				"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
-				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
+		if (gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX &&
+		    (c->opts.reconstruct_alloc ||
+		     fsck_err(c, "bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
+			      "while marking %s",
+			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
+			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      p.ptr.gen,
+			      (printbuf_reset(&buf),
+			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf))))
 			do_update = true;
 
-		if (fsck_err_on(!p.ptr.cached &&
-				gen_cmp(p.ptr.gen, g->gen) < 0, c,
-				"bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen, g->gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
+		if (!p.ptr.cached && gen_cmp(p.ptr.gen, g->gen) < 0 &&
+		    (c->opts.reconstruct_alloc ||
+		     fsck_err(c, "bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
+			      "while marking %s",
+			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      p.ptr.gen, g->gen,
+			      (printbuf_reset(&buf),
+			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf))))
 			do_update = true;
 
 		if (data_type != BCH_DATA_btree && p.ptr.gen != g->gen)
@@ -757,7 +759,7 @@ found:
 		if (level)
 			bch2_btree_node_update_key_early(trans, btree_id, level - 1, *k, new);
 
-		if (c->opts.verbose) {
+		if (0) {
 			printbuf_reset(&buf);
 			bch2_bkey_val_to_text(&buf, c, *k);
 			bch_info(c, "updated %s", buf.buf);

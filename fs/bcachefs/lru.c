@@ -148,7 +148,8 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 			goto out;
 		}
 
-		if (fsck_err(c, "incorrect lru entry: lru %s time %llu\n"
+		if (c->opts.reconstruct_alloc ||
+		    fsck_err(c, "incorrect lru entry: lru %s time %llu\n"
 			     "  %s\n"
 			     "  for %s",
 			     bch2_lru_types[type],
