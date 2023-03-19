@@ -556,10 +556,21 @@
 #define SGMSYS_QPHY_PWR_STATE_CTRL 0xe8
 #define	SGMII_PHYA_PWD		BIT(4)
 
+/* Register to QPHY wrapper control */
+#define SGMSYS_QPHY_WRAP_CTRL	0xec
+#define SGMII_PN_SWAP_MASK	GENMASK(1, 0)
+#define SGMII_PN_SWAP_TX_RX	(BIT(0) | BIT(1))
+#define MTK_SGMII_FLAG_PN_SWAP	BIT(0)
+
 /* Infrasys subsystem config registers */
 #define INFRA_MISC2            0x70c
 #define CO_QPHY_SEL            BIT(0)
 #define GEPHY_MAC_SEL          BIT(1)
+
+/* Top misc registers */
+#define USB_PHY_SWITCH_REG	0x218
+#define QPHY_SEL_MASK		GENMASK(1, 0)
+#define SGMII_QPHY_SEL		0x2
 
 /* MT7628/88 specific stuff */
 #define MT7628_PDMA_OFFSET	0x0800
@@ -741,6 +752,17 @@ enum mtk_clks_map {
 				 BIT(MTK_CLK_SGMII2_CDR_FB) | \
 				 BIT(MTK_CLK_SGMII_CK) | \
 				 BIT(MTK_CLK_ETH2PLL) | BIT(MTK_CLK_SGMIITOP))
+#define MT7981_CLKS_BITMAP	(BIT(MTK_CLK_FE) | BIT(MTK_CLK_GP2) | BIT(MTK_CLK_GP1) | \
+				 BIT(MTK_CLK_WOCPU0) | \
+				 BIT(MTK_CLK_SGMII_TX_250M) | \
+				 BIT(MTK_CLK_SGMII_RX_250M) | \
+				 BIT(MTK_CLK_SGMII_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII2_TX_250M) | \
+				 BIT(MTK_CLK_SGMII2_RX_250M) | \
+				 BIT(MTK_CLK_SGMII2_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII2_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII_CK))
 #define MT7986_CLKS_BITMAP	(BIT(MTK_CLK_FE) | BIT(MTK_CLK_GP2) | BIT(MTK_CLK_GP1) | \
 				 BIT(MTK_CLK_WOCPU1) | BIT(MTK_CLK_WOCPU0) | \
 				 BIT(MTK_CLK_SGMII_TX_250M) | \
@@ -854,6 +876,7 @@ enum mkt_eth_capabilities {
 	MTK_NETSYS_V2_BIT,
 	MTK_SOC_MT7628_BIT,
 	MTK_RSTCTRL_PPE1_BIT,
+	MTK_U3_COPHY_V2_BIT,
 
 	/* MUX BITS*/
 	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
@@ -888,6 +911,7 @@ enum mkt_eth_capabilities {
 #define MTK_NETSYS_V2		BIT(MTK_NETSYS_V2_BIT)
 #define MTK_SOC_MT7628		BIT(MTK_SOC_MT7628_BIT)
 #define MTK_RSTCTRL_PPE1	BIT(MTK_RSTCTRL_PPE1_BIT)
+#define MTK_U3_COPHY_V2		BIT(MTK_U3_COPHY_V2_BIT)
 
 #define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
 	BIT(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
@@ -959,6 +983,11 @@ enum mkt_eth_capabilities {
 		      MTK_MUX_GMAC2_GMAC0_TO_GEPHY | \
 		      MTK_MUX_U3_GMAC2_TO_QPHY | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA)
+
+#define MT7981_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC2_GEPHY | \
+		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
+		      MTK_MUX_U3_GMAC2_TO_QPHY | MTK_U3_COPHY_V2 | \
+		      MTK_NETSYS_V2 | MTK_RSTCTRL_PPE1)
 
 #define MT7986_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
@@ -1073,12 +1102,14 @@ struct mtk_soc_data {
  * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
  * @interface:         Currently configured interface mode
  * @pcs:               Phylink PCS structure
+ * @flags:             Flags indicating hardware properties
  */
 struct mtk_pcs {
 	struct regmap	*regmap;
 	u32             ana_rgc3;
 	phy_interface_t	interface;
 	struct phylink_pcs pcs;
+	u32		flags;
 };
 
 /* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
