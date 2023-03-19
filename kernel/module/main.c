@@ -1017,7 +1017,7 @@ int try_to_force_load(struct module *mod, const char *reason)
 }
 
 /* Parse tag=value strings from .modinfo section */
-static char *next_string(char *string, unsigned long *secsize)
+char *module_next_tag_pair(char *string, unsigned long *secsize)
 {
 	/* Skip non-zero chars */
 	while (string[0]) {
@@ -1051,10 +1051,10 @@ static char *get_next_modinfo(const struct load_info *info, const char *tag,
 
 	if (prev) {
 		size -= prev - modinfo;
-		modinfo = next_string(prev, &size);
+		modinfo = module_next_tag_pair(prev, &size);
 	}
 
-	for (p = modinfo; p; p = next_string(p, &size)) {
+	for (p = modinfo; p; p = module_next_tag_pair(p, &size)) {
 		if (strncmp(p, tag, taglen) == 0 && p[taglen] == '=')
 			return p + taglen + 1;
 	}
