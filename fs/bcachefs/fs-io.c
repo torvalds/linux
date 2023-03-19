@@ -3592,37 +3592,34 @@ err:
 	return vfs_setpos(file, next_data, MAX_LFS_FILESIZE);
 }
 
-static int __folio_hole_offset(struct folio *folio, unsigned offset)
+static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
 {
-	struct bch_folio *s = bch2_folio(folio);
-	unsigned i;
-
-	if (!s)
-		return 0;
-
-	for (i = offset >> 9; i < PAGE_SECTORS; i++)
-		if (s->s[i].state < SECTOR_DIRTY)
-			return i << 9;
-
-	return -1;
-}
-
-static loff_t folio_hole_offset(struct address_space *mapping, loff_t offset)
-{
-	pgoff_t index = offset >> PAGE_SHIFT;
 	struct folio *folio;
-	int folio_offset;
-	loff_t ret = -1;
+	struct bch_folio *s;
+	unsigned i, sectors, f_offset;
+	bool ret = true;
 
-	folio = filemap_lock_folio(mapping, index);
+	folio = filemap_lock_folio(mapping, *offset >> PAGE_SHIFT);
 	if (!folio)
-		return offset;
+		return true;
 
-	folio_offset = __folio_hole_offset(folio, offset & (folio_size(folio) - 1));
-	if (folio_offset >= 0)
-		ret = folio_pos(folio) + folio_offset;
+	s = bch2_folio(folio);
+	if (!s)
+		goto unlock;
+
+	sectors = folio_sectors(folio);
+	f_offset = *offset - folio_pos(folio);
+
+	for (i = f_offset >> 9; i < sectors; i++)
+		if (s->s[i].state < SECTOR_DIRTY) {
+			*offset = max(*offset, folio_pos(folio) + (i << 9));
+			goto unlock;
+		}
+
+	*offset = folio_end_pos(folio);
+	ret = false;
+unlock:
 	folio_unlock(folio);
-
 	return ret;
 }
 
@@ -3631,18 +3628,13 @@ static loff_t bch2_seek_pagecache_hole(struct inode *vinode,
 				       loff_t end_offset)
 {
 	struct address_space *mapping = vinode->i_mapping;
-	loff_t offset = start_offset, hole;
+	loff_t offset = start_offset;
 
-	while (offset < end_offset) {
-		hole = folio_hole_offset(mapping, offset);
-		if (hole >= 0 && hole <= end_offset)
-			return max(start_offset, hole);
+	while (offset < end_offset &&
+	       !folio_hole_offset(mapping, &offset))
+		;
 
-		offset += PAGE_SIZE;
-		offset &= PAGE_MASK;
-	}
-
-	return end_offset;
+	return min(offset, end_offset);
 }
 
 static loff_t bch2_seek_hole(struct file *file, u64 offset)
