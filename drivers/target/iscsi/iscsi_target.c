@@ -26,6 +26,7 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 
+#include <target/target_core_backend.h>
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_seq_pdu_list.h"
@@ -4235,6 +4236,16 @@ static void iscsit_release_commands_from_conn(struct iscsit_conn *conn)
 					       &conn->conn_cmd_list);
 		} else {
 			se_cmd->transport_state |= CMD_T_FABRIC_STOP;
+		}
+
+		if (cmd->se_cmd.t_state == TRANSPORT_WRITE_PENDING) {
+			/*
+			 * We never submitted the cmd to LIO core, so we have
+			 * to tell LIO to perform the completion process.
+			 */
+			spin_unlock_irq(&se_cmd->t_state_lock);
+			target_complete_cmd(&cmd->se_cmd, SAM_STAT_TASK_ABORTED);
+			continue;
 		}
 		spin_unlock_irq(&se_cmd->t_state_lock);
 	}
