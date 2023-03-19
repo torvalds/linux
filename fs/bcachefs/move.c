@@ -629,6 +629,8 @@ void bch2_verify_bucket_evacuated(struct btree_trans *trans, struct bpos bucket,
 	u64 bp_offset = 0;
 	int ret;
 
+	bch2_trans_begin(trans);
+
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
 			     bucket, BTREE_ITER_CACHED);
 again:
@@ -649,6 +651,7 @@ again:
 		}
 	}
 
+	set_btree_iter_dontneed(&iter);
 	bch2_trans_iter_exit(trans, &iter);
 	return;
 failed_to_evacuate:
