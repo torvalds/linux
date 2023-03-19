@@ -98,6 +98,9 @@ size_t module_flags_taint(unsigned long taints, char *buf);
 
 char *module_next_tag_pair(char *string, unsigned long *secsize);
 
+#define for_each_modinfo_entry(entry, info, name) \
+	for (entry = get_modinfo(info, name); entry; entry = get_next_modinfo(info, name, entry))
+
 static inline void module_assert_mutex_or_preempt(void)
 {
 #ifdef CONFIG_LOCKDEP
