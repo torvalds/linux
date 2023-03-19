@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2002 Richard Henderson
  * Copyright (C) 2001 Rusty Russell, 2002, 2010 Rusty Russell IBM.
+ * Copyright (C) 2023 Luis Chamberlain <mcgrof@kernel.org>
  */
 
 #define INCLUDE_VERMAGIC
@@ -1656,6 +1657,7 @@ static int elf_validity_check(struct load_info *info)
 	unsigned int i;
 	Elf_Shdr *shdr, *strhdr;
 	int err;
+	unsigned int num_mod_secs = 0, mod_idx;
 
 	if (info->len < sizeof(*(info->hdr))) {
 		pr_err("Invalid ELF header len %lu\n", info->len);
@@ -1767,6 +1769,11 @@ static int elf_validity_check(struct load_info *info)
 					i, shdr->sh_type);
 				return err;
 			}
+			if (strcmp(info->secstrings + shdr->sh_name,
+				   ".gnu.linkonce.this_module") == 0) {
+				num_mod_secs++;
+				mod_idx = i;
+			}
 
 			if (shdr->sh_flags & SHF_ALLOC) {
 				if (shdr->sh_name >= strhdr->sh_size) {
@@ -1778,6 +1785,52 @@ static int elf_validity_check(struct load_info *info)
 			break;
 		}
 	}
+
+	/*
+	 * The ".gnu.linkonce.this_module" ELF section is special. It is
+	 * what modpost uses to refer to __this_module and let's use rely
+	 * on THIS_MODULE to point to &__this_module properly. The kernel's
+	 * modpost declares it on each modules's *.mod.c file. If the struct
+	 * module of the kernel changes a full kernel rebuild is required.
+	 *
+	 * We have a few expectaions for this special section, the following
+	 * code validates all this for us:
+	 *
+	 *   o Only one section must exist
+	 *   o We expect the kernel to always have to allocate it: SHF_ALLOC
+	 *   o The section size must match the kernel's run time's struct module
+	 *     size
+	 */
+	if (num_mod_secs != 1) {
+		pr_err("Only one .gnu.linkonce.this_module section must exist.\n");
+		goto no_exec;
+	}
+
+	shdr = &info->sechdrs[mod_idx];
+
+	/*
+	 * This is already implied on the switch above, however let's be
+	 * pedantic about it.
+	 */
+	if (shdr->sh_type == SHT_NOBITS) {
+		pr_err(".gnu.linkonce.this_module section must have a size set\n");
+		goto no_exec;
+	}
+
+	if (!(shdr->sh_flags & SHF_ALLOC)) {
+		pr_err(".gnu.linkonce.this_module must occupy memory during process execution\n");
+		goto no_exec;
+	}
+
+	if (shdr->sh_size != sizeof(struct module)) {
+		pr_err(".gnu.linkonce.this_module section size must match the kernel's built struct module size at run time\n");
+		goto no_exec;
+	}
+
+	info->index.mod = mod_idx;
+
+	/* This is temporary: point mod into copy of data. */
+	info->mod = (void *)info->hdr + shdr->sh_offset;
 
 	return 0;
 
@@ -1924,15 +1977,6 @@ static int setup_load_info(struct load_info *info, int flags)
 			info->name ?: "(missing .modinfo section or name field)");
 		return -ENOEXEC;
 	}
-
-	info->index.mod = find_sec(info, ".gnu.linkonce.this_module");
-	if (!info->index.mod) {
-		pr_warn("%s: No module found in object\n",
-			info->name ?: "(missing .modinfo section or name field)");
-		return -ENOEXEC;
-	}
-	/* This is temporary: point mod into copy of data. */
-	info->mod = (void *)info->hdr + info->sechdrs[info->index.mod].sh_offset;
 
 	/*
 	 * If we didn't load the .modinfo 'name' field earlier, fall back to
