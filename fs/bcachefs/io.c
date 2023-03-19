@@ -1481,7 +1481,7 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_ptrs_c ptrs;
-	const struct bch_extent_ptr *ptr, *ptr2;
+	const struct bch_extent_ptr *ptr;
 	struct {
 		struct bpos	b;
 		unsigned	gen;
@@ -1536,10 +1536,11 @@ retry:
 						  bucket_to_u64(buckets[nr_buckets].b));
 
 			prefetch(buckets[nr_buckets].l);
-			nr_buckets++;
 
 			if (unlikely(!bch2_dev_get_ioref(bch_dev_bkey_exists(c, ptr->dev), WRITE)))
 				goto err_get_ioref;
+
+			nr_buckets++;
 
 			if (ptr->unwritten)
 				op->flags |= BCH_WRITE_CONVERT_UNWRITTEN;
@@ -1631,12 +1632,8 @@ err:
 	}
 	return;
 err_get_ioref:
-	bkey_for_each_ptr(ptrs, ptr2) {
-		if (ptr2 == ptr)
-			break;
-
-		percpu_ref_put(&bch_dev_bkey_exists(c, ptr2->dev)->io_ref);
-	}
+	for (i = 0; i < nr_buckets; i++)
+		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
 
 	/* Fall back to COW path: */
 	goto out;
@@ -1645,9 +1642,8 @@ err_bucket_stale:
 		bch2_bucket_nocow_unlock(&c->nocow_locks,
 					 buckets[i].b,
 					 BUCKET_NOCOW_LOCK_UPDATE);
-
-	bkey_for_each_ptr(ptrs, ptr2)
-		percpu_ref_put(&bch_dev_bkey_exists(c, ptr2->dev)->io_ref);
+	for (i = 0; i < nr_buckets; i++)
+		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
 
 	/* We can retry this: */
 	ret = BCH_ERR_transaction_restart;
