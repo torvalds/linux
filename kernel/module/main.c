@@ -2220,7 +2220,7 @@ out_enomem:
 	return -ENOMEM;
 }
 
-static int check_module_license_and_versions(struct module *mod)
+static int check_export_symbol_versions(struct module *mod)
 {
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs) ||
@@ -2796,7 +2796,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	if (err)
 		goto free_unload;
 
-	err = check_module_license_and_versions(mod);
+	err = check_export_symbol_versions(mod);
 	if (err)
 		goto free_unload;
 
