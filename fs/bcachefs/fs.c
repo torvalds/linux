@@ -1369,6 +1369,8 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 		inode->v.i_op	= &bch_special_inode_operations;
 		break;
 	}
+
+	mapping_set_large_folios(inode->v.i_mapping);
 }
 
 static struct inode *bch2_alloc_inode(struct super_block *sb)
