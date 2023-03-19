@@ -517,7 +517,7 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx,
 	if (likely(!(skb->dev->features & NETIF_F_RXFCS)))
 		skb_trim(skb, skb->len - ETH_FCS_LEN);
 
-	lan966x_ptp_rxtstamp(lan966x, skb, timestamp);
+	lan966x_ptp_rxtstamp(lan966x, skb, src_port, timestamp);
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
 	if (lan966x->bridge_mask & BIT(src_port)) {
