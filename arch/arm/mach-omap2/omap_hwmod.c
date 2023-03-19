@@ -706,9 +706,7 @@ static const struct of_device_id ti_clkctrl_match_table[] __initconst = {
 
 static int __init _setup_clkctrl_provider(struct device_node *np)
 {
-	const __be32 *addrp;
 	struct clkctrl_provider *provider;
-	u64 size;
 	int i;
 
 	provider = memblock_alloc(sizeof(*provider), SMP_CACHE_BYTES);
@@ -717,8 +715,7 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
 
 	provider->node = np;
 
-	provider->num_addrs =
-		of_property_count_elems_of_size(np, "reg", sizeof(u32)) / 2;
+	provider->num_addrs = of_address_count(np);
 
 	provider->addr =
 		memblock_alloc(sizeof(void *) * provider->num_addrs,
@@ -733,11 +730,11 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
 		return -ENOMEM;
 
 	for (i = 0; i < provider->num_addrs; i++) {
-		addrp = of_get_address(np, i, &size, NULL);
-		provider->addr[i] = (u32)of_translate_address(np, addrp);
-		provider->size[i] = size;
-		pr_debug("%s: %pOF: %x...%x\n", __func__, np, provider->addr[i],
-			 provider->addr[i] + provider->size[i]);
+		struct resource res;
+		of_address_to_resource(np, i, &res);
+		provider->addr[i] = res.start;
+		provider->size[i] = resource_size(&res);
+		pr_debug("%s: %pOF: %pR\n", __func__, np, &res);
 	}
 
 	list_add(&provider->link, &clkctrl_providers);
