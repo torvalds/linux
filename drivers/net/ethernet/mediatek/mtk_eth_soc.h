@@ -510,65 +510,6 @@
 #define ETHSYS_DMA_AG_MAP_QDMA	BIT(1)
 #define ETHSYS_DMA_AG_MAP_PPE	BIT(2)
 
-/* SGMII subsystem config registers */
-/* BMCR (low 16) BMSR (high 16) */
-#define SGMSYS_PCS_CONTROL_1	0x0
-#define SGMII_BMCR		GENMASK(15, 0)
-#define SGMII_BMSR		GENMASK(31, 16)
-#define SGMII_AN_RESTART	BIT(9)
-#define SGMII_ISOLATE		BIT(10)
-#define SGMII_AN_ENABLE		BIT(12)
-#define SGMII_LINK_STATYS	BIT(18)
-#define SGMII_AN_ABILITY	BIT(19)
-#define SGMII_AN_COMPLETE	BIT(21)
-#define SGMII_PCS_FAULT		BIT(23)
-#define SGMII_AN_EXPANSION_CLR	BIT(30)
-
-#define SGMSYS_PCS_ADVERTISE	0x8
-#define SGMII_ADVERTISE		GENMASK(15, 0)
-#define SGMII_LPA		GENMASK(31, 16)
-
-/* Register to programmable link timer, the unit in 2 * 8ns */
-#define SGMSYS_PCS_LINK_TIMER	0x18
-#define SGMII_LINK_TIMER_MASK	GENMASK(19, 0)
-#define SGMII_LINK_TIMER_DEFAULT	(0x186a0 & SGMII_LINK_TIMER_MASK)
-
-/* Register to control remote fault */
-#define SGMSYS_SGMII_MODE		0x20
-#define SGMII_IF_MODE_SGMII		BIT(0)
-#define SGMII_SPEED_DUPLEX_AN		BIT(1)
-#define SGMII_SPEED_MASK		GENMASK(3, 2)
-#define SGMII_SPEED_10			FIELD_PREP(SGMII_SPEED_MASK, 0)
-#define SGMII_SPEED_100			FIELD_PREP(SGMII_SPEED_MASK, 1)
-#define SGMII_SPEED_1000		FIELD_PREP(SGMII_SPEED_MASK, 2)
-#define SGMII_DUPLEX_HALF		BIT(4)
-#define SGMII_IF_MODE_BIT5		BIT(5)
-#define SGMII_REMOTE_FAULT_DIS		BIT(8)
-#define SGMII_CODE_SYNC_SET_VAL		BIT(9)
-#define SGMII_CODE_SYNC_SET_EN		BIT(10)
-#define SGMII_SEND_AN_ERROR_EN		BIT(11)
-#define SGMII_IF_MODE_MASK		GENMASK(5, 1)
-
-/* Register to reset SGMII design */
-#define SGMII_RESERVED_0	0x34
-#define SGMII_SW_RESET		BIT(0)
-
-/* Register to set SGMII speed, ANA RG_ Control Signals III*/
-#define SGMSYS_ANA_RG_CS3	0x2028
-#define RG_PHY_SPEED_MASK	(BIT(2) | BIT(3))
-#define RG_PHY_SPEED_1_25G	0x0
-#define RG_PHY_SPEED_3_125G	BIT(2)
-
-/* Register to power up QPHY */
-#define SGMSYS_QPHY_PWR_STATE_CTRL 0xe8
-#define	SGMII_PHYA_PWD		BIT(4)
-
-/* Register to QPHY wrapper control */
-#define SGMSYS_QPHY_WRAP_CTRL	0xec
-#define SGMII_PN_SWAP_MASK	GENMASK(1, 0)
-#define SGMII_PN_SWAP_TX_RX	(BIT(0) | BIT(1))
-#define MTK_SGMII_FLAG_PN_SWAP	BIT(0)
-
 /* Infrasys subsystem config registers */
 #define INFRA_MISC2            0x70c
 #define CO_QPHY_SEL            BIT(0)
@@ -1105,31 +1046,6 @@ struct mtk_soc_data {
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
 
-/* struct mtk_pcs -    This structure holds each sgmii regmap and associated
- *                     data
- * @regmap:            The register map pointing at the range used to setup
- *                     SGMII modes
- * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
- * @interface:         Currently configured interface mode
- * @pcs:               Phylink PCS structure
- * @flags:             Flags indicating hardware properties
- */
-struct mtk_pcs {
-	struct regmap	*regmap;
-	u32             ana_rgc3;
-	phy_interface_t	interface;
-	struct phylink_pcs pcs;
-	u32		flags;
-};
-
-/* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
- *                     characteristics
- * @pcs                Array of individual PCS structures
- */
-struct mtk_sgmii {
-	struct mtk_pcs	pcs[MTK_MAX_DEVS];
-};
-
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
  * @dev:		The device pointer
@@ -1149,6 +1065,7 @@ struct mtk_sgmii {
  *			MII modes
  * @infra:              The register map pointing at the range used to setup
  *                      SGMII and GePHY path
+ * @sgmii_pcs:		Pointers to mtk-pcs-lynxi phylink_pcs instances
  * @pctl:		The register map pointing at the range used to setup
  *			GMAC port drive/slew values
  * @dma_refcnt:		track how many netdevs are using the DMA engine
@@ -1189,8 +1106,8 @@ struct mtk_eth {
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
-	struct regmap                   *infra;
-	struct mtk_sgmii                *sgmii;
+	struct regmap			*infra;
+	struct phylink_pcs		*sgmii_pcs[MTK_MAX_DEVS];
 	struct regmap			*pctl;
 	bool				hwlro;
 	refcount_t			dma_refcnt;
@@ -1351,10 +1268,6 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
-
-struct phylink_pcs *mtk_sgmii_select_pcs(struct mtk_sgmii *ss, int id);
-int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
-		   u32 ana_rgc3);
 
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);

@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/pinctrl/devinfo.h>
 #include <linux/phylink.h>
+#include <linux/pcs/pcs-mtk-lynxi.h>
 #include <linux/jhash.h>
 #include <linux/bitfield.h>
 #include <net/dsa.h>
@@ -437,7 +438,7 @@ static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
 		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
 		       0 : mac->id;
 
-		return mtk_sgmii_select_pcs(eth->sgmii, sid);
+		return eth->sgmii_pcs[sid];
 	}
 
 	return NULL;
@@ -4053,8 +4054,17 @@ static int mtk_unreg_dev(struct mtk_eth *eth)
 	return 0;
 }
 
+static void mtk_sgmii_destroy(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++)
+		mtk_pcs_lynxi_destroy(eth->sgmii_pcs[i]);
+}
+
 static int mtk_cleanup(struct mtk_eth *eth)
 {
+	mtk_sgmii_destroy(eth);
 	mtk_unreg_dev(eth);
 	mtk_free_dev(eth);
 	cancel_work_sync(&eth->pending_work);
@@ -4500,6 +4510,36 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev)
 	rtnl_unlock();
 }
 
+static int mtk_sgmii_init(struct mtk_eth *eth)
+{
+	struct device_node *np;
+	struct regmap *regmap;
+	u32 flags;
+	int i;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		np = of_parse_phandle(eth->dev->of_node, "mediatek,sgmiisys", i);
+		if (!np)
+			break;
+
+		regmap = syscon_node_to_regmap(np);
+		flags = 0;
+		if (of_property_read_bool(np, "mediatek,pnswap"))
+			flags |= MTK_SGMII_FLAG_PN_SWAP;
+
+		of_node_put(np);
+
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
+
+		eth->sgmii_pcs[i] = mtk_pcs_lynxi_create(eth->dev, regmap,
+							 eth->soc->ana_rgc3,
+							 flags);
+	}
+
+	return 0;
+}
+
 static int mtk_probe(struct platform_device *pdev)
 {
 	struct resource *res = NULL;
@@ -4563,13 +4603,7 @@ static int mtk_probe(struct platform_device *pdev)
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
-		eth->sgmii = devm_kzalloc(eth->dev, sizeof(*eth->sgmii),
-					  GFP_KERNEL);
-		if (!eth->sgmii)
-			return -ENOMEM;
-
-		err = mtk_sgmii_init(eth->sgmii, pdev->dev.of_node,
-				     eth->soc->ana_rgc3);
+		err = mtk_sgmii_init(eth);
 
 		if (err)
 			return err;
@@ -4580,14 +4614,17 @@ static int mtk_probe(struct platform_device *pdev)
 							    "mediatek,pctl");
 		if (IS_ERR(eth->pctl)) {
 			dev_err(&pdev->dev, "no pctl regmap found\n");
-			return PTR_ERR(eth->pctl);
+			err = PTR_ERR(eth->pctl);
+			goto err_destroy_sgmii;
 		}
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -EINVAL;
+		if (!res) {
+			err = -EINVAL;
+			goto err_destroy_sgmii;
+		}
 	}
 
 	if (eth->soc->offload_version) {
@@ -4746,6 +4783,8 @@ err_deinit_hw:
 	mtk_hw_deinit(eth);
 err_wed_exit:
 	mtk_wed_exit();
+err_destroy_sgmii:
+	mtk_sgmii_destroy(eth);
 
 	return err;
 }
