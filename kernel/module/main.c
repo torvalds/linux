@@ -2213,7 +2213,8 @@ static int move_module(struct module *mod, struct load_info *info)
 {
 	int i;
 	void *ptr;
-	enum mod_mem_type t;
+	enum mod_mem_type t = 0;
+	int ret = -ENOMEM;
 
 	for_each_mod_mem_type(type) {
 		if (!mod->mem[type].size) {
@@ -2249,9 +2250,26 @@ static int move_module(struct module *mod, struct load_info *info)
 
 		dest = mod->mem[type].base + (shdr->sh_entsize & SH_ENTSIZE_OFFSET_MASK);
 
-		if (shdr->sh_type != SHT_NOBITS)
+		if (shdr->sh_type != SHT_NOBITS) {
+			/*
+			 * Our ELF checker already validated this, but let's
+			 * be pedantic and make the goal clearer. We actually
+			 * end up copying over all modifications made to the
+			 * userspace copy of the entire struct module.
+			 */
+			if (i == info->index.mod &&
+			   (WARN_ON_ONCE(shdr->sh_size != sizeof(struct module)))) {
+				ret = -ENOEXEC;
+				goto out_enomem;
+			}
 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
-		/* Update sh_addr to point to copy in image. */
+		}
+		/*
+		 * Update the userspace copy's ELF section address to point to
+		 * our newly allocated memory as a pure convenience so that
+		 * users of info can keep taking advantage and using the newly
+		 * minted official memory area.
+		 */
 		shdr->sh_addr = (unsigned long)dest;
 		pr_debug("\t0x%lx %s\n",
 			 (long)shdr->sh_addr, info->secstrings + shdr->sh_name);
@@ -2261,7 +2279,7 @@ static int move_module(struct module *mod, struct load_info *info)
 out_enomem:
 	for (t--; t >= 0; t--)
 		module_memory_free(mod->mem[t].base, t);
-	return -ENOMEM;
+	return ret;
 }
 
 static int check_export_symbol_versions(struct module *mod)
