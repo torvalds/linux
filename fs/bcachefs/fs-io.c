@@ -2696,8 +2696,8 @@ err:
 	return ret;
 }
 
-static int __bch2_truncate_page(struct bch_inode_info *inode,
-				pgoff_t index, loff_t start, loff_t end)
+static int __bch2_truncate_folio(struct bch_inode_info *inode,
+				 pgoff_t index, loff_t start, loff_t end)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
@@ -2708,15 +2708,6 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 	struct folio *folio;
 	s64 i_sectors_delta = 0;
 	int ret = 0;
-
-	/* Page boundary? Nothing to do */
-	if (!((index == start >> PAGE_SHIFT && start_offset) ||
-	      (index == end >> PAGE_SHIFT && end_offset != PAGE_SIZE)))
-		return 0;
-
-	/* Above i_size? */
-	if (index << PAGE_SHIFT >= inode->v.i_size)
-		return 0;
 
 	folio = filemap_lock_folio(mapping, index);
 	if (!folio) {
@@ -2738,6 +2729,19 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 		}
 	}
 
+	BUG_ON(start	>= folio_end_pos(folio));
+	BUG_ON(end	<= folio_pos(folio));
+
+	start_offset	= max(start, folio_pos(folio)) - folio_pos(folio);
+	end_offset	= min(end, folio_end_pos(folio)) - folio_pos(folio);
+
+	/* Folio boundary? Nothing to do */
+	if (start_offset == 0 &&
+	    end_offset == folio_size(folio)) {
+		ret = 0;
+		goto unlock;
+	}
+
 	s = bch2_folio_create(folio, 0);
 	if (!s) {
 		ret = -ENOMEM;
@@ -2751,11 +2755,6 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 	}
 
 	BUG_ON(!s->uptodate);
-
-	if (index != start >> PAGE_SHIFT)
-		start_offset = 0;
-	if (index != end >> PAGE_SHIFT)
-		end_offset = PAGE_SIZE;
 
 	for (i = round_up(start_offset, block_bytes(c)) >> 9;
 	     i < round_down(end_offset, block_bytes(c)) >> 9;
@@ -2773,8 +2772,8 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 	 * writeback - doing an i_size update if necessary - or whether it will
 	 * be responsible for the i_size update:
 	 */
-	ret = s->s[(min_t(u64, inode->v.i_size - (index << PAGE_SHIFT),
-			  PAGE_SIZE) - 1) >> 9].state >= SECTOR_DIRTY;
+	ret = s->s[(min(inode->v.i_size, folio_end_pos(folio)) -
+		    folio_pos(folio) - 1) >> 9].state >= SECTOR_DIRTY;
 
 	folio_zero_segment(folio, start_offset, end_offset);
 
@@ -2800,23 +2799,23 @@ out:
 	return ret;
 }
 
-static int bch2_truncate_page(struct bch_inode_info *inode, loff_t from)
+static int bch2_truncate_folio(struct bch_inode_info *inode, loff_t from)
 {
-	return __bch2_truncate_page(inode, from >> PAGE_SHIFT,
-				    from, round_up(from, PAGE_SIZE));
+	return __bch2_truncate_folio(inode, from >> PAGE_SHIFT,
+				     from, ANYSINT_MAX(loff_t));
 }
 
-static int bch2_truncate_pages(struct bch_inode_info *inode,
-			       loff_t start, loff_t end)
+static int bch2_truncate_folios(struct bch_inode_info *inode,
+				loff_t start, loff_t end)
 {
-	int ret = __bch2_truncate_page(inode, start >> PAGE_SHIFT,
-				       start, end);
+	int ret = __bch2_truncate_folio(inode, start >> PAGE_SHIFT,
+					start, end);
 
 	if (ret >= 0 &&
 	    start >> PAGE_SHIFT != end >> PAGE_SHIFT)
-		ret = __bch2_truncate_page(inode,
-					   end >> PAGE_SHIFT,
-					   start, end);
+		ret = __bch2_truncate_folio(inode,
+					(end - 1) >> PAGE_SHIFT,
+					start, end);
 	return ret;
 }
 
@@ -2911,7 +2910,7 @@ int bch2_truncate(struct mnt_idmap *idmap,
 
 	iattr->ia_valid &= ~ATTR_SIZE;
 
-	ret = bch2_truncate_page(inode, iattr->ia_size);
+	ret = bch2_truncate_folio(inode, iattr->ia_size);
 	if (unlikely(ret < 0))
 		goto err;
 
@@ -2989,7 +2988,7 @@ static long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len
 	bool truncated_last_page;
 	int ret = 0;
 
-	ret = bch2_truncate_pages(inode, offset, end);
+	ret = bch2_truncate_folios(inode, offset, end);
 	if (unlikely(ret < 0))
 		goto err;
 
@@ -3310,7 +3309,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 	}
 
 	if (mode & FALLOC_FL_ZERO_RANGE) {
-		ret = bch2_truncate_pages(inode, offset, end);
+		ret = bch2_truncate_folios(inode, offset, end);
 		if (unlikely(ret < 0))
 			return ret;
 
