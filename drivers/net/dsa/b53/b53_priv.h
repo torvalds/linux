@@ -211,6 +211,7 @@ static inline int is58xx(struct b53_device *dev)
 		dev->chip_id == BCM7278_DEVICE_ID;
 }
 
+#define B53_63XX_RGMII0	4
 #define B53_CPU_PORT_25	5
 #define B53_CPU_PORT	8
 

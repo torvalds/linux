@@ -1209,6 +1209,46 @@ static void b53_force_port_config(struct b53_device *dev, int port,
 	b53_write8(dev, B53_CTRL_PAGE, off, reg);
 }
 
+static void b53_adjust_63xx_rgmii(struct dsa_switch *ds, int port,
+				  phy_interface_t interface)
+{
+	struct b53_device *dev = ds->priv;
+	u8 rgmii_ctrl = 0, off;
+
+	if (port == dev->imp_port)
+		off = B53_RGMII_CTRL_IMP;
+	else
+		off = B53_RGMII_CTRL_P(port);
+
+	b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		rgmii_ctrl |= (RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
+		break;
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		rgmii_ctrl &= ~(RGMII_CTRL_DLL_TXC);
+		rgmii_ctrl |= RGMII_CTRL_DLL_RXC;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC);
+		rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+	default:
+		rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
+		break;
+	}
+
+	if (port != dev->imp_port)
+		rgmii_ctrl |= RGMII_CTRL_ENABLE_GMII;
+
+	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
+
+	dev_dbg(ds->dev, "Configured port %d for %s\n", port,
+		phy_modes(interface));
+}
+
 static void b53_adjust_link(struct dsa_switch *ds, int port,
 			    struct phy_device *phydev)
 {
@@ -1234,6 +1274,9 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 	b53_force_port_config(dev, port, phydev->speed, phydev->duplex,
 			      tx_pause, rx_pause);
 	b53_force_link(dev, port, phydev->link);
+
+	if (is63xx(dev) && port >= B53_63XX_RGMII0)
+		b53_adjust_63xx_rgmii(ds, port, phydev->interface);
 
 	if (is531x5(dev) && phy_interface_is_rgmii(phydev)) {
 		if (port == dev->imp_port)
@@ -1401,6 +1444,9 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 			     bool tx_pause, bool rx_pause)
 {
 	struct b53_device *dev = ds->priv;
+
+	if (is63xx(dev) && port >= B53_63XX_RGMII0)
+		b53_adjust_63xx_rgmii(ds, port, interface);
 
 	if (mode == MLO_AN_PHY)
 		return;
