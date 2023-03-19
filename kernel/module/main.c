@@ -1951,6 +1951,41 @@ static int setup_load_info(struct load_info *info, int flags)
 	return 0;
 }
 
+/*
+ * These calls taint the kernel depending certain module circumstances */
+static void module_augment_kernel_taints(struct module *mod, struct load_info *info)
+{
+	if (!get_modinfo(info, "intree")) {
+		if (!test_taint(TAINT_OOT_MODULE))
+			pr_warn("%s: loading out-of-tree module taints kernel.\n",
+				mod->name);
+		add_taint_module(mod, TAINT_OOT_MODULE, LOCKDEP_STILL_OK);
+	}
+
+	check_modinfo_retpoline(mod, info);
+
+	if (get_modinfo(info, "staging")) {
+		add_taint_module(mod, TAINT_CRAP, LOCKDEP_STILL_OK);
+		pr_warn("%s: module is from the staging directory, the quality "
+			"is unknown, you have been warned.\n", mod->name);
+	}
+
+	if (is_livepatch_module(mod)) {
+		add_taint_module(mod, TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
+		pr_notice_once("%s: tainting kernel with TAINT_LIVEPATCH\n",
+				mod->name);
+	}
+
+	module_license_taint_check(mod, get_modinfo(info, "license"));
+
+	if (get_modinfo(info, "test")) {
+		if (!test_taint(TAINT_TEST))
+			pr_warn("%s: loading test module taints kernel.\n",
+				mod->name);
+		add_taint_module(mod, TAINT_TEST, LOCKDEP_STILL_OK);
+	}
+}
+
 static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 {
 	const char *modmagic = get_modinfo(info, "vermagic");
@@ -1970,38 +2005,21 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 		return -ENOEXEC;
 	}
 
-	if (!get_modinfo(info, "intree")) {
-		if (!test_taint(TAINT_OOT_MODULE))
-			pr_warn("%s: loading out-of-tree module taints kernel.\n",
-				mod->name);
-		add_taint_module(mod, TAINT_OOT_MODULE, LOCKDEP_STILL_OK);
-	}
-
-	check_modinfo_retpoline(mod, info);
-
-	if (get_modinfo(info, "staging")) {
-		add_taint_module(mod, TAINT_CRAP, LOCKDEP_STILL_OK);
-		pr_warn("%s: module is from the staging directory, the quality "
-			"is unknown, you have been warned.\n", mod->name);
-	}
-
 	err = check_modinfo_livepatch(mod, info);
 	if (err)
 		return err;
 
-	if (is_livepatch_module(mod)) {
-		add_taint_module(mod, TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
-		pr_notice_once("%s: tainting kernel with TAINT_LIVEPATCH\n",
-				mod->name);
-	}
-	module_license_taint_check(mod, get_modinfo(info, "license"));
-
-	if (get_modinfo(info, "test")) {
-		if (!test_taint(TAINT_TEST))
-			pr_warn("%s: loading test module taints kernel.\n",
-				mod->name);
-		add_taint_module(mod, TAINT_TEST, LOCKDEP_STILL_OK);
-	}
+	/*
+	 * We are tainting your kernel *even* if you try to load
+	 * modules with possible taints and we fail to load these
+	 * modules for other reasons.
+	 *
+	 * We have a descrepancy though, see the other taints for
+	 * signature and those in check_module_license_and_versions().
+	 *
+	 * We should compromise and converge.
+	 */
+	module_augment_kernel_taints(mod, info);
 
 	return 0;
 }
