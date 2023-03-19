@@ -7893,15 +7893,8 @@ static void sdebug_driver_remove(struct device *dev)
 	scsi_host_put(sdbg_host->shost);
 }
 
-static int pseudo_lld_bus_match(struct device *dev,
-				struct device_driver *dev_driver)
-{
-	return 1;
-}
-
 static struct bus_type pseudo_lld_bus = {
 	.name = "pseudo",
-	.match = pseudo_lld_bus_match,
 	.probe = sdebug_driver_probe,
 	.remove = sdebug_driver_remove,
 	.drv_groups = sdebug_drv_groups,
