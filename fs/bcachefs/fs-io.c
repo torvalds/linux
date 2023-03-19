@@ -1719,7 +1719,17 @@ int bch2_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
-#define WRITE_BATCH_PAGES	32
+typedef DARRAY(struct folio *) folios;
+
+static noinline void folios_trunc(folios *folios, struct folio **fi)
+{
+	while (folios->data + folios->nr > fi) {
+		struct folio *f = darray_pop(folios);
+
+		folio_unlock(f);
+		folio_put(f);
+	}
+}
 
 static int __bch2_buffered_write(struct bch_inode_info *inode,
 				 struct address_space *mapping,
@@ -1727,64 +1737,73 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 				 loff_t pos, unsigned len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct folio *folios[WRITE_BATCH_PAGES];
 	struct bch2_folio_reservation res;
-	unsigned long index = pos >> PAGE_SHIFT;
-	unsigned offset = pos & (PAGE_SIZE - 1);
-	unsigned nr_folios = DIV_ROUND_UP(offset + len, PAGE_SIZE);
-	unsigned i, reserved = 0, set_dirty = 0;
-	unsigned copied = 0, nr_folios_copied = 0;
+	folios folios;
+	struct folio **fi, *f;
+	unsigned copied = 0, f_offset;
+	loff_t end = pos + len, f_pos;
 	int ret = 0;
 
 	BUG_ON(!len);
-	BUG_ON(nr_folios > ARRAY_SIZE(folios));
 
 	bch2_folio_reservation_init(c, inode, &res);
+	darray_init(&folios);
 
-	for (i = 0; i < nr_folios; i++) {
-		folios[i] = __filemap_get_folio(mapping, index + i,
-					FGP_LOCK|FGP_WRITE|FGP_CREAT|FGP_STABLE,
-					mapping_gfp_mask(mapping));
-		if (!folios[i]) {
-			nr_folios = i;
-			if (!i) {
-				ret = -ENOMEM;
-				goto out;
-			}
-			len = min_t(unsigned, len,
-				    nr_folios * PAGE_SIZE - offset);
+	f_pos = pos;
+	while (f_pos < end) {
+		unsigned fgp_flags = FGP_LOCK|FGP_WRITE|FGP_STABLE;
+
+		if ((u64) f_pos < (u64) pos + (1U << 20))
+			fgp_flags |= FGP_CREAT;
+
+		if (darray_make_room_gfp(&folios, 1,
+				mapping_gfp_mask(mapping) & GFP_KERNEL))
 			break;
-		}
+
+		f = __filemap_get_folio(mapping, f_pos >> PAGE_SHIFT,
+					fgp_flags, mapping_gfp_mask(mapping));
+		if (!f)
+			break;
+
+		BUG_ON(folios.nr && folio_pos(f) != f_pos);
+
+		f_pos = folio_end_pos(f);
+		darray_push(&folios, f);
 	}
 
-	if (offset && !folio_test_uptodate(folios[0])) {
-		ret = bch2_read_single_folio(folios[0], mapping);
+	end = min(end, f_pos);
+	if (end == pos) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	f = darray_first(folios);
+	if (pos != folio_pos(f) && !folio_test_uptodate(f)) {
+		ret = bch2_read_single_folio(f, mapping);
 		if (ret)
 			goto out;
 	}
 
-	if ((pos + len) & (PAGE_SIZE - 1) &&
-	    !folio_test_uptodate(folios[nr_folios - 1])) {
-		if ((index + nr_folios - 1) << PAGE_SHIFT >= inode->v.i_size) {
-			folio_zero_range(folios[nr_folios - 1], 0,
-					 folio_size(folios[nr_folios - 1]));
+	f = darray_last(folios);
+	if (end != folio_end_pos(f) && !folio_test_uptodate(f)) {
+		if (end >= inode->v.i_size) {
+			folio_zero_range(f, 0, folio_size(f));
 		} else {
-			ret = bch2_read_single_folio(folios[nr_folios - 1], mapping);
+			ret = bch2_read_single_folio(f, mapping);
 			if (ret)
 				goto out;
 		}
 	}
 
-	while (reserved < len) {
-		unsigned i = (offset + reserved) >> PAGE_SHIFT;
-		struct folio *folio = folios[i];
-		unsigned folio_offset = (offset + reserved) & (PAGE_SIZE - 1);
-		unsigned folio_len = min_t(unsigned, len - reserved,
-					PAGE_SIZE - folio_offset);
+	f_pos = pos;
+	f_offset = pos - folio_pos(darray_first(folios));
+	darray_for_each(folios, fi) {
+		struct folio *f = *fi;
+		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
 
-		if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate) {
-			ret = bch2_folio_set(c, inode_inum(inode),
-					     folios + i, nr_folios - i);
+		if (!bch2_folio_create(f, __GFP_NOFAIL)->uptodate) {
+			ret = bch2_folio_set(c, inode_inum(inode), fi,
+					     folios.data + folios.nr - fi);
 			if (ret)
 				goto out;
 		}
@@ -1797,78 +1816,89 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		 * we aren't completely out of disk space - we don't do that
 		 * yet:
 		 */
-		ret = bch2_folio_reservation_get(c, inode, folio, &res,
-						 folio_offset, folio_len);
+		ret = bch2_folio_reservation_get(c, inode, f, &res, f_offset, f_len);
 		if (unlikely(ret)) {
-			if (!reserved)
+			folios_trunc(&folios, fi);
+			if (!folios.nr)
 				goto out;
+
+			end = min(end, folio_end_pos(darray_last(folios)));
 			break;
 		}
 
-		reserved += folio_len;
+		f_pos = folio_end_pos(f);
+		f_offset = 0;
 	}
 
 	if (mapping_writably_mapped(mapping))
-		for (i = 0; i < nr_folios; i++)
-			flush_dcache_folio(folios[i]);
+		darray_for_each(folios, fi)
+			flush_dcache_folio(*fi);
 
-	while (copied < reserved) {
-		struct folio *folio = folios[(offset + copied) >> PAGE_SHIFT];
-		unsigned folio_offset = (offset + copied) & (PAGE_SIZE - 1);
-		unsigned folio_len = min_t(unsigned, reserved - copied,
-					PAGE_SIZE - folio_offset);
-		unsigned folio_copied = copy_page_from_iter_atomic(&folio->page,
-						folio_offset, folio_len, iter);
+	f_pos = pos;
+	f_offset = pos - folio_pos(darray_first(folios));
+	darray_for_each(folios, fi) {
+		struct folio *f = *fi;
+		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
+		unsigned f_copied = copy_page_from_iter_atomic(&f->page, f_offset, f_len, iter);
 
-		if (!folio_copied)
-			break;
-
-		if (!folio_test_uptodate(folio) &&
-		    folio_copied != PAGE_SIZE &&
-		    pos + copied + folio_copied < inode->v.i_size) {
-			folio_zero_range(folio, 0, folio_size(folio));
+		if (!f_copied) {
+			folios_trunc(&folios, fi);
 			break;
 		}
 
-		flush_dcache_folio(folio);
-		copied += folio_copied;
-
-		if (folio_copied != folio_len)
+		if (!folio_test_uptodate(f) &&
+		    f_copied != folio_size(f) &&
+		    pos + copied + f_copied < inode->v.i_size) {
+			folio_zero_range(f, 0, folio_size(f));
+			folios_trunc(&folios, fi);
 			break;
+		}
+
+		flush_dcache_folio(f);
+		copied += f_copied;
+
+		if (f_copied != f_len) {
+			folios_trunc(&folios, fi + 1);
+			break;
+		}
+
+		f_pos = folio_end_pos(f);
+		f_offset = 0;
 	}
 
 	if (!copied)
 		goto out;
 
+	end = pos + copied;
+
 	spin_lock(&inode->v.i_lock);
-	if (pos + copied > inode->v.i_size)
-		i_size_write(&inode->v, pos + copied);
+	if (end > inode->v.i_size)
+		i_size_write(&inode->v, end);
 	spin_unlock(&inode->v.i_lock);
 
-	while (set_dirty < copied) {
-		struct folio *folio = folios[(offset + set_dirty) >> PAGE_SHIFT];
-		unsigned folio_offset = (offset + set_dirty) & (PAGE_SIZE - 1);
-		unsigned folio_len = min_t(unsigned, copied - set_dirty,
-					PAGE_SIZE - folio_offset);
+	f_pos = pos;
+	f_offset = pos - folio_pos(darray_first(folios));
+	darray_for_each(folios, fi) {
+		struct folio *f = *fi;
+		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
 
-		if (!folio_test_uptodate(folio))
-			folio_mark_uptodate(folio);
+		if (!folio_test_uptodate(f))
+			folio_mark_uptodate(f);
 
-		bch2_set_folio_dirty(c, inode, folio, &res, folio_offset, folio_len);
-		folio_unlock(folio);
-		folio_put(folio);
+		bch2_set_folio_dirty(c, inode, f, &res, f_offset, f_len);
 
-		set_dirty += folio_len;
+		f_pos = folio_end_pos(f);
+		f_offset = 0;
 	}
 
-	nr_folios_copied = DIV_ROUND_UP(offset + copied, PAGE_SIZE);
 	inode->ei_last_dirtied = (unsigned long) current;
 out:
-	for (i = nr_folios_copied; i < nr_folios; i++) {
-		folio_unlock(folios[i]);
-		folio_put(folios[i]);
+	darray_for_each(folios, fi) {
+		folio_unlock(*fi);
+		folio_put(*fi);
 	}
 
+	darray_exit(&folios);
 	bch2_folio_reservation_put(c, inode, &res);
 
 	return copied ?: ret;
@@ -1887,8 +1917,7 @@ static ssize_t bch2_buffered_write(struct kiocb *iocb, struct iov_iter *iter)
 
 	do {
 		unsigned offset = pos & (PAGE_SIZE - 1);
-		unsigned bytes = min_t(unsigned long, iov_iter_count(iter),
-			      PAGE_SIZE * WRITE_BATCH_PAGES - offset);
+		unsigned bytes = iov_iter_count(iter);
 again:
 		/*
 		 * Bring in the user page that we will copy from _first_.

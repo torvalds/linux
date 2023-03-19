@@ -54,6 +54,11 @@ static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more,
 
 #define darray_push(_d, _item)	darray_push_gfp(_d, _item, GFP_KERNEL)
 
+#define darray_pop(_d)		((_d)->data[--(_d)->nr])
+
+#define darray_first(_d)	((_d).data[0])
+#define darray_last(_d)		((_d).data[(_d).nr - 1])
+
 #define darray_insert_item(_d, _pos, _item)				\
 ({									\
 	size_t pos = (_pos);						\
