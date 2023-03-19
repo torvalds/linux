@@ -1560,7 +1560,7 @@
 #define GPIO_IE(data)           ((data << 0x0U) & 0x1U)
 #define GPIO_DS(data)           ((data << 0x1U) & 0x6U)
 #define GPIO_PU(data)           ((data << 0x3U) & 0x8U)
-#define GPIO_PD(data)           ((data << 0x4U) & 0x7U)
+#define GPIO_PD(data)           ((data << 0x4U) & 0x10U)
 #define GPIO_SLEW(data)         ((data << 0x5U) & 0x20U)
 #define GPIO_SMT(data)          ((data << 0x6U) & 0x40U)
 #define GPIO_POS(data)          ((data << 0x7U) & 0x80U)

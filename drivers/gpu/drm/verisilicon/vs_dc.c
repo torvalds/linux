@@ -838,6 +838,8 @@ static void vs_dc_disable(struct device *dev, struct drm_crtc *crtc)
 
 	if (dc->init_count == 0) {
 
+		clk_disable_unprepare(dc->vout_top_lcd);
+
 		vs_dc8200_reset_assert(dc);
 
 		/*dc8200 clk disable*/
