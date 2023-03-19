@@ -1658,6 +1658,8 @@ static int elf_validity_check(struct load_info *info)
 	Elf_Shdr *shdr, *strhdr;
 	int err;
 	unsigned int num_mod_secs = 0, mod_idx;
+	unsigned int num_info_secs = 0, info_idx;
+	unsigned int num_sym_secs = 0, sym_idx;
 
 	if (info->len < sizeof(*(info->hdr))) {
 		pr_err("Invalid ELF header len %lu\n", info->len);
@@ -1761,6 +1763,8 @@ static int elf_validity_check(struct load_info *info)
 				       info->hdr->e_shnum);
 				goto no_exec;
 			}
+			num_sym_secs++;
+			sym_idx = i;
 			fallthrough;
 		default:
 			err = validate_section_offset(info, shdr);
@@ -1773,6 +1777,10 @@ static int elf_validity_check(struct load_info *info)
 				   ".gnu.linkonce.this_module") == 0) {
 				num_mod_secs++;
 				mod_idx = i;
+			} else if (strcmp(info->secstrings + shdr->sh_name,
+				   ".modinfo") == 0) {
+				num_info_secs++;
+				info_idx = i;
 			}
 
 			if (shdr->sh_flags & SHF_ALLOC) {
@@ -1785,6 +1793,27 @@ static int elf_validity_check(struct load_info *info)
 			break;
 		}
 	}
+
+	if (num_info_secs > 1) {
+		pr_err("Only one .modinfo section must exist.\n");
+		goto no_exec;
+	} else if (num_info_secs == 1) {
+		/* Try to find a name early so we can log errors with a module name */
+		info->index.info = info_idx;
+		info->name = get_modinfo(info, "name");
+	}
+
+	if (num_sym_secs != 1) {
+		pr_warn("%s: module has no symbols (stripped?)\n",
+			info->name ?: "(missing .modinfo section or name field)");
+		goto no_exec;
+	}
+
+	/* Sets internal symbols and strings. */
+	info->index.sym = sym_idx;
+	shdr = &info->sechdrs[sym_idx];
+	info->index.str = shdr->sh_link;
+	info->strtab = (char *)info->hdr + info->sechdrs[info->index.str].sh_offset;
 
 	/*
 	 * The ".gnu.linkonce.this_module" ELF section is special. It is
@@ -1802,7 +1831,8 @@ static int elf_validity_check(struct load_info *info)
 	 *     size
 	 */
 	if (num_mod_secs != 1) {
-		pr_err("Only one .gnu.linkonce.this_module section must exist.\n");
+		pr_err("module %s: Only one .gnu.linkonce.this_module section must exist.\n",
+		       info->name ?: "(missing .modinfo section or name field)");
 		goto no_exec;
 	}
 
@@ -1813,17 +1843,20 @@ static int elf_validity_check(struct load_info *info)
 	 * pedantic about it.
 	 */
 	if (shdr->sh_type == SHT_NOBITS) {
-		pr_err(".gnu.linkonce.this_module section must have a size set\n");
+		pr_err("module %s: .gnu.linkonce.this_module section must have a size set\n",
+		       info->name ?: "(missing .modinfo section or name field)");
 		goto no_exec;
 	}
 
 	if (!(shdr->sh_flags & SHF_ALLOC)) {
-		pr_err(".gnu.linkonce.this_module must occupy memory during process execution\n");
+		pr_err("module %s: .gnu.linkonce.this_module must occupy memory during process execution\n",
+		       info->name ?: "(missing .modinfo section or name field)");
 		goto no_exec;
 	}
 
 	if (shdr->sh_size != sizeof(struct module)) {
-		pr_err(".gnu.linkonce.this_module section size must match the kernel's built struct module size at run time\n");
+		pr_err("module %s: .gnu.linkonce.this_module section size must match the kernel's built struct module size at run time\n",
+		       info->name ?: "(missing .modinfo section or name field)");
 		goto no_exec;
 	}
 
@@ -1831,6 +1864,13 @@ static int elf_validity_check(struct load_info *info)
 
 	/* This is temporary: point mod into copy of data. */
 	info->mod = (void *)info->hdr + shdr->sh_offset;
+
+	/*
+	 * If we didn't load the .modinfo 'name' field earlier, fall back to
+	 * on-disk struct mod 'name' field.
+	 */
+	if (!info->name)
+		info->name = info->mod->name;
 
 	return 0;
 
@@ -1954,37 +1994,6 @@ static int rewrite_section_headers(struct load_info *info, int flags)
  */
 static int setup_load_info(struct load_info *info, int flags)
 {
-	unsigned int i;
-
-	/* Try to find a name early so we can log errors with a module name */
-	info->index.info = find_sec(info, ".modinfo");
-	if (info->index.info)
-		info->name = get_modinfo(info, "name");
-
-	/* Find internal symbols and strings. */
-	for (i = 1; i < info->hdr->e_shnum; i++) {
-		if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
-			info->index.sym = i;
-			info->index.str = info->sechdrs[i].sh_link;
-			info->strtab = (char *)info->hdr
-				+ info->sechdrs[info->index.str].sh_offset;
-			break;
-		}
-	}
-
-	if (info->index.sym == 0) {
-		pr_warn("%s: module has no symbols (stripped?)\n",
-			info->name ?: "(missing .modinfo section or name field)");
-		return -ENOEXEC;
-	}
-
-	/*
-	 * If we didn't load the .modinfo 'name' field earlier, fall back to
-	 * on-disk struct mod 'name' field.
-	 */
-	if (!info->name)
-		info->name = info->mod->name;
-
 	if (flags & MODULE_INIT_IGNORE_MODVERSIONS)
 		info->index.vers = 0; /* Pretend no __versions section! */
 	else
