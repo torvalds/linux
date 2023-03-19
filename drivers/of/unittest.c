@@ -1639,7 +1639,6 @@ static int unittest_gpio_remove(struct platform_device *pdev)
 	if (devptr->chip.base != -1)
 		gpiochip_remove(&devptr->chip);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(devptr);
 
 	return 0;
