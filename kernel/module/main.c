@@ -1647,12 +1647,26 @@ static int validate_section_offset(struct load_info *info, Elf_Shdr *shdr)
 }
 
 /*
- * Sanity checks against invalid binaries, wrong arch, weird elf version.
+ * Check userspace passed ELF module against our expectations, and cache
+ * useful variables for further processing as we go.
  *
- * Also do basic validity checks against section offsets and sizes, the
+ * This does basic validity checks against section offsets and sizes, the
  * section name string table, and the indices used for it (sh_name).
+ *
+ * As a last step, since we're already checking the ELF sections we cache
+ * useful variables which will be used later for our convenience:
+ *
+ * 	o pointers to section headers
+ * 	o cache the modinfo symbol section
+ * 	o cache the string symbol section
+ * 	o cache the module section
+ *
+ * As a last step we set info->mod to the temporary copy of the module in
+ * info->hdr. The final one will be allocated in move_module(). Any
+ * modifications we make to our copy of the module will be carried over
+ * to the final minted module.
  */
-static int elf_validity_check(struct load_info *info)
+static int elf_validity_cache_copy(struct load_info *info, int flags)
 {
 	unsigned int i;
 	Elf_Shdr *shdr, *strhdr;
@@ -1872,6 +1886,13 @@ static int elf_validity_check(struct load_info *info)
 	if (!info->name)
 		info->name = info->mod->name;
 
+	if (flags & MODULE_INIT_IGNORE_MODVERSIONS)
+		info->index.vers = 0; /* Pretend no __versions section! */
+	else
+		info->index.vers = find_sec(info, "__versions");
+
+	info->index.pcpu = find_pcpusec(info);
+
 	return 0;
 
 no_exec:
@@ -1980,26 +2001,6 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 	/* Track but don't keep modinfo and version sections. */
 	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
-
-	return 0;
-}
-
-/*
- * Set up our basic convenience variables (pointers to section headers,
- * search for module section index etc), and do some basic section
- * verification.
- *
- * Set info->mod to the temporary copy of the module in info->hdr. The final one
- * will be allocated in move_module().
- */
-static int setup_load_info(struct load_info *info, int flags)
-{
-	if (flags & MODULE_INIT_IGNORE_MODVERSIONS)
-		info->index.vers = 0; /* Pretend no __versions section! */
-	else
-		info->index.vers = find_sec(info, "__versions");
-
-	info->index.pcpu = find_pcpusec(info);
 
 	return 0;
 }
@@ -2809,17 +2810,10 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	/*
 	 * Do basic sanity checks against the ELF header and
-	 * sections.
+	 * sections. Cache useful sections and set the
+	 * info->mod to the userspace passed struct module.
 	 */
-	err = elf_validity_check(info);
-	if (err)
-		goto free_copy;
-
-	/*
-	 * Everything checks out, so set up the section info
-	 * in the info structure.
-	 */
-	err = setup_load_info(info, flags);
+	err = elf_validity_cache_copy(info, flags);
 	if (err)
 		goto free_copy;
 
