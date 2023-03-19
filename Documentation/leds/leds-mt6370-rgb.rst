@@ -31,19 +31,19 @@ depending on the current brightness setting.
 
 Pattern diagram::
 
-     "0 Tr1 0 Tr2 0 Tf1 0 Tf2 0 Ton 0 Toff" --> '0' for dummy brightness code
+         "0 Tr1 0 Tr2 0 Tf1 0 Tf2 0 Ton 0 Toff" --> '0' for dummy brightness code
 
-      ^
-      |           ============
-      |          /            \                                /
-Icurr |         /              \                              /
-      |        /                \                            /
-      |       /                  \                          /   .....repeat
-      |      /                    \                        /
-      |   ---                      ---                  ---
-      |---                            ---            ---
-      +----------------------------------============------------> Time
-       < Tr1><Tr2><   Ton    ><Tf1><Tf2 ><  Toff    >< Tr1><Tr2>
+          ^
+          |           ============
+          |          /            \                                /
+    Icurr |         /              \                              /
+          |        /                \                            /
+          |       /                  \                          /   .....repeat
+          |      /                    \                        /
+          |   ---                      ---                  ---
+          |---                            ---            ---
+          +----------------------------------============------------> Time
+          < Tr1><Tr2><   Ton    ><Tf1><Tf2 ><  Toff    >< Tr1><Tr2>
 
 Timing description::
 
