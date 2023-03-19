@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for nolibc tests
 include ../../../scripts/Makefile.include
+# We need this for the "cc-option" macro.
+include ../../../build/Build.include
 
 # we're in ".../tools/testing/selftests/nolibc"
 ifeq ($(srctree),)
@@ -72,6 +74,7 @@ endif
 
 CFLAGS_s390 = -m64
 CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables $(CFLAGS_$(ARCH))
+CFLAGS  += $(call cc-option,-fno-stack-protector)
 LDFLAGS := -s
 
 help:
