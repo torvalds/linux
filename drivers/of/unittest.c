@@ -1529,13 +1529,12 @@ static int unittest_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int unittest_remove(struct platform_device *pdev)
+static void unittest_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
-	return 0;
 }
 
 static const struct of_device_id unittest_match[] = {
@@ -1545,7 +1544,7 @@ static const struct of_device_id unittest_match[] = {
 
 static struct platform_driver unittest_driver = {
 	.probe			= unittest_probe,
-	.remove			= unittest_remove,
+	.remove_new		= unittest_remove,
 	.driver = {
 		.name		= "unittest",
 		.of_match_table	= of_match_ptr(unittest_match),
@@ -1626,7 +1625,7 @@ static int unittest_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int unittest_gpio_remove(struct platform_device *pdev)
+static void unittest_gpio_remove(struct platform_device *pdev)
 {
 	struct unittest_gpio_dev *devptr = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -1637,8 +1636,6 @@ static int unittest_gpio_remove(struct platform_device *pdev)
 		gpiochip_remove(&devptr->chip);
 
 	kfree(devptr);
-
-	return 0;
 }
 
 static const struct of_device_id unittest_gpio_id[] = {
@@ -1648,7 +1645,7 @@ static const struct of_device_id unittest_gpio_id[] = {
 
 static struct platform_driver unittest_gpio_driver = {
 	.probe	= unittest_gpio_probe,
-	.remove	= unittest_gpio_remove,
+	.remove_new = unittest_gpio_remove,
 	.driver	= {
 		.name		= "unittest-gpio",
 		.of_match_table	= of_match_ptr(unittest_gpio_id),
@@ -2486,7 +2483,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int unittest_i2c_bus_remove(struct platform_device *pdev)
+static void unittest_i2c_bus_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -2494,8 +2491,6 @@ static int unittest_i2c_bus_remove(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	i2c_del_adapter(&std->adap);
-
-	return 0;
 }
 
 static const struct of_device_id unittest_i2c_bus_match[] = {
@@ -2505,7 +2500,7 @@ static const struct of_device_id unittest_i2c_bus_match[] = {
 
 static struct platform_driver unittest_i2c_bus_driver = {
 	.probe			= unittest_i2c_bus_probe,
-	.remove			= unittest_i2c_bus_remove,
+	.remove_new		= unittest_i2c_bus_remove,
 	.driver = {
 		.name		= "unittest-i2c-bus",
 		.of_match_table	= of_match_ptr(unittest_i2c_bus_match),
