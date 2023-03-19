@@ -1573,7 +1573,7 @@ static void layout_sections(struct module *mod, struct load_info *info)
 	__layout_sections(mod, info, true);
 }
 
-static void set_license(struct module *mod, const char *license)
+static void module_license_taint_check(struct module *mod, const char *license)
 {
 	if (!license)
 		license = "unspecified";
@@ -1993,8 +1993,7 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 	if (err)
 		return err;
 
-	/* Set up license info based on the info section */
-	set_license(mod, get_modinfo(info, "license"));
+	module_license_taint_check(mod, get_modinfo(info, "license"));
 
 	if (get_modinfo(info, "test")) {
 		if (!test_taint(TAINT_TEST))
