@@ -40,6 +40,7 @@ struct task_struct;
 DECLARE_PER_CPU(struct task_struct *, __entry_task);
 
 #include <asm/types.h>
+#include <asm/traps.h>
 
 struct cpu_context_save {
 	__u32	r4;
@@ -103,6 +104,21 @@ extern void iwmmxt_task_copy(struct thread_info *, void *);
 extern void iwmmxt_task_restore(struct thread_info *, void *);
 extern void iwmmxt_task_release(struct thread_info *);
 extern void iwmmxt_task_switch(struct thread_info *);
+
+extern int iwmmxt_undef_handler(struct pt_regs *, u32);
+
+static inline void register_iwmmxt_undef_handler(void)
+{
+	static struct undef_hook iwmmxt_undef_hook = {
+		.instr_mask	= 0x0c000e00,
+		.instr_val	= 0x0c000000,
+		.cpsr_mask	= MODE_MASK | PSR_T_BIT,
+		.cpsr_val	= USR_MODE,
+		.fn		= iwmmxt_undef_handler,
+	};
+
+	register_undef_hook(&iwmmxt_undef_hook);
+}
 
 extern void vfp_sync_hwstate(struct thread_info *);
 extern void vfp_flush_hwstate(struct thread_info *);

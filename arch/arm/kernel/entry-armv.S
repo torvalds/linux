@@ -507,6 +507,7 @@ ARM_BE8(rev	r0, r0)				@ little endian instruction
 	ldr	r5, [r10, #TI_FLAGS]
 	rsbs	r7, r8, #(1 << 8)		@ CP 0 or 1 only
 	movscs	r7, r5, lsr #(TIF_USING_IWMMXT + 1)
+	movcs	r0, sp				@ pass struct pt_regs
 	bcs	iwmmxt_task_enable
 #endif
  ARM(	add	pc, pc, r8, lsr #6	)
