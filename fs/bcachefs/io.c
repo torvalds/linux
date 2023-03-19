@@ -453,13 +453,13 @@ retry:
 				opts.data_replicas,
 				opts.data_replicas,
 				RESERVE_none, 0, &cl, &wp);
-		if (bch2_err_matches(ret, BCH_ERR_operation_blocked)) {
+		if (ret) {
 			bch2_trans_unlock(trans);
 			closure_sync(&cl);
-			goto retry;
-		}
-		if (ret)
+			if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
+				goto retry;
 			return ret;
+		}
 
 		sectors = min(sectors, wp->sectors_free);
 		sectors_allocated = sectors;
