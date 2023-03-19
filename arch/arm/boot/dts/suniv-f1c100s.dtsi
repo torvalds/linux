@@ -207,6 +207,12 @@
 				pins = "PE0", "PE1";
 				function = "uart0";
 			};
+
+			/omit-if-no-ref/
+			uart1_pa_pins: uart1-pa-pins {
+				pins = "PA2", "PA3";
+				function = "uart1";
+			};
 		};
 
 		i2c0: i2c@1c27000 {
