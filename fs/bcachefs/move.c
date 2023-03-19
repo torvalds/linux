@@ -713,6 +713,11 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 
 	bch2_bkey_buf_init(&sk);
 
+	/*
+	 * We're not run in a context that handles transaction restarts:
+	 */
+	bch2_trans_begin(trans);
+
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
 			     bucket, BTREE_ITER_CACHED);
 	ret = lockrestart_do(trans,
