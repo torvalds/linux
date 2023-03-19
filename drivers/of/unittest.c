@@ -1633,9 +1633,6 @@ static int unittest_gpio_remove(struct platform_device *pdev)
 
 	dev_dbg(dev, "%s for node @%pfw\n", __func__, devptr->chip.fwnode);
 
-	if (!devptr)
-		return -EINVAL;
-
 	if (devptr->chip.base != -1)
 		gpiochip_remove(&devptr->chip);
 
