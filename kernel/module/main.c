@@ -2273,10 +2273,6 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 	unsigned int ndx;
 	int err;
 
-	err = check_modinfo(info->mod, info, flags);
-	if (err)
-		return ERR_PTR(err);
-
 	/* Allow arches to frob section contents and sizes.  */
 	err = module_frob_arch_sections(info->hdr, info->sechdrs,
 					info->secstrings, info->mod);
@@ -2689,6 +2685,10 @@ static int early_mod_check(struct load_info *info, int flags)
 	/* Check module struct version now, before we try to use module. */
 	if (!check_modstruct_version(info, info->mod))
 		return -ENOEXEC;
+
+	err = check_modinfo(info->mod, info, flags);
+	if (err)
+		return err;
 
 	return 0;
 }
