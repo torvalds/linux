@@ -19,6 +19,8 @@ properties:
       - enum:
           - mediatek,mt7622-sgmiisys
           - mediatek,mt7629-sgmiisys
+          - mediatek,mt7981-sgmiisys_0
+          - mediatek,mt7981-sgmiisys_1
           - mediatek,mt7986-sgmiisys_0
           - mediatek,mt7986-sgmiisys_1
       - const: syscon
@@ -28,6 +30,10 @@ properties:
 
   '#clock-cells':
     const: 1
+
+  mediatek,pnswap:
+    description: Invert polarity of the SGMII data lanes
+    type: boolean
 
 required:
   - compatible
