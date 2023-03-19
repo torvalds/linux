@@ -1756,17 +1756,15 @@ static void add_files_to_device(struct hl_device *hdev, struct hl_dbg_device_ent
 	}
 }
 
-void hl_debugfs_add_device(struct hl_device *hdev)
+int hl_debugfs_device_init(struct hl_device *hdev)
 {
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 	int count = ARRAY_SIZE(hl_debugfs_list);
 
 	dev_entry->hdev = hdev;
-	dev_entry->entry_arr = kmalloc_array(count,
-					sizeof(struct hl_debugfs_entry),
-					GFP_KERNEL);
+	dev_entry->entry_arr = kmalloc_array(count, sizeof(struct hl_debugfs_entry), GFP_KERNEL);
 	if (!dev_entry->entry_arr)
-		return;
+		return -ENOMEM;
 
 	dev_entry->data_dma_blob_desc.size = 0;
 	dev_entry->data_dma_blob_desc.data = NULL;
@@ -1787,20 +1785,13 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	spin_lock_init(&dev_entry->userptr_spinlock);
 	mutex_init(&dev_entry->ctx_mem_hash_mutex);
 
-	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
-						hl_debug_root);
-
-	add_files_to_device(hdev, dev_entry, dev_entry->root);
-	if (!hdev->asic_prop.fw_security_enabled)
-		add_secured_nodes(dev_entry, dev_entry->root);
+	return 0;
 }
 
-void hl_debugfs_remove_device(struct hl_device *hdev)
+void hl_debugfs_device_fini(struct hl_device *hdev)
 {
 	struct hl_dbg_device_entry *entry = &hdev->hl_debugfs;
 	int i;
-
-	debugfs_remove_recursive(entry->root);
 
 	mutex_destroy(&entry->ctx_mem_hash_mutex);
 	mutex_destroy(&entry->file_mutex);
@@ -1812,6 +1803,24 @@ void hl_debugfs_remove_device(struct hl_device *hdev)
 		vfree(entry->state_dump[i]);
 
 	kfree(entry->entry_arr);
+}
+
+void hl_debugfs_add_device(struct hl_device *hdev)
+{
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+
+	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev), hl_debug_root);
+
+	add_files_to_device(hdev, dev_entry, dev_entry->root);
+	if (!hdev->asic_prop.fw_security_enabled)
+		add_secured_nodes(dev_entry, dev_entry->root);
+}
+
+void hl_debugfs_remove_device(struct hl_device *hdev)
+{
+	struct hl_dbg_device_entry *entry = &hdev->hl_debugfs;
+
+	debugfs_remove_recursive(entry->root);
 }
 
 void hl_debugfs_add_file(struct hl_fpriv *hpriv)

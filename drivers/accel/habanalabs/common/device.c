@@ -674,7 +674,7 @@ static int device_init_cdev(struct hl_device *hdev, struct class *class,
 	return 0;
 }
 
-static int device_cdev_sysfs_add(struct hl_device *hdev)
+static int cdev_sysfs_debugfs_add(struct hl_device *hdev)
 {
 	int rc;
 
@@ -699,7 +699,9 @@ static int device_cdev_sysfs_add(struct hl_device *hdev)
 		goto delete_ctrl_cdev_device;
 	}
 
-	hdev->cdev_sysfs_created = true;
+	hl_debugfs_add_device(hdev);
+
+	hdev->cdev_sysfs_debugfs_created = true;
 
 	return 0;
 
@@ -710,11 +712,12 @@ delete_cdev_device:
 	return rc;
 }
 
-static void device_cdev_sysfs_del(struct hl_device *hdev)
+static void cdev_sysfs_debugfs_remove(struct hl_device *hdev)
 {
-	if (!hdev->cdev_sysfs_created)
+	if (!hdev->cdev_sysfs_debugfs_created)
 		goto put_devices;
 
+	hl_debugfs_remove_device(hdev);
 	hl_sysfs_fini(hdev);
 	cdev_device_del(&hdev->cdev_ctrl, hdev->dev_ctrl);
 	cdev_device_del(&hdev->cdev, hdev->dev);
@@ -2054,7 +2057,7 @@ out_err:
 int hl_device_init(struct hl_device *hdev)
 {
 	int i, rc, cq_cnt, user_interrupt_cnt, cq_ready_cnt;
-	bool add_cdev_sysfs_on_err = false;
+	bool expose_interfaces_on_err = false;
 
 	rc = create_cdev(hdev);
 	if (rc)
@@ -2170,16 +2173,22 @@ int hl_device_init(struct hl_device *hdev)
 	hdev->device_release_watchdog_timeout_sec = HL_DEVICE_RELEASE_WATCHDOG_TIMEOUT_SEC;
 
 	hdev->memory_scrub_val = MEM_SCRUB_DEFAULT_VAL;
-	hl_debugfs_add_device(hdev);
 
-	/* debugfs nodes are created in hl_ctx_init so it must be called after
-	 * hl_debugfs_add_device.
+	rc = hl_debugfs_device_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize debugfs entry structure\n");
+		kfree(hdev->kernel_ctx);
+		goto mmu_fini;
+	}
+
+	/* The debugfs entry structure is accessed in hl_ctx_init(), so it must be called after
+	 * hl_debugfs_device_init().
 	 */
 	rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize kernel context\n");
 		kfree(hdev->kernel_ctx);
-		goto remove_device_from_debugfs;
+		goto debugfs_device_fini;
 	}
 
 	rc = hl_cb_pool_init(hdev);
@@ -2195,11 +2204,10 @@ int hl_device_init(struct hl_device *hdev)
 	}
 
 	/*
-	 * From this point, override rc (=0) in case of an error to allow
-	 * debugging (by adding char devices and create sysfs nodes as part of
-	 * the error flow).
+	 * From this point, override rc (=0) in case of an error to allow debugging
+	 * (by adding char devices and creating sysfs/debugfs files as part of the error flow).
 	 */
-	add_cdev_sysfs_on_err = true;
+	expose_interfaces_on_err = true;
 
 	/* Device is now enabled as part of the initialization requires
 	 * communication with the device firmware to get information that
@@ -2241,15 +2249,13 @@ int hl_device_init(struct hl_device *hdev)
 	}
 
 	/*
-	 * Expose devices and sysfs nodes to user.
-	 * From here there is no need to add char devices and create sysfs nodes
-	 * in case of an error.
+	 * Expose devices and sysfs/debugfs files to user.
+	 * From here there is no need to expose them in case of an error.
 	 */
-	add_cdev_sysfs_on_err = false;
-	rc = device_cdev_sysfs_add(hdev);
+	expose_interfaces_on_err = false;
+	rc = cdev_sysfs_debugfs_add(hdev);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to add char devices and sysfs nodes\n");
+		dev_err(hdev->dev, "Failed to add char devices and sysfs/debugfs files\n");
 		rc = 0;
 		goto out_disabled;
 	}
@@ -2295,8 +2301,8 @@ release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
 			"kernel ctx is still alive on initialization failure\n");
-remove_device_from_debugfs:
-	hl_debugfs_remove_device(hdev);
+debugfs_device_fini:
+	hl_debugfs_device_fini(hdev);
 mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:
@@ -2320,8 +2326,8 @@ free_dev:
 	put_device(hdev->dev);
 out_disabled:
 	hdev->disabled = true;
-	if (add_cdev_sysfs_on_err)
-		device_cdev_sysfs_add(hdev);
+	if (expose_interfaces_on_err)
+		cdev_sysfs_debugfs_add(hdev);
 	if (hdev->pdev)
 		dev_err(&hdev->pdev->dev,
 			"Failed to initialize hl%d. Device %s is NOT usable !\n",
@@ -2447,8 +2453,6 @@ void hl_device_fini(struct hl_device *hdev)
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))
 		dev_err(hdev->dev, "kernel ctx is still alive\n");
 
-	hl_debugfs_remove_device(hdev);
-
 	hl_dec_fini(hdev);
 
 	hl_vm_fini(hdev);
@@ -2473,8 +2477,10 @@ void hl_device_fini(struct hl_device *hdev)
 
 	device_early_fini(hdev);
 
-	/* Hide devices and sysfs nodes from user */
-	device_cdev_sysfs_del(hdev);
+	/* Hide devices and sysfs/debugfs files from user */
+	cdev_sysfs_debugfs_remove(hdev);
+
+	hl_debugfs_device_fini(hdev);
 
 	pr_info("removed device successfully\n");
 }
