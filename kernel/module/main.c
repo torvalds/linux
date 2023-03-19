@@ -2009,18 +2009,6 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 	if (err)
 		return err;
 
-	/*
-	 * We are tainting your kernel *even* if you try to load
-	 * modules with possible taints and we fail to load these
-	 * modules for other reasons.
-	 *
-	 * We have a descrepancy though, see the other taints for
-	 * signature and those in check_module_license_and_versions().
-	 *
-	 * We should compromise and converge.
-	 */
-	module_augment_kernel_taints(mod, info);
-
 	return 0;
 }
 
@@ -2772,6 +2760,16 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	if (err)
 		goto free_module;
 
+	/*
+	 * We are tainting your kernel if your module gets into
+	 * the modules linked list somehow.
+	 *
+	 * We have a descrepancy though, see the other taints for
+	 * signature and those in check_module_license_and_versions().
+	 *
+	 * We should compromise and converge.
+	 */
+	module_augment_kernel_taints(mod, info);
 #ifdef CONFIG_MODULE_SIG
 	mod->sig_ok = info->sig_ok;
 	if (!mod->sig_ok) {
