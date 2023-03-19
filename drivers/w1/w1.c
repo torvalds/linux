@@ -58,11 +58,6 @@ MODULE_PARM_DESC(slave_ttl,
 DEFINE_MUTEX(w1_mlock);
 LIST_HEAD(w1_masters);
 
-static int w1_master_match(struct device *dev, struct device_driver *drv)
-{
-	return 1;
-}
-
 static int w1_master_probe(struct device *dev)
 {
 	return -ENODEV;
@@ -174,7 +169,6 @@ static int w1_uevent(const struct device *dev, struct kobj_uevent_env *env);
 
 static struct bus_type w1_bus_type = {
 	.name = "w1",
-	.match = w1_master_match,
 	.uevent = w1_uevent,
 };
 
