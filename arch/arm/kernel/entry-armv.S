@@ -454,8 +454,10 @@ __und_usr:
 	tst	r5, #PSR_T_BIT			@ Thumb mode?
 	mov	r1, #2				@ set insn size to 2 for Thumb
 	bne	0f				@ handle as Thumb undef exception
+#ifdef CONFIG_FPE_NWFPE
 	adr	r9, ret_from_exception
 	bl	call_fpe			@ returns via R9 on success
+#endif
 	mov	r1, #4				@ set insn size to 4 for ARM
 0:	mov	r0, sp
 	uaccess_disable ip
@@ -463,97 +465,6 @@ __und_usr:
 	b	ret_from_exception
  UNWIND(.fnend)
 ENDPROC(__und_usr)
-
-/*
- * The out of line fixup for the ldrt instruction below.
- */
-	.pushsection .text.fixup, "ax"
-	.align	2
-4:	str     r4, [sp, #S_PC]			@ retry current instruction
-	ret	r9
-	.popsection
-
-/*
- * Check whether the instruction is a co-processor instruction.
- * If yes, we need to call the relevant co-processor handler.
- *
- * Note that we don't do a full check here for the co-processor
- * instructions; all instructions with bit 27 set are well
- * defined.  The only instructions that should fault are the
- * co-processor instructions.  However, we have to watch out
- * for the ARM6/ARM7 SWI bug.
- *
- * Emulators may wish to make use of the following registers:
- *  r4  = PC value to resume execution after successful emulation
- *  r9  = normal "successful" return address
- *  r10 = this threads thread_info structure
- *  lr  = unrecognised instruction return address
- * IRQs enabled, FIQs enabled.
- */
-call_fpe:
-	mov	r2, r4
-	sub	r4, r4, #4			@ ARM instruction at user PC - 4
-USERL(	4b,	ldrt r0, [r4])			@ load opcode from user space
-ARM_BE8(rev	r0, r0)				@ little endian instruction
-
-	uaccess_disable ip
-
-	get_thread_info r10			@ get current thread
-	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
-	reteq	lr
-	and	r8, r0, #0x00000f00		@ mask out CP number
-#ifdef CONFIG_IWMMXT
-	@ Test if we need to give access to iWMMXt coprocessors
-	ldr	r5, [r10, #TI_FLAGS]
-	rsbs	r7, r8, #(1 << 8)		@ CP 0 or 1 only
-	movscs	r7, r5, lsr #(TIF_USING_IWMMXT + 1)
-	movcs	r0, sp				@ pass struct pt_regs
-	bcs	iwmmxt_task_enable
-#endif
- ARM(	add	pc, pc, r8, lsr #6	)
- THUMB(	lsr	r8, r8, #6		)
- THUMB(	add	pc, r8			)
-	nop
-
-	ret.w	lr				@ CP#0
-	W(b)	do_fpe				@ CP#1 (FPE)
-	W(b)	do_fpe				@ CP#2 (FPE)
-	ret.w	lr				@ CP#3
-	ret.w	lr				@ CP#4
-	ret.w	lr				@ CP#5
-	ret.w	lr				@ CP#6
-	ret.w	lr				@ CP#7
-	ret.w	lr				@ CP#8
-	ret.w	lr				@ CP#9
-	ret.w	lr				@ CP#10 (VFP)
-	ret.w	lr				@ CP#11 (VFP)
-	ret.w	lr				@ CP#12
-	ret.w	lr				@ CP#13
-	ret.w	lr				@ CP#14 (Debug)
-	ret.w	lr				@ CP#15 (Control)
-
-do_fpe:
-	add	r10, r10, #TI_FPSTATE		@ r10 = workspace
-	ldr_va	pc, fp_enter, tmp=r4		@ Call FP module USR entry point
-
-/*
- * The FP module is called with these registers set:
- *  r0  = instruction
- *  r2  = PC+4
- *  r9  = normal "successful" return address
- *  r10 = FP workspace
- *  lr  = unrecognised FP instruction return address
- */
-
-	.pushsection .data
-	.align	2
-ENTRY(fp_enter)
-	.word	no_fp
-	.popsection
-
-ENTRY(no_fp)
-	ret	lr
-ENDPROC(no_fp)
 
 	.align	5
 __pabt_usr:
