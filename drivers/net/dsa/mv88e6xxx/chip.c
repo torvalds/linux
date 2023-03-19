@@ -3805,7 +3805,9 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 	bus->read_c45 = mv88e6xxx_mdio_read_c45;
 	bus->write_c45 = mv88e6xxx_mdio_write_c45;
 	bus->parent = chip->dev;
-	bus->phy_mask = GENMASK(31, mv88e6xxx_num_ports(chip));
+	bus->phy_mask = ~GENMASK(chip->info->phy_base_addr +
+				 mv88e6xxx_num_ports(chip) - 1,
+				 chip->info->phy_base_addr);
 
 	if (!external) {
 		err = mv88e6xxx_g2_irq_mdio_setup(chip, bus);
