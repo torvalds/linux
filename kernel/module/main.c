@@ -1016,9 +1016,55 @@ int try_to_force_load(struct module *mod, const char *reason)
 #endif
 }
 
-static char *get_modinfo(const struct load_info *info, const char *tag);
+/* Parse tag=value strings from .modinfo section */
+static char *next_string(char *string, unsigned long *secsize)
+{
+	/* Skip non-zero chars */
+	while (string[0]) {
+		string++;
+		if ((*secsize)-- <= 1)
+			return NULL;
+	}
+
+	/* Skip any zero padding. */
+	while (!string[0]) {
+		string++;
+		if ((*secsize)-- <= 1)
+			return NULL;
+	}
+	return string;
+}
+
 static char *get_next_modinfo(const struct load_info *info, const char *tag,
-			      char *prev);
+			      char *prev)
+{
+	char *p;
+	unsigned int taglen = strlen(tag);
+	Elf_Shdr *infosec = &info->sechdrs[info->index.info];
+	unsigned long size = infosec->sh_size;
+
+	/*
+	 * get_modinfo() calls made before rewrite_section_headers()
+	 * must use sh_offset, as sh_addr isn't set!
+	 */
+	char *modinfo = (char *)info->hdr + infosec->sh_offset;
+
+	if (prev) {
+		size -= prev - modinfo;
+		modinfo = next_string(prev, &size);
+	}
+
+	for (p = modinfo; p; p = next_string(p, &size)) {
+		if (strncmp(p, tag, taglen) == 0 && p[taglen] == '=')
+			return p + taglen + 1;
+	}
+	return NULL;
+}
+
+static char *get_modinfo(const struct load_info *info, const char *tag)
+{
+	return get_next_modinfo(info, tag, NULL);
+}
 
 static int verify_namespace_is_imported(const struct load_info *info,
 					const struct kernel_symbol *sym,
@@ -1542,56 +1588,6 @@ static void set_license(struct module *mod, const char *license)
 		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
 				 LOCKDEP_NOW_UNRELIABLE);
 	}
-}
-
-/* Parse tag=value strings from .modinfo section */
-static char *next_string(char *string, unsigned long *secsize)
-{
-	/* Skip non-zero chars */
-	while (string[0]) {
-		string++;
-		if ((*secsize)-- <= 1)
-			return NULL;
-	}
-
-	/* Skip any zero padding. */
-	while (!string[0]) {
-		string++;
-		if ((*secsize)-- <= 1)
-			return NULL;
-	}
-	return string;
-}
-
-static char *get_next_modinfo(const struct load_info *info, const char *tag,
-			      char *prev)
-{
-	char *p;
-	unsigned int taglen = strlen(tag);
-	Elf_Shdr *infosec = &info->sechdrs[info->index.info];
-	unsigned long size = infosec->sh_size;
-
-	/*
-	 * get_modinfo() calls made before rewrite_section_headers()
-	 * must use sh_offset, as sh_addr isn't set!
-	 */
-	char *modinfo = (char *)info->hdr + infosec->sh_offset;
-
-	if (prev) {
-		size -= prev - modinfo;
-		modinfo = next_string(prev, &size);
-	}
-
-	for (p = modinfo; p; p = next_string(p, &size)) {
-		if (strncmp(p, tag, taglen) == 0 && p[taglen] == '=')
-			return p + taglen + 1;
-	}
-	return NULL;
-}
-
-static char *get_modinfo(const struct load_info *info, const char *tag)
-{
-	return get_next_modinfo(info, tag, NULL);
 }
 
 static void setup_modinfo(struct module *mod, struct load_info *info)
