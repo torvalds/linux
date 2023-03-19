@@ -45,17 +45,17 @@ Pattern diagram::
           +----------------------------------============------------> Time
           < Tr1><Tr2><   Ton    ><Tf1><Tf2 ><  Toff    >< Tr1><Tr2>
 
-Timing description::
+Timing description:
 
-Tr1:    First rising time for duty 0 to 30%.
-Tr2:    Second rising time for duty 31% to 100%.
-Ton:    On time for duty 100%.
-Tf1:    First falling time for duty 100% to 31%.
-Tf2:    Second falling time for duty 30% to 0%.
-Toff:   Off time for duty 0%.
+  * Tr1:    First rising time for 0% - 30% load.
+  * Tr2:    Second rising time for 31% - 100% load.
+  * Ton:    On time for 100% load.
+  * Tf1:    First falling time for 100% - 31% load.
+  * Tf2:    Second falling time for 30% to 0% load.
+  * Toff:   Off time for 0% load.
 
-Tr1/Tr2/Tf1/Tf2/Ton: 125ms to 3125ms, 200ms per step.
-Toff: 250ms to 6250ms, 400ms per step.
+  * Tr1/Tr2/Tf1/Tf2/Ton: 125ms to 3125ms, 200ms per step.
+  * Toff: 250ms to 6250ms, 400ms per step.
 
 Pattern example::
 
