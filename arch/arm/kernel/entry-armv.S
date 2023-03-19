@@ -446,105 +446,31 @@ ENDPROC(__irq_usr)
 __und_usr:
 	usr_entry uaccess=0
 
-	mov	r2, r4
-	mov	r3, r5
-
-	@ r2 = regs->ARM_pc, which is either 2 or 4 bytes ahead of the
-	@      faulting instruction depending on Thumb mode.
-	@ r3 = regs->ARM_cpsr
-	@
-	@ The emulation code returns using r9 if it has emulated the
-	@ instruction, or the more conventional lr if we are to treat
-	@ this as a real undefined instruction
-	@
-	badr	r9, ret_from_exception
-
 	@ IRQs must be enabled before attempting to read the instruction from
 	@ user space since that could cause a page/translation fault if the
 	@ page table was modified by another CPU.
 	enable_irq
 
-	tst	r3, #PSR_T_BIT			@ Thumb mode?
-	bne	__und_usr_thumb
-	sub	r4, r2, #4			@ ARM instr at LR - 4
-1:	ldrt	r0, [r4]
- ARM_BE8(rev	r0, r0)				@ little endian instruction
-
+	tst	r5, #PSR_T_BIT			@ Thumb mode?
+	mov	r1, #2				@ set insn size to 2 for Thumb
+	bne	0f				@ handle as Thumb undef exception
+	adr	r9, ret_from_exception
+	bl	call_fpe			@ returns via R9 on success
+	mov	r1, #4				@ set insn size to 4 for ARM
+0:	mov	r0, sp
 	uaccess_disable ip
-
-	@ r0 = 32-bit ARM instruction which caused the exception
-	@ r2 = PC value for the following instruction (:= regs->ARM_pc)
-	@ r4 = PC value for the faulting instruction
-	@ lr = 32-bit undefined instruction function
-	badr	lr, __und_usr_fault_32
-	b	call_fpe
-
-__und_usr_thumb:
-	@ Thumb instruction
-	sub	r4, r2, #2			@ First half of thumb instr at LR - 2
-#if CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7
-/*
- * Thumb-2 instruction handling.  Note that because pre-v6 and >= v6 platforms
- * can never be supported in a single kernel, this code is not applicable at
- * all when __LINUX_ARM_ARCH__ < 6.  This allows simplifying assumptions to be
- * made about .arch directives.
- */
-#if __LINUX_ARM_ARCH__ < 7
-/* If the target CPU may not be Thumb-2-capable, a run-time check is needed: */
-	ldr_va	r5, cpu_architecture
-	cmp	r5, #CPU_ARCH_ARMv7
-	blo	__und_usr_fault_16		@ 16bit undefined instruction
-/*
- * The following code won't get run unless the running CPU really is v7, so
- * coding round the lack of ldrht on older arches is pointless.  Temporarily
- * override the assembler target arch with the minimum required instead:
- */
-	.arch	armv6t2
-#endif
-2:	ldrht	r5, [r4]
-ARM_BE8(rev16	r5, r5)				@ little endian instruction
-	cmp	r5, #0xe800			@ 32bit instruction if xx != 0
-	blo	__und_usr_fault_16_pan		@ 16bit undefined instruction
-3:	ldrht	r0, [r2]
-ARM_BE8(rev16	r0, r0)				@ little endian instruction
-	uaccess_disable ip
-	add	r2, r2, #2			@ r2 is PC + 2, make it PC + 4
-	str	r2, [sp, #S_PC]			@ it's a 2x16bit instr, update
-	orr	r0, r0, r5, lsl #16
-	badr	lr, __und_usr_fault_32
-	@ r0 = the two 16-bit Thumb instructions which caused the exception
-	@ r2 = PC value for the following Thumb instruction (:= regs->ARM_pc)
-	@ r4 = PC value for the first 16-bit Thumb instruction
-	@ lr = 32bit undefined instruction function
-
-#if __LINUX_ARM_ARCH__ < 7
-/* If the target arch was overridden, change it back: */
-#ifdef CONFIG_CPU_32v6K
-	.arch	armv6k
-#else
-	.arch	armv6
-#endif
-#endif /* __LINUX_ARM_ARCH__ < 7 */
-#else /* !(CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7) */
-	b	__und_usr_fault_16
-#endif
+	bl	__und_fault
+	b	ret_from_exception
  UNWIND(.fnend)
 ENDPROC(__und_usr)
 
 /*
- * The out of line fixup for the ldrt instructions above.
+ * The out of line fixup for the ldrt instruction below.
  */
 	.pushsection .text.fixup, "ax"
 	.align	2
 4:	str     r4, [sp, #S_PC]			@ retry current instruction
 	ret	r9
-	.popsection
-	.pushsection __ex_table,"a"
-	.long	1b, 4b
-#if CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7
-	.long	2b, 4b
-	.long	3b, 4b
-#endif
 	.popsection
 
 /*
@@ -558,20 +484,22 @@ ENDPROC(__und_usr)
  * for the ARM6/ARM7 SWI bug.
  *
  * Emulators may wish to make use of the following registers:
- *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
- *  r2  = PC value to resume execution after successful emulation
+ *  r4  = PC value to resume execution after successful emulation
  *  r9  = normal "successful" return address
  *  r10 = this threads thread_info structure
  *  lr  = unrecognised instruction return address
  * IRQs enabled, FIQs enabled.
  */
-	@
-	@ Fall-through from Thumb-2 __und_usr
-	@
 call_fpe:
+	mov	r2, r4
+	sub	r4, r4, #4			@ ARM instruction at user PC - 4
+USERL(	4b,	ldrt r0, [r4])			@ load opcode from user space
+ARM_BE8(rev	r0, r0)				@ little endian instruction
+
+	uaccess_disable ip
+
 	get_thread_info r10			@ get current thread
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
-	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
 	reteq	lr
 	and	r8, r0, #0x00000f00		@ mask out CP number
 #ifdef CONFIG_IWMMXT
@@ -625,19 +553,6 @@ ENTRY(fp_enter)
 ENTRY(no_fp)
 	ret	lr
 ENDPROC(no_fp)
-
-__und_usr_fault_32:
-	mov	r1, #4
-	b	1f
-__und_usr_fault_16_pan:
-	uaccess_disable ip
-__und_usr_fault_16:
-	mov	r1, #2
-1:	mov	r0, sp
-	badr	lr, ret_from_exception
-	b	__und_fault
-ENDPROC(__und_usr_fault_32)
-ENDPROC(__und_usr_fault_16)
 
 	.align	5
 __pabt_usr:
