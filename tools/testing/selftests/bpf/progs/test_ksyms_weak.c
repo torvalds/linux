@@ -37,7 +37,7 @@ int pass_handler(const void *ctx)
 
 	/* tests existing symbols. */
 	rq = (struct rq *)bpf_per_cpu_ptr(&runqueues, 0);
-	if (rq)
+	if (rq && bpf_ksym_exists(&runqueues))
 		out__existing_typed = rq->cpu;
 	out__existing_typeless = (__u64)&bpf_prog_active;
 
