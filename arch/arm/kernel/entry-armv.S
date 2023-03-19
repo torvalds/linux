@@ -591,9 +591,6 @@ call_fpe:
 	and	r8, r0, r5
 	cmp	r8, r7				@ NEON instruction?
 	bne	2b
-	mov	r7, #1
-	strb	r7, [r10, #TI_USED_CP + 10]	@ mark CP#10 as used
-	strb	r7, [r10, #TI_USED_CP + 11]	@ mark CP#11 as used
 	b	do_vfp				@ let VFP handler handle this
 1:
 #endif
@@ -601,9 +598,6 @@ call_fpe:
 	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
 	reteq	lr
 	and	r8, r0, #0x00000f00		@ mask out CP number
-	mov	r7, #1
-	add	r6, r10, r8, lsr #8		@ add used_cp[] array offset first
-	strb	r7, [r6, #TI_USED_CP]		@ set appropriate used_cp[]
 #ifdef CONFIG_IWMMXT
 	@ Test if we need to give access to iWMMXt coprocessors
 	ldr	r5, [r10, #TI_FLAGS]
