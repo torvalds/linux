@@ -59,8 +59,8 @@ static int gh_cpusys_vm_share_mem(struct gh_cpusys_vm_data *drv_data,
 	struct qcom_scm_vmperm src_vmlist[] = {{self, PERM_READ | PERM_WRITE | PERM_EXEC}};
 	struct qcom_scm_vmperm dst_vmlist[] = {{self, PERM_READ | PERM_WRITE},
 					       {peer, PERM_READ | PERM_WRITE}};
-	int srcvmids = BIT(src_vmlist[0].vmid);
-	int dstvmids = BIT(dst_vmlist[0].vmid) | BIT(dst_vmlist[1].vmid);
+	u64 srcvmids = BIT(src_vmlist[0].vmid);
+	u64 dstvmids = BIT(dst_vmlist[0].vmid) | BIT(dst_vmlist[1].vmid);
 	struct gh_acl_desc *acl;
 	struct gh_sgl_desc *sgl;
 	int ret;
