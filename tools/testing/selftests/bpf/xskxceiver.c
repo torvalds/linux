@@ -103,6 +103,7 @@
 #include <bpf/bpf.h>
 #include <linux/filter.h>
 #include "../kselftest.h"
+#include "xsk_xdp_metadata.h"
 
 static const char *MAC1 = "\x00\x0A\x56\x9E\xEE\x62";
 static const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
@@ -464,6 +465,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		ifobj->use_fill_ring = true;
 		ifobj->release_rx = true;
 		ifobj->validation_func = NULL;
+		ifobj->use_metadata = false;
 
 		if (i == 0) {
 			ifobj->rx_on = false;
@@ -798,6 +800,20 @@ static bool is_offset_correct(struct xsk_umem_info *umem, struct pkt_stream *pkt
 	return false;
 }
 
+static bool is_metadata_correct(struct pkt *pkt, void *buffer, u64 addr)
+{
+	void *data = xsk_umem__get_data(buffer, addr);
+	struct xdp_info *meta = data - sizeof(struct xdp_info);
+
+	if (meta->count != pkt->payload) {
+		ksft_print_msg("[%s] expected meta_count [%d], got meta_count [%d]\n",
+			       __func__, pkt->payload, meta->count);
+		return false;
+	}
+
+	return true;
+}
+
 static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 {
 	void *data = xsk_umem__get_data(buffer, addr);
@@ -959,7 +975,8 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 			addr = xsk_umem__add_offset_to_addr(addr);
 
 			if (!is_pkt_valid(pkt, umem->buffer, addr, desc->len) ||
-			    !is_offset_correct(umem, pkt_stream, addr, pkt->addr))
+			    !is_offset_correct(umem, pkt_stream, addr, pkt->addr) ||
+			    (ifobj->use_metadata && !is_metadata_correct(pkt, umem->buffer, addr)))
 				return TEST_FAILURE;
 
 			if (ifobj->use_fill_ring)
@@ -1686,6 +1703,30 @@ static void testapp_xdp_drop(struct test_spec *test)
 	testapp_validate_traffic(test);
 }
 
+static void testapp_xdp_metadata_count(struct test_spec *test)
+{
+	struct xsk_xdp_progs *skel_rx = test->ifobj_rx->xdp_progs;
+	struct xsk_xdp_progs *skel_tx = test->ifobj_tx->xdp_progs;
+	struct bpf_map *data_map;
+	int count = 0;
+	int key = 0;
+
+	test_spec_set_name(test, "XDP_METADATA_COUNT");
+	test_spec_set_xdp_prog(test, skel_rx->progs.xsk_xdp_populate_metadata,
+			       skel_tx->progs.xsk_xdp_populate_metadata,
+			       skel_rx->maps.xsk, skel_tx->maps.xsk);
+	test->ifobj_rx->use_metadata = true;
+
+	data_map = bpf_object__find_map_by_name(skel_rx->obj, "xsk_xdp_.bss");
+	if (!data_map || !bpf_map__is_internal(data_map))
+		exit_with_error(ENOMEM);
+
+	if (bpf_map_update_elem(bpf_map__fd(data_map), &key, &count, BPF_ANY))
+		exit_with_error(errno);
+
+	testapp_validate_traffic(test);
+}
+
 static void testapp_poll_txq_tmout(struct test_spec *test)
 {
 	test_spec_set_name(test, "POLL_TXQ_FULL");
@@ -1834,6 +1875,9 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		break;
 	case TEST_TYPE_XDP_DROP_HALF:
 		testapp_xdp_drop(test);
+		break;
+	case TEST_TYPE_XDP_METADATA_COUNT:
+		testapp_xdp_metadata_count(test);
 		break;
 	default:
 		break;
