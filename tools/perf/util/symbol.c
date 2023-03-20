@@ -2018,6 +2018,9 @@ static int map__groups__sort_by_name_from_rbtree(struct maps *maps)
 	if (maps_by_name == NULL)
 		return -1;
 
+	up_read(&maps->lock);
+	down_write(&maps->lock);
+
 	maps->maps_by_name = maps_by_name;
 	maps->nr_maps_allocated = maps->nr_maps;
 
@@ -2025,6 +2028,10 @@ static int map__groups__sort_by_name_from_rbtree(struct maps *maps)
 		maps_by_name[i++] = map;
 
 	__maps__sort_by_name(maps);
+
+	up_write(&maps->lock);
+	down_read(&maps->lock);
+
 	return 0;
 }
 
