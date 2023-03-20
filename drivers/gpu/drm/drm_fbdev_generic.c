@@ -7,6 +7,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_print.h>
 
 #include <drm/drm_fbdev_generic.h>
@@ -74,8 +75,8 @@ static int drm_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_client_buffer *buffer;
-	struct drm_framebuffer *fb;
 	struct fb_info *info;
+	size_t screen_size;
 	u32 format;
 	int ret;
 
@@ -91,20 +92,20 @@ static int drm_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 
 	fb_helper->buffer = buffer;
 	fb_helper->fb = buffer->fb;
-	fb = buffer->fb;
+	screen_size = buffer->gem->size;
 
 	info = drm_fb_helper_alloc_info(fb_helper);
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
 	info->fbops = &drm_fbdev_fb_ops;
-	info->screen_size = sizes->surface_height * fb->pitches[0];
-	info->fix.smem_len = info->screen_size;
+	info->screen_size = screen_size;
+	info->fix.smem_len = screen_size;
 	info->flags = FBINFO_DEFAULT;
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
-	info->screen_buffer = vzalloc(info->screen_size);
+	info->screen_buffer = vzalloc(screen_size);
 	if (!info->screen_buffer)
 		return -ENOMEM;
 	info->flags |= FBINFO_VIRTFB | FBINFO_READS_FAST;
