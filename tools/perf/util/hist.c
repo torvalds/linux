@@ -745,6 +745,7 @@ __hists__add_entry(struct hists *hists,
 		.weight = sample->weight,
 		.ins_lat = sample->ins_lat,
 		.p_stage_cyc = sample->p_stage_cyc,
+		.simd_flags = sample->simd_flags,
 	}, *he = hists__findnew_entry(hists, &entry, al, sample_self);
 
 	if (!hists->has_callchains && he && he->callchain_size != 0)
