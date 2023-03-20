@@ -725,9 +725,9 @@ static ssize_t store_##file_name					\
 	unsigned long val;						\
 	int ret;							\
 									\
-	ret = sscanf(buf, "%lu", &val);					\
-	if (ret != 1)							\
-		return -EINVAL;						\
+	ret = kstrtoul(buf, 0, &val);					\
+	if (ret)							\
+		return ret;						\
 									\
 	ret = freq_qos_update_request(policy->object##_freq_req, val);\
 	return ret >= 0 ? count : ret;					\
