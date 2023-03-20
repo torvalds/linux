@@ -52,6 +52,68 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 	return IWL_MVM_INVALID_STA;
 }
 
+/* Calculate the ampdu density and max size */
+static u32 iwl_mvm_get_sta_ampdu_dens(struct ieee80211_sta *sta,
+				      u32 *_agg_size)
+{
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	u32 agg_size = 0, mpdu_dens = 0;
+
+	if (sta->deflink.ht_cap.ht_supported)
+		mpdu_dens = sta->deflink.ht_cap.ampdu_density;
+
+	if (mvm_sta->vif->bss_conf.chandef.chan->band == NL80211_BAND_6GHZ) {
+		mpdu_dens = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
+					  IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START);
+		agg_size = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
+					 IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
+	} else if (sta->deflink.vht_cap.vht_supported) {
+		agg_size = sta->deflink.vht_cap.cap &
+			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
+		agg_size >>=
+			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
+	} else if (sta->deflink.ht_cap.ht_supported) {
+		agg_size = sta->deflink.ht_cap.ampdu_factor;
+	}
+
+	/* D6.0 10.12.2 A-MPDU length limit rules
+	 * A STA indicates the maximum length of the A-MPDU preEOF padding
+	 * that it can receive in an HE PPDU in the Maximum A-MPDU Length
+	 * Exponent field in its HT Capabilities, VHT Capabilities,
+	 * and HE 6 GHz Band Capabilities elements (if present) and the
+	 * Maximum AMPDU Length Exponent Extension field in its HE
+	 * Capabilities element
+	 */
+	if (sta->deflink.he_cap.has_he)
+		agg_size +=
+		    u8_get_bits(sta->deflink.he_cap.he_cap_elem.mac_cap_info[3],
+				IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK);
+
+	/* Limit to max A-MPDU supported by FW */
+	if (agg_size > (STA_FLG_MAX_AGG_SIZE_4M >> STA_FLG_MAX_AGG_SIZE_SHIFT))
+		agg_size = (STA_FLG_MAX_AGG_SIZE_4M >>
+			    STA_FLG_MAX_AGG_SIZE_SHIFT);
+
+	*_agg_size = agg_size;
+	return mpdu_dens;
+}
+
+static u8 iwl_mvm_get_sta_uapsd_acs(struct ieee80211_sta *sta)
+{
+	u8 uapsd_acs = 0;
+
+	if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
+		uapsd_acs |= BIT(AC_BK);
+	if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+		uapsd_acs |= BIT(AC_BE);
+	if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
+		uapsd_acs |= BIT(AC_VI);
+	if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+		uapsd_acs |= BIT(AC_VO);
+
+	return uapsd_acs | uapsd_acs << 4;
+}
+
 /* send station add/update command to firmware */
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update, unsigned int flags)
@@ -135,68 +197,24 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		break;
 	}
 
-	if (sta->deflink.ht_cap.ht_supported) {
+	if (sta->deflink.ht_cap.ht_supported ||
+	    mvm_sta->vif->bss_conf.chandef.chan->band == NL80211_BAND_6GHZ)
 		add_sta_cmd.station_flags_msk |=
 			cpu_to_le32(STA_FLG_MAX_AGG_SIZE_MSK |
 				    STA_FLG_AGG_MPDU_DENS_MSK);
 
-		mpdu_dens = sta->deflink.ht_cap.ampdu_density;
-	}
-
-	if (mvm_sta->vif->bss_conf.chandef.chan->band == NL80211_BAND_6GHZ) {
-		add_sta_cmd.station_flags_msk |=
-			cpu_to_le32(STA_FLG_MAX_AGG_SIZE_MSK |
-				    STA_FLG_AGG_MPDU_DENS_MSK);
-
-		mpdu_dens = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
-					  IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START);
-		agg_size = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
-					 IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
-	} else if (sta->deflink.vht_cap.vht_supported) {
-		agg_size = sta->deflink.vht_cap.cap &
-			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
-		agg_size >>=
-			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
-	} else if (sta->deflink.ht_cap.ht_supported) {
-		agg_size = sta->deflink.ht_cap.ampdu_factor;
-	}
-
-	/* D6.0 10.12.2 A-MPDU length limit rules
-	 * A STA indicates the maximum length of the A-MPDU preEOF padding
-	 * that it can receive in an HE PPDU in the Maximum A-MPDU Length
-	 * Exponent field in its HT Capabilities, VHT Capabilities,
-	 * and HE 6 GHz Band Capabilities elements (if present) and the
-	 * Maximum AMPDU Length Exponent Extension field in its HE
-	 * Capabilities element
-	 */
-	if (sta->deflink.he_cap.has_he)
-		agg_size += u8_get_bits(sta->deflink.he_cap.he_cap_elem.mac_cap_info[3],
-					IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK);
-
-	/* Limit to max A-MPDU supported by FW */
-	if (agg_size > (STA_FLG_MAX_AGG_SIZE_4M >> STA_FLG_MAX_AGG_SIZE_SHIFT))
-		agg_size = (STA_FLG_MAX_AGG_SIZE_4M >>
-			    STA_FLG_MAX_AGG_SIZE_SHIFT);
-
+	mpdu_dens = iwl_mvm_get_sta_ampdu_dens(sta, &agg_size);
 	add_sta_cmd.station_flags |=
 		cpu_to_le32(agg_size << STA_FLG_MAX_AGG_SIZE_SHIFT);
 	add_sta_cmd.station_flags |=
 		cpu_to_le32(mpdu_dens << STA_FLG_AGG_MPDU_DENS_SHIFT);
+
 	if (mvm_sta->sta_state >= IEEE80211_STA_ASSOC)
 		add_sta_cmd.assoc_id = cpu_to_le16(sta->aid);
 
 	if (sta->wme) {
 		add_sta_cmd.modify_mask |= STA_MODIFY_UAPSD_ACS;
-
-		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
-			add_sta_cmd.uapsd_acs |= BIT(AC_BK);
-		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
-			add_sta_cmd.uapsd_acs |= BIT(AC_BE);
-		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
-			add_sta_cmd.uapsd_acs |= BIT(AC_VI);
-		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
-			add_sta_cmd.uapsd_acs |= BIT(AC_VO);
-		add_sta_cmd.uapsd_acs |= add_sta_cmd.uapsd_acs << 4;
+		add_sta_cmd.uapsd_acs = iwl_mvm_get_sta_uapsd_acs(sta);
 		add_sta_cmd.sp_length = sta->max_sp ? sta->max_sp * 2 : 128;
 	}
 
