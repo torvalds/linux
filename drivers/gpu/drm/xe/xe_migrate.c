@@ -360,6 +360,8 @@ struct xe_migrate *xe_migrate_init(struct xe_gt *gt)
 		xe_vm_close_and_put(vm);
 		return ERR_CAST(m->eng);
 	}
+	if (xe->info.supports_usm)
+		m->eng->priority = XE_ENGINE_PRIORITY_KERNEL;
 
 	mutex_init(&m->job_mutex);
 
