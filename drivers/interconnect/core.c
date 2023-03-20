@@ -1150,4 +1150,3 @@ device_initcall(icc_init);
 
 MODULE_AUTHOR("Georgi Djakov <georgi.djakov@linaro.org>");
 MODULE_DESCRIPTION("Interconnect Driver Core");
-MODULE_LICENSE("GPL v2");
