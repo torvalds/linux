@@ -626,6 +626,7 @@ fail:
 static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct page **pages;
 	int ret = 0;
 
 	msm_gem_assert_locked(obj);
@@ -639,6 +640,10 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 		return ERR_PTR(-EBUSY);
 	}
 
+	pages = msm_gem_pin_pages_locked(obj);
+	if (IS_ERR(pages))
+		return ERR_CAST(pages);
+
 	/* increment vmap_count *before* vmap() call, so shrinker can
 	 * check vmap_count (is_vunmapable()) outside of msm_obj lock.
 	 * This guarantees that we won't try to msm_gem_vunmap() this
@@ -648,25 +653,19 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 	msm_obj->vmap_count++;
 
 	if (!msm_obj->vaddr) {
-		struct page **pages = get_pages(obj);
-		if (IS_ERR(pages)) {
-			ret = PTR_ERR(pages);
-			goto fail;
-		}
 		msm_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, msm_gem_pgprot(msm_obj, PAGE_KERNEL));
 		if (msm_obj->vaddr == NULL) {
 			ret = -ENOMEM;
 			goto fail;
 		}
-
-		update_lru(obj);
 	}
 
 	return msm_obj->vaddr;
 
 fail:
 	msm_obj->vmap_count--;
+	msm_gem_unpin_locked(obj);
 	return ERR_PTR(ret);
 }
 
@@ -705,6 +704,7 @@ void msm_gem_put_vaddr_locked(struct drm_gem_object *obj)
 	GEM_WARN_ON(msm_obj->vmap_count < 1);
 
 	msm_obj->vmap_count--;
+	msm_gem_unpin_locked(obj);
 }
 
 void msm_gem_put_vaddr(struct drm_gem_object *obj)
@@ -813,10 +813,9 @@ static void update_lru(struct drm_gem_object *obj)
 
 	if (!msm_obj->pages) {
 		GEM_WARN_ON(msm_obj->pin_count);
-		GEM_WARN_ON(msm_obj->vmap_count);
 
 		drm_gem_lru_move_tail(&priv->lru.unbacked, obj);
-	} else if (msm_obj->pin_count || msm_obj->vmap_count) {
+	} else if (msm_obj->pin_count) {
 		drm_gem_lru_move_tail(&priv->lru.pinned, obj);
 	} else if (msm_obj->madv == MSM_MADV_WILLNEED) {
 		drm_gem_lru_move_tail(&priv->lru.willneed, obj);
