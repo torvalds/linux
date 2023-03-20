@@ -211,7 +211,7 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 static void au0828_media_graph_notify(struct media_entity *new,
 				      void *notify_data)
 {
-	struct au0828_dev *dev = (struct au0828_dev *) notify_data;
+	struct au0828_dev *dev = notify_data;
 	int ret;
 	struct media_entity *entity, *mixer = NULL, *decoder = NULL;
 
