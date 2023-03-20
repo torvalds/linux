@@ -236,18 +236,19 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	const char *objdump_name;
 	char decomp_name[KMOD_DECOMP_LEN];
 	bool decomp = false;
-	int ret;
+	int ret, err = 0;
 
 	pr_debug("Reading object code for memory address: %#"PRIx64"\n", addr);
 
 	if (!thread__find_map(thread, cpumode, addr, &al) || !al.map->dso) {
 		if (cpumode == PERF_RECORD_MISC_HYPERVISOR) {
 			pr_debug("Hypervisor address can not be resolved - skipping\n");
-			return 0;
+			goto out;
 		}
 
 		pr_debug("thread__find_map failed\n");
-		return -1;
+		err = -1;
+		goto out;
 	}
 
 	pr_debug("File is: %s\n", al.map->dso->long_name);
@@ -255,7 +256,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	if (al.map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(al.map->dso)) {
 		pr_debug("Unexpected kernel address - skipping\n");
-		return 0;
+		goto out;
 	}
 
 	pr_debug("On file address is: %#"PRIx64"\n", al.addr);
@@ -272,15 +273,18 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 					al.addr, buf1, len);
 	if (ret_len != len) {
 		pr_debug("dso__data_read_offset failed\n");
-		return -1;
+		err = -1;
+		goto out;
 	}
 
 	/*
 	 * Converting addresses for use by objdump requires more information.
 	 * map__load() does that.  See map__rip_2objdump() for details.
 	 */
-	if (map__load(al.map))
-		return -1;
+	if (map__load(al.map)) {
+		err = -1;
+		goto out;
+	}
 
 	/* objdump struggles with kcore - try each map only once */
 	if (dso__is_kcore(al.map->dso)) {
@@ -290,12 +294,12 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 			if (state->done[d] == al.map->start) {
 				pr_debug("kcore map tested already");
 				pr_debug(" - skipping\n");
-				return 0;
+				goto out;
 			}
 		}
 		if (state->done_cnt >= ARRAY_SIZE(state->done)) {
 			pr_debug("Too many kcore maps - skipping\n");
-			return 0;
+			goto out;
 		}
 		state->done[state->done_cnt++] = al.map->start;
 	}
@@ -306,7 +310,8 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 						 decomp_name,
 						 sizeof(decomp_name)) < 0) {
 			pr_debug("decompression failed\n");
-			return -1;
+			err = -1;
+			goto out;
 		}
 
 		decomp = true;
@@ -337,15 +342,16 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 				 */
 				pr_debug("objdump failed for kcore");
 				pr_debug(" - skipping\n");
-				return 0;
 			} else {
-				return -1;
+				err = -1;
 			}
+			goto out;
 		}
 	}
 	if (ret < 0) {
 		pr_debug("read_via_objdump failed\n");
-		return -1;
+		err = -1;
+		goto out;
 	}
 
 	/* The results should be identical */
@@ -355,11 +361,12 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		dump_buf(buf1, len);
 		pr_debug("buf2 (objdump):\n");
 		dump_buf(buf2, len);
-		return -1;
+		err = -1;
+		goto out;
 	}
 	pr_debug("Bytes read match those read by objdump\n");
-
-	return 0;
+out:
+	return err;
 }
 
 static int process_sample_event(struct machine *machine,
