@@ -775,10 +775,26 @@ struct iwl_mvm_dqa_txq_info {
 struct ptp_data {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
-	/* keeps track of GP2 wrap-around */
-	u32 last_gp2;
-	u32 wrap_counter;
+
 	struct delayed_work dwork;
+
+	/* The last GP2 reading from the hw */
+	u32 last_gp2;
+
+	/* number of wraparounds since scale_update_adj_time_ns */
+	u32 wrap_counter;
+
+	/* GP2 time when the scale was last updated */
+	u32 scale_update_gp2;
+
+	/* Adjusted time when the scale was last updated in nanoseconds */
+	u64 scale_update_adj_time_ns;
+
+	/* clock frequency offset, scaled to 65536000000 */
+	u64 scaled_freq;
+
+	/* Delta between hardware clock and ptp clock in nanoseconds */
+	s64 delta;
 };
 
 struct iwl_time_sync_data {
@@ -2144,6 +2160,7 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 
 void iwl_mvm_ptp_init(struct iwl_mvm *mvm);
 void iwl_mvm_ptp_remove(struct iwl_mvm *mvm);
+u64 iwl_mvm_ptp_get_adj_time(struct iwl_mvm *mvm, u64 base_time);
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm);

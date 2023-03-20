@@ -66,19 +66,22 @@ void iwl_mvm_time_sync_msmt_event(struct iwl_mvm *mvm,
 	struct sk_buff *skb =
 		iwl_mvm_time_sync_find_skb(mvm, notif->peer_addr,
 					   le32_to_cpu(notif->dialog_token));
+	u64 adj_time;
 
 	if (!skb) {
 		IWL_DEBUG_INFO(mvm, "Time sync event but no pending skb\n");
 		return;
 	}
 
-	ts_10ns = iwl_mvm_get_64_bit(notif->t3_hi, notif->t3_lo);
-	rx_status = IEEE80211_SKB_RXCB(skb);
-	rx_status->ack_tx_hwtstamp = ktime_set(0, ts_10ns * 10);
-
 	ts_10ns = iwl_mvm_get_64_bit(notif->t2_hi, notif->t2_lo);
+	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
 	shwt = skb_hwtstamps(skb);
-	shwt->hwtstamp = ktime_set(0, ts_10ns * 10);
+	shwt->hwtstamp = ktime_set(0, adj_time);
+
+	ts_10ns = iwl_mvm_get_64_bit(notif->t3_hi, notif->t3_lo);
+	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
+	rx_status = IEEE80211_SKB_RXCB(skb);
+	rx_status->ack_tx_hwtstamp = ktime_set(0, adj_time);
 
 	IWL_DEBUG_INFO(mvm,
 		       "Time sync: RX event - report frame t2=%llu t3=%llu\n",
@@ -94,7 +97,7 @@ void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
 	struct iwl_time_msmt_cfm_notify *notif = (void *)pkt->data;
 	struct ieee80211_tx_status status = {};
 	struct skb_shared_hwtstamps *shwt;
-	u64 ts_10ns;
+	u64 ts_10ns, adj_time;
 
 	status.skb =
 		iwl_mvm_time_sync_find_skb(mvm, notif->peer_addr,
@@ -105,14 +108,15 @@ void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
 		return;
 	}
 
-	status.info = IEEE80211_SKB_CB(status.skb);
+	ts_10ns = iwl_mvm_get_64_bit(notif->t1_hi, notif->t1_lo);
+	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
+	shwt = skb_hwtstamps(status.skb);
+	shwt->hwtstamp = ktime_set(0, adj_time);
 
 	ts_10ns = iwl_mvm_get_64_bit(notif->t4_hi, notif->t4_lo);
-	status.ack_hwtstamp = ktime_set(0, ts_10ns * 10);
-
-	ts_10ns = iwl_mvm_get_64_bit(notif->t1_hi, notif->t1_lo);
-	shwt = skb_hwtstamps(status.skb);
-	shwt->hwtstamp = ktime_set(0, ts_10ns * 10);
+	adj_time = iwl_mvm_ptp_get_adj_time(mvm, ts_10ns * 10);
+	status.info = IEEE80211_SKB_CB(status.skb);
+	status.ack_hwtstamp = ktime_set(0, adj_time);
 
 	IWL_DEBUG_INFO(mvm,
 		       "Time sync: TX event - report frame t1=%llu t4=%llu\n",
