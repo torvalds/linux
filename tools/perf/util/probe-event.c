@@ -143,7 +143,7 @@ static int kernel_get_symbol_address_by_name(const char *name, u64 *addr,
 			return -ENOENT;
 		*addr = map->unmap_ip(map, sym->start) -
 			((reloc) ? 0 : map->reloc) -
-			((reladdr) ? map->start : 0);
+			((reladdr) ? map__start(map) : 0);
 	}
 	return 0;
 }
@@ -257,7 +257,7 @@ static bool kprobe_warn_out_range(const char *symbol, u64 address)
 
 	map = kernel_get_module_map(NULL);
 	if (map) {
-		ret = address <= map->start || map->end < address;
+		ret = address <= map__start(map) || map__end(map) < address;
 		if (ret)
 			pr_warning("%s is out of .text, skip it.\n", symbol);
 		map__put(map);

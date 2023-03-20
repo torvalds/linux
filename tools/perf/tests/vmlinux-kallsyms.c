@@ -267,7 +267,7 @@ next_pair:
 
 				continue;
 			}
-		} else if (mem_start == kallsyms.vmlinux_map->end) {
+		} else if (mem_start == map__end(kallsyms.vmlinux_map)) {
 			/*
 			 * Ignore aliases to _etext, i.e. to the end of the kernel text area,
 			 * such as __indirect_thunk_end.
@@ -319,14 +319,14 @@ next_pair:
 	maps__for_each_entry(maps, rb_node) {
 		struct map *pair, *map = rb_node->map;
 
-		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map->start);
-		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map->end);
+		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map__start(map));
+		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map__end(map));
 
 		pair = maps__find(kallsyms.kmaps, mem_start);
 		if (pair == NULL || pair->priv)
 			continue;
 
-		if (pair->start == mem_start) {
+		if (map__start(pair) == mem_start) {
 			struct dso *dso = map__dso(map);
 
 			if (!header_printed) {
@@ -335,10 +335,10 @@ next_pair:
 			}
 
 			pr_info("WARN: %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
-				map->start, map->end, map->pgoff, dso->name);
-			if (mem_end != pair->end)
+				map__start(map), map__end(map), map->pgoff, dso->name);
+			if (mem_end != map__end(pair))
 				pr_info(":\nWARN: *%" PRIx64 "-%" PRIx64 " %" PRIx64,
-					pair->start, pair->end, pair->pgoff);
+					map__start(pair), map__end(pair), pair->pgoff);
 			pr_info(" %s\n", dso->name);
 			pair->priv = 1;
 		}

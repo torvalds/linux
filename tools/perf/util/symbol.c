@@ -278,8 +278,8 @@ void maps__fixup_end(struct maps *maps)
 	down_write(maps__lock(maps));
 
 	maps__for_each_entry(maps, curr) {
-		if (prev != NULL && !prev->map->end)
-			prev->map->end = curr->map->start;
+		if (prev != NULL && !map__end(prev->map))
+			prev->map->end = map__start(curr->map);
 
 		prev = curr;
 	}
@@ -288,7 +288,7 @@ void maps__fixup_end(struct maps *maps)
 	 * We still haven't the actual symbols, so guess the
 	 * last map final address.
 	 */
-	if (curr && !curr->map->end)
+	if (curr && !map__end(curr->map))
 		curr->map->end = ~0ULL;
 
 	up_write(maps__lock(maps));
@@ -810,11 +810,11 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 			continue;
 		}
 		curr_map_dso = map__dso(curr_map);
-		pos->start -= curr_map->start - curr_map->pgoff;
-		if (pos->end > curr_map->end)
-			pos->end = curr_map->end;
+		pos->start -= map__start(curr_map) - curr_map->pgoff;
+		if (pos->end > map__end(curr_map))
+			pos->end = map__end(curr_map);
 		if (pos->end)
-			pos->end -= curr_map->start - curr_map->pgoff;
+			pos->end -= map__start(curr_map) - curr_map->pgoff;
 		symbols__insert(&curr_map_dso->symbols, pos);
 		++count;
 	}
@@ -1156,7 +1156,7 @@ static int do_validate_kcore_modules(const char *filename, struct maps *kmaps)
 		dso = map__dso(old_map);
 		/* Module must be in memory at the same address */
 		mi = find_module(dso->short_name, &modules);
-		if (!mi || mi->start != old_map->start) {
+		if (!mi || mi->start != map__start(old_map)) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -1250,7 +1250,7 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
 		return -ENOMEM;
 	}
 
-	list_node->map->end = list_node->map->start + len;
+	list_node->map->end = map__start(list_node->map) + len;
 	list_node->map->pgoff = pgoff;
 
 	list_add(&list_node->node, &md->maps);
@@ -1272,21 +1272,21 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 		struct map *old_map = rb_node->map;
 
 		/* no overload with this one */
-		if (new_map->end < old_map->start ||
-		    new_map->start >= old_map->end)
+		if (map__end(new_map) < map__start(old_map) ||
+		    map__start(new_map) >= map__end(old_map))
 			continue;
 
-		if (new_map->start < old_map->start) {
+		if (map__start(new_map) < map__start(old_map)) {
 			/*
 			 * |new......
 			 *       |old....
 			 */
-			if (new_map->end < old_map->end) {
+			if (map__end(new_map) < map__end(old_map)) {
 				/*
 				 * |new......|     -> |new..|
 				 *       |old....| ->       |old....|
 				 */
-				new_map->end = old_map->start;
+				new_map->end = map__start(old_map);
 			} else {
 				/*
 				 * |new.............| -> |new..|       |new..|
@@ -1306,17 +1306,17 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 					goto out;
 				}
 
-				m->map->end = old_map->start;
+				m->map->end = map__start(old_map);
 				list_add_tail(&m->node, &merged);
-				new_map->pgoff += old_map->end - new_map->start;
-				new_map->start = old_map->end;
+				new_map->pgoff += map__end(old_map) - map__start(new_map);
+				new_map->start = map__end(old_map);
 			}
 		} else {
 			/*
 			 *      |new......
 			 * |old....
 			 */
-			if (new_map->end < old_map->end) {
+			if (map__end(new_map) < map__end(old_map)) {
 				/*
 				 *      |new..|   -> x
 				 * |old.........| -> |old.........|
@@ -1329,8 +1329,8 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 				 *      |new......| ->         |new...|
 				 * |old....|        -> |old....|
 				 */
-				new_map->pgoff += old_map->end - new_map->start;
-				new_map->start = old_map->end;
+				new_map->pgoff += map__end(old_map) - map__start(new_map);
+				new_map->start = map__end(old_map);
 			}
 		}
 	}
@@ -1428,9 +1428,9 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 
 		list_for_each_entry(new_node, &md.maps, node) {
 			struct map *new_map = new_node->map;
-			u64 new_size = new_map->end - new_map->start;
+			u64 new_size = map__size(new_map);
 
-			if (!(stext >= new_map->start && stext < new_map->end))
+			if (!(stext >= map__start(new_map) && stext < map__end(new_map)))
 				continue;
 
 			/*
@@ -1457,8 +1457,8 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		list_del_init(&new_node->node);
 
 		if (new_map == replacement_map) {
-			map->start	= new_map->start;
-			map->end	= new_map->end;
+			map->start	= map__start(new_map);
+			map->end	= map__end(new_map);
 			map->pgoff	= new_map->pgoff;
 			map->map_ip	= new_map->map_ip;
 			map->unmap_ip	= new_map->unmap_ip;

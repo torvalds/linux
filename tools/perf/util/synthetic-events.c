@@ -706,8 +706,8 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 						(sizeof(event->mmap2.filename) - size));
 			memset(event->mmap2.filename + size, 0, machine->id_hdr_size);
 			event->mmap2.header.size += machine->id_hdr_size;
-			event->mmap2.start = map->start;
-			event->mmap2.len   = map->end - map->start;
+			event->mmap2.start = map__start(map);
+			event->mmap2.len   = map__size(map);
 			event->mmap2.pid   = machine->pid;
 
 			memcpy(event->mmap2.filename, dso->long_name, dso->long_name_len + 1);
@@ -720,8 +720,8 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 						(sizeof(event->mmap.filename) - size));
 			memset(event->mmap.filename + size, 0, machine->id_hdr_size);
 			event->mmap.header.size += machine->id_hdr_size;
-			event->mmap.start = map->start;
-			event->mmap.len   = map->end - map->start;
+			event->mmap.start = map__start(map);
+			event->mmap.len   = map__size(map);
 			event->mmap.pid   = machine->pid;
 
 			memcpy(event->mmap.filename, dso->long_name, dso->long_name_len + 1);
@@ -1143,8 +1143,8 @@ static int __perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		event->mmap2.header.size = (sizeof(event->mmap2) -
 				(sizeof(event->mmap2.filename) - size) + machine->id_hdr_size);
 		event->mmap2.pgoff = kmap->ref_reloc_sym->addr;
-		event->mmap2.start = map->start;
-		event->mmap2.len   = map->end - event->mmap.start;
+		event->mmap2.start = map__start(map);
+		event->mmap2.len   = map__end(map) - event->mmap.start;
 		event->mmap2.pid   = machine->pid;
 
 		perf_record_mmap2__read_build_id(&event->mmap2, machine, true);
@@ -1156,8 +1156,8 @@ static int __perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		event->mmap.header.size = (sizeof(event->mmap) -
 				(sizeof(event->mmap.filename) - size) + machine->id_hdr_size);
 		event->mmap.pgoff = kmap->ref_reloc_sym->addr;
-		event->mmap.start = map->start;
-		event->mmap.len   = map->end - event->mmap.start;
+		event->mmap.start = map__start(map);
+		event->mmap.len   = map__end(map) - event->mmap.start;
 		event->mmap.pid   = machine->pid;
 	}
 

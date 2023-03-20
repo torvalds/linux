@@ -903,7 +903,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		}
 
 		map->start = event->ksymbol.addr;
-		map->end = map->start + event->ksymbol.len;
+		map->end = map__start(map) + event->ksymbol.len;
 		err = maps__insert(machine__kernel_maps(machine), map);
 		map__put(map);
 		if (err)
@@ -919,7 +919,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		dso = map__dso(map);
 	}
 
-	sym = symbol__new(map->map_ip(map, map->start),
+	sym = symbol__new(map->map_ip(map, map__start(map)),
 			  event->ksymbol.len,
 			  0, 0, event->ksymbol.name);
 	if (!sym)
@@ -944,7 +944,7 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 	else {
 		struct dso *dso = map__dso(map);
 
-		sym = dso__find_symbol(dso, map->map_ip(map, map->start));
+		sym = dso__find_symbol(dso, map->map_ip(map, map__start(map)));
 		if (sym)
 			dso__delete_symbol(dso, sym);
 	}
@@ -1217,7 +1217,7 @@ int machine__create_extra_kernel_map(struct machine *machine,
 
 	if (!err) {
 		pr_debug2("Added extra kernel map %s %" PRIx64 "-%" PRIx64 "\n",
-			kmap->name, map->start, map->end);
+			kmap->name, map__start(map), map__end(map));
 	}
 
 	map__put(map);
@@ -1722,7 +1722,7 @@ int machine__create_kernel_maps(struct machine *machine)
 		struct map_rb_node *next = map_rb_node__next(rb_node);
 
 		if (next)
-			machine__set_kernel_mmap(machine, start, next->map->start);
+			machine__set_kernel_mmap(machine, start, map__start(next->map));
 	}
 
 out_put:
@@ -1795,7 +1795,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (map == NULL)
 			goto out_problem;
 
-		map->end = map->start + xm->end - xm->start;
+		map->end = map__start(map) + xm->end - xm->start;
 
 		if (build_id__is_defined(bid))
 			dso__set_build_id(map__dso(map), bid);
@@ -3293,7 +3293,7 @@ int machine__get_kernel_start(struct machine *machine)
 		 * kernel_start = 1ULL << 63 for x86_64.
 		 */
 		if (!err && !machine__is(machine, "x86_64"))
-			machine->kernel_start = map->start;
+			machine->kernel_start = map__start(map);
 	}
 	return err;
 }

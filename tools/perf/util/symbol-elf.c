@@ -1355,7 +1355,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		if (*remap_kernel && dso->kernel && !kmodule) {
 			*remap_kernel = false;
 			map->start = shdr->sh_addr + ref_reloc(kmap);
-			map->end = map->start + shdr->sh_size;
+			map->end = map__start(map) + shdr->sh_size;
 			map->pgoff = shdr->sh_offset;
 			map->map_ip = map__map_ip;
 			map->unmap_ip = map__unmap_ip;
@@ -1397,7 +1397,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		u64 start = sym->st_value;
 
 		if (kmodule)
-			start += map->start + shdr->sh_offset;
+			start += map__start(map) + shdr->sh_offset;
 
 		curr_dso = dso__new(dso_name);
 		if (curr_dso == NULL)
@@ -1415,7 +1415,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 
 		if (adjust_kernel_syms) {
 			curr_map->start  = shdr->sh_addr + ref_reloc(kmap);
-			curr_map->end	 = curr_map->start + shdr->sh_size;
+			curr_map->end	 = map__start(curr_map) + shdr->sh_size;
 			curr_map->pgoff	 = shdr->sh_offset;
 		} else {
 			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
@@ -1536,7 +1536,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * attempted to prelink vdso to its virtual address.
 	 */
 	if (dso__is_vdso(dso))
-		map->reloc = map->start - dso->text_offset;
+		map->reloc = map__start(map) - dso->text_offset;
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*

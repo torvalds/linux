@@ -851,7 +851,7 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 		const struct dso *dso = map__dso(map);
 
 		printed += fprintf(fp, "%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %" PRIu64 " %s\n",
-				   indent, "", map->start, map->end,
+				   indent, "", map__start(map), map__end(map),
 				   map->prot & PROT_READ ? 'r' : '-',
 				   map->prot & PROT_WRITE ? 'w' : '-',
 				   map->prot & PROT_EXEC ? 'x' : '-',

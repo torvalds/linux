@@ -265,8 +265,8 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		len = BUFSZ;
 
 	/* Do not go off the map */
-	if (addr + len > al.map->end)
-		len = al.map->end - addr;
+	if (addr + len > map__end(al.map))
+		len = map__end(al.map) - addr;
 
 	/* Read the object code using perf */
 	ret_len = dso__data_read_offset(dso, maps__machine(thread->maps),
@@ -291,7 +291,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		size_t d;
 
 		for (d = 0; d < state->done_cnt; d++) {
-			if (state->done[d] == al.map->start) {
+			if (state->done[d] == map__start(al.map)) {
 				pr_debug("kcore map tested already");
 				pr_debug(" - skipping\n");
 				goto out;
@@ -301,7 +301,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 			pr_debug("Too many kcore maps - skipping\n");
 			goto out;
 		}
-		state->done[state->done_cnt++] = al.map->start;
+		state->done[state->done_cnt++] = map__start(al.map);
 	}
 
 	objdump_name = dso->long_name;

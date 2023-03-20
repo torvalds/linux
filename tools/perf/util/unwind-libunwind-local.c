@@ -327,9 +327,10 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 
 	maps__for_each_entry(ui->thread->maps, map_node) {
 		struct map *map = map_node->map;
+		u64 start = map__start(map);
 
-		if (map__dso(map) == dso && map->start < base_addr)
-			base_addr = map->start;
+		if (map__dso(map) == dso && start < base_addr)
+			base_addr = start;
 	}
 	base_addr -= dso->data.elf_base_addr;
 	/* Address of .eh_frame_hdr */
@@ -443,8 +444,8 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	if (!read_unwind_spec_eh_frame(dso, ui, &table_data, &segbase, &fde_count)) {
 		memset(&di, 0, sizeof(di));
 		di.format   = UNW_INFO_FORMAT_REMOTE_TABLE;
-		di.start_ip = map->start;
-		di.end_ip   = map->end;
+		di.start_ip = map__start(map);
+		di.end_ip   = map__end(map);
 		di.u.rti.segbase    = segbase;
 		di.u.rti.table_data = table_data;
 		di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
@@ -459,7 +460,8 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	    !read_unwind_spec_debug_frame(dso, ui->machine, &segbase)) {
 		int fd = dso__data_get_fd(dso, ui->machine);
 		int is_exec = elf_is_exec(fd, dso->name);
-		unw_word_t base = is_exec ? 0 : map->start;
+		u64 start = map__start(map);
+		unw_word_t base = is_exec ? 0 : start;
 		const char *symfile;
 
 		if (fd >= 0)
@@ -468,8 +470,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		symfile = dso->symsrc_filename ?: dso->name;
 
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, base, symfile,
-					   map->start, map->end))
+		if (dwarf_find_debug_frame(0, &di, ip, base, symfile, start, map__end(map)))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);
 	}

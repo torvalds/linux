@@ -24,8 +24,8 @@ static int check_maps(struct map_def *merged, unsigned int size, struct maps *ma
 		if (i > 0)
 			TEST_ASSERT_VAL("less maps expected", (map && i < size) || (!map && i == size));
 
-		TEST_ASSERT_VAL("wrong map start",  map->start == merged[i].start);
-		TEST_ASSERT_VAL("wrong map end",    map->end == merged[i].end);
+		TEST_ASSERT_VAL("wrong map start",  map__start(map) == merged[i].start);
+		TEST_ASSERT_VAL("wrong map end",    map__end(map) == merged[i].end);
 		TEST_ASSERT_VAL("wrong map name",  !strcmp(map__dso(map)->name, merged[i].name));
 		TEST_ASSERT_VAL("wrong map refcnt", refcount_read(&map->refcnt) == 1);
 

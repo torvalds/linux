@@ -887,7 +887,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				goto out_no_cache;
 			}
 
-			if (*ip >= al.map->end)
+			if (*ip >= map__end(al.map))
 				break;
 
 			offset += intel_pt_insn->length;
@@ -2750,7 +2750,7 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 		if (sym->binding == STB_GLOBAL &&
 		    !strcmp(sym->name, "__switch_to")) {
 			ip = map->unmap_ip(map, sym->start);
-			if (ip >= map->start && ip < map->end) {
+			if (ip >= map__start(map) && ip < map__end(map)) {
 				switch_ip = ip;
 				break;
 			}
@@ -2768,7 +2768,7 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 	for (sym = start; sym; sym = dso__next_symbol(sym)) {
 		if (!strcmp(sym->name, ptss)) {
 			ip = map->unmap_ip(map, sym->start);
-			if (ip >= map->start && ip < map->end) {
+			if (ip >= map__start(map) && ip < map__end(map)) {
 				*ptss_ip = ip;
 				break;
 			}
@@ -3356,7 +3356,7 @@ static int intel_pt_process_aux_output_hw_id(struct intel_pt *pt,
 static int intel_pt_find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
-	if (!al->map || addr < al->map->start || addr >= al->map->end) {
+	if (!al->map || addr < map__start(al->map) || addr >= map__end(al->map)) {
 		if (!thread__find_map(thread, cpumode, addr, al))
 			return -1;
 	}

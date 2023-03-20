@@ -59,8 +59,8 @@ int perf_event__synthesize_extra_kmaps(struct perf_tool *tool,
 
 		event->mmap.header.size = size;
 
-		event->mmap.start = map->start;
-		event->mmap.len   = map->end - map->start;
+		event->mmap.start = map__start(map);
+		event->mmap.len   = map__size(map);
 		event->mmap.pgoff = map->pgoff;
 		event->mmap.pid   = machine->pid;
 

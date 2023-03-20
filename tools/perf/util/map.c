@@ -421,7 +421,7 @@ size_t map__fprintf(struct map *map, FILE *fp)
 	const struct dso *dso = map__dso(map);
 
 	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s\n",
-		       map->start, map->end, map->pgoff, dso->name);
+		       map__start(map), map__end(map), map->pgoff, dso->name);
 }
 
 size_t map__fprintf_dsoname(struct map *map, FILE *fp)
@@ -558,7 +558,7 @@ bool map__contains_symbol(const struct map *map, const struct symbol *sym)
 {
 	u64 ip = map->unmap_ip(map, sym->start);
 
-	return ip >= map->start && ip < map->end;
+	return ip >= map__start(map) && ip < map__end(map);
 }
 
 struct kmap *__map__kmap(struct map *map)
@@ -592,12 +592,12 @@ struct maps *map__kmaps(struct map *map)
 
 u64 map__map_ip(const struct map *map, u64 ip)
 {
-	return ip - map->start + map->pgoff;
+	return ip - map__start(map) + map->pgoff;
 }
 
 u64 map__unmap_ip(const struct map *map, u64 ip)
 {
-	return ip + map->start - map->pgoff;
+	return ip + map__start(map) - map->pgoff;
 }
 
 u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)

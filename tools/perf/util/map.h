@@ -52,9 +52,19 @@ static inline struct dso *map__dso(const struct map *map)
 	return map->dso;
 }
 
+static inline u64 map__start(const struct map *map)
+{
+	return map->start;
+}
+
+static inline u64 map__end(const struct map *map)
+{
+	return map->end;
+}
+
 static inline size_t map__size(const struct map *map)
 {
-	return map->end - map->start;
+	return map__end(map) - map__start(map);
 }
 
 /* rip/ip <-> addr suitable for passing to `objdump --start-address=` */
