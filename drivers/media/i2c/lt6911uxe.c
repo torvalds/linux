@@ -217,6 +217,7 @@ struct lt6911uxe_mode {
 	u32 vts_def;
 	u32 exp_def;
 	u32 mipi_freq_idx;
+	u32 interlace;
 };
 
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
@@ -241,6 +242,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 5500,
 		.vts_def = 2250,
 		.mipi_freq_idx = 0,
+		.interlace = 0,
 	}, {
 		.width = 4096,
 		.height = 2160,
@@ -251,6 +253,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 4400,
 		.vts_def = 2250,
 		.mipi_freq_idx = 0,
+		.interlace = 0,
 	}, {
 		.width = 4096,
 		.height = 2160,
@@ -261,6 +264,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 4400,
 		.vts_def = 2250,
 		.mipi_freq_idx = 1,
+		.interlace = 0,
 	}, {
 		.width = 3840,
 		.height = 2160,
@@ -271,6 +275,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 4400,
 		.vts_def = 2250,
 		.mipi_freq_idx = 0,
+		.interlace = 0,
 	}, {
 		.width = 3840,
 		.height = 2160,
@@ -281,6 +286,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 4400,
 		.vts_def = 2250,
 		.mipi_freq_idx = 1,
+		.interlace = 0,
 	}, {
 		.width = 1920,
 		.height = 1080,
@@ -291,6 +297,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 2200,
 		.vts_def = 1125,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1920,
 		.height = 1200,
@@ -301,6 +308,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 2592,
 		.vts_def = 1245,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1920,
 		.height = 1080,
@@ -311,6 +319,18 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 2200,
 		.vts_def = 1125,
 		.mipi_freq_idx = 4,
+		.interlace = 0,
+	}, {
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 2200,
+		.vts_def = 1125,
+		.mipi_freq_idx = 4,
+		.interlace = 1,
 	}, {
 		.width = 1680,
 		.height = 1050,
@@ -321,6 +341,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 2240,
 		.vts_def = 1089,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1600,
 		.height = 1200,
@@ -331,6 +352,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 2160,
 		.vts_def = 1250,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1600,
 		.height = 900,
@@ -341,6 +363,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1800,
 		.vts_def = 1000,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1440,
 		.height = 900,
@@ -351,6 +374,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1904,
 		.vts_def = 934,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1440,
 		.height = 240,
@@ -361,6 +385,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1716,
 		.vts_def = 262,
 		.mipi_freq_idx = 5,
+		.interlace = 0,
 	}, {
 		.width = 1360,
 		.height = 768,
@@ -371,6 +396,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1792,
 		.vts_def = 795,
 		.mipi_freq_idx = 4,
+		.interlace = 0,
 	}, {
 		.width = 1280,
 		.height = 1024,
@@ -381,6 +407,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1688,
 		.vts_def = 1066,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1280,
 		.height = 960,
@@ -391,6 +418,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1712,
 		.vts_def = 994,
 		.mipi_freq_idx = 3,
+		.interlace = 0,
 	}, {
 		.width = 1280,
 		.height = 800,
@@ -401,6 +429,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1680,
 		.vts_def = 828,
 		.mipi_freq_idx = 4,
+		.interlace = 0,
 	}, {
 		.width = 1280,
 		.height = 768,
@@ -411,6 +440,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1664,
 		.vts_def = 798,
 		.mipi_freq_idx = 4,
+		.interlace = 0,
 	}, {
 		.width = 1280,
 		.height = 720,
@@ -421,6 +451,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1650,
 		.vts_def = 750,
 		.mipi_freq_idx = 4,
+		.interlace = 0,
 	}, {
 		.width = 1152,
 		.height = 864,
@@ -431,6 +462,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1600,
 		.vts_def = 900,
 		.mipi_freq_idx = 4,
+		.interlace = 0,
 	}, {
 		.width = 1024,
 		.height = 768,
@@ -441,6 +473,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1344,
 		.vts_def = 806,
 		.mipi_freq_idx = 4,
+		.interlace = 0,
 	}, {
 		.width = 800,
 		.height = 600,
@@ -451,6 +484,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 1056,
 		.vts_def = 628,
 		.mipi_freq_idx = 5,
+		.interlace = 0,
 	}, {
 		.width = 720,
 		.height = 576,
@@ -461,6 +495,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 864,
 		.vts_def = 625,
 		.mipi_freq_idx = 5,
+		.interlace = 0,
 	}, {
 		.width = 720,
 		.height = 480,
@@ -471,6 +506,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 858,
 		.vts_def = 525,
 		.mipi_freq_idx = 5,
+		.interlace = 0,
 	}, {
 		.width = 720,
 		.height = 400,
@@ -481,6 +517,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 936,
 		.vts_def = 446,
 		.mipi_freq_idx = 5,
+		.interlace = 0,
 	}, {
 		.width = 720,
 		.height = 240,
@@ -489,6 +526,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 			.denominator = 600000,
 		},
 		.mipi_freq_idx = 5,
+		.interlace = 0,
 	}, {
 		.width = 640,
 		.height = 480,
@@ -499,6 +537,7 @@ static const struct lt6911uxe_mode supported_modes_dphy[] = {
 		.hts_def = 800,
 		.vts_def = 525,
 		.mipi_freq_idx = 5,
+		.interlace = 0,
 	},
 };
 
@@ -798,12 +837,6 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	vbp = vtotal - vact - vs - vfp;
 	lt6911uxe_i2c_disable(sd);
 
-	if (!lt6911uxe_rcv_supported_res(sd, hact, vact)) {
-		lt6911uxe->nosignal = true;
-		v4l2_err(sd, "%s: rcv err res, return no signal!\n", __func__);
-		return -EINVAL;
-	}
-
 	lt6911uxe->nosignal = false;
 	lt6911uxe->is_audio_present = true;
 	timings->type = V4L2_DV_BT_656_1120;
@@ -818,6 +851,22 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	bt->vbackporch = vbp;
 	bt->pixelclock = pixel_clock;
 	fps = pixel_clock / (htotal * vtotal);
+
+	/* for interlaced res 1080i 576i 480i*/
+	if ((hact == 1920 && vact == 540) || (hact == 1440 && vact == 288)
+			|| (hact == 1440 && vact == 240)) {
+		bt->interlaced = V4L2_DV_INTERLACED;
+		bt->height *= 2;
+		bt->il_vsync = bt->vsync + 1;
+	} else {
+		bt->interlaced = V4L2_DV_PROGRESSIVE;
+	}
+
+	if (!lt6911uxe_rcv_supported_res(sd, hact, bt->height)) {
+		lt6911uxe->nosignal = true;
+		v4l2_err(sd, "%s: rcv err res, return no signal!\n", __func__);
+		return -EINVAL;
+	}
 
 	v4l2_info(sd, "act:%dx%d, total:%dx%d, pixclk:%d, fps:%d\n",
 			hact, vact, htotal, vtotal, pixel_clock, fps);
@@ -1132,9 +1181,10 @@ static int lt6911uxe_s_stream(struct v4l2_subdev *sd, int on)
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct i2c_client *client = lt6911uxe->i2c_client;
 
-	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+	dev_info(&client->dev, "%s: on: %d, %dx%d%s%d\n", __func__, on,
 				lt6911uxe->cur_mode->width,
 				lt6911uxe->cur_mode->height,
+				lt6911uxe->cur_mode->interlace ? "I" : "P",
 		DIV_ROUND_CLOSEST(lt6911uxe->cur_mode->max_fps.denominator,
 				  lt6911uxe->cur_mode->max_fps.numerator));
 	enable_stream(sd, on);
@@ -1218,16 +1268,20 @@ lt6911uxe_find_best_fit(struct lt6911uxe *lt6911uxe)
 	unsigned int i;
 
 	for (i = 0; i < lt6911uxe->cfg_num; i++) {
-		dist = lt6911uxe_get_reso_dist(&lt6911uxe->support_modes[i], &lt6911uxe->timings);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
+		if (lt6911uxe->support_modes[i].interlace == lt6911uxe->timings.bt.interlaced) {
+			dist = lt6911uxe_get_reso_dist(&lt6911uxe->support_modes[i],
+							&lt6911uxe->timings);
+			if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+				cur_best_fit_dist = dist;
+				cur_best_fit = i;
+			}
 		}
 	}
 	dev_info(&lt6911uxe->i2c_client->dev,
-		"find current mode: support_mode[%d], %dx%d@%dfps\n",
+		"find current mode: support_mode[%d], %dx%d%s%dfps\n",
 		cur_best_fit, lt6911uxe->support_modes[cur_best_fit].width,
 		lt6911uxe->support_modes[cur_best_fit].height,
+		lt6911uxe->support_modes[cur_best_fit].interlace ? "I" : "P",
 		DIV_ROUND_CLOSEST(lt6911uxe->support_modes[cur_best_fit].max_fps.denominator,
 		lt6911uxe->support_modes[cur_best_fit].max_fps.numerator));
 
