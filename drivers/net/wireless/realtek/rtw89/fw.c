@@ -155,8 +155,9 @@ int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 			struct rtw89_fw_suit *fw_suit, bool nowarn)
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
-	const u8 *mfw = fw_info->firmware->data;
-	u32 mfw_len = fw_info->firmware->size;
+	const struct firmware *firmware = fw_info->req.firmware;
+	const u8 *mfw = firmware->data;
+	u32 mfw_len = firmware->size;
 	const struct rtw89_mfw_hdr *mfw_hdr = (const struct rtw89_mfw_hdr *)mfw;
 	const struct rtw89_mfw_info *mfw_info;
 	int i;
@@ -631,67 +632,58 @@ int rtw89_wait_firmware_completion(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_fw_info *fw = &rtwdev->fw;
 
-	wait_for_completion(&fw->completion);
-	if (!fw->firmware)
+	wait_for_completion(&fw->req.completion);
+	if (!fw->req.firmware)
 		return -EINVAL;
 
 	return 0;
 }
 
-static void rtw89_load_firmware_cb(const struct firmware *firmware, void *context)
+static int rtw89_load_firmware_req(struct rtw89_dev *rtwdev,
+				   struct rtw89_fw_req_info *req,
+				   const char *fw_name, bool nowarn)
 {
-	struct rtw89_fw_info *fw = context;
-	struct rtw89_dev *rtwdev = fw->rtwdev;
-
-	if (!firmware || !firmware->data) {
-		rtw89_err(rtwdev, "failed to request firmware\n");
-		complete_all(&fw->completion);
-		return;
-	}
-
-	fw->firmware = firmware;
-	complete_all(&fw->completion);
-}
-
-int rtw89_load_firmware(struct rtw89_dev *rtwdev)
-{
-	struct rtw89_fw_info *fw = &rtwdev->fw;
-	const char *fw_name = rtwdev->chip->fw_name;
 	int ret;
 
-	fw->rtwdev = rtwdev;
-	init_completion(&fw->completion);
-
-	if (fw->firmware) {
+	if (req->firmware) {
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
 			    "full firmware has been early requested\n");
-		complete_all(&fw->completion);
+		complete_all(&req->completion);
 		return 0;
 	}
 
-	ret = request_firmware_nowait(THIS_MODULE, true, fw_name, rtwdev->dev,
-				      GFP_KERNEL, fw, rtw89_load_firmware_cb);
-	if (ret) {
-		rtw89_err(rtwdev, "failed to async firmware request\n");
-		return ret;
-	}
+	if (nowarn)
+		ret = firmware_request_nowarn(&req->firmware, fw_name, rtwdev->dev);
+	else
+		ret = request_firmware(&req->firmware, fw_name, rtwdev->dev);
 
-	return 0;
+	complete_all(&req->completion);
+
+	return ret;
+}
+
+void rtw89_load_firmware_work(struct work_struct *work)
+{
+	struct rtw89_dev *rtwdev =
+		container_of(work, struct rtw89_dev, load_firmware_work);
+	const char *fw_name = rtwdev->chip->fw_name;
+
+	rtw89_load_firmware_req(rtwdev, &rtwdev->fw.req, fw_name, false);
 }
 
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_fw_info *fw = &rtwdev->fw;
 
-	rtw89_wait_firmware_completion(rtwdev);
+	cancel_work_sync(&rtwdev->load_firmware_work);
 
-	if (fw->firmware) {
-		release_firmware(fw->firmware);
+	if (fw->req.firmware) {
+		release_firmware(fw->req.firmware);
 
 		/* assign NULL back in case rtw89_free_ieee80211_hw()
 		 * try to release the same one again.
 		 */
-		fw->firmware = NULL;
+		fw->req.firmware = NULL;
 	}
 }
 

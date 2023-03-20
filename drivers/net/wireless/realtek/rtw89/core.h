@@ -3297,10 +3297,13 @@ struct rtw89_fw_suit {
 			  GET_FW_HDR_SUBVERSION(fw_hdr),	\
 			  GET_FW_HDR_SUBINDEX(fw_hdr))
 
-struct rtw89_fw_info {
+struct rtw89_fw_req_info {
 	const struct firmware *firmware;
-	struct rtw89_dev *rtwdev;
 	struct completion completion;
+};
+
+struct rtw89_fw_info {
+	struct rtw89_fw_req_info req;
 	u8 h2c_seq;
 	u8 rec_seq;
 	u8 h2c_counter;
@@ -4018,6 +4021,7 @@ struct rtw89_dev {
 	struct sk_buff_head c2h_queue;
 	struct work_struct c2h_work;
 	struct work_struct ips_work;
+	struct work_struct load_firmware_work;
 
 	struct list_head early_h2c_list;
 

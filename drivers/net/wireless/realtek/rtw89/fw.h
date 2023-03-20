@@ -3660,7 +3660,7 @@ rtw89_early_fw_feature_recognize(struct device *device,
 				 const struct rtw89_chip_info *chip,
 				 struct rtw89_fw_info *early_fw);
 int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type);
-int rtw89_load_firmware(struct rtw89_dev *rtwdev);
+void rtw89_load_firmware_work(struct work_struct *work);
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev);
 int rtw89_wait_firmware_completion(struct rtw89_dev *rtwdev);
 void rtw89_h2c_pkt_set_hdr(struct rtw89_dev *rtwdev, struct sk_buff *skb,

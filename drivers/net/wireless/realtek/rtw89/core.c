@@ -3423,7 +3423,6 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 int rtw89_core_init(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	int ret;
 	u8 band;
 
 	INIT_LIST_HEAD(&rtwdev->ba_list);
@@ -3457,6 +3456,8 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 
 	INIT_WORK(&rtwdev->c2h_work, rtw89_fw_c2h_work);
 	INIT_WORK(&rtwdev->ips_work, rtw89_ips_work);
+	INIT_WORK(&rtwdev->load_firmware_work, rtw89_load_firmware_work);
+
 	skb_queue_head_init(&rtwdev->c2h_queue);
 	rtw89_core_ppdu_sts_init(rtwdev);
 	rtw89_traffic_stats_init(rtwdev, &rtwdev->stats);
@@ -3468,12 +3469,10 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	INIT_WORK(&btc->dhcp_notify_work, rtw89_btc_ntfy_dhcp_packet_work);
 	INIT_WORK(&btc->icmp_notify_work, rtw89_btc_ntfy_icmp_packet_work);
 
-	ret = rtw89_load_firmware(rtwdev);
-	if (ret) {
-		rtw89_warn(rtwdev, "no firmware loaded\n");
-		destroy_workqueue(rtwdev->txq_wq);
-		return ret;
-	}
+	init_completion(&rtwdev->fw.req.completion);
+
+	schedule_work(&rtwdev->load_firmware_work);
+
 	rtw89_ser_init(rtwdev);
 	rtw89_entity_init(rtwdev);
 
@@ -3792,7 +3791,7 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->dev = device;
 	rtwdev->ops = ops;
 	rtwdev->chip = chip;
-	rtwdev->fw.firmware = firmware;
+	rtwdev->fw.req.firmware = firmware;
 
 	rtw89_debug(rtwdev, RTW89_DBG_FW, "probe driver %s chanctx\n",
 		    no_chanctx ? "without" : "with");
@@ -3809,7 +3808,7 @@ EXPORT_SYMBOL(rtw89_alloc_ieee80211_hw);
 void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev)
 {
 	kfree(rtwdev->ops);
-	release_firmware(rtwdev->fw.firmware);
+	release_firmware(rtwdev->fw.req.firmware);
 	ieee80211_free_hw(rtwdev->hw);
 }
 EXPORT_SYMBOL(rtw89_free_ieee80211_hw);
