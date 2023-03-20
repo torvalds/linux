@@ -162,6 +162,7 @@ void bch2_journal_halt(struct journal *j)
 	__journal_entry_close(j, JOURNAL_ENTRY_ERROR_VAL);
 	if (!j->err_seq)
 		j->err_seq = journal_cur_seq(j);
+	journal_wake(j);
 	spin_unlock(&j->lock);
 }
 
@@ -361,6 +362,12 @@ retry:
 		return -BCH_ERR_erofs_journal_err;
 
 	spin_lock(&j->lock);
+
+	/* check once more in case somebody else shut things down... */
+	if (bch2_journal_error(j)) {
+		spin_unlock(&j->lock);
+		return -BCH_ERR_erofs_journal_err;
+	}
 
 	/*
 	 * Recheck after taking the lock, so we don't race with another thread
