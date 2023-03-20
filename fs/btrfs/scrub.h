@@ -19,11 +19,10 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
  */
 struct scrub_stripe;
 int init_scrub_stripe(struct btrfs_fs_info *fs_info, struct scrub_stripe *stripe);
-void wait_scrub_stripe_io(struct scrub_stripe *stripe);
 int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 				 struct btrfs_device *dev, u64 physical,
 				 int mirror_num, u64 logical_start,
 				 u32 logical_len, struct scrub_stripe *stripe);
-void scrub_verify_one_stripe(struct scrub_stripe *stripe, unsigned long bitmap);
+void scrub_read_endio(struct btrfs_bio *bbio);
 
 #endif
