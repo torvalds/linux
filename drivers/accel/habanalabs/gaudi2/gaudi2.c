@@ -3480,6 +3480,48 @@ static int gaudi2_special_blocks_iterator_config(struct hl_device *hdev)
 	return gaudi2_special_blocks_config(hdev);
 }
 
+static void gaudi2_test_queues_msgs_free(struct hl_device *hdev)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	struct gaudi2_queues_test_info *msg_info = gaudi2->queues_test_info;
+	int i;
+
+	for (i = 0 ; i < GAUDI2_NUM_TESTED_QS ; i++) {
+		/* bail-out if this is an allocation failure point */
+		if (!msg_info[i].kern_addr)
+			break;
+
+		hl_asic_dma_pool_free(hdev, msg_info[i].kern_addr, msg_info[i].dma_addr);
+		msg_info[i].kern_addr = NULL;
+	}
+}
+
+static int gaudi2_test_queues_msgs_alloc(struct hl_device *hdev)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	struct gaudi2_queues_test_info *msg_info = gaudi2->queues_test_info;
+	int i, rc;
+
+	/* allocate a message-short buf for each Q we intend to test */
+	for (i = 0 ; i < GAUDI2_NUM_TESTED_QS ; i++) {
+		msg_info[i].kern_addr =
+			(void *)hl_asic_dma_pool_zalloc(hdev, sizeof(struct packet_msg_short),
+							GFP_KERNEL, &msg_info[i].dma_addr);
+		if (!msg_info[i].kern_addr) {
+			dev_err(hdev->dev,
+				"Failed to allocate dma memory for H/W queue %d testing\n", i);
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+	}
+
+	return 0;
+
+err_exit:
+	gaudi2_test_queues_msgs_free(hdev);
+	return rc;
+}
+
 static int gaudi2_sw_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -3579,8 +3621,14 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 	if (rc)
 		goto free_scratchpad_mem;
 
+	rc = gaudi2_test_queues_msgs_alloc(hdev);
+	if (rc)
+		goto special_blocks_free;
+
 	return 0;
 
+special_blocks_free:
+	gaudi2_special_blocks_iterator_free(hdev);
 free_scratchpad_mem:
 	hl_asic_dma_pool_free(hdev, gaudi2->scratchpad_kernel_address,
 				gaudi2->scratchpad_bus_address);
@@ -3602,6 +3650,8 @@ static int gaudi2_sw_fini(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+
+	gaudi2_test_queues_msgs_free(hdev);
 
 	gaudi2_special_blocks_iterator_free(hdev);
 
@@ -6797,28 +6847,29 @@ static void gaudi2_qman_set_test_mode(struct hl_device *hdev, u32 hw_queue_id, b
 	}
 }
 
-static int gaudi2_test_queue(struct hl_device *hdev, u32 hw_queue_id)
+static inline u32 gaudi2_test_queue_hw_queue_id_to_sob_id(struct hl_device *hdev, u32 hw_queue_id)
 {
-	u32 sob_offset = hdev->asic_prop.first_available_user_sob[0] * 4;
+	return hdev->asic_prop.first_available_user_sob[0] +
+				hw_queue_id - GAUDI2_QUEUE_ID_PDMA_0_0;
+}
+
+static void gaudi2_test_queue_clear(struct hl_device *hdev, u32 hw_queue_id)
+{
+	u32 sob_offset = gaudi2_test_queue_hw_queue_id_to_sob_id(hdev, hw_queue_id) * 4;
 	u32 sob_addr = mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + sob_offset;
-	u32 timeout_usec, tmp, sob_base = 1, sob_val = 0x5a5a;
-	struct packet_msg_short *msg_short_pkt;
-	dma_addr_t pkt_dma_addr;
-	size_t pkt_size;
+
+	/* Reset the SOB value */
+	WREG32(sob_addr, 0);
+}
+
+static int gaudi2_test_queue_send_msg_short(struct hl_device *hdev, u32 hw_queue_id, u32 sob_val,
+					    struct gaudi2_queues_test_info *msg_info)
+{
+	u32 sob_offset =  gaudi2_test_queue_hw_queue_id_to_sob_id(hdev, hw_queue_id) * 4;
+	u32 tmp, sob_base = 1;
+	struct packet_msg_short *msg_short_pkt = msg_info->kern_addr;
+	size_t pkt_size = sizeof(struct packet_msg_short);
 	int rc;
-
-	if (hdev->pldm)
-		timeout_usec = GAUDI2_PLDM_TEST_QUEUE_WAIT_USEC;
-	else
-		timeout_usec = GAUDI2_TEST_QUEUE_WAIT_USEC;
-
-	pkt_size = sizeof(*msg_short_pkt);
-	msg_short_pkt = hl_asic_dma_pool_zalloc(hdev, pkt_size, GFP_KERNEL, &pkt_dma_addr);
-	if (!msg_short_pkt) {
-		dev_err(hdev->dev, "Failed to allocate packet for H/W queue %d testing\n",
-			hw_queue_id);
-		return -ENOMEM;
-	}
 
 	tmp = (PACKET_MSG_SHORT << GAUDI2_PKT_CTL_OPCODE_SHIFT) |
 		(1 << GAUDI2_PKT_CTL_EB_SHIFT) |
@@ -6829,15 +6880,25 @@ static int gaudi2_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 	msg_short_pkt->value = cpu_to_le32(sob_val);
 	msg_short_pkt->ctl = cpu_to_le32(tmp);
 
-	/* Reset the SOB value */
-	WREG32(sob_addr, 0);
+	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, pkt_size, msg_info->dma_addr);
+	if (rc)
+		dev_err(hdev->dev,
+			"Failed to send msg_short packet to H/W queue %d\n", hw_queue_id);
 
-	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, pkt_size, pkt_dma_addr);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to send msg_short packet to H/W queue %d\n",
-			hw_queue_id);
-		goto free_pkt;
-	}
+	return rc;
+}
+
+static int gaudi2_test_queue_wait_completion(struct hl_device *hdev, u32 hw_queue_id, u32 sob_val)
+{
+	u32 sob_offset = gaudi2_test_queue_hw_queue_id_to_sob_id(hdev, hw_queue_id) * 4;
+	u32 sob_addr = mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + sob_offset;
+	u32 timeout_usec, tmp;
+	int rc;
+
+	if (hdev->pldm)
+		timeout_usec = GAUDI2_PLDM_TEST_QUEUE_WAIT_USEC;
+	else
+		timeout_usec = GAUDI2_TEST_QUEUE_WAIT_USEC;
 
 	rc = hl_poll_timeout(
 			hdev,
@@ -6853,11 +6914,6 @@ static int gaudi2_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 		rc = -EIO;
 	}
 
-	/* Reset the SOB value */
-	WREG32(sob_addr, 0);
-
-free_pkt:
-	hl_asic_dma_pool_free(hdev, (void *) msg_short_pkt, pkt_dma_addr);
 	return rc;
 }
 
@@ -6877,30 +6933,44 @@ static int gaudi2_test_cpu_queue(struct hl_device *hdev)
 
 static int gaudi2_test_queues(struct hl_device *hdev)
 {
-	int i, rc, ret_val = 0;
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	struct gaudi2_queues_test_info *msg_info;
+	u32 sob_val = 0x5a5a;
+	int i, rc;
 
+	/* send test message on all enabled Qs */
 	for (i = GAUDI2_QUEUE_ID_PDMA_0_0 ; i < GAUDI2_QUEUE_ID_CPU_PQ; i++) {
 		if (!gaudi2_is_queue_enabled(hdev, i))
 			continue;
 
+		msg_info = &gaudi2->queues_test_info[i - GAUDI2_QUEUE_ID_PDMA_0_0];
 		gaudi2_qman_set_test_mode(hdev, i, true);
-		rc = gaudi2_test_queue(hdev, i);
-		gaudi2_qman_set_test_mode(hdev, i, false);
-
-		if (rc) {
-			ret_val = -EINVAL;
+		gaudi2_test_queue_clear(hdev, i);
+		rc = gaudi2_test_queue_send_msg_short(hdev, i, sob_val, msg_info);
+		if (rc)
 			goto done;
-		}
 	}
 
 	rc = gaudi2_test_cpu_queue(hdev);
-	if (rc) {
-		ret_val = -EINVAL;
+	if (rc)
 		goto done;
+
+	/* verify that all messages were processed */
+	for (i = GAUDI2_QUEUE_ID_PDMA_0_0 ; i < GAUDI2_QUEUE_ID_CPU_PQ; i++) {
+		if (!gaudi2_is_queue_enabled(hdev, i))
+			continue;
+
+		rc = gaudi2_test_queue_wait_completion(hdev, i, sob_val);
+		if (rc)
+			/* chip is not usable, no need for cleanups, just bail-out with error */
+			goto done;
+
+		gaudi2_test_queue_clear(hdev, i);
+		gaudi2_qman_set_test_mode(hdev, i, false);
 	}
 
 done:
-	return ret_val;
+	return rc;
 }
 
 static int gaudi2_compute_reset_late_init(struct hl_device *hdev)
