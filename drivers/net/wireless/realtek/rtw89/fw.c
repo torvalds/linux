@@ -269,38 +269,45 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 56, 10, BEACON_FILTER),
 };
 
+static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
+					 const struct rtw89_chip_info *chip,
+					 u32 ver_code)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_feat_tbl); i++) {
+		const struct __fw_feat_cfg *ent = &fw_feat_tbl[i];
+
+		if (chip->chip_id != ent->chip_id)
+			continue;
+
+		if (ent->cond(ver_code, ent->ver_code))
+			RTW89_SET_FW_FEATURE(ent->feature, fw);
+	}
+}
+
 static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	const struct __fw_feat_cfg *ent;
 	const struct rtw89_fw_suit *fw_suit;
 	u32 suit_ver_code;
-	int i;
 
 	fw_suit = rtw89_fw_suit_get(rtwdev, RTW89_FW_NORMAL);
 	suit_ver_code = RTW89_FW_SUIT_VER_CODE(fw_suit);
 
-	for (i = 0; i < ARRAY_SIZE(fw_feat_tbl); i++) {
-		ent = &fw_feat_tbl[i];
-		if (chip->chip_id != ent->chip_id)
-			continue;
-
-		if (ent->cond(suit_ver_code, ent->ver_code))
-			RTW89_SET_FW_FEATURE(ent->feature, &rtwdev->fw);
-	}
+	rtw89_fw_iterate_feature_cfg(&rtwdev->fw, chip, suit_ver_code);
 }
 
 const struct firmware *
 rtw89_early_fw_feature_recognize(struct device *device,
 				 const struct rtw89_chip_info *chip,
-				 u32 *early_feat_map)
+				 struct rtw89_fw_info *early_fw)
 {
 	union rtw89_compat_fw_hdr buf = {};
 	const struct firmware *firmware;
 	bool full_req = false;
 	u32 ver_code;
 	int ret;
-	int i;
 
 	/* If SECURITY_LOADPIN_ENFORCE is enabled, reading partial files will
 	 * be denied (-EPERM). Then, we don't get right firmware things as
@@ -329,15 +336,7 @@ rtw89_early_fw_feature_recognize(struct device *device,
 	if (!ver_code)
 		goto out;
 
-	for (i = 0; i < ARRAY_SIZE(fw_feat_tbl); i++) {
-		const struct __fw_feat_cfg *ent = &fw_feat_tbl[i];
-
-		if (chip->chip_id != ent->chip_id)
-			continue;
-
-		if (ent->cond(ver_code, ent->ver_code))
-			*early_feat_map |= BIT(ent->feature);
-	}
+	rtw89_fw_iterate_feature_cfg(early_fw, chip, ver_code);
 
 out:
 	if (full_req)
