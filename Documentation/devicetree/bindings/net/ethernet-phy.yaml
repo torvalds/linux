@@ -83,7 +83,7 @@ properties:
       0: Disable 2.4 Vpp operating mode.
       1: Request 2.4 Vpp operating mode from link partner.
       Absence of this property will leave configuration to default values.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   broken-turn-around:

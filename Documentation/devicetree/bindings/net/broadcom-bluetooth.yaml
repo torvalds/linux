@@ -121,7 +121,7 @@ required:
   - compatible
 
 dependencies:
-  brcm,requires-autobaud-mode: [ 'shutdown-gpios' ]
+  brcm,requires-autobaud-mode: [ shutdown-gpios ]
 
 if:
   not:

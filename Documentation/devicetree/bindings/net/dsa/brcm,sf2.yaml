@@ -103,7 +103,7 @@ required:
   - "#size-cells"
 
 allOf:
-  - $ref: "dsa.yaml#"
+  - $ref: dsa.yaml#
   - if:
       properties:
         compatible:

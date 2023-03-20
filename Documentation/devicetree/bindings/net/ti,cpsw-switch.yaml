@@ -62,10 +62,10 @@ properties:
 
   interrupt-names:
     items:
-      - const: "rx_thresh"
-      - const: "rx"
-      - const: "tx"
-      - const: "misc"
+      - const: rx_thresh
+      - const: rx
+      - const: tx
+      - const: misc
 
   pinctrl-names: true
 
@@ -154,7 +154,7 @@ patternProperties:
     type: object
     description:
       CPSW MDIO bus.
-    $ref: "ti,davinci-mdio.yaml#"
+    $ref: ti,davinci-mdio.yaml#
 
 
 required:
