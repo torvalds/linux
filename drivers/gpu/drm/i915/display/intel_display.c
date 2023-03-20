@@ -6968,6 +6968,12 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	bool modeset = intel_crtc_needs_modeset(new_crtc_state);
 
+	if (old_crtc_state->inherited ||
+	    intel_crtc_needs_modeset(new_crtc_state)) {
+		if (HAS_DPT(i915))
+			intel_dpt_configure(crtc);
+	}
+
 	if (!modeset) {
 		if (new_crtc_state->preload_luts &&
 		    intel_crtc_needs_color_update(new_crtc_state))
