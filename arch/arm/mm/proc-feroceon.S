@@ -56,6 +56,10 @@ ENTRY(cpu_feroceon_proc_init)
 	movne	r2, r2, lsr #2			@ turned into # of sets
 	sub	r2, r2, #(1 << 5)
 	stmia	r1, {r2, r3}
+#ifdef CONFIG_VFP
+	mov	r1, #1				@ disable quirky VFP
+	str_l	r1, VFP_arch_feroceon, r2
+#endif
 	ret	lr
 
 /*

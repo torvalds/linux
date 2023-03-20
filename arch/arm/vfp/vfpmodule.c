@@ -42,7 +42,11 @@ static bool have_vfp __ro_after_init;
  * Used in startup: set to non-zero if VFP checks fail
  * After startup, holds VFP architecture
  */
-static unsigned int __initdata VFP_arch;
+static unsigned int VFP_arch;
+
+#ifdef CONFIG_CPU_FEROCEON
+extern unsigned int VFP_arch_feroceon __alias(VFP_arch);
+#endif
 
 /*
  * The pointer to the vfpstate structure of the thread which currently
@@ -357,14 +361,12 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	}
 
 	if (fpexc & FPEXC_EX) {
-#ifndef CONFIG_CPU_FEROCEON
 		/*
 		 * Asynchronous exception. The instruction is read from FPINST
 		 * and the interrupted instruction has to be restarted.
 		 */
 		trigger = fmrx(FPINST);
 		regs->ARM_pc -= 4;
-#endif
 	} else if (!(fpexc & FPEXC_DEX)) {
 		/*
 		 * Illegal combination of bits. It can be caused by an
