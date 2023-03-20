@@ -50,6 +50,7 @@ struct scrub_ctx;
  */
 #define SCRUB_SECTORS_PER_BIO	32	/* 128KiB per bio for 4KiB pages */
 #define SCRUB_BIOS_PER_SCTX	64	/* 8MiB per device in flight for 4KiB pages */
+#define SCRUB_STRIPES_PER_SCTX	8	/* That would be 8 64K stripe per-device. */
 
 /*
  * The following value times PAGE_SIZE needs to be large enough to match the
@@ -277,9 +278,11 @@ struct scrub_parity {
 
 struct scrub_ctx {
 	struct scrub_bio	*bios[SCRUB_BIOS_PER_SCTX];
+	struct scrub_stripe	stripes[SCRUB_STRIPES_PER_SCTX];
 	struct btrfs_fs_info	*fs_info;
 	int			first_free;
 	int			curr;
+	int			cur_stripe;
 	atomic_t		bios_in_flight;
 	atomic_t		workers_pending;
 	spinlock_t		list_lock;
@@ -389,7 +392,8 @@ static void release_scrub_stripe(struct scrub_stripe *stripe)
 	stripe->state = 0;
 }
 
-int init_scrub_stripe(struct btrfs_fs_info *fs_info, struct scrub_stripe *stripe)
+static int init_scrub_stripe(struct btrfs_fs_info *fs_info,
+			     struct scrub_stripe *stripe)
 {
 	int ret;
 
@@ -895,6 +899,9 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 		kfree(sbio);
 	}
 
+	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++)
+		release_scrub_stripe(&sctx->stripes[i]);
+
 	kfree(sctx->wr_curr_bio);
 	scrub_free_csums(sctx);
 	kfree(sctx);
@@ -938,6 +945,14 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 			sctx->bios[i]->next_free = i + 1;
 		else
 			sctx->bios[i]->next_free = -1;
+	}
+	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++) {
+		int ret;
+
+		ret = init_scrub_stripe(fs_info, &sctx->stripes[i]);
+		if (ret < 0)
+			goto nomem;
+		sctx->stripes[i].sctx = sctx;
 	}
 	sctx->first_free = 0;
 	atomic_set(&sctx->bios_in_flight, 0);
@@ -2668,7 +2683,7 @@ out:
 	wake_up(&stripe->repair_wait);
 }
 
-void scrub_read_endio(struct btrfs_bio *bbio)
+static void scrub_read_endio(struct btrfs_bio *bbio)
 {
 	struct scrub_stripe *stripe = bbio->private;
 
@@ -2725,8 +2740,8 @@ static void scrub_write_endio(struct btrfs_bio *bbio)
  *
  * - Handle dev-replace and read-repair writeback differently
  */
-void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *stripe,
-			 unsigned long write_bitmap, bool dev_replace)
+static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *stripe,
+				unsigned long write_bitmap, bool dev_replace)
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct btrfs_bio *bbio = NULL;
@@ -4294,10 +4309,11 @@ static void scrub_stripe_reset_bitmaps(struct scrub_stripe *stripe)
  * Return >0 if there is no such stripe in the specified range.
  * Return <0 for error.
  */
-int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
-				 struct btrfs_device *dev, u64 physical,
-				 int mirror_num, u64 logical_start,
-				 u32 logical_len, struct scrub_stripe *stripe)
+static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
+					struct btrfs_device *dev, u64 physical,
+					int mirror_num, u64 logical_start,
+					u32 logical_len,
+					struct scrub_stripe *stripe)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, bg->start);
@@ -4404,6 +4420,159 @@ int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 out:
 	btrfs_release_path(&path);
 	return ret;
+}
+
+static void scrub_reset_stripe(struct scrub_stripe *stripe)
+{
+	scrub_stripe_reset_bitmaps(stripe);
+
+	stripe->nr_meta_extents = 0;
+	stripe->nr_data_extents = 0;
+	stripe->state = 0;
+
+	for (int i = 0; i < stripe->nr_sectors; i++) {
+		stripe->sectors[i].is_metadata = false;
+		stripe->sectors[i].csum = NULL;
+		stripe->sectors[i].generation = 0;
+	}
+}
+
+static void scrub_submit_initial_read(struct scrub_ctx *sctx,
+				      struct scrub_stripe *stripe)
+{
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	struct btrfs_bio *bbio;
+	int mirror = stripe->mirror_num;
+
+	ASSERT(stripe->bg);
+	ASSERT(stripe->mirror_num > 0);
+	ASSERT(test_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state));
+
+	bbio = btrfs_bio_alloc(SCRUB_STRIPE_PAGES, REQ_OP_READ, fs_info,
+			       scrub_read_endio, stripe);
+
+	/* Read the whole stripe. */
+	bbio->bio.bi_iter.bi_sector = stripe->logical >> SECTOR_SHIFT;
+	for (int i = 0; i < BTRFS_STRIPE_LEN >> PAGE_SHIFT; i++) {
+		int ret;
+
+		ret = bio_add_page(&bbio->bio, stripe->pages[i], PAGE_SIZE, 0);
+		/* We should have allocated enough bio vectors. */
+		ASSERT(ret == PAGE_SIZE);
+	}
+	atomic_inc(&stripe->pending_io);
+
+	/*
+	 * For dev-replace, either user asks to avoid the source dev, or
+	 * the device is missing, we try the next mirror instead.
+	 */
+	if (sctx->is_dev_replace &&
+	    (fs_info->dev_replace.cont_reading_from_srcdev_mode ==
+	     BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_AVOID ||
+	     !stripe->dev->bdev)) {
+		int num_copies = btrfs_num_copies(fs_info, stripe->bg->start,
+						  stripe->bg->length);
+
+		mirror = calc_next_mirror(mirror, num_copies);
+	}
+	btrfs_submit_bio(bbio, mirror);
+}
+
+static void flush_scrub_stripes(struct scrub_ctx *sctx)
+{
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	struct scrub_stripe *stripe;
+	const int nr_stripes = sctx->cur_stripe;
+
+	if (!nr_stripes)
+		return;
+
+	ASSERT(test_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &sctx->stripes[0].state));
+	for (int i = 0; i < nr_stripes; i++) {
+		stripe = &sctx->stripes[i];
+		scrub_submit_initial_read(sctx, stripe);
+	}
+
+	for (int i = 0; i < nr_stripes; i++) {
+		stripe = &sctx->stripes[i];
+
+		wait_event(stripe->repair_wait,
+			   test_bit(SCRUB_STRIPE_FLAG_REPAIR_DONE, &stripe->state));
+	}
+
+	/*
+	 * Submit the repaired sectors.  For zoned case, we cannot do repair
+	 * in-place, but queue the bg to be relocated.
+	 */
+	if (btrfs_is_zoned(fs_info)) {
+		for (int i = 0; i < nr_stripes; i++) {
+			stripe = &sctx->stripes[i];
+
+			if (!bitmap_empty(&stripe->error_bitmap, stripe->nr_sectors)) {
+				btrfs_repair_one_zone(fs_info,
+						      sctx->stripes[0].bg->start);
+				break;
+			}
+		}
+	} else {
+		for (int i = 0; i < nr_stripes; i++) {
+			unsigned long repaired;
+
+			stripe = &sctx->stripes[i];
+
+			bitmap_andnot(&repaired, &stripe->init_error_bitmap,
+				      &stripe->error_bitmap, stripe->nr_sectors);
+			scrub_write_sectors(sctx, stripe, repaired, false);
+		}
+	}
+
+	/* Submit for dev-replace. */
+	if (sctx->is_dev_replace) {
+		for (int i = 0; i < nr_stripes; i++) {
+			unsigned long good;
+
+			stripe = &sctx->stripes[i];
+
+			ASSERT(stripe->dev == fs_info->dev_replace.srcdev);
+
+			bitmap_andnot(&good, &stripe->extent_sector_bitmap,
+				      &stripe->error_bitmap, stripe->nr_sectors);
+			scrub_write_sectors(sctx, stripe, good, true);
+		}
+	}
+
+	/* Wait for the above writebacks to finish. */
+	for (int i = 0; i < nr_stripes; i++) {
+		stripe = &sctx->stripes[i];
+
+		wait_scrub_stripe_io(stripe);
+		scrub_reset_stripe(stripe);
+	}
+	sctx->cur_stripe = 0;
+}
+
+int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *bg,
+		       struct btrfs_device *dev, int mirror_num,
+		       u64 logical, u32 length, u64 physical)
+{
+	struct scrub_stripe *stripe;
+	int ret;
+
+	/* No available slot, submit all stripes and wait for them. */
+	if (sctx->cur_stripe >= SCRUB_STRIPES_PER_SCTX)
+		flush_scrub_stripes(sctx);
+
+	stripe = &sctx->stripes[sctx->cur_stripe];
+
+	/* We can queue one stripe using the remaining slot. */
+	scrub_reset_stripe(stripe);
+	ret = scrub_find_fill_first_stripe(bg, dev, physical, mirror_num,
+					   logical, length, stripe);
+	/* Either >0 as no more extents or <0 for error. */
+	if (ret)
+		return ret;
+	sctx->cur_stripe++;
+	return 0;
 }
 
 /*

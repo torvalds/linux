@@ -18,14 +18,9 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
  * static functions.
  */
 struct scrub_stripe;
-int init_scrub_stripe(struct btrfs_fs_info *fs_info, struct scrub_stripe *stripe);
-int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
-				 struct btrfs_device *dev, u64 physical,
-				 int mirror_num, u64 logical_start,
-				 u32 logical_len, struct scrub_stripe *stripe);
-void scrub_read_endio(struct btrfs_bio *bbio);
-void scrub_write_sectors(struct scrub_ctx *sctx,
-			struct scrub_stripe *stripe,
-			unsigned long write_bitmap, bool dev_replace);
+int queue_scrub_stripe(struct scrub_ctx *sctx,
+		       struct btrfs_block_group *bg,
+		       struct btrfs_device *dev, int mirror_num,
+		       u64 logical, u32 length, u64 physical);
 
 #endif
