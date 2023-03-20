@@ -219,6 +219,13 @@ SECTIONS
 		QUAD(init_mm)
 		QUAD(swapper_pg_dir)
 		QUAD(invalid_pg_dir)
+#ifdef CONFIG_KASAN
+		QUAD(kasan_early_shadow_page)
+		QUAD(kasan_early_shadow_pte)
+		QUAD(kasan_early_shadow_pmd)
+		QUAD(kasan_early_shadow_pud)
+		QUAD(kasan_early_shadow_p4d)
+#endif
 	} :NONE
 
 	/* Debugging sections.	*/
