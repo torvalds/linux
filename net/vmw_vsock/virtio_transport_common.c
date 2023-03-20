@@ -850,6 +850,9 @@ static int virtio_transport_reset_no_sock(const struct virtio_transport *t,
 	if (le16_to_cpu(hdr->op) == VIRTIO_VSOCK_OP_RST)
 		return 0;
 
+	if (!t)
+		return -ENOTCONN;
+
 	reply = virtio_transport_alloc_skb(&info, 0,
 					   le64_to_cpu(hdr->dst_cid),
 					   le32_to_cpu(hdr->dst_port),
@@ -857,11 +860,6 @@ static int virtio_transport_reset_no_sock(const struct virtio_transport *t,
 					   le32_to_cpu(hdr->src_port));
 	if (!reply)
 		return -ENOMEM;
-
-	if (!t) {
-		kfree_skb(reply);
-		return -ENOTCONN;
-	}
 
 	return t->send_pkt(reply);
 }
