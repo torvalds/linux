@@ -307,7 +307,7 @@ int cx18_gpio_register(struct cx18 *cx, u32 hw)
 
 void cx18_reset_ir_gpio(void *data)
 {
-	struct cx18 *cx = to_cx18((struct v4l2_device *)data);
+	struct cx18 *cx = to_cx18(data);
 
 	if (cx->card->gpio_i2c_slave_reset.ir_reset_mask == 0)
 		return;
