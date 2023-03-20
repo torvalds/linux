@@ -47,6 +47,11 @@ struct intel_color_funcs {
 	 */
 	void (*color_commit_arm)(const struct intel_crtc_state *crtc_state);
 	/*
+	 * Perform any extra tasks needed after all the
+	 * double buffered registers have been latched.
+	 */
+	void (*color_post_update)(const struct intel_crtc_state *crtc_state);
+	/*
 	 * Load LUTs (and other single buffered color management
 	 * registers). Will (hopefully) be called during the vblank
 	 * following the latching of any double buffered registers
@@ -1409,6 +1414,14 @@ void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	i915->display.funcs.color->color_commit_arm(crtc_state);
+}
+
+void intel_color_post_update(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (i915->display.funcs.color->color_post_update)
+		i915->display.funcs.color->color_post_update(crtc_state);
 }
 
 void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
