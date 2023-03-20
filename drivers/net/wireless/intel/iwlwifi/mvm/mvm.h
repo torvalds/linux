@@ -2343,5 +2343,5 @@ static inline void iwl_mvm_mei_set_sw_rfkill_state(struct iwl_mvm *mvm)
 void iwl_mvm_send_roaming_forbidden_event(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
 					  bool forbidden);
-
+bool iwl_mvm_is_vendor_in_approved_list(void);
 #endif /* __IWL_MVM_H__ */

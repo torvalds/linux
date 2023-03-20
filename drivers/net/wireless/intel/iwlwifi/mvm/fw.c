@@ -1092,6 +1092,11 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 	{}
 };
 
+bool iwl_mvm_is_vendor_in_approved_list(void)
+{
+	return dmi_check_system(dmi_tas_approved_list);
+}
+
 static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigned int mcc)
 {
 	int i;
@@ -1369,6 +1374,11 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
+}
+
+bool iwl_mvm_is_vendor_in_approved_list(void)
+{
+	return false;
 }
 
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
