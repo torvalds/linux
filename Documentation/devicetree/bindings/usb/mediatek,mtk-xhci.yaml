@@ -11,7 +11,7 @@ maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>
 
 allOf:
-  - $ref: "usb-xhci.yaml"
+  - $ref: usb-xhci.yaml
 
 description: |
   There are two scenarios:

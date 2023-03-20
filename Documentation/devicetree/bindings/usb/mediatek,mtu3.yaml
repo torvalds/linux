@@ -11,7 +11,7 @@ maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>
 
 allOf:
-  - $ref: "usb-drd.yaml"
+  - $ref: usb-drd.yaml
 
 description: |
   The DRD controller has a glue layer IPPC (IP Port Control), and its host is
@@ -204,9 +204,9 @@ patternProperties:
       example if the host mode is enabled.
 
 dependencies:
-  connector: [ 'usb-role-switch' ]
-  port: [ 'usb-role-switch' ]
-  role-switch-default-mode: [ 'usb-role-switch' ]
+  connector: [ usb-role-switch ]
+  port: [ usb-role-switch ]
+  role-switch-default-mode: [ usb-role-switch ]
   wakeup-source: [ 'mediatek,syscon-wakeup' ]
 
 required:
