@@ -170,6 +170,11 @@ static inline int nr_data_stripes(const struct map_lookup *map)
 	return map->num_stripes - btrfs_nr_parity_stripes(map->type);
 }
 
+static inline int nr_bioc_data_stripes(const struct btrfs_io_context *bioc)
+{
+	return bioc->num_stripes - btrfs_nr_parity_stripes(bioc->map_type);
+}
+
 #define RAID5_P_STRIPE ((u64)-2)
 #define RAID6_Q_STRIPE ((u64)-1)
 

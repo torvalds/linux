@@ -735,12 +735,9 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 			    u64 length, u64 logical, struct page *page,
 			    unsigned int pg_offset, int mirror_num)
 {
-	struct btrfs_device *dev;
+	struct btrfs_io_stripe smap = { 0 };
 	struct bio_vec bvec;
 	struct bio bio;
-	u64 map_length = 0;
-	u64 sector;
-	struct btrfs_io_context *bioc = NULL;
 	int ret = 0;
 
 	ASSERT(!(fs_info->sb->s_flags & SB_RDONLY));
@@ -749,68 +746,38 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	if (btrfs_repair_one_zone(fs_info, logical))
 		return 0;
 
-	map_length = length;
-
 	/*
 	 * Avoid races with device replace and make sure our bioc has devices
 	 * associated to its stripes that don't go away while we are doing the
 	 * read repair operation.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
-	if (btrfs_is_parity_mirror(fs_info, logical, length)) {
-		/*
-		 * Note that we don't use BTRFS_MAP_WRITE because it's supposed
-		 * to update all raid stripes, but here we just want to correct
-		 * bad stripe, thus BTRFS_MAP_READ is abused to only get the bad
-		 * stripe's dev and sector.
-		 */
-		ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
-				      &map_length, &bioc, 0);
-		if (ret)
-			goto out_counter_dec;
-		ASSERT(bioc->mirror_num == 1);
-	} else {
-		ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
-				      &map_length, &bioc, mirror_num);
-		if (ret)
-			goto out_counter_dec;
-		/*
-		 * This happens when dev-replace is also running, and the
-		 * mirror_num indicates the dev-replace target.
-		 *
-		 * In this case, we don't need to do anything, as the read
-		 * error just means the replace progress hasn't reached our
-		 * read range, and later replace routine would handle it well.
-		 */
-		if (mirror_num != bioc->mirror_num)
-			goto out_counter_dec;
-	}
+	ret = btrfs_map_repair_block(fs_info, &smap, logical, length, mirror_num);
+	if (ret < 0)
+		goto out_counter_dec;
 
-	sector = bioc->stripes[bioc->mirror_num - 1].physical >> 9;
-	dev = bioc->stripes[bioc->mirror_num - 1].dev;
-	btrfs_put_bioc(bioc);
-
-	if (!dev || !dev->bdev ||
-	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
+	if (!smap.dev->bdev ||
+	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &smap.dev->dev_state)) {
 		ret = -EIO;
 		goto out_counter_dec;
 	}
 
-	bio_init(&bio, dev->bdev, &bvec, 1, REQ_OP_WRITE | REQ_SYNC);
-	bio.bi_iter.bi_sector = sector;
+	bio_init(&bio, smap.dev->bdev, &bvec, 1, REQ_OP_WRITE | REQ_SYNC);
+	bio.bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
 	__bio_add_page(&bio, page, length, pg_offset);
 
 	btrfsic_check_bio(&bio);
 	ret = submit_bio_wait(&bio);
 	if (ret) {
 		/* try to remap that extent elsewhere? */
-		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
+		btrfs_dev_stat_inc_and_print(smap.dev, BTRFS_DEV_STAT_WRITE_ERRS);
 		goto out_bio_uninit;
 	}
 
 	btrfs_info_rl_in_rcu(fs_info,
 		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
-			     ino, start, btrfs_dev_name(dev), sector);
+			     ino, start, btrfs_dev_name(smap.dev),
+			     smap.physical >> SECTOR_SHIFT);
 	ret = 0;
 
 out_bio_uninit:
@@ -818,6 +785,45 @@ out_bio_uninit:
 out_counter_dec:
 	btrfs_bio_counter_dec(fs_info);
 	return ret;
+}
+
+/*
+ * Submit a btrfs_bio based repair write.
+ *
+ * If @dev_replace is true, the write would be submitted to dev-replace target.
+ */
+void btrfs_submit_repair_write(struct btrfs_bio *bbio, int mirror_num, bool dev_replace)
+{
+	struct btrfs_fs_info *fs_info = bbio->fs_info;
+	u64 logical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
+	u64 length = bbio->bio.bi_iter.bi_size;
+	struct btrfs_io_stripe smap = { 0 };
+	int ret;
+
+	ASSERT(fs_info);
+	ASSERT(mirror_num > 0);
+	ASSERT(btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE);
+	ASSERT(!bbio->inode);
+
+	btrfs_bio_counter_inc_blocked(fs_info);
+	ret = btrfs_map_repair_block(fs_info, &smap, logical, length, mirror_num);
+	if (ret < 0)
+		goto fail;
+
+	if (dev_replace) {
+		if (btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE && btrfs_is_zoned(fs_info)) {
+			bbio->bio.bi_opf &= ~REQ_OP_WRITE;
+			bbio->bio.bi_opf |= REQ_OP_ZONE_APPEND;
+		}
+		ASSERT(smap.dev == fs_info->dev_replace.srcdev);
+		smap.dev = fs_info->dev_replace.tgtdev;
+	}
+	__btrfs_submit_bio(&bbio->bio, NULL, &smap, mirror_num);
+	return;
+
+fail:
+	btrfs_bio_counter_dec(fs_info);
+	btrfs_bio_end_io(bbio, errno_to_blk_status(ret));
 }
 
 int __init btrfs_bioset_init(void)

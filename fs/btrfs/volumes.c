@@ -8019,3 +8019,76 @@ bool btrfs_repair_one_zone(struct btrfs_fs_info *fs_info, u64 logical)
 
 	return true;
 }
+
+static void map_raid56_repair_block(struct btrfs_io_context *bioc,
+				    struct btrfs_io_stripe *smap,
+				    u64 logical)
+{
+	int data_stripes = nr_bioc_data_stripes(bioc);
+	int i;
+
+	for (i = 0; i < data_stripes; i++) {
+		u64 stripe_start = bioc->full_stripe_logical +
+				   (i << BTRFS_STRIPE_LEN_SHIFT);
+
+		if (logical >= stripe_start &&
+		    logical < stripe_start + BTRFS_STRIPE_LEN)
+			break;
+	}
+	ASSERT(i < data_stripes);
+	smap->dev = bioc->stripes[i].dev;
+	smap->physical = bioc->stripes[i].physical +
+			((logical - bioc->full_stripe_logical) &
+			 BTRFS_STRIPE_LEN_MASK);
+}
+
+/*
+ * Map a repair write into a single device.
+ *
+ * A repair write is triggered by read time repair or scrub, which would only
+ * update the contents of a single device.
+ * Not update any other mirrors nor go through RMW path.
+ *
+ * Callers should ensure:
+ *
+ * - Call btrfs_bio_counter_inc_blocked() first
+ * - The range does not cross stripe boundary
+ * - Has a valid @mirror_num passed in.
+ */
+int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
+			   struct btrfs_io_stripe *smap, u64 logical,
+			   u32 length, int mirror_num)
+{
+	struct btrfs_io_context *bioc = NULL;
+	u64 map_length = length;
+	int mirror_ret = mirror_num;
+	int ret;
+
+	ASSERT(mirror_num > 0);
+
+	ret = __btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical, &map_length,
+				&bioc, smap, &mirror_ret, true);
+	if (ret < 0)
+		return ret;
+
+	/* The map range should not cross stripe boundary. */
+	ASSERT(map_length >= length);
+
+	/* Already mapped to single stripe. */
+	if (!bioc)
+		goto out;
+
+	/* Map the RAID56 multi-stripe writes to a single one. */
+	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+		map_raid56_repair_block(bioc, smap, logical);
+		goto out;
+	}
+
+	ASSERT(mirror_num <= bioc->num_stripes);
+	smap->dev = bioc->stripes[mirror_num - 1].dev;
+	smap->physical = bioc->stripes[mirror_num - 1].physical;
+out:
+	btrfs_put_bioc(bioc);
+	ASSERT(smap->dev);
+	return 0;
+}
