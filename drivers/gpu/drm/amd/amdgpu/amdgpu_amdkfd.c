@@ -428,14 +428,23 @@ uint32_t amdgpu_amdkfd_get_fw_version(struct amdgpu_device *adev,
 }
 
 void amdgpu_amdkfd_get_local_mem_info(struct amdgpu_device *adev,
-				      struct kfd_local_mem_info *mem_info)
+				      struct kfd_local_mem_info *mem_info,
+				      uint8_t xcp_id)
 {
 	memset(mem_info, 0, sizeof(*mem_info));
 
-	mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
-	mem_info->local_mem_size_private = adev->gmc.real_vram_size -
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+		if (adev->gmc.real_vram_size == adev->gmc.visible_vram_size)
+			mem_info->local_mem_size_public =
+					KFD_XCP_MEMORY_SIZE(adev, xcp_id);
+		else
+			mem_info->local_mem_size_private =
+					KFD_XCP_MEMORY_SIZE(adev, xcp_id);
+	} else {
+		mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
+		mem_info->local_mem_size_private = adev->gmc.real_vram_size -
 						adev->gmc.visible_vram_size;
-
+	}
 	mem_info->vram_width = adev->gmc.vram_width;
 
 	pr_debug("Address base: %pap public 0x%llx private 0x%llx\n",

@@ -231,7 +231,8 @@ int amdgpu_amdkfd_remove_gws_from_process(void *info, void *mem);
 uint32_t amdgpu_amdkfd_get_fw_version(struct amdgpu_device *adev,
 				      enum kgd_engine_type type);
 void amdgpu_amdkfd_get_local_mem_info(struct amdgpu_device *adev,
-				      struct kfd_local_mem_info *mem_info);
+				      struct kfd_local_mem_info *mem_info,
+				      uint8_t xcp_id);
 uint64_t amdgpu_amdkfd_get_gpu_clock_counter(struct amdgpu_device *adev);
 
 uint32_t amdgpu_amdkfd_get_max_engine_clock_in_mhz(struct amdgpu_device *adev);
@@ -334,10 +335,11 @@ void amdgpu_amdkfd_unreserve_mem_limit(struct amdgpu_device *adev,
 		((adev)->xcp_mgr && (xcp_id) >= 0 ?\
 		(adev)->xcp_mgr->xcp[(xcp_id)].mem_id : -1)
 
-#define KFD_XCP_MEMORY_SIZE(n) ((n)->adev->gmc.num_mem_partitions ?\
-		(n)->adev->gmc.mem_partitions[(n)->xcp->mem_id].size /\
-		(n)->adev->xcp_mgr->num_xcp_per_mem_partition :\
-		(n)->adev->gmc.real_vram_size)
+#define KFD_XCP_MEMORY_SIZE(adev, xcp_id)\
+		((adev)->gmc.num_mem_partitions && (xcp_id) >= 0 ?\
+		(adev)->gmc.mem_partitions[KFD_XCP_MEM_ID((adev), (xcp_id))].size /\
+		(adev)->xcp_mgr->num_xcp_per_mem_partition :\
+		(adev)->gmc.real_vram_size)
 
 #if IS_ENABLED(CONFIG_HSA_AMD)
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);

@@ -2191,7 +2191,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * report the total FB size (public+private) as a single
 	 * private heap.
 	 */
-	local_mem_info = kdev->kfd->local_mem_info;
+	local_mem_info = kdev->local_mem_info;
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 

@@ -726,7 +726,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	svm_migrate_init(kfd->adev);
 
-	amdgpu_amdkfd_get_local_mem_info(kfd->adev, &kfd->local_mem_info);
 
 	dev_info(kfd_device, "Total number of KFD nodes to be created: %d\n",
 				kfd->num_nodes);
@@ -756,7 +755,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		if (node->xcp) {
 			dev_info(kfd_device, "KFD node %d partition %d size %lldM\n",
 				node->node_id, node->xcp->mem_id,
-				KFD_XCP_MEMORY_SIZE(node) >> 20);
+				KFD_XCP_MEMORY_SIZE(node->adev, node->node_id) >> 20);
 		}
 
 		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
@@ -783,6 +782,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		}
 		node->max_proc_per_quantum = max_proc_per_quantum;
 		atomic_set(&node->sram_ecc_flag, 0);
+
+		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
+					&node->local_mem_info, node->xcp->id);
+
 		/* Initialize the KFD node */
 		if (kfd_init_node(node)) {
 			dev_err(kfd_device, "Error initializing KFD node\n");

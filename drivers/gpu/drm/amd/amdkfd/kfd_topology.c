@@ -1152,8 +1152,8 @@ static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
 	if (!gpu)
 		return 0;
 
-	local_mem_size = gpu->kfd->local_mem_info.local_mem_size_private +
-			gpu->kfd->local_mem_info.local_mem_size_public;
+	local_mem_size = gpu->local_mem_info.local_mem_size_private +
+			gpu->local_mem_info.local_mem_size_public;
 	buf[0] = gpu->adev->pdev->devfn;
 	buf[1] = gpu->adev->pdev->subsystem_vendor |
 		(gpu->adev->pdev->subsystem_device << 16);
@@ -1234,7 +1234,8 @@ static void kfd_fill_mem_clk_max_info(struct kfd_topology_device *dev)
 	 * for APUs - If CRAT from ACPI reports more than one bank, then
 	 *	all the banks will report the same mem_clk_max information
 	 */
-	amdgpu_amdkfd_get_local_mem_info(dev->gpu->adev, &local_mem_info);
+	amdgpu_amdkfd_get_local_mem_info(dev->gpu->adev, &local_mem_info,
+					 dev->gpu->xcp->id);
 
 	list_for_each_entry(mem, &dev->mem_props, list)
 		mem->mem_clk_max = local_mem_info.mem_clk_max;
