@@ -61,6 +61,24 @@ static void sync_for_cpu(struct msm_gem_object *msm_obj)
 	dma_unmap_sgtable(dev, msm_obj->sgt, DMA_BIDIRECTIONAL, 0);
 }
 
+static void update_lru_active(struct drm_gem_object *obj)
+{
+	struct msm_drm_private *priv = obj->dev->dev_private;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	GEM_WARN_ON(!msm_obj->pages);
+
+	if (msm_obj->pin_count) {
+		drm_gem_lru_move_tail_locked(&priv->lru.pinned, obj);
+	} else if (msm_obj->madv == MSM_MADV_WILLNEED) {
+		drm_gem_lru_move_tail_locked(&priv->lru.willneed, obj);
+	} else {
+		GEM_WARN_ON(msm_obj->madv != MSM_MADV_DONTNEED);
+
+		drm_gem_lru_move_tail_locked(&priv->lru.dontneed, obj);
+	}
+}
+
 static void update_lru_locked(struct drm_gem_object *obj)
 {
 	struct msm_drm_private *priv = obj->dev->dev_private;
@@ -72,14 +90,8 @@ static void update_lru_locked(struct drm_gem_object *obj)
 		GEM_WARN_ON(msm_obj->pin_count);
 
 		drm_gem_lru_move_tail_locked(&priv->lru.unbacked, obj);
-	} else if (msm_obj->pin_count) {
-		drm_gem_lru_move_tail_locked(&priv->lru.pinned, obj);
-	} else if (msm_obj->madv == MSM_MADV_WILLNEED) {
-		drm_gem_lru_move_tail_locked(&priv->lru.willneed, obj);
 	} else {
-		GEM_WARN_ON(msm_obj->madv != MSM_MADV_DONTNEED);
-
-		drm_gem_lru_move_tail_locked(&priv->lru.dontneed, obj);
+		update_lru_active(obj);
 	}
 }
 
@@ -486,6 +498,24 @@ void msm_gem_unpin_locked(struct drm_gem_object *obj)
 	msm_obj->pin_count--;
 	GEM_WARN_ON(msm_obj->pin_count < 0);
 	update_lru_locked(obj);
+	mutex_unlock(&priv->lru.lock);
+}
+
+/* Special unpin path for use in fence-signaling path, avoiding the need
+ * to hold the obj lock by only depending on things that a protected by
+ * the LRU lock.  In particular we know that that we already have backing
+ * and and that the object's dma_resv has the fence for the current
+ * submit/job which will prevent us racing against page eviction.
+ */
+void msm_gem_unpin_active(struct drm_gem_object *obj)
+{
+	struct msm_drm_private *priv = obj->dev->dev_private;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	mutex_lock(&priv->lru.lock);
+	msm_obj->pin_count--;
+	GEM_WARN_ON(msm_obj->pin_count < 0);
+	update_lru_active(obj);
 	mutex_unlock(&priv->lru.lock);
 }
 
