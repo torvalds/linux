@@ -205,7 +205,7 @@ static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
 }
 
 void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
-			     struct hisi_sas_slot *slot)
+			     struct hisi_sas_slot *slot, bool need_lock)
 {
 	int device_id = slot->device_id;
 	struct hisi_sas_device *sas_dev = &hisi_hba->devices[device_id];
@@ -239,9 +239,13 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 		}
 	}
 
-	spin_lock(&sas_dev->lock);
-	list_del_init(&slot->entry);
-	spin_unlock(&sas_dev->lock);
+	if (need_lock) {
+		spin_lock(&sas_dev->lock);
+		list_del_init(&slot->entry);
+		spin_unlock(&sas_dev->lock);
+	} else {
+		list_del_init(&slot->entry);
+	}
 
 	memset(slot, 0, offsetof(struct hisi_sas_slot, buf));
 
@@ -1081,7 +1085,7 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 }
 
 static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba, struct sas_task *task,
-				     struct hisi_sas_slot *slot)
+				     struct hisi_sas_slot *slot, bool need_lock)
 {
 	if (task) {
 		unsigned long flags;
@@ -1098,7 +1102,7 @@ static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba, struct sas_task 
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 	}
 
-	hisi_sas_slot_task_free(hisi_hba, task, slot);
+	hisi_sas_slot_task_free(hisi_hba, task, slot, need_lock);
 }
 
 static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
@@ -1107,8 +1111,11 @@ static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
 	struct hisi_sas_slot *slot, *slot2;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 
+	spin_lock(&sas_dev->lock);
 	list_for_each_entry_safe(slot, slot2, &sas_dev->list, entry)
-		hisi_sas_do_release_task(hisi_hba, slot->task, slot);
+		hisi_sas_do_release_task(hisi_hba, slot->task, slot, false);
+
+	spin_unlock(&sas_dev->lock);
 }
 
 void hisi_sas_release_tasks(struct hisi_hba *hisi_hba)
@@ -1634,7 +1641,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		 */
 		if (rc == TMF_RESP_FUNC_COMPLETE && rc2 != TMF_RESP_FUNC_SUCC) {
 			if (task->lldd_task)
-				hisi_sas_do_release_task(hisi_hba, task, slot);
+				hisi_sas_do_release_task(hisi_hba, task, slot, true);
 		}
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
@@ -1654,7 +1661,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 			 */
 			if ((sas_dev->dev_status == HISI_SAS_DEV_NCQ_ERR) &&
 			    qc && qc->scsicmd) {
-				hisi_sas_do_release_task(hisi_hba, task, slot);
+				hisi_sas_do_release_task(hisi_hba, task, slot, true);
 				rc = TMF_RESP_FUNC_COMPLETE;
 			} else {
 				rc = hisi_sas_softreset_ata_disk(device);
