@@ -1220,6 +1220,10 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
 	phy_ppdu->chan_idx = RTW89_GET_PHY_STS_IE01_CH_IDX(addr);
 	if (phy_ppdu->rate < RTW89_HW_RATE_OFDM6)
 		return;
+
+	if (!phy_ppdu->to_self)
+		return;
+
 	/* sign conversion for S(12,2) */
 	if (rtwdev->chip->cfo_src_fd)
 		cfo = sign_extend32(RTW89_GET_PHY_STS_IE01_FD_CFO(addr), 11);
@@ -1283,9 +1287,6 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 	/* mark invalid reports and bypass them */
 	if (phy_ppdu->ie < RTW89_CCK_PKT)
 		return -EINVAL;
-
-	if (!phy_ppdu->to_self)
-		return 0;
 
 	pos = (u8 *)phy_ppdu->buf + PHY_STS_HDR_LEN;
 	end = (u8 *)phy_ppdu->buf + phy_ppdu->len;
