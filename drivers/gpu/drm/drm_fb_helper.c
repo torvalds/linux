@@ -672,7 +672,7 @@ static void drm_fb_helper_memory_range_to_clip(struct fb_info *info, off_t off, 
 void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	struct drm_fb_helper *helper = info->par;
-	unsigned long start, end, min_off, max_off;
+	unsigned long start, end, min_off, max_off, total_size;
 	struct fb_deferred_io_pageref *pageref;
 	struct drm_rect damage_area;
 
@@ -690,7 +690,11 @@ void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagerefli
 	 * of the screen and account for non-existing scanlines. Hence,
 	 * keep the covered memory area within the screen buffer.
 	 */
-	max_off = min(max_off, info->screen_size);
+	if (info->screen_size)
+		total_size = info->screen_size;
+	else
+		total_size = info->fix.smem_len;
+	max_off = min(max_off, total_size);
 
 	if (min_off < max_off) {
 		drm_fb_helper_memory_range_to_clip(info, min_off, max_off - min_off, &damage_area);
