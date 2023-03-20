@@ -903,7 +903,7 @@ static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 static int su3000_power_ctrl(struct dvb_usb_device *d, int i)
 {
-	struct dw2102_state *state = (struct dw2102_state *)d->priv;
+	struct dw2102_state *state = d->priv;
 	int ret = 0;
 
 	info("%s: %d, initialized %d", __func__, i, state->initialized);
@@ -978,8 +978,7 @@ static int dw210x_set_voltage(struct dvb_frontend *fe,
 		.len = 2,
 	};
 
-	struct dvb_usb_adapter *udev_adap =
-		(struct dvb_usb_adapter *)(fe->dvb->priv);
+	struct dvb_usb_adapter *udev_adap = fe->dvb->priv;
 	if (voltage == SEC_VOLTAGE_18)
 		msg.buf = command_18v;
 	else if (voltage == SEC_VOLTAGE_13)
@@ -993,9 +992,8 @@ static int dw210x_set_voltage(struct dvb_frontend *fe,
 static int s660_set_voltage(struct dvb_frontend *fe,
 			    enum fe_sec_voltage voltage)
 {
-	struct dvb_usb_adapter *d =
-		(struct dvb_usb_adapter *)(fe->dvb->priv);
-	struct dw2102_state *st = (struct dw2102_state *)d->dev->priv;
+	struct dvb_usb_adapter *d = fe->dvb->priv;
+	struct dw2102_state *st = d->dev->priv;
 
 	dw210x_set_voltage(fe, voltage);
 	if (st->old_set_voltage)
@@ -1014,8 +1012,7 @@ static void dw210x_led_ctrl(struct dvb_frontend *fe, int offon)
 		.buf = led_off,
 		.len = 1
 	};
-	struct dvb_usb_adapter *udev_adap =
-		(struct dvb_usb_adapter *)(fe->dvb->priv);
+	struct dvb_usb_adapter *udev_adap = fe->dvb->priv;
 
 	if (offon)
 		msg.buf = led_on;
@@ -1025,9 +1022,8 @@ static void dw210x_led_ctrl(struct dvb_frontend *fe, int offon)
 static int tt_s2_4600_read_status(struct dvb_frontend *fe,
 				  enum fe_status *status)
 {
-	struct dvb_usb_adapter *d =
-		(struct dvb_usb_adapter *)(fe->dvb->priv);
-	struct dw2102_state *st = (struct dw2102_state *)d->dev->priv;
+	struct dvb_usb_adapter *d = fe->dvb->priv;
+	struct dw2102_state *st = d->dev->priv;
 	int ret;
 
 	ret = st->fe_read_status(fe, status);
@@ -2576,7 +2572,7 @@ static int dw2102_probe(struct usb_interface *intf,
 static void dw2102_disconnect(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	struct dw2102_state *st = (struct dw2102_state *)d->priv;
+	struct dw2102_state *st = d->priv;
 	struct i2c_client *client;
 
 	/* remove I2C client for tuner */
