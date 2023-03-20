@@ -628,6 +628,8 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 
 			block_info__zput(entry->block_info);
 
+			kvm_info__zput(entry->kvm_info);
+
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
 			 * similar, update it.  Otherwise we will
@@ -1323,6 +1325,9 @@ void hist_entry__delete(struct hist_entry *he)
 
 	if (he->block_info)
 		block_info__zput(he->block_info);
+
+	if (he->kvm_info)
+		kvm_info__zput(he->kvm_info);
 
 	zfree(&he->res_samples);
 	zfree(&he->stat_acc);

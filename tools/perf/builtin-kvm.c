@@ -768,7 +768,6 @@ static void kvm_he_free(void *he)
 {
 	struct kvm_event *kvm_ev;
 
-	free(((struct hist_entry *)he)->kvm_info);
 	kvm_ev = container_of(he, struct kvm_event, he);
 	free(kvm_ev);
 }
@@ -788,7 +787,7 @@ static struct kvm_event *find_create_kvm_event(struct perf_kvm_stat *kvm,
 
 	BUG_ON(key->key == INVALID_KEY);
 
-	ki = zalloc(sizeof(*ki));
+	ki = kvm_info__new();
 	if (!ki) {
 		pr_err("Failed to allocate kvm info\n");
 		return NULL;

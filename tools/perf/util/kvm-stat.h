@@ -10,6 +10,9 @@
 #include "symbol.h"
 #include "record.h"
 
+#include <stdlib.h>
+#include <linux/zalloc.h>
+
 #define KVM_EVENT_NAME_LEN	40
 
 struct evsel;
@@ -25,6 +28,7 @@ struct event_key {
 
 struct kvm_info {
 	char name[KVM_EVENT_NAME_LEN];
+	refcount_t refcnt;
 };
 
 struct kvm_event_stats {
@@ -145,6 +149,42 @@ extern const char *vcpu_id_str;
 extern const char *kvm_exit_reason;
 extern const char *kvm_entry_trace;
 extern const char *kvm_exit_trace;
+
+static inline struct kvm_info *kvm_info__get(struct kvm_info *ki)
+{
+	if (ki)
+		refcount_inc(&ki->refcnt);
+	return ki;
+}
+
+static inline void kvm_info__put(struct kvm_info *ki)
+{
+	if (ki && refcount_dec_and_test(&ki->refcnt))
+		free(ki);
+}
+
+static inline void __kvm_info__zput(struct kvm_info **ki)
+{
+	kvm_info__put(*ki);
+	*ki = NULL;
+}
+
+#define kvm_info__zput(ki) __kvm_info__zput(&ki)
+
+static inline struct kvm_info *kvm_info__new(void)
+{
+	struct kvm_info *ki;
+
+	ki = zalloc(sizeof(*ki));
+	if (ki)
+		refcount_set(&ki->refcnt, 1);
+
+	return ki;
+}
+
+#else /* HAVE_KVM_STAT_SUPPORT */
+// We use this unconditionally in hists__findnew_entry() and hist_entry__delete()
+#define kvm_info__zput(ki) do { } while (0)
 #endif /* HAVE_KVM_STAT_SUPPORT */
 
 extern int kvm_add_default_arch_event(int *argc, const char **argv);
