@@ -26,9 +26,7 @@ static void __run_vcpu_with_invalid_state(struct kvm_vcpu *vcpu)
 
 	vcpu_run(vcpu);
 
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_INTERNAL_ERROR,
-		    "Expected KVM_EXIT_INTERNAL_ERROR, got %d (%s)\n",
-		    run->exit_reason, exit_reason_str(run->exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_INTERNAL_ERROR);
 	TEST_ASSERT(run->emulation_failure.suberror == KVM_INTERNAL_ERROR_EMULATION,
 		    "Expected emulation failure, got %d\n",
 		    run->emulation_failure.suberror);
