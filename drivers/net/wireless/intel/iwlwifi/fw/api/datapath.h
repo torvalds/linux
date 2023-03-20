@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -25,6 +25,11 @@ enum iwl_data_path_subcmd_ids {
 	 * @TRIGGER_RX_QUEUES_NOTIF_CMD: &struct iwl_rxq_sync_cmd
 	 */
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+
+	/**
+	 * @WNM_PLATFORM_PTM_REQUEST_CMD: &struct iwl_time_sync_cfg_cmd
+	 */
+	WNM_PLATFORM_PTM_REQUEST_CMD = 0x3,
 
 	/**
 	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd
@@ -145,6 +150,48 @@ enum iwl_channel_estimation_flags {
 	IWL_CHANNEL_ESTIMATION_TIMER	= BIT(1),
 	IWL_CHANNEL_ESTIMATION_COUNTER	= BIT(2),
 };
+
+/**
+ * enum iwl_synced_time_operation - PTM request options
+ *
+ * @IWL_SYNCED_TIME_OPERATION_READ_ARTB: read only the ARTB time
+ * @IWL_SYNCED_TIME_OPERATION_READ_GP2: read only the GP2 time
+ * @IWL_SYNCED_TIME_OPERATION_READ_BOTH: latch the ARTB and GP2 clocks and
+ *	provide timestamps from both clocks for the same time point
+ */
+enum iwl_synced_time_operation {
+	IWL_SYNCED_TIME_OPERATION_READ_ARTB = 1,
+	IWL_SYNCED_TIME_OPERATION_READ_GP2,
+	IWL_SYNCED_TIME_OPERATION_READ_BOTH,
+};
+
+/**
+ * struct iwl_synced_time_cmd - request synced GP2/ARTB timestamps
+ *
+ * @operation: one of &enum iwl_synced_time_operation
+ */
+struct iwl_synced_time_cmd {
+	__le32 operation;
+} __packed; /* WNM_80211V_TIMING_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_synced_time_rsp - response to iwl_synced_time_cmd
+ *
+ * @operation: one of &enum iwl_synced_time_operation
+ * @platform_timestamp_hi: high DWORD of the ARTB clock timestamp in nanoseconds
+ * @platform_timestamp_lo: low DWORD of the ARTB clock timestamp in nanoseconds
+ * @gp2_timestamp_hi: high DWORD of the GP2 clock timestamp in 10's of
+ *	nanoseconds
+ * @gp2_timestamp_lo: low DWORD of the GP2 clock timestamp in 10's of
+ *	nanoseconds
+ */
+struct iwl_synced_time_rsp {
+	__le32 operation;
+	__le32 platform_timestamp_hi;
+	__le32 platform_timestamp_lo;
+	__le32 gp2_timestamp_hi;
+	__le32 gp2_timestamp_lo;
+} __packed; /* WNM_80211V_TIMING_RSP_API_S_VER_1 */
 
 /**
  * struct iwl_channel_estimation_cfg - channel estimation reporting config

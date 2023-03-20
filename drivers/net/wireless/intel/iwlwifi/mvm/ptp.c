@@ -24,11 +24,53 @@ static void iwl_mvm_ptp_update_new_read(struct iwl_mvm *mvm, u32 gp2)
 }
 
 static int
+iwl_mvm_get_crosstimestamp_fw(struct iwl_mvm *mvm, u32 *gp2, u64 *sys_time)
+{
+	struct iwl_synced_time_cmd synced_time_cmd = {
+		.operation = cpu_to_le32(IWL_SYNCED_TIME_OPERATION_READ_BOTH)
+	};
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(DATA_PATH_GROUP, WNM_PLATFORM_PTM_REQUEST_CMD),
+		.flags = CMD_WANT_SKB,
+		.data[0] = &synced_time_cmd,
+		.len[0] = sizeof(synced_time_cmd),
+	};
+	struct iwl_synced_time_rsp *resp;
+	struct iwl_rx_packet *pkt;
+	int ret;
+	u64 gp2_10ns;
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret)
+		return ret;
+
+	pkt = cmd.resp_pkt;
+
+	if (iwl_rx_packet_payload_len(pkt) != sizeof(*resp)) {
+		IWL_ERR(mvm, "PTP: Invalid command response\n");
+		iwl_free_resp(&cmd);
+		return -EIO;
+	}
+
+	resp = (void *)pkt->data;
+
+	gp2_10ns = (u64)le32_to_cpu(resp->gp2_timestamp_hi) << 32 |
+		le32_to_cpu(resp->gp2_timestamp_lo);
+	*gp2 = gp2_10ns / 100;
+
+	*sys_time = (u64)le32_to_cpu(resp->platform_timestamp_hi) << 32 |
+		le32_to_cpu(resp->platform_timestamp_lo);
+
+	return ret;
+}
+
+static int
 iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 			       struct system_device_crosststamp *xtstamp)
 {
 	struct iwl_mvm *mvm = container_of(ptp, struct iwl_mvm,
 					   ptp_data.ptp_clock_info);
+	int ret = 0;
 	/* Raw value read from GP2 register in usec */
 	u32 gp2;
 	/* GP2 value in ns*/
@@ -43,7 +85,16 @@ iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 		return -ENODEV;
 	}
 
-	iwl_mvm_get_sync_time(mvm, CLOCK_REALTIME, &gp2, NULL, &sys_time);
+	mutex_lock(&mvm->mutex);
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SYNCED_TIME)) {
+		ret = iwl_mvm_get_crosstimestamp_fw(mvm, &gp2, &sys_time);
+
+		if (ret)
+			goto out;
+	} else {
+		iwl_mvm_get_sync_time(mvm, CLOCK_REALTIME, &gp2, NULL,
+				      &sys_time);
+	}
 
 	iwl_mvm_ptp_update_new_read(mvm, gp2);
 
@@ -57,7 +108,9 @@ iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 	xtstamp->device = (ktime_t)gp2_ns;
 	xtstamp->sys_realtime = sys_time;
 
-	return 0;
+out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
 }
 
 static void iwl_mvm_ptp_work(struct work_struct *wk)
