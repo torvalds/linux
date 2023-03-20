@@ -437,12 +437,14 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	pm_runtime_mark_last_busy(&rt->dev);
 	pm_runtime_use_autosuspend(&rt->dev);
 
+	tb_retimer_debugfs_init(rt);
 	return 0;
 }
 
 static void tb_retimer_remove(struct tb_retimer *rt)
 {
 	dev_info(&rt->dev, "retimer disconnected\n");
+	tb_retimer_debugfs_remove(rt);
 	tb_nvm_free(rt->nvm);
 	device_unregister(&rt->dev);
 }
