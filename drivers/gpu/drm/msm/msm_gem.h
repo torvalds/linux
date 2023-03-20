@@ -86,7 +86,9 @@ struct msm_gem_object {
 	uint32_t flags;
 
 	/**
-	 * Advice: are the backing pages purgeable?
+	 * madv: are the backing pages purgeable?
+	 *
+	 * Protected by obj lock and LRU lock
 	 */
 	uint8_t madv;
 
@@ -114,6 +116,11 @@ struct msm_gem_object {
 
 	char name[32]; /* Identifier to print for the debugfs files */
 
+	/**
+	 * pin_count: Number of times the pages are pinned
+	 *
+	 * Protected by LRU lock.
+	 */
 	int pin_count;
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
