@@ -3164,7 +3164,8 @@ bool amdgpu_ras_inst_get_err_cnt_field(struct amdgpu_device *adev,
 
 	if ((reg_entry->flags & AMDGPU_RAS_ERR_INFO_VALID) &&
 	    !REG_GET_FIELD(err_status_hi_data, ERR_STATUS_HI, ERR_INFO_VALID_FLAG))
-		return false;
+		/* keep the check here in case we need to refer to the result later */
+		dev_dbg(adev->dev, "Invalid err_info field\n");
 
 	/* read err count */
 	*err_cnt = REG_GET_FIELD(err_status_hi_data, ERR_STATUS, ERR_CNT);
@@ -3187,15 +3188,15 @@ void amdgpu_ras_inst_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t i, j;
 
 	for (i = 0; i < reg_list_size; i++) {
+		/* query memory_id from err_status_lo */
+		if (!amdgpu_ras_inst_get_memory_id_field(adev, &reg_list[i],
+							 instance, &memory_id))
+			continue;
+
 		/* query err_cnt from err_status_hi */
 		if (!amdgpu_ras_inst_get_err_cnt_field(adev, &reg_list[i],
 						       instance, &err_cnt) ||
 		    !err_cnt)
-			continue;
-
-		/* query memory_id from err_status_lo */
-		if (!amdgpu_ras_inst_get_memory_id_field(adev, &reg_list[i],
-							 instance, &memory_id))
 			continue;
 
 		*err_count += err_cnt;
