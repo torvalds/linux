@@ -255,7 +255,7 @@ int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 	thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
 
 	if (al.map)
-		dso = al.map->dso;
+		dso = map__dso(al.map);
 
 	if (!dso) {
 		pr_debug("%" PRIx64 " dso is NULL\n", ip);

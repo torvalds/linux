@@ -448,23 +448,27 @@ struct thread *thread__main_thread(struct machine *machine, struct thread *threa
 int thread__memcpy(struct thread *thread, struct machine *machine,
 		   void *buf, u64 ip, int len, bool *is64bit)
 {
-       u8 cpumode = PERF_RECORD_MISC_USER;
-       struct addr_location al;
-       long offset;
+	u8 cpumode = PERF_RECORD_MISC_USER;
+	struct addr_location al;
+	struct dso *dso;
+	long offset;
 
-       if (machine__kernel_ip(machine, ip))
-               cpumode = PERF_RECORD_MISC_KERNEL;
+	if (machine__kernel_ip(machine, ip))
+		cpumode = PERF_RECORD_MISC_KERNEL;
 
-       if (!thread__find_map(thread, cpumode, ip, &al) || !al.map->dso ||
-	   al.map->dso->data.status == DSO_DATA_STATUS_ERROR ||
-	   map__load(al.map) < 0)
-               return -1;
+	if (!thread__find_map(thread, cpumode, ip, &al))
+	       return -1;
 
-       offset = al.map->map_ip(al.map, ip);
-       if (is64bit)
-               *is64bit = al.map->dso->is_64_bit;
+	dso = map__dso(al.map);
 
-       return dso__data_read_offset(al.map->dso, machine, offset, buf, len);
+	if( !dso || dso->data.status == DSO_DATA_STATUS_ERROR || map__load(al.map) < 0)
+		return -1;
+
+	offset = al.map->map_ip(al.map, ip);
+	if (is64bit)
+		*is64bit = dso->is_64_bit;
+
+	return dso__data_read_offset(dso, machine, offset, buf, len);
 }
 
 void thread__free_stitch_list(struct thread *thread)

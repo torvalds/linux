@@ -179,7 +179,7 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 	int err;
 
 	if (al->map) {
-		struct dso *dso = al->map->dso;
+		struct dso *dso = map__dso(al->map);
 
 		err = db_export__dso(dbe, dso, maps__machine(al->maps));
 		if (err)
@@ -255,7 +255,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
-			al.sym = dso__find_symbol(al.map->dso, al.addr);
+			al.sym = dso__find_symbol(map__dso(al.map), al.addr);
 
 		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
 

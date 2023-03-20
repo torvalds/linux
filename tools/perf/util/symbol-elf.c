@@ -1435,7 +1435,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		*curr_mapp = curr_map;
 		*curr_dsop = curr_dso;
 	} else
-		*curr_dsop = curr_map->dso;
+		*curr_dsop = map__dso(curr_map);
 
 	return 0;
 }

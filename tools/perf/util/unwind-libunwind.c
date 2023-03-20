@@ -22,6 +22,7 @@ int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized
 	const char *arch;
 	enum dso_type dso_type;
 	struct unwind_libunwind_ops *ops = local_unwind_libunwind_ops;
+	struct dso *dso = map__dso(map);
 	struct machine *machine;
 	int err;
 
@@ -29,8 +30,7 @@ int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized
 		return 0;
 
 	if (maps__addr_space(maps)) {
-		pr_debug("unwind: thread map already set, dso=%s\n",
-			 map->dso->name);
+		pr_debug("unwind: thread map already set, dso=%s\n", dso->name);
 		if (initialized)
 			*initialized = true;
 		return 0;
@@ -41,7 +41,7 @@ int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized
 	if (!machine->env || !machine->env->arch)
 		goto out_register;
 
-	dso_type = dso__type(map->dso, machine);
+	dso_type = dso__type(dso, machine);
 	if (dso_type == DSO__TYPE_UNKNOWN)
 		return 0;
 

@@ -145,6 +145,7 @@ static PyObject *perf_sample_src(PyObject *obj, PyObject *args, bool get_srccode
 	char *srccode = NULL;
 	PyObject *result;
 	struct map *map;
+	struct dso *dso;
 	int len = 0;
 	u64 addr;
 
@@ -153,9 +154,10 @@ static PyObject *perf_sample_src(PyObject *obj, PyObject *args, bool get_srccode
 
 	map = c->al->map;
 	addr = c->al->addr;
+	dso = map ? map__dso(map) : NULL;
 
-	if (map && map->dso)
-		srcfile = get_srcline_split(map->dso, map__rip_2objdump(map, addr), &line);
+	if (dso)
+		srcfile = get_srcline_split(dso, map__rip_2objdump(map, addr), &line);
 
 	if (get_srccode) {
 		if (srcfile)

@@ -390,12 +390,13 @@ static PyObject *get_field_numeric_entry(struct tep_event *event,
 static const char *get_dsoname(struct map *map)
 {
 	const char *dsoname = "[unknown]";
+	struct dso *dso = map ? map__dso(map) : NULL;
 
-	if (map && map->dso) {
-		if (symbol_conf.show_kernel_path && map->dso->long_name)
-			dsoname = map->dso->long_name;
+	if (dso) {
+		if (symbol_conf.show_kernel_path && dso->long_name)
+			dsoname = dso->long_name;
 		else
-			dsoname = map->dso->name;
+			dsoname = dso->name;
 	}
 
 	return dsoname;
@@ -780,9 +781,10 @@ static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
 	char sbuild_id[SBUILD_ID_SIZE];
 
 	if (al->map) {
-		pydict_set_item_string_decref(dict, dso_field,
-			_PyUnicode_FromString(al->map->dso->name));
-		build_id__sprintf(&al->map->dso->bid, sbuild_id);
+		struct dso *dso = map__dso(al->map);
+
+		pydict_set_item_string_decref(dict, dso_field, _PyUnicode_FromString(dso->name));
+		build_id__sprintf(&dso->bid, sbuild_id);
 		pydict_set_item_string_decref(dict, dso_bid_field,
 			_PyUnicode_FromString(sbuild_id));
 		pydict_set_item_string_decref(dict, dso_map_start,

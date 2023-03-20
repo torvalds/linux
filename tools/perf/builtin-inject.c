@@ -753,9 +753,11 @@ int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
 	}
 
 	if (thread__find_map(thread, sample->cpumode, sample->ip, &al)) {
-		if (!al.map->dso->hit) {
-			al.map->dso->hit = 1;
-			dso__inject_build_id(al.map->dso, tool, machine,
+		struct dso *dso = map__dso(al.map);
+
+		if (!dso->hit) {
+			dso->hit = 1;
+			dso__inject_build_id(dso, tool, machine,
 					     sample->cpumode, al.map->flags);
 		}
 	}

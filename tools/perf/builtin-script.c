@@ -1011,11 +1011,11 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 		to   = entries[i].to;
 
 		if (thread__find_map_fb(thread, sample->cpumode, from, &alf) &&
-		    !alf.map->dso->adjust_symbols)
+		    !map__dso(alf.map)->adjust_symbols)
 			from = map__map_ip(alf.map, from);
 
 		if (thread__find_map_fb(thread, sample->cpumode, to, &alt) &&
-		    !alt.map->dso->adjust_symbols)
+		    !map__dso(alt.map)->adjust_symbols)
 			to = map__map_ip(alt.map, to);
 
 		printed += fprintf(fp, " 0x%"PRIx64, from);
@@ -1044,6 +1044,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	long offset, len;
 	struct addr_location al;
 	bool kernel;
+	struct dso *dso;
 
 	if (!start || !end)
 		return 0;
@@ -1074,11 +1075,12 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 		return 0;
 	}
 
-	if (!thread__find_map(thread, *cpumode, start, &al) || !al.map->dso) {
+	dso = map__dso(al.map);
+	if (!thread__find_map(thread, *cpumode, start, &al) || !dso) {
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
-	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR) {
+	if (dso->data.status == DSO_DATA_STATUS_ERROR) {
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
@@ -1087,10 +1089,10 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	map__load(al.map);
 
 	offset = al.map->map_ip(al.map, start);
-	len = dso__data_read_offset(al.map->dso, machine, offset, (u8 *)buffer,
+	len = dso__data_read_offset(dso, machine, offset, (u8 *)buffer,
 				    end - start + MAXINSN);
 
-	*is64bit = al.map->dso->is_64_bit;
+	*is64bit = dso->is_64_bit;
 	if (len <= 0)
 		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);
@@ -1104,10 +1106,11 @@ static int map__fprintf_srccode(struct map *map, u64 addr, FILE *fp, struct srcc
 	unsigned line;
 	int len;
 	char *srccode;
+	struct dso *dso = map__dso(map);
 
-	if (!map || !map->dso)
+	if (!map || !dso)
 		return 0;
-	srcfile = get_srcline_split(map->dso,
+	srcfile = get_srcline_split(dso,
 				    map__rip_2objdump(map, addr),
 				    &line);
 	if (!srcfile)

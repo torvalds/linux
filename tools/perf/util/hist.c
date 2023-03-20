@@ -106,7 +106,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 		hists__set_col_len(hists, HISTC_THREAD, len + 8);
 
 	if (h->ms.map) {
-		len = dso__name_len(h->ms.map->dso);
+		len = dso__name_len(map__dso(h->ms.map));
 		hists__new_col_len(hists, HISTC_DSO, len);
 	}
 
@@ -120,7 +120,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 				symlen += BITS_PER_LONG / 4 + 2 + 3;
 			hists__new_col_len(hists, HISTC_SYMBOL_FROM, symlen);
 
-			symlen = dso__name_len(h->branch_info->from.ms.map->dso);
+			symlen = dso__name_len(map__dso(h->branch_info->from.ms.map));
 			hists__new_col_len(hists, HISTC_DSO_FROM, symlen);
 		} else {
 			symlen = unresolved_col_width + 4 + 2;
@@ -135,7 +135,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 				symlen += BITS_PER_LONG / 4 + 2 + 3;
 			hists__new_col_len(hists, HISTC_SYMBOL_TO, symlen);
 
-			symlen = dso__name_len(h->branch_info->to.ms.map->dso);
+			symlen = dso__name_len(map__dso(h->branch_info->to.ms.map));
 			hists__new_col_len(hists, HISTC_DSO_TO, symlen);
 		} else {
 			symlen = unresolved_col_width + 4 + 2;
@@ -180,7 +180,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 		}
 
 		if (h->mem_info->daddr.ms.map) {
-			symlen = dso__name_len(h->mem_info->daddr.ms.map->dso);
+			symlen = dso__name_len(map__dso(h->mem_info->daddr.ms.map));
 			hists__new_col_len(hists, HISTC_MEM_DADDR_DSO,
 					   symlen);
 		} else {
@@ -2110,7 +2110,7 @@ static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he)
 {
 	if (hists->dso_filter != NULL &&
-	    (he->ms.map == NULL || he->ms.map->dso != hists->dso_filter)) {
+	    (he->ms.map == NULL || map__dso(he->ms.map) != hists->dso_filter)) {
 		he->filtered |= (1 << HIST_FILTER__DSO);
 		return true;
 	}

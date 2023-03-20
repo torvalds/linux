@@ -47,6 +47,11 @@ u64 map__unmap_ip(const struct map *map, u64 ip);
 /* Returns ip */
 u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip);
 
+static inline struct dso *map__dso(const struct map *map)
+{
+	return map->dso;
+}
+
 static inline size_t map__size(const struct map *map)
 {
 	return map->end - map->start;
@@ -69,7 +74,7 @@ struct thread;
  * Note: caller must ensure map->dso is not NULL (map is loaded).
  */
 #define map__for_each_symbol(map, pos, n)	\
-	dso__for_each_symbol(map->dso, pos, n)
+	dso__for_each_symbol(map__dso(map), pos, n)
 
 /* map__for_each_symbol_with_name - iterate over the symbols in the given map
  *                                  that have the given name

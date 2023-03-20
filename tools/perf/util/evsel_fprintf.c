@@ -155,7 +155,7 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 
 			if (print_ip) {
 				/* Show binary offset for userspace addr */
-				if (map && !map->dso->kernel)
+				if (map && !map__dso(map)->kernel)
 					printed += fprintf(fp, "%c%16" PRIx64, s, addr);
 				else
 					printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);

@@ -865,6 +865,7 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 	struct thread *thread;
 	struct machine *machine;
 	struct addr_location al;
+	struct dso *dso;
 	struct cs_etm_traceid_queue *tidq;
 
 	if (!etmq)
@@ -883,27 +884,29 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		thread = etmq->etm->unknown_thread;
 	}
 
-	if (!thread__find_map(thread, cpumode, address, &al) || !al.map->dso)
+	dso = map__dso(al.map);
+
+	if (!thread__find_map(thread, cpumode, address, &al) || !dso)
 		return 0;
 
-	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR &&
-	    dso__data_status_seen(al.map->dso, DSO_DATA_STATUS_SEEN_ITRACE))
+	if (dso->data.status == DSO_DATA_STATUS_ERROR &&
+	    dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE))
 		return 0;
 
 	offset = al.map->map_ip(al.map, address);
 
 	map__load(al.map);
 
-	len = dso__data_read_offset(al.map->dso, machine, offset, buffer, size);
+	len = dso__data_read_offset(dso, machine, offset, buffer, size);
 
 	if (len <= 0) {
 		ui__warning_once("CS ETM Trace: Missing DSO. Use 'perf archive' or debuginfod to export data from the traced system.\n"
 				 "              Enable CONFIG_PROC_KCORE or use option '-k /path/to/vmlinux' for kernel symbols.\n");
-		if (!al.map->dso->auxtrace_warned) {
+		if (!dso->auxtrace_warned) {
 			pr_err("CS ETM Trace: Debug data not found for address %#"PRIx64" in %s\n",
 				    address,
-				    al.map->dso->long_name ? al.map->dso->long_name : "Unknown");
-			al.map->dso->auxtrace_warned = true;
+				    dso->long_name ? dso->long_name : "Unknown");
+			dso->auxtrace_warned = true;
 		}
 		return 0;
 	}

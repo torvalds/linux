@@ -62,6 +62,7 @@ static int __maps__insert(struct maps *maps, struct map *map)
 int maps__insert(struct maps *maps, struct map *map)
 {
 	int err;
+	const struct dso *dso = map__dso(map);
 
 	down_write(maps__lock(maps));
 	err = __maps__insert(maps, map);
@@ -70,7 +71,7 @@ int maps__insert(struct maps *maps, struct map *map)
 
 	++maps->nr_maps;
 
-	if (map->dso && map->dso->kernel) {
+	if (dso && dso->kernel) {
 		struct kmap *kmap = map__kmap(map);
 
 		if (kmap)
@@ -253,7 +254,7 @@ size_t maps__fprintf(struct maps *maps, FILE *fp)
 		printed += fprintf(fp, "Map:");
 		printed += map__fprintf(pos->map, fp);
 		if (verbose > 2) {
-			printed += dso__fprintf(pos->map->dso, fp);
+			printed += dso__fprintf(map__dso(pos->map), fp);
 			printed += fprintf(fp, "--\n");
 		}
 	}
@@ -307,7 +308,7 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 
 			if (use_browser) {
 				pr_debug("overlapping maps in %s (disable tui for more info)\n",
-					   map->dso->name);
+					 map__dso(map)->name);
 			} else {
 				fputs("overlapping maps:\n", fp);
 				map__fprintf(map, fp);

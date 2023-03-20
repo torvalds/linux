@@ -104,7 +104,7 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 
 	lep_offset = PPC64_LOCAL_ENTRY_OFFSET(sym->arch_sym);
 
-	if (map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS)
+	if (map__dso(map)->symtab_type == DSO_BINARY_TYPE__KALLSYMS)
 		tev->point.offset += PPC64LE_LEP_OFFSET;
 	else if (lep_offset) {
 		if (pev->uprobes)

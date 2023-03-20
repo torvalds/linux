@@ -24,7 +24,7 @@
 
 static int buildid__map_cb(struct map *map, void *arg __maybe_unused)
 {
-	const struct dso *dso = map->dso;
+	const struct dso *dso = map__dso(map);
 	char bid_buf[SBUILD_ID_SIZE];
 
 	memset(bid_buf, 0, sizeof(bid_buf));

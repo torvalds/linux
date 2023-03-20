@@ -1585,7 +1585,7 @@ static void delete_last_nop(struct symbol *sym)
 
 int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen)
 {
-	struct dso *dso = ms->map->dso;
+	struct dso *dso = map__dso(ms->map);
 
 	BUG_ON(buflen == 0);
 
@@ -1727,7 +1727,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	struct map *map = args->ms.map;
 	struct perf_bpil *info_linear;
 	struct disassemble_info info;
-	struct dso *dso = map->dso;
+	struct dso *dso = map__dso(map);
 	int pc = 0, count, sub_id;
 	struct btf *btf = NULL;
 	char tpath[PATH_MAX];
@@ -1950,7 +1950,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 {
 	struct annotation_options *opts = args->options;
 	struct map *map = args->ms.map;
-	struct dso *dso = map->dso;
+	struct dso *dso = map__dso(map);
 	char *command;
 	FILE *file;
 	char symfs_filename[PATH_MAX];
@@ -2395,7 +2395,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
 {
 	struct map *map = ms->map;
 	struct symbol *sym = ms->sym;
-	struct dso *dso = map->dso;
+	struct dso *dso = map__dso(map);
 	char *filename;
 	const char *d_filename;
 	const char *evsel_name = evsel__name(evsel);
@@ -2578,7 +2578,7 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
 	}
 
 	fprintf(fp, "%s() %s\nEvent: %s\n\n",
-		ms->sym->name, ms->map->dso->long_name, ev_name);
+		ms->sym->name, map__dso(ms->map)->long_name, ev_name);
 	symbol__annotate_fprintf2(ms->sym, fp, opts);
 
 	fclose(fp);
@@ -2804,7 +2804,7 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 		if (percent_max <= 0.5)
 			continue;
 
-		al->path = get_srcline(map->dso, notes->start + al->offset, NULL,
+		al->path = get_srcline(map__dso(map), notes->start + al->offset, NULL,
 				       false, true, notes->start + al->offset);
 		insert_source_line(&tmp_root, al, opts);
 	}
@@ -2823,7 +2823,7 @@ static void symbol__calc_lines(struct map_symbol *ms, struct rb_root *root,
 int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel,
 			  struct annotation_options *opts)
 {
-	struct dso *dso = ms->map->dso;
+	struct dso *dso = map__dso(ms->map);
 	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
 	struct hists *hists = evsel__hists(evsel);
@@ -2859,7 +2859,7 @@ int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel,
 int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel,
 			 struct annotation_options *opts)
 {
-	struct dso *dso = ms->map->dso;
+	struct dso *dso = map__dso(ms->map);
 	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
 	int err;

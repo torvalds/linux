@@ -29,7 +29,7 @@ static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 
 	d_al->size = sizeof(*d_al);
 	if (al->map) {
-		struct dso *dso = al->map->dso;
+		struct dso *dso = map__dso(al->map);
 
 		if (symbol_conf.show_kernel_path && dso->long_name)
 			d_al->dso = dso->long_name;
@@ -220,6 +220,7 @@ static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
 	unsigned int line = 0;
 	char *srcfile = NULL;
 	struct map *map;
+	struct dso *dso;
 	u64 addr;
 
 	if (!d->ctx_valid || !line_no)
@@ -231,9 +232,10 @@ static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
 
 	map = al->map;
 	addr = al->addr;
+	dso = map ? map__dso(map) : NULL;
 
-	if (map && map->dso)
-		srcfile = get_srcline_split(map->dso, map__rip_2objdump(map, addr), &line);
+	if (dso)
+		srcfile = get_srcline_split(dso, map__rip_2objdump(map, addr), &line);
 
 	*line_no = line;
 	return srcfile;
@@ -279,7 +281,7 @@ have_map:
 	offset = map->map_ip(map, ip);
 	if (ip + len >= map->end)
 		len = map->end - ip;
-	return dso__data_read_offset(map->dso, d->machine, offset, buf, len);
+	return dso__data_read_offset(map__dso(map), d->machine, offset, buf, len);
 }
 
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {

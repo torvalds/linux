@@ -194,7 +194,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 		hists__filter_by_thread(hists);
 
 		/* now applying dso filter for 'kernel' */
-		hists->dso_filter = fake_samples[0].map->dso;
+		hists->dso_filter = map__dso(fake_samples[0].map);
 		hists__filter_by_dso(hists);
 
 		if (verbose > 2) {
@@ -288,7 +288,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 
 		/* now applying all filters at once. */
 		hists->thread_filter = fake_samples[1].thread;
-		hists->dso_filter = fake_samples[1].map->dso;
+		hists->dso_filter = map__dso(fake_samples[1].map);
 		hists__filter_by_thread(hists);
 		hists__filter_by_dso(hists);
 

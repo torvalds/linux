@@ -791,6 +791,7 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 	*root = RB_ROOT_CACHED;
 
 	while (next) {
+		struct dso *curr_map_dso;
 		char *module;
 
 		pos = rb_entry(next, struct symbol, rb_node);
@@ -808,13 +809,13 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 			symbol__delete(pos);
 			continue;
 		}
-
+		curr_map_dso = map__dso(curr_map);
 		pos->start -= curr_map->start - curr_map->pgoff;
 		if (pos->end > curr_map->end)
 			pos->end = curr_map->end;
 		if (pos->end)
 			pos->end -= curr_map->start - curr_map->pgoff;
-		symbols__insert(&curr_map->dso->symbols, pos);
+		symbols__insert(&curr_map_dso->symbols, pos);
 		++count;
 	}
 
@@ -856,12 +857,14 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 
 		module = strchr(pos->name, '\t');
 		if (module) {
+			struct dso *curr_map_dso;
+
 			if (!symbol_conf.use_modules)
 				goto discard_symbol;
 
 			*module++ = '\0';
-
-			if (strcmp(curr_map->dso->short_name, module)) {
+			curr_map_dso = map__dso(curr_map);
+			if (strcmp(curr_map_dso->short_name, module)) {
 				if (curr_map != initial_map &&
 				    dso->kernel == DSO_SPACE__KERNEL_GUEST &&
 				    machine__is_default_guest(machine)) {
@@ -872,7 +875,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 					 * symbols are in its kmap. Mark it as
 					 * loaded.
 					 */
-					dso__set_loaded(curr_map->dso);
+					dso__set_loaded(curr_map_dso);
 				}
 
 				curr_map = maps__find_by_name(kmaps, module);
@@ -884,8 +887,8 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 					curr_map = initial_map;
 					goto discard_symbol;
 				}
-
-				if (curr_map->dso->loaded &&
+				curr_map_dso = map__dso(curr_map);
+				if (curr_map_dso->loaded &&
 				    !machine__is_default_guest(machine))
 					goto discard_symbol;
 			}
@@ -954,8 +957,10 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 		}
 add_symbol:
 		if (curr_map != initial_map) {
+			struct dso *curr_map_dso = map__dso(curr_map);
+
 			rb_erase_cached(&pos->rb_node, root);
-			symbols__insert(&curr_map->dso->symbols, pos);
+			symbols__insert(&curr_map_dso->symbols, pos);
 			++moved;
 		} else
 			++count;
@@ -969,7 +974,7 @@ discard_symbol:
 	if (curr_map != initial_map &&
 	    dso->kernel == DSO_SPACE__KERNEL_GUEST &&
 	    machine__is_default_guest(maps__machine(kmaps))) {
-		dso__set_loaded(curr_map->dso);
+		dso__set_loaded(map__dso(curr_map));
 	}
 
 	return count + moved;
@@ -1143,13 +1148,14 @@ static int do_validate_kcore_modules(const char *filename, struct maps *kmaps)
 	maps__for_each_entry(kmaps, old_node) {
 		struct map *old_map = old_node->map;
 		struct module_info *mi;
+		struct dso *dso;
 
 		if (!__map__is_kmodule(old_map)) {
 			continue;
 		}
-
+		dso = map__dso(old_map);
 		/* Module must be in memory at the same address */
-		mi = find_module(old_map->dso->short_name, &modules);
+		mi = find_module(dso->short_name, &modules);
 		if (!mi || mi->start != old_map->start) {
 			err = -EINVAL;
 			goto out;
@@ -2047,14 +2053,17 @@ out:
 
 static int map__strcmp(const void *a, const void *b)
 {
-	const struct map *ma = *(const struct map **)a, *mb = *(const struct map **)b;
-	return strcmp(ma->dso->short_name, mb->dso->short_name);
+	const struct dso *dso_a = map__dso(*(const struct map **)a);
+	const struct dso *dso_b = map__dso(*(const struct map **)b);
+
+	return strcmp(dso_a->short_name, dso_b->short_name);
 }
 
 static int map__strcmp_name(const void *name, const void *b)
 {
-	const struct map *map = *(const struct map **)b;
-	return strcmp(name, map->dso->short_name);
+	const struct dso *dso = map__dso(*(const struct map **)b);
+
+	return strcmp(name, dso->short_name);
 }
 
 void __maps__sort_by_name(struct maps *maps)
@@ -2111,10 +2120,13 @@ struct map *maps__find_by_name(struct maps *maps, const char *name)
 
 	down_read(maps__lock(maps));
 
-	if (maps->last_search_by_name &&
-	    strcmp(maps->last_search_by_name->dso->short_name, name) == 0) {
-		map = maps->last_search_by_name;
-		goto out_unlock;
+	if (maps->last_search_by_name) {
+		const struct dso *dso = map__dso(maps->last_search_by_name);
+
+		if (strcmp(dso->short_name, name) == 0) {
+			map = maps->last_search_by_name;
+			goto out_unlock;
+		}
 	}
 	/*
 	 * If we have maps->maps_by_name, then the name isn't in the rbtree,
@@ -2127,8 +2139,11 @@ struct map *maps__find_by_name(struct maps *maps, const char *name)
 
 	/* Fallback to traversing the rbtree... */
 	maps__for_each_entry(maps, rb_node) {
+		struct dso *dso;
+
 		map = rb_node->map;
-		if (strcmp(map->dso->short_name, name) == 0) {
+		dso = map__dso(map);
+		if (strcmp(dso->short_name, name) == 0) {
 			maps->last_search_by_name = map;
 			goto out_unlock;
 		}
