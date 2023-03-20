@@ -19,11 +19,11 @@ properties:
     const: 0
 
   hisilicon,pericrg-syscon:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle of syscon used to control iso refclk.
 
   hisilicon,pctrl-syscon:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle of syscon used to control usb tcxo.
 
   hisilicon,eye-diagram-param:

@@ -35,9 +35,9 @@ properties:
       clock.
 
   assigned-clocks:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
   assigned-clock-parents:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
 
   '#phy-cells':
     const: 2
