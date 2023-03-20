@@ -215,6 +215,12 @@
 	};
 };
 
+&i2c0 {
+	status = "okay";
+
+	clock-frequency = <100000>;
+};
+
 &irqpin0 {
 	status = "okay";
 };
