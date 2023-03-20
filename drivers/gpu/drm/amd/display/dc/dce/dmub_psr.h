@@ -26,8 +26,9 @@
 #ifndef _DMUB_PSR_H_
 #define _DMUB_PSR_H_
 
-#include "os_types.h"
-#include "dc_link.h"
+#include "dc_types.h"
+struct dc_link;
+struct dmub_psr_funcs;
 
 struct dmub_psr {
 	struct dc_context *ctx;

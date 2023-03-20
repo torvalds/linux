@@ -33,18 +33,18 @@
 #include "link_hpd.h"
 #include "gpio_service_interface.h"
 
-bool dc_link_get_hpd_state(struct dc_link *dc_link)
+bool link_get_hpd_state(struct dc_link *link)
 {
 	uint32_t state;
 
-	dal_gpio_lock_pin(dc_link->hpd_gpio);
-	dal_gpio_get_value(dc_link->hpd_gpio, &state);
-	dal_gpio_unlock_pin(dc_link->hpd_gpio);
+	dal_gpio_lock_pin(link->hpd_gpio);
+	dal_gpio_get_value(link->hpd_gpio, &state);
+	dal_gpio_unlock_pin(link->hpd_gpio);
 
 	return state;
 }
 
-void dc_link_enable_hpd(const struct dc_link *link)
+void link_enable_hpd(const struct dc_link *link)
 {
 	struct link_encoder *encoder = link->link_enc;
 
@@ -52,7 +52,7 @@ void dc_link_enable_hpd(const struct dc_link *link)
 		encoder->funcs->enable_hpd(encoder);
 }
 
-void dc_link_disable_hpd(const struct dc_link *link)
+void link_disable_hpd(const struct dc_link *link)
 {
 	struct link_encoder *encoder = link->link_enc;
 
@@ -60,7 +60,7 @@ void dc_link_disable_hpd(const struct dc_link *link)
 		encoder->funcs->disable_hpd(encoder);
 }
 
-void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
+void link_enable_hpd_filter(struct dc_link *link, bool enable)
 {
 	struct gpio *hpd;
 

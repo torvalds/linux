@@ -211,10 +211,8 @@ static void enc32_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_GC_SEND, 1,
 		HDMI_NULL_SEND, 1);
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	/* Disable Audio Content Protection packet transmission */
 	REG_UPDATE(HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, 0);
-#endif
 
 	/* following belongs to audio */
 	/* Enable Audio InfoFrame packet transmission. */
@@ -373,7 +371,7 @@ static void enc32_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 
-	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
+	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 /* Set DSC-related configuration.

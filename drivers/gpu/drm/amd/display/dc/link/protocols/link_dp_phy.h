@@ -51,6 +51,9 @@ void dp_set_drive_settings(
 
 enum dc_status dp_set_fec_ready(struct dc_link *link,
 		const struct link_resource *link_res, bool ready);
+
 void dp_set_fec_enable(struct dc_link *link, bool enable);
+
+void dpcd_write_rx_power_ctrl(struct dc_link *link, bool on);
 
 #endif /* __DC_LINK_DP_PHY_H__ */

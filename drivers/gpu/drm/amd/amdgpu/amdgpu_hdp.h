@@ -43,5 +43,5 @@ struct amdgpu_hdp {
 	struct amdgpu_hdp_ras	*ras;
 };
 
-int amdgpu_hdp_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
+int amdgpu_hdp_ras_sw_init(struct amdgpu_device *adev);
 #endif /* __AMDGPU_HDP_H__ */

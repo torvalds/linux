@@ -236,19 +236,28 @@ int amdgpu_jpeg_process_poison_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-void jpeg_set_ras_funcs(struct amdgpu_device *adev)
+int amdgpu_jpeg_ras_sw_init(struct amdgpu_device *adev)
 {
+	int err;
+	struct amdgpu_jpeg_ras *ras;
+
 	if (!adev->jpeg.ras)
-		return;
+		return 0;
 
-	amdgpu_ras_register_ras_block(adev, &adev->jpeg.ras->ras_block);
+	ras = adev->jpeg.ras;
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register jpeg ras block!\n");
+		return err;
+	}
 
-	strcpy(adev->jpeg.ras->ras_block.ras_comm.name, "jpeg");
-	adev->jpeg.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__JPEG;
-	adev->jpeg.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
-	adev->jpeg.ras_if = &adev->jpeg.ras->ras_block.ras_comm;
+	strcpy(ras->ras_block.ras_comm.name, "jpeg");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__JPEG;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
+	adev->jpeg.ras_if = &ras->ras_block.ras_comm;
 
-	/* If don't define special ras_late_init function, use default ras_late_init */
-	if (!adev->jpeg.ras->ras_block.ras_late_init)
-		adev->jpeg.ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+
+	return 0;
 }

@@ -2064,7 +2064,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 	if (!info)
 		return BP_RESULT_BADINPUT;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	/* encoder cap record not available in v1_5 */
 	if (bp->object_info_tbl.revision.minor == 5)
 		return BP_RESULT_NORECORD;

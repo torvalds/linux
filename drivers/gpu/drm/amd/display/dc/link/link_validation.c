@@ -29,6 +29,7 @@
  * provides helper functions exposing bandwidth formulas used in validation.
  */
 #include "link_validation.h"
+#include "protocols/link_dp_capability.h"
 #include "resource.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -123,7 +124,7 @@ static bool dp_active_dongle_validate_timing(
 		if (dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps > 0) { // DP to HDMI FRL converter
 			struct dc_crtc_timing outputTiming = *timing;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 			if (timing->flags.DSC && !timing->dsc_cfg.is_frl)
 				/* DP input has DSC, HDMI FRL output doesn't have DSC, remove DSC from output timing */
 				outputTiming.flags.DSC = 0;
@@ -233,7 +234,7 @@ uint32_t dp_link_bandwidth_kbps(
 		 */
 		link_rate_per_lane_kbps = link_settings->link_rate * LINK_RATE_REF_FREQ_IN_KHZ * BITS_PER_DP_BYTE;
 		total_data_bw_efficiency_x10000 = DATA_EFFICIENCY_8b_10b_x10000;
-		if (dc_link_should_enable_fec(link)) {
+		if (dp_should_enable_fec(link)) {
 			total_data_bw_efficiency_x10000 /= 100;
 			total_data_bw_efficiency_x10000 *= DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100;
 		}
@@ -254,19 +255,16 @@ uint32_t dp_link_bandwidth_kbps(
 	return link_rate_per_lane_kbps * link_settings->lane_count / 10000 * total_data_bw_efficiency_x10000;
 }
 
-uint32_t link_timing_bandwidth_kbps(
-	const struct dc_crtc_timing *timing)
+uint32_t link_timing_bandwidth_kbps(const struct dc_crtc_timing *timing)
 {
 	uint32_t bits_per_channel = 0;
 	uint32_t kbps;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (timing->flags.DSC)
 		return dc_dsc_stream_bandwidth_in_kbps(timing,
 				timing->dsc_cfg.bits_per_pixel,
 				timing->dsc_cfg.num_slices_h,
 				timing->dsc_cfg.is_dp);
-#endif /* CONFIG_DRM_AMD_DC_DCN */
 
 	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:
@@ -329,7 +327,7 @@ static bool dp_validate_mode_timing(
 		timing->v_addressable == (uint32_t) 480)
 		return true;
 
-	link_setting = dc_link_get_link_cap(link);
+	link_setting = dp_get_verified_link_cap(link);
 
 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 	/*if (flags.DYNAMIC_VALIDATION == 1 &&
@@ -338,7 +336,7 @@ static bool dp_validate_mode_timing(
 	*/
 
 	req_bw = dc_bandwidth_in_kbps_from_timing(timing);
-	max_bw = dc_link_bandwidth_kbps(link, link_setting);
+	max_bw = dp_link_bandwidth_kbps(link, link_setting);
 
 	if (req_bw <= max_bw) {
 		/* remember the biggest mode here, during

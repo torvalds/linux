@@ -23,8 +23,6 @@
  *
  */
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-
 #include "reg_helper.h"
 #include "resource.h"
 #include "dwb.h"
@@ -129,6 +127,3 @@ void dcn10_dwbc_construct(struct dcn10_dwbc *dwbc10,
 	dwbc10->dwbc_shift = dwbc_shift;
 	dwbc10->dwbc_mask = dwbc_mask;
 }
-
-
-#endif

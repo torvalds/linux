@@ -955,26 +955,20 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	bool freesync_on_desktop;
-	bool fams_enable;
-
-	fams_enable = stream->ctx->dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
-	freesync_on_desktop = stream->freesync_on_desktop && fams_enable;
-
 	if (!vrr->send_info_frame)
 		return;
 
 	switch (packet_type) {
 	case PACKET_TYPE_FS_V3:
-		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket, freesync_on_desktop);
+		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket, stream->freesync_on_desktop);
 		break;
 	case PACKET_TYPE_FS_V2:
-		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket, freesync_on_desktop);
+		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket, stream->freesync_on_desktop);
 		break;
 	case PACKET_TYPE_VRR:
 	case PACKET_TYPE_FS_V1:
 	default:
-		build_vrr_infopacket_v1(stream->signal, vrr, infopacket, freesync_on_desktop);
+		build_vrr_infopacket_v1(stream->signal, vrr, infopacket, stream->freesync_on_desktop);
 	}
 
 	if (true == pack_sdp_v1_3 &&

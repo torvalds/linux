@@ -40,7 +40,7 @@
 #define DC_LOGGER \
 	link->ctx->logger
 
-void dc_link_dp_receiver_power_ctrl(struct dc_link *link, bool on)
+void dpcd_write_rx_power_ctrl(struct dc_link *link, bool on)
 {
 	uint8_t state;
 
@@ -64,7 +64,7 @@ void dp_enable_link_phy(
 	link->cur_link_settings = *link_settings;
 	link->dc->hwss.enable_dp_link_output(link, link_res, signal,
 			clock_source, link_settings);
-	dc_link_dp_receiver_power_ctrl(link, true);
+	dpcd_write_rx_power_ctrl(link, true);
 }
 
 void dp_disable_link_phy(struct dc_link *link,
@@ -74,7 +74,7 @@ void dp_disable_link_phy(struct dc_link *link,
 	struct dc  *dc = link->ctx->dc;
 
 	if (!link->wa_flags.dp_keep_receiver_powered)
-		dc_link_dp_receiver_power_ctrl(link, false);
+		dpcd_write_rx_power_ctrl(link, false);
 
 	dc->hwss.disable_link_output(link, link_res, signal);
 	/* Clear current link setting.*/
@@ -143,7 +143,7 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
-	if (!dc_link_should_enable_fec(link))
+	if (!dp_should_enable_fec(link))
 		return status;
 
 	if (link_enc->funcs->fec_set_ready &&
@@ -183,7 +183,7 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
-	if (!dc_link_should_enable_fec(link))
+	if (!dp_should_enable_fec(link))
 		return;
 
 	if (link_enc->funcs->fec_set_enable &&

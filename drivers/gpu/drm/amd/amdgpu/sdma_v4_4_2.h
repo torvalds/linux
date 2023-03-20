@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,9 +19,12 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
 
-// TODO - remove this file after external build dependencies is resolved.
-/* NOTE: This file is pending to be removed, do not add new code to this file */
+#ifndef __SDMA_V4_4_2_H__
+#define __SDMA_V4_4_2_H__
+
+extern const struct amd_ip_funcs sdma_v4_4_2_ip_funcs;
+extern const struct amdgpu_ip_block_version sdma_v4_4_2_ip_block;
+
+#endif

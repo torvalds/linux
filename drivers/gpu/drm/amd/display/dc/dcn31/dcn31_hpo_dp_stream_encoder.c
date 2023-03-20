@@ -26,7 +26,7 @@
 #include "dc_bios_types.h"
 #include "dcn31_hpo_dp_stream_encoder.h"
 #include "reg_helper.h"
-#include "dc_link.h"
+#include "dc.h"
 
 #define DC_LOGGER \
 		enc3->base.ctx->logger

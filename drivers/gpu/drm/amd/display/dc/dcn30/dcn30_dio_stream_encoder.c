@@ -28,6 +28,7 @@
 #include "dcn30_dio_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
+#include "dc.h"
 #include "core_types.h"
 #include <linux/delay.h>
 
