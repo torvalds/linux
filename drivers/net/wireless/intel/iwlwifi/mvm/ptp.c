@@ -18,6 +18,8 @@
 #define SCALE_FACTOR	65536000000ULL
 #define IWL_PTP_WRAP_THRESHOLD_USEC	(5000)
 
+#define IWL_PTP_GET_CROSS_TS_NUM	5
+
 static void iwl_mvm_ptp_update_new_read(struct iwl_mvm *mvm, u32 gp2)
 {
 	/* If the difference is above the threshold, assume it's a wraparound.
@@ -122,6 +124,28 @@ iwl_mvm_get_crosstimestamp_fw(struct iwl_mvm *mvm, u32 *gp2, u64 *sys_time)
 	return ret;
 }
 
+static void iwl_mvm_phc_get_crosstimestamp_loop(struct iwl_mvm *mvm,
+						ktime_t *sys_time, u32 *gp2)
+{
+	u64 diff = 0, new_diff;
+	u64 tmp_sys_time;
+	u32 tmp_gp2;
+	int i;
+
+	for (i = 0; i < IWL_PTP_GET_CROSS_TS_NUM; i++) {
+		iwl_mvm_get_sync_time(mvm, CLOCK_REALTIME, &tmp_gp2, NULL,
+				      &tmp_sys_time);
+		new_diff = tmp_sys_time - ((u64)tmp_gp2 * NSEC_PER_USEC);
+		if (!diff || new_diff < diff) {
+			*sys_time = tmp_sys_time;
+			*gp2 = tmp_gp2;
+			diff = new_diff;
+			IWL_DEBUG_INFO(mvm, "PTP: new times: gp2=%u sys=%lld\n",
+				       *gp2, *sys_time);
+		}
+	}
+}
+
 static int
 iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 			       struct system_device_crosststamp *xtstamp)
@@ -150,8 +174,7 @@ iwl_mvm_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 		if (ret)
 			goto out;
 	} else {
-		iwl_mvm_get_sync_time(mvm, CLOCK_REALTIME, &gp2, NULL,
-				      &sys_time);
+		iwl_mvm_phc_get_crosstimestamp_loop(mvm, &sys_time, &gp2);
 	}
 
 	gp2_ns = iwl_mvm_ptp_get_adj_time(mvm, (u64)gp2 * NSEC_PER_USEC);
