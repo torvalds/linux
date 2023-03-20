@@ -40,19 +40,28 @@ msm_gem_address_space_get(struct msm_gem_address_space *aspace)
 
 bool msm_gem_vma_inuse(struct msm_gem_vma *vma)
 {
+	bool ret = true;
+
+	spin_lock(&vma->lock);
+
 	if (vma->inuse > 0)
-		return true;
+		goto out;
 
 	while (vma->fence_mask) {
 		unsigned idx = ffs(vma->fence_mask) - 1;
 
 		if (!msm_fence_completed(vma->fctx[idx], vma->fence[idx]))
-			return true;
+			goto out;
 
 		vma->fence_mask &= ~BIT(idx);
 	}
 
-	return false;
+	ret = false;
+
+out:
+	spin_unlock(&vma->lock);
+
+	return ret;
 }
 
 /* Actually unmap memory for the vma */
@@ -73,8 +82,7 @@ void msm_gem_vma_purge(struct msm_gem_vma *vma)
 	vma->mapped = false;
 }
 
-/* Remove reference counts for the mapping */
-void msm_gem_vma_unpin(struct msm_gem_vma *vma)
+static void vma_unpin_locked(struct msm_gem_vma *vma)
 {
 	if (GEM_WARN_ON(!vma->inuse))
 		return;
@@ -82,13 +90,23 @@ void msm_gem_vma_unpin(struct msm_gem_vma *vma)
 		vma->inuse--;
 }
 
+/* Remove reference counts for the mapping */
+void msm_gem_vma_unpin(struct msm_gem_vma *vma)
+{
+	spin_lock(&vma->lock);
+	vma_unpin_locked(vma);
+	spin_unlock(&vma->lock);
+}
+
 /* Replace pin reference with fence: */
 void msm_gem_vma_unpin_fenced(struct msm_gem_vma *vma, struct msm_fence_context *fctx)
 {
+	spin_lock(&vma->lock);
 	vma->fctx[fctx->index] = fctx;
 	vma->fence[fctx->index] = fctx->last_fence;
 	vma->fence_mask |= BIT(fctx->index);
-	msm_gem_vma_unpin(vma);
+	vma_unpin_locked(vma);
+	spin_unlock(&vma->lock);
 }
 
 /* Map and pin vma: */
@@ -103,7 +121,9 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 		return -EINVAL;
 
 	/* Increase the usage counter */
+	spin_lock(&vma->lock);
 	vma->inuse++;
+	spin_unlock(&vma->lock);
 
 	if (vma->mapped)
 		return 0;
@@ -113,11 +133,22 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 	if (!aspace)
 		return 0;
 
+	/*
+	 * NOTE: iommu/io-pgtable can allocate pages, so we cannot hold
+	 * a lock across map/unmap which is also used in the job_run()
+	 * path, as this can cause deadlock in job_run() vs shrinker/
+	 * reclaim.
+	 *
+	 * Revisit this if we can come up with a scheme to pre-alloc pages
+	 * for the pgtable in map/unmap ops.
+	 */
 	ret = aspace->mmu->funcs->map(aspace->mmu, vma->iova, sgt, size, prot);
 
 	if (ret) {
 		vma->mapped = false;
+		spin_lock(&vma->lock);
 		vma->inuse--;
+		spin_unlock(&vma->lock);
 	}
 
 	return ret;
@@ -148,6 +179,7 @@ struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace)
 	if (!vma)
 		return NULL;
 
+	spin_lock_init(&vma->lock);
 	vma->aspace = aspace;
 
 	return vma;

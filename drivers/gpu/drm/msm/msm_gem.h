@@ -59,6 +59,7 @@ struct msm_fence_context;
 
 struct msm_gem_vma {
 	struct drm_mm_node node;
+	spinlock_t lock;
 	uint64_t iova;
 	struct msm_gem_address_space *aspace;
 	struct list_head list;    /* node in msm_gem_object::vmas */
