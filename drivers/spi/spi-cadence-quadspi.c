@@ -863,7 +863,7 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	reinit_completion(&cqspi->transfer_complete);
 
 	if (!wait_for_completion_timeout(&cqspi->transfer_complete,
-					 msecs_to_jiffies(CQSPI_READ_TIMEOUT_MS))) {
+					 msecs_to_jiffies(max_t(size_t, bytes_to_dma, 500)))) {
 		ret = -ETIMEDOUT;
 		goto failrd;
 	}
