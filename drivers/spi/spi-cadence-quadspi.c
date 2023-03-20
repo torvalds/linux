@@ -791,6 +791,21 @@ failrd:
 	return ret;
 }
 
+static void cqspi_controller_enable(struct cqspi_st *cqspi, bool enable)
+{
+	void __iomem *reg_base = cqspi->iobase;
+	unsigned int reg;
+
+	reg = readl(reg_base + CQSPI_REG_CONFIG);
+
+	if (enable)
+		reg |= CQSPI_REG_CONFIG_ENABLE_MASK;
+	else
+		reg &= ~CQSPI_REG_CONFIG_ENABLE_MASK;
+
+	writel(reg, reg_base + CQSPI_REG_CONFIG);
+}
+
 static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 					  u_char *rxbuf, loff_t from_addr,
 					  size_t n_rx)
@@ -815,9 +830,13 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	if (ret)
 		return ret;
 
+	cqspi_controller_enable(cqspi, 0);
+
 	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
 	reg |= CQSPI_REG_CONFIG_DMA_MASK;
 	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
+	cqspi_controller_enable(cqspi, 1);
 
 	dma_addr = dma_map_single(dev, rxbuf, bytes_to_dma, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
@@ -876,9 +895,13 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	       cqspi->iobase + CQSPI_REG_INDIRECTRD);
 	dma_unmap_single(dev, dma_addr, bytes_to_dma, DMA_FROM_DEVICE);
 
+	cqspi_controller_enable(cqspi, 0);
+
 	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
 	reg &= ~CQSPI_REG_CONFIG_DMA_MASK;
 	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
+	cqspi_controller_enable(cqspi, 1);
 
 	ret = zynqmp_pm_ospi_mux_select(cqspi->pd_dev_id,
 					PM_OSPI_MUX_SEL_LINEAR);
@@ -1180,21 +1203,6 @@ static void cqspi_readdata_capture(struct cqspi_st *cqspi,
 		<< CQSPI_REG_READCAPTURE_DELAY_LSB;
 
 	writel(reg, reg_base + CQSPI_REG_READCAPTURE);
-}
-
-static void cqspi_controller_enable(struct cqspi_st *cqspi, bool enable)
-{
-	void __iomem *reg_base = cqspi->iobase;
-	unsigned int reg;
-
-	reg = readl(reg_base + CQSPI_REG_CONFIG);
-
-	if (enable)
-		reg |= CQSPI_REG_CONFIG_ENABLE_MASK;
-	else
-		reg &= ~CQSPI_REG_CONFIG_ENABLE_MASK;
-
-	writel(reg, reg_base + CQSPI_REG_CONFIG);
 }
 
 static void cqspi_configure(struct cqspi_flash_pdata *f_pdata,
