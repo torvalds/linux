@@ -340,8 +340,8 @@
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
-  __check_object_size
   check_move_unevictable_pages
+  __check_object_size
   check_preempt_curr
   check_zeroed_user
   __class_create
@@ -634,6 +634,7 @@
   device_for_each_child
   device_for_each_child_reverse
   device_get_child_node_count
+  device_get_dma_attr
   device_get_match_data
   device_get_next_child_node
   device_get_phy_mode
@@ -661,6 +662,7 @@
   device_wakeup_enable
   _dev_info
   __dev_kfree_skb_any
+  __dev_kfree_skb_irq
   dev_load
   devm_add_action
   devm_alloc_etherdev_mqs
@@ -707,6 +709,7 @@
   devm_kmemdup
   devm_krealloc
   devm_kstrdup
+  devm_led_classdev_flash_register_ext
   devm_led_classdev_register_ext
   devm_mbox_controller_register
   devm_mipi_dsi_attach
@@ -729,7 +732,6 @@
   devm_platform_get_and_ioremap_resource
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
-  devm_pm_opp_attach_genpd
   devm_power_supply_register
   devm_pwm_get
   devm_regmap_add_irq_chip
@@ -978,6 +980,7 @@
   drm_connector_list_iter_begin
   drm_connector_list_iter_end
   drm_connector_list_iter_next
+  drm_connector_list_update
   drm_connector_register
   drm_connector_unregister
   drm_connector_update_edid_property
@@ -1047,6 +1050,8 @@
   drm_kms_helper_poll_enable
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
+  drm_master_get
+  drm_master_put
   drm_mm_init
   drm_mm_insert_node_in_range
   drmm_mode_config_init
@@ -1058,6 +1063,7 @@
   drm_mode_copy
   drm_mode_create
   drm_mode_create_dp_colorspace_property
+  drm_mode_create_tile_group
   drm_mode_debug_printmodeline
   drm_mode_duplicate
   drm_mode_equal
@@ -1067,6 +1073,7 @@
   drm_mode_object_get
   drm_mode_object_put
   drm_mode_probed_add
+  drm_mode_prune_invalid
   drm_modeset_acquire_fini
   drm_modeset_acquire_init
   drm_modeset_backoff
@@ -1079,6 +1086,7 @@
   drm_mode_set_name
   drm_modeset_unlock
   drm_modeset_unlock_all
+  drm_mode_sort
   drm_mode_vrefresh
   drm_object_attach_property
   drm_object_property_set_value
@@ -1285,6 +1293,7 @@
   get_random_bytes
   get_random_u16
   get_random_u32
+  __get_random_u32_below
   get_sg_io_hdr
   get_state_synchronize_rcu
   get_state_synchronize_srcu
@@ -1485,6 +1494,7 @@
   idr_find
   idr_for_each
   idr_get_next
+  idr_get_next_ul
   idr_preload
   idr_remove
   idr_replace
@@ -1668,6 +1678,7 @@
   in_egroup_p
   inet6_csk_xmit
   inet6_ioctl
+  __inet6_lookup_established
   inet_csk_get_port
   inet_frag_destroy
   inet_frag_find
@@ -1678,6 +1689,7 @@
   inet_frags_fini
   inet_frags_init
   inet_ioctl
+  __inet_lookup_established
   init_dummy_netdev
   init_iova_domain
   init_net
@@ -2111,6 +2123,7 @@
   msi_get_virq
   msleep
   msleep_interruptible
+  mtree_load
   __mutex_init
   mutex_is_locked
   mutex_lock
@@ -2728,8 +2741,8 @@
   rcuwait_wake_up
   rdev_get_drvdata
   reboot_mode
-  reclaim_shmem_address_space
   rebuild_sched_domains
+  reclaim_shmem_address_space
   refcount_dec_and_lock
   refcount_dec_and_mutex_lock
   refcount_dec_if_one
@@ -2902,6 +2915,7 @@
   rproc_put
   rproc_remove_subdev
   rproc_report_crash
+  rproc_set_firmware
   rproc_shutdown
   rtc_time64_to_tm
   rtc_tm_to_time64
@@ -3188,6 +3202,7 @@
   sock_diag_register
   sock_diag_save_cookie
   sock_diag_unregister
+  sock_edemux
   sock_efree
   sockfd_lookup
   sock_gettstamp
@@ -3336,6 +3351,7 @@
   sysfs_streq
   sysrq_mask
   system_32bit_el0_cpumask
+  system_freezable_power_efficient_wq
   system_freezable_wq
   system_highpri_wq
   system_long_wq
@@ -3354,6 +3370,7 @@
   tasklist_lock
   __task_pid_nr_ns
   __task_rq_lock
+  tcp_hashinfo
   thermal_cdev_update
   thermal_cooling_device_register
   thermal_cooling_device_unregister
@@ -3452,7 +3469,6 @@
   __traceiter_android_rvh_ttwu_cond
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_update_cpu_capacity
-  __traceiter_android_rvh_update_cpus_allowed
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_thermal_stats
   __traceiter_android_rvh_util_est_update
@@ -3470,6 +3486,7 @@
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
+  __traceiter_android_vh_disable_thermal_cooling_stats
   __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
@@ -3494,8 +3511,8 @@
   __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_send_tm_command
   __traceiter_android_vh_ufs_send_uic_command
-  __traceiter_android_vh_update_topology_flags_workfn
   __traceiter_android_vh_ufs_update_sdev
+  __traceiter_android_vh_update_topology_flags_workfn
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
   __traceiter_cpu_idle
@@ -3574,7 +3591,6 @@
   __tracepoint_android_rvh_ttwu_cond
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_update_cpu_capacity
-  __tracepoint_android_rvh_update_cpus_allowed
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_thermal_stats
   __tracepoint_android_rvh_util_est_update
@@ -3592,6 +3608,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_disable_thermal_cooling_stats
   __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_free_task
@@ -3710,10 +3727,13 @@
   ucsi_set_drvdata
   ucsi_unregister
   __udelay
+  __udp4_lib_lookup
+  __udp6_lib_lookup
   udp6_set_csum
   udp_set_csum
   udp_sock_create4
   udp_sock_create6
+  udp_table
   udp_tunnel6_xmit_skb
   udp_tunnel_sock_release
   udp_tunnel_xmit_skb
@@ -3874,13 +3894,16 @@
   uuid_parse
   v4l2_compat_ioctl32
   v4l2_ctrl_find
+  v4l2_ctrl_get_name
   v4l2_ctrl_handler_free
   v4l2_ctrl_handler_init_class
+  __v4l2_ctrl_modify_range
   v4l2_ctrl_new_custom
   v4l2_ctrl_new_std
   v4l2_ctrl_new_std_menu
   v4l2_ctrl_request_complete
   v4l2_ctrl_request_setup
+  __v4l2_ctrl_s_ctrl
   v4l2_ctrl_subscribe_event
   v4l2_device_register
   v4l2_device_register_subdev
@@ -3907,6 +3930,7 @@
   v4l2_m2m_release
   v4l2_m2m_request_queue
   v4l2_m2m_unregister_media_controller
+  v4l2_s_ctrl
   v4l2_src_change_event_subscribe
   v4l2_subdev_call_wrappers
   v4l2_subdev_init
@@ -4090,6 +4114,7 @@
   xsk_tx_peek_desc
   xsk_tx_release
   xsk_uses_need_wakeup
+  zap_vma_ptes
   zlib_deflate
   zlib_deflateEnd
   zlib_deflateInit2

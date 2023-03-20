@@ -15,10 +15,10 @@
 
 #ifdef CONFIG_TRACING
 #define HYPERVISOR_EVENT_IDS 					\
-		. = ALIGN(PAGE_SIZE);				\
-		__hyp_event_ids_start = .;			\
-		*(HYP_SECTION_NAME(_hyp_event_ids))		\
-		__hyp_event_ids_end = .;
+	. = ALIGN(PAGE_SIZE);					\
+	__hyp_event_ids_start = .;				\
+	*(HYP_SECTION_NAME(.event_ids))				\
+	__hyp_event_ids_end = .;
 #else
 #define HYPERVISOR_EVENT_IDS
 #endif
@@ -61,17 +61,6 @@
 	*(HYP_SECTION_NAME(.bss))				\
 	. = ALIGN(PAGE_SIZE);					\
 	__hyp_bss_end = .;
-
-#ifdef CONFIG_TRACING
-#define HYPERVISOR_EVENTS					\
-	.hyp.events : {						\
-		__start_hyp_events = .;				\
-		*(_hyp_events)					\
-		__stop_hyp_events = .;				\
-	}
-#else
-#define HYPERVISOR_EVENTS
-#endif
 
 /*
  * We require that __hyp_bss_start and __bss_start are aligned, and enforce it
@@ -221,9 +210,15 @@ SECTIONS
 	/* everything from this point to __init_begin will be marked RO NX */
 	RO_DATA(PAGE_SIZE)
 
-	HYPERVISOR_EVENTS
-
 	HYPERVISOR_RODATA_SECTIONS
+
+#ifdef CONFIG_TRACING
+	.rodata.hyp_events : {
+		__hyp_events_start = .;
+		*(_hyp_events)
+		__hyp_events_end = .;
+	}
+#endif
 
 	/* code sections that are never executed via the kernel mapping */
 	.rodata.text : {

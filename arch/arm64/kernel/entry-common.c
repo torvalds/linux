@@ -27,6 +27,8 @@
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
 
+#include <trace/hooks/traps.h>
+
 /*
  * Handle IRQ/context state management when entering from kernel mode.
  * Before this function is called it is not safe to call regular kernel code,
@@ -292,6 +294,7 @@ static void noinstr __panic_unhandled(struct pt_regs *regs, const char *vector,
 		vector, smp_processor_id(), esr,
 		esr_get_class_string(esr));
 
+	trace_android_rvh_panic_unhandled(regs, vector, esr);
 	__show_regs(regs);
 	panic("Unhandled exception");
 }

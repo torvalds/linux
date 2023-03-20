@@ -1217,22 +1217,29 @@ static void handle___pkvm_register_hcall(struct kvm_cpu_context *host_ctxt)
 static void
 handle___pkvm_close_module_registration(struct kvm_cpu_context *host_ctxt)
 {
-	cpu_reg(host_ctxt, 1) = __pkvm_close_module_registration();
+	cpu_reg(host_ctxt, 1) = __pkvm_close_late_module_registration();
 }
 
-static void handle___pkvm_start_tracing(struct kvm_cpu_context *host_ctxt)
+static void handle___pkvm_load_tracing(struct kvm_cpu_context *host_ctxt)
 {
 	 DECLARE_REG(unsigned long, pack_hva, host_ctxt, 1);
 	 DECLARE_REG(size_t, pack_size, host_ctxt, 2);
 
-	 cpu_reg(host_ctxt, 1) = __pkvm_start_tracing(pack_hva, pack_size);
+	 cpu_reg(host_ctxt, 1) = __pkvm_load_tracing(pack_hva, pack_size);
 }
 
-static void handle___pkvm_stop_tracing(struct kvm_cpu_context *host_ctxt)
+static void handle___pkvm_teardown_tracing(struct kvm_cpu_context *host_ctxt)
 {
-	__pkvm_stop_tracing();
+	__pkvm_teardown_tracing();
 
 	cpu_reg(host_ctxt, 1) = 0;
+}
+
+static void handle___pkvm_enable_tracing(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(bool, enable, host_ctxt, 1);
+
+	cpu_reg(host_ctxt, 1) = __pkvm_enable_tracing(enable);
 }
 
 static void handle___pkvm_rb_swap_reader_page(struct kvm_cpu_context *host_ctxt)
@@ -1303,8 +1310,9 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_iommu_register),
 	HANDLE_FUNC(__pkvm_iommu_pm_notify),
 	HANDLE_FUNC(__pkvm_iommu_finalize),
-	HANDLE_FUNC(__pkvm_start_tracing),
-	HANDLE_FUNC(__pkvm_stop_tracing),
+	HANDLE_FUNC(__pkvm_load_tracing),
+	HANDLE_FUNC(__pkvm_teardown_tracing),
+	HANDLE_FUNC(__pkvm_enable_tracing),
 	HANDLE_FUNC(__pkvm_rb_swap_reader_page),
 	HANDLE_FUNC(__pkvm_rb_update_footers),
 	HANDLE_FUNC(__pkvm_enable_event),

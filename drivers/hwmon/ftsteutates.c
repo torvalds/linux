@@ -12,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -347,13 +348,15 @@ static ssize_t in_value_show(struct device *dev,
 {
 	struct fts_data *data = dev_get_drvdata(dev);
 	int index = to_sensor_dev_attr(devattr)->index;
-	int err;
+	int value, err;
 
 	err = fts_update_device(data);
 	if (err < 0)
 		return err;
 
-	return sprintf(buf, "%u\n", data->volt[index]);
+	value = DIV_ROUND_CLOSEST(data->volt[index] * 3300, 255);
+
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t temp_value_show(struct device *dev,
@@ -361,13 +364,15 @@ static ssize_t temp_value_show(struct device *dev,
 {
 	struct fts_data *data = dev_get_drvdata(dev);
 	int index = to_sensor_dev_attr(devattr)->index;
-	int err;
+	int value, err;
 
 	err = fts_update_device(data);
 	if (err < 0)
 		return err;
 
-	return sprintf(buf, "%u\n", data->temp_input[index]);
+	value = (data->temp_input[index] - 64) * 1000;
+
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t temp_fault_show(struct device *dev,
@@ -436,13 +441,15 @@ static ssize_t fan_value_show(struct device *dev,
 {
 	struct fts_data *data = dev_get_drvdata(dev);
 	int index = to_sensor_dev_attr(devattr)->index;
-	int err;
+	int value, err;
 
 	err = fts_update_device(data);
 	if (err < 0)
 		return err;
 
-	return sprintf(buf, "%u\n", data->fan_input[index]);
+	value = data->fan_input[index] * 60;
+
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t fan_source_show(struct device *dev,
