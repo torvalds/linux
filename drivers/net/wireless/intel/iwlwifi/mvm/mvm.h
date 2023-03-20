@@ -16,6 +16,8 @@
 #include <linux/thermal.h>
 #endif
 
+#include <linux/ptp_clock_kernel.h>
+
 #include <linux/ktime.h>
 
 #include "iwl-op-mode.h"
@@ -770,6 +772,15 @@ struct iwl_mvm_dqa_txq_info {
 	enum iwl_mvm_queue_status status;
 };
 
+struct ptp_data {
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
+	/* keeps track of GP2 wrap-around */
+	u32 last_gp2;
+	u32 wrap_counter;
+	struct delayed_work dwork;
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -1079,6 +1090,8 @@ struct iwl_mvm {
 	} ftm_initiator;
 
 	struct list_head resp_pasn_list;
+
+	struct ptp_data ptp_data;
 
 	struct {
 		u8 range_resp;
@@ -2121,6 +2134,8 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 					  const struct ieee80211_sta *sta,
 					  u16 tid);
 
+void iwl_mvm_ptp_init(struct iwl_mvm *mvm);
+void iwl_mvm_ptp_remove(struct iwl_mvm *mvm);
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm);
