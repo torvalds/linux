@@ -77,6 +77,7 @@ static int drm_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 	struct drm_client_buffer *buffer;
 	struct fb_info *info;
 	size_t screen_size;
+	void *screen_buffer;
 	u32 format;
 	int ret;
 
@@ -92,36 +93,51 @@ static int drm_fbdev_fb_probe(struct drm_fb_helper *fb_helper,
 
 	fb_helper->buffer = buffer;
 	fb_helper->fb = buffer->fb;
+
 	screen_size = buffer->gem->size;
+	screen_buffer = vzalloc(screen_size);
+	if (!screen_buffer) {
+		ret = -ENOMEM;
+		goto err_drm_client_framebuffer_delete;
+	}
 
 	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
-
-	info->fbops = &drm_fbdev_fb_ops;
-	info->screen_size = screen_size;
-	info->fix.smem_len = screen_size;
-	info->flags = FBINFO_DEFAULT;
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
+		goto err_vfree;
+	}
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
-	info->screen_buffer = vzalloc(screen_size);
-	if (!info->screen_buffer)
-		return -ENOMEM;
+	info->fbops = &drm_fbdev_fb_ops;
+	info->flags = FBINFO_DEFAULT;
+
+	/* screen */
 	info->flags |= FBINFO_VIRTFB | FBINFO_READS_FAST;
-
+	info->screen_buffer = screen_buffer;
 	info->fix.smem_start = page_to_phys(vmalloc_to_page(info->screen_buffer));
+	info->fix.smem_len = screen_size;
 
-	/* Set a default deferred I/O handler */
+	/* deferred I/O */
 	fb_helper->fbdefio.delay = HZ / 20;
 	fb_helper->fbdefio.deferred_io = drm_fb_helper_deferred_io;
 
 	info->fbdefio = &fb_helper->fbdefio;
 	ret = fb_deferred_io_init(info);
 	if (ret)
-		return ret;
+		goto err_drm_fb_helper_release_info;
 
 	return 0;
+
+err_drm_fb_helper_release_info:
+	drm_fb_helper_release_info(fb_helper);
+err_vfree:
+	vfree(screen_buffer);
+err_drm_client_framebuffer_delete:
+	fb_helper->fb = NULL;
+	fb_helper->buffer = NULL;
+	drm_client_framebuffer_delete(buffer);
+	return ret;
 }
 
 static void drm_fbdev_damage_blit_real(struct drm_fb_helper *fb_helper,
