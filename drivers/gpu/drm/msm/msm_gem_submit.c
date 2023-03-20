@@ -882,6 +882,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit->nr_cmds = i;
 
+	idr_preload(GFP_KERNEL);
+
 	spin_lock(&queue->idr_lock);
 
 	/*
@@ -893,6 +895,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if ((args->flags & MSM_SUBMIT_FENCE_SN_IN) &&
 			idr_find(&queue->fence_idr, args->fence)) {
 		spin_unlock(&queue->idr_lock);
+		idr_preload_end();
 		ret = -EINVAL;
 		goto out;
 	}
@@ -910,7 +913,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		submit->fence_id = args->fence;
 		ret = idr_alloc_u32(&queue->fence_idr, submit->user_fence,
 				    &submit->fence_id, submit->fence_id,
-				    GFP_KERNEL);
+				    GFP_NOWAIT);
 		/*
 		 * We've already validated that the fence_id slot is valid,
 		 * so if idr_alloc_u32 failed, it is a kernel bug
@@ -923,10 +926,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 */
 		submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
 						    submit->user_fence, 1,
-						    INT_MAX, GFP_KERNEL);
+						    INT_MAX, GFP_NOWAIT);
 	}
 
 	spin_unlock(&queue->idr_lock);
+	idr_preload_end();
 
 	if (submit->fence_id < 0) {
 		ret = submit->fence_id;
