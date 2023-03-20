@@ -18,6 +18,7 @@ struct max96745 {
 	struct device *dev;
 	struct regmap *regmap;
 	struct i2c_mux_core *muxc;
+	bool idle_disc;
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *lock_gpio;
 };
@@ -63,6 +64,9 @@ static int max96745_select(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct max96745 *max96745 = dev_get_drvdata(muxc->dev);
 
+	if (!max96745->idle_disc)
+		return 0;
+
 	if (chan == 1)
 		regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
 				   FIELD_PREP(DIS_REM_CC, 0));
@@ -76,6 +80,9 @@ static int max96745_select(struct i2c_mux_core *muxc, u32 chan)
 static int max96745_deselect(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct max96745 *max96745 = dev_get_drvdata(muxc->dev);
+
+	if (!max96745->idle_disc)
+		return 0;
 
 	if (chan == 1)
 		regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
@@ -109,10 +116,12 @@ static void max96745_power_on(struct max96745 *max96745)
 		msleep(200);
 	}
 
-	regmap_update_bits(max96745->regmap, 0x0076, DIS_REM_CC,
-			   FIELD_PREP(DIS_REM_CC, 1));
-	regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
-			   FIELD_PREP(DIS_REM_CC, 1));
+	if (max96745->idle_disc) {
+		regmap_update_bits(max96745->regmap, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+	}
 }
 
 static ssize_t line_fault_monitor_show(struct device *device,
@@ -198,7 +207,6 @@ static int max96745_i2c_probe(struct i2c_client *client)
 	struct device_node *child;
 	struct max96745 *max96745;
 	unsigned int nr = 0;
-	bool idle_disc;
 	int ret;
 
 	for_each_available_child_of_node(dev->of_node, child) {
@@ -212,11 +220,11 @@ static int max96745_i2c_probe(struct i2c_client *client)
 	if (!max96745)
 		return -ENOMEM;
 
-	idle_disc = device_property_read_bool(dev, "i2c-mux-idle-disconnect");
+	max96745->idle_disc = device_property_read_bool(dev, "i2c-mux-idle-disconnect");
 
 	max96745->muxc = i2c_mux_alloc(client->adapter, dev, nr,
 				       0, I2C_MUX_LOCKED, max96745_select,
-				       idle_disc ? max96745_deselect : NULL);
+				       max96745_deselect);
 	if (!max96745->muxc)
 		return -ENOMEM;
 
