@@ -559,7 +559,8 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 			 */
 			crtc_state->inherited = true;
 
-			intel_crtc_update_active_timings(crtc_state);
+			intel_crtc_update_active_timings(crtc_state,
+							 crtc_state->vrr.enable);
 
 			intel_crtc_copy_hw_to_uapi_state(crtc_state);
 		}

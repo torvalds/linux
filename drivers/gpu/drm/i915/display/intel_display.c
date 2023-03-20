@@ -6910,7 +6910,8 @@ static void intel_enable_crtc(struct intel_atomic_state *state,
 	if (!intel_crtc_needs_modeset(new_crtc_state))
 		return;
 
-	intel_crtc_update_active_timings(new_crtc_state);
+	intel_crtc_update_active_timings(new_crtc_state,
+					 new_crtc_state->vrr.enable);
 
 	dev_priv->display.funcs.display->crtc_enable(state, crtc);
 
