@@ -28,6 +28,7 @@
 #include "fw/error-dump.h"
 #include "iwl-prph.h"
 #include "iwl-nvm-parse.h"
+#include "time-sync.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -415,6 +416,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			     IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT))
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_TIME_SYNC_BOTH_FTM_TM))
+		hw->wiphy->hw_timestamp_max_peers = 1;
 
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	hw->wiphy->features |=
@@ -5765,6 +5770,29 @@ static bool iwl_mvm_mac_can_aggregate(struct ieee80211_hw *hw,
 	return iwl_mvm_can_hw_csum(skb) == iwl_mvm_can_hw_csum(head);
 }
 
+static int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct cfg80211_set_hw_timestamp *hwts)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	u32 protocols = 0;
+	int ret;
+
+	/* HW timestamping is only supported for a specific station */
+	if (!hwts->macaddr)
+		return -EOPNOTSUPP;
+
+	if (hwts->enable)
+		protocols =
+			IWL_TIME_SYNC_PROTOCOL_TM | IWL_TIME_SYNC_PROTOCOL_FTM;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_time_sync_config(mvm, hwts->macaddr, protocols);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
@@ -5853,4 +5881,5 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
 #endif
+	.set_hw_timestamp = iwl_mvm_set_hw_timestamp,
 };

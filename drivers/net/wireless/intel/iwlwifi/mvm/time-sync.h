@@ -13,8 +13,8 @@ void iwl_mvm_time_sync_msmt_event(struct iwl_mvm *mvm,
 				  struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
 					  struct iwl_rx_cmd_buffer *rxb);
-int iwl_mvm_time_sync_config(struct iwl_mvm *mvm, u8 *addr, u32 protocols);
-void iwl_mvm_time_sync_sta_rm(struct iwl_mvm *mvm, struct ieee80211_sta *sta);
+int iwl_mvm_time_sync_config(struct iwl_mvm *mvm, const u8 *addr,
+			     u32 protocols);
 
 static inline
 bool iwl_mvm_time_sync_frame(struct iwl_mvm *mvm, struct sk_buff *skb, u8 *addr)

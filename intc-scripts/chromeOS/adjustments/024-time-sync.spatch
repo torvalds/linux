@@ -1,0 +1,6 @@
+@@
+struct ieee80211_hw *hw;
+expression val;
+@@
+-hw->wiphy->hw_timestamp_max_peers = val
++hw_timestamp_max_peers(hw)

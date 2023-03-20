@@ -125,7 +125,7 @@ void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
 	ieee80211_tx_status_ext(mvm->hw, &status);
 }
 
-int iwl_mvm_time_sync_config(struct iwl_mvm *mvm, u8 *addr, u32 protocols)
+int iwl_mvm_time_sync_config(struct iwl_mvm *mvm, const u8 *addr, u32 protocols)
 {
 	struct iwl_time_sync_cfg_cmd cmd = {};
 	int err;
@@ -166,13 +166,8 @@ int iwl_mvm_time_sync_config(struct iwl_mvm *mvm, u8 *addr, u32 protocols)
 		IWL_DEBUG_INFO(mvm, "Time sync: set peer addr=%pM\n", addr);
 	}
 
+	if (!mvm->time_sync.active)
+		skb_queue_purge(&mvm->time_sync.frame_list);
+
 	return err;
-}
-
-void iwl_mvm_time_sync_sta_rm(struct iwl_mvm *mvm, struct ieee80211_sta *sta)
-{
-	/* Disable time sync with this station */
-	iwl_mvm_time_sync_config(mvm, sta->addr, 0);
-
-	skb_queue_purge(&mvm->time_sync.frame_list);
 }
