@@ -582,6 +582,114 @@ static int apparmor_file_mprotect(struct vm_area_struct *vma,
 			   false);
 }
 
+#ifdef CONFIG_IO_URING
+static const char *audit_uring_mask(u32 mask)
+{
+	if (mask & AA_MAY_CREATE_SQPOLL)
+		return "sqpoll";
+	if (mask & AA_MAY_OVERRIDE_CRED)
+		return "override_creds";
+	return "";
+}
+
+static void audit_uring_cb(struct audit_buffer *ab, void *va)
+{
+	struct apparmor_audit_data *ad = aad_of_va(va);
+
+	if (ad->request & AA_URING_PERM_MASK) {
+		audit_log_format(ab, " requested=\"%s\"",
+				 audit_uring_mask(ad->request));
+		if (ad->denied & AA_URING_PERM_MASK) {
+			audit_log_format(ab, " denied=\"%s\"",
+					 audit_uring_mask(ad->denied));
+		}
+	}
+	if (ad->uring.target) {
+		audit_log_format(ab, " tcontext=");
+		aa_label_xaudit(ab, labels_ns(ad->subj_label),
+				ad->uring.target,
+				FLAGS_NONE, GFP_ATOMIC);
+	}
+}
+
+static int profile_uring(struct aa_profile *profile, u32 request,
+			 struct aa_label *new, int cap,
+			 struct apparmor_audit_data *ad)
+{
+	unsigned int state;
+	struct aa_ruleset *rules;
+	int error = 0;
+
+	AA_BUG(!profile);
+
+	rules = list_first_entry(&profile->rules, typeof(*rules), list);
+	state = RULE_MEDIATES(rules, AA_CLASS_IO_URING);
+	if (state) {
+		struct aa_perms perms = { };
+
+		if (new) {
+			aa_label_match(profile, rules, new, state,
+				       false, request, &perms);
+		} else {
+			perms = *aa_lookup_perms(rules->policy, state);
+		}
+		aa_apply_modes_to_perms(profile, &perms);
+		error = aa_check_perms(profile, &perms, request, ad,
+				       audit_uring_cb);
+	}
+
+	return error;
+}
+
+/**
+ * apparmor_uring_override_creds - check the requested cred override
+ * @new: the target creds
+ *
+ * Check to see if the current task is allowed to override it's credentials
+ * to service an io_uring operation.
+ */
+int apparmor_uring_override_creds(const struct cred *new)
+{
+	struct aa_profile *profile;
+	struct aa_label *label;
+	int error;
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_IO_URING,
+			  OP_URING_OVERRIDE);
+
+	ad.uring.target = cred_label(new);
+	label = __begin_current_label_crit_section();
+	error = fn_for_each(label, profile,
+			profile_uring(profile, AA_MAY_OVERRIDE_CRED,
+				      cred_label(new), CAP_SYS_ADMIN, &ad));
+	__end_current_label_crit_section(label);
+
+	return error;
+}
+
+/**
+ * apparmor_uring_sqpoll - check if a io_uring polling thread can be created
+ *
+ * Check to see if the current task is allowed to create a new io_uring
+ * kernel polling thread.
+ */
+int apparmor_uring_sqpoll(void)
+{
+	struct aa_profile *profile;
+	struct aa_label *label;
+	int error;
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_IO_URING,
+			  OP_URING_SQPOLL);
+
+	label = __begin_current_label_crit_section();
+	error = fn_for_each(label, profile,
+			profile_uring(profile, AA_MAY_CREATE_SQPOLL,
+				      NULL, CAP_SYS_ADMIN, &ad));
+	__end_current_label_crit_section(label);
+
+	return error;
+}
+#endif /* CONFIG_IO_URING */
+
 static int apparmor_sb_mount(const char *dev_name, const struct path *path,
 			     const char *type, unsigned long flags, void *data)
 {
@@ -1346,6 +1454,11 @@ static struct security_hook_list apparmor_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(secid_to_secctx, apparmor_secid_to_secctx),
 	LSM_HOOK_INIT(secctx_to_secid, apparmor_secctx_to_secid),
 	LSM_HOOK_INIT(release_secctx, apparmor_release_secctx),
+
+#ifdef CONFIG_IO_URING
+	LSM_HOOK_INIT(uring_override_creds, apparmor_uring_override_creds),
+	LSM_HOOK_INIT(uring_sqpoll, apparmor_uring_sqpoll),
+#endif
 };
 
 /*

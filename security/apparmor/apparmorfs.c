@@ -2390,6 +2390,12 @@ static struct aa_sfs_entry aa_sfs_entry_query[] = {
 	AA_SFS_DIR("label",			aa_sfs_entry_query_label),
 	{ }
 };
+
+static struct aa_sfs_entry aa_sfs_entry_io_uring[] = {
+	AA_SFS_FILE_STRING("mask", "sqpoll override_creds"),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_DIR("policy",			aa_sfs_entry_policy),
 	AA_SFS_DIR("domain",			aa_sfs_entry_domain),
@@ -2403,6 +2409,7 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_DIR("ptrace",			aa_sfs_entry_ptrace),
 	AA_SFS_DIR("signal",			aa_sfs_entry_signal),
 	AA_SFS_DIR("query",			aa_sfs_entry_query),
+	AA_SFS_DIR("io_uring",			aa_sfs_entry_io_uring),
 	{ }
 };
 
