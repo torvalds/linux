@@ -69,7 +69,7 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 					pblk << (blockbits - SECTOR_SHIFT);
 		}
 		ret = bio_add_page(bio, ZERO_PAGE(0), bytes_this_page, 0);
-		if (WARN_ON(ret != bytes_this_page)) {
+		if (WARN_ON_ONCE(ret != bytes_this_page)) {
 			err = -EIO;
 			goto out;
 		}
@@ -147,7 +147,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 			break;
 	}
 	nr_pages = i;
-	if (WARN_ON(nr_pages <= 0))
+	if (WARN_ON_ONCE(nr_pages <= 0))
 		return -EINVAL;
 
 	/* This always succeeds since __GFP_DIRECT_RECLAIM is set. */
@@ -170,7 +170,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 			offset += blocksize;
 			if (offset == PAGE_SIZE || len == 0) {
 				ret = bio_add_page(bio, pages[i++], offset, 0);
-				if (WARN_ON(ret != offset)) {
+				if (WARN_ON_ONCE(ret != offset)) {
 					err = -EIO;
 					goto out;
 				}

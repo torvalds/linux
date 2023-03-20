@@ -345,7 +345,7 @@ const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 	int err;
 
 	/* This is for encrypted symlinks only */
-	if (WARN_ON(!IS_ENCRYPTED(inode)))
+	if (WARN_ON_ONCE(!IS_ENCRYPTED(inode)))
 		return ERR_PTR(-EINVAL);
 
 	/* If the decrypted target is already cached, just return it. */
