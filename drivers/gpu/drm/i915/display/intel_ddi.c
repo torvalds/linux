@@ -2963,7 +2963,7 @@ static void intel_enable_ddi(struct intel_atomic_state *state,
 
 	intel_enable_transcoder(crtc_state);
 
-	intel_vrr_enable(encoder, crtc_state);
+	intel_vrr_enable(crtc_state);
 
 	intel_crtc_vblank_on(crtc_state);
 
