@@ -38,11 +38,10 @@ char *cxx_demangle_sym(const char *str, bool params __maybe_unused,
 
         return cplus_demangle(str, flags);
 #elif defined(HAVE_CXA_DEMANGLE_SUPPORT)
-        size_t len = strlen(str);
-        char *output = (char*)malloc(len);
+        char *output;
         int status;
 
-        output = abi::__cxa_demangle(str, output, &len, &status);
+        output = abi::__cxa_demangle(str, /*output_buffer=*/NULL, /*length=*/NULL, &status);
         return output;
 #else
         return NULL;
