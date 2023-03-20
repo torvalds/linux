@@ -2175,7 +2175,7 @@ static unsigned int scrub_stripe_get_page_offset(struct scrub_stripe *stripe,
 	return offset_in_page(sector_nr << fs_info->sectorsize_bits);
 }
 
-void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr)
+static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr)
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	const u32 sectors_per_tree = fs_info->nodesize >> fs_info->sectorsize_bits;
@@ -2263,6 +2263,81 @@ void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr)
 	bitmap_clear(&stripe->error_bitmap, sector_nr, sectors_per_tree);
 	bitmap_clear(&stripe->csum_error_bitmap, sector_nr, sectors_per_tree);
 	bitmap_clear(&stripe->meta_error_bitmap, sector_nr, sectors_per_tree);
+}
+
+static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
+{
+	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
+	struct scrub_sector_verification *sector = &stripe->sectors[sector_nr];
+	const u32 sectors_per_tree = fs_info->nodesize >> fs_info->sectorsize_bits;
+	struct page *page = scrub_stripe_get_page(stripe, sector_nr);
+	unsigned int pgoff = scrub_stripe_get_page_offset(stripe, sector_nr);
+	u8 csum_buf[BTRFS_CSUM_SIZE];
+	int ret;
+
+	ASSERT(sector_nr >= 0 && sector_nr < stripe->nr_sectors);
+
+	/* Sector not utilized, skip it. */
+	if (!test_bit(sector_nr, &stripe->extent_sector_bitmap))
+		return;
+
+	/* IO error, no need to check. */
+	if (test_bit(sector_nr, &stripe->io_error_bitmap))
+		return;
+
+	/* Metadata, verify the full tree block. */
+	if (sector->is_metadata) {
+		/*
+		 * Check if the tree block crosses the stripe boudary.  If
+		 * crossed the boundary, we cannot verify it but only give a
+		 * warning.
+		 *
+		 * This can only happen on a very old filesystem where chunks
+		 * are not ensured to be stripe aligned.
+		 */
+		if (unlikely(sector_nr + sectors_per_tree > stripe->nr_sectors)) {
+			btrfs_warn_rl(fs_info,
+			"tree block at %llu crosses stripe boundary %llu",
+				      stripe->logical +
+				      (sector_nr << fs_info->sectorsize_bits),
+				      stripe->logical);
+			return;
+		}
+		scrub_verify_one_metadata(stripe, sector_nr);
+		return;
+	}
+
+	/*
+	 * Data is easier, we just verify the data csum (if we have it).  For
+	 * cases without csum, we have no other choice but to trust it.
+	 */
+	if (!sector->csum) {
+		clear_bit(sector_nr, &stripe->error_bitmap);
+		return;
+	}
+
+	ret = btrfs_check_sector_csum(fs_info, page, pgoff, csum_buf, sector->csum);
+	if (ret < 0) {
+		set_bit(sector_nr, &stripe->csum_error_bitmap);
+		set_bit(sector_nr, &stripe->error_bitmap);
+	} else {
+		clear_bit(sector_nr, &stripe->csum_error_bitmap);
+		clear_bit(sector_nr, &stripe->error_bitmap);
+	}
+}
+
+/* Verify specified sectors of a stripe. */
+void scrub_verify_one_stripe(struct scrub_stripe *stripe, unsigned long bitmap)
+{
+	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
+	const u32 sectors_per_tree = fs_info->nodesize >> fs_info->sectorsize_bits;
+	int sector_nr;
+
+	for_each_set_bit(sector_nr, &bitmap, stripe->nr_sectors) {
+		scrub_verify_one_sector(stripe, sector_nr);
+		if (stripe->sectors[sector_nr].is_metadata)
+			sector_nr += sectors_per_tree - 1;
+	}
 }
 
 static int scrub_checksum_tree_block(struct scrub_block *sblock)
