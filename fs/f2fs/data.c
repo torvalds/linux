@@ -3093,11 +3093,9 @@ continue_unlock:
 			}
 
 			if (PageWriteback(page)) {
-				if (wbc->sync_mode != WB_SYNC_NONE)
-					f2fs_wait_on_page_writeback(page,
-							DATA, true, true);
-				else
+				if (wbc->sync_mode == WB_SYNC_NONE)
 					goto continue_unlock;
+				f2fs_wait_on_page_writeback(page, DATA, true, true);
 			}
 
 			if (!clear_page_dirty_for_io(page))
