@@ -5065,8 +5065,7 @@ next_pool:
 /**
  * show_all_workqueues - dump workqueue state
  *
- * Called from a sysrq handler or try_to_freeze_tasks() and prints out
- * all busy workqueues and pools.
+ * Called from a sysrq handler and prints out all busy workqueues and pools.
  */
 void show_all_workqueues(void)
 {
@@ -5083,6 +5082,29 @@ void show_all_workqueues(void)
 
 	for_each_pool(pool, pi)
 		show_one_worker_pool(pool);
+
+	rcu_read_unlock();
+}
+
+/**
+ * show_freezable_workqueues - dump freezable workqueue state
+ *
+ * Called from try_to_freeze_tasks() and prints out all freezable workqueues
+ * still busy.
+ */
+void show_freezable_workqueues(void)
+{
+	struct workqueue_struct *wq;
+
+	rcu_read_lock();
+
+	pr_info("Showing freezable workqueues that are still busy:\n");
+
+	list_for_each_entry_rcu(wq, &workqueues, list) {
+		if (!(wq->flags & WQ_FREEZABLE))
+			continue;
+		show_one_workqueue(wq);
+	}
 
 	rcu_read_unlock();
 }
