@@ -10,7 +10,7 @@ maintainers:
   - Robin van der Gracht <robin@protonic.nl>
 
 allOf:
-  - $ref: "/schemas/input/matrix-keymap.yaml#"
+  - $ref: /schemas/input/matrix-keymap.yaml#
 
 properties:
   compatible:
