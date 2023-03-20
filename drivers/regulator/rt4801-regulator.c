@@ -239,6 +239,7 @@ MODULE_DEVICE_TABLE(of, rt4801_of_id);
 static struct i2c_driver rt4801_driver = {
 	.driver = {
 		.name = "rt4801",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(rt4801_of_id),
 	},
 	.probe_new = rt4801_probe,

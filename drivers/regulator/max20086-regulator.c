@@ -320,6 +320,7 @@ MODULE_DEVICE_TABLE(of, max20086_dt_ids);
 static struct i2c_driver max20086_regulator_driver = {
 	.driver = {
 		.name = "max20086",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(max20086_dt_ids),
 	},
 	.probe_new = max20086_i2c_probe,

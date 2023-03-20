@@ -488,6 +488,7 @@ MODULE_DEVICE_TABLE(i2c, tps62360_id);
 static struct i2c_driver tps62360_i2c_driver = {
 	.driver = {
 		.name = "tps62360",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(tps62360_of_match),
 	},
 	.probe_new = tps62360_probe,

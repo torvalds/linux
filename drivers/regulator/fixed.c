@@ -334,6 +334,7 @@ static struct platform_driver regulator_fixed_voltage_driver = {
 	.probe		= reg_fixed_voltage_probe,
 	.driver		= {
 		.name		= "reg-fixed-voltage",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(fixed_of_match),
 	},
 };

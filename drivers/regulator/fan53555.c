@@ -663,6 +663,7 @@ MODULE_DEVICE_TABLE(i2c, fan53555_id);
 static struct i2c_driver fan53555_regulator_driver = {
 	.driver = {
 		.name = "fan53555-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(fan53555_dt_ids),
 	},
 	.probe_new = fan53555_regulator_probe,

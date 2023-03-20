@@ -393,6 +393,7 @@ MODULE_DEVICE_TABLE(of, pwm_of_match);
 static struct platform_driver pwm_regulator_driver = {
 	.driver = {
 		.name		= "pwm-regulator",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(pwm_of_match),
 	},
 	.probe = pwm_regulator_probe,

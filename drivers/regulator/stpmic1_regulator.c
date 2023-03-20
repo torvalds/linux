@@ -638,6 +638,7 @@ MODULE_DEVICE_TABLE(of, of_pmic_regulator_match);
 static struct platform_driver stpmic1_regulator_driver = {
 	.driver = {
 		.name = "stpmic1-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(of_pmic_regulator_match),
 	},
 	.probe = stpmic1_regulator_probe,
