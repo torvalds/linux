@@ -36,11 +36,6 @@ config HIGHPROFILE
 	help
 	  Use a fast secondary clock to produce profiling information.
 
-config NO_KERNEL_MSG
-	bool "Suppress Kernel BUG Messages"
-	help
-	  Do not output any debug BUG messages within the kernel.
-
 config BDM_DISABLE
 	bool "Disable BDM signals"
 	depends on COLDFIRE
