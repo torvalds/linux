@@ -38,6 +38,7 @@ static int init_test_info(struct test_info *ti)
 static void exit_test_info(struct test_info *ti)
 {
 	thread__put(ti->thread);
+	machine__delete_threads(ti->machine);
 	machine__delete(ti->machine);
 }
 
