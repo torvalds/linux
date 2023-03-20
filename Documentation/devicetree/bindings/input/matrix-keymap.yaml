@@ -21,7 +21,7 @@ description: |
 
 properties:
   linux,keymap:
-    $ref: '/schemas/types.yaml#/definitions/uint32-array'
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       An array of packed 1-cell entries containing the equivalent of row,
       column and linux key-code. The 32-bit big endian cell is packed as:
