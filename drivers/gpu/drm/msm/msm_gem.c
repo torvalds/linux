@@ -19,8 +19,6 @@
 #include "msm_gpu.h"
 #include "msm_mmu.h"
 
-static void update_lru(struct drm_gem_object *obj);
-
 static dma_addr_t physaddr(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -61,6 +59,28 @@ static void sync_for_cpu(struct msm_gem_object *msm_obj)
 	struct device *dev = msm_obj->base.dev->dev;
 
 	dma_unmap_sgtable(dev, msm_obj->sgt, DMA_BIDIRECTIONAL, 0);
+}
+
+static void update_lru(struct drm_gem_object *obj)
+{
+	struct msm_drm_private *priv = obj->dev->dev_private;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	msm_gem_assert_locked(&msm_obj->base);
+
+	if (!msm_obj->pages) {
+		GEM_WARN_ON(msm_obj->pin_count);
+
+		drm_gem_lru_move_tail(&priv->lru.unbacked, obj);
+	} else if (msm_obj->pin_count) {
+		drm_gem_lru_move_tail(&priv->lru.pinned, obj);
+	} else if (msm_obj->madv == MSM_MADV_WILLNEED) {
+		drm_gem_lru_move_tail(&priv->lru.willneed, obj);
+	} else {
+		GEM_WARN_ON(msm_obj->madv != MSM_MADV_DONTNEED);
+
+		drm_gem_lru_move_tail(&priv->lru.dontneed, obj);
+	}
 }
 
 /* allocate pages from VRAM carveout, used when no IOMMU: */
@@ -802,28 +822,6 @@ void msm_gem_vunmap(struct drm_gem_object *obj)
 
 	vunmap(msm_obj->vaddr);
 	msm_obj->vaddr = NULL;
-}
-
-static void update_lru(struct drm_gem_object *obj)
-{
-	struct msm_drm_private *priv = obj->dev->dev_private;
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-
-	msm_gem_assert_locked(&msm_obj->base);
-
-	if (!msm_obj->pages) {
-		GEM_WARN_ON(msm_obj->pin_count);
-
-		drm_gem_lru_move_tail(&priv->lru.unbacked, obj);
-	} else if (msm_obj->pin_count) {
-		drm_gem_lru_move_tail(&priv->lru.pinned, obj);
-	} else if (msm_obj->madv == MSM_MADV_WILLNEED) {
-		drm_gem_lru_move_tail(&priv->lru.willneed, obj);
-	} else {
-		GEM_WARN_ON(msm_obj->madv != MSM_MADV_DONTNEED);
-
-		drm_gem_lru_move_tail(&priv->lru.dontneed, obj);
-	}
 }
 
 bool msm_gem_active(struct drm_gem_object *obj)
