@@ -153,11 +153,7 @@ int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
 
 	ret = auxiliary_device_init(auxdev);
 	if (ret < 0) {
-		mutex_lock(&vsec_ida_lock);
-		ida_free(intel_vsec_dev->ida, auxdev->id);
-		mutex_unlock(&vsec_ida_lock);
-		kfree(intel_vsec_dev->resource);
-		kfree(intel_vsec_dev);
+		intel_vsec_dev_release(&auxdev->dev);
 		return ret;
 	}
 
