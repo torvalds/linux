@@ -9918,16 +9918,20 @@ static int append_to_file(const char *file, const char *fmt, ...)
 {
 	int fd, n, err = 0;
 	va_list ap;
+	char buf[1024];
+
+	va_start(ap, fmt);
+	n = vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	if (n < 0 || n >= sizeof(buf))
+		return -EINVAL;
 
 	fd = open(file, O_WRONLY | O_APPEND | O_CLOEXEC, 0);
 	if (fd < 0)
 		return -errno;
 
-	va_start(ap, fmt);
-	n = vdprintf(fd, fmt, ap);
-	va_end(ap);
-
-	if (n < 0)
+	if (write(fd, buf, n) < 0)
 		err = -errno;
 
 	close(fd);
