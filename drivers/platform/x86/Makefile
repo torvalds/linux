@@ -70,6 +70,7 @@ obj-$(CONFIG_THINKPAD_LMI)	+= think-lmi.o
 obj-y				+= intel/
 
 # MSI
+obj-$(CONFIG_MSI_EC)		+= msi-ec.o
 obj-$(CONFIG_MSI_LAPTOP)	+= msi-laptop.o
 obj-$(CONFIG_MSI_WMI)		+= msi-wmi.o
 

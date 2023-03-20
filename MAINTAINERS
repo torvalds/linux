@@ -14138,6 +14138,13 @@ S:	Odd Fixes
 F:	Documentation/devicetree/bindings/net/ieee802154/mrf24j40.txt
 F:	drivers/net/ieee802154/mrf24j40.c
 
+MSI EC DRIVER
+M:	Nikita Kravets <teackot@gmail.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+W:	https://github.com/BeardOverflow/msi-ec
+F:	drivers/platform/x86/msi-ec.*
+
 MSI LAPTOP SUPPORT
 M:	"Lee, Chun-Yi" <jlee@suse.com>
 L:	platform-driver-x86@vger.kernel.org

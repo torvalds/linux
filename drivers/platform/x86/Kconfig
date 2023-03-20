@@ -635,6 +635,14 @@ config THINKPAD_LMI
 
 source "drivers/platform/x86/intel/Kconfig"
 
+config MSI_EC
+	tristate "MSI EC Extras"
+	depends on ACPI
+	depends on ACPI_BATTERY
+	help
+	  This driver allows various MSI laptops' functionalities to be
+	  controlled from userspace, including battery charge threshold.
+
 config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
 	depends on ACPI
