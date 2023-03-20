@@ -1702,20 +1702,12 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	else
 		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
-	mvm_sta->tx_protection = 0;
 	mvm_sta->tt_tx_protection = false;
 	mvm_sta->sta_type = sta->tdls ? IWL_STA_TDLS_LINK : IWL_STA_LINK;
 
-	/* HW restart, don't assume the memory has been zeroed */
 	mvm_sta->tid_disable_agg = 0xffff; /* No aggs at first */
-	mvm_sta->tfd_queue_msk = 0;
 
-	/* for HW restart - reset everything but the sequence number */
 	for (i = 0; i <= IWL_MAX_TID_COUNT; i++) {
-		u16 seq = mvm_sta->tid_data[i].seq_number;
-		memset(&mvm_sta->tid_data[i], 0, sizeof(mvm_sta->tid_data[i]));
-		mvm_sta->tid_data[i].seq_number = seq;
-
 		/*
 		 * Mark all queues for this STA as unallocated and defer TX
 		 * frames until the queue is allocated
@@ -1731,8 +1723,6 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		INIT_LIST_HEAD(&mvmtxq->list);
 		atomic_set(&mvmtxq->tx_request, 0);
 	}
-
-	mvm_sta->agg_tids = 0;
 
 	if (iwl_mvm_has_new_rx_api(mvm) &&
 	    !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
