@@ -1383,6 +1383,17 @@ static int i915_current_bpc_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(i915_current_bpc);
 
+/* Pipe may differ from crtc index if pipes are fused off */
+static int intel_crtc_pipe_show(struct seq_file *m, void *unused)
+{
+	struct intel_crtc *crtc = m->private;
+
+	seq_printf(m, "%c\n", pipe_name(crtc->pipe));
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(intel_crtc_pipe);
+
 /**
  * intel_connector_debugfs_add - add i915 specific connector debugfs files
  * @connector: pointer to a registered drm_connector
@@ -1453,4 +1464,6 @@ void intel_crtc_debugfs_add(struct intel_crtc *crtc)
 
 	debugfs_create_file("i915_current_bpc", 0444, root, crtc,
 			    &i915_current_bpc_fops);
+	debugfs_create_file("i915_pipe", 0444, root, crtc,
+			    &intel_crtc_pipe_fops);
 }
