@@ -597,7 +597,8 @@ fail:
  * in is large enough to contain all csums.
  */
 int btrfs_lookup_csums_bitmap(struct btrfs_root *root, u64 start, u64 end,
-			      u8 *csum_buf, unsigned long *csum_bitmap)
+			      u8 *csum_buf, unsigned long *csum_bitmap,
+			      bool search_commit)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key key;
@@ -613,6 +614,12 @@ int btrfs_lookup_csums_bitmap(struct btrfs_root *root, u64 start, u64 end,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+
+	if (search_commit) {
+		path->skip_locking = 1;
+		path->reada = READA_FORWARD;
+		path->search_commit_root = 1;
+	}
 
 	key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
 	key.type = BTRFS_EXTENT_CSUM_KEY;

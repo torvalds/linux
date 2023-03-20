@@ -3642,6 +3642,149 @@ static int sync_write_pointer_for_zoned(struct scrub_ctx *sctx, u64 logical,
 	return ret;
 }
 
+static void fill_one_extent_info(struct btrfs_fs_info *fs_info,
+				 struct scrub_stripe *stripe,
+				 u64 extent_start, u64 extent_len,
+				 u64 extent_flags, u64 extent_gen)
+{
+	for (u64 cur_logical = max(stripe->logical, extent_start);
+	     cur_logical < min(stripe->logical + BTRFS_STRIPE_LEN,
+			       extent_start + extent_len);
+	     cur_logical += fs_info->sectorsize) {
+		const int nr_sector = (cur_logical - stripe->logical) >>
+				      fs_info->sectorsize_bits;
+		struct scrub_sector_verification *sector =
+						&stripe->sectors[nr_sector];
+
+		set_bit(nr_sector, &stripe->extent_sector_bitmap);
+		if (extent_flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+			sector->is_metadata = true;
+			sector->generation = extent_gen;
+		}
+	}
+}
+
+static void scrub_stripe_reset_bitmaps(struct scrub_stripe *stripe)
+{
+	stripe->extent_sector_bitmap = 0;
+	stripe->init_error_bitmap = 0;
+	stripe->error_bitmap = 0;
+	stripe->io_error_bitmap = 0;
+	stripe->csum_error_bitmap = 0;
+	stripe->meta_error_bitmap = 0;
+}
+
+/*
+ * Locate one stripe which has at least one extent in its range.
+ *
+ * Return 0 if found such stripe, and store its info into @stripe.
+ * Return >0 if there is no such stripe in the specified range.
+ * Return <0 for error.
+ */
+int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
+				 struct btrfs_device *dev, u64 physical,
+				 int mirror_num, u64 logical_start,
+				 u32 logical_len, struct scrub_stripe *stripe)
+{
+	struct btrfs_fs_info *fs_info = bg->fs_info;
+	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, bg->start);
+	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, bg->start);
+	const u64 logical_end = logical_start + logical_len;
+	struct btrfs_path path = { 0 };
+	u64 cur_logical = logical_start;
+	u64 stripe_end;
+	u64 extent_start;
+	u64 extent_len;
+	u64 extent_flags;
+	u64 extent_gen;
+	int ret;
+
+	memset(stripe->sectors, 0, sizeof(struct scrub_sector_verification) *
+				   stripe->nr_sectors);
+	scrub_stripe_reset_bitmaps(stripe);
+
+	/* The range must be inside the bg. */
+	ASSERT(logical_start >= bg->start && logical_end <= bg->start + bg->length);
+
+	path.search_commit_root = 1;
+	path.skip_locking = 1;
+
+	ret = find_first_extent_item(extent_root, &path, logical_start, logical_len);
+	/* Either error or not found. */
+	if (ret)
+		goto out;
+	get_extent_info(&path, &extent_start, &extent_len, &extent_flags, &extent_gen);
+	cur_logical = max(extent_start, cur_logical);
+
+	/*
+	 * Round down to stripe boundary.
+	 *
+	 * The extra calculation against bg->start is to handle block groups
+	 * whose logical bytenr is not BTRFS_STRIPE_LEN aligned.
+	 */
+	stripe->logical = round_down(cur_logical - bg->start, BTRFS_STRIPE_LEN) +
+			  bg->start;
+	stripe->physical = physical + stripe->logical - logical_start;
+	stripe->dev = dev;
+	stripe->bg = bg;
+	stripe->mirror_num = mirror_num;
+	stripe_end = stripe->logical + BTRFS_STRIPE_LEN - 1;
+
+	/* Fill the first extent info into stripe->sectors[] array. */
+	fill_one_extent_info(fs_info, stripe, extent_start, extent_len,
+			     extent_flags, extent_gen);
+	cur_logical = extent_start + extent_len;
+
+	/* Fill the extent info for the remaining sectors. */
+	while (cur_logical <= stripe_end) {
+		ret = find_first_extent_item(extent_root, &path, cur_logical,
+					     stripe_end - cur_logical + 1);
+		if (ret < 0)
+			goto out;
+		if (ret > 0) {
+			ret = 0;
+			break;
+		}
+		get_extent_info(&path, &extent_start, &extent_len,
+				&extent_flags, &extent_gen);
+		fill_one_extent_info(fs_info, stripe, extent_start, extent_len,
+				     extent_flags, extent_gen);
+		cur_logical = extent_start + extent_len;
+	}
+
+	/* Now fill the data csum. */
+	if (bg->flags & BTRFS_BLOCK_GROUP_DATA) {
+		int sector_nr;
+		unsigned long csum_bitmap = 0;
+
+		/* Csum space should have already been allocated. */
+		ASSERT(stripe->csums);
+
+		/*
+		 * Our csum bitmap should be large enough, as BTRFS_STRIPE_LEN
+		 * should contain at most 16 sectors.
+		 */
+		ASSERT(BITS_PER_LONG >= BTRFS_STRIPE_LEN >> fs_info->sectorsize_bits);
+
+		ret = btrfs_lookup_csums_bitmap(csum_root, stripe->logical,
+						stripe_end, stripe->csums,
+						&csum_bitmap, true);
+		if (ret < 0)
+			goto out;
+		if (ret > 0)
+			ret = 0;
+
+		for_each_set_bit(sector_nr, &csum_bitmap, stripe->nr_sectors) {
+			stripe->sectors[sector_nr].csum = stripe->csums +
+				sector_nr * fs_info->csum_size;
+		}
+	}
+	set_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state);
+out:
+	btrfs_release_path(&path);
+	return ret;
+}
+
 /*
  * Scrub one range which can only has simple mirror based profile.
  * (Including all range in SINGLE/DUP/RAID1/RAID1C*, and each stripe in

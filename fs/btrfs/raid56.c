@@ -2113,7 +2113,7 @@ static void fill_data_csums(struct btrfs_raid_bio *rbio)
 	}
 
 	ret = btrfs_lookup_csums_bitmap(csum_root, start, start + len - 1,
-					rbio->csum_buf, rbio->csum_bitmap);
+					rbio->csum_buf, rbio->csum_bitmap, false);
 	if (ret < 0)
 		goto error;
 	if (bitmap_empty(rbio->csum_bitmap, len >> fs_info->sectorsize_bits))
