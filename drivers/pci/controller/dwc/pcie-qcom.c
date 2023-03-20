@@ -1642,6 +1642,7 @@ static struct platform_driver qcom_pcie_driver = {
 		.suppress_bind_attrs = true,
 		.of_match_table = qcom_pcie_match,
 		.pm = &qcom_pcie_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 builtin_platform_driver(qcom_pcie_driver);
