@@ -1528,6 +1528,8 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	}
 
 out:
+	hists__delete_entries(&kvm_hists.hists);
+
 	if (kvm->timerfd >= 0)
 		close(kvm->timerfd);
 
@@ -1690,6 +1692,7 @@ static int kvm_events_report_vcpu(struct perf_kvm_stat *kvm)
 	kvm_display(kvm);
 
 exit:
+	hists__delete_entries(&kvm_hists.hists);
 	return ret;
 }
 
