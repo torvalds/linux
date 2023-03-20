@@ -13,14 +13,4 @@ int btrfs_scrub_cancel_dev(struct btrfs_device *dev);
 int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 			 struct btrfs_scrub_progress *progress);
 
-/*
- * The following functions are temporary exports to avoid warning on unused
- * static functions.
- */
-struct scrub_stripe;
-int queue_scrub_stripe(struct scrub_ctx *sctx,
-		       struct btrfs_block_group *bg,
-		       struct btrfs_device *dev, int mirror_num,
-		       u64 logical, u32 length, u64 physical);
-
 #endif
