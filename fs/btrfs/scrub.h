@@ -24,5 +24,8 @@ int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 				 int mirror_num, u64 logical_start,
 				 u32 logical_len, struct scrub_stripe *stripe);
 void scrub_read_endio(struct btrfs_bio *bbio);
+void scrub_write_sectors(struct scrub_ctx *sctx,
+			struct scrub_stripe *stripe,
+			unsigned long write_bitmap, bool dev_replace);
 
 #endif
