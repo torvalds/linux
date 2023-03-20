@@ -124,10 +124,13 @@ int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	WREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe], 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
 	if (r)
 		return r;
+
+	WREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe], 0xCAFEDEAD);
+	/* Add a read register to make sure the write register is executed. */
+	RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe]);
 
 	amdgpu_ring_write(ring, PACKET0(adev->jpeg.internal.jpeg_pitch[ring->pipe], 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
