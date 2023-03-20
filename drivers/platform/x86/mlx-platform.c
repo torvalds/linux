@@ -5980,7 +5980,7 @@ MODULE_DEVICE_TABLE(dmi, mlxplat_dmi_table);
 static int mlxplat_mlxcpld_verify_bus_topology(int *nr)
 {
 	struct i2c_adapter *search_adap;
-	int shift, i;
+	int i, shift = 0;
 
 	/* Scan adapters from expected id to verify it is free. */
 	*nr = MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR;

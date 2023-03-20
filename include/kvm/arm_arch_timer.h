@@ -23,6 +23,19 @@ enum kvm_arch_timer_regs {
 	TIMER_REG_CTL,
 };
 
+struct arch_timer_offset {
+	/*
+	 * If set, pointer to one of the offsets in the kvm's offset
+	 * structure. If NULL, assume a zero offset.
+	 */
+	u64	*vm_offset;
+};
+
+struct arch_timer_vm_data {
+	/* Offset applied to the virtual timer/counter */
+	u64	voffset;
+};
+
 struct arch_timer_context {
 	struct kvm_vcpu			*vcpu;
 
@@ -32,6 +45,8 @@ struct arch_timer_context {
 	/* Emulated Timer (may be unused) */
 	struct hrtimer			hrtimer;
 
+	/* Offset for this counter/timer */
+	struct arch_timer_offset	offset;
 	/*
 	 * We have multiple paths which can save/restore the timer state onto
 	 * the hardware, so we need some way of keeping track of where the

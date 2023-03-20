@@ -747,12 +747,14 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	/* RQ */
 	mlx5e_build_rq_params(mdev, params);
 
+	/* update XDP supported features */
+	mlx5e_set_xdp_feature(netdev);
+
 	/* CQ moderation params */
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
 
 	params->mqprio.num_tc       = 1;
-	params->tunneled_offload_en = false;
 	if (rep->vport != MLX5_VPORT_UPLINK)
 		params->vlan_strip_disable = true;
 

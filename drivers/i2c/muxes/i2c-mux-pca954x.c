@@ -554,7 +554,7 @@ static struct i2c_driver pca954x_driver = {
 		.pm	= &pca954x_pm,
 		.of_match_table = pca954x_of_match,
 	},
-	.probe_new	= pca954x_probe,
+	.probe		= pca954x_probe,
 	.remove		= pca954x_remove,
 	.id_table	= pca954x_id,
 };
