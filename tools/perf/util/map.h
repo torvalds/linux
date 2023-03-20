@@ -16,10 +16,7 @@ struct maps;
 struct machine;
 
 struct map {
-	union {
-		struct rb_node	rb_node;
-		struct list_head node;
-	};
+	struct rb_node		rb_node;
 	u64			start;
 	u64			end;
 	bool			erange_warned:1;
