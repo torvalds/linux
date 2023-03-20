@@ -333,6 +333,42 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 	return 0;
 }
 
+static void amdgpu_ras_instance_mask_check(struct amdgpu_device *adev,
+				struct ras_debug_if *data)
+{
+	int num_xcc = adev->gfx.xcc_mask ? NUM_XCC(adev->gfx.xcc_mask) : 1;
+	uint32_t mask, inst_mask = data->inject.instance_mask;
+
+	/* no need to set instance mask if there is only one instance */
+	if (num_xcc <= 1 && inst_mask) {
+		data->inject.instance_mask = 0;
+		dev_dbg(adev->dev,
+			"RAS inject mask(0x%x) isn't supported and force it to 0.\n",
+			inst_mask);
+
+		return;
+	}
+
+	switch (data->head.block) {
+	case AMDGPU_RAS_BLOCK__GFX:
+		mask = GENMASK(num_xcc - 1, 0);
+		break;
+	case AMDGPU_RAS_BLOCK__SDMA:
+		mask = GENMASK(adev->sdma.num_instances - 1, 0);
+		break;
+	default:
+		mask = 0;
+		break;
+	}
+
+	/* remove invalid bits in instance mask */
+	data->inject.instance_mask &= mask;
+	if (inst_mask != data->inject.instance_mask)
+		dev_dbg(adev->dev,
+			"Adjust RAS inject mask 0x%x to 0x%x\n",
+			inst_mask, data->inject.instance_mask);
+}
+
 /**
  * DOC: AMDGPU RAS debugfs control interface
  *
@@ -467,6 +503,8 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f,
 				 data.inject.address);
 			break;
 		}
+
+		amdgpu_ras_instance_mask_check(adev, &data);
 
 		/* data.inject.address is offset instead of absolute gpu address */
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
