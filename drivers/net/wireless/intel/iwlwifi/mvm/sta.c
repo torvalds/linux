@@ -9,6 +9,7 @@
 #include "mvm.h"
 #include "sta.h"
 #include "rs.h"
+#include "time-sync.h"
 
 /*
  * New version of ADD_STA_sta command added new fields at the end of the
@@ -1770,6 +1771,11 @@ update_fw:
 		}
 	}
 
+	if (!sta->tdls)
+		iwl_mvm_time_sync_config(mvm, sta->addr,
+					 IWL_TIME_SYNC_PROTOCOL_TM |
+					 IWL_TIME_SYNC_PROTOCOL_FTM);
+
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 
 	return 0;
@@ -1983,6 +1989,8 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	 */
 	spin_lock_bh(&mvm_sta->lock);
 	spin_unlock_bh(&mvm_sta->lock);
+
+	iwl_mvm_time_sync_sta_rm(mvm, sta);
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->sta_id);
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->sta_id], NULL);

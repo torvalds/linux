@@ -29,6 +29,7 @@
 #include "fw-api.h"
 #include "fw/acpi.h"
 #include "fw/uefi.h"
+#include "time-sync.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -404,6 +405,15 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(SYSTEM_GROUP, RFI_DEACTIVATE_NOTIF,
 		       iwl_rfi_deactivate_notif_handler, RX_HANDLER_ASYNC_UNLOCKED,
 		       struct iwl_rfi_deactivate_notif),
+
+	RX_HANDLER_GRP(LEGACY_GROUP,
+		       WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION,
+		       iwl_mvm_time_sync_msmt_event, RX_HANDLER_SYNC,
+		       struct iwl_time_msmt_notify),
+	RX_HANDLER_GRP(LEGACY_GROUP,
+		       WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION,
+		       iwl_mvm_time_sync_msmt_confirm_event, RX_HANDLER_SYNC,
+		       struct iwl_time_msmt_cfm_notify),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -449,6 +459,8 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(SCAN_OFFLOAD_PROFILES_QUERY_CMD),
 	HCMD_NAME(BT_COEX_UPDATE_REDUCED_TXP),
 	HCMD_NAME(BT_COEX_CI),
+	HCMD_NAME(WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION),
+	HCMD_NAME(WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION),
 	HCMD_NAME(PHY_CONFIGURATION_CMD),
 	HCMD_NAME(CALIB_RES_NOTIF_PHY_DB),
 	HCMD_NAME(PHY_DB_CMD),
@@ -1337,6 +1349,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		       sizeof(struct mvm_statistics_rx_v3));
 	else
 		memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
+
+	iwl_mvm_init_time_sync(&mvm->time_sync);
 
 	mvm->debugfs_dir = dbgfs_dir;
 

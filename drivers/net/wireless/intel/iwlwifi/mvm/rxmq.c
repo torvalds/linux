@@ -9,6 +9,7 @@
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
+#include "time-sync.h"
 
 static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 				   int queue, struct ieee80211_sta *sta)
@@ -2585,9 +2586,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		goto out;
 	}
 
-	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))
-		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue,
-						sta);
+	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc) &&
+	    (likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr2))))
+		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
 out:
 	rcu_read_unlock();
 }
