@@ -45,7 +45,7 @@ properties:
     description: Reference to a syscon representing TCSR followed by the two
                  offsets within syscon for Perst enable and Perst separation
                  enable registers
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: Syscon to TCSR system registers
