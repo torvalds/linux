@@ -212,7 +212,7 @@ static void intel_crtc_destroy(struct drm_crtc *_crtc)
 
 static int intel_crtc_late_register(struct drm_crtc *crtc)
 {
-	intel_crtc_debugfs_add(crtc);
+	intel_crtc_debugfs_add(to_intel_crtc(crtc));
 	return 0;
 }
 

@@ -542,10 +542,10 @@ static const struct file_operations crtc_updates_fops = {
 	.write = crtc_updates_write
 };
 
-static void crtc_updates_add(struct drm_crtc *crtc)
+static void crtc_updates_add(struct intel_crtc *crtc)
 {
-	debugfs_create_file("i915_update_info", 0644, crtc->debugfs_entry,
-			    to_intel_crtc(crtc), &crtc_updates_fops);
+	debugfs_create_file("i915_update_info", 0644, crtc->base.debugfs_entry,
+			    crtc, &crtc_updates_fops);
 }
 
 #else
@@ -555,7 +555,7 @@ static void crtc_updates_info(struct seq_file *m,
 {
 }
 
-static void crtc_updates_add(struct drm_crtc *crtc)
+static void crtc_updates_add(struct intel_crtc *crtc)
 {
 }
 #endif
@@ -1366,7 +1366,7 @@ static const struct file_operations i915_dsc_bpc_fops = {
  */
 static int i915_current_bpc_show(struct seq_file *m, void *data)
 {
-	struct intel_crtc *crtc = to_intel_crtc(m->private);
+	struct intel_crtc *crtc = m->private;
 	struct intel_crtc_state *crtc_state;
 	int ret;
 
@@ -1440,15 +1440,17 @@ void intel_connector_debugfs_add(struct intel_connector *intel_connector)
  *
  * Failure to add debugfs entries should generally be ignored.
  */
-void intel_crtc_debugfs_add(struct drm_crtc *crtc)
+void intel_crtc_debugfs_add(struct intel_crtc *crtc)
 {
-	if (!crtc->debugfs_entry)
+	struct dentry *root = crtc->base.debugfs_entry;
+
+	if (!root)
 		return;
 
 	crtc_updates_add(crtc);
-	intel_drrs_crtc_debugfs_add(to_intel_crtc(crtc));
-	intel_fbc_crtc_debugfs_add(to_intel_crtc(crtc));
+	intel_drrs_crtc_debugfs_add(crtc);
+	intel_fbc_crtc_debugfs_add(crtc);
 
-	debugfs_create_file("i915_current_bpc", 0444, crtc->debugfs_entry, crtc,
+	debugfs_create_file("i915_current_bpc", 0444, root, crtc,
 			    &i915_current_bpc_fops);
 }
