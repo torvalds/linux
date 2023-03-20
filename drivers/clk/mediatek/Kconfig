@@ -478,6 +478,7 @@ config COMMON_CLK_MT8173
 	tristate "Clock driver for MediaTek MT8173"
 	depends on ARM64 || COMPILE_TEST
 	select COMMON_CLK_MEDIATEK
+	select COMMON_CLK_MEDIATEK_FHCTL
 	default ARCH_MEDIATEK
 	help
 	  This driver supports MediaTek MT8173 basic clocks and clocks
@@ -686,6 +687,7 @@ config COMMON_CLK_MT8192
 	tristate "Clock driver for MediaTek MT8192"
 	depends on ARM64 || COMPILE_TEST
 	select COMMON_CLK_MEDIATEK
+	select COMMON_CLK_MEDIATEK_FHCTL
 	default ARM64
 	help
 	  This driver supports MediaTek MT8192 basic clocks.
@@ -766,6 +768,7 @@ config COMMON_CLK_MT8195
         bool "Clock driver for MediaTek MT8195"
         depends on ARM64 || COMPILE_TEST
         select COMMON_CLK_MEDIATEK
+	select COMMON_CLK_MEDIATEK_FHCTL
         default ARCH_MEDIATEK
         help
           This driver supports MediaTek MT8195 clocks.
