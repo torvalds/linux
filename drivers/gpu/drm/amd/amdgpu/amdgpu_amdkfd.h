@@ -35,6 +35,7 @@
 #include <drm/ttm/ttm_execbuf_util.h>
 #include "amdgpu_sync.h"
 #include "amdgpu_vm.h"
+#include "amdgpu_xcp.h"
 
 extern uint64_t amdgpu_amdkfd_total_mem_size;
 
@@ -98,8 +99,8 @@ struct amdgpu_amdkfd_fence {
 
 struct amdgpu_kfd_dev {
 	struct kfd_dev *dev;
-	int64_t vram_used;
-	uint64_t vram_used_aligned;
+	int64_t vram_used[MAX_XCP];
+	uint64_t vram_used_aligned[MAX_XCP];
 	bool init_complete;
 	struct work_struct reset_work;
 
@@ -287,7 +288,8 @@ int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct amdgpu_device *adev,
 void amdgpu_amdkfd_gpuvm_release_process_vm(struct amdgpu_device *adev,
 					void *drm_priv);
 uint64_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *drm_priv);
-size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev);
+size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
+					uint8_t xcp_id);
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		struct amdgpu_device *adev, uint64_t va, uint64_t size,
 		void *drm_priv, struct kgd_mem **mem,
@@ -327,9 +329,9 @@ void amdgpu_amdkfd_block_mmu_notifications(void *p);
 int amdgpu_amdkfd_criu_resume(void *p);
 bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev);
 int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
-		uint64_t size, u32 alloc_flag);
+		uint64_t size, u32 alloc_flag, int8_t xcp_id);
 void amdgpu_amdkfd_unreserve_mem_limit(struct amdgpu_device *adev,
-		uint64_t size, u32 alloc_flag);
+		uint64_t size, u32 alloc_flag, int8_t xcp_id);
 
 #define KFD_XCP_MEM_ID(adev, xcp_id) \
 		((adev)->xcp_mgr && (xcp_id) >= 0 ?\

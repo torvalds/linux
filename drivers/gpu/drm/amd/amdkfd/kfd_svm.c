@@ -280,7 +280,7 @@ static void svm_range_free(struct svm_range *prange, bool update_mem_usage)
 	if (update_mem_usage && !p->xnack_enabled) {
 		pr_debug("unreserve prange 0x%p size: 0x%llx\n", prange, size);
 		amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
-					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
 	}
 	mutex_destroy(&prange->lock);
 	mutex_destroy(&prange->migrate_mutex);
@@ -313,7 +313,7 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	p = container_of(svms, struct kfd_process, svms);
 	if (!p->xnack_enabled && update_mem_usage &&
 	    amdgpu_amdkfd_reserve_mem_limit(NULL, size << PAGE_SHIFT,
-					    KFD_IOC_ALLOC_MEM_FLAGS_USERPTR)) {
+				    KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0)) {
 		pr_info("SVM mapping failed, exceeds resident system memory limit\n");
 		kfree(prange);
 		return NULL;
@@ -3037,10 +3037,10 @@ svm_range_switch_xnack_reserve_mem(struct kfd_process *p, bool xnack_enabled)
 			size = (pchild->last - pchild->start + 1) << PAGE_SHIFT;
 			if (xnack_enabled) {
 				amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
-						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
 			} else {
 				r = amdgpu_amdkfd_reserve_mem_limit(NULL, size,
-						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
 				if (r)
 					goto out_unlock;
 				reserved_size += size;
@@ -3050,10 +3050,10 @@ svm_range_switch_xnack_reserve_mem(struct kfd_process *p, bool xnack_enabled)
 		size = (prange->last - prange->start + 1) << PAGE_SHIFT;
 		if (xnack_enabled) {
 			amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
-						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
 		} else {
 			r = amdgpu_amdkfd_reserve_mem_limit(NULL, size,
-						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
 			if (r)
 				goto out_unlock;
 			reserved_size += size;
@@ -3066,7 +3066,7 @@ out_unlock:
 
 	if (r)
 		amdgpu_amdkfd_unreserve_mem_limit(NULL, reserved_size,
-						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
 	else
 		/* Change xnack mode must be inside svms lock, to avoid race with
 		 * svm_range_deferred_list_work unreserve memory in parallel.

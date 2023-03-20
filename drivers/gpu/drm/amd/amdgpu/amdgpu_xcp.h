@@ -24,7 +24,10 @@
 #ifndef AMDGPU_XCP_H
 #define AMDGPU_XCP_H
 
+#include <linux/pci.h>
 #include <linux/xarray.h>
+
+#include "amdgpu_ctx.h"
 
 #define MAX_XCP 8
 
@@ -33,6 +36,8 @@
 
 #define AMDGPU_XCP_FL_NONE 0
 #define AMDGPU_XCP_FL_LOCKED (1 << 0)
+
+struct amdgpu_fpriv;
 
 enum AMDGPU_XCP_IP_BLOCK {
 	AMDGPU_XCP_GFXHUB,
