@@ -256,6 +256,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
 struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper);
+void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_info(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_info(struct fb_info *info,
 			     struct drm_fb_helper *fb_helper,
@@ -363,6 +364,10 @@ static inline struct fb_info *
 drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
 {
 	return NULL;
+}
+
+static inline void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
+{
 }
 
 static inline void drm_fb_helper_unregister_info(struct drm_fb_helper *fb_helper)
