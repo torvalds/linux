@@ -4937,6 +4937,9 @@ static int freq_to_idx(struct ath12k *ar, int freq)
 	int band, ch, idx = 0;
 
 	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
+		if (!ar->mac.sbands[band].channels)
+			continue;
+
 		sband = ar->hw->wiphy->bands[band];
 		if (!sband)
 			continue;
