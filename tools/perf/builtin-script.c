@@ -1906,7 +1906,7 @@ static int perf_sample__fprintf_synth_evt(struct perf_sample *sample, FILE *fp)
 	struct perf_synth_intel_evt *data = perf_sample__synth_ptr(sample);
 	const char *cfe[32] = {NULL, "INTR", "IRET", "SMI", "RSM", "SIPI",
 			       "INIT", "VMENTRY", "VMEXIT", "VMEXIT_INTR",
-			       "SHUTDOWN"};
+			       "SHUTDOWN", NULL, "UINTR", "UIRET"};
 	const char *evd[64] = {"PFA", "VMXQ", "VMXR"};
 	const char *s;
 	int len, i;
