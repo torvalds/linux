@@ -310,7 +310,7 @@ static struct dma_buf *ubwcp_allocate(struct dma_heap *heap,
 		return ERR_PTR(-ENOMEM);
 	init_rwsem(&buffer->linear_mode_sem);
 
-	ret = system_qcom_sg_buffer_alloc(sys_heap, &buffer->qcom_sg_buf, len);
+	ret = system_qcom_sg_buffer_alloc(sys_heap, &buffer->qcom_sg_buf, len, false);
 	if (ret)
 		goto free_buf_struct;
 

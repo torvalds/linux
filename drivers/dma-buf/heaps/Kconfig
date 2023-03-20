@@ -98,3 +98,14 @@ config QCOM_DMABUF_HEAPS_TUI_CARVEOUT
 	  This heap is controlled from an ioctl, and memory is transferred
 	  to it from the Primary VM. Not GKI-Compatible as it cannot
 	  be built as a module.
+
+config QCOM_DMABUF_HEAPS_SYSTEM_MOVABLE
+	bool "QCOM dma-buf system-movable heap"
+	depends on QCOM_DMABUF_HEAPS_SYSTEM
+	help
+	  Choose this option to build QCOM DMA-BUF SYSTEM-MOVABLE heap.
+	  This heap itself is backed by the system heap memory and
+	  works in tandem with the system-movable driver to be able to
+	  lend memory from the movable zone.
+	  If in doubt, say N here.
+

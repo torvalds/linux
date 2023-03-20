@@ -58,6 +58,7 @@
 #include "qcom_dynamic_page_pool.h"
 #include "qcom_sg_ops.h"
 #include "qcom_system_heap.h"
+#include "qcom_system_movable_heap.h"
 
 #if IS_ENABLED(CONFIG_QCOM_DMABUF_HEAPS_PAGE_POOL_REFILL)
 #define DYNAMIC_POOL_FILL_MARK (100 * SZ_1M)
@@ -88,7 +89,7 @@ static bool dynamic_pool_count_below_lowmark(struct dynamic_page_pool *pool)
 }
 
 /* Based on gfp_zone() in mm/mmzone.c since it is not exported. */
-static enum zone_type dynamic_pool_gfp_zone(gfp_t flags)
+enum zone_type dynamic_pool_gfp_zone(gfp_t flags)
 {
 	enum zone_type z;
 	gfp_t local_flags = flags;
@@ -163,7 +164,7 @@ static bool __dynamic_pool_zone_watermark_ok(struct zone *z, unsigned int order,
 }
 
 /* Based on zone_watermark_ok_safe from mm/page_alloc.c since it is not exported. */
-static bool dynamic_pool_zone_watermark_ok_safe(struct zone *z, unsigned int order,
+bool dynamic_pool_zone_watermark_ok_safe(struct zone *z, unsigned int order,
 						unsigned long mark, int highest_zoneidx)
 {
 	long free_pages = zone_page_state(z, NR_FREE_PAGES);
@@ -367,7 +368,14 @@ static void system_heap_buf_free(struct deferred_freelist_item *item,
 				if (compound_order(page) == orders[j])
 					break;
 			}
-			dynamic_page_pool_free(sys_heap->pool_list[j], page);
+			/* Do not keep page in the pool if it is a zone movable page */
+			if (is_zone_movable_page(page)) {
+				/* Unpin the page before freeing page back to buddy */
+				put_page(page);
+				__free_pages(page, compound_order(page));
+			} else {
+				dynamic_page_pool_free(sys_heap->pool_list[j], page);
+			}
 		}
 	}
 	sg_free_table(table);
@@ -383,7 +391,8 @@ void qcom_system_heap_free(struct qcom_sg_buffer *buffer)
 
 struct page *qcom_sys_heap_alloc_largest_available(struct dynamic_page_pool **pools,
 						   unsigned long size,
-						   unsigned int max_order)
+						   unsigned int max_order,
+						   bool movable)
 {
 	struct page *page = NULL;
 	int i;
@@ -401,6 +410,8 @@ struct page *qcom_sys_heap_alloc_largest_available(struct dynamic_page_pool **po
 			page = dynamic_page_pool_remove(pools[i], false);
 		mutex_unlock(&pools[i]->mutex);
 
+		if (!page && movable)
+			page = qcom_movable_heap_alloc_pages(pools[i]);
 		if (!page)
 			page = alloc_pages(pools[i]->gfp_mask, pools[i]->order);
 		if (!page)
@@ -416,7 +427,8 @@ struct page *qcom_sys_heap_alloc_largest_available(struct dynamic_page_pool **po
 
 int system_qcom_sg_buffer_alloc(struct dma_heap *heap,
 				struct qcom_sg_buffer *buffer,
-				unsigned long len)
+				unsigned long len,
+				bool movable)
 {
 	struct qcom_system_heap *sys_heap;
 	unsigned long size_remaining = len;
@@ -448,7 +460,8 @@ int system_qcom_sg_buffer_alloc(struct dma_heap *heap,
 
 		page = qcom_sys_heap_alloc_largest_available(sys_heap->pool_list,
 							     size_remaining,
-							     max_order);
+							     max_order,
+							     movable);
 		if (!page)
 			goto free_mem;
 
@@ -483,8 +496,12 @@ int system_qcom_sg_buffer_alloc(struct dma_heap *heap,
 	return 0;
 
 free_mem:
-	list_for_each_entry_safe(page, tmp_page, &pages, lru)
+	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
+		/* Unpin the memory first if it was borrowed from movable zone */
+		if (is_zone_movable_page(page))
+			put_page(page);
 		__free_pages(page, compound_order(page));
+	}
 
 	return ret;
 }
@@ -503,7 +520,7 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
 
-	ret = system_qcom_sg_buffer_alloc(heap, buffer, len);
+	ret = system_qcom_sg_buffer_alloc(heap, buffer, len, false);
 	if (ret)
 		goto free_buf_struct;
 

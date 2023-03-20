@@ -129,7 +129,8 @@ static struct sg_table *get_pages(u64 size, struct dma_heap *heap)
 	while (size_remaining > 0) {
 		page = qcom_sys_heap_alloc_largest_available(qcom_sys_heap_pools,
 							     size_remaining,
-							     max_order);
+							     max_order,
+							     false);
 
 		if (!page) {
 			pr_err("%s: Failed to get pages from the system heap: %d, %d!\n",
@@ -475,7 +476,8 @@ static struct page *alloc_largest_available(struct dynamic_page_pool **pools,
 
 	return qcom_sys_heap_alloc_largest_available(qcom_sys_heap_pools,
 						     size,
-						     max_order);
+						     max_order,
+						     false);
 }
 
 static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
