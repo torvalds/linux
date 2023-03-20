@@ -173,6 +173,14 @@ void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
+	/*
+	 * TRANS_SET_CONTEXT_LATENCY with VRR enabled
+	 * requires this chicken bit on ADL/DG2.
+	 */
+	if (DISPLAY_VER(dev_priv) == 13)
+		intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder),
+			     0, PIPE_VBLANK_WITH_DELAY);
+
 	if (!crtc_state->vrr.enable)
 		return;
 
