@@ -879,6 +879,8 @@ struct dc_debug_options {
 	uint32_t fpo_vactive_margin_us;
 	bool disable_fpo_vactive;
 	bool disable_boot_optimizations;
+	bool override_odm_optimization;
+	bool minimize_dispclk_using_odm;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
