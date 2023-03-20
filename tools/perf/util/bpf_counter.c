@@ -545,7 +545,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 		    filter_type == BPERF_FILTER_TGID)
 			key = perf_thread_map__pid(evsel->core.threads, i);
 		else if (filter_type == BPERF_FILTER_CPU)
-			key = evsel->core.cpus->map[i].cpu;
+			key = perf_cpu_map__cpu(evsel->core.cpus, i).cpu;
 		else
 			break;
 
@@ -587,9 +587,9 @@ static int bperf_sync_counters(struct evsel *evsel)
 {
 	int num_cpu, i, cpu;
 
-	num_cpu = all_cpu_map->nr;
+	num_cpu = perf_cpu_map__nr(all_cpu_map);
 	for (i = 0; i < num_cpu; i++) {
-		cpu = all_cpu_map->map[i].cpu;
+		cpu = perf_cpu_map__cpu(all_cpu_map, i).cpu;
 		bperf_trigger_reading(evsel->bperf_leader_prog_fd, cpu);
 	}
 	return 0;
