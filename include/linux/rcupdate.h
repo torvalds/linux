@@ -156,31 +156,6 @@ static inline int rcu_nocb_cpu_deoffload(int cpu) { return 0; }
 static inline void rcu_nocb_flush_deferred_wakeup(void) { }
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
 
-/**
- * RCU_NONIDLE - Indicate idle-loop code that needs RCU readers
- * @a: Code that RCU needs to pay attention to.
- *
- * RCU read-side critical sections are forbidden in the inner idle loop,
- * that is, between the ct_idle_enter() and the ct_idle_exit() -- RCU
- * will happily ignore any such read-side critical sections.  However,
- * things like powertop need tracepoints in the inner idle loop.
- *
- * This macro provides the way out:  RCU_NONIDLE(do_something_with_RCU())
- * will tell RCU that it needs to pay attention, invoke its argument
- * (in this example, calling the do_something_with_RCU() function),
- * and then tell RCU to go back to ignoring this CPU.  It is permissible
- * to nest RCU_NONIDLE() wrappers, but not indefinitely (but the limit is
- * on the order of a million or so, even on 32-bit systems).  It is
- * not legal to block within RCU_NONIDLE(), nor is it permissible to
- * transfer control either into or out of RCU_NONIDLE()'s statement.
- */
-#define RCU_NONIDLE(a) \
-	do { \
-		ct_irq_enter_irqson(); \
-		do { a; } while (0); \
-		ct_irq_exit_irqson(); \
-	} while (0)
-
 /*
  * Note a quasi-voluntary context switch for RCU-tasks's benefit.
  * This is a macro rather than an inline function to avoid #include hell.
