@@ -2669,13 +2669,54 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		iwl_mvm_apply_fw_smps_request(vif);
 }
 
+bool iwl_mvm_start_ap_ibss_common(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  int *ret)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	mvmvif->ap_assoc_sta_count = 0;
+
+	/* must be set before quota calculations */
+	mvmvif->ap_ibss_active = true;
+
+	/* send all the early keys to the device now */
+	for (i = 0; i < ARRAY_SIZE(mvmvif->ap_early_keys); i++) {
+		struct ieee80211_key_conf *key = mvmvif->ap_early_keys[i];
+
+		if (!key)
+			continue;
+
+		mvmvif->ap_early_keys[i] = NULL;
+
+		*ret = __iwl_mvm_mac_set_key(hw, SET_KEY, vif, NULL, key);
+		if (*ret)
+			return true;
+	}
+
+	if (vif->type == NL80211_IFTYPE_AP && !vif->p2p) {
+		iwl_mvm_vif_set_low_latency(mvmvif, true,
+					    LOW_LATENCY_VIF_TYPE);
+		iwl_mvm_send_low_latency_cmd(mvm, true, mvmvif->id);
+	}
+
+	/* power updated needs to be done before quotas */
+	iwl_mvm_power_update_mac(mvm);
+
+	return false;
+}
+
 static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret, i;
+	int ret;
 
 	mutex_lock(&mvm->mutex);
 
@@ -2691,8 +2732,6 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_AP)
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
-
-	mvmvif->ap_assoc_sta_count = 0;
 
 	/* Add the mac context */
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
@@ -2739,35 +2778,12 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 		}
 	}
 
-	/* must be set before quota calculations */
-	mvmvif->ap_ibss_active = true;
-
-	/* send all the early keys to the device now */
-	for (i = 0; i < ARRAY_SIZE(mvmvif->ap_early_keys); i++) {
-		struct ieee80211_key_conf *key = mvmvif->ap_early_keys[i];
-
-		if (!key)
-			continue;
-
-		mvmvif->ap_early_keys[i] = NULL;
-
-		ret = __iwl_mvm_mac_set_key(hw, SET_KEY, vif, NULL, key);
-		if (ret)
-			goto out_quota_failed;
-	}
-
-	if (vif->type == NL80211_IFTYPE_AP && !vif->p2p) {
-		iwl_mvm_vif_set_low_latency(mvmvif, true,
-					    LOW_LATENCY_VIF_TYPE);
-		iwl_mvm_send_low_latency_cmd(mvm, true, mvmvif->id);
-	}
-
-	/* power updated needs to be done before quotas */
-	iwl_mvm_power_update_mac(mvm);
+	if (iwl_mvm_start_ap_ibss_common(hw, vif, &ret))
+		goto out_failed;
 
 	ret = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (ret)
-		goto out_quota_failed;
+		goto out_failed;
 
 	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
@@ -2783,7 +2799,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 
 	goto out_unlock;
 
-out_quota_failed:
+out_failed:
 	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);

@@ -245,9 +245,87 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	__iwl_mvm_mld_unassign_vif_chanctx(mvm, vif, ctx, false);
 	mutex_unlock(&mvm->mutex);
 }
+
+static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	/* Send the beacon template */
+	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif);
+	if (ret)
+		goto out_unlock;
+
+	/* No need to re-calculate the tsf_is, as it was offloaded */
+
+	/* Add the mac context */
+	ret = iwl_mvm_mld_mac_ctxt_add(mvm, vif);
+	if (ret)
+		goto out_unlock;
+
+	/* Add link and activate it */
+	ret = iwl_mvm_add_link(mvm, vif);
+	if (ret)
+		goto out_remove_mac;
+
+	ret = iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE,
+				   true);
+	if (ret)
+		goto out_remove_link;
+
+	ret = iwl_mvm_mld_add_mcast_sta(mvm, vif);
+	if (ret)
+		goto out_remove_link;
+
+	/* Send the bcast station. At this stage the TBTT and DTIM time
+	 * events are added and applied to the scheduler
+	 */
+	ret = iwl_mvm_mld_add_bcast_sta(mvm, vif);
+	if (ret)
+		goto out_rm_mcast;
+
+	if (iwl_mvm_start_ap_ibss_common(hw, vif, &ret))
+		goto out_failed;
+
+	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
+	if (vif->p2p && mvm->p2p_device_vif)
+		iwl_mvm_mld_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false);
+
+	iwl_mvm_bt_coex_vif_change(mvm);
+
+	/* we don't support TDLS during DCM */
+	if (iwl_mvm_phy_ctx_count(mvm) > 1)
+		iwl_mvm_teardown_tdls_peers(mvm);
+
+	iwl_mvm_ftm_restart_responder(mvm, vif);
+
+	goto out_unlock;
+
+out_failed:
+	iwl_mvm_power_update_mac(mvm);
+	mvmvif->ap_ibss_active = false;
+	iwl_mvm_mld_rm_bcast_sta(mvm, vif);
+out_rm_mcast:
+	iwl_mvm_mld_rm_mcast_sta(mvm, vif);
+out_remove_link:
+	/* Link needs to be deactivated before removal */
+	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_remove_link(mvm, vif);
+out_remove_mac:
+	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
+out_unlock:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.add_interface = iwl_mvm_mld_mac_add_interface,
 	.remove_interface = iwl_mvm_mld_mac_remove_interface,
 	.assign_vif_chanctx = iwl_mvm_mld_assign_vif_chanctx,
 	.unassign_vif_chanctx = iwl_mvm_mld_unassign_vif_chanctx,
+	.join_ibss = iwl_mvm_mld_start_ap_ibss,
 };
