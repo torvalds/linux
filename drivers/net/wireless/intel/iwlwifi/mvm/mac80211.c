@@ -3547,11 +3547,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 			mvmvif->authorized = 1;
 
-			/*
-			 * Now that the station is authorized, i.e., keys were already
-			 * installed, need to indicate to the FW that
-			 * multicast data frames can be forwarded to the driver
-			 */
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 			iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 		}
@@ -3566,12 +3561,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     false);
 		if (!sta->tdls) {
-			/* Multicast data frames are no longer allowed */
-			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
-
 			/*
-			 * Set this after the above iwl_mvm_mac_ctxt_changed()
-			 * to avoid sending high prio again for a little time.
+			 * Set this but don't call iwl_mvm_mac_ctxt_changed()
+			 * yet to avoid sending high prio again for a little
+			 * time.
 			 */
 			mvmvif->authorized = 0;
 
