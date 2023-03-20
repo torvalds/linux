@@ -13,6 +13,11 @@
 #include "rtw8852c_table.h"
 #include "util.h"
 
+#define RTW8852C_FW_FORMAT_MAX 0
+#define RTW8852C_FW_BASENAME "rtw89/rtw8852c_fw"
+#define RTW8852C_MODULE_FIRMWARE \
+	RTW8852C_FW_BASENAME ".bin"
+
 static const struct rtw89_hfc_ch_cfg rtw8852c_hfc_chcfg_pcie[] = {
 	{13, 1614, grp_0}, /* ACH 0 */
 	{13, 1614, grp_0}, /* ACH 1 */
@@ -2791,7 +2796,8 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 const struct rtw89_chip_info rtw8852c_chip_info = {
 	.chip_id		= RTL8852C,
 	.ops			= &rtw8852c_chip_ops,
-	.fw_name		= "rtw89/rtw8852c_fw.bin",
+	.fw_basename		= RTW8852C_FW_BASENAME,
+	.fw_format_max		= RTW8852C_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
 	.fifo_size		= 458752,
 	.dle_scc_rsvd_size	= 0,
@@ -2892,7 +2898,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 
-MODULE_FIRMWARE("rtw89/rtw8852c_fw.bin");
+MODULE_FIRMWARE(RTW8852C_MODULE_FIRMWARE);
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ax wireless 8852C driver");
 MODULE_LICENSE("Dual BSD/GPL");

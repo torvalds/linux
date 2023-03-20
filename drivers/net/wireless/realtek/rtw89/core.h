@@ -3080,7 +3080,8 @@ struct rtw89_phy_ul_tb_info {
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
-	const char *fw_name;
+	const char *fw_basename;
+	u8 fw_format_max;
 	bool try_ce_fw;
 	u32 fifo_size;
 	u32 dle_scc_rsvd_size;
@@ -3304,6 +3305,7 @@ struct rtw89_fw_req_info {
 
 struct rtw89_fw_info {
 	struct rtw89_fw_req_info req;
+	int fw_format;
 	u8 h2c_seq;
 	u8 rec_seq;
 	u8 h2c_counter;

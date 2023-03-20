@@ -302,11 +302,14 @@ static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
 const struct firmware *
 rtw89_early_fw_feature_recognize(struct device *device,
 				 const struct rtw89_chip_info *chip,
-				 struct rtw89_fw_info *early_fw)
+				 struct rtw89_fw_info *early_fw,
+				 int *used_fw_format)
 {
 	union rtw89_compat_fw_hdr buf = {};
 	const struct firmware *firmware;
 	bool full_req = false;
+	char fw_name[64];
+	int fw_format;
 	u32 ver_code;
 	int ret;
 
@@ -317,12 +320,22 @@ rtw89_early_fw_feature_recognize(struct device *device,
 	if (IS_ENABLED(CONFIG_SECURITY_LOADPIN_ENFORCE))
 		full_req = true;
 
-	if (full_req)
-		ret = request_firmware(&firmware, chip->fw_name, device);
-	else
-		ret = request_partial_firmware_into_buf(&firmware, chip->fw_name,
-							device, &buf, sizeof(buf),
-							0);
+	for (fw_format = chip->fw_format_max; fw_format >= 0; fw_format--) {
+		rtw89_fw_get_filename(fw_name, sizeof(fw_name),
+				      chip->fw_basename, fw_format);
+
+		if (full_req)
+			ret = request_firmware(&firmware, fw_name, device);
+		else
+			ret = request_partial_firmware_into_buf(&firmware, fw_name,
+								device, &buf, sizeof(buf),
+								0);
+		if (!ret) {
+			dev_info(device, "loaded firmware %s\n", fw_name);
+			*used_fw_format = fw_format;
+			break;
+		}
+	}
 
 	if (ret) {
 		dev_err(device, "failed to early request firmware: %d\n", ret);
@@ -666,7 +679,11 @@ void rtw89_load_firmware_work(struct work_struct *work)
 {
 	struct rtw89_dev *rtwdev =
 		container_of(work, struct rtw89_dev, load_firmware_work);
-	const char *fw_name = rtwdev->chip->fw_name;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	char fw_name[64];
+
+	rtw89_fw_get_filename(fw_name, sizeof(fw_name),
+			      chip->fw_basename, rtwdev->fw.fw_format);
 
 	rtw89_load_firmware_req(rtwdev, &rtwdev->fw.req, fw_name, false);
 }

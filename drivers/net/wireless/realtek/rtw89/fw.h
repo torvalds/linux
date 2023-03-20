@@ -3515,6 +3515,15 @@ static inline u32 rtw89_compat_fw_hdr_ver_code(const void *fw_buf)
 		return RTW89_FW_HDR_VER_CODE(&compat->fw_hdr);
 }
 
+static inline void rtw89_fw_get_filename(char *buf, size_t size,
+					 const char *fw_basename, int fw_format)
+{
+	if (fw_format <= 0)
+		snprintf(buf, size, "%s.bin", fw_basename);
+	else
+		snprintf(buf, size, "%s-%d.bin", fw_basename, fw_format);
+}
+
 #define RTW89_H2C_RF_PAGE_SIZE 500
 #define RTW89_H2C_RF_PAGE_NUM 3
 struct rtw89_fw_h2c_rf_reg_info {
@@ -3658,7 +3667,8 @@ int rtw89_fw_recognize(struct rtw89_dev *rtwdev);
 const struct firmware *
 rtw89_early_fw_feature_recognize(struct device *device,
 				 const struct rtw89_chip_info *chip,
-				 struct rtw89_fw_info *early_fw);
+				 struct rtw89_fw_info *early_fw,
+				 int *used_fw_format);
 int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type);
 void rtw89_load_firmware_work(struct work_struct *work);
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev);
