@@ -380,6 +380,8 @@ struct amdgpu_gfx {
 	struct amdgpu_ring		sw_gfx_ring[AMDGPU_MAX_SW_GFX_RINGS];
 	struct amdgpu_ring_mux          muxer;
 
+	bool				cp_gfx_shadow; /* for gfx11 */
+
 	enum amdgpu_gfx_partition	partition_mode;
 	uint32_t			num_xcd;
 	uint32_t			num_xcc_per_xcp;
