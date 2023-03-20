@@ -686,6 +686,33 @@ desc_bk:
 	desc_info->bk = true;
 }
 
+static u16 rtw89_core_get_data_rate(struct rtw89_dev *rtwdev,
+				    struct rtw89_core_tx_request *tx_req)
+{
+	struct ieee80211_vif *vif = tx_req->vif;
+	struct ieee80211_sta *sta = tx_req->sta;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
+	enum rtw89_sub_entity_idx idx = rtwvif->sub_entity_idx;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, idx);
+	u16 lowest_rate;
+
+	if (rate_pattern->enable)
+		return rate_pattern->rate;
+
+	if (vif->p2p)
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (chan->band_type == RTW89_BAND_2G)
+		lowest_rate = RTW89_HW_RATE_CCK1;
+	else
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+
+	if (!sta->deflink.supp_rates[chan->band_type])
+		return lowest_rate;
+
+	return __ffs(sta->deflink.supp_rates[chan->band_type]) + lowest_rate;
+}
+
 static void
 rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 			       struct rtw89_core_tx_request *tx_req)
@@ -694,8 +721,6 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_sta *sta = tx_req->sta;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
-	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
 	struct sk_buff *skb = tx_req->skb;
 	u8 tid, tid_indicate;
@@ -719,14 +744,7 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	if (IEEE80211_SKB_CB(skb)->control.hw_key)
 		rtw89_core_tx_update_sec_key(rtwdev, tx_req);
 
-	if (vif->p2p)
-		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_OFDM6;
-	else if (rate_pattern->enable)
-		desc_info->data_retry_lowest_rate = rate_pattern->rate;
-	else if (chan->band_type == RTW89_BAND_2G)
-		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_CCK1;
-	else
-		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_OFDM6;
+	desc_info->data_retry_lowest_rate = rtw89_core_get_data_rate(rtwdev, tx_req);
 }
 
 static enum btc_pkt_type
