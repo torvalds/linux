@@ -6,6 +6,8 @@
  * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
  */
 
+#define pr_fmt(fmt) "efivars: " fmt
+
 #include <linux/types.h>
 #include <linux/sizes.h>
 #include <linux/errno.h>
@@ -40,45 +42,47 @@ static efi_status_t check_var_size(bool nonblocking, u32 attributes,
 }
 
 /**
- * efivars_kobject - get the kobject for the registered efivars
+ * efivar_is_available - check if efivars is available
  *
- * If efivars_register() has not been called we return NULL,
- * otherwise return the kobject used at registration time.
+ * @return true iff evivars is currently registered
  */
-struct kobject *efivars_kobject(void)
+bool efivar_is_available(void)
 {
-	if (!__efivars)
-		return NULL;
-
-	return __efivars->kobject;
+	return __efivars != NULL;
 }
-EXPORT_SYMBOL_GPL(efivars_kobject);
+EXPORT_SYMBOL_GPL(efivar_is_available);
 
 /**
  * efivars_register - register an efivars
  * @efivars: efivars to register
  * @ops: efivars operations
- * @kobject: @efivars-specific kobject
  *
  * Only a single efivars can be registered at any time.
  */
 int efivars_register(struct efivars *efivars,
-		     const struct efivar_operations *ops,
-		     struct kobject *kobject)
+		     const struct efivar_operations *ops)
 {
+	int rv;
+
 	if (down_interruptible(&efivars_lock))
 		return -EINTR;
 
+	if (__efivars) {
+		pr_warn("efivars already registered\n");
+		rv = -EBUSY;
+		goto out;
+	}
+
 	efivars->ops = ops;
-	efivars->kobject = kobject;
 
 	__efivars = efivars;
 
 	pr_info("Registered efivars operations\n");
-
+	rv = 0;
+out:
 	up(&efivars_lock);
 
-	return 0;
+	return rv;
 }
 EXPORT_SYMBOL_GPL(efivars_register);
 
@@ -97,7 +101,7 @@ int efivars_unregister(struct efivars *efivars)
 		return -EINTR;
 
 	if (!__efivars) {
-		printk(KERN_ERR "efivars not registered\n");
+		pr_err("efivars not registered\n");
 		rv = -EINVAL;
 		goto out;
 	}
@@ -117,7 +121,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(efivars_unregister);
 
-int efivar_supports_writes(void)
+bool efivar_supports_writes(void)
 {
 	return __efivars && __efivars->ops->set_variable;
 }

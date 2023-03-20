@@ -158,6 +158,9 @@ struct intel_guc {
 	bool submission_selected;
 	/** @submission_initialized: tracks whether GuC submission has been initialised */
 	bool submission_initialized;
+	/** @submission_version: Submission API version of the currently loaded firmware */
+	struct intel_uc_fw_ver submission_version;
+
 	/**
 	 * @rc_supported: tracks whether we support GuC rc on the current platform
 	 */
@@ -267,6 +270,14 @@ struct intel_guc {
 	int number_guc_id_stolen;
 #endif
 };
+
+/*
+ * GuC version number components are only 8-bit, so converting to a 32bit 8.8.8
+ * integer works.
+ */
+#define MAKE_GUC_VER(maj, min, pat)	(((maj) << 16) | ((min) << 8) | (pat))
+#define MAKE_GUC_VER_STRUCT(ver)	MAKE_GUC_VER((ver).major, (ver).minor, (ver).patch)
+#define GUC_SUBMIT_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->submission_version)
 
 static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
 {

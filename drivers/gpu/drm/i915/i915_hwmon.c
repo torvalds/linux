@@ -99,20 +99,6 @@ hwm_field_read_and_scale(struct hwm_drvdata *ddat, i915_reg_t rgadr,
 	return mul_u64_u32_shr(reg_value, scale_factor, nshift);
 }
 
-static void
-hwm_field_scale_and_write(struct hwm_drvdata *ddat, i915_reg_t rgadr,
-			  int nshift, unsigned int scale_factor, long lval)
-{
-	u32 nval;
-
-	/* Computation in 64-bits to avoid overflow. Round to nearest. */
-	nval = DIV_ROUND_CLOSEST_ULL((u64)lval << nshift, scale_factor);
-
-	hwm_locked_with_pm_intel_uncore_rmw(ddat, rgadr,
-					    PKG_PWR_LIM_1,
-					    REG_FIELD_PREP(PKG_PWR_LIM_1, nval));
-}
-
 /*
  * hwm_energy - Obtain energy value
  *
@@ -232,11 +218,15 @@ hwm_power1_max_interval_store(struct device *dev,
 	/* val in hw units */
 	val = DIV_ROUND_CLOSEST_ULL((u64)val << hwmon->scl_shift_time, SF_TIME);
 	/* Convert to 1.x * power(2,y) */
-	if (!val)
-		return -EINVAL;
-	y = ilog2(val);
-	/* x = (val - (1 << y)) >> (y - 2); */
-	x = (val - (1ul << y)) << x_w >> y;
+	if (!val) {
+		/* Avoid ilog2(0) */
+		y = 0;
+		x = 0;
+	} else {
+		y = ilog2(val);
+		/* x = (val - (1 << y)) >> (y - 2); */
+		x = (val - (1ul << y)) << x_w >> y;
+	}
 
 	rxy = REG_FIELD_PREP(PKG_PWR_LIM_1_TIME_X, x) | REG_FIELD_PREP(PKG_PWR_LIM_1_TIME_Y, y);
 
@@ -293,6 +283,10 @@ static const struct hwmon_channel_info *hwm_gt_info[] = {
 /* I1 is exposed as power_crit or as curr_crit depending on bit 31 */
 static int hwm_pcode_read_i1(struct drm_i915_private *i915, u32 *uval)
 {
+	/* Avoid ILLEGAL_SUBCOMMAND "mailbox access failed" warning in snb_pcode_read */
+	if (IS_DG1(i915) || IS_DG2(i915))
+		return -ENXIO;
+
 	return snb_pcode_read_p(&i915->uncore, PCODE_POWER_SETUP,
 				POWER_SETUP_SUBCOMMAND_READ_I1, 0, uval);
 }
@@ -355,6 +349,54 @@ hwm_power_is_visible(const struct hwm_drvdata *ddat, u32 attr, int chan)
 	}
 }
 
+/*
+ * HW allows arbitrary PL1 limits to be set but silently clamps these values to
+ * "typical but not guaranteed" min/max values in rg.pkg_power_sku. Follow the
+ * same pattern for sysfs, allow arbitrary PL1 limits to be set but display
+ * clamped values when read. Write/read I1 also follows the same pattern.
+ */
+static int
+hwm_power_max_read(struct hwm_drvdata *ddat, long *val)
+{
+	struct i915_hwmon *hwmon = ddat->hwmon;
+	intel_wakeref_t wakeref;
+	u64 r, min, max;
+
+	*val = hwm_field_read_and_scale(ddat,
+					hwmon->rg.pkg_rapl_limit,
+					PKG_PWR_LIM_1,
+					hwmon->scl_shift_power,
+					SF_POWER);
+
+	with_intel_runtime_pm(ddat->uncore->rpm, wakeref)
+		r = intel_uncore_read64(ddat->uncore, hwmon->rg.pkg_power_sku);
+	min = REG_FIELD_GET(PKG_MIN_PWR, r);
+	min = mul_u64_u32_shr(min, SF_POWER, hwmon->scl_shift_power);
+	max = REG_FIELD_GET(PKG_MAX_PWR, r);
+	max = mul_u64_u32_shr(max, SF_POWER, hwmon->scl_shift_power);
+
+	if (min && max)
+		*val = clamp_t(u64, *val, min, max);
+
+	return 0;
+}
+
+static int
+hwm_power_max_write(struct hwm_drvdata *ddat, long val)
+{
+	struct i915_hwmon *hwmon = ddat->hwmon;
+	u32 nval;
+
+	/* Computation in 64-bits to avoid overflow. Round to nearest. */
+	nval = DIV_ROUND_CLOSEST_ULL((u64)val << hwmon->scl_shift_power, SF_POWER);
+	nval = PKG_PWR_LIM_1_EN | REG_FIELD_PREP(PKG_PWR_LIM_1, nval);
+
+	hwm_locked_with_pm_intel_uncore_rmw(ddat, hwmon->rg.pkg_rapl_limit,
+					    PKG_PWR_LIM_1_EN | PKG_PWR_LIM_1,
+					    nval);
+	return 0;
+}
+
 static int
 hwm_power_read(struct hwm_drvdata *ddat, u32 attr, int chan, long *val)
 {
@@ -364,12 +406,7 @@ hwm_power_read(struct hwm_drvdata *ddat, u32 attr, int chan, long *val)
 
 	switch (attr) {
 	case hwmon_power_max:
-		*val = hwm_field_read_and_scale(ddat,
-						hwmon->rg.pkg_rapl_limit,
-						PKG_PWR_LIM_1,
-						hwmon->scl_shift_power,
-						SF_POWER);
-		return 0;
+		return hwm_power_max_read(ddat, val);
 	case hwmon_power_rated_max:
 		*val = hwm_field_read_and_scale(ddat,
 						hwmon->rg.pkg_power_sku,
@@ -394,16 +431,11 @@ hwm_power_read(struct hwm_drvdata *ddat, u32 attr, int chan, long *val)
 static int
 hwm_power_write(struct hwm_drvdata *ddat, u32 attr, int chan, long val)
 {
-	struct i915_hwmon *hwmon = ddat->hwmon;
 	u32 uval;
 
 	switch (attr) {
 	case hwmon_power_max:
-		hwm_field_scale_and_write(ddat,
-					  hwmon->rg.pkg_rapl_limit,
-					  hwmon->scl_shift_power,
-					  SF_POWER, val);
-		return 0;
+		return hwm_power_max_write(ddat, val);
 	case hwmon_power_crit:
 		uval = DIV_ROUND_CLOSEST_ULL(val << POWER_SETUP_I1_SHIFT, SF_POWER);
 		return hwm_pcode_write_i1(ddat->uncore->i915, uval);

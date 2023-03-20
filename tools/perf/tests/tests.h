@@ -148,6 +148,7 @@ DECLARE_SUITE(perf_time_to_tsc);
 DECLARE_SUITE(dlfilter);
 DECLARE_SUITE(sigtrap);
 DECLARE_SUITE(event_groups);
+DECLARE_SUITE(symbols);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the
@@ -207,5 +208,7 @@ DECLARE_WORKLOAD(leafloop);
 DECLARE_WORKLOAD(sqrtloop);
 DECLARE_WORKLOAD(brstack);
 DECLARE_WORKLOAD(datasym);
+
+extern const char *dso_to_test;
 
 #endif /* TESTS_H */

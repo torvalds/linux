@@ -173,12 +173,8 @@ static inline void fp_user_discard(void)
 	 * register state to track, if this changes the KVM code will
 	 * need updating.
 	 */
-	if (system_supports_sme() && test_thread_flag(TIF_SME)) {
-		u64 svcr = read_sysreg_s(SYS_SVCR);
-
-		if (svcr & SVCR_SM_MASK)
-			sme_smstop_sm();
-	}
+	if (system_supports_sme())
+		sme_smstop_sm();
 
 	if (!system_supports_sve())
 		return;

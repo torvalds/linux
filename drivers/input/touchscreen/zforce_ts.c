@@ -608,7 +608,7 @@ static void zforce_input_close(struct input_dev *dev)
 	return;
 }
 
-static int __maybe_unused zforce_suspend(struct device *dev)
+static int zforce_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct zforce_ts *ts = i2c_get_clientdata(client);
@@ -653,7 +653,7 @@ unlock:
 	return ret;
 }
 
-static int __maybe_unused zforce_resume(struct device *dev)
+static int zforce_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct zforce_ts *ts = i2c_get_clientdata(client);
@@ -691,7 +691,7 @@ unlock:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(zforce_pm_ops, zforce_suspend, zforce_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(zforce_pm_ops, zforce_suspend, zforce_resume);
 
 static void zforce_reset(void *data)
 {
@@ -941,7 +941,7 @@ MODULE_DEVICE_TABLE(of, zforce_dt_idtable);
 static struct i2c_driver zforce_driver = {
 	.driver = {
 		.name	= "zforce-ts",
-		.pm	= &zforce_pm_ops,
+		.pm	= pm_sleep_ptr(&zforce_pm_ops),
 		.of_match_table	= of_match_ptr(zforce_dt_idtable),
 	},
 	.probe_new	= zforce_probe,

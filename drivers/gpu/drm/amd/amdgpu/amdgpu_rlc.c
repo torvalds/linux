@@ -93,7 +93,8 @@ int amdgpu_gfx_rlc_init_sr(struct amdgpu_device *adev, u32 dws)
 
 	/* allocate save restore block */
 	r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.rlc.save_restore_obj,
 				      &adev->gfx.rlc.save_restore_gpu_addr,
 				      (void **)&adev->gfx.rlc.sr_ptr);
@@ -130,7 +131,8 @@ int amdgpu_gfx_rlc_init_csb(struct amdgpu_device *adev)
 	/* allocate clear state block */
 	adev->gfx.rlc.clear_state_size = dws = adev->gfx.rlc.funcs->get_csb_size(adev);
 	r = amdgpu_bo_create_kernel(adev, dws * 4, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.rlc.clear_state_obj,
 				      &adev->gfx.rlc.clear_state_gpu_addr,
 				      (void **)&adev->gfx.rlc.cs_ptr);
@@ -156,7 +158,8 @@ int amdgpu_gfx_rlc_init_cpt(struct amdgpu_device *adev)
 	int r;
 
 	r = amdgpu_bo_create_reserved(adev, adev->gfx.rlc.cp_table_size,
-				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.rlc.cp_table_obj,
 				      &adev->gfx.rlc.cp_table_gpu_addr,
 				      (void **)&adev->gfx.rlc.cp_table_ptr);

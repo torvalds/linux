@@ -5,6 +5,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/ism.h>
 #include <net/smc.h>
 #include <asm/pci_insn.h>
 
@@ -15,7 +16,6 @@
  */
 #define ISM_DMB_WORD_OFFSET	1
 #define ISM_DMB_BIT_OFFSET	(ISM_DMB_WORD_OFFSET * 32)
-#define ISM_NR_DMBS		1920
 #define ISM_IDENT_MASK		0x00FFFF
 
 #define ISM_REG_SBA	0x1
@@ -177,7 +177,7 @@ struct ism_eq_header {
 
 struct ism_eq {
 	struct ism_eq_header header;
-	struct smcd_event entry[15];
+	struct ism_event entry[15];
 };
 
 struct ism_sba {
@@ -187,21 +187,6 @@ struct ism_sba {
 	u32 dmb_bits[ISM_NR_DMBS / 32];
 	u32 reserved[3];
 	u16 dmbe_mask[ISM_NR_DMBS];
-};
-
-struct ism_dev {
-	spinlock_t lock;
-	struct pci_dev *pdev;
-	struct smcd_dev *smcd;
-
-	struct ism_sba *sba;
-	dma_addr_t sba_dma_addr;
-	DECLARE_BITMAP(sba_bitmap, ISM_NR_DMBS);
-
-	struct ism_eq *ieq;
-	dma_addr_t ieq_dma_addr;
-
-	int ieq_idx;
 };
 
 #define ISM_CREATE_REQ(dmb, idx, sf, offset)		\

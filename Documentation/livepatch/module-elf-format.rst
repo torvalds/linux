@@ -298,12 +298,5 @@ A livepatch module's symbol table is accessible through module->symtab.
 Since apply_relocate_add() requires access to a module's section headers,
 symbol table, and relocation section indices, Elf information is preserved for
 livepatch modules and is made accessible by the module loader through
-module->klp_info, which is a klp_modinfo struct. When a livepatch module loads,
-this struct is filled in by the module loader. Its fields are documented below::
-
-	struct klp_modinfo {
-		Elf_Ehdr hdr; /* Elf header */
-		Elf_Shdr *sechdrs; /* Section header table */
-		char *secstrings; /* String table for the section headers */
-		unsigned int symndx; /* The symbol table section index */
-	};
+module->klp_info, which is a :c:type:`klp_modinfo` struct. When a livepatch module
+loads, this struct is filled in by the module loader.

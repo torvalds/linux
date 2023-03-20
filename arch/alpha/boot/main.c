@@ -15,7 +15,7 @@
 #include <asm/console.h>
 #include <asm/hwrpb.h>
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 
 #include "ksize.h"
 

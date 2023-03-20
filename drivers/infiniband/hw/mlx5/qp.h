@@ -20,7 +20,7 @@ int mlx5_core_qp_modify(struct mlx5_ib_dev *dev, u16 opcode, u32 opt_param_mask,
 int mlx5_core_destroy_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp);
 int mlx5_core_destroy_dct(struct mlx5_ib_dev *dev, struct mlx5_core_dct *dct);
 int mlx5_core_qp_query(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,
-		       u32 *out, int outlen);
+		       u32 *out, int outlen, bool qpc_ext);
 int mlx5_core_dct_query(struct mlx5_ib_dev *dev, struct mlx5_core_dct *dct,
 			u32 *out, int outlen);
 
@@ -44,4 +44,6 @@ void mlx5_core_res_put(struct mlx5_core_rsc_common *res);
 int mlx5_core_xrcd_alloc(struct mlx5_ib_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_ib_dev *dev, u32 xrcdn);
 int mlx5_ib_qp_set_counter(struct ib_qp *qp, struct rdma_counter *counter);
+int mlx5_ib_qp_event_init(void);
+void mlx5_ib_qp_event_cleanup(void);
 #endif /* _MLX5_IB_QP_H */

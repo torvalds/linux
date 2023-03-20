@@ -12,7 +12,7 @@ struct nvkm_devinit_func {
 	u32  (*mmio)(struct nvkm_devinit *, u32);
 	void (*meminit)(struct nvkm_devinit *);
 	int  (*pll_set)(struct nvkm_devinit *, u32 type, u32 freq);
-	u64  (*disable)(struct nvkm_devinit *);
+	void (*disable)(struct nvkm_devinit *);
 };
 
 void nvkm_devinit_ctor(const struct nvkm_devinit_func *, struct nvkm_device *,

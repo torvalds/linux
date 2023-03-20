@@ -127,7 +127,7 @@ Type1:
 Type2:
  - RVU PF0 ie admin function creates these VFs and maps them to loopback block's channels.
  - A set of two VFs (VF0 & VF1, VF2 & VF3 .. so on) works as a pair ie pkts sent out of
-   VF0 will be received by VF1 and viceversa.
+   VF0 will be received by VF1 and vice versa.
  - These VFs can be used by applications or virtual machines to communicate between them
    without sending traffic outside. There is no switch present in HW, hence the support
    for loopback VFs.

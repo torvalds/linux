@@ -46,6 +46,8 @@ properties:
   interrupts:
     maxItems: 1
 
+  operating-points-v2: true
+
   pinctrl-0: true
   pinctrl-1: true
 

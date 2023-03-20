@@ -213,7 +213,7 @@
 			};
 
 			gpio0: gpio@18100 {
-				compatible = "marvell,armadaxp-gpio", "marvell,orion-gpio";
+				compatible = "marvell,orion-gpio";
 				reg = <0x18100 0x40>;
 				ngpios = <32>;
 				gpio-controller;
@@ -227,7 +227,7 @@
 			};
 
 			gpio1: gpio@18140 {
-				compatible = "marvell,armadaxp-gpio", "marvell,orion-gpio";
+				compatible = "marvell,orion-gpio";
 				reg = <0x18140 0x40>;
 				ngpios = <28>;
 				gpio-controller;

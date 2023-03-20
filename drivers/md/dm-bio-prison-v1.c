@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
  *
@@ -77,9 +78,9 @@ static void __setup_new_cell(struct dm_cell_key *key,
 			     struct bio *holder,
 			     struct dm_bio_prison_cell *cell)
 {
-       memcpy(&cell->key, key, sizeof(cell->key));
-       cell->holder = holder;
-       bio_list_init(&cell->bios);
+	memcpy(&cell->key, key, sizeof(cell->key));
+	cell->holder = holder;
+	bio_list_init(&cell->bios);
 }
 
 static int cmp_keys(struct dm_cell_key *lhs,
@@ -285,14 +286,14 @@ EXPORT_SYMBOL_GPL(dm_cell_promote_or_release);
 
 struct dm_deferred_entry {
 	struct dm_deferred_set *ds;
-	unsigned count;
+	unsigned int count;
 	struct list_head work_items;
 };
 
 struct dm_deferred_set {
 	spinlock_t lock;
-	unsigned current_entry;
-	unsigned sweeper;
+	unsigned int current_entry;
+	unsigned int sweeper;
 	struct dm_deferred_entry entries[DEFERRED_SET_SIZE];
 };
 
@@ -338,7 +339,7 @@ struct dm_deferred_entry *dm_deferred_entry_inc(struct dm_deferred_set *ds)
 }
 EXPORT_SYMBOL_GPL(dm_deferred_entry_inc);
 
-static unsigned ds_next(unsigned index)
+static unsigned int ds_next(unsigned int index)
 {
 	return (index + 1) % DEFERRED_SET_SIZE;
 }
@@ -373,7 +374,7 @@ EXPORT_SYMBOL_GPL(dm_deferred_entry_dec);
 int dm_deferred_set_add_work(struct dm_deferred_set *ds, struct list_head *work)
 {
 	int r = 1;
-	unsigned next_entry;
+	unsigned int next_entry;
 
 	spin_lock_irq(&ds->lock);
 	if ((ds->sweeper == ds->current_entry) &&
@@ -432,7 +433,7 @@ static int __init dm_bio_prison_init(void)
 
 	return 0;
 
-      bad:
+bad:
 	while (i--)
 		_exits[i]();
 

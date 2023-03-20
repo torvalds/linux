@@ -62,7 +62,6 @@
 #include "dml/display_mode_vba.h"
 #include "dcn20_dccg.h"
 #include "dcn20_vmid.h"
-#include "dc_link_ddc.h"
 #include "dce/dce_panel_cntl.h"
 
 #include "navi10_ip_offset.h"
@@ -90,6 +89,7 @@
 
 #include "amdgpu_socbb.h"
 
+#include "link.h"
 #define DC_LOGGER_INIT(logger)
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
@@ -1214,7 +1214,7 @@ static void dcn20_resource_destruct(struct dcn20_resource_pool *pool)
 		dcn20_pp_smu_destroy(&pool->base.pp_smu);
 
 	if (pool->base.oem_device != NULL)
-		dal_ddc_service_destroy(&pool->base.oem_device);
+		link_destroy_ddc_service(&pool->base.oem_device);
 }
 
 struct hubp *dcn20_hubp_create(
@@ -1388,6 +1388,9 @@ enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
 	/* Get a DSC if required and available */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &dc_ctx->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->top_pipe)
+			continue;
 
 		if (pipe_ctx->stream != dc_stream)
 			continue;
@@ -2222,14 +2225,10 @@ enum dc_status dcn20_patch_unknown_plane_state(struct dc_plane_state *plane_stat
 	enum surface_pixel_format surf_pix_format = plane_state->format;
 	unsigned int bpp = resource_pixel_format_to_bpp(surf_pix_format);
 
-	enum swizzle_mode_values swizzle = DC_SW_LINEAR;
-
+	plane_state->tiling_info.gfx9.swizzle = DC_SW_64KB_S;
 	if (bpp == 64)
-		swizzle = DC_SW_64KB_D;
-	else
-		swizzle = DC_SW_64KB_S;
+		plane_state->tiling_info.gfx9.swizzle = DC_SW_64KB_D;
 
-	plane_state->tiling_info.gfx9.swizzle = swizzle;
 	return DC_OK;
 }
 
@@ -2766,7 +2765,7 @@ static bool dcn20_resource_construct(
 		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
 		ddc_init_data.id.enum_id = 0;
 		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
-		pool->base.oem_device = dal_ddc_service_create(&ddc_init_data);
+		pool->base.oem_device = link_create_ddc_service(&ddc_init_data);
 	} else {
 		pool->base.oem_device = NULL;
 	}

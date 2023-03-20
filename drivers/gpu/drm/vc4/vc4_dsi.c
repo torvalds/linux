@@ -24,7 +24,6 @@
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -1820,7 +1819,9 @@ static int vc4_dsi_dev_probe(struct platform_device *pdev)
 
 	dsi->pdev = pdev;
 	dsi->bridge.funcs = &vc4_dsi_bridge_funcs;
+#ifdef CONFIG_OF
 	dsi->bridge.of_node = dev->of_node;
+#endif
 	dsi->bridge.type = DRM_MODE_CONNECTOR_DSI;
 	dsi->dsi_host.ops = &vc4_dsi_host_ops;
 	dsi->dsi_host.dev = dev;

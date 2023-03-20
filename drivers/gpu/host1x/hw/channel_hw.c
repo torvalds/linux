@@ -179,14 +179,12 @@ static inline void synchronize_syncpt_base(struct host1x_job *job)
 static void host1x_channel_set_streamid(struct host1x_channel *channel)
 {
 #if HOST1X_HW >= 6
-	u32 sid = 0x7f;
-#ifdef CONFIG_IOMMU_API
-	struct iommu_fwspec *spec = dev_iommu_fwspec_get(channel->dev->parent);
-	if (spec)
-		sid = spec->ids[0] & 0xffff;
-#endif
+	u32 stream_id;
 
-	host1x_ch_writel(channel, sid, HOST1X_CHANNEL_SMMU_STREAMID);
+	if (!tegra_dev_iommu_get_stream_id(channel->dev->parent, &stream_id))
+		stream_id = TEGRA_STREAM_ID_BYPASS;
+
+	host1x_ch_writel(channel, stream_id, HOST1X_CHANNEL_SMMU_STREAMID);
 #endif
 }
 
@@ -278,6 +276,14 @@ static void channel_program_cdma(struct host1x_job *job)
 #endif
 }
 
+static void job_complete_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct host1x_job *job = container_of(cb, struct host1x_job, fence_cb);
+
+	/* Schedules CDMA update. */
+	host1x_cdma_update(&job->channel->cdma);
+}
+
 static int channel_submit(struct host1x_job *job)
 {
 	struct host1x_channel *ch = job->channel;
@@ -285,7 +291,6 @@ static int channel_submit(struct host1x_job *job)
 	u32 prev_max = 0;
 	u32 syncval;
 	int err;
-	struct host1x_waitlist *completed_waiter = NULL;
 	struct host1x *host = dev_get_drvdata(ch->dev->parent);
 
 	trace_host1x_channel_submit(dev_name(ch->dev),
@@ -298,14 +303,7 @@ static int channel_submit(struct host1x_job *job)
 	/* get submit lock */
 	err = mutex_lock_interruptible(&ch->submitlock);
 	if (err)
-		goto error;
-
-	completed_waiter = kzalloc(sizeof(*completed_waiter), GFP_KERNEL);
-	if (!completed_waiter) {
-		mutex_unlock(&ch->submitlock);
-		err = -ENOMEM;
-		goto error;
-	}
+		return err;
 
 	host1x_channel_set_streamid(ch);
 	host1x_enable_gather_filter(ch);
@@ -315,31 +313,37 @@ static int channel_submit(struct host1x_job *job)
 	err = host1x_cdma_begin(&ch->cdma, job);
 	if (err) {
 		mutex_unlock(&ch->submitlock);
-		goto error;
+		return err;
 	}
 
 	channel_program_cdma(job);
 	syncval = host1x_syncpt_read_max(sp);
+
+	/*
+	 * Create fence before submitting job to HW to avoid job completing
+	 * before the fence is set up.
+	 */
+	job->fence = host1x_fence_create(sp, syncval, true);
+	if (WARN(IS_ERR(job->fence), "Failed to create submit complete fence")) {
+		job->fence = NULL;
+	} else {
+		err = dma_fence_add_callback(job->fence, &job->fence_cb,
+					     job_complete_callback);
+	}
 
 	/* end CDMA submit & stash pinned hMems into sync queue */
 	host1x_cdma_end(&ch->cdma, job);
 
 	trace_host1x_channel_submitted(dev_name(ch->dev), prev_max, syncval);
 
-	/* schedule a submit complete interrupt */
-	err = host1x_intr_add_action(host, sp, syncval,
-				     HOST1X_INTR_ACTION_SUBMIT_COMPLETE, ch,
-				     completed_waiter, &job->waiter);
-	completed_waiter = NULL;
-	WARN(err, "Failed to set submit complete interrupt");
-
 	mutex_unlock(&ch->submitlock);
 
-	return 0;
+	if (err == -ENOENT)
+		host1x_cdma_update(&ch->cdma);
+	else
+		WARN(err, "Failed to set submit complete interrupt");
 
-error:
-	kfree(completed_waiter);
-	return err;
+	return 0;
 }
 
 static int host1x_channel_init(struct host1x_channel *ch, struct host1x *dev,

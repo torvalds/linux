@@ -53,7 +53,7 @@ static int i915_ttm_backup(struct i915_gem_apply_to_region *apply,
 	unsigned int flags;
 	int err = 0;
 
-	if (bo->resource->mem_type == I915_PL_SYSTEM || obj->ttm.backup)
+	if (!i915_ttm_cpu_maps_iomem(bo->resource) || obj->ttm.backup)
 		return 0;
 
 	if (pm_apply->allow_gpu && i915_gem_object_evictable(obj))
@@ -187,7 +187,10 @@ static int i915_ttm_restore(struct i915_gem_apply_to_region *apply,
 		return err;
 
 	/* Content may have been swapped. */
-	err = ttm_tt_populate(backup_bo->bdev, backup_bo->ttm, &ctx);
+	if (!backup_bo->resource)
+		err = ttm_bo_validate(backup_bo, i915_ttm_sys_placement(), &ctx);
+	if (!err)
+		err = ttm_tt_populate(backup_bo->bdev, backup_bo->ttm, &ctx);
 	if (!err) {
 		err = i915_gem_obj_copy_ttm(obj, backup, pm_apply->allow_gpu,
 					    false);

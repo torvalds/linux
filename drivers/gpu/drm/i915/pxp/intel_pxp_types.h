@@ -12,18 +12,29 @@
 #include <linux/workqueue.h>
 
 struct intel_context;
+struct intel_gt;
 struct i915_pxp_component;
+struct drm_i915_private;
 
 /**
  * struct intel_pxp - pxp state
  */
 struct intel_pxp {
 	/**
+	 * @ctrl_gt: poiner to the tile that owns the controls for PXP subsystem assets that
+	 * the VDBOX, the KCR engine (and GSC CS depending on the platform)
+	 */
+	struct intel_gt *ctrl_gt;
+
+	/**
 	 * @pxp_component: i915_pxp_component struct of the bound mei_pxp
 	 * module. Only set and cleared inside component bind/unbind functions,
 	 * which are protected by &tee_mutex.
 	 */
 	struct i915_pxp_component *pxp_component;
+
+	/* @dev_link: Enforce module relationship for power management ordering. */
+	struct device_link *dev_link;
 	/**
 	 * @pxp_component_added: track if the pxp component has been added.
 	 * Set and cleared in tee init and fini functions respectively.

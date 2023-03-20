@@ -8,6 +8,7 @@ config DRM_RADEON
 	select DRM_DISPLAY_DP_HELPER
 	select DRM_DISPLAY_HELPER
         select DRM_KMS_HELPER
+	select DRM_SUBALLOC_HELPER
         select DRM_TTM
 	select DRM_TTM_HELPER
 	select SND_HDA_COMPONENT if SND_HDA_CORE
@@ -15,6 +16,8 @@ config DRM_RADEON
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
+	select I2C
+	select I2C_ALGOBIT
 	# radeon depends on ACPI_VIDEO when ACPI is enabled, for select to work
 	# ACPI_VIDEO's dependencies must also be selected.
 	select INPUT if ACPI

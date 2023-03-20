@@ -33,6 +33,7 @@ struct sunrpc_net {
 	int pipe_version;
 	atomic_t pipe_users;
 	struct proc_dir_entry *use_gssp_proc;
+	struct proc_dir_entry *gss_krb5_enctypes;
 };
 
 extern unsigned int sunrpc_net_id;

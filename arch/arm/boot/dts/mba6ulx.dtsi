@@ -226,7 +226,7 @@
 	};
 
 	jc42: temperature-sensor@19 {
-		compatible = "nxp,se97", "jedec,jc-42.4-temp";
+		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
 		reg = <0x19>;
 	};
 

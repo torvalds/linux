@@ -6,7 +6,6 @@
 #include "intel_ggtt_gmch.h"
 
 #include <drm/intel-gtt.h>
-#include <drm/i915_drm.h>
 
 #include <linux/agp_backend.h>
 
@@ -81,7 +80,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 	phys_addr_t gmadr_base;
 	int ret;
 
-	ret = intel_gmch_probe(i915->bridge_dev, to_pci_dev(i915->drm.dev), NULL);
+	ret = intel_gmch_probe(i915->gmch.pdev, to_pci_dev(i915->drm.dev), NULL);
 	if (!ret) {
 		drm_err(&i915->drm, "failed to set up gmch\n");
 		return -EIO;
@@ -89,8 +88,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 
 	intel_gmch_gtt_get(&ggtt->vm.total, &gmadr_base, &ggtt->mappable_end);
 
-	ggtt->gmadr =
-		(struct resource)DEFINE_RES_MEM(gmadr_base, ggtt->mappable_end);
+	ggtt->gmadr = DEFINE_RES_MEM(gmadr_base, ggtt->mappable_end);
 
 	ggtt->vm.alloc_pt_dma = alloc_pt_dma;
 	ggtt->vm.alloc_scratch_dma = alloc_pt_dma;

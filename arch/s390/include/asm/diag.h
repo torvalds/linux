@@ -12,6 +12,7 @@
 #include <linux/if_ether.h>
 #include <linux/percpu.h>
 #include <asm/asm-extable.h>
+#include <asm/cio.h>
 
 enum diag_stat_enum {
 	DIAG_STAT_X008,
@@ -20,6 +21,7 @@ enum diag_stat_enum {
 	DIAG_STAT_X014,
 	DIAG_STAT_X044,
 	DIAG_STAT_X064,
+	DIAG_STAT_X08C,
 	DIAG_STAT_X09C,
 	DIAG_STAT_X0DC,
 	DIAG_STAT_X204,
@@ -79,9 +81,19 @@ struct diag210 {
 	u8 vrdccrty;	/* real device type (output) */
 	u8 vrdccrmd;	/* real device model (output) */
 	u8 vrdccrft;	/* real device feature (output) */
-} __attribute__((packed, aligned(4)));
+} __packed __aligned(4);
 
 extern int diag210(struct diag210 *addr);
+
+struct diag8c {
+	u8 flags;
+	u8 num_partitions;
+	u16 width;
+	u16 height;
+	u8 data[0];
+} __packed __aligned(4);
+
+extern int diag8c(struct diag8c *out, struct ccw_dev_id *devno);
 
 /* bit is set in flags, when physical cpu info is included in diag 204 data */
 #define DIAG204_LPAR_PHYS_FLG 0x80
@@ -318,6 +330,7 @@ struct diag_ops {
 	int (*diag210)(struct diag210 *addr);
 	int (*diag26c)(void *req, void *resp, enum diag26c_sc subcode);
 	int (*diag14)(unsigned long rx, unsigned long ry1, unsigned long subcode);
+	int (*diag8c)(struct diag8c *addr, struct ccw_dev_id *devno, size_t len);
 	void (*diag0c)(struct hypfs_diag0c_entry *entry);
 	void (*diag308_reset)(void);
 };
@@ -330,5 +343,6 @@ int _diag26c_amode31(void *req, void *resp, enum diag26c_sc subcode);
 int _diag14_amode31(unsigned long rx, unsigned long ry1, unsigned long subcode);
 void _diag0c_amode31(struct hypfs_diag0c_entry *entry);
 void _diag308_reset_amode31(void);
+int _diag8c_amode31(struct diag8c *addr, struct ccw_dev_id *devno, size_t len);
 
 #endif /* _ASM_S390_DIAG_H */

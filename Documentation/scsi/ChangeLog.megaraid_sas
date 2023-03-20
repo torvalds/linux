@@ -517,7 +517,7 @@ i.	bios_param entry added in scsi_host_template that returns disk geometry
 
 1. Added new memory management module to support the IOCTL memory allocation. For IOCTL we try to allocate from the memory pool created during driver initialization. If mem pool is empty then we allocate at run time.
 2. Added check in megasas_queue_command and dpc/isr routine to see if we have already declared adapter dead
-   (hw_crit_error=1). If hw_crit_error==1, now we donot accept any processing of pending cmds/accept any cmd from OS
+   (hw_crit_error=1). If hw_crit_error==1, now we do not accept any processing of pending cmds/accept any cmd from OS
 
 1 Release Date    : Mon Oct 02 11:21:32 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.03.05
@@ -562,7 +562,7 @@ vii.	Added print : FW now in Ready State during initialization
 2 Current Version : 00.00.03.02
 3 Older Version   : 00.00.03.01
 
-i.	Added FW tranistion state for Hotplug scenario
+i.	Added FW transition state for Hotplug scenario
 
 1 Release Date    : Sun May 14 22:49:52 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.03.01

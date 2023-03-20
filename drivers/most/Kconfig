@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig MOST
-	tristate "MOST support"
+	tristate "MOST (Media Oriented Systems Transport) support"
 	depends on HAS_DMA && CONFIGFS_FS
 	default n
 	help

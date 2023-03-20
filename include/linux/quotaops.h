@@ -20,12 +20,12 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 }
 
 /* i_mutex must being held */
-static inline bool is_quota_modification(struct user_namespace *mnt_userns,
+static inline bool is_quota_modification(struct mnt_idmap *idmap,
 					 struct inode *inode, struct iattr *ia)
 {
 	return ((ia->ia_valid & ATTR_SIZE) ||
-		i_uid_needs_update(mnt_userns, ia, inode) ||
-		i_gid_needs_update(mnt_userns, ia, inode));
+		i_uid_needs_update(idmap, ia, inode) ||
+		i_gid_needs_update(idmap, ia, inode));
 }
 
 #if defined(CONFIG_QUOTA)
@@ -116,7 +116,7 @@ int dquot_set_dqblk(struct super_block *sb, struct kqid id,
 		struct qc_dqblk *di);
 
 int __dquot_transfer(struct inode *inode, struct dquot **transfer_to);
-int dquot_transfer(struct user_namespace *mnt_userns, struct inode *inode,
+int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
 		   struct iattr *iattr);
 
 static inline struct mem_dqinfo *sb_dqinfo(struct super_block *sb, int type)
@@ -236,7 +236,7 @@ static inline void dquot_free_inode(struct inode *inode)
 {
 }
 
-static inline int dquot_transfer(struct user_namespace *mnt_userns,
+static inline int dquot_transfer(struct mnt_idmap *idmap,
 				 struct inode *inode, struct iattr *iattr)
 {
 	return 0;

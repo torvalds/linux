@@ -3,18 +3,21 @@
 Kernel driver oxp-sensors
 =========================
 
-Author:
+Authors:
+    - Derek John Clark <derekjohn.clark@gmail.com>
     - Joaquín Ignacio Aramendía <samsagax@gmail.com>
 
 Description:
 ------------
 
-One X Player devices from One Netbook provide fan readings and fan control
-through its Embedded Controller.
+Handheld devices from One Netbook and Aya Neo provide fan readings and fan
+control through their embedded controllers.
 
-Currently only supports AMD boards from the One X Player and AOK ZOE lineup.
-Intel boards could be supported if we could figure out the EC registers and
-values to write to since the EC layout and model is different.
+Currently only supports AMD boards from One X Player, AOK ZOE, and some Aya
+Neo devices. One X Player Intel boards could be supported if we could figure
+out the EC registers and values to write to since the EC layout and model is
+different. Aya Neo devices preceding the AIR may not be supportable as the EC
+model is different and do not appear to have manual control capabilities.
 
 Supported devices
 -----------------
@@ -22,6 +25,8 @@ Supported devices
 Currently the driver supports the following handhelds:
 
  - AOK ZOE A1
+ - Aya Neo AIR
+ - Aya Neo AIR Pro
  - OneXPlayer AMD
  - OneXPlayer mini AMD
  - OneXPlayer mini AMD PRO

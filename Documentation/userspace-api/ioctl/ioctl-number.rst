@@ -201,7 +201,6 @@ Code  Seq#    Include File                                           Comments
 'V'   all    linux/videodev2.h                                       conflict!
 'V'   C0     linux/ivtvfb.h                                          conflict!
 'V'   C0     linux/ivtv.h                                            conflict!
-'V'   C0     media/davinci/vpfe_capture.h                            conflict!
 'V'   C0     media/si4713.h                                          conflict!
 'W'   00-1F  linux/watchdog.h                                        conflict!
 'W'   00-1F  linux/wanrouter.h                                       conflict! (pre 3.9)
@@ -222,6 +221,7 @@ Code  Seq#    Include File                                           Comments
 'a'   00-0F  drivers/crypto/qat/qat_common/adf_cfg_common.h          conflict! qat driver
 'b'   00-FF                                                          conflict! bit3 vme host bridge
                                                                      <mailto:natalia@nikhefk.nikhef.nl>
+'b'   00-0F  linux/dma-buf.h                                         conflict!
 'c'   all    linux/cm4000_cs.h                                       conflict!
 'c'   00-7F  linux/comstats.h                                        conflict!
 'c'   00-7F  linux/coda.h                                            conflict!

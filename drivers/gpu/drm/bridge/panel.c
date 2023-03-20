@@ -81,6 +81,8 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
+	drm_panel_bridge_set_orientation(connector, bridge);
+
 	drm_connector_attach_encoder(&panel_bridge->connector,
 					  bridge->encoder);
 
@@ -409,14 +411,15 @@ struct drm_bridge *devm_drm_panel_bridge_add_typed(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	bridge = drm_panel_bridge_add_typed(panel, connector_type);
-	if (!IS_ERR(bridge)) {
-		*ptr = bridge;
-		devres_add(dev, ptr);
-	} else {
+	if (IS_ERR(bridge)) {
 		devres_free(ptr);
+		return bridge;
 	}
 
 	bridge->pre_enable_prev_first = panel->prepare_prev_first;
+
+	*ptr = bridge;
+	devres_add(dev, ptr);
 
 	return bridge;
 }

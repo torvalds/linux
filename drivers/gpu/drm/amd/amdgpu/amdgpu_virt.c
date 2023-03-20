@@ -232,7 +232,8 @@ int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev)
 		return 0;
 
 	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM,
+				    AMDGPU_GEM_DOMAIN_VRAM |
+				    AMDGPU_GEM_DOMAIN_GTT,
 				    &adev->virt.mm_table.bo,
 				    &adev->virt.mm_table.gpu_addr,
 				    (void *)&adev->virt.mm_table.cpu_addr);
@@ -982,11 +983,13 @@ static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v
 	if (offset == reg_access_ctrl->grbm_cntl) {
 		/* if the target reg offset is grbm_cntl, write to scratch_reg2 */
 		writel(v, scratch_reg2);
-		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
+		if (flag == AMDGPU_RLCG_GC_WRITE_LEGACY)
+			writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
 	} else if (offset == reg_access_ctrl->grbm_idx) {
 		/* if the target reg offset is grbm_idx, write to scratch_reg3 */
 		writel(v, scratch_reg3);
-		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
+		if (flag == AMDGPU_RLCG_GC_WRITE_LEGACY)
+			writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
 	} else {
 		/*
 		 * SCRATCH_REG0 	= read/write value

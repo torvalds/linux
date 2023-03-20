@@ -204,7 +204,7 @@ config LOCALVERSION_AUTO
 	  appended after any matching localversion* files, and after the value
 	  set in CONFIG_LOCALVERSION.
 
-	  (The actual string used here is the first eight characters produced
+	  (The actual string used here is the first 12 characters produced
 	  by running the command:
 
 	    $ git rev-parse --verify HEAD
@@ -682,10 +682,6 @@ config CPU_ISOLATION
 
 source "kernel/rcu/Kconfig"
 
-config BUILD_BIN2C
-	bool
-	default n
-
 config IKCONFIG
 	tristate "Kernel .config support"
 	help
@@ -776,7 +772,7 @@ config PRINTK_SAFE_LOG_BUF_SHIFT
 	depends on PRINTK
 	help
 	  Select the size of an alternate printk per-CPU buffer where messages
-	  printed from usafe contexts are temporary stored. One example would
+	  printed from unsafe contexts are temporary stored. One example would
 	  be NMI messages, another one - printk recursion. The messages are
 	  copied to the main log buffer in a safe context to avoid a deadlock.
 	  The value defines the size as a power of 2.
@@ -894,13 +890,17 @@ config CC_IMPLICIT_FALLTHROUGH
 	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
 	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
 
-# Currently, disable gcc-12 array-bounds globally.
+# Currently, disable gcc-11,12 array-bounds globally.
 # We may want to target only particular configurations some day.
+config GCC11_NO_ARRAY_BOUNDS
+	def_bool y
+
 config GCC12_NO_ARRAY_BOUNDS
 	def_bool y
 
 config CC_NO_ARRAY_BOUNDS
 	bool
+	default y if CC_IS_GCC && GCC_VERSION >= 110000 && GCC_VERSION < 120000 && GCC11_NO_ARRAY_BOUNDS
 	default y if CC_IS_GCC && GCC_VERSION >= 120000 && GCC_VERSION < 130000 && GCC12_NO_ARRAY_BOUNDS
 
 #
@@ -1040,6 +1040,10 @@ config RT_GROUP_SCHED
 	  See Documentation/scheduler/sched-rt-group.rst for more information.
 
 endif #CGROUP_SCHED
+
+config SCHED_MM_CID
+	def_bool y
+	depends on SMP && RSEQ
 
 config UCLAMP_TASK_GROUP
 	bool "Utilization clamping per group of tasks"
@@ -1375,6 +1379,19 @@ config BOOT_CONFIG
 	  See <file:Documentation/admin-guide/bootconfig.rst> for details.
 
 	  If unsure, say Y.
+
+config BOOT_CONFIG_FORCE
+	bool "Force unconditional bootconfig processing"
+	depends on BOOT_CONFIG
+	default y if BOOT_CONFIG_EMBED
+	help
+	  With this Kconfig option set, BOOT_CONFIG processing is carried
+	  out even when the "bootconfig" kernel-boot parameter is omitted.
+	  In fact, with this Kconfig option set, there is no way to
+	  make the kernel ignore the BOOT_CONFIG-supplied kernel-boot
+	  parameters.
+
+	  If unsure, say N.
 
 config BOOT_CONFIG_EMBED
 	bool "Embed bootconfig file in the kernel"
@@ -1865,7 +1882,6 @@ config PERF_EVENTS
 	default y if PROFILING
 	depends on HAVE_PERF_EVENTS
 	select IRQ_WORK
-	select SRCU
 	help
 	  Enable kernel support for various performance events provided
 	  by software and hardware.
@@ -1935,7 +1951,7 @@ config RUST
 	depends on !MODVERSIONS
 	depends on !GCC_PLUGINS
 	depends on !RANDSTRUCT
-	depends on !DEBUG_INFO_BTF
+	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
 	select CONSTRUCTORS
 	help
 	  Enables Rust support in the kernel.

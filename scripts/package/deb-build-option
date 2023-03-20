@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+# Set up CROSS_COMPILE if we are cross-compiling, but not called from the
+# kernel toplevel Makefile
+if [ -z "${CROSS_COMPILE}${cross_compiling}" -a "${DEB_HOST_ARCH}" != "${DEB_BUILD_ARCH}" ]; then
+	echo CROSS_COMPILE=${DEB_HOST_GNU_TYPE}-
+fi
+
+version=$(dpkg-parsechangelog -S Version)
+version_upstream="${version%-*}"
+debian_revision="${version#${version_upstream}}"
+debian_revision="${debian_revision#*-}"
+
+echo KERNELRELEASE=${version_upstream}
+echo KBUILD_BUILD_VERSION=${debian_revision}

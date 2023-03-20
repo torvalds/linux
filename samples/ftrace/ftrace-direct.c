@@ -4,7 +4,6 @@
 #include <linux/sched.h> /* for wake_up_process() */
 #include <linux/ftrace.h>
 #include <asm/asm-offsets.h>
-#include <asm/nospec-branch.h>
 
 extern void my_direct_func(struct task_struct *p);
 
@@ -18,6 +17,7 @@ extern void my_tramp(void *);
 #ifdef CONFIG_X86_64
 
 #include <asm/ibt.h>
+#include <asm/nospec-branch.h>
 
 asm (
 "	.pushsection    .text, \"ax\", @progbits\n"

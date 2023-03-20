@@ -60,7 +60,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-    lightning@0 {
+        lightning@0 {
             compatible = "ams,as3935";
             reg = <0>;
             spi-max-frequency = <400000>;

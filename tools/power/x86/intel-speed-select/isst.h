@@ -47,6 +47,7 @@
 #define CONFIG_TDP_GET_UNCORE_P0_P1_INFO	0X09
 #define CONFIG_TDP_GET_P1_INFO			0x0a
 #define CONFIG_TDP_GET_MEM_FREQ			0x0b
+#define	CONFIG_TDP_GET_RATIO_INFO		0x0c
 
 #define CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_NUMCORES	0x10
 #define CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_RATIOS	0x11
@@ -144,6 +145,7 @@ struct isst_pkg_ctdp_level_info {
 	int t_proc_hot;
 	int uncore_p0;
 	int uncore_p1;
+	int uncore_pm;
 	int sse_p1;
 	int avx2_p1;
 	int avx512_p1;
@@ -208,6 +210,8 @@ extern int isst_get_ctdp_control(struct isst_id *id, int config_index,
 				 struct isst_pkg_ctdp_level_info *ctdp_level);
 extern int isst_get_coremask_info(struct isst_id *id, int config_index,
 			   struct isst_pkg_ctdp_level_info *ctdp_level);
+extern void isst_get_uncore_p0_p1_info(struct isst_id *id, int config_index,
+					struct isst_pkg_ctdp_level_info *ctdp_level);
 extern int isst_get_process_ctdp(struct isst_id *id, int tdp_level,
 				 struct isst_pkg_ctdp *pkg_dev);
 extern void isst_get_process_ctdp_complete(struct isst_id *id,

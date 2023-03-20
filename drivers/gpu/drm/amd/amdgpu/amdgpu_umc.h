@@ -42,7 +42,7 @@
 #define LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) LOOP_UMC_INST((umc_inst)) LOOP_UMC_CH_INST((ch_inst))
 
 #define LOOP_UMC_NODE_INST(node_inst) \
-		for ((node_inst) = 0; (node_inst) < adev->umc.node_inst_num; (node_inst)++)
+		for_each_set_bit((node_inst), &(adev->umc.active_mask), adev->umc.node_inst_num)
 
 #define LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) \
 		LOOP_UMC_NODE_INST((node_inst)) LOOP_UMC_INST_AND_CH((umc_inst), (ch_inst))
@@ -69,17 +69,22 @@ struct amdgpu_umc {
 	/* number of umc instance with memory map register access */
 	uint32_t umc_inst_num;
 
-	/*number of umc node instance with memory map register access*/
+	/* Total number of umc node instance including harvest one */
 	uint32_t node_inst_num;
 
 	/* UMC regiser per channel offset */
 	uint32_t channel_offs;
+	/* how many pages are retired in one UE */
+	uint32_t retire_unit;
 	/* channel index table of interleaved memory */
 	const uint32_t *channel_idx_tbl;
 	struct ras_common_if *ras_if;
 
 	const struct amdgpu_umc_funcs *funcs;
 	struct amdgpu_umc_ras *ras;
+
+	/* active mask for umc node instance */
+	unsigned long active_mask;
 };
 
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);

@@ -1699,9 +1699,10 @@ static void davinci_mcasp_init_iec958_status(struct davinci_mcasp *mcasp)
 static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
+	int stream;
 
-	dai->playback_dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
-	dai->capture_dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
+	for_each_pcm_streams(stream)
+		snd_soc_dai_dma_data_set(dai, stream, &mcasp->dma_data[stream]);
 
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE) {
 		davinci_mcasp_init_iec958_status(mcasp);

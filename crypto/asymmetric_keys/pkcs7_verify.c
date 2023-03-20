@@ -485,3 +485,4 @@ int pkcs7_supply_detached_data(struct pkcs7_message *pkcs7,
 	pkcs7->data_len = datalen;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pkcs7_supply_detached_data);

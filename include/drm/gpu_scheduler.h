@@ -48,6 +48,8 @@ struct drm_gem_object;
 struct drm_gpu_scheduler;
 struct drm_sched_rq;
 
+struct drm_file;
+
 /* These are often used as an (initial) index
  * to an array, and as such should start at 0.
  */
@@ -228,6 +230,13 @@ struct drm_sched_entity {
 	 */
 	struct rb_node			rb_tree_node;
 
+	/**
+	 * @elapsed_ns:
+	 *
+	 * Records the amount of time where jobs from this entity were active
+	 * on the GPU.
+	 */
+	uint64_t elapsed_ns;
 };
 
 /**
@@ -515,6 +524,10 @@ int drm_sched_job_init(struct drm_sched_job *job,
 void drm_sched_job_arm(struct drm_sched_job *job);
 int drm_sched_job_add_dependency(struct drm_sched_job *job,
 				 struct dma_fence *fence);
+int drm_sched_job_add_syncobj_dependency(struct drm_sched_job *job,
+					 struct drm_file *file,
+					 u32 handle,
+					 u32 point);
 int drm_sched_job_add_resv_dependencies(struct drm_sched_job *job,
 					struct dma_resv *resv,
 					enum dma_resv_usage usage);
@@ -538,7 +551,6 @@ void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity);
 void drm_sched_fault(struct drm_gpu_scheduler *sched);
-void drm_sched_job_kickout(struct drm_sched_job *s_job);
 
 void drm_sched_rq_add_entity(struct drm_sched_rq *rq,
 			     struct drm_sched_entity *entity);

@@ -48,9 +48,13 @@
  * To make this clear all the helper vtables are pulled together in this location here.
  */
 
-enum mode_set_atomic;
 struct drm_writeback_connector;
 struct drm_writeback_job;
+
+enum mode_set_atomic {
+	LEAVE_ATOMIC_MODE_SET,
+	ENTER_ATOMIC_MODE_SET,
+};
 
 /**
  * struct drm_crtc_helper_funcs - helper operations for CRTCs
@@ -1143,6 +1147,28 @@ struct drm_connector_helper_funcs {
 	 */
 	void (*cleanup_writeback_job)(struct drm_writeback_connector *connector,
 				      struct drm_writeback_job *job);
+
+	/**
+	 * @enable_hpd:
+	 *
+	 * Enable hot-plug detection for the connector.
+	 *
+	 * This operation is optional.
+	 *
+	 * This callback is used by the drm_kms_helper_poll_enable() helpers.
+	 */
+	void (*enable_hpd)(struct drm_connector *connector);
+
+	/**
+	 * @disable_hpd:
+	 *
+	 * Disable hot-plug detection for the connector.
+	 *
+	 * This operation is optional.
+	 *
+	 * This callback is used by the drm_kms_helper_poll_disable() helpers.
+	 */
+	void (*disable_hpd)(struct drm_connector *connector);
 };
 
 /**
@@ -1305,6 +1331,32 @@ struct drm_plane_helper_funcs {
 	 */
 	void (*atomic_update)(struct drm_plane *plane,
 			      struct drm_atomic_state *state);
+
+	/**
+	 * @atomic_enable:
+	 *
+	 * Drivers should use this function to unconditionally enable a plane.
+	 * This hook is called in-between the &drm_crtc_helper_funcs.atomic_begin
+	 * and drm_crtc_helper_funcs.atomic_flush callbacks. It is called after
+	 * @atomic_update, which will be called for all enabled planes. Drivers
+	 * that use @atomic_enable should set up a plane in @atomic_update and
+	 * afterwards enable the plane in @atomic_enable. If a plane needs to be
+	 * enabled before installing the scanout buffer, drivers can still do
+	 * so in @atomic_update.
+	 *
+	 * Note that the power state of the display pipe when this function is
+	 * called depends upon the exact helpers and calling sequence the driver
+	 * has picked. See drm_atomic_helper_commit_planes() for a discussion of
+	 * the tradeoffs and variants of plane commit helpers.
+	 *
+	 * This callback is used by the atomic modeset helpers, but it is
+	 * optional. If implemented, @atomic_enable should be the inverse of
+	 * @atomic_disable. Drivers that don't want to use either can still
+	 * implement the complete plane update in @atomic_update.
+	 */
+	void (*atomic_enable)(struct drm_plane *plane,
+			      struct drm_atomic_state *state);
+
 	/**
 	 * @atomic_disable:
 	 *
@@ -1325,7 +1377,8 @@ struct drm_plane_helper_funcs {
 	 * the tradeoffs and variants of plane commit helpers.
 	 *
 	 * This callback is used by the atomic modeset helpers and by the
-	 * transitional plane helpers, but it is optional.
+	 * transitional plane helpers, but it is optional. It's intended to
+	 * reverse the effects of @atomic_enable.
 	 */
 	void (*atomic_disable)(struct drm_plane *plane,
 			       struct drm_atomic_state *state);

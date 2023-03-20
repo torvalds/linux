@@ -320,8 +320,8 @@ static void blk_trace_free(struct request_queue *q, struct blk_trace *bt)
 	 * under 'q->debugfs_dir', thus lookup and remove them.
 	 */
 	if (!bt->dir) {
-		debugfs_remove(debugfs_lookup("dropped", q->debugfs_dir));
-		debugfs_remove(debugfs_lookup("msg", q->debugfs_dir));
+		debugfs_lookup_and_remove("dropped", q->debugfs_dir);
+		debugfs_lookup_and_remove("msg", q->debugfs_dir);
 	} else {
 		debugfs_remove(bt->dir);
 	}
@@ -729,13 +729,9 @@ EXPORT_SYMBOL_GPL(blk_trace_startstop);
  **/
 int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 {
-	struct request_queue *q;
+	struct request_queue *q = bdev_get_queue(bdev);
 	int ret, start = 0;
 	char b[BDEVNAME_SIZE];
-
-	q = bdev_get_queue(bdev);
-	if (!q)
-		return -ENXIO;
 
 	mutex_lock(&q->debugfs_mutex);
 

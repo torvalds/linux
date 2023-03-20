@@ -943,8 +943,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 
 	repeater_ctl = intel_hdcp_get_repeater_ctl(dev_priv, cpu_transcoder,
 						   port);
-	intel_de_write(dev_priv, HDCP_REP_CTL,
-		       intel_de_read(dev_priv, HDCP_REP_CTL) & ~repeater_ctl);
+	intel_de_rmw(dev_priv, HDCP_REP_CTL, repeater_ctl, 0);
 
 	ret = hdcp->shim->toggle_signalling(dig_port, cpu_transcoder, false);
 	if (ret) {
@@ -1819,12 +1818,10 @@ static int hdcp2_enable_encryption(struct intel_connector *connector)
 	}
 
 	if (intel_de_read(dev_priv, HDCP2_STATUS(dev_priv, cpu_transcoder, port)) &
-	    LINK_AUTH_STATUS) {
+	    LINK_AUTH_STATUS)
 		/* Link is Authenticated. Now set for Encryption */
-		intel_de_write(dev_priv,
-			       HDCP2_CTL(dev_priv, cpu_transcoder, port),
-			       intel_de_read(dev_priv, HDCP2_CTL(dev_priv, cpu_transcoder, port)) | CTL_LINK_ENCRYPTION_REQ);
-	}
+		intel_de_rmw(dev_priv, HDCP2_CTL(dev_priv, cpu_transcoder, port),
+			     0, CTL_LINK_ENCRYPTION_REQ);
 
 	ret = intel_de_wait_for_set(dev_priv,
 				    HDCP2_STATUS(dev_priv, cpu_transcoder,
@@ -1848,8 +1845,8 @@ static int hdcp2_disable_encryption(struct intel_connector *connector)
 	drm_WARN_ON(&dev_priv->drm, !(intel_de_read(dev_priv, HDCP2_STATUS(dev_priv, cpu_transcoder, port)) &
 				      LINK_ENCRYPTION_STATUS));
 
-	intel_de_write(dev_priv, HDCP2_CTL(dev_priv, cpu_transcoder, port),
-		       intel_de_read(dev_priv, HDCP2_CTL(dev_priv, cpu_transcoder, port)) & ~CTL_LINK_ENCRYPTION_REQ);
+	intel_de_rmw(dev_priv, HDCP2_CTL(dev_priv, cpu_transcoder, port),
+		     CTL_LINK_ENCRYPTION_REQ, 0);
 
 	ret = intel_de_wait_for_clear(dev_priv,
 				      HDCP2_STATUS(dev_priv, cpu_transcoder,

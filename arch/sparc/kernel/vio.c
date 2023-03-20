@@ -46,7 +46,7 @@ static const struct vio_device_id *vio_match_device(
 	return NULL;
 }
 
-static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
+static int vio_hotplug(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
 

@@ -296,17 +296,6 @@
 			};
 		};
 
-		state_i2cmux_pta: pinmux-i2cmux-pta {
-			ddc {
-				nvidia,pins = "ddc";
-				nvidia,function = "rsvd4";
-			};
-			pta {
-				nvidia,pins = "pta";
-				nvidia,function = "i2c2";
-			};
-		};
-
 		state_i2cmux_idle: pinmux-i2cmux-idle {
 			ddc {
 				nvidia,pins = "ddc";
@@ -315,6 +304,17 @@
 			pta {
 				nvidia,pins = "pta";
 				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_pta: pinmux-i2cmux-pta {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
 			};
 		};
 	};
@@ -368,38 +368,6 @@
 	i2c@7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
-	};
-
-	i2cmux {
-		compatible = "i2c-mux-pinctrl";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		i2c-parent = <&{/i2c@7000c400}>;
-
-		pinctrl-names = "ddc", "pta", "idle";
-		pinctrl-0 = <&state_i2cmux_ddc>;
-		pinctrl-1 = <&state_i2cmux_pta>;
-		pinctrl-2 = <&state_i2cmux_idle>;
-
-		hdmi_ddc: i2c@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		lvds_ddc: i2c@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			smart-battery@b {
-				compatible = "ti,bq20z75", "sbs,sbs-battery";
-				reg = <0xb>;
-				sbs,i2c-retry-count = <2>;
-				sbs,poll-retry-count = <10>;
-			};
-		};
 	};
 
 	i2c@7000c500 {
@@ -814,6 +782,38 @@
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
 			wakeup-source;
+		};
+	};
+
+	i2cmux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&{/i2c@7000c400}>;
+
+		pinctrl-names = "ddc", "pta", "idle";
+		pinctrl-0 = <&state_i2cmux_ddc>;
+		pinctrl-1 = <&state_i2cmux_pta>;
+		pinctrl-2 = <&state_i2cmux_idle>;
+
+		hdmi_ddc: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		lvds_ddc: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			smart-battery@b {
+				compatible = "ti,bq20z75", "sbs,sbs-battery";
+				reg = <0xb>;
+				sbs,i2c-retry-count = <2>;
+				sbs,poll-retry-count = <10>;
+			};
 		};
 	};
 

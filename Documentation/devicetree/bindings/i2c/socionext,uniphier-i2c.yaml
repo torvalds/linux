@@ -29,6 +29,9 @@ properties:
     minimum: 100000
     maximum: 400000
 
+  resets:
+    maxItems: 1
+
 required:
   - compatible
   - reg

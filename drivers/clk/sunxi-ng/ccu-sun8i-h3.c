@@ -434,8 +434,13 @@ static SUNXI_CCU_GATE(usb_ohci2_clk,	"usb-ohci2",	"osc24M",
 static SUNXI_CCU_GATE(usb_ohci3_clk,	"usb-ohci3",	"osc24M",
 		      0x0cc, BIT(19), 0);
 
-static const char * const dram_parents[] = { "pll-ddr", "pll-periph0-2x" };
-static SUNXI_CCU_M_WITH_MUX(dram_clk, "dram", dram_parents,
+/* H3 has broken MDFS hardware, so the mux/divider cannot be changed. */
+static CLK_FIXED_FACTOR_HW(h3_dram_clk, "dram",
+			   &pll_ddr_clk.common.hw,
+			   1, 1, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
+
+static const char * const h5_dram_parents[] = { "pll-ddr", "pll-periph0-2x" };
+static SUNXI_CCU_M_WITH_MUX(h5_dram_clk, "dram", h5_dram_parents,
 			    0x0f4, 0, 4, 20, 2, CLK_IS_CRITICAL);
 
 static SUNXI_CCU_GATE(dram_ve_clk,	"dram-ve",	"dram",
@@ -592,7 +597,7 @@ static struct ccu_common *sun8i_h3_ccu_clks[] = {
 	&usb_ohci1_clk.common,
 	&usb_ohci2_clk.common,
 	&usb_ohci3_clk.common,
-	&dram_clk.common,
+	&h5_dram_clk.common,
 	&dram_ve_clk.common,
 	&dram_csi_clk.common,
 	&dram_deinterlace_clk.common,
@@ -732,7 +737,7 @@ static struct clk_hw_onecell_data sun8i_h3_hw_clks = {
 		[CLK_USB_OHCI1]		= &usb_ohci1_clk.common.hw,
 		[CLK_USB_OHCI2]		= &usb_ohci2_clk.common.hw,
 		[CLK_USB_OHCI3]		= &usb_ohci3_clk.common.hw,
-		[CLK_DRAM]		= &dram_clk.common.hw,
+		[CLK_DRAM]		= &h3_dram_clk.hw,
 		[CLK_DRAM_VE]		= &dram_ve_clk.common.hw,
 		[CLK_DRAM_CSI]		= &dram_csi_clk.common.hw,
 		[CLK_DRAM_DEINTERLACE]	= &dram_deinterlace_clk.common.hw,
@@ -848,7 +853,7 @@ static struct clk_hw_onecell_data sun50i_h5_hw_clks = {
 		[CLK_USB_OHCI1]		= &usb_ohci1_clk.common.hw,
 		[CLK_USB_OHCI2]		= &usb_ohci2_clk.common.hw,
 		[CLK_USB_OHCI3]		= &usb_ohci3_clk.common.hw,
-		[CLK_DRAM]		= &dram_clk.common.hw,
+		[CLK_DRAM]		= &h5_dram_clk.common.hw,
 		[CLK_DRAM_VE]		= &dram_ve_clk.common.hw,
 		[CLK_DRAM_CSI]		= &dram_csi_clk.common.hw,
 		[CLK_DRAM_DEINTERLACE]	= &dram_deinterlace_clk.common.hw,

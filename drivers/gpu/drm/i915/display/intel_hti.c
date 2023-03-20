@@ -21,6 +21,9 @@ void intel_hti_init(struct drm_i915_private *i915)
 
 bool intel_hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 {
+	if (drm_WARN_ON(&i915->drm, phy == PHY_NONE))
+		return false;
+
 	return i915->display.hti.state & HDPORT_ENABLED &&
 		i915->display.hti.state & HDPORT_DDI_USED(phy);
 }

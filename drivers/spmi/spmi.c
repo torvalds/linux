@@ -366,7 +366,7 @@ static void spmi_drv_shutdown(struct device *dev)
 		sdrv->shutdown(to_spmi_device(dev));
 }
 
-static int spmi_drv_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int spmi_drv_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int ret;
 

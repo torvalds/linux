@@ -67,14 +67,14 @@ xfs_refcountbt_alloc_block(
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
-	args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	args.fsbno = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_ag.pag->pag_agno,
-			xfs_refc_block(args.mp));
+	args.pag = cur->bc_ag.pag;
 	args.oinfo = XFS_RMAP_OINFO_REFC;
 	args.minlen = args.maxlen = args.prod = 1;
 	args.resv = XFS_AG_RESV_METADATA;
 
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_near_bno(&args,
+			XFS_AGB_TO_FSB(args.mp, args.pag->pag_agno,
+					xfs_refc_block(args.mp)));
 	if (error)
 		goto out_error;
 	trace_xfs_refcountbt_alloc_block(cur->bc_mp, cur->bc_ag.pag->pag_agno,
@@ -227,7 +227,7 @@ xfs_refcountbt_verify(
 		return fa;
 
 	level = be16_to_cpu(block->bb_level);
-	if (pag && pag->pagf_init) {
+	if (pag && xfs_perag_initialised_agf(pag)) {
 		if (level >= pag->pagf_refcount_level)
 			return __this_address;
 	} else if (level >= mp->m_refc_maxlevels)

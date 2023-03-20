@@ -25,45 +25,34 @@
 #include <engine/nvdec.h>
 
 static int
-ga102_fb_vpr_scrub(struct nvkm_fb *fb)
+ga102_fb_oneinit(struct nvkm_fb *fb)
 {
-	struct nvkm_falcon_fw fw = {};
-	int ret;
+	struct nvkm_subdev *subdev = &fb->subdev;
 
-	ret = nvkm_falcon_fw_ctor_hs_v2(&ga102_flcn_fw, "mem-unlock", &fb->subdev, "nvdec/scrubber",
-					0, &fb->subdev.device->nvdec[0]->falcon, &fw);
-	if (ret)
-		return ret;
+	nvkm_falcon_fw_ctor_hs_v2(&ga102_flcn_fw, "mem-unlock", subdev, "nvdec/scrubber",
+				  0, &subdev->device->nvdec[0]->falcon, &fb->vpr_scrubber);
 
-	ret = nvkm_falcon_fw_boot(&fw, &fb->subdev, true, NULL, NULL, 0, 0);
-	nvkm_falcon_fw_dtor(&fw);
-	return ret;
-}
-
-static bool
-ga102_fb_vpr_scrub_required(struct nvkm_fb *fb)
-{
-	return (nvkm_rd32(fb->subdev.device, 0x1fa80c) & 0x00000010) != 0;
+	return gf100_fb_oneinit(fb);
 }
 
 static const struct nvkm_fb_func
 ga102_fb = {
 	.dtor = gf100_fb_dtor,
-	.oneinit = gf100_fb_oneinit,
+	.oneinit = ga102_fb_oneinit,
 	.init = gm200_fb_init,
 	.init_page = gv100_fb_init_page,
 	.init_unkn = gp100_fb_init_unkn,
 	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.ram_new = ga102_ram_new,
 	.default_bigpage = 16,
-	.vpr.scrub_required = ga102_fb_vpr_scrub_required,
-	.vpr.scrub = ga102_fb_vpr_scrub,
+	.vpr.scrub_required = tu102_fb_vpr_scrub_required,
+	.vpr.scrub = gp102_fb_vpr_scrub,
 };
 
 int
 ga102_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return gp102_fb_new_(&ga102_fb, device, type, inst, pfb);
+	return gf100_fb_new_(&ga102_fb, device, type, inst, pfb);
 }
 
 MODULE_FIRMWARE("nvidia/ga102/nvdec/scrubber.bin");

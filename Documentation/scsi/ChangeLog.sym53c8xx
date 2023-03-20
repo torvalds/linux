@@ -255,7 +255,7 @@ Sat Sep 11  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	- Work-around PCI chips being reported twice on some platforms.
 	- Add some redundant PCI reads in order to deal with common 
 	  bridge misbehaviour regarding posted write flushing.
-	- Add some other conditionnal code for people who have to deal 
+	- Add some other conditional code for people who have to deal
 	  with really broken bridges (they will have to edit a source 
 	  file to try these options).
 	- Handle correctly (hopefully) jiffies wrap-around.
@@ -300,7 +300,7 @@ Sat May 29  12:00 1999 Gerard Roudier (groudier@club-internet.fr)
 Tue May 25  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.5a
 	- Add support for task abort and bus device reset SCSI message 
-	  and implement proper synchonisation with SCRIPTS to handle 
+	  and implement proper synchronisation with SCRIPTS to handle
           correctly task abortion without races.
 	- Send an ABORT message (if untagged) or ABORT TAG message (if tagged)
 	  when the driver is told to abort a command that is disconnected and 
@@ -410,7 +410,7 @@ Fri Feb 12  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	  the support of non compliant SCSI removal, insertion and all 
 	  kinds of screw-up that may happen on the SCSI BUS.
 	  Hopefully, the driver is now unbreakable or may-be, it is just 
-	  quite brocken. :-)
+	  quite broken. :-)
 	  Many thanks to Johnson Russel (Symbios) for having responded to 
 	  my questions and for his interesting advices and comments about 
 	  support of SCSI hot-plug.
@@ -432,7 +432,7 @@ Sun Jan 31  18:00 1999 Gerard Roudier (groudier@club-internet.fr)
 Sun Jan 24  18:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.1
 	- Major rewrite of the SCSI parity error handling.
-	  The informations contained in the data manuals are incomplete about 
+	  The information contained in the data manuals is incomplete about
 	  this feature.
 	  I asked SYMBIOS about and got in reply the explanations that are 
 	  _indeed_ missing in the data manuals.
@@ -460,7 +460,7 @@ Sat Dec 19  21:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- Revamp slightly the Symbios NVRAM lay-out based on the excerpt of 
 	  the header file I received from Symbios.
 	- Check the PCI bus number for the boot order (Using a fast 
-	  PCI controller behing a PCI-PCI bridge seems sub-optimal).
+	  PCI controller behind a PCI-PCI bridge seems sub-optimal).
 	- Disable overlapped PCI arbitration for the 896 revision 1.
 	- Reduce a bit the number of IO register reads for phase mismatch 
 	  by reading DWORDS at a time instead of BYTES.
@@ -488,7 +488,7 @@ Sun Nov 29  18:00 1998 Gerard Roudier (groudier@club-internet.fr)
 Tue Nov 24  23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* version pre-sym53c8xx-0.16
 	- Add SCSI_NCR_OPTIMIZE_896_1 compile option and 'optim' boot option.
-	  When set, the driver unconditionnaly assumes that the interrupt 
+	  When set, the driver unconditionally assumes that the interrupt
 	  handler is called for command completion, then clears INTF, scans 
 	  the done queue and returns if some completed CCB is found. If no 
 	  completed CCB are found, interrupt handling will proceed normally.
@@ -502,7 +502,7 @@ Tue Nov 24  23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- Still a buglet in the tags initial settings that needed to be fixed.
 	  It was not possible to disable TGQ at system startup for devices 
 	  that claim TGQ support. The driver used at least 2 for the queue 
-	  depth but did'nt keep track of user settings for tags depth lower 
+	  depth but didn't keep track of user settings for tags depth lower
 	  than 2.
 
 Thu Nov 19  23:00 1998 Gerard Roudier (groudier@club-internet.fr)

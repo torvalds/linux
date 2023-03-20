@@ -44,7 +44,7 @@ void serial_test_bpf_obj_id(void)
 	CHECK(err >= 0 || errno != ENOENT,
 	      "get-fd-by-notexist-link-id", "err %d errno %d\n", err, errno);
 
-	/* Check bpf_obj_get_info_by_fd() */
+	/* Check bpf_map_get_info_by_fd() */
 	bzero(zeros, sizeof(zeros));
 	for (i = 0; i < nr_iters; i++) {
 		now = time(NULL);
@@ -79,7 +79,7 @@ void serial_test_bpf_obj_id(void)
 		/* Check getting map info */
 		info_len = sizeof(struct bpf_map_info) * 2;
 		bzero(&map_infos[i], info_len);
-		err = bpf_obj_get_info_by_fd(map_fds[i], &map_infos[i],
+		err = bpf_map_get_info_by_fd(map_fds[i], &map_infos[i],
 					     &info_len);
 		if (CHECK(err ||
 			  map_infos[i].type != BPF_MAP_TYPE_ARRAY ||
@@ -118,8 +118,8 @@ void serial_test_bpf_obj_id(void)
 		err = clock_gettime(CLOCK_BOOTTIME, &boot_time_ts);
 		if (CHECK_FAIL(err))
 			goto done;
-		err = bpf_obj_get_info_by_fd(prog_fds[i], &prog_infos[i],
-					     &info_len);
+		err = bpf_prog_get_info_by_fd(prog_fds[i], &prog_infos[i],
+					      &info_len);
 		load_time = (real_time_ts.tv_sec - boot_time_ts.tv_sec)
 			+ (prog_infos[i].load_time / nsec_per_sec);
 		if (CHECK(err ||
@@ -161,8 +161,8 @@ void serial_test_bpf_obj_id(void)
 		bzero(&link_infos[i], info_len);
 		link_infos[i].raw_tracepoint.tp_name = ptr_to_u64(&tp_name);
 		link_infos[i].raw_tracepoint.tp_name_len = sizeof(tp_name);
-		err = bpf_obj_get_info_by_fd(bpf_link__fd(links[i]),
-					     &link_infos[i], &info_len);
+		err = bpf_link_get_info_by_fd(bpf_link__fd(links[i]),
+					      &link_infos[i], &info_len);
 		if (CHECK(err ||
 			  link_infos[i].type != BPF_LINK_TYPE_RAW_TRACEPOINT ||
 			  link_infos[i].prog_id != prog_infos[i].id ||
@@ -217,7 +217,7 @@ void serial_test_bpf_obj_id(void)
 		 * prog_info.map_ids = NULL
 		 */
 		prog_info.nr_map_ids = 1;
-		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+		err = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &info_len);
 		if (CHECK(!err || errno != EFAULT,
 			  "get-prog-fd-bad-nr-map-ids", "err %d errno %d(%d)",
 			  err, errno, EFAULT))
@@ -228,7 +228,7 @@ void serial_test_bpf_obj_id(void)
 		saved_map_id = *(int *)((long)prog_infos[i].map_ids);
 		prog_info.map_ids = prog_infos[i].map_ids;
 		prog_info.nr_map_ids = 2;
-		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+		err = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &info_len);
 		prog_infos[i].jited_prog_insns = 0;
 		prog_infos[i].xlated_prog_insns = 0;
 		CHECK(err || info_len != sizeof(struct bpf_prog_info) ||
@@ -277,7 +277,7 @@ void serial_test_bpf_obj_id(void)
 		if (CHECK_FAIL(err))
 			goto done;
 
-		err = bpf_obj_get_info_by_fd(map_fd, &map_info, &info_len);
+		err = bpf_map_get_info_by_fd(map_fd, &map_info, &info_len);
 		CHECK(err || info_len != sizeof(struct bpf_map_info) ||
 		      memcmp(&map_info, &map_infos[i], info_len) ||
 		      array_value != array_magic_value,
@@ -322,7 +322,7 @@ void serial_test_bpf_obj_id(void)
 
 		nr_id_found++;
 
-		err = bpf_obj_get_info_by_fd(link_fd, &link_info, &info_len);
+		err = bpf_link_get_info_by_fd(link_fd, &link_info, &info_len);
 		cmp_res = memcmp(&link_info, &link_infos[i],
 				offsetof(struct bpf_link_info, raw_tracepoint));
 		CHECK(err || info_len != sizeof(link_info) || cmp_res,

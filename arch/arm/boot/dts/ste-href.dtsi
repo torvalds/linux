@@ -92,20 +92,20 @@
 				clock-mode = /bits/ 8 <2>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				chan@0 {
+				led@0 {
 					reg = <0>;
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;
 					color = <LED_COLOR_ID_BLUE>;
 					linux,default-trigger = "heartbeat";
 				};
-				chan@1 {
+				led@1 {
 					reg = <1>;
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;
 					color = <LED_COLOR_ID_BLUE>;
 				};
-				chan@2 {
+				led@2 {
 					reg = <2>;
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;
@@ -119,19 +119,19 @@
 				clock-mode = /bits/ 8 <2>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				chan@0 {
+				led@0 {
 					reg = <0>;
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;
 					color = <LED_COLOR_ID_BLUE>;
 				};
-				chan@1 {
+				led@1 {
 					reg = <1>;
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;
 					color = <LED_COLOR_ID_BLUE>;
 				};
-				chan@2 {
+				led@2 {
 					reg = <2>;
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;

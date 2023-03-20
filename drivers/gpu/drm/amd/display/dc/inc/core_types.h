@@ -56,33 +56,6 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 #endif
 #include "link_hwss.h"
 
-/************ link *****************/
-struct link_init_data {
-	const struct dc *dc;
-	struct dc_context *ctx; /* TODO: remove 'dal' when DC is complete. */
-	uint32_t connector_index; /* this will be mapped to the HPD pins */
-	uint32_t link_index; /* this is mapped to DAL display_index
-				TODO: remove it when DC is complete. */
-	bool is_dpia_link;
-};
-
-struct dc_link *link_create(const struct link_init_data *init_params);
-void link_destroy(struct dc_link **link);
-
-enum dc_status dc_link_validate_mode_timing(
-		const struct dc_stream_state *stream,
-		struct dc_link *link,
-		const struct dc_crtc_timing *timing);
-
-void core_link_resume(struct dc_link *link);
-
-void core_link_enable_stream(
-		struct dc_state *state,
-		struct pipe_ctx *pipe_ctx);
-
-void core_link_disable_stream(struct pipe_ctx *pipe_ctx);
-
-void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
 #include "transform.h"
 #include "dpp.h"
@@ -450,10 +423,11 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_e2e_pipe_params_st dml_input;
 	int det_buffer_size_kb;
 	bool unbounded_req;
+	unsigned int surface_size_in_mall_bytes;
 
-	union pipe_update_flags update_flags;
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
+	union pipe_update_flags update_flags;
 };
 
 /* Data used for dynamic link encoder assignment.
@@ -507,6 +481,9 @@ struct dcn_bw_output {
 	struct dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
 	int compbuf_size_kb;
+	unsigned int mall_ss_size_bytes;
+	unsigned int mall_ss_psr_active_size_bytes;
+	unsigned int mall_subvp_size_bytes;
 	unsigned int legacy_svp_drr_stream_index;
 	bool legacy_svp_drr_stream_index_valid;
 };
@@ -547,15 +524,6 @@ struct dc_state {
 	struct resource_context res_ctx;
 
 	/**
-	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
-	 *
-	 * Each context must have its own instance of VBA, and in order to
-	 * initialize and obtain IP and SOC, the base DML instance from DC is
-	 * initially copied into every context.
-	 */
-	struct bw_context bw_ctx;
-
-	/**
 	 * @pp_display_cfg: PowerPlay clocks and settings
 	 * Note: this is a big struct, do *not* put on stack!
 	 */
@@ -568,6 +536,15 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 
 	struct clk_mgr *clk_mgr;
+
+	/**
+	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
+	 *
+	 * Each context must have its own instance of VBA, and in order to
+	 * initialize and obtain IP and SOC, the base DML instance from DC is
+	 * initially copied into every context.
+	 */
+	struct bw_context bw_ctx;
 
 	/**
 	 * @refcount: refcount reference

@@ -1720,16 +1720,16 @@ Typically, you'll have a hardware descriptor as below:
 -  ``rate_min`` and ``rate_max`` define the minimum and maximum sample
    rate. This should correspond somehow to ``rates`` bits.
 
--  ``channel_min`` and ``channel_max`` define, as you might already
+-  ``channels_min`` and ``channels_max`` define, as you might already
    expected, the minimum and maximum number of channels.
 
 -  ``buffer_bytes_max`` defines the maximum buffer size in
    bytes. There is no ``buffer_bytes_min`` field, since it can be
    calculated from the minimum period size and the minimum number of
-   periods. Meanwhile, ``period_bytes_min`` and define the minimum and
-   maximum size of the period in bytes. ``periods_max`` and
-   ``periods_min`` define the maximum and minimum number of periods in
-   the buffer.
+   periods. Meanwhile, ``period_bytes_min`` and ``period_bytes_max``
+   define the minimum and maximum size of the period in bytes.
+   ``periods_max`` and ``periods_min`` define the maximum and minimum
+   number of periods in the buffer.
 
    The “period” is a term that corresponds to a fragment in the OSS
    world. The period defines the size at which a PCM interrupt is

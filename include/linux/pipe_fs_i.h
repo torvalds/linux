@@ -157,6 +157,26 @@ static inline bool pipe_full(unsigned int head, unsigned int tail,
 }
 
 /**
+ * pipe_buf - Return the pipe buffer for the specified slot in the pipe ring
+ * @pipe: The pipe to access
+ * @slot: The slot of interest
+ */
+static inline struct pipe_buffer *pipe_buf(const struct pipe_inode_info *pipe,
+					   unsigned int slot)
+{
+	return &pipe->bufs[slot & (pipe->ring_size - 1)];
+}
+
+/**
+ * pipe_head_buf - Return the pipe buffer at the head of the pipe ring
+ * @pipe: The pipe to access
+ */
+static inline struct pipe_buffer *pipe_head_buf(const struct pipe_inode_info *pipe)
+{
+	return pipe_buf(pipe, pipe->head);
+}
+
+/**
  * pipe_buf_get - get a reference to a pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to get a reference to

@@ -274,7 +274,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		chan@0 {
+		led@0 {
 			chan-name = "R";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
@@ -282,7 +282,7 @@
 			color = <LED_COLOR_ID_RED>;
 		};
 
-		chan@1 {
+		led@1 {
 			chan-name = "G";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
@@ -290,7 +290,7 @@
 			color = <LED_COLOR_ID_GREEN>;
 		};
 
-		chan@2 {
+		led@2 {
 			chan-name = "B";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;

@@ -5,14 +5,10 @@
 #include "dynptr_fail.skel.h"
 #include "dynptr_success.skel.h"
 
-static struct {
-	const char *prog_name;
-	const char *expected_err_msg;
-} dynptr_tests[] = {
-	/* success cases */
-	{"test_read_write", NULL},
-	{"test_data_slice", NULL},
-	{"test_ringbuf", NULL},
+static const char * const success_tests[] = {
+	"test_read_write",
+	"test_data_slice",
+	"test_ringbuf",
 };
 
 static void verify_success(const char *prog_name)
@@ -53,11 +49,11 @@ void test_dynptr(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dynptr_tests); i++) {
-		if (!test__start_subtest(dynptr_tests[i].prog_name))
+	for (i = 0; i < ARRAY_SIZE(success_tests); i++) {
+		if (!test__start_subtest(success_tests[i]))
 			continue;
 
-		verify_success(dynptr_tests[i].prog_name);
+		verify_success(success_tests[i]);
 	}
 
 	RUN_TESTS(dynptr_fail);

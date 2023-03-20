@@ -651,3 +651,70 @@ efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key)
 
 	return status;
 }
+
+/**
+ * efi_remap_image - Remap a loaded image with the appropriate permissions
+ *                   for code and data
+ *
+ * @image_base:	the base of the image in memory
+ * @alloc_size:	the size of the area in memory occupied by the image
+ * @code_size:	the size of the leading part of the image containing code
+ * 		and read-only data
+ *
+ * efi_remap_image() uses the EFI memory attribute protocol to remap the code
+ * region of the loaded image read-only/executable, and the remainder
+ * read-write/non-executable. The code region is assumed to start at the base
+ * of the image, and will therefore cover the PE/COFF header as well.
+ */
+void efi_remap_image(unsigned long image_base, unsigned alloc_size,
+		     unsigned long code_size)
+{
+	efi_guid_t guid = EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID;
+	efi_memory_attribute_protocol_t *memattr;
+	efi_status_t status;
+	u64 attr;
+
+	/*
+	 * If the firmware implements the EFI_MEMORY_ATTRIBUTE_PROTOCOL, let's
+	 * invoke it to remap the text/rodata region of the decompressed image
+	 * as read-only and the data/bss region as non-executable.
+	 */
+	status = efi_bs_call(locate_protocol, &guid, NULL, (void **)&memattr);
+	if (status != EFI_SUCCESS)
+		return;
+
+	// Get the current attributes for the entire region
+	status = memattr->get_memory_attributes(memattr, image_base,
+						alloc_size, &attr);
+	if (status != EFI_SUCCESS) {
+		efi_warn("Failed to retrieve memory attributes for image region: 0x%lx\n",
+			 status);
+		return;
+	}
+
+	// Mark the code region as read-only
+	status = memattr->set_memory_attributes(memattr, image_base, code_size,
+						EFI_MEMORY_RO);
+	if (status != EFI_SUCCESS) {
+		efi_warn("Failed to remap code region read-only\n");
+		return;
+	}
+
+	// If the entire region was already mapped as non-exec, clear the
+	// attribute from the code region. Otherwise, set it on the data
+	// region.
+	if (attr & EFI_MEMORY_XP) {
+		status = memattr->clear_memory_attributes(memattr, image_base,
+							  code_size,
+							  EFI_MEMORY_XP);
+		if (status != EFI_SUCCESS)
+			efi_warn("Failed to remap code region executable\n");
+	} else {
+		status = memattr->set_memory_attributes(memattr,
+							image_base + code_size,
+							alloc_size - code_size,
+							EFI_MEMORY_XP);
+		if (status != EFI_SUCCESS)
+			efi_warn("Failed to remap data region non-executable\n");
+	}
+}

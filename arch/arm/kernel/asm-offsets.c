@@ -56,6 +56,7 @@ int main(void)
   DEFINE(VFP_CPU,		offsetof(union vfp_state, hard.cpu));
 #endif
 #endif
+  DEFINE(SOFTIRQ_DISABLE_OFFSET,SOFTIRQ_DISABLE_OFFSET);
 #ifdef CONFIG_ARM_THUMBEE
   DEFINE(TI_THUMBEE_STATE,	offsetof(struct thread_info, thumbee_state));
 #endif

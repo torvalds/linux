@@ -925,7 +925,7 @@ NOKPROBE_SYMBOL(do_debug_exception);
 /*
  * Used during anonymous page fault handling.
  */
-struct page *alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
+struct folio *vma_alloc_zeroed_movable_folio(struct vm_area_struct *vma,
 						unsigned long vaddr)
 {
 	gfp_t flags = GFP_HIGHUSER_MOVABLE | __GFP_ZERO;
@@ -938,7 +938,7 @@ struct page *alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
 	if (vma->vm_flags & VM_MTE)
 		flags |= __GFP_ZEROTAGS;
 
-	return alloc_page_vma(flags, vma, vaddr);
+	return vma_alloc_folio(flags, 0, vma, vaddr, false);
 }
 
 void tag_clear_highpage(struct page *page)

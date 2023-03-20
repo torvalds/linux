@@ -86,9 +86,22 @@ struct drm_info_node {
  * core.
  */
 struct drm_debugfs_info {
+	/** @name: File name */
 	const char *name;
+
+	/**
+	 * @show:
+	 *
+	 * Show callback. &seq_file->private will be set to the &struct
+	 * drm_debugfs_entry corresponding to the instance of this info
+	 * on a given &struct drm_device.
+	 */
 	int (*show)(struct seq_file*, void*);
+
+	/** @driver_features: Required driver features for this entry. */
 	u32 driver_features;
+
+	/** @data: Driver-private data, should not be device-specific. */
 	void *data;
 };
 
@@ -99,8 +112,13 @@ struct drm_debugfs_info {
  * drm_debugfs_info on a &struct drm_device.
  */
 struct drm_debugfs_entry {
+	/** @dev: &struct drm_device for this node. */
 	struct drm_device *dev;
+
+	/** @file: Template for this node. */
 	struct drm_debugfs_info file;
+
+	/** @list: Linked list of all device nodes. */
 	struct list_head list;
 };
 

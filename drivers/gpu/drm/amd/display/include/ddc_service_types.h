@@ -35,6 +35,7 @@
 #define DP_BRANCH_DEVICE_ID_00E04C 0x00E04C
 #define DP_BRANCH_DEVICE_ID_006037 0x006037
 #define DP_BRANCH_DEVICE_ID_001CF8 0x001CF8
+#define DP_BRANCH_DEVICE_ID_0060AD 0x0060AD
 #define DP_BRANCH_HW_REV_10 0x10
 #define DP_BRANCH_HW_REV_20 0x20
 
@@ -132,6 +133,11 @@ static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3};
 static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5};
 
 static const u8 DP_SINK_BRANCH_DEV_NAME_7580[] = "7580\x80u";
+
+/*Travis*/
+static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
+/*Nutmeg*/
+static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
 
 /*MST Dock*/
 static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";

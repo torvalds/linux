@@ -108,6 +108,7 @@ allOf:
     then:
       properties:
         phy-names:
+          minItems: 2
           items:
             - const: usb2-phy0 # USB2 PHY0 if USBHOST_A port is used
             - const: usb2-phy1 # USB2 PHY1 if USBOTG_B port is used

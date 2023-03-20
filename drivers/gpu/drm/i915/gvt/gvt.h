@@ -172,13 +172,18 @@ struct intel_vgpu_submission {
 
 #define KVMGT_DEBUGFS_FILENAME		"kvmgt_nr_cache_entries"
 
+enum {
+	INTEL_VGPU_STATUS_ATTACHED = 0,
+	INTEL_VGPU_STATUS_ACTIVE,
+	INTEL_VGPU_STATUS_NR_BITS,
+};
+
 struct intel_vgpu {
 	struct vfio_device vfio_device;
 	struct intel_gvt *gvt;
 	struct mutex vgpu_lock;
 	int id;
-	bool active;
-	bool attached;
+	DECLARE_BITMAP(status, INTEL_VGPU_STATUS_NR_BITS);
 	bool pv_notified;
 	bool failsafe;
 	unsigned int resetting_eng;
@@ -467,7 +472,7 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 
 #define for_each_active_vgpu(gvt, vgpu, id) \
 	idr_for_each_entry((&(gvt)->vgpu_idr), (vgpu), (id)) \
-		for_each_if(vgpu->active)
+		for_each_if(test_bit(INTEL_VGPU_STATUS_ACTIVE, vgpu->status))
 
 static inline void intel_vgpu_write_pci_bar(struct intel_vgpu *vgpu,
 					    u32 offset, u32 val, bool low)
@@ -725,7 +730,7 @@ static inline bool intel_gvt_mmio_is_cmd_write_patch(
 static inline int intel_gvt_read_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
 		void *buf, unsigned long len)
 {
-	if (!vgpu->attached)
+	if (!test_bit(INTEL_VGPU_STATUS_ATTACHED, vgpu->status))
 		return -ESRCH;
 	return vfio_dma_rw(&vgpu->vfio_device, gpa, buf, len, false);
 }
@@ -743,7 +748,7 @@ static inline int intel_gvt_read_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
 static inline int intel_gvt_write_gpa(struct intel_vgpu *vgpu,
 		unsigned long gpa, void *buf, unsigned long len)
 {
-	if (!vgpu->attached)
+	if (!test_bit(INTEL_VGPU_STATUS_ATTACHED, vgpu->status))
 		return -ESRCH;
 	return vfio_dma_rw(&vgpu->vfio_device, gpa, buf, len, true);
 }

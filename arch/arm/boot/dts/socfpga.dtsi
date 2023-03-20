@@ -749,7 +749,7 @@
 			arm,prefetch-offset = <7>;
 		};
 
-		l3regs@0xff800000 {
+		l3regs@ff800000 {
 			compatible = "altr,l3regs", "syscon";
 			reg = <0xff800000 0x1000>;
 		};
@@ -905,7 +905,7 @@
 			reset-names = "timer";
 		};
 
-		uart0: serial0@ffc02000 {
+		uart0: serial@ffc02000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0xffc02000 0x1000>;
 			interrupts = <0 162 4>;
@@ -918,7 +918,7 @@
 			resets = <&rst UART0_RESET>;
 		};
 
-		uart1: serial1@ffc03000 {
+		uart1: serial@ffc03000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0xffc03000 0x1000>;
 			interrupts = <0 163 4>;

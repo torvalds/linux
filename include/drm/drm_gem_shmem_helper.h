@@ -61,20 +61,6 @@ struct drm_gem_shmem_object {
 	struct list_head madv_list;
 
 	/**
-	 * @pages_mark_dirty_on_put:
-	 *
-	 * Mark pages as dirty when they are put.
-	 */
-	unsigned int pages_mark_dirty_on_put    : 1;
-
-	/**
-	 * @pages_mark_accessed_on_put:
-	 *
-	 * Mark pages as accessed when they are put.
-	 */
-	unsigned int pages_mark_accessed_on_put : 1;
-
-	/**
 	 * @sgt: Scatter/gather table for imported PRIME buffers
 	 */
 	struct sg_table *sgt;
@@ -98,9 +84,23 @@ struct drm_gem_shmem_object {
 	unsigned int vmap_use_count;
 
 	/**
+	 * @pages_mark_dirty_on_put:
+	 *
+	 * Mark pages as dirty when they are put.
+	 */
+	bool pages_mark_dirty_on_put : 1;
+
+	/**
+	 * @pages_mark_accessed_on_put:
+	 *
+	 * Mark pages as accessed when they are put.
+	 */
+	bool pages_mark_accessed_on_put : 1;
+
+	/**
 	 * @map_wc: map object write-combined (instead of using shmem defaults).
 	 */
-	bool map_wc;
+	bool map_wc : 1;
 };
 
 #define to_drm_gem_shmem_obj(obj) \

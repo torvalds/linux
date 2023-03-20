@@ -165,10 +165,6 @@ bool resource_validate_attach_surfaces(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-void resource_validate_ctx_update_pointer_after_copy(
-		const struct dc_state *src_ctx,
-		struct dc_state *dst_ctx);
-
 enum dc_status resource_map_clock_resources(
 		const struct dc *dc,
 		struct dc_state *context,
@@ -236,4 +232,13 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
 		struct pipe_ctx *pri_pipe,
 		struct pipe_ctx *sec_pipe,
 		bool odm);
+
+/* A test harness interface that modifies dp encoder resources in the given dc
+ * state and bypasses the need to revalidate. The interface assumes that the
+ * test harness interface is called with pre-validated link config stored in the
+ * pipe_ctx and updates dp encoder resources according to the link config.
+ */
+enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

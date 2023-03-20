@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/clock/tegra124-car.h>
+
 / {
 	clock@60006000 {
 		emc-timings-1 {
@@ -2055,14 +2058,14 @@
 			};
 		};
 	};
-};
 
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-924000000-1100;
-	/delete-node/ opp-1200000000-1100;
-};
+	opp-table-actmon {
+		/delete-node/ opp-924000000;
+		/delete-node/ opp-1200000000;
+	};
 
-&emc_bw_dfs_opp_table {
-	/delete-node/ opp-924000000;
-	/delete-node/ opp-1200000000;
+	opp-table-emc {
+		/delete-node/ opp-924000000-1100;
+		/delete-node/ opp-1200000000-1100;
+	};
 };

@@ -592,7 +592,7 @@ static int rtw_wow_leave_no_link_ps(struct rtw_dev *rtwdev)
 		if (rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_NONE)
 			rtw_leave_lps_deep(rtwdev);
 	} else {
-		if (test_bit(RTW_FLAG_INACTIVE_PS, rtwdev->flags)) {
+		if (!test_bit(RTW_FLAG_POWERON, rtwdev->flags)) {
 			rtw_wow->ips_enabled = true;
 			ret = rtw_leave_ips(rtwdev);
 			if (ret)

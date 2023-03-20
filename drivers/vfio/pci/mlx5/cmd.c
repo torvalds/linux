@@ -7,6 +7,29 @@
 
 enum { CQ_OK = 0, CQ_EMPTY = -1, CQ_POLL_ERR = -2 };
 
+static int mlx5vf_is_migratable(struct mlx5_core_dev *mdev, u16 func_id)
+{
+	int query_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
+	void *query_cap = NULL, *cap;
+	int ret;
+
+	query_cap = kzalloc(query_sz, GFP_KERNEL);
+	if (!query_cap)
+		return -ENOMEM;
+
+	ret = mlx5_vport_get_other_func_cap(mdev, func_id, query_cap,
+					    MLX5_CAP_GENERAL_2);
+	if (ret)
+		goto out;
+
+	cap = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
+	if (!MLX5_GET(cmd_hca_cap_2, cap, migratable))
+		ret = -EOPNOTSUPP;
+out:
+	kfree(query_cap);
+	return ret;
+}
+
 static int mlx5vf_cmd_get_vhca_id(struct mlx5_core_dev *mdev, u16 function_id,
 				  u16 *vhca_id);
 static void
@@ -195,6 +218,10 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 	if (mvdev->vf_id < 0)
 		goto end;
 
+	ret = mlx5vf_is_migratable(mvdev->mdev, mvdev->vf_id + 1);
+	if (ret)
+		goto end;
+
 	if (mlx5vf_cmd_get_vhca_id(mvdev->mdev, mvdev->vf_id + 1,
 				   &mvdev->vhca_id))
 		goto end;
@@ -373,7 +400,7 @@ mlx5vf_alloc_data_buffer(struct mlx5_vf_migration_file *migf,
 	struct mlx5_vhca_data_buffer *buf;
 	int ret;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL_ACCOUNT);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -473,7 +500,7 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 }
 
 static int add_buf_header(struct mlx5_vhca_data_buffer *header_buf,
-			  size_t image_size)
+			  size_t image_size, bool initial_pre_copy)
 {
 	struct mlx5_vf_migration_file *migf = header_buf->migf;
 	struct mlx5_vf_migration_header header = {};
@@ -481,7 +508,9 @@ static int add_buf_header(struct mlx5_vhca_data_buffer *header_buf,
 	struct page *page;
 	u8 *to_buff;
 
-	header.image_size = cpu_to_le64(image_size);
+	header.record_size = cpu_to_le64(image_size);
+	header.flags = cpu_to_le32(MLX5_MIGF_HEADER_FLAGS_TAG_MANDATORY);
+	header.tag = cpu_to_le32(MLX5_MIGF_HEADER_TAG_FW_DATA);
 	page = mlx5vf_get_migration_page(header_buf, 0);
 	if (!page)
 		return -EINVAL;
@@ -489,12 +518,13 @@ static int add_buf_header(struct mlx5_vhca_data_buffer *header_buf,
 	memcpy(to_buff, &header, sizeof(header));
 	kunmap_local(to_buff);
 	header_buf->length = sizeof(header);
-	header_buf->header_image_size = image_size;
 	header_buf->start_pos = header_buf->migf->max_pos;
 	migf->max_pos += header_buf->length;
 	spin_lock_irqsave(&migf->list_lock, flags);
 	list_add_tail(&header_buf->buf_elm, &migf->buf_list);
 	spin_unlock_irqrestore(&migf->list_lock, flags);
+	if (initial_pre_copy)
+		migf->pre_copy_initial_bytes += sizeof(header);
 	return 0;
 }
 
@@ -508,11 +538,14 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 	if (!status) {
 		size_t image_size;
 		unsigned long flags;
+		bool initial_pre_copy = migf->state != MLX5_MIGF_STATE_PRE_COPY &&
+				!async_data->last_chunk;
 
 		image_size = MLX5_GET(save_vhca_state_out, async_data->out,
 				      actual_image_size);
 		if (async_data->header_buf) {
-			status = add_buf_header(async_data->header_buf, image_size);
+			status = add_buf_header(async_data->header_buf, image_size,
+						initial_pre_copy);
 			if (status)
 				goto err;
 		}
@@ -522,6 +555,8 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 		spin_lock_irqsave(&migf->list_lock, flags);
 		list_add_tail(&async_data->buf->buf_elm, &migf->buf_list);
 		spin_unlock_irqrestore(&migf->list_lock, flags);
+		if (initial_pre_copy)
+			migf->pre_copy_initial_bytes += image_size;
 		migf->state = async_data->last_chunk ?
 			MLX5_MIGF_STATE_COMPLETE : MLX5_MIGF_STATE_PRE_COPY;
 		wake_up_interruptible(&migf->poll_wait);
@@ -583,11 +618,16 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (MLX5VF_PRE_COPY_SUPP(mvdev)) {
-		header_buf = mlx5vf_get_data_buffer(migf,
-			sizeof(struct mlx5_vf_migration_header), DMA_NONE);
-		if (IS_ERR(header_buf)) {
-			err = PTR_ERR(header_buf);
-			goto err_free;
+		if (async_data->last_chunk && migf->buf_header) {
+			header_buf = migf->buf_header;
+			migf->buf_header = NULL;
+		} else {
+			header_buf = mlx5vf_get_data_buffer(migf,
+				sizeof(struct mlx5_vf_migration_header), DMA_NONE);
+			if (IS_ERR(header_buf)) {
+				err = PTR_ERR(header_buf);
+				goto err_free;
+			}
 		}
 	}
 
@@ -790,7 +830,7 @@ static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 	node = interval_tree_iter_first(ranges, 0, ULONG_MAX);
 	for (i = 0; i < num_ranges; i++) {
 		void *addr_range_i_base = range_list_ptr + record_size * i;
-		unsigned long length = node->last - node->start;
+		unsigned long length = node->last - node->start + 1;
 
 		MLX5_SET64(page_track_range, addr_range_i_base, start_address,
 			   node->start);
@@ -800,7 +840,7 @@ static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 	}
 
 	WARN_ON(node);
-	log_addr_space_size = ilog2(total_ranges_len);
+	log_addr_space_size = ilog2(roundup_pow_of_two(total_ranges_len));
 	if (log_addr_space_size <
 	    (MLX5_CAP_ADV_VIRTUALIZATION(mdev, pg_track_log_min_addr_space)) ||
 	    log_addr_space_size >
@@ -1032,18 +1072,18 @@ mlx5vf_create_rc_qp(struct mlx5_core_dev *mdev,
 	void *in;
 	int err;
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	qp = kzalloc(sizeof(*qp), GFP_KERNEL_ACCOUNT);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 
-	qp->rq.wqe_cnt = roundup_pow_of_two(max_recv_wr);
-	log_rq_stride = ilog2(MLX5_SEND_WQE_DS);
-	log_rq_sz = ilog2(qp->rq.wqe_cnt);
 	err = mlx5_db_alloc_node(mdev, &qp->db, mdev->priv.numa_node);
 	if (err)
 		goto err_free;
 
 	if (max_recv_wr) {
+		qp->rq.wqe_cnt = roundup_pow_of_two(max_recv_wr);
+		log_rq_stride = ilog2(MLX5_SEND_WQE_DS);
+		log_rq_sz = ilog2(qp->rq.wqe_cnt);
 		err = mlx5_frag_buf_alloc_node(mdev,
 			wq_get_byte_sz(log_rq_sz, log_rq_stride),
 			&qp->buf, mdev->priv.numa_node);
@@ -1213,12 +1253,13 @@ static int alloc_recv_pages(struct mlx5_vhca_recv_buf *recv_buf,
 	int i;
 
 	recv_buf->page_list = kvcalloc(npages, sizeof(*recv_buf->page_list),
-				       GFP_KERNEL);
+				       GFP_KERNEL_ACCOUNT);
 	if (!recv_buf->page_list)
 		return -ENOMEM;
 
 	for (;;) {
-		filled = alloc_pages_bulk_array(GFP_KERNEL, npages - done,
+		filled = alloc_pages_bulk_array(GFP_KERNEL_ACCOUNT,
+						npages - done,
 						recv_buf->page_list + done);
 		if (!filled)
 			goto err;
@@ -1248,7 +1289,7 @@ static int register_dma_recv_pages(struct mlx5_core_dev *mdev,
 
 	recv_buf->dma_addrs = kvcalloc(recv_buf->npages,
 				       sizeof(*recv_buf->dma_addrs),
-				       GFP_KERNEL);
+				       GFP_KERNEL_ACCOUNT);
 	if (!recv_buf->dma_addrs)
 		return -ENOMEM;
 

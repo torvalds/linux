@@ -37,18 +37,28 @@ static inline struct uvcg_control_header *to_uvcg_control_header(struct config_i
 	return container_of(item, struct uvcg_control_header, item);
 }
 
+struct uvcg_color_matching {
+	struct config_group group;
+	struct uvc_color_matching_descriptor desc;
+	unsigned int refcnt;
+};
+
+#define to_uvcg_color_matching(group_ptr) \
+container_of(group_ptr, struct uvcg_color_matching, group)
+
 enum uvcg_format_type {
 	UVCG_UNCOMPRESSED = 0,
 	UVCG_MJPEG,
 };
 
 struct uvcg_format {
-	struct config_group	group;
-	enum uvcg_format_type	type;
-	unsigned		linked;
-	struct list_head	frames;
-	unsigned		num_frames;
-	__u8			bmaControls[UVCG_STREAMING_CONTROL_SIZE];
+	struct config_group		group;
+	enum uvcg_format_type		type;
+	unsigned			linked;
+	struct list_head		frames;
+	unsigned			num_frames;
+	__u8				bmaControls[UVCG_STREAMING_CONTROL_SIZE];
+	struct uvcg_color_matching	*color_matching;
 };
 
 struct uvcg_format_ptr {
@@ -130,6 +140,36 @@ struct uvcg_mjpeg {
 static inline struct uvcg_mjpeg *to_uvcg_mjpeg(struct config_item *item)
 {
 	return container_of(to_uvcg_format(item), struct uvcg_mjpeg, fmt);
+}
+
+/* -----------------------------------------------------------------------------
+ * control/extensions/<NAME>
+ */
+
+struct uvcg_extension_unit_descriptor {
+	u8 bLength;
+	u8 bDescriptorType;
+	u8 bDescriptorSubType;
+	u8 bUnitID;
+	u8 guidExtensionCode[16];
+	u8 bNumControls;
+	u8 bNrInPins;
+	u8 *baSourceID;
+	u8 bControlSize;
+	u8 *bmControls;
+	u8 iExtension;
+} __packed;
+
+struct uvcg_extension {
+	struct config_item item;
+	struct list_head list;
+	u8 string_descriptor_index;
+	struct uvcg_extension_unit_descriptor desc;
+};
+
+static inline struct uvcg_extension *to_uvcg_extension(struct config_item *item)
+{
+	return container_of(item, struct uvcg_extension, item);
 }
 
 int uvcg_attach_configfs(struct f_uvc_opts *opts);

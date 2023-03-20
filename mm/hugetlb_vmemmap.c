@@ -581,7 +581,7 @@ static struct ctl_table hugetlb_vmemmap_sysctls[] = {
 	{
 		.procname	= "hugetlb_optimize_vmemmap",
 		.data		= &vmemmap_optimize_enabled,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(vmemmap_optimize_enabled),
 		.mode		= 0644,
 		.proc_handler	= proc_dobool,
 	},

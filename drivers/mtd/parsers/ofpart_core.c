@@ -122,6 +122,25 @@ static int parse_fixed_partitions(struct mtd_info *master,
 
 		a_cells = of_n_addr_cells(pp);
 		s_cells = of_n_size_cells(pp);
+		if (!dedicated && s_cells == 0) {
+			/*
+			 * This is a ugly workaround to not create
+			 * regression on devices that are still creating
+			 * partitions as direct children of the nand controller.
+			 * This can happen in case the nand controller node has
+			 * #size-cells equal to 0 and the firmware (e.g.
+			 * U-Boot) just add the partitions there assuming
+			 * 32-bit addressing.
+			 *
+			 * If you get this warning your firmware and/or DTS
+			 * should be really fixed.
+			 *
+			 * This is working only for devices smaller than 4GiB.
+			 */
+			pr_warn("%s: ofpart partition %pOF (%pOF) #size-cells is wrongly set to <0>, assuming <1> for parsing partitions.\n",
+				master->name, pp, mtd_node);
+			s_cells = 1;
+		}
 		if (len / 4 != a_cells + s_cells) {
 			pr_debug("%s: ofpart partition %pOF (%pOF) error parsing reg property.\n",
 				 master->name, pp,

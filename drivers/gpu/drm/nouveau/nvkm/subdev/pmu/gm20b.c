@@ -225,7 +225,7 @@ gm20b_pmu_init(struct nvkm_pmu *pmu)
 
 	pmu->initmsg_received = false;
 
-	nvkm_falcon_load_dmem(falcon, &args, addr_args, sizeof(args), 0);
+	nvkm_falcon_pio_wr(falcon, (u8 *)&args, 0, 0, DMEM, addr_args, sizeof(args), 0, false);
 	nvkm_falcon_start(falcon);
 	return 0;
 }

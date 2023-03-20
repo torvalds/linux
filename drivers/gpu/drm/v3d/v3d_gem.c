@@ -397,20 +397,6 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 }
 
 static int
-v3d_job_add_deps(struct drm_file *file_priv, struct v3d_job *job,
-		 u32 in_sync, u32 point)
-{
-	struct dma_fence *in_fence = NULL;
-	int ret;
-
-	ret = drm_syncobj_find_fence(file_priv, in_sync, point, 0, &in_fence);
-	if (ret == -EINVAL)
-		return ret;
-
-	return drm_sched_job_add_dependency(&job->base, in_fence);
-}
-
-static int
 v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	     void **container, size_t size, void (*free)(struct kref *ref),
 	     u32 in_sync, struct v3d_submit_ext *se, enum v3d_queue queue)
@@ -447,14 +433,18 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 					DRM_DEBUG("Failed to copy wait dep handle.\n");
 					goto fail_deps;
 				}
-				ret = v3d_job_add_deps(file_priv, job, in.handle, 0);
-				if (ret)
+				ret = drm_sched_job_add_syncobj_dependency(&job->base, file_priv, in.handle, 0);
+
+				// TODO: Investigate why this was filtered out for the IOCTL.
+				if (ret && ret != -ENOENT)
 					goto fail_deps;
 			}
 		}
 	} else {
-		ret = v3d_job_add_deps(file_priv, job, in_sync, 0);
-		if (ret)
+		ret = drm_sched_job_add_syncobj_dependency(&job->base, file_priv, in_sync, 0);
+
+		// TODO: Investigate why this was filtered out for the IOCTL.
+		if (ret && ret != -ENOENT)
 			goto fail_deps;
 	}
 
@@ -861,7 +851,6 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	job->args = *args;
 
-	spin_lock(&file_priv->table_lock);
 	for (job->base.bo_count = 0;
 	     job->base.bo_count < ARRAY_SIZE(args->bo_handles);
 	     job->base.bo_count++) {
@@ -870,20 +859,16 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 		if (!args->bo_handles[job->base.bo_count])
 			break;
 
-		bo = idr_find(&file_priv->object_idr,
-			      args->bo_handles[job->base.bo_count]);
+		bo = drm_gem_object_lookup(file_priv, args->bo_handles[job->base.bo_count]);
 		if (!bo) {
 			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
 				  job->base.bo_count,
 				  args->bo_handles[job->base.bo_count]);
 			ret = -ENOENT;
-			spin_unlock(&file_priv->table_lock);
 			goto fail;
 		}
-		drm_gem_object_get(bo);
 		job->base.bo[job->base.bo_count] = bo;
 	}
-	spin_unlock(&file_priv->table_lock);
 
 	ret = v3d_lock_bo_reservations(&job->base, &acquire_ctx);
 	if (ret)

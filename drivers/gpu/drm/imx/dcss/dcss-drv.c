@@ -74,8 +74,6 @@ static int dcss_drv_platform_probe(struct platform_device *pdev)
 dcss_shutoff:
 	dcss_dev_destroy(mdrv->dcss);
 
-	dev_set_drvdata(dev, NULL);
-
 err:
 	kfree(mdrv);
 	return err;
@@ -85,13 +83,8 @@ static int dcss_drv_platform_remove(struct platform_device *pdev)
 {
 	struct dcss_drv *mdrv = dev_get_drvdata(&pdev->dev);
 
-	if (!mdrv)
-		return 0;
-
 	dcss_kms_detach(mdrv->kms);
 	dcss_dev_destroy(mdrv->dcss);
-
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	kfree(mdrv);
 

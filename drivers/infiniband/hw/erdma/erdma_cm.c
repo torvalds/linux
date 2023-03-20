@@ -11,6 +11,7 @@
 /* Copyright (c) 2017, Open Grid Computing, Inc. */
 
 #include <linux/workqueue.h>
+#include <trace/events/sock.h>
 
 #include "erdma.h"
 #include "erdma_cm.h"
@@ -924,6 +925,8 @@ int erdma_cm_queue_work(struct erdma_cep *cep, enum erdma_work_type type)
 static void erdma_cm_llp_data_ready(struct sock *sk)
 {
 	struct erdma_cep *cep;
+
+	trace_sk_data_ready(sk);
 
 	read_lock(&sk->sk_callback_lock);
 

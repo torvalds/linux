@@ -206,7 +206,7 @@ xrep_calc_ag_resblks(
 		return 0;
 
 	pag = xfs_perag_get(mp, sm->sm_agno);
-	if (pag->pagi_init) {
+	if (xfs_perag_initialised_agi(pag)) {
 		/* Use in-core icount if possible. */
 		icount = pag->pagi_count;
 	} else {
@@ -326,15 +326,14 @@ xrep_alloc_ag_block(
 
 	args.tp = sc->tp;
 	args.mp = sc->mp;
+	args.pag = sc->sa.pag;
 	args.oinfo = *oinfo;
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, sc->sa.pag->pag_agno, 0);
 	args.minlen = 1;
 	args.maxlen = 1;
 	args.prod = 1;
-	args.type = XFS_ALLOCTYPE_THIS_AG;
 	args.resv = resv;
 
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_this_ag(&args, sc->sa.pag->pag_agno);
 	if (error)
 		return error;
 	if (args.fsbno == NULLFSBLOCK)

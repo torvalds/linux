@@ -153,6 +153,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @TXPATH_FLUSH: &struct iwl_tx_path_flush_cmd
+	 *	response in &struct iwl_tx_path_flush_cmd_rsp
 	 */
 	TXPATH_FLUSH = 0x1e,
 

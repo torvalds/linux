@@ -53,6 +53,7 @@
 
 #include <drm/drm_print.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_syncobj.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/spsc_queue.h>
 
@@ -551,10 +552,21 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 EXPORT_SYMBOL(drm_sched_start);
 
 /**
- * drm_sched_resubmit_jobs - helper to relaunch jobs from the pending list
+ * drm_sched_resubmit_jobs - Deprecated, don't use in new code!
  *
  * @sched: scheduler instance
  *
+ * Re-submitting jobs was a concept AMD came up as cheap way to implement
+ * recovery after a job timeout.
+ *
+ * This turned out to be not working very well. First of all there are many
+ * problem with the dma_fence implementation and requirements. Either the
+ * implementation is risking deadlocks with core memory management or violating
+ * documented implementation details of the dma_fence object.
+ *
+ * Drivers can still save and restore their state for recovery operations, but
+ * we shouldn't make this a general scheduler feature around the dma_fence
+ * interface.
  */
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 {
@@ -706,6 +718,34 @@ int drm_sched_job_add_dependency(struct drm_sched_job *job,
 	return ret;
 }
 EXPORT_SYMBOL(drm_sched_job_add_dependency);
+
+/**
+ * drm_sched_job_add_syncobj_dependency - adds a syncobj's fence as a job dependency
+ * @job: scheduler job to add the dependencies to
+ * @file_private: drm file private pointer
+ * @handle: syncobj handle to lookup
+ * @point: timeline point
+ *
+ * This adds the fence matching the given syncobj to @job.
+ *
+ * Returns:
+ * 0 on success, or an error on failing to expand the array.
+ */
+int drm_sched_job_add_syncobj_dependency(struct drm_sched_job *job,
+					 struct drm_file *file,
+					 u32 handle,
+					 u32 point)
+{
+	struct dma_fence *fence;
+	int ret;
+
+	ret = drm_syncobj_find_fence(file, handle, point, 0, &fence);
+	if (ret)
+		return ret;
+
+	return drm_sched_job_add_dependency(job, fence);
+}
+EXPORT_SYMBOL(drm_sched_job_add_syncobj_dependency);
 
 /**
  * drm_sched_job_add_resv_dependencies - add all fences from the resv to the job
@@ -894,6 +934,12 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	}
 
 	spin_unlock(&sched->job_list_lock);
+
+	if (job) {
+		job->entity->elapsed_ns += ktime_to_ns(
+			ktime_sub(job->s_fence->finished.timestamp,
+				  job->s_fence->scheduled.timestamp));
+	}
 
 	return job;
 }

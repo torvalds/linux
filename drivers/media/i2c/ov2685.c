@@ -707,8 +707,7 @@ static int ov2685_configure_regulators(struct ov2685 *ov2685)
 				       ov2685->supplies);
 }
 
-static int ov2685_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov2685_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ov2685 *ov2685;
@@ -830,7 +829,7 @@ static struct i2c_driver ov2685_i2c_driver = {
 		.pm = &ov2685_pm_ops,
 		.of_match_table = of_match_ptr(ov2685_of_match),
 	},
-	.probe		= &ov2685_probe,
+	.probe_new	= &ov2685_probe,
 	.remove		= &ov2685_remove,
 };
 

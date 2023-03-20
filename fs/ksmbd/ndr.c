@@ -242,7 +242,7 @@ int ndr_decode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 		return ret;
 
 	if (da->version != 3 && da->version != 4) {
-		pr_err("v%d version is not supported\n", da->version);
+		ksmbd_debug(VFS, "v%d version is not supported\n", da->version);
 		return -EINVAL;
 	}
 
@@ -251,7 +251,7 @@ int ndr_decode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 		return ret;
 
 	if (da->version != version2) {
-		pr_err("ndr version mismatched(version: %d, version2: %d)\n",
+		ksmbd_debug(VFS, "ndr version mismatched(version: %d, version2: %d)\n",
 		       da->version, version2);
 		return -EINVAL;
 	}
@@ -338,7 +338,7 @@ static int ndr_encode_posix_acl_entry(struct ndr *n, struct xattr_smb_acl *acl)
 }
 
 int ndr_encode_posix_acl(struct ndr *n,
-			 struct user_namespace *user_ns,
+			 struct mnt_idmap *idmap,
 			 struct inode *inode,
 			 struct xattr_smb_acl *acl,
 			 struct xattr_smb_acl *def_acl)
@@ -374,11 +374,11 @@ int ndr_encode_posix_acl(struct ndr *n,
 	if (ret)
 		return ret;
 
-	vfsuid = i_uid_into_vfsuid(user_ns, inode);
+	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	ret = ndr_write_int64(n, from_kuid(&init_user_ns, vfsuid_into_kuid(vfsuid)));
 	if (ret)
 		return ret;
-	vfsgid = i_gid_into_vfsgid(user_ns, inode);
+	vfsgid = i_gid_into_vfsgid(idmap, inode);
 	ret = ndr_write_int64(n, from_kgid(&init_user_ns, vfsgid_into_kgid(vfsgid)));
 	if (ret)
 		return ret;
@@ -457,7 +457,7 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 	if (ret)
 		return ret;
 	if (acl->version != 4) {
-		pr_err("v%d version is not supported\n", acl->version);
+		ksmbd_debug(VFS, "v%d version is not supported\n", acl->version);
 		return -EINVAL;
 	}
 
@@ -465,7 +465,7 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 	if (ret)
 		return ret;
 	if (acl->version != version2) {
-		pr_err("ndr version mismatched(version: %d, version2: %d)\n",
+		ksmbd_debug(VFS, "ndr version mismatched(version: %d, version2: %d)\n",
 		       acl->version, version2);
 		return -EINVAL;
 	}

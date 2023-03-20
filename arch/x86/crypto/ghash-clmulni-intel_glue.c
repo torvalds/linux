@@ -19,21 +19,22 @@
 #include <crypto/internal/simd.h>
 #include <asm/cpu_device_id.h>
 #include <asm/simd.h>
+#include <asm/unaligned.h>
 
 #define GHASH_BLOCK_SIZE	16
 #define GHASH_DIGEST_SIZE	16
 
-void clmul_ghash_mul(char *dst, const u128 *shash);
+void clmul_ghash_mul(char *dst, const le128 *shash);
 
 void clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
-			const u128 *shash);
+			const le128 *shash);
 
 struct ghash_async_ctx {
 	struct cryptd_ahash *cryptd_tfm;
 };
 
 struct ghash_ctx {
-	u128 shash;
+	le128 shash;
 };
 
 struct ghash_desc_ctx {
@@ -54,22 +55,40 @@ static int ghash_setkey(struct crypto_shash *tfm,
 			const u8 *key, unsigned int keylen)
 {
 	struct ghash_ctx *ctx = crypto_shash_ctx(tfm);
-	be128 *x = (be128 *)key;
 	u64 a, b;
 
 	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
 
-	/* perform multiplication by 'x' in GF(2^128) */
-	a = be64_to_cpu(x->a);
-	b = be64_to_cpu(x->b);
-
-	ctx->shash.a = (b << 1) | (a >> 63);
-	ctx->shash.b = (a << 1) | (b >> 63);
-
+	/*
+	 * GHASH maps bits to polynomial coefficients backwards, which makes it
+	 * hard to implement.  But it can be shown that the GHASH multiplication
+	 *
+	 *	D * K (mod x^128 + x^7 + x^2 + x + 1)
+	 *
+	 * (where D is a data block and K is the key) is equivalent to:
+	 *
+	 *	bitreflect(D) * bitreflect(K) * x^(-127)
+	 *		(mod x^128 + x^127 + x^126 + x^121 + 1)
+	 *
+	 * So, the code below precomputes:
+	 *
+	 *	bitreflect(K) * x^(-127) (mod x^128 + x^127 + x^126 + x^121 + 1)
+	 *
+	 * ... but in Montgomery form (so that Montgomery multiplication can be
+	 * used), i.e. with an extra x^128 factor, which means actually:
+	 *
+	 *	bitreflect(K) * x (mod x^128 + x^127 + x^126 + x^121 + 1)
+	 *
+	 * The within-a-byte part of bitreflect() cancels out GHASH's built-in
+	 * reflection, and thus bitreflect() is actually a byteswap.
+	 */
+	a = get_unaligned_be64(key);
+	b = get_unaligned_be64(key + 8);
+	ctx->shash.a = cpu_to_le64((a << 1) | (b >> 63));
+	ctx->shash.b = cpu_to_le64((b << 1) | (a >> 63));
 	if (a >> 63)
-		ctx->shash.b ^= ((u64)0xc2) << 56;
-
+		ctx->shash.a ^= cpu_to_le64((u64)0xc2 << 56);
 	return 0;
 }
 

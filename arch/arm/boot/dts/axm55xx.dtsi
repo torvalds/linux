@@ -108,7 +108,7 @@
 			#size-cells = <2>;
 			ranges;
 
-			serial0: uart@2010080000 {
+			serial0: serial@2010080000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x20 0x10080000 0 0x1000>;
 				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
@@ -117,7 +117,7 @@
 				status = "disabled";
 			};
 
-			serial1: uart@2010081000 {
+			serial1: serial@2010081000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x20 0x10081000 0 0x1000>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
@@ -126,7 +126,7 @@
 				status = "disabled";
 			};
 
-			serial2: uart@2010082000 {
+			serial2: serial@2010082000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x20 0x10082000 0 0x1000>;
 				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
@@ -135,7 +135,7 @@
 				status = "disabled";
 			};
 
-			serial3: uart@2010083000 {
+			serial3: serial@2010083000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x20 0x10083000 0 0x1000>;
 				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;

@@ -123,7 +123,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_pin>;
 
-		syna,startup-delay-ms = <10>;
+		syna,startup-delay-ms = <100>;
 
 		rmi-f01@1 {
 			reg = <0x1>;
@@ -294,8 +294,43 @@
 	};
 };
 
+&remoteproc_adsp {
+	cx-supply = <&pm8841_s2>;
+};
+
+&remoteproc_mss {
+	cx-supply = <&pm8841_s2>;
+	mss-supply = <&pm8841_s3>;
+	mx-supply = <&pm8841_s1>;
+	pll-supply = <&pm8941_l12>;
+};
+
 &rpm_requests {
 	regulators-0 {
+		compatible = "qcom,rpm-pm8841-regulators";
+
+		pm8841_s1: s1 {
+			regulator-min-microvolt = <675000>;
+			regulator-max-microvolt = <1050000>;
+		};
+
+		pm8841_s2: s2 {
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <1050000>;
+		};
+
+		pm8841_s3: s3 {
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <1050000>;
+		};
+
+		pm8841_s4: s4 {
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <1050000>;
+		};
+	};
+
+	regulators-1 {
 		compatible = "qcom,rpm-pm8941-regulators";
 
 		vdd_l1_l3-supply = <&pm8941_s1>;
@@ -516,6 +551,7 @@
 	qcom,fast-charge-safe-current = <1500000>;
 	qcom,fast-charge-current-limit = <1500000>;
 	qcom,dc-current-limit = <1800000>;
+	usb-charge-current-limit = <1800000>;
 	qcom,fast-charge-safe-voltage = <4400000>;
 	qcom,fast-charge-high-threshold-voltage = <4350000>;
 	qcom,fast-charge-low-threshold-voltage = <3400000>;

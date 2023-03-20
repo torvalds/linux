@@ -97,7 +97,7 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	/* Use VM_PFNMAP rather than VM_MIXEDMAP if not a COW mapping */
 	if (!is_cow_mapping(vma->vm_flags))
-		vma->vm_flags = (vma->vm_flags & ~VM_MIXEDMAP) | VM_PFNMAP;
+		vm_flags_mod(vma, VM_PFNMAP, VM_MIXEDMAP);
 
 	ttm_bo_put(bo); /* release extra ref taken by ttm_bo_mmap_obj() */
 

@@ -573,7 +573,8 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	}
 
 	irq_domain_update_bus_token(iommu->ir_domain,  DOMAIN_BUS_DMAR);
-	iommu->ir_domain->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
+	iommu->ir_domain->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT |
+				   IRQ_DOMAIN_FLAG_ISOLATED_MSI;
 
 	if (cap_caching_mode(iommu->cap))
 		iommu->ir_domain->msi_parent_ops = &virt_dmar_msi_parent_ops;

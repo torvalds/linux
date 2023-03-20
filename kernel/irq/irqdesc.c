@@ -277,7 +277,7 @@ static struct attribute *irq_attrs[] = {
 };
 ATTRIBUTE_GROUPS(irq);
 
-static struct kobj_type irq_kobj_type = {
+static const struct kobj_type irq_kobj_type = {
 	.release	= irq_kobj_release,
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.default_groups = irq_groups,
@@ -335,7 +335,7 @@ postcore_initcall(irq_sysfs_init);
 
 #else /* !CONFIG_SYSFS */
 
-static struct kobj_type irq_kobj_type = {
+static const struct kobj_type irq_kobj_type = {
 	.release	= irq_kobj_release,
 };
 

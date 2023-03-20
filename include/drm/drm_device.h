@@ -87,10 +87,23 @@ struct drm_device {
 	 */
 	void *dev_private;
 
-	/** @primary: Primary node */
+	/**
+	 * @primary:
+	 *
+	 * Primary node. Drivers should not interact with this
+	 * directly. debugfs interfaces can be registered with
+	 * drm_debugfs_add_file(), and sysfs should be directly added on the
+	 * hardware (and not character device node) struct device @dev.
+	 */
 	struct drm_minor *primary;
 
-	/** @render: Render node */
+	/**
+	 * @render:
+	 *
+	 * Render node. Drivers should not interact with this directly ever.
+	 * Drivers should not expose any additional interfaces in debugfs or
+	 * sysfs on this node.
+	 */
 	struct drm_minor *render;
 
 	/** @accel: Compute Acceleration node */

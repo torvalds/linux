@@ -19,9 +19,6 @@
 
 #include <sys/eventfd.h>
 
-/* Defined in include/linux/kvm_types.h */
-#define GPA_INVALID		(~(ulong)0)
-
 #define SHINFO_REGION_GVA	0xc0000000ULL
 #define SHINFO_REGION_GPA	0xc0000000ULL
 #define SHINFO_REGION_SLOT	10
@@ -412,21 +409,21 @@ static void *juggle_shinfo_state(void *arg)
 {
 	struct kvm_vm *vm = (struct kvm_vm *)arg;
 
-	struct kvm_xen_hvm_attr cache_init = {
+	struct kvm_xen_hvm_attr cache_activate = {
 		.type = KVM_XEN_ATTR_TYPE_SHARED_INFO,
 		.u.shared_info.gfn = SHINFO_REGION_GPA / PAGE_SIZE
 	};
 
-	struct kvm_xen_hvm_attr cache_destroy = {
+	struct kvm_xen_hvm_attr cache_deactivate = {
 		.type = KVM_XEN_ATTR_TYPE_SHARED_INFO,
-		.u.shared_info.gfn = GPA_INVALID
+		.u.shared_info.gfn = KVM_XEN_INVALID_GFN
 	};
 
 	for (;;) {
-		__vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &cache_init);
-		__vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &cache_destroy);
+		__vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &cache_activate);
+		__vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &cache_deactivate);
 		pthread_testcancel();
-	};
+	}
 
 	return NULL;
 }
@@ -434,6 +431,7 @@ static void *juggle_shinfo_state(void *arg)
 int main(int argc, char *argv[])
 {
 	struct timespec min_ts, max_ts, vm_ts;
+	struct kvm_xen_hvm_attr evt_reset;
 	struct kvm_vm *vm;
 	pthread_t thread;
 	bool verbose;
@@ -962,10 +960,8 @@ int main(int argc, char *argv[])
 	}
 
  done:
-	struct kvm_xen_hvm_attr evt_reset = {
-		.type = KVM_XEN_ATTR_TYPE_EVTCHN,
-		.u.evtchn.flags = KVM_XEN_EVTCHN_RESET,
-	};
+	evt_reset.type = KVM_XEN_ATTR_TYPE_EVTCHN;
+	evt_reset.u.evtchn.flags = KVM_XEN_EVTCHN_RESET;
 	vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &evt_reset);
 
 	alarm(0);

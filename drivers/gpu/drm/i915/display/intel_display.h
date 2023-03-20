@@ -28,9 +28,11 @@
 #include <drm/drm_util.h>
 
 #include "i915_reg_defs.h"
+#include "intel_display_limits.h"
 
 enum drm_scaling_filter;
 struct dpll;
+struct drm_atomic_state;
 struct drm_connector;
 struct drm_device;
 struct drm_display_mode;
@@ -62,50 +64,8 @@ struct intel_remapped_info;
 struct intel_rotation_info;
 struct pci_dev;
 
-/*
- * Keep the pipe enum values fixed: the code assumes that PIPE_A=0, the
- * rest have consecutive values and match the enum values of transcoders
- * with a 1:1 transcoder -> pipe mapping.
- */
-enum pipe {
-	INVALID_PIPE = -1,
-
-	PIPE_A = 0,
-	PIPE_B,
-	PIPE_C,
-	PIPE_D,
-	_PIPE_EDP,
-
-	I915_MAX_PIPES = _PIPE_EDP
-};
 
 #define pipe_name(p) ((p) + 'A')
-
-enum transcoder {
-	INVALID_TRANSCODER = -1,
-	/*
-	 * The following transcoders have a 1:1 transcoder -> pipe mapping,
-	 * keep their values fixed: the code assumes that TRANSCODER_A=0, the
-	 * rest have consecutive values and match the enum values of the pipes
-	 * they map to.
-	 */
-	TRANSCODER_A = PIPE_A,
-	TRANSCODER_B = PIPE_B,
-	TRANSCODER_C = PIPE_C,
-	TRANSCODER_D = PIPE_D,
-
-	/*
-	 * The following transcoders can map to any pipe, their enum value
-	 * doesn't need to stay fixed.
-	 */
-	TRANSCODER_EDP,
-	TRANSCODER_DSI_0,
-	TRANSCODER_DSI_1,
-	TRANSCODER_DSI_A = TRANSCODER_DSI_0,	/* legacy DSI */
-	TRANSCODER_DSI_C = TRANSCODER_DSI_1,	/* legacy DSI */
-
-	I915_MAX_TRANSCODERS
-};
 
 static inline const char *transcoder_name(enum transcoder transcoder)
 {
@@ -147,29 +107,6 @@ enum i9xx_plane_id {
 #define plane_name(p) ((p) + 'A')
 #define sprite_name(p, s) ((p) * RUNTIME_INFO(dev_priv)->num_sprites[(p)] + (s) + 'A')
 
-/*
- * Per-pipe plane identifier.
- * I915_MAX_PLANES in the enum below is the maximum (across all platforms)
- * number of planes per CRTC.  Not all platforms really have this many planes,
- * which means some arrays of size I915_MAX_PLANES may have unused entries
- * between the topmost sprite plane and the cursor plane.
- *
- * This is expected to be passed to various register macros
- * (eg. PLANE_CTL(), PS_PLANE_SEL(), etc.) so adjust with care.
- */
-enum plane_id {
-	PLANE_PRIMARY,
-	PLANE_SPRITE0,
-	PLANE_SPRITE1,
-	PLANE_SPRITE2,
-	PLANE_SPRITE3,
-	PLANE_SPRITE4,
-	PLANE_SPRITE5,
-	PLANE_CURSOR,
-
-	I915_MAX_PLANES,
-};
-
 #define for_each_plane_id_on_crtc(__crtc, __p) \
 	for ((__p) = PLANE_PRIMARY; (__p) < I915_MAX_PLANES; (__p)++) \
 		for_each_if((__crtc)->plane_ids_mask & BIT(__p))
@@ -181,34 +118,6 @@ enum plane_id {
 #define for_each_dbuf_slice_in_mask(__dev_priv, __slice, __mask) \
 	for_each_dbuf_slice((__dev_priv), (__slice)) \
 		for_each_if((__mask) & BIT(__slice))
-
-enum port {
-	PORT_NONE = -1,
-
-	PORT_A = 0,
-	PORT_B,
-	PORT_C,
-	PORT_D,
-	PORT_E,
-	PORT_F,
-	PORT_G,
-	PORT_H,
-	PORT_I,
-
-	/* tgl+ */
-	PORT_TC1 = PORT_D,
-	PORT_TC2,
-	PORT_TC3,
-	PORT_TC4,
-	PORT_TC5,
-	PORT_TC6,
-
-	/* XE_LPD repositions D/E offsets and bitfields */
-	PORT_D_XELPD = PORT_TC5,
-	PORT_E_XELPD,
-
-	I915_MAX_PORTS
-};
 
 #define port_name(p) ((p) + 'A')
 
@@ -263,6 +172,8 @@ enum tc_port_mode {
 };
 
 enum aux_ch {
+	AUX_CH_NONE = -1,
+
 	AUX_CH_A,
 	AUX_CH_B,
 	AUX_CH_C,
@@ -310,27 +221,6 @@ enum phy_fia {
 	FIA1,
 	FIA2,
 	FIA3,
-};
-
-enum hpd_pin {
-	HPD_NONE = 0,
-	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
-	HPD_CRT,
-	HPD_SDVO_B,
-	HPD_SDVO_C,
-	HPD_PORT_A,
-	HPD_PORT_B,
-	HPD_PORT_C,
-	HPD_PORT_D,
-	HPD_PORT_E,
-	HPD_PORT_TC1,
-	HPD_PORT_TC2,
-	HPD_PORT_TC3,
-	HPD_PORT_TC4,
-	HPD_PORT_TC5,
-	HPD_PORT_TC6,
-
-	HPD_NUM_PINS
 };
 
 #define for_each_hpd_pin(__pin) \
@@ -440,6 +330,14 @@ enum hpd_pin {
 	     (__i)++) \
 		for_each_if(plane)
 
+#define for_each_old_intel_crtc_in_state(__state, crtc, old_crtc_state, __i) \
+	for ((__i) = 0; \
+	     (__i) < (__state)->base.dev->mode_config.num_crtc && \
+		     ((crtc) = to_intel_crtc((__state)->base.crtcs[__i].ptr), \
+		      (old_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].old_state), 1); \
+	     (__i)++) \
+		for_each_if(crtc)
+
 #define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0; \
 	     (__i) < (__state)->base.dev->mode_config.num_total_plane && \
@@ -499,6 +397,7 @@ enum hpd_pin {
 			     ((connector) = to_intel_connector((__state)->base.connectors[__i].ptr), \
 			     (new_connector_state) = to_intel_digital_connector_state((__state)->base.connectors[__i].new_state), 1))
 
+int intel_atomic_check(struct drm_device *dev, struct drm_atomic_state *state);
 int intel_atomic_add_affected_planes(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc);
 u8 intel_calc_active_pipes(struct intel_atomic_state *state,

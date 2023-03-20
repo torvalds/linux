@@ -8,7 +8,7 @@
 
 #include <linux/ascii85.h>
 #include <linux/interconnect.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/pm_opp.h>
@@ -352,6 +352,8 @@ int adreno_set_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 		/* Ensure string is null terminated: */
 		str[len] = '\0';
 
+		mutex_lock(&gpu->lock);
+
 		if (param == MSM_PARAM_COMM) {
 			paramp = &ctx->comm;
 		} else {
@@ -360,6 +362,8 @@ int adreno_set_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 
 		kfree(*paramp);
 		*paramp = str;
+
+		mutex_unlock(&gpu->lock);
 
 		return 0;
 	}

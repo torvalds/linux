@@ -207,7 +207,7 @@ void drm_debugfs_create_files(const struct drm_info_list *files, int count,
 
 		tmp->minor = minor;
 		tmp->dent = debugfs_create_file(files[i].name,
-						S_IFREG | S_IRUGO, root, tmp,
+						0444, root, tmp,
 						&drm_debugfs_fops);
 		tmp->info_ent = &files[i];
 
@@ -246,7 +246,7 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		dev->driver->debugfs_init(minor);
 
 	list_for_each_entry_safe(entry, tmp, &dev->debugfs_list, list) {
-		debugfs_create_file(entry->file.name, S_IFREG | S_IRUGO,
+		debugfs_create_file(entry->file.name, 0444,
 				    minor->debugfs_root, entry, &drm_debugfs_entry_fops);
 		list_del(&entry->list);
 	}
@@ -263,7 +263,7 @@ void drm_debugfs_late_register(struct drm_device *dev)
 		return;
 
 	list_for_each_entry_safe(entry, tmp, &dev->debugfs_list, list) {
-		debugfs_create_file(entry->file.name, S_IFREG | S_IRUGO,
+		debugfs_create_file(entry->file.name, 0444,
 				    minor->debugfs_root, entry, &drm_debugfs_entry_fops);
 		list_del(&entry->list);
 	}
@@ -508,15 +508,15 @@ void drm_debugfs_connector_add(struct drm_connector *connector)
 	connector->debugfs_entry = root;
 
 	/* force */
-	debugfs_create_file("force", S_IRUGO | S_IWUSR, root, connector,
+	debugfs_create_file("force", 0644, root, connector,
 			    &drm_connector_fops);
 
 	/* edid */
-	debugfs_create_file("edid_override", S_IRUGO | S_IWUSR, root, connector,
+	debugfs_create_file("edid_override", 0644, root, connector,
 			    &drm_edid_fops);
 
 	/* vrr range */
-	debugfs_create_file("vrr_range", S_IRUGO, root, connector,
+	debugfs_create_file("vrr_range", 0444, root, connector,
 			    &vrr_range_fops);
 
 	/* max bpc */

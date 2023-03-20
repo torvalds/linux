@@ -38,7 +38,7 @@ virtual addresses that contain 0xa in bits 63-60.
 
 ADI is enabled on a set of pages using mprotect() with PROT_ADI flag.
 When ADI is enabled on a set of pages by a task for the first time,
-kernel sets the PSTATE.mcde bit fot the task. Version tags for memory
+kernel sets the PSTATE.mcde bit for the task. Version tags for memory
 addresses are set with an stxa instruction on the addresses using
 ASI_MCD_PRIMARY or ASI_MCD_ST_BLKINIT_PRIMARY. ADI block size is
 provided by the hypervisor to the kernel.  Kernel returns the value of
@@ -97,7 +97,7 @@ With ADI enabled, following new traps may occur:
 Disrupting memory corruption
 ----------------------------
 
-	When a store accesses a memory localtion that has TTE.mcd=1,
+	When a store accesses a memory location that has TTE.mcd=1,
 	the task is running with ADI enabled (PSTATE.mcde=1), and the ADI
 	tag in the address used (bits 63:60) does not match the tag set on
 	the corresponding cacheline, a memory corruption trap occurs. By

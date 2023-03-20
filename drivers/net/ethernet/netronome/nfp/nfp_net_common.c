@@ -38,6 +38,7 @@
 #include <net/tls.h>
 #include <net/vxlan.h>
 #include <net/xdp_sock_drv.h>
+#include <net/xfrm.h>
 
 #include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nsp.h"
@@ -1334,9 +1335,54 @@ err_unlock:
 	return err;
 }
 
-static int nfp_net_mc_cfg(struct net_device *netdev, const unsigned char *addr, const u32 cmd)
+int nfp_net_sched_mbox_amsg_work(struct nfp_net *nn, u32 cmd, const void *data, size_t len,
+				 int (*cb)(struct nfp_net *, struct nfp_mbox_amsg_entry *))
 {
-	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_mbox_amsg_entry *entry;
+
+	entry = kmalloc(sizeof(*entry) + len, GFP_ATOMIC);
+	if (!entry)
+		return -ENOMEM;
+
+	memcpy(entry->msg, data, len);
+	entry->cmd = cmd;
+	entry->cfg = cb;
+
+	spin_lock_bh(&nn->mbox_amsg.lock);
+	list_add_tail(&entry->list, &nn->mbox_amsg.list);
+	spin_unlock_bh(&nn->mbox_amsg.lock);
+
+	schedule_work(&nn->mbox_amsg.work);
+
+	return 0;
+}
+
+static void nfp_net_mbox_amsg_work(struct work_struct *work)
+{
+	struct nfp_net *nn = container_of(work, struct nfp_net, mbox_amsg.work);
+	struct nfp_mbox_amsg_entry *entry, *tmp;
+	struct list_head tmp_list;
+
+	INIT_LIST_HEAD(&tmp_list);
+
+	spin_lock_bh(&nn->mbox_amsg.lock);
+	list_splice_init(&nn->mbox_amsg.list, &tmp_list);
+	spin_unlock_bh(&nn->mbox_amsg.lock);
+
+	list_for_each_entry_safe(entry, tmp, &tmp_list, list) {
+		int err = entry->cfg(nn, entry);
+
+		if (err)
+			nn_err(nn, "Config cmd %d to HW failed %d.\n", entry->cmd, err);
+
+		list_del(&entry->list);
+		kfree(entry);
+	}
+}
+
+static int nfp_net_mc_cfg(struct nfp_net *nn, struct nfp_mbox_amsg_entry *entry)
+{
+	unsigned char *addr = entry->msg;
 	int ret;
 
 	ret = nfp_net_mbox_lock(nn, NFP_NET_CFG_MULTICAST_SZ);
@@ -1348,7 +1394,7 @@ static int nfp_net_mc_cfg(struct net_device *netdev, const unsigned char *addr, 
 	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_MULTICAST_MAC_LO,
 		  get_unaligned_be16(addr + 4));
 
-	return nfp_net_mbox_reconfig_and_unlock(nn, cmd);
+	return nfp_net_mbox_reconfig_and_unlock(nn, entry->cmd);
 }
 
 static int nfp_net_mc_sync(struct net_device *netdev, const unsigned char *addr)
@@ -1361,12 +1407,16 @@ static int nfp_net_mc_sync(struct net_device *netdev, const unsigned char *addr)
 		return -EINVAL;
 	}
 
-	return nfp_net_mc_cfg(netdev, addr, NFP_NET_CFG_MBOX_CMD_MULTICAST_ADD);
+	return nfp_net_sched_mbox_amsg_work(nn, NFP_NET_CFG_MBOX_CMD_MULTICAST_ADD, addr,
+					    NFP_NET_CFG_MULTICAST_SZ, nfp_net_mc_cfg);
 }
 
 static int nfp_net_mc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
-	return nfp_net_mc_cfg(netdev, addr, NFP_NET_CFG_MBOX_CMD_MULTICAST_DEL);
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	return nfp_net_sched_mbox_amsg_work(nn, NFP_NET_CFG_MBOX_CMD_MULTICAST_DEL, addr,
+					    NFP_NET_CFG_MULTICAST_SZ, nfp_net_mc_cfg);
 }
 
 static void nfp_net_set_rx_mode(struct net_device *netdev)
@@ -1847,6 +1897,9 @@ nfp_net_features_check(struct sk_buff *skb, struct net_device *dev,
 		if (unlikely(hdrlen > NFP_NET_LSO_MAX_HDR_SZ - 8))
 			features &= ~NETIF_F_GSO_MASK;
 	}
+
+	if (xfrm_offload(skb))
+		return features;
 
 	/* VXLAN/GRE check */
 	switch (vlan_get_protocol(skb)) {
@@ -2482,10 +2535,15 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	netdev->features &= ~NETIF_F_HW_VLAN_STAG_RX;
 	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_RXQINQ;
 
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC;
+	if (nn->app && nn->app->type->id == NFP_APP_BPF_NIC)
+		netdev->xdp_features |= NETDEV_XDP_ACT_HW_OFFLOAD;
+
 	/* Finalise the netdev setup */
 	switch (nn->dp.ops->version) {
 	case NFP_NFD_VER_NFD3:
 		netdev->netdev_ops = &nfp_nfd3_netdev_ops;
+		netdev->xdp_features |= NETDEV_XDP_ACT_XSK_ZEROCOPY;
 		break;
 	case NFP_NFD_VER_NFDK:
 		netdev->netdev_ops = &nfp_nfdk_netdev_ops;
@@ -2633,6 +2691,11 @@ int nfp_net_init(struct nfp_net *nn)
 
 	if (!nn->dp.netdev)
 		return 0;
+
+	spin_lock_init(&nn->mbox_amsg.lock);
+	INIT_LIST_HEAD(&nn->mbox_amsg.list);
+	INIT_WORK(&nn->mbox_amsg.work, nfp_net_mbox_amsg_work);
+
 	return register_netdev(nn->dp.netdev);
 
 err_clean_mbox:
@@ -2652,5 +2715,6 @@ void nfp_net_clean(struct nfp_net *nn)
 	unregister_netdev(nn->dp.netdev);
 	nfp_net_ipsec_clean(nn);
 	nfp_ccm_mbox_clean(nn);
+	flush_work(&nn->mbox_amsg.work);
 	nfp_net_reconfig_wait_posted(nn);
 }

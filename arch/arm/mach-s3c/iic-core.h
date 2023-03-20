@@ -28,11 +28,4 @@ static inline void s3c_i2c1_setname(char *name)
 #endif
 }
 
-static inline void s3c_i2c2_setname(char *name)
-{
-#ifdef CONFIG_S3C_DEV_I2C2
-	s3c_device_i2c2.name = name;
-#endif
-}
-
 #endif /* __ASM_ARCH_IIC_H */

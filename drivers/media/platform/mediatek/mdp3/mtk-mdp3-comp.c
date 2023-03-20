@@ -1002,7 +1002,8 @@ int mdp_comp_config(struct mdp_dev *mdp)
 		if (!pdev) {
 			dev_warn(dev, "can't find platform device of node:%s\n",
 				 node->name);
-			return -ENODEV;
+			ret = -ENODEV;
+			goto err_init_comps;
 		}
 
 		comp->comp_dev = &pdev->dev;
