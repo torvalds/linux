@@ -113,7 +113,7 @@ int qcom_rpm_smd_write(struct qcom_smd_rpm *rpm,
 	if (WARN_ON(size >= 256))
 		return -EINVAL;
 
-	pkt = kmalloc(size, GFP_KERNEL);
+	pkt = kmalloc(size, GFP_ATOMIC);
 	if (!pkt)
 		return -ENOMEM;
 
