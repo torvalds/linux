@@ -273,6 +273,25 @@ static int arm_spe_set_tid(struct arm_spe_queue *speq, pid_t tid)
 	return 0;
 }
 
+static struct simd_flags arm_spe__synth_simd_flags(const struct arm_spe_record *record)
+{
+	struct simd_flags simd_flags = {};
+
+	if ((record->op & ARM_SPE_OP_LDST) && (record->op & ARM_SPE_OP_SVE_LDST))
+		simd_flags.arch |= SIMD_OP_FLAGS_ARCH_SVE;
+
+	if ((record->op & ARM_SPE_OP_OTHER) && (record->op & ARM_SPE_OP_SVE_OTHER))
+		simd_flags.arch |= SIMD_OP_FLAGS_ARCH_SVE;
+
+	if (record->type & ARM_SPE_SVE_PARTIAL_PRED)
+		simd_flags.pred |= SIMD_OP_FLAGS_PRED_PARTIAL;
+
+	if (record->type & ARM_SPE_SVE_EMPTY_PRED)
+		simd_flags.pred |= SIMD_OP_FLAGS_PRED_EMPTY;
+
+	return simd_flags;
+}
+
 static void arm_spe_prep_sample(struct arm_spe *spe,
 				struct arm_spe_queue *speq,
 				union perf_event *event,
@@ -289,6 +308,7 @@ static void arm_spe_prep_sample(struct arm_spe *spe,
 	sample->tid = speq->tid;
 	sample->period = 1;
 	sample->cpu = speq->cpu;
+	sample->simd_flags = arm_spe__synth_simd_flags(record);
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
 	event->sample.header.misc = sample->cpumode;
