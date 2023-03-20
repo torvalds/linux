@@ -1361,10 +1361,14 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map->unmap_ip = map__unmap_ip;
 			/* Ensure maps are correctly ordered */
 			if (kmaps) {
+				int err;
+
 				map__get(map);
 				maps__remove(kmaps, map);
-				maps__insert(kmaps, map);
+				err = maps__insert(kmaps, map);
 				map__put(map);
+				if (err)
+					return err;
 			}
 		}
 
@@ -1417,7 +1421,8 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
 		}
 		curr_dso->symtab_type = dso->symtab_type;
-		maps__insert(kmaps, curr_map);
+		if (maps__insert(kmaps, curr_map))
+			return -1;
 		/*
 		 * Add it before we drop the reference to curr_map, i.e. while
 		 * we still are sure to have a reference to this DSO via

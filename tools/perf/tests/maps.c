@@ -15,10 +15,12 @@ struct map_def {
 
 static int check_maps(struct map_def *merged, unsigned int size, struct maps *maps)
 {
-	struct map *map;
+	struct map_rb_node *rb_node;
 	unsigned int i = 0;
 
-	maps__for_each_entry(maps, map) {
+	maps__for_each_entry(maps, rb_node) {
+		struct map *map = rb_node->map;
+
 		if (i > 0)
 			TEST_ASSERT_VAL("less maps expected", (map && i < size) || (!map && i == size));
 
@@ -74,7 +76,7 @@ static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest
 
 		map->start = bpf_progs[i].start;
 		map->end   = bpf_progs[i].end;
-		maps__insert(maps, map);
+		TEST_ASSERT_VAL("failed to insert map", maps__insert(maps, map) == 0);
 		map__put(map);
 	}
 

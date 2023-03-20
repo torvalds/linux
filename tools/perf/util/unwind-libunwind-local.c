@@ -306,7 +306,7 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 				     u64 *table_data, u64 *segbase,
 				     u64 *fde_count)
 {
-	struct map *map;
+	struct map_rb_node *map_node;
 	u64 base_addr = UINT64_MAX;
 	int ret, fd;
 
@@ -325,7 +325,9 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 			return -EINVAL;
 	}
 
-	maps__for_each_entry(ui->thread->maps, map) {
+	maps__for_each_entry(ui->thread->maps, map_node) {
+		struct map *map = map_node->map;
+
 		if (map->dso == dso && map->start < base_addr)
 			base_addr = map->start;
 	}

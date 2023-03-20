@@ -669,7 +669,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 				   struct machine *machine)
 {
 	int rc = 0;
-	struct map *pos;
+	struct map_rb_node *pos;
 	struct maps *maps = machine__kernel_maps(machine);
 	union perf_event *event;
 	size_t size = symbol_conf.buildid_mmap2 ?
@@ -692,37 +692,39 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
 
 	maps__for_each_entry(maps, pos) {
-		if (!__map__is_kmodule(pos))
+		struct map *map = pos->map;
+
+		if (!__map__is_kmodule(map))
 			continue;
 
 		if (symbol_conf.buildid_mmap2) {
-			size = PERF_ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
+			size = PERF_ALIGN(map->dso->long_name_len + 1, sizeof(u64));
 			event->mmap2.header.type = PERF_RECORD_MMAP2;
 			event->mmap2.header.size = (sizeof(event->mmap2) -
 						(sizeof(event->mmap2.filename) - size));
 			memset(event->mmap2.filename + size, 0, machine->id_hdr_size);
 			event->mmap2.header.size += machine->id_hdr_size;
-			event->mmap2.start = pos->start;
-			event->mmap2.len   = pos->end - pos->start;
+			event->mmap2.start = map->start;
+			event->mmap2.len   = map->end - map->start;
 			event->mmap2.pid   = machine->pid;
 
-			memcpy(event->mmap2.filename, pos->dso->long_name,
-			       pos->dso->long_name_len + 1);
+			memcpy(event->mmap2.filename, map->dso->long_name,
+			       map->dso->long_name_len + 1);
 
 			perf_record_mmap2__read_build_id(&event->mmap2, machine, false);
 		} else {
-			size = PERF_ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
+			size = PERF_ALIGN(map->dso->long_name_len + 1, sizeof(u64));
 			event->mmap.header.type = PERF_RECORD_MMAP;
 			event->mmap.header.size = (sizeof(event->mmap) -
 						(sizeof(event->mmap.filename) - size));
 			memset(event->mmap.filename + size, 0, machine->id_hdr_size);
 			event->mmap.header.size += machine->id_hdr_size;
-			event->mmap.start = pos->start;
-			event->mmap.len   = pos->end - pos->start;
+			event->mmap.start = map->start;
+			event->mmap.len   = map->end - map->start;
 			event->mmap.pid   = machine->pid;
 
-			memcpy(event->mmap.filename, pos->dso->long_name,
-			       pos->dso->long_name_len + 1);
+			memcpy(event->mmap.filename, map->dso->long_name,
+			       map->dso->long_name_len + 1);
 		}
 
 		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {

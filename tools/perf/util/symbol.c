@@ -273,13 +273,13 @@ void symbols__fixup_end(struct rb_root_cached *symbols, bool is_kallsyms)
 
 void maps__fixup_end(struct maps *maps)
 {
-	struct map *prev = NULL, *curr;
+	struct map_rb_node *prev = NULL, *curr;
 
 	down_write(&maps->lock);
 
 	maps__for_each_entry(maps, curr) {
-		if (prev != NULL && !prev->end)
-			prev->end = curr->start;
+		if (prev != NULL && !prev->map->end)
+			prev->map->end = curr->map->start;
 
 		prev = curr;
 	}
@@ -288,8 +288,8 @@ void maps__fixup_end(struct maps *maps)
 	 * We still haven't the actual symbols, so guess the
 	 * last map final address.
 	 */
-	if (curr && !curr->end)
-		curr->end = ~0ULL;
+	if (curr && !curr->map->end)
+		curr->map->end = ~0ULL;
 
 	up_write(&maps->lock);
 }
@@ -942,7 +942,10 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 			}
 
 			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
-			maps__insert(kmaps, curr_map);
+			if (maps__insert(kmaps, curr_map)) {
+				dso__put(ndso);
+				return -1;
+			}
 			++kernel_range;
 		} else if (delta) {
 			/* Kernel was relocated at boot time */
@@ -1130,14 +1133,15 @@ out_delete_from:
 static int do_validate_kcore_modules(const char *filename, struct maps *kmaps)
 {
 	struct rb_root modules = RB_ROOT;
-	struct map *old_map;
+	struct map_rb_node *old_node;
 	int err;
 
 	err = read_proc_modules(filename, &modules);
 	if (err)
 		return err;
 
-	maps__for_each_entry(kmaps, old_map) {
+	maps__for_each_entry(kmaps, old_node) {
+		struct map *old_map = old_node->map;
 		struct module_info *mi;
 
 		if (!__map__is_kmodule(old_map)) {
@@ -1254,10 +1258,13 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
  */
 int maps__merge_in(struct maps *kmaps, struct map *new_map)
 {
-	struct map *old_map;
+	struct map_rb_node *rb_node;
 	LIST_HEAD(merged);
+	int err = 0;
 
-	maps__for_each_entry(kmaps, old_map) {
+	maps__for_each_entry(kmaps, rb_node) {
+		struct map *old_map = rb_node->map;
+
 		/* no overload with this one */
 		if (new_map->end < old_map->start ||
 		    new_map->start >= old_map->end)
@@ -1281,13 +1288,16 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 				 */
 				struct map_list_node *m = map_list_node__new();
 
-				if (!m)
-					return -ENOMEM;
+				if (!m) {
+					err = -ENOMEM;
+					goto out;
+				}
 
 				m->map = map__clone(new_map);
 				if (!m->map) {
 					free(m);
-					return -ENOMEM;
+					err = -ENOMEM;
+					goto out;
 				}
 
 				m->map->end = old_map->start;
@@ -1319,21 +1329,24 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 		}
 	}
 
+out:
 	while (!list_empty(&merged)) {
 		struct map_list_node *old_node;
 
 		old_node = list_entry(merged.next, struct map_list_node, node);
 		list_del_init(&old_node->node);
-		maps__insert(kmaps, old_node->map);
+		if (!err)
+			err = maps__insert(kmaps, old_node->map);
 		map__put(old_node->map);
 		free(old_node);
 	}
 
 	if (new_map) {
-		maps__insert(kmaps, new_map);
+		if (!err)
+			err = maps__insert(kmaps, new_map);
 		map__put(new_map);
 	}
-	return 0;
+	return err;
 }
 
 static int dso__load_kcore(struct dso *dso, struct map *map,
@@ -1341,7 +1354,8 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 {
 	struct maps *kmaps = map__kmaps(map);
 	struct kcore_mapfn_data md;
-	struct map *old_map, *replacement_map = NULL, *next;
+	struct map *replacement_map = NULL;
+	struct map_rb_node *old_node, *next;
 	struct machine *machine;
 	bool is_64_bit;
 	int err, fd;
@@ -1388,7 +1402,9 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	/* Remove old maps */
-	maps__for_each_entry_safe(kmaps, old_map, next) {
+	maps__for_each_entry_safe(kmaps, old_node, next) {
+		struct map *old_map = old_node->map;
+
 		/*
 		 * We need to preserve eBPF maps even if they are
 		 * covered by kcore, because we need to access
@@ -1443,17 +1459,21 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 			/* Ensure maps are correctly ordered */
 			map__get(map);
 			maps__remove(kmaps, map);
-			maps__insert(kmaps, map);
+			err = maps__insert(kmaps, map);
 			map__put(map);
 			map__put(new_map);
+			if (err)
+				goto out_err;
 		} else {
 			/*
 			 * Merge kcore map into existing maps,
 			 * and ensure that current maps (eBPF)
 			 * stay intact.
 			 */
-			if (maps__merge_in(kmaps, new_map))
+			if (maps__merge_in(kmaps, new_map)) {
+				err = -EINVAL;
 				goto out_err;
+			}
 		}
 		free(new_node);
 	}
@@ -1500,7 +1520,7 @@ out_err:
 		free(list_node);
 	}
 	close(fd);
-	return -EINVAL;
+	return err;
 }
 
 /*
@@ -2044,8 +2064,9 @@ void __maps__sort_by_name(struct maps *maps)
 
 static int map__groups__sort_by_name_from_rbtree(struct maps *maps)
 {
-	struct map *map;
-	struct map **maps_by_name = realloc(maps->maps_by_name, maps->nr_maps * sizeof(map));
+	struct map_rb_node *rb_node;
+	struct map **maps_by_name = realloc(maps->maps_by_name,
+					    maps->nr_maps * sizeof(struct map *));
 	int i = 0;
 
 	if (maps_by_name == NULL)
@@ -2057,8 +2078,8 @@ static int map__groups__sort_by_name_from_rbtree(struct maps *maps)
 	maps->maps_by_name = maps_by_name;
 	maps->nr_maps_allocated = maps->nr_maps;
 
-	maps__for_each_entry(maps, map)
-		maps_by_name[i++] = map;
+	maps__for_each_entry(maps, rb_node)
+		maps_by_name[i++] = rb_node->map;
 
 	__maps__sort_by_name(maps);
 
@@ -2084,6 +2105,7 @@ static struct map *__maps__find_by_name(struct maps *maps, const char *name)
 
 struct map *maps__find_by_name(struct maps *maps, const char *name)
 {
+	struct map_rb_node *rb_node;
 	struct map *map;
 
 	down_read(&maps->lock);
@@ -2102,12 +2124,13 @@ struct map *maps__find_by_name(struct maps *maps, const char *name)
 		goto out_unlock;
 
 	/* Fallback to traversing the rbtree... */
-	maps__for_each_entry(maps, map)
+	maps__for_each_entry(maps, rb_node) {
+		map = rb_node->map;
 		if (strcmp(map->dso->short_name, name) == 0) {
 			maps->last_search_by_name = map;
 			goto out_unlock;
 		}
-
+	}
 	map = NULL;
 
 out_unlock:

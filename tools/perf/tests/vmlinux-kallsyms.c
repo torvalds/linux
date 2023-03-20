@@ -118,7 +118,8 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	int err = TEST_FAIL;
 	struct rb_node *nd;
 	struct symbol *sym;
-	struct map *kallsyms_map, *vmlinux_map, *map;
+	struct map *kallsyms_map, *vmlinux_map;
+	struct map_rb_node *rb_node;
 	struct machine kallsyms, vmlinux;
 	struct maps *maps;
 	u64 mem_start, mem_end;
@@ -290,15 +291,15 @@ next_pair:
 
 	header_printed = false;
 
-	maps__for_each_entry(maps, map) {
-		struct map *
+	maps__for_each_entry(maps, rb_node) {
+		struct map *map = rb_node->map;
 		/*
 		 * If it is the kernel, kallsyms is always "[kernel.kallsyms]", while
 		 * the kernel will have the path for the vmlinux file being used,
 		 * so use the short name, less descriptive but the same ("[kernel]" in
 		 * both cases.
 		 */
-		pair = maps__find_by_name(kallsyms.kmaps, (map->dso->kernel ?
+		struct map *pair = maps__find_by_name(kallsyms.kmaps, (map->dso->kernel ?
 								map->dso->short_name :
 								map->dso->name));
 		if (pair) {
@@ -314,8 +315,8 @@ next_pair:
 
 	header_printed = false;
 
-	maps__for_each_entry(maps, map) {
-		struct map *pair;
+	maps__for_each_entry(maps, rb_node) {
+		struct map *pair, *map = rb_node->map;
 
 		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map->start);
 		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map->end);
@@ -344,7 +345,9 @@ next_pair:
 
 	maps = machine__kernel_maps(&kallsyms);
 
-	maps__for_each_entry(maps, map) {
+	maps__for_each_entry(maps, rb_node) {
+		struct map *map = rb_node->map;
+
 		if (!map->priv) {
 			if (!header_printed) {
 				pr_info("WARN: Maps only in kallsyms:\n");

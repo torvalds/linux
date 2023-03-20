@@ -151,23 +151,27 @@ static int kernel_get_symbol_address_by_name(const char *name, u64 *addr,
 static struct map *kernel_get_module_map(const char *module)
 {
 	struct maps *maps = machine__kernel_maps(host_machine);
-	struct map *pos;
+	struct map_rb_node *pos;
 
 	/* A file path -- this is an offline module */
 	if (module && strchr(module, '/'))
 		return dso__new_map(module);
 
 	if (!module) {
-		pos = machine__kernel_map(host_machine);
-		return map__get(pos);
+		struct map *map = machine__kernel_map(host_machine);
+
+		return map__get(map);
 	}
 
 	maps__for_each_entry(maps, pos) {
 		/* short_name is "[module]" */
-		if (strncmp(pos->dso->short_name + 1, module,
-			    pos->dso->short_name_len - 2) == 0 &&
-		    module[pos->dso->short_name_len - 2] == '\0') {
-			return map__get(pos);
+		const char *short_name = pos->map->dso->short_name;
+		u16 short_name_len =  pos->map->dso->short_name_len;
+
+		if (strncmp(short_name + 1, module,
+			    short_name_len - 2) == 0 &&
+		    module[short_name_len - 2] == '\0') {
+			return map__get(pos->map);
 		}
 	}
 	return NULL;

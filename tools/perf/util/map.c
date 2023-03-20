@@ -111,7 +111,6 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 	map->dso      = dso__get(dso);
 	map->map_ip   = map__map_ip;
 	map->unmap_ip = map__unmap_ip;
-	RB_CLEAR_NODE(&map->rb_node);
 	map->erange_warned = false;
 	refcount_set(&map->refcnt, 1);
 }
@@ -397,7 +396,6 @@ struct map *map__clone(struct map *from)
 	map = memdup(from, size);
 	if (map != NULL) {
 		refcount_set(&map->refcnt, 1);
-		RB_CLEAR_NODE(&map->rb_node);
 		dso__get(map->dso);
 	}
 
@@ -535,20 +533,6 @@ bool map__contains_symbol(const struct map *map, const struct symbol *sym)
 	u64 ip = map->unmap_ip(map, sym->start);
 
 	return ip >= map->start && ip < map->end;
-}
-
-static struct map *__map__next(struct map *map)
-{
-	struct rb_node *next = rb_next(&map->rb_node);
-
-	if (next)
-		return rb_entry(next, struct map, rb_node);
-	return NULL;
-}
-
-struct map *map__next(struct map *map)
-{
-	return map ? __map__next(map) : NULL;
 }
 
 struct kmap *__map__kmap(struct map *map)

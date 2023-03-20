@@ -15,15 +15,22 @@ struct map;
 struct maps;
 struct thread;
 
+struct map_rb_node {
+	struct rb_node rb_node;
+	struct map *map;
+};
+
+struct map_rb_node *maps__first(struct maps *maps);
+struct map_rb_node *map_rb_node__next(struct map_rb_node *node);
+struct map_rb_node *maps__find_node(struct maps *maps, struct map *map);
 struct map *maps__find(struct maps *maps, u64 addr);
-struct map *maps__first(struct maps *maps);
-struct map *map__next(struct map *map);
 
 #define maps__for_each_entry(maps, map) \
-	for (map = maps__first(maps); map; map = map__next(map))
+	for (map = maps__first(maps); map; map = map_rb_node__next(map))
 
 #define maps__for_each_entry_safe(maps, map, next) \
-	for (map = maps__first(maps), next = map__next(map); map; map = next, next = map__next(map))
+	for (map = maps__first(maps), next = map_rb_node__next(map); map; \
+	     map = next, next = map_rb_node__next(map))
 
 struct maps {
 	struct rb_root      entries;
@@ -63,7 +70,7 @@ void maps__put(struct maps *maps);
 int maps__clone(struct thread *thread, struct maps *parent);
 size_t maps__fprintf(struct maps *maps, FILE *fp);
 
-void maps__insert(struct maps *maps, struct map *map);
+int maps__insert(struct maps *maps, struct map *map);
 
 void maps__remove(struct maps *maps, struct map *map);
 

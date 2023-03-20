@@ -883,6 +883,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 
 	if (!map) {
 		struct dso *dso = dso__new(event->ksymbol.name);
+		int err;
 
 		if (dso) {
 			dso->kernel = DSO_SPACE__KERNEL;
@@ -902,8 +903,11 @@ static int machine__process_ksymbol_register(struct machine *machine,
 
 		map->start = event->ksymbol.addr;
 		map->end = map->start + event->ksymbol.len;
-		maps__insert(machine__kernel_maps(machine), map);
+		err = maps__insert(machine__kernel_maps(machine), map);
 		map__put(map);
+		if (err)
+			return err;
+
 		dso__set_loaded(dso);
 
 		if (is_bpf_image(event->ksymbol.name)) {
@@ -1003,6 +1007,7 @@ static struct map *machine__addnew_module_map(struct machine *machine, u64 start
 	struct map *map = NULL;
 	struct kmod_path m;
 	struct dso *dso;
+	int err;
 
 	if (kmod_path__parse_name(&m, filename))
 		return NULL;
@@ -1015,10 +1020,14 @@ static struct map *machine__addnew_module_map(struct machine *machine, u64 start
 	if (map == NULL)
 		goto out;
 
-	maps__insert(machine__kernel_maps(machine), map);
+	err = maps__insert(machine__kernel_maps(machine), map);
 
 	/* Put the map here because maps__insert already got it */
 	map__put(map);
+
+	/* If maps__insert failed, return NULL. */
+	if (err)
+		map = NULL;
 out:
 	/* put the dso here, corresponding to  machine__findnew_module_dso */
 	dso__put(dso);
@@ -1185,10 +1194,11 @@ int machine__create_extra_kernel_map(struct machine *machine,
 {
 	struct kmap *kmap;
 	struct map *map;
+	int err;
 
 	map = map__new2(xm->start, kernel);
 	if (!map)
-		return -1;
+		return -ENOMEM;
 
 	map->end   = xm->end;
 	map->pgoff = xm->pgoff;
@@ -1197,14 +1207,16 @@ int machine__create_extra_kernel_map(struct machine *machine,
 
 	strlcpy(kmap->name, xm->name, KMAP_NAME_LEN);
 
-	maps__insert(machine__kernel_maps(machine), map);
+	err = maps__insert(machine__kernel_maps(machine), map);
 
-	pr_debug2("Added extra kernel map %s %" PRIx64 "-%" PRIx64 "\n",
-		  kmap->name, map->start, map->end);
+	if (!err) {
+		pr_debug2("Added extra kernel map %s %" PRIx64 "-%" PRIx64 "\n",
+			kmap->name, map->start, map->end);
+	}
 
 	map__put(map);
 
-	return 0;
+	return err;
 }
 
 static u64 find_entry_trampoline(struct dso *dso)
@@ -1245,16 +1257,16 @@ int machine__map_x86_64_entry_trampolines(struct machine *machine,
 	struct maps *kmaps = machine__kernel_maps(machine);
 	int nr_cpus_avail, cpu;
 	bool found = false;
-	struct map *map;
+	struct map_rb_node *rb_node;
 	u64 pgoff;
 
 	/*
 	 * In the vmlinux case, pgoff is a virtual address which must now be
 	 * mapped to a vmlinux offset.
 	 */
-	maps__for_each_entry(kmaps, map) {
+	maps__for_each_entry(kmaps, rb_node) {
+		struct map *dest_map, *map = rb_node->map;
 		struct kmap *kmap = __map__kmap(map);
-		struct map *dest_map;
 
 		if (!kmap || !is_entry_trampoline(kmap->name))
 			continue;
@@ -1309,11 +1321,10 @@ __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 
 	machine->vmlinux_map = map__new2(0, kernel);
 	if (machine->vmlinux_map == NULL)
-		return -1;
+		return -ENOMEM;
 
 	machine->vmlinux_map->map_ip = machine->vmlinux_map->unmap_ip = identity__map_ip;
-	maps__insert(machine__kernel_maps(machine), machine->vmlinux_map);
-	return 0;
+	return maps__insert(machine__kernel_maps(machine), machine->vmlinux_map);
 }
 
 void machine__destroy_kernel_maps(struct machine *machine)
@@ -1635,25 +1646,26 @@ static void machine__set_kernel_mmap(struct machine *machine,
 		machine->vmlinux_map->end = ~0ULL;
 }
 
-static void machine__update_kernel_mmap(struct machine *machine,
+static int machine__update_kernel_mmap(struct machine *machine,
 				     u64 start, u64 end)
 {
 	struct map *map = machine__kernel_map(machine);
+	int err;
 
 	map__get(map);
 	maps__remove(machine__kernel_maps(machine), map);
 
 	machine__set_kernel_mmap(machine, start, end);
 
-	maps__insert(machine__kernel_maps(machine), map);
+	err = maps__insert(machine__kernel_maps(machine), map);
 	map__put(map);
+	return err;
 }
 
 int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
 	const char *name = NULL;
-	struct map *map;
 	u64 start = 0, end = ~0ULL;
 	int ret;
 
@@ -1685,7 +1697,9 @@ int machine__create_kernel_maps(struct machine *machine)
 		 * we have a real start address now, so re-order the kmaps
 		 * assume it's the last in the kmaps
 		 */
-		machine__update_kernel_mmap(machine, start, end);
+		ret = machine__update_kernel_mmap(machine, start, end);
+		if (ret < 0)
+			goto out_put;
 	}
 
 	if (machine__create_extra_kernel_maps(machine, kernel))
@@ -1693,9 +1707,12 @@ int machine__create_kernel_maps(struct machine *machine)
 
 	if (end == ~0ULL) {
 		/* update end address of the kernel map using adjacent module address */
-		map = map__next(machine__kernel_map(machine));
-		if (map)
-			machine__set_kernel_mmap(machine, start, map->start);
+		struct map_rb_node *rb_node = maps__find_node(machine__kernel_maps(machine),
+							machine__kernel_map(machine));
+		struct map_rb_node *next = map_rb_node__next(rb_node);
+
+		if (next)
+			machine__set_kernel_mmap(machine, start, next->map->start);
 	}
 
 out_put:
@@ -1828,7 +1845,10 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (strstr(kernel->long_name, "vmlinux"))
 			dso__set_short_name(kernel, "[kernel.vmlinux]", false);
 
-		machine__update_kernel_mmap(machine, xm->start, xm->end);
+		if (machine__update_kernel_mmap(machine, xm->start, xm->end) < 0) {
+			dso__put(kernel);
+			goto out_problem;
+		}
 
 		if (build_id__is_defined(bid))
 			dso__set_build_id(kernel, bid);
@@ -3330,11 +3350,11 @@ int machine__for_each_dso(struct machine *machine, machine__dso_t fn, void *priv
 int machine__for_each_kernel_map(struct machine *machine, machine__map_t fn, void *priv)
 {
 	struct maps *maps = machine__kernel_maps(machine);
-	struct map *map;
+	struct map_rb_node *pos;
 	int err = 0;
 
-	for (map = maps__first(maps); map != NULL; map = map__next(map)) {
-		err = fn(map, priv);
+	maps__for_each_entry(maps, pos) {
+		err = fn(pos->map, priv);
 		if (err != 0) {
 			break;
 		}

@@ -352,9 +352,7 @@ int thread__insert_map(struct thread *thread, struct map *map)
 		return ret;
 
 	maps__fixup_overlappings(thread->maps, map, stderr);
-	maps__insert(thread->maps, map);
-
-	return 0;
+	return maps__insert(thread->maps, map);
 }
 
 static int __thread__prepare_access(struct thread *thread)
@@ -362,12 +360,12 @@ static int __thread__prepare_access(struct thread *thread)
 	bool initialized = false;
 	int err = 0;
 	struct maps *maps = thread->maps;
-	struct map *map;
+	struct map_rb_node *rb_node;
 
 	down_read(&maps->lock);
 
-	maps__for_each_entry(maps, map) {
-		err = unwind__prepare_access(thread->maps, map, &initialized);
+	maps__for_each_entry(maps, rb_node) {
+		err = unwind__prepare_access(thread->maps, rb_node->map, &initialized);
 		if (err || initialized)
 			break;
 	}
