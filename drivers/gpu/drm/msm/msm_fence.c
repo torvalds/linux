@@ -99,7 +99,7 @@ static const struct dma_fence_ops msm_fence_ops = {
 };
 
 struct dma_fence *
-msm_fence_alloc(struct msm_fence_context *fctx)
+msm_fence_alloc(void)
 {
 	struct msm_fence *f;
 
@@ -107,10 +107,16 @@ msm_fence_alloc(struct msm_fence_context *fctx)
 	if (!f)
 		return ERR_PTR(-ENOMEM);
 
+	return &f->base;
+}
+
+void
+msm_fence_init(struct dma_fence *fence, struct msm_fence_context *fctx)
+{
+	struct msm_fence *f = to_msm_fence(fence);
+
 	f->fctx = fctx;
 
 	dma_fence_init(&f->base, &msm_fence_ops, &fctx->spinlock,
 		       fctx->context, ++fctx->last_fence);
-
-	return &f->base;
 }

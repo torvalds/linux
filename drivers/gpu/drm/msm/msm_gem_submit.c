@@ -41,8 +41,16 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	if (!submit)
 		return ERR_PTR(-ENOMEM);
 
+	submit->hw_fence = msm_fence_alloc();
+	if (IS_ERR(submit->hw_fence)) {
+		ret = PTR_ERR(submit->hw_fence);
+		kfree(submit);
+		return ERR_PTR(ret);
+	}
+
 	ret = drm_sched_job_init(&submit->base, queue->entity, queue);
 	if (ret) {
+		kfree(submit->hw_fence);
 		kfree(submit);
 		return ERR_PTR(ret);
 	}
