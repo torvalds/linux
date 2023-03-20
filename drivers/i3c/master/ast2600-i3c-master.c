@@ -579,6 +579,14 @@ to_aspeed_i3c_master(struct i3c_master_controller *master)
 	return container_of(master, struct aspeed_i3c_master, base);
 }
 
+static void aspeed_i3c_master_iba_ctrl(struct aspeed_i3c_master *master, bool ctrl)
+{
+	ctrl ? writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_IBA_INCLUDE,
+		      master->regs + DEVICE_CTRL) :
+	       writel(readl(master->regs + DEVICE_CTRL) & ~DEV_CTRL_IBA_INCLUDE,
+		      master->regs + DEVICE_CTRL);
+}
+
 static void aspeed_i3c_master_disable(struct aspeed_i3c_master *master)
 {
 	writel(readl(master->regs + DEVICE_CTRL) & ~DEV_CTRL_ENABLE,
@@ -2828,6 +2836,7 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 		goto err_assert_rst;
 
 	if (!master->secondary && !master->base.jdec_spd) {
+		aspeed_i3c_master_iba_ctrl(master, true);
 		ret = aspeed_i3c_master_enable_hj(master);
 		if (ret)
 			goto err_master_register;
