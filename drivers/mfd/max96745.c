@@ -116,6 +116,9 @@ static void max96745_power_on(struct max96745 *max96745)
 		msleep(200);
 	}
 
+	/* Set for I2C Fast-mode speed */
+	regmap_write(max96745->regmap, 0x0070, 0x16);
+
 	if (max96745->idle_disc) {
 		regmap_update_bits(max96745->regmap, 0x0076, DIS_REM_CC,
 				   FIELD_PREP(DIS_REM_CC, 1));
