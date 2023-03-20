@@ -11,7 +11,7 @@ maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
 allOf:
-  - $ref: "rc.yaml#"
+  - $ref: rc.yaml#
 
 properties:
   compatible:

@@ -18,7 +18,7 @@ properties:
     description:
       Specifies the scancode/key mapping table defined in-kernel for
       the remote controller.
-    $ref: '/schemas/types.yaml#/definitions/string'
+    $ref: /schemas/types.yaml#/definitions/string
     enum:
       - rc-adstech-dvb-t-pci
       - rc-alink-dtu-m
