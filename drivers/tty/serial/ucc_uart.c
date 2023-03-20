@@ -366,15 +366,14 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 	/* Pick next descriptor and fill from buffer */
 	bdp = qe_port->tx_cur;
 
-	while (!(ioread16be(&bdp->status) & BD_SC_READY) &&
-	       (xmit->tail != xmit->head)) {
+	while (!(ioread16be(&bdp->status) & BD_SC_READY) && !uart_circ_empty(xmit)) {
 		count = 0;
 		p = qe2cpu_addr(be32_to_cpu(bdp->buf), qe_port);
 		while (count < qe_port->tx_fifosize) {
 			*p++ = xmit->buf[xmit->tail];
 			uart_xmit_advance(port, 1);
 			count++;
-			if (xmit->head == xmit->tail)
+			if (uart_circ_empty(xmit))
 				break;
 		}
 
