@@ -1520,13 +1520,41 @@ void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_prepare);
 
+static void hisi_sas_async_init_wait_phyup(void *data, async_cookie_t cookie)
+{
+	struct hisi_sas_phy *phy = data;
+	struct hisi_hba *hisi_hba = phy->hisi_hba;
+	struct device *dev = hisi_hba->dev;
+	DECLARE_COMPLETION_ONSTACK(completion);
+	int phy_no = phy->sas_phy.id;
+
+	phy->reset_completion = &completion;
+	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
+	if (!wait_for_completion_timeout(&completion,
+					 HISI_SAS_WAIT_PHYUP_TIMEOUT))
+		dev_warn(dev, "phy%d wait phyup timed out\n", phy_no);
+
+	phy->reset_completion = NULL;
+}
+
 void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 {
 	struct Scsi_Host *shost = hisi_hba->shost;
+	ASYNC_DOMAIN_EXCLUSIVE(async);
+	int phy_no;
 
 	/* Init and wait for PHYs to come up and all libsas event finished. */
-	hisi_hba->hw->phys_init(hisi_hba);
-	msleep(1000);
+	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+
+		if (!(hisi_hba->phy_state & BIT(phy_no)))
+			continue;
+
+		async_schedule_domain(hisi_sas_async_init_wait_phyup,
+				      phy, &async);
+	}
+
+	async_synchronize_full_domain(&async);
 	hisi_sas_refresh_port_id(hisi_hba);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
