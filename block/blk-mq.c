@@ -46,51 +46,15 @@
 
 static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
-static void blk_mq_poll_stats_start(struct request_queue *q);
-static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
-
-static int blk_mq_poll_stats_bkt(const struct request *rq)
-{
-	int ddir, sectors, bucket;
-
-	ddir = rq_data_dir(rq);
-	sectors = blk_rq_stats_sectors(rq);
-
-	bucket = ddir + 2 * ilog2(sectors);
-
-	if (bucket < 0)
-		return -1;
-	else if (bucket >= BLK_MQ_POLL_STATS_BKTS)
-		return ddir + BLK_MQ_POLL_STATS_BKTS - 2;
-
-	return bucket;
-}
-
-#define BLK_QC_T_SHIFT		16
-#define BLK_QC_T_INTERNAL	(1U << 31)
-
 static inline struct blk_mq_hw_ctx *blk_qc_to_hctx(struct request_queue *q,
 		blk_qc_t qc)
 {
-	return xa_load(&q->hctx_table,
-			(qc & ~BLK_QC_T_INTERNAL) >> BLK_QC_T_SHIFT);
-}
-
-static inline struct request *blk_qc_to_rq(struct blk_mq_hw_ctx *hctx,
-		blk_qc_t qc)
-{
-	unsigned int tag = qc & ((1U << BLK_QC_T_SHIFT) - 1);
-
-	if (qc & BLK_QC_T_INTERNAL)
-		return blk_mq_tag_to_rq(hctx->sched_tags, tag);
-	return blk_mq_tag_to_rq(hctx->tags, tag);
+	return xa_load(&q->hctx_table, qc);
 }
 
 static inline blk_qc_t blk_rq_to_qc(struct request *rq)
 {
-	return (rq->mq_hctx->queue_num << BLK_QC_T_SHIFT) |
-		(rq->tag != -1 ?
-		 rq->tag : (rq->internal_tag | BLK_QC_T_INTERNAL));
+	return rq->mq_hctx->queue_num;
 }
 
 /*
@@ -1038,10 +1002,8 @@ static inline void blk_account_io_start(struct request *req)
 
 static inline void __blk_mq_end_request_acct(struct request *rq, u64 now)
 {
-	if (rq->rq_flags & RQF_STATS) {
-		blk_mq_poll_stats_start(rq->q);
+	if (rq->rq_flags & RQF_STATS)
 		blk_stat_add(rq, now);
-	}
 
 	blk_mq_sched_completed_request(rq, now);
 	blk_account_io_done(rq, now);
@@ -4222,14 +4184,8 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	/* mark the queue as mq asap */
 	q->mq_ops = set->ops;
 
-	q->poll_cb = blk_stat_alloc_callback(blk_mq_poll_stats_fn,
-					     blk_mq_poll_stats_bkt,
-					     BLK_MQ_POLL_STATS_BKTS, q);
-	if (!q->poll_cb)
-		goto err_exit;
-
 	if (blk_mq_alloc_ctxs(q))
-		goto err_poll;
+		goto err_exit;
 
 	/* init q->mq_kobj and sw queues' kobjects */
 	blk_mq_sysfs_init(q);
@@ -4257,11 +4213,6 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 
 	q->nr_requests = set->queue_depth;
 
-	/*
-	 * Default to classic polling
-	 */
-	q->poll_nsec = BLK_MQ_POLL_CLASSIC;
-
 	blk_mq_init_cpu_queues(q, set->nr_hw_queues);
 	blk_mq_add_queue_tag_set(set, q);
 	blk_mq_map_swqueue(q);
@@ -4269,9 +4220,6 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 
 err_hctxs:
 	blk_mq_release(q);
-err_poll:
-	blk_stat_free_callback(q->poll_cb);
-	q->poll_cb = NULL;
 err_exit:
 	q->mq_ops = NULL;
 	return -ENOMEM;
@@ -4768,138 +4716,8 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 }
 EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
 
-/* Enable polling stats and return whether they were already enabled. */
-static bool blk_poll_stats_enable(struct request_queue *q)
-{
-	if (q->poll_stat)
-		return true;
-
-	return blk_stats_alloc_enable(q);
-}
-
-static void blk_mq_poll_stats_start(struct request_queue *q)
-{
-	/*
-	 * We don't arm the callback if polling stats are not enabled or the
-	 * callback is already active.
-	 */
-	if (!q->poll_stat || blk_stat_is_active(q->poll_cb))
-		return;
-
-	blk_stat_activate_msecs(q->poll_cb, 100);
-}
-
-static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb)
-{
-	struct request_queue *q = cb->data;
-	int bucket;
-
-	for (bucket = 0; bucket < BLK_MQ_POLL_STATS_BKTS; bucket++) {
-		if (cb->stat[bucket].nr_samples)
-			q->poll_stat[bucket] = cb->stat[bucket];
-	}
-}
-
-static unsigned long blk_mq_poll_nsecs(struct request_queue *q,
-				       struct request *rq)
-{
-	unsigned long ret = 0;
-	int bucket;
-
-	/*
-	 * If stats collection isn't on, don't sleep but turn it on for
-	 * future users
-	 */
-	if (!blk_poll_stats_enable(q))
-		return 0;
-
-	/*
-	 * As an optimistic guess, use half of the mean service time
-	 * for this type of request. We can (and should) make this smarter.
-	 * For instance, if the completion latencies are tight, we can
-	 * get closer than just half the mean. This is especially
-	 * important on devices where the completion latencies are longer
-	 * than ~10 usec. We do use the stats for the relevant IO size
-	 * if available which does lead to better estimates.
-	 */
-	bucket = blk_mq_poll_stats_bkt(rq);
-	if (bucket < 0)
-		return ret;
-
-	if (q->poll_stat[bucket].nr_samples)
-		ret = (q->poll_stat[bucket].mean + 1) / 2;
-
-	return ret;
-}
-
-static bool blk_mq_poll_hybrid(struct request_queue *q, blk_qc_t qc)
-{
-	struct blk_mq_hw_ctx *hctx = blk_qc_to_hctx(q, qc);
-	struct request *rq = blk_qc_to_rq(hctx, qc);
-	struct hrtimer_sleeper hs;
-	enum hrtimer_mode mode;
-	unsigned int nsecs;
-	ktime_t kt;
-
-	/*
-	 * If a request has completed on queue that uses an I/O scheduler, we
-	 * won't get back a request from blk_qc_to_rq.
-	 */
-	if (!rq || (rq->rq_flags & RQF_MQ_POLL_SLEPT))
-		return false;
-
-	/*
-	 * If we get here, hybrid polling is enabled. Hence poll_nsec can be:
-	 *
-	 *  0:	use half of prev avg
-	 * >0:	use this specific value
-	 */
-	if (q->poll_nsec > 0)
-		nsecs = q->poll_nsec;
-	else
-		nsecs = blk_mq_poll_nsecs(q, rq);
-
-	if (!nsecs)
-		return false;
-
-	rq->rq_flags |= RQF_MQ_POLL_SLEPT;
-
-	/*
-	 * This will be replaced with the stats tracking code, using
-	 * 'avg_completion_time / 2' as the pre-sleep target.
-	 */
-	kt = nsecs;
-
-	mode = HRTIMER_MODE_REL;
-	hrtimer_init_sleeper_on_stack(&hs, CLOCK_MONOTONIC, mode);
-	hrtimer_set_expires(&hs.timer, kt);
-
-	do {
-		if (blk_mq_rq_state(rq) == MQ_RQ_COMPLETE)
-			break;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		hrtimer_sleeper_start_expires(&hs, mode);
-		if (hs.task)
-			io_schedule();
-		hrtimer_cancel(&hs.timer);
-		mode = HRTIMER_MODE_ABS;
-	} while (hs.task && !signal_pending(current));
-
-	__set_current_state(TASK_RUNNING);
-	destroy_hrtimer_on_stack(&hs.timer);
-
-	/*
-	 * If we sleep, have the caller restart the poll loop to reset the
-	 * state.  Like for the other success return cases, the caller is
-	 * responsible for checking if the IO completed.  If the IO isn't
-	 * complete, we'll get called again and will go straight to the busy
-	 * poll loop.
-	 */
-	return true;
-}
-
-static int blk_mq_poll_classic(struct request_queue *q, blk_qc_t cookie,
-			       struct io_comp_batch *iob, unsigned int flags)
+int blk_mq_poll(struct request_queue *q, blk_qc_t cookie, struct io_comp_batch *iob,
+		unsigned int flags)
 {
 	struct blk_mq_hw_ctx *hctx = blk_qc_to_hctx(q, cookie);
 	long state = get_current_state();
@@ -4924,17 +4742,6 @@ static int blk_mq_poll_classic(struct request_queue *q, blk_qc_t cookie,
 
 	__set_current_state(TASK_RUNNING);
 	return 0;
-}
-
-int blk_mq_poll(struct request_queue *q, blk_qc_t cookie, struct io_comp_batch *iob,
-		unsigned int flags)
-{
-	if (!(flags & BLK_POLL_NOSLEEP) &&
-	    q->poll_nsec != BLK_MQ_POLL_CLASSIC) {
-		if (blk_mq_poll_hybrid(q, cookie))
-			return 1;
-	}
-	return blk_mq_poll_classic(q, cookie, iob, flags);
 }
 
 unsigned int blk_mq_rq_cpu(struct request *rq)
