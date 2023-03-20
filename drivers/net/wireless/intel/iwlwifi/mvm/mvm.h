@@ -1769,6 +1769,8 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 /* AP and IBSS */
 bool iwl_mvm_start_ap_ibss_common(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif, int *ret);
+void iwl_mvm_stop_ap_ibss_common(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif);
 
 /* Quota management */
 static inline size_t iwl_mvm_quota_cmd_size(struct iwl_mvm *mvm)

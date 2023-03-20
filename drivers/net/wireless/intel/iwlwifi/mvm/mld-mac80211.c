@@ -322,10 +322,40 @@ out_unlock:
 	return ret;
 }
 
+static void iwl_mvm_mld_stop_ap_ibss(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	mutex_lock(&mvm->mutex);
+
+	iwl_mvm_stop_ap_ibss_common(mvm, vif);
+
+	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
+	if (vif->p2p && mvm->p2p_device_vif)
+		iwl_mvm_mld_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false);
+
+	iwl_mvm_ftm_responder_clear(mvm, vif);
+
+	iwl_mvm_mld_rm_bcast_sta(mvm, vif);
+	iwl_mvm_mld_rm_mcast_sta(mvm, vif);
+
+	/* Link needs to be deactivated before removal */
+	iwl_mvm_link_changed(mvm, vif, LINK_CONTEXT_MODIFY_ACTIVE, false);
+	iwl_mvm_remove_link(mvm, vif);
+
+	iwl_mvm_power_update_mac(mvm);
+
+	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
+
+	mutex_unlock(&mvm->mutex);
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.add_interface = iwl_mvm_mld_mac_add_interface,
 	.remove_interface = iwl_mvm_mld_mac_remove_interface,
 	.assign_vif_chanctx = iwl_mvm_mld_assign_vif_chanctx,
 	.unassign_vif_chanctx = iwl_mvm_mld_unassign_vif_chanctx,
 	.join_ibss = iwl_mvm_mld_start_ap_ibss,
+	.leave_ibss = iwl_mvm_mld_stop_ap_ibss,
 };
