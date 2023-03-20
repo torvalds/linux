@@ -250,7 +250,7 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 	submit->bos[i].flags &= ~cleanup_flags;
 
 	if (flags & BO_VMA_PINNED)
-		msm_gem_unpin_vma(submit->bos[i].vma);
+		msm_gem_vma_unpin(submit->bos[i].vma);
 
 	if (flags & BO_OBJ_PINNED)
 		msm_gem_unpin_locked(obj);

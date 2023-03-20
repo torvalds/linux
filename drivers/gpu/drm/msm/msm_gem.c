@@ -309,11 +309,9 @@ static struct msm_gem_vma *add_vma(struct drm_gem_object *obj,
 
 	msm_gem_assert_locked(obj);
 
-	vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	vma = msm_gem_vma_new(aspace);
 	if (!vma)
 		return ERR_PTR(-ENOMEM);
-
-	vma->aspace = aspace;
 
 	list_add_tail(&vma->list, &msm_obj->vmas);
 
@@ -361,9 +359,9 @@ put_iova_spaces(struct drm_gem_object *obj, bool close)
 
 	list_for_each_entry(vma, &msm_obj->vmas, list) {
 		if (vma->aspace) {
-			msm_gem_purge_vma(vma->aspace, vma);
+			msm_gem_vma_purge(vma);
 			if (close)
-				msm_gem_close_vma(vma->aspace, vma);
+				msm_gem_vma_close(vma);
 		}
 	}
 }
@@ -399,7 +397,7 @@ static struct msm_gem_vma *get_vma_locked(struct drm_gem_object *obj,
 		if (IS_ERR(vma))
 			return vma;
 
-		ret = msm_gem_init_vma(aspace, vma, obj->size,
+		ret = msm_gem_vma_init(vma, obj->size,
 			range_start, range_end);
 		if (ret) {
 			del_vma(vma);
@@ -437,7 +435,7 @@ int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct msm_gem_vma *vma)
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
-	ret = msm_gem_map_vma(vma->aspace, vma, prot, msm_obj->sgt, obj->size);
+	ret = msm_gem_vma_map(vma, prot, msm_obj->sgt, obj->size);
 	if (ret)
 		msm_gem_unpin_locked(obj);
 
@@ -539,8 +537,8 @@ static int clear_iova(struct drm_gem_object *obj,
 	if (msm_gem_vma_inuse(vma))
 		return -EBUSY;
 
-	msm_gem_purge_vma(vma->aspace, vma);
-	msm_gem_close_vma(vma->aspace, vma);
+	msm_gem_vma_purge(vma);
+	msm_gem_vma_close(vma);
 	del_vma(vma);
 
 	return 0;
@@ -589,7 +587,7 @@ void msm_gem_unpin_iova(struct drm_gem_object *obj,
 	msm_gem_lock(obj);
 	vma = lookup_vma(obj, aspace);
 	if (!GEM_WARN_ON(!vma)) {
-		msm_gem_unpin_vma(vma);
+		msm_gem_vma_unpin(vma);
 		msm_gem_unpin_locked(obj);
 	}
 	msm_gem_unlock(obj);
