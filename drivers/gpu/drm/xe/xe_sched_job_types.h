@@ -40,7 +40,7 @@ struct xe_sched_job {
 	/** @migrate_flush_flags: Additional flush flags for migration jobs */
 	u32 migrate_flush_flags;
 	/** @batch_addr: batch buffer address of job */
-	u64 batch_addr[0];
+	u64 batch_addr[];
 };
 
 #endif

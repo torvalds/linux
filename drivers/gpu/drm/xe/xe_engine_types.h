@@ -164,7 +164,7 @@ struct xe_engine {
 	/** @entity: DRM sched entity for this engine (1 to 1 relationship) */
 	struct drm_sched_entity *entity;
 	/** @lrc: logical ring context for this engine */
-	struct xe_lrc lrc[0];
+	struct xe_lrc lrc[];
 };
 
 /**
