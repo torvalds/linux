@@ -234,7 +234,7 @@ bool __map__is_kernel(const struct map *map)
 {
 	if (!map->dso->kernel)
 		return false;
-	return machine__kernel_map(map__kmaps((struct map *)map)->machine) == map;
+	return machine__kernel_map(maps__machine(map__kmaps((struct map *)map))) == map;
 }
 
 bool __map__is_extra_kernel_map(const struct map *map)
@@ -475,11 +475,15 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	 * kcore may not either. However the trampoline object code is on the
 	 * main kernel map, so just use that instead.
 	 */
-	if (kmap && is_entry_trampoline(kmap->name) && kmap->kmaps && kmap->kmaps->machine) {
-		struct map *kernel_map = machine__kernel_map(kmap->kmaps->machine);
+	if (kmap && is_entry_trampoline(kmap->name) && kmap->kmaps) {
+		struct machine *machine = maps__machine(kmap->kmaps);
 
-		if (kernel_map)
-			map = kernel_map;
+		if (machine) {
+			struct map *kernel_map = machine__kernel_map(machine);
+
+			if (kernel_map)
+				map = kernel_map;
+		}
 	}
 
 	if (!map->dso->adjust_symbols)

@@ -362,7 +362,7 @@ static int __thread__prepare_access(struct thread *thread)
 	struct maps *maps = thread->maps;
 	struct map_rb_node *rb_node;
 
-	down_read(&maps->lock);
+	down_read(maps__lock(maps));
 
 	maps__for_each_entry(maps, rb_node) {
 		err = unwind__prepare_access(thread->maps, rb_node->map, &initialized);
@@ -370,7 +370,7 @@ static int __thread__prepare_access(struct thread *thread)
 			break;
 	}
 
-	up_read(&maps->lock);
+	up_read(maps__lock(maps));
 
 	return err;
 }

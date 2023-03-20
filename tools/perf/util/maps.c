@@ -13,7 +13,7 @@
 static void maps__init(struct maps *maps, struct machine *machine)
 {
 	maps->entries = RB_ROOT;
-	init_rwsem(&maps->lock);
+	init_rwsem(maps__lock(maps));
 	maps->machine = machine;
 	maps->last_search_by_name = NULL;
 	maps->nr_maps = 0;
@@ -32,7 +32,7 @@ static void __maps__free_maps_by_name(struct maps *maps)
 
 static int __maps__insert(struct maps *maps, struct map *map)
 {
-	struct rb_node **p = &maps->entries.rb_node;
+	struct rb_node **p = &maps__entries(maps)->rb_node;
 	struct rb_node *parent = NULL;
 	const u64 ip = map->start;
 	struct map_rb_node *m, *new_rb_node;
@@ -54,7 +54,7 @@ static int __maps__insert(struct maps *maps, struct map *map)
 	}
 
 	rb_link_node(&new_rb_node->rb_node, parent, p);
-	rb_insert_color(&new_rb_node->rb_node, &maps->entries);
+	rb_insert_color(&new_rb_node->rb_node, maps__entries(maps));
 	map__get(map);
 	return 0;
 }
@@ -63,7 +63,7 @@ int maps__insert(struct maps *maps, struct map *map)
 {
 	int err;
 
-	down_write(&maps->lock);
+	down_write(maps__lock(maps));
 	err = __maps__insert(maps, map);
 	if (err)
 		goto out;
@@ -84,10 +84,11 @@ int maps__insert(struct maps *maps, struct map *map)
 	 * If we already performed some search by name, then we need to add the just
 	 * inserted map and resort.
 	 */
-	if (maps->maps_by_name) {
-		if (maps->nr_maps > maps->nr_maps_allocated) {
-			int nr_allocate = maps->nr_maps * 2;
-			struct map **maps_by_name = realloc(maps->maps_by_name, nr_allocate * sizeof(map));
+	if (maps__maps_by_name(maps)) {
+		if (maps__nr_maps(maps) > maps->nr_maps_allocated) {
+			int nr_allocate = maps__nr_maps(maps) * 2;
+			struct map **maps_by_name = realloc(maps__maps_by_name(maps),
+							    nr_allocate * sizeof(map));
 
 			if (maps_by_name == NULL) {
 				__maps__free_maps_by_name(maps);
@@ -97,18 +98,18 @@ int maps__insert(struct maps *maps, struct map *map)
 
 			maps->maps_by_name = maps_by_name;
 			maps->nr_maps_allocated = nr_allocate;
-}
-		maps->maps_by_name[maps->nr_maps - 1] = map;
+		}
+		maps__maps_by_name(maps)[maps__nr_maps(maps) - 1] = map;
 		__maps__sort_by_name(maps);
 	}
  out:
-	up_write(&maps->lock);
+	up_write(maps__lock(maps));
 	return err;
 }
 
 static void __maps__remove(struct maps *maps, struct map_rb_node *rb_node)
 {
-	rb_erase_init(&rb_node->rb_node, &maps->entries);
+	rb_erase_init(&rb_node->rb_node, maps__entries(maps));
 	map__put(rb_node->map);
 	free(rb_node);
 }
@@ -117,7 +118,7 @@ void maps__remove(struct maps *maps, struct map *map)
 {
 	struct map_rb_node *rb_node;
 
-	down_write(&maps->lock);
+	down_write(maps__lock(maps));
 	if (maps->last_search_by_name == map)
 		maps->last_search_by_name = NULL;
 
@@ -125,9 +126,9 @@ void maps__remove(struct maps *maps, struct map *map)
 	assert(rb_node->map == map);
 	__maps__remove(maps, rb_node);
 	--maps->nr_maps;
-	if (maps->maps_by_name)
+	if (maps__maps_by_name(maps))
 		__maps__free_maps_by_name(maps);
-	up_write(&maps->lock);
+	up_write(maps__lock(maps));
 }
 
 static void __maps__purge(struct maps *maps)
@@ -135,7 +136,7 @@ static void __maps__purge(struct maps *maps)
 	struct map_rb_node *pos, *next;
 
 	maps__for_each_entry_safe(maps, pos, next) {
-		rb_erase_init(&pos->rb_node,  &maps->entries);
+		rb_erase_init(&pos->rb_node,  maps__entries(maps));
 		map__put(pos->map);
 		free(pos);
 	}
@@ -143,9 +144,9 @@ static void __maps__purge(struct maps *maps)
 
 static void maps__exit(struct maps *maps)
 {
-	down_write(&maps->lock);
+	down_write(maps__lock(maps));
 	__maps__purge(maps);
-	up_write(&maps->lock);
+	up_write(maps__lock(maps));
 }
 
 bool maps__empty(struct maps *maps)
@@ -168,6 +169,14 @@ void maps__delete(struct maps *maps)
 	maps__exit(maps);
 	unwind__finish_access(maps);
 	free(maps);
+}
+
+struct maps *maps__get(struct maps *maps)
+{
+	if (maps)
+		refcount_inc(&maps->refcnt);
+
+	return maps;
 }
 
 void maps__put(struct maps *maps)
@@ -195,7 +204,7 @@ struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, st
 	struct symbol *sym;
 	struct map_rb_node *pos;
 
-	down_read(&maps->lock);
+	down_read(maps__lock(maps));
 
 	maps__for_each_entry(maps, pos) {
 		sym = map__find_symbol_by_name(pos->map, name);
@@ -213,7 +222,7 @@ struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, st
 
 	sym = NULL;
 out:
-	up_read(&maps->lock);
+	up_read(maps__lock(maps));
 	return sym;
 }
 
@@ -238,7 +247,7 @@ size_t maps__fprintf(struct maps *maps, FILE *fp)
 	size_t printed = 0;
 	struct map_rb_node *pos;
 
-	down_read(&maps->lock);
+	down_read(maps__lock(maps));
 
 	maps__for_each_entry(maps, pos) {
 		printed += fprintf(fp, "Map:");
@@ -249,7 +258,7 @@ size_t maps__fprintf(struct maps *maps, FILE *fp)
 		}
 	}
 
-	up_read(&maps->lock);
+	up_read(maps__lock(maps));
 
 	return printed;
 }
@@ -260,9 +269,9 @@ int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 	struct rb_node *next, *first;
 	int err = 0;
 
-	down_write(&maps->lock);
+	down_write(maps__lock(maps));
 
-	root = &maps->entries;
+	root = maps__entries(maps);
 
 	/*
 	 * Find first map where end > map->start.
@@ -358,7 +367,7 @@ put_map:
 
 	err = 0;
 out:
-	up_write(&maps->lock);
+	up_write(maps__lock(maps));
 	return err;
 }
 
@@ -371,7 +380,7 @@ int maps__clone(struct thread *thread, struct maps *parent)
 	int err;
 	struct map_rb_node *rb_node;
 
-	down_read(&parent->lock);
+	down_read(maps__lock(parent));
 
 	maps__for_each_entry(parent, rb_node) {
 		struct map *new = map__clone(rb_node->map);
@@ -394,7 +403,7 @@ int maps__clone(struct thread *thread, struct maps *parent)
 
 	err = 0;
 out_unlock:
-	up_read(&parent->lock);
+	up_read(maps__lock(parent));
 	return err;
 }
 
@@ -415,9 +424,9 @@ struct map *maps__find(struct maps *maps, u64 ip)
 	struct map_rb_node *m;
 
 
-	down_read(&maps->lock);
+	down_read(maps__lock(maps));
 
-	p = maps->entries.rb_node;
+	p = maps__entries(maps)->rb_node;
 	while (p != NULL) {
 		m = rb_entry(p, struct map_rb_node, rb_node);
 		if (ip < m->map->start)
@@ -430,13 +439,13 @@ struct map *maps__find(struct maps *maps, u64 ip)
 
 	m = NULL;
 out:
-	up_read(&maps->lock);
+	up_read(maps__lock(maps));
 	return m ? m->map : NULL;
 }
 
 struct map_rb_node *maps__first(struct maps *maps)
 {
-	struct rb_node *first = rb_first(&maps->entries);
+	struct rb_node *first = rb_first(maps__entries(maps));
 
 	if (first)
 		return rb_entry(first, struct map_rb_node, rb_node);

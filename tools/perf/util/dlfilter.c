@@ -197,8 +197,12 @@ static const __u8 *dlfilter__insn(void *ctx, __u32 *len)
 		if (!al->thread && machine__resolve(d->machine, al, d->sample) < 0)
 			return NULL;
 
-		if (al->thread->maps && al->thread->maps->machine)
-			script_fetch_insn(d->sample, al->thread, al->thread->maps->machine);
+		if (al->thread->maps) {
+			struct machine *machine = maps__machine(al->thread->maps);
+
+			if (machine)
+				script_fetch_insn(d->sample, al->thread, machine);
+		}
 	}
 
 	if (!d->sample->insn_len)

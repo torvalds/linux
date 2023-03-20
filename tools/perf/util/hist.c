@@ -241,7 +241,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 
 	if (h->cgroup) {
 		const char *cgrp_name = "unknown";
-		struct cgroup *cgrp = cgroup__find(h->ms.maps->machine->env,
+		struct cgroup *cgrp = cgroup__find(maps__machine(h->ms.maps)->env,
 						   h->cgroup);
 		if (cgrp != NULL)
 			cgrp_name = cgrp->name;

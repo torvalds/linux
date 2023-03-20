@@ -43,7 +43,7 @@ struct maps {
 	unsigned int	 nr_maps_allocated;
 #ifdef HAVE_LIBUNWIND_SUPPORT
 	void				*addr_space;
-	struct unwind_libunwind_ops	*unwind_libunwind_ops;
+	const struct unwind_libunwind_ops *unwind_libunwind_ops;
 #endif
 };
 
@@ -58,20 +58,51 @@ struct kmap {
 struct maps *maps__new(struct machine *machine);
 void maps__delete(struct maps *maps);
 bool maps__empty(struct maps *maps);
+int maps__clone(struct thread *thread, struct maps *parent);
 
-static inline struct maps *maps__get(struct maps *maps)
+struct maps *maps__get(struct maps *maps);
+void maps__put(struct maps *maps);
+
+static inline struct rb_root *maps__entries(struct maps *maps)
 {
-	if (maps)
-		refcount_inc(&maps->refcnt);
-	return maps;
+	return &maps->entries;
 }
 
-void maps__put(struct maps *maps);
-int maps__clone(struct thread *thread, struct maps *parent);
+static inline struct machine *maps__machine(struct maps *maps)
+{
+	return maps->machine;
+}
+
+static inline struct rw_semaphore *maps__lock(struct maps *maps)
+{
+	return &maps->lock;
+}
+
+static inline struct map **maps__maps_by_name(struct maps *maps)
+{
+	return maps->maps_by_name;
+}
+
+static inline unsigned int maps__nr_maps(const struct maps *maps)
+{
+	return maps->nr_maps;
+}
+
+#ifdef HAVE_LIBUNWIND_SUPPORT
+static inline void *maps__addr_space(struct maps *maps)
+{
+	return maps->addr_space;
+}
+
+static inline const struct unwind_libunwind_ops *maps__unwind_libunwind_ops(const struct maps *maps)
+{
+	return maps->unwind_libunwind_ops;
+}
+#endif
+
 size_t maps__fprintf(struct maps *maps, FILE *fp);
 
 int maps__insert(struct maps *maps, struct map *map);
-
 void maps__remove(struct maps *maps, struct map *map);
 
 struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp);

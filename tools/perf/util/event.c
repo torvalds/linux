@@ -572,7 +572,7 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
 	struct maps *maps = thread->maps;
-	struct machine *machine = maps->machine;
+	struct machine *machine = maps__machine(maps);
 	bool load_map = false;
 
 	al->maps = maps;
@@ -637,7 +637,7 @@ struct map *thread__find_map_fb(struct thread *thread, u8 cpumode, u64 addr,
 				struct addr_location *al)
 {
 	struct map *map = thread__find_map(thread, cpumode, addr, al);
-	struct machine *machine = thread->maps->machine;
+	struct machine *machine = maps__machine(thread->maps);
 	u8 addr_cpumode = machine__addr_cpumode(machine, cpumode, addr);
 
 	if (map || addr_cpumode == cpumode)

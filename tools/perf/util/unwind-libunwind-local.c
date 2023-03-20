@@ -667,24 +667,26 @@ static unw_accessors_t accessors = {
 
 static int _unwind__prepare_access(struct maps *maps)
 {
-	maps->addr_space = unw_create_addr_space(&accessors, 0);
-	if (!maps->addr_space) {
+	void *addr_space = unw_create_addr_space(&accessors, 0);
+
+	maps->addr_space = addr_space;
+	if (!addr_space) {
 		pr_err("unwind: Can't create unwind address space.\n");
 		return -ENOMEM;
 	}
 
-	unw_set_caching_policy(maps->addr_space, UNW_CACHE_GLOBAL);
+	unw_set_caching_policy(addr_space, UNW_CACHE_GLOBAL);
 	return 0;
 }
 
 static void _unwind__flush_access(struct maps *maps)
 {
-	unw_flush_cache(maps->addr_space, 0, 0);
+	unw_flush_cache(maps__addr_space(maps), 0, 0);
 }
 
 static void _unwind__finish_access(struct maps *maps)
 {
-	unw_destroy_addr_space(maps->addr_space);
+	unw_destroy_addr_space(maps__addr_space(maps));
 }
 
 static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
@@ -709,7 +711,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	 */
 	if (max_stack - 1 > 0) {
 		WARN_ONCE(!ui->thread, "WARNING: ui->thread is NULL");
-		addr_space = ui->thread->maps->addr_space;
+		addr_space = maps__addr_space(ui->thread->maps);
 
 		if (addr_space == NULL)
 			return -1;
@@ -759,7 +761,7 @@ static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
-		.machine      = thread->maps->machine,
+		.machine      = maps__machine(thread->maps),
 		.best_effort  = best_effort
 	};
 
