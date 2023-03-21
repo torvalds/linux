@@ -514,17 +514,22 @@ int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
 
+	pr_info("%s: ctype = %d, connect_status = %d, power mode = %d\n",
+		__func__, wcd_usbss_ctxt_->cable_type, wcd_usbss_ctxt_->cable_status,
+		power_mode);
+
+	if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_DISCONNECT)
+		return 0;
+
+	if (wcd_usbss_ctxt_->cable_type != WCD_USBSS_AATC &&
+		wcd_usbss_ctxt_->cable_type != WCD_USBSS_GND_MIC_SWAP_AATC &&
+		wcd_usbss_ctxt_->cable_type != WCD_USBSS_HSJ_CONNECT)
+		return 0;
+
 	switch (config_type) {
 	case WCD_USBSS_CONFIG_TYPE_POWER_MODE:
-
-		/* Configure power mode from RX HPH mixer ctl if AATC cable is connected */
-		if (wcd_usbss_ctxt_->cable_status == WCD_USBSS_CABLE_CONNECT &&
-			(wcd_usbss_ctxt_->cable_type == WCD_USBSS_AATC ||
-			wcd_usbss_ctxt_->cable_type == WCD_USBSS_GND_MIC_SWAP_AATC ||
-			wcd_usbss_ctxt_->cable_type == WCD_USBSS_HSJ_CONNECT))
-			regmap_update_bits(wcd_usbss_ctxt_->regmap,
-				WCD_USBSS_USB_SS_CNTL, 0x07, power_mode);
-		wcd_usbss_ctxt_->cached_audio_pwr_mode = power_mode;
+		regmap_update_bits(wcd_usbss_ctxt_->regmap,
+			WCD_USBSS_USB_SS_CNTL, 0x07, power_mode);
 		break;
 	default:
 		pr_err("%s Invalid config type %d\n", __func__, config_type);
@@ -567,10 +572,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			wcd_usbss_dpdm_switch_update(true, true);
 			break;
 		case WCD_USBSS_AATC:
-			/* Update power mode as per wcd mixer ctls */
+			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
-				WCD_USBSS_USB_SS_CNTL, 0x07,
-				wcd_usbss_ctxt_->cached_audio_pwr_mode);
+				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
 			/* for AATC plug-in, change mode to FSM */
 			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
@@ -618,9 +622,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		case WCD_USBSS_GND_MIC_SWAP_AATC:
 			dev_info(wcd_usbss_ctxt_->dev,
 					"%s: GND MIC Swap register updates..\n", __func__);
+			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
-				WCD_USBSS_USB_SS_CNTL, 0x07,
-				wcd_usbss_ctxt_->cached_audio_pwr_mode);
+				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
 			/* for GND MIC Swap, change mode to FSM */
 			audio_fsm_mode = WCD_USBSS_AUDIO_FSM;
 			/* Disable all switches */
@@ -648,9 +652,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 					WCD_USBSS_AUDIO_FSM_START, 0x01, 0x01, NULL, false, true);
 			break;
 		case WCD_USBSS_HSJ_CONNECT:
+			/* Update power mode to mode 1 for AATC */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
-				WCD_USBSS_USB_SS_CNTL, 0x07,
-				wcd_usbss_ctxt_->cached_audio_pwr_mode);
+				WCD_USBSS_USB_SS_CNTL, 0x07, 0x01);
 			/* Select MG2, GSBU1 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x1);
