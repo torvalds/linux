@@ -9185,7 +9185,7 @@ static struct bpf_insn *bpf_convert_tstamp_type_read(const struct bpf_insn *si,
 	__u8 tmp_reg = BPF_REG_AX;
 
 	*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg,
-			      PKT_VLAN_PRESENT_OFFSET);
+			      SKB_BF_MONO_TC_OFFSET);
 	*insn++ = BPF_JMP32_IMM(BPF_JSET, tmp_reg,
 				SKB_MONO_DELIVERY_TIME_MASK, 2);
 	*insn++ = BPF_MOV32_IMM(value_reg, BPF_SKB_TSTAMP_UNSPEC);
@@ -9232,7 +9232,7 @@ static struct bpf_insn *bpf_convert_tstamp_read(const struct bpf_prog *prog,
 		/* AX is needed because src_reg and dst_reg could be the same */
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, SKB_BF_MONO_TC_OFFSET);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg,
 					TC_AT_INGRESS_MASK | SKB_MONO_DELIVERY_TIME_MASK);
 		*insn++ = BPF_JMP32_IMM(BPF_JNE, tmp_reg,
@@ -9267,14 +9267,14 @@ static struct bpf_insn *bpf_convert_tstamp_write(const struct bpf_prog *prog,
 	if (!prog->tstamp_type_access) {
 		__u8 tmp_reg = BPF_REG_AX;
 
-		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, PKT_VLAN_PRESENT_OFFSET);
+		*insn++ = BPF_LDX_MEM(BPF_B, tmp_reg, skb_reg, SKB_BF_MONO_TC_OFFSET);
 		/* Writing __sk_buff->tstamp as ingress, goto <clear> */
 		*insn++ = BPF_JMP32_IMM(BPF_JSET, tmp_reg, TC_AT_INGRESS_MASK, 1);
 		/* goto <store> */
 		*insn++ = BPF_JMP_A(2);
 		/* <clear>: mono_delivery_time */
 		*insn++ = BPF_ALU32_IMM(BPF_AND, tmp_reg, ~SKB_MONO_DELIVERY_TIME_MASK);
-		*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg, PKT_VLAN_PRESENT_OFFSET);
+		*insn++ = BPF_STX_MEM(BPF_B, skb_reg, tmp_reg, SKB_BF_MONO_TC_OFFSET);
 	}
 #endif
 
