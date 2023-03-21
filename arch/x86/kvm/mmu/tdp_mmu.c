@@ -1277,8 +1277,6 @@ static bool age_gfn_range(struct kvm *kvm, struct tdp_iter *iter,
 
 	__handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
 			      new_spte, iter->level, false);
-	handle_changed_spte_dirty_log(kvm, iter->as_id, iter->gfn,
-				      iter->old_spte, new_spte, iter->level);
 	return true;
 }
 
