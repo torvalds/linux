@@ -354,14 +354,15 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	 * BTRFS_UNLINK_METADATA_UNITS items.
 	 *
 	 * But we also need space for the delayed ref updates from the unlink,
-	 * so it's BTRFS_UNLINK_METADATA_UNITS * 2, BTRFS_UNLINK_METADATA_UNITS
-	 * for the actual operation, and BTRFS_UNLINK_METADATA_UNITS more for
-	 * the delayed ref updates.
+	 * so add BTRFS_UNLINK_METADATA_UNITS units for delayed refs, one for
+	 * each unlink metadata item.
 	 */
-	min_items += BTRFS_UNLINK_METADATA_UNITS * 2;
+	min_items += BTRFS_UNLINK_METADATA_UNITS;
 
 	num_bytes = max_t(u64, num_bytes,
-			  btrfs_calc_insert_metadata_size(fs_info, min_items));
+			  btrfs_calc_insert_metadata_size(fs_info, min_items) +
+			  btrfs_calc_delayed_ref_bytes(fs_info,
+					       BTRFS_UNLINK_METADATA_UNITS));
 
 	spin_lock(&sinfo->lock);
 	spin_lock(&block_rsv->lock);
