@@ -1304,11 +1304,9 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	struct sh_pfc *pfc;
 	int ret;
 
-#ifdef CONFIG_OF
 	if (pdev->dev.of_node)
 		info = of_device_get_match_data(&pdev->dev);
 	else
-#endif
 		info = (const void *)platform_get_device_id(pdev)->driver_data;
 
 	pfc = devm_kzalloc(&pdev->dev, sizeof(*pfc), GFP_KERNEL);
