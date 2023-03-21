@@ -1179,3 +1179,12 @@ int vmw_mksstat_remove_ioctl(struct drm_device *dev, void *data,
 
 	return -EAGAIN;
 }
+
+/**
+ * vmw_disable_backdoor: Disables all backdoor communication
+ * with the hypervisor.
+ */
+void vmw_disable_backdoor(void)
+{
+	vmw_msg_enabled = 0;
+}
