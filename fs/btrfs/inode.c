@@ -5268,7 +5268,7 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 		trans->block_rsv = &fs_info->trans_block_rsv;
 		trans->bytes_reserved = delayed_refs_extra;
 		btrfs_block_rsv_migrate(rsv, trans->block_rsv,
-					delayed_refs_extra, 1);
+					delayed_refs_extra, true);
 	}
 	return trans;
 }
