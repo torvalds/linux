@@ -2197,7 +2197,7 @@ static int bpf_out_neigh_v6(struct net *net, struct sk_buff *skb,
 			return -ENOMEM;
 	}
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	if (!nh) {
 		dst = skb_dst(skb);
 		nexthop = rt6_nexthop(container_of(dst, struct rt6_info, dst),
@@ -2210,10 +2210,12 @@ static int bpf_out_neigh_v6(struct net *net, struct sk_buff *skb,
 		int ret;
 
 		sock_confirm_neigh(skb, neigh);
+		local_bh_disable();
 		dev_xmit_recursion_inc();
 		ret = neigh_output(neigh, skb, false);
 		dev_xmit_recursion_dec();
-		rcu_read_unlock_bh();
+		local_bh_enable();
+		rcu_read_unlock();
 		return ret;
 	}
 	rcu_read_unlock_bh();
@@ -2295,7 +2297,7 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 			return -ENOMEM;
 	}
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	if (!nh) {
 		struct dst_entry *dst = skb_dst(skb);
 		struct rtable *rt = container_of(dst, struct rtable, dst);
@@ -2307,7 +2309,7 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 	} else if (nh->nh_family == AF_INET) {
 		neigh = ip_neigh_gw4(dev, nh->ipv4_nh);
 	} else {
-		rcu_read_unlock_bh();
+		rcu_read_unlock();
 		goto out_drop;
 	}
 
@@ -2315,13 +2317,15 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 		int ret;
 
 		sock_confirm_neigh(skb, neigh);
+		local_bh_disable();
 		dev_xmit_recursion_inc();
 		ret = neigh_output(neigh, skb, is_v6gw);
 		dev_xmit_recursion_dec();
-		rcu_read_unlock_bh();
+		local_bh_enable();
+		rcu_read_unlock();
 		return ret;
 	}
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 out_drop:
 	kfree_skb(skb);
 	return -ENETDOWN;

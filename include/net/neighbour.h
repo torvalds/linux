@@ -299,14 +299,14 @@ static inline struct neighbour *___neigh_lookup_noref(
 	const void *pkey,
 	struct net_device *dev)
 {
-	struct neigh_hash_table *nht = rcu_dereference_bh(tbl->nht);
+	struct neigh_hash_table *nht = rcu_dereference(tbl->nht);
 	struct neighbour *n;
 	u32 hash_val;
 
 	hash_val = hash(pkey, dev, nht->hash_rnd) >> (32 - nht->hash_shift);
-	for (n = rcu_dereference_bh(nht->hash_buckets[hash_val]);
+	for (n = rcu_dereference(nht->hash_buckets[hash_val]);
 	     n != NULL;
-	     n = rcu_dereference_bh(n->next)) {
+	     n = rcu_dereference(n->next)) {
 		if (n->dev == dev && key_eq(n, pkey))
 			return n;
 	}
