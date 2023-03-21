@@ -2010,9 +2010,17 @@ vhost_scsi_do_plug(struct vhost_scsi_tpg *tpg,
 
 	vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	mutex_lock(&vq->mutex);
+	/*
+	 * We can't queue events if the backend has been cleared, because
+	 * we could end up queueing an event after the flush.
+	 */
+	if (!vhost_vq_get_backend(vq))
+		goto unlock;
+
 	if (vhost_has_feature(vq, VIRTIO_SCSI_F_HOTPLUG))
 		vhost_scsi_send_evt(vs, tpg, lun,
 				   VIRTIO_SCSI_T_TRANSPORT_RESET, reason);
+unlock:
 	mutex_unlock(&vq->mutex);
 }
 
