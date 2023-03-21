@@ -3158,6 +3158,8 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 			return -EINVAL;
 		}
 		device_features &= add_config->device_features;
+	} else {
+		device_features &= ~BIT_ULL(VIRTIO_NET_F_MRG_RXBUF);
 	}
 	if (!(device_features & BIT_ULL(VIRTIO_F_VERSION_1) &&
 	      device_features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM))) {
