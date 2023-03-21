@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011, 2013, 2015, 2017-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 /**
  * Pipe-Memory allocation/free management.
@@ -23,7 +23,7 @@ static void *iomem_virt;
 static u32 iomem_size;
 static u32 iomem_offset;
 static struct gen_pool *pool;
-static u32 nid = 0xaa;
+static u32 nid = NUMA_NO_NODE;
 
 /* Debug */
 static u32 total_alloc;
