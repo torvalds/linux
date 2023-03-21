@@ -1349,13 +1349,16 @@ int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target, u8 index
 int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 		       u8 index, u8 reg, const void *buf, u8 size);
 
-int usb4_port_margining_caps(struct tb_port *port, u32 *caps);
-int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
-			unsigned int ber_level, bool timing, bool right_high,
-			u32 *results);
-int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
+int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
+			     u8 index, u32 *caps);
+int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
+			u8 index, unsigned int lanes, unsigned int ber_level,
+			bool timing, bool right_high, u32 *results);
+int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
+			u8 index, unsigned int lanes, bool timing,
 			bool right_high, u32 counter);
-int usb4_port_sw_margin_errors(struct tb_port *port, u32 *errors);
+int usb4_port_sw_margin_errors(struct tb_port *port, enum usb4_sb_target target,
+			       u8 index, u32 *errors);
 
 int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index);
 int usb4_port_retimer_unset_inbound_sbtx(struct tb_port *port, u8 index);

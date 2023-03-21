@@ -1628,26 +1628,31 @@ int usb4_port_asym_start(struct tb_port *port)
 /**
  * usb4_port_margining_caps() - Read USB4 port marginig capabilities
  * @port: USB4 port
+ * @target: Sideband target
+ * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @caps: Array with at least two elements to hold the results
  *
  * Reads the USB4 port lane margining capabilities into @caps.
  */
-int usb4_port_margining_caps(struct tb_port *port, u32 *caps)
+int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
+			     u8 index, u32 *caps)
 {
 	int ret;
 
-	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+	ret = usb4_port_sb_op(port, target, index,
 			      USB4_SB_OPCODE_READ_LANE_MARGINING_CAP, 500);
 	if (ret)
 		return ret;
 
-	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
-				 USB4_SB_DATA, caps, sizeof(*caps) * 2);
+	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, caps,
+				 sizeof(*caps) * 2);
 }
 
 /**
  * usb4_port_hw_margin() - Run hardware lane margining on port
  * @port: USB4 port
+ * @target: Sideband target
+ * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @lanes: Which lanes to run (must match the port capabilities). Can be
  *	   %0, %1 or %7.
  * @ber_level: BER level contour value
@@ -1658,9 +1663,9 @@ int usb4_port_margining_caps(struct tb_port *port, u32 *caps)
  * Runs hardware lane margining on USB4 port and returns the result in
  * @results.
  */
-int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
-			unsigned int ber_level, bool timing, bool right_high,
-			u32 *results)
+int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
+			u8 index, unsigned int lanes, unsigned int ber_level,
+			bool timing, bool right_high, u32 *results)
 {
 	u32 val;
 	int ret;
@@ -1674,23 +1679,25 @@ int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
 		val |= (ber_level << USB4_MARGIN_HW_BER_SHIFT) &
 			USB4_MARGIN_HW_BER_MASK;
 
-	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
-				 USB4_SB_METADATA, &val, sizeof(val));
+	ret = usb4_port_sb_write(port, target, index, USB4_SB_METADATA, &val,
+				 sizeof(val));
 	if (ret)
 		return ret;
 
-	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+	ret = usb4_port_sb_op(port, target, index,
 			      USB4_SB_OPCODE_RUN_HW_LANE_MARGINING, 2500);
 	if (ret)
 		return ret;
 
-	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
-				 USB4_SB_DATA, results, sizeof(*results) * 2);
+	return usb4_port_sb_read(port, target, index, USB4_SB_DATA, results,
+				 sizeof(*results) * 2);
 }
 
 /**
  * usb4_port_sw_margin() - Run software lane margining on port
  * @port: USB4 port
+ * @target: Sideband target
+ * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @lanes: Which lanes to run (must match the port capabilities). Can be
  *	   %0, %1 or %7.
  * @timing: Perform timing margining instead of voltage
@@ -1701,7 +1708,8 @@ int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
  * counters by calling usb4_port_sw_margin_errors(). Returns %0 in
  * success and negative errno otherwise.
  */
-int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
+int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
+			u8 index, unsigned int lanes, bool timing,
 			bool right_high, u32 counter)
 {
 	u32 val;
@@ -1715,34 +1723,37 @@ int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
 	val |= (counter << USB4_MARGIN_SW_COUNTER_SHIFT) &
 		USB4_MARGIN_SW_COUNTER_MASK;
 
-	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
-				 USB4_SB_METADATA, &val, sizeof(val));
+	ret = usb4_port_sb_write(port, target, index, USB4_SB_METADATA, &val,
+				 sizeof(val));
 	if (ret)
 		return ret;
 
-	return usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+	return usb4_port_sb_op(port, target, index,
 			       USB4_SB_OPCODE_RUN_SW_LANE_MARGINING, 2500);
 }
 
 /**
  * usb4_port_sw_margin_errors() - Read the software margining error counters
  * @port: USB4 port
+ * @target: Sideband target
+ * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
  * @errors: Error metadata is copied here.
  *
  * This reads back the software margining error counters from the port.
  * Returns %0 in success and negative errno otherwise.
  */
-int usb4_port_sw_margin_errors(struct tb_port *port, u32 *errors)
+int usb4_port_sw_margin_errors(struct tb_port *port, enum usb4_sb_target target,
+			       u8 index, u32 *errors)
 {
 	int ret;
 
-	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+	ret = usb4_port_sb_op(port, target, index,
 			      USB4_SB_OPCODE_READ_SW_MARGIN_ERR, 150);
 	if (ret)
 		return ret;
 
-	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
-				 USB4_SB_METADATA, errors, sizeof(*errors));
+	return usb4_port_sb_read(port, target, index, USB4_SB_METADATA, errors,
+				 sizeof(*errors));
 }
 
 static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,

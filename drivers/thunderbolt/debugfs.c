@@ -774,22 +774,25 @@ static int margining_run_write(void *data, u64 val)
 	if (margining->software) {
 		tb_port_dbg(port, "running software %s lane margining for lanes %u\n",
 			    margining->time ? "time" : "voltage", margining->lanes);
-		ret = usb4_port_sw_margin(port, margining->lanes, margining->time,
+		ret = usb4_port_sw_margin(port, USB4_SB_TARGET_ROUTER, 0,
+					  margining->lanes, margining->time,
 					  margining->right_high,
 					  USB4_MARGIN_SW_COUNTER_CLEAR);
 		if (ret)
 			goto out_clx;
 
-		ret = usb4_port_sw_margin_errors(port, &margining->results[0]);
+		ret = usb4_port_sw_margin_errors(port, USB4_SB_TARGET_ROUTER, 0,
+						 &margining->results[0]);
 	} else {
 		tb_port_dbg(port, "running hardware %s lane margining for lanes %u\n",
 			    margining->time ? "time" : "voltage", margining->lanes);
 		/* Clear the results */
 		margining->results[0] = 0;
 		margining->results[1] = 0;
-		ret = usb4_port_hw_margin(port, margining->lanes,
-					  margining->ber_level, margining->time,
-					  margining->right_high, margining->results);
+		ret = usb4_port_hw_margin(port, USB4_SB_TARGET_ROUTER, 0,
+					  margining->lanes, margining->ber_level,
+					  margining->time, margining->right_high,
+					  margining->results);
 	}
 
 out_clx:
@@ -1063,7 +1066,8 @@ static void margining_port_init(struct tb_port *port)
 
 	margining->port = port;
 
-	ret = usb4_port_margining_caps(port, margining->caps);
+	ret = usb4_port_margining_caps(port, USB4_SB_TARGET_ROUTER, 0,
+				       margining->caps);
 	if (ret) {
 		kfree(margining);
 		return;
