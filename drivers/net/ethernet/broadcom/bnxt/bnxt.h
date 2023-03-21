@@ -1996,6 +1996,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_HOT_RESET_IF		BIT_ULL(29)
 	#define BNXT_FW_CAP_RING_MONITOR		BIT_ULL(30)
 	#define BNXT_FW_CAP_DBG_QCAPS			BIT_ULL(31)
+	#define BNXT_FW_CAP_PTP				BIT_ULL(32)
 
 	u32			fw_dbg_cap;
 
