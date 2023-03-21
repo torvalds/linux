@@ -5350,7 +5350,12 @@ void btrfs_evict_inode(struct inode *inode)
 		ret = btrfs_truncate_inode_items(trans, root, &control);
 		trans->block_rsv = &fs_info->trans_block_rsv;
 		btrfs_end_transaction(trans);
-		btrfs_btree_balance_dirty(fs_info);
+		/*
+		 * We have not added new delayed items for our inode after we
+		 * have flushed its delayed items, so no need to throttle on
+		 * delayed items. However we have modified extent buffers.
+		 */
+		btrfs_btree_balance_dirty_nodelay(fs_info);
 		if (ret && ret != -ENOSPC && ret != -EAGAIN)
 			goto free_rsv;
 		else if (!ret)
