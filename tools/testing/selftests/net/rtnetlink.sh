@@ -26,6 +26,7 @@ ALL_TESTS="
 	kci_test_fdb_get
 	kci_test_neigh_get
 	kci_test_bridge_parent_id
+	kci_test_address_proto
 "
 
 devdummy="test-dummy0"
@@ -1247,6 +1248,96 @@ kci_test_bridge_parent_id()
 		return 1
 	fi
 	echo "PASS: bridge_parent_id"
+}
+
+address_get_proto()
+{
+	local addr=$1; shift
+
+	ip -N -j address show dev "$devdummy" |
+	    jq -e -r --arg addr "${addr%/*}" \
+	       '.[].addr_info[] | select(.local == $addr) | .protocol'
+}
+
+address_count()
+{
+	ip -N -j address show dev "$devdummy" "$@" |
+	    jq -e -r '[.[].addr_info[] | .local | select(. != null)] | length'
+}
+
+do_test_address_proto()
+{
+	local what=$1; shift
+	local addr=$1; shift
+	local addr2=${addr%/*}2/${addr#*/}
+	local addr3=${addr%/*}3/${addr#*/}
+	local proto
+	local count
+	local ret=0
+	local err
+
+	ip address add dev "$devdummy" "$addr3"
+	check_err $?
+	proto=$(address_get_proto "$addr3")
+	[[ "$proto" == null ]]
+	check_err $?
+
+	ip address add dev "$devdummy" "$addr2" proto 0x99
+	check_err $?
+	proto=$(address_get_proto "$addr2")
+	[[ "$proto" == 0x99 ]]
+	check_err $?
+
+	ip address add dev "$devdummy" "$addr" proto 0xab
+	check_err $?
+	proto=$(address_get_proto "$addr")
+	[[ "$proto" == 0xab ]]
+	check_err $?
+
+	ip address replace dev "$devdummy" "$addr" proto 0x11
+	proto=$(address_get_proto "$addr")
+	check_err $?
+	[[ "$proto" == 0x11 ]]
+	check_err $?
+
+	count=$(address_count)
+	check_err $?
+	(( count == 3 )) # $addr, $addr2 and $addr3
+
+	count=$(address_count proto 0)
+	check_err $?
+	(( count == 1 )) # just $addr2
+
+	count=$(address_count proto 0x11)
+	check_err $?
+	(( count == 2 )) # $addr and $addr2
+
+	count=$(address_count proto 0xab)
+	check_err $?
+	(( count == 1 )) # just $addr2
+
+	ip address del dev "$devdummy" "$addr"
+	ip address del dev "$devdummy" "$addr2"
+	ip address del dev "$devdummy" "$addr3"
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: address proto $what"
+		return 1
+	fi
+	echo "PASS: address proto $what"
+}
+
+kci_test_address_proto()
+{
+	local ret=0
+
+	do_test_address_proto IPv4 192.0.2.1/28
+	check_err $?
+
+	do_test_address_proto IPv6 2001:db8:1::1/64
+	check_err $?
+
+	return $ret
 }
 
 kci_test_rtnl()
