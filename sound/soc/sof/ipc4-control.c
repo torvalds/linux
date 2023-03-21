@@ -429,14 +429,17 @@ static int sof_ipc4_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_s
 			default:
 				break;
 			}
+
+			if (ret < 0) {
+				dev_err(sdev->dev,
+					"kcontrol %d set up failed for widget %s\n",
+					scontrol->comp_id, swidget->widget->name);
+				return ret;
+			}
 		}
 	}
 
-	if (ret < 0)
-		dev_err(sdev->dev, "kcontrol %d set up failed for widget %s\n",
-			scontrol->comp_id, swidget->widget->name);
-
-	return ret;
+	return 0;
 }
 
 static int
