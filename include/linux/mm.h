@@ -38,6 +38,7 @@ struct pt_regs;
 
 extern int sysctl_page_lock_unfairness;
 
+void mm_core_init(void);
 void init_mm_internals(void);
 
 #ifndef CONFIG_NUMA		/* Don't use mapnrs, do it properly */
