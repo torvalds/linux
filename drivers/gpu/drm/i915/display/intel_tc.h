@@ -9,6 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+struct intel_crtc_state;
 struct intel_digital_port;
 struct intel_encoder;
 
@@ -26,7 +27,8 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 				      int required_lanes);
 
 void intel_tc_port_init_mode(struct intel_digital_port *dig_port);
-void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port);
+void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
+				 const struct intel_crtc_state *crtc_state);
 void intel_tc_port_lock(struct intel_digital_port *dig_port);
 void intel_tc_port_unlock(struct intel_digital_port *dig_port);
 void intel_tc_port_flush_work(struct intel_digital_port *dig_port);

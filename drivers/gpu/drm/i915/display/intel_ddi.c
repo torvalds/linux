@@ -3642,7 +3642,8 @@ static void intel_ddi_sync_state(struct intel_encoder *encoder,
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
 
 	if (intel_phy_is_tc(i915, phy))
-		intel_tc_port_sanitize_mode(enc_to_dig_port(encoder));
+		intel_tc_port_sanitize_mode(enc_to_dig_port(encoder),
+					    crtc_state);
 
 	if (crtc_state && intel_crtc_has_dp_encoder(crtc_state))
 		intel_dp_sync_state(encoder, crtc_state);

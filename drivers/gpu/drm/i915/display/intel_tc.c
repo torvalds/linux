@@ -872,36 +872,47 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	mutex_unlock(&dig_port->tc_lock);
 }
 
+static bool tc_port_has_active_links(struct intel_digital_port *dig_port,
+				     const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	int active_links = 0;
+
+	if (dig_port->dp.is_mst) {
+		active_links = intel_dp_mst_encoder_active_links(dig_port);
+	} else if (crtc_state && crtc_state->hw.active) {
+		active_links = 1;
+	}
+
+	if (active_links && !icl_tc_phy_is_connected(dig_port))
+		drm_err(&i915->drm,
+			"Port %s: PHY disconnected with %d active link(s)\n",
+			dig_port->tc_port_name, active_links);
+
+	return active_links;
+}
+
 /**
  * intel_tc_port_sanitize_mode: Sanitize the given port's TypeC mode
  * @dig_port: digital port
+ * @crtc_state: atomic state of CRTC connected to @dig_port
  *
  * Sanitize @dig_port's TypeC mode wrt. the encoder's state right after driver
  * loading and system resume:
  * If the encoder is enabled keep the TypeC mode/PHY connected state locked until
  * the encoder is disabled.
  * If the encoder is disabled make sure the PHY is disconnected.
+ * @crtc_state is valid if @dig_port is enabled, NULL otherwise.
  */
-void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
+void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	struct intel_encoder *encoder = &dig_port->base;
-	int active_links = 0;
 
 	mutex_lock(&dig_port->tc_lock);
 
-	if (dig_port->dp.is_mst)
-		active_links = intel_dp_mst_encoder_active_links(dig_port);
-	else if (encoder->base.crtc)
-		active_links = to_intel_crtc(encoder->base.crtc)->active;
-
 	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount != 1);
-	if (active_links) {
-		if (!icl_tc_phy_is_connected(dig_port))
-			drm_dbg_kms(&i915->drm,
-				    "Port %s: PHY disconnected with %d active link(s)\n",
-				    dig_port->tc_port_name, active_links);
-	} else {
+	if (!tc_port_has_active_links(dig_port, crtc_state)) {
 		/*
 		 * TBT-alt is the default mode in any case the PHY ownership is not
 		 * held (regardless of the sink's connected live state), so
