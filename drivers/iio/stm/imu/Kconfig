@@ -18,5 +18,6 @@ source "drivers/iio/stm/imu/st_lsm6dsm/Kconfig"
 source "drivers/iio/stm/imu/st_lsm6dsvx/Kconfig"
 source "drivers/iio/stm/imu/st_lsm6dso16is/Kconfig"
 source "drivers/iio/stm/imu/st_lsm6dsv16bx/Kconfig"
+source "drivers/iio/stm/imu/st_ism330is/Kconfig"
 
 endmenu
