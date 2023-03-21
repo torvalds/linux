@@ -277,6 +277,15 @@ static const struct hda_dai_widget_dma_ops hda_ipc4_dma_ops = {
 	.post_trigger = hda_ipc4_post_trigger
 };
 
+static const struct hda_dai_widget_dma_ops hda_ipc4_chain_dma_ops = {
+	.get_hext_stream = hda_get_hext_stream,
+	.assign_hext_stream = hda_assign_hext_stream,
+	.release_hext_stream = hda_release_hext_stream,
+	.setup_hext_stream = hda_setup_hext_stream,
+	.reset_hext_stream = hda_reset_hext_stream,
+	.trigger = hda_trigger,
+};
+
 static int hda_ipc3_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 				 struct snd_pcm_substream *substream, int cmd)
 {
@@ -331,8 +340,15 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 	{
 		struct sof_ipc4_copier *ipc4_copier = sdai->private;
 
-		if (ipc4_copier->dai_type == SOF_DAI_INTEL_HDA)
+		if (ipc4_copier->dai_type == SOF_DAI_INTEL_HDA) {
+			struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+			struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+
+			if (pipeline->use_chain_dma)
+				return &hda_ipc4_chain_dma_ops;
+
 			return &hda_ipc4_dma_ops;
+		}
 		break;
 	}
 	default:
