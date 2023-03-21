@@ -1621,7 +1621,10 @@ retry:
 		if (!is_shadow_present_pte(iter.old_spte))
 			continue;
 
-		if (spte_ad_need_write_protect(iter.old_spte)) {
+		MMU_WARN_ON(kvm_ad_enabled() &&
+			    spte_ad_need_write_protect(iter.old_spte));
+
+		if (!kvm_ad_enabled()) {
 			if (is_writable_pte(iter.old_spte))
 				new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
 			else
@@ -1685,13 +1688,16 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 		if (!mask)
 			break;
 
+		MMU_WARN_ON(kvm_ad_enabled() &&
+			    spte_ad_need_write_protect(iter.old_spte));
+
 		if (iter.level > PG_LEVEL_4K ||
 		    !(mask & (1UL << (iter.gfn - gfn))))
 			continue;
 
 		mask &= ~(1UL << (iter.gfn - gfn));
 
-		if (wrprot || spte_ad_need_write_protect(iter.old_spte)) {
+		if (wrprot || !kvm_ad_enabled()) {
 			if (is_writable_pte(iter.old_spte))
 				new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
 			else
