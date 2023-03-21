@@ -2002,6 +2002,10 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				 * voltage level)
 				 */
 				context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+				for (i = 0; i < context->stream_count; i++) {
+					if (context->streams[i])
+						context->streams[i]->fpo_in_use = false;
+				}
 				context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.fclk_change_latency_us;
 				dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
 			}
