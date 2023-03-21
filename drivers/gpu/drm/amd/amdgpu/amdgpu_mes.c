@@ -39,35 +39,6 @@ int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev)
 		       PAGE_SIZE);
 }
 
-int amdgpu_mes_alloc_process_doorbells(struct amdgpu_device *adev,
-				      unsigned int *doorbell_index)
-{
-	int r = ida_simple_get(&adev->mes.doorbell_ida, 2,
-			       adev->mes.max_doorbell_slices,
-			       GFP_KERNEL);
-	if (r > 0)
-		*doorbell_index = r;
-
-	return r;
-}
-
-void amdgpu_mes_free_process_doorbells(struct amdgpu_device *adev,
-				      unsigned int doorbell_index)
-{
-	if (doorbell_index)
-		ida_simple_remove(&adev->mes.doorbell_ida, doorbell_index);
-}
-
-unsigned int amdgpu_mes_get_doorbell_dw_offset_in_bar(
-					struct amdgpu_device *adev,
-					uint32_t doorbell_index,
-					unsigned int doorbell_id)
-{
-	return ((doorbell_index *
-		amdgpu_mes_doorbell_process_slice(adev)) / sizeof(u32) +
-		doorbell_id * 2);
-}
-
 static int amdgpu_mes_kernel_doorbell_get(struct amdgpu_device *adev,
 					 struct amdgpu_mes_process *process,
 					 int ip_type, uint64_t *doorbell_index)
@@ -259,15 +230,6 @@ int amdgpu_mes_create_process(struct amdgpu_device *adev, int pasid,
 		return -ENOMEM;
 	}
 
-	process->doorbell_bitmap =
-		kzalloc(DIV_ROUND_UP(AMDGPU_MES_MAX_NUM_OF_QUEUES_PER_PROCESS,
-				     BITS_PER_BYTE), GFP_KERNEL);
-	if (!process->doorbell_bitmap) {
-		DRM_ERROR("failed to allocate doorbell bitmap\n");
-		kfree(process);
-		return -ENOMEM;
-	}
-
 	/* allocate the process context bo and map it */
 	r = amdgpu_bo_create_kernel(adev, AMDGPU_MES_PROC_CTX_SIZE, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_GTT,
@@ -294,15 +256,6 @@ int amdgpu_mes_create_process(struct amdgpu_device *adev, int pasid,
 		goto clean_up_ctx;
 	}
 
-	/* allocate the starting doorbell index of the process */
-	r = amdgpu_mes_alloc_process_doorbells(adev, &process->doorbell_index);
-	if (r < 0) {
-		DRM_ERROR("failed to allocate doorbell for process\n");
-		goto clean_up_pasid;
-	}
-
-	DRM_DEBUG("process doorbell index = %d\n", process->doorbell_index);
-
 	INIT_LIST_HEAD(&process->gang_list);
 	process->vm = vm;
 	process->pasid = pasid;
@@ -312,15 +265,12 @@ int amdgpu_mes_create_process(struct amdgpu_device *adev, int pasid,
 	amdgpu_mes_unlock(&adev->mes);
 	return 0;
 
-clean_up_pasid:
-	idr_remove(&adev->mes.pasid_idr, pasid);
-	amdgpu_mes_unlock(&adev->mes);
 clean_up_ctx:
+	amdgpu_mes_unlock(&adev->mes);
 	amdgpu_bo_free_kernel(&process->proc_ctx_bo,
 			      &process->proc_ctx_gpu_addr,
 			      &process->proc_ctx_cpu_ptr);
 clean_up_memory:
-	kfree(process->doorbell_bitmap);
 	kfree(process);
 	return r;
 }
@@ -366,7 +316,6 @@ void amdgpu_mes_destroy_process(struct amdgpu_device *adev, int pasid)
 		idr_remove(&adev->mes.gang_id_idr, gang->gang_id);
 	}
 
-	amdgpu_mes_free_process_doorbells(adev, process->doorbell_index);
 	idr_remove(&adev->mes.pasid_idr, pasid);
 	amdgpu_mes_unlock(&adev->mes);
 
@@ -388,7 +337,6 @@ void amdgpu_mes_destroy_process(struct amdgpu_device *adev, int pasid)
 	amdgpu_bo_free_kernel(&process->proc_ctx_bo,
 			      &process->proc_ctx_gpu_addr,
 			      &process->proc_ctx_cpu_ptr);
-	kfree(process->doorbell_bitmap);
 	kfree(process);
 }
 
