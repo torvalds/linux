@@ -40,15 +40,6 @@ static void  __check_db_timeout(struct octeon_device *oct, u64 iq_no);
 
 static void (*reqtype_free_fn[MAX_OCTEON_DEVICES][REQTYPE_LAST + 1]) (void *);
 
-static inline int IQ_INSTR_MODE_64B(struct octeon_device *oct, int iq_no)
-{
-	struct octeon_instr_queue *iq =
-	    (struct octeon_instr_queue *)oct->instr_queue[iq_no];
-	return iq->iqcmd_64B;
-}
-
-#define IQ_INSTR_MODE_32B(oct, iq_no)  (!IQ_INSTR_MODE_64B(oct, iq_no))
-
 /* Define this to return the request status comaptible to old code */
 /*#define OCTEON_USE_OLD_REQ_STATUS*/
 
