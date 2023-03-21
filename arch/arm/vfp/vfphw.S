@@ -7,7 +7,7 @@
  *
  * This code is called from the kernel's undefined instruction trap.
  * r1 holds the thread_info pointer
- * r9 holds the return address for successful handling.
+ * r3 holds the return address for successful handling.
  * lr holds the return address for unrecognised instructions.
  * sp points to a struct pt_regs (as defined in include/asm/proc/ptrace.h)
  */
@@ -71,7 +71,7 @@
 @  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
 @  r1  = thread_info pointer
 @  r2  = PC value to resume execution after successful emulation
-@  r9  = normal "successful" return address
+@  r3  = normal "successful" return address
 @  lr  = unrecognised instruction return address
 @  IRQs enabled.
 ENTRY(vfp_support_entry)
@@ -89,9 +89,9 @@ ENTRY(vfp_support_entry)
 	bne	look_for_VFP_exceptions	@ VFP is already enabled
 
 	DBGSTR1 "enable %x", r10
-	ldr	r3, vfp_current_hw_state_address
+	ldr	r9, vfp_current_hw_state_address
 	orr	r1, r1, #FPEXC_EN	@ user FPEXC has the enable bit set
-	ldr	r4, [r3, r11, lsl #2]	@ vfp_current_hw_state pointer
+	ldr	r4, [r9, r11, lsl #2]	@ vfp_current_hw_state pointer
 	bic	r5, r1, #FPEXC_EX	@ make sure exceptions are disabled
 	cmp	r4, r10			@ this thread owns the hw context?
 #ifndef CONFIG_SMP
@@ -150,7 +150,7 @@ vfp_reload_hw:
 #endif
 
 	DBGSTR1	"load state %p", r10
-	str	r10, [r3, r11, lsl #2]	@ update the vfp_current_hw_state pointer
+	str	r10, [r9, r11, lsl #2]	@ update the vfp_current_hw_state pointer
 					@ Load the saved state back into the VFP
 	VFPFLDMIA r10, r5		@ reload the working registers while
 					@ FPEXC is in a safe state
@@ -180,7 +180,7 @@ vfp_hw_state_valid:
 					@ always subtract 4 from the following
 					@ instruction address.
 	local_bh_enable_ti r10, r4
-	ret	r9			@ we think we have handled things
+	ret	r3			@ we think we have handled things
 
 
 look_for_VFP_exceptions:
@@ -210,7 +210,7 @@ skip:
 process_exception:
 	DBGSTR	"bounce"
 	mov	r2, sp			@ nothing stacked - regdump is at TOS
-	mov	lr, r9			@ setup for a return to the user code.
+	mov	lr, r3			@ setup for a return to the user code.
 
 	@ Now call the C code to package up the bounce to the support code
 	@   r0 holds the trigger instruction

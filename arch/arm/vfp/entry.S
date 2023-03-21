@@ -23,6 +23,7 @@
 @
 ENTRY(do_vfp)
 	mov	r1, r10
+	mov	r3, r9
  	ldr	r4, .LCvfp
 	ldr	pc, [r4]		@ call VFP entry point
 ENDPROC(do_vfp)
