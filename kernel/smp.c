@@ -116,11 +116,16 @@ static DEFINE_STATIC_KEY_MAYBE(CONFIG_CSD_LOCK_WAIT_DEBUG_DEFAULT, csdlock_debug
  */
 static int __init csdlock_debug(char *str)
 {
+	int ret;
 	unsigned int val = 0;
 
-	get_option(&str, &val);
-	if (val)
-		static_branch_enable(&csdlock_debug_enabled);
+	ret = get_option(&str, &val);
+	if (ret) {
+		if (val)
+			static_branch_enable(&csdlock_debug_enabled);
+		else
+			static_branch_disable(&csdlock_debug_enabled);
+	}
 
 	return 1;
 }
