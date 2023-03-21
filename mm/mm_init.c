@@ -2531,6 +2531,95 @@ void __init memblock_free_pages(struct page *page, unsigned long pfn,
 	__free_pages_core(page, order);
 }
 
+static bool _init_on_alloc_enabled_early __read_mostly
+				= IS_ENABLED(CONFIG_INIT_ON_ALLOC_DEFAULT_ON);
+static int __init early_init_on_alloc(char *buf)
+{
+
+	return kstrtobool(buf, &_init_on_alloc_enabled_early);
+}
+early_param("init_on_alloc", early_init_on_alloc);
+
+static bool _init_on_free_enabled_early __read_mostly
+				= IS_ENABLED(CONFIG_INIT_ON_FREE_DEFAULT_ON);
+static int __init early_init_on_free(char *buf)
+{
+	return kstrtobool(buf, &_init_on_free_enabled_early);
+}
+early_param("init_on_free", early_init_on_free);
+
+DEFINE_STATIC_KEY_MAYBE(CONFIG_DEBUG_VM, check_pages_enabled);
+
+/*
+ * Enable static keys related to various memory debugging and hardening options.
+ * Some override others, and depend on early params that are evaluated in the
+ * order of appearance. So we need to first gather the full picture of what was
+ * enabled, and then make decisions.
+ */
+static void __init mem_debugging_and_hardening_init(void)
+{
+	bool page_poisoning_requested = false;
+	bool want_check_pages = false;
+
+#ifdef CONFIG_PAGE_POISONING
+	/*
+	 * Page poisoning is debug page alloc for some arches. If
+	 * either of those options are enabled, enable poisoning.
+	 */
+	if (page_poisoning_enabled() ||
+	     (!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) &&
+	      debug_pagealloc_enabled())) {
+		static_branch_enable(&_page_poisoning_enabled);
+		page_poisoning_requested = true;
+		want_check_pages = true;
+	}
+#endif
+
+	if ((_init_on_alloc_enabled_early || _init_on_free_enabled_early) &&
+	    page_poisoning_requested) {
+		pr_info("mem auto-init: CONFIG_PAGE_POISONING is on, "
+			"will take precedence over init_on_alloc and init_on_free\n");
+		_init_on_alloc_enabled_early = false;
+		_init_on_free_enabled_early = false;
+	}
+
+	if (_init_on_alloc_enabled_early) {
+		want_check_pages = true;
+		static_branch_enable(&init_on_alloc);
+	} else {
+		static_branch_disable(&init_on_alloc);
+	}
+
+	if (_init_on_free_enabled_early) {
+		want_check_pages = true;
+		static_branch_enable(&init_on_free);
+	} else {
+		static_branch_disable(&init_on_free);
+	}
+
+	if (IS_ENABLED(CONFIG_KMSAN) &&
+	    (_init_on_alloc_enabled_early || _init_on_free_enabled_early))
+		pr_info("mem auto-init: please make sure init_on_alloc and init_on_free are disabled when running KMSAN\n");
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	if (debug_pagealloc_enabled()) {
+		want_check_pages = true;
+		static_branch_enable(&_debug_pagealloc_enabled);
+
+		if (debug_guardpage_minorder())
+			static_branch_enable(&_debug_guardpage_enabled);
+	}
+#endif
+
+	/*
+	 * Any page debugging or hardening option also enables sanity checking
+	 * of struct pages being allocated or freed. With CONFIG_DEBUG_VM it's
+	 * enabled already.
+	 */
+	if (!IS_ENABLED(CONFIG_DEBUG_VM) && want_check_pages)
+		static_branch_enable(&check_pages_enabled);
+}
+
 /* Report memory auto-initialization states for this boot. */
 static void __init report_meminit(void)
 {
@@ -2570,7 +2659,7 @@ void __init mm_core_init(void)
 	 * bigger than MAX_ORDER unless SPARSEMEM.
 	 */
 	page_ext_init_flatmem();
-	init_mem_debugging_and_hardening();
+	mem_debugging_and_hardening_init();
 	kfence_alloc_pool();
 	report_meminit();
 	kmsan_init_shadow();
