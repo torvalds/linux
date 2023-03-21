@@ -1691,8 +1691,6 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 
 		__handle_changed_spte(kvm, iter.as_id, iter.gfn, iter.old_spte,
 				      iter.old_spte & ~dbit, iter.level, false);
-		handle_changed_spte_acc_track(iter.old_spte, iter.old_spte & ~dbit,
-					      iter.level);
 	}
 
 	rcu_read_unlock();
