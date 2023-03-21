@@ -186,6 +186,17 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
 
+	/*
+	 * We have to check the mount option here because we could be enabling
+	 * the free space tree for the first time and don't have the compat_ro
+	 * option set yet.
+	 *
+	 * We need extra reservations if we have the free space tree because
+	 * we'll have to modify that tree as well.
+	 */
+	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
+		limit *= 2;
+
 	spin_lock(&block_rsv->lock);
 	if (block_rsv->reserved < block_rsv->size) {
 		num_bytes = block_rsv->size - block_rsv->reserved;
