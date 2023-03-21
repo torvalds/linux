@@ -486,8 +486,17 @@ static bool type_is_sk_pointer(enum bpf_reg_type type)
 		type == PTR_TO_XDP_SOCK;
 }
 
+static bool type_may_be_null(u32 type)
+{
+	return type & PTR_MAYBE_NULL;
+}
+
 static bool reg_type_not_null(enum bpf_reg_type type)
 {
+	if (type_may_be_null(type))
+		return false;
+
+	type = base_type(type);
 	return type == PTR_TO_SOCKET ||
 		type == PTR_TO_TCP_SOCK ||
 		type == PTR_TO_MAP_VALUE ||
@@ -529,11 +538,6 @@ static bool reg_may_point_to_spin_lock(const struct bpf_reg_state *reg)
 static bool type_is_rdonly_mem(u32 type)
 {
 	return type & MEM_RDONLY;
-}
-
-static bool type_may_be_null(u32 type)
-{
-	return type & PTR_MAYBE_NULL;
 }
 
 static bool is_acquire_function(enum bpf_func_id func_id,
