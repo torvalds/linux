@@ -537,7 +537,7 @@ again:
 	up_read(&info->groups_sem);
 }
 
-static inline u64 calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
+static inline u64 calc_reclaim_items_nr(const struct btrfs_fs_info *fs_info,
 					u64 to_reclaim)
 {
 	u64 bytes;
@@ -550,7 +550,7 @@ static inline u64 calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
 	return nr;
 }
 
-static inline u64 calc_delayed_refs_nr(struct btrfs_fs_info *fs_info,
+static inline u64 calc_delayed_refs_nr(const struct btrfs_fs_info *fs_info,
 				       u64 to_reclaim)
 {
 	u64 bytes;
