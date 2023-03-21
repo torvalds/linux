@@ -695,10 +695,7 @@ found:
 	/*
 	 * Update the indices to avoid searching in the next round.
 	 */
-	if (index + nslots < mem->area_nslabs)
-		area->index = index + nslots;
-	else
-		area->index = 0;
+	area->index = wrap_area_index(mem, index + nslots);
 	area->used += nslots;
 	spin_unlock_irqrestore(&area->lock, flags);
 	return slot_index;
