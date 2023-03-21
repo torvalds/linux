@@ -4277,12 +4277,14 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 	struct gpio_array *array_info = NULL;
 	struct gpio_chip *gc;
 	int count, bitmap_size;
+	size_t descs_size;
 
 	count = gpiod_count(dev, con_id);
 	if (count < 0)
 		return ERR_PTR(count);
 
-	descs = kzalloc(struct_size(descs, desc, count), GFP_KERNEL);
+	descs_size = struct_size(descs, desc, count);
+	descs = kzalloc(descs_size, GFP_KERNEL);
 	if (!descs)
 		return ERR_PTR(-ENOMEM);
 
@@ -4306,20 +4308,17 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 			bitmap_size = BITS_TO_LONGS(gc->ngpio > count ?
 						    gc->ngpio : count);
 
-			array = kzalloc(struct_size(descs, desc, count) +
-					struct_size(array_info, invert_mask,
-					3 * bitmap_size), GFP_KERNEL);
+			array = krealloc(descs, descs_size +
+					 struct_size(array_info, invert_mask, 3 * bitmap_size),
+					 GFP_KERNEL | __GFP_ZERO);
 			if (!array) {
 				gpiod_put_array(descs);
 				return ERR_PTR(-ENOMEM);
 			}
 
-			memcpy(array, descs,
-			       struct_size(descs, desc, descs->ndescs + 1));
-			kfree(descs);
-
 			descs = array;
-			array_info = (void *)(descs->desc + count);
+
+			array_info = (void *)descs + descs_size;
 			array_info->get_mask = array_info->invert_mask +
 						  bitmap_size;
 			array_info->set_mask = array_info->get_mask +
