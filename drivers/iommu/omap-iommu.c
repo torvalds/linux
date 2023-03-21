@@ -1257,7 +1257,7 @@ out_group:
 	return err;
 }
 
-static int omap_iommu_remove(struct platform_device *pdev)
+static void omap_iommu_remove(struct platform_device *pdev)
 {
 	struct omap_iommu *obj = platform_get_drvdata(pdev);
 
@@ -1274,7 +1274,6 @@ static int omap_iommu_remove(struct platform_device *pdev)
 	pm_runtime_disable(obj->dev);
 
 	dev_info(&pdev->dev, "%s removed\n", obj->name);
-	return 0;
 }
 
 static const struct dev_pm_ops omap_iommu_pm_ops = {
@@ -1295,7 +1294,7 @@ static const struct of_device_id omap_iommu_of_match[] = {
 
 static struct platform_driver omap_iommu_driver = {
 	.probe	= omap_iommu_probe,
-	.remove	= omap_iommu_remove,
+	.remove_new = omap_iommu_remove,
 	.driver	= {
 		.name	= "omap-iommu",
 		.pm	= &omap_iommu_pm_ops,
