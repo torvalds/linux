@@ -5437,7 +5437,7 @@ static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 	}
 	write_unlock(&em_tree->lock);
 
-	block_group = btrfs_make_block_group(trans, 0, type, start, ctl->chunk_size);
+	block_group = btrfs_make_block_group(trans, type, start, ctl->chunk_size);
 	if (IS_ERR(block_group))
 		goto error_del_extent;
 

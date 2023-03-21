@@ -2672,7 +2672,7 @@ static u64 calculate_global_root_id(struct btrfs_fs_info *fs_info, u64 offset)
 }
 
 struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *trans,
-						 u64 bytes_used, u64 type,
+						 u64 type,
 						 u64 chunk_offset, u64 size)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -2687,7 +2687,6 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 
 	cache->length = size;
 	set_free_space_tree_thresholds(cache);
-	cache->used = bytes_used;
 	cache->flags = type;
 	cache->cached = BTRFS_CACHE_FINISHED;
 	cache->global_root_id = calculate_global_root_id(fs_info, cache->start);
@@ -2738,9 +2737,7 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 
 #ifdef CONFIG_BTRFS_DEBUG
 	if (btrfs_should_fragment_free_space(cache)) {
-		u64 new_bytes_used = size - bytes_used;
-
-		cache->space_info->bytes_used += new_bytes_used >> 1;
+		cache->space_info->bytes_used += size >> 1;
 		fragment_free_space(cache);
 	}
 #endif
