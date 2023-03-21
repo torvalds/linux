@@ -770,13 +770,6 @@ static inline void tdp_mmu_set_spte_no_acc_track(struct kvm *kvm,
 	_tdp_mmu_set_spte(kvm, iter, new_spte, false, true);
 }
 
-static inline void tdp_mmu_set_spte_no_dirty_log(struct kvm *kvm,
-						 struct tdp_iter *iter,
-						 u64 new_spte)
-{
-	_tdp_mmu_set_spte(kvm, iter, new_spte, true, false);
-}
-
 #define tdp_root_for_each_pte(_iter, _root, _start, _end) \
 	for_each_tdp_pte(_iter, _root, _start, _end)
 
@@ -1692,7 +1685,14 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 		if (!(iter.old_spte & dbit))
 			continue;
 
-		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, iter.old_spte & ~dbit);
+		iter.old_spte = tdp_mmu_clear_spte_bits(iter.sptep,
+							iter.old_spte, dbit,
+							iter.level);
+
+		__handle_changed_spte(kvm, iter.as_id, iter.gfn, iter.old_spte,
+				      iter.old_spte & ~dbit, iter.level, false);
+		handle_changed_spte_acc_track(iter.old_spte, iter.old_spte & ~dbit,
+					      iter.level);
 	}
 
 	rcu_read_unlock();

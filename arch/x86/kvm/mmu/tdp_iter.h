@@ -58,6 +58,20 @@ static inline u64 kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 old_spte,
 	return old_spte;
 }
 
+static inline u64 tdp_mmu_clear_spte_bits(tdp_ptep_t sptep, u64 old_spte,
+					  u64 mask, int level)
+{
+	atomic64_t *sptep_atomic;
+
+	if (kvm_tdp_mmu_spte_need_atomic_write(old_spte, level)) {
+		sptep_atomic = (atomic64_t *)rcu_dereference(sptep);
+		return (u64)atomic64_fetch_and(~mask, sptep_atomic);
+	}
+
+	__kvm_tdp_mmu_write_spte(sptep, old_spte & ~mask);
+	return old_spte;
+}
+
 /*
  * A TDP iterator performs a pre-order walk over a TDP paging structure.
  */
