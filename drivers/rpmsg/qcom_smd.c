@@ -1533,7 +1533,7 @@ static int qcom_smd_remove_device(struct device *dev, void *data)
  * qcom_smd_unregister_edge() - release an edge and its children
  * @edge:      edge reference acquired from qcom_smd_register_edge
  */
-int qcom_smd_unregister_edge(struct qcom_smd_edge *edge)
+void qcom_smd_unregister_edge(struct qcom_smd_edge *edge)
 {
 	int ret;
 
@@ -1547,8 +1547,6 @@ int qcom_smd_unregister_edge(struct qcom_smd_edge *edge)
 
 	mbox_free_channel(edge->mbox_chan);
 	device_unregister(&edge->dev);
-
-	return 0;
 }
 EXPORT_SYMBOL(qcom_smd_unregister_edge);
 
@@ -1572,7 +1570,9 @@ static int qcom_smd_remove_edge(struct device *dev, void *data)
 {
 	struct qcom_smd_edge *edge = to_smd_edge(dev);
 
-	return qcom_smd_unregister_edge(edge);
+	qcom_smd_unregister_edge(edge);
+
+	return 0;
 }
 
 /*
