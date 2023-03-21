@@ -899,7 +899,8 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 		if (!layout[i].reg)
 			continue;
 
-		if (region && layout[i].reg == last + 4) {
+		if (region && ocelot->map[SYS][layout[i].reg & REG_MASK] ==
+		    ocelot->map[SYS][last & REG_MASK] + 4) {
 			region->count++;
 		} else {
 			region = devm_kzalloc(ocelot->dev, sizeof(*region),
