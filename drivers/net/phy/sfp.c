@@ -360,6 +360,23 @@ static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
 	__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
 }
 
+static void sfp_quirk_disable_autoneg(const struct sfp_eeprom_id *id,
+				      unsigned long *modes,
+				      unsigned long *interfaces)
+{
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, modes);
+}
+
+static void sfp_quirk_oem_2_5g(const struct sfp_eeprom_id *id,
+			       unsigned long *modes,
+			       unsigned long *interfaces)
+{
+	/* Copper 2.5G SFP */
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, modes);
+	__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
+	sfp_quirk_disable_autoneg(id, modes, interfaces);
+}
+
 static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
 				      unsigned long *modes,
 				      unsigned long *interfaces)
@@ -401,6 +418,7 @@ static const struct sfp_quirk sfp_quirks[] = {
 	SFP_QUIRK_M("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
 
 	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
+	SFP_QUIRK_M("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
 	SFP_QUIRK_F("OEM", "RTSFP-10", sfp_fixup_rollball_cc),
 	SFP_QUIRK_F("OEM", "RTSFP-10G", sfp_fixup_rollball_cc),
 	SFP_QUIRK_F("Turris", "RTSFP-10", sfp_fixup_rollball),
