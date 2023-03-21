@@ -1607,8 +1607,8 @@ void kvm_tdp_mmu_try_split_huge_pages(struct kvm *kvm,
 static bool clear_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 			   gfn_t start, gfn_t end)
 {
+	u64 dbit = kvm_ad_enabled() ? shadow_dirty_mask : PT_WRITABLE_MASK;
 	struct tdp_iter iter;
-	u64 new_spte;
 	bool spte_set = false;
 
 	rcu_read_lock();
@@ -1624,19 +1624,10 @@ retry:
 		MMU_WARN_ON(kvm_ad_enabled() &&
 			    spte_ad_need_write_protect(iter.old_spte));
 
-		if (!kvm_ad_enabled()) {
-			if (is_writable_pte(iter.old_spte))
-				new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
-			else
-				continue;
-		} else {
-			if (iter.old_spte & shadow_dirty_mask)
-				new_spte = iter.old_spte & ~shadow_dirty_mask;
-			else
-				continue;
-		}
+		if (!(iter.old_spte & dbit))
+			continue;
 
-		if (tdp_mmu_set_spte_atomic(kvm, &iter, new_spte))
+		if (tdp_mmu_set_spte_atomic(kvm, &iter, iter.old_spte & ~dbit))
 			goto retry;
 
 		spte_set = true;
@@ -1678,8 +1669,9 @@ bool kvm_tdp_mmu_clear_dirty_slot(struct kvm *kvm,
 static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 				  gfn_t gfn, unsigned long mask, bool wrprot)
 {
+	u64 dbit = (wrprot || !kvm_ad_enabled()) ? PT_WRITABLE_MASK :
+						   shadow_dirty_mask;
 	struct tdp_iter iter;
-	u64 new_spte;
 
 	rcu_read_lock();
 
@@ -1697,19 +1689,10 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 
 		mask &= ~(1UL << (iter.gfn - gfn));
 
-		if (wrprot || !kvm_ad_enabled()) {
-			if (is_writable_pte(iter.old_spte))
-				new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
-			else
-				continue;
-		} else {
-			if (iter.old_spte & shadow_dirty_mask)
-				new_spte = iter.old_spte & ~shadow_dirty_mask;
-			else
-				continue;
-		}
+		if (!(iter.old_spte & dbit))
+			continue;
 
-		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, new_spte);
+		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, iter.old_spte & ~dbit);
 	}
 
 	rcu_read_unlock();
