@@ -896,10 +896,6 @@
 			to resolve the hang situation.  The default value of
 			this option depends on the CSD_LOCK_WAIT_DEBUG_DEFAULT
 			Kconfig option.
-			0: disable csdlock debugging
-			1: enable basic csdlock debugging (minor impact)
-			ext: enable extended csdlock debugging (more impact,
-			     but more data)
 
 	dasd=		[HW,NET]
 			See header of drivers/s390/block/dasd_devmap.c.
