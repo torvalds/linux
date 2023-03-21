@@ -19,6 +19,7 @@
 
 #define SOF_IPC4_GAIN_PARAM_ID  0
 #define SOF_IPC4_TPLG_ABI_SIZE 6
+#define SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS 2
 
 static DEFINE_IDA(alh_group_ida);
 static DEFINE_IDA(pipeline_ida);
@@ -26,6 +27,8 @@ static DEFINE_IDA(pipeline_ida);
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc4_pipeline, lp_mode)},
+	{SOF_TKN_SCHED_USE_CHAIN_DMA, SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+		offsetof(struct sof_ipc4_pipeline, use_chain_dma)},
 	{SOF_TKN_SCHED_CORE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc4_pipeline, core_id)},
 };
@@ -475,6 +478,8 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	struct snd_soc_component *scomp = swidget->scomp;
 	struct snd_sof_dai *dai = swidget->private;
 	struct sof_ipc4_copier *ipc4_copier;
+	struct snd_sof_widget *pipe_widget;
+	struct sof_ipc4_pipeline *pipeline;
 	int node_type = 0;
 	int ret;
 
@@ -511,6 +516,16 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 		node_type, ipc4_copier->dai_type, ipc4_copier->dai_index);
 
 	ipc4_copier->data.gtw_cfg.node_id = SOF_IPC4_NODE_TYPE(node_type);
+
+	pipe_widget = swidget->spipe->pipe_widget;
+	pipeline = pipe_widget->private;
+	if (pipeline->use_chain_dma && ipc4_copier->dai_type != SOF_DAI_INTEL_HDA) {
+		dev_err(scomp->dev,
+			"Bad DAI type '%d', Chained DMA is only supported by HDA DAIs (%d).\n",
+			ipc4_copier->dai_type, SOF_DAI_INTEL_HDA);
+		ret = -ENODEV;
+		goto free_available_fmt;
+	}
 
 	switch (ipc4_copier->dai_type) {
 	case SOF_DAI_INTEL_ALH:
@@ -642,6 +657,12 @@ static int sof_ipc4_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 	}
 
 	swidget->core = pipeline->core_id;
+
+	if (pipeline->use_chain_dma) {
+		dev_dbg(scomp->dev, "Set up chain DMA for %s\n", swidget->widget->name);
+		swidget->private = pipeline;
+		return 0;
+	}
 
 	/* parse one set of pipeline tokens */
 	ret = sof_update_ipc_object(scomp, swidget, SOF_PIPELINE_TOKENS, swidget->tuples,
@@ -1103,11 +1124,21 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 	pipeline->mem_usage = 0;
 
 	if (WIDGET_IS_AIF(swidget->id) || swidget->id == snd_soc_dapm_buffer) {
+		if (pipeline->use_chain_dma) {
+			pipeline->msg.primary = 0;
+			pipeline->msg.extension = 0;
+		}
 		ipc4_copier = swidget->private;
 	} else if (WIDGET_IS_DAI(swidget->id)) {
 		struct snd_sof_dai *dai = swidget->private;
 
 		ipc4_copier = dai->private;
+
+		if (pipeline->use_chain_dma) {
+			pipeline->msg.primary = 0;
+			pipeline->msg.extension = 0;
+		}
+
 		if (ipc4_copier->dai_type == SOF_DAI_INTEL_ALH) {
 			struct sof_ipc4_copier_data *copier_data = &ipc4_copier->data;
 			struct sof_ipc4_alh_configuration_blob *blob;
@@ -1344,12 +1375,43 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			return ret;
 		}
 
-		pipe_widget = swidget->spipe->pipe_widget;
-		pipeline = pipe_widget->private;
 		ipc4_copier = (struct sof_ipc4_copier *)swidget->private;
 		gtw_attr = ipc4_copier->gtw_attr;
 		copier_data = &ipc4_copier->data;
 		available_fmt = &ipc4_copier->available_fmt;
+
+		pipe_widget = swidget->spipe->pipe_widget;
+		pipeline = pipe_widget->private;
+
+		if (pipeline->use_chain_dma) {
+			u32 host_dma_id;
+			u32 fifo_size;
+
+			host_dma_id = platform_params->stream_tag - 1;
+			pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_HOST_ID(host_dma_id);
+
+			/* Set SCS bit for S16_LE format only */
+			if (params_format(fe_params) == SNDRV_PCM_FORMAT_S16_LE)
+				pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_SCS_MASK;
+
+			/*
+			 * Despite its name the bitfield 'fifo_size' is used to define DMA buffer
+			 * size. The expression calculates 2ms buffer size.
+			 */
+			fifo_size = DIV_ROUND_UP((SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS *
+						  params_rate(fe_params) *
+						  params_channels(fe_params) *
+						  params_physical_width(fe_params)), 8000);
+			pipeline->msg.extension |= SOF_IPC4_GLB_EXT_CHAIN_DMA_FIFO_SIZE(fifo_size);
+
+			/*
+			 * Chain DMA does not support stream timestamping, set node_id to invalid
+			 * to skip the code in sof_ipc4_get_stream_start_offset().
+			 */
+			copier_data->gtw_cfg.node_id = SOF_IPC4_INVALID_NODE_ID;
+
+			return 0;
+		}
 
 		/*
 		 * Use the input_pin_fmts to match pcm params for playback and the output_pin_fmts
@@ -1375,6 +1437,12 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	case snd_soc_dapm_dai_in:
 	case snd_soc_dapm_dai_out:
 	{
+		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+
+		if (pipeline->use_chain_dma)
+			return 0;
+
 		dai = swidget->private;
 
 		ipc4_copier = (struct sof_ipc4_copier *)dai->private;
@@ -1921,6 +1989,9 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	case snd_soc_dapm_scheduler:
 		pipeline = swidget->private;
 
+		if (pipeline->use_chain_dma)
+			return 0;
+
 		dev_dbg(sdev->dev, "pipeline: %d memory pages: %d\n", swidget->pipeline_id,
 			pipeline->mem_usage);
 
@@ -1943,6 +2014,10 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	{
 		struct sof_ipc4_copier *ipc4_copier = swidget->private;
 
+		pipeline = pipe_widget->private;
+		if (pipeline->use_chain_dma)
+			return 0;
+
 		ipc_size = ipc4_copier->ipc_config_size;
 		ipc_data = ipc4_copier->ipc_config_data;
 
@@ -1954,6 +2029,10 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	{
 		struct snd_sof_dai *dai = swidget->private;
 		struct sof_ipc4_copier *ipc4_copier = dai->private;
+
+		pipeline = pipe_widget->private;
+		if (pipeline->use_chain_dma)
+			return 0;
 
 		ipc_size = ipc4_copier->ipc_config_size;
 		ipc_data = ipc4_copier->ipc_config_data;
@@ -2066,6 +2145,9 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 		struct sof_ipc4_msg msg = {{ 0 }};
 		u32 header;
 
+		if (pipeline->use_chain_dma)
+			return 0;
+
 		header = SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->instance_id);
 		header |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_DELETE_PIPELINE);
 		header |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
@@ -2082,7 +2164,11 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 		pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
 		ida_free(&pipeline_ida, swidget->instance_id);
 	} else {
-		ida_free(&fw_module->m_ida, swidget->instance_id);
+		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+
+		if (!pipeline->use_chain_dma)
+			ida_free(&fw_module->m_ida, swidget->instance_id);
 	}
 
 	mutex_unlock(&ipc4_data->pipeline_state_mutex);
@@ -2234,11 +2320,26 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 {
 	struct snd_sof_widget *src_widget = sroute->src_widget;
 	struct snd_sof_widget *sink_widget = sroute->sink_widget;
+	struct snd_sof_widget *src_pipe_widget = src_widget->spipe->pipe_widget;
+	struct snd_sof_widget *sink_pipe_widget = sink_widget->spipe->pipe_widget;
 	struct sof_ipc4_fw_module *src_fw_module = src_widget->module_info;
 	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
+	struct sof_ipc4_pipeline *src_pipeline = src_pipe_widget->private;
+	struct sof_ipc4_pipeline *sink_pipeline = sink_pipe_widget->private;
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 header, extension;
 	int ret;
+
+	/* no route set up if chain DMA is used */
+	if (src_pipeline->use_chain_dma || sink_pipeline->use_chain_dma) {
+		if (!src_pipeline->use_chain_dma || !sink_pipeline->use_chain_dma) {
+			dev_err(sdev->dev,
+				"use_chain_dma must be set for both src %s and sink %s pipelines\n",
+				src_widget->widget->name, sink_widget->widget->name);
+			return -EINVAL;
+		}
+		return 0;
+	}
 
 	sroute->src_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
 						     SOF_PIN_TYPE_OUTPUT);
@@ -2310,8 +2411,16 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	struct sof_ipc4_fw_module *src_fw_module = src_widget->module_info;
 	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
 	struct sof_ipc4_msg msg = {{ 0 }};
+	struct snd_sof_widget *src_pipe_widget = src_widget->spipe->pipe_widget;
+	struct snd_sof_widget *sink_pipe_widget = sink_widget->spipe->pipe_widget;
+	struct sof_ipc4_pipeline *src_pipeline = src_pipe_widget->private;
+	struct sof_ipc4_pipeline *sink_pipeline = sink_pipe_widget->private;
 	u32 header, extension;
 	int ret = 0;
+
+	/* no route is set up if chain DMA is used */
+	if (src_pipeline->use_chain_dma || sink_pipeline->use_chain_dma)
+		return 0;
 
 	dev_dbg(sdev->dev, "unbind modules %s:%d -> %s:%d\n",
 		src_widget->widget->name, sroute->src_queue_id,
@@ -2374,6 +2483,11 @@ static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 
 	switch (ipc4_copier->dai_type) {
 	case SOF_DAI_INTEL_HDA:
+		if (pipeline->use_chain_dma) {
+			pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
+			pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(data->dai_data);
+			break;
+		}
 		gtw_attr = ipc4_copier->gtw_attr;
 		gtw_attr->lp_buffer_alloc = pipeline->lp_mode;
 		pipeline->skip_during_fe_trigger = true;
