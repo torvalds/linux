@@ -75,6 +75,67 @@ static void journal_pin_list_init(struct journal_entry_pin_list *p, int count)
 	p->devs.nr = 0;
 }
 
+/*
+ * Detect stuck journal conditions and trigger shutdown. Technically the journal
+ * can end up stuck for a variety of reasons, such as a blocked I/O, journal
+ * reservation lockup, etc. Since this is a fatal error with potentially
+ * unpredictable characteristics, we want to be fairly conservative before we
+ * decide to shut things down.
+ *
+ * Consider the journal stuck when it appears full with no ability to commit
+ * btree transactions, to discard journal buckets, nor acquire priority
+ * (reserved watermark) reservation.
+ */
+static inline bool
+journal_error_check_stuck(struct journal *j, int error, unsigned flags)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	bool stuck = false;
+	struct printbuf buf = PRINTBUF;
+
+	if (!(error == JOURNAL_ERR_journal_full ||
+	      error == JOURNAL_ERR_journal_pin_full) ||
+	    nr_unwritten_journal_entries(j) ||
+	    (flags & JOURNAL_WATERMARK_MASK) != JOURNAL_WATERMARK_reserved)
+		return stuck;
+
+	spin_lock(&j->lock);
+
+	if (j->can_discard) {
+		spin_unlock(&j->lock);
+		return stuck;
+	}
+
+	stuck = true;
+
+	/*
+	 * The journal shutdown path will set ->err_seq, but do it here first to
+	 * serialize against concurrent failures and avoid duplicate error
+	 * reports.
+	 */
+	if (j->err_seq) {
+		spin_unlock(&j->lock);
+		return stuck;
+	}
+	j->err_seq = journal_cur_seq(j);
+	spin_unlock(&j->lock);
+
+	bch_err(c, "Journal stuck! Hava a pre-reservation but journal full (error %s)",
+		bch2_journal_errors[error]);
+	bch2_journal_debug_to_text(&buf, j);
+	bch_err(c, "%s", buf.buf);
+
+	printbuf_reset(&buf);
+	bch2_journal_pins_to_text(&buf, j);
+	bch_err(c, "Journal pins:\n%s", buf.buf);
+	printbuf_exit(&buf);
+
+	bch2_fatal_error(c);
+	dump_stack();
+
+	return stuck;
+}
+
 /* journal entry close/open: */
 
 void __bch2_journal_buf_put(struct journal *j)
@@ -416,28 +477,8 @@ unlock:
 
 	if (!ret)
 		goto retry;
-
-	if ((ret == JOURNAL_ERR_journal_full ||
-	     ret == JOURNAL_ERR_journal_pin_full) &&
-	    !can_discard &&
-	    !nr_unwritten_journal_entries(j) &&
-	    (flags & JOURNAL_WATERMARK_MASK) == JOURNAL_WATERMARK_reserved) {
-		struct printbuf buf = PRINTBUF;
-
-		bch_err(c, "Journal stuck! Hava a pre-reservation but journal full (ret %s)",
-			bch2_journal_errors[ret]);
-
-		bch2_journal_debug_to_text(&buf, j);
-		bch_err(c, "%s", buf.buf);
-
-		printbuf_reset(&buf);
-		bch2_journal_pins_to_text(&buf, j);
-		bch_err(c, "Journal pins:\n%s", buf.buf);
-
-		printbuf_exit(&buf);
-		bch2_fatal_error(c);
-		dump_stack();
-	}
+	if (journal_error_check_stuck(j, ret, flags))
+		ret = -BCH_ERR_journal_res_get_blocked;
 
 	/*
 	 * Journal is full - can't rely on reclaim from work item due to
