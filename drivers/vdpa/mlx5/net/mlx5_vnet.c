@@ -778,12 +778,28 @@ static bool vq_is_tx(u16 idx)
 	return idx % 2;
 }
 
-static u16 get_features_12_3(u64 features)
+enum {
+	MLX5_VIRTIO_NET_F_MRG_RXBUF = 2,
+	MLX5_VIRTIO_NET_F_HOST_ECN = 4,
+	MLX5_VIRTIO_NET_F_GUEST_ECN = 6,
+	MLX5_VIRTIO_NET_F_GUEST_TSO6 = 7,
+	MLX5_VIRTIO_NET_F_GUEST_TSO4 = 8,
+	MLX5_VIRTIO_NET_F_GUEST_CSUM = 9,
+	MLX5_VIRTIO_NET_F_CSUM = 10,
+	MLX5_VIRTIO_NET_F_HOST_TSO6 = 11,
+	MLX5_VIRTIO_NET_F_HOST_TSO4 = 12,
+};
+
+static u16 get_features(u64 features)
 {
-	return (!!(features & BIT_ULL(VIRTIO_NET_F_HOST_TSO4)) << 9) |
-	       (!!(features & BIT_ULL(VIRTIO_NET_F_HOST_TSO6)) << 8) |
-	       (!!(features & BIT_ULL(VIRTIO_NET_F_CSUM)) << 7) |
-	       (!!(features & BIT_ULL(VIRTIO_NET_F_GUEST_CSUM)) << 6);
+	return (!!(features & BIT_ULL(VIRTIO_NET_F_MRG_RXBUF)) << MLX5_VIRTIO_NET_F_MRG_RXBUF) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_HOST_ECN)) << MLX5_VIRTIO_NET_F_HOST_ECN) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_GUEST_ECN)) << MLX5_VIRTIO_NET_F_GUEST_ECN) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_GUEST_TSO6)) << MLX5_VIRTIO_NET_F_GUEST_TSO6) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_GUEST_TSO4)) << MLX5_VIRTIO_NET_F_GUEST_TSO4) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_CSUM)) << MLX5_VIRTIO_NET_F_CSUM) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_HOST_TSO6)) << MLX5_VIRTIO_NET_F_HOST_TSO6) |
+	       (!!(features & BIT_ULL(VIRTIO_NET_F_HOST_TSO4)) << MLX5_VIRTIO_NET_F_HOST_TSO4);
 }
 
 static bool counters_supported(const struct mlx5_vdpa_dev *mvdev)
@@ -797,6 +813,7 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 	int inlen = MLX5_ST_SZ_BYTES(create_virtio_net_q_in);
 	u32 out[MLX5_ST_SZ_DW(create_virtio_net_q_out)] = {};
 	void *obj_context;
+	u16 mlx_features;
 	void *cmd_hdr;
 	void *vq_ctx;
 	void *in;
@@ -812,6 +829,7 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 		goto err_alloc;
 	}
 
+	mlx_features = get_features(ndev->mvdev.actual_features);
 	cmd_hdr = MLX5_ADDR_OF(create_virtio_net_q_in, in, general_obj_in_cmd_hdr);
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
@@ -822,7 +840,9 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 	MLX5_SET(virtio_net_q_object, obj_context, hw_available_index, mvq->avail_idx);
 	MLX5_SET(virtio_net_q_object, obj_context, hw_used_index, mvq->used_idx);
 	MLX5_SET(virtio_net_q_object, obj_context, queue_feature_bit_mask_12_3,
-		 get_features_12_3(ndev->mvdev.actual_features));
+		 mlx_features >> 3);
+	MLX5_SET(virtio_net_q_object, obj_context, queue_feature_bit_mask_2_0,
+		 mlx_features & 7);
 	vq_ctx = MLX5_ADDR_OF(virtio_net_q_object, obj_context, virtio_q_context);
 	MLX5_SET(virtio_q, vq_ctx, virtio_q_type, get_queue_type(ndev));
 
@@ -2171,23 +2191,27 @@ static u32 mlx5_vdpa_get_vq_group(struct vdpa_device *vdev, u16 idx)
 	return MLX5_VDPA_DATAVQ_GROUP;
 }
 
-enum { MLX5_VIRTIO_NET_F_GUEST_CSUM = 1 << 9,
-	MLX5_VIRTIO_NET_F_CSUM = 1 << 10,
-	MLX5_VIRTIO_NET_F_HOST_TSO6 = 1 << 11,
-	MLX5_VIRTIO_NET_F_HOST_TSO4 = 1 << 12,
-};
-
 static u64 mlx_to_vritio_features(u16 dev_features)
 {
 	u64 result = 0;
 
-	if (dev_features & MLX5_VIRTIO_NET_F_GUEST_CSUM)
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_MRG_RXBUF))
+		result |= BIT_ULL(VIRTIO_NET_F_MRG_RXBUF);
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_HOST_ECN))
+		result |= BIT_ULL(VIRTIO_NET_F_HOST_ECN);
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_GUEST_ECN))
+		result |= BIT_ULL(VIRTIO_NET_F_GUEST_ECN);
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_GUEST_TSO6))
+		result |= BIT_ULL(VIRTIO_NET_F_GUEST_TSO6);
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_GUEST_TSO4))
+		result |= BIT_ULL(VIRTIO_NET_F_GUEST_TSO4);
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_GUEST_CSUM))
 		result |= BIT_ULL(VIRTIO_NET_F_GUEST_CSUM);
-	if (dev_features & MLX5_VIRTIO_NET_F_CSUM)
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_CSUM))
 		result |= BIT_ULL(VIRTIO_NET_F_CSUM);
-	if (dev_features & MLX5_VIRTIO_NET_F_HOST_TSO6)
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_HOST_TSO6))
 		result |= BIT_ULL(VIRTIO_NET_F_HOST_TSO6);
-	if (dev_features & MLX5_VIRTIO_NET_F_HOST_TSO4)
+	if (dev_features & BIT_ULL(MLX5_VIRTIO_NET_F_HOST_TSO4))
 		result |= BIT_ULL(VIRTIO_NET_F_HOST_TSO4);
 
 	return result;
