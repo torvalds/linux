@@ -1438,6 +1438,8 @@ static void rk3568_set_intf_mux(struct vop2_video_port *vp, int id,
 		die &= ~RK3568_SYS_DSP_INFACE_EN_RGB_MUX;
 		die |= RK3568_SYS_DSP_INFACE_EN_RGB |
 			   FIELD_PREP(RK3568_SYS_DSP_INFACE_EN_RGB_MUX, vp->id);
+		dip &= ~RK3568_DSP_IF_POL__RGB_LVDS_PIN_POL;
+		dip |= FIELD_PREP(RK3568_DSP_IF_POL__RGB_LVDS_PIN_POL, polflags);
 		if (polflags & POLFLAG_DCLK_INV)
 			regmap_write(vop2->grf, RK3568_GRF_VO_CON1, BIT(3 + 16) | BIT(3));
 		else
@@ -2655,7 +2657,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 
 	/* Allocate vop2 struct and its vop2_win array */
-	alloc_size = sizeof(*vop2) + sizeof(*vop2->win) * vop2_data->win_size;
+	alloc_size = struct_size(vop2, win, vop2_data->win_size);
 	vop2 = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
 	if (!vop2)
 		return -ENOMEM;

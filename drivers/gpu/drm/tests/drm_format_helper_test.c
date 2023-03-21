@@ -409,12 +409,15 @@ static size_t conversion_buf_size(u32 dst_format, unsigned int dst_pitch,
 				  const struct drm_rect *clip)
 {
 	const struct drm_format_info *dst_fi = drm_format_info(dst_format);
+	unsigned int bpp;
 
 	if (!dst_fi)
 		return -EINVAL;
 
-	if (!dst_pitch)
-		dst_pitch = drm_rect_width(clip) * dst_fi->cpp[0];
+	if (!dst_pitch) {
+		bpp = drm_format_info_bpp(dst_fi, 0);
+		dst_pitch = DIV_ROUND_UP(drm_rect_width(clip) * bpp, 8);
+	}
 
 	return dst_pitch * drm_rect_height(clip);
 }
