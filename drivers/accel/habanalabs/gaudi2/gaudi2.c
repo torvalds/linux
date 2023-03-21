@@ -2439,6 +2439,7 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 
 	prop->first_available_user_interrupt = GAUDI2_IRQ_NUM_USER_FIRST;
 	prop->tpc_interrupt_id = GAUDI2_IRQ_NUM_TPC_ASSERT;
+	prop->eq_interrupt_id = GAUDI2_IRQ_NUM_EVENT_QUEUE;
 	prop->unexpected_user_error_interrupt_id = GAUDI2_IRQ_NUM_UNEXPECTED_ERROR;
 
 	prop->first_available_cq[0] = GAUDI2_RESERVED_CQ_NUMBER;
