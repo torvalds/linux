@@ -49,45 +49,29 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 			       const struct ttm_place *place,
 			       struct ttm_resource **res)
 {
-	u64 max_bytes, cur_size, min_block_size;
 	struct xe_ttm_vram_mgr *mgr = to_xe_ttm_vram_mgr(man);
 	struct xe_ttm_vram_mgr_resource *vres;
-	u64 size, remaining_size, lpfn, fpfn;
 	struct drm_buddy *mm = &mgr->mm;
-	unsigned long pages_per_block;
-	int r;
+	u64 size, remaining_size, min_page_size;
+	unsigned long lpfn;
+	int err;
 
-	lpfn = (u64)place->lpfn << PAGE_SHIFT;
-	if (!lpfn || lpfn > man->size)
-		lpfn = man->size;
+	lpfn = place->lpfn;
+	if (!lpfn || lpfn > man->size >> PAGE_SHIFT)
+		lpfn = man->size >> PAGE_SHIFT;
 
-	fpfn = (u64)place->fpfn << PAGE_SHIFT;
-
-	max_bytes = mgr->manager.size;
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
-		pages_per_block = ~0ul;
-	} else {
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		pages_per_block = HPAGE_PMD_NR;
-#else
-		/* default to 2MB */
-		pages_per_block = 2UL << (20UL - PAGE_SHIFT);
-#endif
-
-		pages_per_block = max_t(uint32_t, pages_per_block,
-					tbo->page_alignment);
-	}
+	if (tbo->base.size >> PAGE_SHIFT > (lpfn - place->fpfn))
+		return -E2BIG; /* don't trigger eviction for the impossible */
 
 	vres = kzalloc(sizeof(*vres), GFP_KERNEL);
 	if (!vres)
 		return -ENOMEM;
 
 	ttm_resource_init(tbo, place, &vres->base);
-	remaining_size = vres->base.size;
 
 	/* bail out quickly if there's likely not enough VRAM for this BO */
-	if (ttm_resource_manager_usage(man) > max_bytes) {
-		r = -ENOSPC;
+	if (ttm_resource_manager_usage(man) > man->size) {
+		err = -ENOSPC;
 		goto error_fini;
 	}
 
@@ -96,94 +80,99 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		vres->flags |= DRM_BUDDY_TOPDOWN_ALLOCATION;
 
-	if (fpfn || lpfn != man->size)
-		/* Allocate blocks in desired range */
+	if (place->fpfn || lpfn != man->size >> PAGE_SHIFT)
 		vres->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
+	if (WARN_ON(!vres->base.size)) {
+		err = -EINVAL;
+		goto error_fini;
+	}
+	size = vres->base.size;
+
+	min_page_size = mgr->default_page_size;
+	if (tbo->page_alignment)
+		min_page_size = tbo->page_alignment << PAGE_SHIFT;
+
+	if (WARN_ON(min_page_size < mm->chunk_size)) {
+		err = -EINVAL;
+		goto error_fini;
+	}
+
+	if (WARN_ON(min_page_size > SZ_2G)) { /* FIXME: sg limit */
+		err = -EINVAL;
+		goto error_fini;
+	}
+
+	if (WARN_ON((size > SZ_2G &&
+		     (vres->base.placement & TTM_PL_FLAG_CONTIGUOUS)))) {
+		err = -EINVAL;
+		goto error_fini;
+	}
+
+	if (WARN_ON(!IS_ALIGNED(size, min_page_size))) {
+		err = -EINVAL;
+		goto error_fini;
+	}
+
 	mutex_lock(&mgr->lock);
-	while (remaining_size) {
-		if (tbo->page_alignment)
-			min_block_size = tbo->page_alignment << PAGE_SHIFT;
-		else
-			min_block_size = mgr->default_page_size;
+	if (lpfn <= mgr->visible_size >> PAGE_SHIFT && size > mgr->visible_avail) {
+		mutex_unlock(&mgr->lock);
+		err = -ENOSPC;
+		goto error_fini;
+	}
 
-		XE_BUG_ON(min_block_size < mm->chunk_size);
+	if (place->fpfn + (size >> PAGE_SHIFT) != place->lpfn &&
+	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+		size = roundup_pow_of_two(size);
+		min_page_size = size;
 
-		/* Limit maximum size to 2GiB due to SG table limitations */
-		size = min(remaining_size, 2ULL << 30);
+		lpfn = max_t(unsigned long, place->fpfn + (size >> PAGE_SHIFT), lpfn);
+	}
 
-		if (size >= pages_per_block << PAGE_SHIFT)
-			min_block_size = pages_per_block << PAGE_SHIFT;
+	remaining_size = size;
+	do {
+		/*
+		 * Limit maximum size to 2GiB due to SG table limitations.
+		 * FIXME: Should maybe be handled as part of sg construction.
+		 */
+		u64 alloc_size = min_t(u64, remaining_size, SZ_2G);
 
-		cur_size = size;
-
-		if (fpfn + size != (u64)place->lpfn << PAGE_SHIFT) {
-			/*
-			 * Except for actual range allocation, modify the size and
-			 * min_block_size conforming to continuous flag enablement
-			 */
-			if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
-				size = roundup_pow_of_two(size);
-				min_block_size = size;
-			/*
-			 * Modify the size value if size is not
-			 * aligned with min_block_size
-			 */
-			} else if (!IS_ALIGNED(size, min_block_size)) {
-				size = round_up(size, min_block_size);
-			}
-		}
-
-		r = drm_buddy_alloc_blocks(mm, fpfn,
-					   lpfn,
-					   size,
-					   min_block_size,
-					   &vres->blocks,
-					   vres->flags);
-		if (unlikely(r))
+		err = drm_buddy_alloc_blocks(mm, (u64)place->fpfn << PAGE_SHIFT,
+					     (u64)lpfn << PAGE_SHIFT,
+					     alloc_size,
+					     min_page_size,
+					     &vres->blocks,
+					     vres->flags);
+		if (err)
 			goto error_free_blocks;
 
-		if (size > remaining_size)
-			remaining_size = 0;
-		else
-			remaining_size -= size;
-	}
-	mutex_unlock(&mgr->lock);
+		remaining_size -= alloc_size;
+	} while (remaining_size);
 
-	if (cur_size != size) {
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+		if (!drm_buddy_block_trim(mm, vres->base.size, &vres->blocks))
+			size = vres->base.size;
+	}
+
+	if (lpfn <= mgr->visible_size >> PAGE_SHIFT) {
+		vres->used_visible_size = size;
+	} else {
 		struct drm_buddy_block *block;
-		struct list_head *trim_list;
-		u64 original_size;
-		LIST_HEAD(temp);
 
-		trim_list = &vres->blocks;
-		original_size = vres->base.size;
+		list_for_each_entry(block, &vres->blocks, link) {
+			u64 start = drm_buddy_block_offset(block);
 
-		/*
-		 * If size value is rounded up to min_block_size, trim the last
-		 * block to the required size
-		 */
-		if (!list_is_singular(&vres->blocks)) {
-			block = list_last_entry(&vres->blocks, typeof(*block), link);
-			list_move_tail(&block->link, &temp);
-			trim_list = &temp;
-			/*
-			 * Compute the original_size value by subtracting the
-			 * last block size with (aligned size - original size)
-			 */
-			original_size = drm_buddy_block_size(mm, block) -
-				(size - cur_size);
+			if (start < mgr->visible_size) {
+				u64 end = start + drm_buddy_block_size(mm, block);
+
+				vres->used_visible_size +=
+					min(end, mgr->visible_size) - start;
+			}
 		}
-
-		mutex_lock(&mgr->lock);
-		drm_buddy_block_trim(mm,
-				     original_size,
-				     trim_list);
-		mutex_unlock(&mgr->lock);
-
-		if (!list_empty(&temp))
-			list_splice_tail(trim_list, &vres->blocks);
 	}
+
+	mgr->visible_avail -= vres->used_visible_size;
+	mutex_unlock(&mgr->lock);
 
 	if (!(vres->base.placement & TTM_PL_FLAG_CONTIGUOUS) &&
 	    xe_is_vram_mgr_blocks_contiguous(mm, &vres->blocks))
@@ -213,7 +202,7 @@ error_fini:
 	ttm_resource_fini(man, &vres->base);
 	kfree(vres);
 
-	return r;
+	return err;
 }
 
 static void xe_ttm_vram_mgr_del(struct ttm_resource_manager *man,
@@ -226,6 +215,7 @@ static void xe_ttm_vram_mgr_del(struct ttm_resource_manager *man,
 
 	mutex_lock(&mgr->lock);
 	drm_buddy_free_list(mm, &vres->blocks);
+	mgr->visible_avail += vres->used_visible_size;
 	mutex_unlock(&mgr->lock);
 
 	ttm_resource_fini(man, res);
@@ -240,6 +230,13 @@ static void xe_ttm_vram_mgr_debug(struct ttm_resource_manager *man,
 	struct drm_buddy *mm = &mgr->mm;
 
 	mutex_lock(&mgr->lock);
+	drm_printf(printer, "default_page_size: %lluKiB\n",
+		   mgr->default_page_size >> 10);
+	drm_printf(printer, "visible_avail: %lluMiB\n",
+		   (u64)mgr->visible_avail >> 20);
+	drm_printf(printer, "visible_size: %lluMiB\n",
+		   (u64)mgr->visible_size >> 20);
+
 	drm_buddy_print(mm, printer);
 	mutex_unlock(&mgr->lock);
 	drm_printf(printer, "man size:%llu\n", man->size);
@@ -262,6 +259,8 @@ static void ttm_vram_mgr_fini(struct drm_device *dev, void *arg)
 	if (ttm_resource_manager_evict_all(&xe->ttm, man))
 		return;
 
+	WARN_ON_ONCE(mgr->visible_avail != mgr->visible_size);
+
 	drm_buddy_fini(&mgr->mm);
 
 	ttm_resource_manager_cleanup(&mgr->manager);
@@ -270,7 +269,8 @@ static void ttm_vram_mgr_fini(struct drm_device *dev, void *arg)
 }
 
 int __xe_ttm_vram_mgr_init(struct xe_device *xe, struct xe_ttm_vram_mgr *mgr,
-			   u32 mem_type, u64 size, u64 default_page_size)
+			   u32 mem_type, u64 size, u64 io_size,
+			   u64 default_page_size)
 {
 	struct ttm_resource_manager *man = &mgr->manager;
 	int err;
@@ -279,6 +279,8 @@ int __xe_ttm_vram_mgr_init(struct xe_device *xe, struct xe_ttm_vram_mgr *mgr,
 	mgr->mem_type = mem_type;
 	mutex_init(&mgr->lock);
 	mgr->default_page_size = default_page_size;
+	mgr->visible_size = io_size;
+	mgr->visible_avail = io_size;
 
 	ttm_resource_manager_init(man, &xe->ttm, size);
 	err = drm_buddy_init(&mgr->mm, man->size, default_page_size);
@@ -298,7 +300,8 @@ int xe_ttm_vram_mgr_init(struct xe_gt *gt, struct xe_ttm_vram_mgr *mgr)
 	mgr->gt = gt;
 
 	return __xe_ttm_vram_mgr_init(xe, mgr, XE_PL_VRAM0 + gt->info.vram_id,
-				      gt->mem.vram.size, PAGE_SIZE);
+				      gt->mem.vram.size, gt->mem.vram.io_size,
+				      PAGE_SIZE);
 }
 
 int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,

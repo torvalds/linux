@@ -135,7 +135,7 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 {
 	struct xe_ttm_stolen_mgr *mgr = drmm_kzalloc(&xe->drm, sizeof(*mgr), GFP_KERNEL);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	u64 stolen_size, pgsize;
+	u64 stolen_size, io_size, pgsize;
 	int err;
 
 	if (IS_DGFX(xe))
@@ -154,7 +154,17 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	if (pgsize < PAGE_SIZE)
 		pgsize = PAGE_SIZE;
 
-	err = __xe_ttm_vram_mgr_init(xe, &mgr->base, XE_PL_STOLEN, stolen_size, pgsize);
+	/*
+	 * We don't try to attempt partial visible support for stolen vram,
+	 * since stolen is always at the end of vram, and the BAR size is pretty
+	 * much always 256M, with small-bar.
+	 */
+	io_size = 0;
+	if (mgr->io_base && !xe_ttm_stolen_cpu_access_needs_ggtt(xe))
+		io_size = stolen_size;
+
+	err = __xe_ttm_vram_mgr_init(xe, &mgr->base, XE_PL_STOLEN, stolen_size,
+				     io_size, pgsize);
 	if (err) {
 		drm_dbg_kms(&xe->drm, "Stolen mgr init failed: %i\n", err);
 		return;
@@ -163,8 +173,8 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	drm_dbg_kms(&xe->drm, "Initialized stolen memory support with %llu bytes\n",
 		    stolen_size);
 
-	if (mgr->io_base && !xe_ttm_stolen_cpu_access_needs_ggtt(xe))
-		mgr->mapping = devm_ioremap_wc(&pdev->dev, mgr->io_base, stolen_size);
+	if (io_size)
+		mgr->mapping = devm_ioremap_wc(&pdev->dev, mgr->io_base, io_size);
 }
 
 u64 xe_ttm_stolen_io_offset(struct xe_bo *bo, u32 offset)

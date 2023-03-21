@@ -23,6 +23,10 @@ struct xe_ttm_vram_mgr {
 	struct ttm_resource_manager manager;
 	/** @mm: DRM buddy allocator which manages the VRAM */
 	struct drm_buddy mm;
+	/** @visible_size: Proped size of the CPU visible portion */
+	u64 visible_size;
+	/** @visible_avail: CPU visible portion still unallocated */
+	u64 visible_avail;
 	/** @default_page_size: default page size */
 	u64 default_page_size;
 	/** @lock: protects allocations of VRAM */
@@ -39,6 +43,8 @@ struct xe_ttm_vram_mgr_resource {
 	struct ttm_resource base;
 	/** @blocks: list of DRM buddy blocks */
 	struct list_head blocks;
+	/** @used_visible_size: How many CPU visible bytes this resource is using */
+	u64 used_visible_size;
 	/** @flags: flags associated with the resource */
 	unsigned long flags;
 };
