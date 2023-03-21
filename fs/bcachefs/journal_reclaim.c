@@ -210,24 +210,7 @@ void bch2_journal_space_available(struct journal *j)
 	clean		= j->space[journal_space_clean].total;
 	total		= j->space[journal_space_total].total;
 
-	if (!clean_ondisk &&
-	    journal_cur_seq(j) == j->seq_ondisk) {
-		struct printbuf buf = PRINTBUF;
-
-		__bch2_journal_debug_to_text(&buf, j);
-		bch_err(c, "journal stuck\n%s", buf.buf);
-		printbuf_exit(&buf);
-
-		/*
-		 * Hack: bch2_fatal_error() calls bch2_journal_halt() which
-		 * takes journal lock:
-		 */
-		spin_unlock(&j->lock);
-		bch2_fatal_error(c);
-		spin_lock(&j->lock);
-
-		ret = JOURNAL_ERR_journal_stuck;
-	} else if (!j->space[journal_space_discarded].next_entry)
+	if (!j->space[journal_space_discarded].next_entry)
 		ret = JOURNAL_ERR_journal_full;
 
 	if ((j->space[journal_space_clean_ondisk].next_entry <
