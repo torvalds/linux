@@ -680,6 +680,19 @@ static void gpiochip_setup_devs(void)
 	}
 }
 
+/**
+ * gpiochip_get_data() - get per-subdriver data for the chip
+ * @gc: GPIO chip
+ *
+ * Returns:
+ * The per-subdriver data for the chip.
+ */
+void *gpiochip_get_data(struct gpio_chip *gc)
+{
+	return gc->gpiodev->data;
+}
+EXPORT_SYMBOL_GPL(gpiochip_get_data);
+
 int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 			       struct lock_class_key *lock_key,
 			       struct lock_class_key *request_key)
@@ -937,19 +950,6 @@ err_print_message:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gpiochip_add_data_with_key);
-
-/**
- * gpiochip_get_data() - get per-subdriver data for the chip
- * @gc: GPIO chip
- *
- * Returns:
- * The per-subdriver data for the chip.
- */
-void *gpiochip_get_data(struct gpio_chip *gc)
-{
-	return gc->gpiodev->data;
-}
-EXPORT_SYMBOL_GPL(gpiochip_get_data);
 
 /**
  * gpiochip_remove() - unregister a gpio_chip
