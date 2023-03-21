@@ -126,8 +126,6 @@ config USB_FTDI_ELAN
 	  worked with a USB PEN Drive inserted into the first USB port of
 	  the PCCARD. A rather pointless thing to do, but useful for testing.
 
-	  See also the USB_U132_HCD entry "Elan U132 Adapter Host Controller"
-
 	  It is safe to say M here.
 
 config USB_APPLEDISPLAY
