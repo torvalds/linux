@@ -258,6 +258,7 @@ struct ocelot_stat_layout {
 struct ocelot_stats_region {
 	struct list_head node;
 	u32 base;
+	enum ocelot_stat first_stat;
 	int count;
 	u32 *buf;
 };
@@ -341,11 +342,12 @@ static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
  */
 static void ocelot_port_transfer_stats(struct ocelot *ocelot, int port)
 {
-	unsigned int idx = port * OCELOT_NUM_STATS;
 	struct ocelot_stats_region *region;
 	int j;
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {
+		unsigned int idx = port * OCELOT_NUM_STATS + region->first_stat;
+
 		for (j = 0; j < region->count; j++) {
 			u64 *stat = &ocelot->stats[idx + j];
 			u64 val = region->buf[j];
@@ -355,8 +357,6 @@ static void ocelot_port_transfer_stats(struct ocelot *ocelot, int port)
 
 			*stat = (*stat & ~(u64)U32_MAX) + val;
 		}
-
-		idx += region->count;
 	}
 }
 
@@ -915,6 +915,7 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 			WARN_ON(last >= layout[i].reg);
 
 			region->base = layout[i].reg;
+			region->first_stat = i;
 			region->count = 1;
 			list_add_tail(&region->node, &ocelot->stats_regions);
 		}
