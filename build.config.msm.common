@@ -11,7 +11,6 @@
 
 CONFIG_DIR=arch/${ARCH}/configs
 
-BRANCH=msm-kernel
 CONFIG_TARGET=msm.${MSM_ARCH}
 
 ################################################################################
@@ -70,14 +69,6 @@ Module.symvers
 ## Variant Selection
 if [ -z "${VARIANT}" ] || [ "${VARIANT}" == "default" ]; then
   VARIANT="${VARIANTS[0]}"
-fi
-
-if [ ! -z $MSM_ARCH ]; then
-  BRANCH+=-${MSM_ARCH}
-fi
-
-if [ ! -z $VARIANT ]; then
-  BRANCH+=-${VARIANT}
 fi
 
 if ( for v in "${VARIANTS[@]}"; do if [ "${v}" = "${VARIANT}" ]; then exit 1; fi; done; exit 0 ) ; then
