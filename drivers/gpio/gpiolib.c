@@ -4288,7 +4288,7 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 	if (!descs)
 		return ERR_PTR(-ENOMEM);
 
-	for (descs->ndescs = 0; descs->ndescs < count; ) {
+	for (descs->ndescs = 0; descs->ndescs < count; descs->ndescs++) {
 		desc = gpiod_get_index(dev, con_id, descs->ndescs, flags);
 		if (IS_ERR(desc)) {
 			gpiod_put_array(descs);
@@ -4333,8 +4333,13 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 				   count - descs->ndescs);
 			descs->info = array_info;
 		}
+
+		/* If there is no cache for fast bitmap processing path, continue */
+		if (!array_info)
+			continue;
+
 		/* Unmark array members which don't belong to the 'fast' chip */
-		if (array_info && array_info->chip != gc) {
+		if (array_info->chip != gc) {
 			__clear_bit(descs->ndescs, array_info->get_mask);
 			__clear_bit(descs->ndescs, array_info->set_mask);
 		}
@@ -4342,8 +4347,7 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 		 * Detect array members which belong to the 'fast' chip
 		 * but their pins are not in hardware order.
 		 */
-		else if (array_info &&
-			   gpio_chip_hwgpio(desc) != descs->ndescs) {
+		else if (gpio_chip_hwgpio(desc) != descs->ndescs) {
 			/*
 			 * Don't use fast path if all array members processed so
 			 * far belong to the same chip as this one but its pin
@@ -4357,7 +4361,7 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 				__clear_bit(descs->ndescs,
 					    array_info->set_mask);
 			}
-		} else if (array_info) {
+		} else {
 			/* Exclude open drain or open source from fast output */
 			if (gpiochip_line_is_open_drain(gc, descs->ndescs) ||
 			    gpiochip_line_is_open_source(gc, descs->ndescs))
@@ -4368,8 +4372,6 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 				__set_bit(descs->ndescs,
 					  array_info->invert_mask);
 		}
-
-		descs->ndescs++;
 	}
 	if (array_info)
 		dev_dbg(dev,
