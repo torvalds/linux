@@ -1240,8 +1240,12 @@ static void b53_adjust_63xx_rgmii(struct dsa_switch *ds, int port,
 		break;
 	}
 
-	if (port != dev->imp_port)
+	if (port != dev->imp_port) {
+		if (is63268(dev))
+			rgmii_ctrl |= RGMII_CTRL_MII_OVERRIDE;
+
 		rgmii_ctrl |= RGMII_CTRL_ENABLE_GMII;
+	}
 
 	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
 
