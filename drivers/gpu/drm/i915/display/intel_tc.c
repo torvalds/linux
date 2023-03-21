@@ -5,6 +5,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power_map.h"
@@ -568,29 +569,29 @@ static bool tc_phy_is_ready_and_owned(struct intel_digital_port *dig_port,
 	return phy_is_ready && phy_is_owned;
 }
 
-static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
+static bool tc_phy_is_connected(struct intel_digital_port *dig_port,
+				enum icl_port_dpll_id port_pll_type)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_encoder *encoder = &dig_port->base;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	bool phy_is_ready = tc_phy_status_complete(dig_port);
+	bool phy_is_owned = tc_phy_is_owned(dig_port);
+	bool is_connected;
 
-	if (!tc_phy_status_complete(dig_port)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY status not complete\n",
-			    dig_port->tc_port_name);
-		return dig_port->tc_mode == TC_PORT_TBT_ALT;
-	}
+	if (tc_phy_is_ready_and_owned(dig_port, phy_is_ready, phy_is_owned))
+		is_connected = port_pll_type == ICL_PORT_DPLL_MG_PHY;
+	else
+		is_connected = port_pll_type == ICL_PORT_DPLL_DEFAULT;
 
-	/* On ADL-P the PHY complete flag is set in TBT mode as well. */
-	if (IS_ALDERLAKE_P(i915) && dig_port->tc_mode == TC_PORT_TBT_ALT)
-		return true;
+	drm_dbg_kms(&i915->drm,
+		    "Port %s: PHY connected: %s (ready: %s, owned: %s, pll_type: %s)\n",
+		    dig_port->tc_port_name,
+		    str_yes_no(is_connected),
+		    str_yes_no(phy_is_ready),
+		    str_yes_no(phy_is_owned),
+		    port_pll_type == ICL_PORT_DPLL_DEFAULT ? "tbt" : "non-tbt");
 
-	if (!tc_phy_is_owned(dig_port)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY not owned\n",
-			    dig_port->tc_port_name);
-
-		return false;
-	}
-
-	return dig_port->tc_mode == TC_PORT_DP_ALT ||
-	       dig_port->tc_mode == TC_PORT_LEGACY;
+	return is_connected;
 }
 
 static void tc_phy_wait_for_ready(struct intel_digital_port *dig_port)
@@ -876,15 +877,18 @@ static bool tc_port_has_active_links(struct intel_digital_port *dig_port,
 				     const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum icl_port_dpll_id pll_type = ICL_PORT_DPLL_DEFAULT;
 	int active_links = 0;
 
 	if (dig_port->dp.is_mst) {
+		/* TODO: get the PLL type for MST, once HW readout is done for it. */
 		active_links = intel_dp_mst_encoder_active_links(dig_port);
 	} else if (crtc_state && crtc_state->hw.active) {
+		pll_type = intel_ddi_port_pll_type(&dig_port->base, crtc_state);
 		active_links = 1;
 	}
 
-	if (active_links && !icl_tc_phy_is_connected(dig_port))
+	if (active_links && !tc_phy_is_connected(dig_port, pll_type))
 		drm_err(&i915->drm,
 			"Port %s: PHY disconnected with %d active link(s)\n",
 			dig_port->tc_port_name, active_links);
