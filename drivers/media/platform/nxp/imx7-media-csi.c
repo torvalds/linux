@@ -1610,6 +1610,7 @@ static int imx7_csi_video_init_format(struct imx7_csi *csi)
 	format.code = IMX7_CSI_DEF_MBUS_CODE;
 	format.width = IMX7_CSI_DEF_PIX_WIDTH;
 	format.height = IMX7_CSI_DEF_PIX_HEIGHT;
+	format.field = V4L2_FIELD_NONE;
 
 	imx7_csi_mbus_fmt_to_pix_fmt(&csi->vdev_fmt, &format, NULL);
 	csi->vdev_compose.width = format.width;
