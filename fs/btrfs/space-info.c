@@ -553,20 +553,8 @@ static inline u64 calc_reclaim_items_nr(const struct btrfs_fs_info *fs_info,
 static inline u64 calc_delayed_refs_nr(const struct btrfs_fs_info *fs_info,
 				       u64 to_reclaim)
 {
-	u64 bytes;
+	const u64 bytes = btrfs_calc_delayed_ref_bytes(fs_info, 1);
 	u64 nr;
-
-	bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
-	/*
-	 * We have to check the mount option here because we could be enabling
-	 * the free space tree for the first time and don't have the compat_ro
-	 * option set yet.
-	 *
-	 * We need extra reservations if we have the free space tree because
-	 * we'll have to modify that tree as well.
-	 */
-	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
-		bytes *= 2;
 
 	nr = div64_u64(to_reclaim, bytes);
 	if (!nr)
