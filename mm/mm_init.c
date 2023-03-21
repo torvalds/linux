@@ -225,7 +225,7 @@ static unsigned long nr_kernel_pages __initdata;
 static unsigned long nr_all_pages __initdata;
 static unsigned long dma_reserve __initdata;
 
-bool deferred_struct_pages __meminitdata;
+static bool deferred_struct_pages __meminitdata;
 
 static DEFINE_PER_CPU(struct per_cpu_nodestat, boot_nodestats);
 
@@ -2358,6 +2358,10 @@ void __init page_alloc_init_late(void)
 
 	for_each_populated_zone(zone)
 		set_zone_contiguous(zone);
+
+	/* Initialize page ext after all struct pages are initialized. */
+	if (deferred_struct_pages)
+		page_ext_init();
 }
 
 #ifndef __HAVE_ARCH_RESERVED_KERNEL_PAGES
