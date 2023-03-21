@@ -660,8 +660,7 @@ delete:
 				/* No pending yet, add ourselves */
 				pending_del_slot = path->slots[0];
 				pending_del_nr = 1;
-			} else if (pending_del_nr &&
-				   path->slots[0] + 1 == pending_del_slot) {
+			} else if (path->slots[0] + 1 == pending_del_slot) {
 				/* Hop on the pending chunk */
 				pending_del_nr++;
 				pending_del_slot = path->slots[0];
