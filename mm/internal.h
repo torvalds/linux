@@ -202,6 +202,8 @@ pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
  * in mm/page_alloc.c
  */
 
+extern char * const zone_names[MAX_NR_ZONES];
+
 /*
  * Structure for holding the mostly immutable allocation parameters passed
  * between functions involved in allocations, including the alloc_pages*
@@ -366,7 +368,29 @@ extern void __putback_isolated_page(struct page *page, unsigned int order,
 extern void memblock_free_pages(struct page *page, unsigned long pfn,
 					unsigned int order);
 extern void __free_pages_core(struct page *page, unsigned int order);
+
+static inline void prep_compound_head(struct page *page, unsigned int order)
+{
+	struct folio *folio = (struct folio *)page;
+
+	set_compound_page_dtor(page, COMPOUND_PAGE_DTOR);
+	set_compound_order(page, order);
+	atomic_set(&folio->_entire_mapcount, -1);
+	atomic_set(&folio->_nr_pages_mapped, 0);
+	atomic_set(&folio->_pincount, 0);
+}
+
+static inline void prep_compound_tail(struct page *head, int tail_idx)
+{
+	struct page *p = head + tail_idx;
+
+	p->mapping = TAIL_MAPPING;
+	set_compound_head(p, head);
+	set_page_private(p, 0);
+}
+
 extern void prep_compound_page(struct page *page, unsigned int order);
+
 extern void post_alloc_hook(struct page *page, unsigned int order,
 					gfp_t gfp_flags);
 extern int user_min_free_kbytes;
@@ -377,6 +401,7 @@ extern void free_unref_page_list(struct list_head *list);
 extern void zone_pcp_reset(struct zone *zone);
 extern void zone_pcp_disable(struct zone *zone);
 extern void zone_pcp_enable(struct zone *zone);
+extern void zone_pcp_init(struct zone *zone);
 
 extern void *memmap_alloc(phys_addr_t size, phys_addr_t align,
 			  phys_addr_t min_addr,
@@ -474,7 +499,12 @@ isolate_migratepages_range(struct compact_control *cc,
 
 int __alloc_contig_migrate_range(struct compact_control *cc,
 					unsigned long start, unsigned long end);
-#endif
+
+/* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+void init_cma_reserved_pageblock(struct page *page);
+
+#endif /* CONFIG_COMPACTION || CONFIG_CMA */
+
 int find_suitable_fallback(struct free_area *area, unsigned int order,
 			int migratetype, bool only_stealable, bool *can_steal);
 
@@ -658,6 +688,12 @@ static inline void vunmap_range_noflush(unsigned long start, unsigned long end)
 #endif /* !CONFIG_MMU */
 
 /* Memory initialisation debug and verification */
+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+DECLARE_STATIC_KEY_TRUE(deferred_pages);
+
+bool __init deferred_grow_zone(struct zone *zone, unsigned int order);
+#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+
 enum mminit_level {
 	MMINIT_WARNING,
 	MMINIT_VERIFY,
