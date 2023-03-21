@@ -69,15 +69,15 @@ static struct test_case test_cases[] = {
 	{
 		N(SCHED_CLS, struct __sk_buff, tstamp),
 		.read  = "r11 = *(u8 *)($ctx + sk_buff::__mono_tc_offset);"
-			 "w11 &= 160;"
-			 "if w11 != 0xa0 goto pc+2;"
+			 "w11 &= 3;"
+			 "if w11 != 0x3 goto pc+2;"
 			 "$dst = 0;"
 			 "goto pc+1;"
 			 "$dst = *(u64 *)($ctx + sk_buff::tstamp);",
 		.write = "r11 = *(u8 *)($ctx + sk_buff::__mono_tc_offset);"
-			 "if w11 & 0x80 goto pc+1;"
+			 "if w11 & 0x2 goto pc+1;"
 			 "goto pc+2;"
-			 "w11 &= -33;"
+			 "w11 &= -2;"
 			 "*(u8 *)($ctx + sk_buff::__mono_tc_offset) = r11;"
 			 "*(u64 *)($ctx + sk_buff::tstamp) = $src;",
 	},

@@ -947,15 +947,15 @@ struct sk_buff {
 	/* private: */
 	__u8			__mono_tc_offset[0];
 	/* public: */
+	__u8			mono_delivery_time:1;	/* See SKB_MONO_DELIVERY_TIME_MASK */
+#ifdef CONFIG_NET_CLS_ACT
+	__u8			tc_at_ingress:1;	/* See TC_AT_INGRESS_MASK */
+	__u8			tc_skip_classify:1;
+#endif
 	__u8			remcsum_offload:1;
 	__u8			csum_complete_sw:1;
 	__u8			csum_level:2;
 	__u8			dst_pending_confirm:1;
-	__u8			mono_delivery_time:1;	/* See SKB_MONO_DELIVERY_TIME_MASK */
-#ifdef CONFIG_NET_CLS_ACT
-	__u8			tc_skip_classify:1;
-	__u8			tc_at_ingress:1;	/* See TC_AT_INGRESS_MASK */
-#endif
 
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
@@ -1072,11 +1072,11 @@ struct sk_buff {
  * around, you also must adapt these constants.
  */
 #ifdef __BIG_ENDIAN_BITFIELD
-#define TC_AT_INGRESS_MASK		(1 << 0)
-#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 2)
+#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 7)
+#define TC_AT_INGRESS_MASK		(1 << 6)
 #else
-#define TC_AT_INGRESS_MASK		(1 << 7)
-#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 5)
+#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 0)
+#define TC_AT_INGRESS_MASK		(1 << 1)
 #endif
 #define SKB_BF_MONO_TC_OFFSET		offsetof(struct sk_buff, __mono_tc_offset)
 
