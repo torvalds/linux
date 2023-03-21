@@ -16,6 +16,35 @@
 #include <linux/swap.h>
 #include <linux/sched/signal.h>
 
+/* page types we track in the pool */
+enum {
+	POOL_LOWPAGE,      /* Clean lowmem pages */
+	POOL_HIGHPAGE,     /* Clean highmem pages */
+
+	POOL_TYPE_SIZE,
+};
+
+/**
+ * struct dmabuf_page_pool - pagepool struct
+ * @count[]:		array of number of pages of that type in the pool
+ * @items[]:		array of list of pages of the specific type
+ * @lock:		lock protecting this struct and especially the count
+ *			item list
+ * @gfp_mask:		gfp_mask to use from alloc
+ * @order:		order of pages in the pool
+ * @list:		list node for list of pools
+ *
+ * Allows you to keep a pool of pre allocated pages to use
+ */
+struct dmabuf_page_pool {
+	int count[POOL_TYPE_SIZE];
+	struct list_head items[POOL_TYPE_SIZE];
+	struct spinlock lock;
+	gfp_t gfp_mask;
+	unsigned int order;
+	struct list_head list;
+};
+
 static LIST_HEAD(pool_list);
 static DEFINE_MUTEX(pool_list_lock);
 
@@ -157,6 +186,21 @@ void dmabuf_page_pool_destroy(struct dmabuf_page_pool *pool)
 	kfree(pool);
 }
 EXPORT_SYMBOL_GPL(dmabuf_page_pool_destroy);
+
+unsigned long dmabuf_page_pool_get_size(struct dmabuf_page_pool *pool)
+{
+       int i;
+       unsigned long num_pages = 0;
+
+       spin_lock(&pool->lock);
+       for (i = 0; i < POOL_TYPE_SIZE; ++i)
+               num_pages += pool->count[i];
+       spin_unlock(&pool->lock);
+       num_pages <<= pool->order; /* pool order is immutable */
+
+       return num_pages * PAGE_SIZE;
+}
+EXPORT_SYMBOL_GPL(dmabuf_page_pool_get_size);
 
 static int dmabuf_page_pool_do_shrink(struct dmabuf_page_pool *pool, gfp_t gfp_mask,
 				      int nr_to_scan)
