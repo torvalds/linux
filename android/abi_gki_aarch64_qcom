@@ -3189,6 +3189,11 @@
   snd_soc_unregister_card
   snd_soc_unregister_component
   snd_timer_interrupt
+  snd_usb_autoresume
+  snd_usb_autosuspend
+  snd_usb_endpoint_close
+  snd_usb_endpoint_open
+  snd_usb_endpoint_prepare
   snprintf
   soc_device_register
   soc_device_unregister
@@ -3408,6 +3413,7 @@
   __traceiter_android_rvh_account_irq
   __traceiter_android_rvh_after_dequeue_task
   __traceiter_android_rvh_after_enqueue_task
+  __traceiter_android_rvh_audio_usb_offload_disconnect
   __traceiter_android_rvh_build_perf_domains
   __traceiter_android_rvh_can_migrate_task
   __traceiter_android_rvh_check_preempt_tick
@@ -3476,6 +3482,7 @@
   __traceiter_android_rvh_update_thermal_stats
   __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_vh_audio_usb_offload_connect
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
@@ -3533,6 +3540,7 @@
   __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_audio_usb_offload_disconnect
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_tick
@@ -3601,6 +3609,7 @@
   __tracepoint_android_rvh_update_thermal_stats
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
+  __tracepoint_android_vh_audio_usb_offload_connect
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
@@ -4103,7 +4112,15 @@
   xdp_rxq_info_unreg_mem_model
   xdp_warn
   xfrm_lookup
+  xhci_alloc_command
+  xhci_alloc_erst
+  xhci_free_command
   xhci_get_endpoint_index
+  xhci_queue_stop_endpoint
+  xhci_ring_alloc
+  xhci_ring_cmd_db
+  xhci_ring_free
+  xhci_trb_virt_to_dma
   xp_alloc
   xp_dma_map
   xp_dma_sync_for_cpu_slow
