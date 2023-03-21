@@ -5271,7 +5271,7 @@ void btrfs_evict_inode(struct inode *inode)
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_block_rsv *rsv;
+	struct btrfs_block_rsv *rsv = NULL;
 	int ret;
 
 	trace_btrfs_inode_evict(inode);
@@ -5288,18 +5288,18 @@ void btrfs_evict_inode(struct inode *inode)
 	    ((btrfs_root_refs(&root->root_item) != 0 &&
 	      root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID) ||
 	     btrfs_is_free_space_inode(BTRFS_I(inode))))
-		goto no_delete;
+		goto out;
 
 	if (is_bad_inode(inode))
-		goto no_delete;
+		goto out;
 
 	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
-		goto no_delete;
+		goto out;
 
 	if (inode->i_nlink > 0) {
 		BUG_ON(btrfs_root_refs(&root->root_item) != 0 &&
 		       root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID);
-		goto no_delete;
+		goto out;
 	}
 
 	/*
@@ -5308,7 +5308,7 @@ void btrfs_evict_inode(struct inode *inode)
 	 */
 	ret = btrfs_commit_inode_delayed_inode(BTRFS_I(inode));
 	if (ret)
-		goto no_delete;
+		goto out;
 
 	/*
 	 * This drops any pending insert or delete operations we have for this
@@ -5320,7 +5320,7 @@ void btrfs_evict_inode(struct inode *inode)
 
 	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv)
-		goto no_delete;
+		goto out;
 	rsv->size = btrfs_calc_metadata_size(fs_info, 1);
 	rsv->failfast = true;
 
@@ -5336,7 +5336,7 @@ void btrfs_evict_inode(struct inode *inode)
 
 		trans = evict_refill_and_join(root, rsv);
 		if (IS_ERR(trans))
-			goto free_rsv;
+			goto out;
 
 		trans->block_rsv = rsv;
 
@@ -5350,7 +5350,7 @@ void btrfs_evict_inode(struct inode *inode)
 		 */
 		btrfs_btree_balance_dirty_nodelay(fs_info);
 		if (ret && ret != -ENOSPC && ret != -EAGAIN)
-			goto free_rsv;
+			goto out;
 		else if (!ret)
 			break;
 	}
@@ -5372,9 +5372,8 @@ void btrfs_evict_inode(struct inode *inode)
 		btrfs_end_transaction(trans);
 	}
 
-free_rsv:
+out:
 	btrfs_free_block_rsv(fs_info, rsv);
-no_delete:
 	/*
 	 * If we didn't successfully delete, the orphan item will still be in
 	 * the tree and we'll retry on the next mount. Again, we might also want
