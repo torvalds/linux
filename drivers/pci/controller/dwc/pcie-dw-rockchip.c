@@ -815,10 +815,13 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 			 * more for Gen switch.
 			 */
 			msleep(50);
-			dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
-				 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
-			rk_pcie_debug_dump(rk_pcie);
-			return 0;
+			/* In case link drop after linkup, double check it */
+			if (dw_pcie_link_up(pci)) {
+				dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
+					 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
+				rk_pcie_debug_dump(rk_pcie);
+				return 0;
+			}
 		}
 
 		dev_info_ratelimited(pci->dev, "PCIe Linking... LTSSM is 0x%x\n",
