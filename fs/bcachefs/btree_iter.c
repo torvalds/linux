@@ -2722,11 +2722,11 @@ static inline void btree_path_list_add(struct btree_trans *trans,
 
 void bch2_trans_iter_exit(struct btree_trans *trans, struct btree_iter *iter)
 {
-	if (iter->path)
-		bch2_path_put(trans, iter->path,
-			      iter->flags & BTREE_ITER_INTENT);
 	if (iter->update_path)
 		bch2_path_put_nokeep(trans, iter->update_path,
+			      iter->flags & BTREE_ITER_INTENT);
+	if (iter->path)
+		bch2_path_put(trans, iter->path,
 			      iter->flags & BTREE_ITER_INTENT);
 	if (iter->key_cache_path)
 		bch2_path_put(trans, iter->key_cache_path,
