@@ -1822,9 +1822,7 @@ kill_processes:
 			dev_info(hdev->dev, "Performing hard reset scheduled during compute reset\n");
 			flags = hdev->reset_info.hard_reset_schedule_flags;
 			hdev->reset_info.hard_reset_schedule_flags = 0;
-			hdev->disabled = true;
 			hard_reset = true;
-			handle_reset_trigger(hdev, flags);
 			goto escalate_reset_flow;
 		}
 	}
