@@ -5318,7 +5318,7 @@ static void remove_direct_functions_hash(struct ftrace_hash *hash, unsigned long
 }
 
 /**
- * register_ftrace_direct_multi - Call a custom trampoline directly
+ * register_ftrace_direct - Call a custom trampoline directly
  * for multiple functions registered in @ops
  * @ops: The address of the struct ftrace_ops object
  * @addr: The address of the trampoline to call at @ops functions
@@ -5339,7 +5339,7 @@ static void remove_direct_functions_hash(struct ftrace_hash *hash, unsigned long
  *  -ENODEV  - @ip does not point to a ftrace nop location (or not supported)
  *  -ENOMEM  - There was an allocation failure.
  */
-int register_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
+int register_ftrace_direct(struct ftrace_ops *ops, unsigned long addr)
 {
 	struct ftrace_hash *hash, *free_hash = NULL;
 	struct ftrace_func_entry *entry, *new;
@@ -5397,11 +5397,11 @@ int register_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
 	}
 	return err;
 }
-EXPORT_SYMBOL_GPL(register_ftrace_direct_multi);
+EXPORT_SYMBOL_GPL(register_ftrace_direct);
 
 /**
- * unregister_ftrace_direct_multi - Remove calls to custom trampoline
- * previously registered by register_ftrace_direct_multi for @ops object.
+ * unregister_ftrace_direct - Remove calls to custom trampoline
+ * previously registered by register_ftrace_direct for @ops object.
  * @ops: The address of the struct ftrace_ops object
  *
  * This is used to remove a direct calls to @addr from the nop locations
@@ -5412,8 +5412,8 @@ EXPORT_SYMBOL_GPL(register_ftrace_direct_multi);
  *  0 on success
  *  -EINVAL - The @ops object was not properly registered.
  */
-int unregister_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr,
-				   bool free_filters)
+int unregister_ftrace_direct(struct ftrace_ops *ops, unsigned long addr,
+			     bool free_filters)
 {
 	struct ftrace_hash *hash = ops->func_hash->filter_hash;
 	int err;
@@ -5436,10 +5436,10 @@ int unregister_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr,
 		ftrace_free_filter(ops);
 	return err;
 }
-EXPORT_SYMBOL_GPL(unregister_ftrace_direct_multi);
+EXPORT_SYMBOL_GPL(unregister_ftrace_direct);
 
 static int
-__modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
+__modify_ftrace_direct(struct ftrace_ops *ops, unsigned long addr)
 {
 	struct ftrace_hash *hash;
 	struct ftrace_func_entry *entry, *iter;
@@ -5486,7 +5486,7 @@ __modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
 }
 
 /**
- * modify_ftrace_direct_multi_nolock - Modify an existing direct 'multi' call
+ * modify_ftrace_direct_nolock - Modify an existing direct 'multi' call
  * to call something else
  * @ops: The address of the struct ftrace_ops object
  * @addr: The address of the new trampoline to call at @ops functions
@@ -5503,19 +5503,19 @@ __modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
  * Returns: zero on success. Non zero on error, which includes:
  *  -EINVAL - The @ops object was not properly registered.
  */
-int modify_ftrace_direct_multi_nolock(struct ftrace_ops *ops, unsigned long addr)
+int modify_ftrace_direct_nolock(struct ftrace_ops *ops, unsigned long addr)
 {
 	if (check_direct_multi(ops))
 		return -EINVAL;
 	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
 		return -EINVAL;
 
-	return __modify_ftrace_direct_multi(ops, addr);
+	return __modify_ftrace_direct(ops, addr);
 }
-EXPORT_SYMBOL_GPL(modify_ftrace_direct_multi_nolock);
+EXPORT_SYMBOL_GPL(modify_ftrace_direct_nolock);
 
 /**
- * modify_ftrace_direct_multi - Modify an existing direct 'multi' call
+ * modify_ftrace_direct - Modify an existing direct 'multi' call
  * to call something else
  * @ops: The address of the struct ftrace_ops object
  * @addr: The address of the new trampoline to call at @ops functions
@@ -5529,7 +5529,7 @@ EXPORT_SYMBOL_GPL(modify_ftrace_direct_multi_nolock);
  * Returns: zero on success. Non zero on error, which includes:
  *  -EINVAL - The @ops object was not properly registered.
  */
-int modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
+int modify_ftrace_direct(struct ftrace_ops *ops, unsigned long addr)
 {
 	int err;
 
@@ -5539,11 +5539,11 @@ int modify_ftrace_direct_multi(struct ftrace_ops *ops, unsigned long addr)
 		return -EINVAL;
 
 	mutex_lock(&direct_mutex);
-	err = __modify_ftrace_direct_multi(ops, addr);
+	err = __modify_ftrace_direct(ops, addr);
 	mutex_unlock(&direct_mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(modify_ftrace_direct_multi);
+EXPORT_SYMBOL_GPL(modify_ftrace_direct);
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
 
 /**
