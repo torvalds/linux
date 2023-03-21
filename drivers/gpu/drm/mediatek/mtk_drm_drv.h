@@ -11,6 +11,8 @@
 
 #define MAX_CRTC	3
 #define MAX_CONNECTOR	2
+#define DDP_COMPONENT_DRM_OVL_ADAPTOR (DDP_COMPONENT_ID_MAX + 1)
+#define DDP_COMPONENT_DRM_ID_MAX (DDP_COMPONENT_DRM_OVL_ADAPTOR + 1)
 
 struct device;
 struct device_node;
@@ -21,11 +23,11 @@ struct drm_property;
 struct regmap;
 
 struct mtk_mmsys_driver_data {
-	const enum mtk_ddp_comp_id *main_path;
+	const unsigned int *main_path;
 	unsigned int main_len;
-	const enum mtk_ddp_comp_id *ext_path;
+	const unsigned int *ext_path;
 	unsigned int ext_len;
-	const enum mtk_ddp_comp_id *third_path;
+	const unsigned int *third_path;
 	unsigned int third_len;
 
 	bool shadow_register;
@@ -42,8 +44,8 @@ struct mtk_drm_private {
 	struct device_node *mutex_node;
 	struct device *mutex_dev;
 	struct device *mmsys_dev;
-	struct device_node *comp_node[DDP_COMPONENT_ID_MAX];
-	struct mtk_ddp_comp ddp_comp[DDP_COMPONENT_ID_MAX];
+	struct device_node *comp_node[DDP_COMPONENT_DRM_ID_MAX];
+	struct mtk_ddp_comp ddp_comp[DDP_COMPONENT_DRM_ID_MAX];
 	const struct mtk_mmsys_driver_data *data;
 	struct drm_atomic_state *suspend_state;
 	unsigned int mbox_index;
