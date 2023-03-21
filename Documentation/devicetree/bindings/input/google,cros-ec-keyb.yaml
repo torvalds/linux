@@ -57,7 +57,7 @@ if:
       contains:
         const: google,cros-ec-keyb
 then:
-  $ref: "/schemas/input/matrix-keymap.yaml#"
+  $ref: /schemas/input/matrix-keymap.yaml#
   required:
     - keypad,num-rows
     - keypad,num-columns
