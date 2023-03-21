@@ -4497,6 +4497,16 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			!intel_bios_encoder_supports_typec_usb(devdata) &&
 			!intel_bios_encoder_supports_tbt(devdata);
 
+		if (!is_legacy && init_hdmi) {
+			is_legacy = !init_dp;
+
+			drm_dbg_kms(&dev_priv->drm,
+				    "VBT says port %c is non-legacy TC and has HDMI (with DP: %s), assume it's %s\n",
+				    port_name(port),
+				    str_yes_no(init_dp),
+				    is_legacy ? "legacy" : "non-legacy");
+		}
+
 		intel_tc_port_init(dig_port, is_legacy);
 
 		encoder->update_prepare = intel_ddi_update_prepare;
