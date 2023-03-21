@@ -359,7 +359,7 @@ struct dma_buf_ops {
 	ANDROID_KABI_RESERVE(2);
 };
 
-#ifdef CONFIG_NO_GKI
+#ifdef CONFIG_DMABUF_CACHE
 /**
  * dma_buf_destructor - dma-buf destructor function
  * @dmabuf:	[in]	pointer to dma-buf
@@ -439,12 +439,10 @@ struct dma_buf {
 		struct dma_buf *dmabuf;
 	} *sysfs_entry;
 #endif
-#ifdef CONFIG_NO_GKI
+#ifdef CONFIG_DMABUF_CACHE
 	dma_buf_destructor dtor;
 	void *dtor_data;
-#ifdef CONFIG_DMABUF_CACHE
 	struct mutex cache_lock;
-#endif
 #endif
 
 	ANDROID_KABI_RESERVE(1);
@@ -648,7 +646,7 @@ long dma_buf_set_name(struct dma_buf *dmabuf, const char *name);
 int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags);
 int dma_buf_get_uuid(struct dma_buf *dmabuf, uuid_t *uuid);
 
-#ifdef CONFIG_NO_GKI
+#ifdef CONFIG_DMABUF_CACHE
 /**
  * dma_buf_set_destructor - set the dma-buf's destructor
  * @dmabuf:		[in]	pointer to dma-buf

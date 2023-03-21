@@ -119,7 +119,7 @@ static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 static void dma_buf_release(struct dentry *dentry)
 {
 	struct dma_buf *dmabuf;
-#ifdef CONFIG_NO_GKI
+#ifdef CONFIG_DMABUF_CACHE
 	int dtor_ret = 0;
 #endif
 
@@ -140,7 +140,7 @@ static void dma_buf_release(struct dentry *dentry)
 	BUG_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
 
 	dma_buf_stats_teardown(dmabuf);
-#ifdef CONFIG_NO_GKI
+#ifdef CONFIG_DMABUF_CACHE
 	if (dmabuf->dtor)
 		dtor_ret = dmabuf->dtor(dmabuf, dmabuf->dtor_data);
 
