@@ -6,6 +6,7 @@
 #include <linux/types.h>
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_print.h"
 #include "intel_gsc_uc.h"
 #include "intel_gsc_fw.h"
 #include "i915_drv.h"
@@ -59,7 +60,6 @@ int intel_gsc_uc_init(struct intel_gsc_uc *gsc)
 {
 	static struct lock_class_key gsc_lock;
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
-	struct drm_i915_private *i915 = gt->i915;
 	struct intel_engine_cs *engine = gt->engine[GSC0];
 	struct intel_context *ce;
 	struct i915_vma *vma;
@@ -81,8 +81,7 @@ int intel_gsc_uc_init(struct intel_gsc_uc *gsc)
 						I915_GEM_HWS_GSC_ADDR,
 						&gsc_lock, "gsc_context");
 	if (IS_ERR(ce)) {
-		drm_err(&gt->i915->drm,
-			"failed to create GSC CS ctx for FW communication\n");
+		gt_err(gt, "failed to create GSC CS ctx for FW communication\n");
 		err =  PTR_ERR(ce);
 		goto out_vma;
 	}
@@ -98,7 +97,7 @@ out_vma:
 out_fw:
 	intel_uc_fw_fini(&gsc->fw);
 out:
-	i915_probe_error(i915, "failed with %d\n", err);
+	gt_probe_error(gt, "GSC init failed %pe\n", ERR_PTR(err));
 	return err;
 }
 
@@ -117,12 +116,31 @@ void intel_gsc_uc_fini(struct intel_gsc_uc *gsc)
 	intel_uc_fw_fini(&gsc->fw);
 }
 
-void intel_gsc_uc_suspend(struct intel_gsc_uc *gsc)
+void intel_gsc_uc_flush_work(struct intel_gsc_uc *gsc)
 {
 	if (!intel_uc_fw_is_loadable(&gsc->fw))
 		return;
 
 	flush_work(&gsc->work);
+}
+
+void intel_gsc_uc_resume(struct intel_gsc_uc *gsc)
+{
+	if (!intel_uc_fw_is_loadable(&gsc->fw))
+		return;
+
+	/*
+	 * we only want to start the GSC worker from here in the actual resume
+	 * flow and not during driver load. This is because GSC load is slow and
+	 * therefore we want to make sure that the default state init completes
+	 * first to not slow down the init thread. A separate call to
+	 * intel_gsc_uc_load_start will ensure that the GSC is loaded during
+	 * driver load.
+	 */
+	if (!gsc_uc_to_gt(gsc)->engine[GSC0]->default_state)
+		return;
+
+	intel_gsc_uc_load_start(gsc);
 }
 
 void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc)

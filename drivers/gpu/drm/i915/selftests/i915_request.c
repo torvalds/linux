@@ -957,18 +957,18 @@ static int live_cancel_request(void *arg)
 	return 0;
 }
 
-static struct i915_vma *empty_batch(struct drm_i915_private *i915)
+static struct i915_vma *empty_batch(struct intel_gt *gt)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u32 *cmd;
 	int err;
 
-	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
+	cmd = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
 		goto err;
@@ -979,15 +979,15 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	intel_gt_chipset_flush(to_gt(i915));
+	intel_gt_chipset_flush(gt);
 
-	vma = i915_vma_instance(obj, &to_gt(i915)->ggtt->vm, NULL);
+	vma = i915_vma_instance(obj, gt->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
 	}
 
-	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_GLOBAL);
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
 	if (err)
 		goto err;
 
@@ -1005,6 +1005,14 @@ err:
 	return ERR_PTR(err);
 }
 
+static int emit_bb_start(struct i915_request *rq, struct i915_vma *batch)
+{
+	return rq->engine->emit_bb_start(rq,
+					 i915_vma_offset(batch),
+					 i915_vma_size(batch),
+					 0);
+}
+
 static struct i915_request *
 empty_request(struct intel_engine_cs *engine,
 	      struct i915_vma *batch)
@@ -1016,10 +1024,7 @@ empty_request(struct intel_engine_cs *engine,
 	if (IS_ERR(request))
 		return request;
 
-	err = engine->emit_bb_start(request,
-				    i915_vma_offset(batch),
-				    i915_vma_size(batch),
-				    I915_DISPATCH_SECURE);
+	err = emit_bb_start(request, batch);
 	if (err)
 		goto out_request;
 
@@ -1034,8 +1039,7 @@ static int live_empty_request(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
 	struct igt_live_test t;
-	struct i915_vma *batch;
-	int err = 0;
+	int err;
 
 	/*
 	 * Submit various sized batches of empty requests, to each engine
@@ -1043,15 +1047,16 @@ static int live_empty_request(void *arg)
 	 * the overhead of submitting requests to the hardware.
 	 */
 
-	batch = empty_batch(i915);
-	if (IS_ERR(batch))
-		return PTR_ERR(batch);
-
 	for_each_uabi_engine(engine, i915) {
 		IGT_TIMEOUT(end_time);
 		struct i915_request *request;
+		struct i915_vma *batch;
 		unsigned long n, prime;
 		ktime_t times[2] = {};
+
+		batch = empty_batch(engine->gt);
+		if (IS_ERR(batch))
+			return PTR_ERR(batch);
 
 		err = igt_live_test_begin(&t, i915, __func__, engine->name);
 		if (err)
@@ -1100,27 +1105,29 @@ static int live_empty_request(void *arg)
 			engine->name,
 			ktime_to_ns(times[0]),
 			prime, div64_u64(ktime_to_ns(times[1]), prime));
+out_batch:
+		i915_vma_unpin(batch);
+		i915_vma_put(batch);
+		if (err)
+			break;
 	}
 
-out_batch:
-	i915_vma_unpin(batch);
-	i915_vma_put(batch);
 	return err;
 }
 
-static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
+static struct i915_vma *recursive_batch(struct intel_gt *gt)
 {
 	struct drm_i915_gem_object *obj;
-	const int ver = GRAPHICS_VER(i915);
+	const int ver = GRAPHICS_VER(gt->i915);
 	struct i915_vma *vma;
 	u32 *cmd;
 	int err;
 
-	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vma = i915_vma_instance(obj, to_gt(i915)->vm, NULL);
+	vma = i915_vma_instance(obj, gt->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -1152,7 +1159,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	intel_gt_chipset_flush(to_gt(i915));
+	intel_gt_chipset_flush(gt);
 
 	return vma;
 
@@ -1186,7 +1193,6 @@ static int live_all_engines(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_request **request;
 	struct igt_live_test t;
-	struct i915_vma *batch;
 	unsigned int idx;
 	int err;
 
@@ -1204,41 +1210,43 @@ static int live_all_engines(void *arg)
 	if (err)
 		goto out_free;
 
-	batch = recursive_batch(i915);
-	if (IS_ERR(batch)) {
-		err = PTR_ERR(batch);
-		pr_err("%s: Unable to create batch, err=%d\n", __func__, err);
-		goto out_free;
-	}
-
-	i915_vma_lock(batch);
-
 	idx = 0;
 	for_each_uabi_engine(engine, i915) {
+		struct i915_vma *batch;
+
+		batch = recursive_batch(engine->gt);
+		if (IS_ERR(batch)) {
+			err = PTR_ERR(batch);
+			pr_err("%s: Unable to create batch, err=%d\n",
+			       __func__, err);
+			goto out_free;
+		}
+
+		i915_vma_lock(batch);
 		request[idx] = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(request[idx])) {
 			err = PTR_ERR(request[idx]);
 			pr_err("%s: Request allocation failed with err=%d\n",
 			       __func__, err);
-			goto out_request;
+			goto out_unlock;
 		}
+		GEM_BUG_ON(request[idx]->context->vm != batch->vm);
 
 		err = i915_vma_move_to_active(batch, request[idx], 0);
 		GEM_BUG_ON(err);
 
-		err = engine->emit_bb_start(request[idx],
-					    i915_vma_offset(batch),
-					    i915_vma_size(batch),
-					    0);
+		err = emit_bb_start(request[idx], batch);
 		GEM_BUG_ON(err);
 		request[idx]->batch = batch;
 
 		i915_request_get(request[idx]);
 		i915_request_add(request[idx]);
 		idx++;
+out_unlock:
+		i915_vma_unlock(batch);
+		if (err)
+			goto out_request;
 	}
-
-	i915_vma_unlock(batch);
 
 	idx = 0;
 	for_each_uabi_engine(engine, i915) {
@@ -1251,17 +1259,23 @@ static int live_all_engines(void *arg)
 		idx++;
 	}
 
-	err = recursive_batch_resolve(batch);
-	if (err) {
-		pr_err("%s: failed to resolve batch, err=%d\n", __func__, err);
-		goto out_request;
+	idx = 0;
+	for_each_uabi_engine(engine, i915) {
+		err = recursive_batch_resolve(request[idx]->batch);
+		if (err) {
+			pr_err("%s: failed to resolve batch, err=%d\n",
+			       __func__, err);
+			goto out_request;
+		}
+		idx++;
 	}
 
 	idx = 0;
 	for_each_uabi_engine(engine, i915) {
+		struct i915_request *rq = request[idx];
 		long timeout;
 
-		timeout = i915_request_wait(request[idx], 0,
+		timeout = i915_request_wait(rq, 0,
 					    MAX_SCHEDULE_TIMEOUT);
 		if (timeout < 0) {
 			err = timeout;
@@ -1270,8 +1284,10 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		GEM_BUG_ON(!i915_request_completed(request[idx]));
-		i915_request_put(request[idx]);
+		GEM_BUG_ON(!i915_request_completed(rq));
+		i915_vma_unpin(rq->batch);
+		i915_vma_put(rq->batch);
+		i915_request_put(rq);
 		request[idx] = NULL;
 		idx++;
 	}
@@ -1281,12 +1297,18 @@ static int live_all_engines(void *arg)
 out_request:
 	idx = 0;
 	for_each_uabi_engine(engine, i915) {
-		if (request[idx])
-			i915_request_put(request[idx]);
+		struct i915_request *rq = request[idx];
+
+		if (!rq)
+			continue;
+
+		if (rq->batch) {
+			i915_vma_unpin(rq->batch);
+			i915_vma_put(rq->batch);
+		}
+		i915_request_put(rq);
 		idx++;
 	}
-	i915_vma_unpin(batch);
-	i915_vma_put(batch);
 out_free:
 	kfree(request);
 	return err;
@@ -1322,7 +1344,7 @@ static int live_sequential_engines(void *arg)
 	for_each_uabi_engine(engine, i915) {
 		struct i915_vma *batch;
 
-		batch = recursive_batch(i915);
+		batch = recursive_batch(engine->gt);
 		if (IS_ERR(batch)) {
 			err = PTR_ERR(batch);
 			pr_err("%s: Unable to create batch for %s, err=%d\n",
@@ -1338,6 +1360,7 @@ static int live_sequential_engines(void *arg)
 			       __func__, engine->name, err);
 			goto out_unlock;
 		}
+		GEM_BUG_ON(request[idx]->context->vm != batch->vm);
 
 		if (prev) {
 			err = i915_request_await_dma_fence(request[idx],
@@ -1353,10 +1376,7 @@ static int live_sequential_engines(void *arg)
 		err = i915_vma_move_to_active(batch, request[idx], 0);
 		GEM_BUG_ON(err);
 
-		err = engine->emit_bb_start(request[idx],
-					    i915_vma_offset(batch),
-					    i915_vma_size(batch),
-					    0);
+		err = emit_bb_start(request[idx], batch);
 		GEM_BUG_ON(err);
 		request[idx]->batch = batch;
 
