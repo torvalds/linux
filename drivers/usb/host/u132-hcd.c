@@ -2977,39 +2977,36 @@ static const struct hc_driver u132_hc_driver = {
 static int u132_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	if (hcd) {
-		struct u132 *u132 = hcd_to_u132(hcd);
-		if (u132->going++ > 1) {
-			dev_err(&u132->platform_dev->dev,
-				"already being removed\n");
-			return -ENODEV;
-		} else {
-			int rings = MAX_U132_RINGS;
-			int endps = MAX_U132_ENDPS;
-			dev_err(&u132->platform_dev->dev,
-				"removing device u132.%d\n",
-				u132->sequence_num);
-			msleep(100);
-			mutex_lock(&u132->sw_lock);
-			u132_monitor_cancel_work(u132);
-			while (rings-- > 0) {
-				struct u132_ring *ring = &u132->ring[rings];
-				u132_ring_cancel_work(u132, ring);
-			}
-			while (endps-- > 0) {
-				struct u132_endp *endp = u132->endp[endps];
-				if (endp)
-					u132_endp_cancel_work(u132, endp);
-			}
-			u132->going += 1;
-			printk(KERN_INFO "removing device u132.%d\n",
-				u132->sequence_num);
-			mutex_unlock(&u132->sw_lock);
-			usb_remove_hcd(hcd);
-			u132_u132_put_kref(u132);
-			return 0;
-		}
+	struct u132 *u132 = hcd_to_u132(hcd);
+
+	if (u132->going++ > 1) {
+		dev_err(&u132->platform_dev->dev,
+			"already being removed\n");
+		return -ENODEV;
 	} else {
+		int rings = MAX_U132_RINGS;
+		int endps = MAX_U132_ENDPS;
+		dev_err(&u132->platform_dev->dev,
+			"removing device u132.%d\n",
+			u132->sequence_num);
+		msleep(100);
+		mutex_lock(&u132->sw_lock);
+		u132_monitor_cancel_work(u132);
+		while (rings-- > 0) {
+			struct u132_ring *ring = &u132->ring[rings];
+			u132_ring_cancel_work(u132, ring);
+		}
+		while (endps-- > 0) {
+			struct u132_endp *endp = u132->endp[endps];
+			if (endp)
+				u132_endp_cancel_work(u132, endp);
+		}
+		u132->going += 1;
+		printk(KERN_INFO "removing device u132.%d\n",
+			u132->sequence_num);
+		mutex_unlock(&u132->sw_lock);
+		usb_remove_hcd(hcd);
+		u132_u132_put_kref(u132);
 		return 0;
 	}
 }
@@ -3092,6 +3089,11 @@ static int u132_probe(struct platform_device *pdev)
 	if (retval)
 		return retval;
 
+	/*
+	 * Note that after a successful call of usb_create_hcd(),
+	 * dev_set_drvdata() was called such that platform_get_drvdata(pdev)
+	 * returns hcd later on.
+	 */
 	hcd = usb_create_hcd(&u132_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		printk(KERN_ERR "failed to create the usb hcd struct for U132\n");
