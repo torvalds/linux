@@ -1691,11 +1691,10 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 		if (!tpg)
 			continue;
 
-		mutex_lock(&tpg->tv_tpg_mutex);
 		tv_tport = tpg->tport;
 		if (!tv_tport) {
 			ret = -ENODEV;
-			goto err_tpg;
+			goto err_dev;
 		}
 
 		if (strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
@@ -1704,35 +1703,51 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 				tv_tport->tport_name, tpg->tport_tpgt,
 				t->vhost_wwpn, t->vhost_tpgt);
 			ret = -EINVAL;
-			goto err_tpg;
+			goto err_dev;
 		}
+		match = true;
+	}
+	if (!match)
+		goto free_vs_tpg;
+
+	/* Prevent new cmds from starting and accessing the tpgs/sessions */
+	for (i = 0; i < vs->dev.nvqs; i++) {
+		vq = &vs->vqs[i].vq;
+		mutex_lock(&vq->mutex);
+		vhost_vq_set_backend(vq, NULL);
+		mutex_unlock(&vq->mutex);
+	}
+	/* Make sure cmds are not running before tearing them down. */
+	vhost_scsi_flush(vs);
+
+	for (i = 0; i < vs->dev.nvqs; i++) {
+		vq = &vs->vqs[i].vq;
+		vhost_scsi_destroy_vq_cmds(vq);
+	}
+
+	/*
+	 * We can now release our hold on the tpg and sessions and userspace
+	 * can free them after this point.
+	 */
+	for (i = 0; i < VHOST_SCSI_MAX_TARGET; i++) {
+		target = i;
+		tpg = vs->vs_tpg[target];
+		if (!tpg)
+			continue;
+
+		mutex_lock(&tpg->tv_tpg_mutex);
+
 		tpg->tv_tpg_vhost_count--;
 		tpg->vhost_scsi = NULL;
 		vs->vs_tpg[target] = NULL;
-		match = true;
+
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		/*
-		 * Release se_tpg->tpg_group.cg_item configfs dependency now
-		 * to allow vhost-scsi WWPN se_tpg->tpg_group shutdown to occur.
-		 */
+
 		se_tpg = &tpg->se_tpg;
 		target_undepend_item(&se_tpg->tpg_group.cg_item);
 	}
-	if (match) {
-		for (i = 0; i < vs->dev.nvqs; i++) {
-			vq = &vs->vqs[i].vq;
-			mutex_lock(&vq->mutex);
-			vhost_vq_set_backend(vq, NULL);
-			mutex_unlock(&vq->mutex);
-		}
-		/* Make sure cmds are not running before tearing them down. */
-		vhost_scsi_flush(vs);
 
-		for (i = 0; i < vs->dev.nvqs; i++) {
-			vq = &vs->vqs[i].vq;
-			vhost_scsi_destroy_vq_cmds(vq);
-		}
-	}
+free_vs_tpg:
 	/*
 	 * Act as synchronize_rcu to make sure access to
 	 * old vs->vs_tpg is finished.
@@ -1745,8 +1760,6 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 	mutex_unlock(&vhost_scsi_mutex);
 	return 0;
 
-err_tpg:
-	mutex_unlock(&tpg->tv_tpg_mutex);
 err_dev:
 	mutex_unlock(&vs->dev.mutex);
 	mutex_unlock(&vhost_scsi_mutex);
