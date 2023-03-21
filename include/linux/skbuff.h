@@ -955,7 +955,7 @@ struct sk_buff {
 	__u8			csum_valid:1;
 
 	/* private: */
-	__u8			__pkt_vlan_present_offset[0];
+	__u8			__mono_tc_offset[0];
 	/* public: */
 	__u8			remcsum_offload:1;
 	__u8			csum_complete_sw:1;
@@ -1078,7 +1078,7 @@ struct sk_buff {
 #define TC_AT_INGRESS_MASK		(1 << 7)
 #define SKB_MONO_DELIVERY_TIME_MASK	(1 << 5)
 #endif
-#define PKT_VLAN_PRESENT_OFFSET	offsetof(struct sk_buff, __pkt_vlan_present_offset)
+#define SKB_BF_MONO_TC_OFFSET		offsetof(struct sk_buff, __mono_tc_offset)
 
 #ifdef __KERNEL__
 /*
