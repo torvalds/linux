@@ -285,5 +285,8 @@ steering but were discarded due to a mismatch in flow table.
 User commands examples:
 - Diagnose PF/VF vnic counters
         $ devlink health diagnose pci/0000:82:00.1 reporter vnic
+- Diagnose representor vnic counters (performed by supplying devlink port of the
+  representor, which can be obtained via devlink port command)
+        $ devlink health diagnose pci/0000:82:00.1/65537 reporter vnic
 
-NOTE: This command can run only on PF/VF ports.
+NOTE: This command can run over all interfaces such as PF/VF and representor ports.
