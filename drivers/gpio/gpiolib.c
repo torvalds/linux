@@ -680,6 +680,11 @@ static void gpiochip_setup_devs(void)
 	}
 }
 
+static void gpiochip_set_data(struct gpio_chip *gc, void *data)
+{
+	gc->gpiodev->data = data;
+}
+
 /**
  * gpiochip_get_data() - get per-subdriver data for the chip
  * @gc: GPIO chip
@@ -722,7 +727,9 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	gdev->dev.bus = &gpio_bus_type;
 	gdev->dev.parent = gc->parent;
 	gdev->chip = gc;
+
 	gc->gpiodev = gdev;
+	gpiochip_set_data(gc, data);
 
 	device_set_node(&gdev->dev, gc->fwnode);
 
@@ -789,7 +796,6 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	}
 
 	gdev->ngpio = gc->ngpio;
-	gdev->data = data;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
@@ -977,9 +983,9 @@ void gpiochip_remove(struct gpio_chip *gc)
 	gpiochip_free_valid_mask(gc);
 	/*
 	 * We accept no more calls into the driver from this point, so
-	 * NULL the driver data pointer
+	 * NULL the driver data pointer.
 	 */
-	gdev->data = NULL;
+	gpiochip_set_data(gc, NULL);
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	for (i = 0; i < gdev->ngpio; i++) {
