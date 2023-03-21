@@ -550,6 +550,30 @@ static inline u64 calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
 	return nr;
 }
 
+static inline u64 calc_delayed_refs_nr(struct btrfs_fs_info *fs_info,
+				       u64 to_reclaim)
+{
+	u64 bytes;
+	u64 nr;
+
+	bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
+	/*
+	 * We have to check the mount option here because we could be enabling
+	 * the free space tree for the first time and don't have the compat_ro
+	 * option set yet.
+	 *
+	 * We need extra reservations if we have the free space tree because
+	 * we'll have to modify that tree as well.
+	 */
+	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
+		bytes *= 2;
+
+	nr = div64_u64(to_reclaim, bytes);
+	if (!nr)
+		nr = 1;
+	return nr;
+}
+
 #define EXTENT_SIZE_PER_ITEM	SZ_256K
 
 /*
@@ -727,7 +751,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 			break;
 		}
 		if (state == FLUSH_DELAYED_REFS_NR)
-			nr = calc_reclaim_items_nr(fs_info, num_bytes);
+			nr = calc_delayed_refs_nr(fs_info, num_bytes);
 		else
 			nr = 0;
 		btrfs_run_delayed_refs(trans, nr);
