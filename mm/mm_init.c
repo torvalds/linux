@@ -27,6 +27,7 @@
 #include <linux/swap.h>
 #include <linux/cma.h>
 #include "internal.h"
+#include "slab.h"
 #include "shuffle.h"
 
 #include <asm/setup.h>

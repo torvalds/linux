@@ -4,6 +4,7 @@
 /*
  * Internal slab definitions
  */
+void __init kmem_cache_init(void);
 
 /* Reuses the bits in struct page */
 struct slab {
