@@ -41,7 +41,7 @@ struct flash_boot_ops {
 	int (*discard)(u32 sec, u32 n_sec);
 };
 
-#ifdef CONFIG_RK_NANDC_NAND
+#if IS_REACHABLE(CONFIG_RK_NANDC_NAND)
 extern const struct flash_boot_ops nandc_nand_ops;
 #endif
 

@@ -4,6 +4,7 @@
 
 #include <linux/kernel.h>
 
+#include "sfc_nand.h"
 #include "rkflash_api.h"
 #include "rk_sftl.h"
 
@@ -17,10 +18,10 @@ static int snand_init(void __iomem *reg_addr)
 	ret = sfc_nand_init();
 	if (ret == 0) {
 		sfnand_dev = sfc_nand_get_private_dev();
-#if defined(CONFIG_RK_SFTL)
+#if IS_REACHABLE(CONFIG_RK_SFTL)
 		sfc_nand_ftl_ops_init();
 		ret = sftl_init();
-#elif !defined(CONFIG_RK_SFC_NAND_MTD)
+#elif !IS_REACHABLE(CONFIG_RK_SFC_NAND_MTD)
 #error "When CONFIG_RK_SFC_NAND_MTD is not used, CONFIG_RK_SFTL is required!"
 #endif
 	}
