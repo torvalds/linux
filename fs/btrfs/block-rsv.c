@@ -242,17 +242,15 @@ int btrfs_block_rsv_check(struct btrfs_block_rsv *block_rsv, int min_percent)
 }
 
 int btrfs_block_rsv_refill(struct btrfs_fs_info *fs_info,
-			   struct btrfs_block_rsv *block_rsv, u64 min_reserved,
+			   struct btrfs_block_rsv *block_rsv, u64 num_bytes,
 			   enum btrfs_reserve_flush_enum flush)
 {
-	u64 num_bytes = 0;
 	int ret = -ENOSPC;
 
 	if (!block_rsv)
 		return 0;
 
 	spin_lock(&block_rsv->lock);
-	num_bytes = min_reserved;
 	if (block_rsv->reserved >= num_bytes)
 		ret = 0;
 	else
