@@ -506,6 +506,15 @@
 			};
 		};
 
+		sdxc_a_pins: sdxc-a {
+			mux {
+				groups = "sdxc_d0_a", "sdxc_d13_a",
+					 "sdxc_clk_a", "sdxc_cmd_a";
+				function = "sdxc_a";
+				bias-pull-up;
+			};
+		};
+
 		sdxc_b_pins: sdxc-b {
 			mux {
 				groups = "sdxc_d0_b", "sdxc_d13_b",
