@@ -108,6 +108,9 @@
 	pinctrl-0 = <&pinctrl_gpio_default>;
 };
 
+&gpu {
+	status = "okay";
+};
 
 &i2c1 {
 	status = "okay";
