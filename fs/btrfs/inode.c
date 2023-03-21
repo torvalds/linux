@@ -5230,7 +5230,7 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
-	u64 delayed_refs_extra = btrfs_calc_insert_metadata_size(fs_info, 1);
+	u64 delayed_refs_extra = btrfs_calc_delayed_ref_bytes(fs_info, 1);
 	int ret;
 
 	/*
