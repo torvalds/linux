@@ -331,8 +331,11 @@ static void b53_mmap_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id b53_mmap_of_table[] = {
 	{ .compatible = "brcm,bcm3384-switch" },
+	{ .compatible = "brcm,bcm6318-switch" },
 	{ .compatible = "brcm,bcm6328-switch" },
+	{ .compatible = "brcm,bcm6362-switch" },
 	{ .compatible = "brcm,bcm6368-switch" },
+	{ .compatible = "brcm,bcm63268-switch" },
 	{ .compatible = "brcm,bcm63xx-switch" },
 	{ /* sentinel */ },
 };
