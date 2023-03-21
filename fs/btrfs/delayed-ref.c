@@ -53,22 +53,6 @@ bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info)
 	return ret;
 }
 
-bool btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans)
-{
-	u64 num_entries =
-		atomic_read(&trans->transaction->delayed_refs.num_entries);
-	u64 avg_runtime;
-	u64 val;
-
-	smp_mb();
-	avg_runtime = trans->fs_info->avg_delayed_ref_runtime;
-	val = num_entries * avg_runtime;
-	if (val >= NSEC_PER_SEC / 2)
-		return true;
-
-	return btrfs_check_space_for_delayed_refs(trans->fs_info);
-}
-
 /*
  * Release a ref head's reservation.
  *

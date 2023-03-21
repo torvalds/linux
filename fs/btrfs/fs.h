@@ -407,7 +407,6 @@ struct btrfs_fs_info {
 	 * Must be written and read while holding btrfs_fs_info::commit_root_sem.
 	 */
 	u64 last_reloc_trans;
-	u64 avg_delayed_ref_runtime;
 
 	/*
 	 * This is updated to the current trans every time a full commit is
