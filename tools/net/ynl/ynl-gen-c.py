@@ -1696,7 +1696,9 @@ def print_kernel_op_table_fwd(family, cw, terminate):
                          'split': 'genl_split_ops'}
         struct_type = pol_to_struct[family.kernel_policy]
 
-        if family.kernel_policy == 'split':
+        if not exported:
+            cnt = ""
+        elif family.kernel_policy == 'split':
             cnt = 0
             for op in family.ops.values():
                 if 'do' in op:
