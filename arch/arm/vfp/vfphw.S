@@ -6,9 +6,9 @@
  *  Written by Deep Blue Solutions Limited.
  *
  * This code is called from the kernel's undefined instruction trap.
+ * r1 holds the thread_info pointer
  * r9 holds the return address for successful handling.
  * lr holds the return address for unrecognised instructions.
- * r10 points at the start of the private FP workspace in the thread structure
  * sp points to a struct pt_regs (as defined in include/asm/proc/ptrace.h)
  */
 #include <linux/init.h>
@@ -69,13 +69,17 @@
 @ VFP hardware support entry point.
 @
 @  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
+@  r1  = thread_info pointer
 @  r2  = PC value to resume execution after successful emulation
 @  r9  = normal "successful" return address
-@  r10 = vfp_state union
-@  r11 = CPU number
 @  lr  = unrecognised instruction return address
 @  IRQs enabled.
 ENTRY(vfp_support_entry)
+	local_bh_disable r1, r4
+
+	ldr	r11, [r1, #TI_CPU]	@ CPU number
+	add	r10, r1, #TI_VFPSTATE	@ r10 = workspace
+
 	DBGSTR3	"instr %08x pc %08x state %p", r0, r2, r10
 
 	.fpu	vfpv2
