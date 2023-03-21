@@ -2143,15 +2143,30 @@ am65_cpsw_nuss_init_port_ndev(struct am65_cpsw_common *common, u32 port_idx)
 	port->slave.phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000FD;
 	port->slave.phylink_config.mac_managed_pm = true; /* MAC does PM */
 
-	if (phy_interface_mode_is_rgmii(port->slave.phy_if)) {
+	switch (port->slave.phy_if) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		phy_interface_set_rgmii(port->slave.phylink_config.supported_interfaces);
-	} else if (port->slave.phy_if == PHY_INTERFACE_MODE_RMII) {
+		break;
+
+	case PHY_INTERFACE_MODE_RMII:
 		__set_bit(PHY_INTERFACE_MODE_RMII,
 			  port->slave.phylink_config.supported_interfaces);
-	} else if (common->pdata.extra_modes & BIT(port->slave.phy_if)) {
-		__set_bit(PHY_INTERFACE_MODE_QSGMII,
-			  port->slave.phylink_config.supported_interfaces);
-	} else {
+		break;
+
+	case PHY_INTERFACE_MODE_QSGMII:
+		if (common->pdata.extra_modes & BIT(port->slave.phy_if)) {
+			__set_bit(port->slave.phy_if,
+				  port->slave.phylink_config.supported_interfaces);
+		} else {
+			dev_err(dev, "selected phy-mode is not supported\n");
+			return -EOPNOTSUPP;
+		}
+		break;
+
+	default:
 		dev_err(dev, "selected phy-mode is not supported\n");
 		return -EOPNOTSUPP;
 	}
