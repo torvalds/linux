@@ -303,8 +303,6 @@ class BazelBuilder:
         if self.skip_list:
             self.user_opts.extend(["--//msm-kernel:skip_{}=true".format(s) for s in self.skip_list])
 
-        self.user_opts.extend(["--config=stamp"])
-
         logging.info("Building %s targets...", CPU)
         self.build_targets(
             cross_targets_to_build,
