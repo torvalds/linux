@@ -2046,6 +2046,13 @@ rcu_check_quiescent_state(struct rcu_data *rdp)
 	rcu_report_qs_rdp(rdp);
 }
 
+/* Return true if callback-invocation time limit exceeded. */
+static bool rcu_do_batch_check_time(long count, long tlimit)
+{
+	// Invoke local_clock() only once per 32 consecutive callbacks.
+	return unlikely(tlimit) && !likely(count & 31) && local_clock() >= tlimit;
+}
+
 /*
  * Invoke any RCU callbacks that have made it to the end of their grace
  * period.  Throttle as specified by rdp->blimit.
@@ -2082,7 +2089,8 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	div = READ_ONCE(rcu_divisor);
 	div = div < 0 ? 7 : div > sizeof(long) * 8 - 2 ? sizeof(long) * 8 - 2 : div;
 	bl = max(rdp->blimit, pending >> div);
-	if (in_serving_softirq() && unlikely(bl > 100)) {
+	if ((in_serving_softirq() || rdp->rcu_cpu_kthread_status == RCU_KTHREAD_RUNNING) &&
+	    unlikely(bl > 100)) {
 		long rrn = READ_ONCE(rcu_resched_ns);
 
 		rrn = rrn < NSEC_PER_MSEC ? NSEC_PER_MSEC : rrn > NSEC_PER_SEC ? NSEC_PER_SEC : rrn;
@@ -2126,21 +2134,23 @@ static void rcu_do_batch(struct rcu_data *rdp)
 			 * Make sure we don't spend too much time here and deprive other
 			 * softirq vectors of CPU cycles.
 			 */
-			if (unlikely(tlimit)) {
-				/* only call local_clock() every 32 callbacks */
-				if (likely((count & 31) || local_clock() < tlimit))
-					continue;
-				/* Exceeded the time limit, so leave. */
+			if (rcu_do_batch_check_time(count, tlimit))
 				break;
-			}
 		} else {
-			// In rcuoc context, so no worries about depriving
-			// other softirq vectors of CPU cycles.
+			// In rcuc/rcuoc context, so no worries about
+			// depriving other softirq vectors of CPU cycles.
 			local_bh_enable();
 			lockdep_assert_irqs_enabled();
 			cond_resched_tasks_rcu_qs();
 			lockdep_assert_irqs_enabled();
 			local_bh_disable();
+			// But rcuc kthreads can delay quiescent-state
+			// reporting, so check time limits for them.
+			if (rdp->rcu_cpu_kthread_status == RCU_KTHREAD_RUNNING &&
+			    rcu_do_batch_check_time(count, tlimit)) {
+				rdp->rcu_cpu_has_work = 1;
+				break;
+			}
 		}
 	}
 
