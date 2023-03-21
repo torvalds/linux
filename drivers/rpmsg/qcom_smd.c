@@ -1579,15 +1579,13 @@ static int qcom_smd_remove_edge(struct device *dev, void *data)
  * Shut down all smd clients by making sure that each edge stops processing
  * events and scanning for new channels, then call destroy on the devices.
  */
-static int qcom_smd_remove(struct platform_device *pdev)
+static void qcom_smd_remove(struct platform_device *pdev)
 {
-	int ret;
-
-	ret = device_for_each_child(&pdev->dev, NULL, qcom_smd_remove_edge);
-	if (ret)
-		dev_warn(&pdev->dev, "can't remove smd device: %d\n", ret);
-
-	return ret;
+	/*
+	 * qcom_smd_remove_edge always returns zero, so there is no need to
+	 * check the return value of device_for_each_child.
+	 */
+	device_for_each_child(&pdev->dev, NULL, qcom_smd_remove_edge);
 }
 
 static const struct of_device_id qcom_smd_of_match[] = {
@@ -1598,7 +1596,7 @@ MODULE_DEVICE_TABLE(of, qcom_smd_of_match);
 
 static struct platform_driver qcom_smd_driver = {
 	.probe = qcom_smd_probe,
-	.remove = qcom_smd_remove,
+	.remove_new = qcom_smd_remove,
 	.driver = {
 		.name = "qcom-smd",
 		.of_match_table = qcom_smd_of_match,
