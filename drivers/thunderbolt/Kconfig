@@ -32,14 +32,15 @@ config USB4_DEBUGFS_WRITE
 	  this for production systems or distro kernels.
 
 config USB4_DEBUGFS_MARGINING
-	bool "Expose receiver lane margining operations under USB4 ports (DANGEROUS)"
+	bool "Expose receiver lane margining operations under USB4 ports and retimers (DANGEROUS)"
 	depends on DEBUG_FS
 	depends on USB4_DEBUGFS_WRITE
 	help
-	  Enables hardware and software based receiver lane margining support
-	  under each USB4 port. Used for electrical quality and robustness
-	  validation during manufacturing. Should not be enabled by distro
-	  kernels.
+	  Enables hardware and software based receiver lane margining
+	  support under each USB4 port and retimer, including retimers
+	  on the other side of the cable. Used for electrical quality
+	  and robustness validation during manufacturing. Should not be
+	  enabled by distro kernels.
 
 config USB4_KUNIT_TEST
 	bool "KUnit tests" if !KUNIT_ALL_TESTS

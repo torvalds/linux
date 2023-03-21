@@ -380,6 +380,9 @@ out_rpm_put:
 /**
  * struct tb_margining - Lane margining support
  * @port: USB4 port through which the margining operations are run
+ * @target: Sideband target
+ * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @dev: Pointer to the device that is the target (USB4 port or retimer)
  * @caps: Port lane margining capabilities
  * @results: Last lane margining results
  * @lanes: %0, %1 or %7 (all)
@@ -397,6 +400,9 @@ out_rpm_put:
  */
 struct tb_margining {
 	struct tb_port *port;
+	enum usb4_sb_target target;
+	u8 index;
+	struct device *dev;
 	u32 caps[2];
 	u32 results[2];
 	unsigned int lanes;
@@ -736,6 +742,7 @@ static int margining_run_write(void *data, u64 val)
 {
 	struct tb_margining *margining = data;
 	struct tb_port *port = margining->port;
+	struct device *dev = margining->dev;
 	struct tb_switch *sw = port->sw;
 	struct tb_switch *down_sw;
 	struct tb *tb = sw->tb;
@@ -744,7 +751,7 @@ static int margining_run_write(void *data, u64 val)
 	if (val != 1)
 		return -EINVAL;
 
-	pm_runtime_get_sync(&sw->dev);
+	pm_runtime_get_sync(dev);
 
 	if (mutex_lock_interruptible(&tb->lock)) {
 		ret = -ERESTARTSYS;
@@ -772,24 +779,29 @@ static int margining_run_write(void *data, u64 val)
 	}
 
 	if (margining->software) {
-		tb_port_dbg(port, "running software %s lane margining for lanes %u\n",
-			    margining->time ? "time" : "voltage", margining->lanes);
-		ret = usb4_port_sw_margin(port, USB4_SB_TARGET_ROUTER, 0,
+		tb_port_dbg(port,
+			    "running software %s lane margining for %s lanes %u\n",
+			    margining->time ? "time" : "voltage", dev_name(dev),
+			    margining->lanes);
+		ret = usb4_port_sw_margin(port, margining->target, margining->index,
 					  margining->lanes, margining->time,
 					  margining->right_high,
 					  USB4_MARGIN_SW_COUNTER_CLEAR);
 		if (ret)
 			goto out_clx;
 
-		ret = usb4_port_sw_margin_errors(port, USB4_SB_TARGET_ROUTER, 0,
+		ret = usb4_port_sw_margin_errors(port, margining->target,
+						 margining->index,
 						 &margining->results[0]);
 	} else {
-		tb_port_dbg(port, "running hardware %s lane margining for lanes %u\n",
-			    margining->time ? "time" : "voltage", margining->lanes);
+		tb_port_dbg(port,
+			    "running hardware %s lane margining for %s lanes %u\n",
+			    margining->time ? "time" : "voltage", dev_name(dev),
+			    margining->lanes);
 		/* Clear the results */
 		margining->results[0] = 0;
 		margining->results[1] = 0;
-		ret = usb4_port_hw_margin(port, USB4_SB_TARGET_ROUTER, 0,
+		ret = usb4_port_hw_margin(port, margining->target, margining->index,
 					  margining->lanes, margining->ber_level,
 					  margining->time, margining->right_high,
 					  margining->results);
@@ -801,8 +813,8 @@ out_clx:
 out_unlock:
 	mutex_unlock(&tb->lock);
 out_rpm_put:
-	pm_runtime_mark_last_busy(&sw->dev);
-	pm_runtime_put_autosuspend(&sw->dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
@@ -1044,33 +1056,29 @@ static int margining_margin_show(struct seq_file *s, void *not_used)
 }
 DEBUGFS_ATTR_RW(margining_margin);
 
-static void margining_port_init(struct tb_port *port)
+static struct tb_margining *margining_alloc(struct tb_port *port,
+					    struct device *dev,
+					    enum usb4_sb_target target,
+					    u8 index, struct dentry *parent)
 {
 	struct tb_margining *margining;
-	struct dentry *dir, *parent;
-	struct usb4_port *usb4;
-	char dir_name[10];
+	struct dentry *dir;
 	unsigned int val;
 	int ret;
 
-	usb4 = port->usb4;
-	if (!usb4)
-		return;
-
-	snprintf(dir_name, sizeof(dir_name), "port%d", port->port);
-	parent = debugfs_lookup(dir_name, port->sw->debugfs_dir);
-
 	margining = kzalloc(sizeof(*margining), GFP_KERNEL);
 	if (!margining)
-		return;
+		return NULL;
 
 	margining->port = port;
+	margining->target = target;
+	margining->index = index;
+	margining->dev = dev;
 
-	ret = usb4_port_margining_caps(port, USB4_SB_TARGET_ROUTER, 0,
-				       margining->caps);
+	ret = usb4_port_margining_caps(port, target, index, margining->caps);
 	if (ret) {
 		kfree(margining);
-		return;
+		return NULL;
 	}
 
 	/* Set the initial mode */
@@ -1124,8 +1132,22 @@ static void margining_port_init(struct tb_port *port)
 	     independent_time_margins(margining) == USB4_MARGIN_CAP_1_TIME_LR))
 		debugfs_create_file("margin", 0600, dir, margining,
 				    &margining_margin_fops);
+	return margining;
+}
 
-	usb4->margining = margining;
+static void margining_port_init(struct tb_port *port)
+{
+	struct dentry *parent;
+	char dir_name[10];
+
+	if (!port->usb4)
+		return;
+
+	snprintf(dir_name, sizeof(dir_name), "port%d", port->port);
+	parent = debugfs_lookup(dir_name, port->sw->debugfs_dir);
+	port->usb4->margining = margining_alloc(port, &port->usb4->dev,
+						USB4_SB_TARGET_ROUTER, 0,
+						parent);
 }
 
 static void margining_port_remove(struct tb_port *port)
@@ -1199,11 +1221,27 @@ static void margining_xdomain_remove(struct tb_xdomain *xd)
 	downstream = tb_port_at(xd->route, parent_sw);
 	margining_port_remove(downstream);
 }
+
+static void margining_retimer_init(struct tb_retimer *rt, struct dentry *debugfs_dir)
+{
+	rt->margining = margining_alloc(rt->port, &rt->dev,
+					USB4_SB_TARGET_RETIMER, rt->index,
+					debugfs_dir);
+}
+
+static void margining_retimer_remove(struct tb_retimer *rt)
+{
+	kfree(rt->margining);
+	rt->margining = NULL;
+}
 #else
 static inline void margining_switch_init(struct tb_switch *sw) { }
 static inline void margining_switch_remove(struct tb_switch *sw) { }
 static inline void margining_xdomain_init(struct tb_xdomain *xd) { }
 static inline void margining_xdomain_remove(struct tb_xdomain *xd) { }
+static inline void margining_retimer_init(struct tb_retimer *rt,
+					  struct dentry *debugfs_dir) { }
+static inline void margining_retimer_remove(struct tb_retimer *rt) { }
 #endif
 
 static int port_clear_all_counters(struct tb_port *port)
@@ -1864,6 +1902,7 @@ void tb_retimer_debugfs_init(struct tb_retimer *rt)
 	debugfs_dir = debugfs_create_dir(dev_name(&rt->dev), tb_debugfs_root);
 	debugfs_create_file("sb_regs", DEBUGFS_MODE, debugfs_dir, rt,
 			    &retimer_sb_regs_fops);
+	margining_retimer_init(rt, debugfs_dir);
 }
 
 /**
@@ -1875,6 +1914,7 @@ void tb_retimer_debugfs_init(struct tb_retimer *rt)
 void tb_retimer_debugfs_remove(struct tb_retimer *rt)
 {
 	debugfs_lookup_and_remove(dev_name(&rt->dev), tb_debugfs_root);
+	margining_retimer_remove(rt);
 }
 
 void tb_debugfs_init(void)

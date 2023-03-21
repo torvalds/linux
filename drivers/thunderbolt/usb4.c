@@ -1831,6 +1831,30 @@ int usb4_port_retimer_is_last(struct tb_port *port, u8 index)
 }
 
 /**
+ * usb4_port_retimer_is_cable() - Is the retimer cable retimer
+ * @port: USB4 port
+ * @index: Retimer index
+ *
+ * If the retimer at @index is last cable retimer this function returns
+ * %1 and %0 if it is on-board retimer. In case a retimer is not present
+ * at @index returns %-ENODEV. Otherwise returns negative errno.
+ */
+int usb4_port_retimer_is_cable(struct tb_port *port, u8 index)
+{
+	u32 metadata;
+	int ret;
+
+	ret = usb4_port_retimer_op(port, index, USB4_SB_OPCODE_QUERY_CABLE_RETIMER,
+				   500);
+	if (ret)
+		return ret;
+
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_METADATA, &metadata, sizeof(metadata));
+	return ret ? ret : metadata & 1;
+}
+
+/**
  * usb4_port_retimer_nvm_sector_size() - Read retimer NVM sector size
  * @port: USB4 port
  * @index: Retimer index
