@@ -784,7 +784,7 @@ err_disable_resources:
 	return ret;
 }
 
-static int qcom_pcie_ep_remove(struct platform_device *pdev)
+static void qcom_pcie_ep_remove(struct platform_device *pdev)
 {
 	struct qcom_pcie_ep *pcie_ep = platform_get_drvdata(pdev);
 
@@ -794,11 +794,9 @@ static int qcom_pcie_ep_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(pcie_ep->debugfs);
 
 	if (pcie_ep->link_status == QCOM_PCIE_EP_LINK_DISABLED)
-		return 0;
+		return;
 
 	qcom_pcie_disable_resources(pcie_ep);
-
-	return 0;
 }
 
 static const struct of_device_id qcom_pcie_ep_match[] = {
@@ -810,7 +808,7 @@ MODULE_DEVICE_TABLE(of, qcom_pcie_ep_match);
 
 static struct platform_driver qcom_pcie_ep_driver = {
 	.probe	= qcom_pcie_ep_probe,
-	.remove = qcom_pcie_ep_remove,
+	.remove_new = qcom_pcie_ep_remove,
 	.driver	= {
 		.name = "qcom-pcie-ep",
 		.of_match_table	= qcom_pcie_ep_match,
