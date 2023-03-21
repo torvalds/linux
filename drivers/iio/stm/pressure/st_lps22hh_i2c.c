@@ -63,6 +63,7 @@ static int st_lps22hh_i2c_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id st_lps22hh_ids[] = {
+	{ "lps22ch" },
 	{ "lps22hh" },
 	{ "lps27hhw" },
 	{}
@@ -70,6 +71,7 @@ static const struct i2c_device_id st_lps22hh_ids[] = {
 MODULE_DEVICE_TABLE(i2c, st_lps22hh_ids);
 
 static const struct of_device_id st_lps22hh_id_table[] = {
+	{ .compatible = "st,lps22ch" },
 	{ .compatible = "st,lps22hh" },
 	{ .compatible = "st,lps27hhw" },
 	{},
