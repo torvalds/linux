@@ -1603,7 +1603,18 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	bool pending_tickets;
 
 	ASSERT(orig_bytes);
-	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_ALL);
+	/*
+	 * If have a transaction handle (current->journal_info != NULL), then
+	 * the flush method can not be neither BTRFS_RESERVE_FLUSH_ALL* nor
+	 * BTRFS_RESERVE_FLUSH_EVICT, as we could deadlock because those
+	 * flushing methods can trigger transaction commits.
+	 */
+	if (current->journal_info) {
+		/* One assert per line for easier debugging. */
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL);
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_ALL_STEAL);
+		ASSERT(flush != BTRFS_RESERVE_FLUSH_EVICT);
+	}
 
 	if (flush == BTRFS_RESERVE_FLUSH_DATA)
 		async_work = &fs_info->async_data_reclaim_work;
