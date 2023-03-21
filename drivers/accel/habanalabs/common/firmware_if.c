@@ -1263,7 +1263,7 @@ void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 				COMMS_RST_DEV, 0, false,
 				hdev->fw_loader.cpu_timeout);
 		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_RST_DEV\n");
+			dev_err(hdev->dev, "Failed sending COMMS_RST_DEV\n");
 	} else {
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_RST_DEV);
 	}
@@ -1284,7 +1284,7 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 				COMMS_GOTO_WFE, 0, true,
 				hdev->fw_loader.cpu_timeout);
 		if (rc)
-			dev_warn(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+			dev_err(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
 	} else {
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
 		msleep(static_loader->cpu_reset_wait_msec);
