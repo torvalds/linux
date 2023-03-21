@@ -25,6 +25,18 @@
 static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
 
 /*
+ * Number of metadata items necessary for an unlink operation:
+ *
+ * 1 for the possible orphan item
+ * 1 for the dir item
+ * 1 for the dir index
+ * 1 for the inode ref
+ * 1 for the inode
+ * 1 for the parent inode
+ */
+#define BTRFS_UNLINK_METADATA_UNITS		6
+
+/*
  * The reserved space at the beginning of each device.  It covers the primary
  * super block and leaves space for potential use by other tools like
  * bootloaders or to lower potential damage of accidental overwrite.

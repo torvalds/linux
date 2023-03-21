@@ -4248,15 +4248,8 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct btrfs_inode *dir)
 {
 	struct btrfs_root *root = dir->root;
 
-	/*
-	 * 1 for the possible orphan item
-	 * 1 for the dir item
-	 * 1 for the dir index
-	 * 1 for the inode ref
-	 * 1 for the inode
-	 * 1 for the parent inode
-	 */
-	return btrfs_start_transaction_fallback_global_rsv(root, 6);
+	return btrfs_start_transaction_fallback_global_rsv(root,
+						   BTRFS_UNLINK_METADATA_UNITS);
 }
 
 static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
