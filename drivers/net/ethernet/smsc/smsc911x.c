@@ -1741,7 +1741,6 @@ irq_stop_out:
 	free_irq(dev->irq, dev);
 mii_free_out:
 	phy_disconnect(dev->phydev);
-	dev->phydev = NULL;
 out:
 	pm_runtime_put(dev->dev.parent);
 	return retval;
@@ -1772,7 +1771,6 @@ static int smsc911x_stop(struct net_device *dev)
 	if (dev->phydev) {
 		phy_stop(dev->phydev);
 		phy_disconnect(dev->phydev);
-		dev->phydev = NULL;
 	}
 	netif_carrier_off(dev);
 	pm_runtime_put(dev->dev.parent);

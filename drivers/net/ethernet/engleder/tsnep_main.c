@@ -246,7 +246,6 @@ static void tsnep_phy_close(struct tsnep_adapter *adapter)
 {
 	phy_stop(adapter->netdev->phydev);
 	phy_disconnect(adapter->netdev->phydev);
-	adapter->netdev->phydev = NULL;
 }
 
 static void tsnep_tx_ring_cleanup(struct tsnep_tx *tx)
