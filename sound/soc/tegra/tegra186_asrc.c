@@ -1016,11 +1016,9 @@ static int tegra186_asrc_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra186_asrc_platform_remove(struct platform_device *pdev)
+static void tegra186_asrc_platform_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops tegra186_asrc_pm_ops = {
@@ -1037,7 +1035,7 @@ static struct platform_driver tegra186_asrc_driver = {
 		.pm = &tegra186_asrc_pm_ops,
 	},
 	.probe = tegra186_asrc_platform_probe,
-	.remove = tegra186_asrc_platform_remove,
+	.remove_new = tegra186_asrc_platform_remove,
 };
 module_platform_driver(tegra186_asrc_driver)
 

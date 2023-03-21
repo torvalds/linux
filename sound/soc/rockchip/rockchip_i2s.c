@@ -851,7 +851,7 @@ err_clk:
 	return ret;
 }
 
-static int rockchip_i2s_remove(struct platform_device *pdev)
+static void rockchip_i2s_remove(struct platform_device *pdev)
 {
 	struct rk_i2s_dev *i2s = dev_get_drvdata(&pdev->dev);
 
@@ -860,8 +860,6 @@ static int rockchip_i2s_remove(struct platform_device *pdev)
 		i2s_runtime_suspend(&pdev->dev);
 
 	clk_disable_unprepare(i2s->hclk);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_i2s_pm_ops = {
@@ -871,7 +869,7 @@ static const struct dev_pm_ops rockchip_i2s_pm_ops = {
 
 static struct platform_driver rockchip_i2s_driver = {
 	.probe = rockchip_i2s_probe,
-	.remove = rockchip_i2s_remove,
+	.remove_new = rockchip_i2s_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(rockchip_i2s_match),

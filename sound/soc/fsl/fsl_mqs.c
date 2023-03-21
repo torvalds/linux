@@ -261,10 +261,9 @@ err_free_gpr_np:
 	return ret;
 }
 
-static int fsl_mqs_remove(struct platform_device *pdev)
+static void fsl_mqs_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -360,7 +359,7 @@ MODULE_DEVICE_TABLE(of, fsl_mqs_dt_ids);
 
 static struct platform_driver fsl_mqs_driver = {
 	.probe		= fsl_mqs_probe,
-	.remove		= fsl_mqs_remove,
+	.remove_new	= fsl_mqs_remove,
 	.driver		= {
 		.name	= "fsl-mqs",
 		.of_match_table = fsl_mqs_dt_ids,

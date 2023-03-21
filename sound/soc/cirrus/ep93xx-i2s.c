@@ -495,19 +495,18 @@ fail:
 	return err;
 }
 
-static int ep93xx_i2s_remove(struct platform_device *pdev)
+static void ep93xx_i2s_remove(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
 	clk_put(info->lrclk);
 	clk_put(info->sclk);
 	clk_put(info->mclk);
-	return 0;
 }
 
 static struct platform_driver ep93xx_i2s_driver = {
 	.probe	= ep93xx_i2s_probe,
-	.remove	= ep93xx_i2s_remove,
+	.remove_new = ep93xx_i2s_remove,
 	.driver	= {
 		.name	= "ep93xx-i2s",
 	},

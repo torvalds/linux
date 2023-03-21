@@ -3639,7 +3639,7 @@ err:
 	return ret;
 }
 
-static int rx_macro_remove(struct platform_device *pdev)
+static void rx_macro_remove(struct platform_device *pdev)
 {
 	struct rx_macro *rx = dev_get_drvdata(&pdev->dev);
 
@@ -3650,8 +3650,6 @@ static int rx_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(rx->dcodec);
 
 	lpass_macro_pds_exit(rx->pds);
-
-	return 0;
 }
 
 static const struct of_device_id rx_macro_dt_match[] = {
@@ -3723,7 +3721,7 @@ static struct platform_driver rx_macro_driver = {
 		.pm = &rx_macro_pm_ops,
 	},
 	.probe = rx_macro_probe,
-	.remove = rx_macro_remove,
+	.remove_new = rx_macro_remove,
 };
 
 module_platform_driver(rx_macro_driver);
