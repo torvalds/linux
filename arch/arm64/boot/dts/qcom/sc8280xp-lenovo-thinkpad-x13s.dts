@@ -703,6 +703,23 @@
 	pinctrl-0 = <&pcie4_default>;
 
 	status = "okay";
+
+	pcie@0 {
+		device_type = "pci";
+		reg = <0x0 0x0 0x0 0x0 0x0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+
+		bus-range = <0x01 0xff>;
+
+		wifi@0 {
+			compatible = "pci17cb,1103";
+			reg = <0x10000 0x0 0x0 0x0 0x0>;
+
+			qcom,ath11k-calibration-variant = "LE_X13S";
+		};
+	};
 };
 
 &pcie4_phy {
