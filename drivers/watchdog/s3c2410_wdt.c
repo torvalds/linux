@@ -308,11 +308,6 @@ static inline unsigned int s3c2410wdt_max_timeout(struct s3c2410_wdt *wdt)
 				       / S3C2410_WTCON_MAXDIV);
 }
 
-static inline struct s3c2410_wdt *freq_to_wdt(struct notifier_block *nb)
-{
-	return container_of(nb, struct s3c2410_wdt, freq_transition);
-}
-
 static int s3c2410wdt_disable_wdt_reset(struct s3c2410_wdt *wdt, bool mask)
 {
 	const u32 mask_val = BIT(wdt->drv_data->mask_bit);
@@ -441,11 +436,6 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	spin_unlock(&wdt->lock);
 
 	return 0;
-}
-
-static inline int s3c2410wdt_is_running(struct s3c2410_wdt *wdt)
-{
-	return readl(wdt->reg_base + S3C2410_WTCON) & S3C2410_WTCON_ENABLE;
 }
 
 static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd,
