@@ -942,16 +942,6 @@ void btrfs_throttle(struct btrfs_fs_info *fs_info)
 	wait_current_trans(fs_info);
 }
 
-static bool should_end_transaction(struct btrfs_trans_handle *trans)
-{
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-
-	if (btrfs_check_space_for_delayed_refs(fs_info))
-		return true;
-
-	return !!btrfs_block_rsv_check(&fs_info->global_block_rsv, 50);
-}
-
 bool btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
@@ -960,7 +950,10 @@ bool btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 	    test_bit(BTRFS_DELAYED_REFS_FLUSHING, &cur_trans->delayed_refs.flags))
 		return true;
 
-	return should_end_transaction(trans);
+	if (btrfs_check_space_for_delayed_refs(trans->fs_info))
+		return true;
+
+	return !!btrfs_block_rsv_check(&trans->fs_info->global_block_rsv, 50);
 }
 
 static void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans)
