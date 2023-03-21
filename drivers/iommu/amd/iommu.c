@@ -1662,6 +1662,10 @@ static void do_attach(struct iommu_dev_data *dev_data,
 	dev_data->domain = domain;
 	list_add(&dev_data->list, &domain->dev_list);
 
+	/* Update NUMA Node ID */
+	if (domain->nid == NUMA_NO_NODE)
+		domain->nid = dev_to_node(dev_data->dev);
+
 	/* Do reference counting */
 	domain->dev_iommu[iommu->index] += 1;
 	domain->dev_cnt                 += 1;
@@ -2096,6 +2100,8 @@ static struct protection_domain *protection_domain_alloc(unsigned int type)
 	/* No need to allocate io pgtable ops in passthrough mode */
 	if (type == IOMMU_DOMAIN_IDENTITY)
 		return domain;
+
+	domain->nid = NUMA_NO_NODE;
 
 	pgtbl_ops = alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl_cfg, domain);
 	if (!pgtbl_ops) {
