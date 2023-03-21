@@ -217,7 +217,7 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
 	if (ret)
 		return ret;
-	btrfs_block_rsv_add_bytes(block_rsv, num_bytes, 0);
+	btrfs_block_rsv_add_bytes(block_rsv, num_bytes, false);
 	trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv",
 				      0, num_bytes, 1);
 	return 0;
