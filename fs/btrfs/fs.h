@@ -822,7 +822,7 @@ static inline u64 btrfs_csum_bytes_to_leaves(
  * Use this if we would be adding new items, as we could split nodes as we cow
  * down the tree.
  */
-static inline u64 btrfs_calc_insert_metadata_size(struct btrfs_fs_info *fs_info,
+static inline u64 btrfs_calc_insert_metadata_size(const struct btrfs_fs_info *fs_info,
 						  unsigned num_items)
 {
 	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
@@ -832,7 +832,7 @@ static inline u64 btrfs_calc_insert_metadata_size(struct btrfs_fs_info *fs_info,
  * Doing a truncate or a modification won't result in new nodes or leaves, just
  * what we need for COW.
  */
-static inline u64 btrfs_calc_metadata_size(struct btrfs_fs_info *fs_info,
+static inline u64 btrfs_calc_metadata_size(const struct btrfs_fs_info *fs_info,
 						 unsigned num_items)
 {
 	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
