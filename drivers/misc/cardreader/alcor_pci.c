@@ -95,29 +95,6 @@ u32 alcor_read32be(struct alcor_pci_priv *priv, unsigned int addr)
 }
 EXPORT_SYMBOL_GPL(alcor_read32be);
 
-static inline void alcor_mask_sd_irqs(struct alcor_pci_priv *priv)
-{
-	alcor_write32(priv, 0, AU6601_REG_INT_ENABLE);
-}
-
-static inline void alcor_unmask_sd_irqs(struct alcor_pci_priv *priv)
-{
-	alcor_write32(priv, AU6601_INT_CMD_MASK | AU6601_INT_DATA_MASK |
-		  AU6601_INT_CARD_INSERT | AU6601_INT_CARD_REMOVE |
-		  AU6601_INT_OVER_CURRENT_ERR,
-		  AU6601_REG_INT_ENABLE);
-}
-
-static inline void alcor_mask_ms_irqs(struct alcor_pci_priv *priv)
-{
-	alcor_write32(priv, 0, AU6601_MS_INT_ENABLE);
-}
-
-static inline void alcor_unmask_ms_irqs(struct alcor_pci_priv *priv)
-{
-	alcor_write32(priv, 0x3d00fa, AU6601_MS_INT_ENABLE);
-}
-
 static int alcor_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
