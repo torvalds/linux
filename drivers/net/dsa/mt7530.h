@@ -364,47 +364,8 @@ enum mt7530_vlan_port_acc_frm {
 					 CCR_TX_OCT_CNT_BAD)
 
 /* MT7531 SGMII register group */
-#define MT7531_SGMII_REG_BASE		0x5000
-#define MT7531_SGMII_REG(p, r)		(MT7531_SGMII_REG_BASE + \
-					((p) - 5) * 0x1000 + (r))
-
-/* Register forSGMII PCS_CONTROL_1 */
-#define MT7531_PCS_CONTROL_1(p)		MT7531_SGMII_REG(p, 0x00)
-#define  MT7531_SGMII_LINK_STATUS	BIT(18)
-#define  MT7531_SGMII_AN_ENABLE		BIT(12)
-#define  MT7531_SGMII_AN_RESTART	BIT(9)
-#define  MT7531_SGMII_AN_COMPLETE	BIT(21)
-
-/* Register for SGMII PCS_SPPED_ABILITY */
-#define MT7531_PCS_SPEED_ABILITY(p)	MT7531_SGMII_REG(p, 0x08)
-#define  MT7531_SGMII_TX_CONFIG_MASK	GENMASK(15, 0)
-#define  MT7531_SGMII_TX_CONFIG		BIT(0)
-
-/* Register for SGMII_MODE */
-#define MT7531_SGMII_MODE(p)		MT7531_SGMII_REG(p, 0x20)
-#define  MT7531_SGMII_REMOTE_FAULT_DIS	BIT(8)
-#define  MT7531_SGMII_IF_MODE_MASK	GENMASK(5, 1)
-#define  MT7531_SGMII_FORCE_DUPLEX	BIT(4)
-#define  MT7531_SGMII_FORCE_SPEED_MASK	GENMASK(3, 2)
-#define  MT7531_SGMII_FORCE_SPEED_1000	BIT(3)
-#define  MT7531_SGMII_FORCE_SPEED_100	BIT(2)
-#define  MT7531_SGMII_FORCE_SPEED_10	0
-#define  MT7531_SGMII_SPEED_DUPLEX_AN	BIT(1)
-
-enum mt7531_sgmii_force_duplex {
-	MT7531_SGMII_FORCE_FULL_DUPLEX = 0,
-	MT7531_SGMII_FORCE_HALF_DUPLEX = 0x10,
-};
-
-/* Fields of QPHY_PWR_STATE_CTRL */
-#define MT7531_QPHY_PWR_STATE_CTRL(p)	MT7531_SGMII_REG(p, 0xe8)
-#define  MT7531_SGMII_PHYA_PWD		BIT(4)
-
-/* Values of SGMII SPEED */
-#define MT7531_PHYA_CTRL_SIGNAL3(p)	MT7531_SGMII_REG(p, 0x128)
-#define  MT7531_RG_TPHY_SPEED_MASK	(BIT(2) | BIT(3))
-#define  MT7531_RG_TPHY_SPEED_1_25G	0x0
-#define  MT7531_RG_TPHY_SPEED_3_125G	BIT(2)
+#define MT7531_SGMII_REG_BASE(p)	(0x5000 + ((p) - 5) * 0x1000)
+#define MT7531_PHYA_CTRL_SIGNAL3	0x128
 
 /* Register for system reset */
 #define MT7530_SYS_CTRL			0x7000
@@ -703,13 +664,13 @@ struct mt7530_fdb {
  * @pm:		The matrix used to show all connections with the port.
  * @pvid:	The VLAN specified is to be considered a PVID at ingress.  Any
  *		untagged frames will be assigned to the related VLAN.
- * @vlan_filtering: The flags indicating whether the port that can recognize
- *		    VLAN-tagged frames.
+ * @sgmii_pcs:	Pointer to PCS instance for SerDes ports
  */
 struct mt7530_port {
 	bool enable;
 	u32 pm;
 	u16 pvid;
+	struct phylink_pcs *sgmii_pcs;
 };
 
 /* Port 5 interface select definitions */

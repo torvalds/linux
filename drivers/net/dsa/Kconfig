@@ -38,6 +38,7 @@ config NET_DSA_MT7530
 	tristate "MediaTek MT7530 and MT7531 Ethernet switch support"
 	select NET_DSA_TAG_MTK
 	select MEDIATEK_GE_PHY
+	select PCS_MTK_LYNXI
 	help
 	  This enables support for the MediaTek MT7530 and MT7531 Ethernet
 	  switch chips. Multi-chip module MT7530 in MT7621AT, MT7621DAT,
