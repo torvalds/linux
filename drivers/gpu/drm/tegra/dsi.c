@@ -1659,7 +1659,7 @@ mipi_free:
 	return err;
 }
 
-static int tegra_dsi_remove(struct platform_device *pdev)
+static void tegra_dsi_remove(struct platform_device *pdev)
 {
 	struct tegra_dsi *dsi = platform_get_drvdata(pdev);
 
@@ -1671,8 +1671,6 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 
 	mipi_dsi_host_unregister(&dsi->host);
 	tegra_mipi_free(dsi->mipi);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_dsi_of_match[] = {
@@ -1690,5 +1688,5 @@ struct platform_driver tegra_dsi_driver = {
 		.of_match_table = tegra_dsi_of_match,
 	},
 	.probe = tegra_dsi_probe,
-	.remove = tegra_dsi_remove,
+	.remove_new = tegra_dsi_remove,
 };
