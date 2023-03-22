@@ -730,13 +730,21 @@ v4l2_async_notifier_operations csi2_async_ops = {
 static void csi2_find_err_vc(int val, char *vc_info)
 {
 	int i;
+	char cur_str[CSI_VCINFO_LEN] = {0};
 
 	memset(vc_info, 0, sizeof(*vc_info));
 	for (i = 0; i < 4; i++) {
-		if ((val >> i) & 0x1)
-			snprintf(vc_info, CSI_VCINFO_LEN, "%s %d", vc_info, i);
+		if ((val >> i) & 0x1) {
+			snprintf(cur_str, CSI_VCINFO_LEN, " %d", i);
+			if (strlen(vc_info) + strlen(cur_str) < CSI_VCINFO_LEN)
+				strncat(vc_info, cur_str, strlen(cur_str));
+		}
 	}
 }
+
+#define csi2_err_strncat(dst_str, src_str) {\
+	if (strlen(dst_str) + strlen(src_str) < CSI_ERRSTR_LEN)\
+		strncat(dst_str, src_str, strlen(src_str)); }
 
 static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 {
@@ -746,6 +754,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 	unsigned long err_stat = 0;
 	u32 val;
 	char err_str[CSI_ERRSTR_LEN] = {0};
+	char cur_str[CSI_ERRSTR_LEN] = {0};
 	char vc_info[CSI_VCINFO_LEN] = {0};
 	bool is_add_cnt = false;
 
@@ -755,20 +764,20 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			err_list = &csi2->err_list[RK_CSI2_ERR_SOTSYN];
 			err_list->cnt++;
 			if (csi2->match_data->chip_id == CHIP_RK3588_CSI2) {
-				if (csi2->err_list[RK_CSI2_ERR_ALL].cnt > err_list->cnt) {
+				if (err_list->cnt > 3 &&
+				    csi2->err_list[RK_CSI2_ERR_ALL].cnt <= err_list->cnt) {
+					csi2->is_check_sot_sync = false;
+					write_csihost_reg(csi2->base, CSIHOST_MSK1, 0xf);
+				}
+				if (csi2->is_check_sot_sync) {
 					csi2_find_err_vc(val & 0xf, vc_info);
-					snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot sync,lane:%s) ", err_str, vc_info);
-				} else {
-					if (csi2->is_check_sot_sync) {
-						csi2_find_err_vc(val & 0xf, vc_info);
-						snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot sync,lane:%s) ", err_str, vc_info);
-						write_csihost_reg(csi2->base, CSIHOST_MSK1, 0xf);
-						csi2->is_check_sot_sync = false;
-					}
+					snprintf(cur_str, CSI_ERRSTR_LEN, "(sot sync,lane:%s) ", vc_info);
+					csi2_err_strncat(err_str, cur_str);
 				}
 			} else {
 				csi2_find_err_vc(val & 0xf, vc_info);
-				snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot sync,lane:%s) ", err_str, vc_info);
+				snprintf(cur_str, CSI_ERRSTR_LEN, "(sot sync,lane:%s) ", vc_info);
+				csi2_err_strncat(err_str, cur_str);
 				is_add_cnt = true;
 			}
 		}
@@ -777,7 +786,8 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			err_list = &csi2->err_list[RK_CSI2_ERR_FS_FE_MIS];
 			err_list->cnt++;
 			csi2_find_err_vc((val >> 4) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(fs/fe mis,vc:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(fs/fe mis,vc:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 			if (csi2->match_data->chip_id < CHIP_RK3588_CSI2)
 				is_add_cnt = true;
 		}
@@ -786,7 +796,8 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			err_list = &csi2->err_list[RK_CSI2_ERR_FRM_SEQ_ERR];
 			err_list->cnt++;
 			csi2_find_err_vc((val >> 8) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(f_seq,vc:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(f_seq,vc:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_FRM_DATA) {
@@ -794,7 +805,8 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			is_add_cnt = true;
 			err_list->cnt++;
 			csi2_find_err_vc((val >> 12) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(err_data,vc:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(err_data,vc:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_CRC) {
@@ -802,19 +814,22 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			err_list->cnt++;
 			is_add_cnt = true;
 			csi2_find_err_vc((val >> 24) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(crc,vc:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(crc,vc:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_ECC2) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_CRC];
 			err_list->cnt++;
 			is_add_cnt = true;
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ecc2)", err_str);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(ecc2) ");
+			csi2_err_strncat(err_str, cur_str);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_CTRL) {
 			csi2_find_err_vc((val >> 16) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ctrl,vc:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(ctrl,vc:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
 
 		pr_err("%s ERR1:0x%x %s\n", csi2->dev_name, val, err_str);
@@ -839,6 +854,7 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	struct device *dev = ctx;
 	struct csi2_dev *csi2 = sd_to_dev(dev_get_drvdata(dev));
 	u32 val;
+	char cur_str[CSI_ERRSTR_LEN] = {0};
 	char err_str[CSI_ERRSTR_LEN] = {0};
 	char vc_info[CSI_VCINFO_LEN] = {0};
 
@@ -846,22 +862,28 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	if (val) {
 		if (val & CSIHOST_ERR2_PHYERR_ESC) {
 			csi2_find_err_vc(val & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ULPM,lane:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(ULPM,lane:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
 		if (val & CSIHOST_ERR2_PHYERR_SOTHS) {
 			csi2_find_err_vc((val >> 4) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot,lane:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(sot,lane:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
 		if (val & CSIHOST_ERR2_ECC_CORRECTED) {
 			csi2_find_err_vc((val >> 8) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ecc,vc:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(ecc,vc:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
 		if (val & CSIHOST_ERR2_ERR_ID) {
 			csi2_find_err_vc((val >> 12) & 0xf, vc_info);
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(err id,vc:%s) ", err_str, vc_info);
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(err id,vc:%s) ", vc_info);
+			csi2_err_strncat(err_str, cur_str);
 		}
-		if (val & CSIHOST_ERR2_PHYERR_CODEHS)
-			snprintf(err_str, CSI_ERRSTR_LEN, "%s(err code) ", err_str);
+		if (val & CSIHOST_ERR2_PHYERR_CODEHS) {
+			snprintf(cur_str, CSI_ERRSTR_LEN, "(err code) ");
+			csi2_err_strncat(err_str, cur_str);
+		}
 
 		pr_err("%s ERR2:0x%x %s\n", csi2->dev_name, val, err_str);
 	}

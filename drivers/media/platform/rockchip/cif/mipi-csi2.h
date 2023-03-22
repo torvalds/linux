@@ -29,7 +29,7 @@
 #define RKCIF_DEFAULT_WIDTH	640
 #define RKCIF_DEFAULT_HEIGHT	480
 
-#define CSI_ERRSTR_LEN		(128)
+#define CSI_ERRSTR_LEN		(256)
 #define CSI_VCINFO_LEN		(12)
 
 /*
