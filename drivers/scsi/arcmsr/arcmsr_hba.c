@@ -1300,20 +1300,13 @@ static uint8_t arcmsr_abort_allcmd(struct AdapterControlBlock *acb)
 	return rtnval;
 }
 
-static void arcmsr_pci_unmap_dma(struct CommandControlBlock *ccb)
-{
-	struct scsi_cmnd *pcmd = ccb->pcmd;
-
-	scsi_dma_unmap(pcmd);
-}
-
 static void arcmsr_ccb_complete(struct CommandControlBlock *ccb)
 {
 	struct AdapterControlBlock *acb = ccb->acb;
 	struct scsi_cmnd *pcmd = ccb->pcmd;
 	unsigned long flags;
 	atomic_dec(&acb->ccboutstandingcount);
-	arcmsr_pci_unmap_dma(ccb);
+	scsi_dma_unmap(ccb->pcmd);
 	ccb->startdone = ARCMSR_CCB_DONE;
 	spin_lock_irqsave(&acb->ccblist_lock, flags);
 	list_add_tail(&ccb->list, &acb->ccb_free_list);
@@ -1597,7 +1590,7 @@ static void arcmsr_remove_scsi_devices(struct AdapterControlBlock *acb)
 		ccb = acb->pccb_pool[i];
 		if (ccb->startdone == ARCMSR_CCB_START) {
 			ccb->pcmd->result = DID_NO_CONNECT << 16;
-			arcmsr_pci_unmap_dma(ccb);
+			scsi_dma_unmap(ccb->pcmd);
 			scsi_done(ccb->pcmd);
 		}
 	}
