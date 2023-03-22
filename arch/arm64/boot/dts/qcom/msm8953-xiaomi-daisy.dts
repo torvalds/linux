@@ -105,6 +105,13 @@
 	compatible = "xiaomi,daisy-panel";
 };
 
+&battery {
+	charge-full-design-microamp-hours = <4000000>;
+	constant-charge-current-max-microamp = <1000000>;
+	voltage-min-design-microvolt = <3400000>;
+	voltage-max-design-microvolt = <4400000>;
+};
+
 &sdhc_2 {
 	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
 };
