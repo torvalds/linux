@@ -623,7 +623,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		u32 *regs = NULL;
 		u32 irq_status = 0;
 
-		if (!mpp_task) {
+		if (!mpp_task && info->hack_setup) {
 			regs = table_base + idx * link_dec->link_reg_count;
 			mpp_dbg_link_flow("slot %d read  task stuff\n", idx);
 
@@ -671,6 +671,9 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 			continue;
 		}
 
+		if (!mpp_task)
+			return 0;
+
 		task = to_rkvdec2_task(mpp_task);
 		regs = table_base + idx * link_dec->link_reg_count;
 		irq_status = regs[info->tb_reg_int];
@@ -716,6 +719,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		/* Wake up the GET thread */
 		wake_up(&task->wait);
 		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
+		link_dec->tasks_hw[idx] = NULL;
 	}
 
 	return 0;
@@ -843,8 +847,10 @@ static int rkvdec2_link_isr(struct mpp_dev *mpp)
 	if (!link_dec->enabled || task_timeout) {
 		u32 val;
 
-		if (task_timeout)
+		if (task_timeout) {
 			rkvdec_link_reg_dump("timeout", link_dec);
+			link_dec->decoded += task_timeout;
+		}
 
 		val = mpp_read(mpp, 224 * 4);
 		if (link_info->hack_setup && !(val & BIT(2))) {
