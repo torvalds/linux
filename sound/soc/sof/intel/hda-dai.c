@@ -305,7 +305,6 @@ static int hda_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_STOP:
 		ret = hda_link_dma_cleanup(substream, hext_stream, dai, codec_dai);
 		if (ret < 0) {
 			dev_err(sdev->dev, "%s: failed to clean up link DMA\n", __func__);
