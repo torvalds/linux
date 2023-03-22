@@ -867,8 +867,11 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 	 * to have garbage in there
 	 */
 	memset(rdbuf, 0, sizeof(rdbuf));
-	error = regmap_bulk_read(tsdata->regmap, 0xBB, rdbuf, EDT_NAME_LEN - 1);
-	if (error)
+identify:	error = regmap_bulk_read(tsdata->regmap, 0xBB, rdbuf, EDT_NAME_LEN - 1);
+	if (error == -ETIMEDOUT)
+		goto identify;
+
+	if(error)
 		return error;
 
 	/* Probe content for something consistent.
