@@ -200,7 +200,7 @@ static int i3c_ast_bridgeic_probe(struct i3c_device *i3cdev)
 	astbic->i3cdev = i3cdev;
 
 	sysfs_bin_attr_init(&astbic->bin);
-	astbic->bin.attr.name = "ibi-mqueue";
+	astbic->bin.attr.name = "mqueue";
 	astbic->bin.attr.mode = 0600;
 	astbic->bin.read = i3c_astbic_bin_read;
 	astbic->bin.write = i3c_astbic_bin_write;
