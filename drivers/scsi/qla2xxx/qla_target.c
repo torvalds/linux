@@ -6395,8 +6395,7 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 		return -ENOMEM;
 	}
 
-	if (!(base_vha->host->hostt->supported_mode & MODE_TARGET))
-		base_vha->host->hostt->supported_mode |= MODE_TARGET;
+	qla2xxx_driver_template.supported_mode |= MODE_TARGET;
 
 	rc = btree_init64(&tgt->lun_qpair_map);
 	if (rc) {
