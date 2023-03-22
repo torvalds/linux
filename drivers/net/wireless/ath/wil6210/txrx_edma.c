@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: ISC
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/etherdevice.h>
@@ -804,8 +804,19 @@ static int wil_check_amsdu(struct wil6210_priv *wil, void *msg, int cid,
 	switch (vif->wdev.iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
+		/* check if the MSDU (a sub-frame of AMSDU) is multicast */
 		if (is_multicast_ether_addr(da))
 			return 0;
+
+		/* check if the current AMSDU (MPDU) frame is a multicast.
+		 * If so we have unicast sub frame as part of a multicast
+		 * AMSDU. Current frame and all sub frames should be dropped.
+		 */
+		if (wil_rx_status_get_mcast(msg)) {
+			wil_dbg_txrx(wil,
+				     "Found unicast sub frame in a multicast mpdu. Drop it\n");
+			goto out;
+		}
 
 		/* On client side, DA should be the client mac address */
 		ndev = vif_to_ndev(vif);
@@ -827,12 +838,13 @@ static int wil_check_amsdu(struct wil6210_priv *wil, void *msg, int cid,
 		return 0;
 	}
 
+out:
 	sta->amsdu_drop_sn = seq;
 	sta->amsdu_drop_tid = tid;
 	sta->amsdu_drop = 1;
 	wil_dbg_txrx(wil,
-		     "Drop AMSDU frame, sn=%d. Drop this and all next sub frames\n",
-		     seq);
+		     "Drop AMSDU frame, sn=%d tid=%d. Drop this and all next sub frames\n",
+		     seq, tid);
 
 	return -EAGAIN;
 }

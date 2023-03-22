@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: ISC */
 /*
- * Copyright (c) 2012-2016,2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016,2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef WIL6210_TXRX_EDMA_H
@@ -373,7 +373,7 @@ static inline u16 wil_rx_status_get_flow_id(void *msg)
 static inline u8 wil_rx_status_get_mcast(void *msg)
 {
 	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,
-			    26, 26);
+			    25, 26);
 }
 
 /**
