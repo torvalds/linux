@@ -75,6 +75,7 @@ struct proc_dir_entry *nubus_proc_add_rsrc_dir(struct proc_dir_entry *procdir,
 	if (!procdir)
 		return NULL;
 	snprintf(name, sizeof(name), "%x", ent->type);
+	remove_proc_subtree(name, procdir);
 	return proc_mkdir_data(name, 0555, procdir, (void *)lanes);
 }
 
@@ -164,6 +165,7 @@ void nubus_proc_add_rsrc_mem(struct proc_dir_entry *procdir,
 		pded = nubus_proc_alloc_pde_data(nubus_dirptr(ent), size);
 	else
 		pded = NULL;
+	remove_proc_subtree(name, procdir);
 	proc_create_data(name, S_IFREG | 0444, procdir,
 			 &nubus_rsrc_proc_ops, pded);
 }
@@ -178,6 +180,7 @@ void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
 		return;
 
 	snprintf(name, sizeof(name), "%x", ent->type);
+	remove_proc_subtree(name, procdir);
 	proc_create_data(name, S_IFREG | 0444, procdir,
 			 &nubus_rsrc_proc_ops,
 			 nubus_proc_alloc_pde_data(data, 0));
