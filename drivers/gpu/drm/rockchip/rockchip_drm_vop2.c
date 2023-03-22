@@ -2679,6 +2679,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->len = resource_size(res);
 
 	vop2->map = devm_regmap_init_mmio(dev, vop2->regs, &vop2_regmap_config);
+	if (IS_ERR(vop2->map))
+		return PTR_ERR(vop2->map);
 
 	ret = vop2_win_init(vop2);
 	if (ret)
