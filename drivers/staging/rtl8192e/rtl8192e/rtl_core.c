@@ -311,8 +311,7 @@ static const struct rtllib_qos_parameters def_qos_parameters = {
 
 static void _rtl92e_update_beacon(void *data)
 {
-	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
-				  update_beacon_wq.work);
+	struct r8192_priv *priv = container_of(data, struct r8192_priv, update_beacon_wq.work);
 	struct net_device *dev = priv->rtllib->dev;
 	struct rtllib_device *ieee = priv->rtllib;
 	struct rtllib_network *net = &ieee->current_network;
@@ -326,8 +325,7 @@ static void _rtl92e_update_beacon(void *data)
 
 static void _rtl92e_qos_activate(void *data)
 {
-	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
-				  qos_activate);
+	struct r8192_priv *priv = container_of(data, struct r8192_priv, qos_activate);
 	struct net_device *dev = priv->rtllib->dev;
 	int i;
 
@@ -2033,8 +2031,7 @@ void rtl92e_commit(struct net_device *dev)
 
 static void _rtl92e_restart(void *data)
 {
-	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
-				  reset_wq);
+	struct r8192_priv *priv = container_of(data, struct r8192_priv, reset_wq);
 	struct net_device *dev = priv->rtllib->dev;
 
 	mutex_lock(&priv->wx_mutex);

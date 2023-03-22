@@ -142,8 +142,7 @@ void rtl92e_ips_leave(struct net_device *dev)
 
 void rtl92e_ips_leave_wq(void *data)
 {
-	struct rtllib_device *ieee = container_of_work_rsl(data,
-				     struct rtllib_device, ips_leave_wq);
+	struct rtllib_device *ieee = container_of(data, struct rtllib_device, ips_leave_wq);
 	struct net_device *dev = ieee->dev;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
