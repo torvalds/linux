@@ -271,12 +271,9 @@ static int display_connector_probe(struct platform_device *pdev)
 	    type == DRM_MODE_CONNECTOR_DisplayPort) {
 		conn->hpd_gpio = devm_gpiod_get_optional(&pdev->dev, "hpd",
 							 GPIOD_IN);
-		if (IS_ERR(conn->hpd_gpio)) {
-			if (PTR_ERR(conn->hpd_gpio) != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"Unable to retrieve HPD GPIO\n");
-			return PTR_ERR(conn->hpd_gpio);
-		}
+		if (IS_ERR(conn->hpd_gpio))
+			return dev_err_probe(&pdev->dev, PTR_ERR(conn->hpd_gpio),
+					     "Unable to retrieve HPD GPIO\n");
 
 		conn->hpd_irq = gpiod_to_irq(conn->hpd_gpio);
 	} else {
