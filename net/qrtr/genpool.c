@@ -602,6 +602,7 @@ static int qrtr_genpool_remove(struct platform_device *pdev)
 {
 	struct qrtr_genpool_dev *qdev = platform_get_drvdata(pdev);
 
+	qrtr_endpoint_unregister(&qdev->ep);
 	vfree(qdev->ring.buf);
 
 	return 0;
