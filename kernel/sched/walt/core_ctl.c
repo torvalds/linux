@@ -82,7 +82,7 @@ spinlock_t core_ctl_pending_lock;
 bool core_ctl_pending;
 
 static DEFINE_SPINLOCK(state_lock);
-static void apply_need(struct cluster_data *state);
+static void sysfs_param_changed(struct cluster_data *state);
 static void wake_up_core_ctl_thread(void);
 static bool initialized;
 static bool assist_params_initialized;
@@ -105,7 +105,7 @@ static ssize_t store_min_cpus(struct cluster_data *state,
 		return -EINVAL;
 
 	state->min_cpus = min(val, state->num_cpus);
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -124,7 +124,7 @@ static ssize_t store_max_cpus(struct cluster_data *state,
 		return -EINVAL;
 
 	state->max_cpus = min(val, state->num_cpus);
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -143,7 +143,7 @@ static ssize_t store_offline_delay_ms(struct cluster_data *state,
 		return -EINVAL;
 
 	state->offline_delay_ms = val;
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -165,7 +165,7 @@ static ssize_t store_task_thres(struct cluster_data *state,
 		return -EINVAL;
 
 	state->task_thres = val;
-	apply_need(state);
+	sysfs_param_changed(state);
 
 	return count;
 }
@@ -196,7 +196,7 @@ static ssize_t store_busy_up_thres(struct cluster_data *state,
 		for (i = 0; i < state->num_cpus; i++)
 			state->busy_up_thres[i] = val[i];
 	}
-	apply_need(state);
+	sysfs_param_changed(state);
 	return count;
 }
 
@@ -231,7 +231,7 @@ static ssize_t store_busy_down_thres(struct cluster_data *state,
 		for (i = 0; i < state->num_cpus; i++)
 			state->busy_down_thres[i] = val[i];
 	}
-	apply_need(state);
+	sysfs_param_changed(state);
 	return count;
 }
 
@@ -259,7 +259,7 @@ static ssize_t store_enable(struct cluster_data *state,
 	bval = !!val;
 	if (bval != state->enable) {
 		state->enable = bval;
-		apply_need(state);
+		sysfs_param_changed(state);
 	}
 
 	return count;
@@ -1064,7 +1064,7 @@ unlock:
 	return adj_now && adj_possible;
 }
 
-static void apply_need(struct cluster_data *cluster)
+static void sysfs_param_changed(struct cluster_data *cluster)
 {
 	if (eval_need(cluster))
 		wake_up_core_ctl_thread();
@@ -1115,7 +1115,7 @@ int core_ctl_set_boost(bool boost)
 	if (boost_state_changed) {
 		index = 0;
 		for_each_cluster(cluster, index)
-			apply_need(cluster);
+			sysfs_param_changed(cluster);
 	}
 
 	if (cluster)
