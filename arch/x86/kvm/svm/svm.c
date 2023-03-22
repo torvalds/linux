@@ -95,6 +95,7 @@ static const struct svm_direct_access_msrs {
 #endif
 	{ .index = MSR_IA32_SPEC_CTRL,			.always = false },
 	{ .index = MSR_IA32_PRED_CMD,			.always = false },
+	{ .index = MSR_IA32_FLUSH_CMD,			.always = false },
 	{ .index = MSR_IA32_LASTBRANCHFROMIP,		.always = false },
 	{ .index = MSR_IA32_LASTBRANCHTOIP,		.always = false },
 	{ .index = MSR_IA32_LASTINTFROMIP,		.always = false },
@@ -4139,6 +4140,10 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	if (boot_cpu_has(X86_FEATURE_IBPB))
 		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_PRED_CMD, 0,
 				     !!guest_has_pred_cmd_msr(vcpu));
+
+	if (boot_cpu_has(X86_FEATURE_FLUSH_L1D))
+		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_FLUSH_CMD, 0,
+				     !!guest_cpuid_has(vcpu, X86_FEATURE_FLUSH_L1D));
 
 	/* For sev guests, the memory encryption bit is not reserved in CR3.  */
 	if (sev_guest(vcpu->kvm)) {
