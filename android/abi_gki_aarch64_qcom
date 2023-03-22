@@ -137,10 +137,10 @@
   bpf_prog_put
   bpf_prog_sub
   bpf_stats_enabled_key
-  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
   bpf_trace_run12
+  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -1633,8 +1633,8 @@
   ieee80211_txq_may_transmit
   ieee80211_txq_schedule_start
   ieee80211_tx_rate_update
-  ieee80211_tx_status
   ieee80211_tx_status_8023
+  ieee80211_tx_status
   ieee80211_tx_status_ext
   ieee80211_tx_status_irqsafe
   ieee80211_unregister_hw
@@ -2087,8 +2087,8 @@
   memremap
   memscan
   mem_section
-  memset
   memset64
+  memset
   __memset_io
   memstart_addr
   memunmap
@@ -2226,10 +2226,10 @@
   nla_find
   nla_memcpy
   __nla_parse
-  nla_put
   nla_put_64bit
-  nla_reserve
+  nla_put
   nla_reserve_64bit
+  nla_reserve
   nla_strscpy
   __nla_validate
   __nlmsg_put
