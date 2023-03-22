@@ -1313,7 +1313,7 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 	}
 
 	file->driver_priv = file_priv;
-	file_priv->dev_priv = i915;
+	file_priv->i915 = i915;
 	file_priv->file = file;
 	file_priv->client = client;
 
