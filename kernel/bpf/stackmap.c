@@ -618,14 +618,14 @@ static int stack_map_get_next_key(struct bpf_map *map, void *key,
 	return 0;
 }
 
-static int stack_map_update_elem(struct bpf_map *map, void *key, void *value,
-				 u64 map_flags)
+static long stack_map_update_elem(struct bpf_map *map, void *key, void *value,
+				  u64 map_flags)
 {
 	return -EINVAL;
 }
 
 /* Called from syscall or from eBPF program */
-static int stack_map_delete_elem(struct bpf_map *map, void *key)
+static long stack_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
 	struct stack_map_bucket *old_bucket;
