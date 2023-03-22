@@ -78,6 +78,7 @@ VM_DTB_IMG_CREATE=%d
 KERNEL_OFFSET=0x%X
 DTB_OFFSET=0x%X
 RAMDISK_OFFSET=0x%X
+CMDLINE_CPIO_OFFSET=0x%X
 
 VM_SIZE_EXT4=%d
 DUMMY_IMG_SIZE=%d
@@ -92,6 +93,7 @@ EOF
         vm_image_opts.kernel_offset, # KERNEL_OFFSET
         vm_image_opts.dtb_offset, # DTB_OFFSET
         vm_image_opts.ramdisk_offset, # RAMDISK_OFFSET
+        vm_image_opts.cmdline_cpio_offset, # CMDLINE_CPIO_OFFSET
         vm_image_opts.vm_size_ext4, # VM_SIZE_EXT4
         vm_image_opts.dummy_img_size, # DUMMY_IMG_SIZE
     )
