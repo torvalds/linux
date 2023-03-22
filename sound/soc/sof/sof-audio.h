@@ -104,6 +104,8 @@ struct snd_sof_dai_config_data {
  * @pcm_free: Function pointer for PCM free that can be used for freeing any
  *	       additional memory in the SOF PCM stream structure
  * @delay: Function pointer for pcm delay calculation
+ * @reset_hw_params_during_stop: Flag indicating whether the hw_params should be reset during the
+ *				 STOP pcm trigger
  */
 struct sof_ipc_pcm_ops {
 	int (*hw_params)(struct snd_soc_component *component, struct snd_pcm_substream *substream,
@@ -117,6 +119,7 @@ struct sof_ipc_pcm_ops {
 	void (*pcm_free)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
 	snd_pcm_sframes_t (*delay)(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream);
+	bool reset_hw_params_during_stop;
 };
 
 /**

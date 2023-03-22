@@ -328,7 +328,8 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		ipc_first = true;
-		reset_hw_params = true;
+		if (pcm_ops && pcm_ops->reset_hw_params_during_stop)
+			reset_hw_params = true;
 		break;
 	default:
 		dev_err(component->dev, "Unhandled trigger cmd %d\n", cmd);

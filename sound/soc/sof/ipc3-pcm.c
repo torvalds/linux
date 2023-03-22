@@ -382,4 +382,5 @@ const struct sof_ipc_pcm_ops ipc3_pcm_ops = {
 	.hw_free = sof_ipc3_pcm_hw_free,
 	.trigger = sof_ipc3_pcm_trigger,
 	.dai_link_fixup = sof_ipc3_pcm_dai_link_fixup,
+	.reset_hw_params_during_stop = true,
 };
