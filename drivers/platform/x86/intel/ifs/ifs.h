@@ -17,7 +17,7 @@
  * In Field Scan (IFS) is a hardware feature to run circuit level tests on
  * a CPU core to detect problems that are not caught by parity or ECC checks.
  * Future CPUs will support more than one type of test which will show up
- * with a new platform-device instance-id, for now only .0 is exposed.
+ * with a new platform-device instance-id.
  *
  *
  * IFS Image
@@ -25,7 +25,10 @@
  *
  * Intel provides a firmware file containing the scan tests via
  * github [#f1]_.  Similar to microcode there is a separate file for each
- * family-model-stepping.
+ * family-model-stepping. IFS Images are not applicable for some test types.
+ * Wherever applicable the sysfs directory would provide a "current_batch" file
+ * (see below) for loading the image.
+ *
  *
  * IFS Image Loading
  * -----------------
@@ -35,7 +38,7 @@
  * SHA hashes for the test. Then the tests themselves. Status MSRs provide
  * feedback on the success/failure of these steps.
  *
- * The test files are kept in a fixed location: /lib/firmware/intel/ifs_0/
+ * The test files are kept in a fixed location: /lib/firmware/intel/ifs_<n>/
  * For e.g if there are 3 test files, they would be named in the following
  * fashion:
  * ff-mm-ss-01.scan
@@ -47,7 +50,7 @@
  * (e.g 1, 2 or 3 in the above scenario) into the curent_batch file.
  * To load ff-mm-ss-02.scan, the following command can be used::
  *
- *   # echo 2 > /sys/devices/virtual/misc/intel_ifs_0/current_batch
+ *   # echo 2 > /sys/devices/virtual/misc/intel_ifs_<n>/current_batch
  *
  * The above file can also be read to know the currently loaded image.
  *
@@ -69,16 +72,16 @@
  * to migrate those applications to other cores before running a core test.
  * It may also be necessary to redirect interrupts to other CPUs.
  *
- * In all cases reading the SCAN_STATUS MSR provides details on what
+ * In all cases reading the corresponding test's STATUS MSR provides details on what
  * happened. The driver makes the value of this MSR visible to applications
  * via the "details" file (see below). Interrupted tests may be restarted.
  *
- * The IFS driver provides sysfs interfaces via /sys/devices/virtual/misc/intel_ifs_0/
+ * The IFS driver provides sysfs interfaces via /sys/devices/virtual/misc/intel_ifs_<n>/
  * to control execution:
  *
  * Test a specific core::
  *
- *   # echo <cpu#> > /sys/devices/virtual/misc/intel_ifs_0/run_test
+ *   # echo <cpu#> > /sys/devices/virtual/misc/intel_ifs_<n>/run_test
  *
  * when HT is enabled any of the sibling cpu# can be specified to test
  * its corresponding physical core. Since the tests are per physical core,
@@ -87,21 +90,21 @@
  *
  * For e.g. to test core corresponding to cpu5
  *
- *   # echo 5 > /sys/devices/virtual/misc/intel_ifs_0/run_test
+ *   # echo 5 > /sys/devices/virtual/misc/intel_ifs_<n>/run_test
  *
  * Results of the last test is provided in /sys::
  *
- *   $ cat /sys/devices/virtual/misc/intel_ifs_0/status
+ *   $ cat /sys/devices/virtual/misc/intel_ifs_<n>/status
  *   pass
  *
  * Status can be one of pass, fail, untested
  *
  * Additional details of the last test is provided by the details file::
  *
- *   $ cat /sys/devices/virtual/misc/intel_ifs_0/details
+ *   $ cat /sys/devices/virtual/misc/intel_ifs_<n>/details
  *   0x8081
  *
- * The details file reports the hex value of the SCAN_STATUS MSR.
+ * The details file reports the hex value of the test specific status MSR.
  * Hardware defined error codes are documented in volume 4 of the Intel
  * Software Developer's Manual but the error_code field may contain one of
  * the following driver defined software codes:
