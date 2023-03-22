@@ -46,7 +46,7 @@ static void dec_print_abnrm_intr_source(struct hl_device *hdev, u32 irq_status)
 static void dec_error_intr_work(struct hl_device *hdev, u32 base_addr, u32 core_id)
 {
 	bool reset_required = false;
-	u32 irq_status;
+	u32 irq_status, event_mask;
 
 	irq_status = RREG32(base_addr + VCMD_IRQ_STATUS_OFFSET);
 
@@ -54,17 +54,27 @@ static void dec_error_intr_work(struct hl_device *hdev, u32 base_addr, u32 core_
 
 	dec_print_abnrm_intr_source(hdev, irq_status);
 
-	if (irq_status & VCMD_IRQ_STATUS_TIMEOUT_MASK)
-		reset_required = true;
-
 	/* Clear the interrupt */
 	WREG32(base_addr + VCMD_IRQ_STATUS_OFFSET, irq_status);
 
 	/* Flush the interrupt clear */
 	RREG32(base_addr + VCMD_IRQ_STATUS_OFFSET);
 
-	if (reset_required)
-		hl_device_reset(hdev, HL_DRV_RESET_HARD);
+	if (irq_status & VCMD_IRQ_STATUS_TIMEOUT_MASK) {
+		reset_required = true;
+		event_mask = HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+	} else if (irq_status & VCMD_IRQ_STATUS_CMDERR_MASK) {
+		event_mask = HL_NOTIFIER_EVENT_UNDEFINED_OPCODE;
+	} else {
+		event_mask = HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+	}
+
+	if (reset_required) {
+		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+		hl_device_cond_reset(hdev, 0, event_mask);
+	} else {
+		hl_notifier_event_send_all(hdev, event_mask);
+	}
 }
 
 static void dec_completion_abnrm(struct work_struct *work)

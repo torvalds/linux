@@ -3152,7 +3152,7 @@ int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_in
 int hl_fw_send_generic_request(struct hl_device *hdev, enum hl_passthrough_type sub_opcode,
 						dma_addr_t buff, u32 *size)
 {
-	struct cpucp_packet pkt = {0};
+	struct cpucp_packet pkt = {};
 	u64 result;
 	int rc = 0;
 
