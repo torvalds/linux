@@ -126,12 +126,12 @@ static inline bool is_protmode(struct kvm_vcpu *vcpu)
 	return kvm_is_cr0_bit_set(vcpu, X86_CR0_PE);
 }
 
-static inline int is_long_mode(struct kvm_vcpu *vcpu)
+static inline bool is_long_mode(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	return vcpu->arch.efer & EFER_LMA;
+	return !!(vcpu->arch.efer & EFER_LMA);
 #else
-	return 0;
+	return false;
 #endif
 }
 
