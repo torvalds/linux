@@ -1174,7 +1174,7 @@ unregister:
 	return err;
 }
 
-static int tegra_display_hub_remove(struct platform_device *pdev)
+static void tegra_display_hub_remove(struct platform_device *pdev)
 {
 	struct tegra_display_hub *hub = platform_get_drvdata(pdev);
 	unsigned int i;
@@ -1188,8 +1188,6 @@ static int tegra_display_hub_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct tegra_display_hub_soc tegra186_display_hub = {
@@ -1221,5 +1219,5 @@ struct platform_driver tegra_display_hub_driver = {
 		.of_match_table = tegra_display_hub_of_match,
 	},
 	.probe = tegra_display_hub_probe,
-	.remove = tegra_display_hub_remove,
+	.remove_new = tegra_display_hub_remove,
 };
