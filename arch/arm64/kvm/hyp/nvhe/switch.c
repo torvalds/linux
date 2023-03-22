@@ -108,6 +108,16 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 	write_sysreg(__kvm_hyp_host_vector, vbar_el2);
 }
 
+static void __deactivate_fpsimd_traps(struct kvm_vcpu *vcpu)
+{
+	u64 reg = CPTR_EL2_TFP;
+
+	if (vcpu_has_sve(vcpu))
+		reg |= CPTR_EL2_TZ;
+
+	sysreg_clear_set(cptr_el2, reg, 0);
+}
+
 /* Save VGICv3 state on non-VHE systems */
 static void __hyp_vgic_save_state(struct kvm_vcpu *vcpu)
 {
