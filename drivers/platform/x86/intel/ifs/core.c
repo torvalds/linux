@@ -20,6 +20,8 @@ static const struct x86_cpu_id ifs_cpu_ids[] __initconst = {
 };
 MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
 
+bool *ifs_pkg_auth;
+
 static struct ifs_device ifs_device = {
 	.data = {
 		.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
@@ -56,13 +58,13 @@ static int __init ifs_init(void)
 	if (!(msrval & BIT(ifs_device.data.integrity_cap_bit)))
 		return -ENODEV;
 
-	ifs_device.data.pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);
-	if (!ifs_device.data.pkg_auth)
+	ifs_pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);
+	if (!ifs_pkg_auth)
 		return -ENOMEM;
 
 	ret = misc_register(&ifs_device.misc);
 	if (ret) {
-		kfree(ifs_device.data.pkg_auth);
+		kfree(ifs_pkg_auth);
 		return ret;
 	}
 
@@ -72,7 +74,7 @@ static int __init ifs_init(void)
 static void __exit ifs_exit(void)
 {
 	misc_deregister(&ifs_device.misc);
-	kfree(ifs_device.data.pkg_auth);
+	kfree(ifs_pkg_auth);
 }
 
 module_init(ifs_init);

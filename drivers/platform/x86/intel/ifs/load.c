@@ -192,7 +192,7 @@ static int scan_chunks_sanity_check(struct device *dev)
 	struct ifs_work local_work;
 	int curr_pkg, cpu, ret;
 
-	memset(ifsd->pkg_auth, 0, (topology_max_packages() * sizeof(bool)));
+	memset(ifs_pkg_auth, 0, (topology_max_packages() * sizeof(bool)));
 	ret = validate_ifs_metadata(dev);
 	if (ret)
 		return ret;
@@ -204,7 +204,7 @@ static int scan_chunks_sanity_check(struct device *dev)
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		curr_pkg = topology_physical_package_id(cpu);
-		if (ifsd->pkg_auth[curr_pkg])
+		if (ifs_pkg_auth[curr_pkg])
 			continue;
 		reinit_completion(&ifs_done);
 		local_work.dev = dev;
@@ -215,7 +215,7 @@ static int scan_chunks_sanity_check(struct device *dev)
 			ret = -EIO;
 			goto out;
 		}
-		ifsd->pkg_auth[curr_pkg] = 1;
+		ifs_pkg_auth[curr_pkg] = 1;
 	}
 	ret = 0;
 out:
