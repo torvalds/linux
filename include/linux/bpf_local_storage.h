@@ -57,6 +57,7 @@ struct bpf_local_storage_map {
 	u16 elem_size;
 	u16 cache_idx;
 	struct bpf_mem_alloc selem_ma;
+	struct bpf_mem_alloc storage_ma;
 	bool bpf_ma;
 };
 
