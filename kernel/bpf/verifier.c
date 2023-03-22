@@ -6778,13 +6778,6 @@ static int process_iter_arg(struct bpf_verifier_env *env, int regno, int insn_id
 	t = btf_type_skip_modifiers(meta->btf, t->type, &btf_id);	/* STRUCT */
 	nr_slots = t->size / BPF_REG_SIZE;
 
-	spi = iter_get_spi(env, reg, nr_slots);
-	if (spi < 0 && spi != -ERANGE)
-		return spi;
-
-	meta->iter.spi = spi;
-	meta->iter.frameno = reg->frameno;
-
 	if (is_iter_new_kfunc(meta)) {
 		/* bpf_iter_<type>_new() expects pointer to uninit iter state */
 		if (!is_iter_reg_valid_uninit(env, reg, nr_slots)) {
@@ -6811,10 +6804,17 @@ static int process_iter_arg(struct bpf_verifier_env *env, int regno, int insn_id
 			return -EINVAL;
 		}
 
+		spi = iter_get_spi(env, reg, nr_slots);
+		if (spi < 0)
+			return spi;
+
 		err = mark_iter_read(env, reg, spi, nr_slots);
 		if (err)
 			return err;
 
+		/* remember meta->iter info for process_iter_next_call() */
+		meta->iter.spi = spi;
+		meta->iter.frameno = reg->frameno;
 		meta->ref_obj_id = iter_ref_obj_id(env, reg, spi);
 
 		if (is_iter_destroy_kfunc(meta)) {
