@@ -564,10 +564,8 @@ static int already_uses(struct module *a, struct module *b)
 	struct module_use *use;
 
 	list_for_each_entry(use, &b->source_list, source_list) {
-		if (use->source == a) {
-			pr_debug("%s uses %s!\n", a->name, b->name);
+		if (use->source == a)
 			return 1;
-		}
 	}
 	pr_debug("%s does not use %s!\n", a->name, b->name);
 	return 0;
