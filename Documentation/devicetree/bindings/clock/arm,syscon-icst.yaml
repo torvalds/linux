@@ -81,11 +81,11 @@ properties:
     maxItems: 1
 
   lock-offset:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Offset to the unlocking register for the oscillator
 
   vco-offset:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Offset to the VCO register for the oscillator
     deprecated: true
 
