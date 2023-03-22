@@ -1362,9 +1362,8 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 	list_del(&edev->entry);
 	mutex_unlock(&extcon_dev_list_lock);
 
-	if (IS_ERR_OR_NULL(get_device(&edev->dev))) {
-		dev_err(&edev->dev, "Failed to unregister extcon_dev (%s)\n",
-				dev_name(&edev->dev));
+	if (!get_device(&edev->dev)) {
+		dev_err(&edev->dev, "Failed to unregister extcon_dev\n");
 		return;
 	}
 
