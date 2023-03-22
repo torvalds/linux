@@ -19,6 +19,7 @@
 #define MQ_QUEUE_SIZE		4
 #define MQ_QUEUE_NEXT(x)	(((x) + 1) & (MQ_QUEUE_SIZE - 1))
 
+#define IBI_QUEUE_STATUS_PEC_ERR	BIT(30)
 #define IBI_STATUS_LAST_FRAG	BIT(24)
 #define PID_MANUF_ID_ASPEED	0x03f6
 #define POLLIING_INTERVAL_MS	2000
@@ -45,6 +46,11 @@ struct astbic {
 	struct mq_msg queue[MQ_QUEUE_SIZE];
 };
 
+static u8 mdb_table[] = {
+	0xbf, /* Aspeed BIC */
+	0,
+};
+
 static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 				    const struct i3c_ibi_payload *payload)
 {
@@ -53,6 +59,7 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 	u8 *buf = (u8 *)payload->data;
 	struct i3c_device_info info;
 	u32 status;
+	const u8 *mdb;
 
 	mutex_lock(&mq->mq_lock);
 	i3c_device_get_info(dev, &info);
@@ -65,7 +72,16 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 	buf += sizeof(status);
 	memcpy(&msg->buf[msg->len], buf, payload->len - sizeof(status));
 	msg->len += payload->len - sizeof(status);
-
+	if (status & IBI_QUEUE_STATUS_PEC_ERR) {
+		for (mdb = mdb_table; *mdb != 0; mdb++)
+			if (buf[0] == *mdb)
+				break;
+		if (!(*mdb)) {
+			dev_err(&dev->dev, "ibi crc/pec error: mdb = %x", buf[0]);
+			mutex_unlock(&mq->mq_lock);
+			return;
+		}
+	}
 	/* if last fragment, notify and update pointers */
 	if (status & IBI_STATUS_LAST_FRAG) {
 		/* check pending-read-notification */
