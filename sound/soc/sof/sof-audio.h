@@ -106,6 +106,8 @@ struct snd_sof_dai_config_data {
  * @delay: Function pointer for pcm delay calculation
  * @reset_hw_params_during_stop: Flag indicating whether the hw_params should be reset during the
  *				 STOP pcm trigger
+ * @ipc_first_on_start: Send IPC before invoking platform trigger during
+ *				START/PAUSE_RELEASE triggers
  */
 struct sof_ipc_pcm_ops {
 	int (*hw_params)(struct snd_soc_component *component, struct snd_pcm_substream *substream,
@@ -120,6 +122,7 @@ struct sof_ipc_pcm_ops {
 	snd_pcm_sframes_t (*delay)(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream);
 	bool reset_hw_params_during_stop;
+	bool ipc_first_on_start;
 };
 
 /**

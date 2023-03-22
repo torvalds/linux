@@ -301,6 +301,8 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		ipc_first = true;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (pcm_ops && pcm_ops->ipc_first_on_start)
+			ipc_first = true;
 		break;
 	case SNDRV_PCM_TRIGGER_START:
 		if (spcm->stream[substream->stream].suspend_ignored) {
@@ -312,6 +314,9 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = false;
 			return 0;
 		}
+
+		if (pcm_ops && pcm_ops->ipc_first_on_start)
+			ipc_first = true;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (sdev->system_suspend_target == SOF_SUSPEND_S0IX &&
@@ -336,19 +341,28 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	/*
-	 * DMA and IPC sequence is different for start and stop. Need to send
-	 * STOP IPC before stop DMA
-	 */
 	if (!ipc_first)
 		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 
 	if (pcm_ops && pcm_ops->trigger)
 		ret = pcm_ops->trigger(component, substream, cmd);
 
-	/* need to STOP DMA even if trigger IPC failed */
-	if (ipc_first)
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_START:
+		/* invoke platform trigger to start DMA only if pcm_ops is successful */
+		if (ipc_first && !ret)
+			snd_sof_pcm_platform_trigger(sdev, substream, cmd);
+		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_STOP:
+		/* invoke platform trigger to stop DMA even if pcm_ops failed */
 		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
+		break;
+	default:
+		break;
+	}
 
 	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
 	if (!ret && reset_hw_params)
