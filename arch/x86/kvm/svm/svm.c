@@ -1802,7 +1802,7 @@ void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	if (!npt_enabled) {
 		hcr0 |= X86_CR0_PG | X86_CR0_WP;
-		if (old_paging != !!is_paging(vcpu))
+		if (old_paging != is_paging(vcpu))
 			svm_set_cr4(vcpu, kvm_read_cr4(vcpu));
 	}
 
