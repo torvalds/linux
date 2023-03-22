@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.*/
 
+#include <linux/dma-direct.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/kmsg_dump.h>
 #include <linux/module.h>
@@ -69,29 +71,29 @@ static int qcom_ddump_map_memory(struct qcom_dmesg_dumper *qdd)
 {
 	struct device *dev = qdd->dev;
 	struct device_node *np;
+	u32 size;
 	int ret;
 
-	np = of_parse_phandle(dev->of_node, "shared-buffer", 0);
-	if (!np) {
-		/*
-		 * "shared-buffer" is only specified for primary VM.
-		 * Parse "memory-region" for the hypervisor-generated node for
-		 * secondary VM.
-		 */
+	if (qdd->primary_vm) {
+		ret = of_property_read_u32(qdd->dev->of_node, "shared-buffer-size", &size);
+		if (ret)
+			return -EINVAL;
+		qdd->size = size;
+	} else {
 		np = qcom_ddump_svm_of_parse(qdd);
 		if (!np) {
 			dev_err(dev, "Unable to parse shared mem node\n");
 			return -EINVAL;
 		}
-	}
 
-	ret = of_address_to_resource(np, 0, &qdd->res);
-	of_node_put(np);
-	if (ret) {
-		dev_err(dev, "of_address_to_resource failed!\n");
-		return -EINVAL;
+		ret = of_address_to_resource(np, 0, &qdd->res);
+		of_node_put(np);
+		if (ret) {
+			dev_err(dev, "of_address_to_resource failed!\n");
+			return -EINVAL;
+		}
+		qdd->size = resource_size(&qdd->res);
 	}
-	qdd->size = resource_size(&qdd->res);
 
 	return 0;
 }
@@ -182,6 +184,7 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 	struct qcom_dmesg_dumper *qdd;
 	gh_vmid_t peer_vmid;
 	gh_vmid_t self_vmid;
+	dma_addr_t dma_handle;
 
 	qdd = container_of(nb, struct qcom_dmesg_dumper, rm_nb);
 
@@ -200,6 +203,12 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 		return NOTIFY_DONE;
 
 	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_READY) {
+		qdd->base = dma_alloc_coherent(qdd->dev, qdd->size, &dma_handle, GFP_KERNEL);
+		if (!qdd->base)
+			return -ENOMEM;
+
+		qdd->res.start = dma_to_phys(qdd->dev, dma_handle);
+		qdd->res.end = qdd->res.start + qdd->size - 1;
 		if (qcom_ddump_share_mem(qdd, self_vmid, peer_vmid)) {
 			dev_err(qdd->dev, "Failed to share memory\n");
 			return NOTIFY_DONE;
@@ -334,13 +343,6 @@ static int qcom_ddump_alive_log_probe(struct qcom_dmesg_dumper *qdd)
 		if (!res) {
 			ret = -ENXIO;
 			dev_err(dev, "request mem region fail\n");
-			goto err_unregister_rx_dbl;
-		}
-
-		qdd->base = devm_ioremap_wc(dev, qdd->res.start, qdd->size);
-		if (!qdd->base) {
-			ret = -ENOMEM;
-			dev_err(dev, "devm_ioremap_wc fail\n");
 			goto err_unregister_rx_dbl;
 		}
 
