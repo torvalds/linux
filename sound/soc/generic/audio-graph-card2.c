@@ -1046,8 +1046,14 @@ static int graph_count_normal(struct asoc_simple_priv *priv,
 	 * =>		lnk: port { endpoint { .. }; };
 	 *	};
 	 */
+	/*
+	 * DON'T REMOVE platforms
+	 * see
+	 *	simple-card.c :: simple_count_noml()
+	 */
 	li->num[li->link].cpus		=
 	li->num[li->link].platforms	= graph_counter(cpu_port);
+
 	li->num[li->link].codecs	= graph_counter(codec_port);
 
 	of_node_put(cpu_ep);
@@ -1079,6 +1085,11 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 	 */
 
 	if (asoc_graph_is_ports0(lnk)) {
+		/*
+		 * DON'T REMOVE platforms
+		 * see
+		 *	simple-card.c :: simple_count_noml()
+		 */
 		li->num[li->link].cpus		= graph_counter(rport); /* FE */
 		li->num[li->link].platforms	= graph_counter(rport);
 	} else {
@@ -1113,8 +1124,14 @@ static int graph_count_c2c(struct asoc_simple_priv *priv,
 	 *	};
 	 * };
 	 */
+	/*
+	 * DON'T REMOVE platforms
+	 * see
+	 *	simple-card.c :: simple_count_noml()
+	 */
 	li->num[li->link].cpus		=
 	li->num[li->link].platforms	= graph_counter(codec0);
+
 	li->num[li->link].codecs	= graph_counter(codec1);
 
 	of_node_put(ports);

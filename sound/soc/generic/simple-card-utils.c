@@ -638,7 +638,16 @@ EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
 void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
 				       struct snd_soc_dai_link_component *cpus)
 {
-	/* Assumes platform == cpu */
+	/*
+	 * Assumes Platform == CPU
+	 *
+	 * Some CPU might be using soc-generic-dmaengine-pcm. This means CPU and Platform
+	 * are different Component, but are sharing same component->dev.
+	 *
+	 * Let's assume Platform is same as CPU if it doesn't identify Platform on DT.
+	 * see
+	 *	simple-card.c :: simple_count_noml()
+	 */
 	if (!platforms->of_node)
 		platforms->of_node = cpus->of_node;
 }
