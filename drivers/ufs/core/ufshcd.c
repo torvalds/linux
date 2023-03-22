@@ -8712,11 +8712,15 @@ err:
 static void ufshcd_config_mcq(struct ufs_hba *hba)
 {
 	int ret;
+	u32 intrs;
 
 	ret = ufshcd_mcq_vops_config_esi(hba);
 	dev_info(hba->dev, "ESI %sconfigured\n", ret ? "is not " : "");
 
-	ufshcd_enable_intr(hba, UFSHCD_ENABLE_MCQ_INTRS);
+	intrs = UFSHCD_ENABLE_MCQ_INTRS;
+	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_INTR)
+		intrs &= ~MCQ_CQ_EVENT_STATUS;
+	ufshcd_enable_intr(hba, intrs);
 	ufshcd_mcq_make_queues_operational(hba);
 	ufshcd_mcq_config_mac(hba, hba->nutrs);
 
