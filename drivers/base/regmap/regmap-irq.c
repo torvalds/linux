@@ -433,7 +433,10 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	 * possible in order to reduce the I/O overheads.
 	 */
 
-	if (chip->num_main_regs) {
+	if (chip->no_status) {
+		/* no status register so default to all active */
+		memset32(data->status_buf, GENMASK(31, 0), chip->num_regs);
+	} else if (chip->num_main_regs) {
 		unsigned int max_main_bits;
 		unsigned long size;
 
@@ -949,12 +952,17 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			continue;
 
 		/* Ack masked but set interrupts */
-		reg = d->get_irq_reg(d, d->chip->status_base, i);
-		ret = regmap_read(map, reg, &d->status_buf[i]);
-		if (ret != 0) {
-			dev_err(map->dev, "Failed to read IRQ status: %d\n",
-				ret);
-			goto err_alloc;
+		if (d->chip->no_status) {
+			/* no status register so default to all active */
+			d->status_buf[i] = GENMASK(31, 0);
+		} else {
+			reg = d->get_irq_reg(d, d->chip->status_base, i);
+			ret = regmap_read(map, reg, &d->status_buf[i]);
+			if (ret != 0) {
+				dev_err(map->dev, "Failed to read IRQ status: %d\n",
+					ret);
+				goto err_alloc;
+			}
 		}
 
 		if (chip->status_invert)
