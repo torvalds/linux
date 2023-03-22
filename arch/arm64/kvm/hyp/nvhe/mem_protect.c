@@ -398,7 +398,7 @@ int host_stage2_unmap_reg_locked(phys_addr_t start, u64 size)
 
 	hyp_assert_lock_held(&host_mmu.lock);
 
-	ret = kvm_pgtable_stage2_unmap(&host_mmu.pgt, start, size);
+	ret = kvm_pgtable_stage2_reclaim_leaves(&host_mmu.pgt, start, size);
 	if (ret)
 		return ret;
 
