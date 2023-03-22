@@ -164,7 +164,7 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	/*
 	 * For simplicity, enforce the NX huge page mitigation even if not
 	 * strictly necessary.  KVM could ignore the mitigation if paging is
-	 * disabled in the guest, as the guest doesn't have an page tables to
+	 * disabled in the guest, as the guest doesn't have any page tables to
 	 * abuse.  But to safely ignore the mitigation, KVM would have to
 	 * ensure a new MMU is loaded (or all shadow pages zapped) when CR0.PG
 	 * is toggled on, and that's a net negative for performance when TDP is
