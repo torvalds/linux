@@ -496,6 +496,13 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
+			mdss_te_default: mdss-te-pins {
+				pins = "gpio24";
+				function = "mdp_vsync";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+
 			uart_console_active: uart-console-active-state {
 				pins = "gpio4", "gpio5";
 				function = "blsp_uart2";
