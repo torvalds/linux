@@ -229,7 +229,8 @@ static void txgbe_up_complete(struct wx *wx)
 	wx_napi_enable_all(wx);
 
 	/* clear any pending interrupts, may auto mask */
-	rd32(wx, WX_PX_IC);
+	rd32(wx, WX_PX_IC(0));
+	rd32(wx, WX_PX_IC(1));
 	rd32(wx, WX_PX_MISC_IC);
 	txgbe_irq_enable(wx, true);
 
