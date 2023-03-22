@@ -724,6 +724,22 @@ inno_hdmi_audio_config_set(struct inno_hdmi *hdmi, struct audio_info *audio)
 	return inno_hdmi_config_audio_aai(hdmi, audio);
 }
 
+static int inno_hdmi_audio_prepare(struct device *dev, void *data,
+				   struct hdmi_codec_daifmt *fmt,
+				   struct hdmi_codec_params *hparms)
+{
+	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
+
+	if (!hdmi->hdmi_data.sink_has_audio) {
+		dev_err(hdmi->dev, "Sink do not support audio!\n");
+		return -ENODEV;
+	}
+
+	hdmi->audio_enable = 0;
+	hdmi_modb(hdmi, HDMI_AV_MUTE, m_AUDIO_PD, v_AUDIO_PD(1));
+	return 0;
+}
+
 static int inno_hdmi_audio_hw_params(struct device *dev, void *d,
 				     struct hdmi_codec_daifmt *daifmt,
 				     struct hdmi_codec_params *params)
@@ -803,6 +819,7 @@ static int inno_hdmi_audio_get_eld(struct device *dev, void *d,
 
 static const struct hdmi_codec_ops audio_codec_ops = {
 	.hw_params = inno_hdmi_audio_hw_params,
+	.prepare = inno_hdmi_audio_prepare,
 	.audio_shutdown = inno_hdmi_audio_shutdown,
 	.mute_stream = inno_hdmi_audio_mute,
 	.get_eld = inno_hdmi_audio_get_eld,
