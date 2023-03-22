@@ -41,7 +41,7 @@ static u32 hash(struct bpf_bloom_filter *bloom, void *value,
 	return h & bloom->bitset_mask;
 }
 
-static int bloom_map_peek_elem(struct bpf_map *map, void *value)
+static long bloom_map_peek_elem(struct bpf_map *map, void *value)
 {
 	struct bpf_bloom_filter *bloom =
 		container_of(map, struct bpf_bloom_filter, map);
@@ -56,7 +56,7 @@ static int bloom_map_peek_elem(struct bpf_map *map, void *value)
 	return 0;
 }
 
-static int bloom_map_push_elem(struct bpf_map *map, void *value, u64 flags)
+static long bloom_map_push_elem(struct bpf_map *map, void *value, u64 flags)
 {
 	struct bpf_bloom_filter *bloom =
 		container_of(map, struct bpf_bloom_filter, map);
@@ -73,12 +73,12 @@ static int bloom_map_push_elem(struct bpf_map *map, void *value, u64 flags)
 	return 0;
 }
 
-static int bloom_map_pop_elem(struct bpf_map *map, void *value)
+static long bloom_map_pop_elem(struct bpf_map *map, void *value)
 {
 	return -EOPNOTSUPP;
 }
 
-static int bloom_map_delete_elem(struct bpf_map *map, void *value)
+static long bloom_map_delete_elem(struct bpf_map *map, void *value)
 {
 	return -EOPNOTSUPP;
 }
@@ -177,8 +177,8 @@ static void *bloom_map_lookup_elem(struct bpf_map *map, void *key)
 	return ERR_PTR(-EINVAL);
 }
 
-static int bloom_map_update_elem(struct bpf_map *map, void *key,
-				 void *value, u64 flags)
+static long bloom_map_update_elem(struct bpf_map *map, void *key,
+				  void *value, u64 flags)
 {
 	/* The eBPF program should use map_push_elem instead */
 	return -EINVAL;

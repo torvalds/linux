@@ -349,8 +349,8 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
 					   model, flags, tlinks, NULL);
 }
 
-static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
-					  void *value, u64 flags)
+static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
+					   void *value, u64 flags)
 {
 	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
 	const struct bpf_struct_ops *st_ops = st_map->st_ops;
@@ -524,7 +524,7 @@ unlock:
 	return err;
 }
 
-static int bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
+static long bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
 {
 	enum bpf_struct_ops_state prev_state;
 	struct bpf_struct_ops_map *st_map;

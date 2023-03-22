@@ -91,8 +91,8 @@ static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)
 	return sdata ? sdata->data : NULL;
 }
 
-static int bpf_fd_inode_storage_update_elem(struct bpf_map *map, void *key,
-					 void *value, u64 map_flags)
+static long bpf_fd_inode_storage_update_elem(struct bpf_map *map, void *key,
+					     void *value, u64 map_flags)
 {
 	struct bpf_local_storage_data *sdata;
 	struct file *f;
@@ -127,7 +127,7 @@ static int inode_storage_delete(struct inode *inode, struct bpf_map *map)
 	return 0;
 }
 
-static int bpf_fd_inode_storage_delete_elem(struct bpf_map *map, void *key)
+static long bpf_fd_inode_storage_delete_elem(struct bpf_map *map, void *key)
 {
 	struct file *f;
 	int fd, err;

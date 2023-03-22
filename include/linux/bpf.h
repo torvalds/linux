@@ -96,11 +96,11 @@ struct bpf_map_ops {
 
 	/* funcs callable from userspace and from eBPF programs */
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
-	int (*map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags);
-	int (*map_delete_elem)(struct bpf_map *map, void *key);
-	int (*map_push_elem)(struct bpf_map *map, void *value, u64 flags);
-	int (*map_pop_elem)(struct bpf_map *map, void *value);
-	int (*map_peek_elem)(struct bpf_map *map, void *value);
+	long (*map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags);
+	long (*map_delete_elem)(struct bpf_map *map, void *key);
+	long (*map_push_elem)(struct bpf_map *map, void *value, u64 flags);
+	long (*map_pop_elem)(struct bpf_map *map, void *value);
+	long (*map_peek_elem)(struct bpf_map *map, void *value);
 	void *(*map_lookup_percpu_elem)(struct bpf_map *map, void *key, u32 cpu);
 
 	/* funcs called by prog_array and perf_event_array map */
@@ -139,7 +139,7 @@ struct bpf_map_ops {
 	struct bpf_local_storage __rcu ** (*map_owner_storage_ptr)(void *owner);
 
 	/* Misc helpers.*/
-	int (*map_redirect)(struct bpf_map *map, u64 key, u64 flags);
+	long (*map_redirect)(struct bpf_map *map, u64 key, u64 flags);
 
 	/* map_meta_equal must be implemented for maps that can be
 	 * used as an inner map.  It is a runtime check to ensure
@@ -157,7 +157,7 @@ struct bpf_map_ops {
 	int (*map_set_for_each_callback_args)(struct bpf_verifier_env *env,
 					      struct bpf_func_state *caller,
 					      struct bpf_func_state *callee);
-	int (*map_for_each_callback)(struct bpf_map *map,
+	long (*map_for_each_callback)(struct bpf_map *map,
 				     bpf_callback_t callback_fn,
 				     void *callback_ctx, u64 flags);
 

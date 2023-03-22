@@ -17692,21 +17692,21 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			BUILD_BUG_ON(!__same_type(ops->map_lookup_elem,
 				     (void *(*)(struct bpf_map *map, void *key))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_delete_elem,
-				     (int (*)(struct bpf_map *map, void *key))NULL));
+				     (long (*)(struct bpf_map *map, void *key))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_update_elem,
-				     (int (*)(struct bpf_map *map, void *key, void *value,
+				     (long (*)(struct bpf_map *map, void *key, void *value,
 					      u64 flags))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_push_elem,
-				     (int (*)(struct bpf_map *map, void *value,
+				     (long (*)(struct bpf_map *map, void *value,
 					      u64 flags))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_pop_elem,
-				     (int (*)(struct bpf_map *map, void *value))NULL));
+				     (long (*)(struct bpf_map *map, void *value))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_peek_elem,
-				     (int (*)(struct bpf_map *map, void *value))NULL));
+				     (long (*)(struct bpf_map *map, void *value))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_redirect,
-				     (int (*)(struct bpf_map *map, u64 index, u64 flags))NULL));
+				     (long (*)(struct bpf_map *map, u64 index, u64 flags))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_for_each_callback,
-				     (int (*)(struct bpf_map *map,
+				     (long (*)(struct bpf_map *map,
 					      bpf_callback_t callback_fn,
 					      void *callback_ctx,
 					      u64 flags))NULL));
