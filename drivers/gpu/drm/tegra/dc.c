@@ -3266,15 +3266,10 @@ disable_pm:
 static int tegra_dc_remove(struct platform_device *pdev)
 {
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
-	int err;
 
 	host1x_client_unregister(&dc->client);
 
-	err = tegra_dc_rgb_remove(dc);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to remove RGB output: %d\n", err);
-		return err;
-	}
+	tegra_dc_rgb_remove(dc);
 
 	pm_runtime_disable(&pdev->dev);
 
