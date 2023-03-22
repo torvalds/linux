@@ -1177,6 +1177,7 @@
   __fdget
   fd_install
   fget
+  _find_first_and_bit
   _find_first_bit
   _find_first_zero_bit
   find_get_pid
@@ -3529,6 +3530,7 @@
   __traceiter_gpu_mem_total
   __traceiter_ipi_entry
   __traceiter_ipi_raise
+  __traceiter_irq_handler_entry
   __traceiter_mmap_lock_acquire_returned
   __traceiter_mmap_lock_released
   __traceiter_mmap_lock_start_locking
@@ -3656,6 +3658,7 @@
   __tracepoint_gpu_mem_total
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
+  __tracepoint_irq_handler_entry
   __tracepoint_mmap_lock_acquire_returned
   __tracepoint_mmap_lock_released
   __tracepoint_mmap_lock_start_locking
