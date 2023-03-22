@@ -209,7 +209,7 @@ struct ndis_80211_status_indication {
 	union {
 		__le32					media_stream_mode;
 		__le32					radio_status;
-		struct ndis_80211_auth_request		auth_request[0];
+		DECLARE_FLEX_ARRAY(struct ndis_80211_auth_request, auth_request);
 		struct ndis_80211_pmkid_cand_list	cand_list;
 	} u;
 } __packed;
