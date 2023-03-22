@@ -51,10 +51,11 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 	struct astbic *mq = dev_get_drvdata(&dev->dev);
 	struct mq_msg *msg;
 	u8 *buf = (u8 *)payload->data;
+	struct i3c_device_info info;
 	u32 status;
 
 	mutex_lock(&mq->mq_lock);
-
+	i3c_device_get_info(dev, &info);
 	msg = mq->curr;
 
 	/* first DW is IBI status */
@@ -72,7 +73,7 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 			struct i3c_priv_xfer xfers[1] = {
 				{
 					.rnw = true,
-					.len = MQ_MSGBUF_SIZE,
+					.len = info.max_read_len,
 					.data.in = msg->buf,
 				},
 			};
@@ -173,6 +174,7 @@ static int i3c_ast_bridgeic_probe(struct i3c_device *i3cdev)
 	struct astbic *astbic;
 	struct i3c_ibi_setup ibireq = {};
 	int ret, i;
+	struct i3c_device_info info;
 	void *buf;
 
 	if (dev->type == &i3c_masterdev_type)
@@ -211,6 +213,16 @@ static int i3c_ast_bridgeic_probe(struct i3c_device *i3cdev)
 	if (!astbic->kn) {
 		sysfs_remove_bin_file(&dev->kobj, &astbic->bin);
 		return -EFAULT;
+	}
+
+	i3c_device_get_info(i3cdev, &info);
+
+	ret = i3c_device_setmrl_ccc(i3cdev, &info, MQ_MSGBUF_SIZE,
+					    min(MQ_MSGBUF_SIZE, __UINT8_MAX__));
+	if (ret) {
+		ret = i3c_device_getmrl_ccc(i3cdev, &info);
+		if (ret)
+			return ret;
 	}
 
 	dev_set_drvdata(dev, astbic);
