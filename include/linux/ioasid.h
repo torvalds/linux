@@ -7,6 +7,7 @@
 #include <linux/iommu.h>
 
 typedef unsigned int ioasid_t;
+#define INVALID_IOASID ((ioasid_t)-1)
 typedef ioasid_t (*ioasid_alloc_fn_t)(ioasid_t min, ioasid_t max, void *data);
 typedef void (*ioasid_free_fn_t)(ioasid_t ioasid, void *data);
 
