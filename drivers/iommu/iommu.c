@@ -2867,11 +2867,10 @@ int iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features feat)
 EXPORT_SYMBOL_GPL(iommu_dev_disable_feature);
 
 /*
- * Changes the default domain of an iommu group that has *only* one device
+ * Changes the default domain of an iommu group
  *
  * @group: The group for which the default domain should be changed
- * @prev_dev: The device in the group (this is used to make sure that the device
- *	 hasn't changed after the caller has called this function)
+ * @dev: The first device in the group
  * @type: The type of the new default domain that gets associated with the group
  *
  * Returns 0 on success and error code on failure
@@ -2882,103 +2881,63 @@ EXPORT_SYMBOL_GPL(iommu_dev_disable_feature);
  *    Please take a closer look if intended to use for other purposes.
  */
 static int iommu_change_dev_def_domain(struct iommu_group *group,
-				       struct device *prev_dev, int type)
+				       struct device *dev, int type)
 {
+	struct __group_domain_type gtype = {NULL, 0};
 	struct iommu_domain *prev_dom;
-	struct group_device *grp_dev;
-	int ret, dev_def_dom;
-	struct device *dev;
+	int ret;
 
 	lockdep_assert_held(&group->mutex);
 
-	if (group->default_domain != group->domain) {
-		dev_err_ratelimited(prev_dev, "Group not assigned to default domain\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	/*
-	 * iommu group wasn't locked while acquiring device lock in
-	 * iommu_group_store_type(). So, make sure that the device count hasn't
-	 * changed while acquiring device lock.
-	 *
-	 * Changing default domain of an iommu group with two or more devices
-	 * isn't supported because there could be a potential deadlock. Consider
-	 * the following scenario. T1 is trying to acquire device locks of all
-	 * the devices in the group and before it could acquire all of them,
-	 * there could be another thread T2 (from different sub-system and use
-	 * case) that has already acquired some of the device locks and might be
-	 * waiting for T1 to release other device locks.
-	 */
-	if (iommu_group_device_count(group) != 1) {
-		dev_err_ratelimited(prev_dev, "Cannot change default domain: Group has more than one device\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Since group has only one device */
-	grp_dev = list_first_entry(&group->devices, struct group_device, list);
-	dev = grp_dev->dev;
-
-	if (prev_dev != dev) {
-		dev_err_ratelimited(prev_dev, "Cannot change default domain: Device has been changed\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
 	prev_dom = group->default_domain;
-	if (!prev_dom) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	dev_def_dom = iommu_get_def_domain_type(dev);
+	__iommu_group_for_each_dev(group, &gtype,
+				   probe_get_default_domain_type);
 	if (!type) {
 		/*
 		 * If the user hasn't requested any specific type of domain and
 		 * if the device supports both the domains, then default to the
 		 * domain the device was booted with
 		 */
-		type = dev_def_dom ? : iommu_def_domain_type;
-	} else if (dev_def_dom && type != dev_def_dom) {
-		dev_err_ratelimited(prev_dev, "Device cannot be in %s domain\n",
+		type = gtype.type ? : iommu_def_domain_type;
+	} else if (gtype.type && type != gtype.type) {
+		dev_err_ratelimited(dev, "Device cannot be in %s domain\n",
 				    iommu_domain_type_str(type));
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/*
 	 * Switch to a new domain only if the requested domain type is different
 	 * from the existing default domain type
 	 */
-	if (prev_dom->type == type) {
-		ret = 0;
-		goto out;
-	}
+	if (prev_dom->type == type)
+		return 0;
+
+	group->default_domain = NULL;
+	group->domain = NULL;
 
 	/* Sets group->default_domain to the newly allocated domain */
 	ret = iommu_group_alloc_default_domain(dev->bus, group, type);
 	if (ret)
-		goto out;
+		goto restore_old_domain;
 
-	ret = iommu_create_device_direct_mappings(group, dev);
+	ret = iommu_group_create_direct_mappings(group);
 	if (ret)
 		goto free_new_domain;
 
-	ret = __iommu_attach_device(group->default_domain, dev);
+	ret = __iommu_attach_group(group->default_domain, group);
 	if (ret)
 		goto free_new_domain;
 
-	group->domain = group->default_domain;
 	iommu_domain_free(prev_dom);
 
 	return 0;
 
 free_new_domain:
 	iommu_domain_free(group->default_domain);
+restore_old_domain:
 	group->default_domain = prev_dom;
 	group->domain = prev_dom;
-out:
+
 	return ret;
 }
 
