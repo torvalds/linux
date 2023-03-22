@@ -62,7 +62,7 @@ static void tosh_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 
-static struct scsi_host_template tosh_sht = {
+static const struct scsi_host_template tosh_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

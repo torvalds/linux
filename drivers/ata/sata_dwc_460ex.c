@@ -1076,7 +1076,7 @@ static void sata_dwc_dev_select(struct ata_port *ap, unsigned int device)
 /*
  * scsi mid-layer and libata interface structures
  */
-static struct scsi_host_template sata_dwc_sht = {
+static const struct scsi_host_template sata_dwc_sht = {
 	ATA_NCQ_SHT(DRV_NAME),
 	/*
 	 * test-only: Currently this driver doesn't handle NCQ

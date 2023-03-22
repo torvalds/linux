@@ -58,7 +58,7 @@ struct octeon_cf_port {
 	u64 dma_base;
 };
 
-static struct scsi_host_template octeon_cf_sht = {
+static const struct scsi_host_template octeon_cf_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

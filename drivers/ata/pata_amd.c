@@ -388,7 +388,7 @@ static void nv_host_stop(struct ata_host *host)
 	pci_write_config_dword(to_pci_dev(host->dev), 0x60, udma);
 }
 
-static struct scsi_host_template amd_sht = {
+static const struct scsi_host_template amd_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

@@ -251,7 +251,7 @@ static void atiixp_bmdma_stop(struct ata_queued_cmd *qc)
 	ata_bmdma_stop(qc);
 }
 
-static struct scsi_host_template atiixp_sht = {
+static const struct scsi_host_template atiixp_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= LIBATA_DUMB_MAX_PRD,
 	.dma_boundary		= ATA_DMA_BOUNDARY,

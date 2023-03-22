@@ -337,7 +337,7 @@ static unsigned int hpt3x2n_qc_issue(struct ata_queued_cmd *qc)
 	return ata_bmdma_qc_issue(qc);
 }
 
-static struct scsi_host_template hpt3x2n_sht = {
+static const struct scsi_host_template hpt3x2n_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

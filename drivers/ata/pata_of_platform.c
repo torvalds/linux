@@ -15,7 +15,7 @@
 
 #define DRV_NAME "pata_of_platform"
 
-static struct scsi_host_template pata_platform_sht = {
+static const struct scsi_host_template pata_platform_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
